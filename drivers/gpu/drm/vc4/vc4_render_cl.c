@@ -24,6 +24,10 @@
 /**
  * DOC: Render command list generation
  *
+ * In the V3D hardware, render command lists are what load and store
+ * tiles of a framebuffer and optionally call out to binner-generated
+ * command lists to do the 3D drawing for that tile.
+ *
  * In the VC4 driver, render command list generation is performed by the
  * kernel instead of userspace.  We do this because validating a
  * user-submitted command list is hard to get right and has high CPU overhead,
@@ -178,8 +182,7 @@ static void emit_tile(struct vc4_exec_info *exec,
 
 	if (has_bin) {
 		rcl_u8(setup, VC4_PACKET_BRANCH_TO_SUB_LIST);
-		rcl_u32(setup, (exec->tile_bo->paddr +
-				exec->tile_alloc_offset +
+		rcl_u32(setup, (exec->tile_alloc_offset +
 				(y * exec->bin_tiles_x + x) * 32));
 	}
 
@@ -461,7 +464,7 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 		}
 
 		ret = vc4_full_res_bounds_check(exec, *obj, surf);
-		if (!ret)
+		if (ret)
 			return ret;
 
 		return 0;

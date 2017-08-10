@@ -460,6 +460,13 @@ config BACKLIGHT_BD6107
 	help
 	  If you have a Rohm BD6107 say Y to enable the backlight driver.
 
+config BACKLIGHT_ARCXCNN
+	tristate "Backlight driver for the Arctic Sands ARCxCnnnn family"
+	depends on I2C
+	help
+	  If you have an ARCxCnnnn family backlight say Y to enable
+	  the backlight driver.
+
 endif # BACKLIGHT_CLASS_DEVICE
 
 endif # BACKLIGHT_LCD_SUPPORT

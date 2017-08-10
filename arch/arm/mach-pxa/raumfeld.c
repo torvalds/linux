@@ -26,7 +26,6 @@
 #include <linux/smsc911x.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
-#include <linux/input/eeti_ts.h>
 #include <linux/leds.h>
 #include <linux/w1-gpio.h>
 #include <linux/sched.h>
@@ -965,15 +964,28 @@ static struct i2c_board_info raumfeld_connector_i2c_board_info __initdata = {
 	.addr	= 0x48,
 };
 
-static struct eeti_ts_platform_data eeti_ts_pdata = {
-	.irq_active_high = 1,
-	.irq_gpio = GPIO_TOUCH_IRQ,
+static struct gpiod_lookup_table raumfeld_controller_gpios_table = {
+	.dev_id = "0-000a",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa",
+			    GPIO_TOUCH_IRQ, "attn", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
+static const struct resource raumfeld_controller_resources[] __initconst = {
+	{
+		.start	= PXA_GPIO_TO_IRQ(GPIO_TOUCH_IRQ),
+		.end	= PXA_GPIO_TO_IRQ(GPIO_TOUCH_IRQ),
+		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_HIGH,
+	},
 };
 
 static struct i2c_board_info raumfeld_controller_i2c_board_info __initdata = {
 	.type	= "eeti_ts",
 	.addr	= 0x0a,
-	.platform_data = &eeti_ts_pdata,
+	.resources = raumfeld_controller_resources,
+	.num_resources = ARRAY_SIZE(raumfeld_controller_resources),
 };
 
 static struct platform_device *raumfeld_common_devices[] = {
@@ -1064,6 +1076,8 @@ static void __init __maybe_unused raumfeld_controller_init(void)
 	platform_device_register(&rotary_encoder_device);
 
 	spi_register_board_info(ARRAY_AND_SIZE(controller_spi_devices));
+
+	gpiod_add_lookup_table(&raumfeld_controller_gpios_table);
 	i2c_register_board_info(0, &raumfeld_controller_i2c_board_info, 1);
 
 	ret = gpio_request(GPIO_SHUTDOWN_BATT, "battery shutdown");

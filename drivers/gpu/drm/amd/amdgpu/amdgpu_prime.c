@@ -113,7 +113,7 @@ void amdgpu_gem_prime_unpin(struct drm_gem_object *obj)
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
 	int ret = 0;
 
-	ret = amdgpu_bo_reserve(bo, false);
+	ret = amdgpu_bo_reserve(bo, true);
 	if (unlikely(ret != 0))
 		return;
 

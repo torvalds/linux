@@ -100,6 +100,54 @@ static int devm_usb_phy_match(struct device *dev, void *res, void *match_data)
 	return *phy == match_data;
 }
 
+static int usb_add_extcon(struct usb_phy *x)
+{
+	int ret;
+
+	if (of_property_read_bool(x->dev->of_node, "extcon")) {
+		x->edev = extcon_get_edev_by_phandle(x->dev, 0);
+		if (IS_ERR(x->edev))
+			return PTR_ERR(x->edev);
+
+		x->id_edev = extcon_get_edev_by_phandle(x->dev, 1);
+		if (IS_ERR(x->id_edev)) {
+			x->id_edev = NULL;
+			dev_info(x->dev, "No separate ID extcon device\n");
+		}
+
+		if (x->vbus_nb.notifier_call) {
+			ret = devm_extcon_register_notifier(x->dev, x->edev,
+							    EXTCON_USB,
+							    &x->vbus_nb);
+			if (ret < 0) {
+				dev_err(x->dev,
+					"register VBUS notifier failed\n");
+				return ret;
+			}
+		}
+
+		if (x->id_nb.notifier_call) {
+			struct extcon_dev *id_ext;
+
+			if (x->id_edev)
+				id_ext = x->id_edev;
+			else
+				id_ext = x->edev;
+
+			ret = devm_extcon_register_notifier(x->dev, id_ext,
+							    EXTCON_USB_HOST,
+							    &x->id_nb);
+			if (ret < 0) {
+				dev_err(x->dev,
+					"register ID notifier failed\n");
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /**
  * devm_usb_get_phy - find the USB PHY
  * @dev - device that requests this phy
@@ -388,6 +436,10 @@ int usb_add_phy(struct usb_phy *x, enum usb_phy_type type)
 		return -EINVAL;
 	}
 
+	ret = usb_add_extcon(x);
+	if (ret)
+		return ret;
+
 	ATOMIC_INIT_NOTIFIER_HEAD(&x->notifier);
 
 	spin_lock_irqsave(&phy_lock, flags);
@@ -422,11 +474,16 @@ int usb_add_phy_dev(struct usb_phy *x)
 {
 	struct usb_phy_bind *phy_bind;
 	unsigned long flags;
+	int ret;
 
 	if (!x->dev) {
 		dev_err(x->dev, "no device provided for PHY\n");
 		return -EINVAL;
 	}
+
+	ret = usb_add_extcon(x);
+	if (ret)
+		return ret;
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&x->notifier);
 

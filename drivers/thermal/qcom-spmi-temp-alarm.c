@@ -200,7 +200,7 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	struct qpnp_tm_chip *chip;
 	struct device_node *node;
 	u8 type, subtype;
-	u32 res[2];
+	u32 res;
 	int ret, irq;
 
 	node = pdev->dev.of_node;
@@ -215,7 +215,7 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	if (!chip->map)
 		return -ENXIO;
 
-	ret = of_property_read_u32_array(node, "reg", res, 2);
+	ret = of_property_read_u32(node, "reg", &res);
 	if (ret < 0)
 		return ret;
 
@@ -228,7 +228,7 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	if (PTR_ERR(chip->adc) == -EPROBE_DEFER)
 		return PTR_ERR(chip->adc);
 
-	chip->base = res[0];
+	chip->base = res;
 
 	ret = qpnp_tm_read(chip, QPNP_TM_REG_TYPE, &type);
 	if (ret < 0) {

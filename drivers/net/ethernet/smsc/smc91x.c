@@ -602,7 +602,8 @@ static void smc_hardware_send_pkt(unsigned long data)
 	SMC_PUSH_DATA(lp, buf, len & ~1);
 
 	/* Send final ctl word with the last byte if there is one */
-	SMC_outw(((len & 1) ? (0x2000 | buf[len-1]) : 0), ioaddr, DATA_REG(lp));
+	SMC_outw(lp, ((len & 1) ? (0x2000 | buf[len - 1]) : 0), ioaddr,
+		 DATA_REG(lp));
 
 	/*
 	 * If THROTTLE_TX_PKTS is set, we stop the queue here. This will
@@ -1534,58 +1535,58 @@ static int smc_close(struct net_device *dev)
  * Ethtool support
  */
 static int
-smc_ethtool_getsettings(struct net_device *dev, struct ethtool_cmd *cmd)
+smc_ethtool_get_link_ksettings(struct net_device *dev,
+			       struct ethtool_link_ksettings *cmd)
 {
 	struct smc_local *lp = netdev_priv(dev);
-	int ret;
-
-	cmd->maxtxpkt = 1;
-	cmd->maxrxpkt = 1;
 
 	if (lp->phy_type != 0) {
 		spin_lock_irq(&lp->lock);
-		ret = mii_ethtool_gset(&lp->mii, cmd);
+		mii_ethtool_get_link_ksettings(&lp->mii, cmd);
 		spin_unlock_irq(&lp->lock);
 	} else {
-		cmd->supported = SUPPORTED_10baseT_Half |
+		u32 supported = SUPPORTED_10baseT_Half |
 				 SUPPORTED_10baseT_Full |
 				 SUPPORTED_TP | SUPPORTED_AUI;
 
 		if (lp->ctl_rspeed == 10)
-			ethtool_cmd_speed_set(cmd, SPEED_10);
+			cmd->base.speed = SPEED_10;
 		else if (lp->ctl_rspeed == 100)
-			ethtool_cmd_speed_set(cmd, SPEED_100);
+			cmd->base.speed = SPEED_100;
 
-		cmd->autoneg = AUTONEG_DISABLE;
-		cmd->transceiver = XCVR_INTERNAL;
-		cmd->port = 0;
-		cmd->duplex = lp->tcr_cur_mode & TCR_SWFDUP ? DUPLEX_FULL : DUPLEX_HALF;
+		cmd->base.autoneg = AUTONEG_DISABLE;
+		cmd->base.port = 0;
+		cmd->base.duplex = lp->tcr_cur_mode & TCR_SWFDUP ?
+			DUPLEX_FULL : DUPLEX_HALF;
 
-		ret = 0;
+		ethtool_convert_legacy_u32_to_link_mode(
+			cmd->link_modes.supported, supported);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int
-smc_ethtool_setsettings(struct net_device *dev, struct ethtool_cmd *cmd)
+smc_ethtool_set_link_ksettings(struct net_device *dev,
+			       const struct ethtool_link_ksettings *cmd)
 {
 	struct smc_local *lp = netdev_priv(dev);
 	int ret;
 
 	if (lp->phy_type != 0) {
 		spin_lock_irq(&lp->lock);
-		ret = mii_ethtool_sset(&lp->mii, cmd);
+		ret = mii_ethtool_set_link_ksettings(&lp->mii, cmd);
 		spin_unlock_irq(&lp->lock);
 	} else {
-		if (cmd->autoneg != AUTONEG_DISABLE ||
-		    cmd->speed != SPEED_10 ||
-		    (cmd->duplex != DUPLEX_HALF && cmd->duplex != DUPLEX_FULL) ||
-		    (cmd->port != PORT_TP && cmd->port != PORT_AUI))
+		if (cmd->base.autoneg != AUTONEG_DISABLE ||
+		    cmd->base.speed != SPEED_10 ||
+		    (cmd->base.duplex != DUPLEX_HALF &&
+		     cmd->base.duplex != DUPLEX_FULL) ||
+		    (cmd->base.port != PORT_TP && cmd->base.port != PORT_AUI))
 			return -EINVAL;
 
-//		lp->port = cmd->port;
-		lp->ctl_rfduplx = cmd->duplex == DUPLEX_FULL;
+//		lp->port = cmd->base.port;
+		lp->ctl_rfduplx = cmd->base.duplex == DUPLEX_FULL;
 
 //		if (netif_running(dev))
 //			smc_set_port(dev);
@@ -1743,8 +1744,6 @@ static int smc_ethtool_seteeprom(struct net_device *dev,
 
 
 static const struct ethtool_ops smc_ethtool_ops = {
-	.get_settings	= smc_ethtool_getsettings,
-	.set_settings	= smc_ethtool_setsettings,
 	.get_drvinfo	= smc_ethtool_getdrvinfo,
 
 	.get_msglevel	= smc_ethtool_getmsglevel,
@@ -1754,6 +1753,8 @@ static const struct ethtool_ops smc_ethtool_ops = {
 	.get_eeprom_len = smc_ethtool_geteeprom_len,
 	.get_eeprom	= smc_ethtool_geteeprom,
 	.set_eeprom	= smc_ethtool_seteeprom,
+	.get_link_ksettings	= smc_ethtool_get_link_ksettings,
+	.set_link_ksettings	= smc_ethtool_set_link_ksettings,
 };
 
 static const struct net_device_ops smc_netdev_ops = {
@@ -1762,7 +1763,6 @@ static const struct net_device_ops smc_netdev_ops = {
 	.ndo_start_xmit		= smc_hard_start_xmit,
 	.ndo_tx_timeout		= smc_timeout,
 	.ndo_set_rx_mode	= smc_set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2326,6 +2326,8 @@ static int smc_drv_probe(struct platform_device *pdev)
 		if (!device_property_read_u32(&pdev->dev, "reg-shift",
 					      &val))
 			lp->io_shift = val;
+		lp->cfg.pxa_u16_align4 =
+			device_property_read_bool(&pdev->dev, "pxa-u16-align4");
 	}
 #endif
 
@@ -2483,7 +2485,7 @@ static int smc_drv_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops smc_drv_pm_ops = {
+static const struct dev_pm_ops smc_drv_pm_ops = {
 	.suspend	= smc_drv_suspend,
 	.resume		= smc_drv_resume,
 };

@@ -250,7 +250,7 @@ static void toneport_start_pcm(unsigned long arg)
 }
 
 /* control definition */
-static struct snd_kcontrol_new toneport_control_monitor = {
+static const struct snd_kcontrol_new toneport_control_monitor = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Monitor Playback Volume",
 	.index = 0,
@@ -261,7 +261,7 @@ static struct snd_kcontrol_new toneport_control_monitor = {
 };
 
 /* source selector definition */
-static struct snd_kcontrol_new toneport_control_source = {
+static const struct snd_kcontrol_new toneport_control_source = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Capture Source",
 	.index = 0,

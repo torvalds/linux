@@ -18,7 +18,6 @@ nouveau_debugfs(struct drm_device *dev)
 }
 
 extern int  nouveau_drm_debugfs_init(struct drm_minor *);
-extern void nouveau_drm_debugfs_cleanup(struct drm_minor *);
 extern int  nouveau_debugfs_init(struct nouveau_drm *);
 extern void nouveau_debugfs_fini(struct nouveau_drm *);
 #else
@@ -26,11 +25,6 @@ static inline int
 nouveau_drm_debugfs_init(struct drm_minor *minor)
 {
        return 0;
-}
-
-static inline void
-nouveau_drm_debugfs_cleanup(struct drm_minor *minor)
-{
 }
 
 static inline int

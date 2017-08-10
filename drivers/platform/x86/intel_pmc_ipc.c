@@ -32,7 +32,10 @@
 #include <linux/notifier.h>
 #include <linux/suspend.h>
 #include <linux/acpi.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 #include <asm/intel_pmc_ipc.h>
+
 #include <linux/platform_data/itco_wdt.h>
 
 /*
@@ -54,6 +57,14 @@
 #define IPC_WRITE_BUFFER	0x80
 #define IPC_READ_BUFFER		0x90
 
+/* Residency with clock rate at 19.2MHz to usecs */
+#define S0IX_RESIDENCY_IN_USECS(d, s)		\
+({						\
+	u64 result = 10ull * ((d) + (s));	\
+	do_div(result, 192);			\
+	result;					\
+})
+
 /*
  * 16-byte buffer for sending data associated with IPC command.
  */
@@ -67,8 +78,8 @@
 /* exported resources from IFWI */
 #define PLAT_RESOURCE_IPC_INDEX		0
 #define PLAT_RESOURCE_IPC_SIZE		0x1000
-#define PLAT_RESOURCE_GCR_OFFSET	0x1008
-#define PLAT_RESOURCE_GCR_SIZE		0x4
+#define PLAT_RESOURCE_GCR_OFFSET	0x1000
+#define PLAT_RESOURCE_GCR_SIZE		0x1000
 #define PLAT_RESOURCE_BIOS_DATA_INDEX	1
 #define PLAT_RESOURCE_BIOS_IFACE_INDEX	2
 #define PLAT_RESOURCE_TELEM_SSRAM_INDEX	3
@@ -97,7 +108,12 @@
 #define TCO_PMC_OFFSET			0x8
 #define TCO_PMC_SIZE			0x4
 
-static const int iTCO_version = 3;
+/* PMC register bit definitions */
+
+/* PMC_CFG_REG bit masks */
+#define PMC_CFG_NO_REBOOT_MASK		(1 << 4)
+#define PMC_CFG_NO_REBOOT_EN		(1 << 4)
+#define PMC_CFG_NO_REBOOT_DIS		(0 << 4)
 
 static struct intel_pmc_ipc_dev {
 	struct device *dev;
@@ -113,8 +129,8 @@ static struct intel_pmc_ipc_dev {
 	struct platform_device *tco_dev;
 
 	/* gcr */
-	resource_size_t gcr_base;
-	int gcr_size;
+	void __iomem *gcr_mem_base;
+	bool has_gcr_regs;
 
 	/* punit */
 	struct platform_device *punit_dev;
@@ -170,7 +186,7 @@ static inline void ipc_data_writel(u32 data, u32 offset)
 	writel(data, ipcdev.ipc_base + IPC_WRITE_BUFFER + offset);
 }
 
-static inline u8 ipc_data_readb(u32 offset)
+static inline u8 __maybe_unused ipc_data_readb(u32 offset)
 {
 	return readb(ipcdev.ipc_base + IPC_READ_BUFFER + offset);
 }
@@ -178,6 +194,132 @@ static inline u8 ipc_data_readb(u32 offset)
 static inline u32 ipc_data_readl(u32 offset)
 {
 	return readl(ipcdev.ipc_base + IPC_READ_BUFFER + offset);
+}
+
+static inline u64 gcr_data_readq(u32 offset)
+{
+	return readq(ipcdev.gcr_mem_base + offset);
+}
+
+static inline int is_gcr_valid(u32 offset)
+{
+	if (!ipcdev.has_gcr_regs)
+		return -EACCES;
+
+	if (offset > PLAT_RESOURCE_GCR_SIZE)
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
+ * intel_pmc_gcr_read() - Read PMC GCR register
+ * @offset:	offset of GCR register from GCR address base
+ * @data:	data pointer for storing the register output
+ *
+ * Reads the PMC GCR register of given offset.
+ *
+ * Return:	negative value on error or 0 on success.
+ */
+int intel_pmc_gcr_read(u32 offset, u32 *data)
+{
+	int ret;
+
+	mutex_lock(&ipclock);
+
+	ret = is_gcr_valid(offset);
+	if (ret < 0) {
+		mutex_unlock(&ipclock);
+		return ret;
+	}
+
+	*data = readl(ipcdev.gcr_mem_base + offset);
+
+	mutex_unlock(&ipclock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(intel_pmc_gcr_read);
+
+/**
+ * intel_pmc_gcr_write() - Write PMC GCR register
+ * @offset:	offset of GCR register from GCR address base
+ * @data:	register update value
+ *
+ * Writes the PMC GCR register of given offset with given
+ * value.
+ *
+ * Return:	negative value on error or 0 on success.
+ */
+int intel_pmc_gcr_write(u32 offset, u32 data)
+{
+	int ret;
+
+	mutex_lock(&ipclock);
+
+	ret = is_gcr_valid(offset);
+	if (ret < 0) {
+		mutex_unlock(&ipclock);
+		return ret;
+	}
+
+	writel(data, ipcdev.gcr_mem_base + offset);
+
+	mutex_unlock(&ipclock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(intel_pmc_gcr_write);
+
+/**
+ * intel_pmc_gcr_update() - Update PMC GCR register bits
+ * @offset:	offset of GCR register from GCR address base
+ * @mask:	bit mask for update operation
+ * @val:	update value
+ *
+ * Updates the bits of given GCR register as specified by
+ * @mask and @val.
+ *
+ * Return:	negative value on error or 0 on success.
+ */
+int intel_pmc_gcr_update(u32 offset, u32 mask, u32 val)
+{
+	u32 new_val;
+	int ret = 0;
+
+	mutex_lock(&ipclock);
+
+	ret = is_gcr_valid(offset);
+	if (ret < 0)
+		goto gcr_ipc_unlock;
+
+	new_val = readl(ipcdev.gcr_mem_base + offset);
+
+	new_val &= ~mask;
+	new_val |= val & mask;
+
+	writel(new_val, ipcdev.gcr_mem_base + offset);
+
+	new_val = readl(ipcdev.gcr_mem_base + offset);
+
+	/* check whether the bit update is successful */
+	if ((new_val & mask) != (val & mask)) {
+		ret = -EIO;
+		goto gcr_ipc_unlock;
+	}
+
+gcr_ipc_unlock:
+	mutex_unlock(&ipclock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(intel_pmc_gcr_update);
+
+static int update_no_reboot_bit(void *priv, bool set)
+{
+	u32 value = set ? PMC_CFG_NO_REBOOT_EN : PMC_CFG_NO_REBOOT_DIS;
+
+	return intel_pmc_gcr_update(PMC_GCR_PMC_CFG_REG,
+				    PMC_CFG_NO_REBOOT_MASK, value);
 }
 
 static int intel_pmc_ipc_check_status(void)
@@ -389,6 +531,7 @@ static void ipc_pci_remove(struct pci_dev *pdev)
 static const struct pci_device_id ipc_pci_ids[] = {
 	{PCI_VDEVICE(INTEL, 0x0a94), 0},
 	{PCI_VDEVICE(INTEL, 0x1a94), 0},
+	{PCI_VDEVICE(INTEL, 0x5a94), 0},
 	{ 0,}
 };
 MODULE_DEVICE_TABLE(pci, ipc_pci_ids);
@@ -496,15 +639,13 @@ static struct resource tco_res[] = {
 	{
 		.flags = IORESOURCE_IO,
 	},
-	/* GCS */
-	{
-		.flags = IORESOURCE_MEM,
-	},
 };
 
 static struct itco_wdt_platform_data tco_info = {
 	.name = "Apollo Lake SoC",
 	.version = 5,
+	.no_reboot_priv = &ipcdev,
+	.update_no_reboot_bit = update_no_reboot_bit,
 };
 
 #define TELEMETRY_RESOURCE_PUNIT_SSRAM	0
@@ -560,10 +701,6 @@ static int ipc_create_tco_device(void)
 	res = tco_res + TCO_RESOURCE_SMI_EN_IO;
 	res->start = ipcdev.acpi_io_base + SMI_EN_OFFSET;
 	res->end = res->start + SMI_EN_SIZE - 1;
-
-	res = tco_res + TCO_RESOURCE_GCR_MEM;
-	res->start = ipcdev.gcr_base + TCO_PMC_OFFSET;
-	res->end = res->start + TCO_PMC_SIZE - 1;
 
 	pdev = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(pdev))
@@ -712,7 +849,8 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get ipc resource\n");
 		return -ENXIO;
 	}
-	size = PLAT_RESOURCE_IPC_SIZE;
+	size = PLAT_RESOURCE_IPC_SIZE + PLAT_RESOURCE_GCR_SIZE;
+
 	if (!request_mem_region(res->start, size, pdev->name)) {
 		dev_err(&pdev->dev, "Failed to request ipc resource\n");
 		return -EBUSY;
@@ -725,8 +863,7 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 	}
 	ipcdev.ipc_base = addr;
 
-	ipcdev.gcr_base = res->start + PLAT_RESOURCE_GCR_OFFSET;
-	ipcdev.gcr_size = PLAT_RESOURCE_GCR_SIZE;
+	ipcdev.gcr_mem_base = addr + PLAT_RESOURCE_GCR_OFFSET;
 	dev_info(&pdev->dev, "ipc res: %pR\n", res);
 
 	ipcdev.telem_res_inval = 0;
@@ -747,6 +884,28 @@ static int ipc_plat_get_res(struct platform_device *pdev)
 
 	return 0;
 }
+
+/**
+ * intel_pmc_s0ix_counter_read() - Read S0ix residency.
+ * @data: Out param that contains current S0ix residency count.
+ *
+ * Return: an error code or 0 on success.
+ */
+int intel_pmc_s0ix_counter_read(u64 *data)
+{
+	u64 deep, shlw;
+
+	if (!ipcdev.has_gcr_regs)
+		return -EACCES;
+
+	deep = gcr_data_readq(PMC_GCR_TELEM_DEEP_S0IX_REG);
+	shlw = gcr_data_readq(PMC_GCR_TELEM_SHLW_S0IX_REG);
+
+	*data = S0IX_RESIDENCY_IN_USECS(deep, shlw);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(intel_pmc_s0ix_counter_read);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ipc_acpi_ids[] = {
@@ -797,6 +956,8 @@ static int ipc_plat_probe(struct platform_device *pdev)
 		goto err_sys;
 	}
 
+	ipcdev.has_gcr_regs = true;
+
 	return 0;
 err_sys:
 	free_irq(ipcdev.irq, &ipcdev);
@@ -808,8 +969,11 @@ err_device:
 	iounmap(ipcdev.ipc_base);
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_IPC_INDEX);
-	if (res)
-		release_mem_region(res->start, PLAT_RESOURCE_IPC_SIZE);
+	if (res) {
+		release_mem_region(res->start,
+				   PLAT_RESOURCE_IPC_SIZE +
+				   PLAT_RESOURCE_GCR_SIZE);
+	}
 	return ret;
 }
 
@@ -825,8 +989,11 @@ static int ipc_plat_remove(struct platform_device *pdev)
 	iounmap(ipcdev.ipc_base);
 	res = platform_get_resource(pdev, IORESOURCE_MEM,
 				    PLAT_RESOURCE_IPC_INDEX);
-	if (res)
-		release_mem_region(res->start, PLAT_RESOURCE_IPC_SIZE);
+	if (res) {
+		release_mem_region(res->start,
+				   PLAT_RESOURCE_IPC_SIZE +
+				   PLAT_RESOURCE_GCR_SIZE);
+	}
 	ipcdev.dev = NULL;
 	return 0;
 }

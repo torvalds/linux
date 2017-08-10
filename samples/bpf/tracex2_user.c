@@ -4,8 +4,11 @@
 #include <signal.h>
 #include <linux/bpf.h>
 #include <string.h>
+#include <sys/resource.h>
+
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "bpf_util.h"
 
 #define MAX_INDEX	64
 #define MAX_STARS	38
@@ -36,8 +39,8 @@ struct hist_key {
 
 static void print_hist_for_pid(int fd, void *task)
 {
+	unsigned int nr_cpus = bpf_num_possible_cpus();
 	struct hist_key key = {}, next_key;
-	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 	long values[nr_cpus];
 	char starstr[MAX_STARS];
 	long value;
@@ -46,12 +49,12 @@ static void print_hist_for_pid(int fd, void *task)
 	long max_value = 0;
 	int i, ind;
 
-	while (bpf_get_next_key(fd, &key, &next_key) == 0) {
+	while (bpf_map_get_next_key(fd, &key, &next_key) == 0) {
 		if (memcmp(&next_key, task, SIZE)) {
 			key = next_key;
 			continue;
 		}
-		bpf_lookup_elem(fd, &next_key, values);
+		bpf_map_lookup_elem(fd, &next_key, values);
 		value = 0;
 		for (i = 0; i < nr_cpus; i++)
 			value += values[i];
@@ -81,7 +84,7 @@ static void print_hist(int fd)
 	int task_cnt = 0;
 	int i;
 
-	while (bpf_get_next_key(fd, &key, &next_key) == 0) {
+	while (bpf_map_get_next_key(fd, &key, &next_key) == 0) {
 		int found = 0;
 
 		for (i = 0; i < task_cnt; i++)
@@ -110,6 +113,7 @@ static void int_exit(int sig)
 
 int main(int ac, char **argv)
 {
+	struct rlimit r = {1024*1024, RLIM_INFINITY};
 	char filename[256];
 	long key, next_key, value;
 	FILE *f;
@@ -117,7 +121,13 @@ int main(int ac, char **argv)
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
+		return 1;
+	}
+
 	signal(SIGINT, int_exit);
+	signal(SIGTERM, int_exit);
 
 	/* start 'ping' in the background to have some kfree_skb events */
 	f = popen("ping -c5 localhost", "r");
@@ -134,8 +144,8 @@ int main(int ac, char **argv)
 
 	for (i = 0; i < 5; i++) {
 		key = 0;
-		while (bpf_get_next_key(map_fd[0], &key, &next_key) == 0) {
-			bpf_lookup_elem(map_fd[0], &next_key, &value);
+		while (bpf_map_get_next_key(map_fd[0], &key, &next_key) == 0) {
+			bpf_map_lookup_elem(map_fd[0], &next_key, &value);
 			printf("location 0x%lx count %ld\n", next_key, value);
 			key = next_key;
 		}

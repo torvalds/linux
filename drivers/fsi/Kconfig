@@ -1,0 +1,38 @@
+#
+# FSI subsystem
+#
+
+menu "FSI support"
+
+config FSI
+	tristate "FSI support"
+	select CRC4
+	---help---
+	  FSI - the FRU Support Interface - is a simple bus for low-level
+	  access to POWER-based hardware.
+
+if FSI
+
+config FSI_MASTER_GPIO
+	tristate "GPIO-based FSI master"
+	depends on GPIOLIB
+	select CRC4
+	---help---
+	This option enables a FSI master driver using GPIO lines.
+
+config FSI_MASTER_HUB
+	tristate "FSI hub master"
+	---help---
+	This option enables a FSI hub master driver.  Hub is a type of FSI
+	master that is connected to the upstream master via a slave.  Hubs
+	allow chaining of FSI links to an arbitrary depth.  This allows for
+	a high target device fanout.
+
+config FSI_SCOM
+	tristate "SCOM FSI client device driver"
+	---help---
+	This option enables an FSI based SCOM device driver.
+
+endif
+
+endmenu

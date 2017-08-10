@@ -30,7 +30,7 @@ if USB_XHCI_HCD
 
 config USB_XHCI_PCI
        tristate
-       depends on PCI
+       depends on USB_PCI
        default y
 
 config USB_XHCI_PLATFORM
@@ -45,9 +45,9 @@ config USB_XHCI_PLATFORM
 	  If unsure, say N.
 
 config USB_XHCI_MTK
-	tristate "xHCI support for Mediatek MT65xx"
+	tristate "xHCI support for Mediatek MT65xx/MT7621"
 	select MFD_SYSCON
-	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on (MIPS && SOC_MT7621) || ARCH_MEDIATEK || COMPILE_TEST
 	---help---
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in Mediatek MT65xx SoCs.
@@ -139,7 +139,7 @@ if USB_EHCI_HCD
 
 config USB_EHCI_PCI
 	tristate
-	depends on PCI
+	depends on USB_PCI
 	default y
 
 config USB_EHCI_HCD_PMC_MSP
@@ -188,7 +188,7 @@ config USB_EHCI_HCD_OMAP
 
 config USB_EHCI_HCD_ORION
 	tristate  "Support for Marvell EBU on-chip EHCI USB controller"
-	depends on USB_EHCI_HCD && PLAT_ORION
+	depends on USB_EHCI_HCD && (PLAT_ORION || ARCH_MVEBU)
 	default y
 	---help---
 	  Enables support for the on-chip EHCI controller on Marvell's
@@ -473,15 +473,20 @@ config USB_OHCI_HCD_AT91
 config USB_OHCI_HCD_OMAP3
 	tristate "OHCI support for OMAP3 and later chips"
 	depends on (ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5)
+	select USB_OHCI_HCD_PLATFORM
 	default y
-	---help---
+	help
+	  This option is deprecated now and the driver was removed, use
+	  USB_OHCI_HCD_PLATFORM instead.
+
 	  Enables support for the on-chip OHCI controller on
 	  OMAP3 and later chips.
 
 config USB_OHCI_HCD_DAVINCI
-	bool "OHCI support for TI DaVinci DA8xx"
+	tristate "OHCI support for TI DaVinci DA8xx"
 	depends on ARCH_DAVINCI_DA8XX
-	depends on USB_OHCI_HCD=y
+	depends on USB_OHCI_HCD
+	select PHY_DA8XX_USB
 	default y
 	help
 	  Enables support for the DaVinci DA8xx integrated OHCI
@@ -524,7 +529,7 @@ config USB_OHCI_HCD_PPC_OF
 
 config USB_OHCI_HCD_PCI
 	tristate "OHCI support for PCI-bus USB controllers"
-	depends on PCI
+	depends on USB_PCI
 	default y
 	select USB_OHCI_LITTLE_ENDIAN
 	---help---
@@ -605,7 +610,7 @@ endif # USB_OHCI_HCD
 
 config USB_UHCI_HCD
 	tristate "UHCI HCD (most Intel and VIA) support"
-	depends on PCI || USB_UHCI_SUPPORT_NON_PCI_HC
+	depends on USB_PCI || USB_UHCI_SUPPORT_NON_PCI_HC
 	---help---
 	  The Universal Host Controller Interface is a standard by Intel for
 	  accessing the USB hardware in the PC (which is also called the USB
@@ -626,7 +631,11 @@ config USB_UHCI_SUPPORT_NON_PCI_HC
 
 config USB_UHCI_PLATFORM
 	bool
-	default y if ARCH_VT8500
+	default y if (ARCH_VT8500 || ARCH_ASPEED)
+
+config USB_UHCI_ASPEED
+       bool
+       default y if ARCH_ASPEED
 
 config USB_UHCI_BIG_ENDIAN_MMIO
 	bool
@@ -738,7 +747,7 @@ config USB_RENESAS_USBHS_HCD
 
 config USB_WHCI_HCD
 	tristate "Wireless USB Host Controller Interface (WHCI) driver"
-	depends on PCI && USB && UWB
+	depends on USB_PCI && USB && UWB
 	select USB_WUSB
 	select UWB_WHCI
 	help

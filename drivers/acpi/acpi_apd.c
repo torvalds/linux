@@ -77,6 +77,11 @@ static const struct apd_device_desc cz_i2c_desc = {
 	.fixed_clk_rate = 133000000,
 };
 
+static const struct apd_device_desc wt_i2c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 150000000,
+};
+
 static struct property_entry uart_properties[] = {
 	PROPERTY_ENTRY_U32("reg-io-width", 4),
 	PROPERTY_ENTRY_U32("reg-shift", 2),
@@ -100,6 +105,16 @@ static const struct apd_device_desc xgene_i2c_desc = {
 static const struct apd_device_desc vulcan_spi_desc = {
 	.setup = acpi_apd_setup,
 	.fixed_clk_rate = 133000000,
+};
+
+static const struct apd_device_desc hip07_i2c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 200000000,
+};
+
+static const struct apd_device_desc hip08_i2c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 250000000,
 };
 #endif
 
@@ -156,7 +171,7 @@ static const struct acpi_device_id acpi_apd_device_ids[] = {
 	/* Generic apd devices */
 #ifdef CONFIG_X86_AMD_PLATFORM_DEVICE
 	{ "AMD0010", APD_ADDR(cz_i2c_desc) },
-	{ "AMDI0010", APD_ADDR(cz_i2c_desc) },
+	{ "AMDI0010", APD_ADDR(wt_i2c_desc) },
 	{ "AMD0020", APD_ADDR(cz_uart_desc) },
 	{ "AMDI0020", APD_ADDR(cz_uart_desc) },
 	{ "AMD0030", },
@@ -164,6 +179,9 @@ static const struct acpi_device_id acpi_apd_device_ids[] = {
 #ifdef CONFIG_ARM64
 	{ "APMC0D0F", APD_ADDR(xgene_i2c_desc) },
 	{ "BRCM900D", APD_ADDR(vulcan_spi_desc) },
+	{ "CAV900D",  APD_ADDR(vulcan_spi_desc) },
+	{ "HISI02A1", APD_ADDR(hip07_i2c_desc) },
+	{ "HISI02A2", APD_ADDR(hip08_i2c_desc) },
 #endif
 	{ }
 };

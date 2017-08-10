@@ -180,7 +180,7 @@ static const __u16 crc10_table[256] = {
  * Perform a memcpy and calculate fcs using ppp 10bit CRC algorithm. Return
  * new 10 bit FCS.
  */
-static __u16 __inline__ fcs_compute10(unsigned char *sp, int len, __u16 fcs)
+static inline __u16 fcs_compute10(unsigned char *sp, int len, __u16 fcs)
 {
 	for (; len-- > 0; fcs = CRC10_FCS(fcs, *sp++));
 	return fcs;
@@ -199,6 +199,11 @@ static void safe_process_read_urb(struct urb *urb)
 
 	if (!safe)
 		goto out;
+
+	if (length < 2) {
+		dev_err(&port->dev, "malformed packet\n");
+		return;
+	}
 
 	fcs = fcs_compute10(data, length, CRC10_INITFCS);
 	if (fcs) {

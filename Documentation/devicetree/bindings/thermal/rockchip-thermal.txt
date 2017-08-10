@@ -22,10 +22,13 @@ Required properties:
 	      TSADC controller.
 - pinctrl-2 : The "sleep" pinctrl state, it will be in for suspend.
 - #thermal-sensor-cells : Should be 1. See ./thermal.txt for a description.
+
+Optional properties:
 - rockchip,hw-tshut-temp : The hardware-controlled shutdown temperature value.
 - rockchip,hw-tshut-mode : The hardware-controlled shutdown mode 0:CRU 1:GPIO.
 - rockchip,hw-tshut-polarity : The hardware-controlled active polarity 0:LOW
 			       1:HIGH.
+- rockchip,grf : The phandle of the syscon node for the general register file.
 
 Exiample:
 tsadc: tsadc@ff280000 {

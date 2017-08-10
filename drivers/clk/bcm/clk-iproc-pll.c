@@ -277,7 +277,7 @@ static int pll_set_rate(struct iproc_clk *clk, unsigned int rate_index,
 	if (rate >= VCO_LOW && rate < VCO_HIGH) {
 		ki = 4;
 		kp_index = KP_BAND_MID;
-	} else if (rate >= VCO_HIGH && rate && rate < VCO_HIGH_HIGH) {
+	} else if (rate >= VCO_HIGH && rate < VCO_HIGH_HIGH) {
 		ki = 3;
 		kp_index = KP_BAND_HIGH;
 	} else if (rate >= VCO_HIGH_HIGH && rate < VCO_MAX) {
@@ -617,12 +617,12 @@ static void iproc_pll_sw_cfg(struct iproc_pll *pll)
 	}
 }
 
-void __init iproc_pll_clk_setup(struct device_node *node,
-				const struct iproc_pll_ctrl *pll_ctrl,
-				const struct iproc_pll_vco_param *vco,
-				unsigned int num_vco_entries,
-				const struct iproc_clk_ctrl *clk_ctrl,
-				unsigned int num_clks)
+void iproc_pll_clk_setup(struct device_node *node,
+			 const struct iproc_pll_ctrl *pll_ctrl,
+			 const struct iproc_pll_vco_param *vco,
+			 unsigned int num_vco_entries,
+			 const struct iproc_clk_ctrl *clk_ctrl,
+			 unsigned int num_clks)
 {
 	int i, ret;
 	struct iproc_pll *pll;

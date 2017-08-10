@@ -19,6 +19,10 @@ else
   Q=@
 endif
 
+ifneq ($(findstring s,$(filter-out --%,$(MAKEFLAGS))),)
+  quiet=silent_
+endif
+
 build-dir := $(srctree)/tools/build
 
 # Define $(fixdep) for dep-cmd function

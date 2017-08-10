@@ -1017,6 +1017,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 
 	if (!dma_has_cap(DMA_INTERLEAVE, pcdev->dma_chan->device->cap_mask)) {
 		dev_err(&pdev->dev, "DMA does not support INTERLEAVE\n");
+		ret = -ENODEV;
 		goto rel_dma;
 	}
 

@@ -57,6 +57,7 @@
  * not conflict (although almost does) with the mapping above.
  */
 
+#define SFM_DOUBLEQUOTE ((__u16) 0xF020)
 #define SFM_ASTERISK    ((__u16) 0xF021)
 #define SFM_QUESTION    ((__u16) 0xF025)
 #define SFM_COLON       ((__u16) 0xF022)
@@ -64,8 +65,8 @@
 #define SFM_LESSTHAN    ((__u16) 0xF023)
 #define SFM_PIPE        ((__u16) 0xF027)
 #define SFM_SLASH       ((__u16) 0xF026)
-#define SFM_PERIOD	((__u16) 0xF028)
-#define SFM_SPACE	((__u16) 0xF029)
+#define SFM_SPACE	((__u16) 0xF028)
+#define SFM_PERIOD	((__u16) 0xF029)
 
 /*
  * Mapping mechanism to use when one of the seven reserved characters is
@@ -115,11 +116,9 @@ char *cifs_strndup_from_utf16(const char *src, const int maxlen,
 extern int cifsConvertToUTF16(__le16 *target, const char *source, int maxlen,
 			      const struct nls_table *cp, int mapChars);
 extern int cifs_remap(struct cifs_sb_info *cifs_sb);
-#ifdef CONFIG_CIFS_SMB2
 extern __le16 *cifs_strndup_to_utf16(const char *src, const int maxlen,
 				     int *utf16_len, const struct nls_table *cp,
 				     int remap);
-#endif /* CONFIG_CIFS_SMB2 */
 #endif
 
 wchar_t cifs_toupper(wchar_t in);
@@ -130,10 +129,10 @@ wchar_t cifs_toupper(wchar_t in);
  * Returns:
  *     Address of the first string
  */
-static inline wchar_t *
-UniStrcat(wchar_t *ucs1, const wchar_t *ucs2)
+static inline __le16 *
+UniStrcat(__le16 *ucs1, const __le16 *ucs2)
 {
-	wchar_t *anchor = ucs1;	/* save a pointer to start of ucs1 */
+	__le16 *anchor = ucs1;	/* save a pointer to start of ucs1 */
 
 	while (*ucs1++) ;	/* To end of first string */
 	ucs1--;			/* Return to the null */

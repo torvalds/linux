@@ -161,6 +161,28 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_MEM_BG_ASYNC_ALPHA	52
 #define IPUV3_NUM_CHANNELS			64
 
+static inline int ipu_channel_alpha_channel(int ch_num)
+{
+	switch (ch_num) {
+	case IPUV3_CHANNEL_G_MEM_IC_PRP_VF:
+		return IPUV3_CHANNEL_G_MEM_IC_PRP_VF_ALPHA;
+	case IPUV3_CHANNEL_G_MEM_IC_PP:
+		return IPUV3_CHANNEL_G_MEM_IC_PP_ALPHA;
+	case IPUV3_CHANNEL_MEM_FG_SYNC:
+		return IPUV3_CHANNEL_MEM_FG_SYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_FG_ASYNC:
+		return IPUV3_CHANNEL_MEM_FG_ASYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_BG_SYNC:
+		return IPUV3_CHANNEL_MEM_BG_SYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_BG_ASYNC:
+		return IPUV3_CHANNEL_MEM_BG_ASYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_VDI_PLANE1_COMB:
+		return IPUV3_CHANNEL_MEM_VDI_PLANE1_COMB_ALPHA;
+	default:
+		return -EINVAL;
+	}
+}
+
 int ipu_map_irq(struct ipu_soc *ipu, int irq);
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
 		enum ipu_channel_irq irq);
@@ -228,6 +250,7 @@ struct ipu_image {
 
 void ipu_cpmem_zero(struct ipuv3_channel *ch);
 void ipu_cpmem_set_resolution(struct ipuv3_channel *ch, int xres, int yres);
+void ipu_cpmem_skip_odd_chroma_rows(struct ipuv3_channel *ch);
 void ipu_cpmem_set_stride(struct ipuv3_channel *ch, int stride);
 void ipu_cpmem_set_high_priority(struct ipuv3_channel *ch);
 void ipu_cpmem_set_buffer(struct ipuv3_channel *ch, int bufnum, dma_addr_t buf);
@@ -247,8 +270,6 @@ void ipu_cpmem_set_yuv_planar_full(struct ipuv3_channel *ch,
 				   unsigned int uv_stride,
 				   unsigned int u_offset,
 				   unsigned int v_offset);
-void ipu_cpmem_set_yuv_planar(struct ipuv3_channel *ch,
-			      u32 pixel_format, int stride, int height);
 int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc);
 int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image);
 void ipu_cpmem_dump(struct ipuv3_channel *ch);
@@ -302,13 +323,28 @@ struct ipu_dp *ipu_dp_get(struct ipu_soc *ipu, unsigned int flow);
 void ipu_dp_put(struct ipu_dp *);
 int ipu_dp_enable(struct ipu_soc *ipu);
 int ipu_dp_enable_channel(struct ipu_dp *dp);
-void ipu_dp_disable_channel(struct ipu_dp *dp);
+void ipu_dp_disable_channel(struct ipu_dp *dp, bool sync);
 void ipu_dp_disable(struct ipu_soc *ipu);
 int ipu_dp_setup_channel(struct ipu_dp *dp,
 		enum ipu_color_space in, enum ipu_color_space out);
 int ipu_dp_set_window_pos(struct ipu_dp *, u16 x_pos, u16 y_pos);
 int ipu_dp_set_global_alpha(struct ipu_dp *dp, bool enable, u8 alpha,
 		bool bg_chan);
+
+/*
+ * IPU Prefetch Resolve Gasket (prg) functions
+ */
+int ipu_prg_max_active_channels(void);
+bool ipu_prg_present(struct ipu_soc *ipu);
+bool ipu_prg_format_supported(struct ipu_soc *ipu, uint32_t format,
+			      uint64_t modifier);
+int ipu_prg_enable(struct ipu_soc *ipu);
+void ipu_prg_disable(struct ipu_soc *ipu);
+void ipu_prg_channel_disable(struct ipuv3_channel *ipu_chan);
+int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
+			      unsigned int axi_id,  unsigned int width,
+			      unsigned int height, unsigned int stride,
+			      u32 format, unsigned long *eba);
 
 /*
  * IPU CMOS Sensor Interface (csi) functions
@@ -320,6 +356,7 @@ int ipu_csi_init_interface(struct ipu_csi *csi,
 bool ipu_csi_is_interlaced(struct ipu_csi *csi);
 void ipu_csi_get_window(struct ipu_csi *csi, struct v4l2_rect *w);
 void ipu_csi_set_window(struct ipu_csi *csi, struct v4l2_rect *w);
+void ipu_csi_set_downsize(struct ipu_csi *csi, bool horiz, bool vert);
 void ipu_csi_set_test_generator(struct ipu_csi *csi, bool active,
 				u32 r_value, u32 g_value, u32 b_value,
 				u32 pix_clk);

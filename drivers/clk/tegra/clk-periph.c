@@ -138,7 +138,7 @@ static const struct clk_ops tegra_clk_periph_no_gate_ops = {
 };
 
 static struct clk *_tegra_clk_register_periph(const char *name,
-			const char **parent_names, int num_parents,
+			const char * const *parent_names, int num_parents,
 			struct tegra_clk_periph *periph,
 			void __iomem *clk_base, u32 offset,
 			unsigned long flags)
@@ -186,7 +186,7 @@ static struct clk *_tegra_clk_register_periph(const char *name,
 }
 
 struct clk *tegra_clk_register_periph(const char *name,
-		const char **parent_names, int num_parents,
+		const char * const *parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
 		u32 offset, unsigned long flags)
 {
@@ -195,7 +195,7 @@ struct clk *tegra_clk_register_periph(const char *name,
 }
 
 struct clk *tegra_clk_register_periph_nodiv(const char *name,
-		const char **parent_names, int num_parents,
+		const char * const *parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
 		u32 offset)
 {

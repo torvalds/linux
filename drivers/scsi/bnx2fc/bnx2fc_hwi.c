@@ -3,7 +3,8 @@
  * with 57712 FCoE firmware.
  *
  * Copyright (c) 2008-2013 Broadcom Corporation
- * Copyright (c) 2014-2015 QLogic Corporation
+ * Copyright (c) 2014-2016 QLogic Corporation
+ * Copyright (c) 2016-2017 Cavium Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1007,6 +1008,28 @@ static struct bnx2fc_work *bnx2fc_alloc_work(struct bnx2fc_rport *tgt, u16 wqe)
 	return work;
 }
 
+/* Pending work request completion */
+static void bnx2fc_pending_work(struct bnx2fc_rport *tgt, unsigned int wqe)
+{
+	unsigned int cpu = wqe % num_possible_cpus();
+	struct bnx2fc_percpu_s *fps;
+	struct bnx2fc_work *work;
+
+	fps = &per_cpu(bnx2fc_percpu, cpu);
+	spin_lock_bh(&fps->fp_work_lock);
+	if (fps->iothread) {
+		work = bnx2fc_alloc_work(tgt, wqe);
+		if (work) {
+			list_add_tail(&work->list, &fps->work_list);
+			wake_up_process(fps->iothread);
+			spin_unlock_bh(&fps->fp_work_lock);
+			return;
+		}
+	}
+	spin_unlock_bh(&fps->fp_work_lock);
+	bnx2fc_process_cq_compl(tgt, wqe);
+}
+
 int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
 {
 	struct fcoe_cqe *cq;
@@ -1041,28 +1064,7 @@ int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
 			/* Unsolicited event notification */
 			bnx2fc_process_unsol_compl(tgt, wqe);
 		} else {
-			/* Pending work request completion */
-			struct bnx2fc_work *work = NULL;
-			struct bnx2fc_percpu_s *fps = NULL;
-			unsigned int cpu = wqe % num_possible_cpus();
-
-			fps = &per_cpu(bnx2fc_percpu, cpu);
-			spin_lock_bh(&fps->fp_work_lock);
-			if (unlikely(!fps->iothread))
-				goto unlock;
-
-			work = bnx2fc_alloc_work(tgt, wqe);
-			if (work)
-				list_add_tail(&work->list,
-					      &fps->work_list);
-unlock:
-			spin_unlock_bh(&fps->fp_work_lock);
-
-			/* Pending work request completion */
-			if (fps->iothread && work)
-				wake_up_process(fps->iothread);
-			else
-				bnx2fc_process_cq_compl(tgt, wqe);
+			bnx2fc_pending_work(tgt, wqe);
 			num_free_sqes++;
 		}
 		cqe++;

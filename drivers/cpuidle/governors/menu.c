@@ -18,8 +18,10 @@
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
+#include <linux/sched/stat.h>
 #include <linux/math64.h>
-#include <linux/module.h>
+#include <linux/cpu.h>
 
 /*
  * Please note when changing the tuning values:
@@ -281,16 +283,24 @@ again:
 static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 {
 	struct menu_device *data = this_cpu_ptr(&menu_devices);
+	struct device *device = get_cpu_device(dev->cpu);
 	int latency_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
 	int i;
+	int first_idx;
+	int idx;
 	unsigned int interactivity_req;
 	unsigned int expected_interval;
 	unsigned long nr_iowaiters, cpu_load;
+	int resume_latency = dev_pm_qos_raw_read_value(device);
 
 	if (data->needs_update) {
 		menu_update(drv, dev);
 		data->needs_update = 0;
 	}
+
+	/* resume_latency is 0 means no restriction */
+	if (resume_latency && resume_latency < latency_req)
+		latency_req = resume_latency;
 
 	/* Special case when user has set very strict latency requirement */
 	if (unlikely(latency_req == 0))
@@ -327,11 +337,11 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		if (data->next_timer_us > polling_threshold &&
 		    latency_req > s->exit_latency && !s->disabled &&
 		    !dev->states_usage[CPUIDLE_DRIVER_STATE_START].disable)
-			data->last_state_idx = CPUIDLE_DRIVER_STATE_START;
+			first_idx = CPUIDLE_DRIVER_STATE_START;
 		else
-			data->last_state_idx = CPUIDLE_DRIVER_STATE_START - 1;
+			first_idx = CPUIDLE_DRIVER_STATE_START - 1;
 	} else {
-		data->last_state_idx = CPUIDLE_DRIVER_STATE_START;
+		first_idx = 0;
 	}
 
 	/*
@@ -351,19 +361,27 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 * Find the idle state with the lowest power while satisfying
 	 * our constraints.
 	 */
-	for (i = data->last_state_idx + 1; i < drv->state_count; i++) {
+	idx = -1;
+	for (i = first_idx; i < drv->state_count; i++) {
 		struct cpuidle_state *s = &drv->states[i];
 		struct cpuidle_state_usage *su = &dev->states_usage[i];
 
 		if (s->disabled || su->disable)
 			continue;
+		if (idx == -1)
+			idx = i; /* first enabled state */
 		if (s->target_residency > data->predicted_us)
-			continue;
+			break;
 		if (s->exit_latency > latency_req)
-			continue;
+			break;
 
-		data->last_state_idx = i;
+		idx = i;
 	}
+
+	if (idx == -1)
+		idx = 0; /* No states enabled. Must use 0. */
+
+	data->last_state_idx = idx;
 
 	return data->last_state_idx;
 }
@@ -484,7 +502,6 @@ static struct cpuidle_governor menu_governor = {
 	.enable =	menu_enable_device,
 	.select =	menu_select,
 	.reflect =	menu_reflect,
-	.owner =	THIS_MODULE,
 };
 
 /**

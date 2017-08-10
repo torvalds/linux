@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/string.h>
+#include <linux/sched/signal.h>
 
 #include "dmxdev.h"
 #include "dvbdev.h"
@@ -463,7 +464,7 @@ static int pt3_fetch_thread(void *data)
 
 		pt3_proc_dma(adap);
 
-		delay = ktime_set(0, PT3_FETCH_DELAY * NSEC_PER_MSEC);
+		delay = PT3_FETCH_DELAY * NSEC_PER_MSEC;
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		freezable_schedule_hrtimeout_range(&delay,
 					PT3_FETCH_DELAY_DELTA * NSEC_PER_MSEC,

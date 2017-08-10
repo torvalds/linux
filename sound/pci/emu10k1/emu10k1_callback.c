@@ -61,7 +61,7 @@ static void set_filterQ(struct snd_emu10k1 *hw, struct snd_emux_voice *vp);
 /*
  * set up operators
  */
-static struct snd_emux_operators emu10k1_ops = {
+static const struct snd_emux_operators emu10k1_ops = {
 	.owner =	THIS_MODULE,
 	.get_voice =	get_voice,
 	.prepare =	start_voice,

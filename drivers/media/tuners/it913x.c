@@ -14,17 +14,14 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #include "it913x.h"
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 struct it913x_dev {
-	struct i2c_client *client;
+	struct platform_device *pdev;
 	struct regmap *regmap;
 	struct dvb_frontend *fe;
 	u8 chip_ver:2;
@@ -39,13 +36,14 @@ struct it913x_dev {
 static int it913x_init(struct dvb_frontend *fe)
 {
 	struct it913x_dev *dev = fe->tuner_priv;
+	struct platform_device *pdev = dev->pdev;
 	int ret;
 	unsigned int utmp;
 	u8 iqik_m_cal, nv_val, buf[2];
 	static const u8 nv[] = {48, 32, 24, 16, 12, 8, 6, 4, 2};
 	unsigned long timeout;
 
-	dev_dbg(&dev->client->dev, "role %u\n", dev->role);
+	dev_dbg(&pdev->dev, "role %u\n", dev->role);
 
 	ret = regmap_write(dev->regmap, 0x80ec4c, 0x68);
 	if (ret)
@@ -73,7 +71,7 @@ static int it913x_init(struct dvb_frontend *fe)
 		iqik_m_cal = 6;
 		break;
 	default:
-		dev_err(&dev->client->dev, "unknown clock identifier %d\n", utmp);
+		dev_err(&pdev->dev, "unknown clock identifier %d\n", utmp);
 		goto err;
 	}
 
@@ -98,14 +96,14 @@ static int it913x_init(struct dvb_frontend *fe)
 			break;
 	}
 
-	dev_dbg(&dev->client->dev, "r_fbc_m_bdry took %u ms, val %u\n",
+	dev_dbg(&pdev->dev, "r_fbc_m_bdry took %u ms, val %u\n",
 			jiffies_to_msecs(jiffies) -
 			(jiffies_to_msecs(timeout) - TIMEOUT), utmp);
 
 	dev->fn_min = dev->xtal * utmp;
 	dev->fn_min /= (dev->fdiv * nv_val);
 	dev->fn_min *= 1000;
-	dev_dbg(&dev->client->dev, "fn_min %u\n", dev->fn_min);
+	dev_dbg(&pdev->dev, "fn_min %u\n", dev->fn_min);
 
 	/*
 	 * Chip version BX never sets that flag so we just wait 50ms in that
@@ -125,7 +123,7 @@ static int it913x_init(struct dvb_frontend *fe)
 				break;
 		}
 
-		dev_dbg(&dev->client->dev, "p_tsm_init_mode took %u ms, val %u\n",
+		dev_dbg(&pdev->dev, "p_tsm_init_mode took %u ms, val %u\n",
 				jiffies_to_msecs(jiffies) -
 				(jiffies_to_msecs(timeout) - TIMEOUT), utmp);
 	} else {
@@ -152,16 +150,17 @@ static int it913x_init(struct dvb_frontend *fe)
 
 	return 0;
 err:
-	dev_dbg(&dev->client->dev, "failed %d\n", ret);
+	dev_dbg(&pdev->dev, "failed %d\n", ret);
 	return ret;
 }
 
 static int it913x_sleep(struct dvb_frontend *fe)
 {
 	struct it913x_dev *dev = fe->tuner_priv;
+	struct platform_device *pdev = dev->pdev;
 	int ret, len;
 
-	dev_dbg(&dev->client->dev, "role %u\n", dev->role);
+	dev_dbg(&pdev->dev, "role %u\n", dev->role);
 
 	dev->active = false;
 
@@ -178,7 +177,7 @@ static int it913x_sleep(struct dvb_frontend *fe)
 	else
 		len = 15;
 
-	dev_dbg(&dev->client->dev, "role %u, len %d\n", dev->role, len);
+	dev_dbg(&pdev->dev, "role %u, len %d\n", dev->role, len);
 
 	ret = regmap_bulk_write(dev->regmap, 0x80ec02,
 			"\x3f\x1f\x3f\x3e\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
@@ -210,13 +209,14 @@ static int it913x_sleep(struct dvb_frontend *fe)
 
 	return 0;
 err:
-	dev_dbg(&dev->client->dev, "failed %d\n", ret);
+	dev_dbg(&pdev->dev, "failed %d\n", ret);
 	return ret;
 }
 
 static int it913x_set_params(struct dvb_frontend *fe)
 {
 	struct it913x_dev *dev = fe->tuner_priv;
+	struct platform_device *pdev = dev->pdev;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	unsigned int utmp;
@@ -224,7 +224,7 @@ static int it913x_set_params(struct dvb_frontend *fe)
 	u16 iqik_m_cal, n_div;
 	u8 u8tmp, n, l_band, lna_band;
 
-	dev_dbg(&dev->client->dev, "role=%u, frequency %u, bandwidth_hz %u\n",
+	dev_dbg(&pdev->dev, "role=%u, frequency %u, bandwidth_hz %u\n",
 			dev->role, c->frequency, c->bandwidth_hz);
 
 	if (!dev->active) {
@@ -290,7 +290,7 @@ static int it913x_set_params(struct dvb_frontend *fe)
 	pre_lo_freq += (u32) n << 13;
 	/* Frequency OMEGA_IQIK_M_CAL_MID*/
 	t_cal_freq = pre_lo_freq + (u32)iqik_m_cal;
-	dev_dbg(&dev->client->dev, "t_cal_freq %u, pre_lo_freq %u\n",
+	dev_dbg(&pdev->dev, "t_cal_freq %u, pre_lo_freq %u\n",
 			t_cal_freq, pre_lo_freq);
 
 	if (c->frequency <=         440000000) {
@@ -369,7 +369,7 @@ static int it913x_set_params(struct dvb_frontend *fe)
 
 	return 0;
 err:
-	dev_dbg(&dev->client->dev, "failed %d\n", ret);
+	dev_dbg(&pdev->dev, "failed %d\n", ret);
 	return ret;
 }
 
@@ -385,40 +385,32 @@ static const struct dvb_tuner_ops it913x_tuner_ops = {
 	.set_params = it913x_set_params,
 };
 
-static int it913x_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int it913x_probe(struct platform_device *pdev)
 {
-	struct it913x_config *cfg = client->dev.platform_data;
-	struct dvb_frontend *fe = cfg->fe;
+	struct it913x_platform_data *pdata = pdev->dev.platform_data;
+	struct dvb_frontend *fe = pdata->fe;
 	struct it913x_dev *dev;
+	const struct platform_device_id *id = platform_get_device_id(pdev);
 	int ret;
 	char *chip_ver_str;
-	static const struct regmap_config regmap_config = {
-		.reg_bits = 24,
-		.val_bits = 8,
-	};
 
 	dev = kzalloc(sizeof(struct it913x_dev), GFP_KERNEL);
 	if (dev == NULL) {
 		ret = -ENOMEM;
-		dev_err(&client->dev, "kzalloc() failed\n");
+		dev_err(&pdev->dev, "kzalloc() failed\n");
 		goto err;
 	}
 
-	dev->client = client;
-	dev->fe = cfg->fe;
-	dev->chip_ver = cfg->chip_ver;
-	dev->role = cfg->role;
-	dev->regmap = regmap_init_i2c(client, &regmap_config);
-	if (IS_ERR(dev->regmap)) {
-		ret = PTR_ERR(dev->regmap);
-		goto err_kfree;
-	}
+	dev->pdev = pdev;
+	dev->regmap = pdata->regmap;
+	dev->fe = pdata->fe;
+	dev->chip_ver = id->driver_data;
+	dev->role = pdata->role;
 
 	fe->tuner_priv = dev;
 	memcpy(&fe->ops.tuner_ops, &it913x_tuner_ops,
 			sizeof(struct dvb_tuner_ops));
-	i2c_set_clientdata(client, dev);
+	platform_set_drvdata(pdev, dev);
 
 	if (dev->chip_ver == 1)
 		chip_ver_str = "AX";
@@ -427,41 +419,37 @@ static int it913x_probe(struct i2c_client *client,
 	else
 		chip_ver_str = "??";
 
-	dev_info(&dev->client->dev, "ITE IT913X %s successfully attached\n",
-			chip_ver_str);
-	dev_dbg(&dev->client->dev, "chip_ver %u, role %u\n",
-			dev->chip_ver, dev->role);
+	dev_info(&pdev->dev, "ITE IT913X %s successfully attached\n",
+		 chip_ver_str);
+	dev_dbg(&pdev->dev, "chip_ver %u, role %u\n", dev->chip_ver, dev->role);
 	return 0;
-
-err_kfree:
-	kfree(dev);
 err:
-	dev_dbg(&client->dev, "failed %d\n", ret);
+	dev_dbg(&pdev->dev, "failed %d\n", ret);
 	return ret;
 }
 
-static int it913x_remove(struct i2c_client *client)
+static int it913x_remove(struct platform_device *pdev)
 {
-	struct it913x_dev *dev = i2c_get_clientdata(client);
+	struct it913x_dev *dev = platform_get_drvdata(pdev);
 	struct dvb_frontend *fe = dev->fe;
 
-	dev_dbg(&client->dev, "\n");
+	dev_dbg(&pdev->dev, "\n");
 
 	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = NULL;
-	regmap_exit(dev->regmap);
 	kfree(dev);
 
 	return 0;
 }
 
-static const struct i2c_device_id it913x_id_table[] = {
-	{"it913x", 0},
-	{}
+static const struct platform_device_id it913x_id_table[] = {
+	{"it9133ax-tuner", 1},
+	{"it9133bx-tuner", 2},
+	{},
 };
-MODULE_DEVICE_TABLE(i2c, it913x_id_table);
+MODULE_DEVICE_TABLE(platform, it913x_id_table);
 
-static struct i2c_driver it913x_driver = {
+static struct platform_driver it913x_driver = {
 	.driver = {
 		.name	= "it913x",
 		.suppress_bind_attrs	= true,
@@ -471,7 +459,7 @@ static struct i2c_driver it913x_driver = {
 	.id_table	= it913x_id_table,
 };
 
-module_i2c_driver(it913x_driver);
+module_platform_driver(it913x_driver);
 
 MODULE_DESCRIPTION("ITE IT913X silicon tuner driver");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");

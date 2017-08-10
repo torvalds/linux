@@ -23,7 +23,7 @@
 #include <linux/mm_types.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
@@ -739,8 +739,10 @@ int kfd_wait_on_events(struct kfd_process *p,
 		struct kfd_event_data event_data;
 
 		if (copy_from_user(&event_data, &events[i],
-				sizeof(struct kfd_event_data)))
+				sizeof(struct kfd_event_data))) {
+			ret = -EFAULT;
 			goto fail;
+		}
 
 		ret = init_event_waiter(p, &event_waiters[i],
 				event_data.event_id, i);

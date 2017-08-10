@@ -54,15 +54,13 @@ static int sis_driver_load(struct drm_device *dev, unsigned long chipset)
 	return 0;
 }
 
-static int sis_driver_unload(struct drm_device *dev)
+static void sis_driver_unload(struct drm_device *dev)
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
 
 	idr_destroy(&dev_priv->object_idr);
 
 	kfree(dev_priv);
-
-	return 0;
 }
 
 static const struct file_operations sis_driver_fops = {
@@ -72,9 +70,7 @@ static const struct file_operations sis_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = drm_legacy_mmap,
 	.poll = drm_poll,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 

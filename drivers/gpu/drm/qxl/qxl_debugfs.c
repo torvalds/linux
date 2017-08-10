@@ -30,7 +30,7 @@
 
 #include <linux/debugfs.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "qxl_drv.h"
 #include "qxl_object.h"
 
@@ -84,19 +84,20 @@ int
 qxl_debugfs_init(struct drm_minor *minor)
 {
 #if defined(CONFIG_DEBUG_FS)
+	int r;
+	struct qxl_device *dev =
+		(struct qxl_device *) minor->dev->dev_private;
+
 	drm_debugfs_create_files(qxl_debugfs_list, QXL_DEBUGFS_ENTRIES,
 				 minor->debugfs_root, minor);
+
+	r = qxl_ttm_debugfs_init(dev);
+	if (r) {
+		DRM_ERROR("Failed to init TTM debugfs\n");
+		return r;
+	}
 #endif
 	return 0;
-}
-
-void
-qxl_debugfs_takedown(struct drm_minor *minor)
-{
-#if defined(CONFIG_DEBUG_FS)
-	drm_debugfs_remove_files(qxl_debugfs_list, QXL_DEBUGFS_ENTRIES,
-				 minor);
-#endif
 }
 
 int qxl_debugfs_add_files(struct qxl_device *qdev,
@@ -123,27 +124,8 @@ int qxl_debugfs_add_files(struct qxl_device *qdev,
 	qdev->debugfs_count = i;
 #if defined(CONFIG_DEBUG_FS)
 	drm_debugfs_create_files(files, nfiles,
-				 qdev->ddev->control->debugfs_root,
-				 qdev->ddev->control);
-	drm_debugfs_create_files(files, nfiles,
-				 qdev->ddev->primary->debugfs_root,
-				 qdev->ddev->primary);
+				 qdev->ddev.primary->debugfs_root,
+				 qdev->ddev.primary);
 #endif
 	return 0;
-}
-
-void qxl_debugfs_remove_files(struct qxl_device *qdev)
-{
-#if defined(CONFIG_DEBUG_FS)
-	unsigned i;
-
-	for (i = 0; i < qdev->debugfs_count; i++) {
-		drm_debugfs_remove_files(qdev->debugfs[i].files,
-					 qdev->debugfs[i].num_files,
-					 qdev->ddev->control);
-		drm_debugfs_remove_files(qdev->debugfs[i].files,
-					 qdev->debugfs[i].num_files,
-					 qdev->ddev->primary);
-	}
-#endif
 }

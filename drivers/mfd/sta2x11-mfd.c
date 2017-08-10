@@ -60,8 +60,8 @@ static struct sta2x11_mfd *sta2x11_mfd_find(struct pci_dev *pdev)
 	struct sta2x11_mfd *mfd;
 
 	if (!pdev && !list_empty(&sta2x11_mfd_list)) {
-		pr_warning("%s: Unspecified device, "
-			    "using first instance\n", __func__);
+		pr_warn("%s: Unspecified device, using first instance\n",
+			__func__);
 		return list_entry(sta2x11_mfd_list.next,
 				  struct sta2x11_mfd, list);
 	}

@@ -41,19 +41,7 @@
 
 static struct {
 	struct platform_device *pdev;
-
-	const char *default_display_name;
 } core;
-
-static char *def_disp_name;
-module_param_named(def_disp, def_disp_name, charp, 0);
-MODULE_PARM_DESC(def_disp, "default display name");
-
-const char *omapdss_get_default_display_name(void)
-{
-	return core.default_display_name;
-}
-EXPORT_SYMBOL(omapdss_get_default_display_name);
 
 enum omapdss_version omapdss_get_version(void)
 {
@@ -61,11 +49,6 @@ enum omapdss_version omapdss_get_version(void)
 	return pdata->version;
 }
 EXPORT_SYMBOL(omapdss_get_version);
-
-struct platform_device *dss_get_core_pdev(void)
-{
-	return core.pdev;
-}
 
 int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask)
 {
@@ -180,7 +163,6 @@ static void dss_disable_all_devices(void)
 
 static int __init omap_dss_probe(struct platform_device *pdev)
 {
-	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	int r;
 
 	core.pdev = pdev;
@@ -190,11 +172,6 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 	r = dss_initialize_debugfs();
 	if (r)
 		goto err_debugfs;
-
-	if (def_disp_name)
-		core.default_display_name = def_disp_name;
-	else if (pdata->default_display_name)
-		core.default_display_name = pdata->default_display_name;
 
 	return 0;
 
@@ -231,15 +208,6 @@ static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
 #ifdef CONFIG_OMAP2_DSS_DSI
 	dsi_init_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_DPI
-	dpi_init_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_SDI
-	sdi_init_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_RFBI
-	rfbi_init_platform_driver,
-#endif
 #ifdef CONFIG_OMAP2_DSS_VENC
 	venc_init_platform_driver,
 #endif
@@ -260,15 +228,6 @@ static void (*dss_output_drv_unreg_funcs[])(void) = {
 #endif
 #ifdef CONFIG_OMAP2_DSS_VENC
 	venc_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_RFBI
-	rfbi_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_SDI
-	sdi_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_DPI
-	dpi_uninit_platform_driver,
 #endif
 #ifdef CONFIG_OMAP2_DSS_DSI
 	dsi_uninit_platform_driver,

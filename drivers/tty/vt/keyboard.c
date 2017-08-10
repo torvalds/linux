@@ -26,7 +26,8 @@
 
 #include <linux/consolemap.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/mm.h>
@@ -572,7 +573,7 @@ static void fn_scroll_back(struct vc_data *vc)
 
 static void fn_show_mem(struct vc_data *vc)
 {
-	show_mem(0);
+	show_mem(0, NULL);
 }
 
 static void fn_show_state(struct vc_data *vc)
@@ -982,7 +983,7 @@ static void kbd_led_trigger_activate(struct led_classdev *cdev)
 	KBD_LED_TRIGGER((_led_bit) + 8, _name)
 
 static struct kbd_led_trigger kbd_led_triggers[] = {
-	KBD_LED_TRIGGER(VC_SCROLLOCK, "kbd-scrollock"),
+	KBD_LED_TRIGGER(VC_SCROLLOCK, "kbd-scrolllock"),
 	KBD_LED_TRIGGER(VC_NUMLOCK,   "kbd-numlock"),
 	KBD_LED_TRIGGER(VC_CAPSLOCK,  "kbd-capslock"),
 	KBD_LED_TRIGGER(VC_KANALOCK,  "kbd-kanalock"),
@@ -1202,8 +1203,7 @@ DECLARE_TASKLET_DISABLED(keyboard_tasklet, kbd_bh, 0);
 #if defined(CONFIG_X86) || defined(CONFIG_IA64) || defined(CONFIG_ALPHA) ||\
     defined(CONFIG_MIPS) || defined(CONFIG_PPC) || defined(CONFIG_SPARC) ||\
     defined(CONFIG_PARISC) || defined(CONFIG_SUPERH) ||\
-    (defined(CONFIG_ARM) && defined(CONFIG_KEYBOARD_ATKBD) && !defined(CONFIG_ARCH_RPC)) ||\
-    defined(CONFIG_AVR32)
+    (defined(CONFIG_ARM) && defined(CONFIG_KEYBOARD_ATKBD) && !defined(CONFIG_ARCH_RPC))
 
 #define HW_RAW(dev) (test_bit(EV_MSC, dev->evbit) && test_bit(MSC_RAW, dev->mscbit) &&\
 			((dev)->id.bustype == BUS_I8042) && ((dev)->id.vendor == 0x0001) && ((dev)->id.product == 0x0001))
@@ -1256,7 +1256,7 @@ static int emulate_raw(struct vc_data *vc, unsigned int keycode,
 	case KEY_SYSRQ:
 		/*
 		 * Real AT keyboards (that's what we're trying
-		 * to emulate here emit 0xe0 0x2a 0xe0 0x37 when
+		 * to emulate here) emit 0xe0 0x2a 0xe0 0x37 when
 		 * pressing PrtSc/SysRq alone, but simply 0x54
 		 * when pressing Alt+PrtSc/SysRq.
 		 */

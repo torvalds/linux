@@ -43,24 +43,19 @@ void host1x_debug_output(struct output *o, const char *fmt, ...)
 	o->fn(o->ctx, o->buf, len);
 }
 
-static int show_channels(struct host1x_channel *ch, void *data, bool show_fifo)
+static int show_channel(struct host1x_channel *ch, void *data, bool show_fifo)
 {
 	struct host1x *m = dev_get_drvdata(ch->dev->parent);
 	struct output *o = data;
 
-	mutex_lock(&ch->reflock);
+	mutex_lock(&ch->cdma.lock);
 
-	if (ch->refcount) {
-		mutex_lock(&ch->cdma.lock);
+	if (show_fifo)
+		host1x_hw_show_channel_fifo(m, ch, o);
 
-		if (show_fifo)
-			host1x_hw_show_channel_fifo(m, ch, o);
+	host1x_hw_show_channel_cdma(m, ch, o);
 
-		host1x_hw_show_channel_cdma(m, ch, o);
-		mutex_unlock(&ch->cdma.lock);
-	}
-
-	mutex_unlock(&ch->reflock);
+	mutex_unlock(&ch->cdma.lock);
 
 	return 0;
 }
@@ -94,28 +89,22 @@ static void show_syncpts(struct host1x *m, struct output *o)
 	host1x_debug_output(o, "\n");
 }
 
-static void show_all(struct host1x *m, struct output *o)
+static void show_all(struct host1x *m, struct output *o, bool show_fifo)
 {
-	struct host1x_channel *ch;
+	int i;
 
 	host1x_hw_show_mlocks(m, o);
 	show_syncpts(m, o);
 	host1x_debug_output(o, "---- channels ----\n");
 
-	host1x_for_each_channel(m, ch)
-		show_channels(ch, o, true);
-}
+	for (i = 0; i < m->info->nb_channels; ++i) {
+		struct host1x_channel *ch = host1x_channel_get_index(m, i);
 
-static void show_all_no_fifo(struct host1x *host1x, struct output *o)
-{
-	struct host1x_channel *ch;
-
-	host1x_hw_show_mlocks(host1x, o);
-	show_syncpts(host1x, o);
-	host1x_debug_output(o, "---- channels ----\n");
-
-	host1x_for_each_channel(host1x, ch)
-		show_channels(ch, o, false);
+		if (ch) {
+			show_channel(ch, o, show_fifo);
+			host1x_channel_put(ch);
+		}
+	}
 }
 
 static int host1x_debug_show_all(struct seq_file *s, void *unused)
@@ -125,7 +114,7 @@ static int host1x_debug_show_all(struct seq_file *s, void *unused)
 		.ctx = s
 	};
 
-	show_all(s->private, &o);
+	show_all(s->private, &o, true);
 
 	return 0;
 }
@@ -137,7 +126,7 @@ static int host1x_debug_show(struct seq_file *s, void *unused)
 		.ctx = s
 	};
 
-	show_all_no_fifo(s->private, &o);
+	show_all(s->private, &o, false);
 
 	return 0;
 }
@@ -216,7 +205,7 @@ void host1x_debug_dump(struct host1x *host1x)
 		.fn = write_to_printk
 	};
 
-	show_all(host1x, &o);
+	show_all(host1x, &o, true);
 }
 
 void host1x_debug_dump_syncpts(struct host1x *host1x)

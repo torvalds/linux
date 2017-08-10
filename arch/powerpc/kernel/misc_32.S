@@ -244,8 +244,7 @@ _GLOBAL(_nmask_and_or_msr)
  */
 _GLOBAL(real_readb)
 	mfmsr	r7
-	ori	r0,r7,MSR_DR
-	xori	r0,r0,MSR_DR
+	rlwinm	r0,r7,0,~MSR_DR
 	sync
 	mtmsr	r0
 	sync
@@ -262,8 +261,7 @@ _GLOBAL(real_readb)
  */
 _GLOBAL(real_writeb)
 	mfmsr	r7
-	ori	r0,r7,MSR_DR
-	xori	r0,r0,MSR_DR
+	rlwinm	r0,r7,0,~MSR_DR
 	sync
 	mtmsr	r0
 	sync
@@ -296,7 +294,7 @@ _GLOBAL(flush_instruction_cache)
 	lis	r3, KERNELBASE@h
 	iccci	0,r3
 #endif
-#elif CONFIG_FSL_BOOKE
+#elif defined(CONFIG_FSL_BOOKE)
 BEGIN_FTR_SECTION
 	mfspr   r3,SPRN_L1CSR0
 	ori     r3,r3,L1CSR0_CFI|L1CSR0_CLFC
@@ -614,7 +612,7 @@ _GLOBAL(start_secondary_resume)
 _GLOBAL(__main)
 	blr
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	/*
 	 * Must be relocatable PIC code callable as a C function.
 	 */

@@ -2,7 +2,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -161,9 +161,6 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  struct rs_rate *rate,
 			  const struct rs_tx_column *next_col)
 {
-	struct iwl_mvm_sta *mvmsta;
-	struct iwl_mvm_vif *mvmvif;
-
 	if (!sta->ht_cap.ht_supported)
 		return false;
 
@@ -175,9 +172,6 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
 		return false;
-
-	mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
 
 	if (mvm->nvm_data->sku_cap_mimo_disabled)
 		return false;
@@ -832,7 +826,7 @@ static u32 ucode_rate_from_rs_rate(struct iwl_mvm *mvm,
 	if (is_siso(rate) && rate->stbc) {
 		/* To enable STBC we need to set both a flag and ANT_AB */
 		ucode_rate |= RATE_MCS_ANT_AB_MSK;
-		ucode_rate |= RATE_MCS_VHT_STBC_MSK;
+		ucode_rate |= RATE_MCS_STBC_MSK;
 	}
 
 	ucode_rate |= rate->bw;
@@ -879,7 +873,7 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 		rate->sgi = true;
 	if (ucode_rate & RATE_MCS_LDPC_MSK)
 		rate->ldpc = true;
-	if (ucode_rate & RATE_MCS_VHT_STBC_MSK)
+	if (ucode_rate & RATE_MCS_STBC_MSK)
 		rate->stbc = true;
 	if (ucode_rate & RATE_MCS_BF_MSK)
 		rate->bfer = true;
@@ -978,7 +972,9 @@ static u16 rs_get_adjacent_rate(struct iwl_mvm *mvm, u8 index, u16 rate_mask,
 
 		/* Find the previous rate that is in the rate mask */
 		i = index - 1;
-		for (mask = (1 << i); i >= 0; i--, mask >>= 1) {
+		if (i >= 0)
+			mask = BIT(i);
+		for (; i >= 0; i--, mask >>= 1) {
 			if (rate_mask & mask) {
 				low = i;
 				break;
@@ -1087,34 +1083,6 @@ static void rs_get_lower_rate_down_column(struct iwl_lq_sta *lq_sta,
 		rs_get_lower_rate_in_column(lq_sta, rate);
 }
 
-/* Check if both rates are identical
- * allow_ant_mismatch enables matching a SISO rate on ANT_A or ANT_B
- * with a rate indicating STBC/BFER and ANT_AB.
- */
-static inline bool rs_rate_equal(struct rs_rate *a,
-				 struct rs_rate *b,
-				 bool allow_ant_mismatch)
-
-{
-	bool ant_match = (a->ant == b->ant) && (a->stbc == b->stbc) &&
-		(a->bfer == b->bfer);
-
-	if (allow_ant_mismatch) {
-		if (a->stbc || a->bfer) {
-			WARN_ONCE(a->ant != ANT_AB, "stbc %d bfer %d ant %d",
-				  a->stbc, a->bfer, a->ant);
-			ant_match |= (b->ant == ANT_A || b->ant == ANT_B);
-		} else if (b->stbc || b->bfer) {
-			WARN_ONCE(b->ant != ANT_AB, "stbc %d bfer %d ant %d",
-				  b->stbc, b->bfer, b->ant);
-			ant_match |= (a->ant == ANT_A || a->ant == ANT_B);
-		}
-	}
-
-	return (a->type == b->type) && (a->bw == b->bw) && (a->sgi == b->sgi) &&
-		(a->ldpc == b->ldpc) && (a->index == b->index) && ant_match;
-}
-
 /* Check if both rates share the same column */
 static inline bool rs_rate_column_match(struct rs_rate *a,
 					struct rs_rate *b)
@@ -1186,12 +1154,12 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	u32 lq_hwrate;
 	struct rs_rate lq_rate, tx_resp_rate;
 	struct iwl_scale_tbl_info *curr_tbl, *other_tbl, *tmp_tbl;
-	u8 reduced_txp = (uintptr_t)info->status.status_driver_data[0];
+	u32 tlc_info = (uintptr_t)info->status.status_driver_data[0];
+	u8 reduced_txp = tlc_info & RS_DRV_DATA_TXP_MSK;
+	u8 lq_color = RS_DRV_DATA_LQ_COLOR_GET(tlc_info);
 	u32 tx_resp_hwrate = (uintptr_t)info->status.status_driver_data[1];
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta;
-	bool allow_ant_mismatch = fw_has_api(&mvm->fw->ucode_capa,
-					     IWL_UCODE_TLV_API_LQ_SS_PARAMS);
 
 	/* Treat uninitialized rate scaling data same as non-existing. */
 	if (!lq_sta) {
@@ -1266,10 +1234,10 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	rs_rate_from_ucode_rate(lq_hwrate, info->band, &lq_rate);
 
 	/* Here we actually compare this rate to the latest LQ command */
-	if (!rs_rate_equal(&tx_resp_rate, &lq_rate, allow_ant_mismatch)) {
+	if (lq_color != LQ_FLAG_COLOR_GET(table->flags)) {
 		IWL_DEBUG_RATE(mvm,
-			       "initial tx resp rate 0x%x does not match 0x%x\n",
-			       tx_resp_hwrate, lq_hwrate);
+			       "tx resp color 0x%x does not match 0x%x\n",
+			       lq_color, LQ_FLAG_COLOR_GET(table->flags));
 
 		/*
 		 * Since rates mis-match, the last LQ command may have failed.
@@ -2868,7 +2836,11 @@ static void rs_initialize_lq(struct iwl_mvm *mvm,
 	rs_get_initial_rate(mvm, sta, lq_sta, band, rate);
 	rs_init_optimal_rate(mvm, sta, lq_sta);
 
-	WARN_ON_ONCE(rate->ant != ANT_A && rate->ant != ANT_B);
+	WARN_ONCE(rate->ant != ANT_A && rate->ant != ANT_B,
+		  "ant: 0x%x, chains 0x%x, fw tx ant: 0x%x, nvm tx ant: 0x%x\n",
+		  rate->ant, lq_sta->pers.chains, mvm->fw->valid_tx_ant,
+		  mvm->nvm_data ? mvm->nvm_data->valid_tx_ant : ANT_INVALID);
+
 	tbl->column = rs_get_column_from_rate(rate);
 
 	rs_set_expected_tpt_table(lq_sta, tbl);
@@ -3071,7 +3043,7 @@ static void iwl_mvm_reset_frame_stats(struct iwl_mvm *mvm)
 
 void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
 {
-	u8 nss = 0, mcs = 0;
+	u8 nss = 0;
 
 	spin_lock(&mvm->drv_stats_lock);
 
@@ -3099,11 +3071,9 @@ void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg)
 
 	if (rate & RATE_MCS_HT_MSK) {
 		mvm->drv_rx_stats.ht_frames++;
-		mcs = rate & RATE_HT_MCS_RATE_CODE_MSK;
 		nss = ((rate & RATE_HT_MCS_NSS_MSK) >> RATE_HT_MCS_NSS_POS) + 1;
 	} else if (rate & RATE_MCS_VHT_MSK) {
 		mvm->drv_rx_stats.vht_frames++;
-		mcs = rate & RATE_VHT_MCS_RATE_CODE_MSK;
 		nss = ((rate & RATE_VHT_MCS_NSS_MSK) >>
 		       RATE_VHT_MCS_NSS_POS) + 1;
 	} else {
@@ -3263,7 +3233,11 @@ static void rs_build_rates_table_from_fixed(struct iwl_mvm *mvm,
 	if (num_of_ant(ant) == 1)
 		lq_cmd->single_stream_ant_msk = ant;
 
-	lq_cmd->agg_frame_cnt_limit = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
+	if (!mvm->trans->cfg->gen2)
+		lq_cmd->agg_frame_cnt_limit = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
+	else
+		lq_cmd->agg_frame_cnt_limit =
+			LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF;
 }
 #endif /* CONFIG_MAC80211_DEBUGFS */
 
@@ -3332,6 +3306,7 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 	u8 valid_tx_ant = 0;
 	struct iwl_lq_cmd *lq_cmd = &lq_sta->lq;
 	bool toggle_ant = false;
+	u32 color;
 
 	memcpy(&rate, initial_rate, sizeof(rate));
 
@@ -3386,6 +3361,9 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 				 num_rates, num_retries, valid_tx_ant,
 				 toggle_ant);
 
+	/* update the color of the LQ command (as a counter at bits 1-3) */
+	color = LQ_FLAGS_COLOR_INC(LQ_FLAG_COLOR_GET(lq_cmd->flags));
+	lq_cmd->flags = LQ_FLAG_COLOR_SET(lq_cmd->flags, color);
 }
 
 struct rs_bfer_active_iter_data {
@@ -3624,6 +3602,8 @@ int rs_pretty_print_rate(char *buf, const u32 rate)
 	} else if (rate & RATE_MCS_HT_MSK) {
 		type = "HT";
 		mcs = rate & RATE_HT_MCS_INDEX_MSK;
+		nss = ((rate & RATE_HT_MCS_NSS_MSK)
+		       >> RATE_HT_MCS_NSS_POS) + 1;
 	} else {
 		type = "Unknown"; /* shouldn't happen */
 	}
@@ -3645,13 +3625,12 @@ int rs_pretty_print_rate(char *buf, const u32 rate)
 		bw = "BAD BW";
 	}
 
-	return sprintf(buf, "%s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s%s\n",
+	return sprintf(buf, "%s | ANT: %s BW: %s MCS: %d NSS: %d %s%s%s%s\n",
 		       type, rs_pretty_ant(ant), bw, mcs, nss,
 		       (rate & RATE_MCS_SGI_MSK) ? "SGI " : "NGI ",
-		       (rate & RATE_MCS_HT_STBC_MSK) ? "STBC " : "",
+		       (rate & RATE_MCS_STBC_MSK) ? "STBC " : "",
 		       (rate & RATE_MCS_LDPC_MSK) ? "LDPC " : "",
-		       (rate & RATE_MCS_BF_MSK) ? "BF " : "",
-		       (rate & RATE_MCS_ZLF_MSK) ? "ZLF " : "");
+		       (rate & RATE_MCS_BF_MSK) ? "BF " : "");
 }
 
 /**

@@ -36,7 +36,7 @@
 #define DEFAULT_GAMMA	"40"
 
 static unsigned int bs = 4;
-module_param(bs, uint, 0);
+module_param(bs, uint, 0000);
 MODULE_PARM_DESC(bs, "BS[2:0] Bias voltage level: 0-7 (default: 4)");
 
 static int init_display(struct fbtft_par *par)
@@ -130,7 +130,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	return ret;
 }
 
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	/* apply mask */
 	curves[0] &= 0x7F;

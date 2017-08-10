@@ -13,17 +13,11 @@
 #include <linux/compiler.h>
 #include <linux/string.h>
 
-#ifdef CONFIG_ACCESS_CHECK
-#define __access_ok _access_ok
-#endif
-
 /*
- * __copy_from_user/copy_to_user are based on ones in asm-generic/uaccess.h
- *
  * C6X supports unaligned 32 and 64 bit loads and stores.
  */
-static inline __must_check long __copy_from_user(void *to,
-		const void __user *from, unsigned long n)
+static inline __must_check unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	u32 tmp32;
 	u64 tmp64;
@@ -58,8 +52,8 @@ static inline __must_check long __copy_from_user(void *to,
 	return 0;
 }
 
-static inline __must_check long __copy_to_user(void __user *to,
-		const void *from, unsigned long n)
+static inline __must_check unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	u32 tmp32;
 	u64 tmp64;
@@ -93,9 +87,8 @@ static inline __must_check long __copy_to_user(void __user *to,
 	memcpy((void __force *)to, from, n);
 	return 0;
 }
-
-#define __copy_to_user   __copy_to_user
-#define __copy_from_user __copy_from_user
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 extern int _access_ok(unsigned long addr, unsigned long size);
 #ifdef CONFIG_ACCESS_CHECK

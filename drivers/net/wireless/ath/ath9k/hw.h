@@ -803,6 +803,7 @@ struct ath_hw {
 	u32 rfkill_gpio;
 	u32 rfkill_polarity;
 	u32 ah_flags;
+	s16 nf_override;
 
 	bool reset_power_on;
 	bool htc_reset_init;

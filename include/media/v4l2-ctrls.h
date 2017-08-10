@@ -174,10 +174,10 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  *		not freed when the control is deleted. Should this be needed
  *		then a new internal bitfield can be added to tell the framework
  *		to free this pointer.
- * @p_cur:	The control's current value represented via an union with
+ * @p_cur:	The control's current value represented via a union with
  *		provides a standard way of accessing control types
  *		through a pointer.
- * @p_new:	The control's new value represented via an union with provides
+ * @p_new:	The control's new value represented via a union with provides
  *		a standard way of accessing control types
  *		through a pointer.
  */
@@ -456,6 +456,19 @@ static inline void v4l2_ctrl_unlock(struct v4l2_ctrl *ctrl)
 {
 	mutex_unlock(ctrl->handler->lock);
 }
+
+/**
+ * __v4l2_ctrl_handler_setup() - Call the s_ctrl op for all controls belonging
+ * to the handler to initialize the hardware to the current control values. The
+ * caller is responsible for acquiring the control handler mutex on behalf of
+ * __v4l2_ctrl_handler_setup().
+ * @hdl:	The control handler.
+ *
+ * Button controls will be skipped, as are read-only controls.
+ *
+ * If @hdl == NULL, then this just returns 0.
+ */
+int __v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl);
 
 /**
  * v4l2_ctrl_handler_setup() - Call the s_ctrl op for all controls belonging

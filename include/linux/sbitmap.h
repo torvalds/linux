@@ -176,6 +176,25 @@ void sbitmap_resize(struct sbitmap *sb, unsigned int depth);
 int sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint, bool round_robin);
 
 /**
+ * sbitmap_get_shallow() - Try to allocate a free bit from a &struct sbitmap,
+ * limiting the depth used from each word.
+ * @sb: Bitmap to allocate from.
+ * @alloc_hint: Hint for where to start searching for a free bit.
+ * @shallow_depth: The maximum number of bits to allocate from a single word.
+ *
+ * This rather specific operation allows for having multiple users with
+ * different allocation limits. E.g., there can be a high-priority class that
+ * uses sbitmap_get() and a low-priority class that uses sbitmap_get_shallow()
+ * with a @shallow_depth of (1 << (@sb->shift - 1)). Then, the low-priority
+ * class can only allocate half of the total bits in the bitmap, preventing it
+ * from starving out the high-priority class.
+ *
+ * Return: Non-negative allocated bit number if successful, -1 otherwise.
+ */
+int sbitmap_get_shallow(struct sbitmap *sb, unsigned int alloc_hint,
+			unsigned long shallow_depth);
+
+/**
  * sbitmap_any_bit_set() - Check for a set bit in a &struct sbitmap.
  * @sb: Bitmap to check.
  *
@@ -259,6 +278,26 @@ static inline int sbitmap_test_bit(struct sbitmap *sb, unsigned int bitnr)
 unsigned int sbitmap_weight(const struct sbitmap *sb);
 
 /**
+ * sbitmap_show() - Dump &struct sbitmap information to a &struct seq_file.
+ * @sb: Bitmap to show.
+ * @m: struct seq_file to write to.
+ *
+ * This is intended for debugging. The format may change at any time.
+ */
+void sbitmap_show(struct sbitmap *sb, struct seq_file *m);
+
+/**
+ * sbitmap_bitmap_show() - Write a hex dump of a &struct sbitmap to a &struct
+ * seq_file.
+ * @sb: Bitmap to show.
+ * @m: struct seq_file to write to.
+ *
+ * This is intended for debugging. The output isn't guaranteed to be internally
+ * consistent.
+ */
+void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m);
+
+/**
  * sbitmap_queue_init_node() - Initialize a &struct sbitmap_queue on a specific
  * memory node.
  * @sbq: Bitmap queue to initialize.
@@ -306,6 +345,19 @@ void sbitmap_queue_resize(struct sbitmap_queue *sbq, unsigned int depth);
 int __sbitmap_queue_get(struct sbitmap_queue *sbq);
 
 /**
+ * __sbitmap_queue_get_shallow() - Try to allocate a free bit from a &struct
+ * sbitmap_queue, limiting the depth used from each word, with preemption
+ * already disabled.
+ * @sbq: Bitmap queue to allocate from.
+ * @shallow_depth: The maximum number of bits to allocate from a single word.
+ * See sbitmap_get_shallow().
+ *
+ * Return: Non-negative allocated bit number if successful, -1 otherwise.
+ */
+int __sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
+				unsigned int shallow_depth);
+
+/**
  * sbitmap_queue_get() - Try to allocate a free bit from a &struct
  * sbitmap_queue.
  * @sbq: Bitmap queue to allocate from.
@@ -321,6 +373,29 @@ static inline int sbitmap_queue_get(struct sbitmap_queue *sbq,
 
 	*cpu = get_cpu();
 	nr = __sbitmap_queue_get(sbq);
+	put_cpu();
+	return nr;
+}
+
+/**
+ * sbitmap_queue_get_shallow() - Try to allocate a free bit from a &struct
+ * sbitmap_queue, limiting the depth used from each word.
+ * @sbq: Bitmap queue to allocate from.
+ * @cpu: Output parameter; will contain the CPU we ran on (e.g., to be passed to
+ *       sbitmap_queue_clear()).
+ * @shallow_depth: The maximum number of bits to allocate from a single word.
+ * See sbitmap_get_shallow().
+ *
+ * Return: Non-negative allocated bit number if successful, -1 otherwise.
+ */
+static inline int sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
+					    unsigned int *cpu,
+					    unsigned int shallow_depth)
+{
+	int nr;
+
+	*cpu = get_cpu();
+	nr = __sbitmap_queue_get_shallow(sbq, shallow_depth);
 	put_cpu();
 	return nr;
 }
@@ -369,5 +444,15 @@ static inline struct sbq_wait_state *sbq_wait_ptr(struct sbitmap_queue *sbq,
  * @sbq: Bitmap queue to wake up.
  */
 void sbitmap_queue_wake_all(struct sbitmap_queue *sbq);
+
+/**
+ * sbitmap_queue_show() - Dump &struct sbitmap_queue information to a &struct
+ * seq_file.
+ * @sbq: Bitmap queue to show.
+ * @m: struct seq_file to write to.
+ *
+ * This is intended for debugging. The format may change at any time.
+ */
+void sbitmap_queue_show(struct sbitmap_queue *sbq, struct seq_file *m);
 
 #endif /* __LINUX_SCALE_BITMAP_H */

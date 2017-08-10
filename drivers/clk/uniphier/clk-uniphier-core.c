@@ -27,6 +27,9 @@ static struct clk_hw *uniphier_clk_register(struct device *dev,
 					const struct uniphier_clk_data *data)
 {
 	switch (data->type) {
+	case UNIPHIER_CLK_TYPE_CPUGEAR:
+		return uniphier_clk_register_cpugear(dev, regmap, data->name,
+						     &data->data.cpugear);
 	case UNIPHIER_CLK_TYPE_FIXED_FACTOR:
 		return uniphier_clk_register_fixed_factor(dev, data->name,
 							  &data->data.factor);
@@ -87,11 +90,8 @@ static int uniphier_clk_probe(struct platform_device *pdev)
 
 		dev_dbg(dev, "register %s (index=%d)\n", p->name, p->idx);
 		hw = uniphier_clk_register(dev, regmap, p);
-		if (IS_ERR(hw)) {
-			dev_err(dev, "failed to register %s (error %ld)\n",
-				p->name, PTR_ERR(hw));
-			return PTR_ERR(hw);
-		}
+		if (WARN(IS_ERR(hw), "failed to register %s", p->name))
+			continue;
 
 		if (p->idx >= 0)
 			hw_data->hws[p->idx] = hw;

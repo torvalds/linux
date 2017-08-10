@@ -278,6 +278,14 @@ struct scsi_host_template {
 	int (* change_queue_depth)(struct scsi_device *, int);
 
 	/*
+	 * This functions lets the driver expose the queue mapping
+	 * to the block layer.
+	 *
+	 * Status: OPTIONAL
+	 */
+	int (* map_queues)(struct Scsi_Host *shost);
+
+	/*
 	 * This function determines the BIOS parameters for a given
 	 * harddisk.  These tend to be numbers that are made up by
 	 * the host adapter.  Parameters:
@@ -444,11 +452,6 @@ struct scsi_host_template {
 	unsigned no_write_same:1;
 
 	/*
-	 * True if asynchronous aborts are not supported
-	 */
-	unsigned no_async_abort:1;
-
-	/*
 	 * Countdown for host blocking with no commands outstanding.
 	 */
 	unsigned int max_host_blocked;
@@ -543,9 +546,6 @@ struct Scsi_Host {
 	struct list_head	__devices;
 	struct list_head	__targets;
 	
-	struct scsi_host_cmd_pool *cmd_pool;
-	spinlock_t		free_list_lock;
-	struct list_head	free_list; /* backup store of cmd structs */
 	struct list_head	starved_list;
 
 	spinlock_t		default_lock;
@@ -818,8 +818,6 @@ extern void scsi_block_requests(struct Scsi_Host *);
 
 struct class_container;
 
-extern struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
-						void (*) (struct request_queue *));
 /*
  * These two functions are used to allocate and free a pseudo device
  * which will connect to the host adapter itself rather than any

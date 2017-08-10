@@ -15,6 +15,8 @@
  *  GNU General Public License for more details.
  */
 
+#include "cx23885.h"
+
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -27,7 +29,6 @@
 #include <asm/div64.h>
 #include <linux/firmware.h>
 
-#include "cx23885.h"
 #include "cimax2.h"
 #include "altera-ci.h"
 #include "cx23888-ir.h"
@@ -50,7 +51,8 @@ MODULE_PARM_DESC(card, "card type");
 
 #define dprintk(level, fmt, arg...)\
 	do { if (debug >= level)\
-		printk(KERN_DEBUG "%s: " fmt, dev->name, ## arg);\
+		printk(KERN_DEBUG pr_fmt("%s: " fmt), \
+		       __func__, ##arg); \
 	} while (0)
 
 static unsigned int cx23885_devcount;
@@ -407,19 +409,18 @@ static int cx23885_risc_decode(u32 risc)
 	};
 	int i;
 
-	printk("0x%08x [ %s", risc,
+	printk(KERN_DEBUG "0x%08x [ %s", risc,
 	       instr[risc >> 28] ? instr[risc >> 28] : "INVALID");
 	for (i = ARRAY_SIZE(bits) - 1; i >= 0; i--)
 		if (risc & (1 << (i + 12)))
-			printk(" %s", bits[i]);
-	printk(" count=%d ]\n", risc & 0xfff);
+			pr_cont(" %s", bits[i]);
+	pr_cont(" count=%d ]\n", risc & 0xfff);
 	return incr[risc >> 28] ? incr[risc >> 28] : 1;
 }
 
 static void cx23885_wakeup(struct cx23885_tsport *port,
 			   struct cx23885_dmaqueue *q, u32 count)
 {
-	struct cx23885_dev *dev = port->dev;
 	struct cx23885_buffer *buf;
 
 	if (list_empty(&q->active))
@@ -530,44 +531,44 @@ void cx23885_sram_channel_dump(struct cx23885_dev *dev,
 	u32 risc;
 	unsigned int i, j, n;
 
-	printk(KERN_WARNING "%s: %s - dma channel status dump\n",
-	       dev->name, ch->name);
+	pr_warn("%s: %s - dma channel status dump\n",
+		dev->name, ch->name);
 	for (i = 0; i < ARRAY_SIZE(name); i++)
-		printk(KERN_WARNING "%s:   cmds: %-15s: 0x%08x\n",
-		       dev->name, name[i],
-		       cx_read(ch->cmds_start + 4*i));
+		pr_warn("%s:   cmds: %-15s: 0x%08x\n",
+			dev->name, name[i],
+			cx_read(ch->cmds_start + 4*i));
 
 	for (i = 0; i < 4; i++) {
 		risc = cx_read(ch->cmds_start + 4 * (i + 14));
-		printk(KERN_WARNING "%s:   risc%d: ", dev->name, i);
+		pr_warn("%s:   risc%d: ", dev->name, i);
 		cx23885_risc_decode(risc);
 	}
 	for (i = 0; i < (64 >> 2); i += n) {
 		risc = cx_read(ch->ctrl_start + 4 * i);
 		/* No consideration for bits 63-32 */
 
-		printk(KERN_WARNING "%s:   (0x%08x) iq %x: ", dev->name,
-		       ch->ctrl_start + 4 * i, i);
+		pr_warn("%s:   (0x%08x) iq %x: ", dev->name,
+			ch->ctrl_start + 4 * i, i);
 		n = cx23885_risc_decode(risc);
 		for (j = 1; j < n; j++) {
 			risc = cx_read(ch->ctrl_start + 4 * (i + j));
-			printk(KERN_WARNING "%s:   iq %x: 0x%08x [ arg #%d ]\n",
-			       dev->name, i+j, risc, j);
+			pr_warn("%s:   iq %x: 0x%08x [ arg #%d ]\n",
+				dev->name, i+j, risc, j);
 		}
 	}
 
-	printk(KERN_WARNING "%s: fifo: 0x%08x -> 0x%x\n",
-	       dev->name, ch->fifo_start, ch->fifo_start+ch->fifo_size);
-	printk(KERN_WARNING "%s: ctrl: 0x%08x -> 0x%x\n",
-	       dev->name, ch->ctrl_start, ch->ctrl_start + 6*16);
-	printk(KERN_WARNING "%s:   ptr1_reg: 0x%08x\n",
-	       dev->name, cx_read(ch->ptr1_reg));
-	printk(KERN_WARNING "%s:   ptr2_reg: 0x%08x\n",
-	       dev->name, cx_read(ch->ptr2_reg));
-	printk(KERN_WARNING "%s:   cnt1_reg: 0x%08x\n",
-	       dev->name, cx_read(ch->cnt1_reg));
-	printk(KERN_WARNING "%s:   cnt2_reg: 0x%08x\n",
-	       dev->name, cx_read(ch->cnt2_reg));
+	pr_warn("%s: fifo: 0x%08x -> 0x%x\n",
+		dev->name, ch->fifo_start, ch->fifo_start+ch->fifo_size);
+	pr_warn("%s: ctrl: 0x%08x -> 0x%x\n",
+		dev->name, ch->ctrl_start, ch->ctrl_start + 6*16);
+	pr_warn("%s:   ptr1_reg: 0x%08x\n",
+		dev->name, cx_read(ch->ptr1_reg));
+	pr_warn("%s:   ptr2_reg: 0x%08x\n",
+		dev->name, cx_read(ch->ptr2_reg));
+	pr_warn("%s:   cnt1_reg: 0x%08x\n",
+		dev->name, cx_read(ch->cnt1_reg));
+	pr_warn("%s:   cnt2_reg: 0x%08x\n",
+		dev->name, cx_read(ch->cnt2_reg));
 }
 
 static void cx23885_risc_disasm(struct cx23885_tsport *port,
@@ -576,14 +577,14 @@ static void cx23885_risc_disasm(struct cx23885_tsport *port,
 	struct cx23885_dev *dev = port->dev;
 	unsigned int i, j, n;
 
-	printk(KERN_INFO "%s: risc disasm: %p [dma=0x%08lx]\n",
+	pr_info("%s: risc disasm: %p [dma=0x%08lx]\n",
 	       dev->name, risc->cpu, (unsigned long)risc->dma);
 	for (i = 0; i < (risc->size >> 2); i += n) {
-		printk(KERN_INFO "%s:   %04d: ", dev->name, i);
+		pr_info("%s:   %04d: ", dev->name, i);
 		n = cx23885_risc_decode(le32_to_cpu(risc->cpu[i]));
 		for (j = 1; j < n; j++)
-			printk(KERN_INFO "%s:   %04d: 0x%08x [ arg #%d ]\n",
-			       dev->name, i + j, risc->cpu[i + j], j);
+			pr_info("%s:   %04d: 0x%08x [ arg #%d ]\n",
+				dev->name, i + j, risc->cpu[i + j], j);
 		if (risc->cpu[i] == cpu_to_le32(RISC_JUMP))
 			break;
 	}
@@ -674,8 +675,8 @@ static int get_resources(struct cx23885_dev *dev)
 			       dev->name))
 		return 0;
 
-	printk(KERN_ERR "%s: can't get MMIO memory @ 0x%llx\n",
-		dev->name, (unsigned long long)pci_resource_start(dev->pci, 0));
+	pr_err("%s: can't get MMIO memory @ 0x%llx\n",
+	       dev->name, (unsigned long long)pci_resource_start(dev->pci, 0));
 
 	return -EBUSY;
 }
@@ -793,15 +794,15 @@ static void cx23885_dev_checkrevision(struct cx23885_dev *dev)
 		dev->hwrevision = 0xb1;
 		break;
 	default:
-		printk(KERN_ERR "%s() New hardware revision found 0x%x\n",
-			__func__, dev->hwrevision);
+		pr_err("%s() New hardware revision found 0x%x\n",
+		       __func__, dev->hwrevision);
 	}
 	if (dev->hwrevision)
-		printk(KERN_INFO "%s() Hardware revision = 0x%02x\n",
+		pr_info("%s() Hardware revision = 0x%02x\n",
 			__func__, dev->hwrevision);
 	else
-		printk(KERN_ERR "%s() Hardware revision unknown 0x%x\n",
-			__func__, dev->hwrevision);
+		pr_err("%s() Hardware revision unknown 0x%x\n",
+		       __func__, dev->hwrevision);
 }
 
 /* Find the first v4l2_subdev member of the group id in hw */
@@ -915,8 +916,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		cx23885_init_tsport(dev, &dev->ts2, 2);
 
 	if (get_resources(dev) < 0) {
-		printk(KERN_ERR "CORE %s No more PCIe resources for "
-		       "subsystem: %04x:%04x\n",
+		pr_err("CORE %s No more PCIe resources for subsystem: %04x:%04x\n",
 		       dev->name, dev->pci->subsystem_vendor,
 		       dev->pci->subsystem_device);
 
@@ -930,11 +930,11 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 
 	dev->bmmio = (u8 __iomem *)dev->lmmio;
 
-	printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
-	       dev->name, dev->pci->subsystem_vendor,
-	       dev->pci->subsystem_device, cx23885_boards[dev->board].name,
-	       dev->board, card[dev->nr] == dev->board ?
-	       "insmod option" : "autodetected");
+	pr_info("CORE %s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
+		dev->name, dev->pci->subsystem_vendor,
+		dev->pci->subsystem_device, cx23885_boards[dev->board].name,
+		dev->board, card[dev->nr] == dev->board ?
+		"insmod option" : "autodetected");
 
 	cx23885_pci_quirks(dev);
 
@@ -980,8 +980,8 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 
 	if (cx23885_boards[dev->board].porta == CX23885_ANALOG_VIDEO) {
 		if (cx23885_video_register(dev) < 0) {
-			printk(KERN_ERR "%s() Failed to register analog "
-				"video adapters on VID_A\n", __func__);
+			pr_err("%s() Failed to register analog video adapters on VID_A\n",
+			       __func__);
 		}
 	}
 
@@ -990,14 +990,13 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 			dev->ts1.num_frontends =
 				cx23885_boards[dev->board].num_fds_portb;
 		if (cx23885_dvb_register(&dev->ts1) < 0) {
-			printk(KERN_ERR "%s() Failed to register dvb adapters on VID_B\n",
+			pr_err("%s() Failed to register dvb adapters on VID_B\n",
 			       __func__);
 		}
 	} else
 	if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER) {
 		if (cx23885_417_register(dev) < 0) {
-			printk(KERN_ERR
-				"%s() Failed to register 417 on VID_B\n",
+			pr_err("%s() Failed to register 417 on VID_B\n",
 			       __func__);
 		}
 	}
@@ -1007,15 +1006,13 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 			dev->ts2.num_frontends =
 				cx23885_boards[dev->board].num_fds_portc;
 		if (cx23885_dvb_register(&dev->ts2) < 0) {
-			printk(KERN_ERR
-				"%s() Failed to register dvb on VID_C\n",
+			pr_err("%s() Failed to register dvb on VID_C\n",
 			       __func__);
 		}
 	} else
 	if (cx23885_boards[dev->board].portc == CX23885_MPEG_ENCODER) {
 		if (cx23885_417_register(dev) < 0) {
-			printk(KERN_ERR
-				"%s() Failed to register 417 on VID_C\n",
+			pr_err("%s() Failed to register 417 on VID_C\n",
 			       __func__);
 		}
 	}
@@ -1344,7 +1341,7 @@ int cx23885_start_dma(struct cx23885_tsport *port,
 
 	if ((!(cx23885_boards[dev->board].portb & CX23885_MPEG_DVB)) &&
 		(!(cx23885_boards[dev->board].portc & CX23885_MPEG_DVB))) {
-		printk("%s() Unsupported .portb/c (0x%08x)/(0x%08x)\n",
+		pr_err("%s() Unsupported .portb/c (0x%08x)/(0x%08x)\n",
 			__func__,
 			cx23885_boards[dev->board].portb,
 			cx23885_boards[dev->board].portc);
@@ -1531,7 +1528,6 @@ void cx23885_buf_queue(struct cx23885_tsport *port, struct cx23885_buffer *buf)
 
 static void do_cancel_buffers(struct cx23885_tsport *port, char *reason)
 {
-	struct cx23885_dev *dev = port->dev;
 	struct cx23885_dmaqueue *q = &port->mpegq;
 	struct cx23885_buffer *buf;
 	unsigned long flags;
@@ -1551,8 +1547,6 @@ static void do_cancel_buffers(struct cx23885_tsport *port, char *reason)
 
 void cx23885_cancel_buffers(struct cx23885_tsport *port)
 {
-	struct cx23885_dev *dev = port->dev;
-
 	dprintk(1, "%s()\n", __func__);
 	cx23885_stop_dma(port);
 	do_cancel_buffers(port, "cancel");
@@ -1579,8 +1573,8 @@ int cx23885_irq_417(struct cx23885_dev *dev, u32 status)
 		(status & VID_B_MSK_VBI_SYNC)    ||
 		(status & VID_B_MSK_OF)          ||
 		(status & VID_B_MSK_VBI_OF)) {
-		printk(KERN_ERR "%s: V4L mpeg risc op code error, status "
-			"= 0x%x\n", dev->name, status);
+		pr_err("%s: V4L mpeg risc op code error, status = 0x%x\n",
+		       dev->name, status);
 		if (status & VID_B_MSK_BAD_PKT)
 			dprintk(1, "        VID_B_MSK_BAD_PKT\n");
 		if (status & VID_B_MSK_OPC_ERR)
@@ -1641,7 +1635,7 @@ static int cx23885_irq_ts(struct cx23885_tsport *port, u32 status)
 			dprintk(7, " (VID_BC_MSK_OF      0x%08x)\n",
 				VID_BC_MSK_OF);
 
-		printk(KERN_ERR "%s: mpeg risc op code error\n", dev->name);
+		pr_err("%s: mpeg risc op code error\n", dev->name);
 
 		cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
 		cx23885_sram_channel_dump(dev,
@@ -1881,15 +1875,14 @@ void cx23885_gpio_set(struct cx23885_dev *dev, u32 mask)
 
 	if (mask & 0x0007fff8) {
 		if (encoder_on_portb(dev) || encoder_on_portc(dev))
-			printk(KERN_ERR
-				"%s: Setting GPIO on encoder ports\n",
+			pr_err("%s: Setting GPIO on encoder ports\n",
 				dev->name);
 		cx_set(MC417_RWD, (mask & 0x0007fff8) >> 3);
 	}
 
 	/* TODO: 23-19 */
 	if (mask & 0x00f80000)
-		printk(KERN_INFO "%s: Unsupported\n", dev->name);
+		pr_info("%s: Unsupported\n", dev->name);
 }
 
 void cx23885_gpio_clear(struct cx23885_dev *dev, u32 mask)
@@ -1899,15 +1892,14 @@ void cx23885_gpio_clear(struct cx23885_dev *dev, u32 mask)
 
 	if (mask & 0x0007fff8) {
 		if (encoder_on_portb(dev) || encoder_on_portc(dev))
-			printk(KERN_ERR
-				"%s: Clearing GPIO moving on encoder ports\n",
+			pr_err("%s: Clearing GPIO moving on encoder ports\n",
 				dev->name);
 		cx_clear(MC417_RWD, (mask & 0x7fff8) >> 3);
 	}
 
 	/* TODO: 23-19 */
 	if (mask & 0x00f80000)
-		printk(KERN_INFO "%s: Unsupported\n", dev->name);
+		pr_info("%s: Unsupported\n", dev->name);
 }
 
 u32 cx23885_gpio_get(struct cx23885_dev *dev, u32 mask)
@@ -1917,15 +1909,14 @@ u32 cx23885_gpio_get(struct cx23885_dev *dev, u32 mask)
 
 	if (mask & 0x0007fff8) {
 		if (encoder_on_portb(dev) || encoder_on_portc(dev))
-			printk(KERN_ERR
-				"%s: Reading GPIO moving on encoder ports\n",
+			pr_err("%s: Reading GPIO moving on encoder ports\n",
 				dev->name);
 		return (cx_read(MC417_RWD) & ((mask & 0x7fff8) >> 3)) << 3;
 	}
 
 	/* TODO: 23-19 */
 	if (mask & 0x00f80000)
-		printk(KERN_INFO "%s: Unsupported\n", dev->name);
+		pr_info("%s: Unsupported\n", dev->name);
 
 	return 0;
 }
@@ -1939,8 +1930,7 @@ void cx23885_gpio_enable(struct cx23885_dev *dev, u32 mask, int asoutput)
 
 	if (mask & 0x0007fff8) {
 		if (encoder_on_portb(dev) || encoder_on_portc(dev))
-			printk(KERN_ERR
-				"%s: Enabling GPIO on encoder ports\n",
+			pr_err("%s: Enabling GPIO on encoder ports\n",
 				dev->name);
 	}
 
@@ -1995,8 +1985,8 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 	/* print pci info */
 	dev->pci_rev = pci_dev->revision;
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
-	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%llx\n", dev->name,
+	pr_info("%s/0: found at %s, rev: %d, irq: %d, latency: %d, mmio: 0x%llx\n",
+	       dev->name,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
 	       dev->pci_lat,
 		(unsigned long long)pci_resource_start(pci_dev, 0));
@@ -2004,14 +1994,14 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	err = pci_set_dma_mask(pci_dev, 0xffffffff);
 	if (err) {
-		printk("%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
+		pr_err("%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
 		goto fail_ctrl;
 	}
 
 	err = request_irq(pci_dev->irq, cx23885_irq,
 			  IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
-		printk(KERN_ERR "%s: can't get IRQ %d\n",
+		pr_err("%s: can't get IRQ %d\n",
 		       dev->name, pci_dev->irq);
 		goto fail_irq;
 	}
@@ -2097,7 +2087,7 @@ static struct pci_driver cx23885_pci_driver = {
 
 static int __init cx23885_init(void)
 {
-	printk(KERN_INFO "cx23885 driver version %s loaded\n",
+	pr_info("cx23885 driver version %s loaded\n",
 		CX23885_VERSION);
 	return pci_register_driver(&cx23885_pci_driver);
 }

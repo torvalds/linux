@@ -79,12 +79,12 @@
 #define NVM_RF_CFG_TX_ANT_MSK(x) ((x >> 8)  & 0xF) /* bits 8-11  */
 #define NVM_RF_CFG_RX_ANT_MSK(x) ((x >> 12) & 0xF) /* bits 12-15 */
 
-#define NVM_RF_CFG_FLAVOR_MSK_FAMILY_8000(x)   (x & 0xF)
-#define NVM_RF_CFG_DASH_MSK_FAMILY_8000(x)   ((x >> 4) & 0xF)
-#define NVM_RF_CFG_STEP_MSK_FAMILY_8000(x)   ((x >> 8) & 0xF)
-#define NVM_RF_CFG_TYPE_MSK_FAMILY_8000(x)   ((x >> 12) & 0xFFF)
-#define NVM_RF_CFG_TX_ANT_MSK_FAMILY_8000(x) ((x >> 24) & 0xF)
-#define NVM_RF_CFG_RX_ANT_MSK_FAMILY_8000(x) ((x >> 28) & 0xF)
+#define EXT_NVM_RF_CFG_FLAVOR_MSK(x)   ((x) & 0xF)
+#define EXT_NVM_RF_CFG_DASH_MSK(x)   (((x) >> 4) & 0xF)
+#define EXT_NVM_RF_CFG_STEP_MSK(x)   (((x) >> 8) & 0xF)
+#define EXT_NVM_RF_CFG_TYPE_MSK(x)   (((x) >> 12) & 0xFFF)
+#define EXT_NVM_RF_CFG_TX_ANT_MSK(x) (((x) >> 24) & 0xF)
+#define EXT_NVM_RF_CFG_RX_ANT_MSK(x) (((x) >> 28) & 0xF)
 
 /**
  * DOC: Driver system flows - drv component
@@ -118,15 +118,13 @@ struct iwl_cfg;
  * iwl_drv_start - start the drv
  *
  * @trans_ops: the ops of the transport
- * @cfg: device specific constants / virtual functions
  *
  * starts the driver: fetches the firmware. This should be called by bus
  * specific system flows implementations. For example, the bus specific probe
  * function should do bus related operations only, and then call to this
  * function. It returns the driver object or %NULL if an error occurred.
  */
-struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
-			      const struct iwl_cfg *cfg);
+struct iwl_drv *iwl_drv_start(struct iwl_trans *trans);
 
 /**
  * iwl_drv_stop - stop the drv

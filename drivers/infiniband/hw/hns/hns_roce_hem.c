@@ -80,9 +80,9 @@ struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev, int npages,
 			--order;
 
 		/*
-		* Alloc memory one time. If failed, don't alloc small block
-		* memory, directly return fail.
-		*/
+		 * Alloc memory one time. If failed, don't alloc small block
+		 * memory, directly return fail.
+		 */
 		mem = &chunk->mem[chunk->npages];
 		buf = dma_alloc_coherent(&hr_dev->pdev->dev, PAGE_SIZE << order,
 				&sg_dma_address(mem), gfp_mask);

@@ -26,7 +26,7 @@
 
 #if defined(CONFIG_CYCLES_CLOCKSOURCE)
 
-static notrace cycle_t bfin_read_cycles(struct clocksource *cs)
+static notrace u64 bfin_read_cycles(struct clocksource *cs)
 {
 #ifdef CONFIG_CPU_FREQ
 	return __bfin_cycles_off + (get_cycles() << __bfin_cycles_mod);
@@ -80,7 +80,7 @@ void __init setup_gptimer0(void)
 	enable_gptimers(TIMER0bit);
 }
 
-static cycle_t bfin_read_gptimer0(struct clocksource *cs)
+static u64 bfin_read_gptimer0(struct clocksource *cs)
 {
 	return bfin_read_TIMER0_COUNTER();
 }
@@ -230,7 +230,9 @@ static void __init bfin_gptmr0_clockevent_init(struct clock_event_device *evt)
 	clock_tick = get_sclk();
 	evt->mult = div_sc(clock_tick, NSEC_PER_SEC, evt->shift);
 	evt->max_delta_ns = clockevent_delta2ns(-1, evt);
+	evt->max_delta_ticks = (unsigned long)-1;
 	evt->min_delta_ns = clockevent_delta2ns(100, evt);
+	evt->min_delta_ticks = 100;
 
 	evt->cpumask = cpumask_of(0);
 
@@ -344,7 +346,9 @@ void bfin_coretmr_clockevent_init(void)
 	clock_tick = get_cclk() / TIME_SCALE;
 	evt->mult = div_sc(clock_tick, NSEC_PER_SEC, evt->shift);
 	evt->max_delta_ns = clockevent_delta2ns(-1, evt);
+	evt->max_delta_ticks = (unsigned long)-1;
 	evt->min_delta_ns = clockevent_delta2ns(100, evt);
+	evt->min_delta_ticks = 100;
 
 	evt->cpumask = cpumask_of(cpu);
 

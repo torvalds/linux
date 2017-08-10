@@ -36,6 +36,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
+#include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -82,6 +83,8 @@
 #define NES_TX_TIMEOUT          (6*HZ)
 #define NES_FIRST_QPN           64
 #define NES_SW_CONTEXT_ALIGN    1024
+
+#define NES_MAX_MTU		9000
 
 #define NES_NIC_MAX_NICS        16
 #define NES_MAX_ARP_TABLE_SIZE  4096
@@ -169,8 +172,6 @@ do { \
 #include "nes_cm.h"
 #include "nes_mgt.h"
 
-extern int max_mtu;
-#define max_frame_len (max_mtu+ETH_HLEN)
 extern int interrupt_mod_interval;
 extern int nes_if_count;
 extern int mpa_version;

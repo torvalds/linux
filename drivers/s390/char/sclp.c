@@ -94,13 +94,6 @@ static struct timer_list sclp_request_timer;
 /* Timer for queued requests. */
 static struct timer_list sclp_queue_timer;
 
-/* Internal state: is the driver initialized? */
-static volatile enum sclp_init_state_t {
-	sclp_init_state_uninitialized,
-	sclp_init_state_initializing,
-	sclp_init_state_initialized
-} sclp_init_state = sclp_init_state_uninitialized;
-
 /* Internal state: is a request active at the sclp? */
 static volatile enum sclp_running_state_t {
 	sclp_running_state_idle,
@@ -146,31 +139,6 @@ static void sclp_process_queue(void);
 static void __sclp_make_read_req(void);
 static int sclp_init_mask(int calculate);
 static int sclp_init(void);
-
-/* Perform service call. Return 0 on success, non-zero otherwise. */
-int
-sclp_service_call(sclp_cmdw_t command, void *sccb)
-{
-	int cc = 4; /* Initialize for program check handling */
-
-	asm volatile(
-		"0:	.insn	rre,0xb2200000,%1,%2\n"  /* servc %1,%2 */
-		"1:	ipm	%0\n"
-		"	srl	%0,28\n"
-		"2:\n"
-		EX_TABLE(0b, 2b)
-		EX_TABLE(1b, 2b)
-		: "+&d" (cc) : "d" (command), "a" (__pa(sccb))
-		: "cc", "memory");
-	if (cc == 4)
-		return -EINVAL;
-	if (cc == 3)
-		return -EIO;
-	if (cc == 2)
-		return -EBUSY;
-	return 0;
-}
-
 
 static void
 __sclp_queue_read_req(void)
@@ -1128,26 +1096,26 @@ static const struct dev_pm_ops sclp_pm_ops = {
 	.restore	= sclp_restore,
 };
 
-static ssize_t sclp_show_console_pages(struct device_driver *dev, char *buf)
+static ssize_t con_pages_show(struct device_driver *dev, char *buf)
 {
 	return sprintf(buf, "%i\n", sclp_console_pages);
 }
 
-static DRIVER_ATTR(con_pages, S_IRUSR, sclp_show_console_pages, NULL);
+static DRIVER_ATTR_RO(con_pages);
 
-static ssize_t sclp_show_con_drop(struct device_driver *dev, char *buf)
+static ssize_t con_drop_show(struct device_driver *dev, char *buf)
 {
 	return sprintf(buf, "%i\n", sclp_console_drop);
 }
 
-static DRIVER_ATTR(con_drop, S_IRUSR, sclp_show_con_drop, NULL);
+static DRIVER_ATTR_RO(con_drop);
 
-static ssize_t sclp_show_console_full(struct device_driver *dev, char *buf)
+static ssize_t con_full_show(struct device_driver *dev, char *buf)
 {
 	return sprintf(buf, "%lu\n", sclp_console_full);
 }
 
-static DRIVER_ATTR(con_full, S_IRUSR, sclp_show_console_full, NULL);
+static DRIVER_ATTR_RO(con_full);
 
 static struct attribute *sclp_drv_attrs[] = {
 	&driver_attr_con_pages.attr,

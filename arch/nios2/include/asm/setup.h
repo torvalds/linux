@@ -30,8 +30,6 @@ extern char fast_handler_end[];
 
 extern void pagetable_init(void);
 
-extern void setup_early_printk(void);
-
 #endif/* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 

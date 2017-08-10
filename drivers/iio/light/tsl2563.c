@@ -884,9 +884,19 @@ static const struct i2c_device_id tsl2563_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tsl2563_id);
 
+static const struct of_device_id tsl2563_of_match[] = {
+	{ .compatible = "amstaos,tsl2560" },
+	{ .compatible = "amstaos,tsl2561" },
+	{ .compatible = "amstaos,tsl2562" },
+	{ .compatible = "amstaos,tsl2563" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, tsl2563_of_match);
+
 static struct i2c_driver tsl2563_i2c_driver = {
 	.driver = {
 		.name	 = "tsl2563",
+		.of_match_table = tsl2563_of_match,
 		.pm	= TSL2563_PM_OPS,
 	},
 	.probe		= tsl2563_probe,

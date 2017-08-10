@@ -3,5 +3,6 @@ config VIDEO_SMIAPP
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && HAVE_CLK
 	depends on MEDIA_CAMERA_SUPPORT
 	select VIDEO_SMIAPP_PLL
+	select V4L2_FWNODE
 	---help---
 	  This is a generic driver for SMIA++/SMIA camera modules.

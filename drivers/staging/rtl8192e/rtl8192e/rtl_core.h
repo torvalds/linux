@@ -17,7 +17,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ *****************************************************************************/
 
 #ifndef _RTL_CORE_H
 #define _RTL_CORE_H
@@ -101,8 +101,6 @@
 #define DEFAULT_RETRY_DATA	7
 
 #define	PHY_RSSI_SLID_WIN_MAX			100
-
-#define RTL_IOCTL_WPA_SUPPLICANT		(SIOCIWFIRSTPRIV + 30)
 
 #define TxBBGainTableLength			37
 #define CCKTxBBGainTableLength			23

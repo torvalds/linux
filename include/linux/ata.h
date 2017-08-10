@@ -20,7 +20,7 @@
  *
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
- *  as Documentation/DocBook/libata.*
+ *  as Documentation/driver-api/libata.rst
  *
  *  Hardware documentation available from http://www.t13.org/
  *
@@ -336,11 +336,16 @@ enum {
 	/* READ_LOG_EXT pages */
 	ATA_LOG_DIRECTORY	= 0x0,
 	ATA_LOG_SATA_NCQ	= 0x10,
-	ATA_LOG_NCQ_NON_DATA	  = 0x12,
-	ATA_LOG_NCQ_SEND_RECV	  = 0x13,
-	ATA_LOG_SATA_ID_DEV_DATA  = 0x30,
+	ATA_LOG_NCQ_NON_DATA	= 0x12,
+	ATA_LOG_NCQ_SEND_RECV	= 0x13,
+	ATA_LOG_IDENTIFY_DEVICE	= 0x30,
+
+	/* Identify device log pages: */
+	ATA_LOG_SECURITY	  = 0x06,
 	ATA_LOG_SATA_SETTINGS	  = 0x08,
 	ATA_LOG_ZONED_INFORMATION = 0x09,
+
+	/* Identify device SATA settings log:*/
 	ATA_LOG_DEVSLP_OFFSET	  = 0x30,
 	ATA_LOG_DEVSLP_SIZE	  = 0x08,
 	ATA_LOG_DEVSLP_MDAT	  = 0x00,
@@ -348,6 +353,7 @@ enum {
 	ATA_LOG_DEVSLP_DETO	  = 0x01,
 	ATA_LOG_DEVSLP_VALID	  = 0x07,
 	ATA_LOG_DEVSLP_VALID_MASK = 0x80,
+	ATA_LOG_NCQ_PRIO_OFFSET   = 0x09,
 
 	/* NCQ send and receive log */
 	ATA_LOG_NCQ_SEND_RECV_SUBCMDS_OFFSET	= 0x00,
@@ -816,11 +822,6 @@ static inline bool ata_id_sct_error_recovery_ctrl(const u16 *id)
 	return id[ATA_ID_SCT_CMD_XPORT] & (1 << 3) ? true : false;
 }
 
-static inline bool ata_id_sct_write_same(const u16 *id)
-{
-	return id[ATA_ID_SCT_CMD_XPORT] & (1 << 2) ? true : false;
-}
-
 static inline bool ata_id_sct_long_sector_access(const u16 *id)
 {
 	return id[ATA_ID_SCT_CMD_XPORT] & (1 << 1) ? true : false;
@@ -938,6 +939,11 @@ static inline bool ata_id_has_ncq_send_and_recv(const u16 *id)
 static inline bool ata_id_has_ncq_non_data(const u16 *id)
 {
 	return id[ATA_ID_SATA_CAPABILITY_2] & BIT(5);
+}
+
+static inline bool ata_id_has_ncq_prio(const u16 *id)
+{
+	return id[ATA_ID_SATA_CAPABILITY] & BIT(12);
 }
 
 static inline bool ata_id_has_trim(const u16 *id)

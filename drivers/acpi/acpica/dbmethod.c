@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -422,6 +422,7 @@ acpi_db_walk_for_execute(acpi_handle obj_handle,
 
 	status = acpi_get_object_info(obj_handle, &obj_info);
 	if (ACPI_FAILURE(status)) {
+		ACPI_FREE(pathname);
 		return (status);
 	}
 

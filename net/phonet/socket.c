@@ -27,6 +27,8 @@
 #include <linux/kernel.h>
 #include <linux/net.h>
 #include <linux/poll.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 #include <net/tcp_states.h>
 
@@ -303,7 +305,7 @@ out:
 }
 
 static int pn_socket_accept(struct socket *sock, struct socket *newsock,
-				int flags)
+			    int flags, bool kern)
 {
 	struct sock *sk = sock->sk;
 	struct sock *newsk;
@@ -312,7 +314,7 @@ static int pn_socket_accept(struct socket *sock, struct socket *newsock,
 	if (unlikely(sk->sk_state != TCP_LISTEN))
 		return -EINVAL;
 
-	newsk = sk->sk_prot->accept(sk, flags, &err);
+	newsk = sk->sk_prot->accept(sk, flags, &err, kern);
 	if (!newsk)
 		return err;
 
@@ -358,7 +360,7 @@ static unsigned int pn_socket_poll(struct file *file, struct socket *sock,
 		return POLLHUP;
 
 	if (sk->sk_state == TCP_ESTABLISHED &&
-		atomic_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf &&
+		refcount_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf &&
 		atomic_read(&pn->tx_credits))
 		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
 
@@ -612,7 +614,7 @@ static int pn_sock_seq_show(struct seq_file *seq, void *v)
 			sk_wmem_alloc_get(sk), sk_rmem_alloc_get(sk),
 			from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
 			sock_i_ino(sk),
-			atomic_read(&sk->sk_refcnt), sk,
+			refcount_read(&sk->sk_refcnt), sk,
 			atomic_read(&sk->sk_drops));
 	}
 	seq_pad(seq, '\n');

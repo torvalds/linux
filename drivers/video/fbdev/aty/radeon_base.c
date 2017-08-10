@@ -2453,8 +2453,8 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 		err |= sysfs_create_bin_file(&rinfo->pdev->dev.kobj,
 						&edid2_attr);
 	if (err)
-		pr_warning("%s() Creating sysfs files failed, continuing\n",
-			   __func__);
+		pr_warn("%s() Creating sysfs files failed, continuing\n",
+			__func__);
 
 	/* save current mode regs before we switch into the new one
 	 * so we can restore this upon __exit

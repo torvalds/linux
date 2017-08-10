@@ -88,6 +88,19 @@ void __init *plat_get_fdt(void)
 	return (void *)fdt;
 }
 
+void __init plat_fdt_relocated(void *new_location)
+{
+	/*
+	 * reset fdt as the cached value would point to the location
+	 * before relocations happened and update the location argument
+	 * if it was passed using UHI
+	 */
+	fdt = NULL;
+
+	if (fw_arg0 == -2)
+		fw_arg1 = (unsigned long)new_location;
+}
+
 void __init plat_mem_setup(void)
 {
 	if (mach && mach->fixup_fdt)
@@ -107,6 +120,33 @@ void __init device_tree_init(void)
 	err = register_cps_smp_ops();
 	if (err)
 		err = register_up_smp_ops();
+}
+
+int __init apply_mips_fdt_fixups(void *fdt_out, size_t fdt_out_size,
+				 const void *fdt_in,
+				 const struct mips_fdt_fixup *fixups)
+{
+	int err;
+
+	err = fdt_open_into(fdt_in, fdt_out, fdt_out_size);
+	if (err) {
+		pr_err("Failed to open FDT\n");
+		return err;
+	}
+
+	for (; fixups->apply; fixups++) {
+		err = fixups->apply(fdt_out);
+		if (err) {
+			pr_err("Failed to apply FDT fixup \"%s\"\n",
+			       fixups->description);
+			return err;
+		}
+	}
+
+	err = fdt_pack(fdt_out);
+	if (err)
+		pr_err("Failed to pack FDT\n");
+	return err;
 }
 
 void __init plat_time_init(void)
@@ -148,7 +188,7 @@ void __init plat_time_init(void)
 		}
 	}
 
-	clocksource_probe();
+	timer_probe();
 }
 
 void __init arch_init_irq(void)

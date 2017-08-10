@@ -188,6 +188,9 @@
 #define CPTR_EL2_DEFAULT	0x000033ff
 
 /* Hyp Debug Configuration Register bits */
+#define MDCR_EL2_TPMS		(1 << 14)
+#define MDCR_EL2_E2PB_MASK	(UL(0x3))
+#define MDCR_EL2_E2PB_SHIFT	(UL(12))
 #define MDCR_EL2_TDRA		(1 << 11)
 #define MDCR_EL2_TDOSA		(1 << 10)
 #define MDCR_EL2_TDA		(1 << 9)
@@ -201,6 +204,16 @@
 #define FSC_FAULT	ESR_ELx_FSC_FAULT
 #define FSC_ACCESS	ESR_ELx_FSC_ACCESS
 #define FSC_PERM	ESR_ELx_FSC_PERM
+#define FSC_SEA		ESR_ELx_FSC_EXTABT
+#define FSC_SEA_TTW0	(0x14)
+#define FSC_SEA_TTW1	(0x15)
+#define FSC_SEA_TTW2	(0x16)
+#define FSC_SEA_TTW3	(0x17)
+#define FSC_SECC	(0x18)
+#define FSC_SECC_TTW0	(0x1c)
+#define FSC_SECC_TTW1	(0x1d)
+#define FSC_SECC_TTW2	(0x1e)
+#define FSC_SECC_TTW3	(0x1f)
 
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
 #define HPFAR_MASK	(~UL(0xf))

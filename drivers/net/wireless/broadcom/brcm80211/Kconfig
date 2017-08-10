@@ -18,14 +18,14 @@ config BRCMSMAC
 	  module, the driver will be called brcmsmac.ko.
 
 config BRCMFMAC
-	tristate "Broadcom IEEE802.11n embedded FullMAC WLAN driver"
+	tristate "Broadcom FullMAC WLAN driver"
 	depends on CFG80211
 	select BRCMUTIL
 	---help---
-	  This module adds support for embedded wireless adapters based on
-	  Broadcom IEEE802.11n FullMAC chipsets. It has to work with at least
-	  one of the bus interface support. If you choose to build a module,
-	  it'll be called brcmfmac.ko.
+	  This module adds support for wireless adapters based on Broadcom
+	  FullMAC chipsets. It has to work with at least one of the bus
+	  interface support. If you choose to build a module, it'll be called
+	  brcmfmac.ko.
 
 config BRCMFMAC_PROTO_BCDC
 	bool

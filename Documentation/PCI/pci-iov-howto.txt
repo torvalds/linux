@@ -68,6 +68,18 @@ To disable SR-IOV capability:
 	echo  0 > \
         /sys/bus/pci/devices/<DOMAIN:BUS:DEVICE.FUNCTION>/sriov_numvfs
 
+To enable auto probing VFs by a compatible driver on the host, run
+command below before enabling SR-IOV capabilities. This is the
+default behavior.
+	echo 1 > \
+        /sys/bus/pci/devices/<DOMAIN:BUS:DEVICE.FUNCTION>/sriov_drivers_autoprobe
+
+To disable auto probing VFs by a compatible driver on the host, run
+command below before enabling SR-IOV capabilities. Updating this
+entry will not affect VFs which are already probed.
+	echo  0 > \
+        /sys/bus/pci/devices/<DOMAIN:BUS:DEVICE.FUNCTION>/sriov_drivers_autoprobe
+
 3.2 Usage example
 
 Following piece of code illustrates the usage of the SR-IOV API.

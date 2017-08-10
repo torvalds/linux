@@ -13,6 +13,32 @@
 		bootargs = "root=/dev/ram0 console=ttyAMA0,38400n8 earlyprintk";
 	};
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			/*
+			 * Since the board has pluggable CPU modules, we
+			 * cannot define a proper compatible here. Let the
+			 * boot loader fill in the apropriate compatible
+			 * string if necessary.
+			 */
+			/* compatible = "arm,arm920t"; */
+			reg = <0>;
+			/*
+			 * TBD comment.
+			 */
+					 /* kHz     uV   */
+			operating-points = <50000  0
+					    48000  0>;
+			clocks = <&cmcore>;
+			clock-names = "cpu";
+			clock-latency = <1000000>; /* 1 ms */
+		};
+	};
+
 	/*
 	 * The Integrator/CP overall clocking architecture can be found in
 	 * ARM DUI 0184B page 7-28 "Integrator/CP922T system clocks" which

@@ -174,14 +174,6 @@ extern int pci_device_from_OF_node(struct device_node *node,
 				   u8 *bus, u8 *devfn);
 extern void pci_create_OF_bus_map(void);
 
-static inline int isa_vaddr_is_ioport(void __iomem *address)
-{
-	/* No specific ISA handling on ppc32 at this stage, it
-	 * all goes through PCI
-	 */
-	return 0;
-}
-
 #else	/* CONFIG_PPC64 */
 
 /*
@@ -268,16 +260,6 @@ extern void pci_hp_remove_devices(struct pci_bus *bus);
 
 /** Discover new pci devices under this bus, and add them */
 extern void pci_hp_add_devices(struct pci_bus *bus);
-
-
-extern void isa_bridge_find_early(struct pci_controller *hose);
-
-static inline int isa_vaddr_is_ioport(void __iomem *address)
-{
-	/* Check if address hits the reserved legacy IO range */
-	unsigned long ea = (unsigned long)address;
-	return ea >= ISA_IO_BASE && ea < ISA_IO_END;
-}
 
 extern int pcibios_unmap_io_space(struct pci_bus *bus);
 extern int pcibios_map_io_space(struct pci_bus *bus);

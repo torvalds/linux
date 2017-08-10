@@ -80,7 +80,7 @@ static unsigned int calculate_min_delta(void)
 		}
 
 		/* Sorted insert of 75th percentile into buf2 */
-		for (k = 0; k < i; ++k) {
+		for (k = 0; k < i && k < ARRAY_SIZE(buf2); ++k) {
 			if (buf1[ARRAY_SIZE(buf1) - 1] < buf2[k]) {
 				l = min_t(unsigned int,
 					  i, ARRAY_SIZE(buf2) - 1);

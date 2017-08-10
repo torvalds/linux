@@ -17,7 +17,8 @@ config DEVMEM
 
 config DEVKMEM
 	bool "/dev/kmem virtual device support"
-	default y
+	# On arm64, VMALLOC_START < PAGE_OFFSET, which confuses kmem read/write
+	depends on !ARM64
 	help
 	  Say Y here if you want to support the /dev/kmem device. The
 	  /dev/kmem device is rarely used, but can be used for certain
@@ -47,6 +48,7 @@ config SGI_MBCS
          say Y or M here, otherwise say N.
 
 source "drivers/tty/serial/Kconfig"
+source "drivers/tty/serdev/Kconfig"
 
 config TTY_PRINTK
 	tristate "TTY driver to output user messages via printk"
@@ -539,14 +541,6 @@ config HANGCHECK_TIMER
 	  out to lunch past a certain margin.  It can reboot the system
 	  or merely print a warning.
 
-config MMTIMER
-	tristate "MMTIMER Memory mapped RTC for SGI Altix"
-	depends on IA64_GENERIC || IA64_SGI_SN2
-	default y
-	help
-	  The mmtimer device allows direct userspace access to the
-	  Altix system timer.
-
 config UV_MMTIMER
 	tristate "UV_MMTIMER Memory mapped RTC for SGI UV"
 	depends on X86_UV
@@ -571,14 +565,17 @@ config TELCLOCK
 	  controlling the behavior of this hardware.
 
 config DEVPORT
-	bool
+	bool "/dev/port character device"
 	depends on ISA || PCI
 	default y
+	help
+	  Say Y here if you want to support the /dev/port device. The /dev/port
+	  device is similar to /dev/mem, but for I/O ports.
 
 source "drivers/s390/char/Kconfig"
 
 config TILE_SROM
-	bool "Character-device access via hypervisor to the Tilera SPI ROM"
+	tristate "Character-device access via hypervisor to the Tilera SPI ROM"
 	depends on TILE
 	default y
 	---help---

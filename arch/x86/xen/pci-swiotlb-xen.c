@@ -18,21 +18,6 @@
 
 int xen_swiotlb __read_mostly;
 
-static struct dma_map_ops xen_swiotlb_dma_ops = {
-	.mapping_error = xen_swiotlb_dma_mapping_error,
-	.alloc = xen_swiotlb_alloc_coherent,
-	.free = xen_swiotlb_free_coherent,
-	.sync_single_for_cpu = xen_swiotlb_sync_single_for_cpu,
-	.sync_single_for_device = xen_swiotlb_sync_single_for_device,
-	.sync_sg_for_cpu = xen_swiotlb_sync_sg_for_cpu,
-	.sync_sg_for_device = xen_swiotlb_sync_sg_for_device,
-	.map_sg = xen_swiotlb_map_sg_attrs,
-	.unmap_sg = xen_swiotlb_unmap_sg_attrs,
-	.map_page = xen_swiotlb_map_page,
-	.unmap_page = xen_swiotlb_unmap_page,
-	.dma_supported = xen_swiotlb_dma_supported,
-};
-
 /*
  * pci_xen_swiotlb_detect - set xen_swiotlb to 1 if necessary
  *
@@ -49,7 +34,7 @@ int __init pci_xen_swiotlb_detect(void)
 	 * activate this IOMMU. If running as PV privileged, activate it
 	 * irregardless.
 	 */
-	if ((xen_initial_domain() || swiotlb || swiotlb_force))
+	if (xen_initial_domain() || swiotlb || swiotlb_force == SWIOTLB_FORCE)
 		xen_swiotlb = 1;
 
 	/* If we are running under Xen, we MUST disable the native SWIOTLB.

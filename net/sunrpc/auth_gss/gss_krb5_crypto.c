@@ -34,6 +34,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/err.h>
@@ -200,7 +201,7 @@ make_checksum_hmac_md5(struct krb5_ctx *kctx, char *header, int hdrlen,
 	if (IS_ERR(hmac_md5))
 		goto out_free_md5;
 
-	req = ahash_request_alloc(md5, GFP_KERNEL);
+	req = ahash_request_alloc(md5, GFP_NOFS);
 	if (!req)
 		goto out_free_hmac_md5;
 
@@ -230,7 +231,7 @@ make_checksum_hmac_md5(struct krb5_ctx *kctx, char *header, int hdrlen,
 		goto out;
 
 	ahash_request_free(req);
-	req = ahash_request_alloc(hmac_md5, GFP_KERNEL);
+	req = ahash_request_alloc(hmac_md5, GFP_NOFS);
 	if (!req)
 		goto out_free_hmac_md5;
 
@@ -299,7 +300,7 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 	if (IS_ERR(tfm))
 		goto out_free_cksum;
 
-	req = ahash_request_alloc(tfm, GFP_KERNEL);
+	req = ahash_request_alloc(tfm, GFP_NOFS);
 	if (!req)
 		goto out_free_ahash;
 
@@ -397,7 +398,7 @@ make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
 		goto out_free_cksum;
 	checksumlen = crypto_ahash_digestsize(tfm);
 
-	req = ahash_request_alloc(tfm, GFP_KERNEL);
+	req = ahash_request_alloc(tfm, GFP_NOFS);
 	if (!req)
 		goto out_free_ahash;
 
@@ -927,7 +928,7 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf,
 	if (ret)
 		goto out_err;
 
-	if (memcmp(pkt_hmac, our_hmac, kctx->gk5e->cksumlength) != 0) {
+	if (crypto_memneq(pkt_hmac, our_hmac, kctx->gk5e->cksumlength) != 0) {
 		ret = GSS_S_BAD_SIG;
 		goto out_err;
 	}
@@ -963,7 +964,7 @@ krb5_rc4_setup_seq_key(struct krb5_ctx *kctx, struct crypto_skcipher *cipher,
 	}
 
 	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(hmac),
-		       GFP_KERNEL);
+		       GFP_NOFS);
 	if (!desc) {
 		dprintk("%s: failed to allocate shash descriptor for '%s'\n",
 			__func__, kctx->gk5e->cksum_name);
@@ -1030,7 +1031,7 @@ krb5_rc4_setup_enc_key(struct krb5_ctx *kctx, struct crypto_skcipher *cipher,
 	}
 
 	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(hmac),
-		       GFP_KERNEL);
+		       GFP_NOFS);
 	if (!desc) {
 		dprintk("%s: failed to allocate shash descriptor for '%s'\n",
 			__func__, kctx->gk5e->cksum_name);

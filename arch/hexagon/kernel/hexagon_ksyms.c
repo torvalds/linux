@@ -21,12 +21,12 @@
 #include <linux/dma-mapping.h>
 #include <asm/hexagon_vm.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Additional functions */
 EXPORT_SYMBOL(__clear_user_hexagon);
-EXPORT_SYMBOL(__copy_from_user_hexagon);
-EXPORT_SYMBOL(__copy_to_user_hexagon);
+EXPORT_SYMBOL(raw_copy_from_user);
+EXPORT_SYMBOL(raw_copy_to_user);
 EXPORT_SYMBOL(__iounmap);
 EXPORT_SYMBOL(__strnlen_user);
 EXPORT_SYMBOL(__vmgetie);
@@ -40,7 +40,6 @@ EXPORT_SYMBOL(memset);
 /* Additional variables */
 EXPORT_SYMBOL(__phys_offset);
 EXPORT_SYMBOL(_dflt_cache_att);
-EXPORT_SYMBOL(bad_dma_address);
 
 #define DECLARE_EXPORT(name)     \
 	extern void name(void); EXPORT_SYMBOL(name)

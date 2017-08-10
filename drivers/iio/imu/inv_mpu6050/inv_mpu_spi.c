@@ -82,6 +82,7 @@ static const struct spi_device_id inv_mpu_id[] = {
 	{"mpu6000", INV_MPU6000},
 	{"mpu6500", INV_MPU6500},
 	{"mpu9150", INV_MPU9150},
+	{"mpu9250", INV_MPU9250},
 	{"icm20608", INV_ICM20608},
 	{}
 };

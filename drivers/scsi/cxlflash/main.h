@@ -22,9 +22,11 @@
 
 #define CXLFLASH_NAME		"cxlflash"
 #define CXLFLASH_ADAPTER_NAME	"IBM POWER CXL Flash Adapter"
+#define CXLFLASH_MAX_ADAPTERS	32
 
 #define PCI_DEVICE_ID_IBM_CORSA		0x04F0
 #define PCI_DEVICE_ID_IBM_FLASH_GT	0x0600
+#define PCI_DEVICE_ID_IBM_BRIARD	0x0624
 
 /* Since there is only one target, make it 0 */
 #define CXLFLASH_TARGET		0
@@ -36,11 +38,13 @@
 
 #define CXLFLASH_PCI_ERROR_RECOVERY_TIMEOUT	(120 * HZ)
 
-#define NUM_FC_PORTS	CXLFLASH_NUM_FC_PORTS	/* ports per AFU */
-
 /* FC defines */
 #define FC_MTIP_CMDCONFIG 0x010
 #define FC_MTIP_STATUS 0x018
+#define FC_MAX_NUM_LUNS 0x080 /* Max LUNs host can provision for port */
+#define FC_CUR_NUM_LUNS 0x088 /* Cur number LUNs provisioned for port */
+#define FC_MAX_CAP_PORT 0x090 /* Max capacity all LUNs for port (4K blocks) */
+#define FC_CUR_CAP_PORT 0x098 /* Cur capacity all LUNs for port (4K blocks) */
 
 #define FC_PNAME 0x300
 #define FC_CONFIG 0x320
@@ -63,6 +67,8 @@
 
 /* AFU command timeout values */
 #define MC_AFU_SYNC_TIMEOUT	5	/* 5 secs */
+#define MC_LUN_PROV_TIMEOUT	5	/* 5 secs */
+#define MC_AFU_DEBUG_TIMEOUT	5	/* 5 secs */
 
 /* AFU command room retry limit */
 #define MC_ROOM_RETRY_CNT	10

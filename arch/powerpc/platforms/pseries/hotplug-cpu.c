@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/sched.h>	/* for idle_task_exit */
+#include <linux/sched/hotplug.h>
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/slab.h>
@@ -553,7 +554,7 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 {
 	int rc;
 
-	pr_debug("Attemping to remove CPU %s, drc index: %x\n",
+	pr_debug("Attempting to remove CPU %s, drc index: %x\n",
 		 dn->name, drc_index);
 
 	rc = dlpar_offline_cpu(dn);

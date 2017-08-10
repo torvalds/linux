@@ -30,8 +30,8 @@ import fcntl
 import resource
 import struct
 import re
+import subprocess
 from collections import defaultdict
-from time import sleep
 
 VMX_EXIT_REASONS = {
     'EXCEPTION_NMI':        0,
@@ -225,6 +225,7 @@ IOCTL_NUMBERS = {
     'RESET':       0x00002403,
 }
 
+
 class Arch(object):
     """Encapsulates global architecture specific data.
 
@@ -255,11 +256,13 @@ class Arch(object):
                     return ArchX86(SVM_EXIT_REASONS)
                 return
 
+
 class ArchX86(Arch):
     def __init__(self, exit_reasons):
         self.sc_perf_evt_open = 298
         self.ioctl_numbers = IOCTL_NUMBERS
         self.exit_reasons = exit_reasons
+
 
 class ArchPPC(Arch):
     def __init__(self):
@@ -275,11 +278,13 @@ class ArchPPC(Arch):
         self.ioctl_numbers['SET_FILTER'] = 0x80002406 | char_ptr_size << 16
         self.exit_reasons = {}
 
+
 class ArchA64(Arch):
     def __init__(self):
         self.sc_perf_evt_open = 241
         self.ioctl_numbers = IOCTL_NUMBERS
         self.exit_reasons = AARCH64_EXIT_REASONS
+
 
 class ArchS390(Arch):
     def __init__(self):
@@ -289,58 +294,6 @@ class ArchS390(Arch):
 
 ARCH = Arch.get_arch()
 
-
-def walkdir(path):
-    """Returns os.walk() data for specified directory.
-
-    As it is only a wrapper it returns the same 3-tuple of (dirpath,
-    dirnames, filenames).
-    """
-    return next(os.walk(path))
-
-
-def parse_int_list(list_string):
-    """Returns an int list from a string of comma separated integers and
-    integer ranges."""
-    integers = []
-    members = list_string.split(',')
-
-    for member in members:
-        if '-' not in member:
-            integers.append(int(member))
-        else:
-            int_range = member.split('-')
-            integers.extend(range(int(int_range[0]),
-                                  int(int_range[1]) + 1))
-
-    return integers
-
-
-def get_online_cpus():
-    """Returns a list of cpu id integers."""
-    with open('/sys/devices/system/cpu/online') as cpu_list:
-        cpu_string = cpu_list.readline()
-        return parse_int_list(cpu_string)
-
-
-def get_filters():
-    """Returns a dict of trace events, their filter ids and
-    the values that can be filtered.
-
-    Trace events can be filtered for special values by setting a
-    filter string via an ioctl. The string normally has the format
-    identifier==value. For each filter a new event will be created, to
-    be able to distinguish the events.
-
-    """
-    filters = {}
-    filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
-    if ARCH.exit_reasons:
-        filters['kvm_exit'] = ('exit_reason', ARCH.exit_reasons)
-    return filters
-
-libc = ctypes.CDLL('libc.so.6', use_errno=True)
-syscall = libc.syscall
 
 class perf_event_attr(ctypes.Structure):
     """Struct that holds the necessary data to set up a trace event.
@@ -370,30 +323,13 @@ class perf_event_attr(ctypes.Structure):
         self.size = ctypes.sizeof(self)
         self.read_format = PERF_FORMAT_GROUP
 
-def perf_event_open(attr, pid, cpu, group_fd, flags):
-    """Wrapper for the sys_perf_evt_open() syscall.
-
-    Used to set up performance events, returns a file descriptor or -1
-    on error.
-
-    Attributes are:
-    - syscall number
-    - struct perf_event_attr *
-    - pid or -1 to monitor all pids
-    - cpu number or -1 to monitor all cpus
-    - The file descriptor of the group leader or -1 to create a group.
-    - flags
-
-    """
-    return syscall(ARCH.sc_perf_evt_open, ctypes.pointer(attr),
-                   ctypes.c_int(pid), ctypes.c_int(cpu),
-                   ctypes.c_int(group_fd), ctypes.c_long(flags))
 
 PERF_TYPE_TRACEPOINT = 2
 PERF_FORMAT_GROUP = 1 << 3
 
 PATH_DEBUGFS_TRACING = '/sys/kernel/debug/tracing'
 PATH_DEBUGFS_KVM = '/sys/kernel/debug/kvm'
+
 
 class Group(object):
     """Represents a perf event group."""
@@ -427,10 +363,13 @@ class Group(object):
                         struct.unpack(read_format,
                                       os.read(self.events[0].fd, length))))
 
+
 class Event(object):
     """Represents a performance event and manages its life cycle."""
     def __init__(self, name, group, trace_cpu, trace_pid, trace_point,
                  trace_filter, trace_set='kvm'):
+        self.libc = ctypes.CDLL('libc.so.6', use_errno=True)
+        self.syscall = self.libc.syscall
         self.name = name
         self.fd = None
         self.setup_event(group, trace_cpu, trace_pid, trace_point,
@@ -446,6 +385,25 @@ class Event(object):
         """
         if self.fd:
             os.close(self.fd)
+
+    def perf_event_open(self, attr, pid, cpu, group_fd, flags):
+        """Wrapper for the sys_perf_evt_open() syscall.
+
+        Used to set up performance events, returns a file descriptor or -1
+        on error.
+
+        Attributes are:
+        - syscall number
+        - struct perf_event_attr *
+        - pid or -1 to monitor all pids
+        - cpu number or -1 to monitor all cpus
+        - The file descriptor of the group leader or -1 to create a group.
+        - flags
+
+        """
+        return self.syscall(ARCH.sc_perf_evt_open, ctypes.pointer(attr),
+                            ctypes.c_int(pid), ctypes.c_int(cpu),
+                            ctypes.c_int(group_fd), ctypes.c_long(flags))
 
     def setup_event_attribute(self, trace_set, trace_point):
         """Returns an initialized ctype perf_event_attr struct."""
@@ -475,8 +433,8 @@ class Event(object):
         if group.events:
             group_leader = group.events[0].fd
 
-        fd = perf_event_open(event_attr, trace_pid,
-                             trace_cpu, group_leader, 0)
+        fd = self.perf_event_open(event_attr, trace_pid,
+                                  trace_cpu, group_leader, 0)
         if fd == -1:
             err = ctypes.get_errno()
             raise OSError(err, os.strerror(err),
@@ -510,17 +468,54 @@ class Event(object):
         """Resets the count of the trace event in the kernel."""
         fcntl.ioctl(self.fd, ARCH.ioctl_numbers['RESET'], 0)
 
-class TracepointProvider(object):
+
+class Provider(object):
+    """Encapsulates functionalities used by all providers."""
+    @staticmethod
+    def is_field_wanted(fields_filter, field):
+        """Indicate whether field is valid according to fields_filter."""
+        if not fields_filter or fields_filter == "help":
+            return True
+        return re.match(fields_filter, field) is not None
+
+    @staticmethod
+    def walkdir(path):
+        """Returns os.walk() data for specified directory.
+
+        As it is only a wrapper it returns the same 3-tuple of (dirpath,
+        dirnames, filenames).
+        """
+        return next(os.walk(path))
+
+
+class TracepointProvider(Provider):
     """Data provider for the stats class.
 
     Manages the events/groups from which it acquires its data.
 
     """
-    def __init__(self):
+    def __init__(self, pid, fields_filter):
         self.group_leaders = []
-        self.filters = get_filters()
-        self._fields = self.get_available_fields()
-        self._pid = 0
+        self.filters = self.get_filters()
+        self.update_fields(fields_filter)
+        self.pid = pid
+
+    @staticmethod
+    def get_filters():
+        """Returns a dict of trace events, their filter ids and
+        the values that can be filtered.
+
+        Trace events can be filtered for special values by setting a
+        filter string via an ioctl. The string normally has the format
+        identifier==value. For each filter a new event will be created, to
+        be able to distinguish the events.
+
+        """
+        filters = {}
+        filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
+        if ARCH.exit_reasons:
+            filters['kvm_exit'] = ('exit_reason', ARCH.exit_reasons)
+        return filters
 
     def get_available_fields(self):
         """Returns a list of available event's of format 'event name(filter
@@ -538,7 +533,7 @@ class TracepointProvider(object):
 
         """
         path = os.path.join(PATH_DEBUGFS_TRACING, 'events', 'kvm')
-        fields = walkdir(path)[1]
+        fields = self.walkdir(path)[1]
         extra = []
         for field in fields:
             if field in self.filters:
@@ -548,20 +543,49 @@ class TracepointProvider(object):
         fields += extra
         return fields
 
+    def update_fields(self, fields_filter):
+        """Refresh fields, applying fields_filter"""
+        self._fields = [field for field in self.get_available_fields()
+                        if self.is_field_wanted(fields_filter, field)]
+
+    @staticmethod
+    def get_online_cpus():
+        """Returns a list of cpu id integers."""
+        def parse_int_list(list_string):
+            """Returns an int list from a string of comma separated integers and
+            integer ranges."""
+            integers = []
+            members = list_string.split(',')
+
+            for member in members:
+                if '-' not in member:
+                    integers.append(int(member))
+                else:
+                    int_range = member.split('-')
+                    integers.extend(range(int(int_range[0]),
+                                          int(int_range[1]) + 1))
+
+            return integers
+
+        with open('/sys/devices/system/cpu/online') as cpu_list:
+            cpu_string = cpu_list.readline()
+            return parse_int_list(cpu_string)
+
     def setup_traces(self):
         """Creates all event and group objects needed to be able to retrieve
         data."""
+        fields = self.get_available_fields()
         if self._pid > 0:
             # Fetch list of all threads of the monitored pid, as qemu
             # starts a thread for each vcpu.
             path = os.path.join('/proc', str(self._pid), 'task')
-            groupids = walkdir(path)[1]
+            groupids = self.walkdir(path)[1]
         else:
-            groupids = get_online_cpus()
+            groupids = self.get_online_cpus()
 
         # The constant is needed as a buffer for python libs, std
         # streams and other files that the script opens.
-        newlim = len(groupids) * len(self._fields) + 50
+        newlim = len(groupids) * len(fields) + 50
         try:
             softlim_, hardlim = resource.getrlimit(resource.RLIMIT_NOFILE)
 
@@ -577,7 +601,7 @@ class TracepointProvider(object):
 
         for groupid in groupids:
             group = Group()
-            for name in self._fields:
+            for name in fields:
                 tracepoint = name
                 tracefilter = None
                 match = re.match(r'(.*)\((.*)\)', name)
@@ -604,9 +628,6 @@ class TracepointProvider(object):
                                       trace_filter=tracefilter))
 
             self.group_leaders.append(group)
-
-    def available_fields(self):
-        return self.get_available_fields()
 
     @property
     def fields(self):
@@ -641,7 +662,7 @@ class TracepointProvider(object):
         self.setup_traces()
         self.fields = self._fields
 
-    def read(self):
+    def read(self, by_guest=0):
         """Returns 'event name: current value' for all enabled events."""
         ret = defaultdict(int)
         for group in self.group_leaders:
@@ -650,13 +671,24 @@ class TracepointProvider(object):
                     ret[name] += val
         return ret
 
-class DebugfsProvider(object):
+    def reset(self):
+        """Reset all field counters"""
+        for group in self.group_leaders:
+            for event in group.events:
+                event.reset()
+
+
+class DebugfsProvider(Provider):
     """Provides data from the files that KVM creates in the kvm debugfs
     folder."""
-    def __init__(self):
-        self._fields = self.get_available_fields()
-        self._pid = 0
+    def __init__(self, pid, fields_filter, include_past):
+        self.update_fields(fields_filter)
+        self._baseline = {}
         self.do_read = True
+        self.paths = []
+        self.pid = pid
+        if include_past:
+            self.restore()
 
     def get_available_fields(self):
         """"Returns a list of available fields.
@@ -664,7 +696,12 @@ class DebugfsProvider(object):
         The fields are all available KVM debugfs files
 
         """
-        return walkdir(PATH_DEBUGFS_KVM)[2]
+        return self.walkdir(PATH_DEBUGFS_KVM)[2]
+
+    def update_fields(self, fields_filter):
+        """Refresh fields, applying fields_filter"""
+        self._fields = [field for field in self.get_available_fields()
+                        if self.is_field_wanted(fields_filter, field)]
 
     @property
     def fields(self):
@@ -673,6 +710,7 @@ class DebugfsProvider(object):
     @fields.setter
     def fields(self, fields):
         self._fields = fields
+        self.reset()
 
     @property
     def pid(self):
@@ -680,31 +718,60 @@ class DebugfsProvider(object):
 
     @pid.setter
     def pid(self, pid):
+        self._pid = pid
         if pid != 0:
-            self._pid = pid
-
-            vms = walkdir(PATH_DEBUGFS_KVM)[1]
+            vms = self.walkdir(PATH_DEBUGFS_KVM)[1]
             if len(vms) == 0:
                 self.do_read = False
 
             self.paths = filter(lambda x: "{}-".format(pid) in x, vms)
 
         else:
-            self.paths = ['']
+            self.paths = []
             self.do_read = True
+        self.reset()
 
-    def read(self):
-        """Returns a dict with format:'file name / field -> current value'."""
+    def read(self, reset=0, by_guest=0):
+        """Returns a dict with format:'file name / field -> current value'.
+
+        Parameter 'reset':
+          0   plain read
+          1   reset field counts to 0
+          2   restore the original field counts
+
+        """
         results = {}
 
         # If no debugfs filtering support is available, then don't read.
         if not self.do_read:
             return results
 
-        for path in self.paths:
+        paths = self.paths
+        if self._pid == 0:
+            paths = []
+            for entry in os.walk(PATH_DEBUGFS_KVM):
+                for dir in entry[1]:
+                    paths.append(dir)
+        for path in paths:
             for field in self._fields:
-                results[field] = results.get(field, 0) \
-                                 + self.read_field(field, path)
+                value = self.read_field(field, path)
+                key = path + field
+                if reset == 1:
+                    self._baseline[key] = value
+                if reset == 2:
+                    self._baseline[key] = 0
+                if self._baseline.get(key, -1) == -1:
+                    self._baseline[key] = value
+                increment = (results.get(field, 0) + value -
+                             self._baseline.get(key, 0))
+                if by_guest:
+                    pid = key.split('-')[0]
+                    if pid in results:
+                        results[pid] += increment
+                    else:
+                        results[pid] = increment
+                else:
+                    results[field] = increment
 
         return results
 
@@ -718,6 +785,17 @@ class DebugfsProvider(object):
         except IOError:
             return 0
 
+    def reset(self):
+        """Reset field counters"""
+        self._baseline = {}
+        self.read(1)
+
+    def restore(self):
+        """Reset field counters"""
+        self._baseline = {}
+        self.read(2)
+
+
 class Stats(object):
     """Manages the data providers and the data they provide.
 
@@ -725,33 +803,37 @@ class Stats(object):
     provider data.
 
     """
-    def __init__(self, providers, pid, fields=None):
-        self.providers = providers
-        self._pid_filter = pid
-        self._fields_filter = fields
+    def __init__(self, options):
+        self.providers = self.get_providers(options)
+        self._pid_filter = options.pid
+        self._fields_filter = options.fields
         self.values = {}
-        self.update_provider_pid()
-        self.update_provider_filters()
+
+    @staticmethod
+    def get_providers(options):
+        """Returns a list of data providers depending on the passed options."""
+        providers = []
+
+        if options.debugfs:
+            providers.append(DebugfsProvider(options.pid, options.fields,
+                                             options.dbgfs_include_past))
+        if options.tracepoints or not providers:
+            providers.append(TracepointProvider(options.pid, options.fields))
+
+        return providers
 
     def update_provider_filters(self):
         """Propagates fields filters to providers."""
-        def wanted(key):
-            if not self._fields_filter:
-                return True
-            return re.match(self._fields_filter, key) is not None
-
         # As we reset the counters when updating the fields we can
         # also clear the cache of old values.
         self.values = {}
         for provider in self.providers:
-            provider_fields = [key for key in provider.get_available_fields()
-                               if wanted(key)]
-            provider.fields = provider_fields
+            provider.update_fields(self._fields_filter)
 
-    def update_provider_pid(self):
-        """Propagates pid filters to providers."""
+    def reset(self):
+        self.values = {}
         for provider in self.providers:
-            provider.pid = self._pid_filter
+            provider.reset()
 
     @property
     def fields_filter(self):
@@ -759,8 +841,9 @@ class Stats(object):
 
     @fields_filter.setter
     def fields_filter(self, fields_filter):
-        self._fields_filter = fields_filter
-        self.update_provider_filters()
+        if fields_filter != self._fields_filter:
+            self._fields_filter = fields_filter
+            self.update_provider_filters()
 
     @property
     def pid_filter(self):
@@ -768,34 +851,66 @@ class Stats(object):
 
     @pid_filter.setter
     def pid_filter(self, pid):
-        self._pid_filter = pid
-        self.values = {}
-        self.update_provider_pid()
+        if pid != self._pid_filter:
+            self._pid_filter = pid
+            self.values = {}
+            for provider in self.providers:
+                provider.pid = self._pid_filter
 
-    def get(self):
+    def get(self, by_guest=0):
         """Returns a dict with field -> (value, delta to last value) of all
         provider data."""
         for provider in self.providers:
-            new = provider.read()
-            for key in provider.fields:
-                oldval = self.values.get(key, (0, 0))
+            new = provider.read(by_guest=by_guest)
+            for key in new if by_guest else provider.fields:
+                oldval = self.values.get(key, (0, 0))[0]
                 newval = new.get(key, 0)
-                newdelta = None
-                if oldval is not None:
-                    newdelta = newval - oldval[0]
+                newdelta = newval - oldval
                 self.values[key] = (newval, newdelta)
         return self.values
 
-LABEL_WIDTH = 40
-NUMBER_WIDTH = 10
+    def toggle_display_guests(self, to_pid):
+        """Toggle between collection of stats by individual event and by
+        guest pid
+
+        Events reported by DebugfsProvider change when switching to/from
+        reading by guest values. Hence we have to remove the excess event
+        names from self.values.
+
+        """
+        if any(isinstance(ins, TracepointProvider) for ins in self.providers):
+            return 1
+        if to_pid:
+            for provider in self.providers:
+                if isinstance(provider, DebugfsProvider):
+                    for key in provider.fields:
+                        if key in self.values.keys():
+                            del self.values[key]
+        else:
+            oldvals = self.values.copy()
+            for key in oldvals:
+                if key.isdigit():
+                    del self.values[key]
+        # Update oldval (see get())
+        self.get(to_pid)
+        return 0
+
+DELAY_DEFAULT = 3.0
+MAX_GUEST_NAME_LEN = 48
+MAX_REGEX_LEN = 44
+DEFAULT_REGEX = r'^[^\(]*$'
+SORT_DEFAULT = 0
+
 
 class Tui(object):
     """Instruments curses to draw a nice text ui."""
     def __init__(self, stats):
         self.stats = stats
         self.screen = None
-        self.drilldown = False
-        self.update_drilldown()
+        self._delay_initial = 0.25
+        self._delay_regular = DELAY_DEFAULT
+        self._sorting = SORT_DEFAULT
+        self._display_guests = 0
 
     def __enter__(self):
         """Initialises curses for later use.  Based on curses.wrapper
@@ -809,14 +924,21 @@ class Tui(object):
         # return from C start_color() is ignorable.
         try:
             curses.start_color()
-        except:
+        except curses.error:
+            pass
+
+        # Hide cursor in extra statement as some monochrome terminals
+        # might support hiding but not colors.
+        try:
+            curses.curs_set(0)
+        except curses.error:
             pass
 
         curses.use_default_colors()
         return self
 
     def __exit__(self, *exception):
-        """Resets the terminal to its normal state.  Based on curses.wrappre
+        """Resets the terminal to its normal state.  Based on curses.wrapper
            implementation from the Python standard library."""
         if self.screen:
             self.screen.keypad(0)
@@ -824,39 +946,152 @@ class Tui(object):
             curses.nocbreak()
             curses.endwin()
 
+    def get_all_gnames(self):
+        """Returns a list of (pid, gname) tuples of all running guests"""
+        res = []
+        try:
+            child = subprocess.Popen(['ps', '-A', '--format', 'pid,args'],
+                                     stdout=subprocess.PIPE)
+        except:
+            raise Exception
+        for line in child.stdout:
+            line = line.lstrip().split(' ', 1)
+            # perform a sanity check before calling the more expensive
+            # function to possibly extract the guest name
+            if ' -name ' in line[1]:
+                res.append((line[0], self.get_gname_from_pid(line[0])))
+        child.stdout.close()
+
+        return res
+
+    def print_all_gnames(self, row):
+        """Print a list of all running guests along with their pids."""
+        self.screen.addstr(row, 2, '%8s  %-60s' %
+                           ('Pid', 'Guest Name (fuzzy list, might be '
+                            'inaccurate!)'),
+                           curses.A_UNDERLINE)
+        row += 1
+        try:
+            for line in self.get_all_gnames():
+                self.screen.addstr(row, 2, '%8s  %-60s' % (line[0], line[1]))
+                row += 1
+                if row >= self.screen.getmaxyx()[0]:
+                    break
+        except Exception:
+            self.screen.addstr(row + 1, 2, 'Not available')
+
+    def get_pid_from_gname(self, gname):
+        """Fuzzy function to convert guest name to QEMU process pid.
+
+        Returns a list of potential pids, can be empty if no match found.
+        Throws an exception on processing errors.
+
+        """
+        pids = []
+        for line in self.get_all_gnames():
+            if gname == line[1]:
+                pids.append(int(line[0]))
+
+        return pids
+
+    @staticmethod
+    def get_gname_from_pid(pid):
+        """Returns the guest name for a QEMU process pid.
+
+        Extracts the guest name from the QEMU comma line by processing the
+        '-name' option. Will also handle names specified out of sequence.
+
+        """
+        name = ''
+        try:
+            line = open('/proc/{}/cmdline'
+                        .format(pid), 'rb').read().split('\0')
+            parms = line[line.index('-name') + 1].split(',')
+            while '' in parms:
+                # commas are escaped (i.e. ',,'), hence e.g. 'foo,bar' results
+                # in # ['foo', '', 'bar'], which we revert here
+                idx = parms.index('')
+                parms[idx - 1] += ',' + parms[idx + 1]
+                del parms[idx:idx+2]
+            # the '-name' switch allows for two ways to specify the guest name,
+            # where the plain name overrides the name specified via 'guest='
+            for arg in parms:
+                if '=' not in arg:
+                    name = arg
+                    break
+                if arg[:6] == 'guest=':
+                    name = arg[6:]
+        except (ValueError, IOError, IndexError):
+            pass
+
+        return name
+
     def update_drilldown(self):
         """Sets or removes a filter that only allows fields without braces."""
         if not self.stats.fields_filter:
-            self.stats.fields_filter = r'^[^\(]*$'
+            self.stats.fields_filter = DEFAULT_REGEX
 
-        elif self.stats.fields_filter == r'^[^\(]*$':
+        elif self.stats.fields_filter == DEFAULT_REGEX:
             self.stats.fields_filter = None
 
     def update_pid(self, pid):
         """Propagates pid selection to stats object."""
         self.stats.pid_filter = pid
 
-    def refresh(self, sleeptime):
-        """Refreshes on-screen data."""
+    def refresh_header(self, pid=None):
+        """Refreshes the header."""
+        if pid is None:
+            pid = self.stats.pid_filter
         self.screen.erase()
-        if self.stats.pid_filter > 0:
-            self.screen.addstr(0, 0, 'kvm statistics - pid {0}'
-                               .format(self.stats.pid_filter),
-                               curses.A_BOLD)
+        gname = self.get_gname_from_pid(pid)
+        if gname:
+            gname = ('({})'.format(gname[:MAX_GUEST_NAME_LEN] + '...'
+                                   if len(gname) > MAX_GUEST_NAME_LEN
+                                   else gname))
+        if pid > 0:
+            self.screen.addstr(0, 0, 'kvm statistics - pid {0} {1}'
+                               .format(pid, gname), curses.A_BOLD)
         else:
             self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
-        self.screen.addstr(2, 1, 'Event')
-        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH -
-                           len('Total'), 'Total')
-        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 8 -
-                           len('Current'), 'Current')
+        if self.stats.fields_filter and self.stats.fields_filter \
+           != DEFAULT_REGEX:
+            regex = self.stats.fields_filter
+            if len(regex) > MAX_REGEX_LEN:
+                regex = regex[:MAX_REGEX_LEN] + '...'
+            self.screen.addstr(1, 17, 'regex filter: {0}'.format(regex))
+        if self._display_guests:
+            col_name = 'Guest Name'
+        else:
+            col_name = 'Event'
+        self.screen.addstr(2, 1, '%-40s %10s%7s %8s' %
+                           (col_name, 'Total', '%Total', 'CurAvg/s'),
+                           curses.A_STANDOUT)
+        self.screen.addstr(4, 1, 'Collecting data...')
+        self.screen.refresh()
+
+    def refresh_body(self, sleeptime):
         row = 3
-        stats = self.stats.get()
-        def sortkey(x):
+        self.screen.move(row, 0)
+        self.screen.clrtobot()
+        stats = self.stats.get(self._display_guests)
+
+        def sortCurAvg(x):
+            # sort by current events if available
             if stats[x][1]:
                 return (-stats[x][1], -stats[x][0])
             else:
                 return (0, -stats[x][0])
+
+        def sortTotal(x):
+            # sort by totals
+            return (0, -stats[x][0])
+        total = 0.
+        for val in stats.values():
+            total += val[0]
+        if self._sorting == SORT_DEFAULT:
+            sortkey = sortCurAvg
+        else:
+            sortkey = sortTotal
         for key in sorted(stats.keys(), key=sortkey):
 
             if row >= self.screen.getmaxyx()[0]:
@@ -864,15 +1099,60 @@ class Tui(object):
             values = stats[key]
             if not values[0] and not values[1]:
                 break
-            col = 1
-            self.screen.addstr(row, col, key)
-            col += LABEL_WIDTH
-            self.screen.addstr(row, col, '%10d' % (values[0],))
-            col += NUMBER_WIDTH
-            if values[1] is not None:
-                self.screen.addstr(row, col, '%8d' % (values[1] / sleeptime,))
+            if values[0] is not None:
+                cur = int(round(values[1] / sleeptime)) if values[1] else ''
+                if self._display_guests:
+                    key = self.get_gname_from_pid(key)
+                self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' %
+                                   (key, values[0], values[0] * 100 / total,
+                                    cur))
             row += 1
+        if row == 3:
+            self.screen.addstr(4, 1, 'No matching events reported yet')
         self.screen.refresh()
+
+    def show_msg(self, text):
+        """Display message centered text and exit on key press"""
+        hint = 'Press any key to continue'
+        curses.cbreak()
+        self.screen.erase()
+        (x, term_width) = self.screen.getmaxyx()
+        row = 2
+        for line in text:
+            start = (term_width - len(line)) / 2
+            self.screen.addstr(row, start, line)
+            row += 1
+        self.screen.addstr(row + 1, (term_width - len(hint)) / 2, hint,
+                           curses.A_STANDOUT)
+        self.screen.getkey()
+
+    def show_help_interactive(self):
+        """Display help with list of interactive commands"""
+        msg = ('   b     toggle events by guests (debugfs only, honors'
+               ' filters)',
+               '   c     clear filter',
+               '   f     filter by regular expression',
+               '   g     filter by guest name',
+               '   h     display interactive commands reference',
+               '   o     toggle sorting order (Total vs CurAvg/s)',
+               '   p     filter by PID',
+               '   q     quit',
+               '   r     reset stats',
+               '   s     set update interval',
+               '   x     toggle reporting of stats for individual child trace'
+               ' events',
+               'Any other key refreshes statistics immediately')
+        curses.cbreak()
+        self.screen.erase()
+        self.screen.addstr(0, 0, "Interactive commands reference",
+                           curses.A_BOLD)
+        self.screen.addstr(2, 0, "Press any key to exit", curses.A_STANDOUT)
+        row = 4
+        for line in msg:
+            self.screen.addstr(row, 0, line)
+            row += 1
+        self.screen.getkey()
+        self.refresh_header()
 
     def show_filter_selection(self):
         """Draws filter selection mask.
@@ -893,20 +1173,24 @@ class Tui(object):
             regex = self.screen.getstr()
             curses.noecho()
             if len(regex) == 0:
+                self.stats.fields_filter = DEFAULT_REGEX
+                self.refresh_header()
                 return
             try:
                 re.compile(regex)
                 self.stats.fields_filter = regex
+                self.refresh_header()
                 return
             except re.error:
                 continue
 
-    def show_vm_selection(self):
+    def show_vm_selection_by_pid(self):
         """Draws PID selection mask.
 
         Asks for a pid until a valid pid or 0 has been entered.
 
         """
+        msg = ''
         while True:
             self.screen.erase()
             self.screen.addstr(0, 0,
@@ -915,6 +1199,8 @@ class Tui(object):
             self.screen.addstr(1, 0,
                                'This might limit the shown data to the trace '
                                'statistics.')
+            self.screen.addstr(5, 0, msg)
+            self.print_all_gnames(7)
 
             curses.echo()
             self.screen.addstr(3, 0, "Pid [0 or pid]: ")
@@ -922,60 +1208,181 @@ class Tui(object):
             curses.noecho()
 
             try:
-                pid = int(pid)
-
-                if pid == 0:
-                    self.update_pid(pid)
-                    break
-                else:
-                    if not os.path.isdir(os.path.join('/proc/', str(pid))):
+                if len(pid) > 0:
+                    pid = int(pid)
+                    if pid != 0 and not os.path.isdir(os.path.join('/proc/',
+                                                                   str(pid))):
+                        msg = '"' + str(pid) + '": Not a running process'
                         continue
-                    else:
-                        self.update_pid(pid)
-                        break
+                else:
+                    pid = 0
+                self.refresh_header(pid)
+                self.update_pid(pid)
+                break
+            except ValueError:
+                msg = '"' + str(pid) + '": Not a valid pid'
+
+    def show_set_update_interval(self):
+        """Draws update interval selection mask."""
+        msg = ''
+        while True:
+            self.screen.erase()
+            self.screen.addstr(0, 0, 'Set update interval (defaults to %fs).' %
+                               DELAY_DEFAULT, curses.A_BOLD)
+            self.screen.addstr(4, 0, msg)
+            self.screen.addstr(2, 0, 'Change delay from %.1fs to ' %
+                               self._delay_regular)
+            curses.echo()
+            val = self.screen.getstr()
+            curses.noecho()
+
+            try:
+                if len(val) > 0:
+                    delay = float(val)
+                    if delay < 0.1:
+                        msg = '"' + str(val) + '": Value must be >=0.1'
+                        continue
+                    if delay > 25.5:
+                        msg = '"' + str(val) + '": Value must be <=25.5'
+                        continue
+                else:
+                    delay = DELAY_DEFAULT
+                self._delay_regular = delay
+                break
 
             except ValueError:
-                continue
+                msg = '"' + str(val) + '": Invalid value'
+        self.refresh_header()
+
+    def show_vm_selection_by_guest_name(self):
+        """Draws guest selection mask.
+
+        Asks for a guest name until a valid guest name or '' is entered.
+
+        """
+        msg = ''
+        while True:
+            self.screen.erase()
+            self.screen.addstr(0, 0,
+                               'Show statistics for specific guest.',
+                               curses.A_BOLD)
+            self.screen.addstr(1, 0,
+                               'This might limit the shown data to the trace '
+                               'statistics.')
+            self.screen.addstr(5, 0, msg)
+            self.print_all_gnames(7)
+            curses.echo()
+            self.screen.addstr(3, 0, "Guest [ENTER or guest]: ")
+            gname = self.screen.getstr()
+            curses.noecho()
+
+            if not gname:
+                self.refresh_header(0)
+                self.update_pid(0)
+                break
+            else:
+                pids = []
+                try:
+                    pids = self.get_pid_from_gname(gname)
+                except:
+                    msg = '"' + gname + '": Internal error while searching, ' \
+                          'use pid filter instead'
+                    continue
+                if len(pids) == 0:
+                    msg = '"' + gname + '": Not an active guest'
+                    continue
+                if len(pids) > 1:
+                    msg = '"' + gname + '": Multiple matches found, use pid ' \
+                          'filter instead'
+                    continue
+                self.refresh_header(pids[0])
+                self.update_pid(pids[0])
+                break
 
     def show_stats(self):
         """Refreshes the screen and processes user input."""
-        sleeptime = 0.25
+        sleeptime = self._delay_initial
+        self.refresh_header()
+        start = 0.0  # result based on init value never appears on screen
         while True:
-            self.refresh(sleeptime)
+            self.refresh_body(time.time() - start)
             curses.halfdelay(int(sleeptime * 10))
-            sleeptime = 3
+            start = time.time()
+            sleeptime = self._delay_regular
             try:
                 char = self.screen.getkey()
-                if char == 'x':
-                    self.drilldown = not self.drilldown
-                    self.update_drilldown()
+                if char == 'b':
+                    self._display_guests = not self._display_guests
+                    if self.stats.toggle_display_guests(self._display_guests):
+                        self.show_msg(['Command not available with tracepoints'
+                                       ' enabled', 'Restart with debugfs only '
+                                       '(see option \'-d\') and try again!'])
+                        self._display_guests = not self._display_guests
+                    self.refresh_header()
+                if char == 'c':
+                    self.stats.fields_filter = DEFAULT_REGEX
+                    self.refresh_header(0)
+                    self.update_pid(0)
+                if char == 'f':
+                    curses.curs_set(1)
+                    self.show_filter_selection()
+                    curses.curs_set(0)
+                    sleeptime = self._delay_initial
+                if char == 'g':
+                    curses.curs_set(1)
+                    self.show_vm_selection_by_guest_name()
+                    curses.curs_set(0)
+                    sleeptime = self._delay_initial
+                if char == 'h':
+                    self.show_help_interactive()
+                if char == 'o':
+                    self._sorting = not self._sorting
+                if char == 'p':
+                    curses.curs_set(1)
+                    self.show_vm_selection_by_pid()
+                    curses.curs_set(0)
+                    sleeptime = self._delay_initial
                 if char == 'q':
                     break
-                if char == 'f':
-                    self.show_filter_selection()
-                if char == 'p':
-                    self.show_vm_selection()
+                if char == 'r':
+                    self.stats.reset()
+                if char == 's':
+                    curses.curs_set(1)
+                    self.show_set_update_interval()
+                    curses.curs_set(0)
+                    sleeptime = self._delay_initial
+                if char == 'x':
+                    self.update_drilldown()
+                    # prevents display of current values on next refresh
+                    self.stats.get()
             except KeyboardInterrupt:
                 break
             except curses.error:
                 continue
 
+
 def batch(stats):
     """Prints statistics in a key, value format."""
-    s = stats.get()
-    time.sleep(1)
-    s = stats.get()
-    for key in sorted(s.keys()):
-        values = s[key]
-        print '%-42s%10d%10d' % (key, values[0], values[1])
+    try:
+        s = stats.get()
+        time.sleep(1)
+        s = stats.get()
+        for key in sorted(s.keys()):
+            values = s[key]
+            print '%-42s%10d%10d' % (key, values[0], values[1])
+    except KeyboardInterrupt:
+        pass
+
 
 def log(stats):
     """Prints statistics as reiterating key block, multiple value blocks."""
     keys = sorted(stats.get().iterkeys())
+
     def banner():
         for k in keys:
             print '%s' % k,
         print
+
     def statline():
         s = stats.get()
         for k in keys:
@@ -984,11 +1391,15 @@ def log(stats):
     line = 0
     banner_repeat = 20
     while True:
-        time.sleep(1)
-        if line % banner_repeat == 0:
-            banner()
-        statline()
-        line += 1
+        try:
+            time.sleep(1)
+            if line % banner_repeat == 0:
+                banner()
+            statline()
+            line += 1
+        except KeyboardInterrupt:
+            break
+
 
 def get_options():
     """Returns processed program arguments."""
@@ -1002,14 +1413,28 @@ performance.
 
 Requirements:
 - Access to:
-    /sys/kernel/debug/kvm
-    /sys/kernel/debug/trace/events/*
+    %s
+    %s/events/*
     /proc/pid/task
 - /proc/sys/kernel/perf_event_paranoid < 1 if user has no
   CAP_SYS_ADMIN and perf events are used.
 - CAP_SYS_RESOURCE if the hard limit is not high enough to allow
   the large number of files that are possibly opened.
-"""
+
+Interactive Commands:
+   b     toggle events by guests (debugfs only, honors filters)
+   c     clear filter
+   f     filter by regular expression
+   g     filter by guest name
+   h     display interactive commands reference
+   o     toggle sorting order (Total vs CurAvg/s)
+   p     filter by PID
+   q     quit
+   r     reset stats
+   s     set update interval
+   x     toggle reporting of stats for individual child trace events
+Press any other key to refresh statistics immediately.
+""" % (PATH_DEBUGFS_KVM, PATH_DEBUGFS_TRACING)
 
     class PlainHelpFormatter(optparse.IndentedHelpFormatter):
         def format_description(self, description):
@@ -1018,6 +1443,22 @@ Requirements:
             else:
                 return ""
 
+    def cb_guest_to_pid(option, opt, val, parser):
+        try:
+            pids = Tui.get_pid_from_gname(val)
+        except:
+            raise optparse.OptionValueError('Error while searching for guest '
+                                            '"{}", use "-p" to specify a pid '
+                                            'instead'.format(val))
+        if len(pids) == 0:
+            raise optparse.OptionValueError('No guest by the name "{}" '
+                                            'found'.format(val))
+        if len(pids) > 1:
+            raise optparse.OptionValueError('Multiple processes found (pids: '
+                                            '{}) - use "-p" to specify a pid '
+                                            'instead'.format(" ".join(pids)))
+        parser.values.pid = pids[0]
+
     optparser = optparse.OptionParser(description=description_text,
                                       formatter=PlainHelpFormatter())
     optparser.add_option('-1', '--once', '--batch',
@@ -1025,6 +1466,13 @@ Requirements:
                          default=False,
                          dest='once',
                          help='run in batch mode for one second',
+                         )
+    optparser.add_option('-i', '--debugfs-include-past',
+                         action='store_true',
+                         default=False,
+                         dest='dbgfs_include_past',
+                         help='include all available data on past events for '
+                              'debugfs',
                          )
     optparser.add_option('-l', '--log',
                          action='store_true',
@@ -1046,32 +1494,29 @@ Requirements:
                          )
     optparser.add_option('-f', '--fields',
                          action='store',
-                         default=None,
+                         default=DEFAULT_REGEX,
                          dest='fields',
-                         help='fields to display (regex)',
+                         help='''fields to display (regex)
+                                 "-f help" for a list of available events''',
                          )
     optparser.add_option('-p', '--pid',
-                        action='store',
-                        default=0,
-                        type=int,
-                        dest='pid',
-                        help='restrict statistics to pid',
-                        )
+                         action='store',
+                         default=0,
+                         type='int',
+                         dest='pid',
+                         help='restrict statistics to pid',
+                         )
+    optparser.add_option('-g', '--guest',
+                         action='callback',
+                         type='string',
+                         dest='pid',
+                         metavar='GUEST',
+                         help='restrict statistics to guest by name',
+                         callback=cb_guest_to_pid,
+                         )
     (options, _) = optparser.parse_args(sys.argv)
     return options
 
-def get_providers(options):
-    """Returns a list of data providers depending on the passed options."""
-    providers = []
-
-    if options.tracepoints:
-        providers.append(TracepointProvider())
-    if options.debugfs:
-        providers.append(DebugfsProvider())
-    if len(providers) == 0:
-        providers.append(TracepointProvider())
-
-    return providers
 
 def check_access(options):
     """Exits if the current user can't access all needed directories."""
@@ -1086,8 +1531,8 @@ def check_access(options):
                          "Also ensure, that the kvm modules are loaded.\n")
         sys.exit(1)
 
-    if not os.path.exists(PATH_DEBUGFS_TRACING) and (options.tracepoints
-                                                     or not options.debugfs):
+    if not os.path.exists(PATH_DEBUGFS_TRACING) and (options.tracepoints or
+                                                     not options.debugfs):
         sys.stderr.write("Please enable CONFIG_TRACING in your kernel "
                          "when using the option -t (default).\n"
                          "If it is enabled, make {0} readable by the "
@@ -1098,9 +1543,10 @@ def check_access(options):
 
         sys.stderr.write("Falling back to debugfs statistics!\n")
         options.debugfs = True
-        sleep(5)
+        time.sleep(5)
 
     return options
+
 
 def main():
     options = get_options()
@@ -1112,8 +1558,18 @@ def main():
         sys.stderr.write('Did you use a (unsupported) tid instead of a pid?\n')
         sys.exit('Specified pid does not exist.')
 
-    providers = get_providers(options)
-    stats = Stats(providers, options.pid, fields=options.fields)
+    stats = Stats(options)
+
+    if options.fields == "help":
+        event_list = "\n"
+        s = stats.get()
+        for key in s.keys():
+            if key.find('(') != -1:
+                key = key[0:key.find('(')]
+            if event_list.find('\n' + key + '\n') == -1:
+                event_list += key + '\n'
+        sys.stdout.write(event_list)
+        return ""
 
     if options.log:
         log(stats)

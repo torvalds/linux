@@ -1,7 +1,7 @@
 #ifndef _PIO_H
 #define _PIO_H
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015-2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -54,6 +54,12 @@
 #define SC_USER   3	/* must be the last one: it may take all left */
 #define SC_MAX    4	/* count of send context types */
 
+/*
+ * SC_VNIC types are allocated (dynamically) from the user context pool,
+ * (SC_USER) and used by kernel driver as kernel contexts (SC_KERNEL).
+ */
+#define SC_VNIC   SC_MAX
+
 /* invalid send context index */
 #define INVALID_SCI 0xff
 
@@ -83,53 +89,55 @@ struct pio_buf {
 	void *arg;		/* argument for cb */
 	void __iomem *start;	/* buffer start address */
 	void __iomem *end;	/* context end address */
-	unsigned long size;	/* context size, in bytes */
 	unsigned long sent_at;	/* buffer is sent when <= free */
-	u32 block_count;	/* size of buffer, in blocks */
-	u32 qw_written;		/* QW written so far */
-	u32 carry_bytes;	/* number of valid bytes in carry */
 	union mix carry;	/* pending unwritten bytes */
+	u16 qw_written;		/* QW written so far */
+	u8 carry_bytes;	/* number of valid bytes in carry */
 };
 
 /* cache line aligned pio buffer array */
 union pio_shadow_ring {
 	struct pio_buf pbuf;
-	u64 unused[16];		/* cache line spacer */
 } ____cacheline_aligned;
 
 /* per-NUMA send context */
 struct send_context {
 	/* read-only after init */
 	struct hfi1_devdata *dd;		/* device */
-	void __iomem *base_addr;	/* start of PIO memory */
 	union pio_shadow_ring *sr;	/* shadow ring */
+	void __iomem *base_addr;	/* start of PIO memory */
+	u32 __percpu *buffers_allocated;/* count of buffers allocated */
+	u32 size;			/* context size, in bytes */
 
-	volatile __le64 *hw_free;	/* HW free counter */
-	struct work_struct halt_work;	/* halted context work queue entry */
-	unsigned long flags;		/* flags */
 	int node;			/* context home node */
-	int type;			/* context type */
-	u32 sw_index;			/* software index number */
-	u32 hw_context;			/* hardware context number */
-	u32 credits;			/* number of blocks in context */
 	u32 sr_size;			/* size of the shadow ring */
-	u32 group;			/* credit return group */
+	u16 flags;			/* flags */
+	u8  type;			/* context type */
+	u8  sw_index;			/* software index number */
+	u8  hw_context;			/* hardware context number */
+	u8  group;			/* credit return group */
+
 	/* allocator fields */
 	spinlock_t alloc_lock ____cacheline_aligned_in_smp;
+	u32 sr_head;			/* shadow ring head */
 	unsigned long fill;		/* official alloc count */
 	unsigned long alloc_free;	/* copy of free (less cache thrash) */
-	u32 sr_head;			/* shadow ring head */
+	u32 fill_wrap;			/* tracks fill within ring */
+	u32 credits;			/* number of blocks in context */
+	/* adding a new field here would make it part of this cacheline */
+
 	/* releaser fields */
 	spinlock_t release_lock ____cacheline_aligned_in_smp;
-	unsigned long free;		/* official free count */
 	u32 sr_tail;			/* shadow ring tail */
+	unsigned long free;		/* official free count */
+	volatile __le64 *hw_free;	/* HW free counter */
 	/* list for PIO waiters */
 	struct list_head piowait  ____cacheline_aligned_in_smp;
 	spinlock_t credit_ctrl_lock ____cacheline_aligned_in_smp;
-	u64 credit_ctrl;		/* cache for credit control */
 	u32 credit_intr_count;		/* count of credit intr users */
-	u32 __percpu *buffers_allocated;/* count of buffers allocated */
+	u64 credit_ctrl;		/* cache for credit control */
 	wait_queue_head_t halt_wait;    /* wait until kernel sees interrupt */
+	struct work_struct halt_work;	/* halted context work queue entry */
 };
 
 /* send context flags */
@@ -193,7 +201,7 @@ struct sc_config_sizes {
  *      |    mask                  |              --/  |--------------------|
  *      |--------------------------|            -/     |        *           |
  *      |    actual_vls (max 8)    |          -/       |--------------------|
- *      |--------------------------|       --/         | ksc[n] -> sc n     |
+ *      |--------------------------|       --/         | ksc[n-1] -> sc n   |
  *      |    vls (max 8)           |     -/            +--------------------+
  *      |--------------------------|  --/
  *      |    map[0]                |-/
@@ -206,21 +214,21 @@ struct sc_config_sizes {
  *      |--------------------------|                   |--------------------|
  *      |   map[vls - 1]           |-                  |         *          |
  *      +--------------------------+ \-                |--------------------|
- *                                     \-              | ksc[m] -> sc m+n   |
+ *                                     \-              | ksc[m-1] -> sc m+n |
  *                                       \             +--------------------+
  *                                        \-
  *                                          \
- *                                           \-        +--------------------+
- *                                             \-      |       mask         |
- *                                               \     |--------------------|
- *                                                \-   | ksc[0] -> sc 1+m+n |
- *                                                  \- |--------------------|
- *                                                    >| ksc[1] -> sc 2+m+n |
- *                                                     |--------------------|
- *                                                     |         *          |
- *                                                     |--------------------|
- *                                                     | ksc[o] -> sc o+m+n |
- *                                                     +--------------------+
+ *                                           \-        +----------------------+
+ *                                             \-      |       mask           |
+ *                                               \     |----------------------|
+ *                                                \-   | ksc[0] -> sc 1+m+n   |
+ *                                                  \- |----------------------|
+ *                                                    >| ksc[1] -> sc 2+m+n   |
+ *                                                     |----------------------|
+ *                                                     |         *            |
+ *                                                     |----------------------|
+ *                                                     | ksc[o-1] -> sc o+m+n |
+ *                                                     +----------------------+
  *
  */
 

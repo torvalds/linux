@@ -14,6 +14,24 @@
 #include <linux/types.h>
 #include <linux/iio/common/st_sensors.h>
 
+enum st_accel_type {
+	LSM303DLH,
+	LSM303DLHC,
+	LIS3DH,
+	LSM330D,
+	LSM330DL,
+	LSM330DLC,
+	LIS331DLH,
+	LSM303DL,
+	LSM303DLM,
+	LSM330,
+	LSM303AGR,
+	LIS2DH12,
+	LIS3L02DQ,
+	LNG2DM,
+	ST_ACCEL_MAX,
+};
+
 #define H3LIS331DL_DRIVER_NAME		"h3lis331dl_accel"
 #define LIS3LV02DL_ACCEL_DEV_NAME	"lis3lv02dl_accel"
 #define LSM303DLHC_ACCEL_DEV_NAME	"lsm303dlhc_accel"
@@ -30,6 +48,7 @@
 #define LSM303AGR_ACCEL_DEV_NAME	"lsm303agr_accel"
 #define LIS2DH12_ACCEL_DEV_NAME		"lis2dh12_accel"
 #define LIS3L02DQ_ACCEL_DEV_NAME	"lis3l02dq"
+#define LNG2DM_ACCEL_DEV_NAME		"lng2dm"
 
 /**
 * struct st_sensors_platform_data - default accel platform data

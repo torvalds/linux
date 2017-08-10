@@ -548,9 +548,10 @@ skip:
 
 	if ((is_setid ||
 	     !cap_issubset(new->cap_permitted, old->cap_permitted)) &&
-	    bprm->unsafe & ~LSM_UNSAFE_PTRACE_CAP) {
+	    ((bprm->unsafe & ~LSM_UNSAFE_PTRACE) ||
+	     !ptracer_capable(current, new->user_ns))) {
 		/* downgrade; they get no more than they had, and maybe less */
-		if (!capable(CAP_SETUID) ||
+		if (!ns_capable(new->user_ns, CAP_SETUID) ||
 		    (bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS)) {
 			new->euid = new->uid;
 			new->egid = new->gid;
@@ -1070,7 +1071,7 @@ int cap_mmap_file(struct file *file, unsigned long reqprot,
 
 #ifdef CONFIG_SECURITY
 
-struct security_hook_list capability_hooks[] = {
+struct security_hook_list capability_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(capable, cap_capable),
 	LSM_HOOK_INIT(settime, cap_settime),
 	LSM_HOOK_INIT(ptrace_access_check, cap_ptrace_access_check),
@@ -1093,7 +1094,8 @@ struct security_hook_list capability_hooks[] = {
 
 void __init capability_add_hooks(void)
 {
-	security_add_hooks(capability_hooks, ARRAY_SIZE(capability_hooks));
+	security_add_hooks(capability_hooks, ARRAY_SIZE(capability_hooks),
+				"capability");
 }
 
 #endif /* CONFIG_SECURITY */

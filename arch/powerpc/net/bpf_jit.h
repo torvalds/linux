@@ -157,8 +157,7 @@
 #define PPC_SRAD(d, a, s)	EMIT(PPC_INST_SRAD | ___PPC_RA(d) |	      \
 				     ___PPC_RS(a) | ___PPC_RB(s))
 #define PPC_SRADI(d, a, i)	EMIT(PPC_INST_SRADI | ___PPC_RA(d) |	      \
-				     ___PPC_RS(a) | __PPC_SH(i) |             \
-				     (((i) & 0x20) >> 4))
+				     ___PPC_RS(a) | __PPC_SH64(i))
 #define PPC_RLWINM(d, a, i, mb, me)	EMIT(PPC_INST_RLWINM | ___PPC_RA(d) | \
 					___PPC_RS(a) | __PPC_SH(i) |	      \
 					__PPC_MB(mb) | __PPC_ME(me))
@@ -166,11 +165,11 @@
 					___PPC_RS(a) | __PPC_SH(i) |	      \
 					__PPC_MB(mb) | __PPC_ME(me))
 #define PPC_RLDICL(d, a, i, mb)		EMIT(PPC_INST_RLDICL | ___PPC_RA(d) | \
-					___PPC_RS(a) | __PPC_SH(i) |	      \
-					__PPC_MB64(mb) | (((i) & 0x20) >> 4))
+					___PPC_RS(a) | __PPC_SH64(i) |	      \
+					__PPC_MB64(mb))
 #define PPC_RLDICR(d, a, i, me)		EMIT(PPC_INST_RLDICR | ___PPC_RA(d) | \
-					___PPC_RS(a) | __PPC_SH(i) |	      \
-					__PPC_ME64(me) | (((i) & 0x20) >> 4))
+					___PPC_RS(a) | __PPC_SH64(i) |	      \
+					__PPC_ME64(me))
 
 /* slwi = rlwinm Rx, Ry, n, 0, 31-n */
 #define PPC_SLWI(d, a, i)	PPC_RLWINM(d, a, i, 0, 31-(i))

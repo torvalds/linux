@@ -293,7 +293,8 @@ static void uds_configure(struct vsp1_entity *entity,
 
 	dev_dbg(uds->entity.vsp1->dev, "hscale %u vscale %u\n", hscale, vscale);
 
-	/* Multi-tap scaling can't be enabled along with alpha scaling when
+	/*
+	 * Multi-tap scaling can't be enabled along with alpha scaling when
 	 * scaling down with a factor lower than or equal to 1/2 in either
 	 * direction.
 	 */

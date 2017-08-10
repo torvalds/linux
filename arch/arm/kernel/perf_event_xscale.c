@@ -767,9 +767,5 @@ static struct platform_driver xscale_pmu_driver = {
 	.probe		= xscale_pmu_device_probe,
 };
 
-static int __init register_xscale_pmu_driver(void)
-{
-	return platform_driver_register(&xscale_pmu_driver);
-}
-device_initcall(register_xscale_pmu_driver);
+builtin_platform_driver(xscale_pmu_driver);
 #endif	/* CONFIG_CPU_XSCALE */

@@ -25,6 +25,8 @@
 #include <linux/slab.h>
 #include <linux/atomic.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
+
 #include <asm/spu.h>
 #include <asm/spu_csa.h>
 #include "spufs.h"

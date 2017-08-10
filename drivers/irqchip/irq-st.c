@@ -180,7 +180,7 @@ static int st_irq_syscfg_probe(struct platform_device *pdev)
 	return st_irq_syscfg_enable(pdev);
 }
 
-static int st_irq_syscfg_resume(struct device *dev)
+static int __maybe_unused st_irq_syscfg_resume(struct device *dev)
 {
 	struct st_irq_syscfg *ddata = dev_get_drvdata(dev);
 

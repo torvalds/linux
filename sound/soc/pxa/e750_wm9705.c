@@ -22,9 +22,6 @@
 
 #include <asm/mach-types.h>
 
-#include "../codecs/wm9705.h"
-#include "pxa2xx-ac97.h"
-
 static int e750_spk_amp_event(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol, int event)
 {
@@ -84,7 +81,7 @@ static struct snd_soc_dai_link e750_dai[] = {
 		.name = "AC97 Aux",
 		.stream_name = "AC97 Aux",
 		.cpu_dai_name = "pxa2xx-ac97-aux",
-		.codec_dai_name ="wm9705-aux",
+		.codec_dai_name = "wm9705-aux",
 		.platform_name = "pxa-pcm-audio",
 		.codec_name = "wm9705-codec",
 	},

@@ -23,6 +23,7 @@ struct pkcs7_signed_info {
 	struct x509_certificate *signer; /* Signing certificate (in msg->certs) */
 	unsigned	index;
 	bool		unsupported_crypto;	/* T if not usable due to missing crypto */
+	bool		blacklisted;
 
 	/* Message digest - the digest of the Content Data (or NULL) */
 	const void	*msgdigest;

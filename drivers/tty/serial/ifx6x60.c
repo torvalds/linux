@@ -1042,6 +1042,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	ret = spi_setup(spi);
 	if (ret) {
 		dev_err(&spi->dev, "SPI setup wasn't successful %d", ret);
+		kfree(ifx_dev);
 		return -ENODEV;
 	}
 
@@ -1381,9 +1382,9 @@ static struct spi_driver ifx_spi_driver = {
 static void __exit ifx_spi_exit(void)
 {
 	/* unregister */
+	spi_unregister_driver(&ifx_spi_driver);
 	tty_unregister_driver(tty_drv);
 	put_tty_driver(tty_drv);
-	spi_unregister_driver(&ifx_spi_driver);
 	unregister_reboot_notifier(&ifx_modem_reboot_notifier_block);
 }
 

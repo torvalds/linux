@@ -386,7 +386,7 @@ recheck_state:
 
 	now = ktime_get_real();
 	if (ktime_before(call->expire_at, now)) {
-		rxrpc_abort_call("EXP", call, 0, RX_CALL_TIMEOUT, ETIME);
+		rxrpc_abort_call("EXP", call, 0, RX_CALL_TIMEOUT, -ETIME);
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		goto recheck_state;
 	}

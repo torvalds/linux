@@ -85,7 +85,7 @@ ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp, int outin)
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	struct nf_conntrack_tuple new_tuple;
 
-	if (ct == NULL || nf_ct_is_confirmed(ct) || nf_ct_is_untracked(ct) ||
+	if (ct == NULL || nf_ct_is_confirmed(ct) ||
 	    nf_ct_is_dying(ct))
 		return;
 
@@ -232,7 +232,7 @@ void ip_vs_nfct_expect_related(struct sk_buff *skb, struct nf_conn *ct,
 {
 	struct nf_conntrack_expect *exp;
 
-	if (ct == NULL || nf_ct_is_untracked(ct))
+	if (ct == NULL)
 		return;
 
 	exp = nf_ct_expect_alloc(ct);

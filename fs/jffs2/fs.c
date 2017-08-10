@@ -15,6 +15,7 @@
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/mtd/mtd.h>

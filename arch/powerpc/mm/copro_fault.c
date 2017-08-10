@@ -67,11 +67,13 @@ int copro_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
 			goto out_unlock;
 		/*
-		 * protfault should only happen due to us
-		 * mapping a region readonly temporarily. PROT_NONE
-		 * is also covered by the VMA check above.
+		 * PROT_NONE is covered by the VMA check above.
+		 * and hash should get a NOHPTE fault instead of
+		 * a PROTFAULT in case fixup is needed for things
+		 * like autonuma.
 		 */
-		WARN_ON_ONCE(dsisr & DSISR_PROTFAULT);
+		if (!radix_enabled())
+			WARN_ON_ONCE(dsisr & DSISR_PROTFAULT);
 	}
 
 	ret = 0;
@@ -134,6 +136,9 @@ int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 		pr_debug("%s: invalid region access at %016llx\n", __func__, ea);
 		return 1;
 	}
+	/* Bad address */
+	if (!vsid)
+		return 1;
 
 	vsid = (vsid << slb_vsid_shift(ssize)) | vsidkey;
 

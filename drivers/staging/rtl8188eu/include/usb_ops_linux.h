@@ -53,7 +53,7 @@ u8 usb_read8(struct adapter *adapter, u32 addr);
 u16 usb_read16(struct adapter *adapter, u32 addr);
 u32 usb_read32(struct adapter *adapter, u32 addr);
 
-u32 usb_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
+u32 usb_read_port(struct adapter *adapter, u32 addr, struct recv_buf *precvbuf);
 void usb_read_port_cancel(struct adapter *adapter);
 
 int usb_write8(struct adapter *adapter, u32 addr, u8 val);

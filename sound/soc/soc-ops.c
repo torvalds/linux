@@ -120,7 +120,7 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 EXPORT_SYMBOL_GPL(snd_soc_put_enum_double);
 
 /**
- * snd_soc_read_signed - Read a codec register and interprete as signed value
+ * snd_soc_read_signed - Read a codec register and interpret as signed value
  * @component: component
  * @reg: Register to read
  * @mask: Mask to use after shifting the register value

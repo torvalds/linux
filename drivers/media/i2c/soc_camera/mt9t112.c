@@ -773,7 +773,7 @@ static int mt9t112_s_power(struct v4l2_subdev *sd, int on)
 	return soc_camera_set_power(&client->dev, ssdd, priv->clk, on);
 }
 
-static struct v4l2_subdev_core_ops mt9t112_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops mt9t112_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9t112_g_register,
 	.s_register	= mt9t112_s_register,
@@ -1031,7 +1031,7 @@ static int mt9t112_s_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops mt9t112_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops mt9t112_subdev_video_ops = {
 	.s_stream	= mt9t112_s_stream,
 	.g_mbus_config	= mt9t112_g_mbus_config,
 	.s_mbus_config	= mt9t112_s_mbus_config,
@@ -1048,7 +1048,7 @@ static const struct v4l2_subdev_pad_ops mt9t112_subdev_pad_ops = {
 /************************************************************************
 			i2c driver
 ************************************************************************/
-static struct v4l2_subdev_ops mt9t112_subdev_ops = {
+static const struct v4l2_subdev_ops mt9t112_subdev_ops = {
 	.core	= &mt9t112_subdev_core_ops,
 	.video	= &mt9t112_subdev_video_ops,
 	.pad	= &mt9t112_subdev_pad_ops,

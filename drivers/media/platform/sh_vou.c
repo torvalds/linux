@@ -229,6 +229,7 @@ static void sh_vou_stream_config(struct sh_vou_device *vou_dev)
 		break;
 	case V4L2_PIX_FMT_RGB565:
 		dataswap ^= 1;
+		/* fall through */
 	case V4L2_PIX_FMT_RGB565X:
 		row_coeff = 2;
 		break;
@@ -813,8 +814,9 @@ static u32 sh_vou_ntsc_mode(enum sh_vou_bus_fmt bus_fmt)
 {
 	switch (bus_fmt) {
 	default:
-		pr_warning("%s(): Invalid bus-format code %d, using default 8-bit\n",
-			   __func__, bus_fmt);
+		pr_warn("%s(): Invalid bus-format code %d, using default 8-bit\n",
+			__func__, bus_fmt);
+		/* fall through */
 	case SH_VOU_BUS_8BIT:
 		return 1;
 	case SH_VOU_BUS_16BIT:

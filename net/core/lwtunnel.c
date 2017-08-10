@@ -26,6 +26,7 @@
 #include <net/lwtunnel.h>
 #include <net/rtnetlink.h>
 #include <net/ip6_fib.h>
+#include <net/nexthop.h>
 
 #ifdef CONFIG_MODULES
 
@@ -39,6 +40,10 @@ static const char *lwtunnel_encap_str(enum lwtunnel_encap_types encap_type)
 		return "MPLS";
 	case LWTUNNEL_ENCAP_ILA:
 		return "ILA";
+	case LWTUNNEL_ENCAP_SEG6:
+		return "SEG6";
+	case LWTUNNEL_ENCAP_BPF:
+		return "BPF";
 	case LWTUNNEL_ENCAP_IP6:
 	case LWTUNNEL_ENCAP_IP:
 	case LWTUNNEL_ENCAP_NONE:
@@ -96,45 +101,131 @@ int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *ops,
 }
 EXPORT_SYMBOL(lwtunnel_encap_del_ops);
 
-int lwtunnel_build_state(struct net_device *dev, u16 encap_type,
+int lwtunnel_build_state(u16 encap_type,
 			 struct nlattr *encap, unsigned int family,
-			 const void *cfg, struct lwtunnel_state **lws)
+			 const void *cfg, struct lwtunnel_state **lws,
+			 struct netlink_ext_ack *extack)
 {
 	const struct lwtunnel_encap_ops *ops;
+	bool found = false;
 	int ret = -EINVAL;
 
 	if (encap_type == LWTUNNEL_ENCAP_NONE ||
-	    encap_type > LWTUNNEL_ENCAP_MAX)
+	    encap_type > LWTUNNEL_ENCAP_MAX) {
+		NL_SET_ERR_MSG_ATTR(extack, encap,
+				    "Unknown LWT encapsulation type");
 		return ret;
+	}
 
 	ret = -EOPNOTSUPP;
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[encap_type]);
-#ifdef CONFIG_MODULES
-	if (!ops) {
-		const char *encap_type_str = lwtunnel_encap_str(encap_type);
-
-		if (encap_type_str) {
-			rcu_read_unlock();
-			request_module("rtnl-lwt-%s", encap_type_str);
-			rcu_read_lock();
-			ops = rcu_dereference(lwtun_encaps[encap_type]);
-		}
+	if (likely(ops && ops->build_state && try_module_get(ops->owner))) {
+		found = true;
+		ret = ops->build_state(encap, family, cfg, lws, extack);
+		if (ret)
+			module_put(ops->owner);
 	}
-#endif
-	if (likely(ops && ops->build_state))
-		ret = ops->build_state(dev, encap, family, cfg, lws);
 	rcu_read_unlock();
+
+	/* don't rely on -EOPNOTSUPP to detect match as build_state
+	 * handlers could return it
+	 */
+	if (!found) {
+		NL_SET_ERR_MSG_ATTR(extack, encap,
+				    "LWT encapsulation type not supported");
+	}
 
 	return ret;
 }
 EXPORT_SYMBOL(lwtunnel_build_state);
 
+int lwtunnel_valid_encap_type(u16 encap_type, struct netlink_ext_ack *extack)
+{
+	const struct lwtunnel_encap_ops *ops;
+	int ret = -EINVAL;
+
+	if (encap_type == LWTUNNEL_ENCAP_NONE ||
+	    encap_type > LWTUNNEL_ENCAP_MAX) {
+		NL_SET_ERR_MSG(extack, "Unknown lwt encapsulation type");
+		return ret;
+	}
+
+	rcu_read_lock();
+	ops = rcu_dereference(lwtun_encaps[encap_type]);
+	rcu_read_unlock();
+#ifdef CONFIG_MODULES
+	if (!ops) {
+		const char *encap_type_str = lwtunnel_encap_str(encap_type);
+
+		if (encap_type_str) {
+			__rtnl_unlock();
+			request_module("rtnl-lwt-%s", encap_type_str);
+			rtnl_lock();
+
+			rcu_read_lock();
+			ops = rcu_dereference(lwtun_encaps[encap_type]);
+			rcu_read_unlock();
+		}
+	}
+#endif
+	ret = ops ? 0 : -EOPNOTSUPP;
+	if (ret < 0)
+		NL_SET_ERR_MSG(extack, "lwt encapsulation type not supported");
+
+	return ret;
+}
+EXPORT_SYMBOL(lwtunnel_valid_encap_type);
+
+int lwtunnel_valid_encap_type_attr(struct nlattr *attr, int remaining,
+				   struct netlink_ext_ack *extack)
+{
+	struct rtnexthop *rtnh = (struct rtnexthop *)attr;
+	struct nlattr *nla_entype;
+	struct nlattr *attrs;
+	u16 encap_type;
+	int attrlen;
+
+	while (rtnh_ok(rtnh, remaining)) {
+		attrlen = rtnh_attrlen(rtnh);
+		if (attrlen > 0) {
+			attrs = rtnh_attrs(rtnh);
+			nla_entype = nla_find(attrs, attrlen, RTA_ENCAP_TYPE);
+
+			if (nla_entype) {
+				encap_type = nla_get_u16(nla_entype);
+
+				if (lwtunnel_valid_encap_type(encap_type,
+							      extack) != 0)
+					return -EOPNOTSUPP;
+			}
+		}
+		rtnh = rtnh_next(rtnh, &remaining);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(lwtunnel_valid_encap_type_attr);
+
+void lwtstate_free(struct lwtunnel_state *lws)
+{
+	const struct lwtunnel_encap_ops *ops = lwtun_encaps[lws->type];
+
+	if (ops->destroy_state) {
+		ops->destroy_state(lws);
+		kfree_rcu(lws, rcu);
+	} else {
+		kfree(lws);
+	}
+	module_put(ops->owner);
+}
+EXPORT_SYMBOL(lwtstate_free);
+
 int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate)
 {
 	const struct lwtunnel_encap_ops *ops;
 	struct nlattr *nest;
-	int ret = -EINVAL;
+	int ret;
 
 	if (!lwtstate)
 		return 0;
@@ -143,8 +234,11 @@ int lwtunnel_fill_encap(struct sk_buff *skb, struct lwtunnel_state *lwtstate)
 	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
 		return 0;
 
-	ret = -EOPNOTSUPP;
 	nest = nla_nest_start(skb, RTA_ENCAP);
+	if (!nest)
+		return -EMSGSIZE;
+
+	ret = -EOPNOTSUPP;
 	rcu_read_lock();
 	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
 	if (likely(ops && ops->fill_encap))

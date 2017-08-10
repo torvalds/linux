@@ -60,15 +60,13 @@ bool nouveau_is_v1_dsm(void) {
 }
 
 #ifdef CONFIG_VGA_SWITCHEROO
-static const char nouveau_dsm_muid[] = {
-	0xA0, 0xA0, 0x95, 0x9D, 0x60, 0x00, 0x48, 0x4D,
-	0xB3, 0x4D, 0x7E, 0x5F, 0xEA, 0x12, 0x9F, 0xD4,
-};
+static const guid_t nouveau_dsm_muid =
+	GUID_INIT(0x9D95A0A0, 0x0060, 0x4D48,
+		  0xB3, 0x4D, 0x7E, 0x5F, 0xEA, 0x12, 0x9F, 0xD4);
 
-static const char nouveau_op_dsm_muid[] = {
-	0xF8, 0xD8, 0x86, 0xA4, 0xDA, 0x0B, 0x1B, 0x47,
-	0xA7, 0x2B, 0x60, 0x42, 0xA6, 0xB5, 0xBE, 0xE0,
-};
+static const guid_t nouveau_op_dsm_muid =
+	GUID_INIT(0xA486D8F8, 0x0BDA, 0x471B,
+		  0xA7, 0x2B, 0x60, 0x42, 0xA6, 0xB5, 0xBE, 0xE0);
 
 static int nouveau_optimus_dsm(acpi_handle handle, int func, int arg, uint32_t *result)
 {
@@ -86,7 +84,7 @@ static int nouveau_optimus_dsm(acpi_handle handle, int func, int arg, uint32_t *
 		args_buff[i] = (arg >> i * 8) & 0xFF;
 
 	*result = 0;
-	obj = acpi_evaluate_dsm_typed(handle, nouveau_op_dsm_muid, 0x00000100,
+	obj = acpi_evaluate_dsm_typed(handle, &nouveau_op_dsm_muid, 0x00000100,
 				      func, &argv4, ACPI_TYPE_BUFFER);
 	if (!obj) {
 		acpi_handle_info(handle, "failed to evaluate _DSM\n");
@@ -138,7 +136,7 @@ static int nouveau_dsm(acpi_handle handle, int func, int arg)
 		.integer.value = arg,
 	};
 
-	obj = acpi_evaluate_dsm_typed(handle, nouveau_dsm_muid, 0x00000102,
+	obj = acpi_evaluate_dsm_typed(handle, &nouveau_dsm_muid, 0x00000102,
 				      func, &argv4, ACPI_TYPE_INTEGER);
 	if (!obj) {
 		acpi_handle_info(handle, "failed to evaluate _DSM\n");
@@ -259,7 +257,7 @@ static void nouveau_dsm_pci_probe(struct pci_dev *pdev, acpi_handle *dhandle_out
 	if (!acpi_has_method(dhandle, "_DSM"))
 		return;
 
-	supports_mux = acpi_check_dsm(dhandle, nouveau_dsm_muid, 0x00000102,
+	supports_mux = acpi_check_dsm(dhandle, &nouveau_dsm_muid, 0x00000102,
 				      1 << NOUVEAU_DSM_POWER);
 	optimus_funcs = nouveau_dsm_get_optimus_functions(dhandle);
 
@@ -326,7 +324,7 @@ static bool nouveau_dsm_detect(void)
 		nouveau_dsm_priv.dhandle = dhandle;
 		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME,
 			&buffer);
-		printk(KERN_INFO "VGA switcheroo: detected Optimus DSM method %s handle\n",
+		pr_info("VGA switcheroo: detected Optimus DSM method %s handle\n",
 			acpi_method_name);
 		if (has_power_resources)
 			pr_info("nouveau: detected PR support, will not use DSM\n");
@@ -338,7 +336,7 @@ static bool nouveau_dsm_detect(void)
 		nouveau_dsm_priv.dhandle = dhandle;
 		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME,
 			&buffer);
-		printk(KERN_INFO "VGA switcheroo: detected DSM switching method %s handle\n",
+		pr_info("VGA switcheroo: detected DSM switching method %s handle\n",
 			acpi_method_name);
 		nouveau_dsm_priv.dsm_detected = true;
 		ret = true;
@@ -406,7 +404,8 @@ static int nouveau_rom_call(acpi_handle rom_handle, uint8_t *bios,
 
 	status = acpi_evaluate_object(rom_handle, NULL, &rom_arg, &buffer);
 	if (ACPI_FAILURE(status)) {
-		printk(KERN_INFO "failed to evaluate ROM got %s\n", acpi_format_exception(status));
+		pr_info("failed to evaluate ROM got %s\n",
+			acpi_format_exception(status));
 		return -ENODEV;
 	}
 	obj = (union acpi_object *)buffer.pointer;

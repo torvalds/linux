@@ -45,6 +45,7 @@ enum dw_pci_ctl_id_t {
 	medfield,
 	merrifield,
 	baytrail,
+	cherrytrail,
 	haswell,
 };
 
@@ -63,6 +64,7 @@ struct dw_pci_controller {
 	u32 rx_fifo_depth;
 	u32 clk_khz;
 	u32 functionality;
+	u32 flags;
 	struct dw_scl_sda_cfg *scl_sda_cfg;
 	int (*setup)(struct pci_dev *pdev, struct dw_pci_controller *c);
 };
@@ -70,12 +72,6 @@ struct dw_pci_controller {
 #define INTEL_MID_STD_CFG  (DW_IC_CON_MASTER |			\
 				DW_IC_CON_SLAVE_DISABLE |	\
 				DW_IC_CON_RESTART_EN)
-
-#define DW_DEFAULT_FUNCTIONALITY (I2C_FUNC_I2C |			\
-					I2C_FUNC_SMBUS_BYTE |		\
-					I2C_FUNC_SMBUS_BYTE_DATA |	\
-					I2C_FUNC_SMBUS_WORD_DATA |	\
-					I2C_FUNC_SMBUS_I2C_BLOCK)
 
 /* Merrifield HCNT/LCNT/SDA hold time */
 static struct dw_scl_sda_cfg mrfld_config = {
@@ -147,6 +143,7 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 		.bus_cfg   = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
 		.tx_fifo_depth = 32,
 		.rx_fifo_depth = 32,
+		.functionality = I2C_FUNC_10BIT_ADDR,
 		.clk_khz      = 25000,
 		.setup = mfld_setup,
 	},
@@ -155,6 +152,7 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 		.bus_cfg = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
 		.tx_fifo_depth = 64,
 		.rx_fifo_depth = 64,
+		.functionality = I2C_FUNC_10BIT_ADDR,
 		.scl_sda_cfg = &mrfld_config,
 		.setup = mrfld_setup,
 	},
@@ -174,22 +172,34 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 		.functionality = I2C_FUNC_10BIT_ADDR,
 		.scl_sda_cfg = &hsw_config,
 	},
+	[cherrytrail] = {
+		.bus_num = -1,
+		.bus_cfg = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
+		.tx_fifo_depth = 32,
+		.rx_fifo_depth = 32,
+		.functionality = I2C_FUNC_10BIT_ADDR,
+		.flags = MODEL_CHERRYTRAIL,
+		.scl_sda_cfg = &byt_config,
+	},
 };
 
 #ifdef CONFIG_PM
 static int i2c_dw_pci_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct dw_i2c_dev *i_dev = pci_get_drvdata(pdev);
 
-	i2c_dw_disable(pci_get_drvdata(pdev));
+	i_dev->disable(i_dev);
+
 	return 0;
 }
 
 static int i2c_dw_pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct dw_i2c_dev *i_dev = pci_get_drvdata(pdev);
 
-	return i2c_dw_init(pci_get_drvdata(pdev));
+	return i_dev->init(i_dev);
 }
 #endif
 
@@ -241,6 +251,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	dev->base = pcim_iomap_table(pdev)[0];
 	dev->dev = &pdev->dev;
 	dev->irq = pdev->irq;
+	dev->flags |= controller->flags;
 
 	if (controller->setup) {
 		r = controller->setup(pdev, controller);
@@ -249,7 +260,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	}
 
 	dev->functionality = controller->functionality |
-				DW_DEFAULT_FUNCTIONALITY;
+				DW_IC_DEFAULT_FUNCTIONALITY;
 
 	dev->master_cfg = controller->bus_cfg;
 	if (controller->scl_sda_cfg) {
@@ -288,7 +299,7 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 {
 	struct dw_i2c_dev *dev = pci_get_drvdata(pdev);
 
-	i2c_dw_disable(dev);
+	dev->disable(dev);
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 
@@ -321,13 +332,13 @@ static const struct pci_device_id i2_designware_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x9c61), haswell },
 	{ PCI_VDEVICE(INTEL, 0x9c62), haswell },
 	/* Braswell / Cherrytrail */
-	{ PCI_VDEVICE(INTEL, 0x22C1), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C2), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C3), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C4), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C5), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C6), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C7), baytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C1), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C2), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C3), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C4), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C5), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C6), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C7), cherrytrail },
 	{ 0,}
 };
 MODULE_DEVICE_TABLE(pci, i2_designware_pci_ids);

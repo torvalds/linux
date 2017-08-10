@@ -209,17 +209,18 @@ bad_area_nosemaphore:
 		if (show_unhandled_signals &&
 		    unhandled_signal(tsk, SIGSEGV) &&
 		    __ratelimit(&ratelimit_state)) {
-			pr_info("\ndo_page_fault(): sending SIGSEGV to %s for invalid %s %0*lx",
+			pr_info("do_page_fault(): sending SIGSEGV to %s for invalid %s %0*lx\n",
 				tsk->comm,
 				write ? "write access to" : "read access from",
 				field, address);
 			pr_info("epc = %0*lx in", field,
 				(unsigned long) regs->cp0_epc);
-			print_vma_addr(" ", regs->cp0_epc);
+			print_vma_addr(KERN_CONT " ", regs->cp0_epc);
+			pr_cont("\n");
 			pr_info("ra  = %0*lx in", field,
 				(unsigned long) regs->regs[31]);
-			print_vma_addr(" ", regs->regs[31]);
-			pr_info("\n");
+			print_vma_addr(KERN_CONT " ", regs->regs[31]);
+			pr_cont("\n");
 		}
 		current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
 		info.si_signo = SIGSEGV;
@@ -266,19 +267,19 @@ do_sigbus:
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs))
 		goto no_context;
-	else
+
 	/*
 	 * Send a sigbus, regardless of whether we were in kernel
 	 * or user mode.
 	 */
 #if 0
-		printk("do_page_fault() #3: sending SIGBUS to %s for "
-		       "invalid %s\n%0*lx (epc == %0*lx, ra == %0*lx)\n",
-		       tsk->comm,
-		       write ? "write access to" : "read access from",
-		       field, address,
-		       field, (unsigned long) regs->cp0_epc,
-		       field, (unsigned long) regs->regs[31]);
+	printk("do_page_fault() #3: sending SIGBUS to %s for "
+	       "invalid %s\n%0*lx (epc == %0*lx, ra == %0*lx)\n",
+	       tsk->comm,
+	       write ? "write access to" : "read access from",
+	       field, address,
+	       field, (unsigned long) regs->cp0_epc,
+	       field, (unsigned long) regs->regs[31]);
 #endif
 	current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
 	tsk->thread.cp0_badvaddr = address;

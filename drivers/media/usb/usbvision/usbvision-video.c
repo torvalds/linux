@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * Let's call the version 0.... until compression decoding is completely
  * implemented.
  *
@@ -1340,7 +1336,6 @@ static struct usb_usbvision *usbvision_alloc(struct usb_device *dev,
 	usbvision->ctrl_urb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
 	if (usbvision->ctrl_urb == NULL)
 		goto err_unreg;
-	init_waitqueue_head(&usbvision->ctrl_urb_wq);
 
 	return usbvision;
 
@@ -1432,8 +1427,8 @@ static int usbvision_probe(struct usb_interface *intf,
 	int model, i, ret;
 
 	PDEBUG(DBG_PROBE, "VID=%#04x, PID=%#04x, ifnum=%u",
-				dev->descriptor.idVendor,
-				dev->descriptor.idProduct, ifnum);
+				le16_to_cpu(dev->descriptor.idVendor),
+				le16_to_cpu(dev->descriptor.idProduct), ifnum);
 
 	model = devid->driver_info;
 	if (model < 0 || model >= usbvision_device_data_size) {
@@ -1456,8 +1451,8 @@ static int usbvision_probe(struct usb_interface *intf,
 	}
 
 	if (interface->desc.bNumEndpoints < 2) {
-		dev_err(&intf->dev, "interface %d has %d endpoints, but must"
-		    " have minimum 2\n", ifnum, interface->desc.bNumEndpoints);
+		dev_err(&intf->dev, "interface %d has %d endpoints, but must have minimum 2\n",
+			ifnum, interface->desc.bNumEndpoints);
 		ret = -ENODEV;
 		goto err_usb;
 	}
@@ -1506,7 +1501,14 @@ static int usbvision_probe(struct usb_interface *intf,
 	}
 
 	for (i = 0; i < usbvision->num_alt; i++) {
-		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
+		u16 tmp;
+
+		if (uif->altsetting[i].desc.bNumEndpoints < 2) {
+			ret = -ENODEV;
+			goto err_pkt;
+		}
+
+		tmp = le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
 				      wMaxPacketSize);
 		usbvision->alt_max_pkt_size[i] =
 			(tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);

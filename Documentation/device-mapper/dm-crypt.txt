@@ -11,22 +11,56 @@ Parameters: <cipher> <key> <iv_offset> <device path> \
 	      <offset> [<#opt_params> <opt_params>]
 
 <cipher>
-    Encryption cipher and an optional IV generation mode.
-    (In format cipher[:keycount]-chainmode-ivmode[:ivopts]).
-    Examples:
-       des
-       aes-cbc-essiv:sha256
-       twofish-ecb
+    Encryption cipher, encryption mode and Initial Vector (IV) generator.
 
-    /proc/crypto contains supported crypto modes
+    The cipher specifications format is:
+       cipher[:keycount]-chainmode-ivmode[:ivopts]
+    Examples:
+       aes-cbc-essiv:sha256
+       aes-xts-plain64
+       serpent-xts-plain64
+
+    Cipher format also supports direct specification with kernel crypt API
+    format (selected by capi: prefix). The IV specification is the same
+    as for the first format type.
+    This format is mainly used for specification of authenticated modes.
+
+    The crypto API cipher specifications format is:
+        capi:cipher_api_spec-ivmode[:ivopts]
+    Examples:
+        capi:cbc(aes)-essiv:sha256
+        capi:xts(aes)-plain64
+    Examples of authenticated modes:
+        capi:gcm(aes)-random
+        capi:authenc(hmac(sha256),xts(aes))-random
+        capi:rfc7539(chacha20,poly1305)-random
+
+    The /proc/crypto contains a list of curently loaded crypto modes.
 
 <key>
-    Key used for encryption. It is encoded as a hexadecimal number.
+    Key used for encryption. It is encoded either as a hexadecimal number
+    or it can be passed as <key_string> prefixed with single colon
+    character (':') for keys residing in kernel keyring service.
     You can only use key sizes that are valid for the selected cipher
     in combination with the selected iv mode.
     Note that for some iv modes the key string can contain additional
     keys (for example IV seed) so the key contains more parts concatenated
     into a single string.
+
+<key_string>
+    The kernel keyring key is identified by string in following format:
+    <key_size>:<key_type>:<key_description>.
+
+<key_size>
+    The encryption key size in bytes. The kernel key payload size must match
+    the value passed in <key_size>.
+
+<key_type>
+    Either 'logon' or 'user' kernel key type.
+
+<key_description>
+    The kernel keyring key description crypt target should look for
+    when loading key of <key_type>.
 
 <keycount>
     Multi-key compatibility mode. You can define <keycount> keys and
@@ -76,6 +110,32 @@ submit_from_crypt_cpus
     thread because it benefits CFQ to have writes submitted using the
     same context.
 
+integrity:<bytes>:<type>
+    The device requires additional <bytes> metadata per-sector stored
+    in per-bio integrity structure. This metadata must by provided
+    by underlying dm-integrity target.
+
+    The <type> can be "none" if metadata is used only for persistent IV.
+
+    For Authenticated Encryption with Additional Data (AEAD)
+    the <type> is "aead". An AEAD mode additionally calculates and verifies
+    integrity for the encrypted device. The additional space is then
+    used for storing authentication tag (and persistent IV if needed).
+
+sector_size:<bytes>
+    Use <bytes> as the encryption unit instead of 512 bytes sectors.
+    This option can be in range 512 - 4096 bytes and must be power of two.
+    Virtual device will announce this size as a minimal IO and logical sector.
+
+iv_large_sectors
+   IV generators will use sector number counted in <sector_size> units
+   instead of default 512 bytes sectors.
+
+   For example, if <sector_size> is 4096 bytes, plain64 IV for the second
+   sector will be 8 (without flag) and 1 if iv_large_sectors is present.
+   The <iv_offset> must be multiple of <sector_size> (in 512 bytes units)
+   if this flag is specified.
+
 Example scripts
 ===============
 LUKS (Linux Unified Key Setup) is now the preferred way to set up disk
@@ -85,7 +145,13 @@ https://gitlab.com/cryptsetup/cryptsetup
 [[
 #!/bin/sh
 # Create a crypt device using dmsetup
-dmsetup create crypt1 --table "0 `blockdev --getsize $1` crypt aes-cbc-essiv:sha256 babebabebabebabebabebabebabebabe 0 $1 0"
+dmsetup create crypt1 --table "0 `blockdev --getsz $1` crypt aes-cbc-essiv:sha256 babebabebabebabebabebabebabebabe 0 $1 0"
+]]
+
+[[
+#!/bin/sh
+# Create a crypt device using dmsetup when encryption key is stored in keyring service
+dmsetup create crypt2 --table "0 `blockdev --getsize $1` crypt aes-cbc-essiv:sha256 :32:logon:my_prefix:my_key 0 $1 0"
 ]]
 
 [[

@@ -26,7 +26,26 @@ extern int inotify_handle_event(struct fsnotify_group *group,
 				struct inode *inode,
 				struct fsnotify_mark *inode_mark,
 				struct fsnotify_mark *vfsmount_mark,
-				u32 mask, void *data, int data_type,
-				const unsigned char *file_name, u32 cookie);
+				u32 mask, const void *data, int data_type,
+				const unsigned char *file_name, u32 cookie,
+				struct fsnotify_iter_info *iter_info);
 
 extern const struct fsnotify_ops inotify_fsnotify_ops;
+extern struct kmem_cache *inotify_inode_mark_cachep;
+
+#ifdef CONFIG_INOTIFY_USER
+static inline void dec_inotify_instances(struct ucounts *ucounts)
+{
+	dec_ucount(ucounts, UCOUNT_INOTIFY_INSTANCES);
+}
+
+static inline struct ucounts *inc_inotify_watches(struct ucounts *ucounts)
+{
+	return inc_ucount(ucounts->ns, ucounts->uid, UCOUNT_INOTIFY_WATCHES);
+}
+
+static inline void dec_inotify_watches(struct ucounts *ucounts)
+{
+	dec_ucount(ucounts, UCOUNT_INOTIFY_WATCHES);
+}
+#endif

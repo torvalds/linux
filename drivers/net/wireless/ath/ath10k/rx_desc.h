@@ -439,19 +439,22 @@ struct rx_mpdu_end {
  *  c) A-MSDU subframe header (14 bytes) if appliable
  *  d) LLC/SNAP (RFC1042, 8 bytes)
  *
- * In case of A-MSDU only first frame in sequence contains (a) and (b). */
+ * In case of A-MSDU only first frame in sequence contains (a) and (b).
+ */
 enum rx_msdu_decap_format {
 	RX_MSDU_DECAP_RAW = 0,
 
 	/* Note: QoS frames are reported as non-QoS. The rx_hdr_status in
-	 * htt_rx_desc contains the original decapped 802.11 header. */
+	 * htt_rx_desc contains the original decapped 802.11 header.
+	 */
 	RX_MSDU_DECAP_NATIVE_WIFI = 1,
 
 	/* Payload contains an ethernet header (struct ethhdr). */
 	RX_MSDU_DECAP_ETHERNET2_DIX = 2,
 
 	/* Payload contains two 48-bit addresses and 2-byte length (14 bytes
-	 * total), followed by an RFC1042 header (8 bytes). */
+	 * total), followed by an RFC1042 header (8 bytes).
+	 */
 	RX_MSDU_DECAP_8023_SNAP_LLC = 3
 };
 
@@ -867,7 +870,7 @@ struct rx_ppdu_start {
  *
  * reserved_9
  *		Reserved: HW should fill with 0, FW should ignore.
-*/
+ */
 
 #define RX_PPDU_END_FLAGS_PHY_ERR             (1 << 0)
 #define RX_PPDU_END_FLAGS_RX_LOCATION         (1 << 1)
@@ -1207,7 +1210,7 @@ struct rx_ppdu_end {
  *		Every time HW sets this bit in memory FW/SW must clear this
  *		bit in memory.  FW will initialize all the ppdu_done dword
  *		to 0.
-*/
+ */
 
 #define FW_RX_DESC_INFO0_DISCARD  (1 << 0)
 #define FW_RX_DESC_INFO0_FORWARD  (1 << 1)

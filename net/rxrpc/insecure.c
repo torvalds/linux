@@ -46,7 +46,10 @@ static int none_respond_to_challenge(struct rxrpc_connection *conn,
 				     struct sk_buff *skb,
 				     u32 *_abort_code)
 {
-	*_abort_code = RX_PROTOCOL_ERROR;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+	trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
+			      tracepoint_string("chall_none"));
 	return -EPROTO;
 }
 
@@ -54,7 +57,10 @@ static int none_verify_response(struct rxrpc_connection *conn,
 				struct sk_buff *skb,
 				u32 *_abort_code)
 {
-	*_abort_code = RX_PROTOCOL_ERROR;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+	trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
+			      tracepoint_string("resp_none"));
 	return -EPROTO;
 }
 

@@ -41,7 +41,8 @@ static void __init print_machine_type(void)
 	get_cpu_id(&id);
 	u16_to_hex(type_str, id.machine);
 	strcat(mach_str, type_str);
-	_sclp_print_early(mach_str);
+	strcat(mach_str, "\n");
+	sclp_early_printk(mach_str);
 }
 
 static void __init u16_to_decimal(char *str, u16 val)
@@ -79,7 +80,8 @@ static void __init print_missing_facilities(void)
 			 * z/VM adds a four character prefix.
 			 */
 			if (strlen(als_str) > 70) {
-				_sclp_print_early(als_str);
+				strcat(als_str, "\n");
+				sclp_early_printk(als_str);
 				*als_str = '\0';
 			}
 			u16_to_decimal(val_str, i * BITS_PER_LONG + j);
@@ -87,13 +89,14 @@ static void __init print_missing_facilities(void)
 			first = 0;
 		}
 	}
-	_sclp_print_early(als_str);
-	_sclp_print_early("See Principles of Operations for facility bits");
+	strcat(als_str, "\n");
+	sclp_early_printk(als_str);
+	sclp_early_printk("See Principles of Operations for facility bits\n");
 }
 
 static void __init facility_mismatch(void)
 {
-	_sclp_print_early("The Linux kernel requires more recent processor hardware");
+	sclp_early_printk("The Linux kernel requires more recent processor hardware\n");
 	print_machine_type();
 	print_missing_facilities();
 	disabled_wait(0x8badcccc);

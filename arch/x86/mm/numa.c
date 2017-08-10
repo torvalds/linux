@@ -12,14 +12,14 @@
 #include <linux/sched.h>
 #include <linux/topology.h>
 
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/proto.h>
 #include <asm/dma.h>
 #include <asm/amd_nb.h>
 
 #include "numa_internal.h"
 
-int __initdata numa_off;
+int numa_off;
 nodemask_t numa_nodes_parsed __initdata;
 
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
@@ -201,7 +201,7 @@ static void __init alloc_node_data(int nid)
 		nd_pa = __memblock_alloc_base(nd_size, SMP_CACHE_BYTES,
 					      MEMBLOCK_ALLOC_ACCESSIBLE);
 		if (!nd_pa) {
-			pr_err("Cannot find %zu bytes in node %d\n",
+			pr_err("Cannot find %zu bytes in any node (initial node: %d)\n",
 			       nd_size, nid);
 			return;
 		}
@@ -225,7 +225,7 @@ static void __init alloc_node_data(int nid)
  * numa_cleanup_meminfo - Cleanup a numa_meminfo
  * @mi: numa_meminfo to clean up
  *
- * Sanitize @mi by merging and removing unncessary memblks.  Also check for
+ * Sanitize @mi by merging and removing unnecessary memblks.  Also check for
  * conflicts and clear unused memblks.
  *
  * RETURNS:

@@ -55,9 +55,9 @@
 #include <asm/kexec.h>
 #include <asm/opal.h>
 #include <asm/fadump.h>
-#include <asm/debug.h>
 #include <asm/epapr_hcalls.h>
 #include <asm/firmware.h>
+#include <asm/dt_cpu_ftrs.h>
 
 #include <mm/mmu_decl.h>
 
@@ -156,21 +156,24 @@ static struct ibm_pa_feature {
 	unsigned char	pabit;		/* bit number (big-endian) */
 	unsigned char	invert;		/* if 1, pa bit set => clear feature */
 } ibm_pa_features[] __initdata = {
-	{0, 0, PPC_FEATURE_HAS_MMU, 0,		0, 0, 0},
-	{0, 0, PPC_FEATURE_HAS_FPU, 0,		0, 1, 0},
-	{CPU_FTR_CTRL, 0, 0, 0,			0, 3, 0},
-	{CPU_FTR_NOEXECUTE, 0, 0, 0,		0, 6, 0},
-	{CPU_FTR_NODSISRALIGN, 0, 0, 0,		1, 1, 1},
-	{0, MMU_FTR_CI_LARGE_PAGE, 0, 0,		1, 2, 0},
-	{CPU_FTR_REAL_LE, 0, PPC_FEATURE_TRUE_LE, 0, 5, 0, 0},
+	{ .pabyte = 0,  .pabit = 0, .cpu_user_ftrs = PPC_FEATURE_HAS_MMU },
+	{ .pabyte = 0,  .pabit = 1, .cpu_user_ftrs = PPC_FEATURE_HAS_FPU },
+	{ .pabyte = 0,  .pabit = 3, .cpu_features  = CPU_FTR_CTRL },
+	{ .pabyte = 0,  .pabit = 6, .cpu_features  = CPU_FTR_NOEXECUTE },
+	{ .pabyte = 1,  .pabit = 2, .mmu_features  = MMU_FTR_CI_LARGE_PAGE },
+#ifdef CONFIG_PPC_RADIX_MMU
+	{ .pabyte = 40, .pabit = 0, .mmu_features  = MMU_FTR_TYPE_RADIX },
+#endif
+	{ .pabyte = 1,  .pabit = 1, .invert = 1, .cpu_features = CPU_FTR_NODSISRALIGN },
+	{ .pabyte = 5,  .pabit = 0, .cpu_features  = CPU_FTR_REAL_LE,
+				    .cpu_user_ftrs = PPC_FEATURE_TRUE_LE },
 	/*
 	 * If the kernel doesn't support TM (ie CONFIG_PPC_TRANSACTIONAL_MEM=n),
 	 * we don't want to turn on TM here, so we use the *_COMP versions
 	 * which are 0 if the kernel doesn't support TM.
 	 */
-	{CPU_FTR_TM_COMP, 0, 0,
-	 PPC_FEATURE2_HTM_COMP|PPC_FEATURE2_HTM_NOSC_COMP, 22, 0, 0},
-	{0, MMU_FTR_TYPE_RADIX, 0, 0,		40, 0, 0},
+	{ .pabyte = 22, .pabit = 0, .cpu_features = CPU_FTR_TM_COMP,
+	  .cpu_user_ftrs2 = PPC_FEATURE2_HTM_COMP | PPC_FEATURE2_HTM_NOSC_COMP },
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
@@ -375,23 +378,31 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	 * A POWER6 partition in "POWER6 architected" mode
 	 * uses the 0x0f000002 PVR value; in POWER5+ mode
 	 * it uses 0x0f000001.
+	 *
+	 * If we're using device tree CPU feature discovery then we don't
+	 * support the cpu-version property, and it's the responsibility of the
+	 * firmware/hypervisor to provide the correct feature set for the
+	 * architecture level via the ibm,powerpc-cpu-features binding.
 	 */
-	prop = of_get_flat_dt_prop(node, "cpu-version", NULL);
-	if (prop && (be32_to_cpup(prop) & 0xff000000) == 0x0f000000)
-		identify_cpu(0, be32_to_cpup(prop));
+	if (!dt_cpu_ftrs_in_use()) {
+		prop = of_get_flat_dt_prop(node, "cpu-version", NULL);
+		if (prop && (be32_to_cpup(prop) & 0xff000000) == 0x0f000000)
+			identify_cpu(0, be32_to_cpup(prop));
+
+		check_cpu_feature_properties(node);
+		check_cpu_pa_features(node);
+	}
 
 	identical_pvr_fixup(node);
-
-	check_cpu_feature_properties(node);
-	check_cpu_pa_features(node);
 	init_mmu_slb_size(node);
 
 #ifdef CONFIG_PPC64
-	if (nthreads > 1)
-		cur_cpu_spec->cpu_features |= CPU_FTR_SMT;
-	else
+	if (nthreads == 1)
 		cur_cpu_spec->cpu_features &= ~CPU_FTR_SMT;
+	else if (!dt_cpu_ftrs_in_use())
+		cur_cpu_spec->cpu_features |= CPU_FTR_SMT;
 #endif
+
 	return 0;
 }
 
@@ -427,7 +438,7 @@ static int __init early_init_dt_scan_chosen_ppc(unsigned long node,
 		tce_alloc_end = *lprop;
 #endif
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	lprop = of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
 	if (lprop)
 		crashk_res.start = *lprop;
@@ -720,6 +731,8 @@ void __init early_init_devtree(void *params)
 	allocate_pacas();
 
 	DBG("Scanning CPUs ...\n");
+
+	dt_cpu_ftrs_scan();
 
 	/* Retrieve CPU related informations from the flat tree
 	 * (altivec support, boot CPU ID, ...)

@@ -34,6 +34,10 @@ struct clk_alpha_pll {
 
 	const struct pll_vco *vco_table;
 	size_t num_vco;
+#define SUPPORTS_OFFLINE_REQ	BIT(0)
+#define SUPPORTS_16BIT_ALPHA	BIT(1)
+#define SUPPORTS_FSM_MODE	BIT(2)
+	u8 flags;
 
 	struct clk_regmap clkr;
 };
@@ -51,7 +55,28 @@ struct clk_alpha_pll_postdiv {
 	struct clk_regmap clkr;
 };
 
+struct alpha_pll_config {
+	u32 l;
+	u32 alpha;
+	u32 config_ctl_val;
+	u32 config_ctl_hi_val;
+	u32 main_output_mask;
+	u32 aux_output_mask;
+	u32 aux2_output_mask;
+	u32 early_output_mask;
+	u32 pre_div_val;
+	u32 pre_div_mask;
+	u32 post_div_val;
+	u32 post_div_mask;
+	u32 vco_val;
+	u32 vco_mask;
+};
+
 extern const struct clk_ops clk_alpha_pll_ops;
+extern const struct clk_ops clk_alpha_pll_hwfsm_ops;
 extern const struct clk_ops clk_alpha_pll_postdiv_ops;
+
+void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
+			     const struct alpha_pll_config *config);
 
 #endif

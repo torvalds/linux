@@ -30,6 +30,7 @@ struct veno {
 	u32 basertt;		/* the min of all Veno rtt measurements seen (in usec) */
 	u32 inc;		/* decide whether to increase cwnd */
 	u32 diff;		/* calculate the diff rate */
+	u32 loss_cwnd;		/* cwnd when loss occured */
 };
 
 /* There are several situations when we must "re-start" Veno:
@@ -193,6 +194,7 @@ static u32 tcp_veno_ssthresh(struct sock *sk)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct veno *veno = inet_csk_ca(sk);
 
+	veno->loss_cwnd = tp->snd_cwnd;
 	if (veno->diff < beta)
 		/* in "non-congestive state", cut cwnd by 1/5 */
 		return max(tp->snd_cwnd * 4 / 5, 2U);
@@ -201,9 +203,17 @@ static u32 tcp_veno_ssthresh(struct sock *sk)
 		return max(tp->snd_cwnd >> 1U, 2U);
 }
 
+static u32 tcp_veno_cwnd_undo(struct sock *sk)
+{
+	const struct veno *veno = inet_csk_ca(sk);
+
+	return max(tcp_sk(sk)->snd_cwnd, veno->loss_cwnd);
+}
+
 static struct tcp_congestion_ops tcp_veno __read_mostly = {
 	.init		= tcp_veno_init,
 	.ssthresh	= tcp_veno_ssthresh,
+	.undo_cwnd	= tcp_veno_cwnd_undo,
 	.cong_avoid	= tcp_veno_cong_avoid,
 	.pkts_acked	= tcp_veno_pkts_acked,
 	.set_state	= tcp_veno_state,

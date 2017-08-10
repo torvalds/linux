@@ -15,7 +15,7 @@
  * FIXME: Accessing the desc_struct through its fields is more elegant,
  * and should be the one valid thing to do. However, a lot of open code
  * still touches the a and b accessors, and doing this allow us to do it
- * incrementally. We keep the signature as a struct, rather than an union,
+ * incrementally. We keep the signature as a struct, rather than a union,
  * so we can get rid of it transparently in the future -- glommer
  */
 /* 8 byte segment descriptor */

@@ -63,6 +63,7 @@ enum qlock_stats {
  */
 #include <linux/debugfs.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/fs.h>
 
 static const char * const qstat_names[qstat_num + 1] = {
@@ -108,11 +109,7 @@ static ssize_t qstat_read(struct file *file, char __user *user_buf,
 	/*
 	 * Get the counter ID stored in file->f_inode->i_private
 	 */
-	if (!file->f_inode) {
-		WARN_ON_ONCE(1);
-		return -EBADF;
-	}
-	counter = (long)(file->f_inode->i_private);
+	counter = (long)file_inode(file)->i_private;
 
 	if (counter >= qstat_num)
 		return -EBADF;
@@ -177,11 +174,7 @@ static ssize_t qstat_write(struct file *file, const char __user *user_buf,
 	/*
 	 * Get the counter ID stored in file->f_inode->i_private
 	 */
-	if (!file->f_inode) {
-		WARN_ON_ONCE(1);
-		return -EBADF;
-	}
-	if ((long)(file->f_inode->i_private) != qstat_reset_cnts)
+	if ((long)file_inode(file)->i_private != qstat_reset_cnts)
 		return count;
 
 	for_each_possible_cpu(cpu) {

@@ -50,7 +50,7 @@ int bpf_prog1(struct bpf_perf_event_data *ctx)
 	key.userstack = bpf_get_stackid(ctx, &stackmap, USER_STACKID_FLAGS);
 	if ((int)key.kernstack < 0 && (int)key.userstack < 0) {
 		bpf_trace_printk(fmt, sizeof(fmt), cpu, ctx->sample_period,
-				 ctx->regs.ip);
+				 PT_REGS_IP(&ctx->regs));
 		return 0;
 	}
 

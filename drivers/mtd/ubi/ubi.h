@@ -544,8 +544,7 @@ struct ubi_debug_info {
  * @vid_hdr_aloffset: starting offset of the VID header aligned to
  *                    @hdrs_min_io_size
  * @vid_hdr_shift: contains @vid_hdr_offset - @vid_hdr_aloffset
- * @bad_allowed: whether the MTD device admits of bad physical eraseblocks or
- *               not
+ * @bad_allowed: whether the MTD device admits bad physical eraseblocks or not
  * @nor_flash: non-zero if working on top of NOR flash
  * @max_write_size: maximum amount of bytes the underlying flash can write at a
  *                  time (MTD write buffer size)

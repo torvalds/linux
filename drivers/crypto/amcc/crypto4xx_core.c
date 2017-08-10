@@ -50,7 +50,7 @@
 static void crypto4xx_hw_init(struct crypto4xx_device *dev)
 {
 	union ce_ring_size ring_size;
-	union ce_ring_contol ring_ctrl;
+	union ce_ring_control ring_ctrl;
 	union ce_part_ring_size part_ring_size;
 	union ce_io_threshold io_threshold;
 	u32 rand_num;
@@ -135,8 +135,7 @@ int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size)
 	ctx->sa_out = dma_alloc_coherent(ctx->dev->core_dev->device, size * 4,
 					 &ctx->sa_out_dma_addr, GFP_ATOMIC);
 	if (ctx->sa_out == NULL) {
-		dma_free_coherent(ctx->dev->core_dev->device,
-				  ctx->sa_len * 4,
+		dma_free_coherent(ctx->dev->core_dev->device, size * 4,
 				  ctx->sa_in, ctx->sa_in_dma_addr);
 		return -ENOMEM;
 	}
@@ -1180,6 +1179,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	dev_set_drvdata(dev, core_dev);
 	core_dev->ofdev = ofdev;
 	core_dev->dev = kzalloc(sizeof(struct crypto4xx_device), GFP_KERNEL);
+	rc = -ENOMEM;
 	if (!core_dev->dev)
 		goto err_alloc_dev;
 

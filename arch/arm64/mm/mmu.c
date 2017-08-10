@@ -22,14 +22,16 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/ioport.h>
+#include <linux/kexec.h>
 #include <linux/libfdt.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/memblock.h>
 #include <linux/fs.h>
 #include <linux/io.h>
-#include <linux/slab.h>
-#include <linux/stop_machine.h>
+#include <linux/mm.h>
+#include <linux/vmalloc.h>
 
 #include <asm/barrier.h>
 #include <asm/cputype.h>
@@ -42,6 +44,10 @@
 #include <asm/tlb.h>
 #include <asm/memblock.h>
 #include <asm/mmu_context.h>
+#include <asm/ptdump.h>
+
+#define NO_BLOCK_MAPPINGS	BIT(0)
+#define NO_CONT_MAPPINGS	BIT(1)
 
 u64 idmap_t0sz = TCR_T0SZ(VA_BITS);
 
@@ -95,83 +101,151 @@ static phys_addr_t __init early_pgtable_alloc(void)
 	return phys;
 }
 
-static void alloc_init_pte(pmd_t *pmd, unsigned long addr,
-				  unsigned long end, unsigned long pfn,
-				  pgprot_t prot,
-				  phys_addr_t (*pgtable_alloc)(void))
+static bool pgattr_change_is_safe(u64 old, u64 new)
+{
+	/*
+	 * The following mapping attributes may be updated in live
+	 * kernel mappings without the need for break-before-make.
+	 */
+	static const pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE;
+
+	/* creating or taking down mappings is always safe */
+	if (old == 0 || new == 0)
+		return true;
+
+	/* live contiguous mappings may not be manipulated at all */
+	if ((old | new) & PTE_CONT)
+		return false;
+
+	return ((old ^ new) & ~mask) == 0;
+}
+
+static void init_pte(pmd_t *pmd, unsigned long addr, unsigned long end,
+		     phys_addr_t phys, pgprot_t prot)
 {
 	pte_t *pte;
+
+	pte = pte_set_fixmap_offset(pmd, addr);
+	do {
+		pte_t old_pte = *pte;
+
+		set_pte(pte, pfn_pte(__phys_to_pfn(phys), prot));
+
+		/*
+		 * After the PTE entry has been populated once, we
+		 * only allow updates to the permission attributes.
+		 */
+		BUG_ON(!pgattr_change_is_safe(pte_val(old_pte), pte_val(*pte)));
+
+		phys += PAGE_SIZE;
+	} while (pte++, addr += PAGE_SIZE, addr != end);
+
+	pte_clear_fixmap();
+}
+
+static void alloc_init_cont_pte(pmd_t *pmd, unsigned long addr,
+				unsigned long end, phys_addr_t phys,
+				pgprot_t prot,
+				phys_addr_t (*pgtable_alloc)(void),
+				int flags)
+{
+	unsigned long next;
 
 	BUG_ON(pmd_sect(*pmd));
 	if (pmd_none(*pmd)) {
 		phys_addr_t pte_phys;
 		BUG_ON(!pgtable_alloc);
 		pte_phys = pgtable_alloc();
-		pte = pte_set_fixmap(pte_phys);
 		__pmd_populate(pmd, pte_phys, PMD_TYPE_TABLE);
-		pte_clear_fixmap();
 	}
 	BUG_ON(pmd_bad(*pmd));
 
-	pte = pte_set_fixmap_offset(pmd, addr);
 	do {
-		set_pte(pte, pfn_pte(pfn, prot));
-		pfn++;
-	} while (pte++, addr += PAGE_SIZE, addr != end);
+		pgprot_t __prot = prot;
 
-	pte_clear_fixmap();
+		next = pte_cont_addr_end(addr, end);
+
+		/* use a contiguous mapping if the range is suitably aligned */
+		if ((((addr | next | phys) & ~CONT_PTE_MASK) == 0) &&
+		    (flags & NO_CONT_MAPPINGS) == 0)
+			__prot = __pgprot(pgprot_val(prot) | PTE_CONT);
+
+		init_pte(pmd, addr, next, phys, __prot);
+
+		phys += next - addr;
+	} while (addr = next, addr != end);
 }
 
-static void alloc_init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
-				  phys_addr_t phys, pgprot_t prot,
-				  phys_addr_t (*pgtable_alloc)(void),
-				  bool allow_block_mappings)
+static void init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
+		     phys_addr_t phys, pgprot_t prot,
+		     phys_addr_t (*pgtable_alloc)(void), int flags)
 {
+	unsigned long next;
 	pmd_t *pmd;
+
+	pmd = pmd_set_fixmap_offset(pud, addr);
+	do {
+		pmd_t old_pmd = *pmd;
+
+		next = pmd_addr_end(addr, end);
+
+		/* try section mapping first */
+		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
+		    (flags & NO_BLOCK_MAPPINGS) == 0) {
+			pmd_set_huge(pmd, phys, prot);
+
+			/*
+			 * After the PMD entry has been populated once, we
+			 * only allow updates to the permission attributes.
+			 */
+			BUG_ON(!pgattr_change_is_safe(pmd_val(old_pmd),
+						      pmd_val(*pmd)));
+		} else {
+			alloc_init_cont_pte(pmd, addr, next, phys, prot,
+					    pgtable_alloc, flags);
+
+			BUG_ON(pmd_val(old_pmd) != 0 &&
+			       pmd_val(old_pmd) != pmd_val(*pmd));
+		}
+		phys += next - addr;
+	} while (pmd++, addr = next, addr != end);
+
+	pmd_clear_fixmap();
+}
+
+static void alloc_init_cont_pmd(pud_t *pud, unsigned long addr,
+				unsigned long end, phys_addr_t phys,
+				pgprot_t prot,
+				phys_addr_t (*pgtable_alloc)(void), int flags)
+{
 	unsigned long next;
 
 	/*
-	 * Check for initial section mappings in the pgd/pud and remove them.
+	 * Check for initial section mappings in the pgd/pud.
 	 */
 	BUG_ON(pud_sect(*pud));
 	if (pud_none(*pud)) {
 		phys_addr_t pmd_phys;
 		BUG_ON(!pgtable_alloc);
 		pmd_phys = pgtable_alloc();
-		pmd = pmd_set_fixmap(pmd_phys);
 		__pud_populate(pud, pmd_phys, PUD_TYPE_TABLE);
-		pmd_clear_fixmap();
 	}
 	BUG_ON(pud_bad(*pud));
 
-	pmd = pmd_set_fixmap_offset(pud, addr);
 	do {
-		next = pmd_addr_end(addr, end);
-		/* try section mapping first */
-		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
-		      allow_block_mappings) {
-			pmd_t old_pmd =*pmd;
-			pmd_set_huge(pmd, phys, prot);
-			/*
-			 * Check for previous table entries created during
-			 * boot (__create_page_tables) and flush them.
-			 */
-			if (!pmd_none(old_pmd)) {
-				flush_tlb_all();
-				if (pmd_table(old_pmd)) {
-					phys_addr_t table = pmd_page_paddr(old_pmd);
-					if (!WARN_ON_ONCE(slab_is_available()))
-						memblock_free(table, PAGE_SIZE);
-				}
-			}
-		} else {
-			alloc_init_pte(pmd, addr, next, __phys_to_pfn(phys),
-				       prot, pgtable_alloc);
-		}
-		phys += next - addr;
-	} while (pmd++, addr = next, addr != end);
+		pgprot_t __prot = prot;
 
-	pmd_clear_fixmap();
+		next = pmd_cont_addr_end(addr, end);
+
+		/* use a contiguous mapping if the range is suitably aligned */
+		if ((((addr | next | phys) & ~CONT_PMD_MASK) == 0) &&
+		    (flags & NO_CONT_MAPPINGS) == 0)
+			__prot = __pgprot(pgprot_val(prot) | PTE_CONT);
+
+		init_pmd(pud, addr, next, phys, __prot, pgtable_alloc, flags);
+
+		phys += next - addr;
+	} while (addr = next, addr != end);
 }
 
 static inline bool use_1G_block(unsigned long addr, unsigned long next,
@@ -189,7 +263,7 @@ static inline bool use_1G_block(unsigned long addr, unsigned long next,
 static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
 				  phys_addr_t phys, pgprot_t prot,
 				  phys_addr_t (*pgtable_alloc)(void),
-				  bool allow_block_mappings)
+				  int flags)
 {
 	pud_t *pud;
 	unsigned long next;
@@ -204,33 +278,29 @@ static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
 
 	pud = pud_set_fixmap_offset(pgd, addr);
 	do {
+		pud_t old_pud = *pud;
+
 		next = pud_addr_end(addr, end);
 
 		/*
 		 * For 4K granule only, attempt to put down a 1GB block
 		 */
-		if (use_1G_block(addr, next, phys) && allow_block_mappings) {
-			pud_t old_pud = *pud;
+		if (use_1G_block(addr, next, phys) &&
+		    (flags & NO_BLOCK_MAPPINGS) == 0) {
 			pud_set_huge(pud, phys, prot);
 
 			/*
-			 * If we have an old value for a pud, it will
-			 * be pointing to a pmd table that we no longer
-			 * need (from swapper_pg_dir).
-			 *
-			 * Look up the old pmd table and free it.
+			 * After the PUD entry has been populated once, we
+			 * only allow updates to the permission attributes.
 			 */
-			if (!pud_none(old_pud)) {
-				flush_tlb_all();
-				if (pud_table(old_pud)) {
-					phys_addr_t table = pud_page_paddr(old_pud);
-					if (!WARN_ON_ONCE(slab_is_available()))
-						memblock_free(table, PAGE_SIZE);
-				}
-			}
+			BUG_ON(!pgattr_change_is_safe(pud_val(old_pud),
+						      pud_val(*pud)));
 		} else {
-			alloc_init_pmd(pud, addr, next, phys, prot,
-				       pgtable_alloc, allow_block_mappings);
+			alloc_init_cont_pmd(pud, addr, next, phys, prot,
+					    pgtable_alloc, flags);
+
+			BUG_ON(pud_val(old_pud) != 0 &&
+			       pud_val(old_pud) != pud_val(*pud));
 		}
 		phys += next - addr;
 	} while (pud++, addr = next, addr != end);
@@ -242,7 +312,7 @@ static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 				 unsigned long virt, phys_addr_t size,
 				 pgprot_t prot,
 				 phys_addr_t (*pgtable_alloc)(void),
-				 bool allow_block_mappings)
+				 int flags)
 {
 	unsigned long addr, length, end, next;
 	pgd_t *pgd = pgd_offset_raw(pgdir, virt);
@@ -262,7 +332,7 @@ static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 	do {
 		next = pgd_addr_end(addr, end);
 		alloc_init_pud(pgd, addr, next, phys, prot, pgtable_alloc,
-			       allow_block_mappings);
+			       flags);
 		phys += next - addr;
 	} while (pgd++, addr = next, addr != end);
 }
@@ -291,82 +361,80 @@ static void __init create_mapping_noalloc(phys_addr_t phys, unsigned long virt,
 			&phys, virt);
 		return;
 	}
-	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot, NULL, true);
+	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot, NULL,
+			     NO_CONT_MAPPINGS);
 }
 
 void __init create_pgd_mapping(struct mm_struct *mm, phys_addr_t phys,
 			       unsigned long virt, phys_addr_t size,
-			       pgprot_t prot, bool allow_block_mappings)
+			       pgprot_t prot, bool page_mappings_only)
 {
+	int flags = 0;
+
 	BUG_ON(mm == &init_mm);
 
+	if (page_mappings_only)
+		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
+
 	__create_pgd_mapping(mm->pgd, phys, virt, size, prot,
-			     pgd_pgtable_alloc, allow_block_mappings);
+			     pgd_pgtable_alloc, flags);
 }
 
-static void create_mapping_late(phys_addr_t phys, unsigned long virt,
-				  phys_addr_t size, pgprot_t prot)
+static void update_mapping_prot(phys_addr_t phys, unsigned long virt,
+				phys_addr_t size, pgprot_t prot)
 {
 	if (virt < VMALLOC_START) {
-		pr_warn("BUG: not creating mapping for %pa at 0x%016lx - outside kernel range\n",
+		pr_warn("BUG: not updating mapping for %pa at 0x%016lx - outside kernel range\n",
 			&phys, virt);
 		return;
 	}
 
-	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot,
-			     NULL, !debug_pagealloc_enabled());
+	__create_pgd_mapping(init_mm.pgd, phys, virt, size, prot, NULL,
+			     NO_CONT_MAPPINGS);
+
+	/* flush the TLBs after updating live kernel mappings */
+	flush_tlb_kernel_range(virt, virt + size);
 }
 
-static void __init __map_memblock(pgd_t *pgd, phys_addr_t start, phys_addr_t end)
+static void __init __map_memblock(pgd_t *pgd, phys_addr_t start,
+				  phys_addr_t end, pgprot_t prot, int flags)
 {
-	unsigned long kernel_start = __pa(_text);
-	unsigned long kernel_end = __pa(__init_begin);
+	__create_pgd_mapping(pgd, start, __phys_to_virt(start), end - start,
+			     prot, early_pgtable_alloc, flags);
+}
 
+void __init mark_linear_text_alias_ro(void)
+{
 	/*
-	 * Take care not to create a writable alias for the
-	 * read-only text and rodata sections of the kernel image.
+	 * Remove the write permissions from the linear alias of .text/.rodata
 	 */
-
-	/* No overlap with the kernel text/rodata */
-	if (end < kernel_start || start >= kernel_end) {
-		__create_pgd_mapping(pgd, start, __phys_to_virt(start),
-				     end - start, PAGE_KERNEL,
-				     early_pgtable_alloc,
-				     !debug_pagealloc_enabled());
-		return;
-	}
-
-	/*
-	 * This block overlaps the kernel text/rodata mappings.
-	 * Map the portion(s) which don't overlap.
-	 */
-	if (start < kernel_start)
-		__create_pgd_mapping(pgd, start,
-				     __phys_to_virt(start),
-				     kernel_start - start, PAGE_KERNEL,
-				     early_pgtable_alloc,
-				     !debug_pagealloc_enabled());
-	if (kernel_end < end)
-		__create_pgd_mapping(pgd, kernel_end,
-				     __phys_to_virt(kernel_end),
-				     end - kernel_end, PAGE_KERNEL,
-				     early_pgtable_alloc,
-				     !debug_pagealloc_enabled());
-
-	/*
-	 * Map the linear alias of the [_text, __init_begin) interval as
-	 * read-only/non-executable. This makes the contents of the
-	 * region accessible to subsystems such as hibernate, but
-	 * protects it from inadvertent modification or execution.
-	 */
-	__create_pgd_mapping(pgd, kernel_start, __phys_to_virt(kernel_start),
-			     kernel_end - kernel_start, PAGE_KERNEL_RO,
-			     early_pgtable_alloc, !debug_pagealloc_enabled());
+	update_mapping_prot(__pa_symbol(_text), (unsigned long)lm_alias(_text),
+			    (unsigned long)__init_begin - (unsigned long)_text,
+			    PAGE_KERNEL_RO);
 }
 
 static void __init map_mem(pgd_t *pgd)
 {
+	phys_addr_t kernel_start = __pa_symbol(_text);
+	phys_addr_t kernel_end = __pa_symbol(__init_begin);
 	struct memblock_region *reg;
+	int flags = 0;
+
+	if (debug_pagealloc_enabled())
+		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
+
+	/*
+	 * Take care not to create a writable alias for the
+	 * read-only text and rodata sections of the kernel image.
+	 * So temporarily mark them as NOMAP to skip mappings in
+	 * the following for-loop
+	 */
+	memblock_mark_nomap(kernel_start, kernel_end - kernel_start);
+#ifdef CONFIG_KEXEC_CORE
+	if (crashk_res.end)
+		memblock_mark_nomap(crashk_res.start,
+				    resource_size(&crashk_res));
+#endif
 
 	/* map all the memory banks */
 	for_each_memblock(memory, reg) {
@@ -378,59 +446,113 @@ static void __init map_mem(pgd_t *pgd)
 		if (memblock_is_nomap(reg))
 			continue;
 
-		__map_memblock(pgd, start, end);
+		__map_memblock(pgd, start, end, PAGE_KERNEL, flags);
 	}
+
+	/*
+	 * Map the linear alias of the [_text, __init_begin) interval
+	 * as non-executable now, and remove the write permission in
+	 * mark_linear_text_alias_ro() below (which will be called after
+	 * alternative patching has completed). This makes the contents
+	 * of the region accessible to subsystems such as hibernate,
+	 * but protects it from inadvertent modification or execution.
+	 * Note that contiguous mappings cannot be remapped in this way,
+	 * so we should avoid them here.
+	 */
+	__map_memblock(pgd, kernel_start, kernel_end,
+		       PAGE_KERNEL, NO_CONT_MAPPINGS);
+	memblock_clear_nomap(kernel_start, kernel_end - kernel_start);
+
+#ifdef CONFIG_KEXEC_CORE
+	/*
+	 * Use page-level mappings here so that we can shrink the region
+	 * in page granularity and put back unused memory to buddy system
+	 * through /sys/kernel/kexec_crash_size interface.
+	 */
+	if (crashk_res.end) {
+		__map_memblock(pgd, crashk_res.start, crashk_res.end + 1,
+			       PAGE_KERNEL,
+			       NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS);
+		memblock_clear_nomap(crashk_res.start,
+				     resource_size(&crashk_res));
+	}
+#endif
 }
 
 void mark_rodata_ro(void)
 {
 	unsigned long section_size;
 
-	section_size = (unsigned long)_etext - (unsigned long)_text;
-	create_mapping_late(__pa(_text), (unsigned long)_text,
-			    section_size, PAGE_KERNEL_ROX);
 	/*
 	 * mark .rodata as read only. Use __init_begin rather than __end_rodata
 	 * to cover NOTES and EXCEPTION_TABLE.
 	 */
 	section_size = (unsigned long)__init_begin - (unsigned long)__start_rodata;
-	create_mapping_late(__pa(__start_rodata), (unsigned long)__start_rodata,
+	update_mapping_prot(__pa_symbol(__start_rodata), (unsigned long)__start_rodata,
 			    section_size, PAGE_KERNEL_RO);
+
+	debug_checkwx();
 }
 
 static void __init map_kernel_segment(pgd_t *pgd, void *va_start, void *va_end,
-				      pgprot_t prot, struct vm_struct *vma)
+				      pgprot_t prot, struct vm_struct *vma,
+				      int flags, unsigned long vm_flags)
 {
-	phys_addr_t pa_start = __pa(va_start);
+	phys_addr_t pa_start = __pa_symbol(va_start);
 	unsigned long size = va_end - va_start;
 
 	BUG_ON(!PAGE_ALIGNED(pa_start));
 	BUG_ON(!PAGE_ALIGNED(size));
 
 	__create_pgd_mapping(pgd, pa_start, (unsigned long)va_start, size, prot,
-			     early_pgtable_alloc, !debug_pagealloc_enabled());
+			     early_pgtable_alloc, flags);
+
+	if (!(vm_flags & VM_NO_GUARD))
+		size += PAGE_SIZE;
 
 	vma->addr	= va_start;
 	vma->phys_addr	= pa_start;
 	vma->size	= size;
-	vma->flags	= VM_MAP;
+	vma->flags	= VM_MAP | vm_flags;
 	vma->caller	= __builtin_return_address(0);
 
 	vm_area_add_early(vma);
 }
+
+static int __init parse_rodata(char *arg)
+{
+	return strtobool(arg, &rodata_enabled);
+}
+early_param("rodata", parse_rodata);
 
 /*
  * Create fine-grained mappings for the kernel.
  */
 static void __init map_kernel(pgd_t *pgd)
 {
-	static struct vm_struct vmlinux_text, vmlinux_rodata, vmlinux_init, vmlinux_data;
+	static struct vm_struct vmlinux_text, vmlinux_rodata, vmlinux_inittext,
+				vmlinux_initdata, vmlinux_data;
 
-	map_kernel_segment(pgd, _text, _etext, PAGE_KERNEL_EXEC, &vmlinux_text);
-	map_kernel_segment(pgd, __start_rodata, __init_begin, PAGE_KERNEL, &vmlinux_rodata);
-	map_kernel_segment(pgd, __init_begin, __init_end, PAGE_KERNEL_EXEC,
-			   &vmlinux_init);
-	map_kernel_segment(pgd, _data, _end, PAGE_KERNEL, &vmlinux_data);
+	/*
+	 * External debuggers may need to write directly to the text
+	 * mapping to install SW breakpoints. Allow this (only) when
+	 * explicitly requested with rodata=off.
+	 */
+	pgprot_t text_prot = rodata_enabled ? PAGE_KERNEL_ROX : PAGE_KERNEL_EXEC;
+
+	/*
+	 * Only rodata will be remapped with different permissions later on,
+	 * all other segments are allowed to use contiguous mappings.
+	 */
+	map_kernel_segment(pgd, _text, _etext, text_prot, &vmlinux_text, 0,
+			   VM_NO_GUARD);
+	map_kernel_segment(pgd, __start_rodata, __inittext_begin, PAGE_KERNEL,
+			   &vmlinux_rodata, NO_CONT_MAPPINGS, VM_NO_GUARD);
+	map_kernel_segment(pgd, __inittext_begin, __inittext_end, text_prot,
+			   &vmlinux_inittext, 0, VM_NO_GUARD);
+	map_kernel_segment(pgd, __initdata_begin, __initdata_end, PAGE_KERNEL,
+			   &vmlinux_initdata, 0, VM_NO_GUARD);
+	map_kernel_segment(pgd, _data, _end, PAGE_KERNEL, &vmlinux_data, 0, 0);
 
 	if (!pgd_val(*pgd_offset_raw(pgd, FIXADDR_START))) {
 		/*
@@ -449,7 +571,7 @@ static void __init map_kernel(pgd_t *pgd)
 		 */
 		BUG_ON(!IS_ENABLED(CONFIG_ARM64_16K_PAGES));
 		set_pud(pud_set_fixmap_offset(pgd, FIXADDR_START),
-			__pud(__pa(bm_pmd) | PUD_TYPE_TABLE));
+			__pud(__pa_symbol(bm_pmd) | PUD_TYPE_TABLE));
 		pud_clear_fixmap();
 	} else {
 		BUG();
@@ -479,8 +601,8 @@ void __init paging_init(void)
 	 * To do this we need to go via a temporary pgd.
 	 */
 	cpu_replace_ttbr1(__va(pgd_phys));
-	memcpy(swapper_pg_dir, pgd, PAGE_SIZE);
-	cpu_replace_ttbr1(swapper_pg_dir);
+	memcpy(swapper_pg_dir, pgd, PGD_SIZE);
+	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
 
 	pgd_clear_fixmap();
 	memblock_free(pgd_phys, PAGE_SIZE);
@@ -489,7 +611,7 @@ void __init paging_init(void)
 	 * We only reuse the PGD from the swapper_pg_dir, not the pud + pmd
 	 * allocated with it.
 	 */
-	memblock_free(__pa(swapper_pg_dir) + PAGE_SIZE,
+	memblock_free(__pa_symbol(swapper_pg_dir) + PAGE_SIZE,
 		      SWAPPER_DIR_SIZE - PAGE_SIZE);
 }
 
@@ -600,6 +722,12 @@ static inline pte_t * fixmap_pte(unsigned long addr)
 	return &bm_pte[pte_index(addr)];
 }
 
+/*
+ * The p*d_populate functions call virt_to_phys implicitly so they can't be used
+ * directly on kernel symbols (bm_p*d). This function is called too early to use
+ * lm_alias so __p*d_populate functions must be used to populate with the
+ * physical address from __pa_symbol.
+ */
 void __init early_fixmap_init(void)
 {
 	pgd_t *pgd;
@@ -609,7 +737,7 @@ void __init early_fixmap_init(void)
 
 	pgd = pgd_offset_k(addr);
 	if (CONFIG_PGTABLE_LEVELS > 3 &&
-	    !(pgd_none(*pgd) || pgd_page_paddr(*pgd) == __pa(bm_pud))) {
+	    !(pgd_none(*pgd) || pgd_page_paddr(*pgd) == __pa_symbol(bm_pud))) {
 		/*
 		 * We only end up here if the kernel mapping and the fixmap
 		 * share the top level pgd entry, which should only happen on
@@ -618,12 +746,14 @@ void __init early_fixmap_init(void)
 		BUG_ON(!IS_ENABLED(CONFIG_ARM64_16K_PAGES));
 		pud = pud_offset_kimg(pgd, addr);
 	} else {
-		pgd_populate(&init_mm, pgd, bm_pud);
+		if (pgd_none(*pgd))
+			__pgd_populate(pgd, __pa_symbol(bm_pud), PUD_TYPE_TABLE);
 		pud = fixmap_pud(addr);
 	}
-	pud_populate(&init_mm, pud, bm_pmd);
+	if (pud_none(*pud))
+		__pud_populate(pud, __pa_symbol(bm_pmd), PMD_TYPE_TABLE);
 	pmd = fixmap_pmd(addr);
-	pmd_populate_kernel(&init_mm, pmd, bm_pte);
+	__pmd_populate(pmd, __pa_symbol(bm_pte), PMD_TYPE_TABLE);
 
 	/*
 	 * The boot-ioremap range spans multiple pmds, for which

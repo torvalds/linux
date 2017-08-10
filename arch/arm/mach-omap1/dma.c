@@ -32,7 +32,6 @@
 #include "soc.h"
 
 #define OMAP1_DMA_BASE			(0xfffed800)
-#define OMAP1_LOGICAL_DMA_CH_COUNT	17
 
 static u32 enable_1510_mode;
 
@@ -241,7 +240,6 @@ static void omap1_show_dma_caps(void)
 		w |= 1 << 3;
 		dma_write(w, GSCR, 0);
 	}
-	return;
 }
 
 static unsigned configure_dma_errata(void)
@@ -340,15 +338,11 @@ static int __init omap1_system_dma_init(void)
 		goto exit_iounmap;
 	}
 
-	d = kzalloc(sizeof(struct omap_dma_dev_attr), GFP_KERNEL);
+	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d) {
-		dev_err(&pdev->dev, "%s: Unable to allocate 'd' for %s\n",
-			__func__, pdev->name);
 		ret = -ENOMEM;
 		goto exit_iounmap;
 	}
-
-	d->lch_count		= OMAP1_LOGICAL_DMA_CH_COUNT;
 
 	/* Valid attributes for omap1 plus processors */
 	if (cpu_is_omap15xx())
@@ -366,13 +360,14 @@ static int __init omap1_system_dma_init(void)
 	d->dev_caps		|= CLEAR_CSR_ON_READ;
 	d->dev_caps		|= IS_WORD_16;
 
-	if (cpu_is_omap15xx())
-		d->chan_count = 9;
-	else if (cpu_is_omap16xx() || cpu_is_omap7xx()) {
-		if (!(d->dev_caps & ENABLE_1510_MODE))
-			d->chan_count = 16;
+	/* available logical channels */
+	if (cpu_is_omap15xx()) {
+		d->lch_count = 9;
+	} else {
+		if (d->dev_caps & ENABLE_1510_MODE)
+			d->lch_count = 9;
 		else
-			d->chan_count = 9;
+			d->lch_count = 16;
 	}
 
 	p = dma_plat_info;

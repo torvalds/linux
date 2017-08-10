@@ -8,7 +8,8 @@
 #include <linux/fs_struct.h>
 #include <linux/fsnotify.h>
 #include <linux/personality.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/compat.h>
 #include "internal.h"
 #include "mount.h"
 
@@ -264,3 +265,15 @@ SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
 	ret = do_handle_open(mountdirfd, handle, flags);
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+/*
+ * Exactly like fs/open.c:sys_open_by_handle_at(), except that it
+ * doesn't set the O_LARGEFILE flag.
+ */
+COMPAT_SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
+			     struct file_handle __user *, handle, int, flags)
+{
+	return do_handle_open(mountdirfd, handle, flags);
+}
+#endif

@@ -40,7 +40,6 @@ extern raw_spinlock_t i8259A_lock;
 extern void make_8259A_irq(unsigned int irq);
 
 extern void init_i8259_irqs(void);
-extern int i8259_of_init(struct device_node *node, struct device_node *parent);
 
 /**
  * i8159_set_poll() - Override the i8259 polling function

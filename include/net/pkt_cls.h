@@ -17,6 +17,35 @@ struct tcf_walker {
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
+#ifdef CONFIG_NET_CLS
+struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
+				bool create);
+void tcf_chain_put(struct tcf_chain *chain);
+int tcf_block_get(struct tcf_block **p_block,
+		  struct tcf_proto __rcu **p_filter_chain);
+void tcf_block_put(struct tcf_block *block);
+int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+		 struct tcf_result *res, bool compat_mode);
+
+#else
+static inline
+int tcf_block_get(struct tcf_block **p_block,
+		  struct tcf_proto __rcu **p_filter_chain)
+{
+	return 0;
+}
+
+static inline void tcf_block_put(struct tcf_block *block)
+{
+}
+
+static inline int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+			       struct tcf_result *res, bool compat_mode)
+{
+	return TC_ACT_UNSPEC;
+}
+#endif
+
 static inline unsigned long
 __cls_set_class(unsigned long *clp, unsigned long cl)
 {
@@ -128,6 +157,25 @@ static inline void tcf_exts_to_list(const struct tcf_exts *exts,
 #endif
 }
 
+static inline void
+tcf_exts_stats_update(const struct tcf_exts *exts,
+		      u64 bytes, u64 packets, u64 lastuse)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	int i;
+
+	preempt_disable();
+
+	for (i = 0; i < exts->nr_actions; i++) {
+		struct tc_action *a = exts->actions[i];
+
+		tcf_action_stats_update(a, bytes, packets, lastuse);
+	}
+
+	preempt_enable();
+#endif
+}
+
 /**
  * tcf_exts_exec - execute tc filter extensions
  * @skb: socket buffer
@@ -171,6 +219,8 @@ void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 		     struct tcf_exts *src);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
 int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
+int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
+		     struct net_device **hw_dev);
 
 /**
  * struct tcf_pkt_info - packet information
@@ -425,15 +475,13 @@ struct tc_cls_u32_offload {
 	};
 };
 
-static inline bool tc_should_offload(const struct net_device *dev,
-				     const struct tcf_proto *tp, u32 flags)
+static inline bool tc_can_offload(const struct net_device *dev,
+				  const struct tcf_proto *tp)
 {
 	const struct Qdisc *sch = tp->q;
 	const struct Qdisc_class_ops *cops = sch->ops->cl_ops;
 
 	if (!(dev->features & NETIF_F_HW_TC))
-		return false;
-	if (flags & TCA_CLS_FLAGS_SKIP_HW)
 		return false;
 	if (!dev->netdev_ops->ndo_setup_tc)
 		return false;
@@ -441,6 +489,19 @@ static inline bool tc_should_offload(const struct net_device *dev,
 		return cops->tcf_cl_offload(tp->classid);
 
 	return true;
+}
+
+static inline bool tc_skip_hw(u32 flags)
+{
+	return (flags & TCA_CLS_FLAGS_SKIP_HW) ? true : false;
+}
+
+static inline bool tc_should_offload(const struct net_device *dev,
+				     const struct tcf_proto *tp, u32 flags)
+{
+	if (tc_skip_hw(flags))
+		return false;
+	return tc_can_offload(dev, tp);
 }
 
 static inline bool tc_skip_sw(u32 flags)
@@ -460,6 +521,11 @@ static inline bool tc_flags_valid(u32 flags)
 	return true;
 }
 
+static inline bool tc_in_hw(u32 flags)
+{
+	return (flags & TCA_CLS_FLAGS_IN_HW) ? true : false;
+}
+
 enum tc_fl_command {
 	TC_CLSFLOWER_REPLACE,
 	TC_CLSFLOWER_DESTROY,
@@ -468,6 +534,7 @@ enum tc_fl_command {
 
 struct tc_cls_flower_offload {
 	enum tc_fl_command command;
+	u32 prio;
 	unsigned long cookie;
 	struct flow_dissector *dissector;
 	struct fl_flow_key *mask;
@@ -502,4 +569,12 @@ struct tc_cls_bpf_offload {
 	u32 gen_flags;
 };
 
+
+/* This structure holds cookie structure that is passed from user
+ * to the kernel for actions and classifiers
+ */
+struct tc_cookie {
+	u8  *data;
+	u32 len;
+};
 #endif

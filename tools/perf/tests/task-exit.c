@@ -4,6 +4,7 @@
 #include "cpumap.h"
 #include "tests.h"
 
+#include <errno.h>
 #include <signal.h>
 
 static int exited;
@@ -82,7 +83,7 @@ int test__task_exit(int subtest __maybe_unused)
 
 	evsel = perf_evlist__first(evlist);
 	evsel->attr.task = 1;
-	evsel->attr.sample_freq = 0;
+	evsel->attr.sample_freq = 1;
 	evsel->attr.inherit = 0;
 	evsel->attr.watermark = 0;
 	evsel->attr.wakeup_events = 1;

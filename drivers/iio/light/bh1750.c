@@ -212,7 +212,7 @@ static struct attribute *bh1750_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group bh1750_attribute_group = {
+static const struct attribute_group bh1750_attribute_group = {
 	.attrs = bh1750_attributes,
 };
 

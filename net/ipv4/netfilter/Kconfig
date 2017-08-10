@@ -25,6 +25,12 @@ config NF_CONNTRACK_IPV4
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NF_SOCKET_IPV4
+	tristate "IPv4 socket lookup support"
+	help
+	  This option enables the IPv4 socket lookup infrastructure. This is
+	  is required by the iptables socket match.
+
 if NF_TABLES
 
 config NF_TABLES_IPV4
@@ -53,6 +59,14 @@ config NFT_DUP_IPV4
 	select NF_DUP_IPV4
 	help
 	  This module enables IPv4 packet duplication support for nf_tables.
+
+config NFT_FIB_IPV4
+	select NFT_FIB
+	tristate "nf_tables fib / ip route lookup support"
+	help
+	  This module enables IPv4 FIB lookups, e.g. for reverse path filtering.
+	  It also allows query of the FIB for the route type, e.g. local, unicast,
+	  multicast or blackhole.
 
 endif # NF_TABLES_IPV4
 

@@ -29,6 +29,7 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	u16 mac_len = skb->mac_len;
 	int udp_offset, outer_hlen;
 	__wsum partial;
+	bool need_ipsec;
 
 	if (unlikely(!pskb_may_pull(skb, tnl_hlen)))
 		goto out;
@@ -62,8 +63,10 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 
 	ufo = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
 
+	need_ipsec = skb_dst(skb) && dst_xfrm(skb_dst(skb));
 	/* Try to offload checksum if possible */
 	offload_csum = !!(need_csum &&
+			  !need_ipsec &&
 			  (skb->dev->features &
 			   (is_ipv6 ? (NETIF_F_HW_CSUM | NETIF_F_IPV6_CSUM) :
 				      (NETIF_F_HW_CSUM | NETIF_F_IP_CSUM))));
@@ -232,7 +235,7 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 	if (uh->check == 0)
 		uh->check = CSUM_MANGLED_0;
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	/* If there is no outer header we can fake a checksum offload
 	 * due to the fact that we have already done the checksum in

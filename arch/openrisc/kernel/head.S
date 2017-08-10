@@ -24,6 +24,7 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
+#include <asm/thread_info.h>
 #include <asm/cache.h>
 #include <asm/spr_defs.h>
 #include <asm/asm-offsets.h>
@@ -34,7 +35,7 @@
 	l.add	rd,rd,rs
 
 #define CLEAR_GPR(gpr)				\
-	l.or    gpr,r0,r0
+	l.movhi	gpr,0x0
 
 #define LOAD_SYMBOL_2_GPR(gpr,symbol)		\
 	l.movhi gpr,hi(symbol)			;\
@@ -324,7 +325,7 @@ _dispatch_do_ipage_fault:
     .org 0x500
 	EXCEPTION_HANDLE(_timer_handler)
 
-/* ---[ 0x600: Aligment exception ]-------------------------------------- */
+/* ---[ 0x600: Alignment exception ]-------------------------------------- */
     .org 0x600
 	EXCEPTION_HANDLE(_alignment_handler)
 
@@ -442,6 +443,9 @@ _dispatch_do_ipage_fault:
 	__HEAD
 	.global _start
 _start:
+	/* Init r0 to zero as per spec */
+	CLEAR_GPR(r0)
+
 	/* save kernel parameters */
 	l.or	r25,r0,r3	/* pointer to fdt */
 
@@ -486,7 +490,8 @@ _start:
 	/*
 	 * set up initial ksp and current
 	 */
-	LOAD_SYMBOL_2_GPR(r1,init_thread_union+0x2000)	// setup kernel stack
+	/* setup kernel stack */
+	LOAD_SYMBOL_2_GPR(r1,init_thread_union + THREAD_SIZE)
 	LOAD_SYMBOL_2_GPR(r10,init_thread_union)	// setup current
 	tophys	(r31,r10)
 	l.sw	TI_KSP(r31), r1
@@ -520,22 +525,8 @@ enable_dc:
 	 l.nop
 
 flush_tlb:
-	/*
-	 *  I N V A L I D A T E   T L B   e n t r i e s
-	 */
-	LOAD_SYMBOL_2_GPR(r5,SPR_DTLBMR_BASE(0))
-	LOAD_SYMBOL_2_GPR(r6,SPR_ITLBMR_BASE(0))
-	l.addi	r7,r0,128 /* Maximum number of sets */
-1:
-	l.mtspr	r5,r0,0x0
-	l.mtspr	r6,r0,0x0
-
-	l.addi	r5,r5,1
-	l.addi	r6,r6,1
-	l.sfeq	r7,r0
-	l.bnf	1b
-	 l.addi	r7,r7,-1
-
+	l.jal	_flush_tlb
+	 l.nop
 
 /* The MMU needs to be enabled before or32_early_setup is called */
 
@@ -627,10 +618,30 @@ jump_start_kernel:
 	l.jr    r30
 	 l.nop
 
+_flush_tlb:
+	/*
+	 *  I N V A L I D A T E   T L B   e n t r i e s
+	 */
+	LOAD_SYMBOL_2_GPR(r5,SPR_DTLBMR_BASE(0))
+	LOAD_SYMBOL_2_GPR(r6,SPR_ITLBMR_BASE(0))
+	l.addi	r7,r0,128 /* Maximum number of sets */
+1:
+	l.mtspr	r5,r0,0x0
+	l.mtspr	r6,r0,0x0
+
+	l.addi	r5,r5,1
+	l.addi	r6,r6,1
+	l.sfeq	r7,r0
+	l.bnf	1b
+	 l.addi	r7,r7,-1
+
+	l.jr	r9
+	 l.nop
+
 /* ========================================[ cache ]=== */
 
-	/* aligment here so we don't change memory offsets with
-	 * memory controler defined
+	/* alignment here so we don't change memory offsets with
+	 * memory controller defined
 	 */
 	.align 0x2000
 
@@ -971,8 +982,6 @@ ENTRY(dtlb_miss_handler)
 	EXCEPTION_STORE_GPR2
 	EXCEPTION_STORE_GPR3
 	EXCEPTION_STORE_GPR4
-	EXCEPTION_STORE_GPR5
-	EXCEPTION_STORE_GPR6
 	/*
 	 * get EA of the miss
 	 */
@@ -980,91 +989,70 @@ ENTRY(dtlb_miss_handler)
 	/*
 	 * pmd = (pmd_t *)(current_pgd + pgd_index(daddr));
 	 */
-	GET_CURRENT_PGD(r3,r5)		// r3 is current_pgd, r5 is temp
+	GET_CURRENT_PGD(r3,r4)		// r3 is current_pgd, r4 is temp
 	l.srli	r4,r2,0x18		// >> PAGE_SHIFT + (PAGE_SHIFT - 2)
 	l.slli	r4,r4,0x2		// to get address << 2
-	l.add	r5,r4,r3		// r4 is pgd_index(daddr)
+	l.add	r3,r4,r3		// r4 is pgd_index(daddr)
 	/*
 	 * if (pmd_none(*pmd))
 	 *   goto pmd_none:
 	 */
-	tophys	(r4,r5)
+	tophys	(r4,r3)
 	l.lwz	r3,0x0(r4)		// get *pmd value
 	l.sfne	r3,r0
 	l.bnf	d_pmd_none
-	 l.andi	r3,r3,~PAGE_MASK //0x1fff		// ~PAGE_MASK
-	/*
-	 * if (pmd_bad(*pmd))
-	 *   pmd_clear(pmd)
-	 *   goto pmd_bad:
-	 */
-//	l.sfeq	r3,r0			// check *pmd value
-//	l.bf	d_pmd_good
-	l.addi	r3,r0,0xffffe000	// PAGE_MASK
-//	l.j	d_pmd_bad
-//	l.sw	0x0(r4),r0		// clear pmd
+	 l.addi	r3,r0,0xffffe000	// PAGE_MASK
+
 d_pmd_good:
 	/*
 	 * pte = *pte_offset(pmd, daddr);
 	 */
 	l.lwz	r4,0x0(r4)		// get **pmd value
 	l.and	r4,r4,r3		// & PAGE_MASK
-	l.srli	r5,r2,0xd		// >> PAGE_SHIFT, r2 == EEAR
-	l.andi	r3,r5,0x7ff		// (1UL << PAGE_SHIFT - 2) - 1
+	l.srli	r2,r2,0xd		// >> PAGE_SHIFT, r2 == EEAR
+	l.andi	r3,r2,0x7ff		// (1UL << PAGE_SHIFT - 2) - 1
 	l.slli	r3,r3,0x2		// to get address << 2
 	l.add	r3,r3,r4
-	l.lwz	r2,0x0(r3)		// this is pte at last
+	l.lwz	r3,0x0(r3)		// this is pte at last
 	/*
 	 * if (!pte_present(pte))
 	 */
-	l.andi	r4,r2,0x1
+	l.andi	r4,r3,0x1
 	l.sfne	r4,r0			// is pte present
 	l.bnf	d_pte_not_present
-	l.addi	r3,r0,0xffffe3fa	// PAGE_MASK | DTLB_UP_CONVERT_MASK
+	l.addi	r4,r0,0xffffe3fa	// PAGE_MASK | DTLB_UP_CONVERT_MASK
 	/*
 	 * fill DTLB TR register
 	 */
-	l.and	r4,r2,r3		// apply the mask
+	l.and	r4,r3,r4		// apply the mask
 	// Determine number of DMMU sets
-	l.mfspr r6, r0, SPR_DMMUCFGR
-	l.andi	r6, r6, SPR_DMMUCFGR_NTS
-	l.srli	r6, r6, SPR_DMMUCFGR_NTS_OFF
+	l.mfspr r2, r0, SPR_DMMUCFGR
+	l.andi	r2, r2, SPR_DMMUCFGR_NTS
+	l.srli	r2, r2, SPR_DMMUCFGR_NTS_OFF
 	l.ori	r3, r0, 0x1
-	l.sll	r3, r3, r6 	// r3 = number DMMU sets DMMUCFGR
-	l.addi	r6, r3, -1  	// r6 = nsets mask
-	l.and	r5, r5, r6	// calc offset:	 & (NUM_TLB_ENTRIES-1)
+	l.sll	r3, r3, r2 	// r3 = number DMMU sets DMMUCFGR
+	l.addi	r2, r3, -1  	// r2 = nsets mask
+	l.mfspr	r3, r0, SPR_EEAR_BASE
+	l.srli	r3, r3, 0xd	// >> PAGE_SHIFT
+	l.and	r2, r3, r2	// calc offset:	 & (NUM_TLB_ENTRIES-1)
 	                                                   //NUM_TLB_ENTRIES
-	l.mtspr	r5,r4,SPR_DTLBTR_BASE(0)
+	l.mtspr	r2,r4,SPR_DTLBTR_BASE(0)
 	/*
 	 * fill DTLB MR register
 	 */
-	l.mfspr	r2,r0,SPR_EEAR_BASE
-	l.addi	r3,r0,0xffffe000	// PAGE_MASK
-	l.and	r4,r2,r3		// apply PAGE_MASK to EA (__PHX__ do we really need this?)
-	l.ori	r4,r4,0x1		// set hardware valid bit: DTBL_MR entry
-	l.mtspr	r5,r4,SPR_DTLBMR_BASE(0)
+	l.slli	r3, r3, 0xd		/* << PAGE_SHIFT => EA & PAGE_MASK */
+	l.ori	r4,r3,0x1		// set hardware valid bit: DTBL_MR entry
+	l.mtspr	r2,r4,SPR_DTLBMR_BASE(0)
 
 	EXCEPTION_LOAD_GPR2
 	EXCEPTION_LOAD_GPR3
 	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
-	l.rfe
-d_pmd_bad:
-	l.nop	1
-	EXCEPTION_LOAD_GPR2
-	EXCEPTION_LOAD_GPR3
-	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
 	l.rfe
 d_pmd_none:
 d_pte_not_present:
 	EXCEPTION_LOAD_GPR2
 	EXCEPTION_LOAD_GPR3
 	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
 	EXCEPTION_HANDLE(_dtlb_miss_page_fault_handler)
 
 /* ==============================================[ ITLB miss handler ]=== */
@@ -1072,8 +1060,6 @@ ENTRY(itlb_miss_handler)
 	EXCEPTION_STORE_GPR2
 	EXCEPTION_STORE_GPR3
 	EXCEPTION_STORE_GPR4
-	EXCEPTION_STORE_GPR5
-	EXCEPTION_STORE_GPR6
 	/*
 	 * get EA of the miss
 	 */
@@ -1083,30 +1069,19 @@ ENTRY(itlb_miss_handler)
 	 * pmd = (pmd_t *)(current_pgd + pgd_index(daddr));
 	 *
 	 */
-	GET_CURRENT_PGD(r3,r5)		// r3 is current_pgd, r5 is temp
+	GET_CURRENT_PGD(r3,r4)		// r3 is current_pgd, r5 is temp
 	l.srli	r4,r2,0x18		// >> PAGE_SHIFT + (PAGE_SHIFT - 2)
 	l.slli	r4,r4,0x2		// to get address << 2
-	l.add	r5,r4,r3		// r4 is pgd_index(daddr)
+	l.add	r3,r4,r3		// r4 is pgd_index(daddr)
 	/*
 	 * if (pmd_none(*pmd))
 	 *   goto pmd_none:
 	 */
-	tophys	(r4,r5)
+	tophys	(r4,r3)
 	l.lwz	r3,0x0(r4)		// get *pmd value
 	l.sfne	r3,r0
 	l.bnf	i_pmd_none
-	l.andi	r3,r3,0x1fff		// ~PAGE_MASK
-	/*
-	 * if (pmd_bad(*pmd))
-	 *   pmd_clear(pmd)
-	 *   goto pmd_bad:
-	 */
-
-//	l.sfeq	r3,r0			// check *pmd value
-//	l.bf	i_pmd_good
-	l.addi	r3,r0,0xffffe000	// PAGE_MASK
-//	l.j	i_pmd_bad
-//	l.sw	0x0(r4),r0		// clear pmd
+	 l.addi	r3,r0,0xffffe000	// PAGE_MASK
 
 i_pmd_good:
 	/*
@@ -1115,35 +1090,36 @@ i_pmd_good:
 	 */
 	l.lwz	r4,0x0(r4)		// get **pmd value
 	l.and	r4,r4,r3		// & PAGE_MASK
-	l.srli	r5,r2,0xd		// >> PAGE_SHIFT, r2 == EEAR
-	l.andi	r3,r5,0x7ff		// (1UL << PAGE_SHIFT - 2) - 1
+	l.srli	r2,r2,0xd		// >> PAGE_SHIFT, r2 == EEAR
+	l.andi	r3,r2,0x7ff		// (1UL << PAGE_SHIFT - 2) - 1
 	l.slli	r3,r3,0x2		// to get address << 2
 	l.add	r3,r3,r4
-	l.lwz	r2,0x0(r3)		// this is pte at last
+	l.lwz	r3,0x0(r3)		// this is pte at last
 	/*
 	 * if (!pte_present(pte))
 	 *
 	 */
-	l.andi	r4,r2,0x1
+	l.andi	r4,r3,0x1
 	l.sfne	r4,r0			// is pte present
 	l.bnf	i_pte_not_present
-	l.addi	r3,r0,0xffffe03a	// PAGE_MASK | ITLB_UP_CONVERT_MASK
+	 l.addi	r4,r0,0xffffe03a	// PAGE_MASK | ITLB_UP_CONVERT_MASK
 	/*
 	 * fill ITLB TR register
 	 */
-	l.and	r4,r2,r3		// apply the mask
-	l.andi	r3,r2,0x7c0		// _PAGE_EXEC | _PAGE_SRE | _PAGE_SWE |  _PAGE_URE | _PAGE_UWE
-//	l.andi	r3,r2,0x400		// _PAGE_EXEC
+	l.and	r4,r3,r4		// apply the mask
+	l.andi	r3,r3,0x7c0		// _PAGE_EXEC | _PAGE_SRE | _PAGE_SWE |  _PAGE_URE | _PAGE_UWE
 	l.sfeq	r3,r0
 	l.bf	itlb_tr_fill //_workaround
 	// Determine number of IMMU sets
-	l.mfspr r6, r0, SPR_IMMUCFGR
-	l.andi	r6, r6, SPR_IMMUCFGR_NTS
-	l.srli	r6, r6, SPR_IMMUCFGR_NTS_OFF
+	l.mfspr r2, r0, SPR_IMMUCFGR
+	l.andi	r2, r2, SPR_IMMUCFGR_NTS
+	l.srli	r2, r2, SPR_IMMUCFGR_NTS_OFF
 	l.ori	r3, r0, 0x1
-	l.sll	r3, r3, r6 	// r3 = number IMMU sets IMMUCFGR
-	l.addi	r6, r3, -1  	// r6 = nsets mask
-	l.and	r5, r5, r6	// calc offset:	 & (NUM_TLB_ENTRIES-1)
+	l.sll	r3, r3, r2 	// r3 = number IMMU sets IMMUCFGR
+	l.addi	r2, r3, -1  	// r2 = nsets mask
+	l.mfspr	r3, r0, SPR_EEAR_BASE
+	l.srli	r3, r3, 0xd	// >> PAGE_SHIFT
+	l.and	r2, r3, r2	// calc offset:	 & (NUM_TLB_ENTRIES-1)
 
 /*
  * __PHX__ :: fixme
@@ -1155,38 +1131,24 @@ i_pmd_good:
 itlb_tr_fill_workaround:
 	l.ori	r4,r4,0xc0		// | (SPR_ITLBTR_UXE | ITLBTR_SXE)
 itlb_tr_fill:
-	l.mtspr	r5,r4,SPR_ITLBTR_BASE(0)
+	l.mtspr	r2,r4,SPR_ITLBTR_BASE(0)
 	/*
 	 * fill DTLB MR register
 	 */
-	l.mfspr	r2,r0,SPR_EEAR_BASE
-	l.addi	r3,r0,0xffffe000	// PAGE_MASK
-	l.and	r4,r2,r3		// apply PAGE_MASK to EA (__PHX__ do we really need this?)
-	l.ori	r4,r4,0x1		// set hardware valid bit: DTBL_MR entry
-	l.mtspr	r5,r4,SPR_ITLBMR_BASE(0)
+	l.slli	r3, r3, 0xd		/* << PAGE_SHIFT => EA & PAGE_MASK */
+	l.ori	r4,r3,0x1		// set hardware valid bit: ITBL_MR entry
+	l.mtspr	r2,r4,SPR_ITLBMR_BASE(0)
 
 	EXCEPTION_LOAD_GPR2
 	EXCEPTION_LOAD_GPR3
 	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
 	l.rfe
 
-i_pmd_bad:
-	l.nop	1
-	EXCEPTION_LOAD_GPR2
-	EXCEPTION_LOAD_GPR3
-	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
-	l.rfe
 i_pmd_none:
 i_pte_not_present:
 	EXCEPTION_LOAD_GPR2
 	EXCEPTION_LOAD_GPR3
 	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
 	EXCEPTION_HANDLE(_itlb_miss_page_fault_handler)
 
 /* ==============================================[ boot tlb handlers ]=== */
@@ -1571,12 +1533,7 @@ ENTRY(_early_uart_init)
 	l.jr	r9
 	l.nop
 
-_string_copying_linux:
-	.string "\n\n\n\n\n\rCopying Linux... \0"
-
-_string_ok_booting:
-	.string "Ok, booting the kernel.\n\r\0"
-
+	.section .rodata
 _string_unhandled_exception:
 	.string "\n\rRunarunaround: Unhandled exception 0x\0"
 
@@ -1585,11 +1542,6 @@ _string_epc_prefix:
 
 _string_nl:
 	.string "\n\r\0"
-
-	.global	_string_esr_irq_bug
-_string_esr_irq_bug:
-	.string "\n\rESR external interrupt bug, for details look into entry.S\n\r\0"
-
 
 
 /* ========================================[ page aligned structures ]=== */

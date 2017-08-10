@@ -1,0 +1,49 @@
+STM32 Real Time Clock
+
+Required properties:
+- compatible: can be either "st,stm32-rtc" or "st,stm32h7-rtc", depending on
+  the device is compatible with stm32(f4/f7) or stm32h7.
+- reg: address range of rtc register set.
+- clocks: can use up to two clocks, depending on part used:
+  - "rtc_ck": RTC clock source.
+    It is required on stm32(f4/f7) and stm32h7.
+  - "pclk": RTC APB interface clock.
+    It is not present on stm32(f4/f7).
+    It is required on stm32h7.
+- clock-names: must be "rtc_ck" and "pclk".
+    It is required only on stm32h7.
+- interrupt-parent: phandle for the interrupt controller.
+- interrupts: rtc alarm interrupt.
+- st,syscfg: phandle for pwrcfg, mandatory to disable/enable backup domain
+  (RTC registers) write protection.
+
+Optional properties (to override default rtc_ck parent clock):
+- assigned-clocks: reference to the rtc_ck clock entry.
+- assigned-clock-parents: phandle of the new parent clock of rtc_ck.
+
+Example:
+
+	rtc: rtc@40002800 {
+		compatible = "st,stm32-rtc";
+		reg = <0x40002800 0x400>;
+		clocks = <&rcc 1 CLK_RTC>;
+		assigned-clocks = <&rcc 1 CLK_RTC>;
+		assigned-clock-parents = <&rcc 1 CLK_LSE>;
+		interrupt-parent = <&exti>;
+		interrupts = <17 1>;
+		st,syscfg = <&pwrcfg>;
+	};
+
+	rtc: rtc@58004000 {
+		compatible = "st,stm32h7-rtc";
+		reg = <0x58004000 0x400>;
+		clocks = <&rcc RTCAPB_CK>, <&rcc RTC_CK>;
+		clock-names = "pclk", "rtc_ck";
+		assigned-clocks = <&rcc RTC_CK>;
+		assigned-clock-parents = <&rcc LSE_CK>;
+		interrupt-parent = <&exti>;
+		interrupts = <17 1>;
+		interrupt-names = "alarm";
+		st,syscfg = <&pwrcfg>;
+		status = "disabled";
+	};

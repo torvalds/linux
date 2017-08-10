@@ -148,9 +148,12 @@ enum {
 	AMD_PEER_D3_EVENT	= BIT(2),
 	AMD_PEER_PMETO_EVENT	= BIT(3),
 	AMD_PEER_D0_EVENT	= BIT(4),
+	AMD_LINK_UP_EVENT	= BIT(5),
+	AMD_LINK_DOWN_EVENT	= BIT(6),
 	AMD_EVENT_INTMASK	= (AMD_PEER_FLUSH_EVENT |
 				AMD_PEER_RESET_EVENT | AMD_PEER_D3_EVENT |
-				AMD_PEER_PMETO_EVENT | AMD_PEER_D0_EVENT),
+				AMD_PEER_PMETO_EVENT | AMD_PEER_D0_EVENT |
+				AMD_LINK_UP_EVENT | AMD_LINK_DOWN_EVENT),
 
 	AMD_PMESTAT_OFFSET	= 0x480,
 	AMD_PMSGTRIG_OFFSET	= 0x490,
@@ -208,9 +211,6 @@ struct amd_ntb_dev {
 	struct dentry *debugfs_info;
 };
 
-#define ndev_pdev(ndev) ((ndev)->ntb.pdev)
-#define ndev_name(ndev) pci_name(ndev_pdev(ndev))
-#define ndev_dev(ndev) (&ndev_pdev(ndev)->dev)
 #define ntb_ndev(__ntb) container_of(__ntb, struct amd_ntb_dev, ntb)
 #define hb_ndev(__work) container_of(__work, struct amd_ntb_dev, hb_timer.work)
 

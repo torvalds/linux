@@ -287,8 +287,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 					else
 						ptr += 6;
 				}
-				memcpy(skb_put(skb, work->word1.len), ptr,
-				       work->word1.len);
+				skb_put_data(skb, ptr, work->word1.len);
 				/* No packet buffers to free */
 			} else {
 				int segments = work->word2.s.bufs;
@@ -323,10 +322,9 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 					if (segment_size > len)
 						segment_size = len;
 					/* Copy the data into the packet */
-					memcpy(skb_put(skb, segment_size),
-					       cvmx_phys_to_ptr(
-					       segment_ptr.s.addr),
-					       segment_size);
+					skb_put_data(skb,
+						     cvmx_phys_to_ptr(segment_ptr.s.addr),
+						     segment_size);
 					len -= segment_size;
 					segment_ptr = next_ptr;
 				}
@@ -336,7 +334,6 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 		if (likely((port < TOTAL_NUMBER_OF_PORTS) &&
 			   cvm_oct_device[port])) {
 			struct net_device *dev = cvm_oct_device[port];
-			struct octeon_ethernet *priv = netdev_priv(dev);
 
 			/*
 			 * Only accept packets for devices that are
@@ -356,8 +353,8 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 
 				/* Increment RX stats for virtual ports */
 				if (port >= CVMX_PIP_NUM_INPUT_PORTS) {
-					priv->stats.rx_packets++;
-					priv->stats.rx_bytes += skb->len;
+					dev->stats.rx_packets++;
+					dev->stats.rx_bytes += skb->len;
 				}
 				netif_receive_skb(skb);
 			} else {
@@ -365,7 +362,7 @@ static int cvm_oct_poll(struct oct_rx_group *rx_group, int budget)
 				 * Drop any packet received for a device that
 				 * isn't up.
 				 */
-				priv->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 				dev_kfree_skb_irq(skb);
 			}
 		} else {
@@ -429,7 +426,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 
 	if (rx_count < budget) {
 		/* No more work */
-		napi_complete(napi);
+		napi_complete_done(napi, rx_count);
 		enable_irq(rx_group->irq);
 	}
 	return rx_count;

@@ -55,6 +55,13 @@
 			v4l_client_printk(KERN_DEBUG, client, fmt , ## arg); \
 	} while (0)
 
+/* Add a version of v4l_dbg to be used on drivers using dev_foo() macros */
+#define dev_dbg_lvl(__dev, __level, __debug, __fmt, __arg...)		\
+	do {								\
+		if (__debug >= (__level))				\
+			dev_printk(KERN_DEBUG, __dev, __fmt, ##__arg);	\
+	} while (0)
+
 /* ------------------------------------------------------------------------- */
 
 /* These printk constructs can be used with v4l2_device and v4l2_subdev */

@@ -467,7 +467,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 {
 	int32_t *msg, msg_type, handle;
 	unsigned img_size = 0;
-	struct fence *f;
+	struct dma_fence *f;
 	void *ptr;
 
 	int i, r;

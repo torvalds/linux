@@ -1,0 +1,2 @@
+config RESET_TEGRA_BPMP
+	def_bool TEGRA_BPMP

@@ -593,9 +593,6 @@ struct bcma_sflash {
 	u32 blocksize;
 	u16 numblocks;
 	u32 size;
-
-	struct mtd_info *mtd;
-	void *priv;
 };
 #endif
 

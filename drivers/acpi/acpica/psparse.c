@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,7 @@
 #include "acdispat.h"
 #include "amlcode.h"
 #include "acinterp.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psparse")
@@ -105,7 +106,7 @@ u16 acpi_ps_peek_opcode(struct acpi_parse_state * parser_state)
 	aml = parser_state->aml;
 	opcode = (u16) ACPI_GET8(aml);
 
-	if (opcode == AML_EXTENDED_OP_PREFIX) {
+	if (opcode == AML_EXTENDED_PREFIX) {
 
 		/* Extended opcode, get the second opcode byte */
 
@@ -210,7 +211,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 			    || (op->common.parent->common.aml_opcode ==
 				AML_BANK_FIELD_OP)
 			    || (op->common.parent->common.aml_opcode ==
-				AML_VAR_PACKAGE_OP)) {
+				AML_VARIABLE_PACKAGE_OP)) {
 				replacement_op =
 				    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP,
 						     op->common.aml);
@@ -225,7 +226,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 				if ((op->common.aml_opcode == AML_BUFFER_OP)
 				    || (op->common.aml_opcode == AML_PACKAGE_OP)
 				    || (op->common.aml_opcode ==
-					AML_VAR_PACKAGE_OP)) {
+					AML_VARIABLE_PACKAGE_OP)) {
 					replacement_op =
 					    acpi_ps_alloc_op(op->common.
 							     aml_opcode,
@@ -538,9 +539,16 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			/* Either the method parse or actual execution failed */
 
 			acpi_ex_exit_interpreter();
-			ACPI_ERROR_METHOD("Method parse/execution failed",
-					  walk_state->method_node, NULL,
-					  status);
+			if (status == AE_ABORT_METHOD) {
+				acpi_ns_print_node_pathname(walk_state->
+							    method_node,
+							    "Method aborted:");
+				acpi_os_printf("\n");
+			} else {
+				ACPI_ERROR_METHOD
+				    ("Method parse/execution failed",
+				     walk_state->method_node, NULL, status);
+			}
 			acpi_ex_enter_interpreter();
 
 			/* Check for possible multi-thread reentrancy problem */

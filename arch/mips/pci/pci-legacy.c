@@ -86,8 +86,7 @@ static void pcibios_scanbus(struct pci_controller *hose)
 				hose->mem_resource, hose->mem_offset);
 	pci_add_resource_offset(&resources,
 				hose->io_resource, hose->io_offset);
-	pci_add_resource_offset(&resources,
-				hose->busn_resource, hose->busn_offset);
+	pci_add_resource(&resources, hose->busn_resource);
 	bus = pci_scan_root_bus(NULL, next_busno, hose->pci_ops, hose,
 				&resources);
 	hose->bus = bus;
@@ -190,7 +189,7 @@ void register_pci_controller(struct pci_controller *hose)
 	}
 
 	INIT_LIST_HEAD(&hose->list);
-	list_add(&hose->list, &controllers);
+	list_add_tail(&hose->list, &controllers);
 
 	/*
 	 * Do not panic here but later - this might happen before console init.

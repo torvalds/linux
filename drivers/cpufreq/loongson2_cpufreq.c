@@ -51,18 +51,11 @@ static int loongson2_cpu_freq_notifier(struct notifier_block *nb,
 static int loongson2_cpufreq_target(struct cpufreq_policy *policy,
 				     unsigned int index)
 {
-	unsigned int cpu = policy->cpu;
-	cpumask_t cpus_allowed;
 	unsigned int freq;
-
-	cpus_allowed = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
 	freq =
 	    ((cpu_clock_freq / 1000) *
 	     loongson2_clockmod_table[index].driver_data) / 8;
-
-	set_cpus_allowed_ptr(current, &cpus_allowed);
 
 	/* setting the cpu frequency */
 	clk_set_rate(policy->clk, freq * 1000);

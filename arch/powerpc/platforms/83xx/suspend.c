@@ -15,6 +15,7 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
+#include <linux/sched/signal.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/suspend.h>
@@ -441,8 +442,4 @@ static struct platform_driver pmc_driver = {
 	.remove = pmc_remove
 };
 
-static int pmc_init(void)
-{
-	return platform_driver_register(&pmc_driver);
-}
-device_initcall(pmc_init);
+builtin_platform_driver(pmc_driver);

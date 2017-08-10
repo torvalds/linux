@@ -29,6 +29,7 @@
 #define DASD_ECKD_CCW_SNID		 0x34
 #define DASD_ECKD_CCW_RSSD		 0x3e
 #define DASD_ECKD_CCW_LOCATE_RECORD	 0x47
+#define DASD_ECKD_CCW_LOCATE_RECORD_EXT	 0x4b
 #define DASD_ECKD_CCW_SNSS		 0x54
 #define DASD_ECKD_CCW_DEFINE_EXTENT	 0x63
 #define DASD_ECKD_CCW_WRITE_MT		 0x85
@@ -94,6 +95,8 @@
 #define FCX_MAX_DATA_FACTOR 65536
 #define DASD_ECKD_RCD_DATA_SIZE 256
 
+#define DASD_ECKD_PATH_THRHLD		 256
+#define DASD_ECKD_PATH_INTERVAL		 300
 
 /*****************************************************************************
  * SECTION: Type Definitions
@@ -535,8 +538,7 @@ struct dasd_eckd_private {
 	struct dasd_eckd_characteristics rdc_data;
 	u8 *conf_data;
 	int conf_len;
-	/* per path configuration data */
-	struct dasd_conf_data *path_conf_data[8];
+
 	/* pointers to specific parts in the conf_data */
 	struct dasd_ned *ned;
 	struct dasd_sneq *sneq;

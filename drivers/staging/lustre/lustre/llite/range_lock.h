@@ -76,7 +76,7 @@ struct range_lock_tree {
 };
 
 void range_lock_tree_init(struct range_lock_tree *tree);
-void range_lock_init(struct range_lock *lock, __u64 start, __u64 end);
+int range_lock_init(struct range_lock *lock, __u64 start, __u64 end);
 int  range_lock(struct range_lock_tree *tree, struct range_lock *lock);
 void range_unlock(struct range_lock_tree *tree, struct range_lock *lock);
 #endif

@@ -62,21 +62,9 @@
 #define CFG_ENABLE_PM_MSG_FWD		BIT(1)
 #define CFG_ENABLE_INT_MSG_FWD		BIT(2)
 #define CFG_ENABLE_ERR_MSG_FWD		BIT(3)
-#define CFG_ENABLE_SLT_MSG_FWD		BIT(5)
-#define CFG_ENABLE_VEN_MSG_FWD		BIT(7)
-#define CFG_ENABLE_OTH_MSG_FWD		BIT(13)
-#define CFG_ENABLE_VEN_MSG_EN		BIT(14)
-#define CFG_ENABLE_VEN_MSG_VEN_INV	BIT(15)
-#define CFG_ENABLE_VEN_MSG_VEN_ID	GENMASK(31, 16)
 #define CFG_ENABLE_MSG_FILTER_MASK	(CFG_ENABLE_PM_MSG_FWD | \
 					CFG_ENABLE_INT_MSG_FWD | \
-					CFG_ENABLE_ERR_MSG_FWD | \
-					CFG_ENABLE_SLT_MSG_FWD | \
-					CFG_ENABLE_VEN_MSG_FWD | \
-					CFG_ENABLE_OTH_MSG_FWD | \
-					CFG_ENABLE_VEN_MSG_EN | \
-					CFG_ENABLE_VEN_MSG_VEN_INV | \
-					CFG_ENABLE_VEN_MSG_VEN_ID)
+					CFG_ENABLE_ERR_MSG_FWD)
 
 /* Misc interrupt status mask bits */
 #define MSGF_MISC_SR_RXMSG_AVAIL	BIT(0)
@@ -184,6 +172,7 @@ struct nwl_pcie {
 	u8 root_busno;
 	struct nwl_msi msi;
 	struct irq_domain *legacy_irq_domain;
+	raw_spinlock_t leg_mask_lock;
 };
 
 static inline u32 nwl_bridge_readl(struct nwl_pcie *pcie, u32 off)
@@ -395,11 +384,52 @@ static void nwl_pcie_msi_handler_low(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+static void nwl_mask_leg_irq(struct irq_data *data)
+{
+	struct irq_desc *desc = irq_to_desc(data->irq);
+	struct nwl_pcie *pcie;
+	unsigned long flags;
+	u32 mask;
+	u32 val;
+
+	pcie = irq_desc_get_chip_data(desc);
+	mask = 1 << (data->hwirq - 1);
+	raw_spin_lock_irqsave(&pcie->leg_mask_lock, flags);
+	val = nwl_bridge_readl(pcie, MSGF_LEG_MASK);
+	nwl_bridge_writel(pcie, (val & (~mask)), MSGF_LEG_MASK);
+	raw_spin_unlock_irqrestore(&pcie->leg_mask_lock, flags);
+}
+
+static void nwl_unmask_leg_irq(struct irq_data *data)
+{
+	struct irq_desc *desc = irq_to_desc(data->irq);
+	struct nwl_pcie *pcie;
+	unsigned long flags;
+	u32 mask;
+	u32 val;
+
+	pcie = irq_desc_get_chip_data(desc);
+	mask = 1 << (data->hwirq - 1);
+	raw_spin_lock_irqsave(&pcie->leg_mask_lock, flags);
+	val = nwl_bridge_readl(pcie, MSGF_LEG_MASK);
+	nwl_bridge_writel(pcie, (val | mask), MSGF_LEG_MASK);
+	raw_spin_unlock_irqrestore(&pcie->leg_mask_lock, flags);
+}
+
+static struct irq_chip nwl_leg_irq_chip = {
+	.name = "nwl_pcie:legacy",
+	.irq_enable = nwl_unmask_leg_irq,
+	.irq_disable = nwl_mask_leg_irq,
+	.irq_mask = nwl_mask_leg_irq,
+	.irq_unmask = nwl_unmask_leg_irq,
+};
+
 static int nwl_legacy_map(struct irq_domain *domain, unsigned int irq,
 			  irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &dummy_irq_chip, handle_simple_irq);
+	irq_set_chip_and_handler(irq, &nwl_leg_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, domain->host_data);
+	irq_set_status_flags(irq, IRQ_LEVEL);
 
 	return 0;
 }
@@ -538,11 +568,12 @@ static int nwl_pcie_init_irq_domain(struct nwl_pcie *pcie)
 		return -ENOMEM;
 	}
 
+	raw_spin_lock_init(&pcie->leg_mask_lock);
 	nwl_pcie_init_msi_irq_domain(pcie);
 	return 0;
 }
 
-static int nwl_pcie_enable_msi(struct nwl_pcie *pcie, struct pci_bus *bus)
+static int nwl_pcie_enable_msi(struct nwl_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -773,7 +804,7 @@ static int nwl_pcie_parse_dt(struct nwl_pcie *pcie,
 	pcie->phys_pcie_reg_base = res->start;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg");
-	pcie->ecam_base = devm_ioremap_resource(dev, res);
+	pcie->ecam_base = devm_pci_remap_cfg_resource(dev, res);
 	if (IS_ERR(pcie->ecam_base))
 		return PTR_ERR(pcie->ecam_base);
 	pcie->phys_ecam_base = res->start;
@@ -803,13 +834,16 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 	struct nwl_pcie *pcie;
 	struct pci_bus *bus;
 	struct pci_bus *child;
+	struct pci_host_bridge *bridge;
 	int err;
 	resource_size_t iobase = 0;
 	LIST_HEAD(res);
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
-	if (!pcie)
-		return -ENOMEM;
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
+	if (!bridge)
+		return -ENODEV;
+
+	pcie = pci_host_bridge_priv(bridge);
 
 	pcie->dev = dev;
 	pcie->ecam_value = NWL_ECAM_VALUE_DEFAULT;
@@ -842,21 +876,28 @@ static int nwl_pcie_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	bus = pci_create_root_bus(dev, pcie->root_busno,
-				  &nwl_pcie_ops, pcie, &res);
-	if (!bus) {
-		err = -ENOMEM;
-		goto error;
-	}
+	list_splice_init(&res, &bridge->windows);
+	bridge->dev.parent = dev;
+	bridge->sysdata = pcie;
+	bridge->busnr = pcie->root_busno;
+	bridge->ops = &nwl_pcie_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		err = nwl_pcie_enable_msi(pcie, bus);
+		err = nwl_pcie_enable_msi(pcie);
 		if (err < 0) {
 			dev_err(dev, "failed to enable MSI support: %d\n", err);
 			goto error;
 		}
 	}
-	pci_scan_child_bus(bus);
+
+	err = pci_scan_root_bus_bridge(bridge);
+	if (err)
+		goto error;
+
+	bus = bridge->bus;
+
 	pci_assign_unassigned_bus_resources(bus);
 	list_for_each_entry(child, &bus->children, node)
 		pcie_bus_configure_settings(child);

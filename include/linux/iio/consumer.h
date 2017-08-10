@@ -226,6 +226,34 @@ int iio_read_channel_processed(struct iio_channel *chan, int *val);
 int iio_write_channel_raw(struct iio_channel *chan, int val);
 
 /**
+ * iio_read_max_channel_raw() - read maximum available raw value from a given
+ *				channel, i.e. the maximum possible value.
+ * @chan:		The channel being queried.
+ * @val:		Value read back.
+ *
+ * Note raw reads from iio channels are in adc counts and hence
+ * scale will need to be applied if standard units are required.
+ */
+int iio_read_max_channel_raw(struct iio_channel *chan, int *val);
+
+/**
+ * iio_read_avail_channel_raw() - read available raw values from a given channel
+ * @chan:		The channel being queried.
+ * @vals:		Available values read back.
+ * @length:		Number of entries in vals.
+ *
+ * Returns an error code, IIO_AVAIL_RANGE or IIO_AVAIL_LIST.
+ *
+ * For ranges, three vals are always returned; min, step and max.
+ * For lists, all the possible values are enumerated.
+ *
+ * Note raw available values from iio channels are in adc counts and
+ * hence scale will need to be applied if standard units are required.
+ */
+int iio_read_avail_channel_raw(struct iio_channel *chan,
+			       const int **vals, int *length);
+
+/**
  * iio_get_channel_type() - get the type of a channel
  * @channel:		The channel being queried.
  * @type:		The type of the channel.
@@ -234,6 +262,19 @@ int iio_write_channel_raw(struct iio_channel *chan, int val);
  */
 int iio_get_channel_type(struct iio_channel *channel,
 			 enum iio_chan_type *type);
+
+/**
+ * iio_read_channel_offset() - read the offset value for a channel
+ * @chan:		The channel being queried.
+ * @val:		First part of value read back.
+ * @val2:		Second part of value read back.
+ *
+ * Note returns a description of what is in val and val2, such
+ * as IIO_VAL_INT_PLUS_MICRO telling us we have a value of val
+ * + val2/1e6
+ */
+int iio_read_channel_offset(struct iio_channel *chan, int *val,
+			   int *val2);
 
 /**
  * iio_read_channel_scale() - read the scale value for a channel
@@ -270,5 +311,42 @@ int iio_read_channel_scale(struct iio_channel *chan, int *val,
  */
 int iio_convert_raw_to_processed(struct iio_channel *chan, int raw,
 	int *processed, unsigned int scale);
+
+/**
+ * iio_get_channel_ext_info_count() - get number of ext_info attributes
+ *				      connected to the channel.
+ * @chan:		The channel being queried
+ *
+ * Returns the number of ext_info attributes
+ */
+unsigned int iio_get_channel_ext_info_count(struct iio_channel *chan);
+
+/**
+ * iio_read_channel_ext_info() - read ext_info attribute from a given channel
+ * @chan:		The channel being queried.
+ * @attr:		The ext_info attribute to read.
+ * @buf:		Where to store the attribute value. Assumed to hold
+ *			at least PAGE_SIZE bytes.
+ *
+ * Returns the number of bytes written to buf (perhaps w/o zero termination;
+ * it need not even be a string), or an error code.
+ */
+ssize_t iio_read_channel_ext_info(struct iio_channel *chan,
+				  const char *attr, char *buf);
+
+/**
+ * iio_write_channel_ext_info() - write ext_info attribute from a given channel
+ * @chan:		The channel being queried.
+ * @attr:		The ext_info attribute to read.
+ * @buf:		The new attribute value. Strings needs to be zero-
+ *			terminated, but the terminator should not be included
+ *			in the below len.
+ * @len:		The size of the new attribute value.
+ *
+ * Returns the number of accepted bytes, which should be the same as len.
+ * An error code can also be returned.
+ */
+ssize_t iio_write_channel_ext_info(struct iio_channel *chan, const char *attr,
+				   const char *buf, size_t len);
 
 #endif

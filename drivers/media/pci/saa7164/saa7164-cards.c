@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -726,8 +722,8 @@ void saa7164_card_list(struct saa7164_dev *dev)
 			dev->name, dev->name, dev->name, dev->name);
 	}
 
-	printk(KERN_ERR "%s: Here are valid choices for the card=<n> insmod "
-		"option:\n", dev->name);
+	printk(KERN_ERR "%s: Here are valid choices for the card=<n> insmod option:\n",
+	       dev->name);
 
 	for (i = 0; i < saa7164_bcount; i++)
 		printk(KERN_ERR "%s:    card=%d -> %s\n",
@@ -784,9 +780,7 @@ static void hauppauge_eeprom(struct saa7164_dev *dev, u8 *eeprom_data)
 {
 	struct tveeprom tv;
 
-	/* TODO: Assumption: eeprom on bus 0 */
-	tveeprom_hauppauge_analog(&dev->i2c_bus[0].i2c_client, &tv,
-		eeprom_data);
+	tveeprom_hauppauge_analog(&tv, eeprom_data);
 
 	/* Make sure we support the board model */
 	switch (tv.model) {

@@ -21,6 +21,7 @@
 #ifndef _LOGGING_H
 #define _LOGGING_H
 
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <linux/futex.h>
@@ -106,7 +107,7 @@ void log_verbosity(int level)
  *
  * print_result() is primarily intended for functional tests.
  */
-void print_result(int ret)
+void print_result(const char *test_name, int ret)
 {
 	const char *result = "Unknown return code";
 
@@ -123,7 +124,7 @@ void print_result(int ret)
 		result = FAIL;
 		break;
 	}
-	printf("Result: %s\n", result);
+	printf("selftests: %s [%s]\n", test_name, result);
 }
 
 /* log level macros */

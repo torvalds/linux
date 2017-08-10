@@ -35,7 +35,6 @@
 #include <linux/uaccess.h>
 
 #include "altera_edac.h"
-#include "edac_core.h"
 #include "edac_module.h"
 
 #define EDAC_MOD_STR		"altera_edac"
@@ -153,13 +152,17 @@ static ssize_t altr_sdr_mc_err_inject_write(struct file *file,
 	if (count == 3) {
 		edac_printk(KERN_ALERT, EDAC_MC,
 			    "Inject Double bit error\n");
+		local_irq_disable();
 		regmap_write(drvdata->mc_vbase, priv->ce_ue_trgr_offset,
 			     (read_reg | priv->ue_set_mask));
+		local_irq_enable();
 	} else {
 		edac_printk(KERN_ALERT, EDAC_MC,
 			    "Inject Single bit error\n");
+		local_irq_disable();
 		regmap_write(drvdata->mc_vbase,	priv->ce_ue_trgr_offset,
 			     (read_reg | priv->ce_set_mask));
+		local_irq_enable();
 	}
 
 	ptemp[0] = 0x5A5A5A5A;
@@ -211,24 +214,16 @@ static void altr_sdr_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
 static unsigned long get_total_mem(void)
 {
 	struct device_node *np = NULL;
-	const unsigned int *reg, *reg_end;
-	int len, sw, aw;
-	unsigned long start, size, total_mem = 0;
+	struct resource res;
+	int ret;
+	unsigned long total_mem = 0;
 
 	for_each_node_by_type(np, "memory") {
-		aw = of_n_addr_cells(np);
-		sw = of_n_size_cells(np);
-		reg = (const unsigned int *)of_get_property(np, "reg", &len);
-		reg_end = reg + (len / sizeof(u32));
+		ret = of_address_to_resource(np, 0, &res);
+		if (ret)
+			continue;
 
-		total_mem = 0;
-		do {
-			start = of_read_number(reg, aw);
-			reg += aw;
-			size = of_read_number(reg, sw);
-			reg += sw;
-			total_mem += size;
-		} while (reg < reg_end);
+		total_mem += resource_size(&res);
 	}
 	edac_dbg(0, "total_mem 0x%lx\n", total_mem);
 	return total_mem;
@@ -1020,13 +1015,23 @@ out:
 	return ret;
 }
 
+static int socfpga_is_a10(void)
+{
+	return of_machine_is_compatible("altr,socfpga-arria10");
+}
+
 static int validate_parent_available(struct device_node *np);
 static const struct of_device_id altr_edac_a10_device_of_match[];
 static int __init __maybe_unused altr_init_a10_ecc_device_type(char *compat)
 {
 	int irq;
-	struct device_node *child, *np = of_find_compatible_node(NULL, NULL,
-					"altr,socfpga-a10-ecc-manager");
+	struct device_node *child, *np;
+
+	if (!socfpga_is_a10())
+		return -ENODEV;
+
+	np = of_find_compatible_node(NULL, NULL,
+				     "altr,socfpga-a10-ecc-manager");
 	if (!np) {
 		edac_printk(KERN_ERR, EDAC_DEVICE, "ECC Manager not found\n");
 		return -ENODEV;
@@ -1542,8 +1547,12 @@ static const struct edac_device_prv_data a10_sdmmceccb_data = {
 static int __init socfpga_init_sdmmc_ecc(void)
 {
 	int rc = -ENODEV;
-	struct device_node *child = of_find_compatible_node(NULL, NULL,
-						"altr,socfpga-sdmmc-ecc");
+	struct device_node *child;
+
+	if (!socfpga_is_a10())
+		return -ENODEV;
+
+	child = of_find_compatible_node(NULL, NULL, "altr,socfpga-sdmmc-ecc");
 	if (!child) {
 		edac_printk(KERN_WARNING, EDAC_DEVICE, "SDMMC node not found\n");
 		return -ENODEV;
@@ -1822,7 +1831,7 @@ static int a10_eccmgr_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops a10_eccmgr_ic_ops = {
+static const struct irq_domain_ops a10_eccmgr_ic_ops = {
 	.map = a10_eccmgr_irqdomain_map,
 	.xlate = irq_domain_xlate_twocell,
 };

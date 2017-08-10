@@ -19,7 +19,7 @@
 #include <asm/machdep.h>
 #include <asm/cell-regs.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 struct cell_edac_priv
 {

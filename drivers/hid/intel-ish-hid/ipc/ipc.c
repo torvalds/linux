@@ -19,7 +19,6 @@
 #include <linux/jiffies.h>
 #include "client.h"
 #include "hw-ish.h"
-#include "utils.h"
 #include "hbm.h"
 
 /* For FW reset flow */
@@ -297,19 +296,15 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 	/* If sending MNG_SYNC_FW_CLOCK, update clock again */
 	if (IPC_HEADER_GET_PROTOCOL(doorbell_val) == IPC_PROTOCOL_MNG &&
 		IPC_HEADER_GET_MNG_CMD(doorbell_val) == MNG_SYNC_FW_CLOCK) {
-		struct timespec ts_system;
-		struct timeval tv_utc;
-		uint64_t        usec_system, usec_utc;
+		uint64_t usec_system, usec_utc;
 		struct ipc_time_update_msg time_update;
 		struct time_sync_format ts_format;
 
-		get_monotonic_boottime(&ts_system);
-		do_gettimeofday(&tv_utc);
-		usec_system = (timespec_to_ns(&ts_system)) / NSEC_PER_USEC;
-		usec_utc = (uint64_t)tv_utc.tv_sec * 1000000 +
-						((uint32_t)tv_utc.tv_usec);
+		usec_system = ktime_to_us(ktime_get_boottime());
+		usec_utc = ktime_to_us(ktime_get_real());
 		ts_format.ts1_source = HOST_SYSTEM_TIME_USEC;
 		ts_format.ts2_source = HOST_UTC_TIME_USEC;
+		ts_format.reserved = 0;
 
 		time_update.primary_host_time = usec_system;
 		time_update.secondary_host_time = usec_utc;
@@ -427,6 +422,59 @@ static int ipc_send_mng_msg(struct ishtp_device *dev, uint32_t msg_code,
 		sizeof(uint32_t) + size);
 }
 
+#define WAIT_FOR_FW_RDY			0x1
+#define WAIT_FOR_INPUT_RDY		0x2
+
+/**
+ * timed_wait_for_timeout() - wait special event with timeout
+ * @dev: ISHTP device pointer
+ * @condition: indicate the condition for waiting
+ * @timeinc: time slice for every wait cycle, in ms
+ * @timeout: time in ms for timeout
+ *
+ * This function will check special event to be ready in a loop, the loop
+ * period is specificd in timeinc. Wait timeout will causes failure.
+ *
+ * Return: 0 for success else failure code
+ */
+static int timed_wait_for_timeout(struct ishtp_device *dev, int condition,
+				unsigned int timeinc, unsigned int timeout)
+{
+	bool complete = false;
+	int ret;
+
+	do {
+		if (condition == WAIT_FOR_FW_RDY) {
+			complete = ishtp_fw_is_ready(dev);
+		} else if (condition == WAIT_FOR_INPUT_RDY) {
+			complete = ish_is_input_ready(dev);
+		} else {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (!complete) {
+			unsigned long left_time;
+
+			left_time = msleep_interruptible(timeinc);
+			timeout -= (timeinc - left_time);
+		}
+	} while (!complete && timeout > 0);
+
+	if (complete)
+		ret = 0;
+	else
+		ret = -EBUSY;
+
+out:
+	return ret;
+}
+
+#define TIME_SLICE_FOR_FW_RDY_MS		100
+#define TIME_SLICE_FOR_INPUT_RDY_MS		100
+#define TIMEOUT_FOR_FW_RDY_MS			2000
+#define TIMEOUT_FOR_INPUT_RDY_MS		2000
+
 /**
  * ish_fw_reset_handler() - FW reset handler
  * @dev: ishtp device pointer
@@ -456,8 +504,8 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 	ishtp_reset_handler(dev);
 
 	if (!ish_is_input_ready(dev))
-		timed_wait_for_timeout(WAIT_FOR_SEND_SLICE,
-			ish_is_input_ready(dev), (2 * HZ));
+		timed_wait_for_timeout(dev, WAIT_FOR_INPUT_RDY,
+			TIME_SLICE_FOR_INPUT_RDY_MS, TIMEOUT_FOR_INPUT_RDY_MS);
 
 	/* ISH FW is dead */
 	if (!ish_is_input_ready(dev))
@@ -472,8 +520,8 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 			 sizeof(uint32_t));
 
 	/* Wait for ISH FW'es ILUP and ISHTP_READY */
-	timed_wait_for_timeout(WAIT_FOR_SEND_SLICE, ishtp_fw_is_ready(dev),
-		(2 * HZ));
+	timed_wait_for_timeout(dev, WAIT_FOR_FW_RDY,
+			TIME_SLICE_FOR_FW_RDY_MS, TIMEOUT_FOR_FW_RDY_MS);
 	if (!ishtp_fw_is_ready(dev)) {
 		/* ISH FW is dead */
 		uint32_t	ish_status;
@@ -486,6 +534,8 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 	}
 	return	0;
 }
+
+#define TIMEOUT_FOR_HW_RDY_MS			300
 
 /**
  * ish_fw_reset_work_fn() - FW reset worker function
@@ -500,7 +550,7 @@ static void fw_reset_work_fn(struct work_struct *unused)
 	rv = ish_fw_reset_handler(ishtp_dev);
 	if (!rv) {
 		/* ISH is ILUP & ISHTP-ready. Restart ISHTP */
-		schedule_timeout(HZ / 3);
+		msleep_interruptible(TIMEOUT_FOR_HW_RDY_MS);
 		ishtp_dev->recvd_hw_ready = 1;
 		wake_up_interruptible(&ishtp_dev->wait_hw_ready);
 
@@ -520,15 +570,13 @@ static void fw_reset_work_fn(struct work_struct *unused)
 static void _ish_sync_fw_clock(struct ishtp_device *dev)
 {
 	static unsigned long	prev_sync;
-	struct timespec	ts;
 	uint64_t	usec;
 
 	if (prev_sync && jiffies - prev_sync < 20 * HZ)
 		return;
 
 	prev_sync = jiffies;
-	get_monotonic_boottime(&ts);
-	usec = (timespec_to_ns(&ts)) / NSEC_PER_USEC;
+	usec = ktime_to_us(ktime_get_boottime());
 	ipc_send_mng_msg(dev, MNG_SYNC_FW_CLOCK, &usec, sizeof(uint64_t));
 }
 

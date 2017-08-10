@@ -202,7 +202,7 @@ xfs_refcountbt_init_ptr_from_cur(
 	ptr->s = agf->agf_refcount_root;
 }
 
-STATIC __int64_t
+STATIC int64_t
 xfs_refcountbt_key_diff(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*key)
@@ -210,16 +210,16 @@ xfs_refcountbt_key_diff(
 	struct xfs_refcount_irec	*rec = &cur->bc_rec.rc;
 	struct xfs_refcount_key		*kp = &key->refc;
 
-	return (__int64_t)be32_to_cpu(kp->rc_startblock) - rec->rc_startblock;
+	return (int64_t)be32_to_cpu(kp->rc_startblock) - rec->rc_startblock;
 }
 
-STATIC __int64_t
+STATIC int64_t
 xfs_refcountbt_diff_two_keys(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*k1,
 	union xfs_btree_key	*k2)
 {
-	return (__int64_t)be32_to_cpu(k1->refc.rc_startblock) -
+	return (int64_t)be32_to_cpu(k1->refc.rc_startblock) -
 			  be32_to_cpu(k2->refc.rc_startblock);
 }
 
@@ -285,7 +285,6 @@ const struct xfs_buf_ops xfs_refcountbt_buf_ops = {
 	.verify_write		= xfs_refcountbt_write_verify,
 };
 
-#if defined(DEBUG) || defined(XFS_WARN)
 STATIC int
 xfs_refcountbt_keys_inorder(
 	struct xfs_btree_cur	*cur,
@@ -306,7 +305,6 @@ xfs_refcountbt_recs_inorder(
 		be32_to_cpu(r1->refc.rc_blockcount) <=
 		be32_to_cpu(r2->refc.rc_startblock);
 }
-#endif
 
 static const struct xfs_btree_ops xfs_refcountbt_ops = {
 	.rec_len		= sizeof(struct xfs_refcount_rec),
@@ -325,10 +323,8 @@ static const struct xfs_btree_ops xfs_refcountbt_ops = {
 	.key_diff		= xfs_refcountbt_key_diff,
 	.buf_ops		= &xfs_refcountbt_buf_ops,
 	.diff_two_keys		= xfs_refcountbt_diff_two_keys,
-#if defined(DEBUG) || defined(XFS_WARN)
 	.keys_inorder		= xfs_refcountbt_keys_inorder,
 	.recs_inorder		= xfs_refcountbt_recs_inorder,
-#endif
 };
 
 /*
@@ -354,6 +350,7 @@ xfs_refcountbt_init_cursor(
 	cur->bc_btnum = XFS_BTNUM_REFC;
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;
 	cur->bc_ops = &xfs_refcountbt_ops;
+	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_refcbt_2);
 
 	cur->bc_nlevels = be32_to_cpu(agf->agf_refcount_level);
 
@@ -408,13 +405,14 @@ xfs_refcountbt_calc_size(
  */
 xfs_extlen_t
 xfs_refcountbt_max_size(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	xfs_agblock_t		agblocks)
 {
 	/* Bail out if we're uninitialized, which can happen in mkfs. */
 	if (mp->m_refc_mxr[0] == 0)
 		return 0;
 
-	return xfs_refcountbt_calc_size(mp, mp->m_sb.sb_agblocks);
+	return xfs_refcountbt_calc_size(mp, agblocks);
 }
 
 /*
@@ -429,22 +427,24 @@ xfs_refcountbt_calc_reserves(
 {
 	struct xfs_buf		*agbp;
 	struct xfs_agf		*agf;
+	xfs_agblock_t		agblocks;
 	xfs_extlen_t		tree_len;
 	int			error;
 
 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
 		return 0;
 
-	*ask += xfs_refcountbt_max_size(mp);
 
 	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agbp);
 	if (error)
 		return error;
 
 	agf = XFS_BUF_TO_AGF(agbp);
+	agblocks = be32_to_cpu(agf->agf_length);
 	tree_len = be32_to_cpu(agf->agf_refcount_blocks);
 	xfs_buf_relse(agbp);
 
+	*ask += xfs_refcountbt_max_size(mp, agblocks);
 	*used += tree_len;
 
 	return error;

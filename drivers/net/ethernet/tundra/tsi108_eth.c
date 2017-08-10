@@ -887,7 +887,7 @@ static int tsi108_poll(struct napi_struct *napi, int budget)
 
 	if (num_received < budget) {
 		data->rxpending = 0;
-		napi_complete(napi);
+		napi_complete_done(napi, num_received);
 
 		TSI_WRITE(TSI108_EC_INTMASK,
 				     TSI_READ(TSI108_EC_INTMASK)
@@ -1499,27 +1499,28 @@ static void tsi108_init_mac(struct net_device *dev)
 	TSI_WRITE(TSI108_EC_INTMASK, ~0);
 }
 
-static int tsi108_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int tsi108_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct tsi108_prv_data *data = netdev_priv(dev);
 	unsigned long flags;
-	int rc;
 
 	spin_lock_irqsave(&data->txlock, flags);
-	rc = mii_ethtool_gset(&data->mii_if, cmd);
+	mii_ethtool_get_link_ksettings(&data->mii_if, cmd);
 	spin_unlock_irqrestore(&data->txlock, flags);
 
-	return rc;
+	return 0;
 }
 
-static int tsi108_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int tsi108_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct tsi108_prv_data *data = netdev_priv(dev);
 	unsigned long flags;
 	int rc;
 
 	spin_lock_irqsave(&data->txlock, flags);
-	rc = mii_ethtool_sset(&data->mii_if, cmd);
+	rc = mii_ethtool_set_link_ksettings(&data->mii_if, cmd);
 	spin_unlock_irqrestore(&data->txlock, flags);
 
 	return rc;
@@ -1535,8 +1536,8 @@ static int tsi108_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static const struct ethtool_ops tsi108_ethtool_ops = {
 	.get_link 	= ethtool_op_get_link,
-	.get_settings	= tsi108_get_settings,
-	.set_settings	= tsi108_set_settings,
+	.get_link_ksettings	= tsi108_get_link_ksettings,
+	.set_link_ksettings	= tsi108_set_link_ksettings,
 };
 
 static const struct net_device_ops tsi108_netdev_ops = {
@@ -1548,7 +1549,6 @@ static const struct net_device_ops tsi108_netdev_ops = {
 	.ndo_do_ioctl		= tsi108_do_ioctl,
 	.ndo_set_mac_address	= tsi108_set_mac,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int

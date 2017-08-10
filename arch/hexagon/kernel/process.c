@@ -19,6 +19,9 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/tick.h>
@@ -55,14 +58,6 @@ void arch_cpu_idle(void)
 	__vmwait();
 	/*  interrupts wake us up, but irqs are still disabled */
 	local_irq_enable();
-}
-
-/*
- *  Return saved PC of a blocked thread
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	return 0;
 }
 
 /*

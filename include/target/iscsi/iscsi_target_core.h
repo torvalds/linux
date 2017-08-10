@@ -1,12 +1,14 @@
 #ifndef ISCSI_TARGET_CORE_H
 #define ISCSI_TARGET_CORE_H
 
-#include <linux/in.h>
-#include <linux/configfs.h>
-#include <net/sock.h>
-#include <net/tcp.h>
-#include <scsi/iscsi_proto.h>
-#include <target/target_core_base.h>
+#include <linux/dma-direction.h>     /* enum dma_data_direction */
+#include <linux/list.h>              /* struct list_head */
+#include <linux/socket.h>            /* struct sockaddr_storage */
+#include <linux/types.h>             /* u8 */
+#include <scsi/iscsi_proto.h>        /* itt_t */
+#include <target/target_core_base.h> /* struct se_cmd */
+
+struct sock;
 
 #define ISCSIT_VERSION			"v4.1.0"
 #define ISCSI_MAX_DATASN_MISSING_COUNT	16
@@ -64,6 +66,14 @@
 #define TA_DEFAULT_FABRIC_PROT_TYPE	0
 /* TPG status needs to be enabled to return sendtargets discovery endpoint info */
 #define TA_DEFAULT_TPG_ENABLED_SENDTARGETS 1
+/*
+ * Used to control the sending of keys with optional to respond state bit,
+ * as a workaround for non RFC compliant initiators,that do not propose,
+ * nor respond to specific keys required for login to complete.
+ *
+ * See iscsi_check_proposer_for_optional_reply() for more details.
+ */
+#define TA_DEFAULT_LOGIN_KEYS_WORKAROUND 1
 
 #define ISCSI_IOV_DATA_BUFFER		5
 
@@ -555,9 +565,9 @@ struct iscsi_conn {
 #define LOGIN_FLAGS_READ_ACTIVE		1
 #define LOGIN_FLAGS_CLOSED		2
 #define LOGIN_FLAGS_READY		4
+#define LOGIN_FLAGS_INITIAL_PDU		8
 	unsigned long		login_flags;
 	struct delayed_work	login_work;
-	struct delayed_work	login_cleanup_work;
 	struct iscsi_login	*login;
 	struct timer_list	nopin_timer;
 	struct timer_list	nopin_response_timer;
@@ -766,6 +776,7 @@ struct iscsi_tpg_attrib {
 	u8			t10_pi;
 	u32			fabric_prot_type;
 	u32			tpg_enabled_sendtargets;
+	u32			login_keys_workaround;
 	struct iscsi_portal_group *tpg;
 };
 

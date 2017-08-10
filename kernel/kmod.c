@@ -20,6 +20,8 @@
 */
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
+#include <linux/binfmts.h>
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/kmod.h>
@@ -39,11 +41,9 @@
 #include <linux/rwsem.h>
 #include <linux/ptrace.h>
 #include <linux/async.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <trace/events/module.h>
-
-extern int max_threads;
 
 #define CAP_BSET	(void *)1
 #define CAP_PI		(void *)2
@@ -54,6 +54,21 @@ static DEFINE_SPINLOCK(umh_sysctl_lock);
 static DECLARE_RWSEM(umhelper_sem);
 
 #ifdef CONFIG_MODULES
+/*
+ * Assuming:
+ *
+ * threads = div64_u64((u64) totalram_pages * (u64) PAGE_SIZE,
+ *		       (u64) THREAD_SIZE * 8UL);
+ *
+ * If you need less than 50 threads would mean we're dealing with systems
+ * smaller than 3200 pages. This assuems you are capable of having ~13M memory,
+ * and this would only be an be an upper limit, after which the OOM killer
+ * would take effect. Systems like these are very unlikely if modules are
+ * enabled.
+ */
+#define MAX_KMOD_CONCURRENT 50
+static atomic_t kmod_concurrent_max = ATOMIC_INIT(MAX_KMOD_CONCURRENT);
+static DECLARE_WAIT_QUEUE_HEAD(kmod_wq);
 
 /*
 	modprobe_path is set via /proc/sys.
@@ -125,11 +140,7 @@ int __request_module(bool wait, const char *fmt, ...)
 {
 	va_list args;
 	char module_name[MODULE_NAME_LEN];
-	unsigned int max_modprobes;
 	int ret;
-	static atomic_t kmod_concurrent = ATOMIC_INIT(0);
-#define MAX_KMOD_CONCURRENT 50	/* Completely arbitrary value - KAO */
-	static int kmod_loop_msg;
 
 	/*
 	 * We don't allow synchronous module loading from async.  Module
@@ -152,40 +163,25 @@ int __request_module(bool wait, const char *fmt, ...)
 	if (ret)
 		return ret;
 
-	/* If modprobe needs a service that is in a module, we get a recursive
-	 * loop.  Limit the number of running kmod threads to max_threads/2 or
-	 * MAX_KMOD_CONCURRENT, whichever is the smaller.  A cleaner method
-	 * would be to run the parents of this process, counting how many times
-	 * kmod was invoked.  That would mean accessing the internals of the
-	 * process tables to get the command line, proc_pid_cmdline is static
-	 * and it is not worth changing the proc code just to handle this case. 
-	 * KAO.
-	 *
-	 * "trace the ppid" is simple, but will fail if someone's
-	 * parent exits.  I think this is as good as it gets. --RR
-	 */
-	max_modprobes = min(max_threads/2, MAX_KMOD_CONCURRENT);
-	atomic_inc(&kmod_concurrent);
-	if (atomic_read(&kmod_concurrent) > max_modprobes) {
-		/* We may be blaming an innocent here, but unlikely */
-		if (kmod_loop_msg < 5) {
-			printk(KERN_ERR
-			       "request_module: runaway loop modprobe %s\n",
-			       module_name);
-			kmod_loop_msg++;
-		}
-		atomic_dec(&kmod_concurrent);
-		return -ENOMEM;
+	if (atomic_dec_if_positive(&kmod_concurrent_max) < 0) {
+		pr_warn_ratelimited("request_module: kmod_concurrent_max (%u) close to 0 (max_modprobes: %u), for module %s, throttling...",
+				    atomic_read(&kmod_concurrent_max),
+				    MAX_KMOD_CONCURRENT, module_name);
+		wait_event_interruptible(kmod_wq,
+					 atomic_dec_if_positive(&kmod_concurrent_max) >= 0);
 	}
 
 	trace_module_request(module_name, wait, _RET_IP_);
 
 	ret = call_modprobe(module_name, wait ? UMH_WAIT_PROC : UMH_WAIT_EXEC);
 
-	atomic_dec(&kmod_concurrent);
+	atomic_inc(&kmod_concurrent_max);
+	wake_up(&kmod_wq);
+
 	return ret;
 }
 EXPORT_SYMBOL(__request_module);
+
 #endif /* CONFIG_MODULES */
 
 static void call_usermodehelper_freeinfo(struct subprocess_info *info)
@@ -516,7 +512,7 @@ static void helper_unlock(void)
  * Function must be runnable in either a process context or the
  * context in which call_usermodehelper_exec is called.
  */
-struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
+struct subprocess_info *call_usermodehelper_setup(const char *path, char **argv,
 		char **envp, gfp_t gfp_mask,
 		int (*init)(struct subprocess_info *info, struct cred *new),
 		void (*cleanup)(struct subprocess_info *info),
@@ -528,7 +524,12 @@ struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
 		goto out;
 
 	INIT_WORK(&sub_info->work, call_usermodehelper_exec_work);
+
+#ifdef CONFIG_STATIC_USERMODEHELPER
+	sub_info->path = CONFIG_STATIC_USERMODEHELPER_PATH;
+#else
 	sub_info->path = path;
+#endif
 	sub_info->argv = argv;
 	sub_info->envp = envp;
 
@@ -566,6 +567,15 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 		retval = -EBUSY;
 		goto out;
 	}
+
+	/*
+	 * If there is no binary for us to call, then just return and get out of
+	 * here.  This allows us to set STATIC_USERMODEHELPER_PATH to "" and
+	 * disable all call_usermodehelper() calls.
+	 */
+	if (strlen(sub_info->path) == 0)
+		goto out;
+
 	/*
 	 * Set the completion pointer only if there is a waiter.
 	 * This makes it possible to use umh_complete to free
@@ -613,7 +623,7 @@ EXPORT_SYMBOL(call_usermodehelper_exec);
  * This function is the equivalent to use call_usermodehelper_setup() and
  * call_usermodehelper_exec().
  */
-int call_usermodehelper(char *path, char **argv, char **envp, int wait)
+int call_usermodehelper(const char *path, char **argv, char **envp, int wait)
 {
 	struct subprocess_info *info;
 	gfp_t gfp_mask = (wait == UMH_NO_WAIT) ? GFP_ATOMIC : GFP_KERNEL;

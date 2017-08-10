@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -368,8 +364,7 @@ static void spca504_read_info(struct gspca_dev *gspca_dev)
 		info[i] = gspca_dev->usb_buf[0];
 	}
 	PDEBUG(D_STREAM,
-		"Read info: %d %d %d %d %d %d."
-		" Should be 1,0,2,2,0,0",
+		"Read info: %d %d %d %d %d %d. Should be 1,0,2,2,0,0",
 		info[0], info[1], info[2],
 		info[3], info[4], info[5]);
 }

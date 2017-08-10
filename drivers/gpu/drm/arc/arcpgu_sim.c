@@ -41,12 +41,6 @@ static int arcpgu_drm_connector_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-static enum drm_connector_status
-arcpgu_drm_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static void arcpgu_drm_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
@@ -61,7 +55,6 @@ arcpgu_drm_connector_helper_funcs = {
 static const struct drm_connector_funcs arcpgu_drm_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
-	.detect = arcpgu_drm_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = arcpgu_drm_connector_destroy,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,

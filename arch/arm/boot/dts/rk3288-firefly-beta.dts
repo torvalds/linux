@@ -49,7 +49,7 @@
 };
 
 &ir {
-	gpios = <&gpio7 5 GPIO_ACTIVE_LOW>;
+	gpios = <&gpio7 RK_PA5 GPIO_ACTIVE_LOW>;
 };
 
 &pinctrl {

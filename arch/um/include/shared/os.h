@@ -242,6 +242,10 @@ extern void setup_hostinfo(char *buf, int len);
 extern void os_dump_core(void) __attribute__ ((noreturn));
 extern void um_early_printk(const char *s, unsigned int n);
 extern void os_fix_helper_signals(void);
+extern void os_info(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
+extern void os_warn(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
 
 /* time.c */
 extern void os_idle_sleep(unsigned long long nsecs);
@@ -302,8 +306,8 @@ extern int ignore_sigio_fd(int fd);
 extern void maybe_sigio_broken(int fd, int read);
 extern void sigio_broken(int fd, int read);
 
-/* sys-x86_64/prctl.c */
-extern int os_arch_prctl(int pid, int code, unsigned long *addr);
+/* prctl.c */
+extern int os_arch_prctl(int pid, int option, unsigned long *arg2);
 
 /* tty.c */
 extern int get_pty(void);

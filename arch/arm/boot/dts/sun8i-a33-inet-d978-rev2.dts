@@ -71,7 +71,7 @@
 };
 
 &mmc1_pins_a {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	bias-pull-up;
 };
 
 &mmc1 {
@@ -89,10 +89,9 @@
 
 &r_pio {
 	led_pin_d978: led_pin_d978@0 {
-		allwinner,pins = "PL5";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PL5";
+		function = "gpio_out";
+		drive-strength = <20>;
 	};
 };
 

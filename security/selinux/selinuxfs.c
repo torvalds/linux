@@ -41,14 +41,6 @@
 #include "objsec.h"
 #include "conditional.h"
 
-/* Policy capability filenames */
-static char *policycap_names[] = {
-	"network_peer_controls",
-	"open_perms",
-	"redhat1",
-	"always_check_network"
-};
-
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
 
 static int __init checkreqprot_setup(char *str)
@@ -76,25 +68,6 @@ static char policy_opened;
 
 /* global data for policy capabilities */
 static struct dentry *policycap_dir;
-
-/* Check whether a task is allowed to use a security operation. */
-static int task_has_security(struct task_struct *tsk,
-			     u32 perms)
-{
-	const struct task_security_struct *tsec;
-	u32 sid = 0;
-
-	rcu_read_lock();
-	tsec = __task_cred(tsk)->security;
-	if (tsec)
-		sid = tsec->sid;
-	rcu_read_unlock();
-	if (!tsec)
-		return -EACCES;
-
-	return avc_has_perm(sid, SECINITSID_SECURITY,
-			    SECCLASS_SECURITY, perms, NULL);
-}
 
 enum sel_inos {
 	SEL_ROOT_INO = 2,
@@ -163,8 +136,12 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 	if (sscanf(page, "%d", &new_value) != 1)
 		goto out;
 
+	new_value = !!new_value;
+
 	if (new_value != selinux_enforcing) {
-		length = task_has_security(current, SECURITY__SETENFORCE);
+		length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+				      SECCLASS_SECURITY, SECURITY__SETENFORCE,
+				      NULL);
 		if (length)
 			goto out;
 		audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_STATUS,
@@ -177,6 +154,8 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 			avc_ss_reset(0);
 		selnl_notify_setenforce(selinux_enforcing);
 		selinux_status_update_setenforce(selinux_enforcing);
+		if (!selinux_enforcing)
+			call_lsm_notifier(LSM_POLICY_CHANGE, NULL);
 	}
 	length = count;
 out:
@@ -366,7 +345,8 @@ static int sel_open_policy(struct inode *inode, struct file *filp)
 
 	mutex_lock(&sel_mutex);
 
-	rc = task_has_security(current, SECURITY__READ_POLICY);
+	rc = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			  SECCLASS_SECURITY, SECURITY__READ_POLICY, NULL);
 	if (rc)
 		goto err;
 
@@ -427,7 +407,8 @@ static ssize_t sel_read_policy(struct file *filp, char __user *buf,
 
 	mutex_lock(&sel_mutex);
 
-	ret = task_has_security(current, SECURITY__READ_POLICY);
+	ret = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			  SECCLASS_SECURITY, SECURITY__READ_POLICY, NULL);
 	if (ret)
 		goto out;
 
@@ -437,10 +418,9 @@ out:
 	return ret;
 }
 
-static int sel_mmap_policy_fault(struct vm_area_struct *vma,
-				 struct vm_fault *vmf)
+static int sel_mmap_policy_fault(struct vm_fault *vmf)
 {
-	struct policy_load_memory *plm = vma->vm_file->private_data;
+	struct policy_load_memory *plm = vmf->vma->vm_file->private_data;
 	unsigned long offset;
 	struct page *page;
 
@@ -497,7 +477,8 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 
 	mutex_lock(&sel_mutex);
 
-	length = task_has_security(current, SECURITY__LOAD_POLICY);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__LOAD_POLICY, NULL);
 	if (length)
 		goto out;
 
@@ -520,20 +501,28 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 		goto out;
 
 	length = security_load_policy(data, count);
-	if (length)
+	if (length) {
+		pr_warn_ratelimited("SELinux: failed to load policy\n");
 		goto out;
+	}
 
 	length = sel_make_bools();
-	if (length)
+	if (length) {
+		pr_err("SELinux: failed to load policy booleans\n");
 		goto out1;
+	}
 
 	length = sel_make_classes();
-	if (length)
+	if (length) {
+		pr_err("SELinux: failed to load policy classes\n");
 		goto out1;
+	}
 
 	length = sel_make_policycap();
-	if (length)
+	if (length) {
+		pr_err("SELinux: failed to load policy capabilities\n");
 		goto out1;
+	}
 
 	length = count;
 
@@ -559,7 +548,8 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
 	u32 sid, len;
 	ssize_t length;
 
-	length = task_has_security(current, SECURITY__CHECK_CONTEXT);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__CHECK_CONTEXT, NULL);
 	if (length)
 		goto out;
 
@@ -602,7 +592,9 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
 	ssize_t length;
 	unsigned int new_value;
 
-	length = task_has_security(current, SECURITY__SETCHECKREQPROT);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__SETCHECKREQPROT,
+			      NULL);
 	if (length)
 		return length;
 
@@ -643,7 +635,8 @@ static ssize_t sel_write_validatetrans(struct file *file,
 	u16 tclass;
 	int rc;
 
-	rc = task_has_security(current, SECURITY__VALIDATE_TRANS);
+	rc = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			  SECCLASS_SECURITY, SECURITY__VALIDATE_TRANS, NULL);
 	if (rc)
 		goto out;
 
@@ -656,14 +649,12 @@ static ssize_t sel_write_validatetrans(struct file *file,
 	if (*ppos != 0)
 		goto out;
 
-	rc = -ENOMEM;
-	req = kzalloc(count + 1, GFP_KERNEL);
-	if (!req)
+	req = memdup_user_nul(buf, count);
+	if (IS_ERR(req)) {
+		rc = PTR_ERR(req);
+		req = NULL;
 		goto out;
-
-	rc = -EFAULT;
-	if (copy_from_user(req, buf, count))
-		goto out;
+	}
 
 	rc = -ENOMEM;
 	oldcon = kzalloc(count + 1, GFP_KERNEL);
@@ -770,7 +761,8 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 	struct av_decision avd;
 	ssize_t length;
 
-	length = task_has_security(current, SECURITY__COMPUTE_AV);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__COMPUTE_AV, NULL);
 	if (length)
 		goto out;
 
@@ -820,7 +812,9 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	u32 len;
 	int nargs;
 
-	length = task_has_security(current, SECURITY__COMPUTE_CREATE);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__COMPUTE_CREATE,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -917,7 +911,9 @@ static ssize_t sel_write_relabel(struct file *file, char *buf, size_t size)
 	char *newcon = NULL;
 	u32 len;
 
-	length = task_has_security(current, SECURITY__COMPUTE_RELABEL);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__COMPUTE_RELABEL,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -973,7 +969,9 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 	int i, rc;
 	u32 len, nsids;
 
-	length = task_has_security(current, SECURITY__COMPUTE_USER);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__COMPUTE_USER,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -1033,7 +1031,9 @@ static ssize_t sel_write_member(struct file *file, char *buf, size_t size)
 	char *newcon = NULL;
 	u32 len;
 
-	length = task_has_security(current, SECURITY__COMPUTE_MEMBER);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__COMPUTE_MEMBER,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -1140,7 +1140,9 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 
 	mutex_lock(&sel_mutex);
 
-	length = task_has_security(current, SECURITY__SETBOOL);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__SETBOOL,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -1196,7 +1198,9 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 
 	mutex_lock(&sel_mutex);
 
-	length = task_has_security(current, SECURITY__SETBOOL);
+	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			      SECCLASS_SECURITY, SECURITY__SETBOOL,
+			      NULL);
 	if (length)
 		goto out;
 
@@ -1297,11 +1301,14 @@ static int sel_make_bools(void)
 
 		isec = (struct inode_security_struct *)inode->i_security;
 		ret = security_genfs_sid("selinuxfs", page, SECCLASS_FILE, &sid);
-		if (ret)
-			goto out;
+		if (ret) {
+			pr_warn_ratelimited("SELinux: no sid found, defaulting to security isid for %s\n",
+					   page);
+			sid = SECINITSID_SECURITY;
+		}
 
 		isec->sid = sid;
-		isec->initialized = 1;
+		isec->initialized = LABEL_INITIALIZED;
 		inode->i_fop = &sel_bool_ops;
 		inode->i_ino = i|SEL_BOOL_INO_OFFSET;
 		d_add(dentry, inode);
@@ -1349,7 +1356,9 @@ static ssize_t sel_write_avc_cache_threshold(struct file *file,
 	ssize_t ret;
 	unsigned int new_value;
 
-	ret = task_has_security(current, SECURITY__SETSECPARAM);
+	ret = avc_has_perm(current_sid(), SECINITSID_SECURITY,
+			   SECCLASS_SECURITY, SECURITY__SETSECPARAM,
+			   NULL);
 	if (ret)
 		return ret;
 
@@ -1438,10 +1447,10 @@ static int sel_avc_stats_seq_show(struct seq_file *seq, void *v)
 {
 	struct avc_cache_stats *st = v;
 
-	if (v == SEQ_START_TOKEN)
-		seq_printf(seq, "lookups hits misses allocations reclaims "
-			   "frees\n");
-	else {
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq,
+			 "lookups hits misses allocations reclaims frees\n");
+	} else {
 		unsigned int lookups = st->lookups;
 		unsigned int misses = st->misses;
 		unsigned int hits = lookups - misses;
@@ -1478,7 +1487,7 @@ static const struct file_operations sel_avc_cache_stats_ops = {
 static int sel_make_avc_files(struct dentry *dir)
 {
 	int i;
-	static struct tree_descr files[] = {
+	static const struct tree_descr files[] = {
 		{ "cache_threshold",
 		  &sel_avc_cache_threshold_ops, S_IRUGO|S_IWUSR },
 		{ "hash_stats", &sel_avc_hash_stats_ops, S_IRUGO },
@@ -1732,9 +1741,9 @@ static int sel_make_policycap(void)
 	sel_remove_entries(policycap_dir);
 
 	for (iter = 0; iter <= POLICYDB_CAPABILITY_MAX; iter++) {
-		if (iter < ARRAY_SIZE(policycap_names))
+		if (iter < ARRAY_SIZE(selinux_policycap_names))
 			dentry = d_alloc_name(policycap_dir,
-					      policycap_names[iter]);
+					      selinux_policycap_names[iter]);
 		else
 			dentry = d_alloc_name(policycap_dir, "unknown");
 
@@ -1787,7 +1796,7 @@ static int sel_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *inode;
 	struct inode_security_struct *isec;
 
-	static struct tree_descr selinux_files[] = {
+	static const struct tree_descr selinux_files[] = {
 		[SEL_LOAD] = {"load", &sel_load_ops, S_IRUSR|S_IWUSR},
 		[SEL_ENFORCE] = {"enforce", &sel_enforce_ops, S_IRUGO|S_IWUSR},
 		[SEL_CONTEXT] = {"context", &transaction_ops, S_IRUGO|S_IWUGO},
@@ -1834,7 +1843,7 @@ static int sel_fill_super(struct super_block *sb, void *data, int silent)
 	isec = (struct inode_security_struct *)inode->i_security;
 	isec->sid = SECINITSID_DEVNULL;
 	isec->sclass = SECCLASS_CHR_FILE;
-	isec->initialized = 1;
+	isec->initialized = LABEL_INITIALIZED;
 
 	init_special_inode(inode, S_IFCHR | S_IRUGO | S_IWUGO, MKDEV(MEM_MAJOR, 3));
 	d_add(dentry, inode);

@@ -143,7 +143,7 @@ restart_fixup:
 		c_range = &f_curr->fce_range;
 		n_range = &f_next->fce_range;
 
-		LASSERT(range_is_sane(c_range));
+		LASSERT(lu_seq_range_is_sane(c_range));
 		if (&f_next->fce_list == head)
 			break;
 
@@ -151,7 +151,7 @@ restart_fixup:
 			continue;
 
 		LASSERTF(c_range->lsr_start <= n_range->lsr_start,
-			 "cur lsr_start "DRANGE" next lsr_start "DRANGE"\n",
+			 "cur lsr_start " DRANGE " next lsr_start " DRANGE "\n",
 			 PRANGE(c_range), PRANGE(n_range));
 
 		/* check merge possibility with next range */
@@ -349,7 +349,7 @@ static void fld_cache_overlap_handle(struct fld_cache *cache,
 		f_curr->fce_range.lsr_end = new_start;
 		fld_cache_entry_add(cache, f_new, &f_curr->fce_list);
 	} else
-		CERROR("NEW range ="DRANGE" curr = "DRANGE"\n",
+		CERROR("NEW range =" DRANGE " curr = " DRANGE "\n",
 		       PRANGE(range), PRANGE(&f_curr->fce_range));
 }
 
@@ -358,7 +358,7 @@ struct fld_cache_entry
 {
 	struct fld_cache_entry *f_new;
 
-	LASSERT(range_is_sane(range));
+	LASSERT(lu_seq_range_is_sane(range));
 
 	f_new = kzalloc(sizeof(*f_new), GFP_NOFS);
 	if (!f_new)
@@ -415,7 +415,7 @@ static int fld_cache_insert_nolock(struct fld_cache *cache,
 	if (!prev)
 		prev = head;
 
-	CDEBUG(D_INFO, "insert range "DRANGE"\n", PRANGE(&f_new->fce_range));
+	CDEBUG(D_INFO, "insert range " DRANGE "\n", PRANGE(&f_new->fce_range));
 	/* Add new entry to cache and lru list. */
 	fld_cache_entry_add(cache, f_new, prev);
 out:
@@ -503,7 +503,7 @@ int fld_cache_lookup(struct fld_cache *cache,
 		}
 
 		prev = flde;
-		if (range_within(&flde->fce_range, seq)) {
+		if (lu_seq_range_within(&flde->fce_range, seq)) {
 			*range = flde->fce_range;
 
 			cache->fci_stat.fst_cache++;

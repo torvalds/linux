@@ -85,14 +85,14 @@ static int max14577_reg_set_current_limit(struct regulator_dev *rdev,
 			reg_data);
 }
 
-static struct regulator_ops max14577_safeout_ops = {
+static const struct regulator_ops max14577_safeout_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.list_voltage		= regulator_list_voltage_linear,
 };
 
-static struct regulator_ops max14577_charger_ops = {
+static const struct regulator_ops max14577_charger_ops = {
 	.is_enabled		= max14577_reg_is_enabled,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -130,7 +130,7 @@ static const struct regulator_desc max14577_supported_regulators[] = {
 	[MAX14577_CHARGER] = MAX14577_CHARGER_REG,
 };
 
-static struct regulator_ops max77836_ldo_ops = {
+static const struct regulator_ops max77836_ldo_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,

@@ -37,6 +37,6 @@ struct amdgpu_acp {
 	struct acp_pm_domain *acp_genpd;
 };
 
-extern const struct amd_ip_funcs acp_ip_funcs;
+extern const struct amdgpu_ip_block_version acp_ip_block;
 
 #endif /* __AMDGPU_ACP_H__ */

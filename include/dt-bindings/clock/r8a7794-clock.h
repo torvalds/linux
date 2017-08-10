@@ -20,8 +20,7 @@
 #define R8A7794_CLK_QSPI		5
 #define R8A7794_CLK_SDH			6
 #define R8A7794_CLK_SD0			7
-#define R8A7794_CLK_Z			8
-#define R8A7794_CLK_RCAN		9
+#define R8A7794_CLK_RCAN		8
 
 /* MSTP0 */
 #define R8A7794_CLK_MSIOF0		0
@@ -65,6 +64,7 @@
 
 /* MSTP4 */
 #define R8A7794_CLK_IRQC		7
+#define R8A7794_CLK_INTC_SYS		8
 
 /* MSTP5 */
 #define R8A7794_CLK_AUDIO_DMAC0		2
@@ -82,6 +82,7 @@
 #define R8A7794_CLK_SCIF2		19
 #define R8A7794_CLK_SCIF1		20
 #define R8A7794_CLK_SCIF0		21
+#define R8A7794_CLK_DU1			23
 #define R8A7794_CLK_DU0			24
 
 /* MSTP8 */

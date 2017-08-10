@@ -1,7 +1,7 @@
 /*
  * Device Tree Include file for Freescale Layerscape-1043A family SoC.
  *
- * Copyright 2014-2015, Freescale Semiconductor
+ * Copyright 2014-2015 Freescale Semiconductor, Inc.
  *
  * Mingkai Hu <Mingkai.hu@freescale.com>
  *
@@ -45,7 +45,7 @@
  */
 
 /dts-v1/;
-/include/ "fsl-ls1043a.dtsi"
+#include "fsl-ls1043a.dtsi"
 
 / {
 	model = "LS1043A QDS Board";
@@ -181,3 +181,5 @@
 		reg = <0>;
 	};
 };
+
+#include "fsl-ls1043-post.dtsi"

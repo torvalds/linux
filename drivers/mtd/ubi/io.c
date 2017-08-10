@@ -45,7 +45,7 @@
  * About minimal I/O units. In general, UBI assumes flash device model where
  * there is only one minimal I/O unit size. E.g., in case of NOR flash it is 1,
  * in case of NAND flash it is a NAND page, etc. This is reported by MTD in the
- * @ubi->mtd->writesize field. But as an exception, UBI admits of using another
+ * @ubi->mtd->writesize field. But as an exception, UBI admits use of another
  * (smaller) minimal I/O unit size for EC and VID headers to make it possible
  * to do different optimizations.
  *

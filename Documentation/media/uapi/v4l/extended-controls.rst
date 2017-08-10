@@ -2019,7 +2019,7 @@ enum v4l2_exposure_auto_type -
     dynamically vary the frame rate. By default this feature is disabled
     (0) and the frame rate must remain constant.
 
-``V4L2_CID_EXPOSURE_BIAS (integer menu)``
+``V4L2_CID_AUTO_EXPOSURE_BIAS (integer menu)``
     Determines the automatic exposure compensation, it is effective only
     when ``V4L2_CID_EXPOSURE_AUTO`` control is set to ``AUTO``,
     ``SHUTTER_PRIORITY`` or ``APERTURE_PRIORITY``. It is expressed in
@@ -2846,7 +2846,7 @@ JPEG Control IDs
     input image is sampled, in respect to maximum sample rate in each
     spatial dimension. See :ref:`itu-t81`, clause A.1.1. for more
     details. The ``V4L2_CID_JPEG_CHROMA_SUBSAMPLING`` control determines
-    how Cb and Cr components are downsampled after coverting an input
+    how Cb and Cr components are downsampled after converting an input
     image from RGB to Y'CbCr color space.
 
 .. tabularcolumns:: |p{7.0cm}|p{10.5cm}|
@@ -3016,6 +3016,17 @@ Image Process Control IDs
     Some capture/display/sensor devices have the capability to generate
     test pattern images. These hardware specific test patterns can be
     used to test if a device is working properly.
+
+``V4L2_CID_DEINTERLACING_MODE (menu)``
+    The video deinterlacing mode (such as Bob, Weave, ...). The menu items are
+    driver specific and are documented in :ref:`v4l-drivers`.
+
+``V4L2_CID_DIGITAL_GAIN (integer)``
+    Digital gain is the value by which all colour components
+    are multiplied by. Typically the digital gain applied is the
+    control value divided by e.g. 0x100, meaning that to get no
+    digital gain the control value needs to be 0x100. The no-gain
+    configuration is also typically the default.
 
 
 .. _dv-controls:

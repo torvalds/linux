@@ -79,6 +79,12 @@ struct udp_sock {
 	int			(*gro_complete)(struct sock *sk,
 						struct sk_buff *skb,
 						int nhoff);
+
+	/* udp_recvmsg try to use this before splicing sk_receive_queue */
+	struct sk_buff_head	reader_queue ____cacheline_aligned_in_smp;
+
+	/* This field is dirtied by udp_recvmsg() */
+	int		forward_deficit;
 };
 
 static inline struct udp_sock *udp_sk(const struct sock *sk)
@@ -112,6 +118,6 @@ static inline bool udp_get_no_check6_rx(struct sock *sk)
 #define udp_portaddr_for_each_entry_rcu(__sk, list) \
 	hlist_for_each_entry_rcu(__sk, list, __sk_common.skc_portaddr_node)
 
-#define IS_UDPLITE(__sk) (udp_sk(__sk)->pcflag)
+#define IS_UDPLITE(__sk) (__sk->sk_protocol == IPPROTO_UDPLITE)
 
 #endif	/* _LINUX_UDP_H */

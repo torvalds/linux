@@ -161,7 +161,7 @@ static void print_uuid_item(struct extent_buffer *l, unsigned long offset,
 	}
 }
 
-void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
+void btrfs_print_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *l)
 {
 	int i;
 	u32 type, nr;
@@ -182,8 +182,9 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 
 	nr = btrfs_header_nritems(l);
 
-	btrfs_info(root->fs_info, "leaf %llu total ptrs %d free space %d",
-		   btrfs_header_bytenr(l), nr, btrfs_leaf_free_space(root, l));
+	btrfs_info(fs_info, "leaf %llu total ptrs %d free space %d",
+		   btrfs_header_bytenr(l), nr,
+		   btrfs_leaf_free_space(fs_info, l));
 	for (i = 0 ; i < nr ; i++) {
 		item = btrfs_item_nr(i);
 		btrfs_item_key_to_cpu(l, &key, i);
@@ -260,8 +261,11 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 		case BTRFS_BLOCK_GROUP_ITEM_KEY:
 			bi = btrfs_item_ptr(l, i,
 					    struct btrfs_block_group_item);
-			pr_info("\t\tblock group used %llu\n",
-			       btrfs_disk_block_group_used(l, bi));
+			pr_info(
+		   "\t\tblock group used %llu chunk_objectid %llu flags %llu\n",
+				btrfs_disk_block_group_used(l, bi),
+				btrfs_disk_block_group_chunk_objectid(l, bi),
+				btrfs_disk_block_group_flags(l, bi));
 			break;
 		case BTRFS_CHUNK_ITEM_KEY:
 			print_chunk(l, btrfs_item_ptr(l, i,
@@ -314,7 +318,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 	}
 }
 
-void btrfs_print_tree(struct btrfs_root *root, struct extent_buffer *c)
+void btrfs_print_tree(struct btrfs_fs_info *fs_info, struct extent_buffer *c)
 {
 	int i; u32 nr;
 	struct btrfs_key key;
@@ -325,13 +329,13 @@ void btrfs_print_tree(struct btrfs_root *root, struct extent_buffer *c)
 	nr = btrfs_header_nritems(c);
 	level = btrfs_header_level(c);
 	if (level == 0) {
-		btrfs_print_leaf(root, c);
+		btrfs_print_leaf(fs_info, c);
 		return;
 	}
-	btrfs_info(root->fs_info,
+	btrfs_info(fs_info,
 		   "node %llu level %d total ptrs %d free spc %u",
 		   btrfs_header_bytenr(c), level, nr,
-		   (u32)BTRFS_NODEPTRS_PER_BLOCK(root) - nr);
+		   (u32)BTRFS_NODEPTRS_PER_BLOCK(fs_info) - nr);
 	for (i = 0; i < nr; i++) {
 		btrfs_node_key_to_cpu(c, &key, i);
 		pr_info("\tkey %d (%llu %u %llu) block %llu\n",
@@ -339,7 +343,7 @@ void btrfs_print_tree(struct btrfs_root *root, struct extent_buffer *c)
 		       btrfs_node_blockptr(c, i));
 	}
 	for (i = 0; i < nr; i++) {
-		struct extent_buffer *next = read_tree_block(root,
+		struct extent_buffer *next = read_tree_block(fs_info,
 					btrfs_node_blockptr(c, i),
 					btrfs_node_ptr_generation(c, i));
 		if (IS_ERR(next)) {
@@ -355,7 +359,7 @@ void btrfs_print_tree(struct btrfs_root *root, struct extent_buffer *c)
 		if (btrfs_header_level(next) !=
 		       level - 1)
 			BUG();
-		btrfs_print_tree(root, next);
+		btrfs_print_tree(fs_info, next);
 		free_extent_buffer(next);
 	}
 }

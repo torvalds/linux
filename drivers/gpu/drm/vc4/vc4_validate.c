@@ -22,21 +22,25 @@
  */
 
 /**
- * Command list validator for VC4.
+ * DOC: Command list validator for VC4.
  *
- * The VC4 has no IOMMU between it and system memory.  So, a user with
- * access to execute command lists could escalate privilege by
+ * Since the VC4 has no IOMMU between it and system memory, a user
+ * with access to execute command lists could escalate privilege by
  * overwriting system memory (drawing to it as a framebuffer) or
- * reading system memory it shouldn't (reading it as a texture, or
- * uniform data, or vertex data).
+ * reading system memory it shouldn't (reading it as a vertex buffer
+ * or index buffer)
  *
- * This validates command lists to ensure that all accesses are within
- * the bounds of the GEM objects referenced.  It explicitly whitelists
- * packets, and looks at the offsets in any address fields to make
- * sure they're constrained within the BOs they reference.
+ * We validate binner command lists to ensure that all accesses are
+ * within the bounds of the GEM objects referenced by the submitted
+ * job.  It explicitly whitelists packets, and looks at the offsets in
+ * any address fields to make sure they're contained within the BOs
+ * they reference.
  *
- * Note that because of the validation that's happening anyway, this
- * is where GEM relocation processing happens.
+ * Note that because CL validation is already reading the
+ * user-submitted CL and writing the validated copy out to the memory
+ * that the GPU will actually read, this is also where GEM relocation
+ * processing (turning BO references into actual addresses for the GPU
+ * to use) happens.
  */
 
 #include "uapi/drm/vc4_drm.h"
@@ -84,8 +88,12 @@ utile_height(int cpp)
 }
 
 /**
- * The texture unit decides what tiling format a particular miplevel is using
- * this function, so we lay out our miptrees accordingly.
+ * size_is_lt() - Returns whether a miplevel of the given size will
+ * use the lineartile (LT) tiling layout rather than the normal T
+ * tiling layout.
+ * @width: Width in pixels of the miplevel
+ * @height: Height in pixels of the miplevel
+ * @cpp: Bytes per pixel of the pixel format
  */
 static bool
 size_is_lt(uint32_t width, uint32_t height, int cpp)
@@ -164,7 +172,8 @@ vc4_check_tex_size(struct vc4_exec_info *exec, struct drm_gem_cma_object *fbo,
 	 * our math.
 	 */
 	if (width > 4096 || height > 4096) {
-		DRM_ERROR("Surface dimesions (%d,%d) too large", width, height);
+		DRM_ERROR("Surface dimensions (%d,%d) too large",
+			  width, height);
 		return false;
 	}
 
@@ -340,10 +349,11 @@ static int
 validate_tile_binning_config(VALIDATE_ARGS)
 {
 	struct drm_device *dev = exec->exec_bo->base.dev;
-	struct vc4_bo *tile_bo;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint8_t flags;
-	uint32_t tile_state_size, tile_alloc_size;
-	uint32_t tile_count;
+	uint32_t tile_state_size;
+	uint32_t tile_count, bin_addr;
+	int bin_slot;
 
 	if (exec->found_tile_binning_mode_config_packet) {
 		DRM_ERROR("Duplicate VC4_PACKET_TILE_BINNING_MODE_CONFIG\n");
@@ -369,13 +379,28 @@ validate_tile_binning_config(VALIDATE_ARGS)
 		return -EINVAL;
 	}
 
+	bin_slot = vc4_v3d_get_bin_slot(vc4);
+	if (bin_slot < 0) {
+		if (bin_slot != -EINTR && bin_slot != -ERESTARTSYS) {
+			DRM_ERROR("Failed to allocate binner memory: %d\n",
+				  bin_slot);
+		}
+		return bin_slot;
+	}
+
+	/* The slot we allocated will only be used by this job, and is
+	 * free when the job completes rendering.
+	 */
+	exec->bin_slots |= BIT(bin_slot);
+	bin_addr = vc4->bin_bo->base.paddr + bin_slot * vc4->bin_alloc_size;
+
 	/* The tile state data array is 48 bytes per tile, and we put it at
 	 * the start of a BO containing both it and the tile alloc.
 	 */
 	tile_state_size = 48 * tile_count;
 
 	/* Since the tile alloc array will follow us, align. */
-	exec->tile_alloc_offset = roundup(tile_state_size, 4096);
+	exec->tile_alloc_offset = bin_addr + roundup(tile_state_size, 4096);
 
 	*(uint8_t *)(validated + 14) =
 		((flags & ~(VC4_BIN_CONFIG_ALLOC_INIT_BLOCK_SIZE_MASK |
@@ -386,35 +411,13 @@ validate_tile_binning_config(VALIDATE_ARGS)
 		 VC4_SET_FIELD(VC4_BIN_CONFIG_ALLOC_BLOCK_SIZE_128,
 			       VC4_BIN_CONFIG_ALLOC_BLOCK_SIZE));
 
-	/* Initial block size. */
-	tile_alloc_size = 32 * tile_count;
-
-	/*
-	 * The initial allocation gets rounded to the next 256 bytes before
-	 * the hardware starts fulfilling further allocations.
-	 */
-	tile_alloc_size = roundup(tile_alloc_size, 256);
-
-	/* Add space for the extra allocations.  This is what gets used first,
-	 * before overflow memory.  It must have at least 4096 bytes, but we
-	 * want to avoid overflow memory usage if possible.
-	 */
-	tile_alloc_size += 1024 * 1024;
-
-	tile_bo = vc4_bo_create(dev, exec->tile_alloc_offset + tile_alloc_size,
-				true);
-	exec->tile_bo = &tile_bo->base;
-	if (IS_ERR(exec->tile_bo))
-		return PTR_ERR(exec->tile_bo);
-	list_add_tail(&tile_bo->unref_head, &exec->unref_list);
-
 	/* tile alloc address. */
-	*(uint32_t *)(validated + 0) = (exec->tile_bo->paddr +
-					exec->tile_alloc_offset);
+	*(uint32_t *)(validated + 0) = exec->tile_alloc_offset;
 	/* tile alloc size. */
-	*(uint32_t *)(validated + 4) = tile_alloc_size;
+	*(uint32_t *)(validated + 4) = (bin_addr + vc4->bin_alloc_size -
+					exec->tile_alloc_offset);
 	/* tile state address. */
-	*(uint32_t *)(validated + 8) = exec->tile_bo->paddr;
+	*(uint32_t *)(validated + 8) = bin_addr;
 
 	return 0;
 }
@@ -644,6 +647,13 @@ reloc_tex(struct vc4_exec_info *exec,
 		cpp = 1;
 		break;
 	case VC4_TEXTURE_TYPE_ETC1:
+		/* ETC1 is arranged as 64-bit blocks, where each block is 4x4
+		 * pixels.
+		 */
+		cpp = 8;
+		width = (width + 3) >> 2;
+		height = (height + 3) >> 2;
+		break;
 	case VC4_TEXTURE_TYPE_BW1:
 	case VC4_TEXTURE_TYPE_A4:
 	case VC4_TEXTURE_TYPE_A1:
@@ -782,11 +792,6 @@ validate_gl_shader_rec(struct drm_device *dev,
 	exec->shader_rec_v += roundup(packet_size, 16);
 	exec->shader_rec_size -= packet_size;
 
-	if (!(*(uint16_t *)pkt_u & VC4_SHADER_FLAG_FS_SINGLE_THREAD)) {
-		DRM_ERROR("Multi-threaded fragment shaders not supported.\n");
-		return -EINVAL;
-	}
-
 	for (i = 0; i < shader_reloc_count; i++) {
 		if (src_handles[i] > exec->bo_count) {
 			DRM_ERROR("Shader handle %d too big\n", src_handles[i]);
@@ -801,6 +806,18 @@ validate_gl_shader_rec(struct drm_device *dev,
 		bo[i] = vc4_use_bo(exec, src_handles[i]);
 		if (!bo[i])
 			return -EINVAL;
+	}
+
+	if (((*(uint16_t *)pkt_u & VC4_SHADER_FLAG_FS_SINGLE_THREAD) == 0) !=
+	    to_vc4_bo(&bo[0]->base)->validated_shader->is_threaded) {
+		DRM_ERROR("Thread mode of CL and FS do not match\n");
+		return -EINVAL;
+	}
+
+	if (to_vc4_bo(&bo[1]->base)->validated_shader->is_threaded ||
+	    to_vc4_bo(&bo[2]->base)->validated_shader->is_threaded) {
+		DRM_ERROR("cs and vs cannot be threaded\n");
+		return -EINVAL;
 	}
 
 	for (i = 0; i < shader_reloc_count; i++) {

@@ -875,9 +875,18 @@ static struct i2c_device_id rv3029_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rv3029_id);
 
+static const struct of_device_id rv3029_of_match[] = {
+	{ .compatible = "rv3029" },
+	{ .compatible = "rv3029c2" },
+	{ .compatible = "mc,rv3029c2" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rv3029_of_match);
+
 static struct i2c_driver rv3029_driver = {
 	.driver = {
 		.name = "rtc-rv3029c2",
+		.of_match_table = of_match_ptr(rv3029_of_match),
 	},
 	.probe		= rv3029_i2c_probe,
 	.id_table	= rv3029_id,

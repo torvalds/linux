@@ -12,7 +12,7 @@ Optional properties:
 - rotary-encoder,relative-axis: register a relative axis rather than an
   absolute one. Relative axis will only generate +1/-1 events on the input
   device, hence no steps need to be passed.
-- rotary-encoder,rollover: Automatic rollove when the rotary value becomes
+- rotary-encoder,rollover: Automatic rollover when the rotary value becomes
   greater than the specified steps or smaller than 0. For absolute axis only.
 - rotary-encoder,steps-per-period: Number of steps (stable states) per period.
   The values have the following meaning:

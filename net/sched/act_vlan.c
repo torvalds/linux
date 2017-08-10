@@ -21,7 +21,7 @@
 
 #define VLAN_TAB_MASK     15
 
-static int vlan_net_id;
+static unsigned int vlan_net_id;
 static struct tc_action_ops act_vlan_ops;
 
 static int tcf_vlan(struct sk_buff *skb, const struct tc_action *a,
@@ -121,7 +121,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	if (!nla)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_VLAN_MAX, nla, vlan_policy);
+	err = nla_parse_nested(tb, TCA_VLAN_MAX, nla, vlan_policy, NULL);
 	if (err < 0)
 		return err;
 

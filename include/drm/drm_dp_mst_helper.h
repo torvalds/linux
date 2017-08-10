@@ -24,6 +24,7 @@
 
 #include <linux/types.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_atomic.h>
 
 struct drm_dp_mst_branch;
 
@@ -403,6 +404,12 @@ struct drm_dp_payload {
 	int vcpi;
 };
 
+struct drm_dp_mst_topology_state {
+	int avail_slots;
+	struct drm_atomic_state *state;
+	struct drm_dp_mst_topology_mgr *mgr;
+};
+
 /**
  * struct drm_dp_mst_topology_mgr - DisplayPort MST manager
  *
@@ -414,7 +421,7 @@ struct drm_dp_mst_topology_mgr {
 	/**
 	 * @dev: device pointer for adding i2c devices etc.
 	 */
-	struct device *dev;
+	struct drm_device *dev;
 	/**
 	 * @cbs: callbacks for connector addition and destruction.
 	 */
@@ -479,22 +486,20 @@ struct drm_dp_mst_topology_mgr {
 	 * @pbn_div: PBN to slots divisor.
 	 */
 	int pbn_div;
-	/**
-	 * @total_slots: Total slots that can be allocated.
-	 */
-	int total_slots;
-	/**
-	 * @avail_slots: Still available slots that can be allocated.
-	 */
-	int avail_slots;
-	/**
-	 * @total_pbn: Total PBN count.
-	 */
-	int total_pbn;
 
 	/**
-	 * @qlock: protects @tx_msg_downq, the tx_slots in struct
-	 * &drm_dp_mst_branch and txmsg->state once they are queued
+	 * @state: State information for topology manager
+	 */
+	struct drm_dp_mst_topology_state *state;
+
+	/**
+	 * @funcs: Atomic helper callbacks
+	 */
+	const struct drm_private_state_funcs *funcs;
+
+	/**
+	 * @qlock: protects @tx_msg_downq, the &drm_dp_mst_branch.txslost and
+	 * &drm_dp_sideband_msg_tx.state once they are queued
 	 */
 	struct mutex qlock;
 	/**
@@ -508,8 +513,7 @@ struct drm_dp_mst_topology_mgr {
 	struct mutex payload_lock;
 	/**
 	 * @proposed_vcpis: Array of pointers for the new VCPI allocation. The
-	 * VCPI structure itself is embedded into the corresponding
-	 * &drm_dp_mst_port structure.
+	 * VCPI structure itself is &drm_dp_mst_port.vcpi.
 	 */
 	struct drm_dp_vcpi **proposed_vcpis;
 	/**
@@ -556,7 +560,10 @@ struct drm_dp_mst_topology_mgr {
 	struct work_struct destroy_connector_work;
 };
 
-int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr, struct device *dev, struct drm_dp_aux *aux, int max_dpcd_transaction_bytes, int max_payloads, int conn_base_id);
+int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_device *dev, struct drm_dp_aux *aux,
+				 int max_dpcd_transaction_bytes,
+				 int max_payloads, int conn_base_id);
 
 void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr);
 
@@ -577,7 +584,8 @@ struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_
 int drm_dp_calc_pbn_mode(int clock, int bpp);
 
 
-bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port, int pbn, int *slots);
+bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
+			      struct drm_dp_mst_port *port, int pbn, int slots);
 
 int drm_dp_mst_get_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
@@ -605,4 +613,13 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 
 void drm_dp_mst_topology_mgr_suspend(struct drm_dp_mst_topology_mgr *mgr);
 int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr);
+struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
+								    struct drm_dp_mst_topology_mgr *mgr);
+int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
+				  struct drm_dp_mst_topology_mgr *mgr,
+				  struct drm_dp_mst_port *port, int pbn);
+int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
+				     struct drm_dp_mst_topology_mgr *mgr,
+				     int slots);
+
 #endif

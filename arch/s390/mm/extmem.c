@@ -14,7 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/bootmem.h>
 #include <linux/ctype.h>
 #include <linux/ioport.h>
@@ -122,7 +122,7 @@ dcss_set_subcodes(void)
 		"1:	la	%2,3\n"
 		"2:\n"
 		EX_TABLE(0b, 1b)
-		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
+		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc", "memory");
 
 	kfree(name);
 	/* Diag x'64' new subcodes are supported, set to new subcodes */
@@ -154,7 +154,7 @@ dcss_mkname(char *name, char *dcss_name)
 		if (name[i] == '\0')
 			break;
 		dcss_name[i] = toupper(name[i]);
-	};
+	}
 	for (; i < 8; i++)
 		dcss_name[i] = ' ';
 	ASCEBC(dcss_name, 8);

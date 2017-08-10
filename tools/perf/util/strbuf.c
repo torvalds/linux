@@ -1,15 +1,7 @@
 #include "debug.h"
 #include "util.h"
 #include <linux/kernel.h>
-
-int prefixcmp(const char *str, const char *prefix)
-{
-	for (; ; str++, prefix++)
-		if (!*prefix)
-			return 0;
-		else if (*str != *prefix)
-			return (unsigned char)*prefix - (unsigned char)*str;
-}
+#include <errno.h>
 
 /*
  * Used as the default ->buf value, so that people can always assume

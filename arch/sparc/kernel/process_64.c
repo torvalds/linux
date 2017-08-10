@@ -14,6 +14,9 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -33,7 +36,7 @@
 #include <linux/nmi.h>
 #include <linux/context_tracking.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -396,25 +399,6 @@ static int __init sparc_sysrq_init(void)
 core_initcall(sparc_sysrq_init);
 
 #endif
-
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	struct thread_info *ti = task_thread_info(tsk);
-	unsigned long ret = 0xdeadbeefUL;
-	
-	if (ti && ti->ksp) {
-		unsigned long *sp;
-		sp = (unsigned long *)(ti->ksp + STACK_BIAS);
-		if (((unsigned long)sp & (sizeof(long) - 1)) == 0UL &&
-		    sp[14]) {
-			unsigned long *fp;
-			fp = (unsigned long *)(sp[14] + STACK_BIAS);
-			if (((unsigned long)fp & (sizeof(long) - 1)) == 0UL)
-				ret = fp[15];
-		}
-	}
-	return ret;
-}
 
 /* Free current thread data structures etc.. */
 void exit_thread(struct task_struct *tsk)

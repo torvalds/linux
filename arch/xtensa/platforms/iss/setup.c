@@ -8,6 +8,7 @@
  *          Joe Taylor <joe@tensilica.com>
  *
  * Copyright 2001 - 2005 Tensilica Inc.
+ * Copyright 2017 Cadence Design Systems Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -15,6 +16,7 @@
  * option) any later version.
  *
  */
+#include <linux/bootmem.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -31,13 +33,13 @@
 
 #include <asm/platform.h>
 #include <asm/bootparam.h>
+#include <asm/setup.h>
 
 #include <platform/simcall.h>
 
 
 void __init platform_init(bp_tag_t* bootparam)
 {
-
 }
 
 void platform_halt(void)
@@ -59,25 +61,9 @@ void platform_restart(void)
 	/* control never gets here */
 }
 
-extern void iss_net_poll(void);
-
-const char twirl[]="|/-\\|/-\\";
-
 void platform_heartbeat(void)
 {
-#if 0
-	static int i = 0, j = 0;
-
-	if (--i < 0) {
-		i = 99;
-		printk("\r%c\r", twirl[j++]);
-		if (j == 8)
-			j = 0;
-	}
-#endif
 }
-
-
 
 static int
 iss_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
@@ -87,12 +73,29 @@ iss_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 }
 
 static struct notifier_block iss_panic_block = {
-	iss_panic_event,
-	NULL,
-	0
+	.notifier_call = iss_panic_event,
 };
 
 void __init platform_setup(char **p_cmdline)
 {
+	int argc = simc_argc();
+	int argv_size = simc_argv_size();
+
+	if (argc > 1) {
+		void **argv = alloc_bootmem(argv_size);
+		char *cmdline = alloc_bootmem(argv_size);
+		int i;
+
+		cmdline[0] = 0;
+		simc_argv((void *)argv);
+
+		for (i = 1; i < argc; ++i) {
+			if (i > 1)
+				strcat(cmdline, " ");
+			strcat(cmdline, argv[i]);
+		}
+		*p_cmdline = cmdline;
+	}
+
 	atomic_notifier_chain_register(&panic_notifier_list, &iss_panic_block);
 }

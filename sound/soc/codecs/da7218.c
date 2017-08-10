@@ -1457,7 +1457,7 @@ static int da7218_dai_event(struct snd_soc_dapm_widget *w,
 				++i;
 				msleep(DA7218_SRM_CHECK_DELAY);
 			}
-		} while ((i < DA7218_SRM_CHECK_TRIES) & (!success));
+		} while ((i < DA7218_SRM_CHECK_TRIES) && (!success));
 
 		if (!success)
 			dev_warn(codec->dev, "SRM failed to lock\n");
@@ -1634,7 +1634,8 @@ static const struct snd_soc_dapm_widget da7218_dapm_widgets[] = {
 			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	/* DAI */
-	SND_SOC_DAPM_AIF_OUT("DAIOUT", "Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DAIOUT", "Capture", 0, DA7218_DAI_TDM_CTRL,
+			     DA7218_DAI_OE_SHIFT, DA7218_NO_INVERT),
 	SND_SOC_DAPM_AIF_IN("DAIIN", "Playback", 0, SND_SOC_NOPM, 0, 0),
 
 	/* Output Mixers */

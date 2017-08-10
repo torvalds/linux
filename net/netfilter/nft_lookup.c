@@ -35,9 +35,8 @@ static void nft_lookup_eval(const struct nft_expr *expr,
 	const struct nft_set_ext *ext;
 	bool found;
 
-	found = set->ops->lookup(pkt->net, set, &regs->data[priv->sreg], &ext) ^
-		priv->invert;
-
+	found = set->ops->lookup(nft_net(pkt), set, &regs->data[priv->sreg],
+				 &ext) ^ priv->invert;
 	if (!found) {
 		regs->verdict.code = NFT_BREAK;
 		return;
@@ -50,7 +49,8 @@ static void nft_lookup_eval(const struct nft_expr *expr,
 }
 
 static const struct nla_policy nft_lookup_policy[NFTA_LOOKUP_MAX + 1] = {
-	[NFTA_LOOKUP_SET]	= { .type = NLA_STRING },
+	[NFTA_LOOKUP_SET]	= { .type = NLA_STRING,
+				    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_LOOKUP_SET_ID]	= { .type = NLA_U32 },
 	[NFTA_LOOKUP_SREG]	= { .type = NLA_U32 },
 	[NFTA_LOOKUP_DREG]	= { .type = NLA_U32 },
@@ -71,16 +71,10 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	    tb[NFTA_LOOKUP_SREG] == NULL)
 		return -EINVAL;
 
-	set = nf_tables_set_lookup(ctx->table, tb[NFTA_LOOKUP_SET], genmask);
-	if (IS_ERR(set)) {
-		if (tb[NFTA_LOOKUP_SET_ID]) {
-			set = nf_tables_set_lookup_byid(ctx->net,
-							tb[NFTA_LOOKUP_SET_ID],
-							genmask);
-		}
-		if (IS_ERR(set))
-			return PTR_ERR(set);
-	}
+	set = nft_set_lookup(ctx->net, ctx->table, tb[NFTA_LOOKUP_SET],
+			     tb[NFTA_LOOKUP_SET_ID], genmask);
+	if (IS_ERR(set))
+		return PTR_ERR(set);
 
 	if (set->flags & NFT_SET_EVAL)
 		return -EOPNOTSUPP;
@@ -155,7 +149,6 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_lookup_type;
 static const struct nft_expr_ops nft_lookup_ops = {
 	.type		= &nft_lookup_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_lookup)),
@@ -165,20 +158,10 @@ static const struct nft_expr_ops nft_lookup_ops = {
 	.dump		= nft_lookup_dump,
 };
 
-static struct nft_expr_type nft_lookup_type __read_mostly = {
+struct nft_expr_type nft_lookup_type __read_mostly = {
 	.name		= "lookup",
 	.ops		= &nft_lookup_ops,
 	.policy		= nft_lookup_policy,
 	.maxattr	= NFTA_LOOKUP_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_lookup_module_init(void)
-{
-	return nft_register_expr(&nft_lookup_type);
-}
-
-void nft_lookup_module_exit(void)
-{
-	nft_unregister_expr(&nft_lookup_type);
-}

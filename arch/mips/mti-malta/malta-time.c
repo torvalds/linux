@@ -21,6 +21,7 @@
 #include <linux/i8253.h>
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
+#include <linux/libfdt.h>
 #include <linux/math64.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
@@ -75,7 +76,7 @@ static void __init estimate_frequencies(void)
 	unsigned int count, start;
 	unsigned char secs1, secs2, ctrl;
 	int secs;
-	cycle_t giccount = 0, gicstart = 0;
+	u64 giccount = 0, gicstart = 0;
 
 #if defined(CONFIG_KVM_GUEST) && CONFIG_KVM_GUEST_TIMER_FREQ
 	mips_hpt_frequency = CONFIG_KVM_GUEST_TIMER_FREQ * 1000000;
@@ -207,6 +208,33 @@ static void __init init_rtc(void)
 		CMOS_WRITE(ctrl & ~RTC_SET, RTC_CONTROL);
 }
 
+#ifdef CONFIG_CLKSRC_MIPS_GIC
+static u32 gic_frequency_dt;
+
+static struct property gic_frequency_prop = {
+	.name = "clock-frequency",
+	.length = sizeof(u32),
+	.value = &gic_frequency_dt,
+};
+
+static void update_gic_frequency_dt(void)
+{
+	struct device_node *node;
+
+	gic_frequency_dt = cpu_to_be32(gic_frequency);
+
+	node = of_find_compatible_node(NULL, NULL, "mti,gic-timer");
+	if (!node) {
+		pr_err("mti,gic-timer device node not found\n");
+		return;
+	}
+
+	if (of_update_property(node, &gic_frequency_prop) < 0)
+		pr_err("error updating gic frequency property\n");
+}
+
+#endif
+
 void __init plat_time_init(void)
 {
 	unsigned int prid = read_c0_prid() & (PRID_COMP_MASK | PRID_IMP_MASK);
@@ -236,7 +264,8 @@ void __init plat_time_init(void)
 		printk("GIC frequency %d.%02d MHz\n", freq/1000000,
 		       (freq%1000000)*100/1000000);
 #ifdef CONFIG_CLKSRC_MIPS_GIC
-		gic_clocksource_init(gic_frequency);
+		update_gic_frequency_dt();
+		timer_probe();
 #endif
 	}
 #endif

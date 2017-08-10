@@ -26,6 +26,8 @@
 #define BXT_Bx_DEVICE_ID	0x1AA2
 #define APL_Ax_DEVICE_ID	0x5AA2
 #define SPT_Ax_DEVICE_ID	0x9D35
+#define CNL_Ax_DEVICE_ID	0x9DFC
+#define GLK_Ax_DEVICE_ID	0x31A2
 
 #define	REVISION_ID_CHT_A0	0x6
 #define	REVISION_ID_CHT_Ax_SI	0x0
@@ -59,6 +61,18 @@ enum {
 
 struct ish_hw {
 	void __iomem *mem_addr;
+};
+
+/*
+ * ISH FW status type
+ */
+enum {
+	FWSTS_AFTER_RESET		= 0,
+	FWSTS_WAIT_FOR_HOST		= 4,
+	FWSTS_START_KERNEL_DMA		= 5,
+	FWSTS_FW_IS_RUNNING		= 7,
+	FWSTS_SENSOR_APP_LOADED		= 8,
+	FWSTS_SENSOR_APP_RUNNING	= 15
 };
 
 #define to_ish_hw(dev) (struct ish_hw *)((dev)->hw)

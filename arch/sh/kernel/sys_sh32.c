@@ -1,5 +1,6 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/sem.h>
@@ -13,7 +14,7 @@
 #include <linux/fs.h>
 #include <linux/ipc.h>
 #include <asm/cacheflush.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/syscalls.h>
 

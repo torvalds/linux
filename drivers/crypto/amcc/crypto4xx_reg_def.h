@@ -180,7 +180,7 @@ union ce_ring_size {
 } __attribute__((packed));
 
 #define CRYPTO4XX_RING_CONTROL_OFFSET		0x54
-union ce_ring_contol {
+union ce_ring_control {
 	struct {
 		u32 continuous:1;
 		u32 rsv:5;

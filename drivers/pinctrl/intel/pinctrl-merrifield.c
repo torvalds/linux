@@ -343,9 +343,9 @@ static const struct pinctrl_pin_desc mrfld_pins[] = {
 
 static const unsigned int mrfld_sdio_pins[] = { 50, 51, 52, 53, 54, 55, 56 };
 static const unsigned int mrfld_spi5_pins[] = { 90, 91, 92, 93, 94, 95, 96 };
-static const unsigned int mrfld_uart0_pins[] = { 124, 125, 126, 127 };
-static const unsigned int mrfld_uart1_pins[] = { 128, 129, 130, 131 };
-static const unsigned int mrfld_uart2_pins[] = { 132, 133, 134, 135 };
+static const unsigned int mrfld_uart0_pins[] = { 115, 116, 117, 118 };
+static const unsigned int mrfld_uart1_pins[] = { 119, 120, 121, 122 };
+static const unsigned int mrfld_uart2_pins[] = { 123, 124, 125, 126 };
 static const unsigned int mrfld_pwm0_pins[] = { 144 };
 static const unsigned int mrfld_pwm1_pins[] = { 145 };
 static const unsigned int mrfld_pwm2_pins[] = { 132 };
@@ -794,6 +794,9 @@ static int mrfld_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	unsigned int i;
 	int ret;
 
+	if (!mrfld_buf_available(mp, pin))
+		return -ENOTSUPP;
+
 	for (i = 0; i < nconfigs; i++) {
 		switch (pinconf_to_config_param(configs[i])) {
 		case PIN_CONFIG_BIAS_DISABLE:
@@ -814,10 +817,51 @@ static int mrfld_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	return 0;
 }
 
+static int mrfld_config_group_get(struct pinctrl_dev *pctldev,
+				  unsigned int group, unsigned long *config)
+{
+	const unsigned int *pins;
+	unsigned int npins;
+	int ret;
+
+	ret = mrfld_get_group_pins(pctldev, group, &pins, &npins);
+	if (ret)
+		return ret;
+
+	ret = mrfld_config_get(pctldev, pins[0], config);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int mrfld_config_group_set(struct pinctrl_dev *pctldev,
+				  unsigned int group, unsigned long *configs,
+				  unsigned int num_configs)
+{
+	const unsigned int *pins;
+	unsigned int npins;
+	int i, ret;
+
+	ret = mrfld_get_group_pins(pctldev, group, &pins, &npins);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < npins; i++) {
+		ret = mrfld_config_set(pctldev, pins[i], configs, num_configs);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static const struct pinconf_ops mrfld_pinconf_ops = {
 	.is_generic = true,
 	.pin_config_get = mrfld_config_get,
 	.pin_config_set = mrfld_config_set,
+	.pin_config_group_get = mrfld_config_group_get,
+	.pin_config_group_set = mrfld_config_group_set,
 };
 
 static const struct pinctrl_desc mrfld_pinctrl_desc = {

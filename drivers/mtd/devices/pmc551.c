@@ -82,7 +82,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/ptrace.h>

@@ -316,7 +316,7 @@ static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
 	if (ret < 0)
 		goto out_up;
 
-	payload = user_key_payload(rkey);
+	payload = user_key_payload_rcu(rkey);
 	if (IS_ERR_OR_NULL(payload)) {
 		ret = PTR_ERR(payload);
 		goto out_up;
@@ -364,7 +364,8 @@ static int nfs_idmap_lookup_id(const char *name, size_t namelen, const char *typ
 		ret = -EINVAL;
 	} else {
 		ret = kstrtol(id_str, 10, &id_long);
-		*id = (__u32)id_long;
+		if (!ret)
+			*id = (__u32)id_long;
 	}
 	return ret;
 }

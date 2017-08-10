@@ -606,12 +606,6 @@ static inline void intel_pmu_drain_pebs_buffer(void)
 	x86_pmu.drain_pebs(&regs);
 }
 
-void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in)
-{
-	if (!sched_in)
-		intel_pmu_drain_pebs_buffer();
-}
-
 /*
  * PEBS
  */
@@ -648,6 +642,12 @@ struct event_constraint intel_slm_pebs_event_constraints[] = {
 struct event_constraint intel_glm_pebs_event_constraints[] = {
 	/* Allow all events as PEBS with no flags */
 	INTEL_ALL_EVENT_CONSTRAINT(0, 0x1),
+	EVENT_CONSTRAINT_END
+};
+
+struct event_constraint intel_glp_pebs_event_constraints[] = {
+	/* Allow all events as PEBS with no flags */
+	INTEL_ALL_EVENT_CONSTRAINT(0, 0xf),
 	EVENT_CONSTRAINT_END
 };
 
@@ -816,6 +816,14 @@ static inline bool pebs_needs_sched_cb(struct cpu_hw_events *cpuc)
 	return cpuc->n_pebs && (cpuc->n_pebs == cpuc->n_large_pebs);
 }
 
+void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	if (!sched_in && pebs_needs_sched_cb(cpuc))
+		intel_pmu_drain_pebs_buffer();
+}
+
 static inline void pebs_update_threshold(struct cpu_hw_events *cpuc)
 {
 	struct debug_store *ds = cpuc->ds;
@@ -889,6 +897,8 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 	if (hwc->flags & PERF_X86_EVENT_AUTO_RELOAD) {
 		ds->pebs_event_reset[hwc->idx] =
 			(u64)(-hwc->sample_period) & x86_pmu.cntval_mask;
+	} else {
+		ds->pebs_event_reset[hwc->idx] = 0;
 	}
 }
 
@@ -1108,20 +1118,20 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	}
 
 	/*
-	 * We use the interrupt regs as a base because the PEBS record
-	 * does not contain a full regs set, specifically it seems to
-	 * lack segment descriptors, which get used by things like
-	 * user_mode().
+	 * We use the interrupt regs as a base because the PEBS record does not
+	 * contain a full regs set, specifically it seems to lack segment
+	 * descriptors, which get used by things like user_mode().
 	 *
-	 * In the simple case fix up only the IP and BP,SP regs, for
-	 * PERF_SAMPLE_IP and PERF_SAMPLE_CALLCHAIN to function properly.
-	 * A possible PERF_SAMPLE_REGS will have to transfer all regs.
+	 * In the simple case fix up only the IP for PERF_SAMPLE_IP.
+	 *
+	 * We must however always use BP,SP from iregs for the unwinder to stay
+	 * sane; the record BP,SP can point into thin air when the record is
+	 * from a previous PMI context or an (I)RET happend between the record
+	 * and PMI.
 	 */
 	*regs = *iregs;
 	regs->flags = pebs->flags;
 	set_linear_ip(regs, pebs->ip);
-	regs->bp = pebs->bp;
-	regs->sp = pebs->sp;
 
 	if (sample_type & PERF_SAMPLE_REGS_INTR) {
 		regs->ax = pebs->ax;
@@ -1130,10 +1140,21 @@ static void setup_pebs_sample_data(struct perf_event *event,
 		regs->dx = pebs->dx;
 		regs->si = pebs->si;
 		regs->di = pebs->di;
-		regs->bp = pebs->bp;
-		regs->sp = pebs->sp;
 
-		regs->flags = pebs->flags;
+		/*
+		 * Per the above; only set BP,SP if we don't need callchains.
+		 *
+		 * XXX: does this make sense?
+		 */
+		if (!(sample_type & PERF_SAMPLE_CALLCHAIN)) {
+			regs->bp = pebs->bp;
+			regs->sp = pebs->sp;
+		}
+
+		/*
+		 * Preserve PERF_EFLAGS_VM from set_linear_ip().
+		 */
+		regs->flags = pebs->flags | (regs->flags & PERF_EFLAGS_VM);
 #ifndef CONFIG_X86_32
 		regs->r8 = pebs->r8;
 		regs->r9 = pebs->r9;
@@ -1211,7 +1232,7 @@ get_next_pebs_record_by_bit(void *base, void *top, int bit)
 
 			/* clear non-PEBS bit and re-check */
 			pebs_status = p->status & cpuc->pebs_enabled;
-			pebs_status &= (1ULL << MAX_PEBS_EVENTS) - 1;
+			pebs_status &= PEBS_COUNTER_MASK;
 			if (pebs_status == (1 << bit))
 				return at;
 		}
@@ -1378,8 +1399,12 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 			continue;
 
 		/* log dropped samples number */
-		if (error[bit])
+		if (error[bit]) {
 			perf_log_lost_samples(event, error[bit]);
+
+			if (perf_event_account_interrupt(event))
+				x86_pmu_stop(event, 0);
+		}
 
 		if (counts[bit]) {
 			__intel_pmu_pebs_event(event, iregs, base,

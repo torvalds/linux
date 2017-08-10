@@ -1234,14 +1234,14 @@ static void snd_usbmidi_input_trigger(struct snd_rawmidi_substream *substream,
 		clear_bit(substream->number, &umidi->input_triggered);
 }
 
-static struct snd_rawmidi_ops snd_usbmidi_output_ops = {
+static const struct snd_rawmidi_ops snd_usbmidi_output_ops = {
 	.open = snd_usbmidi_output_open,
 	.close = snd_usbmidi_output_close,
 	.trigger = snd_usbmidi_output_trigger,
 	.drain = snd_usbmidi_output_drain,
 };
 
-static struct snd_rawmidi_ops snd_usbmidi_input_ops = {
+static const struct snd_rawmidi_ops snd_usbmidi_input_ops = {
 	.open = snd_usbmidi_input_open,
 	.close = snd_usbmidi_input_close,
 	.trigger = snd_usbmidi_input_trigger
@@ -1922,7 +1922,7 @@ static int roland_load_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new roland_load_ctl = {
+static const struct snd_kcontrol_new roland_load_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "MIDI Input Mode",
 	.info = roland_load_info,

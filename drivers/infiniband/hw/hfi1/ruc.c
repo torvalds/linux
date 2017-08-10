@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -52,44 +52,6 @@
 #include "qp.h"
 #include "verbs_txreq.h"
 #include "trace.h"
-
-/*
- * Convert the AETH RNR timeout code into the number of microseconds.
- */
-const u32 ib_hfi1_rnr_table[32] = {
-	655360,	/* 00: 655.36 */
-	10,	/* 01:    .01 */
-	20,	/* 02     .02 */
-	30,	/* 03:    .03 */
-	40,	/* 04:    .04 */
-	60,	/* 05:    .06 */
-	80,	/* 06:    .08 */
-	120,	/* 07:    .12 */
-	160,	/* 08:    .16 */
-	240,	/* 09:    .24 */
-	320,	/* 0A:    .32 */
-	480,	/* 0B:    .48 */
-	640,	/* 0C:    .64 */
-	960,	/* 0D:    .96 */
-	1280,	/* 0E:   1.28 */
-	1920,	/* 0F:   1.92 */
-	2560,	/* 10:   2.56 */
-	3840,	/* 11:   3.84 */
-	5120,	/* 12:   5.12 */
-	7680,	/* 13:   7.68 */
-	10240,	/* 14:  10.24 */
-	15360,	/* 15:  15.36 */
-	20480,	/* 16:  20.48 */
-	30720,	/* 17:  30.72 */
-	40960,	/* 18:  40.96 */
-	61440,	/* 19:  61.44 */
-	81920,	/* 1A:  81.92 */
-	122880,	/* 1B: 122.88 */
-	163840,	/* 1C: 163.84 */
-	245760,	/* 1D: 245.76 */
-	327680,	/* 1E: 327.68 */
-	491520	/* 1F: 491.52 */
-};
 
 /*
  * Validate a RWQE and fill in the SGE state.
@@ -239,16 +201,6 @@ bail:
 	return ret;
 }
 
-static __be64 get_sguid(struct hfi1_ibport *ibp, unsigned index)
-{
-	if (!index) {
-		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-
-		return cpu_to_be64(ppd->guid);
-	}
-	return ibp->guids[index - 1];
-}
-
 static int gid_ok(union ib_gid *gid, __be64 gid_prefix, __be64 id)
 {
 	return (gid->global.interface_id == id &&
@@ -267,72 +219,84 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
 {
 	__be64 guid;
 	unsigned long flags;
-	u8 sc5 = ibp->sl_to_sc[qp->remote_ah_attr.sl];
+	u8 sc5 = ibp->sl_to_sc[rdma_ah_get_sl(&qp->remote_ah_attr)];
 
 	if (qp->s_mig_state == IB_MIG_ARMED && (bth0 & IB_BTH_MIG_REQ)) {
 		if (!has_grh) {
-			if (qp->alt_ah_attr.ah_flags & IB_AH_GRH)
+			if (rdma_ah_get_ah_flags(&qp->alt_ah_attr) &
+			    IB_AH_GRH)
 				goto err;
 		} else {
-			if (!(qp->alt_ah_attr.ah_flags & IB_AH_GRH))
+			const struct ib_global_route *grh;
+
+			if (!(rdma_ah_get_ah_flags(&qp->alt_ah_attr) &
+			      IB_AH_GRH))
 				goto err;
-			guid = get_sguid(ibp, qp->alt_ah_attr.grh.sgid_index);
+			grh = rdma_ah_read_grh(&qp->alt_ah_attr);
+			guid = get_sguid(ibp, grh->sgid_index);
 			if (!gid_ok(&hdr->u.l.grh.dgid, ibp->rvp.gid_prefix,
 				    guid))
 				goto err;
 			if (!gid_ok(
 				&hdr->u.l.grh.sgid,
-				qp->alt_ah_attr.grh.dgid.global.subnet_prefix,
-				qp->alt_ah_attr.grh.dgid.global.interface_id))
+				grh->dgid.global.subnet_prefix,
+				grh->dgid.global.interface_id))
 				goto err;
 		}
-		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,
-					    sc5, be16_to_cpu(hdr->lrh[3])))) {
+		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0, sc5,
+					    ib_get_slid(hdr)))) {
 			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY,
 				       (u16)bth0,
-				       (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
+				       ib_get_sl(hdr),
 				       0, qp->ibqp.qp_num,
-				       be16_to_cpu(hdr->lrh[3]),
-				       be16_to_cpu(hdr->lrh[1]));
+				       ib_get_slid(hdr),
+				       ib_get_dlid(hdr));
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 and 17.2.8 */
-		if (be16_to_cpu(hdr->lrh[3]) != qp->alt_ah_attr.dlid ||
-		    ppd_from_ibp(ibp)->port != qp->alt_ah_attr.port_num)
+		if (ib_get_slid(hdr) !=
+			rdma_ah_get_dlid(&qp->alt_ah_attr) ||
+		    ppd_from_ibp(ibp)->port !=
+			rdma_ah_get_port_num(&qp->alt_ah_attr))
 			goto err;
 		spin_lock_irqsave(&qp->s_lock, flags);
 		hfi1_migrate_qp(qp);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 	} else {
 		if (!has_grh) {
-			if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
+			if (rdma_ah_get_ah_flags(&qp->remote_ah_attr) &
+						 IB_AH_GRH)
 				goto err;
 		} else {
-			if (!(qp->remote_ah_attr.ah_flags & IB_AH_GRH))
+			const struct ib_global_route *grh;
+
+			if (!(rdma_ah_get_ah_flags(&qp->remote_ah_attr) &
+						   IB_AH_GRH))
 				goto err;
-			guid = get_sguid(ibp,
-					 qp->remote_ah_attr.grh.sgid_index);
+			grh = rdma_ah_read_grh(&qp->remote_ah_attr);
+			guid = get_sguid(ibp, grh->sgid_index);
 			if (!gid_ok(&hdr->u.l.grh.dgid, ibp->rvp.gid_prefix,
 				    guid))
 				goto err;
 			if (!gid_ok(
 			     &hdr->u.l.grh.sgid,
-			     qp->remote_ah_attr.grh.dgid.global.subnet_prefix,
-			     qp->remote_ah_attr.grh.dgid.global.interface_id))
+			     grh->dgid.global.subnet_prefix,
+			     grh->dgid.global.interface_id))
 				goto err;
 		}
-		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,
-					    sc5, be16_to_cpu(hdr->lrh[3])))) {
+		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0, sc5,
+					    ib_get_slid(hdr)))) {
 			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY,
 				       (u16)bth0,
-				       (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
+				       ib_get_sl(hdr),
 				       0, qp->ibqp.qp_num,
-				       be16_to_cpu(hdr->lrh[3]),
-				       be16_to_cpu(hdr->lrh[1]));
+				       ib_get_slid(hdr),
+				       ib_get_dlid(hdr));
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 */
-		if (be16_to_cpu(hdr->lrh[3]) != qp->remote_ah_attr.dlid ||
+		if (ib_get_slid(hdr) !=
+			rdma_ah_get_dlid(&qp->remote_ah_attr) ||
 		    ppd_from_ibp(ibp)->port != qp->port_num)
 			goto err;
 		if (qp->s_mig_state == IB_MIG_REARM &&
@@ -368,10 +332,9 @@ static void ruc_loopback(struct rvt_qp *sqp)
 	u64 sdata;
 	atomic64_t *maddr;
 	enum ib_wc_status send_status;
-	int release;
+	bool release;
 	int ret;
-	int copy_last = 0;
-	u32 to;
+	bool copy_last = false;
 	int local_ops = 0;
 
 	rcu_read_lock();
@@ -435,7 +398,7 @@ again:
 	memset(&wc, 0, sizeof(wc));
 	send_status = IB_WC_SUCCESS;
 
-	release = 1;
+	release = true;
 	sqp->s_sge.sge = wqe->sg_list[0];
 	sqp->s_sge.sg_list = wqe->sg_list + 1;
 	sqp->s_sge.num_sge = wqe->wr.num_sge;
@@ -486,7 +449,7 @@ send:
 		/* skip copy_last set and qp_access_flags recheck */
 		goto do_write;
 	case IB_WR_RDMA_WRITE:
-		copy_last = ibpd_to_rvtpd(qp->ibqp.pd)->user;
+		copy_last = rvt_is_user_qp(qp);
 		if (unlikely(!(qp->qp_access_flags & IB_ACCESS_REMOTE_WRITE)))
 			goto inv_err;
 do_write:
@@ -510,7 +473,7 @@ do_write:
 					  wqe->rdma_wr.rkey,
 					  IB_ACCESS_REMOTE_READ)))
 			goto acc_err;
-		release = 0;
+		release = false;
 		sqp->s_sge.sg_list = NULL;
 		sqp->s_sge.num_sge = 1;
 		qp->r_sge.sge = wqe->sg_list[0];
@@ -591,8 +554,8 @@ do_write:
 	wc.byte_len = wqe->length;
 	wc.qp = &qp->ibqp;
 	wc.src_qp = qp->remote_qpn;
-	wc.slid = qp->remote_ah_attr.dlid;
-	wc.sl = qp->remote_ah_attr.sl;
+	wc.slid = rdma_ah_get_dlid(&qp->remote_ah_attr);
+	wc.sl = rdma_ah_get_sl(&qp->remote_ah_attr);
 	wc.port_num = 1;
 	/* Signal completion event if the solicited bit is set. */
 	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc,
@@ -628,8 +591,8 @@ rnr_nak:
 	spin_lock_irqsave(&sqp->s_lock, flags);
 	if (!(ib_rvt_state_ops[sqp->state] & RVT_PROCESS_RECV_OK))
 		goto clr_busy;
-	to = ib_hfi1_rnr_table[qp->r_min_rnr_timer];
-	hfi1_add_rnr_timer(sqp, to);
+	rvt_add_rnr_timer(sqp, qp->r_min_rnr_timer <<
+				IB_AETH_CREDIT_SHIFT);
 	goto clr_busy;
 
 op_err:
@@ -647,7 +610,7 @@ acc_err:
 	wc.status = IB_WC_LOC_PROT_ERR;
 err:
 	/* responder goes to error state */
-	hfi1_rc_error(qp, wc.status);
+	rvt_rc_error(qp, wc.status);
 
 serr:
 	spin_lock_irqsave(&sqp->s_lock, flags);
@@ -686,7 +649,7 @@ done:
  * Return the size of the header in 32 bit words.
  */
 u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
-		  struct ib_global_route *grh, u32 hwords, u32 nwords)
+		  const struct ib_global_route *grh, u32 hwords, u32 nwords)
 {
 	hdr->version_tclass_flow =
 		cpu_to_be32((IB_GRH_VERSION << IB_GRH_VERSION_SHIFT) |
@@ -699,9 +662,9 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 	/* The SGID is 32-bit aligned. */
 	hdr->sgid.global.subnet_prefix = ibp->rvp.gid_prefix;
 	hdr->sgid.global.interface_id =
-		grh->sgid_index && grh->sgid_index < ARRAY_SIZE(ibp->guids) ?
-		ibp->guids[grh->sgid_index - 1] :
-			cpu_to_be64(ppd_from_ibp(ibp)->guid);
+		grh->sgid_index < HFI1_GUIDS_PER_PORT ?
+		get_sguid(ibp, grh->sgid_index) :
+		get_sguid(ibp, HFI1_PORT_GUID_INDEX);
 	hdr->dgid = grh->dgid;
 
 	/* GRH header size in 32-bit words. */
@@ -777,18 +740,20 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	u32 bth1;
 
 	/* Construct the header. */
-	extra_bytes = -qp->s_cur_size & 3;
-	nwords = (qp->s_cur_size + extra_bytes) >> 2;
+	extra_bytes = -ps->s_txreq->s_cur_size & 3;
+	nwords = (ps->s_txreq->s_cur_size + extra_bytes) >> 2;
 	lrh0 = HFI1_LRH_BTH;
-	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
-		qp->s_hdrwords += hfi1_make_grh(ibp,
-						&ps->s_txreq->phdr.hdr.u.l.grh,
-						&qp->remote_ah_attr.grh,
-						qp->s_hdrwords, nwords);
+	if (unlikely(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH)) {
+		qp->s_hdrwords +=
+			hfi1_make_grh(ibp,
+				      &ps->s_txreq->phdr.hdr.u.l.grh,
+				      rdma_ah_read_grh(&qp->remote_ah_attr),
+				      qp->s_hdrwords, nwords);
 		lrh0 = HFI1_LRH_GRH;
 		middle = 0;
 	}
-	lrh0 |= (priv->s_sc & 0xf) << 12 | (qp->remote_ah_attr.sl & 0xf) << 4;
+	lrh0 |= (priv->s_sc & 0xf) << 12 |
+		(rdma_ah_get_sl(&qp->remote_ah_attr) & 0xf) << 4;
 	/*
 	 * reset s_ahg/AHG fields
 	 *
@@ -812,11 +777,13 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	else
 		qp->s_flags &= ~RVT_S_AHG_VALID;
 	ps->s_txreq->phdr.hdr.lrh[0] = cpu_to_be16(lrh0);
-	ps->s_txreq->phdr.hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
+	ps->s_txreq->phdr.hdr.lrh[1] =
+		cpu_to_be16(rdma_ah_get_dlid(&qp->remote_ah_attr));
 	ps->s_txreq->phdr.hdr.lrh[2] =
 		cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
-	ps->s_txreq->phdr.hdr.lrh[3] = cpu_to_be16(ppd_from_ibp(ibp)->lid |
-				       qp->remote_ah_attr.src_path_bits);
+	ps->s_txreq->phdr.hdr.lrh[3] =
+		cpu_to_be16(ppd_from_ibp(ibp)->lid |
+			    rdma_ah_get_path_bits(&qp->remote_ah_attr));
 	bth0 |= hfi1_get_pkey(ibp, qp->s_pkey_index);
 	bth0 |= extra_bytes << 20;
 	ohdr->bth[0] = cpu_to_be32(bth0);
@@ -824,7 +791,7 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	if (qp->s_flags & RVT_S_ECN) {
 		qp->s_flags &= ~RVT_S_ECN;
 		/* we recently received a FECN, so return a BECN */
-		bth1 |= (HFI1_BECN_MASK << HFI1_BECN_SHIFT);
+		bth1 |= (IB_BECN_MASK << IB_BECN_SHIFT);
 	}
 	ohdr->bth[1] = cpu_to_be32(bth1);
 	ohdr->bth[2] = cpu_to_be32(bth2);
@@ -833,59 +800,102 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 /* when sending, force a reschedule every one of these periods */
 #define SEND_RESCHED_TIMEOUT (5 * HZ)  /* 5s in jiffies */
 
+/**
+ * schedule_send_yield - test for a yield required for QP send engine
+ * @timeout: Final time for timeout slice for jiffies
+ * @qp: a pointer to QP
+ * @ps: a pointer to a structure with commonly lookup values for
+ *      the the send engine progress
+ *
+ * This routine checks if the time slice for the QP has expired
+ * for RC QPs, if so an additional work entry is queued. At this
+ * point, other QPs have an opportunity to be scheduled. It
+ * returns true if a yield is required, otherwise, false
+ * is returned.
+ */
+static bool schedule_send_yield(struct rvt_qp *qp,
+				struct hfi1_pkt_state *ps)
+{
+	if (unlikely(time_after(jiffies, ps->timeout))) {
+		if (!ps->in_thread ||
+		    workqueue_congested(ps->cpu, ps->ppd->hfi1_wq)) {
+			spin_lock_irqsave(&qp->s_lock, ps->flags);
+			qp->s_flags &= ~RVT_S_BUSY;
+			hfi1_schedule_send(qp);
+			spin_unlock_irqrestore(&qp->s_lock, ps->flags);
+			this_cpu_inc(*ps->ppd->dd->send_schedule);
+			trace_hfi1_rc_expired_time_slice(qp, true);
+			return true;
+		}
+
+		cond_resched();
+		this_cpu_inc(*ps->ppd->dd->send_schedule);
+		ps->timeout = jiffies + ps->timeout_int;
+	}
+
+	trace_hfi1_rc_expired_time_slice(qp, false);
+	return false;
+}
+
+void hfi1_do_send_from_rvt(struct rvt_qp *qp)
+{
+	hfi1_do_send(qp, false);
+}
+
 void _hfi1_do_send(struct work_struct *work)
 {
 	struct iowait *wait = container_of(work, struct iowait, iowork);
 	struct rvt_qp *qp = iowait_to_qp(wait);
 
-	hfi1_do_send(qp);
+	hfi1_do_send(qp, true);
 }
 
 /**
  * hfi1_do_send - perform a send on a QP
  * @work: contains a pointer to the QP
+ * @in_thread: true if in a workqueue thread
  *
  * Process entries in the send work queue until credit or queue is
  * exhausted.  Only allow one CPU to send a packet per QP.
  * Otherwise, two threads could send packets out of order.
  */
-void hfi1_do_send(struct rvt_qp *qp)
+void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 {
 	struct hfi1_pkt_state ps;
 	struct hfi1_qp_priv *priv = qp->priv;
 	int (*make_req)(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
-	unsigned long timeout;
-	unsigned long timeout_int;
-	int cpu;
 
 	ps.dev = to_idev(qp->ibqp.device);
 	ps.ibp = to_iport(qp->ibqp.device, qp->port_num);
 	ps.ppd = ppd_from_ibp(ps.ibp);
+	ps.in_thread = in_thread;
+
+	trace_hfi1_rc_do_send(qp, in_thread);
 
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_RC:
-		if (!loopback && ((qp->remote_ah_attr.dlid & ~((1 << ps.ppd->lmc
-								) - 1)) ==
-				 ps.ppd->lid)) {
+		if (!loopback && ((rdma_ah_get_dlid(&qp->remote_ah_attr) &
+				   ~((1 << ps.ppd->lmc) - 1)) ==
+				  ps.ppd->lid)) {
 			ruc_loopback(qp);
 			return;
 		}
 		make_req = hfi1_make_rc_req;
-		timeout_int = (qp->timeout_jiffies);
+		ps.timeout_int = qp->timeout_jiffies;
 		break;
 	case IB_QPT_UC:
-		if (!loopback && ((qp->remote_ah_attr.dlid & ~((1 << ps.ppd->lmc
-								) - 1)) ==
-				 ps.ppd->lid)) {
+		if (!loopback && ((rdma_ah_get_dlid(&qp->remote_ah_attr) &
+				   ~((1 << ps.ppd->lmc) - 1)) ==
+				  ps.ppd->lid)) {
 			ruc_loopback(qp);
 			return;
 		}
 		make_req = hfi1_make_uc_req;
-		timeout_int = SEND_RESCHED_TIMEOUT;
+		ps.timeout_int = SEND_RESCHED_TIMEOUT;
 		break;
 	default:
 		make_req = hfi1_make_ud_req;
-		timeout_int = SEND_RESCHED_TIMEOUT;
+		ps.timeout_int = SEND_RESCHED_TIMEOUT;
 	}
 
 	spin_lock_irqsave(&qp->s_lock, ps.flags);
@@ -898,9 +908,11 @@ void hfi1_do_send(struct rvt_qp *qp)
 
 	qp->s_flags |= RVT_S_BUSY;
 
-	timeout = jiffies + (timeout_int) / 8;
-	cpu = priv->s_sde ? priv->s_sde->cpu :
+	ps.timeout_int = ps.timeout_int / 8;
+	ps.timeout = jiffies + ps.timeout_int;
+	ps.cpu = priv->s_sde ? priv->s_sde->cpu :
 			cpumask_first(cpumask_of_node(ps.ppd->dd->node));
+
 	/* insure a pre-built packet is handled  */
 	ps.s_txreq = get_waiting_verbs_txreq(qp);
 	do {
@@ -916,28 +928,9 @@ void hfi1_do_send(struct rvt_qp *qp)
 			/* Record that s_ahg is empty. */
 			qp->s_hdrwords = 0;
 			/* allow other tasks to run */
-			if (unlikely(time_after(jiffies, timeout))) {
-				if (workqueue_congested(cpu,
-							ps.ppd->hfi1_wq)) {
-					spin_lock_irqsave(
-						&qp->s_lock,
-						ps.flags);
-					qp->s_flags &= ~RVT_S_BUSY;
-					hfi1_schedule_send(qp);
-					spin_unlock_irqrestore(
-						&qp->s_lock,
-						ps.flags);
-					this_cpu_inc(
-						*ps.ppd->dd->send_schedule);
-					return;
-				}
-				if (!irqs_disabled()) {
-					cond_resched();
-					this_cpu_inc(
-					   *ps.ppd->dd->send_schedule);
-				}
-				timeout = jiffies + (timeout_int) / 8;
-			}
+			if (schedule_send_yield(qp, &ps))
+				return;
+
 			spin_lock_irqsave(&qp->s_lock, ps.flags);
 		}
 	} while (make_req(qp, &ps));
@@ -952,44 +945,29 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			enum ib_wc_status status)
 {
 	u32 old_last, last;
-	unsigned i;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		return;
 
 	last = qp->s_last;
 	old_last = last;
+	trace_hfi1_qp_send_completion(qp, wqe, last);
 	if (++last >= qp->s_size)
 		last = 0;
+	trace_hfi1_qp_send_completion(qp, wqe, last);
 	qp->s_last = last;
 	/* See post_send() */
 	barrier();
-	for (i = 0; i < wqe->wr.num_sge; i++) {
-		struct rvt_sge *sge = &wqe->sg_list[i];
-
-		rvt_put_mr(sge->mr);
-	}
+	rvt_put_swqe(wqe);
 	if (qp->ibqp.qp_type == IB_QPT_UD ||
 	    qp->ibqp.qp_type == IB_QPT_SMI ||
 	    qp->ibqp.qp_type == IB_QPT_GSI)
 		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
 
-	/* See ch. 11.2.4.1 and 10.7.3.1 */
-	if (!(qp->s_flags & RVT_S_SIGNAL_REQ_WR) ||
-	    (wqe->wr.send_flags & IB_SEND_SIGNALED) ||
-	    status != IB_WC_SUCCESS) {
-		struct ib_wc wc;
-
-		memset(&wc, 0, sizeof(wc));
-		wc.wr_id = wqe->wr.wr_id;
-		wc.status = status;
-		wc.opcode = ib_hfi1_wc_opcode[wqe->wr.opcode];
-		wc.qp = &qp->ibqp;
-		if (status == IB_WC_SUCCESS)
-			wc.byte_len = wqe->length;
-		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc,
-			     status != IB_WC_SUCCESS);
-	}
+	rvt_qp_swqe_complete(qp,
+			     wqe,
+			     ib_hfi1_wc_opcode[wqe->wr.opcode],
+			     status);
 
 	if (qp->s_acked == old_last)
 		qp->s_acked = last;

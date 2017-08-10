@@ -1307,8 +1307,7 @@ static void iso_resource_work(struct work_struct *work)
 	 */
 	if (r->todo == ISO_RES_REALLOC && !success &&
 	    !client->in_shutdown &&
-	    idr_find(&client->resource_idr, r->resource.handle)) {
-		idr_remove(&client->resource_idr, r->resource.handle);
+	    idr_remove(&client->resource_idr, r->resource.handle)) {
 		client_put(client);
 		free = true;
 	}

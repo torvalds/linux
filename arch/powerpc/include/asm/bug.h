@@ -18,7 +18,7 @@
 #include <asm/asm-offsets.h>
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 .macro EMIT_BUG_ENTRY addr,file,line,flags
-	 .section __bug_table,"a"
+	 .section __bug_table,"aw"
 5001:	 PPC_LONG \addr, 5002f
 	 .short \line, \flags
 	 .org 5001b+BUG_ENTRY_SIZE
@@ -29,7 +29,7 @@
 .endm
 #else
 .macro EMIT_BUG_ENTRY addr,file,line,flags
-	 .section __bug_table,"a"
+	 .section __bug_table,"aw"
 5001:	 PPC_LONG \addr
 	 .short \flags
 	 .org 5001b+BUG_ENTRY_SIZE
@@ -42,14 +42,14 @@
    sizeof(struct bug_entry), respectively */
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 #define _EMIT_BUG_ENTRY				\
-	".section __bug_table,\"a\"\n"		\
+	".section __bug_table,\"aw\"\n"		\
 	"2:\t" PPC_LONG "1b, %0\n"		\
 	"\t.short %1, %2\n"			\
 	".org 2b+%3\n"				\
 	".previous\n"
 #else
 #define _EMIT_BUG_ENTRY				\
-	".section __bug_table,\"a\"\n"		\
+	".section __bug_table,\"aw\"\n"		\
 	"2:\t" PPC_LONG "1b\n"			\
 	"\t.short %2\n"				\
 	".org 2b+%3\n"				\
@@ -85,12 +85,12 @@
 	}							\
 } while (0)
 
-#define __WARN_TAINT(taint) do {				\
+#define __WARN_FLAGS(flags) do {				\
 	__asm__ __volatile__(					\
 		"1:	twi 31,0,0\n"				\
 		_EMIT_BUG_ENTRY					\
 		: : "i" (__FILE__), "i" (__LINE__),		\
-		  "i" (BUGFLAG_TAINT(taint)),			\
+		  "i" (BUGFLAG_WARNING|(flags)),		\
 		  "i" (sizeof(struct bug_entry)));		\
 } while (0)
 
@@ -104,7 +104,7 @@
 		"1:	"PPC_TLNEI"	%4,0\n"			\
 		_EMIT_BUG_ENTRY					\
 		: : "i" (__FILE__), "i" (__LINE__),		\
-		  "i" (BUGFLAG_TAINT(TAINT_WARN)),		\
+		  "i" (BUGFLAG_WARNING|BUGFLAG_TAINT(TAINT_WARN)),\
 		  "i" (sizeof(struct bug_entry)),		\
 		  "r" (__ret_warn_on));				\
 	}							\

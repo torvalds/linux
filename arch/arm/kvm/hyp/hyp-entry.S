@@ -126,11 +126,29 @@ hyp_hvc:
 	 */
 	pop	{r0, r1, r2}
 
-	/* Check for __hyp_get_vectors */
-	cmp	r0, #-1
-	mrceq	p15, 4, r0, c12, c0, 0	@ get HVBAR
-	beq	1f
+	/*
+	 * Check if we have a kernel function, which is guaranteed to be
+	 * bigger than the maximum hyp stub hypercall
+	 */
+	cmp	r0, #HVC_STUB_HCALL_NR
+	bhs	1f
 
+	/*
+	 * Not a kernel function, treat it as a stub hypercall.
+	 * Compute the physical address for __kvm_handle_stub_hvc
+	 * (as the code lives in the idmaped page) and branch there.
+	 * We hijack ip (r12) as a tmp register.
+	 */
+	push	{r1}
+	ldr	r1, =kimage_voffset
+	ldr	r1, [r1]
+	ldr	ip, =__kvm_handle_stub_hvc
+	sub	ip, ip, r1
+	pop	{r1}
+
+	bx	ip
+
+1:
 	push	{lr}
 
 	mov	lr, r0
@@ -142,7 +160,7 @@ THUMB(	orr	lr, #1)
 	blx	lr			@ Call the HYP function
 
 	pop	{lr}
-1:	eret
+	eret
 
 guest_trap:
 	load_vcpu r0			@ Load VCPU pointer to r0

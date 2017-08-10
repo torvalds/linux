@@ -224,7 +224,7 @@ static void dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
 	int rows = (1 + area->y1 - area->y0);
 	int i = columns*rows;
 
-	pat = alloc_dma(txn, sizeof(struct pat), &pat_pa);
+	pat = alloc_dma(txn, sizeof(*pat), &pat_pa);
 
 	if (txn->last_pat)
 		txn->last_pat->next_pa = (uint32_t)pat_pa;
@@ -388,7 +388,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, uint16_t w,
 	u32 min_align = 128;
 	int ret;
 	unsigned long flags;
-	size_t slot_bytes;
+	u32 slot_bytes;
 
 	BUG_ON(!validfmt(fmt));
 
@@ -735,7 +735,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	/* alloc engines */
 	omap_dmm->engines = kcalloc(omap_dmm->num_engines,
-				    sizeof(struct refill_engine), GFP_KERNEL);
+				    sizeof(*omap_dmm->engines), GFP_KERNEL);
 	if (!omap_dmm->engines) {
 		ret = -ENOMEM;
 		goto fail;

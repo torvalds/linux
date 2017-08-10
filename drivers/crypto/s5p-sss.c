@@ -170,6 +170,32 @@ struct s5p_aes_ctx {
 	int				keylen;
 };
 
+/**
+ * struct s5p_aes_dev - Crypto device state container
+ * @dev:	Associated device
+ * @clk:	Clock for accessing hardware
+ * @ioaddr:	Mapped IO memory region
+ * @aes_ioaddr:	Per-varian offset for AES block IO memory
+ * @irq_fc:	Feed control interrupt line
+ * @req:	Crypto request currently handled by the device
+ * @ctx:	Configuration for currently handled crypto request
+ * @sg_src:	Scatter list with source data for currently handled block
+ *		in device.  This is DMA-mapped into device.
+ * @sg_dst:	Scatter list with destination data for currently handled block
+ *		in device. This is DMA-mapped into device.
+ * @sg_src_cpy:	In case of unaligned access, copied scatter list
+ *		with source data.
+ * @sg_dst_cpy:	In case of unaligned access, copied scatter list
+ *		with destination data.
+ * @tasklet:	New request scheduling jib
+ * @queue:	Crypto queue
+ * @busy:	Indicates whether the device is currently handling some request
+ *		thus it uses some of the fields from this state, like:
+ *		req, ctx, sg_src/dst (and copies).  This essentially
+ *		protects against concurrent access to these fields.
+ * @lock:	Lock for protecting both access to device hardware registers
+ *		and fields related to current request (including the busy field).
+ */
 struct s5p_aes_dev {
 	struct device			*dev;
 	struct clk			*clk;
@@ -182,7 +208,6 @@ struct s5p_aes_dev {
 	struct scatterlist		*sg_src;
 	struct scatterlist		*sg_dst;
 
-	/* In case of unaligned access: */
 	struct scatterlist		*sg_src_cpy;
 	struct scatterlist		*sg_dst_cpy;
 
@@ -190,8 +215,6 @@ struct s5p_aes_dev {
 	struct crypto_queue		queue;
 	bool				busy;
 	spinlock_t			lock;
-
-	struct samsung_aes_variant	*variant;
 };
 
 static struct s5p_aes_dev *s5p_dev;
@@ -270,7 +293,7 @@ static void s5p_sg_copy_buf(void *buf, struct scatterlist *sg,
 	scatterwalk_done(&walk, out, 0);
 }
 
-static void s5p_aes_complete(struct s5p_aes_dev *dev, int err)
+static void s5p_sg_done(struct s5p_aes_dev *dev)
 {
 	if (dev->sg_dst_cpy) {
 		dev_dbg(dev->dev,
@@ -281,10 +304,12 @@ static void s5p_aes_complete(struct s5p_aes_dev *dev, int err)
 	}
 	s5p_free_sg_cpy(dev, &dev->sg_src_cpy);
 	s5p_free_sg_cpy(dev, &dev->sg_dst_cpy);
+}
 
-	/* holding a lock outside */
+/* Calls the completion. Cannot be called with dev->lock hold. */
+static void s5p_aes_complete(struct s5p_aes_dev *dev, int err)
+{
 	dev->req->base.complete(&dev->req->base, err);
-	dev->busy = false;
 }
 
 static void s5p_unset_outdata(struct s5p_aes_dev *dev)
@@ -368,51 +393,44 @@ exit:
 }
 
 /*
- * Returns true if new transmitting (output) data is ready and its
- * address+length have to be written to device (by calling
- * s5p_set_dma_outdata()). False otherwise.
+ * Returns -ERRNO on error (mapping of new data failed).
+ * On success returns:
+ *  - 0 if there is no more data,
+ *  - 1 if new transmitting (output) data is ready and its address+length
+ *     have to be written to device (by calling s5p_set_dma_outdata()).
  */
-static bool s5p_aes_tx(struct s5p_aes_dev *dev)
+static int s5p_aes_tx(struct s5p_aes_dev *dev)
 {
-	int err = 0;
-	bool ret = false;
+	int ret = 0;
 
 	s5p_unset_outdata(dev);
 
 	if (!sg_is_last(dev->sg_dst)) {
-		err = s5p_set_outdata(dev, sg_next(dev->sg_dst));
-		if (err)
-			s5p_aes_complete(dev, err);
-		else
-			ret = true;
-	} else {
-		s5p_aes_complete(dev, err);
-
-		dev->busy = true;
-		tasklet_schedule(&dev->tasklet);
+		ret = s5p_set_outdata(dev, sg_next(dev->sg_dst));
+		if (!ret)
+			ret = 1;
 	}
 
 	return ret;
 }
 
 /*
- * Returns true if new receiving (input) data is ready and its
- * address+length have to be written to device (by calling
- * s5p_set_dma_indata()). False otherwise.
+ * Returns -ERRNO on error (mapping of new data failed).
+ * On success returns:
+ *  - 0 if there is no more data,
+ *  - 1 if new receiving (input) data is ready and its address+length
+ *     have to be written to device (by calling s5p_set_dma_indata()).
  */
-static bool s5p_aes_rx(struct s5p_aes_dev *dev)
+static int s5p_aes_rx(struct s5p_aes_dev *dev/*, bool *set_dma*/)
 {
-	int err;
-	bool ret = false;
+	int ret = 0;
 
 	s5p_unset_indata(dev);
 
 	if (!sg_is_last(dev->sg_src)) {
-		err = s5p_set_indata(dev, sg_next(dev->sg_src));
-		if (err)
-			s5p_aes_complete(dev, err);
-		else
-			ret = true;
+		ret = s5p_set_indata(dev, sg_next(dev->sg_src));
+		if (!ret)
+			ret = 1;
 	}
 
 	return ret;
@@ -422,33 +440,74 @@ static irqreturn_t s5p_aes_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 	struct s5p_aes_dev *dev = platform_get_drvdata(pdev);
-	bool set_dma_tx = false;
-	bool set_dma_rx = false;
+	int err_dma_tx = 0;
+	int err_dma_rx = 0;
+	bool tx_end = false;
 	unsigned long flags;
 	uint32_t status;
+	int err;
 
 	spin_lock_irqsave(&dev->lock, flags);
 
+	/*
+	 * Handle rx or tx interrupt. If there is still data (scatterlist did not
+	 * reach end), then map next scatterlist entry.
+	 * In case of such mapping error, s5p_aes_complete() should be called.
+	 *
+	 * If there is no more data in tx scatter list, call s5p_aes_complete()
+	 * and schedule new tasklet.
+	 */
 	status = SSS_READ(dev, FCINTSTAT);
 	if (status & SSS_FCINTSTAT_BRDMAINT)
-		set_dma_rx = s5p_aes_rx(dev);
-	if (status & SSS_FCINTSTAT_BTDMAINT)
-		set_dma_tx = s5p_aes_tx(dev);
+		err_dma_rx = s5p_aes_rx(dev);
+
+	if (status & SSS_FCINTSTAT_BTDMAINT) {
+		if (sg_is_last(dev->sg_dst))
+			tx_end = true;
+		err_dma_tx = s5p_aes_tx(dev);
+	}
 
 	SSS_WRITE(dev, FCINTPEND, status);
 
-	/*
-	 * Writing length of DMA block (either receiving or transmitting)
-	 * will start the operation immediately, so this should be done
-	 * at the end (even after clearing pending interrupts to not miss the
-	 * interrupt).
-	 */
-	if (set_dma_tx)
-		s5p_set_dma_outdata(dev, dev->sg_dst);
-	if (set_dma_rx)
-		s5p_set_dma_indata(dev, dev->sg_src);
+	if (err_dma_rx < 0) {
+		err = err_dma_rx;
+		goto error;
+	}
+	if (err_dma_tx < 0) {
+		err = err_dma_tx;
+		goto error;
+	}
 
+	if (tx_end) {
+		s5p_sg_done(dev);
+
+		spin_unlock_irqrestore(&dev->lock, flags);
+
+		s5p_aes_complete(dev, 0);
+		/* Device is still busy */
+		tasklet_schedule(&dev->tasklet);
+	} else {
+		/*
+		 * Writing length of DMA block (either receiving or
+		 * transmitting) will start the operation immediately, so this
+		 * should be done at the end (even after clearing pending
+		 * interrupts to not miss the interrupt).
+		 */
+		if (err_dma_tx == 1)
+			s5p_set_dma_outdata(dev, dev->sg_dst);
+		if (err_dma_rx == 1)
+			s5p_set_dma_indata(dev, dev->sg_src);
+
+		spin_unlock_irqrestore(&dev->lock, flags);
+	}
+
+	return IRQ_HANDLED;
+
+error:
+	s5p_sg_done(dev);
+	dev->busy = false;
 	spin_unlock_irqrestore(&dev->lock, flags);
+	s5p_aes_complete(dev, err);
 
 	return IRQ_HANDLED;
 }
@@ -597,8 +656,10 @@ outdata_error:
 	s5p_unset_indata(dev);
 
 indata_error:
-	s5p_aes_complete(dev, err);
+	s5p_sg_done(dev);
+	dev->busy = false;
 	spin_unlock_irqrestore(&dev->lock, flags);
+	s5p_aes_complete(dev, err);
 }
 
 static void s5p_tasklet_cb(unsigned long data)
@@ -805,15 +866,15 @@ static int s5p_aes_probe(struct platform_device *pdev)
 		dev_warn(dev, "feed control interrupt is not available.\n");
 		goto err_irq;
 	}
-	err = devm_request_irq(dev, pdata->irq_fc, s5p_aes_interrupt,
-			       IRQF_SHARED, pdev->name, pdev);
+	err = devm_request_threaded_irq(dev, pdata->irq_fc, NULL,
+					s5p_aes_interrupt, IRQF_ONESHOT,
+					pdev->name, pdev);
 	if (err < 0) {
 		dev_warn(dev, "feed control interrupt is not available.\n");
 		goto err_irq;
 	}
 
 	pdata->busy = false;
-	pdata->variant = variant;
 	pdata->dev = dev;
 	platform_set_drvdata(pdev, pdata);
 	s5p_dev = pdata;

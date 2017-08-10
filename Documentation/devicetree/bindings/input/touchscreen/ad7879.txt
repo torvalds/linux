@@ -35,12 +35,31 @@ Optional properties:
 - adi,conversion-interval:	: 0    : convert one time only
 				  1-255: 515us + val * 35us (up to 9.440ms)
 				  This property has to be a '/bits/ 8' value
+- gpio-controller		: Switch AUX/VBAT/GPIO pin to GPIO mode
 
 Example:
 
 	ad7879@2c {
 		compatible = "adi,ad7879-1";
 		reg = <0x2c>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		touchscreen-max-pressure = <4096>;
+		adi,resistance-plate-x = <120>;
+		adi,first-conversion-delay = /bits/ 8 <3>;
+		adi,acquisition-time = /bits/ 8 <1>;
+		adi,median-filter-size = /bits/ 8 <2>;
+		adi,averaging = /bits/ 8 <1>;
+		adi,conversion-interval = /bits/ 8 <255>;
+	};
+
+	ad7879@1 {
+		compatible = "adi,ad7879";
+		spi-max-frequency = <5000000>;
+		reg = <1>;
+		spi-cpol;
+		spi-cpha;
+		gpio-controller;
 		interrupt-parent = <&gpio1>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
 		touchscreen-max-pressure = <4096>;

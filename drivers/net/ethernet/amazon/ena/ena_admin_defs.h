@@ -70,6 +70,8 @@ enum ena_admin_aq_feature_id {
 
 	ENA_ADMIN_MAX_QUEUES_NUM		= 2,
 
+	ENA_ADMIN_HW_HINTS			= 3,
+
 	ENA_ADMIN_RSS_HASH_FUNCTION		= 10,
 
 	ENA_ADMIN_STATELESS_OFFLOAD_CONFIG	= 11,
@@ -631,22 +633,22 @@ enum ena_admin_flow_hash_proto {
 /* RSS flow hash fields */
 enum ena_admin_flow_hash_fields {
 	/* Ethernet Dest Addr */
-	ENA_ADMIN_RSS_L2_DA	= 0,
+	ENA_ADMIN_RSS_L2_DA	= BIT(0),
 
 	/* Ethernet Src Addr */
-	ENA_ADMIN_RSS_L2_SA	= 1,
+	ENA_ADMIN_RSS_L2_SA	= BIT(1),
 
 	/* ipv4/6 Dest Addr */
-	ENA_ADMIN_RSS_L3_DA	= 2,
+	ENA_ADMIN_RSS_L3_DA	= BIT(2),
 
 	/* ipv4/6 Src Addr */
-	ENA_ADMIN_RSS_L3_SA	= 5,
+	ENA_ADMIN_RSS_L3_SA	= BIT(3),
 
 	/* tcp/udp Dest Port */
-	ENA_ADMIN_RSS_L4_DP	= 6,
+	ENA_ADMIN_RSS_L4_DP	= BIT(4),
 
 	/* tcp/udp Src Port */
-	ENA_ADMIN_RSS_L4_SP	= 7,
+	ENA_ADMIN_RSS_L4_SP	= BIT(5),
 };
 
 struct ena_admin_proto_input {
@@ -749,6 +751,31 @@ struct ena_admin_feature_rss_ind_table {
 	struct ena_admin_rss_ind_table_entry inline_entry;
 };
 
+/* When hint value is 0, driver should use it's own predefined value */
+struct ena_admin_ena_hw_hints {
+	/* value in ms */
+	u16 mmio_read_timeout;
+
+	/* value in ms */
+	u16 driver_watchdog_timeout;
+
+	/* Per packet tx completion timeout. value in ms */
+	u16 missing_tx_completion_timeout;
+
+	u16 missed_tx_completion_count_threshold_to_reset;
+
+	/* value in ms */
+	u16 admin_completion_tx_timeout;
+
+	u16 netdev_wd_timeout;
+
+	u16 max_tx_sgl_size;
+
+	u16 max_rx_sgl_size;
+
+	u16 reserved[8];
+};
+
 struct ena_admin_get_feat_cmd {
 	struct ena_admin_aq_common_desc aq_common_descriptor;
 
@@ -782,6 +809,8 @@ struct ena_admin_get_feat_resp {
 		struct ena_admin_feature_rss_ind_table ind_table;
 
 		struct ena_admin_feature_intr_moder_desc intr_moderation;
+
+		struct ena_admin_ena_hw_hints hw_hints;
 	} u;
 };
 
@@ -857,6 +886,8 @@ enum ena_admin_aenq_notification_syndrom {
 	ENA_ADMIN_SUSPEND	= 0,
 
 	ENA_ADMIN_RESUME	= 1,
+
+	ENA_ADMIN_UPDATE_HINTS	= 2,
 };
 
 struct ena_admin_aenq_entry {
@@ -871,6 +902,14 @@ struct ena_admin_aenq_link_change_desc {
 
 	/* 0 : link_status */
 	u32 flags;
+};
+
+struct ena_admin_aenq_keep_alive_desc {
+	struct ena_admin_aenq_common_desc aenq_common_desc;
+
+	u32 rx_drops_low;
+
+	u32 rx_drops_high;
 };
 
 struct ena_admin_ena_mmio_req_read_less_resp {

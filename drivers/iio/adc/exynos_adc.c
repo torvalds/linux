@@ -579,7 +579,7 @@ static int exynos_read_s3c64xx_ts(struct iio_dev *indio_dev, int *x, int *y)
 
 static irqreturn_t exynos_adc_isr(int irq, void *dev_id)
 {
-	struct exynos_adc *info = (struct exynos_adc *)dev_id;
+	struct exynos_adc *info = dev_id;
 	u32 mask = info->data->mask;
 
 	/* Read value */
@@ -632,7 +632,7 @@ static irqreturn_t exynos_ts_isr(int irq, void *dev_id)
 		input_report_key(info->input, BTN_TOUCH, 1);
 		input_sync(info->input);
 
-		msleep(1);
+		usleep_range(1000, 1100);
 	};
 
 	writel(0, ADC_V1_CLRINTPNDNUP(info->regs));

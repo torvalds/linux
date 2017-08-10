@@ -1522,7 +1522,7 @@ static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct camellia_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[2 * 4];
+	le128 buf[2 * 4];
 	struct xts_crypt_req req = {
 		.tbuf = buf,
 		.tbuflen = sizeof(buf),
@@ -1540,7 +1540,7 @@ static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct camellia_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[2 * 4];
+	le128 buf[2 * 4];
 	struct xts_crypt_req req = {
 		.tbuf = buf,
 		.tbuflen = sizeof(buf),

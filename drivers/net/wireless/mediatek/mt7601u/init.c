@@ -293,13 +293,13 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 	ok = 0;
 	i = 200;
 	while (i--) {
-		if ((mt76_rr(dev, 0x0430) & 0x00ff0000) ||
-		    (mt76_rr(dev, 0x0a30) & 0xffffffff) ||
-		    (mt76_rr(dev, 0x0a34) & 0xffffffff))
-			ok++;
-		if (ok > 6)
-			break;
-
+		if (!(mt76_rr(dev, MT_RXQ_STA) & 0x00ff0000) &&
+		    !mt76_rr(dev, 0x0a30) &&
+		    !mt76_rr(dev, 0x0a34)) {
+			if (ok++ > 5)
+				break;
+			continue;
+		}
 		msleep(1);
 	}
 
@@ -614,6 +614,8 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 
 	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	ret = mt76_init_sband_2g(dev);
 	if (ret)

@@ -65,6 +65,66 @@
 	default:	write_debug(ptr[0], reg, 0);			\
 	}
 
+#define PMSCR_EL1		sys_reg(3, 0, 9, 9, 0)
+
+#define PMBLIMITR_EL1		sys_reg(3, 0, 9, 10, 0)
+#define PMBLIMITR_EL1_E		BIT(0)
+
+#define PMBIDR_EL1		sys_reg(3, 0, 9, 10, 7)
+#define PMBIDR_EL1_P		BIT(4)
+
+#define psb_csync()		asm volatile("hint #17")
+
+static void __hyp_text __debug_save_spe_vhe(u64 *pmscr_el1)
+{
+	/* The vcpu can run. but it can't hide. */
+}
+
+static void __hyp_text __debug_save_spe_nvhe(u64 *pmscr_el1)
+{
+	u64 reg;
+
+	/* SPE present on this CPU? */
+	if (!cpuid_feature_extract_unsigned_field(read_sysreg(id_aa64dfr0_el1),
+						  ID_AA64DFR0_PMSVER_SHIFT))
+		return;
+
+	/* Yes; is it owned by EL3? */
+	reg = read_sysreg_s(PMBIDR_EL1);
+	if (reg & PMBIDR_EL1_P)
+		return;
+
+	/* No; is the host actually using the thing? */
+	reg = read_sysreg_s(PMBLIMITR_EL1);
+	if (!(reg & PMBLIMITR_EL1_E))
+		return;
+
+	/* Yes; save the control register and disable data generation */
+	*pmscr_el1 = read_sysreg_s(PMSCR_EL1);
+	write_sysreg_s(0, PMSCR_EL1);
+	isb();
+
+	/* Now drain all buffered data to memory */
+	psb_csync();
+	dsb(nsh);
+}
+
+static hyp_alternate_select(__debug_save_spe,
+			    __debug_save_spe_nvhe, __debug_save_spe_vhe,
+			    ARM64_HAS_VIRT_HOST_EXTN);
+
+static void __hyp_text __debug_restore_spe(u64 pmscr_el1)
+{
+	if (!pmscr_el1)
+		return;
+
+	/* The host page table is installed, but not yet synchronised */
+	isb();
+
+	/* Re-enable data generation */
+	write_sysreg_s(pmscr_el1, PMSCR_EL1);
+}
+
 void __hyp_text __debug_save_state(struct kvm_vcpu *vcpu,
 				   struct kvm_guest_debug_arch *dbg,
 				   struct kvm_cpu_context *ctxt)
@@ -118,13 +178,15 @@ void __hyp_text __debug_cond_save_host_state(struct kvm_vcpu *vcpu)
 	    (vcpu->arch.ctxt.sys_regs[MDSCR_EL1] & DBG_MDSCR_MDE))
 		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
 
-	__debug_save_state(vcpu, &vcpu->arch.host_debug_state,
+	__debug_save_state(vcpu, &vcpu->arch.host_debug_state.regs,
 			   kern_hyp_va(vcpu->arch.host_cpu_context));
+	__debug_save_spe()(&vcpu->arch.host_debug_state.pmscr_el1);
 }
 
 void __hyp_text __debug_cond_restore_host_state(struct kvm_vcpu *vcpu)
 {
-	__debug_restore_state(vcpu, &vcpu->arch.host_debug_state,
+	__debug_restore_spe(vcpu->arch.host_debug_state.pmscr_el1);
+	__debug_restore_state(vcpu, &vcpu->arch.host_debug_state.regs,
 			      kern_hyp_va(vcpu->arch.host_cpu_context));
 
 	if (vcpu->arch.debug_flags & KVM_ARM64_DEBUG_DIRTY)

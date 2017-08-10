@@ -703,6 +703,8 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	chip->read_buf = vf610_nfc_read_buf;
 	chip->write_buf = vf610_nfc_write_buf;
 	chip->select_chip = vf610_nfc_select_chip;
+	chip->onfi_set_features = nand_onfi_get_set_features_notsupp;
+	chip->onfi_get_features = nand_onfi_get_set_features_notsupp;
 
 	chip->options |= NAND_NO_SUBPAGE_WRITE;
 
@@ -717,10 +719,9 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	vf610_nfc_preinit_controller(nfc);
 
 	/* first scan to find the device and get the page size */
-	if (nand_scan_ident(mtd, 1, NULL)) {
-		err = -ENXIO;
+	err = nand_scan_ident(mtd, 1, NULL);
+	if (err)
 		goto error;
-	}
 
 	vf610_nfc_init_controller(nfc);
 
@@ -775,10 +776,9 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	}
 
 	/* second phase scan */
-	if (nand_scan_tail(mtd)) {
-		err = -ENXIO;
+	err = nand_scan_tail(mtd);
+	if (err)
 		goto error;
-	}
 
 	platform_set_drvdata(pdev, mtd);
 

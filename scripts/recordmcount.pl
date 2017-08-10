@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 # (c) 2008, Steven Rostedt <srostedt@redhat.com>
 # Licensed under the terms of the GNU GPL License version 2
 #
@@ -106,6 +106,7 @@
 # 9) Move the result back to the original object.
 #
 
+use warnings;
 use strict;
 
 my $P = $0;
@@ -130,6 +131,7 @@ if ($inputfile =~ m,kernel/trace/ftrace\.o$,) {
 # Acceptable sections to record.
 my %text_sections = (
      ".text" => 1,
+     ".init.text" => 1,
      ".ref.text" => 1,
      ".sched.text" => 1,
      ".spinlock.text" => 1,
@@ -318,7 +320,7 @@ if ($arch eq "x86_64") {
     # instruction or the addiu one. herein, we record the address of the
     # first one, and then we can replace this instruction by a branch
     # instruction to jump over the profiling function to filter the
-    # indicated functions, or swith back to the lui instruction to trace
+    # indicated functions, or switch back to the lui instruction to trace
     # them, which means dynamic tracing.
     #
     #       c:	3c030000 	lui	v1,0x0

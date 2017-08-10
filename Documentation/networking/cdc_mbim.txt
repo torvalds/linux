@@ -38,7 +38,7 @@ Basic usage
 ===========
 
 MBIM functions are inactive when unmanaged. The cdc_mbim driver only
-provides an userspace interface to the MBIM control channel, and will
+provides a userspace interface to the MBIM control channel, and will
 not participate in the management of the function. This implies that a
 userspace MBIM management application always is required to enable a
 MBIM function.
@@ -200,7 +200,7 @@ structure described in section 10.5.29 of [1].
 The DSS VLAN subdevices are used as a practical interface between the
 shared MBIM data channel and a MBIM DSS aware userspace application.
 It is not intended to be presented as-is to an end user. The
-assumption is that an userspace application initiating a DSS session
+assumption is that a userspace application initiating a DSS session
 also takes care of the necessary framing of the DSS data, presenting
 the stream to the end user in an appropriate way for the stream type.
 
@@ -332,7 +332,7 @@ References
 [5] "MBIM (Mobile Broadband Interface Model) Registry"
        - http://compliance.usb.org/mbim/
 
-[6] "/proc/bus/usb filesystem output"
+[6] "/dev/bus/usb filesystem output"
        - Documentation/usb/proc_usb_info.txt
 
 [7] "/sys/bus/usb/devices/.../descriptors"

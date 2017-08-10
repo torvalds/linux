@@ -52,7 +52,7 @@
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static const char version[] = "DLCI driver v0.35, 4 Jan 1997, mike.mclagan@linux.org";
 
@@ -475,7 +475,7 @@ static void dlci_setup(struct net_device *dev)
 	dev->flags		= 0;
 	dev->header_ops		= &dlci_header_ops;
 	dev->netdev_ops		= &dlci_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 
 	dlp->receive		= dlci_receive;
 

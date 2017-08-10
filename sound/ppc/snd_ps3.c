@@ -883,7 +883,7 @@ static void snd_ps3_audio_set_base_addr(uint64_t ioaddr_start)
 static void snd_ps3_audio_fixup(struct snd_ps3_card_info *card)
 {
 	/*
-	 * avsetting driver seems to never change the followings
+	 * avsetting driver seems to never change the following
 	 * so, init them here once
 	 */
 

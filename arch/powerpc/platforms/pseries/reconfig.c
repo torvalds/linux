@@ -19,7 +19,7 @@
 
 #include <asm/prom.h>
 #include <asm/machdep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu.h>
 
 #include "of_helpers.h"
@@ -82,7 +82,6 @@ static int pSeries_reconfig_remove_node(struct device_node *np)
 
 	of_detach_node(np);
 	of_node_put(parent);
-	of_node_put(np); /* Must decrement the refcount */
 	return 0;
 }
 

@@ -19,7 +19,7 @@
 #include <asm/irq.h>
 #include <linux/in6.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/checksum.h>
 #include <asm/dma.h>
@@ -94,13 +94,11 @@ unsigned long __sync_fetch_and_or_4(unsigned long *p, unsigned long v)
 }
 EXPORT_SYMBOL(__sync_fetch_and_or_4);
 
-#ifdef CONFIG_NET
 /*
  * Networking support
  */
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);
-#endif /* CONFIG_NET */
 
 /*
  * Architecture-specific symbols

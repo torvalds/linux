@@ -104,6 +104,8 @@
 #define MTK_NOR_MAX_RX_TX_SHIFT		6
 /* can shift up to 56 bits (7 bytes) transfer by MTK_NOR_PRG_CMD */
 #define MTK_NOR_MAX_SHIFT		7
+/* nor controller 4-byte address mode enable bit */
+#define MTK_NOR_4B_ADDR_EN		BIT(4)
 
 /* Helpers for accessing the program data / shift data registers */
 #define MTK_NOR_PRG_REG(n)		(MTK_NOR_PRGDATA0_REG + 4 * (n))
@@ -121,20 +123,20 @@ static void mt8173_nor_set_read_mode(struct mt8173_nor *mt8173_nor)
 {
 	struct spi_nor *nor = &mt8173_nor->nor;
 
-	switch (nor->flash_read) {
-	case SPI_NOR_FAST:
+	switch (nor->read_proto) {
+	case SNOR_PROTO_1_1_1:
 		writeb(nor->read_opcode, mt8173_nor->base +
 		       MTK_NOR_PRGDATA3_REG);
 		writeb(MTK_NOR_FAST_READ, mt8173_nor->base +
 		       MTK_NOR_CFG1_REG);
 		break;
-	case SPI_NOR_DUAL:
+	case SNOR_PROTO_1_1_2:
 		writeb(nor->read_opcode, mt8173_nor->base +
 		       MTK_NOR_PRGDATA3_REG);
 		writeb(MTK_NOR_DUAL_READ_EN, mt8173_nor->base +
 		       MTK_NOR_DUAL_REG);
 		break;
-	case SPI_NOR_QUAD:
+	case SNOR_PROTO_1_1_4:
 		writeb(nor->read_opcode, mt8173_nor->base +
 		       MTK_NOR_PRGDATA4_REG);
 		writeb(MTK_NOR_QUAD_READ_EN, mt8173_nor->base +
@@ -230,9 +232,34 @@ static int mt8173_nor_write_buffer_disable(struct mt8173_nor *mt8173_nor)
 				  10000);
 }
 
+static void mt8173_nor_set_addr_width(struct mt8173_nor *mt8173_nor)
+{
+	u8 val;
+	struct spi_nor *nor = &mt8173_nor->nor;
+
+	val = readb(mt8173_nor->base + MTK_NOR_DUAL_REG);
+
+	switch (nor->addr_width) {
+	case 3:
+		val &= ~MTK_NOR_4B_ADDR_EN;
+		break;
+	case 4:
+		val |= MTK_NOR_4B_ADDR_EN;
+		break;
+	default:
+		dev_warn(mt8173_nor->dev, "Unexpected address width %u.\n",
+			 nor->addr_width);
+		break;
+	}
+
+	writeb(val, mt8173_nor->base + MTK_NOR_DUAL_REG);
+}
+
 static void mt8173_nor_set_addr(struct mt8173_nor *mt8173_nor, u32 addr)
 {
 	int i;
+
+	mt8173_nor_set_addr_width(mt8173_nor);
 
 	for (i = 0; i < 3; i++) {
 		writeb(addr & 0xff, mt8173_nor->base + MTK_NOR_RADR0_REG + i * 4);
@@ -381,6 +408,11 @@ static int mt8173_nor_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 static int mtk_nor_init(struct mt8173_nor *mt8173_nor,
 			struct device_node *flash_node)
 {
+	const struct spi_nor_hwcaps hwcaps = {
+		.mask = SNOR_HWCAPS_READ_FAST |
+			SNOR_HWCAPS_READ_1_1_2 |
+			SNOR_HWCAPS_PP,
+	};
 	int ret;
 	struct spi_nor *nor;
 
@@ -399,7 +431,7 @@ static int mtk_nor_init(struct mt8173_nor *mt8173_nor,
 	nor->write_reg = mt8173_nor_write_reg;
 	nor->mtd.name = "mtk_nor";
 	/* initialized with NULL */
-	ret = spi_nor_scan(nor, NULL, SPI_NOR_DUAL);
+	ret = spi_nor_scan(nor, NULL, &hwcaps);
 	if (ret)
 		return ret;
 

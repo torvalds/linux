@@ -30,14 +30,14 @@
 
 #define IPT_TAB_MASK     15
 
-static int ipt_net_id;
+static unsigned int ipt_net_id;
 static struct tc_action_ops act_ipt_ops;
 
-static int xt_net_id;
+static unsigned int xt_net_id;
 static struct tc_action_ops act_xt_ops;
 
-static int ipt_init_target(struct xt_entry_target *t, char *table,
-			   unsigned int hook)
+static int ipt_init_target(struct net *net, struct xt_entry_target *t,
+			   char *table, unsigned int hook)
 {
 	struct xt_tgchk_param par;
 	struct xt_target *target;
@@ -49,6 +49,7 @@ static int ipt_init_target(struct xt_entry_target *t, char *table,
 		return PTR_ERR(target);
 
 	t->u.kernel.target = target;
+	par.net       = net;
 	par.table     = table;
 	par.entryinfo = NULL;
 	par.target    = target;
@@ -91,10 +92,11 @@ static const struct nla_policy ipt_policy[TCA_IPT_MAX + 1] = {
 	[TCA_IPT_TARG]	= { .len = sizeof(struct xt_entry_target) },
 };
 
-static int __tcf_ipt_init(struct tc_action_net *tn, struct nlattr *nla,
+static int __tcf_ipt_init(struct net *net, unsigned int id, struct nlattr *nla,
 			  struct nlattr *est, struct tc_action **a,
 			  const struct tc_action_ops *ops, int ovr, int bind)
 {
+	struct tc_action_net *tn = net_generic(net, id);
 	struct nlattr *tb[TCA_IPT_MAX + 1];
 	struct tcf_ipt *ipt;
 	struct xt_entry_target *td, *t;
@@ -107,7 +109,7 @@ static int __tcf_ipt_init(struct tc_action_net *tn, struct nlattr *nla,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_IPT_MAX, nla, ipt_policy);
+	err = nla_parse_nested(tb, TCA_IPT_MAX, nla, ipt_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -159,7 +161,7 @@ static int __tcf_ipt_init(struct tc_action_net *tn, struct nlattr *nla,
 	if (unlikely(!t))
 		goto err2;
 
-	err = ipt_init_target(t, tname, hook);
+	err = ipt_init_target(net, t, tname, hook);
 	if (err < 0)
 		goto err3;
 
@@ -193,18 +195,16 @@ static int tcf_ipt_init(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **a, int ovr,
 			int bind)
 {
-	struct tc_action_net *tn = net_generic(net, ipt_net_id);
-
-	return __tcf_ipt_init(tn, nla, est, a, &act_ipt_ops, ovr, bind);
+	return __tcf_ipt_init(net, ipt_net_id, nla, est, a, &act_ipt_ops, ovr,
+			      bind);
 }
 
 static int tcf_xt_init(struct net *net, struct nlattr *nla,
 		       struct nlattr *est, struct tc_action **a, int ovr,
 		       int bind)
 {
-	struct tc_action_net *tn = net_generic(net, xt_net_id);
-
-	return __tcf_ipt_init(tn, nla, est, a, &act_xt_ops, ovr, bind);
+	return __tcf_ipt_init(net, xt_net_id, nla, est, a, &act_xt_ops, ovr,
+			      bind);
 }
 
 static int tcf_ipt(struct sk_buff *skb, const struct tc_action *a,
@@ -213,6 +213,12 @@ static int tcf_ipt(struct sk_buff *skb, const struct tc_action *a,
 	int ret = 0, result = 0;
 	struct tcf_ipt *ipt = to_ipt(a);
 	struct xt_action_param par;
+	struct nf_hook_state state = {
+		.net	= dev_net(skb->dev),
+		.in	= skb->dev,
+		.hook	= ipt->tcfi_hook,
+		.pf	= NFPROTO_IPV4,
+	};
 
 	if (skb_unclone(skb, GFP_ATOMIC))
 		return TC_ACT_UNSPEC;
@@ -226,13 +232,9 @@ static int tcf_ipt(struct sk_buff *skb, const struct tc_action *a,
 	 * worry later - danger - this API seems to have changed
 	 * from earlier kernels
 	 */
-	par.net	     = dev_net(skb->dev);
-	par.in       = skb->dev;
-	par.out      = NULL;
-	par.hooknum  = ipt->tcfi_hook;
+	par.state    = &state;
 	par.target   = ipt->tcfi_t->u.kernel.target;
 	par.targinfo = ipt->tcfi_t->data;
-	par.family   = NFPROTO_IPV4;
 	ret = par.target->target(skb, &par);
 
 	switch (ret) {

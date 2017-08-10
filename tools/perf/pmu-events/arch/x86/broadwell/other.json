@@ -1,0 +1,44 @@
+[
+    {
+        "PublicDescription": "This event counts the unhalted core cycles during which the thread is in the ring 0 privileged mode.",
+        "EventCode": "0x5C",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "CPL_CYCLES.RING0",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Unhalted core cycles when the thread is in ring 0",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "This event counts unhalted core cycles during which the thread is in rings 1, 2, or 3.",
+        "EventCode": "0x5C",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "CPL_CYCLES.RING123",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Unhalted core cycles when thread is in rings 1, 2, or 3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "This event counts when there is a transition from ring 1,2 or 3 to ring0.",
+        "EventCode": "0x5C",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EdgeDetect": "1",
+        "EventName": "CPL_CYCLES.RING0_TRANS",
+        "SampleAfterValue": "100007",
+        "BriefDescription": "Number of intervals between processor halts while thread is in ring 0",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "This event counts cycles in which the L1 and L2 are locked due to a UC lock or split lock. A lock is asserted in case of locked memory access, due to noncacheable memory, locked operation that spans two cache lines, or a page walk from the noncacheable page table. L1D and L2 locks have a very high performance penalty and it is highly recommended to avoid such access.",
+        "EventCode": "0x63",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "LOCK_CYCLES.SPLIT_LOCK_UC_LOCK_DURATION",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles when L1 and L2 are locked due to UC or split lock",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    }
+]

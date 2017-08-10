@@ -51,13 +51,6 @@ default behaviour.
 	CRC enabled filesystems always use the attr2 format, and so
 	will reject the noattr2 mount option if it is set.
 
-  barrier (*)
-  nobarrier
-	Enables/disables the use of block layer write barriers for
-	writes into the journal and for data integrity operations.
-	This allows for drive level write caching to be enabled, for
-	devices that support write barriers.
-
   discard
   nodiscard (*)
 	Enable/disable the issuing of commands to let the block
@@ -228,7 +221,10 @@ default behaviour.
 Deprecated Mount Options
 ========================
 
-None at present.
+  Name				Removal Schedule
+  ----				----------------
+  barrier			no earlier than v4.15
+  nobarrier			no earlier than v4.15
 
 
 Removed Mount Options

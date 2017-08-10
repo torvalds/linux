@@ -373,7 +373,7 @@ static void bot_cleanup_old_alt(struct f_uas *fu)
 	usb_ep_free_request(fu->ep_in, fu->bot_req_in);
 	usb_ep_free_request(fu->ep_out, fu->bot_req_out);
 	usb_ep_free_request(fu->ep_out, fu->cmd.req);
-	usb_ep_free_request(fu->ep_out, fu->bot_status.req);
+	usb_ep_free_request(fu->ep_in, fu->bot_status.req);
 
 	kfree(fu->cmd.buf);
 
@@ -1073,7 +1073,7 @@ static struct usbg_cmd *usbg_get_cmd(struct f_uas *fu,
 	struct usbg_cmd *cmd;
 	int tag;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, GFP_ATOMIC);
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
 	if (tag < 0)
 		return ERR_PTR(-ENOMEM);
 

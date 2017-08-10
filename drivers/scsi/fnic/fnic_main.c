@@ -106,6 +106,7 @@ static struct scsi_host_template fnic_host_template = {
 	.module = THIS_MODULE,
 	.name = DRV_NAME,
 	.queuecommand = fnic_queuecommand,
+	.eh_timed_out = fc_eh_timed_out,
 	.eh_abort_handler = fnic_abort_cmd,
 	.eh_device_reset_handler = fnic_device_reset,
 	.eh_host_reset_handler = fnic_host_reset,
@@ -175,11 +176,21 @@ static void fnic_get_host_speed(struct Scsi_Host *shost)
 
 	/* Add in other values as they get defined in fw */
 	switch (port_speed) {
-	case 10000:
+	case DCEM_PORTSPEED_10G:
 		fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
 		break;
+	case DCEM_PORTSPEED_25G:
+		fc_host_speed(shost) = FC_PORTSPEED_25GBIT;
+		break;
+	case DCEM_PORTSPEED_40G:
+	case DCEM_PORTSPEED_4x10G:
+		fc_host_speed(shost) = FC_PORTSPEED_40GBIT;
+		break;
+	case DCEM_PORTSPEED_100G:
+		fc_host_speed(shost) = FC_PORTSPEED_100GBIT;
+		break;
 	default:
-		fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
+		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 		break;
 	}
 }

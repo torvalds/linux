@@ -118,7 +118,7 @@ struct lov_device_emerg {
 	 *
 	 * \see cl_env_get()
 	 */
-	int		 emrg_refcheck;
+	u16		 emrg_refcheck;
 };
 
 struct lov_device {
@@ -217,7 +217,7 @@ struct lov_object {
 
 	union lov_layout_state {
 		struct lov_layout_raid0 {
-			unsigned	       lo_nr;
+			unsigned int	       lo_nr;
 			/**
 			 * When this is true, lov_object::lo_attr contains
 			 * valid up to date attributes for a top-level
@@ -370,7 +370,7 @@ struct lov_thread_info {
 	struct ost_lvb	  lti_lvb;
 	struct cl_2queue	lti_cl2q;
 	struct cl_page_list     lti_plist;
-	wait_queue_t	  lti_waiter;
+	wait_queue_entry_t	  lti_waiter;
 	struct cl_attr          lti_attr;
 };
 
@@ -378,7 +378,29 @@ struct lov_thread_info {
  * State that lov_io maintains for every sub-io.
  */
 struct lov_io_sub {
-	int		  sub_stripe;
+	u16		 sub_stripe;
+	/**
+	 * environment's refcheck.
+	 *
+	 * \see cl_env_get()
+	 */
+	u16			 sub_refcheck;
+	u16			 sub_reenter;
+	/**
+	 * true, iff cl_io_init() was successfully executed against
+	 * lov_io_sub::sub_io.
+	 */
+	u16			 sub_io_initialized:1,
+	/**
+	 * True, iff lov_io_sub::sub_io and lov_io_sub::sub_env weren't
+	 * allocated, but borrowed from a per-device emergency pool.
+	 */
+				 sub_borrowed:1;
+	/**
+	 * Linkage into a list (hanging off lov_io::lis_active) of all
+	 * sub-io's active for the current IO iteration.
+	 */
+	struct list_head	 sub_linkage;
 	/**
 	 * sub-io for a stripe. Ideally sub-io's can be stopped and resumed
 	 * independently, with lov acting as a scheduler to maximize overall
@@ -386,33 +408,9 @@ struct lov_io_sub {
 	 */
 	struct cl_io	*sub_io;
 	/**
-	 * Linkage into a list (hanging off lov_io::lis_active) of all
-	 * sub-io's active for the current IO iteration.
-	 */
-	struct list_head	   sub_linkage;
-	/**
-	 * true, iff cl_io_init() was successfully executed against
-	 * lov_io_sub::sub_io.
-	 */
-	int		  sub_io_initialized;
-	/**
-	 * True, iff lov_io_sub::sub_io and lov_io_sub::sub_env weren't
-	 * allocated, but borrowed from a per-device emergency pool.
-	 */
-	int		  sub_borrowed;
-	/**
 	 * environment, in which sub-io executes.
 	 */
 	struct lu_env *sub_env;
-	/**
-	 * environment's refcheck.
-	 *
-	 * \see cl_env_get()
-	 */
-	int		  sub_refcheck;
-	int		  sub_refcheck2;
-	int		  sub_reenter;
-	void		*sub_cookie;
 };
 
 /**
@@ -473,20 +471,6 @@ struct lov_session {
 	struct lov_sublock_env ls_subenv;
 };
 
-/**
- * State of transfer for lov.
- */
-struct lov_req {
-	struct cl_req_slice lr_cl;
-};
-
-/**
- * State of transfer for lovsub.
- */
-struct lovsub_req {
-	struct cl_req_slice lsrq_cl;
-};
-
 extern struct lu_device_type lov_device_type;
 extern struct lu_device_type lovsub_device_type;
 
@@ -497,11 +481,9 @@ extern struct kmem_cache *lov_lock_kmem;
 extern struct kmem_cache *lov_object_kmem;
 extern struct kmem_cache *lov_thread_kmem;
 extern struct kmem_cache *lov_session_kmem;
-extern struct kmem_cache *lov_req_kmem;
 
 extern struct kmem_cache *lovsub_lock_kmem;
 extern struct kmem_cache *lovsub_object_kmem;
-extern struct kmem_cache *lovsub_req_kmem;
 
 extern struct kmem_cache *lov_lock_link_kmem;
 
@@ -700,21 +682,11 @@ static inline struct lov_page *cl2lov_page(const struct cl_page_slice *slice)
 	return container_of0(slice, struct lov_page, lps_cl);
 }
 
-static inline struct lov_req *cl2lov_req(const struct cl_req_slice *slice)
-{
-	return container_of0(slice, struct lov_req, lr_cl);
-}
-
 static inline struct lovsub_page *
 cl2lovsub_page(const struct cl_page_slice *slice)
 {
 	LINVRNT(lovsub_is_object(&slice->cpl_obj->co_lu));
 	return container_of0(slice, struct lovsub_page, lsb_cl);
-}
-
-static inline struct lovsub_req *cl2lovsub_req(const struct cl_req_slice *slice)
-{
-	return container_of0(slice, struct lovsub_req, lsrq_cl);
 }
 
 static inline struct lov_io *cl2lov_io(const struct lu_env *env,

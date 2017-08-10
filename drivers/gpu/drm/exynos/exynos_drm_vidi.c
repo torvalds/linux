@@ -51,7 +51,6 @@ struct vidi_context {
 	bool				suspended;
 	struct timer_list		timer;
 	struct mutex			lock;
-	int				pipe;
 };
 
 static inline struct vidi_context *encoder_to_vidi(struct drm_encoder *e)
@@ -153,31 +152,18 @@ static void vidi_disable(struct exynos_drm_crtc *crtc)
 	mutex_unlock(&ctx->lock);
 }
 
-static int vidi_ctx_initialize(struct vidi_context *ctx,
-			struct drm_device *drm_dev)
-{
-	struct exynos_drm_private *priv = drm_dev->dev_private;
-
-	ctx->drm_dev = drm_dev;
-	ctx->pipe = priv->pipe++;
-
-	return 0;
-}
-
 static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
 	.enable = vidi_enable,
 	.disable = vidi_disable,
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
 	.update_plane = vidi_update_plane,
+	.atomic_flush = exynos_crtc_handle_event,
 };
 
 static void vidi_fake_vblank_timer(unsigned long arg)
 {
 	struct vidi_context *ctx = (void *)arg;
-
-	if (ctx->pipe < 0)
-		return;
 
 	if (drm_crtc_handle_vblank(&ctx->crtc->base))
 		mod_timer(&ctx->timer,
@@ -359,7 +345,6 @@ static int vidi_create_connector(struct drm_encoder *encoder)
 	}
 
 	drm_connector_helper_add(connector, &vidi_connector_helper_funcs);
-	drm_connector_register(connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	return 0;
@@ -399,7 +384,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	unsigned int i;
 	int pipe, ret;
 
-	vidi_ctx_initialize(ctx, drm_dev);
+	ctx->drm_dev = drm_dev;
 
 	plane_config.pixel_formats = formats;
 	plane_config.num_pixel_formats = ARRAY_SIZE(formats);
@@ -409,15 +394,14 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 		plane_config.type = vidi_win_types[i];
 
 		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
-					1 << ctx->pipe, &plane_config);
+					&plane_config);
 		if (ret)
 			return ret;
 	}
 
 	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
-					   ctx->pipe, EXYNOS_DISPLAY_TYPE_VIDI,
-					   &vidi_crtc_ops, ctx);
+			EXYNOS_DISPLAY_TYPE_VIDI, &vidi_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
 		DRM_ERROR("failed to create crtc.\n");
 		return PTR_ERR(ctx->crtc);

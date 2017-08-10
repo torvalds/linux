@@ -392,6 +392,7 @@ static int __set_xattr(struct ceph_inode_info *ci,
 
 	if (update_xattr) {
 		int err = 0;
+
 		if (xattr && (flags & XATTR_CREATE))
 			err = -EEXIST;
 		else if (!xattr && (flags & XATTR_REPLACE))
@@ -399,12 +400,14 @@ static int __set_xattr(struct ceph_inode_info *ci,
 		if (err) {
 			kfree(name);
 			kfree(val);
+			kfree(*newxattr);
 			return err;
 		}
 		if (update_xattr < 0) {
 			if (xattr)
 				__remove_xattr(ci, xattr);
 			kfree(name);
+			kfree(*newxattr);
 			return 0;
 		}
 	}
@@ -753,6 +756,9 @@ ssize_t __ceph_getxattr(struct inode *inode, const char *name, void *value,
 	/* let's see if a virtual xattr was requested */
 	vxattr = ceph_match_vxattr(inode, name);
 	if (vxattr) {
+		err = ceph_do_getattr(inode, 0, true);
+		if (err)
+			return err;
 		err = -ENODATA;
 		if (!(vxattr->exists_cb && !vxattr->exists_cb(ci)))
 			err = vxattr->getxattr_cb(ci, value, size);

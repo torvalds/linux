@@ -17,7 +17,7 @@
 
 static int forbid_dac __read_mostly;
 
-struct dma_map_ops *dma_ops = &nommu_dma_ops;
+const struct dma_map_ops *dma_ops = &nommu_dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 static int iommu_sac_force __read_mostly;
@@ -91,7 +91,8 @@ again:
 	page = NULL;
 	/* CMA can be used only in the context which permits sleeping */
 	if (gfpflags_allow_blocking(flag)) {
-		page = dma_alloc_from_contiguous(dev, count, get_order(size));
+		page = dma_alloc_from_contiguous(dev, count, get_order(size),
+						 flag);
 		if (page && page_to_phys(page) + size > dma_mask) {
 			dma_release_from_contiguous(dev, page, count);
 			page = NULL;
@@ -212,19 +213,14 @@ static __init int iommu_setup(char *p)
 }
 early_param("iommu", iommu_setup);
 
-int dma_supported(struct device *dev, u64 mask)
+int x86_dma_supported(struct device *dev, u64 mask)
 {
-	struct dma_map_ops *ops = get_dma_ops(dev);
-
 #ifdef CONFIG_PCI
 	if (mask > 0xffffffff && forbid_dac > 0) {
 		dev_info(dev, "PCI: Disallowing DAC for device\n");
 		return 0;
 	}
 #endif
-
-	if (ops->dma_supported)
-		return ops->dma_supported(dev, mask);
 
 	/* Copied from i386. Doesn't make much sense, because it will
 	   only work for pci_alloc_coherent.
@@ -251,7 +247,6 @@ int dma_supported(struct device *dev, u64 mask)
 
 	return 1;
 }
-EXPORT_SYMBOL(dma_supported);
 
 static int __init pci_iommu_init(void)
 {

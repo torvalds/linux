@@ -26,7 +26,7 @@ high bits filled with zeros. Each n-pixel row contains n/2 green samples
 and n/2 blue or red samples, with alternating red and blue rows. Bytes
 are stored in memory in little endian order. They are conventionally
 described as GRGR... BGBG..., RGRG... GBGB..., etc. Below is an example
-of one of these formats:
+of a small V4L2_PIX_FMT_SBGGR12 image:
 
 **Byte Order.**
 Each cell is one byte, the 4 most significant bits in the high bytes are

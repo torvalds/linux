@@ -277,6 +277,29 @@
 #define DEFR10_TSEL_H3_TCON1	(0 << 1) /* DEFR102 register only (DU2/DU3) */
 #define DEFR10_DEFE10		(1 << 0)
 
+#define DPLLCR			0x20044
+#define DPLLCR_CODE		(0x95 << 24)
+#define DPLLCR_PLCS1		(1 << 23)
+/*
+ * PLCS0 is bit 21, but H3 ES1.x requires bit 20 to be set as well. As bit 20
+ * isn't implemented by other SoC in the Gen3 family it can safely be set
+ * unconditionally.
+ */
+#define DPLLCR_PLCS0		(3 << 20)
+#define DPLLCR_CLKE		(1 << 18)
+#define DPLLCR_FDPLL(n)		((n) << 12)
+#define DPLLCR_N(n)		((n) << 5)
+#define DPLLCR_M(n)		((n) << 3)
+#define DPLLCR_STBY		(1 << 2)
+#define DPLLCR_INCS_DOTCLKIN0	(0 << 0)
+#define DPLLCR_INCS_DOTCLKIN1	(1 << 1)
+
+#define DPLLC2R			0x20048
+#define DPLLC2R_CODE		(0x95 << 24)
+#define DPLLC2R_SELC		(1 << 12)
+#define DPLLC2R_M(n)		((n) << 8)
+#define DPLLC2R_FDPLL(n)	((n) << 0)
+
 /* -----------------------------------------------------------------------------
  * Display Timing Generation Registers
  */

@@ -450,29 +450,33 @@ done:
 static int rcar_pcie_enable(struct rcar_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
 	struct pci_bus *bus, *child;
-	LIST_HEAD(res);
+	int ret;
 
 	/* Try setting 5 GT/s link speed */
 	rcar_pcie_force_speedup(pcie);
 
-	rcar_pcie_setup(&res, pcie);
+	rcar_pcie_setup(&bridge->windows, pcie);
 
 	pci_add_flags(PCI_REASSIGN_ALL_RSRC | PCI_REASSIGN_ALL_BUS);
 
+	bridge->dev.parent = dev;
+	bridge->sysdata = pcie;
+	bridge->busnr = pcie->root_bus_nr;
+	bridge->ops = &rcar_pcie_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
 	if (IS_ENABLED(CONFIG_PCI_MSI))
-		bus = pci_scan_root_bus_msi(dev, pcie->root_bus_nr,
-				&rcar_pcie_ops, pcie, &res, &pcie->msi.chip);
-	else
-		bus = pci_scan_root_bus(dev, pcie->root_bus_nr,
-				&rcar_pcie_ops, pcie, &res);
+		bridge->msi = &pcie->msi.chip;
 
-	if (!bus) {
-		dev_err(dev, "Scanning rootbus failed");
-		return -ENODEV;
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret < 0) {
+		kfree(bridge);
+		return ret;
 	}
 
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
+	bus = bridge->bus;
 
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
@@ -1071,13 +1075,14 @@ static int rcar_pcie_parse_map_dma_ranges(struct rcar_pcie *pcie,
 
 static const struct of_device_id rcar_pcie_of_match[] = {
 	{ .compatible = "renesas,pcie-r8a7779", .data = rcar_pcie_hw_init_h1 },
-	{ .compatible = "renesas,pcie-rcar-gen2",
-	  .data = rcar_pcie_hw_init_gen2 },
 	{ .compatible = "renesas,pcie-r8a7790",
 	  .data = rcar_pcie_hw_init_gen2 },
 	{ .compatible = "renesas,pcie-r8a7791",
 	  .data = rcar_pcie_hw_init_gen2 },
+	{ .compatible = "renesas,pcie-rcar-gen2",
+	  .data = rcar_pcie_hw_init_gen2 },
 	{ .compatible = "renesas,pcie-r8a7795", .data = rcar_pcie_hw_init },
+	{ .compatible = "renesas,pcie-rcar-gen3", .data = rcar_pcie_hw_init },
 	{},
 };
 
@@ -1124,13 +1129,15 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rcar_pcie *pcie;
 	unsigned int data;
-	const struct of_device_id *of_id;
 	int err;
 	int (*hw_init_fn)(struct rcar_pcie *);
+	struct pci_host_bridge *bridge;
 
-	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
-	if (!pcie)
+	bridge = pci_alloc_host_bridge(sizeof(*pcie));
+	if (!bridge)
 		return -ENOMEM;
+
+	pcie = pci_host_bridge_priv(bridge);
 
 	pcie->dev = dev;
 
@@ -1141,17 +1148,12 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	err = rcar_pcie_get_resources(pcie);
 	if (err < 0) {
 		dev_err(dev, "failed to request resources: %d\n", err);
-		return err;
+		goto err_free_bridge;
 	}
 
 	err = rcar_pcie_parse_map_dma_ranges(pcie, dev->of_node);
 	if (err)
-		return err;
-
-	of_id = of_match_device(rcar_pcie_of_match, dev);
-	if (!of_id || !of_id->data)
-		return -EINVAL;
-	hw_init_fn = of_id->data;
+		goto err_free_bridge;
 
 	pm_runtime_enable(dev);
 	err = pm_runtime_get_sync(dev);
@@ -1161,10 +1163,11 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	}
 
 	/* Failure to get a link might just be that no cards are inserted */
+	hw_init_fn = of_device_get_match_data(dev);
 	err = hw_init_fn(pcie);
 	if (err) {
 		dev_info(dev, "PCIe link down\n");
-		err = 0;
+		err = -ENODEV;
 		goto err_pm_put;
 	}
 
@@ -1186,6 +1189,9 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 		goto err_pm_put;
 
 	return 0;
+
+err_free_bridge:
+	pci_free_host_bridge(bridge);
 
 err_pm_put:
 	pm_runtime_put(dev);

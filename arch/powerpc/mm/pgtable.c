@@ -193,9 +193,7 @@ void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 	 */
 	VM_WARN_ON(pte_present(*ptep) && !pte_protnone(*ptep));
 
-	/*
-	 * Add the pte bit when tryint set a pte
-	 */
+	/* Add the pte bit when trying to set a pte */
 	pte = __pte(pte_val(pte) | _PAGE_PTE);
 
 	/* Note: mm->context.id might not yet have been assigned as
@@ -224,7 +222,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 	if (changed) {
 		if (!is_vm_hugetlb_page(vma))
 			assert_pte_locked(vma->vm_mm, address);
-		__ptep_set_access_flags(vma->vm_mm, ptep, entry);
+		__ptep_set_access_flags(vma->vm_mm, ptep, entry, address);
 		flush_tlb_page(vma, address);
 	}
 	return changed;

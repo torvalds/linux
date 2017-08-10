@@ -212,7 +212,7 @@ MODULE_DESCRIPTION("Aztech AZF3328 (PCI168)");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Aztech,AZF3328}}");
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_GAMEPORT 1
 #endif
 
@@ -2014,7 +2014,7 @@ static const struct snd_pcm_hardware snd_azf3328_hardware =
 };
 
 
-static unsigned int snd_azf3328_fixed_rates[] = {
+static const unsigned int snd_azf3328_fixed_rates[] = {
 	AZF_FREQ_4000,
 	AZF_FREQ_4800,
 	AZF_FREQ_5512,
@@ -2031,7 +2031,7 @@ static unsigned int snd_azf3328_fixed_rates[] = {
 	AZF_FREQ_66200
 };
 
-static struct snd_pcm_hw_constraint_list snd_azf3328_hw_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list snd_azf3328_hw_constraints_rates = {
 	.count = ARRAY_SIZE(snd_azf3328_fixed_rates),
 	.list = snd_azf3328_fixed_rates,
 	.mask = 0,

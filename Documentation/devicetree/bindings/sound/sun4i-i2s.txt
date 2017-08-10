@@ -5,8 +5,9 @@ audio data transfer between devices in the system.
 
 Required properties:
 
-- compatible: should be one of the followings
+- compatible: should be one of the following:
    - "allwinner,sun4i-a10-i2s"
+   - "allwinner,sun6i-a31-i2s"
 - reg: physical base address of the controller and length of memory mapped
   region.
 - interrupts: should contain the I2S interrupt.
@@ -14,10 +15,14 @@ Required properties:
 	Documentation/devicetree/bindings/dma/dma.txt
 - dma-names: should include "tx" and "rx".
 - clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
-- clock-names: should contain followings:
+- clock-names: should contain the following:
    - "apb" : clock for the I2S bus interface
    - "mod" : module clock for the I2S controller
 - #sound-dai-cells : Must be equal to 0
+
+Required properties for the following compatibles:
+	- "allwinner,sun6i-a31-i2s"
+- resets: phandle to the reset line for this codec
 
 Example:
 

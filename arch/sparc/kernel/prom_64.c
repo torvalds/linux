@@ -381,7 +381,7 @@ bool arch_find_n_match_cpu_physical_id(struct device_node *cpun,
 	int this_cpu_id;
 
 	/* On hypervisor based platforms we interrogate the 'reg'
-	 * property.  On everything else we look for a 'upa-portis',
+	 * property.  On everything else we look for a 'upa-portid',
 	 * 'portid', or 'cpuid' property.
 	 */
 

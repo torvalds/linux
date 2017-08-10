@@ -28,6 +28,7 @@
 #include <linux/string.h>
 #include <linux/configfs.h>
 #include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <scsi/scsi_proto.h>
@@ -928,7 +929,7 @@ static struct sbp_target_request *sbp_mgt_get_req(struct sbp_session *sess,
 	struct sbp_target_request *req;
 	int tag;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, GFP_ATOMIC);
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
 	if (tag < 0)
 		return ERR_PTR(-ENOMEM);
 

@@ -8,16 +8,24 @@
  */
 
 #include <byteswap.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <linux/bitops.h>
+#include <api/fs/fs.h>
 #include <api/fs/tracing_path.h>
 #include <traceevent/event-parse.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
+#include <linux/compiler.h>
 #include <linux/err.h>
+#include <sys/ioctl.h>
 #include <sys/resource.h>
+#include <sys/types.h>
+#include <dirent.h>
 #include "asm/bug.h"
 #include "callchain.h"
 #include "cgroup.h"
+#include "event.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "util.h"
@@ -28,6 +36,9 @@
 #include "debug.h"
 #include "trace-event.h"
 #include "stat.h"
+#include "util/parse-branch-options.h"
+
+#include "sane_ctype.h"
 
 static struct {
 	bool sample_id_all;
@@ -235,6 +246,10 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->sample_size = __perf_evsel__sample_size(attr->sample_type);
 	perf_evsel__calc_id_pos(evsel);
 	evsel->cmdline_group_boundary = false;
+	evsel->metric_expr   = NULL;
+	evsel->metric_name   = NULL;
+	evsel->metric_events = NULL;
+	evsel->collect_stat  = false;
 }
 
 struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
@@ -258,20 +273,35 @@ struct perf_evsel *perf_evsel__new_cycles(void)
 	struct perf_event_attr attr = {
 		.type	= PERF_TYPE_HARDWARE,
 		.config	= PERF_COUNT_HW_CPU_CYCLES,
+		.exclude_kernel	= geteuid() != 0,
 	};
 	struct perf_evsel *evsel;
 
 	event_attr_init(&attr);
+	/*
+	 * Unnamed union member, not supported as struct member named
+	 * initializer in older compilers such as gcc 4.4.7
+	 *
+	 * Just for probing the precise_ip:
+	 */
+	attr.sample_period = 1;
 
 	perf_event_attr__set_max_precise_ip(&attr);
+	/*
+	 * Now let the usual logic to set up the perf_event_attr defaults
+	 * to kick in when we return and before perf_evsel__open() is called.
+	 */
+	attr.sample_period = 0;
 
 	evsel = perf_evsel__new(&attr);
 	if (evsel == NULL)
 		goto out;
 
 	/* use asprintf() because free(evsel) assumes name is allocated */
-	if (asprintf(&evsel->name, "cycles%.*s",
-		     attr.precise_ip ? attr.precise_ip + 1 : 0, ":ppp") < 0)
+	if (asprintf(&evsel->name, "cycles%s%s%.*s",
+		     (attr.precise_ip || attr.exclude_kernel) ? ":" : "",
+		     attr.exclude_kernel ? "u" : "",
+		     attr.precise_ip ? attr.precise_ip + 1 : 0, "ppp") < 0)
 		goto error_free;
 out:
 	return evsel;
@@ -708,6 +738,14 @@ static void apply_config_terms(struct perf_evsel *evsel,
 		case PERF_EVSEL__CONFIG_TERM_CALLGRAPH:
 			callgraph_buf = term->val.callgraph;
 			break;
+		case PERF_EVSEL__CONFIG_TERM_BRANCH:
+			if (term->val.branch && strcmp(term->val.branch, "no")) {
+				perf_evsel__set_sample_bit(evsel, BRANCH_STACK);
+				parse_branch_str(term->val.branch,
+						 &attr->branch_sample_type);
+			} else
+				perf_evsel__reset_sample_bit(evsel, BRANCH_STACK);
+			break;
 		case PERF_EVSEL__CONFIG_TERM_STACK_USER:
 			dump_size = term->val.stack_user;
 			break;
@@ -923,6 +961,9 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	attr->mmap2 = track && !perf_missing_features.mmap2;
 	attr->comm  = track;
 
+	if (opts->record_namespaces)
+		attr->namespaces  = track;
+
 	if (opts->record_switch_events)
 		attr->context_switch = track;
 
@@ -981,6 +1022,8 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	 * it overloads any global configuration.
 	 */
 	apply_config_terms(evsel, opts);
+
+	evsel->ignore_missing_thread = opts->ignore_missing_thread;
 }
 
 static int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
@@ -1221,7 +1264,7 @@ int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
 	if (FD(evsel, cpu, thread) < 0)
 		return -EINVAL;
 
-	if (readn(FD(evsel, cpu, thread), count, sizeof(*count)) < 0)
+	if (readn(FD(evsel, cpu, thread), count, sizeof(*count)) <= 0)
 		return -errno;
 
 	return 0;
@@ -1239,7 +1282,7 @@ int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 	if (evsel->counts == NULL && perf_evsel__alloc_counts(evsel, cpu + 1, thread + 1) < 0)
 		return -ENOMEM;
 
-	if (readn(FD(evsel, cpu, thread), &count, nv * sizeof(u64)) < 0)
+	if (readn(FD(evsel, cpu, thread), &count, nv * sizeof(u64)) <= 0)
 		return -errno;
 
 	perf_evsel__compute_deltas(evsel, cpu, thread, &count);
@@ -1405,13 +1448,40 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 }
 
 static int __open_attr__fprintf(FILE *fp, const char *name, const char *val,
-				void *priv __attribute__((unused)))
+				void *priv __maybe_unused)
 {
 	return fprintf(fp, "  %-32s %s\n", name, val);
 }
 
-static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-			      struct thread_map *threads)
+static bool ignore_missing_thread(struct perf_evsel *evsel,
+				  struct thread_map *threads,
+				  int thread, int err)
+{
+	if (!evsel->ignore_missing_thread)
+		return false;
+
+	/* The system wide setup does not work with threads. */
+	if (evsel->system_wide)
+		return false;
+
+	/* The -ESRCH is perf event syscall errno for pid's not found. */
+	if (err != -ESRCH)
+		return false;
+
+	/* If there's only one thread, let it fail. */
+	if (threads->nr == 1)
+		return false;
+
+	if (thread_map__remove(threads, thread))
+		return false;
+
+	pr_warning("WARNING: Ignored open failure for pid %d\n",
+		   thread_map__pid(threads, thread));
+	return true;
+}
+
+int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
+		     struct thread_map *threads)
 {
 	int cpu, thread, nthreads;
 	unsigned long flags = PERF_FLAG_FD_CLOEXEC;
@@ -1420,6 +1490,30 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 
 	if (perf_missing_features.write_backward && evsel->attr.write_backward)
 		return -EINVAL;
+
+	if (cpus == NULL) {
+		static struct cpu_map *empty_cpu_map;
+
+		if (empty_cpu_map == NULL) {
+			empty_cpu_map = cpu_map__dummy_new();
+			if (empty_cpu_map == NULL)
+				return -ENOMEM;
+		}
+
+		cpus = empty_cpu_map;
+	}
+
+	if (threads == NULL) {
+		static struct thread_map *empty_thread_map;
+
+		if (empty_thread_map == NULL) {
+			empty_thread_map = thread_map__new_by_tid(-1);
+			if (empty_thread_map == NULL)
+				return -ENOMEM;
+		}
+
+		threads = empty_thread_map;
+	}
 
 	if (evsel->system_wide)
 		nthreads = 1;
@@ -1465,29 +1559,47 @@ retry_sample_id:
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 
 		for (thread = 0; thread < nthreads; thread++) {
-			int group_fd;
+			int fd, group_fd;
 
 			if (!evsel->cgrp && !evsel->system_wide)
 				pid = thread_map__pid(threads, thread);
 
 			group_fd = get_group_fd(evsel, cpu, thread);
 retry_open:
-			pr_debug2("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx\n",
+			pr_debug2("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
 				  pid, cpus->map[cpu], group_fd, flags);
 
-			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
-								     pid,
-								     cpus->map[cpu],
-								     group_fd, flags);
-			if (FD(evsel, cpu, thread) < 0) {
+			fd = sys_perf_event_open(&evsel->attr, pid, cpus->map[cpu],
+						 group_fd, flags);
+
+			FD(evsel, cpu, thread) = fd;
+
+			if (fd < 0) {
 				err = -errno;
-				pr_debug2("sys_perf_event_open failed, error %d\n",
+
+				if (ignore_missing_thread(evsel, threads, thread, err)) {
+					/*
+					 * We just removed 1 thread, so take a step
+					 * back on thread index and lower the upper
+					 * nthreads limit.
+					 */
+					nthreads--;
+					thread--;
+
+					/* ... and pretend like nothing have happened. */
+					err = 0;
+					continue;
+				}
+
+				pr_debug2("\nsys_perf_event_open failed, error %d\n",
 					  err);
 				goto try_fallback;
 			}
 
+			pr_debug2(" = %d\n", fd);
+
 			if (evsel->bpf_fd >= 0) {
-				int evt_fd = FD(evsel, cpu, thread);
+				int evt_fd = fd;
 				int bpf_fd = evsel->bpf_fd;
 
 				err = ioctl(evt_fd,
@@ -1599,46 +1711,16 @@ void perf_evsel__close(struct perf_evsel *evsel, int ncpus, int nthreads)
 	perf_evsel__free_fd(evsel);
 }
 
-static struct {
-	struct cpu_map map;
-	int cpus[1];
-} empty_cpu_map = {
-	.map.nr	= 1,
-	.cpus	= { -1, },
-};
-
-static struct {
-	struct thread_map map;
-	int threads[1];
-} empty_thread_map = {
-	.map.nr	 = 1,
-	.threads = { -1, },
-};
-
-int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-		     struct thread_map *threads)
-{
-	if (cpus == NULL) {
-		/* Work around old compiler warnings about strict aliasing */
-		cpus = &empty_cpu_map.map;
-	}
-
-	if (threads == NULL)
-		threads = &empty_thread_map.map;
-
-	return __perf_evsel__open(evsel, cpus, threads);
-}
-
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
 			     struct cpu_map *cpus)
 {
-	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map);
+	return perf_evsel__open(evsel, cpus, NULL);
 }
 
 int perf_evsel__open_per_thread(struct perf_evsel *evsel,
 				struct thread_map *threads)
 {
-	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads);
+	return perf_evsel__open(evsel, NULL, threads);
 }
 
 static int perf_evsel__parse_id_sample(const struct perf_evsel *evsel,
@@ -2396,15 +2478,57 @@ bool perf_evsel__fallback(struct perf_evsel *evsel, int err,
 	return false;
 }
 
+static bool find_process(const char *name)
+{
+	size_t len = strlen(name);
+	DIR *dir;
+	struct dirent *d;
+	int ret = -1;
+
+	dir = opendir(procfs__mountpoint());
+	if (!dir)
+		return false;
+
+	/* Walk through the directory. */
+	while (ret && (d = readdir(dir)) != NULL) {
+		char path[PATH_MAX];
+		char *data;
+		size_t size;
+
+		if ((d->d_type != DT_DIR) ||
+		     !strcmp(".", d->d_name) ||
+		     !strcmp("..", d->d_name))
+			continue;
+
+		scnprintf(path, sizeof(path), "%s/%s/comm",
+			  procfs__mountpoint(), d->d_name);
+
+		if (filename__read_str(path, &data, &size))
+			continue;
+
+		ret = strncmp(name, data, len);
+		free(data);
+	}
+
+	closedir(dir);
+	return ret ? false : true;
+}
+
 int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 			      int err, char *msg, size_t size)
 {
 	char sbuf[STRERR_BUFSIZE];
+	int printed = 0;
 
 	switch (err) {
 	case EPERM:
 	case EACCES:
-		return scnprintf(msg, size,
+		if (err == EPERM)
+			printed = scnprintf(msg, size,
+				"No permission to enable %s event.\n\n",
+				perf_evsel__name(evsel));
+
+		return scnprintf(msg + printed, size - printed,
 		 "You may not have permission to collect %sstats.\n\n"
 		 "Consider tweaking /proc/sys/kernel/perf_event_paranoid,\n"
 		 "which controls use of the performance events system by\n"
@@ -2413,7 +2537,9 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 		 "  -1: Allow use of (almost) all events by all users\n"
 		 ">= 0: Disallow raw tracepoint access by users without CAP_IOC_LOCK\n"
 		 ">= 1: Disallow CPU event access by users without CAP_SYS_ADMIN\n"
-		 ">= 2: Disallow kernel profiling by users without CAP_SYS_ADMIN",
+		 ">= 2: Disallow kernel profiling by users without CAP_SYS_ADMIN\n\n"
+		 "To make this setting permanent, edit /etc/sysctl.conf too, e.g.:\n\n"
+		 "	kernel.perf_event_paranoid = -1\n" ,
 				 target->system_wide ? "system-wide " : "",
 				 perf_event_paranoid());
 	case ENOENT:

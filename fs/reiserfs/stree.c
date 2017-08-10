@@ -11,6 +11,7 @@
 #include <linux/time.h>
 #include <linux/string.h>
 #include <linux/pagemap.h>
+#include <linux/bio.h>
 #include "reiserfs.h"
 #include <linux/buffer_head.h>
 #include <linux/quotaops.h>

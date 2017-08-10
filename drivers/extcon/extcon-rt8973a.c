@@ -142,8 +142,10 @@ enum rt8973a_muic_acc_type {
 	RT8973A_MUIC_ADC_UNKNOWN_ACC_5,
 	RT8973A_MUIC_ADC_OPEN = 0x1f,
 
-	/* The below accessories has same ADC value (0x1f).
-	   So, Device type1 is used to separate specific accessory. */
+	/*
+	 * The below accessories has same ADC value (0x1f).
+	 * So, Device type1 is used to separate specific accessory.
+	 */
 					/* |---------|--ADC| */
 					/* |    [7:5]|[4:0]| */
 	RT8973A_MUIC_ADC_USB = 0x3f,	/* |      001|11111| */
@@ -535,7 +537,7 @@ static void rt8973a_init_dev_type(struct rt8973a_muic_info *info)
 		regmap_update_bits(info->regmap, reg, mask, val);
 	}
 
-	/* Check whether RT8973A is auto swithcing mode or not */
+	/* Check whether RT8973A is auto switching mode or not */
 	ret = regmap_read(info->regmap, RT8973A_REG_CONTROL1, &data);
 	if (ret) {
 		dev_err(info->dev,

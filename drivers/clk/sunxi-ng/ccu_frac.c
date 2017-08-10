@@ -14,7 +14,7 @@
 #include "ccu_frac.h"
 
 bool ccu_frac_helper_is_enabled(struct ccu_common *common,
-				struct _ccu_frac *cf)
+				struct ccu_frac_internal *cf)
 {
 	if (!(common->features & CCU_FEATURE_FRACTIONAL))
 		return false;
@@ -23,7 +23,7 @@ bool ccu_frac_helper_is_enabled(struct ccu_common *common,
 }
 
 void ccu_frac_helper_enable(struct ccu_common *common,
-			    struct _ccu_frac *cf)
+			    struct ccu_frac_internal *cf)
 {
 	unsigned long flags;
 	u32 reg;
@@ -38,7 +38,7 @@ void ccu_frac_helper_enable(struct ccu_common *common,
 }
 
 void ccu_frac_helper_disable(struct ccu_common *common,
-			     struct _ccu_frac *cf)
+			     struct ccu_frac_internal *cf)
 {
 	unsigned long flags;
 	u32 reg;
@@ -53,7 +53,7 @@ void ccu_frac_helper_disable(struct ccu_common *common,
 }
 
 bool ccu_frac_helper_has_rate(struct ccu_common *common,
-			      struct _ccu_frac *cf,
+			      struct ccu_frac_internal *cf,
 			      unsigned long rate)
 {
 	if (!(common->features & CCU_FEATURE_FRACTIONAL))
@@ -63,7 +63,7 @@ bool ccu_frac_helper_has_rate(struct ccu_common *common,
 }
 
 unsigned long ccu_frac_helper_read_rate(struct ccu_common *common,
-					struct _ccu_frac *cf)
+					struct ccu_frac_internal *cf)
 {
 	u32 reg;
 
@@ -84,7 +84,7 @@ unsigned long ccu_frac_helper_read_rate(struct ccu_common *common,
 }
 
 int ccu_frac_helper_set_rate(struct ccu_common *common,
-			     struct _ccu_frac *cf,
+			     struct ccu_frac_internal *cf,
 			     unsigned long rate)
 {
 	unsigned long flags;

@@ -16,6 +16,8 @@
 
 #include <linux/spinlock.h>
 #include <linux/shmem_fs.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 
 #include "etnaviv_drv.h"
 #include "etnaviv_gem.h"
@@ -175,8 +177,9 @@ int etnaviv_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return obj->ops->mmap(obj, vma);
 }
 
-int etnaviv_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+int etnaviv_gem_fault(struct vm_fault *vmf)
 {
+	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct page **pages, *page;
@@ -202,15 +205,14 @@ int etnaviv_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	/* We don't use vmf->pgoff since that has the fake offset: */
-	pgoff = ((unsigned long)vmf->virtual_address -
-			vma->vm_start) >> PAGE_SHIFT;
+	pgoff = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
 	page = pages[pgoff];
 
-	VERB("Inserting %p pfn %lx, pa %lx", vmf->virtual_address,
+	VERB("Inserting %p pfn %lx, pa %lx", (void *)vmf->address,
 	     page_to_pfn(page), page_to_pfn(page) << PAGE_SHIFT);
 
-	ret = vm_insert_page(vma, (unsigned long)vmf->virtual_address, page);
+	ret = vm_insert_page(vma, vmf->address, page);
 
 out:
 	switch (ret) {
@@ -470,10 +472,10 @@ int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
 }
 
 #ifdef CONFIG_DEBUG_FS
-static void etnaviv_gem_describe_fence(struct fence *fence,
+static void etnaviv_gem_describe_fence(struct dma_fence *fence,
 	const char *type, struct seq_file *m)
 {
-	if (!test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+	if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		seq_printf(m, "\t%9s: %s %s seq %u\n",
 			   type,
 			   fence->ops->get_driver_name(fence),
@@ -486,12 +488,12 @@ static void etnaviv_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct reservation_object *robj = etnaviv_obj->resv;
 	struct reservation_object_list *fobj;
-	struct fence *fence;
+	struct dma_fence *fence;
 	unsigned long off = drm_vma_node_start(&obj->vma_node);
 
 	seq_printf(m, "%08x: %c %2d (%2d) %08lx %p %zd\n",
 			etnaviv_obj->flags, is_active(etnaviv_obj) ? 'A' : 'I',
-			obj->name, obj->refcount.refcount.counter,
+			obj->name, kref_read(&obj->refcount),
 			off, etnaviv_obj->vaddr, obj->size);
 
 	rcu_read_lock();
@@ -750,7 +752,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 	uintptr_t ptr;
 	unsigned int flags = 0;
 
-	pvec = drm_malloc_ab(npages, sizeof(struct page *));
+	pvec = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (!pvec)
 		return ERR_PTR(-ENOMEM);
 
@@ -763,7 +765,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 	down_read(&mm->mmap_sem);
 	while (pinned < npages) {
 		ret = get_user_pages_remote(task, mm, ptr, npages - pinned,
-					    flags, pvec + pinned, NULL);
+					    flags, pvec + pinned, NULL, NULL);
 		if (ret < 0)
 			break;
 
@@ -774,7 +776,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 
 	if (ret < 0) {
 		release_pages(pvec, pinned, 0);
-		drm_free_large(pvec);
+		kvfree(pvec);
 		return ERR_PTR(ret);
 	}
 
@@ -825,7 +827,7 @@ static int etnaviv_gem_userptr_get_pages(struct etnaviv_gem_object *etnaviv_obj)
 	mm = get_task_mm(etnaviv_obj->userptr.task);
 	pinned = 0;
 	if (mm == current->mm) {
-		pvec = drm_malloc_ab(npages, sizeof(struct page *));
+		pvec = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 		if (!pvec) {
 			mmput(mm);
 			return -ENOMEM;
@@ -834,7 +836,7 @@ static int etnaviv_gem_userptr_get_pages(struct etnaviv_gem_object *etnaviv_obj)
 		pinned = __get_user_pages_fast(etnaviv_obj->userptr.ptr, npages,
 					       !etnaviv_obj->userptr.ro, pvec);
 		if (pinned < 0) {
-			drm_free_large(pvec);
+			kvfree(pvec);
 			mmput(mm);
 			return pinned;
 		}
@@ -847,7 +849,7 @@ static int etnaviv_gem_userptr_get_pages(struct etnaviv_gem_object *etnaviv_obj)
 	}
 
 	release_pages(pvec, pinned, 0);
-	drm_free_large(pvec);
+	kvfree(pvec);
 
 	work = kmalloc(sizeof(*work), GFP_KERNEL);
 	if (!work) {
@@ -881,7 +883,7 @@ static void etnaviv_gem_userptr_release(struct etnaviv_gem_object *etnaviv_obj)
 		int npages = etnaviv_obj->base.size >> PAGE_SHIFT;
 
 		release_pages(etnaviv_obj->pages, npages, 0);
-		drm_free_large(etnaviv_obj->pages);
+		kvfree(etnaviv_obj->pages);
 	}
 	put_task_struct(etnaviv_obj->userptr.task);
 }

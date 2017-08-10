@@ -1,5 +1,14 @@
+=========================
 UNALIGNED MEMORY ACCESSES
 =========================
+
+:Author: Daniel Drake <dsd@gentoo.org>,
+:Author: Johannes Berg <johannes@sipsolutions.net>
+
+:With help from: Alan Cox, Avuton Olrich, Heikki Orsila, Jan Engelhardt,
+  Kyle McMartin, Kyle Moffett, Randy Dunlap, Robert Hancock, Uli Kunitz,
+  Vadim Lobanov
+
 
 Linux runs on a wide variety of architectures which have varying behaviour
 when it comes to memory access. This document presents some details about
@@ -73,7 +82,7 @@ memory addresses of certain variables, etc.
 
 Fortunately things are not too complex, as in most cases, the compiler
 ensures that things will work for you. For example, take the following
-structure:
+structure::
 
 	struct foo {
 		u16 field1;
@@ -106,7 +115,7 @@ On a related topic, with the above considerations in mind you may observe
 that you could reorder the fields in the structure in order to place fields
 where padding would otherwise be inserted, and hence reduce the overall
 resident memory size of structure instances. The optimal layout of the
-above example is:
+above example is::
 
 	struct foo {
 		u32 field2;
@@ -139,21 +148,21 @@ Code that causes unaligned access
 With the above in mind, let's move onto a real life example of a function
 that can cause an unaligned memory access. The following function taken
 from include/linux/etherdevice.h is an optimized routine to compare two
-ethernet MAC addresses for equality.
+ethernet MAC addresses for equality::
 
-bool ether_addr_equal(const u8 *addr1, const u8 *addr2)
-{
-#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+  bool ether_addr_equal(const u8 *addr1, const u8 *addr2)
+  {
+  #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	u32 fold = ((*(const u32 *)addr1) ^ (*(const u32 *)addr2)) |
 		   ((*(const u16 *)(addr1 + 4)) ^ (*(const u16 *)(addr2 + 4)));
 
 	return fold == 0;
-#else
+  #else
 	const u16 *a = (const u16 *)addr1;
 	const u16 *b = (const u16 *)addr2;
-	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) != 0;
-#endif
-}
+	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) == 0;
+  #endif
+  }
 
 In the above function, when the hardware has efficient unaligned access
 capability, there is no issue with this code.  But when the hardware isn't
@@ -171,7 +180,8 @@ as it is a decent optimization for the cases when you can ensure alignment,
 which is true almost all of the time in ethernet networking context.
 
 
-Here is another example of some code that could cause unaligned accesses:
+Here is another example of some code that could cause unaligned accesses::
+
 	void myfunc(u8 *data, u32 value)
 	{
 		[...]
@@ -184,6 +194,7 @@ to an address that is not evenly divisible by 4.
 
 In summary, the 2 main scenarios where you may run into unaligned access
 problems involve:
+
  1. Casting variables to types of different lengths
  2. Pointer arithmetic followed by access to at least 2 bytes of data
 
@@ -195,7 +206,7 @@ The easiest way to avoid unaligned access is to use the get_unaligned() and
 put_unaligned() macros provided by the <asm/unaligned.h> header file.
 
 Going back to an earlier example of code that potentially causes unaligned
-access:
+access::
 
 	void myfunc(u8 *data, u32 value)
 	{
@@ -204,7 +215,7 @@ access:
 		[...]
 	}
 
-To avoid the unaligned memory access, you would rewrite it as follows:
+To avoid the unaligned memory access, you would rewrite it as follows::
 
 	void myfunc(u8 *data, u32 value)
 	{
@@ -215,7 +226,7 @@ To avoid the unaligned memory access, you would rewrite it as follows:
 	}
 
 The get_unaligned() macro works similarly. Assuming 'data' is a pointer to
-memory and you wish to avoid unaligned access, its usage is as follows:
+memory and you wish to avoid unaligned access, its usage is as follows::
 
 	u32 value = get_unaligned((u32 *) data);
 
@@ -245,18 +256,10 @@ For some ethernet hardware that cannot DMA to unaligned addresses like
 4*n+2 or non-ethernet hardware, this can be a problem, and it is then
 required to copy the incoming frame into an aligned buffer. Because this is
 unnecessary on architectures that can do unaligned accesses, the code can be
-made dependent on CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS like so:
+made dependent on CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS like so::
 
-#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-	skb = original skb
-#else
-	skb = copy skb
-#endif
-
---
-Authors: Daniel Drake <dsd@gentoo.org>,
-         Johannes Berg <johannes@sipsolutions.net>
-With help from: Alan Cox, Avuton Olrich, Heikki Orsila, Jan Engelhardt,
-Kyle McMartin, Kyle Moffett, Randy Dunlap, Robert Hancock, Uli Kunitz,
-Vadim Lobanov
-
+	#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+		skb = original skb
+	#else
+		skb = copy skb
+	#endif

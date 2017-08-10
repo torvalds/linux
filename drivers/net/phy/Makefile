@@ -1,7 +1,22 @@
 # Makefile for Linux PHY drivers and MDIO bus drivers
 
-libphy-y			:= phy.o phy_device.o mdio_bus.o mdio_device.o
+libphy-y			:= phy.o phy-c45.o phy-core.o phy_device.o
+mdio-bus-y			+= mdio_bus.o mdio_device.o
+
+ifdef CONFIG_MDIO_DEVICE
+obj-y				+= mdio-boardinfo.o
+endif
+
+# PHYLIB implies MDIO_DEVICE, in that case, we have a bunch of circular
+# dependencies that does not make it possible to split mdio-bus objects into a
+# dedicated loadable module, so we bundle them all together into libphy.ko
+ifdef CONFIG_PHYLIB
+libphy-y			+= $(mdio-bus-y)
+else
+obj-$(CONFIG_MDIO_DEVICE)	+= mdio-bus.o
+endif
 libphy-$(CONFIG_SWPHY)		+= swphy.o
+libphy-$(CONFIG_LED_TRIGGER_PHY)	+= phy_led_triggers.o
 
 obj-$(CONFIG_PHYLIB)		+= libphy.o
 
@@ -31,6 +46,7 @@ obj-$(CONFIG_BCM_CYGNUS_PHY)	+= bcm-cygnus.o
 obj-$(CONFIG_BCM_NET_PHYLIB)	+= bcm-phy-lib.o
 obj-$(CONFIG_BROADCOM_PHY)	+= broadcom.o
 obj-$(CONFIG_CICADA_PHY)	+= cicada.o
+obj-$(CONFIG_CORTINA_PHY)	+= cortina.o
 obj-$(CONFIG_DAVICOM_PHY)	+= davicom.o
 obj-$(CONFIG_DP83640_PHY)	+= dp83640.o
 obj-$(CONFIG_DP83848_PHY)	+= dp83848.o
@@ -41,6 +57,8 @@ obj-$(CONFIG_INTEL_XWAY_PHY)	+= intel-xway.o
 obj-$(CONFIG_LSI_ET1011C_PHY)	+= et1011c.o
 obj-$(CONFIG_LXT_PHY)		+= lxt.o
 obj-$(CONFIG_MARVELL_PHY)	+= marvell.o
+obj-$(CONFIG_MARVELL_10G_PHY)	+= marvell10g.o
+obj-$(CONFIG_MESON_GXL_PHY)	+= meson-gxl.o
 obj-$(CONFIG_MICREL_KS8995MA)	+= spi_ks8995.o
 obj-$(CONFIG_MICREL_PHY)	+= micrel.o
 obj-$(CONFIG_MICROCHIP_PHY)	+= microchip.o

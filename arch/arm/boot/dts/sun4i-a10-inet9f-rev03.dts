@@ -46,7 +46,6 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "iNet-9F Rev 03";
@@ -306,7 +305,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
+	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
@@ -320,28 +319,25 @@
 
 &pio {
 	key_pins_inet9f: key_pins@0 {
-		allwinner,pins = "PA0", "PA1", "PA3", "PA4",
-				 "PA5", "PA6", "PA8", "PA9",
-				 "PA11", "PA12", "PA13",
-				 "PA14", "PA15", "PA16", "PA17",
-				 "PH22", "PH23", "PH24", "PH25", "PH26";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PA0", "PA1", "PA3", "PA4",
+		       "PA5", "PA6", "PA8", "PA9",
+		       "PA11", "PA12", "PA13",
+		       "PA14", "PA15", "PA16", "PA17",
+		       "PH22", "PH23", "PH24", "PH25", "PH26";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PH4";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+		pins = "PH4";
+		function = "gpio_in";
+		bias-pull-up;
 	};
 
 	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
-		allwinner,pins = "PH5";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_DOWN>;
+		pins = "PH5";
+		function = "gpio_in";
+		bias-pull-down;
 	};
 };
 

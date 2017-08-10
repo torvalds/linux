@@ -16,7 +16,21 @@ Groups:
 
 KVM_DEV_VFIO_GROUP attributes:
   KVM_DEV_VFIO_GROUP_ADD: Add a VFIO group to VFIO-KVM device tracking
+	kvm_device_attr.addr points to an int32_t file descriptor
+	for the VFIO group.
   KVM_DEV_VFIO_GROUP_DEL: Remove a VFIO group from VFIO-KVM device tracking
+	kvm_device_attr.addr points to an int32_t file descriptor
+	for the VFIO group.
+  KVM_DEV_VFIO_GROUP_SET_SPAPR_TCE: attaches a guest visible TCE table
+	allocated by sPAPR KVM.
+	kvm_device_attr.addr points to a struct:
 
-For each, kvm_device_attr.addr points to an int32_t file descriptor
-for the VFIO group.
+	struct kvm_vfio_spapr_tce {
+		__s32	groupfd;
+		__s32	tablefd;
+	};
+
+	where
+	@groupfd is a file descriptor for a VFIO group;
+	@tablefd is a file descriptor for a TCE table allocated via
+		KVM_CREATE_SPAPR_TCE.

@@ -18,6 +18,7 @@
 #include <linux/seq_file.h>
 #include <linux/pagemap.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <asm/pdc.h>
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
@@ -369,6 +370,7 @@ void __init parisc_setup_cache_timing(void)
 {
 	unsigned long rangetime, alltime;
 	unsigned long size, start;
+	unsigned long threshold;
 
 	alltime = mfctl(16);
 	flush_data_cache();
@@ -382,26 +384,30 @@ void __init parisc_setup_cache_timing(void)
 	printk(KERN_DEBUG "Whole cache flush %lu cycles, flushing %lu bytes %lu cycles\n",
 		alltime, size, rangetime);
 
-	/* Racy, but if we see an intermediate value, it's ok too... */
-	parisc_cache_flush_threshold = size * alltime / rangetime;
-
-	parisc_cache_flush_threshold = L1_CACHE_ALIGN(parisc_cache_flush_threshold);
-	if (!parisc_cache_flush_threshold)
-		parisc_cache_flush_threshold = FLUSH_THRESHOLD;
-
-	if (parisc_cache_flush_threshold > cache_info.dc_size)
-		parisc_cache_flush_threshold = cache_info.dc_size;
-
-	printk(KERN_INFO "Setting cache flush threshold to %lu kB\n",
+	threshold = L1_CACHE_ALIGN(size * alltime / rangetime);
+	if (threshold > cache_info.dc_size)
+		threshold = cache_info.dc_size;
+	if (threshold)
+		parisc_cache_flush_threshold = threshold;
+	printk(KERN_INFO "Cache flush threshold set to %lu KiB\n",
 		parisc_cache_flush_threshold/1024);
 
 	/* calculate TLB flush threshold */
+
+	/* On SMP machines, skip the TLB measure of kernel text which
+	 * has been mapped as huge pages. */
+	if (num_online_cpus() > 1 && !parisc_requires_coherency()) {
+		threshold = max(cache_info.it_size, cache_info.dt_size);
+		threshold *= PAGE_SIZE;
+		threshold /= num_online_cpus();
+		goto set_tlb_threshold;
+	}
 
 	alltime = mfctl(16);
 	flush_tlb_all();
 	alltime = mfctl(16) - alltime;
 
-	size = PAGE_SIZE;
+	size = 0;
 	start = (unsigned long) _text;
 	rangetime = mfctl(16);
 	while (start < (unsigned long) _end) {
@@ -414,13 +420,12 @@ void __init parisc_setup_cache_timing(void)
 	printk(KERN_DEBUG "Whole TLB flush %lu cycles, flushing %lu bytes %lu cycles\n",
 		alltime, size, rangetime);
 
-	parisc_tlb_flush_threshold = size * alltime / rangetime;
-	parisc_tlb_flush_threshold *= num_online_cpus();
-	parisc_tlb_flush_threshold = PAGE_ALIGN(parisc_tlb_flush_threshold);
-	if (!parisc_tlb_flush_threshold)
-		parisc_tlb_flush_threshold = FLUSH_TLB_THRESHOLD;
+	threshold = PAGE_ALIGN(num_online_cpus() * size * alltime / rangetime);
 
-	printk(KERN_INFO "Setting TLB flush threshold to %lu kB\n",
+set_tlb_threshold:
+	if (threshold)
+		parisc_tlb_flush_threshold = threshold;
+	printk(KERN_INFO "TLB flush threshold set to %lu KiB\n",
 		parisc_tlb_flush_threshold/1024);
 }
 
@@ -448,8 +453,8 @@ void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 	  before it can be accessed through the kernel mapping. */
 	preempt_disable();
 	flush_dcache_page_asm(__pa(vfrom), vaddr);
-	preempt_enable();
 	copy_page_asm(vto, vfrom);
+	preempt_enable();
 }
 EXPORT_SYMBOL(copy_user_page);
 
@@ -534,6 +539,10 @@ void flush_cache_mm(struct mm_struct *mm)
 	struct vm_area_struct *vma;
 	pgd_t *pgd;
 
+	/* Flush the TLB to avoid speculation if coherency is required. */
+	if (parisc_requires_coherency())
+		flush_tlb_all();
+
 	/* Flushing the whole cache on each cpu takes forever on
 	   rp3440, etc.  So, avoid it if the mm isn't too big.  */
 	if (mm_total_size(mm) >= parisc_cache_flush_threshold) {
@@ -569,54 +578,24 @@ void flush_cache_mm(struct mm_struct *mm)
 	}
 }
 
-void
-flush_user_dcache_range(unsigned long start, unsigned long end)
-{
-	if ((end - start) < parisc_cache_flush_threshold)
-		flush_user_dcache_range_asm(start,end);
-	else
-		flush_data_cache();
-}
-
-void
-flush_user_icache_range(unsigned long start, unsigned long end)
-{
-	if ((end - start) < parisc_cache_flush_threshold)
-		flush_user_icache_range_asm(start,end);
-	else
-		flush_instruction_cache();
-}
-
 void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end)
 {
-	unsigned long addr;
-	pgd_t *pgd;
-
 	BUG_ON(!vma->vm_mm->context);
 
-	if ((end - start) >= parisc_cache_flush_threshold) {
+	/* Flush the TLB to avoid speculation if coherency is required. */
+	if (parisc_requires_coherency())
+		flush_tlb_range(vma, start, end);
+
+	if ((end - start) >= parisc_cache_flush_threshold
+	    || vma->vm_mm->context != mfsp(3)) {
 		flush_cache_all();
 		return;
 	}
 
-	if (vma->vm_mm->context == mfsp(3)) {
-		flush_user_dcache_range_asm(start, end);
-		if (vma->vm_flags & VM_EXEC)
-			flush_user_icache_range_asm(start, end);
-		return;
-	}
-
-	pgd = vma->vm_mm->pgd;
-	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
-		unsigned long pfn;
-		pte_t *ptep = get_ptep(pgd, addr);
-		if (!ptep)
-			continue;
-		pfn = pte_pfn(*ptep);
-		if (pfn_valid(pfn))
-			__flush_cache_page(vma, addr, PFN_PHYS(pfn));
-	}
+	flush_user_dcache_range_asm(start, end);
+	if (vma->vm_flags & VM_EXEC)
+		flush_user_icache_range_asm(start, end);
 }
 
 void
@@ -625,7 +604,30 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 	BUG_ON(!vma->vm_mm->context);
 
 	if (pfn_valid(pfn)) {
-		flush_tlb_page(vma, vmaddr);
+		if (parisc_requires_coherency())
+			flush_tlb_page(vma, vmaddr);
 		__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
 	}
 }
+
+void flush_kernel_vmap_range(void *vaddr, int size)
+{
+	unsigned long start = (unsigned long)vaddr;
+
+	if ((unsigned long)size > parisc_cache_flush_threshold)
+		flush_data_cache();
+	else
+		flush_kernel_dcache_range_asm(start, start + size);
+}
+EXPORT_SYMBOL(flush_kernel_vmap_range);
+
+void invalidate_kernel_vmap_range(void *vaddr, int size)
+{
+	unsigned long start = (unsigned long)vaddr;
+
+	if ((unsigned long)size > parisc_cache_flush_threshold)
+		flush_data_cache();
+	else
+		flush_kernel_dcache_range_asm(start, start + size);
+}
+EXPORT_SYMBOL(invalidate_kernel_vmap_range);

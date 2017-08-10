@@ -1061,18 +1061,18 @@ static int anx78xx_bridge_attach(struct drm_bridge *bridge)
 	return 0;
 }
 
-static bool anx78xx_bridge_mode_fixup(struct drm_bridge *bridge,
-				      const struct drm_display_mode *mode,
-				      struct drm_display_mode *adjusted_mode)
+static enum drm_mode_status
+anx78xx_bridge_mode_valid(struct drm_bridge *bridge,
+			  const struct drm_display_mode *mode)
 {
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return false;
+		return MODE_NO_INTERLACE;
 
 	/* Max 1200p at 5.4 Ghz, one lane */
 	if (mode->clock > 154000)
-		return false;
+		return MODE_CLOCK_HIGH;
 
-	return true;
+	return MODE_OK;
 }
 
 static void anx78xx_bridge_disable(struct drm_bridge *bridge)
@@ -1129,7 +1129,7 @@ static void anx78xx_bridge_enable(struct drm_bridge *bridge)
 
 static const struct drm_bridge_funcs anx78xx_bridge_funcs = {
 	.attach = anx78xx_bridge_attach,
-	.mode_fixup = anx78xx_bridge_mode_fixup,
+	.mode_valid = anx78xx_bridge_mode_valid,
 	.disable = anx78xx_bridge_disable,
 	.mode_set = anx78xx_bridge_mode_set,
 	.enable = anx78xx_bridge_enable,

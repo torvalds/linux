@@ -29,6 +29,15 @@ config LEDS_CLASS_FLASH
 	  for the flash related features of a LED device. It can be built
 	  as a module.
 
+config LEDS_BRIGHTNESS_HW_CHANGED
+	bool "LED Class brightness_hw_changed attribute support"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for the brightness_hw_changed attribute
+	  for led sysfs class devices under /sys/class/leds.
+
+	  See Documentation/ABI/testing/sysfs-class-led for details.
+
 comment "LED drivers"
 
 config LEDS_88PM860X
@@ -66,6 +75,15 @@ config LEDS_BCM6358
 	help
 	  This option enables support for LEDs connected to the BCM6358
 	  LED HW controller accessed via MMIO registers.
+
+config LEDS_CPCAP
+	tristate "LED Support for Motorola CPCAP"
+	depends on LEDS_CLASS
+	depends on MFD_CPCAP
+	depends on OF
+	help
+	  This option enables support for LEDs offered by Motorola's
+	  CPCAP PMIC.
 
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
@@ -116,6 +134,14 @@ config LEDS_MIKROTIK_RB532
 	help
 	  This option enables support for the so called "User LED" of
 	  Mikrotik's Routerboard 532.
+
+config LEDS_MT6323
+	tristate "LED Support for Mediatek MT6323 PMIC"
+	depends on LEDS_CLASS
+	depends on MFD_MT6397
+	help
+	  This option enables support for on-chip LED drivers found on
+	  Mediatek MT6323 PMIC.
 
 config LEDS_S3C24XX
 	tristate "LED Support for Samsung S3C24XX GPIO LEDs"
@@ -232,7 +258,6 @@ config LEDS_LP3952
 	tristate "LED Support for TI LP3952 2 channel LED driver"
 	depends on LEDS_CLASS
 	depends on I2C
-	depends on ACPI
 	depends on GPIOLIB
 	select REGMAP_I2C
 	help
@@ -454,15 +479,6 @@ config LEDS_ADP5520
 	  To compile this driver as a module, choose M here: the module will
 	  be called leds-adp5520.
 
-config LEDS_DELL_NETBOOKS
-	tristate "External LED on Dell Business Netbooks"
-	depends on LEDS_CLASS
-	depends on X86 && ACPI_WMI
-	depends on DELL_SMBIOS
-	help
-	  This adds support for the Latitude 2100 and similar
-	  notebooks that have an external LED.
-
 config LEDS_MC13783
 	tristate "LED Support for MC13XXX PMIC"
 	depends on LEDS_CLASS
@@ -574,16 +590,6 @@ config LEDS_KTD2692
 
 	  Say Y to enable this driver.
 
-config LEDS_SEAD3
-	tristate "LED support for the MIPS SEAD 3 board"
-	depends on LEDS_CLASS && MIPS_SEAD3
-	help
-	  Say Y here to include support for the FLED and PLED LEDs on SEAD3 eval
-	  boards.
-
-	  This driver can also be built as a module. If so the module
-	  will be called leds-sead3.
-
 config LEDS_IS31FL319X
 	tristate "LED Support for ISSI IS31FL319x I2C LED controller family"
 	depends on LEDS_CLASS && I2C && OF
@@ -635,17 +641,9 @@ config LEDS_SYSCON
 	  devices. This will only work with device tree enabled
 	  devices.
 
-config LEDS_VERSATILE
-	tristate "LED support for the ARM Versatile and RealView"
-	depends on ARCH_REALVIEW || ARCH_VERSATILE
-	depends on LEDS_CLASS
-	help
-	  This option enabled support for the LEDs on the ARM Versatile
-	  and RealView boards. Say Y to enabled these.
-
 config LEDS_PM8058
 	tristate "LED Support for the Qualcomm PM8058 PMIC"
-	depends on MFD_PM8921_CORE
+	depends on MFD_PM8XXX
 	depends on LEDS_CLASS
 	help
 	  Choose this option if you want to use the LED drivers in
@@ -658,6 +656,25 @@ config LEDS_MLXCPLD
 	help
 	  This option enabled support for the LEDs on the Mellanox
 	  boards. Say Y to enabled these.
+
+config LEDS_USER
+	tristate "Userspace LED support"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for userspace LEDs. Say 'y' to enable this
+	  support in kernel. To compile this driver as a module, choose 'm' here:
+	  the module will be called uleds.
+
+config LEDS_NIC78BX
+	tristate "LED support for NI PXI NIC78bx devices"
+	depends on LEDS_CLASS
+	depends on X86 && ACPI
+	help
+	  This option enables support for the User1 and User2 LEDs on NI
+	  PXI NIC78bx devices.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-nic78bx.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

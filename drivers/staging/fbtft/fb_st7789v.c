@@ -178,7 +178,7 @@ static int set_var(struct fbtft_par *par)
  *
  * Return: 0 on success, < 0 if error occurred.
  */
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	int i;
 	int j;

@@ -75,8 +75,8 @@ static void pn533_recv_response(struct urb *urb)
 		if (!skb) {
 			nfc_err(&phy->udev->dev, "failed to alloc memory\n");
 		} else {
-			memcpy(skb_put(skb, urb->actual_length),
-			       urb->transfer_buffer, urb->actual_length);
+			skb_put_data(skb, urb->transfer_buffer,
+				     urb->actual_length);
 		}
 	}
 
@@ -148,11 +148,11 @@ static int pn533_submit_urb_for_ack(struct pn533_usb_phy *phy, gfp_t flags)
 static int pn533_usb_send_ack(struct pn533 *dev, gfp_t flags)
 {
 	struct pn533_usb_phy *phy = dev->phy;
-	u8 ack[6] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
+	static const u8 ack[6] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
 	/* spec 7.1.1.3:  Preamble, SoPC (2), ACK Code (2), Postamble */
 	int rc;
 
-	phy->out_urb->transfer_buffer = ack;
+	phy->out_urb->transfer_buffer = (u8 *)ack;
 	phy->out_urb->transfer_buffer_length = sizeof(ack);
 	rc = usb_submit_urb(phy->out_urb, flags);
 
@@ -542,6 +542,10 @@ static int pn533_usb_probe(struct usb_interface *interface,
 	}
 
 	phy->priv = priv;
+
+	rc = pn533_finalize_setup(priv);
+	if (rc)
+		goto error;
 
 	usb_set_intfdata(interface, phy);
 

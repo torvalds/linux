@@ -31,14 +31,12 @@ typedef struct {
 	u16 pkey_allocation_map;
 	s16 execute_only_pkey;
 #endif
+#ifdef CONFIG_X86_INTEL_MPX
+	/* address of the bounds directory */
+	void __user *bd_addr;
+#endif
 } mm_context_t;
 
-#ifdef CONFIG_SMP
 void leave_mm(int cpu);
-#else
-static inline void leave_mm(int cpu)
-{
-}
-#endif
 
 #endif /* _ASM_X86_MMU_H */

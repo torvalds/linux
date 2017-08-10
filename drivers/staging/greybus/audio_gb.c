@@ -108,7 +108,7 @@ int gb_audio_gb_disable_widget(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_gb_disable_widget);
 
 int gb_audio_gb_get_pcm(struct gb_connection *connection, u16 data_cport,
-			uint32_t *format, uint32_t *rate, u8 *channels,
+			u32 *format, u32 *rate, u8 *channels,
 			u8 *sig_bits)
 {
 	struct gb_audio_get_pcm_request req;
@@ -132,7 +132,7 @@ int gb_audio_gb_get_pcm(struct gb_connection *connection, u16 data_cport,
 EXPORT_SYMBOL_GPL(gb_audio_gb_get_pcm);
 
 int gb_audio_gb_set_pcm(struct gb_connection *connection, u16 data_cport,
-			uint32_t format, uint32_t rate, u8 channels,
+			u32 format, u32 rate, u8 channels,
 			u8 sig_bits)
 {
 	struct gb_audio_set_pcm_request req;

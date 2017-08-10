@@ -18,6 +18,8 @@
  * frame buffer.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/console.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -380,10 +382,18 @@ static int xenfb_probe(struct xenbus_device *dev,
 			video[KPARAM_MEM] = val;
 	}
 
+	video[KPARAM_WIDTH] = xenbus_read_unsigned(dev->otherend, "width",
+						   video[KPARAM_WIDTH]);
+	video[KPARAM_HEIGHT] = xenbus_read_unsigned(dev->otherend, "height",
+						    video[KPARAM_HEIGHT]);
+
 	/* If requested res does not fit in available memory, use default */
 	fb_size = video[KPARAM_MEM] * 1024 * 1024;
 	if (video[KPARAM_WIDTH] * video[KPARAM_HEIGHT] * XENFB_DEPTH / 8
 	    > fb_size) {
+		pr_warn("display parameters %d,%d,%d invalid, use defaults\n",
+			video[KPARAM_MEM], video[KPARAM_WIDTH],
+			video[KPARAM_HEIGHT]);
 		video[KPARAM_WIDTH] = XENFB_WIDTH;
 		video[KPARAM_HEIGHT] = XENFB_HEIGHT;
 		fb_size = XENFB_DEFAULT_FB_LEN;
@@ -633,7 +643,6 @@ static void xenfb_backend_changed(struct xenbus_device *dev,
 				  enum xenbus_state backend_state)
 {
 	struct xenfb_info *info = dev_get_drvdata(&dev->dev);
-	int val;
 
 	switch (backend_state) {
 	case XenbusStateInitialising:
@@ -644,7 +653,6 @@ static void xenfb_backend_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateInitWait:
-InitWait:
 		xenbus_switch_state(dev, XenbusStateConnected);
 		break;
 
@@ -655,18 +663,15 @@ InitWait:
 		 * get Connected twice here.
 		 */
 		if (dev->state != XenbusStateConnected)
-			goto InitWait; /* no InitWait seen yet, fudge it */
+			/* no InitWait seen yet, fudge it */
+			xenbus_switch_state(dev, XenbusStateConnected);
 
-		if (xenbus_scanf(XBT_NIL, info->xbdev->otherend,
-				 "request-update", "%d", &val) < 0)
-			val = 0;
-		if (val)
+		if (xenbus_read_unsigned(info->xbdev->otherend,
+					 "request-update", 0))
 			info->update_wanted = 1;
 
-		if (xenbus_scanf(XBT_NIL, dev->otherend,
-				 "feature-resize", "%d", &val) < 0)
-			val = 0;
-		info->feature_resize = val;
+		info->feature_resize = xenbus_read_unsigned(dev->otherend,
+							"feature-resize", 0);
 		break;
 
 	case XenbusStateClosed:

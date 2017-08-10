@@ -127,20 +127,14 @@ static void fw_delete_filter(struct rcu_head *head)
 	kfree(f);
 }
 
-static bool fw_destroy(struct tcf_proto *tp, bool force)
+static void fw_destroy(struct tcf_proto *tp)
 {
 	struct fw_head *head = rtnl_dereference(tp->root);
 	struct fw_filter *f;
 	int h;
 
 	if (head == NULL)
-		return true;
-
-	if (!force) {
-		for (h = 0; h < HTSIZE; h++)
-			if (rcu_access_pointer(head->ht[h]))
-				return false;
-	}
+		return;
 
 	for (h = 0; h < HTSIZE; h++) {
 		while ((f = rtnl_dereference(head->ht[h])) != NULL) {
@@ -150,17 +144,17 @@ static bool fw_destroy(struct tcf_proto *tp, bool force)
 			call_rcu(&f->rcu, fw_delete_filter);
 		}
 	}
-	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
-	return true;
 }
 
-static int fw_delete(struct tcf_proto *tp, unsigned long arg)
+static int fw_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
 {
 	struct fw_head *head = rtnl_dereference(tp->root);
 	struct fw_filter *f = (struct fw_filter *)arg;
 	struct fw_filter __rcu **fp;
 	struct fw_filter *pfp;
+	int ret = -EINVAL;
+	int h;
 
 	if (head == NULL || f == NULL)
 		goto out;
@@ -173,11 +167,21 @@ static int fw_delete(struct tcf_proto *tp, unsigned long arg)
 			RCU_INIT_POINTER(*fp, rtnl_dereference(f->next));
 			tcf_unbind_filter(tp, &f->res);
 			call_rcu(&f->rcu, fw_delete_filter);
-			return 0;
+			ret = 0;
+			break;
 		}
 	}
+
+	*last = true;
+	for (h = 0; h < HTSIZE; h++) {
+		if (rcu_access_pointer(head->ht[h])) {
+			*last = false;
+			break;
+		}
+	}
+
 out:
-	return -EINVAL;
+	return ret;
 }
 
 static const struct nla_policy fw_policy[TCA_FW_MAX + 1] = {
@@ -250,7 +254,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	if (!opt)
 		return handle ? -EINVAL : 0; /* Succeed if it is old method. */
 
-	err = nla_parse_nested(tb, TCA_FW_MAX, opt, fw_policy);
+	err = nla_parse_nested(tb, TCA_FW_MAX, opt, fw_policy, NULL);
 	if (err < 0)
 		return err;
 

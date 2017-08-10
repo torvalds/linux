@@ -50,9 +50,9 @@ watchdog_handler:
 #   we can't inline it)
 #
 ###############################################################################
-	.globl	touch_nmi_watchdog
-	.type	touch_nmi_watchdog,@function
-touch_nmi_watchdog:
+	.globl	arch_touch_nmi_watchdog
+	.type	arch_touch_nmi_watchdog,@function
+arch_touch_nmi_watchdog:
 	clr	d0
 	clr	d1
 	mov	watchdog_alert_counter, a0
@@ -63,4 +63,4 @@ touch_nmi_watchdog:
 	lne
 	ret	[],0
 
-	.size	touch_nmi_watchdog,.-touch_nmi_watchdog
+	.size	arch_touch_nmi_watchdog,.-arch_touch_nmi_watchdog

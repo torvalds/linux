@@ -422,7 +422,7 @@ MODULE_DEVICE_TABLE(of, afe4403_of_match);
 
 static int __maybe_unused afe4403_suspend(struct device *dev)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev *indio_dev = spi_get_drvdata(to_spi_device(dev));
 	struct afe4403_data *afe = iio_priv(indio_dev);
 	int ret;
 
@@ -443,7 +443,7 @@ static int __maybe_unused afe4403_suspend(struct device *dev)
 
 static int __maybe_unused afe4403_resume(struct device *dev)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev *indio_dev = spi_get_drvdata(to_spi_device(dev));
 	struct afe4403_data *afe = iio_priv(indio_dev);
 	int ret;
 

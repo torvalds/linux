@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Linaro Ltd. <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2014-2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,9 +31,17 @@ struct plt_entries {
 	u32	lit[PLT_ENT_COUNT];
 };
 
+static bool in_init(const struct module *mod, unsigned long loc)
+{
+	return loc - (u32)mod->init_layout.base < mod->init_layout.size;
+}
+
 u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val)
 {
-	struct plt_entries *plt = (struct plt_entries *)mod->arch.plt->sh_addr;
+	struct mod_plt_sec *pltsec = !in_init(mod, loc) ? &mod->arch.core :
+							  &mod->arch.init;
+
+	struct plt_entries *plt = (struct plt_entries *)pltsec->plt->sh_addr;
 	int idx = 0;
 
 	/*
@@ -41,9 +49,9 @@ u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val)
 	 * relocations are sorted, this will be the last entry we allocated.
 	 * (if one exists).
 	 */
-	if (mod->arch.plt_count > 0) {
-		plt += (mod->arch.plt_count - 1) / PLT_ENT_COUNT;
-		idx = (mod->arch.plt_count - 1) % PLT_ENT_COUNT;
+	if (pltsec->plt_count > 0) {
+		plt += (pltsec->plt_count - 1) / PLT_ENT_COUNT;
+		idx = (pltsec->plt_count - 1) % PLT_ENT_COUNT;
 
 		if (plt->lit[idx] == val)
 			return (u32)&plt->ldr[idx];
@@ -53,8 +61,8 @@ u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val)
 			plt++;
 	}
 
-	mod->arch.plt_count++;
-	BUG_ON(mod->arch.plt_count * PLT_ENT_SIZE > mod->arch.plt->sh_size);
+	pltsec->plt_count++;
+	BUG_ON(pltsec->plt_count * PLT_ENT_SIZE > pltsec->plt->sh_size);
 
 	if (!idx)
 		/* Populate a new set of entries */
@@ -129,7 +137,7 @@ static bool duplicate_rel(Elf32_Addr base, const Elf32_Rel *rel, int num)
 
 /* Count how many PLT entries we may need */
 static unsigned int count_plts(const Elf32_Sym *syms, Elf32_Addr base,
-			       const Elf32_Rel *rel, int num)
+			       const Elf32_Rel *rel, int num, Elf32_Word dstidx)
 {
 	unsigned int ret = 0;
 	const Elf32_Sym *s;
@@ -144,13 +152,17 @@ static unsigned int count_plts(const Elf32_Sym *syms, Elf32_Addr base,
 		case R_ARM_THM_JUMP24:
 			/*
 			 * We only have to consider branch targets that resolve
-			 * to undefined symbols. This is not simply a heuristic,
-			 * it is a fundamental limitation, since the PLT itself
-			 * is part of the module, and needs to be within range
-			 * as well, so modules can never grow beyond that limit.
+			 * to symbols that are defined in a different section.
+			 * This is not simply a heuristic, it is a fundamental
+			 * limitation, since there is no guaranteed way to emit
+			 * PLT entries sufficiently close to the branch if the
+			 * section size exceeds the range of a branch
+			 * instruction. So ignore relocations against defined
+			 * symbols if they live in the same section as the
+			 * relocation target.
 			 */
 			s = syms + ELF32_R_SYM(rel[i].r_info);
-			if (s->st_shndx != SHN_UNDEF)
+			if (s->st_shndx == dstidx)
 				break;
 
 			/*
@@ -161,7 +173,12 @@ static unsigned int count_plts(const Elf32_Sym *syms, Elf32_Addr base,
 			 * So we need to support them, but there is no need to
 			 * take them into consideration when trying to optimize
 			 * this code. So let's only check for duplicates when
-			 * the addend is zero.
+			 * the addend is zero. (Note that calls into the core
+			 * module via init PLT entries could involve section
+			 * relative symbol references with non-zero addends, for
+			 * which we may end up emitting duplicates, but the init
+			 * PLT is released along with the rest of the .init
+			 * region as soon as module loading completes.)
 			 */
 			if (!is_zero_addend_relocation(base, rel + i) ||
 			    !duplicate_rel(base, rel, i))
@@ -174,7 +191,8 @@ static unsigned int count_plts(const Elf32_Sym *syms, Elf32_Addr base,
 int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 			      char *secstrings, struct module *mod)
 {
-	unsigned long plts = 0;
+	unsigned long core_plts = 0;
+	unsigned long init_plts = 0;
 	Elf32_Shdr *s, *sechdrs_end = sechdrs + ehdr->e_shnum;
 	Elf32_Sym *syms = NULL;
 
@@ -184,13 +202,15 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	 */
 	for (s = sechdrs; s < sechdrs_end; ++s) {
 		if (strcmp(".plt", secstrings + s->sh_name) == 0)
-			mod->arch.plt = s;
+			mod->arch.core.plt = s;
+		else if (strcmp(".init.plt", secstrings + s->sh_name) == 0)
+			mod->arch.init.plt = s;
 		else if (s->sh_type == SHT_SYMTAB)
 			syms = (Elf32_Sym *)s->sh_addr;
 	}
 
-	if (!mod->arch.plt) {
-		pr_err("%s: module PLT section missing\n", mod->name);
+	if (!mod->arch.core.plt || !mod->arch.init.plt) {
+		pr_err("%s: module PLT section(s) missing\n", mod->name);
 		return -ENOEXEC;
 	}
 	if (!syms) {
@@ -213,16 +233,29 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		/* sort by type and symbol index */
 		sort(rels, numrels, sizeof(Elf32_Rel), cmp_rel, NULL);
 
-		plts += count_plts(syms, dstsec->sh_addr, rels, numrels);
+		if (strncmp(secstrings + dstsec->sh_name, ".init", 5) != 0)
+			core_plts += count_plts(syms, dstsec->sh_addr, rels,
+						numrels, s->sh_info);
+		else
+			init_plts += count_plts(syms, dstsec->sh_addr, rels,
+						numrels, s->sh_info);
 	}
 
-	mod->arch.plt->sh_type = SHT_NOBITS;
-	mod->arch.plt->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
-	mod->arch.plt->sh_addralign = L1_CACHE_BYTES;
-	mod->arch.plt->sh_size = round_up(plts * PLT_ENT_SIZE,
-					  sizeof(struct plt_entries));
-	mod->arch.plt_count = 0;
+	mod->arch.core.plt->sh_type = SHT_NOBITS;
+	mod->arch.core.plt->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
+	mod->arch.core.plt->sh_addralign = L1_CACHE_BYTES;
+	mod->arch.core.plt->sh_size = round_up(core_plts * PLT_ENT_SIZE,
+					       sizeof(struct plt_entries));
+	mod->arch.core.plt_count = 0;
 
-	pr_debug("%s: plt=%x\n", __func__, mod->arch.plt->sh_size);
+	mod->arch.init.plt->sh_type = SHT_NOBITS;
+	mod->arch.init.plt->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
+	mod->arch.init.plt->sh_addralign = L1_CACHE_BYTES;
+	mod->arch.init.plt->sh_size = round_up(init_plts * PLT_ENT_SIZE,
+					       sizeof(struct plt_entries));
+	mod->arch.init.plt_count = 0;
+
+	pr_debug("%s: plt=%x, init.plt=%x\n", __func__,
+		 mod->arch.core.plt->sh_size, mod->arch.init.plt->sh_size);
 	return 0;
 }

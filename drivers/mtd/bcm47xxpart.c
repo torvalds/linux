@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/bcm47xx_nvram.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -42,7 +43,8 @@
 #define ML_MAGIC2			0x26594131
 #define TRX_MAGIC			0x30524448
 #define SHSQ_MAGIC			0x71736873	/* shsq (weird ZTE H218N endianness) */
-#define UBI_EC_MAGIC			0x23494255	/* UBI# */
+
+static const char * const trx_types[] = { "trx", NULL };
 
 struct trx_header {
 	uint32_t magic;
@@ -61,26 +63,28 @@ static void bcm47xxpart_add_part(struct mtd_partition *part, const char *name,
 	part->mask_flags = mask_flags;
 }
 
-static const char *bcm47xxpart_trx_data_part_name(struct mtd_info *master,
-						  size_t offset)
+/**
+ * bcm47xxpart_bootpartition - gets index of TRX partition used by bootloader
+ *
+ * Some devices may have more than one TRX partition. In such case one of them
+ * is the main one and another a failsafe one. Bootloader may fallback to the
+ * failsafe firmware if it detects corruption of the main image.
+ *
+ * This function provides info about currently used TRX partition. It's the one
+ * containing kernel started by the bootloader.
+ */
+static int bcm47xxpart_bootpartition(void)
 {
-	uint32_t buf;
-	size_t bytes_read;
-	int err;
+	char buf[4];
+	int bootpartition;
 
-	err  = mtd_read(master, offset, sizeof(buf), &bytes_read,
-			(uint8_t *)&buf);
-	if (err && !mtd_is_bitflip(err)) {
-		pr_err("mtd_read error while parsing (offset: 0x%X): %d\n",
-			offset, err);
-		goto out_default;
+	/* Check CFE environment variable */
+	if (bcm47xx_nvram_getenv("bootpartition", buf, sizeof(buf)) > 0) {
+		if (!kstrtoint(buf, 0, &bootpartition))
+			return bootpartition;
 	}
 
-	if (buf == UBI_EC_MAGIC)
-		return "ubi";
-
-out_default:
-	return "rootfs";
+	return 0;
 }
 
 static int bcm47xxpart_parse(struct mtd_info *master,
@@ -93,9 +97,8 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	size_t bytes_read;
 	uint32_t offset;
 	uint32_t blocksize = master->erasesize;
-	struct trx_header *trx;
-	int trx_part = -1;
-	int last_trx_part = -1;
+	int trx_parts[2]; /* Array with indexes of TRX partitions */
+	int trx_num = 0; /* Number of found TRX partitions */
 	int possible_nvram_sizes[] = { 0x8000, 0xF000, 0x10000, };
 	int err;
 
@@ -182,59 +185,21 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 
 		/* TRX */
 		if (buf[0x000 / 4] == TRX_MAGIC) {
-			if (BCM47XXPART_MAX_PARTS - curr_part < 4) {
-				pr_warn("Not enough partitions left to register trx, scanning stopped!\n");
-				break;
-			}
+			struct trx_header *trx;
 
-			trx = (struct trx_header *)buf;
-
-			trx_part = curr_part;
+			if (trx_num >= ARRAY_SIZE(trx_parts))
+				pr_warn("No enough space to store another TRX found at 0x%X\n",
+					offset);
+			else
+				trx_parts[trx_num++] = curr_part;
 			bcm47xxpart_add_part(&parts[curr_part++], "firmware",
 					     offset, 0);
 
-			i = 0;
-			/* We have LZMA loader if offset[2] points to sth */
-			if (trx->offset[2]) {
-				bcm47xxpart_add_part(&parts[curr_part++],
-						     "loader",
-						     offset + trx->offset[i],
-						     0);
-				i++;
-			}
-
-			if (trx->offset[i]) {
-				bcm47xxpart_add_part(&parts[curr_part++],
-						     "linux",
-						     offset + trx->offset[i],
-						     0);
-				i++;
-			}
-
-			/*
-			 * Pure rootfs size is known and can be calculated as:
-			 * trx->length - trx->offset[i]. We don't fill it as
-			 * we want to have jffs2 (overlay) in the same mtd.
-			 */
-			if (trx->offset[i]) {
-				const char *name;
-
-				name = bcm47xxpart_trx_data_part_name(master, offset + trx->offset[i]);
-				bcm47xxpart_add_part(&parts[curr_part++],
-						     name,
-						     offset + trx->offset[i],
-						     0);
-				i++;
-			}
-
-			last_trx_part = curr_part - 1;
-
-			/*
-			 * We have whole TRX scanned, skip to the next part. Use
-			 * roundown (not roundup), as the loop will increase
-			 * offset in next step.
-			 */
-			offset = rounddown(offset + trx->length, blocksize);
+			/* Jump to the end of TRX */
+			trx = (struct trx_header *)buf;
+			offset = roundup(offset + trx->length, blocksize);
+			/* Next loop iteration will increase the offset */
+			offset -= blocksize;
 			continue;
 		}
 
@@ -309,9 +274,16 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 				       parts[i + 1].offset : master->size;
 
 		parts[i].size = next_part_offset - parts[i].offset;
-		if (i == last_trx_part && trx_part >= 0)
-			parts[trx_part].size = next_part_offset -
-					       parts[trx_part].offset;
+	}
+
+	/* If there was TRX parse it now */
+	for (i = 0; i < trx_num; i++) {
+		struct mtd_partition *trx = &parts[trx_parts[i]];
+
+		if (i == bcm47xxpart_bootpartition())
+			trx->types = trx_types;
+		else
+			trx->name = "failsafe";
 	}
 
 	*pparts = parts;

@@ -120,12 +120,12 @@ static int gic_clockevent_init(void)
 	}
 
 	cpuhp_setup_state(CPUHP_AP_MIPS_GIC_TIMER_STARTING,
-			  "AP_MIPS_GIC_TIMER_STARTING", gic_starting_cpu,
-			  gic_dying_cpu);
+			  "clockevents/mips/gic/timer:starting",
+			  gic_starting_cpu, gic_dying_cpu);
 	return 0;
 }
 
-static cycle_t gic_hpt_read(struct clocksource *cs)
+static u64 gic_hpt_read(struct clocksource *cs)
 {
 	return gic_read_count();
 }
@@ -154,19 +154,6 @@ static int __init __gic_clocksource_init(void)
 	return ret;
 }
 
-void __init gic_clocksource_init(unsigned int frequency)
-{
-	gic_frequency = frequency;
-	gic_timer_irq = MIPS_GIC_IRQ_BASE +
-		GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_COMPARE);
-
-	__gic_clocksource_init();
-	gic_clockevent_init();
-
-	/* And finally start the counter */
-	gic_start_count();
-}
-
 static int __init gic_clocksource_of_init(struct device_node *node)
 {
 	struct clk *clk;
@@ -174,16 +161,17 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 
 	if (!gic_present || !node->parent ||
 	    !of_device_is_compatible(node->parent, "mti,gic")) {
-		pr_warn("No DT definition for the mips gic driver");
+		pr_warn("No DT definition for the mips gic driver\n");
 		return -ENXIO;
 	}
 
 	clk = of_clk_get(node, 0);
 	if (!IS_ERR(clk)) {
-		if (clk_prepare_enable(clk) < 0) {
+		ret = clk_prepare_enable(clk);
+		if (ret < 0) {
 			pr_err("GIC failed to enable clock\n");
 			clk_put(clk);
-			return PTR_ERR(clk);
+			return ret;
 		}
 
 		gic_frequency = clk_get_rate(clk);
@@ -213,5 +201,5 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 
 	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(mips_gic_timer, "mti,gic-timer",
+TIMER_OF_DECLARE(mips_gic_timer, "mti,gic-timer",
 		       gic_clocksource_of_init);

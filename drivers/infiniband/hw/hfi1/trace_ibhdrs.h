@@ -139,11 +139,11 @@ DECLARE_EVENT_CLASS(hfi1_ibhdr_template,
 			__entry->pkey =
 			be32_to_cpu(ohdr->bth[0]) & 0xffff;
 			__entry->f =
-			(be32_to_cpu(ohdr->bth[1]) >> HFI1_FECN_SHIFT) &
-			HFI1_FECN_MASK;
+			(be32_to_cpu(ohdr->bth[1]) >> IB_FECN_SHIFT) &
+			IB_FECN_MASK;
 			__entry->b =
-			(be32_to_cpu(ohdr->bth[1]) >> HFI1_BECN_SHIFT) &
-			HFI1_BECN_MASK;
+			(be32_to_cpu(ohdr->bth[1]) >> IB_BECN_SHIFT) &
+			IB_BECN_MASK;
 			__entry->qpn =
 			be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
 			__entry->a =

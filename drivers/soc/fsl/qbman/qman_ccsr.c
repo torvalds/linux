@@ -34,6 +34,8 @@ u16 qman_ip_rev;
 EXPORT_SYMBOL(qman_ip_rev);
 u16 qm_channel_pool1 = QMAN_CHANNEL_POOL1;
 EXPORT_SYMBOL(qm_channel_pool1);
+u16 qm_channel_caam = QMAN_CHANNEL_CAAM;
+EXPORT_SYMBOL(qm_channel_caam);
 
 /* Register offsets */
 #define REG_QCSP_LIO_CFG(n)	(0x0000 + ((n) * 0x10))
@@ -444,6 +446,9 @@ static int zero_priv_mem(struct device *dev, struct device_node *node,
 	/* map as cacheable, non-guarded */
 	void __iomem *tmpp = ioremap_prot(addr, sz, 0);
 
+	if (!tmpp)
+		return -ENOMEM;
+
 	memset_io(tmpp, 0, sz);
 	flush_dcache_range((unsigned long)tmpp,
 			   (unsigned long)tmpp + sz);
@@ -717,8 +722,10 @@ static int fsl_qman_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if ((qman_ip_rev & 0xff00) >= QMAN_REV30)
+	if ((qman_ip_rev & 0xff00) >= QMAN_REV30) {
 		qm_channel_pool1 = QMAN_CHANNEL_POOL1_REV3;
+		qm_channel_caam = QMAN_CHANNEL_CAAM_REV3;
+	}
 
 	ret = zero_priv_mem(dev, node, fqd_a, fqd_sz);
 	WARN_ON(ret);

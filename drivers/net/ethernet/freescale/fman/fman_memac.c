@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/of_mdio.h>
 
 /* PCS registers */
@@ -442,7 +443,10 @@ static int init(struct memac_regs __iomem *regs, struct memac_cfg *cfg,
 		break;
 	default:
 		tmp |= IF_MODE_GMII;
-		if (phy_if == PHY_INTERFACE_MODE_RGMII)
+		if (phy_if == PHY_INTERFACE_MODE_RGMII ||
+		    phy_if == PHY_INTERFACE_MODE_RGMII_ID ||
+		    phy_if == PHY_INTERFACE_MODE_RGMII_RXID ||
+		    phy_if == PHY_INTERFACE_MODE_RGMII_TXID)
 			tmp |= IF_MODE_RGMII | IF_MODE_RGMII_AUTO;
 	}
 	iowrite32be(tmp, &regs->if_mode);
@@ -1106,6 +1110,9 @@ int memac_init(struct fman_mac *memac)
 int memac_free(struct fman_mac *memac)
 {
 	free_init_resources(memac);
+
+	if (memac->pcsphy)
+		put_device(&memac->pcsphy->mdio.dev);
 
 	kfree(memac->memac_drv_param);
 	kfree(memac);

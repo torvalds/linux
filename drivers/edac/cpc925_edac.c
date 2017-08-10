@@ -27,7 +27,6 @@
 #include <linux/platform_device.h>
 #include <linux/gfp.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 #define CPC925_EDAC_REVISION	" Ver: 1.0.0"

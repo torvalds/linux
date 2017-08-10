@@ -63,7 +63,7 @@ void __init ls1x_pwmtimer_init(void)
 	ls1x_pwmtimer_restart();
 }
 
-static cycle_t ls1x_clocksource_read(struct clocksource *cs)
+static u64 ls1x_clocksource_read(struct clocksource *cs)
 {
 	unsigned long flags;
 	int count;
@@ -107,7 +107,7 @@ static cycle_t ls1x_clocksource_read(struct clocksource *cs)
 
 	raw_spin_unlock_irqrestore(&ls1x_timer_lock, flags);
 
-	return (cycle_t) (jifs * ls1x_jiffies_per_tick) + count;
+	return (u64) (jifs * ls1x_jiffies_per_tick) + count;
 }
 
 static struct clocksource ls1x_clocksource = {
@@ -199,7 +199,9 @@ static void __init ls1x_time_init(void)
 
 	clockevent_set_clock(cd, mips_hpt_frequency);
 	cd->max_delta_ns = clockevent_delta2ns(0xffffff, cd);
+	cd->max_delta_ticks = 0xffffff;
 	cd->min_delta_ns = clockevent_delta2ns(0x000300, cd);
+	cd->min_delta_ticks = 0x000300;
 	cd->cpumask = cpumask_of(smp_processor_id());
 	clockevents_register_device(cd);
 

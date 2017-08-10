@@ -143,13 +143,13 @@ static ssize_t target_core_item_dbroot_store(struct config_item *item,
 		pr_err("db_root: cannot open: %s\n", db_root_stage);
 		return -EINVAL;
 	}
-	if (!S_ISDIR(fp->f_inode->i_mode)) {
-		filp_close(fp, 0);
+	if (!S_ISDIR(file_inode(fp)->i_mode)) {
+		filp_close(fp, NULL);
 		mutex_unlock(&g_tf_lock);
 		pr_err("db_root: not a directory: %s\n", db_root_stage);
 		return -EINVAL;
 	}
-	filp_close(fp, 0);
+	filp_close(fp, NULL);
 
 	strncpy(db_root, db_root_stage, read_bytes);
 
@@ -421,6 +421,10 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 		pr_err("Missing tfo->aborted_task()\n");
 		return -EINVAL;
 	}
+	if (!tfo->check_stop_free) {
+		pr_err("Missing tfo->check_stop_free()\n");
+		return -EINVAL;
+	}
 	/*
 	 * We at least require tfo->fabric_make_wwn(), tfo->fabric_drop_wwn()
 	 * tfo->fabric_make_tpg() and tfo->fabric_drop_tpg() in
@@ -529,6 +533,7 @@ DEF_CONFIGFS_ATTRIB_SHOW(emulate_3pc);
 DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_type);
 DEF_CONFIGFS_ATTRIB_SHOW(hw_pi_prot_type);
 DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_format);
+DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_verify);
 DEF_CONFIGFS_ATTRIB_SHOW(enforce_pr_isids);
 DEF_CONFIGFS_ATTRIB_SHOW(is_nonrot);
 DEF_CONFIGFS_ATTRIB_SHOW(emulate_rest_reord);
@@ -819,6 +824,7 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 		ret = dev->transport->init_prot(dev);
 		if (ret) {
 			da->pi_prot_type = old_prot;
+			da->pi_prot_verify = (bool) da->pi_prot_type;
 			return ret;
 		}
 
@@ -826,6 +832,7 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 		dev->transport->free_prot(dev);
 	}
 
+	da->pi_prot_verify = (bool) da->pi_prot_type;
 	pr_debug("dev[%p]: SE Device Protection Type: %d\n", dev, flag);
 	return count;
 }
@@ -865,6 +872,35 @@ static ssize_t pi_prot_format_store(struct config_item *item,
 		return ret;
 
 	pr_debug("dev[%p]: SE Device Protection Format complete\n", dev);
+	return count;
+}
+
+static ssize_t pi_prot_verify_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	bool flag;
+	int ret;
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (!flag) {
+		da->pi_prot_verify = flag;
+		return count;
+	}
+	if (da->hw_pi_prot_type) {
+		pr_warn("DIF protection enabled on underlying hardware,"
+			" ignoring\n");
+		return count;
+	}
+	if (!da->pi_prot_type) {
+		pr_warn("DIF protection not supported by backend, ignoring\n");
+		return count;
+	}
+	da->pi_prot_verify = flag;
+
 	return count;
 }
 
@@ -1049,6 +1085,24 @@ static ssize_t block_size_store(struct config_item *item,
 	return count;
 }
 
+static ssize_t alua_support_show(struct config_item *item, char *page)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	u8 flags = da->da_dev->transport->transport_flags;
+
+	return snprintf(page, PAGE_SIZE, "%d\n",
+			flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA ? 0 : 1);
+}
+
+static ssize_t pgr_support_show(struct config_item *item, char *page)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	u8 flags = da->da_dev->transport->transport_flags;
+
+	return snprintf(page, PAGE_SIZE, "%d\n",
+			flags & TRANSPORT_FLAG_PASSTHROUGH_PGR ? 0 : 1);
+}
+
 CONFIGFS_ATTR(, emulate_model_alias);
 CONFIGFS_ATTR(, emulate_dpo);
 CONFIGFS_ATTR(, emulate_fua_write);
@@ -1063,6 +1117,7 @@ CONFIGFS_ATTR(, emulate_3pc);
 CONFIGFS_ATTR(, pi_prot_type);
 CONFIGFS_ATTR_RO(, hw_pi_prot_type);
 CONFIGFS_ATTR(, pi_prot_format);
+CONFIGFS_ATTR(, pi_prot_verify);
 CONFIGFS_ATTR(, enforce_pr_isids);
 CONFIGFS_ATTR(, is_nonrot);
 CONFIGFS_ATTR(, emulate_rest_reord);
@@ -1079,6 +1134,8 @@ CONFIGFS_ATTR(, unmap_granularity);
 CONFIGFS_ATTR(, unmap_granularity_alignment);
 CONFIGFS_ATTR(, unmap_zeroes_data);
 CONFIGFS_ATTR(, max_write_same_len);
+CONFIGFS_ATTR_RO(, alua_support);
+CONFIGFS_ATTR_RO(, pgr_support);
 
 /*
  * dev_attrib attributes for devices using the target core SBC/SPC
@@ -1100,6 +1157,7 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_pi_prot_type,
 	&attr_hw_pi_prot_type,
 	&attr_pi_prot_format,
+	&attr_pi_prot_verify,
 	&attr_enforce_pr_isids,
 	&attr_is_nonrot,
 	&attr_emulate_rest_reord,
@@ -1116,6 +1174,8 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_unmap_granularity_alignment,
 	&attr_unmap_zeroes_data,
 	&attr_max_write_same_len,
+	&attr_alua_support,
+	&attr_pgr_support,
 	NULL,
 };
 EXPORT_SYMBOL(sbc_attrib_attrs);
@@ -1130,6 +1190,8 @@ struct configfs_attribute *passthrough_attrib_attrs[] = {
 	&attr_hw_block_size,
 	&attr_hw_max_sectors,
 	&attr_hw_queue_depth,
+	&attr_alua_support,
+	&attr_pgr_support,
 	NULL,
 };
 EXPORT_SYMBOL(passthrough_attrib_attrs);
@@ -1362,7 +1424,7 @@ static ssize_t target_pr_res_holder_show(struct config_item *item, char *page)
 	struct se_device *dev = pr_to_dev(item);
 	int ret;
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return sprintf(page, "Passthrough\n");
 
 	spin_lock(&dev->dev_reservation_lock);
@@ -1502,7 +1564,7 @@ static ssize_t target_pr_res_type_show(struct config_item *item, char *page)
 {
 	struct se_device *dev = pr_to_dev(item);
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return sprintf(page, "SPC_PASSTHROUGH\n");
 	else if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return sprintf(page, "SPC2_RESERVATIONS\n");
@@ -1515,7 +1577,7 @@ static ssize_t target_pr_res_aptpl_active_show(struct config_item *item,
 {
 	struct se_device *dev = pr_to_dev(item);
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return 0;
 
 	return sprintf(page, "APTPL Bit Status: %s\n",
@@ -1527,7 +1589,7 @@ static ssize_t target_pr_res_aptpl_metadata_show(struct config_item *item,
 {
 	struct se_device *dev = pr_to_dev(item);
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return 0;
 
 	return sprintf(page, "Ready to process PR APTPL metadata..\n");
@@ -1573,7 +1635,7 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 	u16 tpgt = 0;
 	u8 type = 0;
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)
+	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return count;
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return count;
@@ -2198,7 +2260,11 @@ static void target_core_dev_release(struct config_item *item)
 	target_free_device(dev);
 }
 
-static struct configfs_item_operations target_core_dev_item_ops = {
+/*
+ * Used in target_core_fabric_configfs.c to verify valid se_device symlink
+ * within target_fabric_port_link()
+ */
+struct configfs_item_operations target_core_dev_item_ops = {
 	.release		= target_core_dev_release,
 };
 
@@ -2388,7 +2454,7 @@ static ssize_t target_tg_pt_gp_alua_access_state_show(struct config_item *item,
 		char *page)
 {
 	return sprintf(page, "%d\n",
-		atomic_read(&to_tg_pt_gp(item)->tg_pt_gp_alua_access_state));
+		       to_tg_pt_gp(item)->tg_pt_gp_alua_access_state);
 }
 
 static ssize_t target_tg_pt_gp_alua_access_state_store(struct config_item *item,
@@ -2507,7 +2573,7 @@ static ssize_t target_tg_pt_gp_alua_support_##_name##_store(		\
 	int ret;							\
 									\
 	if (!t->tg_pt_gp_valid_id) {					\
-		pr_err("Unable to do set ##_name ALUA state on non"	\
+		pr_err("Unable to do set " #_name " ALUA state on non"	\
 		       " valid tg_pt_gp ID: %hu\n",			\
 		       t->tg_pt_gp_valid_id);				\
 		return -EINVAL;						\
@@ -2639,13 +2705,13 @@ static ssize_t target_tg_pt_gp_tg_pt_gp_id_store(struct config_item *item,
 
 	ret = kstrtoul(page, 0, &tg_pt_gp_id);
 	if (ret < 0) {
-		pr_err("kstrtoul() returned %d for"
-			" tg_pt_gp_id\n", ret);
+		pr_err("ALUA tg_pt_gp_id: invalid value '%s' for tg_pt_gp_id\n",
+		       page);
 		return ret;
 	}
 	if (tg_pt_gp_id > 0x0000ffff) {
-		pr_err("ALUA tg_pt_gp_id: %lu exceeds maximum:"
-			" 0x0000ffff\n", tg_pt_gp_id);
+		pr_err("ALUA tg_pt_gp_id: %lu exceeds maximum: 0x0000ffff\n",
+		       tg_pt_gp_id);
 		return -EINVAL;
 	}
 

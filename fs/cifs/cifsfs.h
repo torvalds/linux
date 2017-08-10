@@ -83,7 +83,7 @@ extern int cifs_revalidate_dentry(struct dentry *);
 extern int cifs_invalidate_mapping(struct inode *inode);
 extern int cifs_revalidate_mapping(struct inode *inode);
 extern int cifs_zap_mapping(struct inode *inode);
-extern int cifs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
+extern int cifs_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern int cifs_setattr(struct dentry *, struct iattr *);
 
 extern const struct inode_operations cifs_file_inode_ops;
@@ -138,6 +138,11 @@ extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
 # define cifs_xattr_handlers NULL
 # define cifs_listxattr NULL
 #endif
+
+extern ssize_t cifs_file_copychunk_range(unsigned int xid,
+					struct file *src_file, loff_t off,
+					struct file *dst_file, loff_t destoff,
+					size_t len, unsigned int flags);
 
 extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_CIFS_NFSD_EXPORT

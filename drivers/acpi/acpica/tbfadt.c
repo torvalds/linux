@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -311,6 +311,8 @@ void acpi_tb_parse_fadt(void)
 {
 	u32 length;
 	struct acpi_table_header *table;
+	struct acpi_table_desc *fadt_desc;
+	acpi_status status;
 
 	/*
 	 * The FADT has multiple versions with different lengths,
@@ -319,14 +321,12 @@ void acpi_tb_parse_fadt(void)
 	 * Get a local copy of the FADT and convert it to a common format
 	 * Map entire FADT, assumed to be smaller than one page.
 	 */
-	length = acpi_gbl_root_table_list.tables[acpi_gbl_fadt_index].length;
-
-	table =
-	    acpi_os_map_memory(acpi_gbl_root_table_list.
-			       tables[acpi_gbl_fadt_index].address, length);
-	if (!table) {
+	fadt_desc = &acpi_gbl_root_table_list.tables[acpi_gbl_fadt_index];
+	status = acpi_tb_get_table(fadt_desc, &table);
+	if (ACPI_FAILURE(status)) {
 		return;
 	}
+	length = fadt_desc->length;
 
 	/*
 	 * Validate the FADT checksum before we copy the table. Ignore
@@ -340,7 +340,7 @@ void acpi_tb_parse_fadt(void)
 
 	/* All done with the real FADT, unmap it */
 
-	acpi_os_unmap_memory(table, length);
+	acpi_tb_put_table(fadt_desc);
 
 	/* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
@@ -449,8 +449,8 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
  * The 64-bit X fields are optional extensions to the original 32-bit FADT
  * V1.0 fields. Even if they are present in the FADT, they are optional and
  * are unused if the BIOS sets them to zero. Therefore, we must copy/expand
- * 32-bit V1.0 fields to the 64-bit X fields if the the 64-bit X field is
- * originally zero.
+ * 32-bit V1.0 fields to the 64-bit X fields if the 64-bit X field is originally
+ * zero.
  *
  * For ACPI 1.0 FADTs (that contain no 64-bit addresses), all 32-bit address
  * fields are expanded to the corresponding 64-bit X fields in the internal

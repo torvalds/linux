@@ -67,6 +67,13 @@ config SPI_ATH79
 	  This enables support for the SPI controller present on the
 	  Atheros AR71XX/AR724X/AR913X SoCs.
 
+config SPI_ARMADA_3700
+	tristate "Marvell Armada 3700 SPI Controller"
+	depends on (ARCH_MVEBU && OF) || COMPILE_TEST
+	help
+	  This enables support for the SPI controller present on the
+	  Marvell Armada 3700 SoCs.
+
 config SPI_ATMEL
 	tristate "Atmel SPI Controller"
 	depends on HAS_DMA
@@ -155,7 +162,8 @@ config SPI_BCM63XX_HSSPI
 
 config SPI_BCM_QSPI
 	tristate "Broadcom BSPI and MSPI controller support"
-	depends on ARCH_BRCMSTB || ARCH_BCM || ARCH_BCM_IPROC || COMPILE_TEST
+	depends on ARCH_BRCMSTB || ARCH_BCM || ARCH_BCM_IPROC || \
+			BMIPS_GENERIC || COMPILE_TEST
 	default ARCH_BCM_IPROC
 	help
 	  Enables support for the Broadcom SPI flash and MSPI controller.
@@ -256,13 +264,19 @@ config SPI_EP93XX
 	  mode.
 
 config SPI_FALCON
-	tristate "Falcon SPI controller support"
+	bool "Falcon SPI controller support"
 	depends on SOC_FALCON
 	help
 	  The external bus unit (EBU) found on the FALC-ON SoC has SPI
 	  emulation that is designed for serial flash access. This driver
 	  has only been tested with m25p80 type chips. The hardware has no
 	  support for other types of SPI peripherals.
+
+config SPI_FSL_LPSPI
+	tristate "Freescale i.MX LPSPI controller"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  This enables Freescale i.MX LPSPI controllers in master mode.
 
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
@@ -365,6 +379,7 @@ config SPI_FSL_SPI
 config SPI_FSL_DSPI
 	tristate "Freescale DSPI controller"
 	select REGMAP_MMIO
+	depends on HAS_DMA
 	depends on SOC_VF610 || SOC_LS1021A || ARCH_LAYERSCAPE || COMPILE_TEST
 	help
 	  This enables support for the Freescale DSPI controller in master
@@ -373,11 +388,17 @@ config SPI_FSL_DSPI
 config SPI_FSL_ESPI
 	tristate "Freescale eSPI controller"
 	depends on FSL_SOC
-	select SPI_FSL_LIB
 	help
 	  This enables using the Freescale eSPI controllers in master mode.
 	  From MPC8536, 85xx platform uses the controller, and all P10xx,
 	  P20xx, P30xx,P40xx, P50xx uses this controller.
+
+config SPI_MESON_SPICC
+	tristate "Amlogic Meson SPICC controller"
+	depends on ARCH_MESON || COMPILE_TEST
+	help
+	  This enables master mode support for the SPICC (SPI communication
+	  controller) available in Amlogic Meson SoCs.
 
 config SPI_MESON_SPIFC
 	tristate "Amlogic Meson SPIFC controller"
@@ -402,6 +423,14 @@ config SPI_NUC900
 	select SPI_BITBANG
 	help
 	  SPI driver for Nuvoton NUC900 series ARM SoCs
+
+config SPI_LANTIQ_SSC
+	tristate "Lantiq SSC SPI controller"
+	depends on LANTIQ || COMPILE_TEST
+	help
+	  This driver supports the Lantiq SSC SPI controller in master
+	  mode. This controller is found on Intel (former Lantiq) SoCs like
+	  the Danube, Falcon, xRX200, xRX300.
 
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
@@ -435,6 +464,7 @@ config SPI_OMAP24XX
 
 config SPI_TI_QSPI
 	tristate "DRA7xxx QSPI controller support"
+	depends on HAS_DMA
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  QSPI master controller for DRA7xxx used for flash devices.
@@ -451,7 +481,8 @@ config SPI_ORION
 	tristate "Orion SPI master"
 	depends on PLAT_ORION || ARCH_MVEBU || COMPILE_TEST
 	help
-	  This enables using the SPI master controller on the Orion chips.
+	  This enables using the SPI master controller on the Orion
+	  and MVEBU chips.
 
 config SPI_PIC32
 	tristate "Microchip PIC32 series SPI"
@@ -553,7 +584,7 @@ config SPI_S3C24XX_FIQ
 
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX series type SPI"
-	depends on (PLAT_SAMSUNG || ARCH_EXYNOS)
+	depends on (PLAT_SAMSUNG || ARCH_EXYNOS || COMPILE_TEST)
 	help
 	  SPI driver for Samsung S3C64XX and newer SoCs.
 
@@ -595,6 +626,16 @@ config SPI_SIRF
 	select SPI_BITBANG
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
+
+config SPI_STM32
+	tristate "STMicroelectronics STM32 SPI controller"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  SPI driver for STMicroelectonics STM32 SoCs.
+
+	  STM32 SPI controller supports DMA and PIO modes. When DMA
+	  is not available, the driver automatically falls back to
+	  PIO mode.
 
 config SPI_ST_SSC4
 	tristate "STMicroelectronics SPI SSC-based driver"
@@ -692,7 +733,7 @@ config SPI_XILINX
 
 config SPI_XLP
 	tristate "Netlogic XLP SPI controller driver"
-	depends on CPU_XLP || ARCH_VULCAN || COMPILE_TEST
+	depends on CPU_XLP || ARCH_THUNDER2 || COMPILE_TEST
 	help
 	  Enable support for the SPI controller on the Netlogic XLP SoCs.
 	  Currently supported XLP variants are XLP8XX, XLP3XX, XLP2XX, XLP9XX
@@ -761,6 +802,30 @@ config SPI_TLE62X0
 
 endif # SPI_MASTER
 
-# (slave support would go here)
+#
+# SLAVE side ... listening to other SPI masters
+#
+
+config SPI_SLAVE
+	bool "SPI slave protocol handlers"
+	help
+	  If your system has a slave-capable SPI controller, you can enable
+	  slave protocol handlers.
+
+if SPI_SLAVE
+
+config SPI_SLAVE_TIME
+	tristate "SPI slave handler reporting boot up time"
+	help
+	  SPI slave handler responding with the time of reception of the last
+	  SPI message.
+
+config SPI_SLAVE_SYSTEM_CONTROL
+	tristate "SPI slave handler controlling system state"
+	help
+	  SPI slave handler to allow remote control of system reboot, power
+	  off, halt, and suspend.
+
+endif # SPI_SLAVE
 
 endif # SPI

@@ -23,6 +23,8 @@
 #define REG_IRQENABLE		0x02C
 #define REG_IRQCLR		0x030
 #define REG_IRQWAKEUP		0x034
+#define REG_DMAENABLE_SET	0x038
+#define REG_DMAENABLE_CLEAR	0x03c
 #define REG_CTRL		0x040
 #define REG_ADCFSM		0x044
 #define REG_CLKDIV		0x04C
@@ -36,6 +38,7 @@
 #define REG_FIFO0THR		0xE8
 #define REG_FIFO1CNT		0xF0
 #define REG_FIFO1THR		0xF4
+#define REG_DMA1REQ		0xF8
 #define REG_FIFO0		0x100
 #define REG_FIFO1		0x200
 
@@ -126,6 +129,10 @@
 #define FIFOREAD_DATA_MASK (0xfff << 0)
 #define FIFOREAD_CHNLID_MASK (0xf << 16)
 
+/* DMA ENABLE/CLEAR Register */
+#define DMA_FIFO0		BIT(0)
+#define DMA_FIFO1		BIT(1)
+
 /* Sequencer Status */
 #define SEQ_STATUS BIT(5)
 #define CHARGE_STEP		0x11
@@ -155,6 +162,7 @@ struct ti_tscadc_dev {
 	struct device *dev;
 	struct regmap *regmap;
 	void __iomem *tscadc_base;
+	phys_addr_t tscadc_phys_base;
 	int irq;
 	int used_cells;	/* 1-2 */
 	int tsc_wires;

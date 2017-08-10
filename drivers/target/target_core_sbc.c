@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/ratelimit.h>
 #include <linux/crc-t10dif.h>
+#include <linux/t10-pi.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_proto.h>
 #include <scsi/scsi_tcq.h>
@@ -70,14 +71,8 @@ sbc_emulate_readcapacity(struct se_cmd *cmd)
 	else
 		blocks = (u32)blocks_long;
 
-	buf[0] = (blocks >> 24) & 0xff;
-	buf[1] = (blocks >> 16) & 0xff;
-	buf[2] = (blocks >> 8) & 0xff;
-	buf[3] = blocks & 0xff;
-	buf[4] = (dev->dev_attrib.block_size >> 24) & 0xff;
-	buf[5] = (dev->dev_attrib.block_size >> 16) & 0xff;
-	buf[6] = (dev->dev_attrib.block_size >> 8) & 0xff;
-	buf[7] = dev->dev_attrib.block_size & 0xff;
+	put_unaligned_be32(blocks, &buf[0]);
+	put_unaligned_be32(dev->dev_attrib.block_size, &buf[4]);
 
 	rbuf = transport_kmap_data_sg(cmd);
 	if (rbuf) {
@@ -101,18 +96,8 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	unsigned long long blocks = dev->transport->get_blocks(dev);
 
 	memset(buf, 0, sizeof(buf));
-	buf[0] = (blocks >> 56) & 0xff;
-	buf[1] = (blocks >> 48) & 0xff;
-	buf[2] = (blocks >> 40) & 0xff;
-	buf[3] = (blocks >> 32) & 0xff;
-	buf[4] = (blocks >> 24) & 0xff;
-	buf[5] = (blocks >> 16) & 0xff;
-	buf[6] = (blocks >> 8) & 0xff;
-	buf[7] = blocks & 0xff;
-	buf[8] = (dev->dev_attrib.block_size >> 24) & 0xff;
-	buf[9] = (dev->dev_attrib.block_size >> 16) & 0xff;
-	buf[10] = (dev->dev_attrib.block_size >> 8) & 0xff;
-	buf[11] = dev->dev_attrib.block_size & 0xff;
+	put_unaligned_be64(blocks, &buf[0]);
+	put_unaligned_be32(dev->dev_attrib.block_size, &buf[8]);
 	/*
 	 * Set P_TYPE and PROT_EN bits for DIF support
 	 */
@@ -133,8 +118,8 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 
 	if (dev->transport->get_alignment_offset_lbas) {
 		u16 lalba = dev->transport->get_alignment_offset_lbas(dev);
-		buf[14] = (lalba >> 8) & 0x3f;
-		buf[15] = lalba & 0xff;
+
+		put_unaligned_be16(lalba, &buf[14]);
 	}
 
 	/*
@@ -261,18 +246,17 @@ static inline u32 transport_get_sectors_6(unsigned char *cdb)
 
 static inline u32 transport_get_sectors_10(unsigned char *cdb)
 {
-	return (u32)(cdb[7] << 8) + cdb[8];
+	return get_unaligned_be16(&cdb[7]);
 }
 
 static inline u32 transport_get_sectors_12(unsigned char *cdb)
 {
-	return (u32)(cdb[6] << 24) + (cdb[7] << 16) + (cdb[8] << 8) + cdb[9];
+	return get_unaligned_be32(&cdb[6]);
 }
 
 static inline u32 transport_get_sectors_16(unsigned char *cdb)
 {
-	return (u32)(cdb[10] << 24) + (cdb[11] << 16) +
-		    (cdb[12] << 8) + cdb[13];
+	return get_unaligned_be32(&cdb[10]);
 }
 
 /*
@@ -280,29 +264,23 @@ static inline u32 transport_get_sectors_16(unsigned char *cdb)
  */
 static inline u32 transport_get_sectors_32(unsigned char *cdb)
 {
-	return (u32)(cdb[28] << 24) + (cdb[29] << 16) +
-		    (cdb[30] << 8) + cdb[31];
+	return get_unaligned_be32(&cdb[28]);
 
 }
 
 static inline u32 transport_lba_21(unsigned char *cdb)
 {
-	return ((cdb[1] & 0x1f) << 16) | (cdb[2] << 8) | cdb[3];
+	return get_unaligned_be24(&cdb[1]) & 0x1fffff;
 }
 
 static inline u32 transport_lba_32(unsigned char *cdb)
 {
-	return (cdb[2] << 24) | (cdb[3] << 16) | (cdb[4] << 8) | cdb[5];
+	return get_unaligned_be32(&cdb[2]);
 }
 
 static inline unsigned long long transport_lba_64(unsigned char *cdb)
 {
-	unsigned int __v1, __v2;
-
-	__v1 = (cdb[2] << 24) | (cdb[3] << 16) | (cdb[4] << 8) | cdb[5];
-	__v2 = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
-
-	return ((unsigned long long)__v2) | (unsigned long long)__v1 << 32;
+	return get_unaligned_be64(&cdb[2]);
 }
 
 /*
@@ -310,12 +288,7 @@ static inline unsigned long long transport_lba_64(unsigned char *cdb)
  */
 static inline unsigned long long transport_lba_64_ext(unsigned char *cdb)
 {
-	unsigned int __v1, __v2;
-
-	__v1 = (cdb[12] << 24) | (cdb[13] << 16) | (cdb[14] << 8) | cdb[15];
-	__v2 = (cdb[16] << 24) | (cdb[17] << 16) | (cdb[18] << 8) | cdb[19];
-
-	return ((unsigned long long)__v2) | (unsigned long long)__v1 << 32;
+	return get_unaligned_be64(&cdb[12]);
 }
 
 static sense_reason_t
@@ -450,6 +423,7 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success,
 					     int *post_ret)
 {
 	struct se_device *dev = cmd->se_dev;
+	sense_reason_t ret = TCM_NO_SENSE;
 
 	/*
 	 * Only set SCF_COMPARE_AND_WRITE_POST to force a response fall-through
@@ -457,9 +431,12 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success,
 	 * sent to the backend driver.
 	 */
 	spin_lock_irq(&cmd->t_state_lock);
-	if ((cmd->transport_state & CMD_T_SENT) && !cmd->scsi_status) {
+	if (cmd->transport_state & CMD_T_SENT) {
 		cmd->se_cmd_flags |= SCF_COMPARE_AND_WRITE_POST;
 		*post_ret = 1;
+
+		if (cmd->scsi_status == SAM_STAT_CHECK_CONDITION)
+			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 	spin_unlock_irq(&cmd->t_state_lock);
 
@@ -469,7 +446,7 @@ static sense_reason_t compare_and_write_post(struct se_cmd *cmd, bool success,
 	 */
 	up(&dev->caw_sem);
 
-	return TCM_NO_SENSE;
+	return ret;
 }
 
 static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool success,
@@ -502,8 +479,11 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 	 * been failed with a non-zero SCSI status.
 	 */
 	if (cmd->scsi_status) {
-		pr_err("compare_and_write_callback: non zero scsi_status:"
+		pr_debug("compare_and_write_callback: non zero scsi_status:"
 			" 0x%02x\n", cmd->scsi_status);
+		*post_ret = 1;
+		if (cmd->scsi_status == SAM_STAT_CHECK_CONDITION)
+			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		goto out;
 	}
 
@@ -514,8 +494,8 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 		goto out;
 	}
 
-	write_sg = kmalloc(sizeof(struct scatterlist) * cmd->t_data_nents,
-			   GFP_KERNEL);
+	write_sg = kmalloc_array(cmd->t_data_nents, sizeof(*write_sg),
+				 GFP_KERNEL);
 	if (!write_sg) {
 		pr_err("Unable to allocate compare_and_write sg\n");
 		ret = TCM_OUT_OF_RESOURCES;
@@ -599,7 +579,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 
 	spin_lock_irq(&cmd->t_state_lock);
 	cmd->t_state = TRANSPORT_PROCESSING;
-	cmd->transport_state |= CMD_T_ACTIVE|CMD_T_BUSY|CMD_T_SENT;
+	cmd->transport_state |= CMD_T_ACTIVE | CMD_T_SENT;
 	spin_unlock_irq(&cmd->t_state_lock);
 
 	__target_execute_cmd(cmd, false);
@@ -919,6 +899,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case WRITE_16:
+	case WRITE_VERIFY_16:
 		sectors = transport_get_sectors_16(cdb);
 		cmd->t_task_lba = transport_lba_64(cdb);
 
@@ -996,6 +977,12 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		break;
 	}
 	case COMPARE_AND_WRITE:
+		if (!dev->dev_attrib.emulate_caw) {
+			pr_err_ratelimited("se_device %s/%s (vpd_unit_serial %s) reject"
+				" COMPARE_AND_WRITE\n", dev->se_hba->backend->ops->name,
+				dev->dev_group.cg_item.ci_name, dev->t10_wwn.unit_serial);
+			return TCM_UNSUPPORTED_SCSI_OPCODE;
+		}
 		sectors = cdb[13];
 		/*
 		 * Currently enforce COMPARE_AND_WRITE for a single sector
@@ -1036,8 +1023,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 				cmd->t_task_cdb[1] & 0x1f);
 			return TCM_INVALID_CDB_FIELD;
 		}
-		size = (cdb[10] << 24) | (cdb[11] << 16) |
-		       (cdb[12] << 8) | cdb[13];
+		size = get_unaligned_be32(&cdb[10]);
 		break;
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
@@ -1100,9 +1086,15 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			return ret;
 		break;
 	case VERIFY:
+	case VERIFY_16:
 		size = 0;
-		sectors = transport_get_sectors_10(cdb);
-		cmd->t_task_lba = transport_lba_32(cdb);
+		if (cdb[0] == VERIFY) {
+			sectors = transport_get_sectors_10(cdb);
+			cmd->t_task_lba = transport_lba_32(cdb);
+		} else {
+			sectors = transport_get_sectors_16(cdb);
+			cmd->t_task_lba = transport_lba_64(cdb);
+		}
 		cmd->execute_cmd = sbc_emulate_noop;
 		goto check_lba;
 	case REZERO_UNIT:
@@ -1435,7 +1427,7 @@ sbc_dif_verify(struct se_cmd *cmd, sector_t start, unsigned int sectors,
 				 (unsigned long long)sector, sdt->guard_tag,
 				 sdt->app_tag, be32_to_cpu(sdt->ref_tag));
 
-			if (sdt->app_tag == cpu_to_be16(0xffff)) {
+			if (sdt->app_tag == T10_PI_APP_ESCAPE) {
 				dsg_off += block_size;
 				goto next;
 			}

@@ -137,7 +137,7 @@ static int vsp1_dl_body_init(struct vsp1_device *vsp1,
 	dlb->vsp1 = vsp1;
 	dlb->size = size;
 
-	dlb->entries = dma_alloc_wc(vsp1->dev, dlb->size, &dlb->dma,
+	dlb->entries = dma_alloc_wc(vsp1->bus_master, dlb->size, &dlb->dma,
 				    GFP_KERNEL);
 	if (!dlb->entries)
 		return -ENOMEM;
@@ -150,7 +150,7 @@ static int vsp1_dl_body_init(struct vsp1_device *vsp1,
  */
 static void vsp1_dl_body_cleanup(struct vsp1_dl_body *dlb)
 {
-	dma_free_wc(dlb->vsp1->dev, dlb->size, dlb->entries, dlb->dma);
+	dma_free_wc(dlb->vsp1->bus_master, dlb->size, dlb->entries, dlb->dma);
 }
 
 /**
@@ -240,7 +240,8 @@ static struct vsp1_dl_list *vsp1_dl_list_alloc(struct vsp1_dl_manager *dlm)
 	INIT_LIST_HEAD(&dl->fragments);
 	dl->dlm = dlm;
 
-	/* Initialize the display list body and allocate DMA memory for the body
+	/*
+	 * Initialize the display list body and allocate DMA memory for the body
 	 * and the optional header. Both are allocated together to avoid memory
 	 * fragmentation, with the header located right after the body in
 	 * memory.
@@ -511,7 +512,8 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 		goto done;
 	}
 
-	/* Once the UPD bit has been set the hardware can start processing the
+	/*
+	 * Once the UPD bit has been set the hardware can start processing the
 	 * display list at any time and we can't touch the address and size
 	 * registers. In that case mark the update as pending, it will be
 	 * queued up to the hardware by the frame end interrupt handler.
@@ -523,7 +525,8 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 		goto done;
 	}
 
-	/* Program the hardware with the display list body address and size.
+	/*
+	 * Program the hardware with the display list body address and size.
 	 * The UPD bit will be cleared by the device when the display list is
 	 * processed.
 	 */
@@ -547,7 +550,8 @@ void vsp1_dlm_irq_display_start(struct vsp1_dl_manager *dlm)
 {
 	spin_lock(&dlm->lock);
 
-	/* The display start interrupt signals the end of the display list
+	/*
+	 * The display start interrupt signals the end of the display list
 	 * processing by the device. The active display list, if any, won't be
 	 * accessed anymore and can be reused.
 	 */
@@ -557,23 +561,37 @@ void vsp1_dlm_irq_display_start(struct vsp1_dl_manager *dlm)
 	spin_unlock(&dlm->lock);
 }
 
-void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
+/**
+ * vsp1_dlm_irq_frame_end - Display list handler for the frame end interrupt
+ * @dlm: the display list manager
+ *
+ * Return true if the previous display list has completed at frame end, or false
+ * if it has been delayed by one frame because the display list commit raced
+ * with the frame end interrupt. The function always returns true in header mode
+ * as display list processing is then not continuous and races never occur.
+ */
+bool vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 {
 	struct vsp1_device *vsp1 = dlm->vsp1;
+	bool completed = false;
 
 	spin_lock(&dlm->lock);
 
 	__vsp1_dl_list_put(dlm->active);
 	dlm->active = NULL;
 
-	/* Header mode is used for mem-to-mem pipelines only. We don't need to
+	/*
+	 * Header mode is used for mem-to-mem pipelines only. We don't need to
 	 * perform any operation as there can't be any new display list queued
 	 * in that case.
 	 */
-	if (dlm->mode == VSP1_DL_MODE_HEADER)
+	if (dlm->mode == VSP1_DL_MODE_HEADER) {
+		completed = true;
 		goto done;
+	}
 
-	/* The UPD bit set indicates that the commit operation raced with the
+	/*
+	 * The UPD bit set indicates that the commit operation raced with the
 	 * interrupt and occurred after the frame end event and UPD clear but
 	 * before interrupt processing. The hardware hasn't taken the update
 	 * into account yet, we'll thus skip one frame and retry.
@@ -581,15 +599,18 @@ void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	if (vsp1_read(vsp1, VI6_DL_BODY_SIZE) & VI6_DL_BODY_SIZE_UPD)
 		goto done;
 
-	/* The device starts processing the queued display list right after the
+	/*
+	 * The device starts processing the queued display list right after the
 	 * frame end interrupt. The display list thus becomes active.
 	 */
 	if (dlm->queued) {
 		dlm->active = dlm->queued;
 		dlm->queued = NULL;
+		completed = true;
 	}
 
-	/* Now that the UPD bit has been cleared we can queue the next display
+	/*
+	 * Now that the UPD bit has been cleared we can queue the next display
 	 * list to the hardware if one has been prepared.
 	 */
 	if (dlm->pending) {
@@ -606,6 +627,8 @@ void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 
 done:
 	spin_unlock(&dlm->lock);
+
+	return completed;
 }
 
 /* Hardware Setup */
@@ -615,7 +638,8 @@ void vsp1_dlm_setup(struct vsp1_device *vsp1)
 		 | VI6_DL_CTRL_DC2 | VI6_DL_CTRL_DC1 | VI6_DL_CTRL_DC0
 		 | VI6_DL_CTRL_DLE;
 
-	/* The DRM pipeline operates with display lists in Continuous Frame
+	/*
+	 * The DRM pipeline operates with display lists in Continuous Frame
 	 * Mode, all other pipelines use manual start.
 	 */
 	if (vsp1->drm)

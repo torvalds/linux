@@ -8,6 +8,7 @@
 #include <sys/prctl.h>
 #include "tests.h"
 #include "debug.h"
+#include <errno.h>
 
 #define NR_ITERS 111
 
@@ -97,7 +98,7 @@ int test__backward_ring_buffer(int subtest __maybe_unused)
 
 	evlist = perf_evlist__new();
 	if (!evlist) {
-		pr_debug("No enough memory to create evlist\n");
+		pr_debug("Not enough memory to create evlist\n");
 		return TEST_FAIL;
 	}
 

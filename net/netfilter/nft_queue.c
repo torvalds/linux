@@ -38,12 +38,12 @@ static void nft_queue_eval(const struct nft_expr *expr,
 
 	if (priv->queues_total > 1) {
 		if (priv->flags & NFT_QUEUE_FLAG_CPU_FANOUT) {
-			int cpu = smp_processor_id();
+			int cpu = raw_smp_processor_id();
 
 			queue = priv->queuenum + cpu % priv->queues_total;
 		} else {
 			queue = nfqueue_hash(pkt->skb, queue,
-					     priv->queues_total, pkt->pf,
+					     priv->queues_total, nft_pf(pkt),
 					     jhash_initval);
 		}
 	}
@@ -197,7 +197,7 @@ nft_queue_select_ops(const struct nft_ctx *ctx,
 
 static struct nft_expr_type nft_queue_type __read_mostly = {
 	.name		= "queue",
-	.select_ops	= &nft_queue_select_ops,
+	.select_ops	= nft_queue_select_ops,
 	.policy		= nft_queue_policy,
 	.maxattr	= NFTA_QUEUE_MAX,
 	.owner		= THIS_MODULE,

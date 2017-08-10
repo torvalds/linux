@@ -377,9 +377,16 @@ static const struct i2c_device_id itg3200_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, itg3200_id);
 
+static const struct of_device_id itg3200_of_match[] = {
+	{ .compatible = "invensense,itg3200" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, itg3200_of_match);
+
 static struct i2c_driver itg3200_driver = {
 	.driver = {
 		.name	= "itg3200",
+		.of_match_table = itg3200_of_match,
 		.pm	= &itg3200_pm_ops,
 	},
 	.id_table	= itg3200_id,

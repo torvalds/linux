@@ -18,19 +18,12 @@
 
 struct bpf_reg_state {
 	enum bpf_reg_type type;
-	/*
-	 * Used to determine if any memory access using this register will
-	 * result in a bad access.
-	 */
-	s64 min_value;
-	u64 max_value;
 	union {
 		/* valid when type == CONST_IMM | PTR_TO_STACK | UNKNOWN_VALUE */
 		s64 imm;
 
 		/* valid when type == PTR_TO_PACKET* */
 		struct {
-			u32 id;
 			u16 off;
 			u16 range;
 		};
@@ -40,6 +33,17 @@ struct bpf_reg_state {
 		 */
 		struct bpf_map *map_ptr;
 	};
+	u32 id;
+	/* Used to determine if any memory access using this register will
+	 * result in a bad access. These two fields must be last.
+	 * See states_equal()
+	 */
+	s64 min_value;
+	u64 max_value;
+	u32 min_align;
+	u32 aux_off;
+	u32 aux_off_align;
+	bool value_from_signed;
 };
 
 enum bpf_stack_slot_type {
@@ -66,7 +70,12 @@ struct bpf_verifier_state_list {
 };
 
 struct bpf_insn_aux_data {
-	enum bpf_reg_type ptr_type;	/* pointer type for load/store insns */
+	union {
+		enum bpf_reg_type ptr_type;	/* pointer type for load/store insns */
+		struct bpf_map *map_ptr;	/* pointer for call insn into lookup_elem */
+	};
+	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
+	int converted_op_size; /* the valid value width after perceived conversion */
 };
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */
@@ -84,6 +93,7 @@ struct bpf_verifier_env {
 	struct bpf_prog *prog;		/* eBPF program being verified */
 	struct bpf_verifier_stack_elem *head; /* stack of verifier states to be processed */
 	int stack_size;			/* number of states to be processed */
+	bool strict_alignment;		/* perform strict pointer alignment checks */
 	struct bpf_verifier_state cur_state; /* current verifier state */
 	struct bpf_verifier_state_list **explored_states; /* search pruning optimization */
 	const struct bpf_ext_analyzer_ops *analyzer_ops; /* external analyzer ops */

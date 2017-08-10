@@ -58,22 +58,22 @@ Implementation Tips for Filesystem Writers
 Filesystem support consists of
 - adding support to mark inodes as being DAX by setting the S_DAX flag in
   i_flags
-- implementing the direct_IO address space operation, and calling
-  dax_do_io() instead of blockdev_direct_IO() if S_DAX is set
+- implementing ->read_iter and ->write_iter operations which use dax_iomap_rw()
+  when inode has S_DAX flag set
 - implementing an mmap file operation for DAX files which sets the
   VM_MIXEDMAP and VM_HUGEPAGE flags on the VMA, and setting the vm_ops to
-  include handlers for fault, pmd_fault and page_mkwrite (which should
-  probably call dax_fault(), dax_pmd_fault() and dax_mkwrite(), passing the
-  appropriate get_block() callback)
-- calling dax_truncate_page() instead of block_truncate_page() for DAX files
-- calling dax_zero_page_range() instead of zero_user() for DAX files
+  include handlers for fault, pmd_fault, page_mkwrite, pfn_mkwrite. These
+  handlers should probably call dax_iomap_fault() (for fault and page_mkwrite
+  handlers), dax_iomap_pmd_fault(), dax_pfn_mkwrite() passing the appropriate
+  iomap operations.
+- calling iomap_zero_range() passing appropriate iomap operations instead of
+  block_truncate_page() for DAX files
 - ensuring that there is sufficient locking between reads, writes,
   truncates and page faults
 
-The get_block() callback passed to the DAX functions may return
-uninitialised extents.  If it does, it must ensure that simultaneous
-calls to get_block() (for example by a page-fault racing with a read()
-or a write()) work correctly.
+The iomap handlers for allocating blocks must make sure that allocated blocks
+are zeroed out and converted to written extents before being returned to avoid
+exposure of uninitialized data through mmap.
 
 These filesystems may be used for inspiration:
 - ext2: see Documentation/filesystems/ext2.txt

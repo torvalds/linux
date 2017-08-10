@@ -92,7 +92,7 @@ static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-static cycle_t read_clk32k(struct clocksource *cs)
+static u64 read_clk32k(struct clocksource *cs)
 {
 	return read_CRTR();
 }
@@ -260,5 +260,5 @@ static int __init atmel_st_timer_init(struct device_node *node)
 	/* register clocksource */
 	return clocksource_register_hz(&clk32k, sclk_rate);
 }
-CLOCKSOURCE_OF_DECLARE(atmel_st_timer, "atmel,at91rm9200-st",
+TIMER_OF_DECLARE(atmel_st_timer, "atmel,at91rm9200-st",
 		       atmel_st_timer_init);

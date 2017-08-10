@@ -198,7 +198,7 @@ struct bpf_map_def SEC("maps") hash_map = {
 SEC("socket2")
 int bpf_prog2(struct __sk_buff *skb)
 {
-	struct bpf_flow_keys flow;
+	struct bpf_flow_keys flow = {};
 	struct pair *value;
 	u32 key;
 

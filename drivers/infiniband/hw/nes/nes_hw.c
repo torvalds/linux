@@ -351,9 +351,8 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 
 	/* allocate a new adapter struct */
 	nesadapter = kzalloc(adapter_size, GFP_KERNEL);
-	if (nesadapter == NULL) {
+	if (!nesadapter)
 		return NULL;
-	}
 
 	nes_debug(NES_DBG_INIT, "Allocating new nesadapter @ %p, size = %u (actual size = %u).\n",
 			nesadapter, (u32)sizeof(struct nes_adapter), adapter_size);
@@ -552,7 +551,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 			if ((0x0F000100 == (pcs_control_status0 & 0x0F000100))
 			    || (0x0F000100 == (pcs_control_status1 & 0x0F000100)))
 				int_cnt++;
-			msleep(1);
+			usleep_range(1000, 2000);
 		}
 		if (int_cnt > 1) {
 			spin_lock_irqsave(&nesadapter->phy_lock, flags);
@@ -593,7 +592,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 						break;
 					}
 				}
-				msleep(1);
+				usleep_range(1000, 2000);
 			}
 		}
 	}
@@ -1007,8 +1006,7 @@ int nes_init_cqp(struct nes_device *nesdev)
 	/* Allocate a twice the number of CQP requests as the SQ size */
 	nesdev->nes_cqp_requests = kzalloc(sizeof(struct nes_cqp_request) *
 			2 * NES_CQP_SQ_SIZE, GFP_KERNEL);
-	if (nesdev->nes_cqp_requests == NULL) {
-		nes_debug(NES_DBG_INIT, "Unable to allocate memory CQP request entries.\n");
+	if (!nesdev->nes_cqp_requests) {
 		pci_free_consistent(nesdev->pcidev, nesdev->cqp_mem_size, nesdev->cqp.sq_vbase,
 				nesdev->cqp.sq_pbase);
 		return -ENOMEM;
@@ -1851,9 +1849,8 @@ int nes_init_nic_qp(struct nes_device *nesdev, struct net_device *netdev)
 		wqe_count -= counter;
 		nes_write32(nesdev->regs+NES_WQE_ALLOC, (counter << 24) | nesvnic->nic.qp_id);
 	} while (wqe_count);
-	init_timer(&nesvnic->rq_wqes_timer);
-	nesvnic->rq_wqes_timer.function = nes_rq_wqes_timeout;
-	nesvnic->rq_wqes_timer.data = (unsigned long)nesvnic;
+	setup_timer(&nesvnic->rq_wqes_timer, nes_rq_wqes_timeout,
+		    (unsigned long)nesvnic);
 	nes_debug(NES_DBG_INIT, "NAPI support Enabled\n");
 	if (nesdev->nesadapter->et_use_adaptive_rx_coalesce)
 	{
@@ -3057,7 +3054,7 @@ static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 		memcpy(cqp_wqe, &cqp_request->cqp_wqe, sizeof(*cqp_wqe));
 		barrier();
 
-		opcode = cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX];
+		opcode = le32_to_cpu(cqp_wqe->wqe_words[NES_CQP_WQE_OPCODE_IDX]);
 		if ((opcode & NES_CQP_OPCODE_MASK) == NES_CQP_DOWNLOAD_SEGMENT)
 			ctx_index = NES_CQP_WQE_DL_COMP_CTX_LOW_IDX;
 		else

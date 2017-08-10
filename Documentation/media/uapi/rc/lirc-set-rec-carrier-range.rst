@@ -9,7 +9,7 @@ ioctl LIRC_SET_REC_CARRIER_RANGE
 Name
 ====
 
-LIRC_SET_REC_CARRIER_RANGE - Set lower bond of the carrier used to modulate
+LIRC_SET_REC_CARRIER_RANGE - Set lower bound of the carrier used to modulate
 IR receive.
 
 Synopsis

@@ -34,9 +34,9 @@
 unsigned long ccount_freq;		/* ccount Hz */
 EXPORT_SYMBOL(ccount_freq);
 
-static cycle_t ccount_read(struct clocksource *cs)
+static u64 ccount_read(struct clocksource *cs)
 {
-	return (cycle_t)get_ccount();
+	return (u64)get_ccount();
 }
 
 static u64 notrace ccount_sched_clock_read(void)
@@ -187,7 +187,7 @@ void __init time_init(void)
 	local_timer_setup(0);
 	setup_irq(this_cpu_ptr(&ccount_timer)->evt.irq, &timer_irqaction);
 	sched_clock_register(ccount_sched_clock_read, 32, ccount_freq);
-	clocksource_probe();
+	timer_probe();
 }
 
 /*

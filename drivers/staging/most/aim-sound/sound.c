@@ -429,7 +429,7 @@ static int pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		return 0;
 
 	default:
-		pr_info("pcm_trigger(), invalid\n");
+		pr_info("%s(), invalid\n", __func__);
 		return -EINVAL;
 	}
 	return 0;

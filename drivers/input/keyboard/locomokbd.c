@@ -264,9 +264,8 @@ static int locomokbd_probe(struct locomo_dev *dev)
 
 	spin_lock_init(&locomokbd->lock);
 
-	init_timer(&locomokbd->timer);
-	locomokbd->timer.function = locomokbd_timer_callback;
-	locomokbd->timer.data = (unsigned long) locomokbd;
+	setup_timer(&locomokbd->timer, locomokbd_timer_callback,
+		    (unsigned long)locomokbd);
 
 	locomokbd->suspend_jiffies = jiffies;
 

@@ -547,7 +547,6 @@ static void sh_sir_rx(struct sh_sir_self *self)
 
 		async_unwrap_char(self->ndev, &self->ndev->stats,
 				  &self->rx_buff, (u8)data);
-		self->ndev->last_rx = jiffies;
 
 		if (EOFD & sh_sir_read(self, IRIF_SIR_FRM))
 			continue;

@@ -88,12 +88,13 @@ virtio_gpu_framebuffer_init(struct drm_device *dev,
 
 	bo = gem_to_virtio_gpu_obj(obj);
 
+	drm_helper_mode_fill_fb_struct(dev, &vgfb->base, mode_cmd);
+
 	ret = drm_framebuffer_init(dev, &vgfb->base, &virtio_gpu_fb_funcs);
 	if (ret) {
 		vgfb->obj = NULL;
 		return ret;
 	}
-	drm_helper_mode_fill_fb_struct(&vgfb->base, mode_cmd);
 
 	spin_lock_init(&vgfb->dirty_lock);
 	vgfb->x1 = vgfb->y1 = INT_MAX;
@@ -346,7 +347,7 @@ static void vgdev_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_cleanup_planes(dev, state);
 }
 
-static struct drm_mode_config_helper_funcs virtio_mode_config_helpers = {
+static const struct drm_mode_config_helper_funcs virtio_mode_config_helpers = {
 	.atomic_commit_tail = vgdev_atomic_commit_tail,
 };
 

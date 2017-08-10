@@ -19,6 +19,27 @@ static int sk_diag_dump_groups(struct sock *sk, struct sk_buff *nlskb)
 		       nlk->groups);
 }
 
+static int sk_diag_put_flags(struct sock *sk, struct sk_buff *skb)
+{
+	struct netlink_sock *nlk = nlk_sk(sk);
+	u32 flags = 0;
+
+	if (nlk->cb_running)
+		flags |= NDIAG_FLAG_CB_RUNNING;
+	if (nlk->flags & NETLINK_F_RECV_PKTINFO)
+		flags |= NDIAG_FLAG_PKTINFO;
+	if (nlk->flags & NETLINK_F_BROADCAST_SEND_ERROR)
+		flags |= NDIAG_FLAG_BROADCAST_ERROR;
+	if (nlk->flags & NETLINK_F_RECV_NO_ENOBUFS)
+		flags |= NDIAG_FLAG_NO_ENOBUFS;
+	if (nlk->flags & NETLINK_F_LISTEN_ALL_NSID)
+		flags |= NDIAG_FLAG_LISTEN_ALL_NSID;
+	if (nlk->flags & NETLINK_F_CAP_ACK)
+		flags |= NDIAG_FLAG_CAP_ACK;
+
+	return nla_put_u32(skb, NETLINK_DIAG_FLAGS, flags);
+}
+
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 			struct netlink_diag_req *req,
 			u32 portid, u32 seq, u32 flags, int sk_ino)
@@ -50,6 +71,10 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 
 	if ((req->ndiag_show & NDIAG_SHOW_MEMINFO) &&
 	    sock_diag_put_meminfo(sk, skb, NETLINK_DIAG_MEMINFO))
+		goto out_nlmsg_trim;
+
+	if ((req->ndiag_show & NDIAG_SHOW_FLAGS) &&
+	    sk_diag_put_flags(sk, skb))
 		goto out_nlmsg_trim;
 
 	nlmsg_end(skb, nlh);

@@ -35,14 +35,11 @@
 #ifndef _CONFIGFS_H_
 #define _CONFIGFS_H_
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/kref.h>
-#include <linux/mutex.h>
-#include <linux/err.h>
-
-#include <linux/atomic.h>
+#include <linux/stat.h>   /* S_IRUGO */
+#include <linux/types.h>  /* ssize_t */
+#include <linux/list.h>   /* struct list_head */
+#include <linux/kref.h>   /* struct kref */
+#include <linux/mutex.h>  /* struct mutex */
 
 #define CONFIGFS_ITEM_NAME_LEN	20
 
@@ -77,7 +74,8 @@ extern void config_item_init_type_name(struct config_item *item,
 				       const char *name,
 				       struct config_item_type *type);
 
-extern struct config_item * config_item_get(struct config_item *);
+extern struct config_item *config_item_get(struct config_item *);
+extern struct config_item *config_item_get_unless_zero(struct config_item *);
 extern void config_item_put(struct config_item *);
 
 struct config_item_type {
@@ -228,7 +226,7 @@ static struct configfs_bin_attribute _pfx##attr_##_name = {	\
 struct configfs_item_operations {
 	void (*release)(struct config_item *);
 	int (*allow_link)(struct config_item *src, struct config_item *target);
-	int (*drop_link)(struct config_item *src, struct config_item *target);
+	void (*drop_link)(struct config_item *src, struct config_item *target);
 };
 
 struct configfs_group_operations {

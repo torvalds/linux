@@ -198,7 +198,7 @@ nv31_mpeg_intr(struct nvkm_engine *engine)
 		}
 
 		if (type == 0x00000010) {
-			if (!nv31_mpeg_mthd(mpeg, mthd, data))
+			if (nv31_mpeg_mthd(mpeg, mthd, data))
 				show &= ~0x01000000;
 		}
 	}

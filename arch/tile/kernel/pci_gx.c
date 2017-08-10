@@ -131,7 +131,7 @@ static int tile_irq_cpu(int irq)
 
 	count = cpumask_weight(&intr_cpus_map);
 	if (unlikely(count == 0)) {
-		pr_warn("intr_cpus_map empty, interrupts will be delievered to dataplane tiles\n");
+		pr_warn("intr_cpus_map empty, interrupts will be delivered to dataplane tiles\n");
 		return irq % (smp_height * smp_width);
 	}
 

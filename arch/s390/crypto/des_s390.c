@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
+#include <linux/fips.h>
 #include <crypto/algapi.h>
 #include <crypto/des.h>
 #include <asm/cpacf.h>
@@ -221,6 +222,8 @@ static struct crypto_alg cbc_des_alg = {
  *   same as DES.  Implementers MUST reject keys that exhibit this
  *   property.
  *
+ *   In fips mode additinally check for all 3 keys are unique.
+ *
  */
 static int des3_setkey(struct crypto_tfm *tfm, const u8 *key,
 		       unsigned int key_len)
@@ -234,6 +237,17 @@ static int des3_setkey(struct crypto_tfm *tfm, const u8 *key,
 		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
 	}
+
+	/* in fips mode, ensure k1 != k2 and k2 != k3 and k1 != k3 */
+	if (fips_enabled &&
+	    !(crypto_memneq(key, &key[DES_KEY_SIZE], DES_KEY_SIZE) &&
+	      crypto_memneq(&key[DES_KEY_SIZE], &key[DES_KEY_SIZE * 2],
+			    DES_KEY_SIZE) &&
+	      crypto_memneq(key, &key[DES_KEY_SIZE * 2], DES_KEY_SIZE))) {
+		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
+		return -EINVAL;
+	}
+
 	memcpy(ctx->key, key, key_len);
 	return 0;
 }

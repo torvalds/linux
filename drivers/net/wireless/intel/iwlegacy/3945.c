@@ -520,7 +520,7 @@ il3945_pass_packet_to_mac80211(struct il_priv *il, struct il_rx_buf *rxb,
 	 * and do not consume a full page
 	 */
 	if (len <= SMALL_PACKET_SIZE) {
-		memcpy(skb_put(skb, len), rx_hdr->payload, len);
+		skb_put_data(skb, rx_hdr->payload, len);
 	} else {
 		skb_add_rx_frag(skb, 0, rxb->page,
 				(void *)rx_hdr->payload - (void *)pkt, len,
@@ -570,7 +570,7 @@ il3945_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 
 	/* set the preamble flag if appropriate */
 	if (rx_hdr->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
-		rx_status.flag |= RX_FLAG_SHORTPRE;
+		rx_status.enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
 	if ((unlikely(rx_stats->phy_count > 20))) {
 		D_DROP("dsp size out of range [0,20]: %d\n",

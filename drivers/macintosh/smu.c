@@ -39,6 +39,7 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/memblock.h>
+#include <linux/sched/signal.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -47,7 +48,7 @@
 #include <asm/pmac_feature.h>
 #include <asm/smu.h>
 #include <asm/sections.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define VERSION "0.7"
 #define AUTHOR  "(c) 2005 Benjamin Herrenschmidt, IBM Corp."

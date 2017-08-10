@@ -3,9 +3,9 @@
 
 #include <limits.h>
 #include <stdio.h>
+#include <linux/kernel.h>
 
 #include "../perf.h"
-#include "map.h"
 #include "build-id.h"
 #include "perf_regs.h"
 
@@ -37,6 +37,13 @@ struct comm_event {
 	struct perf_event_header header;
 	u32 pid, tid;
 	char comm[16];
+};
+
+struct namespaces_event {
+	struct perf_event_header header;
+	u32 pid, tid;
+	u64 nr_namespaces;
+	struct perf_ns_link_info link_info[];
 };
 
 struct fork_event {
@@ -177,6 +184,8 @@ enum {
 	PERF_IP_FLAG_TRACE_BEGIN	|\
 	PERF_IP_FLAG_TRACE_END)
 
+#define MAX_INSN 16
+
 struct perf_sample {
 	u64 ip;
 	u32 pid, tid;
@@ -193,6 +202,7 @@ struct perf_sample {
 	u32 flags;
 	u16 insn_len;
 	u8  cpumode;
+	char insn[MAX_INSN];
 	void *raw_data;
 	struct ip_callchain *callchain;
 	struct branch_stack *branch_stack;
@@ -219,7 +229,7 @@ struct build_id_event {
 enum perf_user_event_type { /* above any possible kernel type */
 	PERF_RECORD_USER_TYPE_START		= 64,
 	PERF_RECORD_HEADER_ATTR			= 64,
-	PERF_RECORD_HEADER_EVENT_TYPE		= 65, /* depreceated */
+	PERF_RECORD_HEADER_EVENT_TYPE		= 65, /* deprecated */
 	PERF_RECORD_HEADER_TRACING_DATA		= 66,
 	PERF_RECORD_HEADER_BUILD_ID		= 67,
 	PERF_RECORD_FINISHED_ROUND		= 68,
@@ -241,6 +251,127 @@ enum auxtrace_error_type {
 	PERF_AUXTRACE_ERROR_ITRACE  = 1,
 	PERF_AUXTRACE_ERROR_MAX
 };
+
+/* Attribute type for custom synthesized events */
+#define PERF_TYPE_SYNTH		(INT_MAX + 1U)
+
+/* Attribute config for custom synthesized events */
+enum perf_synth_id {
+	PERF_SYNTH_INTEL_PTWRITE,
+	PERF_SYNTH_INTEL_MWAIT,
+	PERF_SYNTH_INTEL_PWRE,
+	PERF_SYNTH_INTEL_EXSTOP,
+	PERF_SYNTH_INTEL_PWRX,
+	PERF_SYNTH_INTEL_CBR,
+};
+
+/*
+ * Raw data formats for synthesized events. Note that 4 bytes of padding are
+ * present to match the 'size' member of PERF_SAMPLE_RAW data which is always
+ * 8-byte aligned. That means we must dereference raw_data with an offset of 4.
+ * Refer perf_sample__synth_ptr() and perf_synth__raw_data().  It also means the
+ * structure sizes are 4 bytes bigger than the raw_size, refer
+ * perf_synth__raw_size().
+ */
+
+struct perf_synth_intel_ptwrite {
+	u32 padding;
+	union {
+		struct {
+			u32	ip		:  1,
+				reserved	: 31;
+		};
+		u32	flags;
+	};
+	u64	payload;
+};
+
+struct perf_synth_intel_mwait {
+	u32 padding;
+	u32 reserved;
+	union {
+		struct {
+			u64	hints		:  8,
+				reserved1	: 24,
+				extensions	:  2,
+				reserved2	: 30;
+		};
+		u64	payload;
+	};
+};
+
+struct perf_synth_intel_pwre {
+	u32 padding;
+	u32 reserved;
+	union {
+		struct {
+			u64	reserved1	:  7,
+				hw		:  1,
+				subcstate	:  4,
+				cstate		:  4,
+				reserved2	: 48;
+		};
+		u64	payload;
+	};
+};
+
+struct perf_synth_intel_exstop {
+	u32 padding;
+	union {
+		struct {
+			u32	ip		:  1,
+				reserved	: 31;
+		};
+		u32	flags;
+	};
+};
+
+struct perf_synth_intel_pwrx {
+	u32 padding;
+	u32 reserved;
+	union {
+		struct {
+			u64	deepest_cstate	:  4,
+				last_cstate	:  4,
+				wake_reason	:  4,
+				reserved1	: 52;
+		};
+		u64	payload;
+	};
+};
+
+struct perf_synth_intel_cbr {
+	u32 padding;
+	union {
+		struct {
+			u32	cbr		:  8,
+				reserved1	:  8,
+				max_nonturbo	:  8,
+				reserved2	:  8;
+		};
+		u32	flags;
+	};
+	u32 freq;
+	u32 reserved3;
+};
+
+/*
+ * raw_data is always 4 bytes from an 8-byte boundary, so subtract 4 to get
+ * 8-byte alignment.
+ */
+static inline void *perf_sample__synth_ptr(struct perf_sample *sample)
+{
+	return sample->raw_data - 4;
+}
+
+static inline void *perf_synth__raw_data(void *p)
+{
+	return p + 4;
+}
+
+#define perf_synth__raw_size(d) (sizeof(d) - 4)
+
+#define perf_sample__bad_synth_size(s, d) ((s)->raw_size < sizeof(d) - 4)
 
 /*
  * The kernel collects the number of events it couldn't send in a stretch and
@@ -266,6 +397,7 @@ struct events_stats {
 	u64 total_lost;
 	u64 total_lost_samples;
 	u64 total_aux_lost;
+	u64 total_aux_partial;
 	u64 total_invalid_chains;
 	u32 nr_events[PERF_RECORD_HEADER_MAX];
 	u32 nr_non_filtered_samples;
@@ -482,6 +614,7 @@ union perf_event {
 	struct mmap_event		mmap;
 	struct mmap2_event		mmap2;
 	struct comm_event		comm;
+	struct namespaces_event		namespaces;
 	struct fork_event		fork;
 	struct lost_event		lost;
 	struct lost_samples_event	lost_samples;
@@ -584,6 +717,10 @@ int perf_event__process_switch(struct perf_tool *tool,
 			       union perf_event *event,
 			       struct perf_sample *sample,
 			       struct machine *machine);
+int perf_event__process_namespaces(struct perf_tool *tool,
+				   union perf_event *event,
+				   struct perf_sample *sample,
+				   struct machine *machine);
 int perf_event__process_mmap(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
@@ -633,6 +770,12 @@ pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 				  perf_event__handler_t process,
 				  struct machine *machine);
 
+int perf_event__synthesize_namespaces(struct perf_tool *tool,
+				      union perf_event *event,
+				      pid_t pid, pid_t tgid,
+				      perf_event__handler_t process,
+				      struct machine *machine);
+
 int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       union perf_event *event,
 				       pid_t pid, pid_t tgid,
@@ -650,12 +793,21 @@ size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_switch(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_thread_map(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_cpu_map(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_namespaces(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf(union perf_event *event, FILE *fp);
 
-u64 kallsyms__get_function_start(const char *kallsyms_filename,
-				 const char *symbol_name);
+int kallsyms__get_function_start(const char *kallsyms_filename,
+				 const char *symbol_name, u64 *addr);
 
 void *cpu_map_data__alloc(struct cpu_map *map, size_t *size, u16 *type, int *max);
 void  cpu_map_data__synthesize(struct cpu_map_data *data, struct cpu_map *map,
 			       u16 type, int max);
+
+void event_attr_init(struct perf_event_attr *attr);
+
+int perf_event_paranoid(void);
+
+extern int sysctl_perf_event_max_stack;
+extern int sysctl_perf_event_max_contexts_per_stack;
+
 #endif /* __PERF_RECORD_H */

@@ -275,6 +275,7 @@ static const struct vop_intr rk3288_vop_intr = {
 static const struct vop_data rk3288_vop = {
 	.init_table = rk3288_init_reg_table,
 	.table_size = ARRAY_SIZE(rk3288_init_reg_table),
+	.feature = VOP_FEATURE_OUTPUT_RGB10,
 	.intr = &rk3288_vop_intr,
 	.ctrl = &rk3288_ctrl_data,
 	.win = rk3288_vop_win_data,
@@ -284,6 +285,7 @@ static const struct vop_data rk3288_vop = {
 static const struct vop_ctrl rk3399_ctrl_data = {
 	.standby = VOP_REG(RK3399_SYS_CTRL, 0x1, 22),
 	.gate_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 23),
+	.dp_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 11),
 	.rgb_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 12),
 	.hdmi_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 13),
 	.edp_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 14),
@@ -293,6 +295,7 @@ static const struct vop_ctrl rk3399_ctrl_data = {
 	.data_blank = VOP_REG(RK3399_DSP_CTRL0, 0x1, 19),
 	.out_mode = VOP_REG(RK3399_DSP_CTRL0, 0xf, 0),
 	.rgb_pin_pol = VOP_REG(RK3399_DSP_CTRL1, 0xf, 16),
+	.dp_pin_pol = VOP_REG(RK3399_DSP_CTRL1, 0xf, 16),
 	.hdmi_pin_pol = VOP_REG(RK3399_DSP_CTRL1, 0xf, 20),
 	.edp_pin_pol = VOP_REG(RK3399_DSP_CTRL1, 0xf, 24),
 	.mipi_pin_pol = VOP_REG(RK3399_DSP_CTRL1, 0xf, 28),
@@ -341,6 +344,7 @@ static const struct vop_reg_data rk3399_init_reg_table[] = {
 static const struct vop_data rk3399_vop_big = {
 	.init_table = rk3399_init_reg_table,
 	.table_size = ARRAY_SIZE(rk3399_init_reg_table),
+	.feature = VOP_FEATURE_OUTPUT_RGB10,
 	.intr = &rk3399_vop_intr,
 	.ctrl = &rk3399_ctrl_data,
 	/*
@@ -402,7 +406,7 @@ static int vop_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver vop_platform_driver = {
+struct platform_driver vop_platform_driver = {
 	.probe = vop_probe,
 	.remove = vop_remove,
 	.driver = {
@@ -410,9 +414,3 @@ static struct platform_driver vop_platform_driver = {
 		.of_match_table = of_match_ptr(vop_driver_dt_match),
 	},
 };
-
-module_platform_driver(vop_platform_driver);
-
-MODULE_AUTHOR("Mark Yao <mark.yao@rock-chips.com>");
-MODULE_DESCRIPTION("ROCKCHIP VOP Driver");
-MODULE_LICENSE("GPL v2");

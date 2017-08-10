@@ -21,7 +21,8 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 #include <linux/profile.h>
 #include <linux/smp.h>
 #include <linux/cpu.h>
@@ -589,7 +590,7 @@ static void __init smp_cpu_init(void)
 	}
 	printk(KERN_INFO "Initializing CPU#%d\n", cpu_id);
 
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 

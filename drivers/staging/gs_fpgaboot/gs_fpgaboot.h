@@ -39,7 +39,7 @@ struct fpgaimage {
 	const struct	firmware	*fw_entry;
 
 	/*
-	 * the followings can be read from bitstream,
+	 * the following can be read from bitstream,
 	 * but other image format should have as well
 	 */
 	char	filename[MAX_STR];

@@ -148,7 +148,7 @@ static void __init armada_370_coherency_init(struct device_node *np)
 	of_node_put(cpu_config_np);
 
 	cpuhp_setup_state_nocalls(CPUHP_AP_ARM_MVEBU_COHERENCY,
-				  "AP_ARM_MVEBU_COHERENCY",
+				  "arm/mvebu/coherency:starting",
 				  armada_xp_clear_l2_starting, NULL);
 exit:
 	set_cpu_coherent();

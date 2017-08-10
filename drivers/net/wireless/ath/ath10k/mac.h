@@ -83,17 +83,12 @@ struct ieee80211_txq *ath10k_mac_txq_lookup(struct ath10k *ar,
 					    u8 tid);
 int ath10k_mac_ext_resource_config(struct ath10k *ar, u32 val);
 
-static inline struct ath10k_vif *ath10k_vif_to_arvif(struct ieee80211_vif *vif)
-{
-	return (struct ath10k_vif *)vif->drv_priv;
-}
-
 static inline void ath10k_tx_h_seq_no(struct ieee80211_vif *vif,
 				      struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct ath10k_vif *arvif = (void *)vif->drv_priv;
 
 	if (info->flags  & IEEE80211_TX_CTL_ASSIGN_SEQ) {
 		if (arvif->tx_seq_no == 0)

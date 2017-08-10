@@ -122,8 +122,8 @@ static ssize_t show_label(struct device *dev,
 	return sprintf(buf, "%s\n", nsa320_input_names[channel]);
 }
 
-static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
-			 char *buf)
+static ssize_t temp1_input_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	s32 mcu_data = nsa320_hwmon_update(dev);
 
@@ -133,8 +133,8 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", (mcu_data & 0xffff) * 100);
 }
 
-static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t fan1_input_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	s32 mcu_data = nsa320_hwmon_update(dev);
 
@@ -145,9 +145,9 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
 }
 
 static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_label, NULL, NSA320_TEMP);
-static DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL);
+static DEVICE_ATTR_RO(temp1_input);
 static SENSOR_DEVICE_ATTR(fan1_label, S_IRUGO, show_label, NULL, NSA320_FAN);
-static DEVICE_ATTR(fan1_input, S_IRUGO, show_fan, NULL);
+static DEVICE_ATTR_RO(fan1_input);
 
 static struct attribute *nsa320_attrs[] = {
 	&sensor_dev_attr_temp1_label.dev_attr.attr,

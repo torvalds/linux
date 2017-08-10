@@ -986,9 +986,9 @@ static int cops_close(struct net_device *dev)
 static struct net_device *cops_dev;
 
 MODULE_LICENSE("GPL");
-module_param(io, int, 0);
-module_param(irq, int, 0);
-module_param(board_type, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
+module_param_hw(board_type, int, other, 0);
 
 static int __init cops_module_init(void)
 {

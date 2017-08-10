@@ -42,43 +42,6 @@ EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
 
 extern char etext[], _stext[], _sinittext[], _einittext[];
 
-#define PGDIR_ORDER	(32 + PGD_T_LOG2 - PGDIR_SHIFT)
-
-#ifndef CONFIG_PPC_4K_PAGES
-static struct kmem_cache *pgtable_cache;
-
-void pgtable_cache_init(void)
-{
-	pgtable_cache = kmem_cache_create("PGDIR cache", 1 << PGDIR_ORDER,
-					  1 << PGDIR_ORDER, 0, NULL);
-	if (pgtable_cache == NULL)
-		panic("Couldn't allocate pgtable caches");
-}
-#endif
-
-pgd_t *pgd_alloc(struct mm_struct *mm)
-{
-	pgd_t *ret;
-
-	/* pgdir take page or two with 4K pages and a page fraction otherwise */
-#ifndef CONFIG_PPC_4K_PAGES
-	ret = kmem_cache_alloc(pgtable_cache, GFP_KERNEL | __GFP_ZERO);
-#else
-	ret = (pgd_t *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
-			PGDIR_ORDER - PAGE_SHIFT);
-#endif
-	return ret;
-}
-
-void pgd_free(struct mm_struct *mm, pgd_t *pgd)
-{
-#ifndef CONFIG_PPC_4K_PAGES
-	kmem_cache_free(pgtable_cache, (void *)pgd);
-#else
-	free_pages((unsigned long)pgd, PGDIR_ORDER - PAGE_SHIFT);
-#endif
-}
-
 __ref pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
 	pte_t *pte;
@@ -97,7 +60,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *ptepage;
 
-	gfp_t flags = GFP_KERNEL | __GFP_ZERO;
+	gfp_t flags = GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT;
 
 	ptepage = alloc_pages(flags, 0);
 	if (!ptepage)
@@ -226,7 +189,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 
 	err = 0;
 	for (i = 0; i < size && err == 0; i += PAGE_SIZE)
-		err = map_page(v+i, p+i, flags);
+		err = map_kernel_page(v+i, p+i, flags);
 	if (err) {
 		if (slab_is_available())
 			vunmap((void *)v);
@@ -252,7 +215,7 @@ void iounmap(volatile void __iomem *addr)
 }
 EXPORT_SYMBOL(iounmap);
 
-int map_page(unsigned long va, phys_addr_t pa, int flags)
+int map_kernel_page(unsigned long va, phys_addr_t pa, int flags)
 {
 	pmd_t *pd;
 	pte_t *pg;
@@ -292,7 +255,7 @@ void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 		ktext = ((char *)v >= _stext && (char *)v < etext) ||
 			((char *)v >= _sinittext && (char *)v < _einittext);
 		f = ktext ? pgprot_val(PAGE_KERNEL_TEXT) : pgprot_val(PAGE_KERNEL);
-		map_page(v, p, f);
+		map_kernel_page(v, p, f);
 #ifdef CONFIG_PPC_STD_MMU_32
 		if (ktext)
 			hash_preload(&init_mm, v, 0, 0x300);
@@ -424,11 +387,6 @@ void __set_fixmap (enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
 		return;
 	}
 
-	map_page(address, phys, pgprot_val(flags));
+	map_kernel_page(address, phys, pgprot_val(flags));
 	fixmaps++;
-}
-
-void __this_fixmap_does_not_exist(void)
-{
-	WARN_ON(1);
 }

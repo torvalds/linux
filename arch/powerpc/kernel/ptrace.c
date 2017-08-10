@@ -34,7 +34,7 @@
 #include <linux/perf_event.h>
 #include <linux/context_tracking.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/switch_to.h>
@@ -127,12 +127,19 @@ static void flush_tmregs_to_thread(struct task_struct *tsk)
 	 * If task is not current, it will have been flushed already to
 	 * it's thread_struct during __switch_to().
 	 *
-	 * A reclaim flushes ALL the state.
+	 * A reclaim flushes ALL the state or if not in TM save TM SPRs
+	 * in the appropriate thread structures from live.
 	 */
 
-	if (tsk == current && MSR_TM_SUSPENDED(mfmsr()))
-		tm_reclaim_current(TM_CAUSE_SIGNAL);
+	if (tsk != current)
+		return;
 
+	if (MSR_TM_SUSPENDED(mfmsr())) {
+		tm_reclaim_current(TM_CAUSE_SIGNAL);
+	} else {
+		tm_enable();
+		tm_save_sprs(&(tsk->thread));
+	}
 }
 #else
 static inline void flush_tmregs_to_thread(struct task_struct *tsk) { }
@@ -463,6 +470,10 @@ static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 
 	flush_fp_to_thread(target);
 
+	for (i = 0; i < 32 ; i++)
+		buf[i] = target->thread.TS_FPR(i);
+	buf[32] = target->thread.fp_state.fpscr;
+
 	/* copy to local buffer then write that out */
 	i = user_regset_copyin(&pos, &count, &kbuf, &ubuf, buf, 0, -1);
 	if (i)
@@ -671,6 +682,9 @@ static int vsr_set(struct task_struct *target, const struct user_regset *regset,
 	flush_fp_to_thread(target);
 	flush_altivec_to_thread(target);
 	flush_vsx_to_thread(target);
+
+	for (i = 0; i < 32 ; i++)
+		buf[i] = target->thread.fp_state.fpr[i][TS_VSRLOWOFFSET];
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 buf, 0, 32 * sizeof(double));
@@ -1019,6 +1033,10 @@ static int tm_cfpr_set(struct task_struct *target,
 	flush_fp_to_thread(target);
 	flush_altivec_to_thread(target);
 
+	for (i = 0; i < 32; i++)
+		buf[i] = target->thread.TS_CKFPR(i);
+	buf[32] = target->thread.ckfp_state.fpscr;
+
 	/* copy to local buffer then write that out */
 	i = user_regset_copyin(&pos, &count, &kbuf, &ubuf, buf, 0, -1);
 	if (i)
@@ -1282,6 +1300,9 @@ static int tm_cvsx_set(struct task_struct *target,
 	flush_fp_to_thread(target);
 	flush_altivec_to_thread(target);
 	flush_vsx_to_thread(target);
+
+	for (i = 0; i < 32 ; i++)
+		buf[i] = target->thread.ckfp_state.fpr[i][TS_VSRLOWOFFSET];
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 buf, 0, 32 * sizeof(double));

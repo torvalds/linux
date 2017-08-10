@@ -118,51 +118,19 @@ static int topology_add_dev(unsigned int cpu)
 	return sysfs_create_group(&dev->kobj, &topology_attr_group);
 }
 
-static void topology_remove_dev(unsigned int cpu)
+static int topology_remove_dev(unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
 
 	sysfs_remove_group(&dev->kobj, &topology_attr_group);
-}
-
-static int topology_cpu_callback(struct notifier_block *nfb,
-				 unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-	int rc = 0;
-
-	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-		rc = topology_add_dev(cpu);
-		break;
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		topology_remove_dev(cpu);
-		break;
-	}
-	return notifier_from_errno(rc);
+	return 0;
 }
 
 static int topology_sysfs_init(void)
 {
-	int cpu;
-	int rc = 0;
-
-	cpu_notifier_register_begin();
-
-	for_each_online_cpu(cpu) {
-		rc = topology_add_dev(cpu);
-		if (rc)
-			goto out;
-	}
-	__hotcpu_notifier(topology_cpu_callback, 0);
-
-out:
-	cpu_notifier_register_done();
-	return rc;
+	return cpuhp_setup_state(CPUHP_TOPOLOGY_PREPARE,
+				 "base/topology:prepare", topology_add_dev,
+				 topology_remove_dev);
 }
 
 device_initcall(topology_sysfs_init);

@@ -23,7 +23,6 @@
  *
  ********************************************************************/
 
-#include <linux/miscdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>

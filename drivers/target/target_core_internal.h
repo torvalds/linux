@@ -1,6 +1,11 @@
 #ifndef TARGET_CORE_INTERNAL_H
 #define TARGET_CORE_INTERNAL_H
 
+#include <linux/configfs.h>
+#include <linux/list.h>
+#include <linux/types.h>
+#include <target/target_core_base.h>
+
 #define TARGET_CORE_NAME_MAX_LEN	64
 #define TARGET_FABRIC_NAME_SIZE		32
 
@@ -51,9 +56,6 @@ struct target_fabric_configfs {
 extern struct t10_alua_lu_gp *default_lu_gp;
 
 /* target_core_device.c */
-extern struct mutex g_device_mutex;
-extern struct list_head g_device_list;
-
 int	core_alloc_rtpi(struct se_lun *lun, struct se_device *dev);
 struct se_dev_entry *core_get_se_deve_from_rtpi(struct se_node_acl *, u16);
 void	target_pr_kref_release(struct kref *);
@@ -82,6 +84,8 @@ void	core_dev_release_virtual_lun0(void);
 struct se_device *target_alloc_device(struct se_hba *hba, const char *name);
 int	target_configure_device(struct se_device *dev);
 void	target_free_device(struct se_device *);
+int	target_for_each_device(int (*fn)(struct se_device *dev, void *data),
+			       void *data);
 
 /* target_core_configfs.c */
 void	target_setup_backend_cits(struct target_backend *);
@@ -131,7 +135,7 @@ int	init_se_kmem_caches(void);
 void	release_se_kmem_caches(void);
 u32	scsi_get_new_index(scsi_index_t);
 void	transport_subsystem_check_init(void);
-void	transport_cmd_finish_abort(struct se_cmd *, int);
+int	transport_cmd_finish_abort(struct se_cmd *, int);
 unsigned char *transport_dump_cmd_direction(struct se_cmd *);
 void	transport_dump_dev_state(struct se_device *, char *, int *);
 void	transport_dump_dev_info(struct se_device *, struct se_lun *,

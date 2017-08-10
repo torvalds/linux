@@ -35,7 +35,7 @@ int	xfs_bmap_punch_delalloc_range(struct xfs_inode *ip,
 		xfs_fileoff_t start_fsb, xfs_fileoff_t length);
 
 /* bmap to userspace formatter - copy to user & advance pointer */
-typedef int (*xfs_bmap_format_t)(void **, struct getbmapx *, int *);
+typedef int (*xfs_bmap_format_t)(void **, struct getbmapx *);
 int	xfs_getbmap(struct xfs_inode *ip, struct getbmapx *bmv,
 		xfs_bmap_format_t formatter, void *arg);
 
@@ -63,12 +63,15 @@ int	xfs_insert_file_space(struct xfs_inode *, xfs_off_t offset,
 
 /* EOF block manipulation functions */
 bool	xfs_can_free_eofblocks(struct xfs_inode *ip, bool force);
-int	xfs_free_eofblocks(struct xfs_mount *mp, struct xfs_inode *ip,
-			   bool need_iolock);
+int	xfs_free_eofblocks(struct xfs_inode *ip);
 
 int	xfs_swap_extents(struct xfs_inode *ip, struct xfs_inode *tip,
 			 struct xfs_swapext *sx);
 
 xfs_daddr_t xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb);
+
+int xfs_bmap_count_blocks(struct xfs_trans *tp, struct xfs_inode *ip,
+			  int whichfork, xfs_extnum_t *nextents,
+			  xfs_filblks_t *count);
 
 #endif	/* __XFS_BMAP_UTIL_H__ */

@@ -12,11 +12,13 @@
 
 #include <uapi/drm/tegra_drm.h>
 #include <linux/host1x.h>
+#include <linux/iova.h>
 #include <linux/of_gpio.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fixed.h>
 
@@ -41,7 +43,14 @@ struct tegra_drm {
 	struct drm_device *drm;
 
 	struct iommu_domain *domain;
+	struct mutex mm_lock;
 	struct drm_mm mm;
+
+	struct {
+		struct iova_domain domain;
+		unsigned long shift;
+		unsigned long limit;
+	} carveout;
 
 	struct mutex clients_lock;
 	struct list_head clients;
@@ -66,7 +75,7 @@ struct tegra_drm_client;
 struct tegra_drm_context {
 	struct tegra_drm_client *client;
 	struct host1x_channel *channel;
-	struct list_head list;
+	unsigned int id;
 };
 
 struct tegra_drm_client_ops {
@@ -74,6 +83,7 @@ struct tegra_drm_client_ops {
 			    struct tegra_drm_context *context);
 	void (*close_channel)(struct tegra_drm_context *context);
 	int (*is_addr_reg)(struct device *dev, u32 class, u32 offset);
+	int (*is_valid_class)(u32 class);
 	int (*submit)(struct tegra_drm_context *context,
 		      struct drm_tegra_submit *args, struct drm_device *drm,
 		      struct drm_file *file);
@@ -103,6 +113,10 @@ int tegra_drm_unregister_client(struct tegra_drm *tegra,
 
 int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
 int tegra_drm_exit(struct tegra_drm *tegra);
+
+void *tegra_drm_alloc(struct tegra_drm *tegra, size_t size, dma_addr_t *iova);
+void tegra_drm_free(struct tegra_drm *tegra, size_t size, void *virt,
+		    dma_addr_t iova);
 
 struct tegra_dc_soc_info;
 struct tegra_output;
@@ -192,9 +206,6 @@ struct tegra_dc_window {
 };
 
 /* from dc.c */
-u32 tegra_dc_get_vblank_counter(struct tegra_dc *dc);
-void tegra_dc_enable_vblank(struct tegra_dc *dc);
-void tegra_dc_disable_vblank(struct tegra_dc *dc);
 void tegra_dc_commit(struct tegra_dc *dc);
 int tegra_dc_state_setup_clock(struct tegra_dc *dc,
 			       struct drm_crtc_state *crtc_state,
@@ -285,5 +296,6 @@ extern struct platform_driver tegra_dpaux_driver;
 extern struct platform_driver tegra_sor_driver;
 extern struct platform_driver tegra_gr2d_driver;
 extern struct platform_driver tegra_gr3d_driver;
+extern struct platform_driver tegra_vic_driver;
 
 #endif /* HOST1X_DRM_H */

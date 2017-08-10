@@ -23,6 +23,7 @@
 #include <linux/sizes.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <nd-core.h>
 #include <nfit.h>
 #include <nd.h>
 #include "nfit_test.h"
@@ -124,12 +125,14 @@ struct nfit_test_dcr {
 	(((node & 0xfff) << 16) | ((socket & 0xf) << 12) \
 	 | ((imc & 0xf) << 8) | ((chan & 0xf) << 4) | (dimm & 0xf))
 
-static u32 handle[NUM_DCR] = {
+static u32 handle[] = {
 	[0] = NFIT_DIMM_HANDLE(0, 0, 0, 0, 0),
 	[1] = NFIT_DIMM_HANDLE(0, 0, 0, 0, 1),
 	[2] = NFIT_DIMM_HANDLE(0, 0, 1, 0, 0),
 	[3] = NFIT_DIMM_HANDLE(0, 0, 1, 0, 1),
 	[4] = NFIT_DIMM_HANDLE(0, 1, 0, 0, 0),
+	[5] = NFIT_DIMM_HANDLE(1, 0, 0, 0, 0),
+	[6] = NFIT_DIMM_HANDLE(1, 0, 0, 0, 1),
 };
 
 static unsigned long dimm_fail_cmd_flags[NUM_DCR];
@@ -141,6 +144,7 @@ struct nfit_test {
 	void *nfit_buf;
 	dma_addr_t nfit_dma;
 	size_t nfit_size;
+	int dcr_idx;
 	int num_dcr;
 	int num_pm;
 	void **dimm;
@@ -425,11 +429,11 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 			break;
 		case ND_CMD_GET_CONFIG_DATA:
 			rc = nfit_test_cmd_get_config_data(buf, buf_len,
-				t->label[i]);
+				t->label[i - t->dcr_idx]);
 			break;
 		case ND_CMD_SET_CONFIG_DATA:
 			rc = nfit_test_cmd_set_config_data(buf, buf_len,
-				t->label[i]);
+				t->label[i - t->dcr_idx]);
 			break;
 		case ND_CMD_SMART:
 			rc = nfit_test_cmd_smart(buf, buf_len);
@@ -681,7 +685,7 @@ static int nfit_test0_alloc(struct nfit_test *t)
 	if (!t->spa_set[2])
 		return -ENOMEM;
 
-	for (i = 0; i < NUM_DCR; i++) {
+	for (i = 0; i < t->num_dcr; i++) {
 		t->dimm[i] = test_alloc(t, DIMM_SIZE, &t->dimm_dma[i]);
 		if (!t->dimm[i])
 			return -ENOMEM;
@@ -698,7 +702,7 @@ static int nfit_test0_alloc(struct nfit_test *t)
 			return -ENOMEM;
 	}
 
-	for (i = 0; i < NUM_DCR; i++) {
+	for (i = 0; i < t->num_dcr; i++) {
 		t->dcr[i] = test_alloc(t, LABEL_SIZE, &t->dcr_dma[i]);
 		if (!t->dcr[i])
 			return -ENOMEM;
@@ -725,8 +729,9 @@ static int nfit_test0_alloc(struct nfit_test *t)
 static int nfit_test1_alloc(struct nfit_test *t)
 {
 	size_t nfit_size = sizeof(struct acpi_nfit_system_address) * 2
-		+ sizeof(struct acpi_nfit_memory_map)
-		+ offsetof(struct acpi_nfit_control_region, window_size);
+		+ sizeof(struct acpi_nfit_memory_map) * 2
+		+ offsetof(struct acpi_nfit_control_region, window_size) * 2;
+	int i;
 
 	t->nfit_buf = test_alloc(t, nfit_size, &t->nfit_dma);
 	if (!t->nfit_buf)
@@ -736,6 +741,13 @@ static int nfit_test1_alloc(struct nfit_test *t)
 	t->spa_set[0] = test_alloc(t, SPA2_SIZE, &t->spa_set_dma[0]);
 	if (!t->spa_set[0])
 		return -ENOMEM;
+
+	for (i = 0; i < t->num_dcr; i++) {
+		t->label[i] = test_alloc(t, LABEL_SIZE, &t->label_dma[i]);
+		if (!t->label[i])
+			return -ENOMEM;
+		sprintf(t->label[i], "label%d", i);
+	}
 
 	t->spa_set[1] = test_alloc(t, SPA_VCD_SIZE, &t->spa_set_dma[1]);
 	if (!t->spa_set[1])
@@ -876,7 +888,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 0+1;
 	memdev->region_index = 4+1;
 	memdev->region_size = SPA0_SIZE/2;
-	memdev->region_offset = t->spa_set_dma[0];
+	memdev->region_offset = 1;
 	memdev->address = 0;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 2;
@@ -891,10 +903,11 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 0+1;
 	memdev->region_index = 5+1;
 	memdev->region_size = SPA0_SIZE/2;
-	memdev->region_offset = t->spa_set_dma[0] + SPA0_SIZE/2;
+	memdev->region_offset = (1 << 8);
 	memdev->address = 0;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 2;
+	memdev->flags = ACPI_NFIT_MEM_HEALTH_ENABLED;
 
 	/* mem-region2 (spa1, dimm0) */
 	memdev = nfit_buf + offset + sizeof(struct acpi_nfit_memory_map) * 2;
@@ -906,10 +919,11 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 1+1;
 	memdev->region_index = 4+1;
 	memdev->region_size = SPA1_SIZE/4;
-	memdev->region_offset = t->spa_set_dma[1];
+	memdev->region_offset = (1 << 16);
 	memdev->address = SPA0_SIZE/2;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 4;
+	memdev->flags = ACPI_NFIT_MEM_HEALTH_ENABLED;
 
 	/* mem-region3 (spa1, dimm1) */
 	memdev = nfit_buf + offset + sizeof(struct acpi_nfit_memory_map) * 3;
@@ -921,7 +935,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 1+1;
 	memdev->region_index = 5+1;
 	memdev->region_size = SPA1_SIZE/4;
-	memdev->region_offset = t->spa_set_dma[1] + SPA1_SIZE/4;
+	memdev->region_offset = (1 << 24);
 	memdev->address = SPA0_SIZE/2;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 4;
@@ -936,10 +950,11 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 1+1;
 	memdev->region_index = 6+1;
 	memdev->region_size = SPA1_SIZE/4;
-	memdev->region_offset = t->spa_set_dma[1] + 2*SPA1_SIZE/4;
+	memdev->region_offset = (1ULL << 32);
 	memdev->address = SPA0_SIZE/2;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 4;
+	memdev->flags = ACPI_NFIT_MEM_HEALTH_ENABLED;
 
 	/* mem-region5 (spa1, dimm3) */
 	memdev = nfit_buf + offset + sizeof(struct acpi_nfit_memory_map) * 5;
@@ -951,7 +966,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->range_index = 1+1;
 	memdev->region_index = 7+1;
 	memdev->region_size = SPA1_SIZE/4;
-	memdev->region_offset = t->spa_set_dma[1] + 3*SPA1_SIZE/4;
+	memdev->region_offset = (1ULL << 40);
 	memdev->address = SPA0_SIZE/2;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 4;
@@ -1075,6 +1090,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	memdev->address = 0;
 	memdev->interleave_index = 0;
 	memdev->interleave_ways = 1;
+	memdev->flags = ACPI_NFIT_MEM_HEALTH_ENABLED;
 
 	offset = offset + sizeof(struct acpi_nfit_memory_map) * 14;
 	/* dcr-descriptor0: blk */
@@ -1369,10 +1385,11 @@ static void nfit_test0_setup(struct nfit_test *t)
 		memdev->range_index = 11+1;
 		memdev->region_index = 9+1;
 		memdev->region_size = SPA0_SIZE;
-		memdev->region_offset = t->spa_set_dma[2];
+		memdev->region_offset = (1ULL << 48);
 		memdev->address = 0;
 		memdev->interleave_index = 0;
 		memdev->interleave_ways = 1;
+		memdev->flags = ACPI_NFIT_MEM_HEALTH_ENABLED;
 
 		/* mem-region16 (spa/bdw4, dimm4) */
 		memdev = nfit_buf + offset +
@@ -1449,7 +1466,7 @@ static void nfit_test1_setup(struct nfit_test *t)
 	memdev = nfit_buf + offset;
 	memdev->header.type = ACPI_NFIT_TYPE_MEMORY_MAP;
 	memdev->header.length = sizeof(*memdev);
-	memdev->device_handle = 0;
+	memdev->device_handle = handle[5];
 	memdev->physical_id = 0;
 	memdev->region_id = 0;
 	memdev->range_index = 0+1;
@@ -1471,7 +1488,35 @@ static void nfit_test1_setup(struct nfit_test *t)
 			window_size);
 	dcr->region_index = 0+1;
 	dcr_common_init(dcr);
-	dcr->serial_number = ~0;
+	dcr->serial_number = ~handle[5];
+	dcr->code = NFIT_FIC_BYTE;
+	dcr->windows = 0;
+
+	offset += dcr->header.length;
+	memdev = nfit_buf + offset;
+	memdev->header.type = ACPI_NFIT_TYPE_MEMORY_MAP;
+	memdev->header.length = sizeof(*memdev);
+	memdev->device_handle = handle[6];
+	memdev->physical_id = 0;
+	memdev->region_id = 0;
+	memdev->range_index = 0;
+	memdev->region_index = 0+2;
+	memdev->region_size = SPA2_SIZE;
+	memdev->region_offset = 0;
+	memdev->address = 0;
+	memdev->interleave_index = 0;
+	memdev->interleave_ways = 1;
+	memdev->flags = ACPI_NFIT_MEM_MAP_FAILED;
+
+	/* dcr-descriptor1 */
+	offset += sizeof(*memdev);
+	dcr = nfit_buf + offset;
+	dcr->header.type = ACPI_NFIT_TYPE_CONTROL_REGION;
+	dcr->header.length = offsetof(struct acpi_nfit_control_region,
+			window_size);
+	dcr->region_index = 0+2;
+	dcr_common_init(dcr);
+	dcr->serial_number = ~handle[6];
 	dcr->code = NFIT_FIC_BYTE;
 	dcr->windows = 0;
 
@@ -1482,6 +1527,9 @@ static void nfit_test1_setup(struct nfit_test *t)
 	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_cmd_force_en);
+	set_bit(ND_CMD_GET_CONFIG_SIZE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_CMD_GET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_CMD_SET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
 }
 
 static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
@@ -1506,6 +1554,225 @@ static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
 	return 0;
 }
 
+static unsigned long nfit_ctl_handle;
+
+union acpi_object *result;
+
+static union acpi_object *nfit_test_evaluate_dsm(acpi_handle handle,
+		const guid_t *guid, u64 rev, u64 func, union acpi_object *argv4)
+{
+	if (handle != &nfit_ctl_handle)
+		return ERR_PTR(-ENXIO);
+
+	return result;
+}
+
+static int setup_result(void *buf, size_t size)
+{
+	result = kmalloc(sizeof(union acpi_object) + size, GFP_KERNEL);
+	if (!result)
+		return -ENOMEM;
+	result->package.type = ACPI_TYPE_BUFFER,
+	result->buffer.pointer = (void *) (result + 1);
+	result->buffer.length = size;
+	memcpy(result->buffer.pointer, buf, size);
+	memset(buf, 0, size);
+	return 0;
+}
+
+static int nfit_ctl_test(struct device *dev)
+{
+	int rc, cmd_rc;
+	struct nvdimm *nvdimm;
+	struct acpi_device *adev;
+	struct nfit_mem *nfit_mem;
+	struct nd_ars_record *record;
+	struct acpi_nfit_desc *acpi_desc;
+	const u64 test_val = 0x0123456789abcdefULL;
+	unsigned long mask, cmd_size, offset;
+	union {
+		struct nd_cmd_get_config_size cfg_size;
+		struct nd_cmd_ars_status ars_stat;
+		struct nd_cmd_ars_cap ars_cap;
+		char buf[sizeof(struct nd_cmd_ars_status)
+			+ sizeof(struct nd_ars_record)];
+	} cmds;
+
+	adev = devm_kzalloc(dev, sizeof(*adev), GFP_KERNEL);
+	if (!adev)
+		return -ENOMEM;
+	*adev = (struct acpi_device) {
+		.handle = &nfit_ctl_handle,
+		.dev = {
+			.init_name = "test-adev",
+		},
+	};
+
+	acpi_desc = devm_kzalloc(dev, sizeof(*acpi_desc), GFP_KERNEL);
+	if (!acpi_desc)
+		return -ENOMEM;
+	*acpi_desc = (struct acpi_nfit_desc) {
+		.nd_desc = {
+			.cmd_mask = 1UL << ND_CMD_ARS_CAP
+				| 1UL << ND_CMD_ARS_START
+				| 1UL << ND_CMD_ARS_STATUS
+				| 1UL << ND_CMD_CLEAR_ERROR,
+			.module = THIS_MODULE,
+			.provider_name = "ACPI.NFIT",
+			.ndctl = acpi_nfit_ctl,
+		},
+		.dev = &adev->dev,
+	};
+
+	nfit_mem = devm_kzalloc(dev, sizeof(*nfit_mem), GFP_KERNEL);
+	if (!nfit_mem)
+		return -ENOMEM;
+
+	mask = 1UL << ND_CMD_SMART | 1UL << ND_CMD_SMART_THRESHOLD
+		| 1UL << ND_CMD_DIMM_FLAGS | 1UL << ND_CMD_GET_CONFIG_SIZE
+		| 1UL << ND_CMD_GET_CONFIG_DATA | 1UL << ND_CMD_SET_CONFIG_DATA
+		| 1UL << ND_CMD_VENDOR;
+	*nfit_mem = (struct nfit_mem) {
+		.adev = adev,
+		.family = NVDIMM_FAMILY_INTEL,
+		.dsm_mask = mask,
+	};
+
+	nvdimm = devm_kzalloc(dev, sizeof(*nvdimm), GFP_KERNEL);
+	if (!nvdimm)
+		return -ENOMEM;
+	*nvdimm = (struct nvdimm) {
+		.provider_data = nfit_mem,
+		.cmd_mask = mask,
+		.dev = {
+			.init_name = "test-dimm",
+		},
+	};
+
+
+	/* basic checkout of a typical 'get config size' command */
+	cmd_size = sizeof(cmds.cfg_size);
+	cmds.cfg_size = (struct nd_cmd_get_config_size) {
+		.status = 0,
+		.config_size = SZ_128K,
+		.max_xfer = SZ_4K,
+	};
+	rc = setup_result(cmds.buf, cmd_size);
+	if (rc)
+		return rc;
+	rc = acpi_nfit_ctl(&acpi_desc->nd_desc, nvdimm, ND_CMD_GET_CONFIG_SIZE,
+			cmds.buf, cmd_size, &cmd_rc);
+
+	if (rc < 0 || cmd_rc || cmds.cfg_size.status != 0
+			|| cmds.cfg_size.config_size != SZ_128K
+			|| cmds.cfg_size.max_xfer != SZ_4K) {
+		dev_dbg(dev, "%s: failed at: %d rc: %d cmd_rc: %d\n",
+				__func__, __LINE__, rc, cmd_rc);
+		return -EIO;
+	}
+
+
+	/* test ars_status with zero output */
+	cmd_size = offsetof(struct nd_cmd_ars_status, address);
+	cmds.ars_stat = (struct nd_cmd_ars_status) {
+		.out_length = 0,
+	};
+	rc = setup_result(cmds.buf, cmd_size);
+	if (rc)
+		return rc;
+	rc = acpi_nfit_ctl(&acpi_desc->nd_desc, NULL, ND_CMD_ARS_STATUS,
+			cmds.buf, cmd_size, &cmd_rc);
+
+	if (rc < 0 || cmd_rc) {
+		dev_dbg(dev, "%s: failed at: %d rc: %d cmd_rc: %d\n",
+				__func__, __LINE__, rc, cmd_rc);
+		return -EIO;
+	}
+
+
+	/* test ars_cap with benign extended status */
+	cmd_size = sizeof(cmds.ars_cap);
+	cmds.ars_cap = (struct nd_cmd_ars_cap) {
+		.status = ND_ARS_PERSISTENT << 16,
+	};
+	offset = offsetof(struct nd_cmd_ars_cap, status);
+	rc = setup_result(cmds.buf + offset, cmd_size - offset);
+	if (rc)
+		return rc;
+	rc = acpi_nfit_ctl(&acpi_desc->nd_desc, NULL, ND_CMD_ARS_CAP,
+			cmds.buf, cmd_size, &cmd_rc);
+
+	if (rc < 0 || cmd_rc) {
+		dev_dbg(dev, "%s: failed at: %d rc: %d cmd_rc: %d\n",
+				__func__, __LINE__, rc, cmd_rc);
+		return -EIO;
+	}
+
+
+	/* test ars_status with 'status' trimmed from 'out_length' */
+	cmd_size = sizeof(cmds.ars_stat) + sizeof(struct nd_ars_record);
+	cmds.ars_stat = (struct nd_cmd_ars_status) {
+		.out_length = cmd_size - 4,
+	};
+	record = &cmds.ars_stat.records[0];
+	*record = (struct nd_ars_record) {
+		.length = test_val,
+	};
+	rc = setup_result(cmds.buf, cmd_size);
+	if (rc)
+		return rc;
+	rc = acpi_nfit_ctl(&acpi_desc->nd_desc, NULL, ND_CMD_ARS_STATUS,
+			cmds.buf, cmd_size, &cmd_rc);
+
+	if (rc < 0 || cmd_rc || record->length != test_val) {
+		dev_dbg(dev, "%s: failed at: %d rc: %d cmd_rc: %d\n",
+				__func__, __LINE__, rc, cmd_rc);
+		return -EIO;
+	}
+
+
+	/* test ars_status with 'Output (Size)' including 'status' */
+	cmd_size = sizeof(cmds.ars_stat) + sizeof(struct nd_ars_record);
+	cmds.ars_stat = (struct nd_cmd_ars_status) {
+		.out_length = cmd_size,
+	};
+	record = &cmds.ars_stat.records[0];
+	*record = (struct nd_ars_record) {
+		.length = test_val,
+	};
+	rc = setup_result(cmds.buf, cmd_size);
+	if (rc)
+		return rc;
+	rc = acpi_nfit_ctl(&acpi_desc->nd_desc, NULL, ND_CMD_ARS_STATUS,
+			cmds.buf, cmd_size, &cmd_rc);
+
+	if (rc < 0 || cmd_rc || record->length != test_val) {
+		dev_dbg(dev, "%s: failed at: %d rc: %d cmd_rc: %d\n",
+				__func__, __LINE__, rc, cmd_rc);
+		return -EIO;
+	}
+
+
+	/* test extended status for get_config_size results in failure */
+	cmd_size = sizeof(cmds.cfg_size);
+	cmds.cfg_size = (struct nd_cmd_get_config_size) {
+		.status = 1 << 16,
+	};
+	rc = setup_result(cmds.buf, cmd_size);
+	if (rc)
+		return rc;
+	rc = acpi_nfit_ctl(&acpi_desc->nd_desc, nvdimm, ND_CMD_GET_CONFIG_SIZE,
+			cmds.buf, cmd_size, &cmd_rc);
+
+	if (rc < 0 || cmd_rc >= 0) {
+		dev_dbg(dev, "%s: failed at: %d rc: %d cmd_rc: %d\n",
+				__func__, __LINE__, rc, cmd_rc);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int nfit_test_probe(struct platform_device *pdev)
 {
 	struct nvdimm_bus_descriptor *nd_desc;
@@ -1515,6 +1782,12 @@ static int nfit_test_probe(struct platform_device *pdev)
 	struct nfit_mem *nfit_mem;
 	union acpi_object *obj;
 	int rc;
+
+	if (strcmp(dev_name(&pdev->dev), "nfit_test.0") == 0) {
+		rc = nfit_ctl_test(&pdev->dev);
+		if (rc)
+			return rc;
+	}
 
 	nfit_test = to_nfit_test(&pdev->dev);
 
@@ -1575,6 +1848,10 @@ static int nfit_test_probe(struct platform_device *pdev)
 
 	rc = acpi_nfit_init(acpi_desc, nfit_test->nfit_buf,
 			nfit_test->nfit_size);
+	if (rc)
+		return rc;
+
+	rc = devm_add_action_or_reset(&pdev->dev, acpi_nfit_shutdown, acpi_desc);
 	if (rc)
 		return rc;
 
@@ -1639,11 +1916,13 @@ static __init int nfit_test_init(void)
 {
 	int rc, i;
 
-	nfit_test_dimm = class_create(THIS_MODULE, "nfit_test_dimm");
-	if (IS_ERR(nfit_test_dimm))
-		return PTR_ERR(nfit_test_dimm);
+	nfit_test_setup(nfit_test_lookup, nfit_test_evaluate_dsm);
 
-	nfit_test_setup(nfit_test_lookup);
+	nfit_test_dimm = class_create(THIS_MODULE, "nfit_test_dimm");
+	if (IS_ERR(nfit_test_dimm)) {
+		rc = PTR_ERR(nfit_test_dimm);
+		goto err_register;
+	}
 
 	for (i = 0; i < NUM_NFITS; i++) {
 		struct nfit_test *nfit_test;
@@ -1658,12 +1937,15 @@ static __init int nfit_test_init(void)
 		switch (i) {
 		case 0:
 			nfit_test->num_pm = NUM_PM;
+			nfit_test->dcr_idx = 0;
 			nfit_test->num_dcr = NUM_DCR;
 			nfit_test->alloc = nfit_test0_alloc;
 			nfit_test->setup = nfit_test0_setup;
 			break;
 		case 1:
-			nfit_test->num_pm = 1;
+			nfit_test->num_pm = 2;
+			nfit_test->dcr_idx = NUM_DCR;
+			nfit_test->num_dcr = 2;
 			nfit_test->alloc = nfit_test1_alloc;
 			nfit_test->setup = nfit_test1_setup;
 			break;
@@ -1680,6 +1962,7 @@ static __init int nfit_test_init(void)
 			put_device(&pdev->dev);
 			goto err_register;
 		}
+		get_device(&pdev->dev);
 
 		rc = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 		if (rc)
@@ -1698,6 +1981,10 @@ static __init int nfit_test_init(void)
 		if (instances[i])
 			platform_device_unregister(&instances[i]->pdev);
 	nfit_test_teardown();
+	for (i = 0; i < NUM_NFITS; i++)
+		if (instances[i])
+			put_device(&instances[i]->pdev.dev);
+
 	return rc;
 }
 
@@ -1705,10 +1992,13 @@ static __exit void nfit_test_exit(void)
 {
 	int i;
 
-	platform_driver_unregister(&nfit_test_driver);
 	for (i = 0; i < NUM_NFITS; i++)
 		platform_device_unregister(&instances[i]->pdev);
+	platform_driver_unregister(&nfit_test_driver);
 	nfit_test_teardown();
+
+	for (i = 0; i < NUM_NFITS; i++)
+		put_device(&instances[i]->pdev.dev);
 	class_destroy(nfit_test_dimm);
 }
 

@@ -337,7 +337,11 @@ done:
 		n_dspl, (unsigned long)orig_insn + n_dspl + repl_len);
 }
 
-static void __init_or_module optimize_nops(struct alt_instr *a, u8 *instr)
+/*
+ * "noinline" to cause control flow change and thus invalidate I$ and
+ * cause refetch after modification.
+ */
+static void __init_or_module noinline optimize_nops(struct alt_instr *a, u8 *instr)
 {
 	unsigned long flags;
 
@@ -346,7 +350,6 @@ static void __init_or_module optimize_nops(struct alt_instr *a, u8 *instr)
 
 	local_irq_save(flags);
 	add_nops(instr + (a->instrlen - a->padlen), a->padlen);
-	sync_core();
 	local_irq_restore(flags);
 
 	DUMP_BYTES(instr, a->instrlen, "%p: [%d:%d) optimized NOPs: ",
@@ -359,9 +362,12 @@ static void __init_or_module optimize_nops(struct alt_instr *a, u8 *instr)
  * This implies that asymmetric systems where APs have less capabilities than
  * the boot processor are not handled. Tough. Make sure you disable such
  * features by hand.
+ *
+ * Marked "noinline" to cause control flow change and thus insn cache
+ * to refetch changed I$ lines.
  */
-void __init_or_module apply_alternatives(struct alt_instr *start,
-					 struct alt_instr *end)
+void __init_or_module noinline apply_alternatives(struct alt_instr *start,
+						  struct alt_instr *end)
 {
 	struct alt_instr *a;
 	u8 *instr, *replacement;
@@ -403,8 +409,13 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 		memcpy(insnbuf, replacement, a->replacementlen);
 		insnbuf_sz = a->replacementlen;
 
-		/* 0xe8 is a relative jump; fix the offset. */
-		if (*insnbuf == 0xe8 && a->replacementlen == 5) {
+		/*
+		 * 0xe8 is a relative jump; fix the offset.
+		 *
+		 * Instruction length is checked before the opcode to avoid
+		 * accessing uninitialized bytes for zero-length replacements.
+		 */
+		if (a->replacementlen == 5 && *insnbuf == 0xe8) {
 			*(s32 *)(insnbuf + 1) += replacement - instr;
 			DPRINTK("Fix CALL offset: 0x%x, CALL 0x%lx",
 				*(s32 *)(insnbuf + 1),
@@ -667,7 +678,6 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
 	unsigned long flags;
 	local_irq_save(flags);
 	memcpy(addr, opcode, len);
-	sync_core();
 	local_irq_restore(flags);
 	/* Could also do a CLFLUSH here to speed up CPU recovery; but
 	   that causes hangs on some VIA CPUs. */

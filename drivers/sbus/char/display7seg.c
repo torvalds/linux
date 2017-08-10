@@ -17,7 +17,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/atomic.h>
-#include <asm/uaccess.h>		/* put_/get_user			*/
+#include <linux/uaccess.h>		/* put_/get_user			*/
 #include <asm/io.h>
 
 #include <asm/display7seg.h>
@@ -212,8 +212,8 @@ static int d7s_probe(struct platform_device *op)
 
 	writeb(regs,  p->regs);
 
-	printk(KERN_INFO PFX "7-Segment Display%s at [%s:0x%llx] %s\n",
-	       op->dev.of_node->full_name,
+	printk(KERN_INFO PFX "7-Segment Display%pOF at [%s:0x%llx] %s\n",
+	       op->dev.of_node,
 	       (regs & D7S_FLIP) ? " (FLIPPED)" : "",
 	       op->resource[0].start,
 	       sol_compat ? "in sol_compat mode" : "");

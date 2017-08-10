@@ -36,8 +36,7 @@
 
 
 //flags used when sending messages (must be bitmapped)
-typedef enum
-{
+typedef enum {
    VCHI_FLAGS_NONE                      = 0x0,
    VCHI_FLAGS_BLOCK_UNTIL_OP_COMPLETE   = 0x1,   // waits for message to be received, or sent (NB. not the same as being seen on other side)
    VCHI_FLAGS_CALLBACK_WHEN_OP_COMPLETE = 0x2,   // run a callback when message sent
@@ -62,8 +61,7 @@ typedef enum {
 } VCHI_CRC_CONTROL_T;
 
 //callback reasons when an event occurs on a service
-typedef enum
-{
+typedef enum {
    VCHI_CALLBACK_REASON_MIN,
 
    //This indicates that there is data available
@@ -111,8 +109,7 @@ typedef enum
 } VCHI_CALLBACK_REASON_T;
 
 // service control options
-typedef enum
-{
+typedef enum {
    VCHI_SERVICE_OPTION_MIN,
 
    VCHI_SERVICE_OPTION_TRACE,
@@ -123,9 +120,9 @@ typedef enum
 
 
 //Callback used by all services / bulk transfers
-typedef void (*VCHI_CALLBACK_T)( void *callback_param, //my service local param
-                                 VCHI_CALLBACK_REASON_T reason,
-                                 void *handle ); //for transmitting msg's only
+typedef void (*VCHI_CALLBACK_T)(void *callback_param, //my service local param
+				 VCHI_CALLBACK_REASON_T reason,
+				 void *handle); //for transmitting msg's only
 
 
 

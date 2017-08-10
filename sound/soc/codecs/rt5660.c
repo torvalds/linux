@@ -526,10 +526,10 @@ static const char * const rt5660_data_select[] = {
 	"L/R", "R/L", "L/L", "R/R"
 };
 
-static const SOC_ENUM_SINGLE_DECL(rt5660_if1_dac_enum,
+static SOC_ENUM_SINGLE_DECL(rt5660_if1_dac_enum,
 	RT5660_DIG_INF1_DATA, RT5660_IF1_DAC_IN_SFT, rt5660_data_select);
 
-static const SOC_ENUM_SINGLE_DECL(rt5660_if1_adc_enum,
+static SOC_ENUM_SINGLE_DECL(rt5660_if1_adc_enum,
 	RT5660_DIG_INF1_DATA, RT5660_IF1_ADC_IN_SFT, rt5660_data_select);
 
 static const struct snd_kcontrol_new rt5660_if1_dac_swap_mux =
@@ -1152,7 +1152,7 @@ static int rt5660_resume(struct snd_soc_codec *codec)
 	struct rt5660_priv *rt5660 = snd_soc_codec_get_drvdata(codec);
 
 	if (rt5660->pdata.poweroff_codec_in_suspend)
-		usleep_range(350000, 400000);
+		msleep(350);
 
 	regcache_cache_only(rt5660->regmap, false);
 	regcache_sync(rt5660->regmap);
@@ -1310,6 +1310,10 @@ static int rt5660_i2c_probe(struct i2c_client *i2c,
 				    ARRAY_SIZE(rt5660_patch));
 	if (ret != 0)
 		dev_warn(&i2c->dev, "Failed to apply regmap patch: %d\n", ret);
+
+	regmap_update_bits(rt5660->regmap, RT5660_GEN_CTRL1,
+		RT5660_AUTO_DIS_AMP | RT5660_MCLK_DET | RT5660_POW_CLKDET,
+		RT5660_AUTO_DIS_AMP | RT5660_MCLK_DET | RT5660_POW_CLKDET);
 
 	if (rt5660->pdata.dmic1_data_pin) {
 		regmap_update_bits(rt5660->regmap, RT5660_GPIO_CTRL1,
