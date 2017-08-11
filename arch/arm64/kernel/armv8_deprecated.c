@@ -301,7 +301,7 @@ do {								\
 	: "=&r" (res), "+r" (data), "=&r" (temp)		\
 	: "r" ((unsigned long)addr), "i" (-EAGAIN),		\
 	  "i" (-EFAULT)						\
-	: "memory")
+	: "memory");						\
 	uaccess_disable();					\
 } while (0)
 
