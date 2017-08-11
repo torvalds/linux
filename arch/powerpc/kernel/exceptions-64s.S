@@ -1373,8 +1373,7 @@ masked_##_H##interrupt:					\
 1:	andi.	r10,r10,(PACA_IRQ_DBELL|PACA_IRQ_HMI);	\
 	bne	2f;					\
 	mfspr	r10,SPRN_##_H##SRR1;			\
-	rldicl	r10,r10,48,1; /* clear MSR_EE */	\
-	rotldi	r10,r10,16;				\
+	xori	r10,r10,MSR_EE; /* clear MSR_EE */	\
 	mtspr	SPRN_##_H##SRR1,r10;			\
 2:	mtcrf	0x80,r9;				\
 	ld	r9,PACA_EXGEN+EX_R9(r13);		\
