@@ -53,7 +53,7 @@
 /*
  * Possible values for the disposition are:
  */
-typedef enum {
+enum sctp_disposition {
 	SCTP_DISPOSITION_DISCARD,	 /* No further processing.  */
 	SCTP_DISPOSITION_CONSUME,	 /* Process return values normally.  */
 	SCTP_DISPOSITION_NOMEM,		 /* We ran out of memory--recover.  */
@@ -63,14 +63,15 @@ typedef enum {
 	SCTP_DISPOSITION_NOT_IMPL,	 /* This entry is not implemented.  */
 	SCTP_DISPOSITION_ERROR,		 /* This is plain old user error.  */
 	SCTP_DISPOSITION_BUG,		 /* This is a bug.  */
-} sctp_disposition_t;
+};
 
-typedef sctp_disposition_t (sctp_state_fn_t) (struct net *,
-					      const struct sctp_endpoint *,
-					      const struct sctp_association *,
-					      const union sctp_subtype type,
-					      void *arg,
-					      struct sctp_cmd_seq *);
+typedef enum sctp_disposition (sctp_state_fn_t) (
+					struct net *net,
+					const struct sctp_endpoint *ep,
+					const struct sctp_association *asoc,
+					const union sctp_subtype type,
+					void *arg,
+					struct sctp_cmd_seq *commands);
 typedef void (sctp_timer_event_t) (unsigned long);
 struct sctp_sm_table_entry {
 	sctp_state_fn_t *fn;

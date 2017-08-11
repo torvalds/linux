@@ -57,7 +57,7 @@ static int sctp_cmd_interpreter(enum sctp_event event_type,
 				struct sctp_endpoint *ep,
 				struct sctp_association *asoc,
 				void *event_arg,
-				sctp_disposition_t status,
+				enum sctp_disposition status,
 				struct sctp_cmd_seq *commands,
 				gfp_t gfp);
 static int sctp_side_effects(enum sctp_event event_type,
@@ -66,7 +66,7 @@ static int sctp_side_effects(enum sctp_event event_type,
 			     struct sctp_endpoint *ep,
 			     struct sctp_association **asoc,
 			     void *event_arg,
-			     sctp_disposition_t status,
+			     enum sctp_disposition status,
 			     struct sctp_cmd_seq *commands,
 			     gfp_t gfp);
 
@@ -97,8 +97,8 @@ static void sctp_do_ecn_ce_work(struct sctp_association *asoc,
  * that was originally marked with the CE bit.
  */
 static struct sctp_chunk *sctp_do_ecn_ecne_work(struct sctp_association *asoc,
-					   __u32 lowest_tsn,
-					   struct sctp_chunk *chunk)
+						__u32 lowest_tsn,
+						struct sctp_chunk *chunk)
 {
 	struct sctp_chunk *repl;
 
@@ -152,9 +152,9 @@ static void sctp_do_ecn_cwr_work(struct sctp_association *asoc,
 static int sctp_gen_sack(struct sctp_association *asoc, int force,
 			 struct sctp_cmd_seq *commands)
 {
+	struct sctp_transport *trans = asoc->peer.last_data_from;
 	__u32 ctsn, max_tsn_seen;
 	struct sctp_chunk *sack;
-	struct sctp_transport *trans = asoc->peer.last_data_from;
 	int error = 0;
 
 	if (force ||
@@ -244,11 +244,11 @@ nomem:
  */
 void sctp_generate_t3_rtx_event(unsigned long peer)
 {
-	int error;
 	struct sctp_transport *transport = (struct sctp_transport *) peer;
 	struct sctp_association *asoc = transport->asoc;
 	struct sock *sk = asoc->base.sk;
 	struct net *net = sock_net(sk);
+	int error;
 
 	/* Check whether a task is in the sock.  */
 
@@ -361,12 +361,12 @@ static void sctp_generate_autoclose_event(unsigned long data)
  */
 void sctp_generate_heartbeat_event(unsigned long data)
 {
-	int error = 0;
 	struct sctp_transport *transport = (struct sctp_transport *) data;
 	struct sctp_association *asoc = transport->asoc;
 	struct sock *sk = asoc->base.sk;
 	struct net *net = sock_net(sk);
 	u32 elapsed, timeout;
+	int error = 0;
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
@@ -406,7 +406,7 @@ out_unlock:
  */
 void sctp_generate_proto_unreach_event(unsigned long data)
 {
-	struct sctp_transport *transport = (struct sctp_transport *) data;
+	struct sctp_transport *transport = (struct sctp_transport *)data;
 	struct sctp_association *asoc = transport->asoc;
 	struct sock *sk = asoc->base.sk;
 	struct net *net = sock_net(sk);
@@ -472,7 +472,7 @@ out_unlock:
 /* Inject a SACK Timeout event into the state machine.  */
 static void sctp_generate_sack_event(unsigned long data)
 {
-	struct sctp_association *asoc = (struct sctp_association *) data;
+	struct sctp_association *asoc = (struct sctp_association *)data;
 	sctp_generate_timeout_event(asoc, SCTP_EVENT_TIMEOUT_SACK);
 }
 
@@ -610,6 +610,7 @@ static void sctp_cmd_assoc_failed(struct sctp_cmd_seq *commands,
 {
 	struct sctp_ulpevent *event;
 	struct sctp_chunk *abort;
+
 	/* Cancel any partial delivery in progress. */
 	sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
 
@@ -991,6 +992,7 @@ static void sctp_cmd_process_fwdtsn(struct sctp_ulpq *ulpq,
 				    struct sctp_chunk *chunk)
 {
 	struct sctp_fwdtsn_skip *skip;
+
 	/* Walk through all the skipped SSNs */
 	sctp_walk_fwdtsn(skip, chunk) {
 		sctp_ulpq_skip(ulpq, ntohs(skip->stream), ntohs(skip->ssn));
@@ -1003,8 +1005,8 @@ static void sctp_cmd_process_fwdtsn(struct sctp_ulpq *ulpq,
 static void sctp_cmd_del_non_primary(struct sctp_association *asoc)
 {
 	struct sctp_transport *t;
-	struct list_head *pos;
 	struct list_head *temp;
+	struct list_head *pos;
 
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		t = list_entry(pos, struct sctp_transport, transports);
@@ -1145,15 +1147,15 @@ int sctp_do_sm(struct net *net, enum sctp_event event_type,
 	       struct sctp_endpoint *ep, struct sctp_association *asoc,
 	       void *event_arg, gfp_t gfp)
 {
-	struct sctp_cmd_seq commands;
-	const struct sctp_sm_table_entry *state_fn;
-	sctp_disposition_t status;
-	int error = 0;
 	typedef const char *(printfn_t)(union sctp_subtype);
 	static printfn_t *table[] = {
 		NULL, sctp_cname, sctp_tname, sctp_oname, sctp_pname,
 	};
 	printfn_t *debug_fn  __attribute__ ((unused)) = table[event_type];
+	const struct sctp_sm_table_entry *state_fn;
+	struct sctp_cmd_seq commands;
+	enum sctp_disposition status;
+	int error = 0;
 
 	/* Look up the state function, run it, and then process the
 	 * side effects.  These three steps are the heart of lksctp.
@@ -1183,7 +1185,7 @@ static int sctp_side_effects(enum sctp_event event_type,
 			     struct sctp_endpoint *ep,
 			     struct sctp_association **asoc,
 			     void *event_arg,
-			     sctp_disposition_t status,
+			     enum sctp_disposition status,
 			     struct sctp_cmd_seq *commands,
 			     gfp_t gfp)
 {
@@ -1269,23 +1271,21 @@ static int sctp_cmd_interpreter(enum sctp_event event_type,
 				struct sctp_endpoint *ep,
 				struct sctp_association *asoc,
 				void *event_arg,
-				sctp_disposition_t status,
+				enum sctp_disposition status,
 				struct sctp_cmd_seq *commands,
 				gfp_t gfp)
 {
-	struct sock *sk = ep->base.sk;
-	struct sctp_sock *sp = sctp_sk(sk);
+	struct sctp_sock *sp = sctp_sk(ep->base.sk);
+	struct sctp_chunk *chunk = NULL, *new_obj;
+	struct sctp_packet *packet;
+	struct sctp_sackhdr sackh;
+	struct timer_list *timer;
+	struct sctp_transport *t;
+	unsigned long timeout;
+	struct sctp_cmd *cmd;
+	int local_cork = 0;
 	int error = 0;
 	int force;
-	struct sctp_cmd *cmd;
-	struct sctp_chunk *new_obj;
-	struct sctp_chunk *chunk = NULL;
-	struct sctp_packet *packet;
-	struct timer_list *timer;
-	unsigned long timeout;
-	struct sctp_transport *t;
-	struct sctp_sackhdr sackh;
-	int local_cork = 0;
 
 	if (SCTP_EVENT_T_TIMEOUT != event_type)
 		chunk = event_arg;
