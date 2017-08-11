@@ -2261,8 +2261,8 @@ static void run_state_machine(struct tcpm_port *port)
 #endif
 		port->try_src_count = 0;
 
+		tcpm_swap_complete(port, 0);
 		tcpm_typec_connect(port);
-
 		tcpm_check_send_discover(port);
 		/*
 		 * 6.3.5
@@ -2444,8 +2444,8 @@ static void run_state_machine(struct tcpm_port *port)
 		typec_set_pwr_opmode(port->typec_port, TYPEC_PWR_MODE_PD);
 		port->pwr_opmode = TYPEC_PWR_MODE_PD;
 
+		tcpm_swap_complete(port, 0);
 		tcpm_typec_connect(port);
-
 		tcpm_check_send_discover(port);
 		break;
 
@@ -2573,7 +2573,6 @@ static void run_state_machine(struct tcpm_port *port)
 				       TYPEC_HOST);
 			port->send_discover = true;
 		}
-		tcpm_swap_complete(port, 0);
 		tcpm_set_state(port, ready_state(port), 0);
 		break;
 
@@ -2621,7 +2620,6 @@ static void run_state_machine(struct tcpm_port *port)
 		tcpm_set_state_cond(port, SNK_UNATTACHED, PD_T_PS_SOURCE_ON);
 		break;
 	case PR_SWAP_SRC_SNK_SINK_ON:
-		tcpm_swap_complete(port, 0);
 		tcpm_set_state(port, SNK_STARTUP, 0);
 		break;
 	case PR_SWAP_SNK_SRC_SINK_OFF:
@@ -2641,7 +2639,6 @@ static void run_state_machine(struct tcpm_port *port)
 		 */
 		tcpm_set_pwr_role(port, TYPEC_SOURCE);
 		tcpm_pd_send_control(port, PD_CTRL_PS_RDY);
-		tcpm_swap_complete(port, 0);
 		tcpm_set_state(port, SRC_STARTUP, 0);
 		break;
 
@@ -2671,12 +2668,10 @@ static void run_state_machine(struct tcpm_port *port)
 	case VCONN_SWAP_TURN_ON_VCONN:
 		tcpm_set_vconn(port, true);
 		tcpm_pd_send_control(port, PD_CTRL_PS_RDY);
-		tcpm_swap_complete(port, 0);
 		tcpm_set_state(port, ready_state(port), 0);
 		break;
 	case VCONN_SWAP_TURN_OFF_VCONN:
 		tcpm_set_vconn(port, false);
-		tcpm_swap_complete(port, 0);
 		tcpm_set_state(port, ready_state(port), 0);
 		break;
 
