@@ -12,6 +12,7 @@ Required root node properties:
 
 Root node property compatible must contain, depending on board:
 
+ - ProBox2 AVA: "probox2,ava"
  - Zidoo X9S: "zidoo,x9s"
 
 
