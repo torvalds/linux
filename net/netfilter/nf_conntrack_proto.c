@@ -65,7 +65,7 @@ nf_ct_unregister_sysctl(struct ctl_table_header **header,
 }
 #endif
 
-struct nf_conntrack_l4proto *
+const struct nf_conntrack_l4proto *
 __nf_ct_l4proto_find(u_int16_t l3proto, u_int8_t l4proto)
 {
 	if (unlikely(l3proto >= NFPROTO_NUMPROTO || nf_ct_protos[l3proto] == NULL))
@@ -77,7 +77,7 @@ EXPORT_SYMBOL_GPL(__nf_ct_l4proto_find);
 
 /* this is guaranteed to always return a valid protocol helper, since
  * it falls back to generic_protocol */
-struct nf_conntrack_l3proto *
+const struct nf_conntrack_l3proto *
 nf_ct_l3proto_find_get(u_int16_t l3proto)
 {
 	struct nf_conntrack_l3proto *p;
@@ -95,8 +95,8 @@ EXPORT_SYMBOL_GPL(nf_ct_l3proto_find_get);
 int
 nf_ct_l3proto_try_module_get(unsigned short l3proto)
 {
+	const struct nf_conntrack_l3proto *p;
 	int ret;
-	struct nf_conntrack_l3proto *p;
 
 retry:	p = nf_ct_l3proto_find_get(l3proto);
 	if (p == &nf_conntrack_l3proto_generic) {
@@ -173,10 +173,10 @@ void nf_ct_netns_put(struct net *net, u8 nfproto)
 }
 EXPORT_SYMBOL_GPL(nf_ct_netns_put);
 
-struct nf_conntrack_l4proto *
+const struct nf_conntrack_l4proto *
 nf_ct_l4proto_find_get(u_int16_t l3num, u_int8_t l4num)
 {
-	struct nf_conntrack_l4proto *p;
+	const struct nf_conntrack_l4proto *p;
 
 	rcu_read_lock();
 	p = __nf_ct_l4proto_find(l3num, l4num);
@@ -196,18 +196,18 @@ EXPORT_SYMBOL_GPL(nf_ct_l4proto_put);
 
 static int kill_l3proto(struct nf_conn *i, void *data)
 {
-	return nf_ct_l3num(i) == ((struct nf_conntrack_l3proto *)data)->l3proto;
+	return nf_ct_l3num(i) == ((const struct nf_conntrack_l3proto *)data)->l3proto;
 }
 
 static int kill_l4proto(struct nf_conn *i, void *data)
 {
-	struct nf_conntrack_l4proto *l4proto;
+	const struct nf_conntrack_l4proto *l4proto;
 	l4proto = data;
 	return nf_ct_protonum(i) == l4proto->l4proto &&
 	       nf_ct_l3num(i) == l4proto->l3proto;
 }
 
-int nf_ct_l3proto_register(struct nf_conntrack_l3proto *proto)
+int nf_ct_l3proto_register(const struct nf_conntrack_l3proto *proto)
 {
 	int ret = 0;
 	struct nf_conntrack_l3proto *old;
@@ -235,7 +235,7 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_register);
 
-void nf_ct_l3proto_unregister(struct nf_conntrack_l3proto *proto)
+void nf_ct_l3proto_unregister(const struct nf_conntrack_l3proto *proto)
 {
 	BUG_ON(proto->l3proto >= NFPROTO_NUMPROTO);
 
@@ -249,7 +249,7 @@ void nf_ct_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 
 	synchronize_rcu();
 	/* Remove all contrack entries for this protocol */
-	nf_ct_iterate_destroy(kill_l3proto, proto);
+	nf_ct_iterate_destroy(kill_l3proto, (void*)proto);
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_unregister);
 

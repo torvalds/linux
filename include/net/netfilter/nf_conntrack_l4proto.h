@@ -114,10 +114,10 @@ extern struct nf_conntrack_l4proto nf_conntrack_l4proto_generic;
 
 #define MAX_NF_CT_PROTO 256
 
-struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u_int16_t l3proto,
+const struct nf_conntrack_l4proto *__nf_ct_l4proto_find(u_int16_t l3proto,
 						  u_int8_t l4proto);
 
-struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u_int16_t l3proto,
+const struct nf_conntrack_l4proto *nf_ct_l4proto_find_get(u_int16_t l3proto,
 						    u_int8_t l4proto);
 void nf_ct_l4proto_put(const struct nf_conntrack_l4proto *p);
 

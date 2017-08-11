@@ -75,7 +75,7 @@ static int cttimeout_new_timeout(struct net *net, struct sock *ctnl,
 {
 	__u16 l3num;
 	__u8 l4num;
-	struct nf_conntrack_l4proto *l4proto;
+	const struct nf_conntrack_l4proto *l4proto;
 	struct ctnl_timeout *timeout, *matching = NULL;
 	char *name;
 	int ret;
@@ -159,7 +159,7 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	unsigned int flags = portid ? NLM_F_MULTI : 0;
-	struct nf_conntrack_l4proto *l4proto = timeout->l4proto;
+	const struct nf_conntrack_l4proto *l4proto = timeout->l4proto;
 
 	event = nfnl_msg_type(NFNL_SUBSYS_CTNETLINK_TIMEOUT, event);
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
@@ -364,10 +364,10 @@ static int cttimeout_default_set(struct net *net, struct sock *ctnl,
 				 const struct nlattr * const cda[],
 				 struct netlink_ext_ack *extack)
 {
+	const struct nf_conntrack_l4proto *l4proto;
+	unsigned int *timeouts;
 	__u16 l3num;
 	__u8 l4num;
-	struct nf_conntrack_l4proto *l4proto;
-	unsigned int *timeouts;
 	int ret;
 
 	if (!cda[CTA_TIMEOUT_L3PROTO] ||
@@ -454,11 +454,11 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 				 const struct nlattr * const cda[],
 				 struct netlink_ext_ack *extack)
 {
-	__u16 l3num;
-	__u8 l4num;
-	struct nf_conntrack_l4proto *l4proto;
+	const struct nf_conntrack_l4proto *l4proto;
 	struct sk_buff *skb2;
 	int ret, err;
+	__u16 l3num;
+	__u8 l4num;
 
 	if (!cda[CTA_TIMEOUT_L3PROTO] || !cda[CTA_TIMEOUT_L4PROTO])
 		return -EINVAL;

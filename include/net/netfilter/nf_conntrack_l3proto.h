@@ -64,10 +64,10 @@ struct nf_conntrack_l3proto {
 extern struct nf_conntrack_l3proto __rcu *nf_ct_l3protos[NFPROTO_NUMPROTO];
 
 /* Protocol global registration. */
-int nf_ct_l3proto_register(struct nf_conntrack_l3proto *proto);
-void nf_ct_l3proto_unregister(struct nf_conntrack_l3proto *proto);
+int nf_ct_l3proto_register(const struct nf_conntrack_l3proto *proto);
+void nf_ct_l3proto_unregister(const struct nf_conntrack_l3proto *proto);
 
-struct nf_conntrack_l3proto *nf_ct_l3proto_find_get(u_int16_t l3proto);
+const struct nf_conntrack_l3proto *nf_ct_l3proto_find_get(u_int16_t l3proto);
 
 /* Existing built-in protocols */
 extern struct nf_conntrack_l3proto nf_conntrack_l3proto_generic;

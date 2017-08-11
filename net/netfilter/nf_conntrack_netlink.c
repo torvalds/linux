@@ -109,9 +109,9 @@ nla_put_failure:
 static int ctnetlink_dump_tuples(struct sk_buff *skb,
 				 const struct nf_conntrack_tuple *tuple)
 {
+	const struct nf_conntrack_l3proto *l3proto;
+	const struct nf_conntrack_l4proto *l4proto;
 	int ret;
-	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_l4proto *l4proto;
 
 	rcu_read_lock();
 	l3proto = __nf_ct_l3proto_find(tuple->src.l3num);
@@ -163,7 +163,7 @@ nla_put_failure:
 
 static int ctnetlink_dump_protoinfo(struct sk_buff *skb, struct nf_conn *ct)
 {
-	struct nf_conntrack_l4proto *l4proto;
+	const struct nf_conntrack_l4proto *l4proto;
 	struct nlattr *nest_proto;
 	int ret;
 
@@ -535,9 +535,9 @@ nla_put_failure:
 
 static inline size_t ctnetlink_proto_size(const struct nf_conn *ct)
 {
-	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_l4proto *l4proto;
-	size_t len = 0;
+	const struct nf_conntrack_l3proto *l3proto;
+	const struct nf_conntrack_l4proto *l4proto;
+	size_t len;
 
 	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
 	len = l3proto->nla_size;
@@ -936,8 +936,8 @@ static const struct nla_policy proto_nla_policy[CTA_PROTO_MAX+1] = {
 static int ctnetlink_parse_tuple_proto(struct nlattr *attr,
 				       struct nf_conntrack_tuple *tuple)
 {
+	const struct nf_conntrack_l4proto *l4proto;
 	struct nlattr *tb[CTA_PROTO_MAX+1];
-	struct nf_conntrack_l4proto *l4proto;
 	int ret = 0;
 
 	ret = nla_parse_nested(tb, CTA_PROTO_MAX, attr, proto_nla_policy,
@@ -1580,8 +1580,8 @@ static int ctnetlink_change_protoinfo(struct nf_conn *ct,
 				      const struct nlattr * const cda[])
 {
 	const struct nlattr *attr = cda[CTA_PROTOINFO];
+	const struct nf_conntrack_l4proto *l4proto;
 	struct nlattr *tb[CTA_PROTOINFO_MAX+1];
-	struct nf_conntrack_l4proto *l4proto;
 	int err = 0;
 
 	err = nla_parse_nested(tb, CTA_PROTOINFO_MAX, attr, protoinfo_policy,
@@ -2475,11 +2475,11 @@ static int ctnetlink_exp_dump_mask(struct sk_buff *skb,
 				   const struct nf_conntrack_tuple *tuple,
 				   const struct nf_conntrack_tuple_mask *mask)
 {
-	int ret;
-	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_l4proto *l4proto;
+	const struct nf_conntrack_l3proto *l3proto;
+	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple m;
 	struct nlattr *nest_parms;
+	int ret;
 
 	memset(&m, 0xFF, sizeof(m));
 	memcpy(&m.src.u3, &mask->src.u3, sizeof(m.src.u3));
