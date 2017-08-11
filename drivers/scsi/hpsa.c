@@ -3748,18 +3748,6 @@ static unsigned char hpsa_volume_offline(struct ctlr_info *h,
 	return HPSA_LV_OK;
 }
 
-static void sanitize_inquiry_string(unsigned char *s, int len)
-{
-	bool terminated = false;
-
-	for (; len > 0; (--len, ++s)) {
-		if (*s == 0)
-			terminated = true;
-		if (terminated || *s < 0x20 || *s > 0x7e)
-			*s = ' ';
-	}
-}
-
 static int hpsa_update_device_info(struct ctlr_info *h,
 	unsigned char scsi3addr[], struct hpsa_scsi_dev_t *this_device,
 	unsigned char *is_OBDR_device)
@@ -3790,8 +3778,8 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		goto bail_out;
 	}
 
-	sanitize_inquiry_string(&inq_buff[8], 8);
-	sanitize_inquiry_string(&inq_buff[16], 16);
+	scsi_sanitize_inquiry_string(&inq_buff[8], 8);
+	scsi_sanitize_inquiry_string(&inq_buff[16], 16);
 
 	this_device->devtype = (inq_buff[0] & 0x1f);
 	memcpy(this_device->scsi3addr, scsi3addr, 8);
@@ -4323,7 +4311,8 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h)
 			ncurrent++;
 			break;
 		case TYPE_ENCLOSURE:
-			hpsa_get_enclosure_info(h, lunaddrbytes,
+			if (!this_device->external)
+				hpsa_get_enclosure_info(h, lunaddrbytes,
 						physdev_list, phys_dev_index,
 						this_device);
 			ncurrent++;
