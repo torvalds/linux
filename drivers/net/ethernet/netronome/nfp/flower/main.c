@@ -214,15 +214,22 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 {
 	struct nfp_eth_table *eth_tbl = app->pf->eth_tbl;
 	struct nfp_reprs *reprs, *old_reprs;
+	struct sk_buff *ctrl_skb;
 	unsigned int i;
 	int err;
 
-	reprs = nfp_reprs_alloc(eth_tbl->max_index + 1);
-	if (!reprs)
+	ctrl_skb = nfp_flower_cmsg_mac_repr_start(app, eth_tbl->count);
+	if (!ctrl_skb)
 		return -ENOMEM;
 
+	reprs = nfp_reprs_alloc(eth_tbl->max_index + 1);
+	if (!reprs) {
+		err = -ENOMEM;
+		goto err_free_ctrl_skb;
+	}
+
 	for (i = 0; i < eth_tbl->count; i++) {
-		int phys_port = eth_tbl->ports[i].index;
+		unsigned int phys_port = eth_tbl->ports[i].index;
 		struct nfp_port *port;
 		u32 cmsg_port_id;
 
@@ -255,6 +262,11 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 			goto err_reprs_clean;
 		}
 
+		nfp_flower_cmsg_mac_repr_add(ctrl_skb, i,
+					     eth_tbl->ports[i].nbi,
+					     eth_tbl->ports[i].base,
+					     phys_port);
+
 		nfp_info(app->cpp, "Phys Port %d Representor(%s) created\n",
 			 phys_port, reprs->reprs[phys_port]->name);
 	}
@@ -265,9 +277,20 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 		goto err_reprs_clean;
 	}
 
+	/* The MAC_REPR control message should be sent after the MAC
+	 * representors are registered using nfp_app_reprs_set().  This is
+	 * because the firmware may respond with control messages for the
+	 * MAC representors, f.e. to provide the driver with information
+	 * about their state, and without registration the driver will drop
+	 * any such messages.
+	 */
+	nfp_ctrl_tx(app->ctrl, ctrl_skb);
+
 	return 0;
 err_reprs_clean:
 	nfp_reprs_clean_and_free(reprs);
+err_free_ctrl_skb:
+	kfree_skb(ctrl_skb);
 	return err;
 }
 

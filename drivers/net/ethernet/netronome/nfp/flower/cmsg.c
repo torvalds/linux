@@ -75,6 +75,39 @@ nfp_flower_cmsg_alloc(struct nfp_app *app, unsigned int size,
 	return skb;
 }
 
+struct sk_buff *
+nfp_flower_cmsg_mac_repr_start(struct nfp_app *app, unsigned int num_ports)
+{
+	struct nfp_flower_cmsg_mac_repr *msg;
+	struct sk_buff *skb;
+	unsigned int size;
+
+	size = sizeof(*msg) + num_ports * sizeof(msg->ports[0]);
+	skb = nfp_flower_cmsg_alloc(app, size, NFP_FLOWER_CMSG_TYPE_MAC_REPR);
+	if (!skb)
+		return NULL;
+
+	msg = nfp_flower_cmsg_get_data(skb);
+	memset(msg->reserved, 0, sizeof(msg->reserved));
+	msg->num_ports = num_ports;
+
+	return skb;
+}
+
+void
+nfp_flower_cmsg_mac_repr_add(struct sk_buff *skb, unsigned int idx,
+			     unsigned int nbi, unsigned int nbi_port,
+			     unsigned int phys_port)
+{
+	struct nfp_flower_cmsg_mac_repr *msg;
+
+	msg = nfp_flower_cmsg_get_data(skb);
+	msg->ports[idx].idx = idx;
+	msg->ports[idx].info = nbi & NFP_FLOWER_CMSG_MAC_REPR_NBI;
+	msg->ports[idx].nbi_port = nbi_port;
+	msg->ports[idx].phys_port = phys_port;
+}
+
 int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok)
 {
 	struct nfp_flower_cmsg_portmod *msg;
