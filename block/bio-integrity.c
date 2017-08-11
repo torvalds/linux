@@ -387,9 +387,11 @@ static void bio_integrity_verify_fn(struct work_struct *work)
  */
 bool __bio_integrity_endio(struct bio *bio)
 {
-	if (bio_op(bio) == REQ_OP_READ && !bio->bi_status) {
-		struct bio_integrity_payload *bip = bio_integrity(bio);
+	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
+	struct bio_integrity_payload *bip = bio_integrity(bio);
 
+	if (bio_op(bio) == REQ_OP_READ && !bio->bi_status &&
+	    (bip->bip_flags & BIP_BLOCK_INTEGRITY) && bi->profile->verify_fn) {
 		INIT_WORK(&bip->bip_work, bio_integrity_verify_fn);
 		queue_work(kintegrityd_wq, &bip->bip_work);
 		return false;
