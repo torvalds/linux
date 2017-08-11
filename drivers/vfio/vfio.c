@@ -138,9 +138,10 @@ struct iommu_group *vfio_iommu_group_get(struct device *dev)
 	iommu_group_set_name(group, "vfio-noiommu");
 	iommu_group_set_iommudata(group, &noiommu, NULL);
 	ret = iommu_group_add_device(group, dev);
-	iommu_group_put(group);
-	if (ret)
+	if (ret) {
+		iommu_group_put(group);
 		return NULL;
+	}
 
 	/*
 	 * Where to taint?  At this point we've added an IOMMU group for a
