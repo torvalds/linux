@@ -24,49 +24,10 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/clk.h>
-#include <linux/err.h>
 #include <linux/platform_device.h>
-#include <linux/io.h>
-#include <linux/device.h>
-#include <linux/regulator/consumer.h>
-#include <linux/suspend.h>
-#include <linux/slab.h>
 
 #include "omapdss.h"
 #include "dss.h"
-
-static struct {
-	struct platform_device *pdev;
-} core;
-
-enum omapdss_version omapdss_get_version(void)
-{
-	struct omap_dss_board_info *pdata = core.pdev->dev.platform_data;
-	return pdata->version;
-}
-EXPORT_SYMBOL(omapdss_get_version);
-
-/* PLATFORM DEVICE */
-
-static int __init omap_dss_probe(struct platform_device *pdev)
-{
-	core.pdev = pdev;
-
-	return 0;
-}
-
-static int omap_dss_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static struct platform_driver omap_dss_driver = {
-	.remove         = omap_dss_remove,
-	.driver         = {
-		.name   = "omapdss",
-	},
-};
 
 /* INIT */
 static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
@@ -110,10 +71,6 @@ static int __init omap_dss_init(void)
 	int r;
 	int i;
 
-	r = platform_driver_probe(&omap_dss_driver, omap_dss_probe);
-	if (r)
-		return r;
-
 	for (i = 0; i < ARRAY_SIZE(dss_output_drv_reg_funcs); ++i) {
 		r = dss_output_drv_reg_funcs[i]();
 		if (r)
@@ -134,8 +91,6 @@ err_reg:
 			++i)
 		dss_output_drv_unreg_funcs[i]();
 
-	platform_driver_unregister(&omap_dss_driver);
-
 	return r;
 }
 
@@ -147,8 +102,6 @@ static void __exit omap_dss_exit(void)
 
 	for (i = 0; i < ARRAY_SIZE(dss_output_drv_unreg_funcs); ++i)
 		dss_output_drv_unreg_funcs[i]();
-
-	platform_driver_unregister(&omap_dss_driver);
 }
 
 module_init(omap_dss_init);
