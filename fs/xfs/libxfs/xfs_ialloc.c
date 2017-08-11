@@ -1246,13 +1246,13 @@ xfs_dialloc_ag_inobt(
 
 			/* free inodes to the left? */
 			if (useleft && trec.ir_freecount) {
-				rec = trec;
 				xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
 				cur = tcur;
 
 				pag->pagl_leftrec = trec.ir_startino;
 				pag->pagl_rightrec = rec.ir_startino;
 				pag->pagl_pagino = pagino;
+				rec = trec;
 				goto alloc_inode;
 			}
 
