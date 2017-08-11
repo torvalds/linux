@@ -37,10 +37,6 @@ struct nf_conntrack_l3proto {
 	bool (*invert_tuple)(struct nf_conntrack_tuple *inverse,
 			     const struct nf_conntrack_tuple *orig);
 
-	/* Print out the per-protocol part of the tuple. */
-	void (*print_tuple)(struct seq_file *s,
-			    const struct nf_conntrack_tuple *);
-
 	/*
 	 * Called before tracking. 
 	 *	*dataoff: offset of protocol header (TCP, UDP,...) in skb

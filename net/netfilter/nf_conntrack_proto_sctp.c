@@ -174,15 +174,6 @@ static bool sctp_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-/* Print out the per-protocol part of the tuple. */
-static void sctp_print_tuple(struct seq_file *s,
-			     const struct nf_conntrack_tuple *tuple)
-{
-	seq_printf(s, "sport=%hu dport=%hu ",
-		   ntohs(tuple->src.u.sctp.port),
-		   ntohs(tuple->dst.u.sctp.port));
-}
-
 /* Print out the private part of the conntrack. */
 static void sctp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
@@ -793,7 +784,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.l4proto 		= IPPROTO_SCTP,
 	.pkt_to_tuple 		= sctp_pkt_to_tuple,
 	.invert_tuple 		= sctp_invert_tuple,
-	.print_tuple 		= sctp_print_tuple,
 	.print_conntrack	= sctp_print_conntrack,
 	.packet 		= sctp_packet,
 	.get_timeouts		= sctp_get_timeouts,
@@ -829,7 +819,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.l4proto 		= IPPROTO_SCTP,
 	.pkt_to_tuple 		= sctp_pkt_to_tuple,
 	.invert_tuple 		= sctp_invert_tuple,
-	.print_tuple 		= sctp_print_tuple,
 	.print_conntrack	= sctp_print_conntrack,
 	.packet 		= sctp_packet,
 	.get_timeouts		= sctp_get_timeouts,

@@ -67,13 +67,6 @@ static bool ipv6_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-static void ipv6_print_tuple(struct seq_file *s,
-			    const struct nf_conntrack_tuple *tuple)
-{
-	seq_printf(s, "src=%pI6 dst=%pI6 ",
-		   tuple->src.u3.ip6, tuple->dst.u3.ip6);
-}
-
 static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 			    unsigned int *dataoff, u_int8_t *protonum)
 {
@@ -350,7 +343,6 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 __read_mostly = {
 	.l3proto		= PF_INET6,
 	.pkt_to_tuple		= ipv6_pkt_to_tuple,
 	.invert_tuple		= ipv6_invert_tuple,
-	.print_tuple		= ipv6_print_tuple,
 	.get_l4proto		= ipv6_get_l4proto,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr	= ipv6_tuple_to_nlattr,

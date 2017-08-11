@@ -623,14 +623,6 @@ static bool dccp_can_early_drop(const struct nf_conn *ct)
 	return false;
 }
 
-static void dccp_print_tuple(struct seq_file *s,
-			     const struct nf_conntrack_tuple *tuple)
-{
-	seq_printf(s, "sport=%hu dport=%hu ",
-		   ntohs(tuple->src.u.dccp.port),
-		   ntohs(tuple->dst.u.dccp.port));
-}
-
 static void dccp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
 	seq_printf(s, "%s ", dccp_state_names[ct->proto.dccp.state]);
@@ -887,7 +879,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
-	.print_tuple		= dccp_print_tuple,
 	.print_conntrack	= dccp_print_conntrack,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= dccp_to_nlattr,
@@ -922,7 +913,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 __read_mostly = {
 	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
-	.print_tuple		= dccp_print_tuple,
 	.print_conntrack	= dccp_print_conntrack,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= dccp_to_nlattr,

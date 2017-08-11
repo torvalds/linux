@@ -224,15 +224,6 @@ static bool gre_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 	return true;
 }
 
-/* print gre part of tuple */
-static void gre_print_tuple(struct seq_file *s,
-			    const struct nf_conntrack_tuple *tuple)
-{
-	seq_printf(s, "srckey=0x%x dstkey=0x%x ",
-		   ntohs(tuple->src.u.gre.key),
-		   ntohs(tuple->dst.u.gre.key));
-}
-
 /* print private data for conntrack */
 static void gre_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
@@ -366,7 +357,6 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 __read_mostly = {
 	.l4proto	 = IPPROTO_GRE,
 	.pkt_to_tuple	 = gre_pkt_to_tuple,
 	.invert_tuple	 = gre_invert_tuple,
-	.print_tuple	 = gre_print_tuple,
 	.print_conntrack = gre_print_conntrack,
 	.get_timeouts    = gre_get_timeouts,
 	.packet		 = gre_packet,

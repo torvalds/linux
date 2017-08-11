@@ -62,12 +62,6 @@ static bool generic_invert_tuple(struct nf_conntrack_tuple *tuple,
 	return true;
 }
 
-/* Print out the per-protocol part of the tuple. */
-static void generic_print_tuple(struct seq_file *s,
-				const struct nf_conntrack_tuple *tuple)
-{
-}
-
 static unsigned int *generic_get_timeouts(struct net *net)
 {
 	return &(generic_pernet(net)->timeout);
@@ -189,7 +183,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
 	.l4proto		= 255,
 	.pkt_to_tuple		= generic_pkt_to_tuple,
 	.invert_tuple		= generic_invert_tuple,
-	.print_tuple		= generic_print_tuple,
 	.packet			= generic_packet,
 	.get_timeouts		= generic_get_timeouts,
 	.new			= generic_new,
