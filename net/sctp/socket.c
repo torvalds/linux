@@ -100,8 +100,9 @@ static int sctp_send_asconf(struct sctp_association *asoc,
 			    struct sctp_chunk *chunk);
 static int sctp_do_bind(struct sock *, union sctp_addr *, int);
 static int sctp_autobind(struct sock *sk);
-static void sctp_sock_migrate(struct sock *, struct sock *,
-			      struct sctp_association *, sctp_socket_type_t);
+static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
+			      struct sctp_association *assoc,
+			      enum sctp_socket_type type);
 
 static unsigned long sctp_memory_pressure;
 static atomic_long_t sctp_memory_allocated;
@@ -8086,7 +8087,7 @@ static inline void sctp_copy_descendant(struct sock *sk_to,
  */
 static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 			      struct sctp_association *assoc,
-			      sctp_socket_type_t type)
+			      enum sctp_socket_type type)
 {
 	struct sctp_sock *oldsp = sctp_sk(oldsk);
 	struct sctp_sock *newsp = sctp_sk(newsk);

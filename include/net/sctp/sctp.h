@@ -550,7 +550,8 @@ static inline int sctp_ep_hashfn(struct net *net, __u16 lport)
 
 /* Is a socket of this style? */
 #define sctp_style(sk, style) __sctp_style((sk), (SCTP_SOCKET_##style))
-static inline int __sctp_style(const struct sock *sk, sctp_socket_type_t style)
+static inline int __sctp_style(const struct sock *sk,
+			       enum sctp_socket_type style)
 {
 	return sctp_sk(sk)->type == style;
 }

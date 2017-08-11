@@ -150,18 +150,18 @@ extern struct sctp_globals {
 #define sctp_checksum_disable		(sctp_globals.checksum_disable)
 
 /* SCTP Socket type: UDP or TCP style. */
-typedef enum {
+enum sctp_socket_type {
 	SCTP_SOCKET_UDP = 0,
 	SCTP_SOCKET_UDP_HIGH_BANDWIDTH,
 	SCTP_SOCKET_TCP
-} sctp_socket_type_t;
+};
 
 /* Per socket SCTP information. */
 struct sctp_sock {
 	/* inet_sock has to be the first member of sctp_sock */
 	struct inet_sock inet;
 	/* What kind of a socket is this? */
-	sctp_socket_type_t type;
+	enum sctp_socket_type type;
 
 	/* PF_ family specific functions.  */
 	struct sctp_pf *pf;
