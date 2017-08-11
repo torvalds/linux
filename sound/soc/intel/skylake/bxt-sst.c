@@ -530,7 +530,7 @@ static int bxt_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 	return 0;
 }
 
-static struct skl_dsp_fw_ops bxt_fw_ops = {
+static const struct skl_dsp_fw_ops bxt_fw_ops = {
 	.set_state_D0 = bxt_set_dsp_D0,
 	.set_state_D3 = bxt_set_dsp_D3,
 	.set_state_D0i3 = bxt_schedule_dsp_D0i3,

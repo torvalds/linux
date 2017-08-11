@@ -503,7 +503,7 @@ static void skl_clear_module_table(struct sst_dsp *ctx)
 	}
 }
 
-static struct skl_dsp_fw_ops skl_fw_ops = {
+static const struct skl_dsp_fw_ops skl_fw_ops = {
 	.set_state_D0 = skl_set_dsp_D0,
 	.set_state_D3 = skl_set_dsp_D3,
 	.load_fw = skl_load_base_firmware,
@@ -512,7 +512,7 @@ static struct skl_dsp_fw_ops skl_fw_ops = {
 	.unload_mod = skl_unload_module,
 };
 
-static struct skl_dsp_fw_ops kbl_fw_ops = {
+static const struct skl_dsp_fw_ops kbl_fw_ops = {
 	.set_state_D0 = skl_set_dsp_D0,
 	.set_state_D3 = skl_set_dsp_D3,
 	.load_fw = skl_load_base_firmware,

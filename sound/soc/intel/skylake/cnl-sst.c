@@ -277,7 +277,7 @@ static unsigned int cnl_get_errno(struct sst_dsp *ctx)
 	return sst_dsp_shim_read(ctx, CNL_ADSP_ERROR_CODE);
 }
 
-static struct skl_dsp_fw_ops cnl_fw_ops = {
+static const struct skl_dsp_fw_ops cnl_fw_ops = {
 	.set_state_D0 = cnl_set_dsp_D0,
 	.set_state_D3 = cnl_set_dsp_D3,
 	.load_fw = cnl_load_base_firmware,
