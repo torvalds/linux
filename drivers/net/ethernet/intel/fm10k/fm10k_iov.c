@@ -482,7 +482,7 @@ int fm10k_ndo_set_vf_vlan(struct net_device *netdev, int vf_idx, u16 vid,
 }
 
 int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx,
-			int __always_unused unused, int rate)
+			int __always_unused min_rate, int max_rate)
 {
 	struct fm10k_intfc *interface = netdev_priv(netdev);
 	struct fm10k_iov_data *iov_data = interface->iov_data;
@@ -493,14 +493,15 @@ int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx,
 		return -EINVAL;
 
 	/* rate limit cannot be less than 10Mbs or greater than link speed */
-	if (rate && ((rate < FM10K_VF_TC_MIN) || rate > FM10K_VF_TC_MAX))
+	if (max_rate &&
+	    (max_rate < FM10K_VF_TC_MIN || max_rate > FM10K_VF_TC_MAX))
 		return -EINVAL;
 
 	/* store values */
-	iov_data->vf_info[vf_idx].rate = rate;
+	iov_data->vf_info[vf_idx].rate = max_rate;
 
 	/* update hardware configuration */
-	hw->iov.ops.configure_tc(hw, vf_idx, rate);
+	hw->iov.ops.configure_tc(hw, vf_idx, max_rate);
 
 	return 0;
 }
