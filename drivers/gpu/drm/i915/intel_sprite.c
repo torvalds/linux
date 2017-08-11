@@ -1184,7 +1184,7 @@ static bool intel_sprite_plane_format_mod_supported(struct drm_plane *plane,
 	unreachable();
 }
 
-const struct drm_plane_funcs intel_sprite_plane_funcs = {
+static const struct drm_plane_funcs intel_sprite_plane_funcs = {
         .update_plane = drm_atomic_helper_update_plane,
         .disable_plane = drm_atomic_helper_disable_plane,
         .destroy = intel_plane_destroy,
