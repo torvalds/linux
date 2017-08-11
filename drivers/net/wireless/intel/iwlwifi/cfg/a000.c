@@ -75,11 +75,14 @@
 #define IWL_A000_JF_FW_PRE	"iwlwifi-Qu-a0-jf-b0-"
 #define IWL_A000_HR_FW_PRE	"iwlwifi-Qu-a0-hr-a0-"
 #define IWL_A000_HR_CDB_FW_PRE	"iwlwifi-QuIcp-z0-hrcdb-a0-"
+#define IWL_A000_HR_F0_FW_PRE	"iwlwifi-QuQnj-f0-hr-a0-"
 
 #define IWL_A000_HR_MODULE_FIRMWARE(api) \
 	IWL_A000_HR_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_A000_JF_MODULE_FIRMWARE(api) \
 	IWL_A000_JF_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_A000_HR_QNJ_MODULE_FIRMWARE(api) \
+	IWL_A000_HR_F0_FW_PRE "-" __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_A000		10
 
@@ -168,5 +171,16 @@ const struct iwl_cfg iwla000_2ax_cfg_hr = {
 		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
 };
 
+const struct iwl_cfg iwla000_2ax_cfg_qnj_hr = {
+		.name = "Intel(R) Dual Band Wireless AX a000",
+		.fw_name_pre = IWL_A000_HR_F0_FW_PRE,
+		IWL_DEVICE_A000,
+		.ht_params = &iwl_a000_ht_params,
+		.nvm_ver = IWL_A000_NVM_VERSION,
+		.nvm_calib_ver = IWL_A000_TX_POWER_VERSION,
+		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+};
+
 MODULE_FIRMWARE(IWL_A000_HR_MODULE_FIRMWARE(IWL_A000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_A000_JF_MODULE_FIRMWARE(IWL_A000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_A000_HR_QNJ_MODULE_FIRMWARE(IWL_A000_UCODE_API_MAX));

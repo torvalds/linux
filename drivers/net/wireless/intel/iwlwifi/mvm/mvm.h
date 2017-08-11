@@ -1377,7 +1377,6 @@ void iwl_mvm_accu_radio_stats(struct iwl_mvm *mvm);
 
 /* NVM */
 int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic);
-int iwl_mvm_nvm_get_from_fw(struct iwl_mvm *mvm);
 int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm);
 int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm);
 
@@ -1566,12 +1565,16 @@ void iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 #ifdef CONFIG_IWLWIFI_LEDS
 int iwl_mvm_leds_init(struct iwl_mvm *mvm);
 void iwl_mvm_leds_exit(struct iwl_mvm *mvm);
+void iwl_mvm_leds_sync(struct iwl_mvm *mvm);
 #else
 static inline int iwl_mvm_leds_init(struct iwl_mvm *mvm)
 {
 	return 0;
 }
 static inline void iwl_mvm_leds_exit(struct iwl_mvm *mvm)
+{
+}
+static inline void iwl_mvm_leds_sync(struct iwl_mvm *mvm)
 {
 }
 #endif
@@ -1751,6 +1754,7 @@ void iwl_mvm_thermal_exit(struct iwl_mvm *mvm);
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state);
 int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp);
 void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm);
 int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm);
 int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 budget);
 

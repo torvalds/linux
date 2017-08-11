@@ -6,7 +6,8 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2017        Intel Deutschland GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +33,8 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2017        Intel Deutschland GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,113 +64,99 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+#include "iwl-drv.h"
+#include "runtime.h"
+#include "fw/api/nvm-reg.h"
+#include "fw/api/commands.h"
+#include "iwl-nvm-parse.h"
 
-#include <linux/leds.h>
-#include "iwl-io.h"
-#include "iwl-csr.h"
-#include "mvm.h"
-
-static void iwl_mvm_send_led_fw_cmd(struct iwl_mvm *mvm, bool on)
+struct iwl_nvm_data *iwl_fw_get_nvm(struct iwl_fw_runtime *fwrt)
 {
-	struct iwl_led_cmd led_cmd = {
-		.status = cpu_to_le32(on),
+	struct iwl_nvm_get_info cmd = {};
+	struct iwl_nvm_get_info_rsp *rsp;
+	struct iwl_trans *trans = fwrt->trans;
+	struct iwl_nvm_data *nvm;
+	struct iwl_host_cmd hcmd = {
+		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
+		.data = { &cmd, },
+		.len = { sizeof(cmd) },
+		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP, NVM_GET_INFO)
 	};
-	struct iwl_host_cmd cmd = {
-		.id = WIDE_ID(LONG_GROUP, LEDS_CMD),
-		.len = { sizeof(led_cmd), },
-		.data = { &led_cmd, },
-		.flags = CMD_ASYNC,
-	};
-	int err;
+	int  ret;
+	bool lar_fw_supported = !iwlwifi_mod_params.lar_disable &&
+				fw_has_capa(&fwrt->fw->ucode_capa,
+					    IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 
-	if (!iwl_mvm_firmware_running(mvm))
-		return;
+	ret = iwl_trans_send_cmd(trans, &hcmd);
+	if (ret)
+		return ERR_PTR(ret);
 
-	err = iwl_mvm_send_cmd(mvm, &cmd);
-
-	if (err)
-		IWL_WARN(mvm, "LED command failed: %d\n", err);
-}
-
-static void iwl_mvm_led_set(struct iwl_mvm *mvm, bool on)
-{
-	if (mvm->cfg->device_family >= IWL_DEVICE_FAMILY_8000) {
-		iwl_mvm_send_led_fw_cmd(mvm, on);
-		return;
+	if (WARN(iwl_rx_packet_payload_len(hcmd.resp_pkt) != sizeof(*rsp),
+		 "Invalid payload len in NVM response from FW %d",
+		 iwl_rx_packet_payload_len(hcmd.resp_pkt))) {
+		ret = -EINVAL;
+		goto out;
 	}
 
-	iwl_write32(mvm->trans, CSR_LED_REG,
-		    on ? CSR_LED_REG_TURN_ON : CSR_LED_REG_TURN_OFF);
-}
+	rsp = (void *)hcmd.resp_pkt->data;
+	if (le32_to_cpu(rsp->general.flags) & NVM_GENERAL_FLAGS_EMPTY_OTP)
+		IWL_INFO(fwrt, "OTP is empty\n");
 
-static void iwl_led_brightness_set(struct led_classdev *led_cdev,
-				   enum led_brightness brightness)
-{
-	struct iwl_mvm *mvm = container_of(led_cdev, struct iwl_mvm, led);
-
-	iwl_mvm_led_set(mvm, brightness > 0);
-}
-
-int iwl_mvm_leds_init(struct iwl_mvm *mvm)
-{
-	int mode = iwlwifi_mod_params.led_mode;
-	int ret;
-
-	switch (mode) {
-	case IWL_LED_BLINK:
-		IWL_ERR(mvm, "Blink led mode not supported, used default\n");
-	case IWL_LED_DEFAULT:
-	case IWL_LED_RF_STATE:
-		mode = IWL_LED_RF_STATE;
-		break;
-	case IWL_LED_DISABLE:
-		IWL_INFO(mvm, "Led disabled\n");
-		return 0;
-	default:
-		return -EINVAL;
+	nvm = kzalloc(sizeof(*nvm) +
+		      sizeof(struct ieee80211_channel) * IWL_NUM_CHANNELS,
+		      GFP_KERNEL);
+	if (!nvm) {
+		ret = -ENOMEM;
+		goto out;
 	}
 
-	mvm->led.name = kasprintf(GFP_KERNEL, "%s-led",
-				   wiphy_name(mvm->hw->wiphy));
-	mvm->led.brightness_set = iwl_led_brightness_set;
-	mvm->led.max_brightness = 1;
+	iwl_set_hw_address_from_csr(trans, nvm);
+	/* TODO: if platform NVM has MAC address - override it here */
 
-	if (mode == IWL_LED_RF_STATE)
-		mvm->led.default_trigger =
-			ieee80211_get_radio_led_name(mvm->hw);
-
-	ret = led_classdev_register(mvm->trans->dev, &mvm->led);
-	if (ret) {
-		kfree(mvm->led.name);
-		IWL_INFO(mvm, "Failed to enable led\n");
-		return ret;
+	if (!is_valid_ether_addr(nvm->hw_addr)) {
+		IWL_ERR(fwrt, "no valid mac address was found\n");
+		ret = -EINVAL;
+		goto err_free;
 	}
 
-	mvm->init_status |= IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE;
-	return 0;
+	IWL_INFO(trans, "base HW address: %pM\n", nvm->hw_addr);
+
+	/* Initialize general data */
+	nvm->nvm_version = le16_to_cpu(rsp->general.nvm_version);
+
+	/* Initialize MAC sku data */
+	nvm->sku_cap_11ac_enable =
+		le32_to_cpu(rsp->mac_sku.enable_11ac);
+	nvm->sku_cap_11n_enable =
+		le32_to_cpu(rsp->mac_sku.enable_11n);
+	nvm->sku_cap_band_24GHz_enable =
+		le32_to_cpu(rsp->mac_sku.enable_24g);
+	nvm->sku_cap_band_52GHz_enable =
+		le32_to_cpu(rsp->mac_sku.enable_5g);
+	nvm->sku_cap_mimo_disabled =
+		le32_to_cpu(rsp->mac_sku.mimo_disable);
+
+	/* Initialize PHY sku data */
+	nvm->valid_tx_ant = (u8)le32_to_cpu(rsp->phy_sku.tx_chains);
+	nvm->valid_rx_ant = (u8)le32_to_cpu(rsp->phy_sku.rx_chains);
+
+	/* Initialize regulatory data */
+	nvm->lar_enabled =
+		le32_to_cpu(rsp->regulatory.lar_enabled) && lar_fw_supported;
+
+	iwl_init_sbands(trans->dev, trans->cfg, nvm,
+			rsp->regulatory.channel_profile,
+			nvm->valid_tx_ant & fwrt->fw->valid_tx_ant,
+			nvm->valid_rx_ant & fwrt->fw->valid_rx_ant,
+			rsp->regulatory.lar_enabled && lar_fw_supported);
+
+	iwl_free_resp(&hcmd);
+	return nvm;
+
+err_free:
+	kfree(nvm);
+out:
+	iwl_free_resp(&hcmd);
+	return ERR_PTR(ret);
 }
-
-void iwl_mvm_leds_sync(struct iwl_mvm *mvm)
-{
-	if (!(mvm->init_status & IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE))
-		return;
-
-	/*
-	 * if we control through the register, we're doing it
-	 * even when the firmware isn't up, so no need to sync
-	 */
-	if (mvm->cfg->device_family < IWL_DEVICE_FAMILY_8000)
-		return;
-
-	iwl_mvm_led_set(mvm, mvm->led.brightness > 0);
-}
-
-void iwl_mvm_leds_exit(struct iwl_mvm *mvm)
-{
-	if (!(mvm->init_status & IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE))
-		return;
-
-	led_classdev_unregister(&mvm->led);
-	kfree(mvm->led.name);
-	mvm->init_status &= ~IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE;
-}
+IWL_EXPORT_SYMBOL(iwl_fw_get_nvm);

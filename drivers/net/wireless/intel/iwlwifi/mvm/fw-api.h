@@ -83,6 +83,7 @@
 #include "fw/api/commands.h"
 #include "fw/api/d3.h"
 #include "fw/api/filter.h"
+#include "fw/api/led.h"
 #include "fw/api/mac.h"
 #include "fw/api/nvm-reg.h"
 #include "fw/api/phy-ctxt.h"

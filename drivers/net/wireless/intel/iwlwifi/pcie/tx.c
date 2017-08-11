@@ -577,8 +577,8 @@ int iwl_pcie_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 	return 0;
 }
 
-static void iwl_pcie_free_tso_page(struct iwl_trans_pcie *trans_pcie,
-				   struct sk_buff *skb)
+void iwl_pcie_free_tso_page(struct iwl_trans_pcie *trans_pcie,
+			    struct sk_buff *skb)
 {
 	struct page **page_ptr;
 
