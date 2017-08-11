@@ -2588,11 +2588,18 @@ static void fm10k_io_resume(struct pci_dev *pdev)
 
 	if (err)
 		dev_warn(&pdev->dev,
-			 "fm10k_io_resume failed: %d\n", err);
+			 "%s failed: %d\n", __func__, err);
 	else
 		netif_device_attach(netdev);
 }
 
+/**
+ * fm10k_io_reset_prepare - called when PCI function is about to be reset
+ * @pdev: Pointer to PCI device
+ *
+ * This callback is called when the PCI function is about to be reset,
+ * allowing the device driver to prepare for it.
+ */
 static void fm10k_io_reset_prepare(struct pci_dev *pdev)
 {
 	/* warn incase we have any active VF devices */
@@ -2602,6 +2609,13 @@ static void fm10k_io_reset_prepare(struct pci_dev *pdev)
 	fm10k_prepare_suspend(pci_get_drvdata(pdev));
 }
 
+/**
+ * fm10k_io_reset_done - called when PCI function has finished resetting
+ * @pdev: Pointer to PCI device
+ *
+ * This callback is called just after the PCI function is reset, such as via
+ * /sys/class/net/<enpX>/device/reset or similar.
+ */
 static void fm10k_io_reset_done(struct pci_dev *pdev)
 {
 	struct fm10k_intfc *interface = pci_get_drvdata(pdev);
@@ -2609,7 +2623,7 @@ static void fm10k_io_reset_done(struct pci_dev *pdev)
 
 	if (err) {
 		dev_warn(&pdev->dev,
-			 "fm10k_io_reset_notify failed: %d\n", err);
+			 "%s failed: %d\n", __func__, err);
 		netif_device_detach(interface->netdev);
 	}
 }
