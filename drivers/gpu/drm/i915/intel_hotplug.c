@@ -101,6 +101,32 @@ enum port intel_hpd_pin_to_port(enum hpd_pin pin)
 	}
 }
 
+/**
+ * intel_hpd_pin - return pin hard associated with certain port.
+ * @port: the hpd port to get associated pin
+ *
+ * Return pin that is associatade with @port and HDP_NONE if no pin is
+ * hard associated with that @port.
+ */
+enum hpd_pin intel_hpd_pin(enum port port)
+{
+	switch (port) {
+	case PORT_A:
+		return HPD_PORT_A;
+	case PORT_B:
+		return HPD_PORT_B;
+	case PORT_C:
+		return HPD_PORT_C;
+	case PORT_D:
+		return HPD_PORT_D;
+	case PORT_E:
+		return HPD_PORT_E;
+	default:
+		MISSING_CASE(port);
+		return HPD_NONE;
+	}
+}
+
 #define HPD_STORM_DETECT_PERIOD		1000
 #define HPD_STORM_REENABLE_DELAY	(2 * 60 * 1000)
 
