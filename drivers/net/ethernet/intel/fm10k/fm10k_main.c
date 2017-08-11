@@ -806,9 +806,10 @@ static int fm10k_tso(struct fm10k_ring *tx_ring,
 	tx_desc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
 
 	return 1;
+
 err_vxlan:
 	tx_ring->netdev->features &= ~NETIF_F_GSO_UDP_TUNNEL;
-	if (!net_ratelimit())
+	if (net_ratelimit())
 		netdev_err(tx_ring->netdev,
 			   "TSO requested for unsupported tunnel, disabling offload\n");
 	return -1;
