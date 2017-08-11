@@ -181,6 +181,19 @@ void expr__ctx_init(struct parse_ctx *ctx)
 	ctx->num_ids = 0;
 }
 
+static bool already_seen(const char *val, const char *one, const char **other,
+			 int num_other)
+{
+	int i;
+
+	if (one && !strcasecmp(one, val))
+		return true;
+	for (i = 0; i < num_other; i++)
+		if (!strcasecmp(other[i], val))
+			return true;
+	return false;
+}
+
 int expr__find_other(const char *p, const char *one, const char ***other,
 		     int *num_otherp)
 {
@@ -200,7 +213,7 @@ int expr__find_other(const char *p, const char *one, const char ***other,
 			err = 0;
 			break;
 		}
-		if (tok == ID && (!one || strcasecmp(one, val.id))) {
+		if (tok == ID && !already_seen(val.id, one, *other, num_other)) {
 			if (num_other >= EXPR_MAX_OTHER - 1) {
 				pr_debug("Too many extra events in %s\n", orig);
 				break;
