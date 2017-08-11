@@ -841,12 +841,31 @@ lpfc_nvmet_xmt_fcp_release(struct nvmet_fc_target_port *tgtport,
 	lpfc_nvmet_ctxbuf_post(phba, ctxp->ctxbuf);
 }
 
+static void
+lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
+		     struct nvmefc_tgt_fcp_req *rsp)
+{
+	struct lpfc_nvmet_tgtport *tgtp;
+	struct lpfc_nvmet_rcv_ctx *ctxp =
+		container_of(rsp, struct lpfc_nvmet_rcv_ctx, ctx.fcp_req);
+	struct rqb_dmabuf *nvmebuf = ctxp->rqb_buffer;
+	struct lpfc_hba *phba = ctxp->phba;
+
+	lpfc_nvmeio_data(phba, "NVMET DEFERRCV: xri x%x sz %d CPU %02x\n",
+			 ctxp->oxid, ctxp->size, smp_processor_id());
+
+	tgtp = phba->targetport->private;
+	atomic_inc(&tgtp->rcv_fcp_cmd_defer);
+	lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
+}
+
 static struct nvmet_fc_target_template lpfc_tgttemplate = {
 	.targetport_delete = lpfc_nvmet_targetport_delete,
 	.xmt_ls_rsp     = lpfc_nvmet_xmt_ls_rsp,
 	.fcp_op         = lpfc_nvmet_xmt_fcp_op,
 	.fcp_abort      = lpfc_nvmet_xmt_fcp_abort,
 	.fcp_req_release = lpfc_nvmet_xmt_fcp_release,
+	.defer_rcv	= lpfc_nvmet_defer_rcv,
 
 	.max_hw_queues  = 1,
 	.max_sgl_segments = LPFC_NVMET_DEFAULT_SEGS,
@@ -1501,6 +1520,17 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	if (rc == 0) {
 		atomic_inc(&tgtp->rcv_fcp_cmd_out);
 		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
+		return;
+	}
+
+	/* Processing of FCP command is deferred */
+	if (rc == -EOVERFLOW) {
+		lpfc_nvmeio_data(phba,
+				 "NVMET RCV BUSY: xri x%x sz %d from %06x\n",
+				 oxid, size, sid);
+		/* defer reposting rcv buffer till .defer_rcv callback */
+		ctxp->rqb_buffer = nvmebuf;
+		atomic_inc(&tgtp->rcv_fcp_cmd_out);
 		return;
 	}
 
