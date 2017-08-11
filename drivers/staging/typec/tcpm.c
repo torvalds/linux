@@ -2897,7 +2897,8 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 		break;
 
 	case SRC_TRY:
-		tcpm_set_state(port, SRC_TRY_DEBOUNCE, 0);
+		if (tcpm_port_is_source(port))
+			tcpm_set_state(port, SRC_TRY_DEBOUNCE, 0);
 		break;
 	case SRC_TRY_DEBOUNCE:
 		tcpm_set_state(port, SRC_TRY, 0);
