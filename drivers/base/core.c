@@ -2796,11 +2796,12 @@ void device_shutdown(void)
 		pm_runtime_get_noresume(dev);
 		pm_runtime_barrier(dev);
 
-		if (dev->class && dev->class->shutdown) {
+		if (dev->class && dev->class->shutdown_pre) {
 			if (initcall_debug)
-				dev_info(dev, "shutdown\n");
-			dev->class->shutdown(dev);
-		} else if (dev->bus && dev->bus->shutdown) {
+				dev_info(dev, "shutdown_pre\n");
+			dev->class->shutdown_pre(dev);
+		}
+		if (dev->bus && dev->bus->shutdown) {
 			if (initcall_debug)
 				dev_info(dev, "shutdown\n");
 			dev->bus->shutdown(dev);
