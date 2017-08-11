@@ -842,7 +842,7 @@ static const struct snd_kcontrol_new snd_gf1_pcm_volume_control1 =
 	.put = snd_gf1_pcm_volume_put
 };
 
-static struct snd_pcm_ops snd_gf1_pcm_playback_ops = {
+static const struct snd_pcm_ops snd_gf1_pcm_playback_ops = {
 	.open =		snd_gf1_pcm_playback_open,
 	.close =	snd_gf1_pcm_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -856,7 +856,7 @@ static struct snd_pcm_ops snd_gf1_pcm_playback_ops = {
 	.fill_silence =	snd_gf1_pcm_playback_silence,
 };
 
-static struct snd_pcm_ops snd_gf1_pcm_capture_ops = {
+static const struct snd_pcm_ops snd_gf1_pcm_capture_ops = {
 	.open =		snd_gf1_pcm_capture_open,
 	.close =	snd_gf1_pcm_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
