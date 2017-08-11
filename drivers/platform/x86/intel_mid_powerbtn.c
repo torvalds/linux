@@ -108,13 +108,13 @@ static irqreturn_t mid_pb_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct mid_pb_ddata mfld_ddata = {
+static const struct mid_pb_ddata mfld_ddata = {
 	.mirqlvl1_addr	= INTEL_MSIC_IRQLVL1MSK,
 	.pbstat_addr	= INTEL_MSIC_PBSTATUS,
 	.pbstat_mask	= MSIC_PB_LEVEL,
 };
 
-static struct mid_pb_ddata mrfld_ddata = {
+static const struct mid_pb_ddata mrfld_ddata = {
 	.mirqlvl1_addr	= BCOVE_IRQLVL1MSK,
 	.pbstat_addr	= BCOVE_PBSTATUS,
 	.pbstat_mask	= BCOVE_PB_LEVEL,
