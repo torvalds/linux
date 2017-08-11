@@ -40,7 +40,7 @@
 #include <net/sctp/structs.h>
 
 
-typedef enum {
+enum sctp_verb {
 	SCTP_CMD_NOP = 0,	/* Do nothing. */
 	SCTP_CMD_NEW_ASOC,	/* Register a new association.  */
 	SCTP_CMD_DELETE_TCB,	/* Delete the current association. */
@@ -108,7 +108,7 @@ typedef enum {
 	SCTP_CMD_PURGE_ASCONF_QUEUE, /* Purge all asconf queues.*/
 	SCTP_CMD_SET_ASOC,	 /* Restore association context */
 	SCTP_CMD_LAST
-} sctp_verb_t;
+};
 
 /* How many commands can you put in an struct sctp_cmd_seq?
  * This is a rather arbitrary number, ideally derived from a careful
@@ -198,7 +198,7 @@ static inline union sctp_arg SCTP_NULL(void)
 
 struct sctp_cmd {
 	union sctp_arg obj;
-	sctp_verb_t verb;
+	enum sctp_verb verb;
 };
 
 struct sctp_cmd_seq {
@@ -225,8 +225,8 @@ static inline int sctp_init_cmd_seq(struct sctp_cmd_seq *seq)
  * Use the SCTP_* constructors defined by SCTP_ARG_CONSTRUCTOR() above
  * to wrap data which goes in the obj argument.
  */
-static inline void sctp_add_cmd_sf(struct sctp_cmd_seq *seq, sctp_verb_t verb,
-				   union sctp_arg obj)
+static inline void sctp_add_cmd_sf(struct sctp_cmd_seq *seq,
+				   enum sctp_verb verb, union sctp_arg obj)
 {
 	struct sctp_cmd *cmd = seq->last_used_slot - 1;
 

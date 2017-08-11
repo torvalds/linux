@@ -6205,7 +6205,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	struct sctp_datahdr *data_hdr;
 	struct sctp_chunk *err;
 	size_t datalen;
-	sctp_verb_t deliver;
+	enum sctp_verb deliver;
 	int tmp;
 	__u32 tsn;
 	struct sctp_tsnmap *map = (struct sctp_tsnmap *)&asoc->peer.tsn_map;
