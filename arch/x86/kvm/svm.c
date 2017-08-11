@@ -280,10 +280,6 @@ module_param(avic, int, S_IRUGO);
 static int vls = true;
 module_param(vls, int, 0444);
 
-/* AVIC VM ID bit masks and lock */
-static DECLARE_BITMAP(avic_vm_id_bitmap, AVIC_VM_ID_NR);
-static DEFINE_SPINLOCK(avic_vm_id_lock);
-
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
 static void svm_complete_interrupts(struct vcpu_svm *svm);
@@ -989,6 +985,8 @@ static void disable_nmi_singlestep(struct vcpu_svm *svm)
  */
 #define SVM_VM_DATA_HASH_BITS	8
 static DEFINE_HASHTABLE(svm_vm_data_hash, SVM_VM_DATA_HASH_BITS);
+static u32 next_vm_id = 0;
+static bool next_vm_id_wrapped = 0;
 static DEFINE_SPINLOCK(svm_vm_data_hash_lock);
 
 /* Note:
@@ -1387,34 +1385,6 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static inline int avic_get_next_vm_id(void)
-{
-	int id;
-
-	spin_lock(&avic_vm_id_lock);
-
-	/* AVIC VM ID is one-based. */
-	id = find_next_zero_bit(avic_vm_id_bitmap, AVIC_VM_ID_NR, 1);
-	if (id <= AVIC_VM_ID_MASK)
-		__set_bit(id, avic_vm_id_bitmap);
-	else
-		id = -EAGAIN;
-
-	spin_unlock(&avic_vm_id_lock);
-	return id;
-}
-
-static inline int avic_free_vm_id(int id)
-{
-	if (id <= 0 || id > AVIC_VM_ID_MASK)
-		return -EINVAL;
-
-	spin_lock(&avic_vm_id_lock);
-	__clear_bit(id, avic_vm_id_bitmap);
-	spin_unlock(&avic_vm_id_lock);
-	return 0;
-}
-
 static void avic_vm_destroy(struct kvm *kvm)
 {
 	unsigned long flags;
@@ -1422,8 +1392,6 @@ static void avic_vm_destroy(struct kvm *kvm)
 
 	if (!avic)
 		return;
-
-	avic_free_vm_id(vm_data->avic_vm_id);
 
 	if (vm_data->avic_logical_id_table_page)
 		__free_page(vm_data->avic_logical_id_table_page);
@@ -1438,18 +1406,15 @@ static void avic_vm_destroy(struct kvm *kvm)
 static int avic_vm_init(struct kvm *kvm)
 {
 	unsigned long flags;
-	int vm_id, err = -ENOMEM;
+	int err = -ENOMEM;
 	struct kvm_arch *vm_data = &kvm->arch;
 	struct page *p_page;
 	struct page *l_page;
+	struct kvm_arch *ka;
+	u32 vm_id;
 
 	if (!avic)
 		return 0;
-
-	vm_id = avic_get_next_vm_id();
-	if (vm_id < 0)
-		return vm_id;
-	vm_data->avic_vm_id = (u32)vm_id;
 
 	/* Allocating physical APIC ID table (4KB) */
 	p_page = alloc_page(GFP_KERNEL);
@@ -1468,6 +1433,22 @@ static int avic_vm_init(struct kvm *kvm)
 	clear_page(page_address(l_page));
 
 	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
+ again:
+	vm_id = next_vm_id = (next_vm_id + 1) & AVIC_VM_ID_MASK;
+	if (vm_id == 0) { /* id is 1-based, zero is not okay */
+		next_vm_id_wrapped = 1;
+		goto again;
+	}
+	/* Is it still in use? Only possible if wrapped at least once */
+	if (next_vm_id_wrapped) {
+		hash_for_each_possible(svm_vm_data_hash, ka, hnode, vm_id) {
+			struct kvm *k2 = container_of(ka, struct kvm, arch);
+			struct kvm_arch *vd2 = &k2->arch;
+			if (vd2->avic_vm_id == vm_id)
+				goto again;
+		}
+	}
+	vm_data->avic_vm_id = vm_id;
 	hash_add(svm_vm_data_hash, &vm_data->hnode, vm_data->avic_vm_id);
 	spin_unlock_irqrestore(&svm_vm_data_hash_lock, flags);
 
