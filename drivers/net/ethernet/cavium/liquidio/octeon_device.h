@@ -554,6 +554,7 @@ struct octeon_device {
 	} loc;
 
 	atomic_t *adapter_refcount; /* reference count of adapter */
+	bool ptp_enable;
 };
 
 #define  OCT_DRV_ONLINE 1

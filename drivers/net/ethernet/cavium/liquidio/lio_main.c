@@ -78,8 +78,6 @@ int octeon_console_debug_enabled(u32 console)
 	return (console_bitmask >> (console)) & 0x1;
 }
 
-static int ptp_enable = 1;
-
 /* Polling interval for determining when NIC application is alive */
 #define LIQUIDIO_STARTER_POLL_INTERVAL_MS 100
 
@@ -1363,6 +1361,13 @@ liquidio_probe(struct pci_dev *pdev,
 	if (pdev->device == OCTEON_CN23XX_PF_VID)
 		oct_dev->msix_on = LIO_FLAG_MSIX_ENABLED;
 
+	/* Enable PTP for 6XXX Device */
+	if (((pdev->device == OCTEON_CN66XX) ||
+	     (pdev->device == OCTEON_CN68XX)))
+		oct_dev->ptp_enable = true;
+	else
+		oct_dev->ptp_enable = false;
+
 	dev_info(&pdev->dev, "Initializing device %x:%x.\n",
 		 (u32)pdev->vendor, (u32)pdev->device);
 
@@ -2388,9 +2393,7 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 
 		r_dh_off = (rh->r_dh.len - 1) * BYTES_PER_DHLEN_UNIT;
 
-		if (((oct->chip_id == OCTEON_CN66XX) ||
-		     (oct->chip_id == OCTEON_CN68XX)) &&
-		    ptp_enable) {
+		if (oct->ptp_enable) {
 			if (rh->r_dh.has_hwtstamp) {
 				/* timestamp is included from the hardware at
 				 * the beginning of the packet.
@@ -2735,8 +2738,7 @@ static int liquidio_open(struct net_device *netdev)
 			oct->droq[0]->ops.poll_mode = 1;
 	}
 
-	if ((oct->chip_id == OCTEON_CN66XX || oct->chip_id == OCTEON_CN68XX) &&
-	    ptp_enable)
+	if (oct->ptp_enable)
 		oct_ptp_open(netdev);
 
 	ifstate_set(lio, LIO_IFSTATE_RUNNING);
@@ -3091,8 +3093,7 @@ static int liquidio_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		if ((lio->oct_dev->chip_id == OCTEON_CN66XX ||
-		     lio->oct_dev->chip_id == OCTEON_CN68XX) && ptp_enable)
+		if (lio->oct_dev->ptp_enable)
 			return hwtstamp_ioctl(netdev, ifr);
 	default:
 		return -EOPNOTSUPP;
