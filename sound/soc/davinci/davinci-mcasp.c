@@ -1602,8 +1602,6 @@ static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 		pdata = devm_kmemdup(&pdev->dev, match->data, sizeof(*pdata),
 				     GFP_KERNEL);
 		if (!pdata) {
-			dev_err(&pdev->dev,
-				"Failed to allocate memory for pdata\n");
 			ret = -ENOMEM;
 			return pdata;
 		}
