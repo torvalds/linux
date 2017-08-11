@@ -7387,18 +7387,30 @@ L:	kvm@vger.kernel.org
 W:	http://www.linux-kvm.org
 T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
 S:	Supported
-F:	Documentation/*/kvm*.txt
 F:	Documentation/virtual/kvm/
-F:	arch/*/kvm/
-F:	arch/x86/kernel/kvm.c
-F:	arch/x86/kernel/kvmclock.c
-F:	arch/*/include/asm/kvm*
-F:	include/linux/kvm*
+F:	include/trace/events/kvm.h
+F:	include/uapi/asm-generic/kvm*
 F:	include/uapi/linux/kvm*
-F:	virt/kvm/
+F:	include/asm-generic/kvm*
+F:	include/linux/kvm*
+F:	include/kvm/iodev.h
+F:	virt/kvm/*
 F:	tools/kvm/
 
-KERNEL VIRTUAL MACHINE (KVM) FOR AMD-V
+KERNEL VIRTUAL MACHINE FOR X86 (KVM/x86)
+M:	Paolo Bonzini <pbonzini@redhat.com>
+M:	Radim KrÄmÃ¡Å™ <rkrcmar@redhat.com>
+L:	kvm@vger.kernel.org
+W:	http://www.linux-kvm.org
+T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
+S:	Supported
+F:	arch/x86/kvm/
+F:	arch/x86/include/uapi/asm/kvm*
+F:	arch/x86/include/asm/kvm*
+F:	arch/x86/kernel/kvm.c
+F:	arch/x86/kernel/kvmclock.c
+
+KERNEL VIRTUAL MACHINE FOR AMD-V (KVM/amd)
 M:	Joerg Roedel <joro@8bytes.org>
 L:	kvm@vger.kernel.org
 W:	http://www.linux-kvm.org/
@@ -7406,7 +7418,7 @@ S:	Maintained
 F:	arch/x86/include/asm/svm.h
 F:	arch/x86/kvm/svm.c
 
-KERNEL VIRTUAL MACHINE (KVM) FOR ARM
+KERNEL VIRTUAL MACHINE FOR ARM (KVM/arm)
 M:	Christoffer Dall <christoffer.dall@linaro.org>
 M:	Marc Zyngier <marc.zyngier@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -7420,14 +7432,16 @@ F:	arch/arm/kvm/
 F:	virt/kvm/arm/
 F:	include/kvm/arm_*
 
-KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC
+KERNEL VIRTUAL MACHINE FOR POWERPC (KVM/powerpc)
 M:	Alexander Graf <agraf@suse.com>
 L:	kvm-ppc@vger.kernel.org
 W:	http://www.linux-kvm.org/
 T:	git git://github.com/agraf/linux-2.6.git
 S:	Supported
+F:	arch/powerpc/include/uapi/asm/kvm*
 F:	arch/powerpc/include/asm/kvm*
 F:	arch/powerpc/kvm/
+F:	arch/powerpc/kernel/kvm*
 
 KERNEL VIRTUAL MACHINE FOR ARM64 (KVM/arm64)
 M:	Christoffer Dall <christoffer.dall@linaro.org>
@@ -7454,7 +7468,8 @@ L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvms390/linux.git
 S:	Supported
-F:	Documentation/s390/kvm.txt
+F:	arch/s390/include/uapi/asm/kvm*
+F:	arch/s390/include/asm/gmap.h
 F:	arch/s390/include/asm/kvm*
 F:	arch/s390/kvm/
 F:	arch/s390/mm/gmap.c
