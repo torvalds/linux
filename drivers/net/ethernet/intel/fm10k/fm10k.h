@@ -562,8 +562,8 @@ s32 fm10k_iov_update_pvid(struct fm10k_intfc *interface, u16 glort, u16 pvid);
 int fm10k_ndo_set_vf_mac(struct net_device *netdev, int vf_idx, u8 *mac);
 int fm10k_ndo_set_vf_vlan(struct net_device *netdev,
 			  int vf_idx, u16 vid, u8 qos, __be16 vlan_proto);
-int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx, int rate,
-			int unused);
+int fm10k_ndo_set_vf_bw(struct net_device *netdev, int vf_idx,
+			int __always_unused min_rate, int max_rate);
 int fm10k_ndo_get_vf_config(struct net_device *netdev,
 			    int vf_idx, struct ifla_vf_info *ivi);
 
