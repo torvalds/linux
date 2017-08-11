@@ -192,7 +192,7 @@ static u32 seccomp_run_filters(const struct seccomp_data *sd,
 
 	/* Ensure unexpected behavior doesn't result in failing open. */
 	if (unlikely(WARN_ON(f == NULL)))
-		return SECCOMP_RET_KILL_THREAD;
+		return SECCOMP_RET_KILL_PROCESS;
 
 	if (!sd) {
 		populate_seccomp_data(&sd_local);
@@ -529,14 +529,16 @@ static void seccomp_send_sigsys(int syscall, int reason)
 #endif	/* CONFIG_SECCOMP_FILTER */
 
 /* For use with seccomp_actions_logged */
-#define SECCOMP_LOG_KILL_THREAD		(1 << 0)
+#define SECCOMP_LOG_KILL_PROCESS	(1 << 0)
+#define SECCOMP_LOG_KILL_THREAD		(1 << 1)
 #define SECCOMP_LOG_TRAP		(1 << 2)
 #define SECCOMP_LOG_ERRNO		(1 << 3)
 #define SECCOMP_LOG_TRACE		(1 << 4)
 #define SECCOMP_LOG_LOG			(1 << 5)
 #define SECCOMP_LOG_ALLOW		(1 << 6)
 
-static u32 seccomp_actions_logged = SECCOMP_LOG_KILL_THREAD |
+static u32 seccomp_actions_logged = SECCOMP_LOG_KILL_PROCESS |
+				    SECCOMP_LOG_KILL_THREAD  |
 				    SECCOMP_LOG_TRAP  |
 				    SECCOMP_LOG_ERRNO |
 				    SECCOMP_LOG_TRACE |
@@ -563,8 +565,11 @@ static inline void seccomp_log(unsigned long syscall, long signr, u32 action,
 		log = seccomp_actions_logged & SECCOMP_LOG_LOG;
 		break;
 	case SECCOMP_RET_KILL_THREAD:
-	default:
 		log = seccomp_actions_logged & SECCOMP_LOG_KILL_THREAD;
+		break;
+	case SECCOMP_RET_KILL_PROCESS:
+	default:
+		log = seccomp_actions_logged & SECCOMP_LOG_KILL_PROCESS;
 	}
 
 	/*
@@ -719,10 +724,12 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		return 0;
 
 	case SECCOMP_RET_KILL_THREAD:
+	case SECCOMP_RET_KILL_PROCESS:
 	default:
 		seccomp_log(this_syscall, SIGSYS, action, true);
 		/* Dump core only if this is the last remaining thread. */
-		if (get_nr_threads(current) == 1) {
+		if (action == SECCOMP_RET_KILL_PROCESS ||
+		    get_nr_threads(current) == 1) {
 			siginfo_t info;
 
 			/* Show the original registers in the dump. */
@@ -731,7 +738,10 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 			seccomp_init_siginfo(&info, this_syscall, data);
 			do_coredump(&info);
 		}
-		do_exit(SIGSYS);
+		if (action == SECCOMP_RET_KILL_PROCESS)
+			do_group_exit(SIGSYS);
+		else
+			do_exit(SIGSYS);
 	}
 
 	unreachable();
