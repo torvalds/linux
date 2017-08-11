@@ -6,6 +6,7 @@ Required properties (phy (parent) node):
 	* "rockchip,rk3328-usb2phy"
 	* "rockchip,rk3366-usb2phy"
 	* "rockchip,rk3399-usb2phy"
+	* "rockchip,rv1108-usb2phy"
  - reg : the address offset of grf for usb-phy configuration.
  - #clock-cells : should be 0.
  - clock-output-names : specify the 480m output clock name.
