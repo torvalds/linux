@@ -3037,10 +3037,7 @@ static void _tcpm_pd_vbus_off(struct tcpm_port *port)
 		break;
 
 	case ERROR_RECOVERY_WAIT_OFF:
-		tcpm_set_state(port,
-			       port->pwr_role == TYPEC_SOURCE ?
-					SRC_UNATTACHED : SNK_UNATTACHED,
-			       0);
+		tcpm_set_state(port, tcpm_default_state(port), 0);
 		break;
 
 	default:
