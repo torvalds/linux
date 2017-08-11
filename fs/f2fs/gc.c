@@ -919,7 +919,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 	struct blk_plug plug;
 	unsigned int segno = start_segno;
 	unsigned int end_segno = start_segno + sbi->segs_per_sec;
-	int sec_freed = 0;
+	int seg_freed = 0;
 	unsigned char type = IS_DATASEG(get_seg_entry(sbi, segno)->type) ?
 						SUM_TYPE_DATA : SUM_TYPE_NODE;
 
@@ -965,6 +965,10 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 								gc_type);
 
 		stat_inc_seg_count(sbi, type, gc_type);
+
+		if (gc_type == FG_GC &&
+				get_valid_blocks(sbi, segno, false) == 0)
+			seg_freed++;
 next:
 		f2fs_put_page(sum_page, 0);
 	}
@@ -975,27 +979,32 @@ next:
 
 	blk_finish_plug(&plug);
 
-	if (gc_type == FG_GC &&
-		get_valid_blocks(sbi, start_segno, true) == 0)
-		sec_freed = 1;
-
 	stat_inc_call_count(sbi->stat_info);
 
-	return sec_freed;
+	return seg_freed;
 }
 
 int f2fs_gc(struct f2fs_sb_info *sbi, bool sync,
 			bool background, unsigned int segno)
 {
 	int gc_type = sync ? FG_GC : BG_GC;
-	int sec_freed = 0;
-	int ret;
+	int sec_freed = 0, seg_freed = 0, total_freed = 0;
+	int ret = 0;
 	struct cp_control cpc;
 	unsigned int init_segno = segno;
 	struct gc_inode_list gc_list = {
 		.ilist = LIST_HEAD_INIT(gc_list.ilist),
 		.iroot = RADIX_TREE_INIT(GFP_NOFS),
 	};
+
+	trace_f2fs_gc_begin(sbi->sb, sync, background,
+				get_pages(sbi, F2FS_DIRTY_NODES),
+				get_pages(sbi, F2FS_DIRTY_DENTS),
+				get_pages(sbi, F2FS_DIRTY_IMETA),
+				free_sections(sbi),
+				free_segments(sbi),
+				reserved_segments(sbi),
+				prefree_segments(sbi));
 
 	cpc.reason = __get_cp_reason(sbi);
 gc_more:
@@ -1023,17 +1032,20 @@ gc_more:
 			gc_type = FG_GC;
 	}
 
-	ret = -EINVAL;
 	/* f2fs_balance_fs doesn't need to do BG_GC in critical path. */
-	if (gc_type == BG_GC && !background)
+	if (gc_type == BG_GC && !background) {
+		ret = -EINVAL;
 		goto stop;
-	if (!__get_victim(sbi, &segno, gc_type))
+	}
+	if (!__get_victim(sbi, &segno, gc_type)) {
+		ret = -ENODATA;
 		goto stop;
-	ret = 0;
+	}
 
-	if (do_garbage_collect(sbi, segno, &gc_list, gc_type) &&
-			gc_type == FG_GC)
+	seg_freed = do_garbage_collect(sbi, segno, &gc_list, gc_type);
+	if (gc_type == FG_GC && seg_freed == sbi->segs_per_sec)
 		sec_freed++;
+	total_freed += seg_freed;
 
 	if (gc_type == FG_GC)
 		sbi->cur_victim_sec = NULL_SEGNO;
@@ -1050,6 +1062,16 @@ gc_more:
 stop:
 	SIT_I(sbi)->last_victim[ALLOC_NEXT] = 0;
 	SIT_I(sbi)->last_victim[FLUSH_DEVICE] = init_segno;
+
+	trace_f2fs_gc_end(sbi->sb, ret, total_freed, sec_freed,
+				get_pages(sbi, F2FS_DIRTY_NODES),
+				get_pages(sbi, F2FS_DIRTY_DENTS),
+				get_pages(sbi, F2FS_DIRTY_IMETA),
+				free_sections(sbi),
+				free_segments(sbi),
+				reserved_segments(sbi),
+				prefree_segments(sbi));
+
 	mutex_unlock(&sbi->gc_mutex);
 
 	put_gc_inode(&gc_list);
