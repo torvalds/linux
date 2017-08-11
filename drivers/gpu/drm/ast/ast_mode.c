@@ -934,7 +934,7 @@ static void ast_cursor_fini(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 	ttm_bo_kunmap(&ast->cache_kmap);
-	drm_gem_object_unreference_unlocked(ast->cursor_cache);
+	drm_gem_object_put_unlocked(ast->cursor_cache);
 }
 
 int ast_mode_init(struct drm_device *dev)
@@ -1199,10 +1199,10 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 
 	ast_show_cursor(crtc);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	return 0;
 fail:
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	return ret;
 }
 
