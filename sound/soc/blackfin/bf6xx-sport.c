@@ -394,19 +394,18 @@ struct sport_device *sport_create(struct platform_device *pdev)
 	sport->pdev = pdev;
 
 	ret = sport_get_resource(sport);
-	if (ret) {
-		kfree(sport);
-		return NULL;
-	}
+	if (ret)
+		goto free_data;
 
 	ret = sport_request_resource(sport);
-	if (ret) {
-		kfree(sport);
-		return NULL;
-	}
+	if (ret)
+		goto free_data;
 
 	dev_dbg(dev, "SPORT create success\n");
 	return sport;
+free_data:
+	kfree(sport);
+	return NULL;
 }
 EXPORT_SYMBOL(sport_create);
 
