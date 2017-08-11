@@ -15,6 +15,7 @@ void usb_asmedia_modifyflowcontrol(struct pci_dev *pdev);
 void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev);
 void usb_disable_xhci_ports(struct pci_dev *xhci_pdev);
 void sb800_prefetch(struct device *dev, int on);
+bool usb_xhci_needs_pci_reset(struct pci_dev *pdev);
 #else
 struct pci_dev;
 static inline void usb_amd_quirk_pll_disable(void) {}
