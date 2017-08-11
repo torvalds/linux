@@ -115,7 +115,8 @@
 	S(BIST_RX),				\
 						\
 	S(ERROR_RECOVERY),			\
-	S(ERROR_RECOVERY_WAIT_OFF)
+	S(PORT_RESET),				\
+	S(PORT_RESET_WAIT_OFF)
 
 #define GENERATE_ENUM(e)	e
 #define GENERATE_STRING(s)	#s
@@ -230,6 +231,7 @@ struct tcpm_port {
 
 	struct mutex swap_lock;		/* swap command lock */
 	bool swap_pending;
+	bool non_pd_role_swap;
 	struct completion swap_complete;
 	int swap_status;
 
@@ -2123,6 +2125,7 @@ static void tcpm_swap_complete(struct tcpm_port *port, int result)
 	if (port->swap_pending) {
 		port->swap_status = result;
 		port->swap_pending = false;
+		port->non_pd_role_swap = false;
 		complete(&port->swap_complete);
 	}
 }
@@ -2137,7 +2140,8 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	/* SRC states */
 	case SRC_UNATTACHED:
-		tcpm_swap_complete(port, -ENOTCONN);
+		if (!port->non_pd_role_swap)
+			tcpm_swap_complete(port, -ENOTCONN);
 		tcpm_src_detach(port);
 		if (tcpm_start_drp_toggling(port)) {
 			tcpm_set_state(port, DRP_TOGGLING, 0);
@@ -2292,7 +2296,8 @@ static void run_state_machine(struct tcpm_port *port)
 
 	/* SNK states */
 	case SNK_UNATTACHED:
-		tcpm_swap_complete(port, -ENOTCONN);
+		if (!port->non_pd_role_swap)
+			tcpm_swap_complete(port, -ENOTCONN);
 		tcpm_snk_detach(port);
 		if (tcpm_start_drp_toggling(port)) {
 			tcpm_set_state(port, DRP_TOGGLING, 0);
@@ -2703,13 +2708,15 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case ERROR_RECOVERY:
 		tcpm_swap_complete(port, -EPROTO);
+		tcpm_set_state(port, PORT_RESET, 0);
+		break;
+	case PORT_RESET:
 		tcpm_reset_port(port);
-
 		tcpm_set_cc(port, TYPEC_CC_OPEN);
-		tcpm_set_state(port, ERROR_RECOVERY_WAIT_OFF,
+		tcpm_set_state(port, PORT_RESET_WAIT_OFF,
 			       PD_T_ERROR_RECOVERY);
 		break;
-	case ERROR_RECOVERY_WAIT_OFF:
+	case PORT_RESET_WAIT_OFF:
 		tcpm_set_state(port,
 			       tcpm_default_state(port),
 			       port->vbus_present ? PD_T_PS_SOURCE_OFF : 0);
@@ -3041,7 +3048,7 @@ static void _tcpm_pd_vbus_off(struct tcpm_port *port)
 		/* Do nothing, expected */
 		break;
 
-	case ERROR_RECOVERY_WAIT_OFF:
+	case PORT_RESET_WAIT_OFF:
 		tcpm_set_state(port, tcpm_default_state(port), 0);
 		break;
 
@@ -3138,7 +3145,7 @@ static int tcpm_dr_set(const struct typec_capability *cap,
 	mutex_lock(&port->swap_lock);
 	mutex_lock(&port->lock);
 
-	if (port->typec_caps.type != TYPEC_PORT_DRP || !port->pd_capable) {
+	if (port->typec_caps.type != TYPEC_PORT_DRP) {
 		ret = -EINVAL;
 		goto port_unlock;
 	}
@@ -3159,10 +3166,26 @@ static int tcpm_dr_set(const struct typec_capability *cap,
 	 * Reject data role swap request in this case.
 	 */
 
+	if (!port->pd_capable) {
+		/*
+		 * If the partner is not PD capable, reset the port to
+		 * trigger a role change. This can only work if a preferred
+		 * role is configured, and if it matches the requested role.
+		 */
+		if (port->try_role == TYPEC_NO_PREFERRED_ROLE ||
+		    port->try_role == port->pwr_role) {
+			ret = -EINVAL;
+			goto port_unlock;
+		}
+		port->non_pd_role_swap = true;
+		tcpm_set_state(port, PORT_RESET, 0);
+	} else {
+		tcpm_set_state(port, DR_SWAP_SEND, 0);
+	}
+
 	port->swap_status = 0;
 	port->swap_pending = true;
 	reinit_completion(&port->swap_complete);
-	tcpm_set_state(port, DR_SWAP_SEND, 0);
 	mutex_unlock(&port->lock);
 
 	if (!wait_for_completion_timeout(&port->swap_complete,
@@ -3171,6 +3194,7 @@ static int tcpm_dr_set(const struct typec_capability *cap,
 	else
 		ret = port->swap_status;
 
+	port->non_pd_role_swap = false;
 	goto swap_unlock;
 
 port_unlock:
@@ -3199,22 +3223,6 @@ static int tcpm_pr_set(const struct typec_capability *cap,
 	}
 
 	if (role == port->pwr_role) {
-		ret = 0;
-		goto port_unlock;
-	}
-
-	if (!port->pd_capable) {
-		/*
-		 * If the partner is not PD capable, reset the port to
-		 * trigger a role change. This can only work if a preferred
-		 * role is configured, and if it matches the requested role.
-		 */
-		if (port->try_role == TYPEC_NO_PREFERRED_ROLE ||
-		    port->try_role == port->pwr_role) {
-			ret = -EINVAL;
-			goto port_unlock;
-		}
-		tcpm_set_state(port, HARD_RESET_SEND, 0);
 		ret = 0;
 		goto port_unlock;
 	}
@@ -3324,7 +3332,7 @@ static void tcpm_init(struct tcpm_port *port)
 	 * Some adapters need a clean slate at startup, and won't recover
 	 * otherwise. So do not try to be fancy and force a clean disconnect.
 	 */
-	tcpm_set_state(port, ERROR_RECOVERY, 0);
+	tcpm_set_state(port, PORT_RESET, 0);
 }
 
 void tcpm_tcpc_reset(struct tcpm_port *port)
