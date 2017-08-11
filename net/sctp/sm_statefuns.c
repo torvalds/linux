@@ -1155,27 +1155,25 @@ sctp_disposition_t sctp_sf_backbeat_8_3(struct net *net,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
+	struct sctp_sender_hb_info *hbinfo;
 	struct sctp_chunk *chunk = arg;
-	union sctp_addr from_addr;
 	struct sctp_transport *link;
-	sctp_sender_hb_info_t *hbinfo;
 	unsigned long max_interval;
+	union sctp_addr from_addr;
 
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the HEARTBEAT-ACK chunk has a valid length.  */
 	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_chunkhdr) +
-					    sizeof(sctp_sender_hb_info_t)))
+					    sizeof(*hbinfo)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
-	hbinfo = (sctp_sender_hb_info_t *) chunk->skb->data;
+	hbinfo = (struct sctp_sender_hb_info *)chunk->skb->data;
 	/* Make sure that the length of the parameter is what we expect */
-	if (ntohs(hbinfo->param_hdr.length) !=
-				    sizeof(sctp_sender_hb_info_t)) {
+	if (ntohs(hbinfo->param_hdr.length) != sizeof(*hbinfo))
 		return SCTP_DISPOSITION_DISCARD;
-	}
 
 	from_addr = hbinfo->daddr;
 	link = sctp_assoc_lookup_paddr(asoc, &from_addr);

@@ -714,7 +714,7 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 				  struct sctp_transport *t,
 				  struct sctp_chunk *chunk)
 {
-	sctp_sender_hb_info_t *hbinfo;
+	struct sctp_sender_hb_info *hbinfo;
 	int was_unconfirmed = 0;
 
 	/* 8.3 Upon the receipt of the HEARTBEAT ACK, the sender of the
@@ -768,7 +768,7 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	if (t->rto_pending == 0)
 		t->rto_pending = 1;
 
-	hbinfo = (sctp_sender_hb_info_t *) chunk->skb->data;
+	hbinfo = (struct sctp_sender_hb_info *)chunk->skb->data;
 	sctp_transport_update_rto(t, (jiffies - hbinfo->sent_at));
 
 	/* Update the heartbeat timer.  */

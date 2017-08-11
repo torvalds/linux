@@ -371,12 +371,12 @@ union sctp_params {
  *    chunk is sent and the destination transport address to which this
  *    HEARTBEAT is sent (see Section 8.3).
  */
-typedef struct sctp_sender_hb_info {
+struct sctp_sender_hb_info {
 	struct sctp_paramhdr param_hdr;
 	union sctp_addr daddr;
 	unsigned long sent_at;
 	__u64 hb_nonce;
-} sctp_sender_hb_info_t;
+};
 
 int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 		     gfp_t gfp);
