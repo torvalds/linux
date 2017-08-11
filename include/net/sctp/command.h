@@ -117,7 +117,7 @@ typedef enum {
  */
 #define SCTP_MAX_NUM_COMMANDS 20
 
-typedef union {
+union sctp_arg {
 	void *zero_all;	/* Set to NULL to clear the entire union */
 	__s32 i32;
 	__u32 u32;
@@ -137,24 +137,24 @@ typedef union {
 	struct sctp_packet *packet;
 	struct sctp_sackhdr *sackh;
 	struct sctp_datamsg *msg;
-} sctp_arg_t;
+};
 
 /* We are simulating ML type constructors here.
  *
  * SCTP_ARG_CONSTRUCTOR(NAME, TYPE, ELT) builds a function called
  * SCTP_NAME() which takes an argument of type TYPE and returns an
- * sctp_arg_t.  It does this by inserting the sole argument into the
- * ELT union element of a local sctp_arg_t.
+ * union sctp_arg.  It does this by inserting the sole argument into
+ * the ELT union element of a local union sctp_arg.
  *
  * E.g., SCTP_ARG_CONSTRUCTOR(I32, __s32, i32) builds SCTP_I32(arg),
- * which takes an __s32 and returns a sctp_arg_t containing the
+ * which takes an __s32 and returns a union sctp_arg containing the
  * __s32.  So, after foo = SCTP_I32(arg), foo.i32 == arg.
  */
 
 #define SCTP_ARG_CONSTRUCTOR(name, type, elt) \
-static inline sctp_arg_t	\
+static inline union sctp_arg	\
 SCTP_## name (type arg)		\
-{ sctp_arg_t retval;\
+{ union sctp_arg retval;\
   retval.zero_all = NULL;\
   retval.elt = arg;\
   return retval;\
@@ -179,25 +179,25 @@ SCTP_ARG_CONSTRUCTOR(PACKET,	struct sctp_packet *, packet)
 SCTP_ARG_CONSTRUCTOR(SACKH,	struct sctp_sackhdr *, sackh)
 SCTP_ARG_CONSTRUCTOR(DATAMSG,	struct sctp_datamsg *, msg)
 
-static inline sctp_arg_t SCTP_FORCE(void)
+static inline union sctp_arg SCTP_FORCE(void)
 {
 	return SCTP_I32(1);
 }
 
-static inline sctp_arg_t SCTP_NOFORCE(void)
+static inline union sctp_arg SCTP_NOFORCE(void)
 {
 	return SCTP_I32(0);
 }
 
-static inline sctp_arg_t SCTP_NULL(void)
+static inline union sctp_arg SCTP_NULL(void)
 {
-	sctp_arg_t retval;
+	union sctp_arg retval;
 	retval.zero_all = NULL;
 	return retval;
 }
 
 struct sctp_cmd {
-	sctp_arg_t obj;
+	union sctp_arg obj;
 	sctp_verb_t verb;
 };
 
@@ -226,7 +226,7 @@ static inline int sctp_init_cmd_seq(struct sctp_cmd_seq *seq)
  * to wrap data which goes in the obj argument.
  */
 static inline void sctp_add_cmd_sf(struct sctp_cmd_seq *seq, sctp_verb_t verb,
-				   sctp_arg_t obj)
+				   union sctp_arg obj)
 {
 	struct sctp_cmd *cmd = seq->last_used_slot - 1;
 

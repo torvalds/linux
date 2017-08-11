@@ -2975,8 +2975,8 @@ sctp_disposition_t sctp_sf_eat_data_6_2(struct net *net,
 					void *arg,
 					struct sctp_cmd_seq *commands)
 {
+	union sctp_arg force = SCTP_NOFORCE();
 	struct sctp_chunk *chunk = arg;
-	sctp_arg_t force = SCTP_NOFORCE();
 	int error;
 
 	if (!sctp_vtag_verify(chunk, asoc)) {
