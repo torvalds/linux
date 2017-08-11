@@ -264,6 +264,7 @@
 	act8846: act8846@5a {
 		compatible = "active-semi,act8846";
 		reg = <0x5a>;
+		system-power-controller;
 		status = "okay";
 
 		vp1-supply = <&vcc_sys>;
