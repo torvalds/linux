@@ -154,6 +154,11 @@ SECTIONS
 		*(.get_tick_patch)
 		__get_tick_patch_end = .;
 	}
+	.pud_huge_patch : {
+		__pud_huge_patch = .;
+		*(.pud_huge_patch)
+		__pud_huge_patch_end = .;
+	}
 	PERCPU_SECTION(SMP_CACHE_BYTES)
 
 #ifdef CONFIG_JUMP_LABEL

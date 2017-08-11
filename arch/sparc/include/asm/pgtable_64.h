@@ -414,6 +414,11 @@ static inline bool is_hugetlb_pmd(pmd_t pmd)
 	return !!(pmd_val(pmd) & _PAGE_PMD_HUGE);
 }
 
+static inline bool is_hugetlb_pud(pud_t pud)
+{
+	return !!(pud_val(pud) & _PAGE_PUD_HUGE);
+}
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline pmd_t pmd_mkhuge(pmd_t pmd)
 {
