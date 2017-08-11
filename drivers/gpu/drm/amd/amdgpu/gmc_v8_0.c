@@ -762,7 +762,7 @@ static void gmc_v8_0_set_prt(struct amdgpu_device *adev, bool enable)
 static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 {
 	int r, i;
-	u32 tmp;
+	u32 tmp, field;
 
 	if (adev->gart.robj == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
@@ -793,10 +793,12 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_L2_CACHE, 1);
 	WREG32(mmVM_L2_CNTL2, tmp);
+
+	field = adev->vm_manager.fragment_size;
 	tmp = RREG32(mmVM_L2_CNTL3);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, L2_CACHE_BIGK_ASSOCIATIVITY, 1);
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, BANK_SELECT, 4);
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, L2_CACHE_BIGK_FRAGMENT_SIZE, 4);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, BANK_SELECT, field);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3, L2_CACHE_BIGK_FRAGMENT_SIZE, field);
 	WREG32(mmVM_L2_CNTL3, tmp);
 	/* XXX: set to enable PTE/PDE in system memory */
 	tmp = RREG32(mmVM_L2_CNTL4);
@@ -1047,6 +1049,7 @@ static int gmc_v8_0_sw_init(void *handle)
 	 * Max GPUVM size for cayman and SI is 40 bits.
 	 */
 	amdgpu_vm_adjust_size(adev, 64);
+	adev->vm_manager.fragment_size = 4;
 	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
 
 	/* Set the internal MC address mask

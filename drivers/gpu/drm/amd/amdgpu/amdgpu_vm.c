@@ -1410,9 +1410,7 @@ static int amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 	 * Userspace can support this by aligning virtual base address and
 	 * allocation size to the fragment size.
 	 */
-
-	/* SI and newer are optimized for 64KB */
-	unsigned pages_per_frag = AMDGPU_LOG2_PAGES_PER_FRAG(params->adev);
+	unsigned pages_per_frag = params->adev->vm_manager.fragment_size;
 	uint64_t frag_flags = AMDGPU_PTE_FRAG(pages_per_frag);
 	uint64_t frag_align = 1 << pages_per_frag;
 

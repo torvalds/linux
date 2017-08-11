@@ -461,6 +461,7 @@ static void gmc_v6_0_set_prt(struct amdgpu_device *adev, bool enable)
 static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 {
 	int r, i;
+	u32 field;
 
 	if (adev->gart.robj == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
@@ -488,10 +489,12 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	WREG32(mmVM_L2_CNTL2,
 	       VM_L2_CNTL2__INVALIDATE_ALL_L1_TLBS_MASK |
 	       VM_L2_CNTL2__INVALIDATE_L2_CACHE_MASK);
+
+	field = adev->vm_manager.fragment_size;
 	WREG32(mmVM_L2_CNTL3,
 	       VM_L2_CNTL3__L2_CACHE_BIGK_ASSOCIATIVITY_MASK |
-	       (4UL << VM_L2_CNTL3__BANK_SELECT__SHIFT) |
-	       (4UL << VM_L2_CNTL3__L2_CACHE_BIGK_FRAGMENT_SIZE__SHIFT));
+	       (field << VM_L2_CNTL3__BANK_SELECT__SHIFT) |
+	       (field << VM_L2_CNTL3__L2_CACHE_BIGK_FRAGMENT_SIZE__SHIFT));
 	/* setup context0 */
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_START_ADDR, adev->mc.gart_start >> 12);
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, adev->mc.gart_end >> 12);
@@ -812,6 +815,7 @@ static int gmc_v6_0_sw_init(void *handle)
 		return r;
 
 	amdgpu_vm_adjust_size(adev, 64);
+	adev->vm_manager.fragment_size = 4;
 	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
 
 	adev->mc.mc_mask = 0xffffffffffULL;
