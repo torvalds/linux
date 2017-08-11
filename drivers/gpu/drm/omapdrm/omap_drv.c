@@ -575,6 +575,12 @@ static int pdev_probe(struct platform_device *pdev)
 	if (omapdss_is_initialized() == false)
 		return -EPROBE_DEFER;
 
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to set the DMA mask\n");
+		return ret;
+	}
+
 	omap_crtc_pre_init();
 
 	ret = omap_connect_dssdevs();
@@ -762,7 +768,7 @@ static SIMPLE_DEV_PM_OPS(omapdrm_pm_ops, omap_drm_suspend, omap_drm_resume);
 
 static struct platform_driver pdev = {
 	.driver = {
-		.name = DRIVER_NAME,
+		.name = "omapdrm_",
 		.pm = &omapdrm_pm_ops,
 	},
 	.probe = pdev_probe,

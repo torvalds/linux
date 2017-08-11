@@ -103,6 +103,8 @@ static void (*dss_output_drv_unreg_funcs[])(void) = {
 	dss_uninit_platform_driver,
 };
 
+static struct platform_device *omap_drm_device;
+
 static int __init omap_dss_init(void)
 {
 	int r;
@@ -116,6 +118,12 @@ static int __init omap_dss_init(void)
 		r = dss_output_drv_reg_funcs[i]();
 		if (r)
 			goto err_reg;
+	}
+
+	omap_drm_device = platform_device_register_simple("omapdrm_", 0, NULL, 0);
+	if (IS_ERR(omap_drm_device)) {
+		r = PTR_ERR(omap_drm_device);
+		goto err_reg;
 	}
 
 	return 0;
@@ -134,6 +142,8 @@ err_reg:
 static void __exit omap_dss_exit(void)
 {
 	int i;
+
+	platform_device_unregister(omap_drm_device);
 
 	for (i = 0; i < ARRAY_SIZE(dss_output_drv_unreg_funcs); ++i)
 		dss_output_drv_unreg_funcs[i]();
