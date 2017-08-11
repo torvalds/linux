@@ -1497,6 +1497,13 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
 	}
 
 	/*
+	 * The page_table_lock above provides a memory barrier
+	 * with change_protection_range.
+	 */
+	if (mm_tlb_flush_pending(vma->vm_mm))
+		flush_tlb_range(vma, haddr, haddr + HPAGE_PMD_SIZE);
+
+	/*
 	 * Since we took the NUMA fault, we must have observed the !accessible
 	 * bit. Make sure all other CPUs agree with that, to avoid them
 	 * modifying the page we're about to migrate.
