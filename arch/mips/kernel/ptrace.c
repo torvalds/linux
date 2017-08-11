@@ -144,6 +144,9 @@ int ptrace_setregs(struct task_struct *child, struct user_pt_regs __user *data)
 
 	/* badvaddr, status, and cause may not be written.  */
 
+	/* System call number may have been changed */
+	mips_syscall_update_nr(child, regs);
+
 	return 0;
 }
 
@@ -345,6 +348,9 @@ static int gpr32_set(struct task_struct *target,
 		}
 	}
 
+	/* System call number may have been changed */
+	mips_syscall_update_nr(target, regs);
+
 	return 0;
 }
 
@@ -404,6 +410,9 @@ static int gpr64_set(struct task_struct *target,
 			break;
 		}
 	}
+
+	/* System call number may have been changed */
+	mips_syscall_update_nr(target, regs);
 
 	return 0;
 }
@@ -770,6 +779,12 @@ long arch_ptrace(struct task_struct *child, long request,
 		switch (addr) {
 		case 0 ... 31:
 			regs->regs[addr] = data;
+			/* System call number may have been changed */
+			if (addr == 2)
+				mips_syscall_update_nr(child, regs);
+			else if (addr == 4 &&
+				 mips_syscall_is_indirect(child, regs))
+				mips_syscall_update_nr(child, regs);
 			break;
 		case FPR_BASE ... FPR_BASE + 31: {
 			union fpureg *fregs = get_fpu_regs(child);
