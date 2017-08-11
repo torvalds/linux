@@ -375,7 +375,8 @@ void cpu_startup_entry(enum cpuhp_state state)
 
 #ifdef CONFIG_SMP
 static int
-select_task_rq_idle(struct task_struct *p, int cpu, int sd_flag, int flags)
+select_task_rq_idle(struct task_struct *p, int cpu, int sd_flag, int flags,
+		    int sibling_count_hint)
 {
 	return task_cpu(p); /* IDLE tasks as never migrated */
 }
