@@ -1985,11 +1985,11 @@ int sctp_cmp_addr_exact(const union sctp_addr *ss1,
 struct sctp_chunk *sctp_get_ecne_prepend(struct sctp_association *asoc);
 
 /* A convenience structure to parse out SCTP specific CMSGs. */
-typedef struct sctp_cmsgs {
+struct sctp_cmsgs {
 	struct sctp_initmsg *init;
 	struct sctp_sndrcvinfo *srinfo;
 	struct sctp_sndinfo *sinfo;
-} sctp_cmsgs_t;
+};
 
 /* Structure for tracking memory objects */
 typedef struct {
