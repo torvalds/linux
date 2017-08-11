@@ -105,6 +105,8 @@ do {								\
 } while (0)
 #endif
 
+#define TUN_RX_PAD (NET_IP_ALIGN + NET_SKB_PAD)
+
 /* TUN device flags */
 
 /* IFF_ATTACH_QUEUE is never stored in device flags,
@@ -170,6 +172,7 @@ struct tun_file {
 	struct list_head next;
 	struct tun_struct *detached;
 	struct skb_array tx_array;
+	struct page_frag alloc_frag;
 };
 
 struct tun_flow_entry {
@@ -571,6 +574,8 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 		}
 		if (tun)
 			skb_array_cleanup(&tfile->tx_array);
+		if (tfile->alloc_frag.page)
+			put_page(tfile->alloc_frag.page);
 		sock_put(&tfile->sk);
 	}
 }
@@ -1190,6 +1195,61 @@ static void tun_rx_batched(struct tun_struct *tun, struct tun_file *tfile,
 	}
 }
 
+static bool tun_can_build_skb(struct tun_struct *tun, struct tun_file *tfile,
+			      int len, int noblock, bool zerocopy)
+{
+	if ((tun->flags & TUN_TYPE_MASK) != IFF_TAP)
+		return false;
+
+	if (tfile->socket.sk->sk_sndbuf != INT_MAX)
+		return false;
+
+	if (!noblock)
+		return false;
+
+	if (zerocopy)
+		return false;
+
+	if (SKB_DATA_ALIGN(len + TUN_RX_PAD) +
+	    SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) > PAGE_SIZE)
+		return false;
+
+	return true;
+}
+
+static struct sk_buff *tun_build_skb(struct tun_file *tfile,
+				     struct iov_iter *from,
+				     int len)
+{
+	struct page_frag *alloc_frag = &tfile->alloc_frag;
+	struct sk_buff *skb;
+	int buflen = SKB_DATA_ALIGN(len + TUN_RX_PAD) +
+		     SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	char *buf;
+	size_t copied;
+
+	if (unlikely(!skb_page_frag_refill(buflen, alloc_frag, GFP_KERNEL)))
+		return ERR_PTR(-ENOMEM);
+
+	buf = (char *)page_address(alloc_frag->page) + alloc_frag->offset;
+	copied = copy_page_from_iter(alloc_frag->page,
+				     alloc_frag->offset + TUN_RX_PAD,
+				     len, from);
+	if (copied != len)
+		return ERR_PTR(-EFAULT);
+
+	skb = build_skb(buf, buflen);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	skb_reserve(skb, TUN_RX_PAD);
+	skb_put(skb, len);
+	get_page(alloc_frag->page);
+	alloc_frag->offset += buflen;
+
+	return skb;
+}
+
 /* Get packet from user space buffer */
 static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 			    void *msg_control, struct iov_iter *from,
@@ -1263,30 +1323,38 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 			zerocopy = true;
 	}
 
-	if (!zerocopy) {
-		copylen = len;
-		if (tun16_to_cpu(tun, gso.hdr_len) > good_linear)
-			linear = good_linear;
-		else
-			linear = tun16_to_cpu(tun, gso.hdr_len);
-	}
-
-	skb = tun_alloc_skb(tfile, align, copylen, linear, noblock);
-	if (IS_ERR(skb)) {
-		if (PTR_ERR(skb) != -EAGAIN)
+	if (tun_can_build_skb(tun, tfile, len, noblock, zerocopy)) {
+		skb = tun_build_skb(tfile, from, len);
+		if (IS_ERR(skb)) {
 			this_cpu_inc(tun->pcpu_stats->rx_dropped);
-		return PTR_ERR(skb);
-	}
+			return PTR_ERR(skb);
+		}
+	} else {
+		if (!zerocopy) {
+			copylen = len;
+			if (tun16_to_cpu(tun, gso.hdr_len) > good_linear)
+				linear = good_linear;
+			else
+				linear = tun16_to_cpu(tun, gso.hdr_len);
+		}
 
-	if (zerocopy)
-		err = zerocopy_sg_from_iter(skb, from);
-	else
-		err = skb_copy_datagram_from_iter(skb, 0, from, len);
+		skb = tun_alloc_skb(tfile, align, copylen, linear, noblock);
+		if (IS_ERR(skb)) {
+			if (PTR_ERR(skb) != -EAGAIN)
+				this_cpu_inc(tun->pcpu_stats->rx_dropped);
+			return PTR_ERR(skb);
+		}
 
-	if (err) {
-		this_cpu_inc(tun->pcpu_stats->rx_dropped);
-		kfree_skb(skb);
-		return -EFAULT;
+		if (zerocopy)
+			err = zerocopy_sg_from_iter(skb, from);
+		else
+			err = skb_copy_datagram_from_iter(skb, 0, from, len);
+
+		if (err) {
+			this_cpu_inc(tun->pcpu_stats->rx_dropped);
+			kfree_skb(skb);
+			return -EFAULT;
+		}
 	}
 
 	if (virtio_net_hdr_to_skb(skb, &gso, tun_is_little_endian(tun))) {
@@ -2376,6 +2444,8 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 
 	tfile->sk.sk_write_space = tun_sock_write_space;
 	tfile->sk.sk_sndbuf = INT_MAX;
+
+	tfile->alloc_frag.page = NULL;
 
 	file->private_data = tfile;
 	INIT_LIST_HEAD(&tfile->next);
