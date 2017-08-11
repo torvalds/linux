@@ -319,15 +319,6 @@ static void cgroup_idr_remove(struct idr *idr, int id)
 	spin_unlock_bh(&cgroup_idr_lock);
 }
 
-static struct cgroup *cgroup_parent(struct cgroup *cgrp)
-{
-	struct cgroup_subsys_state *parent_css = cgrp->self.parent;
-
-	if (parent_css)
-		return container_of(parent_css, struct cgroup, self);
-	return NULL;
-}
-
 static bool cgroup_has_tasks(struct cgroup *cgrp)
 {
 	return cgrp->nr_populated_csets;
@@ -534,20 +525,10 @@ out_unlock:
 	return css;
 }
 
-static void __maybe_unused cgroup_get(struct cgroup *cgrp)
-{
-	css_get(&cgrp->self);
-}
-
 static void cgroup_get_live(struct cgroup *cgrp)
 {
 	WARN_ON_ONCE(cgroup_is_dead(cgrp));
 	css_get(&cgrp->self);
-}
-
-static bool cgroup_tryget(struct cgroup *cgrp)
-{
-	return css_tryget(&cgrp->self);
 }
 
 struct cgroup_subsys_state *of_css(struct kernfs_open_file *of)
@@ -3306,7 +3287,7 @@ static int cgroup_events_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int cgroup_stats_show(struct seq_file *seq, void *v)
+static int cgroup_stat_show(struct seq_file *seq, void *v)
 {
 	struct cgroup *cgroup = seq_css(seq)->cgroup;
 
@@ -4423,7 +4404,7 @@ static struct cftype cgroup_base_files[] = {
 	},
 	{
 		.name = "cgroup.stat",
-		.seq_show = cgroup_stats_show,
+		.seq_show = cgroup_stat_show,
 	},
 	{ }	/* terminate */
 };
