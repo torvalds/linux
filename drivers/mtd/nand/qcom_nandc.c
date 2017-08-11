@@ -328,9 +328,11 @@ struct qcom_nand_host {
  * This data type corresponds to the NAND controller properties which varies
  * among different NAND controllers.
  * @ecc_modes - ecc mode for NAND
+ * @is_bam - whether NAND controller is using BAM
  */
 struct qcom_nandc_props {
 	u32 ecc_modes;
+	bool is_bam;
 };
 
 static inline struct qcom_nand_host *to_qcom_nand_host(struct nand_chip *chip)
@@ -2251,6 +2253,7 @@ static int qcom_nandc_remove(struct platform_device *pdev)
 
 static const struct qcom_nandc_props ipq806x_nandc_props = {
 	.ecc_modes = (ECC_RS_4BIT | ECC_BCH_8BIT),
+	.is_bam = false,
 };
 
 /*
