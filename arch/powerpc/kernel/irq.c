@@ -207,8 +207,6 @@ notrace unsigned int __check_irq_replay(void)
 #else
 	if (happened & PACA_IRQ_DBELL) {
 		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
-		if (cpu_has_feature(CPU_FTR_HVMODE))
-			return 0xe80;
 		return 0xa00;
 	}
 #endif /* CONFIG_PPC_BOOK3E */

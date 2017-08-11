@@ -1676,7 +1676,7 @@ _GLOBAL(__replay_interrupt)
 	cmpwi	r3,0x500
 	beq	hardware_interrupt_common
 BEGIN_FTR_SECTION
-	cmpwi	r3,0xe80
+	cmpwi	r3,0xa00
 	beq	h_doorbell_common_msgclr
 	cmpwi	r3,0xea0
 	beq	h_virt_irq_common
