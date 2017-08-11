@@ -657,8 +657,6 @@ struct sctp_sockaddr_entry {
 
 #define SCTP_ADDRESS_TICK_DELAY	500
 
-typedef struct sctp_chunk *(sctp_packet_phandler_t)(struct sctp_association *);
-
 /* This structure holds lists of chunks as we are assembling for
  * transmission.
  */
