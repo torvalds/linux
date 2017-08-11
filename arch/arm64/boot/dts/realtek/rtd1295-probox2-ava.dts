@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Andreas Färber
+ * Copyright (c) 2017 Andreas Färber
  *
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
@@ -9,8 +9,8 @@
 #include "rtd1295.dtsi"
 
 / {
-	compatible = "zidoo,x9s", "realtek,rtd1295";
-	model = "Zidoo X9S";
+	compatible = "probox2,ava", "realtek,rtd1295";
+	model = "PROBOX2 AVA";
 
 	memory@0 {
 		device_type = "memory";
@@ -19,7 +19,6 @@
 
 	aliases {
 		serial0 = &uart0;
-		serial1 = &uart1;
 	};
 
 	chosen {
@@ -28,9 +27,5 @@
 };
 
 &uart0 {
-	status = "okay";
-};
-
-&uart1 {
 	status = "okay";
 };
