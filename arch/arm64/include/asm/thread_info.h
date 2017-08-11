@@ -90,6 +90,8 @@ static inline struct thread_info *current_thread_info(void)
 
 	return (struct thread_info *)sp_el0;
 }
+
+#define init_thread_info	(init_thread_union.thread_info)
 #endif
 
 #define init_stack		(init_thread_union.stack)
