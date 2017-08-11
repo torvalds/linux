@@ -73,6 +73,8 @@
 #include <linux/seq_file.h>
 #include <linux/uio.h>
 #include <linux/skb_array.h>
+#include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 
 #include <linux/uaccess.h>
 
@@ -105,7 +107,8 @@ do {								\
 } while (0)
 #endif
 
-#define TUN_RX_PAD (NET_IP_ALIGN + NET_SKB_PAD)
+#define TUN_HEADROOM 256
+#define TUN_RX_PAD (NET_IP_ALIGN + NET_SKB_PAD + TUN_HEADROOM)
 
 /* TUN device flags */
 
@@ -224,6 +227,7 @@ struct tun_struct {
 	u32 flow_count;
 	u32 rx_batched;
 	struct tun_pcpu_stats __percpu *pcpu_stats;
+	struct bpf_prog __rcu *xdp_prog;
 };
 
 #ifdef CONFIG_TUN_VNET_CROSS_LE
@@ -590,6 +594,7 @@ static void tun_detach(struct tun_file *tfile, bool clean)
 static void tun_detach_all(struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
+	struct bpf_prog *xdp_prog = rtnl_dereference(tun->xdp_prog);
 	struct tun_file *tfile, *tmp;
 	int i, n = tun->numqueues;
 
@@ -621,6 +626,9 @@ static void tun_detach_all(struct net_device *dev)
 		sock_put(&tfile->sk);
 	}
 	BUG_ON(tun->numdisabled != 0);
+
+	if (xdp_prog)
+		bpf_prog_put(xdp_prog);
 
 	if (tun->flags & IFF_PERSIST)
 		module_put(THIS_MODULE);
@@ -1008,6 +1016,46 @@ tun_net_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->tx_dropped = tx_dropped;
 }
 
+static int tun_xdp_set(struct net_device *dev, struct bpf_prog *prog,
+		       struct netlink_ext_ack *extack)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+	struct bpf_prog *old_prog;
+
+	old_prog = rtnl_dereference(tun->xdp_prog);
+	rcu_assign_pointer(tun->xdp_prog, prog);
+	if (old_prog)
+		bpf_prog_put(old_prog);
+
+	return 0;
+}
+
+static u32 tun_xdp_query(struct net_device *dev)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+	const struct bpf_prog *xdp_prog;
+
+	xdp_prog = rtnl_dereference(tun->xdp_prog);
+	if (xdp_prog)
+		return xdp_prog->aux->id;
+
+	return 0;
+}
+
+static int tun_xdp(struct net_device *dev, struct netdev_xdp *xdp)
+{
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return tun_xdp_set(dev, xdp->prog, xdp->extack);
+	case XDP_QUERY_PROG:
+		xdp->prog_id = tun_xdp_query(dev);
+		xdp->prog_attached = !!xdp->prog_id;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct net_device_ops tun_netdev_ops = {
 	.ndo_uninit		= tun_net_uninit,
 	.ndo_open		= tun_net_open,
@@ -1038,6 +1086,7 @@ static const struct net_device_ops tap_netdev_ops = {
 	.ndo_features_check	= passthru_features_check,
 	.ndo_set_rx_headroom	= tun_set_headroom,
 	.ndo_get_stats64	= tun_net_get_stats64,
+	.ndo_xdp		= tun_xdp,
 };
 
 static void tun_flow_init(struct tun_struct *tun)
@@ -1217,16 +1266,22 @@ static bool tun_can_build_skb(struct tun_struct *tun, struct tun_file *tfile,
 	return true;
 }
 
-static struct sk_buff *tun_build_skb(struct tun_file *tfile,
+static struct sk_buff *tun_build_skb(struct tun_struct *tun,
+				     struct tun_file *tfile,
 				     struct iov_iter *from,
-				     int len)
+				     struct virtio_net_hdr *hdr,
+				     int len, int *generic_xdp)
 {
 	struct page_frag *alloc_frag = &tfile->alloc_frag;
 	struct sk_buff *skb;
+	struct bpf_prog *xdp_prog;
 	int buflen = SKB_DATA_ALIGN(len + TUN_RX_PAD) +
 		     SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	unsigned int delta = 0;
 	char *buf;
 	size_t copied;
+	bool xdp_xmit = false;
+	int err;
 
 	if (unlikely(!skb_page_frag_refill(buflen, alloc_frag, GFP_KERNEL)))
 		return ERR_PTR(-ENOMEM);
@@ -1238,16 +1293,77 @@ static struct sk_buff *tun_build_skb(struct tun_file *tfile,
 	if (copied != len)
 		return ERR_PTR(-EFAULT);
 
-	skb = build_skb(buf, buflen);
-	if (!skb)
-		return ERR_PTR(-ENOMEM);
+	if (hdr->gso_type)
+		*generic_xdp = 1;
+	else
+		*generic_xdp = 0;
 
-	skb_reserve(skb, TUN_RX_PAD);
-	skb_put(skb, len);
+	rcu_read_lock();
+	xdp_prog = rcu_dereference(tun->xdp_prog);
+	if (xdp_prog && !*generic_xdp) {
+		struct xdp_buff xdp;
+		void *orig_data;
+		u32 act;
+
+		xdp.data_hard_start = buf;
+		xdp.data = buf + TUN_RX_PAD;
+		xdp.data_end = xdp.data + len;
+		orig_data = xdp.data;
+		act = bpf_prog_run_xdp(xdp_prog, &xdp);
+
+		switch (act) {
+		case XDP_REDIRECT:
+			get_page(alloc_frag->page);
+			alloc_frag->offset += buflen;
+			err = xdp_do_redirect(tun->dev, &xdp, xdp_prog);
+			if (err)
+				goto err_redirect;
+			return NULL;
+		case XDP_TX:
+			xdp_xmit = true;
+			/* fall through */
+		case XDP_PASS:
+			delta = orig_data - xdp.data;
+			break;
+		default:
+			bpf_warn_invalid_xdp_action(act);
+			/* fall through */
+		case XDP_ABORTED:
+			trace_xdp_exception(tun->dev, xdp_prog, act);
+			/* fall through */
+		case XDP_DROP:
+			goto err_xdp;
+		}
+	}
+
+	skb = build_skb(buf, buflen);
+	if (!skb) {
+		rcu_read_unlock();
+		return ERR_PTR(-ENOMEM);
+	}
+
+	skb_reserve(skb, TUN_RX_PAD - delta);
+	skb_put(skb, len + delta);
 	get_page(alloc_frag->page);
 	alloc_frag->offset += buflen;
 
+	if (xdp_xmit) {
+		skb->dev = tun->dev;
+		generic_xdp_tx(skb, xdp_prog);
+		rcu_read_lock();
+		return NULL;
+	}
+
+	rcu_read_unlock();
+
 	return skb;
+
+err_redirect:
+	put_page(alloc_frag->page);
+err_xdp:
+	rcu_read_unlock();
+	this_cpu_inc(tun->pcpu_stats->rx_dropped);
+	return NULL;
 }
 
 /* Get packet from user space buffer */
@@ -1266,6 +1382,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	bool zerocopy = false;
 	int err;
 	u32 rxhash;
+	int generic_xdp = 1;
 
 	if (!(tun->dev->flags & IFF_UP))
 		return -EIO;
@@ -1324,11 +1441,13 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	}
 
 	if (tun_can_build_skb(tun, tfile, len, noblock, zerocopy)) {
-		skb = tun_build_skb(tfile, from, len);
+		skb = tun_build_skb(tun, tfile, from, &gso, len, &generic_xdp);
 		if (IS_ERR(skb)) {
 			this_cpu_inc(tun->pcpu_stats->rx_dropped);
 			return PTR_ERR(skb);
 		}
+		if (!skb)
+			return total_len;
 	} else {
 		if (!zerocopy) {
 			copylen = len;
@@ -1401,6 +1520,22 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 
 	skb_reset_network_header(skb);
 	skb_probe_transport_header(skb, 0);
+
+	if (generic_xdp) {
+		struct bpf_prog *xdp_prog;
+		int ret;
+
+		rcu_read_lock();
+		xdp_prog = rcu_dereference(tun->xdp_prog);
+		if (xdp_prog) {
+			ret = do_xdp_generic(xdp_prog, skb);
+			if (ret != XDP_PASS) {
+				rcu_read_unlock();
+				return total_len;
+			}
+		}
+		rcu_read_unlock();
+	}
 
 	rxhash = __skb_get_hash_symmetric(skb);
 #ifndef CONFIG_4KSTACKS
