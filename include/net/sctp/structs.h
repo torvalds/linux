@@ -150,18 +150,18 @@ extern struct sctp_globals {
 #define sctp_checksum_disable		(sctp_globals.checksum_disable)
 
 /* SCTP Socket type: UDP or TCP style. */
-typedef enum {
+enum sctp_socket_type {
 	SCTP_SOCKET_UDP = 0,
 	SCTP_SOCKET_UDP_HIGH_BANDWIDTH,
 	SCTP_SOCKET_TCP
-} sctp_socket_type_t;
+};
 
 /* Per socket SCTP information. */
 struct sctp_sock {
 	/* inet_sock has to be the first member of sctp_sock */
 	struct inet_sock inet;
 	/* What kind of a socket is this? */
-	sctp_socket_type_t type;
+	enum sctp_socket_type type;
 
 	/* PF_ family specific functions.  */
 	struct sctp_pf *pf;
@@ -371,12 +371,12 @@ union sctp_params {
  *    chunk is sent and the destination transport address to which this
  *    HEARTBEAT is sent (see Section 8.3).
  */
-typedef struct sctp_sender_hb_info {
+struct sctp_sender_hb_info {
 	struct sctp_paramhdr param_hdr;
 	union sctp_addr daddr;
 	unsigned long sent_at;
 	__u64 hb_nonce;
-} sctp_sender_hb_info_t;
+};
 
 int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 		     gfp_t gfp);
@@ -656,8 +656,6 @@ struct sctp_sockaddr_entry {
 };
 
 #define SCTP_ADDRESS_TICK_DELAY	500
-
-typedef struct sctp_chunk *(sctp_packet_phandler_t)(struct sctp_association *);
 
 /* This structure holds lists of chunks as we are assembling for
  * transmission.
@@ -1144,10 +1142,10 @@ int sctp_is_ep_boundall(struct sock *sk);
 
 
 /* What type of endpoint?  */
-typedef enum {
+enum sctp_endpoint_type {
 	SCTP_EP_TYPE_SOCKET,
 	SCTP_EP_TYPE_ASSOCIATION,
-} sctp_endpoint_type_t;
+};
 
 /*
  * A common base class to bridge the implmentation view of a
@@ -1171,7 +1169,7 @@ struct sctp_ep_common {
 	int hashent;
 
 	/* Runtime type information.  What kind of endpoint is this? */
-	sctp_endpoint_type_t type;
+	enum sctp_endpoint_type type;
 
 	/* Some fields to help us manage this object.
 	 *   refcnt   - Reference count access to this object.
@@ -1987,16 +1985,16 @@ int sctp_cmp_addr_exact(const union sctp_addr *ss1,
 struct sctp_chunk *sctp_get_ecne_prepend(struct sctp_association *asoc);
 
 /* A convenience structure to parse out SCTP specific CMSGs. */
-typedef struct sctp_cmsgs {
+struct sctp_cmsgs {
 	struct sctp_initmsg *init;
 	struct sctp_sndrcvinfo *srinfo;
 	struct sctp_sndinfo *sinfo;
-} sctp_cmsgs_t;
+};
 
 /* Structure for tracking memory objects */
-typedef struct {
+struct sctp_dbg_objcnt_entry {
 	char *label;
 	atomic_t *counter;
-} sctp_dbg_objcnt_entry_t;
+};
 
 #endif /* __sctp_structs_h__ */
