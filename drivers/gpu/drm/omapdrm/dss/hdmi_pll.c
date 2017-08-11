@@ -71,7 +71,7 @@ static void hdmi_pll_disable(struct dss_pll *dsspll)
 	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
-static const struct dss_pll_ops dsi_pll_ops = {
+static const struct dss_pll_ops hdmi_pll_ops = {
 	.enable = hdmi_pll_enable,
 	.disable = hdmi_pll_disable,
 	.set_config = dss_pll_write_config_type_b,
@@ -128,7 +128,8 @@ static const struct dss_pll_hw dss_omap5_hdmi_pll_hw = {
 	.has_refsel = true,
 };
 
-static int dsi_init_pll_data(struct platform_device *pdev, struct hdmi_pll_data *hpll)
+static int hdmi_init_pll_data(struct platform_device *pdev,
+			      struct hdmi_pll_data *hpll)
 {
 	struct dss_pll *pll = &hpll->pll;
 	struct clk *clk;
@@ -161,7 +162,7 @@ static int dsi_init_pll_data(struct platform_device *pdev, struct hdmi_pll_data 
 		return -ENODEV;
 	}
 
-	pll->ops = &dsi_pll_ops;
+	pll->ops = &hdmi_pll_ops;
 
 	r = dss_pll_register(pll);
 	if (r)
@@ -184,7 +185,7 @@ int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
 	if (IS_ERR(pll->base))
 		return PTR_ERR(pll->base);
 
-	r = dsi_init_pll_data(pdev, pll);
+	r = hdmi_init_pll_data(pdev, pll);
 	if (r) {
 		DSSERR("failed to init HDMI PLL\n");
 		return r;
