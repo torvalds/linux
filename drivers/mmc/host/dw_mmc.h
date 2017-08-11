@@ -314,6 +314,8 @@ struct dw_mci_board {
 #define SDMMC_DSCADDR		0x094
 #define SDMMC_BUFADDR		0x098
 #define SDMMC_CDTHRCTL		0x100
+#define SDMMC_UHS_REG_EXT	0x108
+#define SDMMC_ENABLE_SHIFT	0x110
 #define SDMMC_DATA(x)		(x)
 /*
 * Registers to support idmac 64-bit address mode
