@@ -23,6 +23,11 @@ cleanup()
 	ip netns del ns2 2> /dev/null
 }
 
+ip link set dev lo xdpgeneric off 2>/dev/null > /dev/null
+if [ $? -ne 0 ];then
+	echo "selftests: [SKIP] Could not run test without the ip xdpgeneric support"
+	exit 0
+fi
 set -e
 
 ip netns add ns1
