@@ -263,6 +263,7 @@ plathome	Plat'Home Co., Ltd.
 plda	PLDA
 poslab	Poslab Technology Co., Ltd.
 powervr	PowerVR (deprecated, use img)
+probox2	PROBOX2 (by W2COMP Co., Ltd.)
 pulsedlight	PulsedLight, Inc
 qca	Qualcomm Atheros, Inc.
 qcom	Qualcomm Technologies, Inc
