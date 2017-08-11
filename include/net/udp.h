@@ -368,6 +368,8 @@ static inline int copy_linear_skb(struct sk_buff *skb, int len, int off,
 {
 	int n, copy = len - off;
 
+	if (copy < 0)
+		return -EINVAL;
 	n = copy_to_iter(skb->data + off, copy, to);
 	if (n == copy)
 		return 0;
