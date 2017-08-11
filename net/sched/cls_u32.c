@@ -433,7 +433,7 @@ static void u32_remove_hw_knode(struct tcf_proto *tp, u32 handle)
 	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_cls_u32_offload cls_u32 = {};
 
-	if (!tc_should_offload(dev, tp, 0))
+	if (!tc_should_offload(dev, 0))
 		return;
 
 	tc_cls_common_offload_init(&cls_u32.common, tp);
@@ -450,7 +450,7 @@ static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 	struct tc_cls_u32_offload cls_u32 = {};
 	int err;
 
-	if (!tc_should_offload(dev, tp, flags))
+	if (!tc_should_offload(dev, flags))
 		return tc_skip_sw(flags) ? -EINVAL : 0;
 
 	tc_cls_common_offload_init(&cls_u32.common, tp);
@@ -471,7 +471,7 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_cls_u32_offload cls_u32 = {};
 
-	if (!tc_should_offload(dev, tp, 0))
+	if (!tc_should_offload(dev, 0))
 		return;
 
 	tc_cls_common_offload_init(&cls_u32.common, tp);
@@ -490,7 +490,7 @@ static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	struct tc_cls_u32_offload cls_u32 = {};
 	int err;
 
-	if (!tc_should_offload(dev, tp, flags))
+	if (!tc_should_offload(dev, flags))
 		return tc_skip_sw(flags) ? -EINVAL : 0;
 
 	tc_cls_common_offload_init(&cls_u32.common, tp);

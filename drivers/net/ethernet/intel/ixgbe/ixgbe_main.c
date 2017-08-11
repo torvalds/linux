@@ -9230,7 +9230,7 @@ static int ixgbe_setup_tc_cls_u32(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 
-	if (TC_H_MAJ(cls_u32->common.handle) != TC_H_MAJ(TC_H_INGRESS) ||
+	if (is_classid_clsact_ingress(cls_u32->common.classid) ||
 	    cls_u32->common.chain_index)
 		return -EOPNOTSUPP;
 

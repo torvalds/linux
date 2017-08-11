@@ -914,7 +914,14 @@ static void dsa_slave_del_cls_matchall(struct net_device *dev,
 static int dsa_slave_setup_tc_cls_matchall(struct net_device *dev,
 					   struct tc_cls_matchall_offload *cls)
 {
-	bool ingress = TC_H_MAJ(cls->common.handle) == TC_H_MAJ(TC_H_INGRESS);
+	bool ingress;
+
+	if (is_classid_clsact_ingress(cls->common.classid))
+		ingress = true;
+	else if (is_classid_clsact_egress(cls->common.classid))
+		ingress = false;
+	else
+		return -EOPNOTSUPP;
 
 	if (cls->common.chain_index)
 		return -EOPNOTSUPP;

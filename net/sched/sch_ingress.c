@@ -32,11 +32,6 @@ static unsigned long ingress_get(struct Qdisc *sch, u32 classid)
 	return TC_H_MIN(classid) + 1;
 }
 
-static bool ingress_cl_offload(u32 classid)
-{
-	return true;
-}
-
 static unsigned long ingress_bind_filter(struct Qdisc *sch,
 					 unsigned long parent, u32 classid)
 {
@@ -103,7 +98,6 @@ static const struct Qdisc_class_ops ingress_class_ops = {
 	.put		=	ingress_put,
 	.walk		=	ingress_walk,
 	.tcf_block	=	ingress_tcf_block,
-	.tcf_cl_offload	=	ingress_cl_offload,
 	.bind_tcf	=	ingress_bind_filter,
 	.unbind_tcf	=	ingress_put,
 };
@@ -132,11 +126,6 @@ static unsigned long clsact_get(struct Qdisc *sch, u32 classid)
 	default:
 		return 0;
 	}
-}
-
-static bool clsact_cl_offload(u32 classid)
-{
-	return TC_H_MIN(classid) == TC_H_MIN(TC_H_MIN_INGRESS);
 }
 
 static unsigned long clsact_bind_filter(struct Qdisc *sch,
@@ -198,7 +187,6 @@ static const struct Qdisc_class_ops clsact_class_ops = {
 	.put		=	ingress_put,
 	.walk		=	ingress_walk,
 	.tcf_block	=	clsact_tcf_block,
-	.tcf_cl_offload	=	clsact_cl_offload,
 	.bind_tcf	=	clsact_bind_filter,
 	.unbind_tcf	=	ingress_put,
 };

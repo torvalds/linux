@@ -2892,7 +2892,7 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 static int cxgb_setup_tc_cls_u32(struct net_device *dev,
 				 struct tc_cls_u32_offload *cls_u32)
 {
-	if (TC_H_MAJ(cls_u32->common.handle) != TC_H_MAJ(TC_H_INGRESS) ||
+	if (is_classid_clsact_ingress(cls_u32->common.classid) ||
 	    cls_u32->common.chain_index)
 		return -EOPNOTSUPP;
 

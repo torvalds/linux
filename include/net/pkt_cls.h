@@ -406,20 +406,20 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 #endif /* CONFIG_NET_CLS_IND */
 
 struct tc_cls_common_offload {
-	u32 handle;
 	u32 chain_index;
 	__be16 protocol;
 	u32 prio;
+	u32 classid;
 };
 
 static inline void
 tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
 			   const struct tcf_proto *tp)
 {
-	cls_common->handle = tp->q->handle;
 	cls_common->chain_index = tp->chain->index;
 	cls_common->protocol = tp->protocol;
 	cls_common->prio = tp->prio;
+	cls_common->classid = tp->classid;
 }
 
 struct tc_cls_u32_knode {
@@ -457,19 +457,12 @@ struct tc_cls_u32_offload {
 	};
 };
 
-static inline bool tc_can_offload(const struct net_device *dev,
-				  const struct tcf_proto *tp)
+static inline bool tc_can_offload(const struct net_device *dev)
 {
-	const struct Qdisc *sch = tp->q;
-	const struct Qdisc_class_ops *cops = sch->ops->cl_ops;
-
 	if (!(dev->features & NETIF_F_HW_TC))
 		return false;
 	if (!dev->netdev_ops->ndo_setup_tc)
 		return false;
-	if (cops && cops->tcf_cl_offload)
-		return cops->tcf_cl_offload(tp->classid);
-
 	return true;
 }
 
@@ -478,12 +471,11 @@ static inline bool tc_skip_hw(u32 flags)
 	return (flags & TCA_CLS_FLAGS_SKIP_HW) ? true : false;
 }
 
-static inline bool tc_should_offload(const struct net_device *dev,
-				     const struct tcf_proto *tp, u32 flags)
+static inline bool tc_should_offload(const struct net_device *dev, u32 flags)
 {
 	if (tc_skip_hw(flags))
 		return false;
-	return tc_can_offload(dev, tp);
+	return tc_can_offload(dev);
 }
 
 static inline bool tc_skip_sw(u32 flags)

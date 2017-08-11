@@ -178,7 +178,7 @@ static int cls_bpf_offload(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 		(oldprog && tc_skip_sw(oldprog->gen_flags));
 
 	if (oldprog && oldprog->offloaded) {
-		if (tc_should_offload(dev, tp, prog->gen_flags)) {
+		if (tc_should_offload(dev, prog->gen_flags)) {
 			cmd = TC_CLSBPF_REPLACE;
 		} else if (!tc_skip_sw(prog->gen_flags)) {
 			obj = oldprog;
@@ -187,7 +187,7 @@ static int cls_bpf_offload(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 			return -EINVAL;
 		}
 	} else {
-		if (!tc_should_offload(dev, tp, prog->gen_flags))
+		if (!tc_should_offload(dev, prog->gen_flags))
 			return skip_sw ? -EINVAL : 0;
 		cmd = TC_CLSBPF_ADD;
 	}
