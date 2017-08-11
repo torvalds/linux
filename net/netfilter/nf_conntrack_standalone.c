@@ -208,6 +208,21 @@ static const char* l3proto_name(u16 proto)
 	return "unknown";
 }
 
+static const char* l4proto_name(u16 proto)
+{
+	switch (proto) {
+	case IPPROTO_ICMP: return "icmp";
+	case IPPROTO_TCP: return "tcp";
+	case IPPROTO_UDP: return "udp";
+	case IPPROTO_DCCP: return "dccp";
+	case IPPROTO_GRE: return "gre";
+	case IPPROTO_SCTP: return "sctp";
+	case IPPROTO_UDPLITE: return "udplite";
+	}
+
+	return "unknown";
+}
+
 /* return 0 on success, 1 in case of error */
 static int ct_seq_show(struct seq_file *s, void *v)
 {
@@ -242,7 +257,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	ret = -ENOSPC;
 	seq_printf(s, "%-8s %u %-8s %u %ld ",
 		   l3proto_name(l3proto->l3proto), nf_ct_l3num(ct),
-		   l4proto->name, nf_ct_protonum(ct),
+		   l4proto_name(l4proto->l4proto), nf_ct_protonum(ct),
 		   nf_ct_expires(ct)  / HZ);
 
 	if (l4proto->print_conntrack)

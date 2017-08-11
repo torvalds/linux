@@ -364,7 +364,6 @@ static int gre_init_net(struct net *net, u_int16_t proto)
 static struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 __read_mostly = {
 	.l3proto	 = AF_INET,
 	.l4proto	 = IPPROTO_GRE,
-	.name		 = "gre",
 	.pkt_to_tuple	 = gre_pkt_to_tuple,
 	.invert_tuple	 = gre_invert_tuple,
 	.print_tuple	 = gre_print_tuple,
