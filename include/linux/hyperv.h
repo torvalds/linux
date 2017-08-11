@@ -879,6 +879,8 @@ struct vmbus_channel {
 	 */
 	enum hv_numa_policy affinity_policy;
 
+	bool probe_done;
+
 };
 
 static inline bool is_hvsock_channel(const struct vmbus_channel *c)
