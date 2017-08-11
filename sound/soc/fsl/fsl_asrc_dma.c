@@ -279,10 +279,8 @@ static int fsl_asrc_dma_startup(struct snd_pcm_substream *substream)
 	struct fsl_asrc_pair *pair;
 
 	pair = kzalloc(sizeof(struct fsl_asrc_pair), GFP_KERNEL);
-	if (!pair) {
-		dev_err(dev, "failed to allocate pair\n");
+	if (!pair)
 		return -ENOMEM;
-	}
 
 	pair->asrc_priv = asrc_priv;
 
