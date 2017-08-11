@@ -107,7 +107,7 @@ static int sunxi_reset_init(struct device_node *np)
 	spin_lock_init(&data->lock);
 
 	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.nr_resets = size * 32;
+	data->rcdev.nr_resets = size * 8;
 	data->rcdev.ops = &sunxi_reset_ops;
 	data->rcdev.of_node = np;
 
@@ -162,7 +162,7 @@ static int sunxi_reset_probe(struct platform_device *pdev)
 	spin_lock_init(&data->lock);
 
 	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.nr_resets = resource_size(res) * 32;
+	data->rcdev.nr_resets = resource_size(res) * 8;
 	data->rcdev.ops = &sunxi_reset_ops;
 	data->rcdev.of_node = pdev->dev.of_node;
 
