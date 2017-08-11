@@ -17,11 +17,13 @@
 #include <linux/audit.h>
 #include <linux/compat.h>
 #include <linux/coredump.h>
+#include <linux/kmemleak.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/seccomp.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
+#include <linux/sysctl.h>
 
 #ifdef CONFIG_HAVE_ARCH_SECCOMP_FILTER
 #include <asm/syscall.h>
@@ -934,3 +936,52 @@ out:
 	return ret;
 }
 #endif
+
+#ifdef CONFIG_SYSCTL
+
+/* Human readable action names for friendly sysctl interaction */
+#define SECCOMP_RET_KILL_NAME		"kill"
+#define SECCOMP_RET_TRAP_NAME		"trap"
+#define SECCOMP_RET_ERRNO_NAME		"errno"
+#define SECCOMP_RET_TRACE_NAME		"trace"
+#define SECCOMP_RET_ALLOW_NAME		"allow"
+
+static const char seccomp_actions_avail[] = SECCOMP_RET_KILL_NAME	" "
+					    SECCOMP_RET_TRAP_NAME	" "
+					    SECCOMP_RET_ERRNO_NAME	" "
+					    SECCOMP_RET_TRACE_NAME	" "
+					    SECCOMP_RET_ALLOW_NAME;
+
+static struct ctl_path seccomp_sysctl_path[] = {
+	{ .procname = "kernel", },
+	{ .procname = "seccomp", },
+	{ }
+};
+
+static struct ctl_table seccomp_sysctl_table[] = {
+	{
+		.procname	= "actions_avail",
+		.data		= (void *) &seccomp_actions_avail,
+		.maxlen		= sizeof(seccomp_actions_avail),
+		.mode		= 0444,
+		.proc_handler	= proc_dostring,
+	},
+	{ }
+};
+
+static int __init seccomp_sysctl_init(void)
+{
+	struct ctl_table_header *hdr;
+
+	hdr = register_sysctl_paths(seccomp_sysctl_path, seccomp_sysctl_table);
+	if (!hdr)
+		pr_warn("seccomp: sysctl registration failed\n");
+	else
+		kmemleak_not_leak(hdr);
+
+	return 0;
+}
+
+device_initcall(seccomp_sysctl_init)
+
+#endif /* CONFIG_SYSCTL */

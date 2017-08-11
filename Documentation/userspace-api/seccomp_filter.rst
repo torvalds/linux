@@ -169,7 +169,23 @@ The ``samples/seccomp/`` directory contains both an x86-specific example
 and a more generic example of a higher level macro interface for BPF
 program generation.
 
+Sysctls
+=======
 
+Seccomp's sysctl files can be found in the ``/proc/sys/kernel/seccomp/``
+directory. Here's a description of each file in that directory:
+
+``actions_avail``:
+	A read-only ordered list of seccomp return values (refer to the
+	``SECCOMP_RET_*`` macros above) in string form. The ordering, from
+	left-to-right, is the least permissive return value to the most
+	permissive return value.
+
+	The list represents the set of seccomp return values supported
+	by the kernel. A userspace program may use this list to
+	determine if the actions found in the ``seccomp.h``, when the
+	program was built, differs from the set of actions actually
+	supported in the current running kernel.
 
 Adding architecture support
 ===========================
