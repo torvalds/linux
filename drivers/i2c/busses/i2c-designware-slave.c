@@ -272,7 +272,7 @@ static int i2c_dw_irq_handler_slave(struct dw_i2c_dev *dev)
 	slave_activity = ((dw_readl(dev, DW_IC_STATUS) &
 		DW_IC_STATUS_SLAVE_ACTIVITY) >> 6);
 
-	if (!enabled || !(raw_stat & ~DW_IC_INTR_ACTIVITY))
+	if (!enabled || !(raw_stat & ~DW_IC_INTR_ACTIVITY) || !dev->slave)
 		return 0;
 
 	dev_dbg(dev->dev,
