@@ -110,7 +110,7 @@ typedef enum {
 	SCTP_CMD_LAST
 } sctp_verb_t;
 
-/* How many commands can you put in an sctp_cmd_seq_t?
+/* How many commands can you put in an struct sctp_cmd_seq?
  * This is a rather arbitrary number, ideally derived from a careful
  * analysis of the state functions, but in reality just taken from
  * thin air in the hopes othat we don't trigger a kernel panic.
@@ -201,17 +201,17 @@ struct sctp_cmd {
 	sctp_verb_t verb;
 };
 
-typedef struct {
+struct sctp_cmd_seq {
 	struct sctp_cmd cmds[SCTP_MAX_NUM_COMMANDS];
 	struct sctp_cmd *last_used_slot;
 	struct sctp_cmd *next_cmd;
-} sctp_cmd_seq_t;
+};
 
 
 /* Initialize a block of memory as a command sequence.
  * Return 0 if the initialization fails.
  */
-static inline int sctp_init_cmd_seq(sctp_cmd_seq_t *seq)
+static inline int sctp_init_cmd_seq(struct sctp_cmd_seq *seq)
 {
 	/* cmds[] is filled backwards to simplify the overflow BUG() check */
 	seq->last_used_slot = seq->cmds + SCTP_MAX_NUM_COMMANDS;
@@ -220,12 +220,12 @@ static inline int sctp_init_cmd_seq(sctp_cmd_seq_t *seq)
 }
 
 
-/* Add a command to an sctp_cmd_seq_t.
+/* Add a command to an struct sctp_cmd_seq.
  *
  * Use the SCTP_* constructors defined by SCTP_ARG_CONSTRUCTOR() above
  * to wrap data which goes in the obj argument.
  */
-static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb,
+static inline void sctp_add_cmd_sf(struct sctp_cmd_seq *seq, sctp_verb_t verb,
 				   sctp_arg_t obj)
 {
 	struct sctp_cmd *cmd = seq->last_used_slot - 1;
@@ -240,7 +240,7 @@ static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb,
 /* Return the next command structure in an sctp_cmd_seq.
  * Return NULL at the end of the sequence.
  */
-static inline struct sctp_cmd *sctp_next_cmd(sctp_cmd_seq_t *seq)
+static inline struct sctp_cmd *sctp_next_cmd(struct sctp_cmd_seq *seq)
 {
 	if (seq->next_cmd <= seq->last_used_slot)
 		return NULL;

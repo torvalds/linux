@@ -132,7 +132,7 @@ static sctp_disposition_t jsctp_sf_eat_sack(struct net *net,
 					    const struct sctp_association *asoc,
 					    const union sctp_subtype type,
 					    void *arg,
-					    sctp_cmd_seq_t *commands)
+					    struct sctp_cmd_seq *commands)
 {
 	struct sctp_chunk *chunk = arg;
 	struct sk_buff *skb = chunk->skb;

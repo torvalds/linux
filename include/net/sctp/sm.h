@@ -75,7 +75,7 @@ typedef sctp_disposition_t (sctp_state_fn_t) (struct net *,
 					      const struct sctp_association *,
 					      const union sctp_subtype type,
 					      void *arg,
-					      sctp_cmd_seq_t *);
+					      struct sctp_cmd_seq *);
 typedef void (sctp_timer_event_t) (unsigned long);
 typedef struct {
 	sctp_state_fn_t *fn;
