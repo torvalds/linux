@@ -92,12 +92,12 @@ struct nf_conntrack_l4proto {
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
 	struct {
-		size_t obj_size;
 		int (*nlattr_to_obj)(struct nlattr *tb[],
 				     struct net *net, void *data);
 		int (*obj_to_nlattr)(struct sk_buff *skb, const void *data);
 
-		unsigned int nlattr_max;
+		u16 obj_size;
+		u16 nlattr_max;
 		const struct nla_policy *nla_policy;
 	} ctnl_timeout;
 #endif
