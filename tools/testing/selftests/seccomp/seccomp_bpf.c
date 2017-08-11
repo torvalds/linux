@@ -1739,6 +1739,10 @@ TEST_F_SIGNAL(TRACE_syscall, kill_after_ptrace, SIGSYS)
 #define SECCOMP_FILTER_FLAG_TSYNC 1
 #endif
 
+#ifndef SECCOMP_FILTER_FLAG_LOG
+#define SECCOMP_FILTER_FLAG_LOG 2
+#endif
+
 #ifndef seccomp
 int seccomp(unsigned int op, unsigned int flags, void *args)
 {
@@ -1844,7 +1848,8 @@ TEST(seccomp_syscall_mode_lock)
  */
 TEST(detect_seccomp_filter_flags)
 {
-	unsigned int flags[] = { SECCOMP_FILTER_FLAG_TSYNC };
+	unsigned int flags[] = { SECCOMP_FILTER_FLAG_TSYNC,
+				 SECCOMP_FILTER_FLAG_LOG };
 	unsigned int flag, all_flags;
 	int i;
 	long ret;
@@ -2533,6 +2538,67 @@ TEST(syscall_restart)
 		_metadata->passed = 0;
 }
 
+TEST_SIGNAL(filter_flag_log, SIGSYS)
+{
+	struct sock_filter allow_filter[] = {
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+	};
+	struct sock_filter kill_filter[] = {
+		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
+			offsetof(struct seccomp_data, nr)),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_getpid, 0, 1),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+	};
+	struct sock_fprog allow_prog = {
+		.len = (unsigned short)ARRAY_SIZE(allow_filter),
+		.filter = allow_filter,
+	};
+	struct sock_fprog kill_prog = {
+		.len = (unsigned short)ARRAY_SIZE(kill_filter),
+		.filter = kill_filter,
+	};
+	long ret;
+	pid_t parent = getppid();
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret);
+
+	/* Verify that the FILTER_FLAG_LOG flag isn't accepted in strict mode */
+	ret = seccomp(SECCOMP_SET_MODE_STRICT, SECCOMP_FILTER_FLAG_LOG,
+		      &allow_prog);
+	ASSERT_NE(ENOSYS, errno) {
+		TH_LOG("Kernel does not support seccomp syscall!");
+	}
+	EXPECT_NE(0, ret) {
+		TH_LOG("Kernel accepted FILTER_FLAG_LOG flag in strict mode!");
+	}
+	EXPECT_EQ(EINVAL, errno) {
+		TH_LOG("Kernel returned unexpected errno for FILTER_FLAG_LOG flag in strict mode!");
+	}
+
+	/* Verify that a simple, permissive filter can be added with no flags */
+	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &allow_prog);
+	EXPECT_EQ(0, ret);
+
+	/* See if the same filter can be added with the FILTER_FLAG_LOG flag */
+	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_LOG,
+		      &allow_prog);
+	ASSERT_NE(EINVAL, errno) {
+		TH_LOG("Kernel does not support the FILTER_FLAG_LOG flag!");
+	}
+	EXPECT_EQ(0, ret);
+
+	/* Ensure that the kill filter works with the FILTER_FLAG_LOG flag */
+	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_LOG,
+		      &kill_prog);
+	EXPECT_EQ(0, ret);
+
+	EXPECT_EQ(parent, syscall(__NR_getppid));
+	/* getpid() should never return. */
+	EXPECT_EQ(0, syscall(__NR_getpid));
+}
+
 TEST(get_action_avail)
 {
 	__u32 actions[] = { SECCOMP_RET_KILL,  SECCOMP_RET_TRAP,
@@ -2573,6 +2639,7 @@ TEST(get_action_avail)
  * - endianness checking when appropriate
  * - 64-bit arg prodding
  * - arch value testing (x86 modes especially)
+ * - verify that FILTER_FLAG_LOG filters generate log messages
  * - ...
  */
 
