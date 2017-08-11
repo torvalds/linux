@@ -68,25 +68,58 @@ static int reset_simple_deassert(struct reset_controller_dev *rcdev,
 	return reset_simple_update(rcdev, id, false);
 }
 
+static int reset_simple_status(struct reset_controller_dev *rcdev,
+			       unsigned long id)
+{
+	struct reset_simple_data *data = to_reset_simple_data(rcdev);
+	int reg_width = sizeof(u32);
+	int bank = id / (reg_width * BITS_PER_BYTE);
+	int offset = id % (reg_width * BITS_PER_BYTE);
+	u32 reg;
+
+	reg = readl(data->membase + (bank * reg_width));
+
+	return !(reg & BIT(offset)) ^ !data->status_active_low;
+}
+
 const struct reset_control_ops reset_simple_ops = {
 	.assert		= reset_simple_assert,
 	.deassert	= reset_simple_deassert,
+	.status		= reset_simple_status,
 };
 
 /**
  * struct reset_simple_devdata - simple reset controller properties
+ * @reg_offset: offset between base address and first reset register.
+ * @nr_resets: number of resets. If not set, default to resource size in bits.
  * @active_low: if true, bits are cleared to assert the reset. Otherwise, bits
  *              are set to assert the reset.
+ * @status_active_low: if true, bits read back as cleared while the reset is
+ *                     asserted. Otherwise, bits read back as set while the
+ *                     reset is asserted.
  */
 struct reset_simple_devdata {
+	u32 reg_offset;
+	u32 nr_resets;
 	bool active_low;
+	bool status_active_low;
+};
+
+#define SOCFPGA_NR_BANKS	8
+
+static const struct reset_simple_devdata reset_simple_socfpga = {
+	.reg_offset = 0x10,
+	.nr_resets = SOCFPGA_NR_BANKS * 32,
+	.status_active_low = true,
 };
 
 static const struct reset_simple_devdata reset_simple_active_low = {
 	.active_low = true,
+	.status_active_low = true,
 };
 
 static const struct of_device_id reset_simple_dt_ids[] = {
+	{ .compatible = "altr,rst-mgr", .data = &reset_simple_socfpga },
 	{ .compatible = "allwinner,sun6i-a31-clock-reset",
 		.data = &reset_simple_active_low },
 	{ /* sentinel */ },
@@ -99,6 +132,7 @@ static int reset_simple_probe(struct platform_device *pdev)
 	struct reset_simple_data *data;
 	void __iomem *membase;
 	struct resource *res;
+	u32 reg_offset = 0;
 
 	devdata = of_device_get_match_data(dev);
 
@@ -118,8 +152,23 @@ static int reset_simple_probe(struct platform_device *pdev)
 	data->rcdev.ops = &reset_simple_ops;
 	data->rcdev.of_node = dev->of_node;
 
-	if (devdata)
+	if (devdata) {
+		reg_offset = devdata->reg_offset;
+		if (devdata->nr_resets)
+			data->rcdev.nr_resets = devdata->nr_resets;
 		data->active_low = devdata->active_low;
+		data->status_active_low = devdata->status_active_low;
+	}
+
+	if (of_device_is_compatible(dev->of_node, "altr,rst-mgr") &&
+	    of_property_read_u32(dev->of_node, "altr,modrst-offset",
+				 &reg_offset)) {
+		dev_warn(dev,
+			 "missing altr,modrst-offset property, assuming 0x%x!\n",
+			 reg_offset);
+	}
+
+	data->membase += reg_offset;
 
 	return devm_reset_controller_register(dev, &data->rcdev);
 }
