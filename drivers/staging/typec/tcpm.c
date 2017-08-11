@@ -332,12 +332,17 @@ struct pd_rx_event {
 
 static enum tcpm_state tcpm_default_state(struct tcpm_port *port)
 {
-	if (port->try_role == TYPEC_SINK)
+	if (port->typec_caps.type == TYPEC_PORT_DRP) {
+		if (port->try_role == TYPEC_SINK)
+			return SNK_UNATTACHED;
+		else if (port->try_role == TYPEC_SOURCE)
+			return SRC_UNATTACHED;
+		else if (port->tcpc->config->default_role == TYPEC_SINK)
+			return SNK_UNATTACHED;
+		/* Fall through to return SRC_UNATTACHED */
+	} else if (port->typec_caps.type == TYPEC_PORT_UFP) {
 		return SNK_UNATTACHED;
-	else if (port->try_role == TYPEC_SOURCE)
-		return SRC_UNATTACHED;
-	else if (port->tcpc->config->default_role == TYPEC_SINK)
-		return SNK_UNATTACHED;
+	}
 	return SRC_UNATTACHED;
 }
 
