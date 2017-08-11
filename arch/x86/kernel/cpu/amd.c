@@ -297,6 +297,7 @@ static int nearby_node(int apicid)
 }
 #endif
 
+#ifdef CONFIG_SMP
 /*
  * Fix up cpu_core_id for pre-F17h systems to be in the
  * [0 .. cores_per_node - 1] range. Not really needed but
@@ -319,7 +320,6 @@ static void legacy_fixup_core_id(struct cpuinfo_x86 *c)
  *     Assumption: Number of cores in each internal node is the same.
  * (2) AMD processors supporting compute units
  */
-#ifdef CONFIG_SMP
 static void amd_get_topology(struct cpuinfo_x86 *c)
 {
 	u8 node_id;
