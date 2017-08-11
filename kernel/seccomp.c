@@ -181,6 +181,7 @@ static int seccomp_check_filter(struct sock_filter *filter, unsigned int flen)
  *
  * Returns valid seccomp BPF response codes.
  */
+#define ACTION_ONLY(ret) ((s32)((ret) & (SECCOMP_RET_ACTION_FULL)))
 static u32 seccomp_run_filters(const struct seccomp_data *sd,
 			       struct seccomp_filter **match)
 {
@@ -206,7 +207,7 @@ static u32 seccomp_run_filters(const struct seccomp_data *sd,
 	for (; f; f = f->prev) {
 		u32 cur_ret = BPF_PROG_RUN(f->prog, sd);
 
-		if ((cur_ret & SECCOMP_RET_ACTION) < (ret & SECCOMP_RET_ACTION)) {
+		if (ACTION_ONLY(cur_ret) < ACTION_ONLY(ret)) {
 			ret = cur_ret;
 			*match = f;
 		}
@@ -650,7 +651,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 
 	filter_ret = seccomp_run_filters(sd, &match);
 	data = filter_ret & SECCOMP_RET_DATA;
-	action = filter_ret & SECCOMP_RET_ACTION;
+	action = filter_ret & SECCOMP_RET_ACTION_FULL;
 
 	switch (action) {
 	case SECCOMP_RET_ERRNO:
@@ -890,6 +891,7 @@ static long seccomp_get_action_avail(const char __user *uaction)
 		return -EFAULT;
 
 	switch (action) {
+	case SECCOMP_RET_KILL_PROCESS:
 	case SECCOMP_RET_KILL_THREAD:
 	case SECCOMP_RET_TRAP:
 	case SECCOMP_RET_ERRNO:
@@ -1041,6 +1043,7 @@ out:
 #ifdef CONFIG_SYSCTL
 
 /* Human readable action names for friendly sysctl interaction */
+#define SECCOMP_RET_KILL_PROCESS_NAME	"kill_process"
 #define SECCOMP_RET_KILL_THREAD_NAME	"kill_thread"
 #define SECCOMP_RET_TRAP_NAME		"trap"
 #define SECCOMP_RET_ERRNO_NAME		"errno"
@@ -1049,6 +1052,7 @@ out:
 #define SECCOMP_RET_ALLOW_NAME		"allow"
 
 static const char seccomp_actions_avail[] =
+				SECCOMP_RET_KILL_PROCESS_NAME	" "
 				SECCOMP_RET_KILL_THREAD_NAME	" "
 				SECCOMP_RET_TRAP_NAME		" "
 				SECCOMP_RET_ERRNO_NAME		" "
@@ -1062,6 +1066,7 @@ struct seccomp_log_name {
 };
 
 static const struct seccomp_log_name seccomp_log_names[] = {
+	{ SECCOMP_LOG_KILL_PROCESS, SECCOMP_RET_KILL_PROCESS_NAME },
 	{ SECCOMP_LOG_KILL_THREAD, SECCOMP_RET_KILL_THREAD_NAME },
 	{ SECCOMP_LOG_TRAP, SECCOMP_RET_TRAP_NAME },
 	{ SECCOMP_LOG_ERRNO, SECCOMP_RET_ERRNO_NAME },

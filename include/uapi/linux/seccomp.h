@@ -38,6 +38,7 @@
 #define SECCOMP_RET_ALLOW	 0x7fff0000U /* allow */
 
 /* Masks for the return value sections. */
+#define SECCOMP_RET_ACTION_FULL	0xffff0000U
 #define SECCOMP_RET_ACTION	0x7fff0000U
 #define SECCOMP_RET_DATA	0x0000ffffU
 
