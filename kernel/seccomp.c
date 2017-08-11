@@ -522,6 +522,45 @@ static void seccomp_send_sigsys(int syscall, int reason)
 }
 #endif	/* CONFIG_SECCOMP_FILTER */
 
+/* For use with seccomp_actions_logged */
+#define SECCOMP_LOG_KILL		(1 << 0)
+#define SECCOMP_LOG_TRAP		(1 << 2)
+#define SECCOMP_LOG_ERRNO		(1 << 3)
+#define SECCOMP_LOG_TRACE		(1 << 4)
+#define SECCOMP_LOG_ALLOW		(1 << 5)
+
+static u32 seccomp_actions_logged = SECCOMP_LOG_KILL  | SECCOMP_LOG_TRAP  |
+				    SECCOMP_LOG_ERRNO | SECCOMP_LOG_TRACE;
+
+static inline void seccomp_log(unsigned long syscall, long signr, u32 action)
+{
+	bool log = false;
+
+	switch (action) {
+	case SECCOMP_RET_ALLOW:
+	case SECCOMP_RET_TRAP:
+	case SECCOMP_RET_ERRNO:
+	case SECCOMP_RET_TRACE:
+		break;
+	case SECCOMP_RET_KILL:
+	default:
+		log = seccomp_actions_logged & SECCOMP_LOG_KILL;
+	}
+
+	/*
+	 * Force an audit message to be emitted when the action is RET_KILL and
+	 * the action is allowed to be logged by the admin.
+	 */
+	if (log)
+		return __audit_seccomp(syscall, signr, action);
+
+	/*
+	 * Let the audit subsystem decide if the action should be audited based
+	 * on whether the current task itself is being audited.
+	 */
+	return audit_seccomp(syscall, signr, action);
+}
+
 /*
  * Secure computing mode 1 allows only read/write/exit/sigreturn.
  * To be fully secure this must be combined with rlimit
@@ -547,7 +586,7 @@ static void __secure_computing_strict(int this_syscall)
 #ifdef SECCOMP_DEBUG
 	dump_stack();
 #endif
-	audit_seccomp(this_syscall, SIGKILL, SECCOMP_RET_KILL);
+	seccomp_log(this_syscall, SIGKILL, SECCOMP_RET_KILL);
 	do_exit(SIGKILL);
 }
 
@@ -656,7 +695,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 
 	case SECCOMP_RET_KILL:
 	default:
-		audit_seccomp(this_syscall, SIGSYS, action);
+		seccomp_log(this_syscall, SIGSYS, action);
 		/* Dump core only if this is the last remaining thread. */
 		if (get_nr_threads(current) == 1) {
 			siginfo_t info;
@@ -673,7 +712,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 	unreachable();
 
 skip:
-	audit_seccomp(this_syscall, 0, action);
+	seccomp_log(this_syscall, 0, action);
 	return -1;
 }
 #else
@@ -978,6 +1017,127 @@ static const char seccomp_actions_avail[] = SECCOMP_RET_KILL_NAME	" "
 					    SECCOMP_RET_TRACE_NAME	" "
 					    SECCOMP_RET_ALLOW_NAME;
 
+struct seccomp_log_name {
+	u32		log;
+	const char	*name;
+};
+
+static const struct seccomp_log_name seccomp_log_names[] = {
+	{ SECCOMP_LOG_KILL, SECCOMP_RET_KILL_NAME },
+	{ SECCOMP_LOG_TRAP, SECCOMP_RET_TRAP_NAME },
+	{ SECCOMP_LOG_ERRNO, SECCOMP_RET_ERRNO_NAME },
+	{ SECCOMP_LOG_TRACE, SECCOMP_RET_TRACE_NAME },
+	{ SECCOMP_LOG_ALLOW, SECCOMP_RET_ALLOW_NAME },
+	{ }
+};
+
+static bool seccomp_names_from_actions_logged(char *names, size_t size,
+					      u32 actions_logged)
+{
+	const struct seccomp_log_name *cur;
+	bool append_space = false;
+
+	for (cur = seccomp_log_names; cur->name && size; cur++) {
+		ssize_t ret;
+
+		if (!(actions_logged & cur->log))
+			continue;
+
+		if (append_space) {
+			ret = strscpy(names, " ", size);
+			if (ret < 0)
+				return false;
+
+			names += ret;
+			size -= ret;
+		} else
+			append_space = true;
+
+		ret = strscpy(names, cur->name, size);
+		if (ret < 0)
+			return false;
+
+		names += ret;
+		size -= ret;
+	}
+
+	return true;
+}
+
+static bool seccomp_action_logged_from_name(u32 *action_logged,
+					    const char *name)
+{
+	const struct seccomp_log_name *cur;
+
+	for (cur = seccomp_log_names; cur->name; cur++) {
+		if (!strcmp(cur->name, name)) {
+			*action_logged = cur->log;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool seccomp_actions_logged_from_names(u32 *actions_logged, char *names)
+{
+	char *name;
+
+	*actions_logged = 0;
+	while ((name = strsep(&names, " ")) && *name) {
+		u32 action_logged = 0;
+
+		if (!seccomp_action_logged_from_name(&action_logged, name))
+			return false;
+
+		*actions_logged |= action_logged;
+	}
+
+	return true;
+}
+
+static int seccomp_actions_logged_handler(struct ctl_table *ro_table, int write,
+					  void __user *buffer, size_t *lenp,
+					  loff_t *ppos)
+{
+	char names[sizeof(seccomp_actions_avail)];
+	struct ctl_table table;
+	int ret;
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	memset(names, 0, sizeof(names));
+
+	if (!write) {
+		if (!seccomp_names_from_actions_logged(names, sizeof(names),
+						       seccomp_actions_logged))
+			return -EINVAL;
+	}
+
+	table = *ro_table;
+	table.data = names;
+	table.maxlen = sizeof(names);
+	ret = proc_dostring(&table, write, buffer, lenp, ppos);
+	if (ret)
+		return ret;
+
+	if (write) {
+		u32 actions_logged;
+
+		if (!seccomp_actions_logged_from_names(&actions_logged,
+						       table.data))
+			return -EINVAL;
+
+		if (actions_logged & SECCOMP_LOG_ALLOW)
+			return -EINVAL;
+
+		seccomp_actions_logged = actions_logged;
+	}
+
+	return 0;
+}
+
 static struct ctl_path seccomp_sysctl_path[] = {
 	{ .procname = "kernel", },
 	{ .procname = "seccomp", },
@@ -991,6 +1151,11 @@ static struct ctl_table seccomp_sysctl_table[] = {
 		.maxlen		= sizeof(seccomp_actions_avail),
 		.mode		= 0444,
 		.proc_handler	= proc_dostring,
+	},
+	{
+		.procname	= "actions_logged",
+		.mode		= 0644,
+		.proc_handler	= seccomp_actions_logged_handler,
 	},
 	{ }
 };

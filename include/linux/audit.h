@@ -314,11 +314,7 @@ void audit_core_dumps(long signr);
 
 static inline void audit_seccomp(unsigned long syscall, long signr, int code)
 {
-	if (!audit_enabled)
-		return;
-
-	/* Force a record to be reported if a signal was delivered. */
-	if (signr || unlikely(!audit_dummy_context()))
+	if (audit_enabled && unlikely(!audit_dummy_context()))
 		__audit_seccomp(syscall, signr, code);
 }
 
