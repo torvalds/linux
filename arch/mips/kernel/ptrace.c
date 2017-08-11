@@ -881,9 +881,11 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 
 	current_thread_info()->syscall = syscall;
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(regs))
-		return -1;
+	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
+		if (tracehook_report_syscall_entry(regs))
+			return -1;
+		syscall = current_thread_info()->syscall;
+	}
 
 #ifdef CONFIG_SECCOMP
 	if (unlikely(test_thread_flag(TIF_SECCOMP))) {
@@ -901,6 +903,7 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 		ret = __secure_computing(&sd);
 		if (ret == -1)
 			return ret;
+		syscall = current_thread_info()->syscall;
 	}
 #endif
 
