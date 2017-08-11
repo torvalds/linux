@@ -642,7 +642,7 @@ TRACE_EVENT(sched_contrib_scale_f,
 extern unsigned int sysctl_sched_use_walt_cpu_util;
 extern unsigned int sysctl_sched_use_walt_task_util;
 extern unsigned int walt_ravg_window;
-extern unsigned int walt_disabled;
+extern bool walt_disabled;
 #endif
 
 /*

@@ -59,6 +59,6 @@ static inline u64 walt_ktime_clock(void) { return 0; }
 
 #endif /* CONFIG_SCHED_WALT */
 
-extern unsigned int walt_disabled;
+extern bool walt_disabled;
 
 #endif

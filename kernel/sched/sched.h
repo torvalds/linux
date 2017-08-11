@@ -1560,7 +1560,7 @@ static inline unsigned long capacity_orig_of(int cpu)
 
 extern unsigned int sysctl_sched_use_walt_cpu_util;
 extern unsigned int walt_ravg_window;
-extern unsigned int walt_disabled;
+extern bool walt_disabled;
 
 /*
  * cpu_util returns the amount of capacity of a CPU that is used by CFS
