@@ -830,7 +830,7 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		ret = -ENOMEM;
 	mutex_unlock(&vc4->bo_lock);
 
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 
 	return ret;
 }
