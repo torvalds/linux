@@ -61,9 +61,6 @@ struct nf_conntrack_l4proto {
 	/* called by gc worker if table is full */
 	bool (*can_early_drop)(const struct nf_conn *ct);
 
-	/* Print out the private part of the conntrack. */
-	void (*print_conntrack)(struct seq_file *s, struct nf_conn *);
-
 	/* Return the array of timeouts for this protocol. */
 	unsigned int *(*get_timeouts)(struct net *net);
 
@@ -96,6 +93,10 @@ struct nf_conntrack_l4proto {
 		u16 nlattr_max;
 		const struct nla_policy *nla_policy;
 	} ctnl_timeout;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
+	/* Print out the private part of the conntrack. */
+	void (*print_conntrack)(struct seq_file *s, struct nf_conn *);
 #endif
 	unsigned int	*net_id;
 	/* Init l4proto pernet data */

@@ -623,10 +623,12 @@ static bool dccp_can_early_drop(const struct nf_conn *ct)
 	return false;
 }
 
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
 static void dccp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
 	seq_printf(s, "%s ", dccp_state_names[ct->proto.dccp.state]);
 }
+#endif
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 static int dccp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
@@ -879,7 +881,9 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= dccp_print_conntrack,
+#endif
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= dccp_to_nlattr,
 	.nlattr_size		= dccp_nlattr_size,
@@ -913,7 +917,9 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 __read_mostly = {
 	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= dccp_print_conntrack,
+#endif
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= dccp_to_nlattr,
 	.nlattr_size		= dccp_nlattr_size,
