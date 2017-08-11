@@ -2298,8 +2298,10 @@ static void dcn10_apply_ctx_for_surface(
 			struct pipe_ctx *old_pipe_ctx =
 							&dc->current_context->res_ctx.pipe_ctx[i];
 
-			if (old_pipe_ctx->stream_res.tg && old_pipe_ctx->stream_res.tg->inst == be_idx)
+			if (old_pipe_ctx->stream_res.tg && old_pipe_ctx->stream_res.tg->inst == be_idx) {
+				old_pipe_ctx->stream_res.tg->funcs->set_blank(old_pipe_ctx->stream_res.tg, true);
 				dcn10_power_down_fe(dc, old_pipe_ctx->pipe_idx);
+			}
 		}
 		return;
 	}
