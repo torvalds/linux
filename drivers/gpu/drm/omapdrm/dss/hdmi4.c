@@ -699,7 +699,7 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 	if (r)
 		return r;
 
-	r = hdmi_wp_init(pdev, &hdmi.wp);
+	r = hdmi_wp_init(pdev, &hdmi.wp, 4);
 	if (r)
 		return r;
 

@@ -234,6 +234,7 @@ struct hdmi_core_audio_config {
 struct hdmi_wp_data {
 	void __iomem *base;
 	phys_addr_t phys_base;
+	unsigned int version;
 };
 
 struct hdmi_pll_data {
@@ -312,7 +313,8 @@ void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
 		struct videomode *vm);
 void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 		struct videomode *vm, struct hdmi_config *param);
-int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp);
+int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp,
+		 unsigned int version);
 phys_addr_t hdmi_wp_get_audio_dma_addr(struct hdmi_wp_data *wp);
 
 /* HDMI PLL funcs */
