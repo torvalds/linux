@@ -266,27 +266,19 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte = NULL;
 
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
 	if (!pud)
 		return NULL;
-
 	if (sz >= PUD_SIZE)
-		pte = (pte_t *)pud;
-	else {
-		pmd = pmd_alloc(mm, pud, addr);
-		if (!pmd)
-			return NULL;
-
-		if (sz >= PMD_SIZE)
-			pte = (pte_t *)pmd;
-		else
-			pte = pte_alloc_map(mm, pmd, addr);
-	}
-
-	return pte;
+		return (pte_t *)pud;
+	pmd = pmd_alloc(mm, pud, addr);
+	if (!pmd)
+		return NULL;
+	if (sz >= PMD_SIZE)
+		return (pte_t *)pmd;
+	return pte_alloc_map(mm, pmd, addr);
 }
 
 pte_t *huge_pte_offset(struct mm_struct *mm,
@@ -295,27 +287,21 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte = NULL;
 
 	pgd = pgd_offset(mm, addr);
-	if (!pgd_none(*pgd)) {
-		pud = pud_offset(pgd, addr);
-		if (!pud_none(*pud)) {
-			if (is_hugetlb_pud(*pud))
-				pte = (pte_t *)pud;
-			else {
-				pmd = pmd_offset(pud, addr);
-				if (!pmd_none(*pmd)) {
-					if (is_hugetlb_pmd(*pmd))
-						pte = (pte_t *)pmd;
-					else
-						pte = pte_offset_map(pmd, addr);
-				}
-			}
-		}
-	}
-
-	return pte;
+	if (pgd_none(*pgd))
+		return NULL;
+	pud = pud_offset(pgd, addr);
+	if (pud_none(*pud))
+		return NULL;
+	if (is_hugetlb_pud(*pud))
+		return (pte_t *)pud;
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none(*pmd))
+		return NULL;
+	if (is_hugetlb_pmd(*pmd))
+		return (pte_t *)pmd;
+	return pte_offset_map(pmd, addr);
 }
 
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
