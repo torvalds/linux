@@ -120,6 +120,7 @@ static const struct reset_simple_devdata reset_simple_active_low = {
 
 static const struct of_device_id reset_simple_dt_ids[] = {
 	{ .compatible = "altr,rst-mgr", .data = &reset_simple_socfpga },
+	{ .compatible = "st,stm32-rcc", },
 	{ .compatible = "allwinner,sun6i-a31-clock-reset",
 		.data = &reset_simple_active_low },
 	{ /* sentinel */ },
