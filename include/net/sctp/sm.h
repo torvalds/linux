@@ -65,11 +65,6 @@ typedef enum {
 	SCTP_DISPOSITION_BUG,		 /* This is a bug.  */
 } sctp_disposition_t;
 
-typedef struct {
-	int name;
-	int action;
-} sctp_sm_command_t;
-
 typedef sctp_disposition_t (sctp_state_fn_t) (struct net *,
 					      const struct sctp_endpoint *,
 					      const struct sctp_association *,
