@@ -192,7 +192,7 @@ static u32 seccomp_run_filters(const struct seccomp_data *sd,
 
 	/* Ensure unexpected behavior doesn't result in failing open. */
 	if (unlikely(WARN_ON(f == NULL)))
-		return SECCOMP_RET_KILL;
+		return SECCOMP_RET_KILL_THREAD;
 
 	if (!sd) {
 		populate_seccomp_data(&sd_local);
@@ -529,15 +529,17 @@ static void seccomp_send_sigsys(int syscall, int reason)
 #endif	/* CONFIG_SECCOMP_FILTER */
 
 /* For use with seccomp_actions_logged */
-#define SECCOMP_LOG_KILL		(1 << 0)
+#define SECCOMP_LOG_KILL_THREAD		(1 << 0)
 #define SECCOMP_LOG_TRAP		(1 << 2)
 #define SECCOMP_LOG_ERRNO		(1 << 3)
 #define SECCOMP_LOG_TRACE		(1 << 4)
 #define SECCOMP_LOG_LOG			(1 << 5)
 #define SECCOMP_LOG_ALLOW		(1 << 6)
 
-static u32 seccomp_actions_logged = SECCOMP_LOG_KILL  | SECCOMP_LOG_TRAP  |
-				    SECCOMP_LOG_ERRNO | SECCOMP_LOG_TRACE |
+static u32 seccomp_actions_logged = SECCOMP_LOG_KILL_THREAD |
+				    SECCOMP_LOG_TRAP  |
+				    SECCOMP_LOG_ERRNO |
+				    SECCOMP_LOG_TRACE |
 				    SECCOMP_LOG_LOG;
 
 static inline void seccomp_log(unsigned long syscall, long signr, u32 action,
@@ -560,13 +562,13 @@ static inline void seccomp_log(unsigned long syscall, long signr, u32 action,
 	case SECCOMP_RET_LOG:
 		log = seccomp_actions_logged & SECCOMP_LOG_LOG;
 		break;
-	case SECCOMP_RET_KILL:
+	case SECCOMP_RET_KILL_THREAD:
 	default:
-		log = seccomp_actions_logged & SECCOMP_LOG_KILL;
+		log = seccomp_actions_logged & SECCOMP_LOG_KILL_THREAD;
 	}
 
 	/*
-	 * Force an audit message to be emitted when the action is RET_KILL,
+	 * Force an audit message to be emitted when the action is RET_KILL_*,
 	 * RET_LOG, or the FILTER_FLAG_LOG bit was set and the action is
 	 * allowed to be logged by the admin.
 	 */
@@ -605,7 +607,7 @@ static void __secure_computing_strict(int this_syscall)
 #ifdef SECCOMP_DEBUG
 	dump_stack();
 #endif
-	seccomp_log(this_syscall, SIGKILL, SECCOMP_RET_KILL, true);
+	seccomp_log(this_syscall, SIGKILL, SECCOMP_RET_KILL_THREAD, true);
 	do_exit(SIGKILL);
 }
 
@@ -716,7 +718,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		 */
 		return 0;
 
-	case SECCOMP_RET_KILL:
+	case SECCOMP_RET_KILL_THREAD:
 	default:
 		seccomp_log(this_syscall, SIGSYS, action, true);
 		/* Dump core only if this is the last remaining thread. */
@@ -878,7 +880,7 @@ static long seccomp_get_action_avail(const char __user *uaction)
 		return -EFAULT;
 
 	switch (action) {
-	case SECCOMP_RET_KILL:
+	case SECCOMP_RET_KILL_THREAD:
 	case SECCOMP_RET_TRAP:
 	case SECCOMP_RET_ERRNO:
 	case SECCOMP_RET_TRACE:
@@ -1029,19 +1031,20 @@ out:
 #ifdef CONFIG_SYSCTL
 
 /* Human readable action names for friendly sysctl interaction */
-#define SECCOMP_RET_KILL_NAME		"kill"
+#define SECCOMP_RET_KILL_THREAD_NAME	"kill_thread"
 #define SECCOMP_RET_TRAP_NAME		"trap"
 #define SECCOMP_RET_ERRNO_NAME		"errno"
 #define SECCOMP_RET_TRACE_NAME		"trace"
 #define SECCOMP_RET_LOG_NAME		"log"
 #define SECCOMP_RET_ALLOW_NAME		"allow"
 
-static const char seccomp_actions_avail[] = SECCOMP_RET_KILL_NAME	" "
-					    SECCOMP_RET_TRAP_NAME	" "
-					    SECCOMP_RET_ERRNO_NAME	" "
-					    SECCOMP_RET_TRACE_NAME	" "
-					    SECCOMP_RET_LOG_NAME	" "
-					    SECCOMP_RET_ALLOW_NAME;
+static const char seccomp_actions_avail[] =
+				SECCOMP_RET_KILL_THREAD_NAME	" "
+				SECCOMP_RET_TRAP_NAME		" "
+				SECCOMP_RET_ERRNO_NAME		" "
+				SECCOMP_RET_TRACE_NAME		" "
+				SECCOMP_RET_LOG_NAME		" "
+				SECCOMP_RET_ALLOW_NAME;
 
 struct seccomp_log_name {
 	u32		log;
@@ -1049,7 +1052,7 @@ struct seccomp_log_name {
 };
 
 static const struct seccomp_log_name seccomp_log_names[] = {
-	{ SECCOMP_LOG_KILL, SECCOMP_RET_KILL_NAME },
+	{ SECCOMP_LOG_KILL_THREAD, SECCOMP_RET_KILL_THREAD_NAME },
 	{ SECCOMP_LOG_TRAP, SECCOMP_RET_TRAP_NAME },
 	{ SECCOMP_LOG_ERRNO, SECCOMP_RET_ERRNO_NAME },
 	{ SECCOMP_LOG_TRACE, SECCOMP_RET_TRACE_NAME },

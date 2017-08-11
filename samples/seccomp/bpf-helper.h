@@ -44,7 +44,7 @@ void seccomp_bpf_print(struct sock_filter *filter, size_t count);
 #define ALLOW \
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
 #define DENY \
-	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL)
+	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL_THREAD)
 #define JUMP(labels, label) \
 	BPF_JUMP(BPF_JMP+BPF_JA, FIND_LABEL((labels), (label)), \
 		 JUMP_JT, JUMP_JF)

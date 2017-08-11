@@ -68,15 +68,18 @@
 #define SECCOMP_MODE_FILTER 2
 #endif
 
+#ifndef SECCOMP_RET_KILL_THREAD
+#define SECCOMP_RET_KILL_THREAD	 0x00000000U /* kill the thread */
+#endif
 #ifndef SECCOMP_RET_KILL
-#define SECCOMP_RET_KILL        0x00000000U /* kill the task immediately */
-#define SECCOMP_RET_TRAP        0x00030000U /* disallow and force a SIGSYS */
-#define SECCOMP_RET_ERRNO       0x00050000U /* returns an errno */
-#define SECCOMP_RET_TRACE       0x7ff00000U /* pass to a tracer or disallow */
-#define SECCOMP_RET_ALLOW       0x7fff0000U /* allow */
+#define SECCOMP_RET_KILL	 SECCOMP_RET_KILL_THREAD
+#define SECCOMP_RET_TRAP	 0x00030000U /* disallow and force a SIGSYS */
+#define SECCOMP_RET_ERRNO	 0x00050000U /* returns an errno */
+#define SECCOMP_RET_TRACE	 0x7ff00000U /* pass to a tracer or disallow */
+#define SECCOMP_RET_ALLOW	 0x7fff0000U /* allow */
 #endif
 #ifndef SECCOMP_RET_LOG
-#define SECCOMP_RET_LOG       0x7ffc0000U /* allow after logging */
+#define SECCOMP_RET_LOG		 0x7ffc0000U /* allow after logging */
 #endif
 
 #ifndef SECCOMP_RET_ACTION
@@ -2696,7 +2699,7 @@ TEST_SIGNAL(filter_flag_log, SIGSYS)
 
 TEST(get_action_avail)
 {
-	__u32 actions[] = { SECCOMP_RET_KILL,  SECCOMP_RET_TRAP,
+	__u32 actions[] = { SECCOMP_RET_KILL_THREAD, SECCOMP_RET_TRAP,
 			    SECCOMP_RET_ERRNO, SECCOMP_RET_TRACE,
 			    SECCOMP_RET_LOG,   SECCOMP_RET_ALLOW };
 	__u32 unknown_action = 0x10000000U;

@@ -87,11 +87,11 @@ Return values
 A seccomp filter may return any of the following values. If multiple
 filters exist, the return value for the evaluation of a given system
 call will always use the highest precedent value. (For example,
-``SECCOMP_RET_KILL`` will always take precedence.)
+``SECCOMP_RET_KILL_THREAD`` will always take precedence.)
 
 In precedence order, they are:
 
-``SECCOMP_RET_KILL``:
+``SECCOMP_RET_KILL_THREAD``:
 	Results in the task exiting immediately without executing the
 	system call.  The exit status of the task (``status & 0x7f``) will
 	be ``SIGSYS``, not ``SIGKILL``.
