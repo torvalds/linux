@@ -309,7 +309,7 @@ static void udl_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	struct udl_framebuffer *ufb = to_udl_fb(fb);
 
 	if (ufb->obj)
-		drm_gem_object_unreference_unlocked(&ufb->obj->base);
+		drm_gem_object_put_unlocked(&ufb->obj->base);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(ufb);
@@ -403,7 +403,7 @@ static int udlfb_create(struct drm_fb_helper *helper,
 
 	return ret;
 out_gfree:
-	drm_gem_object_unreference_unlocked(&ufbdev->ufb.obj->base);
+	drm_gem_object_put_unlocked(&ufbdev->ufb.obj->base);
 out:
 	return ret;
 }
@@ -419,7 +419,7 @@ static void udl_fbdev_destroy(struct drm_device *dev,
 	drm_fb_helper_fini(&ufbdev->helper);
 	drm_framebuffer_unregister_private(&ufbdev->ufb.base);
 	drm_framebuffer_cleanup(&ufbdev->ufb.base);
-	drm_gem_object_unreference_unlocked(&ufbdev->ufb.obj->base);
+	drm_gem_object_put_unlocked(&ufbdev->ufb.obj->base);
 }
 
 int udl_fbdev_init(struct drm_device *dev)
