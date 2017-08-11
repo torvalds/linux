@@ -52,7 +52,7 @@ static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
 	if (obj->cache_dirty)
 		return false;
 
-	if (!obj->cache_coherent)
+	if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE))
 		return true;
 
 	return obj->pin_display;
@@ -253,7 +253,7 @@ __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
 
 	if (needs_clflush &&
 	    (obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0 &&
-	    !obj->cache_coherent)
+	    !(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ))
 		drm_clflush_sg(pages);
 
 	__start_cpu_write(obj);
@@ -800,7 +800,8 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	if (obj->cache_coherent || !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ ||
+	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		ret = i915_gem_object_set_to_cpu_domain(obj, false);
 		if (ret)
 			goto err_unpin;
@@ -852,7 +853,8 @@ int i915_gem_obj_prepare_shmem_write(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
-	if (obj->cache_coherent || !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE ||
+	    !static_cpu_has(X86_FEATURE_CLFLUSH)) {
 		ret = i915_gem_object_set_to_cpu_domain(obj, true);
 		if (ret)
 			goto err_unpin;
@@ -3673,8 +3675,7 @@ restart:
 
 	list_for_each_entry(vma, &obj->vma_list, obj_link)
 		vma->node.color = cache_level;
-	obj->cache_level = cache_level;
-	obj->cache_coherent = i915_gem_object_is_coherent(obj);
+	i915_gem_object_set_cache_coherency(obj, cache_level);
 	obj->cache_dirty = true; /* Always invalidate stale cachelines */
 
 	return 0;
@@ -4279,6 +4280,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 {
 	struct drm_i915_gem_object *obj;
 	struct address_space *mapping;
+	unsigned int cache_level;
 	gfp_t mask;
 	int ret;
 
@@ -4317,7 +4319,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 
-	if (HAS_LLC(dev_priv)) {
+	if (HAS_LLC(dev_priv))
 		/* On some devices, we can have the GPU use the LLC (the CPU
 		 * cache) for about a 10% performance improvement
 		 * compared to uncached.  Graphics requests other than
@@ -4330,12 +4332,11 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 		 * However, we maintain the display planes as UC, and so
 		 * need to rebind when first used as such.
 		 */
-		obj->cache_level = I915_CACHE_LLC;
-	} else
-		obj->cache_level = I915_CACHE_NONE;
+		cache_level = I915_CACHE_LLC;
+	else
+		cache_level = I915_CACHE_NONE;
 
-	obj->cache_coherent = i915_gem_object_is_coherent(obj);
-	obj->cache_dirty = !obj->cache_coherent;
+	i915_gem_object_set_cache_coherency(obj, cache_level);
 
 	trace_i915_gem_object_create(obj);
 

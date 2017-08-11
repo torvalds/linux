@@ -33,7 +33,10 @@
 
 #include <drm/i915_drm.h>
 
+#include "i915_gem_request.h"
 #include "i915_selftest.h"
+
+struct drm_i915_gem_object;
 
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
@@ -118,8 +121,10 @@ struct drm_i915_gem_object {
 	 */
 	unsigned long gt_ro:1;
 	unsigned int cache_level:3;
+	unsigned int cache_coherent:2;
+#define I915_BO_CACHE_COHERENT_FOR_READ BIT(0)
+#define I915_BO_CACHE_COHERENT_FOR_WRITE BIT(1)
 	unsigned int cache_dirty:1;
-	unsigned int cache_coherent:1;
 
 	atomic_t frontbuffer_bits;
 	unsigned int frontbuffer_ggtt_origin; /* write once */
@@ -391,6 +396,8 @@ i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 	return engine;
 }
 
+void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
+					 unsigned int cache_level);
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
 
 #endif

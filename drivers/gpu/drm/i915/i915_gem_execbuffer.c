@@ -1842,7 +1842,19 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 			eb->request->capture_list = capture;
 		}
 
-		if (unlikely(obj->cache_dirty && !obj->cache_coherent)) {
+		/*
+		 * If the GPU is not _reading_ through the CPU cache, we need
+		 * to make sure that any writes (both previous GPU writes from
+		 * before a change in snooping levels and normal CPU writes)
+		 * caught in that cache are flushed to main memory.
+		 *
+		 * We want to say
+		 *   obj->cache_dirty &&
+		 *   !(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ)
+		 * but gcc's optimiser doesn't handle that as well and emits
+		 * two jumps instead of one. Maybe one day...
+		 */
+		if (unlikely(obj->cache_dirty & ~obj->cache_coherent)) {
 			if (i915_gem_clflush_object(obj, 0))
 				entry->flags &= ~EXEC_OBJECT_ASYNC;
 		}

@@ -580,6 +580,7 @@ _i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 			       struct drm_mm_node *stolen)
 {
 	struct drm_i915_gem_object *obj;
+	unsigned int cache_level;
 
 	obj = i915_gem_object_alloc(dev_priv);
 	if (obj == NULL)
@@ -590,8 +591,8 @@ _i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 
 	obj->stolen = stolen;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
-	obj->cache_level = HAS_LLC(dev_priv) ? I915_CACHE_LLC : I915_CACHE_NONE;
-	obj->cache_coherent = true; /* assumptions! more like cache_oblivious */
+	cache_level = HAS_LLC(dev_priv) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	i915_gem_object_set_cache_coherency(obj, cache_level);
 
 	if (i915_gem_object_pin_pages(obj))
 		goto cleanup;
