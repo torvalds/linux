@@ -304,8 +304,6 @@ host1x_bo_lookup(struct drm_file *file, u32 handle)
 	if (!gem)
 		return NULL;
 
-	drm_gem_object_put_unlocked(gem);
-
 	bo = to_tegra_bo(gem);
 	return &bo->base;
 }
@@ -394,8 +392,10 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		(void __user *)(uintptr_t)args->waitchks;
 	struct drm_tegra_syncpt syncpt;
 	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
+	struct drm_gem_object **refs;
 	struct host1x_syncpt *sp;
 	struct host1x_job *job;
+	unsigned int num_refs;
 	int err;
 
 	/* We don't yet support other than one syncpt_incr struct per submit */
@@ -416,6 +416,21 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	job->client = (u32)args->context;
 	job->class = context->client->base.class;
 	job->serialize = true;
+
+	/*
+	 * Track referenced BOs so that they can be unreferenced after the
+	 * submission is complete.
+	 */
+	num_refs = num_cmdbufs + num_relocs * 2 + num_waitchks;
+
+	refs = kmalloc_array(num_refs, sizeof(*refs), GFP_KERNEL);
+	if (!refs) {
+		err = -ENOMEM;
+		goto put;
+	}
+
+	/* reuse as an iterator later */
+	num_refs = 0;
 
 	while (num_cmdbufs) {
 		struct drm_tegra_cmdbuf cmdbuf;
@@ -445,6 +460,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 		offset = (u64)cmdbuf.offset + (u64)cmdbuf.words * sizeof(u32);
 		obj = host1x_to_tegra_bo(bo);
+		refs[num_refs++] = &obj->gem;
 
 		/*
 		 * Gather buffer base address must be 4-bytes aligned,
@@ -474,6 +490,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 		reloc = &job->relocarray[num_relocs];
 		obj = host1x_to_tegra_bo(reloc->cmdbuf.bo);
+		refs[num_refs++] = &obj->gem;
 
 		/*
 		 * The unaligned cmdbuf offset will cause an unaligned write
@@ -487,6 +504,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		}
 
 		obj = host1x_to_tegra_bo(reloc->target.bo);
+		refs[num_refs++] = &obj->gem;
 
 		if (reloc->target.offset >= obj->gem.size) {
 			err = -EINVAL;
@@ -506,6 +524,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 			goto fail;
 
 		obj = host1x_to_tegra_bo(wait->bo);
+		refs[num_refs++] = &obj->gem;
 
 		/*
 		 * The unaligned offset will cause an unaligned write during
@@ -545,17 +564,20 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		goto fail;
 
 	err = host1x_job_submit(job);
-	if (err)
-		goto fail_submit;
+	if (err) {
+		host1x_job_unpin(job);
+		goto fail;
+	}
 
 	args->fence = job->syncpt_end;
 
-	host1x_job_put(job);
-	return 0;
-
-fail_submit:
-	host1x_job_unpin(job);
 fail:
+	while (num_refs--)
+		drm_gem_object_put_unlocked(refs[num_refs]);
+
+	kfree(refs);
+
+put:
 	host1x_job_put(job);
 	return err;
 }
