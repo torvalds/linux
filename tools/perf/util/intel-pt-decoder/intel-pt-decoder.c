@@ -110,6 +110,7 @@ struct intel_pt_decoder {
 	bool have_tma;
 	bool have_cyc;
 	bool fixup_last_mtc;
+	bool have_last_ip;
 	uint64_t pos;
 	uint64_t last_ip;
 	uint64_t ip;
@@ -145,8 +146,6 @@ struct intel_pt_decoder {
 	bool have_calc_cyc_to_tsc;
 	int exec_mode;
 	unsigned int insn_bytes;
-	uint64_t sign_bit;
-	uint64_t sign_bits;
 	uint64_t period;
 	enum intel_pt_period_type period_type;
 	uint64_t tot_insn_cnt;
@@ -213,9 +212,6 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 	decoder->walk_insn          = params->walk_insn;
 	decoder->data               = params->data;
 	decoder->return_compression = params->return_compression;
-
-	decoder->sign_bit           = (uint64_t)1 << 47;
-	decoder->sign_bits          = ~(((uint64_t)1 << 48) - 1);
 
 	decoder->period             = params->period;
 	decoder->period_type        = params->period_type;
@@ -385,19 +381,28 @@ int intel_pt__strerror(int code, char *buf, size_t buflen)
 	return 0;
 }
 
-static uint64_t intel_pt_calc_ip(struct intel_pt_decoder *decoder,
-				 const struct intel_pt_pkt *packet,
+static uint64_t intel_pt_calc_ip(const struct intel_pt_pkt *packet,
 				 uint64_t last_ip)
 {
 	uint64_t ip;
 
 	switch (packet->count) {
-	case 2:
+	case 1:
 		ip = (last_ip & (uint64_t)0xffffffffffff0000ULL) |
 		     packet->payload;
 		break;
-	case 4:
+	case 2:
 		ip = (last_ip & (uint64_t)0xffffffff00000000ULL) |
+		     packet->payload;
+		break;
+	case 3:
+		ip = packet->payload;
+		/* Sign-extend 6-byte ip */
+		if (ip & (uint64_t)0x800000000000ULL)
+			ip |= (uint64_t)0xffff000000000000ULL;
+		break;
+	case 4:
+		ip = (last_ip & (uint64_t)0xffff000000000000ULL) |
 		     packet->payload;
 		break;
 	case 6:
@@ -407,16 +412,13 @@ static uint64_t intel_pt_calc_ip(struct intel_pt_decoder *decoder,
 		return 0;
 	}
 
-	if (ip & decoder->sign_bit)
-		return ip | decoder->sign_bits;
-
 	return ip;
 }
 
 static inline void intel_pt_set_last_ip(struct intel_pt_decoder *decoder)
 {
-	decoder->last_ip = intel_pt_calc_ip(decoder, &decoder->packet,
-					    decoder->last_ip);
+	decoder->last_ip = intel_pt_calc_ip(&decoder->packet, decoder->last_ip);
+	decoder->have_last_ip = true;
 }
 
 static inline void intel_pt_set_ip(struct intel_pt_decoder *decoder)
@@ -1436,7 +1438,8 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 
 		case INTEL_PT_FUP:
 			decoder->pge = true;
-			intel_pt_set_last_ip(decoder);
+			if (decoder->packet.count)
+				intel_pt_set_last_ip(decoder);
 			break;
 
 		case INTEL_PT_MODE_TSX:
@@ -1640,6 +1643,8 @@ next:
 			break;
 
 		case INTEL_PT_PSB:
+			decoder->last_ip = 0;
+			decoder->have_last_ip = true;
 			intel_pt_clear_stack(&decoder->stack);
 			err = intel_pt_walk_psbend(decoder);
 			if (err == -EAGAIN)
@@ -1718,6 +1723,13 @@ next:
 	}
 }
 
+static inline bool intel_pt_have_ip(struct intel_pt_decoder *decoder)
+{
+	return decoder->packet.count &&
+	       (decoder->have_last_ip || decoder->packet.count == 3 ||
+		decoder->packet.count == 6);
+}
+
 /* Walk PSB+ packets to get in sync. */
 static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 {
@@ -1739,8 +1751,7 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 
 		case INTEL_PT_FUP:
 			decoder->pge = true;
-			if (decoder->last_ip || decoder->packet.count == 6 ||
-			    decoder->packet.count == 0) {
+			if (intel_pt_have_ip(decoder)) {
 				uint64_t current_ip = decoder->ip;
 
 				intel_pt_set_ip(decoder);
@@ -1832,24 +1843,17 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 		case INTEL_PT_TIP_PGE:
 		case INTEL_PT_TIP:
 			decoder->pge = decoder->packet.type != INTEL_PT_TIP_PGD;
-			if (decoder->last_ip || decoder->packet.count == 6 ||
-			    decoder->packet.count == 0)
+			if (intel_pt_have_ip(decoder))
 				intel_pt_set_ip(decoder);
 			if (decoder->ip)
 				return 0;
 			break;
 
 		case INTEL_PT_FUP:
-			if (decoder->overflow) {
-				if (decoder->last_ip ||
-				    decoder->packet.count == 6 ||
-				    decoder->packet.count == 0)
-					intel_pt_set_ip(decoder);
-				if (decoder->ip)
-					return 0;
-			}
-			if (decoder->packet.count)
-				intel_pt_set_last_ip(decoder);
+			if (intel_pt_have_ip(decoder))
+				intel_pt_set_ip(decoder);
+			if (decoder->ip)
+				return 0;
 			break;
 
 		case INTEL_PT_MTC:
@@ -1898,6 +1902,8 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_PSB:
+			decoder->last_ip = 0;
+			decoder->have_last_ip = true;
 			intel_pt_clear_stack(&decoder->stack);
 			err = intel_pt_walk_psb(decoder);
 			if (err)
@@ -2034,6 +2040,7 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 
 	decoder->pge = false;
 	decoder->continuous_period = false;
+	decoder->have_last_ip = false;
 	decoder->last_ip = 0;
 	decoder->ip = 0;
 	intel_pt_clear_stack(&decoder->stack);
@@ -2042,6 +2049,7 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 	if (err)
 		return err;
 
+	decoder->have_last_ip = true;
 	decoder->pkt_state = INTEL_PT_STATE_NO_IP;
 
 	err = intel_pt_walk_psb(decoder);
@@ -2084,6 +2092,7 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 			err = intel_pt_sync(decoder);
 			break;
 		case INTEL_PT_STATE_NO_IP:
+			decoder->have_last_ip = false;
 			decoder->last_ip = 0;
 			decoder->ip = 0;
 			/* Fall through */

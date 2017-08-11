@@ -29,9 +29,8 @@
 #include "tpm.h"
 #include "tpm_eventlog.h"
 
-static DECLARE_BITMAP(dev_mask, TPM_NUM_DEVICES);
-static LIST_HEAD(tpm_chip_list);
-static DEFINE_SPINLOCK(driver_lock);
+DEFINE_IDR(dev_nums_idr);
+static DEFINE_MUTEX(idr_lock);
 
 struct class *tpm_class;
 dev_t tpm_devt;
@@ -92,20 +91,30 @@ EXPORT_SYMBOL_GPL(tpm_put_ops);
   */
 struct tpm_chip *tpm_chip_find_get(int chip_num)
 {
-	struct tpm_chip *pos, *chip = NULL;
+	struct tpm_chip *chip, *res = NULL;
+	int chip_prev;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(pos, &tpm_chip_list, list) {
-		if (chip_num != TPM_ANY_NUM && chip_num != pos->dev_num)
-			continue;
+	mutex_lock(&idr_lock);
 
-		/* rcu prevents chip from being free'd */
-		if (!tpm_try_get_ops(pos))
-			chip = pos;
-		break;
+	if (chip_num == TPM_ANY_NUM) {
+		chip_num = 0;
+		do {
+			chip_prev = chip_num;
+			chip = idr_get_next(&dev_nums_idr, &chip_num);
+			if (chip && !tpm_try_get_ops(chip)) {
+				res = chip;
+				break;
+			}
+		} while (chip_prev != chip_num);
+	} else {
+		chip = idr_find_slowpath(&dev_nums_idr, chip_num);
+		if (chip && !tpm_try_get_ops(chip))
+			res = chip;
 	}
-	rcu_read_unlock();
-	return chip;
+
+	mutex_unlock(&idr_lock);
+
+	return res;
 }
 
 /**
@@ -118,9 +127,10 @@ static void tpm_dev_release(struct device *dev)
 {
 	struct tpm_chip *chip = container_of(dev, struct tpm_chip, dev);
 
-	spin_lock(&driver_lock);
-	clear_bit(chip->dev_num, dev_mask);
-	spin_unlock(&driver_lock);
+	mutex_lock(&idr_lock);
+	idr_remove(&dev_nums_idr, chip->dev_num);
+	mutex_unlock(&idr_lock);
+
 	kfree(chip);
 }
 
@@ -173,6 +183,7 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 				 const struct tpm_class_ops *ops)
 {
 	struct tpm_chip *chip;
+	int rc;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
@@ -180,21 +191,18 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 
 	mutex_init(&chip->tpm_mutex);
 	init_rwsem(&chip->ops_sem);
-	INIT_LIST_HEAD(&chip->list);
 
 	chip->ops = ops;
 
-	spin_lock(&driver_lock);
-	chip->dev_num = find_first_zero_bit(dev_mask, TPM_NUM_DEVICES);
-	spin_unlock(&driver_lock);
-
-	if (chip->dev_num >= TPM_NUM_DEVICES) {
+	mutex_lock(&idr_lock);
+	rc = idr_alloc(&dev_nums_idr, NULL, 0, TPM_NUM_DEVICES, GFP_KERNEL);
+	mutex_unlock(&idr_lock);
+	if (rc < 0) {
 		dev_err(dev, "No available tpm device numbers\n");
 		kfree(chip);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(rc);
 	}
-
-	set_bit(chip->dev_num, dev_mask);
+	chip->dev_num = rc;
 
 	scnprintf(chip->devname, sizeof(chip->devname), "tpm%d", chip->dev_num);
 
@@ -252,19 +260,28 @@ static int tpm_add_char_device(struct tpm_chip *chip)
 		return rc;
 	}
 
+	/* Make the chip available. */
+	mutex_lock(&idr_lock);
+	idr_replace(&dev_nums_idr, chip, chip->dev_num);
+	mutex_unlock(&idr_lock);
+
 	return rc;
 }
 
 static void tpm_del_char_device(struct tpm_chip *chip)
 {
 	cdev_del(&chip->cdev);
+	device_del(&chip->dev);
+
+	/* Make the chip unavailable. */
+	mutex_lock(&idr_lock);
+	idr_replace(&dev_nums_idr, NULL, chip->dev_num);
+	mutex_unlock(&idr_lock);
 
 	/* Make the driver uncallable. */
 	down_write(&chip->ops_sem);
 	chip->ops = NULL;
 	up_write(&chip->ops_sem);
-
-	device_del(&chip->dev);
 }
 
 static int tpm1_chip_register(struct tpm_chip *chip)
@@ -319,11 +336,6 @@ int tpm_chip_register(struct tpm_chip *chip)
 	if (rc)
 		goto out_err;
 
-	/* Make the chip available. */
-	spin_lock(&driver_lock);
-	list_add_tail_rcu(&chip->list, &tpm_chip_list);
-	spin_unlock(&driver_lock);
-
 	chip->flags |= TPM_CHIP_FLAG_REGISTERED;
 
 	if (!(chip->flags & TPM_CHIP_FLAG_TPM2)) {
@@ -359,11 +371,6 @@ void tpm_chip_unregister(struct tpm_chip *chip)
 {
 	if (!(chip->flags & TPM_CHIP_FLAG_REGISTERED))
 		return;
-
-	spin_lock(&driver_lock);
-	list_del_rcu(&chip->list);
-	spin_unlock(&driver_lock);
-	synchronize_rcu();
 
 	if (!(chip->flags & TPM_CHIP_FLAG_TPM2))
 		sysfs_remove_link(&chip->dev.parent->kobj, "ppi");

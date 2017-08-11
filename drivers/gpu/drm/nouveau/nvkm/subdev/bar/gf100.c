@@ -129,7 +129,7 @@ gf100_bar_init(struct nvkm_bar *base)
 
 	if (bar->bar[0].mem) {
 		addr = nvkm_memory_addr(bar->bar[0].mem) >> 12;
-		nvkm_wr32(device, 0x001714, 0xc0000000 | addr);
+		nvkm_wr32(device, 0x001714, 0x80000000 | addr);
 	}
 
 	return 0;
