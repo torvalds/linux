@@ -1305,10 +1305,16 @@ void dc_update_planes_and_stream(struct dc *dc,
 		dc_resource_validate_ctx_copy_construct(
 				core_dc->current_context, context);
 
+		/*remove old surfaces from context */
+		if (!dc_rem_all_planes_for_stream(dc, stream, context)) {
+
+			BREAK_TO_DEBUGGER();
+			goto fail;
+		}
+
 		/* add surface to context */
-		if (!resource_attach_surfaces_to_context(
-				new_planes, surface_count, stream,
-				context, core_dc->res_pool)) {
+		if (!dc_add_all_planes_for_stream(dc, stream, new_planes, surface_count, context)) {
+
 			BREAK_TO_DEBUGGER();
 			goto fail;
 		}

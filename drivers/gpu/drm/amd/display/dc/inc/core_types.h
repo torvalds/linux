@@ -99,9 +99,6 @@ struct resource_funcs {
 
 	enum dc_status (*validate_global)(
 		struct dc *dc,
-		const struct dc_validation_set set[],
-		int set_count,
-		struct validate_context *old_context,
 		struct validate_context *context);
 
 	struct pipe_ctx *(*acquire_idle_pipe_for_layer)(

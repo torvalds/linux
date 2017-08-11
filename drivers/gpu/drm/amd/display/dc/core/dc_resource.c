@@ -946,6 +946,26 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
 	return NULL;
 }
 
+static struct pipe_ctx *resource_get_tail_pipe_for_stream(
+		struct resource_context *res_ctx,
+		struct dc_stream_state *stream)
+{
+	struct pipe_ctx *head_pipe, *tail_pipe;
+	head_pipe = resource_get_head_pipe_for_stream(res_ctx, stream);
+
+	if (!head_pipe)
+		return NULL;
+
+	tail_pipe = head_pipe->bottom_pipe;
+
+	while (tail_pipe) {
+		head_pipe = tail_pipe;
+		tail_pipe = tail_pipe->bottom_pipe;
+	}
+
+	return head_pipe;
+}
+
 /*
  * A free_pipe for a stream is defined here as a pipe
  * that has no surface attached yet
@@ -990,22 +1010,6 @@ static struct pipe_ctx *acquire_free_pipe_for_stream(
 
 }
 
-static void release_free_pipes_for_stream(
-		struct resource_context *res_ctx,
-		struct dc_stream_state *stream)
-{
-	int i;
-
-	for (i = MAX_PIPES - 1; i >= 0; i--) {
-		/* never release the topmost pipe*/
-		if (res_ctx->pipe_ctx[i].stream == stream &&
-				res_ctx->pipe_ctx[i].top_pipe &&
-				!res_ctx->pipe_ctx[i].plane_state) {
-			memset(&res_ctx->pipe_ctx[i], 0, sizeof(struct pipe_ctx));
-		}
-	}
-}
-
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 static int acquire_first_split_pipe(
 		struct resource_context *res_ctx,
@@ -1040,23 +1044,16 @@ static int acquire_first_split_pipe(
 }
 #endif
 
-bool resource_attach_surfaces_to_context(
-		struct dc_plane_state * const *plane_states,
-		int surface_count,
+bool dc_add_plane_to_context(
+		const struct dc *dc,
 		struct dc_stream_state *stream,
-		struct validate_context *context,
-		const struct resource_pool *pool)
+		struct dc_plane_state *plane_state,
+		struct validate_context *context)
 {
 	int i;
-	struct pipe_ctx *tail_pipe;
+	struct resource_pool *pool = dc->res_pool;
+	struct pipe_ctx *head_pipe, *tail_pipe, *free_pipe;
 	struct dc_stream_status *stream_status = NULL;
-
-
-	if (surface_count > MAX_SURFACE_NUM) {
-		dm_error("Surface: can not attach %d surfaces! Maximum is: %d\n",
-			surface_count, MAX_SURFACE_NUM);
-		return false;
-	}
 
 	for (i = 0; i < context->stream_count; i++)
 		if (context->streams[i] == stream) {
@@ -1064,71 +1061,217 @@ bool resource_attach_surfaces_to_context(
 			break;
 		}
 	if (stream_status == NULL) {
-		dm_error("Existing stream not found; failed to attach surfaces\n");
+		dm_error("Existing stream not found; failed to attach surface!\n");
+		return false;
+	}
+
+
+	if (stream_status->plane_count == MAX_SURFACE_NUM) {
+		dm_error("Surface: can not attach plane_state %p! Maximum is: %d\n",
+				plane_state, MAX_SURFACE_NUM);
+		return false;
+	}
+
+	head_pipe = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
+
+	if (!head_pipe) {
+		dm_error("Head pipe not found for stream_state %p !\n", stream);
 		return false;
 	}
 
 	/* retain new surfaces */
-	for (i = 0; i < surface_count; i++)
-		dc_plane_state_retain(plane_states[i]);
+	dc_plane_state_retain(plane_state);
 
-	/* detach surfaces from pipes */
-	for (i = 0; i < pool->pipe_count; i++)
-		if (context->res_ctx.pipe_ctx[i].stream == stream) {
-			context->res_ctx.pipe_ctx[i].plane_state = NULL;
-			context->res_ctx.pipe_ctx[i].bottom_pipe = NULL;
-		}
-
-	/* release existing surfaces*/
-	for (i = 0; i < stream_status->plane_count; i++)
-		dc_plane_state_release(stream_status->plane_states[i]);
-
-	for (i = surface_count; i < stream_status->plane_count; i++)
-		stream_status->plane_states[i] = NULL;
-
-	tail_pipe = NULL;
-	for (i = 0; i < surface_count; i++) {
-		struct dc_plane_state *plane_state = plane_states[i];
-		struct pipe_ctx *free_pipe = acquire_free_pipe_for_stream(
-				context, pool, stream);
+	free_pipe = acquire_free_pipe_for_stream(context, pool, stream);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-		if (!free_pipe) {
-			int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
-			if (pipe_idx >= 0)
-				free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
-		}
+	if (!free_pipe) {
+		int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
+		if (pipe_idx >= 0)
+			free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
+	}
 #endif
-		if (!free_pipe) {
-			stream_status->plane_states[i] = NULL;
-			return false;
-		}
-
-		free_pipe->plane_state = plane_state;
-
-		if (tail_pipe) {
-			free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
-			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
-			free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
-			free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
-			free_pipe->clock_source = tail_pipe->clock_source;
-			free_pipe->top_pipe = tail_pipe;
-			tail_pipe->bottom_pipe = free_pipe;
-		}
-
-		tail_pipe = free_pipe;
+	if (!free_pipe) {
+		stream_status->plane_states[i] = NULL;
+		return false;
 	}
 
-	release_free_pipes_for_stream(&context->res_ctx, stream);
+	free_pipe->plane_state = plane_state;
+
+	if (head_pipe != free_pipe) {
+
+		tail_pipe = resource_get_tail_pipe_for_stream(&context->res_ctx, stream);
+		ASSERT(tail_pipe);
+
+		free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
+		free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
+		free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
+		free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
+		free_pipe->clock_source = tail_pipe->clock_source;
+		free_pipe->top_pipe = tail_pipe;
+		tail_pipe->bottom_pipe = free_pipe;
+	}
 
 	/* assign new surfaces*/
-	for (i = 0; i < surface_count; i++)
-		stream_status->plane_states[i] = plane_states[i];
+	stream_status->plane_states[stream_status->plane_count] = plane_state;
 
-	stream_status->plane_count = surface_count;
+	stream_status->plane_count++;
 
 	return true;
 }
+
+bool dc_remove_plane_from_context(
+		const struct dc *dc,
+		struct dc_stream_state *stream,
+		struct dc_plane_state *plane_state,
+		struct validate_context *context)
+{
+	int i;
+	struct dc_stream_status *stream_status = NULL;
+	struct resource_pool *pool = dc->res_pool;
+
+	for (i = 0; i < context->stream_count; i++)
+		if (context->streams[i] == stream) {
+			stream_status = &context->stream_status[i];
+			break;
+		}
+
+	if (stream_status == NULL) {
+		dm_error("Existing stream not found; failed to remove plane.\n");
+		return false;
+	}
+
+	/* release pipe for plane*/
+	for (i = pool->pipe_count - 1; i >= 0; i--) {
+		struct pipe_ctx *pipe_ctx;
+
+		if (context->res_ctx.pipe_ctx[i].plane_state == plane_state) {
+			pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			if (pipe_ctx->top_pipe)
+				pipe_ctx->top_pipe->bottom_pipe = pipe_ctx->bottom_pipe;
+
+			/* Second condition is to avoid setting NULL to top pipe
+			 * of tail pipe making it look like head pipe in subsequent
+			 * deletes
+			 */
+			if (pipe_ctx->bottom_pipe && pipe_ctx->top_pipe)
+				pipe_ctx->bottom_pipe->top_pipe = pipe_ctx->top_pipe;
+
+			/*
+			 * For head pipe detach surfaces from pipe for tail
+			 * pipe just zero it out
+			 */
+			if (!pipe_ctx->top_pipe) {
+				pipe_ctx->plane_state = NULL;
+				pipe_ctx->bottom_pipe = NULL;
+			} else  {
+				memset(pipe_ctx, 0, sizeof(*pipe_ctx));
+			}
+		}
+	}
+
+
+	for (i = 0; i < stream_status->plane_count; i++) {
+		if (stream_status->plane_states[i] == plane_state) {
+
+			dc_plane_state_release(stream_status->plane_states[i]);
+			break;
+		}
+	}
+
+	if (i == stream_status->plane_count) {
+		dm_error("Existing plane_state not found; failed to detach it!\n");
+		return false;
+	}
+
+	stream_status->plane_count--;
+
+	/* Trim back arrays */
+	for (i = 0; i < stream_status->plane_count; i++)
+		stream_status->plane_states[i] = stream_status->plane_states[i + 1];
+
+	stream_status->plane_states[stream_status->plane_count] = NULL;
+
+	return true;
+}
+
+bool dc_rem_all_planes_for_stream(
+		const struct dc *dc,
+		struct dc_stream_state *stream,
+		struct validate_context *context)
+{
+	int i, old_plane_count;
+	struct dc_stream_status *stream_status = NULL;
+	struct dc_plane_state *del_planes[MAX_SURFACE_NUM] = { 0 };
+
+	for (i = 0; i < context->stream_count; i++)
+			if (context->streams[i] == stream) {
+				stream_status = &context->stream_status[i];
+				break;
+			}
+
+	if (stream_status == NULL) {
+		dm_error("Existing stream %p not found!\n", stream);
+		return false;
+	}
+
+	old_plane_count = stream_status->plane_count;
+
+	for (i = 0; i < old_plane_count; i++)
+		del_planes[i] = stream_status->plane_states[i];
+
+	for (i = 0; i < old_plane_count; i++)
+		if (!dc_remove_plane_from_context(dc, stream, del_planes[i], context))
+			return false;
+
+	return true;
+}
+
+static bool add_all_planes_for_stream(
+		const struct dc *dc,
+		struct dc_stream_state *stream,
+		const struct dc_validation_set set[],
+		int set_count,
+		struct validate_context *context)
+{
+	int i, j;
+
+	for (i = 0; i < set_count; i++)
+		if (set[i].stream == stream)
+			break;
+
+	if (i == set_count) {
+		dm_error("Stream %p not found in set!\n", stream);
+		return false;
+	}
+
+	for (j = 0; j < set[i].plane_count; j++)
+		if (!dc_add_plane_to_context(dc, stream, set[i].plane_states[j], context))
+			return false;
+
+	return true;
+}
+
+bool dc_add_all_planes_for_stream(
+		const struct dc *dc,
+		struct dc_stream_state *stream,
+		struct dc_plane_state * const *plane_states,
+		int plane_count,
+		struct validate_context *context)
+{
+	struct dc_validation_set set;
+	int i;
+
+	set.stream = stream;
+	set.plane_count = plane_count;
+
+	for (i = 0; i < plane_count; i++)
+		set.plane_states[i] = plane_states[i];
+
+	return add_all_planes_for_stream(dc, stream, &set, 1, context);
+}
+
 
 
 static bool is_timing_changed(struct dc_stream_state *cur_stream,
@@ -1174,41 +1317,6 @@ bool dc_is_stream_unchanged(
 
 	if (!are_stream_backends_same(old_stream, stream))
 		return false;
-
-	return true;
-}
-
-bool resource_validate_attach_surfaces(
-		const struct dc_validation_set set[],
-		int set_count,
-		const struct validate_context *old_context,
-		struct validate_context *context,
-		const struct resource_pool *pool)
-{
-	int i, j;
-
-	for (i = 0; i < set_count; i++) {
-		for (j = 0; old_context && j < old_context->stream_count; j++)
-			if (dc_is_stream_unchanged(
-					old_context->streams[j],
-					context->streams[i])) {
-				if (!resource_attach_surfaces_to_context(
-						old_context->stream_status[j].plane_states,
-						old_context->stream_status[j].plane_count,
-						context->streams[i],
-						context, pool))
-					return false;
-				context->stream_status[i] = old_context->stream_status[j];
-			}
-		if (set[i].plane_count != 0)
-			if (!resource_attach_surfaces_to_context(
-					set[i].plane_states,
-					set[i].plane_count,
-					context->streams[i],
-					context, pool))
-				return false;
-
-	}
 
 	return true;
 }
@@ -1392,23 +1500,22 @@ bool dc_remove_stream_from_ctx(
 			struct validate_context *new_ctx,
 			struct dc_stream_state *stream)
 {
-	int i, j;
+	int i;
 	struct dc_context *dc_ctx = dc->ctx;
 	struct pipe_ctx *del_pipe = NULL;
 
-	/*TODO MPO to remove extra pipe or in surface remove ?*/
-
-	/* Release primary and secondary pipe (if exsist) */
+	/* Release primary pipe */
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (new_ctx->res_ctx.pipe_ctx[i].stream == stream) {
+		if (new_ctx->res_ctx.pipe_ctx[i].stream == stream &&
+				!new_ctx->res_ctx.pipe_ctx[i].top_pipe) {
 			del_pipe = &new_ctx->res_ctx.pipe_ctx[i];
 
-			if (del_pipe->stream_res.stream_enc)
-				update_stream_engine_usage(
-						&new_ctx->res_ctx,
+			ASSERT(del_pipe->stream_res.stream_enc);
+			update_stream_engine_usage(
+					&new_ctx->res_ctx,
 						dc->res_pool,
-						del_pipe->stream_res.stream_enc,
-						false);
+					del_pipe->stream_res.stream_enc,
+					false);
 
 			if (del_pipe->stream_res.audio)
 				update_audio_usage(
@@ -1418,6 +1525,8 @@ bool dc_remove_stream_from_ctx(
 					false);
 
 			memset(del_pipe, 0, sizeof(*del_pipe));
+
+			break;
 		}
 	}
 
@@ -1437,10 +1546,6 @@ bool dc_remove_stream_from_ctx(
 
 	dc_stream_release(new_ctx->streams[i]);
 	new_ctx->stream_count--;
-
-	/*TODO move into dc_remove_surface_from_ctx	?*/
-	for (j = 0; j < new_ctx->stream_status[i].plane_count; j++)
-		dc_plane_state_release(new_ctx->stream_status[i].plane_states[j]);
 
 	/* Trim back arrays */
 	for (; i < new_ctx->stream_count; i++) {
@@ -1636,18 +1741,14 @@ void dc_resource_validate_ctx_copy_construct_current(
 
 bool dc_validate_global_state(
 		struct dc *dc,
-		const struct dc_validation_set set[],
-		int set_count,
 		struct validate_context *new_ctx)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
-	struct dc_context *dc_ctx = dc->ctx;
-	struct validate_context *old_context = dc->current_context;
 	int i, j;
 
 	if (dc->res_pool->funcs->validate_global &&
-	    dc->res_pool->funcs->validate_global(dc, set, set_count,
-						 old_context, new_ctx) != DC_OK)
+			dc->res_pool->funcs->validate_global(
+			dc, new_ctx) != DC_OK)
 		return false;
 
 	/* TODO without this SWDEV-114774 brakes */
@@ -1685,15 +1786,6 @@ bool dc_validate_global_state(
 						 pipe_ctx->clock_source);
 			}
 		}
-	}
-
-	/*TODO This should be ok */
-	/* Split pipe resource, do not acquire back end */
-
-	if (!resource_validate_attach_surfaces(
-			set, set_count, old_context, new_ctx, dc->res_pool)) {
-		DC_ERROR("Failed to attach surface to stream!\n");
-		return DC_FAIL_ATTACH_SURFACES;
 	}
 
 	result = resource_build_scaling_params_for_context(dc, new_ctx);

@@ -619,15 +619,40 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 				  uint32_t *h_position,
 				  uint32_t *v_position);
 
-bool dc_remove_stream_from_ctx(
+bool dc_add_stream_to_ctx(
 			struct dc *dc,
+		struct validate_context *new_ctx,
+		struct dc_stream_state *stream);
+
+bool dc_remove_stream_from_ctx(
+		struct dc *dc,
 			struct validate_context *new_ctx,
 			struct dc_stream_state *stream);
 
-bool dc_add_stream_to_ctx(
-		struct dc *dc,
-		struct validate_context *new_ctx,
-		struct dc_stream_state *stream);
+
+bool dc_add_plane_to_context(
+		const struct dc *dc,
+		struct dc_stream_state *stream,
+		struct dc_plane_state *plane_state,
+		struct validate_context *context);
+
+bool dc_remove_plane_from_context(
+		const struct dc *dc,
+		struct dc_stream_state *stream,
+		struct dc_plane_state *plane_state,
+		struct validate_context *context);
+
+bool dc_rem_all_planes_for_stream(
+		const struct dc *dc,
+		struct dc_stream_state *stream,
+		struct validate_context *context);
+
+bool dc_add_all_planes_for_stream(
+		const struct dc *dc,
+		struct dc_stream_state *stream,
+		struct dc_plane_state * const *plane_states,
+		int plane_count,
+		struct validate_context *context);
 
 /*
  * Structure to store surface/stream associations for validation
@@ -644,8 +669,6 @@ bool dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
 bool dc_validate_global_state(
 		struct dc *dc,
-		const struct dc_validation_set set[],
-		int set_count,
 		struct validate_context *new_ctx);
 
 /*

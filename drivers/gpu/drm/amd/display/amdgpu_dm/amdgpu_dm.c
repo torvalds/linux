@@ -4304,77 +4304,6 @@ void dm_restore_drm_connector_state(struct drm_device *dev, struct drm_connector
 		dm_force_atomic_commit(&aconnector->base);
 }
 
-static uint32_t add_val_sets_plane(
-	struct dc_validation_set *val_sets,
-	uint32_t set_count,
-	const struct dc_stream_state *stream,
-	struct dc_plane_state *plane_state)
-{
-	uint32_t i = 0, j = 0;
-
-	while (i < set_count) {
-		if (val_sets[i].stream == stream) {
-			while (val_sets[i].plane_states[j])
-				j++;
-			break;
-		}
-		++i;
-	}
-
-	val_sets[i].plane_states[j] = plane_state;
-	val_sets[i].plane_count++;
-
-	return val_sets[i].plane_count;
-}
-
-static uint32_t update_in_val_sets_stream(
-	struct dc_validation_set *val_sets,
-	uint32_t set_count,
-	struct dc_stream_state *old_stream,
-	struct dc_stream_state *new_stream,
-	struct drm_crtc *crtc)
-{
-	uint32_t i = 0;
-
-	while (i < set_count) {
-		if (val_sets[i].stream == old_stream)
-			break;
-		++i;
-	}
-
-	val_sets[i].stream = new_stream;
-
-	if (i == set_count)
-		/* nothing found. add new one to the end */
-		return set_count + 1;
-
-	return set_count;
-}
-
-static uint32_t remove_from_val_sets(
-	struct dc_validation_set *val_sets,
-	uint32_t set_count,
-	const struct dc_stream_state *stream)
-{
-	int i;
-
-	for (i = 0; i < set_count; i++)
-		if (val_sets[i].stream == stream)
-			break;
-
-	if (i == set_count) {
-		/* nothing found */
-		return set_count;
-	}
-
-	set_count--;
-
-	for (; i < set_count; i++)
-		val_sets[i] = val_sets[i + 1];
-
-	return set_count;
-}
-
 /*`
  * Grabs all modesetting locks to serialize against any blocking commits,
  * Waits for completion of all non blocking commits.
@@ -4438,10 +4367,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	struct dc *dc = adev->dm.dc;
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
-	int set_count;
-	struct dc_validation_set set[MAX_STREAMS] = { { 0 } };
 	struct dm_crtc_state *old_acrtc_state, *new_acrtc_state;
 	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
+	bool pflip_needed  = !state->allow_modeset;
 
 	/*
 	 * This bool will be set for true for any modeset/reset
@@ -4460,16 +4388,44 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	ASSERT(dm_state->context);
 	dc_resource_validate_ctx_copy_construct_current(dc, dm_state->context);
 
-	/* copy existing configuration */
-	set_count = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+	/* Remove exiting planes if they are disabled or their CRTC is updated */
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		new_acrtc_state = to_dm_crtc_state(crtc_state);
 
-		old_acrtc_state = to_dm_crtc_state(crtc->state);
+		if (pflip_needed)
+			continue;
 
-		if (old_acrtc_state->stream) {
-			dc_stream_retain(old_acrtc_state->stream);
-			set[set_count].stream = old_acrtc_state->stream;
-			++set_count;
+		for_each_plane_in_state(state, plane, plane_state, j) {
+			struct drm_crtc *plane_crtc = plane_state->crtc;
+			struct dm_plane_state *dm_plane_state = to_dm_plane_state(plane_state);
+
+			if (plane->type == DRM_PLANE_TYPE_CURSOR)
+				continue;
+
+			if (crtc != plane_crtc || !dm_plane_state->dc_state)
+				continue;
+
+			WARN_ON(!new_acrtc_state->stream);
+
+			if (drm_atomic_plane_disabling(plane->state, plane_state) ||
+					drm_atomic_crtc_needs_modeset(crtc_state)) {
+				if (!dc_remove_plane_from_context(
+						dc,
+						new_acrtc_state->stream,
+						dm_plane_state->dc_state,
+						dm_state->context)) {
+
+					ret = EINVAL;
+					goto fail;
+				}
+
+			}
+
+			dc_plane_state_release(dm_plane_state->dc_state);
+			dm_plane_state->dc_state = NULL;
+
+			DRM_DEBUG_KMS("Disabling DRM plane: %d on DRM crtc %d\n",
+					plane->base.id, crtc->base.id);
 		}
 	}
 
@@ -4512,11 +4468,6 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 					ret = -EINVAL;
 					goto fail;
 				}
-
-				set_count = remove_from_val_sets(
-						set,
-						set_count,
-						new_acrtc_state->stream);
 
 				dc_stream_release(new_acrtc_state->stream);
 				new_acrtc_state->stream = NULL;
@@ -4576,13 +4527,6 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 				new_acrtc_state->stream = new_stream;
 
-				set_count = update_in_val_sets_stream(
-						set,
-						set_count,
-						old_acrtc_state->stream,
-						new_acrtc_state->stream,
-						crtc);
-
 				if (!dc_add_stream_to_ctx(
 						dc,
 						dm_state->context,
@@ -4639,32 +4583,32 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		lock_and_validation_needed = true;
 	}
 
+	/* Add new planes */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		new_acrtc_state = to_dm_crtc_state(crtc_state);
 
+		if (pflip_needed)
+			continue;
+
 		for_each_plane_in_state(state, plane, plane_state, j) {
 			struct drm_crtc *plane_crtc = plane_state->crtc;
-			struct drm_framebuffer *fb = plane_state->fb;
-			bool pflip_needed;
 			struct dm_plane_state *dm_plane_state = to_dm_plane_state(plane_state);
 
 			/*TODO Implement atomic check for cursor plane */
 			if (plane->type == DRM_PLANE_TYPE_CURSOR)
 				continue;
 
-			if (!fb || !plane_crtc || crtc != plane_crtc || !crtc_state->active)
+			if (crtc != plane_crtc)
 				continue;
 
-			WARN_ON(!new_acrtc_state->stream);
-
-			pflip_needed = !state->allow_modeset;
-			if (!pflip_needed) {
+			if (!drm_atomic_plane_disabling(plane->state, plane_state)) {
 				struct dc_plane_state *dc_plane_state;
+
+				WARN_ON(!new_acrtc_state->stream);
 
 				dc_plane_state = dc_create_plane_state(dc);
 
-				if (dm_plane_state->dc_state)
-					dc_plane_state_release(dm_plane_state->dc_state);
+				WARN_ON(dm_plane_state->dc_state);
 
 				dm_plane_state->dc_state = dc_plane_state;
 
@@ -4677,10 +4621,17 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 				if (ret)
 					goto fail;
 
-				add_val_sets_plane(set,
-						     set_count,
-						     new_acrtc_state->stream,
-						     dc_plane_state);
+
+				if (!dc_add_plane_to_context(
+						dc,
+						new_acrtc_state->stream,
+						dc_plane_state,
+						dm_state->context)) {
+
+					ret = EINVAL;
+					goto fail;
+				}
+
 
 				lock_and_validation_needed = true;
 			}
@@ -4708,7 +4659,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		if (ret)
 			goto fail;
 
-		if (!dc_validate_global_state(dc, set, set_count, dm_state->context)) {
+		if (!dc_validate_global_state(dc, dm_state->context)) {
 			ret = -EINVAL;
 			goto fail;
 		}

@@ -880,31 +880,30 @@ static bool dce110_validate_bandwidth(
 }
 
 static bool dce110_validate_surface_sets(
-		const struct dc_validation_set set[],
-		int set_count)
+		struct validate_context *context)
 {
 	int i;
 
-	for (i = 0; i < set_count; i++) {
-		if (set[i].plane_count == 0)
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->stream_status[i].plane_count == 0)
 			continue;
 
-		if (set[i].plane_count > 2)
+		if (context->stream_status[i].plane_count > 2)
 			return false;
 
-		if (set[i].plane_states[0]->format
+		if (context->stream_status[i].plane_states[0]->format
 				>= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 			return false;
 
-		if (set[i].plane_count == 2) {
-			if (set[i].plane_states[1]->format
+		if (context->stream_status[i].plane_count == 2) {
+			if (context->stream_status[i].plane_states[1]->format
 					< SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 				return false;
-			if (set[i].plane_states[1]->src_rect.width > 1920
-					|| set[i].plane_states[1]->src_rect.height > 1080)
+			if (context->stream_status[i].plane_states[1]->src_rect.width > 1920
+					|| context->stream_status[i].plane_states[1]->src_rect.height > 1080)
 				return false;
 
-			if (set[i].stream->timing.pixel_encoding != PIXEL_ENCODING_RGB)
+			if (context->streams[i]->timing.pixel_encoding != PIXEL_ENCODING_RGB)
 				return false;
 		}
 	}
@@ -914,12 +913,9 @@ static bool dce110_validate_surface_sets(
 
 enum dc_status dce110_validate_global(
 		struct dc *dc,
-		const struct dc_validation_set set[],
-		int set_count,
-		struct validate_context *old_context,
 		struct validate_context *context)
 {
-	if (!dce110_validate_surface_sets(set, set_count))
+	if (!dce110_validate_surface_sets(context))
 		return DC_FAIL_SURFACE_VALIDATE;
 
 	return DC_OK;
