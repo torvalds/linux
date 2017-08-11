@@ -1992,9 +1992,9 @@ struct sctp_cmsgs {
 };
 
 /* Structure for tracking memory objects */
-typedef struct {
+struct sctp_dbg_objcnt_entry {
 	char *label;
 	atomic_t *counter;
-} sctp_dbg_objcnt_entry_t;
+};
 
 #endif /* __sctp_structs_h__ */
