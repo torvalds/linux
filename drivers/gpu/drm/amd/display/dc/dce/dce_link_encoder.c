@@ -744,7 +744,7 @@ void dce110_link_encoder_edp_backlight_control(
 		return;
 	}
 
-	if (!enable && !is_panel_powered_on(enc110)) {
+	if (!enable && !is_panel_backlight_on(enc110)) {
 		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
 				"%s: panel already powered down. Do nothing.\n",
 				__func__);

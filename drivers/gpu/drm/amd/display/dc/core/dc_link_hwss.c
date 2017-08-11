@@ -110,6 +110,28 @@ void dp_enable_link_phy(
 	dp_receiver_power_ctrl(link, true);
 }
 
+bool edp_receiver_ready_T9(struct dc_link *link)
+{
+	unsigned int tries = 0;
+	unsigned char sinkstatus = 0;
+	unsigned char edpRev = 0;
+	enum dc_status result = DC_OK;
+	result = core_link_read_dpcd(link, DP_EDP_DPCD_REV, &edpRev, sizeof(edpRev));
+	if (edpRev < DP_EDP_12)
+		return true;
+	/* start from eDP version 1.2, SINK_STAUS indicate the sink is ready.*/
+	do {
+		sinkstatus = 1;
+		result = core_link_read_dpcd(link, DP_SINK_STATUS, &sinkstatus, sizeof(sinkstatus));
+		if (sinkstatus == 0)
+			break;
+		if (result != DC_OK)
+			break;
+		dm_delay_in_microseconds(link->ctx, 100); //MAx T9
+	} while (++tries < 50);
+	return result;
+}
+
 void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 {
 	if (!link->wa_flags.dp_keep_receiver_powered)
@@ -117,6 +139,7 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 
 	if (signal == SIGNAL_TYPE_EDP) {
 		link->link_enc->funcs->backlight_control(link->link_enc, false);
+		edp_receiver_ready_T9(link);
 		link->link_enc->funcs->disable_output(link->link_enc, signal);
 		link->link_enc->funcs->power_control(link->link_enc, false);
 	} else
