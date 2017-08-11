@@ -3820,8 +3820,7 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
 }
 
 int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
-				u64 fault_address, char *insn, int insn_len,
-				bool need_unprotect)
+				u64 fault_address, char *insn, int insn_len)
 {
 	int r = 1;
 
@@ -3829,7 +3828,7 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 	default:
 		trace_kvm_page_fault(fault_address, error_code);
 
-		if (need_unprotect && kvm_event_needs_reinjection(vcpu))
+		if (kvm_event_needs_reinjection(vcpu))
 			kvm_mmu_unprotect_page_virt(vcpu, fault_address);
 		r = kvm_mmu_page_fault(vcpu, fault_address, error_code, insn,
 				insn_len);

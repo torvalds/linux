@@ -2141,7 +2141,18 @@ static int pf_interception(struct vcpu_svm *svm)
 
 	return kvm_handle_page_fault(&svm->vcpu, error_code, fault_address,
 			svm->vmcb->control.insn_bytes,
-			svm->vmcb->control.insn_len, !npt_enabled);
+			svm->vmcb->control.insn_len);
+}
+
+static int npf_interception(struct vcpu_svm *svm)
+{
+	u64 fault_address = svm->vmcb->control.exit_info_2;
+	u64 error_code = svm->vmcb->control.exit_info_1;
+
+	trace_kvm_page_fault(fault_address, error_code);
+	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code,
+			svm->vmcb->control.insn_bytes,
+			svm->vmcb->control.insn_len);
 }
 
 static int db_interception(struct vcpu_svm *svm)
@@ -4128,7 +4139,7 @@ static int (*const svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_MONITOR]			= monitor_interception,
 	[SVM_EXIT_MWAIT]			= mwait_interception,
 	[SVM_EXIT_XSETBV]			= xsetbv_interception,
-	[SVM_EXIT_NPF]				= pf_interception,
+	[SVM_EXIT_NPF]				= npf_interception,
 	[SVM_EXIT_RSM]                          = emulate_on_interception,
 	[SVM_EXIT_AVIC_INCOMPLETE_IPI]		= avic_incomplete_ipi_interception,
 	[SVM_EXIT_AVIC_UNACCELERATED_ACCESS]	= avic_unaccelerated_access_interception,

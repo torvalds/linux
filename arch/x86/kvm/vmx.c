@@ -5894,8 +5894,7 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 		cr2 = vmcs_readl(EXIT_QUALIFICATION);
 		/* EPT won't cause page fault directly */
 		WARN_ON_ONCE(!vcpu->arch.apf.host_apf_reason && enable_ept);
-		return kvm_handle_page_fault(vcpu, error_code, cr2, NULL, 0,
-				true);
+		return kvm_handle_page_fault(vcpu, error_code, cr2, NULL, 0);
 	}
 
 	ex_no = intr_info & INTR_INFO_VECTOR_MASK;
