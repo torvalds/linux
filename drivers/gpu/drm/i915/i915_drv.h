@@ -3194,7 +3194,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 void intel_hpd_init(struct drm_i915_private *dev_priv);
 void intel_hpd_init_work(struct drm_i915_private *dev_priv);
 void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
-bool intel_hpd_pin_to_port(enum hpd_pin pin, enum port *port);
+enum port intel_hpd_pin_to_port(enum hpd_pin pin);
 bool intel_hpd_disable(struct drm_i915_private *dev_priv, enum hpd_pin pin);
 void intel_hpd_enable(struct drm_i915_private *dev_priv, enum hpd_pin pin);
 

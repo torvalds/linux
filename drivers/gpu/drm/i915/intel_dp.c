@@ -4578,7 +4578,7 @@ static bool bxt_digital_port_connected(struct drm_i915_private *dev_priv,
 	enum port port;
 	u32 bit;
 
-	intel_hpd_pin_to_port(intel_encoder->hpd_pin, &port);
+	port = intel_hpd_pin_to_port(intel_encoder->hpd_pin);
 	switch (port) {
 	case PORT_A:
 		bit = BXT_DE_PORT_HP_DDIA;

@@ -1501,7 +1501,8 @@ static void intel_get_hpd_pins(u32 *pin_mask, u32 *long_mask,
 
 		*pin_mask |= BIT(i);
 
-		if (!intel_hpd_pin_to_port(i, &port))
+		port = intel_hpd_pin_to_port(i);
+		if (port == PORT_NONE)
 			continue;
 
 		if (long_pulse_detect(port, dig_hotplug_reg))
