@@ -388,10 +388,9 @@ struct sport_device *sport_create(struct platform_device *pdev)
 	int ret;
 
 	sport = kzalloc(sizeof(*sport), GFP_KERNEL);
-	if (!sport) {
-		dev_err(dev, "Unable to allocate memory for sport device\n");
+	if (!sport)
 		return NULL;
-	}
+
 	sport->pdev = pdev;
 
 	ret = sport_get_resource(sport);
