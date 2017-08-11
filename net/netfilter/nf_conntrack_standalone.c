@@ -198,6 +198,16 @@ ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 }
 #endif
 
+static const char* l3proto_name(u16 proto)
+{
+	switch (proto) {
+	case AF_INET: return "ipv4";
+	case AF_INET6: return "ipv6";
+	}
+
+	return "unknown";
+}
+
 /* return 0 on success, 1 in case of error */
 static int ct_seq_show(struct seq_file *s, void *v)
 {
@@ -231,7 +241,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 	ret = -ENOSPC;
 	seq_printf(s, "%-8s %u %-8s %u %ld ",
-		   l3proto->name, nf_ct_l3num(ct),
+		   l3proto_name(l3proto->l3proto), nf_ct_l3num(ct),
 		   l4proto->name, nf_ct_protonum(ct),
 		   nf_ct_expires(ct)  / HZ);
 

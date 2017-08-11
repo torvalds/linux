@@ -23,9 +23,6 @@ struct nf_conntrack_l3proto {
 	/* size of tuple nlattr, fills a hole */
 	u16 nla_size;
 
-	/* Protocol name */
-	const char *name;
-
 	/*
 	 * Try to fill in the third arg: nhoff is offset of l3 proto
          * hdr.  Return true if possible.
