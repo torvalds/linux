@@ -141,6 +141,15 @@ In precedence order, they are:
 	allow use of ptrace, even of other sandboxed processes, without
 	extreme care; ptracers can use this mechanism to escape.)
 
+``SECCOMP_RET_LOG``:
+	Results in the system call being executed after it is logged. This
+	should be used by application developers to learn which syscalls their
+	application needs without having to iterate through multiple test and
+	development cycles to build the list.
+
+	This action will only be logged if "log" is present in the
+	actions_logged sysctl string.
+
 ``SECCOMP_RET_ALLOW``:
 	Results in the system call being executed.
 

@@ -533,10 +533,12 @@ static void seccomp_send_sigsys(int syscall, int reason)
 #define SECCOMP_LOG_TRAP		(1 << 2)
 #define SECCOMP_LOG_ERRNO		(1 << 3)
 #define SECCOMP_LOG_TRACE		(1 << 4)
-#define SECCOMP_LOG_ALLOW		(1 << 5)
+#define SECCOMP_LOG_LOG			(1 << 5)
+#define SECCOMP_LOG_ALLOW		(1 << 6)
 
 static u32 seccomp_actions_logged = SECCOMP_LOG_KILL  | SECCOMP_LOG_TRAP  |
-				    SECCOMP_LOG_ERRNO | SECCOMP_LOG_TRACE;
+				    SECCOMP_LOG_ERRNO | SECCOMP_LOG_TRACE |
+				    SECCOMP_LOG_LOG;
 
 static inline void seccomp_log(unsigned long syscall, long signr, u32 action,
 			       bool requested)
@@ -555,15 +557,18 @@ static inline void seccomp_log(unsigned long syscall, long signr, u32 action,
 	case SECCOMP_RET_TRACE:
 		log = requested && seccomp_actions_logged & SECCOMP_LOG_TRACE;
 		break;
+	case SECCOMP_RET_LOG:
+		log = seccomp_actions_logged & SECCOMP_LOG_LOG;
+		break;
 	case SECCOMP_RET_KILL:
 	default:
 		log = seccomp_actions_logged & SECCOMP_LOG_KILL;
 	}
 
 	/*
-	 * Force an audit message to be emitted when the action is RET_KILL or
-	 * the FILTER_FLAG_LOG bit was set and the action is allowed to be
-	 * logged by the admin.
+	 * Force an audit message to be emitted when the action is RET_KILL,
+	 * RET_LOG, or the FILTER_FLAG_LOG bit was set and the action is
+	 * allowed to be logged by the admin.
 	 */
 	if (log)
 		return __audit_seccomp(syscall, signr, action);
@@ -697,6 +702,10 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		if (__seccomp_filter(this_syscall, NULL, true))
 			return -1;
 
+		return 0;
+
+	case SECCOMP_RET_LOG:
+		seccomp_log(this_syscall, 0, action, true);
 		return 0;
 
 	case SECCOMP_RET_ALLOW:
@@ -873,6 +882,7 @@ static long seccomp_get_action_avail(const char __user *uaction)
 	case SECCOMP_RET_TRAP:
 	case SECCOMP_RET_ERRNO:
 	case SECCOMP_RET_TRACE:
+	case SECCOMP_RET_LOG:
 	case SECCOMP_RET_ALLOW:
 		break;
 	default:
@@ -1023,12 +1033,14 @@ out:
 #define SECCOMP_RET_TRAP_NAME		"trap"
 #define SECCOMP_RET_ERRNO_NAME		"errno"
 #define SECCOMP_RET_TRACE_NAME		"trace"
+#define SECCOMP_RET_LOG_NAME		"log"
 #define SECCOMP_RET_ALLOW_NAME		"allow"
 
 static const char seccomp_actions_avail[] = SECCOMP_RET_KILL_NAME	" "
 					    SECCOMP_RET_TRAP_NAME	" "
 					    SECCOMP_RET_ERRNO_NAME	" "
 					    SECCOMP_RET_TRACE_NAME	" "
+					    SECCOMP_RET_LOG_NAME	" "
 					    SECCOMP_RET_ALLOW_NAME;
 
 struct seccomp_log_name {
@@ -1041,6 +1053,7 @@ static const struct seccomp_log_name seccomp_log_names[] = {
 	{ SECCOMP_LOG_TRAP, SECCOMP_RET_TRAP_NAME },
 	{ SECCOMP_LOG_ERRNO, SECCOMP_RET_ERRNO_NAME },
 	{ SECCOMP_LOG_TRACE, SECCOMP_RET_TRACE_NAME },
+	{ SECCOMP_LOG_LOG, SECCOMP_RET_LOG_NAME },
 	{ SECCOMP_LOG_ALLOW, SECCOMP_RET_ALLOW_NAME },
 	{ }
 };
