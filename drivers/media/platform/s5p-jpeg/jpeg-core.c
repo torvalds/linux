@@ -1264,7 +1264,7 @@ static bool s5p_jpeg_parse_hdr(struct s5p_jpeg_q_data *result,
 	}
 	result->sof = sof;
 	result->sof_len = sof_len;
-	result->size = result->components = components;
+	result->components = components;
 
 	return true;
 }
