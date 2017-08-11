@@ -420,7 +420,7 @@ static int __init disable_vector_extension(char *str)
 {
 	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
 	__ctl_clear_bit(0, 17);
-	return 1;
+	return 0;
 }
 early_param("novx", disable_vector_extension);
 
