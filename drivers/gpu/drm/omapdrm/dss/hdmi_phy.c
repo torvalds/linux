@@ -182,39 +182,15 @@ static const struct hdmi_phy_features omap54xx_phy_feats = {
 	.max_phy	=	186000000,
 };
 
-static int hdmi_phy_init_features(struct platform_device *pdev,
-				  struct hdmi_phy_data *phy,
-				  unsigned int version)
-{
-	struct hdmi_phy_features *dst;
-	const struct hdmi_phy_features *src;
-
-	dst = devm_kzalloc(&pdev->dev, sizeof(*dst), GFP_KERNEL);
-	if (!dst) {
-		dev_err(&pdev->dev, "Failed to allocate HDMI PHY Features\n");
-		return -ENOMEM;
-	}
-
-	if (version == 4)
-		src = &omap44xx_phy_feats;
-	else
-		src = &omap54xx_phy_feats;
-
-	memcpy(dst, src, sizeof(*dst));
-	phy->features = dst;
-
-	return 0;
-}
-
 int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy,
 		  unsigned int version)
 {
-	int r;
 	struct resource *res;
 
-	r = hdmi_phy_init_features(pdev, phy, version);
-	if (r)
-		return r;
+	if (version == 4)
+		phy->features = &omap44xx_phy_feats;
+	else
+		phy->features = &omap54xx_phy_feats;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
 	phy->base = devm_ioremap_resource(&pdev->dev, res);
