@@ -1277,7 +1277,7 @@ static int sctp_cmd_interpreter(enum sctp_event event_type,
 	struct sctp_sock *sp = sctp_sk(sk);
 	int error = 0;
 	int force;
-	sctp_cmd_t *cmd;
+	struct sctp_cmd *cmd;
 	struct sctp_chunk *new_obj;
 	struct sctp_chunk *chunk = NULL;
 	struct sctp_packet *packet;

@@ -196,15 +196,15 @@ static inline sctp_arg_t SCTP_NULL(void)
 	return retval;
 }
 
-typedef struct {
+struct sctp_cmd {
 	sctp_arg_t obj;
 	sctp_verb_t verb;
-} sctp_cmd_t;
+};
 
 typedef struct {
-	sctp_cmd_t cmds[SCTP_MAX_NUM_COMMANDS];
-	sctp_cmd_t *last_used_slot;
-	sctp_cmd_t *next_cmd;
+	struct sctp_cmd cmds[SCTP_MAX_NUM_COMMANDS];
+	struct sctp_cmd *last_used_slot;
+	struct sctp_cmd *next_cmd;
 } sctp_cmd_seq_t;
 
 
@@ -228,7 +228,7 @@ static inline int sctp_init_cmd_seq(sctp_cmd_seq_t *seq)
 static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb,
 				   sctp_arg_t obj)
 {
-	sctp_cmd_t *cmd = seq->last_used_slot - 1;
+	struct sctp_cmd *cmd = seq->last_used_slot - 1;
 
 	BUG_ON(cmd < seq->cmds);
 
@@ -240,7 +240,7 @@ static inline void sctp_add_cmd_sf(sctp_cmd_seq_t *seq, sctp_verb_t verb,
 /* Return the next command structure in an sctp_cmd_seq.
  * Return NULL at the end of the sequence.
  */
-static inline sctp_cmd_t *sctp_next_cmd(sctp_cmd_seq_t *seq)
+static inline struct sctp_cmd *sctp_next_cmd(sctp_cmd_seq_t *seq)
 {
 	if (seq->next_cmd <= seq->last_used_slot)
 		return NULL;
