@@ -183,7 +183,8 @@ static const struct hdmi_phy_features omap54xx_phy_feats = {
 };
 
 static int hdmi_phy_init_features(struct platform_device *pdev,
-				  struct hdmi_phy_data *phy)
+				  struct hdmi_phy_data *phy,
+				  unsigned int version)
 {
 	struct hdmi_phy_features *dst;
 	const struct hdmi_phy_features *src;
@@ -194,21 +195,10 @@ static int hdmi_phy_init_features(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
+	if (version == 4)
 		src = &omap44xx_phy_feats;
-		break;
-
-	case OMAPDSS_VER_OMAP5:
-	case OMAPDSS_VER_DRA7xx:
+	else
 		src = &omap54xx_phy_feats;
-		break;
-
-	default:
-		return -ENODEV;
-	}
 
 	memcpy(dst, src, sizeof(*dst));
 	phy->features = dst;
@@ -216,12 +206,13 @@ static int hdmi_phy_init_features(struct platform_device *pdev,
 	return 0;
 }
 
-int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy)
+int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy,
+		  unsigned int version)
 {
 	int r;
 	struct resource *res;
 
-	r = hdmi_phy_init_features(pdev, phy);
+	r = hdmi_phy_init_features(pdev, phy, version);
 	if (r)
 		return r;
 

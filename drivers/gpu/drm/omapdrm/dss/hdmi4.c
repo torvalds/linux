@@ -707,7 +707,7 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 	if (r)
 		return r;
 
-	r = hdmi_phy_init(pdev, &hdmi.phy);
+	r = hdmi_phy_init(pdev, &hdmi.phy, 4);
 	if (r)
 		goto err;
 

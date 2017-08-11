@@ -327,7 +327,8 @@ void hdmi_pll_uninit(struct hdmi_pll_data *hpll);
 int hdmi_phy_configure(struct hdmi_phy_data *phy, unsigned long hfbitclk,
 	unsigned long lfbitclk);
 void hdmi_phy_dump(struct hdmi_phy_data *phy, struct seq_file *s);
-int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy);
+int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy,
+		  unsigned int version);
 int hdmi_phy_parse_lanes(struct hdmi_phy_data *phy, const u32 *lanes);
 
 /* HDMI common funcs */
