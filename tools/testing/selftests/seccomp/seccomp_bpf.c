@@ -1731,6 +1731,10 @@ TEST_F_SIGNAL(TRACE_syscall, kill_after_ptrace, SIGSYS)
 #define SECCOMP_SET_MODE_FILTER 1
 #endif
 
+#ifndef SECCOMP_GET_ACTION_AVAIL
+#define SECCOMP_GET_ACTION_AVAIL 2
+#endif
+
 #ifndef SECCOMP_FILTER_FLAG_TSYNC
 #define SECCOMP_FILTER_FLAG_TSYNC 1
 #endif
@@ -2467,6 +2471,38 @@ TEST(syscall_restart)
 	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
 	if (WIFSIGNALED(status) || WEXITSTATUS(status))
 		_metadata->passed = 0;
+}
+
+TEST(get_action_avail)
+{
+	__u32 actions[] = { SECCOMP_RET_KILL,  SECCOMP_RET_TRAP,
+			    SECCOMP_RET_ERRNO, SECCOMP_RET_TRACE,
+			    SECCOMP_RET_ALLOW };
+	__u32 unknown_action = 0x10000000U;
+	int i;
+	long ret;
+
+	ret = seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &actions[0]);
+	ASSERT_NE(ENOSYS, errno) {
+		TH_LOG("Kernel does not support seccomp syscall!");
+	}
+	ASSERT_NE(EINVAL, errno) {
+		TH_LOG("Kernel does not support SECCOMP_GET_ACTION_AVAIL operation!");
+	}
+	EXPECT_EQ(ret, 0);
+
+	for (i = 0; i < ARRAY_SIZE(actions); i++) {
+		ret = seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &actions[i]);
+		EXPECT_EQ(ret, 0) {
+			TH_LOG("Expected action (0x%X) not available!",
+			       actions[i]);
+		}
+	}
+
+	/* Check that an unknown action is handled properly (EOPNOTSUPP) */
+	ret = seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &unknown_action);
+	EXPECT_EQ(ret, -1);
+	EXPECT_EQ(errno, EOPNOTSUPP);
 }
 
 /*

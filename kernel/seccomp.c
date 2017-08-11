@@ -808,6 +808,27 @@ static inline long seccomp_set_mode_filter(unsigned int flags,
 }
 #endif
 
+static long seccomp_get_action_avail(const char __user *uaction)
+{
+	u32 action;
+
+	if (copy_from_user(&action, uaction, sizeof(action)))
+		return -EFAULT;
+
+	switch (action) {
+	case SECCOMP_RET_KILL:
+	case SECCOMP_RET_TRAP:
+	case SECCOMP_RET_ERRNO:
+	case SECCOMP_RET_TRACE:
+	case SECCOMP_RET_ALLOW:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 /* Common entry point for both prctl and syscall. */
 static long do_seccomp(unsigned int op, unsigned int flags,
 		       const char __user *uargs)
@@ -819,6 +840,11 @@ static long do_seccomp(unsigned int op, unsigned int flags,
 		return seccomp_set_mode_strict();
 	case SECCOMP_SET_MODE_FILTER:
 		return seccomp_set_mode_filter(flags, uargs);
+	case SECCOMP_GET_ACTION_AVAIL:
+		if (flags != 0)
+			return -EINVAL;
+
+		return seccomp_get_action_avail(uargs);
 	default:
 		return -EINVAL;
 	}
