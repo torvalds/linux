@@ -384,13 +384,6 @@ int __init omapdss_init_of(void)
 		return r;
 	}
 
-	/* create DRM device */
-	r = omap_init_drm();
-	if (r < 0) {
-		pr_err("Unable to register omapdrm device\n");
-		return r;
-	}
-
 	/* create vrfb device */
 	r = omap_init_vrfb();
 	if (r < 0) {
