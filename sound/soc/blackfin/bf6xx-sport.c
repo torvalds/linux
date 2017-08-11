@@ -129,7 +129,7 @@ static void setup_desc(struct dmasg *desc, void *buf, int fragcount,
 
 	for (i = 0; i < fragcount; ++i) {
 		desc[i].next_desc_addr  = &(desc[i + 1]);
-		desc[i].start_addr = (unsigned long)buf + i*fragsize;
+		desc[i].start_addr = (unsigned long)buf + i * fragsize;
 		desc[i].cfg = cfg;
 		desc[i].x_count = count;
 		desc[i].x_modify = wdsize;
@@ -138,7 +138,7 @@ static void setup_desc(struct dmasg *desc, void *buf, int fragcount,
 	}
 
 	/* make circular */
-	desc[fragcount-1].next_desc_addr = desc;
+	desc[fragcount - 1].next_desc_addr = desc;
 }
 
 int sport_config_tx_dma(struct sport_device *sport, void *buf,
@@ -148,7 +148,7 @@ int sport_config_tx_dma(struct sport_device *sport, void *buf,
 	unsigned int cfg;
 	dma_addr_t addr;
 
-	count = fragsize/sport->wdsize;
+	count = fragsize / sport->wdsize;
 
 	if (sport->tx_desc)
 		dma_free_coherent(NULL, sport->tx_desc_size,
@@ -166,8 +166,7 @@ int sport_config_tx_dma(struct sport_device *sport, void *buf,
 	cfg = DMAFLOW_LIST | DI_EN | compute_wdsize(sport->wdsize) | NDSIZE_6;
 
 	setup_desc(sport->tx_desc, buf, fragcount, fragsize,
-			cfg|DMAEN, count, sport->wdsize);
-
+		   cfg | DMAEN, count, sport->wdsize);
 	return 0;
 }
 EXPORT_SYMBOL(sport_config_tx_dma);
@@ -179,7 +178,7 @@ int sport_config_rx_dma(struct sport_device *sport, void *buf,
 	unsigned int cfg;
 	dma_addr_t addr;
 
-	count = fragsize/sport->wdsize;
+	count = fragsize / sport->wdsize;
 
 	if (sport->rx_desc)
 		dma_free_coherent(NULL, sport->rx_desc_size,
@@ -198,8 +197,7 @@ int sport_config_rx_dma(struct sport_device *sport, void *buf,
 		| WNR | NDSIZE_6;
 
 	setup_desc(sport->rx_desc, buf, fragcount, fragsize,
-			cfg|DMAEN, count, sport->wdsize);
-
+		   cfg | DMAEN, count, sport->wdsize);
 	return 0;
 }
 EXPORT_SYMBOL(sport_config_rx_dma);
@@ -226,7 +224,7 @@ static irqreturn_t sport_tx_irq(int irq, void *dev_id)
 	static unsigned long status;
 
 	status = get_dma_curr_irqstat(sport->tx_dma_chan);
-	if (status & (DMA_DONE|DMA_ERR)) {
+	if (status & (DMA_DONE | DMA_ERR)) {
 		clear_dma_irqstat(sport->tx_dma_chan);
 		SSYNC();
 	}
@@ -241,7 +239,7 @@ static irqreturn_t sport_rx_irq(int irq, void *dev_id)
 	unsigned long status;
 
 	status = get_dma_curr_irqstat(sport->rx_dma_chan);
-	if (status & (DMA_DONE|DMA_ERR)) {
+	if (status & (DMA_DONE | DMA_ERR)) {
 		clear_dma_irqstat(sport->rx_dma_chan);
 		SSYNC();
 	}
