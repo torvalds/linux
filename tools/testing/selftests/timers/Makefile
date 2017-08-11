@@ -1,5 +1,4 @@
-BUILD_FLAGS = -DKTEST
-CFLAGS += -O3 -Wl,-no-as-needed -Wall $(BUILD_FLAGS)
+CFLAGS += -O3 -Wl,-no-as-needed -Wall
 LDFLAGS += -lrt -lpthread -lm
 
 # these are all "safe" tests that don't modify
