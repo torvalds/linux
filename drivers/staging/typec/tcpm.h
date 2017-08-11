@@ -72,7 +72,7 @@ struct tcpc_config {
 	enum typec_role default_role;
 	bool try_role_hw;	/* try.{src,snk} implemented in hardware */
 
-	struct typec_altmode_desc *alt_modes;
+	const struct typec_altmode_desc *alt_modes;
 };
 
 enum tcpc_usb_switch {

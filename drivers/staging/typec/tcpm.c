@@ -3484,7 +3484,7 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 	}
 
 	if (tcpc->config->alt_modes) {
-		struct typec_altmode_desc *paltmode = tcpc->config->alt_modes;
+		const struct typec_altmode_desc *paltmode = tcpc->config->alt_modes;
 
 		i = 0;
 		while (paltmode->svid && i < ARRAY_SIZE(port->port_altmode)) {
