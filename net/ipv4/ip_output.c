@@ -922,8 +922,7 @@ static int __ip_append_data(struct sock *sk,
 		csummode = CHECKSUM_PARTIAL;
 
 	cork->length += length;
-	if ((((length + (skb ? skb->len : fragheaderlen)) > mtu) ||
-	     (skb && skb_is_gso(skb))) &&
+	if ((((length + fragheaderlen) > mtu) || (skb && skb_is_gso(skb))) &&
 	    (sk->sk_protocol == IPPROTO_UDP) &&
 	    (rt->dst.dev->features & NETIF_F_UFO) && !rt->dst.header_len &&
 	    (sk->sk_type == SOCK_DGRAM) && !sk->sk_no_check_tx) {
