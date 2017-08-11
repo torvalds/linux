@@ -1035,6 +1035,7 @@ static struct irq_chip intel_gpio_irqchip = {
 	.irq_unmask = intel_gpio_irq_unmask,
 	.irq_set_type = intel_gpio_irq_type,
 	.irq_set_wake = intel_gpio_irq_wake,
+	.flags = IRQCHIP_MASK_ON_SUSPEND,
 };
 
 static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
