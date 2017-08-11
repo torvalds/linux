@@ -1536,15 +1536,15 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 	while (1) {
 		next_insn = next_insn_same_sec(file, insn);
 
-		if (file->c_file && insn->func) {
-			if (func && func != insn->func) {
-				WARN("%s() falls through to next function %s()",
-				     func->name, insn->func->name);
-				return 1;
-			}
+
+		if (file->c_file && func && insn->func && func != insn->func) {
+			WARN("%s() falls through to next function %s()",
+			     func->name, insn->func->name);
+			return 1;
 		}
 
-		func = insn->func;
+		if (insn->func)
+			func = insn->func;
 
 		if (func && insn->ignore) {
 			WARN_FUNC("BUG: why am I validating an ignored function?",
