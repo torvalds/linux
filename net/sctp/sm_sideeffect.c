@@ -1146,7 +1146,7 @@ int sctp_do_sm(struct net *net, enum sctp_event event_type,
 	       void *event_arg, gfp_t gfp)
 {
 	struct sctp_cmd_seq commands;
-	const sctp_sm_table_entry_t *state_fn;
+	const struct sctp_sm_table_entry *state_fn;
 	sctp_disposition_t status;
 	int error = 0;
 	typedef const char *(printfn_t)(union sctp_subtype);

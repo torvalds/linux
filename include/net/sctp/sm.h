@@ -72,10 +72,10 @@ typedef sctp_disposition_t (sctp_state_fn_t) (struct net *,
 					      void *arg,
 					      struct sctp_cmd_seq *);
 typedef void (sctp_timer_event_t) (unsigned long);
-typedef struct {
+struct sctp_sm_table_entry {
 	sctp_state_fn_t *fn;
 	const char *name;
-} sctp_sm_table_entry_t;
+};
 
 /* A naming convention of "sctp_sf_xxx" applies to all the state functions
  * currently in use.
@@ -170,7 +170,7 @@ sctp_state_fn_t sctp_sf_autoclose_timer_expire;
 
 /* Prototypes for utility support functions.  */
 __u8 sctp_get_chunk_type(struct sctp_chunk *chunk);
-const sctp_sm_table_entry_t *sctp_sm_lookup_event(
+const struct sctp_sm_table_entry *sctp_sm_lookup_event(
 					struct net *net,
 					enum sctp_event event_type,
 					enum sctp_state state,
