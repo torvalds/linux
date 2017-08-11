@@ -24,7 +24,7 @@ static void tegra_bo_put(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
-	drm_gem_object_unreference_unlocked(&obj->gem);
+	drm_gem_object_put_unlocked(&obj->gem);
 }
 
 static dma_addr_t tegra_bo_pin(struct host1x_bo *bo, struct sg_table **sgt)
@@ -95,7 +95,7 @@ static struct host1x_bo *tegra_bo_get(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
-	drm_gem_object_reference(&obj->gem);
+	drm_gem_object_get(&obj->gem);
 
 	return bo;
 }
@@ -325,7 +325,7 @@ struct tegra_bo *tegra_bo_create_with_handle(struct drm_file *file,
 		return ERR_PTR(err);
 	}
 
-	drm_gem_object_unreference_unlocked(&bo->gem);
+	drm_gem_object_put_unlocked(&bo->gem);
 
 	return bo;
 }
@@ -439,7 +439,7 @@ int tegra_bo_dumb_map_offset(struct drm_file *file, struct drm_device *drm,
 
 	*offset = drm_vma_node_offset_addr(&bo->gem.vma_node);
 
-	drm_gem_object_unreference_unlocked(gem);
+	drm_gem_object_put_unlocked(gem);
 
 	return 0;
 }
@@ -654,7 +654,7 @@ struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,
 		struct drm_gem_object *gem = buf->priv;
 
 		if (gem->dev == drm) {
-			drm_gem_object_reference(gem);
+			drm_gem_object_get(gem);
 			return gem;
 		}
 	}
