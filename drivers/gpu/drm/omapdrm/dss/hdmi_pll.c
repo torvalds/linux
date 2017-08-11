@@ -146,21 +146,10 @@ static int hdmi_init_pll_data(struct platform_device *pdev,
 	pll->base = hpll->base;
 	pll->clkin = clk;
 
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
+	if (hpll->wp->version == 4)
 		pll->hw = &dss_omap4_hdmi_pll_hw;
-		break;
-
-	case OMAPDSS_VER_OMAP5:
-	case OMAPDSS_VER_DRA7xx:
+	else
 		pll->hw = &dss_omap5_hdmi_pll_hw;
-		break;
-
-	default:
-		return -ENODEV;
-	}
 
 	pll->ops = &hdmi_pll_ops;
 
