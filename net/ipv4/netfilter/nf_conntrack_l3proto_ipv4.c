@@ -303,11 +303,6 @@ static int ipv4_nlattr_to_tuple(struct nlattr *tb[],
 
 	return 0;
 }
-
-static int ipv4_nlattr_tuple_size(void)
-{
-	return nla_policy_len(ipv4_nla_policy, CTA_IP_MAX + 1);
-}
 #endif
 
 static struct nf_sockopt_ops so_getorigdst = {
@@ -365,9 +360,10 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {
 	.get_l4proto	 = ipv4_get_l4proto,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.tuple_to_nlattr = ipv4_tuple_to_nlattr,
-	.nlattr_tuple_size = ipv4_nlattr_tuple_size,
 	.nlattr_to_tuple = ipv4_nlattr_to_tuple,
 	.nla_policy	 = ipv4_nla_policy,
+	.nla_size	 = NLA_ALIGN(NLA_HDRLEN + sizeof(u32)) + /* CTA_IP_V4_SRC */
+			   NLA_ALIGN(NLA_HDRLEN + sizeof(u32)),  /* CTA_IP_V4_DST */
 #endif
 	.net_ns_get	 = ipv4_hooks_register,
 	.net_ns_put	 = ipv4_hooks_unregister,
@@ -421,6 +417,11 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 
 	need_conntrack();
 
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
+	if (WARN_ON(nla_policy_len(ipv4_nla_policy, CTA_IP_MAX + 1) !=
+	    nf_conntrack_l3proto_ipv4.nla_size))
+		return -EINVAL;
+#endif
 	ret = nf_register_sockopt(&so_getorigdst);
 	if (ret < 0) {
 		pr_err("Unable to register netfilter socket option\n");

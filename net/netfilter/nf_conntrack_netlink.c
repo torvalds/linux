@@ -540,7 +540,8 @@ static inline size_t ctnetlink_proto_size(const struct nf_conn *ct)
 	size_t len = 0;
 
 	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
-	len += l3proto->nla_size;
+	len = l3proto->nla_size;
+	len *= 3u; /* ORIG, REPLY, MASTER */
 
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	len += l4proto->nla_size;

@@ -20,6 +20,9 @@ struct nf_conntrack_l3proto {
 	/* L3 Protocol Family number. ex) PF_INET */
 	u_int16_t l3proto;
 
+	/* size of tuple nlattr, fills a hole */
+	u16 nla_size;
+
 	/* Protocol name */
 	const char *name;
 
@@ -49,23 +52,17 @@ struct nf_conntrack_l3proto {
 	int (*get_l4proto)(const struct sk_buff *skb, unsigned int nhoff,
 			   unsigned int *dataoff, u_int8_t *protonum);
 
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	int (*tuple_to_nlattr)(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *t);
+	int (*nlattr_to_tuple)(struct nlattr *tb[],
+			       struct nf_conntrack_tuple *t);
+	const struct nla_policy *nla_policy;
+#endif
 
 	/* Called when netns wants to use connection tracking */
 	int (*net_ns_get)(struct net *);
 	void (*net_ns_put)(struct net *);
-
-	/*
-	 * Calculate size of tuple nlattr
-	 */
-	int (*nlattr_tuple_size)(void);
-
-	int (*nlattr_to_tuple)(struct nlattr *tb[],
-			       struct nf_conntrack_tuple *t);
-	const struct nla_policy *nla_policy;
-
-	size_t nla_size;
 
 	/* Module (if any) which this is connected to. */
 	struct module *me;

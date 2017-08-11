@@ -214,10 +214,10 @@ int nf_ct_l3proto_register(struct nf_conntrack_l3proto *proto)
 
 	if (proto->l3proto >= NFPROTO_NUMPROTO)
 		return -EBUSY;
-
-	if (proto->tuple_to_nlattr && !proto->nlattr_tuple_size)
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
+	if (proto->tuple_to_nlattr && proto->nla_size == 0)
 		return -EINVAL;
-
+#endif
 	mutex_lock(&nf_ct_proto_mutex);
 	old = rcu_dereference_protected(nf_ct_l3protos[proto->l3proto],
 					lockdep_is_held(&nf_ct_proto_mutex));
@@ -225,9 +225,6 @@ int nf_ct_l3proto_register(struct nf_conntrack_l3proto *proto)
 		ret = -EBUSY;
 		goto out_unlock;
 	}
-
-	if (proto->nlattr_tuple_size)
-		proto->nla_size = 3 * proto->nlattr_tuple_size();
 
 	rcu_assign_pointer(nf_ct_l3protos[proto->l3proto], proto);
 
