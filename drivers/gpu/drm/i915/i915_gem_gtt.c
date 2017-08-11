@@ -180,10 +180,15 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 8 && i915.enable_execlists && has_full_ppgtt)
-		return has_full_48bit_ppgtt ? 3 : 2;
-	else
-		return has_aliasing_ppgtt ? 1 : 0;
+	if (INTEL_GEN(dev_priv) >= 8 && i915.enable_execlists) {
+		if (has_full_48bit_ppgtt)
+			return 3;
+
+		if (has_full_ppgtt)
+			return 2;
+	}
+
+	return has_aliasing_ppgtt ? 1 : 0;
 }
 
 static int ppgtt_bind_vma(struct i915_vma *vma,
