@@ -2481,21 +2481,20 @@ snd_rme96_probe(struct pci_dev *pci,
 	rme96 = card->private_data;
 	rme96->card = card;
 	rme96->pci = pci;
-	if ((err = snd_rme96_create(rme96)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_rme96_create(rme96);
+	if (err)
+		goto free_card;
 	
 #ifdef CONFIG_PM_SLEEP
 	rme96->playback_suspend_buffer = vmalloc(RME96_BUFFER_SIZE);
 	if (!rme96->playback_suspend_buffer) {
-		snd_card_free(card);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto free_card;
 	}
 	rme96->capture_suspend_buffer = vmalloc(RME96_BUFFER_SIZE);
 	if (!rme96->capture_suspend_buffer) {
-		snd_card_free(card);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto free_card;
 	}
 #endif
 
@@ -2521,14 +2520,16 @@ snd_rme96_probe(struct pci_dev *pci,
 	}
 	sprintf(card->longname, "%s at 0x%lx, irq %d", card->shortname,
 		rme96->port, rme96->irq);
-	
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;	
-	}
+	err = snd_card_register(card);
+	if (err)
+		goto free_card;
+
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
+free_card:
+	snd_card_free(card);
+	return err;
 }
 
 static void snd_rme96_remove(struct pci_dev *pci)
