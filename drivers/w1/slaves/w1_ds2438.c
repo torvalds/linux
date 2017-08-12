@@ -51,7 +51,7 @@
 #define DS2438_CURRENT_MSB		0x06
 #define DS2438_THRESHOLD		0x07
 
-int w1_ds2438_get_page(struct w1_slave *sl, int pageno, u8 *buf)
+static int w1_ds2438_get_page(struct w1_slave *sl, int pageno, u8 *buf)
 {
 	unsigned int retries = W1_DS2438_RETRIES;
 	u8 w1_buf[2];
@@ -85,7 +85,7 @@ int w1_ds2438_get_page(struct w1_slave *sl, int pageno, u8 *buf)
 	return -1;
 }
 
-int w1_ds2438_get_temperature(struct w1_slave *sl, int16_t *temperature)
+static int w1_ds2438_get_temperature(struct w1_slave *sl, int16_t *temperature)
 {
 	unsigned int retries = W1_DS2438_RETRIES;
 	u8 w1_buf[DS2438_PAGE_SIZE + 1 /*for CRC*/];
@@ -127,7 +127,7 @@ post_unlock:
 	return ret;
 }
 
-int w1_ds2438_change_config_bit(struct w1_slave *sl, u8 mask, u8 value)
+static int w1_ds2438_change_config_bit(struct w1_slave *sl, u8 mask, u8 value)
 {
 	unsigned int retries = W1_DS2438_RETRIES;
 	u8 w1_buf[3];
@@ -186,7 +186,8 @@ int w1_ds2438_change_config_bit(struct w1_slave *sl, u8 mask, u8 value)
 	return -1;
 }
 
-uint16_t w1_ds2438_get_voltage(struct w1_slave *sl, int adc_input, uint16_t *voltage)
+static uint16_t w1_ds2438_get_voltage(struct w1_slave *sl,
+				      int adc_input, uint16_t *voltage)
 {
 	unsigned int retries = W1_DS2438_RETRIES;
 	u8 w1_buf[DS2438_PAGE_SIZE + 1 /*for CRC*/];
