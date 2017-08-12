@@ -296,7 +296,7 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 };
 
 /* hardware definition */
-static struct snd_pcm_hardware snd_ca0106_playback_hw = {
+static const struct snd_pcm_hardware snd_ca0106_playback_hw = {
 	.info =			SNDRV_PCM_INFO_MMAP | 
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -317,7 +317,7 @@ static struct snd_pcm_hardware snd_ca0106_playback_hw = {
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_ca0106_capture_hw = {
+static const struct snd_pcm_hardware snd_ca0106_capture_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | 
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
