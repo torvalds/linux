@@ -57,10 +57,12 @@ DECLARE_EWMA(pkt_len, 0, 64)
 
 #define VIRTNET_DRIVER_VERSION "1.0.0"
 
-const unsigned long guest_offloads[] = { VIRTIO_NET_F_GUEST_TSO4,
-					 VIRTIO_NET_F_GUEST_TSO6,
-					 VIRTIO_NET_F_GUEST_ECN,
-					 VIRTIO_NET_F_GUEST_UFO };
+static const unsigned long guest_offloads[] = {
+	VIRTIO_NET_F_GUEST_TSO4,
+	VIRTIO_NET_F_GUEST_TSO6,
+	VIRTIO_NET_F_GUEST_ECN,
+	VIRTIO_NET_F_GUEST_UFO
+};
 
 struct virtnet_stats {
 	struct u64_stats_sync tx_syncp;
