@@ -660,11 +660,9 @@ static int snd_ca0106_pcm_open_capture_channel(struct snd_pcm_substream *substre
 	int err;
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
-	if (epcm == NULL) {
-		dev_err(chip->card->dev,
-			"open_capture_channel: failed epcm alloc\n");
+	if (!epcm)
 		return -ENOMEM;
-        }
+
 	epcm->emu = chip;
 	epcm->substream = substream;
         epcm->channel_id=channel_id;
