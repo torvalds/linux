@@ -1199,7 +1199,7 @@ snd_rme96_playback_spdif_open(struct snd_pcm_substream *substream)
 
 	snd_pcm_set_sync(substream);
 	spin_lock_irq(&rme96->lock);	
-        if (rme96->playback_substream != NULL) {
+	if (rme96->playback_substream) {
 		spin_unlock_irq(&rme96->lock);
                 return -EBUSY;
         }
@@ -1248,7 +1248,7 @@ snd_rme96_capture_spdif_open(struct snd_pcm_substream *substream)
         }
         
 	spin_lock_irq(&rme96->lock);
-        if (rme96->capture_substream != NULL) {
+	if (rme96->capture_substream) {
 		spin_unlock_irq(&rme96->lock);
                 return -EBUSY;
         }
@@ -1268,7 +1268,7 @@ snd_rme96_playback_adat_open(struct snd_pcm_substream *substream)
 	
 	snd_pcm_set_sync(substream);
 	spin_lock_irq(&rme96->lock);	
-        if (rme96->playback_substream != NULL) {
+	if (rme96->playback_substream) {
 		spin_unlock_irq(&rme96->lock);
                 return -EBUSY;
         }
@@ -1315,7 +1315,7 @@ snd_rme96_capture_adat_open(struct snd_pcm_substream *substream)
         }
         
 	spin_lock_irq(&rme96->lock);	
-        if (rme96->capture_substream != NULL) {
+	if (rme96->capture_substream) {
 		spin_unlock_irq(&rme96->lock);
                 return -EBUSY;
         }
@@ -1578,9 +1578,9 @@ snd_rme96_free(void *private_data)
 {
 	struct rme96 *rme96 = (struct rme96 *)private_data;
 
-	if (rme96 == NULL) {
+	if (!rme96)
 	        return;
-	}
+
 	if (rme96->irq >= 0) {
 		snd_rme96_trigger(rme96, RME96_STOP_BOTH);
 		rme96->areg &= ~RME96_AR_DAC_EN;
