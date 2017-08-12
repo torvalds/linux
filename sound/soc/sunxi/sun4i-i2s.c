@@ -94,9 +94,13 @@
  * struct sun4i_i2s_quirks - Differences between SoC variants.
  *
  * @has_reset: SoC needs reset deasserted.
+ * @mclk_offset: Value by which mclkdiv needs to be adjusted.
+ * @bclk_offset: Value by which bclkdiv needs to be adjusted.
  */
 struct sun4i_i2s_quirks {
 	bool				has_reset;
+	unsigned int			mclk_offset;
+	unsigned int			bclk_offset;
 };
 
 struct sun4i_i2s {
@@ -236,6 +240,10 @@ static int sun4i_i2s_set_clk_rate(struct sun4i_i2s *i2s,
 					  clk_rate, rate);
 	if (mclk_div < 0)
 		return -EINVAL;
+
+	/* Adjust the clock division values if needed */
+	bclk_div += i2s->variant->bclk_offset;
+	mclk_div += i2s->variant->mclk_offset;
 
 	regmap_write(i2s->regmap, SUN4I_I2S_CLK_DIV_REG,
 		     SUN4I_I2S_CLK_DIV_BCLK(bclk_div) |
