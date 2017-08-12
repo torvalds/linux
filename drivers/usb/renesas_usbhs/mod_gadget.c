@@ -767,7 +767,7 @@ static int usbhsg_ep_set_wedge(struct usb_ep *ep)
 	return __usbhsg_ep_set_halt_wedge(ep, 1, 1);
 }
 
-static struct usb_ep_ops usbhsg_ep_ops = {
+static const struct usb_ep_ops usbhsg_ep_ops = {
 	.enable		= usbhsg_ep_enable,
 	.disable	= usbhsg_ep_disable,
 
