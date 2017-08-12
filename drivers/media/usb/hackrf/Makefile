@@ -1,1 +1,1 @@
-obj-$(CONFIG_USB_HACKRF)              += hackrf.o
+////obj-$(CONFIG_USB_HACKRF)              += hackrf.o

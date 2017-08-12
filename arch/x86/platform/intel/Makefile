@@ -1,1 +1,1 @@
-obj-$(CONFIG_IOSF_MBI)			+= iosf_mbi.o
+////obj-$(CONFIG_IOSF_MBI)			+= iosf_mbi.o

@@ -1,1 +1,1 @@
-#define __init
+////#define __init

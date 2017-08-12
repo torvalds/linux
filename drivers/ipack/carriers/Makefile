@@ -1,1 +1,1 @@
-obj-$(CONFIG_BOARD_TPCI200) += tpci200.o
+////obj-$(CONFIG_BOARD_TPCI200) += tpci200.o

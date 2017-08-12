@@ -1,5 +1,5 @@
-[config]
-command = record
-args    = kill >/dev/null 2>&1
-
-[event:base-record]
+////[config]
+////command = record
+////args    = kill >/dev/null 2>&1
+////
+////[event:base-record]

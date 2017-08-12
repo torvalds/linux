@@ -1,1 +1,1 @@
-#include <uapi/linux/lirc.h>
+////#include <uapi/linux/lirc.h>

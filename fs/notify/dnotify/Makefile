@@ -1,1 +1,1 @@
-obj-$(CONFIG_DNOTIFY)		+= dnotify.o
+////obj-$(CONFIG_DNOTIFY)		+= dnotify.o

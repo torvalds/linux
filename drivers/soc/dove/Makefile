@@ -1,1 +1,1 @@
-obj-y		+= pmu.o
+////obj-y		+= pmu.o

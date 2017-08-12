@@ -1,1 +1,1 @@
-obj-$(CONFIG_SFI)		+= sfi.o
+////obj-$(CONFIG_SFI)		+= sfi.o

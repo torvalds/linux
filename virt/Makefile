@@ -1,1 +1,1 @@
-obj-y	+= lib/
+////obj-y	+= lib/

@@ -1,1 +1,1 @@
-obj-y += board-dt.o
+////obj-y += board-dt.o

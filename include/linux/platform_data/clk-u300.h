@@ -1,1 +1,1 @@
-void __init u300_clk_init(void __iomem *base);
+////void __init u300_clk_init(void __iomem *base);

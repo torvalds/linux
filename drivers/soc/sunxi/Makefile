@@ -1,1 +1,1 @@
-obj-$(CONFIG_SUNXI_SRAM) +=	sunxi_sram.o
+////obj-$(CONFIG_SUNXI_SRAM) +=	sunxi_sram.o

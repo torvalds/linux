@@ -1,5 +1,5 @@
-==================================
-Device Power Management Data Types
-==================================
-
-.. kernel-doc:: include/linux/pm.h
+////==================================
+////Device Power Management Data Types
+////==================================
+////
+////.. kernel-doc:: include/linux/pm.h

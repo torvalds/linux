@@ -1,1 +1,1 @@
-obj-$(CONFIG_GOLDFISH)	+= goldfish.o
+////obj-$(CONFIG_GOLDFISH)	+= goldfish.o

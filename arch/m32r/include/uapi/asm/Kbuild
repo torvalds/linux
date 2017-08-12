@@ -1,5 +1,5 @@
-# UAPI Header export list
-include include/uapi/asm-generic/Kbuild.asm
-
-generic-y += kvm_para.h
-generic-y += siginfo.h
+////# UAPI Header export list
+////include include/uapi/asm-generic/Kbuild.asm
+////
+////generic-y += kvm_para.h
+////generic-y += siginfo.h

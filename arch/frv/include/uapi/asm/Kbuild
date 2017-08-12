@@ -1,2 +1,2 @@
-# UAPI Header export list
-include include/uapi/asm-generic/Kbuild.asm
+////# UAPI Header export list
+////include include/uapi/asm-generic/Kbuild.asm

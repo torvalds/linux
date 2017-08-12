@@ -1,1 +1,1 @@
-#define MAX_HWEVENTS 2
+////#define MAX_HWEVENTS 2

@@ -1,3 +1,3 @@
-
-checker-help:
-	@echo  '  coccicheck      - Check with Coccinelle.'
+////
+////checker-help:
+////	@echo  '  coccicheck      - Check with Coccinelle.'

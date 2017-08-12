@@ -1,1 +1,1 @@
-locktorture.torture_type=rwsem_lock
+////locktorture.torture_type=rwsem_lock

@@ -1,1 +1,1 @@
-obj-$(CONFIG_VIDEO_MEYE) += meye.o
+////obj-$(CONFIG_VIDEO_MEYE) += meye.o

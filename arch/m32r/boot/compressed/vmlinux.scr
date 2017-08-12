@@ -1,9 +1,9 @@
-SECTIONS
-{
-  .data : {
-	zimage_data = .;
-	*(.data)
-	zimage_data_end = .;
-	}
-  zimage_len = zimage_data_end - zimage_data;
-}
+////SECTIONS
+////{
+////  .data : {
+////	zimage_data = .;
+////	*(.data)
+////	zimage_data_end = .;
+////	}
+////  zimage_len = zimage_data_end - zimage_data;
+////}

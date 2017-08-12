@@ -1,8 +1,8 @@
-CC := $(CROSS_COMPILE)gcc
-PROGS := watchdog-simple
-
-all: $(PROGS)
-
-clean:
-	rm -fr $(PROGS)
-
+////CC := $(CROSS_COMPILE)gcc
+////PROGS := watchdog-simple
+////
+////all: $(PROGS)
+////
+////clean:
+////	rm -fr $(PROGS)
+////

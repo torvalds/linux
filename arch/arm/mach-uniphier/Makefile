@@ -1,1 +1,1 @@
-obj- += dummy.o
+////obj- += dummy.o

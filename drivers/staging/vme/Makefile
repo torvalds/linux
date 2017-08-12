@@ -1,1 +1,1 @@
-obj-y				+= devices/
+////obj-y				+= devices/

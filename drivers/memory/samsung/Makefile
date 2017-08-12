@@ -1,1 +1,1 @@
-obj-$(CONFIG_EXYNOS_SROM)	+= exynos-srom.o
+////obj-$(CONFIG_EXYNOS_SROM)	+= exynos-srom.o

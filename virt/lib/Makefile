@@ -1,1 +1,1 @@
-obj-$(CONFIG_IRQ_BYPASS_MANAGER) += irqbypass.o
+////obj-$(CONFIG_IRQ_BYPASS_MANAGER) += irqbypass.o

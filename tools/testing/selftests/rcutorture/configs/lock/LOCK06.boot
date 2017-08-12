@@ -1,1 +1,1 @@
-locktorture.torture_type=percpu_rwsem_lock
+////locktorture.torture_type=percpu_rwsem_lock

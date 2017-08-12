@@ -1,2 +1,2 @@
-libperf-y += common.o
-libperf-y += $(SRCARCH)/
+////libperf-y += common.o
+////libperf-y += $(SRCARCH)/

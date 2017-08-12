@@ -1,1 +1,1 @@
-int ibm_partition(struct parsed_partitions *);
+////int ibm_partition(struct parsed_partitions *);

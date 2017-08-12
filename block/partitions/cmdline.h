@@ -1,2 +1,2 @@
-
-int cmdline_partition(struct parsed_partitions *state);
+////
+////int cmdline_partition(struct parsed_partitions *state);

@@ -1,5 +1,5 @@
-#
-# Makefile for the Linux Ethernet layer.
-#
-
-obj-y					+= eth.o
+////#
+////# Makefile for the Linux Ethernet layer.
+////#
+////
+////obj-y					+= eth.o

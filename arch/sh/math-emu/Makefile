@@ -1,1 +1,1 @@
-obj-y	:= math.o
+////obj-y	:= math.o

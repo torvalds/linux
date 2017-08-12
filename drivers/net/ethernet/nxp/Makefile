@@ -1,1 +1,1 @@
-obj-$(CONFIG_LPC_ENET) += lpc_eth.o
+////obj-$(CONFIG_LPC_ENET) += lpc_eth.o

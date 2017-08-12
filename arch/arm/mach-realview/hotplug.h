@@ -1,1 +1,1 @@
-void realview_cpu_die(unsigned int cpu);
+////void realview_cpu_die(unsigned int cpu);

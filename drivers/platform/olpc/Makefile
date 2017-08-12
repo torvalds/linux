@@ -1,4 +1,4 @@
-#
-# OLPC XO platform-specific drivers
-#
-obj-$(CONFIG_OLPC)		+= olpc-ec.o
+////#
+////# OLPC XO platform-specific drivers
+////#
+////obj-$(CONFIG_OLPC)		+= olpc-ec.o

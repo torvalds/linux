@@ -1,1 +1,3 @@
-../../../../arm/boot/dts/bcm283x-rpi-usb-host.dtsi
+////&usb {
+////	dr_mode = "host";
+////};

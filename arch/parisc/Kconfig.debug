@@ -1,8 +1,8 @@
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
-
-config TRACE_IRQFLAGS_SUPPORT
-	def_bool y
-
-endmenu
+////menu "Kernel hacking"
+////
+////source "lib/Kconfig.debug"
+////
+////config TRACE_IRQFLAGS_SUPPORT
+////	def_bool y
+////
+////endmenu

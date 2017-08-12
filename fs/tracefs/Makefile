@@ -1,4 +1,4 @@
-tracefs-objs	:= inode.o
-
-obj-$(CONFIG_TRACING)	+= tracefs.o
-
+////tracefs-objs	:= inode.o
+////
+////obj-$(CONFIG_TRACING)	+= tracefs.o
+////

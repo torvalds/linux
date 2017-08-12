@@ -1,1 +1,1 @@
-obj-y += dtmachine.o
+////obj-y += dtmachine.o

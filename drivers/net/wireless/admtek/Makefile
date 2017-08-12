@@ -1,1 +1,1 @@
-obj-$(CONFIG_ADM8211)	+= adm8211.o
+////obj-$(CONFIG_ADM8211)	+= adm8211.o

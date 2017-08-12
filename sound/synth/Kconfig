@@ -1,2 +1,2 @@
-config SND_SYNTH_EMUX
-	tristate
+////config SND_SYNTH_EMUX
+////	tristate

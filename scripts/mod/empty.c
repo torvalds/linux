@@ -1,1 +1,1 @@
-/* empty file to figure out endianness / word size */
+/////* empty file to figure out endianness / word size */

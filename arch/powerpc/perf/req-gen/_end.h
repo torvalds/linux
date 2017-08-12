@@ -1,4 +1,4 @@
-
-#undef REQ_GEN_PREFIX
-#undef REQUEST_BEGIN
-#undef REQUEST_END
+////
+////#undef REQ_GEN_PREFIX
+////#undef REQUEST_BEGIN
+////#undef REQUEST_END
