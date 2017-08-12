@@ -6638,12 +6638,8 @@ static int snd_hdspm_create(struct snd_card *card,
 	dev_dbg(card->dev, "kmalloc Mixer memory of %zd Bytes\n",
 			sizeof(struct hdspm_mixer));
 	hdspm->mixer = kzalloc(sizeof(struct hdspm_mixer), GFP_KERNEL);
-	if (!hdspm->mixer) {
-		dev_err(card->dev,
-			"unable to kmalloc Mixer memory of %d Bytes\n",
-				(int)sizeof(struct hdspm_mixer));
+	if (!hdspm->mixer)
 		return -ENOMEM;
-	}
 
 	hdspm->port_names_in = NULL;
 	hdspm->port_names_out = NULL;
