@@ -3363,11 +3363,9 @@ static int snd_trident_tlb_alloc(struct snd_trident *trident)
 	trident->tlb.entries_dmaaddr = ALIGN(trident->tlb.buffer.addr, SNDRV_TRIDENT_MAX_PAGES * 4);
 	/* allocate shadow TLB page table (virtual addresses) */
 	trident->tlb.shadow_entries = vmalloc(SNDRV_TRIDENT_MAX_PAGES*sizeof(unsigned long));
-	if (trident->tlb.shadow_entries == NULL) {
-		dev_err(trident->card->dev,
-			"unable to allocate shadow TLB entries\n");
+	if (!trident->tlb.shadow_entries)
 		return -ENOMEM;
-	}
+
 	/* allocate and setup silent page and initialise TLB entries */
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(trident->pci),
 				SNDRV_TRIDENT_PAGE_SIZE, &trident->tlb.silent_page) < 0) {
