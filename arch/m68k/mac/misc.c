@@ -474,8 +474,9 @@ void mac_poweroff(void)
 		pmu_shutdown();
 #endif
 	}
-	local_irq_enable();
+
 	pr_crit("It is now safe to turn off your Macintosh.\n");
+	local_irq_disable();
 	while(1);
 }
 
@@ -565,8 +566,8 @@ void mac_reset(void)
 	}
 
 	/* should never get here */
-	local_irq_enable();
 	pr_crit("Restart failed. Please restart manually.\n");
+	local_irq_disable();
 	while(1);
 }
 
