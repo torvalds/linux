@@ -134,26 +134,6 @@ static const unsigned long *nd_pfn_supported_alignments(void)
 	return data;
 }
 
-static ssize_t __align_store(struct nd_pfn *nd_pfn, const char *buf)
-{
-	unsigned long val;
-	int rc;
-
-	rc = kstrtoul(buf, 0, &val);
-	if (rc)
-		return rc;
-
-	if (!is_power_of_2(val) || val < PAGE_SIZE || val > SZ_1G)
-		return -EINVAL;
-
-	if (nd_pfn->dev.driver)
-		return -EBUSY;
-	else
-		nd_pfn->align = val;
-
-	return 0;
-}
-
 static ssize_t align_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
@@ -162,7 +142,8 @@ static ssize_t align_store(struct device *dev,
 
 	device_lock(dev);
 	nvdimm_bus_lock(dev);
-	rc = __align_store(nd_pfn, buf);
+	rc = nd_size_select_store(dev, buf, &nd_pfn->align,
+			nd_pfn_supported_alignments());
 	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
 			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
 	nvdimm_bus_unlock(dev);
