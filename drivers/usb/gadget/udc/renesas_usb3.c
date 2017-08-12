@@ -2187,7 +2187,7 @@ static void renesas_usb3_ep_fifo_flush(struct usb_ep *_ep)
 	}
 }
 
-static struct usb_ep_ops renesas_usb3_ep_ops = {
+static const struct usb_ep_ops renesas_usb3_ep_ops = {
 	.enable		= renesas_usb3_ep_enable,
 	.disable	= renesas_usb3_ep_disable,
 
