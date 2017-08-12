@@ -437,20 +437,31 @@ static void output_console_line(struct octeon_device *oct,
 {
 	char *line;
 	s32 i;
+	size_t len;
 
 	line = console_buffer;
 	for (i = 0; i < bytes_read; i++) {
 		/* Output a line at a time, prefixed */
 		if (console_buffer[i] == '\n') {
 			console_buffer[i] = '\0';
-			if (console->leftover[0]) {
-				dev_info(&oct->pci_dev->dev, "%lu: %s%s\n",
-					 console_num, console->leftover,
-					 line);
+			/* We need to output 'line', prefaced by 'leftover'.
+			 * However, it is possible we're being called to
+			 * output 'leftover' by itself (in the case of nothing
+			 * having been read from the console).
+			 *
+			 * To avoid duplication, check for this condition.
+			 */
+			if (console->leftover[0] &&
+			    (line != console->leftover)) {
+				if (console->print)
+					(*console->print)(oct, (u32)console_num,
+							  console->leftover,
+							  line);
 				console->leftover[0] = '\0';
 			} else {
-				dev_info(&oct->pci_dev->dev, "%lu: %s\n",
-					 console_num, line);
+				if (console->print)
+					(*console->print)(oct, (u32)console_num,
+							  line, NULL);
 			}
 			line = &console_buffer[i + 1];
 		}
@@ -459,13 +470,16 @@ static void output_console_line(struct octeon_device *oct,
 	/* Save off any leftovers */
 	if (line != &console_buffer[bytes_read]) {
 		console_buffer[bytes_read] = '\0';
-		strcpy(console->leftover, line);
+		len = strlen(console->leftover);
+		strncpy(&console->leftover[len], line,
+			sizeof(console->leftover) - len);
 	}
 }
 
 static void check_console(struct work_struct *work)
 {
 	s32 bytes_read, tries, total_read;
+	size_t len;
 	struct octeon_console *console;
 	struct cavium_wk *wk = (struct cavium_wk *)work;
 	struct octeon_device *oct = (struct octeon_device *)wk->ctxptr;
@@ -487,7 +501,7 @@ static void check_console(struct work_struct *work)
 			total_read += bytes_read;
 			if (console->waiting)
 				octeon_console_handle_result(oct, console_num);
-			if (octeon_console_debug_enabled(console_num)) {
+			if (console->print) {
 				output_console_line(oct, console, console_num,
 						    console_buffer, bytes_read);
 			}
@@ -502,10 +516,13 @@ static void check_console(struct work_struct *work)
 	/* If nothing is read after polling the console,
 	 * output any leftovers if any
 	 */
-	if (octeon_console_debug_enabled(console_num) &&
-	    (total_read == 0) && (console->leftover[0])) {
-		dev_info(&oct->pci_dev->dev, "%u: %s\n",
-			 console_num, console->leftover);
+	if (console->print && (total_read == 0) &&
+	    (console->leftover[0])) {
+		/* append '\n' as terminator for 'output_console_line' */
+		len = strlen(console->leftover);
+		console->leftover[len] = '\n';
+		output_console_line(oct, console, console_num,
+				    console->leftover, (s32)(len + 1));
 		console->leftover[0] = '\0';
 	}
 
@@ -557,7 +574,8 @@ int octeon_init_consoles(struct octeon_device *oct)
 	return ret;
 }
 
-int octeon_add_console(struct octeon_device *oct, u32 console_num)
+int octeon_add_console(struct octeon_device *oct, u32 console_num,
+		       char *dbg_enb)
 {
 	int ret = 0;
 	u32 delay;
@@ -599,11 +617,11 @@ int octeon_add_console(struct octeon_device *oct, u32 console_num)
 		delay = OCTEON_CONSOLE_POLL_INTERVAL_MS;
 		schedule_delayed_work(work, msecs_to_jiffies(delay));
 
-		if (octeon_console_debug_enabled(console_num)) {
-			ret = octeon_console_send_cmd(oct,
-						      "setenv pci_console_active 1",
-						      2000);
-		}
+		/* an empty string means use default debug console enablement */
+		if (dbg_enb && !dbg_enb[0])
+			dbg_enb = "setenv pci_console_active 1";
+		if (dbg_enb)
+			ret = octeon_console_send_cmd(oct, dbg_enb, 2000);
 
 		console->active = 1;
 	}

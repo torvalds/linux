@@ -73,7 +73,7 @@ MODULE_PARM_DESC(console_bitmask,
  * @param console console to check
  * @returns  1 = enabled. 0 otherwise
  */
-int octeon_console_debug_enabled(u32 console)
+static int octeon_console_debug_enabled(u32 console)
 {
 	return (console_bitmask >> (console)) & 0x1;
 }
@@ -184,6 +184,9 @@ struct octeon_device_priv {
 #ifdef CONFIG_PCI_IOV
 static int liquidio_enable_sriov(struct pci_dev *dev, int num_vfs);
 #endif
+
+static int octeon_dbg_console_print(struct octeon_device *oct, u32 console_num,
+				    char *prefix, char *suffix);
 
 static int octeon_device_init(struct octeon_device *);
 static int liquidio_stop(struct net_device *netdev);
@@ -4556,6 +4559,7 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 	int j, ret;
 	int fw_loaded = 0;
 	char bootcmd[] = "\n";
+	char *dbg_enb = NULL;
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)octeon_dev->priv;
 	atomic_set(&octeon_dev->status, OCT_DEV_BEGIN_STATE);
@@ -4762,10 +4766,19 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 			dev_err(&octeon_dev->pci_dev->dev, "Could not access board consoles\n");
 			return 1;
 		}
-		ret = octeon_add_console(octeon_dev, 0);
+		/* If console debug enabled, specify empty string to use default
+		 * enablement ELSE specify NULL string for 'disabled'.
+		 */
+		dbg_enb = octeon_console_debug_enabled(0) ? "" : NULL;
+		ret = octeon_add_console(octeon_dev, 0, dbg_enb);
 		if (ret) {
 			dev_err(&octeon_dev->pci_dev->dev, "Could not access board console\n");
 			return 1;
+		} else if (octeon_console_debug_enabled(0)) {
+			/* If console was added AND we're logging console output
+			 * then set our console print function.
+			 */
+			octeon_dev->console[0].print = octeon_dbg_console_print;
 		}
 
 		atomic_set(&octeon_dev->status, OCT_DEV_CONSOLE_INIT_DONE);
@@ -4797,6 +4810,33 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 		       octeon_dev->droq[j]->pkts_credit_reg);
 
 	/* Packets can start arriving on the output queues from this point. */
+	return 0;
+}
+
+/**
+ * \brief Debug console print function
+ * @param octeon_dev  octeon device
+ * @param console_num console number
+ * @param prefix      first portion of line to display
+ * @param suffix      second portion of line to display
+ *
+ * The OCTEON debug console outputs entire lines (excluding '\n').
+ * Normally, the line will be passed in the 'prefix' parameter.
+ * However, due to buffering, it is possible for a line to be split into two
+ * parts, in which case they will be passed as the 'prefix' parameter and
+ * 'suffix' parameter.
+ */
+static int octeon_dbg_console_print(struct octeon_device *oct, u32 console_num,
+				    char *prefix, char *suffix)
+{
+	if (prefix && suffix)
+		dev_info(&oct->pci_dev->dev, "%u: %s%s\n", console_num, prefix,
+			 suffix);
+	else if (prefix)
+		dev_info(&oct->pci_dev->dev, "%u: %s\n", console_num, prefix);
+	else if (suffix)
+		dev_info(&oct->pci_dev->dev, "%u: %s\n", console_num, suffix);
+
 	return 0;
 }
 

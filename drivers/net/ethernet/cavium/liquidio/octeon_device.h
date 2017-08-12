@@ -194,6 +194,8 @@ struct octeon_reg_list {
 };
 
 #define OCTEON_CONSOLE_MAX_READ_BYTES 512
+typedef int (*octeon_console_print_fn)(struct octeon_device *oct,
+				       u32 num, char *pre, char *suf);
 struct octeon_console {
 	u32 active;
 	u32 waiting;
@@ -201,6 +203,7 @@ struct octeon_console {
 	u32 buffer_size;
 	u64 input_base_addr;
 	u64 output_base_addr;
+	octeon_console_print_fn print;
 	char leftover[OCTEON_CONSOLE_MAX_READ_BYTES];
 };
 
@@ -740,16 +743,20 @@ int octeon_wait_for_bootloader(struct octeon_device *oct,
  */
 int octeon_init_consoles(struct octeon_device *oct);
 
-int octeon_console_debug_enabled(u32 console);
-
 /**
  * Adds access to a console to the device.
  *
- * @param oct which octeon to add to
- * @param console_num which console
+ * @param oct:          which octeon to add to
+ * @param console_num:  which console
+ * @param dbg_enb:      ptr to debug enablement string, one of:
+ *                    * NULL for no debug output (i.e. disabled)
+ *                    * empty string enables debug output (via default method)
+ *                    * specific string to enable debug console output
+ *
  * @return Zero on success, negative on failure.
  */
-int octeon_add_console(struct octeon_device *oct, u32 console_num);
+int octeon_add_console(struct octeon_device *oct, u32 console_num,
+		       char *dbg_enb);
 
 /** write or read from a console */
 int octeon_console_write(struct octeon_device *oct, u32 console_num,
