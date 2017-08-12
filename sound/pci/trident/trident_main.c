@@ -1727,7 +1727,7 @@ static snd_pcm_uframes_t snd_trident_spdif_pointer(struct snd_pcm_substream *sub
  *  Playback support device description
  */
 
-static struct snd_pcm_hardware snd_trident_playback =
+static const struct snd_pcm_hardware snd_trident_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1752,7 +1752,7 @@ static struct snd_pcm_hardware snd_trident_playback =
  *  Capture support device description
  */
 
-static struct snd_pcm_hardware snd_trident_capture =
+static const struct snd_pcm_hardware snd_trident_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1777,7 +1777,7 @@ static struct snd_pcm_hardware snd_trident_capture =
  *  Foldback capture support device description
  */
 
-static struct snd_pcm_hardware snd_trident_foldback =
+static const struct snd_pcm_hardware snd_trident_foldback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1801,7 +1801,7 @@ static struct snd_pcm_hardware snd_trident_foldback =
  *  SPDIF playback support device description
  */
 
-static struct snd_pcm_hardware snd_trident_spdif =
+static const struct snd_pcm_hardware snd_trident_spdif =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1822,7 +1822,7 @@ static struct snd_pcm_hardware snd_trident_spdif =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_trident_spdif_7018 =
+static const struct snd_pcm_hardware snd_trident_spdif_7018 =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
