@@ -28,6 +28,7 @@
 
 	aliases {
 		serial0 = &uart0;
+		rproc0 = &dsp0;
 	};
 
 	cpus {
@@ -145,6 +146,22 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio,syscon-dev = <&devctrl 0x240>;
+		};
+
+		dsp0: dsp@10800000 {
+			compatible = "ti,k2g-dsp";
+			reg = <0x10800000 0x00100000>,
+			      <0x10e00000 0x00008000>,
+			      <0x10f00000 0x00008000>;
+			reg-names = "l2sram", "l1pram", "l1dram";
+			power-domains = <&k2g_pds 0x0046>;
+			ti,syscon-dev = <&devctrl 0x844>;
+			resets = <&k2g_reset 0x0046 0x1>;
+			interrupt-parent = <&kirq0>;
+			interrupts = <0 8>;
+			interrupt-names = "vring", "exception";
+			kick-gpios = <&dspgpio0 27 0>;
+			status = "disabled";
 		};
 
 		msgmgr: msgmgr@02a00000 {
