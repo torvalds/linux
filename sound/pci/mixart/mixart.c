@@ -675,7 +675,7 @@ static int snd_mixart_hw_free(struct snd_pcm_substream *subs)
 /*
  *  TODO CONFIGURATION SPACE for all pcms, mono pcm must update channels_max
  */
-static struct snd_pcm_hardware snd_mixart_analog_caps =
+static const struct snd_pcm_hardware snd_mixart_analog_caps =
 {
 	.info             = ( SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 			      SNDRV_PCM_INFO_MMAP_VALID |
@@ -696,7 +696,7 @@ static struct snd_pcm_hardware snd_mixart_analog_caps =
 	.periods_max      = (32*1024/256),
 };
 
-static struct snd_pcm_hardware snd_mixart_digital_caps =
+static const struct snd_pcm_hardware snd_mixart_digital_caps =
 {
 	.info             = ( SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 			      SNDRV_PCM_INFO_MMAP_VALID |
