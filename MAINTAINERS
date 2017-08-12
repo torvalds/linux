@@ -1214,6 +1214,8 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.linux4sam.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nferre/linux-at91.git
 S:	Supported
+N:	at91
+N:	atmel
 F:	arch/arm/mach-at91/
 F:	include/soc/at91/
 F:	arch/arm/boot/dts/at91*.dts
@@ -1222,6 +1224,9 @@ F:	arch/arm/boot/dts/sama*.dts
 F:	arch/arm/boot/dts/sama*.dtsi
 F:	arch/arm/include/debug/at91.S
 F:	drivers/memory/atmel*
+F:	drivers/watchdog/sama5d4_wdt.c
+X:	drivers/input/touchscreen/atmel_mxt_ts.c
+X:	drivers/net/wireless/atmel/
 
 ARM/CALXEDA HIGHBANK ARCHITECTURE
 M:	Rob Herring <robh@kernel.org>
