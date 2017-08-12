@@ -545,8 +545,8 @@ int snd_mpu401_uart_new(struct snd_card *card, int device,
 		return err;
 	mpu = kzalloc(sizeof(*mpu), GFP_KERNEL);
 	if (mpu == NULL) {
-		snd_device_free(card, rmidi);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto free_device;
 	}
 	rmidi->private_data = mpu;
 	rmidi->private_free = snd_mpu401_uart_free;
@@ -562,8 +562,8 @@ int snd_mpu401_uart_new(struct snd_card *card, int device,
 			snd_printk(KERN_ERR "mpu401_uart: "
 				   "unable to grab port 0x%lx size %d\n",
 				   port, res_size);
-			snd_device_free(card, rmidi);
-			return -EBUSY;
+			err = -EBUSY;
+			goto free_device;
 		}
 	}
 	if (info_flags & MPU401_INFO_MMIO) {
@@ -583,8 +583,8 @@ int snd_mpu401_uart_new(struct snd_card *card, int device,
 				"MPU401 UART", (void *) mpu)) {
 			snd_printk(KERN_ERR "mpu401_uart: "
 				   "unable to grab IRQ %d\n", irq);
-			snd_device_free(card, rmidi);
-			return -EBUSY;
+			err = -EBUSY;
+			goto free_device;
 		}
 	}
 	if (irq < 0 && !(info_flags & MPU401_INFO_IRQ_HOOK))
@@ -612,6 +612,9 @@ int snd_mpu401_uart_new(struct snd_card *card, int device,
 	if (rrawmidi)
 		*rrawmidi = rmidi;
 	return 0;
+free_device:
+	snd_device_free(card, rmidi);
+	return err;
 }
 
 EXPORT_SYMBOL(snd_mpu401_uart_new);
