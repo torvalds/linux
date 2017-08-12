@@ -1,1 +1,1 @@
-obj-$(CONFIG_ARCH_DIGICOLOR)	+= digicolor.o
+////obj-$(CONFIG_ARCH_DIGICOLOR)	+= digicolor.o

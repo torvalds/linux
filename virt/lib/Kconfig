@@ -1,2 +1,2 @@
-config IRQ_BYPASS_MANAGER
-	tristate
+////config IRQ_BYPASS_MANAGER
+////	tristate

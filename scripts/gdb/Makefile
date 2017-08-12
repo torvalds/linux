@@ -1,1 +1,1 @@
-subdir-y := linux
+////subdir-y := linux

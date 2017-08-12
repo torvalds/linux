@@ -1,4 +1,4 @@
-initrd
-b[0-9]*
-res
-*.swp
+////initrd
+////b[0-9]*
+////res
+////*.swp

@@ -1,3 +1,3 @@
-__NR_kill,
-__NR_tgkill,
-__NR_tkill,
+////__NR_kill,
+////__NR_tgkill,
+////__NR_tkill,

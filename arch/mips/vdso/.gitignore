@@ -1,4 +1,4 @@
-*.so*
-vdso-*image.c
-genvdso
-vdso*.lds
+////*.so*
+////vdso-*image.c
+////genvdso
+////vdso*.lds

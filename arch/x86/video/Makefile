@@ -1,1 +1,1 @@
-obj-$(CONFIG_FB)               += fbdev.o
+////obj-$(CONFIG_FB)               += fbdev.o

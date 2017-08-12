@@ -1,1 +1,1 @@
-extern int aix_partition(struct parsed_partitions *state);
+////extern int aix_partition(struct parsed_partitions *state);

@@ -1,3 +1,3 @@
-&usb {
-	dr_mode = "host";
-};
+////&usb {
+////	dr_mode = "host";
+////};

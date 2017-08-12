@@ -1,5 +1,5 @@
-#
-# Makefile for the MN103E010 processor chip specific code
-#
-obj-y   := proc-init.o
-
+////#
+////# Makefile for the MN103E010 processor chip specific code
+////#
+////obj-y   := proc-init.o
+////

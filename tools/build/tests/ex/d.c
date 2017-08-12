@@ -1,5 +1,5 @@
-
-int d(void)
-{
-	return 0;
-}
+////
+////int d(void)
+////{
+////	return 0;
+////}

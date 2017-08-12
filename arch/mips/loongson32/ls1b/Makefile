@@ -1,5 +1,5 @@
-#
-# Makefile for loongson1B based machines.
-#
-
-obj-y += board.o
+////#
+////# Makefile for loongson1B based machines.
+////#
+////
+////obj-y += board.o

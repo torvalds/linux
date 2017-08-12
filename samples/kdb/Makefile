@@ -1,1 +1,1 @@
-obj-$(CONFIG_SAMPLE_KDB) += kdb_hello.o
+////obj-$(CONFIG_SAMPLE_KDB) += kdb_hello.o

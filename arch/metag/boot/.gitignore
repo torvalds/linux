@@ -1,4 +1,4 @@
-vmlinux*
-uImage*
-ramdisk.*
-*.dtb*
+////vmlinux*
+////uImage*
+////ramdisk.*
+////*.dtb*

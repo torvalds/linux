@@ -1,1 +1,1 @@
-obj-y	 += irq.o setup.o prom.o
+////obj-y	 += irq.o setup.o prom.o

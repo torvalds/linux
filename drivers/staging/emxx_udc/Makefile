@@ -1,1 +1,1 @@
-obj-$(CONFIG_USB_EMXX)	:= emxx_udc.o
+////obj-$(CONFIG_USB_EMXX)	:= emxx_udc.o

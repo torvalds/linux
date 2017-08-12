@@ -1,2 +1,2 @@
-libex-y += e.o
-libex-y += f.o
+////libex-y += e.o
+////libex-y += f.o

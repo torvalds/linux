@@ -1,1 +1,1 @@
-obj-y += platform.o
+////obj-y += platform.o

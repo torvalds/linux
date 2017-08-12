@@ -1,6 +1,6 @@
-if PLAT_VERSATILE
-
-config PLAT_VERSATILE_SCHED_CLOCK
-	bool
-
-endif
+////if PLAT_VERSATILE
+////
+////config PLAT_VERSATILE_SCHED_CLOCK
+////	bool
+////
+////endif

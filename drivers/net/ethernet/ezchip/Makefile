@@ -1,1 +1,1 @@
-obj-$(CONFIG_EZCHIP_NPS_MANAGEMENT_ENET) += nps_enet.o
+////obj-$(CONFIG_EZCHIP_NPS_MANAGEMENT_ENET) += nps_enet.o

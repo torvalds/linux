@@ -1,1 +1,1 @@
-obj-$(CONFIG_CW1200)	+= cw1200/
+////obj-$(CONFIG_CW1200)	+= cw1200/

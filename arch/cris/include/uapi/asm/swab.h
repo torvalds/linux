@@ -1,3 +1,3 @@
-/*
- * CRIS byte swapping.
- */
+/////*
+//// * CRIS byte swapping.
+//// */

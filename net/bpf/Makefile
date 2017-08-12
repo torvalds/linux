@@ -1,1 +1,1 @@
-obj-y	:= test_run.o
+////obj-y	:= test_run.o

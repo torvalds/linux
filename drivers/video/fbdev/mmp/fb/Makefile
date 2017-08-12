@@ -1,1 +1,1 @@
-obj-$(CONFIG_MMP_FB)  += mmpfb.o
+////obj-$(CONFIG_MMP_FB)  += mmpfb.o

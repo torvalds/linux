@@ -1,1 +1,1 @@
-obj-$(CONFIG_VIDEO_DT3155)	+= dt3155.o
+////obj-$(CONFIG_VIDEO_DT3155)	+= dt3155.o

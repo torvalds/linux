@@ -1,2 +1,2 @@
-#define PCMCIA 1
-#include "fdomain.c"
+////#define PCMCIA 1
+////#include "fdomain.c"

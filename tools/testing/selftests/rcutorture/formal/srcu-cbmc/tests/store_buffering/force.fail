@@ -1,1 +1,1 @@
-test_cbmc_options="-DFORCE_FAILURE"
+////test_cbmc_options="-DFORCE_FAILURE"

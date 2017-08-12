@@ -1,1 +1,1 @@
-obj-y	:= setup.o io.o
+////obj-y	:= setup.o io.o

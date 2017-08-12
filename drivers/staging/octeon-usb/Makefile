@@ -1,1 +1,1 @@
-obj-${CONFIG_OCTEON_USB} := octeon-hcd.o
+////obj-${CONFIG_OCTEON_USB} := octeon-hcd.o

@@ -1,1 +1,1 @@
-#include <asm-generic/vga.h>
+////#include <asm-generic/vga.h>
