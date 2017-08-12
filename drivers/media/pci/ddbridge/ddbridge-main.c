@@ -35,6 +35,7 @@
 #include "ddbridge.h"
 #include "ddbridge-i2c.h"
 #include "ddbridge-regs.h"
+#include "ddbridge-io.h"
 
 /****************************************************************************/
 /* module parameters */

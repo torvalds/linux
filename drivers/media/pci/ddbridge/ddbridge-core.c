@@ -37,6 +37,7 @@
 #include "ddbridge.h"
 #include "ddbridge-i2c.h"
 #include "ddbridge-regs.h"
+#include "ddbridge-io.h"
 
 #include "tda18271c2dd.h"
 #include "stv6110x.h"

@@ -349,49 +349,6 @@ struct ddb {
 	u8                     tsbuf[TS_CAPTURE_LEN];
 };
 
-static inline u32 ddblreadl(struct ddb_link *link, u32 adr)
-{
-	return readl((char *) (link->dev->regs + (adr)));
-}
-
-static inline void ddblwritel(struct ddb_link *link, u32 val, u32 adr)
-{
-	writel(val, (char *) (link->dev->regs + (adr)));
-}
-
-static inline u32 ddbreadl(struct ddb *dev, u32 adr)
-{
-	return readl((char *) (dev->regs + (adr)));
-}
-
-static inline void ddbwritel(struct ddb *dev, u32 val, u32 adr)
-{
-	writel(val, (char *) (dev->regs + (adr)));
-}
-
-static inline void ddbcpyto(struct ddb *dev, u32 adr, void *src, long count)
-{
-	return memcpy_toio((char *) (dev->regs + adr), src, count);
-}
-
-static inline void ddbcpyfrom(struct ddb *dev, void *dst, u32 adr, long count)
-{
-	return memcpy_fromio(dst, (char *) (dev->regs + adr), count);
-}
-
-static inline u32 safe_ddbreadl(struct ddb *dev, u32 adr)
-{
-	u32 val = ddbreadl(dev, adr);
-
-	/* (ddb)readl returns (uint)-1 (all bits set) on failure, catch that */
-	if (val == ~0) {
-		dev_err(&dev->pdev->dev, "ddbreadl failure, adr=%08x\n", adr);
-		return 0;
-	}
-
-	return val;
-}
-
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
