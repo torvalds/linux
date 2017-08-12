@@ -357,6 +357,17 @@ static void cuda_shutdown(void)
 	struct adb_request req;
 	if (cuda_request(&req, NULL, 2, CUDA_PACKET, CUDA_POWERDOWN) < 0)
 		return;
+
+	/* Avoid infinite polling loop when PSU is not under Cuda control */
+	switch (macintosh_config->ident) {
+	case MAC_MODEL_C660:
+	case MAC_MODEL_Q605:
+	case MAC_MODEL_Q605_ACC:
+	case MAC_MODEL_P475:
+	case MAC_MODEL_P475F:
+		return;
+	}
+
 	while (!req.complete)
 		cuda_poll();
 }
