@@ -159,7 +159,7 @@ struct sis7019 {
  * We'll add a constraint upon open that limits the period and buffer sample
  * size to values that are legal for the hardware.
  */
-static struct snd_pcm_hardware sis_playback_hw_info = {
+static const struct snd_pcm_hardware sis_playback_hw_info = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_INTERLEAVED |
@@ -180,7 +180,7 @@ static struct snd_pcm_hardware sis_playback_hw_info = {
 	.periods_max = (0xfff9 / 9),
 };
 
-static struct snd_pcm_hardware sis_capture_hw_info = {
+static const struct snd_pcm_hardware sis_capture_hw_info = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_INTERLEAVED |

@@ -384,7 +384,7 @@ snd_rme96_capture_copy_kernel(struct snd_pcm_substream *substream,
 /*
  * Digital output capabilities (S/PDIF)
  */
-static struct snd_pcm_hardware snd_rme96_playback_spdif_info =
+static const struct snd_pcm_hardware snd_rme96_playback_spdif_info =
 {
 	.info =		     (SNDRV_PCM_INFO_MMAP_IOMEM |
 			      SNDRV_PCM_INFO_MMAP_VALID |
@@ -415,7 +415,7 @@ static struct snd_pcm_hardware snd_rme96_playback_spdif_info =
 /*
  * Digital input capabilities (S/PDIF)
  */
-static struct snd_pcm_hardware snd_rme96_capture_spdif_info =
+static const struct snd_pcm_hardware snd_rme96_capture_spdif_info =
 {
 	.info =		     (SNDRV_PCM_INFO_MMAP_IOMEM |
 			      SNDRV_PCM_INFO_MMAP_VALID |
@@ -446,7 +446,7 @@ static struct snd_pcm_hardware snd_rme96_capture_spdif_info =
 /*
  * Digital output capabilities (ADAT)
  */
-static struct snd_pcm_hardware snd_rme96_playback_adat_info =
+static const struct snd_pcm_hardware snd_rme96_playback_adat_info =
 {
 	.info =		     (SNDRV_PCM_INFO_MMAP_IOMEM |
 			      SNDRV_PCM_INFO_MMAP_VALID |
@@ -473,7 +473,7 @@ static struct snd_pcm_hardware snd_rme96_playback_adat_info =
 /*
  * Digital input capabilities (ADAT)
  */
-static struct snd_pcm_hardware snd_rme96_capture_adat_info =
+static const struct snd_pcm_hardware snd_rme96_capture_adat_info =
 {
 	.info =		     (SNDRV_PCM_INFO_MMAP_IOMEM |
 			      SNDRV_PCM_INFO_MMAP_VALID |

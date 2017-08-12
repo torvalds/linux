@@ -1115,7 +1115,7 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static struct snd_pcm_hardware snd_intel8x0_stream =
+static const struct snd_pcm_hardware snd_intel8x0_stream =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
