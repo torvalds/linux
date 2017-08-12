@@ -1665,7 +1665,7 @@ static int snd_es18xx_probe(struct snd_es18xx *chip,
 	return snd_es18xx_initialize(chip, mpu_port, fm_port);
 }
 
-static struct snd_pcm_ops snd_es18xx_playback_ops = {
+static const struct snd_pcm_ops snd_es18xx_playback_ops = {
 	.open =		snd_es18xx_playback_open,
 	.close =	snd_es18xx_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1676,7 +1676,7 @@ static struct snd_pcm_ops snd_es18xx_playback_ops = {
 	.pointer =	snd_es18xx_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_es18xx_capture_ops = {
+static const struct snd_pcm_ops snd_es18xx_capture_ops = {
 	.open =		snd_es18xx_capture_open,
 	.close =	snd_es18xx_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
