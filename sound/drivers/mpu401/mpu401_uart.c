@@ -136,7 +136,7 @@ irqreturn_t snd_mpu401_uart_interrupt(int irq, void *dev_id)
 {
 	struct snd_mpu401 *mpu = dev_id;
 	
-	if (mpu == NULL)
+	if (!mpu)
 		return IRQ_NONE;
 	_snd_mpu401_uart_interrupt(mpu);
 	return IRQ_HANDLED;
@@ -157,7 +157,7 @@ irqreturn_t snd_mpu401_uart_interrupt_tx(int irq, void *dev_id)
 {
 	struct snd_mpu401 *mpu = dev_id;
 	
-	if (mpu == NULL)
+	if (!mpu)
 		return IRQ_NONE;
 	uart_interrupt_tx(mpu);
 	return IRQ_HANDLED;
@@ -544,7 +544,7 @@ int snd_mpu401_uart_new(struct snd_card *card, int device,
 				   out_enable, in_enable, &rmidi)) < 0)
 		return err;
 	mpu = kzalloc(sizeof(*mpu), GFP_KERNEL);
-	if (mpu == NULL) {
+	if (!mpu) {
 		err = -ENOMEM;
 		goto free_device;
 	}
@@ -558,7 +558,7 @@ int snd_mpu401_uart_new(struct snd_card *card, int device,
 	if (! (info_flags & MPU401_INFO_INTEGRATED)) {
 		int res_size = hardware == MPU401_HW_PC98II ? 4 : 2;
 		mpu->res = request_region(port, res_size, "MPU401 UART");
-		if (mpu->res == NULL) {
+		if (!mpu->res) {
 			snd_printk(KERN_ERR "mpu401_uart: "
 				   "unable to grab port 0x%lx size %d\n",
 				   port, res_size);
