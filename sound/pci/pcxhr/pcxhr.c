@@ -986,7 +986,7 @@ static int pcxhr_hw_free(struct snd_pcm_substream *subs)
 /*
  *  CONFIGURATION SPACE for all pcms, mono pcm must update channels_max
  */
-static struct snd_pcm_hardware pcxhr_caps =
+static const struct snd_pcm_hardware pcxhr_caps =
 {
 	.info             = (SNDRV_PCM_INFO_MMAP |
 			     SNDRV_PCM_INFO_INTERLEAVED |
