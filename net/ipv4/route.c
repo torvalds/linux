@@ -2236,7 +2236,7 @@ add:
 	if (!rth)
 		return ERR_PTR(-ENOBUFS);
 
-	rth->rt_iif	= orig_oif ? : 0;
+	rth->rt_iif = orig_oif;
 	if (res->table)
 		rth->rt_table_id = res->table->tb_id;
 
