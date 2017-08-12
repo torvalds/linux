@@ -1521,7 +1521,7 @@ static void hdspm_silence_playback(struct hdspm *hdspm)
 	int n = hdspm->period_bytes;
 	void *buf = hdspm->playback_buffer;
 
-	if (buf == NULL)
+	if (!buf)
 		return;
 
 	for (i = 0; i < HDSPM_MAX_CHANNELS; i++) {
@@ -4706,7 +4706,7 @@ static int snd_hdspm_create_controls(struct snd_card *card,
 		break;
 	}
 
-	if (NULL != list) {
+	if (list) {
 		for (idx = 0; idx < limit; idx++) {
 			err = snd_ctl_add(card,
 					snd_ctl_new1(&list[idx], hdspm));
@@ -6069,13 +6069,13 @@ static int snd_hdspm_open(struct snd_pcm_substream *substream)
 		snd_hdspm_capture_subinfo;
 
 	if (playback) {
-		if (hdspm->capture_substream == NULL)
+		if (!hdspm->capture_substream)
 			hdspm_stop_audio(hdspm);
 
 		hdspm->playback_pid = current->pid;
 		hdspm->playback_substream = substream;
 	} else {
-		if (hdspm->playback_substream == NULL)
+		if (!hdspm->playback_substream)
 			hdspm_stop_audio(hdspm);
 
 		hdspm->capture_pid = current->pid;
@@ -6775,9 +6775,9 @@ static int snd_hdspm_create(struct snd_card *card,
 				HDSPM_s2_tco_detect) {
 			hdspm->midiPorts++;
 			hdspm->tco = kzalloc(sizeof(*hdspm->tco), GFP_KERNEL);
-			if (NULL != hdspm->tco) {
+			if (hdspm->tco)
 				hdspm_tco_write(hdspm);
-			}
+
 			dev_info(card->dev, "AIO/RayDAT TCO module found\n");
 		} else {
 			hdspm->tco = NULL;
@@ -6789,9 +6789,9 @@ static int snd_hdspm_create(struct snd_card *card,
 		if (hdspm_read(hdspm, HDSPM_statusRegister) & HDSPM_tco_detect) {
 			hdspm->midiPorts++;
 			hdspm->tco = kzalloc(sizeof(*hdspm->tco), GFP_KERNEL);
-			if (NULL != hdspm->tco) {
+			if (hdspm->tco)
 				hdspm_tco_write(hdspm);
-			}
+
 			dev_info(card->dev, "MADI/AES TCO module found\n");
 		} else {
 			hdspm->tco = NULL;
@@ -6868,7 +6868,7 @@ static int snd_hdspm_create(struct snd_card *card,
 		 * this case, we don't set card->id to avoid collisions
 		 * when running with multiple cards.
 		 */
-		if (NULL == id[hdspm->dev] && hdspm->serial != 0xFFFFFF) {
+		if (!id[hdspm->dev] && hdspm->serial != 0xFFFFFF) {
 			snprintf(card->id, sizeof(card->id),
 				 "HDSPMx%06x", hdspm->serial);
 			snd_card_set_id(card, card->id);
