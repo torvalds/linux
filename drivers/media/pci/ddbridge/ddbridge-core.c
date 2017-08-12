@@ -3107,7 +3107,7 @@ static ssize_t bpsnr_show(struct device *device,
 			 struct device_attribute *attr, char *buf)
 {
 	struct ddb *dev = dev_get_drvdata(device);
-	char snr[32];
+	unsigned char snr[32];
 
 	if (!dev->i2c_num)
 		return 0;
