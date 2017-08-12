@@ -25,6 +25,19 @@
 		reg = <0x00000008 0x00000000 0x00000000 0x80000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dsp_common_memory: dsp-common-memory@81f800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00000008 0x1f800000 0x00000000 0x800000>;
+			reusable;
+			status = "okay";
+		};
+	};
+
 	vcc3v3_dcin_reg: fixedregulator-vcc3v3-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "mmc0_fixed";
@@ -92,5 +105,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vcc3v3_dcin_reg>; /* VCC3V3_EMMC is connected to VCC3V3_DCIN */
+	status = "okay";
+};
+
+&dsp0 {
+	memory-region = <&dsp_common_memory>;
 	status = "okay";
 };
