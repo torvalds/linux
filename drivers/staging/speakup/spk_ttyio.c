@@ -7,11 +7,6 @@
 #include "spk_types.h"
 #include "spk_priv.h"
 
-#define DEV_PREFIX_LP "lp"
-
-static const char * const lp_supported[] = { "acntsa", "bns", "dummy",
-	"txprt" };
-
 struct spk_ldisc_data {
 	char buf;
 	struct semaphore sem;
@@ -36,24 +31,8 @@ static int get_dev_to_use(struct spk_synth *synth, dev_t *dev_no)
 {
 	/* use ser only when dev is not specified */
 	if (strcmp(synth->dev_name, SYNTH_DEFAULT_DEV) ||
-	    synth->ser == SYNTH_DEFAULT_SER) {
-		/* for /dev/lp* check if synth is supported */
-		if (strncmp(synth->dev_name, DEV_PREFIX_LP,
-		    strlen(DEV_PREFIX_LP)) == 0)
-			if (match_string(lp_supported, ARRAY_SIZE(lp_supported),
-			    synth->name) < 0)  {
-				int i;
-
-				pr_err("speakup: lp* is only supported on:");
-				for (i = 0; i < ARRAY_SIZE(lp_supported); i++)
-					pr_cont(" %s", lp_supported[i]);
-				pr_cont("\n");
-
-				return -ENOTSUPP;
-			}
-
+	    synth->ser == SYNTH_DEFAULT_SER)
 		return tty_dev_name_to_number(synth->dev_name, dev_no);
-	}
 
 	return ser_to_dev(synth->ser, dev_no);
 }
