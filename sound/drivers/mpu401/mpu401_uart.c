@@ -545,7 +545,6 @@ int snd_mpu401_uart_new(struct snd_card *card, int device,
 		return err;
 	mpu = kzalloc(sizeof(*mpu), GFP_KERNEL);
 	if (mpu == NULL) {
-		snd_printk(KERN_ERR "mpu401_uart: cannot allocate\n");
 		snd_device_free(card, rmidi);
 		return -ENOMEM;
 	}
