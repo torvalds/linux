@@ -26,3 +26,18 @@ config DVB_DDBRIDGE
 	  - CineS2 V7/V7A and DuoFlex S2 V4 (ST STV0910-based)
 
 	  Say Y if you own such a card and want to use it.
+
+config DVB_DDBRIDGE_MSIENABLE
+	bool "Enable Message Signaled Interrupts (MSI) per default (EXPERIMENTAL)"
+	depends on DVB_DDBRIDGE
+	depends on PCI_MSI
+	default n
+	---help---
+	  Use PCI MSI (Message Signaled Interrupts) per default. Enabling this
+	  might lead to I2C errors originating from the bridge in conjunction
+	  with certain SATA controllers, requiring a reload of the ddbridge
+	  module. MSI can still be disabled by passing msi=0 as option, as
+	  this will just change the msi option default value.
+
+	  If you're unsure, concerned about stability and don't want to pass
+	  module options in case of troubles, say N.

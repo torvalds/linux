@@ -47,10 +47,17 @@ MODULE_PARM_DESC(adapter_alloc,
 		 "0-one adapter per io, 1-one per tab with io, 2-one per tab, 3-one for all");
 
 #ifdef CONFIG_PCI_MSI
+#ifdef CONFIG_DVB_DDBRIDGE_MSIENABLE
 int msi = 1;
+#else
+int msi;
+#endif
 module_param(msi, int, 0444);
-MODULE_PARM_DESC(msi,
-		 " Control MSI interrupts: 0-disable, 1-enable (default)");
+#ifdef CONFIG_DVB_DDBRIDGE_MSIENABLE
+MODULE_PARM_DESC(msi, "Control MSI interrupts: 0-disable, 1-enable (default)");
+#else
+MODULE_PARM_DESC(msi, "Control MSI interrupts: 0-disable (default), 1-enable");
+#endif
 #endif
 
 int ci_bitrate = 70000;
