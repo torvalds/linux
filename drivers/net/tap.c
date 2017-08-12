@@ -1127,7 +1127,7 @@ static long tap_compat_ioctl(struct file *file, unsigned int cmd,
 }
 #endif
 
-const struct file_operations tap_fops = {
+static const struct file_operations tap_fops = {
 	.owner		= THIS_MODULE,
 	.open		= tap_open,
 	.release	= tap_release,
