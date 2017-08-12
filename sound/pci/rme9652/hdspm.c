@@ -1521,7 +1521,7 @@ static void hdspm_silence_playback(struct hdspm *hdspm)
 	int n = hdspm->period_bytes;
 	void *buf = hdspm->playback_buffer;
 
-	if (buf == NULL)
+	if (!buf)
 		return;
 
 	for (i = 0; i < HDSPM_MAX_CHANNELS; i++) {
@@ -4706,7 +4706,7 @@ static int snd_hdspm_create_controls(struct snd_card *card,
 		break;
 	}
 
-	if (NULL != list) {
+	if (list) {
 		for (idx = 0; idx < limit; idx++) {
 			err = snd_ctl_add(card,
 					snd_ctl_new1(&list[idx], hdspm));
@@ -6069,13 +6069,13 @@ static int snd_hdspm_open(struct snd_pcm_substream *substream)
 		snd_hdspm_capture_subinfo;
 
 	if (playback) {
-		if (hdspm->capture_substream == NULL)
+		if (!hdspm->capture_substream)
 			hdspm_stop_audio(hdspm);
 
 		hdspm->playback_pid = current->pid;
 		hdspm->playback_substream = substream;
 	} else {
-		if (hdspm->playback_substream == NULL)
+		if (!hdspm->playback_substream)
 			hdspm_stop_audio(hdspm);
 
 		hdspm->capture_pid = current->pid;
@@ -6221,7 +6221,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		}
 		levels->status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
 
-		s = copy_to_user(argp, levels, sizeof(struct hdspm_peak_rms));
+		s = copy_to_user(argp, levels, sizeof(*levels));
 		if (0 != s) {
 			/* dev_err(hdspm->card->dev, "copy_to_user(.., .., %lu): %lu
 			 [Levels]\n", sizeof(struct hdspm_peak_rms), s);
@@ -6266,7 +6266,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 			ltc.input_format = no_video;
 		}
 
-		s = copy_to_user(argp, &ltc, sizeof(struct hdspm_ltc));
+		s = copy_to_user(argp, &ltc, sizeof(ltc));
 		if (0 != s) {
 			/*
 			  dev_err(hdspm->card->dev, "copy_to_user(.., .., %lu): %lu [LTC]\n", sizeof(struct hdspm_ltc), s); */
@@ -6357,7 +6357,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		if (copy_from_user(&mixer, argp, sizeof(mixer)))
 			return -EFAULT;
 		if (copy_to_user((void __user *)mixer.mixer, hdspm->mixer,
-					sizeof(struct hdspm_mixer)))
+				 sizeof(*mixer.mixer)))
 			return -EFAULT;
 		break;
 
@@ -6636,14 +6636,10 @@ static int snd_hdspm_create(struct snd_card *card,
 	hdspm->irq = pci->irq;
 
 	dev_dbg(card->dev, "kmalloc Mixer memory of %zd Bytes\n",
-			sizeof(struct hdspm_mixer));
-	hdspm->mixer = kzalloc(sizeof(struct hdspm_mixer), GFP_KERNEL);
-	if (!hdspm->mixer) {
-		dev_err(card->dev,
-			"unable to kmalloc Mixer memory of %d Bytes\n",
-				(int)sizeof(struct hdspm_mixer));
+		sizeof(*hdspm->mixer));
+	hdspm->mixer = kzalloc(sizeof(*hdspm->mixer), GFP_KERNEL);
+	if (!hdspm->mixer)
 		return -ENOMEM;
-	}
 
 	hdspm->port_names_in = NULL;
 	hdspm->port_names_out = NULL;
@@ -6778,11 +6774,10 @@ static int snd_hdspm_create(struct snd_card *card,
 		if (hdspm_read(hdspm, HDSPM_statusRegister2) &
 				HDSPM_s2_tco_detect) {
 			hdspm->midiPorts++;
-			hdspm->tco = kzalloc(sizeof(struct hdspm_tco),
-					GFP_KERNEL);
-			if (NULL != hdspm->tco) {
+			hdspm->tco = kzalloc(sizeof(*hdspm->tco), GFP_KERNEL);
+			if (hdspm->tco)
 				hdspm_tco_write(hdspm);
-			}
+
 			dev_info(card->dev, "AIO/RayDAT TCO module found\n");
 		} else {
 			hdspm->tco = NULL;
@@ -6793,11 +6788,10 @@ static int snd_hdspm_create(struct snd_card *card,
 	case AES32:
 		if (hdspm_read(hdspm, HDSPM_statusRegister) & HDSPM_tco_detect) {
 			hdspm->midiPorts++;
-			hdspm->tco = kzalloc(sizeof(struct hdspm_tco),
-					GFP_KERNEL);
-			if (NULL != hdspm->tco) {
+			hdspm->tco = kzalloc(sizeof(*hdspm->tco), GFP_KERNEL);
+			if (hdspm->tco)
 				hdspm_tco_write(hdspm);
-			}
+
 			dev_info(card->dev, "MADI/AES TCO module found\n");
 		} else {
 			hdspm->tco = NULL;
@@ -6874,7 +6868,7 @@ static int snd_hdspm_create(struct snd_card *card,
 		 * this case, we don't set card->id to avoid collisions
 		 * when running with multiple cards.
 		 */
-		if (NULL == id[hdspm->dev] && hdspm->serial != 0xFFFFFF) {
+		if (!id[hdspm->dev] && hdspm->serial != 0xFFFFFF) {
 			snprintf(card->id, sizeof(card->id),
 				 "HDSPMx%06x", hdspm->serial);
 			snd_card_set_id(card, card->id);
@@ -6945,7 +6939,7 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 	}
 
 	err = snd_card_new(&pci->dev, index[dev], id[dev],
-			   THIS_MODULE, sizeof(struct hdspm), &card);
+			   THIS_MODULE, sizeof(*hdspm), &card);
 	if (err < 0)
 		return err;
 
