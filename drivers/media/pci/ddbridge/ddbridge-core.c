@@ -170,9 +170,9 @@ static int ddb_redirect(u32 i, u32 p)
 	struct ddb *pdev = ddbs[(p >> 4) & 0x3f];
 	struct ddb_port *port;
 
-	if (!idev->has_dma || !pdev->has_dma)
-		return -EINVAL;
 	if (!idev || !pdev)
+		return -EINVAL;
+	if (!idev->has_dma || !pdev->has_dma)
 		return -EINVAL;
 
 	port = &pdev->port[p & 0x0f];
