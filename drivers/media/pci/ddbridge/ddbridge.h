@@ -369,7 +369,6 @@ extern int stv0910_single;
 extern struct workqueue_struct *ddb_wq;
 
 /* ddbridge-core.c */
-extern struct ddb_regmap octopus_map;
 void ddb_ports_detach(struct ddb *dev);
 void ddb_ports_release(struct ddb *dev);
 void ddb_buffers_free(struct ddb *dev);

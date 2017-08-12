@@ -2,7 +2,8 @@
 # Makefile for the ddbridge device driver
 #
 
-ddbridge-objs := ddbridge-main.o ddbridge-core.o ddbridge-i2c.o
+ddbridge-objs := ddbridge-main.o ddbridge-core.o ddbridge-hw.o \
+		ddbridge-i2c.o
 
 obj-$(CONFIG_DVB_DDBRIDGE) += ddbridge.o
 
