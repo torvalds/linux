@@ -92,18 +92,6 @@ static inline void gic_update_bits(unsigned int reg, unsigned long mask,
 	gic_write(reg, regval);
 }
 
-static inline void gic_reset_mask(unsigned int intr)
-{
-	gic_write(GIC_REG(SHARED, GIC_SH_RMASK) + GIC_INTR_OFS(intr),
-		  1ul << GIC_INTR_BIT(intr));
-}
-
-static inline void gic_set_mask(unsigned int intr)
-{
-	gic_write(GIC_REG(SHARED, GIC_SH_SMASK) + GIC_INTR_OFS(intr),
-		  1ul << GIC_INTR_BIT(intr));
-}
-
 static inline void gic_set_polarity(unsigned int intr, unsigned int pol)
 {
 	gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_POLARITY) +
@@ -260,12 +248,12 @@ static void gic_handle_shared_int(bool chained)
 
 static void gic_mask_irq(struct irq_data *d)
 {
-	gic_reset_mask(GIC_HWIRQ_TO_SHARED(d->hwirq));
+	write_gic_rmask(BIT(GIC_HWIRQ_TO_SHARED(d->hwirq)));
 }
 
 static void gic_unmask_irq(struct irq_data *d)
 {
-	gic_set_mask(GIC_HWIRQ_TO_SHARED(d->hwirq));
+	write_gic_smask(BIT(GIC_HWIRQ_TO_SHARED(d->hwirq)));
 }
 
 static void gic_ack_irq(struct irq_data *d)
@@ -478,7 +466,7 @@ static void __init gic_basic_init(void)
 	for (i = 0; i < gic_shared_intrs; i++) {
 		gic_set_polarity(i, GIC_POL_POS);
 		gic_set_trigger(i, GIC_TRIG_LEVEL);
-		gic_reset_mask(i);
+		write_gic_rmask(BIT(i));
 	}
 
 	for (i = 0; i < gic_vpes; i++) {
