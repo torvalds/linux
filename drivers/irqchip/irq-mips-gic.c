@@ -1009,7 +1009,7 @@ static int __init gic_of_init(struct device_node *node,
 		 */
 		if (mips_cm_present()) {
 			gic_base = read_gcr_gic_base() &
-				~CM_GCR_GIC_BASE_GICEN_MSK;
+				~CM_GCR_GIC_BASE_GICEN;
 			gic_len = 0x20000;
 		} else {
 			pr_err("Failed to get GIC memory range\n");
@@ -1021,7 +1021,7 @@ static int __init gic_of_init(struct device_node *node,
 	}
 
 	if (mips_cm_present())
-		write_gcr_gic_base(gic_base | CM_GCR_GIC_BASE_GICEN_MSK);
+		write_gcr_gic_base(gic_base | CM_GCR_GIC_BASE_GICEN);
 	gic_present = true;
 
 	__gic_init(gic_base, gic_len, cpu_vec, 0, node);

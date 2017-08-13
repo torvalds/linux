@@ -40,13 +40,13 @@ static phys_addr_t mips_cpc_phys_base(void)
 	if (!mips_cm_present())
 		return 0;
 
-	if (!(read_gcr_cpc_status() & CM_GCR_CPC_STATUS_EX_MSK))
+	if (!(read_gcr_cpc_status() & CM_GCR_CPC_STATUS_EX))
 		return 0;
 
 	/* If the CPC is already enabled, leave it so */
 	cpc_base = read_gcr_cpc_base();
-	if (cpc_base & CM_GCR_CPC_BASE_CPCEN_MSK)
-		return cpc_base & CM_GCR_CPC_BASE_CPCBASE_MSK;
+	if (cpc_base & CM_GCR_CPC_BASE_CPCEN)
+		return cpc_base & CM_GCR_CPC_BASE_CPCBASE;
 
 	/* Otherwise, use the default address */
 	cpc_base = mips_cpc_default_phys_base();
@@ -54,7 +54,7 @@ static phys_addr_t mips_cpc_phys_base(void)
 		return cpc_base;
 
 	/* Enable the CPC, mapped at the default address */
-	write_gcr_cpc_base(cpc_base | CM_GCR_CPC_BASE_CPCEN_MSK);
+	write_gcr_cpc_base(cpc_base | CM_GCR_CPC_BASE_CPCEN);
 	return cpc_base;
 }
 

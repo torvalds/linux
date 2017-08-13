@@ -1672,7 +1672,7 @@ static inline void parity_protection_init(void)
 		/* Probe L2 ECC support */
 		gcr_ectl = read_gcr_err_control();
 
-		if (!(gcr_ectl & CM_GCR_ERR_CONTROL_L2_ECC_SUPPORT_MSK) ||
+		if (!(gcr_ectl & CM_GCR_ERR_CONTROL_L2_ECC_SUPPORT) ||
 		    !(cp0_ectl & ERRCTL_PE)) {
 			/*
 			 * One of L1 or L2 ECC checking isn't supported,
@@ -1692,12 +1692,12 @@ static inline void parity_protection_init(void)
 
 		/* Configure L2 ECC checking */
 		if (l2parity)
-			gcr_ectl |= CM_GCR_ERR_CONTROL_L2_ECC_EN_MSK;
+			gcr_ectl |= CM_GCR_ERR_CONTROL_L2_ECC_EN;
 		else
-			gcr_ectl &= ~CM_GCR_ERR_CONTROL_L2_ECC_EN_MSK;
+			gcr_ectl &= ~CM_GCR_ERR_CONTROL_L2_ECC_EN;
 		write_gcr_err_control(gcr_ectl);
 		gcr_ectl = read_gcr_err_control();
-		gcr_ectl &= CM_GCR_ERR_CONTROL_L2_ECC_EN_MSK;
+		gcr_ectl &= CM_GCR_ERR_CONTROL_L2_ECC_EN;
 		WARN_ON(!!gcr_ectl != l2parity);
 
 		pr_info("Cache parity protection %sabled\n",

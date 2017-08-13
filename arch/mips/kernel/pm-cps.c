@@ -569,8 +569,8 @@ static void *cps_gen_entry_code(unsigned cpu, enum cps_pm_state state)
 	 * rest will just be performing a rather unusual nop.
 	 */
 	uasm_i_addiu(&p, t0, zero, mips_cm_revision() < CM_REV_CM3
-				? CM_GCR_Cx_COHERENCE_COHDOMAINEN_MSK
-				: CM3_GCR_Cx_COHERENCE_COHEN_MSK);
+				? CM_GCR_Cx_COHERENCE_COHDOMAINEN
+				: CM3_GCR_Cx_COHERENCE_COHEN);
 
 	uasm_i_sw(&p, t0, 0, r_pcohctl);
 	uasm_i_lw(&p, t0, 0, r_pcohctl);

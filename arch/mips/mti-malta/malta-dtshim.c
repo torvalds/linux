@@ -236,7 +236,7 @@ static void __init remove_gic(void *fdt)
 
 	/* if we have a CM which reports a GIC is present, leave the DT alone */
 	err = mips_cm_probe();
-	if (!err && (read_gcr_gic_status() & CM_GCR_GIC_STATUS_GICEX_MSK))
+	if (!err && (read_gcr_gic_status() & CM_GCR_GIC_STATUS_EX))
 		return;
 
 	if (malta_scon() == MIPS_REVISION_SCON_ROCIT) {

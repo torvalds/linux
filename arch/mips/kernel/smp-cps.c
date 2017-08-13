@@ -53,9 +53,9 @@ static unsigned core_vpe_count(unsigned core)
 		return 1;
 
 	mips_cm_lock_other(core, 0);
-	cfg = read_gcr_co_config() & CM_GCR_Cx_CONFIG_PVPE_MSK;
+	cfg = read_gcr_co_config() & CM_GCR_Cx_CONFIG_PVPE;
 	mips_cm_unlock_other();
-	return (cfg >> CM_GCR_Cx_CONFIG_PVPE_SHF) + 1;
+	return cfg + 1;
 }
 
 static void __init cps_smp_setup(void)
@@ -225,11 +225,11 @@ static void boot_core(unsigned int core, unsigned int vpe_id)
 	write_gcr_co_coherence(0);
 
 	/* Start it with the legacy memory map and exception base */
-	write_gcr_co_reset_ext_base(CM_GCR_RESET_EXT_BASE_UEB);
+	write_gcr_co_reset_ext_base(CM_GCR_Cx_RESET_EXT_BASE_UEB);
 
 	/* Ensure the core can access the GCRs */
 	access = read_gcr_access();
-	access |= 1 << (CM_GCR_ACCESS_ACCESSEN_SHF + core);
+	access |= 1 << core;
 	write_gcr_access(access);
 
 	if (mips_cpc_present()) {
@@ -599,7 +599,7 @@ int register_cps_smp_ops(void)
 	}
 
 	/* check we have a GIC - we need one for IPIs */
-	if (!(read_gcr_gic_status() & CM_GCR_GIC_STATUS_EX_MSK)) {
+	if (!(read_gcr_gic_status() & CM_GCR_GIC_STATUS_EX)) {
 		pr_warn("MIPS CPS SMP unable to proceed without a GIC\n");
 		return -ENODEV;
 	}
