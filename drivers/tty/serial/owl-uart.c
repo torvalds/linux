@@ -473,7 +473,7 @@ static void owl_uart_config_port(struct uart_port *port, int flags)
 	}
 }
 
-static struct uart_ops owl_uart_ops = {
+static const struct uart_ops owl_uart_ops = {
 	.set_mctrl = owl_uart_set_mctrl,
 	.get_mctrl = owl_uart_get_mctrl,
 	.tx_empty = owl_uart_tx_empty,
