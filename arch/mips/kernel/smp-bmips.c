@@ -179,7 +179,7 @@ static void bmips_prepare_cpus(unsigned int max_cpus)
 /*
  * Tell the hardware to boot CPUx - runs on CPU0
  */
-static void bmips_boot_secondary(int cpu, struct task_struct *idle)
+static int bmips_boot_secondary(int cpu, struct task_struct *idle)
 {
 	bmips_smp_boot_sp = __KSTK_TOS(idle);
 	bmips_smp_boot_gp = (unsigned long)task_thread_info(idle);
@@ -231,6 +231,8 @@ static void bmips_boot_secondary(int cpu, struct task_struct *idle)
 		}
 		cpumask_set_cpu(cpu, &bmips_booted_mask);
 	}
+
+	return 0;
 }
 
 /*

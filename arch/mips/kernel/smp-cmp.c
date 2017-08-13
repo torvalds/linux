@@ -78,7 +78,7 @@ static void cmp_smp_finish(void)
  * __KSTK_TOS(idle) is apparently the stack pointer
  * (unsigned long)idle->thread_info the gp
  */
-static void cmp_boot_secondary(int cpu, struct task_struct *idle)
+static int cmp_boot_secondary(int cpu, struct task_struct *idle)
 {
 	struct thread_info *gp = task_thread_info(idle);
 	unsigned long sp = __KSTK_TOS(idle);
@@ -95,6 +95,7 @@ static void cmp_boot_secondary(int cpu, struct task_struct *idle)
 #endif
 
 	amon_cpu_start(cpu, pc, sp, (unsigned long)gp, a0);
+	return 0;
 }
 
 /*

@@ -400,7 +400,7 @@ static void __init loongson3_prepare_cpus(unsigned int max_cpus)
 /*
  * Setup the PC, SP, and GP of a secondary processor and start it runing!
  */
-static void loongson3_boot_secondary(int cpu, struct task_struct *idle)
+static int loongson3_boot_secondary(int cpu, struct task_struct *idle)
 {
 	unsigned long startargs[4];
 
@@ -423,6 +423,7 @@ static void loongson3_boot_secondary(int cpu, struct task_struct *idle)
 			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x8));
 	loongson3_ipi_write64(startargs[0],
 			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x0));
+	return 0;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

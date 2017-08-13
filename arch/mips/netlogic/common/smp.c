@@ -147,7 +147,7 @@ unsigned long nlm_next_gp;
 unsigned long nlm_next_sp;
 static cpumask_t phys_cpu_present_mask;
 
-void nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
+int nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
 {
 	uint64_t picbase;
 	int hwtid;
@@ -161,6 +161,8 @@ void nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
 	/* barrier for sp/gp store above */
 	__sync();
 	nlm_pic_send_ipi(picbase, hwtid, 1, 1);  /* NMI */
+
+	return 0;
 }
 
 void __init nlm_smp_setup(void)

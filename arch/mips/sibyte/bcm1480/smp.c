@@ -117,7 +117,7 @@ static void bcm1480_smp_finish(void)
  * Setup the PC, SP, and GP of a secondary processor and start it
  * running!
  */
-static void bcm1480_boot_secondary(int cpu, struct task_struct *idle)
+static int bcm1480_boot_secondary(int cpu, struct task_struct *idle)
 {
 	int retval;
 
@@ -126,6 +126,7 @@ static void bcm1480_boot_secondary(int cpu, struct task_struct *idle)
 			       (unsigned long)task_thread_info(idle), 0);
 	if (retval != 0)
 		printk("cfe_start_cpu(%i) returned %i\n" , cpu, retval);
+	return retval;
 }
 
 /*

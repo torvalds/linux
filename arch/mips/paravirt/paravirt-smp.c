@@ -100,11 +100,12 @@ static void paravirt_smp_finish(void)
 	local_irq_enable();
 }
 
-static void paravirt_boot_secondary(int cpu, struct task_struct *idle)
+static int paravirt_boot_secondary(int cpu, struct task_struct *idle)
 {
 	paravirt_smp_gp[cpu] = (unsigned long)task_thread_info(idle);
 	smp_wmb();
 	paravirt_smp_sp[cpu] = __KSTK_TOS(idle);
+	return 0;
 }
 
 static irqreturn_t paravirt_reched_interrupt(int irq, void *dev_id)

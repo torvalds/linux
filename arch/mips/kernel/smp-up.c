@@ -39,8 +39,9 @@ static void up_smp_finish(void)
 /*
  * Firmware CPU startup hook
  */
-static void up_boot_secondary(int cpu, struct task_struct *idle)
+static int up_boot_secondary(int cpu, struct task_struct *idle)
 {
+	return 0;
 }
 
 static void __init up_smp_setup(void)

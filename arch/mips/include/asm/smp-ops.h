@@ -26,7 +26,7 @@ struct plat_smp_ops {
 	void (*send_ipi_mask)(const struct cpumask *mask, unsigned int action);
 	void (*init_secondary)(void);
 	void (*smp_finish)(void);
-	void (*boot_secondary)(int cpu, struct task_struct *idle);
+	int (*boot_secondary)(int cpu, struct task_struct *idle);
 	void (*smp_setup)(void);
 	void (*prepare_cpus)(unsigned int max_cpus);
 #ifdef CONFIG_HOTPLUG_CPU

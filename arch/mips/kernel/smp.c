@@ -439,7 +439,11 @@ void smp_prepare_boot_cpu(void)
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	mp_ops->boot_secondary(cpu, tidle);
+	int err;
+
+	err = mp_ops->boot_secondary(cpu, tidle);
+	if (err)
+		return err;
 
 	/*
 	 * We must check for timeout here, as the CPU will not be marked

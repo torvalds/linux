@@ -288,7 +288,7 @@ static void remote_vpe_boot(void *dummy)
 	mips_cps_boot_vpes(core_cfg, cpu_vpe_id(&current_cpu_data));
 }
 
-static void cps_boot_secondary(int cpu, struct task_struct *idle)
+static int cps_boot_secondary(int cpu, struct task_struct *idle)
 {
 	unsigned core = cpu_core(&cpu_data[cpu]);
 	unsigned vpe_id = cpu_vpe_id(&cpu_data[cpu]);
@@ -346,6 +346,7 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 	mips_cps_boot_vpes(core_cfg, vpe_id);
 out:
 	preempt_enable();
+	return 0;
 }
 
 static void cps_init_secondary(void)

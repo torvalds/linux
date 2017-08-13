@@ -205,7 +205,7 @@ int plat_post_relocation(long offset)
  * Firmware CPU startup hook
  *
  */
-static void octeon_boot_secondary(int cpu, struct task_struct *idle)
+static int octeon_boot_secondary(int cpu, struct task_struct *idle)
 {
 	int count;
 
@@ -223,8 +223,12 @@ static void octeon_boot_secondary(int cpu, struct task_struct *idle)
 		udelay(1);
 		count--;
 	}
-	if (count == 0)
+	if (count == 0) {
 		pr_err("Secondary boot timeout\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 /**

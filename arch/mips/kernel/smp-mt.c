@@ -152,7 +152,7 @@ static void vsmp_smp_finish(void)
  * (unsigned long)idle->thread_info the gp
  * assumes a 1:1 mapping of TC => VPE
  */
-static void vsmp_boot_secondary(int cpu, struct task_struct *idle)
+static int vsmp_boot_secondary(int cpu, struct task_struct *idle)
 {
 	struct thread_info *gp = task_thread_info(idle);
 	dvpe();
@@ -184,6 +184,8 @@ static void vsmp_boot_secondary(int cpu, struct task_struct *idle)
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);
 
 	evpe(EVPE_ENABLE);
+
+	return 0;
 }
 
 /*
