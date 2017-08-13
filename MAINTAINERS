@@ -2546,13 +2546,6 @@ W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/net/ethernet/adi/
 
-BLACKFIN I2C TWI DRIVER
-M:	Sonic Zhang <sonic.zhang@analog.com>
-L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
-W:	http://blackfin.uclinux.org/
-S:	Supported
-F:	drivers/i2c/busses/i2c-bfin-twi.c
-
 BLACKFIN MEDIA DRIVER
 M:	Scott Jiang <scott.jiang.linux@gmail.com>
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
@@ -2569,14 +2562,12 @@ S:	Supported
 F:	drivers/rtc/rtc-bfin.c
 
 BLACKFIN SDH DRIVER
-M:	Sonic Zhang <sonic.zhang@analog.com>
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/mmc/host/bfin_sdh.c
 
 BLACKFIN SERIAL DRIVER
-M:	Sonic Zhang <sonic.zhang@analog.com>
 L:	adi-buildroot-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org
 S:	Supported
