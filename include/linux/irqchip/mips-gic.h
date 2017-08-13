@@ -21,14 +21,6 @@
 #define GIC_UMV_SH_COUNTER_31_00_OFS	0x0000
 #define GIC_UMV_SH_COUNTER_63_32_OFS	0x0004
 
-/* GIC nomenclature for Core Interrupt Pins. */
-#define GIC_CPU_INT0		0 /* Core Interrupt 2 */
-#define GIC_CPU_INT1		1 /* .		      */
-#define GIC_CPU_INT2		2 /* .		      */
-#define GIC_CPU_INT3		3 /* .		      */
-#define GIC_CPU_INT4		4 /* .		      */
-#define GIC_CPU_INT5		5 /* Core Interrupt 7 */
-
 /* Add 2 to convert GIC CPU pin to core interrupt */
 #define GIC_CPU_PIN_OFFSET	2
 
