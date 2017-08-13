@@ -40,11 +40,6 @@
 
 #define GIC_SH_CONFIG_OFS		0x0000
 
-/* Shared Global Counter */
-#define GIC_SH_COUNTER_31_00_OFS	0x0010
-/* 64-bit counter register for CM3 */
-#define GIC_SH_COUNTER_OFS		GIC_SH_COUNTER_31_00_OFS
-#define GIC_SH_COUNTER_63_32_OFS	0x0014
 #define GIC_SH_REVISIONID_OFS		0x0020
 
 /* Convert an interrupt number to a byte offset/bit for multi-word registers */
@@ -107,10 +102,6 @@
 #define GIC_VPE_WD_CONFIG0_OFS		0x0090
 #define GIC_VPE_WD_COUNT0_OFS		0x0094
 #define GIC_VPE_WD_INITIAL0_OFS		0x0098
-#define GIC_VPE_COMPARE_LO_OFS		0x00a0
-/* 64-bit Compare register on CM3 */
-#define GIC_VPE_COMPARE_OFS		GIC_VPE_COMPARE_LO_OFS
-#define GIC_VPE_COMPARE_HI_OFS		0x00a4
 
 #define GIC_VPE_EIC_SHADOW_SET_BASE_OFS	0x0100
 #define GIC_VPE_EIC_SS(intr)		(4 * (intr))
@@ -128,12 +119,6 @@
 #define GIC_UMV_SH_COUNTER_63_32_OFS	0x0004
 
 /* Masks */
-#define GIC_SH_CONFIG_COUNTSTOP_SHF	28
-#define GIC_SH_CONFIG_COUNTSTOP_MSK	(MSK(1) << GIC_SH_CONFIG_COUNTSTOP_SHF)
-
-#define GIC_SH_CONFIG_COUNTBITS_SHF	24
-#define GIC_SH_CONFIG_COUNTBITS_MSK	(MSK(4) << GIC_SH_CONFIG_COUNTBITS_SHF)
-
 #define GIC_SH_CONFIG_NUMINTRS_SHF	16
 #define GIC_SH_CONFIG_NUMINTRS_MSK	(MSK(8) << GIC_SH_CONFIG_NUMINTRS_SHF)
 
@@ -258,13 +243,6 @@ extern unsigned int gic_present;
 extern void gic_init(unsigned long gic_base_addr,
 	unsigned long gic_addrspace_size, unsigned int cpu_vec,
 	unsigned int irqbase);
-extern u64 gic_read_count(void);
-extern unsigned int gic_get_count_width(void);
-extern u64 gic_read_compare(void);
-extern void gic_write_compare(u64 cnt);
-extern void gic_write_cpu_compare(u64 cnt, int cpu);
-extern void gic_start_count(void);
-extern void gic_stop_count(void);
 extern int gic_get_c0_compare_int(void);
 extern int gic_get_c0_perfcount_int(void);
 extern int gic_get_c0_fdc_int(void);
