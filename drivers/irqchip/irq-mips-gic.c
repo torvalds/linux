@@ -636,21 +636,21 @@ static const struct irq_domain_ops gic_ipi_domain_ops = {
 static int __init gic_of_init(struct device_node *node,
 			      struct device_node *parent)
 {
-	unsigned int cpu_vec, i, j, reserved, gicconfig, cpu, v[2];
+	unsigned int cpu_vec, i, j, gicconfig, cpu, v[2];
+	unsigned long reserved;
 	phys_addr_t gic_base;
 	struct resource res;
 	size_t gic_len;
 
 	/* Find the first available CPU vector. */
-	i = reserved = 0;
+	i = 0;
+	reserved = (C_SW0 | C_SW1) >> __fls(C_SW0);
 	while (!of_property_read_u32_index(node, "mti,reserved-cpu-vectors",
 					   i++, &cpu_vec))
 		reserved |= BIT(cpu_vec);
-	for (cpu_vec = 2; cpu_vec < 8; cpu_vec++) {
-		if (!(reserved & BIT(cpu_vec)))
-			break;
-	}
-	if (cpu_vec == 8) {
+
+	cpu_vec = find_first_zero_bit(&reserved, hweight_long(ST0_IM));
+	if (cpu_vec == hweight_long(ST0_IM)) {
 		pr_err("No CPU vectors available for GIC\n");
 		return -ENODEV;
 	}
