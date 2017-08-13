@@ -11,8 +11,6 @@
 #include <linux/clocksource.h>
 #include <linux/ioport.h>
 
-#define GIC_MAX_INTRS			256
-
 /* GIC Address Space */
 #define USM_VISIBLE_SECTION_OFS		0x10000
 #define USM_VISIBLE_SECTION_SIZE	0x10000
@@ -20,23 +18,6 @@
 /* User Mode Visible Section Register Map */
 #define GIC_UMV_SH_COUNTER_31_00_OFS	0x0000
 #define GIC_UMV_SH_COUNTER_63_32_OFS	0x0004
-
-/* Add 2 to convert GIC CPU pin to core interrupt */
-#define GIC_CPU_PIN_OFFSET	2
-
-/* Add 2 to convert non-EIC hardware interrupt to EIC vector number. */
-#define GIC_CPU_TO_VEC_OFFSET	2
-
-/* Mapped interrupt to pin X, then GIC will generate the vector (X+1). */
-#define GIC_PIN_TO_VEC_OFFSET	1
-
-/* Convert between local/shared IRQ number and GIC HW IRQ number. */
-#define GIC_LOCAL_HWIRQ_BASE	0
-#define GIC_LOCAL_TO_HWIRQ(x)	(GIC_LOCAL_HWIRQ_BASE + (x))
-#define GIC_HWIRQ_TO_LOCAL(x)	((x) - GIC_LOCAL_HWIRQ_BASE)
-#define GIC_SHARED_HWIRQ_BASE	GIC_NUM_LOCAL_INTRS
-#define GIC_SHARED_TO_HWIRQ(x)	(GIC_SHARED_HWIRQ_BASE + (x))
-#define GIC_HWIRQ_TO_SHARED(x)	((x) - GIC_SHARED_HWIRQ_BASE)
 
 #ifdef CONFIG_MIPS_GIC
 
