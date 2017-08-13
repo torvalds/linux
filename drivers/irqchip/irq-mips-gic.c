@@ -328,8 +328,8 @@ static void gic_handle_local_int(bool chained)
 	unsigned long pending, masked;
 	unsigned int intr, virq;
 
-	pending = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_PEND));
-	masked = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_MASK));
+	pending = read_gic_vl_pend();
+	masked = read_gic_vl_mask();
 
 	bitmap_and(&pending, &pending, &masked, GIC_NUM_LOCAL_INTRS);
 
@@ -347,14 +347,14 @@ static void gic_mask_local_irq(struct irq_data *d)
 {
 	int intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
 
-	gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_RMASK), 1 << intr);
+	write_gic_vl_rmask(BIT(intr));
 }
 
 static void gic_unmask_local_irq(struct irq_data *d)
 {
 	int intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
 
-	gic_write32(GIC_REG(VPE_LOCAL, GIC_VPE_SMASK), 1 << intr);
+	write_gic_vl_smask(BIT(intr));
 }
 
 static struct irq_chip gic_local_irq_controller = {
@@ -373,7 +373,7 @@ static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 	for (i = 0; i < gic_vpes; i++) {
 		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
 			  mips_cm_vp_id(i));
-		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_RMASK), 1 << intr);
+		write_gic_vo_rmask(BIT(intr));
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 }
@@ -388,7 +388,7 @@ static void gic_unmask_local_irq_all_vpes(struct irq_data *d)
 	for (i = 0; i < gic_vpes; i++) {
 		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
 			  mips_cm_vp_id(i));
-		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_SMASK), 1 << intr);
+		write_gic_vo_smask(BIT(intr));
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 }
@@ -432,7 +432,7 @@ static void __init gic_basic_init(void)
 		for (j = 0; j < GIC_NUM_LOCAL_INTRS; j++) {
 			if (!gic_local_irq_is_routable(j))
 				continue;
-			gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_RMASK), 1 << j);
+			write_gic_vo_rmask(BIT(j));
 		}
 	}
 }
