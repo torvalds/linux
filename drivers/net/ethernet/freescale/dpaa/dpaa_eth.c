@@ -2830,7 +2830,7 @@ static int dpaa_remove(struct platform_device *pdev)
 	return err;
 }
 
-static struct platform_device_id dpaa_devtype[] = {
+static const struct platform_device_id dpaa_devtype[] = {
 	{
 		.name = "dpaa-ethernet",
 		.driver_data = 0,
