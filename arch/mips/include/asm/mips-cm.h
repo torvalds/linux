@@ -114,10 +114,12 @@ static inline bool mips_cm_has_l2sync(void)
 #define MIPS_CM_L2SYNC_SIZE	0x1000
 
 #define GCR_ACCESSOR_RO(sz, off, name)					\
-	CPS_ACCESSOR_RO(gcr, sz, MIPS_CM_GCB_OFS + off, name)
+	CPS_ACCESSOR_RO(gcr, sz, MIPS_CM_GCB_OFS + off, name)		\
+	CPS_ACCESSOR_RO(gcr, sz, MIPS_CM_COCB_OFS + off, redir_##name)
 
 #define GCR_ACCESSOR_RW(sz, off, name)					\
-	CPS_ACCESSOR_RW(gcr, sz, MIPS_CM_GCB_OFS + off, name)
+	CPS_ACCESSOR_RW(gcr, sz, MIPS_CM_GCB_OFS + off, name)		\
+	CPS_ACCESSOR_RW(gcr, sz, MIPS_CM_COCB_OFS + off, redir_##name)
 
 #define GCR_CX_ACCESSOR_RO(sz, off, name)				\
 	CPS_ACCESSOR_RO(gcr, sz, MIPS_CM_CLCB_OFS + off, cl_##name)	\
@@ -129,6 +131,9 @@ static inline bool mips_cm_has_l2sync(void)
 
 /* GCR_CONFIG - Information about the system */
 GCR_ACCESSOR_RO(64, 0x000, config)
+#define CM_GCR_CONFIG_CLUSTER_COH_CAPABLE	BIT_ULL(43)
+#define CM_GCR_CONFIG_CLUSTER_ID		GENMASK_ULL(39, 32)
+#define CM_GCR_CONFIG_NUM_CLUSTERS		GENMASK(29, 23)
 #define CM_GCR_CONFIG_NUMIOCU			GENMASK(15, 8)
 #define CM_GCR_CONFIG_PCORES			GENMASK(7, 0)
 
@@ -157,6 +162,7 @@ GCR_ACCESSOR_RO(32, 0x030, rev)
 #define CM_REV_CM2				CM_ENCODE_REV(6, 0)
 #define CM_REV_CM2_5				CM_ENCODE_REV(7, 0)
 #define CM_REV_CM3				CM_ENCODE_REV(8, 0)
+#define CM_REV_CM3_5				CM_ENCODE_REV(9, 0)
 
 /* GCR_ERR_CONTROL - Control error checking logic */
 GCR_ACCESSOR_RW(32, 0x038, err_control)
@@ -246,6 +252,33 @@ GCR_ACCESSOR_RW(32, 0x308, l2_pft_control_b)
 #define CM_GCR_L2_PFT_CONTROL_B_CEN		BIT(8)
 #define CM_GCR_L2_PFT_CONTROL_B_PORTID		GENMASK(7, 0)
 
+/* GCR_L2SM_COP - L2 cache op state machine control */
+GCR_ACCESSOR_RW(32, 0x620, l2sm_cop)
+#define CM_GCR_L2SM_COP_PRESENT			BIT(31)
+#define CM_GCR_L2SM_COP_RESULT			GENMASK(8, 6)
+#define  CM_GCR_L2SM_COP_RESULT_DONTCARE	0
+#define  CM_GCR_L2SM_COP_RESULT_DONE_OK		1
+#define  CM_GCR_L2SM_COP_RESULT_DONE_ERROR	2
+#define  CM_GCR_L2SM_COP_RESULT_ABORT_OK	3
+#define  CM_GCR_L2SM_COP_RESULT_ABORT_ERROR	4
+#define CM_GCR_L2SM_COP_RUNNING			BIT(5)
+#define CM_GCR_L2SM_COP_TYPE			GENMASK(4, 2)
+#define  CM_GCR_L2SM_COP_TYPE_IDX_WBINV		0
+#define  CM_GCR_L2SM_COP_TYPE_IDX_STORETAG	1
+#define  CM_GCR_L2SM_COP_TYPE_IDX_STORETAGDATA	2
+#define  CM_GCR_L2SM_COP_TYPE_HIT_INV		4
+#define  CM_GCR_L2SM_COP_TYPE_HIT_WBINV		5
+#define  CM_GCR_L2SM_COP_TYPE_HIT_WB		6
+#define  CM_GCR_L2SM_COP_TYPE_FETCHLOCK		7
+#define CM_GCR_L2SM_COP_CMD			GENMASK(1, 0)
+#define  CM_GCR_L2SM_COP_CMD_START		1	/* only when idle */
+#define  CM_GCR_L2SM_COP_CMD_ABORT		3	/* only when running */
+
+/* GCR_L2SM_TAG_ADDR_COP - L2 cache op state machine address control */
+GCR_ACCESSOR_RW(64, 0x628, l2sm_tag_addr_cop)
+#define CM_GCR_L2SM_TAG_ADDR_COP_NUM_LINES	GENMASK_ULL(63, 48)
+#define CM_GCR_L2SM_TAG_ADDR_COP_START_TAG	GENMASK_ULL(47, 6)
+
 /* GCR_BEV_BASE - Controls the location of the BEV for powered up cores */
 GCR_ACCESSOR_RW(64, 0x680, bev_base)
 
@@ -264,9 +297,18 @@ GCR_CX_ACCESSOR_RO(32, 0x010, config)
 
 /* GCR_Cx_OTHER - Configure the core-other/redirect GCR block */
 GCR_CX_ACCESSOR_RW(32, 0x018, other)
-#define CM_GCR_Cx_OTHER_CORENUM			GENMASK(31, 16)
-#define CM3_GCR_Cx_OTHER_CORE			GENMASK(13, 8)
-#define CM3_GCR_Cx_OTHER_VP			GENMASK(2, 0)
+#define CM_GCR_Cx_OTHER_CORENUM			GENMASK(31, 16)	/* CM < 3 */
+#define CM_GCR_Cx_OTHER_CLUSTER_EN		BIT(31)		/* CM >= 3.5 */
+#define CM_GCR_Cx_OTHER_GIC_EN			BIT(30)		/* CM >= 3.5 */
+#define CM_GCR_Cx_OTHER_BLOCK			GENMASK(25, 24)	/* CM >= 3.5 */
+#define  CM_GCR_Cx_OTHER_BLOCK_LOCAL		0
+#define  CM_GCR_Cx_OTHER_BLOCK_GLOBAL		1
+#define  CM_GCR_Cx_OTHER_BLOCK_USER		2
+#define  CM_GCR_Cx_OTHER_BLOCK_GLOBAL_HIGH	3
+#define CM_GCR_Cx_OTHER_CLUSTER			GENMASK(21, 16)	/* CM >= 3.5 */
+#define CM3_GCR_Cx_OTHER_CORE			GENMASK(13, 8)	/* CM >= 3 */
+#define  CM_GCR_Cx_OTHER_CORE_CM		32
+#define CM3_GCR_Cx_OTHER_VP			GENMASK(2, 0)	/* CM >= 3 */
 
 /* GCR_Cx_RESET_BASE - Configure where powered up cores will fetch from */
 GCR_CX_ACCESSOR_RW(32, 0x020, reset_base)
@@ -274,6 +316,8 @@ GCR_CX_ACCESSOR_RW(32, 0x020, reset_base)
 
 /* GCR_Cx_ID - Identify the current core */
 GCR_CX_ACCESSOR_RO(32, 0x028, id)
+#define CM_GCR_Cx_ID_CLUSTER			GENMASK(15, 8)
+#define CM_GCR_Cx_ID_CORE			GENMASK(7, 0)
 
 /* GCR_Cx_RESET_EXT_BASE - Configure behaviour when cores reset or power up */
 GCR_CX_ACCESSOR_RW(32, 0x030, reset_ext_base)

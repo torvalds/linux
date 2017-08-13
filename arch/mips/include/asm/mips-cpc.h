@@ -63,10 +63,12 @@ static inline bool mips_cpc_present(void)
 #define MIPS_CPC_COCB_OFS	0x4000
 
 #define CPC_ACCESSOR_RO(sz, off, name)					\
-	CPS_ACCESSOR_RO(cpc, sz, MIPS_CPC_GCB_OFS + off, name)
+	CPS_ACCESSOR_RO(cpc, sz, MIPS_CPC_GCB_OFS + off, name)		\
+	CPS_ACCESSOR_RO(cpc, sz, MIPS_CPC_COCB_OFS + off, redir_##name)
 
 #define CPC_ACCESSOR_RW(sz, off, name)					\
-	CPS_ACCESSOR_RW(cpc, sz, MIPS_CPC_GCB_OFS + off, name)
+	CPS_ACCESSOR_RW(cpc, sz, MIPS_CPC_GCB_OFS + off, name)		\
+	CPS_ACCESSOR_RW(cpc, sz, MIPS_CPC_COCB_OFS + off, redir_##name)
 
 #define CPC_CX_ACCESSOR_RO(sz, off, name)				\
 	CPS_ACCESSOR_RO(cpc, sz, MIPS_CPC_CLCB_OFS + off, cl_##name)	\
@@ -90,6 +92,19 @@ CPC_ACCESSOR_RW(32, 0x018, resetlen)
 
 /* CPC_REVISION - Indicates the revisison of the CPC */
 CPC_ACCESSOR_RO(32, 0x020, revision)
+
+/* CPC_PWRUP_CTL - Control power to the Coherence Manager (CM) */
+CPC_ACCESSOR_RW(32, 0x030, pwrup_ctl)
+#define CPC_PWRUP_CTL_CM_PWRUP			BIT(0)
+
+/* CPC_CONFIG - Mirrors GCR_CONFIG */
+CPC_ACCESSOR_RW(64, 0x138, config)
+
+/* CPC_SYS_CONFIG - Control cluster endianness */
+CPC_ACCESSOR_RW(32, 0x140, sys_config)
+#define CPC_SYS_CONFIG_BE_IMMEDIATE		BIT(2)
+#define CPC_SYS_CONFIG_BE_STATUS		BIT(1)
+#define CPC_SYS_CONFIG_BE			BIT(0)
 
 /* CPC_Cx_CMD - Instruct the CPC to take action on a core */
 CPC_CX_ACCESSOR_RW(32, 0x000, cmd)
@@ -130,6 +145,9 @@ CPC_CX_ACCESSOR_RW(32, 0x028, vp_run)
 
 /* CPC_Cx_VP_RUNNING - Indicate which Virtual Processors (VPs) are running */
 CPC_CX_ACCESSOR_RW(32, 0x030, vp_running)
+
+/* CPC_Cx_CONFIG - Mirrors GCR_Cx_CONFIG */
+CPC_CX_ACCESSOR_RW(32, 0x090, config)
 
 #ifdef CONFIG_MIPS_CPC
 
