@@ -107,6 +107,7 @@ static inline void clear_##unit##_##name(uint##sz##_t val)		\
 
 #include <asm/mips-cm.h>
 #include <asm/mips-cpc.h>
+#include <asm/mips-gic.h>
 
 /**
  * mips_cps_numclusters - return the number of clusters present in the system

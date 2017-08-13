@@ -24,14 +24,13 @@
 #include <dt-bindings/interrupt-controller/mips-gic.h>
 
 unsigned int gic_present;
+void __iomem *mips_gic_base;
 
 struct gic_pcpu_mask {
 	DECLARE_BITMAP(pcpu_mask, GIC_MAX_INTRS);
 };
 
 static unsigned long __gic_base_addr;
-
-static void __iomem *gic_base;
 static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
 static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
@@ -48,12 +47,12 @@ static void __gic_irq_dispatch(void);
 
 static inline u32 gic_read32(unsigned int reg)
 {
-	return __raw_readl(gic_base + reg);
+	return __raw_readl(mips_gic_base + reg);
 }
 
 static inline u64 gic_read64(unsigned int reg)
 {
-	return __raw_readq(gic_base + reg);
+	return __raw_readq(mips_gic_base + reg);
 }
 
 static inline unsigned long gic_read(unsigned int reg)
@@ -66,12 +65,12 @@ static inline unsigned long gic_read(unsigned int reg)
 
 static inline void gic_write32(unsigned int reg, u32 val)
 {
-	return __raw_writel(val, gic_base + reg);
+	return __raw_writel(val, mips_gic_base + reg);
 }
 
 static inline void gic_write64(unsigned int reg, u64 val)
 {
-	return __raw_writeq(val, gic_base + reg);
+	return __raw_writeq(val, mips_gic_base + reg);
 }
 
 static inline void gic_write(unsigned int reg, unsigned long val)
@@ -891,7 +890,7 @@ static void __init __gic_init(unsigned long gic_base_addr,
 
 	__gic_base_addr = gic_base_addr;
 
-	gic_base = ioremap_nocache(gic_base_addr, gic_addrspace_size);
+	mips_gic_base = ioremap_nocache(gic_base_addr, gic_addrspace_size);
 
 	gicconfig = gic_read(GIC_REG(SHARED, GIC_SH_CONFIG));
 	gic_shared_intrs = (gicconfig & GIC_SH_CONFIG_NUMINTRS_MSK) >>
