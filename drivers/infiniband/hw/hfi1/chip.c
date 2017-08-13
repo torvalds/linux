@@ -1068,6 +1068,8 @@ static int thermal_init(struct hfi1_devdata *dd);
 static void update_statusp(struct hfi1_pportdata *ppd, u32 state);
 static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				  int msecs);
+static void log_state_transition(struct hfi1_pportdata *ppd, u32 state);
+static void log_physical_state(struct hfi1_pportdata *ppd, u32 state);
 static int wait_physical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				   int msecs);
 static void read_planned_down_reason_code(struct hfi1_devdata *dd, u8 *pdrrc);
@@ -10450,11 +10452,11 @@ static const char *link_state_reason_name(struct hfi1_pportdata *ppd, u32 state)
 }
 
 /*
- * driver_physical_state - convert the driver's notion of a port's
+ * driver_pstate - convert the driver's notion of a port's
  * state (an HLS_*) into a physical state (a {IB,OPA}_PORTPHYSSTATE_*).
  * Return -1 (converted to a u32) to indicate error.
  */
-u32 driver_physical_state(struct hfi1_pportdata *ppd)
+u32 driver_pstate(struct hfi1_pportdata *ppd)
 {
 	switch (ppd->host_link_state) {
 	case HLS_UP_INIT:
@@ -10720,7 +10722,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		if (ret)
 			goto_offline(ppd, 0);
 		else
-			cache_physical_state(ppd);
+			log_physical_state(ppd, PLS_POLLING);
 		break;
 	case HLS_DN_DISABLE:
 		/* link is disabled */
@@ -10769,7 +10771,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		if (ppd->host_link_state != HLS_DN_POLL)
 			goto unexpected;
 		ppd->host_link_state = HLS_VERIFY_CAP;
-		cache_physical_state(ppd);
+		log_physical_state(ppd, PLS_CONFIGPHY_VERIFYCAP);
 		break;
 	case HLS_GOING_UP:
 		if (ppd->host_link_state != HLS_VERIFY_CAP)
@@ -12743,25 +12745,30 @@ static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 	return 0;
 }
 
-/*
- * Read the physical hardware link state and set the driver's cached value
- * of it.
- */
-void cache_physical_state(struct hfi1_pportdata *ppd)
+static void log_state_transition(struct hfi1_pportdata *ppd, u32 state)
 {
-	u32 read_pstate;
-	u32 ib_pstate;
+	u32 ib_pstate = chip_to_opa_pstate(ppd->dd, state);
 
-	read_pstate = read_physical_state(ppd->dd);
-	ib_pstate = chip_to_opa_pstate(ppd->dd, read_pstate);
-	/* check if OPA pstate changed */
-	if (chip_to_opa_pstate(ppd->dd, ppd->pstate) != ib_pstate) {
-		dd_dev_info(ppd->dd,
-			    "%s: physical state changed to %s (0x%x), phy 0x%x\n",
-			    __func__, opa_pstate_name(ib_pstate), ib_pstate,
-			    read_pstate);
+	dd_dev_info(ppd->dd,
+		    "physical state changed to %s (0x%x), phy 0x%x\n",
+		    opa_pstate_name(ib_pstate), ib_pstate, state);
+}
+
+/*
+ * Read the physical hardware link state and check if it matches host
+ * drivers anticipated state.
+ */
+static void log_physical_state(struct hfi1_pportdata *ppd, u32 state)
+{
+	u32 read_state = read_physical_state(ppd->dd);
+
+	if (read_state == state) {
+		log_state_transition(ppd, state);
+	} else {
+		dd_dev_err(ppd->dd,
+			   "anticipated phy link state 0x%x, read 0x%x\n",
+			   state, read_state);
 	}
-	ppd->pstate = read_pstate;
 }
 
 /*
@@ -12776,22 +12783,24 @@ void cache_physical_state(struct hfi1_pportdata *ppd)
 static int wait_physical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				   int msecs)
 {
+	u32 read_state;
 	unsigned long timeout;
 
 	timeout = jiffies + msecs_to_jiffies(msecs);
 	while (1) {
-		cache_physical_state(ppd);
-		if (ppd->pstate == state)
+		read_state = read_physical_state(ppd->dd);
+		if (read_state == state)
 			break;
 		if (time_after(jiffies, timeout)) {
 			dd_dev_err(ppd->dd,
-				   "timeout waiting for phy link state 0x%x, current state is 0x%x\n",
-				   state, ppd->pstate);
+				   "timeout waiting for phy link state 0x%x\n",
+				   state);
 			return -ETIMEDOUT;
 		}
 		usleep_range(1950, 2050); /* sleep 2ms-ish */
 	}
 
+	log_state_transition(ppd, state);
 	return 0;
 }
 
@@ -14896,7 +14905,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		/* start in offline */
 		ppd->host_link_state = HLS_DN_OFFLINE;
 		init_vl_arb_caches(ppd);
-		ppd->pstate = PLS_OFFLINE;
 	}
 
 	dd->link_default = HLS_DN_POLL;

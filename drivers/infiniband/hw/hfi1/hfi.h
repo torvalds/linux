@@ -758,7 +758,6 @@ struct hfi1_pportdata {
 	u8 link_enabled;	/* link enabled? */
 	u8 linkinit_reason;
 	u8 local_tx_rate;	/* rate given to 8051 firmware */
-	u8 pstate;		/* info only */
 	u8 qsfp_retry_count;
 
 	/* placeholders for IB MAD packet settings */
@@ -1427,29 +1426,6 @@ static inline __le32 *get_rhf_addr(struct hfi1_ctxtdata *rcd)
 }
 
 int hfi1_reset_device(int);
-
-/* return the driver's idea of the physical OPA port state */
-static inline u32 driver_pstate(struct hfi1_pportdata *ppd)
-{
-	/*
-	 * When DC is shut down and state is changed, its CSRs are not
-	 * impacted, therefore host_link_state should be used to get
-	 * current physical state.
-	 */
-	if (ppd->dd->dc_shutdown)
-		return driver_physical_state(ppd);
-	/*
-	 * The driver does some processing from the time the physical
-	 * link state is at LINKUP to the time the SM can be notified
-	 * as such. Return IB_PORTPHYSSTATE_TRAINING until the software
-	 * state is ready.
-	 */
-	if (ppd->pstate == PLS_LINKUP &&
-	    !(ppd->host_link_state & HLS_UP))
-		return IB_PORTPHYSSTATE_TRAINING;
-	else
-		return chip_to_opa_pstate(ppd->dd, ppd->pstate);
-}
 
 void receive_interrupt_work(struct work_struct *work);
 
