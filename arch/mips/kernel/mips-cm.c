@@ -15,7 +15,7 @@
 #include <asm/mips-cm.h>
 #include <asm/mipsregs.h>
 
-void __iomem *mips_cm_base;
+void __iomem *mips_gcr_base;
 void __iomem *mips_cm_l2sync_base;
 int mips_cm_is64;
 
@@ -211,7 +211,7 @@ int mips_cm_probe(void)
 	 * No need to probe again if we have already been
 	 * here before.
 	 */
-	if (mips_cm_base)
+	if (mips_gcr_base)
 		return 0;
 
 	addr = mips_cm_phys_base();
@@ -219,8 +219,8 @@ int mips_cm_probe(void)
 	if (!addr)
 		return -ENODEV;
 
-	mips_cm_base = ioremap_nocache(addr, MIPS_CM_GCR_SIZE);
-	if (!mips_cm_base)
+	mips_gcr_base = ioremap_nocache(addr, MIPS_CM_GCR_SIZE);
+	if (!mips_gcr_base)
 		return -ENXIO;
 
 	/* sanity check that we're looking at a CM */
@@ -228,7 +228,7 @@ int mips_cm_probe(void)
 	if ((base_reg & CM_GCR_BASE_GCRBASE_MSK) != addr) {
 		pr_err("GCRs appear to have been moved (expected them at 0x%08lx)!\n",
 		       (unsigned long)addr);
-		mips_cm_base = NULL;
+		mips_gcr_base = NULL;
 		return -ENODEV;
 	}
 

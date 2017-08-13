@@ -17,7 +17,7 @@
 #include <linux/types.h>
 
 /* The base address of the CM GCR block */
-extern void __iomem *mips_cm_base;
+extern void __iomem *mips_gcr_base;
 
 /* The base address of the CM L2-only sync region */
 extern void __iomem *mips_cm_l2sync_base;
@@ -80,7 +80,7 @@ static inline int mips_cm_probe(void)
 static inline bool mips_cm_present(void)
 {
 #ifdef CONFIG_MIPS_CM
-	return mips_cm_base != NULL;
+	return mips_gcr_base != NULL;
 #else
 	return false;
 #endif
@@ -116,7 +116,7 @@ static inline bool mips_cm_has_l2sync(void)
 #define BUILD_CM_R_(name, off)					\
 static inline unsigned long __iomem *addr_gcr_##name(void)	\
 {								\
-	return (unsigned long __iomem *)(mips_cm_base + (off));	\
+	return (unsigned long __iomem *)(mips_gcr_base + (off));\
 }								\
 								\
 static inline u32 read32_gcr_##name(void)			\
