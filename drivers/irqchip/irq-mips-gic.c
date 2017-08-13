@@ -81,24 +81,6 @@ static inline void gic_write(unsigned int reg, unsigned long val)
 		return gic_write64(reg, (u64)val);
 }
 
-static inline void gic_update_bits(unsigned int reg, unsigned long mask,
-				   unsigned long val)
-{
-	unsigned long regval;
-
-	regval = gic_read(reg);
-	regval &= ~mask;
-	regval |= val;
-	gic_write(reg, regval);
-}
-
-static inline void gic_set_dual_edge(unsigned int intr, unsigned int dual)
-{
-	gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_DUAL) + GIC_INTR_OFS(intr),
-			1ul << GIC_INTR_BIT(intr),
-			(unsigned long)dual << GIC_INTR_BIT(intr));
-}
-
 static inline void gic_map_to_pin(unsigned int intr, unsigned int pin)
 {
 	gic_write32(GIC_REG(SHARED, GIC_SH_INTR_MAP_TO_PIN_BASE) +
@@ -260,32 +242,32 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_EDGE_FALLING:
 		change_gic_pol(irq, GIC_POL_FALLING_EDGE);
 		change_gic_trig(irq, GIC_TRIG_EDGE);
-		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
+		change_gic_dual(irq, GIC_DUAL_SINGLE);
 		is_edge = true;
 		break;
 	case IRQ_TYPE_EDGE_RISING:
 		change_gic_pol(irq, GIC_POL_RISING_EDGE);
 		change_gic_trig(irq, GIC_TRIG_EDGE);
-		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
+		change_gic_dual(irq, GIC_DUAL_SINGLE);
 		is_edge = true;
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
 		/* polarity is irrelevant in this case */
 		change_gic_trig(irq, GIC_TRIG_EDGE);
-		gic_set_dual_edge(irq, GIC_TRIG_DUAL_ENABLE);
+		change_gic_dual(irq, GIC_DUAL_DUAL);
 		is_edge = true;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		change_gic_pol(irq, GIC_POL_ACTIVE_LOW);
 		change_gic_trig(irq, GIC_TRIG_LEVEL);
-		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
+		change_gic_dual(irq, GIC_DUAL_SINGLE);
 		is_edge = false;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 	default:
 		change_gic_pol(irq, GIC_POL_ACTIVE_HIGH);
 		change_gic_trig(irq, GIC_TRIG_LEVEL);
-		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
+		change_gic_dual(irq, GIC_DUAL_SINGLE);
 		is_edge = false;
 		break;
 	}
