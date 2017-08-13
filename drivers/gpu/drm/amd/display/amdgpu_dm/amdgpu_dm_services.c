@@ -401,14 +401,6 @@ bool dm_pp_notify_wm_clock_changes(
 	return false;
 }
 
-bool dm_pp_notify_wm_clock_changes_soc15(
-	const struct dc_context *ctx,
-	struct dm_pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
-{
-	/* TODO: to be implemented */
-	return false;
-}
-
 bool dm_pp_apply_power_level_change_request(
 	const struct dc_context *ctx,
 	struct dm_pp_power_level_change_request *level_change_req)
@@ -432,5 +424,10 @@ bool dm_pp_get_static_clocks(
 	/* TODO: to be implemented */
 	return false;
 }
+
+void dm_pp_get_funcs_rv(
+		struct dc_context *ctx,
+		struct pp_smu_funcs_rv *funcs)
+{}
 
 /**** end of power component interfaces ****/

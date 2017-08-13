@@ -1311,11 +1311,15 @@ void dcn_bw_update_from_pplib(struct dc *dc)
 
 void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 {
-	struct dm_pp_wm_sets_with_clock_ranges_soc15 clk_ranges = {0};
+	struct pp_smu_funcs_rv *pp = dc->res_pool->pp_smu;
+	struct pp_smu_wm_range_sets ranges = {0};
 	int max_fclk_khz, nom_fclk_khz, min_fclk_khz, max_dcfclk_khz,
 		nom_dcfclk_khz, mid_fclk_khz, min_dcfclk_khz, socclk_khz;
 	const int overdrive = 5000000; /* 5 GHz to cover Overdrive */
 	unsigned factor = (ddr4_dram_factor_single_Channel * dc->dcn_soc->number_of_channels);
+
+	if (!pp->set_wm_ranges)
+		return;
 
 	kernel_fpu_begin();
 	max_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 * 1000000 / factor;
@@ -1336,55 +1340,55 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 	/* SOCCLK does not affect anytihng but writeback for DCN so for now we dont
 	 * care what the value is, hence min to overdrive level
 	 */
-	clk_ranges.num_wm_dmif_sets = 4;
-	clk_ranges.num_wm_mcif_sets = 4;
-	clk_ranges.wm_dmif_clocks_ranges[0].wm_set_id = WM_SET_A;
-	clk_ranges.wm_dmif_clocks_ranges[0].wm_min_dcfclk_clk_in_khz = min_dcfclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[0].wm_max_dcfclk_clk_in_khz = max_dcfclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[0].wm_min_memg_clk_in_khz = min_fclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[0].wm_max_mem_clk_in_khz = min_fclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[0].wm_set_id = WM_SET_A;
-	clk_ranges.wm_mcif_clocks_ranges[0].wm_min_socclk_clk_in_khz = socclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[0].wm_max_socclk_clk_in_khz = overdrive;
-	clk_ranges.wm_mcif_clocks_ranges[0].wm_min_memg_clk_in_khz = min_fclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[0].wm_max_mem_clk_in_khz = min_fclk_khz;
+	ranges.num_reader_wm_sets = WM_COUNT;
+	ranges.num_writer_wm_sets = WM_COUNT;
+	ranges.reader_wm_sets[0].wm_inst = WM_A;
+	ranges.reader_wm_sets[0].min_drain_clk_khz = min_dcfclk_khz;
+	ranges.reader_wm_sets[0].max_drain_clk_khz = max_dcfclk_khz;
+	ranges.reader_wm_sets[0].min_fill_clk_khz = min_fclk_khz;
+	ranges.reader_wm_sets[0].max_fill_clk_khz = min_fclk_khz;
+	ranges.writer_wm_sets[0].wm_inst = WM_A;
+	ranges.writer_wm_sets[0].min_fill_clk_khz = socclk_khz;
+	ranges.writer_wm_sets[0].max_fill_clk_khz = overdrive;
+	ranges.writer_wm_sets[0].min_drain_clk_khz = min_fclk_khz;
+	ranges.writer_wm_sets[0].max_drain_clk_khz = min_fclk_khz;
 
-	clk_ranges.wm_dmif_clocks_ranges[1].wm_set_id = WM_SET_B;
-	clk_ranges.wm_dmif_clocks_ranges[1].wm_min_dcfclk_clk_in_khz = min_fclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[1].wm_max_dcfclk_clk_in_khz = max_dcfclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[1].wm_min_memg_clk_in_khz = mid_fclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[1].wm_max_mem_clk_in_khz = mid_fclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[1].wm_set_id = WM_SET_B;
-	clk_ranges.wm_mcif_clocks_ranges[1].wm_min_socclk_clk_in_khz = socclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[1].wm_max_socclk_clk_in_khz = overdrive;
-	clk_ranges.wm_mcif_clocks_ranges[1].wm_min_memg_clk_in_khz = mid_fclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[1].wm_max_mem_clk_in_khz = mid_fclk_khz;
+	ranges.reader_wm_sets[1].wm_inst = WM_B;
+	ranges.reader_wm_sets[1].min_drain_clk_khz = min_fclk_khz;
+	ranges.reader_wm_sets[1].max_drain_clk_khz = max_dcfclk_khz;
+	ranges.reader_wm_sets[1].min_fill_clk_khz = mid_fclk_khz;
+	ranges.reader_wm_sets[1].max_fill_clk_khz = mid_fclk_khz;
+	ranges.writer_wm_sets[1].wm_inst = WM_B;
+	ranges.writer_wm_sets[1].min_fill_clk_khz = socclk_khz;
+	ranges.writer_wm_sets[1].max_fill_clk_khz = overdrive;
+	ranges.writer_wm_sets[1].min_drain_clk_khz = mid_fclk_khz;
+	ranges.writer_wm_sets[1].max_drain_clk_khz = mid_fclk_khz;
 
 
-	clk_ranges.wm_dmif_clocks_ranges[2].wm_set_id = WM_SET_C;
-	clk_ranges.wm_dmif_clocks_ranges[2].wm_min_dcfclk_clk_in_khz = min_fclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[2].wm_max_dcfclk_clk_in_khz = max_dcfclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[2].wm_min_memg_clk_in_khz = nom_fclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[2].wm_max_mem_clk_in_khz = nom_fclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[2].wm_set_id = WM_SET_C;
-	clk_ranges.wm_mcif_clocks_ranges[2].wm_min_socclk_clk_in_khz = socclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[2].wm_max_socclk_clk_in_khz = overdrive;
-	clk_ranges.wm_mcif_clocks_ranges[2].wm_min_memg_clk_in_khz = nom_fclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[2].wm_max_mem_clk_in_khz = nom_fclk_khz;
+	ranges.reader_wm_sets[2].wm_inst = WM_C;
+	ranges.reader_wm_sets[2].min_drain_clk_khz = min_fclk_khz;
+	ranges.reader_wm_sets[2].max_drain_clk_khz = max_dcfclk_khz;
+	ranges.reader_wm_sets[2].min_fill_clk_khz = nom_fclk_khz;
+	ranges.reader_wm_sets[2].max_fill_clk_khz = nom_fclk_khz;
+	ranges.writer_wm_sets[2].wm_inst = WM_C;
+	ranges.writer_wm_sets[2].min_fill_clk_khz = socclk_khz;
+	ranges.writer_wm_sets[2].max_fill_clk_khz = overdrive;
+	ranges.writer_wm_sets[2].min_drain_clk_khz = nom_fclk_khz;
+	ranges.writer_wm_sets[2].max_drain_clk_khz = nom_fclk_khz;
 
-	clk_ranges.wm_dmif_clocks_ranges[3].wm_set_id = WM_SET_D;
-	clk_ranges.wm_dmif_clocks_ranges[3].wm_min_dcfclk_clk_in_khz = min_fclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[3].wm_max_dcfclk_clk_in_khz = max_dcfclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[3].wm_min_memg_clk_in_khz = max_fclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[3].wm_max_mem_clk_in_khz = max_fclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[3].wm_set_id = WM_SET_D;
-	clk_ranges.wm_mcif_clocks_ranges[3].wm_min_socclk_clk_in_khz = socclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[3].wm_max_socclk_clk_in_khz = overdrive;
-	clk_ranges.wm_mcif_clocks_ranges[3].wm_min_memg_clk_in_khz = max_fclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[3].wm_max_mem_clk_in_khz = max_fclk_khz;
+	ranges.reader_wm_sets[3].wm_inst = WM_D;
+	ranges.reader_wm_sets[3].min_drain_clk_khz = min_fclk_khz;
+	ranges.reader_wm_sets[3].max_drain_clk_khz = max_dcfclk_khz;
+	ranges.reader_wm_sets[3].min_fill_clk_khz = max_fclk_khz;
+	ranges.reader_wm_sets[3].max_fill_clk_khz = max_fclk_khz;
+	ranges.writer_wm_sets[3].wm_inst = WM_D;
+	ranges.writer_wm_sets[3].min_fill_clk_khz = socclk_khz;
+	ranges.writer_wm_sets[3].max_fill_clk_khz = overdrive;
+	ranges.writer_wm_sets[3].min_drain_clk_khz = max_fclk_khz;
+	ranges.writer_wm_sets[3].max_drain_clk_khz = max_fclk_khz;
 
 	/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
-	dm_pp_notify_wm_clock_changes_soc15(dc->ctx, &clk_ranges);
+	pp->set_wm_ranges(&pp->pp_smu, &ranges);
 }
 
 void dcn_bw_sync_calcs_and_dml(struct dc *dc)

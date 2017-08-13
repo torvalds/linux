@@ -48,6 +48,7 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 #include "clock_source.h"
 #include "audio.h"
 #include "hw_sequencer_types.h"
+#include "dm_pp_smu.h"
 
 
 /************ link *****************/
@@ -126,6 +127,7 @@ struct resource_pool {
 	struct stream_encoder *stream_enc[MAX_PIPES * 2];
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	struct mpc *mpc;
+	struct pp_smu_funcs_rv *pp_smu;
 #endif
 
 	struct dwbc *dwbc[MAX_DWB_PIPES];

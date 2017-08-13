@@ -678,6 +678,17 @@ void dcn10_clock_source_destroy(struct clock_source **clk_src)
 	*clk_src = NULL;
 }
 
+static struct pp_smu_funcs_rv *dcn10_pp_smu_create(struct dc_context *ctx)
+{
+	struct pp_smu_funcs_rv *pp_smu = dm_alloc(sizeof(*pp_smu));
+
+	if (!pp_smu)
+		return pp_smu;
+
+	dm_pp_get_funcs_rv(ctx, pp_smu);
+	return pp_smu;
+}
+
 static void destruct(struct dcn10_resource_pool *pool)
 {
 	unsigned int i;
@@ -751,6 +762,8 @@ static void destruct(struct dcn10_resource_pool *pool)
 
 	if (pool->base.display_clock != NULL)
 		dce_disp_clk_destroy(&pool->base.display_clock);
+
+	dm_free(pool->base.pp_smu);
 }
 
 static struct mem_input *dcn10_mem_input_create(
@@ -1347,11 +1360,15 @@ static bool construct(
 		}
 	}
 
+	pool->base.pp_smu = dcn10_pp_smu_create(ctx);
+
 	if (!dc->debug.disable_pplib_clock_request)
 		dcn_bw_update_from_pplib(dc);
 	dcn_bw_sync_calcs_and_dml(dc);
-	if (!dc->debug.disable_pplib_wm_range)
+	if (!dc->debug.disable_pplib_wm_range) {
+		dc->res_pool = &pool->base;
 		dcn_bw_notify_pplib_of_wm_ranges(dc);
+	}
 
 	{
 	#if defined(CONFIG_DRM_AMD_DC_DCN1_0)

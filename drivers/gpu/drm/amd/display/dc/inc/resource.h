@@ -28,6 +28,7 @@
 #include "core_types.h"
 #include "core_status.h"
 #include "dal_asic_id.h"
+#include "dm_pp_smu.h"
 
 /* TODO unhardcode, 4 for CZ*/
 #define MEMORY_TYPE_MULTIPLIER 4
