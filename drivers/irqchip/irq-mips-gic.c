@@ -498,58 +498,33 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 				    irq_hw_number_t hw)
 {
 	int intr = GIC_HWIRQ_TO_LOCAL(hw);
-	int ret = 0;
 	int i;
 	unsigned long flags;
+	u32 val;
 
 	if (!gic_local_irq_is_routable(intr))
 		return -EPERM;
 
+	if (intr > GIC_LOCAL_INT_FDC) {
+		pr_err("Invalid local IRQ %d\n", intr);
+		return -EINVAL;
+	}
+
+	if (intr == GIC_LOCAL_INT_TIMER) {
+		/* CONFIG_MIPS_CMP workaround (see __gic_init) */
+		val = GIC_MAP_PIN_MAP_TO_PIN | timer_cpu_pin;
+	} else {
+		val = GIC_MAP_PIN_MAP_TO_PIN | gic_cpu_pin;
+	}
+
 	spin_lock_irqsave(&gic_lock, flags);
 	for (i = 0; i < gic_vpes; i++) {
-		u32 val = GIC_MAP_TO_PIN_MSK | gic_cpu_pin;
-
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
-			  mips_cm_vp_id(i));
-
-		switch (intr) {
-		case GIC_LOCAL_INT_WD:
-			gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_WD_MAP), val);
-			break;
-		case GIC_LOCAL_INT_COMPARE:
-			gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_COMPARE_MAP),
-				    val);
-			break;
-		case GIC_LOCAL_INT_TIMER:
-			/* CONFIG_MIPS_CMP workaround (see __gic_init) */
-			val = GIC_MAP_TO_PIN_MSK | timer_cpu_pin;
-			gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_TIMER_MAP),
-				    val);
-			break;
-		case GIC_LOCAL_INT_PERFCTR:
-			gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_PERFCTR_MAP),
-				    val);
-			break;
-		case GIC_LOCAL_INT_SWINT0:
-			gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_SWINT0_MAP),
-				    val);
-			break;
-		case GIC_LOCAL_INT_SWINT1:
-			gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_SWINT1_MAP),
-				    val);
-			break;
-		case GIC_LOCAL_INT_FDC:
-			gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_FDC_MAP), val);
-			break;
-		default:
-			pr_err("Invalid local IRQ %d\n", intr);
-			ret = -EINVAL;
-			break;
-		}
+		write_gic_vl_other(mips_cm_vp_id(i));
+		write_gic_vo_map(intr, val);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
