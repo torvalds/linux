@@ -37,10 +37,6 @@
 /* Set/Clear corresponding bit in Edge Detect Register */
 #define GIC_SH_WEDGE_OFS		0x0280
 
-/* Maps Interrupt X to a Pin */
-#define GIC_SH_INTR_MAP_TO_PIN_BASE_OFS 0x0500
-#define GIC_SH_MAP_TO_PIN(intr)		(4 * (intr))
-
 /* Maps Interrupt X to a VPE */
 #define GIC_SH_INTR_MAP_TO_VPE_BASE_OFS 0x2000
 #define GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe) \
@@ -84,12 +80,6 @@
 #define GIC_SH_WEDGE_SET(intr)		((intr) | (0x1 << 31))
 #define GIC_SH_WEDGE_CLR(intr)		((intr) & ~(0x1 << 31))
 
-#define GIC_MAP_TO_PIN_SHF		31
-#define GIC_MAP_TO_PIN_MSK		(MSK(1) << GIC_MAP_TO_PIN_SHF)
-#define GIC_MAP_TO_NMI_SHF		30
-#define GIC_MAP_TO_NMI_MSK		(MSK(1) << GIC_MAP_TO_NMI_SHF)
-#define GIC_MAP_TO_YQ_SHF		29
-#define GIC_MAP_TO_YQ_MSK		(MSK(1) << GIC_MAP_TO_YQ_SHF)
 #define GIC_MAP_SHF			0
 #define GIC_MAP_MSK			(MSK(6) << GIC_MAP_SHF)
 

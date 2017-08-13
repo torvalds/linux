@@ -81,12 +81,6 @@ static inline void gic_write(unsigned int reg, unsigned long val)
 		return gic_write64(reg, (u64)val);
 }
 
-static inline void gic_map_to_pin(unsigned int intr, unsigned int pin)
-{
-	gic_write32(GIC_REG(SHARED, GIC_SH_INTR_MAP_TO_PIN_BASE) +
-		    GIC_SH_MAP_TO_PIN(intr), GIC_MAP_TO_PIN_MSK | pin);
-}
-
 static inline void gic_map_to_vpe(unsigned int intr, unsigned int vpe)
 {
 	gic_write(GIC_REG(SHARED, GIC_SH_INTR_MAP_TO_VPE_BASE) +
@@ -491,7 +485,7 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	int i;
 
 	spin_lock_irqsave(&gic_lock, flags);
-	gic_map_to_pin(intr, gic_cpu_pin);
+	write_gic_map_pin(intr, GIC_MAP_PIN_MAP_TO_PIN | gic_cpu_pin);
 	gic_map_to_vpe(intr, mips_cm_vp_id(vpe));
 	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
 		clear_bit(intr, pcpu_masks[i].pcpu_mask);
