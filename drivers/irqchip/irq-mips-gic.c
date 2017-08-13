@@ -225,31 +225,24 @@ int gic_get_usm_range(struct resource *gic_usm_res)
 
 static void gic_handle_shared_int(bool chained)
 {
-	unsigned int i, intr, virq, gic_reg_step = mips_cm_is64 ? 8 : 4;
+	unsigned int intr, virq;
 	unsigned long *pcpu_mask;
-	unsigned long pending_reg, intrmask_reg;
 	DECLARE_BITMAP(pending, GIC_MAX_INTRS);
 	DECLARE_BITMAP(intrmask, GIC_MAX_INTRS);
 
 	/* Get per-cpu bitmaps */
 	pcpu_mask = pcpu_masks[smp_processor_id()].pcpu_mask;
 
-	pending_reg = GIC_REG(SHARED, GIC_SH_PEND);
-	intrmask_reg = GIC_REG(SHARED, GIC_SH_MASK);
-
-	for (i = 0; i < BITS_TO_LONGS(gic_shared_intrs); i++) {
-		pending[i] = gic_read(pending_reg);
-		intrmask[i] = gic_read(intrmask_reg);
-		pending_reg += gic_reg_step;
-		intrmask_reg += gic_reg_step;
-
-		if (!IS_ENABLED(CONFIG_64BIT) || mips_cm_is64)
-			continue;
-
-		pending[i] |= (u64)gic_read(pending_reg) << 32;
-		intrmask[i] |= (u64)gic_read(intrmask_reg) << 32;
-		pending_reg += gic_reg_step;
-		intrmask_reg += gic_reg_step;
+	if (mips_cm_is64) {
+		__ioread64_copy(pending, addr_gic_pend(),
+				DIV_ROUND_UP(gic_shared_intrs, 64));
+		__ioread64_copy(intrmask, addr_gic_mask(),
+				DIV_ROUND_UP(gic_shared_intrs, 64));
+	} else {
+		__ioread32_copy(pending, addr_gic_pend(),
+				DIV_ROUND_UP(gic_shared_intrs, 32));
+		__ioread32_copy(intrmask, addr_gic_mask(),
+				DIV_ROUND_UP(gic_shared_intrs, 32));
 	}
 
 	bitmap_and(pending, pending, intrmask, gic_shared_intrs);

@@ -68,12 +68,6 @@
 #define GIC_SH_RMASK_OFS		0x0300
 #define GIC_SH_SMASK_OFS		0x0380
 
-/* Global Interrupt Mask Register (RO) - Bit Set == Interrupt enabled */
-#define GIC_SH_MASK_OFS			0x0400
-
-/* Pending Global Interrupts (RO) */
-#define GIC_SH_PEND_OFS			0x0480
-
 /* Maps Interrupt X to a Pin */
 #define GIC_SH_INTR_MAP_TO_PIN_BASE_OFS 0x0500
 #define GIC_SH_MAP_TO_PIN(intr)		(4 * (intr))
