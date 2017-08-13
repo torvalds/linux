@@ -13,6 +13,7 @@
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/of_address.h>
+#include <linux/percpu.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 
@@ -23,6 +24,7 @@
 #include <dt-bindings/interrupt-controller/mips-gic.h>
 
 #define GIC_MAX_INTRS		256
+#define GIC_MAX_LONGS		BITS_TO_LONGS(GIC_MAX_INTRS)
 
 /* Add 2 to convert GIC CPU pin to core interrupt */
 #define GIC_CPU_PIN_OFFSET	2
@@ -40,11 +42,8 @@
 
 void __iomem *mips_gic_base;
 
-struct gic_pcpu_mask {
-	DECLARE_BITMAP(pcpu_mask, GIC_MAX_INTRS);
-};
+DEFINE_PER_CPU_READ_MOSTLY(unsigned long[GIC_MAX_LONGS], pcpu_masks);
 
-static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
 static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
 static struct irq_domain *gic_ipi_domain;
@@ -137,7 +136,7 @@ static void gic_handle_shared_int(bool chained)
 	DECLARE_BITMAP(intrmask, GIC_MAX_INTRS);
 
 	/* Get per-cpu bitmaps */
-	pcpu_mask = pcpu_masks[smp_processor_id()].pcpu_mask;
+	pcpu_mask = this_cpu_ptr(pcpu_masks);
 
 	if (mips_cm_is64) {
 		__ioread64_copy(pending, addr_gic_pend(),
@@ -254,8 +253,8 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 
 	/* Update the pcpu_masks */
 	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
-		clear_bit(irq, pcpu_masks[i].pcpu_mask);
-	set_bit(irq, pcpu_masks[cpumask_first(&tmp)].pcpu_mask);
+		clear_bit(irq, per_cpu_ptr(pcpu_masks, i));
+	set_bit(irq, per_cpu_ptr(pcpu_masks, cpumask_first(&tmp)));
 
 	cpumask_copy(irq_data_get_affinity_mask(d), cpumask);
 	spin_unlock_irqrestore(&gic_lock, flags);
@@ -416,8 +415,8 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	write_gic_map_pin(intr, GIC_MAP_PIN_MAP_TO_PIN | gic_cpu_pin);
 	write_gic_map_vp(intr, BIT(mips_cm_vp_id(vpe)));
 	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
-		clear_bit(intr, pcpu_masks[i].pcpu_mask);
-	set_bit(intr, pcpu_masks[vpe].pcpu_mask);
+		clear_bit(intr, per_cpu_ptr(pcpu_masks, i));
+	set_bit(intr, per_cpu_ptr(pcpu_masks, vpe));
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return 0;
