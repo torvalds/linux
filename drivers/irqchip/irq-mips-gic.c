@@ -737,13 +737,6 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	gic_basic_init();
 }
 
-void __init gic_init(unsigned long gic_base_addr,
-		     unsigned long gic_addrspace_size,
-		     unsigned int cpu_vec, unsigned int irqbase)
-{
-	__gic_init(gic_base_addr, gic_addrspace_size, cpu_vec, irqbase, NULL);
-}
-
 static int __init gic_of_init(struct device_node *node,
 			      struct device_node *parent)
 {

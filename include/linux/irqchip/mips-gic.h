@@ -19,9 +19,6 @@
 
 extern unsigned int gic_present;
 
-extern void gic_init(unsigned long gic_base_addr,
-	unsigned long gic_addrspace_size, unsigned int cpu_vec,
-	unsigned int irqbase);
 extern int gic_get_c0_compare_int(void);
 extern int gic_get_c0_perfcount_int(void);
 extern int gic_get_c0_fdc_int(void);
