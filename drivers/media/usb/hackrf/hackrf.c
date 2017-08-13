@@ -1545,7 +1545,7 @@ err:
 }
 
 /* USB device ID list */
-static struct usb_device_id hackrf_id_table[] = {
+static const struct usb_device_id hackrf_id_table[] = {
 	{ USB_DEVICE(0x1d50, 0x6089) }, /* HackRF One */
 	{ }
 };

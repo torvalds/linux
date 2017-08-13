@@ -1308,7 +1308,7 @@ err:
 }
 
 /* USB device ID list */
-static struct usb_device_id msi2500_id_table[] = {
+static const struct usb_device_id msi2500_id_table[] = {
 	{USB_DEVICE(0x1df7, 0x2500)}, /* Mirics MSi3101 SDR Dongle */
 	{USB_DEVICE(0x2040, 0xd300)}, /* Hauppauge WinTV 133559 LF */
 	{}

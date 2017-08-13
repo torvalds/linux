@@ -933,7 +933,7 @@ static struct dvb_usb_device_properties az6007_cablestar_hdci_props = {
 	}
 };
 
-static struct usb_device_id az6007_usb_table[] = {
+static const struct usb_device_id az6007_usb_table[] = {
 	{DVB_USB_DEVICE(USB_VID_AZUREWAVE, USB_PID_AZUREWAVE_6007,
 		&az6007_props, "Azurewave 6007", RC_MAP_EMPTY)},
 	{DVB_USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_H7,
