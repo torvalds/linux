@@ -844,6 +844,48 @@ struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 }
 EXPORT_SYMBOL_GPL(xprt_lookup_rqst);
 
+/**
+ * xprt_pin_rqst - Pin a request on the transport receive list
+ * @req: Request to pin
+ *
+ * Caller must ensure this is atomic with the call to xprt_lookup_rqst()
+ * so should be holding the xprt transport lock.
+ */
+void xprt_pin_rqst(struct rpc_rqst *req)
+{
+	set_bit(RPC_TASK_MSG_RECV, &req->rq_task->tk_runstate);
+}
+
+/**
+ * xprt_unpin_rqst - Unpin a request on the transport receive list
+ * @req: Request to pin
+ *
+ * Caller should be holding the xprt transport lock.
+ */
+void xprt_unpin_rqst(struct rpc_rqst *req)
+{
+	struct rpc_task *task = req->rq_task;
+
+	clear_bit(RPC_TASK_MSG_RECV, &task->tk_runstate);
+	if (test_bit(RPC_TASK_MSG_RECV_WAIT, &task->tk_runstate))
+		wake_up_bit(&task->tk_runstate, RPC_TASK_MSG_RECV);
+}
+
+static void xprt_wait_on_pinned_rqst(struct rpc_rqst *req)
+__must_hold(&req->rq_xprt->transport_lock)
+{
+	struct rpc_task *task = req->rq_task;
+	
+	if (task && test_bit(RPC_TASK_MSG_RECV, &task->tk_runstate)) {
+		spin_unlock_bh(&req->rq_xprt->transport_lock);
+		set_bit(RPC_TASK_MSG_RECV_WAIT, &task->tk_runstate);
+		wait_on_bit(&task->tk_runstate, RPC_TASK_MSG_RECV,
+				TASK_UNINTERRUPTIBLE);
+		clear_bit(RPC_TASK_MSG_RECV_WAIT, &task->tk_runstate);
+		spin_lock_bh(&req->rq_xprt->transport_lock);
+	}
+}
+
 static void xprt_update_rtt(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
@@ -1295,6 +1337,7 @@ void xprt_release(struct rpc_task *task)
 		list_del(&req->rq_list);
 	xprt->last_used = jiffies;
 	xprt_schedule_autodisconnect(xprt);
+	xprt_wait_on_pinned_rqst(req);
 	spin_unlock_bh(&xprt->transport_lock);
 	if (req->rq_buffer)
 		xprt->ops->buf_free(task);
