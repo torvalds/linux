@@ -113,7 +113,7 @@ static void stm32_receive_chars(struct uart_port *port, bool threaded)
 	u32 sr;
 	char flag;
 
-	if (port->irq_wake)
+	if (irqd_is_wakeup_set(irq_get_irq_data(port->irq)))
 		pm_wakeup_event(tport->tty->dev, 0);
 
 	while (stm32_pending_rx(port, &sr, &stm32_port->last_res, threaded)) {
