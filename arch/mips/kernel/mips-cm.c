@@ -233,9 +233,7 @@ int mips_cm_probe(void)
 	}
 
 	/* set default target to memory */
-	base_reg &= ~CM_GCR_BASE_CMDEFTGT;
-	base_reg |= CM_GCR_BASE_CMDEFTGT_MEM;
-	write_gcr_base(base_reg);
+	change_gcr_base(CM_GCR_BASE_CMDEFTGT, CM_GCR_BASE_CMDEFTGT_MEM);
 
 	/* disable CM regions */
 	write_gcr_reg0_base(CM_GCR_REGn_BASE_BASEADDR);

@@ -69,28 +69,19 @@ static void mips_sc_prefetch_enable(void)
 		pftctl |= CM_GCR_L2_PFT_CONTROL_PFTEN;
 		write_gcr_l2_pft_control(pftctl);
 
-		pftctl = read_gcr_l2_pft_control_b();
-		pftctl |= CM_GCR_L2_PFT_CONTROL_B_PORTID;
-		pftctl |= CM_GCR_L2_PFT_CONTROL_B_CEN;
-		write_gcr_l2_pft_control_b(pftctl);
+		set_gcr_l2_pft_control_b(CM_GCR_L2_PFT_CONTROL_B_PORTID |
+					 CM_GCR_L2_PFT_CONTROL_B_CEN);
 	}
 }
 
 static void mips_sc_prefetch_disable(void)
 {
-	unsigned long pftctl;
-
 	if (mips_cm_revision() < CM_REV_CM2_5)
 		return;
 
-	pftctl = read_gcr_l2_pft_control();
-	pftctl &= ~CM_GCR_L2_PFT_CONTROL_PFTEN;
-	write_gcr_l2_pft_control(pftctl);
-
-	pftctl = read_gcr_l2_pft_control_b();
-	pftctl &= ~CM_GCR_L2_PFT_CONTROL_B_PORTID;
-	pftctl &= ~CM_GCR_L2_PFT_CONTROL_B_CEN;
-	write_gcr_l2_pft_control_b(pftctl);
+	clear_gcr_l2_pft_control(CM_GCR_L2_PFT_CONTROL_PFTEN);
+	clear_gcr_l2_pft_control_b(CM_GCR_L2_PFT_CONTROL_B_PORTID |
+				   CM_GCR_L2_PFT_CONTROL_B_CEN);
 }
 
 static bool mips_sc_prefetch_is_enabled(void)
