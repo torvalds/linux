@@ -1739,9 +1739,8 @@ static int imx_csi_probe(struct platform_device *pdev)
 	priv->csi_id = pdata->csi;
 	priv->smfc_id = (priv->csi_id == 0) ? 0 : 2;
 
-	init_timer(&priv->eof_timeout_timer);
-	priv->eof_timeout_timer.data = (unsigned long)priv;
-	priv->eof_timeout_timer.function = csi_idmac_eof_timeout;
+	setup_timer(&priv->eof_timeout_timer, csi_idmac_eof_timeout,
+		    (unsigned long)priv);
 	spin_lock_init(&priv->irqlock);
 
 	v4l2_subdev_init(&priv->sd, &csi_subdev_ops);

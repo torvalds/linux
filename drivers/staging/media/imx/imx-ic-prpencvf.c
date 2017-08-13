@@ -1292,9 +1292,8 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 	priv->ic_priv = ic_priv;
 
 	spin_lock_init(&priv->irqlock);
-	init_timer(&priv->eof_timeout_timer);
-	priv->eof_timeout_timer.data = (unsigned long)priv;
-	priv->eof_timeout_timer.function = prp_eof_timeout;
+	setup_timer(&priv->eof_timeout_timer, prp_eof_timeout,
+		    (unsigned long)priv);
 
 	priv->vdev = imx_media_capture_device_init(&ic_priv->sd,
 						   PRPENCVF_SRC_PAD);
