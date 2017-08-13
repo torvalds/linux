@@ -368,7 +368,7 @@ static void cps_init_secondary(void)
 		dmt();
 
 	if (mips_cm_revision() >= CM_REV_CM3) {
-		unsigned ident = gic_read_local_vp_id();
+		unsigned int ident = read_gic_vl_ident();
 
 		/*
 		 * Ensure that our calculation of the VP ID matches up with
