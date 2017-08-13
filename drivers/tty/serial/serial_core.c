@@ -36,7 +36,7 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 
-#include <asm/irq.h>
+#include <linux/irq.h>
 #include <linux/uaccess.h>
 
 /*
@@ -2083,8 +2083,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 
 	tty_dev = device_find_child(uport->dev, &match, serial_match_port);
 	if (tty_dev && device_may_wakeup(tty_dev)) {
-		if (!enable_irq_wake(uport->irq))
-			uport->irq_wake = 1;
+		enable_irq_wake(uport->irq);
 		put_device(tty_dev);
 		mutex_unlock(&port->mutex);
 		return 0;
@@ -2147,10 +2146,8 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 
 	tty_dev = device_find_child(uport->dev, &match, serial_match_port);
 	if (!uport->suspended && device_may_wakeup(tty_dev)) {
-		if (uport->irq_wake) {
+		if (irqd_is_wakeup_set(irq_get_irq_data((uport->irq))))
 			disable_irq_wake(uport->irq);
-			uport->irq_wake = 0;
-		}
 		put_device(tty_dev);
 		mutex_unlock(&port->mutex);
 		return 0;

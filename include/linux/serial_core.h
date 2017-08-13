@@ -247,7 +247,6 @@ struct uart_port {
 	struct device		*dev;			/* parent device */
 	unsigned char		hub6;			/* this should be in the 8250 driver */
 	unsigned char		suspended;
-	unsigned char		irq_wake;
 	unsigned char		unused[2];
 	const char		*name;			/* port name */
 	struct attribute_group	*attr_group;		/* port specific attributes */
