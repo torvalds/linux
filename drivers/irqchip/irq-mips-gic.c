@@ -119,7 +119,7 @@ static void gic_send_ipi(struct irq_data *d, unsigned int cpu)
 {
 	irq_hw_number_t hwirq = GIC_HWIRQ_TO_SHARED(irqd_to_hwirq(d));
 
-	gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_SET(hwirq));
+	write_gic_wedge(GIC_WEDGE_RW | hwirq);
 }
 
 int gic_get_c0_compare_int(void)
@@ -215,7 +215,7 @@ static void gic_ack_irq(struct irq_data *d)
 {
 	unsigned int irq = GIC_HWIRQ_TO_SHARED(d->hwirq);
 
-	gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_CLR(irq));
+	write_gic_wedge(irq);
 }
 
 static int gic_set_type(struct irq_data *d, unsigned int type)
@@ -700,13 +700,13 @@ static void __init __gic_init(unsigned long gic_base_addr,
 
 	mips_gic_base = ioremap_nocache(gic_base_addr, gic_addrspace_size);
 
-	gicconfig = gic_read(GIC_REG(SHARED, GIC_SH_CONFIG));
-	gic_shared_intrs = (gicconfig & GIC_SH_CONFIG_NUMINTRS_MSK) >>
-		   GIC_SH_CONFIG_NUMINTRS_SHF;
-	gic_shared_intrs = ((gic_shared_intrs + 1) * 8);
+	gicconfig = read_gic_config();
+	gic_shared_intrs = gicconfig & GIC_CONFIG_NUMINTERRUPTS;
+	gic_shared_intrs >>= __fls(GIC_CONFIG_NUMINTERRUPTS);
+	gic_shared_intrs = (gic_shared_intrs + 1) * 8;
 
-	gic_vpes = (gicconfig & GIC_SH_CONFIG_NUMVPES_MSK) >>
-		  GIC_SH_CONFIG_NUMVPES_SHF;
+	gic_vpes = gicconfig & GIC_CONFIG_PVPS;
+	gic_vpes >>= __fls(GIC_CONFIG_PVPS);
 	gic_vpes = gic_vpes + 1;
 
 	if (cpu_has_veic) {

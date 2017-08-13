@@ -19,23 +19,12 @@
 #define GIC_REG(segment, offset) (segment##_##SECTION_OFS + offset##_##OFS)
 
 /* GIC Address Space */
-#define SHARED_SECTION_OFS		0x0000
-#define SHARED_SECTION_SIZE		0x8000
 #define VPE_LOCAL_SECTION_OFS		0x8000
 #define VPE_LOCAL_SECTION_SIZE		0x4000
 #define VPE_OTHER_SECTION_OFS		0xc000
 #define VPE_OTHER_SECTION_SIZE		0x4000
 #define USM_VISIBLE_SECTION_OFS		0x10000
 #define USM_VISIBLE_SECTION_SIZE	0x10000
-
-/* Register Map for Shared Section */
-
-#define GIC_SH_CONFIG_OFS		0x0000
-
-#define GIC_SH_REVISIONID_OFS		0x0020
-
-/* Set/Clear corresponding bit in Edge Detect Register */
-#define GIC_SH_WEDGE_OFS		0x0280
 
 /* Register Map for Local Section */
 #define GIC_VPE_CTL_OFS			0x0000
@@ -65,15 +54,6 @@
 #define GIC_UMV_SH_COUNTER_63_32_OFS	0x0004
 
 /* Masks */
-#define GIC_SH_CONFIG_NUMINTRS_SHF	16
-#define GIC_SH_CONFIG_NUMINTRS_MSK	(MSK(8) << GIC_SH_CONFIG_NUMINTRS_SHF)
-
-#define GIC_SH_CONFIG_NUMVPES_SHF	0
-#define GIC_SH_CONFIG_NUMVPES_MSK	(MSK(8) << GIC_SH_CONFIG_NUMVPES_SHF)
-
-#define GIC_SH_WEDGE_SET(intr)		((intr) | (0x1 << 31))
-#define GIC_SH_WEDGE_CLR(intr)		((intr) & ~(0x1 << 31))
-
 #define GIC_MAP_SHF			0
 #define GIC_MAP_MSK			(MSK(6) << GIC_MAP_SHF)
 
