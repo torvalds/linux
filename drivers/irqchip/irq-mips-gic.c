@@ -138,14 +138,6 @@ static inline void gic_map_to_vpe(unsigned int intr, unsigned int vpe)
 		  GIC_SH_MAP_TO_VPE_REG_BIT(vpe));
 }
 
-unsigned gic_read_local_vp_id(void)
-{
-	unsigned long ident;
-
-	ident = gic_read(GIC_REG(VPE_LOCAL, GIC_VP_IDENT));
-	return ident & GIC_VP_IDENT_VCNUM_MSK;
-}
-
 static bool gic_local_irq_is_routable(int intr)
 {
 	u32 vpe_ctl;
