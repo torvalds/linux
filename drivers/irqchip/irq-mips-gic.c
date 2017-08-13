@@ -372,31 +372,6 @@ static void gic_irq_dispatch(struct irq_desc *desc)
 	gic_handle_shared_int(true);
 }
 
-static void __init gic_basic_init(void)
-{
-	unsigned int i;
-
-	board_bind_eic_interrupt = &gic_bind_eic_interrupt;
-
-	/* Setup defaults */
-	for (i = 0; i < gic_shared_intrs; i++) {
-		change_gic_pol(i, GIC_POL_ACTIVE_HIGH);
-		change_gic_trig(i, GIC_TRIG_LEVEL);
-		write_gic_rmask(BIT(i));
-	}
-
-	for (i = 0; i < gic_vpes; i++) {
-		unsigned int j;
-
-		write_gic_vl_other(mips_cm_vp_id(i));
-		for (j = 0; j < GIC_NUM_LOCAL_INTRS; j++) {
-			if (!gic_local_irq_is_routable(j))
-				continue;
-			write_gic_vo_rmask(BIT(j));
-		}
-	}
-}
-
 static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 				    irq_hw_number_t hw)
 {
@@ -652,7 +627,7 @@ static const struct irq_domain_ops gic_ipi_domain_ops = {
 static int __init gic_of_init(struct device_node *node,
 			      struct device_node *parent)
 {
-	unsigned int cpu_vec, i, reserved, gicconfig, cpu, v[2];
+	unsigned int cpu_vec, i, j, reserved, gicconfig, cpu, v[2];
 	phys_addr_t gic_base;
 	struct resource res;
 	size_t gic_len;
@@ -775,7 +750,24 @@ static int __init gic_of_init(struct device_node *node,
 	}
 
 	bitmap_copy(ipi_available, ipi_resrv, GIC_MAX_INTRS);
-	gic_basic_init();
+
+	board_bind_eic_interrupt = &gic_bind_eic_interrupt;
+
+	/* Setup defaults */
+	for (i = 0; i < gic_shared_intrs; i++) {
+		change_gic_pol(i, GIC_POL_ACTIVE_HIGH);
+		change_gic_trig(i, GIC_TRIG_LEVEL);
+		write_gic_rmask(BIT(i));
+	}
+
+	for (i = 0; i < gic_vpes; i++) {
+		write_gic_vl_other(mips_cm_vp_id(i));
+		for (j = 0; j < GIC_NUM_LOCAL_INTRS; j++) {
+			if (!gic_local_irq_is_routable(j))
+				continue;
+			write_gic_vo_rmask(BIT(j));
+		}
+	}
 
 	return 0;
 }
