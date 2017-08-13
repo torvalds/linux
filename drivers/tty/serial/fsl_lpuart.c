@@ -2264,6 +2264,7 @@ static int lpuart_suspend(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	unsigned long temp;
+	bool irq_wake;
 
 	if (lpuart_is_32(sport)) {
 		/* disable Rx/Tx and interrupts */
@@ -2279,6 +2280,9 @@ static int lpuart_suspend(struct device *dev)
 
 	uart_suspend_port(&lpuart_reg, &sport->port);
 
+	/* uart_suspend_port() might set wakeup flag */
+	irq_wake = irqd_is_wakeup_set(irq_get_irq_data(sport->port.irq));
+
 	if (sport->lpuart_dma_rx_use) {
 		/*
 		 * EDMA driver during suspend will forcefully release any
@@ -2287,7 +2291,7 @@ static int lpuart_suspend(struct device *dev)
 		 * cannot resume as as expected, hence gracefully release the
 		 * Rx DMA path before suspend and start Rx DMA path on resume.
 		 */
-		if (sport->port.irq_wake) {
+		if (irq_wake) {
 			del_timer_sync(&sport->lpuart_timer);
 			lpuart_dma_rx_free(&sport->port);
 		}
@@ -2302,7 +2306,7 @@ static int lpuart_suspend(struct device *dev)
 		dmaengine_terminate_all(sport->dma_tx_chan);
 	}
 
-	if (sport->port.suspended && !sport->port.irq_wake)
+	if (sport->port.suspended && !irq_wake)
 		clk_disable_unprepare(sport->clk);
 
 	return 0;
@@ -2311,9 +2315,10 @@ static int lpuart_suspend(struct device *dev)
 static int lpuart_resume(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
+	bool irq_wake = irqd_is_wakeup_set(irq_get_irq_data(sport->port.irq));
 	unsigned long temp;
 
-	if (sport->port.suspended && !sport->port.irq_wake)
+	if (sport->port.suspended && !irq_wake)
 		clk_prepare_enable(sport->clk);
 
 	if (lpuart_is_32(sport)) {
@@ -2330,7 +2335,7 @@ static int lpuart_resume(struct device *dev)
 	}
 
 	if (sport->lpuart_dma_rx_use) {
-		if (sport->port.irq_wake) {
+		if (irq_wake) {
 			if (!lpuart_start_rx_dma(sport))
 				rx_dma_timer_init(sport);
 			else
