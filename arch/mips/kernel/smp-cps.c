@@ -52,7 +52,7 @@ static unsigned core_vpe_count(unsigned core)
 		&& (!IS_ENABLED(CONFIG_CPU_MIPSR6) || !cpu_has_vp))
 		return 1;
 
-	mips_cm_lock_other(core, 0);
+	mips_cm_lock_other(0, core, 0, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 	cfg = read_gcr_co_config() & CM_GCR_Cx_CONFIG_PVPE;
 	mips_cm_unlock_other();
 	return cfg + 1;
@@ -214,7 +214,7 @@ static void boot_core(unsigned int core, unsigned int vpe_id)
 	unsigned timeout;
 
 	/* Select the appropriate core */
-	mips_cm_lock_other(core, 0);
+	mips_cm_lock_other(0, core, 0, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 
 	/* Set its reset vector */
 	write_gcr_co_reset_base(CKSEG1ADDR((unsigned long)mips_cps_core_entry));
@@ -313,7 +313,7 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 	}
 
 	if (cpu_has_vp) {
-		mips_cm_lock_other(core, vpe_id);
+		mips_cm_lock_other(0, core, vpe_id, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 		core_entry = CKSEG1ADDR((unsigned long)mips_cps_core_entry);
 		write_gcr_co_reset_base(core_entry);
 		mips_cm_unlock_other();
@@ -518,7 +518,7 @@ static void cps_cpu_die(unsigned int cpu)
 		 */
 		fail_time = ktime_add_ms(ktime_get(), 2000);
 		do {
-			mips_cm_lock_other(core, 0);
+			mips_cm_lock_other(0, core, 0, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 			mips_cpc_lock_other(core);
 			stat = read_cpc_co_stat_conf();
 			stat &= CPC_Cx_STAT_CONF_SEQSTATE;
@@ -562,7 +562,7 @@ static void cps_cpu_die(unsigned int cpu)
 			panic("Failed to call remote sibling CPU\n");
 	} else if (cpu_has_vp) {
 		do {
-			mips_cm_lock_other(core, vpe_id);
+			mips_cm_lock_other(0, core, vpe_id, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 			stat = read_cpc_co_vp_running();
 			mips_cm_unlock_other();
 		} while (stat & (1 << vpe_id));

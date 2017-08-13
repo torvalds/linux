@@ -437,29 +437,56 @@ static inline unsigned int mips_cm_vp_id(unsigned int cpu)
 #ifdef CONFIG_MIPS_CM
 
 /**
- * mips_cm_lock_other - lock access to another core
+ * mips_cm_lock_other - lock access to redirect/other region
+ * @cluster: the other cluster to be accessed
  * @core: the other core to be accessed
  * @vp: the VP within the other core to be accessed
+ * @block: the register block to be accessed
  *
- * Call before operating upon a core via the 'other' register region in
- * order to prevent the region being moved during access. Must be followed
- * by a call to mips_cm_unlock_other.
+ * Configure the redirect/other region for the local core/VP (depending upon
+ * the CM revision) to target the specified @cluster, @core, @vp & register
+ * @block. Must be called before using the redirect/other region, and followed
+ * by a call to mips_cm_unlock_other() when access to the redirect/other region
+ * is complete.
+ *
+ * This function acquires a spinlock such that code between it &
+ * mips_cm_unlock_other() calls cannot be pre-empted by anything which may
+ * reconfigure the redirect/other region, and cannot be interfered with by
+ * another VP in the core. As such calls to this function should not be nested.
  */
-extern void mips_cm_lock_other(unsigned int core, unsigned int vp);
+extern void mips_cm_lock_other(unsigned int cluster, unsigned int core,
+			       unsigned int vp, unsigned int block);
 
 /**
- * mips_cm_unlock_other - unlock access to another core
+ * mips_cm_unlock_other - unlock access to redirect/other region
  *
- * Call after operating upon another core via the 'other' register region.
- * Must be called after mips_cm_lock_other.
+ * Must be called after mips_cm_lock_other() once all required access to the
+ * redirect/other region has been completed.
  */
 extern void mips_cm_unlock_other(void);
 
 #else /* !CONFIG_MIPS_CM */
 
-static inline void mips_cm_lock_other(unsigned int core, unsigned int vp) { }
+static inline void mips_cm_lock_other(unsigned int cluster, unsigned int core,
+				      unsigned int vp, unsigned int block) { }
 static inline void mips_cm_unlock_other(void) { }
 
 #endif /* !CONFIG_MIPS_CM */
+
+/**
+ * mips_cm_lock_other_cpu - lock access to redirect/other region
+ * @cpu: the other CPU whose register we want to access
+ *
+ * Configure the redirect/other region for the local core/VP (depending upon
+ * the CM revision) to target the specified @cpu & register @block. This is
+ * equivalent to calling mips_cm_lock_other() but accepts a Linux CPU number
+ * for convenience.
+ */
+static inline void mips_cm_lock_other_cpu(unsigned int cpu, unsigned int block)
+{
+	struct cpuinfo_mips *d = &cpu_data[cpu];
+
+	mips_cm_lock_other(cpu_cluster(d), cpu_core(d), cpu_vpe_id(d), block);
+}
 
 #endif /* __MIPS_ASM_MIPS_CM_H__ */
