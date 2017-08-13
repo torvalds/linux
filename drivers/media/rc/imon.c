@@ -346,7 +346,7 @@ static const struct imon_usb_dev_descr imon_ir_raw = {
  * devices use the SoundGraph vendor ID (0x15c2). This driver only supports
  * the ffdc and later devices, which do onboard decoding.
  */
-static struct usb_device_id imon_usb_id_table[] = {
+static const struct usb_device_id imon_usb_id_table[] = {
 	/*
 	 * Several devices with this same device ID, all use iMON_PAD.inf
 	 * SoundGraph iMON PAD (IR & VFD)

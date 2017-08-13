@@ -249,7 +249,7 @@ static const struct mceusb_model mceusb_model[] = {
 	},
 };
 
-static struct usb_device_id mceusb_dev_table[] = {
+static const struct usb_device_id mceusb_dev_table[] = {
 	/* Original Microsoft MCE IR Transceiver (often HP-branded) */
 	{ USB_DEVICE(VENDOR_MICROSOFT, 0x006d),
 	  .driver_info = MCE_GEN1 },

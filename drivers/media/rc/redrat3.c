@@ -186,7 +186,7 @@ struct redrat3_error {
 } __packed;
 
 /* table of devices that work with this driver */
-static struct usb_device_id redrat3_dev_table[] = {
+static const struct usb_device_id redrat3_dev_table[] = {
 	/* Original version of the RedRat3 */
 	{USB_DEVICE(USB_RR3USB_VENDOR_ID, USB_RR3USB_PRODUCT_ID)},
 	/* Second Version/release of the RedRat3 - RetRat3-II */
