@@ -12,8 +12,7 @@
 #include <linux/percpu.h>
 #include <linux/spinlock.h>
 
-#include <asm/mips-cm.h>
-#include <asm/mips-cpc.h>
+#include <asm/mips-cps.h>
 
 void __iomem *mips_cpc_base;
 

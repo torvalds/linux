@@ -28,7 +28,7 @@
 
 #include <asm/fw/fw.h>
 #include <asm/mach-malta/malta-dtshim.h>
-#include <asm/mips-cm.h>
+#include <asm/mips-cps.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/malta.h>
 #include <asm/mips-boards/maltaint.h>

@@ -29,7 +29,6 @@
 #include <asm/i8259.h>
 #include <asm/irq_cpu.h>
 #include <asm/irq_regs.h>
-#include <asm/mips-cm.h>
 #include <asm/mips-boards/malta.h>
 #include <asm/mips-boards/maltaint.h>
 #include <asm/gt64120.h>

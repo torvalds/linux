@@ -17,8 +17,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cacheops.h>
 #include <asm/idle.h>
-#include <asm/mips-cm.h>
-#include <asm/mips-cpc.h>
+#include <asm/mips-cps.h>
 #include <asm/mipsmtregs.h>
 #include <asm/pm.h>
 #include <asm/pm-cps.h>

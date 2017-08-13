@@ -105,4 +105,7 @@ static inline void clear_##unit##_##name(uint##sz##_t val)		\
 	CPS_ACCESSOR_W(unit, sz, name)					\
 	CPS_ACCESSOR_M(unit, sz, name)
 
+#include <asm/mips-cm.h>
+#include <asm/mips-cpc.h>
+
 #endif /* __MIPS_ASM_MIPS_CPS_H__ */

@@ -14,7 +14,7 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include <asm/r4kcache.h>
-#include <asm/mips-cm.h>
+#include <asm/mips-cps.h>
 
 /*
  * MIPS32/MIPS64 L2 cache handling

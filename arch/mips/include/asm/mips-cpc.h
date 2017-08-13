@@ -8,12 +8,15 @@
  * option) any later version.
  */
 
+#ifndef __MIPS_ASM_MIPS_CPS_H__
+# error Please include asm/mips-cps.h rather than asm/mips-cpc.h
+#endif
+
 #ifndef __MIPS_ASM_MIPS_CPC_H__
 #define __MIPS_ASM_MIPS_CPC_H__
 
-#include <linux/io.h>
-#include <linux/types.h>
-#include <asm/mips-cps.h>
+#include <linux/bitops.h>
+#include <linux/errno.h>
 
 /* The base address of the CPC registers */
 extern void __iomem *mips_cpc_base;

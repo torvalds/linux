@@ -19,8 +19,7 @@
 #include <linux/types.h>
 
 #include <asm/bcache.h>
-#include <asm/mips-cm.h>
-#include <asm/mips-cpc.h>
+#include <asm/mips-cps.h>
 #include <asm/mips_mt.h>
 #include <asm/mipsregs.h>
 #include <asm/pm-cps.h>

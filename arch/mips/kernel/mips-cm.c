@@ -12,7 +12,7 @@
 #include <linux/percpu.h>
 #include <linux/spinlock.h>
 
-#include <asm/mips-cm.h>
+#include <asm/mips-cps.h>
 #include <asm/mipsregs.h>
 
 void __iomem *mips_gcr_base;

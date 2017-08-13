@@ -16,7 +16,6 @@
 
 #include <asm/clocksource.h>
 #include <asm/io.h>
-#include <asm/mips-cm.h>
 #include <asm/unistd.h>
 #include <asm/vdso.h>
 

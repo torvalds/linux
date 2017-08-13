@@ -27,7 +27,7 @@
 #include <linux/init.h>
 
 #include <asm/gt64120.h>
-#include <asm/mips-cm.h>
+#include <asm/mips-cps.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/bonito64.h>
 #include <asm/mips-boards/msc01_pci.h>

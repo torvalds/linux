@@ -17,7 +17,7 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 
-#include <asm/mips-cm.h>
+#include <asm/mips-cps.h>
 #include <asm/setup.h>
 #include <asm/traps.h>
 

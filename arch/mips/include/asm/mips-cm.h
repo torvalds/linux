@@ -8,14 +8,15 @@
  * option) any later version.
  */
 
+#ifndef __MIPS_ASM_MIPS_CPS_H__
+# error Please include asm/mips-cps.h rather than asm/mips-cm.h
+#endif
+
 #ifndef __MIPS_ASM_MIPS_CM_H__
 #define __MIPS_ASM_MIPS_CM_H__
 
 #include <linux/bitops.h>
 #include <linux/errno.h>
-#include <linux/io.h>
-#include <linux/types.h>
-#include <asm/mips-cps.h>
 
 /* The base address of the CM GCR block */
 extern void __iomem *mips_gcr_base;
