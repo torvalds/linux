@@ -38,16 +38,6 @@
 /* Mapped interrupt to pin X, then GIC will generate the vector (X+1). */
 #define GIC_PIN_TO_VEC_OFFSET	1
 
-/* Local GIC interrupts. */
-#define GIC_LOCAL_INT_WD	0 /* GIC watchdog */
-#define GIC_LOCAL_INT_COMPARE	1 /* GIC count and compare timer */
-#define GIC_LOCAL_INT_TIMER	2 /* CPU timer interrupt */
-#define GIC_LOCAL_INT_PERFCTR	3 /* CPU performance counter */
-#define GIC_LOCAL_INT_SWINT0	4 /* CPU software interrupt 0 */
-#define GIC_LOCAL_INT_SWINT1	5 /* CPU software interrupt 1 */
-#define GIC_LOCAL_INT_FDC	6 /* CPU fast debug channel */
-#define GIC_NUM_LOCAL_INTRS	7
-
 /* Convert between local/shared IRQ number and GIC HW IRQ number. */
 #define GIC_LOCAL_HWIRQ_BASE	0
 #define GIC_LOCAL_TO_HWIRQ(x)	(GIC_LOCAL_HWIRQ_BASE + (x))

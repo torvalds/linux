@@ -278,6 +278,30 @@ GIC_VX_ACCESSOR_RW(64, 0x0a0, compare)
 GIC_VX_ACCESSOR_RW_INTR_REG(32, 0x100, 0x4, eic_shadow_set)
 
 /**
+ * enum mips_gic_local_interrupt - GIC local interrupts
+ * @GIC_LOCAL_INT_WD: GIC watchdog timer interrupt
+ * @GIC_LOCAL_INT_COMPARE: GIC count/compare interrupt
+ * @GIC_LOCAL_INT_TIMER: CP0 count/compare interrupt
+ * @GIC_LOCAL_INT_PERFCTR: Performance counter interrupt
+ * @GIC_LOCAL_INT_SWINT0: Software interrupt 0
+ * @GIC_LOCAL_INT_SWINT1: Software interrupt 1
+ * @GIC_LOCAL_INT_FDC: Fast debug channel interrupt
+ * @GIC_NUM_LOCAL_INTRS: The number of local interrupts
+ *
+ * Enumerates interrupts provided by the GIC that are local to a VP.
+ */
+enum mips_gic_local_interrupt {
+	GIC_LOCAL_INT_WD,
+	GIC_LOCAL_INT_COMPARE,
+	GIC_LOCAL_INT_TIMER,
+	GIC_LOCAL_INT_PERFCTR,
+	GIC_LOCAL_INT_SWINT0,
+	GIC_LOCAL_INT_SWINT1,
+	GIC_LOCAL_INT_FDC,
+	GIC_NUM_LOCAL_INTRS
+};
+
+/**
  * mips_gic_present() - Determine whether a GIC is present
  *
  * Determines whether a MIPS Global Interrupt Controller (GIC) is present in
