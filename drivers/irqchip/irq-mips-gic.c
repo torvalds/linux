@@ -81,13 +81,6 @@ static inline void gic_write(unsigned int reg, unsigned long val)
 		return gic_write64(reg, (u64)val);
 }
 
-static inline void gic_map_to_vpe(unsigned int intr, unsigned int vpe)
-{
-	gic_write(GIC_REG(SHARED, GIC_SH_INTR_MAP_TO_VPE_BASE) +
-		  GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe),
-		  GIC_SH_MAP_TO_VPE_REG_BIT(vpe));
-}
-
 static bool gic_local_irq_is_routable(int intr)
 {
 	u32 vpe_ctl;
@@ -294,7 +287,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 	spin_lock_irqsave(&gic_lock, flags);
 
 	/* Re-route this IRQ */
-	gic_map_to_vpe(irq, mips_cm_vp_id(cpumask_first(&tmp)));
+	write_gic_map_vp(irq, BIT(mips_cm_vp_id(cpumask_first(&tmp))));
 
 	/* Update the pcpu_masks */
 	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
@@ -486,7 +479,7 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 
 	spin_lock_irqsave(&gic_lock, flags);
 	write_gic_map_pin(intr, GIC_MAP_PIN_MAP_TO_PIN | gic_cpu_pin);
-	gic_map_to_vpe(intr, mips_cm_vp_id(vpe));
+	write_gic_map_vp(intr, BIT(mips_cm_vp_id(vpe)));
 	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
 		clear_bit(intr, pcpu_masks[i].pcpu_mask);
 	set_bit(intr, pcpu_masks[vpe].pcpu_mask);

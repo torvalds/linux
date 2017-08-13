@@ -37,12 +37,6 @@
 /* Set/Clear corresponding bit in Edge Detect Register */
 #define GIC_SH_WEDGE_OFS		0x0280
 
-/* Maps Interrupt X to a VPE */
-#define GIC_SH_INTR_MAP_TO_VPE_BASE_OFS 0x2000
-#define GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe) \
-	((32 * (intr)) + (((vpe) / 32) * 4))
-#define GIC_SH_MAP_TO_VPE_REG_BIT(vpe)	(1 << ((vpe) % 32))
-
 /* Register Map for Local Section */
 #define GIC_VPE_CTL_OFS			0x0000
 #define GIC_VPE_PEND_OFS		0x0004
