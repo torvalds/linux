@@ -13,6 +13,7 @@
 
 #include <linux/io.h>
 #include <linux/types.h>
+#include <asm/mips-cps.h>
 
 /* The base address of the CPC registers */
 extern void __iomem *mips_cpc_base;
@@ -61,54 +62,34 @@ static inline bool mips_cpc_present(void)
 #define MIPS_CPC_CLCB_OFS	0x2000
 #define MIPS_CPC_COCB_OFS	0x4000
 
-/* Macros to ease the creation of register access functions */
-#define BUILD_CPC_R_(name, off)					\
-static inline u32 *addr_cpc_##name(void)			\
-{								\
-	return (u32 *)(mips_cpc_base + (off));			\
-}								\
-								\
-static inline u32 read_cpc_##name(void)				\
-{								\
-	return __raw_readl(mips_cpc_base + (off));		\
-}
+#define CPC_ACCESSOR_RO(sz, off, name)					\
+	CPS_ACCESSOR_RO(cpc, sz, MIPS_CPC_GCB_OFS + off, name)
 
-#define BUILD_CPC__W(name, off) \
-static inline void write_cpc_##name(u32 value)			\
-{								\
-	__raw_writel(value, mips_cpc_base + (off));		\
-}
+#define CPC_ACCESSOR_RW(sz, off, name)					\
+	CPS_ACCESSOR_RW(cpc, sz, MIPS_CPC_GCB_OFS + off, name)
 
-#define BUILD_CPC_RW(name, off)					\
-	BUILD_CPC_R_(name, off)					\
-	BUILD_CPC__W(name, off)
+#define CPC_CX_ACCESSOR_RO(sz, off, name)				\
+	CPS_ACCESSOR_RO(cpc, sz, MIPS_CPC_CLCB_OFS + off, cl_##name)	\
+	CPS_ACCESSOR_RO(cpc, sz, MIPS_CPC_COCB_OFS + off, co_##name)
 
-#define BUILD_CPC_Cx_R_(name, off)				\
-	BUILD_CPC_R_(cl_##name, MIPS_CPC_CLCB_OFS + (off))	\
-	BUILD_CPC_R_(co_##name, MIPS_CPC_COCB_OFS + (off))
-
-#define BUILD_CPC_Cx__W(name, off)				\
-	BUILD_CPC__W(cl_##name, MIPS_CPC_CLCB_OFS + (off))	\
-	BUILD_CPC__W(co_##name, MIPS_CPC_COCB_OFS + (off))
-
-#define BUILD_CPC_Cx_RW(name, off)				\
-	BUILD_CPC_Cx_R_(name, off)				\
-	BUILD_CPC_Cx__W(name, off)
+#define CPC_CX_ACCESSOR_RW(sz, off, name)				\
+	CPS_ACCESSOR_RW(cpc, sz, MIPS_CPC_CLCB_OFS + off, cl_##name)	\
+	CPS_ACCESSOR_RW(cpc, sz, MIPS_CPC_COCB_OFS + off, co_##name)
 
 /* GCB register accessor functions */
-BUILD_CPC_RW(access,		MIPS_CPC_GCB_OFS + 0x00)
-BUILD_CPC_RW(seqdel,		MIPS_CPC_GCB_OFS + 0x08)
-BUILD_CPC_RW(rail,		MIPS_CPC_GCB_OFS + 0x10)
-BUILD_CPC_RW(resetlen,		MIPS_CPC_GCB_OFS + 0x18)
-BUILD_CPC_R_(revision,		MIPS_CPC_GCB_OFS + 0x20)
+CPC_ACCESSOR_RW(32, 0x000, access)
+CPC_ACCESSOR_RW(32, 0x008, seqdel)
+CPC_ACCESSOR_RW(32, 0x010, rail)
+CPC_ACCESSOR_RW(32, 0x018, resetlen)
+CPC_ACCESSOR_RO(32, 0x020, revision)
 
 /* Core Local & Core Other accessor functions */
-BUILD_CPC_Cx_RW(cmd,		0x00)
-BUILD_CPC_Cx_RW(stat_conf,	0x08)
-BUILD_CPC_Cx_RW(other,		0x10)
-BUILD_CPC_Cx_RW(vp_stop,	0x20)
-BUILD_CPC_Cx_RW(vp_run,		0x28)
-BUILD_CPC_Cx_RW(vp_running,	0x30)
+CPC_CX_ACCESSOR_RW(32, 0x000, cmd)
+CPC_CX_ACCESSOR_RW(32, 0x008, stat_conf)
+CPC_CX_ACCESSOR_RW(32, 0x010, other)
+CPC_CX_ACCESSOR_RW(32, 0x020, vp_stop)
+CPC_CX_ACCESSOR_RW(32, 0x028, vp_run)
+CPC_CX_ACCESSOR_RW(32, 0x030, vp_running)
 
 /* CPC_Cx_CMD register fields */
 #define CPC_Cx_CMD_SHF				0
