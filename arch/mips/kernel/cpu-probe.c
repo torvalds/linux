@@ -2099,6 +2099,16 @@ void cpu_report(void)
 		pr_info("MSA revision is: %08x\n", c->msa_id);
 }
 
+void cpu_set_cluster(struct cpuinfo_mips *cpuinfo, unsigned int cluster)
+{
+	/* Ensure the core number fits in the field */
+	WARN_ON(cluster > (MIPS_GLOBALNUMBER_CLUSTER >>
+			   MIPS_GLOBALNUMBER_CLUSTER_SHF));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_CLUSTER;
+	cpuinfo->globalnumber |= cluster << MIPS_GLOBALNUMBER_CLUSTER_SHF;
+}
+
 void cpu_set_core(struct cpuinfo_mips *cpuinfo, unsigned int core)
 {
 	/* Ensure the core number fits in the field */
