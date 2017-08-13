@@ -578,23 +578,18 @@ static int lio_set_phys_id(struct net_device *netdev,
 		break;
 
 	case ETHTOOL_ID_ON:
-		if (oct->chip_id == OCTEON_CN66XX) {
+		if (oct->chip_id == OCTEON_CN66XX)
 			octnet_gpio_access(netdev, VITESSE_PHY_GPIO_CFG,
 					   VITESSE_PHY_GPIO_HIGH);
+		else
+			return -EINVAL;
 
-		} else if (oct->chip_id == OCTEON_CN68XX) {
-			return -EINVAL;
-		} else {
-			return -EINVAL;
-		}
 		break;
 
 	case ETHTOOL_ID_OFF:
 		if (oct->chip_id == OCTEON_CN66XX)
 			octnet_gpio_access(netdev, VITESSE_PHY_GPIO_CFG,
 					   VITESSE_PHY_GPIO_LOW);
-		else if (oct->chip_id == OCTEON_CN68XX)
-			return -EINVAL;
 		else
 			return -EINVAL;
 
