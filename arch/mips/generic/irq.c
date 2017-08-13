@@ -16,6 +16,7 @@
 #include <linux/types.h>
 
 #include <asm/irq.h>
+#include <asm/mips-cps.h>
 #include <asm/time.h>
 
 int get_c0_fdc_int(void)
@@ -24,7 +25,7 @@ int get_c0_fdc_int(void)
 
 	if (cpu_has_veic)
 		panic("Unimplemented!");
-	else if (gic_present)
+	else if (mips_gic_present())
 		mips_cpu_fdc_irq = gic_get_c0_fdc_int();
 	else if (cp0_fdc_irq >= 0)
 		mips_cpu_fdc_irq = MIPS_CPU_IRQ_BASE + cp0_fdc_irq;
@@ -40,7 +41,7 @@ int get_c0_perfcount_int(void)
 
 	if (cpu_has_veic)
 		panic("Unimplemented!");
-	else if (gic_present)
+	else if (mips_gic_present())
 		mips_cpu_perf_irq = gic_get_c0_perfcount_int();
 	else if (cp0_perfcount_irq >= 0)
 		mips_cpu_perf_irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
@@ -56,7 +57,7 @@ unsigned int get_c0_compare_int(void)
 
 	if (cpu_has_veic)
 		panic("Unimplemented!");
-	else if (gic_present)
+	else if (mips_gic_present())
 		mips_cpu_timer_irq = gic_get_c0_compare_int();
 	else
 		mips_cpu_timer_irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
