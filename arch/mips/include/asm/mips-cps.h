@@ -108,4 +108,132 @@ static inline void clear_##unit##_##name(uint##sz##_t val)		\
 #include <asm/mips-cm.h>
 #include <asm/mips-cpc.h>
 
+/**
+ * mips_cps_numclusters - return the number of clusters present in the system
+ *
+ * Returns the number of clusters in the system.
+ */
+static inline unsigned int mips_cps_numclusters(void)
+{
+	unsigned int num_clusters;
+
+	if (mips_cm_revision() < CM_REV_CM3_5)
+		return 1;
+
+	num_clusters = read_gcr_config() & CM_GCR_CONFIG_NUM_CLUSTERS;
+	num_clusters >>= __ffs(CM_GCR_CONFIG_NUM_CLUSTERS);
+	return num_clusters;
+}
+
+/**
+ * mips_cps_cluster_config - return (GCR|CPC)_CONFIG from a cluster
+ * @cluster: the ID of the cluster whose config we want
+ *
+ * Read the value of GCR_CONFIG (or its CPC_CONFIG mirror) from a @cluster.
+ *
+ * Returns the value of GCR_CONFIG.
+ */
+static inline uint64_t mips_cps_cluster_config(unsigned int cluster)
+{
+	uint64_t config;
+
+	if (mips_cm_revision() < CM_REV_CM3_5) {
+		/*
+		 * Prior to CM 3.5 we don't have the notion of multiple
+		 * clusters so we can trivially read the GCR_CONFIG register
+		 * within this cluster.
+		 */
+		WARN_ON(cluster != 0);
+		config = read_gcr_config();
+	} else {
+		/*
+		 * From CM 3.5 onwards we read the CPC_CONFIG mirror of
+		 * GCR_CONFIG via the redirect region, since the CPC is always
+		 * powered up allowing us not to need to power up the CM.
+		 */
+		mips_cm_lock_other(cluster, 0, 0, CM_GCR_Cx_OTHER_BLOCK_GLOBAL);
+		config = read_cpc_redir_config();
+		mips_cm_unlock_other();
+	}
+
+	return config;
+}
+
+/**
+ * mips_cps_numcores - return the number of cores present in a cluster
+ * @cluster: the ID of the cluster whose core count we want
+ *
+ * Returns the value of the PCORES field of the GCR_CONFIG register plus 1, or
+ * zero if no Coherence Manager is present.
+ */
+static inline unsigned int mips_cps_numcores(unsigned int cluster)
+{
+	if (!mips_cm_present())
+		return 0;
+
+	/* Add one before masking to handle 0xff indicating no cores */
+	return (mips_cps_cluster_config(cluster) + 1) & CM_GCR_CONFIG_PCORES;
+}
+
+/**
+ * mips_cps_numiocu - return the number of IOCUs present in a cluster
+ * @cluster: the ID of the cluster whose IOCU count we want
+ *
+ * Returns the value of the NUMIOCU field of the GCR_CONFIG register, or zero
+ * if no Coherence Manager is present.
+ */
+static inline unsigned int mips_cps_numiocu(unsigned int cluster)
+{
+	unsigned int num_iocu;
+
+	if (!mips_cm_present())
+		return 0;
+
+	num_iocu = mips_cps_cluster_config(cluster) & CM_GCR_CONFIG_NUMIOCU;
+	num_iocu >>= __ffs(CM_GCR_CONFIG_NUMIOCU);
+	return num_iocu;
+}
+
+/**
+ * mips_cps_numvps - return the number of VPs (threads) supported by a core
+ * @cluster: the ID of the cluster containing the core we want to examine
+ * @core: the ID of the core whose VP count we want
+ *
+ * Returns the number of Virtual Processors (VPs, ie. hardware threads) that
+ * are supported by the given @core in the given @cluster. If the core or the
+ * kernel do not support hardware mutlti-threading this returns 1.
+ */
+static inline unsigned int mips_cps_numvps(unsigned int cluster, unsigned int core)
+{
+	unsigned int cfg;
+
+	if (!mips_cm_present())
+		return 1;
+
+	if ((!IS_ENABLED(CONFIG_MIPS_MT_SMP) || !cpu_has_mipsmt)
+		&& (!IS_ENABLED(CONFIG_CPU_MIPSR6) || !cpu_has_vp))
+		return 1;
+
+	mips_cm_lock_other(cluster, core, 0, CM_GCR_Cx_OTHER_BLOCK_LOCAL);
+
+	if (mips_cm_revision() < CM_REV_CM3_5) {
+		/*
+		 * Prior to CM 3.5 we can only have one cluster & don't have
+		 * CPC_Cx_CONFIG, so we read GCR_Cx_CONFIG.
+		 */
+		cfg = read_gcr_co_config();
+	} else {
+		/*
+		 * From CM 3.5 onwards we read CPC_Cx_CONFIG because the CPC is
+		 * always powered, which allows us to not worry about powering
+		 * up the cluster's CM here.
+		 */
+		cfg = read_cpc_co_config();
+	}
+
+	mips_cm_unlock_other();
+
+	return (cfg + 1) & CM_GCR_Cx_CONFIG_PVPE;
+}
+
 #endif /* __MIPS_ASM_MIPS_CPS_H__ */

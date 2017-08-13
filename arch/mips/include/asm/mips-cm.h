@@ -329,36 +329,6 @@ GCR_CX_ACCESSOR_RW(32, 0x030, reset_ext_base)
 #define CM_GCR_Cx_RESET_EXT_BASE_PRESENT	BIT(0)
 
 /**
- * mips_cm_numcores - return the number of cores present in the system
- *
- * Returns the value of the PCORES field of the GCR_CONFIG register plus 1, or
- * zero if no Coherence Manager is present.
- */
-static inline unsigned mips_cm_numcores(void)
-{
-	if (!mips_cm_present())
-		return 0;
-
-	return ((read_gcr_config() & CM_GCR_CONFIG_PCORES)
-		>> __ffs(CM_GCR_CONFIG_PCORES)) + 1;
-}
-
-/**
- * mips_cm_numiocu - return the number of IOCUs present in the system
- *
- * Returns the value of the NUMIOCU field of the GCR_CONFIG register, or zero
- * if no Coherence Manager is present.
- */
-static inline unsigned mips_cm_numiocu(void)
-{
-	if (!mips_cm_present())
-		return 0;
-
-	return (read_gcr_config() & CM_GCR_CONFIG_NUMIOCU)
-		>> __ffs(CM_GCR_CONFIG_NUMIOCU);
-}
-
-/**
  * mips_cm_l2sync - perform an L2-only sync operation
  *
  * If an L2-only sync region is present in the system then this function
