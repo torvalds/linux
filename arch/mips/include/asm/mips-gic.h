@@ -314,4 +314,34 @@ static inline bool mips_gic_present(void)
 	return IS_ENABLED(CONFIG_MIPS_GIC) && mips_gic_base;
 }
 
+/**
+ * gic_get_c0_compare_int() - Return cp0 count/compare interrupt virq
+ *
+ * Determine the virq number to use for the coprocessor 0 count/compare
+ * interrupt, which may be routed via the GIC.
+ *
+ * Returns the virq number or a negative error number.
+ */
+extern int gic_get_c0_compare_int(void);
+
+/**
+ * gic_get_c0_perfcount_int() - Return performance counter interrupt virq
+ *
+ * Determine the virq number to use for CPU performance counter interrupts,
+ * which may be routed via the GIC.
+ *
+ * Returns the virq number or a negative error number.
+ */
+extern int gic_get_c0_perfcount_int(void);
+
+/**
+ * gic_get_c0_fdc_int() - Return fast debug channel interrupt virq
+ *
+ * Determine the virq number to use for fast debug channel (FDC) interrupts,
+ * which may be routed via the GIC.
+ *
+ * Returns the virq number or a negative error number.
+ */
+extern int gic_get_c0_fdc_int(void);
+
 #endif /* __MIPS_ASM_MIPS_CPS_H__ */

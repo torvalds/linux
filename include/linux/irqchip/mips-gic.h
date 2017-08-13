@@ -15,12 +15,4 @@
 #define GIC_UMV_SH_COUNTER_31_00_OFS	0x0000
 #define GIC_UMV_SH_COUNTER_63_32_OFS	0x0004
 
-#ifdef CONFIG_MIPS_GIC
-
-extern int gic_get_c0_compare_int(void);
-extern int gic_get_c0_perfcount_int(void);
-extern int gic_get_c0_fdc_int(void);
-
-#endif /* CONFIG_MIPS_GIC */
-
 #endif /* __LINUX_IRQCHIP_MIPS_GIC_H */

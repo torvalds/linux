@@ -12,7 +12,6 @@
 #include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
-#include <linux/irqchip/mips-gic.h>
 #include <linux/types.h>
 
 #include <asm/irq.h>
