@@ -894,7 +894,7 @@ static int dim2_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id dim2_id[] = {
+static const struct platform_device_id dim2_id[] = {
 	{ "medialb_dim2" },
 	{ }, /* Terminating entry */
 };
