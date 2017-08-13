@@ -92,13 +92,6 @@ static inline void gic_update_bits(unsigned int reg, unsigned long mask,
 	gic_write(reg, regval);
 }
 
-static inline void gic_set_trigger(unsigned int intr, unsigned int trig)
-{
-	gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_TRIGGER) +
-			GIC_INTR_OFS(intr), 1ul << GIC_INTR_BIT(intr),
-			(unsigned long)trig << GIC_INTR_BIT(intr));
-}
-
 static inline void gic_set_dual_edge(unsigned int intr, unsigned int dual)
 {
 	gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_DUAL) + GIC_INTR_OFS(intr),
@@ -266,32 +259,32 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_FALLING:
 		change_gic_pol(irq, GIC_POL_FALLING_EDGE);
-		gic_set_trigger(irq, GIC_TRIG_EDGE);
+		change_gic_trig(irq, GIC_TRIG_EDGE);
 		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
 		is_edge = true;
 		break;
 	case IRQ_TYPE_EDGE_RISING:
 		change_gic_pol(irq, GIC_POL_RISING_EDGE);
-		gic_set_trigger(irq, GIC_TRIG_EDGE);
+		change_gic_trig(irq, GIC_TRIG_EDGE);
 		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
 		is_edge = true;
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
 		/* polarity is irrelevant in this case */
-		gic_set_trigger(irq, GIC_TRIG_EDGE);
+		change_gic_trig(irq, GIC_TRIG_EDGE);
 		gic_set_dual_edge(irq, GIC_TRIG_DUAL_ENABLE);
 		is_edge = true;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		change_gic_pol(irq, GIC_POL_ACTIVE_LOW);
-		gic_set_trigger(irq, GIC_TRIG_LEVEL);
+		change_gic_trig(irq, GIC_TRIG_LEVEL);
 		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
 		is_edge = false;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 	default:
 		change_gic_pol(irq, GIC_POL_ACTIVE_HIGH);
-		gic_set_trigger(irq, GIC_TRIG_LEVEL);
+		change_gic_trig(irq, GIC_TRIG_LEVEL);
 		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
 		is_edge = false;
 		break;
@@ -458,7 +451,7 @@ static void __init gic_basic_init(void)
 	/* Setup defaults */
 	for (i = 0; i < gic_shared_intrs; i++) {
 		change_gic_pol(i, GIC_POL_ACTIVE_HIGH);
-		gic_set_trigger(i, GIC_TRIG_LEVEL);
+		change_gic_trig(i, GIC_TRIG_LEVEL);
 		write_gic_rmask(BIT(i));
 	}
 

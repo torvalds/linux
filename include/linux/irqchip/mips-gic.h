@@ -14,8 +14,6 @@
 #define GIC_MAX_INTRS			256
 
 /* Constants */
-#define GIC_TRIG_EDGE			1
-#define GIC_TRIG_LEVEL			0
 #define GIC_TRIG_DUAL_ENABLE		1
 #define GIC_TRIG_DUAL_DISABLE		0
 
@@ -49,9 +47,6 @@
 	reg_idx * reg_width;				\
 })
 #define GIC_INTR_BIT(intr)		((intr) % (mips_cm_is64 ? 64 : 32))
-
-/* Triggering : Reset Value is always 0 */
-#define GIC_SH_SET_TRIGGER_OFS		0x0180
 
 /* Dual edge triggering : Reset Value is always 0 */
 #define GIC_SH_SET_DUAL_OFS		0x0200
