@@ -138,6 +138,8 @@ static void save_platform_config_fields(struct hfi1_devdata *dd)
 
 	ppd->max_power_class = (temp_scratch & QSFP_MAX_POWER_SMASK) >>
 				QSFP_MAX_POWER_SHIFT;
+
+	ppd->config_from_scratch = true;
 }
 
 void get_platform_config(struct hfi1_devdata *dd)

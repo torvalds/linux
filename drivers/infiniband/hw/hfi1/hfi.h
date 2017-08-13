@@ -677,6 +677,9 @@ struct hfi1_pportdata {
 	u8  default_atten;
 	u8  max_power_class;
 
+	/* did we read platform config from scratch registers? */
+	bool config_from_scratch;
+
 	/* GUIDs for this interface, in host order, guids[0] is a port guid */
 	u64 guids[HFI1_GUIDS_PER_PORT];
 

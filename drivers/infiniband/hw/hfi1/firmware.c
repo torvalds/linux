@@ -1789,6 +1789,7 @@ static int check_meta_version(struct hfi1_devdata *dd, u32 *system_table)
 int parse_platform_config(struct hfi1_devdata *dd)
 {
 	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
+	struct hfi1_pportdata *ppd = dd->pport;
 	u32 *ptr = NULL;
 	u32 header1 = 0, header2 = 0, magic_num = 0, crc = 0, file_length = 0;
 	u32 record_idx = 0, table_type = 0, table_length_dwords = 0;
@@ -1800,7 +1801,7 @@ int parse_platform_config(struct hfi1_devdata *dd)
 	 * scratch register bitmap, thus there is no platform config to parse.
 	 * Skip parsing in these situations.
 	 */
-	if (is_integrated(dd) && !platform_config_load)
+	if (ppd->config_from_scratch)
 		return 0;
 
 	if (!dd->platform_config.data) {
@@ -2089,13 +2090,14 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 	int ret = 0, wlen = 0, seek = 0;
 	u32 field_len_bits = 0, field_start_bits = 0, *src_ptr = NULL;
 	struct platform_config_cache *pcfgcache = &dd->pcfg_cache;
+	struct hfi1_pportdata *ppd = dd->pport;
 
 	if (data)
 		memset(data, 0, len);
 	else
 		return -EINVAL;
 
-	if (is_integrated(dd) && !platform_config_load) {
+	if (ppd->config_from_scratch) {
 		/*
 		 * Use saved configuration from ppd for integrated platforms
 		 */
