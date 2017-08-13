@@ -49,7 +49,7 @@ MODULE_LICENSE("GPL v2");
 #define USB_RESP_TIMEOUT		50000
 
 /* USB Device ID List */
-static struct usb_device_id usb_si4713_usb_device_table[] = {
+static const struct usb_device_id usb_si4713_usb_device_table[] = {
 	{USB_DEVICE_AND_INTERFACE_INFO(USB_SI4713_VENDOR, USB_SI4713_PRODUCT,
 							USB_CLASS_HID, 0, 0) },
 	{ }						/* Terminating entry */
