@@ -58,8 +58,6 @@ static struct irq_chip gic_level_irq_controller, gic_edge_irq_controller;
 DECLARE_BITMAP(ipi_resrv, GIC_MAX_INTRS);
 DECLARE_BITMAP(ipi_available, GIC_MAX_INTRS);
 
-static void __gic_irq_dispatch(void);
-
 static bool gic_local_irq_is_routable(int intr)
 {
 	u32 vpe_ctl;
