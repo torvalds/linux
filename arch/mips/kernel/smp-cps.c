@@ -40,44 +40,58 @@ static int __init setup_nothreads(char *s)
 }
 early_param("nothreads", setup_nothreads);
 
-static unsigned core_vpe_count(unsigned core)
+static unsigned core_vpe_count(unsigned int cluster, unsigned core)
 {
 	if (threads_disabled)
 		return 1;
 
-	return mips_cps_numvps(0, core);
+	return mips_cps_numvps(cluster, core);
 }
 
 static void __init cps_smp_setup(void)
 {
-	unsigned int ncores, nvpes, core_vpes;
+	unsigned int nclusters, ncores, nvpes, core_vpes;
 	unsigned long core_entry;
-	int c, v;
+	int cl, c, v;
 
 	/* Detect & record VPE topology */
-	ncores = mips_cps_numcores(0);
+	nvpes = 0;
+	nclusters = mips_cps_numclusters();
 	pr_info("%s topology ", cpu_has_mips_r6 ? "VP" : "VPE");
-	for (c = nvpes = 0; c < ncores; c++) {
-		core_vpes = core_vpe_count(c);
-		pr_cont("%c%u", c ? ',' : '{', core_vpes);
+	for (cl = 0; cl < nclusters; cl++) {
+		if (cl > 0)
+			pr_cont(",");
+		pr_cont("{");
 
-		/* Use the number of VPEs in core 0 for smp_num_siblings */
-		if (!c)
-			smp_num_siblings = core_vpes;
+		ncores = mips_cps_numcores(cl);
+		for (c = 0; c < ncores; c++) {
+			core_vpes = core_vpe_count(cl, c);
 
-		for (v = 0; v < min_t(int, core_vpes, NR_CPUS - nvpes); v++) {
-			cpu_set_core(&cpu_data[nvpes + v], c);
-			cpu_set_vpe_id(&cpu_data[nvpes + v], v);
+			if (c > 0)
+				pr_cont(",");
+			pr_cont("%u", core_vpes);
+
+			/* Use the number of VPEs in cluster 0 core 0 for smp_num_siblings */
+			if (!cl && !c)
+				smp_num_siblings = core_vpes;
+
+			for (v = 0; v < min_t(int, core_vpes, NR_CPUS - nvpes); v++) {
+				cpu_set_cluster(&cpu_data[nvpes + v], cl);
+				cpu_set_core(&cpu_data[nvpes + v], c);
+				cpu_set_vpe_id(&cpu_data[nvpes + v], v);
+			}
+
+			nvpes += core_vpes;
 		}
 
-		nvpes += core_vpes;
+		pr_cont("}");
 	}
-	pr_cont("} total %u\n", nvpes);
+	pr_cont(" total %u\n", nvpes);
 
 	/* Indicate present CPUs (CPU being synonymous with VPE) */
 	for (v = 0; v < min_t(unsigned, nvpes, NR_CPUS); v++) {
-		set_cpu_possible(v, true);
-		set_cpu_present(v, true);
+		set_cpu_possible(v, cpu_cluster(&cpu_data[v]) == 0);
+		set_cpu_present(v, cpu_cluster(&cpu_data[v]) == 0);
 		__cpu_number_map[v] = v;
 		__cpu_logical_map[v] = v;
 	}
@@ -109,7 +123,7 @@ static void __init cps_smp_setup(void)
 static void __init cps_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned ncores, core_vpes, c, cca;
-	bool cca_unsuitable;
+	bool cca_unsuitable, cores_limited;
 	u32 *entry_code;
 
 	mips_mt_set_cpuoptions();
@@ -129,18 +143,21 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	}
 
 	/* Warn the user if the CCA prevents multi-core */
-	ncores = mips_cps_numcores(0);
-	if ((cca_unsuitable || cpu_has_dc_aliases) && ncores > 1) {
+	cores_limited = false;
+	if (cca_unsuitable || cpu_has_dc_aliases) {
+		for_each_present_cpu(c) {
+			if (cpus_are_siblings(smp_processor_id(), c))
+				continue;
+
+			set_cpu_present(c, false);
+			cores_limited = true;
+		}
+	}
+	if (cores_limited)
 		pr_warn("Using only one core due to %s%s%s\n",
 			cca_unsuitable ? "unsuitable CCA" : "",
 			(cca_unsuitable && cpu_has_dc_aliases) ? " & " : "",
 			cpu_has_dc_aliases ? "dcache aliasing" : "");
-
-		for_each_present_cpu(c) {
-			if (!cpus_are_siblings(smp_processor_id(), c))
-				set_cpu_present(c, false);
-		}
-	}
 
 	/*
 	 * Patch the start of mips_cps_core_entry to provide:
@@ -156,6 +173,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	__sync();
 
 	/* Allocate core boot configuration structs */
+	ncores = mips_cps_numcores(0);
 	mips_cps_core_bootcfg = kcalloc(ncores, sizeof(*mips_cps_core_bootcfg),
 					GFP_KERNEL);
 	if (!mips_cps_core_bootcfg) {
@@ -165,7 +183,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 
 	/* Allocate VPE boot configuration structs */
 	for (c = 0; c < ncores; c++) {
-		core_vpes = core_vpe_count(c);
+		core_vpes = core_vpe_count(0, c);
 		mips_cps_core_bootcfg[c].vpe_config = kcalloc(core_vpes,
 				sizeof(*mips_cps_core_bootcfg[c].vpe_config),
 				GFP_KERNEL);
@@ -287,6 +305,10 @@ static int cps_boot_secondary(int cpu, struct task_struct *idle)
 	unsigned long core_entry;
 	unsigned int remote;
 	int err;
+
+	/* We don't yet support booting CPUs in other clusters */
+	if (cpu_cluster(&cpu_data[cpu]) != cpu_cluster(&current_cpu_data))
+		return -ENOSYS;
 
 	vpe_cfg->pc = (unsigned long)&smp_bootstrap;
 	vpe_cfg->sp = __KSTK_TOS(idle);
