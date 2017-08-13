@@ -45,42 +45,6 @@ DECLARE_BITMAP(ipi_available, GIC_MAX_INTRS);
 
 static void __gic_irq_dispatch(void);
 
-static inline u32 gic_read32(unsigned int reg)
-{
-	return __raw_readl(mips_gic_base + reg);
-}
-
-static inline u64 gic_read64(unsigned int reg)
-{
-	return __raw_readq(mips_gic_base + reg);
-}
-
-static inline unsigned long gic_read(unsigned int reg)
-{
-	if (!mips_cm_is64)
-		return gic_read32(reg);
-	else
-		return gic_read64(reg);
-}
-
-static inline void gic_write32(unsigned int reg, u32 val)
-{
-	return __raw_writel(val, mips_gic_base + reg);
-}
-
-static inline void gic_write64(unsigned int reg, u64 val)
-{
-	return __raw_writeq(val, mips_gic_base + reg);
-}
-
-static inline void gic_write(unsigned int reg, unsigned long val)
-{
-	if (!mips_cm_is64)
-		return gic_write32(reg, (u32)val);
-	else
-		return gic_write64(reg, (u64)val);
-}
-
 static bool gic_local_irq_is_routable(int intr)
 {
 	u32 vpe_ctl;
@@ -89,17 +53,17 @@ static bool gic_local_irq_is_routable(int intr)
 	if (cpu_has_veic)
 		return true;
 
-	vpe_ctl = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_CTL));
+	vpe_ctl = read_gic_vl_ctl();
 	switch (intr) {
 	case GIC_LOCAL_INT_TIMER:
-		return vpe_ctl & GIC_VPE_CTL_TIMER_RTBL_MSK;
+		return vpe_ctl & GIC_VX_CTL_TIMER_ROUTABLE;
 	case GIC_LOCAL_INT_PERFCTR:
-		return vpe_ctl & GIC_VPE_CTL_PERFCNT_RTBL_MSK;
+		return vpe_ctl & GIC_VX_CTL_PERFCNT_ROUTABLE;
 	case GIC_LOCAL_INT_FDC:
-		return vpe_ctl & GIC_VPE_CTL_FDC_RTBL_MSK;
+		return vpe_ctl & GIC_VX_CTL_FDC_ROUTABLE;
 	case GIC_LOCAL_INT_SWINT0:
 	case GIC_LOCAL_INT_SWINT1:
-		return vpe_ctl & GIC_VPE_CTL_SWINT_RTBL_MSK;
+		return vpe_ctl & GIC_VX_CTL_SWINT_ROUTABLE;
 	default:
 		return true;
 	}
@@ -111,8 +75,7 @@ static void gic_bind_eic_interrupt(int irq, int set)
 	irq -= GIC_PIN_TO_VEC_OFFSET;
 
 	/* Set irq to use shadow set */
-	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_EIC_SHADOW_SET_BASE) +
-		  GIC_VPE_EIC_SS(irq), set);
+	write_gic_vl_eic_shadow_set(irq, set);
 }
 
 static void gic_send_ipi(struct irq_data *d, unsigned int cpu)
@@ -371,8 +334,7 @@ static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 
 	spin_lock_irqsave(&gic_lock, flags);
 	for (i = 0; i < gic_vpes; i++) {
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
-			  mips_cm_vp_id(i));
+		write_gic_vl_other(mips_cm_vp_id(i));
 		write_gic_vo_rmask(BIT(intr));
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
@@ -386,8 +348,7 @@ static void gic_unmask_local_irq_all_vpes(struct irq_data *d)
 
 	spin_lock_irqsave(&gic_lock, flags);
 	for (i = 0; i < gic_vpes; i++) {
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
-			  mips_cm_vp_id(i));
+		write_gic_vl_other(mips_cm_vp_id(i));
 		write_gic_vo_smask(BIT(intr));
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
@@ -427,8 +388,7 @@ static void __init gic_basic_init(void)
 	for (i = 0; i < gic_vpes; i++) {
 		unsigned int j;
 
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
-			  mips_cm_vp_id(i));
+		write_gic_vl_other(mips_cm_vp_id(i));
 		for (j = 0; j < GIC_NUM_LOCAL_INTRS; j++) {
 			if (!gic_local_irq_is_routable(j))
 				continue;
@@ -712,10 +672,8 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	if (cpu_has_veic) {
 		/* Set EIC mode for all VPEs */
 		for_each_present_cpu(cpu) {
-			gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
-				  mips_cm_vp_id(cpu));
-			gic_write(GIC_REG(VPE_OTHER, GIC_VPE_CTL),
-				  GIC_VPE_CTL_EIC_MODE_MSK);
+			write_gic_vl_other(mips_cm_vp_id(cpu));
+			write_gic_vo_ctl(GIC_VX_CTL_EIC);
 		}
 
 		/* Always use vector 1 in EIC mode */
@@ -740,9 +698,7 @@ static void __init __gic_init(unsigned long gic_base_addr,
 		 */
 		if (IS_ENABLED(CONFIG_MIPS_CMP) &&
 		    gic_local_irq_is_routable(GIC_LOCAL_INT_TIMER)) {
-			timer_cpu_pin = gic_read32(GIC_REG(VPE_LOCAL,
-							 GIC_VPE_TIMER_MAP)) &
-					GIC_MAP_MSK;
+			timer_cpu_pin = read_gic_vl_timer_map() & GIC_MAP_PIN_MAP;
 			irq_set_chained_handler(MIPS_CPU_IRQ_BASE +
 						GIC_CPU_PIN_OFFSET +
 						timer_cpu_pin,

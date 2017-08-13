@@ -13,57 +13,13 @@
 
 #define GIC_MAX_INTRS			256
 
-#define MSK(n) ((1 << (n)) - 1)
-
-/* Accessors */
-#define GIC_REG(segment, offset) (segment##_##SECTION_OFS + offset##_##OFS)
-
 /* GIC Address Space */
-#define VPE_LOCAL_SECTION_OFS		0x8000
-#define VPE_LOCAL_SECTION_SIZE		0x4000
-#define VPE_OTHER_SECTION_OFS		0xc000
-#define VPE_OTHER_SECTION_SIZE		0x4000
 #define USM_VISIBLE_SECTION_OFS		0x10000
 #define USM_VISIBLE_SECTION_SIZE	0x10000
-
-/* Register Map for Local Section */
-#define GIC_VPE_CTL_OFS			0x0000
-#define GIC_VPE_TIMER_MAP_OFS		0x0048
-#define GIC_VPE_OTHER_ADDR_OFS		0x0080
-#define GIC_VPE_WD_CONFIG0_OFS		0x0090
-#define GIC_VPE_WD_COUNT0_OFS		0x0094
-#define GIC_VPE_WD_INITIAL0_OFS		0x0098
-
-#define GIC_VPE_EIC_SHADOW_SET_BASE_OFS	0x0100
-#define GIC_VPE_EIC_SS(intr)		(4 * (intr))
-
-#define GIC_VPE_EIC_VEC_BASE_OFS	0x0800
-#define GIC_VPE_EIC_VEC(intr)		(4 * (intr))
-
-#define GIC_VPE_TENABLE_NMI_OFS		0x1000
-#define GIC_VPE_TENABLE_YQ_OFS		0x1004
-#define GIC_VPE_TENABLE_INT_31_0_OFS	0x1080
-#define GIC_VPE_TENABLE_INT_63_32_OFS	0x1084
 
 /* User Mode Visible Section Register Map */
 #define GIC_UMV_SH_COUNTER_31_00_OFS	0x0000
 #define GIC_UMV_SH_COUNTER_63_32_OFS	0x0004
-
-/* Masks */
-#define GIC_MAP_SHF			0
-#define GIC_MAP_MSK			(MSK(6) << GIC_MAP_SHF)
-
-/* GIC_VPE_CTL Masks */
-#define GIC_VPE_CTL_FDC_RTBL_SHF	4
-#define GIC_VPE_CTL_FDC_RTBL_MSK	(MSK(1) << GIC_VPE_CTL_FDC_RTBL_SHF)
-#define GIC_VPE_CTL_SWINT_RTBL_SHF	3
-#define GIC_VPE_CTL_SWINT_RTBL_MSK	(MSK(1) << GIC_VPE_CTL_SWINT_RTBL_SHF)
-#define GIC_VPE_CTL_PERFCNT_RTBL_SHF	2
-#define GIC_VPE_CTL_PERFCNT_RTBL_MSK	(MSK(1) << GIC_VPE_CTL_PERFCNT_RTBL_SHF)
-#define GIC_VPE_CTL_TIMER_RTBL_SHF	1
-#define GIC_VPE_CTL_TIMER_RTBL_MSK	(MSK(1) << GIC_VPE_CTL_TIMER_RTBL_SHF)
-#define GIC_VPE_CTL_EIC_MODE_SHF	0
-#define GIC_VPE_CTL_EIC_MODE_MSK	(MSK(1) << GIC_VPE_CTL_EIC_MODE_SHF)
 
 /* GIC nomenclature for Core Interrupt Pins. */
 #define GIC_CPU_INT0		0 /* Core Interrupt 2 */
