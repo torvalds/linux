@@ -46,7 +46,6 @@ struct gic_pcpu_mask {
 	DECLARE_BITMAP(pcpu_mask, GIC_MAX_INTRS);
 };
 
-static unsigned long __gic_base_addr;
 static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
 static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
@@ -132,17 +131,6 @@ int gic_get_c0_fdc_int(void)
 
 	return irq_create_mapping(gic_irq_domain,
 				  GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_FDC));
-}
-
-int gic_get_usm_range(struct resource *gic_usm_res)
-{
-	if (!gic_present)
-		return -1;
-
-	gic_usm_res->start = __gic_base_addr + USM_VISIBLE_SECTION_OFS;
-	gic_usm_res->end = gic_usm_res->start + (USM_VISIBLE_SECTION_SIZE - 1);
-
-	return 0;
 }
 
 static void gic_handle_shared_int(bool chained)
@@ -671,8 +659,6 @@ static void __init __gic_init(unsigned long gic_base_addr,
 {
 	unsigned int gicconfig, cpu;
 	unsigned int v[2];
-
-	__gic_base_addr = gic_base_addr;
 
 	mips_gic_base = ioremap_nocache(gic_base_addr, gic_addrspace_size);
 
