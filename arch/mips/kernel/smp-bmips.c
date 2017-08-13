@@ -245,7 +245,7 @@ static void bmips_init_secondary(void)
 		break;
 	case CPU_BMIPS5000:
 		write_c0_brcm_action(ACTION_CLR_IPI(smp_processor_id(), 0));
-		current_cpu_data.core = (read_c0_brcm_config() >> 25) & 3;
+		cpu_set_core(&current_cpu_data, (read_c0_brcm_config() >> 25) & 3);
 		break;
 	}
 }

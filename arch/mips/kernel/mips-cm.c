@@ -287,7 +287,7 @@ void mips_cm_lock_other(unsigned int core, unsigned int vp)
 		 * CM 2.5 & older, so have to ensure other VP(E)s don't
 		 * race with us.
 		 */
-		curr_core = current_cpu_data.core;
+		curr_core = cpu_core(&current_cpu_data);
 		spin_lock_irqsave(&per_cpu(cm_core_lock, curr_core),
 				  per_cpu(cm_core_lock_flags, curr_core));
 
@@ -308,7 +308,7 @@ void mips_cm_unlock_other(void)
 	unsigned int curr_core;
 
 	if (mips_cm_revision() < CM_REV_CM3) {
-		curr_core = current_cpu_data.core;
+		curr_core = cpu_core(&current_cpu_data);
 		spin_unlock_irqrestore(&per_cpu(cm_core_lock, curr_core),
 				       per_cpu(cm_core_lock_flags, curr_core));
 	} else {

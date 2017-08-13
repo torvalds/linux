@@ -86,7 +86,7 @@ void mips_cpc_lock_other(unsigned int core)
 		return;
 
 	preempt_disable();
-	curr_core = current_cpu_data.core;
+	curr_core = cpu_core(&current_cpu_data);
 	spin_lock_irqsave(&per_cpu(cpc_core_lock, curr_core),
 			  per_cpu(cpc_core_lock_flags, curr_core));
 	write_cpc_cl_other(core << __ffs(CPC_Cx_OTHER_CORENUM));
@@ -106,7 +106,7 @@ void mips_cpc_unlock_other(void)
 		/* Systems with CM >= 3 lock the CPC via mips_cm_lock_other */
 		return;
 
-	curr_core = current_cpu_data.core;
+	curr_core = cpu_core(&current_cpu_data);
 	spin_unlock_irqrestore(&per_cpu(cpc_core_lock, curr_core),
 			       per_cpu(cpc_core_lock_flags, curr_core));
 	preempt_enable();

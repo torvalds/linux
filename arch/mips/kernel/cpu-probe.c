@@ -919,9 +919,12 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 #ifndef CONFIG_MIPS_CPS
 	if (cpu_has_mips_r2_r6) {
-		c->core = get_ebase_cpunum();
+		unsigned int core;
+
+		core = get_ebase_cpunum();
 		if (cpu_has_mipsmt)
-			c->core >>= fls(core_nvpes()) - 1;
+			core >>= fls(core_nvpes()) - 1;
+		cpu_set_core(c, core);
 	}
 #endif
 }

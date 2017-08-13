@@ -428,7 +428,7 @@ static inline unsigned int mips_cm_max_vp_width(void)
  */
 static inline unsigned int mips_cm_vp_id(unsigned int cpu)
 {
-	unsigned int core = cpu_data[cpu].core;
+	unsigned int core = cpu_core(&cpu_data[cpu]);
 	unsigned int vp = cpu_vpe_id(&cpu_data[cpu]);
 
 	return (core * mips_cm_max_vp_width()) + vp;

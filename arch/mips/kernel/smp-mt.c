@@ -83,7 +83,7 @@ static unsigned int __init smvp_vpe_init(unsigned int tc, unsigned int mvpconf0,
 	if (tc != 0)
 		smvp_copy_vpe_config();
 
-	cpu_data[ncpu].vpe_id = tc;
+	cpu_set_vpe_id(&cpu_data[ncpu], tc);
 
 	return ncpu;
 }

@@ -122,7 +122,7 @@ static void nlm_init_secondary(void)
 	int hwtid;
 
 	hwtid = hard_smp_processor_id();
-	current_cpu_data.core = hwtid / NLM_THREADS_PER_CORE;
+	cpu_set_core(&current_cpu_data, hwtid / NLM_THREADS_PER_CORE);
 	current_cpu_data.package = nlm_nodeid();
 	nlm_percpu_init(hwtid);
 	nlm_smp_irq_init(hwtid);

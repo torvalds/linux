@@ -97,7 +97,7 @@ static inline void set_cpu_sibling_map(int cpu)
 	if (smp_num_siblings > 1) {
 		for_each_cpu(i, &cpu_sibling_setup_map) {
 			if (cpu_data[cpu].package == cpu_data[i].package &&
-				    cpu_data[cpu].core == cpu_data[i].core) {
+			    cpu_core(&cpu_data[cpu]) == cpu_core(&cpu_data[i])) {
 				cpumask_set_cpu(i, &cpu_sibling_map[cpu]);
 				cpumask_set_cpu(cpu, &cpu_sibling_map[i]);
 			}
@@ -135,7 +135,7 @@ void calculate_cpu_foreign_map(void)
 		core_present = 0;
 		for_each_cpu(k, &temp_foreign_map)
 			if (cpu_data[i].package == cpu_data[k].package &&
-			    cpu_data[i].core == cpu_data[k].core)
+			    cpu_core(&cpu_data[i]) == cpu_core(&cpu_data[k]))
 				core_present = 1;
 		if (!core_present)
 			cpumask_set_cpu(i, &temp_foreign_map);
@@ -186,9 +186,9 @@ void mips_smp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 
 	if (mips_cpc_present()) {
 		for_each_cpu(cpu, mask) {
-			core = cpu_data[cpu].core;
+			core = cpu_core(&cpu_data[cpu]);
 
-			if (core == current_cpu_data.core)
+			if (core == cpu_core(&current_cpu_data))
 				continue;
 
 			while (!cpumask_test_cpu(cpu, &cpu_coherent_mask)) {

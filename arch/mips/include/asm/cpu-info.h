@@ -144,11 +144,32 @@ struct proc_cpuinfo_notifier_args {
 	unsigned long n;
 };
 
+static inline unsigned int cpu_core(struct cpuinfo_mips *cpuinfo)
+{
+	return cpuinfo->core;
+}
+
+static inline void cpu_set_core(struct cpuinfo_mips *cpuinfo,
+				unsigned int core)
+{
+	cpuinfo->core = core;
+}
+
+static inline unsigned int cpu_vpe_id(struct cpuinfo_mips *cpuinfo)
+{
 #if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
-# define cpu_vpe_id(cpuinfo)	((cpuinfo)->vpe_id)
-#else
-# define cpu_vpe_id(cpuinfo)	({ (void)cpuinfo; 0; })
+	return cpuinfo->vpe_id;
 #endif
+	return 0;
+}
+
+static inline void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo,
+				  unsigned int vpe)
+{
+#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
+	cpuinfo->vpe_id = vpe;
+#endif
+}
 
 static inline unsigned long cpu_asid_inc(void)
 {

@@ -76,10 +76,8 @@ static void __init cps_smp_setup(void)
 			smp_num_siblings = core_vpes;
 
 		for (v = 0; v < min_t(int, core_vpes, NR_CPUS - nvpes); v++) {
-			cpu_data[nvpes + v].core = c;
-#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
-			cpu_data[nvpes + v].vpe_id = v;
-#endif
+			cpu_set_core(&cpu_data[nvpes + v], c);
+			cpu_set_vpe_id(&cpu_data[nvpes + v], v);
 		}
 
 		nvpes += core_vpes;
@@ -149,7 +147,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 			cpu_has_dc_aliases ? "dcache aliasing" : "");
 
 		for_each_present_cpu(c) {
-			if (cpu_data[c].core)
+			if (cpu_core(&cpu_data[c]))
 				set_cpu_present(c, false);
 		}
 	}
@@ -189,7 +187,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	}
 
 	/* Mark this CPU as booted */
-	atomic_set(&mips_cps_core_bootcfg[current_cpu_data.core].vpe_mask,
+	atomic_set(&mips_cps_core_bootcfg[cpu_core(&current_cpu_data)].vpe_mask,
 		   1 << cpu_vpe_id(&current_cpu_data));
 
 	return;
@@ -284,7 +282,7 @@ static void boot_core(unsigned int core, unsigned int vpe_id)
 
 static void remote_vpe_boot(void *dummy)
 {
-	unsigned core = current_cpu_data.core;
+	unsigned core = cpu_core(&current_cpu_data);
 	struct core_boot_config *core_cfg = &mips_cps_core_bootcfg[core];
 
 	mips_cps_boot_vpes(core_cfg, cpu_vpe_id(&current_cpu_data));
@@ -292,7 +290,7 @@ static void remote_vpe_boot(void *dummy)
 
 static void cps_boot_secondary(int cpu, struct task_struct *idle)
 {
-	unsigned core = cpu_data[cpu].core;
+	unsigned core = cpu_core(&cpu_data[cpu]);
 	unsigned vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 	struct core_boot_config *core_cfg = &mips_cps_core_bootcfg[core];
 	struct vpe_boot_config *vpe_cfg = &core_cfg->vpe_config[vpe_id];
@@ -321,10 +319,10 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 		mips_cm_unlock_other();
 	}
 
-	if (core != current_cpu_data.core) {
+	if (core != cpu_core(&current_cpu_data)) {
 		/* Boot a VPE on another powered up core */
 		for (remote = 0; remote < NR_CPUS; remote++) {
-			if (cpu_data[remote].core != core)
+			if (cpu_core(&cpu_data[remote]) != core)
 				continue;
 			if (cpu_online(remote))
 				break;
@@ -401,7 +399,7 @@ static int cps_cpu_disable(void)
 	if (!cps_pm_support_state(CPS_PM_POWER_GATED))
 		return -EINVAL;
 
-	core_cfg = &mips_cps_core_bootcfg[current_cpu_data.core];
+	core_cfg = &mips_cps_core_bootcfg[cpu_core(&current_cpu_data)];
 	atomic_sub(1 << cpu_vpe_id(&current_cpu_data), &core_cfg->vpe_mask);
 	smp_mb__after_atomic();
 	set_cpu_online(cpu, false);
@@ -423,15 +421,17 @@ void play_dead(void)
 	local_irq_disable();
 	idle_task_exit();
 	cpu = smp_processor_id();
-	core = cpu_data[cpu].core;
+	core = cpu_core(&cpu_data[cpu]);
 	cpu_death = CPU_DEATH_POWER;
 
 	pr_debug("CPU%d going offline\n", cpu);
 
 	if (cpu_has_mipsmt || cpu_has_vp) {
+		core = cpu_core(&cpu_data[cpu]);
+
 		/* Look for another online VPE within the core */
 		for_each_online_cpu(cpu_death_sibling) {
-			if (cpu_data[cpu_death_sibling].core != core)
+			if (cpu_core(&cpu_data[cpu_death_sibling]) != core)
 				continue;
 
 			/*
@@ -487,7 +487,7 @@ static void wait_for_sibling_halt(void *ptr_cpu)
 
 static void cps_cpu_die(unsigned int cpu)
 {
-	unsigned core = cpu_data[cpu].core;
+	unsigned core = cpu_core(&cpu_data[cpu]);
 	unsigned int vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 	ktime_t fail_time;
 	unsigned stat;
