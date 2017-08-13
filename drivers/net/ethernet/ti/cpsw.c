@@ -2827,7 +2827,7 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 
 #define CPSW_QUIRK_IRQ		BIT(0)
 
-static struct platform_device_id cpsw_devtype[] = {
+static const struct platform_device_id cpsw_devtype[] = {
 	{
 		/* keep it for existing comaptibles */
 		.name = "cpsw",
