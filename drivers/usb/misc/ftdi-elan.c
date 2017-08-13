@@ -857,7 +857,7 @@ static char *have_ed_set_response(struct usb_ftdi *ftdi,
 	target->actual = 0;
 	target->non_null = (ed_length >> 15) & 0x0001;
 	target->repeat_number = (ed_length >> 11) & 0x000F;
-	if (ed_type == 0x02) {
+	if (ed_type == 0x02 || ed_type == 0x03) {
 		if (payload == 0 || target->abandoning > 0) {
 			target->abandoning = 0;
 			mutex_unlock(&ftdi->u132_lock);
@@ -873,31 +873,6 @@ static char *have_ed_set_response(struct usb_ftdi *ftdi,
 			mutex_unlock(&ftdi->u132_lock);
 			return b;
 		}
-	} else if (ed_type == 0x03) {
-		if (payload == 0 || target->abandoning > 0) {
-			target->abandoning = 0;
-			mutex_unlock(&ftdi->u132_lock);
-			ftdi_elan_do_callback(ftdi, target, 4 + ftdi->response,
-					      payload);
-			ftdi->received = 0;
-			ftdi->expected = 4;
-			ftdi->ed_found = 0;
-			return ftdi->response;
-		} else {
-			ftdi->expected = 4 + payload;
-			ftdi->ed_found = 1;
-			mutex_unlock(&ftdi->u132_lock);
-			return b;
-		}
-	} else if (ed_type == 0x01) {
-		target->abandoning = 0;
-		mutex_unlock(&ftdi->u132_lock);
-		ftdi_elan_do_callback(ftdi, target, 4 + ftdi->response,
-				      payload);
-		ftdi->received = 0;
-		ftdi->expected = 4;
-		ftdi->ed_found = 0;
-		return ftdi->response;
 	} else {
 		target->abandoning = 0;
 		mutex_unlock(&ftdi->u132_lock);
