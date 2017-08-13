@@ -382,7 +382,7 @@ static int aud96p22_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-const struct of_device_id aud96p22_dt_ids[] = {
+static const struct of_device_id aud96p22_dt_ids[] = {
 	{ .compatible = "zte,zx-aud96p22", },
 	{ }
 };
