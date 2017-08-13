@@ -20,7 +20,7 @@
 #include "bcm2835.h"
 
 /* hardware definition */
-static struct snd_pcm_hardware snd_bcm2835_playback_hw = {
+static const struct snd_pcm_hardware snd_bcm2835_playback_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 	SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats = SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
@@ -36,7 +36,7 @@ static struct snd_pcm_hardware snd_bcm2835_playback_hw = {
 	.periods_max = 128,
 };
 
-static struct snd_pcm_hardware snd_bcm2835_playback_spdif_hw = {
+static const struct snd_pcm_hardware snd_bcm2835_playback_spdif_hw = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 	SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
