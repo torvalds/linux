@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/types.h>
+#include <asm/mips-cps.h>
 
 /* The base address of the CM GCR block */
 extern void __iomem *mips_gcr_base;
@@ -112,122 +113,57 @@ static inline bool mips_cm_has_l2sync(void)
 /* Size of the L2-only sync region */
 #define MIPS_CM_L2SYNC_SIZE	0x1000
 
-/* Macros to ease the creation of register access functions */
-#define BUILD_CM_R_(name, off)					\
-static inline unsigned long __iomem *addr_gcr_##name(void)	\
-{								\
-	return (unsigned long __iomem *)(mips_gcr_base + (off));\
-}								\
-								\
-static inline u32 read32_gcr_##name(void)			\
-{								\
-	return __raw_readl(addr_gcr_##name());			\
-}								\
-								\
-static inline u64 read64_gcr_##name(void)			\
-{								\
-	void __iomem *addr = addr_gcr_##name();			\
-	u64 ret;						\
-								\
-	if (mips_cm_is64) {					\
-		ret = __raw_readq(addr);			\
-	} else {						\
-		ret = __raw_readl(addr);			\
-		ret |= (u64)__raw_readl(addr + 0x4) << 32;	\
-	}							\
-								\
-	return ret;						\
-}								\
-								\
-static inline unsigned long read_gcr_##name(void)		\
-{								\
-	if (mips_cm_is64)					\
-		return read64_gcr_##name();			\
-	else							\
-		return read32_gcr_##name();			\
-}
+#define GCR_ACCESSOR_RO(sz, off, name)					\
+	CPS_ACCESSOR_RO(gcr, sz, MIPS_CM_GCB_OFS + off, name)
 
-#define BUILD_CM__W(name, off)					\
-static inline void write32_gcr_##name(u32 value)		\
-{								\
-	__raw_writel(value, addr_gcr_##name());			\
-}								\
-								\
-static inline void write64_gcr_##name(u64 value)		\
-{								\
-	__raw_writeq(value, addr_gcr_##name());			\
-}								\
-								\
-static inline void write_gcr_##name(unsigned long value)	\
-{								\
-	if (mips_cm_is64)					\
-		write64_gcr_##name(value);			\
-	else							\
-		write32_gcr_##name(value);			\
-}
+#define GCR_ACCESSOR_RW(sz, off, name)					\
+	CPS_ACCESSOR_RW(gcr, sz, MIPS_CM_GCB_OFS + off, name)
 
-#define BUILD_CM_RW(name, off)					\
-	BUILD_CM_R_(name, off)					\
-	BUILD_CM__W(name, off)
+#define GCR_CX_ACCESSOR_RO(sz, off, name)				\
+	CPS_ACCESSOR_RO(gcr, sz, MIPS_CM_CLCB_OFS + off, cl_##name)	\
+	CPS_ACCESSOR_RO(gcr, sz, MIPS_CM_COCB_OFS + off, co_##name)
 
-#define BUILD_CM_Cx_R_(name, off)				\
-	BUILD_CM_R_(cl_##name, MIPS_CM_CLCB_OFS + (off))	\
-	BUILD_CM_R_(co_##name, MIPS_CM_COCB_OFS + (off))
-
-#define BUILD_CM_Cx__W(name, off)				\
-	BUILD_CM__W(cl_##name, MIPS_CM_CLCB_OFS + (off))	\
-	BUILD_CM__W(co_##name, MIPS_CM_COCB_OFS + (off))
-
-#define BUILD_CM_Cx_RW(name, off)				\
-	BUILD_CM_Cx_R_(name, off)				\
-	BUILD_CM_Cx__W(name, off)
+#define GCR_CX_ACCESSOR_RW(sz, off, name)				\
+	CPS_ACCESSOR_RW(gcr, sz, MIPS_CM_CLCB_OFS + off, cl_##name)	\
+	CPS_ACCESSOR_RW(gcr, sz, MIPS_CM_COCB_OFS + off, co_##name)
 
 /* GCB register accessor functions */
-BUILD_CM_R_(config,		MIPS_CM_GCB_OFS + 0x00)
-BUILD_CM_RW(base,		MIPS_CM_GCB_OFS + 0x08)
-BUILD_CM_RW(access,		MIPS_CM_GCB_OFS + 0x20)
-BUILD_CM_R_(rev,		MIPS_CM_GCB_OFS + 0x30)
-BUILD_CM_RW(err_control,	MIPS_CM_GCB_OFS + 0x38)
-BUILD_CM_RW(error_mask,		MIPS_CM_GCB_OFS + 0x40)
-BUILD_CM_RW(error_cause,	MIPS_CM_GCB_OFS + 0x48)
-BUILD_CM_RW(error_addr,		MIPS_CM_GCB_OFS + 0x50)
-BUILD_CM_RW(error_mult,		MIPS_CM_GCB_OFS + 0x58)
-BUILD_CM_RW(l2_only_sync_base,	MIPS_CM_GCB_OFS + 0x70)
-BUILD_CM_RW(gic_base,		MIPS_CM_GCB_OFS + 0x80)
-BUILD_CM_RW(cpc_base,		MIPS_CM_GCB_OFS + 0x88)
-BUILD_CM_RW(reg0_base,		MIPS_CM_GCB_OFS + 0x90)
-BUILD_CM_RW(reg0_mask,		MIPS_CM_GCB_OFS + 0x98)
-BUILD_CM_RW(reg1_base,		MIPS_CM_GCB_OFS + 0xa0)
-BUILD_CM_RW(reg1_mask,		MIPS_CM_GCB_OFS + 0xa8)
-BUILD_CM_RW(reg2_base,		MIPS_CM_GCB_OFS + 0xb0)
-BUILD_CM_RW(reg2_mask,		MIPS_CM_GCB_OFS + 0xb8)
-BUILD_CM_RW(reg3_base,		MIPS_CM_GCB_OFS + 0xc0)
-BUILD_CM_RW(reg3_mask,		MIPS_CM_GCB_OFS + 0xc8)
-BUILD_CM_R_(gic_status,		MIPS_CM_GCB_OFS + 0xd0)
-BUILD_CM_R_(cpc_status,		MIPS_CM_GCB_OFS + 0xf0)
-BUILD_CM_RW(l2_config,		MIPS_CM_GCB_OFS + 0x130)
-BUILD_CM_RW(sys_config2,	MIPS_CM_GCB_OFS + 0x150)
-BUILD_CM_RW(l2_pft_control,	MIPS_CM_GCB_OFS + 0x300)
-BUILD_CM_RW(l2_pft_control_b,	MIPS_CM_GCB_OFS + 0x308)
-BUILD_CM_RW(bev_base,		MIPS_CM_GCB_OFS + 0x680)
+GCR_ACCESSOR_RO(64, 0x000, config)
+GCR_ACCESSOR_RW(64, 0x008, base)
+GCR_ACCESSOR_RW(32, 0x020, access)
+GCR_ACCESSOR_RO(32, 0x030, rev)
+GCR_ACCESSOR_RW(32, 0x038, err_control)
+GCR_ACCESSOR_RW(64, 0x040, error_mask)
+GCR_ACCESSOR_RW(64, 0x048, error_cause)
+GCR_ACCESSOR_RW(64, 0x050, error_addr)
+GCR_ACCESSOR_RW(64, 0x058, error_mult)
+GCR_ACCESSOR_RW(64, 0x070, l2_only_sync_base)
+GCR_ACCESSOR_RW(64, 0x080, gic_base)
+GCR_ACCESSOR_RW(64, 0x088, cpc_base)
+GCR_ACCESSOR_RW(64, 0x090, reg0_base)
+GCR_ACCESSOR_RW(64, 0x098, reg0_mask)
+GCR_ACCESSOR_RW(64, 0x0a0, reg1_base)
+GCR_ACCESSOR_RW(64, 0x0a8, reg1_mask)
+GCR_ACCESSOR_RW(64, 0x0b0, reg2_base)
+GCR_ACCESSOR_RW(64, 0x0b8, reg2_mask)
+GCR_ACCESSOR_RW(64, 0x0c0, reg3_base)
+GCR_ACCESSOR_RW(64, 0x0c8, reg3_mask)
+GCR_ACCESSOR_RO(32, 0x0d0, gic_status)
+GCR_ACCESSOR_RO(32, 0x0f0, cpc_status)
+GCR_ACCESSOR_RW(32, 0x130, l2_config)
+GCR_ACCESSOR_RO(32, 0x150, sys_config2)
+GCR_ACCESSOR_RW(32, 0x300, l2_pft_control)
+GCR_ACCESSOR_RW(32, 0x308, l2_pft_control_b)
+GCR_ACCESSOR_RW(64, 0x680, bev_base)
 
 /* Core Local & Core Other register accessor functions */
-BUILD_CM_Cx_RW(reset_release,	0x00)
-BUILD_CM_Cx_RW(coherence,	0x08)
-BUILD_CM_Cx_R_(config,		0x10)
-BUILD_CM_Cx_RW(other,		0x18)
-BUILD_CM_Cx_RW(reset_base,	0x20)
-BUILD_CM_Cx_R_(id,		0x28)
-BUILD_CM_Cx_RW(reset_ext_base,	0x30)
-BUILD_CM_Cx_R_(tcid_0_priority,	0x40)
-BUILD_CM_Cx_R_(tcid_1_priority,	0x48)
-BUILD_CM_Cx_R_(tcid_2_priority,	0x50)
-BUILD_CM_Cx_R_(tcid_3_priority,	0x58)
-BUILD_CM_Cx_R_(tcid_4_priority,	0x60)
-BUILD_CM_Cx_R_(tcid_5_priority,	0x68)
-BUILD_CM_Cx_R_(tcid_6_priority,	0x70)
-BUILD_CM_Cx_R_(tcid_7_priority,	0x78)
-BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
+GCR_CX_ACCESSOR_RW(32, 0x000, reset_release)
+GCR_CX_ACCESSOR_RW(32, 0x008, coherence)
+GCR_CX_ACCESSOR_RO(32, 0x010, config)
+GCR_CX_ACCESSOR_RW(32, 0x018, other)
+GCR_CX_ACCESSOR_RW(32, 0x020, reset_base)
+GCR_CX_ACCESSOR_RO(32, 0x028, id)
+GCR_CX_ACCESSOR_RW(32, 0x030, reset_ext_base)
 
 /* GCR_CONFIG register fields */
 #define CM_GCR_CONFIG_NUMIOCU_SHF		8

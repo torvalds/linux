@@ -1,0 +1,87 @@
+/*
+ * Copyright (C) 2017 Imagination Technologies
+ * Author: Paul Burton <paul.burton@imgtec.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+#ifndef __MIPS_ASM_MIPS_CPS_H__
+#define __MIPS_ASM_MIPS_CPS_H__
+
+#include <linux/io.h>
+#include <linux/types.h>
+
+extern unsigned long __cps_access_bad_size(void)
+	__compiletime_error("Bad size for CPS accessor");
+
+#define CPS_ACCESSOR_A(unit, off, name)					\
+static inline void *addr_##unit##_##name(void)				\
+{									\
+	return mips_##unit##_base + (off);				\
+}
+
+#define CPS_ACCESSOR_R(unit, sz, name)					\
+static inline uint##sz##_t read_##unit##_##name(void)			\
+{									\
+	uint64_t val64;							\
+									\
+	switch (sz) {							\
+	case 32:							\
+		return __raw_readl(addr_##unit##_##name());		\
+									\
+	case 64:							\
+		if (mips_cm_is64)					\
+			return __raw_readq(addr_##unit##_##name());	\
+									\
+		val64 = __raw_readl(addr_##unit##_##name() + 4);	\
+		val64 <<= 32;						\
+		val64 |= __raw_readl(addr_##unit##_##name());		\
+		return val64;						\
+									\
+	default:							\
+		return __cps_access_bad_size();				\
+	}								\
+}
+
+#define CPS_ACCESSOR_W(unit, sz, name)					\
+static inline void write_##unit##_##name(uint##sz##_t val)		\
+{									\
+	switch (sz) {							\
+	case 32:							\
+		__raw_writel(val, addr_##unit##_##name());		\
+		break;							\
+									\
+	case 64:							\
+		if (mips_cm_is64) {					\
+			__raw_writeq(val, addr_##unit##_##name());	\
+			break;						\
+		}							\
+									\
+		__raw_writel((uint64_t)val >> 32,			\
+			     addr_##unit##_##name() + 4);		\
+		__raw_writel(val, addr_##unit##_##name());		\
+		break;							\
+									\
+	default:							\
+		__cps_access_bad_size();				\
+		break;							\
+	}								\
+}
+
+#define CPS_ACCESSOR_RO(unit, sz, off, name)				\
+	CPS_ACCESSOR_A(unit, off, name)					\
+	CPS_ACCESSOR_R(unit, sz, name)
+
+#define CPS_ACCESSOR_WO(unit, sz, off, name)				\
+	CPS_ACCESSOR_A(unit, off, name)					\
+	CPS_ACCESSOR_W(unit, sz, name)
+
+#define CPS_ACCESSOR_RW(unit, sz, off, name)				\
+	CPS_ACCESSOR_A(unit, off, name)					\
+	CPS_ACCESSOR_R(unit, sz, name)					\
+	CPS_ACCESSOR_W(unit, sz, name)
+
+#endif /* __MIPS_ASM_MIPS_CPS_H__ */

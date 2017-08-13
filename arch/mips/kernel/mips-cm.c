@@ -332,11 +332,11 @@ void mips_cm_error_report(void)
 		return;
 
 	revision = mips_cm_revision();
+	cm_error = read_gcr_error_cause();
+	cm_addr = read_gcr_error_addr();
+	cm_other = read_gcr_error_mult();
 
 	if (revision < CM_REV_CM3) { /* CM2 */
-		cm_error = read_gcr_error_cause();
-		cm_addr = read_gcr_error_addr();
-		cm_other = read_gcr_error_mult();
 		cause = cm_error >> CM_GCR_ERROR_CAUSE_ERRTYPE_SHF;
 		ocause = cm_other >> CM_GCR_ERROR_MULT_ERR2ND_SHF;
 
@@ -380,9 +380,6 @@ void mips_cm_error_report(void)
 		ulong core_id_bits, vp_id_bits, cmd_bits, cmd_group_bits;
 		ulong cm3_cca_bits, mcp_bits, cm3_tr_bits, sched_bit;
 
-		cm_error = read64_gcr_error_cause();
-		cm_addr = read64_gcr_error_addr();
-		cm_other = read64_gcr_error_mult();
 		cause = cm_error >> CM3_GCR_ERROR_CAUSE_ERRTYPE_SHF;
 		ocause = cm_other >> CM_GCR_ERROR_MULT_ERR2ND_SHF;
 
