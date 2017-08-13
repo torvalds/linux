@@ -253,7 +253,8 @@ static void boot_core(unsigned int core, unsigned int vpe_id)
 		timeout = 100;
 		while (true) {
 			stat = read_cpc_co_stat_conf();
-			seq_state = stat & CPC_Cx_STAT_CONF_SEQSTATE_MSK;
+			seq_state = stat & CPC_Cx_STAT_CONF_SEQSTATE;
+			seq_state >>= __ffs(CPC_Cx_STAT_CONF_SEQSTATE);
 
 			/* U6 == coherent execution, ie. the core is up */
 			if (seq_state == CPC_Cx_STAT_CONF_SEQSTATE_U6)
@@ -522,7 +523,8 @@ static void cps_cpu_die(unsigned int cpu)
 			mips_cm_lock_other(core, 0);
 			mips_cpc_lock_other(core);
 			stat = read_cpc_co_stat_conf();
-			stat &= CPC_Cx_STAT_CONF_SEQSTATE_MSK;
+			stat &= CPC_Cx_STAT_CONF_SEQSTATE;
+			stat >>= __ffs(CPC_Cx_STAT_CONF_SEQSTATE);
 			mips_cpc_unlock_other();
 			mips_cm_unlock_other();
 
@@ -544,7 +546,7 @@ static void cps_cpu_die(unsigned int cpu)
 			 */
 			if (WARN(ktime_after(ktime_get(), fail_time),
 				 "CPU%u hasn't powered down, seq. state %u\n",
-				 cpu, stat >> CPC_Cx_STAT_CONF_SEQSTATE_SHF))
+				 cpu, stat))
 				break;
 		} while (1);
 

@@ -692,7 +692,7 @@ static int __init cps_pm_init(void)
 	/* Detect whether a CPC is present */
 	if (mips_cpc_present()) {
 		/* Detect whether clock gating is implemented */
-		if (read_cpc_cl_stat_conf() & CPC_Cx_STAT_CONF_CLKGAT_IMPL_MSK)
+		if (read_cpc_cl_stat_conf() & CPC_Cx_STAT_CONF_CLKGAT_IMPL)
 			set_bit(CPS_PM_CLOCK_GATED, state_support);
 		else
 			pr_warn("pm-cps: CPC does not support clock gating\n");

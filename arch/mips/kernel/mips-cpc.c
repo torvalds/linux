@@ -89,7 +89,7 @@ void mips_cpc_lock_other(unsigned int core)
 	curr_core = current_cpu_data.core;
 	spin_lock_irqsave(&per_cpu(cpc_core_lock, curr_core),
 			  per_cpu(cpc_core_lock_flags, curr_core));
-	write_cpc_cl_other(core << CPC_Cx_OTHER_CORENUM_SHF);
+	write_cpc_cl_other(core << __ffs(CPC_Cx_OTHER_CORENUM));
 
 	/*
 	 * Ensure the core-other region reflects the appropriate core &
