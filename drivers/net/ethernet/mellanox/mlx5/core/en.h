@@ -620,6 +620,12 @@ enum mlx5e_traffic_types {
 	MLX5E_NUM_INDIR_TIRS = MLX5E_TT_ANY,
 };
 
+enum mlx5e_tunnel_types {
+	MLX5E_TT_IPV4_GRE,
+	MLX5E_TT_IPV6_GRE,
+	MLX5E_NUM_TUNNEL_TT,
+};
+
 enum {
 	MLX5E_STATE_ASYNC_EVENTS_ENABLED,
 	MLX5E_STATE_OPENED,
@@ -679,6 +685,7 @@ struct mlx5e_l2_table {
 struct mlx5e_ttc_table {
 	struct mlx5e_flow_table  ft;
 	struct mlx5_flow_handle	 *rules[MLX5E_NUM_TT];
+	struct mlx5_flow_handle  *tunnel_rules[MLX5E_NUM_TUNNEL_TT];
 };
 
 #define ARFS_HASH_SHIFT BITS_PER_BYTE
@@ -711,6 +718,7 @@ enum {
 	MLX5E_VLAN_FT_LEVEL = 0,
 	MLX5E_L2_FT_LEVEL,
 	MLX5E_TTC_FT_LEVEL,
+	MLX5E_INNER_TTC_FT_LEVEL,
 	MLX5E_ARFS_FT_LEVEL
 };
 
@@ -736,6 +744,7 @@ struct mlx5e_flow_steering {
 	struct mlx5e_vlan_table         vlan;
 	struct mlx5e_l2_table           l2;
 	struct mlx5e_ttc_table          ttc;
+	struct mlx5e_ttc_table          inner_ttc;
 	struct mlx5e_arfs_tables        arfs;
 };
 
@@ -769,6 +778,7 @@ struct mlx5e_priv {
 	u32                        tisn[MLX5E_MAX_NUM_TC];
 	struct mlx5e_rqt           indir_rqt;
 	struct mlx5e_tir           indir_tir[MLX5E_NUM_INDIR_TIRS];
+	struct mlx5e_tir           inner_indir_tir[MLX5E_NUM_INDIR_TIRS];
 	struct mlx5e_tir           direct_tir[MLX5E_MAX_NUM_CHANNELS];
 	u32                        tx_rates[MLX5E_MAX_NUM_SQS];
 	int                        hard_mtu;
@@ -903,7 +913,7 @@ int mlx5e_redirect_rqt(struct mlx5e_priv *priv, u32 rqtn, int sz,
 		       struct mlx5e_redirect_rqt_param rrp);
 void mlx5e_build_indir_tir_ctx_hash(struct mlx5e_params *params,
 				    enum mlx5e_traffic_types tt,
-				    void *tirc);
+				    void *tirc, bool inner);
 
 int mlx5e_open_locked(struct net_device *netdev);
 int mlx5e_close_locked(struct net_device *netdev);
@@ -931,6 +941,12 @@ void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params,
 				 u8 cq_period_mode);
 void mlx5e_set_rq_type_params(struct mlx5_core_dev *mdev,
 			      struct mlx5e_params *params, u8 rq_type);
+
+static inline bool mlx5e_tunnel_inner_ft_supported(struct mlx5_core_dev *mdev)
+{
+	return (MLX5_CAP_ETH(mdev, tunnel_stateless_gre) &&
+		MLX5_CAP_FLOWTABLE_NIC_RX(mdev, ft_field_support.inner_ip_version));
+}
 
 static inline
 struct mlx5e_tx_wqe *mlx5e_post_nop(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)

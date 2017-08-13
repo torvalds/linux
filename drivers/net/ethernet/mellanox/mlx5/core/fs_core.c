@@ -83,8 +83,8 @@
 #define ETHTOOL_PRIO_NUM_LEVELS 1
 #define ETHTOOL_NUM_PRIOS 11
 #define ETHTOOL_MIN_LEVEL (KERNEL_MIN_LEVEL + ETHTOOL_NUM_PRIOS)
-/* Vlan, mac, ttc, aRFS */
-#define KERNEL_NIC_PRIO_NUM_LEVELS 4
+/* Vlan, mac, ttc, inner ttc, aRFS */
+#define KERNEL_NIC_PRIO_NUM_LEVELS 5
 #define KERNEL_NIC_NUM_PRIOS 1
 /* One more level for tc */
 #define KERNEL_MIN_LEVEL (KERNEL_NIC_PRIO_NUM_LEVELS + 1)
