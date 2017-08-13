@@ -158,6 +158,23 @@ static inline unsigned int cpu_vpe_id(struct cpuinfo_mips *cpuinfo)
 extern void cpu_set_core(struct cpuinfo_mips *cpuinfo, unsigned int core);
 extern void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo, unsigned int vpe);
 
+static inline bool cpus_are_siblings(int cpua, int cpub)
+{
+	struct cpuinfo_mips *infoa = &cpu_data[cpua];
+	struct cpuinfo_mips *infob = &cpu_data[cpub];
+	unsigned int gnuma, gnumb;
+
+	if (infoa->package != infob->package)
+		return false;
+
+	gnuma = infoa->globalnumber & ~MIPS_GLOBALNUMBER_VP;
+	gnumb = infob->globalnumber & ~MIPS_GLOBALNUMBER_VP;
+	if (gnuma != gnumb)
+		return false;
+
+	return true;
+}
+
 static inline unsigned long cpu_asid_inc(void)
 {
 	return 1 << CONFIG_MIPS_ASID_SHIFT;

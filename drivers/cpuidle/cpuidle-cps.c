@@ -37,7 +37,7 @@ static int cps_nc_enter(struct cpuidle_device *dev,
 	 * TODO: don't treat core 0 specially, just prevent the final core
 	 * TODO: remap interrupt affinity temporarily
 	 */
-	if (!cpu_core(&cpu_data[dev->cpu]) && (index > STATE_NC_WAIT))
+	if (cpus_are_siblings(0, dev->cpu) && (index > STATE_NC_WAIT))
 		index = STATE_NC_WAIT;
 
 	/* Select the appropriate cps_pm_state */

@@ -147,7 +147,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 			cpu_has_dc_aliases ? "dcache aliasing" : "");
 
 		for_each_present_cpu(c) {
-			if (cpu_core(&cpu_data[c]))
+			if (!cpus_are_siblings(smp_processor_id(), c))
 				set_cpu_present(c, false);
 		}
 	}
@@ -319,10 +319,10 @@ static void cps_boot_secondary(int cpu, struct task_struct *idle)
 		mips_cm_unlock_other();
 	}
 
-	if (core != cpu_core(&current_cpu_data)) {
+	if (!cpus_are_siblings(cpu, smp_processor_id())) {
 		/* Boot a VPE on another powered up core */
 		for (remote = 0; remote < NR_CPUS; remote++) {
-			if (cpu_core(&cpu_data[remote]) != core)
+			if (!cpus_are_siblings(cpu, remote))
 				continue;
 			if (cpu_online(remote))
 				break;
@@ -431,7 +431,7 @@ void play_dead(void)
 
 		/* Look for another online VPE within the core */
 		for_each_online_cpu(cpu_death_sibling) {
-			if (cpu_core(&cpu_data[cpu_death_sibling]) != core)
+			if (!cpus_are_siblings(cpu, cpu_death_sibling))
 				continue;
 
 			/*
