@@ -45,9 +45,13 @@
  *
  */
 
+#include <linux/firmware.h>
+
 #include "hfi.h"
 #include "efivar.h"
 #include "eprom.h"
+
+#define DEFAULT_PLATFORM_CONFIG_NAME "hfi1_platform.dat"
 
 static int validate_scratch_checksum(struct hfi1_devdata *dd)
 {
@@ -147,6 +151,7 @@ void get_platform_config(struct hfi1_devdata *dd)
 	int ret = 0;
 	u8 *temp_platform_config = NULL;
 	u32 esize;
+	const struct firmware *platform_config_file = NULL;
 
 	if (is_integrated(dd)) {
 		if (validate_scratch_checksum(dd)) {
@@ -167,23 +172,33 @@ void get_platform_config(struct hfi1_devdata *dd)
 	dd_dev_err(dd,
 		   "%s: Failed to get platform config, falling back to sub-optimal default file\n",
 		   __func__);
-	/* fall back to request firmware */
-	platform_config_load = 1;
+
+	ret = request_firmware(&platform_config_file,
+			       DEFAULT_PLATFORM_CONFIG_NAME,
+			       &dd->pcidev->dev);
+	if (ret) {
+		dd_dev_err(dd,
+			   "%s: No default platform config file found\n",
+			   __func__);
+		return;
+	}
+
+	/*
+	 * Allocate separate memory block to store data and free firmware
+	 * structure. This allows free_platform_config to treat EPROM and
+	 * fallback configs in the same manner.
+	 */
+	dd->platform_config.data = kmemdup(platform_config_file->data,
+					   platform_config_file->size,
+					   GFP_KERNEL);
+	dd->platform_config.size = platform_config_file->size;
+	release_firmware(platform_config_file);
 }
 
 void free_platform_config(struct hfi1_devdata *dd)
 {
-	if (!platform_config_load) {
-		/*
-		 * was loaded from EFI or the EPROM, release memory
-		 * allocated by read_efi_var/eprom_read_platform_config
-		 */
-		kfree(dd->platform_config.data);
-	}
-	/*
-	 * else do nothing, dispose_firmware will release
-	 * struct firmware platform_config on driver exit
-	 */
+	/* Release memory allocated for eprom or fallback file read. */
+	kfree(dd->platform_config.data);
 }
 
 void get_port_type(struct hfi1_pportdata *ppd)
