@@ -280,13 +280,8 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
  * necessarily be at least one bit less than
  * the container holding the PSN.
  */
-#ifndef CONFIG_HFI1_VERBS_31BIT_PSN
-#define PSN_MASK 0xFFFFFF
-#define PSN_SHIFT 8
-#else
 #define PSN_MASK 0x7FFFFFFF
 #define PSN_SHIFT 1
-#endif
 #define PSN_MODIFY_MASK 0xFFFFFF
 
 /*
