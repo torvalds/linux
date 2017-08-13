@@ -164,12 +164,9 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 			sizeof(struct mcheck_recoverable_range);
 
 	/*
-	 * Allocate a buffer to hold the MC recoverable ranges. We would be
-	 * accessing them in real mode, hence it needs to be within
-	 * RMO region.
+	 * Allocate a buffer to hold the MC recoverable ranges.
 	 */
-	mc_recoverable_range =__va(memblock_alloc_base(size, __alignof__(u64),
-							ppc64_rma_size));
+	mc_recoverable_range =__va(memblock_alloc(size, __alignof__(u64)));
 	memset(mc_recoverable_range, 0, size);
 
 	for (i = 0; i < mc_recoverable_range_len; i++) {
