@@ -3499,13 +3499,13 @@ static void mlx5e_del_vxlan_port(struct net_device *netdev,
 	mlx5e_vxlan_queue_work(priv, ti->sa_family, be16_to_cpu(ti->port), 0);
 }
 
-static netdev_features_t mlx5e_vxlan_features_check(struct mlx5e_priv *priv,
-						    struct sk_buff *skb,
-						    netdev_features_t features)
+static netdev_features_t mlx5e_tunnel_features_check(struct mlx5e_priv *priv,
+						     struct sk_buff *skb,
+						     netdev_features_t features)
 {
 	struct udphdr *udph;
-	u16 proto;
-	u16 port = 0;
+	u8 proto;
+	u16 port;
 
 	switch (vlan_get_protocol(skb)) {
 	case htons(ETH_P_IP):
@@ -3518,14 +3518,17 @@ static netdev_features_t mlx5e_vxlan_features_check(struct mlx5e_priv *priv,
 		goto out;
 	}
 
-	if (proto == IPPROTO_UDP) {
+	switch (proto) {
+	case IPPROTO_GRE:
+		return features;
+	case IPPROTO_UDP:
 		udph = udp_hdr(skb);
 		port = be16_to_cpu(udph->dest);
-	}
 
-	/* Verify if UDP port is being offloaded by HW */
-	if (port && mlx5e_vxlan_lookup_port(priv, port))
-		return features;
+		/* Verify if UDP port is being offloaded by HW */
+		if (mlx5e_vxlan_lookup_port(priv, port))
+			return features;
+	}
 
 out:
 	/* Disable CSUM and GSO if the udp dport is not offloaded by HW */
@@ -3549,7 +3552,7 @@ static netdev_features_t mlx5e_features_check(struct sk_buff *skb,
 	/* Validate if the tunneled packet is being offloaded by HW */
 	if (skb->encapsulation &&
 	    (features & NETIF_F_CSUM_MASK || features & NETIF_F_GSO_MASK))
-		return mlx5e_vxlan_features_check(priv, skb, features);
+		return mlx5e_tunnel_features_check(priv, skb, features);
 
 	return features;
 }
@@ -4014,18 +4017,30 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
-	if (mlx5e_vxlan_allowed(mdev)) {
-		netdev->hw_features     |= NETIF_F_GSO_UDP_TUNNEL |
-					   NETIF_F_GSO_UDP_TUNNEL_CSUM |
-					   NETIF_F_GSO_PARTIAL;
+	if (mlx5e_vxlan_allowed(mdev) || MLX5_CAP_ETH(mdev, tunnel_stateless_gre)) {
+		netdev->hw_features     |= NETIF_F_GSO_PARTIAL;
 		netdev->hw_enc_features |= NETIF_F_IP_CSUM;
 		netdev->hw_enc_features |= NETIF_F_IPV6_CSUM;
 		netdev->hw_enc_features |= NETIF_F_TSO;
 		netdev->hw_enc_features |= NETIF_F_TSO6;
-		netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL;
-		netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM |
-					   NETIF_F_GSO_PARTIAL;
+		netdev->hw_enc_features |= NETIF_F_GSO_PARTIAL;
+	}
+
+	if (mlx5e_vxlan_allowed(mdev)) {
+		netdev->hw_features     |= NETIF_F_GSO_UDP_TUNNEL |
+					   NETIF_F_GSO_UDP_TUNNEL_CSUM;
+		netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL |
+					   NETIF_F_GSO_UDP_TUNNEL_CSUM;
 		netdev->gso_partial_features = NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	}
+
+	if (MLX5_CAP_ETH(mdev, tunnel_stateless_gre)) {
+		netdev->hw_features     |= NETIF_F_GSO_GRE |
+					   NETIF_F_GSO_GRE_CSUM;
+		netdev->hw_enc_features |= NETIF_F_GSO_GRE |
+					   NETIF_F_GSO_GRE_CSUM;
+		netdev->gso_partial_features |= NETIF_F_GSO_GRE |
+						NETIF_F_GSO_GRE_CSUM;
 	}
 
 	mlx5_query_port_fcs(mdev, &fcs_supported, &fcs_enabled);
