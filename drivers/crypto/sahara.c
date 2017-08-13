@@ -1375,7 +1375,7 @@ static void sahara_unregister_algs(struct sahara_dev *dev)
 			crypto_unregister_ahash(&sha_v4_algs[i]);
 }
 
-static struct platform_device_id sahara_platform_ids[] = {
+static const struct platform_device_id sahara_platform_ids[] = {
 	{ .name = "sahara-imx27" },
 	{ /* sentinel */ }
 };
