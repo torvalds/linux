@@ -659,6 +659,7 @@ static struct elevator_type mq_deadline = {
 	.elevator_name = "mq-deadline",
 	.elevator_owner = THIS_MODULE,
 };
+MODULE_ALIAS("mq-deadline-iosched");
 
 static int __init deadline_init(void)
 {
