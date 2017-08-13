@@ -151,13 +151,24 @@ static struct trap_node *check_and_add_trap(struct hfi1_ibport *ibp,
 	unsigned long flags;
 	unsigned long timeout;
 	int found = 0;
+	unsigned int queue_id;
+	static int trap_count;
+
+	queue_id = trap->data.generic_type & 0x0F;
+	if (queue_id >= RVT_MAX_TRAP_LISTS) {
+		trap_count++;
+		pr_err_ratelimited("hfi1: Invalid trap 0x%0x dropped. Total dropped: %d\n",
+				  trap->data.generic_type, trap_count);
+		kfree(trap);
+		return NULL;
+	}
 
 	/*
 	 * Since the retry (handle timeout) does not remove a trap request
 	 * from the list, all we have to do is compare the node.
 	 */
 	spin_lock_irqsave(&ibp->rvp.lock, flags);
-	trap_list = &ibp->rvp.trap_lists[trap->data.generic_type & 0x0F];
+	trap_list = &ibp->rvp.trap_lists[queue_id];
 
 	list_for_each_entry(node, &trap_list->list, list) {
 		if (node == trap) {
