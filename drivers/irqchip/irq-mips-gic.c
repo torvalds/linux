@@ -39,7 +39,6 @@
 #define GIC_SHARED_TO_HWIRQ(x)	(GIC_SHARED_HWIRQ_BASE + (x))
 #define GIC_HWIRQ_TO_SHARED(x)	((x) - GIC_SHARED_HWIRQ_BASE)
 
-unsigned int gic_present;
 void __iomem *mips_gic_base;
 
 struct gic_pcpu_mask {
@@ -781,7 +780,6 @@ static int __init gic_of_init(struct device_node *node,
 		/* Ensure GIC region is enabled before trying to access it */
 		__sync();
 	}
-	gic_present = true;
 
 	__gic_init(gic_base, gic_len, cpu_vec, 0, node);
 

@@ -17,15 +17,9 @@
 
 #ifdef CONFIG_MIPS_GIC
 
-extern unsigned int gic_present;
-
 extern int gic_get_c0_compare_int(void);
 extern int gic_get_c0_perfcount_int(void);
 extern int gic_get_c0_fdc_int(void);
-
-#else /* CONFIG_MIPS_GIC */
-
-#define gic_present	0
 
 #endif /* CONFIG_MIPS_GIC */
 
