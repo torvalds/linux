@@ -15,6 +15,8 @@
 #include <linux/cache.h>
 #include <linux/types.h>
 
+#include <asm/mipsregs.h>
+
 /*
  * Descriptor for a cache
  */
@@ -77,16 +79,9 @@ struct cpuinfo_mips {
 	struct cache_desc	tcache; /* Tertiary/split secondary cache */
 	int			srsets; /* Shadow register sets */
 	int			package;/* physical package number */
-	int			core;	/* physical core number */
+	unsigned int		globalnumber;
 #ifdef CONFIG_64BIT
 	int			vmbits; /* Virtual memory size in bits */
-#endif
-#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
-	/*
-	 * There is not necessarily a 1:1 mapping of VPE num to CPU number
-	 * in particular on multi-core systems.
-	 */
-	int			vpe_id;	 /* Virtual Processor number */
 #endif
 	void			*data;	/* Additional data */
 	unsigned int		watch_reg_count;   /* Number that exist */
@@ -146,30 +141,22 @@ struct proc_cpuinfo_notifier_args {
 
 static inline unsigned int cpu_core(struct cpuinfo_mips *cpuinfo)
 {
-	return cpuinfo->core;
-}
-
-static inline void cpu_set_core(struct cpuinfo_mips *cpuinfo,
-				unsigned int core)
-{
-	cpuinfo->core = core;
+	return (cpuinfo->globalnumber & MIPS_GLOBALNUMBER_CORE) >>
+		MIPS_GLOBALNUMBER_CORE_SHF;
 }
 
 static inline unsigned int cpu_vpe_id(struct cpuinfo_mips *cpuinfo)
 {
-#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
-	return cpuinfo->vpe_id;
-#endif
-	return 0;
+	/* Optimisation for systems where VP(E)s aren't used */
+	if (!IS_ENABLED(CONFIG_MIPS_MT_SMP) && !IS_ENABLED(CONFIG_CPU_MIPSR6))
+		return 0;
+
+	return (cpuinfo->globalnumber & MIPS_GLOBALNUMBER_VP) >>
+		MIPS_GLOBALNUMBER_VP_SHF;
 }
 
-static inline void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo,
-				  unsigned int vpe)
-{
-#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
-	cpuinfo->vpe_id = vpe;
-#endif
-}
+extern void cpu_set_core(struct cpuinfo_mips *cpuinfo, unsigned int core);
+extern void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo, unsigned int vpe);
 
 static inline unsigned long cpu_asid_inc(void)
 {

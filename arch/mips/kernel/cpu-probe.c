@@ -2098,3 +2098,25 @@ void cpu_report(void)
 	if (cpu_has_msa)
 		pr_info("MSA revision is: %08x\n", c->msa_id);
 }
+
+void cpu_set_core(struct cpuinfo_mips *cpuinfo, unsigned int core)
+{
+	/* Ensure the core number fits in the field */
+	WARN_ON(core > (MIPS_GLOBALNUMBER_CORE >> MIPS_GLOBALNUMBER_CORE_SHF));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_CORE;
+	cpuinfo->globalnumber |= core << MIPS_GLOBALNUMBER_CORE_SHF;
+}
+
+void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo, unsigned int vpe)
+{
+	/* Ensure the VP(E) ID fits in the field */
+	WARN_ON(vpe > (MIPS_GLOBALNUMBER_VP >> MIPS_GLOBALNUMBER_VP_SHF));
+
+	/* Ensure we're not using VP(E)s without support */
+	WARN_ON(vpe && !IS_ENABLED(CONFIG_MIPS_MT_SMP) &&
+		!IS_ENABLED(CONFIG_CPU_MIPSR6));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_VP;
+	cpuinfo->globalnumber |= vpe << MIPS_GLOBALNUMBER_VP_SHF;
+}
