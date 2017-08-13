@@ -92,13 +92,6 @@ static inline void gic_update_bits(unsigned int reg, unsigned long mask,
 	gic_write(reg, regval);
 }
 
-static inline void gic_set_polarity(unsigned int intr, unsigned int pol)
-{
-	gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_POLARITY) +
-			GIC_INTR_OFS(intr), 1ul << GIC_INTR_BIT(intr),
-			(unsigned long)pol << GIC_INTR_BIT(intr));
-}
-
 static inline void gic_set_trigger(unsigned int intr, unsigned int trig)
 {
 	gic_update_bits(GIC_REG(SHARED, GIC_SH_SET_TRIGGER) +
@@ -272,13 +265,13 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	spin_lock_irqsave(&gic_lock, flags);
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_EDGE_FALLING:
-		gic_set_polarity(irq, GIC_POL_NEG);
+		change_gic_pol(irq, GIC_POL_FALLING_EDGE);
 		gic_set_trigger(irq, GIC_TRIG_EDGE);
 		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
 		is_edge = true;
 		break;
 	case IRQ_TYPE_EDGE_RISING:
-		gic_set_polarity(irq, GIC_POL_POS);
+		change_gic_pol(irq, GIC_POL_RISING_EDGE);
 		gic_set_trigger(irq, GIC_TRIG_EDGE);
 		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
 		is_edge = true;
@@ -290,14 +283,14 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 		is_edge = true;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
-		gic_set_polarity(irq, GIC_POL_NEG);
+		change_gic_pol(irq, GIC_POL_ACTIVE_LOW);
 		gic_set_trigger(irq, GIC_TRIG_LEVEL);
 		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
 		is_edge = false;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 	default:
-		gic_set_polarity(irq, GIC_POL_POS);
+		change_gic_pol(irq, GIC_POL_ACTIVE_HIGH);
 		gic_set_trigger(irq, GIC_TRIG_LEVEL);
 		gic_set_dual_edge(irq, GIC_TRIG_DUAL_DISABLE);
 		is_edge = false;
@@ -464,7 +457,7 @@ static void __init gic_basic_init(void)
 
 	/* Setup defaults */
 	for (i = 0; i < gic_shared_intrs; i++) {
-		gic_set_polarity(i, GIC_POL_POS);
+		change_gic_pol(i, GIC_POL_ACTIVE_HIGH);
 		gic_set_trigger(i, GIC_TRIG_LEVEL);
 		write_gic_rmask(BIT(i));
 	}

@@ -14,8 +14,6 @@
 #define GIC_MAX_INTRS			256
 
 /* Constants */
-#define GIC_POL_POS			1
-#define GIC_POL_NEG			0
 #define GIC_TRIG_EDGE			1
 #define GIC_TRIG_LEVEL			0
 #define GIC_TRIG_DUAL_ENABLE		1
@@ -51,9 +49,6 @@
 	reg_idx * reg_width;				\
 })
 #define GIC_INTR_BIT(intr)		((intr) % (mips_cm_is64 ? 64 : 32))
-
-/* Polarity : Reset Value is always 0 */
-#define GIC_SH_SET_POLARITY_OFS		0x0100
 
 /* Triggering : Reset Value is always 0 */
 #define GIC_SH_SET_TRIGGER_OFS		0x0180
