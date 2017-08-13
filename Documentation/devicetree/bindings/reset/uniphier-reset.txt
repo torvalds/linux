@@ -90,3 +90,28 @@ Example:
 
 		other nodes ...
 	};
+
+
+Analog signal amplifier reset
+-----------------------------
+
+Required properties:
+- compatible: should be one of the following:
+    "socionext,uniphier-ld11-adamv-reset" - for LD11 SoC
+    "socionext,uniphier-ld20-adamv-reset" - for LD20 SoC
+- #reset-cells: should be 1.
+
+Example:
+
+	adamv@57920000 {
+		compatible = "socionext,uniphier-ld11-adamv",
+			     "simple-mfd", "syscon";
+		reg = <0x57920000 0x1000>;
+
+		adamv_rst: reset {
+			compatible = "socionext,uniphier-ld11-adamv-reset";
+			#reset-cells = <1>;
+		};
+
+		other nodes ...
+	};

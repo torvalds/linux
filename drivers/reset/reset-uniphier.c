@@ -196,6 +196,12 @@ static const struct uniphier_reset_data uniphier_pro4_peri_reset_data[] = {
 	UNIPHIER_RESET_END,
 };
 
+/* Analog signal amplifiers reset data */
+static const struct uniphier_reset_data uniphier_ld11_adamv_reset_data[] = {
+	UNIPHIER_RESETX(0, 0x10, 6), /* EVEA */
+	UNIPHIER_RESET_END,
+};
+
 /* core implementaton */
 struct uniphier_reset_priv {
 	struct reset_controller_dev rcdev;
@@ -414,6 +420,15 @@ static const struct of_device_id uniphier_reset_match[] = {
 	{
 		.compatible = "socionext,uniphier-ld20-peri-reset",
 		.data = uniphier_pro4_peri_reset_data,
+	},
+	/* Analog signal amplifiers reset */
+	{
+		.compatible = "socionext,uniphier-ld11-adamv-reset",
+		.data = uniphier_ld11_adamv_reset_data,
+	},
+	{
+		.compatible = "socionext,uniphier-ld20-adamv-reset",
+		.data = uniphier_ld11_adamv_reset_data,
 	},
 	{ /* sentinel */ }
 };
