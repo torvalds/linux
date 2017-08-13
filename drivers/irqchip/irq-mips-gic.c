@@ -648,15 +648,54 @@ static const struct irq_domain_ops gic_ipi_domain_ops = {
 	.match = gic_ipi_domain_match,
 };
 
-static void __init __gic_init(unsigned long gic_base_addr,
-			      unsigned long gic_addrspace_size,
-			      unsigned int cpu_vec, unsigned int irqbase,
-			      struct device_node *node)
-{
-	unsigned int gicconfig, cpu;
-	unsigned int v[2];
 
-	mips_gic_base = ioremap_nocache(gic_base_addr, gic_addrspace_size);
+static int __init gic_of_init(struct device_node *node,
+			      struct device_node *parent)
+{
+	unsigned int cpu_vec, i, reserved, gicconfig, cpu, v[2];
+	phys_addr_t gic_base;
+	struct resource res;
+	size_t gic_len;
+
+	/* Find the first available CPU vector. */
+	i = reserved = 0;
+	while (!of_property_read_u32_index(node, "mti,reserved-cpu-vectors",
+					   i++, &cpu_vec))
+		reserved |= BIT(cpu_vec);
+	for (cpu_vec = 2; cpu_vec < 8; cpu_vec++) {
+		if (!(reserved & BIT(cpu_vec)))
+			break;
+	}
+	if (cpu_vec == 8) {
+		pr_err("No CPU vectors available for GIC\n");
+		return -ENODEV;
+	}
+
+	if (of_address_to_resource(node, 0, &res)) {
+		/*
+		 * Probe the CM for the GIC base address if not specified
+		 * in the device-tree.
+		 */
+		if (mips_cm_present()) {
+			gic_base = read_gcr_gic_base() &
+				~CM_GCR_GIC_BASE_GICEN;
+			gic_len = 0x20000;
+		} else {
+			pr_err("Failed to get GIC memory range\n");
+			return -ENODEV;
+		}
+	} else {
+		gic_base = res.start;
+		gic_len = resource_size(&res);
+	}
+
+	if (mips_cm_present()) {
+		write_gcr_gic_base(gic_base | CM_GCR_GIC_BASE_GICEN);
+		/* Ensure GIC region is enabled before trying to access it */
+		__sync();
+	}
+
+	mips_gic_base = ioremap_nocache(gic_base, gic_len);
 
 	gicconfig = read_gic_config();
 	gic_shared_intrs = gicconfig & GIC_CONFIG_NUMINTERRUPTS;
@@ -707,17 +746,21 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	}
 
 	gic_irq_domain = irq_domain_add_simple(node, GIC_NUM_LOCAL_INTRS +
-					       gic_shared_intrs, irqbase,
+					       gic_shared_intrs, 0,
 					       &gic_irq_domain_ops, NULL);
-	if (!gic_irq_domain)
-		panic("Failed to add GIC IRQ domain");
+	if (!gic_irq_domain) {
+		pr_err("Failed to add GIC IRQ domain");
+		return -ENXIO;
+	}
 
 	gic_ipi_domain = irq_domain_add_hierarchy(gic_irq_domain,
 						  IRQ_DOMAIN_FLAG_IPI_PER_CPU,
 						  GIC_NUM_LOCAL_INTRS + gic_shared_intrs,
 						  node, &gic_ipi_domain_ops, NULL);
-	if (!gic_ipi_domain)
-		panic("Failed to add GIC IPI domain");
+	if (!gic_ipi_domain) {
+		pr_err("Failed to add GIC IPI domain");
+		return -ENXIO;
+	}
 
 	irq_domain_update_bus_token(gic_ipi_domain, DOMAIN_BUS_IPI);
 
@@ -733,54 +776,6 @@ static void __init __gic_init(unsigned long gic_base_addr,
 
 	bitmap_copy(ipi_available, ipi_resrv, GIC_MAX_INTRS);
 	gic_basic_init();
-}
-
-static int __init gic_of_init(struct device_node *node,
-			      struct device_node *parent)
-{
-	struct resource res;
-	unsigned int cpu_vec, i = 0, reserved = 0;
-	phys_addr_t gic_base;
-	size_t gic_len;
-
-	/* Find the first available CPU vector. */
-	while (!of_property_read_u32_index(node, "mti,reserved-cpu-vectors",
-					   i++, &cpu_vec))
-		reserved |= BIT(cpu_vec);
-	for (cpu_vec = 2; cpu_vec < 8; cpu_vec++) {
-		if (!(reserved & BIT(cpu_vec)))
-			break;
-	}
-	if (cpu_vec == 8) {
-		pr_err("No CPU vectors available for GIC\n");
-		return -ENODEV;
-	}
-
-	if (of_address_to_resource(node, 0, &res)) {
-		/*
-		 * Probe the CM for the GIC base address if not specified
-		 * in the device-tree.
-		 */
-		if (mips_cm_present()) {
-			gic_base = read_gcr_gic_base() &
-				~CM_GCR_GIC_BASE_GICEN;
-			gic_len = 0x20000;
-		} else {
-			pr_err("Failed to get GIC memory range\n");
-			return -ENODEV;
-		}
-	} else {
-		gic_base = res.start;
-		gic_len = resource_size(&res);
-	}
-
-	if (mips_cm_present()) {
-		write_gcr_gic_base(gic_base | CM_GCR_GIC_BASE_GICEN);
-		/* Ensure GIC region is enabled before trying to access it */
-		__sync();
-	}
-
-	__gic_init(gic_base, gic_len, cpu_vec, 0, node);
 
 	return 0;
 }
