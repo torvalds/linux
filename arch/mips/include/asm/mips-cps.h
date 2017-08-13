@@ -71,6 +71,26 @@ static inline void write_##unit##_##name(uint##sz##_t val)		\
 	}								\
 }
 
+#define CPS_ACCESSOR_M(unit, sz, name)					\
+static inline void change_##unit##_##name(uint##sz##_t mask,		\
+					  uint##sz##_t val)		\
+{									\
+	uint##sz##_t reg_val = read_##unit##_##name();			\
+	reg_val &= ~mask;						\
+	reg_val |= val;							\
+	write_##unit##_##name(reg_val);					\
+}									\
+									\
+static inline void set_##unit##_##name(uint##sz##_t val)		\
+{									\
+	change_##unit##_##name(val, val);				\
+}									\
+									\
+static inline void clear_##unit##_##name(uint##sz##_t val)		\
+{									\
+	change_##unit##_##name(val, 0);					\
+}
+
 #define CPS_ACCESSOR_RO(unit, sz, off, name)				\
 	CPS_ACCESSOR_A(unit, off, name)					\
 	CPS_ACCESSOR_R(unit, sz, name)
@@ -82,6 +102,7 @@ static inline void write_##unit##_##name(uint##sz##_t val)		\
 #define CPS_ACCESSOR_RW(unit, sz, off, name)				\
 	CPS_ACCESSOR_A(unit, off, name)					\
 	CPS_ACCESSOR_R(unit, sz, name)					\
-	CPS_ACCESSOR_W(unit, sz, name)
+	CPS_ACCESSOR_W(unit, sz, name)					\
+	CPS_ACCESSOR_M(unit, sz, name)
 
 #endif /* __MIPS_ASM_MIPS_CPS_H__ */
