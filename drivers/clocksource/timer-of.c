@@ -128,9 +128,9 @@ static __init int timer_base_init(struct device_node *np,
 	const char *name = of_base->name ? of_base->name : np->full_name;
 
 	of_base->base = of_io_request_and_map(np, of_base->index, name);
-	if (!of_base->base) {
+	if (IS_ERR(of_base->base)) {
 		pr_err("Failed to iomap (%s)\n", name);
-		return -ENXIO;
+		return PTR_ERR(of_base->base);
 	}
 
 	return 0;
