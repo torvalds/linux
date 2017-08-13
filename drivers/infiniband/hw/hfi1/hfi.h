@@ -1987,6 +1987,7 @@ int process_receive_error(struct hfi1_packet *packet);
 int kdeth_process_expected(struct hfi1_packet *packet);
 int kdeth_process_eager(struct hfi1_packet *packet);
 int process_receive_invalid(struct hfi1_packet *packet);
+void seqfile_dump_rcd(struct seq_file *s, struct hfi1_ctxtdata *rcd);
 
 /* global module parameter variables */
 extern unsigned int hfi1_max_mtu;

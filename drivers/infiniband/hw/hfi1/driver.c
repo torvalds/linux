@@ -1689,3 +1689,62 @@ int process_receive_invalid(struct hfi1_packet *packet)
 		   rhf_rcv_type(packet->rhf));
 	return RHF_RCV_CONTINUE;
 }
+
+void seqfile_dump_rcd(struct seq_file *s, struct hfi1_ctxtdata *rcd)
+{
+	struct hfi1_packet packet;
+	struct ps_mdata mdata;
+
+	seq_printf(s, "Rcd %u: RcvHdr cnt %u entsize %u %s head %llu tail %llu\n",
+		   rcd->ctxt, rcd->rcvhdrq_cnt, rcd->rcvhdrqentsize,
+		   HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL) ?
+		   "dma_rtail" : "nodma_rtail",
+		   read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_HEAD) &
+		   RCV_HDR_HEAD_HEAD_MASK,
+		   read_uctxt_csr(rcd->dd, rcd->ctxt, RCV_HDR_TAIL));
+
+	init_packet(rcd, &packet);
+	init_ps_mdata(&mdata, &packet);
+
+	while (1) {
+		struct hfi1_devdata *dd = rcd->dd;
+		__le32 *rhf_addr = (__le32 *)rcd->rcvhdrq + mdata.ps_head +
+					 dd->rhf_offset;
+		struct ib_header *hdr;
+		u64 rhf = rhf_to_cpu(rhf_addr);
+		u32 etype = rhf_rcv_type(rhf), qpn;
+		u8 opcode;
+		u32 psn;
+		u8 lnh;
+
+		if (ps_done(&mdata, rhf, rcd))
+			break;
+
+		if (ps_skip(&mdata, rhf, rcd))
+			goto next;
+
+		if (etype > RHF_RCV_TYPE_IB)
+			goto next;
+
+		packet.hdr = hfi1_get_msgheader(dd, rhf_addr);
+		hdr = packet.hdr;
+
+		lnh = be16_to_cpu(hdr->lrh[0]) & 3;
+
+		if (lnh == HFI1_LRH_BTH)
+			packet.ohdr = &hdr->u.oth;
+		else if (lnh == HFI1_LRH_GRH)
+			packet.ohdr = &hdr->u.l.oth;
+		else
+			goto next; /* just in case */
+
+		opcode = (be32_to_cpu(packet.ohdr->bth[0]) >> 24);
+		qpn = be32_to_cpu(packet.ohdr->bth[1]) & RVT_QPN_MASK;
+		psn = mask_psn(be32_to_cpu(packet.ohdr->bth[2]));
+
+		seq_printf(s, "\tEnt %u: opcode 0x%x, qpn 0x%x, psn 0x%x\n",
+			   mdata.ps_head, opcode, qpn, psn);
+next:
+		update_ps_mdata(&mdata, rcd);
+	}
+}

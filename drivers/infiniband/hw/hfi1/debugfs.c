@@ -368,6 +368,52 @@ DEBUGFS_SEQ_FILE_OPS(sdes);
 DEBUGFS_SEQ_FILE_OPEN(sdes)
 DEBUGFS_FILE_OPS(sdes);
 
+static void *_rcds_seq_start(struct seq_file *s, loff_t *pos)
+{
+	struct hfi1_ibdev *ibd;
+	struct hfi1_devdata *dd;
+
+	ibd = (struct hfi1_ibdev *)s->private;
+	dd = dd_from_dev(ibd);
+	if (!dd->rcd || *pos >= dd->n_krcv_queues)
+		return NULL;
+	return pos;
+}
+
+static void *_rcds_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
+	struct hfi1_devdata *dd = dd_from_dev(ibd);
+
+	++*pos;
+	if (!dd->rcd || *pos >= dd->n_krcv_queues)
+		return NULL;
+	return pos;
+}
+
+static void _rcds_seq_stop(struct seq_file *s, void *v)
+{
+}
+
+static int _rcds_seq_show(struct seq_file *s, void *v)
+{
+	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
+	struct hfi1_devdata *dd = dd_from_dev(ibd);
+	struct hfi1_ctxtdata *rcd;
+	loff_t *spos = v;
+	loff_t i = *spos;
+
+	rcd = hfi1_rcd_get_by_index(dd, i);
+	if (rcd)
+		seqfile_dump_rcd(s, rcd);
+	hfi1_rcd_put(rcd);
+	return 0;
+}
+
+DEBUGFS_SEQ_FILE_OPS(rcds);
+DEBUGFS_SEQ_FILE_OPEN(rcds)
+DEBUGFS_FILE_OPS(rcds);
+
 /* read the per-device counters */
 static ssize_t dev_counters_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
@@ -1321,6 +1367,7 @@ void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
 	DEBUGFS_SEQ_FILE_CREATE(ctx_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(qp_stats, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(sdes, ibd->hfi1_ibdev_dbg, ibd);
+	DEBUGFS_SEQ_FILE_CREATE(rcds, ibd->hfi1_ibdev_dbg, ibd);
 	DEBUGFS_SEQ_FILE_CREATE(sdma_cpu_list, ibd->hfi1_ibdev_dbg, ibd);
 	/* dev counter files */
 	for (i = 0; i < ARRAY_SIZE(cntr_ops); i++)
