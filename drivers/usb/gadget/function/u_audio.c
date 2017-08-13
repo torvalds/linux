@@ -79,7 +79,7 @@ struct snd_uac_chip {
 	unsigned int p_framesize;
 };
 
-static struct snd_pcm_hardware uac_pcm_hardware = {
+static const struct snd_pcm_hardware uac_pcm_hardware = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER
 		 | SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID
 		 | SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
