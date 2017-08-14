@@ -55,7 +55,8 @@ struct cht_wc_i2c_adap {
 	int client_irq;
 	u8 irq_mask;
 	u8 old_irq_mask;
-	bool nack;
+	int read_data;
+	bool io_error;
 	bool done;
 };
 
@@ -76,6 +77,11 @@ static irqreturn_t cht_wc_i2c_adap_thread_handler(int id, void *data)
 
 	reg &= ~adap->irq_mask;
 
+	/* Reads must be acked after reading the received data. */
+	ret = regmap_read(adap->regmap, CHT_WC_I2C_RDDATA, &adap->read_data);
+	if (ret)
+		adap->io_error = true;
+
 	/*
 	 * Immediately ack IRQs, so that if new IRQs arrives while we're
 	 * handling the previous ones our irq will re-trigger when we're done.
@@ -85,7 +91,7 @@ static irqreturn_t cht_wc_i2c_adap_thread_handler(int id, void *data)
 		dev_err(&adap->adapter.dev, "Error writing extchgrirq reg\n");
 
 	if (reg & CHT_WC_EXTCHGRIRQ_ADAP_IRQMASK) {
-		adap->nack = !!(reg & CHT_WC_EXTCHGRIRQ_NACK_IRQ);
+		adap->io_error |= !!(reg & CHT_WC_EXTCHGRIRQ_NACK_IRQ);
 		adap->done = true;
 	}
 
@@ -125,10 +131,10 @@ static int cht_wc_i2c_adap_smbus_xfer(struct i2c_adapter *_adap, u16 addr,
 				      union i2c_smbus_data *data)
 {
 	struct cht_wc_i2c_adap *adap = i2c_get_adapdata(_adap);
-	int ret, reg;
+	int ret;
 
 	mutex_lock(&adap->adap_lock);
-	adap->nack = false;
+	adap->io_error = false;
 	adap->done = false;
 	mutex_unlock(&adap->adap_lock);
 
@@ -159,12 +165,10 @@ static int cht_wc_i2c_adap_smbus_xfer(struct i2c_adapter *_adap, u16 addr,
 
 	ret = 0;
 	mutex_lock(&adap->adap_lock);
-	if (adap->nack)
+	if (adap->io_error)
 		ret = -EIO;
-	else if (read_write == I2C_SMBUS_READ) {
-		ret = regmap_read(adap->regmap, CHT_WC_I2C_RDDATA, &reg);
-		data->byte = reg;
-	}
+	else if (read_write == I2C_SMBUS_READ)
+		data->byte = adap->read_data;
 	mutex_unlock(&adap->adap_lock);
 
 	return ret;
@@ -238,7 +242,7 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 		.addr = 0x6b,
 		.properties = bq24190_props,
 	};
-	int ret, irq;
+	int ret, reg, irq;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -264,6 +268,11 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 
 	/* Clear and activate i2c-adapter interrupts, disable client IRQ */
 	adap->old_irq_mask = adap->irq_mask = ~CHT_WC_EXTCHGRIRQ_ADAP_IRQMASK;
+
+	ret = regmap_read(adap->regmap, CHT_WC_I2C_RDDATA, &reg);
+	if (ret)
+		return ret;
+
 	ret = regmap_write(adap->regmap, CHT_WC_EXTCHGRIRQ, ~adap->irq_mask);
 	if (ret)
 		return ret;
