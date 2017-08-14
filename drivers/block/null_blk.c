@@ -14,6 +14,7 @@
 #include <linux/hrtimer.h>
 #include <linux/lightnvm.h>
 #include <linux/configfs.h>
+#include <linux/badblocks.h>
 
 #define SECTOR_SHIFT		9
 #define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
@@ -93,6 +94,7 @@ struct nullb_device {
 	struct radix_tree_root cache; /* disk cache data */
 	unsigned long flags; /* device flags */
 	unsigned int curr_cache;
+	struct badblocks badblocks;
 
 	unsigned long size; /* device size in MB */
 	unsigned long completion_nsec; /* time in ns to complete a request */
@@ -386,6 +388,59 @@ static ssize_t nullb_device_power_store(struct config_item *item,
 
 CONFIGFS_ATTR(nullb_device_, power);
 
+static ssize_t nullb_device_badblocks_show(struct config_item *item, char *page)
+{
+	struct nullb_device *t_dev = to_nullb_device(item);
+
+	return badblocks_show(&t_dev->badblocks, page, 0);
+}
+
+static ssize_t nullb_device_badblocks_store(struct config_item *item,
+				     const char *page, size_t count)
+{
+	struct nullb_device *t_dev = to_nullb_device(item);
+	char *orig, *buf, *tmp;
+	u64 start, end;
+	int ret;
+
+	orig = kstrndup(page, count, GFP_KERNEL);
+	if (!orig)
+		return -ENOMEM;
+
+	buf = strstrip(orig);
+
+	ret = -EINVAL;
+	if (buf[0] != '+' && buf[0] != '-')
+		goto out;
+	tmp = strchr(&buf[1], '-');
+	if (!tmp)
+		goto out;
+	*tmp = '\0';
+	ret = kstrtoull(buf + 1, 0, &start);
+	if (ret)
+		goto out;
+	ret = kstrtoull(tmp + 1, 0, &end);
+	if (ret)
+		goto out;
+	ret = -EINVAL;
+	if (start > end)
+		goto out;
+	/* enable badblocks */
+	cmpxchg(&t_dev->badblocks.shift, -1, 0);
+	if (buf[0] == '+')
+		ret = badblocks_set(&t_dev->badblocks, start,
+			end - start + 1, 1);
+	else
+		ret = badblocks_clear(&t_dev->badblocks, start,
+			end - start + 1);
+	if (ret == 0)
+		ret = count;
+out:
+	kfree(orig);
+	return ret;
+}
+CONFIGFS_ATTR(nullb_device_, badblocks);
+
 static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_size,
 	&nullb_device_attr_completion_nsec,
@@ -404,6 +459,7 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_discard,
 	&nullb_device_attr_mbps,
 	&nullb_device_attr_cache_size,
+	&nullb_device_attr_badblocks,
 	NULL,
 };
 
@@ -411,6 +467,7 @@ static void nullb_device_release(struct config_item *item)
 {
 	struct nullb_device *dev = to_nullb_device(item);
 
+	badblocks_exit(&dev->badblocks);
 	null_free_device_storage(dev, false);
 	null_free_dev(dev);
 }
@@ -456,7 +513,7 @@ nullb_group_drop_item(struct config_group *group, struct config_item *item)
 
 static ssize_t memb_group_features_show(struct config_item *item, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "memory_backed,discard,bandwidth,cache\n");
+	return snprintf(page, PAGE_SIZE, "memory_backed,discard,bandwidth,cache,badblocks\n");
 }
 
 CONFIGFS_ATTR_RO(memb_group_, features);
@@ -500,6 +557,11 @@ static struct nullb_device *null_alloc_dev(void)
 		return NULL;
 	INIT_RADIX_TREE(&dev->data, GFP_ATOMIC);
 	INIT_RADIX_TREE(&dev->cache, GFP_ATOMIC);
+	if (badblocks_init(&dev->badblocks, 0)) {
+		kfree(dev);
+		return NULL;
+	}
+
 	dev->size = g_gb * 1024;
 	dev->completion_nsec = g_completion_nsec;
 	dev->submit_queues = g_submit_queues;
@@ -1166,6 +1228,30 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd)
 		}
 	}
 
+	if (nullb->dev->badblocks.shift != -1) {
+		int bad_sectors;
+		sector_t sector, size, first_bad;
+		bool is_flush = true;
+
+		if (dev->queue_mode == NULL_Q_BIO &&
+				bio_op(cmd->bio) != REQ_OP_FLUSH) {
+			is_flush = false;
+			sector = cmd->bio->bi_iter.bi_sector;
+			size = bio_sectors(cmd->bio);
+		}
+		if (dev->queue_mode != NULL_Q_BIO &&
+				req_op(cmd->rq) != REQ_OP_FLUSH) {
+			is_flush = false;
+			sector = blk_rq_pos(cmd->rq);
+			size = blk_rq_sectors(cmd->rq);
+		}
+		if (!is_flush && badblocks_check(&nullb->dev->badblocks, sector,
+				size, &first_bad, &bad_sectors)) {
+			cmd->error = BLK_STS_IOERR;
+			goto out;
+		}
+	}
+
 	if (dev->memory_backed) {
 		if (dev->queue_mode == NULL_Q_BIO) {
 			if (bio_op(cmd->bio) == REQ_OP_FLUSH)
@@ -1180,6 +1266,7 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd)
 		}
 	}
 	cmd->error = errno_to_blk_status(err);
+out:
 	/* Complete IO by inline, softirq or timer */
 	switch (dev->irqmode) {
 	case NULL_IRQ_SOFTIRQ:
