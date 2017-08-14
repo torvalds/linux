@@ -8,6 +8,8 @@
 
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
+. $(dirname $0)/lib/probe.sh
+
 trace_libc_inet_pton_backtrace() {
 	idx=0
 	expected[0]="PING.*bytes"
@@ -32,6 +34,7 @@ trace_libc_inet_pton_backtrace() {
 	done
 }
 
+skip_if_no_perf_probe && \
 perf probe -q /lib64/libc-*.so inet_pton && \
 trace_libc_inet_pton_backtrace
 err=$?

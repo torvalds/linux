@@ -1,6 +1,6 @@
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
-perf probe -l | grep -q probe:vfs_getname
+perf probe -l |& grep -q probe:vfs_getname
 had_vfs_getname=$?
 
 cleanup_probe_vfs_getname() {
