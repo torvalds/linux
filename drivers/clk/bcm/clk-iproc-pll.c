@@ -95,6 +95,39 @@ struct iproc_pll {
 
 #define to_iproc_clk(hw) container_of(hw, struct iproc_clk, hw)
 
+static int pll_calc_param(unsigned long target_rate,
+			unsigned long parent_rate,
+			struct iproc_pll_vco_param *vco_out)
+{
+	u64 ndiv_int, ndiv_frac, residual;
+
+	ndiv_int = target_rate / parent_rate;
+
+	if (!ndiv_int || (ndiv_int > 255))
+		return -EINVAL;
+
+	residual = target_rate - (ndiv_int * parent_rate);
+	residual <<= 20;
+
+	/*
+	 * Add half of the divisor so the result will be rounded to closest
+	 * instead of rounded down.
+	 */
+	residual += (parent_rate / 2);
+	ndiv_frac = div64_u64((u64)residual, (u64)parent_rate);
+
+	vco_out->ndiv_int = ndiv_int;
+	vco_out->ndiv_frac = ndiv_frac;
+	vco_out->pdiv = 1;
+
+	vco_out->rate = vco_out->ndiv_int * parent_rate;
+	residual = (u64)vco_out->ndiv_frac * (u64)parent_rate;
+	residual >>= 20;
+	vco_out->rate += residual;
+
+	return 0;
+}
+
 /*
  * Based on the target frequency, find a match from the VCO frequency parameter
  * table and return its index
@@ -252,11 +285,10 @@ static void __pll_bring_out_reset(struct iproc_pll *pll, unsigned int kp,
 	iproc_pll_write(pll, pll->control_base, reset->offset, val);
 }
 
-static int pll_set_rate(struct iproc_clk *clk, unsigned int rate_index,
+static int pll_set_rate(struct iproc_clk *clk, struct iproc_pll_vco_param *vco,
 			unsigned long parent_rate)
 {
 	struct iproc_pll *pll = clk->pll;
-	const struct iproc_pll_vco_param *vco = &pll->vco_param[rate_index];
 	const struct iproc_pll_ctrl *ctrl = pll->ctrl;
 	int ka = 0, ki, kp, ret;
 	unsigned long rate = vco->rate;
@@ -431,25 +463,50 @@ static unsigned long iproc_pll_recalc_rate(struct clk_hw *hw,
 	return clk->rate;
 }
 
-static long iproc_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-				 unsigned long *parent_rate)
+static int iproc_pll_determine_rate(struct clk_hw *hw,
+		struct clk_rate_request *req)
 {
-	unsigned i;
+	unsigned int  i;
 	struct iproc_clk *clk = to_iproc_clk(hw);
 	struct iproc_pll *pll = clk->pll;
+	const struct iproc_pll_ctrl *ctrl = pll->ctrl;
+	unsigned long  diff, best_diff;
+	unsigned int  best_idx = 0;
+	int ret;
 
-	if (rate == 0 || *parent_rate == 0 || !pll->vco_param)
+	if (req->rate == 0 || req->best_parent_rate == 0)
 		return -EINVAL;
 
+	if (ctrl->flags & IPROC_CLK_PLL_CALC_PARAM) {
+		struct iproc_pll_vco_param vco_param;
+
+		ret = pll_calc_param(req->rate, req->best_parent_rate,
+					&vco_param);
+		if (ret)
+			return ret;
+
+		req->rate = vco_param.rate;
+		return 0;
+	}
+
+	if (!pll->vco_param)
+		return -EINVAL;
+
+	best_diff = ULONG_MAX;
 	for (i = 0; i < pll->num_vco_entries; i++) {
-		if (rate <= pll->vco_param[i].rate)
+		diff = abs(req->rate - pll->vco_param[i].rate);
+		if (diff <= best_diff) {
+			best_diff = diff;
+			best_idx = i;
+		}
+		/* break now if perfect match */
+		if (diff == 0)
 			break;
 	}
 
-	if (i == pll->num_vco_entries)
-		i--;
+	req->rate = pll->vco_param[best_idx].rate;
 
-	return pll->vco_param[i].rate;
+	return 0;
 }
 
 static int iproc_pll_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -457,13 +514,23 @@ static int iproc_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct iproc_clk *clk = to_iproc_clk(hw);
 	struct iproc_pll *pll = clk->pll;
+	const struct iproc_pll_ctrl *ctrl = pll->ctrl;
+	struct iproc_pll_vco_param vco_param;
 	int rate_index, ret;
 
-	rate_index = pll_get_rate_index(pll, rate);
-	if (rate_index < 0)
-		return rate_index;
+	if (ctrl->flags & IPROC_CLK_PLL_CALC_PARAM) {
+		ret = pll_calc_param(rate, parent_rate, &vco_param);
+		if (ret)
+			return ret;
+	} else {
+		rate_index = pll_get_rate_index(pll, rate);
+		if (rate_index < 0)
+			return rate_index;
 
-	ret = pll_set_rate(clk, rate_index, parent_rate);
+		vco_param = pll->vco_param[rate_index];
+	}
+
+	ret = pll_set_rate(clk, &vco_param, parent_rate);
 	return ret;
 }
 
@@ -471,7 +538,7 @@ static const struct clk_ops iproc_pll_ops = {
 	.enable = iproc_pll_enable,
 	.disable = iproc_pll_disable,
 	.recalc_rate = iproc_pll_recalc_rate,
-	.round_rate = iproc_pll_round_rate,
+	.determine_rate = iproc_pll_determine_rate,
 	.set_rate = iproc_pll_set_rate,
 };
 
