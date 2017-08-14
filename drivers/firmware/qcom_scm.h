@@ -14,9 +14,11 @@
 
 #define QCOM_SCM_SVC_BOOT		0x1
 #define QCOM_SCM_BOOT_ADDR		0x1
+#define QCOM_SCM_SET_DLOAD_MODE		0x10
 #define QCOM_SCM_BOOT_ADDR_MC		0x11
 #define QCOM_SCM_SET_REMOTE_STATE	0xa
 extern int __qcom_scm_set_remote_state(struct device *dev, u32 state, u32 id);
+extern int __qcom_scm_set_dload_mode(struct device *dev, bool enable);
 
 #define QCOM_SCM_FLAG_HLOS		0x01
 #define QCOM_SCM_FLAG_COLDBOOT_MC	0x02

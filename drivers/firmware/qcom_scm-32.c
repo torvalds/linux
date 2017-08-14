@@ -561,6 +561,12 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 	return ret ? : le32_to_cpu(out);
 }
 
+int __qcom_scm_set_dload_mode(struct device *dev, bool enable)
+{
+	return qcom_scm_call_atomic2(QCOM_SCM_SVC_BOOT, QCOM_SCM_SET_DLOAD_MODE,
+				     enable ? QCOM_SCM_SET_DLOAD_MODE : 0, 0);
+}
+
 int __qcom_scm_set_remote_state(struct device *dev, u32 state, u32 id)
 {
 	struct {
