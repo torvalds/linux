@@ -659,13 +659,13 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_find_unused(struct mlxsw_sp *mlxsw_sp)
 }
 
 static int mlxsw_sp_vr_lpm_tree_bind(struct mlxsw_sp *mlxsw_sp,
-				     const struct mlxsw_sp_fib *fib)
+				     const struct mlxsw_sp_fib *fib, u8 tree_id)
 {
 	char raltb_pl[MLXSW_REG_RALTB_LEN];
 
 	mlxsw_reg_raltb_pack(raltb_pl, fib->vr->id,
 			     (enum mlxsw_reg_ralxx_protocol) fib->proto,
-			     fib->lpm_tree->id);
+			     tree_id);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb), raltb_pl);
 }
 
@@ -777,7 +777,7 @@ mlxsw_sp_vr_lpm_tree_check(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fib *fib,
 
 	/* Prevent packet loss by overwriting existing binding */
 	fib->lpm_tree = new_tree;
-	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib);
+	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
 	if (err)
 		goto err_tree_bind;
 	mlxsw_sp_lpm_tree_put(mlxsw_sp, lpm_tree);
@@ -2631,7 +2631,7 @@ static int mlxsw_sp_fib_node_init(struct mlxsw_sp *mlxsw_sp,
 		if (IS_ERR(lpm_tree))
 			return PTR_ERR(lpm_tree);
 		fib->lpm_tree = lpm_tree;
-		err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib);
+		err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, lpm_tree->id);
 		if (err)
 			goto err_tree_bind;
 	}
