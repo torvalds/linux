@@ -4623,6 +4623,10 @@ asmlinkage __visible void lockdep_sys_exit(void)
 	/*
 	 * The lock history for each syscall should be independent. So wipe the
 	 * slate clean on return to userspace.
+	 *
+	 * crossrelease_hist_end() works well here even when getting here
+	 * without starting (i.e. just after forking), because it rolls back
+	 * the index to point to the last entry, which is already invalid.
 	 */
 	crossrelease_hist_end(XHLOCK_PROC);
 	crossrelease_hist_start(XHLOCK_PROC);
