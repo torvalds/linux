@@ -243,7 +243,7 @@ out:
 	return ret;
 }
 
-static struct snd_soc_platform_driver omap_soc_platform = {
+static const struct snd_soc_platform_driver omap_soc_platform = {
 	.ops		= &omap_pcm_ops,
 	.pcm_new	= omap_pcm_new,
 	.pcm_free	= omap_pcm_free_dma_buffers,
