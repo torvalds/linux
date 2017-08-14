@@ -158,10 +158,16 @@ static int cht_wc_i2c_adap_smbus_xfer(struct i2c_adapter *_adap, u16 addr,
 	if (ret)
 		return ret;
 
-	/* 3 second timeout, during cable plug the PMIC responds quite slow */
-	ret = wait_event_timeout(adap->wait, adap->done, 3 * HZ);
-	if (ret == 0)
-		return -ETIMEDOUT;
+	ret = wait_event_timeout(adap->wait, adap->done, msecs_to_jiffies(30));
+	if (ret == 0) {
+		/*
+		 * The CHT GPIO controller serializes all IRQs, sometimes
+		 * causing significant delays, check status manually.
+		 */
+		cht_wc_i2c_adap_thread_handler(0, adap);
+		if (!adap->done)
+			return -ETIMEDOUT;
+	}
 
 	ret = 0;
 	mutex_lock(&adap->adap_lock);
