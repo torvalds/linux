@@ -73,11 +73,17 @@
 #define PCIE_CSR_ASPM_L1_EN(x)	BIT(1 + (x) * 8)
 
 /* PCIe V2 per-port registers */
+#define PCIE_MSI_VECTOR		0x0c0
 #define PCIE_INT_MASK		0x420
 #define INTX_MASK		GENMASK(19, 16)
 #define INTX_SHIFT		16
 #define INTX_NUM		4
 #define PCIE_INT_STATUS		0x424
+#define MSI_STATUS		BIT(23)
+#define PCIE_IMSI_STATUS	0x42c
+#define PCIE_IMSI_ADDR		0x430
+#define MSI_MASK		BIT(23)
+#define MTK_MSI_IRQS_NUM	32
 
 #define PCIE_AHB_TRANS_BASE0_L	0x438
 #define PCIE_AHB_TRANS_BASE0_H	0x43c
@@ -128,11 +134,13 @@ struct mtk_pcie_port;
 
 /**
  * struct mtk_pcie_soc - differentiate between host generations
+ * @has_msi: whether this host supports MSI interrupts or not
  * @ops: pointer to configuration access functions
  * @startup: pointer to controller setting functions
  * @setup_irq: pointer to initialize IRQ functions
  */
 struct mtk_pcie_soc {
+	bool has_msi;
 	struct pci_ops *ops;
 	int (*startup)(struct mtk_pcie_port *port);
 	int (*setup_irq)(struct mtk_pcie_port *port, struct device_node *node);
@@ -156,6 +164,8 @@ struct mtk_pcie_soc {
  * @lane: lane count
  * @slot: port slot
  * @irq_domain: legacy INTx IRQ domain
+ * @msi_domain: MSI IRQ domain
+ * @msi_irq_in_use: bit map for assigned MSI IRQ
  */
 struct mtk_pcie_port {
 	void __iomem *base;
@@ -172,6 +182,8 @@ struct mtk_pcie_port {
 	u32 lane;
 	u32 slot;
 	struct irq_domain *irq_domain;
+	struct irq_domain *msi_domain;
+	DECLARE_BITMAP(msi_irq_in_use, MTK_MSI_IRQS_NUM);
 };
 
 /**
@@ -427,6 +439,117 @@ static int mtk_pcie_startup_port_v2(struct mtk_pcie_port *port)
 	return 0;
 }
 
+static int mtk_pcie_msi_alloc(struct mtk_pcie_port *port)
+{
+	int msi;
+
+	msi = find_first_zero_bit(port->msi_irq_in_use, MTK_MSI_IRQS_NUM);
+	if (msi < MTK_MSI_IRQS_NUM)
+		set_bit(msi, port->msi_irq_in_use);
+	else
+		return -ENOSPC;
+
+	return msi;
+}
+
+static void mtk_pcie_msi_free(struct mtk_pcie_port *port, unsigned long hwirq)
+{
+	clear_bit(hwirq, port->msi_irq_in_use);
+}
+
+static int mtk_pcie_msi_setup_irq(struct msi_controller *chip,
+				  struct pci_dev *pdev, struct msi_desc *desc)
+{
+	struct mtk_pcie_port *port;
+	struct msi_msg msg;
+	unsigned int irq;
+	int hwirq;
+	phys_addr_t msg_addr;
+
+	port = mtk_pcie_find_port(pdev->bus, pdev->devfn);
+	if (!port)
+		return -EINVAL;
+
+	hwirq = mtk_pcie_msi_alloc(port);
+	if (hwirq < 0)
+		return hwirq;
+
+	irq = irq_create_mapping(port->msi_domain, hwirq);
+	if (!irq) {
+		mtk_pcie_msi_free(port, hwirq);
+		return -EINVAL;
+	}
+
+	chip->dev = &pdev->dev;
+
+	irq_set_msi_desc(irq, desc);
+
+	/* MT2712/MT7622 only support 32-bit MSI addresses */
+	msg_addr = virt_to_phys(port->base + PCIE_MSI_VECTOR);
+	msg.address_hi = 0;
+	msg.address_lo = lower_32_bits(msg_addr);
+	msg.data = hwirq;
+
+	pci_write_msi_msg(irq, &msg);
+
+	return 0;
+}
+
+static void mtk_msi_teardown_irq(struct msi_controller *chip, unsigned int irq)
+{
+	struct pci_dev *pdev = to_pci_dev(chip->dev);
+	struct irq_data *d = irq_get_irq_data(irq);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	struct mtk_pcie_port *port;
+
+	port = mtk_pcie_find_port(pdev->bus, pdev->devfn);
+	if (!port)
+		return;
+
+	irq_dispose_mapping(irq);
+	mtk_pcie_msi_free(port, hwirq);
+}
+
+static struct msi_controller mtk_pcie_msi_chip = {
+	.setup_irq = mtk_pcie_msi_setup_irq,
+	.teardown_irq = mtk_msi_teardown_irq,
+};
+
+static struct irq_chip mtk_msi_irq_chip = {
+	.name = "MTK PCIe MSI",
+	.irq_enable = pci_msi_unmask_irq,
+	.irq_disable = pci_msi_mask_irq,
+	.irq_mask = pci_msi_mask_irq,
+	.irq_unmask = pci_msi_unmask_irq,
+};
+
+static int mtk_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
+			    irq_hw_number_t hwirq)
+{
+	irq_set_chip_and_handler(irq, &mtk_msi_irq_chip, handle_simple_irq);
+	irq_set_chip_data(irq, domain->host_data);
+
+	return 0;
+}
+
+static const struct irq_domain_ops msi_domain_ops = {
+	.map = mtk_pcie_msi_map,
+};
+
+static void mtk_pcie_enable_msi(struct mtk_pcie_port *port)
+{
+	u32 val;
+	phys_addr_t msg_addr;
+
+	msg_addr = virt_to_phys(port->base + PCIE_MSI_VECTOR);
+	val = lower_32_bits(msg_addr);
+	writel(val, port->base + PCIE_IMSI_ADDR);
+
+	val = readl(port->base + PCIE_INT_MASK);
+	val &= ~MSI_MASK;
+	writel(val, port->base + PCIE_INT_MASK);
+}
+
 static int mtk_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 			     irq_hw_number_t hwirq)
 {
@@ -460,6 +583,17 @@ static int mtk_pcie_init_irq_domain(struct mtk_pcie_port *port,
 		return -ENODEV;
 	}
 
+	if (IS_ENABLED(CONFIG_PCI_MSI)) {
+		port->msi_domain = irq_domain_add_linear(node, MTK_MSI_IRQS_NUM,
+							 &msi_domain_ops,
+							 &mtk_pcie_msi_chip);
+		if (!port->msi_domain) {
+			dev_err(dev, "failed to create MSI IRQ domain\n");
+			return -ENODEV;
+		}
+		mtk_pcie_enable_msi(port);
+	}
+
 	return 0;
 }
 
@@ -477,6 +611,23 @@ static irqreturn_t mtk_pcie_intr_handler(int irq, void *data)
 			virq = irq_find_mapping(port->irq_domain,
 						bit - INTX_SHIFT);
 			generic_handle_irq(virq);
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_PCI_MSI)) {
+		while ((status = readl(port->base + PCIE_INT_STATUS)) & MSI_STATUS) {
+			unsigned long imsi_status;
+
+			while ((imsi_status = readl(port->base + PCIE_IMSI_STATUS))) {
+				for_each_set_bit(bit, &imsi_status, MTK_MSI_IRQS_NUM) {
+					/* Clear the MSI */
+					writel(1 << bit, port->base + PCIE_IMSI_STATUS);
+					virq = irq_find_mapping(port->msi_domain, bit);
+					generic_handle_irq(virq);
+				}
+			}
+			/* Clear MSI interrupt status */
+			writel(MSI_STATUS, port->base + PCIE_INT_STATUS);
 		}
 	}
 
@@ -501,7 +652,7 @@ static int mtk_pcie_setup_irq(struct mtk_pcie_port *port,
 
 	err = mtk_pcie_init_irq_domain(port, node);
 	if (err) {
-		dev_err(dev, "failed to init PCIe legacy IRQ domain\n");
+		dev_err(dev, "failed to init PCIe IRQ domain\n");
 		return err;
 	}
 
@@ -938,6 +1089,8 @@ static int mtk_pcie_register_host(struct pci_host_bridge *host)
 	host->map_irq = of_irq_parse_and_map_pci;
 	host->swizzle_irq = pci_common_swizzle;
 	host->sysdata = pcie;
+	if (IS_ENABLED(CONFIG_PCI_MSI) && pcie->soc->has_msi)
+		host->msi = &mtk_pcie_msi_chip;
 
 	err = pci_scan_root_bus_bridge(host);
 	if (err < 0)
@@ -999,6 +1152,7 @@ static const struct mtk_pcie_soc mtk_pcie_soc_v1 = {
 };
 
 static const struct mtk_pcie_soc mtk_pcie_soc_v2 = {
+	.has_msi = true,
 	.ops = &mtk_pcie_ops_v2,
 	.startup = mtk_pcie_startup_port_v2,
 	.setup_irq = mtk_pcie_setup_irq,
