@@ -334,7 +334,7 @@
 		nandc_id = <0>;
 		clocks = <&cru SCLK_NANDC0>, <&cru HCLK_NANDC0>;
 		clock-names = "clk_nandc", "hclk_nandc";
-		status = "disabled";
+		status = "okay";
 	};
 
 	hdmi_analog_sound: hdmi-analog-sound {
