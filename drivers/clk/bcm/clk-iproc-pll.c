@@ -602,25 +602,26 @@ static unsigned long iproc_clk_recalc_rate(struct clk_hw *hw,
 	return clk->rate;
 }
 
-static long iproc_clk_round_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *parent_rate)
+static int iproc_clk_determine_rate(struct clk_hw *hw,
+		struct clk_rate_request *req)
 {
-	unsigned int div;
+	unsigned int bestdiv;
 
-	if (rate == 0 || *parent_rate == 0)
+	if (req->rate == 0)
 		return -EINVAL;
+	if (req->rate == req->best_parent_rate)
+		return 0;
 
-	if (rate == *parent_rate)
-		return *parent_rate;
+	bestdiv = DIV_ROUND_CLOSEST(req->best_parent_rate, req->rate);
+	if (bestdiv < 2)
+		req->rate = req->best_parent_rate;
 
-	div = DIV_ROUND_UP(*parent_rate, rate);
-	if (div < 2)
-		return *parent_rate;
+	if (bestdiv > 256)
+		bestdiv = 256;
 
-	if (div > 256)
-		div = 256;
+	req->rate = req->best_parent_rate / bestdiv;
 
-	return *parent_rate / div;
+	return 0;
 }
 
 static int iproc_clk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -635,10 +636,10 @@ static int iproc_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (rate == 0 || parent_rate == 0)
 		return -EINVAL;
 
+	div = DIV_ROUND_CLOSEST(parent_rate, rate);
 	if (ctrl->flags & IPROC_CLK_MCLK_DIV_BY_2)
-		div = DIV_ROUND_UP(parent_rate, rate * 2);
-	else
-		div = DIV_ROUND_UP(parent_rate, rate);
+		div /=  2;
+
 	if (div > 256)
 		return -EINVAL;
 
@@ -662,7 +663,7 @@ static const struct clk_ops iproc_clk_ops = {
 	.enable = iproc_clk_enable,
 	.disable = iproc_clk_disable,
 	.recalc_rate = iproc_clk_recalc_rate,
-	.round_rate = iproc_clk_round_rate,
+	.determine_rate = iproc_clk_determine_rate,
 	.set_rate = iproc_clk_set_rate,
 };
 
