@@ -1047,7 +1047,7 @@ static void nvme_rdma_unmap_data(struct nvme_rdma_queue *queue,
 
 	if (req->mr->need_inval) {
 		res = nvme_rdma_inv_rkey(queue, req);
-		if (res < 0) {
+		if (unlikely(res < 0)) {
 			dev_err(ctrl->ctrl.device,
 				"Queueing INV WR for rkey %#x failed (%d)\n",
 				req->mr->rkey, res);
@@ -1112,7 +1112,7 @@ static int nvme_rdma_map_sg_fr(struct nvme_rdma_queue *queue,
 	int nr;
 
 	nr = ib_map_mr_sg(req->mr, req->sg_table.sgl, count, NULL, PAGE_SIZE);
-	if (nr < count) {
+	if (unlikely(nr < count)) {
 		if (nr < 0)
 			return nr;
 		return -EINVAL;
@@ -1248,7 +1248,7 @@ static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
 		first = &wr;
 
 	ret = ib_post_send(queue->qp, first, &bad_wr);
-	if (ret) {
+	if (unlikely(ret)) {
 		dev_err(queue->ctrl->ctrl.device,
 			     "%s failed with error code %d\n", __func__, ret);
 	}
@@ -1274,7 +1274,7 @@ static int nvme_rdma_post_recv(struct nvme_rdma_queue *queue,
 	wr.num_sge  = 1;
 
 	ret = ib_post_recv(queue->qp, &wr, &bad_wr);
-	if (ret) {
+	if (unlikely(ret)) {
 		dev_err(queue->ctrl->ctrl.device,
 			"%s failed with error code %d\n", __func__, ret);
 	}
@@ -1634,7 +1634,7 @@ static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(rq);
 
 	err = nvme_rdma_map_data(queue, rq, c);
-	if (err < 0) {
+	if (unlikely(err < 0)) {
 		dev_err(queue->ctrl->ctrl.device,
 			     "Failed to map data (%d)\n", err);
 		nvme_cleanup_cmd(rq);
@@ -1648,7 +1648,7 @@ static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 		flush = true;
 	err = nvme_rdma_post_send(queue, sqe, req->sge, req->num_sge,
 			req->mr->need_inval ? &req->reg_wr.wr : NULL, flush);
-	if (err) {
+	if (unlikely(err)) {
 		nvme_rdma_unmap_data(queue, rq);
 		goto err;
 	}
