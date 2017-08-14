@@ -3,7 +3,8 @@ Rockchip PWM controller
 Required properties:
  - compatible: should be "rockchip,<name>-pwm"
    "rockchip,rk2928-pwm": found on RK29XX,RK3066 and RK3188 SoCs
-   "rockchip,rk3288-pwm": found on RK3288 SoC
+   "rockchip,rk3288-pwm": found on RK3288 SOC
+   "rockchip,rv1108-pwm", "rockchip,rk3288-pwm": found on RV1108 SoC
    "rockchip,vop-pwm": found integrated in VOP on RK3288 SoC
    "rockchip,rk3328-pwm": found on RK3328 SoC
    "rockchip,rk3399-pwm", "rockchip,rk3288-pwm": found on RK3399 SoC
