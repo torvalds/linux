@@ -30,6 +30,12 @@ extern int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 #define QCOM_SCM_CMD_CORE_HOTPLUGGED	0x10
 extern void __qcom_scm_cpu_power_down(u32 flags);
 
+#define QCOM_SCM_SVC_IO			0x5
+#define QCOM_SCM_IO_READ		0x1
+#define QCOM_SCM_IO_WRITE		0x2
+extern int __qcom_scm_io_readl(struct device *dev, phys_addr_t addr, unsigned int *val);
+extern int __qcom_scm_io_writel(struct device *dev, phys_addr_t addr, unsigned int val);
+
 #define QCOM_SCM_SVC_INFO		0x6
 #define QCOM_IS_CALL_AVAIL_CMD		0x1
 extern int __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
