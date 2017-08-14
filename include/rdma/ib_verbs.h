@@ -3724,16 +3724,30 @@ static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
 		return RDMA_AH_ATTR_TYPE_IB;
 }
 
-/* Return slid in 16bit CPU encoding */
-static inline u16 ib_slid_cpu16(u32 slid)
+/**
+ * ib_lid_cpu16 - Return lid in 16bit CPU encoding.
+ *     In the current implementation the only way to get
+ *     get the 32bit lid is from other sources for OPA.
+ *     For IB, lids will always be 16bits so cast the
+ *     value accordingly.
+ *
+ * @lid: A 32bit LID
+ */
+static inline u16 ib_lid_cpu16(u32 lid)
 {
-	return (u16)slid;
+	WARN_ON_ONCE(lid & 0xFFFF0000);
+	return (u16)lid;
 }
 
-/* Return slid in 16bit BE encoding */
-static inline u16 ib_slid_be16(u32 slid)
+/**
+ * ib_lid_be16 - Return lid in 16bit BE encoding.
+ *
+ * @lid: A 32bit LID
+ */
+static inline __be16 ib_lid_be16(u32 lid)
 {
-	return cpu_to_be16((u16)slid);
+	WARN_ON_ONCE(lid & 0xFFFF0000);
+	return cpu_to_be16((u16)lid);
 }
 
 /**

@@ -275,12 +275,13 @@ ssize_t ib_uverbs_query_port(struct ib_uverbs_file *file,
 	resp.bad_pkey_cntr   = attr.bad_pkey_cntr;
 	resp.qkey_viol_cntr  = attr.qkey_viol_cntr;
 	resp.pkey_tbl_len    = attr.pkey_tbl_len;
+
 	if (rdma_cap_opa_ah(ib_dev, cmd.port_num)) {
-		resp.lid  = OPA_TO_IB_UCAST_LID(attr.lid);
+		resp.lid     = OPA_TO_IB_UCAST_LID(attr.lid);
 		resp.sm_lid  = OPA_TO_IB_UCAST_LID(attr.sm_lid);
 	} else {
-		resp.lid     = (u16)attr.lid;
-		resp.sm_lid  = (u16)attr.sm_lid;
+		resp.lid     = ib_lid_cpu16(attr.lid);
+		resp.sm_lid  = ib_lid_cpu16(attr.sm_lid);
 	}
 	resp.lmc 	     = attr.lmc;
 	resp.max_vl_num      = attr.max_vl_num;
@@ -1206,9 +1207,9 @@ static int copy_wc_to_user(struct ib_device *ib_dev, void __user *dest,
 	tmp.wc_flags		= wc->wc_flags;
 	tmp.pkey_index		= wc->pkey_index;
 	if (rdma_cap_opa_ah(ib_dev, wc->port_num))
-		tmp.slid  = OPA_TO_IB_UCAST_LID(wc->slid);
+		tmp.slid	= OPA_TO_IB_UCAST_LID(wc->slid);
 	else
-		tmp.slid  = ib_slid_cpu16(wc->slid);
+		tmp.slid	= ib_lid_cpu16(wc->slid);
 	tmp.sl			= wc->sl;
 	tmp.dlid_path_bits	= wc->dlid_path_bits;
 	tmp.port_num		= wc->port_num;
