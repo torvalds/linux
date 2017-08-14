@@ -20,9 +20,9 @@
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-#include <linux/i2c/pca954x.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
+#include <linux/platform_data/pca954x.h>
 #include <linux/slab.h>
 
 /*
