@@ -495,7 +495,7 @@ config INTEL_SOC_PMIC_BXTWC
 	  on these systems.
 
 config INTEL_SOC_PMIC_CHTWC
-	tristate "Support for Intel Cherry Trail Whiskey Cove PMIC"
+	bool "Support for Intel Cherry Trail Whiskey Cove PMIC"
 	depends on ACPI && HAS_IOMEM && I2C=y && COMMON_CLK
 	depends on X86 || COMPILE_TEST
 	select MFD_CORE
