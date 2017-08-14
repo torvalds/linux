@@ -1152,14 +1152,14 @@ static int tuner_attach_stv6110(struct ddb_input *input, int type)
 	return 0;
 }
 
-static struct stv0910_cfg stv0910_p = {
+static const struct stv0910_cfg stv0910_p = {
 	.adr      = 0x68,
 	.parallel = 1,
 	.rptlvl   = 4,
 	.clk      = 30000000,
 };
 
-static struct lnbh25_config lnbh25_cfg = {
+static const struct lnbh25_config lnbh25_cfg = {
 	.i2c_address = 0x0c << 1,
 	.data2_config = LNBH25_TEN
 };
