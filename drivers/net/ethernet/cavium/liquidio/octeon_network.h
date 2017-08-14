@@ -33,6 +33,7 @@
 #define   LIO_IFSTATE_REGISTERED           0x02
 #define   LIO_IFSTATE_RUNNING              0x04
 #define   LIO_IFSTATE_RX_TIMESTAMP_ENABLED 0x08
+#define   LIO_IFSTATE_RESETTING		   0x10
 
 struct oct_nic_stats_resp {
 	u64     rh;

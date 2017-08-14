@@ -548,7 +548,8 @@ static void print_link_info(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 
-	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_REGISTERED) {
+	if (!ifstate_check(lio, LIO_IFSTATE_RESETTING) &&
+	    ifstate_check(lio, LIO_IFSTATE_REGISTERED)) {
 		struct oct_link_info *linfo = &lio->linfo;
 
 		if (linfo->link.s.link_up) {
@@ -1632,6 +1633,9 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 	int i, iq_no, oq_no;
 
 	oct = lio->oct_dev;
+
+	if (ifstate_check(lio, LIO_IFSTATE_RESETTING))
+		return stats;
 
 	for (i = 0; i < lio->linfo.num_txpciq; i++) {
 		iq_no = lio->linfo.txpciq[i].s.q_no;
