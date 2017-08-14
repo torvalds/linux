@@ -870,7 +870,7 @@ static struct device_node *find_ssi_node(struct device_node *dma_channel_np)
 	return NULL;
 }
 
-static struct snd_pcm_ops fsl_dma_ops = {
+static const struct snd_pcm_ops fsl_dma_ops = {
 	.open   	= fsl_dma_open,
 	.close  	= fsl_dma_close,
 	.ioctl  	= snd_pcm_lib_ioctl,

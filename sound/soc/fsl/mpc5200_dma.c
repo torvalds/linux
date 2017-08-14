@@ -287,7 +287,7 @@ psc_dma_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_pcm_ops psc_dma_ops = {
+static const struct snd_pcm_ops psc_dma_ops = {
 	.open		= psc_dma_open,
 	.close		= psc_dma_close,
 	.hw_free	= psc_dma_hw_free,
