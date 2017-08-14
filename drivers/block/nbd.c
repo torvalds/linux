@@ -1584,6 +1584,15 @@ again:
 		}
 	} else {
 		nbd = idr_find(&nbd_index_idr, index);
+		if (!nbd) {
+			ret = nbd_dev_add(index);
+			if (ret < 0) {
+				mutex_unlock(&nbd_index_mutex);
+				printk(KERN_ERR "nbd: failed to add new device\n");
+				return ret;
+			}
+			nbd = idr_find(&nbd_index_idr, index);
+		}
 	}
 	if (!nbd) {
 		printk(KERN_ERR "nbd: couldn't find device at index %d\n",
