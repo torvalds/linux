@@ -368,7 +368,8 @@ int camsys_rk3399_cfg
 		para_int = (unsigned int *)cfg_para;
 		__raw_writel((((*para_int) & 0x03) << 3) | (0x03 << 3),
 		(void *)(camsys_dev->rk_grf_base + 0x204));
-		/* set 0xffffffff to max all */
+		/* TX1/RX1 DPHY switch to RX status */
+		__raw_writel(0x300020, (void *)(camsys_dev->rk_grf_base + 0x6260));
 		break;
 	}
 

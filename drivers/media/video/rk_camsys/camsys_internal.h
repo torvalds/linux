@@ -172,8 +172,11 @@
 	1) modify the condition of DRM iommu, which makes code  more readable
 	by using of_parse_phandle to check whether the "iommus" phandle exists
 	in the isp device node.
+*v0.0x22.3:
+	1) switch TX1/RX1 D-PHY of rk3288/3399 to RX status before
+	it's initialization to avoid conflicting with sensor output.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x22, 2)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x22, 3)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"

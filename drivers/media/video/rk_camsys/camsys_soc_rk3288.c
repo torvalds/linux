@@ -345,6 +345,8 @@ camsys_dev_t *camsys_dev, camsys_soc_cfg_t cfg_cmd, void *cfg_para)
 		para_int = (unsigned int *)cfg_para;
 		__raw_writel((((*para_int) & 0x03) << 3)|(0x03 << 3),
 			(void *)(camsys_dev->rk_grf_base + 0x01d4));
+		/* TX1/RX1 DPHY switch to RX status */
+		__raw_writel(0xa000a000, (void *)(camsys_dev->rk_grf_base + 0x027c));
 		break;
 	}
 
