@@ -211,7 +211,7 @@ err:
 	return ret;
 }
 
-static struct snd_soc_platform_driver mmp_soc_platform = {
+static const struct snd_soc_platform_driver mmp_soc_platform = {
 	.ops		= &mmp_pcm_ops,
 	.pcm_new	= mmp_pcm_new,
 	.pcm_free	= mmp_pcm_free_dma_buffers,
