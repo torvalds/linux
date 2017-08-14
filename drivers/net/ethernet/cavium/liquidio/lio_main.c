@@ -2232,113 +2232,6 @@ static void if_cfg_callback(struct octeon_device *oct,
 }
 
 /**
- * \brief Setup input and output queues
- * @param octeon_dev octeon device
- * @param ifidx  Interface Index
- *
- * Note: Queues are with respect to the octeon device. Thus
- * an input queue is for egress packets, and output queues
- * are for ingress packets.
- */
-static inline int setup_io_queues(struct octeon_device *octeon_dev,
-				  int ifidx)
-{
-	struct octeon_droq_ops droq_ops;
-	struct net_device *netdev;
-	int cpu_id;
-	int cpu_id_modulus;
-	struct octeon_droq *droq;
-	struct napi_struct *napi;
-	int q, q_no, retval = 0;
-	struct lio *lio;
-	int num_tx_descs;
-
-	netdev = octeon_dev->props[ifidx].netdev;
-
-	lio = GET_LIO(netdev);
-
-	memset(&droq_ops, 0, sizeof(struct octeon_droq_ops));
-
-	droq_ops.fptr = liquidio_push_packet;
-	droq_ops.farg = (void *)netdev;
-
-	droq_ops.poll_mode = 1;
-	droq_ops.napi_fn = liquidio_napi_drv_callback;
-	cpu_id = 0;
-	cpu_id_modulus = num_present_cpus();
-
-	/* set up DROQs. */
-	for (q = 0; q < lio->linfo.num_rxpciq; q++) {
-		q_no = lio->linfo.rxpciq[q].s.q_no;
-		dev_dbg(&octeon_dev->pci_dev->dev,
-			"setup_io_queues index:%d linfo.rxpciq.s.q_no:%d\n",
-			q, q_no);
-		retval = octeon_setup_droq(octeon_dev, q_no,
-					   CFG_GET_NUM_RX_DESCS_NIC_IF
-						   (octeon_get_conf(octeon_dev),
-						   lio->ifidx),
-					   CFG_GET_NUM_RX_BUF_SIZE_NIC_IF
-						   (octeon_get_conf(octeon_dev),
-						   lio->ifidx), NULL);
-		if (retval) {
-			dev_err(&octeon_dev->pci_dev->dev,
-				"%s : Runtime DROQ(RxQ) creation failed.\n",
-				__func__);
-			return 1;
-		}
-
-		droq = octeon_dev->droq[q_no];
-		napi = &droq->napi;
-		dev_dbg(&octeon_dev->pci_dev->dev, "netif_napi_add netdev:%llx oct:%llx pf_num:%d\n",
-			(u64)netdev, (u64)octeon_dev, octeon_dev->pf_num);
-		netif_napi_add(netdev, napi, liquidio_napi_poll, 64);
-
-		/* designate a CPU for this droq */
-		droq->cpu_id = cpu_id;
-		cpu_id++;
-		if (cpu_id >= cpu_id_modulus)
-			cpu_id = 0;
-
-		octeon_register_droq_ops(octeon_dev, q_no, &droq_ops);
-	}
-
-	if (OCTEON_CN23XX_PF(octeon_dev)) {
-		/* 23XX PF can receive control messages (via the first PF-owned
-		 * droq) from the firmware even if the ethX interface is down,
-		 * so that's why poll_mode must be off for the first droq.
-		 */
-		octeon_dev->droq[0]->ops.poll_mode = 0;
-	}
-
-	/* set up IQs. */
-	for (q = 0; q < lio->linfo.num_txpciq; q++) {
-		num_tx_descs = CFG_GET_NUM_TX_DESCS_NIC_IF(octeon_get_conf
-							   (octeon_dev),
-							   lio->ifidx);
-		retval = octeon_setup_iq(octeon_dev, ifidx, q,
-					 lio->linfo.txpciq[q], num_tx_descs,
-					 netdev_get_tx_queue(netdev, q));
-		if (retval) {
-			dev_err(&octeon_dev->pci_dev->dev,
-				" %s : Runtime IQ(TxQ) creation failed.\n",
-				__func__);
-			return 1;
-		}
-
-		if (octeon_dev->ioq_vector) {
-			struct octeon_ioq_vector *ioq_vector;
-
-			ioq_vector = &octeon_dev->ioq_vector[q];
-			netif_set_xps_queue(netdev,
-					    &ioq_vector->affinity_mask,
-					    ioq_vector->iq_index);
-		}
-	}
-
-	return 0;
-}
-
-/**
  * \brief Poll routine for checking transmit queue status
  * @param work work_struct data structure
  */
@@ -3898,7 +3791,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		 */
 		lio->txq = lio->linfo.txpciq[0].s.q_no;
 		lio->rxq = lio->linfo.rxpciq[0].s.q_no;
-		if (setup_io_queues(octeon_dev, i)) {
+		if (liquidio_setup_io_queues(octeon_dev, i)) {
 			dev_err(&octeon_dev->pci_dev->dev, "I/O queues creation failed\n");
 			goto setup_nic_dev_fail;
 		}

@@ -166,6 +166,8 @@ void cleanup_rx_oom_poll_fn(struct net_device *netdev);
  */
 void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr);
 
+int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx);
+
 /**
  * \brief Register ethtool operations
  * @param netdev    pointer to network device
@@ -474,15 +476,4 @@ static inline int wait_for_pending_requests(struct octeon_device *oct)
 	return 0;
 }
 
-int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
-		      int desc_size, void *app_ctx);
-void
-liquidio_push_packet(u32 octeon_id __attribute__((unused)),
-		     void *skbuff,
-		     u32 len,
-		     union octeon_rh *rh,
-		     void *param,
-		     void *arg);
-void liquidio_napi_drv_callback(void *arg);
-int liquidio_napi_poll(struct napi_struct *napi, int budget);
 #endif

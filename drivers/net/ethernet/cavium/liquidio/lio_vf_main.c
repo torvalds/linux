@@ -1377,97 +1377,6 @@ static void if_cfg_callback(struct octeon_device *oct,
 }
 
 /**
- * \brief Setup input and output queues
- * @param octeon_dev octeon device
- * @param ifidx Interface index
- *
- * Note: Queues are with respect to the octeon device. Thus
- * an input queue is for egress packets, and output queues
- * are for ingress packets.
- */
-static int setup_io_queues(struct octeon_device *octeon_dev, int ifidx)
-{
-	struct octeon_droq_ops droq_ops;
-	struct net_device *netdev;
-	int cpu_id_modulus;
-	struct octeon_droq *droq;
-	struct napi_struct *napi;
-	int cpu_id;
-	int num_tx_descs;
-	struct lio *lio;
-	int retval = 0;
-	int q, q_no;
-
-	netdev = octeon_dev->props[ifidx].netdev;
-
-	lio = GET_LIO(netdev);
-
-	memset(&droq_ops, 0, sizeof(struct octeon_droq_ops));
-
-	droq_ops.fptr = liquidio_push_packet;
-	droq_ops.farg = netdev;
-
-	droq_ops.poll_mode = 1;
-	droq_ops.napi_fn = liquidio_napi_drv_callback;
-	cpu_id = 0;
-	cpu_id_modulus = num_present_cpus();
-
-	/* set up DROQs. */
-	for (q = 0; q < lio->linfo.num_rxpciq; q++) {
-		q_no = lio->linfo.rxpciq[q].s.q_no;
-
-		retval = octeon_setup_droq(
-		    octeon_dev, q_no,
-		    CFG_GET_NUM_RX_DESCS_NIC_IF(octeon_get_conf(octeon_dev),
-						lio->ifidx),
-		    CFG_GET_NUM_RX_BUF_SIZE_NIC_IF(octeon_get_conf(octeon_dev),
-						   lio->ifidx),
-		    NULL);
-		if (retval) {
-			dev_err(&octeon_dev->pci_dev->dev,
-				"%s : Runtime DROQ(RxQ) creation failed.\n",
-				__func__);
-			return 1;
-		}
-
-		droq = octeon_dev->droq[q_no];
-		napi = &droq->napi;
-		netif_napi_add(netdev, napi, liquidio_napi_poll, 64);
-
-		/* designate a CPU for this droq */
-		droq->cpu_id = cpu_id;
-		cpu_id++;
-		if (cpu_id >= cpu_id_modulus)
-			cpu_id = 0;
-
-		octeon_register_droq_ops(octeon_dev, q_no, &droq_ops);
-	}
-
-	/* 23XX VF can send/recv control messages (via the first VF-owned
-	 * droq) from the firmware even if the ethX interface is down,
-	 * so that's why poll_mode must be off for the first droq.
-	 */
-	octeon_dev->droq[0]->ops.poll_mode = 0;
-
-	/* set up IQs. */
-	for (q = 0; q < lio->linfo.num_txpciq; q++) {
-		num_tx_descs = CFG_GET_NUM_TX_DESCS_NIC_IF(
-		    octeon_get_conf(octeon_dev), lio->ifidx);
-		retval = octeon_setup_iq(octeon_dev, ifidx, q,
-					 lio->linfo.txpciq[q], num_tx_descs,
-					 netdev_get_tx_queue(netdev, q));
-		if (retval) {
-			dev_err(&octeon_dev->pci_dev->dev,
-				" %s : Runtime IQ(TxQ) creation failed.\n",
-				__func__);
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-/**
  * \brief Net device open for LiquidIO
  * @param netdev network device
  */
@@ -2695,7 +2604,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		/* Copy MAC Address to OS network device structure */
 		ether_addr_copy(netdev->dev_addr, mac);
 
-		if (setup_io_queues(octeon_dev, i)) {
+		if (liquidio_setup_io_queues(octeon_dev, i)) {
 			dev_err(&octeon_dev->pci_dev->dev, "I/O queues creation failed\n");
 			goto setup_nic_dev_fail;
 		}
