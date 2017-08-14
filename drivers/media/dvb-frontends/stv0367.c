@@ -3283,7 +3283,7 @@ static const struct dvb_frontend_ops stv0367ddb_ops = {
 			0x400 |/* FE_CAN_QAM_4 */
 			FE_CAN_QAM_16 | FE_CAN_QAM_32  |
 			FE_CAN_QAM_64 | FE_CAN_QAM_128 |
-			FE_CAN_QAM_256 | FE_CAN_QAM_AUTO |
+			FE_CAN_QAM_256 |
 			/* DVB-T */
 			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
