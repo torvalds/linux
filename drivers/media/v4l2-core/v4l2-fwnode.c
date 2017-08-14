@@ -65,19 +65,23 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		}
 
 		rval = fwnode_property_read_u32_array(fwnode,
-						      "lane-polarities", array,
-						      1 + bus->num_data_lanes);
+						      "lane-polarities", NULL,
+						      0);
 		if (rval > 0) {
-			if (rval != 1 + bus->num_data_lanes /* clock + data */) {
+			if (rval != 1 + bus->num_data_lanes /* clock+data */) {
 				pr_warn("invalid number of lane-polarities entries (need %u, got %u)\n",
 					1 + bus->num_data_lanes, rval);
 				return -EINVAL;
 			}
 
+			fwnode_property_read_u32_array(fwnode,
+						       "lane-polarities", array,
+						       1 + bus->num_data_lanes);
 
 			for (i = 0; i < 1 + bus->num_data_lanes; i++)
 				bus->lane_polarities[i] = array[i];
 		}
+
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "clock-lanes", &v)) {
