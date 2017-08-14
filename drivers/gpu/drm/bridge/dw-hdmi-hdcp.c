@@ -744,3 +744,5 @@ static struct platform_driver dw_hdmi_hdcp_driver = {
 };
 
 module_platform_driver(dw_hdmi_hdcp_driver);
+MODULE_DESCRIPTION("DW HDMI transmitter HDCP driver");
+MODULE_LICENSE("GPL");
