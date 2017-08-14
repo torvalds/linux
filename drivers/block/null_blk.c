@@ -15,6 +15,14 @@
 #include <linux/lightnvm.h>
 #include <linux/configfs.h>
 
+#define SECTOR_SHIFT		9
+#define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
+#define PAGE_SECTORS		(1 << PAGE_SECTORS_SHIFT)
+#define SECTOR_SIZE		(1 << SECTOR_SHIFT)
+#define SECTOR_MASK		(PAGE_SECTORS - 1)
+
+#define FREE_BATCH		16
+
 struct nullb_cmd {
 	struct list_head list;
 	struct llist_node ll_list;
@@ -24,6 +32,7 @@ struct nullb_cmd {
 	unsigned int tag;
 	struct nullb_queue *nq;
 	struct hrtimer timer;
+	blk_status_t error;
 };
 
 struct nullb_queue {
@@ -46,9 +55,23 @@ enum nullb_device_flags {
 	NULLB_DEV_FL_UP		= 1,
 };
 
+/*
+ * nullb_page is a page in memory for nullb devices.
+ *
+ * @page:	The page holding the data.
+ * @bitmap:	The bitmap represents which sector in the page has data.
+ *		Each bit represents one block size. For example, sector 8
+ *		will use the 7th bit
+ */
+struct nullb_page {
+	struct page *page;
+	unsigned long bitmap;
+};
+
 struct nullb_device {
 	struct nullb *nullb;
 	struct config_item item;
+	struct radix_tree_root data; /* data stored in the disk */
 	unsigned long flags; /* device flags */
 
 	unsigned long size; /* device size in MB */
@@ -64,6 +87,7 @@ struct nullb_device {
 	bool blocking; /* blocking blk-mq device */
 	bool use_per_node_hctx; /* use per-node allocation for hardware context */
 	bool power; /* power on/off the device */
+	bool memory_backed; /* if data is stored in memory */
 };
 
 struct nullb {
@@ -197,6 +221,7 @@ static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
 static void null_del_dev(struct nullb *nullb);
 static int null_add_dev(struct nullb_device *dev);
+static void null_free_device_storage(struct nullb_device *dev);
 
 static inline struct nullb_device *to_nullb_device(struct config_item *item)
 {
@@ -292,6 +317,7 @@ NULLB_DEVICE_ATTR(index, uint);
 NULLB_DEVICE_ATTR(use_lightnvm, bool);
 NULLB_DEVICE_ATTR(blocking, bool);
 NULLB_DEVICE_ATTR(use_per_node_hctx, bool);
+NULLB_DEVICE_ATTR(memory_backed, bool);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
 {
@@ -346,12 +372,16 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_blocking,
 	&nullb_device_attr_use_per_node_hctx,
 	&nullb_device_attr_power,
+	&nullb_device_attr_memory_backed,
 	NULL,
 };
 
 static void nullb_device_release(struct config_item *item)
 {
-	null_free_dev(to_nullb_device(item));
+	struct nullb_device *dev = to_nullb_device(item);
+
+	null_free_device_storage(dev);
+	null_free_dev(dev);
 }
 
 static struct configfs_item_operations nullb_device_ops = {
@@ -395,7 +425,7 @@ nullb_group_drop_item(struct config_group *group, struct config_item *item)
 
 static ssize_t memb_group_features_show(struct config_item *item, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "\n");
+	return snprintf(page, PAGE_SIZE, "memory_backed\n");
 }
 
 CONFIGFS_ATTR_RO(memb_group_, features);
@@ -432,6 +462,7 @@ static struct nullb_device *null_alloc_dev(void)
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
+	INIT_RADIX_TREE(&dev->data, GFP_ATOMIC);
 	dev->size = g_gb * 1024;
 	dev->completion_nsec = g_completion_nsec;
 	dev->submit_queues = g_submit_queues;
@@ -532,13 +563,14 @@ static void end_cmd(struct nullb_cmd *cmd)
 
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
-		blk_mq_end_request(cmd->rq, BLK_STS_OK);
+		blk_mq_end_request(cmd->rq, cmd->error);
 		return;
 	case NULL_Q_RQ:
 		INIT_LIST_HEAD(&cmd->rq->queuelist);
-		blk_end_request_all(cmd->rq, BLK_STS_OK);
+		blk_end_request_all(cmd->rq, cmd->error);
 		break;
 	case NULL_Q_BIO:
+		cmd->bio->bi_status = cmd->error;
 		bio_endio(cmd->bio);
 		break;
 	}
@@ -579,12 +611,297 @@ static void null_softirq_done_fn(struct request *rq)
 		end_cmd(rq->special);
 }
 
-static inline void null_handle_cmd(struct nullb_cmd *cmd)
+static struct nullb_page *null_alloc_page(gfp_t gfp_flags)
 {
+	struct nullb_page *t_page;
+
+	t_page = kmalloc(sizeof(struct nullb_page), gfp_flags);
+	if (!t_page)
+		goto out;
+
+	t_page->page = alloc_pages(gfp_flags, 0);
+	if (!t_page->page)
+		goto out_freepage;
+
+	t_page->bitmap = 0;
+	return t_page;
+out_freepage:
+	kfree(t_page);
+out:
+	return NULL;
+}
+
+static void null_free_page(struct nullb_page *t_page)
+{
+	__free_page(t_page->page);
+	kfree(t_page);
+}
+
+static void null_free_sector(struct nullb *nullb, sector_t sector)
+{
+	unsigned int sector_bit;
+	u64 idx;
+	struct nullb_page *t_page, *ret;
+	struct radix_tree_root *root;
+
+	root = &nullb->dev->data;
+	idx = sector >> PAGE_SECTORS_SHIFT;
+	sector_bit = (sector & SECTOR_MASK);
+
+	t_page = radix_tree_lookup(root, idx);
+	if (t_page) {
+		__clear_bit(sector_bit, &t_page->bitmap);
+
+		if (!t_page->bitmap) {
+			ret = radix_tree_delete_item(root, idx, t_page);
+			WARN_ON(ret != t_page);
+			null_free_page(ret);
+		}
+	}
+}
+
+static struct nullb_page *null_radix_tree_insert(struct nullb *nullb, u64 idx,
+	struct nullb_page *t_page)
+{
+	struct radix_tree_root *root;
+
+	root = &nullb->dev->data;
+
+	if (radix_tree_insert(root, idx, t_page)) {
+		null_free_page(t_page);
+		t_page = radix_tree_lookup(root, idx);
+		WARN_ON(!t_page || t_page->page->index != idx);
+	}
+
+	return t_page;
+}
+
+static void null_free_device_storage(struct nullb_device *dev)
+{
+	unsigned long pos = 0;
+	int nr_pages;
+	struct nullb_page *ret, *t_pages[FREE_BATCH];
+	struct radix_tree_root *root;
+
+	root = &dev->data;
+
+	do {
+		int i;
+
+		nr_pages = radix_tree_gang_lookup(root,
+				(void **)t_pages, pos, FREE_BATCH);
+
+		for (i = 0; i < nr_pages; i++) {
+			pos = t_pages[i]->page->index;
+			ret = radix_tree_delete_item(root, pos, t_pages[i]);
+			WARN_ON(ret != t_pages[i]);
+			null_free_page(ret);
+		}
+
+		pos++;
+	} while (nr_pages == FREE_BATCH);
+}
+
+static struct nullb_page *null_lookup_page(struct nullb *nullb,
+	sector_t sector, bool for_write)
+{
+	unsigned int sector_bit;
+	u64 idx;
+	struct nullb_page *t_page;
+
+	idx = sector >> PAGE_SECTORS_SHIFT;
+	sector_bit = (sector & SECTOR_MASK);
+
+	t_page = radix_tree_lookup(&nullb->dev->data, idx);
+	WARN_ON(t_page && t_page->page->index != idx);
+
+	if (t_page && (for_write || test_bit(sector_bit, &t_page->bitmap)))
+		return t_page;
+
+	return NULL;
+}
+
+static struct nullb_page *null_insert_page(struct nullb *nullb,
+	sector_t sector)
+{
+	u64 idx;
+	struct nullb_page *t_page;
+
+	t_page = null_lookup_page(nullb, sector, true);
+	if (t_page)
+		return t_page;
+
+	spin_unlock_irq(&nullb->lock);
+
+	t_page = null_alloc_page(GFP_NOIO);
+	if (!t_page)
+		goto out_lock;
+
+	if (radix_tree_preload(GFP_NOIO))
+		goto out_freepage;
+
+	spin_lock_irq(&nullb->lock);
+	idx = sector >> PAGE_SECTORS_SHIFT;
+	t_page->page->index = idx;
+	t_page = null_radix_tree_insert(nullb, idx, t_page);
+	radix_tree_preload_end();
+
+	return t_page;
+out_freepage:
+	null_free_page(t_page);
+out_lock:
+	spin_lock_irq(&nullb->lock);
+	return null_lookup_page(nullb, sector, true);
+}
+
+static int copy_to_nullb(struct nullb *nullb, struct page *source,
+	unsigned int off, sector_t sector, size_t n)
+{
+	size_t temp, count = 0;
+	unsigned int offset;
+	struct nullb_page *t_page;
+	void *dst, *src;
+
+	while (count < n) {
+		temp = min_t(size_t, nullb->dev->blocksize, n - count);
+
+		offset = (sector & SECTOR_MASK) << SECTOR_SHIFT;
+		t_page = null_insert_page(nullb, sector);
+		if (!t_page)
+			return -ENOSPC;
+
+		src = kmap_atomic(source);
+		dst = kmap_atomic(t_page->page);
+		memcpy(dst + offset, src + off + count, temp);
+		kunmap_atomic(dst);
+		kunmap_atomic(src);
+
+		__set_bit(sector & SECTOR_MASK, &t_page->bitmap);
+
+		count += temp;
+		sector += temp >> SECTOR_SHIFT;
+	}
+	return 0;
+}
+
+static int copy_from_nullb(struct nullb *nullb, struct page *dest,
+	unsigned int off, sector_t sector, size_t n)
+{
+	size_t temp, count = 0;
+	unsigned int offset;
+	struct nullb_page *t_page;
+	void *dst, *src;
+
+	while (count < n) {
+		temp = min_t(size_t, nullb->dev->blocksize, n - count);
+
+		offset = (sector & SECTOR_MASK) << SECTOR_SHIFT;
+		t_page = null_lookup_page(nullb, sector, false);
+
+		dst = kmap_atomic(dest);
+		if (!t_page) {
+			memset(dst + off + count, 0, temp);
+			goto next;
+		}
+		src = kmap_atomic(t_page->page);
+		memcpy(dst + off + count, src + offset, temp);
+		kunmap_atomic(src);
+next:
+		kunmap_atomic(dst);
+
+		count += temp;
+		sector += temp >> SECTOR_SHIFT;
+	}
+	return 0;
+}
+
+static int null_transfer(struct nullb *nullb, struct page *page,
+	unsigned int len, unsigned int off, bool is_write, sector_t sector)
+{
+	int err = 0;
+
+	if (!is_write) {
+		err = copy_from_nullb(nullb, page, off, sector, len);
+		flush_dcache_page(page);
+	} else {
+		flush_dcache_page(page);
+		err = copy_to_nullb(nullb, page, off, sector, len);
+	}
+
+	return err;
+}
+
+static int null_handle_rq(struct nullb_cmd *cmd)
+{
+	struct request *rq = cmd->rq;
+	struct nullb *nullb = cmd->nq->dev->nullb;
+	int err;
+	unsigned int len;
+	sector_t sector;
+	struct req_iterator iter;
+	struct bio_vec bvec;
+
+	sector = blk_rq_pos(rq);
+
+	spin_lock_irq(&nullb->lock);
+	rq_for_each_segment(bvec, rq, iter) {
+		len = bvec.bv_len;
+		err = null_transfer(nullb, bvec.bv_page, len, bvec.bv_offset,
+				     op_is_write(req_op(rq)), sector);
+		if (err) {
+			spin_unlock_irq(&nullb->lock);
+			return err;
+		}
+		sector += len >> SECTOR_SHIFT;
+	}
+	spin_unlock_irq(&nullb->lock);
+
+	return 0;
+}
+
+static int null_handle_bio(struct nullb_cmd *cmd)
+{
+	struct bio *bio = cmd->bio;
+	struct nullb *nullb = cmd->nq->dev->nullb;
+	int err;
+	unsigned int len;
+	sector_t sector;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
+
+	sector = bio->bi_iter.bi_sector;
+
+	spin_lock_irq(&nullb->lock);
+	bio_for_each_segment(bvec, bio, iter) {
+		len = bvec.bv_len;
+		err = null_transfer(nullb, bvec.bv_page, len, bvec.bv_offset,
+				     op_is_write(bio_op(bio)), sector);
+		if (err) {
+			spin_unlock_irq(&nullb->lock);
+			return err;
+		}
+		sector += len >> SECTOR_SHIFT;
+	}
+	spin_unlock_irq(&nullb->lock);
+	return 0;
+}
+
+static blk_status_t null_handle_cmd(struct nullb_cmd *cmd)
+{
+	struct nullb_device *dev = cmd->nq->dev;
+	int err = 0;
+
+	if (dev->memory_backed) {
+		if (dev->queue_mode == NULL_Q_BIO)
+			err = null_handle_bio(cmd);
+		else
+			err = null_handle_rq(cmd);
+	}
+	cmd->error = errno_to_blk_status(err);
 	/* Complete IO by inline, softirq or timer */
-	switch (cmd->nq->dev->irqmode) {
+	switch (dev->irqmode) {
 	case NULL_IRQ_SOFTIRQ:
-		switch (cmd->nq->dev->queue_mode)  {
+		switch (dev->queue_mode)  {
 		case NULL_Q_MQ:
 			blk_mq_complete_request(cmd->rq);
 			break;
@@ -606,6 +923,7 @@ static inline void null_handle_cmd(struct nullb_cmd *cmd)
 		null_cmd_end_timer(cmd);
 		break;
 	}
+	return BLK_STS_OK;
 }
 
 static struct nullb_queue *nullb_to_queue(struct nullb *nullb)
@@ -678,8 +996,7 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(bd->rq);
 
-	null_handle_cmd(cmd);
-	return BLK_STS_OK;
+	return null_handle_cmd(cmd);
 }
 
 static const struct blk_mq_ops null_mq_ops = {
@@ -1050,6 +1367,10 @@ static void null_validate_conf(struct nullb_device *dev)
 
 	dev->queue_mode = min_t(unsigned int, dev->queue_mode, NULL_Q_MQ);
 	dev->irqmode = min_t(unsigned int, dev->irqmode, NULL_IRQ_TIMER);
+
+	/* Do memory allocation, so set blocking */
+	if (dev->memory_backed)
+		dev->blocking = true;
 }
 
 static int null_add_dev(struct nullb_device *dev)
