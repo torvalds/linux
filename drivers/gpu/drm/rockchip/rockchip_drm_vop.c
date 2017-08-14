@@ -2843,7 +2843,7 @@ static int vop_create_crtc(struct vop *vop)
 		vop->lut = devm_kmalloc_array(dev, lut_len, sizeof(*vop->lut),
 					      GFP_KERNEL);
 		if (!vop->lut)
-			return -ENOMEM;
+			goto err_unregister_crtc_funcs;
 
 		r_base = crtc->gamma_store;
 		g_base = r_base + crtc->gamma_size;
