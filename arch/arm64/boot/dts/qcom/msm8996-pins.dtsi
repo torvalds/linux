@@ -300,4 +300,199 @@
 			drive-strength = <2>;	/* 2 MA */
 		};
 	};
+
+	pcie0_clkreq_default: pcie0_clkreq_default {
+		mux {
+			pins = "gpio36";
+			function = "pci_e0";
+		};
+
+		config {
+			pins = "gpio36";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	pcie0_perst_default: pcie0_perst_default {
+		mux {
+			pins = "gpio35";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio35";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	pcie0_wake_default: pcie0_wake_default {
+		mux {
+			pins = "gpio37";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio37";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	pcie0_clkreq_sleep: pcie0_clkreq_sleep {
+		mux {
+			pins = "gpio36";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio36";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	pcie0_wake_sleep: pcie0_wake_sleep {
+		mux {
+			pins = "gpio37";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio37";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	pcie1_clkreq_default: pcie1_clkreq_default {
+		mux {
+			pins = "gpio131";
+			function = "pci_e1";
+		};
+
+		config {
+			pins = "gpio131";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	pcie1_perst_default: pcie1_perst_default {
+		mux {
+			pins = "gpio130";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio130";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	pcie1_wake_default: pcie1_wake_default {
+		mux {
+			pins = "gpio132";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio132";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	pcie1_clkreq_sleep: pcie1_clkreq_sleep {
+		mux {
+			pins = "gpio131";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio131";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	pcie1_wake_sleep: pcie1_wake_sleep {
+		mux {
+			pins = "gpio132";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio132";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	pcie2_clkreq_default: pcie2_clkreq_default {
+		mux {
+			pins = "gpio115";
+			function = "pci_e2";
+		};
+
+		config {
+			pins = "gpio115";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	pcie2_perst_default: pcie2_perst_default {
+		mux {
+			pins = "gpio114";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio114";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	pcie2_wake_default: pcie2_wake_default {
+		mux {
+			pins = "gpio116";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio116";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	pcie2_clkreq_sleep: pcie2_clkreq_sleep {
+		mux {
+			pins = "gpio115";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio115";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	pcie2_wake_sleep: pcie2_wake_sleep {
+		mux {
+			pins = "gpio116";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio116";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
 };
