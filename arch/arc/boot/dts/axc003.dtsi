@@ -24,10 +24,17 @@
 
 		ranges = <0x00000000 0x0 0xf0000000 0x10000000>;
 
-		core_clk: core_clk {
+		input_clk: input-clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
-			clock-frequency = <90000000>;
+			clock-frequency = <33333333>;
+		};
+
+		core_clk: core-clk@80 {
+			compatible = "snps,axs10x-arc-pll-clock";
+			reg = <0x80 0x10>, <0x100 0x10>;
+			#clock-cells = <0>;
+			clocks = <&input_clk>;
 		};
 
 		core_intc: archs-intc@cpu {
