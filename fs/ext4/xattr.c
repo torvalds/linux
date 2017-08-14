@@ -1543,7 +1543,7 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 			/* Clear padding bytes. */
 			memset(val + i->value_len, 0, new_size - i->value_len);
 		}
-		return 0;
+		goto update_hash;
 	}
 
 	/* Compute min_offs and last. */
@@ -1707,6 +1707,7 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 		here->e_value_size = cpu_to_le32(i->value_len);
 	}
 
+update_hash:
 	if (i->value) {
 		__le32 hash = 0;
 
@@ -1725,7 +1726,8 @@ static int ext4_xattr_set_entry(struct ext4_xattr_info *i,
 						     here->e_name_len,
 						     &crc32c_hash, 1);
 		} else if (is_block) {
-			__le32 *value = s->base + min_offs - new_size;
+			__le32 *value = s->base + le16_to_cpu(
+							here->e_value_offs);
 
 			hash = ext4_xattr_hash_entry(here->e_name,
 						     here->e_name_len, value,
