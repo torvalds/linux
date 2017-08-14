@@ -21,8 +21,3 @@ skip_if_no_debuginfo() {
 	add_probe_vfs_getname -v 2>&1 | grep -q "^Failed to find the path for kernel" && return 2
 	return 1
 }
-
-skip_if_no_debuginfo() {
-	add_probe_vfs_getname -v 2>&1 | grep -q "^Failed to find the path for kernel" && return 2
-	return 1
-}
