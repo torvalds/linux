@@ -424,22 +424,25 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	 nop
 
 70:	ldub	[%g1 + 7], %g2
-	cmp	%g2, '3'
+	cmp	%g2, CPU_ID_NIAGARA3
 	be,pt	%xcc, 5f
 	 mov	SUN4V_CHIP_NIAGARA3, %g4
-	cmp	%g2, '4'
+	cmp	%g2, CPU_ID_NIAGARA4
 	be,pt	%xcc, 5f
 	 mov	SUN4V_CHIP_NIAGARA4, %g4
-	cmp	%g2, '5'
+	cmp	%g2, CPU_ID_NIAGARA5
 	be,pt	%xcc, 5f
 	 mov	SUN4V_CHIP_NIAGARA5, %g4
-	cmp	%g2, '6'
+	cmp	%g2, CPU_ID_M6
 	be,pt	%xcc, 5f
 	 mov	SUN4V_CHIP_SPARC_M6, %g4
-	cmp	%g2, '7'
+	cmp	%g2, CPU_ID_M7
 	be,pt	%xcc, 5f
 	 mov	SUN4V_CHIP_SPARC_M7, %g4
-	cmp	%g2, 'N'
+	cmp	%g2, CPU_ID_M8
+	be,pt	%xcc, 5f
+	 mov	SUN4V_CHIP_SPARC_M8, %g4
+	cmp	%g2, CPU_ID_SONOMA1
 	be,pt	%xcc, 5f
 	 mov	SUN4V_CHIP_SPARC_SN, %g4
 	ba,pt	%xcc, 49f
@@ -448,10 +451,10 @@ EXPORT_SYMBOL(sun4v_chip_type)
 91:	sethi	%hi(prom_cpu_compatible), %g1
 	or	%g1, %lo(prom_cpu_compatible), %g1
 	ldub	[%g1 + 17], %g2
-	cmp	%g2, '1'
+	cmp	%g2, CPU_ID_NIAGARA1
 	be,pt	%xcc, 5f
 	 mov	SUN4V_CHIP_NIAGARA1, %g4
-	cmp	%g2, '2'
+	cmp	%g2, CPU_ID_NIAGARA2
 	be,pt	%xcc, 5f
 	 mov	SUN4V_CHIP_NIAGARA2, %g4
 	
@@ -600,6 +603,9 @@ niagara_tlb_fixup:
 	be,pt	%xcc, niagara4_patch
 	 nop
 	cmp	%g1, SUN4V_CHIP_SPARC_M7
+	be,pt	%xcc, niagara4_patch
+	 nop
+	cmp	%g1, SUN4V_CHIP_SPARC_M8
 	be,pt	%xcc, niagara4_patch
 	 nop
 	cmp	%g1, SUN4V_CHIP_SPARC_SN

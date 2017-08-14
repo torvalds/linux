@@ -121,7 +121,7 @@ static int vmw_gmrid_man_init(struct ttm_mem_type_manager *man,
 	struct vmwgfx_gmrid_man *gman =
 		kzalloc(sizeof(*gman), GFP_KERNEL);
 
-	if (unlikely(gman == NULL))
+	if (unlikely(!gman))
 		return -ENOMEM;
 
 	spin_lock_init(&gman->lock);

@@ -655,7 +655,7 @@ source "drivers/crypto/virtio/Kconfig"
 config CRYPTO_DEV_BCM_SPU
 	tristate "Broadcom symmetric crypto/hash acceleration support"
 	depends on ARCH_BCM_IPROC
-	depends on BCM_PDC_MBOX
+	depends on MAILBOX
 	default m
 	select CRYPTO_DES
 	select CRYPTO_MD5

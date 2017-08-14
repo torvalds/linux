@@ -610,10 +610,21 @@ static int wl1273_fm_start(struct wl1273_device *radio, int new_mode)
 			}
 		}
 
-		if (radio->rds_on)
+		if (radio->rds_on) {
 			r = core->write(core, WL1273_RDS_DATA_ENB, 1);
-		else
+			if (r) {
+				dev_err(dev, "%s: RDS_DATA_ENB ON fails\n",
+					__func__);
+				goto fail;
+			}
+		} else {
 			r = core->write(core, WL1273_RDS_DATA_ENB, 0);
+			if (r) {
+				dev_err(dev, "%s: RDS_DATA_ENB OFF fails\n",
+					__func__);
+				goto fail;
+			}
+		}
 	} else {
 		dev_warn(dev, "%s: Illegal mode.\n", __func__);
 	}
