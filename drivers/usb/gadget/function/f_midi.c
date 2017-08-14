@@ -98,6 +98,7 @@ struct f_midi {
 	DECLARE_KFIFO_PTR(in_req_fifo, struct usb_request *);
 	spinlock_t transmit_lock;
 	unsigned int in_last_port;
+	unsigned char free_ref;
 
 	struct gmidi_in_port	in_ports_array[/* in_ports */];
 };
@@ -108,6 +109,7 @@ static inline struct f_midi *func_to_midi(struct usb_function *f)
 }
 
 static void f_midi_transmit(struct f_midi *midi);
+static void f_midi_rmidi_free(struct snd_rawmidi *rmidi);
 
 DECLARE_UAC_AC_HEADER_DESCRIPTOR(1);
 DECLARE_USB_MIDI_OUT_JACK_DESCRIPTOR(1);
@@ -832,6 +834,8 @@ static int f_midi_register_card(struct f_midi *midi)
 			    SNDRV_RAWMIDI_INFO_INPUT |
 			    SNDRV_RAWMIDI_INFO_DUPLEX;
 	rmidi->private_data = midi;
+	rmidi->private_free = f_midi_rmidi_free;
+	midi->free_ref++;
 
 	/*
 	 * Yes, rawmidi OUTPUT = USB IN, and rawmidi INPUT = USB OUT.
@@ -1233,12 +1237,19 @@ static void f_midi_free(struct usb_function *f)
 
 	midi = func_to_midi(f);
 	opts = container_of(f->fi, struct f_midi_opts, func_inst);
-	kfree(midi->id);
 	mutex_lock(&opts->lock);
-	kfifo_free(&midi->in_req_fifo);
-	kfree(midi);
-	--opts->refcnt;
+	if (!--midi->free_ref) {
+		kfree(midi->id);
+		kfifo_free(&midi->in_req_fifo);
+		kfree(midi);
+		--opts->refcnt;
+	}
 	mutex_unlock(&opts->lock);
+}
+
+static void f_midi_rmidi_free(struct snd_rawmidi *rmidi)
+{
+	f_midi_free(rmidi->private_data);
 }
 
 static void f_midi_unbind(struct usb_configuration *c, struct usb_function *f)
@@ -1255,7 +1266,7 @@ static void f_midi_unbind(struct usb_configuration *c, struct usb_function *f)
 	card = midi->card;
 	midi->card = NULL;
 	if (card)
-		snd_card_free(card);
+		snd_card_free_when_closed(card);
 
 	usb_free_all_descriptors(f);
 }
@@ -1299,6 +1310,7 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	midi->buflen = opts->buflen;
 	midi->qlen = opts->qlen;
 	midi->in_last_port = 0;
+	midi->free_ref = 1;
 
 	status = kfifo_alloc(&midi->in_req_fifo, midi->qlen, GFP_KERNEL);
 	if (status)
