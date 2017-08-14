@@ -1207,6 +1207,7 @@ e_inval:
 void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb)
 {
 	struct in_pktinfo *pktinfo = PKTINFO_SKB_CB(skb);
+	bool l3slave = ipv4_l3mdev_skb(IPCB(skb)->flags);
 	bool prepare = (inet_sk(sk)->cmsg_flags & IP_CMSG_PKTINFO) ||
 		       ipv6_sk_rxinfo(sk);
 
@@ -1220,7 +1221,7 @@ void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb)
 		 * (e.g., process binds socket to eth0 for Tx which is
 		 * redirected to loopback in the rtable/dst).
 		 */
-		if (pktinfo->ipi_ifindex == LOOPBACK_IFINDEX)
+		if (pktinfo->ipi_ifindex == LOOPBACK_IFINDEX || l3slave)
 			pktinfo->ipi_ifindex = inet_iif(skb);
 
 		pktinfo->ipi_spec_dst.s_addr = fib_compute_spec_dst(skb);
