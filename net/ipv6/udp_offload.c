@@ -86,7 +86,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		if (uh->check == 0)
 			uh->check = CSUM_MANGLED_0;
 
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		/* Check if there is enough headroom to insert fragment header. */
 		tnl_hlen = skb_tnl_header_len(skb);

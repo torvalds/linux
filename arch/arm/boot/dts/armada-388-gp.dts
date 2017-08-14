@@ -89,7 +89,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pca0_pins>;
 					interrupt-parent = <&gpio0>;
-					interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
+					interrupts = <18 IRQ_TYPE_LEVEL_LOW>;
 					gpio-controller;
 					#gpio-cells = <2>;
 					interrupt-controller;
@@ -101,7 +101,7 @@
 					compatible = "nxp,pca9555";
 					pinctrl-names = "default";
 					interrupt-parent = <&gpio0>;
-					interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
+					interrupts = <18 IRQ_TYPE_LEVEL_LOW>;
 					gpio-controller;
 					#gpio-cells = <2>;
 					interrupt-controller;
