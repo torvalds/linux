@@ -349,7 +349,7 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	struct rpcrdma_mr_seg *seg;
 	struct rpcrdma_mw *mw;
 	unsigned int pos;
-	int n, nsegs;
+	int nsegs;
 
 	pos = rqst->rq_snd_buf.head[0].iov_len;
 	if (rtype == rpcrdma_areadch)
@@ -361,10 +361,10 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		return nsegs;
 
 	do {
-		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
-						 false, &mw);
-		if (n < 0)
-			return n;
+		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
+						   false, &mw);
+		if (IS_ERR(seg))
+			return PTR_ERR(seg);
 		rpcrdma_push_mw(mw, &req->rl_registered);
 
 		if (encode_read_segment(xdr, mw, pos) < 0)
@@ -373,11 +373,10 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		dprintk("RPC: %5u %s: pos %u %u@0x%016llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__, pos,
 			mw->mw_length, (unsigned long long)mw->mw_offset,
-			mw->mw_handle, n < nsegs ? "more" : "last");
+			mw->mw_handle, mw->mw_nents < nsegs ? "more" : "last");
 
 		r_xprt->rx_stats.read_chunk_count++;
-		seg += n;
-		nsegs -= n;
+		nsegs -= mw->mw_nents;
 	} while (nsegs);
 
 	return 0;
@@ -405,7 +404,7 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	struct xdr_stream *xdr = &req->rl_stream;
 	struct rpcrdma_mr_seg *seg;
 	struct rpcrdma_mw *mw;
-	int n, nsegs, nchunks;
+	int nsegs, nchunks;
 	__be32 *segcount;
 
 	seg = req->rl_segments;
@@ -424,10 +423,10 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 
 	nchunks = 0;
 	do {
-		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
-						 true, &mw);
-		if (n < 0)
-			return n;
+		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
+						   true, &mw);
+		if (IS_ERR(seg))
+			return PTR_ERR(seg);
 		rpcrdma_push_mw(mw, &req->rl_registered);
 
 		if (encode_rdma_segment(xdr, mw) < 0)
@@ -436,13 +435,12 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		dprintk("RPC: %5u %s: %u@0x016%llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__,
 			mw->mw_length, (unsigned long long)mw->mw_offset,
-			mw->mw_handle, n < nsegs ? "more" : "last");
+			mw->mw_handle, mw->mw_nents < nsegs ? "more" : "last");
 
 		r_xprt->rx_stats.write_chunk_count++;
 		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
 		nchunks++;
-		seg   += n;
-		nsegs -= n;
+		nsegs -= mw->mw_nents;
 	} while (nsegs);
 
 	/* Update count of segments in this Write chunk */
@@ -470,7 +468,7 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	struct xdr_stream *xdr = &req->rl_stream;
 	struct rpcrdma_mr_seg *seg;
 	struct rpcrdma_mw *mw;
-	int n, nsegs, nchunks;
+	int nsegs, nchunks;
 	__be32 *segcount;
 
 	seg = req->rl_segments;
@@ -487,10 +485,10 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 
 	nchunks = 0;
 	do {
-		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
-						 true, &mw);
-		if (n < 0)
-			return n;
+		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
+						   true, &mw);
+		if (IS_ERR(seg))
+			return PTR_ERR(seg);
 		rpcrdma_push_mw(mw, &req->rl_registered);
 
 		if (encode_rdma_segment(xdr, mw) < 0)
@@ -499,13 +497,12 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		dprintk("RPC: %5u %s: %u@0x%016llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__,
 			mw->mw_length, (unsigned long long)mw->mw_offset,
-			mw->mw_handle, n < nsegs ? "more" : "last");
+			mw->mw_handle, mw->mw_nents < nsegs ? "more" : "last");
 
 		r_xprt->rx_stats.reply_chunk_count++;
 		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
 		nchunks++;
-		seg   += n;
-		nsegs -= n;
+		nsegs -= mw->mw_nents;
 	} while (nsegs);
 
 	/* Update count of segments in the Reply chunk */
