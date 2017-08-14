@@ -704,7 +704,7 @@ nvmet_fc_delete_target_queue(struct nvmet_fc_tgt_queue *queue)
 {
 	struct nvmet_fc_tgtport *tgtport = queue->assoc->tgtport;
 	struct nvmet_fc_fcp_iod *fod = queue->fod;
-	struct nvmet_fc_defer_fcp_req *deferfcp;
+	struct nvmet_fc_defer_fcp_req *deferfcp, *tempptr;
 	unsigned long flags;
 	int i, writedataactive;
 	bool disconnect;
@@ -735,7 +735,8 @@ nvmet_fc_delete_target_queue(struct nvmet_fc_tgt_queue *queue)
 	}
 
 	/* Cleanup defer'ed IOs in queue */
-	list_for_each_entry(deferfcp, &queue->avail_defer_list, req_list) {
+	list_for_each_entry_safe(deferfcp, tempptr, &queue->avail_defer_list,
+				req_list) {
 		list_del(&deferfcp->req_list);
 		kfree(deferfcp);
 	}
