@@ -546,9 +546,19 @@ static const struct rk808_reg_data rk805_pre_init_reg[] = {
 	{RK805_THERMAL_REG, TEMP_HOTDIE_MSK, TEMP115C},
 };
 
+static struct rk808_reg_data rk805_suspend_reg[] = {
+	{RK805_BUCK3_CONFIG_REG, PWM_MODE_MSK, AUTO_PWM_MODE},
+};
+
+static struct rk808_reg_data rk805_resume_reg[] = {
+	{RK805_BUCK3_CONFIG_REG, PWM_MODE_MSK, FPWM_MODE},
+};
+
 static int (*pm_shutdown)(struct regmap *regmap);
 static int (*pm_shutdown_prepare)(struct regmap *regmap);
 static struct i2c_client *rk808_i2c_client;
+static struct rk808_reg_data *suspend_reg, *resume_reg;
+static int suspend_reg_num, resume_reg_num;
 
 static void rk808_device_shutdown_prepare(void)
 {
@@ -738,6 +748,10 @@ static int rk808_probe(struct i2c_client *client,
 		pm_shutdown_prepare_fn = rk805_shutdown_prepare;
 		on_source = RK805_ON_SOURCE_REG;
 		off_source = RK805_OFF_SOURCE_REG;
+		suspend_reg = rk805_suspend_reg;
+		suspend_reg_num = ARRAY_SIZE(rk805_suspend_reg);
+		resume_reg = rk805_resume_reg;
+		resume_reg_num = ARRAY_SIZE(rk805_resume_reg);
 		break;
 	default:
 		dev_err(&client->dev, "unsupported RK8XX ID 0x%lx\n",
@@ -829,6 +843,46 @@ err_irq:
 	return ret;
 }
 
+static int rk808_suspend(struct device *dev)
+{
+	int i, ret;
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+
+	for (i = 0; i < suspend_reg_num; i++) {
+		ret = regmap_update_bits(rk808->regmap,
+					 suspend_reg[i].addr,
+					 suspend_reg[i].mask,
+					 suspend_reg[i].value);
+		if (ret) {
+			dev_err(dev, "0x%x write err\n",
+				suspend_reg[i].addr);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int rk808_resume(struct device *dev)
+{
+	int i, ret;
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+
+	for (i = 0; i < resume_reg_num; i++) {
+		ret = regmap_update_bits(rk808->regmap,
+					 resume_reg[i].addr,
+					 resume_reg[i].mask,
+					 resume_reg[i].value);
+		if (ret) {
+			dev_err(dev, "0x%x write err\n",
+				resume_reg[i].addr);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int rk808_remove(struct i2c_client *client)
 {
 	struct rk808 *rk808 = i2c_get_clientdata(client);
@@ -843,6 +897,11 @@ static int rk808_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct dev_pm_ops rk808_pm_ops = {
+	.suspend = rk808_suspend,
+	.resume =  rk808_resume,
+};
+
 static const struct i2c_device_id rk808_ids[] = {
 	{ "rk805" },
 	{ "rk808" },
@@ -856,6 +915,7 @@ static struct i2c_driver rk808_i2c_driver = {
 	.driver = {
 		.name = "rk808",
 		.of_match_table = rk808_of_match,
+		.pm = &rk808_pm_ops,
 	},
 	.probe    = rk808_probe,
 	.remove   = rk808_remove,
