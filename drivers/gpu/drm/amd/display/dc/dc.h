@@ -35,6 +35,7 @@
 #include <inc/hw/opp.h>
 
 #include "inc/hw_sequencer.h"
+#include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
 
