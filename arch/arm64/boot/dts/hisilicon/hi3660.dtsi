@@ -909,6 +909,7 @@
 			clock-names = "ciu", "biu";
 			clock-frequency = <3200000>;
 			resets = <&crg_rst 0x94 18>;
+			reset-names = "reset";
 			cd-gpios = <&gpio25 3 0>;
 			hisilicon,peripheral-syscon = <&sctrl>;
 			pinctrl-names = "default";
@@ -938,6 +939,7 @@
 				 <&crg_ctrl HI3660_HCLK_GATE_SDIO0>;
 			clock-names = "ciu", "biu";
 			resets = <&crg_rst 0x94 20>;
+			reset-names = "reset";
 			card-detect-delay = <200>;
 			supports-highspeed;
 			keep-power-in-suspend;
