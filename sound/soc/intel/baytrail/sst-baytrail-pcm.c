@@ -395,7 +395,7 @@ static int sst_byt_pcm_remove(struct snd_soc_platform *platform)
 	return 0;
 }
 
-static struct snd_soc_platform_driver byt_soc_platform = {
+static const struct snd_soc_platform_driver byt_soc_platform = {
 	.probe		= sst_byt_pcm_probe,
 	.remove		= sst_byt_pcm_remove,
 	.ops		= &sst_byt_pcm_ops,

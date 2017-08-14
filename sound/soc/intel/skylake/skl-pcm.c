@@ -1310,7 +1310,7 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 
 	return 0;
 }
-static struct snd_soc_platform_driver skl_platform_drv  = {
+static const struct snd_soc_platform_driver skl_platform_drv  = {
 	.probe		= skl_platform_soc_probe,
 	.ops		= &skl_platform_ops,
 	.pcm_new	= skl_pcm_new,
