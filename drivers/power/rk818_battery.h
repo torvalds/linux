@@ -82,6 +82,7 @@
 
 /* RK818_THERMAL_REG */
 #define FB_TEMP_MSK		0x0c
+#define HOTDIE_STS		BIT(1)
 
 /* RK818_INT_STS_MSK_REG1 */
 #define VB_LOW_INT_EN		BIT(1)
