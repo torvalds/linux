@@ -397,3 +397,38 @@ void lio_update_txq_status(struct octeon_device *oct, int iq_num)
 		netif_wake_queue(netdev);
 	}
 }
+
+/**
+ * \brief Setup output queue
+ * @param oct octeon device
+ * @param q_no which queue
+ * @param num_descs how many descriptors
+ * @param desc_size size of each descriptor
+ * @param app_ctx application context
+ */
+int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
+		      int desc_size, void *app_ctx)
+{
+	int ret_val;
+
+	dev_dbg(&oct->pci_dev->dev, "Creating Droq: %d\n", q_no);
+	/* droq creation and local register settings. */
+	ret_val = octeon_create_droq(oct, q_no, num_descs, desc_size, app_ctx);
+	if (ret_val < 0)
+		return ret_val;
+
+	if (ret_val == 1) {
+		dev_dbg(&oct->pci_dev->dev, "Using default droq %d\n", q_no);
+		return 0;
+	}
+
+	/* Enable the droq queues */
+	octeon_set_droq_pkt_op(oct, q_no, 1);
+
+	/* Send Credit for Octeon Output queues. Credits are always
+	 * sent after the output queue is enabled.
+	 */
+	writel(oct->droq[q_no]->max_count, oct->droq[q_no]->pkts_credit_reg);
+
+	return ret_val;
+}

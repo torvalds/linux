@@ -475,4 +475,6 @@ static inline int wait_for_pending_requests(struct octeon_device *oct)
 }
 
 void lio_update_txq_status(struct octeon_device *oct, int iq_num);
+int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
+		      int desc_size, void *app_ctx);
 #endif
