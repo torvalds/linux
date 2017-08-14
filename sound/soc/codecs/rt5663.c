@@ -1565,6 +1565,10 @@ static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 		val = snd_soc_read(codec, RT5663_EM_JACK_TYPE_2) & 0x0003;
 		dev_dbg(codec->dev, "%s val = %d\n", __func__, val);
 
+		snd_soc_update_bits(codec, RT5663_HP_CHARGE_PUMP_1,
+			RT5663_OSW_HP_L_MASK | RT5663_OSW_HP_R_MASK,
+			RT5663_OSW_HP_L_EN | RT5663_OSW_HP_R_EN);
+
 		switch (val) {
 		case 1:
 		case 2:
@@ -2073,6 +2077,8 @@ static int rt5663_hp_event(struct snd_soc_dapm_widget *w,
 			snd_soc_write(codec, RT5663_ANA_BIAS_CUR_1, 0x7766);
 			snd_soc_write(codec, RT5663_HP_BIAS, 0xafaa);
 			snd_soc_write(codec, RT5663_CHARGE_PUMP_2, 0x7777);
+			snd_soc_update_bits(codec, RT5663_STO_DRE_1, 0x8000,
+				0x8000);
 			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x3000,
 				0x3000);
 		}
@@ -2105,14 +2111,19 @@ static int rt5663_charge_pump_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (rt5663->codec_ver == CODEC_VER_0)
-			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x003b,
-				0x003b);
+		if (rt5663->codec_ver == CODEC_VER_0) {
+			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0030,
+				0x0030);
+			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0003,
+				0x0003);
+		}
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
-		if (rt5663->codec_ver == CODEC_VER_0)
-			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x003b, 0);
+		if (rt5663->codec_ver == CODEC_VER_0) {
+			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0003, 0);
+			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0030, 0);
+		}
 		break;
 
 	default:
