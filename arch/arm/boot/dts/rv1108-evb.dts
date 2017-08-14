@@ -201,6 +201,13 @@
 			};
 		};
 	};
+
+	bma250: accelerometer@19 {
+		compatible = "bosch,bma250e";
+		reg = <0x19>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PB3 IRQ_TYPE_LEVEL_LOW>;
+	};
 };
 
 &pwm0 {
