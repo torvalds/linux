@@ -39,6 +39,20 @@
 		reg = <0x0 0x0 0x0 0x0>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ramoops@32000000 {
+			compatible = "ramoops";
+			reg = <0x0 0x32000000 0x0 0x00100000>;
+			record-size	= <0x00020000>;
+			console-size	= <0x00020000>;
+			ftrace-size	= <0x00020000>;
+		};
+	};
+
 	reboot-mode-syscon@32100000 {
 		compatible = "syscon", "simple-mfd";
 		reg = <0x0 0x32100000 0x0 0x00001000>;
