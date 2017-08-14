@@ -86,6 +86,7 @@ struct iwl_nvm_data *iwl_fw_get_nvm(struct iwl_fw_runtime *fwrt)
 	bool lar_fw_supported = !iwlwifi_mod_params.lar_disable &&
 				fw_has_capa(&fwrt->fw->ucode_capa,
 					    IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
+	u32 mac_flags;
 
 	ret = iwl_trans_send_cmd(trans, &hcmd);
 	if (ret)
@@ -125,16 +126,19 @@ struct iwl_nvm_data *iwl_fw_get_nvm(struct iwl_fw_runtime *fwrt)
 	nvm->nvm_version = le16_to_cpu(rsp->general.nvm_version);
 
 	/* Initialize MAC sku data */
+	mac_flags = le32_to_cpu(rsp->mac_sku.mac_sku_flags);
 	nvm->sku_cap_11ac_enable =
-		le32_to_cpu(rsp->mac_sku.enable_11ac);
+		!!(mac_flags & NVM_MAC_SKU_FLAGS_802_11AC_ENABLED);
 	nvm->sku_cap_11n_enable =
-		le32_to_cpu(rsp->mac_sku.enable_11n);
+		!!(mac_flags & NVM_MAC_SKU_FLAGS_802_11N_ENABLED);
+	nvm->sku_cap_11ax_enable =
+		!!(mac_flags & NVM_MAC_SKU_FLAGS_802_11AX_ENABLED);
 	nvm->sku_cap_band_24GHz_enable =
-		le32_to_cpu(rsp->mac_sku.enable_24g);
+		!!(mac_flags & NVM_MAC_SKU_FLAGS_BAND_2_4_ENABLED);
 	nvm->sku_cap_band_52GHz_enable =
-		le32_to_cpu(rsp->mac_sku.enable_5g);
+		!!(mac_flags & NVM_MAC_SKU_FLAGS_BAND_5_2_ENABLED);
 	nvm->sku_cap_mimo_disabled =
-		le32_to_cpu(rsp->mac_sku.mimo_disable);
+		!!(mac_flags & NVM_MAC_SKU_FLAGS_MIMO_DISABLED);
 
 	/* Initialize PHY sku data */
 	nvm->valid_tx_ant = (u8)le32_to_cpu(rsp->phy_sku.tx_chains);
