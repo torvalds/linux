@@ -162,7 +162,7 @@ static int omap_pcm_mmap(struct snd_pcm_substream *substream,
 			   runtime->dma_addr, runtime->dma_bytes);
 }
 
-static struct snd_pcm_ops omap_pcm_ops = {
+static const struct snd_pcm_ops omap_pcm_ops = {
 	.open		= omap_pcm_open,
 	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
