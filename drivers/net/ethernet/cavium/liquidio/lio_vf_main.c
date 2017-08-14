@@ -1377,60 +1377,6 @@ static void if_cfg_callback(struct octeon_device *oct,
 }
 
 /**
- * \brief Entry point for NAPI polling
- * @param napi NAPI structure
- * @param budget maximum number of items to process
- */
-static int liquidio_napi_poll(struct napi_struct *napi, int budget)
-{
-	struct octeon_instr_queue *iq;
-	struct octeon_device *oct;
-	struct octeon_droq *droq;
-	int tx_done = 0, iq_no;
-	int work_done;
-
-	droq = container_of(napi, struct octeon_droq, napi);
-	oct = droq->oct_dev;
-	iq_no = droq->q_no;
-
-	/* Handle Droq descriptors */
-	work_done = octeon_process_droq_poll_cmd(oct, droq->q_no,
-						 POLL_EVENT_PROCESS_PKTS,
-						 budget);
-
-	/* Flush the instruction queue */
-	iq = oct->instr_queue[iq_no];
-	if (iq) {
-		if (atomic_read(&iq->instr_pending))
-			/* Process iq buffers with in the budget limits */
-			tx_done = octeon_flush_iq(oct, iq, budget);
-		else
-			tx_done = 1;
-
-		/* Update iq read-index rather than waiting for next interrupt.
-		 * Return back if tx_done is false.
-		 */
-		lio_update_txq_status(oct, iq_no);
-	} else {
-		dev_err(&oct->pci_dev->dev, "%s: iq (%d) num invalid\n",
-			__func__, iq_no);
-	}
-
-	/* force enable interrupt if reg cnts are high to avoid wraparound */
-	if ((work_done < budget && tx_done) ||
-	    (iq && iq->pkt_in_done >= MAX_REG_CNT) ||
-	    (droq->pkt_count >= MAX_REG_CNT)) {
-		tx_done = 1;
-		napi_complete_done(napi, work_done);
-		octeon_process_droq_poll_cmd(droq->oct_dev, droq->q_no,
-					     POLL_EVENT_ENABLE_INTR, 0);
-		return 0;
-	}
-
-	return (!tx_done) ? (budget) : (work_done);
-}
-
-/**
  * \brief Setup input and output queues
  * @param octeon_dev octeon device
  * @param ifidx Interface index

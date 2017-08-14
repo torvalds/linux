@@ -474,7 +474,6 @@ static inline int wait_for_pending_requests(struct octeon_device *oct)
 	return 0;
 }
 
-void lio_update_txq_status(struct octeon_device *oct, int iq_num);
 int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
 		      int desc_size, void *app_ctx);
 void
@@ -485,4 +484,5 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		     void *param,
 		     void *arg);
 void liquidio_napi_drv_callback(void *arg);
+int liquidio_napi_poll(struct napi_struct *napi, int budget);
 #endif
