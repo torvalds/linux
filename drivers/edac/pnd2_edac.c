@@ -161,8 +161,12 @@ static int _apl_rd_reg(int port, int off, int op, u32 *data)
 {
 	int retries = 0xff, ret;
 	u16 status;
+	u8 hidden;
 
-	P2SB_WRITE(byte, P2SB_HIDE_OFF, 0);
+	/* Unhide the P2SB device, if it's hidden */
+	P2SB_READ(byte, P2SB_HIDE_OFF, &hidden);
+	if (hidden)
+		P2SB_WRITE(byte, P2SB_HIDE_OFF, 0);
 
 	if (p2sb_is_busy(&status)) {
 		ret = -EAGAIN;
@@ -185,7 +189,9 @@ static int _apl_rd_reg(int port, int off, int op, u32 *data)
 	P2SB_READ(dword, P2SB_DATA_OFF, data);
 	ret = (status >> 1) & 0x3;
 out:
-	P2SB_WRITE(byte, P2SB_HIDE_OFF, 1);
+	/* Hide the P2SB device, if it was hidden before */
+	if (hidden)
+		P2SB_WRITE(byte, P2SB_HIDE_OFF, hidden);
 
 	return ret;
 }
