@@ -1064,7 +1064,7 @@ static int init_nest_pmu_ref(void)
 	 */
 	for_each_possible_cpu(cpu) {
 		nid = cpu_to_node(cpu);
-		for_each_online_node(i) {
+		for (i = 0; i < num_possible_nodes(); i++) {
 			if (nest_imc_refc[i].id == nid) {
 				per_cpu(local_nest_imc_refc, cpu) = &nest_imc_refc[i];
 				break;
