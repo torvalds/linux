@@ -311,7 +311,7 @@ config GPIO_MOCKUP
 	depends on GPIOLIB && SYSFS
 	select GPIO_SYSFS
 	select GPIOLIB_IRQCHIP
-	select IRQ_WORK
+	select IRQ_SIM
 	help
 	  This enables GPIO Testing driver, which provides a way to test GPIO
 	  subsystem through sysfs(or char device) and debugfs. GPIO_SYSFS
