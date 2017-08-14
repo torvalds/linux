@@ -509,20 +509,21 @@ static int dsa_cpu_parse(struct dsa_port *port, u32 index,
 		dst->cpu_dp->netdev = ethernet_dev;
 	}
 
-	tag_protocol = ds->ops->get_tag_protocol(ds);
-	dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
-	if (IS_ERR(dst->tag_ops)) {
-		dev_warn(ds->dev, "No tagger for this switch\n");
-		return PTR_ERR(dst->tag_ops);
-	}
-
-	dst->rcv = dst->tag_ops->rcv;
-
 	/* Initialize cpu_port_mask now for drv->setup()
 	 * to have access to a correct value, just like what
 	 * net/dsa/dsa.c::dsa_switch_setup_one does.
 	 */
 	ds->cpu_port_mask |= BIT(index);
+
+	tag_protocol = ds->ops->get_tag_protocol(ds);
+	dst->tag_ops = dsa_resolve_tag_protocol(tag_protocol);
+	if (IS_ERR(dst->tag_ops)) {
+		dev_warn(ds->dev, "No tagger for this switch\n");
+		ds->cpu_port_mask &= ~BIT(index);
+		return PTR_ERR(dst->tag_ops);
+	}
+
+	dst->rcv = dst->tag_ops->rcv;
 
 	return 0;
 }

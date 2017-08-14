@@ -211,7 +211,7 @@ static int mv98dx3236_resume_set_cpu_boot_addr(int hw_cpu, void *boot_addr)
 		return PTR_ERR(base);
 
 	writel(0, base + MV98DX3236_CPU_RESUME_CTRL_REG);
-	writel(virt_to_phys(boot_addr), base + MV98DX3236_CPU_RESUME_ADDR_REG);
+	writel(__pa_symbol(boot_addr), base + MV98DX3236_CPU_RESUME_ADDR_REG);
 
 	iounmap(base);
 

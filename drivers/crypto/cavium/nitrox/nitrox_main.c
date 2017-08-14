@@ -18,8 +18,9 @@
 #define SE_GROUP 0
 
 #define DRIVER_VERSION "1.0"
+#define FW_DIR "cavium/"
 /* SE microcode */
-#define SE_FW	"cnn55xx_se.fw"
+#define SE_FW	FW_DIR "cnn55xx_se.fw"
 
 static const char nitrox_driver_name[] = "CNN55XX";
 

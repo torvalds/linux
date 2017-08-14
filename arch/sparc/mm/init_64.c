@@ -325,6 +325,29 @@ static void __update_mmu_tsb_insert(struct mm_struct *mm, unsigned long tsb_inde
 }
 
 #ifdef CONFIG_HUGETLB_PAGE
+static void __init add_huge_page_size(unsigned long size)
+{
+	unsigned int order;
+
+	if (size_to_hstate(size))
+		return;
+
+	order = ilog2(size) - PAGE_SHIFT;
+	hugetlb_add_hstate(order);
+}
+
+static int __init hugetlbpage_init(void)
+{
+	add_huge_page_size(1UL << HPAGE_64K_SHIFT);
+	add_huge_page_size(1UL << HPAGE_SHIFT);
+	add_huge_page_size(1UL << HPAGE_256MB_SHIFT);
+	add_huge_page_size(1UL << HPAGE_2GB_SHIFT);
+
+	return 0;
+}
+
+arch_initcall(hugetlbpage_init);
+
 static int __init setup_hugepagesz(char *string)
 {
 	unsigned long long hugepage_size;
@@ -364,7 +387,7 @@ static int __init setup_hugepagesz(char *string)
 		goto out;
 	}
 
-	hugetlb_add_hstate(hugepage_shift - PAGE_SHIFT);
+	add_huge_page_size(hugepage_size);
 	rc = 1;
 
 out:
@@ -1921,11 +1944,21 @@ static void __init setup_page_offset(void)
 			break;
 		case SUN4V_CHIP_SPARC_M7:
 		case SUN4V_CHIP_SPARC_SN:
-		default:
 			/* M7 and later support 52-bit virtual addresses.  */
 			sparc64_va_hole_top =    0xfff8000000000000UL;
 			sparc64_va_hole_bottom = 0x0008000000000000UL;
 			max_phys_bits = 49;
+			break;
+		case SUN4V_CHIP_SPARC_M8:
+		default:
+			/* M8 and later support 54-bit virtual addresses.
+			 * However, restricting M8 and above VA bits to 53
+			 * as 4-level page table cannot support more than
+			 * 53 VA bits.
+			 */
+			sparc64_va_hole_top =    0xfff0000000000000UL;
+			sparc64_va_hole_bottom = 0x0010000000000000UL;
+			max_phys_bits = 51;
 			break;
 		}
 	}
@@ -2138,6 +2171,7 @@ static void __init sun4v_linear_pte_xor_finalize(void)
 	 */
 	switch (sun4v_chip_type) {
 	case SUN4V_CHIP_SPARC_M7:
+	case SUN4V_CHIP_SPARC_M8:
 	case SUN4V_CHIP_SPARC_SN:
 		pagecv_flag = 0x00;
 		break;
@@ -2290,6 +2324,7 @@ void __init paging_init(void)
 	 */
 	switch (sun4v_chip_type) {
 	case SUN4V_CHIP_SPARC_M7:
+	case SUN4V_CHIP_SPARC_M8:
 	case SUN4V_CHIP_SPARC_SN:
 		page_cache4v_flag = _PAGE_CP_4V;
 		break;
