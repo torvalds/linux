@@ -294,7 +294,7 @@ static snd_pcm_uframes_t camelot_pos(struct snd_pcm_substream *substream)
 	return bytes_to_frames(runtime, pos);
 }
 
-static struct snd_pcm_ops camelot_pcm_ops = {
+static const struct snd_pcm_ops camelot_pcm_ops = {
 	.open		= camelot_pcm_open,
 	.close		= camelot_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,

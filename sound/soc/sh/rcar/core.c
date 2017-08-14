@@ -1158,7 +1158,7 @@ static snd_pcm_uframes_t rsnd_pointer(struct snd_pcm_substream *substream)
 	return pointer;
 }
 
-static struct snd_pcm_ops rsnd_pcm_ops = {
+static const struct snd_pcm_ops rsnd_pcm_ops = {
 	.open		= rsnd_pcm_open,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= rsnd_hw_params,
