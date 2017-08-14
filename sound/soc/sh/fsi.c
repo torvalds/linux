@@ -1818,7 +1818,7 @@ static struct snd_soc_dai_driver fsi_soc_dai[] = {
 	},
 };
 
-static struct snd_soc_platform_driver fsi_soc_platform = {
+static const struct snd_soc_platform_driver fsi_soc_platform = {
 	.ops		= &fsi_pcm_ops,
 	.pcm_new	= fsi_pcm_new,
 };
