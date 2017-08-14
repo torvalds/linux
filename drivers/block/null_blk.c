@@ -87,7 +87,7 @@ struct nullb {
 static LIST_HEAD(nullb_list);
 static struct mutex lock;
 static int null_major;
-static int nullb_indexes;
+static DEFINE_IDA(nullb_indexes);
 static struct kmem_cache *ppa_cache;
 static struct blk_mq_tag_set tag_set;
 
@@ -871,6 +871,8 @@ static void null_del_dev(struct nullb *nullb)
 {
 	struct nullb_device *dev = nullb->dev;
 
+	ida_simple_remove(&nullb_indexes, nullb->index);
+
 	list_del_init(&nullb->list);
 
 	if (dev->use_lightnvm)
@@ -1118,7 +1120,7 @@ static int null_add_dev(struct nullb_device *dev)
 	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, nullb->q);
 
 	mutex_lock(&lock);
-	nullb->index = nullb_indexes++;
+	nullb->index = ida_simple_get(&nullb_indexes, 0, 0, GFP_KERNEL);
 	dev->index = nullb->index;
 	mutex_unlock(&lock);
 
