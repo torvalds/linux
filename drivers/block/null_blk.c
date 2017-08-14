@@ -1,3 +1,7 @@
+/*
+ * Add configfs and memory store: Kyungchan Koh <kkc6196@fb.com> and
+ * Shaohua Li <shli@fb.com>
+ */
 #include <linux/module.h>
 
 #include <linux/moduleparam.h>
@@ -9,6 +13,7 @@
 #include <linux/blk-mq.h>
 #include <linux/hrtimer.h>
 #include <linux/lightnvm.h>
+#include <linux/configfs.h>
 
 struct nullb_cmd {
 	struct list_head list;
@@ -30,8 +35,21 @@ struct nullb_queue {
 	struct nullb_cmd *cmds;
 };
 
+/*
+ * Status flags for nullb_device.
+ *
+ * CONFIGURED:	Device has been configured and turned on. Cannot reconfigure.
+ * UP:		Device is currently on and visible in userspace.
+ */
+enum nullb_device_flags {
+	NULLB_DEV_FL_CONFIGURED	= 0,
+	NULLB_DEV_FL_UP		= 1,
+};
+
 struct nullb_device {
 	struct nullb *nullb;
+	struct config_item item;
+	unsigned long flags; /* device flags */
 
 	unsigned long size; /* device size in MB */
 	unsigned long completion_nsec; /* time in ns to complete a request */
@@ -172,6 +190,185 @@ MODULE_PARM_DESC(hw_queue_depth, "Queue depth for each hardware queue. Default: 
 static bool g_use_per_node_hctx;
 module_param_named(use_per_node_hctx, g_use_per_node_hctx, bool, S_IRUGO);
 MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: false");
+
+static struct nullb_device *null_alloc_dev(void);
+static void null_free_dev(struct nullb_device *dev);
+
+static inline struct nullb_device *to_nullb_device(struct config_item *item)
+{
+	return item ? container_of(item, struct nullb_device, item) : NULL;
+}
+
+static inline ssize_t nullb_device_uint_attr_show(unsigned int val, char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%u\n", val);
+}
+
+static inline ssize_t nullb_device_ulong_attr_show(unsigned long val,
+	char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%lu\n", val);
+}
+
+static inline ssize_t nullb_device_bool_attr_show(bool val, char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%u\n", val);
+}
+
+static ssize_t nullb_device_uint_attr_store(unsigned int *val,
+	const char *page, size_t count)
+{
+	unsigned int tmp;
+	int result;
+
+	result = kstrtouint(page, 0, &tmp);
+	if (result)
+		return result;
+
+	*val = tmp;
+	return count;
+}
+
+static ssize_t nullb_device_ulong_attr_store(unsigned long *val,
+	const char *page, size_t count)
+{
+	int result;
+	unsigned long tmp;
+
+	result = kstrtoul(page, 0, &tmp);
+	if (result)
+		return result;
+
+	*val = tmp;
+	return count;
+}
+
+static ssize_t nullb_device_bool_attr_store(bool *val, const char *page,
+	size_t count)
+{
+	bool tmp;
+	int result;
+
+	result = kstrtobool(page,  &tmp);
+	if (result)
+		return result;
+
+	*val = tmp;
+	return count;
+}
+
+/* The following macro should only be used with TYPE = {uint, ulong, bool}. */
+#define NULLB_DEVICE_ATTR(NAME, TYPE)						\
+static ssize_t									\
+nullb_device_##NAME##_show(struct config_item *item, char *page)		\
+{										\
+	return nullb_device_##TYPE##_attr_show(					\
+				to_nullb_device(item)->NAME, page);		\
+}										\
+static ssize_t									\
+nullb_device_##NAME##_store(struct config_item *item, const char *page,		\
+			    size_t count)					\
+{										\
+	if (test_bit(NULLB_DEV_FL_CONFIGURED, &to_nullb_device(item)->flags))	\
+		return -EBUSY;							\
+	return nullb_device_##TYPE##_attr_store(				\
+			&to_nullb_device(item)->NAME, page, count);		\
+}										\
+CONFIGFS_ATTR(nullb_device_, NAME);
+
+NULLB_DEVICE_ATTR(size, ulong);
+NULLB_DEVICE_ATTR(completion_nsec, ulong);
+NULLB_DEVICE_ATTR(submit_queues, uint);
+NULLB_DEVICE_ATTR(home_node, uint);
+NULLB_DEVICE_ATTR(queue_mode, uint);
+NULLB_DEVICE_ATTR(blocksize, uint);
+NULLB_DEVICE_ATTR(irqmode, uint);
+NULLB_DEVICE_ATTR(hw_queue_depth, uint);
+NULLB_DEVICE_ATTR(use_lightnvm, bool);
+NULLB_DEVICE_ATTR(blocking, bool);
+NULLB_DEVICE_ATTR(use_per_node_hctx, bool);
+
+static struct configfs_attribute *nullb_device_attrs[] = {
+	&nullb_device_attr_size,
+	&nullb_device_attr_completion_nsec,
+	&nullb_device_attr_submit_queues,
+	&nullb_device_attr_home_node,
+	&nullb_device_attr_queue_mode,
+	&nullb_device_attr_blocksize,
+	&nullb_device_attr_irqmode,
+	&nullb_device_attr_hw_queue_depth,
+	&nullb_device_attr_use_lightnvm,
+	&nullb_device_attr_blocking,
+	&nullb_device_attr_use_per_node_hctx,
+	NULL,
+};
+
+static void nullb_device_release(struct config_item *item)
+{
+	null_free_dev(to_nullb_device(item));
+}
+
+static struct configfs_item_operations nullb_device_ops = {
+	.release	= nullb_device_release,
+};
+
+static struct config_item_type nullb_device_type = {
+	.ct_item_ops	= &nullb_device_ops,
+	.ct_attrs	= nullb_device_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
+static struct
+config_item *nullb_group_make_item(struct config_group *group, const char *name)
+{
+	struct nullb_device *dev;
+
+	dev = null_alloc_dev();
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	config_item_init_type_name(&dev->item, name, &nullb_device_type);
+
+	return &dev->item;
+}
+
+static void
+nullb_group_drop_item(struct config_group *group, struct config_item *item)
+{
+	config_item_put(item);
+}
+
+static ssize_t memb_group_features_show(struct config_item *item, char *page)
+{
+	return snprintf(page, PAGE_SIZE, "\n");
+}
+
+CONFIGFS_ATTR_RO(memb_group_, features);
+
+static struct configfs_attribute *nullb_group_attrs[] = {
+	&memb_group_attr_features,
+	NULL,
+};
+
+static struct configfs_group_operations nullb_group_ops = {
+	.make_item	= nullb_group_make_item,
+	.drop_item	= nullb_group_drop_item,
+};
+
+static struct config_item_type nullb_group_type = {
+	.ct_group_ops	= &nullb_group_ops,
+	.ct_attrs	= nullb_group_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
+static struct configfs_subsystem nullb_subsys = {
+	.su_group = {
+		.cg_item = {
+			.ci_namebuf = "nullb",
+			.ci_type = &nullb_group_type,
+		},
+	},
+};
 
 static struct nullb_device *null_alloc_dev(void)
 {
@@ -919,12 +1116,19 @@ static int __init null_init(void)
 			return ret;
 	}
 
+	config_group_init(&nullb_subsys.su_group);
+	mutex_init(&nullb_subsys.su_mutex);
+
+	ret = configfs_register_subsystem(&nullb_subsys);
+	if (ret)
+		goto err_tagset;
+
 	mutex_init(&lock);
 
 	null_major = register_blkdev(0, "nullb");
 	if (null_major < 0) {
 		ret = null_major;
-		goto err_tagset;
+		goto err_conf;
 	}
 
 	if (g_use_lightnvm) {
@@ -961,6 +1165,8 @@ err_dev:
 	kmem_cache_destroy(ppa_cache);
 err_ppa:
 	unregister_blkdev(null_major, "nullb");
+err_conf:
+	configfs_unregister_subsystem(&nullb_subsys);
 err_tagset:
 	if (g_queue_mode == NULL_Q_MQ && shared_tags)
 		blk_mq_free_tag_set(&tag_set);
@@ -970,6 +1176,8 @@ err_tagset:
 static void __exit null_exit(void)
 {
 	struct nullb *nullb;
+
+	configfs_unregister_subsystem(&nullb_subsys);
 
 	unregister_blkdev(null_major, "nullb");
 
