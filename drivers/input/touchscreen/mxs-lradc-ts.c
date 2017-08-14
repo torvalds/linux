@@ -30,7 +30,7 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
-const char *mxs_lradc_ts_irq_names[] = {
+static const char * const mxs_lradc_ts_irq_names[] = {
 	"mxs-lradc-touchscreen",
 	"mxs-lradc-channel6",
 	"mxs-lradc-channel7",
