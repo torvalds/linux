@@ -1213,7 +1213,7 @@ static struct snd_compr_ops cs47l24_compr_ops = {
 	.copy = wm_adsp_compr_copy,
 };
 
-static struct snd_soc_platform_driver cs47l24_compr_platform = {
+static const struct snd_soc_platform_driver cs47l24_compr_platform = {
 	.compr_ops = &cs47l24_compr_ops,
 };
 

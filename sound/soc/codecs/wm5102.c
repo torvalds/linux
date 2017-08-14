@@ -2027,7 +2027,7 @@ static struct snd_compr_ops wm5102_compr_ops = {
 	.copy = wm_adsp_compr_copy,
 };
 
-static struct snd_soc_platform_driver wm5102_compr_platform = {
+static const struct snd_soc_platform_driver wm5102_compr_platform = {
 	.compr_ops = &wm5102_compr_ops,
 };
 
