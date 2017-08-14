@@ -1044,10 +1044,17 @@ static bool construct(
 			&info.ext_disp_conn_info.path[i];
 		if (path->device_connector_id.enum_id == link->link_id.enum_id
 			&& path->device_connector_id.id == link->link_id.id
-			&& path->device_connector_id.type == link->link_id.type
-			&& path->device_acpi_enum
-					== link->device_tag.acpi_device) {
-			link->ddi_channel_mapping = path->channel_mapping;
+			&& path->device_connector_id.type == link->link_id.type) {
+
+			if (link->device_tag.acpi_device != 0
+				&& path->device_acpi_enum == link->device_tag.acpi_device) {
+				link->ddi_channel_mapping = path->channel_mapping;
+				link->chip_caps = path->caps;
+			} else if (path->device_tag ==
+					link->device_tag.dev_id.raw_device_tag) {
+				link->ddi_channel_mapping = path->channel_mapping;
+				link->chip_caps = path->caps;
+			}
 			break;
 		}
 	}
@@ -1263,11 +1270,416 @@ static enum dc_status enable_link_dp_mst(struct pipe_ctx *pipe_ctx)
 	return enable_link_dp(pipe_ctx);
 }
 
+static bool get_ext_hdmi_settings(struct pipe_ctx *pipe_ctx,
+		enum engine_id eng_id,
+		struct ext_hdmi_settings *settings)
+{
+	bool result = false;
+	int i = 0;
+	struct integrated_info *integrated_info =
+			pipe_ctx->stream->ctx->dc_bios->integrated_info;
+
+	if (integrated_info == NULL)
+		return false;
+
+	/*
+	 * Get retimer settings from sbios for passing SI eye test for DCE11
+	 * The setting values are varied based on board revision and port id
+	 * Therefore the setting values of each ports is passed by sbios.
+	 */
+
+	// Check if current bios contains ext Hdmi settings
+	if (integrated_info->gpu_cap_info & 0x20) {
+		switch (eng_id) {
+		case ENGINE_ID_DIGA:
+			settings->slv_addr = integrated_info->dp0_ext_hdmi_slv_addr;
+			settings->reg_num = integrated_info->dp0_ext_hdmi_6g_reg_num;
+			settings->reg_num_6g = integrated_info->dp0_ext_hdmi_6g_reg_num;
+			memmove(settings->reg_settings,
+					integrated_info->dp0_ext_hdmi_reg_settings,
+					sizeof(integrated_info->dp0_ext_hdmi_reg_settings));
+			memmove(settings->reg_settings_6g,
+					integrated_info->dp0_ext_hdmi_6g_reg_settings,
+					sizeof(integrated_info->dp0_ext_hdmi_6g_reg_settings));
+			result = true;
+			break;
+		case ENGINE_ID_DIGB:
+			settings->slv_addr = integrated_info->dp1_ext_hdmi_slv_addr;
+			settings->reg_num = integrated_info->dp1_ext_hdmi_6g_reg_num;
+			settings->reg_num_6g = integrated_info->dp1_ext_hdmi_6g_reg_num;
+			memmove(settings->reg_settings,
+					integrated_info->dp1_ext_hdmi_reg_settings,
+					sizeof(integrated_info->dp1_ext_hdmi_reg_settings));
+			memmove(settings->reg_settings_6g,
+					integrated_info->dp1_ext_hdmi_6g_reg_settings,
+					sizeof(integrated_info->dp1_ext_hdmi_6g_reg_settings));
+			result = true;
+			break;
+		case ENGINE_ID_DIGC:
+			settings->slv_addr = integrated_info->dp2_ext_hdmi_slv_addr;
+			settings->reg_num = integrated_info->dp2_ext_hdmi_6g_reg_num;
+			settings->reg_num_6g = integrated_info->dp2_ext_hdmi_6g_reg_num;
+			memmove(settings->reg_settings,
+					integrated_info->dp2_ext_hdmi_reg_settings,
+					sizeof(integrated_info->dp2_ext_hdmi_reg_settings));
+			memmove(settings->reg_settings_6g,
+					integrated_info->dp2_ext_hdmi_6g_reg_settings,
+					sizeof(integrated_info->dp2_ext_hdmi_6g_reg_settings));
+			result = true;
+			break;
+
+		default:
+			break;
+		}
+
+		if (result == true) {
+			// Validate settings from bios integrated info table
+			if (settings->slv_addr == 0)
+				return false;
+			if (settings->reg_num > 9)
+				return false;
+			if (settings->reg_num_6g > 3)
+				return false;
+
+			for (i = 0; i < settings->reg_num; i++) {
+				if (settings->reg_settings[i].i2c_reg_index > 0x20)
+					return false;
+			}
+
+			for (i = 0; i < settings->reg_num_6g; i++) {
+				if (settings->reg_settings_6g[i].i2c_reg_index > 0x20)
+					return false;
+			}
+		}
+	}
+
+	return result;
+}
+
+static bool i2c_write(struct pipe_ctx *pipe_ctx,
+		uint8_t address, uint8_t *buffer, uint32_t length)
+{
+	struct i2c_command cmd = {0};
+	struct i2c_payload payload = {0};
+
+	memset(&payload, 0, sizeof(payload));
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.number_of_payloads = 1;
+	cmd.engine = I2C_COMMAND_ENGINE_DEFAULT;
+	cmd.speed = pipe_ctx->stream->ctx->dc->caps.i2c_speed_in_khz;
+
+	payload.address = address;
+	payload.data = buffer;
+	payload.length = length;
+	payload.write = true;
+	cmd.payloads = &payload;
+
+	if (dc_submit_i2c(pipe_ctx->stream->ctx->dc,
+			pipe_ctx->stream->sink->link->link_index, &cmd))
+		return true;
+
+	return false;
+}
+
+static void write_i2c_retimer_setting(
+		struct pipe_ctx *pipe_ctx,
+		bool is_vga_mode,
+		bool is_over_340mhz,
+		struct ext_hdmi_settings *settings)
+{
+	uint8_t slave_address = (settings->slv_addr >> 1);
+	uint8_t buffer[2];
+	const uint8_t apply_rx_tx_change = 0x4;
+	uint8_t offset = 0xA;
+	uint8_t value = 0;
+	int i = 0;
+	bool i2c_success = false;
+
+	memset(&buffer, 0, sizeof(buffer));
+
+	/* Start Ext-Hdmi programming*/
+
+	for (i = 0; i < settings->reg_num; i++) {
+		/* Apply 3G settings */
+		if (settings->reg_settings[i].i2c_reg_index <= 0x20) {
+
+			buffer[0] = settings->reg_settings[i].i2c_reg_index;
+			buffer[1] = settings->reg_settings[i].i2c_reg_val;
+			i2c_success = i2c_write(pipe_ctx, slave_address,
+						buffer, sizeof(buffer));
+
+			if (!i2c_success)
+				/* Write failure */
+				ASSERT(i2c_success);
+
+			/* Based on DP159 specs, APPLY_RX_TX_CHANGE bit in 0x0A
+			 * needs to be set to 1 on every 0xA-0xC write.
+			 */
+			if (settings->reg_settings[i].i2c_reg_index == 0xA ||
+				settings->reg_settings[i].i2c_reg_index == 0xB ||
+				settings->reg_settings[i].i2c_reg_index == 0xC) {
+
+				/* Query current value from offset 0xA */
+				if (settings->reg_settings[i].i2c_reg_index == 0xA)
+					value = settings->reg_settings[i].i2c_reg_val;
+				else {
+					i2c_success =
+						dal_ddc_service_query_ddc_data(
+						pipe_ctx->stream->sink->link->ddc,
+						slave_address, &offset, 1, &value, 1);
+					if (!i2c_success)
+						/* Write failure */
+						ASSERT(i2c_success);
+				}
+
+				buffer[0] = offset;
+				/* Set APPLY_RX_TX_CHANGE bit to 1 */
+				buffer[1] = value | apply_rx_tx_change;
+				i2c_success = i2c_write(pipe_ctx, slave_address,
+						buffer, sizeof(buffer));
+				if (!i2c_success)
+					/* Write failure */
+					ASSERT(i2c_success);
+			}
+		}
+	}
+
+	/* Apply 3G settings */
+	if (is_over_340mhz) {
+		for (i = 0; i < settings->reg_num_6g; i++) {
+			/* Apply 3G settings */
+			if (settings->reg_settings[i].i2c_reg_index <= 0x20) {
+
+				buffer[0] = settings->reg_settings_6g[i].i2c_reg_index;
+				buffer[1] = settings->reg_settings_6g[i].i2c_reg_val;
+				i2c_success = i2c_write(pipe_ctx, slave_address,
+							buffer, sizeof(buffer));
+
+				if (!i2c_success)
+					/* Write failure */
+					ASSERT(i2c_success);
+
+				/* Based on DP159 specs, APPLY_RX_TX_CHANGE bit in 0x0A
+				 * needs to be set to 1 on every 0xA-0xC write.
+				 */
+				if (settings->reg_settings_6g[i].i2c_reg_index == 0xA ||
+					settings->reg_settings_6g[i].i2c_reg_index == 0xB ||
+					settings->reg_settings_6g[i].i2c_reg_index == 0xC) {
+
+					/* Query current value from offset 0xA */
+					if (settings->reg_settings_6g[i].i2c_reg_index == 0xA)
+						value = settings->reg_settings_6g[i].i2c_reg_val;
+					else {
+						i2c_success =
+								dal_ddc_service_query_ddc_data(
+								pipe_ctx->stream->sink->link->ddc,
+								slave_address, &offset, 1, &value, 1);
+						if (!i2c_success)
+							/* Write failure */
+							ASSERT(i2c_success);
+					}
+
+					buffer[0] = offset;
+					/* Set APPLY_RX_TX_CHANGE bit to 1 */
+					buffer[1] = value | apply_rx_tx_change;
+					i2c_success = i2c_write(pipe_ctx, slave_address,
+							buffer, sizeof(buffer));
+					if (!i2c_success)
+						/* Write failure */
+						ASSERT(i2c_success);
+				}
+			}
+		}
+	}
+
+	if (is_vga_mode) {
+		/* Program additional settings if using 640x480 resolution */
+
+		/* Write offset 0xFF to 0x01 */
+		buffer[0] = 0xff;
+		buffer[1] = 0x01;
+		i2c_success = i2c_write(pipe_ctx, slave_address,
+				buffer, sizeof(buffer));
+		if (!i2c_success)
+			/* Write failure */
+			ASSERT(i2c_success);
+
+		/* Write offset 0x00 to 0x23 */
+		buffer[0] = 0x00;
+		buffer[1] = 0x23;
+		i2c_success = i2c_write(pipe_ctx, slave_address,
+				buffer, sizeof(buffer));
+		if (!i2c_success)
+			/* Write failure */
+			ASSERT(i2c_success);
+
+		/* Write offset 0xff to 0x00 */
+		buffer[0] = 0xff;
+		buffer[1] = 0x00;
+		i2c_success = i2c_write(pipe_ctx, slave_address,
+				buffer, sizeof(buffer));
+		if (!i2c_success)
+			/* Write failure */
+			ASSERT(i2c_success);
+
+	}
+}
+
+static void write_i2c_default_retimer_setting(
+		struct pipe_ctx *pipe_ctx,
+		bool is_vga_mode,
+		bool is_over_340mhz)
+{
+	uint8_t slave_address = (0xBA >> 1);
+	uint8_t buffer[2];
+	bool i2c_success = false;
+
+	memset(&buffer, 0, sizeof(buffer));
+
+	/* Program Slave Address for tuning single integrity */
+	/* Write offset 0x0A to 0x13 */
+	buffer[0] = 0x0A;
+	buffer[1] = 0x13;
+	i2c_success = i2c_write(pipe_ctx, slave_address,
+			buffer, sizeof(buffer));
+	if (!i2c_success)
+		/* Write failure */
+		ASSERT(i2c_success);
+
+	/* Write offset 0x0A to 0x17 */
+	buffer[0] = 0x0A;
+	buffer[1] = 0x17;
+	i2c_success = i2c_write(pipe_ctx, slave_address,
+			buffer, sizeof(buffer));
+	if (!i2c_success)
+		/* Write failure */
+		ASSERT(i2c_success);
+
+	/* Write offset 0x0B to 0xDA or 0xD8 */
+	buffer[0] = 0x0B;
+	buffer[1] = is_over_340mhz ? 0xDA : 0xD8;
+	i2c_success = i2c_write(pipe_ctx, slave_address,
+			buffer, sizeof(buffer));
+	if (!i2c_success)
+		/* Write failure */
+		ASSERT(i2c_success);
+
+	/* Write offset 0x0A to 0x17 */
+	buffer[0] = 0x0A;
+	buffer[1] = 0x17;
+	i2c_success = i2c_write(pipe_ctx, slave_address,
+			buffer, sizeof(buffer));
+	if (!i2c_success)
+		/* Write failure */
+		ASSERT(i2c_success);
+
+	/* Write offset 0x0C to 0x1D or 0x91 */
+	buffer[0] = 0x0C;
+	buffer[1] = is_over_340mhz ? 0x1D : 0x91;
+	i2c_success = i2c_write(pipe_ctx, slave_address,
+			buffer, sizeof(buffer));
+	if (!i2c_success)
+		/* Write failure */
+		ASSERT(i2c_success);
+
+	/* Write offset 0x0A to 0x17 */
+	buffer[0] = 0x0A;
+	buffer[1] = 0x17;
+	i2c_success = i2c_write(pipe_ctx, slave_address,
+			buffer, sizeof(buffer));
+	if (!i2c_success)
+		/* Write failure */
+		ASSERT(i2c_success);
+
+
+	if (is_vga_mode) {
+		/* Program additional settings if using 640x480 resolution */
+
+		/* Write offset 0xFF to 0x01 */
+		buffer[0] = 0xff;
+		buffer[1] = 0x01;
+		i2c_success = i2c_write(pipe_ctx, slave_address,
+				buffer, sizeof(buffer));
+		if (!i2c_success)
+			/* Write failure */
+			ASSERT(i2c_success);
+
+		/* Write offset 0x00 to 0x23 */
+		buffer[0] = 0x00;
+		buffer[1] = 0x23;
+		i2c_success = i2c_write(pipe_ctx, slave_address,
+				buffer, sizeof(buffer));
+		if (!i2c_success)
+			/* Write failure */
+			ASSERT(i2c_success);
+
+		/* Write offset 0xff to 0x00 */
+		buffer[0] = 0xff;
+		buffer[1] = 0x00;
+		i2c_success = i2c_write(pipe_ctx, slave_address,
+				buffer, sizeof(buffer));
+		if (!i2c_success)
+			/* Write failure */
+			ASSERT(i2c_success);
+	}
+}
+
+static void write_i2c_redriver_setting(
+		struct pipe_ctx *pipe_ctx,
+		bool is_over_340mhz)
+{
+	uint8_t slave_address = (0xF0 >> 1);
+	uint8_t buffer[16];
+	bool i2c_success = false;
+
+	memset(&buffer, 0, sizeof(buffer));
+
+	// Program Slave Address for tuning single integrity
+	buffer[3] = 0x4E;
+	buffer[4] = 0x4E;
+	buffer[5] = 0x4E;
+	buffer[6] = is_over_340mhz ? 0x4E : 0x4A;
+
+	i2c_success = i2c_write(pipe_ctx, slave_address,
+					buffer, sizeof(buffer));
+
+	if (!i2c_success)
+		/* Write failure */
+		ASSERT(i2c_success);
+}
+
 static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	enum dc_color_depth display_color_depth;
+	enum engine_id eng_id;
+	struct ext_hdmi_settings settings = {0};
+	bool is_over_340mhz = false;
+	bool is_vga_mode = (stream->timing.h_addressable == 640)
+			&& (stream->timing.v_addressable == 480);
+
+	if (stream->phy_pix_clk > 340000)
+		is_over_340mhz = true;
+
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
+		if ((pipe_ctx->stream->sink->link->chip_caps >> 2) == 0x2) {
+			/* DP159, Retimer settings */
+			eng_id = pipe_ctx->stream_res.stream_enc->id;
+
+			if (get_ext_hdmi_settings(pipe_ctx, eng_id, &settings)) {
+				write_i2c_retimer_setting(pipe_ctx,
+						is_vga_mode, is_over_340mhz, &settings);
+			} else {
+				write_i2c_default_retimer_setting(pipe_ctx,
+						is_vga_mode, is_over_340mhz);
+			}
+		} else if ((pipe_ctx->stream->sink->link->chip_caps >> 2) == 0x1) {
+			/* PI3EQX1204, Redriver settings */
+			write_i2c_redriver_setting(pipe_ctx, is_over_340mhz);
+		}
+	}
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
 		dal_ddc_service_write_scdc_data(

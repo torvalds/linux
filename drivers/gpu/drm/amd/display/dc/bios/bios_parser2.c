@@ -993,6 +993,8 @@ static struct device_id device_type_from_device_id(uint16_t device_id)
 
 	struct device_id result_device_id;
 
+	result_device_id.raw_device_tag = device_id;
+
 	switch (device_id) {
 	case ATOM_DISPLAY_LCD1_SUPPORT:
 		result_device_id.device_type = DEVICE_TYPE_LCD;
@@ -1812,9 +1814,76 @@ static enum bp_result get_integrated_info_v11(
 			info_v11->extdispconninfo.path[i].hpdlut_index;
 		info->ext_disp_conn_info.path[i].channel_mapping.raw =
 			info_v11->extdispconninfo.path[i].channelmapping;
+		info->ext_disp_conn_info.path[i].caps =
+				le16_to_cpu(info_v11->extdispconninfo.path[i].caps);
 	}
 	info->ext_disp_conn_info.checksum =
 	info_v11->extdispconninfo.checksum;
+
+	info->dp0_ext_hdmi_slv_addr = info_v11->dp0_retimer_set.HdmiSlvAddr;
+	info->dp0_ext_hdmi_reg_num = info_v11->dp0_retimer_set.HdmiRegNum;
+	for (i = 0; i < info->dp0_ext_hdmi_reg_num; i++) {
+		info->dp0_ext_hdmi_reg_settings[i].i2c_reg_index =
+				info_v11->dp0_retimer_set.HdmiRegSetting[i].ucI2cRegIndex;
+		info->dp0_ext_hdmi_reg_settings[i].i2c_reg_val =
+				info_v11->dp0_retimer_set.HdmiRegSetting[i].ucI2cRegVal;
+	}
+	info->dp0_ext_hdmi_6g_reg_num = info_v11->dp0_retimer_set.Hdmi6GRegNum;
+	for (i = 0; i < info->dp0_ext_hdmi_6g_reg_num; i++) {
+		info->dp0_ext_hdmi_6g_reg_settings[i].i2c_reg_index =
+				info_v11->dp0_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegIndex;
+		info->dp0_ext_hdmi_6g_reg_settings[i].i2c_reg_val =
+				info_v11->dp0_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegVal;
+	}
+
+	info->dp1_ext_hdmi_slv_addr = info_v11->dp1_retimer_set.HdmiSlvAddr;
+	info->dp1_ext_hdmi_reg_num = info_v11->dp1_retimer_set.HdmiRegNum;
+	for (i = 0; i < info->dp1_ext_hdmi_reg_num; i++) {
+		info->dp1_ext_hdmi_reg_settings[i].i2c_reg_index =
+				info_v11->dp1_retimer_set.HdmiRegSetting[i].ucI2cRegIndex;
+		info->dp1_ext_hdmi_reg_settings[i].i2c_reg_val =
+				info_v11->dp1_retimer_set.HdmiRegSetting[i].ucI2cRegVal;
+	}
+	info->dp1_ext_hdmi_6g_reg_num = info_v11->dp1_retimer_set.Hdmi6GRegNum;
+	for (i = 0; i < info->dp1_ext_hdmi_6g_reg_num; i++) {
+		info->dp1_ext_hdmi_6g_reg_settings[i].i2c_reg_index =
+				info_v11->dp1_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegIndex;
+		info->dp1_ext_hdmi_6g_reg_settings[i].i2c_reg_val =
+				info_v11->dp1_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegVal;
+	}
+
+	info->dp2_ext_hdmi_slv_addr = info_v11->dp2_retimer_set.HdmiSlvAddr;
+	info->dp2_ext_hdmi_reg_num = info_v11->dp2_retimer_set.HdmiRegNum;
+	for (i = 0; i < info->dp2_ext_hdmi_reg_num; i++) {
+		info->dp2_ext_hdmi_reg_settings[i].i2c_reg_index =
+				info_v11->dp2_retimer_set.HdmiRegSetting[i].ucI2cRegIndex;
+		info->dp2_ext_hdmi_reg_settings[i].i2c_reg_val =
+				info_v11->dp2_retimer_set.HdmiRegSetting[i].ucI2cRegVal;
+	}
+	info->dp2_ext_hdmi_6g_reg_num = info_v11->dp2_retimer_set.Hdmi6GRegNum;
+	for (i = 0; i < info->dp2_ext_hdmi_6g_reg_num; i++) {
+		info->dp2_ext_hdmi_6g_reg_settings[i].i2c_reg_index =
+				info_v11->dp2_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegIndex;
+		info->dp2_ext_hdmi_6g_reg_settings[i].i2c_reg_val =
+				info_v11->dp2_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegVal;
+	}
+
+	info->dp3_ext_hdmi_slv_addr = info_v11->dp3_retimer_set.HdmiSlvAddr;
+	info->dp3_ext_hdmi_reg_num = info_v11->dp3_retimer_set.HdmiRegNum;
+	for (i = 0; i < info->dp3_ext_hdmi_reg_num; i++) {
+		info->dp3_ext_hdmi_reg_settings[i].i2c_reg_index =
+				info_v11->dp3_retimer_set.HdmiRegSetting[i].ucI2cRegIndex;
+		info->dp3_ext_hdmi_reg_settings[i].i2c_reg_val =
+				info_v11->dp3_retimer_set.HdmiRegSetting[i].ucI2cRegVal;
+	}
+	info->dp3_ext_hdmi_6g_reg_num = info_v11->dp3_retimer_set.Hdmi6GRegNum;
+	for (i = 0; i < info->dp3_ext_hdmi_6g_reg_num; i++) {
+		info->dp3_ext_hdmi_6g_reg_settings[i].i2c_reg_index =
+				info_v11->dp3_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegIndex;
+		info->dp3_ext_hdmi_6g_reg_settings[i].i2c_reg_val =
+				info_v11->dp3_retimer_set.Hdmi6GhzRegSetting[i].ucI2cRegVal;
+	}
+
 
 	/** TODO - review **/
 	#if 0
