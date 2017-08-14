@@ -1252,5 +1252,7 @@ static void __exit ib_core_cleanup(void)
 	destroy_workqueue(ib_wq);
 }
 
+MODULE_ALIAS_RDMA_NETLINK(RDMA_NL_LS, 4);
+
 module_init(ib_core_init);
 module_exit(ib_core_cleanup);

@@ -30,6 +30,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/module.h>
 #include <net/netlink.h>
 #include <rdma/rdma_netlink.h>
 
@@ -320,3 +321,5 @@ void __exit nldev_exit(void)
 {
 	rdma_nl_unregister(RDMA_NL_NLDEV);
 }
+
+MODULE_ALIAS_RDMA_NETLINK(RDMA_NL_NLDEV, 5);

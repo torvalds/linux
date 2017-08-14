@@ -1200,5 +1200,7 @@ static void __exit iw_cm_cleanup(void)
 	iwpm_exit(RDMA_NL_IWCM);
 }
 
+MODULE_ALIAS_RDMA_NETLINK(RDMA_NL_IWCM, 2);
+
 module_init(iw_cm_init);
 module_exit(iw_cm_cleanup);

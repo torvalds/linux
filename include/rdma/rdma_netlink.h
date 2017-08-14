@@ -17,6 +17,18 @@ enum rdma_nl_flags {
 	RDMA_NL_ADMIN_PERM	= 1 << 0,
 };
 
+/* Define this module as providing netlink services for NETLINK_RDMA, with
+ * index _index.  Since the client indexes were setup in a uapi header as an
+ * enum and we do no want to change that, the user must supply the expanded
+ * constant as well and the compiler checks they are the same.
+ */
+#define MODULE_ALIAS_RDMA_NETLINK(_index, _val)                                \
+	static inline void __chk_##_index(void)                                \
+	{                                                                      \
+		BUILD_BUG_ON(_index != _val);                                  \
+	}                                                                      \
+	MODULE_ALIAS("rdma-netlink-subsys-" __stringify(_val))
+
 /**
  * Register client in RDMA netlink.
  * @index: Index of the added client

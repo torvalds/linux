@@ -4537,5 +4537,7 @@ static void __exit cma_cleanup(void)
 	destroy_workqueue(cma_wq);
 }
 
+MODULE_ALIAS_RDMA_NETLINK(RDMA_NL_RDMA_CM, 1);
+
 module_init(cma_init);
 module_exit(cma_cleanup);
