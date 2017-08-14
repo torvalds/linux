@@ -91,7 +91,7 @@ endmenu
 #
 
 menu "MPC8xx CPM Options"
-	depends on 8xx
+	depends on PPC_8xx
 
 # This doesn't really belong here, but it is convenient to ask
 # 8xx specific questions.
