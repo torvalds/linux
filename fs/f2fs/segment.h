@@ -492,11 +492,6 @@ static inline int overprovision_segments(struct f2fs_sb_info *sbi)
 	return SM_I(sbi)->ovp_segments;
 }
 
-static inline int overprovision_sections(struct f2fs_sb_info *sbi)
-{
-	return GET_SEC_FROM_SEG(sbi, (unsigned int)overprovision_segments(sbi));
-}
-
 static inline int reserved_sections(struct f2fs_sb_info *sbi)
 {
 	return GET_SEC_FROM_SEG(sbi, (unsigned int)reserved_segments(sbi));
