@@ -230,7 +230,7 @@
 	bluetooth {
 		compatible = "ti,wl1837-st";
 		enable-gpios = <&gpio15 6 GPIO_ACTIVE_HIGH>;
-		max-speed = <921600>;
+		max-speed = <3000000>;
 	};
 };
 
