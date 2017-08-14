@@ -1122,6 +1122,26 @@ static void rockchip_gem_pool_destroy(struct drm_device *drm)
 	gen_pool_destroy(private->secure_buffer_pool);
 }
 
+static void rockchip_attach_connector_property(struct drm_device *drm)
+{
+	struct drm_connector *connector;
+	struct drm_mode_config *conf = &drm->mode_config;
+
+	mutex_lock(&drm->mode_config.mutex);
+
+	drm_for_each_connector(connector, drm) {
+#define ROCKCHIP_PROP_ATTACH(prop, v) \
+	drm_object_attach_property(&connector->base, prop, v)
+
+		ROCKCHIP_PROP_ATTACH(conf->tv_brightness_property, 100);
+		ROCKCHIP_PROP_ATTACH(conf->tv_contrast_property, 100);
+		ROCKCHIP_PROP_ATTACH(conf->tv_saturation_property, 100);
+		ROCKCHIP_PROP_ATTACH(conf->tv_hue_property, 100);
+	}
+
+	mutex_unlock(&drm->mode_config.mutex);
+}
+
 static int rockchip_drm_bind(struct device *dev)
 {
 	struct drm_device *drm_dev;
@@ -1191,6 +1211,8 @@ static int rockchip_drm_bind(struct device *dev)
 	ret = component_bind_all(dev, drm_dev);
 	if (ret)
 		goto err_mode_config_cleanup;
+
+	rockchip_attach_connector_property(drm_dev);
 
 	ret = drm_vblank_init(drm_dev, drm_dev->mode_config.num_crtc);
 	if (ret)

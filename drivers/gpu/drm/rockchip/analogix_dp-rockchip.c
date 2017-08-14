@@ -213,6 +213,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
 	if (info->num_bus_formats)
 		s->bus_format = info->bus_formats[0];
+	s->tv_state = &conn_state->tv;
 
 	return 0;
 }

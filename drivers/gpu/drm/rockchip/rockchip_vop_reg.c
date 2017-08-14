@@ -247,6 +247,19 @@ static const struct vop_ctrl rk3288_ctrl_data = {
 	.cabc_global_dn_limit_en = VOP_REG_VER(RK3399_CABC_CTRL3, 0x1, 8,
 					       3, 5, -1),
 
+	.bcsh_brightness = VOP_REG(RK3288_BCSH_BCS, 0xff, 0),
+	.bcsh_contrast = VOP_REG(RK3288_BCSH_BCS, 0x1ff, 8),
+	.bcsh_sat_con = VOP_REG(RK3288_BCSH_BCS, 0x3ff, 20),
+	.bcsh_out_mode = VOP_REG(RK3288_BCSH_BCS, 0x3, 0),
+	.bcsh_sin_hue = VOP_REG(RK3288_BCSH_H, 0x1ff, 0),
+	.bcsh_cos_hue = VOP_REG(RK3288_BCSH_H, 0x1ff, 16),
+	.bcsh_r2y_csc_mode = VOP_REG_VER(RK3368_BCSH_CTRL, 0x1, 6, 3, 2, -1),
+	.bcsh_r2y_en = VOP_REG_VER(RK3368_BCSH_CTRL, 0x1, 4, 3, 2, -1),
+	.bcsh_y2r_csc_mode = VOP_REG_VER(RK3368_BCSH_CTRL, 0x3, 2, 3, 2, -1),
+	.bcsh_y2r_en = VOP_REG_VER(RK3368_BCSH_CTRL, 0x1, 0, 3, 2, -1),
+	.bcsh_color_bar = VOP_REG(RK3288_BCSH_COLOR_BAR, 0xffffff, 8),
+	.bcsh_en = VOP_REG(RK3288_BCSH_COLOR_BAR, 0x1, 0),
+
 	.xmirror = VOP_REG(RK3288_DSP_CTRL0, 0x1, 22),
 	.ymirror = VOP_REG(RK3288_DSP_CTRL0, 0x1, 23),
 

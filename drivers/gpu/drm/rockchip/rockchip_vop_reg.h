@@ -121,6 +121,10 @@
 #define RK3288_DSP_VACT_ST_END			0x0194
 #define RK3288_DSP_VS_ST_END_F1			0x0198
 #define RK3288_DSP_VACT_ST_END_F1		0x019c
+
+#define RK3288_BCSH_COLOR_BAR			0x01b0
+#define RK3288_BCSH_BCS				0x01b4
+#define RK3288_BCSH_H				0x01b8
 /* register definition end */
 
 /* rk3368 register definition */

@@ -179,6 +179,20 @@ struct vop_ctrl {
 	struct vop_reg cabc_global_dn;
 	struct vop_reg cabc_calc_pixel_num;
 
+	/* BCSH */
+	struct vop_reg bcsh_brightness;
+	struct vop_reg bcsh_contrast;
+	struct vop_reg bcsh_sat_con;
+	struct vop_reg bcsh_sin_hue;
+	struct vop_reg bcsh_cos_hue;
+	struct vop_reg bcsh_r2y_csc_mode;
+	struct vop_reg bcsh_r2y_en;
+	struct vop_reg bcsh_y2r_csc_mode;
+	struct vop_reg bcsh_y2r_en;
+	struct vop_reg bcsh_color_bar;
+	struct vop_reg bcsh_out_mode;
+	struct vop_reg bcsh_en;
+
 	struct vop_reg cfg_done;
 };
 
@@ -542,6 +556,11 @@ static inline int scl_vop_cal_lb_mode(int width, bool is_yuv)
 static inline int us_to_vertical_line(struct drm_display_mode *mode, int us)
 {
 	return us * mode->clock / mode->htotal / 1000;
+}
+
+static inline int interpolate(int x1, int y1, int x2, int y2, int x)
+{
+	return y1 + (y2 - y1) * (x - x1) / (x2 - x1);
 }
 
 extern const struct component_ops vop_component_ops;

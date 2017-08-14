@@ -21,6 +21,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include <linux/devfreq.h>
+#include <linux/fixp-arith.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -2192,6 +2193,67 @@ static void vop_update_cabc(struct drm_crtc *crtc,
 	}
 }
 
+static void vop_tv_config_update(struct drm_crtc *crtc,
+				 struct drm_crtc_state *old_crtc_state)
+{
+	struct rockchip_crtc_state *s =
+			to_rockchip_crtc_state(crtc->state);
+	struct rockchip_crtc_state *old_s =
+			to_rockchip_crtc_state(old_crtc_state);
+	int brightness, contrast, saturation, hue, sin_hue, cos_hue;
+	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
+
+	if (!s->tv_state)
+		return;
+
+	if (old_s->tv_state &&
+	    !memcmp(s->tv_state, old_s->tv_state, sizeof(*s->tv_state)))
+		return;
+
+	if (s->tv_state->brightness == 50 &&
+	    s->tv_state->contrast == 50 &&
+	    s->tv_state->saturation == 50 &&
+	    s->tv_state->hue == 50) {
+		VOP_CTRL_SET(vop, bcsh_en, 0);
+		return;
+	}
+
+	if (vop_data->feature & VOP_FEATURE_OUTPUT_10BIT)
+		brightness = interpolate(0, -128, 100, 127,
+					 s->tv_state->brightness);
+	else
+		brightness = interpolate(0, -32, 100, 31,
+					 s->tv_state->brightness);
+	contrast = interpolate(0, 0, 100, 511, s->tv_state->contrast);
+	saturation = interpolate(0, 0, 100, 511, s->tv_state->saturation);
+	hue = interpolate(0, -30, 100, 30, s->tv_state->hue);
+
+	/*
+	 *  a:[-30~0]:
+	 *    sin_hue = 0x100 - sin(a)*256;
+	 *    cos_hue = cos(a)*256;
+	 *  a:[0~30]
+	 *    sin_hue = sin(a)*256;
+	 *    cos_hue = cos(a)*256;
+	 */
+	sin_hue = fixp_sin32(hue) >> 23;
+	cos_hue = fixp_cos32(hue) >> 23;
+	VOP_CTRL_SET(vop, bcsh_brightness, brightness);
+	VOP_CTRL_SET(vop, bcsh_contrast, contrast);
+	VOP_CTRL_SET(vop, bcsh_sat_con, saturation * contrast / 0x100);
+	VOP_CTRL_SET(vop, bcsh_sin_hue, sin_hue);
+	VOP_CTRL_SET(vop, bcsh_cos_hue, cos_hue);
+	VOP_CTRL_SET(vop, bcsh_en, 1);
+	if (!is_yuv_output(s->bus_format)) {
+		VOP_CTRL_SET(vop, bcsh_r2y_en, 1);
+		VOP_CTRL_SET(vop, bcsh_y2r_en, 1);
+	} else {
+		VOP_CTRL_SET(vop, bcsh_r2y_en, 0);
+		VOP_CTRL_SET(vop, bcsh_y2r_en, 0);
+	}
+}
+
 static void vop_cfg_update(struct drm_crtc *crtc,
 			   struct drm_crtc_state *old_crtc_state)
 {
@@ -2200,6 +2262,8 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 	struct vop *vop = to_vop(crtc);
 
 	spin_lock(&vop->reg_lock);
+
+	vop_tv_config_update(crtc, old_crtc_state);
 
 	if (s->afbdc_en) {
 		uint32_t pic_size;
