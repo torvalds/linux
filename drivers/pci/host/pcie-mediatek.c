@@ -511,8 +511,7 @@ static int mtk_pcie_setup_irq(struct mtk_pcie_port *port,
 static void __iomem *mtk_pcie_map_bus(struct pci_bus *bus,
 				      unsigned int devfn, int where)
 {
-	struct pci_host_bridge *host = pci_find_host_bridge(bus);
-	struct mtk_pcie *pcie = pci_host_bridge_priv(host);
+	struct mtk_pcie *pcie = bus->sysdata;
 
 	writel(PCIE_CONF_ADDR(where, PCI_FUNC(devfn), PCI_SLOT(devfn),
 			      bus->number), pcie->base + PCIE_CFG_ADDR);
