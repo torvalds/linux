@@ -625,38 +625,10 @@ static bool min10_is_flip_pending(struct mem_input *mem_input)
 	return false;
 }
 
-struct vm_system_aperture_param {
-	PHYSICAL_ADDRESS_LOC sys_default;
-	PHYSICAL_ADDRESS_LOC sys_low;
-	PHYSICAL_ADDRESS_LOC sys_high;
-};
-
-static void min10_read_vm_system_aperture_settings(struct dcn10_mem_input *mi,
+static void min10_set_vm_system_aperture_settings(struct mem_input *mem_input,
 		struct vm_system_aperture_param *apt)
 {
-	PHYSICAL_ADDRESS_LOC physical_page_number;
-	uint32_t logical_addr_low;
-	uint32_t logical_addr_high;
-
-	REG_GET(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB,
-			PHYSICAL_PAGE_NUMBER_MSB, &physical_page_number.high_part);
-	REG_GET(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
-			PHYSICAL_PAGE_NUMBER_LSB, &physical_page_number.low_part);
-
-	REG_GET(MC_VM_SYSTEM_APERTURE_LOW_ADDR,
-			LOGICAL_ADDR, &logical_addr_low);
-
-	REG_GET(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-			LOGICAL_ADDR, &logical_addr_high);
-
-	apt->sys_default.quad_part =  physical_page_number.quad_part << 12;
-	apt->sys_low.quad_part =  (int64_t)logical_addr_low << 18;
-	apt->sys_high.quad_part =  (int64_t)logical_addr_high << 18;
-}
-
-static void min10_set_vm_system_aperture_settings(struct dcn10_mem_input *mi,
-		struct vm_system_aperture_param *apt)
-{
+	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 	PHYSICAL_ADDRESS_LOC mc_vm_apt_default;
 	PHYSICAL_ADDRESS_LOC mc_vm_apt_low;
 	PHYSICAL_ADDRESS_LOC mc_vm_apt_high;
@@ -682,60 +654,10 @@ static void min10_set_vm_system_aperture_settings(struct dcn10_mem_input *mi,
 			MC_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, mc_vm_apt_high.low_part);
 }
 
-struct vm_context0_param {
-	PHYSICAL_ADDRESS_LOC pte_base;
-	PHYSICAL_ADDRESS_LOC pte_start;
-	PHYSICAL_ADDRESS_LOC pte_end;
-	PHYSICAL_ADDRESS_LOC fault_default;
-};
-
-/* Temporary read settings, future will get values from kmd directly */
-static void min10_read_vm_context0_settings(struct dcn10_mem_input *mi,
-		struct vm_context0_param *vm0)
-{
-	PHYSICAL_ADDRESS_LOC fb_base;
-	PHYSICAL_ADDRESS_LOC fb_offset;
-	uint32_t fb_base_value;
-	uint32_t fb_offset_value;
-
-	REG_GET(DCHUBBUB_SDPIF_FB_BASE, SDPIF_FB_BASE, &fb_base_value);
-	REG_GET(DCHUBBUB_SDPIF_FB_OFFSET, SDPIF_FB_OFFSET, &fb_offset_value);
-
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
-			PAGE_DIRECTORY_ENTRY_HI32, &vm0->pte_base.high_part);
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
-			PAGE_DIRECTORY_ENTRY_LO32, &vm0->pte_base.low_part);
-
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
-			LOGICAL_PAGE_NUMBER_HI4, &vm0->pte_start.high_part);
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
-			LOGICAL_PAGE_NUMBER_LO32, &vm0->pte_start.low_part);
-
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
-			LOGICAL_PAGE_NUMBER_HI4, &vm0->pte_end.high_part);
-	REG_GET(VM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
-			LOGICAL_PAGE_NUMBER_LO32, &vm0->pte_end.low_part);
-
-	REG_GET(VM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32,
-			PHYSICAL_PAGE_ADDR_HI4, &vm0->fault_default.high_part);
-	REG_GET(VM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32,
-			PHYSICAL_PAGE_ADDR_LO32, &vm0->fault_default.low_part);
-
-	/*
-	 * The values in VM_CONTEXT0_PAGE_TABLE_BASE_ADDR is in UMA space.
-	 * Therefore we need to do
-	 * DCN_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR = VM_CONTEXT0_PAGE_TABLE_BASE_ADDR
-	 * - DCHUBBUB_SDPIF_FB_OFFSET + DCHUBBUB_SDPIF_FB_BASE
-	 */
-	fb_base.quad_part = (uint64_t)fb_base_value << 24;
-	fb_offset.quad_part = (uint64_t)fb_offset_value << 24;
-	vm0->pte_base.quad_part += fb_base.quad_part;
-	vm0->pte_base.quad_part -= fb_offset.quad_part;
-}
-
-static void min10_set_vm_context0_settings(struct dcn10_mem_input *mi,
+static void min10_set_vm_context0_settings(struct mem_input *mem_input,
 		const struct vm_context0_param *vm0)
 {
+	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
 	/* pte base */
 	REG_SET(DCN_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_MSB, 0,
 			VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_MSB, vm0->pte_base.high_part);
@@ -760,23 +682,6 @@ static void min10_set_vm_context0_settings(struct dcn10_mem_input *mi,
 	/* VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_SYSTEM, 0 */
 	REG_SET(DCN_VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_LSB, 0,
 			VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR_LSB, vm0->fault_default.low_part);
-}
-
-static void min10_program_pte_vm(struct mem_input *mem_input,
-		enum surface_pixel_format format,
-		union dc_tiling_info *tiling_info,
-		enum dc_rotation_angle rotation)
-{
-	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
-	struct vm_system_aperture_param apt = { {{ 0 } } };
-	struct vm_context0_param vm0 = { { { 0 } } };
-
-
-	min10_read_vm_system_aperture_settings(mi, &apt);
-	min10_read_vm_context0_settings(mi, &vm0);
-
-	min10_set_vm_system_aperture_settings(mi, &apt);
-	min10_set_vm_context0_settings(mi, &vm0);
 
 	/* control: enable VM PTE*/
 	REG_SET_2(DCN_VM_MX_L1_TLB_CNTL, 0,
@@ -862,7 +767,8 @@ static struct mem_input_funcs dcn10_mem_input_funcs = {
 			min10_program_surface_config,
 	.mem_input_is_flip_pending = min10_is_flip_pending,
 	.mem_input_setup = min10_setup,
-	.mem_input_program_pte_vm = min10_program_pte_vm,
+	.mem_input_set_vm_system_aperture_settings = min10_set_vm_system_aperture_settings,
+	.mem_input_set_vm_context0_settings = min10_set_vm_context0_settings,
 	.set_blank = min10_set_blank,
 	.dcc_control = min10_dcc_control,
 	.mem_program_viewport = min_set_viewport,

@@ -74,6 +74,19 @@ struct mem_input {
 	struct stutter_modes stutter_mode;
 };
 
+struct vm_system_aperture_param {
+	PHYSICAL_ADDRESS_LOC sys_default;
+	PHYSICAL_ADDRESS_LOC sys_low;
+	PHYSICAL_ADDRESS_LOC sys_high;
+};
+
+struct vm_context0_param {
+	PHYSICAL_ADDRESS_LOC pte_base;
+	PHYSICAL_ADDRESS_LOC pte_start;
+	PHYSICAL_ADDRESS_LOC pte_end;
+	PHYSICAL_ADDRESS_LOC fault_default;
+};
+
 struct mem_input_funcs {
 	void (*mem_input_setup)(
 			struct mem_input *mem_input,
@@ -124,6 +137,14 @@ struct mem_input_funcs {
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
 		enum dc_rotation_angle rotation);
+
+	void (*mem_input_set_vm_system_aperture_settings)(
+			struct mem_input *mem_input,
+			struct vm_system_aperture_param *apt);
+
+	void (*mem_input_set_vm_context0_settings)(
+			struct mem_input *mem_input,
+			const struct vm_context0_param *vm0);
 
 	void (*mem_input_program_surface_config)(
 		struct mem_input *mem_input,
