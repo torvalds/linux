@@ -1920,7 +1920,9 @@ static struct i915_power_well hsw_power_wells[] = {
 		.domains = HSW_DISPLAY_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = HSW_DISP_PW_GLOBAL,
-		.hsw.has_vga = true,
+		{
+			.hsw.has_vga = true,
+		},
 	},
 };
 
@@ -1937,8 +1939,10 @@ static struct i915_power_well bdw_power_wells[] = {
 		.domains = BDW_DISPLAY_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = HSW_DISP_PW_GLOBAL,
-		.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
-		.hsw.has_vga = true,
+		{
+			.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
+			.hsw.has_vga = true,
+		},
 	},
 };
 
@@ -2080,7 +2084,9 @@ static struct i915_power_well skl_power_wells[] = {
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
-		.hsw.has_fuses = true,
+		{
+			.hsw.has_fuses = true,
+		},
 	},
 	{
 		.name = "MISC IO power well",
@@ -2100,9 +2106,11 @@ static struct i915_power_well skl_power_wells[] = {
 		.domains = SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
-		.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
-		.hsw.has_vga = true,
-		.hsw.has_fuses = true,
+		{
+			.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
+			.hsw.has_vga = true,
+			.hsw.has_fuses = true,
+		},
 	},
 	{
 		.name = "DDI A/E IO power well",
@@ -2143,7 +2151,9 @@ static struct i915_power_well bxt_power_wells[] = {
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
-		.hsw.has_fuses = true,
+		{
+			.hsw.has_fuses = true,
+		},
 	},
 	{
 		.name = "DC off",
@@ -2156,23 +2166,29 @@ static struct i915_power_well bxt_power_wells[] = {
 		.domains = BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
-		.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
-		.hsw.has_vga = true,
-		.hsw.has_fuses = true,
+		{
+			.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
+			.hsw.has_vga = true,
+			.hsw.has_fuses = true,
+		},
 	},
 	{
 		.name = "dpio-common-a",
 		.domains = BXT_DPIO_CMN_A_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = BXT_DPIO_CMN_A,
-		.bxt.phy = DPIO_PHY1,
+		{
+			.bxt.phy = DPIO_PHY1,
+		},
 	},
 	{
 		.name = "dpio-common-bc",
 		.domains = BXT_DPIO_CMN_BC_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = BXT_DPIO_CMN_BC,
-		.bxt.phy = DPIO_PHY0,
+		{
+			.bxt.phy = DPIO_PHY0,
+		},
 	},
 };
 
@@ -2190,7 +2206,9 @@ static struct i915_power_well glk_power_wells[] = {
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
-		.hsw.has_fuses = true,
+		{
+			.hsw.has_fuses = true,
+		},
 	},
 	{
 		.name = "DC off",
@@ -2203,30 +2221,38 @@ static struct i915_power_well glk_power_wells[] = {
 		.domains = GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
-		.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
-		.hsw.has_vga = true,
-		.hsw.has_fuses = true,
+		{
+			.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
+			.hsw.has_vga = true,
+			.hsw.has_fuses = true,
+		},
 	},
 	{
 		.name = "dpio-common-a",
 		.domains = GLK_DPIO_CMN_A_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = BXT_DPIO_CMN_A,
-		.bxt.phy = DPIO_PHY1,
+		{
+			.bxt.phy = DPIO_PHY1,
+		},
 	},
 	{
 		.name = "dpio-common-b",
 		.domains = GLK_DPIO_CMN_B_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = BXT_DPIO_CMN_BC,
-		.bxt.phy = DPIO_PHY0,
+		{
+			.bxt.phy = DPIO_PHY0,
+		},
 	},
 	{
 		.name = "dpio-common-c",
 		.domains = GLK_DPIO_CMN_C_POWER_DOMAINS,
 		.ops = &bxt_dpio_cmn_power_well_ops,
 		.id = GLK_DPIO_CMN_C,
-		.bxt.phy = DPIO_PHY2,
+		{
+			.bxt.phy = DPIO_PHY2,
+		},
 	},
 	{
 		.name = "AUX A",
@@ -2280,7 +2306,9 @@ static struct i915_power_well cnl_power_wells[] = {
 		.domains = 0,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_1,
-		.hsw.has_fuses = true,
+		{
+			.hsw.has_fuses = true,
+		},
 	},
 	{
 		.name = "AUX A",
@@ -2317,9 +2345,11 @@ static struct i915_power_well cnl_power_wells[] = {
 		.domains = CNL_DISPLAY_POWERWELL_2_POWER_DOMAINS,
 		.ops = &hsw_power_well_ops,
 		.id = SKL_DISP_PW_2,
-		.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
-		.hsw.has_vga = true,
-		.hsw.has_fuses = true,
+		{
+			.hsw.irq_pipe_mask = BIT(PIPE_B) | BIT(PIPE_C),
+			.hsw.has_vga = true,
+			.hsw.has_fuses = true,
+		},
 	},
 	{
 		.name = "DDI A IO power well",
