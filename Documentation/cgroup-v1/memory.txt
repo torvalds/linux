@@ -789,23 +789,46 @@ way to trigger. Applications should do whatever they can to help the
 system. It might be too late to consult with vmstat or any other
 statistics, so it's advisable to take an immediate action.
 
-The events are propagated upward until the event is handled, i.e. the
-events are not pass-through. Here is what this means: for example you have
-three cgroups: A->B->C. Now you set up an event listener on cgroups A, B
-and C, and suppose group C experiences some pressure. In this situation,
-only group C will receive the notification, i.e. groups A and B will not
-receive it. This is done to avoid excessive "broadcasting" of messages,
-which disturbs the system and which is especially bad if we are low on
-memory or thrashing. So, organize the cgroups wisely, or propagate the
-events manually (or, ask us to implement the pass-through events,
-explaining why would you need them.)
+By default, events are propagated upward until the event is handled, i.e. the
+events are not pass-through. For example, you have three cgroups: A->B->C. Now
+you set up an event listener on cgroups A, B and C, and suppose group C
+experiences some pressure. In this situation, only group C will receive the
+notification, i.e. groups A and B will not receive it. This is done to avoid
+excessive "broadcasting" of messages, which disturbs the system and which is
+especially bad if we are low on memory or thrashing. Group B, will receive
+notification only if there are no event listers for group C.
+
+There are three optional modes that specify different propagation behavior:
+
+ - "default": this is the default behavior specified above. This mode is the
+   same as omitting the optional mode parameter, preserved by backwards
+   compatibility.
+
+ - "hierarchy": events always propagate up to the root, similar to the default
+   behavior, except that propagation continues regardless of whether there are
+   event listeners at each level, with the "hierarchy" mode. In the above
+   example, groups A, B, and C will receive notification of memory pressure.
+
+ - "local": events are pass-through, i.e. they only receive notifications when
+   memory pressure is experienced in the memcg for which the notification is
+   registered. In the above example, group C will receive notification if
+   registered for "local" notification and the group experiences memory
+   pressure. However, group B will never receive notification, regardless if
+   there is an event listener for group C or not, if group B is registered for
+   local notification.
+
+The level and event notification mode ("hierarchy" or "local", if necessary) are
+specified by a comma-delimited string, i.e. "low,hierarchy" specifies
+hierarchical, pass-through, notification for all ancestor memcgs. Notification
+that is the default, non pass-through behavior, does not specify a mode.
+"medium,local" specifies pass-through notification for the medium level.
 
 The file memory.pressure_level is only used to setup an eventfd. To
 register a notification, an application must:
 
 - create an eventfd using eventfd(2);
 - open memory.pressure_level;
-- write string like "<event_fd> <fd of memory.pressure_level> <level>"
+- write string as "<event_fd> <fd of memory.pressure_level> <level[,mode]>"
   to cgroup.event_control.
 
 Application will be notified through eventfd when memory pressure is at
@@ -821,7 +844,7 @@ Test:
    # cd /sys/fs/cgroup/memory/
    # mkdir foo
    # cd foo
-   # cgroup_event_listener memory.pressure_level low &
+   # cgroup_event_listener memory.pressure_level low,hierarchy &
    # echo 8000000 > memory.limit_in_bytes
    # echo 8000000 > memory.memsw.limit_in_bytes
    # echo $$ > tasks

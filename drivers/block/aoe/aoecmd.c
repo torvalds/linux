@@ -1070,8 +1070,8 @@ aoe_end_request(struct aoedev *d, struct request *rq, int fastfail)
 		d->ip.rq = NULL;
 	do {
 		bio = rq->bio;
-		bok = !fastfail && !bio->bi_error;
-	} while (__blk_end_request(rq, bok ? 0 : -EIO, bio->bi_iter.bi_size));
+		bok = !fastfail && !bio->bi_status;
+	} while (__blk_end_request(rq, bok ? BLK_STS_OK : BLK_STS_IOERR, bio->bi_iter.bi_size));
 
 	/* cf. http://lkml.org/lkml/2006/10/31/28 */
 	if (!fastfail)
@@ -1131,7 +1131,7 @@ ktiocomplete(struct frame *f)
 			ahout->cmdstat, ahin->cmdstat,
 			d->aoemajor, d->aoeminor);
 noskb:		if (buf)
-			buf->bio->bi_error = -EIO;
+			buf->bio->bi_status = BLK_STS_IOERR;
 		goto out;
 	}
 
@@ -1144,7 +1144,7 @@ noskb:		if (buf)
 				"aoe: runt data size in read from",
 				(long) d->aoemajor, d->aoeminor,
 			       skb->len, n);
-			buf->bio->bi_error = -EIO;
+			buf->bio->bi_status = BLK_STS_IOERR;
 			break;
 		}
 		if (n > f->iter.bi_size) {
@@ -1152,7 +1152,7 @@ noskb:		if (buf)
 				"aoe: too-large data size in read from",
 				(long) d->aoemajor, d->aoeminor,
 				n, f->iter.bi_size);
-			buf->bio->bi_error = -EIO;
+			buf->bio->bi_status = BLK_STS_IOERR;
 			break;
 		}
 		bvcpy(skb, f->buf->bio, f->iter, n);
@@ -1654,7 +1654,7 @@ aoe_failbuf(struct aoedev *d, struct buf *buf)
 	if (buf == NULL)
 		return;
 	buf->iter.bi_size = 0;
-	buf->bio->bi_error = -EIO;
+	buf->bio->bi_status = BLK_STS_IOERR;
 	if (buf->nframesout == 0)
 		aoe_end_buf(d, buf);
 }

@@ -37,7 +37,7 @@ static void bsg_destroy_job(struct kref *kref)
 	struct bsg_job *job = container_of(kref, struct bsg_job, kref);
 	struct request *rq = job->req;
 
-	blk_end_request_all(rq, scsi_req(rq)->result);
+	blk_end_request_all(rq, BLK_STS_OK);
 
 	put_device(job->dev);	/* release reference for the request */
 
@@ -202,7 +202,7 @@ static void bsg_request_fn(struct request_queue *q)
 		ret = bsg_create_job(dev, req);
 		if (ret) {
 			scsi_req(req)->result = ret;
-			blk_end_request_all(req, ret);
+			blk_end_request_all(req, BLK_STS_OK);
 			spin_lock_irq(q->queue_lock);
 			continue;
 		}
@@ -246,6 +246,7 @@ struct request_queue *bsg_setup_queue(struct device *dev, char *name,
 	q->bsg_job_size = dd_job_size;
 	q->bsg_job_fn = job_fn;
 	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, q);
+	queue_flag_set_unlocked(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
 	blk_queue_softirq_done(q, bsg_softirq_done);
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
 

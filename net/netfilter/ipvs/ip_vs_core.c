@@ -1037,9 +1037,9 @@ static int ip_vs_out_icmp_v6(struct netns_ipvs *ipvs, struct sk_buff *skb,
  */
 static inline int is_sctp_abort(const struct sk_buff *skb, int nh_len)
 {
-	sctp_chunkhdr_t *sch, schunk;
-	sch = skb_header_pointer(skb, nh_len + sizeof(sctp_sctphdr_t),
-			sizeof(schunk), &schunk);
+	struct sctp_chunkhdr *sch, schunk;
+	sch = skb_header_pointer(skb, nh_len + sizeof(struct sctphdr),
+				 sizeof(schunk), &schunk);
 	if (sch == NULL)
 		return 0;
 	if (sch->type == SCTP_CID_ABORT)
@@ -1070,9 +1070,9 @@ static inline bool is_new_conn(const struct sk_buff *skb,
 		return th->syn;
 	}
 	case IPPROTO_SCTP: {
-		sctp_chunkhdr_t *sch, schunk;
+		struct sctp_chunkhdr *sch, schunk;
 
-		sch = skb_header_pointer(skb, iph->len + sizeof(sctp_sctphdr_t),
+		sch = skb_header_pointer(skb, iph->len + sizeof(struct sctphdr),
 					 sizeof(schunk), &schunk);
 		if (sch == NULL)
 			return false;

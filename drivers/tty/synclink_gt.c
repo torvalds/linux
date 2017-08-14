@@ -184,7 +184,7 @@ static void hdlcdev_exit(struct slgt_info *info);
 struct cond_wait {
 	struct cond_wait *next;
 	wait_queue_head_t q;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	unsigned int data;
 };
 static void init_cond_wait(struct cond_wait *w, unsigned int data);
@@ -1755,7 +1755,7 @@ static void hdlcdev_rx(struct slgt_info *info, char *buf, int size)
 		return;
 	}
 
-	memcpy(skb_put(skb, size), buf, size);
+	skb_put_data(skb, buf, size);
 
 	skb->protocol = hdlc_type_trans(skb, dev);
 

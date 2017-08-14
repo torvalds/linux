@@ -110,7 +110,10 @@ assfail(char *expr, char *file, int line)
 {
 	xfs_emerg(NULL, "Assertion failed: %s, file: %s, line: %d",
 		expr, file, line);
-	BUG();
+	if (xfs_globals.bug_on_assert)
+		BUG();
+	else
+		WARN_ON(1);
 }
 
 void

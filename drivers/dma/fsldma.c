@@ -269,6 +269,7 @@ static void fsl_chan_set_src_loop_size(struct fsldma_chan *chan, int size)
 	case 2:
 	case 4:
 	case 8:
+		mode &= ~FSL_DMA_MR_SAHTS_MASK;
 		mode |= FSL_DMA_MR_SAHE | (__ilog2(size) << 14);
 		break;
 	}
@@ -301,6 +302,7 @@ static void fsl_chan_set_dst_loop_size(struct fsldma_chan *chan, int size)
 	case 2:
 	case 4:
 	case 8:
+		mode &= ~FSL_DMA_MR_DAHTS_MASK;
 		mode |= FSL_DMA_MR_DAHE | (__ilog2(size) << 16);
 		break;
 	}
@@ -327,7 +329,8 @@ static void fsl_chan_set_request_count(struct fsldma_chan *chan, int size)
 	BUG_ON(size > 1024);
 
 	mode = get_mr(chan);
-	mode |= (__ilog2(size) << 24) & 0x0f000000;
+	mode &= ~FSL_DMA_MR_BWC_MASK;
+	mode |= (__ilog2(size) << 24) & FSL_DMA_MR_BWC_MASK;
 
 	set_mr(chan, mode);
 }

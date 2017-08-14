@@ -61,14 +61,6 @@ void arch_cpu_idle(void)
 }
 
 /*
- *  Return saved PC of a blocked thread
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	return 0;
-}
-
-/*
  * Copy architecture-specific thread state
  */
 int copy_thread(unsigned long clone_flags, unsigned long usp,

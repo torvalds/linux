@@ -62,6 +62,7 @@ nvkm_outp_xlat(struct nvkm_outp *outp, enum nvkm_ior_type *type)
 	case 0:
 		switch (outp->info.type) {
 		case DCB_OUTPUT_ANALOG: *type = DAC; return  CRT;
+		case DCB_OUTPUT_TV    : *type = DAC; return   TV;
 		case DCB_OUTPUT_TMDS  : *type = SOR; return TMDS;
 		case DCB_OUTPUT_LVDS  : *type = SOR; return LVDS;
 		case DCB_OUTPUT_DP    : *type = SOR; return   DP;

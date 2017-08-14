@@ -146,6 +146,10 @@ static inline int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
 
 #endif
 
+drm_ioctl_t drm_version;
+drm_ioctl_t drm_getunique;
+drm_ioctl_t drm_getclient;
+
 /* drm_syncobj.c */
 void drm_syncobj_open(struct drm_file *file_private);
 void drm_syncobj_release(struct drm_file *file_private);

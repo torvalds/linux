@@ -282,6 +282,4 @@ clear_user(void __user *to, unsigned long n)
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
 extern long strnlen_user(const char __user *src, long count);
 
-#define strlen_user(str) strnlen_user(str, 32767)
-
 #endif /* _ASM_UACCESS_H */

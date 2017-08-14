@@ -34,7 +34,7 @@
 #define OTPC_CMD_READ                0x0
 #define OTPC_CMD_OTP_PROG_ENABLE     0x2
 #define OTPC_CMD_OTP_PROG_DISABLE    0x3
-#define OTPC_CMD_PROGRAM             0xA
+#define OTPC_CMD_PROGRAM             0x8
 
 /* OTPC Status Bits */
 #define OTPC_STAT_CMD_DONE           BIT(1)
@@ -209,7 +209,7 @@ static int bcm_otpc_write(void *context, unsigned int offset, void *val,
 		set_command(priv->base, OTPC_CMD_PROGRAM);
 		set_cpu_address(priv->base, address++);
 		for (i = 0; i < priv->map->otpc_row_size; i++) {
-			writel(*buf, priv->base + priv->map->data_r_offset[i]);
+			writel(*buf, priv->base + priv->map->data_w_offset[i]);
 			buf++;
 			bytes_written += sizeof(*buf);
 		}

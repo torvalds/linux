@@ -82,6 +82,14 @@ config BATTERY_ACT8945A
 	  Say Y here to enable support for power supply provided by
 	  Active-semi ActivePath ACT8945A charger.
 
+config BATTERY_CPCAP
+	tristate "Motorola CPCAP PMIC battery driver"
+	depends on MFD_CPCAP && IIO
+	default MFD_CPCAP
+	help
+	  Say Y here to enable support for battery on Motorola
+	  phones and tablets such as droid 4.
+
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
 	depends on W1 && W1_SLAVE_DS2760
@@ -189,6 +197,17 @@ config BATTERY_BQ27XXX_I2C
 	help
 	  Say Y here to enable support for batteries with BQ27xxx chips
 	  connected over an I2C bus.
+
+config BATTERY_BQ27XXX_DT_UPDATES_NVM
+	bool "BQ27xxx support for update of NVM/flash data memory"
+	depends on BATTERY_BQ27XXX_I2C
+	help
+	  Say Y here to enable devicetree monitored-battery config to update
+	  NVM/flash data memory. Only enable this option for devices with a
+	  fuel gauge mounted on the circuit board, and a battery that cannot
+	  easily be replaced with one of a different type. Not for
+	  general-purpose kernels, as this can cause misconfiguration of a
+	  smart battery with embedded NVM/flash.
 
 config BATTERY_DA9030
 	tristate "DA9030 battery driver"
@@ -407,6 +426,13 @@ config CHARGER_MANAGER
           system. The charger-manager also can monitor charging status in
           runtime and in suspend-to-RAM by waking up the system periodically
           with help of suspend_again support.
+
+config CHARGER_LTC3651
+	tristate "LTC3651 charger"
+	depends on GPIOLIB
+	help
+	  Say Y to include support for the LTC3651 battery charger which reports
+	  its status via GPIO lines.
 
 config CHARGER_MAX14577
 	tristate "Maxim MAX14577/77836 battery charger driver"

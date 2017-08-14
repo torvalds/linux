@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/acpi.h>
+#include <linux/suspend.h>
 #include <acpi/acpi_bus.h>
 
 MODULE_LICENSE("GPL");
@@ -75,6 +76,7 @@ static const struct key_entry intel_array_keymap[] = {
 struct intel_hid_priv {
 	struct input_dev *input_dev;
 	struct input_dev *array;
+	bool wakeup_mode;
 };
 
 static int intel_hid_set_enable(struct device *device, bool enable)
@@ -116,23 +118,37 @@ static void intel_button_array_enable(struct device *device, bool enable)
 		dev_warn(device, "failed to set button capability\n");
 }
 
+static int intel_hid_pm_prepare(struct device *device)
+{
+	struct intel_hid_priv *priv = dev_get_drvdata(device);
+
+	priv->wakeup_mode = true;
+	return 0;
+}
+
 static int intel_hid_pl_suspend_handler(struct device *device)
 {
-	intel_hid_set_enable(device, false);
-	intel_button_array_enable(device, false);
-
+	if (pm_suspend_via_firmware()) {
+		intel_hid_set_enable(device, false);
+		intel_button_array_enable(device, false);
+	}
 	return 0;
 }
 
 static int intel_hid_pl_resume_handler(struct device *device)
 {
-	intel_hid_set_enable(device, true);
-	intel_button_array_enable(device, true);
+	struct intel_hid_priv *priv = dev_get_drvdata(device);
 
+	priv->wakeup_mode = false;
+	if (pm_resume_via_firmware()) {
+		intel_hid_set_enable(device, true);
+		intel_button_array_enable(device, true);
+	}
 	return 0;
 }
 
 static const struct dev_pm_ops intel_hid_pl_pm_ops = {
+	.prepare = intel_hid_pm_prepare,
 	.freeze  = intel_hid_pl_suspend_handler,
 	.thaw  = intel_hid_pl_resume_handler,
 	.restore  = intel_hid_pl_resume_handler,
@@ -185,6 +201,19 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	struct intel_hid_priv *priv = dev_get_drvdata(&device->dev);
 	unsigned long long ev_index;
 	acpi_status status;
+
+	if (priv->wakeup_mode) {
+		/* Wake up on 5-button array events only. */
+		if (event == 0xc0 || !priv->array)
+			return;
+
+		if (sparse_keymap_entry_from_scancode(priv->array, event))
+			pm_wakeup_hard_event(&device->dev);
+		else
+			dev_info(&device->dev, "unknown event 0x%x\n", event);
+
+		return;
+	}
 
 	/* 0xC0 is for HID events, other values are for 5 button array */
 	if (event != 0xc0) {
@@ -270,6 +299,7 @@ static int intel_hid_probe(struct platform_device *device)
 				 "failed to enable HID power button\n");
 	}
 
+	device_init_wakeup(&device->dev, true);
 	return 0;
 
 err_remove_notify:

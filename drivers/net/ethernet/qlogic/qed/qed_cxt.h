@@ -54,19 +54,6 @@ struct qed_tid_mem {
 };
 
 /**
- * @brief qed_cxt_acquire - Acquire a new cid of a specific protocol type
- *
- * @param p_hwfn
- * @param type
- * @param p_cid
- *
- * @return int
- */
-int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
-			enum protocol_type type,
-			u32 *p_cid);
-
-/**
  * @brief qedo_cid_get_cxt_info - Returns the context info for a specific cid
  *
  *
@@ -195,14 +182,51 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
  */
 int qed_qm_reconf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
+#define QED_CXT_PF_CID (0xff)
+
 /**
  * @brief qed_cxt_release - Release a cid
  *
  * @param p_hwfn
  * @param cid
  */
-void qed_cxt_release_cid(struct qed_hwfn *p_hwfn,
-			 u32 cid);
+void qed_cxt_release_cid(struct qed_hwfn *p_hwfn, u32 cid);
+
+/**
+ * @brief qed_cxt_release - Release a cid belonging to a vf-queue
+ *
+ * @param p_hwfn
+ * @param cid
+ * @param vfid - engine relative index. QED_CXT_PF_CID if belongs to PF
+ */
+void _qed_cxt_release_cid(struct qed_hwfn *p_hwfn, u32 cid, u8 vfid);
+
+/**
+ * @brief qed_cxt_acquire - Acquire a new cid of a specific protocol type
+ *
+ * @param p_hwfn
+ * @param type
+ * @param p_cid
+ *
+ * @return int
+ */
+int qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
+			enum protocol_type type, u32 *p_cid);
+
+/**
+ * @brief _qed_cxt_acquire - Acquire a new cid of a specific protocol type
+ *                           for a vf-queue
+ *
+ * @param p_hwfn
+ * @param type
+ * @param p_cid
+ * @param vfid - engine relative index. QED_CXT_PF_CID if belongs to PF
+ *
+ * @return int
+ */
+int _qed_cxt_acquire_cid(struct qed_hwfn *p_hwfn,
+			 enum protocol_type type, u32 *p_cid, u8 vfid);
+
 int qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 			      enum qed_cxt_elem_type elem_type, u32 iid);
 u32 qed_cxt_get_proto_tid_count(struct qed_hwfn *p_hwfn,

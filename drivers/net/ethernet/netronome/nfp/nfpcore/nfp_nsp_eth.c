@@ -186,16 +186,20 @@ nfp_eth_port_translate(struct nfp_nsp *nsp, const union eth_table_entry *src,
 }
 
 static void
-nfp_eth_mark_split_ports(struct nfp_cpp *cpp, struct nfp_eth_table *table)
+nfp_eth_calc_port_geometry(struct nfp_cpp *cpp, struct nfp_eth_table *table)
 {
 	unsigned int i, j;
 
-	for (i = 0; i < table->count; i++)
+	for (i = 0; i < table->count; i++) {
+		table->max_index = max(table->max_index, table->ports[i].index);
+
 		for (j = 0; j < table->count; j++) {
-			if (i == j)
-				continue;
 			if (table->ports[i].label_port !=
 			    table->ports[j].label_port)
+				continue;
+			table->ports[i].port_lanes += table->ports[j].lanes;
+
+			if (i == j)
 				continue;
 			if (table->ports[i].label_subport ==
 			    table->ports[j].label_subport)
@@ -205,8 +209,8 @@ nfp_eth_mark_split_ports(struct nfp_cpp *cpp, struct nfp_eth_table *table)
 					 table->ports[i].label_subport);
 
 			table->ports[i].is_split = true;
-			break;
 		}
+	}
 }
 
 static void
@@ -289,7 +293,7 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 			nfp_eth_port_translate(nsp, &entries[i], i,
 					       &table->ports[j++]);
 
-	nfp_eth_mark_split_ports(cpp, table);
+	nfp_eth_calc_port_geometry(cpp, table);
 	for (i = 0; i < table->count; i++)
 		nfp_eth_calc_port_type(cpp, &table->ports[i]);
 

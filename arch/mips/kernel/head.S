@@ -106,8 +106,8 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 	beq		t0, t1, dtb_found
 #endif
 	li		t1, -2
-	beq		a0, t1, dtb_found
 	move		t2, a1
+	beq		a0, t1, dtb_found
 
 	li		t2, 0
 dtb_found:

@@ -699,13 +699,12 @@ static int netdev_get_link_ksettings(struct net_device *dev,
 				     struct ethtool_link_ksettings *cmd)
 {
 	struct korina_private *lp = netdev_priv(dev);
-	int rc;
 
 	spin_lock_irq(&lp->lock);
-	rc = mii_ethtool_get_link_ksettings(&lp->mii_if, cmd);
+	mii_ethtool_get_link_ksettings(&lp->mii_if, cmd);
 	spin_unlock_irq(&lp->lock);
 
-	return rc;
+	return 0;
 }
 
 static int netdev_set_link_ksettings(struct net_device *dev,

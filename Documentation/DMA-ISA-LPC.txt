@@ -1,19 +1,20 @@
-                        DMA with ISA and LPC devices
-                        ============================
+============================
+DMA with ISA and LPC devices
+============================
 
-                      Pierre Ossman <drzeus@drzeus.cx>
+:Author: Pierre Ossman <drzeus@drzeus.cx>
 
 This document describes how to do DMA transfers using the old ISA DMA
 controller. Even though ISA is more or less dead today the LPC bus
 uses the same DMA system so it will be around for quite some time.
 
-Part I - Headers and dependencies
----------------------------------
+Headers and dependencies
+------------------------
 
-To do ISA style DMA you need to include two headers:
+To do ISA style DMA you need to include two headers::
 
-#include <linux/dma-mapping.h>
-#include <asm/dma.h>
+	#include <linux/dma-mapping.h>
+	#include <asm/dma.h>
 
 The first is the generic DMA API used to convert virtual addresses to
 bus addresses (see Documentation/DMA-API.txt for details).
@@ -23,8 +24,8 @@ this is not present on all platforms make sure you construct your
 Kconfig to be dependent on ISA_DMA_API (not ISA) so that nobody tries
 to build your driver on unsupported platforms.
 
-Part II - Buffer allocation
----------------------------
+Buffer allocation
+-----------------
 
 The ISA DMA controller has some very strict requirements on which
 memory it can access so extra care must be taken when allocating
@@ -42,13 +43,13 @@ requirements you pass the flag GFP_DMA to kmalloc.
 
 Unfortunately the memory available for ISA DMA is scarce so unless you
 allocate the memory during boot-up it's a good idea to also pass
-__GFP_REPEAT and __GFP_NOWARN to make the allocator try a bit harder.
+__GFP_RETRY_MAYFAIL and __GFP_NOWARN to make the allocator try a bit harder.
 
 (This scarcity also means that you should allocate the buffer as
 early as possible and not release it until the driver is unloaded.)
 
-Part III - Address translation
-------------------------------
+Address translation
+-------------------
 
 To translate the virtual address to a bus address, use the normal DMA
 API. Do _not_ use isa_virt_to_phys() even though it does the same
@@ -61,8 +62,8 @@ Note: x86_64 had a broken DMA API when it came to ISA but has since
 been fixed. If your arch has problems then fix the DMA API instead of
 reverting to the ISA functions.
 
-Part IV - Channels
-------------------
+Channels
+--------
 
 A normal ISA DMA controller has 8 channels. The lower four are for
 8-bit transfers and the upper four are for 16-bit transfers.
@@ -80,8 +81,8 @@ The ability to use 16-bit or 8-bit transfers is _not_ up to you as a
 driver author but depends on what the hardware supports. Check your
 specs or test different channels.
 
-Part V - Transfer data
-----------------------
+Transfer data
+-------------
 
 Now for the good stuff, the actual DMA transfer. :)
 
@@ -112,37 +113,37 @@ Once the DMA transfer is finished (or timed out) you should disable
 the channel again. You should also check get_dma_residue() to make
 sure that all data has been transferred.
 
-Example:
+Example::
 
-int flags, residue;
+	int flags, residue;
 
-flags = claim_dma_lock();
+	flags = claim_dma_lock();
 
-clear_dma_ff();
+	clear_dma_ff();
 
-set_dma_mode(channel, DMA_MODE_WRITE);
-set_dma_addr(channel, phys_addr);
-set_dma_count(channel, num_bytes);
+	set_dma_mode(channel, DMA_MODE_WRITE);
+	set_dma_addr(channel, phys_addr);
+	set_dma_count(channel, num_bytes);
 
-dma_enable(channel);
+	dma_enable(channel);
 
-release_dma_lock(flags);
+	release_dma_lock(flags);
 
-while (!device_done());
+	while (!device_done());
 
-flags = claim_dma_lock();
+	flags = claim_dma_lock();
 
-dma_disable(channel);
+	dma_disable(channel);
 
-residue = dma_get_residue(channel);
-if (residue != 0)
-	printk(KERN_ERR "driver: Incomplete DMA transfer!"
-		" %d bytes left!\n", residue);
+	residue = dma_get_residue(channel);
+	if (residue != 0)
+		printk(KERN_ERR "driver: Incomplete DMA transfer!"
+			" %d bytes left!\n", residue);
 
-release_dma_lock(flags);
+	release_dma_lock(flags);
 
-Part VI - Suspend/resume
-------------------------
+Suspend/resume
+--------------
 
 It is the driver's responsibility to make sure that the machine isn't
 suspended while a DMA transfer is in progress. Also, all DMA settings

@@ -17,6 +17,8 @@
 
 #include "mce-internal.h"
 
+static BLOCKING_NOTIFIER_HEAD(mce_injector_chain);
+
 static DEFINE_MUTEX(mce_chrdev_read_mutex);
 
 static char mce_helper[128];
@@ -345,24 +347,49 @@ static long mce_chrdev_ioctl(struct file *f, unsigned int cmd,
 	}
 }
 
-static ssize_t (*mce_write)(struct file *filp, const char __user *ubuf,
-			    size_t usize, loff_t *off);
-
-void register_mce_write_callback(ssize_t (*fn)(struct file *filp,
-			     const char __user *ubuf,
-			     size_t usize, loff_t *off))
+void mce_register_injector_chain(struct notifier_block *nb)
 {
-	mce_write = fn;
+	blocking_notifier_chain_register(&mce_injector_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_mce_write_callback);
+EXPORT_SYMBOL_GPL(mce_register_injector_chain);
+
+void mce_unregister_injector_chain(struct notifier_block *nb)
+{
+	blocking_notifier_chain_unregister(&mce_injector_chain, nb);
+}
+EXPORT_SYMBOL_GPL(mce_unregister_injector_chain);
 
 static ssize_t mce_chrdev_write(struct file *filp, const char __user *ubuf,
 				size_t usize, loff_t *off)
 {
-	if (mce_write)
-		return mce_write(filp, ubuf, usize, off);
-	else
+	struct mce m;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	/*
+	 * There are some cases where real MSR reads could slip
+	 * through.
+	 */
+	if (!boot_cpu_has(X86_FEATURE_MCE) || !boot_cpu_has(X86_FEATURE_MCA))
+		return -EIO;
+
+	if ((unsigned long)usize > sizeof(struct mce))
+		usize = sizeof(struct mce);
+	if (copy_from_user(&m, ubuf, usize))
+		return -EFAULT;
+
+	if (m.extcpu >= num_possible_cpus() || !cpu_online(m.extcpu))
 		return -EINVAL;
+
+	/*
+	 * Need to give user space some time to set everything up,
+	 * so do it a jiffie or two later everywhere.
+	 */
+	schedule_timeout(2);
+
+	blocking_notifier_call_chain(&mce_injector_chain, 0, &m);
+
+	return usize;
 }
 
 static const struct file_operations mce_chrdev_ops = {
@@ -388,9 +415,15 @@ static __init int dev_mcelog_init_device(void)
 	/* register character device /dev/mcelog */
 	err = misc_register(&mce_chrdev_device);
 	if (err) {
-		pr_err("Unable to init device /dev/mcelog (rc: %d)\n", err);
+		if (err == -EBUSY)
+			/* Xen dom0 might have registered the device already. */
+			pr_info("Unable to init device /dev/mcelog, already registered");
+		else
+			pr_err("Unable to init device /dev/mcelog (rc: %d)\n", err);
+
 		return err;
 	}
+
 	mce_register_decode_chain(&dev_mcelog_nb);
 	return 0;
 }

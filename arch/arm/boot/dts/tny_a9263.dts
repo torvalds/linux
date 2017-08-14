@@ -42,50 +42,69 @@
 			};
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "soft";
-			nand-on-flash-bbt;
+		ebi0: ebi@10000000 {
 			status = "okay";
 
-			at91bootstrap@0 {
-				label = "at91bootstrap";
-				reg = <0x0 0x20000>;
-			};
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_cs &pinctrl_nand_rb>;
+				pinctrl-names = "default";
 
-			barebox@20000 {
-				label = "barebox";
-				reg = <0x20000 0x40000>;
-			};
+				nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					rb-gpios = <&pioA 22 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioA 15 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "soft";
+					nand-on-flash-bbt;
+					label = "atmel_nand";
 
-			bareboxenv@60000 {
-				label = "bareboxenv";
-				reg = <0x60000 0x20000>;
-			};
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
 
-			bareboxenv2@80000 {
-				label = "bareboxenv2";
-				reg = <0x80000 0x20000>;
-			};
+						at91bootstrap@0 {
+							label = "at91bootstrap";
+							reg = <0x0 0x20000>;
+						};
 
-			oftree@80000 {
-				label = "oftree";
-				reg = <0xa0000 0x20000>;
-			};
+						barebox@20000 {
+							label = "barebox";
+							reg = <0x20000 0x40000>;
+						};
 
-			kernel@a0000 {
-				label = "kernel";
-				reg = <0xc0000 0x400000>;
-			};
+						bareboxenv@60000 {
+							label = "bareboxenv";
+							reg = <0x60000 0x20000>;
+						};
 
-			rootfs@4a0000 {
-				label = "rootfs";
-				reg = <0x4c0000 0x7800000>;
-			};
+						bareboxenv2@80000 {
+							label = "bareboxenv2";
+							reg = <0x80000 0x20000>;
+						};
 
-			data@7ca0000 {
-				label = "data";
-				reg = <0x7cc0000 0x8340000>;
+						oftree@80000 {
+							label = "oftree";
+							reg = <0xa0000 0x20000>;
+						};
+
+						kernel@a0000 {
+							label = "kernel";
+							reg = <0xc0000 0x400000>;
+						};
+
+						rootfs@4a0000 {
+							label = "rootfs";
+							reg = <0x4c0000 0x7800000>;
+						};
+
+						data@7ca0000 {
+							label = "data";
+							reg = <0x7cc0000 0x8340000>;
+						};
+					};
+				};
 			};
 		};
 	};

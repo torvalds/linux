@@ -21,7 +21,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	pcie-controller@00003000 {
+	pcie@3000 {
 		status = "okay";
 
 		pci@1,0 {

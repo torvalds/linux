@@ -17,6 +17,8 @@ config DEVMEM
 
 config DEVKMEM
 	bool "/dev/kmem virtual device support"
+	# On arm64, VMALLOC_START < PAGE_OFFSET, which confuses kmem read/write
+	depends on !ARM64
 	help
 	  Say Y here if you want to support the /dev/kmem device. The
 	  /dev/kmem device is rarely used, but can be used for certain
@@ -538,15 +540,6 @@ config HANGCHECK_TIMER
 	  The hangcheck-timer module detects when the system has gone
 	  out to lunch past a certain margin.  It can reboot the system
 	  or merely print a warning.
-
-config MMTIMER
-	tristate "MMTIMER Memory mapped RTC for SGI Altix"
-	depends on IA64_GENERIC || IA64_SGI_SN2
-	depends on POSIX_TIMERS
-	default y
-	help
-	  The mmtimer device allows direct userspace access to the
-	  Altix system timer.
 
 config UV_MMTIMER
 	tristate "UV_MMTIMER Memory mapped RTC for SGI UV"

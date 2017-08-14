@@ -432,7 +432,8 @@ static int bnxt_set_channels(struct net_device *dev,
 		}
 		tx_xdp = req_rx_rings;
 	}
-	rc = bnxt_reserve_rings(bp, req_tx_rings, req_rx_rings, tcs, tx_xdp);
+	rc = bnxt_reserve_rings(bp, req_tx_rings, req_rx_rings, sh, tcs,
+				tx_xdp);
 	if (rc) {
 		netdev_warn(dev, "Unable to allocate the requested rings\n");
 		return rc;
@@ -2376,8 +2377,7 @@ static int bnxt_run_loopback(struct bnxt *bp)
 	/* Sync BD data before updating doorbell */
 	wmb();
 
-	writel(DB_KEY_TX | txr->tx_prod, txr->tx_doorbell);
-	writel(DB_KEY_TX | txr->tx_prod, txr->tx_doorbell);
+	bnxt_db_write(bp, txr->tx_doorbell, DB_KEY_TX | txr->tx_prod);
 	rc = bnxt_poll_loopback(bp, pkt_size);
 
 	dma_unmap_single(&bp->pdev->dev, map, pkt_size, PCI_DMA_TODEVICE);

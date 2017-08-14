@@ -960,6 +960,7 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 	ev->rm.resp_ie_len = info->resp_ie_len;
 	memcpy((void *)ev->rm.resp_ie, info->resp_ie, info->resp_ie_len);
 	ev->rm.bss = info->bss;
+	ev->rm.authorized = info->authorized;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);

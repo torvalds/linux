@@ -26,16 +26,21 @@
 
 struct vsie_page {
 	struct kvm_s390_sie_block scb_s;	/* 0x0000 */
+	/*
+	 * the backup info for machine check. ensure it's at
+	 * the same offset as that in struct sie_page!
+	 */
+	struct mcck_volatile_info mcck_info;    /* 0x0200 */
 	/* the pinned originial scb */
-	struct kvm_s390_sie_block *scb_o;	/* 0x0200 */
+	struct kvm_s390_sie_block *scb_o;	/* 0x0218 */
 	/* the shadow gmap in use by the vsie_page */
-	struct gmap *gmap;			/* 0x0208 */
+	struct gmap *gmap;			/* 0x0220 */
 	/* address of the last reported fault to guest2 */
-	unsigned long fault_addr;		/* 0x0210 */
-	__u8 reserved[0x0700 - 0x0218];		/* 0x0218 */
+	unsigned long fault_addr;		/* 0x0228 */
+	__u8 reserved[0x0700 - 0x0230];		/* 0x0230 */
 	struct kvm_s390_crypto_cb crycb;	/* 0x0700 */
 	__u8 fac[S390_ARCH_FAC_LIST_SIZE_BYTE];	/* 0x0800 */
-} __packed;
+};
 
 /* trigger a validity icpt for the given scb */
 static int set_validity_icpt(struct kvm_s390_sie_block *scb,
@@ -801,6 +806,8 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;
+	struct mcck_volatile_info *mcck_info;
+	struct sie_page *sie_page;
 	int rc;
 
 	handle_last_fault(vcpu, vsie_page);
@@ -821,6 +828,14 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	guest_exit_irqoff();
 	local_irq_enable();
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+
+	if (rc == -EINTR) {
+		VCPU_EVENT(vcpu, 3, "%s", "machine check");
+		sie_page = container_of(scb_s, struct sie_page, sie_block);
+		mcck_info = &sie_page->mcck_info;
+		kvm_s390_reinject_machine_check(vcpu, mcck_info);
+		return 0;
+	}
 
 	if (rc > 0)
 		rc = 0; /* we could still have an icpt */

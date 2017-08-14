@@ -339,7 +339,7 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 		"VBUS_REMOVAL", "VBUS_VALID", "VBUS_NOT_VALID", NULL };
 	static const char * const axp22x_irq_names[] = {
 		"VBUS_PLUGIN", "VBUS_REMOVAL", NULL };
-	static const char * const *irq_names;
+	const char * const *irq_names;
 	const struct power_supply_desc *usb_power_desc;
 	int i, irq, ret;
 

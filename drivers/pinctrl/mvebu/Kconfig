@@ -1,5 +1,3 @@
-if PLAT_ORION
-
 config PINCTRL_MVEBU
 	bool
 	select PINMUX
@@ -30,6 +28,14 @@ config PINCTRL_ARMADA_39X
 	bool
 	select PINCTRL_MVEBU
 
+config PINCTRL_ARMADA_AP806
+	bool
+	select PINCTRL_MVEBU
+
+config PINCTRL_ARMADA_CP110
+	bool
+	select PINCTRL_MVEBU
+
 config PINCTRL_ARMADA_XP
 	bool
 	select PINCTRL_MVEBU
@@ -37,8 +43,6 @@ config PINCTRL_ARMADA_XP
 config PINCTRL_ORION
 	bool
 	select PINCTRL_MVEBU
-
-endif
 
 config PINCTRL_ARMADA_37XX
        bool

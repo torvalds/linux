@@ -41,15 +41,6 @@
 
 #define RT5677_PR_BASE (RT5677_PR_RANGE_BASE + (0 * RT5677_PR_SPACING))
 
-/* GPIO indexes defined by ACPI */
-enum {
-	RT5677_GPIO_PLUG_DET		= 0,
-	RT5677_GPIO_MIC_PRESENT_L	= 1,
-	RT5677_GPIO_HOTWORD_DET_L	= 2,
-	RT5677_GPIO_DSP_INT		= 3,
-	RT5677_GPIO_HP_AMP_SHDN_L	= 4,
-};
-
 static const struct regmap_range_cfg rt5677_ranges[] = {
 	{
 		.name = "PR",
@@ -5030,7 +5021,6 @@ static const struct regmap_config rt5677_regmap = {
 static const struct i2c_device_id rt5677_i2c_id[] = {
 	{ "rt5677", RT5677 },
 	{ "rt5676", RT5676 },
-	{ "RT5677CE:00", RT5677 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
@@ -5041,27 +5031,18 @@ static const struct of_device_id rt5677_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rt5677_of_match);
 
-static const struct acpi_gpio_params plug_det_gpio = { RT5677_GPIO_PLUG_DET, 0, false };
-static const struct acpi_gpio_params mic_present_gpio = { RT5677_GPIO_MIC_PRESENT_L, 0, false };
-static const struct acpi_gpio_params headphone_enable_gpio = { RT5677_GPIO_HP_AMP_SHDN_L, 0, false };
-
-static const struct acpi_gpio_mapping bdw_rt5677_gpios[] = {
-	{ "plug-det-gpios", &plug_det_gpio, 1 },
-	{ "mic-present-gpios", &mic_present_gpio, 1 },
-	{ "headphone-enable-gpios", &headphone_enable_gpio, 1 },
-	{ NULL },
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id rt5677_acpi_match[] = {
+	{ "RT5677CE", RT5677 },
+	{ }
 };
+MODULE_DEVICE_TABLE(acpi, rt5677_acpi_match);
+#endif
 
 static void rt5677_read_acpi_properties(struct rt5677_priv *rt5677,
 		struct device *dev)
 {
-	int ret;
 	u32 val;
-
-	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev),
-			bdw_rt5677_gpios);
-	if (ret)
-		dev_warn(dev, "Failed to add driver gpios\n");
 
 	if (!device_property_read_u32(dev, "DCLK", &val))
 		rt5677->pdata.dmic2_clk_pin = val;
@@ -5301,6 +5282,7 @@ static struct i2c_driver rt5677_i2c_driver = {
 	.driver = {
 		.name = "rt5677",
 		.of_match_table = rt5677_of_match,
+		.acpi_match_table = ACPI_PTR(rt5677_acpi_match),
 	},
 	.probe = rt5677_i2c_probe,
 	.remove   = rt5677_i2c_remove,

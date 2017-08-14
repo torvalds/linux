@@ -184,7 +184,7 @@ static void artpec6_pcie_host_init(struct pcie_port *pp)
 	artpec6_pcie_enable_interrupts(artpec6_pcie);
 }
 
-static struct dw_pcie_host_ops artpec6_pcie_host_ops = {
+static const struct dw_pcie_host_ops artpec6_pcie_host_ops = {
 	.host_init = artpec6_pcie_host_init,
 };
 

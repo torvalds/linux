@@ -30,6 +30,13 @@ Mandatory properties:
   128MB, 256MB, 512MB, 1GB or 2GB in size. The memory should be marked as
   pre-fetchable.
 
+Optional properties:
+- clocks: when present, this should contain the peripheral clock (PCLK) and the
+  PCI clock (PCICLK). If these are not present, they are assumed to be
+  hard-wired enabled and always on. The PCI clock will be 33 or 66 MHz.
+- clock-names: when present, this should contain "PCLK" for the peripheral
+  clock and "PCICLK" for the PCI-side clock.
+
 Mandatory subnodes:
 - For "faraday,ftpci100" a node representing the interrupt-controller inside the
   host bridge is mandatory. It has the following mandatory properties:

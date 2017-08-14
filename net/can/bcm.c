@@ -282,7 +282,7 @@ static void bcm_can_tx(struct bcm_op *op)
 	can_skb_prv(skb)->ifindex = dev->ifindex;
 	can_skb_prv(skb)->skbcnt = 0;
 
-	memcpy(skb_put(skb, op->cfsiz), cf, op->cfsiz);
+	skb_put_data(skb, cf, op->cfsiz);
 
 	/* send with loopback */
 	skb->dev = dev;
@@ -318,13 +318,13 @@ static void bcm_send_to_user(struct bcm_op *op, struct bcm_msg_head *head,
 	if (!skb)
 		return;
 
-	memcpy(skb_put(skb, sizeof(*head)), head, sizeof(*head));
+	skb_put_data(skb, head, sizeof(*head));
 
 	if (head->nframes) {
 		/* CAN frames starting here */
 		firstframe = (struct canfd_frame *)skb_tail_pointer(skb);
 
-		memcpy(skb_put(skb, datalen), frames, datalen);
+		skb_put_data(skb, frames, datalen);
 
 		/*
 		 * the BCM uses the flags-element of the canfd_frame

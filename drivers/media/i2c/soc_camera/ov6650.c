@@ -709,6 +709,7 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 	switch (mf->code) {
 	case MEDIA_BUS_FMT_Y10_1X10:
 		mf->code = MEDIA_BUS_FMT_Y8_1X8;
+		/* fall through */
 	case MEDIA_BUS_FMT_Y8_1X8:
 	case MEDIA_BUS_FMT_YVYU8_2X8:
 	case MEDIA_BUS_FMT_YUYV8_2X8:
@@ -718,6 +719,7 @@ static int ov6650_set_fmt(struct v4l2_subdev *sd,
 		break;
 	default:
 		mf->code = MEDIA_BUS_FMT_SBGGR8_1X8;
+		/* fall through */
 	case MEDIA_BUS_FMT_SBGGR8_1X8:
 		mf->colorspace = V4L2_COLORSPACE_SRGB;
 		break;

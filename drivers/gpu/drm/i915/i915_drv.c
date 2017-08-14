@@ -1132,10 +1132,12 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	 * and the registers being closely associated.
 	 *
 	 * According to chipset errata, on the 965GM, MSI interrupts may
-	 * be lost or delayed, but we use them anyways to avoid
-	 * stuck interrupts on some machines.
+	 * be lost or delayed, and was defeatured. MSI interrupts seem to
+	 * get lost on g4x as well, and interrupt delivery seems to stay
+	 * properly dead afterwards. So we'll just disable them for all
+	 * pre-gen5 chipsets.
 	 */
-	if (!IS_I945G(dev_priv) && !IS_I945GM(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 5) {
 		if (pci_enable_msi(pdev) < 0)
 			DRM_DEBUG_DRIVER("can't enable MSI");
 	}

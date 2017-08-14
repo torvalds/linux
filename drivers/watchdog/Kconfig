@@ -46,6 +46,17 @@ config WATCHDOG_NOWAYOUT
 	  get killed. If you say Y here, the watchdog cannot be stopped once
 	  it has been started.
 
+config WATCHDOG_HANDLE_BOOT_ENABLED
+	bool "Update boot-enabled watchdog until userspace takes over"
+	default y
+	help
+	  The default watchdog behaviour (which you get if you say Y here) is
+	  to ping watchdog devices that were enabled before the driver has
+	  been loaded until control is taken over from userspace using the
+	  /dev/watchdog file. If you say N here, the kernel will not update
+	  the watchdog on its own. Thus if your userspace does not start fast
+	  enough your device will reboot.
+
 config WATCHDOG_SYSFS
 	bool "Read different watchdog information through sysfs"
 	help
@@ -721,6 +732,14 @@ config RENESAS_WDT
 	  This driver adds watchdog support for the integrated watchdogs in the
 	  Renesas R-Car and other SH-Mobile SoCs (usually named RWDT or SWDT).
 
+config RENESAS_RZAWDT
+	tristate "Renesas RZ/A WDT Watchdog"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  This driver adds watchdog support for the integrated watchdogs in the
+	  Renesas RZ/A SoCs. These watchdogs can be used to reset a system.
+
 config ASPEED_WATCHDOG
 	tristate "Aspeed 2400 watchdog support"
 	depends on ARCH_ASPEED || COMPILE_TEST
@@ -743,6 +762,30 @@ config ZX2967_WATCHDOG
 	  in ZTE zx2967 SoCs.
 	  To compile this driver as a module, choose M here: the
 	  module will be called zx2967_wdt.
+
+config STM32_WATCHDOG
+	tristate "STM32 Independent WatchDoG (IWDG) support"
+	depends on ARCH_STM32
+	select WATCHDOG_CORE
+	default y
+	help
+	  Say Y here to include support for the watchdog timer
+	  in stm32 SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stm32_iwdg.
+
+config UNIPHIER_WATCHDOG
+	tristate "UniPhier watchdog support"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && MFD_SYSCON
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support watchdog timer embedded
+	  into the UniPhier system.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uniphier_wdt.
 
 # AVR32 Architecture
 
@@ -829,11 +872,12 @@ config EBC_C384_WDT
 	  the timeout module parameter.
 
 config F71808E_WDT
-	tristate "Fintek F71808E, F71862FG, F71869, F71882FG and F71889FG Watchdog"
+	tristate "Fintek F718xx, F818xx Super I/O Watchdog"
 	depends on X86
 	help
-	  This is the driver for the hardware watchdog on the Fintek
-	  F71808E, F71862FG, F71869, F71882FG and F71889FG Super I/O controllers.
+	  This is the driver for the hardware watchdog on the Fintek F71808E,
+	  F71862FG, F71868, F71869, F71882FG, F71889FG, F81865 and F81866
+	  Super I/O controllers.
 
 	  You can compile this driver directly into the kernel, or use
 	  it as a module.  The module will be called f71808e_wdt.
@@ -1037,13 +1081,12 @@ config IT8712F_WDT
 config IT87_WDT
 	tristate "IT87 Watchdog Timer"
 	depends on X86
+	select WATCHDOG_CORE
 	---help---
-	  This is the driver for the hardware watchdog on the ITE IT8620,
-	  IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 and IT8728
-	  Super I/O chips.
-
-	  If the driver does not work, then make sure that the game port in
-	  the BIOS is enabled.
+	  This is the driver for the hardware watchdog on the ITE IT8607,
+	  IT8620, IT8622, IT8625, IT8628, IT8655, IT8665, IT8686, IT8702,
+	  IT8712, IT8716, IT8718, IT8720, IT8721, IT8726, IT8728, and
+	  IT8783 Super I/O chips.
 
 	  This watchdog simply watches your kernel to make sure it doesn't
 	  freeze, and if it does, it reboots your computer after a certain
@@ -1688,7 +1731,7 @@ config MEN_A21_WDT
 
 config WATCHDOG_RTAS
 	tristate "RTAS watchdog"
-	depends on PPC_RTAS || (PPC64 && COMPILE_TEST)
+	depends on PPC_RTAS
 	help
 	  This driver adds watchdog support for the RTAS watchdog.
 

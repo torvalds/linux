@@ -70,6 +70,7 @@ static int cls_bpf_exec_opcode(int code)
 	case TC_ACT_OK:
 	case TC_ACT_SHOT:
 	case TC_ACT_STOLEN:
+	case TC_ACT_TRAP:
 	case TC_ACT_REDIRECT:
 	case TC_ACT_UNSPEC:
 		return code;
@@ -161,6 +162,7 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	bpf_offload.gen_flags = prog->gen_flags;
 
 	err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
+					    tp->chain->index,
 					    tp->protocol, &offload);
 
 	if (!err && (cmd == TC_CLSBPF_ADD || cmd == TC_CLSBPF_REPLACE))
@@ -562,6 +564,9 @@ static int cls_bpf_dump_ebpf_info(const struct cls_bpf_prog *prog,
 
 	if (prog->bpf_name &&
 	    nla_put_string(skb, TCA_BPF_NAME, prog->bpf_name))
+		return -EMSGSIZE;
+
+	if (nla_put_u32(skb, TCA_BPF_ID, prog->filter->aux->id))
 		return -EMSGSIZE;
 
 	nla = nla_reserve(skb, TCA_BPF_TAG, sizeof(prog->filter->tag));

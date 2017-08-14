@@ -213,8 +213,7 @@ static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *d
 		return;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
-	memset(mgmt, 0, 24);
+	mgmt = skb_put_zero(skb, 24);
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
@@ -449,44 +448,21 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 					buf_size, true, false);
 }
 
-void ieee80211_start_rx_ba_session_offl(struct ieee80211_vif *vif,
-					const u8 *addr, u16 tid)
+void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif,
+				 const u8 *addr, unsigned int bit)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_rx_agg *rx_agg;
-	struct sk_buff *skb = dev_alloc_skb(0);
+	struct sta_info *sta;
 
-	if (unlikely(!skb))
-		return;
+	rcu_read_lock();
+	sta = sta_info_get_bss(sdata, addr);
+	if (!sta)
+		goto unlock;
 
-	rx_agg = (struct ieee80211_rx_agg *) &skb->cb;
-	memcpy(&rx_agg->addr, addr, ETH_ALEN);
-	rx_agg->tid = tid;
-
-	skb->pkt_type = IEEE80211_SDATA_QUEUE_RX_AGG_START;
-	skb_queue_tail(&sdata->skb_queue, skb);
-	ieee80211_queue_work(&local->hw, &sdata->work);
+	set_bit(bit, sta->ampdu_mlme.tid_rx_manage_offl);
+	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
+ unlock:
+	rcu_read_unlock();
 }
-EXPORT_SYMBOL(ieee80211_start_rx_ba_session_offl);
-
-void ieee80211_stop_rx_ba_session_offl(struct ieee80211_vif *vif,
-				       const u8 *addr, u16 tid)
-{
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_rx_agg *rx_agg;
-	struct sk_buff *skb = dev_alloc_skb(0);
-
-	if (unlikely(!skb))
-		return;
-
-	rx_agg = (struct ieee80211_rx_agg *) &skb->cb;
-	memcpy(&rx_agg->addr, addr, ETH_ALEN);
-	rx_agg->tid = tid;
-
-	skb->pkt_type = IEEE80211_SDATA_QUEUE_RX_AGG_STOP;
-	skb_queue_tail(&sdata->skb_queue, skb);
-	ieee80211_queue_work(&local->hw, &sdata->work);
-}
-EXPORT_SYMBOL(ieee80211_stop_rx_ba_session_offl);
+EXPORT_SYMBOL(ieee80211_manage_rx_ba_offl);

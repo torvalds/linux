@@ -207,15 +207,13 @@ static int lme2510_stream_restart(struct dvb_usb_device *d)
 	struct lme2510_state *st = d->priv;
 	u8 all_pids[] = LME_ALL_PIDS;
 	u8 stream_on[] = LME_ST_ON_W;
-	int ret;
 	u8 rbuff[1];
 	if (st->pid_off)
-		ret = lme2510_usb_talk(d, all_pids, sizeof(all_pids),
-			rbuff, sizeof(rbuff));
+		lme2510_usb_talk(d, all_pids, sizeof(all_pids),
+				 rbuff, sizeof(rbuff));
 	/*Restart Stream Command*/
-	ret = lme2510_usb_talk(d, stream_on, sizeof(stream_on),
-			rbuff, sizeof(rbuff));
-	return ret;
+	return lme2510_usb_talk(d, stream_on, sizeof(stream_on),
+				rbuff, sizeof(rbuff));
 }
 
 static int lme2510_enable_pid(struct dvb_usb_device *d, u8 index, u16 pid_out)
@@ -1065,6 +1063,7 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 			}
 			break;
 		}
+		/* fall through */
 	case 0x22f0:
 		st->i2c_gate = 5;
 		adap->fe[0] = dvb_attach(m88rs2000_attach,

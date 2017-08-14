@@ -80,6 +80,11 @@ struct qed_chain_pbl_u32 {
 	u32 cons_page_idx;
 };
 
+struct qed_chain_ext_pbl {
+	dma_addr_t p_pbl_phys;
+	void *p_pbl_virt;
+};
+
 struct qed_chain_u16 {
 	/* Cyclic index of next element to produce/consme */
 	u16 prod_idx;
@@ -155,6 +160,8 @@ struct qed_chain {
 	u32 size;
 
 	u8 intended_use;
+
+	bool b_external_pbl;
 };
 
 #define QED_CHAIN_PBL_ENTRY_SIZE        (8)

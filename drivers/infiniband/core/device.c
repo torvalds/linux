@@ -39,6 +39,8 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
+#include <linux/security.h>
+#include <linux/notifier.h>
 #include <rdma/rdma_netlink.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
@@ -82,6 +84,14 @@ static LIST_HEAD(client_list);
 static DEFINE_MUTEX(device_mutex);
 static DECLARE_RWSEM(lists_rwsem);
 
+static int ib_security_change(struct notifier_block *nb, unsigned long event,
+			      void *lsm_data);
+static void ib_policy_change_task(struct work_struct *work);
+static DECLARE_WORK(ib_policy_change_work, ib_policy_change_task);
+
+static struct notifier_block ibdev_lsm_nb = {
+	.notifier_call = ib_security_change,
+};
 
 static int ib_device_check_mandatory(struct ib_device *device)
 {
@@ -325,6 +335,65 @@ void ib_get_device_fw_str(struct ib_device *dev, char *str, size_t str_len)
 }
 EXPORT_SYMBOL(ib_get_device_fw_str);
 
+static int setup_port_pkey_list(struct ib_device *device)
+{
+	int i;
+
+	/**
+	 * device->port_pkey_list is indexed directly by the port number,
+	 * Therefore it is declared as a 1 based array with potential empty
+	 * slots at the beginning.
+	 */
+	device->port_pkey_list = kcalloc(rdma_end_port(device) + 1,
+					 sizeof(*device->port_pkey_list),
+					 GFP_KERNEL);
+
+	if (!device->port_pkey_list)
+		return -ENOMEM;
+
+	for (i = 0; i < (rdma_end_port(device) + 1); i++) {
+		spin_lock_init(&device->port_pkey_list[i].list_lock);
+		INIT_LIST_HEAD(&device->port_pkey_list[i].pkey_list);
+	}
+
+	return 0;
+}
+
+static void ib_policy_change_task(struct work_struct *work)
+{
+	struct ib_device *dev;
+
+	down_read(&lists_rwsem);
+	list_for_each_entry(dev, &device_list, core_list) {
+		int i;
+
+		for (i = rdma_start_port(dev); i <= rdma_end_port(dev); i++) {
+			u64 sp;
+			int ret = ib_get_cached_subnet_prefix(dev,
+							      i,
+							      &sp);
+
+			WARN_ONCE(ret,
+				  "ib_get_cached_subnet_prefix err: %d, this should never happen here\n",
+				  ret);
+			if (!ret)
+				ib_security_cache_change(dev, i, sp);
+		}
+	}
+	up_read(&lists_rwsem);
+}
+
+static int ib_security_change(struct notifier_block *nb, unsigned long event,
+			      void *lsm_data)
+{
+	if (event != LSM_POLICY_CHANGE)
+		return NOTIFY_DONE;
+
+	schedule_work(&ib_policy_change_work);
+
+	return NOTIFY_OK;
+}
+
 /**
  * ib_register_device - Register an IB device with IB core
  * @device:Device to register
@@ -382,6 +451,12 @@ int ib_register_device(struct ib_device *device,
 	if (ret) {
 		pr_warn("Couldn't create per port immutable data %s\n",
 			device->name);
+		goto out;
+	}
+
+	ret = setup_port_pkey_list(device);
+	if (ret) {
+		pr_warn("Couldn't create per port_pkey_list\n");
 		goto out;
 	}
 
@@ -467,6 +542,9 @@ void ib_unregister_device(struct ib_device *device)
 	ib_device_unregister_rdmacg(device);
 	ib_device_unregister_sysfs(device);
 	ib_cache_cleanup_one(device);
+
+	ib_security_destroy_port_pkey_list(device);
+	kfree(device->port_pkey_list);
 
 	down_write(&lists_rwsem);
 	spin_lock_irqsave(&device->client_data_lock, flags);
@@ -1082,10 +1160,18 @@ static int __init ib_core_init(void)
 		goto err_sa;
 	}
 
+	ret = register_lsm_notifier(&ibdev_lsm_nb);
+	if (ret) {
+		pr_warn("Couldn't register LSM notifier. ret %d\n", ret);
+		goto err_ibnl_clients;
+	}
+
 	ib_cache_setup();
 
 	return 0;
 
+err_ibnl_clients:
+	ib_remove_ibnl_clients();
 err_sa:
 	ib_sa_cleanup();
 err_mad:
@@ -1105,6 +1191,7 @@ err:
 
 static void __exit ib_core_cleanup(void)
 {
+	unregister_lsm_notifier(&ibdev_lsm_nb);
 	ib_cache_cleanup();
 	ib_remove_ibnl_clients();
 	ib_sa_cleanup();

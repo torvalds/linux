@@ -109,7 +109,7 @@ static void h5_link_control(struct hci_uart *hu, const void *data, size_t len)
 
 	hci_skb_pkt_type(nskb) = HCI_3WIRE_LINK_PKT;
 
-	memcpy(skb_put(nskb, len), data, len);
+	skb_put_data(nskb, data, len);
 
 	skb_queue_tail(&h5->unrel, nskb);
 }
@@ -487,7 +487,7 @@ static void h5_unslip_one_byte(struct h5 *h5, unsigned char c)
 		}
 	}
 
-	memcpy(skb_put(h5->rx_skb, 1), byte, 1);
+	skb_put_data(h5->rx_skb, byte, 1);
 	h5->rx_pending--;
 
 	BT_DBG("unsliped 0x%02hhx, rx_pending %zu", *byte, h5->rx_pending);
@@ -579,7 +579,7 @@ static void h5_slip_delim(struct sk_buff *skb)
 {
 	const char delim = SLIP_DELIMITER;
 
-	memcpy(skb_put(skb, 1), &delim, 1);
+	skb_put_data(skb, &delim, 1);
 }
 
 static void h5_slip_one_byte(struct sk_buff *skb, u8 c)
@@ -589,13 +589,13 @@ static void h5_slip_one_byte(struct sk_buff *skb, u8 c)
 
 	switch (c) {
 	case SLIP_DELIMITER:
-		memcpy(skb_put(skb, 2), &esc_delim, 2);
+		skb_put_data(skb, &esc_delim, 2);
 		break;
 	case SLIP_ESC:
-		memcpy(skb_put(skb, 2), &esc_esc, 2);
+		skb_put_data(skb, &esc_esc, 2);
 		break;
 	default:
-		memcpy(skb_put(skb, 1), &c, 1);
+		skb_put_data(skb, &c, 1);
 	}
 }
 

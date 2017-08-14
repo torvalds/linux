@@ -742,6 +742,7 @@ TRACE_EVENT(rcu_torture_read,
  *	"OnlineQ": _rcu_barrier() found online CPU with callbacks.
  *	"OnlineNQ": _rcu_barrier() found online CPU, no callbacks.
  *	"IRQ": An rcu_barrier_callback() callback posted on remote CPU.
+ *	"IRQNQ": An rcu_barrier_callback() callback found no callbacks.
  *	"CB": An rcu_barrier_callback() invoked a callback, not the last.
  *	"LastCB": An rcu_barrier_callback() invoked the last callback.
  *	"Inc2": _rcu_barrier() piggyback check counter incremented.

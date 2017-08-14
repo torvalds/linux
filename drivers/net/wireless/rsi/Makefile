@@ -2,7 +2,7 @@ rsi_91x-y			+= rsi_91x_main.o
 rsi_91x-y			+= rsi_91x_core.o
 rsi_91x-y			+= rsi_91x_mac80211.o
 rsi_91x-y			+= rsi_91x_mgmt.o
-rsi_91x-y			+= rsi_91x_pkt.o
+rsi_91x-y			+= rsi_91x_hal.o
 rsi_91x-$(CONFIG_RSI_DEBUGFS)	+= rsi_91x_debugfs.o
 
 rsi_usb-y			+= rsi_91x_usb.o rsi_91x_usb_ops.o

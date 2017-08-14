@@ -144,13 +144,11 @@ static void atml_plat_remove(void)
 	struct tpm_chip *chip = dev_get_drvdata(&pdev->dev);
 	struct tpm_atmel_priv *priv = dev_get_drvdata(&chip->dev);
 
-	if (chip) {
-		tpm_chip_unregister(chip);
-		if (priv->have_region)
-			atmel_release_region(priv->base, priv->region_size);
-		atmel_put_base_addr(priv->iobase);
-		platform_device_unregister(pdev);
-	}
+	tpm_chip_unregister(chip);
+	if (priv->have_region)
+		atmel_release_region(priv->base, priv->region_size);
+	atmel_put_base_addr(priv->iobase);
+	platform_device_unregister(pdev);
 }
 
 static SIMPLE_DEV_PM_OPS(tpm_atml_pm, tpm_pm_suspend, tpm_pm_resume);

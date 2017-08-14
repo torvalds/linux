@@ -422,6 +422,33 @@ static int asus_input_mapping(struct hid_device *hdev,
 		return 1;
 	}
 
+	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_MSVENDOR) {
+		set_bit(EV_REP, hi->input->evbit);
+		switch (usage->hid & HID_USAGE) {
+		case 0xff01: asus_map_key_clear(BTN_1);	break;
+		case 0xff02: asus_map_key_clear(BTN_2);	break;
+		case 0xff03: asus_map_key_clear(BTN_3);	break;
+		case 0xff04: asus_map_key_clear(BTN_4);	break;
+		case 0xff05: asus_map_key_clear(BTN_5);	break;
+		case 0xff06: asus_map_key_clear(BTN_6);	break;
+		case 0xff07: asus_map_key_clear(BTN_7);	break;
+		case 0xff08: asus_map_key_clear(BTN_8);	break;
+		case 0xff09: asus_map_key_clear(BTN_9);	break;
+		case 0xff0a: asus_map_key_clear(BTN_A);	break;
+		case 0xff0b: asus_map_key_clear(BTN_B);	break;
+		case 0x00f1: asus_map_key_clear(KEY_WLAN);	break;
+		case 0x00f2: asus_map_key_clear(KEY_BRIGHTNESSDOWN);	break;
+		case 0x00f3: asus_map_key_clear(KEY_BRIGHTNESSUP);	break;
+		case 0x00f4: asus_map_key_clear(KEY_DISPLAY_OFF);	break;
+		case 0x00f7: asus_map_key_clear(KEY_CAMERA);	break;
+		case 0x00f8: asus_map_key_clear(KEY_PROG1);	break;
+		default:
+			return 0;
+		}
+
+		return 1;
+	}
+
 	if (drvdata->quirks & QUIRK_NO_CONSUMER_USAGES &&
 		(usage->hid & HID_USAGE_PAGE) == HID_UP_CONSUMER) {
 		switch (usage->hid & HID_USAGE) {
@@ -572,6 +599,9 @@ static const struct hid_device_id asus_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_T100_KEYBOARD),
 	  QUIRK_T100_KEYBOARD | QUIRK_NO_CONSUMER_USAGES },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_ASUS_AK1D) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_ASUS_MD_5110) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_JESS, USB_DEVICE_ID_ASUS_MD_5112) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, asus_devices);

@@ -117,10 +117,10 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			timer = ((u32)acpi_os_get_timer() / 10);
 			timer &= 0x03FFFFFF;
 
-			acpi_os_printf("[ACPI Debug T=0x%8.8X] %*s", timer,
+			acpi_os_printf("ACPI Debug: T=0x%8.8X %*s", timer,
 				       level, " ");
 		} else {
-			acpi_os_printf("[ACPI Debug] %*s", level, " ");
+			acpi_os_printf("ACPI Debug: %*s", level, " ");
 		}
 	}
 

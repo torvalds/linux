@@ -26,6 +26,7 @@ int save_i387_registers(int pid, unsigned long *fp_regs)
 
 int save_fp_registers(int pid, unsigned long *fp_regs)
 {
+#ifdef PTRACE_GETREGSET
 	struct iovec iov;
 
 	if (have_xstate_support) {
@@ -34,9 +35,9 @@ int save_fp_registers(int pid, unsigned long *fp_regs)
 		if (ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
 			return -errno;
 		return 0;
-	} else {
+	} else
+#endif
 		return save_i387_registers(pid, fp_regs);
-	}
 }
 
 int restore_i387_registers(int pid, unsigned long *fp_regs)
@@ -48,6 +49,7 @@ int restore_i387_registers(int pid, unsigned long *fp_regs)
 
 int restore_fp_registers(int pid, unsigned long *fp_regs)
 {
+#ifdef PTRACE_SETREGSET
 	struct iovec iov;
 
 	if (have_xstate_support) {
@@ -56,9 +58,9 @@ int restore_fp_registers(int pid, unsigned long *fp_regs)
 		if (ptrace(PTRACE_SETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
 			return -errno;
 		return 0;
-	} else {
+	} else
+#endif
 		return restore_i387_registers(pid, fp_regs);
-	}
 }
 
 #ifdef __i386__
@@ -122,6 +124,7 @@ int put_fp_registers(int pid, unsigned long *regs)
 
 void arch_init_registers(int pid)
 {
+#ifdef PTRACE_GETREGSET
 	struct _xstate fp_regs;
 	struct iovec iov;
 
@@ -129,6 +132,7 @@ void arch_init_registers(int pid)
 	iov.iov_len = sizeof(struct _xstate);
 	if (ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov) == 0)
 		have_xstate_support = 1;
+#endif
 }
 #endif
 

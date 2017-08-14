@@ -764,7 +764,7 @@ static void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
 	__u16 sid, csid, cssn;
 
 	sid = event->stream;
-	stream  = ulpq->asoc->stream;
+	stream  = &ulpq->asoc->stream;
 
 	event_list = (struct sk_buff_head *) sctp_event2skb(event)->prev;
 
@@ -858,7 +858,7 @@ static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *ulpq,
 	/* Note: The stream ID must be verified before this routine.  */
 	sid = event->stream;
 	ssn = event->ssn;
-	stream  = ulpq->asoc->stream;
+	stream  = &ulpq->asoc->stream;
 
 	/* Is this the expected SSN for this stream ID?  */
 	if (ssn != sctp_ssn_peek(stream, in, sid)) {
@@ -893,7 +893,7 @@ static void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
 	struct sk_buff_head *lobby = &ulpq->lobby;
 	__u16 csid, cssn;
 
-	stream = ulpq->asoc->stream;
+	stream = &ulpq->asoc->stream;
 
 	/* We are holding the chunks by stream, by SSN.  */
 	skb_queue_head_init(&temp);
@@ -958,7 +958,7 @@ void sctp_ulpq_skip(struct sctp_ulpq *ulpq, __u16 sid, __u16 ssn)
 	struct sctp_stream *stream;
 
 	/* Note: The stream ID must be verified before this routine.  */
-	stream  = ulpq->asoc->stream;
+	stream  = &ulpq->asoc->stream;
 
 	/* Is this an old SSN?  If so ignore. */
 	if (SSN_lt(ssn, sctp_ssn_peek(stream, in, sid)))
@@ -1090,7 +1090,7 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 
 	if (chunk) {
 		needed = ntohs(chunk->chunk_hdr->length);
-		needed -= sizeof(sctp_data_chunk_t);
+		needed -= sizeof(struct sctp_data_chunk);
 	} else
 		needed = SCTP_DEFAULT_MAXWINDOW;
 

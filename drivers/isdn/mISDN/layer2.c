@@ -176,7 +176,7 @@ l2up_create(struct layer2 *l2, u_int prim, int len, void *arg)
 	hh->prim = prim;
 	hh->id = (l2->ch.nr << 16) | l2->ch.addr;
 	if (len)
-		memcpy(skb_put(skb, len), arg, len);
+		skb_put_data(skb, arg, len);
 	err = l2->up->send(l2->up, skb);
 	if (err) {
 		printk(KERN_WARNING "%s: dev %s err=%d\n", __func__,
@@ -235,7 +235,7 @@ l2down_create(struct layer2 *l2, u_int prim, u_int id, int len, void *arg)
 	hh->prim = prim;
 	hh->id = id;
 	if (len)
-		memcpy(skb_put(skb, len), arg, len);
+		skb_put_data(skb, arg, len);
 	err = l2down_raw(l2, skb);
 	if (err)
 		dev_kfree_skb(skb);
@@ -640,7 +640,7 @@ send_uframe(struct layer2 *l2, struct sk_buff *skb, u_char cmd, u_char cr)
 			return;
 		}
 	}
-	memcpy(skb_put(skb, i), tmp, i);
+	skb_put_data(skb, tmp, i);
 	enqueue_super(l2, skb);
 }
 
@@ -1125,7 +1125,7 @@ enquiry_cr(struct layer2 *l2, u_char typ, u_char cr, u_char pf)
 		       mISDNDevName4ch(&l2->ch), __func__);
 		return;
 	}
-	memcpy(skb_put(skb, i), tmp, i);
+	skb_put_data(skb, tmp, i);
 	enqueue_super(l2, skb);
 }
 

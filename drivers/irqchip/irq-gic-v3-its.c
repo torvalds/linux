@@ -644,9 +644,12 @@ static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
-	target_col = &its_dev->its->collections[cpu];
-	its_send_movi(its_dev, target_col, id);
-	its_dev->event_map.col_map[id] = cpu;
+	/* don't set the affinity when the target cpu is same as current one */
+	if (cpu != its_dev->event_map.col_map[id]) {
+		target_col = &its_dev->its->collections[cpu];
+		its_send_movi(its_dev, target_col, id);
+		its_dev->event_map.col_map[id] = cpu;
+	}
 
 	return IRQ_SET_MASK_OK_DONE;
 }
@@ -688,9 +691,11 @@ static struct irq_chip its_irq_chip = {
  */
 #define IRQS_PER_CHUNK_SHIFT	5
 #define IRQS_PER_CHUNK		(1 << IRQS_PER_CHUNK_SHIFT)
+#define ITS_MAX_LPI_NRBITS	16 /* 64K LPIs */
 
 static unsigned long *lpi_bitmap;
 static u32 lpi_chunks;
+static u32 lpi_id_bits;
 static DEFINE_SPINLOCK(lpi_lock);
 
 static int its_lpi_to_chunk(int lpi)
@@ -786,17 +791,13 @@ static void its_lpi_free(struct event_lpi_map *map)
 }
 
 /*
- * We allocate 64kB for PROPBASE. That gives us at most 64K LPIs to
+ * We allocate memory for PROPBASE to cover 2 ^ lpi_id_bits LPIs to
  * deal with (one configuration byte per interrupt). PENDBASE has to
  * be 64kB aligned (one bit per LPI, plus 8192 bits for SPI/PPI/SGI).
  */
-#define LPI_PROPBASE_SZ		SZ_64K
-#define LPI_PENDBASE_SZ		(LPI_PROPBASE_SZ / 8 + SZ_1K)
-
-/*
- * This is how many bits of ID we need, including the useless ones.
- */
-#define LPI_NRBITS		ilog2(LPI_PROPBASE_SZ + SZ_8K)
+#define LPI_NRBITS		lpi_id_bits
+#define LPI_PROPBASE_SZ		ALIGN(BIT(LPI_NRBITS), SZ_64K)
+#define LPI_PENDBASE_SZ		ALIGN(BIT(LPI_NRBITS) / 8, SZ_64K)
 
 #define LPI_PROP_DEFAULT_PRIO	0xa0
 
@@ -804,6 +805,7 @@ static int __init its_alloc_lpi_tables(void)
 {
 	phys_addr_t paddr;
 
+	lpi_id_bits = min_t(u32, gic_rdists->id_bits, ITS_MAX_LPI_NRBITS);
 	gic_rdists->prop_page = alloc_pages(GFP_NOWAIT,
 					   get_order(LPI_PROPBASE_SZ));
 	if (!gic_rdists->prop_page) {
@@ -822,7 +824,7 @@ static int __init its_alloc_lpi_tables(void)
 	/* Make sure the GIC will observe the written configuration */
 	gic_flush_dcache_to_poc(page_address(gic_rdists->prop_page), LPI_PROPBASE_SZ);
 
-	return 0;
+	return its_lpi_init(lpi_id_bits);
 }
 
 static const char *its_base_type_string[] = {
@@ -1097,7 +1099,7 @@ static void its_cpu_init_lpis(void)
 		 * hence the 'max(LPI_PENDBASE_SZ, SZ_64K)' below.
 		 */
 		pend_page = alloc_pages(GFP_NOWAIT | __GFP_ZERO,
-					get_order(max(LPI_PENDBASE_SZ, SZ_64K)));
+					get_order(max_t(u32, LPI_PENDBASE_SZ, SZ_64K)));
 		if (!pend_page) {
 			pr_err("Failed to allocate PENDBASE for CPU%d\n",
 			       smp_processor_id());
@@ -1661,7 +1663,7 @@ static int its_init_domain(struct fwnode_handle *handle, struct its_node *its)
 	}
 
 	inner_domain->parent = its_parent;
-	inner_domain->bus_token = DOMAIN_BUS_NEXUS;
+	irq_domain_update_bus_token(inner_domain, DOMAIN_BUS_NEXUS);
 	inner_domain->flags |= IRQ_DOMAIN_FLAG_MSI_REMAP;
 	info->ops = &its_msi_domain_ops;
 	info->data = its;
@@ -1801,7 +1803,7 @@ int its_cpu_init(void)
 	return 0;
 }
 
-static struct of_device_id its_device_id[] = {
+static const struct of_device_id its_device_id[] = {
 	{	.compatible	= "arm,gic-v3-its",	},
 	{},
 };
@@ -1833,6 +1835,78 @@ static int __init its_of_probe(struct device_node *node)
 
 #define ACPI_GICV3_ITS_MEM_SIZE (SZ_128K)
 
+#if defined(CONFIG_ACPI_NUMA) && (ACPI_CA_VERSION >= 0x20170531)
+struct its_srat_map {
+	/* numa node id */
+	u32	numa_node;
+	/* GIC ITS ID */
+	u32	its_id;
+};
+
+static struct its_srat_map its_srat_maps[MAX_NUMNODES] __initdata;
+static int its_in_srat __initdata;
+
+static int __init acpi_get_its_numa_node(u32 its_id)
+{
+	int i;
+
+	for (i = 0; i < its_in_srat; i++) {
+		if (its_id == its_srat_maps[i].its_id)
+			return its_srat_maps[i].numa_node;
+	}
+	return NUMA_NO_NODE;
+}
+
+static int __init gic_acpi_parse_srat_its(struct acpi_subtable_header *header,
+			 const unsigned long end)
+{
+	int node;
+	struct acpi_srat_gic_its_affinity *its_affinity;
+
+	its_affinity = (struct acpi_srat_gic_its_affinity *)header;
+	if (!its_affinity)
+		return -EINVAL;
+
+	if (its_affinity->header.length < sizeof(*its_affinity)) {
+		pr_err("SRAT: Invalid header length %d in ITS affinity\n",
+			its_affinity->header.length);
+		return -EINVAL;
+	}
+
+	if (its_in_srat >= MAX_NUMNODES) {
+		pr_err("SRAT: ITS affinity exceeding max count[%d]\n",
+				MAX_NUMNODES);
+		return -EINVAL;
+	}
+
+	node = acpi_map_pxm_to_node(its_affinity->proximity_domain);
+
+	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
+		pr_err("SRAT: Invalid NUMA node %d in ITS affinity\n", node);
+		return 0;
+	}
+
+	its_srat_maps[its_in_srat].numa_node = node;
+	its_srat_maps[its_in_srat].its_id = its_affinity->its_id;
+	its_in_srat++;
+	pr_info("SRAT: PXM %d -> ITS %d -> Node %d\n",
+		its_affinity->proximity_domain, its_affinity->its_id, node);
+
+	return 0;
+}
+
+static void __init acpi_table_parse_srat_its(void)
+{
+	acpi_table_parse_entries(ACPI_SIG_SRAT,
+			sizeof(struct acpi_table_srat),
+			ACPI_SRAT_TYPE_GIC_ITS_AFFINITY,
+			gic_acpi_parse_srat_its, 0);
+}
+#else
+static void __init acpi_table_parse_srat_its(void)	{ }
+static int __init acpi_get_its_numa_node(u32 its_id) { return NUMA_NO_NODE; }
+#endif
+
 static int __init gic_acpi_parse_madt_its(struct acpi_subtable_header *header,
 					  const unsigned long end)
 {
@@ -1861,7 +1935,8 @@ static int __init gic_acpi_parse_madt_its(struct acpi_subtable_header *header,
 		goto dom_err;
 	}
 
-	err = its_probe_one(&res, dom_handle, NUMA_NO_NODE);
+	err = its_probe_one(&res, dom_handle,
+			acpi_get_its_numa_node(its_entry->translation_id));
 	if (!err)
 		return 0;
 
@@ -1873,6 +1948,7 @@ dom_err:
 
 static void __init its_acpi_probe(void)
 {
+	acpi_table_parse_srat_its();
 	acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_TRANSLATOR,
 			      gic_acpi_parse_madt_its, 0);
 }
@@ -1898,8 +1974,5 @@ int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
 	}
 
 	gic_rdists = rdists;
-	its_alloc_lpi_tables();
-	its_lpi_init(rdists->id_bits);
-
-	return 0;
+	return its_alloc_lpi_tables();
 }

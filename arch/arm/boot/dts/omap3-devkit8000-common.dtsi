@@ -201,7 +201,8 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x30000000 0x1000000>;       /* CS0: 16MB for NAND */
+	ranges = <0 0 0x30000000 0x1000000	/* CS0: 16MB for NAND */
+		  6 0 0x2c000000 0x1000000>;	/* CS6: 16MB for DM9000 */
 
 	nand@0,0 {
 		compatible = "ti,omap2-nand";
@@ -256,12 +257,8 @@
 			reg = <0x680000 0xf980000>;
 		};
 	};
-};
 
-&gpmc {
-	ranges = <6 0 0x2c000000 0x1000000>;       /* CS6: 16MB for DM9000 */
-
-	ethernet@0,0 {
+	ethernet@6,0 {
 		compatible = "davicom,dm9000";
 		reg =  <6 0x000 2
 			6 0x400 2>; /* CS6, offset 0 and 0x400, IO size 2 */

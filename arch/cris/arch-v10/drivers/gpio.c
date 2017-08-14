@@ -399,7 +399,7 @@ out:
 /* Main device API. ioctl's to read/set/clear bits, as well as to
  * set alarms to wait for using a subsequent select().
  */
-unsigned long inline setget_input(struct gpio_private *priv, unsigned long arg)
+inline unsigned long setget_input(struct gpio_private *priv, unsigned long arg)
 {
 	/* Set direction 0=unchanged 1=input,
 	 * return mask with 1=input */
@@ -450,7 +450,7 @@ unsigned long inline setget_input(struct gpio_private *priv, unsigned long arg)
 	return dir_g_in_bits;
 } /* setget_input */
 
-unsigned long inline setget_output(struct gpio_private *priv, unsigned long arg)
+inline unsigned long setget_output(struct gpio_private *priv, unsigned long arg)
 {
 	if (USE_PORTS(priv)) {
 		*priv->dir = *priv->dir_shadow |=

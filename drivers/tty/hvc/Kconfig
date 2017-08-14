@@ -44,7 +44,7 @@ config HVC_RTAS
 
 config HVC_IUCV
 	bool "z/VM IUCV Hypervisor console support (VM only)"
-	depends on S390
+	depends on S390 && NET
 	select HVC_DRIVER
 	select IUCV
 	default y

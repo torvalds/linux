@@ -21,6 +21,11 @@
 #include "intel_pmic.h"
 
 #define XPOWER_GPADC_LOW	0x5b
+#define XPOWER_GPI1_CTRL	0x92
+
+#define GPI1_LDO_MASK		GENMASK(2, 0)
+#define GPI1_LDO_ON		(3 << 0)
+#define GPI1_LDO_OFF		(4 << 0)
 
 static struct pmic_table power_table[] = {
 	{
@@ -118,6 +123,10 @@ static struct pmic_table power_table[] = {
 		.reg = 0x10,
 		.bit = 0x00
 	}, /* BUC6 */
+	{
+		.address = 0x4c,
+		.reg = 0x92,
+	}, /* GPI1 */
 };
 
 /* TMP0 - TMP5 are the same, all from GPADC */
@@ -156,7 +165,12 @@ static int intel_xpower_pmic_get_power(struct regmap *regmap, int reg,
 	if (regmap_read(regmap, reg, &data))
 		return -EIO;
 
-	*value = (data & BIT(bit)) ? 1 : 0;
+	/* GPIO1 LDO regulator needs special handling */
+	if (reg == XPOWER_GPI1_CTRL)
+		*value = ((data & GPI1_LDO_MASK) == GPI1_LDO_ON);
+	else
+		*value = (data & BIT(bit)) ? 1 : 0;
+
 	return 0;
 }
 
@@ -164,6 +178,11 @@ static int intel_xpower_pmic_update_power(struct regmap *regmap, int reg,
 					  int bit, bool on)
 {
 	int data;
+
+	/* GPIO1 LDO regulator needs special handling */
+	if (reg == XPOWER_GPI1_CTRL)
+		return regmap_update_bits(regmap, reg, GPI1_LDO_MASK,
+					  on ? GPI1_LDO_ON : GPI1_LDO_OFF);
 
 	if (regmap_read(regmap, reg, &data))
 		return -EIO;

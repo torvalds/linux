@@ -23,3 +23,23 @@ config OVERLAY_FS_REDIRECT_DIR
 	  Note, that redirects are not backward compatible.  That is, mounting
 	  an overlay which has redirects on a kernel that doesn't support this
 	  feature will have unexpected results.
+
+config OVERLAY_FS_INDEX
+	bool "Overlayfs: turn on inodes index feature by default"
+	depends on OVERLAY_FS
+	help
+	  If this config option is enabled then overlay filesystems will use
+	  the inodes index dir to map lower inodes to upper inodes by default.
+	  In this case it is still possible to turn off index globally with the
+	  "index=off" module option or on a filesystem instance basis with the
+	  "index=off" mount option.
+
+	  The inodes index feature prevents breaking of lower hardlinks on copy
+	  up.
+
+	  Note, that the inodes index feature is read-only backward compatible.
+	  That is, mounting an overlay which has an index dir on a kernel that
+	  doesn't support this feature read-only, will not have any negative
+	  outcomes.  However, mounting the same overlay with an old kernel
+	  read-write and then mounting it again with a new kernel, will have
+	  unexpected results.

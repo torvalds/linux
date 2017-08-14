@@ -75,7 +75,7 @@ begin:
 			continue;
 		if (!INET6_MATCH(sk, net, saddr, daddr, ports, dif))
 			continue;
-		if (unlikely(!atomic_inc_not_zero(&sk->sk_refcnt)))
+		if (unlikely(!refcount_inc_not_zero(&sk->sk_refcnt)))
 			goto out;
 
 		if (unlikely(!INET6_MATCH(sk, net, saddr, daddr, ports, dif))) {
@@ -172,7 +172,7 @@ struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
 
 	sk = __inet6_lookup(net, hashinfo, skb, doff, saddr, sport, daddr,
 			    ntohs(dport), dif, &refcounted);
-	if (sk && !refcounted && !atomic_inc_not_zero(&sk->sk_refcnt))
+	if (sk && !refcounted && !refcount_inc_not_zero(&sk->sk_refcnt))
 		sk = NULL;
 	return sk;
 }

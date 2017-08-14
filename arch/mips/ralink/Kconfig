@@ -4,7 +4,7 @@ config CLKEVT_RT3352
 	bool
 	depends on SOC_RT305X || SOC_MT7620
 	default y
-	select CLKSRC_OF
+	select TIMER_OF
 	select CLKSRC_MMIO
 
 config RALINK_ILL_ACC

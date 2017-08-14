@@ -39,7 +39,6 @@ config ARM_GIC_V3_ITS
 	bool
 	depends on PCI
 	depends on PCI_MSI
-	select ACPI_IORT if ACPI
 
 config ARM_NVIC
 	bool
@@ -267,6 +266,12 @@ config IRQ_MXS
 	def_bool y if MACH_ASM9260 || ARCH_MXS
 	select IRQ_DOMAIN
 	select STMP_DEVICE
+
+config MVEBU_GICP
+	bool
+
+config MVEBU_ICU
+	bool
 
 config MVEBU_ODMI
 	bool

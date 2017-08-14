@@ -349,8 +349,7 @@ static unsigned char sw_i2c_read_byte(unsigned char ack)
  *      -1   - Fail to initialize the i2c
  *       0   - Success
  */
-static long sm750le_i2c_init(unsigned char clk_gpio,
-			     unsigned char data_gpio)
+static long sm750le_i2c_init(unsigned char clk_gpio, unsigned char data_gpio)
 {
 	int i;
 
@@ -388,10 +387,7 @@ static long sm750le_i2c_init(unsigned char clk_gpio,
  *      -1   - Fail to initialize the i2c
  *       0   - Success
  */
-long sm750_sw_i2c_init(
-	unsigned char clk_gpio,
-	unsigned char data_gpio
-)
+long sm750_sw_i2c_init(unsigned char clk_gpio, unsigned char data_gpio)
 {
 	int i;
 
@@ -448,10 +444,7 @@ long sm750_sw_i2c_init(
  *  Return Value:
  *      Register value
  */
-unsigned char sm750_sw_i2c_read_reg(
-	unsigned char addr,
-	unsigned char reg
-)
+unsigned char sm750_sw_i2c_read_reg(unsigned char addr, unsigned char reg)
 {
 	unsigned char data;
 
@@ -488,11 +481,9 @@ unsigned char sm750_sw_i2c_read_reg(
  *          0   - Success
  *         -1   - Fail
  */
-long sm750_sw_i2c_write_reg(
-	unsigned char addr,
-	unsigned char reg,
-	unsigned char data
-)
+long sm750_sw_i2c_write_reg(unsigned char addr,
+			    unsigned char reg,
+			    unsigned char data)
 {
 	long ret = 0;
 

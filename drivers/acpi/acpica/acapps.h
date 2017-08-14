@@ -158,8 +158,8 @@ acpi_dm_finish_namespace_load(union acpi_parse_object *parse_tree_root,
 			      acpi_owner_id owner_id);
 
 void
-acpi_dm_convert_resource_indexes(union acpi_parse_object *parse_tree_root,
-				 struct acpi_namespace_node *namespace_root);
+acpi_dm_convert_parse_objects(union acpi_parse_object *parse_tree_root,
+			      struct acpi_namespace_node *namespace_root);
 
 /*
  * adfile

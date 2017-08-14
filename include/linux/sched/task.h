@@ -9,6 +9,7 @@
 #include <linux/sched.h>
 
 struct task_struct;
+struct rusage;
 union thread_union;
 
 /*
@@ -74,6 +75,7 @@ extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *, 
 extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
 struct task_struct *fork_idle(int);
 extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
+extern long kernel_wait4(pid_t, int *, int, struct rusage *);
 
 extern void free_task(struct task_struct *tsk);
 
@@ -95,8 +97,6 @@ static inline void put_task_struct(struct task_struct *t)
 }
 
 struct task_struct *task_rcu_dereference(struct task_struct **ptask);
-struct task_struct *try_get_task_struct(struct task_struct **ptask);
-
 
 #ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
 extern int arch_task_struct_size __read_mostly;

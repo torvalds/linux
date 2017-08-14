@@ -1,7 +1,6 @@
 #ifndef GIT_COMPAT_UTIL_H
 #define GIT_COMPAT_UTIL_H
 
-#define _ALL_SOURCE 1
 #define _BSD_SOURCE 1
 /* glibc 2.20 deprecates _BSD_SOURCE in favour of _DEFAULT_SOURCE */
 #define _DEFAULT_SOURCE 1
@@ -11,24 +10,12 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <linux/compiler.h>
 #include <linux/types.h>
 
-#ifdef __GNUC__
-#define NORETURN __attribute__((__noreturn__))
-#else
-#define NORETURN
-#ifndef __attribute__
-#define __attribute__(x)
-#endif
-#endif
-
 /* General helper functions */
-void usage(const char *err) NORETURN;
-void die(const char *err, ...) NORETURN __attribute__((format (printf, 1, 2)));
-int error(const char *err, ...) __attribute__((format (printf, 1, 2)));
-void warning(const char *err, ...) __attribute__((format (printf, 1, 2)));
-
-void set_warning_routine(void (*routine)(const char *err, va_list params));
+void usage(const char *err) __noreturn;
+void die(const char *err, ...) __noreturn __printf(1, 2);
 
 static inline void *zalloc(size_t size)
 {
@@ -56,8 +43,6 @@ int hex2u64(const char *ptr, u64 *val);
 
 extern unsigned int page_size;
 extern int cacheline_size;
-
-bool find_process(const char *name);
 
 int fetch_kernel_version(unsigned int *puint,
 			 char *str, size_t str_sz);

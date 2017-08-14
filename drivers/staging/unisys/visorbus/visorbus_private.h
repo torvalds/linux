@@ -27,19 +27,19 @@
  * command line
  */
 
-int chipset_bus_create(struct visor_device *bus_info);
-void chipset_bus_destroy(struct visor_device *bus_info);
-int chipset_device_create(struct visor_device *dev_info);
-void chipset_device_destroy(struct visor_device *dev_info);
-int chipset_device_pause(struct visor_device *dev_info);
-int chipset_device_resume(struct visor_device *dev_info);
+int visorchipset_bus_create(struct visor_device *bus_info);
+void visorchipset_bus_destroy(struct visor_device *bus_info);
+int visorchipset_device_create(struct visor_device *dev_info);
+void visorchipset_device_destroy(struct visor_device *dev_info);
+int visorchipset_device_pause(struct visor_device *dev_info);
+int visorchipset_device_resume(struct visor_device *dev_info);
 
-void bus_create_response(struct visor_device *p, int response);
-void bus_destroy_response(struct visor_device *p, int response);
-void device_create_response(struct visor_device *p, int response);
-void device_destroy_response(struct visor_device *p, int response);
-void device_resume_response(struct visor_device *p, int response);
-void device_pause_response(struct visor_device *p, int response);
+void visorbus_create_response(struct visor_device *p, int response);
+void visorbus_destroy_response(struct visor_device *p, int response);
+void visorbus_device_create_response(struct visor_device *p, int response);
+void visorbus_device_destroy_response(struct visor_device *p, int response);
+void visorbus_device_resume_response(struct visor_device *p, int response);
+void visorbus_device_pause_response(struct visor_device *p, int response);
 
 int visorbus_init(void);
 void visorbus_exit(void);

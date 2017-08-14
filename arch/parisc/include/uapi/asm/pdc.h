@@ -131,12 +131,12 @@
 #define PDC_TLB_SETUP		1	/* set up miss handling 	*/
 
 #define PDC_MEM		20		/* Manage memory		*/
-#define PDC_MEM_MEMINFO		0
-#define PDC_MEM_ADD_PAGE	1
-#define PDC_MEM_CLEAR_PDT	2
-#define PDC_MEM_READ_PDT	3
-#define PDC_MEM_RESET_CLEAR	4
-#define PDC_MEM_GOODMEM		5
+#define PDC_MEM_MEMINFO		0	/* Return PDT info		*/
+#define PDC_MEM_ADD_PAGE	1	/* Add page to PDT		*/
+#define PDC_MEM_CLEAR_PDT	2	/* Clear PDT			*/
+#define PDC_MEM_READ_PDT	3	/* Read PDT entry		*/
+#define PDC_MEM_RESET_CLEAR	4	/* Reset PDT clear flag		*/
+#define PDC_MEM_GOODMEM		5	/* Set good_mem value		*/
 #define PDC_MEM_TABLE		128	/* Non contig mem map (sprockets) */
 #define PDC_MEM_RETURN_ADDRESS_TABLE	PDC_MEM_TABLE
 #define PDC_MEM_GET_MEMORY_SYSTEM_TABLES_SIZE	131

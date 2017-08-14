@@ -71,7 +71,7 @@ static int acpi_parking_protocol_cpu_boot(unsigned int cpu)
 {
 	struct cpu_mailbox_entry *cpu_entry = &cpu_mailbox_entries[cpu];
 	struct parking_protocol_mailbox __iomem *mailbox;
-	__le32 cpu_id;
+	u32 cpu_id;
 
 	/*
 	 * Map mailbox memory with attribute device nGnRE (ie ioremap -
@@ -123,9 +123,9 @@ static void acpi_parking_protocol_cpu_postboot(void)
 	int cpu = smp_processor_id();
 	struct cpu_mailbox_entry *cpu_entry = &cpu_mailbox_entries[cpu];
 	struct parking_protocol_mailbox __iomem *mailbox = cpu_entry->mailbox;
-	__le64 entry_point;
+	u64 entry_point;
 
-	entry_point = readl_relaxed(&mailbox->entry_point);
+	entry_point = readq_relaxed(&mailbox->entry_point);
 	/*
 	 * Check if firmware has cleared the entry_point as expected
 	 * by the protocol specification.

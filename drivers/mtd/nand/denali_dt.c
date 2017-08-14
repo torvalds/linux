@@ -32,10 +32,31 @@ struct denali_dt {
 struct denali_dt_data {
 	unsigned int revision;
 	unsigned int caps;
+	const struct nand_ecc_caps *ecc_caps;
 };
 
+NAND_ECC_CAPS_SINGLE(denali_socfpga_ecc_caps, denali_calc_ecc_bytes,
+		     512, 8, 15);
 static const struct denali_dt_data denali_socfpga_data = {
 	.caps = DENALI_CAP_HW_ECC_FIXUP,
+	.ecc_caps = &denali_socfpga_ecc_caps,
+};
+
+NAND_ECC_CAPS_SINGLE(denali_uniphier_v5a_ecc_caps, denali_calc_ecc_bytes,
+		     1024, 8, 16, 24);
+static const struct denali_dt_data denali_uniphier_v5a_data = {
+	.caps = DENALI_CAP_HW_ECC_FIXUP |
+		DENALI_CAP_DMA_64BIT,
+	.ecc_caps = &denali_uniphier_v5a_ecc_caps,
+};
+
+NAND_ECC_CAPS_SINGLE(denali_uniphier_v5b_ecc_caps, denali_calc_ecc_bytes,
+		     1024, 8, 16);
+static const struct denali_dt_data denali_uniphier_v5b_data = {
+	.revision = 0x0501,
+	.caps = DENALI_CAP_HW_ECC_FIXUP |
+		DENALI_CAP_DMA_64BIT,
+	.ecc_caps = &denali_uniphier_v5b_ecc_caps,
 };
 
 static const struct of_device_id denali_nand_dt_ids[] = {
@@ -43,13 +64,21 @@ static const struct of_device_id denali_nand_dt_ids[] = {
 		.compatible = "altr,socfpga-denali-nand",
 		.data = &denali_socfpga_data,
 	},
+	{
+		.compatible = "socionext,uniphier-denali-nand-v5a",
+		.data = &denali_uniphier_v5a_data,
+	},
+	{
+		.compatible = "socionext,uniphier-denali-nand-v5b",
+		.data = &denali_uniphier_v5b_data,
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, denali_nand_dt_ids);
 
 static int denali_dt_probe(struct platform_device *pdev)
 {
-	struct resource *denali_reg, *nand_data;
+	struct resource *res;
 	struct denali_dt *dt;
 	const struct denali_dt_data *data;
 	struct denali_nand_info *denali;
@@ -64,9 +93,9 @@ static int denali_dt_probe(struct platform_device *pdev)
 	if (data) {
 		denali->revision = data->revision;
 		denali->caps = data->caps;
+		denali->ecc_caps = data->ecc_caps;
 	}
 
-	denali->platform = DT;
 	denali->dev = &pdev->dev;
 	denali->irq = platform_get_irq(pdev, 0);
 	if (denali->irq < 0) {
@@ -74,17 +103,15 @@ static int denali_dt_probe(struct platform_device *pdev)
 		return denali->irq;
 	}
 
-	denali_reg = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						  "denali_reg");
-	denali->flash_reg = devm_ioremap_resource(&pdev->dev, denali_reg);
-	if (IS_ERR(denali->flash_reg))
-		return PTR_ERR(denali->flash_reg);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "denali_reg");
+	denali->reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(denali->reg))
+		return PTR_ERR(denali->reg);
 
-	nand_data = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						 "nand_data");
-	denali->flash_mem = devm_ioremap_resource(&pdev->dev, nand_data);
-	if (IS_ERR(denali->flash_mem))
-		return PTR_ERR(denali->flash_mem);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_data");
+	denali->host = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(denali->host))
+		return PTR_ERR(denali->host);
 
 	dt->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dt->clk)) {
@@ -92,6 +119,8 @@ static int denali_dt_probe(struct platform_device *pdev)
 		return PTR_ERR(dt->clk);
 	}
 	clk_prepare_enable(dt->clk);
+
+	denali->clk_x_rate = clk_get_rate(dt->clk);
 
 	ret = denali_init(denali);
 	if (ret)

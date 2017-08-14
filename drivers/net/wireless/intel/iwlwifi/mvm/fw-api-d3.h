@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -138,6 +139,7 @@ struct iwl_proto_offload_cmd_common {
  *	for each target address
  * @target_ipv6_addr: our target addresses
  * @ndp_mac_addr: neighbor solicitation response MAC address
+ * @reserved2: reserved
  */
 struct iwl_proto_offload_cmd_v1 {
 	struct iwl_proto_offload_cmd_common common;
@@ -156,6 +158,8 @@ struct iwl_proto_offload_cmd_v1 {
  *	for each target address
  * @target_ipv6_addr: our target addresses
  * @ndp_mac_addr: neighbor solicitation response MAC address
+ * @num_valid_ipv6_addrs: number of valid IPv6 addresses
+ * @reserved2: reserved
  */
 struct iwl_proto_offload_cmd_v2 {
 	struct iwl_proto_offload_cmd_common common;
@@ -163,7 +167,7 @@ struct iwl_proto_offload_cmd_v2 {
 	u8 solicited_node_ipv6_addr[16];
 	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V2][16];
 	u8 ndp_mac_addr[ETH_ALEN];
-	u8 numValidIPv6Addresses;
+	u8 num_valid_ipv6_addrs;
 	u8 reserved2[3];
 } __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_2 */
 
@@ -182,7 +186,8 @@ struct iwl_targ_addr {
 /**
  * struct iwl_proto_offload_cmd_v3_small - ARP/NS offload configuration
  * @common: common/IPv4 configuration
- * @target_ipv6_addr: target IPv6 addresses
+ * @num_valid_ipv6_addrs: number of valid IPv6 addresses
+ * @targ_addrs: target IPv6 addresses
  * @ns_config: NS offload configurations
  */
 struct iwl_proto_offload_cmd_v3_small {
@@ -195,7 +200,8 @@ struct iwl_proto_offload_cmd_v3_small {
 /**
  * struct iwl_proto_offload_cmd_v3_large - ARP/NS offload configuration
  * @common: common/IPv4 configuration
- * @target_ipv6_addr: target IPv6 addresses
+ * @num_valid_ipv6_addrs: number of valid IPv6 addresses
+ * @targ_addrs: target IPv6 addresses
  * @ns_config: NS offload configurations
  */
 struct iwl_proto_offload_cmd_v3_large {
@@ -254,6 +260,17 @@ enum iwl_wowlan_flags {
 	ENABLE_STORE_BEACON	= BIT(4),
 };
 
+/**
+ * struct iwl_wowlan_config_cmd - WoWLAN configuration
+ * @wakeup_filter: filter from &enum iwl_wowlan_wakeup_filters
+ * @non_qos_seq: non-QoS sequence counter to use next
+ * @qos_seq: QoS sequence counters to use next
+ * @wowlan_ba_teardown_tids: bitmap of BA sessions to tear down
+ * @is_11n_connection: indicates HT connection
+ * @offloading_tid: TID reserved for firmware use
+ * @flags: extra flags, see &enum iwl_wowlan_flags
+ * @reserved: reserved
+ */
 struct iwl_wowlan_config_cmd {
 	__le32 wakeup_filter;
 	__le16 non_qos_seq;
@@ -370,6 +387,21 @@ struct iwl_wowlan_gtk_status {
 	struct iwl_wowlan_rsc_tsc_params_cmd rsc;
 } __packed; /* WOWLAN_GTK_MATERIAL_VER_1 */
 
+/**
+ * struct iwl_wowlan_status - WoWLAN status
+ * @gtk: GTK data
+ * @replay_ctr: GTK rekey replay counter
+ * @pattern_number: number of the matched pattern
+ * @non_qos_seq_ctr: non-QoS sequence counter to use next
+ * @qos_seq_ctr: QoS sequence counters to use next
+ * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
+ * @num_of_gtk_rekeys: number of GTK rekeys
+ * @transmitted_ndps: number of transmitted neighbor discovery packets
+ * @received_beacons: number of received beacons
+ * @wake_packet_length: wakeup packet length
+ * @wake_packet_bufsize: wakeup packet buffer size
+ * @wake_packet: wakeup packet
+ */
 struct iwl_wowlan_status {
 	struct iwl_wowlan_gtk_status gtk;
 	__le64 replay_ctr;

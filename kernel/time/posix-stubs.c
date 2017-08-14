@@ -17,6 +17,7 @@
 #include <linux/ktime.h>
 #include <linux/timekeeping.h>
 #include <linux/posix-timers.h>
+#include <linux/compat.h>
 
 asmlinkage long sys_ni_posix_timers(void)
 {
@@ -27,6 +28,7 @@ asmlinkage long sys_ni_posix_timers(void)
 }
 
 #define SYS_NI(name)  SYSCALL_ALIAS(sys_##name, sys_ni_posix_timers)
+#define COMPAT_SYS_NI(name)  SYSCALL_ALIAS(compat_sys_##name, sys_ni_posix_timers)
 
 SYS_NI(timer_create);
 SYS_NI(timer_gettime);
@@ -49,40 +51,52 @@ SYS_NI(alarm);
 SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
 		const struct timespec __user *, tp)
 {
-	struct timespec64 new_tp64;
-	struct timespec new_tp;
+	struct timespec64 new_tp;
 
 	if (which_clock != CLOCK_REALTIME)
 		return -EINVAL;
-	if (copy_from_user(&new_tp, tp, sizeof (*tp)))
+	if (get_timespec64(&new_tp, tp))
 		return -EFAULT;
 
-	new_tp64 = timespec_to_timespec64(new_tp);
-	return do_sys_settimeofday64(&new_tp64, NULL);
+	return do_sys_settimeofday64(&new_tp, NULL);
 }
 
-SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
-		struct timespec __user *,tp)
+int do_clock_gettime(clockid_t which_clock, struct timespec64 *tp)
 {
-	struct timespec64 kernel_tp64;
-	struct timespec kernel_tp;
-
 	switch (which_clock) {
-	case CLOCK_REALTIME: ktime_get_real_ts64(&kernel_tp64); break;
-	case CLOCK_MONOTONIC: ktime_get_ts64(&kernel_tp64); break;
-	case CLOCK_BOOTTIME: get_monotonic_boottime64(&kernel_tp64); break;
-	default: return -EINVAL;
+	case CLOCK_REALTIME:
+		ktime_get_real_ts64(tp);
+		break;
+	case CLOCK_MONOTONIC:
+		ktime_get_ts64(tp);
+		break;
+	case CLOCK_BOOTTIME:
+		get_monotonic_boottime64(tp);
+		break;
+	default:
+		return -EINVAL;
 	}
 
-	kernel_tp = timespec64_to_timespec(kernel_tp64);
-	if (copy_to_user(tp, &kernel_tp, sizeof (kernel_tp)))
+	return 0;
+}
+SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
+		struct timespec __user *, tp)
+{
+	int ret;
+	struct timespec64 kernel_tp;
+
+	ret = do_clock_gettime(which_clock, &kernel_tp);
+	if (ret)
+		return ret;
+
+	if (put_timespec64(&kernel_tp, tp))
 		return -EFAULT;
 	return 0;
 }
 
 SYSCALL_DEFINE2(clock_getres, const clockid_t, which_clock, struct timespec __user *, tp)
 {
-	struct timespec rtn_tp = {
+	struct timespec64 rtn_tp = {
 		.tv_sec = 0,
 		.tv_nsec = hrtimer_resolution,
 	};
@@ -91,7 +105,7 @@ SYSCALL_DEFINE2(clock_getres, const clockid_t, which_clock, struct timespec __us
 	case CLOCK_REALTIME:
 	case CLOCK_MONOTONIC:
 	case CLOCK_BOOTTIME:
-		if (copy_to_user(tp, &rtn_tp, sizeof(rtn_tp)))
+		if (put_timespec64(&rtn_tp, tp))
 			return -EFAULT;
 		return 0;
 	default:
@@ -110,22 +124,108 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 	case CLOCK_REALTIME:
 	case CLOCK_MONOTONIC:
 	case CLOCK_BOOTTIME:
-		if (copy_from_user(&t, rqtp, sizeof (struct timespec)))
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (copy_from_user(&t, rqtp, sizeof (struct timespec)))
+		return -EFAULT;
+	t64 = timespec_to_timespec64(t);
+	if (!timespec64_valid(&t64))
+		return -EINVAL;
+	if (flags & TIMER_ABSTIME)
+		rmtp = NULL;
+	current->restart_block.nanosleep.type = rmtp ? TT_NATIVE : TT_NONE;
+	current->restart_block.nanosleep.rmtp = rmtp;
+	return hrtimer_nanosleep(&t64, flags & TIMER_ABSTIME ?
+				 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
+				 which_clock);
+}
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYS_NI(timer_create);
+COMPAT_SYS_NI(clock_adjtime);
+COMPAT_SYS_NI(timer_settime);
+COMPAT_SYS_NI(timer_gettime);
+COMPAT_SYS_NI(getitimer);
+COMPAT_SYS_NI(setitimer);
+
+COMPAT_SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
+		       struct compat_timespec __user *, tp)
+{
+	struct timespec64 new_tp;
+
+	if (which_clock != CLOCK_REALTIME)
+		return -EINVAL;
+	if (compat_get_timespec64(&new_tp, tp))
+		return -EFAULT;
+
+	return do_sys_settimeofday64(&new_tp, NULL);
+}
+
+COMPAT_SYSCALL_DEFINE2(clock_gettime, clockid_t, which_clock,
+		       struct compat_timespec __user *, tp)
+{
+	int ret;
+	struct timespec64 kernel_tp;
+
+	ret = do_clock_gettime(which_clock, &kernel_tp);
+	if (ret)
+		return ret;
+
+	if (compat_put_timespec64(&kernel_tp, tp))
+		return -EFAULT;
+	return 0;
+}
+
+COMPAT_SYSCALL_DEFINE2(clock_getres, clockid_t, which_clock,
+		       struct compat_timespec __user *, tp)
+{
+	struct timespec64 rtn_tp = {
+		.tv_sec = 0,
+		.tv_nsec = hrtimer_resolution,
+	};
+
+	switch (which_clock) {
+	case CLOCK_REALTIME:
+	case CLOCK_MONOTONIC:
+	case CLOCK_BOOTTIME:
+		if (compat_put_timespec64(&rtn_tp, tp))
 			return -EFAULT;
-		t64 = timespec_to_timespec64(t);
-		if (!timespec64_valid(&t64))
-			return -EINVAL;
-		return hrtimer_nanosleep(&t64, rmtp, flags & TIMER_ABSTIME ?
-					 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
-					 which_clock);
+		return 0;
 	default:
 		return -EINVAL;
 	}
 }
 
-#ifdef CONFIG_COMPAT
-long clock_nanosleep_restart(struct restart_block *restart_block)
+COMPAT_SYSCALL_DEFINE4(clock_nanosleep, clockid_t, which_clock, int, flags,
+		       struct compat_timespec __user *, rqtp,
+		       struct compat_timespec __user *, rmtp)
 {
-	return hrtimer_nanosleep_restart(restart_block);
+	struct timespec64 t64;
+	struct timespec t;
+
+	switch (which_clock) {
+	case CLOCK_REALTIME:
+	case CLOCK_MONOTONIC:
+	case CLOCK_BOOTTIME:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (compat_get_timespec(&t, rqtp))
+		return -EFAULT;
+	t64 = timespec_to_timespec64(t);
+	if (!timespec64_valid(&t64))
+		return -EINVAL;
+	if (flags & TIMER_ABSTIME)
+		rmtp = NULL;
+	current->restart_block.nanosleep.type = rmtp ? TT_COMPAT : TT_NONE;
+	current->restart_block.nanosleep.compat_rmtp = rmtp;
+	return hrtimer_nanosleep(&t64, flags & TIMER_ABSTIME ?
+				 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
+				 which_clock);
 }
 #endif

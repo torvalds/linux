@@ -225,14 +225,14 @@ static struct block_device *hib_resume_bdev;
 struct hib_bio_batch {
 	atomic_t		count;
 	wait_queue_head_t	wait;
-	int			error;
+	blk_status_t		error;
 };
 
 static void hib_init_batch(struct hib_bio_batch *hb)
 {
 	atomic_set(&hb->count, 0);
 	init_waitqueue_head(&hb->wait);
-	hb->error = 0;
+	hb->error = BLK_STS_OK;
 }
 
 static void hib_end_io(struct bio *bio)
@@ -240,7 +240,7 @@ static void hib_end_io(struct bio *bio)
 	struct hib_bio_batch *hb = bio->bi_private;
 	struct page *page = bio->bi_io_vec[0].bv_page;
 
-	if (bio->bi_error) {
+	if (bio->bi_status) {
 		printk(KERN_ALERT "Read-error on swap-device (%u:%u:%Lu)\n",
 				imajor(bio->bi_bdev->bd_inode),
 				iminor(bio->bi_bdev->bd_inode),
@@ -253,8 +253,8 @@ static void hib_end_io(struct bio *bio)
 		flush_icache_range((unsigned long)page_address(page),
 				   (unsigned long)page_address(page) + PAGE_SIZE);
 
-	if (bio->bi_error && !hb->error)
-		hb->error = bio->bi_error;
+	if (bio->bi_status && !hb->error)
+		hb->error = bio->bi_status;
 	if (atomic_dec_and_test(&hb->count))
 		wake_up(&hb->wait);
 
@@ -293,10 +293,10 @@ static int hib_submit_io(int op, int op_flags, pgoff_t page_off, void *addr,
 	return error;
 }
 
-static int hib_wait_io(struct hib_bio_batch *hb)
+static blk_status_t hib_wait_io(struct hib_bio_batch *hb)
 {
 	wait_event(hb->wait, atomic_read(&hb->count) == 0);
-	return hb->error;
+	return blk_status_to_errno(hb->error);
 }
 
 /*

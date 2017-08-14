@@ -802,7 +802,7 @@ static int aty_var_to_crtc(const struct fb_info *info,
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 	u32 xres, yres, vxres, vyres, xoffset, yoffset, bpp;
-	u32 sync, vmode, vdisplay;
+	u32 sync, vmode;
 	u32 h_total, h_disp, h_sync_strt, h_sync_end, h_sync_dly, h_sync_wid, h_sync_pol;
 	u32 v_total, v_disp, v_sync_strt, v_sync_end, v_sync_wid, v_sync_pol, c_sync;
 	u32 pix_width, dp_pix_width, dp_chain_mask;
@@ -984,12 +984,6 @@ static int aty_var_to_crtc(const struct fb_info *info,
 		v_total <<= 1;
 	}
 
-	vdisplay = yres;
-#ifdef CONFIG_FB_ATY_GENERIC_LCD
-	if ((par->lcd_table != 0) && (crtc->lcd_gen_cntl & LCD_ON))
-		vdisplay  = par->lcd_height;
-#endif
-
 	v_disp--;
 	v_sync_strt--;
 	v_sync_end--;
@@ -1036,7 +1030,7 @@ static int aty_var_to_crtc(const struct fb_info *info,
 		crtc->gen_cntl |= CRTC_INTERLACE_EN;
 #ifdef CONFIG_FB_ATY_GENERIC_LCD
 	if (par->lcd_table != 0) {
-		vdisplay = yres;
+		u32 vdisplay = yres;
 		if (vmode & FB_VMODE_DOUBLE)
 			vdisplay <<= 1;
 		crtc->gen_cntl &= ~(CRTC2_EN | CRTC2_PIX_WIDTH);

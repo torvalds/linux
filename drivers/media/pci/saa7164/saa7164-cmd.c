@@ -506,6 +506,8 @@ int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 				dprintk(DBGLVL_CMD,
 					"%s() UNKNOWN OR INVALID CONTROL\n",
 					__func__);
+				ret = SAA_ERR_NOT_SUPPORTED;
+				break;
 			default:
 				dprintk(DBGLVL_CMD, "%s() UNKNOWN\n", __func__);
 				ret = SAA_ERR_NOT_SUPPORTED;

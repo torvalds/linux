@@ -764,6 +764,7 @@ struct drm_amdgpu_info_device {
 	__u64 max_memory_clock;
 	/* cu information */
 	__u32 cu_active_number;
+	/* NOTE: cu_ao_mask is INVALID, DON'T use it */
 	__u32 cu_ao_mask;
 	__u32 cu_bitmap[4][4];
 	/** Render backend pipe mask. One render backend is CB+DB. */
@@ -818,6 +819,8 @@ struct drm_amdgpu_info_device {
 	/* max gs wavefront per vgt*/
 	__u32 max_gs_waves_per_vgt;
 	__u32 _pad1;
+	/* always on cu bitmap */
+	__u32 cu_ao_bitmap[4][4];
 };
 
 struct drm_amdgpu_info_hw_ip {

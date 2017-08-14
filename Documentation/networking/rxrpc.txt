@@ -325,6 +325,9 @@ calls, to invoke certain actions and to report certain conditions.  These are:
 	RXRPC_LOCAL_ERROR	-rt error num	Local error encountered
 	RXRPC_NEW_CALL		-r- n/a		New call received
 	RXRPC_ACCEPT		s-- n/a		Accept new call
+	RXRPC_EXCLUSIVE_CALL	s-- n/a		Make an exclusive client call
+	RXRPC_UPGRADE_SERVICE	s-- n/a		Client call can be upgraded
+	RXRPC_TX_LENGTH		s-- data len	Total length of Tx data
 
 	(SRT = usable in Sendmsg / delivered by Recvmsg / Terminal message)
 
@@ -387,6 +390,40 @@ calls, to invoke certain actions and to report certain conditions.  These are:
      return error ENODATA.  If the user ID is already in use by another call,
      then error EBADSLT will be returned.
 
+ (*) RXRPC_EXCLUSIVE_CALL
+
+     This is used to indicate that a client call should be made on a one-off
+     connection.  The connection is discarded once the call has terminated.
+
+ (*) RXRPC_UPGRADE_SERVICE
+
+     This is used to make a client call to probe if the specified service ID
+     may be upgraded by the server.  The caller must check msg_name returned to
+     recvmsg() for the service ID actually in use.  The operation probed must
+     be one that takes the same arguments in both services.
+
+     Once this has been used to establish the upgrade capability (or lack
+     thereof) of the server, the service ID returned should be used for all
+     future communication to that server and RXRPC_UPGRADE_SERVICE should no
+     longer be set.
+
+ (*) RXRPC_TX_LENGTH
+
+     This is used to inform the kernel of the total amount of data that is
+     going to be transmitted by a call (whether in a client request or a
+     service response).  If given, it allows the kernel to encrypt from the
+     userspace buffer directly to the packet buffers, rather than copying into
+     the buffer and then encrypting in place.  This may only be given with the
+     first sendmsg() providing data for a call.  EMSGSIZE will be generated if
+     the amount of data actually given is different.
+
+     This takes a parameter of __s64 type that indicates how much will be
+     transmitted.  This may not be less than zero.
+
+The symbol RXRPC__SUPPORTED is defined as one more than the highest control
+message type supported.  At run time this can be queried by means of the
+RXRPC_SUPPORTED_CMSG socket option (see below).
+
 
 ==============
 SOCKET OPTIONS
@@ -432,6 +469,18 @@ AF_RXRPC sockets support a few socket options at the SOL_RXRPC level:
 
 	 Encrypted checksum plus entire packet padded and encrypted, including
 	 actual packet length.
+
+ (*) RXRPC_UPGRADEABLE_SERVICE
+
+     This is used to indicate that a service socket with two bindings may
+     upgrade one bound service to the other if requested by the client.  optval
+     must point to an array of two unsigned short ints.  The first is the
+     service ID to upgrade from and the second the service ID to upgrade to.
+
+ (*) RXRPC_SUPPORTED_CMSG
+
+     This is a read-only option that writes an int into the buffer indicating
+     the highest control message type supported.
 
 
 ========
@@ -542,6 +591,9 @@ A client would issue an operation by:
      MSG_MORE should be set in msghdr::msg_flags on all but the last part of
      the request.  Multiple requests may be made simultaneously.
 
+     An RXRPC_TX_LENGTH control message can also be specified on the first
+     sendmsg() call.
+
      If a call is intended to go to a destination other than the default
      specified through connect(), then msghdr::msg_name should be set on the
      first request message of that call.
@@ -558,6 +610,17 @@ A client would issue an operation by:
      If an abort or error occurred, this will be returned in the control data
      buffer instead, and MSG_EOR will be flagged to indicate the end of that
      call.
+
+A client may ask for a service ID it knows and ask that this be upgraded to a
+better service if one is available by supplying RXRPC_UPGRADE_SERVICE on the
+first sendmsg() of a call.  The client should then check srx_service in the
+msg_name filled in by recvmsg() when collecting the result.  srx_service will
+hold the same value as given to sendmsg() if the upgrade request was ignored by
+the service - otherwise it will be altered to indicate the service ID the
+server upgraded to.  Note that the upgraded service ID is chosen by the server.
+The caller has to wait until it sees the service ID in the reply before sending
+any more calls (further calls to the same destination will be blocked until the
+probe is concluded).
 
 
 ====================
@@ -588,7 +651,7 @@ A server would be set up to accept operations in the following manner:
      The keyring can be manipulated after it has been given to the socket. This
      permits the server to add more keys, replace keys, etc. whilst it is live.
 
- (2) A local address must then be bound:
+ (3) A local address must then be bound:
 
 	struct sockaddr_rxrpc srx = {
 		.srx_family	= AF_RXRPC,
@@ -600,11 +663,26 @@ A server would be set up to accept operations in the following manner:
 	};
 	bind(server, &srx, sizeof(srx));
 
- (3) The server is then set to listen out for incoming calls:
+     More than one service ID may be bound to a socket, provided the transport
+     parameters are the same.  The limit is currently two.  To do this, bind()
+     should be called twice.
+
+ (4) If service upgrading is required, first two service IDs must have been
+     bound and then the following option must be set:
+
+	unsigned short service_ids[2] = { from_ID, to_ID };
+	setsockopt(server, SOL_RXRPC, RXRPC_UPGRADEABLE_SERVICE,
+		   service_ids, sizeof(service_ids));
+
+     This will automatically upgrade connections on service from_ID to service
+     to_ID if they request it.  This will be reflected in msg_name obtained
+     through recvmsg() when the request data is delivered to userspace.
+
+ (5) The server is then set to listen out for incoming calls:
 
 	listen(server, 100);
 
- (4) The kernel notifies the server of pending incoming connections by sending
+ (6) The kernel notifies the server of pending incoming connections by sending
      it a message for each.  This is received with recvmsg() on the server
      socket.  It has no data, and has a single dataless control message
      attached:
@@ -616,13 +694,13 @@ A server would be set up to accept operations in the following manner:
      the time it is accepted - in which case the first call still on the queue
      will be accepted.
 
- (5) The server then accepts the new call by issuing a sendmsg() with two
+ (7) The server then accepts the new call by issuing a sendmsg() with two
      pieces of control data and no actual data:
 
 	RXRPC_ACCEPT		- indicate connection acceptance
 	RXRPC_USER_CALL_ID	- specify user ID for this call
 
- (6) The first request data packet will then be posted to the server socket for
+ (8) The first request data packet will then be posted to the server socket for
      recvmsg() to pick up.  At that point, the RxRPC address for the call can
      be read from the address fields in the msghdr struct.
 
@@ -634,7 +712,7 @@ A server would be set up to accept operations in the following manner:
 
 	RXRPC_USER_CALL_ID	- specifies the user ID for this call
 
- (8) The reply data should then be posted to the server socket using a series
+ (9) The reply data should then be posted to the server socket using a series
      of sendmsg() calls, each with the following control messages attached:
 
 	RXRPC_USER_CALL_ID	- specifies the user ID for this call
@@ -642,7 +720,7 @@ A server would be set up to accept operations in the following manner:
      MSG_MORE should be set in msghdr::msg_flags on all but the last message
      for a particular call.
 
- (9) The final ACK from the client will be posted for retrieval by recvmsg()
+(10) The final ACK from the client will be posted for retrieval by recvmsg()
      when it is received.  It will take the form of a dataless message with two
      control messages attached:
 
@@ -652,7 +730,7 @@ A server would be set up to accept operations in the following manner:
      MSG_EOR will be flagged to indicate that this is the final message for
      this call.
 
-(10) Up to the point the final packet of reply data is sent, the call can be
+(11) Up to the point the final packet of reply data is sent, the call can be
      aborted by calling sendmsg() with a dataless message with the following
      control messages attached:
 
@@ -703,6 +781,7 @@ The kernel interface functions are as follows:
 				struct sockaddr_rxrpc *srx,
 				struct key *key,
 				unsigned long user_call_ID,
+				s64 tx_total_len,
 				gfp_t gfp);
 
      This allocates the infrastructure to make a new RxRPC call and assigns
@@ -718,6 +797,11 @@ The kernel interface functions are as follows:
      The user_call_ID is equivalent to that supplied to sendmsg() in the
      control data buffer.  It is entirely feasible to use this to point to a
      kernel data structure.
+
+     tx_total_len is the amount of data the caller is intending to transmit
+     with this call (or -1 if unknown at this point).  Setting the data size
+     allows the kernel to encrypt directly to the packet buffers, thereby
+     saving a copy.  The value may not be less than -1.
 
      If this function is successful, an opaque reference to the RxRPC call is
      returned.  The caller now holds a reference on this and it must be
@@ -869,6 +953,17 @@ The kernel interface functions are as follows:
 				   struct sockaddr_rxrpc *_srx);
 
      This is used to find the remote peer address of a call.
+
+ (*) Set the total transmit data size on a call.
+
+	void rxrpc_kernel_set_tx_length(struct socket *sock,
+					struct rxrpc_call *call,
+					s64 tx_total_len);
+
+     This sets the amount of data that the caller is intending to transmit on a
+     call.  It's intended to be used for setting the reply size as the request
+     size should be set when the call is begun.  tx_total_len may not be less
+     than zero.
 
 
 =======================

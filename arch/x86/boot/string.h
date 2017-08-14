@@ -22,6 +22,7 @@ extern int strcmp(const char *str1, const char *str2);
 extern int strncmp(const char *cs, const char *ct, size_t count);
 extern size_t strlen(const char *s);
 extern char *strstr(const char *s1, const char *s2);
+extern char *strchr(const char *s, int c);
 extern size_t strnlen(const char *s, size_t maxlen);
 extern unsigned int atou(const char *s);
 extern unsigned long long simple_strtoull(const char *cp, char **endp,

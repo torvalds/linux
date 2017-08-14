@@ -57,9 +57,9 @@ static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
 {
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
 
-	if (psw_bits(*psw).eaba == PSW_AMODE_64BIT)
+	if (psw_bits(*psw).eaba == PSW_BITS_AMODE_64BIT)
 		return ga;
-	if (psw_bits(*psw).eaba == PSW_AMODE_31BIT)
+	if (psw_bits(*psw).eaba == PSW_BITS_AMODE_31BIT)
 		return ga & ((1UL << 31) - 1);
 	return ga & ((1UL << 24) - 1);
 }

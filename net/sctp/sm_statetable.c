@@ -53,7 +53,7 @@ static const sctp_sm_table_entry_t
 timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][SCTP_STATE_NUM_STATES];
 
 static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(struct net *net,
-							    sctp_cid_t cid,
+							    enum sctp_cid cid,
 							    sctp_state_t state);
 
 
@@ -968,7 +968,7 @@ static const sctp_sm_table_entry_t timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][S
 };
 
 static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(struct net *net,
-							    sctp_cid_t cid,
+							    enum sctp_cid cid,
 							    sctp_state_t state)
 {
 	if (state > SCTP_STATE_MAX)

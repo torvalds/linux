@@ -872,6 +872,11 @@ static int dccp_init_net(struct net *net, u_int16_t proto)
 	return dccp_kmemdup_sysctl_table(net, pn, dn);
 }
 
+static struct nf_proto_net *dccp_get_net_proto(struct net *net)
+{
+	return &net->ct.nf_ct_proto.dccp.pn;
+}
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 	.l3proto		= AF_INET,
 	.l4proto		= IPPROTO_DCCP,
@@ -904,6 +909,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= dccp_init_net,
+	.get_net_proto		= dccp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp4);
 
@@ -939,5 +945,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 __read_mostly = {
 	},
 #endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 	.init_net		= dccp_init_net,
+	.get_net_proto		= dccp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp6);

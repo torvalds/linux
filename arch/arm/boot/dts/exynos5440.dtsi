@@ -200,7 +200,7 @@
 		compatible = "snps,dwmac-3.70a", "snps,dwmac";
 		reg = <0x00230000 0x8000>;
 		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 31 4>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq";
 		phy-mode = "sgmii";
 		clocks = <&clock CLK_GMAC0>;

@@ -723,7 +723,7 @@ at86rf230_rx_read_frame_complete(void *context)
 		return;
 	}
 
-	memcpy(skb_put(skb, len), buf + 2, len);
+	skb_put_data(skb, buf + 2, len);
 	ieee802154_rx_irqsafe(lp->hw, skb, lqi);
 	kfree(ctx);
 }

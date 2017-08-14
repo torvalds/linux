@@ -144,6 +144,15 @@ typedef struct _ATOM_Vega10_GFXCLK_Dependency_Record {
 	USHORT usAVFSOffset;                                        /* AVFS Voltage offset */
 } ATOM_Vega10_GFXCLK_Dependency_Record;
 
+typedef struct _ATOM_Vega10_GFXCLK_Dependency_Record_V2 {
+	ULONG  ulClk;
+	UCHAR  ucVddInd;
+	USHORT usCKSVOffsetandDisable;
+	USHORT usAVFSOffset;
+	UCHAR  ucACGEnable;
+	UCHAR  ucReserved[3];
+} ATOM_Vega10_GFXCLK_Dependency_Record_V2;
+
 typedef struct _ATOM_Vega10_MCLK_Dependency_Record {
 	ULONG  ulMemClk;                                            /* Clock Frequency */
 	UCHAR  ucVddInd;                                            /* SOC_VDD index */

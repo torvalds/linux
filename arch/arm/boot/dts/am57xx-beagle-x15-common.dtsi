@@ -388,7 +388,7 @@
 	};
 
 	eeprom: eeprom@50 {
-		compatible = "at,24c32";
+		compatible = "atmel,24c32";
 		reg = <0x50>;
 	};
 };

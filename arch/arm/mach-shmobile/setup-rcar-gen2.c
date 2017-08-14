@@ -113,7 +113,7 @@ void __init rcar_gen2_timer_init(void)
 #endif /* CONFIG_ARM_ARCH_TIMER */
 
 	of_clk_init(NULL);
-	clocksource_probe();
+	timer_probe();
 }
 
 struct memory_reserve_config {

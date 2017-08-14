@@ -6,6 +6,8 @@ extern int force_iommu, no_iommu;
 extern int iommu_detected;
 extern int iommu_pass_through;
 
+int x86_dma_supported(struct device *dev, u64 mask);
+
 /* 10 seconds */
 #define DMAR_OPERATION_TIMEOUT ((cycles_t) tsc_khz*10*1000)
 

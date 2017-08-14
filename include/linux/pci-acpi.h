@@ -105,7 +105,7 @@ static inline void acpiphp_remove_slots(struct pci_bus *bus) { }
 static inline void acpiphp_check_host_bridge(struct acpi_device *adev) { }
 #endif
 
-extern const u8 pci_acpi_dsm_uuid[];
+extern const guid_t pci_acpi_dsm_guid;
 #define DEVICE_LABEL_DSM	0x07
 #define RESET_DELAY_DSM		0x08
 #define FUNCTION_DELAY_DSM	0x09

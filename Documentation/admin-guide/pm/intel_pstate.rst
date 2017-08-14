@@ -157,10 +157,8 @@ Without HWP, this P-state selection algorithm is always the same regardless of
 the processor model and platform configuration.
 
 It selects the maximum P-state it is allowed to use, subject to limits set via
-``sysfs``, every time the P-state selection computations are carried out by the
-driver's utilization update callback for the given CPU (that does not happen
-more often than every 10 ms), but the hardware configuration will not be changed
-if the new P-state is the same as the current one.
+``sysfs``, every time the driver configuration for the given CPU is updated
+(e.g. via ``sysfs``).
 
 This is the default P-state selection algorithm if the
 :c:macro:`CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE` kernel configuration option

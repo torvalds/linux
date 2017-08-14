@@ -107,6 +107,11 @@ enum ap_peer {
 	SET_BEACON_PROBE_RSP_CAPABILITY_INFO(__phdr, \
 	(GET_BEACON_PROBE_RSP_CAPABILITY_INFO(__phdr) & (~(__val))))
 
+#define SET_TX_DESC_SPE_RPT(__pdesc, __val)			\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 8, 19, 1, __val)
+#define SET_TX_DESC_SW_DEFINE(__pdesc, __val)	\
+	SET_BITS_TO_LE_4BYTE((__pdesc) + 24, 0, 12, __val)
+
 int rtl_init_core(struct ieee80211_hw *hw);
 void rtl_deinit_core(struct ieee80211_hw *hw);
 void rtl_init_rx_config(struct ieee80211_hw *hw);
@@ -123,7 +128,17 @@ bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb);
 u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx,
 		       bool is_enc);
 
+bool rtl_is_tx_report_skb(struct ieee80211_hw *hw, struct sk_buff *skb);
+void rtl_get_tx_report(struct rtl_tcb_desc *ptcb_desc, u8 *pdesc,
+		       struct ieee80211_hw *hw);
+void rtl_tx_report_handler(struct ieee80211_hw *hw, u8 *tmp_buf,
+			   u8 c2h_cmd_len);
+bool rtl_check_tx_report_acked(struct ieee80211_hw *hw);
+void rtl_wait_tx_report_acked(struct ieee80211_hw *hw, u32 wait_ms);
+
 void rtl_beacon_statistic(struct ieee80211_hw *hw, struct sk_buff *skb);
+void rtl_collect_scan_list(struct ieee80211_hw *hw, struct sk_buff *skb);
+void rtl_scan_list_expire(struct ieee80211_hw *hw);
 int rtl_tx_agg_start(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int rtl_tx_agg_stop(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -134,6 +149,7 @@ int rtl_rx_agg_start(struct ieee80211_hw *hw,
 		     struct ieee80211_sta *sta, u16 tid);
 int rtl_rx_agg_stop(struct ieee80211_hw *hw,
 		    struct ieee80211_sta *sta, u16 tid);
+void rtl_rx_ampdu_apply(struct rtl_priv *rtlpriv);
 void rtl_watchdog_wq_callback(void *data);
 void rtl_fwevt_wq_callback(void *data);
 void rtl_c2hcmd_wq_callback(void *data);

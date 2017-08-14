@@ -34,6 +34,13 @@ config RESET_BERLIN
 	help
 	  This enables the reset controller driver for Marvell Berlin SoCs.
 
+config RESET_GEMINI
+	bool "Gemini Reset Driver" if COMPILE_TEST
+	default ARCH_GEMINI
+	select MFD_SYSCON
+	help
+	  This enables the reset controller driver for Cortina Systems Gemini.
+
 config RESET_IMX7
 	bool "i.MX7 Reset Driver" if COMPILE_TEST
 	default SOC_IMX7D
@@ -80,7 +87,15 @@ config RESET_SUNXI
 	help
 	  This enables the reset driver for Allwinner SoCs.
 
-config TI_SYSCON_RESET
+config RESET_TI_SCI
+	tristate "TI System Control Interface (TI-SCI) reset driver"
+	depends on TI_SCI_PROTOCOL
+	help
+	  This enables the reset driver support over TI System Control Interface
+	  available on some new TI's SoCs. If you wish to use reset resources
+	  managed by the TI System Controller, say Y here. Otherwise, say N.
+
+config RESET_TI_SYSCON
 	tristate "TI SYSCON Reset Driver"
 	depends on HAS_IOMEM
 	select MFD_SYSCON

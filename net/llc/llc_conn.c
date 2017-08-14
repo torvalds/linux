@@ -507,7 +507,7 @@ again:
 	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
 		if (llc_estab_match(sap, daddr, laddr, rc)) {
 			/* Extra checks required by SLAB_TYPESAFE_BY_RCU */
-			if (unlikely(!atomic_inc_not_zero(&rc->sk_refcnt)))
+			if (unlikely(!refcount_inc_not_zero(&rc->sk_refcnt)))
 				goto again;
 			if (unlikely(llc_sk(rc)->sap != sap ||
 				     !llc_estab_match(sap, daddr, laddr, rc))) {
@@ -566,7 +566,7 @@ again:
 	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
 		if (llc_listener_match(sap, laddr, rc)) {
 			/* Extra checks required by SLAB_TYPESAFE_BY_RCU */
-			if (unlikely(!atomic_inc_not_zero(&rc->sk_refcnt)))
+			if (unlikely(!refcount_inc_not_zero(&rc->sk_refcnt)))
 				goto again;
 			if (unlikely(llc_sk(rc)->sap != sap ||
 				     !llc_listener_match(sap, laddr, rc))) {
@@ -973,9 +973,9 @@ void llc_sk_free(struct sock *sk)
 	skb_queue_purge(&sk->sk_write_queue);
 	skb_queue_purge(&llc->pdu_unack_q);
 #ifdef LLC_REFCNT_DEBUG
-	if (atomic_read(&sk->sk_refcnt) != 1) {
+	if (refcount_read(&sk->sk_refcnt) != 1) {
 		printk(KERN_DEBUG "Destruction of LLC sock %p delayed in %s, cnt=%d\n",
-			sk, __func__, atomic_read(&sk->sk_refcnt));
+			sk, __func__, refcount_read(&sk->sk_refcnt));
 		printk(KERN_DEBUG "%d LLC sockets are still alive\n",
 			atomic_read(&llc_sock_nr));
 	} else {

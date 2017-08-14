@@ -944,7 +944,7 @@ static int gb_power_supplies_setup(struct gb_power_supplies *supplies)
 	if (ret < 0)
 		goto out;
 
-	supplies->supply = kzalloc(supplies->supplies_count *
+	supplies->supply = kcalloc(supplies->supplies_count,
 				     sizeof(struct gb_power_supply),
 				     GFP_KERNEL);
 

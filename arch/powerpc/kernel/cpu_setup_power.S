@@ -218,13 +218,20 @@ __init_tlb_power8:
 	ptesync
 1:	blr
 
+/*
+ * Flush the TLB in hash mode. Hash must flush with RIC=2 once for process
+ * and one for partition scope to clear process and partition table entries.
+ */
 __init_tlb_power9:
-	li	r6,POWER9_TLB_SETS_HASH
+	li	r6,POWER9_TLB_SETS_HASH - 1
 	mtctr	r6
 	li	r7,0xc00	/* IS field = 0b11 */
+	li	r8,0
 	ptesync
-2:	tlbiel	r7
-	addi	r7,r7,0x1000
+	PPC_TLBIEL(7, 8, 2, 1, 0)
+	PPC_TLBIEL(7, 8, 2, 0, 0)
+2:	addi	r7,r7,0x1000
+	PPC_TLBIEL(7, 8, 0, 0, 0)
 	bdnz	2b
 	ptesync
 1:	blr

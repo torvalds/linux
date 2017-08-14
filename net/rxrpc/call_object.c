@@ -44,8 +44,6 @@ const char *const rxrpc_call_completions[NR__RXRPC_CALL_COMPLETIONS] = {
 };
 
 struct kmem_cache *rxrpc_call_jar;
-LIST_HEAD(rxrpc_calls);
-DEFINE_RWLOCK(rxrpc_call_lock);
 
 static void rxrpc_call_timer_expired(unsigned long _call)
 {
@@ -129,6 +127,7 @@ struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	rwlock_init(&call->state_lock);
 	atomic_set(&call->usage, 1);
 	call->debug_id = atomic_inc_return(&rxrpc_debug_id);
+	call->tx_total_len = -1;
 
 	memset(&call->sock_node, 0xed, sizeof(call->sock_node));
 
@@ -137,12 +136,7 @@ struct rxrpc_call *rxrpc_alloc_call(gfp_t gfp)
 	call->tx_winsize = 16;
 	call->rx_expect_next = 1;
 
-	if (RXRPC_TX_SMSS > 2190)
-		call->cong_cwnd = 2;
-	else if (RXRPC_TX_SMSS > 1095)
-		call->cong_cwnd = 3;
-	else
-		call->cong_cwnd = 4;
+	call->cong_cwnd = 2;
 	call->cong_ssthresh = RXRPC_RXTX_BUFF_SIZE - 1;
 	return call;
 
@@ -203,10 +197,12 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 					 struct rxrpc_conn_parameters *cp,
 					 struct sockaddr_rxrpc *srx,
 					 unsigned long user_call_ID,
+					 s64 tx_total_len,
 					 gfp_t gfp)
 	__releases(&rx->sk.sk_lock.slock)
 {
 	struct rxrpc_call *call, *xcall;
+	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&rx->sk));
 	struct rb_node *parent, **pp;
 	const void *here = __builtin_return_address(0);
 	int ret;
@@ -220,6 +216,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 		return call;
 	}
 
+	call->tx_total_len = tx_total_len;
 	trace_rxrpc_call(call, rxrpc_call_new_client, atomic_read(&call->usage),
 			 here, (const void *)user_call_ID);
 
@@ -255,9 +252,9 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 
 	write_unlock(&rx->call_lock);
 
-	write_lock(&rxrpc_call_lock);
-	list_add_tail(&call->link, &rxrpc_calls);
-	write_unlock(&rxrpc_call_lock);
+	write_lock(&rxnet->call_lock);
+	list_add_tail(&call->link, &rxnet->calls);
+	write_unlock(&rxnet->call_lock);
 
 	/* From this point on, the call is protected by its own lock. */
 	release_sock(&rx->sk);
@@ -508,6 +505,7 @@ void rxrpc_release_calls_on_socket(struct rxrpc_sock *rx)
  */
 void rxrpc_put_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
 {
+	struct rxrpc_net *rxnet;
 	const void *here = __builtin_return_address(0);
 	int n;
 
@@ -520,9 +518,12 @@ void rxrpc_put_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
 		_debug("call %d dead", call->debug_id);
 		ASSERTCMP(call->state, ==, RXRPC_CALL_COMPLETE);
 
-		write_lock(&rxrpc_call_lock);
-		list_del_init(&call->link);
-		write_unlock(&rxrpc_call_lock);
+		if (!list_empty(&call->link)) {
+			rxnet = rxrpc_net(sock_net(&call->socket->sk));
+			write_lock(&rxnet->call_lock);
+			list_del_init(&call->link);
+			write_unlock(&rxnet->call_lock);
+		}
 
 		rxrpc_cleanup_call(call);
 	}
@@ -570,21 +571,23 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 }
 
 /*
- * Make sure that all calls are gone.
+ * Make sure that all calls are gone from a network namespace.  To reach this
+ * point, any open UDP sockets in that namespace must have been closed, so any
+ * outstanding calls cannot be doing I/O.
  */
-void __exit rxrpc_destroy_all_calls(void)
+void rxrpc_destroy_all_calls(struct rxrpc_net *rxnet)
 {
 	struct rxrpc_call *call;
 
 	_enter("");
 
-	if (list_empty(&rxrpc_calls))
+	if (list_empty(&rxnet->calls))
 		return;
 
-	write_lock(&rxrpc_call_lock);
+	write_lock(&rxnet->call_lock);
 
-	while (!list_empty(&rxrpc_calls)) {
-		call = list_entry(rxrpc_calls.next, struct rxrpc_call, link);
+	while (!list_empty(&rxnet->calls)) {
+		call = list_entry(rxnet->calls.next, struct rxrpc_call, link);
 		_debug("Zapping call %p", call);
 
 		rxrpc_see_call(call);
@@ -595,10 +598,10 @@ void __exit rxrpc_destroy_all_calls(void)
 		       rxrpc_call_states[call->state],
 		       call->flags, call->events);
 
-		write_unlock(&rxrpc_call_lock);
+		write_unlock(&rxnet->call_lock);
 		cond_resched();
-		write_lock(&rxrpc_call_lock);
+		write_lock(&rxnet->call_lock);
 	}
 
-	write_unlock(&rxrpc_call_lock);
+	write_unlock(&rxnet->call_lock);
 }

@@ -44,6 +44,8 @@ static struct stats runtime_topdown_slots_issued[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_topdown_slots_retired[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_topdown_fetch_bubbles[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_topdown_recovery_bubbles[NUM_CTX][MAX_NR_CPUS];
+static struct stats runtime_smi_num_stats[NUM_CTX][MAX_NR_CPUS];
+static struct stats runtime_aperf_stats[NUM_CTX][MAX_NR_CPUS];
 static struct rblist runtime_saved_values;
 static bool have_frontend_stalled;
 
@@ -157,6 +159,8 @@ void perf_stat__reset_shadow_stats(void)
 	memset(runtime_topdown_slots_issued, 0, sizeof(runtime_topdown_slots_issued));
 	memset(runtime_topdown_fetch_bubbles, 0, sizeof(runtime_topdown_fetch_bubbles));
 	memset(runtime_topdown_recovery_bubbles, 0, sizeof(runtime_topdown_recovery_bubbles));
+	memset(runtime_smi_num_stats, 0, sizeof(runtime_smi_num_stats));
+	memset(runtime_aperf_stats, 0, sizeof(runtime_aperf_stats));
 
 	next = rb_first(&runtime_saved_values.entries);
 	while (next) {
@@ -217,6 +221,10 @@ void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 *count,
 		update_stats(&runtime_dtlb_cache_stats[ctx][cpu], count[0]);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
 		update_stats(&runtime_itlb_cache_stats[ctx][cpu], count[0]);
+	else if (perf_stat_evsel__is(counter, SMI_NUM))
+		update_stats(&runtime_smi_num_stats[ctx][cpu], count[0]);
+	else if (perf_stat_evsel__is(counter, APERF))
+		update_stats(&runtime_aperf_stats[ctx][cpu], count[0]);
 
 	if (counter->collect_stat) {
 		struct saved_value *v = saved_value_lookup(counter, cpu, ctx,
@@ -592,6 +600,29 @@ static double td_be_bound(int ctx, int cpu)
 	return sanitize_val(1.0 - sum);
 }
 
+static void print_smi_cost(int cpu, struct perf_evsel *evsel,
+			   struct perf_stat_output_ctx *out)
+{
+	double smi_num, aperf, cycles, cost = 0.0;
+	int ctx = evsel_context(evsel);
+	const char *color = NULL;
+
+	smi_num = avg_stats(&runtime_smi_num_stats[ctx][cpu]);
+	aperf = avg_stats(&runtime_aperf_stats[ctx][cpu]);
+	cycles = avg_stats(&runtime_cycles_stats[ctx][cpu]);
+
+	if ((cycles == 0) || (aperf == 0))
+		return;
+
+	if (smi_num)
+		cost = (aperf - cycles) / aperf * 100.00;
+
+	if (cost > 10)
+		color = PERF_COLOR_RED;
+	out->print_metric(out->ctx, color, "%8.1f%%", "SMI cycles%", cost);
+	out->print_metric(out->ctx, NULL, "%4.0f", "SMI#", smi_num);
+}
+
 void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 				   double avg, int cpu,
 				   struct perf_stat_output_ctx *out)
@@ -825,6 +856,8 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 		}
 		snprintf(unit_buf, sizeof(unit_buf), "%c/sec", unit);
 		print_metric(ctxp, NULL, "%8.3f", unit_buf, ratio);
+	} else if (perf_stat_evsel__is(evsel, SMI_NUM)) {
+		print_smi_cost(cpu, evsel, out);
 	} else {
 		print_metric(ctxp, NULL, NULL, NULL, 0);
 	}

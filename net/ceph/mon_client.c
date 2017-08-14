@@ -6,6 +6,7 @@
 #include <linux/random.h>
 #include <linux/sched.h>
 
+#include <linux/ceph/ceph_features.h>
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/libceph.h>
 #include <linux/ceph/debugfs.h>
@@ -297,6 +298,10 @@ static void handle_subscribe_ack(struct ceph_mon_client *monc,
 
 	mutex_lock(&monc->mutex);
 	if (monc->sub_renew_sent) {
+		/*
+		 * This is only needed for legacy (infernalis or older)
+		 * MONs -- see delayed_work().
+		 */
 		monc->sub_renew_after = monc->sub_renew_sent +
 					    (seconds >> 1) * HZ - 1;
 		dout("%s sent %lu duration %d renew after %lu\n", __func__,
@@ -955,7 +960,8 @@ static void delayed_work(struct work_struct *work)
 			__validate_auth(monc);
 		}
 
-		if (is_auth) {
+		if (is_auth &&
+		    !(monc->con.peer_features & CEPH_FEATURE_MON_STATEFUL_SUB)) {
 			unsigned long now = jiffies;
 
 			dout("%s renew subs? now %lu renew after %lu\n",

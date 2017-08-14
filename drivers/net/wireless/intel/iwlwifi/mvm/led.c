@@ -123,14 +123,17 @@ int iwl_mvm_leds_init(struct iwl_mvm *mvm)
 		return ret;
 	}
 
+	mvm->init_status |= IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE;
 	return 0;
 }
 
 void iwl_mvm_leds_exit(struct iwl_mvm *mvm)
 {
-	if (iwlwifi_mod_params.led_mode == IWL_LED_DISABLE)
+	if (iwlwifi_mod_params.led_mode == IWL_LED_DISABLE ||
+	    !(mvm->init_status & IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE))
 		return;
 
 	led_classdev_unregister(&mvm->led);
 	kfree(mvm->led.name);
+	mvm->init_status &= ~IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE;
 }

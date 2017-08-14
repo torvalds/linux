@@ -81,8 +81,7 @@ static int _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr,
 	}
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
 
-	req = (struct ulp_mem_io *)__skb_put(skb, wr_len);
-	memset(req, 0, wr_len);
+	req = __skb_put_zero(skb, wr_len);
 	INIT_ULPTX_WR(req, wr_len, 0, 0);
 	req->wr.wr_hi = cpu_to_be32(FW_WR_OP_V(FW_ULPTX_WR) |
 			(wait ? FW_WR_COMPL_F : 0));
@@ -142,8 +141,7 @@ static int _c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len,
 		}
 		set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
 
-		req = (struct ulp_mem_io *)__skb_put(skb, wr_len);
-		memset(req, 0, wr_len);
+		req = __skb_put_zero(skb, wr_len);
 		INIT_ULPTX_WR(req, wr_len, 0, 0);
 
 		if (i == (num_wqe-1)) {

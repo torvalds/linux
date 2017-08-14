@@ -33,6 +33,7 @@
 #include <linux/notifier.h>
 #include <linux/topology.h>
 #include <linux/profile.h>
+#include <linux/processor.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
@@ -97,7 +98,7 @@ int smp_generic_cpu_bootable(unsigned int nr)
 	/* Special case - we inhibit secondary thread startup
 	 * during boot if the user requests it.
 	 */
-	if (system_state == SYSTEM_BOOTING && cpu_has_feature(CPU_FTR_SMT)) {
+	if (system_state < SYSTEM_RUNNING && cpu_has_feature(CPU_FTR_SMT)) {
 		if (!smt_enabled_at_boot && cpu_thread_in_core(nr) != 0)
 			return 0;
 		if (smt_enabled_at_boot
@@ -112,7 +113,8 @@ int smp_generic_cpu_bootable(unsigned int nr)
 #ifdef CONFIG_PPC64
 int smp_generic_kick_cpu(int nr)
 {
-	BUG_ON(nr < 0 || nr >= NR_CPUS);
+	if (nr < 0 || nr >= nr_cpu_ids)
+		return -EINVAL;
 
 	/*
 	 * The processor is currently spinning, waiting for the
@@ -349,7 +351,7 @@ static void nmi_ipi_lock_start(unsigned long *flags)
 	hard_irq_disable();
 	while (atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1) {
 		raw_local_irq_restore(*flags);
-		cpu_relax();
+		spin_until_cond(atomic_read(&__nmi_ipi_lock) == 0);
 		raw_local_irq_save(*flags);
 		hard_irq_disable();
 	}
@@ -358,7 +360,7 @@ static void nmi_ipi_lock_start(unsigned long *flags)
 static void nmi_ipi_lock(void)
 {
 	while (atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1)
-		cpu_relax();
+		spin_until_cond(atomic_read(&__nmi_ipi_lock) == 0);
 }
 
 static void nmi_ipi_unlock(void)
@@ -433,13 +435,31 @@ static void do_smp_send_nmi_ipi(int cpu)
 	}
 }
 
+void smp_flush_nmi_ipi(u64 delay_us)
+{
+	unsigned long flags;
+
+	nmi_ipi_lock_start(&flags);
+	while (nmi_ipi_busy_count) {
+		nmi_ipi_unlock_end(&flags);
+		udelay(1);
+		if (delay_us) {
+			delay_us--;
+			if (!delay_us)
+				return;
+		}
+		nmi_ipi_lock_start(&flags);
+	}
+	nmi_ipi_unlock_end(&flags);
+}
+
 /*
  * - cpu is the target CPU (must not be this CPU), or NMI_IPI_ALL_OTHERS.
  * - fn is the target callback function.
  * - delay_us > 0 is the delay before giving up waiting for targets to
  *   enter the handler, == 0 specifies indefinite delay.
  */
-static int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
+int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
 {
 	unsigned long flags;
 	int me = raw_smp_processor_id();
@@ -455,7 +475,7 @@ static int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
 	nmi_ipi_lock_start(&flags);
 	while (nmi_ipi_busy_count) {
 		nmi_ipi_unlock_end(&flags);
-		cpu_relax();
+		spin_until_cond(nmi_ipi_busy_count == 0);
 		nmi_ipi_lock_start(&flags);
 	}
 
@@ -766,8 +786,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 		smp_ops->give_timebase();
 
 	/* Wait until cpu puts itself in the online & active maps */
-	while (!cpu_online(cpu))
-		cpu_relax();
+	spin_until_cond(cpu_online(cpu));
 
 	return 0;
 }
@@ -984,21 +1003,13 @@ static struct sched_domain_topology_level powerpc_topology[] = {
 	{ NULL, },
 };
 
-static __init long smp_setup_cpu_workfn(void *data __always_unused)
-{
-	smp_ops->setup_cpu(boot_cpuid);
-	return 0;
-}
-
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	/*
-	 * We want the setup_cpu() here to be called on the boot CPU, but
-	 * init might run on any CPU, so make sure it's invoked on the boot
-	 * CPU.
+	 * We are running pinned to the boot CPU, see rest_init().
 	 */
 	if (smp_ops && smp_ops->setup_cpu)
-		work_on_cpu_safe(boot_cpuid, smp_setup_cpu_workfn, NULL);
+		smp_ops->setup_cpu(boot_cpuid);
 
 	if (smp_ops && smp_ops->bringup_done)
 		smp_ops->bringup_done();

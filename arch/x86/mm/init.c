@@ -18,6 +18,7 @@
 #include <asm/dma.h>		/* for MAX_DMA_PFN */
 #include <asm/microcode.h>
 #include <asm/kaslr.h>
+#include <asm/hypervisor.h>
 
 /*
  * We need to define the tracepoints somewhere, and tlb.c
@@ -636,6 +637,8 @@ void __init init_mem_mapping(void)
 	load_cr3(swapper_pg_dir);
 	__flush_tlb_all();
 
+	hypervisor_init_mem_mapping();
+
 	early_memtest(0, max_pfn_mapped << PAGE_SHIFT);
 }
 
@@ -811,10 +814,8 @@ void __init zone_sizes_init(void)
 }
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
-#ifdef CONFIG_SMP
-	.active_mm = &init_mm,
+	.loaded_mm = &init_mm,
 	.state = 0,
-#endif
 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
 };
 EXPORT_SYMBOL_GPL(cpu_tlbstate);

@@ -316,12 +316,12 @@ struct f2fs_dir_entry *find_in_inline_dir(struct inode *dir,
 int make_empty_inline_dir(struct inode *inode, struct inode *parent,
 							struct page *ipage)
 {
-	struct f2fs_inline_dentry *dentry_blk;
+	struct f2fs_inline_dentry *inline_dentry;
 	struct f2fs_dentry_ptr d;
 
-	dentry_blk = inline_data_addr(ipage);
+	inline_dentry = inline_data_addr(ipage);
 
-	make_dentry_ptr_inline(NULL, &d, dentry_blk);
+	make_dentry_ptr_inline(NULL, &d, inline_dentry);
 	do_make_empty_dir(inode, parent, &d);
 
 	set_page_dirty(ipage);
@@ -500,7 +500,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *new_name,
 	struct page *ipage;
 	unsigned int bit_pos;
 	f2fs_hash_t name_hash;
-	struct f2fs_inline_dentry *dentry_blk = NULL;
+	struct f2fs_inline_dentry *inline_dentry = NULL;
 	struct f2fs_dentry_ptr d;
 	int slots = GET_DENTRY_SLOTS(new_name->len);
 	struct page *page = NULL;
@@ -510,11 +510,11 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *new_name,
 	if (IS_ERR(ipage))
 		return PTR_ERR(ipage);
 
-	dentry_blk = inline_data_addr(ipage);
-	bit_pos = room_for_filename(&dentry_blk->dentry_bitmap,
+	inline_dentry = inline_data_addr(ipage);
+	bit_pos = room_for_filename(&inline_dentry->dentry_bitmap,
 						slots, NR_INLINE_DENTRY);
 	if (bit_pos >= NR_INLINE_DENTRY) {
-		err = f2fs_convert_inline_dir(dir, ipage, dentry_blk);
+		err = f2fs_convert_inline_dir(dir, ipage, inline_dentry);
 		if (err)
 			return err;
 		err = -EAGAIN;
@@ -534,7 +534,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *new_name,
 	f2fs_wait_on_page_writeback(ipage, NODE, true);
 
 	name_hash = f2fs_dentry_hash(new_name, NULL);
-	make_dentry_ptr_inline(NULL, &d, dentry_blk);
+	make_dentry_ptr_inline(NULL, &d, inline_dentry);
 	f2fs_update_dentry(ino, mode, &d, new_name, name_hash, bit_pos);
 
 	set_page_dirty(ipage);
@@ -586,14 +586,14 @@ bool f2fs_empty_inline_dir(struct inode *dir)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct page *ipage;
 	unsigned int bit_pos = 2;
-	struct f2fs_inline_dentry *dentry_blk;
+	struct f2fs_inline_dentry *inline_dentry;
 
 	ipage = get_node_page(sbi, dir->i_ino);
 	if (IS_ERR(ipage))
 		return false;
 
-	dentry_blk = inline_data_addr(ipage);
-	bit_pos = find_next_bit_le(&dentry_blk->dentry_bitmap,
+	inline_dentry = inline_data_addr(ipage);
+	bit_pos = find_next_bit_le(&inline_dentry->dentry_bitmap,
 					NR_INLINE_DENTRY,
 					bit_pos);
 

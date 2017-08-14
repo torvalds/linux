@@ -59,7 +59,7 @@ int of_flash_probe_gemini(struct platform_device *pdev,
 			  struct device_node *np,
 			  struct map_info *map)
 {
-	static struct regmap *rmap;
+	struct regmap *rmap;
 	struct device *dev = &pdev->dev;
 	u32 val;
 	int ret;

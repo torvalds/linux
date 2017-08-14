@@ -1965,8 +1965,12 @@ static int __dasd_device_is_unusable(struct dasd_device *device,
 {
 	int mask = ~(DASD_STOPPED_DC_WAIT | DASD_UNRESUMED_PM);
 
-	if (test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
-		/* dasd is being set offline. */
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags) &&
+	    !test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
+		/*
+		 * dasd is being set offline
+		 * but it is no safe offline where we have to allow I/O
+		 */
 		return 1;
 	}
 	if (device->stopped) {
@@ -2672,7 +2676,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 	 */
 	if (basedev->state < DASD_STATE_READY) {
 		while ((req = blk_fetch_request(block->request_queue)))
-			__blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 		return;
 	}
 
@@ -2692,7 +2696,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 				      "Rejecting write request %p",
 				      req);
 			blk_start_request(req);
-			__blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 			continue;
 		}
 		if (test_bit(DASD_FLAG_ABORTALL, &basedev->flags) &&
@@ -2702,7 +2706,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 				      "Rejecting failfast request %p",
 				      req);
 			blk_start_request(req);
-			__blk_end_request_all(req, -ETIMEDOUT);
+			__blk_end_request_all(req, BLK_STS_TIMEOUT);
 			continue;
 		}
 		cqr = basedev->discipline->build_cp(basedev, block, req);
@@ -2734,7 +2738,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 				      "on request %p",
 				      PTR_ERR(cqr), req);
 			blk_start_request(req);
-			__blk_end_request_all(req, -EIO);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 			continue;
 		}
 		/*
@@ -2755,21 +2759,29 @@ static void __dasd_cleanup_cqr(struct dasd_ccw_req *cqr)
 {
 	struct request *req;
 	int status;
-	int error = 0;
+	blk_status_t error = BLK_STS_OK;
 
 	req = (struct request *) cqr->callback_data;
 	dasd_profile_end(cqr->block, cqr, req);
+
 	status = cqr->block->base->discipline->free_cp(cqr, req);
 	if (status < 0)
-		error = status;
+		error = errno_to_blk_status(status);
 	else if (status == 0) {
-		if (cqr->intrc == -EPERM)
-			error = -EBADE;
-		else if (cqr->intrc == -ENOLINK ||
-			 cqr->intrc == -ETIMEDOUT)
-			error = cqr->intrc;
-		else
-			error = -EIO;
+		switch (cqr->intrc) {
+		case -EPERM:
+			error = BLK_STS_NEXUS;
+			break;
+		case -ENOLINK:
+			error = BLK_STS_TRANSPORT;
+			break;
+		case -ETIMEDOUT:
+			error = BLK_STS_TIMEOUT;
+			break;
+		default:
+			error = BLK_STS_IOERR;
+			break;
+		}
 	}
 	__blk_end_request_all(req, error);
 }
@@ -3190,7 +3202,7 @@ static void dasd_flush_request_queue(struct dasd_block *block)
 
 	spin_lock_irq(&block->request_queue_lock);
 	while ((req = blk_fetch_request(block->request_queue)))
-		__blk_end_request_all(req, -EIO);
+		__blk_end_request_all(req, BLK_STS_IOERR);
 	spin_unlock_irq(&block->request_queue_lock);
 }
 
@@ -3562,57 +3574,69 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 			else
 				pr_warn("%s: The DASD cannot be set offline while it is in use\n",
 					dev_name(&cdev->dev));
-			clear_bit(DASD_FLAG_OFFLINE, &device->flags);
-			goto out_busy;
+			rc = -EBUSY;
+			goto out_err;
 		}
 	}
 
-	if (test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
-		/*
-		 * safe offline already running
-		 * could only be called by normal offline so safe_offline flag
-		 * needs to be removed to run normal offline and kill all I/O
-		 */
-		if (test_and_set_bit(DASD_FLAG_OFFLINE, &device->flags))
-			/* Already doing normal offline processing */
-			goto out_busy;
-		else
-			clear_bit(DASD_FLAG_SAFE_OFFLINE, &device->flags);
-	} else {
-		if (test_bit(DASD_FLAG_OFFLINE, &device->flags))
-			/* Already doing offline processing */
-			goto out_busy;
+	/*
+	 * Test if the offline processing is already running and exit if so.
+	 * If a safe offline is being processed this could only be a normal
+	 * offline that should be able to overtake the safe offline and
+	 * cancel any I/O we do not want to wait for any longer
+	 */
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+		if (test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
+			clear_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING,
+				  &device->flags);
+		} else {
+			rc = -EBUSY;
+			goto out_err;
+		}
 	}
-
 	set_bit(DASD_FLAG_OFFLINE, &device->flags);
-	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	/*
-	 * if safe_offline called set safe_offline_running flag and
+	 * if safe_offline is called set safe_offline_running flag and
 	 * clear safe_offline so that a call to normal offline
 	 * can overrun safe_offline processing
 	 */
 	if (test_and_clear_bit(DASD_FLAG_SAFE_OFFLINE, &device->flags) &&
 	    !test_and_set_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
+		/* need to unlock here to wait for outstanding I/O */
+		spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 		/*
 		 * If we want to set the device safe offline all IO operations
 		 * should be finished before continuing the offline process
 		 * so sync bdev first and then wait for our queues to become
 		 * empty
 		 */
-		/* sync blockdev and partitions */
 		if (device->block) {
 			rc = fsync_bdev(device->block->bdev);
 			if (rc != 0)
 				goto interrupted;
 		}
-		/* schedule device tasklet and wait for completion */
 		dasd_schedule_device_bh(device);
 		rc = wait_event_interruptible(shutdown_waitq,
 					      _wait_for_empty_queues(device));
 		if (rc != 0)
 			goto interrupted;
+
+		/*
+		 * check if a normal offline process overtook the offline
+		 * processing in this case simply do nothing beside returning
+		 * that we got interrupted
+		 * otherwise mark safe offline as not running any longer and
+		 * continue with normal offline
+		 */
+		spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
+		if (!test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
+			rc = -ERESTARTSYS;
+			goto out_err;
+		}
+		clear_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags);
 	}
+	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	dasd_set_target_state(device, DASD_STATE_NEW);
 	/* dasd_delete_device destroys the device reference. */
@@ -3624,22 +3648,18 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 	 */
 	if (block)
 		dasd_free_block(block);
+
 	return 0;
 
 interrupted:
 	/* interrupted by signal */
-	clear_bit(DASD_FLAG_SAFE_OFFLINE, &device->flags);
+	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	clear_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags);
 	clear_bit(DASD_FLAG_OFFLINE, &device->flags);
-	dasd_put_device(device);
-
-	return rc;
-
-out_busy:
+out_err:
 	dasd_put_device(device);
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
-
-	return -EBUSY;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(dasd_generic_set_offline);
 
@@ -3901,7 +3921,6 @@ EXPORT_SYMBOL(dasd_schedule_requeue);
 int dasd_generic_pm_freeze(struct ccw_device *cdev)
 {
 	struct dasd_device *device = dasd_device_from_cdev(cdev);
-	int rc;
 
 	if (IS_ERR(device))
 		return PTR_ERR(device);
@@ -3910,7 +3929,7 @@ int dasd_generic_pm_freeze(struct ccw_device *cdev)
 	set_bit(DASD_FLAG_SUSPENDED, &device->flags);
 
 	if (device->discipline->freeze)
-		rc = device->discipline->freeze(device);
+		device->discipline->freeze(device);
 
 	/* disallow new I/O  */
 	dasd_device_set_stop_bits(device, DASD_STOPPED_PM);

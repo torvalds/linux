@@ -15,11 +15,6 @@ are used to describe the functions and types and design of the code. The
 kernel-doc comments have some special structure and formatting, but beyond that
 they are also treated as reStructuredText.
 
-There is also the deprecated DocBook toolchain to generate documentation from
-DocBook XML template files under ``Documentation/DocBook``. The DocBook files
-are to be converted to reStructuredText, and the toolchain is slated to be
-removed.
-
 Finally, there are thousands of plain text documentation files scattered around
 ``Documentation``. Some of these will likely be converted to reStructuredText
 over time, but the bulk of them will remain in plain text.

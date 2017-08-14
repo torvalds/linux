@@ -7,7 +7,7 @@ config PINCTRL_SUNXI
 	select GPIOLIB
 
 config PINCTRL_SUN4I_A10
-	def_bool MACH_SUN4I
+	def_bool MACH_SUN4I || MACH_SUN7I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN5I
@@ -23,10 +23,6 @@ config PINCTRL_SUN6I_A31_R
 	depends on RESET_CONTROLLER
 	select PINCTRL_SUNXI
 
-config PINCTRL_SUN7I_A20
-	def_bool MACH_SUN7I
-	select PINCTRL_SUNXI
-
 config PINCTRL_SUN8I_A23
 	def_bool MACH_SUN8I
 	select PINCTRL_SUNXI
@@ -36,6 +32,10 @@ config PINCTRL_SUN8I_A33
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_A83T
+	def_bool MACH_SUN8I
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN8I_A83T_R
 	def_bool MACH_SUN8I
 	select PINCTRL_SUNXI
 

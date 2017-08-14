@@ -205,6 +205,24 @@ struct host_interest {
 	 */
 	/* Bit 1 - unused */
 	u32 hi_fw_swap;					/* 0x104 */
+
+	/* global arenas pointer address, used by host driver debug */
+	u32 hi_dynamic_mem_arenas_addr;			/* 0x108 */
+
+	/* allocated bytes of DRAM use by allocated */
+	u32 hi_dynamic_mem_allocated;			/* 0x10C */
+
+	/* remaining bytes of DRAM */
+	u32 hi_dynamic_mem_remaining;			/* 0x110 */
+
+	/* memory track count, configured by host */
+	u32 hi_dynamic_mem_track_max;			/* 0x114 */
+
+	/* minidump buffer */
+	u32 hi_minidump;				/* 0x118 */
+
+	/* bdata's sig and key addr */
+	u32 hi_bd_sig_key;				/* 0x11c */
 } __packed;
 
 #define HI_ITEM(item)  offsetof(struct host_interest, item)
@@ -319,6 +337,12 @@ struct host_interest {
 #define HI_ACS_FLAGS_USE_WWAN       (1 << 1)
 /* Use test VAP */
 #define HI_ACS_FLAGS_TEST_VAP       (1 << 2)
+/* SDIO/mailbox ACS flag definitions */
+#define HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET       (1 << 0)
+#define HI_ACS_FLAGS_SDIO_REDUCE_TX_COMPL_SET    (1 << 1)
+#define HI_ACS_FLAGS_ALT_DATA_CREDIT_SIZE        (1 << 2)
+#define HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_FW_ACK    (1 << 16)
+#define HI_ACS_FLAGS_SDIO_REDUCE_TX_COMPL_FW_ACK (1 << 17)
 
 /*
  * CONSOLE FLAGS

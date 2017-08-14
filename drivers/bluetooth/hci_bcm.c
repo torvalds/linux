@@ -262,9 +262,9 @@ static int bcm_set_diag(struct hci_dev *hdev, bool enable)
 	if (!skb)
 		return -ENOMEM;
 
-	*skb_put(skb, 1) = BCM_LM_DIAG_PKT;
-	*skb_put(skb, 1) = 0xf0;
-	*skb_put(skb, 1) = enable;
+	skb_put_u8(skb, BCM_LM_DIAG_PKT);
+	skb_put_u8(skb, 0xf0);
+	skb_put_u8(skb, enable);
 
 	skb_queue_tail(&bcm->txq, skb);
 	hci_uart_tx_wakeup(hu);
@@ -419,8 +419,7 @@ finalize:
 	if (err)
 		return err;
 
-	err = bcm_request_irq(bcm);
-	if (!err)
+	if (!bcm_request_irq(bcm))
 		err = bcm_setup_sleep(hu);
 
 	return err;
@@ -657,6 +656,15 @@ static const struct dmi_system_id bcm_wrong_irq_dmi_table[] = {
 		},
 		.driver_data = &acpi_active_low,
 	},
+	{
+		.ident = "Asus T100CHI",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR,
+					"ASUSTeK COMPUTER INC."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "T100CHI"),
+		},
+		.driver_data = &acpi_active_low,
+	},
 	{	/* Handle ThinkPad 8 tablets with BCM2E55 chipset ACPI ID */
 		.ident = "Lenovo ThinkPad 8",
 		.matches = {
@@ -762,8 +770,7 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 	if (id)
 		gpio_mapping = (const struct acpi_gpio_mapping *) id->driver_data;
 
-	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(&pdev->dev),
-					gpio_mapping);
+	ret = devm_acpi_dev_add_driver_gpios(&pdev->dev, gpio_mapping);
 	if (ret)
 		return ret;
 
@@ -833,8 +840,6 @@ static int bcm_remove(struct platform_device *pdev)
 	mutex_lock(&bcm_device_lock);
 	list_del(&dev->list);
 	mutex_unlock(&bcm_device_lock);
-
-	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&pdev->dev));
 
 	dev_info(&pdev->dev, "%s device unregistered.\n", dev->name);
 

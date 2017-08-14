@@ -29,8 +29,6 @@
 #define BITSSET		0x1c0	/* for identifying LDCW */
 
 
-DEFINE_PER_CPU(struct exception_data, exception_data);
-
 int show_unhandled_signals = 1;
 
 /*
@@ -143,13 +141,6 @@ int fixup_exception(struct pt_regs *regs)
 
 	fix = search_exception_tables(regs->iaoq[0]);
 	if (fix) {
-		struct exception_data *d;
-		d = this_cpu_ptr(&exception_data);
-		d->fault_ip = regs->iaoq[0];
-		d->fault_gp = regs->gr[27];
-		d->fault_space = regs->isr;
-		d->fault_addr = regs->ior;
-
 		/*
 		 * Fix up get_user() and put_user().
 		 * ASM_EXCEPTIONTABLE_ENTRY_EFAULT() sets the least-significant
@@ -163,6 +154,7 @@ int fixup_exception(struct pt_regs *regs)
 			/* zero target register for get_user() */
 			if (parisc_acctyp(0, regs->iir) == VM_READ) {
 				int treg = regs->iir & 0x1f;
+				BUG_ON(treg == 0);
 				regs->gr[treg] = 0;
 			}
 		}
@@ -367,7 +359,7 @@ bad_area:
 		case 15:	/* Data TLB miss fault/Data page fault */
 			/* send SIGSEGV when outside of vma */
 			if (!vma ||
-			    address < vma->vm_start || address > vma->vm_end) {
+			    address < vma->vm_start || address >= vma->vm_end) {
 				si.si_signo = SIGSEGV;
 				si.si_code = SEGV_MAPERR;
 				break;

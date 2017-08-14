@@ -56,10 +56,6 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
-		reg = <0x20000000 0x80000>;
-	};
-
 	clocks {
 		slow_xtal {
 			clock-frequency = <32768>;
@@ -227,6 +223,10 @@
 				};
 			};
 
+			pwm0: pwm@f802c000 {
+				status = "okay";
+			};
+
 			flx0: flexcom@f8034000 {
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
 				status = "disabled"; /* conflict with ISC_D2 & ISC_D3 data pins */
@@ -255,6 +255,12 @@
 			};
 
 			watchdog@f8048040 {
+				status = "okay";
+			};
+
+			can0: can@f8054000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_can0_default>;
 				status = "okay";
 			};
 
@@ -319,6 +325,18 @@
 				 */
 				pinctrl_adc_default: adc_default {
 					pinmux = <PIN_PD23__GPIO>;
+					bias-disable;
+				};
+
+				pinctrl_can0_default: can0_default {
+					pinmux = <PIN_PC10__CANTX0>,
+						 <PIN_PC11__CANRX0>;
+					bias-disable;
+				};
+
+				pinctrl_can1_default: can1_default {
+					pinmux = <PIN_PC26__CANTX1>,
+						 <PIN_PC27__CANRX1>;
 					bias-disable;
 				};
 
@@ -468,6 +486,12 @@
 					bias-disable;
 				};
 
+			};
+
+			can1: can@fc050000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_can1_default>;
+				status = "okay";
 			};
 		};
 	};

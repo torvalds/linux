@@ -1565,7 +1565,7 @@ ptlrpc_server_handle_req_in(struct ptlrpc_service_part *svcpt,
 
 	/* req_in handling should/must be fast */
 	if (ktime_get_real_seconds() - req->rq_arrival_time.tv_sec > 5)
-		DEBUG_REQ(D_WARNING, req, "Slow req_in handling "CFS_DURATION_T"s",
+		DEBUG_REQ(D_WARNING, req, "Slow req_in handling " CFS_DURATION_T "s",
 			  (long)(ktime_get_real_seconds() -
 				 req->rq_arrival_time.tv_sec));
 

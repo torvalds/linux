@@ -1813,11 +1813,14 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
 
 	/* Set PORT_TX_DW5 Scaling Mode Sel to 010b. */
 	val = I915_READ(CNL_PORT_TX_DW5_LN0(port));
+	val &= ~SCALING_MODE_SEL_MASK;
 	val |= SCALING_MODE_SEL(2);
 	I915_WRITE(CNL_PORT_TX_DW5_GRP(port), val);
 
 	/* Program PORT_TX_DW2 */
 	val = I915_READ(CNL_PORT_TX_DW2_LN0(port));
+	val &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
+		 RCOMP_SCALAR_MASK);
 	val |= SWING_SEL_UPPER(ddi_translations[level].dw2_swing_sel);
 	val |= SWING_SEL_LOWER(ddi_translations[level].dw2_swing_sel);
 	/* Rcomp scalar is fixed as 0x98 for every table entry */
@@ -1828,6 +1831,8 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
 	/* We cannot write to GRP. It would overrite individual loadgen */
 	for (ln = 0; ln < 4; ln++) {
 		val = I915_READ(CNL_PORT_TX_DW4_LN(port, ln));
+		val &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
+			 CURSOR_COEFF_MASK);
 		val |= POST_CURSOR_1(ddi_translations[level].dw4_post_cursor_1);
 		val |= POST_CURSOR_2(ddi_translations[level].dw4_post_cursor_2);
 		val |= CURSOR_COEFF(ddi_translations[level].dw4_cursor_coeff);
@@ -1837,12 +1842,14 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
         /* Program PORT_TX_DW5 */
 	/* All DW5 values are fixed for every table entry */
 	val = I915_READ(CNL_PORT_TX_DW5_LN0(port));
+	val &= ~RTERM_SELECT_MASK;
 	val |= RTERM_SELECT(6);
 	val |= TAP3_DISABLE;
 	I915_WRITE(CNL_PORT_TX_DW5_GRP(port), val);
 
         /* Program PORT_TX_DW7 */
 	val = I915_READ(CNL_PORT_TX_DW7_LN0(port));
+	val &= ~N_SCALAR_MASK;
 	val |= N_SCALAR(ddi_translations[level].dw7_n_scalar);
 	I915_WRITE(CNL_PORT_TX_DW7_GRP(port), val);
 }
@@ -1889,8 +1896,8 @@ static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder, u32 level)
 		val = I915_READ(CNL_PORT_TX_DW4_LN(port, ln));
 		val &= ~LOADGEN_SELECT;
 
-		if (((rate < 600000) && (width == 4) && (ln >= 1))  ||
-		    ((rate < 600000) && (width < 4) && ((ln == 1) || (ln == 2)))) {
+		if ((rate <= 600000 && width == 4 && ln >= 1)  ||
+		    (rate <= 600000 && width < 4 && (ln == 1 || ln == 2))) {
 			val |= LOADGEN_SELECT;
 		}
 		I915_WRITE(CNL_PORT_TX_DW4_LN(port, ln), val);

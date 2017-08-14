@@ -271,8 +271,7 @@ latex_elements = {
 
 # Additional stuff for the LaTeX preamble.
     'preamble': '''
-	% Adjust margins
-	\\usepackage[margin=0.5in, top=1in, bottom=1in]{geometry}
+        \\usepackage{ifthen}
 
         % Allow generate some pages in landscape
         \\usepackage{lscape}
@@ -281,6 +280,7 @@ latex_elements = {
 	\\definecolor{NoteColor}{RGB}{204,255,255}
 	\\definecolor{WarningColor}{RGB}{255,204,204}
 	\\definecolor{AttentionColor}{RGB}{255,255,204}
+	\\definecolor{ImportantColor}{RGB}{192,255,204}
 	\\definecolor{OtherColor}{RGB}{204,204,204}
         \\newlength{\\mynoticelength}
         \\makeatletter\\newenvironment{coloredbox}[1]{%
@@ -301,7 +301,12 @@ latex_elements = {
 	            \\ifthenelse%
 	            {\\equal{\\py@noticetype}{attention}}%
 	            {\\colorbox{AttentionColor}{\\usebox{\\@tempboxa}}}%
-	            {\\colorbox{OtherColor}{\\usebox{\\@tempboxa}}}%
+		    {%
+	               \\ifthenelse%
+	               {\\equal{\\py@noticetype}{important}}%
+	               {\\colorbox{ImportantColor}{\\usebox{\\@tempboxa}}}%
+	               {\\colorbox{OtherColor}{\\usebox{\\@tempboxa}}}%
+		    }%
 		 }%
 	      }%
         }\\makeatother
@@ -336,29 +341,50 @@ latex_elements = {
 if major == 1 and minor > 3:
     latex_elements['preamble']  += '\\renewcommand*{\\DUrole}[2]{ #2 }\n'
 
+if major == 1 and minor <= 4:
+    latex_elements['preamble']  += '\\usepackage[margin=0.5in, top=1in, bottom=1in]{geometry}'
+elif major == 1 and (minor > 5 or (minor == 5 and patch >= 3)):
+    latex_elements['sphinxsetup'] = 'hmargin=0.5in, vmargin=0.5in'
+
+
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
+# Sorted in alphabetical order
 latex_documents = [
-    ('doc-guide/index', 'kernel-doc-guide.tex', 'Linux Kernel Documentation Guide',
-     'The kernel development community', 'manual'),
     ('admin-guide/index', 'linux-user.tex', 'Linux Kernel User Documentation',
      'The kernel development community', 'manual'),
     ('core-api/index', 'core-api.tex', 'The kernel core API manual',
      'The kernel development community', 'manual'),
+    ('crypto/index', 'crypto-api.tex', 'Linux Kernel Crypto API manual',
+     'The kernel development community', 'manual'),
+    ('dev-tools/index', 'dev-tools.tex', 'Development tools for the Kernel',
+     'The kernel development community', 'manual'),
+    ('doc-guide/index', 'kernel-doc-guide.tex', 'Linux Kernel Documentation Guide',
+     'The kernel development community', 'manual'),
     ('driver-api/index', 'driver-api.tex', 'The kernel driver API manual',
      'The kernel development community', 'manual'),
-    ('input/index', 'linux-input.tex', 'The Linux input driver subsystem',
-     'The kernel development community', 'manual'),
-    ('kernel-documentation', 'kernel-documentation.tex', 'The Linux Kernel Documentation',
-     'The kernel development community', 'manual'),
-    ('process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
+    ('filesystems/index', 'filesystems.tex', 'Linux Filesystems API',
      'The kernel development community', 'manual'),
     ('gpu/index', 'gpu.tex', 'Linux GPU Driver Developer\'s Guide',
      'The kernel development community', 'manual'),
+    ('input/index', 'linux-input.tex', 'The Linux input driver subsystem',
+     'The kernel development community', 'manual'),
+    ('kernel-hacking/index', 'kernel-hacking.tex', 'Unreliable Guide To Hacking The Linux Kernel',
+     'The kernel development community', 'manual'),
     ('media/index', 'media.tex', 'Linux Media Subsystem Documentation',
      'The kernel development community', 'manual'),
+    ('networking/index', 'networking.tex', 'Linux Networking Documentation',
+     'The kernel development community', 'manual'),
+    ('process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
+     'The kernel development community', 'manual'),
     ('security/index', 'security.tex', 'The kernel security subsystem manual',
+     'The kernel development community', 'manual'),
+    ('sh/index', 'sh.tex', 'SuperH architecture implementation manual',
+     'The kernel development community', 'manual'),
+    ('sound/index', 'sound.tex', 'Linux Sound Subsystem Documentation',
+     'The kernel development community', 'manual'),
+    ('userspace-api/index', 'userspace-api.tex', 'The Linux kernel user-space API guide',
      'The kernel development community', 'manual'),
 ]
 

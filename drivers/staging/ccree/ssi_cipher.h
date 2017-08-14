@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /* \file ssi_cipher.h
-   ARM CryptoCell Cipher Crypto API
+ * ARM CryptoCell Cipher Crypto API
  */
 
 #ifndef __SSI_CIPHER_H__
@@ -26,7 +26,6 @@
 #include "ssi_driver.h"
 #include "ssi_buffer_mgr.h"
 
-
 /* Crypto cipher flags */
 #define CC_CRYPTO_CIPHER_KEY_KFDE0    (1 << 0)
 #define CC_CRYPTO_CIPHER_KEY_KFDE1    (1 << 1)
@@ -36,20 +35,17 @@
 
 #define CC_CRYPTO_CIPHER_KEY_KFDE_MASK (CC_CRYPTO_CIPHER_KEY_KFDE0 | CC_CRYPTO_CIPHER_KEY_KFDE1 | CC_CRYPTO_CIPHER_KEY_KFDE2 | CC_CRYPTO_CIPHER_KEY_KFDE3)
 
-
 struct blkcipher_req_ctx {
 	struct async_gen_req_ctx gen_ctx;
 	enum ssi_req_dma_buf_type dma_buf_type;
-	uint32_t in_nents;
-	uint32_t in_mlli_nents;
-	uint32_t out_nents;
-	uint32_t out_mlli_nents;
-	uint8_t *backup_info; /*store iv for generated IV flow*/
+	u32 in_nents;
+	u32 in_mlli_nents;
+	u32 out_nents;
+	u32 out_mlli_nents;
+	u8 *backup_info; /*store iv for generated IV flow*/
 	bool is_giv;
 	struct mlli_params mlli_params;
 };
-
-
 
 int ssi_ablkcipher_alloc(struct ssi_drvdata *drvdata);
 
@@ -63,7 +59,6 @@ int ssi_ablkcipher_free(struct ssi_drvdata *drvdata);
 				CRYPTO_ALG_BULK_DU_4096)
 #endif /* CRYPTO_ALG_BULK_MASK */
 
-
 #ifdef CRYPTO_TFM_REQ_HW_KEY
 
 static inline bool ssi_is_hw_key(struct crypto_tfm *tfm)
@@ -71,7 +66,7 @@ static inline bool ssi_is_hw_key(struct crypto_tfm *tfm)
 	return (crypto_tfm_get_flags(tfm) & CRYPTO_TFM_REQ_HW_KEY);
 }
 
-#else 
+#else
 
 struct arm_hw_key_info {
 	int hw_key1;
@@ -84,6 +79,5 @@ static inline bool ssi_is_hw_key(struct crypto_tfm *tfm)
 }
 
 #endif /* CRYPTO_TFM_REQ_HW_KEY */
-
 
 #endif /*__SSI_CIPHER_H__*/

@@ -1039,7 +1039,7 @@ el3_link_ok(struct net_device *dev)
 	return tmp & (1<<11);
 }
 
-static int
+static void
 el3_netdev_get_ecmd(struct net_device *dev, struct ethtool_link_ksettings *cmd)
 {
 	u16 tmp;
@@ -1082,7 +1082,6 @@ el3_netdev_get_ecmd(struct net_device *dev, struct ethtool_link_ksettings *cmd)
 						supported);
 	cmd->base.speed = SPEED_10;
 	EL3WINDOW(1);
-	return 0;
 }
 
 static int
@@ -1151,12 +1150,11 @@ static int el3_get_link_ksettings(struct net_device *dev,
 				  struct ethtool_link_ksettings *cmd)
 {
 	struct el3_private *lp = netdev_priv(dev);
-	int ret;
 
 	spin_lock_irq(&lp->lock);
-	ret = el3_netdev_get_ecmd(dev, cmd);
+	el3_netdev_get_ecmd(dev, cmd);
 	spin_unlock_irq(&lp->lock);
-	return ret;
+	return 0;
 }
 
 static int el3_set_link_ksettings(struct net_device *dev,

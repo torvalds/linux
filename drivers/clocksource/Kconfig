@@ -1,22 +1,16 @@
 menu "Clock Source drivers"
 	depends on !ARCH_USES_GETTIMEOFFSET
 
-config CLKSRC_OF
+config TIMER_OF
 	bool
-	select CLKSRC_PROBE
+	depends on GENERIC_CLOCKEVENTS
+	select TIMER_PROBE
 
-config CLKEVT_OF
+config TIMER_ACPI
 	bool
-	select CLKEVT_PROBE
+	select TIMER_PROBE
 
-config CLKSRC_ACPI
-	bool
-	select CLKSRC_PROBE
-
-config CLKSRC_PROBE
-	bool
-
-config CLKEVT_PROBE
+config TIMER_PROBE
 	bool
 
 config CLKSRC_I8253
@@ -65,14 +59,14 @@ config DW_APB_TIMER
 config DW_APB_TIMER_OF
 	bool
 	select DW_APB_TIMER
-	select CLKSRC_OF
+	select TIMER_OF
 
 config FTTMR010_TIMER
 	bool "Faraday Technology timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
 	depends on HAS_IOMEM
 	select CLKSRC_MMIO
-	select CLKSRC_OF
+	select TIMER_OF
 	select MFD_SYSCON
 	help
 	  Enables support for the Faraday Technology timer block
@@ -81,7 +75,7 @@ config FTTMR010_TIMER
 config ROCKCHIP_TIMER
 	bool "Rockchip timer driver" if COMPILE_TEST
 	depends on ARM || ARM64
-	select CLKSRC_OF
+	select TIMER_OF
 	select CLKSRC_MMIO
 	help
 	  Enables the support for the rockchip timer driver.
@@ -89,7 +83,7 @@ config ROCKCHIP_TIMER
 config ARMADA_370_XP_TIMER
 	bool "Armada 370 and XP timer driver" if COMPILE_TEST
 	depends on ARM
-	select CLKSRC_OF
+	select TIMER_OF
 	select CLKSRC_MMIO
 	help
 	  Enables the support for the Armada 370 and XP timer driver.
@@ -104,16 +98,24 @@ config MESON6_TIMER
 config ORION_TIMER
 	bool "Orion timer driver" if COMPILE_TEST
 	depends on ARM
-	select CLKSRC_OF
+	select TIMER_OF
 	select CLKSRC_MMIO
 	help
 	  Enables the support for the Orion timer driver
+
+config OWL_TIMER
+	bool "Owl timer driver" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  Enables the support for the Actions Semi Owl timer driver.
 
 config SUN4I_TIMER
 	bool "Sun4i timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
 	depends on HAS_IOMEM
 	select CLKSRC_MMIO
+	select TIMER_OF
 	help
 	  Enables support for the Sun4i timer.
 
@@ -148,7 +150,7 @@ config ASM9260_TIMER
 	bool "ASM9260 timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
 	select CLKSRC_MMIO
-	select CLKSRC_OF
+	select TIMER_OF
 	help
 	  Enables support for the ASM9260 timer.
 
@@ -187,13 +189,6 @@ config ATLAS7_TIMER
 	select CLKSRC_MMIO
 	help
 	  Enables support for the Atlas7 timer.
-
-config MOXART_TIMER
-	bool "Moxart timer driver" if COMPILE_TEST
-	depends on GENERIC_CLOCKEVENTS
-	select CLKSRC_MMIO
-	help
-	  Enables support for the Moxart timer.
 
 config MXS_TIMER
 	bool "Mxs timer driver" if COMPILE_TEST
@@ -261,21 +256,21 @@ config CLKSRC_LPC32XX
 	depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
 	depends on ARM
 	select CLKSRC_MMIO
-	select CLKSRC_OF
+	select TIMER_OF
 	help
 	  Support for the LPC32XX clocksource.
 
 config CLKSRC_PISTACHIO
 	bool "Clocksource for Pistachio SoC" if COMPILE_TEST
 	depends on HAS_IOMEM
-	select CLKSRC_OF
+	select TIMER_OF
 	help
 	  Enables the clocksource for the Pistachio SoC.
 
 config CLKSRC_TI_32K
 	bool "Texas Instruments 32.768 Hz Clocksource" if COMPILE_TEST
 	depends on GENERIC_SCHED_CLOCK
-	select CLKSRC_OF if OF
+	select TIMER_OF if OF
 	help
 	  This option enables support for Texas Instruments 32.768 Hz clocksource
 	  available on many OMAP-like platforms.
@@ -284,7 +279,7 @@ config CLKSRC_NPS
 	bool "NPS400 clocksource driver" if COMPILE_TEST
 	depends on !PHYS_ADDR_T_64BIT
 	select CLKSRC_MMIO
-	select CLKSRC_OF if OF
+	select TIMER_OF if OF
 	help
 	  NPS400 clocksource support.
 	  Got 64 bit counter with update rate up to 1000MHz.
@@ -299,12 +294,12 @@ config CLKSRC_MPS2
 	bool "Clocksource for MPS2 SoCs" if COMPILE_TEST
 	depends on GENERIC_SCHED_CLOCK
 	select CLKSRC_MMIO
-	select CLKSRC_OF
+	select TIMER_OF
 
 config ARC_TIMERS
 	bool "Support for 32-bit TIMERn counters in ARC Cores" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
-	select CLKSRC_OF
+	select TIMER_OF
 	help
 	  These are legacy 32-bit TIMER0 and TIMER1 counters found on all ARC cores
 	  (ARC700 as well as ARC HS38).
@@ -314,7 +309,7 @@ config ARC_TIMERS_64BIT
 	bool "Support for 64-bit counters in ARC HS38 cores" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
 	depends on ARC_TIMERS
-	select CLKSRC_OF
+	select TIMER_OF
 	help
 	  This enables 2 different 64-bit timers: RTC (for UP) and GFRC (for SMP)
 	  RTC is implemented inside the core, while GFRC sits outside the core in
@@ -323,8 +318,8 @@ config ARC_TIMERS_64BIT
 
 config ARM_ARCH_TIMER
 	bool
-	select CLKSRC_OF if OF
-	select CLKSRC_ACPI if ACPI
+	select TIMER_OF if OF
+	select TIMER_ACPI if ACPI
 
 config ARM_ARCH_TIMER_EVTSTREAM
 	bool "Enable ARM architected timer event stream generation by default"
@@ -381,7 +376,7 @@ config ARM64_ERRATUM_858921
 
 config ARM_GLOBAL_TIMER
 	bool "Support for the ARM global timer" if COMPILE_TEST
-	select CLKSRC_OF if OF
+	select TIMER_OF if OF
 	depends on ARM
 	help
 	  This options enables support for the ARM global timer unit
@@ -390,7 +385,7 @@ config ARM_TIMER_SP804
 	bool "Support for Dual Timer SP804 module"
 	depends on GENERIC_SCHED_CLOCK && CLKDEV_LOOKUP
 	select CLKSRC_MMIO
-	select CLKSRC_OF if OF
+	select TIMER_OF if OF
 
 config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	bool
@@ -401,19 +396,19 @@ config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 
 config ARMV7M_SYSTICK
 	bool "Support for the ARMv7M system time" if COMPILE_TEST
-	select CLKSRC_OF if OF
+	select TIMER_OF if OF
 	select CLKSRC_MMIO
 	help
 	  This options enables support for the ARMv7M system timer unit
 
 config ATMEL_PIT
-	select CLKSRC_OF if OF
+	select TIMER_OF if OF
 	def_bool SOC_AT91SAM9 || SOC_SAMA5
 
 config ATMEL_ST
 	bool "Atmel ST timer support" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
-	select CLKSRC_OF
+	select TIMER_OF
 	select MFD_SYSCON
 	help
 	  Support for the Atmel ST timer.
@@ -456,7 +451,7 @@ config VF_PIT_TIMER
 config OXNAS_RPS_TIMER
 	bool "Oxford Semiconductor OXNAS RPS Timers driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS
-	select CLKSRC_OF
+	select TIMER_OF
 	select CLKSRC_MMIO
 	help
 	  This enables support for the Oxford Semiconductor OXNAS RPS timers.
@@ -467,7 +462,7 @@ config SYS_SUPPORTS_SH_CMT
 config MTK_TIMER
 	bool "Mediatek timer driver" if COMPILE_TEST
 	depends on GENERIC_CLOCKEVENTS && HAS_IOMEM
-	select CLKSRC_OF
+	select TIMER_OF
 	select CLKSRC_MMIO
 	help
 	  Support for Mediatek timer driver.
@@ -540,7 +535,7 @@ config EM_TIMER_STI
 config CLKSRC_QCOM
 	bool "Qualcomm MSM timer" if COMPILE_TEST
 	depends on ARM
-	select CLKSRC_OF
+	select TIMER_OF
 	help
 	  This enables the clocksource and the per CPU clockevent driver for the
 	  Qualcomm SoCs.
@@ -548,7 +543,7 @@ config CLKSRC_QCOM
 config CLKSRC_VERSATILE
 	bool "ARM Versatile (Express) reference platforms clock source" if COMPILE_TEST
 	depends on GENERIC_SCHED_CLOCK && !ARCH_USES_GETTIMEOFFSET
-	select CLKSRC_OF
+	select TIMER_OF
 	default y if MFD_VEXPRESS_SYSREG
 	help
 	  This option enables clock source based on free running
@@ -559,12 +554,12 @@ config CLKSRC_VERSATILE
 config CLKSRC_MIPS_GIC
 	bool
 	depends on MIPS_GIC
-	select CLKSRC_OF
+	select TIMER_OF
 
 config CLKSRC_TANGO_XTAL
 	bool "Clocksource for Tango SoC" if COMPILE_TEST
 	depends on ARM
-	select CLKSRC_OF
+	select TIMER_OF
 	select CLKSRC_MMIO
 	help
 	  This enables the clocksource for Tango SoC
@@ -605,7 +600,7 @@ config CLKSRC_IMX_GPT
 
 config CLKSRC_ST_LPC
 	bool "Low power clocksource found in the LPC" if COMPILE_TEST
-	select CLKSRC_OF if OF
+	select TIMER_OF if OF
 	depends on HAS_IOMEM
 	select CLKSRC_MMIO
 	help

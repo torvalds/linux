@@ -76,7 +76,7 @@
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "iwl-agn-hw.h"
-#include "iwl-fw.h"
+#include "fw/img.h"
 #include "iwl-config.h"
 #include "iwl-modparams.h"
 
@@ -215,9 +215,13 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	char tag[8];
 	const char *fw_pre_name;
 
-	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
+	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
 	    CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_B_STEP)
 		fw_pre_name = cfg->fw_name_pre_next_step;
+	else if (drv->trans->cfg->integrated &&
+		 CSR_HW_RFID_STEP(drv->trans->hw_rf_id) == SILICON_B_STEP &&
+		 cfg->fw_name_pre_rf_next_step)
+		fw_pre_name = cfg->fw_name_pre_rf_next_step;
 	else
 		fw_pre_name = cfg->fw_name_pre;
 
@@ -1611,11 +1615,11 @@ void iwl_drv_stop(struct iwl_drv *drv)
 
 /* shared module parameters */
 struct iwl_mod_params iwlwifi_mod_params = {
-	.restart_fw = true,
+	.fw_restart = true,
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
 	.d0i3_disable = true,
-	.d0i3_entry_delay = 1000,
+	.d0i3_timeout = 1000,
 	.uapsd_disable = IWL_DISABLE_UAPSD_BSS | IWL_DISABLE_UAPSD_P2P_CLIENT,
 	/* the rest are 0 by default */
 };
@@ -1707,7 +1711,7 @@ module_param_named(debug, iwlwifi_mod_params.debug_level, uint,
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 
-module_param_named(swcrypto, iwlwifi_mod_params.sw_crypto, int, S_IRUGO);
+module_param_named(swcrypto, iwlwifi_mod_params.swcrypto, int, S_IRUGO);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
 module_param_named(11n_disable, iwlwifi_mod_params.disable_11n, uint, S_IRUGO);
 MODULE_PARM_DESC(11n_disable,
@@ -1716,10 +1720,10 @@ module_param_named(amsdu_size, iwlwifi_mod_params.amsdu_size,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(amsdu_size,
 		 "amsdu size 0: 12K for multi Rx queue devices, 4K for other devices 1:4K 2:8K 3:12K (default 0)");
-module_param_named(fw_restart, iwlwifi_mod_params.restart_fw, bool, S_IRUGO);
+module_param_named(fw_restart, iwlwifi_mod_params.fw_restart, bool, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
 
-module_param_named(antenna_coupling, iwlwifi_mod_params.ant_coupling,
+module_param_named(antenna_coupling, iwlwifi_mod_params.antenna_coupling,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(antenna_coupling,
 		 "specify antenna coupling in dB (default: 0 dB)");
@@ -1778,7 +1782,7 @@ module_param_named(fw_monitor, iwlwifi_mod_params.fw_monitor, bool, S_IRUGO);
 MODULE_PARM_DESC(fw_monitor,
 		 "firmware monitor - to debug FW (default: false - needs lots of memory)");
 
-module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_entry_delay,
+module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_timeout,
 		   uint, S_IRUGO);
 MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
 

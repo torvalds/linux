@@ -114,32 +114,32 @@ config SERIAL_SB1250_DUART_CONSOLE
 	  If unsure, say Y.
 
 config SERIAL_ATMEL
-	bool "AT91 / AT32 on-chip serial port support"
+	bool "AT91 on-chip serial port support"
 	depends on HAS_DMA
-	depends on ARCH_AT91 || AVR32 || COMPILE_TEST
+	depends on ARCH_AT91 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  This enables the driver for the on-chip UARTs of the Atmel
-	  AT91 and AT32 processors.
+	  AT91 processors.
 
 config SERIAL_ATMEL_CONSOLE
-	bool "Support for console on AT91 / AT32 serial port"
+	bool "Support for console on AT91 serial port"
 	depends on SERIAL_ATMEL=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  Say Y here if you wish to use an on-chip UART on a Atmel
-	  AT91 or AT32 processor as the system console (the system
+	  AT91 processor as the system console (the system
 	  console is the device which receives all kernel messages and
 	  warnings and which allows logins in single user mode).
 
 config SERIAL_ATMEL_PDC
-	bool "Support DMA transfers on AT91 / AT32 serial port"
+	bool "Support DMA transfers on AT91 serial port"
 	depends on SERIAL_ATMEL
 	default y
 	help
 	  Say Y here if you wish to use the PDC to do DMA transfers to
-	  and from the Atmel AT91 / AT32 serial port. In order to
+	  and from the Atmel AT91 serial port. In order to
 	  actually use DMA transfers, make sure that the use_dma_tx
 	  and use_dma_rx members in the atmel_uart_data struct is set
 	  appropriately for each port.
@@ -152,7 +152,7 @@ config SERIAL_ATMEL_TTYAT
 	bool "Install as device ttyATn instead of ttySn"
 	depends on SERIAL_ATMEL=y
 	help
-	  Say Y here if you wish to have the internal AT91 / AT32 UARTs
+	  Say Y here if you wish to have the internal AT91 UARTs
 	  appear as /dev/ttyATn (major 204, minor starting at 154)
 	  instead of the normal /dev/ttySn (major 4, minor starting at
 	  64). This is necessary if you also want other UARTs, such as
@@ -1687,6 +1687,25 @@ config SERIAL_MVEBU_CONSOLE
 	  (the system console is the device which receives all kernel messages
 	  and warnings and which allows logins in single user mode)
 	  Otherwise, say 'N'.
+
+config SERIAL_OWL
+	bool "Actions Semi Owl serial port support"
+	depends on ARCH_ACTIONS || COMPILE_TEST
+	select SERIAL_CORE
+	help
+	  This driver is for Actions Semiconductor S500/S900 SoC's UART.
+	  Say 'Y' here if you wish to use the on-board serial port.
+	  Otherwise, say 'N'.
+
+config SERIAL_OWL_CONSOLE
+	bool "Console on Actions Semi Owl serial port"
+	depends on SERIAL_OWL=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	default y
+	help
+	  Say 'Y' here if you wish to use Actions Semiconductor S500/S900 UART
+	  as the system console. Only earlycon is implemented currently.
 
 endmenu
 

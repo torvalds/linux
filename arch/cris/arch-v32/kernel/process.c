@@ -85,14 +85,6 @@ hard_reset_now(void)
 }
 
 /*
- * Return saved PC of a blocked thread.
- */
-unsigned long thread_saved_pc(struct task_struct *t)
-{
-	return task_pt_regs(t)->erp;
-}
-
-/*
  * Setup the child's kernel stack with a pt_regs and call switch_stack() on it.
  * It will be unnested during _resume and _ret_from_sys_call when the new thread
  * is scheduled.

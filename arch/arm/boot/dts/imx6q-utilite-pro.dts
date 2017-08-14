@@ -130,7 +130,7 @@
 			#size-cells = <0>;
 
 			eeprom@50 {
-				compatible = "at24,24c02";
+				compatible = "atmel,24c02";
 				reg = <0x50>;
 				pagesize = <16>;
 			};

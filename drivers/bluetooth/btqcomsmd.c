@@ -43,7 +43,7 @@ static int btqcomsmd_recv(struct hci_dev *hdev, unsigned int type,
 	}
 
 	hci_skb_pkt_type(skb) = type;
-	memcpy(skb_put(skb, count), data, count);
+	skb_put_data(skb, data, count);
 
 	return hci_recv_frame(hdev, skb);
 }

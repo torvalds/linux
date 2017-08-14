@@ -57,6 +57,8 @@ void netvsc_switch_datapath(struct net_device *ndev, bool vf)
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_pkt,
 			       VM_PKT_DATA_INBAND, 0);
+
+	net_device_ctx->datapath = vf;
 }
 
 static struct netvsc_device *alloc_net_device(void)
@@ -76,6 +78,7 @@ static struct netvsc_device *alloc_net_device(void)
 	net_device->max_pkt = RNDIS_MAX_PKT_DEFAULT;
 	net_device->pkt_align = RNDIS_PKT_ALIGN_DEFAULT;
 	init_completion(&net_device->channel_init_wait);
+	init_waitqueue_head(&net_device->subchan_open);
 
 	return net_device;
 }
@@ -95,16 +98,6 @@ static void free_netvsc_device(struct rcu_head *head)
 static void free_netvsc_device_rcu(struct netvsc_device *nvdev)
 {
 	call_rcu(&nvdev->rcu, free_netvsc_device);
-}
-
-static struct netvsc_device *get_outbound_net_device(struct hv_device *device)
-{
-	struct netvsc_device *net_device = hv_device_to_netvsc_device(device);
-
-	if (net_device && net_device->destroy)
-		net_device = NULL;
-
-	return net_device;
 }
 
 static void netvsc_destroy_buf(struct hv_device *device)
@@ -243,18 +236,15 @@ static void netvsc_destroy_buf(struct hv_device *device)
 	kfree(net_device->send_section_map);
 }
 
-static int netvsc_init_buf(struct hv_device *device)
+static int netvsc_init_buf(struct hv_device *device,
+			   struct netvsc_device *net_device)
 {
 	int ret = 0;
-	struct netvsc_device *net_device;
 	struct nvsp_message *init_packet;
 	struct net_device *ndev;
 	size_t map_words;
 	int node;
 
-	net_device = get_outbound_net_device(device);
-	if (!net_device)
-		return -ENODEV;
 	ndev = hv_get_drvdata(device);
 
 	node = cpu_to_node(device->channel->target_cpu);
@@ -285,9 +275,7 @@ static int netvsc_init_buf(struct hv_device *device)
 
 	/* Notify the NetVsp of the gpadl handle */
 	init_packet = &net_device->channel_init_pkt;
-
 	memset(init_packet, 0, sizeof(struct nvsp_message));
-
 	init_packet->hdr.msg_type = NVSP_MSG1_TYPE_SEND_RECV_BUF;
 	init_packet->msg.v1_msg.send_recv_buf.
 		gpadl_handle = net_device->recv_buf_gpadl_handle;
@@ -486,20 +474,15 @@ static int negotiate_nvsp_ver(struct hv_device *device,
 	return ret;
 }
 
-static int netvsc_connect_vsp(struct hv_device *device)
+static int netvsc_connect_vsp(struct hv_device *device,
+			      struct netvsc_device *net_device)
 {
-	int ret;
-	struct netvsc_device *net_device;
-	struct nvsp_message *init_packet;
-	int ndis_version;
 	const u32 ver_list[] = {
 		NVSP_PROTOCOL_VERSION_1, NVSP_PROTOCOL_VERSION_2,
-		NVSP_PROTOCOL_VERSION_4, NVSP_PROTOCOL_VERSION_5 };
-	int i;
-
-	net_device = get_outbound_net_device(device);
-	if (!net_device)
-		return -ENODEV;
+		NVSP_PROTOCOL_VERSION_4, NVSP_PROTOCOL_VERSION_5
+	};
+	struct nvsp_message *init_packet;
+	int ndis_version, i, ret;
 
 	init_packet = &net_device->channel_init_pkt;
 
@@ -549,7 +532,7 @@ static int netvsc_connect_vsp(struct hv_device *device)
 		net_device->recv_buf_size = NETVSC_RECEIVE_BUFFER_SIZE;
 	net_device->send_buf_size = NETVSC_SEND_BUFFER_SIZE;
 
-	ret = netvsc_init_buf(device);
+	ret = netvsc_init_buf(device, net_device);
 
 cleanup:
 	return ret;
@@ -843,7 +826,7 @@ int netvsc_send(struct hv_device *device,
 		struct hv_page_buffer **pb,
 		struct sk_buff *skb)
 {
-	struct netvsc_device *net_device;
+	struct netvsc_device *net_device = hv_device_to_netvsc_device(device);
 	int ret = 0;
 	struct netvsc_channel *nvchan;
 	u32 pktlen = packet->total_data_buflen, msd_len = 0;
@@ -854,15 +837,15 @@ int netvsc_send(struct hv_device *device,
 	bool try_batch;
 	bool xmit_more = (skb != NULL) ? skb->xmit_more : false;
 
-	net_device = get_outbound_net_device(device);
-	if (!net_device)
+	/* If device is rescinded, return error and packet will get dropped. */
+	if (unlikely(net_device->destroy))
 		return -ENODEV;
 
 	/* We may race with netvsc_connect_vsp()/netvsc_init_buf() and get
 	 * here before the negotiation with the host is finished and
 	 * send_section_map may not be allocated yet.
 	 */
-	if (!net_device->send_section_map)
+	if (unlikely(!net_device->send_section_map))
 		return -EAGAIN;
 
 	nvchan = &net_device->chan_table[packet->q_idx];
@@ -1320,6 +1303,8 @@ int netvsc_device_add(struct hv_device *device,
 		struct netvsc_channel *nvchan = &net_device->chan_table[i];
 
 		nvchan->channel = device->channel;
+		u64_stats_init(&nvchan->tx_stats.syncp);
+		u64_stats_init(&nvchan->rx_stats.syncp);
 	}
 
 	/* Enable NAPI handler before init callbacks */
@@ -1349,7 +1334,7 @@ int netvsc_device_add(struct hv_device *device,
 	rcu_assign_pointer(net_device_ctx->nvdev, net_device);
 
 	/* Connect with the NetVsp */
-	ret = netvsc_connect_vsp(device);
+	ret = netvsc_connect_vsp(device, net_device);
 	if (ret != 0) {
 		netdev_err(ndev,
 			"unable to connect to NetVSP - %d\n", ret);
@@ -1368,4 +1353,5 @@ cleanup:
 	free_netvsc_device(&net_device->rcu);
 
 	return ret;
+
 }

@@ -68,7 +68,7 @@ static int dell_led_perform_fn(u8 length, u8 result_code, u8 device_id,
 	input.length = sizeof(struct bios_args);
 	input.pointer = &args;
 
-	status = wmi_evaluate_method(DELL_LED_BIOS_GUID, 1, 1, &input, &output);
+	status = wmi_evaluate_method(DELL_LED_BIOS_GUID, 0, 1, &input, &output);
 	if (ACPI_FAILURE(status))
 		return status;
 

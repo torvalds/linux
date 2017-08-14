@@ -28,6 +28,11 @@ struct afs_iget_data {
 	struct afs_volume	*volume;	/* volume on which resides */
 };
 
+static const struct inode_operations afs_symlink_inode_operations = {
+	.get_link	= page_get_link,
+	.listxattr	= afs_listxattr,
+};
+
 /*
  * map the AFS file status to the inode member variables
  */
@@ -67,7 +72,7 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 			inode->i_fop	= &afs_mntpt_file_operations;
 		} else {
 			inode->i_mode	= S_IFLNK | vnode->status.mode;
-			inode->i_op	= &page_symlink_inode_operations;
+			inode->i_op	= &afs_symlink_inode_operations;
 		}
 		inode_nohighmem(inode);
 		break;

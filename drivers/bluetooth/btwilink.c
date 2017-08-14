@@ -262,7 +262,6 @@ static int ti_st_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	pkt_type = hci_skb_pkt_type(skb);
 	len = hst->st_write(skb);
 	if (len < 0) {
-		kfree_skb(skb);
 		BT_ERR("ST write failed (%ld)", len);
 		/* Try Again, would only fail if UART has gone bad */
 		return -EAGAIN;

@@ -296,6 +296,51 @@ static const struct attribute_group *default_subch_attr_groups[] = {
 	NULL,
 };
 
+static ssize_t chpids_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	struct subchannel *sch = to_subchannel(dev);
+	struct chsc_ssd_info *ssd = &sch->ssd_info;
+	ssize_t ret = 0;
+	int mask;
+	int chp;
+
+	for (chp = 0; chp < 8; chp++) {
+		mask = 0x80 >> chp;
+		if (ssd->path_mask & mask)
+			ret += sprintf(buf + ret, "%02x ", ssd->chpid[chp].id);
+		else
+			ret += sprintf(buf + ret, "00 ");
+	}
+	ret += sprintf(buf + ret, "\n");
+	return ret;
+}
+static DEVICE_ATTR(chpids, 0444, chpids_show, NULL);
+
+static ssize_t pimpampom_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct subchannel *sch = to_subchannel(dev);
+	struct pmcw *pmcw = &sch->schib.pmcw;
+
+	return sprintf(buf, "%02x %02x %02x\n",
+		       pmcw->pim, pmcw->pam, pmcw->pom);
+}
+static DEVICE_ATTR(pimpampom, 0444, pimpampom_show, NULL);
+
+static struct attribute *io_subchannel_type_attrs[] = {
+	&dev_attr_chpids.attr,
+	&dev_attr_pimpampom.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(io_subchannel_type);
+
+static const struct device_type io_subchannel_type = {
+	.groups = io_subchannel_type_groups,
+};
+
 int css_register_subchannel(struct subchannel *sch)
 {
 	int ret;
@@ -304,6 +349,10 @@ int css_register_subchannel(struct subchannel *sch)
 	sch->dev.parent = &channel_subsystems[0]->device;
 	sch->dev.bus = &css_bus_type;
 	sch->dev.groups = default_subch_attr_groups;
+
+	if (sch->st == SUBCHANNEL_TYPE_IO)
+		sch->dev.type = &io_subchannel_type;
+
 	/*
 	 * We don't want to generate uevents for I/O subchannels that don't
 	 * have a working ccw device behind them since they will be

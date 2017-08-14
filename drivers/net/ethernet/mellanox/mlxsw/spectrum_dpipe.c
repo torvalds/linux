@@ -218,7 +218,7 @@ static int
 mlxsw_sp_table_erif_entries_dump(void *priv, bool counters_enabled,
 				 struct devlink_dpipe_dump_ctx *dump_ctx)
 {
-	struct devlink_dpipe_value match_value = {{0}}, action_value = {{0}};
+	struct devlink_dpipe_value match_value, action_value;
 	struct devlink_dpipe_action action = {0};
 	struct devlink_dpipe_match match = {0};
 	struct devlink_dpipe_entry entry = {0};
@@ -226,6 +226,9 @@ mlxsw_sp_table_erif_entries_dump(void *priv, bool counters_enabled,
 	unsigned int rif_count;
 	int i, j;
 	int err;
+
+	memset(&match_value, 0, sizeof(match_value));
+	memset(&action_value, 0, sizeof(action_value));
 
 	mlxsw_sp_erif_match_action_prepare(&match, &action);
 	err = mlxsw_sp_erif_entry_prepare(&entry, &match_value, &match,
@@ -242,10 +245,11 @@ start_again:
 		return err;
 	j = 0;
 	for (; i < rif_count; i++) {
-		if (!mlxsw_sp->rifs[i])
+		struct mlxsw_sp_rif *rif = mlxsw_sp_rif_by_index(mlxsw_sp, i);
+
+		if (!rif)
 			continue;
-		err = mlxsw_sp_erif_entry_get(mlxsw_sp, &entry,
-					      mlxsw_sp->rifs[i],
+		err = mlxsw_sp_erif_entry_get(mlxsw_sp, &entry, rif,
 					      counters_enabled);
 		if (err)
 			goto err_entry_get;
@@ -282,15 +286,15 @@ static int mlxsw_sp_table_erif_counters_update(void *priv, bool enable)
 
 	rtnl_lock();
 	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++) {
-		if (!mlxsw_sp->rifs[i])
+		struct mlxsw_sp_rif *rif = mlxsw_sp_rif_by_index(mlxsw_sp, i);
+
+		if (!rif)
 			continue;
 		if (enable)
-			mlxsw_sp_rif_counter_alloc(mlxsw_sp,
-						   mlxsw_sp->rifs[i],
+			mlxsw_sp_rif_counter_alloc(mlxsw_sp, rif,
 						   MLXSW_SP_RIF_COUNTER_EGRESS);
 		else
-			mlxsw_sp_rif_counter_free(mlxsw_sp,
-						  mlxsw_sp->rifs[i],
+			mlxsw_sp_rif_counter_free(mlxsw_sp, rif,
 						  MLXSW_SP_RIF_COUNTER_EGRESS);
 	}
 	rtnl_unlock();

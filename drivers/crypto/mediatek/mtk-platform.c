@@ -504,18 +504,13 @@ static int mtk_crypto_probe(struct platform_device *pdev)
 		}
 	}
 
-	cryp->clk_ethif = devm_clk_get(&pdev->dev, "ethif");
 	cryp->clk_cryp = devm_clk_get(&pdev->dev, "cryp");
-	if (IS_ERR(cryp->clk_ethif) || IS_ERR(cryp->clk_cryp))
+	if (IS_ERR(cryp->clk_cryp))
 		return -EPROBE_DEFER;
 
 	cryp->dev = &pdev->dev;
 	pm_runtime_enable(cryp->dev);
 	pm_runtime_get_sync(cryp->dev);
-
-	err = clk_prepare_enable(cryp->clk_ethif);
-	if (err)
-		goto err_clk_ethif;
 
 	err = clk_prepare_enable(cryp->clk_cryp);
 	if (err)
@@ -559,8 +554,6 @@ err_engine:
 err_resource:
 	clk_disable_unprepare(cryp->clk_cryp);
 err_clk_cryp:
-	clk_disable_unprepare(cryp->clk_ethif);
-err_clk_ethif:
 	pm_runtime_put_sync(cryp->dev);
 	pm_runtime_disable(cryp->dev);
 
@@ -576,7 +569,6 @@ static int mtk_crypto_remove(struct platform_device *pdev)
 	mtk_desc_dma_free(cryp);
 
 	clk_disable_unprepare(cryp->clk_cryp);
-	clk_disable_unprepare(cryp->clk_ethif);
 
 	pm_runtime_put_sync(cryp->dev);
 	pm_runtime_disable(cryp->dev);
@@ -596,7 +588,6 @@ static struct platform_driver mtk_crypto_driver = {
 	.remove = mtk_crypto_remove,
 	.driver = {
 		   .name = "mtk-crypto",
-		   .owner = THIS_MODULE,
 		   .of_match_table = of_crypto_id,
 	},
 };

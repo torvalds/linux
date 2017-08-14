@@ -30,7 +30,7 @@ static int get_key_isdbt(struct IR_i2c *ir, enum rc_type *protocol,
 	int	rc;
 	u8	cmd, scancode;
 
-	dev_dbg(&ir->rc->input_dev->dev, "%s\n", __func__);
+	dev_dbg(&ir->rc->dev, "%s\n", __func__);
 
 		/* poll IR chip */
 	rc = i2c_master_recv(ir->c, &cmd, 1);
@@ -48,8 +48,7 @@ static int get_key_isdbt(struct IR_i2c *ir, enum rc_type *protocol,
 
 	scancode = bitrev8(cmd);
 
-	dev_dbg(&ir->rc->input_dev->dev, "cmd %02x, scan = %02x\n",
-		cmd, scancode);
+	dev_dbg(&ir->rc->dev, "cmd %02x, scan = %02x\n", cmd, scancode);
 
 	*protocol = RC_TYPE_OTHER;
 	*pscancode = scancode;

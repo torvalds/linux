@@ -431,7 +431,7 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
 				       bool checkwx)
 {
 #ifdef CONFIG_X86_64
-	pgd_t *start = (pgd_t *) &init_level4_pgt;
+	pgd_t *start = (pgd_t *) &init_top_pgt;
 #else
 	pgd_t *start = swapper_pg_dir;
 #endif

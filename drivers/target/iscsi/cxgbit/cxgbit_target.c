@@ -136,7 +136,7 @@ cxgbit_cpl_tx_data_iso(struct sk_buff *skb, struct cxgbit_iso_info *iso_info)
 	unsigned int fslice = !!(iso_info->flags & CXGBIT_ISO_FSLICE);
 	unsigned int lslice = !!(iso_info->flags & CXGBIT_ISO_LSLICE);
 
-	cpl = (struct cpl_tx_data_iso *)__skb_push(skb, sizeof(*cpl));
+	cpl = __skb_push(skb, sizeof(*cpl));
 
 	cpl->op_to_scsi = htonl(CPL_TX_DATA_ISO_OP_V(CPL_TX_DATA_ISO) |
 			CPL_TX_DATA_ISO_FIRST_V(fslice) |
@@ -183,8 +183,7 @@ cxgbit_tx_data_wr(struct cxgbit_sock *csk, struct sk_buff *skb, u32 dlen,
 	if (cxgbit_is_ofld_imm(skb))
 		immlen += dlen;
 
-	req = (struct fw_ofld_tx_data_wr *)__skb_push(skb,
-							hdr_size);
+	req = __skb_push(skb, hdr_size);
 	req->op_to_immdlen = cpu_to_be32(FW_WR_OP_V(opcode) |
 					FW_WR_COMPL_V(compl) |
 					FW_WR_IMMDLEN_V(immlen));
@@ -828,7 +827,7 @@ cxgbit_put_login_tx(struct iscsi_conn *conn, struct iscsi_login *login,
 
 static void
 cxgbit_skb_copy_to_sg(struct sk_buff *skb, struct scatterlist *sg,
-		      unsigned int nents)
+		      unsigned int nents, u32 skip)
 {
 	struct skb_seq_state st;
 	const u8 *buf;
@@ -847,7 +846,7 @@ cxgbit_skb_copy_to_sg(struct sk_buff *skb, struct scatterlist *sg,
 		}
 
 		consumed += sg_pcopy_from_buffer(sg, nents, (void *)buf,
-						 buf_len, consumed);
+						 buf_len, skip + consumed);
 	}
 }
 
@@ -913,7 +912,7 @@ cxgbit_handle_immediate_data(struct iscsi_cmd *cmd, struct iscsi_scsi_req *hdr,
 		struct scatterlist *sg = &cmd->se_cmd.t_data_sg[0];
 		u32 sg_nents = max(1UL, DIV_ROUND_UP(pdu_cb->dlen, PAGE_SIZE));
 
-		cxgbit_skb_copy_to_sg(csk->skb, sg, sg_nents);
+		cxgbit_skb_copy_to_sg(csk->skb, sg, sg_nents, 0);
 	}
 
 	cmd->write_data_done += pdu_cb->dlen;
@@ -1070,11 +1069,13 @@ static int cxgbit_handle_iscsi_dataout(struct cxgbit_sock *csk)
 		  cmd->se_cmd.data_length);
 
 	if (!(pdu_cb->flags & PDUCBF_RX_DATA_DDPD)) {
+		u32 skip = data_offset % PAGE_SIZE;
+
 		sg_off = data_offset / PAGE_SIZE;
 		sg_start = &cmd->se_cmd.t_data_sg[sg_off];
-		sg_nents = max(1UL, DIV_ROUND_UP(data_len, PAGE_SIZE));
+		sg_nents = max(1UL, DIV_ROUND_UP(skip + data_len, PAGE_SIZE));
 
-		cxgbit_skb_copy_to_sg(csk->skb, sg_start, sg_nents);
+		cxgbit_skb_copy_to_sg(csk->skb, sg_start, sg_nents, skip);
 	}
 
 check_payload:

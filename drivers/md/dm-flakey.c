@@ -275,7 +275,7 @@ static void flakey_map_bio(struct dm_target *ti, struct bio *bio)
 	struct flakey_c *fc = ti->private;
 
 	bio->bi_bdev = fc->dev->bdev;
-	if (bio_sectors(bio))
+	if (bio_sectors(bio) || bio_op(bio) == REQ_OP_ZONE_RESET)
 		bio->bi_iter.bi_sector =
 			flakey_map_sector(ti, bio->bi_iter.bi_sector);
 }
@@ -306,6 +306,14 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
 	pb->bio_submitted = false;
 
+	/* Do not fail reset zone */
+	if (bio_op(bio) == REQ_OP_ZONE_RESET)
+		goto map_bio;
+
+	/* We need to remap reported zones, so remember the BIO iter */
+	if (bio_op(bio) == REQ_OP_ZONE_REPORT)
+		goto map_bio;
+
 	/* Are we alive ? */
 	elapsed = (jiffies - fc->start_time) / HZ;
 	if (elapsed % (fc->up_interval + fc->down_interval) >= fc->up_interval) {
@@ -321,7 +329,7 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		if (bio_data_dir(bio) == READ) {
 			if (!fc->corrupt_bio_byte && !test_bit(DROP_WRITES, &fc->flags) &&
 			    !test_bit(ERROR_WRITES, &fc->flags))
-				return -EIO;
+				return DM_MAPIO_KILL;
 			goto map_bio;
 		}
 
@@ -349,7 +357,7 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 		/*
 		 * By default, error all I/O.
 		 */
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 map_bio:
@@ -358,12 +366,21 @@ map_bio:
 	return DM_MAPIO_REMAPPED;
 }
 
-static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
+static int flakey_end_io(struct dm_target *ti, struct bio *bio,
+			 blk_status_t *error)
 {
 	struct flakey_c *fc = ti->private;
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
 
-	if (!error && pb->bio_submitted && (bio_data_dir(bio) == READ)) {
+	if (bio_op(bio) == REQ_OP_ZONE_RESET)
+		return DM_ENDIO_DONE;
+
+	if (bio_op(bio) == REQ_OP_ZONE_REPORT) {
+		dm_remap_zone_report(ti, bio, fc->start);
+		return DM_ENDIO_DONE;
+	}
+
+	if (!*error && pb->bio_submitted && (bio_data_dir(bio) == READ)) {
 		if (fc->corrupt_bio_byte && (fc->corrupt_bio_rw == READ) &&
 		    all_corrupt_bio_flags_match(bio, fc)) {
 			/*
@@ -377,11 +394,11 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
 			 * Error read during the down_interval if drop_writes
 			 * and error_writes were not configured.
 			 */
-			return -EIO;
+			*error = BLK_STS_IOERR;
 		}
 	}
 
-	return error;
+	return DM_ENDIO_DONE;
 }
 
 static void flakey_status(struct dm_target *ti, status_type_t type,
@@ -445,7 +462,8 @@ static int flakey_iterate_devices(struct dm_target *ti, iterate_devices_callout_
 
 static struct target_type flakey_target = {
 	.name   = "flakey",
-	.version = {1, 4, 0},
+	.version = {1, 5, 0},
+	.features = DM_TARGET_ZONED_HM,
 	.module = THIS_MODULE,
 	.ctr    = flakey_ctr,
 	.dtr    = flakey_dtr,

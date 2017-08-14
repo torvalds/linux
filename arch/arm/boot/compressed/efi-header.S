@@ -17,7 +17,8 @@
 		@ there.
 		.inst	'M' | ('Z' << 8) | (0x1310 << 16)   @ tstne r0, #0x4d000
 #else
-		W(mov)	r0, r0
+ AR_CLASS(	mov	r0, r0		)
+  M_CLASS(	nop.w			)
 #endif
 		.endm
 

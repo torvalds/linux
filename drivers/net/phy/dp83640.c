@@ -908,7 +908,7 @@ static void decode_txts(struct dp83640_private *dp83640,
 	if (overflow) {
 		pr_debug("tx timestamp queue overflow, count %d\n", overflow);
 		while (skb) {
-			skb_complete_tx_timestamp(skb, NULL);
+			kfree_skb(skb);
 			skb = skb_dequeue(&dp83640->tx_queue);
 		}
 		return;

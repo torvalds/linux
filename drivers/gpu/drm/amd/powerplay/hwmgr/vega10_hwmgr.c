@@ -2128,15 +2128,9 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 			pp_table->AvfsGbCksOff.m2_shift = 12;
 			pp_table->AvfsGbCksOff.b_shift = 0;
 
-			for (i = 0; i < dep_table->count; i++) {
-				if (dep_table->entries[i].sclk_offset == 0)
-					pp_table->StaticVoltageOffsetVid[i] = 248;
-				else
-					pp_table->StaticVoltageOffsetVid[i] =
-						(uint8_t)(dep_table->entries[i].sclk_offset *
-								VOLTAGE_VID_OFFSET_SCALE2 /
-								VOLTAGE_VID_OFFSET_SCALE1);
-			}
+			for (i = 0; i < dep_table->count; i++)
+				pp_table->StaticVoltageOffsetVid[i] =
+						convert_to_vid((uint8_t)(dep_table->entries[i].sclk_offset));
 
 			if ((PPREGKEY_VEGA10QUADRATICEQUATION_DFLT !=
 					data->disp_clk_quad_eqn_a) &&
@@ -2865,6 +2859,7 @@ static int vega10_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 		void *state, struct pp_power_state *power_state,
 		void *pp_table, uint32_t classification_flag)
 {
+	ATOM_Vega10_GFXCLK_Dependency_Record_V2 *patom_record_V2;
 	struct vega10_power_state *vega10_power_state =
 			cast_phw_vega10_power_state(&(power_state->hardware));
 	struct vega10_performance_level *performance_level;
@@ -2941,11 +2936,16 @@ static int vega10_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 
 	performance_level = &(vega10_power_state->performance_levels
 				[vega10_power_state->performance_level_count++]);
-
 	performance_level->soc_clock = socclk_dep_table->entries
-			[state_entry->ucSocClockIndexHigh].ulClk;
-	performance_level->gfx_clock = gfxclk_dep_table->entries
+				[state_entry->ucSocClockIndexHigh].ulClk;
+	if (gfxclk_dep_table->ucRevId == 0) {
+		performance_level->gfx_clock = gfxclk_dep_table->entries
 			[state_entry->ucGfxClockIndexHigh].ulClk;
+	} else if (gfxclk_dep_table->ucRevId == 1) {
+		patom_record_V2 = (ATOM_Vega10_GFXCLK_Dependency_Record_V2 *)gfxclk_dep_table->entries;
+		performance_level->gfx_clock = patom_record_V2[state_entry->ucGfxClockIndexHigh].ulClk;
+	}
+
 	performance_level->mem_clock = mclk_dep_table->entries
 			[state_entry->ucMemClockIndexHigh].ulMemClk;
 	return 0;
@@ -3349,7 +3349,6 @@ static int vega10_populate_and_upload_sclk_mclk_dpm_levels(
 				dpm_table->
 				gfx_table.dpm_levels[dpm_table->gfx_table.count - 1].
 				value = sclk;
-
 				if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_OD6PlusinACSupport) ||
 					phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -3472,7 +3471,6 @@ static int vega10_populate_and_upload_sclk_mclk_dpm_levels(
 					return result);
 		}
 	}
-
 	return result;
 }
 
@@ -3828,13 +3826,18 @@ static int vega10_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 static int vega10_get_gpu_power(struct pp_hwmgr *hwmgr,
 		struct pp_gpu_power *query)
 {
+	uint32_t value;
+
 	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr->smumgr,
 			PPSMC_MSG_GetCurrPkgPwr),
 			"Failed to get current package power!",
 			return -EINVAL);
 
-	return vega10_read_arg_from_smc(hwmgr->smumgr,
-			&query->average_gpu_power);
+	vega10_read_arg_from_smc(hwmgr->smumgr, &value);
+	/* power value is an integer */
+	query->average_gpu_power = value << 8;
+
+	return 0;
 }
 
 static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,

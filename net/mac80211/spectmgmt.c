@@ -36,6 +36,8 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	const struct ieee80211_wide_bw_chansw_ie *wide_bw_chansw_ie;
 	int secondary_channel_offset = -1;
 
+	memset(csa_ie, 0, sizeof(*csa_ie));
+
 	sec_chan_offs = elems->sec_chan_offs;
 	wide_bw_chansw_ie = elems->wide_bw_chansw_ie;
 
@@ -76,6 +78,11 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		csa_ie->mode = elems->mesh_chansw_params_ie->mesh_flags;
 		csa_ie->pre_value = le16_to_cpu(
 				elems->mesh_chansw_params_ie->mesh_pre_value);
+
+		if (elems->mesh_chansw_params_ie->mesh_flags &
+				WLAN_EID_CHAN_SWITCH_PARAM_REASON)
+			csa_ie->reason_code = le16_to_cpu(
+				elems->mesh_chansw_params_ie->mesh_reason);
 	}
 
 	new_freq = ieee80211_channel_to_frequency(new_chan_no, new_band);
@@ -186,8 +193,7 @@ static void ieee80211_send_refuse_measurement_request(struct ieee80211_sub_if_da
 		return;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	msr_report = (struct ieee80211_mgmt *)skb_put(skb, 24);
-	memset(msr_report, 0, 24);
+	msr_report = skb_put_zero(skb, 24);
 	memcpy(msr_report->da, da, ETH_ALEN);
 	memcpy(msr_report->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(msr_report->bssid, bssid, ETH_ALEN);

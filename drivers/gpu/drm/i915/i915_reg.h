@@ -1764,8 +1764,11 @@ enum skl_disp_power_wells {
 						    _CNL_PORT_TX_DW2_LN0_AE, \
 						    _CNL_PORT_TX_DW2_LN0_F)
 #define   SWING_SEL_UPPER(x)		((x >> 3) << 15)
+#define   SWING_SEL_UPPER_MASK		(1 << 15)
 #define   SWING_SEL_LOWER(x)		((x & 0x7) << 11)
+#define   SWING_SEL_LOWER_MASK		(0x7 << 11)
 #define   RCOMP_SCALAR(x)		((x) << 0)
+#define   RCOMP_SCALAR_MASK		(0xFF << 0)
 
 #define _CNL_PORT_TX_DW4_GRP_AE		0x162350
 #define _CNL_PORT_TX_DW4_GRP_B		0x1623D0
@@ -1795,8 +1798,11 @@ enum skl_disp_power_wells {
 						    _CNL_PORT_TX_DW4_LN0_F)
 #define   LOADGEN_SELECT		(1 << 31)
 #define   POST_CURSOR_1(x)		((x) << 12)
+#define   POST_CURSOR_1_MASK		(0x3F << 12)
 #define   POST_CURSOR_2(x)		((x) << 6)
+#define   POST_CURSOR_2_MASK		(0x3F << 6)
 #define   CURSOR_COEFF(x)		((x) << 0)
+#define   CURSOR_COEFF_MASK		(0x3F << 0)
 
 #define _CNL_PORT_TX_DW5_GRP_AE		0x162354
 #define _CNL_PORT_TX_DW5_GRP_B		0x1623D4
@@ -1825,7 +1831,9 @@ enum skl_disp_power_wells {
 #define   TX_TRAINING_EN		(1 << 31)
 #define   TAP3_DISABLE			(1 << 29)
 #define   SCALING_MODE_SEL(x)		((x) << 18)
+#define   SCALING_MODE_SEL_MASK		(0x7 << 18)
 #define   RTERM_SELECT(x)		((x) << 3)
+#define   RTERM_SELECT_MASK		(0x7 << 3)
 
 #define _CNL_PORT_TX_DW7_GRP_AE		0x16235C
 #define _CNL_PORT_TX_DW7_GRP_B		0x1623DC
@@ -1852,6 +1860,7 @@ enum skl_disp_power_wells {
 						    _CNL_PORT_TX_DW7_LN0_AE, \
 						    _CNL_PORT_TX_DW7_LN0_F)
 #define   N_SCALAR(x)			((x) << 24)
+#define   N_SCALAR_MASK			(0x7F << 24)
 
 /* The spec defines this only for BXT PHY0, but lets assume that this
  * would exist for PHY1 too if it had a second channel.

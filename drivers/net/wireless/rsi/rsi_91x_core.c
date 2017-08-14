@@ -306,7 +306,7 @@ void rsi_core_qos_processor(struct rsi_common *common)
 		tstamp_2 = jiffies;
 		mutex_unlock(&common->tx_rxlock);
 
-		if (tstamp_2 > tstamp_1 + (300 * HZ / 1000))
+		if (time_after(tstamp_2, tstamp_1 + (300 * HZ) / 1000))
 			schedule();
 	}
 }

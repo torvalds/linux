@@ -115,3 +115,8 @@ config SOC_TEGRA_PMC
 
 config SOC_TEGRA_PMC_TEGRA186
 	bool
+
+config SOC_TEGRA_POWERGATE_BPMP
+	def_bool y
+	depends on PM_GENERIC_DOMAINS
+	depends on TEGRA_BPMP

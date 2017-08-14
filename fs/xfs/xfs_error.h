@@ -96,7 +96,17 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 #define XFS_ERRTAG_REFCOUNT_FINISH_ONE			25
 #define XFS_ERRTAG_BMAP_FINISH_ONE			26
 #define XFS_ERRTAG_AG_RESV_CRITICAL			27
-#define XFS_ERRTAG_MAX					28
+/*
+ * DEBUG mode instrumentation to test and/or trigger delayed allocation
+ * block killing in the event of failed writes. When enabled, all
+ * buffered writes are silenty dropped and handled as if they failed.
+ * All delalloc blocks in the range of the write (including pre-existing
+ * delalloc blocks!) are tossed as part of the write failure error
+ * handling sequence.
+ */
+#define XFS_ERRTAG_DROP_WRITES				28
+#define XFS_ERRTAG_LOG_BAD_CRC				29
+#define XFS_ERRTAG_MAX					30
 
 /*
  * Random factors for above tags, 1 means always, 2 means 1/2 time, etc.
@@ -129,23 +139,29 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 #define XFS_RANDOM_REFCOUNT_FINISH_ONE			1
 #define XFS_RANDOM_BMAP_FINISH_ONE			1
 #define XFS_RANDOM_AG_RESV_CRITICAL			4
+#define XFS_RANDOM_DROP_WRITES				1
+#define XFS_RANDOM_LOG_BAD_CRC				1
 
 #ifdef DEBUG
-extern int xfs_error_test_active;
-extern int xfs_error_test(int, int *, char *, int, char *, unsigned long);
+extern int xfs_errortag_init(struct xfs_mount *mp);
+extern void xfs_errortag_del(struct xfs_mount *mp);
+extern bool xfs_errortag_test(struct xfs_mount *mp, const char *expression,
+		const char *file, int line, unsigned int error_tag);
+#define XFS_TEST_ERROR(expr, mp, tag)		\
+	((expr) || xfs_errortag_test((mp), #expr, __FILE__, __LINE__, (tag)))
 
-#define	XFS_NUM_INJECT_ERROR				10
-#define XFS_TEST_ERROR(expr, mp, tag, rf)		\
-	((expr) || (xfs_error_test_active && \
-	 xfs_error_test((tag), (mp)->m_fixedfsid, "expr", __LINE__, __FILE__, \
-			(rf))))
-
-extern int xfs_errortag_add(unsigned int error_tag, struct xfs_mount *mp);
-extern int xfs_errortag_clearall(struct xfs_mount *mp, int loud);
+extern int xfs_errortag_get(struct xfs_mount *mp, unsigned int error_tag);
+extern int xfs_errortag_set(struct xfs_mount *mp, unsigned int error_tag,
+		unsigned int tag_value);
+extern int xfs_errortag_add(struct xfs_mount *mp, unsigned int error_tag);
+extern int xfs_errortag_clearall(struct xfs_mount *mp);
 #else
-#define XFS_TEST_ERROR(expr, mp, tag, rf)	(expr)
-#define xfs_errortag_add(tag, mp)		(ENOSYS)
-#define xfs_errortag_clearall(mp, loud)		(ENOSYS)
+#define xfs_errortag_init(mp)			(0)
+#define xfs_errortag_del(mp)
+#define XFS_TEST_ERROR(expr, mp, tag)		(expr)
+#define xfs_errortag_set(mp, tag, val)		(ENOSYS)
+#define xfs_errortag_add(mp, tag)		(ENOSYS)
+#define xfs_errortag_clearall(mp)		(ENOSYS)
 #endif /* DEBUG */
 
 /*

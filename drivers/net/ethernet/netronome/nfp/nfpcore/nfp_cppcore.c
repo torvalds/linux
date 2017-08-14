@@ -76,10 +76,6 @@ struct nfp_cpp_resource {
  * @serial:		chip serial number
  * @imb_cat_table:	CPP Mapping Table
  *
- * Following fields can be used only in probe() or with rtnl held:
- * @hwinfo:		HWInfo database fetched from the device
- * @rtsym:		firmware run time symbols
- *
  * Following fields use explicit locking:
  * @resource_list:	NFP CPP resource list
  * @resource_lock:	protects @resource_list
@@ -107,9 +103,6 @@ struct nfp_cpp {
 
 	struct mutex area_cache_mutex;
 	struct list_head area_cache_list;
-
-	void *hwinfo;
-	void *rtsym;
 };
 
 /* Element of the area_cache_list */
@@ -233,9 +226,6 @@ void nfp_cpp_free(struct nfp_cpp *cpp)
 	if (cpp->op->free)
 		cpp->op->free(cpp);
 
-	kfree(cpp->hwinfo);
-	kfree(cpp->rtsym);
-
 	device_unregister(&cpp->dev);
 
 	kfree(cpp);
@@ -274,39 +264,6 @@ int nfp_cpp_serial(struct nfp_cpp *cpp, const u8 **serial)
 {
 	*serial = &cpp->serial[0];
 	return sizeof(cpp->serial);
-}
-
-void *nfp_hwinfo_cache(struct nfp_cpp *cpp)
-{
-	return cpp->hwinfo;
-}
-
-void nfp_hwinfo_cache_set(struct nfp_cpp *cpp, void *val)
-{
-	cpp->hwinfo = val;
-}
-
-void *nfp_rtsym_cache(struct nfp_cpp *cpp)
-{
-	return cpp->rtsym;
-}
-
-void nfp_rtsym_cache_set(struct nfp_cpp *cpp, void *val)
-{
-	cpp->rtsym = val;
-}
-
-/**
- * nfp_nffw_cache_flush() - Flush cached firmware information
- * @cpp:	NFP CPP handle
- *
- * Flush cached firmware information.  This function should be called
- * every time firmware is loaded on unloaded.
- */
-void nfp_nffw_cache_flush(struct nfp_cpp *cpp)
-{
-	kfree(nfp_rtsym_cache(cpp));
-	nfp_rtsym_cache_set(cpp, NULL);
 }
 
 /**
@@ -401,6 +358,41 @@ nfp_cpp_area_alloc(struct nfp_cpp *cpp, u32 dest,
 		   unsigned long long address, unsigned long size)
 {
 	return nfp_cpp_area_alloc_with_name(cpp, dest, NULL, address, size);
+}
+
+/**
+ * nfp_cpp_area_alloc_acquire() - allocate a new CPP area and lock it down
+ * @cpp:	CPP handle
+ * @name:	Name of region
+ * @dest:	CPP id
+ * @address:	Start address on CPP target
+ * @size:	Size of area
+ *
+ * Allocate and initialize a CPP area structure, and lock it down so
+ * that it can be accessed directly.
+ *
+ * NOTE: @address and @size must be 32-bit aligned values.
+ *
+ * NOTE: The area must also be 'released' when the structure is freed.
+ *
+ * Return: NFP CPP Area handle, or NULL
+ */
+struct nfp_cpp_area *
+nfp_cpp_area_alloc_acquire(struct nfp_cpp *cpp, const char *name, u32 dest,
+			   unsigned long long address, unsigned long size)
+{
+	struct nfp_cpp_area *area;
+
+	area = nfp_cpp_area_alloc_with_name(cpp, dest, name, address, size);
+	if (!area)
+		return NULL;
+
+	if (nfp_cpp_area_acquire(area)) {
+		nfp_cpp_area_free(area);
+		return NULL;
+	}
+
+	return area;
 }
 
 /**
@@ -576,27 +568,6 @@ int nfp_cpp_area_write(struct nfp_cpp_area *area,
 		       size_t length)
 {
 	return area->cpp->op->area_write(area, kernel_vaddr, offset, length);
-}
-
-/**
- * nfp_cpp_area_check_range() - check if address range fits in CPP area
- * @area:	CPP area handle
- * @offset:	offset into CPP target
- * @length:	size of address range in bytes
- *
- * Check if address range fits within CPP area.  Return 0 if area
- * fits or -EFAULT on error.
- *
- * Return: 0, or -ERRNO
- */
-int nfp_cpp_area_check_range(struct nfp_cpp_area *area,
-			     unsigned long long offset, unsigned long length)
-{
-	if (offset < area->offset ||
-	    offset + length > area->offset + area->size)
-		return -EFAULT;
-
-	return 0;
 }
 
 /**
@@ -924,18 +895,9 @@ area_cache_put(struct nfp_cpp *cpp, struct nfp_cpp_area_cache *cache)
 	mutex_unlock(&cpp->area_cache_mutex);
 }
 
-/**
- * nfp_cpp_read() - read from CPP target
- * @cpp:		CPP handle
- * @destination:	CPP id
- * @address:		offset into CPP target
- * @kernel_vaddr:	kernel buffer for result
- * @length:		number of bytes to read
- *
- * Return: length of io, or -ERRNO
- */
-int nfp_cpp_read(struct nfp_cpp *cpp, u32 destination,
-		 unsigned long long address, void *kernel_vaddr, size_t length)
+static int __nfp_cpp_read(struct nfp_cpp *cpp, u32 destination,
+			  unsigned long long address, void *kernel_vaddr,
+			  size_t length)
 {
 	struct nfp_cpp_area_cache *cache;
 	struct nfp_cpp_area *area;
@@ -968,18 +930,43 @@ int nfp_cpp_read(struct nfp_cpp *cpp, u32 destination,
 }
 
 /**
- * nfp_cpp_write() - write to CPP target
+ * nfp_cpp_read() - read from CPP target
  * @cpp:		CPP handle
  * @destination:	CPP id
  * @address:		offset into CPP target
- * @kernel_vaddr:	kernel buffer to read from
- * @length:		number of bytes to write
+ * @kernel_vaddr:	kernel buffer for result
+ * @length:		number of bytes to read
  *
  * Return: length of io, or -ERRNO
  */
-int nfp_cpp_write(struct nfp_cpp *cpp, u32 destination,
-		  unsigned long long address,
-		  const void *kernel_vaddr, size_t length)
+int nfp_cpp_read(struct nfp_cpp *cpp, u32 destination,
+		 unsigned long long address, void *kernel_vaddr,
+		 size_t length)
+{
+	size_t n, offset;
+	int ret;
+
+	for (offset = 0; offset < length; offset += n) {
+		unsigned long long r_addr = address + offset;
+
+		/* make first read smaller to align to safe window */
+		n = min_t(size_t, length - offset,
+			  ALIGN(r_addr + 1, NFP_CPP_SAFE_AREA_SIZE) - r_addr);
+
+		ret = __nfp_cpp_read(cpp, destination, address + offset,
+				     kernel_vaddr + offset, n);
+		if (ret < 0)
+			return ret;
+		if (ret != n)
+			return offset + n;
+	}
+
+	return length;
+}
+
+static int __nfp_cpp_write(struct nfp_cpp *cpp, u32 destination,
+			   unsigned long long address,
+			   const void *kernel_vaddr, size_t length)
 {
 	struct nfp_cpp_area_cache *cache;
 	struct nfp_cpp_area *area;
@@ -1009,6 +996,41 @@ int nfp_cpp_write(struct nfp_cpp *cpp, u32 destination,
 		nfp_cpp_area_release_free(area);
 
 	return err;
+}
+
+/**
+ * nfp_cpp_write() - write to CPP target
+ * @cpp:		CPP handle
+ * @destination:	CPP id
+ * @address:		offset into CPP target
+ * @kernel_vaddr:	kernel buffer to read from
+ * @length:		number of bytes to write
+ *
+ * Return: length of io, or -ERRNO
+ */
+int nfp_cpp_write(struct nfp_cpp *cpp, u32 destination,
+		  unsigned long long address,
+		  const void *kernel_vaddr, size_t length)
+{
+	size_t n, offset;
+	int ret;
+
+	for (offset = 0; offset < length; offset += n) {
+		unsigned long long w_addr = address + offset;
+
+		/* make first write smaller to align to safe window */
+		n = min_t(size_t, length - offset,
+			  ALIGN(w_addr + 1, NFP_CPP_SAFE_AREA_SIZE) - w_addr);
+
+		ret = __nfp_cpp_write(cpp, destination, address + offset,
+				      kernel_vaddr + offset, n);
+		if (ret < 0)
+			return ret;
+		if (ret != n)
+			return offset + n;
+	}
+
+	return length;
 }
 
 /* Return the correct CPP address, and fixup xpb_addr as needed. */

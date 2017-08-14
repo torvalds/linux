@@ -1,7 +1,8 @@
 /*
  * Device Tree file for Freescale LS2080a QDS Board.
  *
- * Copyright (C) 2015-17, Freescale Semiconductor
+ * Copyright 2015-2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Abhimanyu Saini <abhimanyu.saini@nxp.com>
  * Bhupesh Sharma <bhupesh.sharma@freescale.com>

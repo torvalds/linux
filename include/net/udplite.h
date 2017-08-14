@@ -26,8 +26,8 @@ static __inline__ int udplite_getfrag(void *from, char *to, int  offset,
 /* Designate sk as UDP-Lite socket */
 static inline int udplite_sk_init(struct sock *sk)
 {
+	udp_init_sock(sk);
 	udp_sk(sk)->pcflag = UDPLITE_BIT;
-	sk->sk_destruct = udp_destruct_sock;
 	return 0;
 }
 

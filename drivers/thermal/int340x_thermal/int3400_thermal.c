@@ -23,7 +23,7 @@ enum int3400_thermal_uuid {
 	INT3400_THERMAL_MAXIMUM_UUID,
 };
 
-static u8 *int3400_thermal_uuids[INT3400_THERMAL_MAXIMUM_UUID] = {
+static char *int3400_thermal_uuids[INT3400_THERMAL_MAXIMUM_UUID] = {
 	"42A441D6-AE6A-462b-A84B-4A8CE79027D3",
 	"3A95C389-E4B8-4629-A526-C52C88626BAE",
 	"97C68AE7-15FA-499c-B8C9-5DA81D606E0A",
@@ -141,10 +141,10 @@ static int int3400_thermal_get_uuids(struct int3400_thermal_priv *priv)
 		}
 
 		for (j = 0; j < INT3400_THERMAL_MAXIMUM_UUID; j++) {
-			u8 uuid[16];
+			guid_t guid;
 
-			acpi_str_to_uuid(int3400_thermal_uuids[j], uuid);
-			if (!strncmp(uuid, objb->buffer.pointer, 16)) {
+			guid_parse(int3400_thermal_uuids[j], &guid);
+			if (guid_equal((guid_t *)objb->buffer.pointer, &guid)) {
 				priv->uuid_bitmap |= (1 << j);
 				break;
 			}

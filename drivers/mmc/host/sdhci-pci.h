@@ -2,7 +2,7 @@
 #define __SDHCI_PCI_H
 
 /*
- * PCI device IDs
+ * PCI device IDs, sub IDs
  */
 
 #define PCI_DEVICE_ID_INTEL_PCH_SDIO0	0x8809
@@ -37,6 +37,50 @@
 #define PCI_DEVICE_ID_INTEL_GLK_SD	0x31ca
 #define PCI_DEVICE_ID_INTEL_GLK_EMMC	0x31cc
 #define PCI_DEVICE_ID_INTEL_GLK_SDIO	0x31d0
+#define PCI_DEVICE_ID_INTEL_CNP_EMMC	0x9dc4
+#define PCI_DEVICE_ID_INTEL_CNP_SD	0x9df5
+#define PCI_DEVICE_ID_INTEL_CNPH_SD	0xa375
+
+#define PCI_DEVICE_ID_SYSKONNECT_8000	0x8000
+#define PCI_DEVICE_ID_VIA_95D0		0x95d0
+#define PCI_DEVICE_ID_REALTEK_5250	0x5250
+
+#define PCI_SUBDEVICE_ID_NI_7884	0x7884
+
+/*
+ * PCI device class and mask
+ */
+
+#define SYSTEM_SDHCI			(PCI_CLASS_SYSTEM_SDHCI << 8)
+#define PCI_CLASS_MASK			0xFFFF00
+
+/*
+ * Macros for PCI device-description
+ */
+
+#define _PCI_VEND(vend) PCI_VENDOR_ID_##vend
+#define _PCI_DEV(vend, dev) PCI_DEVICE_ID_##vend##_##dev
+#define _PCI_SUBDEV(subvend, subdev) PCI_SUBDEVICE_ID_##subvend##_##subdev
+
+#define SDHCI_PCI_DEVICE(vend, dev, cfg) { \
+	.vendor = _PCI_VEND(vend), .device = _PCI_DEV(vend, dev), \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
+	.driver_data = (kernel_ulong_t)&(sdhci_##cfg) \
+}
+
+#define SDHCI_PCI_SUBDEVICE(vend, dev, subvend, subdev, cfg) { \
+	.vendor = _PCI_VEND(vend), .device = _PCI_DEV(vend, dev), \
+	.subvendor = _PCI_VEND(subvend), \
+	.subdevice = _PCI_SUBDEV(subvend, subdev), \
+	.driver_data = (kernel_ulong_t)&(sdhci_##cfg) \
+}
+
+#define SDHCI_PCI_DEVICE_CLASS(vend, cl, cl_msk, cfg) { \
+	.vendor = _PCI_VEND(vend), .device = PCI_ANY_ID, \
+	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID, \
+	.class = (cl), .class_mask = (cl_msk), \
+	.driver_data = (kernel_ulong_t)&(sdhci_##cfg) \
+}
 
 /*
  * PCI registers

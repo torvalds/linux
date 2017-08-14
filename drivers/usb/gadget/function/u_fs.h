@@ -216,6 +216,9 @@ struct ffs_data {
 #define FFS_FL_CALL_CLOSED_CALLBACK 0
 #define FFS_FL_BOUND                1
 
+	/* For waking up blocked threads when function is enabled. */
+	wait_queue_head_t		wait;
+
 	/* Active function */
 	struct ffs_function		*func;
 

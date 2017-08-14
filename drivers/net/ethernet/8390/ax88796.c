@@ -723,6 +723,12 @@ static int ax_init_dev(struct net_device *dev)
 	    ax->plat->mac_addr)
 		memcpy(dev->dev_addr, ax->plat->mac_addr, ETH_ALEN);
 
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		eth_hw_addr_random(dev);
+		dev_info(&dev->dev, "Using random MAC address: %pM\n",
+			 dev->dev_addr);
+	}
+
 	ax_reset_8390(dev);
 
 	ei_local->name = "AX88796";

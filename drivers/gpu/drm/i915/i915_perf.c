@@ -1601,11 +1601,11 @@ static int gen8_emit_oa_config(struct drm_i915_gem_request *req)
 	u32 *cs;
 	int i;
 
-	cs = intel_ring_begin(req, n_flex_regs * 2 + 4);
+	cs = intel_ring_begin(req, ARRAY_SIZE(flex_mmio) * 2 + 4);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	*cs++ = MI_LOAD_REGISTER_IMM(n_flex_regs + 1);
+	*cs++ = MI_LOAD_REGISTER_IMM(ARRAY_SIZE(flex_mmio) + 1);
 
 	*cs++ = i915_mmio_reg_offset(GEN8_OACTXCONTROL);
 	*cs++ = (dev_priv->perf.oa.period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
@@ -2067,10 +2067,6 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 			return ret;
 	}
 
-	ret = alloc_oa_buffer(dev_priv);
-	if (ret)
-		goto err_oa_buf_alloc;
-
 	/* PRM - observability performance counters:
 	 *
 	 *   OACONTROL, performance counter enable, note:
@@ -2086,6 +2082,10 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	intel_runtime_pm_get(dev_priv);
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
+	ret = alloc_oa_buffer(dev_priv);
+	if (ret)
+		goto err_oa_buf_alloc;
+
 	ret = dev_priv->perf.oa.ops.enable_metric_set(dev_priv);
 	if (ret)
 		goto err_enable;
@@ -2097,11 +2097,11 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	return 0;
 
 err_enable:
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	intel_runtime_pm_put(dev_priv);
 	free_oa_buffer(dev_priv);
 
 err_oa_buf_alloc:
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_runtime_pm_put(dev_priv);
 	if (stream->ctx)
 		oa_put_render_ctx_id(stream);
 

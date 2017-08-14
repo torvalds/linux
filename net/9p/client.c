@@ -37,6 +37,7 @@
 #include <linux/uio.h>
 #include <net/9p/9p.h>
 #include <linux/parser.h>
+#include <linux/seq_file.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
 #include "protocol.h"
@@ -76,6 +77,30 @@ inline int p9_is_proto_dotu(struct p9_client *clnt)
 	return clnt->proto_version == p9_proto_2000u;
 }
 EXPORT_SYMBOL(p9_is_proto_dotu);
+
+int p9_show_client_options(struct seq_file *m, struct p9_client *clnt)
+{
+	if (clnt->msize != 8192)
+		seq_printf(m, ",msize=%u", clnt->msize);
+	seq_printf(m, "trans=%s", clnt->trans_mod->name);
+
+	switch (clnt->proto_version) {
+	case p9_proto_legacy:
+		seq_puts(m, ",noextend");
+		break;
+	case p9_proto_2000u:
+		seq_puts(m, ",version=9p2000.u");
+		break;
+	case p9_proto_2000L:
+		/* Default */
+		break;
+	}
+
+	if (clnt->trans_mod->show_options)
+		return clnt->trans_mod->show_options(m, clnt);
+	return 0;
+}
+EXPORT_SYMBOL(p9_show_client_options);
 
 /*
  * Some error codes are taken directly from the server replies,

@@ -99,6 +99,8 @@ struct cs35l35_platform_data {
 	bool shared_bst;
 	/* Specifies this amp is using an external boost supply */
 	bool ext_bst;
+	/* Inductor Value */
+	int boost_ind;
 	/* ClassH Algorithm */
 	struct classh_cfg classh_algo;
 	/* Monitor Config */

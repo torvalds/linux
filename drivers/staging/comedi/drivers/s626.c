@@ -580,11 +580,14 @@ static int s626_set_dac(struct comedi_device *dev,
 	 * running after the packet has been sent to the target DAC.
 	 */
 	val = 0x0F000000;	/* Continue clock after target DAC data
-				 * (write to non-existent trimdac). */
+				 * (write to non-existent trimdac).
+				 */
 	val |= 0x00004000;	/* Address the two main dual-DAC devices
-				 * (TSL's chip select enables target device). */
+				 * (TSL's chip select enables target device).
+				 */
 	val |= ((u32)(chan & 1) << 15);	/* Address the DAC channel
-						 * within the device. */
+					 * within the device.
+					 */
 	val |= (u32)dacdata;	/* Include DAC setpoint data. */
 	return s626_send_dac(dev, val);
 }

@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-
 #include <linux/gfp.h>
 #include <linux/export.h>
 #include <linux/mlx5/cmd.h>
@@ -519,23 +518,3 @@ int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, out_size);
 }
 EXPORT_SYMBOL_GPL(mlx5_core_query_q_counter);
-
-int mlx5_core_query_out_of_buffer(struct mlx5_core_dev *dev, u16 counter_id,
-				  u32 *out_of_buffer)
-{
-	int outlen = MLX5_ST_SZ_BYTES(query_q_counter_out);
-	void *out;
-	int err;
-
-	out = mlx5_vzalloc(outlen);
-	if (!out)
-		return -ENOMEM;
-
-	err = mlx5_core_query_q_counter(dev, counter_id, 0, out, outlen);
-	if (!err)
-		*out_of_buffer = MLX5_GET(query_q_counter_out, out,
-					  out_of_buffer);
-
-	kfree(out);
-	return err;
-}

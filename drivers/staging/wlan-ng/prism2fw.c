@@ -617,28 +617,28 @@ static int mkpdrlist(struct pda *pda)
 		    HFA384x_PDR_NICID) {
 			memcpy(&nicid, &pda->rec[pda->nrec]->data.nicid,
 			       sizeof(nicid));
-			nicid.id = le16_to_cpu(nicid.id);
-			nicid.variant = le16_to_cpu(nicid.variant);
-			nicid.major = le16_to_cpu(nicid.major);
-			nicid.minor = le16_to_cpu(nicid.minor);
+			le16_to_cpus(&nicid.id);
+			le16_to_cpus(&nicid.variant);
+			le16_to_cpus(&nicid.major);
+			le16_to_cpus(&nicid.minor);
 		}
 		if (le16_to_cpu(pda->rec[pda->nrec]->code) ==
 		    HFA384x_PDR_MFISUPRANGE) {
 			memcpy(&rfid, &pda->rec[pda->nrec]->data.mfisuprange,
 			       sizeof(rfid));
-			rfid.id = le16_to_cpu(rfid.id);
-			rfid.variant = le16_to_cpu(rfid.variant);
-			rfid.bottom = le16_to_cpu(rfid.bottom);
-			rfid.top = le16_to_cpu(rfid.top);
+			le16_to_cpus(&rfid.id);
+			le16_to_cpus(&rfid.variant);
+			le16_to_cpus(&rfid.bottom);
+			le16_to_cpus(&rfid.top);
 		}
 		if (le16_to_cpu(pda->rec[pda->nrec]->code) ==
 		    HFA384x_PDR_CFISUPRANGE) {
 			memcpy(&macid, &pda->rec[pda->nrec]->data.cfisuprange,
 			       sizeof(macid));
-			macid.id = le16_to_cpu(macid.id);
-			macid.variant = le16_to_cpu(macid.variant);
-			macid.bottom = le16_to_cpu(macid.bottom);
-			macid.top = le16_to_cpu(macid.top);
+			le16_to_cpus(&macid.id);
+			le16_to_cpus(&macid.variant);
+			le16_to_cpus(&macid.bottom);
+			le16_to_cpus(&macid.top);
 		}
 
 		(pda->nrec)++;

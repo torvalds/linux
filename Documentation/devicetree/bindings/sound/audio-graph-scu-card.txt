@@ -1,0 +1,122 @@
+Audio-Graph-SCU-Card:
+
+Audio-Graph-SCU-Card is "Audio-Graph-Card" + "ALSA DPCM".
+
+It is based on common bindings for device graphs.
+see ${LINUX}/Documentation/devicetree/bindings/graph.txt
+
+Basically, Audio-Graph-SCU-Card property is same as
+Simple-Card / Simple-SCU-Card / Audio-Graph-Card.
+see ${LINUX}/Documentation/devicetree/bindings/sound/simple-card.txt
+    ${LINUX}/Documentation/devicetree/bindings/sound/simple-scu-card.txt
+    ${LINUX}/Documentation/devicetree/bindings/sound/audio-graph-card.txt
+
+Below are same as Simple-Card / Audio-Graph-Card.
+
+- label
+- dai-format
+- frame-master
+- bitclock-master
+- bitclock-inversion
+- frame-inversion
+- dai-tdm-slot-num
+- dai-tdm-slot-width
+- clocks / system-clock-frequency
+
+Below are same as Simple-SCU-Card.
+
+- convert-rate
+- convert-channels
+- prefix
+- routing
+
+Required properties:
+
+- compatible				: "audio-graph-scu-card";
+- dais					: list of CPU DAI port{s}
+
+Example 1. Sampling Rate Conversion
+
+	sound_card {
+		compatible = "audio-graph-scu-card";
+
+		label = "sound-card";
+		prefix = "codec";
+		routing = "codec Playback", "DAI0 Playback",
+			"codec Playback", "DAI1 Playback";
+		convert-rate = <48000>;
+
+		dais = <&cpu_port>;
+	};
+
+	audio-codec {
+		...
+
+		port {
+			codec_endpoint: endpoint {
+				remote-endpoint = <&cpu_endpoint>;
+			};
+		};
+	};
+
+	dai-controller {
+		...
+		cpu_port: port {
+			cpu_endpoint: endpoint {
+				remote-endpoint = <&codec_endpoint>;
+
+				dai-format = "left_j";
+				...
+			};
+		};
+	};
+
+Example 2. 2 CPU 1 Codec (Mixing)
+
+	sound_card {
+		compatible = "audio-graph-scu-card";
+
+		label = "sound-card";
+		prefix = "codec";
+		routing = "codec Playback", "DAI0 Playback",
+			"codec Playback", "DAI1 Playback";
+		convert-rate = <48000>;
+
+		dais = <&cpu_port0
+			&cpu_port1>;
+	};
+
+	audio-codec {
+		...
+
+		port {
+			codec_endpoint0: endpoint {
+				remote-endpoint = <&cpu_endpoint0>;
+			};
+			codec_endpoint1: endpoint {
+				remote-endpoint = <&cpu_endpoint1>;
+			};
+		};
+	};
+
+	dai-controller {
+		...
+		ports {
+			cpu_port0: port {
+				cpu_endpoint0: endpoint {
+					remote-endpoint = <&codec_endpoint0>;
+
+					dai-format = "left_j";
+					...
+				};
+			};
+			cpu_port1: port {
+				cpu_endpoint1: endpoint {
+					remote-endpoint = <&codec_endpoint1>;
+
+					dai-format = "left_j";
+					...
+				};
+			};
+		};
+	};

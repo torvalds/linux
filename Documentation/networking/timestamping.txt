@@ -44,8 +44,7 @@ timeval of SO_TIMESTAMP (ms).
 Supports multiple types of timestamp requests. As a result, this
 socket option takes a bitmap of flags, not a boolean. In
 
-  err = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, (void *) val,
-                   sizeof(val));
+  err = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(val));
 
 val is an integer with any of the following bits set. Setting other
 bit returns EINVAL and does not change the current state.
@@ -193,6 +192,24 @@ SOF_TIMESTAMPING_OPT_STATS:
   the transmit timestamps, such as how long a certain block of
   data was limited by peer's receiver window.
 
+SOF_TIMESTAMPING_OPT_PKTINFO:
+
+  Enable the SCM_TIMESTAMPING_PKTINFO control message for incoming
+  packets with hardware timestamps. The message contains struct
+  scm_ts_pktinfo, which supplies the index of the real interface which
+  received the packet and its length at layer 2. A valid (non-zero)
+  interface index will be returned only if CONFIG_NET_RX_BUSY_POLL is
+  enabled and the driver is using NAPI. The struct contains also two
+  other fields, but they are reserved and undefined.
+
+SOF_TIMESTAMPING_OPT_TX_SWHW:
+
+  Request both hardware and software timestamps for outgoing packets
+  when SOF_TIMESTAMPING_TX_HARDWARE and SOF_TIMESTAMPING_TX_SOFTWARE
+  are enabled at the same time. If both timestamps are generated,
+  two separate messages will be looped to the socket's error queue,
+  each containing just one timestamp.
+
 New applications are encouraged to pass SOF_TIMESTAMPING_OPT_ID to
 disambiguate timestamps and SOF_TIMESTAMPING_OPT_TSONLY to operate
 regardless of the setting of sysctl net.core.tstamp_allow_data.
@@ -231,8 +248,7 @@ setsockopt to receive timestamps:
 
   __u32 val = SOF_TIMESTAMPING_SOFTWARE |
 	      SOF_TIMESTAMPING_OPT_ID /* or any other flag */;
-  err = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, (void *) val,
-                   sizeof(val));
+  err = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(val));
 
 
 1.4 Bytestream Timestamps
@@ -312,7 +328,7 @@ struct scm_timestamping {
 };
 
 The structure can return up to three timestamps. This is a legacy
-feature. Only one field is non-zero at any time. Most timestamps
+feature. At least one field is non-zero at any time. Most timestamps
 are passed in ts[0]. Hardware timestamps are passed in ts[2].
 
 ts[1] used to hold hardware timestamps converted to system time.
@@ -320,6 +336,12 @@ Instead, expose the hardware clock device on the NIC directly as
 a HW PTP clock source, to allow time conversion in userspace and
 optionally synchronize system time with a userspace PTP stack such
 as linuxptp. For the PTP clock API, see Documentation/ptp/ptp.txt.
+
+Note that if the SO_TIMESTAMP or SO_TIMESTAMPNS option is enabled
+together with SO_TIMESTAMPING using SOF_TIMESTAMPING_SOFTWARE, a false
+software timestamp will be generated in the recvmsg() call and passed
+in ts[0] when a real software timestamp is missing. This happens also
+on hardware transmit timestamps.
 
 2.1.1 Transmit timestamps with MSG_ERRQUEUE
 

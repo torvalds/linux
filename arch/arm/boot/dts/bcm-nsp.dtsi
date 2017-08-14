@@ -413,6 +413,12 @@
 			      <0x3f408 0x04>;
 		};
 
+		thermal: thermal@3f2c0 {
+			compatible = "brcm,ns-thermal";
+			reg = <0x3f2c0 0x10>;
+			#thermal-sensor-cells = <0>;
+		};
+
 		sata_phy: sata_phy@40100 {
 			compatible = "brcm,iproc-nsp-sata-phy";
 			reg = <0x40100 0x340>;
@@ -561,6 +567,26 @@
 				     <GIC_SPI 141 IRQ_TYPE_NONE>,
 				     <GIC_SPI 142 IRQ_TYPE_NONE>;
 			brcm,pcie-msi-inten;
+		};
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			polling-delay-passive = <0>;
+			polling-delay = <1000>;
+			coefficients = <(-556) 418000>;
+			thermal-sensors = <&thermal>;
+
+			trips {
+				cpu-crit {
+					temperature     = <125000>;
+					hysteresis      = <0>;
+					type            = "critical";
+				};
+			};
+
+			cooling-maps {
+			};
 		};
 	};
 };

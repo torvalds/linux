@@ -63,7 +63,7 @@ void drbd_md_endio(struct bio *bio)
 	struct drbd_device *device;
 
 	device = bio->bi_private;
-	device->md_io.error = bio->bi_error;
+	device->md_io.error = blk_status_to_errno(bio->bi_status);
 
 	/* We grabbed an extra reference in _drbd_md_sync_page_io() to be able
 	 * to timeout on the lower level device, and eventually detach from it.
@@ -177,13 +177,13 @@ void drbd_peer_request_endio(struct bio *bio)
 	bool is_discard = bio_op(bio) == REQ_OP_WRITE_ZEROES ||
 			  bio_op(bio) == REQ_OP_DISCARD;
 
-	if (bio->bi_error && __ratelimit(&drbd_ratelimit_state))
+	if (bio->bi_status && __ratelimit(&drbd_ratelimit_state))
 		drbd_warn(device, "%s: error=%d s=%llus\n",
 				is_write ? (is_discard ? "discard" : "write")
-					: "read", bio->bi_error,
+					: "read", bio->bi_status,
 				(unsigned long long)peer_req->i.sector);
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		set_bit(__EE_WAS_ERROR, &peer_req->flags);
 
 	bio_put(bio); /* no need for the bio anymore */
@@ -243,16 +243,16 @@ void drbd_request_endio(struct bio *bio)
 		if (__ratelimit(&drbd_ratelimit_state))
 			drbd_emerg(device, "delayed completion of aborted local request; disk-timeout may be too aggressive\n");
 
-		if (!bio->bi_error)
+		if (!bio->bi_status)
 			drbd_panic_after_delayed_completion_of_aborted_request(device);
 	}
 
 	/* to avoid recursion in __req_mod */
-	if (unlikely(bio->bi_error)) {
+	if (unlikely(bio->bi_status)) {
 		switch (bio_op(bio)) {
 		case REQ_OP_WRITE_ZEROES:
 		case REQ_OP_DISCARD:
-			if (bio->bi_error == -EOPNOTSUPP)
+			if (bio->bi_status == BLK_STS_NOTSUPP)
 				what = DISCARD_COMPLETED_NOTSUPP;
 			else
 				what = DISCARD_COMPLETED_WITH_ERROR;
@@ -272,7 +272,7 @@ void drbd_request_endio(struct bio *bio)
 	}
 
 	bio_put(req->private_bio);
-	req->private_bio = ERR_PTR(bio->bi_error);
+	req->private_bio = ERR_PTR(blk_status_to_errno(bio->bi_status));
 
 	/* not req_mod(), we need irqsave here! */
 	spin_lock_irqsave(&device->resource->req_lock, flags);

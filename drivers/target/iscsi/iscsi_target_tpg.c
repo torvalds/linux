@@ -227,6 +227,7 @@ static void iscsit_set_default_tpg_attribs(struct iscsi_portal_group *tpg)
 	a->t10_pi = TA_DEFAULT_T10_PI;
 	a->fabric_prot_type = TA_DEFAULT_FABRIC_PROT_TYPE;
 	a->tpg_enabled_sendtargets = TA_DEFAULT_TPG_ENABLED_SENDTARGETS;
+	a->login_keys_workaround = TA_DEFAULT_LOGIN_KEYS_WORKAROUND;
 }
 
 int iscsit_tpg_add_portal_group(struct iscsi_tiqn *tiqn, struct iscsi_portal_group *tpg)
@@ -311,11 +312,9 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 	struct iscsi_tiqn *tiqn = tpg->tpg_tiqn;
 	int ret;
 
-	spin_lock(&tpg->tpg_state_lock);
 	if (tpg->tpg_state == TPG_STATE_ACTIVE) {
 		pr_err("iSCSI target portal group: %hu is already"
 			" active, ignoring request.\n", tpg->tpgt);
-		spin_unlock(&tpg->tpg_state_lock);
 		return -EINVAL;
 	}
 	/*
@@ -324,10 +323,8 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 	 * is enforced (as per default), and remove the NONE option.
 	 */
 	param = iscsi_find_param_from_key(AUTHMETHOD, tpg->param_list);
-	if (!param) {
-		spin_unlock(&tpg->tpg_state_lock);
+	if (!param)
 		return -EINVAL;
-	}
 
 	if (tpg->tpg_attrib.authentication) {
 		if (!strcmp(param->value, NONE)) {
@@ -341,6 +338,7 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 			goto err;
 	}
 
+	spin_lock(&tpg->tpg_state_lock);
 	tpg->tpg_state = TPG_STATE_ACTIVE;
 	spin_unlock(&tpg->tpg_state_lock);
 
@@ -353,7 +351,6 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 	return 0;
 
 err:
-	spin_unlock(&tpg->tpg_state_lock);
 	return ret;
 }
 
@@ -896,6 +893,24 @@ int iscsit_ta_tpg_enabled_sendtargets(
 	a->tpg_enabled_sendtargets = flag;
 	pr_debug("iSCSI_TPG[%hu] - TPG enabled bit required for SendTargets:"
 		" %s\n", tpg->tpgt, (a->tpg_enabled_sendtargets) ? "ON" : "OFF");
+
+	return 0;
+}
+
+int iscsit_ta_login_keys_workaround(
+	struct iscsi_portal_group *tpg,
+	u32 flag)
+{
+	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
+
+	if ((flag != 0) && (flag != 1)) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+
+	a->login_keys_workaround = flag;
+	pr_debug("iSCSI_TPG[%hu] - TPG enabled bit for login keys workaround: %s ",
+		tpg->tpgt, (a->login_keys_workaround) ? "ON" : "OFF");
 
 	return 0;
 }

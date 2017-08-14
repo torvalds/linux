@@ -12,10 +12,6 @@
 
 #define SRC_NAME "src"
 
-/* SRCx_STATUS */
-#define OUF_SRCO	((1 << 12) | (1 << 13))
-#define OUF_SRCI	((1 <<  9) | (1 <<  8))
-
 /* SCU_SYSTEM_STATUS0/1 */
 #define OUF_SRC(id)	((1 << (id + 16)) | (1 << id))
 
@@ -53,20 +49,6 @@ struct rsnd_src {
  * 44.1kHz <-> +-----+		+-----+		+-------+
  * ...
  *
- */
-
-/*
- * src.c is caring...
- *
- * Gen1
- *
- * [mem] -> [SRU] -> [SSI]
- *        |--------|
- *
- * Gen2
- *
- * [mem] -> [SRC] -> [SSIU] -> [SSI]
- *        |-----------------|
  */
 
 static void rsnd_src_activation(struct rsnd_mod *mod)
@@ -515,6 +497,7 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 			       rsnd_io_is_play(io) ?
 			       "SRC Out Rate Switch" :
 			       "SRC In Rate Switch",
+			       rsnd_kctrl_accept_anytime,
 			       rsnd_src_set_convert_rate,
 			       &src->sen, 1);
 	if (ret < 0)
@@ -524,6 +507,7 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 			       rsnd_io_is_play(io) ?
 			       "SRC Out Rate" :
 			       "SRC In Rate",
+			       rsnd_kctrl_accept_runtime,
 			       rsnd_src_set_convert_rate,
 			       &src->sync, 192000);
 

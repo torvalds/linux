@@ -52,7 +52,7 @@ struct bfq_entity;
 struct bfq_service_tree {
 	/* tree for active entities (i.e., those backlogged) */
 	struct rb_root active;
-	/* tree for idle entities (i.e., not backlogged, with V <= F_i)*/
+	/* tree for idle entities (i.e., not backlogged, with V < F_i)*/
 	struct rb_root idle;
 
 	/* idle entity with minimum F_i */
@@ -71,17 +71,29 @@ struct bfq_service_tree {
  *
  * bfq_sched_data is the basic scheduler queue.  It supports three
  * ioprio_classes, and can be used either as a toplevel queue or as an
- * intermediate queue on a hierarchical setup.  @next_in_service
- * points to the active entity of the sched_data service trees that
- * will be scheduled next. It is used to reduce the number of steps
- * needed for each hierarchical-schedule update.
+ * intermediate queue in a hierarchical setup.
  *
  * The supported ioprio_classes are the same as in CFQ, in descending
  * priority order, IOPRIO_CLASS_RT, IOPRIO_CLASS_BE, IOPRIO_CLASS_IDLE.
  * Requests from higher priority queues are served before all the
  * requests from lower priority queues; among requests of the same
  * queue requests are served according to B-WF2Q+.
- * All the fields are protected by the queue lock of the containing bfqd.
+ *
+ * The schedule is implemented by the service trees, plus the field
+ * @next_in_service, which points to the entity on the active trees
+ * that will be served next, if 1) no changes in the schedule occurs
+ * before the current in-service entity is expired, 2) the in-service
+ * queue becomes idle when it expires, and 3) if the entity pointed by
+ * in_service_entity is not a queue, then the in-service child entity
+ * of the entity pointed by in_service_entity becomes idle on
+ * expiration. This peculiar definition allows for the following
+ * optimization, not yet exploited: while a given entity is still in
+ * service, we already know which is the best candidate for next
+ * service among the other active entitities in the same parent
+ * entity. We can then quickly compare the timestamps of the
+ * in-service entity with those of such best candidate.
+ *
+ * All fields are protected by the lock of the containing bfqd.
  */
 struct bfq_sched_data {
 	/* entity in service */
@@ -892,7 +904,8 @@ void bfq_put_idle_entity(struct bfq_service_tree *st,
 			 struct bfq_entity *entity);
 struct bfq_service_tree *
 __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
-				struct bfq_entity *entity);
+				struct bfq_entity *entity,
+				bool update_class_too);
 void bfq_bfqq_served(struct bfq_queue *bfqq, int served);
 void bfq_bfqq_charge_time(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			  unsigned long time_ms);

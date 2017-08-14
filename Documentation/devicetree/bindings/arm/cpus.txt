@@ -6,9 +6,9 @@ The device tree allows to describe the layout of CPUs in a system through
 the "cpus" node, which in turn contains a number of subnodes (ie "cpu")
 defining properties for every cpu.
 
-Bindings for CPU nodes follow the ePAPR v1.1 standard, available from:
+Bindings for CPU nodes follow the Devicetree Specification, available from:
 
-https://www.power.org/documentation/epapr-version-1-1/
+https://www.devicetree.org/specifications/
 
 with updates for 32-bit and 64-bit ARM systems provided in this document.
 
@@ -16,8 +16,8 @@ with updates for 32-bit and 64-bit ARM systems provided in this document.
 Convention used in this document
 ================================
 
-This document follows the conventions described in the ePAPR v1.1, with
-the addition:
+This document follows the conventions described in the Devicetree
+Specification, with the addition:
 
 - square brackets define bitfields, eg reg[7:0] value of the bitfield in
   the reg property contained in bits 7 down to 0
@@ -26,8 +26,9 @@ the addition:
 cpus and cpu node bindings definition
 =====================================
 
-The ARM architecture, in accordance with the ePAPR, requires the cpus and cpu
-nodes to be present and contain the properties described below.
+The ARM architecture, in accordance with the Devicetree Specification,
+requires the cpus and cpu nodes to be present and contain the properties
+described below.
 
 - cpus node
 
@@ -193,6 +194,7 @@ nodes to be present and contain the properties described below.
 			     "spin-table"
 			# On ARM 32-bit systems this property is optional and
 			  can be one of:
+			    "actions,s500-smp"
 			    "allwinner,sun6i-a31"
 			    "allwinner,sun8i-a23"
 			    "arm,realview-smp"
@@ -249,7 +251,7 @@ nodes to be present and contain the properties described below.
 		Usage: Optional
 		Value type: <u32>
 		Definition:
-			# u32 value representing CPU capacity [3] in
+			# u32 value representing CPU capacity [4] in
 			  DMIPS/MHz, relative to highest capacity-dmips-mhz
 			  in the system.
 
@@ -476,5 +478,5 @@ cpus {
 [2] arm/msm/qcom,kpss-acc.txt
 [3] ARM Linux kernel documentation - idle states bindings
     Documentation/devicetree/bindings/arm/idle-states.txt
-[3] ARM Linux kernel documentation - cpu capacity bindings
+[4] ARM Linux kernel documentation - cpu capacity bindings
     Documentation/devicetree/bindings/arm/cpu-capacity.txt

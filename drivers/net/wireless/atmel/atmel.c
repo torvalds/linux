@@ -1036,9 +1036,8 @@ static void frag_rx_path(struct atmel_private *priv,
 				priv->dev->stats.rx_dropped++;
 			} else {
 				skb_reserve(skb, 2);
-				memcpy(skb_put(skb, priv->frag_len + 12),
-				       priv->rx_buf,
-				       priv->frag_len + 12);
+				skb_put_data(skb, priv->rx_buf,
+				             priv->frag_len + 12);
 				skb->protocol = eth_type_trans(skb, priv->dev);
 				skb->ip_summed = CHECKSUM_NONE;
 				netif_rx(skb);

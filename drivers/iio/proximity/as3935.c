@@ -176,12 +176,12 @@ static int as3935_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		if (m == IIO_CHAN_INFO_RAW)
-			return IIO_VAL_INT;
-
 		/* storm out of range */
 		if (*val == AS3935_DATA_MASK)
 			return -EINVAL;
+
+		if (m == IIO_CHAN_INFO_RAW)
+			return IIO_VAL_INT;
 
 		if (m == IIO_CHAN_INFO_PROCESSED)
 			*val *= 1000;

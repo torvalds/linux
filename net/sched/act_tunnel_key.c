@@ -67,6 +67,7 @@ static const struct nla_policy tunnel_key_policy[TCA_TUNNEL_KEY_MAX + 1] = {
 	[TCA_TUNNEL_KEY_ENC_IPV6_DST] = { .len = sizeof(struct in6_addr) },
 	[TCA_TUNNEL_KEY_ENC_KEY_ID]   = { .type = NLA_U32 },
 	[TCA_TUNNEL_KEY_ENC_DST_PORT] = {.type = NLA_U16},
+	[TCA_TUNNEL_KEY_NO_CSUM]      = { .type = NLA_U8 },
 };
 
 static int tunnel_key_init(struct net *net, struct nlattr *nla,
@@ -83,6 +84,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	bool exists = false;
 	__be16 dst_port = 0;
 	__be64 key_id;
+	__be16 flags;
 	int ret = 0;
 	int err;
 
@@ -113,6 +115,11 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 
 		key_id = key32_to_tunnel_id(nla_get_be32(tb[TCA_TUNNEL_KEY_ENC_KEY_ID]));
 
+		flags = TUNNEL_KEY | TUNNEL_CSUM;
+		if (tb[TCA_TUNNEL_KEY_NO_CSUM] &&
+		    nla_get_u8(tb[TCA_TUNNEL_KEY_NO_CSUM]))
+			flags &= ~TUNNEL_CSUM;
+
 		if (tb[TCA_TUNNEL_KEY_ENC_DST_PORT])
 			dst_port = nla_get_be16(tb[TCA_TUNNEL_KEY_ENC_DST_PORT]);
 
@@ -125,7 +132,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			daddr = nla_get_in_addr(tb[TCA_TUNNEL_KEY_ENC_IPV4_DST]);
 
 			metadata = __ip_tun_set_dst(saddr, daddr, 0, 0,
-						    dst_port, TUNNEL_KEY,
+						    dst_port, flags,
 						    key_id, 0);
 		} else if (tb[TCA_TUNNEL_KEY_ENC_IPV6_SRC] &&
 			   tb[TCA_TUNNEL_KEY_ENC_IPV6_DST]) {
@@ -136,7 +143,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			daddr = nla_get_in6_addr(tb[TCA_TUNNEL_KEY_ENC_IPV6_DST]);
 
 			metadata = __ipv6_tun_set_dst(&saddr, &daddr, 0, 0, dst_port,
-						      0, TUNNEL_KEY,
+						      0, flags,
 						      key_id, 0);
 		}
 
@@ -266,7 +273,9 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 		if (nla_put_be32(skb, TCA_TUNNEL_KEY_ENC_KEY_ID, key_id) ||
 		    tunnel_key_dump_addresses(skb,
 					      &params->tcft_enc_metadata->u.tun_info) ||
-		    nla_put_be16(skb, TCA_TUNNEL_KEY_ENC_DST_PORT, key->tp_dst))
+		    nla_put_be16(skb, TCA_TUNNEL_KEY_ENC_DST_PORT, key->tp_dst) ||
+		    nla_put_u8(skb, TCA_TUNNEL_KEY_NO_CSUM,
+			       !(key->tun_flags & TUNNEL_CSUM)))
 			goto nla_put_failure;
 	}
 

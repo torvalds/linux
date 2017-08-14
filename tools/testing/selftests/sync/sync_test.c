@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 #include "synctest.h"
@@ -52,9 +53,21 @@ static int run_test(int (*test)(void), char *name)
 	exit(test());
 }
 
+static int sync_api_supported(void)
+{
+	struct stat sbuf;
+
+	return 0 == stat("/sys/kernel/debug/sync/sw_sync", &sbuf);
+}
+
 int main(void)
 {
 	int err = 0;
+
+	if (!sync_api_supported()) {
+		printf("SKIP: Sync framework not supported by kernel\n");
+		return 0;
+	}
 
 	printf("[RUN]\tTesting sync framework\n");
 

@@ -214,24 +214,16 @@ static void altr_sdr_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
 static unsigned long get_total_mem(void)
 {
 	struct device_node *np = NULL;
-	const unsigned int *reg, *reg_end;
-	int len, sw, aw;
-	unsigned long start, size, total_mem = 0;
+	struct resource res;
+	int ret;
+	unsigned long total_mem = 0;
 
 	for_each_node_by_type(np, "memory") {
-		aw = of_n_addr_cells(np);
-		sw = of_n_size_cells(np);
-		reg = (const unsigned int *)of_get_property(np, "reg", &len);
-		reg_end = reg + (len / sizeof(u32));
+		ret = of_address_to_resource(np, 0, &res);
+		if (ret)
+			continue;
 
-		total_mem = 0;
-		do {
-			start = of_read_number(reg, aw);
-			reg += aw;
-			size = of_read_number(reg, sw);
-			reg += sw;
-			total_mem += size;
-		} while (reg < reg_end);
+		total_mem += resource_size(&res);
 	}
 	edac_dbg(0, "total_mem 0x%lx\n", total_mem);
 	return total_mem;
@@ -1839,7 +1831,7 @@ static int a10_eccmgr_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops a10_eccmgr_ic_ops = {
+static const struct irq_domain_ops a10_eccmgr_ic_ops = {
 	.map = a10_eccmgr_irqdomain_map,
 	.xlate = irq_domain_xlate_twocell,
 };

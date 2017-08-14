@@ -41,6 +41,7 @@
 #include <crypto/algapi.h>
 #include <crypto/sha.h>
 #include <crypto/hash.h>
+#include <crypto/hmac.h>
 #include <crypto/internal/hash.h>
 
 #define MD5_DIGEST_SIZE			16
@@ -225,7 +226,7 @@ struct omap_sham_dev {
 	struct dma_chan		*dma_lch;
 	struct tasklet_struct	done_task;
 	u8			polling_mode;
-	u8			xmit_buf[BUFLEN];
+	u8			xmit_buf[BUFLEN] OMAP_ALIGNED;
 
 	unsigned long		flags;
 	struct crypto_queue	queue;
@@ -750,7 +751,10 @@ static int omap_sham_align_sgs(struct scatterlist *sg,
 	if (final)
 		new_len = DIV_ROUND_UP(new_len, bs) * bs;
 	else
-		new_len = new_len / bs * bs;
+		new_len = (new_len - 1) / bs * bs;
+
+	if (nbytes != new_len)
+		list_ok = false;
 
 	while (nbytes > 0 && sg_tmp) {
 		n++;
@@ -846,6 +850,8 @@ static int omap_sham_prepare_request(struct ahash_request *req, bool update)
 			xmit_len = DIV_ROUND_UP(xmit_len, bs) * bs;
 		else
 			xmit_len = xmit_len / bs * bs;
+	} else if (!final) {
+		xmit_len -= bs;
 	}
 
 	hash_later = rctx->total - xmit_len;
@@ -873,14 +879,21 @@ static int omap_sham_prepare_request(struct ahash_request *req, bool update)
 	}
 
 	if (hash_later) {
-		if (req->nbytes) {
-			scatterwalk_map_and_copy(rctx->buffer, req->src,
-						 req->nbytes - hash_later,
-						 hash_later, 0);
-		} else {
+		int offset = 0;
+
+		if (hash_later > req->nbytes) {
 			memcpy(rctx->buffer, rctx->buffer + xmit_len,
-			       hash_later);
+			       hash_later - req->nbytes);
+			offset = hash_later - req->nbytes;
 		}
+
+		if (req->nbytes) {
+			scatterwalk_map_and_copy(rctx->buffer + offset,
+						 req->src,
+						 offset + req->nbytes -
+						 hash_later, hash_later, 0);
+		}
+
 		rctx->bufcnt = hash_later;
 	} else {
 		rctx->bufcnt = 0;
@@ -1130,7 +1143,7 @@ retry:
 	ctx = ahash_request_ctx(req);
 
 	err = omap_sham_prepare_request(req, ctx->op == OP_UPDATE);
-	if (err)
+	if (err || !ctx->total)
 		goto err1;
 
 	dev_dbg(dd->dev, "handling new req, op: %lu, nbytes: %d\n",
@@ -1189,11 +1202,10 @@ static int omap_sham_update(struct ahash_request *req)
 	if (!req->nbytes)
 		return 0;
 
-	if (ctx->total + req->nbytes < ctx->buflen) {
+	if (ctx->bufcnt + req->nbytes <= ctx->buflen) {
 		scatterwalk_map_and_copy(ctx->buffer + ctx->bufcnt, req->src,
 					 0, req->nbytes, 0);
 		ctx->bufcnt += req->nbytes;
-		ctx->total += req->nbytes;
 		return 0;
 	}
 
@@ -1326,8 +1338,8 @@ static int omap_sham_setkey(struct crypto_ahash *tfm, const u8 *key,
 		memcpy(bctx->opad, bctx->ipad, bs);
 
 		for (i = 0; i < bs; i++) {
-			bctx->ipad[i] ^= 0x36;
-			bctx->opad[i] ^= 0x5c;
+			bctx->ipad[i] ^= HMAC_IPAD_VALUE;
+			bctx->opad[i] ^= HMAC_OPAD_VALUE;
 		}
 	}
 

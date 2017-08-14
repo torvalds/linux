@@ -393,8 +393,8 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 	int ret;
 	int i;
 
-	if (ctx->codec && (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
-	     ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264)) {
+	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
+	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264) {
 		width = round_up(q_data->width, 16);
 		height = round_up(q_data->height, 16);
 	} else {
@@ -427,14 +427,16 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 
 	/* Register frame buffers in the parameter buffer */
 	for (i = 0; i < ctx->num_internal_frames; i++) {
-		u32 y, cb, cr;
+		u32 y, cb, cr, mvcol;
 
 		/* Start addresses of Y, Cb, Cr planes */
 		y = ctx->internal_frames[i].paddr;
 		cb = y + ysize;
 		cr = y + ysize + ysize/4;
+		mvcol = y + ysize + ysize/4 + ysize/4;
 		if (ctx->tiled_map_type == GDI_TILED_FRAME_MB_RASTER_MAP) {
 			cb = round_up(cb, 4096);
+			mvcol = cb + ysize/2;
 			cr = 0;
 			/* Packed 20-bit MSB of base addresses */
 			/* YYYYYCCC, CCyyyyyc, cccc.... */
@@ -448,9 +450,7 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 		/* mvcol buffer for h.264 */
 		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 &&
 		    dev->devtype->product != CODA_DX6)
-			coda_parabuf_write(ctx, 96 + i,
-					   ctx->internal_frames[i].paddr +
-					   ysize + ysize/4 + ysize/4);
+			coda_parabuf_write(ctx, 96 + i, mvcol);
 	}
 
 	/* mvcol buffer for mpeg4 */
@@ -1247,12 +1247,18 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 	dst_buf->sequence = ctx->osequence;
 	ctx->osequence++;
 
+	force_ipicture = ctx->params.force_ipicture;
+	if (force_ipicture)
+		ctx->params.force_ipicture = false;
+	else if ((src_buf->sequence % ctx->params.gop_size) == 0)
+		force_ipicture = 1;
+
 	/*
 	 * Workaround coda firmware BUG that only marks the first
 	 * frame as IDR. This is a problem for some decoders that can't
 	 * recover when a frame is lost.
 	 */
-	if (src_buf->sequence % ctx->params.gop_size) {
+	if (!force_ipicture) {
 		src_buf->flags |= V4L2_BUF_FLAG_PFRAME;
 		src_buf->flags &= ~V4L2_BUF_FLAG_KEYFRAME;
 	} else {
@@ -1264,10 +1270,10 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 		coda_set_gdi_regs(ctx);
 
 	/*
-	 * Copy headers at the beginning of the first frame for H.264 only.
-	 * In MPEG4 they are already copied by the coda.
+	 * Copy headers in front of the first frame and forced I frames for
+	 * H.264 only. In MPEG4 they are already copied by the CODA.
 	 */
-	if (src_buf->sequence == 0) {
+	if (src_buf->sequence == 0 || force_ipicture) {
 		pic_stream_buffer_addr =
 			vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0) +
 			ctx->vpu_header_size[0] +
@@ -1291,8 +1297,7 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 		pic_stream_buffer_size = q_data_dst->sizeimage;
 	}
 
-	if (src_buf->flags & V4L2_BUF_FLAG_KEYFRAME) {
-		force_ipicture = 1;
+	if (force_ipicture) {
 		switch (dst_fourcc) {
 		case V4L2_PIX_FMT_H264:
 			quant_param = ctx->params.h264_intra_qp;
@@ -1309,7 +1314,6 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 			break;
 		}
 	} else {
-		force_ipicture = 0;
 		switch (dst_fourcc) {
 		case V4L2_PIX_FMT_H264:
 			quant_param = ctx->params.h264_inter_qp;
@@ -1382,7 +1386,8 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	wr_ptr = coda_read(dev, CODA_REG_BIT_WR_PTR(ctx->reg_idx));
 
 	/* Calculate bytesused field */
-	if (dst_buf->sequence == 0) {
+	if (dst_buf->sequence == 0 ||
+	    src_buf->flags & V4L2_BUF_FLAG_KEYFRAME) {
 		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, wr_ptr - start_ptr +
 					ctx->vpu_header_size[0] +
 					ctx->vpu_header_size[1] +
@@ -2193,12 +2198,32 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	ctx->display_idx = display_idx;
 }
 
+static void coda_decode_timeout(struct coda_ctx *ctx)
+{
+	struct vb2_v4l2_buffer *dst_buf;
+
+	/*
+	 * For now this only handles the case where we would deadlock with
+	 * userspace, i.e. userspace issued DEC_CMD_STOP and waits for EOS,
+	 * but after a failed decode run we would hold the context and wait for
+	 * userspace to queue more buffers.
+	 */
+	if (!(ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG))
+		return;
+
+	dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
+	dst_buf->sequence = ctx->qsequence - 1;
+
+	coda_m2m_buf_done(ctx, dst_buf, VB2_BUF_STATE_ERROR);
+}
+
 const struct coda_context_ops coda_bit_decode_ops = {
 	.queue_init = coda_decoder_queue_init,
 	.reqbufs = coda_decoder_reqbufs,
 	.start_streaming = coda_start_decoding,
 	.prepare_run = coda_prepare_decode,
 	.finish_run = coda_finish_decode,
+	.run_timeout = coda_decode_timeout,
 	.seq_end_work = coda_seq_end_work,
 	.release = coda_bit_release,
 };

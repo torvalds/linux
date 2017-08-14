@@ -364,7 +364,8 @@ static int nfs_idmap_lookup_id(const char *name, size_t namelen, const char *typ
 		ret = -EINVAL;
 	} else {
 		ret = kstrtol(id_str, 10, &id_long);
-		*id = (__u32)id_long;
+		if (!ret)
+			*id = (__u32)id_long;
 	}
 	return ret;
 }

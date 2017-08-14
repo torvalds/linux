@@ -2071,20 +2071,15 @@ int aac_get_adapter_info(struct aac_dev* dev)
 		expose_physicals = 0;
 	}
 
-	if(dev->dac_support != 0) {
-		if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(64)) &&
-			!pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(64))) {
+	if (dev->dac_support) {
+		if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(64))) {
 			if (!dev->in_reset)
-				printk(KERN_INFO"%s%d: 64 Bit DAC enabled\n",
-					dev->name, dev->id);
-		} else if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(32)) &&
-			!pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(32))) {
-			printk(KERN_INFO"%s%d: DMA mask set failed, 64 Bit DAC disabled\n",
-				dev->name, dev->id);
+				dev_info(&dev->pdev->dev, "64 Bit DAC enabled\n");
+		} else if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(32))) {
+			dev_info(&dev->pdev->dev, "DMA mask set failed, 64 Bit DAC disabled\n");
 			dev->dac_support = 0;
 		} else {
-			printk(KERN_WARNING"%s%d: No suitable DMA available.\n",
-				dev->name, dev->id);
+			dev_info(&dev->pdev->dev, "No suitable DMA available\n");
 			rcode = -ENOMEM;
 		}
 	}
@@ -3203,10 +3198,11 @@ static int query_disk(struct aac_dev *dev, void __user *arg)
 		return -EBUSY;
 	if (copy_from_user(&qd, arg, sizeof (struct aac_query_disk)))
 		return -EFAULT;
-	if (qd.cnum == -1)
+	if (qd.cnum == -1) {
+		if (qd.id < 0 || qd.id >= dev->maximum_num_containers)
+			return -EINVAL;
 		qd.cnum = qd.id;
-	else if ((qd.bus == -1) && (qd.id == -1) && (qd.lun == -1))
-	{
+	} else if ((qd.bus == -1) && (qd.id == -1) && (qd.lun == -1)) {
 		if (qd.cnum < 0 || qd.cnum >= dev->maximum_num_containers)
 			return -EINVAL;
 		qd.instance = dev->scsi_host_ptr->host_no;

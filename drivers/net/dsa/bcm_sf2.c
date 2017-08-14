@@ -28,7 +28,6 @@
 #include <linux/if_bridge.h>
 #include <linux/brcmphy.h>
 #include <linux/etherdevice.h>
-#include <net/switchdev.h>
 #include <linux/platform_data/b53.h>
 
 #include "bcm_sf2.h"
@@ -228,7 +227,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 			      struct phy_device *phy)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	s8 cpu_port = ds->dst[ds->index].cpu_port;
+	s8 cpu_port = ds->dst->cpu_dp->index;
 	unsigned int i;
 	u32 reg;
 
@@ -499,10 +498,8 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 				   struct device_node *dn)
 {
 	struct device_node *port;
-	const char *phy_mode_str;
 	int mode;
 	unsigned int port_num;
-	int ret;
 
 	priv->moca_port = -1;
 
@@ -516,15 +513,11 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 		 * time
 		 */
 		mode = of_get_phy_mode(port);
-		if (mode < 0) {
-			ret = of_property_read_string(port, "phy-mode",
-						      &phy_mode_str);
-			if (ret < 0)
-				continue;
+		if (mode < 0)
+			continue;
 
-			if (!strcasecmp(phy_mode_str, "internal"))
-				priv->int_phy_mask |= 1 << port_num;
-		}
+		if (mode == PHY_INTERFACE_MODE_INTERNAL)
+			priv->int_phy_mask |= 1 << port_num;
 
 		if (mode == PHY_INTERFACE_MODE_MOCA)
 			priv->moca_port = port_num;
@@ -807,7 +800,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 			       struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->dst[ds->index].master_netdev;
+	struct net_device *p = ds->dst[ds->index].cpu_dp->netdev;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_wolinfo pwol;
 
@@ -830,9 +823,9 @@ static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 			      struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->dst[ds->index].master_netdev;
+	struct net_device *p = ds->dst[ds->index].cpu_dp->netdev;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	s8 cpu_port = ds->dst[ds->index].cpu_port;
+	s8 cpu_port = ds->dst->cpu_dp->index;
 	struct ethtool_wolinfo pwol;
 
 	p->ethtool_ops->get_wol(p, &pwol);

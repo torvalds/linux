@@ -284,5 +284,5 @@ static int __init nmdk_timer_of_init(struct device_node *node)
 
 	return nmdk_timer_init(base, irq, pclk, clk);
 }
-CLOCKSOURCE_OF_DECLARE(nomadik_mtu, "st,nomadik-mtu",
+TIMER_OF_DECLARE(nomadik_mtu, "st,nomadik-mtu",
 		       nmdk_timer_of_init);

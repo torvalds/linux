@@ -70,7 +70,7 @@ int lmv_fld_lookup(struct lmv_obd *lmv, const struct lu_fid *fid, u32 *mds)
 		return rc;
 	}
 
-	CDEBUG(D_INODE, "FLD lookup got mds #%x for fid="DFID"\n",
+	CDEBUG(D_INODE, "FLD lookup got mds #%x for fid=" DFID "\n",
 	       *mds, PFID(fid));
 
 	if (*mds >= lmv->desc.ld_tgt_count) {

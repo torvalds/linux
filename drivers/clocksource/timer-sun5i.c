@@ -359,7 +359,7 @@ static int __init sun5i_timer_init(struct device_node *node)
 
 	return sun5i_setup_clockevent(node, timer_base, clk, irq);
 }
-CLOCKSOURCE_OF_DECLARE(sun5i_a13, "allwinner,sun5i-a13-hstimer",
+TIMER_OF_DECLARE(sun5i_a13, "allwinner,sun5i-a13-hstimer",
 			   sun5i_timer_init);
-CLOCKSOURCE_OF_DECLARE(sun7i_a20, "allwinner,sun7i-a20-hstimer",
+TIMER_OF_DECLARE(sun7i_a20, "allwinner,sun7i-a20-hstimer",
 			   sun5i_timer_init);

@@ -246,9 +246,9 @@ static int igt_dmabuf_export_vmap(void *arg)
 	i915_gem_object_put(obj);
 
 	ptr = dma_buf_vmap(dmabuf);
-	if (IS_ERR(ptr)) {
-		err = PTR_ERR(ptr);
-		pr_err("dma_buf_vmap failed with err=%d\n", err);
+	if (!ptr) {
+		pr_err("dma_buf_vmap failed\n");
+		err = -ENOMEM;
 		goto out;
 	}
 

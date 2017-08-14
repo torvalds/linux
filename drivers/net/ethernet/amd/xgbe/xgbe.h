@@ -128,6 +128,7 @@
 #include <linux/net_tstamp.h>
 #include <net/dcbnl.h>
 #include <linux/completion.h>
+#include <linux/cpumask.h>
 
 #define XGBE_DRV_NAME		"amd-xgbe"
 #define XGBE_DRV_VERSION	"1.0.3"
@@ -163,14 +164,17 @@
 #define XGBE_DMA_STOP_TIMEOUT	1
 
 /* DMA cache settings - Outer sharable, write-back, write-allocate */
-#define XGBE_DMA_OS_AXDOMAIN	0x2
-#define XGBE_DMA_OS_ARCACHE	0xb
-#define XGBE_DMA_OS_AWCACHE	0xf
+#define XGBE_DMA_OS_ARCR	0x002b2b2b
+#define XGBE_DMA_OS_AWCR	0x2f2f2f2f
 
 /* DMA cache settings - System, no caches used */
-#define XGBE_DMA_SYS_AXDOMAIN	0x3
-#define XGBE_DMA_SYS_ARCACHE	0x0
-#define XGBE_DMA_SYS_AWCACHE	0x0
+#define XGBE_DMA_SYS_ARCR	0x00303030
+#define XGBE_DMA_SYS_AWCR	0x30303030
+
+/* DMA cache settings - PCI device */
+#define XGBE_DMA_PCI_ARCR	0x00000003
+#define XGBE_DMA_PCI_AWCR	0x13131313
+#define XGBE_DMA_PCI_AWARCR	0x00000313
 
 /* DMA channel interrupt modes */
 #define XGBE_IRQ_MODE_EDGE	0
@@ -412,6 +416,7 @@ struct xgbe_ring {
 	/* Page allocation for RX buffers */
 	struct xgbe_page_alloc rx_hdr_pa;
 	struct xgbe_page_alloc rx_buf_pa;
+	int node;
 
 	/* Ring index values
 	 *  cur   - Tx: index of descriptor to be used for current transfer
@@ -462,6 +467,9 @@ struct xgbe_channel {
 
 	struct xgbe_ring *tx_ring;
 	struct xgbe_ring *rx_ring;
+
+	int node;
+	cpumask_t affinity_mask;
 } ____cacheline_aligned;
 
 enum xgbe_state {
@@ -734,13 +742,6 @@ struct xgbe_hw_if {
 	/* For TX DMA Operate on Second Frame config */
 	int (*config_osp_mode)(struct xgbe_prv_data *);
 
-	/* For RX and TX PBL config */
-	int (*config_rx_pbl_val)(struct xgbe_prv_data *);
-	int (*get_rx_pbl_val)(struct xgbe_prv_data *);
-	int (*config_tx_pbl_val)(struct xgbe_prv_data *);
-	int (*get_tx_pbl_val)(struct xgbe_prv_data *);
-	int (*config_pblx8)(struct xgbe_prv_data *);
-
 	/* For MMC statistics */
 	void (*rx_mmc_int)(struct xgbe_prv_data *);
 	void (*tx_mmc_int)(struct xgbe_prv_data *);
@@ -837,7 +838,7 @@ struct xgbe_phy_if {
 	bool (*phy_valid_speed)(struct xgbe_prv_data *, int);
 
 	/* For single interrupt support */
-	irqreturn_t (*an_isr)(int, struct xgbe_prv_data *);
+	irqreturn_t (*an_isr)(struct xgbe_prv_data *);
 
 	/* PHY implementation specific services */
 	struct xgbe_phy_impl_if phy_impl;
@@ -855,7 +856,7 @@ struct xgbe_i2c_if {
 	int (*i2c_xfer)(struct xgbe_prv_data *, struct xgbe_i2c_op *);
 
 	/* For single interrupt support */
-	irqreturn_t (*i2c_isr)(int, struct xgbe_prv_data *);
+	irqreturn_t (*i2c_isr)(struct xgbe_prv_data *);
 };
 
 struct xgbe_desc_if {
@@ -924,6 +925,9 @@ struct xgbe_version_data {
 	unsigned int tx_tstamp_workaround;
 	unsigned int ecc_support;
 	unsigned int i2c_support;
+	unsigned int irq_reissue_support;
+	unsigned int tx_desc_prefetch;
+	unsigned int rx_desc_prefetch;
 };
 
 struct xgbe_prv_data {
@@ -1001,9 +1005,9 @@ struct xgbe_prv_data {
 
 	/* AXI DMA settings */
 	unsigned int coherent;
-	unsigned int axdomain;
-	unsigned int arcache;
-	unsigned int awcache;
+	unsigned int arcr;
+	unsigned int awcr;
+	unsigned int awarcr;
 
 	/* Service routine support */
 	struct workqueue_struct *dev_workqueue;
@@ -1011,7 +1015,7 @@ struct xgbe_prv_data {
 	struct timer_list service_timer;
 
 	/* Rings for Tx/Rx on a DMA channel */
-	struct xgbe_channel *channel;
+	struct xgbe_channel *channel[XGBE_MAX_DMA_CHANNELS];
 	unsigned int tx_max_channel_count;
 	unsigned int rx_max_channel_count;
 	unsigned int channel_count;
@@ -1026,19 +1030,21 @@ struct xgbe_prv_data {
 	unsigned int rx_q_count;
 
 	/* Tx/Rx common settings */
-	unsigned int pblx8;
+	unsigned int blen;
+	unsigned int pbl;
+	unsigned int aal;
+	unsigned int rd_osr_limit;
+	unsigned int wr_osr_limit;
 
 	/* Tx settings */
 	unsigned int tx_sf_mode;
 	unsigned int tx_threshold;
-	unsigned int tx_pbl;
 	unsigned int tx_osp_mode;
 	unsigned int tx_max_fifo_size;
 
 	/* Rx settings */
 	unsigned int rx_sf_mode;
 	unsigned int rx_threshold;
-	unsigned int rx_pbl;
 	unsigned int rx_max_fifo_size;
 
 	/* Tx coalescing settings */
@@ -1158,6 +1164,12 @@ struct xgbe_prv_data {
 	char i2c_name[IFNAMSIZ + 32];
 
 	unsigned int lpm_ctrl;		/* CTRL1 for resume */
+
+	unsigned int isr_as_tasklet;
+	struct tasklet_struct tasklet_dev;
+	struct tasklet_struct tasklet_ecc;
+	struct tasklet_struct tasklet_i2c;
+	struct tasklet_struct tasklet_an;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *xgbe_debugfs;
