@@ -48,7 +48,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 
 	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
 	if (rval > 0) {
-		u32 array[MAX_DATA_LANES + 1];
+		u32 array[1 + MAX_DATA_LANES];
 
 		bus->num_data_lanes = min_t(int, MAX_DATA_LANES, rval);
 

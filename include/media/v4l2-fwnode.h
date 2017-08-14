@@ -42,7 +42,7 @@ struct v4l2_fwnode_bus_mipi_csi2 {
 	unsigned char data_lanes[MAX_DATA_LANES];
 	unsigned char clock_lane;
 	unsigned short num_data_lanes;
-	bool lane_polarities[MAX_DATA_LANES + 1];
+	bool lane_polarities[1 + MAX_DATA_LANES];
 };
 
 /**
