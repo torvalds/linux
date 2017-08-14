@@ -474,4 +474,5 @@ static inline int wait_for_pending_requests(struct octeon_device *oct)
 	return 0;
 }
 
+void lio_update_txq_status(struct octeon_device *oct, int iq_num);
 #endif

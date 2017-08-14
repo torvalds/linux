@@ -364,3 +364,36 @@ void cleanup_rx_oom_poll_fn(struct net_device *netdev)
 		destroy_workqueue(lio->rxq_status_wq.wq);
 	}
 }
+
+/* Runs in interrupt context. */
+void lio_update_txq_status(struct octeon_device *oct, int iq_num)
+{
+	struct octeon_instr_queue *iq = oct->instr_queue[iq_num];
+	struct net_device *netdev;
+	struct lio *lio;
+
+	netdev = oct->props[iq->ifidx].netdev;
+
+	/* This is needed because the first IQ does not have
+	 * a netdev associated with it.
+	 */
+	if (!netdev)
+		return;
+
+	lio = GET_LIO(netdev);
+	if (netif_is_multiqueue(netdev)) {
+		if (__netif_subqueue_stopped(netdev, iq->q_index) &&
+		    lio->linfo.link.s.link_up &&
+		    (!octnet_iq_is_full(oct, iq_num))) {
+			netif_wake_subqueue(netdev, iq->q_index);
+			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq_num,
+						  tx_restart, 1);
+		}
+	} else if (netif_queue_stopped(netdev) &&
+		   lio->linfo.link.s.link_up &&
+		   (!octnet_iq_is_full(oct, lio->txq))) {
+		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
+					  tx_restart, 1);
+		netif_wake_queue(netdev);
+	}
+}

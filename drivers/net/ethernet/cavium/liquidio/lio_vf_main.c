@@ -647,30 +647,6 @@ static void update_link_status(struct net_device *netdev,
 	}
 }
 
-static void update_txq_status(struct octeon_device *oct, int iq_num)
-{
-	struct octeon_instr_queue *iq = oct->instr_queue[iq_num];
-	struct net_device *netdev;
-	struct lio *lio;
-
-	netdev = oct->props[iq->ifidx].netdev;
-	lio = GET_LIO(netdev);
-	if (netif_is_multiqueue(netdev)) {
-		if (__netif_subqueue_stopped(netdev, iq->q_index) &&
-		    lio->linfo.link.s.link_up &&
-		    (!octnet_iq_is_full(oct, iq_num))) {
-			netif_wake_subqueue(netdev, iq->q_index);
-			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq_num,
-						  tx_restart, 1);
-		}
-	} else if (netif_queue_stopped(netdev) && lio->linfo.link.s.link_up &&
-		   (!octnet_iq_is_full(oct, lio->txq))) {
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev,
-					  lio->txq, tx_restart, 1);
-		netif_wake_queue(netdev);
-	}
-}
-
 static
 int liquidio_schedule_msix_droq_pkt_handler(struct octeon_droq *droq, u64 ret)
 {
@@ -1608,7 +1584,7 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 		/* Update iq read-index rather than waiting for next interrupt.
 		 * Return back if tx_done is false.
 		 */
-		update_txq_status(oct, iq_no);
+		lio_update_txq_status(oct, iq_no);
 	} else {
 		dev_err(&oct->pci_dev->dev, "%s: iq (%d) num invalid\n",
 			__func__, iq_no);
