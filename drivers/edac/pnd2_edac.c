@@ -241,6 +241,7 @@ static u64 get_sideband_reg_base_addr(void)
 	if (pdev) {
 		pci_read_config_dword(pdev, 0x10, &lo);
 		pci_read_config_dword(pdev, 0x14, &hi);
+		lo &= 0xfffffff0;
 		pci_dev_put(pdev);
 		return (U64_LSHIFT(hi, 32) | U64_LSHIFT(lo, 0));
 	} else {
