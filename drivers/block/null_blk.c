@@ -88,6 +88,7 @@ struct nullb_device {
 	bool use_per_node_hctx; /* use per-node allocation for hardware context */
 	bool power; /* power on/off the device */
 	bool memory_backed; /* if data is stored in memory */
+	bool discard; /* if support discard */
 };
 
 struct nullb {
@@ -318,6 +319,7 @@ NULLB_DEVICE_ATTR(use_lightnvm, bool);
 NULLB_DEVICE_ATTR(blocking, bool);
 NULLB_DEVICE_ATTR(use_per_node_hctx, bool);
 NULLB_DEVICE_ATTR(memory_backed, bool);
+NULLB_DEVICE_ATTR(discard, bool);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
 {
@@ -373,6 +375,7 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_use_per_node_hctx,
 	&nullb_device_attr_power,
 	&nullb_device_attr_memory_backed,
+	&nullb_device_attr_discard,
 	NULL,
 };
 
@@ -425,7 +428,7 @@ nullb_group_drop_item(struct config_group *group, struct config_item *item)
 
 static ssize_t memb_group_features_show(struct config_item *item, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "memory_backed\n");
+	return snprintf(page, PAGE_SIZE, "memory_backed,discard\n");
 }
 
 CONFIGFS_ATTR_RO(memb_group_, features);
@@ -815,6 +818,20 @@ next:
 	return 0;
 }
 
+static void null_handle_discard(struct nullb *nullb, sector_t sector, size_t n)
+{
+	size_t temp;
+
+	spin_lock_irq(&nullb->lock);
+	while (n > 0) {
+		temp = min_t(size_t, n, nullb->dev->blocksize);
+		null_free_sector(nullb, sector);
+		sector += temp >> SECTOR_SHIFT;
+		n -= temp;
+	}
+	spin_unlock_irq(&nullb->lock);
+}
+
 static int null_transfer(struct nullb *nullb, struct page *page,
 	unsigned int len, unsigned int off, bool is_write, sector_t sector)
 {
@@ -843,6 +860,11 @@ static int null_handle_rq(struct nullb_cmd *cmd)
 
 	sector = blk_rq_pos(rq);
 
+	if (req_op(rq) == REQ_OP_DISCARD) {
+		null_handle_discard(nullb, sector, blk_rq_bytes(rq));
+		return 0;
+	}
+
 	spin_lock_irq(&nullb->lock);
 	rq_for_each_segment(bvec, rq, iter) {
 		len = bvec.bv_len;
@@ -870,6 +892,12 @@ static int null_handle_bio(struct nullb_cmd *cmd)
 	struct bvec_iter iter;
 
 	sector = bio->bi_iter.bi_sector;
+
+	if (bio_op(bio) == REQ_OP_DISCARD) {
+		null_handle_discard(nullb, sector,
+			bio_sectors(bio) << SECTOR_SHIFT);
+		return 0;
+	}
 
 	spin_lock_irq(&nullb->lock);
 	bio_for_each_segment(bvec, bio, iter) {
@@ -1207,6 +1235,16 @@ static void null_del_dev(struct nullb *nullb)
 	dev->nullb = NULL;
 }
 
+static void null_config_discard(struct nullb *nullb)
+{
+	if (nullb->dev->discard == false)
+		return;
+	nullb->q->limits.discard_granularity = nullb->dev->blocksize;
+	nullb->q->limits.discard_alignment = nullb->dev->blocksize;
+	blk_queue_max_discard_sectors(nullb->q, UINT_MAX >> 9);
+	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, nullb->q);
+}
+
 static int null_open(struct block_device *bdev, fmode_t mode)
 {
 	return 0;
@@ -1447,6 +1485,8 @@ static int null_add_dev(struct nullb_device *dev)
 
 	blk_queue_logical_block_size(nullb->q, dev->blocksize);
 	blk_queue_physical_block_size(nullb->q, dev->blocksize);
+
+	null_config_discard(nullb);
 
 	sprintf(nullb->disk_name, "nullb%d", nullb->index);
 
