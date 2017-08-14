@@ -505,15 +505,15 @@ static int mlxsw_sp_lpm_tree_alloc(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralta), ralta_pl);
 }
 
-static int mlxsw_sp_lpm_tree_free(struct mlxsw_sp *mlxsw_sp,
-				  struct mlxsw_sp_lpm_tree *lpm_tree)
+static void mlxsw_sp_lpm_tree_free(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_lpm_tree *lpm_tree)
 {
 	char ralta_pl[MLXSW_REG_RALTA_LEN];
 
 	mlxsw_reg_ralta_pack(ralta_pl, false,
 			     (enum mlxsw_reg_ralxx_protocol) lpm_tree->proto,
 			     lpm_tree->id);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralta), ralta_pl);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralta), ralta_pl);
 }
 
 static int
@@ -569,10 +569,10 @@ err_left_struct_set:
 	return ERR_PTR(err);
 }
 
-static int mlxsw_sp_lpm_tree_destroy(struct mlxsw_sp *mlxsw_sp,
-				     struct mlxsw_sp_lpm_tree *lpm_tree)
+static void mlxsw_sp_lpm_tree_destroy(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_lpm_tree *lpm_tree)
 {
-	return mlxsw_sp_lpm_tree_free(mlxsw_sp, lpm_tree);
+	mlxsw_sp_lpm_tree_free(mlxsw_sp, lpm_tree);
 }
 
 static struct mlxsw_sp_lpm_tree *
@@ -601,12 +601,11 @@ inc_ref_count:
 	return lpm_tree;
 }
 
-static int mlxsw_sp_lpm_tree_put(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_lpm_tree *lpm_tree)
+static void mlxsw_sp_lpm_tree_put(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_lpm_tree *lpm_tree)
 {
 	if (--lpm_tree->ref_count == 0)
-		return mlxsw_sp_lpm_tree_destroy(mlxsw_sp, lpm_tree);
-	return 0;
+		mlxsw_sp_lpm_tree_destroy(mlxsw_sp, lpm_tree);
 }
 
 #define MLXSW_SP_LPM_TREE_MIN 1 /* tree 0 is reserved */
