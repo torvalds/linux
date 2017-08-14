@@ -22,6 +22,7 @@ struct nvkm_ior {
 		unsigned proto_evo:4;
 		enum nvkm_ior_proto {
 			CRT,
+			TV,
 			TMDS,
 			LVDS,
 			DP,

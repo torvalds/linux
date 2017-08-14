@@ -418,6 +418,7 @@ int iscsit_reset_np_thread(
 		return 0;
 	}
 	np->np_thread_state = ISCSI_NP_THREAD_RESET;
+	atomic_inc(&np->np_reset_count);
 
 	if (np->np_thread) {
 		spin_unlock_bh(&np->np_thread_lock);
@@ -2167,6 +2168,7 @@ iscsit_setup_text_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	cmd->cmd_sn		= be32_to_cpu(hdr->cmdsn);
 	cmd->exp_stat_sn	= be32_to_cpu(hdr->exp_statsn);
 	cmd->data_direction	= DMA_NONE;
+	kfree(cmd->text_in_ptr);
 	cmd->text_in_ptr	= NULL;
 
 	return 0;
@@ -3487,9 +3489,9 @@ iscsit_build_text_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn,
 		return text_length;
 
 	if (completed) {
-		hdr->flags |= ISCSI_FLAG_CMD_FINAL;
+		hdr->flags = ISCSI_FLAG_CMD_FINAL;
 	} else {
-		hdr->flags |= ISCSI_FLAG_TEXT_CONTINUE;
+		hdr->flags = ISCSI_FLAG_TEXT_CONTINUE;
 		cmd->read_data_done += text_length;
 		if (cmd->targ_xfer_tag == 0xFFFFFFFF)
 			cmd->targ_xfer_tag = session_get_next_ttt(conn->sess);

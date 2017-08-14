@@ -145,13 +145,13 @@ ENDPROC(U3_retl_o2_plus_GS_plus_0x08)
 ENTRY(U3_retl_o2_and_7_plus_GS)
 	and	%o2, 7, %o2
 	retl
-	 add	%o2, GLOBAL_SPARE, %o2
+	 add	%o2, GLOBAL_SPARE, %o0
 ENDPROC(U3_retl_o2_and_7_plus_GS)
 ENTRY(U3_retl_o2_and_7_plus_GS_plus_8)
 	add	GLOBAL_SPARE, 8, GLOBAL_SPARE
 	and	%o2, 7, %o2
 	retl
-	 add	%o2, GLOBAL_SPARE, %o2
+	 add	%o2, GLOBAL_SPARE, %o0
 ENDPROC(U3_retl_o2_and_7_plus_GS_plus_8)
 #endif
 
