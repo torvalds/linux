@@ -58,6 +58,7 @@
 			device_type = "cpu";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
+			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 		};
 
@@ -66,6 +67,7 @@
 			device_type = "cpu";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
+			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 		};
 
@@ -74,6 +76,7 @@
 			device_type = "cpu";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
+			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 		};
 
@@ -82,6 +85,7 @@
 			device_type = "cpu";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
+			next-level-cache = <&A53_L2>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 		};
 
@@ -90,6 +94,7 @@
 			device_type = "cpu";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
+			next-level-cache = <&A73_L2>;
 			cpu-idle-states = <
 					&CPU_NAP
 					&CPU_SLEEP
@@ -102,6 +107,7 @@
 			device_type = "cpu";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
+			next-level-cache = <&A73_L2>;
 			cpu-idle-states = <
 					&CPU_NAP
 					&CPU_SLEEP
@@ -114,6 +120,7 @@
 			device_type = "cpu";
 			reg = <0x0 0x102>;
 			enable-method = "psci";
+			next-level-cache = <&A73_L2>;
 			cpu-idle-states = <
 					&CPU_NAP
 					&CPU_SLEEP
@@ -126,6 +133,7 @@
 			device_type = "cpu";
 			reg = <0x0 0x103>;
 			enable-method = "psci";
+			next-level-cache = <&A73_L2>;
 			cpu-idle-states = <
 					&CPU_NAP
 					&CPU_SLEEP
@@ -170,6 +178,14 @@
 				exit-latency-us = <5000>;
 				min-residency-us = <20000>;
 			};
+		};
+
+		A53_L2: l2-cache0 {
+			compatible = "cache";
+		};
+
+		A73_L2: l2-cache1 {
+			compatible = "cache";
 		};
 	};
 
