@@ -557,7 +557,7 @@ static void lpass_platform_pcm_free(struct snd_pcm *pcm)
 	}
 }
 
-static struct snd_soc_platform_driver lpass_platform_driver = {
+static const struct snd_soc_platform_driver lpass_platform_driver = {
 	.pcm_new	= lpass_platform_pcm_new,
 	.pcm_free	= lpass_platform_pcm_free,
 	.ops		= &lpass_platform_pcm_ops,
