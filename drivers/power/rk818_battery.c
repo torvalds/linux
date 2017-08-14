@@ -2159,7 +2159,8 @@ static void rk818_bat_smooth_algorithm(struct rk818_battery *di)
 	di->remain_cap = rk818_bat_get_coulomb_cap(di);
 
 	/* full charge: slow down */
-	if ((di->dsoc == 99) && (di->chrg_status == CC_OR_CV)) {
+	if ((di->dsoc == 99) && (di->chrg_status == CC_OR_CV) &&
+	    (di->current_avg > 0)) {
 		di->sm_linek = FULL_CHRG_K;
 	/* terminal charge, slow down */
 	} else if ((di->current_avg >= TERM_CHRG_CURR) &&
