@@ -236,12 +236,23 @@ static u64 get_sideband_reg_base_addr(void)
 {
 	struct pci_dev *pdev;
 	u32 hi, lo;
+	u8 hidden;
 
 	pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x19dd, NULL);
 	if (pdev) {
+		/* Unhide the P2SB device, if it's hidden */
+		pci_read_config_byte(pdev, 0xe1, &hidden);
+		if (hidden)
+			pci_write_config_byte(pdev, 0xe1, 0);
+
 		pci_read_config_dword(pdev, 0x10, &lo);
 		pci_read_config_dword(pdev, 0x14, &hi);
 		lo &= 0xfffffff0;
+
+		/* Hide the P2SB device, if it was hidden before */
+		if (hidden)
+			pci_write_config_byte(pdev, 0xe1, hidden);
+
 		pci_dev_put(pdev);
 		return (U64_LSHIFT(hi, 32) | U64_LSHIFT(lo, 0));
 	} else {
