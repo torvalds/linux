@@ -391,7 +391,7 @@ out_elf_end:
 	return 0;
 }
 
-char *dso__demangle_sym(struct dso *dso, int kmodule, char *elf_name)
+char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 {
 	return demangle_sym(dso, kmodule, elf_name);
 }
@@ -793,6 +793,12 @@ static u64 ref_reloc(struct kmap *kmap)
 void __weak arch__sym_update(struct symbol *s __maybe_unused,
 		GElf_Sym *sym __maybe_unused) { }
 
+void __weak arch__adjust_sym_map_offset(GElf_Sym *sym, GElf_Shdr *shdr,
+				       struct map *map __maybe_unused)
+{
+	sym->st_value -= shdr->sh_addr - shdr->sh_offset;
+}
+
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, int kmodule)
 {
@@ -973,7 +979,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 
 			/* Adjust symbol to map to file offset */
 			if (adjust_kernel_syms)
-				sym.st_value -= shdr.sh_addr - shdr.sh_offset;
+				arch__adjust_sym_map_offset(&sym, &shdr, map);
 
 			if (strcmp(section_name,
 				   (curr_dso->short_name +
@@ -1442,7 +1448,7 @@ static int kcore_copy__parse_kallsyms(struct kcore_copy_info *kci,
 
 static int kcore_copy__process_modules(void *arg,
 				       const char *name __maybe_unused,
-				       u64 start)
+				       u64 start, u64 size __maybe_unused)
 {
 	struct kcore_copy_info *kci = arg;
 

@@ -10,7 +10,7 @@
 #include "debug.h"
 #include "tests.h"
 
-int test__openat_syscall_event(int subtest __maybe_unused)
+int test__openat_syscall_event(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1, fd;
 	struct perf_evsel *evsel;

@@ -19,4 +19,11 @@ bool elf__needs_adjust_symbols(GElf_Ehdr ehdr)
 	return ehdr.e_type == ET_REL || ehdr.e_type == ET_DYN;
 }
 
+void arch__adjust_sym_map_offset(GElf_Sym *sym,
+				 GElf_Shdr *shdr __maybe_unused,
+				 struct map *map)
+{
+	if (map->type == MAP__FUNCTION)
+		sym->st_value += map->start;
+}
 #endif

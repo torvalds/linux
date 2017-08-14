@@ -4,7 +4,7 @@
 #include "map.h"
 #include "debug.h"
 
-int test__thread_mg_share(int subtest __maybe_unused)
+int test__thread_mg_share(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct machines machines;
 	struct machine *machine;

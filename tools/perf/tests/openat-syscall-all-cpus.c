@@ -16,7 +16,7 @@
 #include "debug.h"
 #include "stat.h"
 
-int test__openat_syscall_event_on_all_cpus(int subtest __maybe_unused)
+int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1, fd, cpu;
 	struct cpu_map *cpus;

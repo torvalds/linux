@@ -169,7 +169,7 @@ static int run_dir(const char *d, const char *perf)
 	return system(cmd);
 }
 
-int test__attr(int subtest __maybe_unused)
+int test__attr(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct stat st;
 	char path_perf[PATH_MAX];

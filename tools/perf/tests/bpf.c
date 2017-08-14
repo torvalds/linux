@@ -321,7 +321,7 @@ static int check_env(void)
 	return 0;
 }
 
-int test__bpf(int i)
+int test__bpf(struct test *test __maybe_unused, int i)
 {
 	int err;
 
@@ -351,7 +351,7 @@ const char *test__bpf_subtest_get_desc(int i __maybe_unused)
 	return NULL;
 }
 
-int test__bpf(int i __maybe_unused)
+int test__bpf(struct test *test __maybe_unused, int i __maybe_unused)
 {
 	pr_debug("Skip BPF test because BPF support is not compiled\n");
 	return TEST_SKIP;

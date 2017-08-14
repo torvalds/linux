@@ -673,7 +673,7 @@ out_err:
 	return err;
 }
 
-int test__code_reading(int subtest __maybe_unused)
+int test__code_reading(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret;
 

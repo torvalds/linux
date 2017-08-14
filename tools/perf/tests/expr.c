@@ -13,7 +13,7 @@ static int test(struct parse_ctx *ctx, const char *e, double val2)
 	return 0;
 }
 
-int test__expr(int subtest __maybe_unused)
+int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 {
 	const char *p;
 	const char **other;
