@@ -119,6 +119,8 @@ typedef const struct si_pub si_t;
 
 #define	ISSIM_ENAB(sih)	FALSE
 
+#define INVALID_ADDR (~0)
+
 /* PMU clock/power control */
 #if defined(BCMPMUCTL)
 #define PMUCTL_ENAB(sih)	(BCMPMUCTL)
@@ -453,6 +455,7 @@ extern uint32 si_gci_preinit_upd_indirect(uint32 regidx, uint32 setval, uint32 m
 extern uint8 si_enable_device_wake(si_t *sih, uint8 *wake_status, uint8 *cur_status);
 extern void si_swdenable(si_t *sih, uint32 swdflag);
 
+extern uint32 si_get_pmu_reg_addr(si_t *sih, uint32 offset);
 #define CHIPCTRLREG1 0x1
 #define CHIPCTRLREG2 0x2
 #define CHIPCTRLREG3 0x3
@@ -504,6 +507,17 @@ extern void si_d11rsdb_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
 		si_pmu_corereg(si, si_findcoreidx(si, PMU_CORE_ID, 0), \
 			       OFFSETOF(pmuregs_t, member), mask, val): \
 		si_pmu_corereg(si, cc_idx, OFFSETOF(chipcregs_t, member), mask, val))
+
+/* Used only for the regs present in the pmu core and not present in the old cc core */
+#define PMU_REG_NEW(si, member, mask, val) \
+		si_corereg(si, si_findcoreidx(si, PMU_CORE_ID, 0), \
+			OFFSETOF(pmuregs_t, member), mask, val)
+
+#define PMU_REG(si, member, mask, val) \
+	(AOB_ENAB(si) ? \
+		si_corereg(si, si_findcoreidx(si, PMU_CORE_ID, 0), \
+			OFFSETOF(pmuregs_t, member), mask, val): \
+		si_corereg(si, SI_CC_IDX, OFFSETOF(chipcregs_t, member), mask, val))
 
 /* GCI Macros */
 #define ALLONES_32				0xFFFFFFFF

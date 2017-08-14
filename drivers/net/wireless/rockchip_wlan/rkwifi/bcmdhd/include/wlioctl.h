@@ -7998,6 +7998,15 @@ typedef enum {
 } ulb_bw_type_t;
 #endif /* WL11ULB */
 
+#ifdef MFP
+/* values for IOV_MFP arg */
+enum {
+    WL_MFP_NONE = 0,
+    WL_MFP_CAPABLE,
+    WL_MFP_REQUIRED
+};
+#endif /* MFP */
+
 #if defined(WLRCC)
 #define MAX_ROAM_CHANNEL      20
 

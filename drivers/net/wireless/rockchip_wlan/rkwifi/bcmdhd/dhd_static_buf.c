@@ -17,7 +17,9 @@ enum dhd_prealloc_index {
 	DHD_PREALLOC_DHD_INFO = 7,
 	DHD_PREALLOC_DHD_WLFC_INFO = 8,
 	DHD_PREALLOC_IF_FLOW_LKUP = 9,
-	DHD_PREALLOC_FLOWRING = 10,
+	DHD_PREALLOC_MEMDUMP_BUF = 10,
+	DHD_PREALLOC_MEMDUMP_RAM = 11,
+	DHD_PREALLOC_DHD_WLFC_HANGER = 12,
 	DHD_PREALLOC_MAX
 };
 
@@ -30,6 +32,7 @@ enum dhd_prealloc_index {
 #define DHD_PREALLOC_OSL_BUF_SIZE      (STATIC_BUF_MAX_NUM * STATIC_BUF_SIZE)
 #define DHD_PREALLOC_WIPHY_ESCAN0_SIZE	(64 * 1024)
 #define DHD_PREALLOC_DHD_INFO_SIZE		(24 * 1024)
+#define DHD_PREALLOC_DHD_WLFC_HANGER_SIZE	(64 * 1024)
 #ifdef CONFIG_64BIT
 #define DHD_PREALLOC_IF_FLOW_LKUP_SIZE	(20 * 1024 * 2)
 #else
@@ -42,7 +45,7 @@ enum dhd_prealloc_index {
 #define WLAN_DHD_IF_FLOW_LKUP_SIZE	(64 * 1024)
 #else
 #define WLAN_DHD_INFO_BUF_SIZE		(16 * 1024)
-#define WLAN_DHD_WLFC_BUF_SIZE		(16 * 1024)
+#define WLAN_DHD_WLFC_BUF_SIZE		(24 * 1024)
 #define WLAN_DHD_IF_FLOW_LKUP_SIZE	(20 * 1024)
 #endif /* CONFIG_64BIT */
 #define WLAN_DHD_MEMDUMP_SIZE		(800 * 1024)
@@ -83,6 +86,7 @@ void *wlan_static_scan_buf1 = NULL;
 void *wlan_static_dhd_info_buf = NULL;
 void *wlan_static_dhd_wlfc_info_buf = NULL;
 void *wlan_static_if_flow_lkup = NULL;
+void *wlan_static_dhd_wlfc_hanger_buf = NULL;
 
 static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
 
@@ -126,7 +130,7 @@ void *dhd_wlan_mem_prealloc(int section, unsigned long size)
 	}
 	if (section == DHD_PREALLOC_DHD_WLFC_INFO) {
 		if (size > WLAN_DHD_WLFC_BUF_SIZE) {
-			pr_err("request DHD_INFO size(%lu) is bigger than static size(%d).\n",
+			pr_err("request DHD_WLFC_INFO size(%lu) is bigger than static size(%d).\n",
 				size, WLAN_DHD_WLFC_BUF_SIZE);
 			return NULL;
 		}
@@ -140,6 +144,14 @@ void *dhd_wlan_mem_prealloc(int section, unsigned long size)
 		}
 
 		return wlan_static_if_flow_lkup;
+	}
+	if (section == DHD_PREALLOC_DHD_WLFC_HANGER) {
+		if (size > DHD_PREALLOC_DHD_WLFC_HANGER_SIZE) {
+			pr_err("request DHD_WLFC_HANGER size(%lu) is bigger than static size(%d).\n",
+				size, DHD_PREALLOC_DHD_WLFC_HANGER_SIZE);
+			return NULL;
+		}
+		return wlan_static_dhd_wlfc_hanger_buf;
 	}
 	if ((section < 0) || (section > DHD_PREALLOC_MAX))
 		pr_err("request section id(%d) is out of max index %d\n",
@@ -230,6 +242,13 @@ static int dhd_init_wlan_mem(void)
 	}
 	printk("%s: sectoin %d, size=%d\n", __FUNCTION__, DHD_PREALLOC_DHD_WLFC_INFO, WLAN_DHD_WLFC_BUF_SIZE);
 
+	wlan_static_dhd_wlfc_hanger_buf = kmalloc(DHD_PREALLOC_DHD_WLFC_HANGER_SIZE, GFP_KERNEL);
+	if (!wlan_static_dhd_wlfc_hanger_buf) {
+		pr_err("Failed to alloc wlan_static_dhd_wlfc_hanger_buf\n");
+		goto err_mem_alloc;
+	}
+	printk("%s: sectoin %d, size=%d\n", __FUNCTION__, DHD_PREALLOC_DHD_WLFC_HANGER, DHD_PREALLOC_DHD_WLFC_HANGER_SIZE);
+
 #ifdef CONFIG_BCMDHD_PCIE
 	wlan_static_if_flow_lkup = kmalloc(DHD_PREALLOC_IF_FLOW_LKUP_SIZE, GFP_KERNEL);
 	if (!wlan_static_if_flow_lkup) {
@@ -258,6 +277,9 @@ err_mem_alloc:
 
 	if (wlan_static_dhd_wlfc_info_buf)
 		kfree(wlan_static_dhd_wlfc_info_buf);
+
+	if (wlan_static_dhd_wlfc_hanger_buf)
+		kfree(wlan_static_dhd_wlfc_hanger_buf);
 
 	if (wlan_static_scan_buf1)
 		kfree(wlan_static_scan_buf1);
@@ -339,6 +361,9 @@ dhd_static_buf_exit(void)
 
 	if (wlan_static_dhd_wlfc_info_buf)
 		kfree(wlan_static_dhd_wlfc_info_buf);
+
+	if (wlan_static_dhd_wlfc_hanger_buf)
+		kfree(wlan_static_dhd_wlfc_hanger_buf);
 
 	if (wlan_static_scan_buf1)
 		kfree(wlan_static_scan_buf1);

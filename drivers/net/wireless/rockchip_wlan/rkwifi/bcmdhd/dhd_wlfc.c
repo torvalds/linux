@@ -2812,7 +2812,11 @@ static void
 _dhd_wlfc_reorderinfo_indicate(uint8 *val, uint8 len, uchar *info_buf, uint *info_len)
 {
 	if (info_len) {
-		if (info_buf) {
+		/* Check copy length to avoid buffer overrun. In case of length exceeding
+		*  WLHOST_REORDERDATA_TOTLEN, return failure instead sending incomplete result
+		*  of length WLHOST_REORDERDATA_TOTLEN
+		*/
+		if ((info_buf) && (len <= WLHOST_REORDERDATA_TOTLEN)) {
 			bcopy(val, info_buf, len);
 			*info_len = len;
 		} else {
@@ -2910,6 +2914,7 @@ int dhd_wlfc_enable(dhd_pub_t *dhd)
 
 
 exit:
+	DHD_ERROR(("%s: ret=%d\n", __FUNCTION__, rc));
 	dhd_os_wlfc_unblock(dhd);
 
 	return rc;
@@ -3566,8 +3571,6 @@ dhd_wlfc_init(dhd_pub_t *dhd)
 		*/
 		DHD_ERROR(("dhd_wlfc_init(): successfully %s bdcv2 tlv signaling, %d\n",
 			dhd->wlfc_enabled?"enabled":"disabled", tlv));
-		/* terence 20161229: enable ampdu_hostreorder if tlv enable hostreorder */
-		dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "ampdu_hostreorder", 1, 0, TRUE);
 	}
 
 	mode = 0;
@@ -3761,6 +3764,8 @@ dhd_wlfc_deinit(dhd_pub_t *dhd)
 	dhd->wlfc_state = NULL;
 	dhd->proptxstatus_mode = hostreorder ?
 		WLFC_ONLY_AMPDU_HOSTREORDER : WLFC_FCMODE_NONE;
+
+	DHD_ERROR(("%s: wlfc_mode=0x%x, tlv=%d\n", __FUNCTION__, dhd->wlfc_mode, tlv));
 
 	dhd_os_wlfc_unblock(dhd);
 

@@ -92,8 +92,19 @@ typedef volatile struct {
 	uint32	pmuintmask1;		/* 0x704 */
 	uint32  PAD[14];
 	uint32  pmuintstatus;		/* 0x740 */
-	uint32	PAD[15];
-	uint32  pmuintctrl0;		/* 0x780 */
+	uint32	extwakeupstatus;	/* 0x744 */
+	uint32  watchdog_res_mask;	/* 0x748 */
+	uint32	PAD[1];		/* 0x74C */
+	uint32	swscratch;		/* 0x750 */
+	uint32	PAD[3];		/* 0x754-0x75C */
+	uint32	extwakemask[2]; /* 0x760-0x764 */
+	uint32	PAD[2];		/* 0x768-0x76C */
+	uint32	extwakereqmask[2]; /* 0x770-0x774 */
+	uint32	PAD[2];		/* 0x778-0x77C */
+	uint32	pmuintctrl0;	/* 0x780 */
+	uint32	pmuintctrl1;	/* 0x784 */
+	uint32	PAD[2];
+	uint32	extwakectrl[2] ;   /* 0x790 */
 } pmuregs_t;
 
 typedef struct eci_prerev35 {
@@ -345,7 +356,7 @@ typedef volatile struct {
 	uint32	res_req_timer_sel;
 	uint32	res_req_timer;
 	uint32	res_req_mask;
-	uint32	PAD;
+	uint32	core_cap_ext;		/* 0x64c */
 	uint32	chipcontrol_addr;	/* 0x650 */
 	uint32	chipcontrol_data;	/* 0x654 */
 	uint32	regcontrol_addr;
@@ -1069,6 +1080,9 @@ typedef volatile struct {
 #define	PCTL_XTALFREQ_SHIFT	2
 #define	PCTL_ILP_DIV_EN		0x00000002
 #define	PCTL_LPO_SEL		0x00000001
+#define PCTL_EXT_FASTLPO_SWENAB	0x00000200
+
+#define DEFAULT_43012_MIN_RES_MASK		0x0f8bfe77
 
 /*  Retention Control */
 #define PMU_RCTL_CLK_DIV_SHIFT		0
@@ -1326,6 +1340,7 @@ typedef volatile struct {
 #define	PST_ALPAVAIL	0x0008
 #define	PST_HTAVAIL	0x0004
 #define	PST_RESINIT	0x0003
+#define	PST_ILPFASTLPO	0x00010000
 
 /* pmucapabilities */
 #define PCAP_REV_MASK	0x000000ff

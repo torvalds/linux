@@ -35,8 +35,14 @@
 #define CMD_IAPSTA_CONFIG		"IAPSTA_CONFIG"
 #define CMD_IAPSTA_ENABLE		"IAPSTA_ENABLE"
 #define CMD_IAPSTA_DISABLE		"IAPSTA_DISABLE"
+#ifdef PROP_TXSTATUS
+#ifdef PROP_TXSTATUS_VSDB
+#include <dhd_wlfc.h>
+extern int disable_proptx;
+#endif /* PROP_TXSTATUS_VSDB */
 #endif
-#ifdef IDHCPC
+#endif
+#ifdef IDHCP
 #define CMD_DHCPC_ENABLE	"DHCPC_ENABLE"
 #define CMD_DHCPC_DUMP		"DHCPC_DUMP"
 #endif
@@ -690,13 +696,7 @@ wl_ext_set_amode(struct wl_if_info *cur_if, struct wl_apsta_params *apsta_params
 	}
 	wl_ext_iovar_setint(dev, "auth", auth);
 
-	if (apsta_params->apstamode == IAPONLY_MODE) // fix for 43455
-		wl_ext_ioctl(dev, WLC_DOWN, NULL, 0, 1);
-
 	wl_ext_iovar_setint(dev, "wpa_auth", wpa_auth);
-
-	if (apsta_params->apstamode == IAPONLY_MODE) // fix for 43455
-		wl_ext_ioctl(dev, WLC_UP, NULL, 0, 1);;
 
 	return 0;
 }
@@ -747,34 +747,9 @@ wl_ext_set_emode(struct wl_if_info *cur_if, struct wl_apsta_params *apsta_params
 	wl_ext_iovar_setint(dev, "wsec", wsec);
 
 	if (wsec == 1) {
-		/* OPEN-WEP */
-		/* 43438a1: wl0: Feb 23 2017 11:24:58 version 7.46.57.8 (r1174) FWID 01-62ddbfa1
-		  * sta only wlan0 TBD
-		  * ap only wlan0 OK
-		  * apsta wlan0 TBD, wlan1 OK
-		  */
 		wl_ext_ioctl(dev, WLC_SET_KEY, &wsec_key, sizeof(wsec_key), 1);
 	} else if (emode == ENC_TKIP || emode == ENC_AES || emode == ENC_TKIPAES) {
 		if (dev) {
-			/* WPA2-PSK-AES */
-			/* 43438a1:
-			  *  wl0: Feb 23 2017 11:24:58 version 7.46.57.8 (r1174) FWID 01-62ddbfa1
-			  *  wl0: Nov 25 2016 15:06:56 version 7.46.57.5.apsta.r4.o12 (Station/Softap) FWID 01-64fb9fe8 es6.c5.n4.a3
-			  * sta only: wlan0 OK
-			  * ap only: wlan0 OK
-			  * apsta: wlan0 OK, wlan1 NG(condigured ok, ping NG, same as dhd_helper)
-			  */
-			/* 43455c0: wl0: Feb 20 2017 15:38:37 version 7.45.69.3 (r) FWID 01-485b0401
-			  * sta only: wlan0 OK
-			  * ap only: wlan0 OK
-			  * apsta: wlan0 OK, wlan1 OK
-			  */
-			/* 4359c0: wl0: Mar  6 2017 10:16:06 version 9.87.51.7 (r686312) FWID 01-4dcc75d9
-			  * sta only: wlan0 OK
-			  * ap only: wlan0 OK
-			  * apsta: wlan0 OK, wlan1 OK
-			  * dualap: wlan0 and wlan1 OK
-			  */
 			if (cur_if->ifmode == ISTA_MODE)
 				wl_ext_iovar_setint(dev, "sup_wpa", 1);
 			wl_ext_ioctl(dev, WLC_SET_WSEC_PMK, &psk, sizeof(psk), 1);
@@ -786,24 +761,6 @@ wl_ext_set_emode(struct wl_if_info *cur_if, struct wl_apsta_params *apsta_params
 	return 0;
 }
 
-/*
-terence 20170326:
-dhd_priv iapsta_init mode [sta|ap|apsta|dualap] vifname [wlan1]
-dhd_priv iapsta_config ifname [wlan0|wlan1] ssid [xxx] chan [x]
-		 hidden [y|n] maxassoc [x]
-		 amode [open|shared|wpapsk|wpa2psk|wpawpa2psk]
-		 emode [none|wep|tkip|aes|tkipaes]
-		 key [xxxxx]
-dhd_priv iapsta_enable ifname [wlan0|wlan1]
-dhd_priv iapsta_disable ifname [wlan0|wlan1]
-dhd_priv iapsta_config ifname wlan0 ssid ttt_apsta chan 1 amode wpa2psk emode aes key 12345678 ifname wlan1 ssid ttt_apsta chan 149 amode wpa2psk emode aes key 12345678
-
-For dualAP procedure:
-  1) you must disable both wlan0 and wlan1 first when you would like to enable
-    dhd_priv iapsta_disable ifname wlan0; dhd_priv iapsta_disable ifname wlan1
-  2) you must enable both wlan0 first and then wlan1
-    dhd_priv iapsta_enable ifname wlan0; dhd_priv iapsta_disable ifname wlan1
-*/
 static int
 wl_ext_iapsta_init(struct net_device *dev, char *command, int total_len)
 {
@@ -814,12 +771,14 @@ wl_ext_iapsta_init(struct net_device *dev, char *command, int total_len)
 	struct wl_apsta_params *apsta_params = &g_apsta_params;
 	wl_interface_create_t iface;
 	struct dhd_pub *dhd;
+	wl_p2p_if_t ifreq;
 
-	if (apsta_params->action >= ACTION_INIT) {
+	if (apsta_params->init) {
 		ANDROID_ERROR(("%s: don't init twice\n", __FUNCTION__));
 		return -1;
 	}
 
+	dhd = dhd_get_pub(dev);
 	memset(apsta_params, 0, sizeof(struct wl_apsta_params));
 
 	ANDROID_TRACE(("%s: command=%s, len=%d\n", __FUNCTION__, command, total_len));
@@ -839,6 +798,16 @@ wl_ext_iapsta_init(struct net_device *dev, char *command, int total_len)
 					apsta_params->apstamode = IAPSTA_MODE;
 				} else if (!strcmp(pch, "dualap")) {
 					apsta_params->apstamode = IDUALAP_MODE;
+				} else if (!strcmp(pch, "gosta")) {
+					if (!FW_SUPPORTED(dhd, p2p)) {
+						return -1;
+					}
+					apsta_params->apstamode = IGOSTA_MODE;
+				} else if (!strcmp(pch, "gcsta")) {
+					if (!FW_SUPPORTED(dhd, p2p)) {
+						return -1;
+					}
+					apsta_params->apstamode = IGCSTA_MODE;
 				} else {
 					ANDROID_ERROR(("%s: mode [sta|ap|apsta|dualap]\n", __FUNCTION__));
 					return -1;
@@ -876,31 +845,33 @@ wl_ext_iapsta_init(struct net_device *dev, char *command, int total_len)
 
 	if (apsta_params->apstamode == ISTAONLY_MODE) {
 		apsta_params->pif.ifmode = ISTA_MODE;
+		apsta_params->pif.ifstate = IF_STATE_INIT;
 		wl_ext_ioctl(dev, WLC_DOWN, NULL, 0, 1);
 		wl_ext_iovar_setint(dev, "apsta", 1); // keep 1 as we set in dhd_preinit_ioctls
 		// don't set WLC_SET_AP to 0, some parameters will be reset, such as bcn_timeout and roam_off
 		wl_ext_ioctl(dev, WLC_UP, NULL, 0, 1);
 	} else if (apsta_params->apstamode == IAPONLY_MODE) {
 		apsta_params->pif.ifmode = IAP_MODE;
+		apsta_params->pif.ifstate = IF_STATE_INIT;
 		wl_ext_ioctl(dev, WLC_DOWN, NULL, 0, 1);
-		/* IF SoftAP is enabled, disable arpoe or wlan1 will ping fail */
-		wl_ext_iovar_setint(dev, "arp_ol", 0);
-		wl_ext_iovar_setint(dev, "arpoe", 0);
+#ifdef ARP_OFFLOAD_SUPPORT
+		/* IF SoftAP is enabled, disable arpoe */
+		dhd_arp_offload_set(dhd, 0);
+		dhd_arp_offload_enable(dhd, FALSE);
+#endif /* ARP_OFFLOAD_SUPPORT */
 		wl_ext_iovar_setint(dev, "mpc", 0);
 		wl_ext_iovar_setint(dev, "apsta", 0);
 		val = 1;
 		wl_ext_ioctl(dev, WLC_SET_AP, &val, sizeof(val), 1);
 	} else if (apsta_params->apstamode == IAPSTA_MODE) {
 		apsta_params->pif.ifmode = ISTA_MODE;
+		apsta_params->pif.ifstate = IF_STATE_INIT;
 		apsta_params->vif.ifmode = IAP_MODE;
-		/* IF SoftAP is enabled, disable arpoe or wlan1 will ping fail */
-		wl_ext_iovar_setint(dev, "arp_ol", 0);
-		wl_ext_iovar_setint(dev, "arpoe", 0);
+		apsta_params->vif.ifstate = IF_STATE_INIT;
 		wl_ext_iovar_setint(dev, "mpc", 0);
+		wl_ext_ioctl(dev, WLC_DOWN, NULL, 0, 1);
 		wl_ext_iovar_setint(dev, "apsta", 1);
-		val = 0;
-		wl_ext_ioctl(dev, WLC_SET_PM, &val, sizeof(val), 1);
-		dhd = dhd_get_pub(dev);
+		wl_ext_ioctl(dev, WLC_UP, NULL, 0, 1);
 		if (FW_SUPPORTED(dhd, rsdb)) {
 			bzero(&iface, sizeof(wl_interface_create_t));
 			iface.ver = WL_INTERFACE_CREATE_VER;
@@ -911,28 +882,60 @@ wl_ext_iapsta_init(struct net_device *dev, char *command, int total_len)
 			wl_ext_iovar_setbuf_bsscfg(dev, "ssid", &ssid, sizeof(ssid), iovar_buf,
 				WLC_IOCTL_SMLEN, 1, NULL);
 		}
-	} else if (apsta_params->apstamode == IDUALAP_MODE) {
+	}
+	else if (apsta_params->apstamode == IDUALAP_MODE) {
 		apsta_params->pif.ifmode = IAP_MODE;
+		apsta_params->pif.ifstate = IF_STATE_INIT;
 		apsta_params->vif.ifmode = IAP_MODE;
+		apsta_params->vif.ifstate = IF_STATE_INIT;
 		wl_ext_ioctl(dev, WLC_DOWN, NULL, 0, 1);
 		wl_ext_iovar_setint(dev, "apsta", 0);
 		wl_ext_ioctl(dev, WLC_UP, NULL, 0, 1);
 		val = 1;
 		wl_ext_ioctl(dev, WLC_SET_AP, &val, sizeof(val), 1);
 		/* IF SoftAP is enabled, disable arpoe or wlan1 will ping fail */
-		wl_ext_iovar_setint(dev, "arp_ol", 0);
-		wl_ext_iovar_setint(dev, "arpoe", 0);
+#ifdef ARP_OFFLOAD_SUPPORT
+		/* IF SoftAP is enabled, disable arpoe */
+		dhd_arp_offload_set(dhd, 0);
+		dhd_arp_offload_enable(dhd, FALSE);
+#endif /* ARP_OFFLOAD_SUPPORT */
 		bzero(&iface, sizeof(wl_interface_create_t));
 		iface.ver = WL_INTERFACE_CREATE_VER;
 		iface.flags = WL_INTERFACE_CREATE_AP;
 		wl_ext_iovar_getbuf_bsscfg(dev, "interface_create", &iface, sizeof(iface), iovar_buf,
 			WLC_IOCTL_SMLEN, 1, NULL);
 	}
+	else if (apsta_params->apstamode == IGOSTA_MODE) {
+		apsta_params->pif.ifmode = ISTA_MODE;
+		apsta_params->pif.ifstate = IF_STATE_INIT;
+		apsta_params->vif.ifmode = IAP_MODE;
+		apsta_params->vif.ifstate = IF_STATE_INIT;
+		wl_ext_ioctl(dev, WLC_DOWN, NULL, 0, 1);
+		wl_ext_iovar_setint(dev, "apsta", 1);
+		wl_ext_ioctl(dev, WLC_UP, NULL, 0, 1);
+		bzero(&ifreq, sizeof(wl_p2p_if_t));
+		ifreq.type = htod32(WL_P2P_IF_GO);
+		wl_ext_iovar_setbuf(dev, "p2p_ifadd", &ifreq, sizeof(ifreq),
+			iovar_buf, WLC_IOCTL_SMLEN, NULL);
+	}
+	else if (apsta_params->apstamode == IGCSTA_MODE) {
+		apsta_params->pif.ifmode = ISTA_MODE;
+		apsta_params->pif.ifstate = IF_STATE_INIT;
+		apsta_params->vif.ifmode = ISTA_MODE;
+		apsta_params->vif.ifstate = IF_STATE_INIT;
+		wl_ext_ioctl(dev, WLC_DOWN, NULL, 0, 1);
+		wl_ext_iovar_setint(dev, "apsta", 1);
+		wl_ext_ioctl(dev, WLC_UP, NULL, 0, 1);
+		bzero(&ifreq, sizeof(wl_p2p_if_t));
+		ifreq.type = htod32(WL_P2P_IF_CLIENT);
+		wl_ext_iovar_setbuf(dev, "p2p_ifadd", &ifreq, sizeof(ifreq),
+			iovar_buf, WLC_IOCTL_SMLEN, NULL);
+	}
 
 	wl_ext_get_ioctl_ver(dev, &apsta_params->ioctl_ver);
 	printf("%s: apstamode=%d\n", __FUNCTION__, apsta_params->apstamode);
 
-	apsta_params->action = ACTION_INIT;
+	apsta_params->init = TRUE;
 
 	return 0;
 }
@@ -946,7 +949,7 @@ wl_ext_iapsta_config(struct net_device *dev, char *command, int total_len)
 	char ifname[IFNAMSIZ+1];
 	struct wl_if_info *cur_if = &apsta_params->pif;
 
-	if (apsta_params->action < ACTION_INIT) {
+	if (!apsta_params->init) {
 		ANDROID_ERROR(("%s: please init first\n", __FUNCTION__));
 		return -1;
 	}
@@ -1093,15 +1096,18 @@ wl_ext_iapsta_disable(struct net_device *dev, char *command, int total_len)
 		s32 val;
 	} bss_setbuf;
 	struct wl_apsta_params *apsta_params = &g_apsta_params;
+	apstamode_t apstamode = apsta_params->apstamode;
 	char ifname[IFNAMSIZ+1];
 	struct wl_if_info *cur_if;
+	struct dhd_pub *dhd;
 
-	if (apsta_params->action < ACTION_INIT) {
+	if (!apsta_params->init) {
 		ANDROID_ERROR(("%s: please init first\n", __FUNCTION__));
 		return -1;
 	}
 
 	ANDROID_TRACE(("%s: command=%s, len=%d\n", __FUNCTION__, command, total_len));
+	dhd = dhd_get_pub(dev);
 
 	pick_tmp = command;
 	param = bcmstrtok(&pick_tmp, " ", 0); // skip iapsta_disable
@@ -1139,11 +1145,12 @@ wl_ext_iapsta_disable(struct net_device *dev, char *command, int total_len)
 		wl_ext_ioctl(cur_if->dev, WLC_SCB_DEAUTHENTICATE, &scbval.ea, ETHER_ADDR_LEN, 1);
 	}
 
-	if (apsta_params->apstamode == IAPONLY_MODE) {
+	if (apstamode == IAPONLY_MODE) {
 		wl_ext_ioctl(dev, WLC_DOWN, NULL, 0, 1);
 		wl_ext_ioctl(dev, WLC_SET_SSID, &ssid, sizeof(ssid), 1); // reset ssid
 		wl_ext_iovar_setint(dev, "mpc", 1);
-	} else if (apsta_params->apstamode == IAPSTA_MODE && cur_if->ifmode == IAP_MODE) {
+	} else if ((apstamode==IAPSTA_MODE || apstamode==IGOSTA_MODE) &&
+			cur_if->ifmode == IAP_MODE) {
 		// vif is AP mode
 		bss_setbuf.tmp = 0xffffffff;
 		bss_setbuf.cfg = 0; // must be 0, or wlan1 can not be down
@@ -1151,7 +1158,12 @@ wl_ext_iapsta_disable(struct net_device *dev, char *command, int total_len)
 		wl_ext_iovar_setbuf(cur_if->dev, "bss", &bss_setbuf, sizeof(bss_setbuf),
 			iovar_buf, WLC_IOCTL_SMLEN, NULL);
 		wl_ext_iovar_setint(dev, "mpc", 1);
-	} else if (apsta_params->apstamode == IDUALAP_MODE) {
+#ifdef ARP_OFFLOAD_SUPPORT
+		/* IF SoftAP is disabled, enable arpoe back for STA mode. */
+		dhd_arp_offload_set(dhd, dhd_arp_mode);
+		dhd_arp_offload_enable(dhd, TRUE);
+#endif /* ARP_OFFLOAD_SUPPORT */
+	} else if (apstamode == IDUALAP_MODE) {
 		bss_setbuf.tmp = 0xffffffff;
 		bss_setbuf.cfg = 0; // must be 0, or wlan1 can not be down
 		bss_setbuf.val = htod32(0);
@@ -1159,8 +1171,20 @@ wl_ext_iapsta_disable(struct net_device *dev, char *command, int total_len)
 			iovar_buf, WLC_IOCTL_SMLEN, NULL);
 	}
 
-	apsta_params->action = ACTION_DISABLE;
-	printf("%s: apstamode=%d, ifname=%s\n", __FUNCTION__, apsta_params->apstamode, ifname);
+#ifdef PROP_TXSTATUS_VSDB
+#if defined(BCMSDIO)
+	if (cur_if==&apsta_params->vif && dhd->conf->disable_proptx!=0) {
+		bool enabled;
+		dhd_wlfc_get_enable(dhd, &enabled);
+		if (enabled) {
+			dhd_wlfc_deinit(dhd);
+		}
+	}
+#endif 
+#endif /* PROP_TXSTATUS_VSDB */
+
+	cur_if->ifstate = IF_STATE_DISALBE;
+	printf("%s: apstamode=%d, ifname=%s\n", __FUNCTION__, apstamode, ifname);
 
 	return 0;
 }
@@ -1184,12 +1208,13 @@ wl_ext_iapsta_enable(struct net_device *dev, char *command, int total_len)
 	char cmd[128] = "iapsta_stop ifname ";
 	struct dhd_pub *dhd;
 
-	if (apsta_params->action < ACTION_INIT) {
+	if (!apsta_params->init) {
 		ANDROID_ERROR(("%s: please init first\n", __FUNCTION__));
 		return -1;
 	}
 
 	ANDROID_TRACE(("%s: command=%s, len=%d\n", __FUNCTION__, command, total_len));
+	dhd = dhd_get_pub(dev);
 
 	pick_tmp = command;
 	param = bcmstrtok(&pick_tmp, " ", 0); // skip iapsta_enable
@@ -1232,13 +1257,15 @@ wl_ext_iapsta_enable(struct net_device *dev, char *command, int total_len)
 			ETHER_ADDR_LEN, iovar_buf, WLC_IOCTL_SMLEN, NULL);
 	}
 
-	if (apstamode == IAPONLY_MODE) {
+	// set ssid for AP
+	if (cur_if->ifmode == IAP_MODE) {
 		wl_ext_iovar_setint(dev, "mpc", 0);
-		wl_ext_ioctl(dev, WLC_UP, NULL, 0, 1);
-	} else if (apstamode == IAPSTA_MODE) {
-		wl_ext_iovar_setint(dev, "mpc", 0);
-		wl_ext_iovar_setbuf_bsscfg(dev, "ssid", &ssid, sizeof(ssid),
-			iovar_buf, WLC_IOCTL_SMLEN, cur_if->bssidx, NULL);
+		if (apstamode == IAPONLY_MODE) {
+			wl_ext_ioctl(dev, WLC_UP, NULL, 0, 1);
+		} else if (apstamode==IAPSTA_MODE || apstamode==IGOSTA_MODE) {
+			wl_ext_iovar_setbuf_bsscfg(cur_if->dev, "ssid", &ssid, sizeof(ssid),
+				iovar_buf, WLC_IOCTL_SMLEN, cur_if->bssidx, NULL);
+		}
 	}
 
 	if (cur_if->ifmode == IAP_MODE) {
@@ -1248,10 +1275,10 @@ wl_ext_iapsta_enable(struct net_device *dev, char *command, int total_len)
 	wl_ext_set_amode(cur_if, apsta_params);
 	wl_ext_set_emode(cur_if, apsta_params);
 
-	if (apstamode == ISTAONLY_MODE) {
+	if (apstamode == ISTAONLY_MODE || apstamode == IGCSTA_MODE) {
 		if (!ETHER_ISBCAST(&cur_if->bssid) && !ETHER_ISNULLADDR(&cur_if->bssid)) {
 			printf("%s: BSSID: %pM\n", __FUNCTION__, &cur_if->bssid);
-			wl_ext_ioctl(dev, WLC_SET_BSSID, &cur_if->bssid, ETHER_ADDR_LEN, 1);
+			wl_ext_ioctl(cur_if->dev, WLC_SET_BSSID, &cur_if->bssid, ETHER_ADDR_LEN, 1);
 		}
 		val = 1;
 		wl_ext_ioctl(dev, WLC_SET_INFRA, &val, sizeof(val), 1);
@@ -1264,16 +1291,15 @@ wl_ext_iapsta_enable(struct net_device *dev, char *command, int total_len)
 		wl_ext_ioctl(cur_if->dev, WLC_SET_CLOSED, &cur_if->hidden, sizeof(cur_if->hidden), 1);
 	}
 
-	if (apstamode == ISTAONLY_MODE) {
-		wl_ext_ioctl(dev, WLC_SET_SSID, &ssid, sizeof(ssid), 1);
+	if (apstamode == ISTAONLY_MODE || apstamode == IGCSTA_MODE) {
+		wl_ext_ioctl(cur_if->dev, WLC_SET_SSID, &ssid, sizeof(ssid), 1);
 	} else if (apstamode == IAPONLY_MODE) {
-		wl_ext_ioctl(dev, WLC_SET_SSID, &ssid, sizeof(ssid), 1);
+		wl_ext_ioctl(cur_if->dev, WLC_SET_SSID, &ssid, sizeof(ssid), 1);
 		wl_ext_ioctl(dev, WLC_UP, NULL, 0, 1);
-	} else if (apstamode == IAPSTA_MODE) {
+	} else if (apstamode == IAPSTA_MODE || apstamode == IGOSTA_MODE) {
 		if (cur_if->ifmode == ISTA_MODE) {
-			wl_ext_ioctl(dev, WLC_SET_SSID, &ssid, sizeof(ssid), 1);
+			wl_ext_ioctl(cur_if->dev, WLC_SET_SSID, &ssid, sizeof(ssid), 1);
 		} else {
-			dhd = dhd_get_pub(dev);
 			if (FW_SUPPORTED(dhd, rsdb)) {
 				wl_ext_ioctl(cur_if->dev, WLC_SET_SSID, &ssid, sizeof(ssid), 1);
 			} else {
@@ -1282,33 +1308,57 @@ wl_ext_iapsta_enable(struct net_device *dev, char *command, int total_len)
 				wl_ext_iovar_setbuf(cur_if->dev, "bss", &bss_setbuf, sizeof(bss_setbuf),
 					iovar_buf, WLC_IOCTL_SMLEN, NULL);
 			}
+#ifdef ARP_OFFLOAD_SUPPORT
+			/* IF SoftAP is enabled, disable arpoe */
+			dhd_arp_offload_set(dhd, 0);
+			dhd_arp_offload_enable(dhd, FALSE);
+#endif /* ARP_OFFLOAD_SUPPORT */
 		}
-	} else if (apstamode == IDUALAP_MODE) {
+	}
+	else if (apstamode == IDUALAP_MODE) {
 		wl_ext_ioctl(cur_if->dev, WLC_SET_SSID, &ssid, sizeof(ssid), 1);
 	}
+
+#ifdef PROP_TXSTATUS_VSDB
+#if defined(BCMSDIO)
+	if (cur_if==&apsta_params->vif && !disable_proptx) {
+		bool enabled;
+		dhd_wlfc_get_enable(dhd, &enabled);
+		if (!enabled) {
+			dhd_wlfc_init(dhd);
+			wl_ext_ioctl(dev, WLC_UP, NULL, 0, 1);
+		}
+	}
+#endif 
+#endif /* PROP_TXSTATUS_VSDB */
+
 	printf("%s: ifname=%s, SSID: %s\n", __FUNCTION__, ifname, cur_if->ssid);
 
-	apsta_params->action = ACTION_ENABLE;
+	cur_if->ifstate = IF_STATE_ENABLE;
 
 exit:
 	return ret;
 }
 
 void
-wl_android_ext_iapsta_disconnect_sta(u32 channel)
+wl_android_ext_iapsta_disconnect_sta(struct net_device *dev, u32 channel)
 {
 	struct wl_apsta_params *apsta_params = &g_apsta_params;
 	struct wl_if_info *cur_if = &apsta_params->vif;
 	scb_val_t scbval;
 	int ret;
 	channel_info_t ci;
+	struct dhd_pub *dhd;
 
-	if (apsta_params->apstamode==IAPSTA_MODE && apsta_params->action==ACTION_ENABLE) {
-		if (!(ret = wldev_ioctl(cur_if->dev, WLC_GET_CHANNEL, &ci, sizeof(channel_info_t), FALSE))) {
-			if (channel != ci.target_channel) {
-				printf("%s: deauthenticate all STA on vif\n", __FUNCTION__);
-				memcpy(scbval.ea.octet, &ether_bcast, ETHER_ADDR_LEN);
-				wl_ext_ioctl(cur_if->dev, WLC_SCB_DEAUTHENTICATE, &scbval.ea, ETHER_ADDR_LEN, 1);
+	if (apsta_params->apstamode==IAPSTA_MODE && cur_if->ifstate==IF_STATE_ENABLE) {
+		dhd = dhd_get_pub(dev);
+		if (!FW_SUPPORTED(dhd, vsdb)) {
+			if (!(ret = wldev_ioctl(cur_if->dev, WLC_GET_CHANNEL, &ci, sizeof(channel_info_t), FALSE))) {
+				if (channel != ci.target_channel) {
+					printf("%s: deauthenticate all STA on vif\n", __FUNCTION__);
+					memcpy(scbval.ea.octet, &ether_bcast, ETHER_ADDR_LEN);
+					wl_ext_ioctl(cur_if->dev, WLC_SCB_DEAUTHENTICATE, &scbval.ea, ETHER_ADDR_LEN, 1);
+				}
 			}
 		}
 	}
@@ -1342,7 +1392,7 @@ int wl_android_ext_dettach_netdev(void)
 }
 #endif
 
-#ifdef IDHCPC
+#ifdef IDHCP
 int wl_ext_ip_dump(int ip, char *buf)
 {
 	unsigned char bytes[4];
@@ -1533,7 +1583,7 @@ int wl_android_ext_priv_cmd(struct net_device *net, char *command, int total_len
 		*bytes_written = wl_ext_iapsta_disable(net, command, total_len);
 	}
 #endif
-#ifdef IDHCPC
+#ifdef IDHCP
 	else if (strnicmp(command, CMD_DHCPC_ENABLE, strlen(CMD_DHCPC_ENABLE)) == 0) {
 		*bytes_written = wl_ext_dhcpc_enable(net, command, total_len);
 	}

@@ -89,7 +89,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd);
 #ifdef WL_EXT_IAPSTA
 int wl_android_ext_attach_netdev(struct net_device *net, uint8 bssidx);
 int wl_android_ext_dettach_netdev(void);
-void wl_android_ext_iapsta_disconnect_sta(u32 channel);
+void wl_android_ext_iapsta_disconnect_sta(struct net_device *dev, u32 channel);
 #endif
 int wl_android_ext_priv_cmd(struct net_device *net, char *command, int total_len,
 	int *bytes_written);
@@ -97,17 +97,19 @@ int wl_android_ext_priv_cmd(struct net_device *net, char *command, int total_len
 #define strnicmp(str1, str2, len) strncasecmp((str1), (str2), (len))
 #endif
 
-typedef enum ACTION {
-	ACTION_INIT = 1,
-	ACTION_DISABLE,
-	ACTION_ENABLE
-} action_t;
+typedef enum IF_STATE {
+	IF_STATE_INIT = 1,
+	IF_STATE_DISALBE,
+	IF_STATE_ENABLE
+} if_state_t;
 
 typedef enum APSTAMODE {
 	ISTAONLY_MODE = 1,
 	IAPONLY_MODE,
 	IAPSTA_MODE,
-	IDUALAP_MODE
+	IDUALAP_MODE,
+	IGOSTA_MODE,
+	IGCSTA_MODE
 } apstamode_t;
 
 typedef enum IFMODE {
@@ -142,6 +144,7 @@ typedef enum ENCMODE {
 /* i/f query */
 typedef struct wl_if_info {
 	struct net_device *dev;
+	if_state_t ifstate;
 	ifmode_t ifmode;
 	uint bssidx;
 	char ifname[IFNAMSIZ+1];
@@ -160,7 +163,7 @@ typedef struct wl_apsta_params {
 	struct wl_if_info pif; // primary device
 	struct wl_if_info vif; // virtual device
 	int ioctl_ver;
-	action_t action;
+	bool init;
 	apstamode_t apstamode;
 } wl_apsta_params_t;
 

@@ -23,6 +23,7 @@ extern uint dhd_slpauto;
 #define BCM43430A0_CHIP_REV     0
 #define BCM43430A1_CHIP_REV     1
 #define BCM43430A2_CHIP_REV     2
+#define BCM43012B0_CHIP_REV     1
 #define BCM4330B2_CHIP_REV      4
 #define BCM4334B1_CHIP_REV      3
 #define BCM43341B0_CHIP_REV     2
@@ -30,11 +31,13 @@ extern uint dhd_slpauto;
 #define BCM4335A0_CHIP_REV      2
 #define BCM4339A0_CHIP_REV      1
 #define BCM43455C0_CHIP_REV     6
+#define BCM43455C5_CHIP_REV     9
 #define BCM4354A1_CHIP_REV      1
 #define BCM4359B1_CHIP_REV      5
 #define BCM4359C0_CHIP_REV      9
 #endif
 #define BCM4356A2_CHIP_REV      2
+#define BCM4358A3_CHIP_REV      3
 
 /* mac range */
 typedef struct wl_mac_range {
@@ -132,7 +135,8 @@ typedef struct dhd_conf {
 	int fullroamperiod;			/* Full Roaming period */
 	uint keep_alive_period;		/* The perioid in ms to send keep alive packet */
 	int force_wme_ac;
-	wme_param_t wme;	/* WME parameters */
+	wme_param_t wme_sta;	/* WME parameters */
+	wme_param_t wme_ap;	/* WME parameters */
 	int stbc;			/* STBC for Tx/Rx */
 	int phy_oclscdenable;		/* phy_oclscdenable */
 #ifdef PKT_FILTER_SUPPORT
@@ -181,6 +185,7 @@ typedef struct dhd_conf {
 	int ampdu_ba_wsize;
 	int ampdu_hostreorder;
 	int dpc_cpucore;
+	int rxf_cpucore;
 	int frameburst;
 	bool deepsleep;
 	int pm;
@@ -194,14 +199,26 @@ typedef struct dhd_conf {
 	int vhtmode;
 	int num_different_channels;
 	int xmit_in_suspend;
-#ifdef IDHCPC
+	int ap_in_suspend;
+#ifdef SUSPEND_EVENT
+	bool suspend_eventmask_enable;
+	char suspend_eventmask[WL_EVENTING_MASK_LEN];
+	char resume_eventmask[WL_EVENTING_MASK_LEN];
+#endif
+#ifdef IDHCP
 	int dhcpc_enable;
+	int dhcpd_enable;
+	struct ipv4_addr dhcpd_ip_addr;
+	struct ipv4_addr dhcpd_ip_mask;
+	struct ipv4_addr dhcpd_ip_start;
+	struct ipv4_addr dhcpd_ip_end;
 #endif
 #ifdef IAPSTA_PREINIT
 	char iapsta_init[50];
 	char iapsta_config[300];
 	char iapsta_enable[50];
 #endif
+	int autocountry;
 	int tsq;
 } dhd_conf_t;
 
@@ -215,13 +232,15 @@ void dhd_conf_set_hw_oob_intr(bcmsdh_info_t *sdh, uint chip);
 void dhd_conf_set_txglom_params(dhd_pub_t *dhd, bool enable);
 #endif
 void dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path, char *nv_path);
+void dhd_conf_set_clm_name_by_chip(dhd_pub_t *dhd, char *clm_path);
 void dhd_conf_set_nv_name_by_chip(dhd_pub_t *dhd, char *nv_path);
-void dhd_conf_set_conf_path_by_nv_path(dhd_pub_t *dhd, char *conf_path, char *nv_path);
+void dhd_conf_set_path(dhd_pub_t *dhd, char *dst_name, char *dst_path, char *src_path);
 #ifdef CONFIG_PATH_AUTO_SELECT
 void dhd_conf_set_conf_name_by_chip(dhd_pub_t *dhd, char *conf_path);
 #endif
 int dhd_conf_set_intiovar(dhd_pub_t *dhd, uint cmd, char *name, int val, int def, bool down);
 int dhd_conf_get_iovar(dhd_pub_t *dhd, int cmd, char *name, char *buf, int len, int ifidx);
+int dhd_conf_set_bufiovar(dhd_pub_t *dhd, uint cmd, char *name, char *buf, int len, bool down);
 uint dhd_conf_get_band(dhd_pub_t *dhd);
 int dhd_conf_set_country(dhd_pub_t *dhd);
 int dhd_conf_get_country(dhd_pub_t *dhd, wl_country_t *cspec);
@@ -230,8 +249,7 @@ int dhd_conf_fix_country(dhd_pub_t *dhd);
 bool dhd_conf_match_channel(dhd_pub_t *dhd, uint32 channel);
 int dhd_conf_set_roam(dhd_pub_t *dhd);
 void dhd_conf_set_bw_cap(dhd_pub_t *dhd);
-void dhd_conf_get_wme(dhd_pub_t *dhd, edcf_acparam_t *acp);
-void dhd_conf_set_wme(dhd_pub_t *dhd);
+void dhd_conf_set_wme(dhd_pub_t *dhd, int mode);
 void dhd_conf_add_pkt_filter(dhd_pub_t *dhd);
 bool dhd_conf_del_pkt_filter(dhd_pub_t *dhd, uint32 id);
 void dhd_conf_discard_pkt_filter(dhd_pub_t *dhd);
@@ -243,6 +261,8 @@ int dhd_conf_get_pm(dhd_pub_t *dhd);
 #ifdef PROP_TXSTATUS
 int dhd_conf_get_disable_proptx(dhd_pub_t *dhd);
 #endif
+int dhd_conf_get_ap_mode_in_suspend(dhd_pub_t *dhd);
+int dhd_conf_set_ap_in_suspend(dhd_pub_t *dhd, int suspend);
 int dhd_conf_preinit(dhd_pub_t *dhd);
 int dhd_conf_reset(dhd_pub_t *dhd);
 int dhd_conf_attach(dhd_pub_t *dhd);

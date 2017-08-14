@@ -59,6 +59,7 @@ typedef struct wifi_adapter_info {
 	uint		intr_flags;
 	const char	*fw_path;
 	const char	*nv_path;
+	const char	*clm_path;
 	const char	*conf_path;
 	void		*wifi_plat_data;	/* wifi ctrl func, for backward compatibility */
 	uint		bus_type;

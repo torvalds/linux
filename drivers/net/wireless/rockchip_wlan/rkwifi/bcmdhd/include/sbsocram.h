@@ -123,6 +123,8 @@ typedef volatile struct sbsocramregs {
 #define	SRCI_SRBSZ_MASK		0xf
 #define	SRCI_SRBSZ_SHIFT	0
 
+#define	SRCI_SRNB_MASK_EXT	0x100
+
 #define SR_BSZ_BASE		14
 
 /* Standby control register */

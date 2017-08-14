@@ -753,13 +753,16 @@ wl_cfgvendor_significant_change_cfg(struct wiphy *wiphy,
 	gscan_swc_params_t *significant_params;
 	int tmp, tmp1, tmp2, type, j = 0;
 	const struct nlattr *outer, *inner, *iter;
-	uint8 flush = 0;
-	wl_pfn_significant_bssid_t *bssid;
-
-	significant_params = (gscan_swc_params_t *) kzalloc(len, GFP_KERNEL);
+	bool flush = FALSE;
+	wl_pfn_significant_bssid_t *pbssid;
+	uint16 num_bssid = 0;
+	uint16 max_buf_size = sizeof(gscan_swc_params_t) +
+		sizeof(wl_pfn_significant_bssid_t) * (PFN_SWC_MAX_NUM_APS - 1);
+	
+	significant_params = kzalloc(max_buf_size, GFP_KERNEL);
 	if (!significant_params) {
-		WL_ERR(("Cannot Malloc mem to parse config commands size - %d bytes \n", len));
-		return -ENOMEM;
+		WL_ERR(("Cannot Malloc mem size:%d\n", len));
+		return BCME_NOMEM;
 	}
 
 	nla_for_each_attr(iter, data, len, tmp2) {
@@ -767,7 +770,7 @@ wl_cfgvendor_significant_change_cfg(struct wiphy *wiphy,
 
 		switch (type) {
 			case GSCAN_ATTRIBUTE_SIGNIFICANT_CHANGE_FLUSH:
-			flush = nla_get_u8(iter);
+			flush = (bool) nla_get_u8(iter);
 			break;
 			case GSCAN_ATTRIBUTE_RSSI_SAMPLE_SIZE:
 				significant_params->rssi_window = nla_get_u16(iter);
@@ -778,23 +781,41 @@ wl_cfgvendor_significant_change_cfg(struct wiphy *wiphy,
 			case GSCAN_ATTRIBUTE_MIN_BREACHING:
 				significant_params->swc_threshold = nla_get_u16(iter);
 				break;
+			case GSCAN_ATTRIBUTE_NUM_BSSID:
+				num_bssid = nla_get_u16(iter);
+				if (num_bssid > PFN_SWC_MAX_NUM_APS) {
+					WL_ERR(("ovar max SWC bssids:%d\n",
+						num_bssid));
+					err = BCME_BADARG;
+					goto exit;
+				}
+				break;
 			case GSCAN_ATTRIBUTE_SIGNIFICANT_CHANGE_BSSIDS:
-				bssid = significant_params->bssid_elem_list;
+				if (num_bssid == 0) {
+					WL_ERR(("num_bssid : 0\n"));
+					err = BCME_BADARG;
+					goto exit;
+				}
+				pbssid = significant_params->bssid_elem_list;
 				nla_for_each_nested(outer, iter, tmp) {
+					if (j >= num_bssid) {
+						j++;
+						break;
+					}
 					nla_for_each_nested(inner, outer, tmp1) {
 							switch (nla_type(inner)) {
 								case GSCAN_ATTRIBUTE_BSSID:
-									memcpy(&(bssid[j].macaddr),
-									       nla_data(inner),
-									       ETHER_ADDR_LEN);
+									memcpy(&(pbssid[j].macaddr),
+									     nla_data(inner),
+									     ETHER_ADDR_LEN);
 									break;
 								case GSCAN_ATTRIBUTE_RSSI_HIGH:
-									bssid[j].rssi_high_threshold
-									 = (int8) nla_get_u8(inner);
+									pbssid[j].rssi_high_threshold =
+									       (int8) nla_get_u8(inner);
 									break;
 								case GSCAN_ATTRIBUTE_RSSI_LOW:
-									bssid[j].rssi_low_threshold
-									 = (int8) nla_get_u8(inner);
+									pbssid[j].rssi_low_threshold =
+									      (int8) nla_get_u8(inner);
 									break;
 								default:
 									WL_ERR(("ATTR unknown %d\n",
@@ -810,13 +831,19 @@ wl_cfgvendor_significant_change_cfg(struct wiphy *wiphy,
 				break;
 		}
 	}
+	if (j != num_bssid) {
+		WL_ERR(("swc bssids count:%d not matched to num_bssid:%d\n",
+			j, num_bssid));
+		err = BCME_BADARG;
+		goto exit;
+	}
 	significant_params->nbssid = j;
 
 	if (dhd_dev_pno_set_cfg_gscan(bcmcfg_to_prmry_ndev(cfg),
 	              DHD_PNO_SIGNIFICANT_SCAN_CFG_ID,
 	              significant_params, flush) < 0) {
 		WL_ERR(("Could not set GSCAN significant cfg\n"));
-		err = -EINVAL;
+		err = BCME_ERROR;
 		goto exit;
 	}
 exit:
