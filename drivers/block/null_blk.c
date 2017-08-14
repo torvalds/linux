@@ -59,9 +59,11 @@ struct nullb_device {
 	unsigned int blocksize; /* block size */
 	unsigned int irqmode; /* IRQ completion handler */
 	unsigned int hw_queue_depth; /* queue depth */
+	unsigned int index; /* index of the disk, only valid with a disk */
 	bool use_lightnvm; /* register as a LightNVM device */
 	bool blocking; /* blocking blk-mq device */
 	bool use_per_node_hctx; /* use per-node allocation for hardware context */
+	bool power; /* power on/off the device */
 };
 
 struct nullb {
@@ -193,6 +195,8 @@ MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware contex
 
 static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
+static void null_del_dev(struct nullb *nullb);
+static int null_add_dev(struct nullb_device *dev);
 
 static inline struct nullb_device *to_nullb_device(struct config_item *item)
 {
@@ -284,9 +288,49 @@ NULLB_DEVICE_ATTR(queue_mode, uint);
 NULLB_DEVICE_ATTR(blocksize, uint);
 NULLB_DEVICE_ATTR(irqmode, uint);
 NULLB_DEVICE_ATTR(hw_queue_depth, uint);
+NULLB_DEVICE_ATTR(index, uint);
 NULLB_DEVICE_ATTR(use_lightnvm, bool);
 NULLB_DEVICE_ATTR(blocking, bool);
 NULLB_DEVICE_ATTR(use_per_node_hctx, bool);
+
+static ssize_t nullb_device_power_show(struct config_item *item, char *page)
+{
+	return nullb_device_bool_attr_show(to_nullb_device(item)->power, page);
+}
+
+static ssize_t nullb_device_power_store(struct config_item *item,
+				     const char *page, size_t count)
+{
+	struct nullb_device *dev = to_nullb_device(item);
+	bool newp = false;
+	ssize_t ret;
+
+	ret = nullb_device_bool_attr_store(&newp, page, count);
+	if (ret < 0)
+		return ret;
+
+	if (!dev->power && newp) {
+		if (test_and_set_bit(NULLB_DEV_FL_UP, &dev->flags))
+			return count;
+		if (null_add_dev(dev)) {
+			clear_bit(NULLB_DEV_FL_UP, &dev->flags);
+			return -ENOMEM;
+		}
+
+		set_bit(NULLB_DEV_FL_CONFIGURED, &dev->flags);
+		dev->power = newp;
+	} else if (to_nullb_device(item)->power && !newp) {
+		mutex_lock(&lock);
+		dev->power = newp;
+		null_del_dev(dev->nullb);
+		mutex_unlock(&lock);
+		clear_bit(NULLB_DEV_FL_UP, &dev->flags);
+	}
+
+	return count;
+}
+
+CONFIGFS_ATTR(nullb_device_, power);
 
 static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_size,
@@ -297,9 +341,11 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_blocksize,
 	&nullb_device_attr_irqmode,
 	&nullb_device_attr_hw_queue_depth,
+	&nullb_device_attr_index,
 	&nullb_device_attr_use_lightnvm,
 	&nullb_device_attr_blocking,
 	&nullb_device_attr_use_per_node_hctx,
+	&nullb_device_attr_power,
 	NULL,
 };
 
@@ -335,6 +381,15 @@ config_item *nullb_group_make_item(struct config_group *group, const char *name)
 static void
 nullb_group_drop_item(struct config_group *group, struct config_item *item)
 {
+	struct nullb_device *dev = to_nullb_device(item);
+
+	if (test_and_clear_bit(NULLB_DEV_FL_UP, &dev->flags)) {
+		mutex_lock(&lock);
+		dev->power = false;
+		null_del_dev(dev->nullb);
+		mutex_unlock(&lock);
+	}
+
 	config_item_put(item);
 }
 
@@ -973,10 +1028,34 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 	return blk_mq_alloc_tag_set(set);
 }
 
+static void null_validate_conf(struct nullb_device *dev)
+{
+	dev->blocksize = round_down(dev->blocksize, 512);
+	dev->blocksize = clamp_t(unsigned int, dev->blocksize, 512, 4096);
+	if (dev->use_lightnvm && dev->blocksize != 4096)
+		dev->blocksize = 4096;
+
+	if (dev->use_lightnvm && dev->queue_mode != NULL_Q_MQ)
+		dev->queue_mode = NULL_Q_MQ;
+
+	if (dev->queue_mode == NULL_Q_MQ && dev->use_per_node_hctx) {
+		if (dev->submit_queues != nr_online_nodes)
+			dev->submit_queues = nr_online_nodes;
+	} else if (dev->submit_queues > nr_cpu_ids)
+		dev->submit_queues = nr_cpu_ids;
+	else if (dev->submit_queues == 0)
+		dev->submit_queues = 1;
+
+	dev->queue_mode = min_t(unsigned int, dev->queue_mode, NULL_Q_MQ);
+	dev->irqmode = min_t(unsigned int, dev->irqmode, NULL_IRQ_TIMER);
+}
+
 static int null_add_dev(struct nullb_device *dev)
 {
 	struct nullb *nullb;
 	int rv;
+
+	null_validate_conf(dev);
 
 	nullb = kzalloc_node(sizeof(*nullb), GFP_KERNEL, dev->home_node);
 	if (!nullb) {
@@ -1040,6 +1119,7 @@ static int null_add_dev(struct nullb_device *dev)
 
 	mutex_lock(&lock);
 	nullb->index = nullb_indexes++;
+	dev->index = nullb->index;
 	mutex_unlock(&lock);
 
 	blk_queue_logical_block_size(nullb->q, dev->blocksize);
