@@ -33,6 +33,10 @@
 #define MAX_FREQ_ERROR 10e-6
 #define MAX_STDDEV 1000e-9
 
+#ifndef ADJ_SETOFFSET
+  #define ADJ_SETOFFSET 0x0100
+#endif
+
 struct sample {
 	double offset;
 	double time;
