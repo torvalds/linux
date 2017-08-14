@@ -42,7 +42,7 @@ static pgprot_t __get_dma_pgprot(unsigned long attrs, pgprot_t prot,
 	return prot;
 }
 
-static struct gen_pool *atomic_pool;
+static struct gen_pool *atomic_pool __ro_after_init;
 
 #define DEFAULT_DMA_COHERENT_POOL_SIZE  SZ_256K
 static size_t atomic_pool_size __initdata = DEFAULT_DMA_COHERENT_POOL_SIZE;
