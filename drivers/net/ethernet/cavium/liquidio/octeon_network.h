@@ -484,4 +484,5 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		     union octeon_rh *rh,
 		     void *param,
 		     void *arg);
+void liquidio_napi_drv_callback(void *arg);
 #endif

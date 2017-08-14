@@ -1377,17 +1377,6 @@ static void if_cfg_callback(struct octeon_device *oct,
 }
 
 /**
- * \brief callback when receive interrupt occurs and we are in NAPI mode
- * @param arg pointer to octeon output queue
- */
-static void liquidio_vf_napi_drv_callback(void *arg)
-{
-	struct octeon_droq *droq = arg;
-
-	napi_schedule_irqoff(&droq->napi);
-}
-
-/**
  * \brief Entry point for NAPI polling
  * @param napi NAPI structure
  * @param budget maximum number of items to process
@@ -1473,7 +1462,7 @@ static int setup_io_queues(struct octeon_device *octeon_dev, int ifidx)
 	droq_ops.farg = netdev;
 
 	droq_ops.poll_mode = 1;
-	droq_ops.napi_fn = liquidio_vf_napi_drv_callback;
+	droq_ops.napi_fn = liquidio_napi_drv_callback;
 	cpu_id = 0;
 	cpu_id_modulus = num_present_cpus();
 

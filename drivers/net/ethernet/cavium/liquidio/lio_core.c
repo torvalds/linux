@@ -581,3 +581,42 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		recv_buffer_free(skb);
 	}
 }
+
+/**
+ * \brief wrapper for calling napi_schedule
+ * @param param parameters to pass to napi_schedule
+ *
+ * Used when scheduling on different CPUs
+ */
+static void napi_schedule_wrapper(void *param)
+{
+	struct napi_struct *napi = param;
+
+	napi_schedule(napi);
+}
+
+/**
+ * \brief callback when receive interrupt occurs and we are in NAPI mode
+ * @param arg pointer to octeon output queue
+ */
+void liquidio_napi_drv_callback(void *arg)
+{
+	struct octeon_device *oct;
+	struct octeon_droq *droq = arg;
+	int this_cpu = smp_processor_id();
+
+	oct = droq->oct_dev;
+
+	if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct) ||
+	    droq->cpu_id == this_cpu) {
+		napi_schedule_irqoff(&droq->napi);
+	} else {
+		struct call_single_data *csd = &droq->csd;
+
+		csd->func = napi_schedule_wrapper;
+		csd->info = &droq->napi;
+		csd->flags = 0;
+
+		smp_call_function_single_async(droq->cpu_id, csd);
+	}
+}
