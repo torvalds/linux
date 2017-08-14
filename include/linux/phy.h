@@ -830,7 +830,7 @@ static inline int phy_read_status(struct phy_device *phydev)
 	dev_err(&_phydev->mdio.dev, format, ##args)
 
 #define phydev_dbg(_phydev, format, args...)	\
-	dev_dbg(&_phydev->mdio.dev, format, ##args);
+	dev_dbg(&_phydev->mdio.dev, format, ##args)
 
 static inline const char *phydev_name(const struct phy_device *phydev)
 {

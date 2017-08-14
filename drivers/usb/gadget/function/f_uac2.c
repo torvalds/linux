@@ -168,7 +168,7 @@ static struct uac2_input_terminal_descriptor usb_out_it_desc = {
 	.bAssocTerminal = 0,
 	.bCSourceID = USB_OUT_CLK_ID,
 	.iChannelNames = 0,
-	.bmControls = (CONTROL_RDWR << COPY_CTRL),
+	.bmControls = cpu_to_le16(CONTROL_RDWR << COPY_CTRL),
 };
 
 /* Input Terminal for I/O-In */
@@ -182,7 +182,7 @@ static struct uac2_input_terminal_descriptor io_in_it_desc = {
 	.bAssocTerminal = 0,
 	.bCSourceID = USB_IN_CLK_ID,
 	.iChannelNames = 0,
-	.bmControls = (CONTROL_RDWR << COPY_CTRL),
+	.bmControls = cpu_to_le16(CONTROL_RDWR << COPY_CTRL),
 };
 
 /* Ouput Terminal for USB_IN */
@@ -196,7 +196,7 @@ static struct uac2_output_terminal_descriptor usb_in_ot_desc = {
 	.bAssocTerminal = 0,
 	.bSourceID = IO_IN_IT_ID,
 	.bCSourceID = USB_IN_CLK_ID,
-	.bmControls = (CONTROL_RDWR << COPY_CTRL),
+	.bmControls = cpu_to_le16(CONTROL_RDWR << COPY_CTRL),
 };
 
 /* Ouput Terminal for I/O-Out */
@@ -210,7 +210,7 @@ static struct uac2_output_terminal_descriptor io_out_ot_desc = {
 	.bAssocTerminal = 0,
 	.bSourceID = USB_OUT_IT_ID,
 	.bCSourceID = USB_OUT_CLK_ID,
-	.bmControls = (CONTROL_RDWR << COPY_CTRL),
+	.bmControls = cpu_to_le16(CONTROL_RDWR << COPY_CTRL),
 };
 
 static struct uac2_ac_header_descriptor ac_hdr_desc = {
@@ -220,9 +220,10 @@ static struct uac2_ac_header_descriptor ac_hdr_desc = {
 	.bDescriptorSubtype = UAC_MS_HEADER,
 	.bcdADC = cpu_to_le16(0x200),
 	.bCategory = UAC2_FUNCTION_IO_BOX,
-	.wTotalLength = sizeof in_clk_src_desc + sizeof out_clk_src_desc
-			 + sizeof usb_out_it_desc + sizeof io_in_it_desc
-			+ sizeof usb_in_ot_desc + sizeof io_out_ot_desc,
+	.wTotalLength = cpu_to_le16(sizeof in_clk_src_desc
+			+ sizeof out_clk_src_desc + sizeof usb_out_it_desc
+			+ sizeof io_in_it_desc + sizeof usb_in_ot_desc
+			+ sizeof io_out_ot_desc),
 	.bmControls = 0,
 };
 
@@ -569,10 +570,12 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 		return ret;
 	}
 
-	agdev->in_ep_maxpsize = max(fs_epin_desc.wMaxPacketSize,
-					hs_epin_desc.wMaxPacketSize);
-	agdev->out_ep_maxpsize = max(fs_epout_desc.wMaxPacketSize,
-					hs_epout_desc.wMaxPacketSize);
+	agdev->in_ep_maxpsize = max_t(u16,
+				le16_to_cpu(fs_epin_desc.wMaxPacketSize),
+				le16_to_cpu(hs_epin_desc.wMaxPacketSize));
+	agdev->out_ep_maxpsize = max_t(u16,
+				le16_to_cpu(fs_epout_desc.wMaxPacketSize),
+				le16_to_cpu(hs_epout_desc.wMaxPacketSize));
 
 	hs_epout_desc.bEndpointAddress = fs_epout_desc.bEndpointAddress;
 	hs_epin_desc.bEndpointAddress = fs_epin_desc.bEndpointAddress;

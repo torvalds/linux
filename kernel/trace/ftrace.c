@@ -113,7 +113,7 @@ static int ftrace_disabled __read_mostly;
 
 static DEFINE_MUTEX(ftrace_lock);
 
-static struct ftrace_ops *ftrace_ops_list __read_mostly = &ftrace_list_end;
+static struct ftrace_ops __rcu *ftrace_ops_list __read_mostly = &ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
 static struct ftrace_ops global_ops;
 
@@ -169,8 +169,11 @@ int ftrace_nr_registered_ops(void)
 
 	mutex_lock(&ftrace_lock);
 
-	for (ops = ftrace_ops_list;
-	     ops != &ftrace_list_end; ops = ops->next)
+	for (ops = rcu_dereference_protected(ftrace_ops_list,
+					     lockdep_is_held(&ftrace_lock));
+	     ops != &ftrace_list_end;
+	     ops = rcu_dereference_protected(ops->next,
+					     lockdep_is_held(&ftrace_lock)))
 		cnt++;
 
 	mutex_unlock(&ftrace_lock);
@@ -275,10 +278,11 @@ static void update_ftrace_function(void)
 	 * If there's only one ftrace_ops registered, the ftrace_ops_list
 	 * will point to the ops we want.
 	 */
-	set_function_trace_op = ftrace_ops_list;
+	set_function_trace_op = rcu_dereference_protected(ftrace_ops_list,
+						lockdep_is_held(&ftrace_lock));
 
 	/* If there's no ftrace_ops registered, just call the stub function */
-	if (ftrace_ops_list == &ftrace_list_end) {
+	if (set_function_trace_op == &ftrace_list_end) {
 		func = ftrace_stub;
 
 	/*
@@ -286,7 +290,8 @@ static void update_ftrace_function(void)
 	 * recursion safe and not dynamic and the arch supports passing ops,
 	 * then have the mcount trampoline call the function directly.
 	 */
-	} else if (ftrace_ops_list->next == &ftrace_list_end) {
+	} else if (rcu_dereference_protected(ftrace_ops_list->next,
+			lockdep_is_held(&ftrace_lock)) == &ftrace_list_end) {
 		func = ftrace_ops_get_list_func(ftrace_ops_list);
 
 	} else {
@@ -348,9 +353,11 @@ int using_ftrace_ops_list_func(void)
 	return ftrace_trace_function == ftrace_ops_list_func;
 }
 
-static void add_ftrace_ops(struct ftrace_ops **list, struct ftrace_ops *ops)
+static void add_ftrace_ops(struct ftrace_ops __rcu **list,
+			   struct ftrace_ops *ops)
 {
-	ops->next = *list;
+	rcu_assign_pointer(ops->next, *list);
+
 	/*
 	 * We are entering ops into the list but another
 	 * CPU might be walking that list. We need to make sure
@@ -360,7 +367,8 @@ static void add_ftrace_ops(struct ftrace_ops **list, struct ftrace_ops *ops)
 	rcu_assign_pointer(*list, ops);
 }
 
-static int remove_ftrace_ops(struct ftrace_ops **list, struct ftrace_ops *ops)
+static int remove_ftrace_ops(struct ftrace_ops __rcu **list,
+			     struct ftrace_ops *ops)
 {
 	struct ftrace_ops **p;
 
@@ -368,7 +376,10 @@ static int remove_ftrace_ops(struct ftrace_ops **list, struct ftrace_ops *ops)
 	 * If we are removing the last function, then simply point
 	 * to the ftrace_stub.
 	 */
-	if (*list == ops && ops->next == &ftrace_list_end) {
+	if (rcu_dereference_protected(*list,
+			lockdep_is_held(&ftrace_lock)) == ops &&
+	    rcu_dereference_protected(ops->next,
+			lockdep_is_held(&ftrace_lock)) == &ftrace_list_end) {
 		*list = &ftrace_list_end;
 		return 0;
 	}
@@ -1569,8 +1580,8 @@ ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip, void *regs)
 		return 0;
 #endif
 
-	hash.filter_hash = rcu_dereference_raw_notrace(ops->func_hash->filter_hash);
-	hash.notrace_hash = rcu_dereference_raw_notrace(ops->func_hash->notrace_hash);
+	rcu_assign_pointer(hash.filter_hash, ops->func_hash->filter_hash);
+	rcu_assign_pointer(hash.notrace_hash, ops->func_hash->notrace_hash);
 
 	if (hash_contains_ip(ip, &hash))
 		ret = 1;
@@ -2840,7 +2851,8 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 	 * If there's no more ops registered with ftrace, run a
 	 * sanity check to make sure all rec flags are cleared.
 	 */
-	if (ftrace_ops_list == &ftrace_list_end) {
+	if (rcu_dereference_protected(ftrace_ops_list,
+			lockdep_is_held(&ftrace_lock)) == &ftrace_list_end) {
 		struct ftrace_page *pg;
 		struct dyn_ftrace *rec;
 
@@ -6453,7 +6465,8 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 	if (ftrace_enabled) {
 
 		/* we are starting ftrace again */
-		if (ftrace_ops_list != &ftrace_list_end)
+		if (rcu_dereference_protected(ftrace_ops_list,
+			lockdep_is_held(&ftrace_lock)) != &ftrace_list_end)
 			update_ftrace_function();
 
 		ftrace_startup_sysctl();

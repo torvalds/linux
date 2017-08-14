@@ -410,7 +410,11 @@ static int parse_options(char *options, struct iso9660_options *popt)
 			if (match_int(&args[0], &option))
 				return 0;
 			n = option;
-			if (n > 99)
+			/*
+			 * Track numbers are supposed to be in range 1-99, the
+			 * mount option starts indexing at 0.
+			 */
+			if (n >= 99)
 				return 0;
 			popt->session = n + 1;
 			break;
@@ -543,7 +547,7 @@ static unsigned int isofs_get_last_session(struct super_block *sb, s32 session)
 
 	vol_desc_start=0;
 	ms_info.addr_format=CDROM_LBA;
-	if(session >= 0 && session <= 99) {
+	if (session > 0) {
 		struct cdrom_tocentry Te;
 		Te.cdte_track=session;
 		Te.cdte_format=CDROM_LBA;

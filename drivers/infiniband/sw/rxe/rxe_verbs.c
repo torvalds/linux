@@ -914,6 +914,9 @@ static int rxe_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 	spin_unlock_irqrestore(&rq->producer_lock, flags);
 
+	if (qp->resp.state == QP_STATE_ERROR)
+		rxe_run_task(&qp->resp.task, 1);
+
 err1:
 	return err;
 }
@@ -1240,6 +1243,8 @@ int rxe_register_device(struct rxe_dev *rxe)
 	addrconf_addr_eui48((unsigned char *)&dev->node_guid,
 			    rxe->ndev->dev_addr);
 	dev->dev.dma_ops = &dma_virt_ops;
+	dma_coerce_mask_and_coherent(&dev->dev,
+				     dma_get_required_mask(dev->dev.parent));
 
 	dev->uverbs_abi_ver = RXE_UVERBS_ABI_VERSION;
 	dev->uverbs_cmd_mask = BIT_ULL(IB_USER_VERBS_CMD_GET_CONTEXT)

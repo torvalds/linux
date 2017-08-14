@@ -2161,7 +2161,7 @@ static const struct _hfc_map hfc_map[] =
 	{},
 };
 
-static struct pci_device_id hfc_ids[] =
+static const struct pci_device_id hfc_ids[] =
 {
 	{ PCI_VDEVICE(CCD, PCI_DEVICE_ID_CCD_2BD0),
 	  (unsigned long) &hfc_map[0] },
