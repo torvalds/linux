@@ -128,7 +128,7 @@ static struct dentry *nbd_dbg_dir;
 #define NBD_MAGIC 0x68797548
 
 static unsigned int nbds_max = 16;
-static int max_part;
+static int max_part = 16;
 static struct workqueue_struct *recv_workqueue;
 static int part_shift;
 
@@ -2146,4 +2146,4 @@ MODULE_LICENSE("GPL");
 module_param(nbds_max, int, 0444);
 MODULE_PARM_DESC(nbds_max, "number of network block devices to initialize (default: 16)");
 module_param(max_part, int, 0444);
-MODULE_PARM_DESC(max_part, "number of partitions per device (default: 0)");
+MODULE_PARM_DESC(max_part, "number of partitions per device (default: 16)");
