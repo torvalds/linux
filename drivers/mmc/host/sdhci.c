@@ -1544,10 +1544,9 @@ void sdhci_set_bus_width(struct sdhci_host *host, int width)
 	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
 	if (width == MMC_BUS_WIDTH_8) {
 		ctrl &= ~SDHCI_CTRL_4BITBUS;
-		if (host->version >= SDHCI_SPEC_300)
-			ctrl |= SDHCI_CTRL_8BITBUS;
+		ctrl |= SDHCI_CTRL_8BITBUS;
 	} else {
-		if (host->version >= SDHCI_SPEC_300)
+		if (host->mmc->caps & MMC_CAP_8_BIT_DATA)
 			ctrl &= ~SDHCI_CTRL_8BITBUS;
 		if (width == MMC_BUS_WIDTH_4)
 			ctrl |= SDHCI_CTRL_4BITBUS;
