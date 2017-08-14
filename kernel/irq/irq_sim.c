@@ -10,6 +10,10 @@
 #include <linux/irq_sim.h>
 #include <linux/irq.h>
 
+struct irq_sim_devres {
+	struct irq_sim		*sim;
+};
+
 static void irq_sim_irqmask(struct irq_data *data)
 {
 	struct irq_sim_irq_ctx *irq_ctx = irq_data_get_irq_chip_data(data);
@@ -91,6 +95,45 @@ void irq_sim_fini(struct irq_sim *sim)
 	kfree(sim->irqs);
 }
 EXPORT_SYMBOL_GPL(irq_sim_fini);
+
+static void devm_irq_sim_release(struct device *dev, void *res)
+{
+	struct irq_sim_devres *this = res;
+
+	irq_sim_fini(this->sim);
+}
+
+/**
+ * irq_sim_init - Initialize the interrupt simulator for a managed device.
+ *
+ * @dev:        Device to initialize the simulator object for.
+ * @sim:        The interrupt simulator object to initialize.
+ * @num_irqs:   Number of interrupts to allocate
+ *
+ * Returns 0 on success and a negative error number on failure.
+ */
+int devm_irq_sim_init(struct device *dev, struct irq_sim *sim,
+		      unsigned int num_irqs)
+{
+	struct irq_sim_devres *dr;
+	int rv;
+
+	dr = devres_alloc(devm_irq_sim_release, sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	rv = irq_sim_init(sim, num_irqs);
+	if (rv) {
+		devres_free(dr);
+		return rv;
+	}
+
+	dr->sim = sim;
+	devres_add(dev, dr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_irq_sim_init);
 
 /**
  * irq_sim_fire - Enqueue an interrupt.
