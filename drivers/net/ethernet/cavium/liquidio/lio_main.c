@@ -276,32 +276,6 @@ static void force_io_queues_off(struct octeon_device *oct)
 }
 
 /**
- * \brief wait for all pending requests to complete
- * @param oct Pointer to Octeon device
- *
- * Called during shutdown sequence
- */
-static int wait_for_pending_requests(struct octeon_device *oct)
-{
-	int i, pcount = 0;
-
-	for (i = 0; i < 100; i++) {
-		pcount =
-			atomic_read(&oct->response_list
-				[OCTEON_ORDERED_SC_LIST].pending_req_count);
-		if (pcount)
-			schedule_timeout_uninterruptible(HZ / 10);
-		else
-			break;
-	}
-
-	if (pcount)
-		return 1;
-
-	return 0;
-}
-
-/**
  * \brief Cause device to go quiet so it can be safely removed/reset/etc
  * @param oct Pointer to Octeon device
  */

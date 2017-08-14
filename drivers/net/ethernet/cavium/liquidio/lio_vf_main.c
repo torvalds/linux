@@ -123,7 +123,7 @@ static int lio_wait_for_oq_pkts(struct octeon_device *oct)
 {
 	struct octeon_device_priv *oct_priv =
 	    (struct octeon_device_priv *)oct->priv;
-	int retry = MAX_VF_IP_OP_PENDING_PKT_COUNT;
+	int retry = MAX_IO_PENDING_PKT_COUNT;
 	int pkt_cnt = 0, pending_pkts;
 	int i;
 
@@ -145,32 +145,6 @@ static int lio_wait_for_oq_pkts(struct octeon_device *oct)
 	} while (retry-- && pending_pkts);
 
 	return pkt_cnt;
-}
-
-/**
- * \brief wait for all pending requests to complete
- * @param oct Pointer to Octeon device
- *
- * Called during shutdown sequence
- */
-static int wait_for_pending_requests(struct octeon_device *oct)
-{
-	int i, pcount = 0;
-
-	for (i = 0; i < MAX_VF_IP_OP_PENDING_PKT_COUNT; i++) {
-		pcount = atomic_read(
-		    &oct->response_list[OCTEON_ORDERED_SC_LIST]
-			 .pending_req_count);
-		if (pcount)
-			schedule_timeout_uninterruptible(HZ / 10);
-		else
-			break;
-	}
-
-	if (pcount)
-		return 1;
-
-	return 0;
 }
 
 /**

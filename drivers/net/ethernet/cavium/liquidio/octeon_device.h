@@ -571,6 +571,8 @@ struct octeon_device {
 #define CHIP_CONF(oct, TYPE)             \
 	(((struct octeon_ ## TYPE  *)((oct)->chip))->conf)
 
+#define MAX_IO_PENDING_PKT_COUNT 100
+
 /*------------------ Function Prototypes ----------------------*/
 
 /** Initialize device list memory */
