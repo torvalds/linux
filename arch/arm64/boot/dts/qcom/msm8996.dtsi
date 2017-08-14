@@ -261,6 +261,8 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-msm8996";
+
+			qcom,dload-mode = <&tcsr 0x13000>;
 		};
 	};
 
@@ -356,6 +358,11 @@
 		tcsr_mutex_regs: syscon@740000 {
 			compatible = "syscon";
 			reg = <0x740000 0x20000>;
+		};
+
+		tcsr: syscon@7a0000 {
+			compatible = "qcom,tcsr-msm8996", "syscon";
+			reg = <0x7a0000 0x18000>;
 		};
 
 		intc: interrupt-controller@9bc0000 {
