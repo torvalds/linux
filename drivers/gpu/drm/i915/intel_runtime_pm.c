@@ -307,7 +307,7 @@ static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,
 
 	/* Timeout for PW1:10 us, AUX:not specified, other PWs:20 us. */
 	WARN_ON(intel_wait_for_register(dev_priv,
-					HSW_PWR_WELL_DRIVER,
+					HSW_PWR_WELL_CTL_DRIVER(id),
 					HSW_PWR_WELL_CTL_STATE(id),
 					HSW_PWR_WELL_CTL_STATE(id),
 					1));
@@ -319,10 +319,10 @@ static u32 hsw_power_well_requesters(struct drm_i915_private *dev_priv,
 	u32 req_mask = HSW_PWR_WELL_CTL_REQ(id);
 	u32 ret;
 
-	ret = I915_READ(HSW_PWR_WELL_BIOS) & req_mask ? 1 : 0;
-	ret |= I915_READ(HSW_PWR_WELL_DRIVER) & req_mask ? 2 : 0;
-	ret |= I915_READ(HSW_PWR_WELL_KVMR) & req_mask ? 4 : 0;
-	ret |= I915_READ(HSW_PWR_WELL_DEBUG) & req_mask ? 8 : 0;
+	ret = I915_READ(HSW_PWR_WELL_CTL_BIOS(id)) & req_mask ? 1 : 0;
+	ret |= I915_READ(HSW_PWR_WELL_CTL_DRIVER(id)) & req_mask ? 2 : 0;
+	ret |= I915_READ(HSW_PWR_WELL_CTL_KVMR) & req_mask ? 4 : 0;
+	ret |= I915_READ(HSW_PWR_WELL_CTL_DEBUG(id)) & req_mask ? 8 : 0;
 
 	return ret;
 }
@@ -343,7 +343,7 @@ static void hsw_wait_for_power_well_disable(struct drm_i915_private *dev_priv,
 	 * Skip the wait in case any of the request bits are set and print a
 	 * diagnostic message.
 	 */
-	wait_for((disabled = !(I915_READ(HSW_PWR_WELL_DRIVER) &
+	wait_for((disabled = !(I915_READ(HSW_PWR_WELL_CTL_DRIVER(id)) &
 			       HSW_PWR_WELL_CTL_STATE(id))) ||
 		 (reqs = hsw_power_well_requesters(dev_priv, id)), 1);
 	if (disabled)
@@ -384,8 +384,8 @@ static void hsw_power_well_enable(struct drm_i915_private *dev_priv,
 			gen9_wait_for_power_well_fuses(dev_priv, SKL_PG0);
 	}
 
-	val = I915_READ(HSW_PWR_WELL_DRIVER);
-	I915_WRITE(HSW_PWR_WELL_DRIVER, val | HSW_PWR_WELL_CTL_REQ(id));
+	val = I915_READ(HSW_PWR_WELL_CTL_DRIVER(id));
+	I915_WRITE(HSW_PWR_WELL_CTL_DRIVER(id), val | HSW_PWR_WELL_CTL_REQ(id));
 	hsw_wait_for_power_well_enable(dev_priv, power_well);
 
 	if (wait_fuses)
@@ -403,8 +403,9 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 
 	hsw_power_well_pre_disable(dev_priv, power_well->hsw.irq_pipe_mask);
 
-	val = I915_READ(HSW_PWR_WELL_DRIVER);
-	I915_WRITE(HSW_PWR_WELL_DRIVER, val & ~HSW_PWR_WELL_CTL_REQ(id));
+	val = I915_READ(HSW_PWR_WELL_CTL_DRIVER(id));
+	I915_WRITE(HSW_PWR_WELL_CTL_DRIVER(id),
+		   val & ~HSW_PWR_WELL_CTL_REQ(id));
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
 }
 
@@ -419,17 +420,19 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 	enum i915_power_well_id id = power_well->id;
 	u32 mask = HSW_PWR_WELL_CTL_REQ(id) | HSW_PWR_WELL_CTL_STATE(id);
 
-	return (I915_READ(HSW_PWR_WELL_DRIVER) & mask) == mask;
+	return (I915_READ(HSW_PWR_WELL_CTL_DRIVER(id)) & mask) == mask;
 }
 
 static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 {
+	enum i915_power_well_id id = SKL_DISP_PW_2;
+
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
 		  "DC9 already programmed to be enabled.\n");
 	WARN_ONCE(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
 		  "DC5 still not disabled to enable DC9.\n");
-	WARN_ONCE(I915_READ(HSW_PWR_WELL_DRIVER) &
-		  HSW_PWR_WELL_CTL_REQ(SKL_DISP_PW_2),
+	WARN_ONCE(I915_READ(HSW_PWR_WELL_CTL_DRIVER(id)) &
+		  HSW_PWR_WELL_CTL_REQ(id),
 		  "Power well 2 on.\n");
 	WARN_ONCE(intel_irqs_enabled(dev_priv),
 		  "Interrupts not disabled yet.\n");
@@ -630,15 +633,15 @@ static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 {
 	enum i915_power_well_id id = power_well->id;
 	u32 mask = HSW_PWR_WELL_CTL_REQ(id);
-	u32 bios_req = I915_READ(HSW_PWR_WELL_BIOS);
+	u32 bios_req = I915_READ(HSW_PWR_WELL_CTL_BIOS(id));
 
 	/* Take over the request bit if set by BIOS. */
 	if (bios_req & mask) {
-		u32 drv_req = I915_READ(HSW_PWR_WELL_DRIVER);
+		u32 drv_req = I915_READ(HSW_PWR_WELL_CTL_DRIVER(id));
 
 		if (!(drv_req & mask))
-			I915_WRITE(HSW_PWR_WELL_DRIVER, drv_req | mask);
-		I915_WRITE(HSW_PWR_WELL_BIOS, bios_req & ~mask);
+			I915_WRITE(HSW_PWR_WELL_CTL_DRIVER(id), drv_req | mask);
+		I915_WRITE(HSW_PWR_WELL_CTL_BIOS(id), bios_req & ~mask);
 	}
 }
 
