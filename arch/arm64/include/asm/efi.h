@@ -4,6 +4,7 @@
 #include <asm/boot.h>
 #include <asm/cpufeature.h>
 #include <asm/io.h>
+#include <asm/memory.h>
 #include <asm/mmu_context.h>
 #include <asm/neon.h>
 #include <asm/ptrace.h>
@@ -47,6 +48,13 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
  * 2MiB so we know it won't cross a 2MiB boundary.
  */
 #define EFI_FDT_ALIGN	SZ_2M   /* used by allocate_new_fdt_and_exit_boot() */
+
+/*
+ * In some configurations (e.g. VMAP_STACK && 64K pages), stacks built into the
+ * kernel need greater alignment than we require the segments to be padded to.
+ */
+#define EFI_KIMG_ALIGN	\
+	(SEGMENT_ALIGN > THREAD_ALIGN ? SEGMENT_ALIGN : THREAD_ALIGN)
 
 /* on arm64, the FDT may be located anywhere in system RAM */
 static inline unsigned long efi_get_max_fdt_addr(unsigned long dram_base)

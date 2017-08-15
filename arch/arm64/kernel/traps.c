@@ -32,6 +32,7 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task_stack.h>
+#include <linux/sizes.h>
 #include <linux/syscalls.h>
 #include <linux/mm_types.h>
 
@@ -41,6 +42,7 @@
 #include <asm/esr.h>
 #include <asm/insn.h>
 #include <asm/traps.h>
+#include <asm/smp.h>
 #include <asm/stack_pointer.h>
 #include <asm/stacktrace.h>
 #include <asm/exception.h>
@@ -193,8 +195,7 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		if (in_entry_text(frame.pc)) {
 			stack = frame.fp - offsetof(struct pt_regs, stackframe);
 
-			if (on_task_stack(tsk, stack) ||
-			    (tsk == current && !preemptible() && on_irq_stack(stack)))
+			if (on_accessible_stack(tsk, stack))
 				dump_mem("", "Exception stack", stack,
 					 stack + sizeof(struct pt_regs));
 		}
@@ -237,8 +238,6 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 		 end_of_stack(tsk));
 
 	if (!user_mode(regs)) {
-		dump_mem(KERN_EMERG, "Stack: ", regs->sp,
-			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
 		dump_backtrace(regs, tsk);
 		dump_instr(KERN_EMERG, regs);
 	}
@@ -671,6 +670,43 @@ asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 
 	force_sig_info(info.si_signo, &info, current);
 }
+
+#ifdef CONFIG_VMAP_STACK
+
+DEFINE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)], overflow_stack)
+	__aligned(16);
+
+asmlinkage void handle_bad_stack(struct pt_regs *regs)
+{
+	unsigned long tsk_stk = (unsigned long)current->stack;
+	unsigned long irq_stk = (unsigned long)this_cpu_read(irq_stack_ptr);
+	unsigned long ovf_stk = (unsigned long)this_cpu_ptr(overflow_stack);
+	unsigned int esr = read_sysreg(esr_el1);
+	unsigned long far = read_sysreg(far_el1);
+
+	console_verbose();
+	pr_emerg("Insufficient stack space to handle exception!");
+
+	pr_emerg("ESR: 0x%08x -- %s\n", esr, esr_get_class_string(esr));
+	pr_emerg("FAR: 0x%016lx\n", far);
+
+	pr_emerg("Task stack:     [0x%016lx..0x%016lx]\n",
+		 tsk_stk, tsk_stk + THREAD_SIZE);
+	pr_emerg("IRQ stack:      [0x%016lx..0x%016lx]\n",
+		 irq_stk, irq_stk + THREAD_SIZE);
+	pr_emerg("Overflow stack: [0x%016lx..0x%016lx]\n",
+		 ovf_stk, ovf_stk + OVERFLOW_STACK_SIZE);
+
+	__show_regs(regs);
+
+	/*
+	 * We use nmi_panic to limit the potential for recusive overflows, and
+	 * to get a better stack trace.
+	 */
+	nmi_panic(NULL, "kernel stack overflow");
+	cpu_park_loop();
+}
+#endif
 
 void __pte_error(const char *file, int line, unsigned long val)
 {
