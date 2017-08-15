@@ -172,8 +172,8 @@ int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx);
 irqreturn_t liquidio_msix_intr_handler(int irq __attribute__((unused)),
 				       void *dev);
 
-irqreturn_t liquidio_legacy_intr_handler(int irq __attribute__((unused)),
-					 void *dev);
+int octeon_setup_interrupt(struct octeon_device *oct);
+
 /**
  * \brief Register ethtool operations
  * @param netdev    pointer to network device
