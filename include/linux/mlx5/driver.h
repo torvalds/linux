@@ -49,6 +49,8 @@
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
 #include <linux/mlx5/srq.h>
+#include <linux/timecounter.h>
+#include <linux/ptp_clock_kernel.h>
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
@@ -760,6 +762,27 @@ struct mlx5_rsvd_gids {
 	struct ida ida;
 };
 
+#define MAX_PIN_NUM	8
+struct mlx5_pps {
+	u8                         pin_caps[MAX_PIN_NUM];
+	struct work_struct         out_work;
+	u64                        start[MAX_PIN_NUM];
+	u8                         enabled;
+};
+
+struct mlx5_clock {
+	rwlock_t                   lock;
+	struct cyclecounter        cycles;
+	struct timecounter         tc;
+	struct hwtstamp_config     hwtstamp_config;
+	u32                        nominal_c_mult;
+	unsigned long              overflow_period;
+	struct delayed_work        overflow_work;
+	struct ptp_clock          *ptp;
+	struct ptp_clock_info      ptp_info;
+	struct mlx5_pps            pps_info;
+};
+
 struct mlx5_core_dev {
 	struct pci_dev	       *pdev;
 	/* sync pci state */
@@ -800,6 +823,7 @@ struct mlx5_core_dev {
 #ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap         *rmap;
 #endif
+	struct mlx5_clock        clock;
 };
 
 struct mlx5_db {

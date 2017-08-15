@@ -404,7 +404,7 @@ static int mlx5i_open(struct net_device *netdev)
 
 	mlx5e_refresh_tirs(priv, false);
 	mlx5e_activate_priv_channels(priv);
-	mlx5e_timestamp_init(priv);
+	mlx5e_timestamp_set(priv);
 
 	mutex_unlock(&priv->state_lock);
 	return 0;
@@ -429,7 +429,6 @@ static int mlx5i_close(struct net_device *netdev)
 
 	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 
-	mlx5e_timestamp_cleanup(priv);
 	netif_carrier_off(priv->netdev);
 	mlx5e_deactivate_priv_channels(priv);
 	mlx5e_close_channels(&priv->channels);

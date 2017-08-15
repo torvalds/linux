@@ -35,6 +35,7 @@
 #include "en.h"
 #include "ipoib/ipoib.h"
 #include "en_accel/ipsec_rxtx.h"
+#include "lib/clock.h"
 
 #define MLX5E_SQ_NOPS_ROOM  MLX5_SEND_WQE_MAX_WQEBBS
 #define MLX5E_SQ_STOP_ROOM (MLX5_SEND_WQE_MAX_WQEBBS +\
@@ -452,8 +453,9 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 				     SKBTX_HW_TSTAMP)) {
 				struct skb_shared_hwtstamps hwts = {};
 
-				mlx5e_fill_hwstamp(sq->tstamp,
-						   get_cqe_ts(cqe), &hwts);
+				hwts.hwtstamp =
+					mlx5_timecounter_cyc2time(sq->clock,
+								  get_cqe_ts(cqe));
 				skb_tstamp_tx(skb, &hwts);
 			}
 
