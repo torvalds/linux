@@ -890,22 +890,10 @@ static inline u8 qeth_l3_get_qeth_hdr_flags6(int cast_type)
 
 static int qeth_l3_setadapter_parms(struct qeth_card *card)
 {
-	int rc;
+	int rc = 0;
 
 	QETH_DBF_TEXT(SETUP, 2, "setadprm");
 
-	if (!qeth_is_supported(card, IPA_SETADAPTERPARMS)) {
-		dev_info(&card->gdev->dev,
-			"set adapter parameters not supported.\n");
-		QETH_DBF_TEXT(SETUP, 2, " notsupp");
-		return 0;
-	}
-	rc = qeth_query_setadapterparms(card);
-	if (rc) {
-		QETH_DBF_MESSAGE(2, "%s couldn't set adapter parameters: "
-			"0x%x\n", dev_name(&card->gdev->dev), rc);
-		return rc;
-	}
 	if (qeth_adp_supported(card, IPA_SETADP_ALTER_MAC_ADDRESS)) {
 		rc = qeth_setadpparms_change_macaddr(card);
 		if (rc)
