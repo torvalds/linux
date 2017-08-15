@@ -32,8 +32,8 @@ struct qtnf_pcie_bus_priv {
 	/* lock for irq configuration changes */
 	spinlock_t irq_lock;
 
-	/* lock for tx operations */
-	spinlock_t tx_lock;
+	/* lock for tx reclaim operations */
+	spinlock_t tx_reclaim_lock;
 	u8 msi_enabled;
 	int mps;
 

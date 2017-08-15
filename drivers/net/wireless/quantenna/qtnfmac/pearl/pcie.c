@@ -534,11 +534,13 @@ static void qtnf_pcie_data_tx_reclaim(struct qtnf_pcie_bus_priv *priv)
 {
 	struct qtnf_tx_bd *txbd;
 	struct sk_buff *skb;
+	unsigned long flags;
 	dma_addr_t paddr;
 	u32 tx_done_index;
 	int count = 0;
 	int i;
 
+	spin_lock_irqsave(&priv->tx_reclaim_lock, flags);
 
 	tx_done_index = readl(PCIE_HDP_RX0DMA_CNT(priv->pcie_reg_base))
 			& (priv->tx_bd_num - 1);
@@ -576,6 +578,7 @@ static void qtnf_pcie_data_tx_reclaim(struct qtnf_pcie_bus_priv *priv)
 	priv->tx_reclaim_req++;
 	priv->tx_bd_r_index = i;
 
+	spin_unlock_irqrestore(&priv->tx_reclaim_lock, flags);
 }
 
 static int qtnf_tx_queue_ready(struct qtnf_pcie_bus_priv *priv)
@@ -600,20 +603,14 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 	struct qtnf_pcie_bus_priv *priv = (void *)get_bus_priv(bus);
 	dma_addr_t txbd_paddr, skb_paddr;
 	struct qtnf_tx_bd *txbd;
-	unsigned long flags;
 	int len, i;
 	u32 info;
 	int ret = 0;
-
-	spin_lock_irqsave(&priv->tx_lock, flags);
-
-	priv->tx_done_count++;
 
 	if (!qtnf_tx_queue_ready(priv)) {
 		if (skb->dev)
 			netif_stop_queue(skb->dev);
 
-		spin_unlock_irqrestore(&priv->tx_lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -659,7 +656,8 @@ tx_done:
 		dev_kfree_skb_any(skb);
 	}
 
-	spin_unlock_irqrestore(&priv->tx_lock, flags);
+	qtnf_pcie_data_tx_reclaim(priv);
+	priv->tx_done_count++;
 
 	return NETDEV_TX_OK;
 }
@@ -1067,11 +1065,8 @@ static int qtnf_bringup_fw(struct qtnf_bus *bus)
 static void qtnf_reclaim_tasklet_fn(unsigned long data)
 {
 	struct qtnf_pcie_bus_priv *priv = (void *)data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->tx_lock, flags);
 	qtnf_pcie_data_tx_reclaim(priv);
-	spin_unlock_irqrestore(&priv->tx_lock, flags);
 	qtnf_en_txdone_irq(priv);
 }
 
@@ -1192,7 +1187,7 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_completion(&bus->request_firmware_complete);
 	mutex_init(&bus->bus_lock);
 	spin_lock_init(&pcie_priv->irq_lock);
-	spin_lock_init(&pcie_priv->tx_lock);
+	spin_lock_init(&pcie_priv->tx_reclaim_lock);
 
 	/* init stats */
 	pcie_priv->tx_full_count = 0;
