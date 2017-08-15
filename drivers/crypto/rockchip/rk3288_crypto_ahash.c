@@ -40,14 +40,16 @@ static int zero_message_process(struct ahash_request *req)
 	return 0;
 }
 
-static void rk_ahash_crypto_complete(struct rk_crypto_info *dev, int err)
+static void rk_ahash_crypto_complete(struct crypto_async_request *base, int err)
 {
-	if (dev->ahash_req->base.complete)
-		dev->ahash_req->base.complete(&dev->ahash_req->base, err);
+	if (base->complete)
+		base->complete(base, err);
 }
 
 static void rk_ahash_reg_init(struct rk_crypto_info *dev)
 {
+	struct ahash_request *req = ahash_request_cast(dev->async_req);
+	struct rk_ahash_rctx *rctx = ahash_request_ctx(req);
 	int reg_status = 0;
 
 	reg_status = CRYPTO_READ(dev, RK_CRYPTO_CTRL) |
@@ -67,7 +69,7 @@ static void rk_ahash_reg_init(struct rk_crypto_info *dev)
 	CRYPTO_WRITE(dev, RK_CRYPTO_INTSTS, RK_CRYPTO_HRDMA_ERR_INT |
 					    RK_CRYPTO_HRDMA_DONE_INT);
 
-	CRYPTO_WRITE(dev, RK_CRYPTO_HASH_CTRL, dev->mode |
+	CRYPTO_WRITE(dev, RK_CRYPTO_HASH_CTRL, rctx->mode |
 					       RK_CRYPTO_HASH_SWAP_DO);
 
 	CRYPTO_WRITE(dev, RK_CRYPTO_CONF, RK_CRYPTO_BYTESWAP_HRFIFO |
@@ -164,78 +166,13 @@ static int rk_ahash_export(struct ahash_request *req, void *out)
 
 static int rk_ahash_digest(struct ahash_request *req)
 {
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct rk_ahash_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
-	struct crypto_async_request *async_req, *backlog;
-	struct rk_crypto_info *dev = NULL;
-	unsigned long flags;
-	int ret;
+	struct rk_crypto_info *dev = tctx->dev;
 
 	if (!req->nbytes)
 		return zero_message_process(req);
-
-	dev = tctx->dev;
-	dev->total = req->nbytes;
-	dev->left_bytes = req->nbytes;
-	dev->aligned = 0;
-	dev->mode = 0;
-	dev->align_size = 4;
-	dev->sg_dst = NULL;
-	dev->sg_src = req->src;
-	dev->first = req->src;
-	dev->nents = sg_nents(req->src);
-
-	switch (crypto_ahash_digestsize(tfm)) {
-	case SHA1_DIGEST_SIZE:
-		dev->mode = RK_CRYPTO_HASH_SHA1;
-		break;
-	case SHA256_DIGEST_SIZE:
-		dev->mode = RK_CRYPTO_HASH_SHA256;
-		break;
-	case MD5_DIGEST_SIZE:
-		dev->mode = RK_CRYPTO_HASH_MD5;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	rk_ahash_reg_init(dev);
-
-	spin_lock_irqsave(&dev->lock, flags);
-	ret = crypto_enqueue_request(&dev->queue, &req->base);
-	backlog   = crypto_get_backlog(&dev->queue);
-	async_req = crypto_dequeue_request(&dev->queue);
-	spin_unlock_irqrestore(&dev->lock, flags);
-
-	if (!async_req) {
-		dev_err(dev->dev, "async_req is NULL !!\n");
-		return ret;
-	}
-	if (backlog) {
-		backlog->complete(backlog, -EINPROGRESS);
-		backlog = NULL;
-	}
-
-	dev->ahash_req = ahash_request_cast(async_req);
-
-	tasklet_schedule(&dev->queue_task);
-
-	/*
-	 * it will take some time to process date after last dma transmission.
-	 *
-	 * waiting time is relative with the last date len,
-	 * so cannot set a fixed time here.
-	 * 10-50 makes system not call here frequently wasting
-	 * efficiency, and make it response quickly when dma
-	 * complete.
-	 */
-	while (!CRYPTO_READ(dev, RK_CRYPTO_HASH_STS))
-		usleep_range(10, 50);
-
-	memcpy_fromio(req->result, dev->reg + RK_CRYPTO_HASH_DOUT_0,
-		      crypto_ahash_digestsize(tfm));
-
-	return 0;
+	else
+		return dev->enqueue(dev, &req->base);
 }
 
 static void crypto_ahash_dma_start(struct rk_crypto_info *dev)
@@ -258,12 +195,45 @@ static int rk_ahash_set_data_start(struct rk_crypto_info *dev)
 
 static int rk_ahash_start(struct rk_crypto_info *dev)
 {
+	struct ahash_request *req = ahash_request_cast(dev->async_req);
+	struct crypto_ahash *tfm;
+	struct rk_ahash_rctx *rctx;
+
+	dev->total = req->nbytes;
+	dev->left_bytes = req->nbytes;
+	dev->aligned = 0;
+	dev->align_size = 4;
+	dev->sg_dst = NULL;
+	dev->sg_src = req->src;
+	dev->first = req->src;
+	dev->nents = sg_nents(req->src);
+	rctx = ahash_request_ctx(req);
+	rctx->mode = 0;
+
+	tfm = crypto_ahash_reqtfm(req);
+	switch (crypto_ahash_digestsize(tfm)) {
+	case SHA1_DIGEST_SIZE:
+		rctx->mode = RK_CRYPTO_HASH_SHA1;
+		break;
+	case SHA256_DIGEST_SIZE:
+		rctx->mode = RK_CRYPTO_HASH_SHA256;
+		break;
+	case MD5_DIGEST_SIZE:
+		rctx->mode = RK_CRYPTO_HASH_MD5;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	rk_ahash_reg_init(dev);
 	return rk_ahash_set_data_start(dev);
 }
 
 static int rk_ahash_crypto_rx(struct rk_crypto_info *dev)
 {
 	int err = 0;
+	struct ahash_request *req = ahash_request_cast(dev->async_req);
+	struct crypto_ahash *tfm;
 
 	dev->unload_data(dev);
 	if (dev->left_bytes) {
@@ -278,7 +248,24 @@ static int rk_ahash_crypto_rx(struct rk_crypto_info *dev)
 		}
 		err = rk_ahash_set_data_start(dev);
 	} else {
-		dev->complete(dev, 0);
+		/*
+		 * it will take some time to process date after last dma
+		 * transmission.
+		 *
+		 * waiting time is relative with the last date len,
+		 * so cannot set a fixed time here.
+		 * 10us makes system not call here frequently wasting
+		 * efficiency, and make it response quickly when dma
+		 * complete.
+		 */
+		while (!CRYPTO_READ(dev, RK_CRYPTO_HASH_STS))
+			udelay(10);
+
+		tfm = crypto_ahash_reqtfm(req);
+		memcpy_fromio(req->result, dev->reg + RK_CRYPTO_HASH_DOUT_0,
+			      crypto_ahash_digestsize(tfm));
+		dev->complete(dev->async_req, 0);
+		tasklet_schedule(&dev->queue_task);
 	}
 
 out_rx:
