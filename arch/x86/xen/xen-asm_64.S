@@ -88,6 +88,15 @@ RELOC(xen_sysret64, 1b+1)
 ENTRY(xen_syscall_target)
 	popq %rcx
 	popq %r11
+
+	/*
+	 * Neither Xen nor the kernel really knows what the old SS and
+	 * CS were.  The kernel expects __USER_DS and __USER_CS, so
+	 * report those values even though Xen will guess its own values.
+	 */
+	movq $__USER_DS, 4*8(%rsp)
+	movq $__USER_CS, 1*8(%rsp)
+
 	jmp entry_SYSCALL_64_after_hwframe
 ENDPROC(xen_syscall_target)
 
@@ -97,6 +106,15 @@ ENDPROC(xen_syscall_target)
 ENTRY(xen_syscall32_target)
 	popq %rcx
 	popq %r11
+
+	/*
+	 * Neither Xen nor the kernel really knows what the old SS and
+	 * CS were.  The kernel expects __USER32_DS and __USER32_CS, so
+	 * report those values even though Xen will guess its own values.
+	 */
+	movq $__USER32_DS, 4*8(%rsp)
+	movq $__USER32_CS, 1*8(%rsp)
+
 	jmp entry_SYSCALL_compat_after_hwframe
 ENDPROC(xen_syscall32_target)
 
