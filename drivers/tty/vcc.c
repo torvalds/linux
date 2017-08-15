@@ -937,12 +937,36 @@ static int vcc_write_room(struct tty_struct *tty)
 	return num;
 }
 
+static int vcc_chars_in_buffer(struct tty_struct *tty)
+{
+	struct vcc_port *port;
+	u64 num;
+
+	if (unlikely(!tty)) {
+		pr_err("VCC: chars_in_buffer: Invalid TTY handle\n");
+		return -ENXIO;
+	}
+
+	port = vcc_get_ne(tty->index);
+	if (unlikely(!port)) {
+		pr_err("VCC: chars_in_buffer: Failed to find VCC port\n");
+		return -ENODEV;
+	}
+
+	num = port->chars_in_buffer;
+
+	vcc_put(port, false);
+
+	return num;
+}
+
 static const struct tty_operations vcc_ops = {
-	.open		= vcc_open,
-	.close		= vcc_close,
-	.hangup		= vcc_hangup,
-	.write		= vcc_write,
-	.write_room	= vcc_write_room,
+	.open			= vcc_open,
+	.close			= vcc_close,
+	.hangup			= vcc_hangup,
+	.write			= vcc_write,
+	.write_room		= vcc_write_room,
+	.chars_in_buffer	= vcc_chars_in_buffer,
 };
 
 #define VCC_TTY_FLAGS   (TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_REAL_RAW)
