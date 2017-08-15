@@ -31,6 +31,13 @@ DEFINE_EVENT(register_access, dc_readl,
 	TP_PROTO(struct device *dev, unsigned int offset, u32 value),
 	TP_ARGS(dev, offset, value));
 
+DEFINE_EVENT(register_access, hdmi_writel,
+	TP_PROTO(struct device *dev, unsigned int offset, u32 value),
+	TP_ARGS(dev, offset, value));
+DEFINE_EVENT(register_access, hdmi_readl,
+	TP_PROTO(struct device *dev, unsigned int offset, u32 value),
+	TP_ARGS(dev, offset, value));
+
 #endif /* DRM_TEGRA_TRACE_H */
 
 /* This part must be outside protection */
