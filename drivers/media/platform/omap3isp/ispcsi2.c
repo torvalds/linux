@@ -566,7 +566,7 @@ static int csi2_configure(struct isp_csi2_device *csi2)
 
 	pad = media_entity_remote_pad(&csi2->pads[CSI2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
-	buscfg = sensor->host_priv;
+	buscfg = v4l2_subdev_to_bus_cfg(pipe->external);
 
 	csi2->frame_skip = 0;
 	v4l2_subdev_call(sensor, sensor, g_skip_frames, &csi2->frame_skip);

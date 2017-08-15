@@ -2188,26 +2188,12 @@ error:
 	return -EINVAL;
 }
 
-static int isp_subdev_notifier_bound(struct v4l2_async_notifier *async,
-				     struct v4l2_subdev *subdev,
-				     struct v4l2_async_subdev *asd)
-{
-	struct isp_async_subdev *isd =
-		container_of(asd, struct isp_async_subdev, asd);
-
-	isd->sd = subdev;
-	isd->sd->host_priv = &isd->bus;
-
-	return 0;
-}
-
 static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 {
 	struct isp_device *isp = container_of(async, struct isp_device,
 					      notifier);
 	struct v4l2_device *v4l2_dev = &isp->v4l2_dev;
 	struct v4l2_subdev *sd;
-	struct isp_bus_cfg *bus;
 	int ret;
 
 	ret = media_entity_enum_init(&isp->crashed, &isp->media_dev);
@@ -2215,13 +2201,13 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 		return ret;
 
 	list_for_each_entry(sd, &v4l2_dev->subdevs, list) {
-		/* Only try to link entities whose interface was set on bound */
-		if (sd->host_priv) {
-			bus = (struct isp_bus_cfg *)sd->host_priv;
-			ret = isp_link_entity(isp, &sd->entity, bus->interface);
-			if (ret < 0)
-				return ret;
-		}
+		if (!sd->asd)
+			continue;
+
+		ret = isp_link_entity(isp, &sd->entity,
+				      v4l2_subdev_to_bus_cfg(sd)->interface);
+		if (ret < 0)
+			return ret;
 	}
 
 	ret = v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
@@ -2399,7 +2385,6 @@ static int isp_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_register_entities;
 
-	isp->notifier.bound = isp_subdev_notifier_bound;
 	isp->notifier.complete = isp_subdev_notifier_complete;
 
 	ret = v4l2_async_notifier_register(&isp->v4l2_dev, &isp->notifier);

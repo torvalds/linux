@@ -1139,8 +1139,10 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	pad = media_entity_remote_pad(&ccdc->pads[CCDC_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
 	if (ccdc->input == CCDC_INPUT_PARALLEL) {
-		parcfg = &((struct isp_bus_cfg *)sensor->host_priv)
-			->bus.parallel;
+		struct v4l2_subdev *sd =
+			to_isp_pipeline(&ccdc->subdev.entity)->external;
+
+		parcfg = &v4l2_subdev_to_bus_cfg(sd)->bus.parallel;
 		ccdc->bt656 = parcfg->bt656;
 	}
 
@@ -2412,11 +2414,11 @@ static int ccdc_link_validate(struct v4l2_subdev *sd,
 
 	/* We've got a parallel sensor here. */
 	if (ccdc->input == CCDC_INPUT_PARALLEL) {
-		struct isp_parallel_cfg *parcfg =
-			&((struct isp_bus_cfg *)
-			  media_entity_to_v4l2_subdev(link->source->entity)
-			  ->host_priv)->bus.parallel;
-		parallel_shift = parcfg->data_lane_shift;
+		struct v4l2_subdev *sd =
+			media_entity_to_v4l2_subdev(link->source->entity);
+		struct isp_bus_cfg *bus_cfg = v4l2_subdev_to_bus_cfg(sd);
+
+		parallel_shift = bus_cfg->bus.parallel.data_lane_shift;
 	} else {
 		parallel_shift = 0;
 	}

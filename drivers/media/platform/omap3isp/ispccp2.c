@@ -350,6 +350,7 @@ static void ccp2_lcx_config(struct isp_ccp2_device *ccp2,
  */
 static int ccp2_if_configure(struct isp_ccp2_device *ccp2)
 {
+	struct isp_pipeline *pipe = to_isp_pipeline(&ccp2->subdev.entity);
 	const struct isp_bus_cfg *buscfg;
 	struct v4l2_mbus_framefmt *format;
 	struct media_pad *pad;
@@ -361,7 +362,7 @@ static int ccp2_if_configure(struct isp_ccp2_device *ccp2)
 
 	pad = media_entity_remote_pad(&ccp2->pads[CCP2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
-	buscfg = sensor->host_priv;
+	buscfg = v4l2_subdev_to_bus_cfg(pipe->external);
 
 	ret = ccp2_phyif_config(ccp2, &buscfg->bus.ccp2);
 	if (ret < 0)
