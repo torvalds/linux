@@ -133,7 +133,6 @@
 #define CFG_DMA_REG_BAR			GENMASK(2, 0)
 
 #define INT_PCI_MSI_NR			(2 * 32)
-#define INTX_NUM			4
 
 /* Readin the PS_LINKUP */
 #define PS_LINKUP_OFFSET		0x00000238
@@ -334,9 +333,8 @@ static void nwl_pcie_leg_handler(struct irq_desc *desc)
 
 	while ((status = nwl_bridge_readl(pcie, MSGF_LEG_STATUS) &
 				MSGF_LEG_SR_MASKALL) != 0) {
-		for_each_set_bit(bit, &status, INTX_NUM) {
-			virq = irq_find_mapping(pcie->legacy_irq_domain,
-						bit + 1);
+		for_each_set_bit(bit, &status, PCI_NUM_INTX) {
+			virq = irq_find_mapping(pcie->legacy_irq_domain, bit);
 			if (virq)
 				generic_handle_irq(virq);
 		}
@@ -436,6 +434,7 @@ static int nwl_legacy_map(struct irq_domain *domain, unsigned int irq,
 
 static const struct irq_domain_ops legacy_domain_ops = {
 	.map = nwl_legacy_map,
+	.xlate = pci_irqd_intx_xlate,
 };
 
 #ifdef CONFIG_PCI_MSI
@@ -559,7 +558,7 @@ static int nwl_pcie_init_irq_domain(struct nwl_pcie *pcie)
 	}
 
 	pcie->legacy_irq_domain = irq_domain_add_linear(legacy_intc_node,
-							INTX_NUM,
+							PCI_NUM_INTX,
 							&legacy_domain_ops,
 							pcie);
 
