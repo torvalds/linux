@@ -429,16 +429,13 @@ static int skb2rbd_attach(struct qtnf_pcie_bus_priv *priv, u16 rx_bd_index)
 	struct sk_buff *skb;
 	dma_addr_t paddr;
 
-	skb = __dev_alloc_skb(SKB_BUF_SIZE + NET_IP_ALIGN,
-			      GFP_ATOMIC);
+	skb = __netdev_alloc_skb_ip_align(NULL, SKB_BUF_SIZE, GFP_ATOMIC);
 	if (!skb) {
 		priv->rx_skb[rx_bd_index] = NULL;
 		return -ENOMEM;
 	}
 
 	priv->rx_skb[rx_bd_index] = skb;
-
-	skb_reserve(skb, NET_IP_ALIGN);
 
 	rxbd = &priv->rx_bd_vbase[rx_bd_index];
 
