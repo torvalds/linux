@@ -324,7 +324,7 @@
 
 		uart2: serial@18022000 {
 			compatible = "snps,dw-apb-uart";
-			reg = <0x18020000 0x100>;
+			reg = <0x18022000 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
