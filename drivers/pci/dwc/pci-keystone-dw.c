@@ -251,7 +251,7 @@ void ks_dw_pcie_enable_legacy_irqs(struct keystone_pcie *ks_pcie)
 {
 	int i;
 
-	for (i = 0; i < MAX_LEGACY_IRQS; i++)
+	for (i = 0; i < PCI_NUM_INTX; i++)
 		ks_dw_app_writel(ks_pcie, IRQ_ENABLE_SET + (i << 4), 0x1);
 }
 
@@ -557,7 +557,7 @@ int __init ks_dw_pcie_host_init(struct keystone_pcie *ks_pcie,
 	/* Create legacy IRQ domain */
 	ks_pcie->legacy_irq_domain =
 			irq_domain_add_linear(ks_pcie->legacy_intc_np,
-					MAX_LEGACY_IRQS,
+					PCI_NUM_INTX,
 					&ks_dw_pcie_legacy_irq_domain_ops,
 					NULL);
 	if (!ks_pcie->legacy_irq_domain) {
