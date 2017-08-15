@@ -100,13 +100,13 @@ enum {
 };
 
 static inline u32 tegra_hdmi_readl(struct tegra_hdmi *hdmi,
-				   unsigned long offset)
+				   unsigned int offset)
 {
 	return readl(hdmi->regs + (offset << 2));
 }
 
 static inline void tegra_hdmi_writel(struct tegra_hdmi *hdmi, u32 value,
-				     unsigned long offset)
+				     unsigned int offset)
 {
 	writel(value, hdmi->regs + (offset << 2));
 }
