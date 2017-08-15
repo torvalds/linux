@@ -3807,6 +3807,12 @@ enum {
 #define   PWM1_GATING_DIS		(1 << 13)
 
 /*
+ * GEN10 clock gating regs
+ */
+#define SLICE_UNIT_LEVEL_CLKGATE	_MMIO(0x94d4)
+#define  SARBUNIT_CLKGATE_DIS		(1 << 5)
+
+/*
  * Display engine regs
  */
 
