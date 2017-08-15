@@ -43,7 +43,7 @@ MODULE_PARM_DESC(dev_loss_tmo,  " dev_loss_tmo setting for attached "
 
 uint qedf_debug = QEDF_LOG_INFO;
 module_param_named(debug, qedf_debug, uint, S_IRUGO);
-MODULE_PARM_DESC(qedf_debug, " Debug mask. Pass '1' to enable default debugging"
+MODULE_PARM_DESC(debug, " Debug mask. Pass '1' to enable default debugging"
 	" mask");
 
 static uint qedf_fipvlan_retries = 30;
