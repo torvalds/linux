@@ -53,6 +53,9 @@
 #define ASPEED_I2CD_MASTER_EN				BIT(0)
 
 /* 0x04 : I2CD Clock and AC Timing Control Register #1 */
+#define ASPEED_I2CD_TIME_TBUF_MASK			GENMASK(31, 28)
+#define ASPEED_I2CD_TIME_THDSTA_MASK			GENMASK(27, 24)
+#define ASPEED_I2CD_TIME_TACST_MASK			GENMASK(23, 20)
 #define ASPEED_I2CD_TIME_SCL_HIGH_SHIFT			16
 #define ASPEED_I2CD_TIME_SCL_HIGH_MASK			GENMASK(19, 16)
 #define ASPEED_I2CD_TIME_SCL_LOW_SHIFT			12
@@ -743,7 +746,11 @@ static int aspeed_i2c_init_clk(struct aspeed_i2c_bus *bus)
 	u32 divisor, clk_reg_val;
 
 	divisor = DIV_ROUND_UP(bus->parent_clk_frequency, bus->bus_frequency);
-	clk_reg_val = bus->get_clk_reg_val(divisor);
+	clk_reg_val = readl(bus->base + ASPEED_I2C_AC_TIMING_REG1);
+	clk_reg_val &= (ASPEED_I2CD_TIME_TBUF_MASK |
+			ASPEED_I2CD_TIME_THDSTA_MASK |
+			ASPEED_I2CD_TIME_TACST_MASK);
+	clk_reg_val |= bus->get_clk_reg_val(divisor);
 	writel(clk_reg_val, bus->base + ASPEED_I2C_AC_TIMING_REG1);
 	writel(ASPEED_NO_TIMEOUT_CTRL, bus->base + ASPEED_I2C_AC_TIMING_REG2);
 
