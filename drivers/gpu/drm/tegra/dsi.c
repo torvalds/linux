@@ -105,15 +105,15 @@ static struct tegra_dsi_state *tegra_dsi_get_state(struct tegra_dsi *dsi)
 	return to_dsi_state(dsi->output.connector.state);
 }
 
-static inline u32 tegra_dsi_readl(struct tegra_dsi *dsi, unsigned long reg)
+static inline u32 tegra_dsi_readl(struct tegra_dsi *dsi, unsigned int offset)
 {
-	return readl(dsi->regs + (reg << 2));
+	return readl(dsi->regs + (offset << 2));
 }
 
 static inline void tegra_dsi_writel(struct tegra_dsi *dsi, u32 value,
-				    unsigned long reg)
+				    unsigned int offset)
 {
-	writel(value, dsi->regs + (reg << 2));
+	writel(value, dsi->regs + (offset << 2));
 }
 
 static int tegra_dsi_show_regs(struct seq_file *s, void *data)
