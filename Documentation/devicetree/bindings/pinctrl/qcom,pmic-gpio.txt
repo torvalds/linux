@@ -200,6 +200,13 @@ to specify in a pin configuration subnode:
 		    in analog-pass-through mode.
 		    Valid values are 1-4 corresponding to ATEST1 to ATEST4.
 
+- qcom,dtest-buffer:
+	Usage: optional
+	Value type: <u32>
+	Definition: Selects DTEST rail to route to GPIO when it's configured
+		    as digital input.
+		    Valid values are 1-4 corresponding to DTEST1 to DTEST4.
+
 Example:
 
 	pm8921_gpio: gpio@150 {
