@@ -2130,9 +2130,23 @@ static void tcpm_swap_complete(struct tcpm_port *port, int result)
 	}
 }
 
+enum typec_pwr_opmode tcpm_get_pwr_opmode(enum typec_cc_status cc)
+{
+	switch (cc) {
+	case TYPEC_CC_RP_1_5:
+		return TYPEC_PWR_MODE_1_5A;
+	case TYPEC_CC_RP_3_0:
+		return TYPEC_PWR_MODE_3_0A;
+	case TYPEC_CC_RP_DEF:
+	default:
+		return TYPEC_PWR_MODE_USB;
+	}
+}
+
 static void run_state_machine(struct tcpm_port *port)
 {
 	int ret;
+	enum typec_pwr_opmode opmode;
 
 	port->enter_state = port->state;
 	switch (port->state) {
@@ -2209,7 +2223,8 @@ static void run_state_machine(struct tcpm_port *port)
 			       ret < 0 ? 0 : PD_T_PS_SOURCE_ON);
 		break;
 	case SRC_STARTUP:
-		typec_set_pwr_opmode(port->typec_port, TYPEC_PWR_MODE_USB);
+		opmode =  tcpm_get_pwr_opmode(tcpm_rp_cc(port));
+		typec_set_pwr_opmode(port->typec_port, opmode);
 		port->pwr_opmode = TYPEC_PWR_MODE_USB;
 		port->caps_count = 0;
 		port->message_id = 0;
@@ -2371,7 +2386,9 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SNK_STARTUP:
 		/* XXX: callback into infrastructure */
-		typec_set_pwr_opmode(port->typec_port, TYPEC_PWR_MODE_USB);
+		opmode =  tcpm_get_pwr_opmode(port->polarity ?
+					      port->cc2 : port->cc1);
+		typec_set_pwr_opmode(port->typec_port, opmode);
 		port->pwr_opmode = TYPEC_PWR_MODE_USB;
 		port->message_id = 0;
 		port->rx_msgid = -1;
