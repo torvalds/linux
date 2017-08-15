@@ -577,19 +577,20 @@ static int vimc_deb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver vimc_deb_pdrv = {
-	.probe		= vimc_deb_probe,
-	.remove		= vimc_deb_remove,
-	.driver		= {
-		.name	= VIMC_DEB_DRV_NAME,
-	},
-};
-
 static const struct platform_device_id vimc_deb_driver_ids[] = {
 	{
 		.name           = VIMC_DEB_DRV_NAME,
 	},
 	{ }
+};
+
+static struct platform_driver vimc_deb_pdrv = {
+	.probe		= vimc_deb_probe,
+	.remove		= vimc_deb_remove,
+	.id_table	= vimc_deb_driver_ids,
+	.driver		= {
+		.name	= VIMC_DEB_DRV_NAME,
+	},
 };
 
 module_platform_driver(vimc_deb_pdrv);

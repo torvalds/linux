@@ -939,7 +939,7 @@ static int mlx5_ib_mr_initiator_pfault_handler(
 
 	if (qp->ibqp.qp_type != IB_QPT_RC) {
 		av = *wqe;
-		if (av->dqp_dct & be32_to_cpu(MLX5_WQE_AV_EXT))
+		if (av->dqp_dct & cpu_to_be32(MLX5_EXTENDED_UD_AV))
 			*wqe += sizeof(struct mlx5_av);
 		else
 			*wqe += sizeof(struct mlx5_base_av);
