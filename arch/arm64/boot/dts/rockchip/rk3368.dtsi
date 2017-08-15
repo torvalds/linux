@@ -220,7 +220,7 @@
 	cluster0_opp: opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
-		leakage-voltage-sel = <
+		rockchip,leakage-voltage-sel = <
 			1   24   0
 			25  254  1
 		>;
@@ -275,12 +275,12 @@
 	cluster1_opp: opp_table1 {
 		compatible = "operating-points-v2";
 		opp-shared;
-		leakage-scaling-sel = <
+		rockchip,leakage-scaling-sel = <
 			1   24   36
 			25  254  0
 		>;
 		clocks = <&cru PLL_APLLB>;
-		leakage-voltage-sel = <
+		rockchip,leakage-voltage-sel = <
 			1   24   0
 			25  254  1
 		>;
