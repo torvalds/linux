@@ -184,15 +184,53 @@ static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int rk_crypto_enqueue(struct rk_crypto_info *dev,
+			      struct crypto_async_request *async_req)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&dev->lock, flags);
+	ret = crypto_enqueue_request(&dev->queue, async_req);
+	if (dev->busy) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		return ret;
+	}
+	dev->busy = true;
+	spin_unlock_irqrestore(&dev->lock, flags);
+	tasklet_schedule(&dev->queue_task);
+
+	return ret;
+}
+
 static void rk_crypto_queue_task_cb(unsigned long data)
 {
 	struct rk_crypto_info *dev = (struct rk_crypto_info *)data;
+	struct crypto_async_request *async_req, *backlog;
+	unsigned long flags;
 	int err = 0;
 
 	dev->err = 0;
+	spin_lock_irqsave(&dev->lock, flags);
+	backlog   = crypto_get_backlog(&dev->queue);
+	async_req = crypto_dequeue_request(&dev->queue);
+
+	if (!async_req) {
+		dev->busy = false;
+		spin_unlock_irqrestore(&dev->lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(&dev->lock, flags);
+
+	if (backlog) {
+		backlog->complete(backlog, -EINPROGRESS);
+		backlog = NULL;
+	}
+
+	dev->async_req = async_req;
 	err = dev->start(dev);
 	if (err)
-		dev->complete(dev, err);
+		dev->complete(dev->async_req, err);
 }
 
 static void rk_crypto_done_task_cb(unsigned long data)
@@ -200,13 +238,13 @@ static void rk_crypto_done_task_cb(unsigned long data)
 	struct rk_crypto_info *dev = (struct rk_crypto_info *)data;
 
 	if (dev->err) {
-		dev->complete(dev, dev->err);
+		dev->complete(dev->async_req, dev->err);
 		return;
 	}
 
 	dev->err = dev->update(dev);
 	if (dev->err)
-		dev->complete(dev, dev->err);
+		dev->complete(dev->async_req, dev->err);
 }
 
 static struct rk_crypto_tmp *rk_cipher_algs[] = {
@@ -365,6 +403,8 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	crypto_info->disable_clk = rk_crypto_disable_clk;
 	crypto_info->load_data = rk_load_data;
 	crypto_info->unload_data = rk_unload_data;
+	crypto_info->enqueue = rk_crypto_enqueue;
+	crypto_info->busy = false;
 
 	err = rk_crypto_register(crypto_info);
 	if (err) {
