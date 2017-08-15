@@ -1400,7 +1400,6 @@ clean_srcu:
 	cleanup_srcu_struct(&priv->pfault_srcu);
 clean_dev:
 #endif
-	pci_set_drvdata(pdev, NULL);
 	devlink_free(devlink);
 
 	return err;
@@ -1427,7 +1426,6 @@ static void remove_one(struct pci_dev *pdev)
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	cleanup_srcu_struct(&priv->pfault_srcu);
 #endif
-	pci_set_drvdata(pdev, NULL);
 	devlink_free(devlink);
 }
 
