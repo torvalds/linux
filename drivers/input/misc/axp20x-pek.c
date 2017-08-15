@@ -56,6 +56,13 @@ static const struct axp20x_time startup_time[] = {
 	{ .time = 2000, .idx = 3 },
 };
 
+static const struct axp20x_time axp221_startup_time[] = {
+	{ .time = 128,  .idx = 0 },
+	{ .time = 1000, .idx = 1 },
+	{ .time = 2000, .idx = 2 },
+	{ .time = 3000, .idx = 3 },
+};
+
 static const struct axp20x_time shutdown_time[] = {
 	{ .time = 4000,  .idx = 0 },
 	{ .time = 6000,  .idx = 1 },
@@ -65,6 +72,13 @@ static const struct axp20x_time shutdown_time[] = {
 
 static const struct axp20x_info axp20x_info = {
 	.startup_time = startup_time,
+	.startup_mask = AXP20X_PEK_STARTUP_MASK,
+	.shutdown_time = shutdown_time,
+	.shutdown_mask = AXP20X_PEK_SHUTDOWN_MASK,
+};
+
+static const struct axp20x_info axp221_info = {
+	.startup_time = axp221_startup_time,
 	.startup_mask = AXP20X_PEK_STARTUP_MASK,
 	.shutdown_time = shutdown_time,
 	.shutdown_mask = AXP20X_PEK_SHUTDOWN_MASK,
@@ -382,6 +396,10 @@ static const struct platform_device_id axp_pek_id_match[] = {
 	{
 		.name = "axp20x-pek",
 		.driver_data = (kernel_ulong_t)&axp20x_info,
+	},
+	{
+		.name = "axp221-pek",
+		.driver_data = (kernel_ulong_t)&axp221_info,
 	},
 	{ /* sentinel */ }
 };
