@@ -83,10 +83,6 @@ MODULE_VERSION(HPSA_DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("cciss");
 
-static int hpsa_allow_any;
-module_param(hpsa_allow_any, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(hpsa_allow_any,
-		"Allow hpsa driver to access unknown HP Smart Array hardware");
 static int hpsa_simple_mode;
 module_param(hpsa_simple_mode, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(hpsa_simple_mode,
@@ -7299,23 +7295,15 @@ static int hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id,
 			if (products[i].access != &SA5A_access &&
 			    products[i].access != &SA5B_access)
 				return i;
-			if (hpsa_allow_any) {
-				dev_warn(&pdev->dev,
-					 "legacy board ID: 0x%08x\n",
-					 *board_id);
-				if (legacy_board)
-					*legacy_board = true;
-				return i;
-			}
+			dev_warn(&pdev->dev,
+				 "legacy board ID: 0x%08x\n",
+				 *board_id);
+			if (legacy_board)
+			    *legacy_board = true;
+			return i;
 		}
 
-	if ((subsystem_vendor_id != PCI_VENDOR_ID_HP &&
-		subsystem_vendor_id != PCI_VENDOR_ID_COMPAQ) ||
-		!hpsa_allow_any) {
-		dev_warn(&pdev->dev, "unrecognized board ID: "
-			"0x%08x, ignoring.\n", *board_id);
-			return -ENODEV;
-	}
+	dev_warn(&pdev->dev, "unrecognized board ID: 0x%08x\n", *board_id);
 	if (legacy_board)
 		*legacy_board = true;
 	return ARRAY_SIZE(products) - 1; /* generic unknown smart array */
