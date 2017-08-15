@@ -630,6 +630,12 @@ static void update_link_status(struct net_device *netdev,
 			txqs_stop(netdev);
 		}
 
+		if (lio->linfo.link.s.mtu != netdev->max_mtu) {
+			dev_info(&oct->pci_dev->dev, "Max MTU Changed from %d to %d\n",
+				 netdev->max_mtu, lio->linfo.link.s.mtu);
+			netdev->max_mtu = lio->linfo.link.s.mtu;
+		}
+
 		if (lio->linfo.link.s.mtu < netdev->mtu) {
 			dev_warn(&oct->pci_dev->dev,
 				 "PF has changed the MTU for gmx port. Reducing the mtu from %d to %d\n",
@@ -1539,14 +1545,11 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 static int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct lio *lio = GET_LIO(netdev);
-	struct octeon_device *oct = lio->oct_dev;
 
 	lio->mtu = new_mtu;
 
 	netif_info(lio, probe, lio->netdev, "MTU Changed from %d to %d\n",
 		   netdev->mtu, new_mtu);
-	dev_info(&oct->pci_dev->dev, "%s MTU Changed from %d to %d\n",
-		 netdev->name, netdev->mtu, new_mtu);
 
 	netdev->mtu = new_mtu;
 

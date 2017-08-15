@@ -165,9 +165,6 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 		/* If command is successful, change the MTU. */
 		netif_info(lio, probe, lio->netdev, "MTU Changed from %d to %d\n",
 			   netdev->mtu, nctrl->ncmd.s.param1);
-		dev_info(&oct->pci_dev->dev, "%s MTU Changed from %d to %d\n",
-			 netdev->name, netdev->mtu,
-			 nctrl->ncmd.s.param1);
 		netdev->mtu = nctrl->ncmd.s.param1;
 		queue_delayed_work(lio->link_status_wq.wq,
 				   &lio->link_status_wq.wk.work, 0);
