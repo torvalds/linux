@@ -231,13 +231,7 @@ static void qeth_l2_del_all_macs(struct qeth_card *card)
 	spin_unlock_bh(&card->mclock);
 }
 
-static inline u32 qeth_l2_mac_hash(const u8 *addr)
-{
-	return get_unaligned((u32 *)(&addr[2]));
-}
-
-static inline int qeth_l2_get_cast_type(struct qeth_card *card,
-			struct sk_buff *skb)
+static int qeth_l2_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 {
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return RTN_UNSPEC;
@@ -248,8 +242,8 @@ static inline int qeth_l2_get_cast_type(struct qeth_card *card,
 	return RTN_UNSPEC;
 }
 
-static inline void qeth_l2_hdr_csum(struct qeth_card *card,
-				    struct qeth_hdr *hdr, struct sk_buff *skb)
+static void qeth_l2_hdr_csum(struct qeth_card *card, struct qeth_hdr *hdr,
+			     struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 
@@ -519,15 +513,6 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 		/* fall back to alternative mechanism: */
 	}
 
-	if (qeth_is_supported(card, IPA_SETADAPTERPARMS)) {
-		rc = qeth_query_setadapterparms(card);
-		if (rc) {
-			QETH_DBF_MESSAGE(2, "could not query adapter "
-				"parameters on device %s: x%x\n",
-				CARD_BUS_ID(card), rc);
-		}
-	}
-
 	if (card->info.type == QETH_CARD_TYPE_IQD ||
 	    card->info.type == QETH_CARD_TYPE_OSM ||
 	    card->info.type == QETH_CARD_TYPE_OSX ||
@@ -615,13 +600,13 @@ static void qeth_promisc_to_bridge(struct qeth_card *card)
  * only if there is not in the hash table storage already
  *
 */
-static	void
-qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha, u8 is_uc)
+static void qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha,
+			    u8 is_uc)
 {
+	u32 mac_hash = get_unaligned((u32 *)(&ha->addr[2]));
 	struct qeth_mac *mac;
 
-	hash_for_each_possible(card->mac_htable, mac, hnode,
-			qeth_l2_mac_hash(ha->addr)) {
+	hash_for_each_possible(card->mac_htable, mac, hnode, mac_hash) {
 		if (is_uc == mac->is_uc &&
 		    !memcmp(ha->addr, mac->mac_addr, OSA_ADDR_LEN)) {
 			mac->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
@@ -638,9 +623,7 @@ qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha, u8 is_uc)
 	mac->is_uc = is_uc;
 	mac->disp_flag = QETH_DISP_ADDR_ADD;
 
-	hash_add(card->mac_htable, &mac->hnode,
-			qeth_l2_mac_hash(mac->mac_addr));
-
+	hash_add(card->mac_htable, &mac->hnode, mac_hash);
 }
 
 static void qeth_l2_set_rx_mode(struct net_device *dev)
@@ -707,7 +690,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	int data_offset = -1;
 	int elements_needed = 0;
 	int hd_len = 0;
-	int nr_frags;
+	unsigned int nr_frags;
 
 	if (card->qdio.do_prio_queueing || (cast_type &&
 					card->info.is_multicast_different))
@@ -747,6 +730,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 		if (lin_rc)
 			goto tx_drop;
 	}
+	nr_frags = skb_shinfo(new_skb)->nr_frags;
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		hdr = (struct qeth_hdr *)skb->data;
@@ -760,11 +744,11 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 			if (!hdr)
 				goto tx_drop;
 			elements_needed++;
-			skb_reset_mac_header(new_skb);
 			qeth_l2_fill_header(card, hdr, new_skb, cast_type);
 			hdr->hdr.l2.pkt_length = new_skb->len;
-			memcpy(((char *)hdr) + sizeof(struct qeth_hdr),
-				skb_mac_header(new_skb), ETH_HLEN);
+			skb_copy_from_linear_data(new_skb,
+						  ((char *)hdr) + sizeof(*hdr),
+						  ETH_HLEN);
 		} else {
 			/* create a clone with writeable headroom */
 			new_skb = skb_realloc_headroom(skb,
@@ -772,7 +756,6 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 			if (!new_skb)
 				goto tx_drop;
 			hdr = skb_push(new_skb, sizeof(struct qeth_hdr));
-			skb_set_mac_header(new_skb, sizeof(struct qeth_hdr));
 			qeth_l2_fill_header(card, hdr, new_skb, cast_type);
 			if (new_skb->ip_summed == CHECKSUM_PARTIAL)
 				qeth_l2_hdr_csum(card, hdr, new_skb);
@@ -799,13 +782,10 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	if (!rc) {
 		card->stats.tx_packets++;
 		card->stats.tx_bytes += tx_bytes;
-		if (card->options.performance_stats) {
-			nr_frags = skb_shinfo(new_skb)->nr_frags;
-			if (nr_frags) {
-				card->perf_stats.sg_skbs_sent++;
-				/* nr_frags + skb->data */
-				card->perf_stats.sg_frags_sent += nr_frags + 1;
-			}
+		if (card->options.performance_stats && nr_frags) {
+			card->perf_stats.sg_skbs_sent++;
+			/* nr_frags + skb->data */
+			card->perf_stats.sg_frags_sent += nr_frags + 1;
 		}
 		if (new_skb != skb)
 			dev_kfree_skb_any(skb);
@@ -1744,11 +1724,26 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 	return rc;
 }
 
-static inline int ipa_cmd_sbp(struct qeth_card *card)
+static struct qeth_cmd_buffer *qeth_sbp_build_cmd(struct qeth_card *card,
+						  enum qeth_ipa_sbp_cmd sbp_cmd,
+						  unsigned int cmd_length)
 {
-	return (card->info.type == QETH_CARD_TYPE_IQD) ?
-		IPA_CMD_SETBRIDGEPORT_IQD :
-		IPA_CMD_SETBRIDGEPORT_OSA;
+	enum qeth_ipa_cmds ipa_cmd = (card->info.type == QETH_CARD_TYPE_IQD) ?
+					IPA_CMD_SETBRIDGEPORT_IQD :
+					IPA_CMD_SETBRIDGEPORT_OSA;
+	struct qeth_cmd_buffer *iob;
+	struct qeth_ipa_cmd *cmd;
+
+	iob = qeth_get_ipacmd_buffer(card, ipa_cmd, 0);
+	if (!iob)
+		return iob;
+	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd->data.sbp.hdr.cmdlength = sizeof(struct qeth_ipacmd_sbp_hdr) +
+				      cmd_length;
+	cmd->data.sbp.hdr.command_code = sbp_cmd;
+	cmd->data.sbp.hdr.used_total = 1;
+	cmd->data.sbp.hdr.seq_no = 1;
+	return iob;
 }
 
 static int qeth_bridgeport_query_support_cb(struct qeth_card *card,
@@ -1778,21 +1773,13 @@ static int qeth_bridgeport_query_support_cb(struct qeth_card *card,
 static void qeth_bridgeport_query_support(struct qeth_card *card)
 {
 	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
 	struct _qeth_sbp_cbctl cbctl;
 
 	QETH_CARD_TEXT(card, 2, "brqsuppo");
-	iob = qeth_get_ipacmd_buffer(card, ipa_cmd_sbp(card), 0);
+	iob = qeth_sbp_build_cmd(card, IPA_SBP_QUERY_COMMANDS_SUPPORTED,
+				 sizeof(struct qeth_sbp_query_cmds_supp));
 	if (!iob)
 		return;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
-	cmd->data.sbp.hdr.cmdlength =
-		sizeof(struct qeth_ipacmd_sbp_hdr) +
-		sizeof(struct qeth_sbp_query_cmds_supp);
-	cmd->data.sbp.hdr.command_code =
-		IPA_SBP_QUERY_COMMANDS_SUPPORTED;
-	cmd->data.sbp.hdr.used_total = 1;
-	cmd->data.sbp.hdr.seq_no = 1;
 	if (qeth_send_ipa_cmd(card, iob, qeth_bridgeport_query_support_cb,
 							(void *)&cbctl) ||
 	    qeth_bridgeport_makerc(card, &cbctl,
@@ -1846,7 +1833,6 @@ int qeth_bridgeport_query_ports(struct qeth_card *card,
 {
 	int rc = 0;
 	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
 	struct _qeth_sbp_cbctl cbctl = {
 		.data = {
 			.qports = {
@@ -1859,16 +1845,9 @@ int qeth_bridgeport_query_ports(struct qeth_card *card,
 	QETH_CARD_TEXT(card, 2, "brqports");
 	if (!(card->options.sbp.supported_funcs & IPA_SBP_QUERY_BRIDGE_PORTS))
 		return -EOPNOTSUPP;
-	iob = qeth_get_ipacmd_buffer(card, ipa_cmd_sbp(card), 0);
+	iob = qeth_sbp_build_cmd(card, IPA_SBP_QUERY_BRIDGE_PORTS, 0);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
-	cmd->data.sbp.hdr.cmdlength =
-		sizeof(struct qeth_ipacmd_sbp_hdr);
-	cmd->data.sbp.hdr.command_code =
-		IPA_SBP_QUERY_BRIDGE_PORTS;
-	cmd->data.sbp.hdr.used_total = 1;
-	cmd->data.sbp.hdr.seq_no = 1;
 	rc = qeth_send_ipa_cmd(card, iob, qeth_bridgeport_query_ports_cb,
 				(void *)&cbctl);
 	if (rc < 0)
@@ -1900,7 +1879,6 @@ int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role)
 	int rc = 0;
 	int cmdlength;
 	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
 	struct _qeth_sbp_cbctl cbctl;
 	enum qeth_ipa_sbp_cmd setcmd;
 
@@ -1908,32 +1886,24 @@ int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role)
 	switch (role) {
 	case QETH_SBP_ROLE_NONE:
 		setcmd = IPA_SBP_RESET_BRIDGE_PORT_ROLE;
-		cmdlength =  sizeof(struct qeth_ipacmd_sbp_hdr) +
-			sizeof(struct qeth_sbp_reset_role);
+		cmdlength = sizeof(struct qeth_sbp_reset_role);
 		break;
 	case QETH_SBP_ROLE_PRIMARY:
 		setcmd = IPA_SBP_SET_PRIMARY_BRIDGE_PORT;
-		cmdlength =  sizeof(struct qeth_ipacmd_sbp_hdr) +
-			sizeof(struct qeth_sbp_set_primary);
+		cmdlength = sizeof(struct qeth_sbp_set_primary);
 		break;
 	case QETH_SBP_ROLE_SECONDARY:
 		setcmd = IPA_SBP_SET_SECONDARY_BRIDGE_PORT;
-		cmdlength =  sizeof(struct qeth_ipacmd_sbp_hdr) +
-			sizeof(struct qeth_sbp_set_secondary);
+		cmdlength = sizeof(struct qeth_sbp_set_secondary);
 		break;
 	default:
 		return -EINVAL;
 	}
 	if (!(card->options.sbp.supported_funcs & setcmd))
 		return -EOPNOTSUPP;
-	iob = qeth_get_ipacmd_buffer(card, ipa_cmd_sbp(card), 0);
+	iob = qeth_sbp_build_cmd(card, setcmd, cmdlength);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
-	cmd->data.sbp.hdr.cmdlength = cmdlength;
-	cmd->data.sbp.hdr.command_code = setcmd;
-	cmd->data.sbp.hdr.used_total = 1;
-	cmd->data.sbp.hdr.seq_no = 1;
 	rc = qeth_send_ipa_cmd(card, iob, qeth_bridgeport_set_cb,
 				(void *)&cbctl);
 	if (rc < 0)
