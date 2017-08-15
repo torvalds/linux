@@ -1480,6 +1480,7 @@ int ldc_rx_reset(struct ldc_channel *lp)
 {
 	return __set_rx_head(lp, lp->rx_tail);
 }
+EXPORT_SYMBOL(ldc_rx_reset);
 
 void __ldc_print(struct ldc_channel *lp, const char *caller)
 {
