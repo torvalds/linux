@@ -481,30 +481,28 @@ const struct vm_operations_struct tegra_bo_vm_ops = {
 	.close = drm_gem_vm_close,
 };
 
-int tegra_drm_mmap(struct file *file, struct vm_area_struct *vma)
+static int tegra_gem_mmap(struct drm_gem_object *gem,
+			  struct vm_area_struct *vma)
 {
-	struct drm_gem_object *gem;
-	struct tegra_bo *bo;
-	int ret;
-
-	ret = drm_gem_mmap(file, vma);
-	if (ret)
-		return ret;
-
-	gem = vma->vm_private_data;
-	bo = to_tegra_bo(gem);
+	struct tegra_bo *bo = to_tegra_bo(gem);
 
 	if (!bo->pages) {
 		unsigned long vm_pgoff = vma->vm_pgoff;
+		int err;
 
+		/*
+		 * Clear the VM_PFNMAP flag that was set by drm_gem_mmap(),
+		 * and set the vm_pgoff (used as a fake buffer offset by DRM)
+		 * to 0 as we want to map the whole buffer.
+		 */
 		vma->vm_flags &= ~VM_PFNMAP;
 		vma->vm_pgoff = 0;
 
-		ret = dma_mmap_wc(gem->dev->dev, vma, bo->vaddr, bo->paddr,
+		err = dma_mmap_wc(gem->dev->dev, vma, bo->vaddr, bo->paddr,
 				  gem->size);
-		if (ret) {
+		if (err < 0) {
 			drm_gem_vm_close(vma);
-			return ret;
+			return err;
 		}
 
 		vma->vm_pgoff = vm_pgoff;
@@ -518,6 +516,20 @@ int tegra_drm_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	return 0;
+}
+
+int tegra_drm_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct drm_gem_object *gem;
+	int err;
+
+	err = drm_gem_mmap(file, vma);
+	if (err < 0)
+		return err;
+
+	gem = vma->vm_private_data;
+
+	return tegra_gem_mmap(gem, vma);
 }
 
 static struct sg_table *
@@ -603,7 +615,14 @@ static void tegra_gem_prime_kunmap(struct dma_buf *buf, unsigned long page,
 
 static int tegra_gem_prime_mmap(struct dma_buf *buf, struct vm_area_struct *vma)
 {
-	return -EINVAL;
+	struct drm_gem_object *gem = buf->priv;
+	int err;
+
+	err = drm_gem_mmap_obj(gem, gem->size, vma);
+	if (err < 0)
+		return err;
+
+	return tegra_gem_mmap(gem, vma);
 }
 
 static void *tegra_gem_prime_vmap(struct dma_buf *buf)
