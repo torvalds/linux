@@ -342,7 +342,7 @@ static void txqs_wake(struct net_device *netdev)
 		int i;
 
 		for (i = 0; i < netdev->num_tx_queues; i++) {
-			int qno = lio->linfo.txpciq[i % (lio->linfo.num_txpciq)]
+			int qno = lio->linfo.txpciq[i % lio->oct_dev->num_iqs]
 				      .s.q_no;
 			if (__netif_subqueue_stopped(netdev, i)) {
 				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
@@ -750,10 +750,14 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		if (oct->msix_on) {
 			msix_entries = (struct msix_entry *)oct->msix_entries;
 			for (i = 0; i < oct->num_msix_irqs; i++) {
-				irq_set_affinity_hint(msix_entries[i].vector,
-						      NULL);
-				free_irq(msix_entries[i].vector,
-					 &oct->ioq_vector[i]);
+				if (oct->ioq_vector[i].vector) {
+					irq_set_affinity_hint(
+							msix_entries[i].vector,
+							NULL);
+					free_irq(msix_entries[i].vector,
+						 &oct->ioq_vector[i]);
+					oct->ioq_vector[i].vector = 0;
+				}
 			}
 			pci_disable_msix(oct->pci_dev);
 			kfree(oct->msix_entries);
@@ -986,7 +990,7 @@ static int liquidio_stop_nic_module(struct octeon_device *oct)
 
 	for (i = 0; i < oct->ifcount; i++) {
 		lio = GET_LIO(oct->props[i].netdev);
-		for (j = 0; j < lio->linfo.num_rxpciq; j++)
+		for (j = 0; j < oct->num_oqs; j++)
 			octeon_unregister_droq_ops(oct,
 						   lio->linfo.rxpciq[j].s.q_no);
 	}
@@ -1074,7 +1078,7 @@ static int check_txq_state(struct lio *lio, struct sk_buff *skb)
 
 	if (netif_is_multiqueue(lio->netdev)) {
 		q = skb->queue_mapping;
-		iq = lio->linfo.txpciq[(q % (lio->linfo.num_txpciq))].s.q_no;
+		iq = lio->linfo.txpciq[q % lio->oct_dev->num_iqs].s.q_no;
 	} else {
 		iq = lio->txq;
 		q = iq;
@@ -1494,7 +1498,7 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 	if (ifstate_check(lio, LIO_IFSTATE_RESETTING))
 		return stats;
 
-	for (i = 0; i < lio->linfo.num_txpciq; i++) {
+	for (i = 0; i < oct->num_iqs; i++) {
 		iq_no = lio->linfo.txpciq[i].s.q_no;
 		iq_stats = &oct->instr_queue[iq_no]->stats;
 		pkts += iq_stats->tx_done;
@@ -1510,7 +1514,7 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 	drop = 0;
 	bytes = 0;
 
-	for (i = 0; i < lio->linfo.num_rxpciq; i++) {
+	for (i = 0; i < oct->num_oqs; i++) {
 		oq_no = lio->linfo.rxpciq[i].s.q_no;
 		oq_stats = &oct->droq[oq_no]->stats;
 		pkts += oq_stats->rx_pkts_received;
@@ -2465,7 +2469,9 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		/* Copy MAC Address to OS network device structure */
 		ether_addr_copy(netdev->dev_addr, mac);
 
-		if (liquidio_setup_io_queues(octeon_dev, i)) {
+		if (liquidio_setup_io_queues(octeon_dev, i,
+					     lio->linfo.num_txpciq,
+					     lio->linfo.num_rxpciq)) {
 			dev_err(&octeon_dev->pci_dev->dev, "I/O queues creation failed\n");
 			goto setup_nic_dev_fail;
 		}
@@ -2688,7 +2694,7 @@ static int octeon_device_init(struct octeon_device *oct)
 		 LIQUIDIO_VERSION, oct->sriov_info.rings_per_vf);
 
 	/* Setup the interrupt handler and record the INT SUM register address*/
-	if (octeon_setup_interrupt(oct))
+	if (octeon_setup_interrupt(oct, oct->sriov_info.rings_per_vf))
 		return 1;
 
 	atomic_set(&oct->status, OCT_DEV_INTR_SET_DONE);

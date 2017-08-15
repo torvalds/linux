@@ -31,6 +31,7 @@
 #include "cn23xx_pf_device.h"
 #include "cn23xx_vf_device.h"
 
+static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs);
 static int octnet_get_link_stats(struct net_device *netdev);
 
 struct oct_intrmod_context {
@@ -300,6 +301,35 @@ lio_get_vf_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	strncpy(drvinfo->bus_info, pci_name(oct->pci_dev), 32);
 }
 
+static int
+lio_send_queue_count_update(struct net_device *netdev, uint32_t num_queues)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = OCTNET_CMD_QUEUE_COUNT_CTL;
+	nctrl.ncmd.s.param1 = num_queues;
+	nctrl.ncmd.s.param2 = num_queues;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.wait_time = 100;
+	nctrl.netpndev = (u64)netdev;
+	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
+	if (ret < 0) {
+		dev_err(&oct->pci_dev->dev, "Failed to send Queue reset command (ret: 0x%x)\n",
+			ret);
+		return -1;
+	}
+
+	return 0;
+}
+
 static void
 lio_ethtool_get_channels(struct net_device *dev,
 			 struct ethtool_channels *channel)
@@ -307,6 +337,7 @@ lio_ethtool_get_channels(struct net_device *dev,
 	struct lio *lio = GET_LIO(dev);
 	struct octeon_device *oct = lio->oct_dev;
 	u32 max_rx = 0, max_tx = 0, tx_count = 0, rx_count = 0;
+	u32 combined_count = 0, max_combined = 0;
 
 	if (OCTEON_CN6XXX(oct)) {
 		struct octeon_config *conf6x = CHIP_CONF(oct, cn6xxx);
@@ -316,22 +347,137 @@ lio_ethtool_get_channels(struct net_device *dev,
 		rx_count = CFG_GET_NUM_RXQS_NIC_IF(conf6x, lio->ifidx);
 		tx_count = CFG_GET_NUM_TXQS_NIC_IF(conf6x, lio->ifidx);
 	} else if (OCTEON_CN23XX_PF(oct)) {
-
-		max_rx = oct->sriov_info.num_pf_rings;
-		max_tx = oct->sriov_info.num_pf_rings;
-		rx_count = lio->linfo.num_rxpciq;
-		tx_count = lio->linfo.num_txpciq;
+		max_combined = lio->linfo.num_txpciq;
+		combined_count = oct->num_iqs;
 	} else if (OCTEON_CN23XX_VF(oct)) {
-		max_tx = oct->sriov_info.rings_per_vf;
-		max_rx = oct->sriov_info.rings_per_vf;
-		rx_count = lio->linfo.num_rxpciq;
-		tx_count = lio->linfo.num_txpciq;
+		u64 reg_val = 0ULL;
+		u64 ctrl = CN23XX_VF_SLI_IQ_PKT_CONTROL64(0);
+
+		reg_val = octeon_read_csr64(oct, ctrl);
+		reg_val = reg_val >> CN23XX_PKT_INPUT_CTL_RPVF_POS;
+		max_combined = reg_val & CN23XX_PKT_INPUT_CTL_RPVF_MASK;
+		combined_count = oct->num_iqs;
 	}
 
 	channel->max_rx = max_rx;
 	channel->max_tx = max_tx;
+	channel->max_combined = max_combined;
 	channel->rx_count = rx_count;
 	channel->tx_count = tx_count;
+	channel->combined_count = combined_count;
+}
+
+static int
+lio_irq_reallocate_irqs(struct octeon_device *oct, uint32_t num_ioqs)
+{
+	struct msix_entry *msix_entries;
+	int num_msix_irqs = 0;
+	int i;
+
+	if (!oct->msix_on)
+		return 0;
+
+	/* Disable the input and output queues now. No more packets will
+	 * arrive from Octeon.
+	 */
+	oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
+
+	if (oct->msix_on) {
+		if (OCTEON_CN23XX_PF(oct))
+			num_msix_irqs = oct->num_msix_irqs - 1;
+		else if (OCTEON_CN23XX_VF(oct))
+			num_msix_irqs = oct->num_msix_irqs;
+
+		msix_entries = (struct msix_entry *)oct->msix_entries;
+		for (i = 0; i < num_msix_irqs; i++) {
+			if (oct->ioq_vector[i].vector) {
+				/* clear the affinity_cpumask */
+				irq_set_affinity_hint(msix_entries[i].vector,
+						      NULL);
+				free_irq(msix_entries[i].vector,
+					 &oct->ioq_vector[i]);
+				oct->ioq_vector[i].vector = 0;
+			}
+		}
+
+		/* non-iov vector's argument is oct struct */
+		if (OCTEON_CN23XX_PF(oct))
+			free_irq(msix_entries[i].vector, oct);
+
+		pci_disable_msix(oct->pci_dev);
+		kfree(oct->msix_entries);
+		oct->msix_entries = NULL;
+	}
+
+	kfree(oct->irq_name_storage);
+	oct->irq_name_storage = NULL;
+	if (octeon_setup_interrupt(oct, num_ioqs)) {
+		dev_info(&oct->pci_dev->dev, "Setup interuupt failed\n");
+		return 1;
+	}
+
+	/* Enable Octeon device interrupts */
+	oct->fn_list.enable_interrupt(oct, OCTEON_ALL_INTR);
+
+	return 0;
+}
+
+static int
+lio_ethtool_set_channels(struct net_device *dev,
+			 struct ethtool_channels *channel)
+{
+	u32 combined_count, max_combined;
+	struct lio *lio = GET_LIO(dev);
+	struct octeon_device *oct = lio->oct_dev;
+	int stopped = 0;
+
+	if (strcmp(oct->fw_info.liquidio_firmware_version, "1.6.1") < 0) {
+		dev_err(&oct->pci_dev->dev, "Minimum firmware version required is 1.6.1\n");
+		return -EINVAL;
+	}
+
+	if (!channel->combined_count || channel->other_count ||
+	    channel->rx_count || channel->tx_count)
+		return -EINVAL;
+
+	combined_count = channel->combined_count;
+
+	if (OCTEON_CN23XX_PF(oct)) {
+		max_combined = channel->max_combined;
+	} else if (OCTEON_CN23XX_VF(oct)) {
+		u64 reg_val = 0ULL;
+		u64 ctrl = CN23XX_VF_SLI_IQ_PKT_CONTROL64(0);
+
+		reg_val = octeon_read_csr64(oct, ctrl);
+		reg_val = reg_val >> CN23XX_PKT_INPUT_CTL_RPVF_POS;
+		max_combined = reg_val & CN23XX_PKT_INPUT_CTL_RPVF_MASK;
+	} else {
+		return -EINVAL;
+	}
+
+	if (combined_count > max_combined || combined_count < 1)
+		return -EINVAL;
+
+	if (combined_count == oct->num_iqs)
+		return 0;
+
+	ifstate_set(lio, LIO_IFSTATE_RESETTING);
+
+	if (netif_running(dev)) {
+		dev->netdev_ops->ndo_stop(dev);
+		stopped = 1;
+	}
+
+	if (lio_reset_queues(dev, combined_count))
+		return -EINVAL;
+
+	lio_irq_reallocate_irqs(oct, combined_count);
+	if (stopped)
+		dev->netdev_ops->ndo_open(dev);
+
+	ifstate_reset(lio, LIO_IFSTATE_RESETTING);
+
+	return 0;
 }
 
 static int lio_get_eeprom_len(struct net_device *netdev)
@@ -664,15 +810,12 @@ lio_ethtool_get_ringparam(struct net_device *netdev,
 	ering->rx_jumbo_max_pending = 0;
 }
 
-static int lio_reset_queues(struct net_device *netdev)
+static int lio_reset_queues(struct net_device *netdev, uint32_t num_qs)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct napi_struct *napi, *n;
-	int i;
-
-	dev_dbg(&oct->pci_dev->dev, "%s:%d ifidx %d\n",
-		__func__, __LINE__, lio->ifidx);
+	int i, update = 0;
 
 	if (wait_for_pending_requests(oct))
 		dev_err(&oct->pci_dev->dev, "There were pending requests\n");
@@ -693,6 +836,12 @@ static int lio_reset_queues(struct net_device *netdev)
 	list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
 		netif_napi_del(napi);
 
+	if (num_qs != oct->num_iqs) {
+		netif_set_real_num_rx_queues(netdev, num_qs);
+		netif_set_real_num_tx_queues(netdev, num_qs);
+		update = 1;
+	}
+
 	for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
 		if (!(oct->io_qmask.oq & BIT_ULL(i)))
 			continue;
@@ -710,7 +859,7 @@ static int lio_reset_queues(struct net_device *netdev)
 		return -1;
 	}
 
-	if (liquidio_setup_io_queues(oct, 0)) {
+	if (liquidio_setup_io_queues(oct, 0, num_qs, num_qs)) {
 		dev_err(&oct->pci_dev->dev, "IO queues initialization failed\n");
 		return -1;
 	}
@@ -720,6 +869,9 @@ static int lio_reset_queues(struct net_device *netdev)
 		dev_err(&oct->pci_dev->dev, "Failed to enable input/output queues");
 		return -1;
 	}
+
+	if (update && lio_send_queue_count_update(netdev, num_qs))
+		return -1;
 
 	return 0;
 }
@@ -764,7 +916,7 @@ static int lio_ethtool_set_ringparam(struct net_device *netdev,
 		CFG_SET_NUM_RX_DESCS_NIC_IF(octeon_get_conf(oct), lio->ifidx,
 					    rx_count);
 
-	if (lio_reset_queues(netdev))
+	if (lio_reset_queues(netdev, lio->linfo.num_txpciq))
 		goto err_lio_reset_queues;
 
 	if (stopped)
@@ -1194,7 +1346,7 @@ static void lio_vf_get_ethtool_stats(struct net_device *netdev,
 	/* lio->link_changes */
 	data[i++] = CVM_CAST64(lio->link_changes);
 
-	for (vj = 0; vj < lio->linfo.num_txpciq; vj++) {
+	for (vj = 0; vj < oct_dev->num_iqs; vj++) {
 		j = lio->linfo.txpciq[vj].s.q_no;
 
 		/* packets to network port */
@@ -1236,7 +1388,7 @@ static void lio_vf_get_ethtool_stats(struct net_device *netdev,
 	}
 
 	/* RX */
-	for (vj = 0; vj < lio->linfo.num_rxpciq; vj++) {
+	for (vj = 0; vj < oct_dev->num_oqs; vj++) {
 		j = lio->linfo.rxpciq[vj].s.q_no;
 
 		/* packets send to TCP/IP network stack */
@@ -2705,6 +2857,7 @@ static const struct ethtool_ops lio_ethtool_ops = {
 	.get_ringparam		= lio_ethtool_get_ringparam,
 	.set_ringparam		= lio_ethtool_set_ringparam,
 	.get_channels		= lio_ethtool_get_channels,
+	.set_channels		= lio_ethtool_set_channels,
 	.set_phys_id		= lio_set_phys_id,
 	.get_eeprom_len		= lio_get_eeprom_len,
 	.get_eeprom		= lio_get_eeprom,
@@ -2731,6 +2884,7 @@ static const struct ethtool_ops lio_vf_ethtool_ops = {
 	.get_ringparam		= lio_ethtool_get_ringparam,
 	.set_ringparam          = lio_ethtool_set_ringparam,
 	.get_channels		= lio_ethtool_get_channels,
+	.set_channels		= lio_ethtool_set_channels,
 	.get_strings		= lio_vf_get_strings,
 	.get_ethtool_stats	= lio_vf_get_ethtool_stats,
 	.get_regs_len		= lio_get_regs_len,

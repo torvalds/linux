@@ -275,6 +275,11 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 		netif_info(lio, probe, lio->netdev, "Set RX/TX flow control parameters\n");
 		break;
 
+	case OCTNET_CMD_QUEUE_COUNT_CTL:
+		netif_info(lio, probe, lio->netdev, "Queue count updated to %d\n",
+			   nctrl->ncmd.s.param1);
+		break;
+
 	default:
 		dev_err(&oct->pci_dev->dev, "%s Unknown cmd %d\n", __func__,
 			nctrl->ncmd.s.cmd);
@@ -689,7 +694,8 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
  * an input queue is for egress packets, and output queues
  * are for ingress packets.
  */
-int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx)
+int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx,
+			     u32 num_iqs, u32 num_oqs)
 {
 	struct octeon_droq_ops droq_ops;
 	struct net_device *netdev;
@@ -717,7 +723,7 @@ int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx)
 	cpu_id_modulus = num_present_cpus();
 
 	/* set up DROQs. */
-	for (q = 0; q < lio->linfo.num_rxpciq; q++) {
+	for (q = 0; q < num_oqs; q++) {
 		q_no = lio->linfo.rxpciq[q].s.q_no;
 		dev_dbg(&octeon_dev->pci_dev->dev,
 			"%s index:%d linfo.rxpciq.s.q_no:%d\n",
@@ -761,7 +767,7 @@ int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx)
 	}
 
 	/* set up IQs. */
-	for (q = 0; q < lio->linfo.num_txpciq; q++) {
+	for (q = 0; q < num_iqs; q++) {
 		num_tx_descs = CFG_GET_NUM_TX_DESCS_NIC_IF(
 		    octeon_get_conf(octeon_dev), lio->ifidx);
 		retval = octeon_setup_iq(octeon_dev, ifidx, q,
@@ -892,7 +898,7 @@ irqreturn_t liquidio_legacy_intr_handler(int irq __attribute__((unused)),
  *
  *  Enable interrupt in Octeon device as given in the PCI interrupt mask.
  */
-int octeon_setup_interrupt(struct octeon_device *oct)
+int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 {
 	struct msix_entry *msix_entries;
 	char *queue_irq_names = NULL;
@@ -902,9 +908,9 @@ int octeon_setup_interrupt(struct octeon_device *oct)
 	int num_ioq_vectors;
 	int irqret, err;
 
+	oct->num_msix_irqs = num_ioqs;
 	if (oct->msix_on) {
 		if (OCTEON_CN23XX_PF(oct)) {
-			oct->num_msix_irqs = oct->sriov_info.num_pf_rings;
 			num_interrupts = MAX_IOQ_INTERRUPTS_PER_PF + 1;
 
 			/* one non ioq interrupt for handling
@@ -912,7 +918,6 @@ int octeon_setup_interrupt(struct octeon_device *oct)
 			 */
 			oct->num_msix_irqs += 1;
 		} else if (OCTEON_CN23XX_VF(oct)) {
-			oct->num_msix_irqs = oct->sriov_info.rings_per_vf;
 			num_interrupts = MAX_IOQ_INTERRUPTS_PER_VF;
 		}
 
