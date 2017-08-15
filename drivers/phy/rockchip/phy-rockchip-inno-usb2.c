@@ -1327,10 +1327,10 @@ static int rockchip_usb2phy_host_port_init(struct rockchip_usb2phy *rphy,
 					   struct device_node *child_np)
 {
 	int ret;
+	struct regmap *base = get_reg_base(rphy);
 
 	rport->port_id = USB2PHY_PORT_HOST;
 	rport->port_cfg = &rphy->phy_cfg->port_cfgs[USB2PHY_PORT_HOST];
-	rport->suspended = true;
 
 	mutex_init(&rport->mutex);
 	INIT_DELAYED_WORK(&rport->sm_work, rockchip_usb2phy_sm_work);
@@ -1349,6 +1349,16 @@ static int rockchip_usb2phy_host_port_init(struct rockchip_usb2phy *rphy,
 		dev_err(rphy->dev, "failed to request linestate irq handle\n");
 		return ret;
 	}
+
+	/*
+	 * Let us put phy-port into suspend mode here for saving power
+	 * consumption, and usb controller will resume it during probe
+	 * time if needed.
+	 */
+	ret = property_enable(base, &rport->port_cfg->phy_sus, true);
+	if (ret)
+		return ret;
+	rport->suspended = true;
 
 	return 0;
 }
@@ -1370,18 +1380,11 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 {
 	int ret;
 	int iddig;
+	struct regmap *base = get_reg_base(rphy);
 
 	rport->port_id = USB2PHY_PORT_OTG;
 	rport->port_cfg = &rphy->phy_cfg->port_cfgs[USB2PHY_PORT_OTG];
 	rport->state = OTG_STATE_UNDEFINED;
-
-	/*
-	 * set suspended flag to true, but actually don't
-	 * put phy in suspend mode, it aims to enable usb
-	 * phy and clock in power_on() called by usb controller
-	 * driver during probe.
-	 */
-	rport->suspended = true;
 	rport->vbus_attached = false;
 	rport->perip_connected = false;
 
@@ -1420,14 +1423,13 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		if (ret) {
 			dev_err(rphy->dev,
 				"failed to request otg-mux irq handle\n");
-			goto out;
+			return ret;
 		}
 	} else {
 		rport->bvalid_irq = of_irq_get_byname(child_np, "otg-bvalid");
 		if (rport->bvalid_irq < 0) {
 			dev_err(rphy->dev, "no vbus valid irq provided\n");
-			ret = rport->bvalid_irq;
-			goto out;
+			return rport->bvalid_irq;
 		}
 
 		ret = devm_request_threaded_irq(rphy->dev, rport->bvalid_irq,
@@ -1439,13 +1441,13 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		if (ret) {
 			dev_err(rphy->dev,
 				"failed to request otg-bvalid irq handle\n");
-			goto out;
+			return ret;
 		}
 
 		rport->ls_irq = of_irq_get_byname(child_np, "linestate");
 		if (rport->ls_irq < 0) {
 			dev_err(rphy->dev, "no linestate irq provided\n");
-			goto out;
+			return rport->ls_irq;
 		}
 
 		ret = devm_request_threaded_irq(rphy->dev, rport->ls_irq, NULL,
@@ -1454,7 +1456,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 						"rockchip_usb2phy", rport);
 		if (ret) {
 			dev_err(rphy->dev, "failed to request linestate irq handle\n");
-			goto out;
+			return ret;
 		}
 	}
 
@@ -1490,12 +1492,24 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 
 		ret = devm_extcon_register_notifier(rphy->dev, rphy->edev,
 					EXTCON_USB_HOST, &rport->event_nb);
-		if (ret)
+		if (ret) {
 			dev_err(rphy->dev, "register USB HOST notifier failed\n");
+			return ret;
+		}
 	}
 
 out:
-	return ret;
+	/*
+	 * Let us put phy-port into suspend mode here for saving power
+	 * consumption, and usb controller will resume it during probe
+	 * time if needed.
+	 */
+	ret = property_enable(base, &rport->port_cfg->phy_sus, true);
+	if (ret)
+		return ret;
+	rport->suspended = true;
+
+	return 0;
 }
 
 static int rockchip_usb2phy_probe(struct platform_device *pdev)
