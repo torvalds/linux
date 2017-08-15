@@ -826,7 +826,7 @@ static ssize_t key_store(struct device *dev, struct device_attribute *attr,
 	mutex_unlock(&switch_lock);
 	return ret;
 }
-static DEVICE_ATTR_RW(key);
+static DEVICE_ATTR(key, 0600, key_show, key_store);
 
 static ssize_t nvm_authenticate_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
