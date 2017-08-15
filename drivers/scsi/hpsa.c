@@ -3845,6 +3845,16 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		if (h->fw_support & MISC_FW_RAID_OFFLOAD_BASIC)
 			hpsa_get_ioaccel_status(h, scsi3addr, this_device);
 		volume_offline = hpsa_volume_offline(h, scsi3addr);
+		if (volume_offline == HPSA_VPD_LV_STATUS_UNSUPPORTED &&
+		    h->legacy_board) {
+			/*
+			 * Legacy boards might not support volume status
+			 */
+			dev_info(&h->pdev->dev,
+				 "C0:T%d:L%d Volume status not available, assuming online.\n",
+				 this_device->target, this_device->lun);
+			volume_offline = 0;
+		}
 		this_device->volume_offline = volume_offline;
 		if (volume_offline == HPSA_LV_FAILED) {
 			rc = HPSA_LV_FAILED;
