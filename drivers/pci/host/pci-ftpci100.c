@@ -355,7 +355,7 @@ static int faraday_pci_setup_cascaded_irq(struct faraday_pci *p)
 		return irq ?: -EINVAL;
 	}
 
-	p->irqdomain = irq_domain_add_linear(intc, 4,
+	p->irqdomain = irq_domain_add_linear(intc, PCI_NUM_INTX,
 					     &faraday_pci_irqdomain_ops, p);
 	if (!p->irqdomain) {
 		dev_err(p->dev, "failed to create Gemini PCI IRQ domain\n");
