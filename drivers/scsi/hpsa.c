@@ -81,6 +81,7 @@ MODULE_DESCRIPTION("Driver for HP Smart Array Controller version " \
 MODULE_SUPPORTED_DEVICE("HP Smart Array Controllers");
 MODULE_VERSION(HPSA_DRIVER_VERSION);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("cciss");
 
 static int hpsa_allow_any;
 module_param(hpsa_allow_any, int, S_IRUGO|S_IWUSR);

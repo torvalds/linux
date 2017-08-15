@@ -6032,16 +6032,6 @@ F:	drivers/scsi/hpsa*.[ch]
 F:	include/linux/cciss*.h
 F:	include/uapi/linux/cciss*.h
 
-HEWLETT-PACKARD SMART CISS RAID DRIVER (cciss)
-M:	Don Brace <don.brace@microsemi.com>
-L:	esc.storagedev@microsemi.com
-L:	linux-scsi@vger.kernel.org
-S:	Supported
-F:	Documentation/blockdev/cciss.txt
-F:	drivers/block/cciss*
-F:	include/linux/cciss_ioctl.h
-F:	include/uapi/linux/cciss_ioctl.h
-
 HFI1 DRIVER
 M:	Mike Marciniszyn <mike.marciniszyn@intel.com>
 M:	Dennis Dalessandro <dennis.dalessandro@intel.com>
