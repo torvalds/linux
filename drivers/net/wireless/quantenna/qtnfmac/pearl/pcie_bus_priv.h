@@ -66,13 +66,11 @@ struct qtnf_pcie_bus_priv {
 	void *bd_table_vaddr;
 	u32 bd_table_len;
 
-	u32 hw_txproc_wr_ptr;
+	u32 rx_bd_w_index;
+	u32 rx_bd_r_index;
 
-	u16 tx_bd_reclaim_start;
-	u16 tx_bd_index;
-	u32 tx_queue_len;
-
-	u16 rx_bd_index;
+	u32 tx_bd_w_index;
+	u32 tx_bd_r_index;
 
 	u32 pcie_irq_mask;
 
