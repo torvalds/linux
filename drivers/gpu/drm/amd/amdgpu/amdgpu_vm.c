@@ -1792,11 +1792,8 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 		bo_va->base.moved = false;
 		list_splice_init(&bo_va->valids, &bo_va->invalids);
 
-	} else {
-		spin_lock(&vm->status_lock);
-		if (!list_empty(&bo_va->base.vm_status))
-			list_splice_init(&bo_va->valids, &bo_va->invalids);
-		spin_unlock(&vm->status_lock);
+	} else if (bo_va->cleared != clear) {
+		list_splice_init(&bo_va->valids, &bo_va->invalids);
 	}
 
 	list_for_each_entry(mapping, &bo_va->invalids, list) {
@@ -1807,25 +1804,22 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			return r;
 	}
 
-	if (trace_amdgpu_vm_bo_mapping_enabled()) {
-		list_for_each_entry(mapping, &bo_va->valids, list)
-			trace_amdgpu_vm_bo_mapping(mapping);
-
-		list_for_each_entry(mapping, &bo_va->invalids, list)
-			trace_amdgpu_vm_bo_mapping(mapping);
-	}
-
-	spin_lock(&vm->status_lock);
-	list_splice_init(&bo_va->invalids, &bo_va->valids);
-	list_del_init(&bo_va->base.vm_status);
-	if (clear)
-		list_add(&bo_va->base.vm_status, &vm->cleared);
-	spin_unlock(&vm->status_lock);
-
 	if (vm->use_cpu_for_update) {
 		/* Flush HDP */
 		mb();
 		amdgpu_gart_flush_gpu_tlb(adev, 0);
+	}
+
+	spin_lock(&vm->status_lock);
+	list_del_init(&bo_va->base.vm_status);
+	spin_unlock(&vm->status_lock);
+
+	list_splice_init(&bo_va->invalids, &bo_va->valids);
+	bo_va->cleared = clear;
+
+	if (trace_amdgpu_vm_bo_mapping_enabled()) {
+		list_for_each_entry(mapping, &bo_va->valids, list)
+			trace_amdgpu_vm_bo_mapping(mapping);
 	}
 
 	return 0;
@@ -2427,9 +2421,7 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 	list_for_each_entry(bo_base, &bo->va, bo_list) {
 		bo_base->moved = true;
 		spin_lock(&bo_base->vm->status_lock);
-		if (list_empty(&bo_base->vm_status))
-			list_add(&bo_base->vm_status,
-				 &bo_base->vm->moved);
+		list_move(&bo_base->vm_status, &bo_base->vm->moved);
 		spin_unlock(&bo_base->vm->status_lock);
 	}
 }
@@ -2516,7 +2508,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		vm->reserved_vmid[i] = NULL;
 	spin_lock_init(&vm->status_lock);
 	INIT_LIST_HEAD(&vm->moved);
-	INIT_LIST_HEAD(&vm->cleared);
 	INIT_LIST_HEAD(&vm->freed);
 
 	/* create scheduler entity for page table updates */

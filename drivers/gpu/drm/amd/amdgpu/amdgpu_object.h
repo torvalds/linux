@@ -55,6 +55,9 @@ struct amdgpu_bo_va {
 	/* mappings for this bo_va */
 	struct list_head		invalids;
 	struct list_head		valids;
+
+	/* If the mappings are cleared or filled */
+	bool				cleared;
 };
 
 struct amdgpu_bo {

@@ -129,9 +129,6 @@ struct amdgpu_vm {
 	/* BOs moved, but not yet updated in the PT */
 	struct list_head	moved;
 
-	/* BOs cleared in the PT because of a move */
-	struct list_head	cleared;
-
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
 
