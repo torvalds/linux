@@ -55,6 +55,11 @@
 
 	/include/ "bcm-cygnus-clock.dtsi"
 
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	core {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x19000000 0x1000000>;
