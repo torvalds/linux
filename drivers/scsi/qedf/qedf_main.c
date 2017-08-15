@@ -3058,9 +3058,24 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC, "MAC address is %pM.\n",
 		   qedf->mac);
 
-	/* Set the WWNN and WWPN based on the MAC address */
-	qedf->wwnn = fcoe_wwn_from_mac(qedf->mac, 1, 0);
-	qedf->wwpn = fcoe_wwn_from_mac(qedf->mac, 2, 0);
+	/*
+	 * Set the WWNN and WWPN in the following way:
+	 *
+	 * If the info we get from qed is non-zero then use that to set the
+	 * WWPN and WWNN. Otherwise fall back to use fcoe_wwn_from_mac() based
+	 * on the MAC address.
+	 */
+	if (qedf->dev_info.wwnn != 0 && qedf->dev_info.wwpn != 0) {
+		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
+		    "Setting WWPN and WWNN from qed dev_info.\n");
+		qedf->wwnn = qedf->dev_info.wwnn;
+		qedf->wwpn = qedf->dev_info.wwpn;
+	} else {
+		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
+		    "Setting WWPN and WWNN using fcoe_wwn_from_mac().\n");
+		qedf->wwnn = fcoe_wwn_from_mac(qedf->mac, 1, 0);
+		qedf->wwpn = fcoe_wwn_from_mac(qedf->mac, 2, 0);
+	}
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,  "WWNN=%016llx "
 		   "WWPN=%016llx.\n", qedf->wwnn, qedf->wwpn);
 
