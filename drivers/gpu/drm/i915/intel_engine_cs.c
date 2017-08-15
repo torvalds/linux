@@ -1070,6 +1070,10 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
 
+	/* WaDisableReplayBufferBankArbitrationOptimization:cnl */
+	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
+
 	/* WaInPlaceDecompressionHang:cnl */
 	WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
 		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
