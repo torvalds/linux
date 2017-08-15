@@ -2258,6 +2258,8 @@ static void retrieve_link_cap(struct dc_link *link)
 		DP_EDP_CONFIGURATION_CAP - DP_DPCD_REV];
 	link->dpcd_caps.panel_mode_edp =
 		edp_config_cap.bits.ALT_SCRAMBLER_RESET;
+	link->dpcd_caps.dpcd_display_control_capable =
+		edp_config_cap.bits.DPCD_DISPLAY_CONTROL_CAPABLE;
 
 	link->test_pattern_enabled = false;
 	link->compliance_test_state.raw = 0;

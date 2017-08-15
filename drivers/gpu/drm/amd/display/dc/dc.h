@@ -760,6 +760,7 @@ struct dpcd_caps {
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;
+	bool dpcd_display_control_capable;
 };
 
 struct dc_link_status {
@@ -834,7 +835,6 @@ struct dc_link {
 	struct dpcd_caps dpcd_caps;
 	unsigned short chip_caps;
 	unsigned int dpcd_sink_count;
-
 	enum edp_revision edp_revision;
 	bool psr_enabled;
 
