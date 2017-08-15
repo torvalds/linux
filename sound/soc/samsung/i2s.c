@@ -1388,13 +1388,9 @@ err_disable_clk:
 
 static int samsung_i2s_remove(struct platform_device *pdev)
 {
-	struct i2s_dai *pri_dai, *sec_dai;
+	struct i2s_dai *pri_dai;
 
 	pri_dai = dev_get_drvdata(&pdev->dev);
-	sec_dai = pri_dai->sec_dai;
-
-	pri_dai->sec_dai = NULL;
-	sec_dai->pri_dai = NULL;
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
