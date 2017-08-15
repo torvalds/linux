@@ -148,8 +148,7 @@ struct iwl_nvm_data *iwl_fw_get_nvm(struct iwl_fw_runtime *fwrt)
 			rsp->regulatory.channel_profile,
 			nvm->valid_tx_ant & fwrt->fw->valid_tx_ant,
 			nvm->valid_rx_ant & fwrt->fw->valid_rx_ant,
-			rsp->regulatory.lar_enabled && lar_fw_supported,
-			false);
+			nvm->lar_enabled, false);
 
 	iwl_free_resp(&hcmd);
 	return nvm;
