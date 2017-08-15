@@ -661,7 +661,6 @@ static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
 						buf, count);
 		break;
 	case VFIO_PCI_BAR0_REGION_INDEX:
-	case VFIO_PCI_BAR1_REGION_INDEX:
 		if (is_write) {
 			uint64_t bar0_start = intel_vgpu_get_bar0_addr(vgpu);
 
@@ -674,6 +673,7 @@ static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
 						bar0_start + pos, buf, count);
 		}
 		break;
+	case VFIO_PCI_BAR1_REGION_INDEX:
 	case VFIO_PCI_BAR2_REGION_INDEX:
 	case VFIO_PCI_BAR3_REGION_INDEX:
 	case VFIO_PCI_BAR4_REGION_INDEX:
