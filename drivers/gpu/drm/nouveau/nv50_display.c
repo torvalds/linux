@@ -3897,7 +3897,7 @@ static void
 nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
-	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc_state *new_crtc_state, *old_crtc_state;
 	struct drm_crtc *crtc;
 	struct drm_plane_state *new_plane_state;
 	struct drm_plane *plane;
@@ -3918,13 +3918,13 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		mutex_lock(&disp->mutex);
 
 	/* Disable head(s). */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
 		struct nv50_head *head = nv50_head(crtc);
 
 		NV_ATOMIC(drm, "%s: clr %04x (set %04x)\n", crtc->name,
 			  asyh->clr.mask, asyh->set.mask);
-		if (new_crtc_state->active && !asyh->state.active)
+		if (old_crtc_state->active && !new_crtc_state->active)
 			drm_crtc_vblank_off(crtc);
 
 		if (asyh->clr.mask) {
@@ -4000,7 +4000,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	/* Update head(s). */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
 		struct nv50_head *head = nv50_head(crtc);
 
@@ -4012,10 +4012,10 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			interlock_core = 1;
 		}
 
-		if (asyh->state.active) {
-			if (!new_crtc_state->active)
+		if (new_crtc_state->active) {
+			if (!old_crtc_state->active)
 				drm_crtc_vblank_on(crtc);
-			if (asyh->state.event)
+			if (new_crtc_state->event)
 				drm_crtc_vblank_get(crtc);
 		}
 	}
@@ -4064,13 +4064,14 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		if (new_crtc_state->event) {
 			unsigned long flags;
 			/* Get correct count/ts if racing with vblank irq */
-			if (crtc->state->active)
+			if (new_crtc_state->active)
 				drm_crtc_accurate_vblank_count(crtc);
 			spin_lock_irqsave(&crtc->dev->event_lock, flags);
 			drm_crtc_send_vblank_event(crtc, new_crtc_state->event);
 			spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
 			new_crtc_state->event = NULL;
-			if (crtc->state->active)
+			if (new_crtc_state->active)
 				drm_crtc_vblank_put(crtc);
 		}
 	}
