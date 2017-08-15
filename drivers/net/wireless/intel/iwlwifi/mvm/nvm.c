@@ -546,7 +546,7 @@ int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
 	return ret;
 }
 
-int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
+int iwl_nvm_init(struct iwl_mvm *mvm)
 {
 	int ret, section;
 	u32 size_read = 0;
@@ -557,63 +557,61 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 		return -EINVAL;
 
 	/* load NVM values from nic */
-	if (read_nvm_from_nic) {
-		/* Read From FW NVM */
-		IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
+	/* Read From FW NVM */
+	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
 
-		nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
-				     GFP_KERNEL);
-		if (!nvm_buffer)
-			return -ENOMEM;
-		for (section = 0; section < NVM_MAX_NUM_SECTIONS; section++) {
-			/* we override the constness for initial read */
-			ret = iwl_nvm_read_section(mvm, section, nvm_buffer,
-						   size_read);
-			if (ret < 0)
-				continue;
-			size_read += ret;
-			temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
-			if (!temp) {
-				ret = -ENOMEM;
-				break;
-			}
+	nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
+			     GFP_KERNEL);
+	if (!nvm_buffer)
+		return -ENOMEM;
+	for (section = 0; section < NVM_MAX_NUM_SECTIONS; section++) {
+		/* we override the constness for initial read */
+		ret = iwl_nvm_read_section(mvm, section, nvm_buffer,
+					   size_read);
+		if (ret < 0)
+			continue;
+		size_read += ret;
+		temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
+		if (!temp) {
+			ret = -ENOMEM;
+			break;
+		}
 
-			iwl_mvm_nvm_fixups(mvm, section, temp, ret);
+		iwl_mvm_nvm_fixups(mvm, section, temp, ret);
 
-			mvm->nvm_sections[section].data = temp;
-			mvm->nvm_sections[section].length = ret;
+		mvm->nvm_sections[section].data = temp;
+		mvm->nvm_sections[section].length = ret;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-			switch (section) {
-			case NVM_SECTION_TYPE_SW:
-				mvm->nvm_sw_blob.data = temp;
-				mvm->nvm_sw_blob.size  = ret;
+		switch (section) {
+		case NVM_SECTION_TYPE_SW:
+			mvm->nvm_sw_blob.data = temp;
+			mvm->nvm_sw_blob.size  = ret;
+			break;
+		case NVM_SECTION_TYPE_CALIBRATION:
+			mvm->nvm_calib_blob.data = temp;
+			mvm->nvm_calib_blob.size  = ret;
+			break;
+		case NVM_SECTION_TYPE_PRODUCTION:
+			mvm->nvm_prod_blob.data = temp;
+			mvm->nvm_prod_blob.size  = ret;
+			break;
+		case NVM_SECTION_TYPE_PHY_SKU:
+			mvm->nvm_phy_sku_blob.data = temp;
+			mvm->nvm_phy_sku_blob.size  = ret;
+			break;
+		default:
+			if (section == mvm->cfg->nvm_hw_section_num) {
+				mvm->nvm_hw_blob.data = temp;
+				mvm->nvm_hw_blob.size = ret;
 				break;
-			case NVM_SECTION_TYPE_CALIBRATION:
-				mvm->nvm_calib_blob.data = temp;
-				mvm->nvm_calib_blob.size  = ret;
-				break;
-			case NVM_SECTION_TYPE_PRODUCTION:
-				mvm->nvm_prod_blob.data = temp;
-				mvm->nvm_prod_blob.size  = ret;
-				break;
-			case NVM_SECTION_TYPE_PHY_SKU:
-				mvm->nvm_phy_sku_blob.data = temp;
-				mvm->nvm_phy_sku_blob.size  = ret;
-				break;
-			default:
-				if (section == mvm->cfg->nvm_hw_section_num) {
-					mvm->nvm_hw_blob.data = temp;
-					mvm->nvm_hw_blob.size = ret;
-					break;
-				}
 			}
-#endif
 		}
-		if (!size_read)
-			IWL_ERR(mvm, "OTP is blank\n");
-		kfree(nvm_buffer);
+#endif
 	}
+	if (!size_read)
+		IWL_ERR(mvm, "OTP is blank\n");
+	kfree(nvm_buffer);
 
 	/* Only if PNVM selected in the mod param - load external NVM  */
 	if (mvm->nvm_file_name) {
