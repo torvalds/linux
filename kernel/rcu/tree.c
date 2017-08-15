@@ -2563,85 +2563,6 @@ rcu_check_quiescent_state(struct rcu_state *rsp, struct rcu_data *rdp)
 }
 
 /*
- * Send the specified CPU's RCU callbacks to the orphanage.  The
- * specified CPU must be offline, and the caller must hold the
- * ->orphan_lock.
- */
-static void
-rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
-			  struct rcu_node *rnp, struct rcu_data *rdp)
-{
-	lockdep_assert_held(&rsp->orphan_lock);
-
-	/* No-CBs CPUs do not have orphanable callbacks. */
-	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) || rcu_is_nocb_cpu(rdp->cpu))
-		return;
-
-	/*
-	 * Orphan the callbacks.  First adjust the counts.  This is safe
-	 * because _rcu_barrier() excludes CPU-hotplug operations, so it
-	 * cannot be running now.  Thus no memory barrier is required.
-	 */
-	rdp->n_cbs_orphaned += rcu_segcblist_n_cbs(&rdp->cblist);
-	rcu_segcblist_extract_count(&rdp->cblist, &rsp->orphan_done);
-
-	/*
-	 * Next, move those callbacks still needing a grace period to
-	 * the orphanage, where some other CPU will pick them up.
-	 * Some of the callbacks might have gone partway through a grace
-	 * period, but that is too bad.  They get to start over because we
-	 * cannot assume that grace periods are synchronized across CPUs.
-	 */
-	rcu_segcblist_extract_pend_cbs(&rdp->cblist, &rsp->orphan_pend);
-
-	/*
-	 * Then move the ready-to-invoke callbacks to the orphanage,
-	 * where some other CPU will pick them up.  These will not be
-	 * required to pass though another grace period: They are done.
-	 */
-	rcu_segcblist_extract_done_cbs(&rdp->cblist, &rsp->orphan_done);
-
-	/* Finally, disallow further callbacks on this CPU.  */
-	rcu_segcblist_disable(&rdp->cblist);
-}
-
-/*
- * Adopt the RCU callbacks from the specified rcu_state structure's
- * orphanage.  The caller must hold the ->orphan_lock.
- */
-static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
-{
-	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
-
-	lockdep_assert_held(&rsp->orphan_lock);
-
-	/* No-CBs CPUs are handled specially. */
-	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) ||
-	    rcu_nocb_adopt_orphan_cbs(rsp, rdp, flags))
-		return;
-
-	/* Do the accounting first. */
-	rdp->n_cbs_adopted += rsp->orphan_done.len;
-	if (rsp->orphan_done.len_lazy != rsp->orphan_done.len)
-		rcu_idle_count_callbacks_posted();
-	rcu_segcblist_insert_count(&rdp->cblist, &rsp->orphan_done);
-
-	/*
-	 * We do not need a memory barrier here because the only way we
-	 * can get here if there is an rcu_barrier() in flight is if
-	 * we are the task doing the rcu_barrier().
-	 */
-
-	/* First adopt the ready-to-invoke callbacks, then the done ones. */
-	rcu_segcblist_insert_done_cbs(&rdp->cblist, &rsp->orphan_done);
-	WARN_ON_ONCE(rsp->orphan_done.head);
-	rcu_segcblist_insert_pend_cbs(&rdp->cblist, &rsp->orphan_pend);
-	WARN_ON_ONCE(rsp->orphan_pend.head);
-	WARN_ON_ONCE(rcu_segcblist_empty(&rdp->cblist) !=
-		     !rcu_segcblist_n_cbs(&rdp->cblist));
-}
-
-/*
  * Trace the fact that this CPU is going offline.
  */
 static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
@@ -2704,14 +2625,12 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
 
 /*
  * The CPU has been completely removed, and some other CPU is reporting
- * this fact from process context.  Do the remainder of the cleanup,
- * including orphaning the outgoing CPU's RCU callbacks, and also
- * adopting them.  There can only be one CPU hotplug operation at a time,
- * so no other CPU can be attempting to update rcu_cpu_kthread_task.
+ * this fact from process context.  Do the remainder of the cleanup.
+ * There can only be one CPU hotplug operation at a time, so no need for
+ * explicit locking.
  */
 static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 {
-	unsigned long flags;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
 
@@ -2720,18 +2639,6 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 
 	/* Adjust any no-longer-needed kthreads. */
 	rcu_boost_kthread_setaffinity(rnp, -1);
-
-	/* Orphan the dead CPU's callbacks, and adopt them if appropriate. */
-	raw_spin_lock_irqsave(&rsp->orphan_lock, flags);
-	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
-	rcu_adopt_orphan_cbs(rsp, flags);
-	raw_spin_unlock_irqrestore(&rsp->orphan_lock, flags);
-
-	WARN_ONCE(rcu_segcblist_n_cbs(&rdp->cblist) != 0 ||
-		  !rcu_segcblist_empty(&rdp->cblist),
-		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, 1stCB=%p\n",
-		  cpu, rcu_segcblist_n_cbs(&rdp->cblist),
-		  rcu_segcblist_first_cb(&rdp->cblist));
 }
 
 /*
@@ -3936,6 +3843,116 @@ void rcu_report_dead(unsigned int cpu)
 	preempt_enable();
 	for_each_rcu_flavor(rsp)
 		rcu_cleanup_dying_idle_cpu(cpu, rsp);
+}
+
+/*
+ * Send the specified CPU's RCU callbacks to the orphanage.  The
+ * specified CPU must be offline, and the caller must hold the
+ * ->orphan_lock.
+ */
+static void
+rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
+			  struct rcu_node *rnp, struct rcu_data *rdp)
+{
+	lockdep_assert_held(&rsp->orphan_lock);
+
+	/* No-CBs CPUs do not have orphanable callbacks. */
+	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) || rcu_is_nocb_cpu(rdp->cpu))
+		return;
+
+	/*
+	 * Orphan the callbacks.  First adjust the counts.  This is safe
+	 * because _rcu_barrier() excludes CPU-hotplug operations, so it
+	 * cannot be running now.  Thus no memory barrier is required.
+	 */
+	rdp->n_cbs_orphaned += rcu_segcblist_n_cbs(&rdp->cblist);
+	rcu_segcblist_extract_count(&rdp->cblist, &rsp->orphan_done);
+
+	/*
+	 * Next, move those callbacks still needing a grace period to
+	 * the orphanage, where some other CPU will pick them up.
+	 * Some of the callbacks might have gone partway through a grace
+	 * period, but that is too bad.  They get to start over because we
+	 * cannot assume that grace periods are synchronized across CPUs.
+	 */
+	rcu_segcblist_extract_pend_cbs(&rdp->cblist, &rsp->orphan_pend);
+
+	/*
+	 * Then move the ready-to-invoke callbacks to the orphanage,
+	 * where some other CPU will pick them up.  These will not be
+	 * required to pass though another grace period: They are done.
+	 */
+	rcu_segcblist_extract_done_cbs(&rdp->cblist, &rsp->orphan_done);
+
+	/* Finally, disallow further callbacks on this CPU.  */
+	rcu_segcblist_disable(&rdp->cblist);
+}
+
+/*
+ * Adopt the RCU callbacks from the specified rcu_state structure's
+ * orphanage.  The caller must hold the ->orphan_lock.
+ */
+static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
+{
+	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
+
+	lockdep_assert_held(&rsp->orphan_lock);
+
+	/* No-CBs CPUs are handled specially. */
+	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) ||
+	    rcu_nocb_adopt_orphan_cbs(rsp, rdp, flags))
+		return;
+
+	/* Do the accounting first. */
+	rdp->n_cbs_adopted += rsp->orphan_done.len;
+	if (rsp->orphan_done.len_lazy != rsp->orphan_done.len)
+		rcu_idle_count_callbacks_posted();
+	rcu_segcblist_insert_count(&rdp->cblist, &rsp->orphan_done);
+
+	/*
+	 * We do not need a memory barrier here because the only way we
+	 * can get here if there is an rcu_barrier() in flight is if
+	 * we are the task doing the rcu_barrier().
+	 */
+
+	/* First adopt the ready-to-invoke callbacks, then the done ones. */
+	rcu_segcblist_insert_done_cbs(&rdp->cblist, &rsp->orphan_done);
+	WARN_ON_ONCE(rsp->orphan_done.head);
+	rcu_segcblist_insert_pend_cbs(&rdp->cblist, &rsp->orphan_pend);
+	WARN_ON_ONCE(rsp->orphan_pend.head);
+	WARN_ON_ONCE(rcu_segcblist_empty(&rdp->cblist) !=
+		     !rcu_segcblist_n_cbs(&rdp->cblist));
+}
+
+/* Orphan the dead CPU's callbacks, and then adopt them. */
+static void rcu_migrate_callbacks(int cpu, struct rcu_state *rsp)
+{
+	unsigned long flags;
+	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
+	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
+
+	raw_spin_lock_irqsave(&rsp->orphan_lock, flags);
+	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
+	rcu_adopt_orphan_cbs(rsp, flags);
+	raw_spin_unlock_irqrestore(&rsp->orphan_lock, flags);
+	WARN_ONCE(rcu_segcblist_n_cbs(&rdp->cblist) != 0 ||
+		  !rcu_segcblist_empty(&rdp->cblist),
+		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, 1stCB=%p\n",
+		  cpu, rcu_segcblist_n_cbs(&rdp->cblist),
+		  rcu_segcblist_first_cb(&rdp->cblist));
+}
+
+/*
+ * The outgoing CPU has just passed through the dying-idle state,
+ * and we are being invoked from the CPU that was IPIed to continue the
+ * offline operation.  We need to migrate the outgoing CPU's callbacks.
+ */
+void rcutree_migrate_callbacks(int cpu)
+{
+	struct rcu_state *rsp;
+
+	for_each_rcu_flavor(rsp)
+		rcu_migrate_callbacks(cpu, rsp);
 }
 #endif
 
