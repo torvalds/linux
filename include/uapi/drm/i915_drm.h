@@ -435,6 +435,11 @@ typedef struct drm_i915_irq_wait {
  */
 #define I915_PARAM_HAS_EXEC_BATCH_FIRST	 48
 
+/* Query whether DRM_I915_GEM_EXECBUFFER2 supports supplying an array of
+ * drm_i915_gem_exec_fence structures.  See I915_EXEC_FENCE_ARRAY.
+ */
+#define I915_PARAM_HAS_EXEC_FENCE_ARRAY  49
+
 typedef struct drm_i915_getparam {
 	__s32 param;
 	/*
@@ -816,6 +821,17 @@ struct drm_i915_gem_exec_object2 {
 	__u64 rsvd2;
 };
 
+struct drm_i915_gem_exec_fence {
+	/**
+	 * User's handle for a drm_syncobj to wait on or signal.
+	 */
+	__u32 handle;
+
+#define I915_EXEC_FENCE_WAIT            (1<<0)
+#define I915_EXEC_FENCE_SIGNAL          (1<<1)
+	__u32 flags;
+};
+
 struct drm_i915_gem_execbuffer2 {
 	/**
 	 * List of gem_exec_object2 structs
@@ -830,7 +846,11 @@ struct drm_i915_gem_execbuffer2 {
 	__u32 DR1;
 	__u32 DR4;
 	__u32 num_cliprects;
-	/** This is a struct drm_clip_rect *cliprects */
+	/**
+	 * This is a struct drm_clip_rect *cliprects if I915_EXEC_FENCE_ARRAY
+	 * is not set.  If I915_EXEC_FENCE_ARRAY is set, then this is a
+	 * struct drm_i915_gem_exec_fence *fences.
+	 */
 	__u64 cliprects_ptr;
 #define I915_EXEC_RING_MASK              (7<<0)
 #define I915_EXEC_DEFAULT                (0<<0)
@@ -931,7 +951,14 @@ struct drm_i915_gem_execbuffer2 {
  * element).
  */
 #define I915_EXEC_BATCH_FIRST		(1<<18)
-#define __I915_EXEC_UNKNOWN_FLAGS (-(I915_EXEC_BATCH_FIRST<<1))
+
+/* Setting I915_FENCE_ARRAY implies that num_cliprects and cliprects_ptr
+ * define an array of i915_gem_exec_fence structures which specify a set of
+ * dma fences to wait upon or signal.
+ */
+#define I915_EXEC_FENCE_ARRAY   (1<<19)
+
+#define __I915_EXEC_UNKNOWN_FLAGS (-(I915_EXEC_FENCE_ARRAY<<1))
 
 #define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
 #define i915_execbuffer2_set_context_id(eb2, context) \
