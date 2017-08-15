@@ -153,7 +153,7 @@ bool input_mt_report_slot_state(struct input_dev *dev,
 	}
 
 	id = input_mt_get_value(slot, ABS_MT_TRACKING_ID);
-	if (id < 0 || input_mt_get_value(slot, ABS_MT_TOOL_TYPE) != tool_type)
+	if (id < 0)
 		id = input_mt_new_trkid(mt);
 
 	input_event(dev, EV_ABS, ABS_MT_TRACKING_ID, id);
