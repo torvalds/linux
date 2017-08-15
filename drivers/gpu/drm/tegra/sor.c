@@ -232,13 +232,13 @@ static inline struct tegra_sor *to_sor(struct tegra_output *output)
 	return container_of(output, struct tegra_sor, output);
 }
 
-static inline u32 tegra_sor_readl(struct tegra_sor *sor, unsigned long offset)
+static inline u32 tegra_sor_readl(struct tegra_sor *sor, unsigned int offset)
 {
 	return readl(sor->regs + (offset << 2));
 }
 
 static inline void tegra_sor_writel(struct tegra_sor *sor, u32 value,
-				    unsigned long offset)
+				    unsigned int offset)
 {
 	writel(value, sor->regs + (offset << 2));
 }
