@@ -431,7 +431,7 @@
 			resets = <&iomcu_rst 0x20 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c1_pmx_func &i2c1_cfg_func>;
-			status = "disabled";
+			status = "ok";
 		};
 
 		i2c3: i2c@fdf0c000 {
