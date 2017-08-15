@@ -459,6 +459,20 @@
 			brcm,nand-has-wp;
 		};
 
+		ehci0: usb@18048000 {
+			compatible = "generic-ehci";
+			reg = <0x18048000 0x100>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		ohci0: usb@18048800 {
+			compatible = "generic-ohci";
+			reg = <0x18048800 0x100>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		v3d: v3d@180a2000 {
 			compatible = "brcm,cygnus-v3d";
 			reg = <0x180a2000 0x1000>;
