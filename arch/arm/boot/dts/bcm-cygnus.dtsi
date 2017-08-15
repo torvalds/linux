@@ -366,6 +366,19 @@
 			brcm,nand-has-wp;
 		};
 
+		v3d: v3d@180a2000 {
+			compatible = "brcm,cygnus-v3d";
+			reg = <0x180a2000 0x1000>;
+			clocks = <&mipipll BCM_CYGNUS_MIPIPLL_CH2_V3D>;
+			clock-names = "v3d_clk";
+			interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		vc4: gpu {
+			compatible = "brcm,cygnus-vc4";
+		};
+
 		gpio_asiu: gpio@180a5000 {
 			compatible = "brcm,cygnus-asiu-gpio";
 			reg = <0x180a5000 0x668>;
@@ -442,19 +455,6 @@
 			clock-names = "tsc_clk";
 			interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
-		};
-
-		v3d: v3d@180a2000 {
-			compatible = "brcm,cygnus-v3d";
-			reg = <0x180a2000 0x1000>;
-			clocks = <&mipipll BCM_CYGNUS_MIPIPLL_CH2_V3D>;
-			clock-names = "v3d_clk";
-			interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
-		};
-
-		vc4: gpu {
-			compatible = "brcm,cygnus-vc4";
 		};
 
 		adc: adc@180a6000 {
