@@ -519,15 +519,6 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 		/* fall back to alternative mechanism: */
 	}
 
-	if (qeth_is_supported(card, IPA_SETADAPTERPARMS)) {
-		rc = qeth_query_setadapterparms(card);
-		if (rc) {
-			QETH_DBF_MESSAGE(2, "could not query adapter "
-				"parameters on device %s: x%x\n",
-				CARD_BUS_ID(card), rc);
-		}
-	}
-
 	if (card->info.type == QETH_CARD_TYPE_IQD ||
 	    card->info.type == QETH_CARD_TYPE_OSM ||
 	    card->info.type == QETH_CARD_TYPE_OSX ||
