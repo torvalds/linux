@@ -111,6 +111,7 @@ core-y				+= arch/arc/plat-sim/
 core-$(CONFIG_ARC_PLAT_TB10X)	+= arch/arc/plat-tb10x/
 core-$(CONFIG_ARC_PLAT_AXS10X)	+= arch/arc/plat-axs10x/
 core-$(CONFIG_ARC_PLAT_EZNPS)	+= arch/arc/plat-eznps/
+core-$(CONFIG_ARC_SOC_HSDK)	+= arch/arc/plat-hsdk/
 
 ifdef CONFIG_ARC_PLAT_EZNPS
 KBUILD_CPPFLAGS += -I$(srctree)/arch/arc/plat-eznps/include
