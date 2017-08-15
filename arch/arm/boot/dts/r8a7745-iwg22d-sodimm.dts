@@ -1,0 +1,29 @@
+/*
+ * Device Tree Source for the iWave-RZG1E SODIMM carrier board
+ *
+ * Copyright (C) 2017 Renesas Electronics Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "r8a7745-iwg22m.dtsi"
+
+/ {
+	model = "iWave Systems RainboW-G22D-SODIMM board based on RZ/G1E";
+	compatible = "iwave,g22d", "iwave,g22m", "renesas,r8a7745";
+
+	aliases {
+		serial0 = &scif4;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&scif4 {
+	status = "okay";
+};
