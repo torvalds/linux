@@ -6,6 +6,7 @@ enum cl_arg_type {
 	CL_ARG_BOOL,
 	CL_ARG_INT,
 	CL_ARG_STR,
+	CL_ARG_STR_SET,
 	CL_ARG_END,
 };
 
@@ -20,6 +21,7 @@ struct cl_arg {
 	int has_arg;
 	enum cl_arg_type type;
 	void *store;
+	void *set;
 	cl_arg_parser_t parser;
 };
 

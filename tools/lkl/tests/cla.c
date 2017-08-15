@@ -24,10 +24,26 @@ static int cl_arg_parse_int(struct cl_arg *arg, const char *value)
 	return errno == 0;
 }
 
+static int cl_arg_parse_str_set(struct cl_arg *arg, const char *value)
+{
+	const char **set = arg->set;
+	int i;
+
+	for (i = 0; set[i] != NULL; i++) {
+		if (strcmp(set[i], value) == 0) {
+			*((int *)arg->store) = i;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
 static cl_arg_parser_t parsers[] = {
 	[CL_ARG_BOOL] = cl_arg_parse_bool,
 	[CL_ARG_INT] = cl_arg_parse_int,
 	[CL_ARG_STR] = cl_arg_parse_str,
+	[CL_ARG_STR_SET] = cl_arg_parse_str_set,
 };
 
 static struct cl_arg *find_short_arg(char name, struct cl_arg *args)
@@ -59,9 +75,19 @@ static void print_help(struct cl_arg *args)
 	struct cl_arg *arg;
 
 	fprintf(stderr, "usage:\n");
-	for (arg = args; arg->long_name; arg++)
-		fprintf(stderr, "-%c, --%-20s %s\n", arg->short_name,
+	for (arg = args; arg->long_name; arg++) {
+		fprintf(stderr, "-%c, --%-20s %s", arg->short_name,
 			arg->long_name, arg->help);
+		if (arg->type == CL_ARG_STR_SET) {
+			const char **set = arg->set;
+
+			fprintf(stderr, " [ ");
+			while (*set != NULL)
+				fprintf(stderr, "%s ", *(set++));
+			fprintf(stderr, "]");
+		}
+		fprintf(stderr, "\n");
+	}
 }
 
 int parse_args(int argc, const char **argv, struct cl_arg *args)
