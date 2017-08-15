@@ -1309,7 +1309,7 @@ static void omap_iommu_remove_device(struct device *dev)
 static struct iommu_group *omap_iommu_device_group(struct device *dev)
 {
 	struct omap_iommu_arch_data *arch_data = dev->archdata.iommu;
-	struct iommu_group *group = NULL;
+	struct iommu_group *group = ERR_PTR(-EINVAL);
 
 	if (arch_data->iommu_dev)
 		group = arch_data->iommu_dev->group;

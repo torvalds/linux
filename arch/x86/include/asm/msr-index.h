@@ -426,6 +426,8 @@
 #define MSR_IA32_TSC_ADJUST             0x0000003b
 #define MSR_IA32_BNDCFGS		0x00000d90
 
+#define MSR_IA32_BNDCFGS_RSVD		0x00000ffc
+
 #define MSR_IA32_XSS			0x00000da0
 
 #define FEATURE_CONTROL_LOCKED				(1<<0)

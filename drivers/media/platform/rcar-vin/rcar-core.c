@@ -21,7 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 
 #include "rcar-vin.h"
 
@@ -31,6 +31,20 @@
 
 #define notifier_to_vin(n) container_of(n, struct rvin_dev, notifier)
 
+static int rvin_find_pad(struct v4l2_subdev *sd, int direction)
+{
+	unsigned int pad;
+
+	if (sd->entity.num_pads <= 1)
+		return 0;
+
+	for (pad = 0; pad < sd->entity.num_pads; pad++)
+		if (sd->entity.pads[pad].flags & direction)
+			return pad;
+
+	return -EINVAL;
+}
+
 static bool rvin_mbus_supported(struct rvin_graph_entity *entity)
 {
 	struct v4l2_subdev *sd = entity->subdev;
@@ -39,6 +53,7 @@ static bool rvin_mbus_supported(struct rvin_graph_entity *entity)
 	};
 
 	code.index = 0;
+	code.pad = entity->source_pad;
 	while (!v4l2_subdev_call(sd, pad, enum_mbus_code, NULL, &code)) {
 		code.index++;
 		switch (code.code) {
@@ -86,14 +101,9 @@ static void rvin_digital_notify_unbind(struct v4l2_async_notifier *notifier,
 {
 	struct rvin_dev *vin = notifier_to_vin(notifier);
 
-	if (vin->digital.subdev == subdev) {
-		vin_dbg(vin, "unbind digital subdev %s\n", subdev->name);
-		rvin_v4l2_remove(vin);
-		vin->digital.subdev = NULL;
-		return;
-	}
-
-	vin_err(vin, "no entity for subdev %s to unbind\n", subdev->name);
+	vin_dbg(vin, "unbind digital subdev %s\n", subdev->name);
+	rvin_v4l2_remove(vin);
+	vin->digital.subdev = NULL;
 }
 
 static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
@@ -101,27 +111,37 @@ static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
 				     struct v4l2_async_subdev *asd)
 {
 	struct rvin_dev *vin = notifier_to_vin(notifier);
+	int ret;
 
 	v4l2_set_subdev_hostdata(subdev, vin);
 
-	if (vin->digital.asd.match.of.node == subdev->dev->of_node) {
-		vin_dbg(vin, "bound digital subdev %s\n", subdev->name);
-		vin->digital.subdev = subdev;
-		return 0;
-	}
+	/* Find source and sink pad of remote subdevice */
 
-	vin_err(vin, "no entity for subdev %s to bind\n", subdev->name);
-	return -EINVAL;
+	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SOURCE);
+	if (ret < 0)
+		return ret;
+	vin->digital.source_pad = ret;
+
+	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SINK);
+	vin->digital.sink_pad = ret < 0 ? 0 : ret;
+
+	vin->digital.subdev = subdev;
+
+	vin_dbg(vin, "bound subdev %s source pad: %u sink pad: %u\n",
+		subdev->name, vin->digital.source_pad,
+		vin->digital.sink_pad);
+
+	return 0;
 }
 
 static int rvin_digitial_parse_v4l2(struct rvin_dev *vin,
 				    struct device_node *ep,
 				    struct v4l2_mbus_config *mbus_cfg)
 {
-	struct v4l2_of_endpoint v4l2_ep;
+	struct v4l2_fwnode_endpoint v4l2_ep;
 	int ret;
 
-	ret = v4l2_of_parse_endpoint(ep, &v4l2_ep);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &v4l2_ep);
 	if (ret) {
 		vin_err(vin, "Could not parse v4l2 endpoint\n");
 		return -EINVAL;
@@ -151,7 +171,7 @@ static int rvin_digital_graph_parse(struct rvin_dev *vin)
 	struct device_node *ep, *np;
 	int ret;
 
-	vin->digital.asd.match.of.node = NULL;
+	vin->digital.asd.match.fwnode.fwnode = NULL;
 	vin->digital.subdev = NULL;
 
 	/*
@@ -175,8 +195,8 @@ static int rvin_digital_graph_parse(struct rvin_dev *vin)
 	if (ret)
 		return ret;
 
-	vin->digital.asd.match.of.node = np;
-	vin->digital.asd.match_type = V4L2_ASYNC_MATCH_OF;
+	vin->digital.asd.match.fwnode.fwnode = of_fwnode_handle(np);
+	vin->digital.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 
 	return 0;
 }
@@ -190,7 +210,7 @@ static int rvin_digital_graph_init(struct rvin_dev *vin)
 	if (ret)
 		return ret;
 
-	if (!vin->digital.asd.match.of.node) {
+	if (!vin->digital.asd.match.fwnode.fwnode) {
 		vin_dbg(vin, "No digital subdevice found\n");
 		return -ENODEV;
 	}
@@ -203,7 +223,7 @@ static int rvin_digital_graph_init(struct rvin_dev *vin)
 	subdevs[0] = &vin->digital.asd;
 
 	vin_dbg(vin, "Found digital subdevice %s\n",
-		of_node_full_name(subdevs[0]->match.of.node));
+		of_node_full_name(to_of_node(subdevs[0]->match.fwnode.fwnode)));
 
 	vin->notifier.num_subdevs = 1;
 	vin->notifier.subdevs = subdevs;

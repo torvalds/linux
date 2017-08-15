@@ -359,12 +359,6 @@ static inline int strncpy_from_user(char *dst, const char *src, long len)
 	return -EFAULT;
 }
 
-extern int __strlen_user(const char *src);
-static inline long strlen_user(const char __user *src)
-{
-	return __strlen_user(src);
-}
-
 extern int __strnlen_user(const char *str, long len);
 static inline long strnlen_user(const char __user *str, long len)
 {

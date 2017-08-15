@@ -131,7 +131,7 @@ void nvme_complete_rq(struct request *req)
 {
 	if (unlikely(nvme_req(req)->status && nvme_req_needs_retry(req))) {
 		nvme_req(req)->retries++;
-		blk_mq_requeue_request(req, !blk_mq_queue_stopped(req->q));
+		blk_mq_requeue_request(req, true);
 		return;
 	}
 
@@ -336,7 +336,7 @@ static int nvme_get_stream_params(struct nvme_ctrl *ctrl,
 
 	c.directive.opcode = nvme_admin_directive_recv;
 	c.directive.nsid = cpu_to_le32(nsid);
-	c.directive.numd = sizeof(*s);
+	c.directive.numd = cpu_to_le32((sizeof(*s) >> 2) - 1);
 	c.directive.doper = NVME_DIR_RCV_ST_OP_PARAM;
 	c.directive.dtype = NVME_DIR_STREAMS;
 
@@ -1509,7 +1509,7 @@ static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
 	blk_queue_write_cache(q, vwc, vwc);
 }
 
-static void nvme_configure_apst(struct nvme_ctrl *ctrl)
+static int nvme_configure_apst(struct nvme_ctrl *ctrl)
 {
 	/*
 	 * APST (Autonomous Power State Transition) lets us program a
@@ -1538,16 +1538,16 @@ static void nvme_configure_apst(struct nvme_ctrl *ctrl)
 	 * then don't do anything.
 	 */
 	if (!ctrl->apsta)
-		return;
+		return 0;
 
 	if (ctrl->npss > 31) {
 		dev_warn(ctrl->device, "NPSS is invalid; not using APST\n");
-		return;
+		return 0;
 	}
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
-		return;
+		return 0;
 
 	if (!ctrl->apst_enabled || ctrl->ps_max_latency_us == 0) {
 		/* Turn off APST. */
@@ -1629,6 +1629,7 @@ static void nvme_configure_apst(struct nvme_ctrl *ctrl)
 		dev_err(ctrl->device, "failed to set APST feature (%d)\n", ret);
 
 	kfree(table);
+	return ret;
 }
 
 static void nvme_set_latency_tolerance(struct device *dev, s32 val)
@@ -1835,13 +1836,16 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 		 * In fabrics we need to verify the cntlid matches the
 		 * admin connect
 		 */
-		if (ctrl->cntlid != le16_to_cpu(id->cntlid))
+		if (ctrl->cntlid != le16_to_cpu(id->cntlid)) {
 			ret = -EINVAL;
+			goto out_free;
+		}
 
 		if (!ctrl->opts->discovery_nqn && !ctrl->kas) {
 			dev_err(ctrl->device,
 				"keep-alive support is mandatory for fabrics\n");
 			ret = -EINVAL;
+			goto out_free;
 		}
 	} else {
 		ctrl->cntlid = le16_to_cpu(id->cntlid);
@@ -1856,11 +1860,20 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 	else if (!ctrl->apst_enabled && prev_apst_enabled)
 		dev_pm_qos_hide_latency_tolerance(ctrl->device);
 
-	nvme_configure_apst(ctrl);
-	nvme_configure_directives(ctrl);
+	ret = nvme_configure_apst(ctrl);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_configure_directives(ctrl);
+	if (ret < 0)
+		return ret;
 
 	ctrl->identified = true;
 
+	return 0;
+
+out_free:
+	kfree(id);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_init_identify);
@@ -1995,15 +2008,20 @@ static ssize_t wwid_show(struct device *dev, struct device_attribute *attr,
 	int serial_len = sizeof(ctrl->serial);
 	int model_len = sizeof(ctrl->model);
 
+	if (!uuid_is_null(&ns->uuid))
+		return sprintf(buf, "uuid.%pU\n", &ns->uuid);
+
 	if (memchr_inv(ns->nguid, 0, sizeof(ns->nguid)))
 		return sprintf(buf, "eui.%16phN\n", ns->nguid);
 
 	if (memchr_inv(ns->eui, 0, sizeof(ns->eui)))
 		return sprintf(buf, "eui.%8phN\n", ns->eui);
 
-	while (ctrl->serial[serial_len - 1] == ' ')
+	while (serial_len > 0 && (ctrl->serial[serial_len - 1] == ' ' ||
+				  ctrl->serial[serial_len - 1] == '\0'))
 		serial_len--;
-	while (ctrl->model[model_len - 1] == ' ')
+	while (model_len > 0 && (ctrl->model[model_len - 1] == ' ' ||
+				 ctrl->model[model_len - 1] == '\0'))
 		model_len--;
 
 	return sprintf(buf, "nvme.%04x-%*phN-%*phN-%08x\n", ctrl->vid,
@@ -2591,12 +2609,29 @@ static void nvme_release_instance(struct nvme_ctrl *ctrl)
 	spin_unlock(&dev_list_lock);
 }
 
-void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
+void nvme_stop_ctrl(struct nvme_ctrl *ctrl)
 {
+	nvme_stop_keep_alive(ctrl);
 	flush_work(&ctrl->async_event_work);
 	flush_work(&ctrl->scan_work);
-	nvme_remove_namespaces(ctrl);
+}
+EXPORT_SYMBOL_GPL(nvme_stop_ctrl);
 
+void nvme_start_ctrl(struct nvme_ctrl *ctrl)
+{
+	if (ctrl->kato)
+		nvme_start_keep_alive(ctrl);
+
+	if (ctrl->queue_count > 1) {
+		nvme_queue_scan(ctrl);
+		nvme_queue_async_events(ctrl);
+		nvme_start_queues(ctrl);
+	}
+}
+EXPORT_SYMBOL_GPL(nvme_start_ctrl);
+
+void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
+{
 	device_destroy(nvme_class, MKDEV(nvme_char_major, ctrl->instance));
 
 	spin_lock(&dev_list_lock);
@@ -2692,10 +2727,8 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 	mutex_lock(&ctrl->namespaces_mutex);
 
 	/* Forcibly unquiesce queues to avoid blocking dispatch */
-	blk_mq_unquiesce_queue(ctrl->admin_q);
-
-	/* Forcibly start all queues to avoid having stuck requests */
-	blk_mq_start_hw_queues(ctrl->admin_q);
+	if (ctrl->admin_q)
+		blk_mq_unquiesce_queue(ctrl->admin_q);
 
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
 		/*
@@ -2709,16 +2742,6 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 
 		/* Forcibly unquiesce queues to avoid blocking dispatch */
 		blk_mq_unquiesce_queue(ns->queue);
-
-		/*
-		 * Forcibly start all queues to avoid having stuck requests.
-		 * Note that we must ensure the queues are not stopped
-		 * when the final removal happens.
-		 */
-		blk_mq_start_hw_queues(ns->queue);
-
-		/* draining requests in requeue list */
-		blk_mq_kick_requeue_list(ns->queue);
 	}
 	mutex_unlock(&ctrl->namespaces_mutex);
 }
@@ -2787,10 +2810,8 @@ void nvme_start_queues(struct nvme_ctrl *ctrl)
 	struct nvme_ns *ns;
 
 	mutex_lock(&ctrl->namespaces_mutex);
-	list_for_each_entry(ns, &ctrl->namespaces, list) {
+	list_for_each_entry(ns, &ctrl->namespaces, list)
 		blk_mq_unquiesce_queue(ns->queue);
-		blk_mq_kick_requeue_list(ns->queue);
-	}
 	mutex_unlock(&ctrl->namespaces_mutex);
 }
 EXPORT_SYMBOL_GPL(nvme_start_queues);

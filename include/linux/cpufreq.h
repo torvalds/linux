@@ -862,6 +862,20 @@ static inline int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 		return -EINVAL;
 	}
 }
+
+static inline int cpufreq_table_count_valid_entries(const struct cpufreq_policy *policy)
+{
+	struct cpufreq_frequency_table *pos;
+	int count = 0;
+
+	if (unlikely(!policy->freq_table))
+		return 0;
+
+	cpufreq_for_each_valid_entry(pos, policy->freq_table)
+		count++;
+
+	return count;
+}
 #else
 static inline int cpufreq_boost_trigger_state(int state)
 {

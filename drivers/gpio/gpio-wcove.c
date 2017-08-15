@@ -108,19 +108,14 @@ struct wcove_gpio {
 static inline unsigned int to_reg(int gpio, enum ctrl_register reg_type)
 {
 	unsigned int reg;
-	int bank;
 
-	if (gpio < BANK0_NR_PINS)
-		bank = 0;
-	else if (gpio < BANK0_NR_PINS + BANK1_NR_PINS)
-		bank = 1;
-	else
-		bank = 2;
+	if (gpio >= WCOVE_GPIO_NUM)
+		return -EOPNOTSUPP;
 
 	if (reg_type == CTRL_IN)
-		reg = GPIO_IN_CTRL_BASE + bank;
+		reg = GPIO_IN_CTRL_BASE + gpio;
 	else
-		reg = GPIO_OUT_CTRL_BASE + bank;
+		reg = GPIO_OUT_CTRL_BASE + gpio;
 
 	return reg;
 }
@@ -145,7 +140,10 @@ static void wcove_update_irq_mask(struct wcove_gpio *wg, int gpio)
 
 static void wcove_update_irq_ctrl(struct wcove_gpio *wg, int gpio)
 {
-	unsigned int reg = to_reg(gpio, CTRL_IN);
+	int reg = to_reg(gpio, CTRL_IN);
+
+	if (reg < 0)
+		return;
 
 	regmap_update_bits(wg->regmap, reg, CTLI_INTCNT_BE, wg->intcnt);
 }
@@ -153,27 +151,36 @@ static void wcove_update_irq_ctrl(struct wcove_gpio *wg, int gpio)
 static int wcove_gpio_dir_in(struct gpio_chip *chip, unsigned int gpio)
 {
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
+	int reg = to_reg(gpio, CTRL_OUT);
 
-	return regmap_write(wg->regmap, to_reg(gpio, CTRL_OUT),
-			    CTLO_INPUT_SET);
+	if (reg < 0)
+		return 0;
+
+	return regmap_write(wg->regmap, reg, CTLO_INPUT_SET);
 }
 
 static int wcove_gpio_dir_out(struct gpio_chip *chip, unsigned int gpio,
 				    int value)
 {
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
+	int reg = to_reg(gpio, CTRL_OUT);
 
-	return regmap_write(wg->regmap, to_reg(gpio, CTRL_OUT),
-			    CTLO_OUTPUT_SET | value);
+	if (reg < 0)
+		return 0;
+
+	return regmap_write(wg->regmap, reg, CTLO_OUTPUT_SET | value);
 }
 
 static int wcove_gpio_get_direction(struct gpio_chip *chip, unsigned int gpio)
 {
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
 	unsigned int val;
-	int ret;
+	int ret, reg = to_reg(gpio, CTRL_OUT);
 
-	ret = regmap_read(wg->regmap, to_reg(gpio, CTRL_OUT), &val);
+	if (reg < 0)
+		return 0;
+
+	ret = regmap_read(wg->regmap, reg, &val);
 	if (ret)
 		return ret;
 
@@ -184,9 +191,12 @@ static int wcove_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 {
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
 	unsigned int val;
-	int ret;
+	int ret, reg = to_reg(gpio, CTRL_IN);
 
-	ret = regmap_read(wg->regmap, to_reg(gpio, CTRL_IN), &val);
+	if (reg < 0)
+		return 0;
+
+	ret = regmap_read(wg->regmap, reg, &val);
 	if (ret)
 		return ret;
 
@@ -197,25 +207,33 @@ static void wcove_gpio_set(struct gpio_chip *chip,
 				 unsigned int gpio, int value)
 {
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
+	int reg = to_reg(gpio, CTRL_OUT);
+
+	if (reg < 0)
+		return;
 
 	if (value)
-		regmap_update_bits(wg->regmap, to_reg(gpio, CTRL_OUT), 1, 1);
+		regmap_update_bits(wg->regmap, reg, 1, 1);
 	else
-		regmap_update_bits(wg->regmap, to_reg(gpio, CTRL_OUT), 1, 0);
+		regmap_update_bits(wg->regmap, reg, 1, 0);
 }
 
 static int wcove_gpio_set_config(struct gpio_chip *chip, unsigned int gpio,
 				 unsigned long config)
 {
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
+	int reg = to_reg(gpio, CTRL_OUT);
+
+	if (reg < 0)
+		return 0;
 
 	switch (pinconf_to_config_param(config)) {
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		return regmap_update_bits(wg->regmap, to_reg(gpio, CTRL_OUT),
-						CTLO_DRV_MASK, CTLO_DRV_OD);
+		return regmap_update_bits(wg->regmap, reg, CTLO_DRV_MASK,
+					  CTLO_DRV_OD);
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
-		return regmap_update_bits(wg->regmap, to_reg(gpio, CTRL_OUT),
-						CTLO_DRV_MASK, CTLO_DRV_CMOS);
+		return regmap_update_bits(wg->regmap, reg, CTLO_DRV_MASK,
+					  CTLO_DRV_CMOS);
 	default:
 		break;
 	}
@@ -227,6 +245,9 @@ static int wcove_irq_type(struct irq_data *data, unsigned int type)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
+
+	if (data->hwirq >= WCOVE_GPIO_NUM)
+		return 0;
 
 	switch (type) {
 	case IRQ_TYPE_NONE:
@@ -278,6 +299,9 @@ static void wcove_irq_unmask(struct irq_data *data)
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
 
+	if (data->hwirq >= WCOVE_GPIO_NUM)
+		return;
+
 	wg->set_irq_mask = false;
 	wg->update |= UPDATE_IRQ_MASK;
 }
@@ -286,6 +310,9 @@ static void wcove_irq_mask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct wcove_gpio *wg = gpiochip_get_data(chip);
+
+	if (data->hwirq >= WCOVE_GPIO_NUM)
+		return;
 
 	wg->set_irq_mask = true;
 	wg->update |= UPDATE_IRQ_MASK;
@@ -401,7 +428,7 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	if (!wg)
 		return -ENOMEM;
 
-	wg->regmap_irq_chip = pmic->irq_chip_data_level2;
+	wg->regmap_irq_chip = pmic->irq_chip_data;
 
 	platform_set_drvdata(pdev, wg);
 
@@ -448,6 +475,18 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	}
 
 	gpiochip_set_nested_irqchip(&wg->chip, &wcove_irqchip, virq);
+
+	/* Enable GPIO0 interrupts */
+	ret = regmap_update_bits(wg->regmap, IRQ_MASK_BASE, GPIO_IRQ0_MASK,
+				 0x00);
+	if (ret)
+		return ret;
+
+	/* Enable GPIO1 interrupts */
+	ret = regmap_update_bits(wg->regmap, IRQ_MASK_BASE + 1, GPIO_IRQ1_MASK,
+				 0x00);
+	if (ret)
+		return ret;
 
 	return 0;
 }

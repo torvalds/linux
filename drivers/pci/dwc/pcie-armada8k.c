@@ -160,7 +160,7 @@ static irqreturn_t armada8k_pcie_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static struct dw_pcie_host_ops armada8k_pcie_host_ops = {
+static const struct dw_pcie_host_ops armada8k_pcie_host_ops = {
 	.host_init = armada8k_pcie_host_init,
 };
 

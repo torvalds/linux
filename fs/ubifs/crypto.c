@@ -9,8 +9,13 @@ static int ubifs_crypt_get_context(struct inode *inode, void *ctx, size_t len)
 static int ubifs_crypt_set_context(struct inode *inode, const void *ctx,
 				   size_t len, void *fs_data)
 {
+	/*
+	 * Creating an encryption context is done unlocked since we
+	 * operate on a new inode which is not visible to other users
+	 * at this point. So, no need to check whether inode is locked.
+	 */
 	return ubifs_xattr_set(inode, UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT,
-			       ctx, len, 0);
+			       ctx, len, 0, false);
 }
 
 static bool ubifs_crypt_empty_dir(struct inode *inode)

@@ -114,12 +114,27 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 	list_for_each_entry(obj, list, batch_pool_link) {
 		/* The batches are strictly LRU ordered */
 		if (i915_gem_object_is_active(obj)) {
-			if (!reservation_object_test_signaled_rcu(obj->resv,
-								  true))
+			struct reservation_object *resv = obj->resv;
+
+			if (!reservation_object_test_signaled_rcu(resv, true))
 				break;
 
 			i915_gem_retire_requests(pool->engine->i915);
 			GEM_BUG_ON(i915_gem_object_is_active(obj));
+
+			/*
+			 * The object is now idle, clear the array of shared
+			 * fences before we add a new request. Although, we
+			 * remain on the same engine, we may be on a different
+			 * timeline and so may continually grow the array,
+			 * trapping a reference to all the old fences, rather
+			 * than replace the existing fence.
+			 */
+			if (rcu_access_pointer(resv->fence)) {
+				reservation_object_lock(resv, NULL);
+				reservation_object_add_excl_fence(resv, NULL);
+				reservation_object_unlock(resv);
+			}
 		}
 
 		GEM_BUG_ON(!reservation_object_test_signaled_rcu(obj->resv,

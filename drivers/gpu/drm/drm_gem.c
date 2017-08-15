@@ -521,7 +521,7 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 
 	npages = obj->size >> PAGE_SHIFT;
 
-	pages = drm_malloc_ab(npages, sizeof(struct page *));
+	pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (pages == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -546,7 +546,7 @@ fail:
 	while (i--)
 		put_page(pages[i]);
 
-	drm_free_large(pages);
+	kvfree(pages);
 	return ERR_CAST(p);
 }
 EXPORT_SYMBOL(drm_gem_get_pages);
@@ -582,7 +582,7 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 		put_page(pages[i]);
 	}
 
-	drm_free_large(pages);
+	kvfree(pages);
 }
 EXPORT_SYMBOL(drm_gem_put_pages);
 

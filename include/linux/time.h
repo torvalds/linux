@@ -180,9 +180,6 @@ extern int do_getitimer(int which, struct itimerval *value);
 
 extern long do_utimes(int dfd, const char __user *filename, struct timespec *times, int flags);
 
-struct tms;
-extern void do_sys_times(struct tms *);
-
 /*
  * Similar to the struct tm in userspace <time.h>, but it needs to be here so
  * that the kernel source is self contained.

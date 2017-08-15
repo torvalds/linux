@@ -6,7 +6,6 @@
 obj-y += dss/
 obj-y += displays/
 
-ccflags-y := -Iinclude/drm
 omapdrm-y := omap_drv.o \
 	omap_irq.o \
 	omap_debugfs.o \

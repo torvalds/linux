@@ -167,7 +167,7 @@ static int apc_probe(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id apc_match[] = {
+static const struct of_device_id apc_match[] = {
 	{
 		.name = APC_OBPNAME,
 	},

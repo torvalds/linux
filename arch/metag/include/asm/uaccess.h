@@ -188,8 +188,6 @@ strncpy_from_user(char *dst, const char __user *src, long count)
  */
 extern long __must_check strnlen_user(const char __user *src, long count);
 
-#define strlen_user(str) strnlen_user(str, 32767)
-
 extern unsigned long raw_copy_from_user(void *to, const void __user *from,
 					unsigned long n);
 extern unsigned long raw_copy_to_user(void __user *to, const void *from,

@@ -12,6 +12,7 @@
  *              Mauro Carvalho Chehab <mchehab@infradead.org> (version 2)
  */
 
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -1229,6 +1230,9 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_SDR_FMT_CS8:		descr = "Complex S8"; break;
 	case V4L2_SDR_FMT_CS14LE:	descr = "Complex S14LE"; break;
 	case V4L2_SDR_FMT_RU12LE:	descr = "Real U12LE"; break;
+	case V4L2_SDR_FMT_PCU16BE:	descr = "Planar Complex U16BE"; break;
+	case V4L2_SDR_FMT_PCU18BE:	descr = "Planar Complex U18BE"; break;
+	case V4L2_SDR_FMT_PCU20BE:	descr = "Planar Complex U20BE"; break;
 	case V4L2_TCH_FMT_DELTA_TD16:	descr = "16-bit signed deltas"; break;
 	case V4L2_TCH_FMT_DELTA_TD08:	descr = "8-bit signed deltas"; break;
 	case V4L2_TCH_FMT_TU16:		descr = "16-bit unsigned touch data"; break;
@@ -2141,6 +2145,47 @@ static int v4l_try_ext_ctrls(const struct v4l2_ioctl_ops *ops,
 					-EINVAL;
 }
 
+/*
+ * The selection API specified originally that the _MPLANE buffer types
+ * shouldn't be used. The reasons for this are lost in the mists of time
+ * (or just really crappy memories). Regardless, this is really annoying
+ * for userspace. So to keep things simple we map _MPLANE buffer types
+ * to their 'regular' counterparts before calling the driver. And we
+ * restore it afterwards. This way applications can use either buffer
+ * type and drivers don't need to check for both.
+ */
+static int v4l_g_selection(const struct v4l2_ioctl_ops *ops,
+			   struct file *file, void *fh, void *arg)
+{
+	struct v4l2_selection *p = arg;
+	u32 old_type = p->type;
+	int ret;
+
+	if (p->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		p->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	else if (p->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		p->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+	ret = ops->vidioc_g_selection(file, fh, p);
+	p->type = old_type;
+	return ret;
+}
+
+static int v4l_s_selection(const struct v4l2_ioctl_ops *ops,
+			   struct file *file, void *fh, void *arg)
+{
+	struct v4l2_selection *p = arg;
+	u32 old_type = p->type;
+	int ret;
+
+	if (p->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		p->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	else if (p->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		p->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+	ret = ops->vidioc_s_selection(file, fh, p);
+	p->type = old_type;
+	return ret;
+}
+
 static int v4l_g_crop(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
@@ -2160,7 +2205,7 @@ static int v4l_g_crop(const struct v4l2_ioctl_ops *ops,
 	else
 		s.target = V4L2_SEL_TGT_CROP_ACTIVE;
 
-	ret = ops->vidioc_g_selection(file, fh, &s);
+	ret = v4l_g_selection(ops, file, fh, &s);
 
 	/* copying results to old structure on success */
 	if (!ret)
@@ -2187,7 +2232,7 @@ static int v4l_s_crop(const struct v4l2_ioctl_ops *ops,
 	else
 		s.target = V4L2_SEL_TGT_CROP_ACTIVE;
 
-	return ops->vidioc_s_selection(file, fh, &s);
+	return v4l_s_selection(ops, file, fh, &s);
 }
 
 static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
@@ -2229,7 +2274,7 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 	else
 		s.target = V4L2_SEL_TGT_CROP_BOUNDS;
 
-	ret = ops->vidioc_g_selection(file, fh, &s);
+	ret = v4l_g_selection(ops, file, fh, &s);
 	if (ret)
 		return ret;
 	p->bounds = s.r;
@@ -2240,7 +2285,7 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 	else
 		s.target = V4L2_SEL_TGT_CROP_DEFAULT;
 
-	ret = ops->vidioc_g_selection(file, fh, &s);
+	ret = v4l_g_selection(ops, file, fh, &s);
 	if (ret)
 		return ret;
 	p->defrect = s.r;
@@ -2472,20 +2517,22 @@ struct v4l2_ioctl_info {
 };
 
 /* This control needs a priority check */
-#define INFO_FL_PRIO	(1 << 0)
+#define INFO_FL_PRIO		(1 << 0)
 /* This control can be valid if the filehandle passes a control handler. */
-#define INFO_FL_CTRL	(1 << 1)
+#define INFO_FL_CTRL		(1 << 1)
 /* This is a standard ioctl, no need for special code */
-#define INFO_FL_STD	(1 << 2)
+#define INFO_FL_STD		(1 << 2)
 /* This is ioctl has its own function */
-#define INFO_FL_FUNC	(1 << 3)
+#define INFO_FL_FUNC		(1 << 3)
 /* Queuing ioctl */
-#define INFO_FL_QUEUE	(1 << 4)
+#define INFO_FL_QUEUE		(1 << 4)
+/* Always copy back result, even on error */
+#define INFO_FL_ALWAYS_COPY	(1 << 5)
 /* Zero struct from after the field to the end */
 #define INFO_FL_CLEAR(v4l2_struct, field)			\
 	((offsetof(struct v4l2_struct, field) +			\
 	  sizeof(((struct v4l2_struct *)0)->field)) << 16)
-#define INFO_FL_CLEAR_MASK (_IOC_SIZEMASK << 16)
+#define INFO_FL_CLEAR_MASK 	(_IOC_SIZEMASK << 16)
 
 #define IOCTL_INFO_STD(_ioctl, _vidioc, _debug, _flags)			\
 	[_IOC_NR(_ioctl)] = {						\
@@ -2536,8 +2583,8 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_FNC(VIDIOC_QUERYMENU, v4l_querymenu, v4l_print_querymenu, INFO_FL_CTRL | INFO_FL_CLEAR(v4l2_querymenu, index)),
 	IOCTL_INFO_STD(VIDIOC_G_INPUT, vidioc_g_input, v4l_print_u32, 0),
 	IOCTL_INFO_FNC(VIDIOC_S_INPUT, v4l_s_input, v4l_print_u32, INFO_FL_PRIO),
-	IOCTL_INFO_STD(VIDIOC_G_EDID, vidioc_g_edid, v4l_print_edid, 0),
-	IOCTL_INFO_STD(VIDIOC_S_EDID, vidioc_s_edid, v4l_print_edid, INFO_FL_PRIO),
+	IOCTL_INFO_STD(VIDIOC_G_EDID, vidioc_g_edid, v4l_print_edid, INFO_FL_ALWAYS_COPY),
+	IOCTL_INFO_STD(VIDIOC_S_EDID, vidioc_s_edid, v4l_print_edid, INFO_FL_PRIO | INFO_FL_ALWAYS_COPY),
 	IOCTL_INFO_STD(VIDIOC_G_OUTPUT, vidioc_g_output, v4l_print_u32, 0),
 	IOCTL_INFO_FNC(VIDIOC_S_OUTPUT, v4l_s_output, v4l_print_u32, INFO_FL_PRIO),
 	IOCTL_INFO_FNC(VIDIOC_ENUMOUTPUT, v4l_enumoutput, v4l_print_enumoutput, INFO_FL_CLEAR(v4l2_output, index)),
@@ -2550,8 +2597,8 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_FNC(VIDIOC_CROPCAP, v4l_cropcap, v4l_print_cropcap, INFO_FL_CLEAR(v4l2_cropcap, type)),
 	IOCTL_INFO_FNC(VIDIOC_G_CROP, v4l_g_crop, v4l_print_crop, INFO_FL_CLEAR(v4l2_crop, type)),
 	IOCTL_INFO_FNC(VIDIOC_S_CROP, v4l_s_crop, v4l_print_crop, INFO_FL_PRIO),
-	IOCTL_INFO_STD(VIDIOC_G_SELECTION, vidioc_g_selection, v4l_print_selection, INFO_FL_CLEAR(v4l2_selection, r)),
-	IOCTL_INFO_STD(VIDIOC_S_SELECTION, vidioc_s_selection, v4l_print_selection, INFO_FL_PRIO | INFO_FL_CLEAR(v4l2_selection, r)),
+	IOCTL_INFO_FNC(VIDIOC_G_SELECTION, v4l_g_selection, v4l_print_selection, INFO_FL_CLEAR(v4l2_selection, r)),
+	IOCTL_INFO_FNC(VIDIOC_S_SELECTION, v4l_s_selection, v4l_print_selection, INFO_FL_PRIO | INFO_FL_CLEAR(v4l2_selection, r)),
 	IOCTL_INFO_STD(VIDIOC_G_JPEGCOMP, vidioc_g_jpegcomp, v4l_print_jpegcompression, 0),
 	IOCTL_INFO_STD(VIDIOC_S_JPEGCOMP, vidioc_s_jpegcomp, v4l_print_jpegcompression, INFO_FL_PRIO),
 	IOCTL_INFO_FNC(VIDIOC_QUERYSTD, v4l_querystd, v4l_print_std, 0),
@@ -2583,7 +2630,7 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_FNC(VIDIOC_CREATE_BUFS, v4l_create_bufs, v4l_print_create_buffers, INFO_FL_PRIO | INFO_FL_QUEUE),
 	IOCTL_INFO_FNC(VIDIOC_PREPARE_BUF, v4l_prepare_buf, v4l_print_buffer, INFO_FL_QUEUE),
 	IOCTL_INFO_STD(VIDIOC_ENUM_DV_TIMINGS, vidioc_enum_dv_timings, v4l_print_enum_dv_timings, INFO_FL_CLEAR(v4l2_enum_dv_timings, pad)),
-	IOCTL_INFO_STD(VIDIOC_QUERY_DV_TIMINGS, vidioc_query_dv_timings, v4l_print_dv_timings, 0),
+	IOCTL_INFO_STD(VIDIOC_QUERY_DV_TIMINGS, vidioc_query_dv_timings, v4l_print_dv_timings, INFO_FL_ALWAYS_COPY),
 	IOCTL_INFO_STD(VIDIOC_DV_TIMINGS_CAP, vidioc_dv_timings_cap, v4l_print_dv_timings_cap, INFO_FL_CLEAR(v4l2_dv_timings_cap, type)),
 	IOCTL_INFO_FNC(VIDIOC_ENUM_FREQ_BANDS, v4l_enum_freq_bands, v4l_print_freq_band, 0),
 	IOCTL_INFO_FNC(VIDIOC_DBG_G_CHIP_INFO, v4l_dbg_g_chip_info, v4l_print_dbg_chip_info, INFO_FL_CLEAR(v4l2_dbg_chip_info, match)),
@@ -2801,6 +2848,7 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 	void	*parg = (void *)arg;
 	long	err  = -EINVAL;
 	bool	has_array_args;
+	bool	always_copy = false;
 	size_t  array_size = 0;
 	void __user *user_ptr = NULL;
 	void	**kernel_ptr = NULL;
@@ -2811,7 +2859,7 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 			parg = sbuf;
 		} else {
 			/* too big to allocate from stack */
-			mbuf = kmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
+			mbuf = kvmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
 			if (NULL == mbuf)
 				return -ENOMEM;
 			parg = mbuf;
@@ -2830,8 +2878,10 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 			 */
 			if (v4l2_is_known_ioctl(cmd)) {
 				u32 flags = v4l2_ioctls[_IOC_NR(cmd)].flags;
+
 				if (flags & INFO_FL_CLEAR_MASK)
 					n = (flags & INFO_FL_CLEAR_MASK) >> 16;
+				always_copy = flags & INFO_FL_ALWAYS_COPY;
 			}
 
 			if (copy_from_user(parg, (void __user *)arg, n))
@@ -2858,7 +2908,7 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 		 * array) fits into sbuf (so that mbuf will still remain
 		 * unused up to here).
 		 */
-		mbuf = kmalloc(array_size, GFP_KERNEL);
+		mbuf = kvmalloc(array_size, GFP_KERNEL);
 		err = -ENOMEM;
 		if (NULL == mbuf)
 			goto out_array_args;
@@ -2885,9 +2935,11 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 			err = -EFAULT;
 		goto out_array_args;
 	}
-	/* VIDIOC_QUERY_DV_TIMINGS can return an error, but still have valid
-	   results that must be returned. */
-	if (err < 0 && cmd != VIDIOC_QUERY_DV_TIMINGS)
+	/*
+	 * Some ioctls can return an error, but still have valid
+	 * results that must be returned.
+	 */
+	if (err < 0 && !always_copy)
 		goto out;
 
 out_array_args:
@@ -2901,7 +2953,7 @@ out_array_args:
 	}
 
 out:
-	kfree(mbuf);
+	kvfree(mbuf);
 	return err;
 }
 EXPORT_SYMBOL(video_usercopy);

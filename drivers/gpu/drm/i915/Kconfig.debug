@@ -61,6 +61,18 @@ config DRM_I915_SW_FENCE_DEBUG_OBJECTS
 
           If in doubt, say "N".
 
+config DRM_I915_SW_FENCE_CHECK_DAG
+        bool "Enable additional driver debugging for detecting dependency cycles"
+        depends on DRM_I915
+        default n
+        help
+          Choose this option to turn on extra driver debugging that may affect
+          performance but will catch some internal issues.
+
+          Recommended for driver developers only.
+
+          If in doubt, say "N".
+
 config DRM_I915_SELFTEST
 	bool "Enable selftests upon driver load"
 	depends on DRM_I915

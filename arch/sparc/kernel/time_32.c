@@ -298,7 +298,7 @@ static int clock_probe(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id clock_match[] = {
+static const struct of_device_id clock_match[] = {
 	{
 		.name = "eeprom",
 	},

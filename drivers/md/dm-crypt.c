@@ -246,6 +246,9 @@ static struct crypto_aead *any_tfm_aead(struct crypt_config *cc)
  * plain64: the initial vector is the 64-bit little-endian version of the sector
  *        number, padded with zeros if necessary.
  *
+ * plain64be: the initial vector is the 64-bit big-endian version of the sector
+ *        number, padded with zeros if necessary.
+ *
  * essiv: "encrypted sector|salt initial vector", the sector number is
  *        encrypted with the bulk cipher using a salt as key. The salt
  *        should be derived from the bulk cipher's key via hashing.
@@ -298,6 +301,16 @@ static int crypt_iv_plain64_gen(struct crypt_config *cc, u8 *iv,
 {
 	memset(iv, 0, cc->iv_size);
 	*(__le64 *)iv = cpu_to_le64(dmreq->iv_sector);
+
+	return 0;
+}
+
+static int crypt_iv_plain64be_gen(struct crypt_config *cc, u8 *iv,
+				  struct dm_crypt_request *dmreq)
+{
+	memset(iv, 0, cc->iv_size);
+	/* iv_size is at least of size u64; usually it is 16 bytes */
+	*(__be64 *)&iv[cc->iv_size - sizeof(u64)] = cpu_to_be64(dmreq->iv_sector);
 
 	return 0;
 }
@@ -833,6 +846,10 @@ static const struct crypt_iv_operations crypt_iv_plain_ops = {
 
 static const struct crypt_iv_operations crypt_iv_plain64_ops = {
 	.generator = crypt_iv_plain64_gen
+};
+
+static const struct crypt_iv_operations crypt_iv_plain64be_ops = {
+	.generator = crypt_iv_plain64be_gen
 };
 
 static const struct crypt_iv_operations crypt_iv_essiv_ops = {
@@ -2208,6 +2225,8 @@ static int crypt_ctr_ivmode(struct dm_target *ti, const char *ivmode)
 		cc->iv_gen_ops = &crypt_iv_plain_ops;
 	else if (strcmp(ivmode, "plain64") == 0)
 		cc->iv_gen_ops = &crypt_iv_plain64_ops;
+	else if (strcmp(ivmode, "plain64be") == 0)
+		cc->iv_gen_ops = &crypt_iv_plain64be_ops;
 	else if (strcmp(ivmode, "essiv") == 0)
 		cc->iv_gen_ops = &crypt_iv_essiv_ops;
 	else if (strcmp(ivmode, "benbi") == 0)
@@ -2987,7 +3006,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 17, 0},
+	.version = {1, 18, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,

@@ -1771,24 +1771,13 @@ unsigned long __weak arch_deref_entry_point(void *entry)
 
 int register_jprobes(struct jprobe **jps, int num)
 {
-	struct jprobe *jp;
 	int ret = 0, i;
 
 	if (num <= 0)
 		return -EINVAL;
-	for (i = 0; i < num; i++) {
-		unsigned long addr, offset;
-		jp = jps[i];
-		addr = arch_deref_entry_point(jp->entry);
 
-		/* Verify probepoint is a function entry point */
-		if (kallsyms_lookup_size_offset(addr, NULL, &offset) &&
-		    offset == 0) {
-			jp->kp.pre_handler = setjmp_pre_handler;
-			jp->kp.break_handler = longjmp_break_handler;
-			ret = register_kprobe(&jp->kp);
-		} else
-			ret = -EINVAL;
+	for (i = 0; i < num; i++) {
+		ret = register_jprobe(jps[i]);
 
 		if (ret < 0) {
 			if (i > 0)
@@ -1796,13 +1785,30 @@ int register_jprobes(struct jprobe **jps, int num)
 			break;
 		}
 	}
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(register_jprobes);
 
 int register_jprobe(struct jprobe *jp)
 {
-	return register_jprobes(&jp, 1);
+	unsigned long addr, offset;
+	struct kprobe *kp = &jp->kp;
+
+	/*
+	 * Verify probepoint as well as the jprobe handler are
+	 * valid function entry points.
+	 */
+	addr = arch_deref_entry_point(jp->entry);
+
+	if (kallsyms_lookup_size_offset(addr, NULL, &offset) && offset == 0 &&
+	    kprobe_on_func_entry(kp->addr, kp->symbol_name, kp->offset)) {
+		kp->pre_handler = setjmp_pre_handler;
+		kp->break_handler = longjmp_break_handler;
+		return register_kprobe(kp);
+	}
+
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(register_jprobe);
 
@@ -1888,12 +1894,12 @@ static int pre_handler_kretprobe(struct kprobe *p, struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(pre_handler_kretprobe);
 
-bool __weak arch_function_offset_within_entry(unsigned long offset)
+bool __weak arch_kprobe_on_func_entry(unsigned long offset)
 {
 	return !offset;
 }
 
-bool function_offset_within_entry(kprobe_opcode_t *addr, const char *sym, unsigned long offset)
+bool kprobe_on_func_entry(kprobe_opcode_t *addr, const char *sym, unsigned long offset)
 {
 	kprobe_opcode_t *kp_addr = _kprobe_addr(addr, sym, offset);
 
@@ -1901,7 +1907,7 @@ bool function_offset_within_entry(kprobe_opcode_t *addr, const char *sym, unsign
 		return false;
 
 	if (!kallsyms_lookup_size_offset((unsigned long)kp_addr, NULL, &offset) ||
-						!arch_function_offset_within_entry(offset))
+						!arch_kprobe_on_func_entry(offset))
 		return false;
 
 	return true;
@@ -1914,7 +1920,7 @@ int register_kretprobe(struct kretprobe *rp)
 	int i;
 	void *addr;
 
-	if (!function_offset_within_entry(rp->kp.addr, rp->kp.symbol_name, rp->kp.offset))
+	if (!kprobe_on_func_entry(rp->kp.addr, rp->kp.symbol_name, rp->kp.offset))
 		return -EINVAL;
 
 	if (kretprobe_blacklist_size) {

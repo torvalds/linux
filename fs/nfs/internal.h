@@ -11,6 +11,8 @@
 
 #define NFS_MS_MASK (MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC|MS_SYNCHRONOUS)
 
+extern const struct export_operations nfs_export_ops;
+
 struct nfs_string;
 
 /* Maximum number of readahead requests
@@ -226,8 +228,8 @@ static inline void nfs_fs_proc_exit(void)
 #endif
 
 /* callback_xdr.c */
-extern struct svc_version nfs4_callback_version1;
-extern struct svc_version nfs4_callback_version4;
+extern const struct svc_version nfs4_callback_version1;
+extern const struct svc_version nfs4_callback_version4;
 
 struct nfs_pageio_descriptor;
 /* pagelist.c */
@@ -271,19 +273,19 @@ static inline bool nfs_match_open_context(const struct nfs_open_context *ctx1,
 }
 
 /* nfs2xdr.c */
-extern struct rpc_procinfo nfs_procedures[];
+extern const struct rpc_procinfo nfs_procedures[];
 extern int nfs2_decode_dirent(struct xdr_stream *,
-				struct nfs_entry *, int);
+				struct nfs_entry *, bool);
 
 /* nfs3xdr.c */
-extern struct rpc_procinfo nfs3_procedures[];
+extern const struct rpc_procinfo nfs3_procedures[];
 extern int nfs3_decode_dirent(struct xdr_stream *,
-				struct nfs_entry *, int);
+				struct nfs_entry *, bool);
 
 /* nfs4xdr.c */
 #if IS_ENABLED(CONFIG_NFS_V4)
 extern int nfs4_decode_dirent(struct xdr_stream *,
-				struct nfs_entry *, int);
+				struct nfs_entry *, bool);
 #endif
 #ifdef CONFIG_NFS_V4_1
 extern const u32 nfs41_maxread_overhead;
@@ -293,7 +295,7 @@ extern const u32 nfs41_maxgetdevinfo_overhead;
 
 /* nfs4proc.c */
 #if IS_ENABLED(CONFIG_NFS_V4)
-extern struct rpc_procinfo nfs4_procedures[];
+extern const struct rpc_procinfo nfs4_procedures[];
 #endif
 
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL

@@ -11,15 +11,14 @@
 	#size-cells = <1>;
 	compatible = "mti,sead-3";
 	model = "MIPS SEAD-3";
-	interrupt-parent = <&gic>;
 
 	chosen {
-		stdout-path = "uart1:115200";
+		stdout-path = "serial1:115200";
 	};
 
 	aliases {
-		uart0 = &uart0;
-		uart1 = &uart1;
+		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	cpus {
@@ -54,18 +53,14 @@
 		 * controller & should be probed first.
 		 */
 		interrupt-parent = <&cpu_intc>;
-
-		timer {
-			compatible = "mti,gic-timer";
-			interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
-		};
 	};
 
 	ehci@1b200000 {
 		compatible = "generic-ehci";
 		reg = <0x1b200000 0x1000>;
 
-		interrupts = <0>; /* GIC 0 or CPU 6 */
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 0 IRQ_TYPE_LEVEL_HIGH>; /* GIC 0 or CPU 6 */
 
 		has-transaction-translator;
 	};
@@ -227,7 +222,8 @@
 
 		clock-frequency = <14745600>;
 
-		interrupts = <3>; /* GIC 3 or CPU 4 */
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>; /* GIC 3 or CPU 4 */
 
 		no-loopback-test;
 	};
@@ -241,7 +237,8 @@
 
 		clock-frequency = <14745600>;
 
-		interrupts = <2>; /* GIC 2 or CPU 4 */
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 2 IRQ_TYPE_LEVEL_HIGH>; /* GIC 2 or CPU 4 */
 
 		no-loopback-test;
 	};
@@ -251,7 +248,8 @@
 		reg = <0x1f010000 0x10000>;
 		reg-io-width = <4>;
 
-		interrupts = <0>; /* GIC 0 or CPU 6 */
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 0 IRQ_TYPE_LEVEL_HIGH>; /* GIC 0 or CPU 6 */
 
 		phy-mode = "mii";
 		smsc,irq-push-pull;

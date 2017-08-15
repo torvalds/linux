@@ -12,10 +12,11 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/of_graph.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-mc.h>
 
 #include "tvp5150_reg.h"
@@ -658,7 +659,7 @@ static int tvp5150_set_vbi(struct v4l2_subdev *sd,
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	v4l2_std_id std = decoder->norm;
 	u8 reg;
-	int pos=0;
+	int pos = 0;
 
 	if (std == V4L2_STD_ALL) {
 		dev_err(sd->dev, "VBI can't be configured without knowing number of lines\n");
@@ -668,33 +669,30 @@ static int tvp5150_set_vbi(struct v4l2_subdev *sd,
 		line += 3;
 	}
 
-	if (line<6||line>27)
+	if (line < 6 || line > 27)
 		return 0;
 
-	while (regs->reg != (u16)-1 ) {
+	while (regs->reg != (u16)-1) {
 		if ((type & regs->type.vbi_type) &&
-		    (line>=regs->type.ini_line) &&
-		    (line<=regs->type.end_line)) {
-			type=regs->type.vbi_type;
+		    (line >= regs->type.ini_line) &&
+		    (line <= regs->type.end_line))
 			break;
-		}
 
 		regs++;
 		pos++;
 	}
+
 	if (regs->reg == (u16)-1)
 		return 0;
 
-	type=pos | (flags & 0xf0);
-	reg=((line-6)<<1)+TVP5150_LINE_MODE_INI;
+	type = pos | (flags & 0xf0);
+	reg = ((line - 6) << 1) + TVP5150_LINE_MODE_INI;
 
-	if (fields&1) {
+	if (fields & 1)
 		tvp5150_write(sd, reg, type);
-	}
 
-	if (fields&2) {
-		tvp5150_write(sd, reg+1, type);
-	}
+	if (fields & 2)
+		tvp5150_write(sd, reg + 1, type);
 
 	return type;
 }
@@ -1358,7 +1356,7 @@ static int tvp5150_init(struct i2c_client *c)
 
 static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 {
-	struct v4l2_of_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg;
 	struct device_node *ep;
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct device_node *connectors, *child;
@@ -1373,7 +1371,7 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_of_parse_endpoint(ep, &bus_cfg);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &bus_cfg);
 	if (ret)
 		goto err;
 

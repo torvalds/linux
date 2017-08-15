@@ -89,6 +89,55 @@ TRACE_EVENT(intel_memory_cxsr,
 		      __entry->frame[PIPE_C], __entry->scanline[PIPE_C])
 );
 
+TRACE_EVENT(g4x_wm,
+	    TP_PROTO(struct intel_crtc *crtc, const struct g4x_wm_values *wm),
+	    TP_ARGS(crtc, wm),
+
+	    TP_STRUCT__entry(
+			     __field(enum pipe, pipe)
+			     __field(u32, frame)
+			     __field(u32, scanline)
+			     __field(u16, primary)
+			     __field(u16, sprite)
+			     __field(u16, cursor)
+			     __field(u16, sr_plane)
+			     __field(u16, sr_cursor)
+			     __field(u16, sr_fbc)
+			     __field(u16, hpll_plane)
+			     __field(u16, hpll_cursor)
+			     __field(u16, hpll_fbc)
+			     __field(bool, cxsr)
+			     __field(bool, hpll)
+			     __field(bool, fbc)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->pipe = crtc->pipe;
+			   __entry->frame = crtc->base.dev->driver->get_vblank_counter(crtc->base.dev,
+										       crtc->pipe);
+			   __entry->scanline = intel_get_crtc_scanline(crtc);
+			   __entry->primary = wm->pipe[crtc->pipe].plane[PLANE_PRIMARY];
+			   __entry->sprite = wm->pipe[crtc->pipe].plane[PLANE_SPRITE0];
+			   __entry->cursor = wm->pipe[crtc->pipe].plane[PLANE_CURSOR];
+			   __entry->sr_plane = wm->sr.plane;
+			   __entry->sr_cursor = wm->sr.cursor;
+			   __entry->sr_fbc = wm->sr.fbc;
+			   __entry->hpll_plane = wm->hpll.plane;
+			   __entry->hpll_cursor = wm->hpll.cursor;
+			   __entry->hpll_fbc = wm->hpll.fbc;
+			   __entry->cxsr = wm->cxsr;
+			   __entry->hpll = wm->hpll_en;
+			   __entry->fbc = wm->fbc_en;
+			   ),
+
+	    TP_printk("pipe %c, frame=%u, scanline=%u, wm %d/%d/%d, sr %s/%d/%d/%d, hpll %s/%d/%d/%d, fbc %s",
+		      pipe_name(__entry->pipe), __entry->frame, __entry->scanline,
+		      __entry->primary, __entry->sprite, __entry->cursor,
+		      yesno(__entry->cxsr), __entry->sr_plane, __entry->sr_cursor, __entry->sr_fbc,
+		      yesno(__entry->hpll), __entry->hpll_plane, __entry->hpll_cursor, __entry->hpll_fbc,
+		      yesno(__entry->fbc))
+);
+
 TRACE_EVENT(vlv_wm,
 	    TP_PROTO(struct intel_crtc *crtc, const struct vlv_wm_values *wm),
 	    TP_ARGS(crtc, wm),

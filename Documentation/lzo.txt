@@ -1,8 +1,9 @@
-
+===========================================================
 LZO stream format as understood by Linux's LZO decompressor
 ===========================================================
 
 Introduction
+============
 
   This is not a specification. No specification seems to be publicly available
   for the LZO stream format. This document describes what input format the LZO
@@ -14,12 +15,13 @@ Introduction
   for future bug reports.
 
 Description
+===========
 
   The stream is composed of a series of instructions, operands, and data. The
   instructions consist in a few bits representing an opcode, and bits forming
   the operands for the instruction, whose size and position depend on the
   opcode and on the number of literals copied by previous instruction. The
-  operands are used to indicate :
+  operands are used to indicate:
 
     - a distance when copying data from the dictionary (past output buffer)
     - a length (number of bytes to copy from dictionary)
@@ -38,7 +40,7 @@ Description
   of bits in the operand. If the number of bits isn't enough to represent the
   length, up to 255 may be added in increments by consuming more bytes with a
   rate of at most 255 per extra byte (thus the compression ratio cannot exceed
-  around 255:1). The variable length encoding using #bits is always the same :
+  around 255:1). The variable length encoding using #bits is always the same::
 
        length = byte & ((1 << #bits) - 1)
        if (!length) {
@@ -67,15 +69,19 @@ Description
   instruction may encode this distance (0001HLLL), it takes one LE16 operand
   for the distance, thus requiring 3 bytes.
 
-  IMPORTANT NOTE : in the code some length checks are missing because certain
-  instructions are called under the assumption that a certain number of bytes
-  follow because it has already been guaranteed before parsing the instructions.
-  They just have to "refill" this credit if they consume extra bytes. This is
-  an implementation design choice independent on the algorithm or encoding.
+  .. important::
+
+     In the code some length checks are missing because certain instructions
+     are called under the assumption that a certain number of bytes follow
+     because it has already been guaranteed before parsing the instructions.
+     They just have to "refill" this credit if they consume extra bytes. This
+     is an implementation design choice independent on the algorithm or
+     encoding.
 
 Byte sequences
+==============
 
-  First byte encoding :
+  First byte encoding::
 
       0..17   : follow regular instruction encoding, see below. It is worth
                 noting that codes 16 and 17 will represent a block copy from
@@ -91,7 +97,7 @@ Byte sequences
                 state = 4 [ don't copy extra literals ]
                 skip byte
 
-  Instruction encoding :
+  Instruction encoding::
 
       0 0 0 0 X X X X  (0..15)
         Depends on the number of literals copied by the last instruction.
@@ -156,6 +162,7 @@ Byte sequences
            distance = (H << 3) + D + 1
 
 Authors
+=======
 
   This document was written by Willy Tarreau <w@1wt.eu> on 2014/07/19 during an
   analysis of the decompression code available in Linux 3.16-rc5. The code is

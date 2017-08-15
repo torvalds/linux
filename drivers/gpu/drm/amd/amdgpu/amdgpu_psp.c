@@ -24,12 +24,13 @@
  */
 
 #include <linux/firmware.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
 #include "amdgpu_ucode.h"
 #include "soc15_common.h"
 #include "psp_v3_1.h"
+#include "psp_v10_0.h"
 
 static void psp_set_funcs(struct amdgpu_device *adev);
 
@@ -60,6 +61,12 @@ static int psp_sw_init(void *handle)
 		psp->cmd_submit = psp_v3_1_cmd_submit;
 		psp->compare_sram_data = psp_v3_1_compare_sram_data;
 		psp->smu_reload_quirk = psp_v3_1_smu_reload_quirk;
+		break;
+	case CHIP_RAVEN:
+		psp->prep_cmd_buf = psp_v10_0_prep_cmd_buf;
+		psp->ring_init = psp_v10_0_ring_init;
+		psp->cmd_submit = psp_v10_0_cmd_submit;
+		psp->compare_sram_data = psp_v10_0_compare_sram_data;
 		break;
 	default:
 		return -EINVAL;
@@ -145,8 +152,8 @@ static void psp_prep_tmr_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 				 uint64_t tmr_mc, uint32_t size)
 {
 	cmd->cmd_id = GFX_CMD_ID_SETUP_TMR;
-	cmd->cmd.cmd_setup_tmr.buf_phy_addr_lo = (uint32_t)tmr_mc;
-	cmd->cmd.cmd_setup_tmr.buf_phy_addr_hi = (uint32_t)(tmr_mc >> 32);
+	cmd->cmd.cmd_setup_tmr.buf_phy_addr_lo = lower_32_bits(tmr_mc);
+	cmd->cmd.cmd_setup_tmr.buf_phy_addr_hi = upper_32_bits(tmr_mc);
 	cmd->cmd.cmd_setup_tmr.buf_size = size;
 }
 
@@ -229,6 +236,13 @@ static int psp_asd_load(struct psp_context *psp)
 {
 	int ret;
 	struct psp_gfx_cmd_resp *cmd;
+
+	/* If PSP version doesn't match ASD version, asd loading will be failed.
+	 * add workaround to bypass it for sriov now.
+	 * TODO: add version check to make it common
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
 
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!cmd)
@@ -319,13 +333,10 @@ static int psp_load_fw(struct amdgpu_device *adev)
 {
 	int ret;
 	struct psp_context *psp = &adev->psp;
-	struct psp_gfx_cmd_resp *cmd;
 
-	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
-	if (!cmd)
+	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!psp->cmd)
 		return -ENOMEM;
-
-	psp->cmd = cmd;
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
 				      AMDGPU_GEM_DOMAIN_GTT,
@@ -365,8 +376,6 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	if (ret)
 		goto failed_mem;
 
-	kfree(cmd);
-
 	return 0;
 
 failed_mem:
@@ -376,7 +385,8 @@ failed_mem1:
 	amdgpu_bo_free_kernel(&psp->fw_pri_bo,
 			      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
 failed:
-	kfree(cmd);
+	kfree(psp->cmd);
+	psp->cmd = NULL;
 	return ret;
 }
 
@@ -435,6 +445,9 @@ static int psp_hw_fini(void *handle)
 	if (psp->fence_buf_bo)
 		amdgpu_bo_free_kernel(&psp->fence_buf_bo,
 				      &psp->fence_buf_mc_addr, &psp->fence_buf);
+
+	kfree(psp->cmd);
+	psp->cmd = NULL;
 
 	return 0;
 }
@@ -539,6 +552,15 @@ const struct amdgpu_ip_block_version psp_v3_1_ip_block =
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 3,
 	.minor = 1,
+	.rev = 0,
+	.funcs = &psp_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version psp_v10_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_PSP,
+	.major = 10,
+	.minor = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };

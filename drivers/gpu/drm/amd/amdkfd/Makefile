@@ -2,7 +2,7 @@
 # Makefile for Heterogenous System Architecture support for AMD GPU devices
 #
 
-ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/amd/include/  \
+ccflags-y := -Idrivers/gpu/drm/amd/include/  \
 		-Idrivers/gpu/drm/amd/include/asic_reg
 
 amdkfd-y	:= kfd_module.o kfd_device.o kfd_chardev.o kfd_topology.o \

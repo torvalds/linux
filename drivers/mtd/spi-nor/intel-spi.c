@@ -715,6 +715,11 @@ static void intel_spi_fill_partition(struct intel_spi *ispi,
 struct intel_spi *intel_spi_probe(struct device *dev,
 	struct resource *mem, const struct intel_spi_boardinfo *info)
 {
+	const struct spi_nor_hwcaps hwcaps = {
+		.mask = SNOR_HWCAPS_READ |
+			SNOR_HWCAPS_READ_FAST |
+			SNOR_HWCAPS_PP,
+	};
 	struct mtd_partition part;
 	struct intel_spi *ispi;
 	int ret;
@@ -746,7 +751,7 @@ struct intel_spi *intel_spi_probe(struct device *dev,
 	ispi->nor.write = intel_spi_write;
 	ispi->nor.erase = intel_spi_erase;
 
-	ret = spi_nor_scan(&ispi->nor, NULL, SPI_NOR_NORMAL);
+	ret = spi_nor_scan(&ispi->nor, NULL, &hwcaps);
 	if (ret) {
 		dev_info(dev, "failed to locate the chip\n");
 		return ERR_PTR(ret);

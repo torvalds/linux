@@ -9,7 +9,7 @@
  * to those contributors as well.
  */
 
-#define pr_fmt(fmt) "NMI watchdog: " fmt
+#define pr_fmt(fmt) "watchdog: " fmt
 
 #include <linux/mm.h>
 #include <linux/cpu.h>
@@ -29,15 +29,58 @@
 #include <linux/kvm_para.h>
 #include <linux/kthread.h>
 
+/* Watchdog configuration */
 static DEFINE_MUTEX(watchdog_proc_mutex);
 
-#if defined(CONFIG_HAVE_NMI_WATCHDOG) || defined(CONFIG_HARDLOCKUP_DETECTOR)
-unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED|NMI_WATCHDOG_ENABLED;
+int __read_mostly nmi_watchdog_enabled;
+
+#if defined(CONFIG_HARDLOCKUP_DETECTOR) || defined(CONFIG_HAVE_NMI_WATCHDOG)
+unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED |
+						NMI_WATCHDOG_ENABLED;
 #else
 unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED;
 #endif
-int __read_mostly nmi_watchdog_enabled;
+
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
+/* boot commands */
+/*
+ * Should we panic when a soft-lockup or hard-lockup occurs:
+ */
+unsigned int __read_mostly hardlockup_panic =
+			CONFIG_BOOTPARAM_HARDLOCKUP_PANIC_VALUE;
+/*
+ * We may not want to enable hard lockup detection by default in all cases,
+ * for example when running the kernel as a guest on a hypervisor. In these
+ * cases this function can be called to disable hard lockup detection. This
+ * function should only be executed once by the boot processor before the
+ * kernel command line parameters are parsed, because otherwise it is not
+ * possible to override this in hardlockup_panic_setup().
+ */
+void hardlockup_detector_disable(void)
+{
+	watchdog_enabled &= ~NMI_WATCHDOG_ENABLED;
+}
+
+static int __init hardlockup_panic_setup(char *str)
+{
+	if (!strncmp(str, "panic", 5))
+		hardlockup_panic = 1;
+	else if (!strncmp(str, "nopanic", 7))
+		hardlockup_panic = 0;
+	else if (!strncmp(str, "0", 1))
+		watchdog_enabled &= ~NMI_WATCHDOG_ENABLED;
+	else if (!strncmp(str, "1", 1))
+		watchdog_enabled |= NMI_WATCHDOG_ENABLED;
+	return 1;
+}
+__setup("nmi_watchdog=", hardlockup_panic_setup);
+
+#endif
+
+#ifdef CONFIG_SOFTLOCKUP_DETECTOR
 int __read_mostly soft_watchdog_enabled;
+#endif
+
 int __read_mostly watchdog_user_enabled;
 int __read_mostly watchdog_thresh = 10;
 
@@ -45,14 +88,8 @@ int __read_mostly watchdog_thresh = 10;
 int __read_mostly sysctl_softlockup_all_cpu_backtrace;
 int __read_mostly sysctl_hardlockup_all_cpu_backtrace;
 #endif
-static struct cpumask watchdog_cpumask __read_mostly;
+struct cpumask watchdog_cpumask __read_mostly;
 unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
-
-/* Helper for online, unparked cpus. */
-#define for_each_watchdog_cpu(cpu) \
-	for_each_cpu_and((cpu), cpu_online_mask, &watchdog_cpumask)
-
-atomic_t watchdog_park_in_progress = ATOMIC_INIT(0);
 
 /*
  * The 'watchdog_running' variable is set to 1 when the watchdog threads
@@ -72,7 +109,47 @@ static int __read_mostly watchdog_running;
  * of 'watchdog_running' cannot change while the watchdog is deactivated
  * temporarily (see related code in 'proc' handlers).
  */
-static int __read_mostly watchdog_suspended;
+int __read_mostly watchdog_suspended;
+
+/*
+ * These functions can be overridden if an architecture implements its
+ * own hardlockup detector.
+ *
+ * watchdog_nmi_enable/disable can be implemented to start and stop when
+ * softlockup watchdog threads start and stop. The arch must select the
+ * SOFTLOCKUP_DETECTOR Kconfig.
+ */
+int __weak watchdog_nmi_enable(unsigned int cpu)
+{
+	return 0;
+}
+void __weak watchdog_nmi_disable(unsigned int cpu)
+{
+}
+
+/*
+ * watchdog_nmi_reconfigure can be implemented to be notified after any
+ * watchdog configuration change. The arch hardlockup watchdog should
+ * respond to the following variables:
+ * - nmi_watchdog_enabled
+ * - watchdog_thresh
+ * - watchdog_cpumask
+ * - sysctl_hardlockup_all_cpu_backtrace
+ * - hardlockup_panic
+ * - watchdog_suspended
+ */
+void __weak watchdog_nmi_reconfigure(void)
+{
+}
+
+
+#ifdef CONFIG_SOFTLOCKUP_DETECTOR
+
+/* Helper for online, unparked cpus. */
+#define for_each_watchdog_cpu(cpu) \
+	for_each_cpu_and((cpu), cpu_online_mask, &watchdog_cpumask)
+
+atomic_t watchdog_park_in_progress = ATOMIC_INIT(0);
 
 static u64 __read_mostly sample_period;
 
@@ -120,6 +197,7 @@ static int __init softlockup_all_cpu_backtrace_setup(char *str)
 	return 1;
 }
 __setup("softlockup_all_cpu_backtrace=", softlockup_all_cpu_backtrace_setup);
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
 static int __init hardlockup_all_cpu_backtrace_setup(char *str)
 {
 	sysctl_hardlockup_all_cpu_backtrace =
@@ -127,6 +205,7 @@ static int __init hardlockup_all_cpu_backtrace_setup(char *str)
 	return 1;
 }
 __setup("hardlockup_all_cpu_backtrace=", hardlockup_all_cpu_backtrace_setup);
+#endif
 #endif
 
 /*
@@ -213,18 +292,6 @@ void touch_softlockup_watchdog_sync(void)
 	__this_cpu_write(watchdog_touch_ts, 0);
 }
 
-/* watchdog detector functions */
-bool is_hardlockup(void)
-{
-	unsigned long hrint = __this_cpu_read(hrtimer_interrupts);
-
-	if (__this_cpu_read(hrtimer_interrupts_saved) == hrint)
-		return true;
-
-	__this_cpu_write(hrtimer_interrupts_saved, hrint);
-	return false;
-}
-
 static int is_softlockup(unsigned long touch_ts)
 {
 	unsigned long now = get_timestamp();
@@ -237,21 +304,21 @@ static int is_softlockup(unsigned long touch_ts)
 	return 0;
 }
 
+/* watchdog detector functions */
+bool is_hardlockup(void)
+{
+	unsigned long hrint = __this_cpu_read(hrtimer_interrupts);
+
+	if (__this_cpu_read(hrtimer_interrupts_saved) == hrint)
+		return true;
+
+	__this_cpu_write(hrtimer_interrupts_saved, hrint);
+	return false;
+}
+
 static void watchdog_interrupt_count(void)
 {
 	__this_cpu_inc(hrtimer_interrupts);
-}
-
-/*
- * These two functions are mostly architecture specific
- * defining them as weak here.
- */
-int __weak watchdog_nmi_enable(unsigned int cpu)
-{
-	return 0;
-}
-void __weak watchdog_nmi_disable(unsigned int cpu)
-{
 }
 
 static int watchdog_enable_all_cpus(void);
@@ -502,57 +569,6 @@ static void watchdog_unpark_threads(void)
 		kthread_unpark(per_cpu(softlockup_watchdog, cpu));
 }
 
-/*
- * Suspend the hard and soft lockup detector by parking the watchdog threads.
- */
-int lockup_detector_suspend(void)
-{
-	int ret = 0;
-
-	get_online_cpus();
-	mutex_lock(&watchdog_proc_mutex);
-	/*
-	 * Multiple suspend requests can be active in parallel (counted by
-	 * the 'watchdog_suspended' variable). If the watchdog threads are
-	 * running, the first caller takes care that they will be parked.
-	 * The state of 'watchdog_running' cannot change while a suspend
-	 * request is active (see related code in 'proc' handlers).
-	 */
-	if (watchdog_running && !watchdog_suspended)
-		ret = watchdog_park_threads();
-
-	if (ret == 0)
-		watchdog_suspended++;
-	else {
-		watchdog_disable_all_cpus();
-		pr_err("Failed to suspend lockup detectors, disabled\n");
-		watchdog_enabled = 0;
-	}
-
-	mutex_unlock(&watchdog_proc_mutex);
-
-	return ret;
-}
-
-/*
- * Resume the hard and soft lockup detector by unparking the watchdog threads.
- */
-void lockup_detector_resume(void)
-{
-	mutex_lock(&watchdog_proc_mutex);
-
-	watchdog_suspended--;
-	/*
-	 * The watchdog threads are unparked if they were previously running
-	 * and if there is no more active suspend request.
-	 */
-	if (watchdog_running && !watchdog_suspended)
-		watchdog_unpark_threads();
-
-	mutex_unlock(&watchdog_proc_mutex);
-	put_online_cpus();
-}
-
 static int update_watchdog_all_cpus(void)
 {
 	int ret;
@@ -605,6 +621,100 @@ static void watchdog_disable_all_cpus(void)
 }
 
 #ifdef CONFIG_SYSCTL
+static int watchdog_update_cpus(void)
+{
+	return smpboot_update_cpumask_percpu_thread(
+		    &watchdog_threads, &watchdog_cpumask);
+}
+#endif
+
+#else /* SOFTLOCKUP */
+static int watchdog_park_threads(void)
+{
+	return 0;
+}
+
+static void watchdog_unpark_threads(void)
+{
+}
+
+static int watchdog_enable_all_cpus(void)
+{
+	return 0;
+}
+
+static void watchdog_disable_all_cpus(void)
+{
+}
+
+#ifdef CONFIG_SYSCTL
+static int watchdog_update_cpus(void)
+{
+	return 0;
+}
+#endif
+
+static void set_sample_period(void)
+{
+}
+#endif /* SOFTLOCKUP */
+
+/*
+ * Suspend the hard and soft lockup detector by parking the watchdog threads.
+ */
+int lockup_detector_suspend(void)
+{
+	int ret = 0;
+
+	get_online_cpus();
+	mutex_lock(&watchdog_proc_mutex);
+	/*
+	 * Multiple suspend requests can be active in parallel (counted by
+	 * the 'watchdog_suspended' variable). If the watchdog threads are
+	 * running, the first caller takes care that they will be parked.
+	 * The state of 'watchdog_running' cannot change while a suspend
+	 * request is active (see related code in 'proc' handlers).
+	 */
+	if (watchdog_running && !watchdog_suspended)
+		ret = watchdog_park_threads();
+
+	if (ret == 0)
+		watchdog_suspended++;
+	else {
+		watchdog_disable_all_cpus();
+		pr_err("Failed to suspend lockup detectors, disabled\n");
+		watchdog_enabled = 0;
+	}
+
+	watchdog_nmi_reconfigure();
+
+	mutex_unlock(&watchdog_proc_mutex);
+
+	return ret;
+}
+
+/*
+ * Resume the hard and soft lockup detector by unparking the watchdog threads.
+ */
+void lockup_detector_resume(void)
+{
+	mutex_lock(&watchdog_proc_mutex);
+
+	watchdog_suspended--;
+	/*
+	 * The watchdog threads are unparked if they were previously running
+	 * and if there is no more active suspend request.
+	 */
+	if (watchdog_running && !watchdog_suspended)
+		watchdog_unpark_threads();
+
+	watchdog_nmi_reconfigure();
+
+	mutex_unlock(&watchdog_proc_mutex);
+	put_online_cpus();
+}
+
+#ifdef CONFIG_SYSCTL
 
 /*
  * Update the run state of the lockup detectors.
@@ -624,6 +734,8 @@ static int proc_watchdog_update(void)
 		err = watchdog_enable_all_cpus();
 	else
 		watchdog_disable_all_cpus();
+
+	watchdog_nmi_reconfigure();
 
 	return err;
 
@@ -810,10 +922,11 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 			 * a temporary cpumask, so we are likely not in a
 			 * position to do much else to make things better.
 			 */
-			if (smpboot_update_cpumask_percpu_thread(
-				    &watchdog_threads, &watchdog_cpumask) != 0)
+			if (watchdog_update_cpus() != 0)
 				pr_err("cpumask update failed\n");
 		}
+
+		watchdog_nmi_reconfigure();
 	}
 out:
 	mutex_unlock(&watchdog_proc_mutex);

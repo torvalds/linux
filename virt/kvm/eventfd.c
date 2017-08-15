@@ -825,7 +825,7 @@ static int kvm_assign_ioeventfd_idx(struct kvm *kvm,
 	if (ret < 0)
 		goto unlock_fail;
 
-	kvm->buses[bus_idx]->ioeventfd_count++;
+	kvm_get_bus(kvm, bus_idx)->ioeventfd_count++;
 	list_add_tail(&p->list, &kvm->ioeventfds);
 
 	mutex_unlock(&kvm->slots_lock);
@@ -848,6 +848,7 @@ kvm_deassign_ioeventfd_idx(struct kvm *kvm, enum kvm_bus bus_idx,
 {
 	struct _ioeventfd        *p, *tmp;
 	struct eventfd_ctx       *eventfd;
+	struct kvm_io_bus	 *bus;
 	int                       ret = -ENOENT;
 
 	eventfd = eventfd_ctx_fdget(args->fd);
@@ -870,8 +871,9 @@ kvm_deassign_ioeventfd_idx(struct kvm *kvm, enum kvm_bus bus_idx,
 			continue;
 
 		kvm_io_bus_unregister_dev(kvm, bus_idx, &p->dev);
-		if (kvm->buses[bus_idx])
-			kvm->buses[bus_idx]->ioeventfd_count--;
+		bus = kvm_get_bus(kvm, bus_idx);
+		if (bus)
+			bus->ioeventfd_count--;
 		ioeventfd_release(p);
 		ret = 0;
 		break;

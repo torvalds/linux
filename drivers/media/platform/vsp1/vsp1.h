@@ -74,6 +74,7 @@ struct vsp1_device {
 
 	void __iomem *mmio;
 	struct rcar_fcp_device *fcp;
+	struct device *bus_master;
 
 	struct vsp1_bru *bru;
 	struct vsp1_clu *clu;

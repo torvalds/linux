@@ -898,26 +898,20 @@ static int chcr_update_tweak(struct ablkcipher_request *req, u8 *iv)
 	u8 *key;
 	unsigned int keylen;
 
-	cipher = crypto_alloc_cipher("aes-generic", 0, 0);
+	cipher = ablkctx->aes_generic;
 	memcpy(iv, req->info, AES_BLOCK_SIZE);
 
-	if (IS_ERR(cipher)) {
-		ret = -ENOMEM;
-		goto out;
-	}
 	keylen = ablkctx->enckey_len / 2;
 	key = ablkctx->key + keylen;
 	ret = crypto_cipher_setkey(cipher, key, keylen);
 	if (ret)
-		goto out1;
+		goto out;
 
 	crypto_cipher_encrypt_one(cipher, iv, iv);
 	for (i = 0; i < (reqctx->processed / AES_BLOCK_SIZE); i++)
 		gf128mul_x_ble((le128 *)iv, (le128 *)iv);
 
 	crypto_cipher_decrypt_one(cipher, iv, iv);
-out1:
-	crypto_free_cipher(cipher);
 out:
 	return ret;
 }
@@ -1261,6 +1255,17 @@ static int chcr_cra_init(struct crypto_tfm *tfm)
 		pr_err("failed to allocate fallback for %s\n", alg->cra_name);
 		return PTR_ERR(ablkctx->sw_cipher);
 	}
+
+	if (get_cryptoalg_subtype(tfm) == CRYPTO_ALG_SUB_TYPE_XTS) {
+		/* To update tweak*/
+		ablkctx->aes_generic = crypto_alloc_cipher("aes-generic", 0, 0);
+		if (IS_ERR(ablkctx->aes_generic)) {
+			pr_err("failed to allocate aes cipher for tweak\n");
+			return PTR_ERR(ablkctx->aes_generic);
+		}
+	} else
+		ablkctx->aes_generic = NULL;
+
 	tfm->crt_ablkcipher.reqsize =  sizeof(struct chcr_blkcipher_req_ctx);
 	return chcr_device_init(crypto_tfm_ctx(tfm));
 }
@@ -1291,6 +1296,8 @@ static void chcr_cra_exit(struct crypto_tfm *tfm)
 	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
 
 	crypto_free_skcipher(ablkctx->sw_cipher);
+	if (ablkctx->aes_generic)
+		crypto_free_cipher(ablkctx->aes_generic);
 }
 
 static int get_alg_config(struct algo_param *params,

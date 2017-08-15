@@ -31,12 +31,6 @@
 #define ISO_MAX_FRAME_SIZE	3 * 1024
 #define ISO_BUFFER_SIZE		(ISO_FRAMES_PER_DESC * ISO_MAX_FRAME_SIZE)
 
-
-#define PREFIX				"stkwebcam: "
-#define STK_INFO(str, args...)		printk(KERN_INFO PREFIX str, ##args)
-#define STK_ERROR(str, args...)		printk(KERN_ERR PREFIX str, ##args)
-#define STK_WARNING(str, args...)	printk(KERN_WARNING PREFIX str, ##args)
-
 struct stk_iso_buf {
 	void *data;
 	int length;

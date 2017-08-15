@@ -32,13 +32,14 @@ static int gc_thread_func(void *data)
 
 	wait_ms = gc_th->min_sleep_time;
 
+	set_freezable();
 	do {
+		wait_event_interruptible_timeout(*wq,
+				kthread_should_stop() || freezing(current),
+				msecs_to_jiffies(wait_ms));
+
 		if (try_to_freeze())
 			continue;
-		else
-			wait_event_interruptible_timeout(*wq,
-						kthread_should_stop(),
-						msecs_to_jiffies(wait_ms));
 		if (kthread_should_stop())
 			break;
 
@@ -258,11 +259,20 @@ static unsigned int get_greedy_cost(struct f2fs_sb_info *sbi,
 				valid_blocks * 2 : valid_blocks;
 }
 
+static unsigned int get_ssr_cost(struct f2fs_sb_info *sbi,
+						unsigned int segno)
+{
+	struct seg_entry *se = get_seg_entry(sbi, segno);
+
+	return se->ckpt_valid_blocks > se->valid_blocks ?
+				se->ckpt_valid_blocks : se->valid_blocks;
+}
+
 static inline unsigned int get_gc_cost(struct f2fs_sb_info *sbi,
 			unsigned int segno, struct victim_sel_policy *p)
 {
 	if (p->alloc_mode == SSR)
-		return get_seg_entry(sbi, segno)->ckpt_valid_blocks;
+		return get_ssr_cost(sbi, segno);
 
 	/* alloc_mode == LFS */
 	if (p->gc_mode == GC_GREEDY)
@@ -586,9 +596,11 @@ static void move_encrypted_block(struct inode *inode, block_t bidx,
 	struct f2fs_io_info fio = {
 		.sbi = F2FS_I_SB(inode),
 		.type = DATA,
+		.temp = COLD,
 		.op = REQ_OP_READ,
 		.op_flags = 0,
 		.encrypted_page = NULL,
+		.in_list = false,
 	};
 	struct dnode_of_data dn;
 	struct f2fs_summary sum;
@@ -632,7 +644,7 @@ static void move_encrypted_block(struct inode *inode, block_t bidx,
 	fio.new_blkaddr = fio.old_blkaddr = dn.data_blkaddr;
 
 	allocate_data_block(fio.sbi, NULL, fio.old_blkaddr, &newaddr,
-							&sum, CURSEG_COLD_DATA);
+					&sum, CURSEG_COLD_DATA, NULL, false);
 
 	fio.encrypted_page = pagecache_get_page(META_MAPPING(fio.sbi), newaddr,
 					FGP_LOCK | FGP_CREAT, GFP_NOFS);
@@ -670,7 +682,7 @@ static void move_encrypted_block(struct inode *inode, block_t bidx,
 	fio.op = REQ_OP_WRITE;
 	fio.op_flags = REQ_SYNC;
 	fio.new_blkaddr = newaddr;
-	f2fs_submit_page_mbio(&fio);
+	f2fs_submit_page_write(&fio);
 
 	f2fs_update_data_blkaddr(&dn, newaddr);
 	set_inode_flag(inode, FI_APPEND_WRITE);
@@ -712,12 +724,13 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type,
 		struct f2fs_io_info fio = {
 			.sbi = F2FS_I_SB(inode),
 			.type = DATA,
+			.temp = COLD,
 			.op = REQ_OP_WRITE,
 			.op_flags = REQ_SYNC,
 			.old_blkaddr = NULL_ADDR,
 			.page = page,
 			.encrypted_page = NULL,
-			.need_lock = true,
+			.need_lock = LOCK_REQ,
 		};
 		bool is_dirty = PageDirty(page);
 		int err;
@@ -936,8 +949,8 @@ next:
 	}
 
 	if (gc_type == FG_GC)
-		f2fs_submit_merged_bio(sbi,
-				(type == SUM_TYPE_NODE) ? NODE : DATA, WRITE);
+		f2fs_submit_merged_write(sbi,
+				(type == SUM_TYPE_NODE) ? NODE : DATA);
 
 	blk_finish_plug(&plug);
 
@@ -955,7 +968,7 @@ int f2fs_gc(struct f2fs_sb_info *sbi, bool sync,
 {
 	int gc_type = sync ? FG_GC : BG_GC;
 	int sec_freed = 0;
-	int ret = -EINVAL;
+	int ret;
 	struct cp_control cpc;
 	unsigned int init_segno = segno;
 	struct gc_inode_list gc_list = {
@@ -965,8 +978,10 @@ int f2fs_gc(struct f2fs_sb_info *sbi, bool sync,
 
 	cpc.reason = __get_cp_reason(sbi);
 gc_more:
-	if (unlikely(!(sbi->sb->s_flags & MS_ACTIVE)))
+	if (unlikely(!(sbi->sb->s_flags & MS_ACTIVE))) {
+		ret = -EINVAL;
 		goto stop;
+	}
 	if (unlikely(f2fs_cp_error(sbi))) {
 		ret = -EIO;
 		goto stop;
@@ -987,6 +1002,7 @@ gc_more:
 			gc_type = FG_GC;
 	}
 
+	ret = -EINVAL;
 	/* f2fs_balance_fs doesn't need to do BG_GC in critical path. */
 	if (gc_type == BG_GC && !background)
 		goto stop;

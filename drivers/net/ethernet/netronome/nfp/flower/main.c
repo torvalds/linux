@@ -356,6 +356,7 @@ err_free_app_priv:
 
 static void nfp_flower_clean(struct nfp_app *app)
 {
+	nfp_flower_metadata_cleanup(app);
 	vfree(app->priv);
 	app->priv = NULL;
 }

@@ -272,7 +272,7 @@ static int do_tls_getsockopt_tx(struct sock *sk, char __user *optval,
 		goto out;
 	}
 
-	if (len == sizeof(crypto_info)) {
+	if (len == sizeof(*crypto_info)) {
 		if (copy_to_user(optval, crypto_info, sizeof(*crypto_info)))
 			rc = -EFAULT;
 		goto out;

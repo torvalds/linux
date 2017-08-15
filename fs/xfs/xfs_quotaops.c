@@ -269,7 +269,6 @@ xfs_fs_get_nextdqblk(
 	/* ID may be different, so convert back what we got */
 	*qid = make_kqid(current_user_ns(), qid->type, id);
 	return 0;
-	
 }
 
 STATIC int

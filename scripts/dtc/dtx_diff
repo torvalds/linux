@@ -321,7 +321,7 @@ fi
 cpp_flags="\
 	-nostdinc                                  \
 	-I${srctree}/arch/${ARCH}/boot/dts         \
-	-I${srctree}/arch/${ARCH}/boot/dts/include \
+	-I${srctree}/scripts/dtc/include-prefixes  \
 	-I${srctree}/drivers/of/testcase-data      \
 	-undef -D__DTS__"
 
@@ -338,7 +338,7 @@ DTC="${DTC} ${dtc_flags} -O dts -qq -f ${dtc_sort} -o -"
 
 if (( ${cmd_diff} )) ; then
 
-	diff ${diff_flags} \
+	diff ${diff_flags} --label "${dtx_file_1}" --label "${dtx_file_2}" \
 		<(compile_to_dts "${dtx_file_1}") \
 		<(compile_to_dts "${dtx_file_2}")
 

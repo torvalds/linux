@@ -1547,7 +1547,9 @@ static int wacom_battery_get_property(struct power_supply *psy,
 			val->intval = battery->battery_capacity;
 			break;
 		case POWER_SUPPLY_PROP_STATUS:
-			if (battery->bat_charging)
+			if (battery->bat_status != WACOM_POWER_SUPPLY_STATUS_AUTO)
+				val->intval = battery->bat_status;
+			else if (battery->bat_charging)
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
 			else if (battery->battery_capacity == 100 &&
 				    battery->ps_connected)

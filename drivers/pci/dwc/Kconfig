@@ -16,6 +16,7 @@ config PCIE_DW_EP
 
 config PCI_DRA7XX
 	bool "TI DRA7xx PCIe controller"
+	depends on SOC_DRA7XX || COMPILE_TEST
 	depends on (PCI && PCI_MSI_IRQ_DOMAIN) || PCI_ENDPOINT
 	depends on OF && HAS_IOMEM && TI_PIPE3
 	help
@@ -157,5 +158,15 @@ config PCIE_ARTPEC6
 	help
 	  Say Y here to enable PCIe controller support on Axis ARTPEC-6
 	  SoCs.  This PCIe controller uses the DesignWare core.
+
+config PCIE_KIRIN
+	depends on OF && ARM64
+	bool "HiSilicon Kirin series SoCs PCIe controllers"
+	depends on PCI
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe controller support
+	  on HiSilicon Kirin series SoCs.
 
 endmenu

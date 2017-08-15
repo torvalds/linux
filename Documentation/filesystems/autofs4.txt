@@ -316,7 +316,7 @@ For version 5, the format of the message is:
         struct autofs_v5_packet {
                 int proto_version;                /* Protocol version */
                 int type;                        /* Type of packet */
-                autofs_wqt_t wait_queue_entry_token;
+                autofs_wqt_t wait_queue_token;
                 __u32 dev;
                 __u64 ino;
                 __u32 uid;
@@ -341,12 +341,12 @@ The pipe will be set to "packet mode" (equivalent to passing
 `O_DIRECT`) to _pipe2(2)_ so that a read from the pipe will return at
 most one packet, and any unread portion of a packet will be discarded.
 
-The `wait_queue_entry_token` is a unique number which can identify a
+The `wait_queue_token` is a unique number which can identify a
 particular request to be acknowledged.  When a message is sent over
 the pipe the affected dentry is marked as either "active" or
 "expiring" and other accesses to it block until the message is
 acknowledged using one of the ioctls below and the relevant
-`wait_queue_entry_token`.
+`wait_queue_token`.
 
 Communicating with autofs: root directory ioctls
 ------------------------------------------------
@@ -358,7 +358,7 @@ capability, or must be the automount daemon.
 The available ioctl commands are:
 
 - **AUTOFS_IOC_READY**: a notification has been handled.  The argument
-    to the ioctl command is the "wait_queue_entry_token" number
+    to the ioctl command is the "wait_queue_token" number
     corresponding to the notification being acknowledged.
 - **AUTOFS_IOC_FAIL**: similar to above, but indicates failure with
     the error code `ENOENT`.
@@ -382,14 +382,14 @@ The available ioctl commands are:
         struct autofs_packet_expire_multi {
                 int proto_version;              /* Protocol version */
                 int type;                       /* Type of packet */
-                autofs_wqt_t wait_queue_entry_token;
+                autofs_wqt_t wait_queue_token;
                 int len;
                 char name[NAME_MAX+1];
         };
 
      is required.  This is filled in with the name of something
      that can be unmounted or removed.  If nothing can be expired,
-     `errno` is set to `EAGAIN`.  Even though a `wait_queue_entry_token`
+     `errno` is set to `EAGAIN`.  Even though a `wait_queue_token`
      is present in the structure, no "wait queue" is established
      and no acknowledgment is needed.
 - **AUTOFS_IOC_EXPIRE_MULTI**:  This is similar to

@@ -3356,15 +3356,8 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 	}
 
 	/* Free any existing tables. */
-#ifndef ISP2401
-	if (pipe->scaler_pp_lut != mmgr_NULL) {
-		hmm_free(pipe->scaler_pp_lut);
-		pipe->scaler_pp_lut = mmgr_NULL;
-	}
-#else
 	sh_css_params_free_gdc_lut(pipe->scaler_pp_lut);
 	pipe->scaler_pp_lut = mmgr_NULL;
-#endif
 
 #ifndef ISP2401
 	if (store) {
@@ -3375,7 +3368,7 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 #endif
 		if (pipe->scaler_pp_lut == mmgr_NULL) {
 #ifndef ISP2401
-			IA_CSS_LEAVE("lut(%p) err=%d", pipe->scaler_pp_lut, err);
+			IA_CSS_LEAVE("lut(%u) err=%d", pipe->scaler_pp_lut, err);
 			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 #else
 			ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
@@ -3397,7 +3390,7 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 #endif
 	}
 
-	IA_CSS_LEAVE("lut(%p) err=%d", pipe->scaler_pp_lut, err);
+	IA_CSS_LEAVE("lut(%u) err=%d", pipe->scaler_pp_lut, err);
 	return err;
 }
 
@@ -3437,7 +3430,7 @@ enum ia_css_err sh_css_params_map_and_store_default_gdc_lut(void)
 	mmgr_store(default_gdc_lut, (int *)interleaved_lut_temp,
 		sizeof(zoom_table));
 
-	IA_CSS_LEAVE_PRIVATE("lut(%p) err=%d", default_gdc_lut, err);
+	IA_CSS_LEAVE_PRIVATE("lut(%u) err=%d", default_gdc_lut, err);
 	return err;
 }
 
@@ -3445,15 +3438,8 @@ void sh_css_params_free_default_gdc_lut(void)
 {
 	IA_CSS_ENTER_PRIVATE("void");
 
-#ifndef ISP2401
-	if (default_gdc_lut != mmgr_NULL) {
-		hmm_free(default_gdc_lut);
-		default_gdc_lut = mmgr_NULL;
-	}
-#else
 	sh_css_params_free_gdc_lut(default_gdc_lut);
 	default_gdc_lut = mmgr_NULL;
-#endif
 
 	IA_CSS_LEAVE_PRIVATE("void");
 
@@ -3859,7 +3845,7 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 		/* When API change is implemented making good distinction between
 		* stream config and pipe config this skipping code can be moved out of the #ifdef */
 		if (pipe_in && (pipe != pipe_in)) {
-			IA_CSS_LOG("skipping pipe %x", pipe);
+			IA_CSS_LOG("skipping pipe %p", pipe);
 			continue;
 		}
 
@@ -4590,7 +4576,7 @@ free_ia_css_isp_parameter_set_info(
 	unsigned int i;
 	hrt_vaddress *addrs = (hrt_vaddress *)&isp_params_info.mem_map;
 
-	IA_CSS_ENTER_PRIVATE("ptr = %p", ptr);
+	IA_CSS_ENTER_PRIVATE("ptr = %u", ptr);
 
 	/* sanity check - ptr must be valid */
 	if (!ia_css_refcount_is_valid(ptr)) {

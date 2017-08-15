@@ -260,20 +260,55 @@ bool nd_btt_arena_is_valid(struct nd_btt *nd_btt, struct btt_sb *super)
 }
 EXPORT_SYMBOL(nd_btt_arena_is_valid);
 
+int nd_btt_version(struct nd_btt *nd_btt, struct nd_namespace_common *ndns,
+		struct btt_sb *btt_sb)
+{
+	if (ndns->claim_class == NVDIMM_CCLASS_BTT2) {
+		/* Probe/setup for BTT v2.0 */
+		nd_btt->initial_offset = 0;
+		nd_btt->version_major = 2;
+		nd_btt->version_minor = 0;
+		if (nvdimm_read_bytes(ndns, 0, btt_sb, sizeof(*btt_sb), 0))
+			return -ENXIO;
+		if (!nd_btt_arena_is_valid(nd_btt, btt_sb))
+			return -ENODEV;
+		if ((le16_to_cpu(btt_sb->version_major) != 2) ||
+				(le16_to_cpu(btt_sb->version_minor) != 0))
+			return -ENODEV;
+	} else {
+		/*
+		 * Probe/setup for BTT v1.1 (NVDIMM_CCLASS_NONE or
+		 * NVDIMM_CCLASS_BTT)
+		 */
+		nd_btt->initial_offset = SZ_4K;
+		nd_btt->version_major = 1;
+		nd_btt->version_minor = 1;
+		if (nvdimm_read_bytes(ndns, SZ_4K, btt_sb, sizeof(*btt_sb), 0))
+			return -ENXIO;
+		if (!nd_btt_arena_is_valid(nd_btt, btt_sb))
+			return -ENODEV;
+		if ((le16_to_cpu(btt_sb->version_major) != 1) ||
+				(le16_to_cpu(btt_sb->version_minor) != 1))
+			return -ENODEV;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(nd_btt_version);
+
 static int __nd_btt_probe(struct nd_btt *nd_btt,
 		struct nd_namespace_common *ndns, struct btt_sb *btt_sb)
 {
+	int rc;
+
 	if (!btt_sb || !ndns || !nd_btt)
 		return -ENODEV;
-
-	if (nvdimm_read_bytes(ndns, SZ_4K, btt_sb, sizeof(*btt_sb), 0))
-		return -ENXIO;
 
 	if (nvdimm_namespace_capacity(ndns) < SZ_16M)
 		return -ENXIO;
 
-	if (!nd_btt_arena_is_valid(nd_btt, btt_sb))
-		return -ENODEV;
+	rc = nd_btt_version(nd_btt, ndns, btt_sb);
+	if (rc < 0)
+		return rc;
 
 	nd_btt->lbasize = le32_to_cpu(btt_sb->external_lbasize);
 	nd_btt->uuid = kmemdup(btt_sb->uuid, 16, GFP_KERNEL);
@@ -294,6 +329,15 @@ int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns)
 
 	if (ndns->force_raw)
 		return -ENODEV;
+
+	switch (ndns->claim_class) {
+	case NVDIMM_CCLASS_NONE:
+	case NVDIMM_CCLASS_BTT:
+	case NVDIMM_CCLASS_BTT2:
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	nvdimm_bus_lock(&ndns->dev);
 	btt_dev = __nd_btt_create(nd_region, 0, NULL, ndns);

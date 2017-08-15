@@ -149,32 +149,6 @@ config NO_BOOTMEM
 config MEMORY_ISOLATION
 	bool
 
-config MOVABLE_NODE
-	bool "Enable to assign a node which has only movable memory"
-	depends on HAVE_MEMBLOCK
-	depends on NO_BOOTMEM
-	depends on X86_64 || OF_EARLY_FLATTREE || MEMORY_HOTPLUG
-	depends on NUMA
-	default n
-	help
-	  Allow a node to have only movable memory.  Pages used by the kernel,
-	  such as direct mapping pages cannot be migrated.  So the corresponding
-	  memory device cannot be hotplugged.  This option allows the following
-	  two things:
-	  - When the system is booting, node full of hotpluggable memory can
-	  be arranged to have only movable memory so that the whole node can
-	  be hot-removed. (need movable_node boot option specified).
-	  - After the system is up, the option allows users to online all the
-	  memory of a node as movable memory so that the whole node can be
-	  hot-removed.
-
-	  Users who don't use the memory hotplug feature are fine with this
-	  option on since they don't specify movable_node boot option or they
-	  don't online memory as movable.
-
-	  Say Y here if you want to hotplug a whole node.
-	  Say N here if you want kernel to use memory on all nodes evenly.
-
 #
 # Only be set on architectures that have completely implemented memory hotplug
 # feature. If you are not sure, don't touch it.
@@ -187,7 +161,6 @@ config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
 	depends on SPARSEMEM || X86_64_ACPI_NUMA
 	depends on ARCH_ENABLE_MEMORY_HOTPLUG
-	depends on COMPILE_TEST || !KASAN
 
 config MEMORY_HOTPLUG_SPARSE
 	def_bool y
@@ -446,6 +419,18 @@ choice
 	  benefit.
 endchoice
 
+config ARCH_WANTS_THP_SWAP
+       def_bool n
+
+config THP_SWAP
+	def_bool y
+	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP
+	help
+	  Swap transparent huge pages in one piece, without splitting.
+	  XXX: For now this only does clustered swap space allocation.
+
+	  For selection by architectures with reasonable THP sizes.
+
 config	TRANSPARENT_HUGE_PAGECACHE
 	def_bool y
 	depends on TRANSPARENT_HUGEPAGE
@@ -683,12 +668,16 @@ config IDLE_PAGE_TRACKING
 
 	  See Documentation/vm/idle_page_tracking.txt for more details.
 
+# arch_add_memory() comprehends device memory
+config ARCH_HAS_ZONE_DEVICE
+	bool
+
 config ZONE_DEVICE
 	bool "Device memory (pmem, etc...) hotplug support"
 	depends on MEMORY_HOTPLUG
 	depends on MEMORY_HOTREMOVE
 	depends on SPARSEMEM_VMEMMAP
-	depends on X86_64 #arch_add_memory() comprehends device memory
+	depends on ARCH_HAS_ZONE_DEVICE
 
 	help
 	  Device memory hotplug support allows for establishing pmem,
@@ -706,3 +695,11 @@ config ARCH_USES_HIGH_VMA_FLAGS
 	bool
 config ARCH_HAS_PKEYS
 	bool
+
+config PERCPU_STATS
+	bool "Collect percpu memory statistics"
+	default n
+	help
+	  This feature collects and exposes statistics via debugfs. The
+	  information includes global and per chunk statistics, which can
+	  be used to help understand percpu memory usage.

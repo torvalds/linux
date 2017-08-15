@@ -22,6 +22,7 @@
 #include <linux/if_vlan.h>
 #include <linux/reset.h>
 #include <linux/tcp.h>
+#include <linux/interrupt.h>
 
 #include "mtk_eth_soc.h"
 
@@ -946,6 +947,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		mac = (trxd.rxd4 >> RX_DMA_FPORT_SHIFT) &
 		      RX_DMA_FPORT_MASK;
 		mac--;
+
+		if (unlikely(mac < 0 || mac >= MTK_MAC_COUNT ||
+			     !eth->netdev[mac]))
+			goto release_desc;
 
 		netdev = eth->netdev[mac];
 
@@ -2401,14 +2406,9 @@ static int mtk_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct device_node *mac_np;
-	const struct of_device_id *match;
-	struct mtk_soc_data *soc;
 	struct mtk_eth *eth;
 	int err;
 	int i;
-
-	match = of_match_device(of_mtk_match, &pdev->dev);
-	soc = (struct mtk_soc_data *)match->data;
 
 	eth = devm_kzalloc(&pdev->dev, sizeof(*eth), GFP_KERNEL);
 	if (!eth)

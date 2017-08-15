@@ -38,6 +38,9 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_modeset_helper_vtables.h>
+
+#include "drm_crtc_helper_internal.h"
 
 /**
  * DOC: output probing helper overview
@@ -80,6 +83,61 @@ drm_mode_validate_flag(const struct drm_display_mode *mode,
 	return MODE_OK;
 }
 
+static enum drm_mode_status
+drm_mode_validate_pipeline(struct drm_display_mode *mode,
+			    struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	uint32_t *ids = connector->encoder_ids;
+	enum drm_mode_status ret = MODE_OK;
+	unsigned int i;
+
+	/* Step 1: Validate against connector */
+	ret = drm_connector_mode_valid(connector, mode);
+	if (ret != MODE_OK)
+		return ret;
+
+	/* Step 2: Validate against encoders and crtcs */
+	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
+		struct drm_encoder *encoder = drm_encoder_find(dev, ids[i]);
+		struct drm_crtc *crtc;
+
+		if (!encoder)
+			continue;
+
+		ret = drm_encoder_mode_valid(encoder, mode);
+		if (ret != MODE_OK) {
+			/* No point in continuing for crtc check as this encoder
+			 * will not accept the mode anyway. If all encoders
+			 * reject the mode then, at exit, ret will not be
+			 * MODE_OK. */
+			continue;
+		}
+
+		ret = drm_bridge_mode_valid(encoder->bridge, mode);
+		if (ret != MODE_OK) {
+			/* There is also no point in continuing for crtc check
+			 * here. */
+			continue;
+		}
+
+		drm_for_each_crtc(crtc, dev) {
+			if (!drm_encoder_crtc_ok(encoder, crtc))
+				continue;
+
+			ret = drm_crtc_mode_valid(crtc, mode);
+			if (ret == MODE_OK) {
+				/* If we get to this point there is at least
+				 * one combination of encoder+crtc that works
+				 * for this mode. Lets return now. */
+				return ret;
+			}
+		}
+	}
+
+	return ret;
+}
+
 static int drm_helper_probe_add_cmdline_mode(struct drm_connector *connector)
 {
 	struct drm_cmdline_mode *cmdline_mode;
@@ -111,6 +169,41 @@ static int drm_helper_probe_add_cmdline_mode(struct drm_connector *connector)
 
 	drm_mode_probed_add(connector, mode);
 	return 1;
+}
+
+enum drm_mode_status drm_crtc_mode_valid(struct drm_crtc *crtc,
+					 const struct drm_display_mode *mode)
+{
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+
+	if (!crtc_funcs || !crtc_funcs->mode_valid)
+		return MODE_OK;
+
+	return crtc_funcs->mode_valid(crtc, mode);
+}
+
+enum drm_mode_status drm_encoder_mode_valid(struct drm_encoder *encoder,
+					    const struct drm_display_mode *mode)
+{
+	const struct drm_encoder_helper_funcs *encoder_funcs =
+		encoder->helper_private;
+
+	if (!encoder_funcs || !encoder_funcs->mode_valid)
+		return MODE_OK;
+
+	return encoder_funcs->mode_valid(encoder, mode);
+}
+
+enum drm_mode_status drm_connector_mode_valid(struct drm_connector *connector,
+					      struct drm_display_mode *mode)
+{
+	const struct drm_connector_helper_funcs *connector_funcs =
+		connector->helper_private;
+
+	if (!connector_funcs || !connector_funcs->mode_valid)
+		return MODE_OK;
+
+	return connector_funcs->mode_valid(connector, mode);
 }
 
 #define DRM_OUTPUT_POLL_PERIOD (10*HZ)
@@ -284,7 +377,11 @@ EXPORT_SYMBOL(drm_helper_probe_detect);
  *    - drm_mode_validate_flag() checks the modes against basic connector
  *      capabilities (interlace_allowed,doublescan_allowed,stereo_allowed)
  *    - the optional &drm_connector_helper_funcs.mode_valid helper can perform
- *      driver and/or hardware specific checks
+ *      driver and/or sink specific checks
+ *    - the optional &drm_crtc_helper_funcs.mode_valid,
+ *      &drm_bridge_funcs.mode_valid and &drm_encoder_helper_funcs.mode_valid
+ *      helpers can perform driver and/or source specific checks which are also
+ *      enforced by the modeset/atomic helpers
  *
  * 5. Any mode whose status is not OK is pruned from the connector's modes list,
  *    accompanied by a debug message indicating the reason for the mode's
@@ -428,9 +525,9 @@ retry:
 		if (mode->status == MODE_OK)
 			mode->status = drm_mode_validate_flag(mode, mode_flags);
 
-		if (mode->status == MODE_OK && connector_funcs->mode_valid)
-			mode->status = connector_funcs->mode_valid(connector,
-								   mode);
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_pipeline(mode,
+								  connector);
 	}
 
 prune:

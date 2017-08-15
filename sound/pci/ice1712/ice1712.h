@@ -348,7 +348,7 @@ struct snd_ice1712 {
 
 	struct mutex open_mutex;
 	struct snd_pcm_substream *pcm_reserved[4];
-	struct snd_pcm_hw_constraint_list *hw_rates; /* card-specific rate constraints */
+	const struct snd_pcm_hw_constraint_list *hw_rates; /* card-specific rate constraints */
 
 	unsigned int akm_codecs;
 	struct snd_akm4xxx *akm;

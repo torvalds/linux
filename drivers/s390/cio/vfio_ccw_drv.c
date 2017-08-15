@@ -69,12 +69,10 @@ out_unlock:
 static void vfio_ccw_sch_io_todo(struct work_struct *work)
 {
 	struct vfio_ccw_private *private;
-	struct subchannel *sch;
 	struct irb *irb;
 
 	private = container_of(work, struct vfio_ccw_private, io_work);
 	irb = &private->irb;
-	sch = private->sch;
 
 	if (scsw_is_solicited(&irb->scsw)) {
 		cp_update_scsw(&private->cp, &irb->scsw);

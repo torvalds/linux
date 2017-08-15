@@ -35,7 +35,7 @@
 #define	EINT7	67	/* EDGE Port interrupt 7 */
 
 static unsigned int irqebitmap[] = { 0, 1, 4, 7 };
-static unsigned int inline irq2ebit(unsigned int irq)
+static inline unsigned int irq2ebit(unsigned int irq)
 {
 	return irqebitmap[irq - EINT0];
 }
@@ -51,7 +51,7 @@ static unsigned int inline irq2ebit(unsigned int irq)
 #define	EINT1	65	/* EDGE Port interrupt 1 */
 #define	EINT7	71	/* EDGE Port interrupt 7 */
 
-static unsigned int inline irq2ebit(unsigned int irq)
+static inline unsigned int irq2ebit(unsigned int irq)
 {
 	return irq - EINT0;
 }

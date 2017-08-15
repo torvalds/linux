@@ -17,9 +17,9 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
-#include "drm_crtc.h"
-#include "drm_mipi_dsi.h"
-#include "drm_panel.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_panel.h>
 
 #include "msm_drv.h"
 

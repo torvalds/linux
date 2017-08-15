@@ -844,9 +844,6 @@ static int __init null_init(void)
 		queue_mode = NULL_Q_MQ;
 	}
 
-	if (queue_mode == NULL_Q_MQ && shared_tags)
-		null_init_tag_set(&tag_set);
-
 	if (queue_mode == NULL_Q_MQ && use_per_node_hctx) {
 		if (submit_queues < nr_online_nodes) {
 			pr_warn("null_blk: submit_queues param is set to %u.",
@@ -858,11 +855,19 @@ static int __init null_init(void)
 	else if (!submit_queues)
 		submit_queues = 1;
 
+	if (queue_mode == NULL_Q_MQ && shared_tags) {
+		ret = null_init_tag_set(&tag_set);
+		if (ret)
+			return ret;
+	}
+
 	mutex_init(&lock);
 
 	null_major = register_blkdev(0, "nullb");
-	if (null_major < 0)
-		return null_major;
+	if (null_major < 0) {
+		ret = null_major;
+		goto err_tagset;
+	}
 
 	if (use_lightnvm) {
 		ppa_cache = kmem_cache_create("ppa_cache", 64 * sizeof(u64),
@@ -891,6 +896,9 @@ err_dev:
 	kmem_cache_destroy(ppa_cache);
 err_ppa:
 	unregister_blkdev(null_major, "nullb");
+err_tagset:
+	if (queue_mode == NULL_Q_MQ && shared_tags)
+		blk_mq_free_tag_set(&tag_set);
 	return ret;
 }
 

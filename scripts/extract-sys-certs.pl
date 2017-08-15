@@ -1,5 +1,6 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 #
+use warnings;
 use strict;
 use Math::BigInt;
 use Fcntl "SEEK_SET";

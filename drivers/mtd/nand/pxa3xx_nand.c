@@ -1812,6 +1812,8 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		chip->write_buf		= pxa3xx_nand_write_buf;
 		chip->options		|= NAND_NO_SUBPAGE_WRITE;
 		chip->cmdfunc		= nand_cmdfunc;
+		chip->onfi_set_features	= nand_onfi_get_set_features_notsupp;
+		chip->onfi_get_features	= nand_onfi_get_set_features_notsupp;
 	}
 
 	nand_hw_control_init(chip->controller);

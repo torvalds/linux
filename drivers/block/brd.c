@@ -9,6 +9,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/initrd.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/major.h>
@@ -22,6 +23,7 @@
 #ifdef CONFIG_BLK_DEV_RAM_DAX
 #include <linux/pfn_t.h>
 #include <linux/dax.h>
+#include <linux/uio.h>
 #endif
 
 #include <linux/uaccess.h>
@@ -354,8 +356,15 @@ static long brd_dax_direct_access(struct dax_device *dax_dev,
 	return __brd_direct_access(brd, pgoff, nr_pages, kaddr, pfn);
 }
 
+static size_t brd_dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
+		void *addr, size_t bytes, struct iov_iter *i)
+{
+	return copy_from_iter(addr, bytes, i);
+}
+
 static const struct dax_operations brd_dax_ops = {
 	.direct_access = brd_dax_direct_access,
+	.copy_from_iter = brd_dax_copy_from_iter,
 };
 #endif
 

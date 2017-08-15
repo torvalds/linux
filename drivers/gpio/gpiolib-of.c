@@ -153,6 +153,9 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 			*flags |= GPIO_OPEN_SOURCE;
 	}
 
+	if (of_flags & OF_GPIO_SLEEP_MAY_LOOSE_VALUE)
+		*flags |= GPIO_SLEEP_MAY_LOOSE_VALUE;
+
 	return desc;
 }
 
@@ -236,7 +239,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
  *
  * This is only used by of_gpiochip_add to request/set GPIO initial
  * configuration.
- * It retures error if it fails otherwise 0 on success.
+ * It returns error if it fails otherwise 0 on success.
  */
 static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 {

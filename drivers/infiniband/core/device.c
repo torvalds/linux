@@ -376,7 +376,8 @@ static void ib_policy_change_task(struct work_struct *work)
 			WARN_ONCE(ret,
 				  "ib_get_cached_subnet_prefix err: %d, this should never happen here\n",
 				  ret);
-			ib_security_cache_change(dev, i, sp);
+			if (!ret)
+				ib_security_cache_change(dev, i, sp);
 		}
 	}
 	up_read(&lists_rwsem);

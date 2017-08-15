@@ -877,7 +877,7 @@ static int fsl_re_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id fsl_re_ids[] = {
+static const struct of_device_id fsl_re_ids[] = {
 	{ .compatible = "fsl,raideng-v1.0", },
 	{}
 };

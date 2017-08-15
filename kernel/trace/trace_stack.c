@@ -406,6 +406,8 @@ static const struct file_operations stack_trace_fops = {
 	.release	= seq_release,
 };
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+
 static int
 stack_trace_filter_open(struct inode *inode, struct file *file)
 {
@@ -422,6 +424,8 @@ static const struct file_operations stack_trace_filter_fops = {
 	.llseek = tracing_lseek,
 	.release = ftrace_regex_release,
 };
+
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 int
 stack_trace_sysctl(struct ctl_table *table, int write,
@@ -477,8 +481,10 @@ static __init int stack_trace_init(void)
 	trace_create_file("stack_trace", 0444, d_tracer,
 			NULL, &stack_trace_fops);
 
+#ifdef CONFIG_DYNAMIC_FTRACE
 	trace_create_file("stack_trace_filter", 0444, d_tracer,
 			  &trace_ops, &stack_trace_filter_fops);
+#endif
 
 	if (stack_trace_filter_buf[0])
 		ftrace_set_early_filter(&trace_ops, stack_trace_filter_buf, 1);

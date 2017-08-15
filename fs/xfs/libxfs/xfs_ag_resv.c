@@ -111,8 +111,7 @@ xfs_ag_resv_critical(
 
 	/* Critically low if less than 10% or max btree height remains. */
 	return XFS_TEST_ERROR(avail < orig / 10 || avail < XFS_BTREE_MAXLEVELS,
-			pag->pag_mount, XFS_ERRTAG_AG_RESV_CRITICAL,
-			XFS_RANDOM_AG_RESV_CRITICAL);
+			pag->pag_mount, XFS_ERRTAG_AG_RESV_CRITICAL);
 }
 
 /*

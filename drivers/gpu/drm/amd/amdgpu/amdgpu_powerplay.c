@@ -72,6 +72,7 @@ static int amdgpu_pp_early_init(void *handle)
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 	case CHIP_VEGA10:
+	case CHIP_RAVEN:
 		adev->pp_enabled = true;
 		if (amdgpu_create_pp_handle(adev))
 			return -EINVAL;
@@ -187,6 +188,9 @@ static int amdgpu_pp_hw_fini(void *handle)
 	int ret = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (adev->pp_enabled && adev->pm.dpm_enabled)
+		amdgpu_pm_sysfs_fini(adev);
+
 	if (adev->powerplay.ip_funcs->hw_fini)
 		ret = adev->powerplay.ip_funcs->hw_fini(
 					adev->powerplay.pp_handle);
@@ -205,10 +209,9 @@ static void amdgpu_pp_late_fini(void *handle)
 		adev->powerplay.ip_funcs->late_fini(
 			  adev->powerplay.pp_handle);
 
-	if (adev->pp_enabled && adev->pm.dpm_enabled)
-		amdgpu_pm_sysfs_fini(adev);
 
-	amd_powerplay_destroy(adev->powerplay.pp_handle);
+	if (adev->pp_enabled)
+		amd_powerplay_destroy(adev->powerplay.pp_handle);
 }
 
 static int amdgpu_pp_suspend(void *handle)

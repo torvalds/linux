@@ -55,15 +55,15 @@ enum {
 #define PROC(proc, name)				\
 [GSSX_##proc] = {					\
 	.p_proc   = GSSX_##proc,			\
-	.p_encode = (kxdreproc_t)gssx_enc_##name,	\
-	.p_decode = (kxdrdproc_t)gssx_dec_##name,	\
+	.p_encode = gssx_enc_##name,	\
+	.p_decode = gssx_dec_##name,	\
 	.p_arglen = GSSX_ARG_##name##_sz,		\
 	.p_replen = GSSX_RES_##name##_sz, 		\
 	.p_statidx = GSSX_##proc,			\
 	.p_name   = #proc,				\
 }
 
-static struct rpc_procinfo gssp_procedures[] = {
+static const struct rpc_procinfo gssp_procedures[] = {
 	PROC(INDICATE_MECHS, indicate_mechs),
         PROC(GET_CALL_CONTEXT, get_call_context),
         PROC(IMPORT_AND_CANON_NAME, import_and_canon_name),
@@ -364,11 +364,12 @@ void gssp_free_upcall_data(struct gssp_upcall_data *data)
 /*
  * Initialization stuff
  */
-
+static unsigned int gssp_version1_counts[ARRAY_SIZE(gssp_procedures)];
 static const struct rpc_version gssp_version1 = {
 	.number		= GSSPROXY_VERS_1,
 	.nrprocs	= ARRAY_SIZE(gssp_procedures),
 	.procs		= gssp_procedures,
+	.counts		= gssp_version1_counts,
 };
 
 static const struct rpc_version *gssp_version[] = {

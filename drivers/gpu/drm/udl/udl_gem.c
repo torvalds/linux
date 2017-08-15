@@ -146,7 +146,7 @@ int udl_gem_get_pages(struct udl_gem_object *obj)
 void udl_gem_put_pages(struct udl_gem_object *obj)
 {
 	if (obj->base.import_attach) {
-		drm_free_large(obj->pages);
+		kvfree(obj->pages);
 		obj->pages = NULL;
 		return;
 	}

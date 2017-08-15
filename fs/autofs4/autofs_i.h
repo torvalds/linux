@@ -83,7 +83,7 @@ struct autofs_info {
 struct autofs_wait_queue {
 	wait_queue_head_t queue;
 	struct autofs_wait_queue *next;
-	autofs_wqt_t wait_queue_entry_token;
+	autofs_wqt_t wait_queue_token;
 	/* We use the following to see what we are waiting for */
 	struct qstr name;
 	u32 dev;

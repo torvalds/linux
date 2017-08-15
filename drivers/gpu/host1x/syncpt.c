@@ -99,14 +99,24 @@ unlock:
 	return NULL;
 }
 
+/**
+ * host1x_syncpt_id() - retrieve syncpoint ID
+ * @sp: host1x syncpoint
+ *
+ * Given a pointer to a struct host1x_syncpt, retrieves its ID. This ID is
+ * often used as a value to program into registers that control how hardware
+ * blocks interact with syncpoints.
+ */
 u32 host1x_syncpt_id(struct host1x_syncpt *sp)
 {
 	return sp->id;
 }
 EXPORT_SYMBOL(host1x_syncpt_id);
 
-/*
- * Updates the value sent to hardware.
+/**
+ * host1x_syncpt_incr_max() - update the value sent to hardware
+ * @sp: host1x syncpoint
+ * @incrs: number of increments
  */
 u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs)
 {
@@ -175,8 +185,9 @@ u32 host1x_syncpt_load_wait_base(struct host1x_syncpt *sp)
 	return sp->base_val;
 }
 
-/*
- * Increment syncpoint value from cpu, updating cache
+/**
+ * host1x_syncpt_incr() - increment syncpoint value from CPU, updating cache
+ * @sp: host1x syncpoint
  */
 int host1x_syncpt_incr(struct host1x_syncpt *sp)
 {
@@ -195,8 +206,12 @@ static bool syncpt_load_min_is_expired(struct host1x_syncpt *sp, u32 thresh)
 	return host1x_syncpt_is_expired(sp, thresh);
 }
 
-/*
- * Main entrypoint for syncpoint value waits.
+/**
+ * host1x_syncpt_wait() - wait for a syncpoint to reach a given value
+ * @sp: host1x syncpoint
+ * @thresh: threshold
+ * @timeout: maximum time to wait for the syncpoint to reach the given value
+ * @value: return location for the syncpoint value
  */
 int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
 		       u32 *value)
@@ -402,6 +417,16 @@ int host1x_syncpt_init(struct host1x *host)
 	return 0;
 }
 
+/**
+ * host1x_syncpt_request() - request a syncpoint
+ * @dev: device requesting the syncpoint
+ * @flags: flags
+ *
+ * host1x client drivers can use this function to allocate a syncpoint for
+ * subsequent use. A syncpoint returned by this function will be reserved for
+ * use by the client exclusively. When no longer using a syncpoint, a host1x
+ * client driver needs to release it using host1x_syncpt_free().
+ */
 struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
 					    unsigned long flags)
 {
@@ -411,6 +436,16 @@ struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
 }
 EXPORT_SYMBOL(host1x_syncpt_request);
 
+/**
+ * host1x_syncpt_free() - free a requested syncpoint
+ * @sp: host1x syncpoint
+ *
+ * Release a syncpoint previously allocated using host1x_syncpt_request(). A
+ * host1x client driver should call this when the syncpoint is no longer in
+ * use. Note that client drivers must ensure that the syncpoint doesn't remain
+ * under the control of hardware after calling this function, otherwise two
+ * clients may end up trying to access the same syncpoint concurrently.
+ */
 void host1x_syncpt_free(struct host1x_syncpt *sp)
 {
 	if (!sp)
@@ -438,9 +473,12 @@ void host1x_syncpt_deinit(struct host1x *host)
 		kfree(sp->name);
 }
 
-/*
- * Read max. It indicates how many operations there are in queue, either in
- * channel or in a software thread.
+/**
+ * host1x_syncpt_read_max() - read maximum syncpoint value
+ * @sp: host1x syncpoint
+ *
+ * The maximum syncpoint value indicates how many operations there are in
+ * queue, either in channel or in a software thread.
  */
 u32 host1x_syncpt_read_max(struct host1x_syncpt *sp)
 {
@@ -450,8 +488,12 @@ u32 host1x_syncpt_read_max(struct host1x_syncpt *sp)
 }
 EXPORT_SYMBOL(host1x_syncpt_read_max);
 
-/*
- * Read min, which is a shadow of the current sync point value in hardware.
+/**
+ * host1x_syncpt_read_min() - read minimum syncpoint value
+ * @sp: host1x syncpoint
+ *
+ * The minimum syncpoint value is a shadow of the current sync point value in
+ * hardware.
  */
 u32 host1x_syncpt_read_min(struct host1x_syncpt *sp)
 {
@@ -461,6 +503,10 @@ u32 host1x_syncpt_read_min(struct host1x_syncpt *sp)
 }
 EXPORT_SYMBOL(host1x_syncpt_read_min);
 
+/**
+ * host1x_syncpt_read() - read the current syncpoint value
+ * @sp: host1x syncpoint
+ */
 u32 host1x_syncpt_read(struct host1x_syncpt *sp)
 {
 	return host1x_syncpt_load(sp);
@@ -482,6 +528,11 @@ unsigned int host1x_syncpt_nb_mlocks(struct host1x *host)
 	return host->info->nb_mlocks;
 }
 
+/**
+ * host1x_syncpt_get() - obtain a syncpoint by ID
+ * @host: host1x controller
+ * @id: syncpoint ID
+ */
 struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, unsigned int id)
 {
 	if (id >= host->info->nb_pts)
@@ -491,12 +542,20 @@ struct host1x_syncpt *host1x_syncpt_get(struct host1x *host, unsigned int id)
 }
 EXPORT_SYMBOL(host1x_syncpt_get);
 
+/**
+ * host1x_syncpt_get_base() - obtain the wait base associated with a syncpoint
+ * @sp: host1x syncpoint
+ */
 struct host1x_syncpt_base *host1x_syncpt_get_base(struct host1x_syncpt *sp)
 {
 	return sp ? sp->base : NULL;
 }
 EXPORT_SYMBOL(host1x_syncpt_get_base);
 
+/**
+ * host1x_syncpt_base_id() - retrieve the ID of a syncpoint wait base
+ * @base: host1x syncpoint wait base
+ */
 u32 host1x_syncpt_base_id(struct host1x_syncpt_base *base)
 {
 	return base->id;

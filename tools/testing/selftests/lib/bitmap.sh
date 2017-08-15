@@ -1,5 +1,9 @@
 #!/bin/sh
 # Runs bitmap infrastructure tests using test_bitmap kernel module
+if ! /sbin/modprobe -q -n test_bitmap; then
+	echo "bitmap: [SKIP]"
+	exit 77
+fi
 
 if /sbin/modprobe -q test_bitmap; then
 	/sbin/modprobe -q -r test_bitmap

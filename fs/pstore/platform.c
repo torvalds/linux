@@ -99,7 +99,7 @@ static char *big_oops_buf;
 static size_t big_oops_buf_sz;
 
 /* How much of the console log to snapshot */
-static unsigned long kmsg_bytes = 10240;
+unsigned long kmsg_bytes = PSTORE_DEFAULT_KMSG_BYTES;
 
 void pstore_set_kmsg_bytes(int bytes)
 {

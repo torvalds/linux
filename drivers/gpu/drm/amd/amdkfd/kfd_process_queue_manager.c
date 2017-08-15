@@ -209,7 +209,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		/* check if there is over subscription */
 		if ((sched_policy == KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION) &&
 		((dev->dqm->processes_count >= VMID_PER_DEVICE) ||
-		(dev->dqm->queue_count >= PIPE_PER_ME_CP_SCHEDULING * QUEUES_PER_PIPE))) {
+		(dev->dqm->queue_count >= get_queues_num(dev->dqm)))) {
 			pr_err("kfd: over-subscription is not allowed in radeon_kfd.sched_policy == 1\n");
 			retval = -EPERM;
 			goto err_create_queue;

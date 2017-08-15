@@ -5,11 +5,6 @@ Required properties:
  - compatible - "samsung,odroidxu3-audio" - for Odroid XU3 board,
 		"samsung,odroidxu4-audio" - for Odroid XU4 board
  - model - the user-visible name of this sound complex
- - 'cpu' subnode with a 'sound-dai' property containing the phandle of the I2S
-    controller
- - 'codec' subnode with a 'sound-dai' property containing list of phandles
-    to the CODEC nodes, first entry must be corresponding to the MAX98090
-    CODEC and the second entry must be the phandle of the HDMI IP block node
  - clocks - should contain entries matching clock names in the clock-names
     property
  - clock-names - should contain following entries:
@@ -32,12 +27,18 @@ Required properties:
    For Odroid XU4:
      no entries
 
+Required sub-nodes:
+
+ - 'cpu' subnode with a 'sound-dai' property containing the phandle of the I2S
+    controller
+ - 'codec' subnode with a 'sound-dai' property containing list of phandles
+    to the CODEC nodes, first entry must be corresponding to the MAX98090
+    CODEC and the second entry must be the phandle of the HDMI IP block node
+
 Example:
 
 sound {
 	compatible = "samsung,odroidxu3-audio";
-	samsung,cpu-dai = <&i2s0>;
-	samsung,codec-dai = <&max98090>;
 	model = "Odroid-XU3";
 	samsung,audio-routing =
 		"Headphone Jack", "HPL",

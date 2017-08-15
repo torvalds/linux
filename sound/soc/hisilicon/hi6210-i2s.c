@@ -97,8 +97,8 @@ static inline u32 hi6210_read_reg(struct hi6210_i2s *i2s, int reg)
 	return readl(i2s->base + reg);
 }
 
-int hi6210_i2s_startup(struct snd_pcm_substream *substream,
-		     struct snd_soc_dai *cpu_dai)
+static int hi6210_i2s_startup(struct snd_pcm_substream *substream,
+			      struct snd_soc_dai *cpu_dai)
 {
 	struct hi6210_i2s *i2s = dev_get_drvdata(cpu_dai->dev);
 	int ret, n;
@@ -175,8 +175,9 @@ int hi6210_i2s_startup(struct snd_pcm_substream *substream,
 
 	return 0;
 }
-void hi6210_i2s_shutdown(struct snd_pcm_substream *substream,
-		       struct snd_soc_dai *cpu_dai)
+
+static void hi6210_i2s_shutdown(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *cpu_dai)
 {
 	struct hi6210_i2s *i2s = dev_get_drvdata(cpu_dai->dev);
 	int n;
@@ -524,7 +525,7 @@ static struct snd_soc_dai_ops hi6210_i2s_dai_ops = {
 	.shutdown	= hi6210_i2s_shutdown,
 };
 
-struct snd_soc_dai_driver hi6210_i2s_dai_init = {
+static const struct snd_soc_dai_driver hi6210_i2s_dai_init = {
 	.probe		= hi6210_i2s_dai_probe,
 	.playback = {
 		.channels_min = 2,

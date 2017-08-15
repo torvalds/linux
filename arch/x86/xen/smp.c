@@ -1,4 +1,5 @@
 #include <linux/smp.h>
+#include <linux/cpu.h>
 #include <linux/slab.h>
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
@@ -112,6 +113,36 @@ int xen_smp_intr_init(unsigned int cpu)
  fail:
 	xen_smp_intr_free(cpu);
 	return rc;
+}
+
+void __init xen_smp_cpus_done(unsigned int max_cpus)
+{
+	int cpu, rc, count = 0;
+
+	if (xen_hvm_domain())
+		native_smp_cpus_done(max_cpus);
+
+	if (xen_have_vcpu_info_placement)
+		return;
+
+	for_each_online_cpu(cpu) {
+		if (xen_vcpu_nr(cpu) < MAX_VIRT_CPUS)
+			continue;
+
+		rc = cpu_down(cpu);
+
+		if (rc == 0) {
+			/*
+			 * Reset vcpu_info so this cpu cannot be onlined again.
+			 */
+			xen_vcpu_info_reset(cpu);
+			count++;
+		} else {
+			pr_warn("%s: failed to bring CPU %d down, error %d\n",
+				__func__, cpu, rc);
+		}
+	}
+	WARN(count, "%s: brought %d CPUs offline\n", __func__, count);
 }
 
 void xen_smp_send_reschedule(int cpu)

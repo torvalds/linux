@@ -1,3 +1,6 @@
+===========================================
+How CPU topology info is exported via sysfs
+===========================================
 
 Export CPU topology info via sysfs. Items (attributes) are similar
 to /proc/cpuinfo output of some architectures:
@@ -75,24 +78,26 @@ CONFIG_SCHED_BOOK and CONFIG_DRAWER are currently only used on s390, where
 they reflect the cpu and cache hierarchy.
 
 For an architecture to support this feature, it must define some of
-these macros in include/asm-XXX/topology.h:
-#define topology_physical_package_id(cpu)
-#define topology_core_id(cpu)
-#define topology_book_id(cpu)
-#define topology_drawer_id(cpu)
-#define topology_sibling_cpumask(cpu)
-#define topology_core_cpumask(cpu)
-#define topology_book_cpumask(cpu)
-#define topology_drawer_cpumask(cpu)
+these macros in include/asm-XXX/topology.h::
 
-The type of **_id macros is int.
-The type of **_cpumask macros is (const) struct cpumask *. The latter
-correspond with appropriate **_siblings sysfs attributes (except for
+	#define topology_physical_package_id(cpu)
+	#define topology_core_id(cpu)
+	#define topology_book_id(cpu)
+	#define topology_drawer_id(cpu)
+	#define topology_sibling_cpumask(cpu)
+	#define topology_core_cpumask(cpu)
+	#define topology_book_cpumask(cpu)
+	#define topology_drawer_cpumask(cpu)
+
+The type of ``**_id macros`` is int.
+The type of ``**_cpumask macros`` is ``(const) struct cpumask *``. The latter
+correspond with appropriate ``**_siblings`` sysfs attributes (except for
 topology_sibling_cpumask() which corresponds with thread_siblings).
 
 To be consistent on all architectures, include/linux/topology.h
 provides default definitions for any of the above macros that are
 not defined by include/asm-XXX/topology.h:
+
 1) physical_package_id: -1
 2) core_id: 0
 3) sibling_cpumask: just the given CPU
@@ -107,6 +112,7 @@ Additionally, CPU topology information is provided under
 /sys/devices/system/cpu and includes these files.  The internal
 source for the output is in brackets ("[]").
 
+    =========== ==========================================================
     kernel_max: the maximum CPU index allowed by the kernel configuration.
 		[NR_CPUS-1]
 
@@ -122,6 +128,7 @@ source for the output is in brackets ("[]").
 
     present:	CPUs that have been identified as being present in the
 		system. [cpu_present_mask]
+    =========== ==========================================================
 
 The format for the above output is compatible with cpulist_parse()
 [see <linux/cpumask.h>].  Some examples follow.
@@ -129,7 +136,7 @@ The format for the above output is compatible with cpulist_parse()
 In this example, there are 64 CPUs in the system but cpus 32-63 exceed
 the kernel max which is limited to 0..31 by the NR_CPUS config option
 being 32.  Note also that CPUs 2 and 4-31 are not online but could be
-brought online as they are both present and possible.
+brought online as they are both present and possible::
 
      kernel_max: 31
         offline: 2,4-31,32-63
@@ -140,7 +147,7 @@ brought online as they are both present and possible.
 In this example, the NR_CPUS config option is 128, but the kernel was
 started with possible_cpus=144.  There are 4 CPUs in the system and cpu2
 was manually taken offline (and is the only CPU that can be brought
-online.)
+online.)::
 
      kernel_max: 127
         offline: 2,4-127,128-143

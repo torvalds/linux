@@ -33,6 +33,8 @@ enum {
 	PG_UPTODATE,		/* page group sync bit in read path */
 	PG_WB_END,		/* page group sync bit in write path */
 	PG_REMOVE,		/* page group sync bit in write path */
+	PG_CONTENDED1,		/* Is someone waiting for a lock? */
+	PG_CONTENDED2,		/* Is someone waiting for a lock? */
 };
 
 struct nfs_inode;
@@ -93,8 +95,8 @@ struct nfs_pageio_descriptor {
 	const struct rpc_call_ops *pg_rpc_callops;
 	const struct nfs_pgio_completion_ops *pg_completion_ops;
 	struct pnfs_layout_segment *pg_lseg;
+	struct nfs_io_completion *pg_io_completion;
 	struct nfs_direct_req	*pg_dreq;
-	void			*pg_layout_private;
 	unsigned int		pg_bsize;	/* default bsize for mirrors */
 
 	u32			pg_mirror_count;

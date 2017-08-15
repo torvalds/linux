@@ -225,6 +225,8 @@ static void pnv_kexec_wait_secondaries_down(void)
 
 static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 {
+	u64 reinit_flags;
+
 	if (xive_enabled())
 		xive_kexec_teardown_cpu(secondary);
 	else
@@ -254,8 +256,15 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 		 * We might be running as little-endian - now that interrupts
 		 * are disabled, reset the HILE bit to big-endian so we don't
 		 * take interrupts in the wrong endian later
+		 *
+		 * We reinit to enable both radix and hash on P9 to ensure
+		 * the mode used by the next kernel is always supported.
 		 */
-		opal_reinit_cpus(OPAL_REINIT_CPUS_HILE_BE);
+		reinit_flags = OPAL_REINIT_CPUS_HILE_BE;
+		if (cpu_has_feature(CPU_FTR_ARCH_300))
+			reinit_flags |= OPAL_REINIT_CPUS_MMU_RADIX |
+				OPAL_REINIT_CPUS_MMU_HASH;
+		opal_reinit_cpus(reinit_flags);
 	}
 }
 #endif /* CONFIG_KEXEC_CORE */

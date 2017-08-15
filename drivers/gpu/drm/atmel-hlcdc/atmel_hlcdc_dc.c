@@ -375,8 +375,9 @@ static const struct of_device_id atmel_hlcdc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, atmel_hlcdc_of_match);
 
-int atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
-			      struct drm_display_mode *mode)
+enum drm_mode_status
+atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
+			  const struct drm_display_mode *mode)
 {
 	int vfront_porch = mode->vsync_start - mode->vdisplay;
 	int vback_porch = mode->vtotal - mode->vsync_end;
@@ -678,7 +679,6 @@ static void atmel_hlcdc_dc_unload(struct drm_device *dev)
 	flush_workqueue(dc->wq);
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
-	drm_vblank_cleanup(dev);
 
 	pm_runtime_get_sync(dev->dev);
 	drm_irq_uninstall(dev);

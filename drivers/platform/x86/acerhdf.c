@@ -557,7 +557,7 @@ err_out:
 }
 
 /* bind fan callbacks to fan device */
-static struct thermal_cooling_device_ops acerhdf_cooling_ops = {
+static const struct thermal_cooling_device_ops acerhdf_cooling_ops = {
 	.get_max_state = acerhdf_get_max_state,
 	.get_cur_state = acerhdf_get_cur_state,
 	.set_cur_state = acerhdf_set_cur_state,

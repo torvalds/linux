@@ -2431,8 +2431,8 @@ static int ipmr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	tableid = tb[RTA_TABLE] ? nla_get_u32(tb[RTA_TABLE]) : 0;
 
 	mrt = ipmr_get_table(net, tableid ? tableid : RT_TABLE_DEFAULT);
-	if (IS_ERR(mrt)) {
-		err = PTR_ERR(mrt);
+	if (!mrt) {
+		err = -ENOENT;
 		goto errout_free;
 	}
 

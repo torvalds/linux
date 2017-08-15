@@ -203,12 +203,14 @@ static int zx_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
-		i2s->master = 1;
-		val |= ZX_I2S_TIMING_MAST;
-		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+		/* Codec is master, and I2S is slave. */
 		i2s->master = 0;
 		val |= ZX_I2S_TIMING_SLAVE;
+		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+		/* Codec is slave, and I2S is master. */
+		i2s->master = 1;
+		val |= ZX_I2S_TIMING_MAST;
 		break;
 	default:
 		dev_err(cpu_dai->dev, "Unknown master/slave format\n");
@@ -226,11 +228,12 @@ static int zx_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct zx_i2s_info *i2s = snd_soc_dai_get_drvdata(socdai);
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	unsigned int lane, ch_num, len, ret = 0;
+	unsigned int ts_width = 32;
 	unsigned long val;
 	unsigned long chn_cfg;
 
 	dma_data = snd_soc_dai_get_dma_data(socdai, substream);
-	dma_data->addr_width = params_width(params) >> 3;
+	dma_data->addr_width = ts_width >> 3;
 
 	val = readl_relaxed(i2s->reg_base + ZX_I2S_TIMING_CTRL);
 	val &= ~(ZX_I2S_TIMING_TS_WIDTH_MASK | ZX_I2S_TIMING_DATA_SIZE_MASK |
@@ -251,7 +254,7 @@ static int zx_i2s_hw_params(struct snd_pcm_substream *substream,
 		dev_err(socdai->dev, "Unknown data format\n");
 		return -EINVAL;
 	}
-	val |= ZX_I2S_TIMING_TS_WIDTH(len) | ZX_I2S_TIMING_DATA_SIZE(len);
+	val |= ZX_I2S_TIMING_TS_WIDTH(ts_width) | ZX_I2S_TIMING_DATA_SIZE(len);
 
 	ch_num = params_channels(params);
 	switch (ch_num) {

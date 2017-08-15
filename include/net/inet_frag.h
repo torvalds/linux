@@ -154,12 +154,12 @@ static inline int frag_mem_limit(struct netns_frags *nf)
 
 static inline void sub_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	__percpu_counter_add(&nf->mem, -i, frag_percpu_counter_batch);
+	percpu_counter_add_batch(&nf->mem, -i, frag_percpu_counter_batch);
 }
 
 static inline void add_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	__percpu_counter_add(&nf->mem, i, frag_percpu_counter_batch);
+	percpu_counter_add_batch(&nf->mem, i, frag_percpu_counter_batch);
 }
 
 static inline unsigned int sum_frag_mem_limit(struct netns_frags *nf)

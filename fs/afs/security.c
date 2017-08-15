@@ -327,12 +327,11 @@ int afs_permission(struct inode *inode, int mask)
 			if (!(access & AFS_ACE_LOOKUP))
 				goto permission_denied;
 		} else if (mask & MAY_READ) {
-			if (!(access & AFS_ACE_READ))
+			if (!(access & AFS_ACE_LOOKUP))
 				goto permission_denied;
 		} else if (mask & MAY_WRITE) {
 			if (!(access & (AFS_ACE_DELETE | /* rmdir, unlink, rename from */
-					AFS_ACE_INSERT | /* create, mkdir, symlink, rename to */
-					AFS_ACE_WRITE))) /* chmod */
+					AFS_ACE_INSERT))) /* create, mkdir, symlink, rename to */
 				goto permission_denied;
 		} else {
 			BUG();

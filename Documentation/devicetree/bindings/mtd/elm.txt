@@ -1,7 +1,7 @@
 Error location module
 
 Required properties:
-- compatible: Must be "ti,am33xx-elm"
+- compatible: Must be "ti,am3352-elm"
 - reg: physical base address and size of the registers map.
 - interrupts: Interrupt number for the elm.
 

@@ -24,6 +24,7 @@
  * SST types start at higher to avoid any overlapping in future
  */
 #define SKL_CONTROL_TYPE_BYTE_TLV	0x100
+#define SKL_CONTROL_TYPE_MIC_SELECT	0x102
 
 #define HDA_SST_CFG_MAX	900 /* size of copier cfg*/
 #define MAX_IN_QUEUE 8
@@ -82,6 +83,7 @@ enum skl_module_type {
 	SKL_MODULE_TYPE_ALGO,
 	SKL_MODULE_TYPE_BASE_OUTFMT,
 	SKL_MODULE_TYPE_KPB,
+	SKL_MODULE_TYPE_MIC_SELECT,
 };
 
 enum skl_core_affinity {

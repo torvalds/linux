@@ -314,7 +314,7 @@ static int virtio_rpmsg_announce_create(struct rpmsg_device *rpdev)
 	int err = 0;
 
 	/* need to tell remote processor's name service about this channel ? */
-	if (rpdev->announce &&
+	if (rpdev->announce && rpdev->ept &&
 	    virtio_has_feature(vrp->vdev, VIRTIO_RPMSG_F_NS)) {
 		struct rpmsg_ns_msg nsm;
 
@@ -338,12 +338,12 @@ static int virtio_rpmsg_announce_destroy(struct rpmsg_device *rpdev)
 	int err = 0;
 
 	/* tell remote processor's name service we're removing this channel */
-	if (rpdev->announce &&
+	if (rpdev->announce && rpdev->ept &&
 	    virtio_has_feature(vrp->vdev, VIRTIO_RPMSG_F_NS)) {
 		struct rpmsg_ns_msg nsm;
 
 		strncpy(nsm.name, rpdev->id.name, RPMSG_NAME_SIZE);
-		nsm.addr = rpdev->src;
+		nsm.addr = rpdev->ept->addr;
 		nsm.flags = RPMSG_NS_DESTROY;
 
 		err = rpmsg_sendto(rpdev->ept, &nsm, sizeof(nsm), RPMSG_NS_ADDR);
@@ -359,6 +359,14 @@ static const struct rpmsg_device_ops virtio_rpmsg_ops = {
 	.announce_create = virtio_rpmsg_announce_create,
 	.announce_destroy = virtio_rpmsg_announce_destroy,
 };
+
+static void virtio_rpmsg_release_device(struct device *dev)
+{
+	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
+	struct virtio_rpmsg_channel *vch = to_virtio_rpmsg_channel(rpdev);
+
+	kfree(vch);
+}
 
 /*
  * create an rpmsg channel using its name and address info.
@@ -390,9 +398,6 @@ static struct rpmsg_device *rpmsg_create_channel(struct virtproc_info *vrp,
 	/* Link the channel to our vrp */
 	vch->vrp = vrp;
 
-	/* Assign callbacks for rpmsg_channel */
-	vch->rpdev.ops = &virtio_rpmsg_ops;
-
 	/* Assign public information to the rpmsg_device */
 	rpdev = &vch->rpdev;
 	rpdev->src = chinfo->src;
@@ -408,6 +413,7 @@ static struct rpmsg_device *rpmsg_create_channel(struct virtproc_info *vrp,
 	strncpy(rpdev->id.name, chinfo->name, RPMSG_NAME_SIZE);
 
 	rpdev->dev.parent = &vrp->vdev->dev;
+	rpdev->dev.release = virtio_rpmsg_release_device;
 	ret = rpmsg_register_device(rpdev);
 	if (ret)
 		return NULL;

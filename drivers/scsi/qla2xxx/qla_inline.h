@@ -250,6 +250,7 @@ qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
 
 	memset(sp, 0, sizeof(*sp));
 	sp->fcport = fcport;
+	sp->cmd_type = TYPE_SRB;
 	sp->iocbs = 1;
 	sp->vha = vha;
 done:
@@ -306,4 +307,63 @@ qla2x00_set_retry_delay_timestamp(fc_port_t *fcport, uint16_t retry_delay)
 	if (retry_delay)
 		fcport->retry_delay_timestamp = jiffies +
 		    (retry_delay * HZ / 10);
+}
+
+static inline bool
+qla_is_exch_offld_enabled(struct scsi_qla_host *vha)
+{
+	if (qla_ini_mode_enabled(vha) &&
+	    (ql2xiniexchg > FW_DEF_EXCHANGES_CNT))
+		return true;
+	else if (qla_tgt_mode_enabled(vha) &&
+	    (ql2xexchoffld > FW_DEF_EXCHANGES_CNT))
+		return true;
+	else if (qla_dual_mode_enabled(vha) &&
+	    ((ql2xiniexchg + ql2xexchoffld) > FW_DEF_EXCHANGES_CNT))
+		return true;
+	else
+		return false;
+}
+
+static inline void
+qla_cpu_update(struct qla_qpair *qpair, uint16_t cpuid)
+{
+	qpair->cpuid = cpuid;
+
+	if (!list_empty(&qpair->hints_list)) {
+		struct qla_qpair_hint *h;
+
+		list_for_each_entry(h, &qpair->hints_list, hint_elem)
+			h->cpuid = qpair->cpuid;
+	}
+}
+
+static inline struct qla_qpair_hint *
+qla_qpair_to_hint(struct qla_tgt *tgt, struct qla_qpair *qpair)
+{
+	struct qla_qpair_hint *h;
+	u16 i;
+
+	for (i = 0; i < tgt->ha->max_qpairs + 1; i++) {
+		h = &tgt->qphints[i];
+		if (h->qpair == qpair)
+			return h;
+	}
+
+	return NULL;
+}
+
+static inline void
+qla_83xx_start_iocbs(struct qla_qpair *qpair)
+{
+	struct req_que *req = qpair->req;
+
+	req->ring_index++;
+	if (req->ring_index == req->length) {
+		req->ring_index = 0;
+		req->ring_ptr = req->ring;
+	} else
+		req->ring_ptr++;
+
+	WRT_REG_DWORD(req->req_q_in, req->ring_index);
 }

@@ -147,9 +147,13 @@ static unsigned int ec_storm_threshold  __read_mostly = 8;
 module_param(ec_storm_threshold, uint, 0644);
 MODULE_PARM_DESC(ec_storm_threshold, "Maxim false GPE numbers not considered as GPE storm");
 
-static bool ec_freeze_events __read_mostly = true;
+static bool ec_freeze_events __read_mostly = false;
 module_param(ec_freeze_events, bool, 0644);
 MODULE_PARM_DESC(ec_freeze_events, "Disabling event handling during suspend/resume");
+
+static bool ec_no_wakeup __read_mostly;
+module_param(ec_no_wakeup, bool, 0644);
+MODULE_PARM_DESC(ec_no_wakeup, "Do not wake up from suspend-to-idle");
 
 struct acpi_ec_query_handler {
 	struct list_head node;
@@ -534,6 +538,14 @@ static void acpi_ec_disable_event(struct acpi_ec *ec)
 	__acpi_ec_disable_event(ec);
 	spin_unlock_irqrestore(&ec->lock, flags);
 	__acpi_ec_flush_event(ec);
+}
+
+void acpi_ec_flush_work(void)
+{
+	if (first_ec)
+		__acpi_ec_flush_event(first_ec);
+
+	flush_scheduled_work();
 }
 #endif /* CONFIG_PM_SLEEP */
 
@@ -1870,24 +1882,6 @@ error:
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int acpi_ec_suspend_noirq(struct device *dev)
-{
-	struct acpi_ec *ec =
-		acpi_driver_data(to_acpi_device(dev));
-
-	acpi_ec_enter_noirq(ec);
-	return 0;
-}
-
-static int acpi_ec_resume_noirq(struct device *dev)
-{
-	struct acpi_ec *ec =
-		acpi_driver_data(to_acpi_device(dev));
-
-	acpi_ec_leave_noirq(ec);
-	return 0;
-}
-
 static int acpi_ec_suspend(struct device *dev)
 {
 	struct acpi_ec *ec =
@@ -1895,6 +1889,32 @@ static int acpi_ec_suspend(struct device *dev)
 
 	if (acpi_sleep_no_ec_events() && ec_freeze_events)
 		acpi_ec_disable_event(ec);
+	return 0;
+}
+
+static int acpi_ec_suspend_noirq(struct device *dev)
+{
+	struct acpi_ec *ec = acpi_driver_data(to_acpi_device(dev));
+
+	/*
+	 * The SCI handler doesn't run at this point, so the GPE can be
+	 * masked at the low level without side effects.
+	 */
+	if (ec_no_wakeup && test_bit(EC_FLAGS_STARTED, &ec->flags) &&
+	    ec->reference_count >= 1)
+		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_DISABLE);
+
+	return 0;
+}
+
+static int acpi_ec_resume_noirq(struct device *dev)
+{
+	struct acpi_ec *ec = acpi_driver_data(to_acpi_device(dev));
+
+	if (ec_no_wakeup && test_bit(EC_FLAGS_STARTED, &ec->flags) &&
+	    ec->reference_count >= 1)
+		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_ENABLE);
+
 	return 0;
 }
 

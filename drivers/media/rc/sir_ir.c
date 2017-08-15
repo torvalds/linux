@@ -53,16 +53,13 @@ static DEFINE_SPINLOCK(hardware_lock);
 
 /* Communication with user-space */
 static void add_read_queue(int flag, unsigned long val);
-static int init_chrdev(void);
 /* Hardware */
 static irqreturn_t sir_interrupt(int irq, void *dev_id);
 static void send_space(unsigned long len);
 static void send_pulse(unsigned long len);
-static int init_hardware(void);
+static void init_hardware(void);
 static void drop_hardware(void);
 /* Initialisation */
-static int init_port(void);
-static void drop_port(void);
 
 static inline unsigned int sinp(int offset)
 {
@@ -120,28 +117,6 @@ static void add_read_queue(int flag, unsigned long val)
 	ev.duration = US_TO_NS(val);
 
 	ir_raw_event_store_with_filter(rcdev, &ev);
-}
-
-static int init_chrdev(void)
-{
-	rcdev = devm_rc_allocate_device(&sir_ir_dev->dev, RC_DRIVER_IR_RAW);
-	if (!rcdev)
-		return -ENOMEM;
-
-	rcdev->input_name = "SIR IrDA port";
-	rcdev->input_phys = KBUILD_MODNAME "/input0";
-	rcdev->input_id.bustype = BUS_HOST;
-	rcdev->input_id.vendor = 0x0001;
-	rcdev->input_id.product = 0x0001;
-	rcdev->input_id.version = 0x0100;
-	rcdev->tx_ir = sir_tx_ir;
-	rcdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
-	rcdev->driver_name = KBUILD_MODNAME;
-	rcdev->map_name = RC_MAP_RC6_MCE;
-	rcdev->timeout = IR_DEFAULT_TIMEOUT;
-	rcdev->dev.parent = &sir_ir_dev->dev;
-
-	return devm_rc_register_device(&sir_ir_dev->dev, rcdev);
 }
 
 /* SECTION: Hardware */
@@ -288,7 +263,7 @@ static void send_pulse(unsigned long len)
 	}
 }
 
-static int init_hardware(void)
+static void init_hardware(void)
 {
 	unsigned long flags;
 
@@ -310,7 +285,6 @@ static int init_hardware(void)
 	/* turn on UART */
 	outb(UART_MCR_DTR | UART_MCR_RTS | UART_MCR_OUT2, io + UART_MCR);
 	spin_unlock_irqrestore(&hardware_lock, flags);
-	return 0;
 }
 
 static void drop_hardware(void)
@@ -326,61 +300,55 @@ static void drop_hardware(void)
 }
 
 /* SECTION: Initialisation */
-
-static int init_port(void)
+static int sir_ir_probe(struct platform_device *dev)
 {
 	int retval;
+
+	rcdev = devm_rc_allocate_device(&sir_ir_dev->dev, RC_DRIVER_IR_RAW);
+	if (!rcdev)
+		return -ENOMEM;
+
+	rcdev->input_name = "SIR IrDA port";
+	rcdev->input_phys = KBUILD_MODNAME "/input0";
+	rcdev->input_id.bustype = BUS_HOST;
+	rcdev->input_id.vendor = 0x0001;
+	rcdev->input_id.product = 0x0001;
+	rcdev->input_id.version = 0x0100;
+	rcdev->tx_ir = sir_tx_ir;
+	rcdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rcdev->driver_name = KBUILD_MODNAME;
+	rcdev->map_name = RC_MAP_RC6_MCE;
+	rcdev->timeout = IR_DEFAULT_TIMEOUT;
+	rcdev->dev.parent = &sir_ir_dev->dev;
 
 	setup_timer(&timerlist, sir_timeout, 0);
 
 	/* get I/O port access and IRQ line */
-	if (!request_region(io, 8, KBUILD_MODNAME)) {
+	if (!devm_request_region(&sir_ir_dev->dev, io, 8, KBUILD_MODNAME)) {
 		pr_err("i/o port 0x%.4x already in use.\n", io);
 		return -EBUSY;
 	}
-	retval = request_irq(irq, sir_interrupt, 0,
-			     KBUILD_MODNAME, NULL);
+	retval = devm_request_irq(&sir_ir_dev->dev, irq, sir_interrupt, 0,
+				  KBUILD_MODNAME, NULL);
 	if (retval < 0) {
-		release_region(io, 8);
 		pr_err("IRQ %d already in use.\n", irq);
 		return retval;
 	}
 	pr_info("I/O port 0x%.4x, IRQ %d.\n", io, irq);
 
-	return 0;
-}
-
-static void drop_port(void)
-{
-	free_irq(irq, NULL);
-	del_timer_sync(&timerlist);
-	release_region(io, 8);
-}
-
-static int init_sir_ir(void)
-{
-	int retval;
-
-	retval = init_port();
+	retval = devm_rc_register_device(&sir_ir_dev->dev, rcdev);
 	if (retval < 0)
 		return retval;
+
 	init_hardware();
+
 	return 0;
-}
-
-static int sir_ir_probe(struct platform_device *dev)
-{
-	int retval;
-
-	retval = init_chrdev();
-	if (retval < 0)
-		return retval;
-
-	return init_sir_ir();
 }
 
 static int sir_ir_remove(struct platform_device *dev)
 {
+	drop_hardware();
+	del_timer_sync(&timerlist);
 	return 0;
 }
 
@@ -421,8 +389,6 @@ pdev_alloc_fail:
 
 static void __exit sir_ir_exit(void)
 {
-	drop_hardware();
-	drop_port();
 	platform_device_unregister(sir_ir_dev);
 	platform_driver_unregister(&sir_ir_driver);
 }
@@ -434,10 +400,10 @@ MODULE_DESCRIPTION("Infrared receiver driver for SIR type serial ports");
 MODULE_AUTHOR("Milan Pikula");
 MODULE_LICENSE("GPL");
 
-module_param(io, int, 0444);
+module_param_hw(io, int, ioport, 0444);
 MODULE_PARM_DESC(io, "I/O address base (0x3f8 or 0x2f8)");
 
-module_param(irq, int, 0444);
+module_param_hw(irq, int, irq, 0444);
 MODULE_PARM_DESC(irq, "Interrupt (4 or 3)");
 
 module_param(threshold, int, 0444);

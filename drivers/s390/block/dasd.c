@@ -3921,7 +3921,6 @@ EXPORT_SYMBOL(dasd_schedule_requeue);
 int dasd_generic_pm_freeze(struct ccw_device *cdev)
 {
 	struct dasd_device *device = dasd_device_from_cdev(cdev);
-	int rc;
 
 	if (IS_ERR(device))
 		return PTR_ERR(device);
@@ -3930,7 +3929,7 @@ int dasd_generic_pm_freeze(struct ccw_device *cdev)
 	set_bit(DASD_FLAG_SUSPENDED, &device->flags);
 
 	if (device->discipline->freeze)
-		rc = device->discipline->freeze(device);
+		device->discipline->freeze(device);
 
 	/* disallow new I/O  */
 	dasd_device_set_stop_bits(device, DASD_STOPPED_PM);

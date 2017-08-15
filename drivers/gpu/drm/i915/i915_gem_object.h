@@ -37,8 +37,8 @@
 
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
-#define I915_GEM_OBJECT_HAS_STRUCT_PAGE 0x1
-#define I915_GEM_OBJECT_IS_SHRINKABLE   0x2
+#define I915_GEM_OBJECT_HAS_STRUCT_PAGE BIT(0)
+#define I915_GEM_OBJECT_IS_SHRINKABLE   BIT(1)
 
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -68,9 +68,25 @@ struct drm_i915_gem_object {
 
 	const struct drm_i915_gem_object_ops *ops;
 
-	/** List of VMAs backed by this object */
+	/**
+	 * @vma_list: List of VMAs backed by this object
+	 *
+	 * The VMA on this list are ordered by type, all GGTT vma are placed
+	 * at the head and all ppGTT vma are placed at the tail. The different
+	 * types of GGTT vma are unordered between themselves, use the
+	 * @vma_tree (which has a defined order between all VMA) to find an
+	 * exact match.
+	 */
 	struct list_head vma_list;
+	/**
+	 * @vma_tree: Ordered tree of VMAs backed by this object
+	 *
+	 * All VMA created for this object are placed in the @vma_tree for
+	 * fast retrieval via a binary search in i915_vma_instance().
+	 * They are also added to @vma_list for easy iteration.
+	 */
 	struct rb_root vma_tree;
+	struct i915_vma *vma_hashed;
 
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
@@ -84,9 +100,6 @@ struct drm_i915_gem_object {
 	 * Whether the object is currently in the GGTT mmap.
 	 */
 	struct list_head userfault_link;
-
-	/** Used in execbuf to temporarily hold a ref */
-	struct list_head obj_exec_link;
 
 	struct list_head batch_pool_link;
 	I915_SELFTEST_DECLARE(struct list_head st_link);
@@ -106,6 +119,7 @@ struct drm_i915_gem_object {
 	unsigned long gt_ro:1;
 	unsigned int cache_level:3;
 	unsigned int cache_dirty:1;
+	unsigned int cache_coherent:1;
 
 	atomic_t frontbuffer_bits;
 	unsigned int frontbuffer_ggtt_origin; /* write once */

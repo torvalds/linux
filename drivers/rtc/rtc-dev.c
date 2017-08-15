@@ -464,7 +464,7 @@ void rtc_dev_prepare(struct rtc_device *rtc)
 		return;
 
 	if (rtc->id >= RTC_DEV_MAX) {
-		dev_dbg(&rtc->dev, "%s: too many RTC devices\n", rtc->name);
+		dev_dbg(&rtc->dev, "too many RTC devices\n");
 		return;
 	}
 

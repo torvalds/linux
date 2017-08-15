@@ -271,7 +271,7 @@ static int tas_snd_vol_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new volume_control = {
+static const struct snd_kcontrol_new volume_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Master Playback Volume",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -314,7 +314,7 @@ static int tas_snd_mute_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new mute_control = {
+static const struct snd_kcontrol_new mute_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Master Playback Switch",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -426,7 +426,7 @@ static int tas_snd_drc_range_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new drc_range_control = {
+static const struct snd_kcontrol_new drc_range_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "DRC Range",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -466,7 +466,7 @@ static int tas_snd_drc_switch_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new drc_switch_control = {
+static const struct snd_kcontrol_new drc_switch_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "DRC Range Switch",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -524,7 +524,7 @@ static int tas_snd_capture_source_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new capture_source_control = {
+static const struct snd_kcontrol_new capture_source_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	/* If we name this 'Input Source', it properly shows up in
 	 * alsamixer as a selection, * but it's shown under the
@@ -586,7 +586,7 @@ static int tas_snd_treble_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new treble_control = {
+static const struct snd_kcontrol_new treble_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Treble",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -637,7 +637,7 @@ static int tas_snd_bass_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new bass_control = {
+static const struct snd_kcontrol_new bass_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Bass",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,

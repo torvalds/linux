@@ -173,12 +173,6 @@ extern unsigned long __copy_user_in(void *to, const void __user *from, unsigned 
 extern unsigned long __do_clear_user(void __user *to, unsigned long n);
 
 static inline long
-__strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	return __do_strncpy_from_user(dst, src, count);
-}
-
-static inline long
 strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	long res = -EFAULT;
@@ -362,7 +356,5 @@ __clear_user(void __user *to, unsigned long n)
 {
 	return __do_clear_user(to, n);
 }
-
-#define strlen_user(str)	strnlen_user((str), 0x7ffffffe)
 
 #endif	/* _CRIS_UACCESS_H */

@@ -69,7 +69,7 @@ static inline void set_fs(mm_segment_t fs)
  */
 #define __range_ok(addr, size)						\
 ({									\
-	unsigned long __addr = (unsigned long __force)(addr);		\
+	unsigned long __addr = (unsigned long)(addr);			\
 	unsigned long flag, roksum;					\
 	__chk_user_ptr(addr);						\
 	asm("adds %1, %1, %3; ccmp %1, %4, #2, cc; cset %0, ls"		\
@@ -254,8 +254,6 @@ do {									\
 	(void)0;							\
 })
 
-#define __get_user_unaligned __get_user
-
 #define get_user(x, ptr)						\
 ({									\
 	__typeof__(*(ptr)) __user *__p = (ptr);				\
@@ -320,8 +318,6 @@ do {									\
 	(void)0;							\
 })
 
-#define __put_user_unaligned __put_user
-
 #define put_user(x, ptr)						\
 ({									\
 	__typeof__(*(ptr)) __user *__p = (ptr);				\
@@ -349,7 +345,6 @@ static inline unsigned long __must_check clear_user(void __user *to, unsigned lo
 
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
 
-extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
 
 #endif /* __ASM_UACCESS_H */

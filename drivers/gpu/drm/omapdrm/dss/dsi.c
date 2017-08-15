@@ -5276,12 +5276,12 @@ static int dsi_init_pll_data(struct platform_device *dsidev)
 static int dsi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *dsidev = to_platform_device(dev);
+	const struct dsi_module_id_data *d;
 	u32 rev;
 	int r, i;
 	struct dsi_data *dsi;
 	struct resource *dsi_mem;
 	struct resource *res;
-	struct resource temp_res;
 
 	dsi = devm_kzalloc(&dsidev->dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
@@ -5311,67 +5311,20 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	dsi->te_timer.data = 0;
 #endif
 
-	res = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "proto");
-	if (!res) {
-		res = platform_get_resource(dsidev, IORESOURCE_MEM, 0);
-		if (!res) {
-			DSSERR("can't get IORESOURCE_MEM DSI\n");
-			return -EINVAL;
-		}
-
-		temp_res.start = res->start;
-		temp_res.end = temp_res.start + DSI_PROTO_SZ - 1;
-		res = &temp_res;
-	}
-
-	dsi_mem = res;
-
-	dsi->proto_base = devm_ioremap(&dsidev->dev, res->start,
-		resource_size(res));
-	if (!dsi->proto_base) {
-		DSSERR("can't ioremap DSI protocol engine\n");
-		return -ENOMEM;
-	}
+	dsi_mem = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "proto");
+	dsi->proto_base = devm_ioremap_resource(&dsidev->dev, dsi_mem);
+	if (IS_ERR(dsi->proto_base))
+		return PTR_ERR(dsi->proto_base);
 
 	res = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "phy");
-	if (!res) {
-		res = platform_get_resource(dsidev, IORESOURCE_MEM, 0);
-		if (!res) {
-			DSSERR("can't get IORESOURCE_MEM DSI\n");
-			return -EINVAL;
-		}
-
-		temp_res.start = res->start + DSI_PHY_OFFSET;
-		temp_res.end = temp_res.start + DSI_PHY_SZ - 1;
-		res = &temp_res;
-	}
-
-	dsi->phy_base = devm_ioremap(&dsidev->dev, res->start,
-		resource_size(res));
-	if (!dsi->phy_base) {
-		DSSERR("can't ioremap DSI PHY\n");
-		return -ENOMEM;
-	}
+	dsi->phy_base = devm_ioremap_resource(&dsidev->dev, res);
+	if (IS_ERR(dsi->phy_base))
+		return PTR_ERR(dsi->phy_base);
 
 	res = platform_get_resource_byname(dsidev, IORESOURCE_MEM, "pll");
-	if (!res) {
-		res = platform_get_resource(dsidev, IORESOURCE_MEM, 0);
-		if (!res) {
-			DSSERR("can't get IORESOURCE_MEM DSI\n");
-			return -EINVAL;
-		}
-
-		temp_res.start = res->start + DSI_PLL_OFFSET;
-		temp_res.end = temp_res.start + DSI_PLL_SZ - 1;
-		res = &temp_res;
-	}
-
-	dsi->pll_base = devm_ioremap(&dsidev->dev, res->start,
-		resource_size(res));
-	if (!dsi->pll_base) {
-		DSSERR("can't ioremap DSI PLL\n");
-		return -ENOMEM;
-	}
+	dsi->pll_base = devm_ioremap_resource(&dsidev->dev, res);
+	if (IS_ERR(dsi->pll_base))
+		return PTR_ERR(dsi->pll_base);
 
 	dsi->irq = platform_get_irq(dsi->pdev, 0);
 	if (dsi->irq < 0) {
@@ -5386,30 +5339,16 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 		return r;
 	}
 
-	if (dsidev->dev.of_node) {
-		const struct of_device_id *match;
-		const struct dsi_module_id_data *d;
+	d = of_match_node(dsi_of_match, dsidev->dev.of_node)->data;
+	while (d->address != 0 && d->address != dsi_mem->start)
+		d++;
 
-		match = of_match_node(dsi_of_match, dsidev->dev.of_node);
-		if (!match) {
-			DSSERR("unsupported DSI module\n");
-			return -ENODEV;
-		}
-
-		d = match->data;
-
-		while (d->address != 0 && d->address != dsi_mem->start)
-			d++;
-
-		if (d->address == 0) {
-			DSSERR("unsupported DSI module\n");
-			return -ENODEV;
-		}
-
-		dsi->module_id = d->id;
-	} else {
-		dsi->module_id = dsidev->id;
+	if (d->address == 0) {
+		DSSERR("unsupported DSI module\n");
+		return -ENODEV;
 	}
+
+	dsi->module_id = d->id;
 
 	/* DSI VCs initialization */
 	for (i = 0; i < ARRAY_SIZE(dsi->vc); i++) {
@@ -5446,18 +5385,15 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	dsi_init_output(dsidev);
 
-	if (dsidev->dev.of_node) {
-		r = dsi_probe_of(dsidev);
-		if (r) {
-			DSSERR("Invalid DSI DT data\n");
-			goto err_probe_of;
-		}
-
-		r = of_platform_populate(dsidev->dev.of_node, NULL, NULL,
-			&dsidev->dev);
-		if (r)
-			DSSERR("Failed to populate DSI child devices: %d\n", r);
+	r = dsi_probe_of(dsidev);
+	if (r) {
+		DSSERR("Invalid DSI DT data\n");
+		goto err_probe_of;
 	}
+
+	r = of_platform_populate(dsidev->dev.of_node, NULL, NULL, &dsidev->dev);
+	if (r)
+		DSSERR("Failed to populate DSI child devices: %d\n", r);
 
 	dsi_runtime_put(dsidev);
 

@@ -34,9 +34,12 @@
 #define ETP_I2C_DESC_CMD		0x0001
 #define ETP_I2C_REPORT_DESC_CMD		0x0002
 #define ETP_I2C_STAND_CMD		0x0005
+#define ETP_I2C_PATTERN_CMD		0x0100
 #define ETP_I2C_UNIQUEID_CMD		0x0101
 #define ETP_I2C_FW_VERSION_CMD		0x0102
-#define ETP_I2C_SM_VERSION_CMD		0x0103
+#define ETP_I2C_IC_TYPE_CMD		0x0103
+#define ETP_I2C_OSM_VERSION_CMD		0x0103
+#define ETP_I2C_NSM_VERSION_CMD		0x0104
 #define ETP_I2C_XY_TRACENUM_CMD		0x0105
 #define ETP_I2C_MAX_X_AXIS_CMD		0x0106
 #define ETP_I2C_MAX_Y_AXIS_CMD		0x0107
@@ -239,11 +242,33 @@ static int elan_i2c_get_baseline_data(struct i2c_client *client,
 	return 0;
 }
 
+static int elan_i2c_get_pattern(struct i2c_client *client, u8 *pattern)
+{
+	int error;
+	u8 val[3];
+
+	error = elan_i2c_read_cmd(client, ETP_I2C_PATTERN_CMD, val);
+	if (error) {
+		dev_err(&client->dev, "failed to get pattern: %d\n", error);
+		return error;
+	}
+	*pattern = val[1];
+
+	return 0;
+}
+
 static int elan_i2c_get_version(struct i2c_client *client,
 				bool iap, u8 *version)
 {
 	int error;
+	u8 pattern_ver;
 	u8 val[3];
+
+	error = elan_i2c_get_pattern(client, &pattern_ver);
+	if (error) {
+		dev_err(&client->dev, "failed to get pattern version\n");
+		return error;
+	}
 
 	error = elan_i2c_read_cmd(client,
 				  iap ? ETP_I2C_IAP_VERSION_CMD :
@@ -255,24 +280,54 @@ static int elan_i2c_get_version(struct i2c_client *client,
 		return error;
 	}
 
-	*version = val[0];
+	if (pattern_ver == 0x01)
+		*version = iap ? val[1] : val[0];
+	else
+		*version = val[0];
 	return 0;
 }
 
 static int elan_i2c_get_sm_version(struct i2c_client *client,
-				   u8 *ic_type, u8 *version)
+				   u16 *ic_type, u8 *version)
 {
 	int error;
+	u8 pattern_ver;
 	u8 val[3];
 
-	error = elan_i2c_read_cmd(client, ETP_I2C_SM_VERSION_CMD, val);
+	error = elan_i2c_get_pattern(client, &pattern_ver);
 	if (error) {
-		dev_err(&client->dev, "failed to get SM version: %d\n", error);
+		dev_err(&client->dev, "failed to get pattern version\n");
 		return error;
 	}
 
-	*version = val[0];
-	*ic_type = val[1];
+	if (pattern_ver == 0x01) {
+		error = elan_i2c_read_cmd(client, ETP_I2C_IC_TYPE_CMD, val);
+		if (error) {
+			dev_err(&client->dev, "failed to get ic type: %d\n",
+				error);
+			return error;
+		}
+		*ic_type = be16_to_cpup((__be16 *)val);
+
+		error = elan_i2c_read_cmd(client, ETP_I2C_NSM_VERSION_CMD,
+					  val);
+		if (error) {
+			dev_err(&client->dev, "failed to get SM version: %d\n",
+				error);
+			return error;
+		}
+		*version = val[1];
+	} else {
+		error = elan_i2c_read_cmd(client, ETP_I2C_OSM_VERSION_CMD, val);
+		if (error) {
+			dev_err(&client->dev, "failed to get SM version: %d\n",
+				error);
+			return error;
+		}
+		*version = val[0];
+		*ic_type = val[1];
+	}
+
 	return 0;
 }
 
@@ -640,6 +695,8 @@ const struct elan_transport_ops elan_i2c_ops = {
 	.prepare_fw_update	= elan_i2c_prepare_fw_update,
 	.write_fw_block		= elan_i2c_write_fw_block,
 	.finish_fw_update	= elan_i2c_finish_fw_update,
+
+	.get_pattern		= elan_i2c_get_pattern,
 
 	.get_report		= elan_i2c_get_report,
 };

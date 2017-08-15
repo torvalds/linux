@@ -25,12 +25,13 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of_graph.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-of.h>
 
 #define SENSOR_NAME "ov5647"
 
@@ -510,7 +511,7 @@ static const struct v4l2_subdev_internal_ops ov5647_subdev_internal_ops = {
 
 static int ov5647_parse_dt(struct device_node *np)
 {
-	struct v4l2_of_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg;
 	struct device_node *ep;
 
 	int ret;
@@ -519,7 +520,7 @@ static int ov5647_parse_dt(struct device_node *np)
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_of_parse_endpoint(ep, &bus_cfg);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &bus_cfg);
 
 	of_node_put(ep);
 	return ret;

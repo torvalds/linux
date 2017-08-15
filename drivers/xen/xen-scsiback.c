@@ -134,11 +134,8 @@ struct vscsibk_pend {
 	struct page *pages[VSCSI_MAX_GRANTS];
 
 	struct se_cmd se_cmd;
-};
 
-struct scsiback_tmr {
-	atomic_t tmr_complete;
-	wait_queue_head_t tmr_wait;
+	struct completion tmr_done;
 };
 
 #define VSCSI_DEFAULT_SESSION_TAGS	128
@@ -599,36 +596,28 @@ static void scsiback_device_action(struct vscsibk_pend *pending_req,
 	struct scsiback_tpg *tpg = pending_req->v2p->tpg;
 	struct scsiback_nexus *nexus = tpg->tpg_nexus;
 	struct se_cmd *se_cmd = &pending_req->se_cmd;
-	struct scsiback_tmr *tmr;
 	u64 unpacked_lun = pending_req->v2p->lun;
 	int rc, err = FAILED;
 
-	tmr = kzalloc(sizeof(struct scsiback_tmr), GFP_KERNEL);
-	if (!tmr) {
-		target_put_sess_cmd(se_cmd);
-		goto err;
-	}
-
-	init_waitqueue_head(&tmr->tmr_wait);
+	init_completion(&pending_req->tmr_done);
 
 	rc = target_submit_tmr(&pending_req->se_cmd, nexus->tvn_se_sess,
 			       &pending_req->sense_buffer[0],
-			       unpacked_lun, tmr, act, GFP_KERNEL,
+			       unpacked_lun, NULL, act, GFP_KERNEL,
 			       tag, TARGET_SCF_ACK_KREF);
 	if (rc)
 		goto err;
 
-	wait_event(tmr->tmr_wait, atomic_read(&tmr->tmr_complete));
+	wait_for_completion(&pending_req->tmr_done);
 
 	err = (se_cmd->se_tmr_req->response == TMR_FUNCTION_COMPLETE) ?
 		SUCCESS : FAILED;
 
 	scsiback_do_resp_with_sense(NULL, err, 0, pending_req);
-	transport_generic_free_cmd(&pending_req->se_cmd, 1);
+	transport_generic_free_cmd(&pending_req->se_cmd, 0);
 	return;
+
 err:
-	if (tmr)
-		kfree(tmr);
 	scsiback_do_resp_with_sense(NULL, err, 0, pending_req);
 }
 
@@ -1389,12 +1378,6 @@ static int scsiback_check_stop_free(struct se_cmd *se_cmd)
 static void scsiback_release_cmd(struct se_cmd *se_cmd)
 {
 	struct se_session *se_sess = se_cmd->se_sess;
-	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
-
-	if (se_tmr && se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB) {
-		struct scsiback_tmr *tmr = se_tmr->fabric_tmr_ptr;
-		kfree(tmr);
-	}
 
 	percpu_ida_free(&se_sess->sess_tag_pool, se_cmd->map_tag);
 }
@@ -1455,11 +1438,10 @@ static int scsiback_queue_status(struct se_cmd *se_cmd)
 
 static void scsiback_queue_tm_rsp(struct se_cmd *se_cmd)
 {
-	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
-	struct scsiback_tmr *tmr = se_tmr->fabric_tmr_ptr;
+	struct vscsibk_pend *pending_req = container_of(se_cmd,
+				struct vscsibk_pend, se_cmd);
 
-	atomic_set(&tmr->tmr_complete, 1);
-	wake_up(&tmr->tmr_wait);
+	complete(&pending_req->tmr_done);
 }
 
 static void scsiback_aborted_task(struct se_cmd *se_cmd)

@@ -29,17 +29,25 @@ meaning of events.
 INTERACTIVE COMMANDS
 --------------------
 [horizontal]
+*b*::	toggle events by guests (debugfs only, honors filters)
+
 *c*::	clear filter
 
 *f*::	filter by regular expression
 
 *g*::	filter by guest name
 
+*h*::	display interactive commands reference
+
+*o*::   toggle sorting order (Total vs CurAvg/s)
+
 *p*::	filter by PID
 
 *q*::	quit
 
 *r*::	reset stats
+
+*s*::   set update interval
 
 *x*::	toggle reporting of stats for child trace events
 
@@ -63,6 +71,10 @@ OPTIONS
 -d::
 --debugfs::
 	retrieve statistics from debugfs
+
+-i::
+--debugfs-include-past::
+	include all available data on past events for debugfs
 
 -p<pid>::
 --pid=<pid>::

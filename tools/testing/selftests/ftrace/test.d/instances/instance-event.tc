@@ -82,7 +82,10 @@ rmdir foo
 if [ -d foo ]; then
         fail "foo still exists"
 fi
-
+if grep -q "schedule:enable_event:sched:sched_switch" ../set_ftrace_filter; then
+	echo "Older kernel detected. Cleanup filter"
+	echo '!schedule:enable_event:sched:sched_switch' > ../set_ftrace_filter
+fi
 
 instance_slam() {
     while :; do

@@ -242,8 +242,6 @@ kprobes.txt
 	- documents the kernel probes debugging feature.
 kref.txt
 	- docs on adding reference counters (krefs) to kernel objects.
-kselftest.txt
-	- small unittests for (some) individual codepaths in the kernel.
 laptops/
 	- directory with laptop related info and laptop driver documentation.
 ldm.txt

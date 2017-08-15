@@ -36,8 +36,11 @@ struct isofs_sb_info {
 	unsigned long s_max_size;
 	
 	int           s_rock_offset; /* offset of SUSP fields within SU area */
+	s32           s_sbsector;
 	unsigned char s_joliet_level;
 	unsigned char s_mapping;
+	unsigned char s_check;
+	unsigned char s_session;
 	unsigned int  s_high_sierra:1;
 	unsigned int  s_rock:2;
 	unsigned int  s_utf8:1;

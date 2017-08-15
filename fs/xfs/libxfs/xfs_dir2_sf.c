@@ -647,7 +647,7 @@ xfs_dir2_sf_verify(
 	int				offset;
 	int				size;
 	int				error;
-	__uint8_t			filetype;
+	uint8_t				filetype;
 
 	ASSERT(ip->i_d.di_format == XFS_DINODE_FMT_LOCAL);
 	/*

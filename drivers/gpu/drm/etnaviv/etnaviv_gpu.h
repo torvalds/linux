@@ -152,6 +152,8 @@ struct etnaviv_gpu {
 	u32 hangcheck_dma_addr;
 	struct work_struct recover_work;
 	unsigned int freq_scale;
+	unsigned long base_rate_core;
+	unsigned long base_rate_shader;
 };
 
 static inline void gpu_write(struct etnaviv_gpu *gpu, u32 reg, u32 data)

@@ -303,7 +303,7 @@ static int wcove_typec_probe(struct platform_device *pdev)
 	wcove->dev = &pdev->dev;
 	wcove->regmap = pmic->regmap;
 
-	ret = regmap_irq_get_virq(pmic->irq_chip_data_level2,
+	ret = regmap_irq_get_virq(pmic->irq_chip_data_chgr,
 				  platform_get_irq(pdev, 0));
 	if (ret < 0)
 		return ret;

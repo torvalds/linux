@@ -4,3 +4,5 @@ LDFLAGS += -lpthread
 
 include ../lib.mk
 
+$(TEST_GEN_PROGS): seccomp_bpf.c ../kselftest_harness.h
+	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@

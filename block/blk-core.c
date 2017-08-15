@@ -1787,11 +1787,8 @@ static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio)
 
 	blk_queue_split(q, &bio);
 
-	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio)) {
-		bio->bi_status = BLK_STS_IOERR;
-		bio_endio(bio);
+	if (!bio_integrity_prep(bio))
 		return BLK_QC_T_NONE;
-	}
 
 	if (op_is_flush(bio->bi_opf)) {
 		spin_lock_irq(q->queue_lock);
@@ -3424,6 +3421,10 @@ EXPORT_SYMBOL(blk_finish_plug);
  */
 void blk_pm_runtime_init(struct request_queue *q, struct device *dev)
 {
+	/* not support for RQF_PM and ->rpm_status in blk-mq yet */
+	if (q->mq_ops)
+		return;
+
 	q->dev = dev;
 	q->rpm_status = RPM_ACTIVE;
 	pm_runtime_set_autosuspend_delay(q->dev, -1);

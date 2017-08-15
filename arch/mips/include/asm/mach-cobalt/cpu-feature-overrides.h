@@ -37,6 +37,7 @@
 #endif
 
 #define cpu_has_mips16		0
+#define cpu_has_mips16e2	0
 #define cpu_has_mdmx		0
 #define cpu_has_mips3d		0
 #define cpu_has_smartmips	0

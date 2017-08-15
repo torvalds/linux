@@ -29,11 +29,11 @@
  *    Thomas Hellstrom <thomas-at-tungstengraphics-dot-com>
  *    Dave Airlie
  */
-#include <ttm/ttm_bo_api.h>
-#include <ttm/ttm_bo_driver.h>
-#include <ttm/ttm_placement.h>
-#include <ttm/ttm_module.h>
-#include <ttm/ttm_page_alloc.h>
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_page_alloc.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include <linux/seq_file.h>
@@ -745,6 +745,7 @@ int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem)
 		return r;
 	}
 
+	spin_lock(&gtt->adev->gtt_list_lock);
 	flags = amdgpu_ttm_tt_pte_flags(gtt->adev, ttm, bo_mem);
 	gtt->offset = (u64)bo_mem->start << PAGE_SHIFT;
 	r = amdgpu_gart_bind(gtt->adev, gtt->offset, ttm->num_pages,
@@ -753,12 +754,13 @@ int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem)
 	if (r) {
 		DRM_ERROR("failed to bind %lu pages at 0x%08llX\n",
 			  ttm->num_pages, gtt->offset);
-		return r;
+		goto error_gart_bind;
 	}
-	spin_lock(&gtt->adev->gtt_list_lock);
+
 	list_add_tail(&gtt->list, &gtt->adev->gtt_list);
+error_gart_bind:
 	spin_unlock(&gtt->adev->gtt_list_lock);
-	return 0;
+	return r;
 }
 
 int amdgpu_ttm_recover_gart(struct amdgpu_device *adev)
@@ -789,6 +791,7 @@ int amdgpu_ttm_recover_gart(struct amdgpu_device *adev)
 static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	int r;
 
 	if (gtt->userptr)
 		amdgpu_ttm_tt_unpin_userptr(ttm);
@@ -797,14 +800,17 @@ static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
 		return 0;
 
 	/* unbind shouldn't be done for GDS/GWS/OA in ttm_bo_clean_mm */
-	if (gtt->adev->gart.ready)
-		amdgpu_gart_unbind(gtt->adev, gtt->offset, ttm->num_pages);
-
 	spin_lock(&gtt->adev->gtt_list_lock);
+	r = amdgpu_gart_unbind(gtt->adev, gtt->offset, ttm->num_pages);
+	if (r) {
+		DRM_ERROR("failed to unbind %lu pages at 0x%08llX\n",
+			  gtt->ttm.ttm.num_pages, gtt->offset);
+		goto error_unbind;
+	}
 	list_del_init(&gtt->list);
+error_unbind:
 	spin_unlock(&gtt->adev->gtt_list_lock);
-
-	return 0;
+	return r;
 }
 
 static void amdgpu_ttm_backend_destroy(struct ttm_tt *ttm)
@@ -1115,7 +1121,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* Change the size here instead of the init above so only lpfn is affected */
 	amdgpu_ttm_set_active_vram_size(adev, adev->mc.visible_vram_size);
 
-	r = amdgpu_bo_create(adev, 256 * 1024, PAGE_SIZE, true,
+	r = amdgpu_bo_create(adev, adev->mc.stolen_size, PAGE_SIZE, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
@@ -1461,6 +1467,9 @@ static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
+
+	if (*pos >= adev->mc.mc_vram_size)
+		return -ENXIO;
 
 	while (size) {
 		unsigned long flags;

@@ -55,10 +55,6 @@ struct mdp5_kms {
 	struct mdp5_state *state;
 	struct drm_modeset_lock state_lock;
 
-	/* mapper-id used to request GEM buffer mapped for scanout: */
-	int id;
-	struct msm_gem_address_space *aspace;
-
 	struct mdp5_smp *smp;
 	struct mdp5_ctl_manager *ctlm;
 

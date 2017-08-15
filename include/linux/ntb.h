@@ -5,6 +5,7 @@
  *   GPL LICENSE SUMMARY
  *
  *   Copyright (C) 2015 EMC Corporation. All Rights Reserved.
+ *   Copyright (C) 2016 T-Platforms. All Rights Reserved.
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of version 2 of the GNU General Public License as
@@ -18,6 +19,7 @@
  *   BSD LICENSE
  *
  *   Copyright (C) 2015 EMC Corporation. All Rights Reserved.
+ *   Copyright (C) 2016 T-Platforms. All Rights Reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -106,6 +108,7 @@ static inline char *ntb_topo_string(enum ntb_topo topo)
  * @NTB_SPEED_GEN1:	Link is trained to gen1 speed.
  * @NTB_SPEED_GEN2:	Link is trained to gen2 speed.
  * @NTB_SPEED_GEN3:	Link is trained to gen3 speed.
+ * @NTB_SPEED_GEN4:	Link is trained to gen4 speed.
  */
 enum ntb_speed {
 	NTB_SPEED_AUTO = -1,
@@ -113,6 +116,7 @@ enum ntb_speed {
 	NTB_SPEED_GEN1 = 1,
 	NTB_SPEED_GEN2 = 2,
 	NTB_SPEED_GEN3 = 3,
+	NTB_SPEED_GEN4 = 4
 };
 
 /**
@@ -140,6 +144,20 @@ enum ntb_width {
 };
 
 /**
+ * enum ntb_default_port - NTB default port number
+ * @NTB_PORT_PRI_USD:	Default port of the NTB_TOPO_PRI/NTB_TOPO_B2B_USD
+ *			topologies
+ * @NTB_PORT_SEC_DSD:	Default port of the NTB_TOPO_SEC/NTB_TOPO_B2B_DSD
+ *			topologies
+ */
+enum ntb_default_port {
+	NTB_PORT_PRI_USD,
+	NTB_PORT_SEC_DSD
+};
+#define NTB_DEF_PEER_CNT	(1)
+#define NTB_DEF_PEER_IDX	(0)
+
+/**
  * struct ntb_client_ops - ntb client operations
  * @probe:		Notify client of a new device.
  * @remove:		Notify client to remove a device.
@@ -162,10 +180,12 @@ static inline int ntb_client_ops_is_valid(const struct ntb_client_ops *ops)
  * struct ntb_ctx_ops - ntb driver context operations
  * @link_event:		See ntb_link_event().
  * @db_event:		See ntb_db_event().
+ * @msg_event:		See ntb_msg_event().
  */
 struct ntb_ctx_ops {
 	void (*link_event)(void *ctx);
 	void (*db_event)(void *ctx, int db_vector);
+	void (*msg_event)(void *ctx);
 };
 
 static inline int ntb_ctx_ops_is_valid(const struct ntb_ctx_ops *ops)
@@ -174,18 +194,27 @@ static inline int ntb_ctx_ops_is_valid(const struct ntb_ctx_ops *ops)
 	return
 		/* ops->link_event		&& */
 		/* ops->db_event		&& */
+		/* ops->msg_event		&& */
 		1;
 }
 
 /**
  * struct ntb_ctx_ops - ntb device operations
- * @mw_count:		See ntb_mw_count().
- * @mw_get_range:	See ntb_mw_get_range().
- * @mw_set_trans:	See ntb_mw_set_trans().
- * @mw_clear_trans:	See ntb_mw_clear_trans().
+ * @port_number:	See ntb_port_number().
+ * @peer_port_count:	See ntb_peer_port_count().
+ * @peer_port_number:	See ntb_peer_port_number().
+ * @peer_port_idx:	See ntb_peer_port_idx().
  * @link_is_up:		See ntb_link_is_up().
  * @link_enable:	See ntb_link_enable().
  * @link_disable:	See ntb_link_disable().
+ * @mw_count:		See ntb_mw_count().
+ * @mw_get_align:	See ntb_mw_get_align().
+ * @mw_set_trans:	See ntb_mw_set_trans().
+ * @mw_clear_trans:	See ntb_mw_clear_trans().
+ * @peer_mw_count:	See ntb_peer_mw_count().
+ * @peer_mw_get_addr:	See ntb_peer_mw_get_addr().
+ * @peer_mw_set_trans:	See ntb_peer_mw_set_trans().
+ * @peer_mw_clear_trans:See ntb_peer_mw_clear_trans().
  * @db_is_unsafe:	See ntb_db_is_unsafe().
  * @db_valid_mask:	See ntb_db_valid_mask().
  * @db_vector_count:	See ntb_db_vector_count().
@@ -210,21 +239,42 @@ static inline int ntb_ctx_ops_is_valid(const struct ntb_ctx_ops *ops)
  * @peer_spad_addr:	See ntb_peer_spad_addr().
  * @peer_spad_read:	See ntb_peer_spad_read().
  * @peer_spad_write:	See ntb_peer_spad_write().
+ * @msg_count:		See ntb_msg_count().
+ * @msg_inbits:		See ntb_msg_inbits().
+ * @msg_outbits:	See ntb_msg_outbits().
+ * @msg_read_sts:	See ntb_msg_read_sts().
+ * @msg_clear_sts:	See ntb_msg_clear_sts().
+ * @msg_set_mask:	See ntb_msg_set_mask().
+ * @msg_clear_mask:	See ntb_msg_clear_mask().
+ * @msg_read:		See ntb_msg_read().
+ * @msg_write:		See ntb_msg_write().
  */
 struct ntb_dev_ops {
-	int (*mw_count)(struct ntb_dev *ntb);
-	int (*mw_get_range)(struct ntb_dev *ntb, int idx,
-			    phys_addr_t *base, resource_size_t *size,
-			resource_size_t *align, resource_size_t *align_size);
-	int (*mw_set_trans)(struct ntb_dev *ntb, int idx,
-			    dma_addr_t addr, resource_size_t size);
-	int (*mw_clear_trans)(struct ntb_dev *ntb, int idx);
+	int (*port_number)(struct ntb_dev *ntb);
+	int (*peer_port_count)(struct ntb_dev *ntb);
+	int (*peer_port_number)(struct ntb_dev *ntb, int pidx);
+	int (*peer_port_idx)(struct ntb_dev *ntb, int port);
 
-	int (*link_is_up)(struct ntb_dev *ntb,
+	u64 (*link_is_up)(struct ntb_dev *ntb,
 			  enum ntb_speed *speed, enum ntb_width *width);
 	int (*link_enable)(struct ntb_dev *ntb,
 			   enum ntb_speed max_speed, enum ntb_width max_width);
 	int (*link_disable)(struct ntb_dev *ntb);
+
+	int (*mw_count)(struct ntb_dev *ntb, int pidx);
+	int (*mw_get_align)(struct ntb_dev *ntb, int pidx, int widx,
+			    resource_size_t *addr_align,
+			    resource_size_t *size_align,
+			    resource_size_t *size_max);
+	int (*mw_set_trans)(struct ntb_dev *ntb, int pidx, int widx,
+			    dma_addr_t addr, resource_size_t size);
+	int (*mw_clear_trans)(struct ntb_dev *ntb, int pidx, int widx);
+	int (*peer_mw_count)(struct ntb_dev *ntb);
+	int (*peer_mw_get_addr)(struct ntb_dev *ntb, int widx,
+				phys_addr_t *base, resource_size_t *size);
+	int (*peer_mw_set_trans)(struct ntb_dev *ntb, int pidx, int widx,
+				 u64 addr, resource_size_t size);
+	int (*peer_mw_clear_trans)(struct ntb_dev *ntb, int pidx, int widx);
 
 	int (*db_is_unsafe)(struct ntb_dev *ntb);
 	u64 (*db_valid_mask)(struct ntb_dev *ntb);
@@ -252,32 +302,55 @@ struct ntb_dev_ops {
 	int (*spad_is_unsafe)(struct ntb_dev *ntb);
 	int (*spad_count)(struct ntb_dev *ntb);
 
-	u32 (*spad_read)(struct ntb_dev *ntb, int idx);
-	int (*spad_write)(struct ntb_dev *ntb, int idx, u32 val);
+	u32 (*spad_read)(struct ntb_dev *ntb, int sidx);
+	int (*spad_write)(struct ntb_dev *ntb, int sidx, u32 val);
 
-	int (*peer_spad_addr)(struct ntb_dev *ntb, int idx,
+	int (*peer_spad_addr)(struct ntb_dev *ntb, int pidx, int sidx,
 			      phys_addr_t *spad_addr);
-	u32 (*peer_spad_read)(struct ntb_dev *ntb, int idx);
-	int (*peer_spad_write)(struct ntb_dev *ntb, int idx, u32 val);
+	u32 (*peer_spad_read)(struct ntb_dev *ntb, int pidx, int sidx);
+	int (*peer_spad_write)(struct ntb_dev *ntb, int pidx, int sidx,
+			       u32 val);
+
+	int (*msg_count)(struct ntb_dev *ntb);
+	u64 (*msg_inbits)(struct ntb_dev *ntb);
+	u64 (*msg_outbits)(struct ntb_dev *ntb);
+	u64 (*msg_read_sts)(struct ntb_dev *ntb);
+	int (*msg_clear_sts)(struct ntb_dev *ntb, u64 sts_bits);
+	int (*msg_set_mask)(struct ntb_dev *ntb, u64 mask_bits);
+	int (*msg_clear_mask)(struct ntb_dev *ntb, u64 mask_bits);
+	int (*msg_read)(struct ntb_dev *ntb, int midx, int *pidx, u32 *msg);
+	int (*msg_write)(struct ntb_dev *ntb, int midx, int pidx, u32 msg);
 };
 
 static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 {
 	/* commented callbacks are not required: */
 	return
-		ops->mw_count				&&
-		ops->mw_get_range			&&
-		ops->mw_set_trans			&&
-		/* ops->mw_clear_trans			&& */
+		/* Port operations are required for multiport devices */
+		!ops->peer_port_count == !ops->port_number	&&
+		!ops->peer_port_number == !ops->port_number	&&
+		!ops->peer_port_idx == !ops->port_number	&&
+
+		/* Link operations are required */
 		ops->link_is_up				&&
 		ops->link_enable			&&
 		ops->link_disable			&&
+
+		/* One or both MW interfaces should be developed */
+		ops->mw_count				&&
+		ops->mw_get_align			&&
+		(ops->mw_set_trans			||
+		 ops->peer_mw_set_trans)		&&
+		/* ops->mw_clear_trans			&& */
+		ops->peer_mw_count			&&
+		ops->peer_mw_get_addr			&&
+		/* ops->peer_mw_clear_trans		&& */
+
+		/* Doorbell operations are mostly required */
 		/* ops->db_is_unsafe			&& */
 		ops->db_valid_mask			&&
-
 		/* both set, or both unset */
-		(!ops->db_vector_count == !ops->db_vector_mask) &&
-
+		(!ops->db_vector_count == !ops->db_vector_mask)	&&
 		ops->db_read				&&
 		/* ops->db_set				&& */
 		ops->db_clear				&&
@@ -291,13 +364,24 @@ static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 		/* ops->peer_db_read_mask		&& */
 		/* ops->peer_db_set_mask		&& */
 		/* ops->peer_db_clear_mask		&& */
-		/* ops->spad_is_unsafe			&& */
-		ops->spad_count				&&
-		ops->spad_read				&&
-		ops->spad_write				&&
-		/* ops->peer_spad_addr			&& */
-		/* ops->peer_spad_read			&& */
-		ops->peer_spad_write			&&
+
+		/* Scrachpads interface is optional */
+		/* !ops->spad_is_unsafe == !ops->spad_count	&& */
+		!ops->spad_read == !ops->spad_count		&&
+		!ops->spad_write == !ops->spad_count		&&
+		/* !ops->peer_spad_addr == !ops->spad_count	&& */
+		/* !ops->peer_spad_read == !ops->spad_count	&& */
+		!ops->peer_spad_write == !ops->spad_count	&&
+
+		/* Messaging interface is optional */
+		!ops->msg_inbits == !ops->msg_count		&&
+		!ops->msg_outbits == !ops->msg_count		&&
+		!ops->msg_read_sts == !ops->msg_count		&&
+		!ops->msg_clear_sts == !ops->msg_count		&&
+		/* !ops->msg_set_mask == !ops->msg_count	&& */
+		/* !ops->msg_clear_mask == !ops->msg_count	&& */
+		!ops->msg_read == !ops->msg_count		&&
+		!ops->msg_write == !ops->msg_count		&&
 		1;
 }
 
@@ -310,13 +394,12 @@ struct ntb_client {
 	struct device_driver		drv;
 	const struct ntb_client_ops	ops;
 };
-
 #define drv_ntb_client(__drv) container_of((__drv), struct ntb_client, drv)
 
 /**
  * struct ntb_device - ntb device
  * @dev:		Linux device object.
- * @pdev:		Pci device entry of the ntb.
+ * @pdev:		PCI device entry of the ntb.
  * @topo:		Detected topology of the ntb.
  * @ops:		See &ntb_dev_ops.
  * @ctx:		See &ntb_ctx_ops.
@@ -337,7 +420,6 @@ struct ntb_dev {
 	/* block unregister until device is fully released */
 	struct completion		released;
 };
-
 #define dev_ntb(__dev) container_of((__dev), struct ntb_dev, dev)
 
 /**
@@ -434,86 +516,152 @@ void ntb_link_event(struct ntb_dev *ntb);
  * multiple interrupt vectors for doorbells, the vector number indicates which
  * vector received the interrupt.  The vector number is relative to the first
  * vector used for doorbells, starting at zero, and must be less than
- ** ntb_db_vector_count().  The driver may call ntb_db_read() to check which
+ * ntb_db_vector_count().  The driver may call ntb_db_read() to check which
  * doorbell bits need service, and ntb_db_vector_mask() to determine which of
  * those bits are associated with the vector number.
  */
 void ntb_db_event(struct ntb_dev *ntb, int vector);
 
 /**
- * ntb_mw_count() - get the number of memory windows
+ * ntb_msg_event() - notify driver context of a message event
  * @ntb:	NTB device context.
  *
- * Hardware and topology may support a different number of memory windows.
- *
- * Return: the number of memory windows.
+ * Notify the driver context of a message event.  If hardware supports
+ * message registers, this event indicates, that a new message arrived in
+ * some incoming message register or last sent message couldn't be delivered.
+ * The events can be masked/unmasked by the methods ntb_msg_set_mask() and
+ * ntb_msg_clear_mask().
  */
-static inline int ntb_mw_count(struct ntb_dev *ntb)
+void ntb_msg_event(struct ntb_dev *ntb);
+
+/**
+ * ntb_default_port_number() - get the default local port number
+ * @ntb:	NTB device context.
+ *
+ * If hardware driver doesn't specify port_number() callback method, the NTB
+ * is considered with just two ports. So this method returns default local
+ * port number in compliance with topology.
+ *
+ * NOTE Don't call this method directly. The ntb_port_number() function should
+ * be used instead.
+ *
+ * Return: the default local port number
+ */
+int ntb_default_port_number(struct ntb_dev *ntb);
+
+/**
+ * ntb_default_port_count() - get the default number of peer device ports
+ * @ntb:	NTB device context.
+ *
+ * By default hardware driver supports just one peer device.
+ *
+ * NOTE Don't call this method directly. The ntb_peer_port_count() function
+ * should be used instead.
+ *
+ * Return: the default number of peer ports
+ */
+int ntb_default_peer_port_count(struct ntb_dev *ntb);
+
+/**
+ * ntb_default_peer_port_number() - get the default peer port by given index
+ * @ntb:	NTB device context.
+ * @idx:	Peer port index (should not differ from zero).
+ *
+ * By default hardware driver supports just one peer device, so this method
+ * shall return the corresponding value from enum ntb_default_port.
+ *
+ * NOTE Don't call this method directly. The ntb_peer_port_number() function
+ * should be used instead.
+ *
+ * Return: the peer device port or negative value indicating an error
+ */
+int ntb_default_peer_port_number(struct ntb_dev *ntb, int pidx);
+
+/**
+ * ntb_default_peer_port_idx() - get the default peer device port index by
+ *				 given port number
+ * @ntb:	NTB device context.
+ * @port:	Peer port number (should be one of enum ntb_default_port).
+ *
+ * By default hardware driver supports just one peer device, so while
+ * specified port-argument indicates peer port from enum ntb_default_port,
+ * the return value shall be zero.
+ *
+ * NOTE Don't call this method directly. The ntb_peer_port_idx() function
+ * should be used instead.
+ *
+ * Return: the peer port index or negative value indicating an error
+ */
+int ntb_default_peer_port_idx(struct ntb_dev *ntb, int port);
+
+/**
+ * ntb_port_number() - get the local port number
+ * @ntb:	NTB device context.
+ *
+ * Hardware must support at least simple two-ports ntb connection
+ *
+ * Return: the local port number
+ */
+static inline int ntb_port_number(struct ntb_dev *ntb)
 {
-	return ntb->ops->mw_count(ntb);
+	if (!ntb->ops->port_number)
+		return ntb_default_port_number(ntb);
+
+	return ntb->ops->port_number(ntb);
 }
 
 /**
- * ntb_mw_get_range() - get the range of a memory window
+ * ntb_peer_port_count() - get the number of peer device ports
  * @ntb:	NTB device context.
- * @idx:	Memory window number.
- * @base:	OUT - the base address for mapping the memory window
- * @size:	OUT - the size for mapping the memory window
- * @align:	OUT - the base alignment for translating the memory window
- * @align_size:	OUT - the size alignment for translating the memory window
  *
- * Get the range of a memory window.  NULL may be given for any output
- * parameter if the value is not needed.  The base and size may be used for
- * mapping the memory window, to access the peer memory.  The alignment and
- * size may be used for translating the memory window, for the peer to access
- * memory on the local system.
+ * Hardware may support an access to memory of several remote domains
+ * over multi-port NTB devices. This method returns the number of peers,
+ * local device can have shared memory with.
  *
- * Return: Zero on success, otherwise an error number.
+ * Return: the number of peer ports
  */
-static inline int ntb_mw_get_range(struct ntb_dev *ntb, int idx,
-				   phys_addr_t *base, resource_size_t *size,
-		resource_size_t *align, resource_size_t *align_size)
+static inline int ntb_peer_port_count(struct ntb_dev *ntb)
 {
-	return ntb->ops->mw_get_range(ntb, idx, base, size,
-			align, align_size);
+	if (!ntb->ops->peer_port_count)
+		return ntb_default_peer_port_count(ntb);
+
+	return ntb->ops->peer_port_count(ntb);
 }
 
 /**
- * ntb_mw_set_trans() - set the translation of a memory window
+ * ntb_peer_port_number() - get the peer port by given index
  * @ntb:	NTB device context.
- * @idx:	Memory window number.
- * @addr:	The dma address local memory to expose to the peer.
- * @size:	The size of the local memory to expose to the peer.
+ * @pidx:	Peer port index.
  *
- * Set the translation of a memory window.  The peer may access local memory
- * through the window starting at the address, up to the size.  The address
- * must be aligned to the alignment specified by ntb_mw_get_range().  The size
- * must be aligned to the size alignment specified by ntb_mw_get_range().
+ * Peer ports are continuously enumerated by NTB API logic, so this method
+ * lets to retrieve port real number by its index.
  *
- * Return: Zero on success, otherwise an error number.
+ * Return: the peer device port or negative value indicating an error
  */
-static inline int ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
-				   dma_addr_t addr, resource_size_t size)
+static inline int ntb_peer_port_number(struct ntb_dev *ntb, int pidx)
 {
-	return ntb->ops->mw_set_trans(ntb, idx, addr, size);
+	if (!ntb->ops->peer_port_number)
+		return ntb_default_peer_port_number(ntb, pidx);
+
+	return ntb->ops->peer_port_number(ntb, pidx);
 }
 
 /**
- * ntb_mw_clear_trans() - clear the translation of a memory window
+ * ntb_peer_port_idx() - get the peer device port index by given port number
  * @ntb:	NTB device context.
- * @idx:	Memory window number.
+ * @port:	Peer port number.
  *
- * Clear the translation of a memory window.  The peer may no longer access
- * local memory through the window.
+ * Inverse operation of ntb_peer_port_number(), so one can get port index
+ * by specified port number.
  *
- * Return: Zero on success, otherwise an error number.
+ * Return: the peer port index or negative value indicating an error
  */
-static inline int ntb_mw_clear_trans(struct ntb_dev *ntb, int idx)
+static inline int ntb_peer_port_idx(struct ntb_dev *ntb, int port)
 {
-	if (!ntb->ops->mw_clear_trans)
-		return ntb->ops->mw_set_trans(ntb, idx, 0, 0);
+	if (!ntb->ops->peer_port_idx)
+		return ntb_default_peer_port_idx(ntb, port);
 
-	return ntb->ops->mw_clear_trans(ntb, idx);
+	return ntb->ops->peer_port_idx(ntb, port);
 }
 
 /**
@@ -526,25 +674,26 @@ static inline int ntb_mw_clear_trans(struct ntb_dev *ntb, int idx)
  * state once after every link event.  It is safe to query the link state in
  * the context of the link event callback.
  *
- * Return: One if the link is up, zero if the link is down, otherwise a
- *		negative value indicating the error number.
+ * Return: bitfield of indexed ports link state: bit is set/cleared if the
+ *         link is up/down respectively.
  */
-static inline int ntb_link_is_up(struct ntb_dev *ntb,
+static inline u64 ntb_link_is_up(struct ntb_dev *ntb,
 				 enum ntb_speed *speed, enum ntb_width *width)
 {
 	return ntb->ops->link_is_up(ntb, speed, width);
 }
 
 /**
- * ntb_link_enable() - enable the link on the secondary side of the ntb
+ * ntb_link_enable() - enable the local port ntb connection
  * @ntb:	NTB device context.
  * @max_speed:	The maximum link speed expressed as PCIe generation number.
  * @max_width:	The maximum link width expressed as the number of PCIe lanes.
  *
- * Enable the link on the secondary side of the ntb.  This can only be done
- * from the primary side of the ntb in primary or b2b topology.  The ntb device
- * should train the link to its maximum speed and width, or the requested speed
- * and width, whichever is smaller, if supported.
+ * Enable the NTB/PCIe link on the local or remote (for bridge-to-bridge
+ * topology) side of the bridge. If it's supported the ntb device should train
+ * the link to its maximum speed and width, or the requested speed and width,
+ * whichever is smaller. Some hardware doesn't support PCIe link training, so
+ * the last two arguments will be ignored then.
  *
  * Return: Zero on success, otherwise an error number.
  */
@@ -556,20 +705,197 @@ static inline int ntb_link_enable(struct ntb_dev *ntb,
 }
 
 /**
- * ntb_link_disable() - disable the link on the secondary side of the ntb
+ * ntb_link_disable() - disable the local port ntb connection
  * @ntb:	NTB device context.
  *
- * Disable the link on the secondary side of the ntb.  This can only be
- * done from the primary side of the ntb in primary or b2b topology.  The ntb
- * device should disable the link.  Returning from this call must indicate that
- * a barrier has passed, though with no more writes may pass in either
- * direction across the link, except if this call returns an error number.
+ * Disable the link on the local or remote (for b2b topology) of the ntb.
+ * The ntb device should disable the link.  Returning from this call must
+ * indicate that a barrier has passed, though with no more writes may pass in
+ * either direction across the link, except if this call returns an error
+ * number.
  *
  * Return: Zero on success, otherwise an error number.
  */
 static inline int ntb_link_disable(struct ntb_dev *ntb)
 {
 	return ntb->ops->link_disable(ntb);
+}
+
+/**
+ * ntb_mw_count() - get the number of inbound memory windows, which could
+ *                  be created for a specified peer device
+ * @ntb:	NTB device context.
+ * @pidx:	Port index of peer device.
+ *
+ * Hardware and topology may support a different number of memory windows.
+ * Moreover different peer devices can support different number of memory
+ * windows. Simply speaking this method returns the number of possible inbound
+ * memory windows to share with specified peer device.
+ *
+ * Return: the number of memory windows.
+ */
+static inline int ntb_mw_count(struct ntb_dev *ntb, int pidx)
+{
+	return ntb->ops->mw_count(ntb, pidx);
+}
+
+/**
+ * ntb_mw_get_align() - get the restriction parameters of inbound memory window
+ * @ntb:	NTB device context.
+ * @pidx:	Port index of peer device.
+ * @widx:	Memory window index.
+ * @addr_align:	OUT - the base alignment for translating the memory window
+ * @size_align:	OUT - the size alignment for translating the memory window
+ * @size_max:	OUT - the maximum size of the memory window
+ *
+ * Get the alignments of an inbound memory window with specified index.
+ * NULL may be given for any output parameter if the value is not needed.
+ * The alignment and size parameters may be used for allocation of proper
+ * shared memory.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_mw_get_align(struct ntb_dev *ntb, int pidx, int widx,
+				   resource_size_t *addr_align,
+				   resource_size_t *size_align,
+				   resource_size_t *size_max)
+{
+	return ntb->ops->mw_get_align(ntb, pidx, widx, addr_align, size_align,
+				      size_max);
+}
+
+/**
+ * ntb_mw_set_trans() - set the translation of an inbound memory window
+ * @ntb:	NTB device context.
+ * @pidx:	Port index of peer device.
+ * @widx:	Memory window index.
+ * @addr:	The dma address of local memory to expose to the peer.
+ * @size:	The size of the local memory to expose to the peer.
+ *
+ * Set the translation of a memory window.  The peer may access local memory
+ * through the window starting at the address, up to the size.  The address
+ * and size must be aligned in compliance with restrictions of
+ * ntb_mw_get_align(). The region size should not exceed the size_max parameter
+ * of that method.
+ *
+ * This method may not be implemented due to the hardware specific memory
+ * windows interface.
+ *
+ * Return: Zero on success, otherwise an error number.
+ */
+static inline int ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
+				   dma_addr_t addr, resource_size_t size)
+{
+	if (!ntb->ops->mw_set_trans)
+		return 0;
+
+	return ntb->ops->mw_set_trans(ntb, pidx, widx, addr, size);
+}
+
+/**
+ * ntb_mw_clear_trans() - clear the translation address of an inbound memory
+ *                        window
+ * @ntb:	NTB device context.
+ * @pidx:	Port index of peer device.
+ * @widx:	Memory window index.
+ *
+ * Clear the translation of an inbound memory window.  The peer may no longer
+ * access local memory through the window.
+ *
+ * Return: Zero on success, otherwise an error number.
+ */
+static inline int ntb_mw_clear_trans(struct ntb_dev *ntb, int pidx, int widx)
+{
+	if (!ntb->ops->mw_clear_trans)
+		return ntb_mw_set_trans(ntb, pidx, widx, 0, 0);
+
+	return ntb->ops->mw_clear_trans(ntb, pidx, widx);
+}
+
+/**
+ * ntb_peer_mw_count() - get the number of outbound memory windows, which could
+ *                       be mapped to access a shared memory
+ * @ntb:	NTB device context.
+ *
+ * Hardware and topology may support a different number of memory windows.
+ * This method returns the number of outbound memory windows supported by
+ * local device.
+ *
+ * Return: the number of memory windows.
+ */
+static inline int ntb_peer_mw_count(struct ntb_dev *ntb)
+{
+	return ntb->ops->peer_mw_count(ntb);
+}
+
+/**
+ * ntb_peer_mw_get_addr() - get map address of an outbound memory window
+ * @ntb:	NTB device context.
+ * @widx:	Memory window index (within ntb_peer_mw_count() return value).
+ * @base:	OUT - the base address of mapping region.
+ * @size:	OUT - the size of mapping region.
+ *
+ * Get base and size of memory region to map.  NULL may be given for any output
+ * parameter if the value is not needed.  The base and size may be used for
+ * mapping the memory window, to access the peer memory.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_peer_mw_get_addr(struct ntb_dev *ntb, int widx,
+				      phys_addr_t *base, resource_size_t *size)
+{
+	return ntb->ops->peer_mw_get_addr(ntb, widx, base, size);
+}
+
+/**
+ * ntb_peer_mw_set_trans() - set a translation address of a memory window
+ *                           retrieved from a peer device
+ * @ntb:	NTB device context.
+ * @pidx:	Port index of peer device the translation address received from.
+ * @widx:	Memory window index.
+ * @addr:	The dma address of the shared memory to access.
+ * @size:	The size of the shared memory to access.
+ *
+ * Set the translation of an outbound memory window.  The local device may
+ * access shared memory allocated by a peer device sent the address.
+ *
+ * This method may not be implemented due to the hardware specific memory
+ * windows interface, so a translation address can be only set on the side,
+ * where shared memory (inbound memory windows) is allocated.
+ *
+ * Return: Zero on success, otherwise an error number.
+ */
+static inline int ntb_peer_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
+					u64 addr, resource_size_t size)
+{
+	if (!ntb->ops->peer_mw_set_trans)
+		return 0;
+
+	return ntb->ops->peer_mw_set_trans(ntb, pidx, widx, addr, size);
+}
+
+/**
+ * ntb_peer_mw_clear_trans() - clear the translation address of an outbound
+ *                             memory window
+ * @ntb:	NTB device context.
+ * @pidx:	Port index of peer device.
+ * @widx:	Memory window index.
+ *
+ * Clear the translation of a outbound memory window.  The local device may no
+ * longer access a shared memory through the window.
+ *
+ * This method may not be implemented due to the hardware specific memory
+ * windows interface.
+ *
+ * Return: Zero on success, otherwise an error number.
+ */
+static inline int ntb_peer_mw_clear_trans(struct ntb_dev *ntb, int pidx,
+					  int widx)
+{
+	if (!ntb->ops->peer_mw_clear_trans)
+		return ntb_peer_mw_set_trans(ntb, pidx, widx, 0, 0);
+
+	return ntb->ops->peer_mw_clear_trans(ntb, pidx, widx);
 }
 
 /**
@@ -900,47 +1226,58 @@ static inline int ntb_spad_is_unsafe(struct ntb_dev *ntb)
  * @ntb:	NTB device context.
  *
  * Hardware and topology may support a different number of scratchpads.
+ * Although it must be the same for all ports per NTB device.
  *
  * Return: the number of scratchpads.
  */
 static inline int ntb_spad_count(struct ntb_dev *ntb)
 {
+	if (!ntb->ops->spad_count)
+		return 0;
+
 	return ntb->ops->spad_count(ntb);
 }
 
 /**
  * ntb_spad_read() - read the local scratchpad register
  * @ntb:	NTB device context.
- * @idx:	Scratchpad index.
+ * @sidx:	Scratchpad index.
  *
  * Read the local scratchpad register, and return the value.
  *
  * Return: The value of the local scratchpad register.
  */
-static inline u32 ntb_spad_read(struct ntb_dev *ntb, int idx)
+static inline u32 ntb_spad_read(struct ntb_dev *ntb, int sidx)
 {
-	return ntb->ops->spad_read(ntb, idx);
+	if (!ntb->ops->spad_read)
+		return ~(u32)0;
+
+	return ntb->ops->spad_read(ntb, sidx);
 }
 
 /**
  * ntb_spad_write() - write the local scratchpad register
  * @ntb:	NTB device context.
- * @idx:	Scratchpad index.
+ * @sidx:	Scratchpad index.
  * @val:	Scratchpad value.
  *
  * Write the value to the local scratchpad register.
  *
  * Return: Zero on success, otherwise an error number.
  */
-static inline int ntb_spad_write(struct ntb_dev *ntb, int idx, u32 val)
+static inline int ntb_spad_write(struct ntb_dev *ntb, int sidx, u32 val)
 {
-	return ntb->ops->spad_write(ntb, idx, val);
+	if (!ntb->ops->spad_write)
+		return -EINVAL;
+
+	return ntb->ops->spad_write(ntb, sidx, val);
 }
 
 /**
  * ntb_peer_spad_addr() - address of the peer scratchpad register
  * @ntb:	NTB device context.
- * @idx:	Scratchpad index.
+ * @pidx:	Port index of peer device.
+ * @sidx:	Scratchpad index.
  * @spad_addr:	OUT - The address of the peer scratchpad register.
  *
  * Return the address of the peer doorbell register.  This may be used, for
@@ -948,45 +1285,213 @@ static inline int ntb_spad_write(struct ntb_dev *ntb, int idx, u32 val)
  *
  * Return: Zero on success, otherwise an error number.
  */
-static inline int ntb_peer_spad_addr(struct ntb_dev *ntb, int idx,
+static inline int ntb_peer_spad_addr(struct ntb_dev *ntb, int pidx, int sidx,
 				     phys_addr_t *spad_addr)
 {
 	if (!ntb->ops->peer_spad_addr)
 		return -EINVAL;
 
-	return ntb->ops->peer_spad_addr(ntb, idx, spad_addr);
+	return ntb->ops->peer_spad_addr(ntb, pidx, sidx, spad_addr);
 }
 
 /**
  * ntb_peer_spad_read() - read the peer scratchpad register
  * @ntb:	NTB device context.
- * @idx:	Scratchpad index.
+ * @pidx:	Port index of peer device.
+ * @sidx:	Scratchpad index.
  *
  * Read the peer scratchpad register, and return the value.
  *
  * Return: The value of the local scratchpad register.
  */
-static inline u32 ntb_peer_spad_read(struct ntb_dev *ntb, int idx)
+static inline u32 ntb_peer_spad_read(struct ntb_dev *ntb, int pidx, int sidx)
 {
 	if (!ntb->ops->peer_spad_read)
-		return 0;
+		return ~(u32)0;
 
-	return ntb->ops->peer_spad_read(ntb, idx);
+	return ntb->ops->peer_spad_read(ntb, pidx, sidx);
 }
 
 /**
  * ntb_peer_spad_write() - write the peer scratchpad register
  * @ntb:	NTB device context.
- * @idx:	Scratchpad index.
+ * @pidx:	Port index of peer device.
+ * @sidx:	Scratchpad index.
  * @val:	Scratchpad value.
  *
  * Write the value to the peer scratchpad register.
  *
  * Return: Zero on success, otherwise an error number.
  */
-static inline int ntb_peer_spad_write(struct ntb_dev *ntb, int idx, u32 val)
+static inline int ntb_peer_spad_write(struct ntb_dev *ntb, int pidx, int sidx,
+				      u32 val)
 {
-	return ntb->ops->peer_spad_write(ntb, idx, val);
+	if (!ntb->ops->peer_spad_write)
+		return -EINVAL;
+
+	return ntb->ops->peer_spad_write(ntb, pidx, sidx, val);
+}
+
+/**
+ * ntb_msg_count() - get the number of message registers
+ * @ntb:	NTB device context.
+ *
+ * Hardware may support a different number of message registers.
+ *
+ * Return: the number of message registers.
+ */
+static inline int ntb_msg_count(struct ntb_dev *ntb)
+{
+	if (!ntb->ops->msg_count)
+		return 0;
+
+	return ntb->ops->msg_count(ntb);
+}
+
+/**
+ * ntb_msg_inbits() - get a bitfield of inbound message registers status
+ * @ntb:	NTB device context.
+ *
+ * The method returns the bitfield of status and mask registers, which related
+ * to inbound message registers.
+ *
+ * Return: bitfield of inbound message registers.
+ */
+static inline u64 ntb_msg_inbits(struct ntb_dev *ntb)
+{
+	if (!ntb->ops->msg_inbits)
+		return 0;
+
+	return ntb->ops->msg_inbits(ntb);
+}
+
+/**
+ * ntb_msg_outbits() - get a bitfield of outbound message registers status
+ * @ntb:	NTB device context.
+ *
+ * The method returns the bitfield of status and mask registers, which related
+ * to outbound message registers.
+ *
+ * Return: bitfield of outbound message registers.
+ */
+static inline u64 ntb_msg_outbits(struct ntb_dev *ntb)
+{
+	if (!ntb->ops->msg_outbits)
+		return 0;
+
+	return ntb->ops->msg_outbits(ntb);
+}
+
+/**
+ * ntb_msg_read_sts() - read the message registers status
+ * @ntb:	NTB device context.
+ *
+ * Read the status of message register. Inbound and outbound message registers
+ * related bits can be filtered by masks retrieved from ntb_msg_inbits() and
+ * ntb_msg_outbits().
+ *
+ * Return: status bits of message registers
+ */
+static inline u64 ntb_msg_read_sts(struct ntb_dev *ntb)
+{
+	if (!ntb->ops->msg_read_sts)
+		return 0;
+
+	return ntb->ops->msg_read_sts(ntb);
+}
+
+/**
+ * ntb_msg_clear_sts() - clear status bits of message registers
+ * @ntb:	NTB device context.
+ * @sts_bits:	Status bits to clear.
+ *
+ * Clear bits in the status register.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_msg_clear_sts(struct ntb_dev *ntb, u64 sts_bits)
+{
+	if (!ntb->ops->msg_clear_sts)
+		return -EINVAL;
+
+	return ntb->ops->msg_clear_sts(ntb, sts_bits);
+}
+
+/**
+ * ntb_msg_set_mask() - set mask of message register status bits
+ * @ntb:	NTB device context.
+ * @mask_bits:	Mask bits.
+ *
+ * Mask the message registers status bits from raising the message event.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_msg_set_mask(struct ntb_dev *ntb, u64 mask_bits)
+{
+	if (!ntb->ops->msg_set_mask)
+		return -EINVAL;
+
+	return ntb->ops->msg_set_mask(ntb, mask_bits);
+}
+
+/**
+ * ntb_msg_clear_mask() - clear message registers mask
+ * @ntb:	NTB device context.
+ * @mask_bits:	Mask bits to clear.
+ *
+ * Clear bits in the message events mask register.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_msg_clear_mask(struct ntb_dev *ntb, u64 mask_bits)
+{
+	if (!ntb->ops->msg_clear_mask)
+		return -EINVAL;
+
+	return ntb->ops->msg_clear_mask(ntb, mask_bits);
+}
+
+/**
+ * ntb_msg_read() - read message register with specified index
+ * @ntb:	NTB device context.
+ * @midx:	Message register index
+ * @pidx:	OUT - Port index of peer device a message retrieved from
+ * @msg:	OUT - Data
+ *
+ * Read data from the specified message register. Source port index of a
+ * message is retrieved as well.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_msg_read(struct ntb_dev *ntb, int midx, int *pidx,
+			       u32 *msg)
+{
+	if (!ntb->ops->msg_read)
+		return -EINVAL;
+
+	return ntb->ops->msg_read(ntb, midx, pidx, msg);
+}
+
+/**
+ * ntb_msg_write() - write data to the specified message register
+ * @ntb:	NTB device context.
+ * @midx:	Message register index
+ * @pidx:	Port index of peer device a message being sent to
+ * @msg:	Data to send
+ *
+ * Send data to a specified peer device using the defined message register.
+ * Message event can be raised if the midx registers isn't empty while
+ * calling this method and the corresponding interrupt isn't masked.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_msg_write(struct ntb_dev *ntb, int midx, int pidx,
+				u32 msg)
+{
+	if (!ntb->ops->msg_write)
+		return -EINVAL;
+
+	return ntb->ops->msg_write(ntb, midx, pidx, msg);
 }
 
 #endif

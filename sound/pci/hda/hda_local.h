@@ -178,67 +178,6 @@ void snd_hda_sync_vmaster_hook(struct hda_vmaster_mute_hook *hook);
 #define HDA_AMP_UNMUTE	0x00
 #define HDA_AMP_VOLMASK	0x7f
 
-/* mono switch binding multiple inputs */
-#define HDA_BIND_MUTE_MONO(xname, nid, channel, indices, direction) \
-	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = 0,  \
-	  .info = snd_hda_mixer_amp_switch_info, \
-	  .get = snd_hda_mixer_bind_switch_get, \
-	  .put = snd_hda_mixer_bind_switch_put, \
-	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, indices, direction) }
-
-/* stereo switch binding multiple inputs */
-#define HDA_BIND_MUTE(xname,nid,indices,dir) \
-	HDA_BIND_MUTE_MONO(xname,nid,3,indices,dir)
-
-int snd_hda_mixer_bind_switch_get(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol);
-int snd_hda_mixer_bind_switch_put(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol);
-
-/* more generic bound controls */
-struct hda_ctl_ops {
-	snd_kcontrol_info_t *info;
-	snd_kcontrol_get_t *get;
-	snd_kcontrol_put_t *put;
-	snd_kcontrol_tlv_rw_t *tlv;
-};
-
-extern struct hda_ctl_ops snd_hda_bind_vol;	/* for bind-volume with TLV */
-extern struct hda_ctl_ops snd_hda_bind_sw;	/* for bind-switch */
-
-struct hda_bind_ctls {
-	struct hda_ctl_ops *ops;
-	unsigned long values[];
-};
-
-int snd_hda_mixer_bind_ctls_info(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_info *uinfo);
-int snd_hda_mixer_bind_ctls_get(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol);
-int snd_hda_mixer_bind_ctls_put(struct snd_kcontrol *kcontrol,
-				struct snd_ctl_elem_value *ucontrol);
-int snd_hda_mixer_bind_tlv(struct snd_kcontrol *kcontrol, int op_flag,
-			   unsigned int size, unsigned int __user *tlv);
-
-#define HDA_BIND_VOL(xname, bindrec) \
-	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
-	  .name = xname, \
-	  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE |\
-			  SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
-			  SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK,\
-	  .info = snd_hda_mixer_bind_ctls_info,\
-	  .get =  snd_hda_mixer_bind_ctls_get,\
-	  .put = snd_hda_mixer_bind_ctls_put,\
-	  .tlv = { .c = snd_hda_mixer_bind_tlv },\
-	  .private_value = (long) (bindrec) }
-#define HDA_BIND_SW(xname, bindrec) \
-	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER,\
-	  .name = xname, \
-	  .info = snd_hda_mixer_bind_ctls_info,\
-	  .get =  snd_hda_mixer_bind_ctls_get,\
-	  .put = snd_hda_mixer_bind_ctls_put,\
-	  .private_value = (long) (bindrec) }
-
 /*
  * SPDIF I/O
  */

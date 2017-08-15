@@ -134,7 +134,9 @@ enum flag_bits {
 	Faulty,			/* device is known to have a fault */
 	In_sync,		/* device is in_sync with rest of array */
 	Bitmap_sync,		/* ..actually, not quite In_sync.  Need a
-				 * bitmap-based recovery to get fully in sync
+				 * bitmap-based recovery to get fully in sync.
+				 * The bit is only meaningful before device
+				 * has been passed to pers->hot_add_disk.
 				 */
 	WriteMostly,		/* Avoid reading if at all possible */
 	AutoDetected,		/* added by auto-detect */
@@ -444,6 +446,9 @@ struct mddev {
 	struct attribute_group		*to_remove;
 
 	struct bio_set			*bio_set;
+	struct bio_set			*sync_set; /* for sync operations like
+						   * metadata and bitmap writes
+						   */
 
 	/* Generic flush handling.
 	 * The last to finish preflush schedules a worker to submit
@@ -510,7 +515,7 @@ struct md_personality
 	int level;
 	struct list_head list;
 	struct module *owner;
-	void (*make_request)(struct mddev *mddev, struct bio *bio);
+	bool (*make_request)(struct mddev *mddev, struct bio *bio);
 	int (*run)(struct mddev *mddev);
 	void (*free)(struct mddev *mddev, void *priv);
 	void (*status)(struct seq_file *seq, struct mddev *mddev);
@@ -649,7 +654,7 @@ extern void md_wakeup_thread(struct md_thread *thread);
 extern void md_check_recovery(struct mddev *mddev);
 extern void md_reap_sync_thread(struct mddev *mddev);
 extern int mddev_init_writes_pending(struct mddev *mddev);
-extern void md_write_start(struct mddev *mddev, struct bio *bi);
+extern bool md_write_start(struct mddev *mddev, struct bio *bi);
 extern void md_write_inc(struct mddev *mddev, struct bio *bi);
 extern void md_write_end(struct mddev *mddev);
 extern void md_done_sync(struct mddev *mddev, int blocks, int ok);
@@ -725,59 +730,5 @@ static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio
 	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
 	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
 		mddev->queue->limits.max_write_zeroes_sectors = 0;
-}
-
-/* Maximum size of each resync request */
-#define RESYNC_BLOCK_SIZE (64*1024)
-#define RESYNC_PAGES ((RESYNC_BLOCK_SIZE + PAGE_SIZE-1) / PAGE_SIZE)
-
-/* for managing resync I/O pages */
-struct resync_pages {
-	unsigned	idx;	/* for get/put page from the pool */
-	void		*raid_bio;
-	struct page	*pages[RESYNC_PAGES];
-};
-
-static inline int resync_alloc_pages(struct resync_pages *rp,
-				     gfp_t gfp_flags)
-{
-	int i;
-
-	for (i = 0; i < RESYNC_PAGES; i++) {
-		rp->pages[i] = alloc_page(gfp_flags);
-		if (!rp->pages[i])
-			goto out_free;
-	}
-
-	return 0;
-
-out_free:
-	while (--i >= 0)
-		put_page(rp->pages[i]);
-	return -ENOMEM;
-}
-
-static inline void resync_free_pages(struct resync_pages *rp)
-{
-	int i;
-
-	for (i = 0; i < RESYNC_PAGES; i++)
-		put_page(rp->pages[i]);
-}
-
-static inline void resync_get_all_pages(struct resync_pages *rp)
-{
-	int i;
-
-	for (i = 0; i < RESYNC_PAGES; i++)
-		get_page(rp->pages[i]);
-}
-
-static inline struct page *resync_fetch_page(struct resync_pages *rp,
-					     unsigned idx)
-{
-	if (WARN_ON_ONCE(idx >= RESYNC_PAGES))
-		return NULL;
-	return rp->pages[idx];
 }
 #endif /* _MD_MD_H */

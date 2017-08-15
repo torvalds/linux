@@ -31,7 +31,7 @@ static struct sg_table *omap_gem_map_dma_buf(
 {
 	struct drm_gem_object *obj = attachment->dmabuf->priv;
 	struct sg_table *sg;
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	int ret;
 
 	sg = kzalloc(sizeof(*sg), GFP_KERNEL);
@@ -41,7 +41,7 @@ static struct sg_table *omap_gem_map_dma_buf(
 	/* camera, etc, need physically contiguous.. but we need a
 	 * better way to know this..
 	 */
-	ret = omap_gem_get_paddr(obj, &paddr, true);
+	ret = omap_gem_pin(obj, &dma_addr);
 	if (ret)
 		goto out;
 
@@ -51,11 +51,11 @@ static struct sg_table *omap_gem_map_dma_buf(
 
 	sg_init_table(sg->sgl, 1);
 	sg_dma_len(sg->sgl) = obj->size;
-	sg_set_page(sg->sgl, pfn_to_page(PFN_DOWN(paddr)), obj->size, 0);
-	sg_dma_address(sg->sgl) = paddr;
+	sg_set_page(sg->sgl, pfn_to_page(PFN_DOWN(dma_addr)), obj->size, 0);
+	sg_dma_address(sg->sgl) = dma_addr;
 
-	/* this should be after _get_paddr() to ensure we have pages attached */
-	omap_gem_dma_sync(obj, dir);
+	/* this must be after omap_gem_pin() to ensure we have pages attached */
+	omap_gem_dma_sync_buffer(obj, dir);
 
 	return sg;
 out:
@@ -67,20 +67,10 @@ static void omap_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 		struct sg_table *sg, enum dma_data_direction dir)
 {
 	struct drm_gem_object *obj = attachment->dmabuf->priv;
-	omap_gem_put_paddr(obj);
+	omap_gem_unpin(obj);
 	sg_free_table(sg);
 	kfree(sg);
 }
-
-static void omap_gem_dmabuf_release(struct dma_buf *buffer)
-{
-	struct drm_gem_object *obj = buffer->priv;
-	/* release reference that was taken when dmabuf was exported
-	 * in omap_gem_prime_set()..
-	 */
-	drm_gem_object_unreference_unlocked(obj);
-}
-
 
 static int omap_gem_dmabuf_begin_cpu_access(struct dma_buf *buffer,
 		enum dma_data_direction dir)
@@ -112,7 +102,7 @@ static void *omap_gem_dmabuf_kmap_atomic(struct dma_buf *buffer,
 	struct drm_gem_object *obj = buffer->priv;
 	struct page **pages;
 	omap_gem_get_pages(obj, &pages, false);
-	omap_gem_cpu_sync(obj, page_num);
+	omap_gem_cpu_sync_page(obj, page_num);
 	return kmap_atomic(pages[page_num]);
 }
 
@@ -128,7 +118,7 @@ static void *omap_gem_dmabuf_kmap(struct dma_buf *buffer,
 	struct drm_gem_object *obj = buffer->priv;
 	struct page **pages;
 	omap_gem_get_pages(obj, &pages, false);
-	omap_gem_cpu_sync(obj, page_num);
+	omap_gem_cpu_sync_page(obj, page_num);
 	return kmap(pages[page_num]);
 }
 
@@ -157,7 +147,7 @@ static int omap_gem_dmabuf_mmap(struct dma_buf *buffer,
 static struct dma_buf_ops omap_dmabuf_ops = {
 	.map_dma_buf = omap_gem_map_dma_buf,
 	.unmap_dma_buf = omap_gem_unmap_dma_buf,
-	.release = omap_gem_dmabuf_release,
+	.release = drm_gem_dmabuf_release,
 	.begin_cpu_access = omap_gem_dmabuf_begin_cpu_access,
 	.end_cpu_access = omap_gem_dmabuf_end_cpu_access,
 	.map_atomic = omap_gem_dmabuf_kmap_atomic,
@@ -177,7 +167,7 @@ struct dma_buf *omap_gem_prime_export(struct drm_device *dev,
 	exp_info.flags = flags;
 	exp_info.priv = obj;
 
-	return dma_buf_export(&exp_info);
+	return drm_gem_dmabuf_export(dev, &exp_info);
 }
 
 /* -----------------------------------------------------------------------------
@@ -210,7 +200,7 @@ struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 
 	get_dma_buf(dma_buf);
 
-	sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+	sgt = dma_buf_map_attachment(attach, DMA_TO_DEVICE);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		goto fail_detach;
@@ -227,7 +217,7 @@ struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 	return obj;
 
 fail_unmap:
-	dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+	dma_buf_unmap_attachment(attach, sgt, DMA_TO_DEVICE);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
 	dma_buf_put(dma_buf);

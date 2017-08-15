@@ -3255,6 +3255,141 @@ Otherwise, if the MCE is a corrected error, KVM will just
 store it in the corresponding bank (provided this bank is
 not holding a previously reported uncorrected error).
 
+4.107 KVM_S390_GET_CMMA_BITS
+
+Capability: KVM_CAP_S390_CMMA_MIGRATION
+Architectures: s390
+Type: vm ioctl
+Parameters: struct kvm_s390_cmma_log (in, out)
+Returns: 0 on success, a negative value on error
+
+This ioctl is used to get the values of the CMMA bits on the s390
+architecture. It is meant to be used in two scenarios:
+- During live migration to save the CMMA values. Live migration needs
+  to be enabled via the KVM_REQ_START_MIGRATION VM property.
+- To non-destructively peek at the CMMA values, with the flag
+  KVM_S390_CMMA_PEEK set.
+
+The ioctl takes parameters via the kvm_s390_cmma_log struct. The desired
+values are written to a buffer whose location is indicated via the "values"
+member in the kvm_s390_cmma_log struct.  The values in the input struct are
+also updated as needed.
+Each CMMA value takes up one byte.
+
+struct kvm_s390_cmma_log {
+	__u64 start_gfn;
+	__u32 count;
+	__u32 flags;
+	union {
+		__u64 remaining;
+		__u64 mask;
+	};
+	__u64 values;
+};
+
+start_gfn is the number of the first guest frame whose CMMA values are
+to be retrieved,
+
+count is the length of the buffer in bytes,
+
+values points to the buffer where the result will be written to.
+
+If count is greater than KVM_S390_SKEYS_MAX, then it is considered to be
+KVM_S390_SKEYS_MAX. KVM_S390_SKEYS_MAX is re-used for consistency with
+other ioctls.
+
+The result is written in the buffer pointed to by the field values, and
+the values of the input parameter are updated as follows.
+
+Depending on the flags, different actions are performed. The only
+supported flag so far is KVM_S390_CMMA_PEEK.
+
+The default behaviour if KVM_S390_CMMA_PEEK is not set is:
+start_gfn will indicate the first page frame whose CMMA bits were dirty.
+It is not necessarily the same as the one passed as input, as clean pages
+are skipped.
+
+count will indicate the number of bytes actually written in the buffer.
+It can (and very often will) be smaller than the input value, since the
+buffer is only filled until 16 bytes of clean values are found (which
+are then not copied in the buffer). Since a CMMA migration block needs
+the base address and the length, for a total of 16 bytes, we will send
+back some clean data if there is some dirty data afterwards, as long as
+the size of the clean data does not exceed the size of the header. This
+allows to minimize the amount of data to be saved or transferred over
+the network at the expense of more roundtrips to userspace. The next
+invocation of the ioctl will skip over all the clean values, saving
+potentially more than just the 16 bytes we found.
+
+If KVM_S390_CMMA_PEEK is set:
+the existing storage attributes are read even when not in migration
+mode, and no other action is performed;
+
+the output start_gfn will be equal to the input start_gfn,
+
+the output count will be equal to the input count, except if the end of
+memory has been reached.
+
+In both cases:
+the field "remaining" will indicate the total number of dirty CMMA values
+still remaining, or 0 if KVM_S390_CMMA_PEEK is set and migration mode is
+not enabled.
+
+mask is unused.
+
+values points to the userspace buffer where the result will be stored.
+
+This ioctl can fail with -ENOMEM if not enough memory can be allocated to
+complete the task, with -ENXIO if CMMA is not enabled, with -EINVAL if
+KVM_S390_CMMA_PEEK is not set but migration mode was not enabled, with
+-EFAULT if the userspace address is invalid or if no page table is
+present for the addresses (e.g. when using hugepages).
+
+4.108 KVM_S390_SET_CMMA_BITS
+
+Capability: KVM_CAP_S390_CMMA_MIGRATION
+Architectures: s390
+Type: vm ioctl
+Parameters: struct kvm_s390_cmma_log (in)
+Returns: 0 on success, a negative value on error
+
+This ioctl is used to set the values of the CMMA bits on the s390
+architecture. It is meant to be used during live migration to restore
+the CMMA values, but there are no restrictions on its use.
+The ioctl takes parameters via the kvm_s390_cmma_values struct.
+Each CMMA value takes up one byte.
+
+struct kvm_s390_cmma_log {
+	__u64 start_gfn;
+	__u32 count;
+	__u32 flags;
+	union {
+		__u64 remaining;
+		__u64 mask;
+	};
+	__u64 values;
+};
+
+start_gfn indicates the starting guest frame number,
+
+count indicates how many values are to be considered in the buffer,
+
+flags is not used and must be 0.
+
+mask indicates which PGSTE bits are to be considered.
+
+remaining is not used.
+
+values points to the buffer in userspace where to store the values.
+
+This ioctl can fail with -ENOMEM if not enough memory can be allocated to
+complete the task, with -ENXIO if CMMA is not enabled, with -EINVAL if
+the count field is too large (e.g. more than KVM_S390_CMMA_SIZE_MAX) or
+if the flags field was not 0, with -EFAULT if the userspace address is
+invalid, if invalid pages are written to (e.g. after the end of memory)
+or if no page table is present for the addresses (e.g. when using
+hugepages).
+
 5. The kvm_run structure
 ------------------------
 
@@ -3996,6 +4131,34 @@ Parameters: none
 Allow use of adapter-interruption suppression.
 Returns: 0 on success; -EBUSY if a VCPU has already been created.
 
+7.11 KVM_CAP_PPC_SMT
+
+Architectures: ppc
+Parameters: vsmt_mode, flags
+
+Enabling this capability on a VM provides userspace with a way to set
+the desired virtual SMT mode (i.e. the number of virtual CPUs per
+virtual core).  The virtual SMT mode, vsmt_mode, must be a power of 2
+between 1 and 8.  On POWER8, vsmt_mode must also be no greater than
+the number of threads per subcore for the host.  Currently flags must
+be 0.  A successful call to enable this capability will result in
+vsmt_mode being returned when the KVM_CAP_PPC_SMT capability is
+subsequently queried for the VM.  This capability is only supported by
+HV KVM, and can only be set before any VCPUs have been created.
+The KVM_CAP_PPC_SMT_POSSIBLE capability indicates which virtual SMT
+modes are available.
+
+7.12 KVM_CAP_PPC_FWNMI
+
+Architectures: ppc
+Parameters: none
+
+With this capability a machine check exception in the guest address
+space will cause KVM to exit the guest with NMI exit reason. This
+enables QEMU to build error log and branch to guest kernel registered
+machine check handling routine. Without this capability KVM will
+branch to guests' 0x200 interrupt vector.
+
 8. Other capabilities.
 ----------------------
 
@@ -4157,3 +4320,30 @@ Currently the following bits are defined for the device_irq_level bitmap:
 Future versions of kvm may implement additional events. These will get
 indicated by returning a higher number from KVM_CHECK_EXTENSION and will be
 listed above.
+
+8.10 KVM_CAP_PPC_SMT_POSSIBLE
+
+Architectures: ppc
+
+Querying this capability returns a bitmap indicating the possible
+virtual SMT modes that can be set using KVM_CAP_PPC_SMT.  If bit N
+(counting from the right) is set, then a virtual SMT mode of 2^N is
+available.
+
+8.11 KVM_CAP_HYPERV_SYNIC2
+
+Architectures: x86
+
+This capability enables a newer version of Hyper-V Synthetic interrupt
+controller (SynIC).  The only difference with KVM_CAP_HYPERV_SYNIC is that KVM
+doesn't clear SynIC message and event flags pages when they are enabled by
+writing to the respective MSRs.
+
+8.12 KVM_CAP_HYPERV_VP_INDEX
+
+Architectures: x86
+
+This capability indicates that userspace can load HV_X64_MSR_VP_INDEX msr.  Its
+value is used to denote the target vcpu for a SynIC interrupt.  For
+compatibilty, KVM initializes this msr to KVM's internal vcpu index.  When this
+capability is absent, userspace can still query this msr's value.
