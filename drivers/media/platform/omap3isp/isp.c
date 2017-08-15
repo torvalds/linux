@@ -2389,7 +2389,7 @@ static const struct dev_pm_ops omap3isp_pm_ops = {
 	.complete = isp_pm_complete,
 };
 
-static struct platform_device_id omap3isp_id_table[] = {
+static const struct platform_device_id omap3isp_id_table[] = {
 	{ "omap3isp", 0 },
 	{ },
 };
