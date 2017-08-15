@@ -950,8 +950,7 @@ static int gmc_v7_0_sw_init(void *handle)
 	 * Currently set to 4GB ((1 << 20) 4k pages).
 	 * Max GPUVM size for cayman and SI is 40 bits.
 	 */
-	amdgpu_vm_adjust_size(adev, 64);
-	adev->vm_manager.fragment_size = 4;
+	amdgpu_vm_adjust_size(adev, 64, 4);
 	adev->vm_manager.max_pfn = adev->vm_manager.vm_size << 18;
 
 	/* Set the internal MC address mask

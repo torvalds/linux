@@ -541,12 +541,11 @@ static int gmc_v9_0_sw_init(void *handle)
 			adev->vm_manager.vm_size = 1U << 18;
 			adev->vm_manager.block_size = 9;
 			adev->vm_manager.num_level = 3;
-			adev->vm_manager.fragment_size = 9;
+			amdgpu_vm_set_fragment_size(adev, 9);
 		} else {
-			/* vm_size is 64GB for legacy 2-level page support*/
-			amdgpu_vm_adjust_size(adev, 64);
+			/* vm_size is 64GB for legacy 2-level page support */
+			amdgpu_vm_adjust_size(adev, 64, 9);
 			adev->vm_manager.num_level = 1;
-			adev->vm_manager.fragment_size = 9;
 		}
 		break;
 	case CHIP_VEGA10:
@@ -560,7 +559,7 @@ static int gmc_v9_0_sw_init(void *handle)
 		adev->vm_manager.vm_size = 1U << 18;
 		adev->vm_manager.block_size = 9;
 		adev->vm_manager.num_level = 3;
-		adev->vm_manager.fragment_size = 9;
+		amdgpu_vm_set_fragment_size(adev, 9);
 		break;
 	default:
 		break;
