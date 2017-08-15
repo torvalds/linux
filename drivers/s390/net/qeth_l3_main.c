@@ -867,7 +867,7 @@ static int qeth_l3_deregister_addr_entry(struct qeth_card *card,
 	return rc;
 }
 
-static inline u8 qeth_l3_get_qeth_hdr_flags4(int cast_type)
+static u8 qeth_l3_get_qeth_hdr_flags4(int cast_type)
 {
 	if (cast_type == RTN_MULTICAST)
 		return QETH_CAST_MULTICAST;
@@ -876,7 +876,7 @@ static inline u8 qeth_l3_get_qeth_hdr_flags4(int cast_type)
 	return QETH_CAST_UNICAST;
 }
 
-static inline u8 qeth_l3_get_qeth_hdr_flags6(int cast_type)
+static u8 qeth_l3_get_qeth_hdr_flags6(int cast_type)
 {
 	u8 ct = QETH_HDR_PASSTHRU | QETH_HDR_IPV6;
 	if (cast_type == RTN_MULTICAST)
@@ -1644,9 +1644,8 @@ static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev,
 	return 0;
 }
 
-static inline int qeth_l3_rebuild_skb(struct qeth_card *card,
-			struct sk_buff *skb, struct qeth_hdr *hdr,
-			unsigned short *vlan_id)
+static int qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
+			       struct qeth_hdr *hdr, unsigned short *vlan_id)
 {
 	__u16 prot;
 	struct iphdr *ip_hdr;
@@ -2396,7 +2395,7 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return rc;
 }
 
-inline int qeth_l3_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
+static int qeth_l3_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 {
 	int cast_type = RTN_UNSPEC;
 	struct neighbour *n = NULL;
@@ -2534,8 +2533,8 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	rcu_read_unlock();
 }
 
-static inline void qeth_l3_hdr_csum(struct qeth_card *card,
-		struct qeth_hdr *hdr, struct sk_buff *skb)
+static void qeth_l3_hdr_csum(struct qeth_card *card, struct qeth_hdr *hdr,
+			     struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 

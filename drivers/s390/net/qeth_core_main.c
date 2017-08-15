@@ -101,7 +101,7 @@ void qeth_close_dev(struct qeth_card *card)
 }
 EXPORT_SYMBOL_GPL(qeth_close_dev);
 
-static inline const char *qeth_get_cardname(struct qeth_card *card)
+static const char *qeth_get_cardname(struct qeth_card *card)
 {
 	if (card->info.guestlan) {
 		switch (card->info.type) {
@@ -330,7 +330,7 @@ static struct qeth_qdio_q *qeth_alloc_qdio_queue(void)
 	return q;
 }
 
-static inline int qeth_cq_init(struct qeth_card *card)
+static int qeth_cq_init(struct qeth_card *card)
 {
 	int rc;
 
@@ -352,7 +352,7 @@ out:
 	return rc;
 }
 
-static inline int qeth_alloc_cq(struct qeth_card *card)
+static int qeth_alloc_cq(struct qeth_card *card)
 {
 	int rc;
 
@@ -397,7 +397,7 @@ kmsg_out:
 	goto out;
 }
 
-static inline void qeth_free_cq(struct qeth_card *card)
+static void qeth_free_cq(struct qeth_card *card)
 {
 	if (card->qdio.c_q) {
 		--card->qdio.no_in_queues;
@@ -408,8 +408,9 @@ static inline void qeth_free_cq(struct qeth_card *card)
 	card->qdio.out_bufstates = NULL;
 }
 
-static inline enum iucv_tx_notify qeth_compute_cq_notification(int sbalf15,
-	int delayed) {
+static enum iucv_tx_notify qeth_compute_cq_notification(int sbalf15,
+							int delayed)
+{
 	enum iucv_tx_notify n;
 
 	switch (sbalf15) {
@@ -432,8 +433,8 @@ static inline enum iucv_tx_notify qeth_compute_cq_notification(int sbalf15,
 	return n;
 }
 
-static inline void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q,
-	int bidx, int forced_cleanup)
+static void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q, int bidx,
+					 int forced_cleanup)
 {
 	if (q->card->options.cq != QETH_CQ_ENABLED)
 		return;
@@ -475,8 +476,9 @@ static inline void qeth_cleanup_handled_pending(struct qeth_qdio_out_q *q,
 }
 
 
-static inline void qeth_qdio_handle_aob(struct qeth_card *card,
-		unsigned long phys_aob_addr) {
+static void qeth_qdio_handle_aob(struct qeth_card *card,
+				 unsigned long phys_aob_addr)
+{
 	struct qaob *aob;
 	struct qeth_qdio_out_buffer *buffer;
 	enum iucv_tx_notify notification;
@@ -2228,7 +2230,7 @@ static int qeth_cm_setup(struct qeth_card *card)
 
 }
 
-static inline int qeth_get_initial_mtu_for_card(struct qeth_card *card)
+static int qeth_get_initial_mtu_for_card(struct qeth_card *card)
 {
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_UNKNOWN:
@@ -2251,7 +2253,7 @@ static inline int qeth_get_initial_mtu_for_card(struct qeth_card *card)
 	}
 }
 
-static inline int qeth_get_mtu_outof_framesize(int framesize)
+static int qeth_get_mtu_outof_framesize(int framesize)
 {
 	switch (framesize) {
 	case 0x4000:
@@ -2267,7 +2269,7 @@ static inline int qeth_get_mtu_outof_framesize(int framesize)
 	}
 }
 
-static inline int qeth_mtu_is_valid(struct qeth_card *card, int mtu)
+static int qeth_mtu_is_valid(struct qeth_card *card, int mtu)
 {
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_OSD:
@@ -2738,8 +2740,8 @@ static void qeth_initialize_working_pool_list(struct qeth_card *card)
 	}
 }
 
-static inline struct qeth_buffer_pool_entry *qeth_find_free_buffer_pool_entry(
-		struct qeth_card *card)
+static struct qeth_buffer_pool_entry *qeth_find_free_buffer_pool_entry(
+					struct qeth_card *card)
 {
 	struct list_head *plh;
 	struct qeth_buffer_pool_entry *entry;
@@ -2870,7 +2872,7 @@ int qeth_init_qdio_queues(struct qeth_card *card)
 }
 EXPORT_SYMBOL_GPL(qeth_init_qdio_queues);
 
-static inline __u8 qeth_get_ipa_adp_type(enum qeth_link_types link_type)
+static __u8 qeth_get_ipa_adp_type(enum qeth_link_types link_type)
 {
 	switch (link_type) {
 	case QETH_LINK_TYPE_HSTR:
@@ -3888,9 +3890,9 @@ int qeth_hdr_chk_and_bounce(struct sk_buff *skb, struct qeth_hdr **hdr, int len)
 }
 EXPORT_SYMBOL_GPL(qeth_hdr_chk_and_bounce);
 
-static inline void __qeth_fill_buffer(struct sk_buff *skb,
-				      struct qeth_qdio_out_buffer *buf,
-				      bool is_first_elem, unsigned int offset)
+static void __qeth_fill_buffer(struct sk_buff *skb,
+			       struct qeth_qdio_out_buffer *buf,
+			       bool is_first_elem, unsigned int offset)
 {
 	struct qdio_buffer *buffer = buf->buffer;
 	int element = buf->next_element_to_fill;
@@ -3951,10 +3953,10 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 	buf->next_element_to_fill = element;
 }
 
-static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
-				   struct qeth_qdio_out_buffer *buf,
-				   struct sk_buff *skb, struct qeth_hdr *hdr,
-				   unsigned int offset, int hd_len)
+static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
+			    struct qeth_qdio_out_buffer *buf,
+			    struct sk_buff *skb, struct qeth_hdr *hdr,
+			    unsigned int offset, int hd_len)
 {
 	struct qdio_buffer *buffer;
 	int flush_cnt = 0, hdr_len;
@@ -4821,7 +4823,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_vm_request_mac);
 
-static inline int qeth_get_qdio_q_format(struct qeth_card *card)
+static int qeth_get_qdio_q_format(struct qeth_card *card)
 {
 	if (card->info.type == QETH_CARD_TYPE_IQD)
 		return QDIO_IQDIO_QFMT;
@@ -4886,9 +4888,12 @@ out:
 	return;
 }
 
-static inline void qeth_qdio_establish_cq(struct qeth_card *card,
-	struct qdio_buffer **in_sbal_ptrs,
-	void (**queue_start_poll) (struct ccw_device *, int, unsigned long)) {
+static void qeth_qdio_establish_cq(struct qeth_card *card,
+				   struct qdio_buffer **in_sbal_ptrs,
+				   void (**queue_start_poll)
+					(struct ccw_device *, int,
+					 unsigned long))
+{
 	int i;
 
 	if (card->options.cq == QETH_CQ_ENABLED) {
@@ -5180,9 +5185,10 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_core_hardsetup_card);
 
-static inline int qeth_create_skb_frag(struct qeth_qdio_buffer *qethbuffer,
-		struct qdio_buffer_element *element,
-		struct sk_buff **pskb, int offset, int *pfrag, int data_len)
+static int qeth_create_skb_frag(struct qeth_qdio_buffer *qethbuffer,
+				struct qdio_buffer_element *element,
+				struct sk_buff **pskb, int offset, int *pfrag,
+				int data_len)
 {
 	struct page *page = virt_to_page(element->addr);
 	if (*pskb == NULL) {

@@ -231,13 +231,7 @@ static void qeth_l2_del_all_macs(struct qeth_card *card)
 	spin_unlock_bh(&card->mclock);
 }
 
-static inline u32 qeth_l2_mac_hash(const u8 *addr)
-{
-	return get_unaligned((u32 *)(&addr[2]));
-}
-
-static inline int qeth_l2_get_cast_type(struct qeth_card *card,
-			struct sk_buff *skb)
+static int qeth_l2_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 {
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return RTN_UNSPEC;
@@ -248,8 +242,8 @@ static inline int qeth_l2_get_cast_type(struct qeth_card *card,
 	return RTN_UNSPEC;
 }
 
-static inline void qeth_l2_hdr_csum(struct qeth_card *card,
-				    struct qeth_hdr *hdr, struct sk_buff *skb)
+static void qeth_l2_hdr_csum(struct qeth_card *card, struct qeth_hdr *hdr,
+			     struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 
@@ -606,13 +600,13 @@ static void qeth_promisc_to_bridge(struct qeth_card *card)
  * only if there is not in the hash table storage already
  *
 */
-static	void
-qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha, u8 is_uc)
+static void qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha,
+			    u8 is_uc)
 {
+	u32 mac_hash = get_unaligned((u32 *)(&ha->addr[2]));
 	struct qeth_mac *mac;
 
-	hash_for_each_possible(card->mac_htable, mac, hnode,
-			qeth_l2_mac_hash(ha->addr)) {
+	hash_for_each_possible(card->mac_htable, mac, hnode, mac_hash) {
 		if (is_uc == mac->is_uc &&
 		    !memcmp(ha->addr, mac->mac_addr, OSA_ADDR_LEN)) {
 			mac->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
@@ -629,9 +623,7 @@ qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha, u8 is_uc)
 	mac->is_uc = is_uc;
 	mac->disp_flag = QETH_DISP_ADDR_ADD;
 
-	hash_add(card->mac_htable, &mac->hnode,
-			qeth_l2_mac_hash(mac->mac_addr));
-
+	hash_add(card->mac_htable, &mac->hnode, mac_hash);
 }
 
 static void qeth_l2_set_rx_mode(struct net_device *dev)
