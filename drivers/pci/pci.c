@@ -522,10 +522,11 @@ struct pci_dev *pci_find_pcie_root_port(struct pci_dev *dev)
 		bridge = pci_upstream_bridge(bridge);
 	}
 
-	if (pci_pcie_type(highest_pcie_bridge) != PCI_EXP_TYPE_ROOT_PORT)
-		return NULL;
+	if (highest_pcie_bridge &&
+	    pci_pcie_type(highest_pcie_bridge) == PCI_EXP_TYPE_ROOT_PORT)
+		return highest_pcie_bridge;
 
-	return highest_pcie_bridge;
+	return NULL;
 }
 EXPORT_SYMBOL(pci_find_pcie_root_port);
 
