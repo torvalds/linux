@@ -2336,6 +2336,7 @@ enum i915_power_well_id {
 #define DONE_REG		_MMIO(0x40b0)
 #define GEN8_PRIVATE_PAT_LO	_MMIO(0x40e0)
 #define GEN8_PRIVATE_PAT_HI	_MMIO(0x40e0 + 4)
+#define GEN10_PAT_INDEX(index)	_MMIO(0x40e0 + index*4)
 #define BSD_HWS_PGA_GEN7	_MMIO(0x04180)
 #define BLT_HWS_PGA_GEN7	_MMIO(0x04280)
 #define VEBOX_HWS_PGA_GEN7	_MMIO(0x04380)
