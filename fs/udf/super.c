@@ -266,8 +266,7 @@ static int udf_sb_alloc_partition_maps(struct super_block *sb, u32 count)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
 
-	sbi->s_partmaps = kcalloc(count, sizeof(struct udf_part_map),
-				  GFP_KERNEL);
+	sbi->s_partmaps = kcalloc(count, sizeof(*sbi->s_partmaps), GFP_KERNEL);
 	if (!sbi->s_partmaps) {
 		udf_err(sb, "Unable to allocate space for %d partition maps\n",
 			count);
@@ -2100,7 +2099,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	uopt.fmode = UDF_INVALID_MODE;
 	uopt.dmode = UDF_INVALID_MODE;
 
-	sbi = kzalloc(sizeof(struct udf_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 
