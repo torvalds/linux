@@ -268,28 +268,8 @@ static int rcar_du_vsp_plane_atomic_check(struct drm_plane *plane,
 					  struct drm_plane_state *state)
 {
 	struct rcar_du_vsp_plane_state *rstate = to_rcar_vsp_plane_state(state);
-	struct rcar_du_vsp_plane *rplane = to_rcar_vsp_plane(plane);
-	struct rcar_du_device *rcdu = rplane->vsp->dev;
 
-	if (!state->fb || !state->crtc) {
-		rstate->format = NULL;
-		return 0;
-	}
-
-	if (state->src_w >> 16 != state->crtc_w ||
-	    state->src_h >> 16 != state->crtc_h) {
-		dev_dbg(rcdu->dev, "%s: scaling not supported\n", __func__);
-		return -EINVAL;
-	}
-
-	rstate->format = rcar_du_format_info(state->fb->format->format);
-	if (rstate->format == NULL) {
-		dev_dbg(rcdu->dev, "%s: unsupported format %08x\n", __func__,
-			state->fb->format->format);
-		return -EINVAL;
-	}
-
-	return 0;
+	return __rcar_du_plane_atomic_check(plane, state, &rstate->format);
 }
 
 static void rcar_du_vsp_plane_atomic_update(struct drm_plane *plane,

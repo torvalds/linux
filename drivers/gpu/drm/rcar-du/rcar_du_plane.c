@@ -565,32 +565,39 @@ void __rcar_du_plane_setup(struct rcar_du_group *rgrp,
 	}
 }
 
-static int rcar_du_plane_atomic_check(struct drm_plane *plane,
-				      struct drm_plane_state *state)
+int __rcar_du_plane_atomic_check(struct drm_plane *plane,
+				 struct drm_plane_state *state,
+				 const struct rcar_du_format_info **format)
 {
-	struct rcar_du_plane_state *rstate = to_rcar_plane_state(state);
-	struct rcar_du_plane *rplane = to_rcar_plane(plane);
-	struct rcar_du_device *rcdu = rplane->group->dev;
+	struct drm_device *dev = plane->dev;
 
 	if (!state->fb || !state->crtc) {
-		rstate->format = NULL;
+		*format = NULL;
 		return 0;
 	}
 
 	if (state->src_w >> 16 != state->crtc_w ||
 	    state->src_h >> 16 != state->crtc_h) {
-		dev_dbg(rcdu->dev, "%s: scaling not supported\n", __func__);
+		dev_dbg(dev->dev, "%s: scaling not supported\n", __func__);
 		return -EINVAL;
 	}
 
-	rstate->format = rcar_du_format_info(state->fb->format->format);
-	if (rstate->format == NULL) {
-		dev_dbg(rcdu->dev, "%s: unsupported format %08x\n", __func__,
+	*format = rcar_du_format_info(state->fb->format->format);
+	if (*format == NULL) {
+		dev_dbg(dev->dev, "%s: unsupported format %08x\n", __func__,
 			state->fb->format->format);
 		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static int rcar_du_plane_atomic_check(struct drm_plane *plane,
+				      struct drm_plane_state *state)
+{
+	struct rcar_du_plane_state *rstate = to_rcar_plane_state(state);
+
+	return __rcar_du_plane_atomic_check(plane, state, &rstate->format);
 }
 
 static void rcar_du_plane_atomic_update(struct drm_plane *plane,
