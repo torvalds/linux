@@ -3890,22 +3890,16 @@ EXPORT_SYMBOL_GPL(qeth_hdr_chk_and_bounce);
 
 static inline void __qeth_fill_buffer(struct sk_buff *skb,
 				      struct qeth_qdio_out_buffer *buf,
-				      bool is_first_elem, int offset)
+				      bool is_first_elem, unsigned int offset)
 {
 	struct qdio_buffer *buffer = buf->buffer;
 	int element = buf->next_element_to_fill;
-	int length = skb_headlen(skb);
+	int length = skb_headlen(skb) - offset;
+	char *data = skb->data + offset;
 	int length_here, cnt;
-	char *data;
 	struct skb_frag_struct *frag;
 
-	data = skb->data;
-
-	if (offset >= 0) {
-		data = skb->data + offset;
-		length -= offset;
-	}
-
+	/* map linear part into buffer element(s) */
 	while (length > 0) {
 		/* length_here is the remaining amount of data in this page */
 		length_here = PAGE_SIZE - ((unsigned long) data % PAGE_SIZE);
@@ -3931,6 +3925,7 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 		element++;
 	}
 
+	/* map page frags into buffer element(s) */
 	for (cnt = 0; cnt < skb_shinfo(skb)->nr_frags; cnt++) {
 		frag = &skb_shinfo(skb)->frags[cnt];
 		data = (char *)page_to_phys(skb_frag_page(frag)) +
@@ -3958,8 +3953,9 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 }
 
 static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
-		struct qeth_qdio_out_buffer *buf, struct sk_buff *skb,
-		struct qeth_hdr *hdr, int offset, int hd_len)
+				   struct qeth_qdio_out_buffer *buf,
+				   struct sk_buff *skb, struct qeth_hdr *hdr,
+				   unsigned int offset, int hd_len)
 {
 	struct qdio_buffer *buffer;
 	int flush_cnt = 0, hdr_len;
@@ -3969,7 +3965,6 @@ static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 	refcount_inc(&skb->users);
 	skb_queue_tail(&buf->skb_list, skb);
 
-	/*check first on TSO ....*/
 	if (hdr->hdr.l3.id == QETH_HEADER_TYPE_TSO) {
 		int element = buf->next_element_to_fill;
 		is_first_elem = false;
@@ -3985,7 +3980,8 @@ static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 		skb->len  -= hdr_len;
 	}
 
-	if (offset >= 0) {
+	/* IQD */
+	if (offset > 0) {
 		int element = buf->next_element_to_fill;
 		is_first_elem = false;
 
@@ -4022,8 +4018,9 @@ static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 }
 
 int qeth_do_send_packet_fast(struct qeth_card *card,
-		struct qeth_qdio_out_q *queue, struct sk_buff *skb,
-		struct qeth_hdr *hdr, int offset, int hd_len)
+			     struct qeth_qdio_out_q *queue, struct sk_buff *skb,
+			     struct qeth_hdr *hdr, unsigned int offset,
+			     int hd_len)
 {
 	struct qeth_qdio_out_buffer *buffer;
 	int index;
@@ -4103,7 +4100,7 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			}
 		}
 	}
-	tmp = qeth_fill_buffer(queue, buffer, skb, hdr, -1, 0);
+	tmp = qeth_fill_buffer(queue, buffer, skb, hdr, 0, 0);
 	queue->next_buf_to_fill = (queue->next_buf_to_fill + tmp) %
 				  QDIO_MAX_BUFFERS_PER_Q;
 	flush_count += tmp;
