@@ -1142,6 +1142,60 @@ static void rockchip_attach_connector_property(struct drm_device *drm)
 	mutex_unlock(&drm->mode_config.mutex);
 }
 
+static void rockchip_drm_set_property_default(struct drm_device *drm)
+{
+	struct drm_connector *connector;
+	struct drm_mode_config *conf = &drm->mode_config;
+	struct drm_atomic_state *state;
+	int ret;
+
+	drm_modeset_lock_all(drm);
+
+	state = drm_atomic_helper_duplicate_state(drm, conf->acquire_ctx);
+	if (!state) {
+		DRM_ERROR("failed to alloc atomic state\n");
+		ret = -ENOMEM;
+		goto err_unlock;
+	}
+	state->acquire_ctx = conf->acquire_ctx;
+
+	drm_for_each_connector(connector, drm) {
+		struct drm_connector_state *connector_state;
+
+		connector_state = drm_atomic_get_connector_state(state,
+								 connector);
+		if (IS_ERR(connector_state))
+			DRM_ERROR("Connector[%d]: Failed to get state\n",
+				  connector->base.id);
+
+#define CONNECTOR_SET_PROP(prop, val) \
+	do { \
+		ret = drm_atomic_connector_set_property(connector, \
+						connector_state, \
+						prop, \
+						val); \
+		if (ret) \
+			DRM_ERROR("Connector[%d]: Failed to initial %s\n", \
+				  connector->base.id, #prop); \
+	} while (0)
+
+		CONNECTOR_SET_PROP(conf->tv_brightness_property, 50);
+		CONNECTOR_SET_PROP(conf->tv_contrast_property, 50);
+		CONNECTOR_SET_PROP(conf->tv_saturation_property, 50);
+		CONNECTOR_SET_PROP(conf->tv_hue_property, 50);
+
+#undef CONNECTOR_SET_PROP
+	}
+
+	ret = drm_atomic_commit(state);
+	WARN_ON(ret == -EDEADLK);
+	if (ret)
+		DRM_ERROR("Failed to update propertys\n");
+
+err_unlock:
+	drm_modeset_unlock_all(drm);
+}
+
 static int rockchip_drm_bind(struct device *dev)
 {
 	struct drm_device *drm_dev;
@@ -1219,6 +1273,8 @@ static int rockchip_drm_bind(struct device *dev)
 		goto err_unbind_all;
 
 	drm_mode_config_reset(drm_dev);
+
+	rockchip_drm_set_property_default(drm_dev);
 
 	/*
 	 * enable drm irq mode.
