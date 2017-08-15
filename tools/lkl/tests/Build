@@ -1,2 +1,2 @@
-boot-y += boot.o
+boot-y += boot.o cla.o
 net-test-y += net-test.o

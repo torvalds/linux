@@ -17,9 +17,10 @@
 #include <windows.h>
 #endif
 
+#include "cla.h"
 #include "test.h"
 
-static struct cl_args {
+static struct {
 	int printk;
 	const char *disk_filename;
 	const char *tap_ifname;
@@ -27,55 +28,16 @@ static struct cl_args {
 	int part;
 } cla;
 
-static struct cl_option {
-	const char *long_name;
-	char short_name;
-	const char *help;
-	int has_arg;
-} options[] = {
-	{"enable-printk", 'p', "show Linux printks", 0},
-	{"disk-file", 'd', "disk file to use", 1},
-	{"partition", 'P', "partition to mount", 1},
-	{"net-tap", 'n', "tap interface to use", 1},
-	{"type", 't', "filesystem type", 1},
+struct cl_arg args[] = {
+	{"printk", 'p', "show Linux printks", 0, CL_ARG_BOOL, &cla.printk},
+	{"disk", 'd', "disk file to use", 1, CL_ARG_STR, &cla.disk_filename},
+	{"partition", 'P', "partition to mount", 1, CL_ARG_INT, &cla.part},
+	{"tap", 'n', "tap interface to use", 1, CL_ARG_STR, &cla.tap_ifname},
+	{"type", 't', "filesystem type", 1, CL_ARG_STR, &cla.fstype},
 	{0},
 };
 
-static int parse_opt(int key, char *arg)
-{
-	switch (key) {
-	case 'p':
-		cla.printk = 1;
-		break;
-	case 'P':
-		cla.part = atoi(arg);
-		break;
-	case 'd':
-		cla.disk_filename = arg;
-		break;
-	case 'n':
-		cla.tap_ifname = arg;
-		break;
-	case 't':
-		cla.fstype = arg;
-		break;
-	default:
-		return -1;
-	}
-
-	return 0;
-}
-
-void printk(const char *str, int len)
-{
-	int ret __attribute__((unused));
-
-	if (cla.printk)
-		ret = write(STDOUT_FILENO, str, len);
-}
-
 #ifndef __MINGW32__
-
 #define sleep_ns 87654321
 int test_nanosleep(char *str, int len)
 {
@@ -837,81 +799,20 @@ static int test_join(char *str, int len)
 	}
 }
 
-static struct cl_option *find_short_opt(char name)
+
+
+
+int main(int argc, const char **argv)
 {
-	struct cl_option *opt;
-
-	for (opt = options; opt->short_name != 0; opt++) {
-		if (opt->short_name == name)
-			return opt;
-	}
-
-	return NULL;
-}
-
-static struct cl_option *find_long_opt(const char *name)
-{
-	struct cl_option *opt;
-
-	for (opt = options; opt->long_name; opt++) {
-		if (strcmp(opt->long_name, name) == 0)
-			return opt;
-	}
-
-	return NULL;
-}
-
-static void print_help(void)
-{
-	struct cl_option *opt;
-
-	printf("usage:\n");
-	for (opt = options; opt->long_name; opt++)
-		printf("-%c, --%-20s %s\n", opt->short_name, opt->long_name,
-		       opt->help);
-}
-
-static int parse_opts(int argc, char **argv)
-{
-	int i;
-
-	for (i = 1; i < argc; i++) {
-		struct cl_option *opt = NULL;
-
-		if (argv[i][0] == '-') {
-			if (argv[i][1] != '-')
-				opt = find_short_opt(argv[i][1]);
-			else
-				opt = find_long_opt(&argv[i][2]);
-		}
-
-		if (!opt) {
-			print_help();
-			return -1;
-		}
-
-		if (parse_opt(opt->short_name, argv[i + 1]) < 0) {
-			print_help();
-			return -1;
-		}
-
-		if (opt->has_arg)
-			i++;
-	}
-
-	return 0;
-}
-
-int main(int argc, char **argv)
-{
-	if (parse_opts(argc, argv) < 0)
+	if (parse_args(argc, argv, args) < 0)
 		return -1;
 
-	lkl_host_ops.print = printk;
 
 	TEST(mutex);
 	TEST(semaphore);
 	TEST(join);
+	if (!cla.printk)
+		lkl_host_ops.print = NULL;
 
 	if (cla.disk_filename)
 		TEST(disk_add);
