@@ -807,8 +807,11 @@ static ssize_t key_store(struct device *dev, struct device_attribute *attr,
 	struct tb_switch *sw = tb_to_switch(dev);
 	u8 key[TB_SWITCH_KEY_SIZE];
 	ssize_t ret = count;
+	bool clear = false;
 
-	if (hex2bin(key, buf, sizeof(key)))
+	if (!strcmp(buf, "\n"))
+		clear = true;
+	else if (hex2bin(key, buf, sizeof(key)))
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(&switch_lock))
@@ -818,9 +821,13 @@ static ssize_t key_store(struct device *dev, struct device_attribute *attr,
 		ret = -EBUSY;
 	} else {
 		kfree(sw->key);
-		sw->key = kmemdup(key, sizeof(key), GFP_KERNEL);
-		if (!sw->key)
-			ret = -ENOMEM;
+		if (clear) {
+			sw->key = NULL;
+		} else {
+			sw->key = kmemdup(key, sizeof(key), GFP_KERNEL);
+			if (!sw->key)
+				ret = -ENOMEM;
+		}
 	}
 
 	mutex_unlock(&switch_lock);
