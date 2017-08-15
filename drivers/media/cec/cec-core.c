@@ -112,10 +112,6 @@ static int __must_check cec_devnode_register(struct cec_devnode *devnode,
 	int minor;
 	int ret;
 
-	/* Initialization */
-	INIT_LIST_HEAD(&devnode->fhs);
-	mutex_init(&devnode->lock);
-
 	/* Part 1: Find a free minor number */
 	mutex_lock(&cec_devnode_lock);
 	minor = find_next_zero_bit(cec_devnode_nums, CEC_NUM_DEVICES, 0);
@@ -241,6 +237,10 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	INIT_LIST_HEAD(&adap->transmit_queue);
 	INIT_LIST_HEAD(&adap->wait_queue);
 	init_waitqueue_head(&adap->kthread_waitq);
+
+	/* adap->devnode initialization */
+	INIT_LIST_HEAD(&adap->devnode.fhs);
+	mutex_init(&adap->devnode.lock);
 
 	adap->kthread = kthread_run(cec_thread_func, adap, "cec-%s", name);
 	if (IS_ERR(adap->kthread)) {
