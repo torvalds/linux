@@ -76,8 +76,6 @@
 #define LINK_UP_TIMEOUT			HZ
 #define LINK_RETRAIN_TIMEOUT		HZ
 
-#define INTX_NUM			4
-
 #define DWORD_MASK			3
 
 struct altera_pcie {
@@ -464,6 +462,7 @@ static int altera_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 
 static const struct irq_domain_ops intx_domain_ops = {
 	.map = altera_pcie_intx_map,
+	.xlate = pci_irqd_intx_xlate,
 };
 
 static void altera_pcie_isr(struct irq_desc *desc)
@@ -481,11 +480,11 @@ static void altera_pcie_isr(struct irq_desc *desc)
 
 	while ((status = cra_readl(pcie, P2A_INT_STATUS)
 		& P2A_INT_STS_ALL) != 0) {
-		for_each_set_bit(bit, &status, INTX_NUM) {
+		for_each_set_bit(bit, &status, PCI_NUM_INTX) {
 			/* clear interrupts */
 			cra_writel(pcie, 1 << bit, P2A_INT_STATUS);
 
-			virq = irq_find_mapping(pcie->irq_domain, bit + 1);
+			virq = irq_find_mapping(pcie->irq_domain, bit);
 			if (virq)
 				generic_handle_irq(virq);
 			else
@@ -536,7 +535,7 @@ static int altera_pcie_init_irq_domain(struct altera_pcie *pcie)
 	struct device_node *node = dev->of_node;
 
 	/* Setup INTx */
-	pcie->irq_domain = irq_domain_add_linear(node, INTX_NUM + 1,
+	pcie->irq_domain = irq_domain_add_linear(node, PCI_NUM_INTX,
 					&intx_domain_ops, pcie);
 	if (!pcie->irq_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
