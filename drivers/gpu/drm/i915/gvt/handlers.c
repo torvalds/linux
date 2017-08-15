@@ -113,9 +113,17 @@ static int new_mmio_info(struct intel_gvt *gvt,
 
 		info->offset = i;
 		p = find_mmio_info(gvt, info->offset);
-		if (p)
-			gvt_err("dup mmio definition offset %x\n",
+		if (p) {
+			WARN(1, "dup mmio definition offset %x\n",
 				info->offset);
+			kfree(info);
+
+			/* We return -EEXIST here to make GVT-g load fail.
+			 * So duplicated MMIO can be found as soon as
+			 * possible.
+			 */
+			return -EEXIST;
+		}
 
 		info->ro_mask = ro_mask;
 		info->device = device;
@@ -2583,7 +2591,6 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(0x24d0, 48, F_CMD_ACCESS, 0, 0, D_BDW_PLUS,
 		NULL, force_nonpriv_write);
 
-	MMIO_D(0x22040, D_BDW_PLUS);
 	MMIO_D(0x44484, D_BDW_PLUS);
 	MMIO_D(0x4448c, D_BDW_PLUS);
 
@@ -2641,7 +2648,6 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(HSW_PWR_WELL_BIOS, D_SKL_PLUS);
 	MMIO_DH(HSW_PWR_WELL_DRIVER, D_SKL_PLUS, NULL,
 						skl_power_well_ctl_write);
-	MMIO_DH(GEN6_PCODE_MAILBOX, D_SKL_PLUS, NULL, mailbox_write);
 
 	MMIO_D(0xa210, D_SKL_PLUS);
 	MMIO_D(GEN9_MEDIA_PG_IDLE_HYSTERESIS, D_SKL_PLUS);
@@ -2833,7 +2839,6 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(0x320f0, D_SKL | D_KBL);
 
 	MMIO_DFH(_REG_VCS2_EXCC, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(_REG_VECS_EXCC, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_D(0x70034, D_SKL_PLUS);
 	MMIO_D(0x71034, D_SKL_PLUS);
 	MMIO_D(0x72034, D_SKL_PLUS);
@@ -2851,10 +2856,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 		NULL, NULL);
 
 	MMIO_D(0x4ab8, D_KBL);
-	MMIO_D(0x940c, D_SKL_PLUS);
 	MMIO_D(0x2248, D_SKL_PLUS | D_KBL);
-	MMIO_D(0x4ab0, D_SKL | D_KBL);
-	MMIO_D(0x20d4, D_SKL | D_KBL);
 
 	return 0;
 }
