@@ -3011,6 +3011,23 @@ void gpiod_set_raw_array_value_cansleep(unsigned int array_size,
 EXPORT_SYMBOL_GPL(gpiod_set_raw_array_value_cansleep);
 
 /**
+ * gpiod_add_lookup_tables() - register GPIO device consumers
+ * @tables: list of tables of consumers to register
+ * @n: number of tables in the list
+ */
+void gpiod_add_lookup_tables(struct gpiod_lookup_table **tables, size_t n)
+{
+	unsigned int i;
+
+	mutex_lock(&gpio_lookup_lock);
+
+	for (i = 0; i < n; i++)
+		list_add_tail(&tables[i]->list, &gpio_lookup_list);
+
+	mutex_unlock(&gpio_lookup_lock);
+}
+
+/**
  * gpiod_set_array_value_cansleep() - assign values to an array of GPIOs
  * @array_size: number of elements in the descriptor / value arrays
  * @desc_array: array of GPIO descriptors whose values will be assigned
