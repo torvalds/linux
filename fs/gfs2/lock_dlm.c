@@ -1059,6 +1059,7 @@ static void free_recover_size(struct lm_lockstruct *ls)
 	ls->ls_recover_submit = NULL;
 	ls->ls_recover_result = NULL;
 	ls->ls_recover_size = 0;
+	ls->ls_lvb_bits = NULL;
 }
 
 /* dlm calls before it does lock recovery */
