@@ -371,6 +371,47 @@ int power_supply_is_system_supplied(void)
 }
 EXPORT_SYMBOL_GPL(power_supply_is_system_supplied);
 
+static int __power_supply_get_supplier_max_current(struct device *dev,
+						   void *data)
+{
+	union power_supply_propval ret = {0,};
+	struct power_supply *epsy = dev_get_drvdata(dev);
+	struct power_supply *psy = data;
+
+	if (__power_supply_is_supplied_by(epsy, psy))
+		if (!epsy->desc->get_property(epsy,
+					      POWER_SUPPLY_PROP_CURRENT_MAX,
+					      &ret))
+			return ret.intval;
+
+	return 0;
+}
+
+int power_supply_set_input_current_limit_from_supplier(struct power_supply *psy)
+{
+	union power_supply_propval val = {0,};
+	int curr;
+
+	if (!psy->desc->set_property)
+		return -EINVAL;
+
+	/*
+	 * This function is not intended for use with a supply with multiple
+	 * suppliers, we simply pick the first supply to report a non 0
+	 * max-current.
+	 */
+	curr = class_for_each_device(power_supply_class, NULL, psy,
+				      __power_supply_get_supplier_max_current);
+	if (curr <= 0)
+		return (curr == 0) ? -ENODEV : curr;
+
+	val.intval = curr;
+
+	return psy->desc->set_property(psy,
+				POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT, &val);
+}
+EXPORT_SYMBOL_GPL(power_supply_set_input_current_limit_from_supplier);
+
 int power_supply_set_battery_charged(struct power_supply *psy)
 {
 	if (atomic_read(&psy->use_cnt) >= 0 &&
