@@ -808,9 +808,6 @@ static ssize_t key_store(struct device *dev, struct device_attribute *attr,
 	u8 key[TB_SWITCH_KEY_SIZE];
 	ssize_t ret = count;
 
-	if (count < 64)
-		return -EINVAL;
-
 	if (hex2bin(key, buf, sizeof(key)))
 		return -EINVAL;
 
