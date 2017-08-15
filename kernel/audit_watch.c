@@ -66,7 +66,7 @@ static struct fsnotify_group *audit_watch_group;
 
 /* fsnotify events we care about. */
 #define AUDIT_FS_WATCH (FS_MOVE | FS_CREATE | FS_DELETE | FS_DELETE_SELF |\
-			FS_MOVE_SELF | FS_EVENT_ON_CHILD)
+			FS_MOVE_SELF | FS_EVENT_ON_CHILD | FS_UNMOUNT)
 
 static void audit_free_parent(struct audit_parent *parent)
 {
