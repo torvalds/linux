@@ -36,7 +36,7 @@ static bool use_msi = true;
 module_param(use_msi, bool, 0644);
 MODULE_PARM_DESC(use_msi, "set 0 to use legacy interrupt");
 
-static unsigned int tx_bd_size_param = 256;
+static unsigned int tx_bd_size_param = 32;
 module_param(tx_bd_size_param, uint, 0644);
 MODULE_PARM_DESC(tx_bd_size_param, "Tx descriptors queue size");
 
