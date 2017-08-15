@@ -1,0 +1,24 @@
+/*
+ * Device Tree Source for the iWave-RZG1E-G22M SODIMM SOM
+ *
+ * Copyright (C) 2017 Renesas Electronics Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+#include "r8a7745.dtsi"
+
+/ {
+	compatible = "iwave,g22m", "renesas,r8a7745";
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0 0x40000000 0 0x20000000>;
+	};
+};
+
+&extal_clk {
+	clock-frequency = <20000000>;
+};
