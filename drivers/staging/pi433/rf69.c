@@ -197,7 +197,7 @@ int rf69_set_deviation(struct spi_device *spi, u32 deviation)
 	lsb = (f_reg&0xff);
 
 	// check msb
-	if (msb & !FDEVMASB_MASK) {
+	if (msb & ~FDEVMASB_MASK) {
 		dev_dbg(&spi->dev, "set_deviation: err in calc of msb");
 		INVALID_PARAM;
 	}
