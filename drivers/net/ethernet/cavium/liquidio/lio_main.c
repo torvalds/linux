@@ -175,12 +175,6 @@ struct handshake {
 	int started_ok;
 };
 
-struct octeon_device_priv {
-	/** Tasklet structures for this device. */
-	struct tasklet_struct droq_tasklet;
-	unsigned long napi_mask;
-};
-
 #ifdef CONFIG_PCI_IOV
 static int liquidio_enable_sriov(struct pci_dev *dev, int num_vfs);
 #endif
@@ -907,27 +901,6 @@ static inline void update_link_status(struct net_device *netdev,
 	}
 }
 
-static
-int liquidio_schedule_msix_droq_pkt_handler(struct octeon_droq *droq, u64 ret)
-{
-	struct octeon_device *oct = droq->oct_dev;
-	struct octeon_device_priv *oct_priv =
-	    (struct octeon_device_priv *)oct->priv;
-
-	if (droq->ops.poll_mode) {
-		droq->ops.napi_fn(droq);
-	} else {
-		if (ret & MSIX_PO_INT) {
-			tasklet_schedule(&oct_priv->droq_tasklet);
-			return 1;
-		}
-		/* this will be flushed periodically by check iq db */
-		if (ret & MSIX_PI_INT)
-			return 0;
-	}
-	return 0;
-}
-
 /**
  * \brief Droq packet processor sceduler
  * @param oct octeon device
@@ -955,22 +928,6 @@ static void liquidio_schedule_droq_pkt_handlers(struct octeon_device *oct)
 			}
 		}
 	}
-}
-
-static irqreturn_t
-liquidio_msix_intr_handler(int irq __attribute__((unused)), void *dev)
-{
-	u64 ret;
-	struct octeon_ioq_vector *ioq_vector = (struct octeon_ioq_vector *)dev;
-	struct octeon_device *oct = ioq_vector->oct_dev;
-	struct octeon_droq *droq = oct->droq[ioq_vector->droq_index];
-
-	ret = oct->fn_list.msix_interrupt_handler(ioq_vector);
-
-	if ((ret & MSIX_PO_INT) || (ret & MSIX_PI_INT))
-		liquidio_schedule_msix_droq_pkt_handler(droq, ret);
-
-	return IRQ_HANDLED;
 }
 
 /**

@@ -788,3 +788,44 @@ int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx)
 
 	return 0;
 }
+
+static
+int liquidio_schedule_msix_droq_pkt_handler(struct octeon_droq *droq, u64 ret)
+{
+	struct octeon_device *oct = droq->oct_dev;
+	struct octeon_device_priv *oct_priv =
+	    (struct octeon_device_priv *)oct->priv;
+
+	if (droq->ops.poll_mode) {
+		droq->ops.napi_fn(droq);
+	} else {
+		if (ret & MSIX_PO_INT) {
+			if (OCTEON_CN23XX_VF(oct))
+				dev_err(&oct->pci_dev->dev,
+					"should not come here should not get rx when poll mode = 0 for vf\n");
+			tasklet_schedule(&oct_priv->droq_tasklet);
+			return 1;
+		}
+		/* this will be flushed periodically by check iq db */
+		if (ret & MSIX_PI_INT)
+			return 0;
+	}
+
+	return 0;
+}
+
+irqreturn_t
+liquidio_msix_intr_handler(int irq __attribute__((unused)), void *dev)
+{
+	struct octeon_ioq_vector *ioq_vector = (struct octeon_ioq_vector *)dev;
+	struct octeon_device *oct = ioq_vector->oct_dev;
+	struct octeon_droq *droq = oct->droq[ioq_vector->droq_index];
+	u64 ret;
+
+	ret = oct->fn_list.msix_interrupt_handler(ioq_vector);
+
+	if (ret & MSIX_PO_INT || ret & MSIX_PI_INT)
+		liquidio_schedule_msix_droq_pkt_handler(droq, ret);
+
+	return IRQ_HANDLED;
+}

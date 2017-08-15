@@ -169,6 +169,9 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr);
 
 int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx);
 
+irqreturn_t liquidio_msix_intr_handler(int irq __attribute__((unused)),
+				       void *dev);
+
 /**
  * \brief Register ethtool operations
  * @param netdev    pointer to network device

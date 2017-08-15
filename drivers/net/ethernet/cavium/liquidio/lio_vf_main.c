@@ -107,12 +107,6 @@ struct octnic_gather {
 	dma_addr_t sg_dma_ptr;
 };
 
-struct octeon_device_priv {
-	/* Tasklet structures for this device. */
-	struct tasklet_struct droq_tasklet;
-	unsigned long napi_mask;
-};
-
 static int
 liquidio_vf_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void liquidio_vf_remove(struct pci_dev *pdev);
@@ -646,45 +640,6 @@ static void update_link_status(struct net_device *netdev,
 					   &lio->link_status_wq.wk.work, 0);
 		}
 	}
-}
-
-static
-int liquidio_schedule_msix_droq_pkt_handler(struct octeon_droq *droq, u64 ret)
-{
-	struct octeon_device *oct = droq->oct_dev;
-	struct octeon_device_priv *oct_priv =
-	    (struct octeon_device_priv *)oct->priv;
-
-	if (droq->ops.poll_mode) {
-		droq->ops.napi_fn(droq);
-	} else {
-		if (ret & MSIX_PO_INT) {
-			dev_err(&oct->pci_dev->dev,
-				"should not come here should not get rx when poll mode = 0 for vf\n");
-			tasklet_schedule(&oct_priv->droq_tasklet);
-			return 1;
-		}
-		/* this will be flushed periodically by check iq db */
-		if (ret & MSIX_PI_INT)
-			return 0;
-	}
-	return 0;
-}
-
-static irqreturn_t
-liquidio_msix_intr_handler(int irq __attribute__((unused)), void *dev)
-{
-	struct octeon_ioq_vector *ioq_vector = (struct octeon_ioq_vector *)dev;
-	struct octeon_device *oct = ioq_vector->oct_dev;
-	struct octeon_droq *droq = oct->droq[ioq_vector->droq_index];
-	u64 ret;
-
-	ret = oct->fn_list.msix_interrupt_handler(ioq_vector);
-
-	if ((ret & MSIX_PO_INT) || (ret & MSIX_PI_INT))
-		liquidio_schedule_msix_droq_pkt_handler(droq, ret);
-
-	return IRQ_HANDLED;
 }
 
 /**
