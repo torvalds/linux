@@ -183,6 +183,7 @@ static int aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 {
 	int ret;
 	int i;
+	unsigned int rev_id;
 
 	for (i = 0; i < expr->ndescs; i++) {
 		const struct aspeed_sig_desc *desc = &expr->descs[i];
@@ -213,8 +214,22 @@ static int aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
 		if (desc->ip == ASPEED_IP_SCU && desc->reg == HW_STRAP2)
 			continue;
 
-		ret = regmap_update_bits(maps[desc->ip], desc->reg,
-					 desc->mask, val);
+		/* On AST2500, Set bits in SCU7C are cleared from SCU70 */
+		if (desc->ip == ASPEED_IP_SCU && desc->reg == HW_STRAP1) {
+			ret = regmap_read(maps[ASPEED_IP_SCU],
+				HW_REVISION_ID, &rev_id);
+			if (ret < 0)
+				return ret;
+
+			if (0x04 == ((rev_id >> 24) & 0xff))
+				ret = regmap_write(maps[desc->ip],
+					HW_REVISION_ID, (~val & desc->mask));
+			else
+				ret = regmap_update_bits(maps[desc->ip],
+					desc->reg, desc->mask, val);
+		} else
+			ret = regmap_update_bits(maps[desc->ip], desc->reg,
+				desc->mask, val);
 
 		if (ret)
 			return ret;
