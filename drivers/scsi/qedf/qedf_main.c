@@ -2989,7 +2989,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 
 	sprintf(host_buf, "qedf_%u_link",
 	    qedf->lport->host->host_no);
-	qedf->link_update_wq = create_singlethread_workqueue(host_buf);
+	qedf->link_update_wq = create_workqueue(host_buf);
 	INIT_DELAYED_WORK(&qedf->link_update, qedf_handle_link_update);
 	INIT_DELAYED_WORK(&qedf->link_recovery, qedf_link_recovery);
 
@@ -3159,7 +3159,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	/* Start LL2 processing thread */
 	snprintf(host_buf, 20, "qedf_%d_ll2", host->host_no);
 	qedf->ll2_recv_wq =
-		create_singlethread_workqueue(host_buf);
+		create_workqueue(host_buf);
 	if (!qedf->ll2_recv_wq) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Failed to LL2 workqueue.\n");
 		goto err7;
@@ -3201,7 +3201,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 
 	sprintf(host_buf, "qedf_%u_timer", qedf->lport->host->host_no);
 	qedf->timer_work_queue =
-		create_singlethread_workqueue(host_buf);
+		create_workqueue(host_buf);
 	if (!qedf->timer_work_queue) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Failed to start timer "
 			  "workqueue.\n");
@@ -3212,7 +3212,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	if (mode != QEDF_MODE_RECOVERY) {
 		sprintf(host_buf, "qedf_%u_dpc",
 		    qedf->lport->host->host_no);
-		qedf->dpc_wq = create_singlethread_workqueue(host_buf);
+		qedf->dpc_wq = create_workqueue(host_buf);
 	}
 
 	/*
