@@ -746,7 +746,68 @@ static struct vio_driver vcc_driver = {
 	.name		= "vcc",
 };
 
-static const struct tty_operations vcc_ops;
+static int vcc_open(struct tty_struct *tty, struct file *vcc_file)
+{
+	struct vcc_port *port;
+
+	if (unlikely(!tty)) {
+		pr_err("VCC: open: Invalid TTY handle\n");
+		return -ENXIO;
+	}
+
+	if (tty->count > 1)
+		return -EBUSY;
+
+	port = vcc_get_ne(tty->index);
+	if (unlikely(!port)) {
+		pr_err("VCC: open: Failed to find VCC port\n");
+		return -ENODEV;
+	}
+
+	if (unlikely(!port->vio.lp)) {
+		pr_err("VCC: open: LDC channel not configured\n");
+		vcc_put(port, false);
+		return -EPIPE;
+	}
+	vccdbgl(port->vio.lp);
+
+	vcc_put(port, false);
+
+	if (unlikely(!tty->port)) {
+		pr_err("VCC: open: TTY port not found\n");
+		return -ENXIO;
+	}
+
+	if (unlikely(!tty->port->ops)) {
+		pr_err("VCC: open: TTY ops not defined\n");
+		return -ENXIO;
+	}
+
+	return tty_port_open(tty->port, tty, vcc_file);
+}
+
+static void vcc_close(struct tty_struct *tty, struct file *vcc_file)
+{
+	if (unlikely(!tty)) {
+		pr_err("VCC: close: Invalid TTY handle\n");
+		return;
+	}
+
+	if (unlikely(tty->count > 1))
+		return;
+
+	if (unlikely(!tty->port)) {
+		pr_err("VCC: close: TTY port not found\n");
+		return;
+	}
+
+	tty_port_close(tty->port, tty, vcc_file);
+}
+
+static const struct tty_operations vcc_ops = {
+	.open	= vcc_open,
+	.close	= vcc_close,
+};
 
 #define VCC_TTY_FLAGS   (TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_REAL_RAW)
 
