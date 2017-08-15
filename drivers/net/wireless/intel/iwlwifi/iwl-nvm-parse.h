@@ -93,7 +93,8 @@ void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
  */
 void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 		     struct iwl_nvm_data *data, const __le16 *nvm_ch_flags,
-		     u8 tx_chains, u8 rx_chains, bool lar_supported);
+		     u8 tx_chains, u8 rx_chains, bool lar_supported,
+		     bool no_wide_in_5ghz);
 
 /**
  * iwl_parse_mcc_info - parse MCC (mobile country code) info coming from FW
