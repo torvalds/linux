@@ -183,17 +183,13 @@ static int test_net_init(int argc, const char **argv)
 		break;
 	}
 
-	if (!nd) {
-		fprintf(stderr, "add netdev (%d) failed\n", cla.backend);
-		return -1;
+	if (nd) {
+		nd_id = lkl_netdev_add(nd, NULL);
+		if (nd_id < 0) {
+			fprintf(stderr, "failed to add netdev: %s\n",
+				lkl_strerror(nd_id));
+		}
 	}
-
-	ret = lkl_netdev_add(nd, NULL);
-	if (ret < 0) {
-		fprintf(stderr, "failed to add netdev: %s\n",
-			lkl_strerror(ret));
-	}
-	nd_id = ret;
 
 	if (!cla.printk)
 		lkl_host_ops.print = NULL;

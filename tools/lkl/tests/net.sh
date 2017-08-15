@@ -33,6 +33,9 @@ function clear_work_dir {
 
 trap clear_work_dir EXIT
 
+echo "== Loopback (LKL net) tests =="
+./net-test --dst 127.0.0.1
+
 echo "== PIPE (LKL net) tests =="
 if [ -z `which mkfifo` ]; then
     echo "WARNIG: no mkfifo command, skipping PIPE tests."
