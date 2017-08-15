@@ -686,14 +686,21 @@ static irqreturn_t qtnf_interrupt(int irq, void *data)
 	if (!(status & priv->pcie_irq_mask))
 		goto irq_done;
 
-	if (status & PCIE_HDP_INT_RX_BITS) {
+	if (status & PCIE_HDP_INT_RX_BITS)
 		priv->pcie_irq_rx_count++;
+
+	if (status & PCIE_HDP_INT_TX_BITS)
+		priv->pcie_irq_tx_count++;
+
+	if (status & PCIE_HDP_INT_HHBM_UF)
+		priv->pcie_irq_uf_count++;
+
+	if (status & PCIE_HDP_INT_RX_BITS) {
 		qtnf_dis_rxdone_irq(priv);
 		napi_schedule(&bus->mux_napi);
 	}
 
 	if (status & PCIE_HDP_INT_TX_BITS) {
-		priv->pcie_irq_tx_count++;
 		qtnf_dis_txdone_irq(priv);
 		tasklet_hi_schedule(&priv->reclaim_tq);
 	}
@@ -1104,6 +1111,10 @@ static int qtnf_dbg_irq_stats(struct seq_file *s, void *data)
 	status = reg &  PCIE_HDP_INT_RX_BITS;
 	seq_printf(s, "pcie_irq_rx_status(%s)\n",
 		   (status == PCIE_HDP_INT_RX_BITS) ? "EN" : "DIS");
+	seq_printf(s, "pcie_irq_uf_count(%u)\n", priv->pcie_irq_uf_count);
+	status = reg &  PCIE_HDP_INT_HHBM_UF;
+	seq_printf(s, "pcie_irq_hhbm_uf_status(%s)\n",
+		   (status == PCIE_HDP_INT_HHBM_UF) ? "EN" : "DIS");
 
 	return 0;
 }
@@ -1189,6 +1200,7 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pcie_priv->pcie_irq_count = 0;
 	pcie_priv->pcie_irq_rx_count = 0;
 	pcie_priv->pcie_irq_tx_count = 0;
+	pcie_priv->pcie_irq_uf_count = 0;
 	pcie_priv->tx_reclaim_done = 0;
 	pcie_priv->tx_reclaim_req = 0;
 

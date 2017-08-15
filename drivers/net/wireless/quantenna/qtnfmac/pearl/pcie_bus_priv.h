@@ -78,6 +78,7 @@ struct qtnf_pcie_bus_priv {
 	u32 pcie_irq_count;
 	u32 pcie_irq_rx_count;
 	u32 pcie_irq_tx_count;
+	u32 pcie_irq_uf_count;
 	u32 tx_full_count;
 	u32 tx_done_count;
 	u32 tx_reclaim_done;
