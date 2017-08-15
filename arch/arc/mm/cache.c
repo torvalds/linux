@@ -1173,7 +1173,7 @@ noinline void __init arc_ioc_setup(void)
 	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, order_base_2(mem_sz >> 10) - 2);
 
 	/* for now assume kernel base is start of IOC aperture */
-	ioc_base = CONFIG_LINUX_LINK_BASE;
+	ioc_base = CONFIG_LINUX_RAM_BASE;
 
 	if (ioc_base % mem_sz != 0)
 		panic("IOC Aperture start must be aligned to the size of the aperture");
