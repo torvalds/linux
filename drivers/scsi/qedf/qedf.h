@@ -443,7 +443,6 @@ extern void qedf_cmd_mgr_free(struct qedf_cmd_mgr *cmgr);
 extern int qedf_queuecommand(struct Scsi_Host *host,
 	struct scsi_cmnd *sc_cmd);
 extern void qedf_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb);
-extern void qedf_update_src_mac(struct fc_lport *lport, u8 *addr);
 extern u8 *qedf_get_src_mac(struct fc_lport *lport);
 extern void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb);
 extern void qedf_fcoe_send_vlan_req(struct qedf_ctx *qedf);

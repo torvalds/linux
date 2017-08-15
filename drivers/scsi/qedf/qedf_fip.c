@@ -242,26 +242,9 @@ void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
 	}
 }
 
-void qedf_update_src_mac(struct fc_lport *lport, u8 *addr)
-{
-	struct qedf_ctx *qedf = lport_priv(lport);
-
-	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-	    "Setting data_src_addr=%pM.\n", addr);
-	ether_addr_copy(qedf->data_src_addr, addr);
-}
-
 u8 *qedf_get_src_mac(struct fc_lport *lport)
 {
-	u8 mac[ETH_ALEN];
-	u8 port_id[3];
 	struct qedf_ctx *qedf = lport_priv(lport);
 
-	/* We need to use the lport port_id to create the data_src_addr */
-	if (is_zero_ether_addr(qedf->data_src_addr)) {
-		hton24(port_id, lport->port_id);
-		fc_fcoe_set_mac(mac, port_id);
-		qedf->ctlr.update_mac(lport, mac);
-	}
 	return qedf->data_src_addr;
 }
