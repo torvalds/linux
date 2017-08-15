@@ -1386,6 +1386,11 @@ struct dcn10_dpp {
 	int lb_bits_per_entry;
 	bool is_write_to_ram_a_safe;
 };
+
+void dcn10_dpp_set_scaler_manual_scale(
+	struct transform *xfm_base,
+	const struct scaler_data *scl_data);
+
 bool dcn10_dpp_construct(struct dcn10_dpp *xfm110,
 	struct dc_context *ctx,
 	uint32_t inst,
