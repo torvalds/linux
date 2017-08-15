@@ -2023,6 +2023,10 @@ enum {
 };
 
 enum {
+	MLX5_QPC_OFFLOAD_TYPE_RNDV  = 0x1,
+};
+
+enum {
 	MLX5_QPC_END_PADDING_MODE_SCATTER_AS_IS                = 0x0,
 	MLX5_QPC_END_PADDING_MODE_PAD_TO_CACHE_LINE_ALIGNMENT  = 0x1,
 };
@@ -2065,7 +2069,8 @@ struct mlx5_ifc_qpc_bits {
 	u8         st[0x8];
 	u8         reserved_at_10[0x3];
 	u8         pm_state[0x2];
-	u8         reserved_at_15[0x7];
+	u8         reserved_at_15[0x3];
+	u8         offload_type[0x4];
 	u8         end_padding_mode[0x2];
 	u8         reserved_at_1e[0x2];
 
@@ -3010,7 +3015,7 @@ struct mlx5_ifc_xrqc_bits {
 
 	struct mlx5_ifc_tag_matching_topology_context_bits tag_matching_topology_context;
 
-	u8         reserved_at_180[0x880];
+	u8         reserved_at_180[0x280];
 
 	struct mlx5_ifc_wq_bits wq;
 };
