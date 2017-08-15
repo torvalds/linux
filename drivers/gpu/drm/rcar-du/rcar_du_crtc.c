@@ -319,7 +319,8 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 		struct rcar_du_plane *plane = &rcrtc->group->planes[i];
 		unsigned int j;
 
-		if (plane->plane.state->crtc != &rcrtc->crtc)
+		if (plane->plane.state->crtc != &rcrtc->crtc ||
+		    !plane->plane.state->visible)
 			continue;
 
 		/* Insert the plane in the sorted planes array. */

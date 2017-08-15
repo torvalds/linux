@@ -332,8 +332,8 @@ static void rcar_du_plane_write(struct rcar_du_group *rgrp,
 static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
 					const struct rcar_du_plane_state *state)
 {
-	unsigned int src_x = state->state.src_x >> 16;
-	unsigned int src_y = state->state.src_y >> 16;
+	unsigned int src_x = state->state.src.x1 >> 16;
+	unsigned int src_y = state->state.src.y1 >> 16;
 	unsigned int index = state->hwindex;
 	unsigned int pitch;
 	bool interlaced;
@@ -357,7 +357,7 @@ static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
 			dma[i] = gem->paddr + fb->offsets[i];
 		}
 	} else {
-		pitch = state->state.src_w >> 16;
+		pitch = drm_rect_width(&state->state.src) >> 16;
 		dma[0] = 0;
 		dma[1] = 0;
 	}
@@ -521,6 +521,7 @@ static void rcar_du_plane_setup_format(struct rcar_du_group *rgrp,
 				       const struct rcar_du_plane_state *state)
 {
 	struct rcar_du_device *rcdu = rgrp->dev;
+	const struct drm_rect *dst = &state->state.dst;
 
 	if (rcdu->info->gen < 3)
 		rcar_du_plane_setup_format_gen2(rgrp, index, state);
@@ -528,10 +529,10 @@ static void rcar_du_plane_setup_format(struct rcar_du_group *rgrp,
 		rcar_du_plane_setup_format_gen3(rgrp, index, state);
 
 	/* Destination position and size */
-	rcar_du_plane_write(rgrp, index, PnDSXR, state->state.crtc_w);
-	rcar_du_plane_write(rgrp, index, PnDSYR, state->state.crtc_h);
-	rcar_du_plane_write(rgrp, index, PnDPXR, state->state.crtc_x);
-	rcar_du_plane_write(rgrp, index, PnDPYR, state->state.crtc_y);
+	rcar_du_plane_write(rgrp, index, PnDSXR, drm_rect_width(dst));
+	rcar_du_plane_write(rgrp, index, PnDSYR, drm_rect_height(dst));
+	rcar_du_plane_write(rgrp, index, PnDPXR, dst->x1);
+	rcar_du_plane_write(rgrp, index, PnDPYR, dst->y1);
 
 	if (rcdu->info->gen < 3) {
 		/* Wrap-around and blinking, disabled */
@@ -570,16 +571,39 @@ int __rcar_du_plane_atomic_check(struct drm_plane *plane,
 				 const struct rcar_du_format_info **format)
 {
 	struct drm_device *dev = plane->dev;
+	struct drm_crtc_state *crtc_state;
+	struct drm_rect clip;
+	int ret;
 
-	if (!state->fb || !state->crtc) {
+	if (!state->crtc) {
+		/*
+		 * The visible field is not reset by the DRM core but only
+		 * updated by drm_plane_helper_check_state(), set it manually.
+		 */
+		state->visible = false;
 		*format = NULL;
 		return 0;
 	}
 
-	if (state->src_w >> 16 != state->crtc_w ||
-	    state->src_h >> 16 != state->crtc_h) {
-		dev_dbg(dev->dev, "%s: scaling not supported\n", __func__);
-		return -EINVAL;
+	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	clip.x1 = 0;
+	clip.y1 = 0;
+	clip.x2 = crtc_state->mode.hdisplay;
+	clip.y2 = crtc_state->mode.vdisplay;
+
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  true, true);
+	if (ret < 0)
+		return ret;
+
+	if (!state->visible) {
+		*format = NULL;
+		return 0;
 	}
 
 	*format = rcar_du_format_info(state->fb->format->format);
@@ -607,7 +631,7 @@ static void rcar_du_plane_atomic_update(struct drm_plane *plane,
 	struct rcar_du_plane_state *old_rstate;
 	struct rcar_du_plane_state *new_rstate;
 
-	if (!plane->state->crtc)
+	if (!plane->state->visible)
 		return;
 
 	rcar_du_plane_setup(rplane);
