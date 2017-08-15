@@ -3897,7 +3897,6 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 	int length = skb_headlen(skb) - offset;
 	char *data = skb->data + offset;
 	int length_here, cnt;
-	struct skb_frag_struct *frag;
 
 	/* map linear part into buffer element(s) */
 	while (length > 0) {
@@ -3927,10 +3926,10 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 
 	/* map page frags into buffer element(s) */
 	for (cnt = 0; cnt < skb_shinfo(skb)->nr_frags; cnt++) {
-		frag = &skb_shinfo(skb)->frags[cnt];
-		data = (char *)page_to_phys(skb_frag_page(frag)) +
-			frag->page_offset;
-		length = frag->size;
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[cnt];
+
+		data = skb_frag_address(frag);
+		length = skb_frag_size(frag);
 		while (length > 0) {
 			length_here = PAGE_SIZE -
 				((unsigned long) data % PAGE_SIZE);
@@ -3976,8 +3975,7 @@ static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 		buffer->element[element].length = hdr_len;
 		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
 		buf->next_element_to_fill++;
-		skb->data += hdr_len;
-		skb->len  -= hdr_len;
+		skb_pull(skb, hdr_len);
 	}
 
 	/* IQD */

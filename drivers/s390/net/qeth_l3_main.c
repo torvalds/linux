@@ -2570,7 +2570,7 @@ static void qeth_tso_fill_header(struct qeth_card *card,
 	hdr->ext.hdr_len     = 28;
 	/*insert non-fix values */
 	hdr->ext.mss = skb_shinfo(skb)->gso_size;
-	hdr->ext.dg_hdr_len = (__u16)(iph->ihl*4 + tcph->doff*4);
+	hdr->ext.dg_hdr_len = (__u16)(ip_hdrlen(skb) + tcp_hdrlen(skb));
 	hdr->ext.payload_len = (__u16)(skb->len - hdr->ext.dg_hdr_len -
 				       sizeof(struct qeth_hdr_tso));
 	tcph->check = 0;
@@ -2663,7 +2663,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 
 	/* Ignore segment size from skb_is_gso(), 1 page is always used. */
 	use_tso = skb_is_gso(skb) &&
-		  (qeth_get_ip_protocol(skb) == IPPROTO_TCP) && (ipv == 4);
+		  (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4);
 
 	if (card->info.type == QETH_CARD_TYPE_IQD) {
 		new_skb = skb;

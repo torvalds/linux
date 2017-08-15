@@ -752,11 +752,11 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 			if (!hdr)
 				goto tx_drop;
 			elements_needed++;
-			skb_reset_mac_header(new_skb);
 			qeth_l2_fill_header(card, hdr, new_skb, cast_type);
 			hdr->hdr.l2.pkt_length = new_skb->len;
-			memcpy(((char *)hdr) + sizeof(struct qeth_hdr),
-				skb_mac_header(new_skb), ETH_HLEN);
+			skb_copy_from_linear_data(new_skb,
+						  ((char *)hdr) + sizeof(*hdr),
+						  ETH_HLEN);
 		} else {
 			/* create a clone with writeable headroom */
 			new_skb = skb_realloc_headroom(skb,
@@ -764,7 +764,6 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 			if (!new_skb)
 				goto tx_drop;
 			hdr = skb_push(new_skb, sizeof(struct qeth_hdr));
-			skb_set_mac_header(new_skb, sizeof(struct qeth_hdr));
 			qeth_l2_fill_header(card, hdr, new_skb, cast_type);
 			if (new_skb->ip_summed == CHECKSUM_PARTIAL)
 				qeth_l2_hdr_csum(card, hdr, new_skb);

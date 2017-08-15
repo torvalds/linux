@@ -857,11 +857,6 @@ static inline int qeth_get_ip_version(struct sk_buff *skb)
 	}
 }
 
-static inline int qeth_get_ip_protocol(struct sk_buff *skb)
-{
-	return ip_hdr(skb)->protocol;
-}
-
 static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
 		struct qeth_buffer_pool_entry *entry)
 {
