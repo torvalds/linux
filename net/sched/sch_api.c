@@ -749,6 +749,7 @@ void qdisc_tree_reduce_backlog(struct Qdisc *sch, unsigned int n,
 	const struct Qdisc_class_ops *cops;
 	unsigned long cl;
 	u32 parentid;
+	bool notify;
 	int drops;
 
 	if (n == 0 && len == 0)
@@ -761,6 +762,13 @@ void qdisc_tree_reduce_backlog(struct Qdisc *sch, unsigned int n,
 
 		if (sch->flags & TCQ_F_NOPARENT)
 			break;
+		/* Notify parent qdisc only if child qdisc becomes empty.
+		 *
+		 * If child was empty even before update then backlog
+		 * counter is screwed and we skip notification because
+		 * parent class is already passive.
+		 */
+		notify = !sch->q.qlen && !WARN_ON_ONCE(!n);
 		/* TODO: perform the search on a per txq basis */
 		sch = qdisc_lookup(qdisc_dev(sch), TC_H_MAJ(parentid));
 		if (sch == NULL) {
@@ -768,7 +776,7 @@ void qdisc_tree_reduce_backlog(struct Qdisc *sch, unsigned int n,
 			break;
 		}
 		cops = sch->ops->cl_ops;
-		if (cops->qlen_notify) {
+		if (notify && cops->qlen_notify) {
 			cl = cops->get(sch, parentid);
 			cops->qlen_notify(sch, cl);
 			cops->put(sch, cl);

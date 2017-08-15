@@ -1221,10 +1221,8 @@ hfsc_qlen_notify(struct Qdisc *sch, unsigned long arg)
 {
 	struct hfsc_class *cl = (struct hfsc_class *)arg;
 
-	if (cl->qdisc->q.qlen == 0) {
-		update_vf(cl, 0, 0);
-		set_passive(cl);
-	}
+	update_vf(cl, 0, 0);
+	set_passive(cl);
 }
 
 static unsigned long
