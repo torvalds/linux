@@ -4108,7 +4108,9 @@ F:	include/linux/dax.h
 F:	include/trace/events/fs_dax.h
 
 DIRECTORY NOTIFICATION (DNOTIFY)
-M:	Eric Paris <eparis@parisplace.org>
+M:	Jan Kara <jack@suse.cz>
+R:	Amir Goldstein <amir73il@gmail.com>
+L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 F:	Documentation/filesystems/dnotify.txt
 F:	fs/notify/dnotify/
@@ -5198,7 +5200,9 @@ F:	Documentation/hwmon/f71805f
 F:	drivers/hwmon/f71805f.c
 
 FANOTIFY
-M:	Eric Paris <eparis@redhat.com>
+M:	Jan Kara <jack@suse.cz>
+R:	Amir Goldstein <amir73il@gmail.com>
+L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 F:	fs/notify/fanotify/
 F:	include/linux/fanotify.h
@@ -6673,9 +6677,9 @@ S:	Maintained
 F:	drivers/mtd/nand/jz4780_*
 
 INOTIFY
-M:	John McCutchan <john@johnmccutchan.com>
-M:	Robert Love <rlove@rlove.org>
-M:	Eric Paris <eparis@parisplace.org>
+M:	Jan Kara <jack@suse.cz>
+R:	Amir Goldstein <amir73il@gmail.com>
+L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 F:	Documentation/filesystems/inotify.txt
 F:	fs/notify/inotify/
