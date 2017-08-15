@@ -179,7 +179,8 @@ static unsigned char *ses_get_page2_descriptor(struct enclosure_device *edev,
 	unsigned char *type_ptr = ses_dev->page1_types;
 	unsigned char *desc_ptr = ses_dev->page2 + 8;
 
-	ses_recv_diag(sdev, 2, ses_dev->page2, ses_dev->page2_len);
+	if (ses_recv_diag(sdev, 2, ses_dev->page2, ses_dev->page2_len) < 0)
+		return NULL;
 
 	for (i = 0; i < ses_dev->page1_num_types; i++, type_ptr += 4) {
 		for (j = 0; j < type_ptr[1]; j++) {
