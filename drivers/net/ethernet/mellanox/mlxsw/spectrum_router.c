@@ -2397,7 +2397,7 @@ mlxsw_sp_fib6_entry_offload_set(struct mlxsw_sp_fib_entry *fib_entry)
 
 	if (fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_LOCAL) {
 		list_first_entry(&fib6_entry->rt6_list, struct mlxsw_sp_rt6,
-				 list)->rt->rt6i_flags |= RTF_OFFLOAD;
+				 list)->rt->rt6i_nh_flags |= RTNH_F_OFFLOAD;
 		return;
 	}
 
@@ -2407,9 +2407,9 @@ mlxsw_sp_fib6_entry_offload_set(struct mlxsw_sp_fib_entry *fib_entry)
 
 		nh = mlxsw_sp_rt6_nexthop(nh_grp, mlxsw_sp_rt6);
 		if (nh && nh->offloaded)
-			mlxsw_sp_rt6->rt->rt6i_flags |= RTF_OFFLOAD;
+			mlxsw_sp_rt6->rt->rt6i_nh_flags |= RTNH_F_OFFLOAD;
 		else
-			mlxsw_sp_rt6->rt->rt6i_flags &= ~RTF_OFFLOAD;
+			mlxsw_sp_rt6->rt->rt6i_nh_flags &= ~RTNH_F_OFFLOAD;
 	}
 }
 
@@ -2424,7 +2424,7 @@ mlxsw_sp_fib6_entry_offload_unset(struct mlxsw_sp_fib_entry *fib_entry)
 	list_for_each_entry(mlxsw_sp_rt6, &fib6_entry->rt6_list, list) {
 		struct rt6_info *rt = mlxsw_sp_rt6->rt;
 
-		rt->rt6i_flags &= ~RTF_OFFLOAD;
+		rt->rt6i_nh_flags &= ~RTNH_F_OFFLOAD;
 	}
 }
 

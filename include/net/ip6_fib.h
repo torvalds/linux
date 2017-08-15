@@ -120,6 +120,8 @@ struct rt6_info {
 
 	atomic_t			rt6i_ref;
 
+	unsigned int			rt6i_nh_flags;
+
 	/* These are in a separate cache line. */
 	struct rt6key			rt6i_dst ____cacheline_aligned_in_smp;
 	u32				rt6i_flags;
