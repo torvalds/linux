@@ -762,7 +762,7 @@ static int qtnf_rx_poll(struct napi_struct *napi, int budget)
 				ndev->stats.rx_bytes += skb->len;
 
 				skb->protocol = eth_type_trans(skb, ndev);
-				netif_receive_skb(skb);
+				napi_gro_receive(napi, skb);
 			} else {
 				pr_debug("drop untagged skb\n");
 				bus->mux_dev.stats.rx_dropped++;
