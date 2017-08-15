@@ -108,7 +108,6 @@ void qedf_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
 	struct qedf_ctx *qedf = container_of(fip, struct qedf_ctx, ctlr);
 	struct ethhdr *eth_hdr;
-	struct vlan_ethhdr *vlan_hdr;
 	struct fip_header *fiph;
 	u16 op, vlan_tci = 0;
 	u8 sub;
@@ -124,16 +123,14 @@ void qedf_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	op = ntohs(fiph->fip_op);
 	sub = fiph->fip_subcode;
 
-	if (!qedf->vlan_hw_insert) {
-		vlan_hdr = skb_push(skb, sizeof(*vlan_hdr) - sizeof(*eth_hdr));
-		memcpy(vlan_hdr, eth_hdr, 2 * ETH_ALEN);
-		vlan_hdr->h_vlan_proto = htons(ETH_P_8021Q);
-		vlan_hdr->h_vlan_encapsulated_proto = eth_hdr->h_proto;
-		vlan_hdr->h_vlan_TCI = vlan_tci =  htons(qedf->vlan_id);
-	}
+	/*
+	 * Add VLAN tag to non-offload FIP frame based on current stored VLAN
+	 * for FIP/FCoE traffic.
+	 */
+	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), qedf->vlan_id);
 
-	/* Update eth_hdr since we added a VLAN tag */
-	eth_hdr = (struct ethhdr *)skb_mac_header(skb);
+	/* Get VLAN ID from skb for printing purposes */
+	__vlan_hwaccel_get_tag(skb, &vlan_tci);
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_LL2, "FIP frame send: "
 	    "dest=%pM op=%x sub=%x vlan=%04x.", eth_hdr->h_dest, op, sub,
@@ -174,7 +171,6 @@ void qedf_fip_recv(struct qedf_ctx *qedf, struct sk_buff *skb)
 	/* Handle FIP VLAN resp in the driver */
 	if (op == FIP_OP_VLAN && sub == FIP_SC_VL_NOTE) {
 		qedf_fcoe_process_vlan_resp(qedf, skb);
-		qedf->vlan_hw_insert = 0;
 		kfree_skb(skb);
 	} else if (op == FIP_OP_CTRL && sub == FIP_SC_CLR_VLINK) {
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC, "Clear virtual "

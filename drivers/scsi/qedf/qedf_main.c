@@ -164,7 +164,7 @@ static void qedf_handle_link_update(struct work_struct *work)
 		QEDF_WARN(&(qedf->dbg_ctx), "Did not receive FIP VLAN "
 			   "response, falling back to default VLAN %d.\n",
 			   qedf_fallback_vlan);
-		qedf_set_vlan_id(qedf, QEDF_FALLBACK_VLAN);
+		qedf_set_vlan_id(qedf, qedf_fallback_vlan);
 
 		/*
 		 * Zero out data_src_addr so we'll update it with the new
@@ -361,8 +361,9 @@ static void qedf_link_recovery(struct work_struct *work)
 	/* Since the link when down and up to verify which vlan we're on */
 	qedf->fipvlan_retries = qedf_fipvlan_retries;
 	rc = qedf_initiate_fipvlan_req(qedf);
+	/* If getting the VLAN fails, set the VLAN to the fallback one */
 	if (!rc)
-		return;
+		qedf_set_vlan_id(qedf, qedf_fallback_vlan);
 
 	/*
 	 * We need to wait for an FCF to be selected due to the
@@ -964,6 +965,10 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	skb->mac_len = elen;
 	skb->protocol = htons(ETH_P_FCOE);
 
+	/*
+	 * Add VLAN tag to non-offload FCoE frame based on current stored VLAN
+	 * for FIP/FCoE traffic.
+	 */
 	__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), qedf->vlan_id);
 
 	/* fill up mac and fcoe headers */
@@ -3174,8 +3179,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	}
 	set_bit(QEDF_LL2_STARTED, &qedf->flags);
 
-	/* hw will be insterting vlan tag*/
-	qedf->vlan_hw_insert = 1;
+	/* Set initial FIP/FCoE VLAN to NULL */
 	qedf->vlan_id = 0;
 
 	/*
