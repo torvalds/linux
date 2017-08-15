@@ -1457,6 +1457,12 @@ retry:
 		goto retry;
 	}
 
+	// make sure flushsnap messages are sent in proper order.
+	if (ci->i_ceph_flags & CEPH_I_KICK_FLUSH) {
+		__kick_flushing_caps(mdsc, session, ci, 0);
+		ci->i_ceph_flags &= ~CEPH_I_KICK_FLUSH;
+	}
+
 	__ceph_flush_snaps(ci, session);
 out:
 	spin_unlock(&ci->i_ceph_lock);
@@ -1904,11 +1910,7 @@ ack:
 		    (ci->i_ceph_flags &
 		     (CEPH_I_KICK_FLUSH | CEPH_I_FLUSH_SNAPS))) {
 			if (ci->i_ceph_flags & CEPH_I_KICK_FLUSH) {
-				spin_lock(&mdsc->cap_dirty_lock);
-				oldest_flush_tid = __get_oldest_flush_tid(mdsc);
-				spin_unlock(&mdsc->cap_dirty_lock);
-				__kick_flushing_caps(mdsc, session, ci,
-						     oldest_flush_tid);
+				__kick_flushing_caps(mdsc, session, ci, 0);
 				ci->i_ceph_flags &= ~CEPH_I_KICK_FLUSH;
 			}
 			if (ci->i_ceph_flags & CEPH_I_FLUSH_SNAPS)
