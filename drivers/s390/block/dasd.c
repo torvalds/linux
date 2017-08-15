@@ -1665,7 +1665,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 {
 	struct dasd_ccw_req *cqr, *next;
 	struct dasd_device *device;
-	unsigned long long now;
+	unsigned long now;
 	int nrf_suppressed = 0;
 	int fp_suppressed = 0;
 	u8 *sense = NULL;

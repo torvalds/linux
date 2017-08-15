@@ -176,7 +176,7 @@ static inline cycles_t get_cycles(void)
 	return (cycles_t) get_tod_clock() >> 2;
 }
 
-int get_phys_clock(unsigned long long *clock);
+int get_phys_clock(unsigned long *clock);
 void init_cpu_timer(void);
 unsigned long long monotonic_clock(void);
 

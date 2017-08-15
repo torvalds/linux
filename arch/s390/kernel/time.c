@@ -357,7 +357,7 @@ static unsigned long clock_sync_flags;
  * source. If the clock mode is local it will return -EOPNOTSUPP and
  * -EAGAIN if the clock is not in sync with the external reference.
  */
-int get_phys_clock(unsigned long long *clock)
+int get_phys_clock(unsigned long *clock)
 {
 	atomic_t *sw_ptr;
 	unsigned int sw0, sw1;

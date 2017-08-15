@@ -196,10 +196,10 @@ struct dasd_ccw_req {
 	void *function; 		/* originating ERP action */
 
 	/* these are for statistics only */
-	unsigned long long buildclk;	/* TOD-clock of request generation */
-	unsigned long long startclk;	/* TOD-clock of request start */
-	unsigned long long stopclk;	/* TOD-clock of request interrupt */
-	unsigned long long endclk;	/* TOD-clock of request termination */
+	unsigned long buildclk;		/* TOD-clock of request generation */
+	unsigned long startclk;		/* TOD-clock of request start */
+	unsigned long stopclk;		/* TOD-clock of request interrupt */
+	unsigned long endclk;		/* TOD-clock of request termination */
 
         /* Callback that is called after reaching final status. */
 	void (*callback)(struct dasd_ccw_req *, void *data);
@@ -423,7 +423,7 @@ struct dasd_path {
 	u8 chpid;
 	struct dasd_conf_data *conf_data;
 	atomic_t error_count;
-	unsigned long long errorclk;
+	unsigned long errorclk;
 };
 
 
@@ -539,7 +539,7 @@ struct dasd_block {
 	struct block_device *bdev;
 	atomic_t open_count;
 
-	unsigned long long blocks; /* size of volume in blocks */
+	unsigned long blocks;	   /* size of volume in blocks */
 	unsigned int bp_block;	   /* bytes per block */
 	unsigned int s2b_shift;	   /* log2 (bp_block/512) */
 
