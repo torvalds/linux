@@ -28,6 +28,7 @@ obj-$(CONFIG_SUN8I_H3_CCU)	+= ccu-sun8i-h3.o
 obj-$(CONFIG_SUN8I_V3S_CCU)	+= ccu-sun8i-v3s.o
 obj-$(CONFIG_SUN8I_DE2_CCU)	+= ccu-sun8i-de2.o
 obj-$(CONFIG_SUN8I_R_CCU)	+= ccu-sun8i-r.o
+obj-$(CONFIG_SUN8I_R40_CCU)	+= ccu-sun8i-r40.o
 obj-$(CONFIG_SUN9I_A80_CCU)	+= ccu-sun9i-a80.o
 obj-$(CONFIG_SUN9I_A80_CCU)	+= ccu-sun9i-a80-de.o
 obj-$(CONFIG_SUN9I_A80_CCU)	+= ccu-sun9i-a80-usb.o

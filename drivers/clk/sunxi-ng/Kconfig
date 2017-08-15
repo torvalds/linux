@@ -48,6 +48,11 @@ config SUN8I_V3S_CCU
 config SUN8I_DE2_CCU
 	bool "Support for the Allwinner SoCs DE2 CCU"
 
+config SUN8I_R40_CCU
+	bool "Support for the Allwinner R40 CCU"
+	default MACH_SUN8I
+	depends on MACH_SUN8I || COMPILE_TEST
+
 config SUN9I_A80_CCU
 	bool "Support for the Allwinner A80 CCU"
 	default MACH_SUN9I
