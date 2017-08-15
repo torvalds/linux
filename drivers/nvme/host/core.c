@@ -1167,7 +1167,7 @@ static void nvme_config_discard(struct nvme_ns *ns)
 static int nvme_revalidate_ns(struct nvme_ns *ns, struct nvme_id_ns **id)
 {
 	if (nvme_identify_ns(ns->ctrl, ns->ns_id, id)) {
-		dev_warn(ns->ctrl->dev, "%s: Identify failure\n", __func__);
+		dev_warn(ns->ctrl->device, "Identify namespace failed\n");
 		return -ENODEV;
 	}
 
