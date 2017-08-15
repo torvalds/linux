@@ -80,6 +80,7 @@ struct intel_gvt_device_info {
 struct intel_vgpu_gm {
 	u64 aperture_sz;
 	u64 hidden_sz;
+	void *aperture_va;
 	struct drm_mm_node low_gm_node;
 	struct drm_mm_node high_gm_node;
 };
@@ -473,6 +474,13 @@ int intel_vgpu_emulate_cfg_read(struct intel_vgpu *vgpu, unsigned int offset,
 
 int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes);
+
+static inline u64 intel_vgpu_get_bar_gpa(struct intel_vgpu *vgpu, int bar)
+{
+	/* We are 64bit bar. */
+	return (*(u64 *)(vgpu->cfg_space.virtual_cfg_space + bar)) &
+			PCI_BASE_ADDRESS_MEM_MASK;
+}
 
 void intel_gvt_clean_opregion(struct intel_gvt *gvt);
 int intel_gvt_init_opregion(struct intel_gvt *gvt);
