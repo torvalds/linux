@@ -1147,7 +1147,7 @@ SYSCALL_DEFINE3(cacheflush, uint32_t, start, uint32_t, sz, uint32_t, flags)
  */
 noinline void __init arc_ioc_setup(void)
 {
-	unsigned int ap_sz;
+	unsigned int ioc_base, mem_sz;
 
 	/* Flush + invalidate + disable L1 dcache */
 	__dc_disable();
@@ -1156,18 +1156,29 @@ noinline void __init arc_ioc_setup(void)
 	if (read_aux_reg(ARC_REG_SLC_BCR))
 		slc_entire_op(OP_FLUSH_N_INV);
 
-	/* IOC Aperture start: TDB: handle non default CONFIG_LINUX_LINK_BASE */
-	write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
-
 	/*
-	 * IOC Aperture size:
-	 *   decoded as 2 ^ (SIZE + 2) KB: so setting 0x11 implies 512M
+	 * currently IOC Aperture covers entire DDR
 	 * TBD: fix for PGU + 1GB of low mem
 	 * TBD: fix for PAE
 	 */
-	ap_sz = order_base_2(arc_get_mem_sz()/1024) - 2;
-	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, ap_sz);
+	mem_sz = arc_get_mem_sz();
 
+	if (!is_power_of_2(mem_sz) || mem_sz < 4096)
+		panic("IOC Aperture size must be power of 2 larger than 4KB");
+
+	/*
+	 * IOC Aperture size decoded as 2 ^ (SIZE + 2) KB,
+	 * so setting 0x11 implies 512MB, 0x12 implies 1GB...
+	 */
+	write_aux_reg(ARC_REG_IO_COH_AP0_SIZE, order_base_2(mem_sz >> 10) - 2);
+
+	/* for now assume kernel base is start of IOC aperture */
+	ioc_base = CONFIG_LINUX_LINK_BASE;
+
+	if (ioc_base % mem_sz != 0)
+		panic("IOC Aperture start must be aligned to the size of the aperture");
+
+	write_aux_reg(ARC_REG_IO_COH_AP0_BASE, ioc_base >> 12);
 	write_aux_reg(ARC_REG_IO_COH_PARTIAL, 1);
 	write_aux_reg(ARC_REG_IO_COH_ENABLE, 1);
 
