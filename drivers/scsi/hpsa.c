@@ -3601,7 +3601,7 @@ static int hpsa_scsi_do_report_luns(struct ctlr_info *h, int logical,
 	memset(scsi3addr, 0, sizeof(scsi3addr));
 	if (fill_cmd(c, logical ? HPSA_REPORT_LOG : HPSA_REPORT_PHYS, h,
 		buf, bufsize, 0, scsi3addr, TYPE_CMD)) {
-		rc = -1;
+		rc = -EAGAIN;
 		goto out;
 	}
 	if (extended_response)
@@ -3614,16 +3614,19 @@ static int hpsa_scsi_do_report_luns(struct ctlr_info *h, int logical,
 	if (ei->CommandStatus != 0 &&
 	    ei->CommandStatus != CMD_DATA_UNDERRUN) {
 		hpsa_scsi_interpret_error(h, c);
-		rc = -1;
+		rc = -EIO;
 	} else {
 		struct ReportLUNdata *rld = buf;
 
 		if (rld->extended_response_flag != extended_response) {
-			dev_err(&h->pdev->dev,
-				"report luns requested format %u, got %u\n",
-				extended_response,
-				rld->extended_response_flag);
-			rc = -1;
+			if (!h->legacy_board) {
+				dev_err(&h->pdev->dev,
+					"report luns requested format %u, got %u\n",
+					extended_response,
+					rld->extended_response_flag);
+				rc = -EINVAL;
+			} else
+				rc = -EOPNOTSUPP;
 		}
 	}
 out:
@@ -3639,7 +3642,7 @@ static inline int hpsa_scsi_do_report_phys_luns(struct ctlr_info *h,
 
 	rc = hpsa_scsi_do_report_luns(h, 0, buf, bufsize,
 				      HPSA_REPORT_PHYS_EXTENDED);
-	if (!rc || !hpsa_allow_any)
+	if (!rc || rc != -EOPNOTSUPP)
 		return rc;
 
 	/* REPORT PHYS EXTENDED is not supported */
@@ -6617,7 +6620,6 @@ static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 		default:
 			dev_warn(&h->pdev->dev, "unknown command 0x%c\n", cmd);
 			BUG();
-			return -1;
 		}
 	} else if (cmd_type == TYPE_MSG) {
 		switch (cmd) {
