@@ -859,11 +859,7 @@ static bool vc4_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
 	pll_clock = parent_rate / divider;
 	pixel_clock_hz = pll_clock / dsi->divider;
 
-	/* Round up the clk_set_rate() request slightly, since
-	 * PLLD_DSI1 is an integer divider and its rate selection will
-	 * never round up.
-	 */
-	adjusted_mode->clock = pixel_clock_hz / 1000 + 1;
+	adjusted_mode->clock = pixel_clock_hz / 1000;
 
 	/* Given the new pixel clock, adjust HFP to keep vrefresh the same. */
 	adjusted_mode->htotal = adjusted_mode->clock * mode->htotal /
@@ -901,7 +897,11 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		vc4_dsi_dump_regs(dsi);
 	}
 
-	phy_clock = pixel_clock_hz * dsi->divider;
+	/* Round up the clk_set_rate() request slightly, since
+	 * PLLD_DSI1 is an integer divider and its rate selection will
+	 * never round up.
+	 */
+	phy_clock = (pixel_clock_hz + 1000) * dsi->divider;
 	ret = clk_set_rate(dsi->pll_phy_clock, phy_clock);
 	if (ret) {
 		dev_err(&dsi->pdev->dev,
