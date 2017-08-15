@@ -276,32 +276,6 @@ static void force_io_queues_off(struct octeon_device *oct)
 }
 
 /**
- * \brief wait for all pending requests to complete
- * @param oct Pointer to Octeon device
- *
- * Called during shutdown sequence
- */
-static int wait_for_pending_requests(struct octeon_device *oct)
-{
-	int i, pcount = 0;
-
-	for (i = 0; i < 100; i++) {
-		pcount =
-			atomic_read(&oct->response_list
-				[OCTEON_ORDERED_SC_LIST].pending_req_count);
-		if (pcount)
-			schedule_timeout_uninterruptible(HZ / 10);
-		else
-			break;
-	}
-
-	if (pcount)
-		return 1;
-
-	return 0;
-}
-
-/**
  * \brief Cause device to go quiet so it can be safely removed/reset/etc
  * @param oct Pointer to Octeon device
  */
@@ -843,7 +817,8 @@ static void print_link_info(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 
-	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_REGISTERED) {
+	if (!ifstate_check(lio, LIO_IFSTATE_RESETTING) &&
+	    ifstate_check(lio, LIO_IFSTATE_REGISTERED)) {
 		struct oct_link_info *linfo = &lio->linfo;
 
 		if (linfo->link.s.link_up) {
@@ -929,39 +904,6 @@ static inline void update_link_status(struct net_device *netdev,
 			netif_carrier_off(netdev);
 			stop_txq(netdev);
 		}
-	}
-}
-
-/* Runs in interrupt context. */
-static void update_txq_status(struct octeon_device *oct, int iq_num)
-{
-	struct net_device *netdev;
-	struct lio *lio;
-	struct octeon_instr_queue *iq = oct->instr_queue[iq_num];
-
-	netdev = oct->props[iq->ifidx].netdev;
-
-	/* This is needed because the first IQ does not have
-	 * a netdev associated with it.
-	 */
-	if (!netdev)
-		return;
-
-	lio = GET_LIO(netdev);
-	if (netif_is_multiqueue(netdev)) {
-		if (__netif_subqueue_stopped(netdev, iq->q_index) &&
-		    lio->linfo.link.s.link_up &&
-		    (!octnet_iq_is_full(oct, iq_num))) {
-			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq_num,
-						  tx_restart, 1);
-			netif_wake_subqueue(netdev, iq->q_index);
-		}
-	} else if (netif_queue_stopped(netdev) &&
-		   lio->linfo.link.s.link_up &&
-		   (!octnet_iq_is_full(oct, lio->txq))) {
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev,
-					  lio->txq, tx_restart, 1);
-		netif_wake_queue(netdev);
 	}
 }
 
@@ -2258,43 +2200,6 @@ static int load_firmware(struct octeon_device *oct)
 }
 
 /**
- * \brief Setup output queue
- * @param oct octeon device
- * @param q_no which queue
- * @param num_descs how many descriptors
- * @param desc_size size of each descriptor
- * @param app_ctx application context
- */
-static int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
-			     int desc_size, void *app_ctx)
-{
-	int ret_val = 0;
-
-	dev_dbg(&oct->pci_dev->dev, "Creating Droq: %d\n", q_no);
-	/* droq creation and local register settings. */
-	ret_val = octeon_create_droq(oct, q_no, num_descs, desc_size, app_ctx);
-	if (ret_val < 0)
-		return ret_val;
-
-	if (ret_val == 1) {
-		dev_dbg(&oct->pci_dev->dev, "Using default droq %d\n", q_no);
-		return 0;
-	}
-	/* tasklet creation for the droq */
-
-	/* Enable the droq queues */
-	octeon_set_droq_pkt_op(oct, q_no, 1);
-
-	/* Send Credit for Octeon Output queues. Credits are always
-	 * sent after the output queue is enabled.
-	 */
-	writel(oct->droq[q_no]->max_count,
-	       oct->droq[q_no]->pkts_credit_reg);
-
-	return ret_val;
-}
-
-/**
  * \brief Callback for getting interface configuration
  * @param status status of request
  * @param buf pointer to resp structure
@@ -2325,350 +2230,6 @@ static void if_cfg_callback(struct octeon_device *oct,
 	wmb();
 
 	wake_up_interruptible(&ctx->wc);
-}
-
-/** Routine to push packets arriving on Octeon interface upto network layer.
- * @param oct_id   - octeon device id.
- * @param skbuff   - skbuff struct to be passed to network layer.
- * @param len      - size of total data received.
- * @param rh       - Control header associated with the packet
- * @param param    - additional control data with the packet
- * @param arg	   - farg registered in droq_ops
- */
-static void
-liquidio_push_packet(u32 octeon_id __attribute__((unused)),
-		     void *skbuff,
-		     u32 len,
-		     union octeon_rh *rh,
-		     void *param,
-		     void *arg)
-{
-	struct napi_struct *napi = param;
-	struct sk_buff *skb = (struct sk_buff *)skbuff;
-	struct skb_shared_hwtstamps *shhwtstamps;
-	u64 ns;
-	u16 vtag = 0;
-	u32 r_dh_off;
-	struct net_device *netdev = (struct net_device *)arg;
-	struct octeon_droq *droq = container_of(param, struct octeon_droq,
-						napi);
-	if (netdev) {
-		int packet_was_received;
-		struct lio *lio = GET_LIO(netdev);
-		struct octeon_device *oct = lio->oct_dev;
-
-		/* Do not proceed if the interface is not in RUNNING state. */
-		if (!ifstate_check(lio, LIO_IFSTATE_RUNNING)) {
-			recv_buffer_free(skb);
-			droq->stats.rx_dropped++;
-			return;
-		}
-
-		skb->dev = netdev;
-
-		skb_record_rx_queue(skb, droq->q_no);
-		if (likely(len > MIN_SKB_SIZE)) {
-			struct octeon_skb_page_info *pg_info;
-			unsigned char *va;
-
-			pg_info = ((struct octeon_skb_page_info *)(skb->cb));
-			if (pg_info->page) {
-				/* For Paged allocation use the frags */
-				va = page_address(pg_info->page) +
-					pg_info->page_offset;
-				memcpy(skb->data, va, MIN_SKB_SIZE);
-				skb_put(skb, MIN_SKB_SIZE);
-				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-						pg_info->page,
-						pg_info->page_offset +
-						MIN_SKB_SIZE,
-						len - MIN_SKB_SIZE,
-						LIO_RXBUFFER_SZ);
-			}
-		} else {
-			struct octeon_skb_page_info *pg_info =
-				((struct octeon_skb_page_info *)(skb->cb));
-			skb_copy_to_linear_data(skb, page_address(pg_info->page)
-						+ pg_info->page_offset, len);
-			skb_put(skb, len);
-			put_page(pg_info->page);
-		}
-
-		r_dh_off = (rh->r_dh.len - 1) * BYTES_PER_DHLEN_UNIT;
-
-		if (oct->ptp_enable) {
-			if (rh->r_dh.has_hwtstamp) {
-				/* timestamp is included from the hardware at
-				 * the beginning of the packet.
-				 */
-				if (ifstate_check
-				    (lio, LIO_IFSTATE_RX_TIMESTAMP_ENABLED)) {
-					/* Nanoseconds are in the first 64-bits
-					 * of the packet.
-					 */
-					memcpy(&ns, (skb->data + r_dh_off),
-					       sizeof(ns));
-					r_dh_off -= BYTES_PER_DHLEN_UNIT;
-					shhwtstamps = skb_hwtstamps(skb);
-					shhwtstamps->hwtstamp =
-						ns_to_ktime(ns +
-							    lio->ptp_adjust);
-				}
-			}
-		}
-
-		if (rh->r_dh.has_hash) {
-			__be32 *hash_be = (__be32 *)(skb->data + r_dh_off);
-			u32 hash = be32_to_cpu(*hash_be);
-
-			skb_set_hash(skb, hash, PKT_HASH_TYPE_L4);
-			r_dh_off -= BYTES_PER_DHLEN_UNIT;
-		}
-
-		skb_pull(skb, rh->r_dh.len * BYTES_PER_DHLEN_UNIT);
-
-		skb->protocol = eth_type_trans(skb, skb->dev);
-		if ((netdev->features & NETIF_F_RXCSUM) &&
-		    (((rh->r_dh.encap_on) &&
-		      (rh->r_dh.csum_verified & CNNIC_TUN_CSUM_VERIFIED)) ||
-		     (!(rh->r_dh.encap_on) &&
-		      (rh->r_dh.csum_verified & CNNIC_CSUM_VERIFIED))))
-			/* checksum has already been verified */
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-		else
-			skb->ip_summed = CHECKSUM_NONE;
-
-		/* Setting Encapsulation field on basis of status received
-		 * from the firmware
-		 */
-		if (rh->r_dh.encap_on) {
-			skb->encapsulation = 1;
-			skb->csum_level = 1;
-			droq->stats.rx_vxlan++;
-		}
-
-		/* inbound VLAN tag */
-		if ((netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
-		    (rh->r_dh.vlan != 0)) {
-			u16 vid = rh->r_dh.vlan;
-			u16 priority = rh->r_dh.priority;
-
-			vtag = priority << 13 | vid;
-			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vtag);
-		}
-
-		packet_was_received = napi_gro_receive(napi, skb) != GRO_DROP;
-
-		if (packet_was_received) {
-			droq->stats.rx_bytes_received += len;
-			droq->stats.rx_pkts_received++;
-		} else {
-			droq->stats.rx_dropped++;
-			netif_info(lio, rx_err, lio->netdev,
-				   "droq:%d  error rx_dropped:%llu\n",
-				   droq->q_no, droq->stats.rx_dropped);
-		}
-
-	} else {
-		recv_buffer_free(skb);
-	}
-}
-
-/**
- * \brief wrapper for calling napi_schedule
- * @param param parameters to pass to napi_schedule
- *
- * Used when scheduling on different CPUs
- */
-static void napi_schedule_wrapper(void *param)
-{
-	struct napi_struct *napi = param;
-
-	napi_schedule(napi);
-}
-
-/**
- * \brief callback when receive interrupt occurs and we are in NAPI mode
- * @param arg pointer to octeon output queue
- */
-static void liquidio_napi_drv_callback(void *arg)
-{
-	struct octeon_device *oct;
-	struct octeon_droq *droq = arg;
-	int this_cpu = smp_processor_id();
-
-	oct = droq->oct_dev;
-
-	if (OCTEON_CN23XX_PF(oct) || droq->cpu_id == this_cpu) {
-		napi_schedule_irqoff(&droq->napi);
-	} else {
-		struct call_single_data *csd = &droq->csd;
-
-		csd->func = napi_schedule_wrapper;
-		csd->info = &droq->napi;
-		csd->flags = 0;
-
-		smp_call_function_single_async(droq->cpu_id, csd);
-	}
-}
-
-/**
- * \brief Entry point for NAPI polling
- * @param napi NAPI structure
- * @param budget maximum number of items to process
- */
-static int liquidio_napi_poll(struct napi_struct *napi, int budget)
-{
-	struct octeon_droq *droq;
-	int work_done;
-	int tx_done = 0, iq_no;
-	struct octeon_instr_queue *iq;
-	struct octeon_device *oct;
-
-	droq = container_of(napi, struct octeon_droq, napi);
-	oct = droq->oct_dev;
-	iq_no = droq->q_no;
-	/* Handle Droq descriptors */
-	work_done = octeon_process_droq_poll_cmd(oct, droq->q_no,
-						 POLL_EVENT_PROCESS_PKTS,
-						 budget);
-
-	/* Flush the instruction queue */
-	iq = oct->instr_queue[iq_no];
-	if (iq) {
-		if (atomic_read(&iq->instr_pending))
-			/* Process iq buffers with in the budget limits */
-			tx_done = octeon_flush_iq(oct, iq, budget);
-		else
-			tx_done = 1;
-		/* Update iq read-index rather than waiting for next interrupt.
-		 * Return back if tx_done is false.
-		 */
-		update_txq_status(oct, iq_no);
-	} else {
-		dev_err(&oct->pci_dev->dev, "%s:  iq (%d) num invalid\n",
-			__func__, iq_no);
-	}
-
-	/* force enable interrupt if reg cnts are high to avoid wraparound */
-	if ((work_done < budget && tx_done) ||
-	    (iq && iq->pkt_in_done >= MAX_REG_CNT) ||
-	    (droq->pkt_count >= MAX_REG_CNT)) {
-		tx_done = 1;
-		napi_complete_done(napi, work_done);
-		octeon_process_droq_poll_cmd(droq->oct_dev, droq->q_no,
-					     POLL_EVENT_ENABLE_INTR, 0);
-		return 0;
-	}
-
-	return (!tx_done) ? (budget) : (work_done);
-}
-
-/**
- * \brief Setup input and output queues
- * @param octeon_dev octeon device
- * @param ifidx  Interface Index
- *
- * Note: Queues are with respect to the octeon device. Thus
- * an input queue is for egress packets, and output queues
- * are for ingress packets.
- */
-static inline int setup_io_queues(struct octeon_device *octeon_dev,
-				  int ifidx)
-{
-	struct octeon_droq_ops droq_ops;
-	struct net_device *netdev;
-	int cpu_id;
-	int cpu_id_modulus;
-	struct octeon_droq *droq;
-	struct napi_struct *napi;
-	int q, q_no, retval = 0;
-	struct lio *lio;
-	int num_tx_descs;
-
-	netdev = octeon_dev->props[ifidx].netdev;
-
-	lio = GET_LIO(netdev);
-
-	memset(&droq_ops, 0, sizeof(struct octeon_droq_ops));
-
-	droq_ops.fptr = liquidio_push_packet;
-	droq_ops.farg = (void *)netdev;
-
-	droq_ops.poll_mode = 1;
-	droq_ops.napi_fn = liquidio_napi_drv_callback;
-	cpu_id = 0;
-	cpu_id_modulus = num_present_cpus();
-
-	/* set up DROQs. */
-	for (q = 0; q < lio->linfo.num_rxpciq; q++) {
-		q_no = lio->linfo.rxpciq[q].s.q_no;
-		dev_dbg(&octeon_dev->pci_dev->dev,
-			"setup_io_queues index:%d linfo.rxpciq.s.q_no:%d\n",
-			q, q_no);
-		retval = octeon_setup_droq(octeon_dev, q_no,
-					   CFG_GET_NUM_RX_DESCS_NIC_IF
-						   (octeon_get_conf(octeon_dev),
-						   lio->ifidx),
-					   CFG_GET_NUM_RX_BUF_SIZE_NIC_IF
-						   (octeon_get_conf(octeon_dev),
-						   lio->ifidx), NULL);
-		if (retval) {
-			dev_err(&octeon_dev->pci_dev->dev,
-				"%s : Runtime DROQ(RxQ) creation failed.\n",
-				__func__);
-			return 1;
-		}
-
-		droq = octeon_dev->droq[q_no];
-		napi = &droq->napi;
-		dev_dbg(&octeon_dev->pci_dev->dev, "netif_napi_add netdev:%llx oct:%llx pf_num:%d\n",
-			(u64)netdev, (u64)octeon_dev, octeon_dev->pf_num);
-		netif_napi_add(netdev, napi, liquidio_napi_poll, 64);
-
-		/* designate a CPU for this droq */
-		droq->cpu_id = cpu_id;
-		cpu_id++;
-		if (cpu_id >= cpu_id_modulus)
-			cpu_id = 0;
-
-		octeon_register_droq_ops(octeon_dev, q_no, &droq_ops);
-	}
-
-	if (OCTEON_CN23XX_PF(octeon_dev)) {
-		/* 23XX PF can receive control messages (via the first PF-owned
-		 * droq) from the firmware even if the ethX interface is down,
-		 * so that's why poll_mode must be off for the first droq.
-		 */
-		octeon_dev->droq[0]->ops.poll_mode = 0;
-	}
-
-	/* set up IQs. */
-	for (q = 0; q < lio->linfo.num_txpciq; q++) {
-		num_tx_descs = CFG_GET_NUM_TX_DESCS_NIC_IF(octeon_get_conf
-							   (octeon_dev),
-							   lio->ifidx);
-		retval = octeon_setup_iq(octeon_dev, ifidx, q,
-					 lio->linfo.txpciq[q], num_tx_descs,
-					 netdev_get_tx_queue(netdev, q));
-		if (retval) {
-			dev_err(&octeon_dev->pci_dev->dev,
-				" %s : Runtime IQ(TxQ) creation failed.\n",
-				__func__);
-			return 1;
-		}
-
-		if (octeon_dev->ioq_vector) {
-			struct octeon_ioq_vector *ioq_vector;
-
-			ioq_vector = &octeon_dev->ioq_vector[q];
-			netif_set_xps_queue(netdev,
-					    &ioq_vector->affinity_mask,
-					    ioq_vector->iq_index);
-		}
-	}
-
-	return 0;
 }
 
 /**
@@ -2959,6 +2520,9 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 	int i, iq_no, oq_no;
 
 	oct = lio->oct_dev;
+
+	if (ifstate_check(lio, LIO_IFSTATE_RESETTING))
+		return stats;
 
 	for (i = 0; i < lio->linfo.num_txpciq; i++) {
 		iq_no = lio->linfo.txpciq[i].s.q_no;
@@ -4231,7 +3795,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		 */
 		lio->txq = lio->linfo.txpciq[0].s.q_no;
 		lio->rxq = lio->linfo.rxpciq[0].s.q_no;
-		if (setup_io_queues(octeon_dev, i)) {
+		if (liquidio_setup_io_queues(octeon_dev, i)) {
 			dev_err(&octeon_dev->pci_dev->dev, "I/O queues creation failed\n");
 			goto setup_nic_dev_fail;
 		}
