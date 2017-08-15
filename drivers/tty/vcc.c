@@ -804,9 +804,50 @@ static void vcc_close(struct tty_struct *tty, struct file *vcc_file)
 	tty_port_close(tty->port, tty, vcc_file);
 }
 
+static void vcc_ldc_hup(struct vcc_port *port)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	if (vcc_send_ctl(port, VCC_CTL_HUP) < 0)
+		vcc_kick_tx(port);
+
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
+static void vcc_hangup(struct tty_struct *tty)
+{
+	struct vcc_port *port;
+
+	if (unlikely(!tty)) {
+		pr_err("VCC: hangup: Invalid TTY handle\n");
+		return;
+	}
+
+	port = vcc_get_ne(tty->index);
+	if (unlikely(!port)) {
+		pr_err("VCC: hangup: Failed to find VCC port\n");
+		return;
+	}
+
+	if (unlikely(!tty->port)) {
+		pr_err("VCC: hangup: TTY port not found\n");
+		vcc_put(port, false);
+		return;
+	}
+
+	vcc_ldc_hup(port);
+
+	vcc_put(port, false);
+
+	tty_port_hangup(tty->port);
+}
+
 static const struct tty_operations vcc_ops = {
 	.open	= vcc_open,
 	.close	= vcc_close,
+	.hangup	= vcc_hangup,
 };
 
 #define VCC_TTY_FLAGS   (TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_REAL_RAW)
