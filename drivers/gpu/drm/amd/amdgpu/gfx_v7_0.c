@@ -1823,7 +1823,7 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev)
 }
 
 /**
- * gmc_v7_0_init_compute_vmid - gart enable
+ * gfx_v7_0_init_compute_vmid - gart enable
  *
  * @adev: amdgpu_device pointer
  *
@@ -1833,7 +1833,7 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev)
 #define DEFAULT_SH_MEM_BASES	(0x6000)
 #define FIRST_COMPUTE_VMID	(8)
 #define LAST_COMPUTE_VMID	(16)
-static void gmc_v7_0_init_compute_vmid(struct amdgpu_device *adev)
+static void gfx_v7_0_init_compute_vmid(struct amdgpu_device *adev)
 {
 	int i;
 	uint32_t sh_mem_config;
@@ -1939,7 +1939,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 	cik_srbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
 
-	gmc_v7_0_init_compute_vmid(adev);
+	gfx_v7_0_init_compute_vmid(adev);
 
 	WREG32(mmSX_DEBUG_1, 0x20);
 
