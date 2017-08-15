@@ -960,6 +960,40 @@ static int vcc_chars_in_buffer(struct tty_struct *tty)
 	return num;
 }
 
+static int vcc_break_ctl(struct tty_struct *tty, int state)
+{
+	struct vcc_port *port;
+	unsigned long flags;
+
+	if (unlikely(!tty)) {
+		pr_err("VCC: break_ctl: Invalid TTY handle\n");
+		return -ENXIO;
+	}
+
+	port = vcc_get_ne(tty->index);
+	if (unlikely(!port)) {
+		pr_err("VCC: break_ctl: Failed to find VCC port\n");
+		return -ENODEV;
+	}
+
+	/* Turn off break */
+	if (state == 0) {
+		vcc_put(port, false);
+		return 0;
+	}
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	if (vcc_send_ctl(port, VCC_CTL_BREAK) < 0)
+		vcc_kick_tx(port);
+
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	vcc_put(port, false);
+
+	return 0;
+}
+
 static const struct tty_operations vcc_ops = {
 	.open			= vcc_open,
 	.close			= vcc_close,
@@ -967,6 +1001,7 @@ static const struct tty_operations vcc_ops = {
 	.write			= vcc_write,
 	.write_room		= vcc_write_room,
 	.chars_in_buffer	= vcc_chars_in_buffer,
+	.break_ctl		= vcc_break_ctl,
 };
 
 #define VCC_TTY_FLAGS   (TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_REAL_RAW)
