@@ -449,8 +449,8 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 			.flags = CEC_EVENT_FL_INITIAL_STATE,
 		};
 
-		ev.event = adap->pin->cur_value ? CEC_EVENT_PIN_HIGH :
-						  CEC_EVENT_PIN_LOW;
+		ev.event = adap->pin->cur_value ? CEC_EVENT_PIN_CEC_HIGH :
+						  CEC_EVENT_PIN_CEC_LOW;
 		cec_queue_event_fh(fh, &ev, 0);
 #endif
 		adap->monitor_pin_cnt++;

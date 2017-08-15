@@ -154,10 +154,11 @@ static void cec_queue_event(struct cec_adapter *adap,
 }
 
 /* Notify userspace that the CEC pin changed state at the given time. */
-void cec_queue_pin_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
+void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 {
 	struct cec_event ev = {
-		.event = is_high ? CEC_EVENT_PIN_HIGH : CEC_EVENT_PIN_LOW,
+		.event = is_high ? CEC_EVENT_PIN_CEC_HIGH :
+				   CEC_EVENT_PIN_CEC_LOW,
 	};
 	struct cec_fh *fh;
 
@@ -167,7 +168,7 @@ void cec_queue_pin_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 			cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
 	mutex_unlock(&adap->devnode.lock);
 }
-EXPORT_SYMBOL_GPL(cec_queue_pin_event);
+EXPORT_SYMBOL_GPL(cec_queue_pin_cec_event);
 
 /*
  * Queue a new message for this filehandle.

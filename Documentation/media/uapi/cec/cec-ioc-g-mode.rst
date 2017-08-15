@@ -159,7 +159,7 @@ Available follower modes are:
 	This mode requires that the :ref:`CEC_CAP_MONITOR_PIN <CEC-CAP-MONITOR-PIN>`
 	capability is set, otherwise the ``EINVAL`` error code is returned.
 	While in pin monitoring mode this file descriptor can receive the
-	``CEC_EVENT_PIN_LOW`` and ``CEC_EVENT_PIN_HIGH`` events to see the
+	``CEC_EVENT_PIN_CEC_LOW`` and ``CEC_EVENT_PIN_CEC_HIGH`` events to see the
 	low-level CEC pin transitions. This is very useful for debugging.
 	This mode is only allowed if the process has the ``CAP_NET_ADMIN``
 	capability. If that is not set, then the ``EPERM`` error code is returned.

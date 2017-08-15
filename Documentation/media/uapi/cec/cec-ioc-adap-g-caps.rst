@@ -127,7 +127,7 @@ returns the information to the application. The ioctl never fails.
       - 0x00000080
       - The CEC hardware can monitor CEC pin changes from low to high voltage
         and vice versa. When in pin monitoring mode the application will
-	receive ``CEC_EVENT_PIN_LOW`` and ``CEC_EVENT_PIN_HIGH`` events.
+	receive ``CEC_EVENT_PIN_CEC_LOW`` and ``CEC_EVENT_PIN_CEC_HIGH`` events.
 
 
 

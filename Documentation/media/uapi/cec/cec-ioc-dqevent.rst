@@ -146,16 +146,16 @@ it is guaranteed that the state did change in between the two events.
       - 2
       - Generated if one or more CEC messages were lost because the
 	application didn't dequeue CEC messages fast enough.
-    * .. _`CEC-EVENT-PIN-LOW`:
+    * .. _`CEC-EVENT-PIN-CEC-LOW`:
 
-      - ``CEC_EVENT_PIN_LOW``
+      - ``CEC_EVENT_PIN_CEC_LOW``
       - 3
       - Generated if the CEC pin goes from a high voltage to a low voltage.
         Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``
 	capability set.
-    * .. _`CEC-EVENT-PIN-HIGH`:
+    * .. _`CEC-EVENT-PIN-CEC-HIGH`:
 
-      - ``CEC_EVENT_PIN_HIGH``
+      - ``CEC_EVENT_PIN_CEC_HIGH``
       - 4
       - Generated if the CEC pin goes from a low voltage to a high voltage.
         Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``

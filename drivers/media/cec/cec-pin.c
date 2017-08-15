@@ -609,8 +609,9 @@ static int cec_pin_thread_func(void *_adap)
 		while (atomic_read(&pin->work_pin_events)) {
 			unsigned int idx = pin->work_pin_events_rd;
 
-			cec_queue_pin_event(adap, pin->work_pin_is_high[idx],
-					    pin->work_pin_ts[idx]);
+			cec_queue_pin_cec_event(adap,
+						pin->work_pin_is_high[idx],
+						pin->work_pin_ts[idx]);
 			pin->work_pin_events_rd = (idx + 1) % CEC_NUM_PIN_EVENTS;
 			atomic_dec(&pin->work_pin_events);
 		}

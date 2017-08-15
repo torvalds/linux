@@ -408,8 +408,8 @@ struct cec_log_addrs {
  * didn't empty the message queue in time
  */
 #define CEC_EVENT_LOST_MSGS		2
-#define CEC_EVENT_PIN_LOW		3
-#define CEC_EVENT_PIN_HIGH		4
+#define CEC_EVENT_PIN_CEC_LOW		3
+#define CEC_EVENT_PIN_CEC_HIGH		4
 
 #define CEC_EVENT_FL_INITIAL_STATE	(1 << 0)
 #define CEC_EVENT_FL_DROPPED_EVENTS	(1 << 1)
