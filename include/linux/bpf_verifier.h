@@ -21,6 +21,12 @@
  */
 #define BPF_MAX_VAR_SIZ	INT_MAX
 
+enum bpf_reg_liveness {
+	REG_LIVE_NONE = 0, /* reg hasn't been read or written this branch */
+	REG_LIVE_READ, /* reg was read, so we're sensitive to initial value */
+	REG_LIVE_WRITTEN, /* reg was written first, screening off later reads */
+};
+
 struct bpf_reg_state {
 	enum bpf_reg_type type;
 	union {
@@ -40,7 +46,7 @@ struct bpf_reg_state {
 	 * came from, when one is tested for != NULL.
 	 */
 	u32 id;
-	/* These five fields must be last.  See states_equal() */
+	/* Ordering of fields matters.  See states_equal() */
 	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
 	 * the actual value.
 	 * For pointer types, this represents the variable part of the offset
@@ -57,6 +63,8 @@ struct bpf_reg_state {
 	s64 smax_value; /* maximum possible (s64)value */
 	u64 umin_value; /* minimum possible (u64)value */
 	u64 umax_value; /* maximum possible (u64)value */
+	/* This field must be last, for states_equal() reasons. */
+	enum bpf_reg_liveness live;
 };
 
 enum bpf_stack_slot_type {
@@ -74,6 +82,7 @@ struct bpf_verifier_state {
 	struct bpf_reg_state regs[MAX_BPF_REG];
 	u8 stack_slot_type[MAX_BPF_STACK];
 	struct bpf_reg_state spilled_regs[MAX_BPF_STACK / BPF_REG_SIZE];
+	struct bpf_verifier_state *parent;
 };
 
 /* linked list of verifier states used to prune search */
