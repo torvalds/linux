@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#include "cla.h"
 #include "test.h"
 
 #ifndef __MINGW32__
@@ -21,6 +22,45 @@
 #include <net/if.h>
 #include <linux/if_tun.h>
 #include <sys/ioctl.h>
+
+enum {
+	BACKEND_TAP,
+	BACKEND_MACVTAP,
+	BACKEND_RAW,
+	BACKEND_DPDK,
+	BACKEND_PIPE,
+	BACKEND_NONE,
+};
+
+const char *backends[] = { "tap", "macvtap", "raw", "dpdk", "pipe", NULL };
+
+static struct {
+	int printk;
+	int backend;
+	const char *ifname;
+	int dhcp, nmlen;
+	unsigned int ip, dst, gateway;
+} cla = {
+	.backend = BACKEND_NONE,
+	.ip = INADDR_NONE,
+	.gateway = INADDR_NONE,
+	.dst = INADDR_NONE,
+};
+
+
+struct cl_arg args[] = {
+	{"printk", 'p', "show Linux printks", 0, CL_ARG_BOOL, &cla.printk},
+	{"backend", 'b', "network backend type", 1, CL_ARG_STR_SET,
+	 &cla.backend, backends},
+	{"ifname", 'i', "interface name", 1, CL_ARG_STR, &cla.ifname},
+	{"dhcp", 'd', "use dhcp to configure LKL", 0, CL_ARG_BOOL, &cla.dhcp},
+	{"ip", 'I', "IPv4 address to use", 1, CL_ARG_IPV4, &cla.ip},
+	{"netmask-len", 'n', "IPv4 netmask length", 1, CL_ARG_INT,
+	 &cla.nmlen},
+	{"gateway", 'g', "IPv4 gateway to use", 1, CL_ARG_IPV4, &cla.gateway},
+	{"dst", 'd', "IPv4 destination address", 1, CL_ARG_IPV4, &cla.dst},
+	{0},
+};
 
 u_short
 in_cksum(const u_short *addr, register int len, u_short csum)
@@ -44,7 +84,6 @@ in_cksum(const u_short *addr, register int len, u_short csum)
 	return answer;
 }
 
-static char *dst;
 static int test_icmp(char *str, int len)
 {
 	int sock, ret;
@@ -54,7 +93,11 @@ static int test_icmp(char *str, int len)
 	struct lkl_pollfd pfd;
 	char buf[32];
 
-	str += snprintf(str, len, "%s ", dst);
+	memset(&saddr, 0, sizeof(saddr));
+	saddr.sin_family = AF_INET;
+	saddr.sin_addr.s_addr = cla.dst;
+
+	str += snprintf(str, len, "%s ", inet_ntoa(saddr.sin_addr));
 
 	sock = lkl_sys_socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	if (sock < 0) {
@@ -69,10 +112,6 @@ static int test_icmp(char *str, int len)
 	icmp->un.echo.sequence = 0;
 	icmp->un.echo.id = 0;
 	icmp->checksum = in_cksum((u_short *)icmp, sizeof(*icmp), 0);
-
-	memset(&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	inet_aton(dst, &saddr.sin_addr);
 
 	ret = lkl_sys_sendto(sock, icmp, sizeof(*icmp), 0,
 			     (struct lkl_sockaddr*)&saddr,
@@ -113,42 +152,39 @@ static int test_icmp(char *str, int len)
 	return TEST_SUCCESS;
 }
 
-static int test_net_init(int argc, char **argv)
+static int test_net_init(int argc, const char **argv)
 {
-	char *iftype, *ifname, *ip, *netmask_len;
-	char *gateway = NULL;
-	char *debug = getenv("LKL_DEBUG");
 	int ret, nd_id = -1, nd_ifindex = -1;
 	struct lkl_netdev *nd = NULL;
-	char boot_cmdline[256] = "\0";
 
-	if (argc < 4) {
-		printf("usage %s <iftype: tap|dpdk|raw> <ifname> <dstaddr> <v4addr>|dhcp <v4mask> [gateway]\n", argv[0]);
-		exit(0);
+	if (parse_args(argc, argv, args) < 0)
+		return -1;
+
+	if (cla.ip != INADDR_NONE && (cla.nmlen < 0 || cla.nmlen > 32)) {
+		fprintf(stderr, "invalid netmask length %d\n", cla.nmlen);
+		return -1;
 	}
 
-	iftype = argv[1];
-	ifname = argv[2];
-	dst = argv[3];
-	ip = argv[4];
-	netmask_len = argv[5];
-
-	if (argc == 7)
-		gateway = argv[6];
-
-	if (iftype && ifname && (strncmp(iftype, "tap", 3) == 0))
-		nd = lkl_netdev_tap_create(ifname, 0);
-	else if (iftype && ifname && (strncmp(iftype, "dpdk", 4) == 0))
-		nd = lkl_netdev_dpdk_create(ifname, 0, NULL);
-	else if (iftype && ifname && (strncmp(iftype, "raw", 3) == 0))
-		nd = lkl_netdev_raw_create(ifname);
-	else if (iftype && ifname && (strncmp(iftype, "macvtap", 7) == 0))
-		nd = lkl_netdev_macvtap_create(ifname, 0);
-	else if (iftype && ifname && (strncmp(iftype, "pipe", 4) == 0))
-		nd = lkl_netdev_pipe_create(ifname, 0);
+	switch (cla.backend) {
+	case BACKEND_TAP:
+		nd = lkl_netdev_tap_create(cla.ifname, 0);
+		break;
+	case BACKEND_DPDK:
+		nd = lkl_netdev_dpdk_create(cla.ifname, 0, NULL);
+		break;
+	case BACKEND_RAW:
+		nd = lkl_netdev_raw_create(cla.ifname);
+		break;
+	case BACKEND_MACVTAP:
+		nd = lkl_netdev_macvtap_create(cla.ifname, 0);
+		break;
+	case BACKEND_PIPE:
+		nd = lkl_netdev_pipe_create(cla.ifname, 0);
+		break;
+	}
 
 	if (!nd) {
-		fprintf(stderr, "init netdev failed\n");
+		fprintf(stderr, "add netdev (%d) failed\n", cla.backend);
 		return -1;
 	}
 
@@ -159,14 +195,10 @@ static int test_net_init(int argc, char **argv)
 	}
 	nd_id = ret;
 
-	if (!debug)
+	if (!cla.printk)
 		lkl_host_ops.print = NULL;
 
-
-	if ((ip && !strcmp(ip, "dhcp")) && (nd_id != -1))
-		snprintf(boot_cmdline, sizeof(boot_cmdline), "ip=dhcp");
-
-	ret = lkl_start_kernel(&lkl_host_ops, boot_cmdline);
+	ret = lkl_start_kernel(&lkl_host_ops, "%s", cla.dhcp ? "ip=dhcp" : "");
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		return -1;
@@ -184,34 +216,25 @@ static int test_net_init(int argc, char **argv)
 				nd_id, lkl_strerror(nd_ifindex));
 	}
 
-	if (nd_ifindex >= 0 && ip && netmask_len) {
-		unsigned int addr = inet_addr(ip);
-		int nmlen = atoi(netmask_len);
-
-		if (addr != INADDR_NONE && nmlen > 0 && nmlen < 32) {
-			ret = lkl_if_set_ipv4(nd_ifindex, addr, nmlen);
-			if (ret < 0)
-				fprintf(stderr, "failed to set IPv4 address: %s\n",
-					lkl_strerror(ret));
-		}
+	if (nd_ifindex >= 0 && cla.ip != INADDR_NONE) {
+		ret = lkl_if_set_ipv4(nd_ifindex, cla.ip, cla.nmlen);
+		if (ret < 0)
+			fprintf(stderr, "failed to set IPv4 address: %s\n",
+				lkl_strerror(ret));
 	}
 
-	if (nd_ifindex >= 0 && gateway) {
-		unsigned int addr = inet_addr(gateway);
-
-		if (addr != INADDR_NONE) {
-			ret = lkl_set_ipv4_gateway(addr);
-			if (ret < 0)
-				fprintf(stderr, "failed to set IPv4 gateway: %s\n",
-					lkl_strerror(ret));
-		}
+	if (nd_ifindex >= 0 && cla.gateway != INADDR_NONE) {
+		ret = lkl_set_ipv4_gateway(cla.gateway);
+		if (ret < 0)
+			fprintf(stderr, "failed to set IPv4 gateway: %s %x\n",
+				lkl_strerror(ret), INADDR_NONE);
 	}
 
 	return 0;
 }
 #endif /*!  __MINGW32__ */
 
-int main(int argc, char **argv)
+int main(int argc, const char **argv)
 {
 #ifndef __MINGW32__
 	if (test_net_init(argc, argv) < 0)

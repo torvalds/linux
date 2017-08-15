@@ -49,7 +49,8 @@ LKL_HIJACK_NET_IFTYPE=pipe \
 	LKL_HIJACK_NET_NETMASK_LEN=24 \
 	${hijack_script} sleep 10 &
 sleep 5
-./net-test pipe "${fifo2}|${fifo1}" 192.168.16.1 192.168.16.2 24
+./net-test --backend pipe --ifname "${fifo2}|${fifo1}" --ip 192.168.16.2 \
+           --netmask-len 24 --dst 192.168.16.1
 wait
 fi
 
@@ -61,7 +62,8 @@ if [ -c /dev/net/tun ]; then
     ${SUDO} ip link set dev lkl_ptt1 up
     ${SUDO} ip addr add dev lkl_ptt1 192.168.14.1/24
 
-    ./net-test tap lkl_ptt1 192.168.14.1 192.168.14.2 24
+    ./net-test --backend tap --ifname lkl_ptt1 --ip 192.168.14.2 \
+               --netmask-len 24 --dst 192.168.14.1
 
     ${SUDO} ip link set dev lkl_ptt1 down
     ${SUDO} ip tuntap del dev lkl_ptt1 mode tap
@@ -79,7 +81,7 @@ else
 if ! [ -z $DST ]; then
     echo "== RAW socket (LKL net) tests =="
     ${SUDO} ip link set dev ${IFNAME} promisc on
-    ${SUDO} ./net-test raw ${IFNAME} ${DST} dhcp
+    ${SUDO} ./net-test --backend raw --ifname ${IFNAME} --dhcp --dst ${DST}
     ${SUDO} ip link set dev ${IFNAME} promisc off
 
     echo "== macvtap (LKL net) tests =="
@@ -88,7 +90,7 @@ if ! [ -z $DST ]; then
     if ls /dev/tap* > /dev/null 2>&1 ; then
 	${SUDO} ip link set dev lkl_vtap0 up
 	${SUDO} chown ${USER} `ls /dev/tap*`
-	./net-test macvtap `ls /dev/tap*` $DST dhcp
+	./net-test --backend macvtap --ifname `ls /dev/tap*` --dhcp --dst $DST
     fi
 fi
 fi
@@ -98,5 +100,6 @@ fi
 # may customize those test commands for your host.
 if false ; then
     echo "== DPDK (LKL net) tests =="
-    ${SUDO} ./net-test dpdk dpdk0 192.168.15.1 192.168.15.2 24
+    ${SUDO} ./net-test --backend dpdk --ifname dpdk0 --ip 192.168.15.1 \
+            --netmask-len 24 --dst 192.168.15.2
 fi
