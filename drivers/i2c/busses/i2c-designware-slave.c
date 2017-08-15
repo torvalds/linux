@@ -382,7 +382,6 @@ int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret)
 		dev_err(dev->dev, "failure adding adapter: %d\n", ret);
-	pm_runtime_put_noidle(dev->dev);
 
 	return ret;
 }
