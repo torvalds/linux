@@ -755,13 +755,13 @@ static void f_midi_out_trigger(struct snd_rawmidi_substream *substream, int up)
 		clear_bit(substream->number, &midi->out_triggered);
 }
 
-static struct snd_rawmidi_ops gmidi_in_ops = {
+static const struct snd_rawmidi_ops gmidi_in_ops = {
 	.open = f_midi_in_open,
 	.close = f_midi_in_close,
 	.trigger = f_midi_in_trigger,
 };
 
-static struct snd_rawmidi_ops gmidi_out_ops = {
+static const struct snd_rawmidi_ops gmidi_out_ops = {
 	.open = f_midi_out_open,
 	.close = f_midi_out_close,
 	.trigger = f_midi_out_trigger
