@@ -70,6 +70,17 @@
 #include "iwl-eeprom-parse.h"
 
 /**
+ * enum iwl_nvm_sbands_flags - modification flags for the channel profiles
+ *
+ * @IWL_NVM_SBANDS_FLAGS_LAR: LAR is enabled
+ * @IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ: disallow 40, 80 and 160MHz on 5GHz
+ */
+enum iwl_nvm_sbands_flags {
+	IWL_NVM_SBANDS_FLAGS_LAR		= BIT(0),
+	IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ	= BIT(1),
+};
+
+/**
  * iwl_parse_nvm_data - parse NVM data and return values
  *
  * This function parses all NVM values we need and then
@@ -95,8 +106,7 @@ void iwl_set_hw_address_from_csr(struct iwl_trans *trans,
  */
 void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 		     struct iwl_nvm_data *data, const __le16 *nvm_ch_flags,
-		     u8 tx_chains, u8 rx_chains, bool lar_supported,
-		     bool no_wide_in_5ghz);
+		     u8 tx_chains, u8 rx_chains, u32 sbands_flags);
 
 /**
  * iwl_parse_mcc_info - parse MCC (mobile country code) info coming from FW

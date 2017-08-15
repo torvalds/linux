@@ -87,6 +87,7 @@ struct iwl_nvm_data *iwl_fw_get_nvm(struct iwl_fw_runtime *fwrt)
 				fw_has_capa(&fwrt->fw->ucode_capa,
 					    IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
 	u32 mac_flags;
+	u32 sbands_flags = 0;
 
 	ret = iwl_trans_send_cmd(trans, &hcmd);
 	if (ret)
@@ -144,15 +145,16 @@ struct iwl_nvm_data *iwl_fw_get_nvm(struct iwl_fw_runtime *fwrt)
 	nvm->valid_tx_ant = (u8)le32_to_cpu(rsp->phy_sku.tx_chains);
 	nvm->valid_rx_ant = (u8)le32_to_cpu(rsp->phy_sku.rx_chains);
 
-	/* Initialize regulatory data */
-	nvm->lar_enabled =
-		le32_to_cpu(rsp->regulatory.lar_enabled) && lar_fw_supported;
+	if (le32_to_cpu(rsp->regulatory.lar_enabled) && lar_fw_supported) {
+		nvm->lar_enabled = true;
+		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
+	}
 
 	iwl_init_sbands(trans->dev, trans->cfg, nvm,
 			rsp->regulatory.channel_profile,
 			nvm->valid_tx_ant & fwrt->fw->valid_tx_ant,
 			nvm->valid_rx_ant & fwrt->fw->valid_rx_ant,
-			nvm->lar_enabled, false);
+			sbands_flags);
 
 	iwl_free_resp(&hcmd);
 	return nvm;

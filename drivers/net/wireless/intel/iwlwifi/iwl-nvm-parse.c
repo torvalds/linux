@@ -295,7 +295,7 @@ static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, bool is_5ghz,
 static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 				struct iwl_nvm_data *data,
 				const __le16 * const nvm_ch_flags,
-				bool lar_supported, bool no_wide_in_5ghz)
+				u32 sbands_flags)
 {
 	int ch_idx;
 	int n_channels = 0;
@@ -323,7 +323,8 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 			continue;
 
 		/* workaround to disable wide channels in 5GHz */
-		if (no_wide_in_5ghz && is_5ghz) {
+		if ((sbands_flags & IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ) &&
+		    is_5ghz) {
 			ch_flags &= ~(NVM_CHANNEL_40MHZ |
 				     NVM_CHANNEL_80MHZ |
 				     NVM_CHANNEL_160MHZ);
@@ -332,7 +333,8 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 		if (ch_flags & NVM_CHANNEL_160MHZ)
 			data->vht160_supported = true;
 
-		if (!lar_supported && !(ch_flags & NVM_CHANNEL_VALID)) {
+		if (!(sbands_flags & IWL_NVM_SBANDS_FLAGS_LAR) &&
+		    !(ch_flags & NVM_CHANNEL_VALID)) {
 			/*
 			 * Channels might become valid later if lar is
 			 * supported, hence we still want to add them to
@@ -362,7 +364,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 		channel->max_power = IWL_DEFAULT_MAX_TX_POWER;
 
 		/* don't put limitations in case we're using LAR */
-		if (!lar_supported)
+		if (!(sbands_flags & IWL_NVM_SBANDS_FLAGS_LAR))
 			channel->flags = iwl_get_channel_flags(nvm_chan[ch_idx],
 							       ch_idx, is_5ghz,
 							       ch_flags, cfg);
@@ -460,15 +462,14 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 
 void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 		     struct iwl_nvm_data *data, const __le16 *nvm_ch_flags,
-		     u8 tx_chains, u8 rx_chains, bool lar_supported,
-		     bool no_wide_in_5ghz)
+		     u8 tx_chains, u8 rx_chains, u32 sbands_flags)
 {
 	int n_channels;
 	int n_used = 0;
 	struct ieee80211_supported_band *sband;
 
 	n_channels = iwl_init_channel_map(dev, cfg, data, nvm_ch_flags,
-					  lar_supported, no_wide_in_5ghz);
+					  sbands_flags);
 	sband = &data->bands[NL80211_BAND_2GHZ];
 	sband->band = NL80211_BAND_2GHZ;
 	sband->bitrates = &iwl_cfg80211_rates[RATES_24_OFFS];
@@ -716,8 +717,8 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	struct device *dev = trans->dev;
 	struct iwl_nvm_data *data;
 	bool lar_enabled;
-	bool no_wide_in_5ghz = iwl_nvm_no_wide_in_5ghz(dev, cfg, nvm_hw);
 	u32 sku, radio_cfg;
+	u32 sbands_flags = 0;
 	u16 lar_config;
 	const __le16 *ch_section;
 
@@ -790,8 +791,14 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		return NULL;
 	}
 
+	if (lar_fw_supported && lar_enabled)
+		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
+
+	if (iwl_nvm_no_wide_in_5ghz(dev, cfg, nvm_hw))
+		sbands_flags |= IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ;
+
 	iwl_init_sbands(dev, cfg, data, ch_section, tx_chains, rx_chains,
-			lar_fw_supported && lar_enabled, no_wide_in_5ghz);
+			sbands_flags);
 	data->calib_version = 255;
 
 	return data;
