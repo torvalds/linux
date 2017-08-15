@@ -65,13 +65,13 @@ static inline struct tegra_dpaux *work_to_dpaux(struct work_struct *work)
 }
 
 static inline u32 tegra_dpaux_readl(struct tegra_dpaux *dpaux,
-				    unsigned long offset)
+				    unsigned int offset)
 {
 	return readl(dpaux->regs + (offset << 2));
 }
 
 static inline void tegra_dpaux_writel(struct tegra_dpaux *dpaux,
-				      u32 value, unsigned long offset)
+				      u32 value, unsigned int offset)
 {
 	writel(value, dpaux->regs + (offset << 2));
 }
