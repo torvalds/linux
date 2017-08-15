@@ -7,6 +7,7 @@ enum cl_arg_type {
 	CL_ARG_INT,
 	CL_ARG_STR,
 	CL_ARG_STR_SET,
+	CL_ARG_IPV4,
 	CL_ARG_END,
 };
 

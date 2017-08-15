@@ -2,6 +2,13 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
+#ifdef __MINGW32__
+#include <winsock2.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif
 
 #include "cla.h"
 
@@ -39,11 +46,26 @@ static int cl_arg_parse_str_set(struct cl_arg *arg, const char *value)
 	return -1;
 }
 
+static int cl_arg_parse_ipv4(struct cl_arg *arg, const char *value)
+{
+	unsigned int addr;
+
+	if (!value)
+		return -1;
+
+	addr = inet_addr(value);
+	if (addr == INADDR_NONE)
+		return -1;
+	*((unsigned int *)arg->store) = addr;
+	return 0;
+}
+
 static cl_arg_parser_t parsers[] = {
 	[CL_ARG_BOOL] = cl_arg_parse_bool,
 	[CL_ARG_INT] = cl_arg_parse_int,
 	[CL_ARG_STR] = cl_arg_parse_str,
 	[CL_ARG_STR_SET] = cl_arg_parse_str_set,
+	[CL_ARG_IPV4] = cl_arg_parse_ipv4,
 };
 
 static struct cl_arg *find_short_arg(char name, struct cl_arg *args)
