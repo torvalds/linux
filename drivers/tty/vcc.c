@@ -437,8 +437,42 @@ done:
 	vcc_put(port, false);
 }
 
+/**
+ * vcc_event() - LDC event processing engine
+ * @arg: VCC private data
+ * @event: LDC event
+ *
+ * Handles LDC events for VCC
+ */
 static void vcc_event(void *arg, int event)
 {
+	struct vio_driver_state *vio;
+	struct vcc_port *port;
+	unsigned long flags;
+	int rv;
+
+	port = arg;
+	vio = &port->vio;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	switch (event) {
+	case LDC_EVENT_RESET:
+	case LDC_EVENT_UP:
+		vio_link_state_change(vio, event);
+		break;
+
+	case LDC_EVENT_DATA_READY:
+		rv = vcc_ldc_read(port);
+		if (rv == -ECONNRESET)
+			vio_conn_reset(vio);
+		break;
+
+	default:
+		pr_err("VCC: unexpected LDC event(%d)\n", event);
+	}
+
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static struct ldc_channel_config vcc_ldc_cfg = {
