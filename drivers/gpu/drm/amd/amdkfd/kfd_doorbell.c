@@ -165,8 +165,6 @@ u32 __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 {
 	u32 inx;
 
-	BUG_ON(!kfd || !doorbell_off);
-
 	mutex_lock(&kfd->doorbell_mutex);
 	inx = find_first_zero_bit(kfd->doorbell_available_index,
 					KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
@@ -195,8 +193,6 @@ u32 __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr)
 {
 	unsigned int inx;
-
-	BUG_ON(!kfd || !db_addr);
 
 	inx = (unsigned int)(db_addr - kfd->doorbell_kernel_ptr);
 

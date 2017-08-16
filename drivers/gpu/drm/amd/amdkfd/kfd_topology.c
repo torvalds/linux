@@ -108,9 +108,6 @@ static int kfd_topology_get_crat_acpi(void *crat_image, size_t *size)
 static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
 {
-	BUG_ON(!dev);
-	BUG_ON(!cu);
-
 	dev->node_props.cpu_cores_count = cu->num_cpu_cores;
 	dev->node_props.cpu_core_id_base = cu->processor_id_low;
 	if (cu->hsa_capability & CRAT_CU_FLAGS_IOMMU_PRESENT)
@@ -123,9 +120,6 @@ static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 static void kfd_populated_cu_info_gpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
 {
-	BUG_ON(!dev);
-	BUG_ON(!cu);
-
 	dev->node_props.simd_id_base = cu->processor_id_low;
 	dev->node_props.simd_count = cu->num_simd_cores;
 	dev->node_props.lds_size_in_kb = cu->lds_size_in_kb;
@@ -147,8 +141,6 @@ static int kfd_parse_subtype_cu(struct crat_subtype_computeunit *cu)
 {
 	struct kfd_topology_device *dev;
 	int i = 0;
-
-	BUG_ON(!cu);
 
 	pr_info("Found CU entry in CRAT table with proximity_domain=%d caps=%x\n",
 			cu->proximity_domain, cu->hsa_capability);
@@ -176,8 +168,6 @@ static int kfd_parse_subtype_mem(struct crat_subtype_memory *mem)
 	struct kfd_mem_properties *props;
 	struct kfd_topology_device *dev;
 	int i = 0;
-
-	BUG_ON(!mem);
 
 	pr_info("Found memory entry in CRAT table with proximity_domain=%d\n",
 			mem->promixity_domain);
@@ -222,8 +212,6 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache)
 	struct kfd_cache_properties *props;
 	struct kfd_topology_device *dev;
 	uint32_t id;
-
-	BUG_ON(!cache);
 
 	id = cache->processor_id_low;
 
@@ -274,8 +262,6 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink)
 	uint32_t id_from;
 	uint32_t id_to;
 
-	BUG_ON(!iolink);
-
 	id_from = iolink->proximity_domain_from;
 	id_to = iolink->proximity_domain_to;
 
@@ -323,8 +309,6 @@ static int kfd_parse_subtype(struct crat_subtype_generic *sub_type_hdr)
 	struct crat_subtype_iolink *iolink;
 	int ret = 0;
 
-	BUG_ON(!sub_type_hdr);
-
 	switch (sub_type_hdr->type) {
 	case CRAT_SUBTYPE_COMPUTEUNIT_AFFINITY:
 		cu = (struct crat_subtype_computeunit *)sub_type_hdr;
@@ -367,8 +351,6 @@ static void kfd_release_topology_device(struct kfd_topology_device *dev)
 	struct kfd_mem_properties *mem;
 	struct kfd_cache_properties *cache;
 	struct kfd_iolink_properties *iolink;
-
-	BUG_ON(!dev);
 
 	list_del(&dev->list);
 
@@ -763,8 +745,6 @@ static void kfd_remove_sysfs_node_entry(struct kfd_topology_device *dev)
 	struct kfd_cache_properties *cache;
 	struct kfd_mem_properties *mem;
 
-	BUG_ON(!dev);
-
 	if (dev->kobj_iolink) {
 		list_for_each_entry(iolink, &dev->io_link_props, list)
 			if (iolink->kobj) {
@@ -818,8 +798,6 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	struct kfd_mem_properties *mem;
 	int ret;
 	uint32_t i;
-
-	BUG_ON(!dev);
 
 	/*
 	 * Creating the sysfs folders
@@ -1117,8 +1095,6 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 	struct kfd_topology_device *dev;
 	struct kfd_topology_device *out_dev = NULL;
 
-	BUG_ON(!gpu);
-
 	list_for_each_entry(dev, &topology_device_list, list)
 		if (!dev->gpu && (dev->node_props.simd_count > 0)) {
 			dev->gpu = gpu;
@@ -1142,8 +1118,6 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	uint32_t gpu_id;
 	struct kfd_topology_device *dev;
 	int res;
-
-	BUG_ON(!gpu);
 
 	gpu_id = kfd_generate_gpu_id(gpu);
 
@@ -1209,8 +1183,6 @@ int kfd_topology_remove_device(struct kfd_dev *gpu)
 	struct kfd_topology_device *dev;
 	uint32_t gpu_id;
 	int res = -ENODEV;
-
-	BUG_ON(!gpu);
 
 	down_write(&topology_lock);
 

@@ -67,8 +67,6 @@ int init_queue(struct queue **q, const struct queue_properties *properties)
 {
 	struct queue *tmp_q;
 
-	BUG_ON(!q);
-
 	tmp_q = kzalloc(sizeof(*tmp_q), GFP_KERNEL);
 	if (!tmp_q)
 		return -ENOMEM;

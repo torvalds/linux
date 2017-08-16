@@ -58,8 +58,6 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 	unsigned int process_count, queue_count;
 	unsigned int map_queue_size;
 
-	BUG_ON(!pm || !rlib_size || !over_subscription);
-
 	process_count = pm->dqm->processes_count;
 	queue_count = pm->dqm->queue_count;
 
@@ -96,9 +94,7 @@ static int pm_allocate_runlist_ib(struct packet_manager *pm,
 {
 	int retval;
 
-	BUG_ON(!pm);
 	BUG_ON(pm->allocated);
-	BUG_ON(!is_over_subscription);
 
 	pm_calc_rlib_size(pm, rl_buffer_size, is_over_subscription);
 
@@ -123,7 +119,7 @@ static int pm_create_runlist(struct packet_manager *pm, uint32_t *buffer,
 {
 	struct pm4_runlist *packet;
 
-	BUG_ON(!pm || !buffer || !ib);
+	BUG_ON(!ib);
 
 	packet = (struct pm4_runlist *)buffer;
 
@@ -147,8 +143,6 @@ static int pm_create_map_process(struct packet_manager *pm, uint32_t *buffer,
 	struct pm4_map_process *packet;
 	struct queue *cur;
 	uint32_t num_queues;
-
-	BUG_ON(!pm || !buffer || !qpd);
 
 	packet = (struct pm4_map_process *)buffer;
 
@@ -184,8 +178,6 @@ static int pm_create_map_queue_vi(struct packet_manager *pm, uint32_t *buffer,
 {
 	struct pm4_mes_map_queues *packet;
 	bool use_static = is_static;
-
-	BUG_ON(!pm || !buffer || !q);
 
 	packet = (struct pm4_mes_map_queues *)buffer;
 	memset(buffer, 0, sizeof(struct pm4_map_queues));
@@ -246,8 +238,6 @@ static int pm_create_map_queue(struct packet_manager *pm, uint32_t *buffer,
 {
 	struct pm4_map_queues *packet;
 	bool use_static = is_static;
-
-	BUG_ON(!pm || !buffer || !q);
 
 	packet = (struct pm4_map_queues *)buffer;
 	memset(buffer, 0, sizeof(struct pm4_map_queues));
@@ -314,8 +304,6 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	struct queue *q;
 	struct kernel_queue *kq;
 	bool is_over_subscription;
-
-	BUG_ON(!pm || !queues || !rl_size_bytes || !rl_gpu_addr);
 
 	rl_wptr = retval = proccesses_mapped = 0;
 
@@ -416,8 +404,6 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 {
-	BUG_ON(!dqm);
-
 	pm->dqm = dqm;
 	mutex_init(&pm->lock);
 	pm->priv_queue = kernel_queue_init(dqm->dev, KFD_QUEUE_TYPE_HIQ);
@@ -432,8 +418,6 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 
 void pm_uninit(struct packet_manager *pm)
 {
-	BUG_ON(!pm);
-
 	mutex_destroy(&pm->lock);
 	kernel_queue_uninit(pm->priv_queue);
 }
@@ -443,8 +427,6 @@ int pm_send_set_resources(struct packet_manager *pm,
 {
 	struct pm4_set_resources *packet;
 	int retval = 0;
-
-	BUG_ON(!pm || !res);
 
 	mutex_lock(&pm->lock);
 	pm->priv_queue->ops.acquire_packet_buffer(pm->priv_queue,
@@ -489,8 +471,6 @@ int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues)
 	size_t rl_ib_size, packet_size_dwords;
 	int retval;
 
-	BUG_ON(!pm || !dqm_queues);
-
 	retval = pm_create_runlist_ib(pm, dqm_queues, &rl_gpu_ib_addr,
 					&rl_ib_size);
 	if (retval)
@@ -532,7 +512,7 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 	int retval;
 	struct pm4_query_status *packet;
 
-	BUG_ON(!pm || !fence_address);
+	BUG_ON(!fence_address);
 
 	mutex_lock(&pm->lock);
 	retval = pm->priv_queue->ops.acquire_packet_buffer(
@@ -571,8 +551,6 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 	int retval;
 	uint32_t *buffer;
 	struct pm4_unmap_queues *packet;
-
-	BUG_ON(!pm);
 
 	mutex_lock(&pm->lock);
 	retval = pm->priv_queue->ops.acquire_packet_buffer(
@@ -645,8 +623,6 @@ err_acquire_packet_buffer:
 
 void pm_release_ib(struct packet_manager *pm)
 {
-	BUG_ON(!pm);
-
 	mutex_lock(&pm->lock);
 	if (pm->allocated) {
 		kfd_gtt_sa_free(pm->dqm->dev, pm->ib_buffer_obj);

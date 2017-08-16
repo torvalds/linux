@@ -41,7 +41,6 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	int retval;
 	union PM4_MES_TYPE_3_HEADER nop;
 
-	BUG_ON(!kq || !dev);
 	BUG_ON(type != KFD_QUEUE_TYPE_DIQ && type != KFD_QUEUE_TYPE_HIQ);
 
 	pr_debug("Initializing queue type %d size %d\n", KFD_QUEUE_TYPE_HIQ,
@@ -180,8 +179,6 @@ err_get_kernel_doorbell:
 
 static void uninitialize(struct kernel_queue *kq)
 {
-	BUG_ON(!kq);
-
 	if (kq->queue->properties.type == KFD_QUEUE_TYPE_HIQ)
 		kq->mqd->destroy_mqd(kq->mqd,
 					NULL,
@@ -210,8 +207,6 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 	size_t queue_size_dwords;
 	uint32_t wptr, rptr;
 	unsigned int *queue_address;
-
-	BUG_ON(!kq || !buffer_ptr);
 
 	rptr = *kq->rptr_kernel;
 	wptr = *kq->wptr_kernel;
@@ -252,11 +247,7 @@ static void submit_packet(struct kernel_queue *kq)
 {
 #ifdef DEBUG
 	int i;
-#endif
 
-	BUG_ON(!kq);
-
-#ifdef DEBUG
 	for (i = *kq->wptr_kernel; i < kq->pending_wptr; i++) {
 		pr_debug("0x%2X ", kq->pq_kernel_addr[i]);
 		if (i % 15 == 0)
@@ -272,7 +263,6 @@ static void submit_packet(struct kernel_queue *kq)
 
 static void rollback_packet(struct kernel_queue *kq)
 {
-	BUG_ON(!kq);
 	kq->pending_wptr = *kq->queue->properties.write_ptr;
 }
 
@@ -280,8 +270,6 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 					enum kfd_queue_type type)
 {
 	struct kernel_queue *kq;
-
-	BUG_ON(!dev);
 
 	kq = kzalloc(sizeof(*kq), GFP_KERNEL);
 	if (!kq)
@@ -313,8 +301,6 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 
 void kernel_queue_uninit(struct kernel_queue *kq)
 {
-	BUG_ON(!kq);
-
 	kq->ops.uninitialize(kq);
 	kfree(kq);
 }
@@ -324,8 +310,6 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 	struct kernel_queue *kq;
 	uint32_t *buffer, i;
 	int retval;
-
-	BUG_ON(!dev);
 
 	pr_err("Starting kernel queue test\n");
 

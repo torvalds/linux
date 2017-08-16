@@ -79,20 +79,17 @@ static bool is_pipe_enabled(struct device_queue_manager *dqm, int mec, int pipe)
 
 unsigned int get_queues_num(struct device_queue_manager *dqm)
 {
-	BUG_ON(!dqm || !dqm->dev);
 	return bitmap_weight(dqm->dev->shared_resources.queue_bitmap,
 				KGD_MAX_QUEUES);
 }
 
 unsigned int get_queues_per_pipe(struct device_queue_manager *dqm)
 {
-	BUG_ON(!dqm || !dqm->dev);
 	return dqm->dev->shared_resources.num_queue_per_pipe;
 }
 
 unsigned int get_pipes_per_mec(struct device_queue_manager *dqm)
 {
-	BUG_ON(!dqm || !dqm->dev);
 	return dqm->dev->shared_resources.num_pipe_per_mec;
 }
 
@@ -151,8 +148,6 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 				int *allocated_vmid)
 {
 	int retval;
-
-	BUG_ON(!dqm || !q || !qpd || !allocated_vmid);
 
 	print_queue(q);
 
@@ -259,8 +254,6 @@ static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 	int retval;
 	struct mqd_manager *mqd;
 
-	BUG_ON(!dqm || !q || !qpd);
-
 	mqd = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
 	if (!mqd)
 		return -ENOMEM;
@@ -298,8 +291,6 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 {
 	int retval;
 	struct mqd_manager *mqd;
-
-	BUG_ON(!dqm || !q || !q->mqd || !qpd);
 
 	retval = 0;
 
@@ -362,8 +353,6 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	struct mqd_manager *mqd;
 	bool prev_active = false;
 
-	BUG_ON(!dqm || !q || !q->mqd);
-
 	mutex_lock(&dqm->lock);
 	mqd = dqm->ops.get_mqd_manager(dqm,
 			get_mqd_type_from_queue_type(q->properties.type));
@@ -399,7 +388,7 @@ static struct mqd_manager *get_mqd_manager_nocpsch(
 {
 	struct mqd_manager *mqd;
 
-	BUG_ON(!dqm || type >= KFD_MQD_TYPE_MAX);
+	BUG_ON(type >= KFD_MQD_TYPE_MAX);
 
 	pr_debug("mqd type %d\n", type);
 
@@ -419,8 +408,6 @@ static int register_process_nocpsch(struct device_queue_manager *dqm,
 {
 	struct device_process_node *n;
 	int retval;
-
-	BUG_ON(!dqm || !qpd);
 
 	n = kzalloc(sizeof(*n), GFP_KERNEL);
 	if (!n)
@@ -445,8 +432,6 @@ static int unregister_process_nocpsch(struct device_queue_manager *dqm,
 {
 	int retval;
 	struct device_process_node *cur, *next;
-
-	BUG_ON(!dqm || !qpd);
 
 	pr_debug("qpd->queues_list is %s\n",
 			list_empty(&qpd->queues_list) ? "empty" : "not empty");
@@ -488,8 +473,6 @@ static void init_interrupts(struct device_queue_manager *dqm)
 {
 	unsigned int i;
 
-	BUG_ON(!dqm);
-
 	for (i = 0 ; i < get_pipes_per_mec(dqm) ; i++)
 		if (is_pipe_enabled(dqm, 0, i))
 			dqm->dev->kfd2kgd->init_interrupts(dqm->dev->kgd, i);
@@ -498,8 +481,6 @@ static void init_interrupts(struct device_queue_manager *dqm)
 static int initialize_nocpsch(struct device_queue_manager *dqm)
 {
 	int pipe, queue;
-
-	BUG_ON(!dqm);
 
 	pr_debug("num of pipes: %d\n", get_pipes_per_mec(dqm));
 
@@ -531,8 +512,6 @@ static int initialize_nocpsch(struct device_queue_manager *dqm)
 static void uninitialize_nocpsch(struct device_queue_manager *dqm)
 {
 	int i;
-
-	BUG_ON(!dqm);
 
 	BUG_ON(dqm->queue_count > 0 || dqm->processes_count > 0);
 
@@ -631,8 +610,6 @@ static int set_sched_resources(struct device_queue_manager *dqm)
 	int i, mec;
 	struct scheduling_resources res;
 
-	BUG_ON(!dqm);
-
 	res.vmid_mask = (1 << VMID_PER_DEVICE) - 1;
 	res.vmid_mask <<= KFD_VMID_START_OFFSET;
 
@@ -674,8 +651,6 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 {
 	int retval;
 
-	BUG_ON(!dqm);
-
 	pr_debug("num of pipes: %d\n", get_pipes_per_mec(dqm));
 
 	mutex_init(&dqm->lock);
@@ -694,8 +669,6 @@ static int start_cpsch(struct device_queue_manager *dqm)
 {
 	struct device_process_node *node;
 	int retval;
-
-	BUG_ON(!dqm);
 
 	retval = 0;
 
@@ -741,8 +714,6 @@ static int stop_cpsch(struct device_queue_manager *dqm)
 	struct device_process_node *node;
 	struct kfd_process_device *pdd;
 
-	BUG_ON(!dqm);
-
 	destroy_queues_cpsch(dqm, true, true);
 
 	list_for_each_entry(node, &dqm->queues, list) {
@@ -759,8 +730,6 @@ static int create_kernel_queue_cpsch(struct device_queue_manager *dqm,
 					struct kernel_queue *kq,
 					struct qcm_process_device *qpd)
 {
-	BUG_ON(!dqm || !kq || !qpd);
-
 	mutex_lock(&dqm->lock);
 	if (dqm->total_queue_count >= max_num_of_queues_per_device) {
 		pr_warn("Can't create new kernel queue because %d queues were already created\n",
@@ -790,8 +759,6 @@ static void destroy_kernel_queue_cpsch(struct device_queue_manager *dqm,
 					struct kernel_queue *kq,
 					struct qcm_process_device *qpd)
 {
-	BUG_ON(!dqm || !kq);
-
 	mutex_lock(&dqm->lock);
 	/* here we actually preempt the DIQ */
 	destroy_queues_cpsch(dqm, true, false);
@@ -822,8 +789,6 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 {
 	int retval;
 	struct mqd_manager *mqd;
-
-	BUG_ON(!dqm || !q || !qpd);
 
 	retval = 0;
 
@@ -882,7 +847,6 @@ int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
 				unsigned int fence_value,
 				unsigned long timeout)
 {
-	BUG_ON(!fence_addr);
 	timeout += jiffies;
 
 	while (*fence_addr != fence_value) {
@@ -910,8 +874,6 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm,
 	int retval;
 	enum kfd_preempt_type_filter preempt_type;
 	struct kfd_process_device *pdd;
-
-	BUG_ON(!dqm);
 
 	retval = 0;
 
@@ -962,8 +924,6 @@ static int execute_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 {
 	int retval;
 
-	BUG_ON(!dqm);
-
 	if (lock)
 		mutex_lock(&dqm->lock);
 
@@ -1003,8 +963,6 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 	int retval;
 	struct mqd_manager *mqd;
 	bool preempt_all_queues;
-
-	BUG_ON(!dqm || !qpd || !q);
 
 	preempt_all_queues = false;
 
@@ -1131,8 +1089,6 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 {
 	struct device_queue_manager *dqm;
 
-	BUG_ON(!dev);
-
 	pr_debug("Loading device queue manager\n");
 
 	dqm = kzalloc(sizeof(*dqm), GFP_KERNEL);
@@ -1197,8 +1153,6 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 
 void device_queue_manager_uninit(struct device_queue_manager *dqm)
 {
-	BUG_ON(!dqm);
-
 	dqm->ops.uninitialize(dqm);
 	kfree(dqm);
 }

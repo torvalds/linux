@@ -341,8 +341,6 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 
 void kgd2kfd_suspend(struct kfd_dev *kfd)
 {
-	BUG_ON(!kfd);
-
 	if (kfd->init_complete) {
 		kfd->dqm->ops.stop(kfd->dqm);
 		amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
@@ -355,8 +353,6 @@ int kgd2kfd_resume(struct kfd_dev *kfd)
 {
 	unsigned int pasid_limit;
 	int err;
-
-	BUG_ON(kfd == NULL);
 
 	pasid_limit = kfd_get_pasid_limit();
 
@@ -394,8 +390,6 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 {
 	unsigned int num_of_bits;
 
-	BUG_ON(!kfd);
-	BUG_ON(!kfd->gtt_mem);
 	BUG_ON(buf_size < chunk_size);
 	BUG_ON(buf_size == 0);
 	BUG_ON(chunk_size == 0);
@@ -444,8 +438,6 @@ int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,
 			struct kfd_mem_obj **mem_obj)
 {
 	unsigned int found, start_search, cur_size;
-
-	BUG_ON(!kfd);
 
 	if (size == 0)
 		return -EINVAL;
@@ -550,8 +542,6 @@ kfd_gtt_no_free_chunk:
 int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 {
 	unsigned int bit;
-
-	BUG_ON(!kfd);
 
 	/* Act like kfree when trying to free a NULL object */
 	if (!mem_obj)

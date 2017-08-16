@@ -110,8 +110,6 @@ static int register_process_vi(struct device_queue_manager *dqm,
 	struct kfd_process_device *pdd;
 	unsigned int temp;
 
-	BUG_ON(!dqm || !qpd);
-
 	pdd = qpd_to_pdd(qpd);
 
 	/* check if sh_mem_config register already configured */

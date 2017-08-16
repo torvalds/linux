@@ -44,8 +44,6 @@ struct mutex *kfd_get_dbgmgr_mutex(void)
 
 static void kfd_dbgmgr_uninitialize(struct kfd_dbgmgr *pmgr)
 {
-	BUG_ON(!pmgr);
-
 	kfree(pmgr->dbgdev);
 
 	pmgr->dbgdev = NULL;
@@ -66,7 +64,6 @@ bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev)
 	enum DBGDEV_TYPE type = DBGDEV_TYPE_DIQ;
 	struct kfd_dbgmgr *new_buff;
 
-	BUG_ON(!pdev);
 	BUG_ON(!pdev->init_complete);
 
 	new_buff = kfd_alloc_struct(new_buff);
@@ -96,8 +93,6 @@ bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev)
 
 long kfd_dbgmgr_register(struct kfd_dbgmgr *pmgr, struct kfd_process *p)
 {
-	BUG_ON(!p || !pmgr || !pmgr->dbgdev);
-
 	if (pmgr->pasid != 0) {
 		pr_debug("H/W debugger is already active using pasid %d\n",
 				pmgr->pasid);
@@ -118,8 +113,6 @@ long kfd_dbgmgr_register(struct kfd_dbgmgr *pmgr, struct kfd_process *p)
 
 long kfd_dbgmgr_unregister(struct kfd_dbgmgr *pmgr, struct kfd_process *p)
 {
-	BUG_ON(!p || !pmgr || !pmgr->dbgdev);
-
 	/* Is the requests coming from the already registered process? */
 	if (pmgr->pasid != p->pasid) {
 		pr_debug("H/W debugger is not registered by calling pasid %d\n",
@@ -137,8 +130,6 @@ long kfd_dbgmgr_unregister(struct kfd_dbgmgr *pmgr, struct kfd_process *p)
 long kfd_dbgmgr_wave_control(struct kfd_dbgmgr *pmgr,
 				struct dbg_wave_control_info *wac_info)
 {
-	BUG_ON(!pmgr || !pmgr->dbgdev || !wac_info);
-
 	/* Is the requests coming from the already registered process? */
 	if (pmgr->pasid != wac_info->process->pasid) {
 		pr_debug("H/W debugger support was not registered for requester pasid %d\n",
@@ -152,9 +143,6 @@ long kfd_dbgmgr_wave_control(struct kfd_dbgmgr *pmgr,
 long kfd_dbgmgr_address_watch(struct kfd_dbgmgr *pmgr,
 				struct dbg_address_watch_info *adw_info)
 {
-	BUG_ON(!pmgr || !pmgr->dbgdev || !adw_info);
-
-
 	/* Is the requests coming from the already registered process? */
 	if (pmgr->pasid != adw_info->process->pasid) {
 		pr_debug("H/W debugger support was not registered for requester pasid %d\n",

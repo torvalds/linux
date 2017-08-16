@@ -42,8 +42,6 @@
 
 static void dbgdev_address_watch_disable_nodiq(struct kfd_dev *dev)
 {
-	BUG_ON(!dev || !dev->kfd2kgd);
-
 	dev->kfd2kgd->address_watch_disable(dev->kgd);
 }
 
@@ -62,7 +60,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 	unsigned int *ib_packet_buff;
 	int status;
 
-	BUG_ON(!dbgdev || !dbgdev->kq || !packet_buff || !size_in_bytes);
+	BUG_ON(!size_in_bytes);
 
 	kq = dbgdev->kq;
 
@@ -168,8 +166,6 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 
 static int dbgdev_register_nodiq(struct kfd_dbgdev *dbgdev)
 {
-	BUG_ON(!dbgdev);
-
 	/*
 	 * no action is needed in this case,
 	 * just make sure diq will not be used
@@ -186,8 +182,6 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 	unsigned int qid;
 	struct kernel_queue *kq = NULL;
 	int status;
-
-	BUG_ON(!dbgdev || !dbgdev->pqm || !dbgdev->dev);
 
 	status = pqm_create_queue(dbgdev->pqm, dbgdev->dev, NULL,
 				&properties, 0, KFD_QUEUE_TYPE_DIQ,
@@ -215,8 +209,6 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 
 static int dbgdev_unregister_nodiq(struct kfd_dbgdev *dbgdev)
 {
-	BUG_ON(!dbgdev || !dbgdev->dev);
-
 	/* disable watch address */
 	dbgdev_address_watch_disable_nodiq(dbgdev->dev);
 	return 0;
@@ -226,8 +218,6 @@ static int dbgdev_unregister_diq(struct kfd_dbgdev *dbgdev)
 {
 	/* todo - disable address watch */
 	int status;
-
-	BUG_ON(!dbgdev || !dbgdev->pqm || !dbgdev->kq);
 
 	status = pqm_destroy_queue(dbgdev->pqm,
 			dbgdev->kq->queue->properties.queue_id);
@@ -244,8 +234,6 @@ static void dbgdev_address_watch_set_registers(
 			unsigned int index, unsigned int vmid)
 {
 	union ULARGE_INTEGER addr;
-
-	BUG_ON(!adw_info || !addrHi || !addrLo || !cntl);
 
 	addr.quad_part = 0;
 	addrHi->u32All = 0;
@@ -286,8 +274,6 @@ static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
 	union TCP_WATCH_CNTL_BITS cntl;
 	struct kfd_process_device *pdd;
 	unsigned int i;
-
-	BUG_ON(!dbgdev || !dbgdev->dev || !adw_info);
 
 	/* taking the vmid for that process on the safe way using pdd */
 	pdd = kfd_get_process_device_data(dbgdev->dev,
@@ -361,8 +347,6 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 	size_t ib_size = sizeof(struct pm4__set_config_reg) * 4;
 	/* we do not control the vmid in DIQ mode, just a place holder */
 	unsigned int vmid = 0;
-
-	BUG_ON(!dbgdev || !dbgdev->dev || !adw_info);
 
 	addrHi.u32All = 0;
 	addrLo.u32All = 0;
@@ -508,8 +492,6 @@ static int dbgdev_wave_control_set_registers(
 	union GRBM_GFX_INDEX_BITS reg_gfx_index;
 	struct HsaDbgWaveMsgAMDGen2 *pMsg;
 
-	BUG_ON(!wac_info || !in_reg_sq_cmd || !in_reg_gfx_index);
-
 	reg_sq_cmd.u32All = 0;
 	reg_gfx_index.u32All = 0;
 	pMsg = &wac_info->dbgWave_msg.DbgWaveMsg.WaveMsgInfoGen2;
@@ -609,8 +591,6 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 	uint32_t *packet_buff_uint;
 	struct pm4__set_config_reg *packets_vec;
 	size_t ib_size = sizeof(struct pm4__set_config_reg) * 3;
-
-	BUG_ON(!dbgdev || !wac_info);
 
 	reg_sq_cmd.u32All = 0;
 
@@ -724,8 +704,6 @@ static int dbgdev_wave_control_nodiq(struct kfd_dbgdev *dbgdev,
 	union SQ_CMD_BITS reg_sq_cmd;
 	union GRBM_GFX_INDEX_BITS reg_gfx_index;
 	struct kfd_process_device *pdd;
-
-	BUG_ON(!dbgdev || !dbgdev->dev || !wac_info);
 
 	reg_sq_cmd.u32All = 0;
 
@@ -851,8 +829,6 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 void kfd_dbgdev_init(struct kfd_dbgdev *pdbgdev, struct kfd_dev *pdev,
 			enum DBGDEV_TYPE type)
 {
-	BUG_ON(!pdbgdev || !pdev);
-
 	pdbgdev->dev = pdev;
 	pdbgdev->kq = NULL;
 	pdbgdev->type = type;

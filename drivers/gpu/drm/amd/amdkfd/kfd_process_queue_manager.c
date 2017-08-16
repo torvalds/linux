@@ -32,8 +32,6 @@ static inline struct process_queue_node *get_queue_by_qid(
 {
 	struct process_queue_node *pqn;
 
-	BUG_ON(!pqm);
-
 	list_for_each_entry(pqn, &pqm->queues, process_queue_list) {
 		if ((pqn->q && pqn->q->properties.queue_id == qid) ||
 		    (pqn->kq && pqn->kq->queue->properties.queue_id == qid))
@@ -47,8 +45,6 @@ static int find_available_queue_slot(struct process_queue_manager *pqm,
 					unsigned int *qid)
 {
 	unsigned long found;
-
-	BUG_ON(!pqm || !qid);
 
 	found = find_first_zero_bit(pqm->queue_slot_bitmap,
 			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
@@ -69,8 +65,6 @@ static int find_available_queue_slot(struct process_queue_manager *pqm,
 
 int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p)
 {
-	BUG_ON(!pqm);
-
 	INIT_LIST_HEAD(&pqm->queues);
 	pqm->queue_slot_bitmap =
 			kzalloc(DIV_ROUND_UP(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
@@ -86,8 +80,6 @@ void pqm_uninit(struct process_queue_manager *pqm)
 {
 	int retval;
 	struct process_queue_node *pqn, *next;
-
-	BUG_ON(!pqm);
 
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
 		retval = pqm_destroy_queue(
@@ -150,8 +142,6 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	struct kernel_queue *kq;
 	int num_queues = 0;
 	struct queue *cur;
-
-	BUG_ON(!pqm || !dev || !properties || !qid);
 
 	memset(&q_properties, 0, sizeof(struct queue_properties));
 	memcpy(&q_properties, properties, sizeof(struct queue_properties));
@@ -269,7 +259,6 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 
 	dqm = NULL;
 
-	BUG_ON(!pqm);
 	retval = 0;
 
 	pqn = get_queue_by_qid(pqm, qid);
@@ -323,8 +312,6 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 	int retval;
 	struct process_queue_node *pqn;
 
-	BUG_ON(!pqm);
-
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
 		pr_debug("No queue %d exists for update operation\n", qid);
@@ -349,8 +336,6 @@ struct kernel_queue *pqm_get_kernel_queue(
 					unsigned int qid)
 {
 	struct process_queue_node *pqn;
-
-	BUG_ON(!pqm);
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (pqn && pqn->kq)

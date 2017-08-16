@@ -44,8 +44,6 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	struct cik_mqd *m;
 	int retval;
 
-	BUG_ON(!mm || !q || !mqd);
-
 	retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct cik_mqd),
 					mqd_mem_obj);
 
@@ -113,8 +111,6 @@ static int init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 	int retval;
 	struct cik_sdma_rlc_registers *m;
 
-	BUG_ON(!mm || !mqd || !mqd_mem_obj);
-
 	retval = kfd_gtt_sa_allocate(mm->dev,
 					sizeof(struct cik_sdma_rlc_registers),
 					mqd_mem_obj);
@@ -138,14 +134,12 @@ static int init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 static void uninit_mqd(struct mqd_manager *mm, void *mqd,
 			struct kfd_mem_obj *mqd_mem_obj)
 {
-	BUG_ON(!mm || !mqd);
 	kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
 }
 
 static void uninit_mqd_sdma(struct mqd_manager *mm, void *mqd,
 				struct kfd_mem_obj *mqd_mem_obj)
 {
-	BUG_ON(!mm || !mqd);
 	kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
 }
 
@@ -167,8 +161,6 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 			struct queue_properties *q)
 {
 	struct cik_mqd *m;
-
-	BUG_ON(!mm || !q || !mqd);
 
 	m = get_mqd(mqd);
 	m->cp_hqd_pq_control = DEFAULT_RPTR_BLOCK_SIZE |
@@ -208,8 +200,6 @@ static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 				struct queue_properties *q)
 {
 	struct cik_sdma_rlc_registers *m;
-
-	BUG_ON(!mm || !mqd || !q);
 
 	m = get_sdma_mqd(mqd);
 	m->sdma_rlc_rb_cntl = ffs(q->queue_size / sizeof(unsigned int)) <<
@@ -296,8 +286,6 @@ static int init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 	struct cik_mqd *m;
 	int retval;
 
-	BUG_ON(!mm || !q || !mqd || !mqd_mem_obj);
-
 	retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct cik_mqd),
 					mqd_mem_obj);
 
@@ -352,8 +340,6 @@ static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 {
 	struct cik_mqd *m;
 
-	BUG_ON(!mm || !q || !mqd);
-
 	m = get_mqd(mqd);
 	m->cp_hqd_pq_control = DEFAULT_RPTR_BLOCK_SIZE |
 				DEFAULT_MIN_AVAIL_SIZE |
@@ -391,8 +377,6 @@ struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
 {
 	struct cik_sdma_rlc_registers *m;
 
-	BUG_ON(!mqd);
-
 	m = (struct cik_sdma_rlc_registers *)mqd;
 
 	return m;
@@ -403,7 +387,6 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 {
 	struct mqd_manager *mqd;
 
-	BUG_ON(!dev);
 	BUG_ON(type >= KFD_MQD_TYPE_MAX);
 
 	mqd = kzalloc(sizeof(*mqd), GFP_KERNEL);
