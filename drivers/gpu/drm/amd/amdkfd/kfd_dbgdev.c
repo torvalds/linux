@@ -823,7 +823,7 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 	for (vmid = first_vmid_to_scan; vmid <= last_vmid_to_scan; vmid++) {
 		if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_valid
 				(dev->kgd, vmid)) {
-			if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_valid
+			if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_pasid
 					(dev->kgd, vmid) == p->pasid) {
 				pr_debug("Killing wave fronts of vmid %d and pasid %d\n",
 						vmid, p->pasid);
