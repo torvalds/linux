@@ -155,7 +155,6 @@ ENTRY(startup_32)
 	jmp *%eax
 
 .Lbad_subarch:
-WEAK(lguest_entry)
 WEAK(xen_entry)
 	/* Unknown implementation; there's really
 	   nothing we can do at this point. */
@@ -165,7 +164,6 @@ WEAK(xen_entry)
 
 subarch_entries:
 	.long .Ldefault_entry		/* normal x86/PC */
-	.long lguest_entry		/* lguest hypervisor */
 	.long xen_entry			/* Xen hypervisor */
 	.long .Ldefault_entry		/* Moorestown MID */
 num_subarch_entries = (. - subarch_entries) / 4

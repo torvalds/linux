@@ -662,7 +662,7 @@ static inline void sync_core(void)
 	 * In case NMI unmasking or performance ever becomes a problem,
 	 * the next best option appears to be MOV-to-CR2 and an
 	 * unconditional jump.  That sequence also works on all CPUs,
-	 * but it will fault at CPL3 (i.e. Xen PV and lguest).
+	 * but it will fault at CPL3 (i.e. Xen PV).
 	 *
 	 * CPUID is the conventional way, but it's nasty: it doesn't
 	 * exist on some 486-like CPUs, and it usually exits to a

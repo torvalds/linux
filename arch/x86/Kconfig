@@ -777,8 +777,6 @@ config KVM_DEBUG_FS
 	  Statistics are displayed in debugfs filesystem. Enabling this option
 	  may incur significant overhead.
 
-source "arch/x86/lguest/Kconfig"
-
 config PARAVIRT_TIME_ACCOUNTING
 	bool "Paravirtual steal time accounting"
 	depends on PARAVIRT
