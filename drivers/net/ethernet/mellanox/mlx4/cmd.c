@@ -2637,7 +2637,7 @@ int mlx4_cmd_use_events(struct mlx4_dev *dev)
 	int err = 0;
 
 	priv->cmd.context = kmalloc(priv->cmd.max_cmds *
-				   sizeof (struct mlx4_cmd_context),
+				   sizeof(struct mlx4_cmd_context),
 				   GFP_KERNEL);
 	if (!priv->cmd.context)
 		return -ENOMEM;
@@ -2695,7 +2695,7 @@ struct mlx4_cmd_mailbox *mlx4_alloc_cmd_mailbox(struct mlx4_dev *dev)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 
-	mailbox = kmalloc(sizeof *mailbox, GFP_KERNEL);
+	mailbox = kmalloc(sizeof(*mailbox), GFP_KERNEL);
 	if (!mailbox)
 		return ERR_PTR(-ENOMEM);
 

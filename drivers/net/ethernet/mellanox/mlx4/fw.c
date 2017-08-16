@@ -57,7 +57,7 @@ MODULE_PARM_DESC(enable_qos, "Enable Enhanced QoS support (default: off)");
 	do {							      \
 		void *__p = (char *) (source) + (offset);	      \
 		u64 val;                                              \
-		switch (sizeof (dest)) {			      \
+		switch (sizeof(dest)) {			      \
 		case 1: (dest) = *(u8 *) __p;	    break;	      \
 		case 2: (dest) = be16_to_cpup(__p); break;	      \
 		case 4: (dest) = be32_to_cpup(__p); break;	      \
