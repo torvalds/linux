@@ -78,6 +78,10 @@ int process_kern2kobj(struct process_kobject * tk, struct task_struct * ts)
 	tk->ecap = task_cap_effective(ts);
 	tk->icap = task_cap_inheritable(ts);
 	tk->pcap = task_cap_permitted(ts);
+
+	unsigned __capi;
+	CAP_FOR_EACH_U32(__capi)
+		printk("MEDUSA: ECAP[%d]=%08x\n", __capi, (tk->ecap).cap[CAP_LAST_U32 - __capi]);
 	
 	tk->luid = task_security(ts).luid;
 	COPY_MEDUSA_SUBJECT_VARS(tk,&task_security(ts));
@@ -111,16 +115,16 @@ MED_ATTRS(process_kobject) {
 	MED_ATTR	(process_kobject, egid, "egid", MED_UNSIGNED),
 	MED_ATTR	(process_kobject, sgid, "sgid", MED_UNSIGNED),
 	MED_ATTR	(process_kobject, fsgid, "fsgid", MED_UNSIGNED),
-	MED_ATTR	(process_kobject, ecap, "ecap", MED_BITMAP),
-	MED_ATTR	(process_kobject, icap, "icap", MED_BITMAP),
-	MED_ATTR	(process_kobject, pcap, "pcap", MED_BITMAP),
+	MED_ATTR	(process_kobject, ecap, "ecap", MED_BITMAP_32),
+	MED_ATTR	(process_kobject, icap, "icap", MED_BITMAP_32),
+	MED_ATTR	(process_kobject, pcap, "pcap", MED_BITMAP_32),
 
 	MED_ATTR	(process_kobject, luid, "luid", MED_UNSIGNED),
 	MED_ATTR_SUBJECT(process_kobject),
 	MED_ATTR_OBJECT	(process_kobject),
 	MED_ATTR	(process_kobject, user, "user", MED_UNSIGNED),
 #ifdef CONFIG_MEDUSA_SYSCALL
-	MED_ATTR	(process_kobject, med_syscall, "syscall", MED_BITMAP),
+	MED_ATTR	(process_kobject, med_syscall, "syscall", MED_BITMAP_8),
 #endif
 
 	MED_ATTR_END

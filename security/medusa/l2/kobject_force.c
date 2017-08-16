@@ -22,7 +22,7 @@ struct force_kobject {
 
 MED_ATTRS(force_kobject) {
 	MED_ATTR_KEY_RO	(force_kobject, pid, "pid", MED_SIGNED),
-	MED_ATTR	(force_kobject, code, "code", MED_BITMAP),
+	MED_ATTR	(force_kobject, code, "code", MED_BITMAP_8),
 
 	MED_ATTR_END
 };

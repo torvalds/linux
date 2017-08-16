@@ -19,8 +19,8 @@ MEDUSA_ACCESS_HEADER;
 
 MED_ATTRS(mknod_access) {
 	MED_ATTR_RO (mknod_access, filename, "filename", MED_STRING),
-	MED_ATTR_RO (mknod_access, dev, "dev", MED_BITMAP),
-	MED_ATTR_RO (mknod_access, mode, "mode", MED_BITMAP),
+	MED_ATTR_RO (mknod_access, dev, "dev", MED_UNSIGNED),
+	MED_ATTR_RO (mknod_access, mode, "mode", MED_BITMAP_16),
 	MED_ATTR_END
 };
 

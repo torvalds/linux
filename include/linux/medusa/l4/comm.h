@@ -54,7 +54,10 @@ struct medusa_comm_attribute_s {
 #define	MED_COMM_TYPE_UNSIGNED		0x01	/* unsigned integer attr */
 #define	MED_COMM_TYPE_SIGNED		0x02	/* signed integer attr */
 #define	MED_COMM_TYPE_STRING		0x03	/* string attr */
-#define	MED_COMM_TYPE_BITMAP		0x04	/* bitmap attr */
+#define	MED_COMM_TYPE_BITMAP_8		0x04	/* bitmap attr, bitmap formed from bytes */
+#define	MED_COMM_TYPE_BITMAP_16		0x05	/* bitmap attr, bitmap formed from words */
+#define	MED_COMM_TYPE_BITMAP_32		0x06	/* bitmap attr, bitmap formed from dwords */
+#define	MED_COMM_TYPE_BITMAP		MED_COMM_TYPE_BITMAP_8 /* default bitmap subtype */
 
 #define	MED_COMM_TYPE_READ_ONLY		0x80	/* this attribute is read-only */
 #define	MED_COMM_TYPE_PRIMARY_KEY	0x40	/* this attribute is used to lookup object */

@@ -25,9 +25,9 @@ struct sexec_access {
 };
 
 MED_ATTRS(sexec_access) {
-	MED_ATTR_RO (sexec_access, cap_effective, "ecap", MED_BITMAP),
-	MED_ATTR_RO (sexec_access, cap_inheritable, "icap", MED_BITMAP),
-	MED_ATTR_RO (sexec_access, cap_permitted, "pcap", MED_BITMAP),
+	MED_ATTR_RO (sexec_access, cap_effective, "ecap", MED_BITMAP_32),
+	MED_ATTR_RO (sexec_access, cap_inheritable, "icap", MED_BITMAP_32),
+	MED_ATTR_RO (sexec_access, cap_permitted, "pcap", MED_BITMAP_32),
 	MED_ATTR_RO (sexec_access, uid, "uid", MED_SIGNED),
 	MED_ATTR_RO (sexec_access, gid, "gid", MED_SIGNED),
 	MED_ATTR_END

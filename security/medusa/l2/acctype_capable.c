@@ -16,7 +16,7 @@ struct capable_access {
 };
 
 MED_ATTRS(capable_access) {
-	MED_ATTR_RO (capable_access, cap, "cap", MED_BITMAP),
+	MED_ATTR_RO (capable_access, cap, "cap", MED_BITMAP_32),
 	MED_ATTR_END
 };
 

@@ -18,13 +18,14 @@ typedef u_int32_t vs_t;
 typedef struct { u_int32_t vspack[((CONFIG_MEDUSA_VS+31)/32)]; } vs_t;
 #endif
 typedef u_int32_t act_t;
-typedef struct { /* this is at each subject */
-	u_int32_t data[4];
-} s_cinfo_t;
-typedef struct { /* this is at each object */
+/* {s|o}_cinfo_t is at each *S*ubject or *O*bject for internal use of auth server 
+   for Constable should be able to hold pointer(s) on 64-bit and 32-bit arch, too */
+typedef struct { /* this is at each subject for internal use of auth server */
 	u_int64_t data[1];
-} o_cinfo_t;
-typedef void* cinfo_t; /* this is at kclass; must be able to hold pointer */
+} s_cinfo_t, o_cinfo_t;
+/* cinfo_t is at kclass and events at l4
+   must be able to hold pointer for linked lists of registered kclass and events */
+typedef void* cinfo_t;
 
 struct medusa_object_s {
 	vs_t vs;	/* virt. spaces of this object */
@@ -139,9 +140,6 @@ static inline int VS_INTERSECT(vs_t X, vs_t Y)
 		(ptr)->med_subject.vsw = 0xffffffff;			\
 		(ptr)->med_subject.act = 0xffffffff;			\
 		(ptr)->med_subject.cinfo.data[0] = 0;			\
-		(ptr)->med_subject.cinfo.data[1] = 0;			\
-		(ptr)->med_subject.cinfo.data[2] = 0;			\
-		(ptr)->med_subject.cinfo.data[3] = 0;			\
 	} while (0)
 #define UNMONITOR_MEDUSA_SUBJECT_VARS(ptr) \
 	do { /* don't touch, unless you REALLY know what you are doing. */ \
@@ -161,9 +159,6 @@ static inline int VS_INTERSECT(vs_t X, vs_t Y)
 				 0xffffffff;				\
 		(ptr)->med_subject.act = 0xffffffff;			\
 		(ptr)->med_subject.cinfo.data[0] = 0;			\
-		(ptr)->med_subject.cinfo.data[1] = 0;			\
-		(ptr)->med_subject.cinfo.data[2] = 0;			\
-		(ptr)->med_subject.cinfo.data[3] = 0;			\
 	} while (0)
 #define UNMONITOR_MEDUSA_SUBJECT_VARS(ptr) \
 	do { /* don't touch, unless you REALLY know what you are doing. */ \

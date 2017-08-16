@@ -92,6 +92,7 @@ static DEFINE_SEMAPHORE(constable_mutex);
  static atomic_t question_ready = ATOMIC_INIT(0);
  static struct medusa_event_s * decision_event;
  static struct medusa_kobject_s * decision_o1, * decision_o2;
+ static atomic_t decision_request_id = ATOMIC_INIT(0);
  /* and the answer */
  static medusa_answer_t user_answer;
  static DECLARE_WAIT_QUEUE_HEAD(userspace);
@@ -230,6 +231,7 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 	decision_event = NULL;
 	decision_o1 = NULL;
 	decision_o2 = NULL;
+        atomic_inc(&decision_request_id);
 	up(&constable_mutex);
 	return retval;
 }
@@ -279,8 +281,6 @@ static ssize_t user_read(struct file * filp, char * buf,
 	ssize_t retval;
 
         /* TODO TODO TODO: permission check turned-off due python thread handling... */
-        //printk("MEDUSA: user_read: constable=%d, pid=%d, ppid=%d\n", \
-        //                constable->pid, current->pid, current->real_parent->pid); 
 	//if (constable != current)
 	//	return -EPERM;
 	if (*ppos != filp->f_pos)
@@ -319,7 +319,8 @@ feed_lions:
 	tele_mem[0].opcode = tp_PUTPtr;
 	tele_mem[0].args.putPtr.what = (MCPptr_t)decision_evtype; // possibility to encryption JK march 2015
 	tele_mem[1].opcode = tp_PUT32;
-	tele_mem[1].args.put32.what = 0;
+	//tele_mem[1].args.put32.what = 0;
+	tele_mem[1].args.put32.what = atomic_read(&decision_request_id);
 	tele_mem[2].opcode = tp_CUTNPASTE;
 	tele_mem[2].args.cutnpaste.from = (unsigned char *)decision_event;
 	tele_mem[2].args.cutnpaste.count = decision_evtype->event_size;
@@ -439,8 +440,6 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 	struct medusa_kclass_s * cl;
 
         /* TODO TODO TODO: permission check turned-off due python thread handling... */
-        //printk("MEDUSA: user_write: constable=%d, pid=%d, ppid=%d\n", \
-        //                constable->pid, current->pid, current->real_parent->pid); 
 	//if (constable != current)
 	//	return -EPERM;
 	if (*ppos != filp->f_pos)
@@ -538,8 +537,6 @@ static unsigned int user_poll(struct file *filp, poll_table * wait)
         /* TODO TODO TODO: permission check turned-off due python thread handling... */
 	//if (constable != current)
 	//	return -EPERM;
-        //printk("MEDUSA: user_poll: constable=%d, pid=%d, ppid=%d\n", \
-        //                constable->pid, current->pid, current->real_parent->pid); 
 	poll_wait(filp, &userspace, wait);
 	if (atomic_read(&currently_receiving))
 		return POLLOUT | POLLWRNORM;

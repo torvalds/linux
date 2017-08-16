@@ -61,17 +61,17 @@ struct medusa_attribute_s {
 #define MED_ATTR_KEY(sn,sm,an,ty) MED_ATTR(sn,sm,an,(ty)|MED_KEY)
 #define MED_ATTR_KEY_RO(sn,sm,an,ty) MED_ATTR(sn,sm,an,(ty)|MED_KEY|MED_RO)
 #define __MED_ATTR_SUBJ(sn,mn) /* internal macro copying medusa/l3/model.h */ \
-	MED_ATTR(sn,mn.vsr, "vsr", MED_BITMAP), \
-	MED_ATTR(sn,mn.vsw, "vsw", MED_BITMAP), \
-	MED_ATTR(sn,mn.vss, "vss", MED_BITMAP), \
-	MED_ATTR(sn,mn.act, "med_sact", MED_BITMAP), \
-	MED_ATTR(sn,mn.cinfo, "s_cinfo", MED_BITMAP)
+	MED_ATTR(sn,mn.vsr, "vsr", MED_BITMAP_32),	/* model.h, type vs_t */ \
+	MED_ATTR(sn,mn.vsw, "vsw", MED_BITMAP_32),	/* model.h, type vs_t */ \
+	MED_ATTR(sn,mn.vss, "vss", MED_BITMAP_32),	/* model.h, type vs_t */ \
+	MED_ATTR(sn,mn.act, "med_sact", MED_BITMAP_32),	/* model.h, type act_t */ \
+	MED_ATTR(sn,mn.cinfo, "s_cinfo", MED_BITMAP_32	/* model.h, type s_cinfo_t */ )
 #define MED_ATTR_SUBJECT(sn) __MED_ATTR_SUBJ(sn,med_subject)
 #define MED_SUBATTR_SUBJECT(sn,mn) __MED_ATTR_SUBJ(sn,mn.med_subject)
 #define __MED_ATTR_OBJ(sn,mn) /* internal macro copying medusa/l3/model.h */ \
-	MED_ATTR(sn,mn.vs, "vs", MED_BITMAP), \
-	MED_ATTR(sn,mn.act, "med_oact", MED_BITMAP), \
-	MED_ATTR(sn,mn.cinfo, "o_cinfo", MED_BITMAP)
+	MED_ATTR(sn,mn.vs, "vs", MED_BITMAP_32),	/* model.h, type vs_t */ \
+	MED_ATTR(sn,mn.act, "med_oact", MED_BITMAP_32),	/* model.h, type act_t */ \
+	MED_ATTR(sn,mn.cinfo, "o_cinfo", MED_BITMAP_32	/* model.h, type o_cinfo_t */ )
 #define MED_ATTR_OBJECT(sn) __MED_ATTR_OBJ(sn,med_object)
 #define MED_SUBATTR_OBJECT(sn,mn) __MED_ATTR_OBJ(sn,mn.med_object)
 

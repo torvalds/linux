@@ -21,7 +21,7 @@ struct notify_change_access {
 MED_ATTRS(notify_change_access) {
 	MED_ATTR_RO (notify_change_access, filename, "filename", MED_STRING),
 	MED_ATTR_RO(notify_change_access, attr.ia_valid, "valid", MED_UNSIGNED),
-	MED_ATTR(notify_change_access, attr.ia_mode, "mode", MED_BITMAP),
+	MED_ATTR(notify_change_access, attr.ia_mode, "mode", MED_BITMAP_16),
 	MED_ATTR(notify_change_access, attr.ia_uid, "uid", MED_SIGNED),
 	MED_ATTR(notify_change_access, attr.ia_gid, "gid", MED_SIGNED),
 	MED_ATTR_RO(notify_change_access, attr.ia_size, "size", MED_UNSIGNED),

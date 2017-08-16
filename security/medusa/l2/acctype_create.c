@@ -20,7 +20,7 @@ struct create_access {
 
 MED_ATTRS(create_access) {
 	MED_ATTR_RO (create_access, filename, "filename", MED_STRING),
-	MED_ATTR_RO (create_access, mode, "mode", MED_BITMAP),
+	MED_ATTR_RO (create_access, mode, "mode", MED_BITMAP_16),
 	MED_ATTR_END
 };
 
