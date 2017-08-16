@@ -226,6 +226,9 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 #define   OCTNET_CMD_SET_UC_LIST       0x1b
 #define   OCTNET_CMD_SET_VF_LINKSTATE  0x1c
+
+#define   OCTNET_CMD_QUEUE_COUNT_CTL	0x1f
+
 #define   OCTNET_CMD_VXLAN_PORT_ADD    0x0
 #define   OCTNET_CMD_VXLAN_PORT_DEL    0x1
 #define   OCTNET_CMD_RXCSUM_ENABLE     0x0

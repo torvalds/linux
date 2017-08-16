@@ -167,7 +167,13 @@ void cleanup_rx_oom_poll_fn(struct net_device *netdev);
  */
 void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr);
 
-int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx);
+int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx,
+			     u32 num_iqs, u32 num_oqs);
+
+irqreturn_t liquidio_msix_intr_handler(int irq __attribute__((unused)),
+				       void *dev);
+
+int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs);
 
 /**
  * \brief Register ethtool operations
