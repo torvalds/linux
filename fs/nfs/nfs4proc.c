@@ -2285,7 +2285,6 @@ static int nfs4_opendata_access(struct rpc_cred *cred,
 		mask = NFS4_ACCESS_READ;
 
 	cache.cred = cred;
-	cache.jiffies = jiffies;
 	nfs_access_set_mask(&cache, opendata->o_res.access_result);
 	nfs_access_add_cache(state->inode, &cache);
 
