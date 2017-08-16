@@ -2882,7 +2882,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	}
 
 	if (list_empty(&ci->i_cap_snaps)) {
-		snap_follows = 0;
+		snap_follows = ci->i_head_snapc ? ci->i_head_snapc->seq : 0;
 	} else {
 		struct ceph_cap_snap *capsnap =
 			list_first_entry(&ci->i_cap_snaps,
