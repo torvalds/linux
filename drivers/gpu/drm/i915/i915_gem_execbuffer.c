@@ -1268,7 +1268,9 @@ relocate_entry(struct i915_vma *vma,
 
 	if (!eb->reloc_cache.vaddr &&
 	    (DBG_FORCE_RELOC == FORCE_GPU_RELOC ||
-	     !reservation_object_test_signaled_rcu(vma->resv, true))) {
+	     !reservation_object_test_signaled_rcu(vma->resv, true)) &&
+	    __intel_engine_can_store_dword(eb->reloc_cache.gen,
+					   eb->engine->class)) {
 		const unsigned int gen = eb->reloc_cache.gen;
 		unsigned int len;
 		u32 *batch;
@@ -1278,10 +1280,8 @@ relocate_entry(struct i915_vma *vma,
 			len = offset & 7 ? 8 : 5;
 		else if (gen >= 4)
 			len = 4;
-		else if (gen >= 3)
+		else
 			len = 3;
-		else /* On gen2 MI_STORE_DWORD_IMM uses a physical address */
-			goto repeat;
 
 		batch = reloc_gpu(eb, vma, len);
 		if (IS_ERR(batch))

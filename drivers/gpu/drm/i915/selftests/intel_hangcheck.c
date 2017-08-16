@@ -253,9 +253,6 @@ static int igt_hang_sanitycheck(void *arg)
 
 	/* Basic check that we can execute our hanging batch */
 
-	if (!igt_can_mi_store_dword_imm(i915))
-		return 0;
-
 	mutex_lock(&i915->drm.struct_mutex);
 	err = hang_init(&h, i915);
 	if (err)
@@ -263,6 +260,9 @@ static int igt_hang_sanitycheck(void *arg)
 
 	for_each_engine(engine, i915, id) {
 		long timeout;
+
+		if (!intel_engine_can_store_dword(engine))
+			continue;
 
 		rq = hang_create_request(&h, engine, i915->kernel_context);
 		if (IS_ERR(rq)) {
@@ -599,6 +599,9 @@ static int igt_wait_reset(void *arg)
 	long timeout;
 	int err;
 
+	if (!intel_engine_can_store_dword(i915->engine[RCS]))
+		return 0;
+
 	/* Check that we detect a stuck waiter and issue a reset */
 
 	global_reset_lock(i915);
@@ -664,9 +667,6 @@ static int igt_reset_queue(void *arg)
 
 	/* Check that we replay pending requests following a hang */
 
-	if (!igt_can_mi_store_dword_imm(i915))
-		return 0;
-
 	global_reset_lock(i915);
 
 	mutex_lock(&i915->drm.struct_mutex);
@@ -678,6 +678,9 @@ static int igt_reset_queue(void *arg)
 		struct drm_i915_gem_request *prev;
 		IGT_TIMEOUT(end_time);
 		unsigned int count;
+
+		if (!intel_engine_can_store_dword(engine))
+			continue;
 
 		prev = hang_create_request(&h, engine, i915->kernel_context);
 		if (IS_ERR(prev)) {
@@ -782,6 +785,9 @@ static int igt_handle_error(void *arg)
 	/* Check that we can issue a global GPU and engine reset */
 
 	if (!intel_has_reset_engine(i915))
+		return 0;
+
+	if (!intel_engine_can_store_dword(i915->engine[RCS]))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);

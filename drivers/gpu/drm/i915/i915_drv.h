@@ -4328,4 +4328,11 @@ int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
 		     struct io_mapping *iomap);
 
+static inline bool
+intel_engine_can_store_dword(struct intel_engine_cs *engine)
+{
+	return __intel_engine_can_store_dword(INTEL_GEN(engine->i915),
+					      engine->class);
+}
+
 #endif
