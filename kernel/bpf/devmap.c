@@ -83,12 +83,6 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 	    attr->value_size != 4 || attr->map_flags)
 		return ERR_PTR(-EINVAL);
 
-	/* if value_size is bigger, the user space won't be able to
-	 * access the elements.
-	 */
-	if (attr->value_size > KMALLOC_MAX_SIZE)
-		return ERR_PTR(-E2BIG);
-
 	dtab = kzalloc(sizeof(*dtab), GFP_USER);
 	if (!dtab)
 		return ERR_PTR(-ENOMEM);
