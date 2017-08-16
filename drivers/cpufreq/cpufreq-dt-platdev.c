@@ -27,7 +27,6 @@ static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "allwinner,sun6i-a31s", },
 	{ .compatible = "allwinner,sun7i-a20", },
 	{ .compatible = "allwinner,sun8i-a23", },
-	{ .compatible = "allwinner,sun8i-a33", },
 	{ .compatible = "allwinner,sun8i-a83t", },
 	{ .compatible = "allwinner,sun8i-h3", },
 
@@ -37,7 +36,6 @@ static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "arm,integrator-cp", },
 
 	{ .compatible = "hisilicon,hi3660", },
-	{ .compatible = "hisilicon,hi6220", },
 
 	{ .compatible = "fsl,imx27", },
 	{ .compatible = "fsl,imx51", },
@@ -51,11 +49,8 @@ static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "samsung,exynos3250", },
 	{ .compatible = "samsung,exynos4210", },
 	{ .compatible = "samsung,exynos4212", },
-	{ .compatible = "samsung,exynos4412", },
 	{ .compatible = "samsung,exynos5250", },
 #ifndef CONFIG_BL_SWITCHER
-	{ .compatible = "samsung,exynos5420", },
-	{ .compatible = "samsung,exynos5433", },
 	{ .compatible = "samsung,exynos5800", },
 #endif
 
@@ -88,11 +83,7 @@ static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "rockchip,rk3368", },
 	{ .compatible = "rockchip,rk3399", },
 
-	{ .compatible = "socionext,uniphier-pro5", },
-	{ .compatible = "socionext,uniphier-pxs2", },
 	{ .compatible = "socionext,uniphier-ld6b", },
-	{ .compatible = "socionext,uniphier-ld11", },
-	{ .compatible = "socionext,uniphier-ld20", },
 
 	{ .compatible = "st-ericsson,u8500", },
 	{ .compatible = "st-ericsson,u8540", },
@@ -106,8 +97,6 @@ static const struct of_device_id whitelist[] __initconst = {
 
 	{ .compatible = "xlnx,zynq-7000", },
 	{ .compatible = "xlnx,zynqmp", },
-
-	{ .compatible = "zte,zx296718", },
 
 	{ }
 };
