@@ -87,6 +87,17 @@ struct kgd2kfd_shared_resources {
 	size_t doorbell_start_offset;
 };
 
+struct tile_config {
+	uint32_t *tile_config_ptr;
+	uint32_t *macro_tile_config_ptr;
+	uint32_t num_tile_configs;
+	uint32_t num_macro_tile_configs;
+
+	uint32_t gb_addr_config;
+	uint32_t num_banks;
+	uint32_t num_ranks;
+};
+
 /**
  * struct kfd2kgd_calls
  *
@@ -130,6 +141,8 @@ struct kgd2kfd_shared_resources {
  *
  * @set_scratch_backing_va: Sets VA for scratch backing memory of a VMID.
  * Only used for no cp scheduling mode
+ *
+ * @get_tile_config: Returns GPU-specific tiling mode information
  *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
@@ -204,6 +217,7 @@ struct kfd2kgd_calls {
 				enum kgd_engine_type type);
 	void (*set_scratch_backing_va)(struct kgd_dev *kgd,
 				uint64_t va, uint32_t vmid);
+	int (*get_tile_config)(struct kgd_dev *kgd, struct tile_config *config);
 };
 
 /**

@@ -138,6 +138,31 @@ static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type);
 static void set_scratch_backing_va(struct kgd_dev *kgd,
 					uint64_t va, uint32_t vmid);
 
+/* Because of REG_GET_FIELD() being used, we put this function in the
+ * asic specific file.
+ */
+static int get_tile_config(struct kgd_dev *kgd,
+		struct tile_config *config)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	config->gb_addr_config = adev->gfx.config.gb_addr_config;
+	config->num_banks = REG_GET_FIELD(adev->gfx.config.mc_arb_ramcfg,
+				MC_ARB_RAMCFG, NOOFBANK);
+	config->num_ranks = REG_GET_FIELD(adev->gfx.config.mc_arb_ramcfg,
+				MC_ARB_RAMCFG, NOOFRANKS);
+
+	config->tile_config_ptr = adev->gfx.config.tile_mode_array;
+	config->num_tile_configs =
+			ARRAY_SIZE(adev->gfx.config.tile_mode_array);
+	config->macro_tile_config_ptr =
+			adev->gfx.config.macrotile_mode_array;
+	config->num_macro_tile_configs =
+			ARRAY_SIZE(adev->gfx.config.macrotile_mode_array);
+
+	return 0;
+}
+
 static const struct kfd2kgd_calls kfd2kgd = {
 	.init_gtt_mem_allocation = alloc_gtt_mem,
 	.free_gtt_mem = free_gtt_mem,
@@ -163,6 +188,7 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.write_vmid_invalidate_request = write_vmid_invalidate_request,
 	.get_fw_version = get_fw_version,
 	.set_scratch_backing_va = set_scratch_backing_va,
+	.get_tile_config = get_tile_config,
 };
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void)
