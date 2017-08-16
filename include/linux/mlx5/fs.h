@@ -141,6 +141,7 @@ void mlx5_destroy_flow_group(struct mlx5_flow_group *fg);
 
 struct mlx5_flow_act {
 	u32 action;
+	bool has_flow_tag;
 	u32 flow_tag;
 	u32 encap_id;
 	u32 modify_id;

@@ -1443,7 +1443,7 @@ static int check_conflicting_ftes(struct fs_fte *fte, const struct mlx5_flow_act
 		return -EEXIST;
 	}
 
-	if (fte->flow_tag != flow_act->flow_tag) {
+	if (flow_act->has_flow_tag && fte->flow_tag != flow_act->flow_tag) {
 		mlx5_core_warn(get_dev(&fte->node),
 			       "FTE flow tag %u already exists with different flow tag %u\n",
 			       fte->flow_tag,
