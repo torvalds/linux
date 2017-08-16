@@ -218,8 +218,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 							kq, &pdd->qpd);
 		break;
 	default:
-		BUG();
-		break;
+		WARN(1, "Invalid queue type %d", type);
+		retval = -EINVAL;
 	}
 
 	if (retval != 0) {
@@ -272,7 +272,8 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 		dev = pqn->kq->dev;
 	if (pqn->q)
 		dev = pqn->q->device;
-	BUG_ON(!dev);
+	if (WARN_ON(!dev))
+		return -ENODEV;
 
 	pdd = kfd_get_process_device_data(dev, pqm->process);
 	if (!pdd) {

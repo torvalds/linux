@@ -64,7 +64,8 @@ bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev)
 	enum DBGDEV_TYPE type = DBGDEV_TYPE_DIQ;
 	struct kfd_dbgmgr *new_buff;
 
-	BUG_ON(!pdev->init_complete);
+	if (WARN_ON(!pdev->init_complete))
+		return false;
 
 	new_buff = kfd_alloc_struct(new_buff);
 	if (!new_buff) {

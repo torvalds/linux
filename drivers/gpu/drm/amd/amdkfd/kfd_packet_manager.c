@@ -35,7 +35,8 @@ static inline void inc_wptr(unsigned int *wptr, unsigned int increment_bytes,
 {
 	unsigned int temp = *wptr + increment_bytes / sizeof(uint32_t);
 
-	BUG_ON((temp * sizeof(uint32_t)) > buffer_size_bytes);
+	WARN((temp * sizeof(uint32_t)) > buffer_size_bytes,
+	     "Runlist IB overflow");
 	*wptr = temp;
 }
 
@@ -94,7 +95,8 @@ static int pm_allocate_runlist_ib(struct packet_manager *pm,
 {
 	int retval;
 
-	BUG_ON(pm->allocated);
+	if (WARN_ON(pm->allocated))
+		return -EINVAL;
 
 	pm_calc_rlib_size(pm, rl_buffer_size, is_over_subscription);
 
@@ -119,7 +121,8 @@ static int pm_create_runlist(struct packet_manager *pm, uint32_t *buffer,
 {
 	struct pm4_runlist *packet;
 
-	BUG_ON(!ib);
+	if (WARN_ON(!ib))
+		return -EFAULT;
 
 	packet = (struct pm4_runlist *)buffer;
 
@@ -211,9 +214,8 @@ static int pm_create_map_queue_vi(struct packet_manager *pm, uint32_t *buffer,
 		use_static = false; /* no static queues under SDMA */
 		break;
 	default:
-		pr_err("queue type %d\n", q->properties.type);
-		BUG();
-		break;
+		WARN(1, "queue type %d", q->properties.type);
+		return -EINVAL;
 	}
 	packet->bitfields3.doorbell_offset =
 			q->properties.doorbell_off;
@@ -266,8 +268,8 @@ static int pm_create_map_queue(struct packet_manager *pm, uint32_t *buffer,
 		use_static = false; /* no static queues under SDMA */
 		break;
 	default:
-		BUG();
-		break;
+		WARN(1, "queue type %d", q->properties.type);
+		return -EINVAL;
 	}
 
 	packet->mes_map_queues_ordinals[0].bitfields3.doorbell_offset =
@@ -392,14 +394,16 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	pr_debug("Finished map process and queues to runlist\n");
 
 	if (is_over_subscription)
-		pm_create_runlist(pm, &rl_buffer[rl_wptr], *rl_gpu_addr,
-				alloc_size_bytes / sizeof(uint32_t), true);
+		retval = pm_create_runlist(pm, &rl_buffer[rl_wptr],
+					*rl_gpu_addr,
+					alloc_size_bytes / sizeof(uint32_t),
+					true);
 
 	for (i = 0; i < alloc_size_bytes / sizeof(uint32_t); i++)
 		pr_debug("0x%2X ", rl_buffer[i]);
 	pr_debug("\n");
 
-	return 0;
+	return retval;
 }
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
@@ -512,7 +516,8 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 	int retval;
 	struct pm4_query_status *packet;
 
-	BUG_ON(!fence_address);
+	if (WARN_ON(!fence_address))
+		return -EFAULT;
 
 	mutex_lock(&pm->lock);
 	retval = pm->priv_queue->ops.acquire_packet_buffer(
@@ -577,8 +582,9 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 			engine_sel__mes_unmap_queues__sdma0 + sdma_engine;
 		break;
 	default:
-		BUG();
-		break;
+		WARN(1, "queue type %d", type);
+		retval = -EINVAL;
+		goto err_invalid;
 	}
 
 	if (reset)
@@ -610,12 +616,18 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 				queue_sel__mes_unmap_queues__perform_request_on_dynamic_queues_only;
 		break;
 	default:
-		BUG();
-		break;
+		WARN(1, "filter %d", mode);
+		retval = -EINVAL;
+		goto err_invalid;
 	}
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
 
+	mutex_unlock(&pm->lock);
+	return 0;
+
+err_invalid:
+	pm->priv_queue->ops.rollback_packet(pm->priv_queue);
 err_acquire_packet_buffer:
 	mutex_unlock(&pm->lock);
 	return retval;

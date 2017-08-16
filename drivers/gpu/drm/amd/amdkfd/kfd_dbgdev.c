@@ -60,7 +60,8 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 	unsigned int *ib_packet_buff;
 	int status;
 
-	BUG_ON(!size_in_bytes);
+	if (WARN_ON(!size_in_bytes))
+		return -EINVAL;
 
 	kq = dbgdev->kq;
 

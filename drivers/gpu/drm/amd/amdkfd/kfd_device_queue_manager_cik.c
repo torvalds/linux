@@ -65,7 +65,7 @@ static uint32_t compute_sh_mem_bases_64bit(unsigned int top_address_nybble)
 	 * for LDS/Scratch and GPUVM.
 	 */
 
-	BUG_ON((top_address_nybble & 1) || top_address_nybble > 0xE ||
+	WARN_ON((top_address_nybble & 1) || top_address_nybble > 0xE ||
 		top_address_nybble == 0);
 
 	return PRIVATE_BASE(top_address_nybble << 12) |

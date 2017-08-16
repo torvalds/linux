@@ -41,7 +41,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	int retval;
 	union PM4_MES_TYPE_3_HEADER nop;
 
-	BUG_ON(type != KFD_QUEUE_TYPE_DIQ && type != KFD_QUEUE_TYPE_HIQ);
+	if (WARN_ON(type != KFD_QUEUE_TYPE_DIQ && type != KFD_QUEUE_TYPE_HIQ))
+		return false;
 
 	pr_debug("Initializing queue type %d size %d\n", KFD_QUEUE_TYPE_HIQ,
 			queue_size);
@@ -62,8 +63,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 						KFD_MQD_TYPE_HIQ);
 		break;
 	default:
-		BUG();
-		break;
+		pr_err("Invalid queue type %d\n", type);
+		return false;
 	}
 
 	if (!kq->mqd)
@@ -305,6 +306,7 @@ void kernel_queue_uninit(struct kernel_queue *kq)
 	kfree(kq);
 }
 
+/* FIXME: Can this test be removed? */
 static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 {
 	struct kernel_queue *kq;
@@ -314,10 +316,18 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 	pr_err("Starting kernel queue test\n");
 
 	kq = kernel_queue_init(dev, KFD_QUEUE_TYPE_HIQ);
-	BUG_ON(!kq);
+	if (unlikely(!kq)) {
+		pr_err("  Failed to initialize HIQ\n");
+		pr_err("Kernel queue test failed\n");
+		return;
+	}
 
 	retval = kq->ops.acquire_packet_buffer(kq, 5, &buffer);
-	BUG_ON(retval != 0);
+	if (unlikely(retval != 0)) {
+		pr_err("  Failed to acquire packet buffer\n");
+		pr_err("Kernel queue test failed\n");
+		return;
+	}
 	for (i = 0; i < 5; i++)
 		buffer[i] = kq->nop_packet;
 	kq->ops.submit_packet(kq);

@@ -233,7 +233,8 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 {
 	struct mqd_manager *mqd;
 
-	BUG_ON(type >= KFD_MQD_TYPE_MAX);
+	if (WARN_ON(type >= KFD_MQD_TYPE_MAX))
+		return NULL;
 
 	mqd = kzalloc(sizeof(*mqd), GFP_KERNEL);
 	if (!mqd)

@@ -79,8 +79,6 @@ struct kfd_process *kfd_create_process(const struct task_struct *thread)
 {
 	struct kfd_process *process;
 
-	BUG_ON(!kfd_process_wq);
-
 	if (!thread->mm)
 		return ERR_PTR(-EINVAL);
 
@@ -202,10 +200,8 @@ static void kfd_process_destroy_delayed(struct rcu_head *rcu)
 	struct kfd_process_release_work *work;
 	struct kfd_process *p;
 
-	BUG_ON(!kfd_process_wq);
-
 	p = container_of(rcu, struct kfd_process, rcu);
-	BUG_ON(atomic_read(&p->mm->mm_count) <= 0);
+	WARN_ON(atomic_read(&p->mm->mm_count) <= 0);
 
 	mmdrop(p->mm);
 
@@ -229,7 +225,8 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 	 * mmu_notifier srcu is read locked
 	 */
 	p = container_of(mn, struct kfd_process, mmu_notifier);
-	BUG_ON(p->mm != mm);
+	if (WARN_ON(p->mm != mm))
+		return;
 
 	mutex_lock(&kfd_processes_mutex);
 	hash_del_rcu(&p->kfd_processes);

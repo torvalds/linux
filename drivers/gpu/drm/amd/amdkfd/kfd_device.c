@@ -98,7 +98,7 @@ static const struct kfd_device_info *lookup_device_info(unsigned short did)
 
 	for (i = 0; i < ARRAY_SIZE(supported_devices); i++) {
 		if (supported_devices[i].did == did) {
-			BUG_ON(!supported_devices[i].device_info);
+			WARN_ON(!supported_devices[i].device_info);
 			return supported_devices[i].device_info;
 		}
 	}
@@ -212,9 +212,8 @@ static int iommu_invalid_ppr_cb(struct pci_dev *pdev, int pasid,
 			flags);
 
 	dev = kfd_device_by_pci_dev(pdev);
-	BUG_ON(!dev);
-
-	kfd_signal_iommu_event(dev, pasid, address,
+	if (!WARN_ON(!dev))
+		kfd_signal_iommu_event(dev, pasid, address,
 			flags & PPR_FAULT_WRITE, flags & PPR_FAULT_EXEC);
 
 	return AMD_IOMMU_INV_PRI_RSP_INVALID;
@@ -397,9 +396,12 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 {
 	unsigned int num_of_longs;
 
-	BUG_ON(buf_size < chunk_size);
-	BUG_ON(buf_size == 0);
-	BUG_ON(chunk_size == 0);
+	if (WARN_ON(buf_size < chunk_size))
+		return -EINVAL;
+	if (WARN_ON(buf_size == 0))
+		return -EINVAL;
+	if (WARN_ON(chunk_size == 0))
+		return -EINVAL;
 
 	kfd->gtt_sa_chunk_size = chunk_size;
 	kfd->gtt_sa_num_of_chunks = buf_size / chunk_size;

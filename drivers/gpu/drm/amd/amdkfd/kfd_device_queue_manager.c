@@ -388,7 +388,8 @@ static struct mqd_manager *get_mqd_manager_nocpsch(
 {
 	struct mqd_manager *mqd;
 
-	BUG_ON(type >= KFD_MQD_TYPE_MAX);
+	if (WARN_ON(type >= KFD_MQD_TYPE_MAX))
+		return NULL;
 
 	pr_debug("mqd type %d\n", type);
 
@@ -513,7 +514,7 @@ static void uninitialize_nocpsch(struct device_queue_manager *dqm)
 {
 	int i;
 
-	BUG_ON(dqm->queue_count > 0 || dqm->processes_count > 0);
+	WARN_ON(dqm->queue_count > 0 || dqm->processes_count > 0);
 
 	kfree(dqm->allocated_queues);
 	for (i = 0 ; i < KFD_MQD_TYPE_MAX ; i++)
@@ -1129,8 +1130,8 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.set_cache_memory_policy = set_cache_memory_policy;
 		break;
 	default:
-		BUG();
-		break;
+		pr_err("Invalid scheduling policy %d\n", sched_policy);
+		goto out_free;
 	}
 
 	switch (dev->device_info->asic_family) {
@@ -1143,12 +1144,12 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		break;
 	}
 
-	if (dqm->ops.initialize(dqm)) {
-		kfree(dqm);
-		return NULL;
-	}
+	if (!dqm->ops.initialize(dqm))
+		return dqm;
 
-	return dqm;
+out_free:
+	kfree(dqm);
+	return NULL;
 }
 
 void device_queue_manager_uninit(struct device_queue_manager *dqm)

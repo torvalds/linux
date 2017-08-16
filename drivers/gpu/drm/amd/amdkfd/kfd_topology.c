@@ -799,10 +799,12 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	int ret;
 	uint32_t i;
 
+	if (WARN_ON(dev->kobj_node))
+		return -EEXIST;
+
 	/*
 	 * Creating the sysfs folders
 	 */
-	BUG_ON(dev->kobj_node);
 	dev->kobj_node = kfd_alloc_struct(dev->kobj_node);
 	if (!dev->kobj_node)
 		return -ENOMEM;
