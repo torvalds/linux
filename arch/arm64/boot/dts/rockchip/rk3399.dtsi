@@ -47,6 +47,7 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/power/rk3399-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/suspend/rockchip-rk3399.h>
 #include <dt-bindings/thermal/thermal.h>
 
@@ -1288,6 +1289,23 @@
 		clocks = <&cru SCLK_DDRCLK>;
 		clock-names = "dmc_clk";
 		ddr_timing = <&ddr_timing>;
+		upthreshold = <40>;
+		downdifferential = <20>;
+		system-status-freq = <
+			/*system status         freq(KHz)*/
+			SYS_STATUS_NORMAL       800000
+			SYS_STATUS_REBOOT       528000
+			SYS_STATUS_SUSPEND      200000
+			SYS_STATUS_VIDEO_1080P  300000
+			SYS_STATUS_VIDEO_4K     600000
+			SYS_STATUS_VIDEO_4K_10B 800000
+			SYS_STATUS_PERFORMANCE  800000
+			SYS_STATUS_BOOST        400000
+			SYS_STATUS_DUALVIEW     600000
+			SYS_STATUS_ISP          600000
+		>;
+		auto-min-freq = <400000>;
+		auto-freq-en = <1>;
 		status = "disabled";
 	};
 
