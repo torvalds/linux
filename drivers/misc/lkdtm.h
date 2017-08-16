@@ -14,6 +14,7 @@ void lkdtm_EXCEPTION(void);
 void lkdtm_LOOP(void);
 void lkdtm_OVERFLOW(void);
 void lkdtm_CORRUPT_STACK(void);
+void lkdtm_CORRUPT_STACK_STRONG(void);
 void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void);
 void lkdtm_SOFTLOCKUP(void);
 void lkdtm_HARDLOCKUP(void);
@@ -22,6 +23,8 @@ void lkdtm_HUNG_TASK(void);
 void lkdtm_CORRUPT_LIST_ADD(void);
 void lkdtm_CORRUPT_LIST_DEL(void);
 void lkdtm_CORRUPT_USER_DS(void);
+void lkdtm_STACK_GUARD_PAGE_LEADING(void);
+void lkdtm_STACK_GUARD_PAGE_TRAILING(void);
 
 /* lkdtm_heap.c */
 void lkdtm_OVERWRITE_ALLOCATION(void);
