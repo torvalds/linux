@@ -21,6 +21,13 @@
 #include <linux/skbuff.h>
 #include <net/mac80211.h>
 
+struct rsi_sta {
+	struct ieee80211_sta *sta;
+	s16 sta_id;
+	u16 seq_start[IEEE80211_NUM_TIDS];
+	bool start_tx_aggr[IEEE80211_NUM_TIDS];
+};
+
 struct rsi_hw;
 
 #include "rsi_ps.h"
@@ -253,6 +260,9 @@ struct rsi_common {
 
 	u16 beacon_interval;
 	u8 dtim_cnt;
+
+	/* AP mode parameters */
+	int max_stations;
 };
 
 enum host_intf {

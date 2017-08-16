@@ -122,6 +122,23 @@ const u16 rsi_mcsrates[8] = {
 	RSI_RATE_MCS4, RSI_RATE_MCS5, RSI_RATE_MCS6, RSI_RATE_MCS7
 };
 
+static const u32 rsi_max_ap_stas[16] = {
+	32,	/* 1 - Wi-Fi alone */
+	0,	/* 2 */
+	0,	/* 3 */
+	0,	/* 4 - BT EDR alone */
+	4,	/* 5 - STA + BT EDR */
+	32,	/* 6 - AP + BT EDR */
+	0,	/* 7 */
+	0,	/* 8 - BT LE alone */
+	4,	/* 9 - STA + BE LE */
+	0,	/* 10 */
+	0,	/* 11 */
+	0,	/* 12 */
+	1,	/* 13 - STA + BT Dual */
+	4,	/* 14 - AP + BT Dual */
+};
+
 /**
  * rsi_is_cipher_wep() -  This function determines if the cipher is WEP or not.
  * @common: Pointer to the driver private structure.
@@ -1348,7 +1365,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	SET_IEEE80211_PERM_ADDR(hw, common->mac_addr);
 	ether_addr_copy(hw->wiphy->addr_mask, addr_mask);
 
-	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+				 BIT(NL80211_IFTYPE_AP);
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	wiphy->retry_short = RETRY_SHORT;
 	wiphy->retry_long  = RETRY_LONG;
@@ -1363,6 +1381,14 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	wiphy->bands[NL80211_BAND_5GHZ] =
 		&adapter->sbands[NL80211_BAND_5GHZ];
 
+	/* AP Parameters */
+	wiphy->max_ap_assoc_sta = rsi_max_ap_stas[common->oper_mode - 1];
+	common->max_stations = wiphy->max_ap_assoc_sta;
+	rsi_dbg(ERR_ZONE, "Max Stations Allowed = %d\n", common->max_stations);
+	hw->sta_data_size = sizeof(struct rsi_sta);
+	wiphy->flags = WIPHY_FLAG_REPORTS_OBSS;
+	wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
+	wiphy->features |= NL80211_FEATURE_INACTIVITY_TIMER;
 	wiphy->reg_notifier = rsi_reg_notify;
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
