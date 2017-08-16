@@ -948,6 +948,8 @@ void intel_pmu_lbr_init_knl(void);
 
 void intel_pmu_pebs_data_source_nhm(void);
 
+void intel_pmu_pebs_data_source_skl(bool pmem);
+
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 
 void intel_pt_interrupt(void);
