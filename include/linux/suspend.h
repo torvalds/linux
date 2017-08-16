@@ -495,9 +495,11 @@ static inline void unlock_system_sleep(void) {}
 
 #ifdef CONFIG_PM_SLEEP_DEBUG
 extern bool pm_print_times_enabled;
+extern bool pm_debug_messages_on;
 extern __printf(2, 3) void __pm_pr_dbg(bool defer, const char *fmt, ...);
 #else
 #define pm_print_times_enabled	(false)
+#define pm_debug_messages_on	(false)
 
 #include <linux/printk.h>
 
