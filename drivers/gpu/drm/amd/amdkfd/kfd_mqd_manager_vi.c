@@ -135,8 +135,15 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 			3 << CP_HQD_IB_CONTROL__MIN_IB_AVAIL_SIZE__SHIFT |
 			mtype << CP_HQD_IB_CONTROL__MTYPE__SHIFT;
 
-	m->cp_hqd_eop_control |=
-		ffs(q->eop_ring_buffer_size / sizeof(unsigned int)) - 1 - 1;
+	/*
+	 * HW does not clamp this field correctly. Maximum EOP queue size
+	 * is constrained by per-SE EOP done signal count, which is 8-bit.
+	 * Limit is 0xFF EOP entries (= 0x7F8 dwords). CP will not submit
+	 * more than (EOP entry count - 1) so a queue size of 0x800 dwords
+	 * is safe, giving a maximum field value of 0xA.
+	 */
+	m->cp_hqd_eop_control |= min(0xA,
+		ffs(q->eop_ring_buffer_size / sizeof(unsigned int)) - 1 - 1);
 	m->cp_hqd_eop_base_addr_lo =
 			lower_32_bits(q->eop_ring_buffer_address >> 8);
 	m->cp_hqd_eop_base_addr_hi =
