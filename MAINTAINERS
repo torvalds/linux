@@ -10941,6 +10941,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rkuo/linux-hexagon-kernel.g
 S:	Supported
 F:	arch/hexagon/
 
+QUALCOMM IOMMU
+M:	Rob Clark <robdclark@gmail.com>
+L:	iommu@lists.linux-foundation.org
+L:	linux-arm-msm@vger.kernel.org
+S:	Maintained
+F:	drivers/iommu/qcom_iommu.c
+
 QUALCOMM VENUS VIDEO ACCELERATOR DRIVER
 M:	Stanimir Varbanov <stanimir.varbanov@linaro.org>
 L:	linux-media@vger.kernel.org
