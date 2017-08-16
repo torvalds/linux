@@ -72,7 +72,7 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define MULTICAST_WATER_MARK            200
 #define MAC_80211_HDR_FRAME_CONTROL     0
 #define WME_NUM_AC                      4
-#define NUM_SOFT_QUEUES                 5
+#define NUM_SOFT_QUEUES                 6
 #define MAX_HW_QUEUES                   12
 #define INVALID_QUEUE                   0xff
 #define MAX_CONTINUOUS_VO_PKTS          8
@@ -131,7 +131,8 @@ enum edca_queue {
 	BE_Q,
 	VI_Q,
 	VO_Q,
-	MGMT_SOFT_Q
+	MGMT_SOFT_Q,
+	MGMT_BEACON_Q
 };
 
 struct security_info {
@@ -148,8 +149,8 @@ struct wmm_qinfo {
 };
 
 struct transmit_q_stats {
-	u32 total_tx_pkt_send[NUM_EDCA_QUEUES + 1];
-	u32 total_tx_pkt_freed[NUM_EDCA_QUEUES + 1];
+	u32 total_tx_pkt_send[NUM_EDCA_QUEUES + 2];
+	u32 total_tx_pkt_freed[NUM_EDCA_QUEUES + 2];
 };
 
 struct vif_priv {
@@ -199,7 +200,7 @@ struct rsi_common {
 	struct version_info fw_ver;
 
 	struct rsi_thread tx_thread;
-	struct sk_buff_head tx_queue[NUM_EDCA_QUEUES + 1];
+	struct sk_buff_head tx_queue[NUM_EDCA_QUEUES + 2];
 	/* Mutex declaration */
 	struct mutex mutex;
 	/* Mutex used for tx thread */
@@ -263,6 +264,8 @@ struct rsi_common {
 	u8 dtim_cnt;
 
 	/* AP mode parameters */
+	u8 beacon_enabled;
+	u16 beacon_cnt;
 	struct rsi_sta stations[RSI_MAX_ASSOC_STAS + 1];
 	int num_stations;
 	int max_stations;

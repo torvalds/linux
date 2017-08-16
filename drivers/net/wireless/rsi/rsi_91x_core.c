@@ -16,6 +16,7 @@
 
 #include "rsi_mgmt.h"
 #include "rsi_common.h"
+#include "rsi_hal.h"
 
 /**
  * rsi_determine_min_weight_queue() - This function determines the queue with
@@ -136,6 +137,10 @@ static u8 rsi_core_determine_hal_queue(struct rsi_common *common)
 	u8 q_num = INVALID_QUEUE;
 	u8 ii = 0;
 
+	if (skb_queue_len(&common->tx_queue[MGMT_BEACON_Q])) {
+		q_num = MGMT_BEACON_Q;
+		return q_num;
+	}
 	if (skb_queue_len(&common->tx_queue[MGMT_SOFT_Q])) {
 		if (!common->mgmt_q_block)
 			q_num = MGMT_SOFT_Q;
@@ -291,10 +296,14 @@ void rsi_core_qos_processor(struct rsi_common *common)
 			break;
 		}
 
-		if (q_num == MGMT_SOFT_Q)
+		if (q_num == MGMT_SOFT_Q) {
 			status = rsi_send_mgmt_pkt(common, skb);
-		else
+		} else if (q_num == MGMT_BEACON_Q) {
+			status = rsi_send_pkt_to_bus(common, skb);
+			dev_kfree_skb(skb);
+		} else {
 			status = rsi_send_data_pkt(common, skb);
+		}
 
 		if (status) {
 			mutex_unlock(&common->tx_lock);
@@ -358,7 +367,7 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 		tx_params->sta_id = 0;
 	}
 
-	if ((q_num != MGMT_SOFT_Q) &&
+	if ((q_num < MGMT_SOFT_Q) &&
 	    ((skb_queue_len(&common->tx_queue[q_num]) + 1) >=
 	     DATA_QUEUE_WATER_MARK)) {
 		rsi_dbg(ERR_ZONE, "%s: sw queue full\n", __func__);

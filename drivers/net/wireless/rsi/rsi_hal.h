@@ -144,5 +144,7 @@ struct rsi_data_desc {
 } __packed;
 
 int rsi_hal_device_init(struct rsi_hw *adapter);
+int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb);
+int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb);
 
 #endif

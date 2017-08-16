@@ -25,7 +25,15 @@ static struct ta_metadata metadata_flash_content[] = {
 	{"rsi/rs9113_wlan_qspi.rps", 0x00010000},
 };
 
-/*This function prepares descriptor for given management packet*/
+int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb)
+{
+	struct rsi_hw *adapter = common->priv;
+	int status;
+
+	status = adapter->host_intf_ops->write_pkt(common->priv,
+						   skb->data, skb->len);
+	return status;
+}
 
 static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 {
@@ -304,6 +312,61 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 err:
 	rsi_indicate_tx_status(common->priv, skb, status);
 	return status;
+}
+
+int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb)
+{
+	struct rsi_hw *adapter = (struct rsi_hw *)common->priv;
+	struct rsi_data_desc *bcn_frm;
+	struct ieee80211_hw *hw = common->priv->hw;
+	struct ieee80211_conf *conf = &hw->conf;
+	struct sk_buff *mac_bcn;
+	u8 vap_id = 0;
+	u16 tim_offset;
+
+	mac_bcn = ieee80211_beacon_get_tim(adapter->hw,
+					   adapter->vifs[adapter->sc_nvifs - 1],
+					   &tim_offset, NULL);
+	if (!mac_bcn) {
+		rsi_dbg(ERR_ZONE, "Failed to get beacon from mac80211\n");
+		return -EINVAL;
+	}
+
+	common->beacon_cnt++;
+	bcn_frm = (struct rsi_data_desc *)skb->data;
+	rsi_set_len_qno(&bcn_frm->len_qno, mac_bcn->len, RSI_WIFI_DATA_Q);
+	bcn_frm->header_len = MIN_802_11_HDR_LEN;
+	bcn_frm->frame_info = cpu_to_le16(RSI_DATA_DESC_MAC_BBP_INFO |
+					  RSI_DATA_DESC_NO_ACK_IND |
+					  RSI_DATA_DESC_BEACON_FRAME |
+					  RSI_DATA_DESC_INSERT_TSF |
+					  RSI_DATA_DESC_INSERT_SEQ_NO |
+					  RATE_INFO_ENABLE);
+	bcn_frm->rate_info = cpu_to_le16(vap_id << 14);
+	bcn_frm->qid_tid = BEACON_HW_Q;
+
+	if (conf_is_ht40_plus(conf)) {
+		bcn_frm->bbp_info = cpu_to_le16(LOWER_20_ENABLE);
+		bcn_frm->bbp_info |= cpu_to_le16(LOWER_20_ENABLE >> 12);
+	} else if (conf_is_ht40_minus(conf)) {
+		bcn_frm->bbp_info = cpu_to_le16(UPPER_20_ENABLE);
+		bcn_frm->bbp_info |= cpu_to_le16(UPPER_20_ENABLE >> 12);
+	}
+
+	if (common->band == NL80211_BAND_2GHZ)
+		bcn_frm->bbp_info |= cpu_to_le16(RSI_RATE_1);
+	else
+		bcn_frm->bbp_info |= cpu_to_le16(RSI_RATE_6);
+
+	if (mac_bcn->data[tim_offset + 2] == 0)
+		bcn_frm->frame_info |= cpu_to_le16(RSI_DATA_DESC_DTIM_BEACON);
+
+	memcpy(&skb->data[FRAME_DESC_SZ], mac_bcn->data, mac_bcn->len);
+	skb_put(skb, mac_bcn->len + FRAME_DESC_SZ);
+
+	dev_kfree_skb(mac_bcn);
+
+	return 0;
 }
 
 static void bl_cmd_timeout(unsigned long priv)

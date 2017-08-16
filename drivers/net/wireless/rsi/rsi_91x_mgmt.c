@@ -18,6 +18,7 @@
 #include "rsi_mgmt.h"
 #include "rsi_common.h"
 #include "rsi_ps.h"
+#include "rsi_hal.h"
 
 static struct bootup_params boot_params_20 = {
 	.magic_number = cpu_to_le16(0x5aa5),
@@ -1518,6 +1519,31 @@ int rsi_set_antenna(struct rsi_common *common, u8 antenna)
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
 
+static int rsi_send_beacon(struct rsi_common *common)
+{
+	struct sk_buff *skb = NULL;
+	u8 dword_align_bytes = 0;
+
+	skb = dev_alloc_skb(MAX_MGMT_PKT_SIZE);
+	if (!skb)
+		return -ENOMEM;
+
+	memset(skb->data, 0, MAX_MGMT_PKT_SIZE);
+
+	dword_align_bytes = ((unsigned long)skb->data & 0x3f);
+	if (dword_align_bytes)
+		skb_pull(skb, (64 - dword_align_bytes));
+	if (rsi_prepare_beacon(common, skb)) {
+		rsi_dbg(ERR_ZONE, "Failed to prepare beacon\n");
+		return -EINVAL;
+	}
+	skb_queue_tail(&common->tx_queue[MGMT_BEACON_Q], skb);
+	rsi_set_event(&common->tx_thread.event);
+	rsi_dbg(DATA_TX_ZONE, "%s: Added to beacon queue\n", __func__);
+
+	return 0;
+}
+
 /**
  * rsi_handle_ta_confirm_type() - This function handles the confirm frames.
  * @common: Pointer to the driver private structure.
@@ -1722,21 +1748,33 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 	rsi_dbg(FSM_ZONE, "%s: Msg Len: %d, Msg Type: %4x\n",
 		__func__, msg_len, msg_type);
 
-	if (msg_type == TA_CONFIRM_TYPE) {
+	switch (msg_type) {
+	case TA_CONFIRM_TYPE:
 		return rsi_handle_ta_confirm_type(common, msg);
-	} else if (msg_type == CARD_READY_IND) {
+	case CARD_READY_IND:
 		rsi_dbg(FSM_ZONE, "%s: Card ready indication received\n",
 			__func__);
 		return rsi_handle_card_ready(common, msg);
-	} else if (msg_type == TX_STATUS_IND) {
+	case TX_STATUS_IND:
 		if (msg[15] == PROBEREQ_CONFIRM) {
 			common->mgmt_q_block = false;
 			rsi_dbg(FSM_ZONE, "%s: Probe confirm received\n",
 				__func__);
 		}
-	} else if (msg_type == RX_DOT11_MGMT) {
+		break;
+	case BEACON_EVENT_IND:
+		rsi_dbg(INFO_ZONE, "Beacon event\n");
+		if (common->fsm_state != FSM_MAC_INIT_DONE)
+			return -1;
+		if (common->iface_down)
+			return -1;
+		if (!common->beacon_enabled)
+			return -1;
+		rsi_send_beacon(common);
+		break;
+	case RX_DOT11_MGMT:
 		return rsi_mgmt_pkt_to_core(common, msg, msg_len);
-	} else {
+	default:
 		rsi_dbg(INFO_ZONE, "Received packet type: 0x%x\n", msg_type);
 	}
 	return 0;

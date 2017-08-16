@@ -652,6 +652,18 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 			common->cqm_info.rssi_thold,
 			common->cqm_info.rssi_hyst);
 	}
+
+	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
+	    (vif->type == NL80211_IFTYPE_AP)) {
+		if (bss->enable_beacon) {
+			rsi_dbg(INFO_ZONE, "===> BEACON ENABLED <===\n");
+			common->beacon_enabled = 1;
+		} else {
+			rsi_dbg(INFO_ZONE, "===> BEACON DISABLED <===\n");
+			common->beacon_enabled = 0;
+		}
+	}
+
 	mutex_unlock(&common->mutex);
 }
 
