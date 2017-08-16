@@ -65,6 +65,7 @@ enum {
 	KBL_DPCM_AUDIO_HS_PB,
 	KBL_DPCM_AUDIO_ECHO_REF_CP,
 	KBL_DPCM_AUDIO_DMIC_CP,
+	KBL_DPCM_AUDIO_RT5514_DSP,
 	KBL_DPCM_AUDIO_HDMI1_PB,
 	KBL_DPCM_AUDIO_HDMI2_PB,
 };
@@ -479,6 +480,14 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.init = NULL,
 		.capture_only = 1,
 		.nonatomic = 1,
+	},
+	[KBL_DPCM_AUDIO_RT5514_DSP] = {
+		.name = "rt5514 dsp",
+		.stream_name = "Wake on Voice",
+		.cpu_dai_name = "spi-PRP0001:00",
+		.platform_name = "spi-PRP0001:00",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
 	},
 	[KBL_DPCM_AUDIO_DMIC_CP] = {
 		.name = "Kbl Audio DMIC cap",
