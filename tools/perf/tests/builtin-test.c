@@ -48,6 +48,10 @@ static struct test generic_tests[] = {
 		.func = test__basic_mmap,
 	},
 	{
+		.desc = "Test data source output",
+		.func = test__mem,
+	},
+	{
 		.desc = "Parse event definition strings",
 		.func = test__parse_events,
 	},
