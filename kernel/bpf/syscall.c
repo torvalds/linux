@@ -911,7 +911,7 @@ struct bpf_prog *bpf_prog_inc(struct bpf_prog *prog)
 EXPORT_SYMBOL_GPL(bpf_prog_inc);
 
 /* prog_idr_lock should have been held */
-static struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
+struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
 {
 	int refold;
 
@@ -927,6 +927,7 @@ static struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
 
 	return prog;
 }
+EXPORT_SYMBOL_GPL(bpf_prog_inc_not_zero);
 
 static struct bpf_prog *__bpf_prog_get(u32 ufd, enum bpf_prog_type *type)
 {
