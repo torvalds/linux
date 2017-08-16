@@ -49,7 +49,7 @@ static void free_proxy(struct aa_proxy *proxy)
 		/* p->label will not updated any more as p is dead */
 		aa_put_label(rcu_dereference_protected(proxy->label, true));
 		memset(proxy, 0, sizeof(*proxy));
-		proxy->label = (struct aa_label *) PROXY_POISON;
+		RCU_INIT_POINTER(proxy->label, (struct aa_label *)PROXY_POISON);
 		kfree(proxy);
 	}
 }
