@@ -1896,6 +1896,9 @@ static int udc_start(struct ci_hdrc *ci)
 	ci->gadget.name         = ci->platdata->name;
 	ci->gadget.otg_caps	= otg_caps;
 
+	if (ci->platdata->flags & CI_HDRC_REQUIRES_ALIGNED_DMA)
+		ci->gadget.quirk_avoids_skb_reserve = 1;
+
 	if (ci->is_otg && (otg_caps->hnp_support || otg_caps->srp_support ||
 						otg_caps->adp_support))
 		ci->gadget.is_otg = 1;
