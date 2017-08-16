@@ -1346,7 +1346,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 	 * patching using the GPU (though that should be serialised by the
 	 * timeline). To be completely sure, and since we are required to
 	 * do relocations we are already stalling, disable the user's opt
-	 * of our synchronisation.
+	 * out of our synchronisation.
 	 */
 	*vma->exec_flags &= ~EXEC_OBJECT_ASYNC;
 
