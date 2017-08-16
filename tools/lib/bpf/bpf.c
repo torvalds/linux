@@ -211,18 +211,26 @@ int bpf_obj_get(const char *pathname)
 	return sys_bpf(BPF_OBJ_GET, &attr, sizeof(attr));
 }
 
-int bpf_prog_attach(int prog_fd, int target_fd, enum bpf_attach_type type,
-		    unsigned int flags)
+int __bpf_prog_attach(int prog_fd1, int prog_fd2, int target_fd,
+		      enum bpf_attach_type type,
+		      unsigned int flags)
 {
 	union bpf_attr attr;
 
 	bzero(&attr, sizeof(attr));
 	attr.target_fd	   = target_fd;
-	attr.attach_bpf_fd = prog_fd;
+	attr.attach_bpf_fd = prog_fd1;
+	attr.attach_bpf_fd2 = prog_fd2;
 	attr.attach_type   = type;
 	attr.attach_flags  = flags;
 
 	return sys_bpf(BPF_PROG_ATTACH, &attr, sizeof(attr));
+}
+
+int bpf_prog_attach(int prog_fd, int target_fd, enum bpf_attach_type type,
+		    unsigned int flags)
+{
+	return __bpf_prog_attach(prog_fd, 0, target_fd, type, flags);
 }
 
 int bpf_prog_detach(int target_fd, enum bpf_attach_type type)

@@ -65,6 +65,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	bool is_cgroup_skb = strncmp(event, "cgroup/skb", 10) == 0;
 	bool is_cgroup_sk = strncmp(event, "cgroup/sock", 11) == 0;
 	bool is_sockops = strncmp(event, "sockops", 7) == 0;
+	bool is_sk_skb = strncmp(event, "sk_skb", 6) == 0;
 	size_t insns_cnt = size / sizeof(struct bpf_insn);
 	enum bpf_prog_type prog_type;
 	char buf[256];
@@ -92,6 +93,8 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		prog_type = BPF_PROG_TYPE_CGROUP_SOCK;
 	} else if (is_sockops) {
 		prog_type = BPF_PROG_TYPE_SOCK_OPS;
+	} else if (is_sk_skb) {
+		prog_type = BPF_PROG_TYPE_SK_SKB;
 	} else {
 		printf("Unknown event '%s'\n", event);
 		return -1;
@@ -109,7 +112,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	if (is_xdp || is_perf_event || is_cgroup_skb || is_cgroup_sk)
 		return 0;
 
-	if (is_socket || is_sockops) {
+	if (is_socket || is_sockops || is_sk_skb) {
 		if (is_socket)
 			event += 6;
 		else
@@ -567,7 +570,8 @@ static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
 		    memcmp(shname, "perf_event", 10) == 0 ||
 		    memcmp(shname, "socket", 6) == 0 ||
 		    memcmp(shname, "cgroup/", 7) == 0 ||
-		    memcmp(shname, "sockops", 7) == 0) {
+		    memcmp(shname, "sockops", 7) == 0 ||
+		    memcmp(shname, "sk_skb", 6) == 0) {
 			ret = load_and_attach(shname, data->d_buf,
 					      data->d_size);
 			if (ret != 0)
