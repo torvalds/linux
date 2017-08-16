@@ -7,7 +7,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015-2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -466,3 +466,23 @@ void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif,
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(ieee80211_manage_rx_ba_offl);
+
+void ieee80211_rx_ba_timer_expired(struct ieee80211_vif *vif,
+				   const u8 *addr, unsigned int tid)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+
+	rcu_read_lock();
+	sta = sta_info_get_bss(sdata, addr);
+	if (!sta)
+		goto unlock;
+
+	set_bit(tid, sta->ampdu_mlme.tid_rx_timer_expired);
+	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
+
+ unlock:
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(ieee80211_rx_ba_timer_expired);
