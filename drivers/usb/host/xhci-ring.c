@@ -1638,6 +1638,8 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			port_id);
 	portsc = readl(port_array[faked_port_index]);
 
+	trace_xhci_handle_port_status(faked_port_index, portsc);
+
 	if (hcd->state == HC_STATE_SUSPENDED) {
 		xhci_dbg(xhci, "resume root hub\n");
 		usb_hcd_resume_root_hub(hcd);
