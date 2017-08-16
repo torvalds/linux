@@ -348,7 +348,7 @@ static struct platform_device_id cht_wc_i2c_adap_id_table[] = {
 };
 MODULE_DEVICE_TABLE(platform, cht_wc_i2c_adap_id_table);
 
-struct platform_driver cht_wc_i2c_adap_driver = {
+static struct platform_driver cht_wc_i2c_adap_driver = {
 	.probe = cht_wc_i2c_adap_i2c_probe,
 	.remove = cht_wc_i2c_adap_i2c_remove,
 	.driver = {
