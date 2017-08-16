@@ -2156,6 +2156,7 @@ struct drm_i915_private {
 
 	struct kmem_cache *objects;
 	struct kmem_cache *vmas;
+	struct kmem_cache *luts;
 	struct kmem_cache *requests;
 	struct kmem_cache *dependencies;
 	struct kmem_cache *priorities;

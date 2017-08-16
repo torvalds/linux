@@ -3242,25 +3242,33 @@ out_rearm:
 
 void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 {
+	struct drm_i915_private *i915 = to_i915(gem->dev);
 	struct drm_i915_gem_object *obj = to_intel_bo(gem);
 	struct drm_i915_file_private *fpriv = file->driver_priv;
-	struct i915_vma *vma, *vn;
+	struct i915_lut_handle *lut, *ln;
 
-	mutex_lock(&obj->base.dev->struct_mutex);
-	list_for_each_entry_safe(vma, vn, &obj->vma_list, obj_link)
-		if (vma->vm->file == fpriv)
+	mutex_lock(&i915->drm.struct_mutex);
+
+	list_for_each_entry_safe(lut, ln, &obj->lut_list, obj_link) {
+		struct i915_gem_context *ctx = lut->ctx;
+		struct i915_vma *vma;
+
+		if (ctx->file_priv != fpriv)
+			continue;
+
+		vma = radix_tree_delete(&ctx->handles_vma, lut->handle);
+
+		if (!i915_vma_is_ggtt(vma))
 			i915_vma_close(vma);
 
-	vma = obj->vma_hashed;
-	if (vma && vma->ctx->file_priv == fpriv)
-		i915_vma_unlink_ctx(vma);
+		list_del(&lut->obj_link);
+		list_del(&lut->ctx_link);
 
-	if (i915_gem_object_is_active(obj) &&
-	    !i915_gem_object_has_active_reference(obj)) {
-		i915_gem_object_set_active_reference(obj);
-		i915_gem_object_get(obj);
+		kmem_cache_free(i915->luts, lut);
+		__i915_gem_object_release_unless_active(obj);
 	}
-	mutex_unlock(&obj->base.dev->struct_mutex);
+
+	mutex_unlock(&i915->drm.struct_mutex);
 }
 
 static unsigned long to_wait_timeout(s64 timeout_ns)
@@ -4252,6 +4260,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&obj->global_link);
 	INIT_LIST_HEAD(&obj->userfault_link);
 	INIT_LIST_HEAD(&obj->vma_list);
+	INIT_LIST_HEAD(&obj->lut_list);
 	INIT_LIST_HEAD(&obj->batch_pool_link);
 
 	obj->ops = ops;
@@ -4495,8 +4504,8 @@ void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
 {
 	lockdep_assert_held(&obj->base.dev->struct_mutex);
 
-	GEM_BUG_ON(i915_gem_object_has_active_reference(obj));
-	if (i915_gem_object_is_active(obj))
+	if (!i915_gem_object_has_active_reference(obj) &&
+	    i915_gem_object_is_active(obj))
 		i915_gem_object_set_active_reference(obj);
 	else
 		i915_gem_object_put(obj);
@@ -4888,12 +4897,16 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
 	if (!dev_priv->vmas)
 		goto err_objects;
 
+	dev_priv->luts = KMEM_CACHE(i915_lut_handle, 0);
+	if (!dev_priv->luts)
+		goto err_vmas;
+
 	dev_priv->requests = KMEM_CACHE(drm_i915_gem_request,
 					SLAB_HWCACHE_ALIGN |
 					SLAB_RECLAIM_ACCOUNT |
 					SLAB_TYPESAFE_BY_RCU);
 	if (!dev_priv->requests)
-		goto err_vmas;
+		goto err_luts;
 
 	dev_priv->dependencies = KMEM_CACHE(i915_dependency,
 					    SLAB_HWCACHE_ALIGN |
@@ -4937,6 +4950,8 @@ err_dependencies:
 	kmem_cache_destroy(dev_priv->dependencies);
 err_requests:
 	kmem_cache_destroy(dev_priv->requests);
+err_luts:
+	kmem_cache_destroy(dev_priv->luts);
 err_vmas:
 	kmem_cache_destroy(dev_priv->vmas);
 err_objects:
@@ -4959,6 +4974,7 @@ void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
 	kmem_cache_destroy(dev_priv->priorities);
 	kmem_cache_destroy(dev_priv->dependencies);
 	kmem_cache_destroy(dev_priv->requests);
+	kmem_cache_destroy(dev_priv->luts);
 	kmem_cache_destroy(dev_priv->vmas);
 	kmem_cache_destroy(dev_priv->objects);
 

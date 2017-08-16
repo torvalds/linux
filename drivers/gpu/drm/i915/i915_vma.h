@@ -115,10 +115,6 @@ struct i915_vma {
 	unsigned int *exec_flags;
 	struct hlist_node exec_node;
 	u32 exec_handle;
-
-	struct i915_gem_context *ctx;
-	struct hlist_node ctx_node;
-	u32 ctx_handle;
 };
 
 struct i915_vma *

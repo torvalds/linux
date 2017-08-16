@@ -38,6 +38,19 @@
 
 struct drm_i915_gem_object;
 
+/*
+ * struct i915_lut_handle tracks the fast lookups from handle to vma used
+ * for execbuf. Although we use a radixtree for that mapping, in order to
+ * remove them as the object or context is closed, we need a secondary list
+ * and a translation entry (i915_lut_handle).
+ */
+struct i915_lut_handle {
+	struct list_head obj_link;
+	struct list_head ctx_link;
+	struct i915_gem_context *ctx;
+	u32 handle;
+};
+
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
 #define I915_GEM_OBJECT_HAS_STRUCT_PAGE BIT(0)
@@ -89,7 +102,15 @@ struct drm_i915_gem_object {
 	 * They are also added to @vma_list for easy iteration.
 	 */
 	struct rb_root vma_tree;
-	struct i915_vma *vma_hashed;
+
+	/**
+	 * @lut_list: List of vma lookup entries in use for this object.
+	 *
+	 * If this object is closed, we need to remove all of its VMA from
+	 * the fast lookup index in associated contexts; @lut_list provides
+	 * this translation from object to context->handles_vma.
+	 */
+	struct list_head lut_list;
 
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;

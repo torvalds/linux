@@ -27,6 +27,7 @@
 
 #include <linux/bitops.h>
 #include <linux/list.h>
+#include <linux/radix-tree.h>
 
 struct pid;
 
@@ -149,32 +150,6 @@ struct i915_gem_context {
 	/** ggtt_offset_bias: placement restriction for context objects */
 	u32 ggtt_offset_bias;
 
-	struct i915_gem_context_vma_lut {
-		/** ht_size: last request size to allocate the hashtable for. */
-		unsigned int ht_size;
-#define I915_CTX_RESIZE_IN_PROGRESS BIT(0)
-		/** ht_bits: real log2(size) of hashtable. */
-		unsigned int ht_bits;
-		/** ht_count: current number of entries inside the hashtable */
-		unsigned int ht_count;
-
-		/** ht: the array of buckets comprising the simple hashtable */
-		struct hlist_head *ht;
-
-		/**
-		 * resize: After an execbuf completes, we check the load factor
-		 * of the hashtable. If the hashtable is too full, or too empty,
-		 * we schedule a task to resize the hashtable. During the
-		 * resize, the entries are moved between different buckets and
-		 * so we cannot simultaneously read the hashtable as it is
-		 * being resized (unlike rhashtable). Therefore we treat the
-		 * active work as a strong barrier, pausing a subsequent
-		 * execbuf to wait for the resize worker to complete, if
-		 * required.
-		 */
-		struct work_struct resize;
-	} vma_lut;
-
 	/** engine: per-engine logical HW state */
 	struct intel_context {
 		struct i915_vma *state;
@@ -205,6 +180,18 @@ struct i915_gem_context {
 
 	/** remap_slice: Bitmask of cache lines that need remapping */
 	u8 remap_slice;
+
+	/** handles_vma: rbtree to look up our context specific obj/vma for
+	 * the user handle. (user handles are per fd, but the binding is
+	 * per vm, which may be one per context or shared with the global GTT)
+	 */
+	struct radix_tree_root handles_vma;
+
+	/** handles_list: reverse list of all the rbtree entries in use for
+	 * this context, which allows us to free all the allocations on
+	 * context close.
+	 */
+	struct list_head handles_list;
 };
 
 static inline bool i915_gem_context_is_closed(const struct i915_gem_context *ctx)

@@ -1954,12 +1954,6 @@ static int i915_context_status(struct seq_file *m, void *unused)
 			seq_putc(m, '\n');
 		}
 
-		seq_printf(m,
-			   "\tvma hashtable size=%u (actual %lu), count=%u\n",
-			   ctx->vma_lut.ht_size,
-			   BIT(ctx->vma_lut.ht_bits),
-			   ctx->vma_lut.ht_count);
-
 		seq_putc(m, '\n');
 	}
 

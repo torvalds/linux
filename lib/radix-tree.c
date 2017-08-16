@@ -2022,6 +2022,7 @@ void radix_tree_iter_delete(struct radix_tree_root *root,
 	if (__radix_tree_delete(root, iter->node, slot))
 		iter->index = iter->next_index;
 }
+EXPORT_SYMBOL(radix_tree_iter_delete);
 
 /**
  * radix_tree_delete_item - delete an item from a radix tree
