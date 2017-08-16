@@ -49,9 +49,16 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct ceph_statfs st;
 	u64 fsid;
 	int err;
+	u64 data_pool;
+
+	if (fsc->mdsc->mdsmap->m_num_data_pg_pools == 1) {
+		data_pool = fsc->mdsc->mdsmap->m_data_pg_pools[0];
+	} else {
+		data_pool = CEPH_NOPOOL;
+	}
 
 	dout("statfs\n");
-	err = ceph_monc_do_statfs(&fsc->client->monc, &st);
+	err = ceph_monc_do_statfs(&fsc->client->monc, data_pool, &st);
 	if (err < 0)
 		return err;
 

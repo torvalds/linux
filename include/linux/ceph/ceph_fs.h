@@ -167,6 +167,8 @@ struct ceph_mon_request_header {
 struct ceph_mon_statfs {
 	struct ceph_mon_request_header monhdr;
 	struct ceph_fsid fsid;
+	__u8 contains_data_pool;
+	__le64 data_pool;
 } __attribute__ ((packed));
 
 struct ceph_statfs {
