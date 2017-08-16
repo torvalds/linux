@@ -32,6 +32,16 @@
 			  3000000 0x1>;
 	};
 
+	evm_1v8_sw: fixedregulator-evm_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "evm_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&lp8732_buck0_reg>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	poweroff: gpio-poweroff {
 		compatible = "gpio-poweroff";
 		gpios = <&gpio7 30 GPIO_ACTIVE_HIGH>;
@@ -162,7 +172,11 @@
 };
 
 &mmc1 {
-	vmmc_aux-supply = <&vpo_sd_1v8_3v3>;
+	vqmmc-supply = <&vpo_sd_1v8_3v3>;
+};
+
+&mmc2 {
+	vmmc-supply = <&evm_1v8_sw>;
 };
 
 &mac {

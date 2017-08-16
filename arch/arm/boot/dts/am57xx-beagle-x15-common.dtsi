@@ -570,7 +570,12 @@
 	};
 };
 
-&pcie1 {
+&pcie1_rc {
+	status = "ok";
+	gpios = <&gpio2 8 GPIO_ACTIVE_LOW>;
+};
+
+&pcie1_ep {
 	gpios = <&gpio2 8 GPIO_ACTIVE_LOW>;
 };
 

@@ -15,6 +15,16 @@
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x80000000>; /* 2GB */
 	};
+
+	evm_1v8_sw: fixedregulator-evm_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "evm_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&smps4_reg>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &i2c1 {
@@ -81,4 +91,12 @@
 		interrupt-parent = <&gpio6>;
 		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
 	};
+};
+
+&mmc1 {
+	vqmmc-supply = <&ldo1_reg>;
+};
+
+&mmc2 {
+	vmmc-supply = <&evm_1v8_sw>;
 };

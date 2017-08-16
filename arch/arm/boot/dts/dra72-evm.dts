@@ -13,6 +13,16 @@
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x0 0x40000000>; /* 1024 MB */
 	};
+
+	evm_1v8_sw: fixedregulator-evm_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "evm_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&smps4_reg>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &i2c1 {
@@ -42,4 +52,12 @@
 &cpsw_emac0 {
 	phy_id = <&davinci_mdio>, <3>;
 	phy-mode = "rgmii";
+};
+
+&mmc1 {
+	vqmmc-supply = <&ldo1_reg>;
+};
+
+&mmc2 {
+	vmmc-supply = <&evm_1v8_sw>;
 };
