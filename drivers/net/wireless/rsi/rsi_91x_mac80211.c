@@ -626,10 +626,12 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 			rsi_send_rx_filter_frame(common, rx_filter_word);
 		}
 		rsi_inform_bss_status(common,
+				      STA_OPMODE,
 				      bss_conf->assoc,
 				      bss_conf->bssid,
 				      bss_conf->qos,
-				      bss_conf->aid);
+				      bss_conf->aid,
+				      NULL, 0);
 		adapter->ps_info.dtim_interval_duration = bss->dtim_period;
 		adapter->ps_info.listen_interval = conf->listen_interval;
 
@@ -1157,18 +1159,80 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	bool sta_exist = false;
+	struct rsi_sta *rsta;
+
+	rsi_dbg(INFO_ZONE, "Station Add: %pM\n", sta->addr);
 
 	mutex_lock(&common->mutex);
 
-	rsi_set_min_rate(hw, sta, common);
+	if (vif->type == NL80211_IFTYPE_AP) {
+		u8 cnt;
+		int sta_idx = -1;
+		int free_index = -1;
 
-	if ((sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
-	    (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40)) {
-		common->vif_info[0].sgi = true;
+		/* Check if max stations reached */
+		if (common->num_stations >= common->max_stations) {
+			rsi_dbg(ERR_ZONE, "Reject: Max Stations exists\n");
+			mutex_unlock(&common->mutex);
+			return -EOPNOTSUPP;
+		}
+		for (cnt = 0; cnt < common->max_stations; cnt++) {
+			rsta = &common->stations[cnt];
+
+			if (!rsta->sta) {
+				if (free_index < 0)
+					free_index = cnt;
+				continue;
+			}
+			if (!memcmp(rsta->sta->addr, sta->addr, ETH_ALEN)) {
+				rsi_dbg(INFO_ZONE, "Station exists\n");
+				sta_idx = cnt;
+				sta_exist = true;
+				break;
+			}
+		}
+		if (!sta_exist) {
+			if (free_index >= 0)
+				sta_idx = free_index;
+		}
+		if (sta_idx < 0) {
+			rsi_dbg(ERR_ZONE,
+				"%s: Some problem reaching here...\n",
+				__func__);
+			return -EINVAL;
+		}
+		rsta = &common->stations[sta_idx];
+		rsta->sta = sta;
+		rsta->sta_id = sta_idx;
+		for (cnt = 0; cnt < IEEE80211_NUM_TIDS; cnt++)
+			rsta->start_tx_aggr[cnt] = false;
+		for (cnt = 0; cnt < IEEE80211_NUM_TIDS; cnt++)
+			rsta->seq_start[cnt] = 0;
+		if (!sta_exist) {
+			rsi_dbg(INFO_ZONE, "New Station\n");
+
+			/* Send peer notify to device */
+			rsi_dbg(INFO_ZONE, "Indicate bss status to device\n");
+			rsi_inform_bss_status(common, AP_OPMODE, 1, sta->addr,
+					      sta->wme, sta->aid, sta, sta_idx);
+
+			common->num_stations++;
+		}
 	}
 
-	if (sta->ht_cap.ht_supported)
-		ieee80211_start_tx_ba_session(sta, 0, 0);
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		rsi_set_min_rate(hw, sta, common);
+		if (sta->ht_cap.ht_supported) {
+			common->vif_info[0].is_ht = true;
+			common->bitrate_mask[NL80211_BAND_2GHZ] =
+					sta->supp_rates[NL80211_BAND_2GHZ];
+			if ((sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
+			    (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
+				common->vif_info[0].sgi = true;
+			ieee80211_start_tx_ba_session(sta, 0, 0);
+		}
+	}
 
 	mutex_unlock(&common->mutex);
 

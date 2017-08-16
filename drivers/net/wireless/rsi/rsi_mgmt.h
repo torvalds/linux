@@ -209,6 +209,10 @@ enum vap_status {
 	VAP_UPDATE = 3
 };
 
+enum peer_type {
+	PEER_TYPE_AP,
+	PEER_TYPE_STA,
+};
 extern struct ieee80211_rate rsi_rates[12];
 extern const u16 rsi_mcsrates[8];
 
@@ -611,8 +615,9 @@ int rsi_set_channel(struct rsi_common *common,
 		    struct ieee80211_channel *channel);
 int rsi_send_vap_dynamic_update(struct rsi_common *common);
 int rsi_send_block_unblock_frame(struct rsi_common *common, bool event);
-void rsi_inform_bss_status(struct rsi_common *common, u8 status,
-			   const u8 *bssid, u8 qos_enable, u16 aid);
+void rsi_inform_bss_status(struct rsi_common *common, enum opmode opmode,
+			   u8 status, const u8 *addr, u8 qos_enable, u16 aid,
+			   struct ieee80211_sta *sta, u16 sta_id);
 void rsi_indicate_pkt_to_os(struct rsi_common *common, struct sk_buff *skb);
 int rsi_mac80211_attach(struct rsi_common *common);
 void rsi_indicate_tx_status(struct rsi_hw *common, struct sk_buff *skb,

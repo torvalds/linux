@@ -455,12 +455,14 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
  * Return: status: 0 on success, corresponding negative error code on failure.
  */
 static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
-					 u8 opmode,
+					 enum opmode opmode,
 					 u8 notify_event,
 					 const unsigned char *bssid,
 					 u8 qos_enable,
-					 u16 aid)
+					 u16 aid,
+					 u16 sta_id)
 {
+	struct ieee80211_vif *vif = common->priv->vifs[0];
 	struct sk_buff *skb = NULL;
 	struct rsi_peer_notify *peer_notify;
 	u16 vap_id = 0;
@@ -480,7 +482,10 @@ static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
 	memset(skb->data, 0, frame_len);
 	peer_notify = (struct rsi_peer_notify *)skb->data;
 
-	peer_notify->command = cpu_to_le16(opmode << 1);
+	if (opmode == STA_OPMODE)
+		peer_notify->command = cpu_to_le16(PEER_TYPE_AP << 1);
+	else if (opmode == AP_OPMODE)
+		peer_notify->command = cpu_to_le16(PEER_TYPE_STA << 1);
 
 	switch (notify_event) {
 	case STA_CONNECTED:
@@ -502,13 +507,15 @@ static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
 			(frame_len - FRAME_DESC_SZ),
 			RSI_WIFI_MGMT_Q);
 	peer_notify->desc.desc_dword0.frame_type = PEER_NOTIFY;
+	peer_notify->desc.desc_dword3.qid_tid = sta_id;
 	peer_notify->desc.desc_dword3.sta_id = vap_id;
 
 	skb_put(skb, frame_len);
 
 	status = rsi_send_internal_mgmt_frame(common, skb);
 
-	if (!status && qos_enable) {
+	if ((vif->type == NL80211_IFTYPE_STATION) &&
+	    (!status && qos_enable)) {
 		rsi_set_contention_vals(common);
 		status = rsi_load_radio_caps(common);
 	}
@@ -1279,32 +1286,40 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
  * Return: None.
  */
 void rsi_inform_bss_status(struct rsi_common *common,
+			   enum opmode opmode,
 			   u8 status,
-			   const unsigned char *bssid,
+			   const u8 *addr,
 			   u8 qos_enable,
-			   u16 aid)
+			   u16 aid,
+			   struct ieee80211_sta *sta,
+			   u16 sta_id)
 {
 	if (status) {
-		common->hw_data_qs_blocked = true;
+		if (opmode == STA_OPMODE)
+			common->hw_data_qs_blocked = true;
 		rsi_hal_send_sta_notify_frame(common,
-					      RSI_IFTYPE_STATION,
+					      opmode,
 					      STA_CONNECTED,
-					      bssid,
+					      addr,
 					      qos_enable,
-					      aid);
+					      aid, sta_id);
 		if (common->min_rate == 0xffff)
 			rsi_send_auto_rate_request(common);
-		if (!rsi_send_block_unblock_frame(common, false))
-			common->hw_data_qs_blocked = false;
+		if (opmode == STA_OPMODE) {
+			if (!rsi_send_block_unblock_frame(common, false))
+				common->hw_data_qs_blocked = false;
+		}
 	} else {
-		common->hw_data_qs_blocked = true;
+		if (opmode == STA_OPMODE)
+			common->hw_data_qs_blocked = true;
 		rsi_hal_send_sta_notify_frame(common,
-					      RSI_IFTYPE_STATION,
+					      opmode,
 					      STA_DISCONNECTED,
-					      bssid,
+					      addr,
 					      qos_enable,
-					      aid);
-		rsi_send_block_unblock_frame(common, true);
+					      aid, sta_id);
+		if (opmode == STA_OPMODE)
+			rsi_send_block_unblock_frame(common, true);
 	}
 }
 
