@@ -21,6 +21,7 @@
 #include "f2fs.h"
 #include "segment.h"
 #include "node.h"
+#include "gc.h"
 #include "trace.h"
 #include <trace/events/f2fs.h>
 
@@ -1274,8 +1275,11 @@ static int issue_discard_thread(void *data)
 		if (kthread_should_stop())
 			return 0;
 
-		if (dcc->discard_wake)
+		if (dcc->discard_wake) {
 			dcc->discard_wake = 0;
+			if (sbi->gc_thread && sbi->gc_thread->gc_urgent)
+				mark_discard_range_all(sbi);
+		}
 
 		sb_start_intwrite(sbi->sb);
 
