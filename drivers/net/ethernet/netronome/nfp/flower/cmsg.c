@@ -150,10 +150,17 @@ nfp_flower_cmsg_portmod_rx(struct nfp_app *app, struct sk_buff *skb)
 		return;
 	}
 
-	if (link)
+	if (link) {
+		u16 mtu = be16_to_cpu(msg->mtu);
+
 		netif_carrier_on(netdev);
-	else
+
+		/* An MTU of 0 from the firmware should be ignored */
+		if (mtu)
+			dev_set_mtu(netdev, mtu);
+	} else {
 		netif_carrier_off(netdev);
+	}
 	rcu_read_unlock();
 }
 
