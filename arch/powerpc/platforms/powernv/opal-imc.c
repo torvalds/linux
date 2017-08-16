@@ -123,7 +123,7 @@ free_pmu:
 static void disable_nest_pmu_counters(void)
 {
 	int nid, cpu;
-	struct cpumask *l_cpumask;
+	const struct cpumask *l_cpumask;
 
 	get_online_cpus();
 	for_each_online_node(nid) {
