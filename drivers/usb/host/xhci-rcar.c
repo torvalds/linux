@@ -20,7 +20,8 @@
 #include "xhci-rcar.h"
 
 /*
-* - The V3 firmware is for r8a7796 (with good performance).
+* - The V3 firmware is for r8a7796 (with good performance) and r8a7795 es2.0
+*   or later.
 * - The V2 firmware can be used on both r8a7795 (es1.x) and r8a7796.
 * - The V2 firmware is possible to use on R-Car Gen2. However, the V2 causes
 *   performance degradation. So, this driver continues to use the V1 if R-Car
@@ -76,6 +77,10 @@ static const struct soc_device_attribute rcar_quirks_match[]  = {
 	{
 		.soc_id = "r8a7795", .revision = "ES1.*",
 		.data = (void *)RCAR_XHCI_FIRMWARE_V2,
+	},
+	{
+		.soc_id = "r8a7795",
+		.data = (void *)RCAR_XHCI_FIRMWARE_V3,
 	},
 	{
 		.soc_id = "r8a7796",
