@@ -189,14 +189,18 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			spin_unlock(&glob->lru_lock);
 		}
 
-		if (vm->use_cpu_for_update) {
+		if (bo->tbo.type == ttm_bo_type_kernel &&
+		    vm->use_cpu_for_update) {
 			r = amdgpu_bo_kmap(bo, NULL);
 			if (r)
 				return r;
 		}
 
 		spin_lock(&vm->status_lock);
-		list_move(&bo_base->vm_status, &vm->relocated);
+		if (bo->tbo.type != ttm_bo_type_kernel)
+			list_move(&bo_base->vm_status, &vm->moved);
+		else
+			list_move(&bo_base->vm_status, &vm->relocated);
 	}
 	spin_unlock(&vm->status_lock);
 
@@ -1985,20 +1989,23 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_vm_clear_moved - clear moved BOs in the PT
+ * amdgpu_vm_handle_moved - handle moved BOs in the PT
  *
  * @adev: amdgpu_device pointer
  * @vm: requested vm
+ * @sync: sync object to add fences to
  *
- * Make sure all moved BOs are cleared in the PT.
+ * Make sure all BOs which are moved are updated in the PTs.
  * Returns 0 for success.
  *
- * PTs have to be reserved and mutex must be locked!
+ * PTs have to be reserved!
  */
-int amdgpu_vm_clear_moved(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			    struct amdgpu_sync *sync)
+int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
+			   struct amdgpu_vm *vm,
+			   struct amdgpu_sync *sync)
 {
 	struct amdgpu_bo_va *bo_va = NULL;
+	bool clear;
 	int r = 0;
 
 	spin_lock(&vm->status_lock);
@@ -2007,7 +2014,10 @@ int amdgpu_vm_clear_moved(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			struct amdgpu_bo_va, base.vm_status);
 		spin_unlock(&vm->status_lock);
 
-		r = amdgpu_vm_bo_update(adev, bo_va, true);
+		/* Per VM BOs never need to bo cleared in the page tables */
+		clear = bo_va->base.bo->tbo.resv != vm->root.base.bo->tbo.resv;
+
+		r = amdgpu_vm_bo_update(adev, bo_va, clear);
 		if (r)
 			return r;
 
@@ -2057,6 +2067,37 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 		list_add_tail(&bo_va->base.bo_list, &bo->va);
 
 	return bo_va;
+}
+
+
+/**
+ * amdgpu_vm_bo_insert_mapping - insert a new mapping
+ *
+ * @adev: amdgpu_device pointer
+ * @bo_va: bo_va to store the address
+ * @mapping: the mapping to insert
+ *
+ * Insert a new mapping into all structures.
+ */
+static void amdgpu_vm_bo_insert_map(struct amdgpu_device *adev,
+				    struct amdgpu_bo_va *bo_va,
+				    struct amdgpu_bo_va_mapping *mapping)
+{
+	struct amdgpu_vm *vm = bo_va->base.vm;
+	struct amdgpu_bo *bo = bo_va->base.bo;
+
+	list_add(&mapping->list, &bo_va->invalids);
+	amdgpu_vm_it_insert(mapping, &vm->va);
+
+	if (mapping->flags & AMDGPU_PTE_PRT)
+		amdgpu_vm_prt_get(adev);
+
+	if (bo && bo->tbo.resv == vm->root.base.bo->tbo.resv) {
+		spin_lock(&vm->status_lock);
+		list_move(&bo_va->base.vm_status, &vm->moved);
+		spin_unlock(&vm->status_lock);
+	}
+	trace_amdgpu_vm_bo_map(bo_va, mapping);
 }
 
 /**
@@ -2110,18 +2151,12 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	if (!mapping)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&mapping->list);
 	mapping->start = saddr;
 	mapping->last = eaddr;
 	mapping->offset = offset;
 	mapping->flags = flags;
 
-	list_add(&mapping->list, &bo_va->invalids);
-	amdgpu_vm_it_insert(mapping, &vm->va);
-
-	if (flags & AMDGPU_PTE_PRT)
-		amdgpu_vm_prt_get(adev);
-	trace_amdgpu_vm_bo_map(bo_va, mapping);
+	amdgpu_vm_bo_insert_map(adev, bo_va, mapping);
 
 	return 0;
 }
@@ -2148,7 +2183,6 @@ int amdgpu_vm_bo_replace_map(struct amdgpu_device *adev,
 {
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo = bo_va->base.bo;
-	struct amdgpu_vm *vm = bo_va->base.vm;
 	uint64_t eaddr;
 	int r;
 
@@ -2182,12 +2216,7 @@ int amdgpu_vm_bo_replace_map(struct amdgpu_device *adev,
 	mapping->offset = offset;
 	mapping->flags = flags;
 
-	list_add(&mapping->list, &bo_va->invalids);
-	amdgpu_vm_it_insert(mapping, &vm->va);
-
-	if (flags & AMDGPU_PTE_PRT)
-		amdgpu_vm_prt_get(adev);
-	trace_amdgpu_vm_bo_map(bo_va, mapping);
+	amdgpu_vm_bo_insert_map(adev, bo_va, mapping);
 
 	return 0;
 }
@@ -2402,7 +2431,11 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 		bo_base->moved = true;
 		if (evicted && bo->tbo.resv == vm->root.base.bo->tbo.resv) {
 			spin_lock(&bo_base->vm->status_lock);
-			list_move(&bo_base->vm_status, &vm->evicted);
+			if (bo->tbo.type == ttm_bo_type_kernel)
+				list_move(&bo_base->vm_status, &vm->evicted);
+			else
+				list_move_tail(&bo_base->vm_status,
+					       &vm->evicted);
 			spin_unlock(&bo_base->vm->status_lock);
 			continue;
 		}
