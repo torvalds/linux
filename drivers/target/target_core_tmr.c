@@ -217,7 +217,8 @@ static void core_tmr_drain_tmr_list(
 	 * LUN_RESET tmr..
 	 */
 	spin_lock_irqsave(&dev->se_tmr_lock, flags);
-	list_del_init(&tmr->tmr_list);
+	if (tmr)
+		list_del_init(&tmr->tmr_list);
 	list_for_each_entry_safe(tmr_p, tmr_pp, &dev->dev_tmr_list, tmr_list) {
 		cmd = tmr_p->task_cmd;
 		if (!cmd) {
