@@ -2614,7 +2614,7 @@ static unsigned hub_is_wusb(struct usb_hub *hub)
 #define SET_CONFIG_TRIES	(2 * (use_both_schemes + 1))
 #define USE_NEW_SCHEME(i)	((i) / 2 == (int)old_scheme_first)
 
-#define HUB_ROOT_RESET_TIME	50	/* times are in msec */
+#define HUB_ROOT_RESET_TIME	60	/* times are in msec */
 #define HUB_SHORT_RESET_TIME	10
 #define HUB_BH_RESET_TIME	50
 #define HUB_LONG_RESET_TIME	200
