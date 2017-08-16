@@ -38,9 +38,9 @@ struct ring_buffer {
 	struct user_struct		*mmap_user;
 
 	/* AUX area */
-	local_t				aux_head;
+	long				aux_head;
 	local_t				aux_nest;
-	local_t				aux_wakeup;
+	long				aux_wakeup;
 	unsigned long			aux_pgoff;
 	int				aux_nr_pages;
 	int				aux_overwrite;
