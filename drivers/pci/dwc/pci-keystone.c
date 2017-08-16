@@ -32,10 +32,6 @@
 
 #define DRIVER_NAME	"keystone-pcie"
 
-/* driver specific constants */
-#define MAX_MSI_HOST_IRQS		8
-#define MAX_LEGACY_HOST_IRQS		4
-
 /* DEV_STAT_CTRL */
 #define PCIE_CAP_BASE		0x70
 
