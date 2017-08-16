@@ -1741,7 +1741,7 @@ error:
  * functioning ECDT EC first in order to handle the events.
  * https://bugzilla.kernel.org/show_bug.cgi?id=115021
  */
-int __init acpi_ec_ecdt_start(void)
+static int __init acpi_ec_ecdt_start(void)
 {
 	acpi_handle handle;
 
@@ -2003,20 +2003,17 @@ static inline void acpi_ec_query_exit(void)
 int __init acpi_ec_init(void)
 {
 	int result;
+	int ecdt_fail, dsdt_fail;
 
 	/* register workqueue for _Qxx evaluations */
 	result = acpi_ec_query_init();
 	if (result)
-		goto err_exit;
-	/* Now register the driver for the EC */
-	result = acpi_bus_register_driver(&acpi_ec_driver);
-	if (result)
-		goto err_exit;
+		return result;
 
-err_exit:
-	if (result)
-		acpi_ec_query_exit();
-	return result;
+	/* Drivers must be started after acpi_ec_query_init() */
+	ecdt_fail = acpi_ec_ecdt_start();
+	dsdt_fail = acpi_bus_register_driver(&acpi_ec_driver);
+	return ecdt_fail && dsdt_fail ? -ENODEV : 0;
 }
 
 /* EC driver currently not unloadable */
