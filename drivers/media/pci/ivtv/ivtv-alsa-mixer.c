@@ -156,7 +156,7 @@ int __init snd_ivtv_mixer_create(struct snd_ivtv_card *itvsc)
 
 	strlcpy(sc->mixername, "CX2341[56] Mixer", sizeof(sc->mixername));
 
-	ret = snd_ctl_add(sc, snd_ctl_new1(snd_ivtv_mixer_tv_vol, itvsc));
+	ret = snd_ctl_add(sc, snd_ctl_new1(&snd_ivtv_mixer_tv_vol, itvsc));
 	if (ret) {
 		IVTV_ALSA_WARN("%s: failed to add %s control, err %d\n",
 			       __func__, snd_ivtv_mixer_tv_vol.name, ret);
