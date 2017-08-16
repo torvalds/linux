@@ -374,10 +374,6 @@ void enable_kernel_vsx(void)
 		 */
 		if(!msr_tm_active(cpumsr) && msr_tm_active(current->thread.regs->msr))
 			return;
-		if (current->thread.regs->msr & MSR_FP)
-			__giveup_fpu(current);
-		if (current->thread.regs->msr & MSR_VEC)
-			__giveup_altivec(current);
 		__giveup_vsx(current);
 	}
 }
