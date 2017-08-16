@@ -318,8 +318,8 @@ int i915_gem_evict_for_node(struct i915_address_space *vm,
 		/* Overlap of objects in the same batch? */
 		if (i915_vma_is_pinned(vma)) {
 			ret = -ENOSPC;
-			if (vma->exec_entry &&
-			    vma->exec_entry->flags & EXEC_OBJECT_PINNED)
+			if (vma->exec_flags &&
+			    *vma->exec_flags & EXEC_OBJECT_PINNED)
 				ret = -EINVAL;
 			break;
 		}
