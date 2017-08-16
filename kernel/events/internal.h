@@ -40,7 +40,7 @@ struct ring_buffer {
 	/* AUX area */
 	long				aux_head;
 	local_t				aux_nest;
-	long				aux_wakeup;
+	long				aux_wakeup;	/* last aux_watermark boundary crossed by aux_head */
 	unsigned long			aux_pgoff;
 	int				aux_nr_pages;
 	int				aux_overwrite;
