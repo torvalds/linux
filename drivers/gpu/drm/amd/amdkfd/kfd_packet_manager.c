@@ -26,7 +26,6 @@
 #include "kfd_device_queue_manager.h"
 #include "kfd_kernel_queue.h"
 #include "kfd_priv.h"
-#include "kfd_pm4_headers.h"
 #include "kfd_pm4_headers_vi.h"
 #include "kfd_pm4_opcodes.h"
 
@@ -44,12 +43,12 @@ static unsigned int build_pm4_header(unsigned int opcode, size_t packet_size)
 {
 	union PM4_MES_TYPE_3_HEADER header;
 
-	header.u32all = 0;
+	header.u32All = 0;
 	header.opcode = opcode;
 	header.count = packet_size/sizeof(uint32_t) - 2;
 	header.type = PM4_TYPE_3;
 
-	return header.u32all;
+	return header.u32All;
 }
 
 static void pm_calc_rlib_size(struct packet_manager *pm,
@@ -69,12 +68,9 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 		pr_debug("Over subscribed runlist\n");
 	}
 
-	map_queue_size =
-		(pm->dqm->dev->device_info->asic_family == CHIP_CARRIZO) ?
-		sizeof(struct pm4_mes_map_queues) :
-		sizeof(struct pm4_map_queues);
+	map_queue_size = sizeof(struct pm4_mes_map_queues);
 	/* calculate run list ib allocation size */
-	*rlib_size = process_count * sizeof(struct pm4_map_process) +
+	*rlib_size = process_count * sizeof(struct pm4_mes_map_process) +
 		     queue_count * map_queue_size;
 
 	/*
@@ -82,7 +78,7 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 	 * when over subscription
 	 */
 	if (*over_subscription)
-		*rlib_size += sizeof(struct pm4_runlist);
+		*rlib_size += sizeof(struct pm4_mes_runlist);
 
 	pr_debug("runlist ib size %d\n", *rlib_size);
 }
@@ -119,16 +115,16 @@ static int pm_allocate_runlist_ib(struct packet_manager *pm,
 static int pm_create_runlist(struct packet_manager *pm, uint32_t *buffer,
 			uint64_t ib, size_t ib_size_in_dwords, bool chain)
 {
-	struct pm4_runlist *packet;
+	struct pm4_mes_runlist *packet;
 
 	if (WARN_ON(!ib))
 		return -EFAULT;
 
-	packet = (struct pm4_runlist *)buffer;
+	packet = (struct pm4_mes_runlist *)buffer;
 
-	memset(buffer, 0, sizeof(struct pm4_runlist));
-	packet->header.u32all = build_pm4_header(IT_RUN_LIST,
-						sizeof(struct pm4_runlist));
+	memset(buffer, 0, sizeof(struct pm4_mes_runlist));
+	packet->header.u32All = build_pm4_header(IT_RUN_LIST,
+						sizeof(struct pm4_mes_runlist));
 
 	packet->bitfields4.ib_size = ib_size_in_dwords;
 	packet->bitfields4.chain = chain ? 1 : 0;
@@ -143,16 +139,16 @@ static int pm_create_runlist(struct packet_manager *pm, uint32_t *buffer,
 static int pm_create_map_process(struct packet_manager *pm, uint32_t *buffer,
 				struct qcm_process_device *qpd)
 {
-	struct pm4_map_process *packet;
+	struct pm4_mes_map_process *packet;
 	struct queue *cur;
 	uint32_t num_queues;
 
-	packet = (struct pm4_map_process *)buffer;
+	packet = (struct pm4_mes_map_process *)buffer;
 
-	memset(buffer, 0, sizeof(struct pm4_map_process));
+	memset(buffer, 0, sizeof(struct pm4_mes_map_process));
 
-	packet->header.u32all = build_pm4_header(IT_MAP_PROCESS,
-					sizeof(struct pm4_map_process));
+	packet->header.u32All = build_pm4_header(IT_MAP_PROCESS,
+					sizeof(struct pm4_mes_map_process));
 	packet->bitfields2.diq_enable = (qpd->is_debug) ? 1 : 0;
 	packet->bitfields2.process_quantum = 1;
 	packet->bitfields2.pasid = qpd->pqm->process->pasid;
@@ -170,23 +166,26 @@ static int pm_create_map_process(struct packet_manager *pm, uint32_t *buffer,
 	packet->sh_mem_ape1_base = qpd->sh_mem_ape1_base;
 	packet->sh_mem_ape1_limit = qpd->sh_mem_ape1_limit;
 
+	/* TODO: scratch support */
+	packet->sh_hidden_private_base_vmid = 0;
+
 	packet->gds_addr_lo = lower_32_bits(qpd->gds_context_area);
 	packet->gds_addr_hi = upper_32_bits(qpd->gds_context_area);
 
 	return 0;
 }
 
-static int pm_create_map_queue_vi(struct packet_manager *pm, uint32_t *buffer,
+static int pm_create_map_queue(struct packet_manager *pm, uint32_t *buffer,
 		struct queue *q, bool is_static)
 {
 	struct pm4_mes_map_queues *packet;
 	bool use_static = is_static;
 
 	packet = (struct pm4_mes_map_queues *)buffer;
-	memset(buffer, 0, sizeof(struct pm4_map_queues));
+	memset(buffer, 0, sizeof(struct pm4_mes_map_queues));
 
-	packet->header.u32all = build_pm4_header(IT_MAP_QUEUES,
-						sizeof(struct pm4_map_queues));
+	packet->header.u32All = build_pm4_header(IT_MAP_QUEUES,
+						sizeof(struct pm4_mes_map_queues));
 	packet->bitfields2.alloc_format =
 		alloc_format__mes_map_queues__one_per_pipe_vi;
 	packet->bitfields2.num_queues = 1;
@@ -235,64 +234,6 @@ static int pm_create_map_queue_vi(struct packet_manager *pm, uint32_t *buffer,
 	return 0;
 }
 
-static int pm_create_map_queue(struct packet_manager *pm, uint32_t *buffer,
-				struct queue *q, bool is_static)
-{
-	struct pm4_map_queues *packet;
-	bool use_static = is_static;
-
-	packet = (struct pm4_map_queues *)buffer;
-	memset(buffer, 0, sizeof(struct pm4_map_queues));
-
-	packet->header.u32all = build_pm4_header(IT_MAP_QUEUES,
-						sizeof(struct pm4_map_queues));
-	packet->bitfields2.alloc_format =
-				alloc_format__mes_map_queues__one_per_pipe;
-	packet->bitfields2.num_queues = 1;
-	packet->bitfields2.queue_sel =
-		queue_sel__mes_map_queues__map_to_hws_determined_queue_slots;
-
-	packet->bitfields2.vidmem = (q->properties.is_interop) ?
-			vidmem__mes_map_queues__uses_video_memory :
-			vidmem__mes_map_queues__uses_no_video_memory;
-
-	switch (q->properties.type) {
-	case KFD_QUEUE_TYPE_COMPUTE:
-	case KFD_QUEUE_TYPE_DIQ:
-		packet->bitfields2.engine_sel =
-				engine_sel__mes_map_queues__compute;
-		break;
-	case KFD_QUEUE_TYPE_SDMA:
-		packet->bitfields2.engine_sel =
-				engine_sel__mes_map_queues__sdma0;
-		use_static = false; /* no static queues under SDMA */
-		break;
-	default:
-		WARN(1, "queue type %d", q->properties.type);
-		return -EINVAL;
-	}
-
-	packet->mes_map_queues_ordinals[0].bitfields3.doorbell_offset =
-			q->properties.doorbell_off;
-
-	packet->mes_map_queues_ordinals[0].bitfields3.is_static =
-			(use_static) ? 1 : 0;
-
-	packet->mes_map_queues_ordinals[0].mqd_addr_lo =
-			lower_32_bits(q->gart_mqd_addr);
-
-	packet->mes_map_queues_ordinals[0].mqd_addr_hi =
-			upper_32_bits(q->gart_mqd_addr);
-
-	packet->mes_map_queues_ordinals[0].wptr_addr_lo =
-			lower_32_bits((uint64_t)q->properties.write_ptr);
-
-	packet->mes_map_queues_ordinals[0].wptr_addr_hi =
-			upper_32_bits((uint64_t)q->properties.write_ptr);
-
-	return 0;
-}
-
 static int pm_create_runlist_ib(struct packet_manager *pm,
 				struct list_head *queues,
 				uint64_t *rl_gpu_addr,
@@ -334,7 +275,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 			return retval;
 
 		proccesses_mapped++;
-		inc_wptr(&rl_wptr, sizeof(struct pm4_map_process),
+		inc_wptr(&rl_wptr, sizeof(struct pm4_mes_map_process),
 				alloc_size_bytes);
 
 		list_for_each_entry(kq, &qpd->priv_queue_list, list) {
@@ -344,14 +285,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 			pr_debug("static_queue, mapping kernel q %d, is debug status %d\n",
 				kq->queue->queue, qpd->is_debug);
 
-			if (pm->dqm->dev->device_info->asic_family ==
-					CHIP_CARRIZO)
-				retval = pm_create_map_queue_vi(pm,
-						&rl_buffer[rl_wptr],
-						kq->queue,
-						qpd->is_debug);
-			else
-				retval = pm_create_map_queue(pm,
+			retval = pm_create_map_queue(pm,
 						&rl_buffer[rl_wptr],
 						kq->queue,
 						qpd->is_debug);
@@ -359,7 +293,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 				return retval;
 
 			inc_wptr(&rl_wptr,
-				sizeof(struct pm4_map_queues),
+				sizeof(struct pm4_mes_map_queues),
 				alloc_size_bytes);
 		}
 
@@ -370,14 +304,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 			pr_debug("static_queue, mapping user queue %d, is debug status %d\n",
 				q->queue, qpd->is_debug);
 
-			if (pm->dqm->dev->device_info->asic_family ==
-					CHIP_CARRIZO)
-				retval = pm_create_map_queue_vi(pm,
-						&rl_buffer[rl_wptr],
-						q,
-						qpd->is_debug);
-			else
-				retval = pm_create_map_queue(pm,
+			retval = pm_create_map_queue(pm,
 						&rl_buffer[rl_wptr],
 						q,
 						qpd->is_debug);
@@ -386,7 +313,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 				return retval;
 
 			inc_wptr(&rl_wptr,
-				sizeof(struct pm4_map_queues),
+				sizeof(struct pm4_mes_map_queues),
 				alloc_size_bytes);
 		}
 	}
@@ -429,7 +356,7 @@ void pm_uninit(struct packet_manager *pm)
 int pm_send_set_resources(struct packet_manager *pm,
 				struct scheduling_resources *res)
 {
-	struct pm4_set_resources *packet;
+	struct pm4_mes_set_resources *packet;
 	int retval = 0;
 
 	mutex_lock(&pm->lock);
@@ -442,9 +369,9 @@ int pm_send_set_resources(struct packet_manager *pm,
 		goto out;
 	}
 
-	memset(packet, 0, sizeof(struct pm4_set_resources));
-	packet->header.u32all = build_pm4_header(IT_SET_RESOURCES,
-					sizeof(struct pm4_set_resources));
+	memset(packet, 0, sizeof(struct pm4_mes_set_resources));
+	packet->header.u32All = build_pm4_header(IT_SET_RESOURCES,
+					sizeof(struct pm4_mes_set_resources));
 
 	packet->bitfields2.queue_type =
 			queue_type__mes_set_resources__hsa_interface_queue_hiq;
@@ -482,7 +409,7 @@ int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues)
 
 	pr_debug("runlist IB address: 0x%llX\n", rl_gpu_ib_addr);
 
-	packet_size_dwords = sizeof(struct pm4_runlist) / sizeof(uint32_t);
+	packet_size_dwords = sizeof(struct pm4_mes_runlist) / sizeof(uint32_t);
 	mutex_lock(&pm->lock);
 
 	retval = pm->priv_queue->ops.acquire_packet_buffer(pm->priv_queue,
@@ -514,7 +441,7 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 			uint32_t fence_value)
 {
 	int retval;
-	struct pm4_query_status *packet;
+	struct pm4_mes_query_status *packet;
 
 	if (WARN_ON(!fence_address))
 		return -EFAULT;
@@ -522,13 +449,13 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 	mutex_lock(&pm->lock);
 	retval = pm->priv_queue->ops.acquire_packet_buffer(
 			pm->priv_queue,
-			sizeof(struct pm4_query_status) / sizeof(uint32_t),
+			sizeof(struct pm4_mes_query_status) / sizeof(uint32_t),
 			(unsigned int **)&packet);
 	if (retval)
 		goto fail_acquire_packet_buffer;
 
-	packet->header.u32all = build_pm4_header(IT_QUERY_STATUS,
-					sizeof(struct pm4_query_status));
+	packet->header.u32All = build_pm4_header(IT_QUERY_STATUS,
+					sizeof(struct pm4_mes_query_status));
 
 	packet->bitfields2.context_id = 0;
 	packet->bitfields2.interrupt_sel =
@@ -555,22 +482,22 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 {
 	int retval;
 	uint32_t *buffer;
-	struct pm4_unmap_queues *packet;
+	struct pm4_mes_unmap_queues *packet;
 
 	mutex_lock(&pm->lock);
 	retval = pm->priv_queue->ops.acquire_packet_buffer(
 			pm->priv_queue,
-			sizeof(struct pm4_unmap_queues) / sizeof(uint32_t),
+			sizeof(struct pm4_mes_unmap_queues) / sizeof(uint32_t),
 			&buffer);
 	if (retval)
 		goto err_acquire_packet_buffer;
 
-	packet = (struct pm4_unmap_queues *)buffer;
-	memset(buffer, 0, sizeof(struct pm4_unmap_queues));
+	packet = (struct pm4_mes_unmap_queues *)buffer;
+	memset(buffer, 0, sizeof(struct pm4_mes_unmap_queues));
 	pr_debug("static_queue: unmapping queues: mode is %d , reset is %d , type is %d\n",
 		mode, reset, type);
-	packet->header.u32all = build_pm4_header(IT_UNMAP_QUEUES,
-					sizeof(struct pm4_unmap_queues));
+	packet->header.u32All = build_pm4_header(IT_UNMAP_QUEUES,
+					sizeof(struct pm4_mes_unmap_queues));
 	switch (type) {
 	case KFD_QUEUE_TYPE_COMPUTE:
 	case KFD_QUEUE_TYPE_DIQ:
@@ -608,12 +535,12 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 		break;
 	case KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES:
 		packet->bitfields2.queue_sel =
-				queue_sel__mes_unmap_queues__perform_request_on_all_active_queues;
+				queue_sel__mes_unmap_queues__unmap_all_queues;
 		break;
 	case KFD_PREEMPT_TYPE_FILTER_DYNAMIC_QUEUES:
 		/* in this case, we do not preempt static queues */
 		packet->bitfields2.queue_sel =
-				queue_sel__mes_unmap_queues__perform_request_on_dynamic_queues_only;
+				queue_sel__mes_unmap_queues__unmap_all_non_static_queues;
 		break;
 	default:
 		WARN(1, "filter %d", mode);

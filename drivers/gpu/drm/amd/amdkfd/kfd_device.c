@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
-#include "kfd_pm4_headers.h"
+#include "kfd_pm4_headers_vi.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -239,9 +239,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * calculate max size of runlist packet.
 	 * There can be only 2 packets at once
 	 */
-	size += (KFD_MAX_NUM_OF_PROCESSES * sizeof(struct pm4_map_process) +
-		max_num_of_queues_per_device *
-		sizeof(struct pm4_map_queues) + sizeof(struct pm4_runlist)) * 2;
+	size += (KFD_MAX_NUM_OF_PROCESSES * sizeof(struct pm4_mes_map_process) +
+		max_num_of_queues_per_device * sizeof(struct pm4_mes_map_queues)
+		+ sizeof(struct pm4_mes_runlist)) * 2;
 
 	/* Add size of HIQ & DIQ */
 	size += KFD_KERNEL_QUEUE_SIZE * 2;
