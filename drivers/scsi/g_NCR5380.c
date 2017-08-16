@@ -736,7 +736,7 @@ static struct isa_driver generic_NCR5380_isa_driver = {
 };
 
 #ifdef CONFIG_PNP
-static struct pnp_device_id generic_NCR5380_pnp_ids[] = {
+static const struct pnp_device_id generic_NCR5380_pnp_ids[] = {
 	{ .id = "DTC436e", .driver_data = BOARD_DTC3181E },
 	{ .id = "" }
 };
