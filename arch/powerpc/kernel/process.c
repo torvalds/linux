@@ -355,14 +355,6 @@ static void giveup_vsx(struct task_struct *tsk)
 	msr_check_and_clear(MSR_FP|MSR_VEC|MSR_VSX);
 }
 
-static void save_vsx(struct task_struct *tsk)
-{
-	if (tsk->thread.regs->msr & MSR_FP)
-		save_fpu(tsk);
-	if (tsk->thread.regs->msr & MSR_VEC)
-		save_altivec(tsk);
-}
-
 void enable_kernel_vsx(void)
 {
 	unsigned long cpumsr;
@@ -411,7 +403,6 @@ static int restore_vsx(struct task_struct *tsk)
 }
 #else
 static inline int restore_vsx(struct task_struct *tsk) { return 0; }
-static inline void save_vsx(struct task_struct *tsk) { }
 #endif /* CONFIG_VSX */
 
 #ifdef CONFIG_SPE
@@ -491,6 +482,8 @@ void giveup_all(struct task_struct *tsk)
 	msr_check_and_set(msr_all_available);
 	check_if_tm_restore_required(tsk);
 
+	WARN_ON((usermsr & MSR_VSX) && !((usermsr & MSR_FP) && (usermsr & MSR_VEC)));
+
 #ifdef CONFIG_PPC_FPU
 	if (usermsr & MSR_FP)
 		__giveup_fpu(tsk);
@@ -498,10 +491,6 @@ void giveup_all(struct task_struct *tsk)
 #ifdef CONFIG_ALTIVEC
 	if (usermsr & MSR_VEC)
 		__giveup_altivec(tsk);
-#endif
-#ifdef CONFIG_VSX
-	if (usermsr & MSR_VSX)
-		__giveup_vsx(tsk);
 #endif
 #ifdef CONFIG_SPE
 	if (usermsr & MSR_SPE)
@@ -561,19 +550,13 @@ void save_all(struct task_struct *tsk)
 
 	msr_check_and_set(msr_all_available);
 
-	/*
-	 * Saving the way the register space is in hardware, save_vsx boils
-	 * down to a save_fpu() and save_altivec()
-	 */
-	if (usermsr & MSR_VSX) {
-		save_vsx(tsk);
-	} else {
-		if (usermsr & MSR_FP)
-			save_fpu(tsk);
+	WARN_ON((usermsr & MSR_VSX) && !((usermsr & MSR_FP) && (usermsr & MSR_VEC)));
 
-		if (usermsr & MSR_VEC)
-			save_altivec(tsk);
-	}
+	if (usermsr & MSR_FP)
+		save_fpu(tsk);
+
+	if (usermsr & MSR_VEC)
+		save_altivec(tsk);
 
 	if (usermsr & MSR_SPE)
 		__giveup_spe(tsk);
