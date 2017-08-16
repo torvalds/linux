@@ -103,7 +103,6 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	if (prev == next)
 		return;
 	cpumask_set_cpu(cpu, &next->context.cpu_attach_mask);
-	cpumask_set_cpu(cpu, mm_cpumask(next));
 	/* Clear old ASCE by loading the kernel ASCE. */
 	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
 	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
@@ -121,7 +120,7 @@ static inline void finish_arch_post_lock_switch(void)
 		preempt_disable();
 		while (atomic_read(&mm->context.flush_count))
 			cpu_relax();
-
+		cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
 		if (mm->context.flush_mm)
 			__tlb_flush_mm(mm);
 		preempt_enable();
@@ -136,6 +135,7 @@ static inline void activate_mm(struct mm_struct *prev,
                                struct mm_struct *next)
 {
 	switch_mm(prev, next, current);
+	cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
 	set_user_asce(next);
 }
 
