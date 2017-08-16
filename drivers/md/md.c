@@ -1536,7 +1536,8 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 	} else if (sb->bblog_offset != 0)
 		rdev->badblocks.shift = 0;
 
-	if (le32_to_cpu(sb->feature_map) & MD_FEATURE_PPL) {
+	if ((le32_to_cpu(sb->feature_map) &
+	    (MD_FEATURE_PPL | MD_FEATURE_MULTIPLE_PPLS))) {
 		rdev->ppl.offset = (__s16)le16_to_cpu(sb->ppl.offset);
 		rdev->ppl.size = le16_to_cpu(sb->ppl.size);
 		rdev->ppl.sector = rdev->sb_start + rdev->ppl.offset;
@@ -1655,9 +1656,14 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_JOURNAL)
 			set_bit(MD_HAS_JOURNAL, &mddev->flags);
 
-		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_PPL) {
+		if (le32_to_cpu(sb->feature_map) &
+		    (MD_FEATURE_PPL | MD_FEATURE_MULTIPLE_PPLS)) {
 			if (le32_to_cpu(sb->feature_map) &
 			    (MD_FEATURE_BITMAP_OFFSET | MD_FEATURE_JOURNAL))
+				return -EINVAL;
+			if ((le32_to_cpu(sb->feature_map) & MD_FEATURE_PPL) &&
+			    (le32_to_cpu(sb->feature_map) &
+					    MD_FEATURE_MULTIPLE_PPLS))
 				return -EINVAL;
 			set_bit(MD_HAS_PPL, &mddev->flags);
 		}
@@ -1875,7 +1881,11 @@ retry:
 		sb->feature_map |= cpu_to_le32(MD_FEATURE_JOURNAL);
 
 	if (test_bit(MD_HAS_PPL, &mddev->flags)) {
-		sb->feature_map |= cpu_to_le32(MD_FEATURE_PPL);
+		if (test_bit(MD_HAS_MULTIPLE_PPLS, &mddev->flags))
+			sb->feature_map |=
+			    cpu_to_le32(MD_FEATURE_MULTIPLE_PPLS);
+		else
+			sb->feature_map |= cpu_to_le32(MD_FEATURE_PPL);
 		sb->ppl.offset = cpu_to_le16(rdev->ppl.offset);
 		sb->ppl.size = cpu_to_le16(rdev->ppl.size);
 	}

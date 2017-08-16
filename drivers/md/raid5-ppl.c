@@ -87,6 +87,8 @@
  * The current io_unit accepting new stripes is always at the end of the list.
  */
 
+#define PPL_SPACE_SIZE (128 * 1024)
+
 struct ppl_conf {
 	struct mddev *mddev;
 
@@ -122,6 +124,10 @@ struct ppl_log {
 					 * always at the end of io_list */
 	spinlock_t io_list_lock;
 	struct list_head io_list;	/* all io_units of this log */
+
+	sector_t next_io_sector;
+	unsigned int entry_space;
+	bool use_multippl;
 };
 
 #define PPL_IO_INLINE_BVECS 32
@@ -264,13 +270,12 @@ static int ppl_log_stripe(struct ppl_log *log, struct stripe_head *sh)
 	int i;
 	sector_t data_sector = 0;
 	int data_disks = 0;
-	unsigned int entry_space = (log->rdev->ppl.size << 9) - PPL_HEADER_SIZE;
 	struct r5conf *conf = sh->raid_conf;
 
 	pr_debug("%s: stripe: %llu\n", __func__, (unsigned long long)sh->sector);
 
 	/* check if current io_unit is full */
-	if (io && (io->pp_size == entry_space ||
+	if (io && (io->pp_size == log->entry_space ||
 		   io->entries_count == PPL_HDR_MAX_ENTRIES)) {
 		pr_debug("%s: add io_unit blocked by seq: %llu\n",
 			 __func__, io->seq);
@@ -451,11 +456,24 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 	pplhdr->entries_count = cpu_to_le32(io->entries_count);
 	pplhdr->checksum = cpu_to_le32(~crc32c_le(~0, pplhdr, PPL_HEADER_SIZE));
 
+	/* Rewind the buffer if current PPL is larger then remaining space */
+	if (log->use_multippl &&
+	    log->rdev->ppl.sector + log->rdev->ppl.size - log->next_io_sector <
+	    (PPL_HEADER_SIZE + io->pp_size) >> 9)
+		log->next_io_sector = log->rdev->ppl.sector;
+
+
 	bio->bi_end_io = ppl_log_endio;
 	bio->bi_opf = REQ_OP_WRITE | REQ_FUA;
 	bio->bi_bdev = log->rdev->bdev;
-	bio->bi_iter.bi_sector = log->rdev->ppl.sector;
+	bio->bi_iter.bi_sector = log->next_io_sector;
 	bio_add_page(bio, io->header_page, PAGE_SIZE, 0);
+
+	pr_debug("%s: log->current_io_sector: %llu\n", __func__,
+	    (unsigned long long)log->next_io_sector);
+
+	if (log->use_multippl)
+		log->next_io_sector += (PPL_HEADER_SIZE + io->pp_size) >> 9;
 
 	list_for_each_entry(sh, &io->stripe_list, log_list) {
 		/* entries for full stripe writes have no partial parity */
@@ -1031,6 +1049,7 @@ static int ppl_load(struct ppl_conf *ppl_conf)
 static void __ppl_exit_log(struct ppl_conf *ppl_conf)
 {
 	clear_bit(MD_HAS_PPL, &ppl_conf->mddev->flags);
+	clear_bit(MD_HAS_MULTIPLE_PPLS, &ppl_conf->mddev->flags);
 
 	kfree(ppl_conf->child_logs);
 
@@ -1097,6 +1116,22 @@ static int ppl_validate_rdev(struct md_rdev *rdev)
 	rdev->ppl.size = ppl_size_new;
 
 	return 0;
+}
+
+static void ppl_init_child_log(struct ppl_log *log, struct md_rdev *rdev)
+{
+	if ((rdev->ppl.size << 9) >= (PPL_SPACE_SIZE +
+				      PPL_HEADER_SIZE) * 2) {
+		log->use_multippl = true;
+		set_bit(MD_HAS_MULTIPLE_PPLS,
+			&log->ppl_conf->mddev->flags);
+		log->entry_space = PPL_SPACE_SIZE;
+	} else {
+		log->use_multippl = false;
+		log->entry_space = (log->rdev->ppl.size << 9) -
+				   PPL_HEADER_SIZE;
+	}
+	log->next_io_sector = rdev->ppl.sector;
 }
 
 int ppl_init_log(struct r5conf *conf)
@@ -1196,6 +1231,7 @@ int ppl_init_log(struct r5conf *conf)
 			q = bdev_get_queue(rdev->bdev);
 			if (test_bit(QUEUE_FLAG_WC, &q->queue_flags))
 				need_cache_flush = true;
+			ppl_init_child_log(log, rdev);
 		}
 	}
 
@@ -1261,6 +1297,7 @@ int ppl_modify_log(struct r5conf *conf, struct md_rdev *rdev, bool add)
 		if (!ret) {
 			log->rdev = rdev;
 			ret = ppl_write_empty_header(log);
+			ppl_init_child_log(log, rdev);
 		}
 	} else {
 		log->rdev = NULL;
