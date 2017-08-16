@@ -113,6 +113,10 @@ struct cec_pin_ops {
 
 #define CEC_NUM_PIN_EVENTS 128
 
+#define CEC_PIN_IRQ_UNCHANGED	0
+#define CEC_PIN_IRQ_DISABLE	1
+#define CEC_PIN_IRQ_ENABLE	2
+
 struct cec_pin {
 	struct cec_adapter		*adap;
 	const struct cec_pin_ops	*ops;
@@ -137,8 +141,8 @@ struct cec_pin {
 
 	struct cec_msg			work_rx_msg;
 	u8				work_tx_status;
-	bool				work_enable_irq;
 	ktime_t				work_tx_ts;
+	atomic_t			work_irq_change;
 	atomic_t			work_pin_events;
 	unsigned int			work_pin_events_wr;
 	unsigned int			work_pin_events_rd;
