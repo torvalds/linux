@@ -90,6 +90,7 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define IEEE80211_MGMT_FRAME            0x00
 #define IEEE80211_CTL_FRAME             0x04
 
+#define RSI_MAX_ASSOC_STAS		32
 #define IEEE80211_QOS_TID               0x0f
 #define IEEE80211_NONQOS_TID            16
 
@@ -262,6 +263,8 @@ struct rsi_common {
 	u8 dtim_cnt;
 
 	/* AP mode parameters */
+	struct rsi_sta stations[RSI_MAX_ASSOC_STAS + 1];
+	int num_stations;
 	int max_stations;
 };
 

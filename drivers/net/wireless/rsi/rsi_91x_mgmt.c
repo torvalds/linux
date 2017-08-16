@@ -624,6 +624,8 @@ static int rsi_program_bb_rf(struct rsi_common *common)
  */
 int rsi_set_vap_capabilities(struct rsi_common *common,
 			     enum opmode mode,
+			     u8 *mac_addr,
+			     u8 vap_id,
 			     u8 vap_status)
 {
 	struct sk_buff *skb = NULL;
@@ -632,7 +634,6 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
 	struct ieee80211_hw *hw = adapter->hw;
 	struct ieee80211_conf *conf = &hw->conf;
 	u16 frame_len = sizeof(struct rsi_vap_caps);
-	u16 vap_id = 0;
 
 	rsi_dbg(MGMT_TX_ZONE, "%s: Sending VAP capabilities frame\n", __func__);
 
@@ -656,7 +657,7 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
 	vap_caps->radioid_macid = ((common->mac_id & 0xf) << 4) |
 				   (common->radio_id & 0xf);
 
-	memcpy(vap_caps->mac_addr, common->mac_addr, IEEE80211_ADDR_LEN);
+	memcpy(vap_caps->mac_addr, mac_addr, IEEE80211_ADDR_LEN);
 	vap_caps->keep_alive_period = cpu_to_le16(90);
 	vap_caps->frag_threshold = cpu_to_le16(IEEE80211_MAX_FRAG_THRESHOLD);
 

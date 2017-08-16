@@ -342,25 +342,51 @@ static int rsi_mac80211_add_interface(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	enum opmode intf_mode;
 	int ret = -EOPNOTSUPP;
 
 	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
 	mutex_lock(&common->mutex);
+
+	if (adapter->sc_nvifs > 1) {
+		mutex_unlock(&common->mutex);
+		return -EOPNOTSUPP;
+	}
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		if (!adapter->sc_nvifs) {
-			++adapter->sc_nvifs;
-			adapter->vifs[0] = vif;
-			ret = rsi_set_vap_capabilities(common,
-						       STA_OPMODE,
-						       VAP_ADD);
-		}
+		rsi_dbg(INFO_ZONE, "Station Mode");
+		intf_mode = STA_OPMODE;
+		break;
+	case NL80211_IFTYPE_AP:
+		rsi_dbg(INFO_ZONE, "AP Mode");
+		intf_mode = AP_OPMODE;
 		break;
 	default:
 		rsi_dbg(ERR_ZONE,
 			"%s: Interface type %d not supported\n", __func__,
 			vif->type);
+		goto out;
 	}
+
+	adapter->vifs[adapter->sc_nvifs++] = vif;
+	ret = rsi_set_vap_capabilities(common, intf_mode, common->mac_addr,
+				       0, VAP_ADD);
+	if (ret) {
+		rsi_dbg(ERR_ZONE, "Failed to set VAP capabilities\n");
+		goto out;
+	}
+
+	if (vif->type == NL80211_IFTYPE_AP) {
+		int i;
+
+		rsi_send_rx_filter_frame(common, DISALLOW_BEACONS);
+		common->min_rate = RSI_RATE_AUTO;
+		for (i = 0; i < common->max_stations; i++)
+			common->stations[i].sta = NULL;
+	}
+
+out:
 	mutex_unlock(&common->mutex);
 
 	return ret;
@@ -383,7 +409,8 @@ static void rsi_mac80211_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&common->mutex);
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		adapter->sc_nvifs--;
-		rsi_set_vap_capabilities(common, STA_OPMODE, VAP_DELETE);
+		rsi_set_vap_capabilities(common, STA_OPMODE, vif->addr,
+					 0, VAP_DELETE);
 	}
 
 	if (!memcmp(adapter->vifs[0], vif, sizeof(struct ieee80211_vif)))

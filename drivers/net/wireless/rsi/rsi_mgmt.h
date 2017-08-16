@@ -188,8 +188,8 @@
 	 IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
 
 enum opmode {
-	STA_OPMODE = 1,
-	AP_OPMODE = 2
+	AP_OPMODE = 0,
+	STA_OPMODE,
 };
 
 enum vap_status {
@@ -591,7 +591,7 @@ static inline void rsi_set_len_qno(__le16 *addr, u16 len, u8 qno)
 
 int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg);
 int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode,
-			     u8 vap_status);
+			     u8 *mac_addr, u8 vap_id, u8 vap_status);
 int rsi_send_aggregation_params_frame(struct rsi_common *common, u16 tid,
 				      u16 ssn, u8 buf_size, u8 event);
 int rsi_hal_load_key(struct rsi_common *common, u8 *data, u16 key_len,
