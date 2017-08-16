@@ -41,6 +41,11 @@ struct kgd_dev;
 
 struct kgd_mem;
 
+enum kfd_preempt_type {
+	KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN = 0,
+	KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
+};
+
 enum kgd_memory_pool {
 	KGD_POOL_SYSTEM_CACHEABLE = 1,
 	KGD_POOL_SYSTEM_WRITECOMBINE = 2,
@@ -153,14 +158,16 @@ struct kfd2kgd_calls {
 	int (*init_interrupts)(struct kgd_dev *kgd, uint32_t pipe_id);
 
 	int (*hqd_load)(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
-			uint32_t queue_id, uint32_t __user *wptr);
+			uint32_t queue_id, uint32_t __user *wptr,
+			uint32_t wptr_shift, uint32_t wptr_mask,
+			struct mm_struct *mm);
 
 	int (*hqd_sdma_load)(struct kgd_dev *kgd, void *mqd);
 
 	bool (*hqd_is_occupied)(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);
 
-	int (*hqd_destroy)(struct kgd_dev *kgd, uint32_t reset_type,
+	int (*hqd_destroy)(struct kgd_dev *kgd, void *mqd, uint32_t reset_type,
 				unsigned int timeout, uint32_t pipe_id,
 				uint32_t queue_id);
 

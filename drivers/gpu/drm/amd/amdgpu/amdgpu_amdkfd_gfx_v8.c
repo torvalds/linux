@@ -39,6 +39,12 @@
 #include "vi_structs.h"
 #include "vid.h"
 
+enum hqd_dequeue_request_type {
+	NO_ACTION = 0,
+	DRAIN_PIPE,
+	RESET_WAVES
+};
+
 struct cik_sdma_rlc_registers;
 
 /*
@@ -55,12 +61,15 @@ static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 		uint32_t hpd_size, uint64_t hpd_gpu_addr);
 static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id);
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
-		uint32_t queue_id, uint32_t __user *wptr);
+			uint32_t queue_id, uint32_t __user *wptr,
+			uint32_t wptr_shift, uint32_t wptr_mask,
+			struct mm_struct *mm);
 static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd);
 static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 		uint32_t pipe_id, uint32_t queue_id);
 static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd);
-static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
+static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
+				enum kfd_preempt_type reset_type,
 				unsigned int utimeout, uint32_t pipe_id,
 				uint32_t queue_id);
 static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
@@ -244,20 +253,67 @@ static inline struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
 }
 
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
-			uint32_t queue_id, uint32_t __user *wptr)
+			uint32_t queue_id, uint32_t __user *wptr,
+			uint32_t wptr_shift, uint32_t wptr_mask,
+			struct mm_struct *mm)
 {
-	struct vi_mqd *m;
-	uint32_t shadow_wptr, valid_wptr;
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
+	struct vi_mqd *m;
+	uint32_t *mqd_hqd;
+	uint32_t reg, wptr_val, data;
 
 	m = get_mqd(mqd);
 
-	valid_wptr = copy_from_user(&shadow_wptr, wptr, sizeof(shadow_wptr));
-	if (valid_wptr == 0)
-		m->cp_hqd_pq_wptr = shadow_wptr;
-
 	acquire_queue(kgd, pipe_id, queue_id);
-	gfx_v8_0_mqd_commit(adev, mqd);
+
+	/* HIQ is set during driver init period with vmid set to 0*/
+	if (m->cp_hqd_vmid == 0) {
+		uint32_t value, mec, pipe;
+
+		mec = (pipe_id / adev->gfx.mec.num_pipe_per_mec) + 1;
+		pipe = (pipe_id % adev->gfx.mec.num_pipe_per_mec);
+
+		pr_debug("kfd: set HIQ, mec:%d, pipe:%d, queue:%d.\n",
+			mec, pipe, queue_id);
+		value = RREG32(mmRLC_CP_SCHEDULERS);
+		value = REG_SET_FIELD(value, RLC_CP_SCHEDULERS, scheduler1,
+			((mec << 5) | (pipe << 3) | queue_id | 0x80));
+		WREG32(mmRLC_CP_SCHEDULERS, value);
+	}
+
+	/* HQD registers extend from CP_MQD_BASE_ADDR to CP_HQD_EOP_WPTR_MEM. */
+	mqd_hqd = &m->cp_mqd_base_addr_lo;
+
+	for (reg = mmCP_MQD_BASE_ADDR; reg <= mmCP_HQD_EOP_CONTROL; reg++)
+		WREG32(reg, mqd_hqd[reg - mmCP_MQD_BASE_ADDR]);
+
+	/* Tonga errata: EOP RPTR/WPTR should be left unmodified.
+	 * This is safe since EOP RPTR==WPTR for any inactive HQD
+	 * on ASICs that do not support context-save.
+	 * EOP writes/reads can start anywhere in the ring.
+	 */
+	if (get_amdgpu_device(kgd)->asic_type != CHIP_TONGA) {
+		WREG32(mmCP_HQD_EOP_RPTR, m->cp_hqd_eop_rptr);
+		WREG32(mmCP_HQD_EOP_WPTR, m->cp_hqd_eop_wptr);
+		WREG32(mmCP_HQD_EOP_WPTR_MEM, m->cp_hqd_eop_wptr_mem);
+	}
+
+	for (reg = mmCP_HQD_EOP_EVENTS; reg <= mmCP_HQD_ERROR; reg++)
+		WREG32(reg, mqd_hqd[reg - mmCP_MQD_BASE_ADDR]);
+
+	/* Copy userspace write pointer value to register.
+	 * Activate doorbell logic to monitor subsequent changes.
+	 */
+	data = REG_SET_FIELD(m->cp_hqd_pq_doorbell_control,
+			     CP_HQD_PQ_DOORBELL_CONTROL, DOORBELL_EN, 1);
+	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, data);
+
+	if (read_user_wptr(mm, wptr, wptr_val))
+		WREG32(mmCP_HQD_PQ_WPTR, (wptr_val << wptr_shift) & wptr_mask);
+
+	data = REG_SET_FIELD(m->cp_hqd_active, CP_HQD_ACTIVE, ACTIVE, 1);
+	WREG32(mmCP_HQD_ACTIVE, data);
+
 	release_queue(kgd);
 
 	return 0;
@@ -308,29 +364,102 @@ static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
 	return false;
 }
 
-static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
+static int kgd_hqd_destroy(struct kgd_dev *kgd, void *mqd,
+				enum kfd_preempt_type reset_type,
 				unsigned int utimeout, uint32_t pipe_id,
 				uint32_t queue_id)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t temp;
-	int timeout = utimeout;
+	enum hqd_dequeue_request_type type;
+	unsigned long flags, end_jiffies;
+	int retry;
+	struct vi_mqd *m = get_mqd(mqd);
 
 	acquire_queue(kgd, pipe_id, queue_id);
 
-	WREG32(mmCP_HQD_DEQUEUE_REQUEST, reset_type);
+	if (m->cp_hqd_vmid == 0)
+		WREG32_FIELD(RLC_CP_SCHEDULERS, scheduler1, 0);
 
+	switch (reset_type) {
+	case KFD_PREEMPT_TYPE_WAVEFRONT_DRAIN:
+		type = DRAIN_PIPE;
+		break;
+	case KFD_PREEMPT_TYPE_WAVEFRONT_RESET:
+		type = RESET_WAVES;
+		break;
+	default:
+		type = DRAIN_PIPE;
+		break;
+	}
+
+	/* Workaround: If IQ timer is active and the wait time is close to or
+	 * equal to 0, dequeueing is not safe. Wait until either the wait time
+	 * is larger or timer is cleared. Also, ensure that IQ_REQ_PEND is
+	 * cleared before continuing. Also, ensure wait times are set to at
+	 * least 0x3.
+	 */
+	local_irq_save(flags);
+	preempt_disable();
+	retry = 5000; /* wait for 500 usecs at maximum */
+	while (true) {
+		temp = RREG32(mmCP_HQD_IQ_TIMER);
+		if (REG_GET_FIELD(temp, CP_HQD_IQ_TIMER, PROCESSING_IQ)) {
+			pr_debug("HW is processing IQ\n");
+			goto loop;
+		}
+		if (REG_GET_FIELD(temp, CP_HQD_IQ_TIMER, ACTIVE)) {
+			if (REG_GET_FIELD(temp, CP_HQD_IQ_TIMER, RETRY_TYPE)
+					== 3) /* SEM-rearm is safe */
+				break;
+			/* Wait time 3 is safe for CP, but our MMIO read/write
+			 * time is close to 1 microsecond, so check for 10 to
+			 * leave more buffer room
+			 */
+			if (REG_GET_FIELD(temp, CP_HQD_IQ_TIMER, WAIT_TIME)
+					>= 10)
+				break;
+			pr_debug("IQ timer is active\n");
+		} else
+			break;
+loop:
+		if (!retry) {
+			pr_err("CP HQD IQ timer status time out\n");
+			break;
+		}
+		ndelay(100);
+		--retry;
+	}
+	retry = 1000;
+	while (true) {
+		temp = RREG32(mmCP_HQD_DEQUEUE_REQUEST);
+		if (!(temp & CP_HQD_DEQUEUE_REQUEST__IQ_REQ_PEND_MASK))
+			break;
+		pr_debug("Dequeue request is pending\n");
+
+		if (!retry) {
+			pr_err("CP HQD dequeue request time out\n");
+			break;
+		}
+		ndelay(100);
+		--retry;
+	}
+	local_irq_restore(flags);
+	preempt_enable();
+
+	WREG32(mmCP_HQD_DEQUEUE_REQUEST, type);
+
+	end_jiffies = (utimeout * HZ / 1000) + jiffies;
 	while (true) {
 		temp = RREG32(mmCP_HQD_ACTIVE);
-		if (temp & CP_HQD_ACTIVE__ACTIVE_MASK)
+		if (!(temp & CP_HQD_ACTIVE__ACTIVE_MASK))
 			break;
-		if (timeout <= 0) {
-			pr_err("kfd: cp queue preemption time out.\n");
+		if (time_after(jiffies, end_jiffies)) {
+			pr_err("cp queue preemption time out.\n");
 			release_queue(kgd);
 			return -ETIME;
 		}
-		msleep(20);
-		timeout -= 20;
+		usleep_range(500, 1000);
 	}
 
 	release_queue(kgd);

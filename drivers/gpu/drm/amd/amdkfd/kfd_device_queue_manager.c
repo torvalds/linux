@@ -270,8 +270,8 @@ static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 	pr_debug("Loading mqd to hqd on pipe %d, queue %d\n",
 			q->pipe, q->queue);
 
-	retval = mqd->load_mqd(mqd, q->mqd, q->pipe,
-			q->queue, (uint32_t __user *) q->properties.write_ptr);
+	retval = mqd->load_mqd(mqd, q->mqd, q->pipe, q->queue, &q->properties,
+			       q->process->mm);
 	if (retval)
 		goto out_uninit_mqd;
 
@@ -587,8 +587,7 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	if (retval)
 		goto out_deallocate_sdma_queue;
 
-	retval = mqd->load_mqd(mqd, q->mqd, 0,
-				0, NULL);
+	retval = mqd->load_mqd(mqd, q->mqd, 0, 0, &q->properties, NULL);
 	if (retval)
 		goto out_uninit_mqd;
 

@@ -239,11 +239,6 @@ enum kfd_preempt_type_filter {
 	KFD_PREEMPT_TYPE_FILTER_BY_PASID
 };
 
-enum kfd_preempt_type {
-	KFD_PREEMPT_TYPE_WAVEFRONT,
-	KFD_PREEMPT_TYPE_WAVEFRONT_RESET
-};
-
 /**
  * enum kfd_queue_type
  *

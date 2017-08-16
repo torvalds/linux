@@ -144,15 +144,21 @@ static void uninit_mqd_sdma(struct mqd_manager *mm, void *mqd,
 }
 
 static int load_mqd(struct mqd_manager *mm, void *mqd, uint32_t pipe_id,
-			uint32_t queue_id, uint32_t __user *wptr)
+		    uint32_t queue_id, struct queue_properties *p,
+		    struct mm_struct *mms)
 {
-	return mm->dev->kfd2kgd->hqd_load
-		(mm->dev->kgd, mqd, pipe_id, queue_id, wptr);
+	/* AQL write pointer counts in 64B packets, PM4/CP counts in dwords. */
+	uint32_t wptr_shift = (p->format == KFD_QUEUE_FORMAT_AQL ? 4 : 0);
+	uint32_t wptr_mask = (uint32_t)((p->queue_size / sizeof(uint32_t)) - 1);
+
+	return mm->dev->kfd2kgd->hqd_load(mm->dev->kgd, mqd, pipe_id, queue_id,
+					  (uint32_t __user *)p->write_ptr,
+					  wptr_shift, wptr_mask, mms);
 }
 
 static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
-			uint32_t pipe_id, uint32_t queue_id,
-			uint32_t __user *wptr)
+			 uint32_t pipe_id, uint32_t queue_id,
+			 struct queue_properties *p, struct mm_struct *mms)
 {
 	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->kgd, mqd);
 }
@@ -176,20 +182,17 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 	m->cp_hqd_pq_base_hi = upper_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_rptr_report_addr_lo = lower_32_bits((uint64_t)q->read_ptr);
 	m->cp_hqd_pq_rptr_report_addr_hi = upper_32_bits((uint64_t)q->read_ptr);
-	m->cp_hqd_pq_doorbell_control = DOORBELL_EN |
-					DOORBELL_OFFSET(q->doorbell_off);
+	m->cp_hqd_pq_doorbell_control = DOORBELL_OFFSET(q->doorbell_off);
 
 	m->cp_hqd_vmid = q->vmid;
 
 	if (q->format == KFD_QUEUE_FORMAT_AQL)
 		m->cp_hqd_pq_control |= NO_UPDATE_RPTR;
 
-	m->cp_hqd_active = 0;
 	q->is_active = false;
 	if (q->queue_size > 0 &&
 			q->queue_address != 0 &&
 			q->queue_percent > 0) {
-		m->cp_hqd_active = 1;
 		q->is_active = true;
 	}
 
@@ -239,7 +242,7 @@ static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 			unsigned int timeout, uint32_t pipe_id,
 			uint32_t queue_id)
 {
-	return mm->dev->kfd2kgd->hqd_destroy(mm->dev->kgd, type, timeout,
+	return mm->dev->kfd2kgd->hqd_destroy(mm->dev->kgd, mqd, type, timeout,
 					pipe_id, queue_id);
 }
 

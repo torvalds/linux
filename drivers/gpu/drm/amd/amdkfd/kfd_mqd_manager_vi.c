@@ -94,10 +94,15 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 
 static int load_mqd(struct mqd_manager *mm, void *mqd,
 			uint32_t pipe_id, uint32_t queue_id,
-			uint32_t __user *wptr)
+			struct queue_properties *p, struct mm_struct *mms)
 {
-	return mm->dev->kfd2kgd->hqd_load
-		(mm->dev->kgd, mqd, pipe_id, queue_id, wptr);
+	/* AQL write pointer counts in 64B packets, PM4/CP counts in dwords. */
+	uint32_t wptr_shift = (p->format == KFD_QUEUE_FORMAT_AQL ? 4 : 0);
+	uint32_t wptr_mask = (uint32_t)((p->queue_size / sizeof(uint32_t)) - 1);
+
+	return mm->dev->kfd2kgd->hqd_load(mm->dev->kgd, mqd, pipe_id, queue_id,
+					  (uint32_t __user *)p->write_ptr,
+					  wptr_shift, wptr_mask, mms);
 }
 
 static int __update_mqd(struct mqd_manager *mm, void *mqd,
@@ -122,7 +127,6 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 	m->cp_hqd_pq_rptr_report_addr_hi = upper_32_bits((uint64_t)q->read_ptr);
 
 	m->cp_hqd_pq_doorbell_control =
-		1 << CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_EN__SHIFT |
 		q->doorbell_off <<
 			CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET__SHIFT;
 	pr_debug("cp_hqd_pq_doorbell_control 0x%x\n",
@@ -159,12 +163,10 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 				2 << CP_HQD_PQ_CONTROL__SLOT_BASED_WPTR__SHIFT;
 	}
 
-	m->cp_hqd_active = 0;
 	q->is_active = false;
 	if (q->queue_size > 0 &&
 			q->queue_address != 0 &&
 			q->queue_percent > 0) {
-		m->cp_hqd_active = 1;
 		q->is_active = true;
 	}
 
@@ -184,7 +186,7 @@ static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 			uint32_t queue_id)
 {
 	return mm->dev->kfd2kgd->hqd_destroy
-		(mm->dev->kgd, type, timeout,
+		(mm->dev->kgd, mqd, type, timeout,
 		pipe_id, queue_id);
 }
 
