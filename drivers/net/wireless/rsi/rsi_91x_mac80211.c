@@ -405,13 +405,31 @@ static void rsi_mac80211_remove_interface(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	enum opmode opmode;
+
+	rsi_dbg(INFO_ZONE, "Remove Interface Called\n");
 
 	mutex_lock(&common->mutex);
-	if (vif->type == NL80211_IFTYPE_STATION) {
-		adapter->sc_nvifs--;
-		rsi_set_vap_capabilities(common, STA_OPMODE, vif->addr,
-					 0, VAP_DELETE);
+
+	if (adapter->sc_nvifs <= 0) {
+		mutex_unlock(&common->mutex);
+		return;
 	}
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		opmode = STA_OPMODE;
+		break;
+	case NL80211_IFTYPE_AP:
+		opmode = AP_OPMODE;
+		break;
+	default:
+		mutex_unlock(&common->mutex);
+		return;
+	}
+	rsi_set_vap_capabilities(common, opmode, vif->addr,
+				 0, VAP_DELETE);
+	adapter->sc_nvifs--;
 
 	if (!memcmp(adapter->vifs[0], vif, sizeof(struct ieee80211_vif)))
 		adapter->vifs[0] = NULL;
