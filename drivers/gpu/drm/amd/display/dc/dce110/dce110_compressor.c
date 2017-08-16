@@ -115,7 +115,7 @@ static void wait_for_fbc_state_changed(
 			FBC_STATUS,
 			FBC_ENABLE_STATUS) == enabled)
 			break;
-		udelay(10);
+		msleep(10);
 		counter++;
 	}
 
@@ -124,7 +124,13 @@ static void wait_for_fbc_state_changed(
 			cp110->base.ctx->logger, LOG_WARNING,
 			"%s: wait counter exceeded, changes to HW not applied",
 			__func__);
+	} else {
+		dm_logger_write(
+			cp110->base.ctx->logger, LOG_SYNC,
+			"FBC status changed to %d", enabled);
 	}
+
+
 }
 
 void dce110_compressor_power_up_fbc(struct compressor *compressor)
