@@ -24,6 +24,7 @@
 #include "kfd_device_queue_manager.h"
 #include "cik_regs.h"
 #include "oss/oss_2_4_sh_mask.h"
+#include "gca/gfx_7_2_sh_mask.h"
 
 static bool set_cache_memory_policy_cik(struct device_queue_manager *dqm,
 				   struct qcm_process_device *qpd,
@@ -123,6 +124,7 @@ static int register_process_cik(struct device_queue_manager *dqm,
 	} else {
 		temp = get_sh_mem_bases_nybble_64(pdd);
 		qpd->sh_mem_bases = compute_sh_mem_bases_64bit(temp);
+		qpd->sh_mem_config |= 1  << SH_MEM_CONFIG__PRIVATE_ATC__SHIFT;
 	}
 
 	pr_debug("is32bit process: %d sh_mem_bases nybble: 0x%X and register 0x%X\n",

@@ -432,6 +432,7 @@ struct qcm_process_device {
 	uint32_t gds_size;
 	uint32_t num_gws;
 	uint32_t num_oac;
+	uint32_t sh_hidden_private_base;
 };
 
 /* Data that is per-process-per device. */

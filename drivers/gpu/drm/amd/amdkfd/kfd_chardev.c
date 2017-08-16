@@ -848,6 +848,40 @@ static int kfd_ioctl_wait_events(struct file *filp, struct kfd_process *p,
 
 	return err;
 }
+static int kfd_ioctl_set_scratch_backing_va(struct file *filep,
+					struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_set_scratch_backing_va_args *args = data;
+	struct kfd_process_device *pdd;
+	struct kfd_dev *dev;
+	long err;
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (!dev)
+		return -EINVAL;
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_bind_process_to_device(dev, p);
+	if (IS_ERR(pdd)) {
+		err = PTR_ERR(pdd);
+		goto bind_process_to_device_fail;
+	}
+
+	pdd->qpd.sh_hidden_private_base = args->va_addr;
+
+	mutex_unlock(&p->mutex);
+
+	if (sched_policy == KFD_SCHED_POLICY_NO_HWS && pdd->qpd.vmid != 0)
+		dev->kfd2kgd->set_scratch_backing_va(
+			dev->kgd, args->va_addr, pdd->qpd.vmid);
+
+	return 0;
+
+bind_process_to_device_fail:
+	mutex_unlock(&p->mutex);
+	return err;
+}
 
 #define AMDKFD_IOCTL_DEF(ioctl, _func, _flags) \
 	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, \
@@ -902,6 +936,9 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DBG_WAVE_CONTROL,
 			kfd_ioctl_dbg_wave_control, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_SCRATCH_BACKING_VA,
+			kfd_ioctl_set_scratch_backing_va, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)

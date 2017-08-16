@@ -135,6 +135,8 @@ static int register_process_vi(struct device_queue_manager *dqm,
 		qpd->sh_mem_bases = compute_sh_mem_bases_64bit(temp);
 		qpd->sh_mem_config |= SH_MEM_ADDRESS_MODE_HSA64 <<
 			SH_MEM_CONFIG__ADDRESS_MODE__SHIFT;
+		qpd->sh_mem_config |= 1  <<
+			SH_MEM_CONFIG__PRIVATE_ATC__SHIFT;
 	}
 
 	pr_debug("is32bit process: %d sh_mem_bases nybble: 0x%X and register 0x%X\n",

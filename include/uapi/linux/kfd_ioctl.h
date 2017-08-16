@@ -232,6 +232,12 @@ struct kfd_ioctl_wait_events_args {
 	uint32_t wait_result;		/* from KFD */
 };
 
+struct kfd_ioctl_set_scratch_backing_va_args {
+	uint64_t va_addr;	/* to KFD */
+	uint32_t gpu_id;	/* to KFD */
+	uint32_t pad;
+};
+
 #define AMDKFD_IOCTL_BASE 'K'
 #define AMDKFD_IO(nr)			_IO(AMDKFD_IOCTL_BASE, nr)
 #define AMDKFD_IOR(nr, type)		_IOR(AMDKFD_IOCTL_BASE, nr, type)
@@ -286,7 +292,10 @@ struct kfd_ioctl_wait_events_args {
 #define AMDKFD_IOC_DBG_WAVE_CONTROL		\
 		AMDKFD_IOW(0x10, struct kfd_ioctl_dbg_wave_control_args)
 
+#define AMDKFD_IOC_SET_SCRATCH_BACKING_VA	\
+		AMDKFD_IOWR(0x11, struct kfd_ioctl_set_scratch_backing_va_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x11
+#define AMDKFD_COMMAND_END		0x12
 
 #endif
