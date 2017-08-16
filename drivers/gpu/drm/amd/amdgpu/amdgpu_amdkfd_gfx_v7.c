@@ -186,7 +186,7 @@ static void acquire_queue(struct kgd_dev *kgd, uint32_t pipe_id,
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 
-	uint32_t mec = (++pipe_id / adev->gfx.mec.num_pipe_per_mec) + 1;
+	uint32_t mec = (pipe_id / adev->gfx.mec.num_pipe_per_mec) + 1;
 	uint32_t pipe = (pipe_id % adev->gfx.mec.num_pipe_per_mec);
 
 	lock_srbm(kgd, mec, pipe, queue_id, 0);
