@@ -785,7 +785,7 @@ adv7511_connector_detect(struct drm_connector *connector, bool force)
 	return adv7511_detect(adv, connector);
 }
 
-static struct drm_connector_funcs adv7511_connector_funcs = {
+static const struct drm_connector_funcs adv7511_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = adv7511_connector_detect,
 	.destroy = drm_connector_cleanup,
@@ -856,7 +856,7 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge)
 	return ret;
 }
 
-static struct drm_bridge_funcs adv7511_bridge_funcs = {
+static const struct drm_bridge_funcs adv7511_bridge_funcs = {
 	.enable = adv7511_bridge_enable,
 	.disable = adv7511_bridge_disable,
 	.mode_set = adv7511_bridge_mode_set,

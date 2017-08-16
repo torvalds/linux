@@ -264,41 +264,6 @@ int drm_gem_cma_dumb_create(struct drm_file *file_priv,
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_create);
 
-/**
- * drm_gem_cma_dumb_map_offset - return the fake mmap offset for a CMA GEM
- *     object
- * @file_priv: DRM file-private structure containing the GEM object
- * @drm: DRM device
- * @handle: GEM object handle
- * @offset: return location for the fake mmap offset
- *
- * This function look up an object by its handle and returns the fake mmap
- * offset associated with it. Drivers using the CMA helpers should set this
- * as their &drm_driver.dumb_map_offset callback.
- *
- * Returns:
- * 0 on success or a negative error code on failure.
- */
-int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
-				struct drm_device *drm, u32 handle,
-				u64 *offset)
-{
-	struct drm_gem_object *gem_obj;
-
-	gem_obj = drm_gem_object_lookup(file_priv, handle);
-	if (!gem_obj) {
-		dev_err(drm->dev, "failed to lookup GEM object\n");
-		return -EINVAL;
-	}
-
-	*offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
-
-	drm_gem_object_put_unlocked(gem_obj);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_map_offset);
-
 const struct vm_operations_struct drm_gem_cma_vm_ops = {
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
@@ -390,7 +355,7 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_vma_offset_node *node;
 
-	if (drm_device_is_unplugged(dev))
+	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
 
 	drm_vma_offset_lock_lookup(dev->vma_offset_manager);

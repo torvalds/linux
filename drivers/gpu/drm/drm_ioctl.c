@@ -716,7 +716,7 @@ long drm_ioctl_kernel(struct file *file, drm_ioctl_t *func, void *kdata,
 	struct drm_device *dev = file_priv->minor->dev;
 	int retcode;
 
-	if (drm_device_is_unplugged(dev))
+	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
 
 	retcode = drm_ioctl_permit(flags, file_priv);
@@ -765,7 +765,7 @@ long drm_ioctl(struct file *filp,
 
 	dev = file_priv->minor->dev;
 
-	if (drm_device_is_unplugged(dev))
+	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
 
 	is_driver_ioctl = nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END;

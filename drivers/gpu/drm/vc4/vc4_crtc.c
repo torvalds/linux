@@ -763,7 +763,7 @@ vc4_async_page_flip_complete(struct vc4_seqno_cb *cb)
 	}
 
 	drm_crtc_vblank_put(crtc);
-	drm_framebuffer_unreference(flip_state->fb);
+	drm_framebuffer_put(flip_state->fb);
 	kfree(flip_state);
 
 	up(&vc4->async_modeset);
@@ -792,7 +792,7 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 	if (!flip_state)
 		return -ENOMEM;
 
-	drm_framebuffer_reference(fb);
+	drm_framebuffer_get(fb);
 	flip_state->fb = fb;
 	flip_state->crtc = crtc;
 	flip_state->event = event;
@@ -800,7 +800,7 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 	/* Make sure all other async modesetes have landed. */
 	ret = down_interruptible(&vc4->async_modeset);
 	if (ret) {
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 		kfree(flip_state);
 		return ret;
 	}

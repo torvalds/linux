@@ -18,6 +18,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/dma-buf.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -525,10 +526,19 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb,
 			    struct drm_clip_rect *clips,
 			    unsigned int num_clips)
 {
+	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
+	struct dma_buf_attachment *import_attach = cma_obj->base.import_attach;
 	struct tinydrm_device *tdev = fb->dev->dev_private;
 	struct repaper_epd *epd = epd_from_tinydrm(tdev);
+	struct drm_clip_rect clip;
 	u8 *buf = NULL;
 	int ret = 0;
+
+	/* repaper can't do partial updates */
+	clip.x1 = 0;
+	clip.x2 = fb->width;
+	clip.y1 = 0;
+	clip.y2 = fb->height;
 
 	mutex_lock(&tdev->dirty_lock);
 
@@ -550,9 +560,21 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb,
 		goto out_unlock;
 	}
 
-	ret = tinydrm_xrgb8888_to_gray8(buf, fb);
-	if (ret)
-		goto out_unlock;
+	if (import_attach) {
+		ret = dma_buf_begin_cpu_access(import_attach->dmabuf,
+					       DMA_FROM_DEVICE);
+		if (ret)
+			goto out_unlock;
+	}
+
+	tinydrm_xrgb8888_to_gray8(buf, cma_obj->vaddr, fb, &clip);
+
+	if (import_attach) {
+		ret = dma_buf_end_cpu_access(import_attach->dmabuf,
+					     DMA_FROM_DEVICE);
+		if (ret)
+			goto out_unlock;
+	}
 
 	repaper_gray8_to_mono_reversed(buf, fb->width, fb->height);
 

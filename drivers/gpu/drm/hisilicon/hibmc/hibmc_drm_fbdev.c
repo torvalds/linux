@@ -157,7 +157,7 @@ out_unpin_bo:
 out_unreserve_ttm_bo:
 	ttm_bo_unreserve(&bo->bo);
 out_unref_gem:
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 
 	return ret;
 }
@@ -172,7 +172,7 @@ static void hibmc_fbdev_destroy(struct hibmc_fbdev *fbdev)
 	drm_fb_helper_fini(fbh);
 
 	if (gfb)
-		drm_framebuffer_unreference(&gfb->fb);
+		drm_framebuffer_put(&gfb->fb);
 }
 
 static const struct drm_fb_helper_funcs hibmc_fbdev_helper_funcs = {

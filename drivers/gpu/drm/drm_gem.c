@@ -1001,7 +1001,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_vma_offset_node *node;
 	int ret;
 
-	if (drm_device_is_unplugged(dev))
+	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
 
 	drm_vma_offset_lock_lookup(dev->vma_offset_manager);

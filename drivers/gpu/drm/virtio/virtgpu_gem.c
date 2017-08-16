@@ -118,13 +118,6 @@ fail:
 	return ret;
 }
 
-int virtio_gpu_mode_dumb_destroy(struct drm_file *file_priv,
-				 struct drm_device *dev,
-				 uint32_t handle)
-{
-	return drm_gem_handle_delete(file_priv, handle);
-}
-
 int virtio_gpu_mode_dumb_mmap(struct drm_file *file_priv,
 			      struct drm_device *dev,
 			      uint32_t handle, uint64_t *offset_p)

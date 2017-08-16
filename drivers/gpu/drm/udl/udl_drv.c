@@ -54,7 +54,6 @@ static struct drm_driver driver = {
 
 	.dumb_create = udl_dumb_create,
 	.dumb_map_offset = udl_gem_mmap,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &udl_driver_fops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
@@ -102,7 +101,7 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 	drm_kms_helper_poll_disable(dev);
 	udl_fbdev_unplug(dev);
 	udl_drop_usb(dev);
-	drm_unplug_dev(dev);
+	drm_dev_unplug(dev);
 }
 
 /*
