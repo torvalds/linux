@@ -358,7 +358,7 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 			.mask_int1 = 0x01,
 			.addr_ihl = 0x63,
 			.mask_ihl = 0x04,
-			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+			.addr_stat_drdy = 0x67,
 		},
 		.multi_read_bit = false,
 		.bootime = 2,
