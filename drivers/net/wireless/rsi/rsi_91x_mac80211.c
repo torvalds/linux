@@ -758,11 +758,14 @@ static int rsi_mac80211_conf_tx(struct ieee80211_hw *hw,
  */
 static int rsi_hal_key_config(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
-			      struct ieee80211_key_conf *key)
+			      struct ieee80211_key_conf *key,
+			      struct ieee80211_sta *sta)
 {
 	struct rsi_hw *adapter = hw->priv;
+	struct rsi_sta *rsta = NULL;
 	int status;
 	u8 key_type;
+	s16 sta_id = 0;
 
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
 		key_type = RSI_PAIRWISE_KEY;
@@ -772,23 +775,35 @@ static int rsi_hal_key_config(struct ieee80211_hw *hw,
 	rsi_dbg(ERR_ZONE, "%s: Cipher 0x%x key_type: %d key_len: %d\n",
 		__func__, key->cipher, key_type, key->keylen);
 
-	if ((key->cipher == WLAN_CIPHER_SUITE_WEP104) ||
-	    (key->cipher == WLAN_CIPHER_SUITE_WEP40)) {
-		status = rsi_hal_load_key(adapter->priv,
-					  key->key,
-					  key->keylen,
-					  RSI_PAIRWISE_KEY,
-					  key->keyidx,
-					  key->cipher);
-		if (status)
-			return status;
+	if (vif->type == NL80211_IFTYPE_AP) {
+		if (sta) {
+			rsta = rsi_find_sta(adapter->priv, sta->addr);
+			if (rsta)
+				sta_id = rsta->sta_id;
+		}
+		adapter->priv->key = key;
+	} else {
+		if ((key->cipher == WLAN_CIPHER_SUITE_WEP104) ||
+		    (key->cipher == WLAN_CIPHER_SUITE_WEP40)) {
+			status = rsi_hal_load_key(adapter->priv,
+						  key->key,
+						  key->keylen,
+						  RSI_PAIRWISE_KEY,
+						  key->keyidx,
+						  key->cipher,
+						  sta_id);
+			if (status)
+				return status;
+		}
 	}
+
 	return rsi_hal_load_key(adapter->priv,
 				key->key,
 				key->keylen,
 				key_type,
 				key->keyidx,
-				key->cipher);
+				key->cipher,
+				sta_id);
 }
 
 /**
@@ -816,7 +831,7 @@ static int rsi_mac80211_set_key(struct ieee80211_hw *hw,
 	switch (cmd) {
 	case SET_KEY:
 		secinfo->security_enable = true;
-		status = rsi_hal_key_config(hw, vif, key);
+		status = rsi_hal_key_config(hw, vif, key, sta);
 		if (status) {
 			mutex_unlock(&common->mutex);
 			return status;
@@ -834,10 +849,11 @@ static int rsi_mac80211_set_key(struct ieee80211_hw *hw,
 		break;
 
 	case DISABLE_KEY:
-		secinfo->security_enable = false;
+		if (vif->type == NL80211_IFTYPE_STATION)
+			secinfo->security_enable = false;
 		rsi_dbg(ERR_ZONE, "%s: RSI del key\n", __func__);
 		memset(key, 0, sizeof(struct ieee80211_key_conf));
-		status = rsi_hal_key_config(hw, vif, key);
+		status = rsi_hal_key_config(hw, vif, key, sta);
 		break;
 
 	default:
@@ -1241,6 +1257,20 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 			rsi_dbg(INFO_ZONE, "Indicate bss status to device\n");
 			rsi_inform_bss_status(common, AP_OPMODE, 1, sta->addr,
 					      sta->wme, sta->aid, sta, sta_idx);
+
+			if (common->key) {
+				struct ieee80211_key_conf *key = common->key;
+
+				if ((key->cipher == WLAN_CIPHER_SUITE_WEP104) ||
+				    (key->cipher == WLAN_CIPHER_SUITE_WEP40))
+					rsi_hal_load_key(adapter->priv,
+							 key->key,
+							 key->keylen,
+							 RSI_PAIRWISE_KEY,
+							 key->keyidx,
+							 key->cipher,
+							 sta_idx);
+			}
 
 			common->num_stations++;
 		}

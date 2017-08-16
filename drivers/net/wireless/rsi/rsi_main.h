@@ -269,6 +269,7 @@ struct rsi_common {
 	struct rsi_sta stations[RSI_MAX_ASSOC_STAS + 1];
 	int num_stations;
 	int max_stations;
+	struct ieee80211_key_conf *key;
 };
 
 enum host_intf {

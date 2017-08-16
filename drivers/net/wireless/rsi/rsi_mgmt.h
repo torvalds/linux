@@ -409,6 +409,7 @@ struct rsi_dynamic_s {
 #define RSI_WEP_KEY_104		BIT(3)
 #define RSI_CIPHER_WPA		BIT(4)
 #define RSI_CIPHER_TKIP		BIT(5)
+#define RSI_KEY_MODE_AP		BIT(7)
 #define RSI_PROTECT_DATA_FRAMES	BIT(13)
 #define RSI_KEY_ID_MASK		0xC0
 #define RSI_KEY_ID_OFFSET	14
@@ -612,7 +613,7 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common, u16 tid,
 				      u16 ssn, u8 buf_size, u8 event,
 				      u8 sta_id);
 int rsi_hal_load_key(struct rsi_common *common, u8 *data, u16 key_len,
-		     u8 key_type, u8 key_id, u32 cipher);
+		     u8 key_type, u8 key_id, u32 cipher, s16 sta_id);
 int rsi_set_channel(struct rsi_common *common,
 		    struct ieee80211_channel *channel);
 int rsi_send_vap_dynamic_update(struct rsi_common *common);

@@ -715,8 +715,10 @@ int rsi_hal_load_key(struct rsi_common *common,
 		     u16 key_len,
 		     u8 key_type,
 		     u8 key_id,
-		     u32 cipher)
+		     u32 cipher,
+		     s16 sta_id)
 {
+	struct ieee80211_vif *vif = common->priv->vifs[0];
 	struct sk_buff *skb = NULL;
 	struct rsi_set_key *set_key;
 	u16 key_descriptor = 0;
@@ -734,8 +736,11 @@ int rsi_hal_load_key(struct rsi_common *common,
 	memset(skb->data, 0, frame_len);
 	set_key = (struct rsi_set_key *)skb->data;
 
-	if (key_type == RSI_GROUP_KEY)
+	if (key_type == RSI_GROUP_KEY) {
 		key_descriptor = RSI_KEY_TYPE_BROADCAST;
+		if (vif->type == NL80211_IFTYPE_AP)
+			key_descriptor |= RSI_KEY_MODE_AP;
+	}
 	if ((cipher == WLAN_CIPHER_SUITE_WEP40) ||
 	    (cipher == WLAN_CIPHER_SUITE_WEP104)) {
 		key_id = 0;
@@ -754,6 +759,7 @@ int rsi_hal_load_key(struct rsi_common *common,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 	set_key->desc_dword0.frame_type = SET_KEY_REQ;
 	set_key->key_desc = cpu_to_le16(key_descriptor);
+	set_key->sta_id = sta_id;
 
 	if (data) {
 		if ((cipher == WLAN_CIPHER_SUITE_WEP40) ||
