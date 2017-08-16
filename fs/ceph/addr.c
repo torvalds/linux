@@ -569,8 +569,8 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	if (snap_size < page_off + len)
 		len = snap_size - page_off;
 
-	dout("writepage %p page %p index %lu on %llu~%u snapc %p\n",
-	     inode, page, page->index, page_off, len, snapc);
+	dout("writepage %p page %p index %lu on %llu~%u snapc %p seq %lld\n",
+	     inode, page, page->index, page_off, len, snapc, snapc->seq);
 
 	writeback_stat = atomic_long_inc_return(&fsc->writeback_count);
 	if (writeback_stat >

@@ -562,8 +562,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 	ssize_t ret;
 	size_t len = iov_iter_count(to);
 
-	dout("sync_read on file %p %llu~%u %s\n", file, off,
-	     (unsigned)len,
+	dout("sync_read on file %p %llu~%u %s\n", file, off, (unsigned)len,
 	     (file->f_flags & O_DIRECT) ? "O_DIRECT" : "");
 
 	if (!len)
@@ -846,8 +845,9 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 	if (write && ceph_snap(file_inode(file)) != CEPH_NOSNAP)
 		return -EROFS;
 
-	dout("sync_direct_read_write (%s) on file %p %lld~%u\n",
-	     (write ? "write" : "read"), file, pos, (unsigned)count);
+	dout("sync_direct_%s on file %p %lld~%u snapc %p seq %lld\n",
+	     (write ? "write" : "read"), file, pos, (unsigned)count,
+	     snapc, snapc->seq);
 
 	ret = filemap_write_and_wait_range(inode->i_mapping, pos, pos + count);
 	if (ret < 0)
@@ -1050,7 +1050,8 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
 		return -EROFS;
 
-	dout("sync_write on file %p %lld~%u\n", file, pos, (unsigned)count);
+	dout("sync_write on file %p %lld~%u snapc %p seq %lld\n",
+	     file, pos, (unsigned)count, snapc, snapc->seq);
 
 	ret = filemap_write_and_wait_range(inode->i_mapping, pos, pos + count);
 	if (ret < 0)
