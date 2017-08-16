@@ -1058,6 +1058,7 @@ int tcp_sendpage_locked(struct sock *sk, struct page *page, int offset,
 
 	return do_tcp_sendpages(sk, page, offset, size, flags);
 }
+EXPORT_SYMBOL_GPL(tcp_sendpage_locked);
 
 int tcp_sendpage(struct sock *sk, struct page *page, int offset,
 		 size_t size, int flags)
@@ -1436,6 +1437,7 @@ out_err:
 	}
 	return err;
 }
+EXPORT_SYMBOL_GPL(tcp_sendmsg_locked);
 
 int tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 {
