@@ -3905,6 +3905,7 @@ __init int intel_pmu_init(void)
 
 		intel_pmu_pebs_data_source_nhm();
 		x86_add_quirk(intel_nehalem_quirk);
+		x86_pmu.pebs_no_tlb = 1;
 
 		pr_cont("Nehalem events, ");
 		break;

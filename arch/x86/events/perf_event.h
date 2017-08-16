@@ -591,7 +591,8 @@ struct x86_pmu {
 			pebs		:1,
 			pebs_active	:1,
 			pebs_broken	:1,
-			pebs_prec_dist	:1;
+			pebs_prec_dist	:1,
+			pebs_no_tlb	:1;
 	int		pebs_record_size;
 	int		pebs_buffer_size;
 	void		(*drain_pebs)(struct pt_regs *regs);

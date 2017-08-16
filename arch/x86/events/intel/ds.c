@@ -149,8 +149,6 @@ static u64 load_latency_data(u64 status)
 {
 	union intel_x86_pebs_dse dse;
 	u64 val;
-	int model = boot_cpu_data.x86_model;
-	int fam = boot_cpu_data.x86;
 
 	dse.val = status;
 
@@ -162,8 +160,7 @@ static u64 load_latency_data(u64 status)
 	/*
 	 * Nehalem models do not support TLB, Lock infos
 	 */
-	if (fam == 0x6 && (model == 26 || model == 30
-	    || model == 31 || model == 46)) {
+	if (x86_pmu.pebs_no_tlb) {
 		val |= P(TLB, NA) | P(LOCK, NA);
 		return val;
 	}
