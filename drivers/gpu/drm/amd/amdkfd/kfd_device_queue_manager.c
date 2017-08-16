@@ -422,7 +422,7 @@ static int register_process_nocpsch(struct device_queue_manager *dqm,
 
 	BUG_ON(!dqm || !qpd);
 
-	n = kzalloc(sizeof(struct device_process_node), GFP_KERNEL);
+	n = kzalloc(sizeof(*n), GFP_KERNEL);
 	if (!n)
 		return -ENOMEM;
 
@@ -1135,7 +1135,7 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 
 	pr_debug("Loading device queue manager\n");
 
-	dqm = kzalloc(sizeof(struct device_queue_manager), GFP_KERNEL);
+	dqm = kzalloc(sizeof(*dqm), GFP_KERNEL);
 	if (!dqm)
 		return NULL;
 

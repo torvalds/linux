@@ -283,7 +283,7 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 
 	BUG_ON(!dev);
 
-	kq = kzalloc(sizeof(struct kernel_queue), GFP_KERNEL);
+	kq = kzalloc(sizeof(*kq), GFP_KERNEL);
 	if (!kq)
 		return NULL;
 

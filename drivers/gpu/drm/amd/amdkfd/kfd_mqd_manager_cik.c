@@ -406,7 +406,7 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 	BUG_ON(!dev);
 	BUG_ON(type >= KFD_MQD_TYPE_MAX);
 
-	mqd = kzalloc(sizeof(struct mqd_manager), GFP_KERNEL);
+	mqd = kzalloc(sizeof(*mqd), GFP_KERNEL);
 	if (!mqd)
 		return NULL;
 
