@@ -460,9 +460,8 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 	 */
 	pdd = kfd_bind_process_to_device(dev, p);
 	if (IS_ERR(pdd)) {
-		mutex_unlock(&p->mutex);
-		mutex_unlock(kfd_get_dbgmgr_mutex());
-		return PTR_ERR(pdd);
+		status = PTR_ERR(pdd);
+		goto out;
 	}
 
 	if (!dev->dbgmgr) {
@@ -480,6 +479,7 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 		status = -EINVAL;
 	}
 
+out:
 	mutex_unlock(&p->mutex);
 	mutex_unlock(kfd_get_dbgmgr_mutex());
 
@@ -580,8 +580,8 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 	args_idx += sizeof(aw_info.watch_address) * aw_info.num_watch_points;
 
 	if (args_idx >= args->buf_size_in_bytes - sizeof(*args)) {
-		kfree(args_buff);
-		return -EINVAL;
+		status = -EINVAL;
+		goto out;
 	}
 
 	watch_mask_value = (uint64_t) args_buff[args_idx];
@@ -604,8 +604,8 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 	}
 
 	if (args_idx >= args->buf_size_in_bytes - sizeof(args)) {
-		kfree(args_buff);
-		return -EINVAL;
+		status = -EINVAL;
+		goto out;
 	}
 
 	/* Currently HSA Event is not supported for DBG */
@@ -617,6 +617,7 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 
 	mutex_unlock(kfd_get_dbgmgr_mutex());
 
+out:
 	kfree(args_buff);
 
 	return status;

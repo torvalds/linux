@@ -442,6 +442,7 @@ int pm_send_set_resources(struct packet_manager *pm,
 				struct scheduling_resources *res)
 {
 	struct pm4_set_resources *packet;
+	int retval = 0;
 
 	BUG_ON(!pm || !res);
 
@@ -450,9 +451,9 @@ int pm_send_set_resources(struct packet_manager *pm,
 					sizeof(*packet) / sizeof(uint32_t),
 					(unsigned int **)&packet);
 	if (!packet) {
-		mutex_unlock(&pm->lock);
 		pr_err("Failed to allocate buffer on kernel queue\n");
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto out;
 	}
 
 	memset(packet, 0, sizeof(struct pm4_set_resources));
@@ -475,9 +476,10 @@ int pm_send_set_resources(struct packet_manager *pm,
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
 
+out:
 	mutex_unlock(&pm->lock);
 
-	return 0;
+	return retval;
 }
 
 int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues)
@@ -555,9 +557,6 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 	packet->data_lo = lower_32_bits((uint64_t)fence_value);
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
-	mutex_unlock(&pm->lock);
-
-	return 0;
 
 fail_acquire_packet_buffer:
 	mutex_unlock(&pm->lock);
@@ -638,9 +637,6 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 	}
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
-
-	mutex_unlock(&pm->lock);
-	return 0;
 
 err_acquire_packet_buffer:
 	mutex_unlock(&pm->lock);

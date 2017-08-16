@@ -35,9 +35,8 @@ static inline struct process_queue_node *get_queue_by_qid(
 	BUG_ON(!pqm);
 
 	list_for_each_entry(pqn, &pqm->queues, process_queue_list) {
-		if (pqn->q && pqn->q->properties.queue_id == qid)
-			return pqn;
-		if (pqn->kq && pqn->kq->queue->properties.queue_id == qid)
+		if ((pqn->q && pqn->q->properties.queue_id == qid) ||
+		    (pqn->kq && pqn->kq->queue->properties.queue_id == qid))
 			return pqn;
 	}
 
@@ -113,8 +112,6 @@ static int create_cp_queue(struct process_queue_manager *pqm,
 {
 	int retval;
 
-	retval = 0;
-
 	/* Doorbell initialized in user space*/
 	q_properties->doorbell_ptr = NULL;
 
@@ -127,16 +124,13 @@ static int create_cp_queue(struct process_queue_manager *pqm,
 
 	retval = init_queue(q, q_properties);
 	if (retval != 0)
-		goto err_init_queue;
+		return retval;
 
 	(*q)->device = dev;
 	(*q)->process = pqm->process;
 
 	pr_debug("PQM After init queue");
 
-	return retval;
-
-err_init_queue:
 	return retval;
 }
 
@@ -181,7 +175,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		list_for_each_entry(cur, &pdd->qpd.queues_list, list)
 			num_queues++;
 		if (num_queues >= dev->device_info->max_no_of_hqd/2)
-			return (-ENOSPC);
+			return -ENOSPC;
 	}
 
 	retval = find_available_queue_slot(pqm, qid);
