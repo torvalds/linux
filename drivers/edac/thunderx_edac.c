@@ -774,11 +774,10 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 
 	lmc->xor_bank = lmc_control & LMC_CONTROL_XOR_BANK;
 
-	l2c_ioaddr = ioremap(L2C_CTL | FIELD_PREP(THUNDERX_NODE, lmc->node),
-			     PAGE_SIZE);
-
+	l2c_ioaddr = ioremap(L2C_CTL | FIELD_PREP(THUNDERX_NODE, lmc->node), PAGE_SIZE);
 	if (!l2c_ioaddr) {
 		dev_err(&pdev->dev, "Cannot map L2C_CTL\n");
+		ret = -ENOMEM;
 		goto err_free;
 	}
 
