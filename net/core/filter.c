@@ -3234,6 +3234,20 @@ static const struct bpf_func_proto *
 	}
 }
 
+static const struct bpf_func_proto *sk_skb_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	case BPF_FUNC_skb_load_bytes:
+		return &bpf_skb_load_bytes_proto;
+	case BPF_FUNC_get_socket_cookie:
+		return &bpf_get_socket_cookie_proto;
+	case BPF_FUNC_get_socket_uid:
+		return &bpf_get_socket_uid_proto;
+	default:
+		return bpf_base_func_proto(func_id);
+	}
+}
+
 static const struct bpf_func_proto *
 lwt_xmit_func_proto(enum bpf_func_id func_id)
 {
@@ -3523,6 +3537,22 @@ static bool sock_ops_is_valid_access(int off, int size,
 	}
 
 	return __is_valid_sock_ops_access(off, size);
+}
+
+static bool sk_skb_is_valid_access(int off, int size,
+				   enum bpf_access_type type,
+				   struct bpf_insn_access_aux *info)
+{
+	switch (off) {
+	case bpf_ctx_range(struct __sk_buff, data):
+		info->reg_type = PTR_TO_PACKET;
+		break;
+	case bpf_ctx_range(struct __sk_buff, data_end):
+		info->reg_type = PTR_TO_PACKET_END;
+		break;
+	}
+
+	return bpf_skb_is_valid_access(off, size, type, info);
 }
 
 static u32 bpf_convert_ctx_access(enum bpf_access_type type,
@@ -3992,6 +4022,12 @@ const struct bpf_verifier_ops sock_ops_prog_ops = {
 	.get_func_proto		= sock_ops_func_proto,
 	.is_valid_access	= sock_ops_is_valid_access,
 	.convert_ctx_access	= sock_ops_convert_ctx_access,
+};
+
+const struct bpf_verifier_ops sk_skb_prog_ops = {
+	.get_func_proto		= sk_skb_func_proto,
+	.is_valid_access	= sk_skb_is_valid_access,
+	.convert_ctx_access	= bpf_convert_ctx_access,
 };
 
 int sk_detach_filter(struct sock *sk)
