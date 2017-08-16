@@ -981,59 +981,6 @@ void __ref xen_setup_vcpu_info_placement(void)
 	}
 }
 
-static unsigned xen_patch(u8 type, u16 clobbers, void *insnbuf,
-			  unsigned long addr, unsigned len)
-{
-	char *start, *end, *reloc;
-	unsigned ret;
-
-	start = end = reloc = NULL;
-
-#define SITE(op, x)							\
-	case PARAVIRT_PATCH(op.x):					\
-	if (xen_have_vcpu_info_placement) {				\
-		start = (char *)xen_##x##_direct;			\
-		end = xen_##x##_direct_end;				\
-		reloc = xen_##x##_direct_reloc;				\
-	}								\
-	goto patch_site
-
-	switch (type) {
-		SITE(pv_irq_ops, irq_enable);
-		SITE(pv_irq_ops, irq_disable);
-		SITE(pv_irq_ops, save_fl);
-		SITE(pv_irq_ops, restore_fl);
-#undef SITE
-
-	patch_site:
-		if (start == NULL || (end-start) > len)
-			goto default_patch;
-
-		ret = paravirt_patch_insns(insnbuf, len, start, end);
-
-		/* Note: because reloc is assigned from something that
-		   appears to be an array, gcc assumes it's non-null,
-		   but doesn't know its relationship with start and
-		   end. */
-		if (reloc > start && reloc < end) {
-			int reloc_off = reloc - start;
-			long *relocp = (long *)(insnbuf + reloc_off);
-			long delta = start - (char *)addr;
-
-			*relocp += delta;
-		}
-		break;
-
-	default_patch:
-	default:
-		ret = paravirt_patch_default(type, clobbers, insnbuf,
-					     addr, len);
-		break;
-	}
-
-	return ret;
-}
-
 static const struct pv_info xen_info __initconst = {
 	.shared_kernel_pmd = 0,
 
@@ -1041,10 +988,6 @@ static const struct pv_info xen_info __initconst = {
 	.extra_user_64bit_cs = FLAT_USER_CS64,
 #endif
 	.name = "Xen",
-};
-
-static const struct pv_init_ops xen_init_ops __initconst = {
-	.patch = xen_patch,
 };
 
 static const struct pv_cpu_ops xen_cpu_ops __initconst = {
@@ -1244,7 +1187,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
-	pv_init_ops = xen_init_ops;
+	pv_init_ops.patch = paravirt_patch_default;
 	pv_cpu_ops = xen_cpu_ops;
 
 	x86_platform.get_nmi_reason = xen_get_nmi_reason;
