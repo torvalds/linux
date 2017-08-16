@@ -81,6 +81,11 @@
 	status = "okay";
 };
 
+/* J8 */
+&usb2 {
+	status = "okay";
+};
+
 &mdio {
 	switch0: switch0@1 {
 		compatible = "marvell,mv88e6085";

@@ -115,6 +115,13 @@
 				msi-parent = <&gicp>;
 			};
 
+			cpm_rtc: rtc@284000 {
+				compatible = "marvell,armada-8k-rtc";
+				reg = <0x284000 0x20>, <0x284080 0x24>;
+				reg-names = "rtc", "rtc-soc";
+				interrupts = <ICU_GRP_NSR 77 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
 			cpm_syscon0: system-controller@440000 {
 				compatible = "syscon", "simple-mfd";
 				reg = <0x440000 0x1000>;
@@ -131,8 +138,12 @@
 					gpio-controller;
 					#gpio-cells = <2>;
 					gpio-ranges = <&cpm_pinctrl 0 0 32>;
+					interrupt-controller;
+					interrupts = <ICU_GRP_NSR 86 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 85 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 84 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 83 IRQ_TYPE_LEVEL_HIGH>;
 					status = "disabled";
-
 				};
 
 				cpm_gpio2: gpio@140 {
@@ -142,15 +153,13 @@
 					gpio-controller;
 					#gpio-cells = <2>;
 					gpio-ranges = <&cpm_pinctrl 0 32 31>;
+					interrupt-controller;
+					interrupts = <ICU_GRP_NSR 82 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 81 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 80 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 79 IRQ_TYPE_LEVEL_HIGH>;
 					status = "disabled";
 				};
-			};
-
-			cpm_rtc: rtc@284000 {
-				compatible = "marvell,armada-8k-rtc";
-				reg = <0x284000 0x20>, <0x284080 0x24>;
-				reg-names = "rtc", "rtc-soc";
-				interrupts = <ICU_GRP_NSR 77 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			cpm_sata0: sata@540000 {
