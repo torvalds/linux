@@ -17,6 +17,11 @@
 
 #include <asm/mach/arch.h>
 
+static const char * const sunxi_board_dt_tet[]{
+	void test;
+	char abc;
+};
+
 static const char * const sunxi_board_dt_compat[] = {
 	"allwinner,sun4i-a10",
 	"allwinner,sun5i-a10s",

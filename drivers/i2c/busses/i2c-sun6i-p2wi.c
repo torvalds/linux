@@ -81,6 +81,12 @@
 
 #define P2WI_MAX_FREQ			6000000
 
+struct mystudent{
+	struct i2c_adapter adapter;
+	void status;
+	void test;
+};
+
 struct p2wi {
 	struct i2c_adapter adapter;
 	struct completion complete;
