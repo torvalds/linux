@@ -1164,8 +1164,9 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	u32 rate_bitmap = common->bitrate_mask[band];
 
 	u16 *selected_rates, min_rate;
+	u16 frame_len = sizeof(struct rsi_auto_rate);
 
-	skb = dev_alloc_skb(sizeof(struct rsi_auto_rate));
+	skb = dev_alloc_skb(frame_len);
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
@@ -1180,8 +1181,6 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 		return -ENOMEM;
 	}
 
-	memset(skb->data, 0, sizeof(struct rsi_auto_rate));
-
 	auto_rate = (struct rsi_auto_rate *)skb->data;
 
 	auto_rate->aarf_rssi = cpu_to_le16(((u16)3 << 6) | (u16)(18 & 0x3f));
@@ -1190,10 +1189,10 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	auto_rate->initial_boundary = cpu_to_le16(3);
 	auto_rate->max_threshold_limt = cpu_to_le16(27);
 
-	auto_rate->desc_word[1] = cpu_to_le16(AUTO_RATE_IND);
+	auto_rate->desc.desc_dword0.frame_type = AUTO_RATE_IND;
 
 	if (common->channel_width == BW_40MHZ)
-		auto_rate->desc_word[7] |= cpu_to_le16(1);
+		auto_rate->desc.desc_dword3.qid_tid = BW_40MHZ;
 
 	if (band == NL80211_BAND_2GHZ) {
 		min_rate = RSI_RATE_1;
@@ -1259,15 +1258,12 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 
 	auto_rate->num_supported_rates = cpu_to_le16(num_supported_rates * 2);
 	auto_rate->moderate_rate_inx = cpu_to_le16(num_supported_rates / 2);
-	auto_rate->desc_word[7] |= cpu_to_le16(0 << 8);
 	num_supported_rates *= 2;
 
-	auto_rate->desc_word[0] = cpu_to_le16((sizeof(*auto_rate) -
-					       FRAME_DESC_SZ) |
-					       (RSI_WIFI_MGMT_Q << 12));
+	rsi_set_len_qno(&auto_rate->desc.desc_dword0.len_qno,
+			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 
-	skb_put(skb,
-		sizeof(struct rsi_auto_rate));
+	skb_put(skb, frame_len);
 	kfree(selected_rates);
 
 	return rsi_send_internal_mgmt_frame(common, skb);

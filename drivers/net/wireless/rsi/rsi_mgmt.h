@@ -425,7 +425,7 @@ struct rsi_set_key {
 } __packed;
 
 struct rsi_auto_rate {
-	__le16 desc_word[8];
+	struct rsi_cmd_desc desc;
 	__le16 failure_limit;
 	__le16 initial_boundary;
 	__le16 max_threshold_limt;
