@@ -775,18 +775,15 @@ static inline int netvsc_send_pkt(
 		if (packet->cp_partial)
 			pb += packet->rmsg_pgcnt;
 
-		ret = vmbus_sendpacket_pagebuffer_ctl(out_channel,
-						      pb, packet->page_buf_cnt,
-						      &nvmsg,
-						      sizeof(struct nvsp_message),
-						      req_id,
-						      VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = vmbus_sendpacket_pagebuffer(out_channel,
+						  pb, packet->page_buf_cnt,
+						  &nvmsg, sizeof(nvmsg),
+						  req_id);
 	} else {
-		ret = vmbus_sendpacket_ctl(out_channel, &nvmsg,
-					   sizeof(struct nvsp_message),
-					   req_id,
-					   VM_PKT_DATA_INBAND,
-					   VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = vmbus_sendpacket(out_channel,
+				       &nvmsg, sizeof(nvmsg),
+				       req_id, VM_PKT_DATA_INBAND,
+				       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	}
 
 	if (ret == 0) {
