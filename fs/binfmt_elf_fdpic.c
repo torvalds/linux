@@ -835,6 +835,9 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 			if (phdr->p_vaddr >= seg->p_vaddr &&
 			    phdr->p_vaddr + phdr->p_memsz <=
 			    seg->p_vaddr + seg->p_memsz) {
+				Elf32_Dyn __user *dyn;
+				Elf32_Sword d_tag;
+
 				params->dynamic_addr =
 					(phdr->p_vaddr - seg->p_vaddr) +
 					seg->addr;
@@ -847,8 +850,9 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 					goto dynamic_error;
 
 				tmp = phdr->p_memsz / sizeof(Elf32_Dyn);
-				if (((Elf32_Dyn *)
-				     params->dynamic_addr)[tmp - 1].d_tag != 0)
+				dyn = (Elf32_Dyn __user *)params->dynamic_addr;
+				__get_user(d_tag, &dyn[tmp - 1].d_tag);
+				if (d_tag != 0)
 					goto dynamic_error;
 				break;
 			}
