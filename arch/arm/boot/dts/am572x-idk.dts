@@ -76,14 +76,6 @@
 	vbus-gpio = <&gpio3 26 GPIO_ACTIVE_HIGH>;
 };
 
-&mmc1 {
-	status = "okay";
-	vmmc-supply = <&v3_3d>;
-	vqmmc-supply = <&ldo1_reg>;
-	bus-width = <4>;
-	cd-gpios = <&gpio6 27 GPIO_ACTIVE_LOW>; /* gpio 219 */
-};
-
 &sn65hvs882 {
 	load-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
 };
