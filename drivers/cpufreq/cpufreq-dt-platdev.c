@@ -89,6 +89,11 @@ static const struct of_device_id machines[] __initconst = {
 	{ .compatible = "socionext,uniphier-ld11", },
 	{ .compatible = "socionext,uniphier-ld20", },
 
+	{ .compatible = "st-ericsson,u8500", },
+	{ .compatible = "st-ericsson,u8540", },
+	{ .compatible = "st-ericsson,u9500", },
+	{ .compatible = "st-ericsson,u9540", },
+
 	{ .compatible = "ti,omap2", },
 	{ .compatible = "ti,omap3", },
 	{ .compatible = "ti,omap4", },
