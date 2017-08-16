@@ -1,11 +1,16 @@
 menuconfig ARCH_GEMINI
 	bool "Cortina Systems Gemini"
 	depends on ARCH_MULTI_V4
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_AMBA
 	select ARM_APPENDED_DTB # Old Redboot bootloaders deployed
+	select COMMON_CLK_GEMINI
 	select FARADAY_FTINTC010
 	select FTTMR010_TIMER
 	select GPIO_FTGPIO010
 	select GPIOLIB
+	select PINCTRL
+	select PINCTRL_GEMINI
 	select POWER_RESET
 	select POWER_RESET_GEMINI_POWEROFF
 	select POWER_RESET_SYSCON
