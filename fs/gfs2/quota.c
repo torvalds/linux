@@ -1474,8 +1474,11 @@ static void quotad_error(struct gfs2_sbd *sdp, const char *msg, int error)
 {
 	if (error == 0 || error == -EROFS)
 		return;
-	if (!test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
+	if (!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)) {
 		fs_err(sdp, "gfs2_quotad: %s error %d\n", msg, error);
+		sdp->sd_log_error = error;
+		wake_up(&sdp->sd_logd_waitq);
+	}
 }
 
 static void quotad_check_timeo(struct gfs2_sbd *sdp, const char *msg,

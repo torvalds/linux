@@ -944,9 +944,9 @@ static int gfs2_sync_fs(struct super_block *sb, int wait)
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 
 	gfs2_quota_sync(sb, -1);
-	if (wait && sdp)
+	if (wait)
 		gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
-	return 0;
+	return sdp->sd_log_error;
 }
 
 void gfs2_freeze_func(struct work_struct *work)

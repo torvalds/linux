@@ -923,6 +923,15 @@ int gfs2_logd(void *data)
 
 	while (!kthread_should_stop()) {
 
+		/* Check for errors writing to the journal */
+		if (sdp->sd_log_error) {
+			gfs2_lm_withdraw(sdp,
+					 "GFS2: fsid=%s: error %d: "
+					 "withdrawing the file system to "
+					 "prevent further damage.\n",
+					 sdp->sd_fsname, sdp->sd_log_error);
+		}
+
 		did_flush = false;
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {
 			gfs2_ail1_empty(sdp);
