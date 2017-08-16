@@ -1843,6 +1843,93 @@ void intel_hdmi_handle_sink_scrambling(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("sink scrambling handled\n");
 }
 
+static u8 chv_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
+{
+	u8 ddc_pin;
+
+	switch (port) {
+	case PORT_B:
+		ddc_pin = GMBUS_PIN_DPB;
+		break;
+	case PORT_C:
+		ddc_pin = GMBUS_PIN_DPC;
+		break;
+	case PORT_D:
+		ddc_pin = GMBUS_PIN_DPD_CHV;
+		break;
+	default:
+		MISSING_CASE(port);
+		ddc_pin = GMBUS_PIN_DPB;
+		break;
+	}
+	return ddc_pin;
+}
+
+static u8 bxt_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
+{
+	u8 ddc_pin;
+
+	switch (port) {
+	case PORT_B:
+		ddc_pin = GMBUS_PIN_1_BXT;
+		break;
+	case PORT_C:
+		ddc_pin = GMBUS_PIN_2_BXT;
+		break;
+	default:
+		MISSING_CASE(port);
+		ddc_pin = GMBUS_PIN_1_BXT;
+		break;
+	}
+	return ddc_pin;
+}
+
+static u8 cnp_port_to_ddc_pin(struct drm_i915_private *dev_priv,
+			      enum port port)
+{
+	u8 ddc_pin;
+
+	switch (port) {
+	case PORT_B:
+		ddc_pin = GMBUS_PIN_1_BXT;
+		break;
+	case PORT_C:
+		ddc_pin = GMBUS_PIN_2_BXT;
+		break;
+	case PORT_D:
+		ddc_pin = GMBUS_PIN_4_CNP;
+		break;
+	default:
+		MISSING_CASE(port);
+		ddc_pin = GMBUS_PIN_1_BXT;
+		break;
+	}
+	return ddc_pin;
+}
+
+static u8 g4x_port_to_ddc_pin(struct drm_i915_private *dev_priv,
+			      enum port port)
+{
+	u8 ddc_pin;
+
+	switch (port) {
+	case PORT_B:
+		ddc_pin = GMBUS_PIN_DPB;
+		break;
+	case PORT_C:
+		ddc_pin = GMBUS_PIN_DPC;
+		break;
+	case PORT_D:
+		ddc_pin = GMBUS_PIN_DPD;
+		break;
+	default:
+		MISSING_CASE(port);
+		ddc_pin = GMBUS_PIN_DPB;
+		break;
+	}
+	return ddc_pin;
+}
+
 static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 			     enum port port)
 {
@@ -1856,32 +1943,14 @@ static u8 intel_hdmi_ddc_pin(struct drm_i915_private *dev_priv,
 		return info->alternate_ddc_pin;
 	}
 
-	switch (port) {
-	case PORT_B:
-		if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv))
-			ddc_pin = GMBUS_PIN_1_BXT;
-		else
-			ddc_pin = GMBUS_PIN_DPB;
-		break;
-	case PORT_C:
-		if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv))
-			ddc_pin = GMBUS_PIN_2_BXT;
-		else
-			ddc_pin = GMBUS_PIN_DPC;
-		break;
-	case PORT_D:
-		if (HAS_PCH_CNP(dev_priv))
-			ddc_pin = GMBUS_PIN_4_CNP;
-		else if (IS_CHERRYVIEW(dev_priv))
-			ddc_pin = GMBUS_PIN_DPD_CHV;
-		else
-			ddc_pin = GMBUS_PIN_DPD;
-		break;
-	default:
-		MISSING_CASE(port);
-		ddc_pin = GMBUS_PIN_DPB;
-		break;
-	}
+	if (IS_CHERRYVIEW(dev_priv))
+		ddc_pin = chv_port_to_ddc_pin(dev_priv, port);
+	else if (IS_GEN9_LP(dev_priv))
+		ddc_pin = bxt_port_to_ddc_pin(dev_priv, port);
+	else if (HAS_PCH_CNP(dev_priv))
+		ddc_pin = cnp_port_to_ddc_pin(dev_priv, port);
+	else
+		ddc_pin = g4x_port_to_ddc_pin(dev_priv, port);
 
 	DRM_DEBUG_KMS("Using DDC pin 0x%x for port %c (platform default)\n",
 		      ddc_pin, port_name(port));
