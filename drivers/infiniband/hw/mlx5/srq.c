@@ -196,7 +196,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 	}
 	mlx5_fill_page_array(&srq->buf, in->pas);
 
-	srq->wrid = kmalloc(srq->msrq.max * sizeof(u64), GFP_KERNEL);
+	srq->wrid = kvmalloc_array(srq->msrq.max, sizeof(u64), GFP_KERNEL);
 	if (!srq->wrid) {
 		err = -ENOMEM;
 		goto err_in;
@@ -230,7 +230,7 @@ static void destroy_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq)
 
 static void destroy_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq)
 {
-	kfree(srq->wrid);
+	kvfree(srq->wrid);
 	mlx5_buf_free(dev->mdev, &srq->buf);
 	mlx5_db_free(dev->mdev, &srq->db);
 }
