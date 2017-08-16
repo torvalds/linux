@@ -416,7 +416,7 @@ static struct kfd_topology_device *kfd_create_topology_device(void)
 	struct kfd_topology_device *dev;
 
 	dev = kfd_alloc_struct(dev);
-	if (dev == NULL) {
+	if (!dev) {
 		pr_err("No memory to allocate a topology device");
 		return NULL;
 	}
@@ -957,7 +957,7 @@ static int kfd_topology_update_sysfs(void)
 	int ret;
 
 	pr_info("Creating topology SYSFS entries\n");
-	if (sys_props.kobj_topology == NULL) {
+	if (!sys_props.kobj_topology) {
 		sys_props.kobj_topology =
 				kfd_alloc_struct(sys_props.kobj_topology);
 		if (!sys_props.kobj_topology)
@@ -1120,7 +1120,7 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 	BUG_ON(!gpu);
 
 	list_for_each_entry(dev, &topology_device_list, list)
-		if (dev->gpu == NULL && dev->node_props.simd_count > 0) {
+		if (!dev->gpu && (dev->node_props.simd_count > 0)) {
 			dev->gpu = gpu;
 			out_dev = dev;
 			break;

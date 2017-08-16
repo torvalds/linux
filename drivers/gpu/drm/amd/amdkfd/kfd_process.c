@@ -81,7 +81,7 @@ struct kfd_process *kfd_create_process(const struct task_struct *thread)
 
 	BUG_ON(!kfd_process_wq);
 
-	if (thread->mm == NULL)
+	if (!thread->mm)
 		return ERR_PTR(-EINVAL);
 
 	/* Only the pthreads threading model is supported. */
@@ -117,7 +117,7 @@ struct kfd_process *kfd_get_process(const struct task_struct *thread)
 {
 	struct kfd_process *process;
 
-	if (thread->mm == NULL)
+	if (!thread->mm)
 		return ERR_PTR(-EINVAL);
 
 	/* Only the pthreads threading model is supported. */
@@ -407,7 +407,7 @@ void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid)
 	struct kfd_process *p;
 	struct kfd_process_device *pdd;
 
-	BUG_ON(dev == NULL);
+	BUG_ON(!dev);
 
 	/*
 	 * Look for the process that matches the pasid. If there is no such

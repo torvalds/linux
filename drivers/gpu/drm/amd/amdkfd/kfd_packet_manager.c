@@ -98,14 +98,14 @@ static int pm_allocate_runlist_ib(struct packet_manager *pm,
 
 	BUG_ON(!pm);
 	BUG_ON(pm->allocated);
-	BUG_ON(is_over_subscription == NULL);
+	BUG_ON(!is_over_subscription);
 
 	pm_calc_rlib_size(pm, rl_buffer_size, is_over_subscription);
 
 	retval = kfd_gtt_sa_allocate(pm->dqm->dev, *rl_buffer_size,
 					&pm->ib_buffer_obj);
 
-	if (retval != 0) {
+	if (retval) {
 		pr_err("Failed to allocate runlist IB\n");
 		return retval;
 	}
@@ -321,7 +321,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 
 	retval = pm_allocate_runlist_ib(pm, &rl_buffer, rl_gpu_addr,
 				&alloc_size_bytes, &is_over_subscription);
-	if (retval != 0)
+	if (retval)
 		return retval;
 
 	*rl_size_bytes = alloc_size_bytes;
@@ -340,7 +340,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 		}
 
 		retval = pm_create_map_process(pm, &rl_buffer[rl_wptr], qpd);
-		if (retval != 0)
+		if (retval)
 			return retval;
 
 		proccesses_mapped++;
@@ -365,7 +365,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 						&rl_buffer[rl_wptr],
 						kq->queue,
 						qpd->is_debug);
-			if (retval != 0)
+			if (retval)
 				return retval;
 
 			inc_wptr(&rl_wptr,
@@ -392,7 +392,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 						q,
 						qpd->is_debug);
 
-			if (retval != 0)
+			if (retval)
 				return retval;
 
 			inc_wptr(&rl_wptr,
@@ -421,7 +421,7 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	pm->dqm = dqm;
 	mutex_init(&pm->lock);
 	pm->priv_queue = kernel_queue_init(dqm->dev, KFD_QUEUE_TYPE_HIQ);
-	if (pm->priv_queue == NULL) {
+	if (!pm->priv_queue) {
 		mutex_destroy(&pm->lock);
 		return -ENOMEM;
 	}
@@ -449,7 +449,7 @@ int pm_send_set_resources(struct packet_manager *pm,
 	pm->priv_queue->ops.acquire_packet_buffer(pm->priv_queue,
 					sizeof(*packet) / sizeof(uint32_t),
 					(unsigned int **)&packet);
-	if (packet == NULL) {
+	if (!packet) {
 		mutex_unlock(&pm->lock);
 		pr_err("Failed to allocate buffer on kernel queue\n");
 		return -ENOMEM;
@@ -491,7 +491,7 @@ int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues)
 
 	retval = pm_create_runlist_ib(pm, dqm_queues, &rl_gpu_ib_addr,
 					&rl_ib_size);
-	if (retval != 0)
+	if (retval)
 		goto fail_create_runlist_ib;
 
 	pr_debug("runlist IB address: 0x%llX\n", rl_gpu_ib_addr);
@@ -501,12 +501,12 @@ int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues)
 
 	retval = pm->priv_queue->ops.acquire_packet_buffer(pm->priv_queue,
 					packet_size_dwords, &rl_buffer);
-	if (retval != 0)
+	if (retval)
 		goto fail_acquire_packet_buffer;
 
 	retval = pm_create_runlist(pm, rl_buffer, rl_gpu_ib_addr,
 					rl_ib_size / sizeof(uint32_t), false);
-	if (retval != 0)
+	if (retval)
 		goto fail_create_runlist;
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
@@ -537,7 +537,7 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 			pm->priv_queue,
 			sizeof(struct pm4_query_status) / sizeof(uint32_t),
 			(unsigned int **)&packet);
-	if (retval != 0)
+	if (retval)
 		goto fail_acquire_packet_buffer;
 
 	packet->header.u32all = build_pm4_header(IT_QUERY_STATUS,
@@ -580,7 +580,7 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 			pm->priv_queue,
 			sizeof(struct pm4_unmap_queues) / sizeof(uint32_t),
 			&buffer);
-	if (retval != 0)
+	if (retval)
 		goto err_acquire_packet_buffer;
 
 	packet = (struct pm4_unmap_queues *)buffer;

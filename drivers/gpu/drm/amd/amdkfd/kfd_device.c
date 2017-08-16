@@ -98,7 +98,7 @@ static const struct kfd_device_info *lookup_device_info(unsigned short did)
 
 	for (i = 0; i < ARRAY_SIZE(supported_devices); i++) {
 		if (supported_devices[i].did == did) {
-			BUG_ON(supported_devices[i].device_info == NULL);
+			BUG_ON(!supported_devices[i].device_info);
 			return supported_devices[i].device_info;
 		}
 	}
@@ -212,7 +212,7 @@ static int iommu_invalid_ppr_cb(struct pci_dev *pdev, int pasid,
 			flags);
 
 	dev = kfd_device_by_pci_dev(pdev);
-	BUG_ON(dev == NULL);
+	BUG_ON(!dev);
 
 	kfd_signal_iommu_event(dev, pasid, address,
 			flags & PPR_FAULT_WRITE, flags & PPR_FAULT_EXEC);
@@ -262,7 +262,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd_doorbell_init(kfd);
 
-	if (kfd_topology_add_device(kfd) != 0) {
+	if (kfd_topology_add_device(kfd)) {
 		dev_err(kfd_device, "Error adding device to topology\n");
 		goto kfd_topology_add_device_error;
 	}
@@ -288,7 +288,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto device_queue_manager_error;
 	}
 
-	if (kfd->dqm->ops.start(kfd->dqm) != 0) {
+	if (kfd->dqm->ops.start(kfd->dqm)) {
 		dev_err(kfd_device,
 			"Error starting queue manager for device %x:%x\n",
 			kfd->pdev->vendor, kfd->pdev->device);
@@ -341,7 +341,7 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 
 void kgd2kfd_suspend(struct kfd_dev *kfd)
 {
-	BUG_ON(kfd == NULL);
+	BUG_ON(!kfd);
 
 	if (kfd->init_complete) {
 		kfd->dqm->ops.stop(kfd->dqm);

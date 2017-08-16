@@ -55,7 +55,7 @@ static void kfd_dbgmgr_uninitialize(struct kfd_dbgmgr *pmgr)
 
 void kfd_dbgmgr_destroy(struct kfd_dbgmgr *pmgr)
 {
-	if (pmgr != NULL) {
+	if (pmgr) {
 		kfd_dbgmgr_uninitialize(pmgr);
 		kfree(pmgr);
 	}
@@ -66,7 +66,7 @@ bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev)
 	enum DBGDEV_TYPE type = DBGDEV_TYPE_DIQ;
 	struct kfd_dbgmgr *new_buff;
 
-	BUG_ON(pdev == NULL);
+	BUG_ON(!pdev);
 	BUG_ON(!pdev->init_complete);
 
 	new_buff = kfd_alloc_struct(new_buff);

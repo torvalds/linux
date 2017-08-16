@@ -99,7 +99,7 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 		m->cp_hqd_iq_rptr = AQL_ENABLE;
 
 	*mqd = m;
-	if (gart_addr != NULL)
+	if (gart_addr)
 		*gart_addr = addr;
 	retval = mm->update_mqd(mm, m, q);
 
@@ -127,7 +127,7 @@ static int init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 	memset(m, 0, sizeof(struct cik_sdma_rlc_registers));
 
 	*mqd = m;
-	if (gart_addr != NULL)
+	if (gart_addr)
 		*gart_addr = (*mqd_mem_obj)->gpu_addr;
 
 	retval = mm->update_mqd(mm, m, q);

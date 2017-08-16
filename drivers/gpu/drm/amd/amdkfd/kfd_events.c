@@ -247,7 +247,7 @@ static u32 make_nonsignal_event_id(struct kfd_process *p)
 
 	for (id = p->next_nonsignal_event_id;
 		id < KFD_LAST_NONSIGNAL_EVENT_ID &&
-		lookup_event_by_id(p, id) != NULL;
+		lookup_event_by_id(p, id);
 		id++)
 		;
 
@@ -266,7 +266,7 @@ static u32 make_nonsignal_event_id(struct kfd_process *p)
 
 	for (id = KFD_FIRST_NONSIGNAL_EVENT_ID;
 		id < KFD_LAST_NONSIGNAL_EVENT_ID &&
-		lookup_event_by_id(p, id) != NULL;
+		lookup_event_by_id(p, id);
 		id++)
 		;
 
@@ -342,7 +342,7 @@ void kfd_event_init_process(struct kfd_process *p)
 
 static void destroy_event(struct kfd_process *p, struct kfd_event *ev)
 {
-	if (ev->signal_page != NULL) {
+	if (ev->signal_page) {
 		release_event_notification_slot(ev->signal_page,
 						ev->signal_slot_index);
 		p->signal_event_count--;

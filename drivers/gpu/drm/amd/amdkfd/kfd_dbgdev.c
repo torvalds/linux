@@ -77,7 +77,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 	status = kq->ops.acquire_packet_buffer(kq,
 				pq_packets_size_in_bytes / sizeof(uint32_t),
 				&ib_packet_buff);
-	if (status != 0) {
+	if (status) {
 		pr_err("acquire_packet_buffer failed\n");
 		return status;
 	}
@@ -115,7 +115,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 	status = kfd_gtt_sa_allocate(dbgdev->dev, sizeof(uint64_t),
 					&mem_obj);
 
-	if (status != 0) {
+	if (status) {
 		pr_err("Failed to allocate GART memory\n");
 		kq->ops.rollback_packet(kq);
 		return status;
@@ -202,7 +202,7 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 
 	kq = pqm_get_kernel_queue(dbgdev->pqm, qid);
 
-	if (kq == NULL) {
+	if (!kq) {
 		pr_err("Error getting DIQ\n");
 		pqm_destroy_queue(dbgdev->pqm, qid);
 		return -EFAULT;
@@ -252,7 +252,7 @@ static void dbgdev_address_watch_set_registers(
 	addrLo->u32All = 0;
 	cntl->u32All = 0;
 
-	if (adw_info->watch_mask != NULL)
+	if (adw_info->watch_mask)
 		cntl->bitfields.mask =
 			(uint32_t) (adw_info->watch_mask[index] &
 					ADDRESS_WATCH_REG_CNTL_DEFAULT_MASK);
@@ -307,8 +307,7 @@ static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
 		return -EINVAL;
 	}
 
-	if ((adw_info->watch_mode == NULL) ||
-		(adw_info->watch_address == NULL)) {
+	if (!adw_info->watch_mode || !adw_info->watch_address) {
 		pr_err("adw_info fields are not valid\n");
 		return -EINVAL;
 	}
@@ -375,15 +374,14 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 		return -EINVAL;
 	}
 
-	if ((NULL == adw_info->watch_mode) ||
-			(NULL == adw_info->watch_address)) {
+	if (!adw_info->watch_mode || !adw_info->watch_address) {
 		pr_err("adw_info fields are not valid\n");
 		return -EINVAL;
 	}
 
 	status = kfd_gtt_sa_allocate(dbgdev->dev, ib_size, &mem_obj);
 
-	if (status != 0) {
+	if (status) {
 		pr_err("Failed to allocate GART memory\n");
 		return status;
 	}
@@ -490,7 +488,7 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 					packet_buff_uint,
 					ib_size);
 
-		if (status != 0) {
+		if (status) {
 			pr_err("Failed to submit IB to DIQ\n");
 			break;
 		}
@@ -711,7 +709,7 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 			packet_buff_uint,
 			ib_size);
 
-	if (status != 0)
+	if (status)
 		pr_err("Failed to submit IB to DIQ\n");
 
 	kfd_gtt_sa_free(dbgdev->dev, mem_obj);

@@ -85,7 +85,7 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 		m->cp_hqd_iq_rptr = 1;
 
 	*mqd = m;
-	if (gart_addr != NULL)
+	if (gart_addr)
 		*gart_addr = addr;
 	retval = mm->update_mqd(mm, m, q);
 

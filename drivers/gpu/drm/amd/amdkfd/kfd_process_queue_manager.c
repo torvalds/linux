@@ -76,7 +76,7 @@ int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p)
 	pqm->queue_slot_bitmap =
 			kzalloc(DIV_ROUND_UP(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
 					BITS_PER_BYTE), GFP_KERNEL);
-	if (pqm->queue_slot_bitmap == NULL)
+	if (!pqm->queue_slot_bitmap)
 		return -ENOMEM;
 	pqm->process = p;
 
@@ -223,7 +223,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		break;
 	case KFD_QUEUE_TYPE_DIQ:
 		kq = kernel_queue_init(dev, KFD_QUEUE_TYPE_DIQ);
-		if (kq == NULL) {
+		if (!kq) {
 			retval = -ENOMEM;
 			goto err_create_queue;
 		}
@@ -279,7 +279,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	retval = 0;
 
 	pqn = get_queue_by_qid(pqm, qid);
-	if (pqn == NULL) {
+	if (!pqn) {
 		pr_err("Queue id does not match any known queue\n");
 		return -EINVAL;
 	}

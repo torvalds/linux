@@ -131,7 +131,7 @@ int kfd_doorbell_mmap(struct kfd_process *process, struct vm_area_struct *vma)
 
 	/* Find kfd device according to gpu id */
 	dev = kfd_device_by_id(vma->vm_pgoff);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	/* Calculate physical address of doorbell */

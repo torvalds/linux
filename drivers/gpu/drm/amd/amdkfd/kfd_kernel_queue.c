@@ -67,12 +67,12 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 		break;
 	}
 
-	if (kq->mqd == NULL)
+	if (!kq->mqd)
 		return false;
 
 	prop.doorbell_ptr = kfd_get_kernel_doorbell(dev, &prop.doorbell_off);
 
-	if (prop.doorbell_ptr == NULL) {
+	if (!prop.doorbell_ptr) {
 		pr_err("Failed to initialize doorbell");
 		goto err_get_kernel_doorbell;
 	}
@@ -87,7 +87,7 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->pq_gpu_addr = kq->pq->gpu_addr;
 
 	retval = kq->ops_asic_specific.initialize(kq, dev, type, queue_size);
-	if (retval == false)
+	if (!retval)
 		goto err_eop_allocate_vidmem;
 
 	retval = kfd_gtt_sa_allocate(dev, sizeof(*kq->rptr_kernel),

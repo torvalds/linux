@@ -265,7 +265,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 
 	pr_debug("Looking for gpu id 0x%x\n", args->gpu_id);
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL) {
+	if (!dev) {
 		pr_debug("Could not find gpu id 0x%x\n", args->gpu_id);
 		return -EINVAL;
 	}
@@ -400,7 +400,7 @@ static int kfd_ioctl_set_memory_policy(struct file *filep,
 	}
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	mutex_lock(&p->mutex);
@@ -443,7 +443,7 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 	long status = 0;
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
@@ -465,7 +465,7 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 		return PTR_ERR(pdd);
 	}
 
-	if (dev->dbgmgr == NULL) {
+	if (!dev->dbgmgr) {
 		/* In case of a legal call, we have no dbgmgr yet */
 		create_ok = kfd_dbgmgr_create(&dbgmgr_ptr, dev);
 		if (create_ok) {
@@ -494,7 +494,7 @@ static int kfd_ioctl_dbg_unregister(struct file *filep,
 	long status;
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
@@ -505,7 +505,7 @@ static int kfd_ioctl_dbg_unregister(struct file *filep,
 	mutex_lock(kfd_get_dbgmgr_mutex());
 
 	status = kfd_dbgmgr_unregister(dev->dbgmgr, p);
-	if (status == 0) {
+	if (!status) {
 		kfd_dbgmgr_destroy(dev->dbgmgr);
 		dev->dbgmgr = NULL;
 	}
@@ -539,7 +539,7 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 	memset((void *) &aw_info, 0, sizeof(struct dbg_address_watch_info));
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
@@ -646,7 +646,7 @@ static int kfd_ioctl_dbg_wave_control(struct file *filep,
 				sizeof(wac_info.trapId);
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
@@ -782,9 +782,9 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 				"scratch_limit %llX\n", pdd->scratch_limit);
 
 			args->num_of_nodes++;
-		} while ((pdd = kfd_get_next_process_device_data(p, pdd)) !=
-				NULL &&
-				(args->num_of_nodes < NUM_OF_SUPPORTED_GPUS));
+
+			pdd = kfd_get_next_process_device_data(p, pdd);
+		} while (pdd && (args->num_of_nodes < NUM_OF_SUPPORTED_GPUS));
 	}
 
 	mutex_unlock(&p->mutex);
