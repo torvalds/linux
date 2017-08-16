@@ -1580,7 +1580,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 	intel_display_set_init_power(dev_priv, false);
 
-	fw_csr = !IS_GEN9_LP(dev_priv) &&
+	fw_csr = !IS_GEN9_LP(dev_priv) && !hibernation &&
 		suspend_to_idle(dev_priv) && dev_priv->csr.dmc_payload;
 	/*
 	 * In case of firmware assisted context save/restore don't manually
@@ -2070,11 +2070,14 @@ static int i915_pm_resume(struct device *kdev)
 /* freeze: before creating the hibernation_image */
 static int i915_pm_freeze(struct device *kdev)
 {
+	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
 	int ret;
 
-	ret = i915_pm_suspend(kdev);
-	if (ret)
-		return ret;
+	if (dev->switch_power_state != DRM_SWITCH_POWER_OFF) {
+		ret = i915_drm_suspend(dev);
+		if (ret)
+			return ret;
+	}
 
 	ret = i915_gem_freeze(kdev_to_i915(kdev));
 	if (ret)
@@ -2085,11 +2088,14 @@ static int i915_pm_freeze(struct device *kdev)
 
 static int i915_pm_freeze_late(struct device *kdev)
 {
+	struct drm_device *dev = &kdev_to_i915(kdev)->drm;
 	int ret;
 
-	ret = i915_pm_suspend_late(kdev);
-	if (ret)
-		return ret;
+	if (dev->switch_power_state != DRM_SWITCH_POWER_OFF) {
+		ret = i915_drm_suspend_late(dev, true);
+		if (ret)
+			return ret;
+	}
 
 	ret = i915_gem_freeze_late(kdev_to_i915(kdev));
 	if (ret)
