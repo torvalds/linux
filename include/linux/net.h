@@ -37,7 +37,7 @@ struct net;
 
 /* Historically, SOCKWQ_ASYNC_NOSPACE & SOCKWQ_ASYNC_WAITDATA were located
  * in sock->flags, but moved into sk->sk_wq->flags to be RCU protected.
- * Eventually all flags will be in sk->sk_wq_flags.
+ * Eventually all flags will be in sk->sk_wq->flags.
  */
 #define SOCKWQ_ASYNC_NOSPACE	0
 #define SOCKWQ_ASYNC_WAITDATA	1
