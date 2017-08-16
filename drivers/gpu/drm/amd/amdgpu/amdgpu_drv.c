@@ -68,9 +68,10 @@
  * - 3.16.0 - Add reserved vmid support
  * - 3.17.0 - Add AMDGPU_NUM_VRAM_CPU_PAGE_FAULTS.
  * - 3.18.0 - Export gpu always on cu bitmap
+ * - 3.19.0 - Add support for UVD MJPEG decode
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	18
+#define KMS_DRIVER_MINOR	19
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
