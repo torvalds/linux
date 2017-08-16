@@ -193,9 +193,8 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 
 	m->cp_hqd_vmid = q->vmid;
 
-	if (q->format == KFD_QUEUE_FORMAT_AQL) {
+	if (q->format == KFD_QUEUE_FORMAT_AQL)
 		m->cp_hqd_pq_control |= NO_UPDATE_RPTR;
-	}
 
 	m->cp_hqd_active = 0;
 	q->is_active = false;

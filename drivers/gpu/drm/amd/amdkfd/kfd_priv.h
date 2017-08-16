@@ -294,13 +294,13 @@ enum kfd_queue_format {
  * @write_ptr: Defines the number of dwords written to the ring buffer.
  *
  * @doorbell_ptr: This field aim is to notify the H/W of new packet written to
- * the queue ring buffer. This field should be similar to write_ptr and the user
- * should update this field after he updated the write_ptr.
+ * the queue ring buffer. This field should be similar to write_ptr and the
+ * user should update this field after he updated the write_ptr.
  *
  * @doorbell_off: The doorbell offset in the doorbell pci-bar.
  *
- * @is_interop: Defines if this is a interop queue. Interop queue means that the
- * queue can access both graphics and compute resources.
+ * @is_interop: Defines if this is a interop queue. Interop queue means that
+ * the queue can access both graphics and compute resources.
  *
  * @is_active: Defines if the queue is active or not.
  *
@@ -352,9 +352,10 @@ struct queue_properties {
  * @properties: The queue properties.
  *
  * @mec: Used only in no cp scheduling mode and identifies to micro engine id
- * that the queue should be execute on.
+ *	 that the queue should be execute on.
  *
- * @pipe: Used only in no cp scheduling mode and identifies the queue's pipe id.
+ * @pipe: Used only in no cp scheduling mode and identifies the queue's pipe
+ *	  id.
  *
  * @queue: Used only in no cp scheduliong mode and identifies the queue's slot.
  *
@@ -520,8 +521,8 @@ struct kfd_process {
 	struct mutex event_mutex;
 	/* All events in process hashed by ID, linked on kfd_event.events. */
 	DECLARE_HASHTABLE(events, 4);
-	struct list_head signal_event_pages;	/* struct slot_page_header.
-								event_pages */
+	/* struct slot_page_header.event_pages */
+	struct list_head signal_event_pages;
 	u32 next_nonsignal_event_id;
 	size_t signal_event_count;
 };
@@ -559,8 +560,10 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p);
 
 /* Process device data iterator */
-struct kfd_process_device *kfd_get_first_process_device_data(struct kfd_process *p);
-struct kfd_process_device *kfd_get_next_process_device_data(struct kfd_process *p,
+struct kfd_process_device *kfd_get_first_process_device_data(
+							struct kfd_process *p);
+struct kfd_process_device *kfd_get_next_process_device_data(
+						struct kfd_process *p,
 						struct kfd_process_device *pdd);
 bool kfd_has_process_device_data(struct kfd_process *p);
 

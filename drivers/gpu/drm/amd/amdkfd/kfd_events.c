@@ -194,7 +194,8 @@ static void release_event_notification_slot(struct signal_page *page,
 	page->free_slots++;
 
 	/* We don't free signal pages, they are retained by the process
-	 * and reused until it exits. */
+	 * and reused until it exits.
+	 */
 }
 
 static struct signal_page *lookup_signal_page_by_index(struct kfd_process *p,
@@ -584,7 +585,7 @@ void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 		 * search faster.
 		 */
 		struct signal_page *page;
-		unsigned i;
+		unsigned int i;
 
 		list_for_each_entry(page, &p->signal_event_pages, event_pages)
 			for (i = 0; i < SLOTS_PER_PAGE; i++)

@@ -566,42 +566,42 @@ static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)
 	switch (type) {
 	case KGD_ENGINE_PFP:
 		hdr = (const union amdgpu_firmware_header *)
-							adev->gfx.pfp_fw->data;
+						adev->gfx.pfp_fw->data;
 		break;
 
 	case KGD_ENGINE_ME:
 		hdr = (const union amdgpu_firmware_header *)
-							adev->gfx.me_fw->data;
+						adev->gfx.me_fw->data;
 		break;
 
 	case KGD_ENGINE_CE:
 		hdr = (const union amdgpu_firmware_header *)
-							adev->gfx.ce_fw->data;
+						adev->gfx.ce_fw->data;
 		break;
 
 	case KGD_ENGINE_MEC1:
 		hdr = (const union amdgpu_firmware_header *)
-							adev->gfx.mec_fw->data;
+						adev->gfx.mec_fw->data;
 		break;
 
 	case KGD_ENGINE_MEC2:
 		hdr = (const union amdgpu_firmware_header *)
-							adev->gfx.mec2_fw->data;
+						adev->gfx.mec2_fw->data;
 		break;
 
 	case KGD_ENGINE_RLC:
 		hdr = (const union amdgpu_firmware_header *)
-							adev->gfx.rlc_fw->data;
+						adev->gfx.rlc_fw->data;
 		break;
 
 	case KGD_ENGINE_SDMA1:
 		hdr = (const union amdgpu_firmware_header *)
-							adev->sdma.instance[0].fw->data;
+						adev->sdma.instance[0].fw->data;
 		break;
 
 	case KGD_ENGINE_SDMA2:
 		hdr = (const union amdgpu_firmware_header *)
-							adev->sdma.instance[1].fw->data;
+						adev->sdma.instance[1].fw->data;
 		break;
 
 	default:

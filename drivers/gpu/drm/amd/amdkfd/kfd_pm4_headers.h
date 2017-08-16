@@ -28,14 +28,14 @@
 #define PM4_MES_HEADER_DEFINED
 union PM4_MES_TYPE_3_HEADER {
 	struct {
-		uint32_t reserved1:8;	/* < reserved */
-		uint32_t opcode:8;	/* < IT opcode */
-		uint32_t count:14;	/* < number of DWORDs - 1
-					 * in the information body.
-					 */
-		uint32_t type:2;	/* < packet identifier.
-					 * It should be 3 for type 3 packets
-					 */
+		/* reserved */
+		uint32_t reserved1:8;
+		/* IT opcode */
+		uint32_t opcode:8;
+		/* number of DWORDs - 1 in the information body */
+		uint32_t count:14;
+		/* packet identifier. It should be 3 for type 3 packets */
+		uint32_t type:2;
 	};
 	uint32_t u32all;
 };

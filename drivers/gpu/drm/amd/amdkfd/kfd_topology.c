@@ -1170,8 +1170,8 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		 * GPU vBIOS
 		 */
 
-		/*
-		 * Update the SYSFS tree, since we added another topology device
+		/* Update the SYSFS tree, since we added another topology
+		 * device
 		 */
 		if (kfd_topology_update_sysfs() < 0)
 			kfd_topology_release_sysfs();

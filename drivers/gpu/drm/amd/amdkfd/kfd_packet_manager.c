@@ -458,7 +458,7 @@ int pm_send_set_resources(struct packet_manager *pm,
 	mutex_lock(&pm->lock);
 	pm->priv_queue->ops.acquire_packet_buffer(pm->priv_queue,
 					sizeof(*packet) / sizeof(uint32_t),
-			(unsigned int **)&packet);
+					(unsigned int **)&packet);
 	if (packet == NULL) {
 		mutex_unlock(&pm->lock);
 		pr_err("kfd: failed to allocate buffer on kernel queue\n");
@@ -530,8 +530,7 @@ fail_create_runlist:
 fail_acquire_packet_buffer:
 	mutex_unlock(&pm->lock);
 fail_create_runlist_ib:
-	if (pm->allocated)
-		pm_release_ib(pm);
+	pm_release_ib(pm);
 	return retval;
 }
 

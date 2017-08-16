@@ -313,7 +313,7 @@ static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
 		return -EINVAL;
 	}
 
-	for (i = 0 ; i < adw_info->num_watch_points ; i++) {
+	for (i = 0; i < adw_info->num_watch_points; i++) {
 		dbgdev_address_watch_set_registers(adw_info, &addrHi, &addrLo,
 						&cntl, i, pdd->qpd.vmid);
 
@@ -623,7 +623,7 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 		return status;
 	}
 
-	/* we do not control the VMID in DIQ,so reset it to a known value */
+	/* we do not control the VMID in DIQ, so reset it to a known value */
 	reg_sq_cmd.bits.vm_id = 0;
 
 	pr_debug("\t\t %30s\n", "* * * * * * * * * * * * * * * * * *");
@@ -810,7 +810,8 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 
 	/* Scan all registers in the range ATC_VMID8_PASID_MAPPING ..
 	 * ATC_VMID15_PASID_MAPPING
-	 * to check which VMID the current process is mapped to. */
+	 * to check which VMID the current process is mapped to.
+	 */
 
 	for (vmid = first_vmid_to_scan; vmid <= last_vmid_to_scan; vmid++) {
 		if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_valid

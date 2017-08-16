@@ -61,7 +61,8 @@ MODULE_PARM_DESC(send_sigterm,
 
 static int amdkfd_init_completed;
 
-int kgd2kfd_init(unsigned interface_version, const struct kgd2kfd_calls **g2f)
+int kgd2kfd_init(unsigned int interface_version,
+		const struct kgd2kfd_calls **g2f)
 {
 	if (!amdkfd_init_completed)
 		return -EPROBE_DEFER;

@@ -782,7 +782,8 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 				"scratch_limit %llX\n", pdd->scratch_limit);
 
 			args->num_of_nodes++;
-		} while ((pdd = kfd_get_next_process_device_data(p, pdd)) != NULL &&
+		} while ((pdd = kfd_get_next_process_device_data(p, pdd)) !=
+				NULL &&
 				(args->num_of_nodes < NUM_OF_SUPPORTED_GPUS));
 	}
 
@@ -848,7 +849,8 @@ static int kfd_ioctl_wait_events(struct file *filp, struct kfd_process *p,
 }
 
 #define AMDKFD_IOCTL_DEF(ioctl, _func, _flags) \
-	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
+	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, \
+			    .cmd_drv = 0, .name = #ioctl}
 
 /** Ioctl table */
 static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
