@@ -175,7 +175,6 @@ struct tun_file {
 	struct list_head next;
 	struct tun_struct *detached;
 	struct skb_array tx_array;
-	struct page_frag alloc_frag;
 };
 
 struct tun_flow_entry {
@@ -578,8 +577,6 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 		}
 		if (tun)
 			skb_array_cleanup(&tfile->tx_array);
-		if (tfile->alloc_frag.page)
-			put_page(tfile->alloc_frag.page);
 		sock_put(&tfile->sk);
 	}
 }
@@ -1272,7 +1269,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 				     struct virtio_net_hdr *hdr,
 				     int len, int *generic_xdp)
 {
-	struct page_frag *alloc_frag = &tfile->alloc_frag;
+	struct page_frag *alloc_frag = &current->task_frag;
 	struct sk_buff *skb;
 	struct bpf_prog *xdp_prog;
 	int buflen = SKB_DATA_ALIGN(len + TUN_RX_PAD) +
@@ -2579,8 +2576,6 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 
 	tfile->sk.sk_write_space = tun_sock_write_space;
 	tfile->sk.sk_sndbuf = INT_MAX;
-
-	tfile->alloc_frag.page = NULL;
 
 	file->private_data = tfile;
 	INIT_LIST_HEAD(&tfile->next);
