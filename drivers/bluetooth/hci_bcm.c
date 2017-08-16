@@ -59,6 +59,7 @@ struct bcm_device {
 	bool			clk_enabled;
 
 	u32			init_speed;
+	u32			oper_speed;
 	int			irq;
 	u8			irq_polarity;
 
@@ -303,6 +304,7 @@ static int bcm_open(struct hci_uart *hu)
 		if (hu->tty->dev->parent == dev->pdev->dev.parent) {
 			bcm->dev = dev;
 			hu->init_speed = dev->init_speed;
+			hu->oper_speed = dev->oper_speed;
 #ifdef CONFIG_PM
 			dev->hu = hu;
 #endif
@@ -699,8 +701,10 @@ static int bcm_resource(struct acpi_resource *ares, void *data)
 
 	case ACPI_RESOURCE_TYPE_SERIAL_BUS:
 		sb = &ares->data.uart_serial_bus;
-		if (sb->type == ACPI_RESOURCE_SERIAL_TYPE_UART)
+		if (sb->type == ACPI_RESOURCE_SERIAL_TYPE_UART) {
 			dev->init_speed = sb->default_baud_rate;
+			dev->oper_speed = 4000000;
+		}
 		break;
 
 	default:
@@ -853,7 +857,6 @@ static const struct hci_uart_proto bcm_proto = {
 	.name		= "Broadcom",
 	.manufacturer	= 15,
 	.init_speed	= 115200,
-	.oper_speed	= 4000000,
 	.open		= bcm_open,
 	.close		= bcm_close,
 	.flush		= bcm_flush,
