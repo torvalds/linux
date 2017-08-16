@@ -94,6 +94,8 @@ static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
 		uint8_t vmid);
 static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid);
 static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type);
+static void set_scratch_backing_va(struct kgd_dev *kgd,
+					uint64_t va, uint32_t vmid);
 
 static const struct kfd2kgd_calls kfd2kgd = {
 	.init_gtt_mem_allocation = alloc_gtt_mem,
@@ -120,11 +122,13 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.get_atc_vmid_pasid_mapping_valid =
 			get_atc_vmid_pasid_mapping_valid,
 	.write_vmid_invalidate_request = write_vmid_invalidate_request,
-	.get_fw_version = get_fw_version
+	.get_fw_version = get_fw_version,
+	.set_scratch_backing_va = set_scratch_backing_va,
 };
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void)
 {
+	return (struct kfd2kgd_calls *)&kfd2kgd;
 	return (struct kfd2kgd_calls *)&kfd2kgd;
 }
 
@@ -571,6 +575,16 @@ static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
 					unsigned int reg_offset)
 {
 	return 0;
+}
+
+static void set_scratch_backing_va(struct kgd_dev *kgd,
+					uint64_t va, uint32_t vmid)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *) kgd;
+
+	lock_srbm(kgd, 0, 0, 0, vmid);
+	WREG32(mmSH_HIDDEN_PRIVATE_BASE_VMID, va);
+	unlock_srbm(kgd);
 }
 
 static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)

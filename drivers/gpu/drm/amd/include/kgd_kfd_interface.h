@@ -128,6 +128,9 @@ struct kgd2kfd_shared_resources {
  *
  * @get_fw_version: Returns FW versions from the header
  *
+ * @set_scratch_backing_va: Sets VA for scratch backing memory of a VMID.
+ * Only used for no cp scheduling mode
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -199,6 +202,8 @@ struct kfd2kgd_calls {
 
 	uint16_t (*get_fw_version)(struct kgd_dev *kgd,
 				enum kgd_engine_type type);
+	void (*set_scratch_backing_va)(struct kgd_dev *kgd,
+				uint64_t va, uint32_t vmid);
 };
 
 /**
