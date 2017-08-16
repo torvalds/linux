@@ -801,7 +801,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk))
-		return -ENODEV;
+		return PTR_ERR(dev->clk);
 	clk_prepare_enable(dev->clk);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
