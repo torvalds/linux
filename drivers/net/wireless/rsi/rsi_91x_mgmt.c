@@ -537,11 +537,11 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common,
 				      u16 tid,
 				      u16 ssn,
 				      u8 buf_size,
-				      u8 event)
+				      u8 event,
+				      u8 sta_id)
 {
 	struct sk_buff *skb = NULL;
 	struct rsi_aggr_params *aggr_params;
-	u8 peer_id = 0;
 	u16 frame_len = sizeof(struct rsi_aggr_params);
 
 	skb = dev_alloc_skb(frame_len);
@@ -561,7 +561,7 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common,
 	aggr_params->desc_dword0.frame_type = AMPDU_IND;
 
 	aggr_params->aggr_params = tid & RSI_AGGR_PARAMS_TID_MASK;
-	aggr_params->peer_id = peer_id;
+	aggr_params->peer_id = sta_id;
 	if (event == STA_TX_ADDBA_DONE) {
 		aggr_params->seq_start = cpu_to_le16(ssn);
 		aggr_params->baw_size = cpu_to_le16(buf_size);
