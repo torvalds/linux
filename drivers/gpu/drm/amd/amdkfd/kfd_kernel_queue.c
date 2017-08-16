@@ -44,8 +44,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	BUG_ON(!kq || !dev);
 	BUG_ON(type != KFD_QUEUE_TYPE_DIQ && type != KFD_QUEUE_TYPE_HIQ);
 
-	pr_debug("amdkfd: In func %s initializing queue type %d size %d\n",
-			__func__, KFD_QUEUE_TYPE_HIQ, queue_size);
+	pr_debug("Initializing queue type %d size %d\n", KFD_QUEUE_TYPE_HIQ,
+			queue_size);
 
 	memset(&prop, 0, sizeof(prop));
 	memset(&nop, 0, sizeof(nop));
@@ -73,13 +73,13 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	prop.doorbell_ptr = kfd_get_kernel_doorbell(dev, &prop.doorbell_off);
 
 	if (prop.doorbell_ptr == NULL) {
-		pr_err("amdkfd: error init doorbell");
+		pr_err("Failed to initialize doorbell");
 		goto err_get_kernel_doorbell;
 	}
 
 	retval = kfd_gtt_sa_allocate(dev, queue_size, &kq->pq);
 	if (retval != 0) {
-		pr_err("amdkfd: error init pq queues size (%d)\n", queue_size);
+		pr_err("Failed to init pq queues size %d\n", queue_size);
 		goto err_pq_allocate_vidmem;
 	}
 
@@ -139,7 +139,7 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 
 	/* assign HIQ to HQD */
 	if (type == KFD_QUEUE_TYPE_HIQ) {
-		pr_debug("assigning hiq to hqd\n");
+		pr_debug("Assigning hiq to hqd\n");
 		kq->queue->pipe = KFD_CIK_HIQ_PIPE;
 		kq->queue->queue = KFD_CIK_HIQ_QUEUE;
 		kq->mqd->load_mqd(kq->mqd, kq->queue->mqd, kq->queue->pipe,
@@ -304,7 +304,7 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	}
 
 	if (!kq->ops.initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE)) {
-		pr_err("amdkfd: failed to init kernel queue\n");
+		pr_err("Failed to init kernel queue\n");
 		kfree(kq);
 		return NULL;
 	}
@@ -327,7 +327,7 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 
 	BUG_ON(!dev);
 
-	pr_err("amdkfd: starting kernel queue test\n");
+	pr_err("Starting kernel queue test\n");
 
 	kq = kernel_queue_init(dev, KFD_QUEUE_TYPE_HIQ);
 	BUG_ON(!kq);
@@ -338,7 +338,7 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 		buffer[i] = kq->nop_packet;
 	kq->ops.submit_packet(kq);
 
-	pr_err("amdkfd: ending kernel queue test\n");
+	pr_err("Ending kernel queue test\n");
 }
 
 

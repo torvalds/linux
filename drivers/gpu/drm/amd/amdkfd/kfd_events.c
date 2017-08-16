@@ -110,7 +110,7 @@ static bool allocate_free_slot(struct kfd_process *process,
 			*out_page = page;
 			*out_slot_index = slot;
 
-			pr_debug("allocated event signal slot in page %p, slot %d\n",
+			pr_debug("Allocated event signal slot in page %p, slot %d\n",
 					page, slot);
 
 			return true;
@@ -155,9 +155,9 @@ static bool allocate_signal_page(struct file *devkfd, struct kfd_process *p)
 						   struct signal_page,
 						   event_pages)->page_index + 1;
 
-	pr_debug("allocated new event signal page at %p, for process %p\n",
+	pr_debug("Allocated new event signal page at %p, for process %p\n",
 			page, p);
-	pr_debug("page index is %d\n", page->page_index);
+	pr_debug("Page index is %d\n", page->page_index);
 
 	list_add(&page->event_pages, &p->signal_event_pages);
 
@@ -292,13 +292,13 @@ static int create_signal_event(struct file *devkfd,
 				struct kfd_event *ev)
 {
 	if (p->signal_event_count == KFD_SIGNAL_EVENT_LIMIT) {
-		pr_warn("amdkfd: Signal event wasn't created because limit was reached\n");
+		pr_warn("Signal event wasn't created because limit was reached\n");
 		return -ENOMEM;
 	}
 
 	if (!allocate_event_notification_slot(devkfd, p, &ev->signal_page,
 						&ev->signal_slot_index)) {
-		pr_warn("amdkfd: Signal event wasn't created because out of kernel memory\n");
+		pr_warn("Signal event wasn't created because out of kernel memory\n");
 		return -ENOMEM;
 	}
 
@@ -310,11 +310,7 @@ static int create_signal_event(struct file *devkfd,
 	ev->event_id = make_signal_event_id(ev->signal_page,
 						ev->signal_slot_index);
 
-	pr_debug("signal event number %zu created with id %d, address %p\n",
-			p->signal_event_count, ev->event_id,
-			ev->user_signal_address);
-
-	pr_debug("signal event number %zu created with id %d, address %p\n",
+	pr_debug("Signal event number %zu created with id %d, address %p\n",
 			p->signal_event_count, ev->event_id,
 			ev->user_signal_address);
 
@@ -817,7 +813,7 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 	/* check required size is logical */
 	if (get_order(KFD_SIGNAL_EVENT_LIMIT * 8) !=
 			get_order(vma->vm_end - vma->vm_start)) {
-		pr_err("amdkfd: event page mmap requested illegal size\n");
+		pr_err("Event page mmap requested illegal size\n");
 		return -EINVAL;
 	}
 
@@ -826,7 +822,7 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 	page = lookup_signal_page_by_index(p, page_index);
 	if (!page) {
 		/* Probably KFD bug, but mmap is user-accessible. */
-		pr_debug("signal page could not be found for page_index %u\n",
+		pr_debug("Signal page could not be found for page_index %u\n",
 				page_index);
 		return -EINVAL;
 	}
@@ -837,7 +833,7 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE
 		       | VM_DONTDUMP | VM_PFNMAP;
 
-	pr_debug("mapping signal page\n");
+	pr_debug("Mapping signal page\n");
 	pr_debug("     start user address  == 0x%08lx\n", vma->vm_start);
 	pr_debug("     end user address    == 0x%08lx\n", vma->vm_end);
 	pr_debug("     pfn                 == 0x%016lX\n", pfn);

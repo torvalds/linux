@@ -101,7 +101,7 @@ struct kfd_process *kfd_create_process(const struct task_struct *thread)
 	/* A prior open of /dev/kfd could have already created the process. */
 	process = find_process(thread);
 	if (process)
-		pr_debug("kfd: process already found\n");
+		pr_debug("Process already found\n");
 
 	if (!process)
 		process = create_process(thread);
@@ -250,7 +250,7 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 			kfd_dbgmgr_destroy(pdd->dev->dbgmgr);
 
 		if (pdd->reset_wavefronts) {
-			pr_warn("amdkfd: Resetting all wave fronts\n");
+			pr_warn("Resetting all wave fronts\n");
 			dbgdev_wave_reset_wavefronts(pdd->dev, p);
 			pdd->reset_wavefronts = false;
 		}

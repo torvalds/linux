@@ -71,7 +71,7 @@ bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev)
 
 	new_buff = kfd_alloc_struct(new_buff);
 	if (!new_buff) {
-		pr_err("amdkfd: Failed to allocate dbgmgr instance\n");
+		pr_err("Failed to allocate dbgmgr instance\n");
 		return false;
 	}
 
@@ -79,7 +79,7 @@ bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev)
 	new_buff->dev = pdev;
 	new_buff->dbgdev = kfd_alloc_struct(new_buff->dbgdev);
 	if (!new_buff->dbgdev) {
-		pr_err("amdkfd: Failed to allocate dbgdev instance\n");
+		pr_err("Failed to allocate dbgdev instance\n");
 		kfree(new_buff);
 		return false;
 	}

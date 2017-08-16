@@ -666,7 +666,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.simd_count);
 
 	if (dev->mem_bank_count < dev->node_props.mem_banks_count) {
-		pr_info_once("kfd: mem_banks_count truncated from %d to %d\n",
+		pr_info_once("mem_banks_count truncated from %d to %d\n",
 				dev->node_props.mem_banks_count,
 				dev->mem_bank_count);
 		sysfs_show_32bit_prop(buffer, "mem_banks_count",
@@ -1147,7 +1147,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	gpu_id = kfd_generate_gpu_id(gpu);
 
-	pr_debug("kfd: Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
+	pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
 
 	down_write(&topology_lock);
 	/*
@@ -1190,7 +1190,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO) {
 		dev->node_props.capability |= HSA_CAP_DOORBELL_PACKET_TYPE;
-		pr_info("amdkfd: adding doorbell packet type capability\n");
+		pr_info("Adding doorbell packet type capability\n");
 	}
 
 	res = 0;

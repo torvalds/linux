@@ -67,7 +67,7 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 	*over_subscription = false;
 	if ((process_count > 1) || queue_count > get_queues_num(pm->dqm)) {
 		*over_subscription = true;
-		pr_debug("kfd: over subscribed runlist\n");
+		pr_debug("Over subscribed runlist\n");
 	}
 
 	map_queue_size =
@@ -85,7 +85,7 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 	if (*over_subscription)
 		*rlib_size += sizeof(struct pm4_runlist);
 
-	pr_debug("kfd: runlist ib size %d\n", *rlib_size);
+	pr_debug("runlist ib size %d\n", *rlib_size);
 }
 
 static int pm_allocate_runlist_ib(struct packet_manager *pm,
@@ -106,7 +106,7 @@ static int pm_allocate_runlist_ib(struct packet_manager *pm,
 					&pm->ib_buffer_obj);
 
 	if (retval != 0) {
-		pr_err("kfd: failed to allocate runlist IB\n");
+		pr_err("Failed to allocate runlist IB\n");
 		return retval;
 	}
 
@@ -152,8 +152,6 @@ static int pm_create_map_process(struct packet_manager *pm, uint32_t *buffer,
 
 	packet = (struct pm4_map_process *)buffer;
 
-	pr_debug("kfd: In func %s\n", __func__);
-
 	memset(buffer, 0, sizeof(struct pm4_map_process));
 
 	packet->header.u32all = build_pm4_header(IT_MAP_PROCESS,
@@ -189,8 +187,6 @@ static int pm_create_map_queue_vi(struct packet_manager *pm, uint32_t *buffer,
 
 	BUG_ON(!pm || !buffer || !q);
 
-	pr_debug("kfd: In func %s\n", __func__);
-
 	packet = (struct pm4_mes_map_queues *)buffer;
 	memset(buffer, 0, sizeof(struct pm4_map_queues));
 
@@ -223,8 +219,7 @@ static int pm_create_map_queue_vi(struct packet_manager *pm, uint32_t *buffer,
 		use_static = false; /* no static queues under SDMA */
 		break;
 	default:
-		pr_err("kfd: in %s queue type %d\n", __func__,
-				q->properties.type);
+		pr_err("queue type %d\n", q->properties.type);
 		BUG();
 		break;
 	}
@@ -253,8 +248,6 @@ static int pm_create_map_queue(struct packet_manager *pm, uint32_t *buffer,
 	bool use_static = is_static;
 
 	BUG_ON(!pm || !buffer || !q);
-
-	pr_debug("kfd: In func %s\n", __func__);
 
 	packet = (struct pm4_map_queues *)buffer;
 	memset(buffer, 0, sizeof(struct pm4_map_queues));
@@ -333,8 +326,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 
 	*rl_size_bytes = alloc_size_bytes;
 
-	pr_debug("kfd: In func %s\n", __func__);
-	pr_debug("kfd: building runlist ib process count: %d queues count %d\n",
+	pr_debug("Building runlist ib process count: %d queues count %d\n",
 		pm->dqm->processes_count, pm->dqm->queue_count);
 
 	/* build the run list ib packet */
@@ -342,7 +334,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 		qpd = cur->qpd;
 		/* build map process packet */
 		if (proccesses_mapped >= pm->dqm->processes_count) {
-			pr_debug("kfd: not enough space left in runlist IB\n");
+			pr_debug("Not enough space left in runlist IB\n");
 			pm_release_ib(pm);
 			return -ENOMEM;
 		}
@@ -359,7 +351,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 			if (!kq->queue->properties.is_active)
 				continue;
 
-			pr_debug("kfd: static_queue, mapping kernel q %d, is debug status %d\n",
+			pr_debug("static_queue, mapping kernel q %d, is debug status %d\n",
 				kq->queue->queue, qpd->is_debug);
 
 			if (pm->dqm->dev->device_info->asic_family ==
@@ -385,7 +377,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 			if (!q->properties.is_active)
 				continue;
 
-			pr_debug("kfd: static_queue, mapping user queue %d, is debug status %d\n",
+			pr_debug("static_queue, mapping user queue %d, is debug status %d\n",
 				q->queue, qpd->is_debug);
 
 			if (pm->dqm->dev->device_info->asic_family ==
@@ -409,7 +401,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 		}
 	}
 
-	pr_debug("kfd: finished map process and queues to runlist\n");
+	pr_debug("Finished map process and queues to runlist\n");
 
 	if (is_over_subscription)
 		pm_create_runlist(pm, &rl_buffer[rl_wptr], *rl_gpu_addr,
@@ -453,15 +445,13 @@ int pm_send_set_resources(struct packet_manager *pm,
 
 	BUG_ON(!pm || !res);
 
-	pr_debug("kfd: In func %s\n", __func__);
-
 	mutex_lock(&pm->lock);
 	pm->priv_queue->ops.acquire_packet_buffer(pm->priv_queue,
 					sizeof(*packet) / sizeof(uint32_t),
 					(unsigned int **)&packet);
 	if (packet == NULL) {
 		mutex_unlock(&pm->lock);
-		pr_err("kfd: failed to allocate buffer on kernel queue\n");
+		pr_err("Failed to allocate buffer on kernel queue\n");
 		return -ENOMEM;
 	}
 
@@ -504,7 +494,7 @@ int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues)
 	if (retval != 0)
 		goto fail_create_runlist_ib;
 
-	pr_debug("kfd: runlist IB address: 0x%llX\n", rl_gpu_ib_addr);
+	pr_debug("runlist IB address: 0x%llX\n", rl_gpu_ib_addr);
 
 	packet_size_dwords = sizeof(struct pm4_runlist) / sizeof(uint32_t);
 	mutex_lock(&pm->lock);
@@ -595,7 +585,7 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 
 	packet = (struct pm4_unmap_queues *)buffer;
 	memset(buffer, 0, sizeof(struct pm4_unmap_queues));
-	pr_debug("kfd: static_queue: unmapping queues: mode is %d , reset is %d , type is %d\n",
+	pr_debug("static_queue: unmapping queues: mode is %d , reset is %d , type is %d\n",
 		mode, reset, type);
 	packet->header.u32all = build_pm4_header(IT_UNMAP_QUEUES,
 					sizeof(struct pm4_unmap_queues));

@@ -78,7 +78,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 				pq_packets_size_in_bytes / sizeof(uint32_t),
 				&ib_packet_buff);
 	if (status != 0) {
-		pr_err("amdkfd: acquire_packet_buffer failed\n");
+		pr_err("acquire_packet_buffer failed\n");
 		return status;
 	}
 
@@ -116,7 +116,7 @@ static int dbgdev_diq_submit_ib(struct kfd_dbgdev *dbgdev,
 					&mem_obj);
 
 	if (status != 0) {
-		pr_err("amdkfd: Failed to allocate GART memory\n");
+		pr_err("Failed to allocate GART memory\n");
 		kq->ops.rollback_packet(kq);
 		return status;
 	}
@@ -194,7 +194,7 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 				&qid);
 
 	if (status) {
-		pr_err("amdkfd: Failed to create DIQ\n");
+		pr_err("Failed to create DIQ\n");
 		return status;
 	}
 
@@ -203,7 +203,7 @@ static int dbgdev_register_diq(struct kfd_dbgdev *dbgdev)
 	kq = pqm_get_kernel_queue(dbgdev->pqm, qid);
 
 	if (kq == NULL) {
-		pr_err("amdkfd: Error getting DIQ\n");
+		pr_err("Error getting DIQ\n");
 		pqm_destroy_queue(dbgdev->pqm, qid);
 		return -EFAULT;
 	}
@@ -279,7 +279,7 @@ static void dbgdev_address_watch_set_registers(
 }
 
 static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
-					struct dbg_address_watch_info *adw_info)
+				      struct dbg_address_watch_info *adw_info)
 {
 	union TCP_WATCH_ADDR_H_BITS addrHi;
 	union TCP_WATCH_ADDR_L_BITS addrLo;
@@ -293,7 +293,7 @@ static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
 	pdd = kfd_get_process_device_data(dbgdev->dev,
 					adw_info->process);
 	if (!pdd) {
-		pr_err("amdkfd: Failed to get pdd for wave control no DIQ\n");
+		pr_err("Failed to get pdd for wave control no DIQ\n");
 		return -EFAULT;
 	}
 
@@ -303,13 +303,13 @@ static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
 
 	if ((adw_info->num_watch_points > MAX_WATCH_ADDRESSES) ||
 			(adw_info->num_watch_points == 0)) {
-		pr_err("amdkfd: num_watch_points is invalid\n");
+		pr_err("num_watch_points is invalid\n");
 		return -EINVAL;
 	}
 
 	if ((adw_info->watch_mode == NULL) ||
 		(adw_info->watch_address == NULL)) {
-		pr_err("amdkfd: adw_info fields are not valid\n");
+		pr_err("adw_info fields are not valid\n");
 		return -EINVAL;
 	}
 
@@ -348,7 +348,7 @@ static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
 }
 
 static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
-					struct dbg_address_watch_info *adw_info)
+				    struct dbg_address_watch_info *adw_info)
 {
 	struct pm4__set_config_reg *packets_vec;
 	union TCP_WATCH_ADDR_H_BITS addrHi;
@@ -371,20 +371,20 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 
 	if ((adw_info->num_watch_points > MAX_WATCH_ADDRESSES) ||
 			(adw_info->num_watch_points == 0)) {
-		pr_err("amdkfd: num_watch_points is invalid\n");
+		pr_err("num_watch_points is invalid\n");
 		return -EINVAL;
 	}
 
 	if ((NULL == adw_info->watch_mode) ||
 			(NULL == adw_info->watch_address)) {
-		pr_err("amdkfd: adw_info fields are not valid\n");
+		pr_err("adw_info fields are not valid\n");
 		return -EINVAL;
 	}
 
 	status = kfd_gtt_sa_allocate(dbgdev->dev, ib_size, &mem_obj);
 
 	if (status != 0) {
-		pr_err("amdkfd: Failed to allocate GART memory\n");
+		pr_err("Failed to allocate GART memory\n");
 		return status;
 	}
 
@@ -491,7 +491,7 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 					ib_size);
 
 		if (status != 0) {
-			pr_err("amdkfd: Failed to submit IB to DIQ\n");
+			pr_err("Failed to submit IB to DIQ\n");
 			break;
 		}
 	}
@@ -619,7 +619,7 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 	status = dbgdev_wave_control_set_registers(wac_info, &reg_sq_cmd,
 							&reg_gfx_index);
 	if (status) {
-		pr_err("amdkfd: Failed to set wave control registers\n");
+		pr_err("Failed to set wave control registers\n");
 		return status;
 	}
 
@@ -659,7 +659,7 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 	status = kfd_gtt_sa_allocate(dbgdev->dev, ib_size, &mem_obj);
 
 	if (status != 0) {
-		pr_err("amdkfd: Failed to allocate GART memory\n");
+		pr_err("Failed to allocate GART memory\n");
 		return status;
 	}
 
@@ -712,7 +712,7 @@ static int dbgdev_wave_control_diq(struct kfd_dbgdev *dbgdev,
 			ib_size);
 
 	if (status != 0)
-		pr_err("amdkfd: Failed to submit IB to DIQ\n");
+		pr_err("Failed to submit IB to DIQ\n");
 
 	kfd_gtt_sa_free(dbgdev->dev, mem_obj);
 
@@ -735,13 +735,13 @@ static int dbgdev_wave_control_nodiq(struct kfd_dbgdev *dbgdev,
 	pdd = kfd_get_process_device_data(dbgdev->dev, wac_info->process);
 
 	if (!pdd) {
-		pr_err("amdkfd: Failed to get pdd for wave control no DIQ\n");
+		pr_err("Failed to get pdd for wave control no DIQ\n");
 		return -EFAULT;
 	}
 	status = dbgdev_wave_control_set_registers(wac_info, &reg_sq_cmd,
 							&reg_gfx_index);
 	if (status) {
-		pr_err("amdkfd: Failed to set wave control registers\n");
+		pr_err("Failed to set wave control registers\n");
 		return status;
 	}
 
@@ -826,7 +826,7 @@ int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
 	}
 
 	if (vmid > last_vmid_to_scan) {
-		pr_err("amdkfd: didn't found vmid for pasid (%d)\n", p->pasid);
+		pr_err("Didn't find vmid for pasid %d\n", p->pasid);
 		return -EFAULT;
 	}
 

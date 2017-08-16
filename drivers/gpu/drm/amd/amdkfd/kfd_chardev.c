@@ -142,12 +142,12 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 				struct kfd_ioctl_create_queue_args *args)
 {
 	if (args->queue_percentage > KFD_MAX_QUEUE_PERCENTAGE) {
-		pr_err("kfd: queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
+		pr_err("Queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
 		return -EINVAL;
 	}
 
 	if (args->queue_priority > KFD_MAX_QUEUE_PRIORITY) {
-		pr_err("kfd: queue priority must be between 0 to KFD_MAX_QUEUE_PRIORITY\n");
+		pr_err("Queue priority must be between 0 to KFD_MAX_QUEUE_PRIORITY\n");
 		return -EINVAL;
 	}
 
@@ -155,26 +155,26 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		(!access_ok(VERIFY_WRITE,
 			(const void __user *) args->ring_base_address,
 			sizeof(uint64_t)))) {
-		pr_err("kfd: can't access ring base address\n");
+		pr_err("Can't access ring base address\n");
 		return -EFAULT;
 	}
 
 	if (!is_power_of_2(args->ring_size) && (args->ring_size != 0)) {
-		pr_err("kfd: ring size must be a power of 2 or 0\n");
+		pr_err("Ring size must be a power of 2 or 0\n");
 		return -EINVAL;
 	}
 
 	if (!access_ok(VERIFY_WRITE,
 			(const void __user *) args->read_pointer_address,
 			sizeof(uint32_t))) {
-		pr_err("kfd: can't access read pointer\n");
+		pr_err("Can't access read pointer\n");
 		return -EFAULT;
 	}
 
 	if (!access_ok(VERIFY_WRITE,
 			(const void __user *) args->write_pointer_address,
 			sizeof(uint32_t))) {
-		pr_err("kfd: can't access write pointer\n");
+		pr_err("Can't access write pointer\n");
 		return -EFAULT;
 	}
 
@@ -182,7 +182,7 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		!access_ok(VERIFY_WRITE,
 			(const void __user *) args->eop_buffer_address,
 			sizeof(uint32_t))) {
-		pr_debug("kfd: can't access eop buffer");
+		pr_debug("Can't access eop buffer");
 		return -EFAULT;
 	}
 
@@ -190,7 +190,7 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		!access_ok(VERIFY_WRITE,
 			(const void __user *) args->ctx_save_restore_address,
 			sizeof(uint32_t))) {
-		pr_debug("kfd: can't access ctx save restore buffer");
+		pr_debug("Can't access ctx save restore buffer");
 		return -EFAULT;
 	}
 
@@ -219,27 +219,27 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 	else
 		q_properties->format = KFD_QUEUE_FORMAT_PM4;
 
-	pr_debug("Queue Percentage (%d, %d)\n",
+	pr_debug("Queue Percentage: %d, %d\n",
 			q_properties->queue_percent, args->queue_percentage);
 
-	pr_debug("Queue Priority (%d, %d)\n",
+	pr_debug("Queue Priority: %d, %d\n",
 			q_properties->priority, args->queue_priority);
 
-	pr_debug("Queue Address (0x%llX, 0x%llX)\n",
+	pr_debug("Queue Address: 0x%llX, 0x%llX\n",
 			q_properties->queue_address, args->ring_base_address);
 
-	pr_debug("Queue Size (0x%llX, %u)\n",
+	pr_debug("Queue Size: 0x%llX, %u\n",
 			q_properties->queue_size, args->ring_size);
 
-	pr_debug("Queue r/w Pointers (0x%llX, 0x%llX)\n",
-			(uint64_t) q_properties->read_ptr,
-			(uint64_t) q_properties->write_ptr);
+	pr_debug("Queue r/w Pointers: %p, %p\n",
+			q_properties->read_ptr,
+			q_properties->write_ptr);
 
-	pr_debug("Queue Format (%d)\n", q_properties->format);
+	pr_debug("Queue Format: %d\n", q_properties->format);
 
-	pr_debug("Queue EOP (0x%llX)\n", q_properties->eop_ring_buffer_address);
+	pr_debug("Queue EOP: 0x%llX\n", q_properties->eop_ring_buffer_address);
 
-	pr_debug("Queue CTX save arex (0x%llX)\n",
+	pr_debug("Queue CTX save area: 0x%llX\n",
 			q_properties->ctx_save_restore_area_address);
 
 	return 0;
@@ -257,16 +257,16 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 
 	memset(&q_properties, 0, sizeof(struct queue_properties));
 
-	pr_debug("kfd: creating queue ioctl\n");
+	pr_debug("Creating queue ioctl\n");
 
 	err = set_queue_properties_from_user(&q_properties, args);
 	if (err)
 		return err;
 
-	pr_debug("kfd: looking for gpu id 0x%x\n", args->gpu_id);
+	pr_debug("Looking for gpu id 0x%x\n", args->gpu_id);
 	dev = kfd_device_by_id(args->gpu_id);
 	if (dev == NULL) {
-		pr_debug("kfd: gpu id 0x%x was not found\n", args->gpu_id);
+		pr_debug("Could not find gpu id 0x%x\n", args->gpu_id);
 		return -EINVAL;
 	}
 
@@ -278,7 +278,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 		goto err_bind_process;
 	}
 
-	pr_debug("kfd: creating queue for PASID %d on GPU 0x%x\n",
+	pr_debug("Creating queue for PASID %d on gpu 0x%x\n",
 			p->pasid,
 			dev->id);
 
@@ -296,15 +296,15 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 
 	mutex_unlock(&p->mutex);
 
-	pr_debug("kfd: queue id %d was created successfully\n", args->queue_id);
+	pr_debug("Queue id %d was created successfully\n", args->queue_id);
 
-	pr_debug("ring buffer address == 0x%016llX\n",
+	pr_debug("Ring buffer address == 0x%016llX\n",
 			args->ring_base_address);
 
-	pr_debug("read ptr address    == 0x%016llX\n",
+	pr_debug("Read ptr address    == 0x%016llX\n",
 			args->read_pointer_address);
 
-	pr_debug("write ptr address   == 0x%016llX\n",
+	pr_debug("Write ptr address   == 0x%016llX\n",
 			args->write_pointer_address);
 
 	return 0;
@@ -321,7 +321,7 @@ static int kfd_ioctl_destroy_queue(struct file *filp, struct kfd_process *p,
 	int retval;
 	struct kfd_ioctl_destroy_queue_args *args = data;
 
-	pr_debug("kfd: destroying queue id %d for PASID %d\n",
+	pr_debug("Destroying queue id %d for pasid %d\n",
 				args->queue_id,
 				p->pasid);
 
@@ -341,12 +341,12 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	struct queue_properties properties;
 
 	if (args->queue_percentage > KFD_MAX_QUEUE_PERCENTAGE) {
-		pr_err("kfd: queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
+		pr_err("Queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
 		return -EINVAL;
 	}
 
 	if (args->queue_priority > KFD_MAX_QUEUE_PRIORITY) {
-		pr_err("kfd: queue priority must be between 0 to KFD_MAX_QUEUE_PRIORITY\n");
+		pr_err("Queue priority must be between 0 to KFD_MAX_QUEUE_PRIORITY\n");
 		return -EINVAL;
 	}
 
@@ -354,12 +354,12 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 		(!access_ok(VERIFY_WRITE,
 			(const void __user *) args->ring_base_address,
 			sizeof(uint64_t)))) {
-		pr_err("kfd: can't access ring base address\n");
+		pr_err("Can't access ring base address\n");
 		return -EFAULT;
 	}
 
 	if (!is_power_of_2(args->ring_size) && (args->ring_size != 0)) {
-		pr_err("kfd: ring size must be a power of 2 or 0\n");
+		pr_err("Ring size must be a power of 2 or 0\n");
 		return -EINVAL;
 	}
 
@@ -368,7 +368,7 @@ static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 	properties.queue_percent = args->queue_percentage;
 	properties.priority = args->queue_priority;
 
-	pr_debug("kfd: updating queue id %d for PASID %d\n",
+	pr_debug("Updating queue id %d for pasid %d\n",
 			args->queue_id, p->pasid);
 
 	mutex_lock(&p->mutex);

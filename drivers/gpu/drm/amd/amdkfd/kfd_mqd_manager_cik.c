@@ -46,8 +46,6 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 
 	BUG_ON(!mm || !q || !mqd);
 
-	pr_debug("kfd: In func %s\n", __func__);
-
 	retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct cik_mqd),
 					mqd_mem_obj);
 
@@ -171,8 +169,6 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 	struct cik_mqd *m;
 
 	BUG_ON(!mm || !q || !mqd);
-
-	pr_debug("kfd: In func %s\n", __func__);
 
 	m = get_mqd(mqd);
 	m->cp_hqd_pq_control = DEFAULT_RPTR_BLOCK_SIZE |
@@ -302,8 +298,6 @@ static int init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 
 	BUG_ON(!mm || !q || !mqd || !mqd_mem_obj);
 
-	pr_debug("kfd: In func %s\n", __func__);
-
 	retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct cik_mqd),
 					mqd_mem_obj);
 
@@ -360,8 +354,6 @@ static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 
 	BUG_ON(!mm || !q || !mqd);
 
-	pr_debug("kfd: In func %s\n", __func__);
-
 	m = get_mqd(mqd);
 	m->cp_hqd_pq_control = DEFAULT_RPTR_BLOCK_SIZE |
 				DEFAULT_MIN_AVAIL_SIZE |
@@ -413,8 +405,6 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 
 	BUG_ON(!dev);
 	BUG_ON(type >= KFD_MQD_TYPE_MAX);
-
-	pr_debug("kfd: In func %s\n", __func__);
 
 	mqd = kzalloc(sizeof(struct mqd_manager), GFP_KERNEL);
 	if (!mqd)
