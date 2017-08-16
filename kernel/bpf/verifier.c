@@ -1522,6 +1522,12 @@ static int check_map_func_compatibility(struct bpf_map *map, int func_id)
 	case BPF_MAP_TYPE_HASH_OF_MAPS:
 		if (func_id != BPF_FUNC_map_lookup_elem)
 			goto error;
+	case BPF_MAP_TYPE_SOCKMAP:
+		if (func_id != BPF_FUNC_sk_redirect_map &&
+		    func_id != BPF_FUNC_sock_map_update &&
+		    func_id != BPF_FUNC_map_delete_elem)
+			goto error;
+		break;
 	default:
 		break;
 	}
@@ -1548,6 +1554,14 @@ static int check_map_func_compatibility(struct bpf_map *map, int func_id)
 		break;
 	case BPF_FUNC_redirect_map:
 		if (map->map_type != BPF_MAP_TYPE_DEVMAP)
+			goto error;
+		break;
+	case BPF_FUNC_sk_redirect_map:
+		if (map->map_type != BPF_MAP_TYPE_SOCKMAP)
+			goto error;
+		break;
+	case BPF_FUNC_sock_map_update:
+		if (map->map_type != BPF_MAP_TYPE_SOCKMAP)
 			goto error;
 		break;
 	default:

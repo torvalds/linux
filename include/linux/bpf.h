@@ -16,6 +16,7 @@
 #include <linux/rbtree_latch.h>
 
 struct perf_event;
+struct bpf_prog;
 struct bpf_map;
 
 /* map is generic key/value storage optionally accesible by eBPF programs */
@@ -37,6 +38,8 @@ struct bpf_map_ops {
 	void (*map_fd_put_ptr)(void *ptr);
 	u32 (*map_gen_lookup)(struct bpf_map *map, struct bpf_insn *insn_buf);
 	u32 (*map_fd_sys_lookup_elem)(void *ptr);
+	int (*map_attach)(struct bpf_map *map,
+			  struct bpf_prog *p1, struct bpf_prog *p2);
 };
 
 struct bpf_map {
@@ -137,8 +140,6 @@ enum bpf_reg_type {
 	PTR_TO_PACKET,		 /* reg points to skb->data */
 	PTR_TO_PACKET_END,	 /* skb->data + headlen */
 };
-
-struct bpf_prog;
 
 /* The information passed from prog-specific *_is_valid_access
  * back to the verifier.
@@ -312,6 +313,7 @@ int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
 
 /* Map specifics */
 struct net_device  *__dev_map_lookup_elem(struct bpf_map *map, u32 key);
+struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key);
 void __dev_map_insert_ctx(struct bpf_map *map, u32 index);
 void __dev_map_flush(struct bpf_map *map);
 
@@ -391,6 +393,7 @@ extern const struct bpf_func_proto bpf_get_current_comm_proto;
 extern const struct bpf_func_proto bpf_skb_vlan_push_proto;
 extern const struct bpf_func_proto bpf_skb_vlan_pop_proto;
 extern const struct bpf_func_proto bpf_get_stackid_proto;
+extern const struct bpf_func_proto bpf_sock_map_update_proto;
 
 /* Shared helpers among cBPF and eBPF. */
 void bpf_user_rnd_init_once(void);
