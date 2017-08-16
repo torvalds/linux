@@ -1090,6 +1090,48 @@ static bool tgn10_is_stereo_left_eye(struct timing_generator *tg)
 	return ret;
 }
 
+void tgn10_read_otg_state(struct dcn10_timing_generator *tgn10,
+		struct dcn_otg_state *s)
+{
+	REG_GET_2(OTG_V_BLANK_START_END,
+			OTG_V_BLANK_START, &s->v_blank_start,
+			OTG_V_BLANK_END, &s->v_blank_end);
+
+	REG_GET(OTG_V_SYNC_A_CNTL,
+			OTG_V_SYNC_A_POL, &s->v_sync_a_pol);
+
+	REG_GET(OTG_V_TOTAL,
+			OTG_V_TOTAL, &s->v_total);
+
+	REG_GET(OTG_V_TOTAL_MAX,
+			OTG_V_TOTAL_MAX, &s->v_total_max);
+
+	REG_GET(OTG_V_TOTAL_MIN,
+			OTG_V_TOTAL_MIN, &s->v_total_min);
+
+	REG_GET_2(OTG_V_SYNC_A,
+			OTG_V_SYNC_A_START, &s->v_sync_a_start,
+			OTG_V_SYNC_A_END, &s->v_sync_a_end);
+
+	REG_GET_2(OTG_H_BLANK_START_END,
+			OTG_H_BLANK_START, &s->h_blank_start,
+			OTG_H_BLANK_END, &s->h_blank_end);
+
+	REG_GET_2(OTG_H_SYNC_A,
+			OTG_H_SYNC_A_START, &s->h_sync_a_start,
+			OTG_H_SYNC_A_END, &s->h_sync_a_end);
+
+	REG_GET(OTG_H_SYNC_A_CNTL,
+			OTG_H_SYNC_A_POL, &s->h_sync_a_pol);
+
+	REG_GET(OTG_H_TOTAL,
+			OTG_H_TOTAL, &s->h_total);
+
+	REG_GET(OPTC_INPUT_GLOBAL_CONTROL,
+			OPTC_UNDERFLOW_OCCURRED_STATUS, &s->underflow_occurred_status);
+}
+
+
 static struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = tgn10_validate_timing,
 		.program_timing = tgn10_program_timing,

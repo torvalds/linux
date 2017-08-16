@@ -32,6 +32,7 @@
 #include "dce/dce_hwseq.h"
 #include "abm.h"
 #include "dcn10/dcn10_mem_input.h"
+#include "dcn10/dcn10_timing_generator.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_mpc.h"
 #include "timing_generator.h"
@@ -196,6 +197,38 @@ static void dcn10_log_hw_state(struct dc *dc)
 		DTN_INFO_MICRO_SEC(s.min_ttu_vblank);
 		DTN_INFO_MICRO_SEC(s.qos_level_low_wm);
 		DTN_INFO_MICRO_SEC(s.qos_level_high_wm);
+		DTN_INFO("\n");
+	}
+	DTN_INFO("\n");
+
+	DTN_INFO("OTG:\t v_bs \t v_be \t v_ss \t v_se \t vpol \t vmax \t vmin \t "
+			"h_bs \t h_be \t h_ss \t h_se \t hpol \t htot \t vtot \t underflow\n");
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct timing_generator *tg = pool->timing_generators[i];
+		struct dcn_otg_state s;
+
+		tgn10_read_otg_state(DCN10TG_FROM_TG(tg), &s);
+
+		DTN_INFO("[%d]:\t %d \t %d \t %d \t %d \t "
+				"%d \t %d \t %d \t %d \t %d \t %d \t "
+				"%d \t %d \t %d \t %d \t %d \t ",
+				i,
+				s.v_blank_start,
+				s.v_blank_end,
+				s.v_sync_a_start,
+				s.v_sync_a_end,
+				s.v_sync_a_pol,
+				s.v_total_max,
+				s.v_total_min,
+				s.h_blank_start,
+				s.h_blank_end,
+				s.h_sync_a_start,
+				s.h_sync_a_end,
+				s.h_sync_a_pol,
+				s.h_total,
+				s.v_total,
+				s.underflow_occurred_status);
 		DTN_INFO("\n");
 	}
 	DTN_INFO("\n");
