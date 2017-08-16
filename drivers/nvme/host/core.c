@@ -1507,6 +1507,23 @@ static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
 	blk_queue_write_cache(q, vwc, vwc);
 }
 
+static int nvme_configure_timestamp(struct nvme_ctrl *ctrl)
+{
+	__le64 ts;
+	int ret;
+
+	if (!(ctrl->oncs & NVME_CTRL_ONCS_TIMESTAMP))
+		return 0;
+
+	ts = cpu_to_le64(ktime_to_ms(ktime_get_real()));
+	ret = nvme_set_features(ctrl, NVME_FEAT_TIMESTAMP, 0, &ts, sizeof(ts),
+			NULL);
+	if (ret)
+		dev_warn_once(ctrl->device,
+			"could not set timestamp (%d)\n", ret);
+	return ret;
+}
+
 static int nvme_configure_apst(struct nvme_ctrl *ctrl)
 {
 	/*
@@ -1859,6 +1876,10 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 		dev_pm_qos_hide_latency_tolerance(ctrl->device);
 
 	ret = nvme_configure_apst(ctrl);
+	if (ret < 0)
+		return ret;
+	
+	ret = nvme_configure_timestamp(ctrl);
 	if (ret < 0)
 		return ret;
 
