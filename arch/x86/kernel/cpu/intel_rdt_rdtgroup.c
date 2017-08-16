@@ -1140,7 +1140,7 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 	if (is_mbm_enabled()) {
 		r = &rdt_resources_all[RDT_RESOURCE_L3];
 		list_for_each_entry(dom, &r->domains, list)
-			mbm_setup_overflow_handler(dom);
+			mbm_setup_overflow_handler(dom, MBM_OVERFLOW_INTERVAL);
 	}
 
 	goto out;

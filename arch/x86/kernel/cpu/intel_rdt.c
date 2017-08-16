@@ -447,7 +447,7 @@ static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
 
 	if (is_mbm_enabled()) {
 		INIT_DELAYED_WORK(&d->mbm_over, mbm_handle_overflow);
-		mbm_setup_overflow_handler(d);
+		mbm_setup_overflow_handler(d, MBM_OVERFLOW_INTERVAL);
 	}
 
 	return 0;
@@ -540,7 +540,7 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 	} else if (r == &rdt_resources_all[RDT_RESOURCE_L3] &&
 		   cpu == d->mbm_work_cpu && is_mbm_enabled()) {
 		cancel_delayed_work(&d->mbm_over);
-		mbm_setup_overflow_handler(d);
+		mbm_setup_overflow_handler(d, 0);
 	}
 }
 

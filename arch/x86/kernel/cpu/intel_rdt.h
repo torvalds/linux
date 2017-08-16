@@ -422,7 +422,7 @@ void mkdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
 				    struct rdt_domain *d);
 void mon_event_read(struct rmid_read *rr, struct rdt_domain *d,
 		    struct rdtgroup *rdtgrp, int evtid, int first);
-void mbm_setup_overflow_handler(struct rdt_domain *dom);
+void mbm_setup_overflow_handler(struct rdt_domain *dom, unsigned long delay_ms);
 void mbm_handle_overflow(struct work_struct *work);
 
 #endif /* _ASM_X86_INTEL_RDT_H */

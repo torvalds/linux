@@ -417,9 +417,9 @@ out_unlock:
 	mutex_unlock(&rdtgroup_mutex);
 }
 
-void mbm_setup_overflow_handler(struct rdt_domain *dom)
+void mbm_setup_overflow_handler(struct rdt_domain *dom, unsigned long delay_ms)
 {
-	unsigned long delay = msecs_to_jiffies(MBM_OVERFLOW_INTERVAL);
+	unsigned long delay = msecs_to_jiffies(delay_ms);
 	int cpu;
 
 	if (!static_branch_likely(&rdt_enable_key))
