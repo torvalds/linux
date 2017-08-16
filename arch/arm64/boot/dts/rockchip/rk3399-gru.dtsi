@@ -612,12 +612,7 @@ ap_i2c_mic: &i2c1 {
 	headsetcodec: rt5514@57 {
 		compatible = "realtek,rt5514";
 		reg = <0x57>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&mic_int>;
 		realtek,dmic-init-delay-ms = <20>;
-		wakeup-source;
 	};
 };
 
@@ -826,9 +821,13 @@ ap_i2c_audio: &i2c8 {
 	wacky_spi_audio: spi2@0 {
 		compatible = "realtek,rt5514";
 		reg = <0>;
-
+		interrupt-parent = <&gpio1>;
+		interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mic_int>;
 		/* May run faster once verified. */
 		spi-max-frequency = <10000000>;
+		wakeup-source;
 	};
 };
 
