@@ -103,6 +103,9 @@ static const struct kfd_device_info *lookup_device_info(unsigned short did)
 		}
 	}
 
+	dev_warn(kfd_device, "DID %04x is missing in supported_devices\n",
+		 did);
+
 	return NULL;
 }
 
@@ -114,8 +117,10 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	const struct kfd_device_info *device_info =
 					lookup_device_info(pdev->device);
 
-	if (!device_info)
+	if (!device_info) {
+		dev_err(kfd_device, "kgd2kfd_probe failed\n");
 		return NULL;
+	}
 
 	kfd = kzalloc(sizeof(*kfd), GFP_KERNEL);
 	if (!kfd)
@@ -364,8 +369,11 @@ int kgd2kfd_resume(struct kfd_dev *kfd)
 
 	if (kfd->init_complete) {
 		err = amd_iommu_init_device(kfd->pdev, pasid_limit);
-		if (err < 0)
+		if (err < 0) {
+			dev_err(kfd_device, "failed to initialize iommu\n");
 			return -ENXIO;
+		}
+
 		amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
 						iommu_pasid_shutdown_callback);
 		amd_iommu_set_invalid_ppr_cb(kfd->pdev, iommu_invalid_ppr_cb);
