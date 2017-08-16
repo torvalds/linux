@@ -330,6 +330,7 @@ nfp_flower_cmsg_mac_repr_add(struct sk_buff *skb, unsigned int idx,
 			     unsigned int nbi, unsigned int nbi_port,
 			     unsigned int phys_port);
 int nfp_flower_cmsg_portmod(struct nfp_repr *repr, bool carrier_ok);
+void nfp_flower_cmsg_process_rx(struct work_struct *work);
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb);
 struct sk_buff *
 nfp_flower_cmsg_alloc(struct nfp_app *app, unsigned int size,
