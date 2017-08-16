@@ -109,7 +109,7 @@ static void hix5hd2_set_scu_boot_addr(phys_addr_t start_addr, phys_addr_t jump_a
 
 	virt = ioremap(start_addr, PAGE_SIZE);
 
-	writel_relaxed(0xe51ff004, virt);	/* ldr pc, [rc, #-4] */
+	writel_relaxed(0xe51ff004, virt);	/* ldr pc, [pc, #-4] */
 	writel_relaxed(jump_addr, virt + 4);	/* pc jump phy address */
 	iounmap(virt);
 }
