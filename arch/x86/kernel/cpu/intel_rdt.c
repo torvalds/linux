@@ -426,6 +426,7 @@ static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
 					   GFP_KERNEL);
 		if (!d->rmid_busy_llc)
 			return -ENOMEM;
+		INIT_DELAYED_WORK(&d->cqm_limbo, cqm_handle_limbo);
 	}
 	if (is_mbm_total_enabled()) {
 		tsize = sizeof(*d->mbm_total);
@@ -536,11 +537,33 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 		list_del(&d->list);
 		if (is_mbm_enabled())
 			cancel_delayed_work(&d->mbm_over);
+		if (is_llc_occupancy_enabled() &&  has_busy_rmid(r, d)) {
+			/*
+			 * When a package is going down, forcefully
+			 * decrement rmid->ebusy. There is no way to know
+			 * that the L3 was flushed and hence may lead to
+			 * incorrect counts in rare scenarios, but leaving
+			 * the RMID as busy creates RMID leaks if the
+			 * package never comes back.
+			 */
+			__check_limbo(d, true);
+			cancel_delayed_work(&d->cqm_limbo);
+		}
+
 		kfree(d);
-	} else if (r == &rdt_resources_all[RDT_RESOURCE_L3] &&
-		   cpu == d->mbm_work_cpu && is_mbm_enabled()) {
-		cancel_delayed_work(&d->mbm_over);
-		mbm_setup_overflow_handler(d, 0);
+		return;
+	}
+
+	if (r == &rdt_resources_all[RDT_RESOURCE_L3]) {
+		if (is_mbm_enabled() && cpu == d->mbm_work_cpu) {
+			cancel_delayed_work(&d->mbm_over);
+			mbm_setup_overflow_handler(d, 0);
+		}
+		if (is_llc_occupancy_enabled() && cpu == d->cqm_work_cpu &&
+		    has_busy_rmid(r, d)) {
+			cancel_delayed_work(&d->cqm_limbo);
+			cqm_setup_limbo_handler(d, 0);
+		}
 	}
 }
 
