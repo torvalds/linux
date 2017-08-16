@@ -25,16 +25,16 @@
 #include <subdev/bios/bit.h>
 #include <subdev/bios/cstep.h>
 
-u16
+u32
 nvbios_cstepTe(struct nvkm_bios *bios,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len, u8 *xnr, u8 *xsz)
 {
 	struct bit_entry bit_P;
-	u16 cstep = 0x0000;
+	u32 cstep = 0;
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
-		if (bit_P.version == 2)
-			cstep = nvbios_rd16(bios, bit_P.offset + 0x34);
+		if (bit_P.version == 2 && bit_P.length >= 0x38)
+			cstep = nvbios_rd32(bios, bit_P.offset + 0x34);
 
 		if (cstep) {
 			*ver = nvbios_rd08(bios, cstep + 0);
@@ -52,27 +52,27 @@ nvbios_cstepTe(struct nvkm_bios *bios,
 		}
 	}
 
-	return 0x0000;
+	return 0;
 }
 
-u16
+u32
 nvbios_cstepEe(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr)
 {
 	u8  cnt, len, xnr, xsz;
-	u16 data = nvbios_cstepTe(bios, ver, hdr, &cnt, &len, &xnr, &xsz);
+	u32 data = nvbios_cstepTe(bios, ver, hdr, &cnt, &len, &xnr, &xsz);
 	if (data && idx < cnt) {
 		data = data + *hdr + (idx * len);
 		*hdr = len;
 		return data;
 	}
-	return 0x0000;
+	return 0;
 }
 
-u16
+u32
 nvbios_cstepEp(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	       struct nvbios_cstepE *info)
 {
-	u16 data = nvbios_cstepEe(bios, idx, ver, hdr);
+	u32 data = nvbios_cstepEe(bios, idx, ver, hdr);
 	memset(info, 0x00, sizeof(*info));
 	if (data) {
 		info->pstate = (nvbios_rd16(bios, data + 0x00) & 0x01e0) >> 5;
@@ -81,7 +81,7 @@ nvbios_cstepEp(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	return data;
 }
 
-u16
+u32
 nvbios_cstepEm(struct nvkm_bios *bios, u8 pstate, u8 *ver, u8 *hdr,
 	       struct nvbios_cstepE *info)
 {
@@ -93,24 +93,24 @@ nvbios_cstepEm(struct nvkm_bios *bios, u8 pstate, u8 *ver, u8 *hdr,
 	return data;
 }
 
-u16
+u32
 nvbios_cstepXe(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr)
 {
 	u8  cnt, len, xnr, xsz;
-	u16 data = nvbios_cstepTe(bios, ver, hdr, &cnt, &len, &xnr, &xsz);
+	u32 data = nvbios_cstepTe(bios, ver, hdr, &cnt, &len, &xnr, &xsz);
 	if (data && idx < xnr) {
 		data = data + *hdr + (cnt * len) + (idx * xsz);
 		*hdr = xsz;
 		return data;
 	}
-	return 0x0000;
+	return 0;
 }
 
-u16
+u32
 nvbios_cstepXp(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	       struct nvbios_cstepX *info)
 {
-	u16 data = nvbios_cstepXe(bios, idx, ver, hdr);
+	u32 data = nvbios_cstepXe(bios, idx, ver, hdr);
 	memset(info, 0x00, sizeof(*info));
 	if (data) {
 		info->freq    = nvbios_rd16(bios, data + 0x00) * 1000;

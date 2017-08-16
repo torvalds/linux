@@ -993,18 +993,20 @@ static int wm8978_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8978 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8978 = {
 	.probe =	wm8978_probe,
 	.suspend =	wm8978_suspend,
 	.resume =	wm8978_resume,
 	.set_bias_level = wm8978_set_bias_level,
 
-	.controls = wm8978_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8978_snd_controls),
-	.dapm_widgets = wm8978_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8978_dapm_widgets),
-	.dapm_routes = wm8978_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8978_dapm_routes),
+	.component_driver = {
+		.controls		= wm8978_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8978_snd_controls),
+		.dapm_widgets		= wm8978_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8978_dapm_widgets),
+		.dapm_routes		= wm8978_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8978_dapm_routes),
+	},
 };
 
 static const struct regmap_config wm8978_regmap_config = {
@@ -1069,9 +1071,16 @@ static const struct i2c_device_id wm8978_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8978_i2c_id);
 
+static const struct of_device_id wm8978_of_match[] = {
+	{ .compatible = "wlf,wm8978", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8978_of_match);
+
 static struct i2c_driver wm8978_i2c_driver = {
 	.driver = {
 		.name = "wm8978",
+		.of_match_table = wm8978_of_match,
 	},
 	.probe =    wm8978_i2c_probe,
 	.remove =   wm8978_i2c_remove,

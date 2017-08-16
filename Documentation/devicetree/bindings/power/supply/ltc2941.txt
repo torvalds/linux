@@ -1,0 +1,27 @@
+binding for LTC2941 and LTC2943 battery gauges
+
+Both the LTC2941 and LTC2943 measure battery capacity.
+The LTC2943 is compatible with the LTC2941, it adds voltage and
+temperature monitoring, and uses a slightly different conversion
+formula for the charge counter.
+
+Required properties:
+- compatible: Should contain "lltc,ltc2941" or "lltc,ltc2943" which also
+    indicates the type of I2C chip attached.
+- reg: The 7-bit I2C address.
+- lltc,resistor-sense: The sense resistor value in milli-ohms. Can be a 32-bit
+    negative value when the battery has been connected to the wrong end of the
+    resistor.
+- lltc,prescaler-exponent: The prescaler exponent as explained in the datasheet.
+    This determines the range and accuracy of the gauge. The value is programmed
+    into the chip only if it differs from the current setting. The setting is
+    lost when the battery is disconnected.
+
+Example from the Topic Miami Florida board:
+
+	fuelgauge: ltc2943@64 {
+		compatible = "lltc,ltc2943";
+		reg = <0x64>;
+		lltc,resistor-sense = <15>;
+		lltc,prescaler-exponent = <5>; /* 2^(2*5) = 1024 */
+	};

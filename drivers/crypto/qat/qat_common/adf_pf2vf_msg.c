@@ -45,8 +45,6 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <linux/pci.h>
-#include <linux/mutex.h>
 #include <linux/delay.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
@@ -58,12 +56,6 @@
 #define ADF_DH895XCC_ERRMSK5	(ADF_DH895XCC_EP_OFFSET + 0xDC)
 #define ADF_DH895XCC_ERRMSK5_VF2PF_U_MASK(vf_mask) (vf_mask >> 16)
 
-/**
- * adf_enable_pf2vf_interrupts() - Enable PF to VF interrupts
- * @accel_dev:  Pointer to acceleration device.
- *
- * Function enables PF to VF interrupts
- */
 void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 {
 	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
@@ -73,14 +65,7 @@ void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 
 	ADF_CSR_WR(pmisc_bar_addr, hw_data->get_vintmsk_offset(0), 0x0);
 }
-EXPORT_SYMBOL_GPL(adf_enable_pf2vf_interrupts);
 
-/**
- * adf_disable_pf2vf_interrupts() - Disable PF to VF interrupts
- * @accel_dev:  Pointer to acceleration device.
- *
- * Function disables PF to VF interrupts
- */
 void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 {
 	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
@@ -90,7 +75,6 @@ void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
 
 	ADF_CSR_WR(pmisc_bar_addr, hw_data->get_vintmsk_offset(0), 0x2);
 }
-EXPORT_SYMBOL_GPL(adf_disable_pf2vf_interrupts);
 
 void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
 				 u32 vf_mask)
@@ -116,12 +100,6 @@ void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
 	}
 }
 
-/**
- * adf_disable_pf2vf_interrupts() - Disable VF to PF interrupts
- * @accel_dev:  Pointer to acceleration device.
- *
- * Function disables VF to PF interrupts
- */
 void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
@@ -144,7 +122,6 @@ void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
 		ADF_CSR_WR(pmisc_addr, ADF_DH895XCC_ERRMSK5, reg);
 	}
 }
-EXPORT_SYMBOL_GPL(adf_disable_vf2pf_interrupts);
 
 static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 {

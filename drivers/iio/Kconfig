@@ -19,28 +19,16 @@ config IIO_BUFFER
 	  acquisition methods.
 
 if IIO_BUFFER
-
-config IIO_BUFFER_CB
-	bool "IIO callback buffer used for push in-kernel interfaces"
-	help
-	  Should be selected by any drivers that do in-kernel push
-	  usage.  That is, those where the data is pushed to the consumer.
-
-config IIO_KFIFO_BUF
-	tristate "Industrial I/O buffering based on kfifo"
-	help
-	  A simple fifo based on kfifo.  Note that this currently provides
-	  no buffer events so it is up to userspace to work out how
-	  often to read from the buffer.
-
-config IIO_TRIGGERED_BUFFER
-	tristate
-	select IIO_TRIGGER
-	select IIO_KFIFO_BUF
-	help
-	  Provides helper functions for setting up triggered buffers.
-
+	source "drivers/iio/buffer/Kconfig"
 endif # IIO_BUFFER
+
+config IIO_CONFIGFS
+	tristate "Enable IIO configuration via configfs"
+	select CONFIGFS_FS
+	help
+	  This allows configuring various IIO bits through configfs
+	  (e.g. software triggers). For more info see
+	  Documentation/iio/iio_configfs.txt.
 
 config IIO_TRIGGER
 	bool "Enable triggered sampling support"
@@ -58,21 +46,50 @@ config IIO_CONSUMERS_PER_TRIGGER
 	This value controls the maximum number of consumers that a
 	given trigger may handle. Default is 2.
 
+config IIO_SW_DEVICE
+	tristate "Enable software IIO device support"
+	select IIO_CONFIGFS
+	help
+	 Provides IIO core support for software devices. A software
+	 device can be created via configfs or directly by a driver
+	 using the API provided.
+
+config IIO_SW_TRIGGER
+	tristate "Enable software triggers support"
+	select IIO_CONFIGFS
+	help
+	 Provides IIO core support for software triggers. A software
+	 trigger can be created via configfs or directly by a driver
+	 using the API provided.
+
+config IIO_TRIGGERED_EVENT
+	tristate
+	select IIO_TRIGGER
+	help
+	  Provides helper functions for setting up triggered events.
+
 source "drivers/iio/accel/Kconfig"
 source "drivers/iio/adc/Kconfig"
 source "drivers/iio/amplifiers/Kconfig"
+source "drivers/iio/chemical/Kconfig"
 source "drivers/iio/common/Kconfig"
+source "drivers/iio/counter/Kconfig"
 source "drivers/iio/dac/Kconfig"
+source "drivers/iio/dummy/Kconfig"
 source "drivers/iio/frequency/Kconfig"
 source "drivers/iio/gyro/Kconfig"
+source "drivers/iio/health/Kconfig"
 source "drivers/iio/humidity/Kconfig"
 source "drivers/iio/imu/Kconfig"
 source "drivers/iio/light/Kconfig"
 source "drivers/iio/magnetometer/Kconfig"
+source "drivers/iio/multiplexer/Kconfig"
 source "drivers/iio/orientation/Kconfig"
 if IIO_TRIGGER
    source "drivers/iio/trigger/Kconfig"
 endif #IIO_TRIGGER
+source "drivers/iio/potentiometer/Kconfig"
+source "drivers/iio/potentiostat/Kconfig"
 source "drivers/iio/pressure/Kconfig"
 source "drivers/iio/proximity/Kconfig"
 source "drivers/iio/temperature/Kconfig"

@@ -25,18 +25,20 @@ static u64 notrace versatile_sys_24mhz_read(void)
 	return readl(versatile_sys_24mhz);
 }
 
-static void __init versatile_sched_clock_init(struct device_node *node)
+static int __init versatile_sched_clock_init(struct device_node *node)
 {
 	void __iomem *base = of_iomap(node, 0);
 
 	if (!base)
-		return;
+		return -ENXIO;
 
 	versatile_sys_24mhz = base + SYS_24MHZ;
 
 	sched_clock_register(versatile_sys_24mhz_read, 32, 24000000);
+
+	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(vexpress, "arm,vexpress-sysreg",
+TIMER_OF_DECLARE(vexpress, "arm,vexpress-sysreg",
 		       versatile_sched_clock_init);
-CLOCKSOURCE_OF_DECLARE(versatile, "arm,versatile-sysreg",
+TIMER_OF_DECLARE(versatile, "arm,versatile-sysreg",
 		       versatile_sched_clock_init);

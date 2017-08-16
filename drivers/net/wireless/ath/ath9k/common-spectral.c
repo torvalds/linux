@@ -482,7 +482,7 @@ ath_cmn_is_fft_buf_full(struct ath_spec_scan_priv *spec_priv)
 	struct rchan *rc = spec_priv->rfs_chan_spec_scan;
 
 	for_each_online_cpu(i)
-		ret += relay_buf_full(rc->buf[i]);
+		ret += relay_buf_full(*per_cpu_ptr(rc->buf, i));
 
 	i = num_online_cpus();
 
@@ -527,6 +527,9 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 	radar_info = ((struct ath_radar_info *)&vdata[len]) - 1;
 	if (!(radar_info->pulse_bw_info & SPECTRAL_SCAN_BITMASK))
 		return 0;
+
+	if (!spec_priv->rfs_chan_spec_scan)
+		return 1;
 
 	/* Output buffers are full, no need to process anything
 	 * since there is no space to put the result anyway
@@ -731,13 +734,16 @@ void ath9k_cmn_spectral_scan_trigger(struct ath_common *common,
 	struct ath_hw *ah = spec_priv->ah;
 	u32 rxfilter;
 
-	if (config_enabled(CONFIG_ATH9K_TX99))
+	if (IS_ENABLED(CONFIG_ATH9K_TX99))
 		return;
 
 	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
 		ath_err(common, "spectrum analyzer not implemented on this hardware\n");
 		return;
 	}
+
+	if (!spec_priv->spec_config.enabled)
+		return;
 
 	ath_ps_ops(common)->wakeup(common);
 	rxfilter = ath9k_hw_getrxfilter(ah);
@@ -806,7 +812,7 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 	char buf[32];
 	ssize_t len;
 
-	if (config_enabled(CONFIG_ATH9K_TX99))
+	if (IS_ENABLED(CONFIG_ATH9K_TX99))
 		return -EOPNOTSUPP;
 
 	len = min(count, sizeof(buf) - 1);
@@ -1072,7 +1078,7 @@ static struct rchan_callbacks rfs_spec_scan_cb = {
 
 void ath9k_cmn_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv)
 {
-	if (config_enabled(CONFIG_ATH9K_DEBUGFS)) {
+	if (spec_priv->rfs_chan_spec_scan) {
 		relay_close(spec_priv->rfs_chan_spec_scan);
 		spec_priv->rfs_chan_spec_scan = NULL;
 	}
@@ -1086,6 +1092,9 @@ void ath9k_cmn_spectral_init_debug(struct ath_spec_scan_priv *spec_priv,
 					    debugfs_phy,
 					    1024, 256, &rfs_spec_scan_cb,
 					    NULL);
+	if (!spec_priv->rfs_chan_spec_scan)
+		return;
+
 	debugfs_create_file("spectral_scan_ctl",
 			    S_IRUSR | S_IWUSR,
 			    debugfs_phy, spec_priv,

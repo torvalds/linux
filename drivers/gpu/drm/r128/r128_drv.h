@@ -154,9 +154,9 @@ extern int r128_wait_ring(drm_r128_private_t *dev_priv, int n);
 extern int r128_do_cce_idle(drm_r128_private_t *dev_priv);
 extern int r128_do_cleanup_cce(struct drm_device *dev);
 
-extern int r128_enable_vblank(struct drm_device *dev, int crtc);
-extern void r128_disable_vblank(struct drm_device *dev, int crtc);
-extern u32 r128_get_vblank_counter(struct drm_device *dev, int crtc);
+extern int r128_enable_vblank(struct drm_device *dev, unsigned int pipe);
+extern void r128_disable_vblank(struct drm_device *dev, unsigned int pipe);
+extern u32 r128_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
 extern irqreturn_t r128_driver_irq_handler(int irq, void *arg);
 extern void r128_driver_irq_preinstall(struct drm_device *dev);
 extern int r128_driver_irq_postinstall(struct drm_device *dev);

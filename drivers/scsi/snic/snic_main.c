@@ -98,11 +98,18 @@ snic_slave_configure(struct scsi_device *sdev)
 static int
 snic_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
+	struct snic *snic = shost_priv(sdev->host);
 	int qsz = 0;
 
 	qsz = min_t(u32, qdepth, SNIC_MAX_QUEUE_DEPTH);
+	if (qsz < sdev->queue_depth)
+		atomic64_inc(&snic->s_stats.misc.qsz_rampdown);
+	else if (qsz > sdev->queue_depth)
+		atomic64_inc(&snic->s_stats.misc.qsz_rampup);
+
+	atomic64_set(&snic->s_stats.misc.last_qsz, sdev->queue_depth);
+
 	scsi_change_queue_depth(sdev, qsz);
-	SNIC_INFO("QDepth Changed to %d\n", sdev->queue_depth);
 
 	return sdev->queue_depth;
 }
@@ -124,7 +131,6 @@ static struct scsi_host_template snic_host_template = {
 	.sg_tablesize = SNIC_MAX_SG_DESC_CNT,
 	.max_sectors = 0x800,
 	.shost_attrs = snic_attrs,
-	.use_blk_tags = 1,
 	.track_queue_depth = 1,
 	.cmd_size = sizeof(struct snic_internal_io_state),
 	.proc_name = "snic_scsi",
@@ -533,15 +539,6 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	snic->max_tag_id = shost->can_queue;
 
-	ret = scsi_init_shared_tag_map(shost, snic->max_tag_id);
-	if (ret) {
-		SNIC_HOST_ERR(shost,
-			      "Unable to alloc shared tag map. %d\n",
-			      ret);
-
-		goto err_dev_close;
-	}
-
 	shost->max_lun = snic->config.luns_per_tgt;
 	shost->max_id = SNIC_MAX_TARGET;
 
@@ -594,6 +591,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!pool) {
 		SNIC_HOST_ERR(shost, "dflt sgl pool creation failed\n");
 
+		ret = -ENOMEM;
 		goto err_free_res;
 	}
 
@@ -604,6 +602,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!pool) {
 		SNIC_HOST_ERR(shost, "max sgl pool creation failed\n");
 
+		ret = -ENOMEM;
 		goto err_free_dflt_sgl_pool;
 	}
 
@@ -614,6 +613,7 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!pool) {
 		SNIC_HOST_ERR(shost, "snic tmreq info pool creation failed.\n");
 
+		ret = -ENOMEM;
 		goto err_free_max_sgl_pool;
 	}
 
@@ -632,19 +632,6 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			      ret);
 
 		goto err_free_tmreq_pool;
-	}
-
-	/*
-	 * Initialization done with PCI system, hardware, firmware.
-	 * Add shost to SCSI
-	 */
-	ret = snic_add_host(shost, pdev);
-	if (ret) {
-		SNIC_HOST_ERR(shost,
-			      "Adding scsi host Failed ... exiting. %d\n",
-			      ret);
-
-		goto err_notify_unset;
 	}
 
 	spin_lock_irqsave(&snic_glob->snic_list_lock, flags);
@@ -679,8 +666,6 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	for (i = 0; i < snic->intr_count; i++)
 		svnic_intr_unmask(&snic->intr[i]);
 
-	snic_set_state(snic, SNIC_ONLINE);
-
 	/* Get snic params */
 	ret = snic_get_conf(snic);
 	if (ret) {
@@ -690,6 +675,21 @@ snic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		goto err_get_conf;
 	}
+
+	/*
+	 * Initialization done with PCI system, hardware, firmware.
+	 * Add shost to SCSI
+	 */
+	ret = snic_add_host(shost, pdev);
+	if (ret) {
+		SNIC_HOST_ERR(shost,
+			      "Adding scsi host Failed ... exiting. %d\n",
+			      ret);
+
+		goto err_get_conf;
+	}
+
+	snic_set_state(snic, SNIC_ONLINE);
 
 	ret = snic_disc_start(snic);
 	if (ret) {
@@ -715,6 +715,8 @@ err_req_intr:
 	svnic_dev_disable(snic->vdev);
 
 err_vdev_enable:
+	svnic_dev_notify_unset(snic->vdev);
+
 	for (i = 0; i < snic->wq_count; i++) {
 		int rc = 0;
 
@@ -727,9 +729,6 @@ err_vdev_enable:
 		}
 	}
 	snic_del_host(snic->shost);
-
-err_notify_unset:
-	svnic_dev_notify_unset(snic->vdev);
 
 err_free_tmreq_pool:
 	mempool_destroy(snic->req_pool[SNIC_REQ_TM_CACHE]);

@@ -391,8 +391,7 @@ static void __init u300_init_machine_dt(void)
 	pinctrl_register_mappings(u300_pinmux_map,
 				  ARRAY_SIZE(u300_pinmux_map));
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			u300_auxdata_lookup, NULL);
+	of_platform_default_populate(NULL, u300_auxdata_lookup, NULL);
 
 	/* Enable SEMI self refresh */
 	val = readw(syscon_base + U300_SYSCON_SMCR) |
@@ -408,7 +407,7 @@ static const char * u300_board_compat[] = {
 DT_MACHINE_START(U300_DT, "U300 S335/B335 (Device Tree)")
 	.map_io		= u300_map_io,
 	.init_irq	= u300_init_irq_dt,
-	.init_time	= clocksource_of_init,
+	.init_time	= timer_probe,
 	.init_machine	= u300_init_machine_dt,
 	.restart	= u300_restart,
 	.dt_compat      = u300_board_compat,

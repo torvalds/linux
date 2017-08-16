@@ -723,17 +723,19 @@ static int wm8940_probe(struct snd_soc_codec *codec)
 	return ret;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8940 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8940 = {
 	.probe =	wm8940_probe,
 	.set_bias_level = wm8940_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls =     wm8940_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8940_snd_controls),
-	.dapm_widgets = wm8940_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8940_dapm_widgets),
-	.dapm_routes =  wm8940_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8940_dapm_routes),
+	.component_driver = {
+		.controls		= wm8940_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8940_snd_controls),
+		.dapm_widgets		= wm8940_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8940_dapm_widgets),
+		.dapm_routes		= wm8940_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8940_dapm_routes),
+	},
 };
 
 static const struct regmap_config wm8940_regmap = {
@@ -743,6 +745,7 @@ static const struct regmap_config wm8940_regmap = {
 	.max_register = WM8940_MONOMIX,
 	.reg_defaults = wm8940_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8940_reg_defaults),
+	.cache_type = REGCACHE_RBTREE,
 
 	.readable_reg = wm8940_readable_register,
 	.volatile_reg = wm8940_volatile_register,

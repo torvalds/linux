@@ -41,6 +41,8 @@
 #include "name_table.h"
 
 #define MAX_FORWARD_SIZE 1024
+#define BUF_HEADROOM (LL_MAX_HEADER + 48)
+#define BUF_TAILROOM 16
 
 static unsigned int align(unsigned int i)
 {
@@ -56,12 +58,12 @@ static unsigned int align(unsigned int i)
  * NOTE: Headroom is reserved to allow prepending of a data link header.
  *       There may also be unrequested tailroom present at the buffer's end.
  */
-struct sk_buff *tipc_buf_acquire(u32 size)
+struct sk_buff *tipc_buf_acquire(u32 size, gfp_t gfp)
 {
 	struct sk_buff *skb;
 	unsigned int buf_size = (BUF_HEADROOM + size + 3) & ~3u;
 
-	skb = alloc_skb_fclone(buf_size, GFP_ATOMIC);
+	skb = alloc_skb_fclone(buf_size, gfp);
 	if (skb) {
 		skb_reserve(skb, BUF_HEADROOM);
 		skb_put(skb, size);
@@ -93,7 +95,7 @@ struct sk_buff *tipc_msg_create(uint user, uint type,
 	struct tipc_msg *msg;
 	struct sk_buff *buf;
 
-	buf = tipc_buf_acquire(hdr_sz + data_sz);
+	buf = tipc_buf_acquire(hdr_sz + data_sz, GFP_ATOMIC);
 	if (unlikely(!buf))
 		return NULL;
 
@@ -121,7 +123,7 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 {
 	struct sk_buff *head = *headbuf;
 	struct sk_buff *frag = *buf;
-	struct sk_buff *tail;
+	struct sk_buff *tail = NULL;
 	struct tipc_msg *msg;
 	u32 fragid;
 	int delta;
@@ -141,9 +143,15 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 		if (unlikely(skb_unclone(frag, GFP_ATOMIC)))
 			goto err;
 		head = *headbuf = frag;
-		skb_frag_list_init(head);
-		TIPC_SKB_CB(head)->tail = NULL;
 		*buf = NULL;
+		TIPC_SKB_CB(head)->tail = NULL;
+		if (skb_is_nonlinear(head)) {
+			skb_walk_frags(head, tail) {
+				TIPC_SKB_CB(head)->tail = tail;
+			}
+		} else {
+			skb_frag_list_init(head);
+		}
 		return 0;
 	}
 
@@ -176,7 +184,6 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 	*buf = NULL;
 	return 0;
 err:
-	pr_warn_ratelimited("Unable to build fragment list\n");
 	kfree_skb(*buf);
 	kfree_skb(*headbuf);
 	*buf = *headbuf = NULL;
@@ -254,14 +261,14 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 
 	/* No fragmentation needed? */
 	if (likely(msz <= pktmax)) {
-		skb = tipc_buf_acquire(msz);
+		skb = tipc_buf_acquire(msz, GFP_KERNEL);
 		if (unlikely(!skb))
 			return -ENOMEM;
 		skb_orphan(skb);
 		__skb_queue_tail(list, skb);
 		skb_copy_to_linear_data(skb, mhdr, mhsz);
 		pktpos = skb->data + mhsz;
-		if (copy_from_iter(pktpos, dsz, &m->msg_iter) == dsz)
+		if (copy_from_iter_full(pktpos, dsz, &m->msg_iter))
 			return dsz;
 		rc = -EFAULT;
 		goto error;
@@ -275,7 +282,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 	msg_set_importance(&pkthdr, msg_importance(mhdr));
 
 	/* Prepare first fragment */
-	skb = tipc_buf_acquire(pktmax);
+	skb = tipc_buf_acquire(pktmax, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 	skb_orphan(skb);
@@ -292,7 +299,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		if (drem < pktrem)
 			pktrem = drem;
 
-		if (copy_from_iter(pktpos, pktrem, &m->msg_iter) != pktrem) {
+		if (!copy_from_iter_full(pktpos, pktrem, &m->msg_iter)) {
 			rc = -EFAULT;
 			goto error;
 		}
@@ -306,7 +313,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 			pktsz = drem + INT_H_SIZE;
 		else
 			pktsz = pktmax;
-		skb = tipc_buf_acquire(pktsz);
+		skb = tipc_buf_acquire(pktsz, GFP_KERNEL);
 		if (!skb) {
 			rc = -ENOMEM;
 			goto error;
@@ -441,7 +448,7 @@ bool tipc_msg_make_bundle(struct sk_buff **skb,  struct tipc_msg *msg,
 	if (msz > (max / 2))
 		return false;
 
-	_skb = tipc_buf_acquire(max);
+	_skb = tipc_buf_acquire(max, GFP_ATOMIC);
 	if (!_skb)
 		return false;
 
@@ -489,7 +496,7 @@ bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 
 	/* Never return SHORT header; expand by replacing buffer if necessary */
 	if (msg_short(hdr)) {
-		*skb = tipc_buf_acquire(BASIC_H_SIZE + dlen);
+		*skb = tipc_buf_acquire(BASIC_H_SIZE + dlen, GFP_ATOMIC);
 		if (!*skb)
 			goto exit;
 		memcpy((*skb)->data + BASIC_H_SIZE, msg_data(hdr), dlen);
@@ -500,8 +507,13 @@ bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 		msg_set_hdr_sz(hdr, BASIC_H_SIZE);
 	}
 
+	if (skb_cloned(_skb) &&
+	    pskb_expand_head(_skb, BUF_HEADROOM, BUF_TAILROOM, GFP_ATOMIC))
+		goto exit;
+
 	/* Now reverse the concerned fields */
 	msg_set_errcode(hdr, err);
+	msg_set_non_seq(hdr, 0);
 	msg_set_origport(hdr, msg_destport(&ohdr));
 	msg_set_destport(hdr, msg_origport(&ohdr));
 	msg_set_destnode(hdr, msg_prevnode(&ohdr));
@@ -559,18 +571,22 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 /* tipc_msg_reassemble() - clone a buffer chain of fragments and
  *                         reassemble the clones into one message
  */
-struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list)
+bool tipc_msg_reassemble(struct sk_buff_head *list, struct sk_buff_head *rcvq)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb, *_skb;
 	struct sk_buff *frag = NULL;
 	struct sk_buff *head = NULL;
-	int hdr_sz;
+	int hdr_len;
 
 	/* Copy header if single buffer */
 	if (skb_queue_len(list) == 1) {
 		skb = skb_peek(list);
-		hdr_sz = skb_headroom(skb) + msg_hdr_sz(buf_msg(skb));
-		return __pskb_copy(skb, hdr_sz, GFP_ATOMIC);
+		hdr_len = skb_headroom(skb) + msg_hdr_sz(buf_msg(skb));
+		_skb = __pskb_copy(skb, hdr_len, GFP_ATOMIC);
+		if (!_skb)
+			return false;
+		__skb_queue_tail(rcvq, _skb);
+		return true;
 	}
 
 	/* Clone all fragments and reassemble */
@@ -584,9 +600,58 @@ struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list)
 		if (!head)
 			goto error;
 	}
-	return frag;
+	__skb_queue_tail(rcvq, frag);
+	return true;
 error:
 	pr_warn("Failed do clone local mcast rcv buffer\n");
 	kfree_skb(head);
-	return NULL;
+	return false;
+}
+
+bool tipc_msg_pskb_copy(u32 dst, struct sk_buff_head *msg,
+			struct sk_buff_head *cpy)
+{
+	struct sk_buff *skb, *_skb;
+
+	skb_queue_walk(msg, skb) {
+		_skb = pskb_copy(skb, GFP_ATOMIC);
+		if (!_skb) {
+			__skb_queue_purge(cpy);
+			return false;
+		}
+		msg_set_destnode(buf_msg(_skb), dst);
+		__skb_queue_tail(cpy, _skb);
+	}
+	return true;
+}
+
+/* tipc_skb_queue_sorted(); sort pkt into list according to sequence number
+ * @list: list to be appended to
+ * @seqno: sequence number of buffer to add
+ * @skb: buffer to add
+ */
+void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
+			     struct sk_buff *skb)
+{
+	struct sk_buff *_skb, *tmp;
+
+	if (skb_queue_empty(list) || less(seqno, buf_seqno(skb_peek(list)))) {
+		__skb_queue_head(list, skb);
+		return;
+	}
+
+	if (more(seqno, buf_seqno(skb_peek_tail(list)))) {
+		__skb_queue_tail(list, skb);
+		return;
+	}
+
+	skb_queue_walk_safe(list, _skb, tmp) {
+		if (more(seqno, buf_seqno(_skb)))
+			continue;
+		if (seqno == buf_seqno(_skb))
+			break;
+		__skb_queue_before(list, _skb, skb);
+		return;
+	}
+	kfree_skb(skb);
 }

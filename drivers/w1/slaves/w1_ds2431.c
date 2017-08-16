@@ -16,9 +16,9 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
+#define W1_EEPROM_DS2431	0x2D
 
 #define W1_F2D_EEPROM_SIZE		128
 #define W1_F2D_PAGE_COUNT		4
@@ -288,21 +288,9 @@ static struct w1_family w1_family_2d = {
 	.fid = W1_EEPROM_DS2431,
 	.fops = &w1_f2d_fops,
 };
+module_w1_family(w1_family_2d);
 
-static int __init w1_f2d_init(void)
-{
-	return w1_register_family(&w1_family_2d);
-}
-
-static void __exit w1_f2d_fini(void)
-{
-	w1_unregister_family(&w1_family_2d);
-}
-
-module_init(w1_f2d_init);
-module_exit(w1_f2d_fini);
-
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bernhard Weirich <bernhard.weirich@riedel.net>");
 MODULE_DESCRIPTION("w1 family 2d driver for DS2431, 1kb EEPROM");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("w1-family-" __stringify(W1_EEPROM_DS2431));

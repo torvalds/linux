@@ -22,8 +22,6 @@
 #include <linux/io.h>
 #include <linux/err.h>
 
-#define DRV_VERSION		"1.0"
-
 struct m48t35_rtc {
 	u8	pad[0x7ff8];    /* starts at 0x7ff8 */
 	u8	control;
@@ -190,5 +188,4 @@ module_platform_driver(m48t35_platform_driver);
 MODULE_AUTHOR("Thomas Bogendoerfer <tsbogend@alpha.franken.de>");
 MODULE_DESCRIPTION("M48T35 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:rtc-m48t35");

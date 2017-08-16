@@ -38,11 +38,12 @@ nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
 	int WL, CL, WR, at[2], dt, ds;
 	int rq = ram->freq < 1000000; /* XXX */
 
+	xd = !ram->next->bios.ramcfg_DLLoff;
+
 	switch (ram->next->bios.ramcfg_ver) {
 	case 0x11:
 		pd =  ram->next->bios.ramcfg_11_01_80;
 		lf =  ram->next->bios.ramcfg_11_01_40;
-		xd = !ram->next->bios.ramcfg_11_01_20;
 		vh =  ram->next->bios.ramcfg_11_02_10;
 		vr =  ram->next->bios.ramcfg_11_02_04;
 		vo =  ram->next->bios.ramcfg_11_06;

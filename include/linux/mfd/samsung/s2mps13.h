@@ -184,5 +184,6 @@ enum s2mps13_regulators {
  * Let's assume that default value will be set.
  */
 #define S2MPS13_BUCK_RAMP_DELAY		12500
+#define S2MPS13_REG_WRSTBI_MASK		BIT(5)
 
 #endif /*  __LINUX_MFD_S2MPS13_H */

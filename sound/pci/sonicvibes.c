@@ -45,7 +45,7 @@ MODULE_DESCRIPTION("S3 SonicVibes PCI");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{S3,SonicVibes PCI}}");
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK 1
 #endif
 
@@ -66,7 +66,7 @@ module_param_array(reverb, bool, NULL, 0444);
 MODULE_PARM_DESC(reverb, "Enable reverb (SRAM is present) for S3 SonicVibes soundcard.");
 module_param_array(mge, bool, NULL, 0444);
 MODULE_PARM_DESC(mge, "MIC Gain Enable for S3 SonicVibes soundcard.");
-module_param(dmaio, uint, 0444);
+module_param_hw(dmaio, uint, ioport, 0444);
 MODULE_PARM_DESC(dmaio, "DDMA i/o base address for S3 SonicVibes soundcard.");
 
 /*
@@ -248,13 +248,13 @@ static const struct pci_device_id snd_sonic_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_sonic_ids);
 
-static struct snd_ratden sonicvibes_adc_clock = {
+static const struct snd_ratden sonicvibes_adc_clock = {
 	.num_min = 4000 * 65536,
 	.num_max = 48000UL * 65536,
 	.num_step = 1,
 	.den = 65536,
 };
-static struct snd_pcm_hw_constraint_ratdens snd_sonicvibes_hw_constraints_adc_clock = {
+static const struct snd_pcm_hw_constraint_ratdens snd_sonicvibes_hw_constraints_adc_clock = {
 	.nrats = 1,
 	.rats = &sonicvibes_adc_clock,
 };
@@ -857,7 +857,7 @@ static int snd_sonicvibes_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_sonicvibes_playback_ops = {
+static const struct snd_pcm_ops snd_sonicvibes_playback_ops = {
 	.open =		snd_sonicvibes_playback_open,
 	.close =	snd_sonicvibes_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -868,7 +868,7 @@ static struct snd_pcm_ops snd_sonicvibes_playback_ops = {
 	.pointer =	snd_sonicvibes_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_sonicvibes_capture_ops = {
+static const struct snd_pcm_ops snd_sonicvibes_capture_ops = {
 	.open =		snd_sonicvibes_capture_open,
 	.close =	snd_sonicvibes_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,

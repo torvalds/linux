@@ -68,14 +68,10 @@ paging_init(void)
 
 	*R_MMU_KSEG = ( IO_STATE(R_MMU_KSEG, seg_f, seg  ) |  /* bootrom */
 			IO_STATE(R_MMU_KSEG, seg_e, page ) |
-			IO_STATE(R_MMU_KSEG, seg_d, page ) | 
-			IO_STATE(R_MMU_KSEG, seg_c, page ) |   
+			IO_STATE(R_MMU_KSEG, seg_d, page ) |
+			IO_STATE(R_MMU_KSEG, seg_c, page ) |
 			IO_STATE(R_MMU_KSEG, seg_b, seg  ) |  /* kernel reg area */
-#ifdef CONFIG_JULIETTE
-			IO_STATE(R_MMU_KSEG, seg_a, seg  ) |  /* ARTPEC etc. */
-#else
 			IO_STATE(R_MMU_KSEG, seg_a, page ) |
-#endif
 			IO_STATE(R_MMU_KSEG, seg_9, seg  ) |  /* LED's on some boards */
 			IO_STATE(R_MMU_KSEG, seg_8, seg  ) |  /* CSE0/1, flash and I/O */
 			IO_STATE(R_MMU_KSEG, seg_7, page ) |  /* kernel vmalloc area */
@@ -92,14 +88,10 @@ paging_init(void)
 			    IO_FIELD(R_MMU_KBASE_HI, base_d, 0x0 ) |
 			    IO_FIELD(R_MMU_KBASE_HI, base_c, 0x0 ) |
 			    IO_FIELD(R_MMU_KBASE_HI, base_b, 0xb ) |
-#ifdef CONFIG_JULIETTE
-			    IO_FIELD(R_MMU_KBASE_HI, base_a, 0xa ) |
-#else
 			    IO_FIELD(R_MMU_KBASE_HI, base_a, 0x0 ) |
-#endif
 			    IO_FIELD(R_MMU_KBASE_HI, base_9, 0x9 ) |
 			    IO_FIELD(R_MMU_KBASE_HI, base_8, 0x8 ) );
-	
+
 	*R_MMU_KBASE_LO = ( IO_FIELD(R_MMU_KBASE_LO, base_7, 0x0 ) |
 			    IO_FIELD(R_MMU_KBASE_LO, base_6, 0x4 ) |
 			    IO_FIELD(R_MMU_KBASE_LO, base_5, 0x0 ) |

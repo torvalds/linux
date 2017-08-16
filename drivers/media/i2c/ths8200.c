@@ -499,7 +499,6 @@ MODULE_DEVICE_TABLE(of, ths8200_of_match);
 
 static struct i2c_driver ths8200_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "ths8200",
 		.of_match_table = of_match_ptr(ths8200_of_match),
 	},

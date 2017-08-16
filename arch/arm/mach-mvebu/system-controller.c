@@ -127,7 +127,7 @@ int mvebu_system_controller_get_soc_id(u32 *dev, u32 *rev)
 }
 
 #if defined(CONFIG_SMP) && defined(CONFIG_MACH_MVEBU_V7)
-void mvebu_armada375_smp_wa_init(void)
+static void mvebu_armada375_smp_wa_init(void)
 {
 	u32 dev, rev;
 	phys_addr_t resume_addr_reg;
@@ -153,7 +153,7 @@ void mvebu_system_controller_set_cpu_boot_addr(void *boot_addr)
 	if (of_machine_is_compatible("marvell,armada375"))
 		mvebu_armada375_smp_wa_init();
 
-	writel(virt_to_phys(boot_addr), system_controller_base +
+	writel(__pa_symbol(boot_addr), system_controller_base +
 	       mvebu_sc->resume_boot_addr);
 }
 #endif

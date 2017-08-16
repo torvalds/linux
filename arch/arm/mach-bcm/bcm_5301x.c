@@ -12,46 +12,39 @@
 #include <asm/siginfo.h>
 #include <asm/signal.h>
 
-
-static bool first_fault = true;
-
-static int bcm5301x_abort_handler(unsigned long addr, unsigned int fsr,
-				 struct pt_regs *regs)
-{
-	if ((fsr == 0x1406 || fsr == 0x1c06) && first_fault) {
-		first_fault = false;
-
-		/*
-		 * These faults with codes 0x1406 (BCM4709) or 0x1c06 happens
-		 * for no good reason, possibly left over from the CFE boot
-		 * loader.
-		 */
-		pr_warn("External imprecise Data abort at addr=%#lx, fsr=%#x ignored.\n",
-			addr, fsr);
-
-		/* Returning non-zero causes fault display and panic */
-		return 0;
-	}
-
-	/* Others should cause a fault */
-	return 1;
-}
-
-static void __init bcm5301x_init_early(void)
-{
-	/* Install our hook */
-	hook_fault_code(16 + 6, bcm5301x_abort_handler, SIGBUS, BUS_OBJERR,
-			"imprecise external abort");
-}
+#define FSR_EXTERNAL		(1 << 12)
+#define FSR_READ		(0 << 10)
+#define FSR_IMPRECISE		0x0406
 
 static const char *const bcm5301x_dt_compat[] __initconst = {
 	"brcm,bcm4708",
 	NULL,
 };
 
+static int bcm5301x_abort_handler(unsigned long addr, unsigned int fsr,
+				  struct pt_regs *regs)
+{
+	/*
+	 * We want to ignore aborts forwarded from the PCIe bus that are
+	 * expected and shouldn't really be passed by the PCIe controller.
+	 * The biggest disadvantage is the same FSR code may be reported when
+	 * reading non-existing APB register and we shouldn't ignore that.
+	 */
+	if (fsr == (FSR_EXTERNAL | FSR_READ | FSR_IMPRECISE))
+		return 0;
+
+	return 1;
+}
+
+static void __init bcm5301x_init_early(void)
+{
+	hook_fault_code(16 + 6, bcm5301x_abort_handler, SIGBUS, BUS_OBJERR,
+			"imprecise external abort");
+}
+
 DT_MACHINE_START(BCM5301X, "BCM5301X")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
-	.init_early	= bcm5301x_init_early,
 	.dt_compat	= bcm5301x_dt_compat,
+	.init_early	= bcm5301x_init_early,
 MACHINE_END

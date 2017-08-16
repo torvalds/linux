@@ -281,9 +281,6 @@ wait_ser:
 #ifdef CONFIG_ETRAX_PB_LEDS
 	move.b	$r2, [R_PORT_PB_DATA]
 #endif
-#ifdef CONFIG_ETRAX_90000000_LEDS
-	move.b	$r2, [0x90000000]
-#endif
 #endif
 
 	;; check if we got something on the serial port

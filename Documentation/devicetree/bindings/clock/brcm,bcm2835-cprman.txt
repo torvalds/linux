@@ -1,0 +1,58 @@
+Broadcom BCM2835 CPRMAN clocks
+
+This binding uses the common clock binding:
+    Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+The CPRMAN clock controller generates clocks in the audio power domain
+of the BCM2835.  There is a level of PLLs deriving from an external
+oscillator, a level of PLL dividers that produce channels off of the
+few PLLs, and a level of mostly-generic clock generators sourcing from
+the PLL channels.  Most other hardware components source from the
+clock generators, but a few (like the ARM or HDMI) will source from
+the PLL dividers directly.
+
+Required properties:
+- compatible:	Should be "brcm,bcm2835-cprman"
+- #clock-cells:	Should be <1>. The permitted clock-specifier values can be
+		  found in include/dt-bindings/clock/bcm2835.h
+- reg:		Specifies base physical address and size of the registers
+- clocks:	phandles to the parent clocks used as input to the module, in
+		  the following order:
+
+		  - External oscillator
+		  - DSI0 byte clock
+		  - DSI0 DDR2 clock
+		  - DSI0 DDR clock
+		  - DSI1 byte clock
+		  - DSI1 DDR2 clock
+		  - DSI1 DDR clock
+
+		  Only external oscillator is required.  The DSI clocks may
+		  not be present, in which case their children will be
+		  unusable.
+
+Example:
+
+	clk_osc: clock@3 {
+		compatible = "fixed-clock";
+		reg = <3>;
+		#clock-cells = <0>;
+		clock-output-names = "osc";
+		clock-frequency = <19200000>;
+	};
+
+	clocks: cprman@7e101000 {
+		compatible = "brcm,bcm2835-cprman";
+		#clock-cells = <1>;
+		reg = <0x7e101000 0x2000>;
+		clocks = <&clk_osc>;
+	};
+
+	i2c0: i2c@7e205000 {
+		compatible = "brcm,bcm2835-i2c";
+		reg = <0x7e205000 0x1000>;
+		interrupts = <2 21>;
+		clocks = <&clocks BCM2835_CLOCK_VPU>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};

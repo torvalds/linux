@@ -1,34 +1,34 @@
 /*******************************************************************************
-
-  Copyright(c) 2004 Intel Corporation. All rights reserved.
-
-  Portions of this file are based on the WEP enablement code provided by the
-  Host AP project hostap-drivers v0.1.3
-  Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
-  <jkmaline@cc.hut.fi>
-  Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-
-  Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+ *
+ *  Copyright(c) 2004 Intel Corporation. All rights reserved.
+ *
+ *  Portions of this file are based on the WEP enablement code provided by the
+ *  Host AP project hostap-drivers v0.1.3
+ *  Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
+ *  <jkmaline@cc.hut.fi>
+ *  Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ *
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of version 2 of the GNU General Public License as
+ *  published by the Free Software Foundation.
+ *
+ *  This program is distributed in the hope that it will be useful, but WITHOUT
+ *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ *  more details.
+ *
+ *  You should have received a copy of the GNU General Public License along with
+ *  this program; if not, write to the Free Software Foundation, Inc., 59
+ *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ *  The full GNU General Public License is included in this distribution in the
+ *  file called LICENSE.
+ *
+ *  Contact Information:
+ *  James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ *
+ *******************************************************************************/
 
 #include <linux/compiler.h>
 /* #include <linux/config.h> */
@@ -48,7 +48,7 @@
 #include <linux/types.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/arp.h>
 
 #include "ieee80211.h"
@@ -141,8 +141,8 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	spin_lock_init(&ieee->bw_spinlock);
 	spin_lock_init(&ieee->reorder_spinlock);
 	/* added by WB */
-	atomic_set(&(ieee->atm_chnlop), 0);
-	atomic_set(&(ieee->atm_swbw), 0);
+	atomic_set(&ieee->atm_chnlop, 0);
+	atomic_set(&ieee->atm_swbw, 0);
 
 	ieee->wpax_type_set = 0;
 	ieee->wpa_enabled = 0;
@@ -157,8 +157,7 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	ieee80211_softmac_init(ieee);
 
 	ieee->pHTInfo = kzalloc(sizeof(RT_HIGH_THROUGHPUT), GFP_KERNEL);
-	if (ieee->pHTInfo == NULL)
-	{
+	if (ieee->pHTInfo == NULL) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "can't alloc memory for HTInfo\n");
 		goto failed;
 	}
@@ -177,8 +176,6 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 /* These function were added to load crypte module autoly */
 	ieee80211_tkip_null();
-	ieee80211_wep_null();
-	ieee80211_ccmp_null();
 
 	return dev;
 
@@ -285,8 +282,7 @@ int __init ieee80211_debug_init(void)
 				" proc directory\n");
 		return -EIO;
 	}
-	e = proc_create("debug_level", S_IRUGO | S_IWUSR,
-			      ieee80211_proc, &fops);
+	e = proc_create("debug_level", 0644, ieee80211_proc, &fops);
 	if (!e) {
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		ieee80211_proc = NULL;

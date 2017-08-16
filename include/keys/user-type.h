@@ -15,6 +15,8 @@
 #include <linux/key.h>
 #include <linux/rcupdate.h>
 
+#ifdef CONFIG_KEYS
+
 /*****************************************************************************/
 /*
  * the payload for a key of type "user" or "logon"
@@ -46,5 +48,16 @@ extern void user_describe(const struct key *user, struct seq_file *m);
 extern long user_read(const struct key *key,
 		      char __user *buffer, size_t buflen);
 
+static inline const struct user_key_payload *user_key_payload_rcu(const struct key *key)
+{
+	return (struct user_key_payload *)dereference_key_rcu(key);
+}
+
+static inline struct user_key_payload *user_key_payload_locked(const struct key *key)
+{
+	return (struct user_key_payload *)dereference_key_locked((struct key *)key);
+}
+
+#endif /* CONFIG_KEYS */
 
 #endif /* _KEYS_USER_TYPE_H */

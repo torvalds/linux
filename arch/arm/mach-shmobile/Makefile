@@ -3,7 +3,7 @@
 #
 
 # Common objects
-obj-y				:= timer.o console.o
+obj-y				:= timer.o
 
 # CPU objects
 obj-$(CONFIG_ARCH_SH73A0)	+= setup-sh73a0.o
@@ -13,16 +13,8 @@ obj-$(CONFIG_ARCH_R8A7778)	+= setup-r8a7778.o
 obj-$(CONFIG_ARCH_R8A7779)	+= setup-r8a7779.o pm-r8a7779.o
 obj-$(CONFIG_ARCH_R8A7790)	+= setup-r8a7790.o
 obj-$(CONFIG_ARCH_R8A7791)	+= setup-r8a7791.o
-obj-$(CONFIG_ARCH_R8A7793)	+= setup-r8a7793.o
-obj-$(CONFIG_ARCH_R8A7794)	+= setup-r8a7794.o
 obj-$(CONFIG_ARCH_EMEV2)	+= setup-emev2.o
 obj-$(CONFIG_ARCH_R7S72100)	+= setup-r7s72100.o
-
-# Clock objects
-ifndef CONFIG_COMMON_CLK
-obj-y				+= clock.o
-obj-$(CONFIG_ARCH_R8A7778)	+= clock-r8a7778.o
-endif
 
 # CPU reset vector handling objects
 cpu-y				:= platsmp.o headsmp.o
@@ -44,16 +36,8 @@ smp-$(CONFIG_ARCH_EMEV2)	+= smp-emev2.o headsmp-scu.o platsmp-scu.o
 
 # PM objects
 obj-$(CONFIG_SUSPEND)		+= suspend.o
-obj-$(CONFIG_CPU_FREQ)		+= cpufreq.o
-obj-$(CONFIG_PM_RCAR)		+= pm-rcar.o
 obj-$(CONFIG_PM_RMOBILE)	+= pm-rmobile.o
 obj-$(CONFIG_ARCH_RCAR_GEN2)	+= pm-rcar-gen2.o
-
-# Board objects
-ifndef CONFIG_ARCH_SHMOBILE_MULTI
-obj-$(CONFIG_MACH_BOCKW)	+= board-bockw.o
-obj-$(CONFIG_MACH_BOCKW_REFERENCE)	+= board-bockw-reference.o
-endif
 
 # Framework support
 obj-$(CONFIG_SMP)		+= $(smp-y)

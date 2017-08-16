@@ -32,7 +32,6 @@
 struct omap_connector {
 	struct drm_connector base;
 	struct omap_dss_device *dssdev;
-	struct drm_encoder *encoder;
 	bool hdmi_mode;
 };
 
@@ -41,69 +40,6 @@ bool omap_connector_get_hdmi_mode(struct drm_connector *connector)
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 
 	return omap_connector->hdmi_mode;
-}
-
-void copy_timings_omap_to_drm(struct drm_display_mode *mode,
-		struct omap_video_timings *timings)
-{
-	mode->clock = timings->pixelclock / 1000;
-
-	mode->hdisplay = timings->x_res;
-	mode->hsync_start = mode->hdisplay + timings->hfp;
-	mode->hsync_end = mode->hsync_start + timings->hsw;
-	mode->htotal = mode->hsync_end + timings->hbp;
-
-	mode->vdisplay = timings->y_res;
-	mode->vsync_start = mode->vdisplay + timings->vfp;
-	mode->vsync_end = mode->vsync_start + timings->vsw;
-	mode->vtotal = mode->vsync_end + timings->vbp;
-
-	mode->flags = 0;
-
-	if (timings->interlace)
-		mode->flags |= DRM_MODE_FLAG_INTERLACE;
-
-	if (timings->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
-		mode->flags |= DRM_MODE_FLAG_PHSYNC;
-	else
-		mode->flags |= DRM_MODE_FLAG_NHSYNC;
-
-	if (timings->vsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
-		mode->flags |= DRM_MODE_FLAG_PVSYNC;
-	else
-		mode->flags |= DRM_MODE_FLAG_NVSYNC;
-}
-
-void copy_timings_drm_to_omap(struct omap_video_timings *timings,
-		struct drm_display_mode *mode)
-{
-	timings->pixelclock = mode->clock * 1000;
-
-	timings->x_res = mode->hdisplay;
-	timings->hfp = mode->hsync_start - mode->hdisplay;
-	timings->hsw = mode->hsync_end - mode->hsync_start;
-	timings->hbp = mode->htotal - mode->hsync_end;
-
-	timings->y_res = mode->vdisplay;
-	timings->vfp = mode->vsync_start - mode->vdisplay;
-	timings->vsw = mode->vsync_end - mode->vsync_start;
-	timings->vbp = mode->vtotal - mode->vsync_end;
-
-	timings->interlace = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
-
-	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
-		timings->hsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	else
-		timings->hsync_level = OMAPDSS_SIG_ACTIVE_LOW;
-
-	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
-		timings->vsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	else
-		timings->vsync_level = OMAPDSS_SIG_ACTIVE_LOW;
-
-	timings->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
-	timings->de_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE;
 }
 
 static enum drm_connector_status omap_connector_detect(
@@ -182,11 +118,11 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 		kfree(edid);
 	} else {
 		struct drm_display_mode *mode = drm_mode_create(dev);
-		struct omap_video_timings timings = {0};
+		struct videomode vm = {0};
 
-		dssdrv->get_timings(dssdev, &timings);
+		dssdrv->get_timings(dssdev, &vm);
 
-		copy_timings_omap_to_drm(mode, &timings);
+		drm_display_mode_from_videomode(&vm, mode);
 
 		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 		drm_mode_set_name(mode);
@@ -204,12 +140,12 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
 	struct omap_dss_driver *dssdrv = dssdev->driver;
-	struct omap_video_timings timings = {0};
+	struct videomode vm = {0};
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *new_mode;
 	int r, ret = MODE_BAD;
 
-	copy_timings_drm_to_omap(&timings, mode);
+	drm_display_mode_to_videomode(mode, &vm);
 	mode->vrefresh = drm_mode_vrefresh(mode);
 
 	/*
@@ -218,13 +154,19 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	 * panel's timings
 	 */
 	if (dssdrv->check_timings) {
-		r = dssdrv->check_timings(dssdev, &timings);
+		r = dssdrv->check_timings(dssdev, &vm);
 	} else {
-		struct omap_video_timings t = {0};
+		struct videomode t = {0};
 
 		dssdrv->get_timings(dssdev, &t);
 
-		if (memcmp(&timings, &t, sizeof(struct omap_video_timings)))
+		/*
+		 * Ignore the flags, as we don't get them from
+		 * drm_display_mode_to_videomode.
+		 */
+		t.flags = 0;
+
+		if (memcmp(&vm, &t, sizeof(vm)))
 			r = -EINVAL;
 		else
 			r = 0;
@@ -233,7 +175,7 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	if (!r) {
 		/* check if vrefresh is still valid */
 		new_mode = drm_mode_duplicate(dev, mode);
-		new_mode->clock = timings.pixelclock / 1000;
+		new_mode->clock = vm.pixelclock / 1000;
 		new_mode->vrefresh = 0;
 		if (mode->vrefresh == drm_mode_vrefresh(new_mode))
 			ret = MODE_OK;
@@ -252,13 +194,6 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	return ret;
 }
 
-struct drm_encoder *omap_connector_attached_encoder(
-		struct drm_connector *connector)
-{
-	struct omap_connector *omap_connector = to_omap_connector(connector);
-	return omap_connector->encoder;
-}
-
 static const struct drm_connector_funcs omap_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
@@ -272,7 +207,6 @@ static const struct drm_connector_funcs omap_connector_funcs = {
 static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {
 	.get_modes = omap_connector_get_modes,
 	.mode_valid = omap_connector_mode_valid,
-	.best_encoder = omap_connector_attached_encoder,
 };
 
 /* initialize connector */
@@ -287,12 +221,11 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 
 	omap_dss_get_device(dssdev);
 
-	omap_connector = kzalloc(sizeof(struct omap_connector), GFP_KERNEL);
+	omap_connector = kzalloc(sizeof(*omap_connector), GFP_KERNEL);
 	if (!omap_connector)
 		goto fail;
 
 	omap_connector->dssdev = dssdev;
-	omap_connector->encoder = encoder;
 
 	connector = &omap_connector->base;
 
@@ -300,18 +233,14 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 				connector_type);
 	drm_connector_helper_add(connector, &omap_connector_helper_funcs);
 
-#if 0 /* enable when dss2 supports hotplug */
-	if (dssdev->caps & OMAP_DSS_DISPLAY_CAP_HPD)
-		connector->polled = 0;
-	else
-#endif
+	if (dssdev->driver->detect)
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-				DRM_CONNECTOR_POLL_DISCONNECT;
+				    DRM_CONNECTOR_POLL_DISCONNECT;
+	else
+		connector->polled = 0;
 
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
-
-	drm_connector_register(connector);
 
 	return connector;
 

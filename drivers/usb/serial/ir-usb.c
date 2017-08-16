@@ -197,6 +197,7 @@ static u8 ir_xbof_change(u8 xbof)
 static int ir_startup(struct usb_serial *serial)
 {
 	struct usb_irda_cs_descriptor *irda_desc;
+	int rates;
 
 	irda_desc = irda_usb_find_class_desc(serial, 0);
 	if (!irda_desc) {
@@ -205,18 +206,20 @@ static int ir_startup(struct usb_serial *serial)
 		return -ENODEV;
 	}
 
+	rates = le16_to_cpu(irda_desc->wBaudRate);
+
 	dev_dbg(&serial->dev->dev,
 		"%s - Baud rates supported:%s%s%s%s%s%s%s%s%s\n",
 		__func__,
-		(irda_desc->wBaudRate & USB_IRDA_BR_2400) ? " 2400" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_9600) ? " 9600" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_19200) ? " 19200" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_38400) ? " 38400" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_57600) ? " 57600" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_115200) ? " 115200" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_576000) ? " 576000" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_1152000) ? " 1152000" : "",
-		(irda_desc->wBaudRate & USB_IRDA_BR_4000000) ? " 4000000" : "");
+		(rates & USB_IRDA_BR_2400) ? " 2400" : "",
+		(rates & USB_IRDA_BR_9600) ? " 9600" : "",
+		(rates & USB_IRDA_BR_19200) ? " 19200" : "",
+		(rates & USB_IRDA_BR_38400) ? " 38400" : "",
+		(rates & USB_IRDA_BR_57600) ? " 57600" : "",
+		(rates & USB_IRDA_BR_115200) ? " 115200" : "",
+		(rates & USB_IRDA_BR_576000) ? " 576000" : "",
+		(rates & USB_IRDA_BR_1152000) ? " 1152000" : "",
+		(rates & USB_IRDA_BR_4000000) ? " 4000000" : "");
 
 	switch (irda_desc->bmAdditionalBOFs) {
 	case USB_IRDA_AB_48:

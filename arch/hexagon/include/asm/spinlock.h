@@ -23,6 +23,8 @@
 #define _ASM_SPINLOCK_H
 
 #include <asm/irqflags.h>
+#include <asm/barrier.h>
+#include <asm/processor.h>
 
 /*
  * This file is pulled in for SMP builds.
@@ -176,8 +178,12 @@ static inline unsigned int arch_spin_trylock(arch_spinlock_t *lock)
  * SMP spinlocks are intended to allow only a single CPU at the lock
  */
 #define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
-#define arch_spin_unlock_wait(lock) \
-	do {while (arch_spin_is_locked(lock)) cpu_relax(); } while (0)
+
+static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
+{
+	smp_cond_load_acquire(&lock->lock, !VAL);
+}
+
 #define arch_spin_is_locked(x) ((x)->lock != 0)
 
 #define arch_read_lock_flags(lock, flags) arch_read_lock(lock)

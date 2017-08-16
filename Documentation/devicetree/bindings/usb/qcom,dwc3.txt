@@ -18,7 +18,7 @@ A child node must exist to represent the core DWC3 IP block. The name of
 the node is not important. The content of the node is defined in dwc3.txt.
 
 Phy documentation is provided in the following places:
-Documentation/devicetree/bindings/phy/qcom,dwc3-usb-phy.txt
+Documentation/devicetree/bindings/phy/qcom-dwc3-usb-phy.txt
 
 Example device nodes:
 
@@ -59,7 +59,6 @@ Example device nodes:
 				interrupts = <0 205 0x4>;
 				phys = <&hs_phy>, <&ss_phy>;
 				phy-names = "usb2-phy", "usb3-phy";
-				tx-fifo-resize;
 				dr_mode = "host";
 			};
 		};

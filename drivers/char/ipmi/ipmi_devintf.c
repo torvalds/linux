@@ -108,7 +108,7 @@ static int ipmi_fasync(int fd, struct file *file, int on)
 	return (result);
 }
 
-static struct ipmi_user_hndl ipmi_hndlrs =
+static const struct ipmi_user_hndl ipmi_hndlrs =
 {
 	.ipmi_recv_hndl	= file_receive_handler,
 };
@@ -231,6 +231,102 @@ static int handle_send_req(ipmi_user_t     user,
 	return rv;
 }
 
+static int handle_recv(struct ipmi_file_private *priv,
+			bool trunc, struct ipmi_recv *rsp,
+			int (*copyout)(struct ipmi_recv *, void __user *),
+			void __user *to)
+{
+	int              addr_len;
+	struct list_head *entry;
+	struct ipmi_recv_msg  *msg;
+	unsigned long    flags;
+	int rv = 0;
+
+	/* We claim a mutex because we don't want two
+	   users getting something from the queue at a time.
+	   Since we have to release the spinlock before we can
+	   copy the data to the user, it's possible another
+	   user will grab something from the queue, too.  Then
+	   the messages might get out of order if something
+	   fails and the message gets put back onto the
+	   queue.  This mutex prevents that problem. */
+	mutex_lock(&priv->recv_mutex);
+
+	/* Grab the message off the list. */
+	spin_lock_irqsave(&(priv->recv_msg_lock), flags);
+	if (list_empty(&(priv->recv_msgs))) {
+		spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
+		rv = -EAGAIN;
+		goto recv_err;
+	}
+	entry = priv->recv_msgs.next;
+	msg = list_entry(entry, struct ipmi_recv_msg, link);
+	list_del(entry);
+	spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
+
+	addr_len = ipmi_addr_length(msg->addr.addr_type);
+	if (rsp->addr_len < addr_len)
+	{
+		rv = -EINVAL;
+		goto recv_putback_on_err;
+	}
+
+	if (copy_to_user(rsp->addr, &(msg->addr), addr_len)) {
+		rv = -EFAULT;
+		goto recv_putback_on_err;
+	}
+	rsp->addr_len = addr_len;
+
+	rsp->recv_type = msg->recv_type;
+	rsp->msgid = msg->msgid;
+	rsp->msg.netfn = msg->msg.netfn;
+	rsp->msg.cmd = msg->msg.cmd;
+
+	if (msg->msg.data_len > 0) {
+		if (rsp->msg.data_len < msg->msg.data_len) {
+			rv = -EMSGSIZE;
+			if (trunc)
+				msg->msg.data_len = rsp->msg.data_len;
+			else
+				goto recv_putback_on_err;
+		}
+
+		if (copy_to_user(rsp->msg.data,
+				 msg->msg.data,
+				 msg->msg.data_len))
+		{
+			rv = -EFAULT;
+			goto recv_putback_on_err;
+		}
+		rsp->msg.data_len = msg->msg.data_len;
+	} else {
+		rsp->msg.data_len = 0;
+	}
+
+	rv = copyout(rsp, to);
+	if (rv)
+		goto recv_putback_on_err;
+
+	mutex_unlock(&priv->recv_mutex);
+	ipmi_free_recv_msg(msg);
+	return 0;
+
+recv_putback_on_err:
+	/* If we got an error, put the message back onto
+	   the head of the queue. */
+	spin_lock_irqsave(&(priv->recv_msg_lock), flags);
+	list_add(entry, &(priv->recv_msgs));
+	spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
+recv_err:
+	mutex_unlock(&priv->recv_mutex);
+	return rv;
+}
+
+static int copyout_recv(struct ipmi_recv *rsp, void __user *to)
+{
+	return copy_to_user(to, rsp, sizeof(struct ipmi_recv)) ? -EFAULT : 0;
+}
+
 static int ipmi_ioctl(struct file   *file,
 		      unsigned int  cmd,
 		      unsigned long data)
@@ -277,100 +373,12 @@ static int ipmi_ioctl(struct file   *file,
 	case IPMICTL_RECEIVE_MSG_TRUNC:
 	{
 		struct ipmi_recv      rsp;
-		int              addr_len;
-		struct list_head *entry;
-		struct ipmi_recv_msg  *msg;
-		unsigned long    flags;
-		
 
-		rv = 0;
-		if (copy_from_user(&rsp, arg, sizeof(rsp))) {
+		if (copy_from_user(&rsp, arg, sizeof(rsp)))
 			rv = -EFAULT;
-			break;
-		}
-
-		/* We claim a mutex because we don't want two
-                   users getting something from the queue at a time.
-                   Since we have to release the spinlock before we can
-                   copy the data to the user, it's possible another
-                   user will grab something from the queue, too.  Then
-                   the messages might get out of order if something
-                   fails and the message gets put back onto the
-                   queue.  This mutex prevents that problem. */
-		mutex_lock(&priv->recv_mutex);
-
-		/* Grab the message off the list. */
-		spin_lock_irqsave(&(priv->recv_msg_lock), flags);
-		if (list_empty(&(priv->recv_msgs))) {
-			spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
-			rv = -EAGAIN;
-			goto recv_err;
-		}
-		entry = priv->recv_msgs.next;
-		msg = list_entry(entry, struct ipmi_recv_msg, link);
-		list_del(entry);
-		spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
-
-		addr_len = ipmi_addr_length(msg->addr.addr_type);
-		if (rsp.addr_len < addr_len)
-		{
-			rv = -EINVAL;
-			goto recv_putback_on_err;
-		}
-
-		if (copy_to_user(rsp.addr, &(msg->addr), addr_len)) {
-			rv = -EFAULT;
-			goto recv_putback_on_err;
-		}
-		rsp.addr_len = addr_len;
-
-		rsp.recv_type = msg->recv_type;
-		rsp.msgid = msg->msgid;
-		rsp.msg.netfn = msg->msg.netfn;
-		rsp.msg.cmd = msg->msg.cmd;
-
-		if (msg->msg.data_len > 0) {
-			if (rsp.msg.data_len < msg->msg.data_len) {
-				rv = -EMSGSIZE;
-				if (cmd == IPMICTL_RECEIVE_MSG_TRUNC) {
-					msg->msg.data_len = rsp.msg.data_len;
-				} else {
-					goto recv_putback_on_err;
-				}
-			}
-
-			if (copy_to_user(rsp.msg.data,
-					 msg->msg.data,
-					 msg->msg.data_len))
-			{
-				rv = -EFAULT;
-				goto recv_putback_on_err;
-			}
-			rsp.msg.data_len = msg->msg.data_len;
-		} else {
-			rsp.msg.data_len = 0;
-		}
-
-		if (copy_to_user(arg, &rsp, sizeof(rsp))) {
-			rv = -EFAULT;
-			goto recv_putback_on_err;
-		}
-
-		mutex_unlock(&priv->recv_mutex);
-		ipmi_free_recv_msg(msg);
-		break;
-
-	recv_putback_on_err:
-		/* If we got an error, put the message back onto
-		   the head of the queue. */
-		spin_lock_irqsave(&(priv->recv_msg_lock), flags);
-		list_add(entry, &(priv->recv_msgs));
-		spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
-		mutex_unlock(&priv->recv_mutex);
-		break;
-
-	recv_err:
-		mutex_unlock(&priv->recv_mutex);
+		else
+			rv = handle_recv(priv, cmd == IPMICTL_RECEIVE_MSG_TRUNC,
+					 &rsp, copyout_recv, arg);
 		break;
 	}
 
@@ -696,85 +704,56 @@ struct compat_ipmi_req_settime {
 /*
  * Define some helper functions for copying IPMI data
  */
-static long get_compat_ipmi_msg(struct ipmi_msg *p64,
-				struct compat_ipmi_msg __user *p32)
+static void get_compat_ipmi_msg(struct ipmi_msg *p64,
+				struct compat_ipmi_msg *p32)
 {
-	compat_uptr_t tmp;
-
-	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
-			__get_user(p64->netfn, &p32->netfn) ||
-			__get_user(p64->cmd, &p32->cmd) ||
-			__get_user(p64->data_len, &p32->data_len) ||
-			__get_user(tmp, &p32->data))
-		return -EFAULT;
-	p64->data = compat_ptr(tmp);
-	return 0;
+	p64->netfn = p32->netfn;
+	p64->cmd = p32->cmd;
+	p64->data_len = p32->data_len;
+	p64->data = compat_ptr(p32->data);
 }
 
-static long put_compat_ipmi_msg(struct ipmi_msg *p64,
-				struct compat_ipmi_msg __user *p32)
+static void get_compat_ipmi_req(struct ipmi_req *p64,
+				struct compat_ipmi_req *p32)
 {
-	if (!access_ok(VERIFY_WRITE, p32, sizeof(*p32)) ||
-			__put_user(p64->netfn, &p32->netfn) ||
-			__put_user(p64->cmd, &p32->cmd) ||
-			__put_user(p64->data_len, &p32->data_len))
-		return -EFAULT;
-	return 0;
+	p64->addr = compat_ptr(p32->addr);
+	p64->addr_len = p32->addr_len;
+	p64->msgid = p32->msgid;
+	get_compat_ipmi_msg(&p64->msg, &p32->msg);
 }
 
-static long get_compat_ipmi_req(struct ipmi_req *p64,
-				struct compat_ipmi_req __user *p32)
+static void get_compat_ipmi_req_settime(struct ipmi_req_settime *p64,
+		struct compat_ipmi_req_settime *p32)
 {
-
-	compat_uptr_t	tmp;
-
-	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
-			__get_user(tmp, &p32->addr) ||
-			__get_user(p64->addr_len, &p32->addr_len) ||
-			__get_user(p64->msgid, &p32->msgid) ||
-			get_compat_ipmi_msg(&p64->msg, &p32->msg))
-		return -EFAULT;
-	p64->addr = compat_ptr(tmp);
-	return 0;
+	get_compat_ipmi_req(&p64->req, &p32->req);
+	p64->retries = p32->retries;
+	p64->retry_time_ms = p32->retry_time_ms;
 }
 
-static long get_compat_ipmi_req_settime(struct ipmi_req_settime *p64,
-		struct compat_ipmi_req_settime __user *p32)
+static void get_compat_ipmi_recv(struct ipmi_recv *p64,
+				 struct compat_ipmi_recv *p32)
 {
-	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
-			get_compat_ipmi_req(&p64->req, &p32->req) ||
-			__get_user(p64->retries, &p32->retries) ||
-			__get_user(p64->retry_time_ms, &p32->retry_time_ms))
-		return -EFAULT;
-	return 0;
+	memset(p64, 0, sizeof(struct ipmi_recv));
+	p64->recv_type = p32->recv_type;
+	p64->addr = compat_ptr(p32->addr);
+	p64->addr_len = p32->addr_len;
+	p64->msgid = p32->msgid;
+	get_compat_ipmi_msg(&p64->msg, &p32->msg);
 }
 
-static long get_compat_ipmi_recv(struct ipmi_recv *p64,
-				 struct compat_ipmi_recv __user *p32)
+static int copyout_recv32(struct ipmi_recv *p64, void __user *to)
 {
-	compat_uptr_t tmp;
-
-	if (!access_ok(VERIFY_READ, p32, sizeof(*p32)) ||
-			__get_user(p64->recv_type, &p32->recv_type) ||
-			__get_user(tmp, &p32->addr) ||
-			__get_user(p64->addr_len, &p32->addr_len) ||
-			__get_user(p64->msgid, &p32->msgid) ||
-			get_compat_ipmi_msg(&p64->msg, &p32->msg))
-		return -EFAULT;
-	p64->addr = compat_ptr(tmp);
-	return 0;
-}
-
-static long put_compat_ipmi_recv(struct ipmi_recv *p64,
-				 struct compat_ipmi_recv __user *p32)
-{
-	if (!access_ok(VERIFY_WRITE, p32, sizeof(*p32)) ||
-			__put_user(p64->recv_type, &p32->recv_type) ||
-			__put_user(p64->addr_len, &p32->addr_len) ||
-			__put_user(p64->msgid, &p32->msgid) ||
-			put_compat_ipmi_msg(&p64->msg, &p32->msg))
-		return -EFAULT;
-	return 0;
+	struct compat_ipmi_recv v32;
+	memset(&v32, 0, sizeof(struct compat_ipmi_recv));
+	v32.recv_type = p64->recv_type;
+	v32.addr = ptr_to_compat(p64->addr);
+	v32.addr_len = p64->addr_len;
+	v32.msgid = p64->msgid;
+	v32.msg.netfn = p64->msg.netfn;
+	v32.msg.cmd = p64->msg.cmd;
+	v32.msg.data_len = p64->msg.data_len;
+	v32.msg.data = ptr_to_compat(p64->msg.data);
+	return copy_to_user(to, &v32, sizeof(v32)) ? -EFAULT : 0;
 }
 
 /*
@@ -783,16 +762,18 @@ static long put_compat_ipmi_recv(struct ipmi_recv *p64,
 static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 			      unsigned long arg)
 {
-	int rc;
 	struct ipmi_file_private *priv = filep->private_data;
 
 	switch(cmd) {
 	case COMPAT_IPMICTL_SEND_COMMAND:
 	{
 		struct ipmi_req	rp;
+		struct compat_ipmi_req r32;
 
-		if (get_compat_ipmi_req(&rp, compat_ptr(arg)))
+		if (copy_from_user(&r32, compat_ptr(arg), sizeof(r32)))
 			return -EFAULT;
+
+		get_compat_ipmi_req(&rp, &r32);
 
 		return handle_send_req(priv->user, &rp,
 				priv->default_retries,
@@ -801,9 +782,12 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 	case COMPAT_IPMICTL_SEND_COMMAND_SETTIME:
 	{
 		struct ipmi_req_settime	sp;
+		struct compat_ipmi_req_settime sp32;
 
-		if (get_compat_ipmi_req_settime(&sp, compat_ptr(arg)))
+		if (copy_from_user(&sp32, compat_ptr(arg), sizeof(sp32)))
 			return -EFAULT;
+
+		get_compat_ipmi_req_settime(&sp, &sp32);
 
 		return handle_send_req(priv->user, &sp.req,
 				sp.retries, sp.retry_time_ms);
@@ -811,32 +795,17 @@ static long compat_ipmi_ioctl(struct file *filep, unsigned int cmd,
 	case COMPAT_IPMICTL_RECEIVE_MSG:
 	case COMPAT_IPMICTL_RECEIVE_MSG_TRUNC:
 	{
-		struct ipmi_recv   __user *precv64;
 		struct ipmi_recv   recv64;
+		struct compat_ipmi_recv recv32;
 
-		memset(&recv64, 0, sizeof(recv64));
-		if (get_compat_ipmi_recv(&recv64, compat_ptr(arg)))
+		if (copy_from_user(&recv32, compat_ptr(arg), sizeof(recv32)))
 			return -EFAULT;
 
-		precv64 = compat_alloc_user_space(sizeof(recv64));
-		if (copy_to_user(precv64, &recv64, sizeof(recv64)))
-			return -EFAULT;
+		get_compat_ipmi_recv(&recv64, &recv32);
 
-		rc = ipmi_ioctl(filep,
-				((cmd == COMPAT_IPMICTL_RECEIVE_MSG)
-				 ? IPMICTL_RECEIVE_MSG
-				 : IPMICTL_RECEIVE_MSG_TRUNC),
-				(unsigned long) precv64);
-		if (rc != 0)
-			return rc;
-
-		if (copy_from_user(&recv64, precv64, sizeof(recv64)))
-			return -EFAULT;
-
-		if (put_compat_ipmi_recv(&recv64, compat_ptr(arg)))
-			return -EFAULT;
-
-		return rc;
+		return handle_recv(priv,
+				 cmd == COMPAT_IPMICTL_RECEIVE_MSG_TRUNC,
+				 &recv64, copyout_recv32, compat_ptr(arg));
 	}
 	default:
 		return ipmi_ioctl(filep, cmd, arg);
@@ -989,4 +958,3 @@ module_exit(cleanup_ipmi);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
 MODULE_DESCRIPTION("Linux device interface for the IPMI message handler.");
-MODULE_ALIAS("platform:ipmi_si");

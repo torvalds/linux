@@ -1,0 +1,129 @@
+config CLK_RENESAS
+	bool "Renesas SoC clock support" if COMPILE_TEST && !ARCH_RENESAS
+	default y if ARCH_RENESAS
+	select CLK_EMEV2 if ARCH_EMEV2
+	select CLK_RZA1 if ARCH_R7S72100
+	select CLK_R8A73A4 if ARCH_R8A73A4
+	select CLK_R8A7740 if ARCH_R8A7740
+	select CLK_R8A7743 if ARCH_R8A7743
+	select CLK_R8A7745 if ARCH_R8A7745
+	select CLK_R8A7778 if ARCH_R8A7778
+	select CLK_R8A7779 if ARCH_R8A7779
+	select CLK_R8A7790 if ARCH_R8A7790
+	select CLK_R8A7791 if ARCH_R8A7791 || ARCH_R8A7793
+	select CLK_R8A7792 if ARCH_R8A7792
+	select CLK_R8A7794 if ARCH_R8A7794
+	select CLK_R8A7795 if ARCH_R8A7795
+	select CLK_R8A7796 if ARCH_R8A7796
+	select CLK_SH73A0 if ARCH_SH73A0
+
+if CLK_RENESAS
+
+config CLK_RENESAS_LEGACY
+	bool "Legacy DT clock support"
+	depends on CLK_R8A7790 || CLK_R8A7791 || CLK_R8A7792 || CLK_R8A7794
+	default y
+	help
+	  Enable backward compatibility with old device trees describing a
+	  hierarchical representation of the various CPG and MSTP clocks.
+
+	  Say Y if you want your kernel to work with old DTBs.
+
+# SoC
+config CLK_EMEV2
+	bool "Emma Mobile EV2 clock support" if COMPILE_TEST
+
+config CLK_RZA1
+	bool
+	select CLK_RENESAS_CPG_MSTP
+
+config CLK_R8A73A4
+	bool
+	select CLK_RENESAS_CPG_MSTP
+	select CLK_RENESAS_DIV6
+
+config CLK_R8A7740
+	bool
+	select CLK_RENESAS_CPG_MSTP
+	select CLK_RENESAS_DIV6
+
+config CLK_R8A7743
+	bool
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A7745
+	bool
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A7778
+	bool
+	select CLK_RENESAS_CPG_MSTP
+
+config CLK_R8A7779
+	bool
+	select CLK_RENESAS_CPG_MSTP
+
+config CLK_R8A7790
+	bool
+	select CLK_RCAR_GEN2 if CLK_RENESAS_LEGACY
+	select CLK_RCAR_GEN2_CPG
+	select CLK_RENESAS_DIV6
+
+config CLK_R8A7791
+	bool
+	select CLK_RCAR_GEN2 if CLK_RENESAS_LEGACY
+	select CLK_RCAR_GEN2_CPG
+	select CLK_RENESAS_DIV6
+
+config CLK_R8A7792
+	bool
+	select CLK_RCAR_GEN2 if CLK_RENESAS_LEGACY
+	select CLK_RCAR_GEN2_CPG
+
+config CLK_R8A7794
+	bool
+	select CLK_RCAR_GEN2 if CLK_RENESAS_LEGACY
+	select CLK_RCAR_GEN2_CPG
+	select CLK_RENESAS_DIV6
+
+config CLK_R8A7795
+	bool
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_R8A7796
+	bool
+	select CLK_RCAR_GEN3_CPG
+
+config CLK_SH73A0
+	bool
+	select CLK_RENESAS_CPG_MSTP
+	select CLK_RENESAS_DIV6
+
+
+# Family
+config CLK_RCAR_GEN2
+	bool
+	select CLK_RENESAS_CPG_MSTP
+	select CLK_RENESAS_DIV6
+
+config CLK_RCAR_GEN2_CPG
+	bool
+	select CLK_RENESAS_CPG_MSSR
+
+config CLK_RCAR_GEN3_CPG
+	bool
+	select CLK_RENESAS_CPG_MSSR
+
+
+# Generic
+config CLK_RENESAS_CPG_MSSR
+	bool
+	select CLK_RENESAS_DIV6
+
+config CLK_RENESAS_CPG_MSTP
+	bool
+
+config CLK_RENESAS_DIV6
+	bool "DIV6 clock support" if COMPILE_TEST
+
+endif # CLK_RENESAS

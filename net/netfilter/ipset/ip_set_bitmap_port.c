@@ -35,12 +35,13 @@ MODULE_ALIAS("ip_set_bitmap:port");
 /* Type structure */
 struct bitmap_port {
 	void *members;		/* the set members */
-	void *extensions;	/* data extensions */
 	u16 first_port;		/* host byte order, included in range */
 	u16 last_port;		/* host byte order, included in range */
 	u32 elements;		/* number of max elements in the set */
 	size_t memsize;		/* members size */
 	struct timer_list gc;	/* garbage collection */
+	unsigned char extensions[0]	/* data extensions */
+		__aligned(__alignof__(u64));
 };
 
 /* ADT structure for generic function args */
@@ -209,13 +210,6 @@ init_map_port(struct ip_set *set, struct bitmap_port *map,
 	map->members = ip_set_alloc(map->memsize);
 	if (!map->members)
 		return false;
-	if (set->dsize) {
-		map->extensions = ip_set_alloc(set->dsize * map->elements);
-		if (!map->extensions) {
-			kfree(map->members);
-			return false;
-		}
-	}
 	map->first_port = first_port;
 	map->last_port = last_port;
 	set->timeout = IPSET_NO_TIMEOUT;
@@ -232,6 +226,7 @@ bitmap_port_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 {
 	struct bitmap_port *map;
 	u16 first_port, last_port;
+	u32 elements;
 
 	if (unlikely(!ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT_TO) ||
@@ -248,14 +243,15 @@ bitmap_port_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 		last_port = tmp;
 	}
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	elements = last_port - first_port + 1;
+	set->dsize = ip_set_elem_len(set, tb, 0, 0);
+	map = ip_set_alloc(sizeof(*map) + elements * set->dsize);
 	if (!map)
 		return -ENOMEM;
 
-	map->elements = last_port - first_port + 1;
+	map->elements = elements;
 	map->memsize = bitmap_bytes(0, map->elements);
 	set->variant = &bitmap_port;
-	set->dsize = ip_set_elem_len(set, tb, 0);
 	if (!init_map_port(set, map, first_port, last_port)) {
 		kfree(map);
 		return -ENOMEM;

@@ -47,6 +47,13 @@
 #define CFG_WIFI_BIT	(18)
 #define CFG_CAMERA_BIT	(19)
 
+#if IS_ENABLED(CONFIG_ACPI_WMI)
+static const char *const ideapad_wmi_fnesc_events[] = {
+	"26CAB2E5-5CF1-46AE-AAC3-4A12B6BA50E6", /* Yoga 3 */
+	"56322276-8493-4CE8-A783-98C991274F5E", /* Yoga 700 */
+};
+#endif
+
 enum {
 	VPCCMD_R_VPC1 = 0x10,
 	VPCCMD_R_BL_MAX,
@@ -89,6 +96,7 @@ struct ideapad_private {
 	struct dentry *debug;
 	unsigned long cfg;
 	bool has_hw_rfkill_switch;
+	const char *fnesc_guid;
 };
 
 static bool no_bt_rfkill;
@@ -415,9 +423,43 @@ static ssize_t store_ideapad_fan(struct device *dev,
 
 static DEVICE_ATTR(fan_mode, 0644, show_ideapad_fan, store_ideapad_fan);
 
+static ssize_t touchpad_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	unsigned long result;
+
+	if (read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &result))
+		return sprintf(buf, "-1\n");
+	return sprintf(buf, "%lu\n", result);
+}
+
+/* Switch to RO for now: It might be revisited in the future */
+static ssize_t __maybe_unused touchpad_store(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	bool state;
+	int ret;
+
+	ret = kstrtobool(buf, &state);
+	if (ret)
+		return ret;
+
+	ret = write_ec_cmd(priv->adev->handle, VPCCMD_W_TOUCHPAD, state);
+	if (ret < 0)
+		return -EIO;
+	return count;
+}
+
+static DEVICE_ATTR_RO(touchpad);
+
 static struct attribute *ideapad_attributes[] = {
 	&dev_attr_camera_power.attr,
 	&dev_attr_fan_mode.attr,
+	&dev_attr_touchpad.attr,
 	NULL
 };
 
@@ -470,7 +512,7 @@ static int ideapad_rfk_set(void *data, bool blocked)
 	return write_ec_cmd(priv->priv->adev->handle, opcode, !blocked);
 }
 
-static struct rfkill_ops ideapad_rfk_ops = {
+static const struct rfkill_ops ideapad_rfk_ops = {
 	.set_block = ideapad_rfk_set,
 };
 
@@ -559,6 +601,7 @@ static void ideapad_sysfs_exit(struct ideapad_private *priv)
 static const struct key_entry ideapad_keymap[] = {
 	{ KE_KEY, 6,  { KEY_SWITCHVIDEOMODE } },
 	{ KE_KEY, 7,  { KEY_CAMERA } },
+	{ KE_KEY, 8,  { KEY_MICMUTE } },
 	{ KE_KEY, 11, { KEY_F16 } },
 	{ KE_KEY, 13, { KEY_WLAN } },
 	{ KE_KEY, 16, { KEY_PROG1 } },
@@ -567,6 +610,8 @@ static const struct key_entry ideapad_keymap[] = {
 	{ KE_KEY, 65, { KEY_PROG4 } },
 	{ KE_KEY, 66, { KEY_TOUCHPAD_OFF } },
 	{ KE_KEY, 67, { KEY_TOUCHPAD_ON } },
+	{ KE_KEY, 128, { KEY_ESC } },
+
 	{ KE_END, 0 },
 };
 
@@ -593,14 +638,12 @@ static int ideapad_input_init(struct ideapad_private *priv)
 	error = input_register_device(inputdev);
 	if (error) {
 		pr_err("Unable to register input device\n");
-		goto err_free_keymap;
+		goto err_free_dev;
 	}
 
 	priv->inputdev = inputdev;
 	return 0;
 
-err_free_keymap:
-	sparse_keymap_free(inputdev);
 err_free_dev:
 	input_free_device(inputdev);
 	return error;
@@ -608,7 +651,6 @@ err_free_dev:
 
 static void ideapad_input_exit(struct ideapad_private *priv)
 {
-	sparse_keymap_free(priv->inputdev);
 	input_unregister_device(priv->inputdev);
 	priv->inputdev = NULL;
 }
@@ -799,6 +841,7 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 				break;
 			case 13:
 			case 11:
+			case 8:
 			case 7:
 			case 6:
 				ideapad_input_report(priv, vpc_bit);
@@ -818,12 +861,32 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 			case 0:
 				ideapad_check_special_buttons(priv);
 				break;
+			case 1:
+				/* Some IdeaPads report event 1 every ~20
+				 * seconds while on battery power; some
+				 * report this when changing to/from tablet
+				 * mode. Squelch this event.
+				 */
+				break;
 			default:
 				pr_info("Unknown event: %lu\n", vpc_bit);
 			}
 		}
 	}
 }
+
+#if IS_ENABLED(CONFIG_ACPI_WMI)
+static void ideapad_wmi_notify(u32 value, void *context)
+{
+	switch (value) {
+	case 128:
+		ideapad_input_report(context, value);
+		break;
+	default:
+		pr_info("Unknown WMI event %u\n", value);
+	}
+}
+#endif
 
 /*
  * Some ideapads don't have a hardware rfkill switch, reading VPCCMD_R_RF
@@ -846,17 +909,143 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		},
 	},
 	{
+		.ident = "Lenovo V310-14IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-14IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo V310-14ISK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-14ISK"),
+		},
+	},
+	{
+		.ident = "Lenovo V310-15IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-15IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo V310-15ISK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-15ISK"),
+		},
+	},
+	{
+		.ident = "Lenovo V510-15IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V510-15IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 300-15IBR",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 300-15IBR"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 300-15IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 300-15IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 300S-11IBR",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 300S-11BR"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 310-15ABR",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15ABR"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 310-15IAP",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15IAP"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 310-15IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 310-15ISK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15ISK"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad Y700-14ISK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad Y700-14ISK"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad Y700-15ACZ",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad Y700-15ACZ"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad Y700-15ISK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad Y700-15ISK"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad Y700 Touch-15ISK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad Y700 Touch-15ISK"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad Y700-17ISK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad Y700-17ISK"),
+		},
+	},
+	{
+		.ident = "Lenovo Legion Y520-15IKBN",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y520-15IKBN"),
+		},
+	},
+	{
+		.ident = "Lenovo Legion Y720-15IKBN",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Y720-15IKBN"),
+		},
+	},
+	{
 		.ident = "Lenovo Yoga 2 11 / 13 / Pro",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Yoga 2"),
-		},
-	},
-	{
-		.ident = "Lenovo Yoga 3 14",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Yoga 3 14"),
 		},
 	},
 	{
@@ -867,10 +1056,45 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		},
 	},
 	{
+		.ident = "Lenovo Yoga 3 1170 / 1470",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo Yoga 3"),
+		},
+	},
+	{
 		.ident = "Lenovo Yoga 3 Pro 1370",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 3 Pro-1370"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 3"),
+		},
+	},
+	{
+		.ident = "Lenovo Yoga 700",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 700"),
+		},
+	},
+	{
+		.ident = "Lenovo Yoga 900",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 900"),
+		},
+	},
+	{
+		.ident = "Lenovo Yoga 900",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_NAME, "VIUU4"),
+		},
+	},
+	{
+		.ident = "Lenovo YOGA 910-13IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 910-13IKB"),
 		},
 	},
 	{}
@@ -936,7 +1160,25 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	if (ret)
 		goto notification_failed;
 
+#if IS_ENABLED(CONFIG_ACPI_WMI)
+	for (i = 0; i < ARRAY_SIZE(ideapad_wmi_fnesc_events); i++) {
+		ret = wmi_install_notify_handler(ideapad_wmi_fnesc_events[i],
+						 ideapad_wmi_notify, priv);
+		if (ret == AE_OK) {
+			priv->fnesc_guid = ideapad_wmi_fnesc_events[i];
+			break;
+		}
+	}
+	if (ret != AE_OK && ret != AE_NOT_EXIST)
+		goto notification_failed_wmi;
+#endif
+
 	return 0;
+#if IS_ENABLED(CONFIG_ACPI_WMI)
+notification_failed_wmi:
+	acpi_remove_notify_handler(priv->adev->handle,
+		ACPI_DEVICE_NOTIFY, ideapad_acpi_notify);
+#endif
 notification_failed:
 	ideapad_backlight_exit(priv);
 backlight_failed:
@@ -955,6 +1197,10 @@ static int ideapad_acpi_remove(struct platform_device *pdev)
 	struct ideapad_private *priv = dev_get_drvdata(&pdev->dev);
 	int i;
 
+#if IS_ENABLED(CONFIG_ACPI_WMI)
+	if (priv->fnesc_guid)
+		wmi_remove_notify_handler(priv->fnesc_guid);
+#endif
 	acpi_remove_notify_handler(priv->adev->handle,
 		ACPI_DEVICE_NOTIFY, ideapad_acpi_notify);
 	ideapad_backlight_exit(priv);

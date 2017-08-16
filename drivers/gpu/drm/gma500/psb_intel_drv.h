@@ -23,6 +23,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder.h>
 #include <linux/gpio.h>
 #include "gma_display.h"
 
@@ -140,6 +141,9 @@ struct gma_encoder {
 struct gma_connector {
 	struct drm_connector base;
 	struct gma_encoder *encoder;
+
+	void (*save)(struct drm_connector *connector);
+	void (*restore)(struct drm_connector *connector);
 };
 
 struct psb_intel_crtc_state {

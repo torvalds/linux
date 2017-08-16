@@ -27,7 +27,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <media/v4l2-ioctl.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "fimc-core.h"
@@ -736,6 +736,7 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 	for (i = 0; i < pix->num_planes; ++i) {
 		struct v4l2_plane_pix_format *plane_fmt = &pix->plane_fmt[i];
 		u32 bpl = plane_fmt->bytesperline;
+		u32 sizeimage;
 
 		if (fmt->colplanes > 1 && (bpl == 0 || bpl < pix->width))
 			bpl = pix->width; /* Planar */
@@ -755,8 +756,17 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 			bytesperline /= 2;
 
 		plane_fmt->bytesperline = bytesperline;
-		plane_fmt->sizeimage = max((pix->width * pix->height *
-				   fmt->depth[i]) / 8, plane_fmt->sizeimage);
+		sizeimage = pix->width * pix->height * fmt->depth[i] / 8;
+
+		/* Ensure full last row for tiled formats */
+		if (tiled_fmt(fmt)) {
+			/* 64 * 32 * plane_fmt->bytesperline / 64 */
+			u32 row_size = plane_fmt->bytesperline * 32;
+
+			sizeimage = roundup(sizeimage, row_size);
+		}
+
+		plane_fmt->sizeimage = max(sizeimage, plane_fmt->sizeimage);
 	}
 }
 
@@ -1018,19 +1028,11 @@ static int fimc_probe(struct platform_device *pdev)
 			goto err_sd;
 	}
 
-	/* Initialize contiguous memory allocator */
-	fimc->alloc_ctx = vb2_dma_contig_init_ctx(dev);
-	if (IS_ERR(fimc->alloc_ctx)) {
-		ret = PTR_ERR(fimc->alloc_ctx);
-		goto err_gclk;
-	}
+	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
 
 	dev_dbg(dev, "FIMC.%d registered successfully\n", fimc->id);
 	return 0;
 
-err_gclk:
-	if (!pm_runtime_enabled(dev))
-		clk_disable(fimc->clock[CLK_GATE]);
 err_sd:
 	fimc_unregister_capture_subdev(fimc);
 err_sclk:
@@ -1123,7 +1125,7 @@ static int fimc_remove(struct platform_device *pdev)
 	pm_runtime_set_suspended(&pdev->dev);
 
 	fimc_unregister_capture_subdev(fimc);
-	vb2_dma_contig_cleanup_ctx(fimc->alloc_ctx);
+	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
 
 	clk_disable(fimc->clock[CLK_BUS]);
 	fimc_clk_put(fimc);
@@ -1152,26 +1154,6 @@ static const struct fimc_pix_limit s5p_pix_limit[4] = {
 		.out_rot_en_w	= 1280,
 		.out_rot_dis_w	= 1920,
 	},
-};
-
-static const struct fimc_variant fimc0_variant_s5p = {
-	.has_inp_rot	 = 1,
-	.has_out_rot	 = 1,
-	.has_cam_if	 = 1,
-	.min_inp_pixsize = 16,
-	.min_out_pixsize = 16,
-	.hor_offs_align	 = 8,
-	.min_vsize_align = 16,
-	.pix_limit	 = &s5p_pix_limit[0],
-};
-
-static const struct fimc_variant fimc2_variant_s5p = {
-	.has_cam_if	 = 1,
-	.min_inp_pixsize = 16,
-	.min_out_pixsize = 16,
-	.hor_offs_align	 = 8,
-	.min_vsize_align = 16,
-	.pix_limit	 = &s5p_pix_limit[1],
 };
 
 static const struct fimc_variant fimc0_variant_s5pv210 = {
@@ -1204,18 +1186,6 @@ static const struct fimc_variant fimc2_variant_s5pv210 = {
 	.hor_offs_align	 = 8,
 	.min_vsize_align = 16,
 	.pix_limit	 = &s5p_pix_limit[2],
-};
-
-/* S5PC100 */
-static const struct fimc_drvdata fimc_drvdata_s5p = {
-	.variant = {
-		[0] = &fimc0_variant_s5p,
-		[1] = &fimc0_variant_s5p,
-		[2] = &fimc2_variant_s5p,
-	},
-	.num_entities	= 3,
-	.lclk_frequency = 133000000UL,
-	.out_buf_count	= 4,
 };
 
 /* S5PV210, S5PC110 */
@@ -1251,23 +1221,6 @@ static const struct fimc_drvdata fimc_drvdata_exynos4x12 = {
 	.out_buf_count	= 32,
 };
 
-static const struct platform_device_id fimc_driver_ids[] = {
-	{
-		.name		= "s5p-fimc",
-		.driver_data	= (unsigned long)&fimc_drvdata_s5p,
-	}, {
-		.name		= "s5pv210-fimc",
-		.driver_data	= (unsigned long)&fimc_drvdata_s5pv210,
-	}, {
-		.name		= "exynos4-fimc",
-		.driver_data	= (unsigned long)&fimc_drvdata_exynos4210,
-	}, {
-		.name		= "exynos4x12-fimc",
-		.driver_data	= (unsigned long)&fimc_drvdata_exynos4x12,
-	},
-	{ },
-};
-
 static const struct of_device_id fimc_of_match[] = {
 	{
 		.compatible = "samsung,s5pv210-fimc",
@@ -1290,7 +1243,6 @@ static const struct dev_pm_ops fimc_pm_ops = {
 static struct platform_driver fimc_driver = {
 	.probe		= fimc_probe,
 	.remove		= fimc_remove,
-	.id_table	= fimc_driver_ids,
 	.driver = {
 		.of_match_table = fimc_of_match,
 		.name		= FIMC_DRIVER_NAME,

@@ -242,20 +242,6 @@ struct tegra_mipi_device *tegra_mipi_request(struct device *device)
 	dev->pads = args.args[0];
 	dev->device = device;
 
-	mutex_lock(&dev->mipi->lock);
-
-	if (dev->mipi->usage_count++ == 0) {
-		err = tegra_mipi_power_up(dev->mipi);
-		if (err < 0) {
-			dev_err(dev->mipi->dev,
-				"failed to power up MIPI bricks: %d\n",
-				err);
-			return ERR_PTR(err);
-		}
-	}
-
-	mutex_unlock(&dev->mipi->lock);
-
 	return dev;
 
 put:
@@ -270,29 +256,42 @@ EXPORT_SYMBOL(tegra_mipi_request);
 
 void tegra_mipi_free(struct tegra_mipi_device *device)
 {
-	int err;
-
-	mutex_lock(&device->mipi->lock);
-
-	if (--device->mipi->usage_count == 0) {
-		err = tegra_mipi_power_down(device->mipi);
-		if (err < 0) {
-			/*
-			 * Not much that can be done here, so an error message
-			 * will have to do.
-			 */
-			dev_err(device->mipi->dev,
-				"failed to power down MIPI bricks: %d\n",
-				err);
-		}
-	}
-
-	mutex_unlock(&device->mipi->lock);
-
 	platform_device_put(device->pdev);
 	kfree(device);
 }
 EXPORT_SYMBOL(tegra_mipi_free);
+
+int tegra_mipi_enable(struct tegra_mipi_device *dev)
+{
+	int err = 0;
+
+	mutex_lock(&dev->mipi->lock);
+
+	if (dev->mipi->usage_count++ == 0)
+		err = tegra_mipi_power_up(dev->mipi);
+
+	mutex_unlock(&dev->mipi->lock);
+
+	return err;
+
+}
+EXPORT_SYMBOL(tegra_mipi_enable);
+
+int tegra_mipi_disable(struct tegra_mipi_device *dev)
+{
+	int err = 0;
+
+	mutex_lock(&dev->mipi->lock);
+
+	if (--dev->mipi->usage_count == 0)
+		err = tegra_mipi_power_down(dev->mipi);
+
+	mutex_unlock(&dev->mipi->lock);
+
+	return err;
+
+}
+EXPORT_SYMBOL(tegra_mipi_disable);
 
 static int tegra_mipi_wait(struct tegra_mipi *mipi)
 {

@@ -4,6 +4,7 @@
 
 struct nvkm_alarm {
 	struct list_head head;
+	struct list_head exec;
 	u64 timestamp;
 	void (*func)(struct nvkm_alarm *);
 };
@@ -25,7 +26,6 @@ struct nvkm_timer {
 
 u64 nvkm_timer_read(struct nvkm_timer *);
 void nvkm_timer_alarm(struct nvkm_timer *, u32 nsec, struct nvkm_alarm *);
-void nvkm_timer_alarm_cancel(struct nvkm_timer *, struct nvkm_alarm *);
 
 /* Delay based on GPU time (ie. PTIMER).
  *
@@ -48,16 +48,24 @@ void nvkm_timer_alarm_cancel(struct nvkm_timer *, struct nvkm_alarm *);
 	} while (_taken = nvkm_timer_read(_tmr) - _time0, _taken < _nsecs);    \
                                                                                \
 	if (_taken >= _nsecs) {                                                \
-		if (_warn) {                                                   \
-			dev_warn(_device->dev, "timeout at %s:%d/%s()!\n",     \
-				 __FILE__, __LINE__, __func__);                \
-		}                                                              \
+		if (_warn)                                                     \
+			dev_WARN(_device->dev, "timeout\n");                   \
 		_taken = -ETIMEDOUT;                                           \
 	}                                                                      \
 	_taken;                                                                \
 })
 #define nvkm_usec(d,u,cond...) nvkm_nsec((d), (u) * 1000, ##cond)
 #define nvkm_msec(d,m,cond...) nvkm_usec((d), (m) * 1000, ##cond)
+
+#define nvkm_wait_nsec(d,n,addr,mask,data)                                     \
+	nvkm_nsec(d, n,                                                        \
+		if ((nvkm_rd32(d, (addr)) & (mask)) == (data))                 \
+			break;                                                 \
+		)
+#define nvkm_wait_usec(d,u,addr,mask,data)                                     \
+	nvkm_wait_nsec((d), (u) * 1000, (addr), (mask), (data))
+#define nvkm_wait_msec(d,m,addr,mask,data)                                     \
+	nvkm_wait_usec((d), (m) * 1000, (addr), (mask), (data))
 
 int nv04_timer_new(struct nvkm_device *, int, struct nvkm_timer **);
 int nv40_timer_new(struct nvkm_device *, int, struct nvkm_timer **);

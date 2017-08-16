@@ -40,8 +40,8 @@
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/keyscan-davinci.h>
 
-#include <media/ths7303.h>
-#include <media/tvp514x.h>
+#include <media/i2c/ths7303.h>
+#include <media/i2c/tvp514x.h>
 
 #include "davinci.h"
 
@@ -174,10 +174,6 @@ static struct at24_platform_data eeprom_info = {
 	.flags          = AT24_FLAG_ADDR16,
 	.setup          = davinci_get_mac_addr,
 	.context	= (void *)0x7f00,
-};
-
-static struct snd_platform_data dm365_evm_snd_data __maybe_unused = {
-	.asp_chan_q = EVENTQ_3,
 };
 
 static struct i2c_board_info i2c_info[] = {
@@ -763,9 +759,9 @@ static __init void dm365_evm_init(void)
 	evm_init_cpld();
 
 #ifdef CONFIG_SND_DM365_AIC3X_CODEC
-	dm365_init_asp(&dm365_evm_snd_data);
+	dm365_init_asp();
 #elif defined(CONFIG_SND_DM365_VOICE_CODEC)
-	dm365_init_vc(&dm365_evm_snd_data);
+	dm365_init_vc();
 #endif
 	dm365_init_rtc();
 	dm365_init_ks(&dm365evm_ks_data);

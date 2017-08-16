@@ -855,7 +855,7 @@ struct DTag { /* Display tags */
 	{ 0x8c, "Reason" },
 	{ 0x8d, "Calling party name" },
 	{ 0x8e, "Called party name" },
-	{ 0x8f, "Orignal called name" },
+	{ 0x8f, "Original called name" },
 	{ 0x90, "Redirecting name" },
 	{ 0x91, "Connected name" },
 	{ 0x92, "Originating restrictions" },
@@ -1179,7 +1179,7 @@ LogFrame(struct IsdnCardState *cs, u_char *buf, int size)
 		dp--;
 		*dp++ = '\n';
 		*dp = 0;
-		HiSax_putstatus(cs, NULL, "%s", cs->dlog);
+		HiSax_putstatus(cs, NULL, cs->dlog);
 	} else
 		HiSax_putstatus(cs, "LogFrame: ", "warning Frame too big (%d)", size);
 }
@@ -1246,7 +1246,7 @@ dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir)
 	}
 	if (finish) {
 		*dp = 0;
-		HiSax_putstatus(cs, NULL, "%s", cs->dlog);
+		HiSax_putstatus(cs, NULL, cs->dlog);
 		return;
 	}
 	if ((0xfe & buf[0]) == PROTO_DIS_N0) {	/* 1TR6 */
@@ -1509,5 +1509,5 @@ dlogframe(struct IsdnCardState *cs, struct sk_buff *skb, int dir)
 		dp += sprintf(dp, "Unknown protocol %x!", buf[0]);
 	}
 	*dp = 0;
-	HiSax_putstatus(cs, NULL, "%s", cs->dlog);
+	HiSax_putstatus(cs, NULL, cs->dlog);
 }

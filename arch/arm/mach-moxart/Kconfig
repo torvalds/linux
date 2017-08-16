@@ -1,10 +1,11 @@
 menuconfig ARCH_MOXART
-	bool "MOXA ART SoC" if ARCH_MULTI_V4
+	bool "MOXA ART SoC"
+	depends on ARCH_MULTI_V4
 	select CPU_FA526
 	select ARM_DMA_MEM_BUFFERABLE
-	select CLKSRC_MMIO
-	select GENERIC_IRQ_CHIP
-	select ARCH_REQUIRE_GPIOLIB
+	select FARADAY_FTINTC010
+	select FTTMR010_TIMER
+	select GPIOLIB
 	select PHYLIB if NETDEVICES
 	help
 	  Say Y here if you want to run your kernel on hardware with a

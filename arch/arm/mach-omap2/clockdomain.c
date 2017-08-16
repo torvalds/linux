@@ -465,10 +465,7 @@ int clkdm_complete_init(void)
 		return -EACCES;
 
 	list_for_each_entry(clkdm, &clkdm_list, node) {
-		if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
-			clkdm_wakeup(clkdm);
-		else if (clkdm->flags & CLKDM_CAN_DISABLE_AUTO)
-			clkdm_deny_idle(clkdm);
+		clkdm_deny_idle(clkdm);
 
 		_resolve_clkdm_deps(clkdm, clkdm->wkdep_srcs);
 		clkdm_clear_all_wkdeps(clkdm);
@@ -925,11 +922,20 @@ void clkdm_allow_idle_nolock(struct clockdomain *clkdm)
 	if (!clkdm)
 		return;
 
-	if (!(clkdm->flags & CLKDM_CAN_ENABLE_AUTO)) {
-		pr_debug("clock: %s: automatic idle transitions cannot be enabled\n",
-			 clkdm->name);
+	if (!WARN_ON(!clkdm->forcewake_count))
+		clkdm->forcewake_count--;
+
+	if (clkdm->forcewake_count)
 		return;
-	}
+
+	if (!clkdm->usecount && (clkdm->flags & CLKDM_CAN_FORCE_SLEEP))
+		clkdm_sleep_nolock(clkdm);
+
+	if (!(clkdm->flags & CLKDM_CAN_ENABLE_AUTO))
+		return;
+
+	if (clkdm->flags & CLKDM_MISSING_IDLE_REPORTING)
+		return;
 
 	if (!arch_clkdm || !arch_clkdm->clkdm_allow_idle)
 		return;
@@ -974,11 +980,17 @@ void clkdm_deny_idle_nolock(struct clockdomain *clkdm)
 	if (!clkdm)
 		return;
 
-	if (!(clkdm->flags & CLKDM_CAN_DISABLE_AUTO)) {
-		pr_debug("clockdomain: %s: automatic idle transitions cannot be disabled\n",
-			 clkdm->name);
+	if (clkdm->forcewake_count++)
 		return;
-	}
+
+	if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
+		clkdm_wakeup_nolock(clkdm);
+
+	if (!(clkdm->flags & CLKDM_CAN_DISABLE_AUTO))
+		return;
+
+	if (clkdm->flags & CLKDM_MISSING_IDLE_REPORTING)
+		return;
 
 	if (!arch_clkdm || !arch_clkdm->clkdm_deny_idle)
 		return;
@@ -1208,6 +1220,14 @@ int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 
 ccd_exit:
 	pwrdm_unlock(clkdm->pwrdm.ptr);
+
+	return 0;
+}
+
+u32 clkdm_xlate_address(struct clockdomain *clkdm)
+{
+	if (arch_clkdm->clkdm_xlate_address)
+		return arch_clkdm->clkdm_xlate_address(clkdm);
 
 	return 0;
 }

@@ -14,10 +14,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -602,8 +598,8 @@ int tm6000_init(struct tm6000_core *dev)
 	for (i = 0; i < size; i++) {
 		rc = tm6000_set_reg(dev, tab[i].req, tab[i].reg, tab[i].val);
 		if (rc < 0) {
-			printk(KERN_ERR "Error %i while setting req %d, "
-					"reg %d to value %d\n", rc,
+			printk(KERN_ERR "Error %i while setting req %d, reg %d to value %d\n",
+			       rc,
 					tab[i].req, tab[i].reg, tab[i].val);
 			return rc;
 		}
@@ -761,9 +757,8 @@ int tm6000_tvaudio_set_mute(struct tm6000_core *dev, u8 mute)
 		if (dev->dev_type == TM6010)
 			tm6010_set_mute_sif(dev, mute);
 		else {
-			printk(KERN_INFO "ERROR: TM5600 and TM6000 don't has"
-					" SIF audio inputs. Please check the %s"
-					" configuration.\n", dev->name);
+			printk(KERN_INFO "ERROR: TM5600 and TM6000 don't has SIF audio inputs. Please check the %s configuration.\n",
+			       dev->name);
 			return -EINVAL;
 		}
 		break;
@@ -822,9 +817,8 @@ void tm6000_set_volume(struct tm6000_core *dev, int vol)
 		if (dev->dev_type == TM6010)
 			tm6010_set_volume_sif(dev, vol);
 		else
-			printk(KERN_INFO "ERROR: TM5600 and TM6000 don't has"
-					" SIF audio inputs. Please check the %s"
-					" configuration.\n", dev->name);
+			printk(KERN_INFO "ERROR: TM5600 and TM6000 don't has SIF audio inputs. Please check the %s configuration.\n",
+			       dev->name);
 		break;
 	case TM6000_AMUX_ADC1:
 	case TM6000_AMUX_ADC2:

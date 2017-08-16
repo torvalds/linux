@@ -5,16 +5,6 @@ comment "Triggers - standalone"
 
 if IIO_TRIGGER
 
-config IIO_PERIODIC_RTC_TRIGGER
-	tristate "Periodic RTC triggers"
-	depends on RTC_CLASS
-	help
-	  Provides support for using periodic capable real time
-	  clocks as IIO triggers.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called iio-trig-periodic-rtc.
-
 config IIO_BFIN_TMR_TRIGGER
 	tristate "Blackfin TIMER trigger"
 	depends on BLACKFIN

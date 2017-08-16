@@ -5,7 +5,7 @@ CPUs in the following Broadcom SoCs:
   BCM11130, BCM11140, BCM11351, BCM28145, BCM28155, BCM21664
 
 The enable method is specified by defining the following required
-properties in the "cpus" device tree node:
+properties in the "cpu" device tree node:
   - enable-method = "brcm,bcm11351-cpu-method";
   - secondary-boot-reg = <...>;
 
@@ -19,8 +19,6 @@ Example:
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		enable-method = "brcm,bcm11351-cpu-method";
-		secondary-boot-reg = <0x3500417c>;
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
@@ -32,5 +30,7 @@ Example:
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <1>;
+			enable-method = "brcm,bcm11351-cpu-method";
+			secondary-boot-reg = <0x3500417c>;
 		};
 	};

@@ -279,7 +279,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				rtc@68 {
-					compatible = "stm,m41t80";
+					compatible = "st,m41t80";
 					reg = <0x68>;
 					interrupt-parent = <&UIC0>;
 					interrupts = <0x9 0x8>;

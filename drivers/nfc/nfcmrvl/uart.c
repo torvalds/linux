@@ -50,13 +50,22 @@ static int nfcmrvl_uart_nci_send(struct nfcmrvl_private *priv,
 	return nu->ops.send(nu, skb);
 }
 
+static void nfcmrvl_uart_nci_update_config(struct nfcmrvl_private *priv,
+					   const void *param)
+{
+	struct nci_uart *nu = priv->drv_data;
+	const struct nfcmrvl_fw_uart_config *config = param;
+
+	nci_uart_set_config(nu, le32_to_cpu(config->baudrate),
+			    config->flow_control);
+}
+
 static struct nfcmrvl_if_ops uart_ops = {
 	.nci_open = nfcmrvl_uart_nci_open,
 	.nci_close = nfcmrvl_uart_nci_close,
 	.nci_send = nfcmrvl_uart_nci_send,
+	.nci_update_config = nfcmrvl_uart_nci_update_config
 };
-
-#ifdef CONFIG_OF
 
 static int nfcmrvl_uart_parse_dt(struct device_node *node,
 				 struct nfcmrvl_platform_data *pdata)
@@ -64,13 +73,18 @@ static int nfcmrvl_uart_parse_dt(struct device_node *node,
 	struct device_node *matched_node;
 	int ret;
 
-	matched_node = of_find_compatible_node(node, NULL, "mrvl,nfc-uart");
-	if (!matched_node)
-		return -ENODEV;
+	matched_node = of_find_compatible_node(node, NULL, "marvell,nfc-uart");
+	if (!matched_node) {
+		matched_node = of_find_compatible_node(node, NULL,
+						       "mrvl,nfc-uart");
+		if (!matched_node)
+			return -ENODEV;
+	}
 
 	ret = nfcmrvl_parse_dt(matched_node, pdata);
 	if (ret < 0) {
 		pr_err("Failed to get generic entries\n");
+		of_node_put(matched_node);
 		return ret;
 	}
 
@@ -84,18 +98,10 @@ static int nfcmrvl_uart_parse_dt(struct device_node *node,
 	else
 		pdata->break_control = 0;
 
+	of_node_put(matched_node);
+
 	return 0;
 }
-
-#else
-
-static int nfcmrvl_uart_parse_dt(struct device_node *node,
-				 struct nfcmrvl_platform_data *pdata)
-{
-	return -ENODEV;
-}
-
-#endif
 
 /*
 ** NCI UART OPS
@@ -106,6 +112,7 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 	struct nfcmrvl_private *priv;
 	struct nfcmrvl_platform_data *pdata = NULL;
 	struct nfcmrvl_platform_data config;
+	struct device *dev = nu->tty->dev;
 
 	/*
 	 * Platform data cannot be used here since usually it is already used
@@ -113,9 +120,8 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 	 * and check if DT entries were added.
 	 */
 
-	if (nu->tty->dev->parent && nu->tty->dev->parent->of_node)
-		if (nfcmrvl_uart_parse_dt(nu->tty->dev->parent->of_node,
-					  &config) == 0)
+	if (dev && dev->parent && dev->parent->of_node)
+		if (nfcmrvl_uart_parse_dt(dev->parent->of_node, &config) == 0)
 			pdata = &config;
 
 	if (!pdata) {
@@ -127,18 +133,15 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 		pdata = &config;
 	}
 
-	priv = nfcmrvl_nci_register_dev(nu, &uart_ops, nu->tty->dev, pdata);
+	priv = nfcmrvl_nci_register_dev(NFCMRVL_PHY_UART, nu, &uart_ops,
+					dev, pdata);
 	if (IS_ERR(priv))
 		return PTR_ERR(priv);
 
-	priv->phy = NFCMRVL_PHY_UART;
+	priv->support_fw_dnld = true;
 
 	nu->drv_data = priv;
 	nu->ndev = priv->ndev;
-
-	/* Set BREAK */
-	if (priv->config.break_control && nu->tty->ops->break_ctl)
-		nu->tty->ops->break_ctl(nu->tty, -1);
 
 	return 0;
 }
@@ -158,6 +161,9 @@ static void nfcmrvl_nci_uart_tx_start(struct nci_uart *nu)
 {
 	struct nfcmrvl_private *priv = (struct nfcmrvl_private *)nu->drv_data;
 
+	if (priv->ndev->nfc_dev->fw_download_in_progress)
+		return;
+
 	/* Remove BREAK to wake up the NFCC */
 	if (priv->config.break_control && nu->tty->ops->break_ctl) {
 		nu->tty->ops->break_ctl(nu->tty, 0);
@@ -169,13 +175,18 @@ static void nfcmrvl_nci_uart_tx_done(struct nci_uart *nu)
 {
 	struct nfcmrvl_private *priv = (struct nfcmrvl_private *)nu->drv_data;
 
+	if (priv->ndev->nfc_dev->fw_download_in_progress)
+		return;
+
 	/*
 	** To ensure that if the NFCC goes in DEEP SLEEP sate we can wake him
 	** up. we set BREAK. Once we will be ready to send again we will remove
 	** it.
 	*/
-	if (priv->config.break_control && nu->tty->ops->break_ctl)
+	if (priv->config.break_control && nu->tty->ops->break_ctl) {
 		nu->tty->ops->break_ctl(nu->tty, -1);
+		usleep_range(1000, 3000);
+	}
 }
 
 static struct nci_uart nfcmrvl_nci_uart = {

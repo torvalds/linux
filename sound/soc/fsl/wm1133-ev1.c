@@ -139,7 +139,7 @@ static int wm1133_ev1_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops wm1133_ev1_ops = {
+static const struct snd_soc_ops wm1133_ev1_ops = {
 	.hw_params = wm1133_ev1_hw_params,
 };
 

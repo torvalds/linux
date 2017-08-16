@@ -78,15 +78,15 @@ EXPORT_SYMBOL(ipv6_select_ident);
 
 int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 {
-	u16 offset = sizeof(struct ipv6hdr);
-	struct ipv6_opt_hdr *exthdr =
-				(struct ipv6_opt_hdr *)(ipv6_hdr(skb) + 1);
+	unsigned int offset = sizeof(struct ipv6hdr);
 	unsigned int packet_len = skb_tail_pointer(skb) -
 		skb_network_header(skb);
 	int found_rhdr = 0;
 	*nexthdr = &ipv6_hdr(skb)->nexthdr;
 
-	while (offset + 1 <= packet_len) {
+	while (offset <= packet_len) {
+		struct ipv6_opt_hdr *exthdr;
+		unsigned int len;
 
 		switch (**nexthdr) {
 
@@ -107,13 +107,19 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 			return offset;
 		}
 
-		offset += ipv6_optlen(exthdr);
-		*nexthdr = &exthdr->nexthdr;
+		if (offset + sizeof(struct ipv6_opt_hdr) > packet_len)
+			return -EINVAL;
+
 		exthdr = (struct ipv6_opt_hdr *)(skb_network_header(skb) +
 						 offset);
+		len = ipv6_optlen(exthdr);
+		if (len + offset >= IPV6_MAXPLEN)
+			return -EINVAL;
+		offset += len;
+		*nexthdr = &exthdr->nexthdr;
 	}
 
-	return offset;
+	return -EINVAL;
 }
 EXPORT_SYMBOL(ip6_find_1stfragopt);
 
@@ -138,7 +144,7 @@ int ip6_dst_hoplimit(struct dst_entry *dst)
 EXPORT_SYMBOL(ip6_dst_hoplimit);
 #endif
 
-static int __ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
+int __ip6_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	int len;
 
@@ -148,30 +154,29 @@ static int __ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
 	ipv6_hdr(skb)->payload_len = htons(len);
 	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
 
-	return nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, sk, skb,
-		       NULL, skb_dst(skb)->dev, dst_output_sk);
-}
+	/* if egress device is enslaved to an L3 master device pass the
+	 * skb to its handler for processing
+	 */
+	skb = l3mdev_ip6_out(sk, skb);
+	if (unlikely(!skb))
+		return 0;
 
-int __ip6_local_out(struct sk_buff *skb)
-{
-	return __ip6_local_out_sk(skb->sk, skb);
+	skb->protocol = htons(ETH_P_IPV6);
+
+	return nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
+		       net, sk, skb, NULL, skb_dst(skb)->dev,
+		       dst_output);
 }
 EXPORT_SYMBOL_GPL(__ip6_local_out);
 
-int ip6_local_out_sk(struct sock *sk, struct sk_buff *skb)
+int ip6_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	int err;
 
-	err = __ip6_local_out_sk(sk, skb);
+	err = __ip6_local_out(net, sk, skb);
 	if (likely(err == 1))
-		err = dst_output_sk(sk, skb);
+		err = dst_output(net, sk, skb);
 
 	return err;
-}
-EXPORT_SYMBOL_GPL(ip6_local_out_sk);
-
-int ip6_local_out(struct sk_buff *skb)
-{
-	return ip6_local_out_sk(skb->sk, skb);
 }
 EXPORT_SYMBOL_GPL(ip6_local_out);

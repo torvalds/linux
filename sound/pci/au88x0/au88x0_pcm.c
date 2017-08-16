@@ -112,11 +112,11 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_wt = {
 };
 #endif
 #ifdef CHIP_AU8830
-static unsigned int au8830_channels[3] = {
+static const unsigned int au8830_channels[3] = {
 	1, 2, 4,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_au8830_channels = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_au8830_channels = {
 	.count = ARRAY_SIZE(au8830_channels),
 	.list = au8830_channels,
 	.mask = 0,
@@ -432,7 +432,10 @@ static snd_pcm_uframes_t snd_vortex_pcm_pointer(struct snd_pcm_substream *substr
 #endif
 	//printk(KERN_INFO "vortex: pointer = 0x%x\n", current_ptr);
 	spin_unlock(&chip->lock);
-	return (bytes_to_frames(substream->runtime, current_ptr));
+	current_ptr = bytes_to_frames(substream->runtime, current_ptr);
+	if (current_ptr >= substream->runtime->buffer_size)
+		current_ptr = 0;
+	return current_ptr;
 }
 
 /* operators */
@@ -598,7 +601,7 @@ static int snd_vortex_pcm_vol_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_MINMAX(vortex_pcm_vol_db_scale, -9600, 2400);
 
-static struct snd_kcontrol_new snd_vortex_pcm_vol = {
+static const struct snd_kcontrol_new snd_vortex_pcm_vol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.name = "PCM Playback Volume",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |

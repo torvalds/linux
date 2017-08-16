@@ -15,10 +15,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -33,7 +29,7 @@
 #define DRVNAME	"fb_uc1701"
 #define WIDTH	  102
 #define HEIGHT	 64
-#define PAGES	  (HEIGHT/8)
+#define PAGES	  (HEIGHT / 8)
 
 /* 1: Display on/off */
 #define LCD_DISPLAY_ENABLE    0xAE
@@ -73,11 +69,8 @@
 /* column offset for bottom view orientation */
 #define SHIFT_ADDR_TOPVIEW    30
 
-
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	/* softreset of LCD */
@@ -85,11 +78,11 @@ static int init_display(struct fbtft_par *par)
 	mdelay(10);
 
 	/* set startpoint */
-	/* LCD_START_LINE | (pos & 0x3F) */
 	write_reg(par, LCD_START_LINE);
 
 	/* select orientation BOTTOMVIEW */
 	write_reg(par, LCD_BOTTOMVIEW | 1);
+
 	/* output mode select (turns display upside-down) */
 	write_reg(par, LCD_SCAN_DIR | 0x00);
 
@@ -103,25 +96,19 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, LCD_BIAS | 0);
 
 	/* power control mode: all features on */
-	/* LCD_POWER_CONTROL | (val&0x07) */
 	write_reg(par, LCD_POWER_CONTROL | 0x07);
 
 	/* set voltage regulator R/R */
-	/* LCD_VOLTAGE | (val&0x07) */
 	write_reg(par, LCD_VOLTAGE | 0x07);
 
 	/* volume mode set */
-	/* LCD_VOLUME_MODE,val&0x3f,LCD_NO_OP */
 	write_reg(par, LCD_VOLUME_MODE);
-	/* LCD_VOLUME_MODE,val&0x3f,LCD_NO_OP */
 	write_reg(par, 0x09);
-	/* ???? */
-	/* LCD_VOLUME_MODE,val&0x3f,LCD_NO_OP */
 	write_reg(par, LCD_NO_OP);
 
 	/* advanced program control */
 	write_reg(par, LCD_ADV_PROG_CTRL);
-	write_reg(par, LCD_ADV_PROG_CTRL2|LCD_TEMPCOMP_HIGH);
+	write_reg(par, LCD_ADV_PROG_CTRL2 | LCD_TEMPCOMP_HIGH);
 
 	/* enable display */
 	write_reg(par, LCD_DISPLAY_ENABLE | 1);
@@ -131,51 +118,32 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par, "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	/* goto address */
-	/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-	 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-	 LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
 	write_reg(par, LCD_PAGE_ADDRESS);
-	/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-	 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-	  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
 	write_reg(par, 0x00);
-	/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-	 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-	  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
 	write_reg(par, LCD_COL_ADDRESS);
 }
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u16 *vmem16 = (u16 *)par->info->screen_base;
+	u16 *vmem16 = (u16 *)par->info->screen_buffer;
 	u8 *buf = par->txbuf.buf;
 	int x, y, i;
 	int ret = 0;
-
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
 
 	for (y = 0; y < PAGES; y++) {
 		buf = par->txbuf.buf;
 		for (x = 0; x < WIDTH; x++) {
 			*buf = 0x00;
 			for (i = 0; i < 8; i++)
-				*buf |= (vmem16[((y*8*WIDTH)+(i*WIDTH))+x] ? 1 : 0) << i;
+				*buf |= (vmem16[((y * 8 * WIDTH) +
+						 (i * WIDTH)) + x] ?
+					 1 : 0) << i;
 			buf++;
 		}
-		/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-		 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-		  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
-		write_reg(par, LCD_PAGE_ADDRESS|(u8)y);
-		/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-		 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-		  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
+
+		write_reg(par, LCD_PAGE_ADDRESS | (u8)y);
 		write_reg(par, 0x00);
-		/* LCD_PAGE_ADDRESS | ((page) & 0x1F),
-		 (((col)+SHIFT_ADDR_NORMAL) & 0x0F),
-		  LCD_COL_ADDRESS | ((((col)+SHIFT_ADDR_NORMAL)>>4) & 0x0F) */
 		write_reg(par, LCD_COL_ADDRESS);
 		gpio_set_value(par->gpio.dc, 1);
 		ret = par->fbtftops.write(par, par->txbuf.buf, WIDTH);
@@ -189,7 +157,6 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	return ret;
 }
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -201,6 +168,7 @@ static struct fbtft_display display = {
 	},
 	.backlight = 1,
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "UltraChip,uc1701", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

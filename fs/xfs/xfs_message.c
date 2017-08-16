@@ -17,6 +17,7 @@
 
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_error.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
@@ -43,6 +44,7 @@ void func(const struct xfs_mount *mp, const char *fmt, ...)	\
 {								\
 	struct va_format	vaf;				\
 	va_list			args;				\
+	int			level;				\
 								\
 	va_start(args, fmt);					\
 								\
@@ -51,6 +53,11 @@ void func(const struct xfs_mount *mp, const char *fmt, ...)	\
 								\
 	__xfs_printk(kern_level, mp, &vaf);			\
 	va_end(args);						\
+								\
+	if (!kstrtoint(kern_level, 0, &level) &&		\
+	    level <= LOGLEVEL_ERR &&				\
+	    xfs_error_level >= XFS_ERRLEVEL_HIGH)		\
+		xfs_stack_trace();				\
 }								\
 
 define_xfs_printk_level(xfs_emerg, KERN_EMERG);
@@ -103,7 +110,10 @@ assfail(char *expr, char *file, int line)
 {
 	xfs_emerg(NULL, "Assertion failed: %s, file: %s, line: %d",
 		expr, file, line);
-	BUG();
+	if (xfs_globals.bug_on_assert)
+		BUG();
+	else
+		WARN_ON(1);
 }
 
 void

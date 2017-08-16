@@ -15,6 +15,7 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/clockchips.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -35,6 +36,21 @@
 #define ORION_ONESHOT_MAX	0xfffffffe
 
 static void __iomem *timer_base;
+
+static unsigned long notrace orion_read_timer(void)
+{
+	return ~readl(timer_base + TIMER0_VAL);
+}
+
+static struct delay_timer orion_delay_timer = {
+	.read_current_timer = orion_read_timer,
+};
+
+static void orion_delay_timer_init(unsigned long rate)
+{
+	orion_delay_timer.freq = rate;
+	register_current_timer_delay(&orion_delay_timer);
+}
 
 /*
  * Free-running clocksource handling.
@@ -104,25 +120,39 @@ static struct irqaction orion_clkevt_irq = {
 	.handler	= orion_clkevt_irq_handler,
 };
 
-static void __init orion_timer_init(struct device_node *np)
+static int __init orion_timer_init(struct device_node *np)
 {
+	unsigned long rate;
 	struct clk *clk;
-	int irq;
+	int irq, ret;
 
 	/* timer registers are shared with watchdog timer */
 	timer_base = of_iomap(np, 0);
-	if (!timer_base)
-		panic("%s: unable to map resource\n", np->name);
+	if (!timer_base) {
+		pr_err("%s: unable to map resource\n", np->name);
+		return -ENXIO;
+	}
 
 	clk = of_clk_get(np, 0);
-	if (IS_ERR(clk))
-		panic("%s: unable to get clk\n", np->name);
-	clk_prepare_enable(clk);
+	if (IS_ERR(clk)) {
+		pr_err("%s: unable to get clk\n", np->name);
+		return PTR_ERR(clk);
+	}
+
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		pr_err("Failed to prepare clock\n");
+		return ret;
+	}
 
 	/* we are only interested in timer1 irq */
 	irq = irq_of_parse_and_map(np, 1);
-	if (irq <= 0)
-		panic("%s: unable to parse timer1 irq\n", np->name);
+	if (irq <= 0) {
+		pr_err("%s: unable to parse timer1 irq\n", np->name);
+		return -EINVAL;
+	}
+
+	rate = clk_get_rate(clk);
 
 	/* setup timer0 as free-running clocksource */
 	writel(~0, timer_base + TIMER0_VAL);
@@ -130,19 +160,33 @@ static void __init orion_timer_init(struct device_node *np)
 	atomic_io_modify(timer_base + TIMER_CTRL,
 		TIMER0_RELOAD_EN | TIMER0_EN,
 		TIMER0_RELOAD_EN | TIMER0_EN);
-	clocksource_mmio_init(timer_base + TIMER0_VAL, "orion_clocksource",
-			      clk_get_rate(clk), 300, 32,
-			      clocksource_mmio_readl_down);
-	sched_clock_register(orion_read_sched_clock, 32, clk_get_rate(clk));
+
+	ret = clocksource_mmio_init(timer_base + TIMER0_VAL,
+				    "orion_clocksource", rate, 300, 32,
+				    clocksource_mmio_readl_down);
+	if (ret) {
+		pr_err("Failed to initialize mmio timer\n");
+		return ret;
+	}
+
+	sched_clock_register(orion_read_sched_clock, 32, rate);
 
 	/* setup timer1 as clockevent timer */
-	if (setup_irq(irq, &orion_clkevt_irq))
-		panic("%s: unable to setup irq\n", np->name);
+	ret = setup_irq(irq, &orion_clkevt_irq);
+	if (ret) {
+		pr_err("%s: unable to setup irq\n", np->name);
+		return ret;
+	}
 
 	ticks_per_jiffy = (clk_get_rate(clk) + HZ/2) / HZ;
 	orion_clkevt.cpumask = cpumask_of(0);
 	orion_clkevt.irq = irq;
-	clockevents_config_and_register(&orion_clkevt, clk_get_rate(clk),
+	clockevents_config_and_register(&orion_clkevt, rate,
 					ORION_ONESHOT_MIN, ORION_ONESHOT_MAX);
+
+
+	orion_delay_timer_init(rate);
+
+	return 0;
 }
-CLOCKSOURCE_OF_DECLARE(orion_timer, "marvell,orion-timer", orion_timer_init);
+TIMER_OF_DECLARE(orion_timer, "marvell,orion-timer", orion_timer_init);

@@ -83,7 +83,8 @@
 
 #define CMD_ADDR_MAPPING_SHIFT		2	/*SDIO CMD ADDR MAPPING,
 						 *shift 2 bit for match
-						 * offset[14:2]*/
+						 * offset[14:2]
+						 */
 
 /*Offset for SDIO LOCAL*/
 #define	OFFSET_SDIO_LOCAL				0x0FFF

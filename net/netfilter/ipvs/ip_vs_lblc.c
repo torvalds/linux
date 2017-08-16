@@ -250,8 +250,7 @@ static void ip_vs_lblc_flush(struct ip_vs_service *svc)
 static int sysctl_lblc_expiration(struct ip_vs_service *svc)
 {
 #ifdef CONFIG_SYSCTL
-	struct netns_ipvs *ipvs = net_ipvs(svc->net);
-	return ipvs->sysctl_lblc_expiration;
+	return svc->ipvs->sysctl_lblc_expiration;
 #else
 	return DEFAULT_EXPIRATION;
 #endif
@@ -357,7 +356,7 @@ static int ip_vs_lblc_init_svc(struct ip_vs_service *svc)
 		return -ENOMEM;
 
 	svc->sched_data = tbl;
-	IP_VS_DBG(6, "LBLC hash table (memory=%Zdbytes) allocated for "
+	IP_VS_DBG(6, "LBLC hash table (memory=%zdbytes) allocated for "
 		  "current service\n", sizeof(*tbl));
 
 	/*
@@ -394,7 +393,7 @@ static void ip_vs_lblc_done_svc(struct ip_vs_service *svc)
 
 	/* release the table itself */
 	kfree_rcu(tbl, rcu_head);
-	IP_VS_DBG(6, "LBLC hash table (memory=%Zdbytes) released\n",
+	IP_VS_DBG(6, "LBLC hash table (memory=%zdbytes) released\n",
 		  sizeof(*tbl));
 }
 
@@ -449,7 +448,7 @@ __ip_vs_lblc_schedule(struct ip_vs_service *svc)
 		      IP_VS_DBG_ADDR(least->af, &least->addr),
 		      ntohs(least->port),
 		      atomic_read(&least->activeconns),
-		      atomic_read(&least->refcnt),
+		      refcount_read(&least->refcnt),
 		      atomic_read(&least->weight), loh);
 
 	return least;

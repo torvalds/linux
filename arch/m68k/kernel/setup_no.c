@@ -34,6 +34,7 @@
 #include <linux/rtc.h>
 
 #include <asm/setup.h>
+#include <asm/bootinfo.h>
 #include <asm/irq.h>
 #include <asm/machdep.h>
 #include <asm/pgtable.h>
@@ -68,9 +69,6 @@ void (*mach_power_off)(void);
 #define CPU_NAME	"MC68000"
 #endif
 #endif /* CONFIG_M68000 */
-#ifdef CONFIG_M68360
-#define CPU_NAME	"MC68360"
-#endif
 #ifndef CPU_NAME
 #define	CPU_NAME	"UNKNOWN"
 #endif
@@ -84,69 +82,6 @@ void (*mach_power_off)(void);
 #ifndef CPU_INSTR_PER_JIFFY
 #define	CPU_INSTR_PER_JIFFY	16
 #endif
-
-#if defined(CONFIG_UBOOT)
-/*
- * parse_uboot_commandline
- *
- * Copies u-boot commandline arguments and store them in the proper linux
- * variables.
- *
- * Assumes:
- *	_init_sp global contains the address in the stack pointer when the
- *	kernel starts (see head.S::_start)
- *
- *	U-Boot calling convention:
- *	(*kernel) (kbd, initrd_start, initrd_end, cmd_start, cmd_end);
- *
- *	_init_sp can be parsed as such
- *
- *	_init_sp+00 = u-boot cmd after jsr into kernel (skip)
- *	_init_sp+04 = &kernel board_info (residual data)
- *	_init_sp+08 = &initrd_start
- *	_init_sp+12 = &initrd_end
- *	_init_sp+16 = &cmd_start
- *	_init_sp+20 = &cmd_end
- *
- *	This also assumes that the memory locations pointed to are still
- *	unmodified. U-boot places them near the end of external SDRAM.
- *
- * Argument(s):
- *	commandp = the linux commandline arg container to fill.
- *	size     = the sizeof commandp.
- *
- * Returns:
- */
-static void __init parse_uboot_commandline(char *commandp, int size)
-{
-	extern unsigned long _init_sp;
-	unsigned long *sp;
-	unsigned long uboot_kbd;
-	unsigned long uboot_initrd_start, uboot_initrd_end;
-	unsigned long uboot_cmd_start, uboot_cmd_end;
-
-
-	sp = (unsigned long *)_init_sp;
-	uboot_kbd = sp[1];
-	uboot_initrd_start = sp[2];
-	uboot_initrd_end = sp[3];
-	uboot_cmd_start = sp[4];
-	uboot_cmd_end = sp[5];
-
-	if (uboot_cmd_start && uboot_cmd_end)
-		strncpy(commandp, (const char *)uboot_cmd_start, size);
-#if defined(CONFIG_BLK_DEV_INITRD)
-	if (uboot_initrd_start && uboot_initrd_end &&
-		(uboot_initrd_end > uboot_initrd_start)) {
-		initrd_start = uboot_initrd_start;
-		initrd_end = uboot_initrd_end;
-		ROOT_DEV = Root_RAM0;
-		printk(KERN_INFO "initrd at 0x%lx:0x%lx\n",
-			initrd_start, initrd_end);
-	}
-#endif /* if defined(CONFIG_BLK_DEV_INITRD) */
-}
-#endif /* #if defined(CONFIG_UBOOT) */
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -167,57 +102,38 @@ void __init setup_arch(char **cmdline_p)
 	command_line[sizeof(command_line) - 1] = 0;
 #endif /* CONFIG_BOOTPARAM */
 
-#if defined(CONFIG_UBOOT)
-	/* CONFIG_UBOOT and CONFIG_BOOTPARAM defined, concatenate cmdline */
-	#if defined(CONFIG_BOOTPARAM)
-		/* Add the whitespace separator */
-		command_line[strlen(CONFIG_BOOTPARAM_STRING)] = ' ';
-		/* Parse uboot command line into the rest of the buffer */
-		parse_uboot_commandline(
-			&command_line[(strlen(CONFIG_BOOTPARAM_STRING)+1)],
-			(sizeof(command_line) -
-			(strlen(CONFIG_BOOTPARAM_STRING)+1)));
-	/* Only CONFIG_UBOOT defined, create cmdline */
-	#else
-		parse_uboot_commandline(&command_line[0], sizeof(command_line));
-	#endif /* CONFIG_BOOTPARAM */
-	command_line[sizeof(command_line) - 1] = 0;
-#endif /* CONFIG_UBOOT */
+	process_uboot_commandline(&command_line[0], sizeof(command_line));
 
-	printk(KERN_INFO "\x0F\r\n\nuClinux/" CPU_NAME "\n");
+	pr_info("uClinux with CPU " CPU_NAME "\n");
 
 #ifdef CONFIG_UCDIMM
-	printk(KERN_INFO "uCdimm by Lineo, Inc. <www.lineo.com>\n");
+	pr_info("uCdimm by Lineo, Inc. <www.lineo.com>\n");
 #endif
 #ifdef CONFIG_M68VZ328
-	printk(KERN_INFO "M68VZ328 support by Evan Stawnyczy <e@lineo.ca>\n");
+	pr_info("M68VZ328 support by Evan Stawnyczy <e@lineo.ca>\n");
 #endif
 #ifdef CONFIG_COLDFIRE
-	printk(KERN_INFO "COLDFIRE port done by Greg Ungerer, gerg@snapgear.com\n");
+	pr_info("COLDFIRE port done by Greg Ungerer, gerg@snapgear.com\n");
 #ifdef CONFIG_M5307
-	printk(KERN_INFO "Modified for M5307 by Dave Miller, dmiller@intellistor.com\n");
+	pr_info("Modified for M5307 by Dave Miller, dmiller@intellistor.com\n");
 #endif
 #ifdef CONFIG_ELITE
-	printk(KERN_INFO "Modified for M5206eLITE by Rob Scott, rscott@mtrob.fdns.net\n");
+	pr_info("Modified for M5206eLITE by Rob Scott, rscott@mtrob.fdns.net\n");
 #endif
 #endif
-	printk(KERN_INFO "Flat model support (C) 1998,1999 Kenneth Albanowski, D. Jeff Dionne\n");
+	pr_info("Flat model support (C) 1998,1999 Kenneth Albanowski, D. Jeff Dionne\n");
 
 #if defined( CONFIG_PILOT ) && defined( CONFIG_M68328 )
-	printk(KERN_INFO "TRG SuperPilot FLASH card support <info@trgnet.com>\n");
+	pr_info("TRG SuperPilot FLASH card support <info@trgnet.com>\n");
 #endif
 #if defined( CONFIG_PILOT ) && defined( CONFIG_M68EZ328 )
-	printk(KERN_INFO "PalmV support by Lineo Inc. <jeff@uclinux.com>\n");
-#endif
-#if defined (CONFIG_M68360)
-	printk(KERN_INFO "QUICC port done by SED Systems <hamilton@sedsystems.ca>,\n");
-	printk(KERN_INFO "based on 2.0.38 port by Lineo Inc. <mleslie@lineo.com>.\n");
+	pr_info("PalmV support by Lineo Inc. <jeff@uclinux.com>\n");
 #endif
 #ifdef CONFIG_DRAGEN2
-	printk(KERN_INFO "DragonEngine II board support by Georges Menie\n");
+	pr_info("DragonEngine II board support by Georges Menie\n");
 #endif
 #ifdef CONFIG_M5235EVB
-	printk(KERN_INFO "Motorola M5235EVB support (C)2005 Syn-tech Systems, Inc. (Jate Sujjavanich)\n");
+	pr_info("Motorola M5235EVB support (C)2005 Syn-tech Systems, Inc. (Jate Sujjavanich)\n");
 #endif
 
 	pr_debug("KERNEL -> TEXT=0x%p-0x%p DATA=0x%p-0x%p BSS=0x%p-0x%p\n",
@@ -238,11 +154,14 @@ void __init setup_arch(char **cmdline_p)
 	 * Give all the memory to the bootmap allocator, tell it to put the
 	 * boot mem_map at the start of memory.
 	 */
+	min_low_pfn = PFN_DOWN(memory_start);
+	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
+
 	bootmap_size = init_bootmem_node(
 			NODE_DATA(0),
-			memory_start >> PAGE_SHIFT, /* map goes here */
-			PAGE_OFFSET >> PAGE_SHIFT,	/* 0 on coldfire */
-			memory_end >> PAGE_SHIFT);
+			min_low_pfn,		/* map goes here */
+			PFN_DOWN(PAGE_OFFSET),
+			max_pfn);
 	/*
 	 * Free the usable memory, we have to make sure we do not free
 	 * the bootmem bitmap so we then reserve it after freeing it :-)

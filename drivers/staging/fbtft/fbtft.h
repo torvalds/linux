@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __LINUX_FBTFT_H
@@ -23,15 +19,6 @@
 #include <linux/spinlock.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
-
-
-#define FBTFT_NOP		0x00
-#define FBTFT_SWRESET	0x01
-#define FBTFT_RDDID		0x04
-#define FBTFT_RDDST		0x09
-#define FBTFT_CASET		0x2A
-#define FBTFT_RASET		0x2B
-#define FBTFT_RAMWR		0x2C
 
 #define FBTFT_ONBOARD_BACKLIGHT 2
 
@@ -51,7 +38,7 @@
  */
 struct fbtft_gpio {
 	char name[FBTFT_GPIO_NAME_SIZE];
-	unsigned gpio;
+	unsigned int gpio;
 };
 
 struct fbtft_par;
@@ -92,7 +79,7 @@ struct fbtft_ops {
 	void (*reset)(struct fbtft_par *par);
 	void (*mkdirty)(struct fb_info *info, int from, int to);
 	void (*update_display)(struct fbtft_par *par,
-				unsigned start_line, unsigned end_line);
+				unsigned int start_line, unsigned int end_line);
 	int (*init_display)(struct fbtft_par *par);
 	int (*blank)(struct fbtft_par *par, bool on);
 
@@ -105,7 +92,7 @@ struct fbtft_ops {
 	void (*unregister_backlight)(struct fbtft_par *par);
 
 	int (*set_var)(struct fbtft_par *par);
-	int (*set_gamma)(struct fbtft_par *par, unsigned long *curves);
+	int (*set_gamma)(struct fbtft_par *par, u32 *curves);
 };
 
 /**
@@ -128,16 +115,16 @@ struct fbtft_ops {
  * This structure is not stored by FBTFT except for init_sequence.
  */
 struct fbtft_display {
-	unsigned width;
-	unsigned height;
-	unsigned regwidth;
-	unsigned buswidth;
-	unsigned backlight;
+	unsigned int width;
+	unsigned int height;
+	unsigned int regwidth;
+	unsigned int buswidth;
+	unsigned int backlight;
 	struct fbtft_ops fbtftops;
-	unsigned bpp;
-	unsigned fps;
+	unsigned int bpp;
+	unsigned int fps;
 	int txbuflen;
-	int *init_sequence;
+	const s16 *init_sequence;
 	char *gamma;
 	int gamma_num;
 	int gamma_len;
@@ -159,9 +146,9 @@ struct fbtft_display {
 struct fbtft_platform_data {
 	struct fbtft_display display;
 	const struct fbtft_gpio *gpios;
-	unsigned rotate;
+	unsigned int rotate;
 	bool bgr;
-	unsigned fps;
+	unsigned int fps;
 	int txbuflen;
 	u8 startbyte;
 	char *gamma;
@@ -222,15 +209,14 @@ struct fbtft_par {
 	u32 pseudo_palette[16];
 	struct {
 		void *buf;
-		dma_addr_t dma;
 		size_t len;
 	} txbuf;
 	u8 *buf;
 	u8 startbyte;
 	struct fbtft_ops fbtftops;
 	spinlock_t dirty_lock;
-	unsigned dirty_lines_start;
-	unsigned dirty_lines_end;
+	unsigned int dirty_lines_start;
+	unsigned int dirty_lines_end;
 	struct {
 		int reset;
 		int dc;
@@ -242,16 +228,16 @@ struct fbtft_par {
 		int led[16];
 		int aux[16];
 	} gpio;
-	int *init_sequence;
+	const s16 *init_sequence;
 	struct {
 		struct mutex lock;
-		unsigned long *curves;
+		u32 *curves;
 		int num_values;
 		int num_curves;
 	} gamma;
 	unsigned long debug;
 	bool first_update_done;
-	struct timespec update_time;
+	ktime_t update_time;
 	bool bgr;
 	void *extra;
 };
@@ -262,6 +248,7 @@ struct fbtft_par {
 	par->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__)
 
 /* fbtft-core.c */
+int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc);
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
 		   void *buf, size_t len, const char *fmt, ...);
 struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
@@ -294,7 +281,6 @@ void fbtft_write_reg8_bus8(struct fbtft_par *par, int len, ...);
 void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...);
 void fbtft_write_reg16_bus8(struct fbtft_par *par, int len, ...);
 void fbtft_write_reg16_bus16(struct fbtft_par *par, int len, ...);
-
 
 #define FBTFT_REGISTER_DRIVER(_name, _compatible, _display)                \
 									   \
@@ -333,7 +319,6 @@ MODULE_DEVICE_TABLE(of, dt_ids);                                           \
 static struct spi_driver fbtft_driver_spi_driver = {                       \
 	.driver = {                                                        \
 		.name   = _name,                                           \
-		.owner  = THIS_MODULE,                                     \
 		.of_match_table = of_match_ptr(dt_ids),                    \
 	},                                                                 \
 	.probe  = fbtft_driver_probe_spi,                                  \
@@ -368,7 +353,6 @@ static void __exit fbtft_driver_module_exit(void)                          \
 									   \
 module_init(fbtft_driver_module_init);                                     \
 module_exit(fbtft_driver_module_exit);
-
 
 /* Debug macros */
 
@@ -415,7 +399,6 @@ module_exit(fbtft_driver_module_exit);
 #define DEBUG_REQUEST_GPIOS_MATCH   (1<<30)
 #define DEBUG_VERIFY_GPIOS          (1<<31)
 
-
 #define fbtft_init_dbg(dev, format, arg...)                  \
 do {                                                         \
 	if (unlikely((dev)->platform_data &&                 \
@@ -428,7 +411,6 @@ do {                                                         \
 	if (unlikely(par->debug & level))                    \
 		dev_info(par->info->device, format, ##arg);  \
 } while (0)
-
 
 #define fbtft_par_dbg_hex(level, par, dev, type, buf, num, format, arg...) \
 do {                                                                       \

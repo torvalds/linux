@@ -148,14 +148,17 @@ static int start_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream,
 	}
 
 	pcm_channels = formation.pcm;
-	midi_ports = DIV_ROUND_UP(formation.midi, 8);
+	midi_ports = formation.midi * 8;
 
 	/* The stream should have one pcm channels at least */
 	if (pcm_channels == 0) {
 		err = -EINVAL;
 		goto end;
 	}
-	amdtp_stream_set_parameters(stream, rate, pcm_channels, midi_ports);
+	err = amdtp_am824_set_parameters(stream, rate, pcm_channels, midi_ports,
+					 false);
+	if (err < 0)
+		goto end;
 
 	err = cmp_connection_establish(conn,
 				       amdtp_stream_get_max_payload(stream));
@@ -225,7 +228,7 @@ int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw,
 	if (err < 0)
 		goto end;
 
-	err = amdtp_stream_init(stream, oxfw->unit, s_dir, CIP_NONBLOCKING);
+	err = amdtp_am824_init(stream, oxfw->unit, s_dir, CIP_NONBLOCKING);
 	if (err < 0) {
 		amdtp_stream_destroy(stream);
 		cmp_connection_destroy(conn);
@@ -238,9 +241,11 @@ int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw,
 	 * packets. As a result, next isochronous packet includes more data
 	 * blocks than IEC 61883-6 defines.
 	 */
-	if (stream == &oxfw->tx_stream)
-		oxfw->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK |
-					 CIP_JUMBO_PAYLOAD;
+	if (stream == &oxfw->tx_stream) {
+		oxfw->tx_stream.flags |= CIP_JUMBO_PAYLOAD;
+		if (oxfw->wrong_dbs)
+			oxfw->tx_stream.flags |= CIP_WRONG_DBS;
+	}
 end:
 	return err;
 }
@@ -480,8 +485,8 @@ int snd_oxfw_stream_parse_format(u8 *format,
 		}
 	}
 
-	if (formation->pcm  > AMDTP_MAX_CHANNELS_FOR_PCM ||
-	    formation->midi > AMDTP_MAX_CHANNELS_FOR_MIDI)
+	if (formation->pcm  > AM824_MAX_CHANNELS_FOR_PCM ||
+	    formation->midi > AM824_MAX_CHANNELS_FOR_MIDI)
 		return -ENOSYS;
 
 	return 0;
@@ -623,6 +628,9 @@ end:
 int snd_oxfw_stream_discover(struct snd_oxfw *oxfw)
 {
 	u8 plugs[AVC_PLUG_INFO_BUF_BYTES];
+	struct snd_oxfw_stream_formation formation;
+	u8 *format;
+	unsigned int i;
 	int err;
 
 	/* the number of plugs for isoc in/out, ext in/out  */
@@ -642,12 +650,42 @@ int snd_oxfw_stream_discover(struct snd_oxfw *oxfw)
 		err = fill_stream_formats(oxfw, AVC_GENERAL_PLUG_DIR_OUT, 0);
 		if (err < 0)
 			goto end;
+
+		for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+			format = oxfw->tx_stream_formats[i];
+			if (format == NULL)
+				continue;
+			err = snd_oxfw_stream_parse_format(format, &formation);
+			if (err < 0)
+				continue;
+
+			/* Add one MIDI port. */
+			if (formation.midi > 0)
+				oxfw->midi_input_ports = 1;
+		}
+
 		oxfw->has_output = true;
 	}
 
 	/* use iPCR[0] if exists */
-	if (plugs[0] > 0)
+	if (plugs[0] > 0) {
 		err = fill_stream_formats(oxfw, AVC_GENERAL_PLUG_DIR_IN, 0);
+		if (err < 0)
+			goto end;
+
+		for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+			format = oxfw->rx_stream_formats[i];
+			if (format == NULL)
+				continue;
+			err = snd_oxfw_stream_parse_format(format, &formation);
+			if (err < 0)
+				continue;
+
+			/* Add one MIDI port. */
+			if (formation.midi > 0)
+				oxfw->midi_output_ports = 1;
+		}
+	}
 end:
 	return err;
 }

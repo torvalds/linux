@@ -86,7 +86,7 @@ static int rx_copybreak;
 #include <linux/crc32.h>
 #include <linux/bitops.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 /* These identify the driver base version and may not be removed. */
@@ -264,7 +264,6 @@ struct epic_private {
 	spinlock_t lock;				/* Group with Tx control cache line. */
 	spinlock_t napi_lock;
 	struct napi_struct napi;
-	unsigned int reschedule_in_poll;
 	unsigned int cur_tx, dirty_tx;
 
 	unsigned int cur_rx, dirty_rx;
@@ -313,7 +312,6 @@ static const struct net_device_ops epic_netdev_ops = {
 	.ndo_get_stats		= epic_get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
 	.ndo_do_ioctl 		= netdev_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -401,7 +399,6 @@ static int epic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	spin_lock_init(&ep->lock);
 	spin_lock_init(&ep->napi_lock);
-	ep->reschedule_in_poll = 0;
 
 	/* Bring the chip out of low-power mode. */
 	ew32(GENCTL, 0x4200);
@@ -889,7 +886,7 @@ static void epic_tx_timeout(struct net_device *dev)
 		ew32(COMMAND, TxQueued);
 	}
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	if (!ep->tx_full)
 		netif_wake_queue(dev);
@@ -1087,13 +1084,12 @@ static irqreturn_t epic_interrupt(int irq, void *dev_instance)
 
 	handled = 1;
 
-	if ((status & EpicNapiEvent) && !ep->reschedule_in_poll) {
+	if (status & EpicNapiEvent) {
 		spin_lock(&ep->napi_lock);
 		if (napi_schedule_prep(&ep->napi)) {
 			epic_napi_irq_off(dev, ep);
 			__napi_schedule(&ep->napi);
-		} else
-			ep->reschedule_in_poll++;
+		}
 		spin_unlock(&ep->napi_lock);
 	}
 	status &= ~EpicNapiEvent;
@@ -1249,37 +1245,23 @@ static int epic_poll(struct napi_struct *napi, int budget)
 {
 	struct epic_private *ep = container_of(napi, struct epic_private, napi);
 	struct net_device *dev = ep->mii.dev;
-	int work_done = 0;
 	void __iomem *ioaddr = ep->ioaddr;
-
-rx_action:
+	int work_done;
 
 	epic_tx(dev, ep);
 
-	work_done += epic_rx(dev, budget);
+	work_done = epic_rx(dev, budget);
 
 	epic_rx_err(dev, ep);
 
-	if (work_done < budget) {
+	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		unsigned long flags;
-		int more;
-
-		/* A bit baroque but it avoids a (space hungry) spin_unlock */
 
 		spin_lock_irqsave(&ep->napi_lock, flags);
 
-		more = ep->reschedule_in_poll;
-		if (!more) {
-			__napi_complete(napi);
-			ew32(INTSTAT, EpicNapiEvent);
-			epic_napi_irq_on(dev, ep);
-		} else
-			ep->reschedule_in_poll--;
-
+		ew32(INTSTAT, EpicNapiEvent);
+		epic_napi_irq_on(dev, ep);
 		spin_unlock_irqrestore(&ep->napi_lock, flags);
-
-		if (more)
-			goto rx_action;
 	}
 
 	return work_done;
@@ -1405,25 +1387,26 @@ static void netdev_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *
 	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
-static int netdev_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int netdev_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct epic_private *np = netdev_priv(dev);
-	int rc;
 
 	spin_lock_irq(&np->lock);
-	rc = mii_ethtool_gset(&np->mii, cmd);
+	mii_ethtool_get_link_ksettings(&np->mii, cmd);
 	spin_unlock_irq(&np->lock);
 
-	return rc;
+	return 0;
 }
 
-static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int netdev_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct epic_private *np = netdev_priv(dev);
 	int rc;
 
 	spin_lock_irq(&np->lock);
-	rc = mii_ethtool_sset(&np->mii, cmd);
+	rc = mii_ethtool_set_link_ksettings(&np->mii, cmd);
 	spin_unlock_irq(&np->lock);
 
 	return rc;
@@ -1478,14 +1461,14 @@ static void ethtool_complete(struct net_device *dev)
 
 static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
-	.get_settings		= netdev_get_settings,
-	.set_settings		= netdev_set_settings,
 	.nway_reset		= netdev_nway_reset,
 	.get_link		= netdev_get_link,
 	.get_msglevel		= netdev_get_msglevel,
 	.set_msglevel		= netdev_set_msglevel,
 	.begin			= ethtool_begin,
-	.complete		= ethtool_complete
+	.complete		= ethtool_complete,
+	.get_link_ksettings	= netdev_get_link_ksettings,
+	.set_link_ksettings	= netdev_set_link_ksettings,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

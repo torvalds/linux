@@ -42,7 +42,8 @@ Examples:
 Consumer:
 ========
 See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt and
-Documentation/devicetree/bindings/arm/gic.txt for further details.
+Documentation/devicetree/bindings/interrupt-controller/arm,gic.txt for
+further details.
 
 An interrupt consumer on an SoC using crossbar will use:
 	interrupts = <GIC_SPI request_number interrupt_level>

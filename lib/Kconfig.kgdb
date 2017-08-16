@@ -13,7 +13,7 @@ menuconfig KGDB
 	  CONFIG_FRAME_POINTER to aid in producing more reliable stack
 	  backtraces in the external debugger.  Documentation of
 	  kernel debugger is available at http://kgdb.sourceforge.net
-	  as well as in DocBook form in Documentation/DocBook/.  If
+	  as well as in Documentation/dev-tools/kgdb.rst.  If
 	  unsure, say N.
 
 if KGDB
@@ -22,7 +22,7 @@ config KGDB_SERIAL_CONSOLE
 	tristate "KGDB: use kgdb over the serial console"
 	select CONSOLE_POLL
 	select MAGIC_SYSRQ
-	depends on TTY
+	depends on TTY && HW_CONSOLE
 	default y
 	help
 	  Share a serial console with kgdb. Sysrq-g must be used

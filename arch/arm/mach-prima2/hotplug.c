@@ -32,7 +32,7 @@ static inline void platform_do_lowpower(unsigned int cpu)
  *
  * Called with IRQs disabled
  */
-void __ref sirfsoc_cpu_die(unsigned int cpu)
+void sirfsoc_cpu_die(unsigned int cpu)
 {
 	platform_do_lowpower(cpu);
 }

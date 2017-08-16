@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
@@ -199,7 +200,7 @@ static const struct pinctrl_ops pm8xxx_pinctrl_ops = {
 	.get_group_name		= pm8xxx_get_group_name,
 	.get_group_pins         = pm8xxx_get_group_pins,
 	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
-	.dt_free_map		= pinctrl_utils_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 };
 
 static int pm8xxx_get_functions_count(struct pinctrl_dev *pctldev)
@@ -443,7 +444,7 @@ static struct pinctrl_desc pm8xxx_pinctrl_desc = {
 static int pm8xxx_gpio_direction_input(struct gpio_chip *chip,
 				       unsigned offset)
 {
-	struct pm8xxx_gpio *pctrl = container_of(chip, struct pm8xxx_gpio, chip);
+	struct pm8xxx_gpio *pctrl = gpiochip_get_data(chip);
 	struct pm8xxx_pin_data *pin = pctrl->desc.pins[offset].drv_data;
 	u8 val;
 
@@ -459,7 +460,7 @@ static int pm8xxx_gpio_direction_output(struct gpio_chip *chip,
 					unsigned offset,
 					int value)
 {
-	struct pm8xxx_gpio *pctrl = container_of(chip, struct pm8xxx_gpio, chip);
+	struct pm8xxx_gpio *pctrl = gpiochip_get_data(chip);
 	struct pm8xxx_pin_data *pin = pctrl->desc.pins[offset].drv_data;
 	u8 val;
 
@@ -477,7 +478,7 @@ static int pm8xxx_gpio_direction_output(struct gpio_chip *chip,
 
 static int pm8xxx_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct pm8xxx_gpio *pctrl = container_of(chip, struct pm8xxx_gpio, chip);
+	struct pm8xxx_gpio *pctrl = gpiochip_get_data(chip);
 	struct pm8xxx_pin_data *pin = pctrl->desc.pins[offset].drv_data;
 	bool state;
 	int ret;
@@ -495,7 +496,7 @@ static int pm8xxx_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void pm8xxx_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct pm8xxx_gpio *pctrl = container_of(chip, struct pm8xxx_gpio, chip);
+	struct pm8xxx_gpio *pctrl = gpiochip_get_data(chip);
 	struct pm8xxx_pin_data *pin = pctrl->desc.pins[offset].drv_data;
 	u8 val;
 
@@ -524,7 +525,7 @@ static int pm8xxx_gpio_of_xlate(struct gpio_chip *chip,
 
 static int pm8xxx_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct pm8xxx_gpio *pctrl = container_of(chip, struct pm8xxx_gpio, chip);
+	struct pm8xxx_gpio *pctrl = gpiochip_get_data(chip);
 	struct pm8xxx_pin_data *pin = pctrl->desc.pins[offset].drv_data;
 
 	return pin->irq;
@@ -539,7 +540,7 @@ static void pm8xxx_gpio_dbg_show_one(struct seq_file *s,
 				  unsigned offset,
 				  unsigned gpio)
 {
-	struct pm8xxx_gpio *pctrl = container_of(chip, struct pm8xxx_gpio, chip);
+	struct pm8xxx_gpio *pctrl = gpiochip_get_data(chip);
 	struct pm8xxx_pin_data *pin = pctrl->desc.pins[offset].drv_data;
 
 	static const char * const modes[] = {
@@ -584,7 +585,7 @@ static void pm8xxx_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 }
 
 #else
-#define msm_gpio_dbg_show NULL
+#define pm8xxx_gpio_dbg_show NULL
 #endif
 
 static struct gpio_chip pm8xxx_gpio_template = {
@@ -650,11 +651,12 @@ static int pm8xxx_pin_populate(struct pm8xxx_gpio *pctrl,
 }
 
 static const struct of_device_id pm8xxx_gpio_of_match[] = {
-	{ .compatible = "qcom,pm8018-gpio", .data = (void *)6 },
-	{ .compatible = "qcom,pm8038-gpio", .data = (void *)12 },
-	{ .compatible = "qcom,pm8058-gpio", .data = (void *)40 },
-	{ .compatible = "qcom,pm8917-gpio", .data = (void *)38 },
-	{ .compatible = "qcom,pm8921-gpio", .data = (void *)44 },
+	{ .compatible = "qcom,pm8018-gpio" },
+	{ .compatible = "qcom,pm8038-gpio" },
+	{ .compatible = "qcom,pm8058-gpio" },
+	{ .compatible = "qcom,pm8917-gpio" },
+	{ .compatible = "qcom,pm8921-gpio" },
+	{ .compatible = "qcom,ssbi-gpio" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, pm8xxx_gpio_of_match);
@@ -665,14 +667,19 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 	struct pinctrl_pin_desc *pins;
 	struct pm8xxx_gpio *pctrl;
 	int ret;
-	int i;
+	int i, npins;
 
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
 		return -ENOMEM;
 
 	pctrl->dev = &pdev->dev;
-	pctrl->npins = (unsigned)of_device_get_match_data(&pdev->dev);
+	npins = platform_irq_count(pdev);
+	if (!npins)
+		return -EINVAL;
+	if (npins < 0)
+		return npins;
+	pctrl->npins = npins;
 
 	pctrl->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!pctrl->regmap) {
@@ -722,7 +729,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 	pctrl->desc.custom_conf_items = pm8xxx_conf_items;
 #endif
 
-	pctrl->pctrl = pinctrl_register(&pctrl->desc, &pdev->dev, pctrl);
+	pctrl->pctrl = devm_pinctrl_register(&pdev->dev, &pctrl->desc, pctrl);
 	if (IS_ERR(pctrl->pctrl)) {
 		dev_err(&pdev->dev, "couldn't register pm8xxx gpio driver\n");
 		return PTR_ERR(pctrl->pctrl);
@@ -730,15 +737,15 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 
 	pctrl->chip = pm8xxx_gpio_template;
 	pctrl->chip.base = -1;
-	pctrl->chip.dev = &pdev->dev;
+	pctrl->chip.parent = &pdev->dev;
 	pctrl->chip.of_node = pdev->dev.of_node;
 	pctrl->chip.of_gpio_n_cells = 2;
 	pctrl->chip.label = dev_name(pctrl->dev);
 	pctrl->chip.ngpio = pctrl->npins;
-	ret = gpiochip_add(&pctrl->chip);
+	ret = gpiochip_add_data(&pctrl->chip, pctrl);
 	if (ret) {
 		dev_err(&pdev->dev, "failed register gpiochip\n");
-		goto unregister_pinctrl;
+		return ret;
 	}
 
 	ret = gpiochip_add_pin_range(&pctrl->chip,
@@ -758,9 +765,6 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 unregister_gpiochip:
 	gpiochip_remove(&pctrl->chip);
 
-unregister_pinctrl:
-	pinctrl_unregister(pctrl->pctrl);
-
 	return ret;
 }
 
@@ -769,8 +773,6 @@ static int pm8xxx_gpio_remove(struct platform_device *pdev)
 	struct pm8xxx_gpio *pctrl = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&pctrl->chip);
-
-	pinctrl_unregister(pctrl->pctrl);
 
 	return 0;
 }

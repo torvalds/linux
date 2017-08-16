@@ -1,0 +1,14 @@
+[
+  {,
+    "EventCode": "0x2000e",
+    "EventName": "PM_FXU_BUSY",
+    "BriefDescription": "fxu0 busy and fxu1 busy",
+    "PublicDescription": ""
+  },
+  {,
+    "EventCode": "0x1000e",
+    "EventName": "PM_FXU_IDLE",
+    "BriefDescription": "fxu0 idle and fxu1 idle",
+    "PublicDescription": ""
+  },
+]

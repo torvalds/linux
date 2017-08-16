@@ -34,7 +34,7 @@ static unsigned int
 reject_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ipt_reject_info *reject = par->targinfo;
-	int hook = par->hooknum;
+	int hook = xt_hooknum(par);
 
 	switch (reject->with) {
 	case IPT_ICMP_NET_UNREACHABLE:
@@ -59,7 +59,7 @@ reject_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		nf_send_unreach(skb, ICMP_PKT_FILTERED, hook);
 		break;
 	case IPT_TCP_RESET:
-		nf_send_reset(skb, hook);
+		nf_send_reset(xt_net(par), skb, hook);
 	case IPT_ICMP_ECHOREPLY:
 		/* Doesn't happen. */
 		break;

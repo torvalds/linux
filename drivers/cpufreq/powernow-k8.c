@@ -1171,7 +1171,8 @@ static struct cpufreq_driver cpufreq_amd64_driver = {
 
 static void __request_acpi_cpufreq(void)
 {
-	const char *cur_drv, *drv = "acpi-cpufreq";
+	const char drv[] = "acpi-cpufreq";
+	const char *cur_drv;
 
 	cur_drv = cpufreq_get_current_driver();
 	if (!cur_drv)

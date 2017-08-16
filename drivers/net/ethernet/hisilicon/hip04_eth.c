@@ -500,8 +500,10 @@ static int hip04_rx_poll(struct napi_struct *napi, int budget)
 	while (cnt && !last) {
 		buf = priv->rx_buf[priv->rx_head];
 		skb = build_skb(buf, priv->rx_buf_size);
-		if (unlikely(!skb))
+		if (unlikely(!skb)) {
 			net_dbg_ratelimited("build_skb failed\n");
+			goto refill;
+		}
 
 		dma_unmap_single(&ndev->dev, priv->rx_phys[priv->rx_head],
 				 RX_BUF_SIZE, DMA_FROM_DEVICE);
@@ -528,6 +530,7 @@ static int hip04_rx_poll(struct napi_struct *napi, int budget)
 			rx++;
 		}
 
+refill:
 		buf = netdev_alloc_frag(priv->rx_buf_size);
 		if (!buf)
 			goto done;
@@ -552,7 +555,7 @@ static int hip04_rx_poll(struct napi_struct *napi, int budget)
 		priv->reg_inten |= RCV_INT;
 		writel_relaxed(priv->reg_inten, priv->base + PPE_INTEN);
 	}
-	napi_complete(napi);
+	napi_complete_done(napi, rx);
 done:
 	/* clean up tx descriptors and start a new timer if necessary */
 	tx_remaining = hip04_tx_reclaim(ndev, false);
@@ -597,7 +600,7 @@ static irqreturn_t hip04_mac_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-enum hrtimer_restart tx_done(struct hrtimer *hrtimer)
+static enum hrtimer_restart tx_done(struct hrtimer *hrtimer)
 {
 	struct hip04_priv *priv;
 
@@ -698,11 +701,6 @@ static void hip04_tx_timeout_task(struct work_struct *work)
 	hip04_mac_open(priv->ndev);
 }
 
-static struct net_device_stats *hip04_get_stats(struct net_device *ndev)
-{
-	return &ndev->stats;
-}
-
 static int hip04_get_coalesce(struct net_device *netdev,
 			      struct ethtool_coalesce *ec)
 {
@@ -752,21 +750,19 @@ static void hip04_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
 }
 
-static struct ethtool_ops hip04_ethtool_ops = {
+static const struct ethtool_ops hip04_ethtool_ops = {
 	.get_coalesce		= hip04_get_coalesce,
 	.set_coalesce		= hip04_set_coalesce,
 	.get_drvinfo		= hip04_get_drvinfo,
 };
 
-static struct net_device_ops hip04_netdev_ops = {
+static const struct net_device_ops hip04_netdev_ops = {
 	.ndo_open		= hip04_mac_open,
 	.ndo_stop		= hip04_mac_stop,
-	.ndo_get_stats		= hip04_get_stats,
 	.ndo_start_xmit		= hip04_mac_start_xmit,
 	.ndo_set_mac_address	= hip04_set_mac_address,
 	.ndo_tx_timeout         = hip04_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int hip04_alloc_ring(struct net_device *ndev, struct device *d)
@@ -826,6 +822,7 @@ static int hip04_mac_probe(struct platform_device *pdev)
 	priv = netdev_priv(ndev);
 	priv->ndev = ndev;
 	platform_set_drvdata(pdev, ndev);
+	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(d, res);
@@ -895,14 +892,12 @@ static int hip04_mac_probe(struct platform_device *pdev)
 
 	INIT_WORK(&priv->tx_timeout_task, hip04_tx_timeout_task);
 
-	ether_setup(ndev);
 	ndev->netdev_ops = &hip04_netdev_ops;
 	ndev->ethtool_ops = &hip04_ethtool_ops;
 	ndev->watchdog_timeo = TX_TIMEOUT;
 	ndev->priv_flags |= IFF_UNICAST_FLT;
 	ndev->irq = irq;
 	netif_napi_add(ndev, &priv->napi, hip04_rx_poll, NAPI_POLL_WEIGHT);
-	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	hip04_reset_ppe(priv);
 	if (priv->phy_mode == PHY_INTERFACE_MODE_MII)

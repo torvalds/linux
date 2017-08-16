@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -27,7 +23,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -43,8 +39,7 @@
 #include "lov_internal.h"
 
 /* compute object size given "stripeno" and the ost size */
-u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size,
-			 int stripeno)
+u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size, int stripeno)
 {
 	unsigned long ssize = lsm->lsm_stripe_size;
 	unsigned long stripe_size;
@@ -55,7 +50,6 @@ u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size,
 	if (ost_size == 0)
 		return 0;
 
-	LASSERT(lsm_op_find(magic) != NULL);
 	lsm_op_find(magic)->lsm_stripe_by_index(lsm, &stripeno, NULL, &swidth);
 
 	/* lov_do_div64(a, b) returns a % b, and a = a / b */
@@ -66,6 +60,18 @@ u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size,
 		lov_size = (ost_size - 1) * swidth + (stripeno + 1) * ssize;
 
 	return lov_size;
+}
+
+/**
+ * Compute file level page index by stripe level page offset
+ */
+pgoff_t lov_stripe_pgoff(struct lov_stripe_md *lsm, pgoff_t stripe_index,
+			 int stripe)
+{
+	loff_t offset;
+
+	offset = lov_stripe_size(lsm, (stripe_index << PAGE_SHIFT) + 1, stripe);
+	return offset >> PAGE_SHIFT;
 }
 
 /* we have an offset in file backed by an lov and want to find out where
@@ -115,7 +121,8 @@ u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size,
  * this function returns < 0 when the offset was "before" the stripe and
  * was moved forward to the start of the stripe in question;  0 when it
  * falls in the stripe and no shifting was done; > 0 when the offset
- * was outside the stripe and was pulled back to its final byte. */
+ * was outside the stripe and was pulled back to its final byte.
+ */
 int lov_stripe_offset(struct lov_stripe_md *lsm, u64 lov_off,
 		      int stripeno, u64 *obdoff)
 {
@@ -128,8 +135,6 @@ int lov_stripe_offset(struct lov_stripe_md *lsm, u64 lov_off,
 		*obdoff = OBD_OBJECT_EOF;
 		return 0;
 	}
-
-	LASSERT(lsm_op_find(magic) != NULL);
 
 	lsm_op_find(magic)->lsm_stripe_by_index(lsm, &stripeno, &lov_off,
 						&swidth);
@@ -183,7 +188,6 @@ u64 lov_size_to_stripe(struct lov_stripe_md *lsm, u64 file_size,
 	if (file_size == OBD_OBJECT_EOF)
 		return OBD_OBJECT_EOF;
 
-	LASSERT(lsm_op_find(magic) != NULL);
 	lsm_op_find(magic)->lsm_stripe_by_index(lsm, &stripeno, &file_size,
 						&swidth);
 
@@ -213,7 +217,8 @@ u64 lov_size_to_stripe(struct lov_stripe_md *lsm, u64 file_size,
 
 /* given an extent in an lov and a stripe, calculate the extent of the stripe
  * that is contained within the lov extent.  this returns true if the given
- * stripe does intersect with the lov extent. */
+ * stripe does intersect with the lov extent.
+ */
 int lov_stripe_intersects(struct lov_stripe_md *lsm, int stripeno,
 			  u64 start, u64 end, u64 *obd_start, u64 *obd_end)
 {
@@ -227,7 +232,8 @@ int lov_stripe_intersects(struct lov_stripe_md *lsm, int stripeno,
 
 	/* this stripe doesn't intersect the file extent when neither
 	 * start or the end intersected the stripe and obd_start and
-	 * obd_end got rounded up to the save value. */
+	 * obd_end got rounded up to the save value.
+	 */
 	if (start_side != 0 && end_side != 0 && *obd_start == *obd_end)
 		return 0;
 
@@ -238,7 +244,8 @@ int lov_stripe_intersects(struct lov_stripe_md *lsm, int stripeno,
 	 * in the wrong direction and touch it up.
 	 * interestingly, this can't underflow since end must be > start
 	 * if we passed through the previous check.
-	 * (should we assert for that somewhere?) */
+	 * (should we assert for that somewhere?)
+	 */
 	if (end_side != 0)
 		(*obd_end)--;
 
@@ -252,7 +259,6 @@ int lov_stripe_number(struct lov_stripe_md *lsm, u64 lov_off)
 	u64 stripe_off, swidth;
 	int magic = lsm->lsm_magic;
 
-	LASSERT(lsm_op_find(magic) != NULL);
 	lsm_op_find(magic)->lsm_stripe_by_offset(lsm, NULL, &lov_off, &swidth);
 
 	stripe_off = lov_do_div64(lov_off, swidth);

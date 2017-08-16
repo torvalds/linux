@@ -7,16 +7,29 @@ Required properties :
 			"qcom,gcc-apq8064"
 			"qcom,gcc-apq8084"
 			"qcom,gcc-ipq8064"
+			"qcom,gcc-ipq4019"
+			"qcom,gcc-ipq8074"
 			"qcom,gcc-msm8660"
 			"qcom,gcc-msm8916"
 			"qcom,gcc-msm8960"
 			"qcom,gcc-msm8974"
 			"qcom,gcc-msm8974pro"
 			"qcom,gcc-msm8974pro-ac"
+			"qcom,gcc-msm8994"
+			"qcom,gcc-msm8996"
+			"qcom,gcc-mdm9615"
 
 - reg : shall contain base register location and length
 - #clock-cells : shall contain 1
 - #reset-cells : shall contain 1
+
+Optional properties :
+- #power-domain-cells : shall contain 1
+- Qualcomm TSENS (thermal sensor device) on some devices can
+be part of GCC and hence the TSENS properties can also be
+part of the GCC/clock-controller node.
+For more details on the TSENS properties please refer
+Documentation/devicetree/bindings/thermal/qcom-tsens.txt
 
 Example:
 	clock-controller@900000 {
@@ -24,4 +37,16 @@ Example:
 		reg = <0x900000 0x4000>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+		#power-domain-cells = <1>;
+	};
+
+Example of GCC with TSENS properties:
+	clock-controller@900000 {
+		compatible = "qcom,gcc-apq8064";
+		reg = <0x00900000 0x4000>;
+		nvmem-cells = <&tsens_calib>, <&tsens_backup>;
+		nvmem-cell-names = "calib", "calib_backup";
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		#thermal-sensor-cells = <1>;
 	};

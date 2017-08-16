@@ -24,10 +24,10 @@
 #include <linux/input.h>
 #include <linux/input/navpoint.h>
 #include <linux/lcd.h>
-#include <linux/mfd/htc-egpio.h>
 #include <linux/mfd/asic3.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
+#include <linux/platform_data/gpio-htc-egpio.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/driver.h>
@@ -44,7 +44,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/hx4700.h>
 #include <linux/platform_data/irda-pxaficp.h>
 
@@ -557,10 +557,8 @@ static struct platform_device hx4700_lcd = {
  */
 
 static struct platform_pwm_backlight_data backlight_data = {
-	.pwm_id         = -1,	/* Superseded by pwm_lookup */
 	.max_brightness = 200,
 	.dft_brightness = 100,
-	.pwm_period_ns  = 30923,
 	.enable_gpio    = -1,
 };
 
@@ -630,7 +628,6 @@ static struct spi_board_info tsc2046_board_info[] __initdata = {
 
 static struct pxa2xx_spi_master pxa_ssp2_master_info = {
 	.num_chipselect = 1,
-	.clock_enable   = CKEN_SSP2,
 	.enable_dma     = 1,
 };
 

@@ -15,19 +15,15 @@ the s390-tools package) to make the device bootable. The operator of a Linux
 system can then trigger a SCSI dump by booting the SCSI disk, where zfcpdump
 resides on.
 
-The kernel part of zfcpdump is implemented as a debugfs file under "zcore/mem",
-which exports memory and registers of the crashed Linux in an s390
-standalone dump format. It can be used in the same way as e.g. /dev/mem. The
-dump format defines a 4K header followed by plain uncompressed memory. The
-register sets are stored in the prefix pages of the respective CPUs. To build a
-dump enabled kernel with the zcore driver, the kernel config option
-CONFIG_CRASH_DUMP has to be set. When reading from "zcore/mem", the part of
-memory, which has been saved by hardware is read by the driver via the SCLP
-hardware interface. The second part is just copied from the non overwritten real
-memory.
+The user space dump tool accesses the memory of the crashed system by means
+of the /proc/vmcore interface. This interface exports the crashed system's
+memory and registers in ELF core dump format. To access the memory which has
+been saved by the hardware SCLP requests will be created at the time the data
+is needed by /proc/vmcore. The tail part of the crashed systems memory which
+has not been stashed by hardware can just be copied from real memory.
 
-Since kernel version 3.12 also the /proc/vmcore file can also be used to access
-the dump.
+To build a dump enabled kernel the kernel config option CONFIG_CRASH_DUMP
+has to be set.
 
 To get a valid zfcpdump kernel configuration use "make zfcpdump_defconfig".
 

@@ -32,7 +32,7 @@
 #include <linux/tty.h>
 #include <linux/serial.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irmod.h>
@@ -86,48 +86,18 @@ static void ircomm_tty_change_speed(struct ircomm_tty_cb *self,
 	ircomm_param_request(self, IRCOMM_DATA_RATE, FALSE);
 
 	/* CTS flow control flag and modem status interrupts */
+	tty_port_set_cts_flow(&self->port, cflag & CRTSCTS);
 	if (cflag & CRTSCTS) {
-		self->port.flags |= ASYNC_CTS_FLOW;
 		self->settings.flow_control |= IRCOMM_RTS_CTS_IN;
 		/* This got me. Bummer. Jean II */
 		if (self->service_type == IRCOMM_3_WIRE_RAW)
 			net_warn_ratelimited("%s(), enabling RTS/CTS on link that doesn't support it (3-wire-raw)\n",
 					     __func__);
 	} else {
-		self->port.flags &= ~ASYNC_CTS_FLOW;
 		self->settings.flow_control &= ~IRCOMM_RTS_CTS_IN;
 	}
-	if (cflag & CLOCAL)
-		self->port.flags &= ~ASYNC_CHECK_CD;
-	else
-		self->port.flags |= ASYNC_CHECK_CD;
-#if 0
-	/*
-	 * Set up parity check flag
-	 */
+	tty_port_set_check_carrier(&self->port, ~cflag & CLOCAL);
 
-	if (I_INPCK(self->tty))
-		driver->read_status_mask |= LSR_FE | LSR_PE;
-	if (I_BRKINT(driver->tty) || I_PARMRK(driver->tty))
-		driver->read_status_mask |= LSR_BI;
-
-	/*
-	 * Characters to ignore
-	 */
-	driver->ignore_status_mask = 0;
-	if (I_IGNPAR(driver->tty))
-		driver->ignore_status_mask |= LSR_PE | LSR_FE;
-
-	if (I_IGNBRK(self->tty)) {
-		self->ignore_status_mask |= LSR_BI;
-		/*
-		 * If we're ignore parity and break indicators, ignore
-		 * overruns too. (For real raw support).
-		 */
-		if (I_IGNPAR(self->tty))
-			self->ignore_status_mask |= LSR_OE;
-	}
-#endif
 	self->settings.data_format = cval;
 
 	ircomm_param_request(self, IRCOMM_DATA_FORMAT, FALSE);
@@ -158,26 +128,21 @@ void ircomm_tty_set_termios(struct tty_struct *tty,
 	ircomm_tty_change_speed(self, tty);
 
 	/* Handle transition to B0 status */
-	if ((old_termios->c_cflag & CBAUD) &&
-	    !(cflag & CBAUD)) {
+	if ((old_termios->c_cflag & CBAUD) && !(cflag & CBAUD)) {
 		self->settings.dte &= ~(IRCOMM_DTR|IRCOMM_RTS);
 		ircomm_param_request(self, IRCOMM_DTE, TRUE);
 	}
 
 	/* Handle transition away from B0 status */
-	if (!(old_termios->c_cflag & CBAUD) &&
-	    (cflag & CBAUD)) {
+	if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
 		self->settings.dte |= IRCOMM_DTR;
-		if (!(tty->termios.c_cflag & CRTSCTS) ||
-		    !test_bit(TTY_THROTTLED, &tty->flags)) {
+		if (!C_CRTSCTS(tty) || !tty_throttled(tty))
 			self->settings.dte |= IRCOMM_RTS;
-		}
 		ircomm_param_request(self, IRCOMM_DTE, TRUE);
 	}
 
 	/* Handle turning off CRTSCTS */
-	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios.c_cflag & CRTSCTS))
+	if ((old_termios->c_cflag & CRTSCTS) && !C_CRTSCTS(tty))
 	{
 		tty->hw_stopped = 0;
 		ircomm_tty_start(tty);
@@ -195,7 +160,7 @@ int ircomm_tty_tiocmget(struct tty_struct *tty)
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) tty->driver_data;
 	unsigned int result;
 
-	if (tty->flags & (1 << TTY_IO_ERROR))
+	if (tty_io_error(tty))
 		return -EIO;
 
 	result =  ((self->settings.dte & IRCOMM_RTS) ? TIOCM_RTS : 0)
@@ -218,7 +183,7 @@ int ircomm_tty_tiocmset(struct tty_struct *tty,
 {
 	struct ircomm_tty_cb *self = (struct ircomm_tty_cb *) tty->driver_data;
 
-	if (tty->flags & (1 << TTY_IO_ERROR))
+	if (tty_io_error(tty))
 		return -EIO;
 
 	IRDA_ASSERT(self != NULL, return -1;);
@@ -255,9 +220,6 @@ static int ircomm_tty_get_serial_info(struct ircomm_tty_cb *self,
 {
 	struct serial_struct info;
 
-	if (!retinfo)
-		return -EFAULT;
-
 	memset(&info, 0, sizeof(info));
 	info.line = self->line;
 	info.flags = self->port.flags;
@@ -267,11 +229,6 @@ static int ircomm_tty_get_serial_info(struct ircomm_tty_cb *self,
 
 	/* For compatibility  */
 	info.type = PORT_16550A;
-	info.port = 0;
-	info.irq = 0;
-	info.xmit_fifo_size = 0;
-	info.hub6 = 0;
-	info.custom_divisor = 0;
 
 	if (copy_to_user(retinfo, &info, sizeof(*retinfo)))
 		return -EFAULT;
@@ -288,67 +245,6 @@ static int ircomm_tty_get_serial_info(struct ircomm_tty_cb *self,
 static int ircomm_tty_set_serial_info(struct ircomm_tty_cb *self,
 				      struct serial_struct __user *new_info)
 {
-#if 0
-	struct serial_struct new_serial;
-	struct ircomm_tty_cb old_state, *state;
-
-	if (copy_from_user(&new_serial,new_info,sizeof(new_serial)))
-		return -EFAULT;
-
-
-	state = self
-	old_state = *self;
-
-	if (!capable(CAP_SYS_ADMIN)) {
-		if ((new_serial.baud_base != state->settings.data_rate) ||
-		    (new_serial.close_delay != state->close_delay) ||
-		    ((new_serial.flags & ~ASYNC_USR_MASK) !=
-		     (self->flags & ~ASYNC_USR_MASK)))
-			return -EPERM;
-		state->flags = ((state->flags & ~ASYNC_USR_MASK) |
-				 (new_serial.flags & ASYNC_USR_MASK));
-		self->flags = ((self->flags & ~ASYNC_USR_MASK) |
-			       (new_serial.flags & ASYNC_USR_MASK));
-		/* self->custom_divisor = new_serial.custom_divisor; */
-		goto check_and_exit;
-	}
-
-	/*
-	 * OK, past this point, all the error checking has been done.
-	 * At this point, we start making changes.....
-	 */
-
-	if (self->settings.data_rate != new_serial.baud_base) {
-		self->settings.data_rate = new_serial.baud_base;
-		ircomm_param_request(self, IRCOMM_DATA_RATE, TRUE);
-	}
-
-	self->close_delay = new_serial.close_delay * HZ/100;
-	self->closing_wait = new_serial.closing_wait * HZ/100;
-	/* self->custom_divisor = new_serial.custom_divisor; */
-
-	self->flags = ((self->flags & ~ASYNC_FLAGS) |
-		       (new_serial.flags & ASYNC_FLAGS));
-	self->tty->low_latency = (self->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
-
- check_and_exit:
-
-	if (self->flags & ASYNC_INITIALIZED) {
-		if (((old_state.flags & ASYNC_SPD_MASK) !=
-		     (self->flags & ASYNC_SPD_MASK)) ||
-		    (old_driver.custom_divisor != driver->custom_divisor)) {
-			if ((driver->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-				driver->tty->alt_speed = 57600;
-			if ((driver->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-				driver->tty->alt_speed = 115200;
-			if ((driver->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-				driver->tty->alt_speed = 230400;
-			if ((driver->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-				driver->tty->alt_speed = 460800;
-			ircomm_tty_change_speed(driver);
-		}
-	}
-#endif
 	return 0;
 }
 
@@ -367,7 +263,7 @@ int ircomm_tty_ioctl(struct tty_struct *tty,
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
 	    (cmd != TIOCSERCONFIG) && (cmd != TIOCSERGSTRUCT) &&
 	    (cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
-		if (tty->flags & (1 << TTY_IO_ERROR))
+		if (tty_io_error(tty))
 		    return -EIO;
 	}
 
@@ -384,24 +280,6 @@ int ircomm_tty_ioctl(struct tty_struct *tty,
 
 	case TIOCGICOUNT:
 		pr_debug("%s(), TIOCGICOUNT not impl!\n", __func__);
-#if 0
-		save_flags(flags); cli();
-		cnow = driver->icount;
-		restore_flags(flags);
-		p_cuser = (struct serial_icounter_struct __user *) arg;
-		if (put_user(cnow.cts, &p_cuser->cts) ||
-		    put_user(cnow.dsr, &p_cuser->dsr) ||
-		    put_user(cnow.rng, &p_cuser->rng) ||
-		    put_user(cnow.dcd, &p_cuser->dcd) ||
-		    put_user(cnow.rx, &p_cuser->rx) ||
-		    put_user(cnow.tx, &p_cuser->tx) ||
-		    put_user(cnow.frame, &p_cuser->frame) ||
-		    put_user(cnow.overrun, &p_cuser->overrun) ||
-		    put_user(cnow.parity, &p_cuser->parity) ||
-		    put_user(cnow.brk, &p_cuser->brk) ||
-		    put_user(cnow.buf_overrun, &p_cuser->buf_overrun))
-			return -EFAULT;
-#endif
 		return 0;
 	default:
 		ret = -ENOIOCTLCMD;  /* ioctls which we must ignore */

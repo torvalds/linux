@@ -28,6 +28,7 @@
 #include <net/inetpeer.h>
 #include <net/flow.h>
 #include <net/inet_sock.h>
+#include <net/ip_fib.h>
 #include <linux/in_route.h>
 #include <linux/rtnetlink.h>
 #include <linux/rcupdate.h>
@@ -63,6 +64,8 @@ struct rtable {
 
 	/* Miscellaneous cached information */
 	u32			rt_pmtu;
+
+	u32			rt_table_id;
 
 	struct list_head	rt_uncached;
 	struct uncached_list	*rt_uncached_list;
@@ -110,9 +113,20 @@ struct in_device;
 int ip_rt_init(void);
 void rt_cache_flush(struct net *net);
 void rt_flush_dev(struct net_device *dev);
-struct rtable *__ip_route_output_key(struct net *, struct flowi4 *flp);
+struct rtable *ip_route_output_key_hash(struct net *net, struct flowi4 *flp,
+					const struct sk_buff *skb);
+struct rtable *ip_route_output_key_hash_rcu(struct net *net, struct flowi4 *flp,
+					    struct fib_result *res,
+					    const struct sk_buff *skb);
+
+static inline struct rtable *__ip_route_output_key(struct net *net,
+						   struct flowi4 *flp)
+{
+	return ip_route_output_key_hash(net, flp, NULL);
+}
+
 struct rtable *ip_route_output_flow(struct net *, struct flowi4 *flp,
-				    struct sock *sk);
+				    const struct sock *sk);
 struct dst_entry *ipv4_blackhole_route(struct net *net,
 				       struct dst_entry *dst_orig);
 
@@ -142,7 +156,7 @@ static inline struct rtable *ip_route_output_ports(struct net *net, struct flowi
 	flowi4_init_output(fl4, oif, sk ? sk->sk_mark : 0, tos,
 			   RT_SCOPE_UNIVERSE, proto,
 			   sk ? inet_sk_flowi_flags(sk) : 0,
-			   daddr, saddr, dport, sport);
+			   daddr, saddr, dport, sport, sock_net_uid(net, sk));
 	if (sk)
 		security_sk_classify_flow(sk, flowi4_to_flowi(fl4));
 	return ip_route_output_flow(net, fl4, sk);
@@ -164,6 +178,9 @@ static inline struct rtable *ip_route_output_gre(struct net *net, struct flowi4 
 
 int ip_route_input_noref(struct sk_buff *skb, __be32 dst, __be32 src,
 			 u8 tos, struct net_device *devin);
+int ip_route_input_rcu(struct sk_buff *skb, __be32 dst, __be32 src,
+		       u8 tos, struct net_device *devin,
+		       struct fib_result *res);
 
 static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 				 u8 tos, struct net_device *devin)
@@ -173,7 +190,9 @@ static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
 	rcu_read_lock();
 	err = ip_route_input_noref(skb, dst, src, tos, devin);
 	if (!err)
-		skb_dst_force(skb);
+		skb_dst_force_safe(skb);
+	if (!skb_dst(skb))
+		err = -EINVAL;
 	rcu_read_unlock();
 
 	return err;
@@ -197,6 +216,9 @@ unsigned int inet_addr_type_dev_table(struct net *net,
 void ip_rt_multicast_event(struct in_device *);
 int ip_rt_ioctl(struct net *, unsigned int cmd, void __user *arg);
 void ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
+struct rtable *rt_dst_alloc(struct net_device *dev,
+			     unsigned int flags, u16 type,
+			     bool nopolicy, bool noxfrm, bool will_cache);
 
 struct in_ifaddr;
 void fib_add_ifaddr(struct in_ifaddr *);
@@ -254,11 +276,9 @@ static inline void ip_route_connect_init(struct flowi4 *fl4, __be32 dst, __be32 
 	if (inet_sk(sk)->transparent)
 		flow_flags |= FLOWI_FLAG_ANYSRC;
 
-	if (netif_index_is_vrf(sock_net(sk), oif))
-		flow_flags |= FLOWI_FLAG_VRFSRC | FLOWI_FLAG_SKIP_NH_OIF;
-
 	flowi4_init_output(fl4, oif, sk->sk_mark, tos, RT_SCOPE_UNIVERSE,
-			   protocol, flow_flags, dst, src, dport, sport);
+			   protocol, flow_flags, dst, src, dport, sport,
+			   sk->sk_uid);
 }
 
 static inline struct rtable *ip_route_connect(struct flowi4 *fl4,
@@ -304,21 +324,21 @@ static inline struct rtable *ip_route_newports(struct flowi4 *fl4, struct rtable
 
 static inline int inet_iif(const struct sk_buff *skb)
 {
-	int iif = skb_rtable(skb)->rt_iif;
+	struct rtable *rt = skb_rtable(skb);
 
-	if (iif)
-		return iif;
+	if (rt && rt->rt_iif)
+		return rt->rt_iif;
+
 	return skb->skb_iif;
 }
-
-extern int sysctl_ip_default_ttl;
 
 static inline int ip4_dst_hoplimit(const struct dst_entry *dst)
 {
 	int hoplimit = dst_metric_raw(dst, RTAX_HOPLIMIT);
+	struct net *net = dev_net(dst->dev);
 
 	if (hoplimit == 0)
-		hoplimit = sysctl_ip_default_ttl;
+		hoplimit = net->ipv4.sysctl_ip_default_ttl;
 	return hoplimit;
 }
 

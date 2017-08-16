@@ -19,6 +19,7 @@
 #include <linux/amba/bus.h>
 #include <linux/sizes.h>
 #include <linux/limits.h>
+#include <linux/clk/clk-conf.h>
 
 #include <asm/irq.h>
 
@@ -104,6 +105,7 @@ static ssize_t driver_override_store(struct device *_dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(driver_override);
 
 #define amba_attr_func(name,fmt,arg...)					\
 static ssize_t name##_show(struct device *_dev,				\
@@ -111,25 +113,23 @@ static ssize_t name##_show(struct device *_dev,				\
 {									\
 	struct amba_device *dev = to_amba_device(_dev);			\
 	return sprintf(buf, fmt, arg);					\
-}
-
-#define amba_attr(name,fmt,arg...)	\
-amba_attr_func(name,fmt,arg)		\
-static DEVICE_ATTR(name, S_IRUGO, name##_show, NULL)
+}									\
+static DEVICE_ATTR_RO(name)
 
 amba_attr_func(id, "%08x\n", dev->periphid);
-amba_attr(irq0, "%u\n", dev->irq[0]);
-amba_attr(irq1, "%u\n", dev->irq[1]);
+amba_attr_func(irq0, "%u\n", dev->irq[0]);
+amba_attr_func(irq1, "%u\n", dev->irq[1]);
 amba_attr_func(resource, "\t%016llx\t%016llx\t%016lx\n",
 	 (unsigned long long)dev->res.start, (unsigned long long)dev->res.end,
 	 dev->res.flags);
 
-static struct device_attribute amba_dev_attrs[] = {
-	__ATTR_RO(id),
-	__ATTR_RO(resource),
-	__ATTR_RW(driver_override),
-	__ATTR_NULL,
+static struct attribute *amba_dev_attrs[] = {
+	&dev_attr_id.attr,
+	&dev_attr_resource.attr,
+	&dev_attr_driver_override.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(amba_dev);
 
 #ifdef CONFIG_PM
 /*
@@ -191,7 +191,7 @@ static const struct dev_pm_ops amba_pm = {
  */
 struct bus_type amba_bustype = {
 	.name		= "amba",
-	.dev_attrs	= amba_dev_attrs,
+	.dev_groups	= amba_dev_groups,
 	.match		= amba_match,
 	.uevent		= amba_uevent,
 	.pm		= &amba_pm,
@@ -237,6 +237,10 @@ static int amba_probe(struct device *dev)
 	int ret;
 
 	do {
+		ret = of_clk_set_defaults(dev->of_node, false);
+		if (ret < 0)
+			break;
+
 		ret = dev_pm_domain_attach(dev, true);
 		if (ret == -EPROBE_DEFER)
 			break;
@@ -336,16 +340,7 @@ static void amba_device_release(struct device *dev)
 	kfree(d);
 }
 
-/**
- *	amba_device_add - add a previously allocated AMBA device structure
- *	@dev: AMBA device allocated by amba_device_alloc
- *	@parent: resource parent for this devices resources
- *
- *	Claim the resource, and read the device cell ID if not already
- *	initialized.  Register the AMBA device with the Linux device
- *	manager.
- */
-int amba_device_add(struct amba_device *dev, struct resource *parent)
+static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 {
 	u32 size;
 	void __iomem *tmp;
@@ -370,6 +365,12 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 	tmp = ioremap(dev->res.start, size);
 	if (!tmp) {
 		ret = -ENOMEM;
+		goto err_release;
+	}
+
+	ret = dev_pm_domain_attach(&dev->dev, true);
+	if (ret == -EPROBE_DEFER) {
+		iounmap(tmp);
 		goto err_release;
 	}
 
@@ -398,6 +399,7 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 	}
 
 	iounmap(tmp);
+	dev_pm_domain_detach(&dev->dev, true);
 
 	if (ret)
 		goto err_release;
@@ -419,6 +421,88 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
  err_release:
 	release_resource(&dev->res);
  err_out:
+	return ret;
+}
+
+/*
+ * Registration of AMBA device require reading its pid and cid registers.
+ * To do this, the device must be turned on (if it is a part of power domain)
+ * and have clocks enabled. However in some cases those resources might not be
+ * yet available. Returning EPROBE_DEFER is not a solution in such case,
+ * because callers don't handle this special error code. Instead such devices
+ * are added to the special list and their registration is retried from
+ * periodic worker, until all resources are available and registration succeeds.
+ */
+struct deferred_device {
+	struct amba_device *dev;
+	struct resource *parent;
+	struct list_head node;
+};
+
+static LIST_HEAD(deferred_devices);
+static DEFINE_MUTEX(deferred_devices_lock);
+
+static void amba_deferred_retry_func(struct work_struct *dummy);
+static DECLARE_DELAYED_WORK(deferred_retry_work, amba_deferred_retry_func);
+
+#define DEFERRED_DEVICE_TIMEOUT (msecs_to_jiffies(5 * 1000))
+
+static void amba_deferred_retry_func(struct work_struct *dummy)
+{
+	struct deferred_device *ddev, *tmp;
+
+	mutex_lock(&deferred_devices_lock);
+
+	list_for_each_entry_safe(ddev, tmp, &deferred_devices, node) {
+		int ret = amba_device_try_add(ddev->dev, ddev->parent);
+
+		if (ret == -EPROBE_DEFER)
+			continue;
+
+		list_del_init(&ddev->node);
+		kfree(ddev);
+	}
+
+	if (!list_empty(&deferred_devices))
+		schedule_delayed_work(&deferred_retry_work,
+				      DEFERRED_DEVICE_TIMEOUT);
+
+	mutex_unlock(&deferred_devices_lock);
+}
+
+/**
+ *	amba_device_add - add a previously allocated AMBA device structure
+ *	@dev: AMBA device allocated by amba_device_alloc
+ *	@parent: resource parent for this devices resources
+ *
+ *	Claim the resource, and read the device cell ID if not already
+ *	initialized.  Register the AMBA device with the Linux device
+ *	manager.
+ */
+int amba_device_add(struct amba_device *dev, struct resource *parent)
+{
+	int ret = amba_device_try_add(dev, parent);
+
+	if (ret == -EPROBE_DEFER) {
+		struct deferred_device *ddev;
+
+		ddev = kmalloc(sizeof(*ddev), GFP_KERNEL);
+		if (!ddev)
+			return -ENOMEM;
+
+		ddev->dev = dev;
+		ddev->parent = parent;
+		ret = 0;
+
+		mutex_lock(&deferred_devices_lock);
+
+		if (list_empty(&deferred_devices))
+			schedule_delayed_work(&deferred_retry_work,
+					      DEFERRED_DEVICE_TIMEOUT);
+		list_add_tail(&ddev->node, &deferred_devices);
+
+		mutex_unlock(&deferred_devices_lock);
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(amba_device_add);

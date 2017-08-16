@@ -30,7 +30,7 @@
 #include <linux/if.h>
 #include <linux/hdlc.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "farsync.h"
 
@@ -831,7 +831,7 @@ fst_tx_dma_complete(struct fst_card_info *card, struct fst_port_info *port,
 		DMA_OWN | TX_STP | TX_ENP);
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += len;
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 }
 
 /*
@@ -857,7 +857,7 @@ fst_rx_dma_complete(struct fst_card_info *card, struct fst_port_info *port,
 
 	dbg(DBG_TX, "fst_rx_dma_complete\n");
 	pi = port->index;
-	memcpy(skb_put(skb, len), card->rx_dma_handle_host, len);
+	skb_put_data(skb, card->rx_dma_handle_host, len);
 
 	/* Reset buffer descriptor */
 	FST_WRB(card, rxDescrRing[pi][rxp].bits, DMA_OWN);
@@ -1389,7 +1389,7 @@ do_bottom_half_tx(struct fst_card_info *card)
 						DMA_OWN | TX_STP | TX_ENP);
 					dev->stats.tx_packets++;
 					dev->stats.tx_bytes += skb->len;
-					dev->trans_start = jiffies;
+					netif_trans_update(dev);
 				} else {
 					/* Or do it through dma */
 					memcpy(card->tx_dma_handle_host,
@@ -2258,7 +2258,7 @@ fst_tx_timeout(struct net_device *dev)
 	    card->card_no, port->index);
 	fst_issue_cmd(port, ABORTTX);
 
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	netif_wake_queue(dev);
 	port->start = 0;
 }
@@ -2394,7 +2394,6 @@ fst_init_card(struct fst_card_info *card)
 static const struct net_device_ops fst_ops = {
 	.ndo_open       = fst_open,
 	.ndo_stop       = fst_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = fst_ioctl,
 	.ndo_tx_timeout = fst_tx_timeout,
@@ -2516,7 +2515,7 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
                 dev->mem_start   = card->phys_mem
                                  + BUF_OFFSET ( txBuffer[i][0][0]);
                 dev->mem_end     = card->phys_mem
-                                 + BUF_OFFSET ( txBuffer[i][NUM_TX_BUFFER][0]);
+                                 + BUF_OFFSET ( txBuffer[i][NUM_TX_BUFFER - 1][LEN_RX_BUFFER - 1]);
                 dev->base_addr   = card->pci_conf;
                 dev->irq         = card->irq;
 

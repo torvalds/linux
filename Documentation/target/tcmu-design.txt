@@ -117,7 +117,9 @@ userspace (respectively) to put commands on the ring, and indicate
 when the commands are completed.
 
 version - 1 (userspace should abort if otherwise)
-flags - none yet defined.
+flags:
+- TCMU_MAILBOX_FLAG_CAP_OOOC: indicates out-of-order completion is
+  supported.  See "The Command Ring" for details.
 cmdr_off - The offset of the start of the command ring from the start
 of the memory region, to account for the mailbox size.
 cmdr_size - The size of the command ring. This does *not* need to be a
@@ -161,6 +163,13 @@ When completing a command, userspace sets rsp.scsi_status, and
 rsp.sense_buffer if necessary. Userspace then increments
 mailbox.cmd_tail by entry.hdr.length (mod cmdr_size) and signals the
 kernel via the UIO method, a 4-byte write to the file descriptor.
+
+If TCMU_MAILBOX_FLAG_CAP_OOOC is set for mailbox->flags, kernel is
+capable of handling out-of-order completions. In this case, userspace can
+handle command in different order other than original. Since kernel would
+still process the commands in the same order it appeared in the command
+ring, userspace need to update the cmd->id when completing the
+command(a.k.a steal the original command's entry).
 
 When the opcode is PAD, userspace only updates cmd_tail as above --
 it's a no-op. (The kernel inserts PAD entries to ensure each CMD entry

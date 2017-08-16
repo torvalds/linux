@@ -43,8 +43,10 @@
 #define GENERAL_UPIU_REQUEST_SIZE 32
 #define QUERY_DESC_MAX_SIZE       255
 #define QUERY_DESC_MIN_SIZE       2
+#define QUERY_DESC_HDR_SIZE       2
 #define QUERY_OSF_SIZE            (GENERAL_UPIU_REQUEST_SIZE - \
 					(sizeof(struct utp_upiu_header)))
+#define RESPONSE_UPIU_SENSE_DATA_LENGTH	18
 
 #define UPIU_HEADER_DWORD(byte3, byte2, byte1, byte0)\
 			cpu_to_be32((byte3 << 24) | (byte2 << 16) |\
@@ -144,7 +146,7 @@ enum attr_idn {
 /* Descriptor idn for Query requests */
 enum desc_idn {
 	QUERY_DESC_IDN_DEVICE		= 0x0,
-	QUERY_DESC_IDN_CONFIGURAION	= 0x1,
+	QUERY_DESC_IDN_CONFIGURATION	= 0x1,
 	QUERY_DESC_IDN_UNIT		= 0x2,
 	QUERY_DESC_IDN_RFU_0		= 0x3,
 	QUERY_DESC_IDN_INTERCONNECT	= 0x4,
@@ -160,19 +162,13 @@ enum desc_header_offset {
 	QUERY_DESC_DESC_TYPE_OFFSET	= 0x01,
 };
 
-enum ufs_desc_max_size {
-	QUERY_DESC_DEVICE_MAX_SIZE		= 0x1F,
-	QUERY_DESC_CONFIGURAION_MAX_SIZE	= 0x90,
-	QUERY_DESC_UNIT_MAX_SIZE		= 0x23,
-	QUERY_DESC_INTERCONNECT_MAX_SIZE	= 0x06,
-	/*
-	 * Max. 126 UNICODE characters (2 bytes per character) plus 2 bytes
-	 * of descriptor header.
-	 */
-	QUERY_DESC_STRING_MAX_SIZE		= 0xFE,
-	QUERY_DESC_GEOMETRY_MAZ_SIZE		= 0x44,
-	QUERY_DESC_POWER_MAX_SIZE		= 0x62,
-	QUERY_DESC_RFU_MAX_SIZE			= 0x00,
+enum ufs_desc_def_size {
+	QUERY_DESC_DEVICE_DEF_SIZE		= 0x40,
+	QUERY_DESC_CONFIGURATION_DEF_SIZE	= 0x90,
+	QUERY_DESC_UNIT_DEF_SIZE		= 0x23,
+	QUERY_DESC_INTERCONNECT_DEF_SIZE	= 0x06,
+	QUERY_DESC_GEOMETRY_DEF_SIZE		= 0x44,
+	QUERY_DESC_POWER_DEF_SIZE		= 0x62,
 };
 
 /* Unit descriptor parameters offsets in bytes*/
@@ -193,6 +189,37 @@ enum unit_desc_param {
 	UNIT_DESC_PARAM_PHY_MEM_RSRC_CNT	= 0x18,
 	UNIT_DESC_PARAM_CTX_CAPABILITIES	= 0x20,
 	UNIT_DESC_PARAM_LARGE_UNIT_SIZE_M1	= 0x22,
+};
+
+/* Device descriptor parameters offsets in bytes*/
+enum device_desc_param {
+	DEVICE_DESC_PARAM_LEN			= 0x0,
+	DEVICE_DESC_PARAM_TYPE			= 0x1,
+	DEVICE_DESC_PARAM_DEVICE_TYPE		= 0x2,
+	DEVICE_DESC_PARAM_DEVICE_CLASS		= 0x3,
+	DEVICE_DESC_PARAM_DEVICE_SUB_CLASS	= 0x4,
+	DEVICE_DESC_PARAM_PRTCL			= 0x5,
+	DEVICE_DESC_PARAM_NUM_LU		= 0x6,
+	DEVICE_DESC_PARAM_NUM_WLU		= 0x7,
+	DEVICE_DESC_PARAM_BOOT_ENBL		= 0x8,
+	DEVICE_DESC_PARAM_DESC_ACCSS_ENBL	= 0x9,
+	DEVICE_DESC_PARAM_INIT_PWR_MODE		= 0xA,
+	DEVICE_DESC_PARAM_HIGH_PR_LUN		= 0xB,
+	DEVICE_DESC_PARAM_SEC_RMV_TYPE		= 0xC,
+	DEVICE_DESC_PARAM_SEC_LU		= 0xD,
+	DEVICE_DESC_PARAM_BKOP_TERM_LT		= 0xE,
+	DEVICE_DESC_PARAM_ACTVE_ICC_LVL		= 0xF,
+	DEVICE_DESC_PARAM_SPEC_VER		= 0x10,
+	DEVICE_DESC_PARAM_MANF_DATE		= 0x12,
+	DEVICE_DESC_PARAM_MANF_NAME		= 0x14,
+	DEVICE_DESC_PARAM_PRDCT_NAME		= 0x15,
+	DEVICE_DESC_PARAM_SN			= 0x16,
+	DEVICE_DESC_PARAM_OEM_ID		= 0x17,
+	DEVICE_DESC_PARAM_MANF_ID		= 0x18,
+	DEVICE_DESC_PARAM_UD_OFFSET		= 0x1A,
+	DEVICE_DESC_PARAM_UD_LEN		= 0x1B,
+	DEVICE_DESC_PARAM_RTT_CAP		= 0x1C,
+	DEVICE_DESC_PARAM_FRQ_RTC		= 0x1D,
 };
 
 /*
@@ -295,6 +322,7 @@ enum {
 	MASK_QUERY_DATA_SEG_LEN         = 0xFFFF,
 	MASK_RSP_UPIU_DATA_SEG_LEN	= 0xFFFF,
 	MASK_RSP_EXCEPTION_EVENT        = 0x10000,
+	MASK_TM_SERVICE_RESP		= 0xFF,
 };
 
 /* Task management service response */
@@ -383,7 +411,7 @@ struct utp_cmd_rsp {
 	__be32 residual_transfer_count;
 	__be32 reserved[4];
 	__be16 sense_data_len;
-	u8 sense_data[18];
+	u8 sense_data[RESPONSE_UPIU_SENSE_DATA_LENGTH];
 };
 
 /**
@@ -469,6 +497,7 @@ struct ufs_vreg {
 	struct regulator *reg;
 	const char *name;
 	bool enabled;
+	bool unused;
 	int min_uV;
 	int max_uV;
 	int min_uA;
@@ -486,6 +515,18 @@ struct ufs_dev_info {
 	bool f_power_on_wp_en;
 	/* Keeps information if any of the LU is power on write protected */
 	bool is_lu_power_on_wp;
+};
+
+#define MAX_MODEL_LEN 16
+/**
+ * ufs_dev_desc - ufs device details from the device descriptor
+ *
+ * @wmanufacturerid: card details
+ * @model: card model
+ */
+struct ufs_dev_desc {
+	u16 wmanufacturerid;
+	char model[MAX_MODEL_LEN + 1];
 };
 
 #endif /* End of Header */

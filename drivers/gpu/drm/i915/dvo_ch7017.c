@@ -255,8 +255,8 @@ static enum drm_mode_status ch7017_mode_valid(struct intel_dvo_device *dvo,
 }
 
 static void ch7017_mode_set(struct intel_dvo_device *dvo,
-			    struct drm_display_mode *mode,
-			    struct drm_display_mode *adjusted_mode)
+			    const struct drm_display_mode *mode,
+			    const struct drm_display_mode *adjusted_mode)
 {
 	uint8_t lvds_pll_feedback_div, lvds_pll_vco_control;
 	uint8_t outputs_enable, lvds_control_2, lvds_power_down;
@@ -280,10 +280,10 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 			(0 << CH7017_PHASE_DETECTOR_SHIFT);
 	} else {
 		outputs_enable = CH7017_LVDS_CHANNEL_A | CH7017_CHARGE_PUMP_HIGH;
-		lvds_pll_feedback_div = CH7017_LVDS_PLL_FEEDBACK_DEFAULT_RESERVED |
+		lvds_pll_feedback_div =
+			CH7017_LVDS_PLL_FEEDBACK_DEFAULT_RESERVED |
 			(2 << CH7017_LVDS_PLL_FEED_BACK_DIVIDER_SHIFT) |
 			(3 << CH7017_LVDS_PLL_FEED_FORWARD_DIVIDER_SHIFT);
-		lvds_pll_feedback_div = 35;
 		lvds_control_2 = (3 << CH7017_LOOP_FILTER_SHIFT) |
 			(0 << CH7017_PHASE_DETECTOR_SHIFT);
 		if (1) { /* XXX: dual channel panel detection.  Assume yes for now. */
@@ -402,7 +402,7 @@ static void ch7017_destroy(struct intel_dvo_device *dvo)
 	}
 }
 
-struct intel_dvo_dev_ops ch7017_ops = {
+const struct intel_dvo_dev_ops ch7017_ops = {
 	.init = ch7017_init,
 	.detect = ch7017_detect,
 	.mode_valid = ch7017_mode_valid,

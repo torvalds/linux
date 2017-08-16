@@ -79,9 +79,16 @@ convert_sfu_char(const __u16 src_char, char *target)
 static bool
 convert_sfm_char(const __u16 src_char, char *target)
 {
+	if (src_char >= 0xF001 && src_char <= 0xF01F) {
+		*target = src_char - 0xF000;
+		return true;
+	}
 	switch (src_char) {
 	case SFM_COLON:
 		*target = ':';
+		break;
+	case SFM_DOUBLEQUOTE:
+		*target = '"';
 		break;
 	case SFM_ASTERISK:
 		*target = '*';
@@ -100,6 +107,12 @@ convert_sfm_char(const __u16 src_char, char *target)
 		break;
 	case SFM_SLASH:
 		*target = '\\';
+		break;
+	case SFM_SPACE:
+		*target = ' ';
+		break;
+	case SFM_PERIOD:
+		*target = '.';
 		break;
 	default:
 		return false;
@@ -404,13 +417,20 @@ static __le16 convert_to_sfu_char(char src_char)
 	return dest_char;
 }
 
-static __le16 convert_to_sfm_char(char src_char)
+static __le16 convert_to_sfm_char(char src_char, bool end_of_string)
 {
 	__le16 dest_char;
 
+	if (src_char >= 0x01 && src_char <= 0x1F) {
+		dest_char = cpu_to_le16(src_char + 0xF000);
+		return dest_char;
+	}
 	switch (src_char) {
 	case ':':
 		dest_char = cpu_to_le16(SFM_COLON);
+		break;
+	case '"':
+		dest_char = cpu_to_le16(SFM_DOUBLEQUOTE);
 		break;
 	case '*':
 		dest_char = cpu_to_le16(SFM_ASTERISK);
@@ -426,6 +446,18 @@ static __le16 convert_to_sfm_char(char src_char)
 		break;
 	case '|':
 		dest_char = cpu_to_le16(SFM_PIPE);
+		break;
+	case '.':
+		if (end_of_string)
+			dest_char = cpu_to_le16(SFM_PERIOD);
+		else
+			dest_char = 0;
+		break;
+	case ' ':
+		if (end_of_string)
+			dest_char = cpu_to_le16(SFM_SPACE);
+		else
+			dest_char = 0;
 		break;
 	default:
 		dest_char = 0;
@@ -469,9 +501,16 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 		/* see if we must remap this char */
 		if (map_chars == SFU_MAP_UNI_RSVD)
 			dst_char = convert_to_sfu_char(src_char);
-		else if (map_chars == SFM_MAP_UNI_RSVD)
-			dst_char = convert_to_sfm_char(src_char);
-		else
+		else if (map_chars == SFM_MAP_UNI_RSVD) {
+			bool end_of_string;
+
+			if (i == srclen - 1)
+				end_of_string = true;
+			else
+				end_of_string = false;
+
+			dst_char = convert_to_sfm_char(src_char, end_of_string);
+		} else
 			dst_char = 0;
 		/*
 		 * FIXME: We can not handle remapping backslash (UNI_SLASH)
@@ -549,7 +588,6 @@ ctoUTF16_out:
 	return j;
 }
 
-#ifdef CONFIG_CIFS_SMB2
 /*
  * cifs_local_to_utf16_bytes - how long will a string be after conversion?
  * @from - pointer to input string
@@ -608,4 +646,3 @@ cifs_strndup_to_utf16(const char *src, const int maxlen, int *utf16_len,
 	*utf16_len = len;
 	return dst;
 }
-#endif /* CONFIG_CIFS_SMB2 */

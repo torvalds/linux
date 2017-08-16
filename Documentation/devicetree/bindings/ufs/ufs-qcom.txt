@@ -1,0 +1,60 @@
+* Qualcomm Technologies Inc Universal Flash Storage (UFS) PHY
+
+UFSPHY nodes are defined to describe on-chip UFS PHY hardware macro.
+Each UFS PHY node should have its own node.
+
+To bind UFS PHY with UFS host controller, the controller node should
+contain a phandle reference to UFS PHY node.
+
+Required properties:
+- compatible        : compatible list, contains one of the following -
+			"qcom,ufs-phy-qmp-20nm" for 20nm ufs phy,
+			"qcom,ufs-phy-qmp-14nm" for legacy 14nm ufs phy,
+			"qcom,msm8996-ufs-phy-qmp-14nm" for 14nm ufs phy
+			 present on MSM8996 chipset.
+- reg               : should contain PHY register address space (mandatory),
+- reg-names         : indicates various resources passed to driver (via reg proptery) by name.
+                      Required "reg-names" is "phy_mem".
+- #phy-cells        : This property shall be set to 0
+- vdda-phy-supply   : phandle to main PHY supply for analog domain
+- vdda-pll-supply   : phandle to PHY PLL and Power-Gen block power supply
+- clocks	    : List of phandle and clock specifier pairs
+- clock-names       : List of clock input name strings sorted in the same
+		      order as the clocks property. "ref_clk_src", "ref_clk",
+		      "tx_iface_clk" & "rx_iface_clk" are mandatory but
+		      "ref_clk_parent" is optional
+
+Optional properties:
+- vdda-phy-max-microamp : specifies max. load that can be drawn from phy supply
+- vdda-pll-max-microamp : specifies max. load that can be drawn from pll supply
+- vddp-ref-clk-supply   : phandle to UFS device ref_clk pad power supply
+- vddp-ref-clk-max-microamp : specifies max. load that can be drawn from this supply
+
+Example:
+
+	ufsphy1: ufsphy@0xfc597000 {
+		compatible = "qcom,ufs-phy-qmp-20nm";
+		reg = <0xfc597000 0x800>;
+		reg-names = "phy_mem";
+		#phy-cells = <0>;
+		vdda-phy-supply = <&pma8084_l4>;
+		vdda-pll-supply = <&pma8084_l12>;
+		vdda-phy-max-microamp = <50000>;
+		vdda-pll-max-microamp = <1000>;
+		clock-names = "ref_clk_src",
+			"ref_clk_parent",
+			"ref_clk",
+			"tx_iface_clk",
+			"rx_iface_clk";
+		clocks = <&clock_rpm clk_ln_bb_clk>,
+			<&clock_gcc clk_pcie_1_phy_ldo >,
+			<&clock_gcc clk_ufs_phy_ldo>,
+			<&clock_gcc clk_gcc_ufs_tx_cfg_clk>,
+			<&clock_gcc clk_gcc_ufs_rx_cfg_clk>;
+	};
+
+	ufshc@0xfc598000 {
+		...
+		phys = <&ufsphy1>;
+		phy-names = "ufsphy";
+	};

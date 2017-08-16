@@ -348,6 +348,15 @@ struct sge {
 #define for_each_ethrxq(sge, iter) \
 	for (iter = 0; iter < (sge)->ethqsets; iter++)
 
+struct hash_mac_addr {
+	struct list_head list;
+	u8 addr[ETH_ALEN];
+};
+
+struct mbox_list {
+	struct list_head list;
+};
+
 /*
  * Per-"adapter" (Virtual Function) information.
  */
@@ -381,6 +390,17 @@ struct adapter {
 
 	/* various locks */
 	spinlock_t stats_lock;
+
+	/* lock for mailbox cmd list */
+	spinlock_t mbox_lock;
+	struct mbox_list mlist;
+
+	/* support for mailbox command/reply logging */
+#define T4VF_OS_LOG_MBOX_CMDS 256
+	struct mbox_cmd_log *mbox_log;
+
+	/* list of MAC addresses in MPS Hash */
+	struct list_head mac_hlist;
 };
 
 enum { /* adapter flags */
@@ -388,6 +408,7 @@ enum { /* adapter flags */
 	USING_MSI          = (1UL << 1),
 	USING_MSIX         = (1UL << 2),
 	QUEUES_BOUND       = (1UL << 3),
+	ROOT_NO_RELAXED_ORDERING = (1UL << 4),
 };
 
 /*

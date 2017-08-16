@@ -40,7 +40,7 @@
 static struct rds_transport *transports[RDS_TRANS_COUNT];
 static DECLARE_RWSEM(rds_trans_sem);
 
-int rds_trans_register(struct rds_transport *trans)
+void rds_trans_register(struct rds_transport *trans)
 {
 	BUG_ON(strlen(trans->t_name) + 1 > TRANSNAMSIZ);
 
@@ -55,8 +55,6 @@ int rds_trans_register(struct rds_transport *trans)
 	}
 
 	up_write(&rds_trans_sem);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(rds_trans_register);
 
@@ -140,8 +138,7 @@ unsigned int rds_trans_stats_info_copy(struct rds_info_iterator *iter,
 	rds_info_iter_unmap(iter);
 	down_read(&rds_trans_sem);
 
-	for (i = 0; i < RDS_TRANS_COUNT; i++)
-	{
+	for (i = 0; i < RDS_TRANS_COUNT; i++) {
 		trans = transports[i];
 		if (!trans || !trans->stats_info_copy)
 			continue;

@@ -34,6 +34,7 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
 #define VDC_TX_RING_SIZE	512
+#define VDC_DEFAULT_BLK_SIZE	512
 
 #define WAITING_FOR_LINK_UP	0x01
 #define WAITING_FOR_TX_SPACE	0x02
@@ -73,6 +74,7 @@ struct vdc_port {
 	u32			vdisk_size;
 	u8			vdisk_type;
 	u8			vdisk_mtype;
+	u32			vdisk_phys_blksz;
 
 	char			disk_name[32];
 };
@@ -88,6 +90,7 @@ static inline struct vdc_port *to_vdc_port(struct vio_driver_state *vio)
 
 /* Ordered from largest major to lowest */
 static struct vio_version vdc_versions[] = {
+	{ .major = 1, .minor = 2 },
 	{ .major = 1, .minor = 1 },
 	{ .major = 1, .minor = 0 },
 };
@@ -271,6 +274,11 @@ static int vdc_handle_attr(struct vio_driver_state *vio, void *arg)
 		if (pkt->max_xfer_size < port->max_xfer_size)
 			port->max_xfer_size = pkt->max_xfer_size;
 		port->vdisk_block_size = pkt->vdisk_block_size;
+
+		port->vdisk_phys_blksz = VDC_DEFAULT_BLK_SIZE;
+		if (vdc_version_supported(port, 1, 2))
+			port->vdisk_phys_blksz = pkt->phys_block_size;
+
 		return 0;
 	} else {
 		printk(KERN_ERR PFX "%s: Attribute NACK\n", vio->name);
@@ -308,7 +316,7 @@ static void vdc_end_one(struct vdc_port *port, struct vio_dring_state *dr,
 
 	rqe->req = NULL;
 
-	__blk_end_request(req, (desc->status ? -EIO : 0), desc->size);
+	__blk_end_request(req, (desc->status ? BLK_STS_IOERR : 0), desc->size);
 
 	vdc_blk_queue_start(port);
 }
@@ -754,6 +762,12 @@ static int probe_disk(struct vdc_port *port)
 	if (err)
 		return err;
 
+	/* Using version 1.2 means vdisk_phys_blksz should be set unless the
+	 * disk is reserved by another system.
+	 */
+	if (vdc_version_supported(port, 1, 2) && !port->vdisk_phys_blksz)
+		return -ENODEV;
+
 	if (vdc_version_supported(port, 1, 1)) {
 		/* vdisk_size should be set during the handshake, if it wasn't
 		 * then the underlying disk is reserved by another system
@@ -804,7 +818,6 @@ static int probe_disk(struct vdc_port *port)
 	g->fops = &vdc_fops;
 	g->queue = q;
 	g->private_data = port;
-	g->driverfs_dev = &port->vio.vdev->dev;
 
 	set_capacity(g, port->vdisk_size);
 
@@ -830,12 +843,14 @@ static int probe_disk(struct vdc_port *port)
 		}
 	}
 
+	blk_queue_physical_block_size(q, port->vdisk_phys_blksz);
+
 	pr_info(PFX "%s: %u sectors (%u MB) protocol %d.%d\n",
 	       g->disk_name,
 	       port->vdisk_size, (port->vdisk_size >> (20 - 9)),
 	       port->vio.ver.major, port->vio.ver.minor);
 
-	add_disk(g);
+	device_add_disk(&port->vio.vdev->dev, g);
 
 	return 0;
 }
@@ -860,6 +875,56 @@ static void print_version(void)
 		printk(KERN_INFO "%s", version);
 }
 
+struct vdc_check_port_data {
+	int	dev_no;
+	char	*type;
+};
+
+static int vdc_device_probed(struct device *dev, void *arg)
+{
+	struct vio_dev *vdev = to_vio_dev(dev);
+	struct vdc_check_port_data *port_data;
+
+	port_data = (struct vdc_check_port_data *)arg;
+
+	if ((vdev->dev_no == port_data->dev_no) &&
+	    (!(strcmp((char *)&vdev->type, port_data->type))) &&
+		dev_get_drvdata(dev)) {
+		/* This device has already been configured
+		 * by vdc_port_probe()
+		 */
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+/* Determine whether the VIO device is part of an mpgroup
+ * by locating all the virtual-device-port nodes associated
+ * with the parent virtual-device node for the VIO device
+ * and checking whether any of these nodes are vdc-ports
+ * which have already been configured.
+ *
+ * Returns true if this device is part of an mpgroup and has
+ * already been probed.
+ */
+static bool vdc_port_mpgroup_check(struct vio_dev *vdev)
+{
+	struct vdc_check_port_data port_data;
+	struct device *dev;
+
+	port_data.dev_no = vdev->dev_no;
+	port_data.type = (char *)&vdev->type;
+
+	dev = device_find_child(vdev->dev.parent, &port_data,
+				vdc_device_probed);
+
+	if (dev)
+		return true;
+
+	return false;
+}
+
 static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 {
 	struct mdesc_handle *hp;
@@ -875,6 +940,14 @@ static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	if ((vdev->dev_no << PARTITION_SHIFT) & ~(u64)MINORMASK) {
 		printk(KERN_ERR PFX "Port id [%llu] too large.\n",
 		       vdev->dev_no);
+		goto err_out_release_mdesc;
+	}
+
+	/* Check if this device is part of an mpgroup */
+	if (vdc_port_mpgroup_check(vdev)) {
+		printk(KERN_WARNING
+			"VIO: Ignoring extra vdisk port %s",
+			dev_name(&vdev->dev));
 		goto err_out_release_mdesc;
 	}
 
@@ -911,7 +984,7 @@ static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	if (err)
 		goto err_out_free_port;
 
-	port->vdisk_block_size = 512;
+	port->vdisk_block_size = VDC_DEFAULT_BLK_SIZE;
 	port->max_xfer_size = ((128 * 1024) / port->vdisk_block_size);
 	port->ring_cookies = ((port->max_xfer_size *
 			       port->vdisk_block_size) / PAGE_SIZE) + 2;
@@ -928,6 +1001,9 @@ static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	if (err)
 		goto err_out_free_tx_ring;
 
+	/* Note that the device driver_data is used to determine
+	 * whether the port has been probed.
+	 */
 	dev_set_drvdata(&vdev->dev, port);
 
 	mdesc_release(hp);
@@ -1008,7 +1084,7 @@ static void vdc_queue_drain(struct vdc_port *port)
 	struct request *req;
 
 	while ((req = blk_fetch_request(port->disk->queue)) != NULL)
-		__blk_end_request_all(req, -EIO);
+		__blk_end_request_all(req, BLK_STS_IOERR);
 }
 
 static void vdc_ldc_reset_timer(unsigned long _arg)

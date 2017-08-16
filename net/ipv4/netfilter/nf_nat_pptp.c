@@ -45,13 +45,18 @@ static void pptp_nat_expected(struct nf_conn *ct,
 	struct net *net = nf_ct_net(ct);
 	const struct nf_conn *master = ct->master;
 	struct nf_conntrack_expect *other_exp;
-	struct nf_conntrack_tuple t;
+	struct nf_conntrack_tuple t = {};
 	const struct nf_ct_pptp_master *ct_pptp_info;
 	const struct nf_nat_pptp *nat_pptp_info;
 	struct nf_nat_range range;
+	struct nf_conn_nat *nat;
 
+	nat = nf_ct_nat_ext_add(ct);
+	if (WARN_ON_ONCE(!nat))
+		return;
+
+	nat_pptp_info = &nat->help.nat_pptp_info;
 	ct_pptp_info = nfct_help_data(master);
-	nat_pptp_info = &nfct_nat(master)->help.nat_pptp_info;
 
 	/* And here goes the grand finale of corrosion... */
 	if (exp->dir == IP_CT_DIR_ORIGINAL) {
@@ -120,13 +125,17 @@ pptp_outbound_pkt(struct sk_buff *skb,
 
 {
 	struct nf_ct_pptp_master *ct_pptp_info;
+	struct nf_conn_nat *nat = nfct_nat(ct);
 	struct nf_nat_pptp *nat_pptp_info;
 	u_int16_t msg;
 	__be16 new_callid;
 	unsigned int cid_off;
 
+	if (WARN_ON_ONCE(!nat))
+		return NF_DROP;
+
+	nat_pptp_info = &nat->help.nat_pptp_info;
 	ct_pptp_info = nfct_help_data(ct);
-	nat_pptp_info = &nfct_nat(ct)->help.nat_pptp_info;
 
 	new_callid = ct_pptp_info->pns_call_id;
 
@@ -177,11 +186,11 @@ pptp_outbound_pkt(struct sk_buff *skb,
 		 ntohs(REQ_CID(pptpReq, cid_off)), ntohs(new_callid));
 
 	/* mangle packet */
-	if (nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
-				     cid_off + sizeof(struct pptp_pkt_hdr) +
-				     sizeof(struct PptpControlHeader),
-				     sizeof(new_callid), (char *)&new_callid,
-				     sizeof(new_callid)) == 0)
+	if (!nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
+				      cid_off + sizeof(struct pptp_pkt_hdr) +
+				      sizeof(struct PptpControlHeader),
+				      sizeof(new_callid), (char *)&new_callid,
+				      sizeof(new_callid)))
 		return NF_DROP;
 	return NF_ACCEPT;
 }
@@ -191,11 +200,15 @@ pptp_exp_gre(struct nf_conntrack_expect *expect_orig,
 	     struct nf_conntrack_expect *expect_reply)
 {
 	const struct nf_conn *ct = expect_orig->master;
+	struct nf_conn_nat *nat = nfct_nat(ct);
 	struct nf_ct_pptp_master *ct_pptp_info;
 	struct nf_nat_pptp *nat_pptp_info;
 
+	if (WARN_ON_ONCE(!nat))
+		return;
+
+	nat_pptp_info = &nat->help.nat_pptp_info;
 	ct_pptp_info = nfct_help_data(ct);
-	nat_pptp_info = &nfct_nat(ct)->help.nat_pptp_info;
 
 	/* save original PAC call ID in nat_info */
 	nat_pptp_info->pac_call_id = ct_pptp_info->pac_call_id;
@@ -223,11 +236,15 @@ pptp_inbound_pkt(struct sk_buff *skb,
 		 union pptp_ctrl_union *pptpReq)
 {
 	const struct nf_nat_pptp *nat_pptp_info;
+	struct nf_conn_nat *nat = nfct_nat(ct);
 	u_int16_t msg;
 	__be16 new_pcid;
 	unsigned int pcid_off;
 
-	nat_pptp_info = &nfct_nat(ct)->help.nat_pptp_info;
+	if (WARN_ON_ONCE(!nat))
+		return NF_DROP;
+
+	nat_pptp_info = &nat->help.nat_pptp_info;
 	new_pcid = nat_pptp_info->pns_call_id;
 
 	switch (msg = ntohs(ctlh->messageType)) {
@@ -271,11 +288,11 @@ pptp_inbound_pkt(struct sk_buff *skb,
 	pr_debug("altering peer call id from 0x%04x to 0x%04x\n",
 		 ntohs(REQ_CID(pptpReq, pcid_off)), ntohs(new_pcid));
 
-	if (nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
-				     pcid_off + sizeof(struct pptp_pkt_hdr) +
-				     sizeof(struct PptpControlHeader),
-				     sizeof(new_pcid), (char *)&new_pcid,
-				     sizeof(new_pcid)) == 0)
+	if (!nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
+				      pcid_off + sizeof(struct pptp_pkt_hdr) +
+				      sizeof(struct PptpControlHeader),
+				      sizeof(new_pcid), (char *)&new_pcid,
+				      sizeof(new_pcid)))
 		return NF_DROP;
 	return NF_ACCEPT;
 }

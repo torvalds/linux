@@ -1,0 +1,26 @@
+* Universal Flash Storage (UFS) DesignWare Host Controller
+
+DWC_UFS nodes are defined to describe on-chip UFS host controllers and MPHY.
+Each UFS controller instance should have its own node.
+
+Required properties:
+- compatible	: compatible list must contain the PHY type & version:
+			"snps,g210-tc-6.00-20bit"
+			"snps,g210-tc-6.00-40bit"
+		  complemented with the Controller IP version:
+			"snps,dwc-ufshcd-1.40a"
+		  complemented with the JEDEC version:
+			"jedec,ufs-1.1"
+			"jedec,ufs-2.0"
+
+- reg		: <registers mapping>
+- interrupts	: <interrupt mapping for UFS host controller IRQ>
+
+Example for a setup using a 1.40a DWC Controller with a 6.00 G210 40-bit TC:
+	dwc-ufs@d0000000 {
+		compatible = "snps,g210-tc-6.00-40bit",
+			     "snps,dwc-ufshcd-1.40a",
+			     "jedec,ufs-2.0";
+		reg = < 0xd0000000 0x10000 >;
+		interrupts = < 24 >;
+	};

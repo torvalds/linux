@@ -164,7 +164,7 @@ static int
 nvkm_gpio_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_gpio *gpio = nvkm_gpio(subdev);
-	u32 mask = (1 << gpio->func->lines) - 1;
+	u32 mask = (1ULL << gpio->func->lines) - 1;
 
 	gpio->func->intr_mask(gpio, NVKM_GPIO_TOGGLED, mask, 0);
 	gpio->func->intr_stat(gpio, &mask, &mask);
@@ -216,7 +216,7 @@ nvkm_gpio_new_(const struct nvkm_gpio_func *func, struct nvkm_device *device,
 	if (!(gpio = *pgpio = kzalloc(sizeof(*gpio), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_gpio, device, index, 0, &gpio->subdev);
+	nvkm_subdev_ctor(&nvkm_gpio, device, index, &gpio->subdev);
 	gpio->func = func;
 
 	return nvkm_event_init(&nvkm_gpio_intr_func, 2, func->lines,

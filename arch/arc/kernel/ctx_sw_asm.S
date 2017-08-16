@@ -23,6 +23,7 @@
 	.global __switch_to
 	.type   __switch_to, @function
 __switch_to:
+	CFI_STARTPROC
 
 	/* Save regs on kernel mode stack of task */
 	st.a    blink, [sp, -4]
@@ -44,9 +45,6 @@ __switch_to:
 	* don't need to do anything special to return it
 	*/
 
-	/* hardware memory barrier */
-	sync
-
 	/*
 	 * switch to new task, contained in r1
 	 * Temp reg r3 is required to get the ptr to store val
@@ -62,4 +60,4 @@ __switch_to:
 	ld.ab   blink, [sp, 4]
 	j       [blink]
 
-END(__switch_to)
+END_CFI(__switch_to)

@@ -174,7 +174,7 @@ static int ap_cs8427_probeaddr(struct snd_i2c_bus *bus, unsigned short addr)
 	return -ENOENT;
 }
 
-static struct snd_i2c_ops ap_cs8427_i2c_ops = {
+static const struct snd_i2c_ops ap_cs8427_i2c_ops = {
 	.sendbytes = ap_cs8427_sendbytes,
 	.readbytes = ap_cs8427_readbytes,
 	.probeaddr = ap_cs8427_probeaddr,
@@ -432,7 +432,7 @@ static int snd_ice1712_delta1010lt_wordclock_status_get(struct snd_kcontrol *kco
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_ice1712_delta1010lt_wordclock_status =
+static const struct snd_kcontrol_new snd_ice1712_delta1010lt_wordclock_status =
 {
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READ),
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,

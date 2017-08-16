@@ -100,7 +100,7 @@ struct ipmi_user_hndl {
 
 /* Create a new user of the IPMI layer on the given interface number. */
 int ipmi_create_user(unsigned int          if_num,
-		     struct ipmi_user_hndl *handler,
+		     const struct ipmi_user_hndl *handler,
 		     void                  *handler_data,
 		     ipmi_user_t           *user);
 
@@ -277,7 +277,7 @@ int ipmi_validate_addr(struct ipmi_addr *addr, int len);
  */
 enum ipmi_addr_src {
 	SI_INVALID = 0, SI_HOTMOD, SI_HARDCODED, SI_SPMI, SI_ACPI, SI_SMBIOS,
-	SI_PCI,	SI_DEVICETREE, SI_DEFAULT
+	SI_PCI,	SI_DEVICETREE, SI_LAST
 };
 const char *ipmi_addr_src_to_str(enum ipmi_addr_src src);
 

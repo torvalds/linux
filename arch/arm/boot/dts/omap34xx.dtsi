@@ -14,7 +14,7 @@
 
 / {
 	cpus {
-		cpu@0 {
+		cpu: cpu@0 {
 			/* OMAP343x/OMAP35xx variants OPP1-5 */
 			operating-points = <
 				/* kHz    uV */
@@ -28,12 +28,13 @@
 		};
 	};
 
-	ocp {
+	ocp@68000000 {
 		omap3_pmx_core2: pinmux@480025d8 {
 			compatible = "ti,omap3-padconf", "pinctrl-single";
 			reg = <0x480025d8 0x24>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#pinctrl-cells = <1>;
 			#interrupt-cells = <1>;
 			interrupt-controller;
 			pinctrl-single,register-width = <16>;
@@ -46,7 +47,7 @@
 			       0x480bd800 0x017c>;
 			interrupts = <24>;
 			iommus = <&mmu_isp>;
-			syscon = <&scm_conf 0xdc>;
+			syscon = <&scm_conf 0x6c>;
 			ti,phy-type = <OMAP3ISP_PHY_TYPE_COMPLEX_IO>;
 			#clock-cells = <1>;
 			ports {
@@ -54,6 +55,16 @@
 				#size-cells = <0>;
 			};
 		};
+
+		bandgap: bandgap@48002524 {
+			reg = <0x48002524 0x4>;
+			compatible = "ti,omap34xx-bandgap";
+			#thermal-sensor-cells = <0>;
+		};
+	};
+
+	thermal_zones: thermal-zones {
+		#include "omap3-cpu-thermal.dtsi"
 	};
 };
 

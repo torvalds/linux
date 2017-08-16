@@ -215,26 +215,18 @@ void apbt_setup_secondary_clock(void)
  * cpu timers during the offline process due to the ordering of notification.
  * the extra interrupt is harmless.
  */
-static int apbt_cpuhp_notify(struct notifier_block *n,
-			     unsigned long action, void *hcpu)
+static int apbt_cpu_dead(unsigned int cpu)
 {
-	unsigned long cpu = (unsigned long)hcpu;
 	struct apbt_dev *adev = &per_cpu(cpu_apbt_dev, cpu);
 
-	switch (action & 0xf) {
-	case CPU_DEAD:
-		dw_apb_clockevent_pause(adev->timer);
-		if (system_state == SYSTEM_RUNNING) {
-			pr_debug("skipping APBT CPU %lu offline\n", cpu);
-		} else {
-			pr_debug("APBT clockevent for cpu %lu offline\n", cpu);
-			dw_apb_clockevent_stop(adev->timer);
-		}
-		break;
-	default:
-		pr_debug("APBT notified %lu, no action\n", action);
+	dw_apb_clockevent_pause(adev->timer);
+	if (system_state == SYSTEM_RUNNING) {
+		pr_debug("skipping APBT CPU %u offline\n", cpu);
+	} else {
+		pr_debug("APBT clockevent for cpu %u offline\n", cpu);
+		dw_apb_clockevent_stop(adev->timer);
 	}
-	return NOTIFY_OK;
+	return 0;
 }
 
 static __init int apbt_late_init(void)
@@ -242,9 +234,8 @@ static __init int apbt_late_init(void)
 	if (intel_mid_timer_options == INTEL_MID_TIMER_LAPIC_APBT ||
 		!apb_timer_block_enabled)
 		return 0;
-	/* This notifier should be called after workqueue is ready */
-	hotcpu_notifier(apbt_cpuhp_notify, -20);
-	return 0;
+	return cpuhp_setup_state(CPUHP_X86_APB_DEAD, "x86/apb:dead", NULL,
+				 apbt_cpu_dead);
 }
 fs_initcall(apbt_late_init);
 #else
@@ -256,7 +247,7 @@ void apbt_setup_secondary_clock(void) {}
 static int apbt_clocksource_register(void)
 {
 	u64 start, now;
-	cycle_t t1;
+	u64 t1;
 
 	/* Start the counter, use timer 2 as source, timer 0/1 for event */
 	dw_apb_clocksource_start(clocksource_apbt);
@@ -364,7 +355,7 @@ unsigned long apbt_quick_calibrate(void)
 {
 	int i, scale;
 	u64 old, new;
-	cycle_t t1, t2;
+	u64 t1, t2;
 	unsigned long khz = 0;
 	u32 loop, shift;
 

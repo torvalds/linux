@@ -43,14 +43,14 @@
 int (*ixp4xx_pci_read)(u32 addr, u32 cmd, u32* data);
 
 /*
- * Base address for PCI regsiter region
+ * Base address for PCI register region
  */
 unsigned long ixp4xx_pci_reg_base = 0;
 
 /*
  * PCI cfg an I/O routines are done by programming a 
  * command/byte enable register, and then read/writing
- * the data from a data regsiter. We need to ensure
+ * the data from a data register. We need to ensure
  * these transactions are atomic or we will end up
  * with corrupt data on the bus or in a driver.
  */

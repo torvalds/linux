@@ -155,7 +155,7 @@ static struct irq_chip ehv_pic_direct_eoi_irq_chip = {
 	.irq_set_type	= ehv_pic_set_irq_type,
 };
 
-/* Return an interrupt vector or NO_IRQ if no interrupt is pending. */
+/* Return an interrupt vector or 0 if no interrupt is pending. */
 unsigned int ehv_pic_get_irq(void)
 {
 	int irq;
@@ -168,7 +168,7 @@ unsigned int ehv_pic_get_irq(void)
 		ev_int_iack(0, &irq); /* legacy mode */
 
 	if (irq == 0xFFFF)    /* 0xFFFF --> no irq is pending */
-		return NO_IRQ;
+		return 0;
 
 	/*
 	 * this will also setup revmap[] in the slow path for the first
@@ -181,7 +181,8 @@ static int ehv_pic_host_match(struct irq_domain *h, struct device_node *node,
 			      enum irq_domain_bus_token bus_token)
 {
 	/* Exact match, unless ehv_pic node is NULL */
-	return h->of_node == NULL || h->of_node == node;
+	struct device_node *of_node = irq_domain_get_of_node(h);
+	return of_node == NULL || of_node == node;
 }
 
 static int ehv_pic_host_map(struct irq_domain *h, unsigned int virq,

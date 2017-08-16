@@ -33,6 +33,7 @@
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_cksum.h"
+#include "xfs_log.h"
 
 /*
  * Local function declarations.
@@ -144,7 +145,7 @@ xfs_dir3_leaf_check_int(
 static bool
 xfs_dir3_leaf_verify(
 	struct xfs_buf		*bp,
-	__uint16_t		magic)
+	uint16_t		magic)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_dir2_leaf	*leaf = bp->b_addr;
@@ -153,7 +154,7 @@ xfs_dir3_leaf_verify(
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
-		__uint16_t		magic3;
+		uint16_t		magic3;
 
 		magic3 = (magic == XFS_DIR2_LEAF1_MAGIC) ? XFS_DIR3_LEAF1_MAGIC
 							 : XFS_DIR3_LEAFN_MAGIC;
@@ -163,6 +164,8 @@ xfs_dir3_leaf_verify(
 		if (!uuid_equal(&leaf3->info.uuid, &mp->m_sb.sb_meta_uuid))
 			return false;
 		if (be64_to_cpu(leaf3->info.blkno) != bp->b_bn)
+			return false;
+		if (!xfs_log_check_lsn(mp, be64_to_cpu(leaf3->info.lsn)))
 			return false;
 	} else {
 		if (leaf->hdr.info.magic != cpu_to_be16(magic))
@@ -175,7 +178,7 @@ xfs_dir3_leaf_verify(
 static void
 __read_verify(
 	struct xfs_buf  *bp,
-	__uint16_t	magic)
+	uint16_t	magic)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 
@@ -192,7 +195,7 @@ __read_verify(
 static void
 __write_verify(
 	struct xfs_buf  *bp,
-	__uint16_t	magic)
+	uint16_t	magic)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
@@ -242,16 +245,18 @@ xfs_dir3_leafn_write_verify(
 }
 
 const struct xfs_buf_ops xfs_dir3_leaf1_buf_ops = {
+	.name = "xfs_dir3_leaf1",
 	.verify_read = xfs_dir3_leaf1_read_verify,
 	.verify_write = xfs_dir3_leaf1_write_verify,
 };
 
 const struct xfs_buf_ops xfs_dir3_leafn_buf_ops = {
+	.name = "xfs_dir3_leafn",
 	.verify_read = xfs_dir3_leafn_read_verify,
 	.verify_write = xfs_dir3_leafn_write_verify,
 };
 
-static int
+int
 xfs_dir3_leaf_read(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
@@ -263,7 +268,7 @@ xfs_dir3_leaf_read(
 
 	err = xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
 				XFS_DATA_FORK, &xfs_dir3_leaf1_buf_ops);
-	if (!err && tp)
+	if (!err && tp && *bpp)
 		xfs_trans_buf_set_type(tp, *bpp, XFS_BLFT_DIR_LEAF1_BUF);
 	return err;
 }
@@ -280,7 +285,7 @@ xfs_dir3_leafn_read(
 
 	err = xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
 				XFS_DATA_FORK, &xfs_dir3_leafn_buf_ops);
-	if (!err && tp)
+	if (!err && tp && *bpp)
 		xfs_trans_buf_set_type(tp, *bpp, XFS_BLFT_DIR_LEAFN_BUF);
 	return err;
 }
@@ -294,7 +299,7 @@ xfs_dir3_leaf_init(
 	struct xfs_trans	*tp,
 	struct xfs_buf		*bp,
 	xfs_ino_t		owner,
-	__uint16_t		type)
+	uint16_t		type)
 {
 	struct xfs_dir2_leaf	*leaf = bp->b_addr;
 
@@ -338,7 +343,7 @@ xfs_dir3_leaf_get_buf(
 	xfs_da_args_t		*args,
 	xfs_dir2_db_t		bno,
 	struct xfs_buf		**bpp,
-	__uint16_t		magic)
+	uint16_t		magic)
 {
 	struct xfs_inode	*dp = args->dp;
 	struct xfs_trans	*tp = args->trans;

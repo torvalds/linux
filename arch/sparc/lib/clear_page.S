@@ -10,6 +10,7 @@
 #include <asm/pgtable.h>
 #include <asm/spitfire.h>
 #include <asm/head.h>
+#include <asm/export.h>
 
 	/* What we used to do was lock a TLB entry into a specific
 	 * TLB slot, clear the page with interrupts disabled, then
@@ -26,6 +27,7 @@
 	.text
 
 	.globl		_clear_page
+	EXPORT_SYMBOL(_clear_page)
 _clear_page:		/* %o0=dest */
 	ba,pt		%xcc, clear_page_common
 	 clr		%o4
@@ -35,6 +37,7 @@ _clear_page:		/* %o0=dest */
 	 */
 	.align		32
 	.globl		clear_user_page
+	EXPORT_SYMBOL(clear_user_page)
 clear_user_page:	/* %o0=dest, %o1=vaddr */
 	lduw		[%g6 + TI_PRE_COUNT], %o2
 	sethi		%hi(PAGE_OFFSET), %g2

@@ -1391,12 +1391,14 @@ static struct snd_soc_dai_driver lm49453_dai[] = {
 
 static struct snd_soc_codec_driver soc_codec_dev_lm49453 = {
 	.set_bias_level = lm49453_set_bias_level,
-	.controls = lm49453_snd_controls,
-	.num_controls = ARRAY_SIZE(lm49453_snd_controls),
-	.dapm_widgets = lm49453_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(lm49453_dapm_widgets),
-	.dapm_routes = lm49453_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(lm49453_audio_map),
+	.component_driver = {
+		.controls		= lm49453_snd_controls,
+		.num_controls		= ARRAY_SIZE(lm49453_snd_controls),
+		.dapm_widgets		= lm49453_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(lm49453_dapm_widgets),
+		.dapm_routes		= lm49453_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(lm49453_audio_map),
+	},
 	.idle_bias_off = true,
 };
 

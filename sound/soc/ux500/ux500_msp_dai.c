@@ -133,6 +133,7 @@ static int setup_pcm_framing(struct snd_soc_dai *dai, unsigned int rate,
 	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(dai->dev);
 
 	u32 frame_length = MSP_FRAME_LEN_1;
+
 	prot_desc->frame_width = 0;
 
 	switch (drvdata->slots) {
@@ -187,7 +188,7 @@ static int setup_clocking(struct snd_soc_dai *dai,
 
 	default:
 		dev_err(dai->dev,
-			"%s: Error: Unsopported inversion (fmt = 0x%x)!\n",
+			"%s: Error: Unsupported inversion (fmt = 0x%x)!\n",
 			__func__, fmt);
 
 		return -EINVAL;
@@ -218,7 +219,7 @@ static int setup_clocking(struct snd_soc_dai *dai,
 		break;
 
 	default:
-		dev_err(dai->dev, "%s: Error: Unsopported master (fmt = 0x%x)!\n",
+		dev_err(dai->dev, "%s: Error: Unsupported master (fmt = 0x%x)!\n",
 			__func__, fmt);
 
 		return -EINVAL;
@@ -374,7 +375,7 @@ static int setup_msp_config(struct snd_pcm_substream *substream,
 		break;
 
 	default:
-		dev_err(dai->dev, "%s: Error: Unsopported format (%d)!\n",
+		dev_err(dai->dev, "%s: Error: Unsupported format (%d)!\n",
 			__func__, fmt);
 		return -EINVAL;
 	}
@@ -482,7 +483,8 @@ static int ux500_msp_dai_prepare(struct snd_pcm_substream *substream,
 	if ((drvdata->fmt & SND_SOC_DAIFMT_MASTER_MASK) &&
 		(drvdata->msp->f_bitclk > 19200000)) {
 		/* If the bit-clock is higher than 19.2MHz, Vape should be
-		 * run in 100% OPP. Only when bit-clock is used (MSP master) */
+		 * run in 100% OPP. Only when bit-clock is used (MSP master)
+		 */
 		prcmu_qos_update_requirement(PRCMU_QOS_APE_OPP,
 					"ux500-msp-i2s", 100);
 		drvdata->vape_opp_constraint = 1;
@@ -522,9 +524,9 @@ static int ux500_msp_dai_hw_params(struct snd_pcm_substream *substream,
 		slots_active = hweight32(mask);
 		dev_dbg(dai->dev, "TDM-slots active: %d", slots_active);
 
-		snd_pcm_hw_constraint_minmax(runtime,
+		snd_pcm_hw_constraint_single(runtime,
 				SNDRV_PCM_HW_PARAM_CHANNELS,
-				slots_active, slots_active);
+				slots_active);
 		break;
 
 	default:
@@ -843,6 +845,7 @@ static const struct of_device_id ux500_msp_i2s_match[] = {
 	{ .compatible = "stericsson,ux500-msp-i2s", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, ux500_msp_i2s_match);
 
 static struct platform_driver msp_i2s_driver = {
 	.driver = {

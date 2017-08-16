@@ -316,7 +316,7 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{""},
 };
 
-static bool matching_id(char *idstr, char *list_id)
+static bool matching_id(const char *idstr, const char *list_id)
 {
 	int i;
 
@@ -333,7 +333,7 @@ static bool matching_id(char *idstr, char *list_id)
 	return true;
 }
 
-static bool acpi_pnp_match(char *idstr, const struct acpi_device_id **matchid)
+static bool acpi_pnp_match(const char *idstr, const struct acpi_device_id **matchid)
 {
 	const struct acpi_device_id *devid;
 
@@ -367,7 +367,7 @@ static struct acpi_scan_handler acpi_pnp_handler = {
  */
 static int is_cmos_rtc_device(struct acpi_device *adev)
 {
-	struct acpi_device_id ids[] = {
+	static const struct acpi_device_id ids[] = {
 		{ "PNP0B00" },
 		{ "PNP0B01" },
 		{ "PNP0B02" },

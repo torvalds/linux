@@ -1,20 +1,7 @@
-* Decide if multiple root fsl-mc buses will be supported per Linux instance,
-  and if so add support for this.
-
 * Add at least one device driver for a DPAA2 object (child device of the
   fsl-mc bus).  Most likely candidate for this is adding DPAA2 Ethernet
   driver support, which depends on drivers for several objects: DPNI,
   DPIO, DPMAC.  Other pre-requisites include:
-
-     * interrupt support. for meaningful driver support we need
-       interrupts, and thus need message interrupt support by the bus
-       driver.
-          -Note: this has dependencies on generic MSI support work
-           in process upstream, see [1] and [2].
-
-     * Management Complex (MC) command serialization. locking mechanisms
-       are needed by drivers to serialize commands sent to the MC, including
-       from atomic context.
 
      * MC firmware uprev.  The MC firmware upon which the fsl-mc
        bus driver and DPAA2 object drivers are based is continuing

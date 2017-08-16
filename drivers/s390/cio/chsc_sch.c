@@ -133,7 +133,7 @@ static int chsc_subchannel_prepare(struct subchannel *sch)
 	 * since we don't have a way to clear the subchannel and
 	 * cannot disable it with a request running.
 	 */
-	cc = stsch_err(sch->schid, &schib);
+	cc = stsch(sch->schid, &schib);
 	if (!cc && scsw_stctl(&schib.scsw))
 		return -EAGAIN;
 	return 0;
@@ -185,8 +185,7 @@ static int __init chsc_init_dbfs(void)
 	debug_set_level(chsc_debug_log_id, 2);
 	return 0;
 out:
-	if (chsc_debug_msg_id)
-		debug_unregister(chsc_debug_msg_id);
+	debug_unregister(chsc_debug_msg_id);
 	return -ENOMEM;
 }
 
@@ -553,7 +552,7 @@ static int chsc_ioctl_info_cu(void __user *user_cd)
 		goto out_free;
 	}
 	scucd_area->request.length = 0x0010;
-	scucd_area->request.code = 0x0028;
+	scucd_area->request.code = 0x0026;
 	scucd_area->m = cd->m;
 	scucd_area->fmt1 = cd->fmt;
 	scucd_area->cssid = cd->cssid;

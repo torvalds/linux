@@ -55,10 +55,12 @@ static struct snd_soc_dai_driver ad73311_dai = {
 };
 
 static struct snd_soc_codec_driver soc_codec_dev_ad73311 = {
-	.dapm_widgets = ad73311_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ad73311_dapm_widgets),
-	.dapm_routes = ad73311_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(ad73311_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= ad73311_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ad73311_dapm_widgets),
+		.dapm_routes		= ad73311_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(ad73311_dapm_routes),
+	},
 };
 
 static int ad73311_probe(struct platform_device *pdev)

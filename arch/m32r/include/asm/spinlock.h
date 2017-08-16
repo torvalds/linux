@@ -13,6 +13,8 @@
 #include <linux/atomic.h>
 #include <asm/dcache_clear.h>
 #include <asm/page.h>
+#include <asm/barrier.h>
+#include <asm/processor.h>
 
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
@@ -27,8 +29,11 @@
 
 #define arch_spin_is_locked(x)		(*(volatile int *)(&(x)->slock) <= 0)
 #define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
-#define arch_spin_unlock_wait(x) \
-		do { cpu_relax(); } while (arch_spin_is_locked(x))
+
+static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
+{
+	smp_cond_load_acquire(&lock->slock, VAL > 0);
+}
 
 /**
  * arch_spin_trylock - Try spin lock and return a result

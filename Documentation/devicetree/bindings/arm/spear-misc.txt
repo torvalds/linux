@@ -6,4 +6,4 @@ few properties of different peripheral controllers.
 misc node required properties:
 
 - compatible Should be	"st,spear1340-misc", "syscon".
-- reg: Address range of misc space upto 8K
+- reg: Address range of misc space up to 8K

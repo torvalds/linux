@@ -5,7 +5,7 @@
 
 echo 0 > events/enable
 echo > kprobe_events
-echo p:myevent do_fork > kprobe_events
+echo p:myevent _do_fork > kprobe_events
 grep myevent kprobe_events
 test -d events/kprobes/myevent
 echo > kprobe_events

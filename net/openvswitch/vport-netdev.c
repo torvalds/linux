@@ -57,8 +57,10 @@ static void netdev_port_receive(struct sk_buff *skb)
 	if (unlikely(!skb))
 		return;
 
-	skb_push(skb, ETH_HLEN);
-	ovs_skb_postpush_rcsum(skb, skb->data, ETH_HLEN);
+	if (skb->dev->type == ARPHRD_ETHER) {
+		skb_push(skb, ETH_HLEN);
+		skb_postpush_rcsum(skb, skb->data, ETH_HLEN);
+	}
 	ovs_vport_receive(vport, skb, skb_tunnel_info(skb));
 	return;
 error:
@@ -97,7 +99,8 @@ struct vport *ovs_netdev_link(struct vport *vport, const char *name)
 	}
 
 	if (vport->dev->flags & IFF_LOOPBACK ||
-	    vport->dev->type != ARPHRD_ETHER ||
+	    (vport->dev->type != ARPHRD_ETHER &&
+	     vport->dev->type != ARPHRD_NONE) ||
 	    ovs_is_internal_dev(vport->dev)) {
 		err = -EINVAL;
 		goto error_put;
@@ -105,7 +108,7 @@ struct vport *ovs_netdev_link(struct vport *vport, const char *name)
 
 	rtnl_lock();
 	err = netdev_master_upper_dev_link(vport->dev,
-					   get_dpdev(vport->dp));
+					   get_dpdev(vport->dp), NULL, NULL);
 	if (err)
 		goto error_unlock;
 
@@ -162,7 +165,6 @@ void ovs_netdev_detach_dev(struct vport *vport)
 				netdev_master_upper_dev_get(vport->dev));
 	dev_set_promiscuity(vport->dev, -1);
 }
-EXPORT_SYMBOL_GPL(ovs_netdev_detach_dev);
 
 static void netdev_destroy(struct vport *vport)
 {
@@ -180,46 +182,19 @@ void ovs_netdev_tunnel_destroy(struct vport *vport)
 	if (vport->dev->priv_flags & IFF_OVS_DATAPATH)
 		ovs_netdev_detach_dev(vport);
 
-	/* Early release so we can unregister the device */
+	/* We can be invoked by both explicit vport deletion and
+	 * underlying netdev deregistration; delete the link only
+	 * if it's not already shutting down.
+	 */
+	if (vport->dev->reg_state == NETREG_REGISTERED)
+		rtnl_delete_link(vport->dev);
 	dev_put(vport->dev);
-	rtnl_delete_link(vport->dev);
 	vport->dev = NULL;
 	rtnl_unlock();
 
 	call_rcu(&vport->rcu, vport_netdev_free);
 }
 EXPORT_SYMBOL_GPL(ovs_netdev_tunnel_destroy);
-
-static unsigned int packet_length(const struct sk_buff *skb)
-{
-	unsigned int length = skb->len - ETH_HLEN;
-
-	if (skb->protocol == htons(ETH_P_8021Q))
-		length -= VLAN_HLEN;
-
-	return length;
-}
-
-void ovs_netdev_send(struct vport *vport, struct sk_buff *skb)
-{
-	int mtu = vport->dev->mtu;
-
-	if (unlikely(packet_length(skb) > mtu && !skb_is_gso(skb))) {
-		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
-				     vport->dev->name,
-				     packet_length(skb), mtu);
-		vport->dev->stats.tx_errors++;
-		goto drop;
-	}
-
-	skb->dev = vport->dev;
-	dev_queue_xmit(skb);
-	return;
-
-drop:
-	kfree_skb(skb);
-}
-EXPORT_SYMBOL_GPL(ovs_netdev_send);
 
 /* Returns null if this device is not attached to a datapath. */
 struct vport *ovs_netdev_get_vport(struct net_device *dev)
@@ -235,7 +210,7 @@ static struct vport_ops ovs_netdev_vport_ops = {
 	.type		= OVS_VPORT_TYPE_NETDEV,
 	.create		= netdev_create,
 	.destroy	= netdev_destroy,
-	.send		= ovs_netdev_send,
+	.send		= dev_queue_xmit,
 };
 
 int __init ovs_netdev_init(void)

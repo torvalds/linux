@@ -7,8 +7,6 @@
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
-#include <asm-generic/pci-bridge.h>
-#include <asm-generic/pci-dma-compat.h>
 
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0
@@ -23,6 +21,8 @@
  * PCI address space differs from physical memory address space
  */
 #define PCI_DMA_BUS_IS_PHYS	(0)
+
+#define ARCH_GENERIC_PCI_MMAP_RESOURCE	1
 
 extern int isa_dma_bridge_buggy;
 

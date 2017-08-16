@@ -3,7 +3,7 @@
 
 #include <asm/asm.h>
 #include <asm/segment.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/cmpxchg.h>
 #include <asm/nops.h>
 
@@ -36,13 +36,6 @@
 #endif /* CONFIG_X86_PPRO_FENCE */
 #define dma_wmb()	barrier()
 
-#define smp_mb()	barrier()
-#define smp_rmb()	barrier()
-#define smp_wmb()	barrier()
-
-#define smp_store_mb(var, value) do { WRITE_ONCE(var, value); barrier(); } while (0)
-
-#define read_barrier_depends()		do { } while (0)
-#define smp_read_barrier_depends()	do { } while (0)
+#include <asm-generic/barrier.h>
 
 #endif

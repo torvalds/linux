@@ -492,6 +492,9 @@
 #define STATSOURCE_T5_V(x) ((x) << STATSOURCE_T5_S)
 #define STATSOURCE_T5_G(x) (((x) >> STATSOURCE_T5_S) & STATSOURCE_T5_M)
 
+#define T6_STATMODE_S    0
+#define T6_STATMODE_V(x) ((x) << T6_STATMODE_S)
+
 #define SGE_DBFIFO_STATUS2_A 0x1118
 
 #define HP_INT_THRESH_T5_S    10
@@ -852,6 +855,14 @@
 #define PERR_INT_CAUSE_V(x) ((x) << PERR_INT_CAUSE_S)
 #define PERR_INT_CAUSE_F    PERR_INT_CAUSE_V(1U)
 
+#define DBG_GPIO_EN_A		0x6010
+#define XGMAC_PORT_CFG_A	0x1000
+#define MAC_PORT_CFG_A		0x800
+
+#define SIGNAL_DET_S    14
+#define SIGNAL_DET_V(x) ((x) << SIGNAL_DET_S)
+#define SIGNAL_DET_F    SIGNAL_DET_V(1U)
+
 #define MC_ECC_STATUS_A		0x751c
 #define MC_P_ECC_STATUS_A	0x4131c
 
@@ -1066,6 +1077,10 @@
 #define TIEQINPARERRINT_V(x) ((x) << TIEQINPARERRINT_S)
 #define TIEQINPARERRINT_F    TIEQINPARERRINT_V(1U)
 
+#define TIMER0INT_S    2
+#define TIMER0INT_V(x) ((x) << TIMER0INT_S)
+#define TIMER0INT_F    TIMER0INT_V(1U)
+
 #define PREFDROPINT_S    1
 #define PREFDROPINT_V(x) ((x) << PREFDROPINT_S)
 #define PREFDROPINT_F    PREFDROPINT_V(1U)
@@ -1272,6 +1287,10 @@
 #define DBGLARPTR_S    0
 #define DBGLARPTR_M    0x7fU
 #define DBGLARPTR_V(x) ((x) << DBGLARPTR_S)
+
+#define CRXPKTENC_S    3
+#define CRXPKTENC_V(x) ((x) << CRXPKTENC_S)
+#define CRXPKTENC_F    CRXPKTENC_V(1U)
 
 #define TP_DBG_LA_DATAL_A	0x7ed8
 #define TP_DBG_LA_CONFIG_A	0x7ed4
@@ -1780,6 +1799,8 @@
 #define MPS_PORT_STAT_RX_PORT_LESS_64B_H 0x614
 #define MAC_PORT_MAGIC_MACID_LO 0x824
 #define MAC_PORT_MAGIC_MACID_HI 0x828
+#define MAC_PORT_TX_TS_VAL_LO   0x928
+#define MAC_PORT_TX_TS_VAL_HI   0x92c
 
 #define MAC_PORT_EPIO_DATA0_A 0x8c0
 #define MAC_PORT_EPIO_DATA1_A 0x8c4
@@ -1791,12 +1812,29 @@
 
 #define MPS_CMN_CTL_A	0x9000
 
+#define COUNTPAUSEMCRX_S    5
+#define COUNTPAUSEMCRX_V(x) ((x) << COUNTPAUSEMCRX_S)
+#define COUNTPAUSEMCRX_F    COUNTPAUSEMCRX_V(1U)
+
+#define COUNTPAUSESTATRX_S    4
+#define COUNTPAUSESTATRX_V(x) ((x) << COUNTPAUSESTATRX_S)
+#define COUNTPAUSESTATRX_F    COUNTPAUSESTATRX_V(1U)
+
+#define COUNTPAUSEMCTX_S    3
+#define COUNTPAUSEMCTX_V(x) ((x) << COUNTPAUSEMCTX_S)
+#define COUNTPAUSEMCTX_F    COUNTPAUSEMCTX_V(1U)
+
+#define COUNTPAUSESTATTX_S    2
+#define COUNTPAUSESTATTX_V(x) ((x) << COUNTPAUSESTATTX_S)
+#define COUNTPAUSESTATTX_F    COUNTPAUSESTATTX_V(1U)
+
 #define NUMPORTS_S    0
 #define NUMPORTS_M    0x3U
 #define NUMPORTS_G(x) (((x) >> NUMPORTS_S) & NUMPORTS_M)
 
 #define MPS_INT_CAUSE_A 0x9008
 #define MPS_TX_INT_CAUSE_A 0x9408
+#define MPS_STAT_CTL_A 0x9600
 
 #define FRMERR_S    15
 #define FRMERR_V(x) ((x) << FRMERR_S)
@@ -2395,6 +2433,30 @@
 #define MPS_CLS_TCAM_DATA0_A 0xf000
 #define MPS_CLS_TCAM_DATA1_A 0xf004
 
+#define VIDL_S    16
+#define VIDL_M    0xffffU
+#define VIDL_G(x) (((x) >> VIDL_S) & VIDL_M)
+
+#define DATALKPTYPE_S    10
+#define DATALKPTYPE_M    0x3U
+#define DATALKPTYPE_G(x) (((x) >> DATALKPTYPE_S) & DATALKPTYPE_M)
+
+#define DATAPORTNUM_S    12
+#define DATAPORTNUM_M    0xfU
+#define DATAPORTNUM_G(x) (((x) >> DATAPORTNUM_S) & DATAPORTNUM_M)
+
+#define DATADIPHIT_S    8
+#define DATADIPHIT_V(x) ((x) << DATADIPHIT_S)
+#define DATADIPHIT_F    DATADIPHIT_V(1U)
+
+#define DATAVIDH2_S    7
+#define DATAVIDH2_V(x) ((x) << DATAVIDH2_S)
+#define DATAVIDH2_F    DATAVIDH2_V(1U)
+
+#define DATAVIDH1_S    0
+#define DATAVIDH1_M    0x7fU
+#define DATAVIDH1_G(x) (((x) >> DATAVIDH1_S) & DATAVIDH1_M)
+
 #define USED_S    16
 #define USED_M    0x7ffU
 #define USED_G(x) (((x) >> USED_S) & USED_M)
@@ -2801,6 +2863,10 @@
 #define HASHEN_S    20
 #define HASHEN_V(x) ((x) << HASHEN_S)
 #define HASHEN_F    HASHEN_V(1U)
+
+#define ASLIPCOMPEN_S    17
+#define ASLIPCOMPEN_V(x) ((x) << ASLIPCOMPEN_S)
+#define ASLIPCOMPEN_F    ASLIPCOMPEN_V(1U)
 
 #define REQQPARERR_S    16
 #define REQQPARERR_V(x) ((x) << REQQPARERR_S)

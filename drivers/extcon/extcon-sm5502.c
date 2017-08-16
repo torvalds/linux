@@ -95,7 +95,8 @@ static struct reg_data sm5502_reg_data[] = {
 static const unsigned int sm5502_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
-	EXTCON_TA,
+	EXTCON_CHG_USB_SDP,
+	EXTCON_CHG_USB_DCP,
 	EXTCON_NONE,
 };
 
@@ -134,8 +135,10 @@ enum sm5502_muic_acc_type {
 	SM5502_MUIC_ADC_AUDIO_TYPE1,
 	SM5502_MUIC_ADC_OPEN = 0x1f,
 
-	/* The below accessories have same ADC value (0x1f or 0x1e).
-	   So, Device type1 is used to separate specific accessory. */
+	/*
+	 * The below accessories have same ADC value (0x1f or 0x1e).
+	 * So, Device type1 is used to separate specific accessory.
+	 */
 							/* |---------|--ADC| */
 							/* |    [7:5]|[4:0]| */
 	SM5502_MUIC_ADC_AUDIO_TYPE1_FULL_REMOTE = 0x3e,	/* |      001|11110| */
@@ -389,7 +392,7 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		vbus_sw	= VBUSIN_SWITCH_VBUSOUT_WITH_USB;
 		break;
 	case SM5502_MUIC_ADC_OPEN_TA:
-		id	= EXTCON_TA;
+		id	= EXTCON_CHG_USB_DCP;
 		con_sw	= DM_DP_SWITCH_OPEN;
 		vbus_sw	= VBUSIN_SWITCH_VBUSOUT;
 		break;
@@ -410,7 +413,10 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		return ret;
 
 	/* Change the state of external accessory */
-	extcon_set_cable_state_(info->edev, id, attached);
+	extcon_set_state_sync(info->edev, id, attached);
+	if (id == EXTCON_USB)
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_SDP,
+					attached);
 
 	return 0;
 }
@@ -586,7 +592,7 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 
 	for (i = 0; i < info->num_muic_irqs; i++) {
 		struct muic_irq *muic_irq = &info->muic_irqs[i];
-		unsigned int virq = 0;
+		int virq = 0;
 
 		virq = regmap_irq_get_virq(info->irq_data, muic_irq->irq);
 		if (virq <= 0)
@@ -650,11 +656,12 @@ static const struct of_device_id sm5502_dt_match[] = {
 	{ .compatible = "siliconmitus,sm5502-muic" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, sm5502_dt_match);
 
 #ifdef CONFIG_PM_SLEEP
 static int sm5502_muic_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct sm5502_muic_info *info = i2c_get_clientdata(i2c);
 
 	enable_irq_wake(info->irq);
@@ -664,7 +671,7 @@ static int sm5502_muic_suspend(struct device *dev)
 
 static int sm5502_muic_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct sm5502_muic_info *info = i2c_get_clientdata(i2c);
 
 	disable_irq_wake(info->irq);

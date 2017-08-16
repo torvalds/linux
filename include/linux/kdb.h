@@ -77,7 +77,6 @@ extern int kdb_poll_idx;
  * number whenever the kernel debugger is entered.
  */
 extern int kdb_initial_cpu;
-extern atomic_t kdb_event;
 
 /* Types and messages used for dynamically added kdb shell commands */
 
@@ -162,6 +161,7 @@ enum kdb_msgsrc {
 };
 
 extern int kdb_trap_printk;
+extern int kdb_printf_cpu;
 extern __printf(2, 0) int vkdb_printf(enum kdb_msgsrc src, const char *fmt,
 				      va_list args);
 extern __printf(1, 2) int kdb_printf(const char *, ...);
@@ -177,7 +177,7 @@ extern int kdb_get_kbd_char(void);
 static inline
 int kdb_process_cpu(const struct task_struct *p)
 {
-	unsigned int cpu = task_thread_info(p)->cpu;
+	unsigned int cpu = task_cpu(p);
 	if (cpu > num_possible_cpus())
 		cpu = 0;
 	return cpu;

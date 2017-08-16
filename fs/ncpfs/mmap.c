@@ -18,7 +18,7 @@
 #include <linux/fcntl.h>
 #include <linux/memcontrol.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "ncp_fs.h"
 
@@ -27,10 +27,9 @@
  * XXX: how are we excluding truncate/invalidate here? Maybe need to lock
  * page?
  */
-static int ncp_file_mmap_fault(struct vm_area_struct *area,
-					struct vm_fault *vmf)
+static int ncp_file_mmap_fault(struct vm_fault *vmf)
 {
-	struct inode *inode = file_inode(area->vm_file);
+	struct inode *inode = file_inode(vmf->vma->vm_file);
 	char *pg_addr;
 	unsigned int already_read;
 	unsigned int count;
@@ -90,7 +89,7 @@ static int ncp_file_mmap_fault(struct vm_area_struct *area,
 	 * -- nyc
 	 */
 	count_vm_event(PGMAJFAULT);
-	mem_cgroup_count_vm_event(area->vm_mm, PGMAJFAULT);
+	count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
 	return VM_FAULT_MAJOR;
 }
 

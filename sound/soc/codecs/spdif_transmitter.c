@@ -38,10 +38,12 @@ static const struct snd_soc_dapm_route dit_routes[] = {
 };
 
 static struct snd_soc_codec_driver soc_codec_spdif_dit = {
-	.dapm_widgets = dit_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(dit_widgets),
-	.dapm_routes = dit_routes,
-	.num_dapm_routes = ARRAY_SIZE(dit_routes),
+	.component_driver = {
+		.dapm_widgets		= dit_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(dit_widgets),
+		.dapm_routes		= dit_routes,
+		.num_dapm_routes	= ARRAY_SIZE(dit_routes),
+	},
 };
 
 static struct snd_soc_dai_driver dit_stub_dai = {

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,7 +84,7 @@ acpi_status acpi_ds_initialize_region(acpi_handle obj_handle)
 
 	/* Namespace is NOT locked */
 
-	status = acpi_ev_initialize_region(obj_desc, FALSE);
+	status = acpi_ev_initialize_region(obj_desc);
 	return (status);
 }
 
@@ -227,13 +227,12 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	/* Entire field must fit within the current length of the buffer */
 
-	if ((bit_offset + bit_count) > (8 * (u32) buffer_desc->buffer.length)) {
+	if ((bit_offset + bit_count) > (8 * (u32)buffer_desc->buffer.length)) {
 		ACPI_ERROR((AE_INFO,
-			    "Field [%4.4s] at %u exceeds Buffer [%4.4s] size %u (bits)",
-			    acpi_ut_get_node_name(result_desc),
-			    bit_offset + bit_count,
-			    acpi_ut_get_node_name(buffer_desc->buffer.node),
-			    8 * (u32) buffer_desc->buffer.length));
+			    "Field [%4.4s] at bit offset/length %u/%u "
+			    "exceeds size of target Buffer (%u bits)",
+			    acpi_ut_get_node_name(result_desc), bit_offset,
+			    bit_count, 8 * (u32)buffer_desc->buffer.length));
 		status = AE_AML_BUFFER_LIMIT;
 		goto cleanup;
 	}
@@ -243,8 +242,9 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	 * For field_flags, use LOCK_RULE = 0 (NO_LOCK),
 	 * UPDATE_RULE = 0 (UPDATE_PRESERVE)
 	 */
-	status = acpi_ex_prep_common_field_object(obj_desc, field_flags, 0,
-						  bit_offset, bit_count);
+	status =
+	    acpi_ex_prep_common_field_object(obj_desc, field_flags, 0,
+					     bit_offset, bit_count);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
@@ -330,8 +330,9 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 
 	/* Resolve the operands */
 
-	status = acpi_ex_resolve_operands(op->common.aml_opcode,
-					  ACPI_WALK_OPERANDS, walk_state);
+	status =
+	    acpi_ex_resolve_operands(op->common.aml_opcode, ACPI_WALK_OPERANDS,
+				     walk_state);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO, "(%s) bad operand(s), status 0x%X",
 			    acpi_ps_get_opcode_name(op->common.aml_opcode),
@@ -414,8 +415,9 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 
 	/* Resolve the length and address operands to numbers */
 
-	status = acpi_ex_resolve_operands(op->common.aml_opcode,
-					  ACPI_WALK_OPERANDS, walk_state);
+	status =
+	    acpi_ex_resolve_operands(op->common.aml_opcode, ACPI_WALK_OPERANDS,
+				     walk_state);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -452,7 +454,6 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	/* Now the address and length are valid for this opregion */
 
 	obj_desc->region.flags |= AOPOBJ_DATA_VALID;
-
 	return_ACPI_STATUS(status);
 }
 
@@ -510,8 +511,9 @@ acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
 	 * Resolve the Signature string, oem_id string,
 	 * and oem_table_id string operands
 	 */
-	status = acpi_ex_resolve_operands(op->common.aml_opcode,
-					  ACPI_WALK_OPERANDS, walk_state);
+	status =
+	    acpi_ex_resolve_operands(op->common.aml_opcode, ACPI_WALK_OPERANDS,
+				     walk_state);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
@@ -636,7 +638,7 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 		break;
 
 	case AML_PACKAGE_OP:
-	case AML_VAR_PACKAGE_OP:
+	case AML_VARIABLE_PACKAGE_OP:
 
 		status =
 		    acpi_ds_build_internal_package_obj(walk_state, op, length,
@@ -657,7 +659,7 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 		if ((!op->common.parent) ||
 		    ((op->common.parent->common.aml_opcode != AML_PACKAGE_OP) &&
 		     (op->common.parent->common.aml_opcode !=
-		      AML_VAR_PACKAGE_OP)
+		      AML_VARIABLE_PACKAGE_OP)
 		     && (op->common.parent->common.aml_opcode !=
 			 AML_NAME_OP))) {
 			walk_state->result_obj = obj_desc;

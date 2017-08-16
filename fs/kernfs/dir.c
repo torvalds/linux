@@ -41,31 +41,127 @@ static bool kernfs_lockdep(struct kernfs_node *kn)
 
 static int kernfs_name_locked(struct kernfs_node *kn, char *buf, size_t buflen)
 {
+	if (!kn)
+		return strlcpy(buf, "(null)", buflen);
+
 	return strlcpy(buf, kn->parent ? kn->name : "/", buflen);
 }
 
-static char * __must_check kernfs_path_locked(struct kernfs_node *kn, char *buf,
-					      size_t buflen)
+/* kernfs_node_depth - compute depth from @from to @to */
+static size_t kernfs_depth(struct kernfs_node *from, struct kernfs_node *to)
 {
-	char *p = buf + buflen;
-	int len;
+	size_t depth = 0;
 
-	*--p = '\0';
+	while (to->parent && to != from) {
+		depth++;
+		to = to->parent;
+	}
+	return depth;
+}
 
-	do {
-		len = strlen(kn->name);
-		if (p - buf < len + 1) {
-			buf[0] = '\0';
-			p = NULL;
-			break;
-		}
-		p -= len;
-		memcpy(p, kn->name, len);
-		*--p = '/';
-		kn = kn->parent;
-	} while (kn && kn->parent);
+static struct kernfs_node *kernfs_common_ancestor(struct kernfs_node *a,
+						  struct kernfs_node *b)
+{
+	size_t da, db;
+	struct kernfs_root *ra = kernfs_root(a), *rb = kernfs_root(b);
 
-	return p;
+	if (ra != rb)
+		return NULL;
+
+	da = kernfs_depth(ra->kn, a);
+	db = kernfs_depth(rb->kn, b);
+
+	while (da > db) {
+		a = a->parent;
+		da--;
+	}
+	while (db > da) {
+		b = b->parent;
+		db--;
+	}
+
+	/* worst case b and a will be the same at root */
+	while (b != a) {
+		b = b->parent;
+		a = a->parent;
+	}
+
+	return a;
+}
+
+/**
+ * kernfs_path_from_node_locked - find a pseudo-absolute path to @kn_to,
+ * where kn_from is treated as root of the path.
+ * @kn_from: kernfs node which should be treated as root for the path
+ * @kn_to: kernfs node to which path is needed
+ * @buf: buffer to copy the path into
+ * @buflen: size of @buf
+ *
+ * We need to handle couple of scenarios here:
+ * [1] when @kn_from is an ancestor of @kn_to at some level
+ * kn_from: /n1/n2/n3
+ * kn_to:   /n1/n2/n3/n4/n5
+ * result:  /n4/n5
+ *
+ * [2] when @kn_from is on a different hierarchy and we need to find common
+ * ancestor between @kn_from and @kn_to.
+ * kn_from: /n1/n2/n3/n4
+ * kn_to:   /n1/n2/n5
+ * result:  /../../n5
+ * OR
+ * kn_from: /n1/n2/n3/n4/n5   [depth=5]
+ * kn_to:   /n1/n2/n3         [depth=3]
+ * result:  /../..
+ *
+ * [3] when @kn_to is NULL result will be "(null)"
+ *
+ * Returns the length of the full path.  If the full length is equal to or
+ * greater than @buflen, @buf contains the truncated path with the trailing
+ * '\0'.  On error, -errno is returned.
+ */
+static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
+					struct kernfs_node *kn_from,
+					char *buf, size_t buflen)
+{
+	struct kernfs_node *kn, *common;
+	const char parent_str[] = "/..";
+	size_t depth_from, depth_to, len = 0;
+	int i, j;
+
+	if (!kn_to)
+		return strlcpy(buf, "(null)", buflen);
+
+	if (!kn_from)
+		kn_from = kernfs_root(kn_to)->kn;
+
+	if (kn_from == kn_to)
+		return strlcpy(buf, "/", buflen);
+
+	common = kernfs_common_ancestor(kn_from, kn_to);
+	if (WARN_ON(!common))
+		return -EINVAL;
+
+	depth_to = kernfs_depth(common, kn_to);
+	depth_from = kernfs_depth(common, kn_from);
+
+	if (buf)
+		buf[0] = '\0';
+
+	for (i = 0; i < depth_from; i++)
+		len += strlcpy(buf + len, parent_str,
+			       len < buflen ? buflen - len : 0);
+
+	/* Calculate how many bytes we need for the rest */
+	for (i = depth_to - 1; i >= 0; i--) {
+		for (kn = kn_to, j = 0; j < i; j++)
+			kn = kn->parent;
+		len += strlcpy(buf + len, "/",
+			       len < buflen ? buflen - len : 0);
+		len += strlcpy(buf + len, kn->name,
+			       len < buflen ? buflen - len : 0);
+	}
+
+	return len;
 }
 
 /**
@@ -77,6 +173,8 @@ static char * __must_check kernfs_path_locked(struct kernfs_node *kn, char *buf,
  * Copies the name of @kn into @buf of @buflen bytes.  The behavior is
  * similar to strlcpy().  It returns the length of @kn's name and if @buf
  * isn't long enough, it's filled upto @buflen-1 and nul terminated.
+ *
+ * Fills buffer with "(null)" if @kn is NULL.
  *
  * This function can be called from any context.
  */
@@ -92,50 +190,33 @@ int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
 }
 
 /**
- * kernfs_path_len - determine the length of the full path of a given node
- * @kn: kernfs_node of interest
- *
- * The returned length doesn't include the space for the terminating '\0'.
- */
-size_t kernfs_path_len(struct kernfs_node *kn)
-{
-	size_t len = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&kernfs_rename_lock, flags);
-
-	do {
-		len += strlen(kn->name) + 1;
-		kn = kn->parent;
-	} while (kn && kn->parent);
-
-	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
-
-	return len;
-}
-
-/**
- * kernfs_path - build full path of a given node
- * @kn: kernfs_node of interest
- * @buf: buffer to copy @kn's name into
+ * kernfs_path_from_node - build path of node @to relative to @from.
+ * @from: parent kernfs_node relative to which we need to build the path
+ * @to: kernfs_node of interest
+ * @buf: buffer to copy @to's path into
  * @buflen: size of @buf
  *
- * Builds and returns the full path of @kn in @buf of @buflen bytes.  The
- * path is built from the end of @buf so the returned pointer usually
- * doesn't match @buf.  If @buf isn't long enough, @buf is nul terminated
- * and %NULL is returned.
+ * Builds @to's path relative to @from in @buf. @from and @to must
+ * be on the same kernfs-root. If @from is not parent of @to, then a relative
+ * path (which includes '..'s) as needed to reach from @from to @to is
+ * returned.
+ *
+ * Returns the length of the full path.  If the full length is equal to or
+ * greater than @buflen, @buf contains the truncated path with the trailing
+ * '\0'.  On error, -errno is returned.
  */
-char *kernfs_path(struct kernfs_node *kn, char *buf, size_t buflen)
+int kernfs_path_from_node(struct kernfs_node *to, struct kernfs_node *from,
+			  char *buf, size_t buflen)
 {
 	unsigned long flags;
-	char *p;
+	int ret;
 
 	spin_lock_irqsave(&kernfs_rename_lock, flags);
-	p = kernfs_path_locked(kn, buf, buflen);
+	ret = kernfs_path_from_node_locked(to, from, buf, buflen);
 	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
-	return p;
+	return ret;
 }
-EXPORT_SYMBOL_GPL(kernfs_path);
+EXPORT_SYMBOL_GPL(kernfs_path_from_node);
 
 /**
  * pr_cont_kernfs_name - pr_cont name of a kernfs_node
@@ -164,17 +245,25 @@ void pr_cont_kernfs_name(struct kernfs_node *kn)
 void pr_cont_kernfs_path(struct kernfs_node *kn)
 {
 	unsigned long flags;
-	char *p;
+	int sz;
 
 	spin_lock_irqsave(&kernfs_rename_lock, flags);
 
-	p = kernfs_path_locked(kn, kernfs_pr_cont_buf,
-			       sizeof(kernfs_pr_cont_buf));
-	if (p)
-		pr_cont("%s", p);
-	else
-		pr_cont("<name too long>");
+	sz = kernfs_path_from_node_locked(kn, NULL, kernfs_pr_cont_buf,
+					  sizeof(kernfs_pr_cont_buf));
+	if (sz < 0) {
+		pr_cont("(error)");
+		goto out;
+	}
 
+	if (sz >= sizeof(kernfs_pr_cont_buf)) {
+		pr_cont("(name too long)");
+		goto out;
+	}
+
+	pr_cont("%s", kernfs_pr_cont_buf);
+
+out:
 	spin_unlock_irqrestore(&kernfs_rename_lock, flags);
 }
 
@@ -207,11 +296,11 @@ struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn)
  */
 static unsigned int kernfs_name_hash(const char *name, const void *ns)
 {
-	unsigned long hash = init_name_hash();
+	unsigned long hash = init_name_hash(ns);
 	unsigned int len = strlen(name);
 	while (len--)
 		hash = partial_name_hash(*name++, hash);
-	hash = (end_name_hash(hash) ^ hash_ptr((void *)ns, 31));
+	hash = end_name_hash(hash);
 	hash &= 0x7fffffffU;
 	/* Reserve hash numbers 0, 1 and INT_MAX for magic directory entries */
 	if (hash < 2)
@@ -389,7 +478,7 @@ static void kernfs_drain(struct kernfs_node *kn)
 		rwsem_release(&kn->dep_map, 1, _RET_IP_);
 	}
 
-	kernfs_unmap_bin_file(kn);
+	kernfs_drain_open_files(kn);
 
 	mutex_lock(&kernfs_mutex);
 }
@@ -541,14 +630,7 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	if (!kn)
 		goto err_out1;
 
-	/*
-	 * If the ino of the sysfs entry created for a kmem cache gets
-	 * allocated from an ida layer, which is accounted to the memcg that
-	 * owns the cache, the memcg will get pinned forever. So do not account
-	 * ino ida allocations.
-	 */
-	ret = ida_simple_get(&root->ino_ida, 1, 0,
-			     GFP_KERNEL | __GFP_NOACCOUNT);
+	ret = ida_simple_get(&root->ino_ida, 1, 0, GFP_KERNEL);
 	if (ret < 0)
 		goto err_out2;
 	kn->ino = ret;
@@ -631,7 +713,8 @@ int kernfs_add_one(struct kernfs_node *kn)
 	ps_iattr = parent->iattr;
 	if (ps_iattr) {
 		struct iattr *ps_iattrs = &ps_iattr->ia_iattr;
-		ps_iattrs->ia_ctime = ps_iattrs->ia_mtime = CURRENT_TIME;
+		ktime_get_real_ts(&ps_iattrs->ia_ctime);
+		ps_iattrs->ia_mtime = ps_iattrs->ia_ctime;
 	}
 
 	mutex_unlock(&kernfs_mutex);
@@ -694,6 +777,38 @@ static struct kernfs_node *kernfs_find_ns(struct kernfs_node *parent,
 	return NULL;
 }
 
+static struct kernfs_node *kernfs_walk_ns(struct kernfs_node *parent,
+					  const unsigned char *path,
+					  const void *ns)
+{
+	size_t len;
+	char *p, *name;
+
+	lockdep_assert_held(&kernfs_mutex);
+
+	/* grab kernfs_rename_lock to piggy back on kernfs_pr_cont_buf */
+	spin_lock_irq(&kernfs_rename_lock);
+
+	len = strlcpy(kernfs_pr_cont_buf, path, sizeof(kernfs_pr_cont_buf));
+
+	if (len >= sizeof(kernfs_pr_cont_buf)) {
+		spin_unlock_irq(&kernfs_rename_lock);
+		return NULL;
+	}
+
+	p = kernfs_pr_cont_buf;
+
+	while ((name = strsep(&p, "/")) && parent) {
+		if (*name == '\0')
+			continue;
+		parent = kernfs_find_ns(parent, name, ns);
+	}
+
+	spin_unlock_irq(&kernfs_rename_lock);
+
+	return parent;
+}
+
 /**
  * kernfs_find_and_get_ns - find and get kernfs_node with the given name
  * @parent: kernfs_node to search under
@@ -717,6 +832,29 @@ struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
 	return kn;
 }
 EXPORT_SYMBOL_GPL(kernfs_find_and_get_ns);
+
+/**
+ * kernfs_walk_and_get_ns - find and get kernfs_node with the given path
+ * @parent: kernfs_node to search under
+ * @path: path to look for
+ * @ns: the namespace tag to use
+ *
+ * Look for kernfs_node with path @path under @parent and get a reference
+ * if found.  This function may sleep and returns pointer to the found
+ * kernfs_node on success, %NULL on failure.
+ */
+struct kernfs_node *kernfs_walk_and_get_ns(struct kernfs_node *parent,
+					   const char *path, const void *ns)
+{
+	struct kernfs_node *kn;
+
+	mutex_lock(&kernfs_mutex);
+	kn = kernfs_walk_ns(parent, path, ns);
+	kernfs_get(kn);
+	mutex_unlock(&kernfs_mutex);
+
+	return kn;
+}
 
 /**
  * kernfs_create_root - create a new kernfs hierarchy
@@ -918,12 +1056,16 @@ static int kernfs_iop_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int kernfs_iop_rename(struct inode *old_dir, struct dentry *old_dentry,
-			     struct inode *new_dir, struct dentry *new_dentry)
+			     struct inode *new_dir, struct dentry *new_dentry,
+			     unsigned int flags)
 {
 	struct kernfs_node *kn  = old_dentry->d_fsdata;
 	struct kernfs_node *new_parent = new_dir->i_private;
 	struct kernfs_syscall_ops *scops = kernfs_root(kn)->syscall_ops;
 	int ret;
+
+	if (flags)
+		return -EINVAL;
 
 	if (!scops || !scops->rename)
 		return -EPERM;
@@ -948,9 +1090,6 @@ const struct inode_operations kernfs_dir_iops = {
 	.permission	= kernfs_iop_permission,
 	.setattr	= kernfs_iop_setattr,
 	.getattr	= kernfs_iop_getattr,
-	.setxattr	= kernfs_iop_setxattr,
-	.removexattr	= kernfs_iop_removexattr,
-	.getxattr	= kernfs_iop_getxattr,
 	.listxattr	= kernfs_iop_listxattr,
 
 	.mkdir		= kernfs_iop_mkdir,
@@ -1102,8 +1241,9 @@ static void __kernfs_remove(struct kernfs_node *kn)
 
 			/* update timestamps on the parent */
 			if (ps_iattr) {
-				ps_iattr->ia_iattr.ia_ctime = CURRENT_TIME;
-				ps_iattr->ia_iattr.ia_mtime = CURRENT_TIME;
+				ktime_get_real_ts(&ps_iattr->ia_iattr.ia_ctime);
+				ps_iattr->ia_iattr.ia_mtime =
+					ps_iattr->ia_iattr.ia_ctime;
 			}
 
 			kernfs_put(pos);
@@ -1466,22 +1606,9 @@ static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 	return 0;
 }
 
-static loff_t kernfs_dir_fop_llseek(struct file *file, loff_t offset,
-				    int whence)
-{
-	struct inode *inode = file_inode(file);
-	loff_t ret;
-
-	mutex_lock(&inode->i_mutex);
-	ret = generic_file_llseek(file, offset, whence);
-	mutex_unlock(&inode->i_mutex);
-
-	return ret;
-}
-
 const struct file_operations kernfs_dir_fops = {
 	.read		= generic_read_dir,
-	.iterate	= kernfs_fop_readdir,
+	.iterate_shared	= kernfs_fop_readdir,
 	.release	= kernfs_dir_fop_release,
-	.llseek		= kernfs_dir_fop_llseek,
+	.llseek		= generic_file_llseek,
 };

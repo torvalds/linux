@@ -17,7 +17,8 @@ config DEVMEM
 
 config DEVKMEM
 	bool "/dev/kmem virtual device support"
-	default y
+	# On arm64, VMALLOC_START < PAGE_OFFSET, which confuses kmem read/write
+	depends on !ARM64
 	help
 	  Say Y here if you want to support the /dev/kmem device. The
 	  /dev/kmem device is rarely used, but can be used for certain
@@ -47,6 +48,7 @@ config SGI_MBCS
          say Y or M here, otherwise say N.
 
 source "drivers/tty/serial/Kconfig"
+source "drivers/tty/serdev/Kconfig"
 
 config TTY_PRINTK
 	tristate "TTY driver to output user messages via printk"
@@ -178,6 +180,20 @@ config IBM_BSR
 	  of threads across a large system which avoids bouncing a cacheline
 	  between several cores on a system
 
+config POWERNV_OP_PANEL
+	tristate "IBM POWERNV Operator Panel Display support"
+	depends on PPC_POWERNV
+	default m
+	help
+	  If you say Y here, a special character device node, /dev/op_panel,
+	  will be created which exposes the operator panel display on IBM
+	  Power Systems machines with FSPs.
+
+	  If you don't require access to the operator panel display from user
+	  space, say N.
+
+	  If unsure, say M here to build it as a module called powernv-op-panel.
+
 source "drivers/char/ipmi/Kconfig"
 
 config DS1620
@@ -279,8 +295,7 @@ if RTC_LIB=n
 
 config RTC
 	tristate "Enhanced Real Time Clock Support (legacy PC RTC driver)"
-	depends on !PPC && !PARISC && !IA64 && !M68K && !SPARC && !FRV \
-			&& !ARM && !SUPERH && !S390 && !AVR32 && !BLACKFIN && !UML
+	depends on ALPHA || (MIPS && MACH_LOONGSON64)
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -325,31 +340,6 @@ config JS_RTC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called js-rtc.
-
-config GEN_RTC
-	tristate "Generic /dev/rtc emulation"
-	depends on RTC!=y && !IA64 && !ARM && !M32R && !MIPS && !SPARC && !FRV && !S390 && !SUPERH && !AVR32 && !BLACKFIN && !UML
-	---help---
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 10 and minor number 135 using mknod ("man mknod"), you
-	  will get access to the real time clock (or hardware clock) built
-	  into your computer.
-
-	  It reports status information via the file /proc/driver/rtc and its
-	  behaviour is set by various ioctls on /dev/rtc. If you enable the
-	  "extended RTC operation" below it will also provide an emulation
-	  for RTC_UIE which is required by some programs and may improve
-	  precision in some cases.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called genrtc.
-
-config GEN_RTC_X
-	bool "Extended RTC operation"
-	depends on GEN_RTC
-	help
-	  Provides an emulation for RTC_UIE which is required by some programs
-	  and may improve precision of the generic RTC support in some cases.
 
 config EFI_RTC
 	bool "EFI Real Time Clock Services"
@@ -551,14 +541,6 @@ config HANGCHECK_TIMER
 	  out to lunch past a certain margin.  It can reboot the system
 	  or merely print a warning.
 
-config MMTIMER
-	tristate "MMTIMER Memory mapped RTC for SGI Altix"
-	depends on IA64_GENERIC || IA64_SGI_SN2
-	default y
-	help
-	  The mmtimer device allows direct userspace access to the
-	  Altix system timer.
-
 config UV_MMTIMER
 	tristate "UV_MMTIMER Memory mapped RTC for SGI UV"
 	depends on X86_UV
@@ -583,15 +565,17 @@ config TELCLOCK
 	  controlling the behavior of this hardware.
 
 config DEVPORT
-	bool
-	depends on !M68K
+	bool "/dev/port character device"
 	depends on ISA || PCI
 	default y
+	help
+	  Say Y here if you want to support the /dev/port device. The /dev/port
+	  device is similar to /dev/mem, but for I/O ports.
 
 source "drivers/s390/char/Kconfig"
 
 config TILE_SROM
-	bool "Character-device access via hypervisor to the Tilera SPI ROM"
+	tristate "Character-device access via hypervisor to the Tilera SPI ROM"
 	depends on TILE
 	default y
 	---help---

@@ -532,11 +532,8 @@ static int sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 
 	sh_chan = devm_kzalloc(sdev->dma_dev.dev, sizeof(struct sh_dmae_chan),
 			       GFP_KERNEL);
-	if (!sh_chan) {
-		dev_err(sdev->dma_dev.dev,
-			"No free memory for allocating dma channels!\n");
+	if (!sh_chan)
 		return -ENOMEM;
-	}
 
 	schan = &sh_chan->shdma_chan;
 	schan->max_xfer_len = SH_DMA_TCR_MAX + 1;
@@ -699,7 +696,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	struct resource *chan, *dmars, *errirq_res, *chanirq_res;
 
 	if (pdev->dev.of_node)
-		pdata = of_match_device(sh_dmae_of_match, &pdev->dev)->data;
+		pdata = of_device_get_match_data(&pdev->dev);
 	else
 		pdata = dev_get_platdata(&pdev->dev);
 
@@ -732,10 +729,8 @@ static int sh_dmae_probe(struct platform_device *pdev)
 
 	shdev = devm_kzalloc(&pdev->dev, sizeof(struct sh_dmae_device),
 			     GFP_KERNEL);
-	if (!shdev) {
-		dev_err(&pdev->dev, "Not enough memory\n");
+	if (!shdev)
 		return -ENOMEM;
-	}
 
 	dma_dev = &shdev->shdma_dev.dma_dev;
 

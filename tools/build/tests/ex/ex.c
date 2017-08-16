@@ -5,6 +5,7 @@ int c(void);
 int d(void);
 int e(void);
 int f(void);
+int inc(void);
 
 int main(void)
 {
@@ -14,6 +15,7 @@ int main(void)
 	d();
 	e();
 	f();
+	inc();
 
 	return 0;
 }

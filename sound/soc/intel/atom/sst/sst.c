@@ -27,6 +27,7 @@
 #include <linux/pm_qos.h>
 #include <linux/async.h>
 #include <linux/acpi.h>
+#include <linux/sysfs.h>
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <asm/platform_sst_audio.h>
@@ -190,7 +191,8 @@ int sst_driver_ops(struct intel_sst_drv *sst)
 
 	default:
 		dev_err(sst->dev,
-			"SST Driver capablities missing for dev_id: %x", sst->dev_id);
+			"SST Driver capabilities missing for dev_id: %x",
+			sst->dev_id);
 		return -EINVAL;
 	};
 }
@@ -240,6 +242,32 @@ int sst_alloc_drv_context(struct intel_sst_drv **ctx,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sst_alloc_drv_context);
+
+static ssize_t firmware_version_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
+
+	if (ctx->fw_version.type == 0 && ctx->fw_version.major == 0 &&
+	    ctx->fw_version.minor == 0 && ctx->fw_version.build == 0)
+		return sprintf(buf, "FW not yet loaded\n");
+	else
+		return sprintf(buf, "v%02x.%02x.%02x.%02x\n",
+			       ctx->fw_version.type, ctx->fw_version.major,
+			       ctx->fw_version.minor, ctx->fw_version.build);
+
+}
+
+static DEVICE_ATTR_RO(firmware_version);
+
+static const struct attribute *sst_fw_version_attrs[] = {
+	&dev_attr_firmware_version.attr,
+	NULL,
+};
+
+static const struct attribute_group sst_fw_version_attr_group = {
+	.attrs = (struct attribute **)sst_fw_version_attrs,
+};
 
 int sst_context_init(struct intel_sst_drv *ctx)
 {
@@ -314,8 +342,19 @@ int sst_context_init(struct intel_sst_drv *ctx)
 		dev_err(ctx->dev, "Firmware download failed:%d\n", ret);
 		goto do_free_mem;
 	}
+
+	ret = sysfs_create_group(&ctx->dev->kobj,
+				 &sst_fw_version_attr_group);
+	if (ret) {
+		dev_err(ctx->dev,
+			"Unable to create sysfs\n");
+		goto err_sysfs;
+	}
+
 	sst_register(ctx->dev);
 	return 0;
+err_sysfs:
+	sysfs_remove_group(&ctx->dev->kobj, &sst_fw_version_attr_group);
 
 do_free_mem:
 	destroy_workqueue(ctx->post_msg_wq);
@@ -329,6 +368,7 @@ void sst_context_cleanup(struct intel_sst_drv *ctx)
 	pm_runtime_disable(ctx->dev);
 	sst_unregister(ctx->dev);
 	sst_set_fw_state_locked(ctx, SST_SHUTDOWN);
+	sysfs_remove_group(&ctx->dev->kobj, &sst_fw_version_attr_group);
 	flush_scheduled_work();
 	destroy_workqueue(ctx->post_msg_wq);
 	pm_qos_remove_request(ctx->qos);
@@ -341,37 +381,6 @@ void sst_context_cleanup(struct intel_sst_drv *ctx)
 	ctx = NULL;
 }
 EXPORT_SYMBOL_GPL(sst_context_cleanup);
-
-static inline void sst_save_shim64(struct intel_sst_drv *ctx,
-			    void __iomem *shim,
-			    struct sst_shim_regs64 *shim_regs)
-{
-	unsigned long irq_flags;
-
-	spin_lock_irqsave(&ctx->ipc_spin_lock, irq_flags);
-
-	shim_regs->imrx = sst_shim_read64(shim, SST_IMRX);
-	shim_regs->csr = sst_shim_read64(shim, SST_CSR);
-
-
-	spin_unlock_irqrestore(&ctx->ipc_spin_lock, irq_flags);
-}
-
-static inline void sst_restore_shim64(struct intel_sst_drv *ctx,
-				      void __iomem *shim,
-				      struct sst_shim_regs64 *shim_regs)
-{
-	unsigned long irq_flags;
-
-	/*
-	 * we only need to restore IMRX for this case, rest will be
-	 * initialize by FW or driver when firmware is loaded
-	 */
-	spin_lock_irqsave(&ctx->ipc_spin_lock, irq_flags);
-	sst_shim_write64(shim, SST_IMRX, shim_regs->imrx);
-	sst_shim_write64(shim, SST_CSR, shim_regs->csr);
-	spin_unlock_irqrestore(&ctx->ipc_spin_lock, irq_flags);
-}
 
 void sst_configure_runtime_pm(struct intel_sst_drv *ctx)
 {
@@ -392,8 +401,6 @@ void sst_configure_runtime_pm(struct intel_sst_drv *ctx)
 		pm_runtime_set_active(ctx->dev);
 	else
 		pm_runtime_put_noidle(ctx->dev);
-
-	sst_save_shim64(ctx, ctx->shim, ctx->shim_regs64);
 }
 EXPORT_SYMBOL_GPL(sst_configure_runtime_pm);
 
@@ -417,8 +424,6 @@ static int intel_sst_runtime_suspend(struct device *dev)
 	flush_workqueue(ctx->post_msg_wq);
 
 	ctx->ops->reset(ctx);
-	/* save the shim registers because PMC doesn't save state */
-	sst_save_shim64(ctx, ctx->shim, ctx->shim_regs64);
 
 	return ret;
 }
@@ -441,7 +446,7 @@ static int intel_sst_suspend(struct device *dev)
 		struct stream_info *stream = &ctx->streams[i];
 
 		if (stream->status == STREAM_RUNNING) {
-			dev_err(dev, "stream %d is running, cant susupend, abort\n", i);
+			dev_err(dev, "stream %d is running, can't suspend, abort\n", i);
 			return -EBUSY;
 		}
 	}
@@ -459,23 +464,23 @@ static int intel_sst_suspend(struct device *dev)
 	fw_save = kzalloc(sizeof(*fw_save), GFP_KERNEL);
 	if (!fw_save)
 		return -ENOMEM;
-	fw_save->iram = kzalloc(ctx->iram_end - ctx->iram_base, GFP_KERNEL);
+	fw_save->iram = kvzalloc(ctx->iram_end - ctx->iram_base, GFP_KERNEL);
 	if (!fw_save->iram) {
 		ret = -ENOMEM;
 		goto iram;
 	}
-	fw_save->dram = kzalloc(ctx->dram_end - ctx->dram_base, GFP_KERNEL);
+	fw_save->dram = kvzalloc(ctx->dram_end - ctx->dram_base, GFP_KERNEL);
 	if (!fw_save->dram) {
 		ret = -ENOMEM;
 		goto dram;
 	}
-	fw_save->sram = kzalloc(SST_MAILBOX_SIZE, GFP_KERNEL);
+	fw_save->sram = kvzalloc(SST_MAILBOX_SIZE, GFP_KERNEL);
 	if (!fw_save->sram) {
 		ret = -ENOMEM;
 		goto sram;
 	}
 
-	fw_save->ddr = kzalloc(ctx->ddr_end - ctx->ddr_base, GFP_KERNEL);
+	fw_save->ddr = kvzalloc(ctx->ddr_end - ctx->ddr_base, GFP_KERNEL);
 	if (!fw_save->ddr) {
 		ret = -ENOMEM;
 		goto ddr;
@@ -490,11 +495,11 @@ static int intel_sst_suspend(struct device *dev)
 	ctx->ops->reset(ctx);
 	return 0;
 ddr:
-	kfree(fw_save->sram);
+	kvfree(fw_save->sram);
 sram:
-	kfree(fw_save->dram);
+	kvfree(fw_save->dram);
 dram:
-	kfree(fw_save->iram);
+	kvfree(fw_save->iram);
 iram:
 	kfree(fw_save);
 	return ret;
@@ -522,10 +527,10 @@ static int intel_sst_resume(struct device *dev)
 	memcpy32_toio(ctx->mailbox, fw_save->sram, SST_MAILBOX_SIZE);
 	memcpy32_toio(ctx->ddr, fw_save->ddr, ctx->ddr_end - ctx->ddr_base);
 
-	kfree(fw_save->sram);
-	kfree(fw_save->dram);
-	kfree(fw_save->iram);
-	kfree(fw_save->ddr);
+	kvfree(fw_save->sram);
+	kvfree(fw_save->dram);
+	kvfree(fw_save->iram);
+	kvfree(fw_save->ddr);
 	kfree(fw_save);
 
 	block = sst_create_block(ctx, 0, FW_DWNL_ID);

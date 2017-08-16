@@ -69,7 +69,7 @@ struct sw842_param {
 	((s) == 2 ? be16_to_cpu(get_unaligned((__be16 *)d)) :	\
 	 (s) == 4 ? be32_to_cpu(get_unaligned((__be32 *)d)) :	\
 	 (s) == 8 ? be64_to_cpu(get_unaligned((__be64 *)d)) :	\
-	 WARN(1, "pr_debug param err invalid size %x\n", s))
+	 0)
 
 static int next_bits(struct sw842_param *p, u64 *d, u8 n);
 
@@ -202,10 +202,14 @@ static int __do_index(struct sw842_param *p, u8 size, u8 bits, u64 fsize)
 		return -EINVAL;
 	}
 
-	pr_debug("index%x to %lx off %lx adjoff %lx tot %lx data %lx\n",
-		 size, (unsigned long)index, (unsigned long)(index * size),
-		 (unsigned long)offset, (unsigned long)total,
-		 (unsigned long)beN_to_cpu(&p->ostart[offset], size));
+	if (size != 2 && size != 4 && size != 8)
+		WARN(1, "__do_index invalid size %x\n", size);
+	else
+		pr_debug("index%x to %lx off %lx adjoff %lx tot %lx data %lx\n",
+			 size, (unsigned long)index,
+			 (unsigned long)(index * size), (unsigned long)offset,
+			 (unsigned long)total,
+			 (unsigned long)beN_to_cpu(&p->ostart[offset], size));
 
 	memcpy(p->out, &p->ostart[offset], size);
 	p->out += size;
@@ -250,7 +254,7 @@ static int do_op(struct sw842_param *p, u8 o)
 		case OP_ACTION_NOOP:
 			break;
 		default:
-			pr_err("Interal error, invalid op %x\n", op);
+			pr_err("Internal error, invalid op %x\n", op);
 			return -EINVAL;
 		}
 
@@ -285,6 +289,7 @@ int sw842_decompress(const u8 *in, unsigned int ilen,
 	struct sw842_param p;
 	int ret;
 	u64 op, rep, tmp, bytes, total;
+	u64 crc;
 
 	p.in = (u8 *)in;
 	p.bit = 0;
@@ -374,6 +379,22 @@ int sw842_decompress(const u8 *in, unsigned int ilen,
 			break;
 		}
 	} while (op != OP_END);
+
+	/*
+	 * crc(0:31) is saved in compressed data starting with the
+	 * next bit after End of stream template.
+	 */
+	ret = next_bits(&p, &crc, CRC_BITS);
+	if (ret)
+		return ret;
+
+	/*
+	 * Validate CRC saved in compressed data.
+	 */
+	if (crc != (u64)crc32_be(0, out, total - p.olen)) {
+		pr_debug("CRC mismatch for decompression\n");
+		return -EINVAL;
+	}
 
 	if (unlikely((total - p.olen) > UINT_MAX))
 		return -ENOSPC;

@@ -14,6 +14,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
 #include <linux/regmap.h>
@@ -23,12 +25,23 @@
 
 static int wm831x_spi_probe(struct spi_device *spi)
 {
+	struct wm831x_pdata *pdata = dev_get_platdata(&spi->dev);
 	const struct spi_device_id *id = spi_get_device_id(spi);
+	const struct of_device_id *of_id;
 	struct wm831x *wm831x;
 	enum wm831x_parent type;
 	int ret;
 
-	type = (enum wm831x_parent)id->driver_data;
+	if (spi->dev.of_node) {
+		of_id = of_match_device(wm831x_of_match, &spi->dev);
+		if (!of_id) {
+			dev_err(&spi->dev, "Failed to match device\n");
+			return -ENODEV;
+		}
+		type = (enum wm831x_parent)of_id->data;
+	} else {
+		type = (enum wm831x_parent)id->driver_data;
+	}
 
 	wm831x = devm_kzalloc(&spi->dev, sizeof(struct wm831x), GFP_KERNEL);
 	if (wm831x == NULL)
@@ -38,6 +51,7 @@ static int wm831x_spi_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, wm831x);
 	wm831x->dev = &spi->dev;
+	wm831x->type = type;
 
 	wm831x->regmap = devm_regmap_init_spi(spi, &wm831x_regmap_config);
 	if (IS_ERR(wm831x->regmap)) {
@@ -47,7 +61,10 @@ static int wm831x_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	return wm831x_device_init(wm831x, type, spi->irq);
+	if (pdata)
+		memcpy(&wm831x->pdata, pdata, sizeof(*pdata));
+
+	return wm831x_device_init(wm831x, spi->irq);
 }
 
 static int wm831x_spi_remove(struct spi_device *spi)
@@ -96,8 +113,8 @@ MODULE_DEVICE_TABLE(spi, wm831x_spi_ids);
 static struct spi_driver wm831x_spi_driver = {
 	.driver = {
 		.name	= "wm831x",
-		.owner	= THIS_MODULE,
 		.pm	= &wm831x_spi_pm,
+		.of_match_table = of_match_ptr(wm831x_of_match),
 	},
 	.id_table	= wm831x_spi_ids,
 	.probe		= wm831x_spi_probe,

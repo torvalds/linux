@@ -62,36 +62,17 @@
 		stdout-path = &uart0;
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x00000000 0x00000000 0x10000000>; /* 256MB */
 	};
 
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xf1000000 0x100000
-			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000>;
-
-		pcie-controller {
-			status = "okay";
-
-			/* Etron EJ168 USB 3.0 controller */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* First mini-PCIe port */
-			pcie@2,0 {
-				/* Port 0, Lane 1 */
-				status = "okay";
-			};
-
-			/* Second mini-PCIe port */
-			pcie@3,0 {
-				/* Port 0, Lane 3 */
-				status = "okay";
-			};
-		};
+			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0 0xf1200000 0x100000>;
 
 		internal-regs {
 
@@ -115,6 +96,9 @@
 				pinctrl-names = "default";
 				status = "okay";
 				phy-mode = "rgmii-id";
+				buffer-manager = <&bm>;
+				bm,pool-long = <0>;
+				bm,pool-short = <1>;
 				fixed-link {
 					speed = <1000>;
 					full-duplex;
@@ -126,6 +110,9 @@
 				pinctrl-names = "default";
 				status = "okay";
 				phy-mode = "rgmii-id";
+				buffer-manager = <&bm>;
+				bm,pool-long = <2>;
+				bm,pool-short = <3>;
 				fixed-link {
 					speed = <1000>;
 					full-duplex;
@@ -176,6 +163,7 @@
 					esata@4 {
 						label = "mamba:white:esata";
 						reg = <0x4>;
+						linux,default-trigger = "disk-activity";
 					};
 
 					usb2@5 {
@@ -203,6 +191,10 @@
 						reg = <0x9>;
 					};
 				};
+			};
+
+			bm@c8000 {
+				status = "okay";
 			};
 
 			nand@d0000 {
@@ -277,18 +269,10 @@
 					reg = <0x180000 0x780000>;   /* 7.5MB */
 				};
 			};
+		};
 
-			spi0: spi@10600 {
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "everspin,mr25h256";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <40000000>;
-				};
-			};
+		bm-bppi {
+			status = "okay";
 		};
 	};
 
@@ -299,16 +283,16 @@
 		pinctrl-0 = <&keys_pin>;
 		pinctrl-names = "default";
 
-		button@1 {
+		wps {
 			label = "WPS";
 			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
 		};
 
-		button@2 {
+		reset {
 			label = "Factory Reset Button";
 			linux,code = <KEY_RESTART>;
-			gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -324,16 +308,16 @@
 		};
 	};
 
-	gpio_fan {
+	pwm_fan {
 		/* SUNON HA4010V4-0000-C99 */
-		compatible = "gpio-fan";
-		gpios = <&gpio0 24 0>;
 
-		gpio-fan,speed-map = <0    0
-				      4500 1>;
+		compatible = "pwm-fan";
+		pwms = <&gpio0 24 4000>;
 	};
 
-	dsa@0 {
+	dsa {
+		status = "disabled";
+
 		compatible = "marvell,dsa";
 		#address-cells = <2>;
 		#size-cells = <0>;
@@ -379,6 +363,28 @@
 	};
 };
 
+&pciec {
+	status = "okay";
+
+	/* Etron EJ168 USB 3.0 controller */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* First mini-PCIe port */
+	pcie@2,0 {
+		/* Port 0, Lane 1 */
+		status = "okay";
+	};
+
+	/* Second mini-PCIe port */
+	pcie@3,0 {
+		/* Port 0, Lane 3 */
+		status = "okay";
+	};
+};
+
 &pinctrl {
 
 	keys_pin: keys-pin {
@@ -394,5 +400,68 @@
 	gpio_fan_pin: gpio-fan-pin {
 		marvell,pins = "mpp24";
 		marvell,function = "gpio";
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "everspin,mr25h256";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <40000000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	switch@0 {
+		compatible = "marvell,mv88e6085";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				label = "lan4";
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "lan3";
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "lan2";
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "lan1";
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "internet";
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&eth0>;
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+		};
 	};
 };

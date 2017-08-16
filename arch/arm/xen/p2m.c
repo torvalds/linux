@@ -93,8 +93,8 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 	for (i = 0; i < count; i++) {
 		if (map_ops[i].status)
 			continue;
-		set_phys_to_machine(map_ops[i].host_addr >> PAGE_SHIFT,
-				    map_ops[i].dev_bus_addr >> PAGE_SHIFT);
+		set_phys_to_machine(map_ops[i].host_addr >> XEN_PAGE_SHIFT,
+				    map_ops[i].dev_bus_addr >> XEN_PAGE_SHIFT);
 	}
 
 	return 0;
@@ -108,7 +108,7 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 	int i;
 
 	for (i = 0; i < count; i++) {
-		set_phys_to_machine(unmap_ops[i].host_addr >> PAGE_SHIFT,
+		set_phys_to_machine(unmap_ops[i].host_addr >> XEN_PAGE_SHIFT,
 				    INVALID_P2M_ENTRY);
 	}
 
@@ -144,17 +144,17 @@ bool __set_phys_to_machine_multi(unsigned long pfn,
 		return true;
 	}
 
-	p2m_entry = kzalloc(sizeof(struct xen_p2m_entry), GFP_NOWAIT);
-	if (!p2m_entry) {
-		pr_warn("cannot allocate xen_p2m_entry\n");
+	p2m_entry = kzalloc(sizeof(*p2m_entry), GFP_NOWAIT);
+	if (!p2m_entry)
 		return false;
-	}
+
 	p2m_entry->pfn = pfn;
 	p2m_entry->nr_pages = nr_pages;
 	p2m_entry->mfn = mfn;
 
 	write_lock_irqsave(&p2m_lock, irqflags);
-	if ((rc = xen_add_phys_to_mach_entry(p2m_entry)) < 0) {
+	rc = xen_add_phys_to_mach_entry(p2m_entry);
+	if (rc < 0) {
 		write_unlock_irqrestore(&p2m_lock, irqflags);
 		return false;
 	}

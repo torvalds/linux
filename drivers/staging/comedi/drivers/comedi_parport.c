@@ -75,8 +75,8 @@
 #define PARPORT_DATA_REG	0x00
 #define PARPORT_STATUS_REG	0x01
 #define PARPORT_CTRL_REG	0x02
-#define PARPORT_CTRL_IRQ_ENA	(1 << 4)
-#define PARPORT_CTRL_BIDIR_ENA	(1 << 5)
+#define PARPORT_CTRL_IRQ_ENA	BIT(4)
+#define PARPORT_CTRL_BIDIR_ENA	BIT(5)
 
 static int parport_data_reg_insn_bits(struct comedi_device *dev,
 				      struct comedi_subdevice *s,

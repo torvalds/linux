@@ -22,7 +22,7 @@
 
 #include <media/media-entity.h>
 #include <media/v4l2-dev.h>
-#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
 
 struct dma_chan;
 struct xvip_composite_device;
@@ -65,7 +65,6 @@ static inline struct xvip_pipeline *to_xvip_pipeline(struct media_entity *e)
  * @format: active V4L2 pixel format
  * @fmtinfo: format information corresponding to the active @format
  * @queue: vb2 buffers queue
- * @alloc_ctx: allocation context for the vb2 @queue
  * @sequence: V4L2 buffers sequence number
  * @queued_bufs: list of queued buffers
  * @queued_lock: protects the buf_queued list
@@ -88,7 +87,6 @@ struct xvip_dma {
 	const struct xvip_video_format *fmtinfo;
 
 	struct vb2_queue queue;
-	void *alloc_ctx;
 	unsigned int sequence;
 
 	struct list_head queued_bufs;

@@ -280,7 +280,10 @@ u32 pm8001_get_ncq_tag(struct sas_task *task, u32 *tag)
 	struct ata_queued_cmd *qc = task->uldd_task;
 	if (qc) {
 		if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
-			qc->tf.command == ATA_CMD_FPDMA_READ) {
+		    qc->tf.command == ATA_CMD_FPDMA_READ ||
+		    qc->tf.command == ATA_CMD_FPDMA_RECV ||
+		    qc->tf.command == ATA_CMD_FPDMA_SEND ||
+		    qc->tf.command == ATA_CMD_NCQ_NON_DATA) {
 			*tag = qc->tag;
 			return 1;
 		}
@@ -524,7 +527,7 @@ void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
   * pm8001_alloc_dev - find a empty pm8001_device
   * @pm8001_ha: our hba card information
   */
-struct pm8001_device *pm8001_alloc_dev(struct pm8001_hba_info *pm8001_ha)
+static struct pm8001_device *pm8001_alloc_dev(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 dev;
 	for (dev = 0; dev < PM8001_MAX_DEVICES; dev++) {

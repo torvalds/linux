@@ -52,11 +52,10 @@ static void __init sh73a0_smp_prepare_cpus(unsigned int max_cpus)
 	__raw_writel(__pa(shmobile_boot_vector), SBAR);
 
 	/* setup sh73a0 specific SCU bits */
-	shmobile_scu_base = IOMEM(SH73A0_SCU_BASE);
-	shmobile_smp_scu_prepare_cpus(max_cpus);
+	shmobile_smp_scu_prepare_cpus(SH73A0_SCU_BASE, max_cpus);
 }
 
-struct smp_operations sh73a0_smp_ops __initdata = {
+const struct smp_operations sh73a0_smp_ops __initconst = {
 	.smp_prepare_cpus	= sh73a0_smp_prepare_cpus,
 	.smp_boot_secondary	= sh73a0_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU

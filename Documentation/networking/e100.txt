@@ -130,7 +130,7 @@ Additional Configurations
   version 1.6 or later is required for this functionality.
 
   The latest release of ethtool can be found from
-  http://ftp.kernel.org/pub/software/network/ethtool/
+  https://www.kernel.org/pub/software/network/ethtool/
 
   Enabling Wake on LAN* (WoL)
   ---------------------------
@@ -181,17 +181,3 @@ For general information, go to the Intel support website at:
 If an issue is identified with the released source code on the supported
 kernel with a supported adapter, email the specific information related to the
 issue to e1000-devel@lists.sourceforge.net.
-
-
-License
-=======
-
-This software program is released under the terms of a license agreement
-between you ('Licensee') and Intel. Do not use or load this software or any
-associated materials (collectively, the 'Software') until you have carefully
-read the full terms and conditions of the file COPYING located in this software
-package. By loading or using the Software, you agree to the terms of this
-Agreement. If you do not agree with the terms of this Agreement, do not install
-or use the Software.
-
-* Other names and brands may be claimed as the property of others.

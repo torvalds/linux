@@ -28,6 +28,7 @@ extern void __muldf3(void);
 extern void __divdf3(void);
 extern void __floatunsidf(void);
 extern void __floatunsisf(void);
+extern void __udivdi3(void);
 
 EXPORT_SYMBOL(__ashldi3);
 EXPORT_SYMBOL(__ashrdi3);
@@ -45,6 +46,7 @@ EXPORT_SYMBOL(__muldf3);
 EXPORT_SYMBOL(__divdf3);
 EXPORT_SYMBOL(__floatunsidf);
 EXPORT_SYMBOL(__floatunsisf);
+EXPORT_SYMBOL(__udivdi3);
 
 /* ARC optimised assembler routines */
 EXPORT_SYMBOL(memset);

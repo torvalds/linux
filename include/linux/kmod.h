@@ -56,7 +56,7 @@ struct file;
 struct subprocess_info {
 	struct work_struct work;
 	struct completion *complete;
-	char *path;
+	const char *path;
 	char **argv;
 	char **envp;
 	int wait;
@@ -64,13 +64,14 @@ struct subprocess_info {
 	int (*init)(struct subprocess_info *info, struct cred *new);
 	void (*cleanup)(struct subprocess_info *info);
 	void *data;
-};
+} __randomize_layout;
 
 extern int
-call_usermodehelper(char *path, char **argv, char **envp, int wait);
+call_usermodehelper(const char *path, char **argv, char **envp, int wait);
 
 extern struct subprocess_info *
-call_usermodehelper_setup(char *path, char **argv, char **envp, gfp_t gfp_mask,
+call_usermodehelper_setup(const char *path, char **argv, char **envp,
+			  gfp_t gfp_mask,
 			  int (*init)(struct subprocess_info *info, struct cred *new),
 			  void (*cleanup)(struct subprocess_info *), void *data);
 

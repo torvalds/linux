@@ -13,9 +13,13 @@ config M32R
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_ATOMIC64
+	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_USES_GETTIMEOFFSET
 	select MODULES_USE_ELF_RELA
 	select HAVE_DEBUG_STACKOVERFLOW
+	select CPU_NO_EFFICIENT_FFS
+	select DMA_NOOP_OPS
+	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
 
 config SBUS
 	bool
@@ -32,7 +36,7 @@ config NO_IOPORT_MAP
 	def_bool y
 
 config NO_DMA
-	def_bool y
+	def_bool n
 
 config HZ
 	int
@@ -275,6 +279,7 @@ source "kernel/Kconfig.preempt"
 
 config SMP
 	bool "Symmetric multi-processing support"
+	depends on MMU
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
@@ -384,8 +389,6 @@ config ISA
 	bool
 
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 

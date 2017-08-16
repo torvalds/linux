@@ -729,6 +729,7 @@ static int register_pio_HBA(long base, struct get_conf *gc, struct pci_dev *pdev
 		break;
 	case 0x24:
 		SD(sh)->EATA_revision = 'z';
+		break;
 	default:
 		SD(sh)->EATA_revision = '?';
 	}

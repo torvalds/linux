@@ -42,35 +42,46 @@ static int iproc_pcie_bcma_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 static int iproc_pcie_bcma_probe(struct bcma_device *bdev)
 {
+	struct device *dev = &bdev->dev;
 	struct iproc_pcie *pcie;
-	LIST_HEAD(res);
-	struct resource res_mem;
+	LIST_HEAD(resources);
+	struct pci_host_bridge *bridge;
 	int ret;
 
-	pcie = devm_kzalloc(&bdev->dev, sizeof(*pcie), GFP_KERNEL);
-	if (!pcie)
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*pcie));
+	if (!bridge)
 		return -ENOMEM;
 
-	pcie->dev = &bdev->dev;
-	bcma_set_drvdata(bdev, pcie);
+	pcie = pci_host_bridge_priv(bridge);
 
+	pcie->dev = dev;
+
+	pcie->type = IPROC_PCIE_PAXB_BCMA;
 	pcie->base = bdev->io_addr;
+	if (!pcie->base) {
+		dev_err(dev, "no controller registers\n");
+		return -ENOMEM;
+	}
 
-	res_mem.start = bdev->addr_s[0];
-	res_mem.end = bdev->addr_s[0] + SZ_128M - 1;
-	res_mem.name = "PCIe MEM space";
-	res_mem.flags = IORESOURCE_MEM;
-	pci_add_resource(&res, &res_mem);
+	pcie->base_addr = bdev->addr;
+
+	pcie->mem.start = bdev->addr_s[0];
+	pcie->mem.end = bdev->addr_s[0] + SZ_128M - 1;
+	pcie->mem.name = "PCIe MEM space";
+	pcie->mem.flags = IORESOURCE_MEM;
+	pci_add_resource(&resources, &pcie->mem);
 
 	pcie->map_irq = iproc_pcie_bcma_map_irq;
 
-	ret = iproc_pcie_setup(pcie, &res);
-	if (ret)
-		dev_err(pcie->dev, "PCIe controller setup failed\n");
+	ret = iproc_pcie_setup(pcie, &resources);
+	if (ret) {
+		dev_err(dev, "PCIe controller setup failed\n");
+		pci_free_resource_list(&resources);
+		return ret;
+	}
 
-	pci_free_resource_list(&res);
-
-	return ret;
+	bcma_set_drvdata(bdev, pcie);
+	return 0;
 }
 
 static void iproc_pcie_bcma_remove(struct bcma_device *bdev)

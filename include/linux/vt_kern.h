@@ -45,7 +45,7 @@ void poke_blanked_console(void);
 int con_font_op(struct vc_data *vc, struct console_font_op *op);
 int con_set_cmap(unsigned char __user *cmap);
 int con_get_cmap(unsigned char __user *cmap);
-void scrollback(struct vc_data *vc, int lines);
+void scrollback(struct vc_data *vc);
 void scrollfront(struct vc_data *vc, int lines);
 void clear_buffer_attributes(struct vc_data *vc);
 void update_region(struct vc_data *vc, unsigned long start, int count);
@@ -59,14 +59,13 @@ int tioclinux(struct tty_struct *tty, unsigned long arg);
 #ifdef CONFIG_CONSOLE_TRANSLATIONS
 /* consolemap.c */
 
-struct unimapinit;
 struct unipair;
 
 int con_set_trans_old(unsigned char __user * table);
 int con_get_trans_old(unsigned char __user * table);
 int con_set_trans_new(unsigned short __user * table);
 int con_get_trans_new(unsigned short __user * table);
-int con_clear_unimap(struct vc_data *vc, struct unimapinit *ui);
+int con_clear_unimap(struct vc_data *vc);
 int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list);
 int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct unipair __user *list);
 int con_set_default_unimap(struct vc_data *vc);
@@ -92,7 +91,7 @@ static inline int con_get_trans_new(unsigned short __user *table)
 {
 	return -EINVAL;
 }
-static inline int con_clear_unimap(struct vc_data *vc, struct unimapinit *ui)
+static inline int con_clear_unimap(struct vc_data *vc)
 {
 	return 0;
 }
@@ -192,5 +191,7 @@ extern void vt_set_led_state(int console, int leds);
 extern void vt_kbd_con_start(int console);
 extern void vt_kbd_con_stop(int console);
 
+void vc_scrolldelta_helper(struct vc_data *c, int lines,
+		unsigned int rolled_over, void *_base, unsigned int size);
 
 #endif /* _VT_KERN_H */

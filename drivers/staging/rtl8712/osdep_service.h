@@ -33,7 +33,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/semaphore.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/sem.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -57,33 +57,10 @@ struct	__queue	{
 		spin_lock_init(&((pqueue)->lock));	\
 	} while (0)
 
-#define LIST_CONTAINOR(ptr, type, member) \
-	((type *)((char *)(ptr)-(SIZE_T)(&((type *)0)->member)))
-
-#ifndef BIT
-	#define BIT(x)	(1 << (x))
-#endif
-
-static inline u32 _down_sema(struct semaphore *sema)
-{
-	if (down_interruptible(sema))
-		return _FAIL;
-	return _SUCCESS;
-}
-
 static inline u32 end_of_queue_search(struct list_head *head,
 		struct list_head *plist)
 {
 	return (head == plist);
-}
-
-static inline void sleep_schedulable(int ms)
-{
-	u32 delta;
-
-	delta = msecs_to_jiffies(ms);/*(ms)*/
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(delta);
 }
 
 static inline void flush_signals_thread(void)

@@ -47,7 +47,11 @@
 #include <xen/xen.h>
 #include <xen/features.h>
 
-#include "xenbus_probe.h"
+#include "xenbus.h"
+
+#define XENBUS_PAGES(_grants)	(DIV_ROUND_UP(_grants, XEN_PFN_PER_PAGE))
+
+#define XENBUS_MAX_RING_PAGES	(XENBUS_PAGES(XENBUS_MAX_RING_GRANTS))
 
 struct xenbus_map_node {
 	struct list_head next;
@@ -57,10 +61,11 @@ struct xenbus_map_node {
 		} pv;
 		struct {
 			struct page *pages[XENBUS_MAX_RING_PAGES];
+			unsigned long addrs[XENBUS_MAX_RING_GRANTS];
 			void *addr;
 		} hvm;
 	};
-	grant_handle_t handles[XENBUS_MAX_RING_PAGES];
+	grant_handle_t handles[XENBUS_MAX_RING_GRANTS];
 	unsigned int   nr_handles;
 };
 
@@ -110,7 +115,7 @@ EXPORT_SYMBOL_GPL(xenbus_strstate);
 int xenbus_watch_path(struct xenbus_device *dev, const char *path,
 		      struct xenbus_watch *watch,
 		      void (*callback)(struct xenbus_watch *,
-				       const char **, unsigned int))
+				       const char *, const char *))
 {
 	int err;
 
@@ -148,7 +153,7 @@ EXPORT_SYMBOL_GPL(xenbus_watch_path);
 int xenbus_watch_pathfmt(struct xenbus_device *dev,
 			 struct xenbus_watch *watch,
 			 void (*callback)(struct xenbus_watch *,
-					const char **, unsigned int),
+					  const char *, const char *),
 			 const char *pathfmt, ...)
 {
 	int err;
@@ -254,52 +259,33 @@ int xenbus_frontend_closed(struct xenbus_device *dev)
 }
 EXPORT_SYMBOL_GPL(xenbus_frontend_closed);
 
-/**
- * Return the path to the error node for the given device, or NULL on failure.
- * If the value returned is non-NULL, then it is the caller's to kfree.
- */
-static char *error_path(struct xenbus_device *dev)
-{
-	return kasprintf(GFP_KERNEL, "error/%s", dev->nodename);
-}
-
-
 static void xenbus_va_dev_error(struct xenbus_device *dev, int err,
 				const char *fmt, va_list ap)
 {
 	unsigned int len;
-	char *printf_buffer = NULL;
-	char *path_buffer = NULL;
+	char *printf_buffer;
+	char *path_buffer;
 
 #define PRINTF_BUFFER_SIZE 4096
+
 	printf_buffer = kmalloc(PRINTF_BUFFER_SIZE, GFP_KERNEL);
-	if (printf_buffer == NULL)
-		goto fail;
+	if (!printf_buffer)
+		return;
 
 	len = sprintf(printf_buffer, "%i ", -err);
-	vsnprintf(printf_buffer+len, PRINTF_BUFFER_SIZE-len, fmt, ap);
+	vsnprintf(printf_buffer + len, PRINTF_BUFFER_SIZE - len, fmt, ap);
 
 	dev_err(&dev->dev, "%s\n", printf_buffer);
 
-	path_buffer = error_path(dev);
-
-	if (path_buffer == NULL) {
+	path_buffer = kasprintf(GFP_KERNEL, "error/%s", dev->nodename);
+	if (!path_buffer ||
+	    xenbus_write(XBT_NIL, path_buffer, "error", printf_buffer))
 		dev_err(&dev->dev, "failed to write error node for %s (%s)\n",
-		       dev->nodename, printf_buffer);
-		goto fail;
-	}
+			dev->nodename, printf_buffer);
 
-	if (xenbus_write(XBT_NIL, path_buffer, "error", printf_buffer) != 0) {
-		dev_err(&dev->dev, "failed to write error node for %s (%s)\n",
-		       dev->nodename, printf_buffer);
-		goto fail;
-	}
-
-fail:
 	kfree(printf_buffer);
 	kfree(path_buffer);
 }
-
 
 /**
  * xenbus_dev_error
@@ -388,7 +374,7 @@ int xenbus_grant_ring(struct xenbus_device *dev, void *vaddr,
 		}
 		grefs[i] = err;
 
-		vaddr = vaddr + PAGE_SIZE;
+		vaddr = vaddr + XEN_PAGE_SIZE;
 	}
 
 	return 0;
@@ -479,12 +465,12 @@ static int __xenbus_map_ring(struct xenbus_device *dev,
 			     unsigned int flags,
 			     bool *leaked)
 {
-	struct gnttab_map_grant_ref map[XENBUS_MAX_RING_PAGES];
-	struct gnttab_unmap_grant_ref unmap[XENBUS_MAX_RING_PAGES];
+	struct gnttab_map_grant_ref map[XENBUS_MAX_RING_GRANTS];
+	struct gnttab_unmap_grant_ref unmap[XENBUS_MAX_RING_GRANTS];
 	int i, j;
 	int err = GNTST_okay;
 
-	if (nr_grefs > XENBUS_MAX_RING_PAGES)
+	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
 		return -EINVAL;
 
 	for (i = 0; i < nr_grefs; i++) {
@@ -540,22 +526,22 @@ static int xenbus_map_ring_valloc_pv(struct xenbus_device *dev,
 {
 	struct xenbus_map_node *node;
 	struct vm_struct *area;
-	pte_t *ptes[XENBUS_MAX_RING_PAGES];
-	phys_addr_t phys_addrs[XENBUS_MAX_RING_PAGES];
+	pte_t *ptes[XENBUS_MAX_RING_GRANTS];
+	phys_addr_t phys_addrs[XENBUS_MAX_RING_GRANTS];
 	int err = GNTST_okay;
 	int i;
 	bool leaked;
 
 	*vaddr = NULL;
 
-	if (nr_grefs > XENBUS_MAX_RING_PAGES)
+	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
 		return -EINVAL;
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
 
-	area = alloc_vm_area(PAGE_SIZE * nr_grefs, ptes);
+	area = alloc_vm_area(XEN_PAGE_SIZE * nr_grefs, ptes);
 	if (!area) {
 		kfree(node);
 		return -ENOMEM;
@@ -591,21 +577,44 @@ failed:
 	return err;
 }
 
+struct map_ring_valloc_hvm
+{
+	unsigned int idx;
+
+	/* Why do we need two arrays? See comment of __xenbus_map_ring */
+	phys_addr_t phys_addrs[XENBUS_MAX_RING_GRANTS];
+	unsigned long addrs[XENBUS_MAX_RING_GRANTS];
+};
+
+static void xenbus_map_ring_setup_grant_hvm(unsigned long gfn,
+					    unsigned int goffset,
+					    unsigned int len,
+					    void *data)
+{
+	struct map_ring_valloc_hvm *info = data;
+	unsigned long vaddr = (unsigned long)gfn_to_virt(gfn);
+
+	info->phys_addrs[info->idx] = vaddr;
+	info->addrs[info->idx] = vaddr;
+
+	info->idx++;
+}
+
 static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 				      grant_ref_t *gnt_ref,
 				      unsigned int nr_grefs,
 				      void **vaddr)
 {
 	struct xenbus_map_node *node;
-	int i;
 	int err;
 	void *addr;
 	bool leaked = false;
-	/* Why do we need two arrays? See comment of __xenbus_map_ring */
-	phys_addr_t phys_addrs[XENBUS_MAX_RING_PAGES];
-	unsigned long addrs[XENBUS_MAX_RING_PAGES];
+	struct map_ring_valloc_hvm info = {
+		.idx = 0,
+	};
+	unsigned int nr_pages = XENBUS_PAGES(nr_grefs);
 
-	if (nr_grefs > XENBUS_MAX_RING_PAGES)
+	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
 		return -EINVAL;
 
 	*vaddr = NULL;
@@ -614,25 +623,22 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 	if (!node)
 		return -ENOMEM;
 
-	err = alloc_xenballooned_pages(nr_grefs, node->hvm.pages,
-				       false /* lowmem */);
+	err = alloc_xenballooned_pages(nr_pages, node->hvm.pages);
 	if (err)
 		goto out_err;
 
-	for (i = 0; i < nr_grefs; i++) {
-		unsigned long pfn = page_to_pfn(node->hvm.pages[i]);
-		phys_addrs[i] = (unsigned long)pfn_to_kaddr(pfn);
-		addrs[i] = (unsigned long)pfn_to_kaddr(pfn);
-	}
+	gnttab_foreach_grant(node->hvm.pages, nr_grefs,
+			     xenbus_map_ring_setup_grant_hvm,
+			     &info);
 
 	err = __xenbus_map_ring(dev, gnt_ref, nr_grefs, node->handles,
-				phys_addrs, GNTMAP_host_map, &leaked);
+				info.phys_addrs, GNTMAP_host_map, &leaked);
 	node->nr_handles = nr_grefs;
 
 	if (err)
 		goto out_free_ballooned_pages;
 
-	addr = vmap(node->hvm.pages, nr_grefs, VM_MAP | VM_IOREMAP,
+	addr = vmap(node->hvm.pages, nr_pages, VM_MAP | VM_IOREMAP,
 		    PAGE_KERNEL);
 	if (!addr) {
 		err = -ENOMEM;
@@ -650,14 +656,13 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 
  out_xenbus_unmap_ring:
 	if (!leaked)
-		xenbus_unmap_ring(dev, node->handles, node->nr_handles,
-				  addrs);
+		xenbus_unmap_ring(dev, node->handles, nr_grefs, info.addrs);
 	else
 		pr_alert("leaking %p size %u page(s)",
-			 addr, nr_grefs);
+			 addr, nr_pages);
  out_free_ballooned_pages:
 	if (!leaked)
-		free_xenballooned_pages(nr_grefs, node->hvm.pages);
+		free_xenballooned_pages(nr_pages, node->hvm.pages);
  out_err:
 	kfree(node);
 	return err;
@@ -687,10 +692,10 @@ int xenbus_map_ring(struct xenbus_device *dev, grant_ref_t *gnt_refs,
 		    unsigned int nr_grefs, grant_handle_t *handles,
 		    unsigned long *vaddrs, bool *leaked)
 {
-	phys_addr_t phys_addrs[XENBUS_MAX_RING_PAGES];
+	phys_addr_t phys_addrs[XENBUS_MAX_RING_GRANTS];
 	int i;
 
-	if (nr_grefs > XENBUS_MAX_RING_PAGES)
+	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
 		return -EINVAL;
 
 	for (i = 0; i < nr_grefs; i++)
@@ -723,7 +728,7 @@ EXPORT_SYMBOL_GPL(xenbus_unmap_ring_vfree);
 static int xenbus_unmap_ring_vfree_pv(struct xenbus_device *dev, void *vaddr)
 {
 	struct xenbus_map_node *node;
-	struct gnttab_unmap_grant_ref unmap[XENBUS_MAX_RING_PAGES];
+	struct gnttab_unmap_grant_ref unmap[XENBUS_MAX_RING_GRANTS];
 	unsigned int level;
 	int i;
 	bool leaked = false;
@@ -750,7 +755,7 @@ static int xenbus_unmap_ring_vfree_pv(struct xenbus_device *dev, void *vaddr)
 		unsigned long addr;
 
 		memset(&unmap[i], 0, sizeof(unmap[i]));
-		addr = (unsigned long)vaddr + (PAGE_SIZE * i);
+		addr = (unsigned long)vaddr + (XEN_PAGE_SIZE * i);
 		unmap[i].host_addr = arbitrary_virt_to_machine(
 			lookup_address(addr, &level)).maddr;
 		unmap[i].dev_bus_addr = 0;
@@ -783,13 +788,33 @@ static int xenbus_unmap_ring_vfree_pv(struct xenbus_device *dev, void *vaddr)
 	return err;
 }
 
+struct unmap_ring_vfree_hvm
+{
+	unsigned int idx;
+	unsigned long addrs[XENBUS_MAX_RING_GRANTS];
+};
+
+static void xenbus_unmap_ring_setup_grant_hvm(unsigned long gfn,
+					      unsigned int goffset,
+					      unsigned int len,
+					      void *data)
+{
+	struct unmap_ring_vfree_hvm *info = data;
+
+	info->addrs[info->idx] = (unsigned long)gfn_to_virt(gfn);
+
+	info->idx++;
+}
+
 static int xenbus_unmap_ring_vfree_hvm(struct xenbus_device *dev, void *vaddr)
 {
 	int rv;
 	struct xenbus_map_node *node;
 	void *addr;
-	unsigned long addrs[XENBUS_MAX_RING_PAGES];
-	int i;
+	struct unmap_ring_vfree_hvm info = {
+		.idx = 0,
+	};
+	unsigned int nr_pages;
 
 	spin_lock(&xenbus_valloc_lock);
 	list_for_each_entry(node, &xenbus_valloc_pages, next) {
@@ -809,18 +834,20 @@ static int xenbus_unmap_ring_vfree_hvm(struct xenbus_device *dev, void *vaddr)
 		return GNTST_bad_virt_addr;
 	}
 
-	for (i = 0; i < node->nr_handles; i++)
-		addrs[i] = (unsigned long)pfn_to_kaddr(page_to_pfn(node->hvm.pages[i]));
+	nr_pages = XENBUS_PAGES(node->nr_handles);
+
+	gnttab_foreach_grant(node->hvm.pages, node->nr_handles,
+			     xenbus_unmap_ring_setup_grant_hvm,
+			     &info);
 
 	rv = xenbus_unmap_ring(dev, node->handles, node->nr_handles,
-			       addrs);
+			       info.addrs);
 	if (!rv) {
 		vunmap(vaddr);
-		free_xenballooned_pages(node->nr_handles, node->hvm.pages);
+		free_xenballooned_pages(nr_pages, node->hvm.pages);
 	}
 	else
-		WARN(1, "Leaking %p, size %u page(s)\n", vaddr,
-		     node->nr_handles);
+		WARN(1, "Leaking %p, size %u page(s)\n", vaddr, nr_pages);
 
 	kfree(node);
 	return rv;
@@ -841,11 +868,11 @@ int xenbus_unmap_ring(struct xenbus_device *dev,
 		      grant_handle_t *handles, unsigned int nr_handles,
 		      unsigned long *vaddrs)
 {
-	struct gnttab_unmap_grant_ref unmap[XENBUS_MAX_RING_PAGES];
+	struct gnttab_unmap_grant_ref unmap[XENBUS_MAX_RING_GRANTS];
 	int i;
 	int err;
 
-	if (nr_handles > XENBUS_MAX_RING_PAGES)
+	if (nr_handles > XENBUS_MAX_RING_GRANTS)
 		return -EINVAL;
 
 	for (i = 0; i < nr_handles; i++)

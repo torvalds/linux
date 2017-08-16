@@ -1,5 +1,7 @@
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/stacktrace.h>
 
 #include <asm/stacktrace.h>
@@ -28,8 +30,6 @@ static void tbi_boing_init(void)
 		tbi_boing_size = size;
 }
 #endif
-
-#define ALIGN_DOWN(addr, size)  ((addr)&(~((size)-1)))
 
 /*
  * Unwind the current stack frame and store the new register values in the

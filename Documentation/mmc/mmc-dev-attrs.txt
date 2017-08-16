@@ -13,7 +13,7 @@ SD and MMC Device Attributes
 
 All attributes are read-only.
 
-	cid			Card Identifaction Register
+	cid			Card Identification Register
 	csd			Card Specific Data Register
 	scr			SD Card Configuration Register (SD only)
 	date			Manufacturing Date (from CID Register)
@@ -28,6 +28,9 @@ All attributes are read-only.
 	preferred_erase_size	Preferred erase size
 	raw_rpmb_size_mult	RPMB partition size
 	rel_sectors		Reliable write sector count
+	ocr 			Operation Conditions Register
+	dsr			Driver Stage Register
+	cmdq_en			Command Queue enabled: 1 => enabled, 0 => not enabled
 
 Note on Erase Size and Preferred Erase Size:
 
@@ -69,16 +72,6 @@ Note on Erase Size and Preferred Erase Size:
 	"preferred_erase_size" is in bytes.
 
 Note on raw_rpmb_size_mult:
-	"raw_rpmb_size_mult" is a mutliple of 128kB block.
+	"raw_rpmb_size_mult" is a multiple of 128kB block.
 	RPMB size in byte is calculated by using the following equation:
 	RPMB partition size = 128kB x raw_rpmb_size_mult
-
-SD/MMC/SDIO Clock Gating Attribute
-==================================
-
-Read and write access is provided to following attribute.
-This attribute appears only if CONFIG_MMC_CLKGATE is enabled.
-
-	clkgate_delay	Tune the clock gating delay with desired value in milliseconds.
-
-echo <desired delay> > /sys/class/mmc_host/mmcX/clkgate_delay

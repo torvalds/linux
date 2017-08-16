@@ -27,14 +27,14 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/bridge-regs.h>
-#include <mach/hardware.h>
-#include <mach/orion5x.h>
 #include <linux/platform_data/mtd-orion_nand.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <plat/time.h>
 #include <plat/common.h>
+
+#include "bridge-regs.h"
 #include "common.h"
+#include "orion5x.h"
 
 /*****************************************************************************
  * I/O Address Mapping
@@ -66,8 +66,7 @@ static struct clk *tclk;
 
 void __init clk_init(void)
 {
-	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
-				       orion5x_tclk);
+	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, 0, orion5x_tclk);
 
 	orion_clkdev_init(tclk);
 }
@@ -106,9 +105,9 @@ void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 /*****************************************************************************
  * Ethernet switch
  ****************************************************************************/
-void __init orion5x_eth_switch_init(struct dsa_platform_data *d, int irq)
+void __init orion5x_eth_switch_init(struct dsa_chip_data *d)
 {
-	orion_ge00_switch_init(d, irq);
+	orion_ge00_switch_init(d);
 }
 
 
@@ -184,9 +183,21 @@ static void __init orion5x_crypto_init(void)
 /*****************************************************************************
  * Watchdog
  ****************************************************************************/
+static struct resource orion_wdt_resource[] = {
+		DEFINE_RES_MEM(TIMER_PHYS_BASE, 0x04),
+		DEFINE_RES_MEM(RSTOUTn_MASK_PHYS, 0x04),
+};
+
+static struct platform_device orion_wdt_device = {
+	.name		= "orion_wdt",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(orion_wdt_resource),
+	.resource	= orion_wdt_resource,
+};
+
 static void __init orion5x_wdt_init(void)
 {
-	orion_wdt_init();
+	platform_device_register(&orion_wdt_device);
 }
 
 

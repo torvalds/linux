@@ -90,8 +90,14 @@ struct superblock_smack {
 	struct smack_known	*smk_floor;
 	struct smack_known	*smk_hat;
 	struct smack_known	*smk_default;
-	int			smk_initialized;
+	int			smk_flags;
 };
+
+/*
+ * Superblock flags
+ */
+#define SMK_SB_INITIALIZED	0x01
+#define SMK_SB_UNTRUSTED	0x02
 
 struct socket_smack {
 	struct smack_known	*smk_out;	/* outbound label */
@@ -108,6 +114,7 @@ struct inode_smack {
 	struct smack_known	*smk_mmap;	/* label of the mmap domain */
 	struct mutex		smk_lock;	/* initialization lock */
 	int			smk_flags;	/* smack inode flags */
+	struct rcu_head         smk_rcu;	/* for freeing inode_smack */
 };
 
 struct task_smack {
@@ -115,6 +122,7 @@ struct task_smack {
 	struct smack_known	*smk_forked;	/* label when forked */
 	struct list_head	smk_rules;	/* per task access rules */
 	struct mutex		smk_rules_lock;	/* lock for the rules */
+	struct list_head	smk_relabel;	/* transit allowed labels */
 };
 
 #define	SMK_INODE_INSTANT	0x01	/* inode is instantiated */
@@ -166,10 +174,12 @@ struct smk_port_label {
 	unsigned short		smk_port;	/* the port number */
 	struct smack_known	*smk_in;	/* inbound label */
 	struct smack_known	*smk_out;	/* outgoing label */
+	short			smk_sock_type;	/* Socket type */
+	short			smk_can_reuse;
 };
 #endif /* SMACK_IPV6_PORT_LABELING */
 
-struct smack_onlycap {
+struct smack_known_list_elem {
 	struct list_head	list;
 	struct smack_known	*smk_label;
 };
@@ -249,6 +259,16 @@ enum {
 #define MAY_LOCK	0x00002000	/* Locks should be writes, but ... */
 #define MAY_BRINGUP	0x00004000	/* Report use of this rule */
 
+/*
+ * The policy for delivering signals is configurable.
+ * It is usually "write", but can be "append".
+ */
+#ifdef CONFIG_SECURITY_SMACK_APPEND_SIGNALS
+#define MAY_DELIVER	MAY_APPEND	/* Signal delivery requires append */
+#else
+#define MAY_DELIVER	MAY_WRITE	/* Signal delivery requires write */
+#endif
+
 #define SMACK_BRINGUP_ALLOW		1	/* Allow bringup mode */
 #define SMACK_UNCONFINED_SUBJECT	2	/* Allow unconfined label */
 #define SMACK_UNCONFINED_OBJECT		3	/* Allow unconfined label */
@@ -300,7 +320,8 @@ int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
 struct smack_known *smk_import_entry(const char *, int);
 void smk_insert_entry(struct smack_known *skp);
 struct smack_known *smk_find_entry(const char *);
-int smack_privileged(int cap);
+bool smack_privileged(int cap);
+void smk_destroy_label_list(struct list_head *list);
 
 /*
  * Shared data.
@@ -318,7 +339,6 @@ extern int smack_ptrace_rule;
 extern struct smack_known smack_known_floor;
 extern struct smack_known smack_known_hat;
 extern struct smack_known smack_known_huh;
-extern struct smack_known smack_known_invalid;
 extern struct smack_known smack_known_star;
 extern struct smack_known smack_known_web;
 

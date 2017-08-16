@@ -8,11 +8,12 @@ Overview
 --------
 These events are similar to tracepoint based events. Instead of Tracepoint,
 this is based on kprobes (kprobe and kretprobe). So it can probe wherever
-kprobes can probe (this means, all functions body except for __kprobes
-functions). Unlike the Tracepoint based event, this can be added and removed
+kprobes can probe (this means, all functions except those with
+__kprobes/nokprobe_inline annotation and those marked NOKPROBE_SYMBOL).
+Unlike the Tracepoint based event, this can be added and removed
 dynamically, on the fly.
 
-To enable this feature, build your kernel with CONFIG_KPROBE_EVENT=y.
+To enable this feature, build your kernel with CONFIG_KPROBE_EVENTS=y.
 
 Similar to the events tracer, this doesn't need to be activated via
 current_tracer. Instead of that, add probe points via
@@ -23,7 +24,7 @@ current_tracer. Instead of that, add probe points via
 Synopsis of kprobe_events
 -------------------------
   p[:[GRP/]EVENT] [MOD:]SYM[+offs]|MEMADDR [FETCHARGS]	: Set a probe
-  r[:[GRP/]EVENT] [MOD:]SYM[+0] [FETCHARGS]		: Set a return probe
+  r[MAXACTIVE][:[GRP/]EVENT] [MOD:]SYM[+0] [FETCHARGS]	: Set a return probe
   -:[GRP/]EVENT						: Clear a probe
 
  GRP		: Group name. If omitted, use "kprobes" for it.
@@ -32,6 +33,9 @@ Synopsis of kprobe_events
  MOD		: Module name which has given SYM.
  SYM[+offs]	: Symbol+offset where the probe is inserted.
  MEMADDR	: Address where the probe is inserted.
+ MAXACTIVE	: Maximum number of instances of the specified function that
+		  can be probed simultaneously, or 0 for the default value
+		  as defined in Documentation/kprobes.txt section 1.3.1.
 
  FETCHARGS	: Arguments. Each probe can have up to 128 args.
   %REG		: Fetch register REG
@@ -40,11 +44,12 @@ Synopsis of kprobe_events
   $stackN	: Fetch Nth entry of stack (N >= 0)
   $stack	: Fetch stack address.
   $retval	: Fetch return value.(*)
+  $comm		: Fetch current task comm.
   +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(**)
   NAME=FETCHARG : Set NAME as the argument name of FETCHARG.
   FETCHARG:TYPE : Set TYPE as the type of FETCHARG. Currently, basic types
-		  (u8/u16/u32/u64/s8/s16/s32/s64), "string" and bitfield
-		  are supported.
+		  (u8/u16/u32/u64/s8/s16/s32/s64), hexadecimal types
+		  (x8/x16/x32/x64), "string" and bitfield are supported.
 
   (*) only for return probe.
   (**) this is useful for fetching a field of data structures.
@@ -53,7 +58,10 @@ Types
 -----
 Several types are supported for fetch-args. Kprobe tracer will access memory
 by given type. Prefix 's' and 'u' means those types are signed and unsigned
-respectively. Traced arguments are shown in decimal (signed) or hex (unsigned).
+respectively. 'x' prefix implies it is unsigned. Traced arguments are shown
+in decimal ('s' and 'u') or hexadecimal ('x'). Without type casting, 'x32'
+or 'x64' is used depends on the architecture (e.g. x86-32 uses x32, and
+x86-64 uses x64).
 String type is a special type, which fetches a "null-terminated" string from
 kernel space. This means it will fail and store NULL if the string container
 has been paged out.
@@ -61,6 +69,8 @@ Bitfield is another special type, which takes 3 parameters, bit-width, bit-
 offset, and container-size (usually 32). The syntax is;
 
  b<bit-width>@<bit-offset>/<container-size>
+
+For $comm, the default type is "string"; any other type is invalid.
 
 
 Per-Probe Event Filtering

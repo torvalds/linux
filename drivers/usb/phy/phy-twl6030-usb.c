@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/usb/musb-omap.h>
+#include <linux/usb/musb.h>
 #include <linux/usb/phy_companion.h>
 #include <linux/phy/omap_usb.h>
 #include <linux/i2c/twl.h>
@@ -97,15 +97,17 @@ struct twl6030_usb {
 
 	struct regulator		*usb3v3;
 
+	/* used to check initial cable status after probe */
+	struct delayed_work	get_status_work;
+
 	/* used to set vbus, in atomic path */
 	struct work_struct	set_vbus_work;
 
 	int			irq1;
 	int			irq2;
-	enum omap_musb_vbus_id_status linkstat;
+	enum musb_vbus_id_status linkstat;
 	u8			asleep;
 	bool			vbus_enable;
-	const char		*regulator;
 };
 
 #define	comparator_to_twl(x) container_of((x), struct twl6030_usb, comparator)
@@ -155,15 +157,15 @@ static int twl6030_start_srp(struct phy_companion *comparator)
 static int twl6030_usb_ldo_init(struct twl6030_usb *twl)
 {
 	/* Set to OTG_REV 1.3 and turn on the ID_WAKEUP_COMP */
-	twl6030_writeb(twl, TWL6030_MODULE_ID0 , 0x1, TWL6030_BACKUP_REG);
+	twl6030_writeb(twl, TWL6030_MODULE_ID0, 0x1, TWL6030_BACKUP_REG);
 
 	/* Program CFG_LDO_PD2 register and set VUSB bit */
-	twl6030_writeb(twl, TWL6030_MODULE_ID0 , 0x1, TWL6030_CFG_LDO_PD2);
+	twl6030_writeb(twl, TWL6030_MODULE_ID0, 0x1, TWL6030_CFG_LDO_PD2);
 
 	/* Program MISC2 register and set bit VUSB_IN_VBAT */
-	twl6030_writeb(twl, TWL6030_MODULE_ID0 , 0x10, TWL6030_MISC2);
+	twl6030_writeb(twl, TWL6030_MODULE_ID0, 0x10, TWL6030_MISC2);
 
-	twl->usb3v3 = regulator_get(twl->dev, twl->regulator);
+	twl->usb3v3 = regulator_get(twl->dev, "usb");
 	if (IS_ERR(twl->usb3v3))
 		return -ENODEV;
 
@@ -189,13 +191,13 @@ static ssize_t twl6030_usb_vbus_show(struct device *dev,
 	spin_lock_irqsave(&twl->lock, flags);
 
 	switch (twl->linkstat) {
-	case OMAP_MUSB_VBUS_VALID:
+	case MUSB_VBUS_VALID:
 	       ret = snprintf(buf, PAGE_SIZE, "vbus\n");
 	       break;
-	case OMAP_MUSB_ID_GROUND:
+	case MUSB_ID_GROUND:
 	       ret = snprintf(buf, PAGE_SIZE, "id\n");
 	       break;
-	case OMAP_MUSB_VBUS_OFF:
+	case MUSB_VBUS_OFF:
 	       ret = snprintf(buf, PAGE_SIZE, "none\n");
 	       break;
 	default:
@@ -210,7 +212,7 @@ static DEVICE_ATTR(vbus, 0444, twl6030_usb_vbus_show, NULL);
 static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 {
 	struct twl6030_usb *twl = _twl;
-	enum omap_musb_vbus_id_status status = OMAP_MUSB_UNKNOWN;
+	enum musb_vbus_id_status status = MUSB_UNKNOWN;
 	u8 vbus_state, hw_state;
 	int ret;
 
@@ -225,14 +227,18 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 				dev_err(twl->dev, "Failed to enable usb3v3\n");
 
 			twl->asleep = 1;
-			status = OMAP_MUSB_VBUS_VALID;
+			status = MUSB_VBUS_VALID;
 			twl->linkstat = status;
-			omap_musb_mailbox(status);
+			ret = musb_mailbox(status);
+			if (ret)
+				twl->linkstat = MUSB_UNKNOWN;
 		} else {
-			if (twl->linkstat != OMAP_MUSB_UNKNOWN) {
-				status = OMAP_MUSB_VBUS_OFF;
+			if (twl->linkstat != MUSB_UNKNOWN) {
+				status = MUSB_VBUS_OFF;
 				twl->linkstat = status;
-				omap_musb_mailbox(status);
+				ret = musb_mailbox(status);
+				if (ret)
+					twl->linkstat = MUSB_UNKNOWN;
 				if (twl->asleep) {
 					regulator_disable(twl->usb3v3);
 					twl->asleep = 0;
@@ -248,7 +254,7 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 {
 	struct twl6030_usb *twl = _twl;
-	enum omap_musb_vbus_id_status status = OMAP_MUSB_UNKNOWN;
+	enum musb_vbus_id_status status = MUSB_UNKNOWN;
 	u8 hw_state;
 	int ret;
 
@@ -262,9 +268,11 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 		twl->asleep = 1;
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x1, USB_ID_INT_EN_HI_CLR);
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x10, USB_ID_INT_EN_HI_SET);
-		status = OMAP_MUSB_ID_GROUND;
+		status = MUSB_ID_GROUND;
 		twl->linkstat = status;
-		omap_musb_mailbox(status);
+		ret = musb_mailbox(status);
+		if (ret)
+			twl->linkstat = MUSB_UNKNOWN;
 	} else  {
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x10, USB_ID_INT_EN_HI_CLR);
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x1, USB_ID_INT_EN_HI_SET);
@@ -272,6 +280,15 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 	twl6030_writeb(twl, TWL_MODULE_USB, status, USB_ID_INT_LATCH_CLR);
 
 	return IRQ_HANDLED;
+}
+
+static void twl6030_status_work(struct work_struct *work)
+{
+	struct twl6030_usb *twl = container_of(work, struct twl6030_usb,
+					       get_status_work.work);
+
+	twl6030_usb_irq(twl->irq2, twl);
+	twl6030_usbotg_irq(twl->irq1, twl);
 }
 
 static int twl6030_enable_irq(struct twl6030_usb *twl)
@@ -284,8 +301,6 @@ static int twl6030_enable_irq(struct twl6030_usb *twl)
 				REG_INT_MSK_LINE_C);
 	twl6030_interrupt_unmask(TWL6030_CHARGER_CTRL_INT_MASK,
 				REG_INT_MSK_STS_C);
-	twl6030_usb_irq(twl->irq2, twl);
-	twl6030_usbotg_irq(twl->irq1, twl);
 
 	return 0;
 }
@@ -301,10 +316,10 @@ static void otg_set_vbus_work(struct work_struct *data)
 	 */
 
 	if (twl->vbus_enable)
-		twl6030_writeb(twl, TWL_MODULE_MAIN_CHARGE , 0x40,
+		twl6030_writeb(twl, TWL_MODULE_MAIN_CHARGE, 0x40,
 							CHARGERUSB_CTRL1);
 	else
-		twl6030_writeb(twl, TWL_MODULE_MAIN_CHARGE , 0x00,
+		twl6030_writeb(twl, TWL_MODULE_MAIN_CHARGE, 0x00,
 							CHARGERUSB_CTRL1);
 }
 
@@ -325,7 +340,11 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	int			status, err;
 	struct device_node	*np = pdev->dev.of_node;
 	struct device		*dev = &pdev->dev;
-	struct twl4030_usb_data	*pdata = dev_get_platdata(dev);
+
+	if (!np) {
+		dev_err(dev, "no DT info\n");
+		return -EINVAL;
+	}
 
 	twl = devm_kzalloc(dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
@@ -334,7 +353,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	twl->dev		= &pdev->dev;
 	twl->irq1		= platform_get_irq(pdev, 0);
 	twl->irq2		= platform_get_irq(pdev, 1);
-	twl->linkstat		= OMAP_MUSB_UNKNOWN;
+	twl->linkstat		= MUSB_UNKNOWN;
 
 	twl->comparator.set_vbus	= twl6030_set_vbus;
 	twl->comparator.start_srp	= twl6030_start_srp;
@@ -343,18 +362,6 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	if (ret == -ENODEV) {
 		dev_info(&pdev->dev, "phy not ready, deferring probe");
 		return -EPROBE_DEFER;
-	}
-
-	if (np) {
-		twl->regulator = "usb";
-	} else if (pdata) {
-		if (pdata->features & TWL6032_SUBCLASS)
-			twl->regulator = "ldousb";
-		else
-			twl->regulator = "vusb";
-	} else {
-		dev_err(&pdev->dev, "twl6030 initialized without pdata\n");
-		return -EINVAL;
 	}
 
 	/* init spinlock for workqueue */
@@ -371,6 +378,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "could not create sysfs file\n");
 
 	INIT_WORK(&twl->set_vbus_work, otg_set_vbus_work);
+	INIT_DELAYED_WORK(&twl->get_status_work, twl6030_status_work);
 
 	status = request_threaded_irq(twl->irq1, NULL, twl6030_usbotg_irq,
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING | IRQF_ONESHOT,
@@ -395,6 +403,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 
 	twl->asleep = 0;
 	twl6030_enable_irq(twl);
+	schedule_delayed_work(&twl->get_status_work, HZ);
 	dev_info(&pdev->dev, "Initialized TWL6030 USB module\n");
 
 	return 0;
@@ -404,6 +413,7 @@ static int twl6030_usb_remove(struct platform_device *pdev)
 {
 	struct twl6030_usb *twl = platform_get_drvdata(pdev);
 
+	cancel_delayed_work(&twl->get_status_work);
 	twl6030_interrupt_mask(TWL6030_USBOTG_INT_MASK,
 		REG_INT_MSK_LINE_C);
 	twl6030_interrupt_mask(TWL6030_USBOTG_INT_MASK,
@@ -417,13 +427,11 @@ static int twl6030_usb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id twl6030_usb_id_table[] = {
 	{ .compatible = "ti,twl6030-usb" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, twl6030_usb_id_table);
-#endif
 
 static struct platform_driver twl6030_usb_driver = {
 	.probe		= twl6030_usb_probe,

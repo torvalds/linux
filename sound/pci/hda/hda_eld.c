@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <asm/unaligned.h>
+#include <sound/hda_chmap.h>
 #include "hda_codec.h"
 #include "hda_local.h"
 
@@ -40,20 +41,6 @@ enum cea_edid_versions {
 	CEA_EDID_VER_CEA861A	= 2,
 	CEA_EDID_VER_CEA861BCD	= 3,
 	CEA_EDID_VER_RESERVED	= 4,
-};
-
-static const char * const cea_speaker_allocation_names[] = {
-	/*  0 */ "FL/FR",
-	/*  1 */ "LFE",
-	/*  2 */ "FC",
-	/*  3 */ "RL/RR",
-	/*  4 */ "RC",
-	/*  5 */ "FLC/FRC",
-	/*  6 */ "RLC/RRC",
-	/*  7 */ "FLW/FRW",
-	/*  8 */ "FLH/FRH",
-	/*  9 */ "TC",
-	/* 10 */ "FCH",
 };
 
 static const char * const eld_connection_type_names[4] = {
@@ -253,6 +240,7 @@ int snd_hdmi_parse_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e,
 	int mnl;
 	int i;
 
+	memset(e, 0, sizeof(*e));
 	e->eld_ver = GRAB_BITS(buf, 0, 3, 5);
 	if (e->eld_ver != ELD_VER_CEA_861D &&
 	    e->eld_ver != ELD_VER_PARTIAL) {
@@ -418,18 +406,6 @@ static void hdmi_show_short_audio_desc(struct hda_codec *codec,
 		  a->channels, buf, buf2);
 }
 
-void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen)
-{
-	int i, j;
-
-	for (i = 0, j = 0; i < ARRAY_SIZE(cea_speaker_allocation_names); i++) {
-		if (spk_alloc & (1 << i))
-			j += snprintf(buf + j, buflen - j,  " %s",
-					cea_speaker_allocation_names[i]);
-	}
-	buf[j] = '\0';	/* necessary when j == 0 */
-}
-
 void snd_hdmi_show_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e)
 {
 	int i;
@@ -440,7 +416,7 @@ void snd_hdmi_show_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e)
 
 	if (e->spk_alloc) {
 		char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
-		snd_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
+		snd_hdac_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
 		codec_dbg(codec, "HDMI: available speakers:%s\n", buf);
 	}
 
@@ -515,7 +491,7 @@ void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
 	snd_iprintf(buffer, "support_ai\t\t%d\n", e->support_ai);
 	snd_iprintf(buffer, "audio_sync_delay\t%d\n", e->aud_synch_delay);
 
-	snd_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
+	snd_hdac_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
 	snd_iprintf(buffer, "speakers\t\t[0x%x]%s\n", e->spk_alloc, buf);
 
 	snd_iprintf(buffer, "sad_count\t\t%d\n", e->sad_count);

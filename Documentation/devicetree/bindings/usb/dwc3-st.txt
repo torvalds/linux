@@ -20,10 +20,10 @@ See: Documentation/devicetree/bindings/reset/reset.txt
    with 'reg' property
 
  - pinctl-names	: A pinctrl state named "default" must be defined
-See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
  - pinctrl-0	: Pin control group
-See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
  - ranges	: allows valid 1:1 translation between child's address space and
 		  parent's address space

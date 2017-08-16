@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/regmap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/ac97_codec.h>
@@ -26,31 +27,56 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 
-#include "stac9766.h"
-
 #define STAC9766_VENDOR_ID 0x83847666
 #define STAC9766_VENDOR_ID_MASK 0xffffffff
 
-/*
- * STAC9766 register cache
- */
-static const u16 stac9766_reg[] = {
-	0x6A90, 0x8000, 0x8000, 0x8000, /* 6 */
-	0x0000, 0x0000, 0x8008, 0x8008, /* e */
-	0x8808, 0x8808, 0x8808, 0x8808, /* 16 */
-	0x8808, 0x0000, 0x8000, 0x0000, /* 1e */
-	0x0000, 0x0000, 0x0000, 0x000f, /* 26 */
-	0x0a05, 0x0400, 0xbb80, 0x0000, /* 2e */
-	0x0000, 0xbb80, 0x0000, 0x0000, /* 36 */
-	0x0000, 0x2000, 0x0000, 0x0100, /* 3e */
-	0x0000, 0x0000, 0x0080, 0x0000, /* 46 */
-	0x0000, 0x0000, 0x0003, 0xffff, /* 4e */
-	0x0000, 0x0000, 0x0000, 0x0000, /* 56 */
-	0x4000, 0x0000, 0x0000, 0x0000, /* 5e */
-	0x1201, 0xFFFF, 0xFFFF, 0x0000, /* 66 */
-	0x0000, 0x0000, 0x0000, 0x0000, /* 6e */
-	0x0000, 0x0000, 0x0000, 0x0006, /* 76 */
-	0x0000, 0x0000, 0x0000, 0x0000, /* 7e */
+#define AC97_STAC_DA_CONTROL 0x6A
+#define AC97_STAC_ANALOG_SPECIAL 0x6E
+#define AC97_STAC_STEREO_MIC 0x78
+
+static const struct reg_default stac9766_reg_defaults[] = {
+	{ 0x02, 0x8000 },
+	{ 0x04, 0x8000 },
+	{ 0x06, 0x8000 },
+	{ 0x0a, 0x0000 },
+	{ 0x0c, 0x8008 },
+	{ 0x0e, 0x8008 },
+	{ 0x10, 0x8808 },
+	{ 0x12, 0x8808 },
+	{ 0x14, 0x8808 },
+	{ 0x16, 0x8808 },
+	{ 0x18, 0x8808 },
+	{ 0x1a, 0x0000 },
+	{ 0x1c, 0x8000 },
+	{ 0x20, 0x0000 },
+	{ 0x22, 0x0000 },
+	{ 0x28, 0x0a05 },
+	{ 0x2c, 0xbb80 },
+	{ 0x32, 0xbb80 },
+	{ 0x3a, 0x2000 },
+	{ 0x3e, 0x0100 },
+	{ 0x4c, 0x0300 },
+	{ 0x4e, 0xffff },
+	{ 0x50, 0x0000 },
+	{ 0x52, 0x0000 },
+	{ 0x54, 0x0000 },
+	{ 0x6a, 0x0000 },
+	{ 0x6e, 0x1000 },
+	{ 0x72, 0x0000 },
+	{ 0x78, 0x0000 },
+};
+
+static const struct regmap_config stac9766_regmap_config = {
+	.reg_bits = 16,
+	.reg_stride = 2,
+	.val_bits = 16,
+	.max_register = 0x78,
+	.cache_type = REGCACHE_RBTREE,
+
+	.volatile_reg = regmap_ac97_default_volatile,
+
+	.reg_defaults = stac9766_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(stac9766_reg_defaults),
 };
 
 static const char *stac9766_record_mux[] = {"Mic", "CD", "Video", "AUX",
@@ -85,10 +111,10 @@ static SOC_ENUM_SINGLE_DECL(stac9766_boost2_enum,
 static SOC_ENUM_SINGLE_DECL(stac9766_stereo_mic_enum,
 			    AC97_STAC_STEREO_MIC, 2, stac9766_stereo_mic);
 
-static const DECLARE_TLV_DB_LINEAR(master_tlv, -4600, 0);
-static const DECLARE_TLV_DB_LINEAR(record_tlv, 0, 2250);
-static const DECLARE_TLV_DB_LINEAR(beep_tlv, -4500, 0);
-static const DECLARE_TLV_DB_LINEAR(mix_tlv, -3450, 1200);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(master_tlv, -4650, 150, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(record_tlv,     0, 150, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(beep_tlv,   -4500, 300, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(mix_tlv,    -3450, 150, 0);
 
 static const struct snd_kcontrol_new stac9766_snd_ac97_controls[] = {
 	SOC_DOUBLE_TLV("Speaker Volume", AC97_MASTER, 8, 0, 31, 1, master_tlv),
@@ -139,71 +165,22 @@ static const struct snd_kcontrol_new stac9766_snd_ac97_controls[] = {
 	SOC_ENUM("Pop Bypass Mux", stac9766_popbypass_enum),
 };
 
-static int stac9766_ac97_write(struct snd_soc_codec *codec, unsigned int reg,
-			       unsigned int val)
-{
-	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
-	u16 *cache = codec->reg_cache;
-
-	if (reg > AC97_STAC_PAGE0) {
-		stac9766_ac97_write(codec, AC97_INT_PAGING, 0);
-		soc_ac97_ops->write(ac97, reg, val);
-		stac9766_ac97_write(codec, AC97_INT_PAGING, 1);
-		return 0;
-	}
-	if (reg / 2 >= ARRAY_SIZE(stac9766_reg))
-		return -EIO;
-
-	soc_ac97_ops->write(ac97, reg, val);
-	cache[reg / 2] = val;
-	return 0;
-}
-
-static unsigned int stac9766_ac97_read(struct snd_soc_codec *codec,
-				       unsigned int reg)
-{
-	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
-	u16 val = 0, *cache = codec->reg_cache;
-
-	if (reg > AC97_STAC_PAGE0) {
-		stac9766_ac97_write(codec, AC97_INT_PAGING, 0);
-		val = soc_ac97_ops->read(ac97, reg - AC97_STAC_PAGE0);
-		stac9766_ac97_write(codec, AC97_INT_PAGING, 1);
-		return val;
-	}
-	if (reg / 2 >= ARRAY_SIZE(stac9766_reg))
-		return -EIO;
-
-	if (reg == AC97_RESET || reg == AC97_GPIO_STATUS ||
-		reg == AC97_INT_PAGING || reg == AC97_VENDOR_ID1 ||
-		reg == AC97_VENDOR_ID2) {
-
-		val = soc_ac97_ops->read(ac97, reg);
-		return val;
-	}
-	return cache[reg / 2];
-}
-
 static int ac97_analog_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned short reg, vra;
+	unsigned short reg;
 
-	vra = stac9766_ac97_read(codec, AC97_EXTENDED_STATUS);
-
-	vra |= 0x1; /* enable variable rate audio */
-	vra &= ~0x4; /* disable SPDIF output */
-
-	stac9766_ac97_write(codec, AC97_EXTENDED_STATUS, vra);
+	/* enable variable rate audio, disable SPDIF output */
+	snd_soc_update_bits(codec, AC97_EXTENDED_STATUS, 0x5, 0x1);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		reg = AC97_PCM_FRONT_DAC_RATE;
 	else
 		reg = AC97_PCM_LR_ADC_RATE;
 
-	return stac9766_ac97_write(codec, reg, runtime->rate);
+	return snd_soc_write(codec, reg, runtime->rate);
 }
 
 static int ac97_digital_prepare(struct snd_pcm_substream *substream,
@@ -211,18 +188,16 @@ static int ac97_digital_prepare(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned short reg, vra;
+	unsigned short reg;
 
-	stac9766_ac97_write(codec, AC97_SPDIF, 0x2002);
+	snd_soc_write(codec, AC97_SPDIF, 0x2002);
 
-	vra = stac9766_ac97_read(codec, AC97_EXTENDED_STATUS);
-	vra |= 0x5; /* Enable VRA and SPDIF out */
-
-	stac9766_ac97_write(codec, AC97_EXTENDED_STATUS, vra);
+	/* Enable VRA and SPDIF out */
+	snd_soc_update_bits(codec, AC97_EXTENDED_STATUS, 0x5, 0x5);
 
 	reg = AC97_PCM_FRONT_DAC_RATE;
 
-	return stac9766_ac97_write(codec, reg, runtime->rate);
+	return snd_soc_write(codec, reg, runtime->rate);
 }
 
 static int stac9766_set_bias_level(struct snd_soc_codec *codec,
@@ -232,11 +207,11 @@ static int stac9766_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_ON: /* full On */
 	case SND_SOC_BIAS_PREPARE: /* partial On */
 	case SND_SOC_BIAS_STANDBY: /* Off, with power */
-		stac9766_ac97_write(codec, AC97_POWERDOWN, 0x0000);
+		snd_soc_write(codec, AC97_POWERDOWN, 0x0000);
 		break;
 	case SND_SOC_BIAS_OFF: /* Off, without power */
 		/* disable everything including AC link */
-		stac9766_ac97_write(codec, AC97_POWERDOWN, 0xffff);
+		snd_soc_write(codec, AC97_POWERDOWN, 0xffff);
 		break;
 	}
 	return 0;
@@ -300,39 +275,48 @@ static struct snd_soc_dai_driver stac9766_dai[] = {
 static int stac9766_codec_probe(struct snd_soc_codec *codec)
 {
 	struct snd_ac97 *ac97;
+	struct regmap *regmap;
+	int ret;
 
 	ac97 = snd_soc_new_ac97_codec(codec, STAC9766_VENDOR_ID,
 			STAC9766_VENDOR_ID_MASK);
 	if (IS_ERR(ac97))
 		return PTR_ERR(ac97);
 
+	regmap = regmap_init_ac97(ac97, &stac9766_regmap_config);
+	if (IS_ERR(regmap)) {
+		ret = PTR_ERR(regmap);
+		goto err_free_ac97;
+	}
+
+	snd_soc_codec_init_regmap(codec, regmap);
 	snd_soc_codec_set_drvdata(codec, ac97);
 
 	return 0;
+err_free_ac97:
+	snd_soc_free_ac97_codec(ac97);
+	return ret;
 }
 
 static int stac9766_codec_remove(struct snd_soc_codec *codec)
 {
 	struct snd_ac97 *ac97 = snd_soc_codec_get_drvdata(codec);
 
+	snd_soc_codec_exit_regmap(codec);
 	snd_soc_free_ac97_codec(ac97);
 	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_stac9766 = {
-	.controls = stac9766_snd_ac97_controls,
-	.num_controls = ARRAY_SIZE(stac9766_snd_ac97_controls),
-	.write = stac9766_ac97_write,
-	.read = stac9766_ac97_read,
+	.component_driver = {
+		.controls		= stac9766_snd_ac97_controls,
+		.num_controls		= ARRAY_SIZE(stac9766_snd_ac97_controls),
+	},
 	.set_bias_level = stac9766_set_bias_level,
 	.suspend_bias_off = true,
 	.probe = stac9766_codec_probe,
 	.remove = stac9766_codec_remove,
 	.resume = stac9766_codec_resume,
-	.reg_cache_size = ARRAY_SIZE(stac9766_reg),
-	.reg_word_size = sizeof(u16),
-	.reg_cache_step = 2,
-	.reg_cache_default = stac9766_reg,
 };
 
 static int stac9766_probe(struct platform_device *pdev)

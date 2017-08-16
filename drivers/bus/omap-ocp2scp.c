@@ -117,7 +117,7 @@ static struct platform_driver omap_ocp2scp_driver = {
 
 module_platform_driver(omap_ocp2scp_driver);
 
-MODULE_ALIAS("platform: omap-ocp2scp");
+MODULE_ALIAS("platform:omap-ocp2scp");
 MODULE_AUTHOR("Texas Instruments Inc.");
 MODULE_DESCRIPTION("OMAP OCP2SCP driver");
 MODULE_LICENSE("GPL v2");

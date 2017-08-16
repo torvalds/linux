@@ -4,7 +4,7 @@
 #include <linux/suspend.h>
 #include <linux/bcd.h>
 #include <linux/acpi.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sleep.h"
 #include "internal.h"
@@ -42,7 +42,7 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 
 		if (!dev->physical_node_count) {
 			seq_printf(seq, "%c%-8s\n",
-				dev->wakeup.flags.run_wake ? '*' : ' ',
+				dev->wakeup.flags.valid ? '*' : ' ',
 				device_may_wakeup(&dev->dev) ?
 					"enabled" : "disabled");
 		} else {
@@ -58,7 +58,7 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 					seq_printf(seq, "\t\t");
 
 				seq_printf(seq, "%c%-8s  %s:%s\n",
-					dev->wakeup.flags.run_wake ? '*' : ' ',
+					dev->wakeup.flags.valid ? '*' : ' ',
 					(device_may_wakeup(&dev->dev) ||
 					device_may_wakeup(ldev)) ?
 					"enabled" : "disabled",
@@ -144,11 +144,9 @@ static const struct file_operations acpi_system_wakeup_device_fops = {
 	.release = single_release,
 };
 
-int __init acpi_sleep_proc_init(void)
+void __init acpi_sleep_proc_init(void)
 {
 	/* 'wakeup device' [R/W] */
 	proc_create("wakeup", S_IFREG | S_IRUGO | S_IWUSR,
 		    acpi_root_dir, &acpi_system_wakeup_device_fops);
-
-	return 0;
 }

@@ -22,7 +22,7 @@
 struct qce_cipher_ctx {
 	u8 enc_key[QCE_MAX_KEY_SIZE];
 	unsigned int enc_keylen;
-	struct crypto_ablkcipher *fallback;
+	struct crypto_skcipher *fallback;
 };
 
 /**
@@ -32,8 +32,6 @@ struct qce_cipher_ctx {
  * @ivsize: IV size
  * @src_nents: source entries
  * @dst_nents: destination entries
- * @src_chained: is source chained
- * @dst_chained: is destination chained
  * @result_sg: scatterlist used for result buffer
  * @dst_tbl: destination sg table
  * @dst_sg: destination sg pointer table beginning
@@ -47,8 +45,6 @@ struct qce_cipher_reqctx {
 	unsigned int ivsize;
 	int src_nents;
 	int dst_nents;
-	bool src_chained;
-	bool dst_chained;
 	struct scatterlist result_sg;
 	struct sg_table dst_tbl;
 	struct scatterlist *dst_sg;

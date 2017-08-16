@@ -10,6 +10,7 @@
 
 #include <linux/compat.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
@@ -23,7 +24,7 @@
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/lowcore.h>
 #include <asm/switch_to.h>
 #include "compat_linux.h"
@@ -249,7 +250,7 @@ static int save_sigregs_ext32(struct pt_regs *regs,
 		return -EFAULT;
 
 	/* Save vector registers to signal stack */
-	if (is_vx_task(current)) {
+	if (MACHINE_HAS_VX) {
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
 			vxrs[i] = *((__u64 *)(current->thread.fpu.vxrs + i) + 1);
 		if (__copy_to_user(&sregs_ext->vxrs_low, vxrs,
@@ -271,13 +272,13 @@ static int restore_sigregs_ext32(struct pt_regs *regs,
 
 	/* Restore high gprs from signal stack */
 	if (__copy_from_user(&gprs_high, &sregs_ext->gprs_high,
-			     sizeof(&sregs_ext->gprs_high)))
+			     sizeof(sregs_ext->gprs_high)))
 		return -EFAULT;
 	for (i = 0; i < NUM_GPRS; i++)
 		*(__u32 *)&regs->gprs[i] = gprs_high[i];
 
 	/* Restore vector registers from signal stack */
-	if (is_vx_task(current)) {
+	if (MACHINE_HAS_VX) {
 		if (__copy_from_user(vxrs, &sregs_ext->vxrs_low,
 				     sizeof(sregs_ext->vxrs_low)) ||
 		    __copy_from_user(current->thread.fpu.vxrs + __NUM_VXRS_LOW,
@@ -446,7 +447,7 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 		/* set extra registers only for synchronous signals */
 		regs->gprs[4] = regs->int_code & 127;
 		regs->gprs[5] = regs->int_parm_long;
-		regs->gprs[6] = task_thread_info(current)->last_break;
+		regs->gprs[6] = current->thread.last_break;
 	}
 
 	return 0;
@@ -470,8 +471,7 @@ static int setup_rt_frame32(struct ksignal *ksig, sigset_t *set,
 	 */
 	uc_flags = UC_GPRS_HIGH;
 	if (MACHINE_HAS_VX) {
-		if (is_vx_task(current))
-			uc_flags |= UC_VXRS;
+		uc_flags |= UC_VXRS;
 	} else
 		frame_size -= sizeof(frame->uc.uc_mcontext_ext.vxrs_low) +
 			      sizeof(frame->uc.uc_mcontext_ext.vxrs_high);
@@ -524,7 +524,7 @@ static int setup_rt_frame32(struct ksignal *ksig, sigset_t *set,
 	regs->gprs[2] = ksig->sig;
 	regs->gprs[3] = (__force __u64) &frame->info;
 	regs->gprs[4] = (__force __u64) &frame->uc;
-	regs->gprs[5] = task_thread_info(current)->last_break;
+	regs->gprs[5] = current->thread.last_break;
 	return 0;
 }
 

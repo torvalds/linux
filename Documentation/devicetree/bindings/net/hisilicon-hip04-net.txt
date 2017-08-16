@@ -32,13 +32,13 @@ Required properties:
 
 Required properties:
 
-- compatible: should be "hisilicon,hip04-mdio".
+- compatible: should be "hisilicon,mdio".
 - Inherits from MDIO bus node binding [2]
 [2] Documentation/devicetree/bindings/net/phy.txt
 
 Example:
 	mdio {
-		compatible = "hisilicon,hip04-mdio";
+		compatible = "hisilicon,mdio";
 		reg = <0x28f1000 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <0>;

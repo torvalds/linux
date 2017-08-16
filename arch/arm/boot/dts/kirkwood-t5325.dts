@@ -30,16 +30,6 @@
 		stdout-path = &uart0;
 	};
 
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
-	};
-
 	ocp@f1000000 {
 		pinctrl: pin-controller@10000 {
 			pinctrl-0 = <&pmx_i2s &pmx_sysrst>;
@@ -173,7 +163,7 @@
 		pinctrl-0 = <&pmx_button_power>;
 		pinctrl-names = "default";
 
-		button@1 {
+		power {
 			label = "Power Button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
@@ -217,7 +207,7 @@
 &mdio {
 	status = "okay";
 
-	ethphy0: ethernet-phy {
+	ethphy0: ethernet-phy@8 {
 		device_type = "ethernet-phy";
 		reg = <8>;
 	};
@@ -228,4 +218,12 @@
 	ethernet0-port@0 {
 		phy-handle = <&ethphy0>;
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

@@ -1,15 +1,23 @@
+#include <errno.h>
+#include <inttypes.h>
+#include <api/fs/tracing_path.h>
+#include <linux/err.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "thread_map.h"
 #include "evsel.h"
 #include "debug.h"
 #include "tests.h"
 
-int test__openat_syscall_event(void)
+int test__openat_syscall_event(int subtest __maybe_unused)
 {
 	int err = -1, fd;
 	struct perf_evsel *evsel;
 	unsigned int nr_openat_calls = 111, i;
 	struct thread_map *threads = thread_map__new(-1, getpid(), UINT_MAX);
 	char sbuf[STRERR_BUFSIZE];
+	char errbuf[BUFSIZ];
 
 	if (threads == NULL) {
 		pr_debug("thread_map__new\n");
@@ -17,20 +25,16 @@ int test__openat_syscall_event(void)
 	}
 
 	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
-	if (evsel == NULL) {
-		if (tracefs_configured())
-			pr_debug("is tracefs mounted on /sys/kernel/tracing?\n");
-		else if (debugfs_configured())
-			pr_debug("is debugfs mounted on /sys/kernel/debug?\n");
-		else
-			pr_debug("Neither tracefs or debugfs is enabled in this kernel\n");
+	if (IS_ERR(evsel)) {
+		tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
+		pr_debug("%s\n", errbuf);
 		goto out_thread_map_delete;
 	}
 
 	if (perf_evsel__open_per_thread(evsel, threads) < 0) {
 		pr_debug("failed to open counter: %s, "
 			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_evsel_delete;
 	}
 

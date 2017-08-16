@@ -113,6 +113,34 @@ applicable everywhere (see syntax).
 	That will limit the usefulness but on the other hand avoid
 	the illegal configurations all over.
 
+- weak reverse dependencies: "imply" <symbol> ["if" <expr>]
+  This is similar to "select" as it enforces a lower limit on another
+  symbol except that the "implied" symbol's value may still be set to n
+  from a direct dependency or with a visible prompt.
+
+  Given the following example:
+
+  config FOO
+	tristate
+	imply BAZ
+
+  config BAZ
+	tristate
+	depends on BAR
+
+  The following values are possible:
+
+	FOO		BAR		BAZ's default	choice for BAZ
+	---		---		-------------	--------------
+	n		y		n		N/m/y
+	m		y		m		M/y/n
+	y		y		y		Y/n
+	y		n		*		N
+
+  This is useful e.g. with multiple drivers that want to indicate their
+  ability to hook into a secondary subsystem while allowing the user to
+  configure that subsystem out without also having to unset these drivers.
+
 - limiting menu display: "visible if" <expr>
   This attribute is only applicable to menu blocks, if the condition is
   false, the menu block is not displayed to the user (the symbols
@@ -241,9 +269,8 @@ comment "module support disabled"
 	depends on !MODULES
 
 MODVERSIONS directly depends on MODULES, this means it's only visible if
-MODULES is different from 'n'. The comment on the other hand is always
-visible when MODULES is visible (the (empty) dependency of MODULES is
-also part of the comment dependencies).
+MODULES is different from 'n'. The comment on the other hand is only
+visible when MODULES is set to 'n'.
 
 
 Kconfig syntax
@@ -275,7 +302,44 @@ menuconfig:
 
 This is similar to the simple config entry above, but it also gives a
 hint to front ends, that all suboptions should be displayed as a
-separate list of options.
+separate list of options. To make sure all the suboptions will really
+show up under the menuconfig entry and not outside of it, every item
+from the <config options> list must depend on the menuconfig symbol.
+In practice, this is achieved by using one of the next two constructs:
+
+(1):
+menuconfig M
+if M
+    config C1
+    config C2
+endif
+
+(2):
+menuconfig M
+config C1
+    depends on M
+config C2
+    depends on M
+
+In the following examples (3) and (4), C1 and C2 still have the M
+dependency, but will not appear under menuconfig M anymore, because
+of C0, which doesn't depend on M:
+
+(3):
+menuconfig M
+    config C0
+if M
+    config C1
+    config C2
+endif
+
+(4):
+menuconfig M
+config C0
+config C1
+    depends on M
+config C2
+    depends on M
 
 choices:
 
@@ -285,12 +349,17 @@ choices:
 	"endchoice"
 
 This defines a choice group and accepts any of the above attributes as
-options. A choice can only be of type bool or tristate, while a boolean
-choice only allows a single config entry to be selected, a tristate
-choice also allows any number of config entries to be set to 'm'. This
-can be used if multiple drivers for a single hardware exists and only a
-single driver can be compiled/loaded into the kernel, but all drivers
-can be compiled as modules.
+options. A choice can only be of type bool or tristate.  If no type is
+specified for a choice, it's type will be determined by the type of
+the first choice element in the group or remain unknown if none of the
+choice elements have a type specified, as well.
+
+While a boolean choice only allows a single config entry to be
+selected, a tristate choice also allows any number of config entries
+to be set to 'm'. This can be used if multiple drivers for a single
+hardware exists and only a single driver can be compiled/loaded into
+the kernel, but all drivers can be compiled as modules.
+
 A choice accepts another option "optional", which allows to set the
 choice to 'n' and no entry needs to be selected.
 If no [symbol] is associated with a choice, then you can not have multiple
@@ -393,3 +462,165 @@ config FOO
 	depends on BAR && m
 
 limits FOO to module (=m) or disabled (=n).
+
+Kconfig recursive dependency limitations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you've hit the Kconfig error: "recursive dependency detected" you've run
+into a recursive dependency issue with Kconfig, a recursive dependency can be
+summarized as a circular dependency. The kconfig tools need to ensure that
+Kconfig files comply with specified configuration requirements. In order to do
+that kconfig must determine the values that are possible for all Kconfig
+symbols, this is currently not possible if there is a circular relation
+between two or more Kconfig symbols. For more details refer to the "Simple
+Kconfig recursive issue" subsection below. Kconfig does not do recursive
+dependency resolution; this has a few implications for Kconfig file writers.
+We'll first explain why this issues exists and then provide an example
+technical limitation which this brings upon Kconfig developers. Eager
+developers wishing to try to address this limitation should read the next
+subsections.
+
+Simple Kconfig recursive issue
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Read: Documentation/kbuild/Kconfig.recursion-issue-01
+
+Test with:
+
+make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-01 allnoconfig
+
+Cumulative Kconfig recursive issue
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Read: Documentation/kbuild/Kconfig.recursion-issue-02
+
+Test with:
+
+make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-02 allnoconfig
+
+Practical solutions to kconfig recursive issue
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Developers who run into the recursive Kconfig issue have three options
+at their disposal. We document them below and also provide a list of
+historical issues resolved through these different solutions.
+
+  a) Remove any superfluous "select FOO" or "depends on FOO"
+  b) Match dependency semantics:
+	b1) Swap all "select FOO" to "depends on FOO" or,
+	b2) Swap all "depends on FOO" to "select FOO"
+  c) Consider the use of "imply" instead of "select"
+
+The resolution to a) can be tested with the sample Kconfig file
+Documentation/kbuild/Kconfig.recursion-issue-01 through the removal
+of the "select CORE" from CORE_BELL_A_ADVANCED as that is implicit already
+since CORE_BELL_A depends on CORE. At times it may not be possible to remove
+some dependency criteria, for such cases you can work with solution b).
+
+The two different resolutions for b) can be tested in the sample Kconfig file
+Documentation/kbuild/Kconfig.recursion-issue-02.
+
+Below is a list of examples of prior fixes for these types of recursive issues;
+all errors appear to involve one or more select's and one or more "depends on".
+
+commit          fix
+======          ===
+06b718c01208    select A -> depends on A
+c22eacfe82f9    depends on A -> depends on B
+6a91e854442c    select A -> depends on A
+118c565a8f2e    select A -> select B
+f004e5594705    select A -> depends on A
+c7861f37b4c6    depends on A -> (null)
+80c69915e5fb    select A -> (null)              (1)
+c2218e26c0d0    select A -> depends on A        (1)
+d6ae99d04e1c    select A -> depends on A
+95ca19cf8cbf    select A -> depends on A
+8f057d7bca54    depends on A -> (null)
+8f057d7bca54    depends on A -> select A
+a0701f04846e    select A -> depends on A
+0c8b92f7f259    depends on A -> (null)
+e4e9e0540928    select A -> depends on A        (2)
+7453ea886e87    depends on A > (null)           (1)
+7b1fff7e4fdf    select A -> depends on A
+86c747d2a4f0    select A -> depends on A
+d9f9ab51e55e    select A -> depends on A
+0c51a4d8abd6    depends on A -> select A        (3)
+e98062ed6dc4    select A -> depends on A        (3)
+91e5d284a7f1    select A -> (null)
+
+(1) Partial (or no) quote of error.
+(2) That seems to be the gist of that fix.
+(3) Same error.
+
+Future kconfig work
+~~~~~~~~~~~~~~~~~~~
+
+Work on kconfig is welcomed on both areas of clarifying semantics and on
+evaluating the use of a full SAT solver for it. A full SAT solver can be
+desirable to enable more complex dependency mappings and / or queries,
+for instance on possible use case for a SAT solver could be that of handling
+the current known recursive dependency issues. It is not known if this would
+address such issues but such evaluation is desirable. If support for a full SAT
+solver proves too complex or that it cannot address recursive dependency issues
+Kconfig should have at least clear and well defined semantics which also
+addresses and documents limitations or requirements such as the ones dealing
+with recursive dependencies.
+
+Further work on both of these areas is welcomed on Kconfig. We elaborate
+on both of these in the next two subsections.
+
+Semantics of Kconfig
+~~~~~~~~~~~~~~~~~~~~
+
+The use of Kconfig is broad, Linux is now only one of Kconfig's users:
+one study has completed a broad analysis of Kconfig use in 12 projects [0].
+Despite its widespread use, and although this document does a reasonable job
+in documenting basic Kconfig syntax a more precise definition of Kconfig
+semantics is welcomed. One project deduced Kconfig semantics through
+the use of the xconfig configurator [1]. Work should be done to confirm if
+the deduced semantics matches our intended Kconfig design goals.
+
+Having well defined semantics can be useful for tools for practical
+evaluation of depenencies, for instance one such use known case was work to
+express in boolean abstraction of the inferred semantics of Kconfig to
+translate Kconfig logic into boolean formulas and run a SAT solver on this to
+find dead code / features (always inactive), 114 dead features were found in
+Linux using this methodology [1] (Section 8: Threats to validity).
+
+Confirming this could prove useful as Kconfig stands as one of the the leading
+industrial variability modeling languages [1] [2]. Its study would help
+evaluate practical uses of such languages, their use was only theoretical
+and real world requirements were not well understood. As it stands though
+only reverse engineering techniques have been used to deduce semantics from
+variability modeling languages such as Kconfig [3].
+
+[0] http://www.eng.uwaterloo.ca/~shshe/kconfig_semantics.pdf
+[1] http://gsd.uwaterloo.ca/sites/default/files/vm-2013-berger.pdf
+[2] http://gsd.uwaterloo.ca/sites/default/files/ase241-berger_0.pdf
+[3] http://gsd.uwaterloo.ca/sites/default/files/icse2011.pdf
+
+Full SAT solver for Kconfig
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Although SAT solvers [0] haven't yet been used by Kconfig directly, as noted in
+the previous subsection, work has been done however to express in boolean
+abstraction the inferred semantics of Kconfig to translate Kconfig logic into
+boolean formulas and run a SAT solver on it [1]. Another known related project
+is CADOS [2] (former VAMOS [3]) and the tools, mainly undertaker [4], which has
+been introduced first with [5].  The basic concept of undertaker is to exract
+variability models from Kconfig, and put them together with a propositional
+formula extracted from CPP #ifdefs and build-rules into a SAT solver in order
+to find dead code, dead files, and dead symbols. If using a SAT solver is
+desirable on Kconfig one approach would be to evaluate repurposing such efforts
+somehow on Kconfig. There is enough interest from mentors of existing projects
+to not only help advise how to integrate this work upstream but also help
+maintain it long term. Interested developers should visit:
+
+http://kernelnewbies.org/KernelProjects/kconfig-sat
+
+[0] http://www.cs.cornell.edu/~sabhar/chapters/SATSolvers-KR-Handbook.pdf
+[1] http://gsd.uwaterloo.ca/sites/default/files/vm-2013-berger.pdf
+[2] https://cados.cs.fau.de
+[3] https://vamos.cs.fau.de
+[4] https://undertaker.cs.fau.de
+[5] https://www4.cs.fau.de/Publications/2011/tartler_11_eurosys.pdf

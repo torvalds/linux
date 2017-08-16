@@ -38,6 +38,7 @@
 				reg = <0x0 0x1000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
+				#pinctrl-cells = <1>;
 				ranges = <0 0x0 0x1000>;
 
 				omap2420_pmx: pinmux@30 {
@@ -46,6 +47,7 @@
 					reg = <0x30 0x0113>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					pinctrl-single,register-width = <8>;
 					pinctrl-single,function-mask = <0x3f>;
 				};
@@ -130,6 +132,10 @@
 			gpmc,num-cs = <8>;
 			gpmc,num-waitpins = <4>;
 			ti,hwmods = "gpmc";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		mcbsp1: mcbsp@48074000 {

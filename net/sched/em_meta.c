@@ -63,6 +63,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <linux/random.h>
@@ -176,11 +177,12 @@ META_COLLECTOR(int_vlan_tag)
 {
 	unsigned short tag;
 
-	tag = skb_vlan_tag_get(skb);
-	if (!tag && __vlan_get_tag(skb, &tag))
-		*err = -1;
-	else
+	if (skb_vlan_tag_present(skb))
+		dst->value = skb_vlan_tag_get(skb);
+	else if (!__vlan_get_tag(skb, &tag))
 		dst->value = tag;
+	else
+		*err = -1;
 }
 
 
@@ -338,124 +340,150 @@ META_COLLECTOR(int_sk_refcnt)
 		*err = -1;
 		return;
 	}
-	dst->value = atomic_read(&skb->sk->sk_refcnt);
+	dst->value = refcount_read(&skb->sk->sk_refcnt);
 }
 
 META_COLLECTOR(int_sk_rcvbuf)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_rcvbuf;
+	dst->value = sk->sk_rcvbuf;
 }
 
 META_COLLECTOR(int_sk_shutdown)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_shutdown;
+	dst->value = sk->sk_shutdown;
 }
 
 META_COLLECTOR(int_sk_proto)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_protocol;
+	dst->value = sk->sk_protocol;
 }
 
 META_COLLECTOR(int_sk_type)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_type;
+	dst->value = sk->sk_type;
 }
 
 META_COLLECTOR(int_sk_rmem_alloc)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = sk_rmem_alloc_get(skb->sk);
+	dst->value = sk_rmem_alloc_get(sk);
 }
 
 META_COLLECTOR(int_sk_wmem_alloc)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = sk_wmem_alloc_get(skb->sk);
+	dst->value = sk_wmem_alloc_get(sk);
 }
 
 META_COLLECTOR(int_sk_omem_alloc)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = atomic_read(&skb->sk->sk_omem_alloc);
+	dst->value = atomic_read(&sk->sk_omem_alloc);
 }
 
 META_COLLECTOR(int_sk_rcv_qlen)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_receive_queue.qlen;
+	dst->value = sk->sk_receive_queue.qlen;
 }
 
 META_COLLECTOR(int_sk_snd_qlen)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_write_queue.qlen;
+	dst->value = sk->sk_write_queue.qlen;
 }
 
 META_COLLECTOR(int_sk_wmem_queued)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_wmem_queued;
+	dst->value = sk->sk_wmem_queued;
 }
 
 META_COLLECTOR(int_sk_fwd_alloc)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_forward_alloc;
+	dst->value = sk->sk_forward_alloc;
 }
 
 META_COLLECTOR(int_sk_sndbuf)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_sndbuf;
+	dst->value = sk->sk_sndbuf;
 }
 
 META_COLLECTOR(int_sk_alloc)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = (__force int) skb->sk->sk_allocation;
+	dst->value = (__force int) sk->sk_allocation;
 }
 
 META_COLLECTOR(int_sk_hash)
@@ -469,92 +497,112 @@ META_COLLECTOR(int_sk_hash)
 
 META_COLLECTOR(int_sk_lingertime)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_lingertime / HZ;
+	dst->value = sk->sk_lingertime / HZ;
 }
 
 META_COLLECTOR(int_sk_err_qlen)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_error_queue.qlen;
+	dst->value = sk->sk_error_queue.qlen;
 }
 
 META_COLLECTOR(int_sk_ack_bl)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_ack_backlog;
+	dst->value = sk->sk_ack_backlog;
 }
 
 META_COLLECTOR(int_sk_max_ack_bl)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_max_ack_backlog;
+	dst->value = sk->sk_max_ack_backlog;
 }
 
 META_COLLECTOR(int_sk_prio)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_priority;
+	dst->value = sk->sk_priority;
 }
 
 META_COLLECTOR(int_sk_rcvlowat)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_rcvlowat;
+	dst->value = sk->sk_rcvlowat;
 }
 
 META_COLLECTOR(int_sk_rcvtimeo)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_rcvtimeo / HZ;
+	dst->value = sk->sk_rcvtimeo / HZ;
 }
 
 META_COLLECTOR(int_sk_sndtimeo)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_sndtimeo / HZ;
+	dst->value = sk->sk_sndtimeo / HZ;
 }
 
 META_COLLECTOR(int_sk_sendmsg_off)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_frag.offset;
+	dst->value = sk->sk_frag.offset;
 }
 
 META_COLLECTOR(int_sk_write_pend)
 {
-	if (skip_nonlocal(skb)) {
+	const struct sock *sk = skb_to_full_sk(skb);
+
+	if (!sk) {
 		*err = -1;
 		return;
 	}
-	dst->value = skb->sk->sk_write_pending;
+	dst->value = sk->sk_write_pending;
 }
 
 /**************************************************************************
@@ -750,7 +798,7 @@ struct meta_type_ops {
 	int	(*dump)(struct sk_buff *, struct meta_value *, int);
 };
 
-static struct meta_type_ops __meta_type_ops[TCF_META_TYPE_MAX + 1] = {
+static const struct meta_type_ops __meta_type_ops[TCF_META_TYPE_MAX + 1] = {
 	[TCF_META_TYPE_VAR] = {
 		.destroy = meta_var_destroy,
 		.compare = meta_var_compare,
@@ -766,7 +814,7 @@ static struct meta_type_ops __meta_type_ops[TCF_META_TYPE_MAX + 1] = {
 	}
 };
 
-static inline struct meta_type_ops *meta_type_ops(struct meta_value *v)
+static inline const struct meta_type_ops *meta_type_ops(struct meta_value *v)
 {
 	return &__meta_type_ops[meta_type(v)];
 }
@@ -824,7 +872,7 @@ static int em_meta_match(struct sk_buff *skb, struct tcf_ematch *m,
 static void meta_delete(struct meta_match *meta)
 {
 	if (meta) {
-		struct meta_type_ops *ops = meta_type_ops(&meta->lvalue);
+		const struct meta_type_ops *ops = meta_type_ops(&meta->lvalue);
 
 		if (ops && ops->destroy) {
 			ops->destroy(&meta->lvalue);
@@ -864,7 +912,7 @@ static int em_meta_change(struct net *net, void *data, int len,
 	struct tcf_meta_hdr *hdr;
 	struct meta_match *meta = NULL;
 
-	err = nla_parse(tb, TCA_EM_META_MAX, data, len, meta_policy);
+	err = nla_parse(tb, TCA_EM_META_MAX, data, len, meta_policy, NULL);
 	if (err < 0)
 		goto errout;
 
@@ -918,7 +966,7 @@ static int em_meta_dump(struct sk_buff *skb, struct tcf_ematch *em)
 {
 	struct meta_match *meta = (struct meta_match *) em->data;
 	struct tcf_meta_hdr hdr;
-	struct meta_type_ops *ops;
+	const struct meta_type_ops *ops;
 
 	memset(&hdr, 0, sizeof(hdr));
 	memcpy(&hdr.left, &meta->lvalue.hdr, sizeof(hdr.left));

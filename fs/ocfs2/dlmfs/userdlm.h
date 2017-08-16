@@ -83,7 +83,7 @@ void user_dlm_write_lvb(struct inode *inode,
 ssize_t user_dlm_read_lvb(struct inode *inode,
 			  char *val,
 			  unsigned int len);
-struct ocfs2_cluster_connection *user_dlm_register(struct qstr *name);
+struct ocfs2_cluster_connection *user_dlm_register(const struct qstr *name);
 void user_dlm_unregister(struct ocfs2_cluster_connection *conn);
 void user_dlm_set_locking_protocol(void);
 

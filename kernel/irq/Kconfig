@@ -21,6 +21,10 @@ config GENERIC_IRQ_SHOW
 config GENERIC_IRQ_SHOW_LEVEL
        bool
 
+# Supports effective affinity mask
+config GENERIC_IRQ_EFFECTIVE_AFF_MASK
+       bool
+
 # Facility to allocate a hardware interrupt. This is legacy support
 # and should not be used in new code. Use irq domains instead.
 config GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
@@ -28,6 +32,10 @@ config GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
 
 # Support for delayed migration from interrupt context
 config GENERIC_PENDING_IRQ
+	bool
+
+# Support for generic irq migrating off cpu before the cpu is offline.
+config GENERIC_IRQ_MIGRATION
 	bool
 
 # Alpha specific irq affinity mechanism
@@ -60,6 +68,10 @@ config IRQ_DOMAIN_HIERARCHY
 	bool
 	select IRQ_DOMAIN
 
+# Generic IRQ IPI support
+config GENERIC_IRQ_IPI
+	bool
+
 # Generic MSI interrupt support
 config GENERIC_MSI_IRQ
 	bool
@@ -71,6 +83,9 @@ config GENERIC_MSI_IRQ_DOMAIN
 	select GENERIC_MSI_IRQ
 
 config HANDLE_DOMAIN_IRQ
+	bool
+
+config IRQ_TIMINGS
 	bool
 
 config IRQ_DOMAIN_DEBUG
@@ -97,6 +112,17 @@ config SPARSE_IRQ
 
 	  ( Sparse irqs can also be beneficial on NUMA boxes, as they spread
 	    out the interrupt descriptors in a more NUMA-friendly way. )
+
+	  If you don't know what to do here, say N.
+
+config GENERIC_IRQ_DEBUGFS
+	bool "Expose irq internals in debugfs"
+	depends on DEBUG_FS
+	default n
+	---help---
+
+	  Exposes internal state information through debugfs. Mostly for
+	  developers and debugging of hard to diagnose interrupt problems.
 
 	  If you don't know what to do here, say N.
 

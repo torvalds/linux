@@ -1,7 +1,13 @@
 * Renesas USB DMA Controller Device Tree bindings
 
 Required Properties:
-- compatible: must contain "renesas,usb-dmac"
+-compatible: "renesas,<soctype>-usb-dmac", "renesas,usb-dmac" as fallback.
+	Examples with soctypes are:
+	  - "renesas,r8a7790-usb-dmac" (R-Car H2)
+	  - "renesas,r8a7791-usb-dmac" (R-Car M2-W)
+	  - "renesas,r8a7793-usb-dmac" (R-Car M2-N)
+	  - "renesas,r8a7794-usb-dmac" (R-Car E2)
+	  - "renesas,r8a7795-usb-dmac" (R-Car H3)
 - reg: base address and length of the registers block for the DMAC
 - interrupts: interrupt specifiers for the DMAC, one for each entry in
   interrupt-names.
@@ -15,7 +21,7 @@ Required Properties:
 Example: R8A7790 (R-Car H2) USB-DMACs
 
 	usb_dmac0: dma-controller@e65a0000 {
-		compatible = "renesas,usb-dmac";
+		compatible = "renesas,r8a7790-usb-dmac", "renesas,usb-dmac";
 		reg = <0 0xe65a0000 0 0x100>;
 		interrupts = <0 109 IRQ_TYPE_LEVEL_HIGH
 			      0 109 IRQ_TYPE_LEVEL_HIGH>;

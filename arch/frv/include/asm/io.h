@@ -43,9 +43,20 @@ static inline unsigned long _swapl(unsigned long v)
 //#define __iormb() asm volatile("membar")
 //#define __iowmb() asm volatile("membar")
 
-#define __raw_readb __builtin_read8
-#define __raw_readw __builtin_read16
-#define __raw_readl __builtin_read32
+static inline u8 __raw_readb(const volatile void __iomem *addr)
+{
+	return __builtin_read8((volatile void __iomem *)addr);
+}
+
+static inline u16 __raw_readw(const volatile void __iomem *addr)
+{
+	return __builtin_read16((volatile void __iomem *)addr);
+}
+
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	return __builtin_read32((volatile void __iomem *)addr);
+}
 
 #define __raw_writeb(datum, addr) __builtin_write8(addr, datum)
 #define __raw_writew(datum, addr) __builtin_write16(addr, datum)

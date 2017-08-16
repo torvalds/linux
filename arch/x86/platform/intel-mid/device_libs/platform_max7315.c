@@ -1,5 +1,5 @@
 /*
- * platform_max7315.c: max7315 platform data initilization file
+ * platform_max7315.c: max7315 platform data initialization file
  *
  * (C) Copyright 2013 Intel Corporation
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>
@@ -38,8 +38,10 @@ static void __init *max7315_platform_data(void *info)
 	 */
 	strcpy(i2c_info->type, "max7315");
 	if (nr++) {
-		sprintf(base_pin_name, "max7315_%d_base", nr);
-		sprintf(intr_pin_name, "max7315_%d_int", nr);
+		snprintf(base_pin_name, sizeof(base_pin_name),
+			 "max7315_%d_base", nr);
+		snprintf(intr_pin_name, sizeof(intr_pin_name),
+			 "max7315_%d_int", nr);
 	} else {
 		strcpy(base_pin_name, "max7315_base");
 		strcpy(intr_pin_name, "max7315_int");

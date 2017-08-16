@@ -313,32 +313,30 @@ static void ubiblock_do_work(struct work_struct *work)
 	ret = ubiblock_read(pdu);
 	rq_flush_dcache_pages(req);
 
-	blk_mq_end_request(req, ret);
+	blk_mq_end_request(req, errno_to_blk_status(ret));
 }
 
-static int ubiblock_queue_rq(struct blk_mq_hw_ctx *hctx,
+static blk_status_t ubiblock_queue_rq(struct blk_mq_hw_ctx *hctx,
 			     const struct blk_mq_queue_data *bd)
 {
 	struct request *req = bd->rq;
 	struct ubiblock *dev = hctx->queue->queuedata;
 	struct ubiblock_pdu *pdu = blk_mq_rq_to_pdu(req);
 
-	if (req->cmd_type != REQ_TYPE_FS)
-		return BLK_MQ_RQ_QUEUE_ERROR;
+	switch (req_op(req)) {
+	case REQ_OP_READ:
+		ubi_sgl_init(&pdu->usgl);
+		queue_work(dev->wq, &pdu->work);
+		return BLK_STS_OK;
+	default:
+		return BLK_STS_IOERR;
+	}
 
-	if (rq_data_dir(req) != READ)
-		return BLK_MQ_RQ_QUEUE_ERROR; /* Write not implemented */
-
-	ubi_sgl_init(&pdu->usgl);
-	queue_work(dev->wq, &pdu->work);
-
-	return BLK_MQ_RQ_QUEUE_OK;
 }
 
-static int ubiblock_init_request(void *data, struct request *req,
-				 unsigned int hctx_idx,
-				 unsigned int request_idx,
-				 unsigned int numa_node)
+static int ubiblock_init_request(struct blk_mq_tag_set *set,
+		struct request *req, unsigned int hctx_idx,
+		unsigned int numa_node)
 {
 	struct ubiblock_pdu *pdu = blk_mq_rq_to_pdu(req);
 
@@ -348,10 +346,9 @@ static int ubiblock_init_request(void *data, struct request *req,
 	return 0;
 }
 
-static struct blk_mq_ops ubiblock_mq_ops = {
+static const struct blk_mq_ops ubiblock_mq_ops = {
 	.queue_rq       = ubiblock_queue_rq,
 	.init_request	= ubiblock_init_request,
-	.map_queue      = blk_mq_map_queue,
 };
 
 static DEFINE_IDR(ubiblock_minor_idr);

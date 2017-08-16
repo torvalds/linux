@@ -77,6 +77,7 @@ modpost = scripts/mod/modpost                    \
  $(if $(KBUILD_EXTRA_SYMBOLS), $(patsubst %, -e %,$(KBUILD_EXTRA_SYMBOLS))) \
  $(if $(KBUILD_EXTMOD),-o $(modulesymfile))      \
  $(if $(CONFIG_DEBUG_SECTION_MISMATCH),,-S)      \
+ $(if $(CONFIG_SECTION_MISMATCH_WARN_ONLY),,-E)  \
  $(if $(KBUILD_EXTMOD)$(KBUILD_MODPOST_WARN),-w)
 
 MODPOST_OPT=$(subst -i,-n,$(filter -i,$(MAKEFLAGS)))
@@ -114,14 +115,18 @@ $(modules:.ko=.mod.o): %.mod.o: %.mod.c FORCE
 
 targets += $(modules:.ko=.mod.o)
 
-# Step 6), final link of the modules
+ARCH_POSTLINK := $(wildcard $(srctree)/arch/$(SRCARCH)/Makefile.postlink)
+
+# Step 6), final link of the modules with optional arch pass after final link
 quiet_cmd_ld_ko_o = LD [M]  $@
-      cmd_ld_ko_o = $(LD) -r $(LDFLAGS)                                 \
-                             $(KBUILD_LDFLAGS_MODULE) $(LDFLAGS_MODULE) \
-                             -o $@ $(filter-out FORCE,$^)
+      cmd_ld_ko_o =                                                     \
+	$(LD) -r $(LDFLAGS)                                             \
+                 $(KBUILD_LDFLAGS_MODULE) $(LDFLAGS_MODULE)             \
+                 -o $@ $(filter-out FORCE,$^) ;                         \
+	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
 
 $(modules): %.ko :%.o %.mod.o FORCE
-	$(call if_changed,ld_ko_o)
+	+$(call if_changed,ld_ko_o)
 
 targets += $(modules)
 

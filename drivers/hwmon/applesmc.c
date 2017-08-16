@@ -537,7 +537,7 @@ static int applesmc_init_index(struct applesmc_registers *s)
 static int applesmc_init_smcreg_try(void)
 {
 	struct applesmc_registers *s = &smcreg;
-	bool left_light_sensor, right_light_sensor;
+	bool left_light_sensor = 0, right_light_sensor = 0;
 	unsigned int count;
 	u8 tmp[1];
 	int ret;
@@ -566,6 +566,8 @@ static int applesmc_init_smcreg_try(void)
 	if (ret)
 		return ret;
 	s->fan_count = tmp[0];
+	if (s->fan_count > 10)
+		s->fan_count = 10;
 
 	ret = applesmc_get_lower_bound(&s->temp_begin, "T");
 	if (ret)
@@ -811,7 +813,8 @@ static ssize_t applesmc_show_fan_speed(struct device *dev,
 	char newkey[5];
 	u8 buffer[2];
 
-	sprintf(newkey, fan_speed_fmt[to_option(attr)], to_index(attr));
+	scnprintf(newkey, sizeof(newkey), fan_speed_fmt[to_option(attr)],
+		  to_index(attr));
 
 	ret = applesmc_read_key(newkey, buffer, 2);
 	speed = ((buffer[0] << 8 | buffer[1]) >> 2);
@@ -834,7 +837,8 @@ static ssize_t applesmc_store_fan_speed(struct device *dev,
 	if (kstrtoul(sysfsbuf, 10, &speed) < 0 || speed >= 0x4000)
 		return -EINVAL;		/* Bigger than a 14-bit value */
 
-	sprintf(newkey, fan_speed_fmt[to_option(attr)], to_index(attr));
+	scnprintf(newkey, sizeof(newkey), fan_speed_fmt[to_option(attr)],
+		  to_index(attr));
 
 	buffer[0] = (speed >> 6) & 0xff;
 	buffer[1] = (speed << 2) & 0xff;
@@ -903,7 +907,7 @@ static ssize_t applesmc_show_fan_position(struct device *dev,
 	char newkey[5];
 	u8 buffer[17];
 
-	sprintf(newkey, FAN_ID_FMT, to_index(attr));
+	scnprintf(newkey, sizeof(newkey), FAN_ID_FMT, to_index(attr));
 
 	ret = applesmc_read_key(newkey, buffer, 16);
 	buffer[16] = 0;
@@ -1116,7 +1120,8 @@ static int applesmc_create_nodes(struct applesmc_node_group *groups, int num)
 		}
 		for (i = 0; i < num; i++) {
 			node = &grp->nodes[i];
-			sprintf(node->name, grp->format, i + 1);
+			scnprintf(node->name, sizeof(node->name), grp->format,
+				  i + 1);
 			node->sda.index = (grp->option << 16) | (i & 0xffff);
 			node->sda.dev_attr.show = grp->show;
 			node->sda.dev_attr.store = grp->store;
@@ -1138,7 +1143,7 @@ out:
 	return ret;
 }
 
-/* Create accelerometer ressources */
+/* Create accelerometer resources */
 static int applesmc_create_accelerometer(void)
 {
 	struct input_dev *idev;
@@ -1191,7 +1196,7 @@ out:
 	return ret;
 }
 
-/* Release all ressources used by the accelerometer */
+/* Release all resources used by the accelerometer */
 static void applesmc_release_accelerometer(void)
 {
 	if (!smcreg.has_accelerometer)

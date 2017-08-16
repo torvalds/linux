@@ -280,10 +280,6 @@ void omap3_vc_set_pmic_signaling(int core_next_state)
 	}
 }
 
-#define PRM_POLCTRL_TWL_MASK	(OMAP3430_PRM_POLCTRL_CLKREQ_POL | \
-					OMAP3430_PRM_POLCTRL_CLKREQ_POL)
-#define PRM_POLCTRL_TWL_VAL	OMAP3430_PRM_POLCTRL_CLKREQ_POL
-
 /*
  * Configure signal polarity for sys_clkreq and sys_off_mode pins
  * as the default values are wrong and can cause the system to hang
@@ -563,7 +559,7 @@ struct i2c_init_data {
 	u8 hsscll_12;
 };
 
-static const struct i2c_init_data const omap4_i2c_timing_data[] __initconst = {
+static const struct i2c_init_data omap4_i2c_timing_data[] __initconst = {
 	{
 		.load = 50,
 		.loadbits = 0x3,

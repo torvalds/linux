@@ -27,10 +27,9 @@
 #define __S390_KVM_PARA_H
 
 #include <uapi/asm/kvm_para.h>
+#include <asm/diag.h>
 
-
-
-static inline long kvm_hypercall0(unsigned long nr)
+static inline long __kvm_hypercall0(unsigned long nr)
 {
 	register unsigned long __nr asm("1") = nr;
 	register long __rc asm("2");
@@ -40,7 +39,13 @@ static inline long kvm_hypercall0(unsigned long nr)
 	return __rc;
 }
 
-static inline long kvm_hypercall1(unsigned long nr, unsigned long p1)
+static inline long kvm_hypercall0(unsigned long nr)
+{
+	diag_stat_inc(DIAG_STAT_X500);
+	return __kvm_hypercall0(nr);
+}
+
+static inline long __kvm_hypercall1(unsigned long nr, unsigned long p1)
 {
 	register unsigned long __nr asm("1") = nr;
 	register unsigned long __p1 asm("2") = p1;
@@ -51,7 +56,13 @@ static inline long kvm_hypercall1(unsigned long nr, unsigned long p1)
 	return __rc;
 }
 
-static inline long kvm_hypercall2(unsigned long nr, unsigned long p1,
+static inline long kvm_hypercall1(unsigned long nr, unsigned long p1)
+{
+	diag_stat_inc(DIAG_STAT_X500);
+	return __kvm_hypercall1(nr, p1);
+}
+
+static inline long __kvm_hypercall2(unsigned long nr, unsigned long p1,
 			       unsigned long p2)
 {
 	register unsigned long __nr asm("1") = nr;
@@ -65,7 +76,14 @@ static inline long kvm_hypercall2(unsigned long nr, unsigned long p1,
 	return __rc;
 }
 
-static inline long kvm_hypercall3(unsigned long nr, unsigned long p1,
+static inline long kvm_hypercall2(unsigned long nr, unsigned long p1,
+			       unsigned long p2)
+{
+	diag_stat_inc(DIAG_STAT_X500);
+	return __kvm_hypercall2(nr, p1, p2);
+}
+
+static inline long __kvm_hypercall3(unsigned long nr, unsigned long p1,
 			       unsigned long p2, unsigned long p3)
 {
 	register unsigned long __nr asm("1") = nr;
@@ -80,8 +98,14 @@ static inline long kvm_hypercall3(unsigned long nr, unsigned long p1,
 	return __rc;
 }
 
+static inline long kvm_hypercall3(unsigned long nr, unsigned long p1,
+			       unsigned long p2, unsigned long p3)
+{
+	diag_stat_inc(DIAG_STAT_X500);
+	return __kvm_hypercall3(nr, p1, p2, p3);
+}
 
-static inline long kvm_hypercall4(unsigned long nr, unsigned long p1,
+static inline long __kvm_hypercall4(unsigned long nr, unsigned long p1,
 			       unsigned long p2, unsigned long p3,
 			       unsigned long p4)
 {
@@ -98,7 +122,15 @@ static inline long kvm_hypercall4(unsigned long nr, unsigned long p1,
 	return __rc;
 }
 
-static inline long kvm_hypercall5(unsigned long nr, unsigned long p1,
+static inline long kvm_hypercall4(unsigned long nr, unsigned long p1,
+			       unsigned long p2, unsigned long p3,
+			       unsigned long p4)
+{
+	diag_stat_inc(DIAG_STAT_X500);
+	return __kvm_hypercall4(nr, p1, p2, p3, p4);
+}
+
+static inline long __kvm_hypercall5(unsigned long nr, unsigned long p1,
 			       unsigned long p2, unsigned long p3,
 			       unsigned long p4, unsigned long p5)
 {
@@ -116,7 +148,15 @@ static inline long kvm_hypercall5(unsigned long nr, unsigned long p1,
 	return __rc;
 }
 
-static inline long kvm_hypercall6(unsigned long nr, unsigned long p1,
+static inline long kvm_hypercall5(unsigned long nr, unsigned long p1,
+			       unsigned long p2, unsigned long p3,
+			       unsigned long p4, unsigned long p5)
+{
+	diag_stat_inc(DIAG_STAT_X500);
+	return __kvm_hypercall5(nr, p1, p2, p3, p4, p5);
+}
+
+static inline long __kvm_hypercall6(unsigned long nr, unsigned long p1,
 			       unsigned long p2, unsigned long p3,
 			       unsigned long p4, unsigned long p5,
 			       unsigned long p6)
@@ -135,6 +175,15 @@ static inline long kvm_hypercall6(unsigned long nr, unsigned long p1,
 			"d" (__p3), "d" (__p4), "d" (__p5), "d" (__p6)
 		      : "memory", "cc");
 	return __rc;
+}
+
+static inline long kvm_hypercall6(unsigned long nr, unsigned long p1,
+			       unsigned long p2, unsigned long p3,
+			       unsigned long p4, unsigned long p5,
+			       unsigned long p6)
+{
+	diag_stat_inc(DIAG_STAT_X500);
+	return __kvm_hypercall6(nr, p1, p2, p3, p4, p5, p6);
 }
 
 /* kvm on s390 is always paravirtualization enabled */

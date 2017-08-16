@@ -22,7 +22,7 @@
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "internal.h"
 
@@ -57,9 +57,9 @@ static struct proc_dir_entry *pde_subdir_find(struct proc_dir_entry *dir,
 	struct rb_node *node = dir->subdir.rb_node;
 
 	while (node) {
-		struct proc_dir_entry *de = container_of(node,
-							 struct proc_dir_entry,
-							 subdir_node);
+		struct proc_dir_entry *de = rb_entry(node,
+						     struct proc_dir_entry,
+						     subdir_node);
 		int result = proc_match(len, name, de);
 
 		if (result < 0)
@@ -80,8 +80,9 @@ static bool pde_subdir_insert(struct proc_dir_entry *dir,
 
 	/* Figure out where to put new node */
 	while (*new) {
-		struct proc_dir_entry *this =
-			container_of(*new, struct proc_dir_entry, subdir_node);
+		struct proc_dir_entry *this = rb_entry(*new,
+						       struct proc_dir_entry,
+						       subdir_node);
 		int result = proc_match(de->namelen, de->name, this);
 
 		parent = *new;
@@ -105,7 +106,7 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 	struct proc_dir_entry *de = PDE(inode);
 	int error;
 
-	error = inode_change_ok(inode, iattr);
+	error = setattr_prepare(dentry, iattr);
 	if (error)
 		return error;
 
@@ -117,10 +118,10 @@ static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 	return 0;
 }
 
-static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
-			struct kstat *stat)
+static int proc_getattr(const struct path *path, struct kstat *stat,
+			u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = d_inode(path->dentry);
 	struct proc_dir_entry *de = PDE(inode);
 	if (de && de->nlink)
 		set_nlink(inode, de->nlink);
@@ -179,7 +180,6 @@ static int xlate_proc_name(const char *name, struct proc_dir_entry **ret,
 }
 
 static DEFINE_IDA(proc_inum_ida);
-static DEFINE_SPINLOCK(proc_inum_lock); /* protects the above */
 
 #define PROC_DYNAMIC_FIRST 0xF0000000U
 
@@ -189,37 +189,20 @@ static DEFINE_SPINLOCK(proc_inum_lock); /* protects the above */
  */
 int proc_alloc_inum(unsigned int *inum)
 {
-	unsigned int i;
-	int error;
+	int i;
 
-retry:
-	if (!ida_pre_get(&proc_inum_ida, GFP_KERNEL))
-		return -ENOMEM;
+	i = ida_simple_get(&proc_inum_ida, 0, UINT_MAX - PROC_DYNAMIC_FIRST + 1,
+			   GFP_KERNEL);
+	if (i < 0)
+		return i;
 
-	spin_lock_irq(&proc_inum_lock);
-	error = ida_get_new(&proc_inum_ida, &i);
-	spin_unlock_irq(&proc_inum_lock);
-	if (error == -EAGAIN)
-		goto retry;
-	else if (error)
-		return error;
-
-	if (i > UINT_MAX - PROC_DYNAMIC_FIRST) {
-		spin_lock_irq(&proc_inum_lock);
-		ida_remove(&proc_inum_ida, i);
-		spin_unlock_irq(&proc_inum_lock);
-		return -ENOSPC;
-	}
-	*inum = PROC_DYNAMIC_FIRST + i;
+	*inum = PROC_DYNAMIC_FIRST + (unsigned int)i;
 	return 0;
 }
 
 void proc_free_inum(unsigned int inum)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&proc_inum_lock, flags);
-	ida_remove(&proc_inum_ida, inum - PROC_DYNAMIC_FIRST);
-	spin_unlock_irqrestore(&proc_inum_lock, flags);
+	ida_simple_remove(&proc_inum_ida, inum - PROC_DYNAMIC_FIRST);
 }
 
 /*
@@ -318,7 +301,7 @@ int proc_readdir(struct file *file, struct dir_context *ctx)
 static const struct file_operations proc_dir_operations = {
 	.llseek			= generic_file_llseek,
 	.read			= generic_read_dir,
-	.iterate		= proc_readdir,
+	.iterate_shared		= proc_readdir,
 };
 
 /*
@@ -390,6 +373,8 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	atomic_set(&ent->count, 1);
 	spin_lock_init(&ent->pde_unload_lock);
 	INIT_LIST_HEAD(&ent->pde_openers);
+	proc_set_user(ent, (*parent)->uid, (*parent)->gid);
+
 out:
 	return ent;
 }
@@ -469,6 +454,7 @@ struct proc_dir_entry *proc_create_mount_point(const char *name)
 		ent->data = NULL;
 		ent->proc_fops = NULL;
 		ent->proc_iops = NULL;
+		parent->nlink++;
 		if (proc_register(parent, ent) < 0) {
 			kfree(ent);
 			parent->nlink--;
@@ -477,6 +463,7 @@ struct proc_dir_entry *proc_create_mount_point(const char *name)
 	}
 	return ent;
 }
+EXPORT_SYMBOL(proc_create_mount_point);
 
 struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 					struct proc_dir_entry *parent,

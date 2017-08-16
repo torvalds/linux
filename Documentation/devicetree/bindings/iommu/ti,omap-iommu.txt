@@ -4,6 +4,7 @@ Required properties:
 - compatible : Should be one of,
 		"ti,omap2-iommu" for OMAP2/OMAP3 IOMMU instances
 		"ti,omap4-iommu" for OMAP4/OMAP5 IOMMU instances
+		"ti,dra7-dsp-iommu" for DRA7xx DSP IOMMU instances
 		"ti,dra7-iommu" for DRA7xx IOMMU instances
 - ti,hwmods  : Name of the hwmod associated with the IOMMU instance
 - reg        : Address space for the configuration registers
@@ -19,6 +20,13 @@ Optional properties:
                     Should be either 8 or 32 (default: 32)
 - ti,iommu-bus-err-back : Indicates the IOMMU instance supports throwing
 		          back a bus error response on MMU faults.
+- ti,syscon-mmuconfig : Should be a pair of the phandle to the DSP_SYSTEM
+                        syscon node that contains the additional control
+                        register for enabling the MMU, and the MMU instance
+                        number (0-indexed) within the sub-system. This property
+                        is required for DSP IOMMU instances on DRA7xx SoCs. The
+                        instance number should be 0 for DSP MDMA MMUs and 1 for
+                        DSP EDMA MMUs.
 
 Example:
 	/* OMAP3 ISP MMU */
@@ -29,4 +37,23 @@ Example:
 		interrupts = <24>;
 		ti,hwmods = "mmu_isp";
 		ti,#tlb-entries = <8>;
+	};
+
+	/* DRA74x DSP2 MMUs */
+	mmu0_dsp2: mmu@41501000 {
+		compatible = "ti,dra7-dsp-iommu";
+		reg = <0x41501000 0x100>;
+		interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+		ti,hwmods = "mmu0_dsp2";
+		#iommu-cells = <0>;
+		ti,syscon-mmuconfig = <&dsp2_system 0x0>;
+	};
+
+	mmu1_dsp2: mmu@41502000 {
+		compatible = "ti,dra7-dsp-iommu";
+		reg = <0x41502000 0x100>;
+		interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+		ti,hwmods = "mmu1_dsp2";
+		#iommu-cells = <0>;
+		ti,syscon-mmuconfig = <&dsp2_system 0x1>;
 	};

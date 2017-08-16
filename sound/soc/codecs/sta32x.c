@@ -991,12 +991,14 @@ static const struct snd_soc_codec_driver sta32x_codec = {
 	.remove =		sta32x_remove,
 	.set_bias_level =	sta32x_set_bias_level,
 	.suspend_bias_off =	true,
-	.controls =		sta32x_snd_controls,
-	.num_controls =		ARRAY_SIZE(sta32x_snd_controls),
-	.dapm_widgets =		sta32x_dapm_widgets,
-	.num_dapm_widgets =	ARRAY_SIZE(sta32x_dapm_widgets),
-	.dapm_routes =		sta32x_dapm_routes,
-	.num_dapm_routes =	ARRAY_SIZE(sta32x_dapm_routes),
+	.component_driver = {
+		.controls =		sta32x_snd_controls,
+		.num_controls =		ARRAY_SIZE(sta32x_snd_controls),
+		.dapm_widgets =		sta32x_dapm_widgets,
+		.num_dapm_widgets =	ARRAY_SIZE(sta32x_dapm_widgets),
+		.dapm_routes =		sta32x_dapm_routes,
+		.num_dapm_routes =	ARRAY_SIZE(sta32x_dapm_routes),
+	},
 };
 
 static const struct regmap_config sta32x_regmap = {

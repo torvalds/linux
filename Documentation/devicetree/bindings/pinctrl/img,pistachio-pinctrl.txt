@@ -134,12 +134,12 @@ mfio80		ddr_debug, mips_trace_data, mips_debug
 mfio81		dreq0, mips_trace_data, eth_debug
 mfio82		dreq1, mips_trace_data, eth_debug
 mfio83		mips_pll_lock, mips_trace_data, usb_debug
-mfio84		sys_pll_lock, mips_trace_data, usb_debug
-mfio85		wifi_pll_lock, mips_trace_data, sdhost_debug
-mfio86		bt_pll_lock, mips_trace_data, sdhost_debug
-mfio87		rpu_v_pll_lock, dreq2, socif_debug
-mfio88		rpu_l_pll_lock, dreq3, socif_debug
-mfio89		audio_pll_lock, dreq4, dreq5
+mfio84		audio_pll_lock, mips_trace_data, usb_debug
+mfio85		rpu_v_pll_lock, mips_trace_data, sdhost_debug
+mfio86		rpu_l_pll_lock, mips_trace_data, sdhost_debug
+mfio87		sys_pll_lock, dreq2, socif_debug
+mfio88		wifi_pll_lock, dreq3, socif_debug
+mfio89		bt_pll_lock, dreq4, dreq5
 tck
 trstn
 tdi

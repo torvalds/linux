@@ -121,11 +121,11 @@ Block library API
     below.
 
     The block library can be found on GitHub:
-    http://www.github.com/mikehollinger/ibmcapikv
+    http://github.com/open-power/capiflash
 
 
-CXL Flash Driver IOCTLs
-=======================
+CXL Flash Driver LUN IOCTLs
+===========================
 
     Users, such as the block library, that wish to interface with a flash
     device (LUN) via user space access need to use the services provided
@@ -171,11 +171,30 @@ DK_CXLFLASH_ATTACH
           destroyed, the tokens are to be considered stale and subsequent
           usage will result in errors.
 
-        - When a context is no longer needed, the user shall detach from
-          the context via the DK_CXLFLASH_DETACH ioctl.
+	- A valid adapter file descriptor (fd2 >= 0) is only returned on
+	  the initial attach for a context. Subsequent attaches to an
+	  existing context (DK_CXLFLASH_ATTACH_REUSE_CONTEXT flag present)
+	  do not provide the adapter file descriptor as it was previously
+	  made known to the application.
 
-        - A close on fd2 will invalidate the tokens. This operation is not
-          required by the user.
+        - When a context is no longer needed, the user shall detach from
+          the context via the DK_CXLFLASH_DETACH ioctl. When this ioctl
+	  returns with a valid adapter file descriptor and the return flag
+	  DK_CXLFLASH_APP_CLOSE_ADAP_FD is present, the application _must_
+	  close the adapter file descriptor following a successful detach.
+
+	- When this ioctl returns with a valid fd2 and the return flag
+	  DK_CXLFLASH_APP_CLOSE_ADAP_FD is present, the application _must_
+	  close fd2 in the following circumstances:
+
+		+ Following a successful detach of the last user of the context
+		+ Following a successful recovery on the context's original fd2
+		+ In the child process of a fork(), following a clone ioctl,
+		  on the fd2 associated with the source context
+
+        - At any time, a close on fd2 will invalidate the tokens. Applications
+	  should exercise caution to only close fd2 when appropriate (outlined
+	  in the previous bullet) to avoid premature loss of I/O.
 
 DK_CXLFLASH_USER_DIRECT
 -----------------------
@@ -220,6 +239,11 @@ DK_CXLFLASH_USER_VIRTUAL
     resource handle that is provided is already referencing provisioned
     storage. This is reflected by the last LBA being a non-zero value.
 
+    When a LUN is accessible from more than one port, this ioctl will
+    return with the DK_CXLFLASH_ALL_PORTS_ACTIVE return flag set. This
+    provides the user with a hint that I/O can be retried in the event
+    of an I/O error as the LUN can be reached over multiple paths.
+
 DK_CXLFLASH_VLUN_RESIZE
 -----------------------
     This ioctl is responsible for resizing a previously created virtual
@@ -232,6 +256,12 @@ DK_CXLFLASH_VLUN_RESIZE
     driver and the AFU. An allocation table is kept for each LUN that is
     operating in the virtual mode and used to program a LUN translation
     table that the AFU references when provided with a resource handle.
+
+    This ioctl can return -EAGAIN if an AFU sync operation takes too long.
+    In addition to returning a failure to user, cxlflash will also schedule
+    an asynchronous AFU reset. Should the user choose to retry the operation,
+    it is expected to succeed. If this ioctl fails with -EAGAIN, the user
+    can either retry the operation or treat it as a failure.
 
 DK_CXLFLASH_RELEASE
 -------------------
@@ -254,6 +284,10 @@ DK_CXLFLASH_DETACH
     success, all "tokens" which had been provided to the user from the
     DK_CXLFLASH_ATTACH onward are no longer valid.
 
+    When the DK_CXLFLASH_APP_CLOSE_ADAP_FD flag was returned on a successful
+    attach, the application _must_ close the fd2 associated with the context
+    following the detach of the final user of the context.
+
 DK_CXLFLASH_VLUN_CLONE
 ----------------------
     This ioctl is responsible for cloning a previously created
@@ -261,7 +295,7 @@ DK_CXLFLASH_VLUN_CLONE
     support maintaining user space access to storage after a process
     forks. Upon success, the child process (which invoked the ioctl)
     will have access to the same LUNs via the same resource handle(s)
-    and fd2 as the parent, but under a different context.
+    as the parent, but under a different context.
 
     Context sharing across processes is not supported with CXL and
     therefore each fork must be met with establishing a new context
@@ -274,6 +308,18 @@ DK_CXLFLASH_VLUN_CLONE
     The clone itself is fairly simple. The resource handle and lun
     translation tables are copied from the parent context to the child's
     and then synced with the AFU.
+
+    When the DK_CXLFLASH_APP_CLOSE_ADAP_FD flag was returned on a successful
+    attach, the application _must_ close the fd2 associated with the source
+    context (still resident/accessible in the parent process) following the
+    clone. This is to avoid a stale entry in the file descriptor table of the
+    child process.
+
+    This ioctl can return -EAGAIN if an AFU sync operation takes too long.
+    In addition to returning a failure to user, cxlflash will also schedule
+    an asynchronous AFU reset. Should the user choose to retry the operation,
+    it is expected to succeed. If this ioctl fails with -EAGAIN, the user
+    can either retry the operation or treat it as a failure.
 
 DK_CXLFLASH_VERIFY
 ------------------
@@ -309,6 +355,11 @@ DK_CXLFLASH_RECOVER_AFU
     at which time the context/resources they held will be freed as part of
     the release fop.
 
+    When the DK_CXLFLASH_APP_CLOSE_ADAP_FD flag was returned on a successful
+    attach, the application _must_ unmap and close the fd2 associated with the
+    original context following this ioctl returning success and indicating that
+    the context was recovered (DK_CXLFLASH_RECOVER_AFU_CONTEXT_RESET).
+
 DK_CXLFLASH_MANAGE_LUN
 ----------------------
     This ioctl is used to switch a LUN from a mode where it is available
@@ -316,3 +367,63 @@ DK_CXLFLASH_MANAGE_LUN
     exclusive user space access (superpipe). In case a LUN is visible
     across multiple ports and adapters, this ioctl is used to uniquely
     identify each LUN by its World Wide Node Name (WWNN).
+
+
+CXL Flash Driver Host IOCTLs
+============================
+
+    Each host adapter instance that is supported by the cxlflash driver
+    has a special character device associated with it to enable a set of
+    host management function. These character devices are hosted in a
+    class dedicated for cxlflash and can be accessed via /dev/cxlflash/*.
+
+    Applications can be written to perform various functions using the
+    host ioctl APIs below.
+
+    The structure definitions for these IOCTLs are available in:
+    uapi/scsi/cxlflash_ioctl.h
+
+HT_CXLFLASH_LUN_PROVISION
+-------------------------
+    This ioctl is used to create and delete persistent LUNs on cxlflash
+    devices that lack an external LUN management interface. It is only
+    valid when used with AFUs that support the LUN provision capability.
+
+    When sufficient space is available, LUNs can be created by specifying
+    the target port to host the LUN and a desired size in 4K blocks. Upon
+    success, the LUN ID and WWID of the created LUN will be returned and
+    the SCSI bus can be scanned to detect the change in LUN topology. Note
+    that partial allocations are not supported. Should a creation fail due
+    to a space issue, the target port can be queried for its current LUN
+    geometry.
+
+    To remove a LUN, the device must first be disassociated from the Linux
+    SCSI subsystem. The LUN deletion can then be initiated by specifying a
+    target port and LUN ID. Upon success, the LUN geometry associated with
+    the port will be updated to reflect new number of provisioned LUNs and
+    available capacity.
+
+    To query the LUN geometry of a port, the target port is specified and
+    upon success, the following information is presented:
+
+        - Maximum number of provisioned LUNs allowed for the port
+        - Current number of provisioned LUNs for the port
+        - Maximum total capacity of provisioned LUNs for the port (4K blocks)
+        - Current total capacity of provisioned LUNs for the port (4K blocks)
+
+    With this information, the number of available LUNs and capacity can be
+    can be calculated.
+
+HT_CXLFLASH_AFU_DEBUG
+---------------------
+    This ioctl is used to debug AFUs by supporting a command pass-through
+    interface. It is only valid when used with AFUs that support the AFU
+    debug capability.
+
+    With exception of buffer management, AFU debug commands are opaque to
+    cxlflash and treated as pass-through. For debug commands that do require
+    data transfer, the user supplies an adequately sized data buffer and must
+    specify the data transfer direction with respect to the host. There is a
+    maximum transfer size of 256K imposed. Note that partial read completions
+    are not supported - when errors are experienced with a host read data
+    transfer, the data buffer is not copied back to the user.

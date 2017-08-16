@@ -1,7 +1,7 @@
 config LUSTRE_FS
 	tristate "Lustre file system client support"
-	depends on INET && m && !MIPS && !XTENSA && !SUPERH
-	select LNET
+	depends on m && !MIPS && !XTENSA && !SUPERH
+	depends on LNET
 	select CRYPTO
 	select CRYPTO_CRC32
 	select CRYPTO_CRC32_PCLMUL if X86
@@ -54,9 +54,3 @@ config LUSTRE_TRANSLATE_ERRNOS
 	bool
 	depends on LUSTRE_FS && !X86
 	default y
-
-config LUSTRE_LLITE_LLOOP
-	tristate "Lustre virtual block device"
-	depends on LUSTRE_FS && BLOCK
-	depends on !PPC_64K_PAGES && !ARM64_64K_PAGES && !MICROBLAZE_64K_PAGES && !PAGE_SIZE_64KB && !IA64_PAGE_SIZE_64KB && !PARISC_PAGE_SIZE_64KB
-	default m

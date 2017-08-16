@@ -32,6 +32,7 @@
 #include <drm/drmP.h>
 #include <drm/vmwgfx_drm.h>
 #include <drm/drm_hashtab.h>
+#include <drm/drm_auth.h>
 #include <linux/suspend.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_object.h>
@@ -40,9 +41,9 @@
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20150810"
+#define VMWGFX_DRIVER_DATE "20170607"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 9
+#define VMWGFX_DRIVER_MINOR 13
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -66,10 +67,10 @@
 			VMWGFX_NUM_GB_SURFACE +\
 			VMWGFX_NUM_GB_SCREEN_TARGET)
 
-#define VMW_PL_GMR TTM_PL_PRIV0
-#define VMW_PL_FLAG_GMR TTM_PL_FLAG_PRIV0
-#define VMW_PL_MOB TTM_PL_PRIV1
-#define VMW_PL_FLAG_MOB TTM_PL_FLAG_PRIV1
+#define VMW_PL_GMR (TTM_PL_PRIV + 0)
+#define VMW_PL_FLAG_GMR (TTM_PL_FLAG_PRIV << 0)
+#define VMW_PL_MOB (TTM_PL_PRIV + 1)
+#define VMW_PL_FLAG_MOB (TTM_PL_FLAG_PRIV << 1)
 
 #define VMW_RES_CONTEXT ttm_driver_type0
 #define VMW_RES_SURFACE ttm_driver_type1
@@ -80,7 +81,6 @@
 struct vmw_fpriv {
 	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
-	struct list_head fence_events;
 	bool gb_aware;
 };
 
@@ -153,7 +153,6 @@ enum vmw_cmdbuf_res_type {
 struct vmw_cmdbuf_res_manager;
 
 struct vmw_cursor_snooper {
-	struct drm_crtc *crtc;
 	size_t age;
 	uint32_t *image;
 };
@@ -375,7 +374,7 @@ struct vmw_private {
 	uint32_t stdu_max_height;
 	uint32_t initial_width;
 	uint32_t initial_height;
-	u32 __iomem *mmio_virt;
+	u32 *mmio_virt;
 	uint32_t capabilities;
 	uint32_t max_gmr_ids;
 	uint32_t max_gmr_pages;
@@ -387,6 +386,7 @@ struct vmw_private {
 	spinlock_t hw_lock;
 	spinlock_t cap_lock;
 	bool has_dx;
+	bool assume_16bpp;
 
 	/*
 	 * VGA registers.
@@ -408,8 +408,13 @@ struct vmw_private {
 	void *fb_info;
 	enum vmw_display_unit_type active_display_unit;
 	struct vmw_legacy_display *ldu_priv;
-	struct vmw_screen_object_display *sou_priv;
 	struct vmw_overlay *overlay_priv;
+	struct drm_property *hotplug_mode_update_property;
+	struct drm_property *implicit_placement_property;
+	unsigned num_implicit;
+	struct vmw_framebuffer *implicit_fb;
+	struct mutex global_kms_state_mutex;
+	spinlock_t cursor_lock;
 
 	/*
 	 * Context and surface management.
@@ -440,13 +445,12 @@ struct vmw_private {
 	spinlock_t waiter_lock;
 	int fence_queue_waiters; /* Protected by waiter_lock */
 	int goal_queue_waiters; /* Protected by waiter_lock */
-	int cmdbuf_waiters; /* Protected by irq_lock */
-	int error_waiters; /* Protected by irq_lock */
-	atomic_t fifo_queue_waiters;
+	int cmdbuf_waiters; /* Protected by waiter_lock */
+	int error_waiters; /* Protected by waiter_lock */
+	int fifo_queue_waiters; /* Protected by waiter_lock */
 	uint32_t last_read_seqno;
-	spinlock_t irq_lock;
 	struct vmw_fence_manager *fman;
-	uint32_t irq_mask;
+	uint32_t irq_mask; /* Updates protected by waiter_lock */
 
 	/*
 	 * Device state
@@ -914,9 +918,9 @@ void vmw_kms_idle_workqueues(struct vmw_master *vmaster);
 bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 				uint32_t pitch,
 				uint32_t height);
-u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc);
-int vmw_enable_vblank(struct drm_device *dev, int crtc);
-void vmw_disable_vblank(struct drm_device *dev, int crtc);
+u32 vmw_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
+int vmw_enable_vblank(struct drm_device *dev, unsigned int pipe);
+void vmw_disable_vblank(struct drm_device *dev, unsigned int pipe);
 int vmw_kms_present(struct vmw_private *dev_priv,
 		    struct drm_file *file_priv,
 		    struct vmw_framebuffer *vfb,
@@ -926,6 +930,7 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 		    uint32_t num_clips);
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
+void vmw_kms_legacy_hotspot_clear(struct vmw_private *dev_priv);
 
 int vmw_dumb_create(struct drm_file *file_priv,
 		    struct drm_device *dev,
@@ -1206,4 +1211,36 @@ static inline void vmw_fifo_resource_dec(struct vmw_private *dev_priv)
 {
 	atomic_dec(&dev_priv->num_fifo_resources);
 }
+
+/**
+ * vmw_mmio_read - Perform a MMIO read from volatile memory
+ *
+ * @addr: The address to read from
+ *
+ * This function is intended to be equivalent to ioread32() on
+ * memremap'd memory, but without byteswapping.
+ */
+static inline u32 vmw_mmio_read(u32 *addr)
+{
+	return READ_ONCE(*addr);
+}
+
+/**
+ * vmw_mmio_write - Perform a MMIO write to volatile memory
+ *
+ * @addr: The address to write to
+ *
+ * This function is intended to be equivalent to iowrite32 on
+ * memremap'd memory, but without byteswapping.
+ */
+static inline void vmw_mmio_write(u32 value, u32 *addr)
+{
+	WRITE_ONCE(*addr, value);
+}
+
+/**
+ * Add vmw_msg module function
+ */
+extern int vmw_host_log(const char *log);
+
 #endif

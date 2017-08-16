@@ -138,7 +138,7 @@ struct nvec_chip {
 	struct device *dev;
 	int gpio;
 	int irq;
-	int i2c_addr;
+	u32 i2c_addr;
 	void __iomem *base;
 	struct clk *i2c_clk;
 	struct reset_control *rst;
@@ -168,8 +168,9 @@ struct nvec_chip {
 int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 		     short size);
 
-struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
-				 const unsigned char *data, short size);
+int nvec_write_sync(struct nvec_chip *nvec,
+		    const unsigned char *data, short size,
+		    struct nvec_msg **msg);
 
 int nvec_register_notifier(struct nvec_chip *nvec,
 			   struct notifier_block *nb,

@@ -65,11 +65,18 @@
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8 &emmc_reset>;
 };
 
+&edp {
+	/delete-property/pinctrl-names;
+	/delete-property/pinctrl-0;
+
+	force-hpd;
+};
+
 &gpio_keys {
 	pinctrl-0 = <&pwr_key_h &ap_lid_int_l>;
 
 	power {
-		gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -119,7 +126,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd_disabled &sdmmc_cd_gpio
 		     &sdmmc_wp_gpio &sdmmc_bus4>;
-	wp-gpios = <&gpio7 10 GPIO_ACTIVE_HIGH>;
+	wp-gpios = <&gpio7 RK_PB2 GPIO_ACTIVE_HIGH>;
 };
 
 &tsadc {

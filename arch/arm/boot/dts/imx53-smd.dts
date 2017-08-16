@@ -56,14 +56,13 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio2 30 0>, <&gpio3 19 0>;
 	status = "okay";
 
@@ -76,7 +75,7 @@
 	flash: m25p32@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "st,m25p32", "st,m25p";
+		compatible = "st,m25p32", "st,m25p", "jedec,spi-nor";
 		spi-max-frequency = <20000000>;
 		reg = <1>;
 
@@ -274,6 +273,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio7 6 0>;
+	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };

@@ -41,6 +41,9 @@
 #define HSU_CH_SR_DESCTO(x)	BIT(8 + (x))
 #define HSU_CH_SR_DESCTO_ANY	(BIT(11) | BIT(10) | BIT(9) | BIT(8))
 #define HSU_CH_SR_CHE		BIT(15)
+#define HSU_CH_SR_DESCE(x)	BIT(16 + (x))
+#define HSU_CH_SR_DESCE_ANY	(BIT(19) | BIT(18) | BIT(17) | BIT(16))
+#define HSU_CH_SR_CDESC_ANY	(BIT(31) | BIT(30))
 
 /* Bits in HSU_CH_CR */
 #define HSU_CH_CR_CHA		BIT(0)
@@ -55,6 +58,10 @@
 #define HSU_CH_DCR_CHEI		BIT(23)
 #define HSU_CH_DCR_CHTOI(x)	BIT(24 + (x))
 
+/* Bits in HSU_CH_DxTSR */
+#define HSU_CH_DxTSR_MASK	GENMASK(15, 0)
+#define HSU_CH_DxTSR_TSR(x)	((x) & HSU_CH_DxTSR_MASK)
+
 struct hsu_dma_sg {
 	dma_addr_t addr;
 	unsigned int len;
@@ -65,6 +72,7 @@ struct hsu_dma_desc {
 	enum dma_transfer_direction direction;
 	struct hsu_dma_sg *sg;
 	unsigned int nents;
+	size_t length;
 	unsigned int active;
 	enum dma_status status;
 };
@@ -107,6 +115,7 @@ struct hsu_dma {
 
 	/* channels */
 	struct hsu_dma_chan		*chan;
+	unsigned short			nr_channels;
 };
 
 static inline struct hsu_dma *to_hsu_dma(struct dma_device *ddev)

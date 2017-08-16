@@ -134,7 +134,8 @@ static struct platform_device net2272_bfin_device = {
 #include <linux/smc91x.h>
 
 static struct smc91x_platdata smc91x_info = {
-	.flags = SMC91X_USE_32BIT | SMC91X_NOWAIT,
+	.flags = SMC91X_USE_8BIT | SMC91X_USE_16BIT | SMC91X_USE_32BIT |
+		 SMC91X_NOWAIT,
 	.leda = RPC_LED_100_10,
 	.ledb = RPC_LED_TX_RX,
 };
@@ -443,7 +444,7 @@ static const struct ppi_info ppi_info = {
 };
 
 #if IS_ENABLED(CONFIG_VIDEO_ADV7183)
-#include <media/adv7183.h>
+#include <media/i2c/adv7183.h>
 static struct v4l2_input adv7183_inputs[] = {
 	{
 		.index = 0,

@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/rtsx_pci.h>
+#include <linux/mmc/card.h>
 #include <asm/unaligned.h>
 
 #include "rtsx_pcr.h"
@@ -55,6 +56,7 @@ static const struct pci_device_id rtsx_pci_ids[] = {
 	{ PCI_DEVICE(0x10EC, 0x5229), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5289), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5227), PCI_CLASS_OTHERS << 16, 0xFF0000 },
+	{ PCI_DEVICE(0x10EC, 0x522A), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5249), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5287), PCI_CLASS_OTHERS << 16, 0xFF0000 },
 	{ PCI_DEVICE(0x10EC, 0x5286), PCI_CLASS_OTHERS << 16, 0xFF0000 },
@@ -451,8 +453,12 @@ int rtsx_pci_dma_transfer(struct rtsx_pcr *pcr, struct scatterlist *sglist,
 	}
 
 	spin_lock_irqsave(&pcr->lock, flags);
-	if (pcr->trans_result == TRANS_RESULT_FAIL)
-		err = -EINVAL;
+	if (pcr->trans_result == TRANS_RESULT_FAIL) {
+		err = -EILSEQ;
+		if (pcr->dma_error_count < RTS_MAX_TIMES_FREQ_REDUCTION)
+			pcr->dma_error_count++;
+	}
+
 	else if (pcr->trans_result == TRANS_NO_DEVICE)
 		err = -ENODEV;
 	spin_unlock_irqrestore(&pcr->lock, flags);
@@ -561,8 +567,6 @@ EXPORT_SYMBOL_GPL(rtsx_pci_write_ppbuf);
 
 static int rtsx_pci_set_pull_ctl(struct rtsx_pcr *pcr, const u32 *tbl)
 {
-	int err;
-
 	rtsx_pci_init_cmd(pcr);
 
 	while (*tbl & 0xFFFF0000) {
@@ -571,11 +575,7 @@ static int rtsx_pci_set_pull_ctl(struct rtsx_pcr *pcr, const u32 *tbl)
 		tbl++;
 	}
 
-	err = rtsx_pci_send_cmd(pcr, 100);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return rtsx_pci_send_cmd(pcr, 100);
 }
 
 int rtsx_pci_card_pull_ctl_enable(struct rtsx_pcr *pcr, int card)
@@ -663,6 +663,13 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 			SD_CLK_DIVIDE_MASK, clk_divider);
 	if (err < 0)
 		return err;
+
+	/* Reduce card clock by 20MHz each time a DMA transfer error occurs */
+	if (card_clock == UHS_SDR104_MAX_DTR &&
+	    pcr->dma_error_count &&
+	    PCI_PID(pcr) == RTS5227_DEVICE_ID)
+		card_clock = UHS_SDR104_MAX_DTR -
+			(pcr->dma_error_count * 20000000);
 
 	card_clock /= 1000000;
 	pcr_dbg(pcr, "Switch card clock to %dMHz\n", card_clock);
@@ -899,6 +906,7 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 			pcr->card_removed |= SD_EXIST;
 			pcr->card_inserted &= ~SD_EXIST;
 		}
+		pcr->dma_error_count = 0;
 	}
 
 	if (int_reg & MS_INT) {
@@ -932,7 +940,7 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 
 static int rtsx_pci_acquire_irq(struct rtsx_pcr *pcr)
 {
-	dev_info(&(pcr->pci->dev), "%s: pcr->msi_en = %d, pci->irq = %d\n",
+	pcr_dbg(pcr, "%s: pcr->msi_en = %d, pci->irq = %d\n",
 			__func__, pcr->msi_en, pcr->pci->irq);
 
 	if (request_irq(pcr->pci->irq, rtsx_pci_isr,
@@ -1100,6 +1108,10 @@ static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 
 	case 0x5227:
 		rts5227_init_params(pcr);
+		break;
+
+	case 0x522A:
+		rts522a_init_params(pcr);
 		break;
 
 	case 0x5249:

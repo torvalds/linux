@@ -14,10 +14,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -242,8 +238,7 @@ void cx25821_stop_upstream_audio(struct cx25821_dev *dev)
 	dev->_audioframe_count = 0;
 	dev->_audiofile_status = END_OF_FILE;
 
-	kfree(dev->_irq_audio_queues);
-	dev->_irq_audio_queues = NULL;
+	flush_work(&dev->_audio_work_entry);
 
 	kfree(dev->_audiofilename);
 }
@@ -446,8 +441,7 @@ static int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 
 			dev->_audioframe_index = dev->_last_index_irq;
 
-			queue_work(dev->_irq_audio_queues,
-				   &dev->_audio_work_entry);
+			schedule_work(&dev->_audio_work_entry);
 		}
 
 		if (dev->_is_first_audio_frame) {
@@ -639,14 +633,6 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 
 	/* Work queue */
 	INIT_WORK(&dev->_audio_work_entry, cx25821_audioups_handler);
-	dev->_irq_audio_queues =
-	    create_singlethread_workqueue("cx25821_audioworkqueue");
-
-	if (!dev->_irq_audio_queues) {
-		printk(KERN_DEBUG
-			pr_fmt("ERROR: create_singlethread_workqueue() for Audio FAILED!\n"));
-		return -ENOMEM;
-	}
 
 	dev->_last_index_irq = 0;
 	dev->_audio_is_running = 0;

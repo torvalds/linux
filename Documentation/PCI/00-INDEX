@@ -12,3 +12,13 @@ pci.txt
 	- info on the PCI subsystem for device driver authors
 pcieaer-howto.txt
 	- the PCI Express Advanced Error Reporting Driver Guide HOWTO
+endpoint/pci-endpoint.txt
+	- guide to add endpoint controller driver and endpoint function driver.
+endpoint/pci-endpoint-cfs.txt
+	- guide to use configfs to configure the PCI endpoint function.
+endpoint/pci-test-function.txt
+	- specification of *PCI test* function device.
+endpoint/pci-test-howto.txt
+	- userguide for PCI endpoint test function.
+endpoint/function/binding/
+	- binding documentation for PCI endpoint function

@@ -118,6 +118,11 @@ int cxgb4_clip_get(const struct net_device *dev, const u32 *lip, u8 v6)
 			ret = clip6_get_mbox(dev, (const struct in6_addr *)lip);
 			if (ret) {
 				write_unlock_bh(&ctbl->lock);
+				dev_err(adap->pdev_dev,
+					"CLIP FW cmd failed with error %d, "
+					"Connections using %pI6c wont be "
+					"offloaded",
+					ret, ce->addr6.sin6_addr.s6_addr);
 				return ret;
 			}
 		} else {
@@ -127,6 +132,9 @@ int cxgb4_clip_get(const struct net_device *dev, const u32 *lip, u8 v6)
 		}
 	} else {
 		write_unlock_bh(&ctbl->lock);
+		dev_info(adap->pdev_dev, "CLIP table overflow, "
+			 "Connections using %pI6c wont be offloaded",
+			 (void *)lip);
 		return -ENOMEM;
 	}
 	write_unlock_bh(&ctbl->lock);
@@ -145,6 +153,9 @@ void cxgb4_clip_release(const struct net_device *dev, const u32 *lip, u8 v6)
 	u32 *addr = (u32 *)lip;
 	int hash;
 	int ret = -1;
+
+	if (!ctbl)
+		return;
 
 	hash = clip_addr_hash(ctbl, addr, v6);
 
@@ -279,8 +290,8 @@ struct clip_tbl *t4_init_clip_tbl(unsigned int clipt_start,
 	if (clipt_size < CLIPT_MIN_HASH_BUCKETS)
 		return NULL;
 
-	ctbl = t4_alloc_mem(sizeof(*ctbl) +
-			    clipt_size*sizeof(struct list_head));
+	ctbl = kvzalloc(sizeof(*ctbl) +
+			    clipt_size*sizeof(struct list_head), GFP_KERNEL);
 	if (!ctbl)
 		return NULL;
 
@@ -294,7 +305,11 @@ struct clip_tbl *t4_init_clip_tbl(unsigned int clipt_start,
 	for (i = 0; i < ctbl->clipt_size; ++i)
 		INIT_LIST_HEAD(&ctbl->hash_list[i]);
 
-	cl_list = t4_alloc_mem(clipt_size*sizeof(struct clip_entry));
+	cl_list = kvzalloc(clipt_size*sizeof(struct clip_entry), GFP_KERNEL);
+	if (!cl_list) {
+		kvfree(ctbl);
+		return NULL;
+	}
 	ctbl->cl_list = (void *)cl_list;
 
 	for (i = 0; i < clipt_size; i++) {
@@ -311,8 +326,8 @@ void t4_cleanup_clip_tbl(struct adapter *adap)
 
 	if (ctbl) {
 		if (ctbl->cl_list)
-			t4_free_mem(ctbl->cl_list);
-		t4_free_mem(ctbl);
+			kvfree(ctbl->cl_list);
+		kvfree(ctbl);
 	}
 }
 EXPORT_SYMBOL(t4_cleanup_clip_tbl);

@@ -307,7 +307,6 @@ static int tle62x0_remove(struct spi_device *spi)
 static struct spi_driver tle62x0_driver = {
 	.driver = {
 		.name	= "tle62x0",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= tle62x0_probe,
 	.remove		= tle62x0_remove,

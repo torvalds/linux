@@ -21,8 +21,8 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_data/pinctrl-adi2.h>
 #include <linux/spi/adi_spi3.h>
+#include <linux/gpio.h>
 #include <asm/dma.h>
-#include <asm/gpio.h>
 #include <asm/nand.h>
 #include <asm/dpmc.h>
 #include <asm/portmux.h>
@@ -933,7 +933,7 @@ static struct bfin_capture_config bfin_capture_data = {
 #endif
 
 #if IS_ENABLED(CONFIG_VIDEO_ADV7842)
-#include <media/adv7842.h>
+#include <media/i2c/adv7842.h>
 
 static struct v4l2_input adv7842_inputs[] = {
 	{
@@ -1002,14 +1002,12 @@ static struct adv7842_output_format adv7842_opf[] = {
 	{
 		.op_ch_sel = ADV7842_OP_CH_SEL_BRG,
 		.op_format_sel = ADV7842_OP_FORMAT_SEL_SDR_ITU656_8,
-		.op_656_range = 1,
 		.blank_data = 1,
 		.insert_av_codes = 1,
 	},
 	{
 		.op_ch_sel = ADV7842_OP_CH_SEL_RGB,
 		.op_format_sel = ADV7842_OP_FORMAT_SEL_SDR_ITU656_16,
-		.op_656_range = 1,
 		.blank_data = 1,
 	},
 };
@@ -1084,7 +1082,7 @@ static const struct ppi_info ppi_info = {
 };
 
 #if IS_ENABLED(CONFIG_VIDEO_ADV7511)
-#include <media/adv7511.h>
+#include <media/i2c/adv7511.h>
 
 static struct v4l2_output adv7511_outputs[] = {
 	{
@@ -1125,7 +1123,7 @@ static struct bfin_display_config bfin_display_data = {
 #endif
 
 #if IS_ENABLED(CONFIG_VIDEO_ADV7343)
-#include <media/adv7343.h>
+#include <media/i2c/adv7343.h>
 
 static struct v4l2_output adv7343_outputs[] = {
 	{
@@ -1889,7 +1887,7 @@ static struct platform_device i2c_bfin_twi1_device = {
 };
 #endif
 
-#if IS_ENABLED(CONFIG_GPIO_MCP23S08)
+#if IS_ENABLED(CONFIG_PINCTRL_MCP23S08)
 #include <linux/spi/mcp23s08.h>
 static const struct mcp23s08_platform_data bfin_mcp23s08_soft_switch0 = {
 	.base = 120,
@@ -1931,7 +1929,7 @@ static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
 		I2C_BOARD_INFO("ssm2602", 0x1b),
 	},
 #endif
-#if IS_ENABLED(CONFIG_GPIO_MCP23S08)
+#if IS_ENABLED(CONFIG_PINCTRL_MCP23S08)
 	{
 		I2C_BOARD_INFO("mcp23017", 0x21),
 		.platform_data = (void *)&bfin_mcp23s08_soft_switch0

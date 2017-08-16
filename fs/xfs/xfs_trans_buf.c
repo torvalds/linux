@@ -155,7 +155,7 @@ xfs_trans_get_buf_map(
 		ASSERT(xfs_buf_islocked(bp));
 		if (XFS_FORCED_SHUTDOWN(tp->t_mountp)) {
 			xfs_buf_stale(bp);
-			XFS_BUF_DONE(bp);
+			bp->b_flags |= XBF_DONE;
 		}
 
 		ASSERT(bp->b_transp == tp);
@@ -356,6 +356,7 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 		 xfs_buf_t	*bp)
 {
 	xfs_buf_log_item_t	*bip;
+	int			freed;
 
 	/*
 	 * Default to a normal brelse() call if the tp is NULL.
@@ -419,16 +420,22 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 	/*
 	 * Drop our reference to the buf log item.
 	 */
-	atomic_dec(&bip->bli_refcount);
+	freed = atomic_dec_and_test(&bip->bli_refcount);
 
 	/*
-	 * If the buf item is not tracking data in the log, then
-	 * we must free it before releasing the buffer back to the
-	 * free pool.  Before releasing the buffer to the free pool,
-	 * clear the transaction pointer in b_fsprivate2 to dissolve
-	 * its relation to this transaction.
+	 * If the buf item is not tracking data in the log, then we must free it
+	 * before releasing the buffer back to the free pool.
+	 *
+	 * If the fs has shutdown and we dropped the last reference, it may fall
+	 * on us to release a (possibly dirty) bli if it never made it to the
+	 * AIL (e.g., the aborted unpin already happened and didn't release it
+	 * due to our reference). Since we're already shutdown and need xa_lock,
+	 * just force remove from the AIL and release the bli here.
 	 */
-	if (!xfs_buf_item_dirty(bip)) {
+	if (XFS_FORCED_SHUTDOWN(tp->t_mountp) && freed) {
+		xfs_trans_ail_remove(&bip->bli_item, SHUTDOWN_LOG_IO_ERROR);
+		xfs_buf_item_relse(bp);
+	} else if (!xfs_buf_item_dirty(bip)) {
 /***
 		ASSERT(bp->b_pincount == 0);
 ***/
@@ -518,7 +525,7 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 	 * inside the b_bdstrat callback so that this won't get written to
 	 * disk.
 	 */
-	XFS_BUF_DONE(bp);
+	bp->b_flags |= XBF_DONE;
 
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	bp->b_iodone = xfs_buf_iodone_callbacks;
@@ -534,8 +541,8 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 	 */
 	if (bip->bli_flags & XFS_BLI_STALE) {
 		bip->bli_flags &= ~XFS_BLI_STALE;
-		ASSERT(XFS_BUF_ISSTALE(bp));
-		XFS_BUF_UNSTALE(bp);
+		ASSERT(bp->b_flags & XBF_STALE);
+		bp->b_flags &= ~XBF_STALE;
 		bip->__bli_format.blf_flags &= ~XFS_BLF_CANCEL;
 	}
 
@@ -600,7 +607,7 @@ xfs_trans_binval(
 		 * If the buffer is already invalidated, then
 		 * just return.
 		 */
-		ASSERT(XFS_BUF_ISSTALE(bp));
+		ASSERT(bp->b_flags & XBF_STALE);
 		ASSERT(!(bip->bli_flags & (XFS_BLI_LOGGED | XFS_BLI_DIRTY)));
 		ASSERT(!(bip->__bli_format.blf_flags & XFS_BLF_INODE_BUF));
 		ASSERT(!(bip->__bli_format.blf_flags & XFS_BLFT_MASK));

@@ -51,7 +51,7 @@ static struct fb_var_screeninfo maxinefb_defined = {
 	.vmode =	FB_VMODE_NONINTERLACED,
 };
 
-static struct fb_fix_screeninfo maxinefb_fix = {
+static struct fb_fix_screeninfo maxinefb_fix __initdata = {
 	.id =		"Maxine",
 	.smem_len =	(1024*768),
 	.type =		FB_TYPE_PACKED_PIXELS,

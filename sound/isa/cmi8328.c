@@ -26,7 +26,7 @@ MODULE_AUTHOR("Ondrej Zary <linux@rainbow-software.org>");
 MODULE_DESCRIPTION("C-Media CMI8328");
 MODULE_LICENSE("GPL");
 
-#if defined(CONFIG_GAMEPORT) || defined(CONFIG_GAMEPORT_MODULE)
+#if IS_ENABLED(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK 1
 #endif
 
@@ -51,18 +51,18 @@ MODULE_PARM_DESC(index, "Index value for CMI8328 soundcard.");
 module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for CMI8328 soundcard.");
 
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for CMI8328 driver.");
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for CMI8328 driver.");
-module_param_array(dma1, int, NULL, 0444);
+module_param_hw_array(dma1, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma1, "DMA1 for CMI8328 driver.");
-module_param_array(dma2, int, NULL, 0444);
+module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 for CMI8328 driver.");
 
-module_param_array(mpuport, long, NULL, 0444);
+module_param_hw_array(mpuport, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpuport, "MPU-401 port # for CMI8328 driver.");
-module_param_array(mpuirq, int, NULL, 0444);
+module_param_hw_array(mpuirq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpuirq, "IRQ # for CMI8328 MPU-401 port.");
 #ifdef SUPPORT_JOYSTICK
 module_param_array(gameport, bool, NULL, 0444);
@@ -469,15 +469,4 @@ static struct isa_driver snd_cmi8328_driver = {
 	},
 };
 
-static int __init alsa_card_cmi8328_init(void)
-{
-	return isa_register_driver(&snd_cmi8328_driver, CMI8328_MAX);
-}
-
-static void __exit alsa_card_cmi8328_exit(void)
-{
-	isa_unregister_driver(&snd_cmi8328_driver);
-}
-
-module_init(alsa_card_cmi8328_init)
-module_exit(alsa_card_cmi8328_exit)
+module_isa_driver(snd_cmi8328_driver, CMI8328_MAX);

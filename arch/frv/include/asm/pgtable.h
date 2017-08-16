@@ -16,6 +16,7 @@
 #ifndef _ASM_PGTABLE_H
 #define _ASM_PGTABLE_H
 
+#include <asm-generic/5level-fixup.h>
 #include <asm/mem-layout.h>
 #include <asm/setup.h>
 #include <asm/processor.h>
@@ -522,5 +523,6 @@ extern void __init pgtable_cache_init(void);
 #ifndef __ASSEMBLY__
 extern void __init paging_init(void);
 #endif /* !__ASSEMBLY__ */
+#define HAVE_ARCH_UNMAPPED_AREA
 
 #endif /* _ASM_PGTABLE_H */

@@ -20,20 +20,19 @@
 
 struct inode;
 struct posix_acl;
-struct xfs_inode;
 
 #ifdef CONFIG_XFS_POSIX_ACL
 extern struct posix_acl *xfs_get_acl(struct inode *inode, int type);
 extern int xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type);
-extern int posix_acl_access_exists(struct inode *inode);
-extern int posix_acl_default_exists(struct inode *inode);
+extern int __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type);
 #else
 static inline struct posix_acl *xfs_get_acl(struct inode *inode, int type)
 {
 	return NULL;
 }
 # define xfs_set_acl					NULL
-# define posix_acl_access_exists(inode)			0
-# define posix_acl_default_exists(inode)		0
 #endif /* CONFIG_XFS_POSIX_ACL */
+
+extern void xfs_forget_acl(struct inode *inode, const char *name, int xflags);
+
 #endif	/* __XFS_ACL_H__ */

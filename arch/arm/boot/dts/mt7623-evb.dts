@@ -1,0 +1,33 @@
+/*
+ * Copyright (c) 2016 MediaTek Inc.
+ * Author: John Crispin <john@phrozen.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+#include "mt7623.dtsi"
+
+/ {
+	model = "MediaTek MT7623 evaluation board";
+	compatible = "mediatek,mt7623-evb", "mediatek,mt7623";
+
+	chosen {
+		stdout-path = &uart2;
+	};
+
+	memory {
+		reg = <0 0x80000000 0 0x40000000>;
+	};
+};
+
+&uart2 {
+	status = "okay";
+};

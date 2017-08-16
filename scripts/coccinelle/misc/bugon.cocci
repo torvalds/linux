@@ -40,7 +40,7 @@ expression e;
 //  For org and report mode
 //----------------------------------------------------------
 
-@r@
+@r depends on (org || report)@
 expression e;
 position p;
 @@

@@ -12,7 +12,6 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/miscdevice.h>
@@ -26,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/sysctl.h>
 #include <linux/wait.h>
+#include <linux/sched/signal.h>
 #include <linux/bcd.h>
 #include <linux/seq_file.h>
 #include <linux/bitops.h>
@@ -43,7 +43,7 @@
 /*
  * The High Precision Event Timer driver.
  * This driver is closely modelled after the rtc.c driver.
- * http://www.intel.com/hardwaredesign/hpetspec_1.pdf
+ * See HPET spec revision 1.
  */
 #define	HPET_USER_FREQ	(64)
 #define	HPET_DRIFT	(500)
@@ -70,9 +70,9 @@ static u32 hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
 #ifdef CONFIG_IA64
 static void __iomem *hpet_mctr;
 
-static cycle_t read_hpet(struct clocksource *cs)
+static u64 read_hpet(struct clocksource *cs)
 {
-	return (cycle_t)read_counter((void __iomem *)hpet_mctr);
+	return (u64)read_counter((void __iomem *)hpet_mctr);
 }
 
 static struct clocksource clocksource_hpet = {
@@ -575,7 +575,7 @@ static inline unsigned long hpet_time_div(struct hpets *hpets,
 }
 
 static int
-hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg,
+hpet_ioctl_common(struct hpet_dev *devp, unsigned int cmd, unsigned long arg,
 		  struct hpet_info *info)
 {
 	struct hpet_timer __iomem *timer;
@@ -1043,24 +1043,16 @@ static int hpet_acpi_add(struct acpi_device *device)
 	return hpet_alloc(&data);
 }
 
-static int hpet_acpi_remove(struct acpi_device *device)
-{
-	/* XXX need to unregister clocksource, dealloc mem, etc */
-	return -EINVAL;
-}
-
 static const struct acpi_device_id hpet_device_ids[] = {
 	{"PNP0103", 0},
 	{"", 0},
 };
-MODULE_DEVICE_TABLE(acpi, hpet_device_ids);
 
 static struct acpi_driver hpet_acpi_driver = {
 	.name = "hpet",
 	.ids = hpet_device_ids,
 	.ops = {
 		.add = hpet_acpi_add,
-		.remove = hpet_acpi_remove,
 		},
 };
 
@@ -1086,19 +1078,9 @@ static int __init hpet_init(void)
 
 	return 0;
 }
+device_initcall(hpet_init);
 
-static void __exit hpet_exit(void)
-{
-	acpi_bus_unregister_driver(&hpet_acpi_driver);
-
-	if (sysctl_header)
-		unregister_sysctl_table(sysctl_header);
-	misc_deregister(&hpet_misc);
-
-	return;
-}
-
-module_init(hpet_init);
-module_exit(hpet_exit);
+/*
 MODULE_AUTHOR("Bob Picco <Robert.Picco@hp.com>");
 MODULE_LICENSE("GPL");
+*/

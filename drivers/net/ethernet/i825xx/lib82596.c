@@ -727,7 +727,8 @@ memory_squeeze:
 					dma_sync_single_for_cpu(dev->dev.parent,
 								(dma_addr_t)SWAP32(rbd->b_data),
 								PKT_BUF_SZ, DMA_FROM_DEVICE);
-					memcpy(skb_put(skb, pkt_len), rbd->v_data, pkt_len);
+					skb_put_data(skb, rbd->v_data,
+						     pkt_len);
 					dma_sync_single_for_device(dev->dev.parent,
 								   (dma_addr_t)SWAP32(rbd->b_data),
 								   PKT_BUF_SZ, DMA_FROM_DEVICE);
@@ -960,7 +961,7 @@ static void i596_tx_timeout (struct net_device *dev)
 		lp->last_restart = dev->stats.tx_packets;
 	}
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
@@ -1037,7 +1038,6 @@ static const struct net_device_ops i596_netdev_ops = {
 	.ndo_start_xmit		= i596_start_xmit,
 	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_tx_timeout		= i596_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER

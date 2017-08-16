@@ -21,10 +21,18 @@ Required properties:
 	maxim,max7313
 	maxim,max7315
 	ti,pca6107
+	ti,pca9536
 	ti,tca6408
 	ti,tca6416
 	ti,tca6424
+	ti,tca9539
+	ti,tca9554
+	onsemi,pca9654
 	exar,xra1202
+
+Optional properties:
+ - reset-gpios: GPIO specification for the RESET input. This is an
+		active low signal to the PCA953x.
 
 Example:
 

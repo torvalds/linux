@@ -39,8 +39,8 @@ kind of power supply, and can process/present them to a user in consistent
 manner. Results for different power supplies and machines are also directly
 comparable.
 
-See drivers/power/ds2760_battery.c and drivers/power/pda_power.c for the
-example how to declare and handle attributes.
+See drivers/power/supply/ds2760_battery.c and drivers/power/supply/pda_power.c
+for the example how to declare and handle attributes.
 
 
 Units
@@ -115,28 +115,33 @@ of charge when battery became full/empty". It also could mean "value of
 charge when battery considered full/empty at given conditions (temperature,
 age)". I.e. these attributes represents real thresholds, not design values.
 
+ENERGY_FULL, ENERGY_EMPTY - same as above but for energy.
+
 CHARGE_COUNTER - the current charge counter (in µAh).  This could easily
 be negative; there is no empty or full value.  It is only useful for
 relative, time-based measurements.
 
+PRECHARGE_CURRENT - the maximum charge current during precharge phase
+of charge cycle (typically 20% of battery capacity).
+CHARGE_TERM_CURRENT - Charge termination current. The charge cycle
+terminates when battery voltage is above recharge threshold, and charge
+current is below this setting (typically 10% of battery capacity).
+
 CONSTANT_CHARGE_CURRENT - constant charge current programmed by charger.
 CONSTANT_CHARGE_CURRENT_MAX - maximum charge current supported by the
 power supply object.
-INPUT_CURRENT_LIMIT - input current limit programmed by charger. Indicates
-the current drawn from a charging source.
-CHARGE_TERM_CURRENT - Charge termination current used to detect the end of charge
-condition.
-
-CALIBRATE - battery or coulomb counter calibration status
 
 CONSTANT_CHARGE_VOLTAGE - constant charge voltage programmed by charger.
 CONSTANT_CHARGE_VOLTAGE_MAX - maximum charge voltage supported by the
 power supply object.
 
+INPUT_CURRENT_LIMIT - input current limit programmed by charger. Indicates
+the current drawn from a charging source.
+
 CHARGE_CONTROL_LIMIT - current charge control limit setting
 CHARGE_CONTROL_LIMIT_MAX - maximum charge control limit setting
 
-ENERGY_FULL, ENERGY_EMPTY - same as above but for energy.
+CALIBRATE - battery or coulomb counter calibration status
 
 CAPACITY - capacity in percents.
 CAPACITY_ALERT_MIN - minimum capacity alert value in percents.
@@ -172,6 +177,18 @@ External power supply (AC) lists supplicants (batteries) names in
 "supplied_to" struct member, and each power_supply_changed() call
 issued by external power supply will notify supplicants via
 external_power_changed callback.
+
+
+Devicetree battery characteristics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Drivers should call power_supply_get_battery_info() to obtain battery
+characteristics from a devicetree battery node, defined in
+Documentation/devicetree/bindings/power/supply/battery.txt. This is
+implemented in drivers/power/supply/bq27xxx_battery.c.
+
+Properties in struct power_supply_battery_info and their counterparts in the
+battery node have names corresponding to elements in enum power_supply_property,
+for naming consistency between sysfs attributes and battery node properties.
 
 
 QA

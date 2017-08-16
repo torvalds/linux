@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
@@ -110,7 +110,7 @@ typedef struct _diva_os_thread_dpc {
 /*
   This table should be sorted by PCI device ID
 */
-static struct pci_device_id divas_pci_tbl[] = {
+static const struct pci_device_id divas_pci_tbl[] = {
 	/* Diva Server BRI-2M PCI 0xE010 */
 	{ PCI_VDEVICE(EICON, PCI_DEVICE_ID_EICON_MAESTRA),
 	  CARDTYPE_MAESTRA_PCI },
@@ -445,32 +445,32 @@ void divasa_unmap_pci_bar(void __iomem *bar)
 /*********************************************************
  ** I/O port access
  *********************************************************/
-byte __inline__ inpp(void __iomem *addr)
+inline byte inpp(void __iomem *addr)
 {
 	return (inb((unsigned long) addr));
 }
 
-word __inline__ inppw(void __iomem *addr)
+inline word inppw(void __iomem *addr)
 {
 	return (inw((unsigned long) addr));
 }
 
-void __inline__ inppw_buffer(void __iomem *addr, void *P, int length)
+inline void inppw_buffer(void __iomem *addr, void *P, int length)
 {
 	insw((unsigned long) addr, (word *) P, length >> 1);
 }
 
-void __inline__ outppw_buffer(void __iomem *addr, void *P, int length)
+inline void outppw_buffer(void __iomem *addr, void *P, int length)
 {
 	outsw((unsigned long) addr, (word *) P, length >> 1);
 }
 
-void __inline__ outppw(void __iomem *addr, word w)
+inline void outppw(void __iomem *addr, word w)
 {
 	outw(w, (unsigned long) addr);
 }
 
-void __inline__ outpp(void __iomem *addr, word p)
+inline void outpp(void __iomem *addr, word p)
 {
 	outb(p, (unsigned long) addr);
 }

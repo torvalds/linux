@@ -224,7 +224,7 @@ static u8 ioat_dca_get_tag(struct dca_provider *dca,
 	return tag;
 }
 
-static struct dca_ops ioat_dca_ops = {
+static const struct dca_ops ioat_dca_ops = {
 	.add_requester		= ioat_dca_add_requester,
 	.remove_requester	= ioat_dca_remove_requester,
 	.get_tag		= ioat_dca_get_tag,
@@ -336,10 +336,10 @@ struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase)
 	}
 
 	if (dca3_tag_map_invalid(ioatdca->tag_map)) {
-		WARN_TAINT_ONCE(1, TAINT_FIRMWARE_WORKAROUND,
-				"%s %s: APICID_TAG_MAP set incorrectly by BIOS, disabling DCA\n",
-				dev_driver_string(&pdev->dev),
-				dev_name(&pdev->dev));
+		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
+		pr_warn_once("%s %s: APICID_TAG_MAP set incorrectly by BIOS, disabling DCA\n",
+			     dev_driver_string(&pdev->dev),
+			     dev_name(&pdev->dev));
 		free_dca_provider(dca);
 		return NULL;
 	}

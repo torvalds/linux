@@ -121,7 +121,6 @@ static void am35x_musb_disable(struct musb *musb)
 	musb_writel(reg_base, CORE_INTR_MASK_CLEAR_REG, AM35X_INTR_USB_MASK);
 	musb_writel(reg_base, EP_INTR_MASK_CLEAR_REG,
 			 AM35X_TX_INTR_MASK | AM35X_RX_INTR_MASK);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	musb_writel(reg_base, USB_END_OF_INTR_REG, 0);
 }
 
@@ -474,10 +473,8 @@ static int am35x_probe(struct platform_device *pdev)
 	int				ret = -ENOMEM;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&pdev->dev, "failed to allocate glue context\n");
+	if (!glue)
 		goto err0;
-	}
 
 	phy_clk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(phy_clk)) {
@@ -512,8 +509,10 @@ static int am35x_probe(struct platform_device *pdev)
 	pdata->platform_ops		= &am35x_ops;
 
 	glue->phy = usb_phy_generic_register();
-	if (IS_ERR(glue->phy))
+	if (IS_ERR(glue->phy)) {
+		ret = PTR_ERR(glue->phy);
 		goto err7;
+	}
 	platform_set_drvdata(pdev, glue);
 
 	pinfo = am35x_dev_info;

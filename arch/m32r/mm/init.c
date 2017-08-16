@@ -59,21 +59,24 @@ void free_initrd_mem(unsigned long, unsigned long);
 void __init zone_sizes_init(void)
 {
 	unsigned long  zones_size[MAX_NR_ZONES] = {0, };
-	unsigned long  max_dma;
-	unsigned long  low;
 	unsigned long  start_pfn;
 
 #ifdef CONFIG_MMU
-	start_pfn = START_PFN(0);
-	max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-	low = MAX_LOW_PFN(0);
+	{
+		unsigned long  low;
+		unsigned long  max_dma;
 
-	if (low < max_dma){
-		zones_size[ZONE_DMA] = low - start_pfn;
-		zones_size[ZONE_NORMAL] = 0;
-	} else {
-		zones_size[ZONE_DMA] = low - start_pfn;
-		zones_size[ZONE_NORMAL] = low - max_dma;
+		start_pfn = START_PFN(0);
+		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
+		low = MAX_LOW_PFN(0);
+
+		if (low < max_dma) {
+			zones_size[ZONE_DMA] = low - start_pfn;
+			zones_size[ZONE_NORMAL] = 0;
+		} else {
+			zones_size[ZONE_DMA] = low - start_pfn;
+			zones_size[ZONE_NORMAL] = low - max_dma;
+		}
 	}
 #else
 	zones_size[ZONE_DMA] = 0 >> PAGE_SHIFT;

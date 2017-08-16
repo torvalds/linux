@@ -16,13 +16,16 @@
 
 /dts-v1/;
 #include "exynos4210.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "Insignal Origen evaluation board based on Exynos4210";
 	compatible = "insignal,origen", "samsung,exynos4210", "samsung,exynos4";
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x10000000
 		       0x50000000 0x10000000
 		       0x60000000 0x10000000
@@ -45,7 +48,7 @@
 			regulator-name = "VMEM_VDD_2.8V";
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
-			gpio = <&gpx1 1 0>;
+			gpio = <&gpx1 1 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
 	};
@@ -57,44 +60,44 @@
 
 		up {
 			label = "Up";
-			gpios = <&gpx2 0 1>;
+			gpios = <&gpx2 0 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_UP>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		down {
 			label = "Down";
-			gpios = <&gpx2 1 1>;
+			gpios = <&gpx2 1 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_DOWN>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		back {
 			label = "Back";
-			gpios = <&gpx1 7 1>;
+			gpios = <&gpx1 7 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_BACK>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		home {
 			label = "Home";
-			gpios = <&gpx1 6 1>;
+			gpios = <&gpx1 6 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		menu {
 			label = "Menu";
-			gpios = <&gpx1 5 1>;
+			gpios = <&gpx1 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_MENU>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
 	leds {
 		compatible = "gpio-leds";
 		status {
-			gpios = <&gpx1 3 1>;
+			gpios = <&gpx1 3 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
@@ -137,10 +140,6 @@
 	status = "okay";
 };
 
-&g2d {
-	status = "okay";
-};
-
 &i2c_0 {
 	status = "okay";
 	samsung,i2c-sda-delay = <100>;
@@ -152,7 +151,7 @@
 		compatible = "maxim,max8997-pmic";
 		reg = <0x66>;
 		interrupt-parent = <&gpx0>;
-		interrupts = <4 0>, <3 0>;
+		interrupts = <4 IRQ_TYPE_NONE>, <3 IRQ_TYPE_NONE>;
 
 		max8997,pmic-buck1-dvs-voltage = <1350000>;
 		max8997,pmic-buck2-dvs-voltage = <1100000>;
@@ -290,12 +289,6 @@
 	};
 };
 
-&mfc {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
-	status = "okay";
-};
-
 &sdhci_0 {
 	bus-width = <4>;
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4 &sd0_cd>;
@@ -333,9 +326,5 @@
 };
 
 &tmu {
-	status = "okay";
-};
-
-&watchdog {
 	status = "okay";
 };

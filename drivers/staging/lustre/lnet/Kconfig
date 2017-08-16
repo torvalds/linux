@@ -1,10 +1,16 @@
 config LNET
-	tristate "Lustre networking subsystem"
-	depends on LUSTRE_FS
+	tristate "Lustre networking subsystem (LNet)"
+	depends on INET && m
+	help
+	  The Lustre network layer, also known as LNet, is a networking abstaction
+	  level API that was initially created to allow Lustre Filesystem to utilize
+	  very different networks like tcp and ib verbs in a uniform way. In the
+	  case of Lustre routers only the LNet layer is required. Lately other
+	  projects are also looking into using LNet as their networking API as well.
 
 config LNET_MAX_PAYLOAD
-	int "Lustre lnet max transfer payload (default 2MB)"
-	depends on LUSTRE_FS
+	int "Lustre lnet max transfer payload (default 1MB)"
+	depends on LNET
 	default "1048576"
 	help
 	  This option defines the maximum size of payload in bytes that lnet

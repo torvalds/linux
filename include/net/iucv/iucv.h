@@ -141,14 +141,14 @@ struct iucv_handler {
 	  * called is the order of the registration of the iucv handlers
 	  * to the base code.
 	  */
-	int  (*path_pending)(struct iucv_path *, u8 ipvmid[8], u8 ipuser[16]);
+	int  (*path_pending)(struct iucv_path *, u8 *ipvmid, u8 *ipuser);
 	/*
 	 * The path_complete function is called after an iucv interrupt
 	 * type 0x02 has been received for a path that has been established
 	 * for this handler with iucv_path_connect and got accepted by the
 	 * peer with iucv_path_accept.
 	 */
-	void (*path_complete)(struct iucv_path *, u8 ipuser[16]);
+	void (*path_complete)(struct iucv_path *, u8 *ipuser);
 	 /*
 	  * The path_severed function is called after an iucv interrupt
 	  * type 0x03 has been received. The communication peer shutdown
@@ -156,20 +156,20 @@ struct iucv_handler {
 	  * remaining messages can be received until a iucv_path_sever
 	  * shuts down the other end of the path as well.
 	  */
-	void (*path_severed)(struct iucv_path *, u8 ipuser[16]);
+	void (*path_severed)(struct iucv_path *, u8 *ipuser);
 	/*
 	 * The path_quiesced function is called after an icuv interrupt
 	 * type 0x04 has been received. The communication peer has quiesced
 	 * the path. Delivery of messages is stopped until iucv_path_resume
 	 * has been called.
 	 */
-	void (*path_quiesced)(struct iucv_path *, u8 ipuser[16]);
+	void (*path_quiesced)(struct iucv_path *, u8 *ipuser);
 	/*
 	 * The path_resumed function is called after an icuv interrupt
 	 * type 0x05 has been received. The communication peer has resumed
 	 * the path.
 	 */
-	void (*path_resumed)(struct iucv_path *, u8 ipuser[16]);
+	void (*path_resumed)(struct iucv_path *, u8 *ipuser);
 	/*
 	 * The message_pending function is called after an icuv interrupt
 	 * type 0x06 or type 0x07 has been received. A new message is
@@ -256,7 +256,7 @@ static inline void iucv_path_free(struct iucv_path *path)
  * Returns the result of the CP IUCV call.
  */
 int iucv_path_accept(struct iucv_path *path, struct iucv_handler *handler,
-		     u8 userdata[16], void *private);
+		     u8 *userdata, void *private);
 
 /**
  * iucv_path_connect
@@ -274,7 +274,7 @@ int iucv_path_accept(struct iucv_path *path, struct iucv_handler *handler,
  * Returns the result of the CP IUCV call.
  */
 int iucv_path_connect(struct iucv_path *path, struct iucv_handler *handler,
-		      u8 userid[8], u8 system[8], u8 userdata[16],
+		      u8 *userid, u8 *system, u8 *userdata,
 		      void *private);
 
 /**
@@ -287,7 +287,7 @@ int iucv_path_connect(struct iucv_path *path, struct iucv_handler *handler,
  *
  * Returns the result from the CP IUCV call.
  */
-int iucv_path_quiesce(struct iucv_path *path, u8 userdata[16]);
+int iucv_path_quiesce(struct iucv_path *path, u8 *userdata);
 
 /**
  * iucv_path_resume:
@@ -299,7 +299,7 @@ int iucv_path_quiesce(struct iucv_path *path, u8 userdata[16]);
  *
  * Returns the result from the CP IUCV call.
  */
-int iucv_path_resume(struct iucv_path *path, u8 userdata[16]);
+int iucv_path_resume(struct iucv_path *path, u8 *userdata);
 
 /**
  * iucv_path_sever
@@ -310,7 +310,7 @@ int iucv_path_resume(struct iucv_path *path, u8 userdata[16]);
  *
  * Returns the result from the CP IUCV call.
  */
-int iucv_path_sever(struct iucv_path *path, u8 userdata[16]);
+int iucv_path_sever(struct iucv_path *path, u8 *userdata);
 
 /**
  * iucv_message_purge

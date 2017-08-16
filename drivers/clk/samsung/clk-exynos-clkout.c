@@ -29,10 +29,9 @@ struct exynos_clkout {
 	struct clk_gate gate;
 	struct clk_mux mux;
 	spinlock_t slock;
-	struct clk_onecell_data data;
-	struct clk *clk_table[EXYNOS_CLKOUT_NR_CLKS];
 	void __iomem *reg;
 	u32 pmu_debug_save;
+	struct clk_hw_onecell_data data;
 };
 
 static struct exynos_clkout *clkout;
@@ -62,7 +61,9 @@ static void __init exynos_clkout_init(struct device_node *node, u32 mux_mask)
 	int ret;
 	int i;
 
-	clkout = kzalloc(sizeof(*clkout), GFP_KERNEL);
+	clkout = kzalloc(sizeof(*clkout) +
+			 sizeof(*clkout->data.hws) * EXYNOS_CLKOUT_NR_CLKS,
+			 GFP_KERNEL);
 	if (!clkout)
 		return;
 
@@ -100,17 +101,16 @@ static void __init exynos_clkout_init(struct device_node *node, u32 mux_mask)
 	clkout->mux.shift = EXYNOS_CLKOUT_MUX_SHIFT;
 	clkout->mux.lock = &clkout->slock;
 
-	clkout->clk_table[0] = clk_register_composite(NULL, "clkout",
+	clkout->data.hws[0] = clk_hw_register_composite(NULL, "clkout",
 				parent_names, parent_count, &clkout->mux.hw,
 				&clk_mux_ops, NULL, NULL, &clkout->gate.hw,
 				&clk_gate_ops, CLK_SET_RATE_PARENT
 				| CLK_SET_RATE_NO_REPARENT);
-	if (IS_ERR(clkout->clk_table[0]))
+	if (IS_ERR(clkout->data.hws[0]))
 		goto err_unmap;
 
-	clkout->data.clks = clkout->clk_table;
-	clkout->data.clk_num = EXYNOS_CLKOUT_NR_CLKS;
-	ret = of_clk_add_provider(node, of_clk_src_onecell_get, &clkout->data);
+	clkout->data.num = EXYNOS_CLKOUT_NR_CLKS;
+	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, &clkout->data);
 	if (ret)
 		goto err_clk_unreg;
 
@@ -119,7 +119,7 @@ static void __init exynos_clkout_init(struct device_node *node, u32 mux_mask)
 	return;
 
 err_clk_unreg:
-	clk_unregister(clkout->clk_table[0]);
+	clk_hw_unregister(clkout->data.hws[0]);
 err_unmap:
 	iounmap(clkout->reg);
 clks_put:
@@ -132,26 +132,34 @@ free_clkout:
 	pr_err("%s: failed to register clkout clock\n", __func__);
 }
 
+/*
+ * We use CLK_OF_DECLARE_DRIVER initialization method to avoid setting
+ * the OF_POPULATED flag on the pmu device tree node, so later the
+ * Exynos PMU platform device can be properly probed with PMU driver.
+ */
+
 static void __init exynos4_clkout_init(struct device_node *node)
 {
 	exynos_clkout_init(node, EXYNOS4_CLKOUT_MUX_MASK);
 }
-CLK_OF_DECLARE(exynos4210_clkout, "samsung,exynos4210-pmu",
+CLK_OF_DECLARE_DRIVER(exynos4210_clkout, "samsung,exynos4210-pmu",
 		exynos4_clkout_init);
-CLK_OF_DECLARE(exynos4212_clkout, "samsung,exynos4212-pmu",
+CLK_OF_DECLARE_DRIVER(exynos4212_clkout, "samsung,exynos4212-pmu",
 		exynos4_clkout_init);
-CLK_OF_DECLARE(exynos4412_clkout, "samsung,exynos4412-pmu",
+CLK_OF_DECLARE_DRIVER(exynos4412_clkout, "samsung,exynos4412-pmu",
 		exynos4_clkout_init);
-CLK_OF_DECLARE(exynos3250_clkout, "samsung,exynos3250-pmu",
+CLK_OF_DECLARE_DRIVER(exynos3250_clkout, "samsung,exynos3250-pmu",
 		exynos4_clkout_init);
 
 static void __init exynos5_clkout_init(struct device_node *node)
 {
 	exynos_clkout_init(node, EXYNOS5_CLKOUT_MUX_MASK);
 }
-CLK_OF_DECLARE(exynos5250_clkout, "samsung,exynos5250-pmu",
+CLK_OF_DECLARE_DRIVER(exynos5250_clkout, "samsung,exynos5250-pmu",
 		exynos5_clkout_init);
-CLK_OF_DECLARE(exynos5420_clkout, "samsung,exynos5420-pmu",
+CLK_OF_DECLARE_DRIVER(exynos5410_clkout, "samsung,exynos5410-pmu",
 		exynos5_clkout_init);
-CLK_OF_DECLARE(exynos5433_clkout, "samsung,exynos5433-pmu",
+CLK_OF_DECLARE_DRIVER(exynos5420_clkout, "samsung,exynos5420-pmu",
+		exynos5_clkout_init);
+CLK_OF_DECLARE_DRIVER(exynos5433_clkout, "samsung,exynos5433-pmu",
 		exynos5_clkout_init);

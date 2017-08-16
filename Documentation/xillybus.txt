@@ -1,12 +1,11 @@
+==========================================
+Xillybus driver for generic FPGA interface
+==========================================
 
-               ==========================================
-               Xillybus driver for generic FPGA interface
-               ==========================================
+:Author: Eli Billauer, Xillybus Ltd. (http://xillybus.com)
+:Email:  eli.billauer@gmail.com or as advertised on Xillybus' site.
 
-Author: Eli Billauer, Xillybus Ltd. (http://xillybus.com)
-Email:  eli.billauer@gmail.com or as advertised on Xillybus' site.
-
-Contents:
+.. Contents:
 
  - Introduction
   -- Background
@@ -17,7 +16,7 @@ Contents:
   -- Synchronization
   -- Seekable pipes
 
-- Internals
+ - Internals
   -- Source code organization
   -- Pipe attributes
   -- Host never reads from the FPGA
@@ -29,7 +28,7 @@ Contents:
   -- The "nonempty" message (supporting poll)
 
 
-INTRODUCTION
+Introduction
 ============
 
 Background
@@ -105,7 +104,7 @@ driver is used to work out of the box with any Xillybus IP core.
 The data structure just mentioned should not be confused with PCI's
 configuration space or the Flattened Device Tree.
 
-USAGE
+Usage
 =====
 
 User interface
@@ -117,11 +116,11 @@ names of these files depend on the IP core that is loaded in the FPGA (see
 Probing below). To communicate with the FPGA, open the device file that
 corresponds to the hardware FIFO you want to send data or receive data from,
 and use plain write() or read() calls, just like with a regular pipe. In
-particular, it makes perfect sense to go:
+particular, it makes perfect sense to go::
 
-$ cat mydata > /dev/xillybus_thisfifo
+	$ cat mydata > /dev/xillybus_thisfifo
 
-$ cat /dev/xillybus_thatfifo > hisdata
+	$ cat /dev/xillybus_thatfifo > hisdata
 
 possibly pressing CTRL-C as some stage, even though the xillybus_* pipes have
 the capability to send an EOF (but may not use it).
@@ -178,7 +177,7 @@ the attached memory is done by seeking to the desired address, and calling
 read() or write() as required.
 
 
-INTERNALS
+Internals
 =========
 
 Source code organization
@@ -215,7 +214,7 @@ in xillybus_core.c as follows:
   choice is a non-zero value, to match standard UNIX behavior.
 
 * synchronous: A non-zero value means that the pipe is synchronous. See
-  Syncronization above.
+  Synchronization above.
 
 * bufsize: Each DMA buffer's size. Always a power of two.
 
@@ -365,7 +364,7 @@ into that page. It can be shown that all pages requested from the kernel
 (except possibly for the last) are 100% utilized this way.
 
 The "nonempty" message (supporting poll)
----------------------------------------
+----------------------------------------
 
 In order to support the "poll" method (and hence select() ), there is a small
 catch regarding the FPGA to host direction: The FPGA may have filled a DMA

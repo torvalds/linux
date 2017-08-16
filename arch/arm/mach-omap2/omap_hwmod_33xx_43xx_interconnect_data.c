@@ -152,20 +152,10 @@ struct omap_hwmod_ocp_if am33xx_cpgmac0__mdio = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_addr_space am33xx_elm_addr_space[] = {
-	{
-		.pa_start	= 0x48080000,
-		.pa_end		= 0x48080000 + SZ_8K - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 struct omap_hwmod_ocp_if am33xx_l4_ls__elm = {
 	.master		= &am33xx_l4_ls_hwmod,
 	.slave		= &am33xx_elm_hwmod,
 	.clk		= "l4ls_gclk",
-	.addr		= am33xx_elm_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -186,28 +176,6 @@ struct omap_hwmod_ocp_if am33xx_l4_ls__epwmss0 = {
 	.user		= OCP_USER_MPU,
 };
 
-struct omap_hwmod_ocp_if am33xx_epwmss0__ecap0 = {
-	.master		= &am33xx_epwmss0_hwmod,
-	.slave		= &am33xx_ecap0_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-struct omap_hwmod_ocp_if am33xx_epwmss0__eqep0 = {
-	.master		= &am33xx_epwmss0_hwmod,
-	.slave		= &am33xx_eqep0_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-struct omap_hwmod_ocp_if am33xx_epwmss0__ehrpwm0 = {
-	.master		= &am33xx_epwmss0_hwmod,
-	.slave		= &am33xx_ehrpwm0_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-
 static struct omap_hwmod_addr_space am33xx_epwmss1_addr_space[] = {
 	{
 		.pa_start	= 0x48302000,
@@ -222,27 +190,6 @@ struct omap_hwmod_ocp_if am33xx_l4_ls__epwmss1 = {
 	.slave		= &am33xx_epwmss1_hwmod,
 	.clk		= "l4ls_gclk",
 	.addr		= am33xx_epwmss1_addr_space,
-	.user		= OCP_USER_MPU,
-};
-
-struct omap_hwmod_ocp_if am33xx_epwmss1__ecap1 = {
-	.master		= &am33xx_epwmss1_hwmod,
-	.slave		= &am33xx_ecap1_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-struct omap_hwmod_ocp_if am33xx_epwmss1__eqep1 = {
-	.master		= &am33xx_epwmss1_hwmod,
-	.slave		= &am33xx_eqep1_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-struct omap_hwmod_ocp_if am33xx_epwmss1__ehrpwm1 = {
-	.master		= &am33xx_epwmss1_hwmod,
-	.slave		= &am33xx_ehrpwm1_hwmod,
-	.clk		= "l4ls_gclk",
 	.user		= OCP_USER_MPU,
 };
 
@@ -263,42 +210,11 @@ struct omap_hwmod_ocp_if am33xx_l4_ls__epwmss2 = {
 	.user		= OCP_USER_MPU,
 };
 
-struct omap_hwmod_ocp_if am33xx_epwmss2__ecap2 = {
-	.master		= &am33xx_epwmss2_hwmod,
-	.slave		= &am33xx_ecap2_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-struct omap_hwmod_ocp_if am33xx_epwmss2__eqep2 = {
-	.master		= &am33xx_epwmss2_hwmod,
-	.slave		= &am33xx_eqep2_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-struct omap_hwmod_ocp_if am33xx_epwmss2__ehrpwm2 = {
-	.master		= &am33xx_epwmss2_hwmod,
-	.slave		= &am33xx_ehrpwm2_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l3s cfg -> gpmc */
-static struct omap_hwmod_addr_space am33xx_gpmc_addr_space[] = {
-	{
-		.pa_start	= 0x50000000,
-		.pa_end		= 0x50000000 + SZ_8K - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 struct omap_hwmod_ocp_if am33xx_l3_s__gpmc = {
 	.master		= &am33xx_l3_s_hwmod,
 	.slave		= &am33xx_gpmc_hwmod,
 	.clk		= "l3s_gclk",
-	.addr		= am33xx_gpmc_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -630,4 +546,12 @@ struct omap_hwmod_ocp_if am33xx_l3_main__aes0 = {
 	.clk		= "aes0_fck",
 	.addr		= am33xx_aes0_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* l4 per -> rng */
+struct omap_hwmod_ocp_if am33xx_l4_per__rng = {
+	.master		= &am33xx_l4_ls_hwmod,
+	.slave		= &am33xx_rng_hwmod,
+	.clk		= "rng_fck",
+	.user		= OCP_USER_MPU,
 };

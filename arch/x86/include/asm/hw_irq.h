@@ -30,6 +30,7 @@ extern asmlinkage void apic_timer_interrupt(void);
 extern asmlinkage void x86_platform_ipi(void);
 extern asmlinkage void kvm_posted_intr_ipi(void);
 extern asmlinkage void kvm_posted_intr_wakeup_ipi(void);
+extern asmlinkage void kvm_posted_intr_nested_ipi(void);
 extern asmlinkage void error_interrupt(void);
 extern asmlinkage void irq_work_interrupt(void);
 
@@ -62,6 +63,7 @@ extern void trace_call_function_single_interrupt(void);
 #define trace_reboot_interrupt  reboot_interrupt
 #define trace_kvm_posted_intr_ipi kvm_posted_intr_ipi
 #define trace_kvm_posted_intr_wakeup_ipi kvm_posted_intr_wakeup_ipi
+#define trace_kvm_posted_intr_nested_ipi kvm_posted_intr_nested_ipi
 #endif /* CONFIG_TRACING */
 
 #ifdef	CONFIG_X86_LOCAL_APIC
@@ -130,12 +132,18 @@ struct irq_alloc_info {
 			char		*uv_name;
 		};
 #endif
+#if IS_ENABLED(CONFIG_VMD)
+		struct {
+			struct msi_desc *desc;
+		};
+#endif
 	};
 };
 
 struct irq_cfg {
 	unsigned int		dest_apicid;
 	u8			vector;
+	u8			old_vector;
 };
 
 extern struct irq_cfg *irq_cfg(unsigned int irq);
@@ -162,20 +170,6 @@ extern atomic_t irq_err_count;
 extern atomic_t irq_mis_count;
 
 extern void elcr_set_level_irq(unsigned int irq);
-
-/* SMP */
-extern __visible void smp_apic_timer_interrupt(struct pt_regs *);
-extern __visible void smp_spurious_interrupt(struct pt_regs *);
-extern __visible void smp_x86_platform_ipi(struct pt_regs *);
-extern __visible void smp_error_interrupt(struct pt_regs *);
-#ifdef CONFIG_X86_IO_APIC
-extern asmlinkage void smp_irq_move_cleanup_interrupt(void);
-#endif
-#ifdef CONFIG_SMP
-extern __visible void smp_reschedule_interrupt(struct pt_regs *);
-extern __visible void smp_call_function_interrupt(struct pt_regs *);
-extern __visible void smp_call_function_single_interrupt(struct pt_regs *);
-#endif
 
 extern char irq_entries_start[];
 #ifdef CONFIG_TRACING

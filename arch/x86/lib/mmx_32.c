@@ -18,7 +18,7 @@
  */
 #include <linux/hardirq.h>
 #include <linux/string.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/types.h>
 

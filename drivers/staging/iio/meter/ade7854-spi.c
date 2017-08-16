@@ -278,7 +278,7 @@ static int ade7854_spi_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (indio_dev == NULL)
+	if (!indio_dev)
 		return -ENOMEM;
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
@@ -296,12 +296,6 @@ static int ade7854_spi_probe(struct spi_device *spi)
 	return ade7854_probe(indio_dev, &spi->dev);
 }
 
-static int ade7854_spi_remove(struct spi_device *spi)
-{
-	ade7854_remove(spi_get_drvdata(spi));
-
-	return 0;
-}
 static const struct spi_device_id ade7854_id[] = {
 	{ "ade7854", 0 },
 	{ "ade7858", 0 },
@@ -314,10 +308,8 @@ MODULE_DEVICE_TABLE(spi, ade7854_id);
 static struct spi_driver ade7854_driver = {
 	.driver = {
 		.name = "ade7854",
-		.owner = THIS_MODULE,
 	},
 	.probe = ade7854_spi_probe,
-	.remove = ade7854_spi_remove,
 	.id_table = ade7854_id,
 };
 module_spi_driver(ade7854_driver);

@@ -110,7 +110,7 @@ Flags are passed to the host in the low 12 bits of the Effective Address.
 
 The following flags are currently available for a guest to expose:
 
-  MAGIC_PAGE_FLAG_NOT_MAPPED_NX Guest handles NX bits correclty wrt magic page
+  MAGIC_PAGE_FLAG_NOT_MAPPED_NX Guest handles NX bits correctly wrt magic page
 
 MSR bits
 ========

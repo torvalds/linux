@@ -727,11 +727,6 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 			spi->chip_select, spi->cs_gpio, err);
 		return err;
 	}
-	/* the implementation of pinctrl-bcm2835 currently does not
-	 * set the GPIO value when using gpio_direction_output
-	 * so we are setting it here explicitly
-	 */
-	gpio_set_value(spi->cs_gpio, (spi->mode & SPI_CS_HIGH) ? 0 : 1);
 
 	return 0;
 }
@@ -777,7 +772,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 		goto out_master_put;
 	}
 
-	bs->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	bs->irq = platform_get_irq(pdev, 0);
 	if (bs->irq <= 0) {
 		dev_err(&pdev->dev, "could not get IRQ: %d\n", bs->irq);
 		err = bs->irq ? bs->irq : -ENODEV;
@@ -786,18 +781,18 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(bs->clk);
 
+	bcm2835_dma_init(master, &pdev->dev);
+
+	/* initialise the hardware with the default polarities */
+	bcm2835_wr(bs, BCM2835_SPI_CS,
+		   BCM2835_SPI_CS_CLEAR_RX | BCM2835_SPI_CS_CLEAR_TX);
+
 	err = devm_request_irq(&pdev->dev, bs->irq, bcm2835_spi_interrupt, 0,
 			       dev_name(&pdev->dev), master);
 	if (err) {
 		dev_err(&pdev->dev, "could not request IRQ: %d\n", err);
 		goto out_clk_disable;
 	}
-
-	bcm2835_dma_init(master, &pdev->dev);
-
-	/* initialise the hardware with the default polarities */
-	bcm2835_wr(bs, BCM2835_SPI_CS,
-		   BCM2835_SPI_CS_CLEAR_RX | BCM2835_SPI_CS_CLEAR_TX);
 
 	err = devm_spi_register_master(&pdev->dev, master);
 	if (err) {

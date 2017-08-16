@@ -74,8 +74,8 @@ static void vpbe_isr_even_field(struct vpbe_display *disp_obj,
 	if (layer->cur_frm == layer->next_frm)
 		return;
 
-	v4l2_get_timestamp(&layer->cur_frm->vb.v4l2_buf.timestamp);
-	vb2_buffer_done(&layer->cur_frm->vb, VB2_BUF_STATE_DONE);
+	layer->cur_frm->vb.vb2_buf.timestamp = ktime_get_ns();
+	vb2_buffer_done(&layer->cur_frm->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	/* Make cur_frm pointing to next_frm */
 	layer->cur_frm = layer->next_frm;
 }
@@ -104,8 +104,8 @@ static void vpbe_isr_odd_field(struct vpbe_display *disp_obj,
 	list_del(&layer->next_frm->list);
 	spin_unlock(&disp_obj->dma_queue_lock);
 	/* Mark state of the frame to active */
-	layer->next_frm->vb.state = VB2_BUF_STATE_ACTIVE;
-	addr = vb2_dma_contig_plane_dma_addr(&layer->next_frm->vb, 0);
+	layer->next_frm->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+	addr = vb2_dma_contig_plane_dma_addr(&layer->next_frm->vb.vb2_buf, 0);
 	osd_device->ops.start_layer(osd_device,
 			layer->layer_info.id,
 			addr,
@@ -228,9 +228,9 @@ static int vpbe_buffer_prepare(struct vb2_buffer *vb)
  * This function allocates memory for the buffers
  */
 static int
-vpbe_buffer_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+vpbe_buffer_queue_setup(struct vb2_queue *vq,
 			unsigned int *nbuffers, unsigned int *nplanes,
-			unsigned int sizes[], void *alloc_ctxs[])
+			unsigned int sizes[], struct device *alloc_devs[])
 
 {
 	/* Get the file handle object and layer object */
@@ -239,16 +239,15 @@ vpbe_buffer_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "vpbe_buffer_setup\n");
 
-	if (fmt && fmt->fmt.pix.sizeimage < layer->pix_fmt.sizeimage)
-		return -EINVAL;
-
 	/* Store number of buffers allocated in numbuffer member */
 	if (vq->num_buffers + *nbuffers < VPBE_DEFAULT_NUM_BUFS)
 		*nbuffers = VPBE_DEFAULT_NUM_BUFS - vq->num_buffers;
 
+	if (*nplanes)
+		return sizes[0] < layer->pix_fmt.sizeimage ? -EINVAL : 0;
+
 	*nplanes = 1;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : layer->pix_fmt.sizeimage;
-	alloc_ctxs[0] = layer->alloc_ctx;
+	sizes[0] = layer->pix_fmt.sizeimage;
 
 	return 0;
 }
@@ -259,8 +258,9 @@ vpbe_buffer_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
  */
 static void vpbe_buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	/* Get the file handle object and layer object */
-	struct vpbe_disp_buffer *buf = container_of(vb,
+	struct vpbe_disp_buffer *buf = container_of(vbuf,
 				struct vpbe_disp_buffer, vb);
 	struct vpbe_layer *layer = vb2_get_drv_priv(vb->vb2_queue);
 	struct vpbe_display *disp = layer->disp_dev;
@@ -290,7 +290,7 @@ static int vpbe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* Remove buffer from the buffer queue */
 	list_del(&layer->cur_frm->list);
 	/* Mark state of the current frame to active */
-	layer->cur_frm->vb.state = VB2_BUF_STATE_ACTIVE;
+	layer->cur_frm->vb.vb2_buf.state = VB2_BUF_STATE_ACTIVE;
 	/* Initialize field_id and started member */
 	layer->field_id = 0;
 
@@ -299,10 +299,12 @@ static int vpbe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (ret < 0) {
 		struct vpbe_disp_buffer *buf, *tmp;
 
-		vb2_buffer_done(&layer->cur_frm->vb, VB2_BUF_STATE_QUEUED);
+		vb2_buffer_done(&layer->cur_frm->vb.vb2_buf,
+				VB2_BUF_STATE_QUEUED);
 		list_for_each_entry_safe(buf, tmp, &layer->dma_queue, list) {
 			list_del(&buf->list);
-			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
+			vb2_buffer_done(&buf->vb.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
 
 		return ret;
@@ -332,13 +334,14 @@ static void vpbe_stop_streaming(struct vb2_queue *vq)
 	/* release all active buffers */
 	spin_lock_irqsave(&disp->dma_queue_lock, flags);
 	if (layer->cur_frm == layer->next_frm) {
-		vb2_buffer_done(&layer->cur_frm->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&layer->cur_frm->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 	} else {
 		if (layer->cur_frm != NULL)
-			vb2_buffer_done(&layer->cur_frm->vb,
+			vb2_buffer_done(&layer->cur_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
 		if (layer->next_frm != NULL)
-			vb2_buffer_done(&layer->next_frm->vb,
+			vb2_buffer_done(&layer->next_frm->vb.vb2_buf,
 					VB2_BUF_STATE_ERROR);
 	}
 
@@ -346,7 +349,8 @@ static void vpbe_stop_streaming(struct vb2_queue *vq)
 		layer->next_frm = list_entry(layer->dma_queue.next,
 						struct vpbe_disp_buffer, list);
 		list_del(&layer->next_frm->list);
-		vb2_buffer_done(&layer->next_frm->vb, VB2_BUF_STATE_ERROR);
+		vb2_buffer_done(&layer->next_frm->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&disp->dma_queue_lock, flags);
 }
@@ -383,7 +387,7 @@ static int vpbe_set_osd_display_params(struct vpbe_display *disp_dev,
 	unsigned long addr;
 	int ret;
 
-	addr = vb2_dma_contig_plane_dma_addr(&layer->cur_frm->vb, 0);
+	addr = vb2_dma_contig_plane_dma_addr(&layer->cur_frm->vb.vb2_buf, 0);
 	/* Set address in the display registers */
 	osd_device->ops.start_layer(osd_device,
 				    layer->layer_info.id,
@@ -436,7 +440,7 @@ vpbe_disp_calculate_scale_factor(struct vpbe_display *disp_dev,
 	/*
 	 * Application initially set the image format. Current display
 	 * size is obtained from the vpbe display controller. expected_xsize
-	 * and expected_ysize are set through S_CROP ioctl. Based on this,
+	 * and expected_ysize are set through S_SELECTION ioctl. Based on this,
 	 * driver will calculate the scale factors for vertical and
 	 * horizontal direction so that the image is displayed scaled
 	 * and expanded. Application uses expansion to display the image
@@ -645,24 +649,23 @@ static int vpbe_display_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vpbe_display_s_crop(struct file *file, void *priv,
-			     const struct v4l2_crop *crop)
+static int vpbe_display_s_selection(struct file *file, void *priv,
+			     struct v4l2_selection *sel)
 {
 	struct vpbe_layer *layer = video_drvdata(file);
 	struct vpbe_display *disp_dev = layer->disp_dev;
 	struct vpbe_device *vpbe_dev = disp_dev->vpbe_dev;
 	struct osd_layer_config *cfg = &layer->layer_info.config;
 	struct osd_state *osd_device = disp_dev->osd_device;
-	struct v4l2_rect rect = crop->c;
+	struct v4l2_rect rect = sel->r;
 	int ret;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,
-		"VIDIOC_S_CROP, layer id = %d\n", layer->device_id);
+		"VIDIOC_S_SELECTION, layer id = %d\n", layer->device_id);
 
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		v4l2_err(&vpbe_dev->v4l2_dev, "Invalid buf type\n");
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_OUTPUT ||
+	    sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
-	}
 
 	if (rect.top < 0)
 		rect.top = 0;
@@ -710,32 +713,45 @@ static int vpbe_display_s_crop(struct file *file, void *priv,
 	else
 		osd_device->ops.set_interpolation_filter(osd_device, 0);
 
+	sel->r = rect;
 	return 0;
 }
 
-static int vpbe_display_g_crop(struct file *file, void *priv,
-			     struct v4l2_crop *crop)
+static int vpbe_display_g_selection(struct file *file, void *priv,
+				    struct v4l2_selection *sel)
 {
 	struct vpbe_layer *layer = video_drvdata(file);
 	struct osd_layer_config *cfg = &layer->layer_info.config;
 	struct vpbe_device *vpbe_dev = layer->disp_dev->vpbe_dev;
 	struct osd_state *osd_device = layer->disp_dev->osd_device;
-	struct v4l2_rect *rect = &crop->c;
+	struct v4l2_rect *rect = &sel->r;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,
-			"VIDIOC_G_CROP, layer id = %d\n",
+			"VIDIOC_G_SELECTION, layer id = %d\n",
 			layer->device_id);
 
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		v4l2_err(&vpbe_dev->v4l2_dev, "Invalid buf type\n");
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return -EINVAL;
+
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+		osd_device->ops.get_layer_config(osd_device,
+						 layer->layer_info.id, cfg);
+		rect->top = cfg->ypos;
+		rect->left = cfg->xpos;
+		rect->width = cfg->xsize;
+		rect->height = cfg->ysize;
+		break;
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		rect->left = 0;
+		rect->top = 0;
+		rect->width = vpbe_dev->current_timings.xres;
+		rect->height = vpbe_dev->current_timings.yres;
+		break;
+	default:
 		return -EINVAL;
 	}
-	osd_device->ops.get_layer_config(osd_device,
-				layer->layer_info.id, cfg);
-	rect->top = cfg->ypos;
-	rect->left = cfg->xpos;
-	rect->width = cfg->xsize;
-	rect->height = cfg->ysize;
 
 	return 0;
 }
@@ -748,13 +764,10 @@ static int vpbe_display_cropcap(struct file *file, void *priv,
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "VIDIOC_CROPCAP ioctl\n");
 
-	cropcap->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-	cropcap->bounds.left = 0;
-	cropcap->bounds.top = 0;
-	cropcap->bounds.width = vpbe_dev->current_timings.xres;
-	cropcap->bounds.height = vpbe_dev->current_timings.yres;
+	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return -EINVAL;
+
 	cropcap->pixelaspect = vpbe_dev->current_timings.aspect;
-	cropcap->defrect = cropcap->bounds;
 	return 0;
 }
 
@@ -1247,8 +1260,8 @@ static const struct v4l2_ioctl_ops vpbe_ioctl_ops = {
 	.vidioc_expbuf		 = vb2_ioctl_expbuf,
 
 	.vidioc_cropcap		 = vpbe_display_cropcap,
-	.vidioc_g_crop		 = vpbe_display_g_crop,
-	.vidioc_s_crop		 = vpbe_display_s_crop,
+	.vidioc_g_selection	 = vpbe_display_g_selection,
+	.vidioc_s_selection	 = vpbe_display_s_selection,
 
 	.vidioc_s_std		 = vpbe_display_s_std,
 	.vidioc_g_std		 = vpbe_display_g_std,
@@ -1446,17 +1459,10 @@ static int vpbe_display_probe(struct platform_device *pdev)
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 1;
 		q->lock = &disp_dev->dev[i]->opslock;
+		q->dev = disp_dev->vpbe_dev->pdev;
 		err = vb2_queue_init(q);
 		if (err) {
 			v4l2_err(v4l2_dev, "vb2_queue_init() failed\n");
-			goto probe_out;
-		}
-
-		disp_dev->dev[i]->alloc_ctx =
-			vb2_dma_contig_init_ctx(disp_dev->vpbe_dev->pdev);
-		if (IS_ERR(disp_dev->dev[i]->alloc_ctx)) {
-			v4l2_err(v4l2_dev, "Failed to get the context\n");
-			err = PTR_ERR(disp_dev->dev[i]->alloc_ctx);
 			goto probe_out;
 		}
 
@@ -1477,7 +1483,6 @@ probe_out:
 	for (k = 0; k < VPBE_DISPLAY_MAX_DEVICES; k++) {
 		/* Unregister video device */
 		if (disp_dev->dev[k] != NULL) {
-			vb2_dma_contig_cleanup_ctx(disp_dev->dev[k]->alloc_ctx);
 			video_unregister_device(&disp_dev->dev[k]->video_dev);
 			kfree(disp_dev->dev[k]);
 		}
@@ -1505,7 +1510,6 @@ static int vpbe_display_remove(struct platform_device *pdev)
 	for (i = 0; i < VPBE_DISPLAY_MAX_DEVICES; i++) {
 		/* Get the pointer to the layer object */
 		vpbe_display_layer = disp_dev->dev[i];
-		vb2_dma_contig_cleanup_ctx(vpbe_display_layer->alloc_ctx);
 		/* Unregister video device */
 		video_unregister_device(&vpbe_display_layer->video_dev);
 

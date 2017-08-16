@@ -180,6 +180,10 @@ enum {
 #define CPER_SEC_PROC_IPF						\
 	UUID_LE(0xE429FAF1, 0x3CB7, 0x11D4, 0x0B, 0xCA, 0x07, 0x00,	\
 		0x80, 0xC7, 0x3C, 0x88, 0x81)
+/* Processor Specific: ARM */
+#define CPER_SEC_PROC_ARM						\
+	UUID_LE(0xE19E3D16, 0xBC11, 0x11E4, 0x9C, 0xAA, 0xC2, 0x05,	\
+		0x1D, 0x5D, 0x46, 0xB0)
 /* Platform Memory */
 #define CPER_SEC_PLATFORM_MEM						\
 	UUID_LE(0xA5BC1114, 0x6F64, 0x4EDE, 0xB8, 0x63, 0x3E, 0x83,	\
@@ -254,6 +258,22 @@ enum {
 #define CPER_PCIE_VALID_AER_INFO		0x0080
 
 #define CPER_PCIE_SLOT_SHIFT			3
+
+#define CPER_ARM_VALID_MPIDR			BIT(0)
+#define CPER_ARM_VALID_AFFINITY_LEVEL		BIT(1)
+#define CPER_ARM_VALID_RUNNING_STATE		BIT(2)
+#define CPER_ARM_VALID_VENDOR_INFO		BIT(3)
+
+#define CPER_ARM_INFO_VALID_MULTI_ERR		BIT(0)
+#define CPER_ARM_INFO_VALID_FLAGS		BIT(1)
+#define CPER_ARM_INFO_VALID_ERR_INFO		BIT(2)
+#define CPER_ARM_INFO_VALID_VIRT_ADDR		BIT(3)
+#define CPER_ARM_INFO_VALID_PHYSICAL_ADDR	BIT(4)
+
+#define CPER_ARM_INFO_FLAGS_FIRST		BIT(0)
+#define CPER_ARM_INFO_FLAGS_LAST		BIT(1)
+#define CPER_ARM_INFO_FLAGS_PROPAGATED		BIT(2)
+#define CPER_ARM_INFO_FLAGS_OVERFLOW		BIT(3)
 
 /*
  * All tables and structs must be byte-packed to match CPER
@@ -338,6 +358,40 @@ struct cper_ia_proc_ctx {
 	__u16	reg_arr_size;
 	__u32	msr_addr;
 	__u64	mm_reg_addr;
+};
+
+/* ARM Processor Error Section */
+struct cper_sec_proc_arm {
+	__u32	validation_bits;
+	__u16	err_info_num;		/* Number of Processor Error Info */
+	__u16	context_info_num;	/* Number of Processor Context Info Records*/
+	__u32	section_length;
+	__u8	affinity_level;
+	__u8	reserved[3];		/* must be zero */
+	__u64	mpidr;
+	__u64	midr;
+	__u32	running_state;		/* Bit 0 set - Processor running. PSCI = 0 */
+	__u32	psci_state;
+};
+
+/* ARM Processor Error Information Structure */
+struct cper_arm_err_info {
+	__u8	version;
+	__u8	length;
+	__u16	validation_bits;
+	__u8	type;
+	__u16	multiple_error;
+	__u8	flags;
+	__u64	error_info;
+	__u64	virt_fault_addr;
+	__u64	physical_fault_addr;
+};
+
+/* ARM Processor Context Information Structure */
+struct cper_arm_ctx_info {
+	__u16	version;
+	__u16	type;
+	__u32	size;
 };
 
 /* Old Memory Error Section UEFI 2.1, 2.2 */

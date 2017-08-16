@@ -1,0 +1,68 @@
+Device-Tree bindings for Samsung Exynos7 SoC display controller (DECON)
+
+DECON (Display and Enhancement Controller) is the Display Controller for the
+Exynos7 series of SoCs which transfers the image data from a video memory
+buffer to an external LCD interface.
+
+Required properties:
+- compatible: value should be "samsung,exynos7-decon";
+
+- reg: physical base address and length of the DECON registers set.
+
+- interrupt-parent: should be the phandle of the decon controller's
+		parent interrupt controller.
+
+- interrupts: should contain a list of all DECON IP block interrupts in the
+		 order: FIFO Level, VSYNC, LCD_SYSTEM. The interrupt specifier
+		 format depends on the interrupt controller used.
+
+- interrupt-names: should contain the interrupt names: "fifo", "vsync",
+	"lcd_sys", in the same order as they were listed in the interrupts
+        property.
+
+- pinctrl-0: pin control group to be used for this controller.
+
+- pinctrl-names: must contain a "default" entry.
+
+- clocks: must include clock specifiers corresponding to entries in the
+         clock-names property.
+
+- clock-names: list of clock names sorted in the same order as the clocks
+               property. Must contain "pclk_decon0", "aclk_decon0",
+	       "decon0_eclk", "decon0_vclk".
+- i80-if-timings: timing configuration for lcd i80 interface support.
+
+Optional Properties:
+- power-domains: a phandle to DECON power domain node.
+- display-timings: timing settings for DECON, as described in document [1].
+		Can be used in case timings cannot be provided otherwise
+		or to override timings provided by the panel.
+
+[1]: Documentation/devicetree/bindings/display/panel/display-timing.txt
+
+Example:
+
+SoC specific DT entry:
+
+	decon@13930000 {
+		compatible = "samsung,exynos7-decon";
+		interrupt-parent = <&combiner>;
+		reg = <0x13930000 0x1000>;
+		interrupt-names = "lcd_sys", "vsync", "fifo";
+		interrupts = <0 188 0>, <0 189 0>, <0 190 0>;
+		clocks = <&clock_disp PCLK_DECON_INT>,
+			 <&clock_disp ACLK_DECON_INT>,
+			 <&clock_disp SCLK_DECON_INT_ECLK>,
+			 <&clock_disp SCLK_DECON_INT_EXTCLKPLL>;
+		clock-names = "pclk_decon0", "aclk_decon0", "decon0_eclk",
+				"decon0_vclk";
+		status = "disabled";
+	};
+
+Board specific DT entry:
+
+	decon@13930000 {
+		pinctrl-0 = <&lcd_clk &pwm1_out>;
+		pinctrl-names = "default";
+		status = "okay";
+	};

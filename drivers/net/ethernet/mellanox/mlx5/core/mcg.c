@@ -37,70 +37,30 @@
 #include <rdma/ib_verbs.h>
 #include "mlx5_core.h"
 
-struct mlx5_attach_mcg_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			qpn;
-	__be32			rsvd;
-	u8			gid[16];
-};
-
-struct mlx5_attach_mcg_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvf[8];
-};
-
-struct mlx5_detach_mcg_mbox_in {
-	struct mlx5_inbox_hdr	hdr;
-	__be32			qpn;
-	__be32			rsvd;
-	u8			gid[16];
-};
-
-struct mlx5_detach_mcg_mbox_out {
-	struct mlx5_outbox_hdr	hdr;
-	u8			rsvf[8];
-};
-
 int mlx5_core_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn)
 {
-	struct mlx5_attach_mcg_mbox_in in;
-	struct mlx5_attach_mcg_mbox_out out;
-	int err;
+	u32 out[MLX5_ST_SZ_DW(attach_to_mcg_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(attach_to_mcg_in)]   = {0};
+	void *gid;
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_ATTACH_TO_MCG);
-	memcpy(in.gid, mgid, sizeof(*mgid));
-	in.qpn = cpu_to_be32(qpn);
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
-	if (err)
-		return err;
-
-	if (out.hdr.status)
-		err = mlx5_cmd_status_to_err(&out.hdr);
-
-	return err;
+	MLX5_SET(attach_to_mcg_in, in, opcode, MLX5_CMD_OP_ATTACH_TO_MCG);
+	MLX5_SET(attach_to_mcg_in, in, qpn, qpn);
+	gid = MLX5_ADDR_OF(attach_to_mcg_in, in, multicast_gid);
+	memcpy(gid, mgid, sizeof(*mgid));
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_core_attach_mcg);
 
 int mlx5_core_detach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn)
 {
-	struct mlx5_detach_mcg_mbox_in in;
-	struct mlx5_detach_mcg_mbox_out out;
-	int err;
+	u32 out[MLX5_ST_SZ_DW(detach_from_mcg_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(detach_from_mcg_in)]   = {0};
+	void *gid;
 
-	memset(&in, 0, sizeof(in));
-	memset(&out, 0, sizeof(out));
-	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_DETTACH_FROM_MCG);
-	memcpy(in.gid, mgid, sizeof(*mgid));
-	in.qpn = cpu_to_be32(qpn);
-	err = mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
-	if (err)
-		return err;
-
-	if (out.hdr.status)
-		err = mlx5_cmd_status_to_err(&out.hdr);
-
-	return err;
+	MLX5_SET(detach_from_mcg_in, in, opcode, MLX5_CMD_OP_DETACH_FROM_MCG);
+	MLX5_SET(detach_from_mcg_in, in, qpn, qpn);
+	gid = MLX5_ADDR_OF(detach_from_mcg_in, in, multicast_gid);
+	memcpy(gid, mgid, sizeof(*mgid));
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_core_detach_mcg);

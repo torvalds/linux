@@ -16,13 +16,13 @@
 
 #include <linux/timer.h>
 #include <linux/mutex.h>
+#include <linux/uaccess.h>
 
 #include "picvue.h"
 
 static DEFINE_MUTEX(pvc_mutex);
 static char pvc_lines[PVC_NLINES][PVC_LINELEN+1];
 static int pvc_linedata[PVC_NLINES];
-static struct proc_dir_entry *pvc_display_dir;
 static char *pvc_linename[PVC_NLINES] = {"line1", "line2"};
 #define DISPLAY_DIR_NAME "display"
 static int scroll_dir, scroll_interval;
@@ -44,7 +44,7 @@ static int pvc_line_proc_show(struct seq_file *m, void *v)
 {
 	int lineno = *(int *)m->private;
 
-	if (lineno < 0 || lineno > PVC_NLINES) {
+	if (lineno < 0 || lineno >= PVC_NLINES) {
 		printk(KERN_WARNING "proc_read_line: invalid lineno %d\n", lineno);
 		return 0;
 	}
@@ -68,7 +68,7 @@ static ssize_t pvc_line_proc_write(struct file *file, const char __user *buf,
 	char kbuf[PVC_LINELEN];
 	size_t len;
 
-	BUG_ON(lineno < 0 || lineno > PVC_NLINES);
+	BUG_ON(lineno < 0 || lineno >= PVC_NLINES);
 
 	len = min(count, sizeof(kbuf) - 1);
 	if (copy_from_user(kbuf, buf, len))
@@ -169,22 +169,17 @@ void pvc_proc_timerfunc(unsigned long data)
 
 static void pvc_proc_cleanup(void)
 {
-	int i;
-	for (i = 0; i < PVC_NLINES; i++)
-		remove_proc_entry(pvc_linename[i], pvc_display_dir);
-	remove_proc_entry("scroll", pvc_display_dir);
-	remove_proc_entry(DISPLAY_DIR_NAME, NULL);
-
+	remove_proc_subtree(DISPLAY_DIR_NAME, NULL);
 	del_timer_sync(&timer);
 }
 
 static int __init pvc_proc_init(void)
 {
-	struct proc_dir_entry *proc_entry;
+	struct proc_dir_entry *dir, *proc_entry;
 	int i;
 
-	pvc_display_dir = proc_mkdir(DISPLAY_DIR_NAME, NULL);
-	if (pvc_display_dir == NULL)
+	dir = proc_mkdir(DISPLAY_DIR_NAME, NULL);
+	if (dir == NULL)
 		goto error;
 
 	for (i = 0; i < PVC_NLINES; i++) {
@@ -192,12 +187,12 @@ static int __init pvc_proc_init(void)
 		pvc_linedata[i] = i;
 	}
 	for (i = 0; i < PVC_NLINES; i++) {
-		proc_entry = proc_create_data(pvc_linename[i], 0644, pvc_display_dir,
+		proc_entry = proc_create_data(pvc_linename[i], 0644, dir,
 					&pvc_line_proc_fops, &pvc_linedata[i]);
 		if (proc_entry == NULL)
 			goto error;
 	}
-	proc_entry = proc_create("scroll", 0644, pvc_display_dir,
+	proc_entry = proc_create("scroll", 0644, dir,
 				 &pvc_scroll_proc_fops);
 	if (proc_entry == NULL)
 		goto error;

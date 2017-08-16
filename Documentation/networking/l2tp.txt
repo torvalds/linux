@@ -177,10 +177,10 @@ setsockopt on the PPPoX socket to set a debug mask.
 
 The following debug mask bits are available:
 
-PPPOL2TP_MSG_DEBUG    verbose debug (if compiled in)
-PPPOL2TP_MSG_CONTROL  userspace - kernel interface
-PPPOL2TP_MSG_SEQ      sequence numbers handling
-PPPOL2TP_MSG_DATA     data packets
+L2TP_MSG_DEBUG    verbose debug (if compiled in)
+L2TP_MSG_CONTROL  userspace - kernel interface
+L2TP_MSG_SEQ      sequence numbers handling
+L2TP_MSG_DATA     data packets
 
 If enabled, files under a l2tp debugfs directory can be used to dump
 kernel state about L2TP tunnels and sessions. To access it, the
@@ -213,15 +213,12 @@ To create an L2TPv3 ethernet pseudowire between local host 192.168.1.1
 and peer 192.168.1.2, using IP addresses 10.5.1.1 and 10.5.1.2 for the
 tunnel endpoints:-
 
-# modprobe l2tp_eth
-# modprobe l2tp_netlink
-
 # ip l2tp add tunnel tunnel_id 1 peer_tunnel_id 1 udp_sport 5000 \
   udp_dport 5000 encap udp local 192.168.1.1 remote 192.168.1.2
 # ip l2tp add session tunnel_id 1 session_id 1 peer_session_id 1
-# ifconfig -a
+# ip -s -d show dev l2tpeth0
 # ip addr add 10.5.1.2/32 peer 10.5.1.1/32 dev l2tpeth0
-# ifconfig l2tpeth0 up
+# ip li set dev l2tpeth0 up
 
 Choose IP addresses to be the address of a local IP interface and that
 of the remote system. The IP addresses of the l2tpeth0 interface can be

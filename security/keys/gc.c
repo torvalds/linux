@@ -46,7 +46,7 @@ static unsigned long key_gc_flags;
  * immediately unlinked.
  */
 struct key_type key_type_dead = {
-	.name = "dead",
+	.name = ".dead",
 };
 
 /*
@@ -134,8 +134,10 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 		kdebug("- %u", key->serial);
 		key_check(key);
 
-		/* Throw away the key data */
-		if (key->type->destroy)
+		/* Throw away the key data if the key is instantiated */
+		if (test_bit(KEY_FLAG_INSTANTIATED, &key->flags) &&
+		    !test_bit(KEY_FLAG_NEGATIVE, &key->flags) &&
+		    key->type->destroy)
 			key->type->destroy(key);
 
 		security_key_free(key);
@@ -156,9 +158,7 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 
 		kfree(key->description);
 
-#ifdef KEY_DEBUGGING
-		key->magic = KEY_DEBUG_MAGIC_X;
-#endif
+		memzero_explicit(key, sizeof(*key));
 		kmem_cache_free(key_jar, key);
 	}
 }
@@ -218,7 +218,7 @@ continue_scanning:
 		key = rb_entry(cursor, struct key, serial_node);
 		cursor = rb_next(cursor);
 
-		if (atomic_read(&key->usage) == 0)
+		if (refcount_read(&key->usage) == 0)
 			goto found_unreferenced_key;
 
 		if (unlikely(gc_state & KEY_GC_REAPING_DEAD_1)) {
@@ -227,6 +227,9 @@ continue_scanning:
 				set_bit(KEY_FLAG_DEAD, &key->flags);
 				key->perm = 0;
 				goto skip_dead_key;
+			} else if (key->type == &key_type_keyring &&
+				   key->restrict_link) {
+				goto found_restricted_keyring;
 			}
 		}
 
@@ -330,6 +333,14 @@ found_unreferenced_key:
 
 	list_add_tail(&key->graveyard_link, &graveyard);
 	gc_state |= KEY_GC_REAP_AGAIN;
+	goto maybe_resched;
+
+	/* We found a restricted keyring and need to update the restriction if
+	 * it is associated with the dead key type.
+	 */
+found_restricted_keyring:
+	spin_unlock(&key_serial_lock);
+	keyring_restriction_gc(key, key_gc_dead_keytype);
 	goto maybe_resched;
 
 	/* We found a keyring and we need to check the payload for links to

@@ -181,7 +181,7 @@ static void net2272_dequeue_all(struct net2272_ep *);
 static int net2272_kick_dma(struct net2272_ep *, struct net2272_request *);
 static int net2272_fifo_status(struct usb_ep *);
 
-static struct usb_ep_ops net2272_ep_ops;
+static const struct usb_ep_ops net2272_ep_ops;
 
 /*---------------------------------------------------------------------------*/
 
@@ -202,10 +202,10 @@ net2272_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
 
-	max = usb_endpoint_maxp(desc) & 0x1fff;
+	max = usb_endpoint_maxp(desc);
 
 	spin_lock_irqsave(&dev->lock, flags);
-	_ep->maxpacket = max & 0x7fff;
+	_ep->maxpacket = max;
 	ep->desc = desc;
 
 	/* net2272_ep_reset() has already been called */
@@ -329,12 +329,10 @@ static int net2272_disable(struct usb_ep *_ep)
 static struct usb_request *
 net2272_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 {
-	struct net2272_ep *ep;
 	struct net2272_request *req;
 
 	if (!_ep)
 		return NULL;
-	ep = container_of(_ep, struct net2272_ep, ep);
 
 	req = kzalloc(sizeof(*req), gfp_flags);
 	if (!req)
@@ -348,10 +346,8 @@ net2272_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 static void
 net2272_free_request(struct usb_ep *_ep, struct usb_request *_req)
 {
-	struct net2272_ep *ep;
 	struct net2272_request *req;
 
-	ep = container_of(_ep, struct net2272_ep, ep);
 	if (!_ep || !_req)
 		return;
 
@@ -657,7 +653,7 @@ net2272_request_dma(struct net2272 *dev, unsigned ep, u32 buf,
 	dev->dma_busy = 1;
 
 	/* initialize platform's dma */
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	/* NET2272 addr, buffer addr, length, etc. */
 	switch (dev->dev_id) {
 	case PCI_DEVICE_ID_RDK1:
@@ -705,7 +701,7 @@ static void
 net2272_start_dma(struct net2272 *dev)
 {
 	/* start platform's dma controller */
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	switch (dev->dev_id) {
 	case PCI_DEVICE_ID_RDK1:
 		writeb((1 << CHANNEL_ENABLE) | (1 << CHANNEL_START),
@@ -801,7 +797,7 @@ net2272_kick_dma(struct net2272_ep *ep, struct net2272_request *req)
 
 static void net2272_cancel_dma(struct net2272 *dev)
 {
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	switch (dev->dev_id) {
 	case PCI_DEVICE_ID_RDK1:
 		writeb(0, dev->rdk1.plx9054_base_addr + DMACSR0);
@@ -1071,7 +1067,7 @@ net2272_fifo_flush(struct usb_ep *_ep)
 	net2272_ep_write(ep, EP_STAT1, 1 << BUFFER_FLUSH);
 }
 
-static struct usb_ep_ops net2272_ep_ops = {
+static const struct usb_ep_ops net2272_ep_ops = {
 	.enable        = net2272_enable,
 	.disable       = net2272_disable,
 
@@ -2310,7 +2306,7 @@ err_add_udc:
 	return ret;
 }
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 
 /*
  * wrap this driver around the specified device, but

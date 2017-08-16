@@ -8,20 +8,21 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2015-05-20 20:03:07)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2576 bytes, from 2015-07-09 22:10:24)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  36021 bytes, from 2015-07-09 22:10:24)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  26057 bytes, from 2015-08-14 21:47:57)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    344 bytes, from 2015-05-20 20:03:07)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2015-05-20 20:03:07)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  29154 bytes, from 2015-08-10 21:25:43)
-- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1572 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  37411 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  33004 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    602 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2017-05-17 13:21:27)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  41799 bytes, from 2017-06-16 12:32:42)
+- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2017-05-17 13:21:27)
 
-Copyright (C) 2013-2015 by the following authors:
+Copyright (C) 2013-2017 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
+- Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -567,114 +568,234 @@ static inline uint32_t DSI_VERSION_MAJOR(uint32_t val)
 #define REG_DSI_8x60_PHY_CAL_STATUS				0x000000fc
 #define DSI_8x60_PHY_CAL_STATUS_CAL_BUSY			0x10000000
 
-static inline uint32_t REG_DSI_8960_LN(uint32_t i0) { return 0x00000300 + 0x40*i0; }
+static inline uint32_t REG_DSI_28nm_8960_PHY_LN(uint32_t i0) { return 0x00000000 + 0x40*i0; }
 
-static inline uint32_t REG_DSI_8960_LN_CFG_0(uint32_t i0) { return 0x00000300 + 0x40*i0; }
+static inline uint32_t REG_DSI_28nm_8960_PHY_LN_CFG_0(uint32_t i0) { return 0x00000000 + 0x40*i0; }
 
-static inline uint32_t REG_DSI_8960_LN_CFG_1(uint32_t i0) { return 0x00000304 + 0x40*i0; }
+static inline uint32_t REG_DSI_28nm_8960_PHY_LN_CFG_1(uint32_t i0) { return 0x00000004 + 0x40*i0; }
 
-static inline uint32_t REG_DSI_8960_LN_CFG_2(uint32_t i0) { return 0x00000308 + 0x40*i0; }
+static inline uint32_t REG_DSI_28nm_8960_PHY_LN_CFG_2(uint32_t i0) { return 0x00000008 + 0x40*i0; }
 
-static inline uint32_t REG_DSI_8960_LN_TEST_DATAPATH(uint32_t i0) { return 0x0000030c + 0x40*i0; }
+static inline uint32_t REG_DSI_28nm_8960_PHY_LN_TEST_DATAPATH(uint32_t i0) { return 0x0000000c + 0x40*i0; }
 
-static inline uint32_t REG_DSI_8960_LN_TEST_STR_0(uint32_t i0) { return 0x00000314 + 0x40*i0; }
+static inline uint32_t REG_DSI_28nm_8960_PHY_LN_TEST_STR_0(uint32_t i0) { return 0x00000014 + 0x40*i0; }
 
-static inline uint32_t REG_DSI_8960_LN_TEST_STR_1(uint32_t i0) { return 0x00000318 + 0x40*i0; }
+static inline uint32_t REG_DSI_28nm_8960_PHY_LN_TEST_STR_1(uint32_t i0) { return 0x00000018 + 0x40*i0; }
 
-#define REG_DSI_8960_PHY_LNCK_CFG_0				0x00000400
+#define REG_DSI_28nm_8960_PHY_LNCK_CFG_0			0x00000100
 
-#define REG_DSI_8960_PHY_LNCK_CFG_1				0x00000404
+#define REG_DSI_28nm_8960_PHY_LNCK_CFG_1			0x00000104
 
-#define REG_DSI_8960_PHY_LNCK_CFG_2				0x00000408
+#define REG_DSI_28nm_8960_PHY_LNCK_CFG_2			0x00000108
 
-#define REG_DSI_8960_PHY_LNCK_TEST_DATAPATH			0x0000040c
+#define REG_DSI_28nm_8960_PHY_LNCK_TEST_DATAPATH		0x0000010c
 
-#define REG_DSI_8960_PHY_LNCK_TEST_STR0				0x00000414
+#define REG_DSI_28nm_8960_PHY_LNCK_TEST_STR0			0x00000114
 
-#define REG_DSI_8960_PHY_LNCK_TEST_STR1				0x00000418
+#define REG_DSI_28nm_8960_PHY_LNCK_TEST_STR1			0x00000118
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_0				0x00000440
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_0			0x00000140
+#define DSI_28nm_8960_PHY_TIMING_CTRL_0_CLK_ZERO__MASK		0x000000ff
+#define DSI_28nm_8960_PHY_TIMING_CTRL_0_CLK_ZERO__SHIFT		0
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_0_CLK_ZERO(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_0_CLK_ZERO__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_0_CLK_ZERO__MASK;
+}
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_1				0x00000444
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_1			0x00000144
+#define DSI_28nm_8960_PHY_TIMING_CTRL_1_CLK_TRAIL__MASK		0x000000ff
+#define DSI_28nm_8960_PHY_TIMING_CTRL_1_CLK_TRAIL__SHIFT	0
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_1_CLK_TRAIL(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_1_CLK_TRAIL__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_1_CLK_TRAIL__MASK;
+}
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_2				0x00000448
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_2			0x00000148
+#define DSI_28nm_8960_PHY_TIMING_CTRL_2_CLK_PREPARE__MASK	0x000000ff
+#define DSI_28nm_8960_PHY_TIMING_CTRL_2_CLK_PREPARE__SHIFT	0
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_2_CLK_PREPARE(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_2_CLK_PREPARE__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_2_CLK_PREPARE__MASK;
+}
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_3				0x0000044c
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_3			0x0000014c
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_4				0x00000450
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_4			0x00000150
+#define DSI_28nm_8960_PHY_TIMING_CTRL_4_HS_EXIT__MASK		0x000000ff
+#define DSI_28nm_8960_PHY_TIMING_CTRL_4_HS_EXIT__SHIFT		0
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_4_HS_EXIT(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_4_HS_EXIT__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_4_HS_EXIT__MASK;
+}
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_5				0x00000454
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_5			0x00000154
+#define DSI_28nm_8960_PHY_TIMING_CTRL_5_HS_ZERO__MASK		0x000000ff
+#define DSI_28nm_8960_PHY_TIMING_CTRL_5_HS_ZERO__SHIFT		0
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_5_HS_ZERO(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_5_HS_ZERO__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_5_HS_ZERO__MASK;
+}
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_6				0x00000458
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_6			0x00000158
+#define DSI_28nm_8960_PHY_TIMING_CTRL_6_HS_PREPARE__MASK	0x000000ff
+#define DSI_28nm_8960_PHY_TIMING_CTRL_6_HS_PREPARE__SHIFT	0
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_6_HS_PREPARE(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_6_HS_PREPARE__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_6_HS_PREPARE__MASK;
+}
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_7				0x0000045c
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_7			0x0000015c
+#define DSI_28nm_8960_PHY_TIMING_CTRL_7_HS_TRAIL__MASK		0x000000ff
+#define DSI_28nm_8960_PHY_TIMING_CTRL_7_HS_TRAIL__SHIFT		0
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_7_HS_TRAIL(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_7_HS_TRAIL__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_7_HS_TRAIL__MASK;
+}
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_8				0x00000460
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_8			0x00000160
+#define DSI_28nm_8960_PHY_TIMING_CTRL_8_HS_RQST__MASK		0x000000ff
+#define DSI_28nm_8960_PHY_TIMING_CTRL_8_HS_RQST__SHIFT		0
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_8_HS_RQST(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_8_HS_RQST__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_8_HS_RQST__MASK;
+}
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_9				0x00000464
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_9			0x00000164
+#define DSI_28nm_8960_PHY_TIMING_CTRL_9_TA_GO__MASK		0x00000007
+#define DSI_28nm_8960_PHY_TIMING_CTRL_9_TA_GO__SHIFT		0
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_9_TA_GO(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_9_TA_GO__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_9_TA_GO__MASK;
+}
+#define DSI_28nm_8960_PHY_TIMING_CTRL_9_TA_SURE__MASK		0x00000070
+#define DSI_28nm_8960_PHY_TIMING_CTRL_9_TA_SURE__SHIFT		4
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_9_TA_SURE(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_9_TA_SURE__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_9_TA_SURE__MASK;
+}
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_10				0x00000468
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_10			0x00000168
+#define DSI_28nm_8960_PHY_TIMING_CTRL_10_TA_GET__MASK		0x00000007
+#define DSI_28nm_8960_PHY_TIMING_CTRL_10_TA_GET__SHIFT		0
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_10_TA_GET(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_10_TA_GET__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_10_TA_GET__MASK;
+}
 
-#define REG_DSI_8960_PHY_TIMING_CTRL_11				0x0000046c
+#define REG_DSI_28nm_8960_PHY_TIMING_CTRL_11			0x0000016c
+#define DSI_28nm_8960_PHY_TIMING_CTRL_11_TRIG3_CMD__MASK	0x000000ff
+#define DSI_28nm_8960_PHY_TIMING_CTRL_11_TRIG3_CMD__SHIFT	0
+static inline uint32_t DSI_28nm_8960_PHY_TIMING_CTRL_11_TRIG3_CMD(uint32_t val)
+{
+	return ((val) << DSI_28nm_8960_PHY_TIMING_CTRL_11_TRIG3_CMD__SHIFT) & DSI_28nm_8960_PHY_TIMING_CTRL_11_TRIG3_CMD__MASK;
+}
 
-#define REG_DSI_8960_PHY_CTRL_0					0x00000470
+#define REG_DSI_28nm_8960_PHY_CTRL_0				0x00000170
 
-#define REG_DSI_8960_PHY_CTRL_1					0x00000474
+#define REG_DSI_28nm_8960_PHY_CTRL_1				0x00000174
 
-#define REG_DSI_8960_PHY_CTRL_2					0x00000478
+#define REG_DSI_28nm_8960_PHY_CTRL_2				0x00000178
 
-#define REG_DSI_8960_PHY_CTRL_3					0x0000047c
+#define REG_DSI_28nm_8960_PHY_CTRL_3				0x0000017c
 
-#define REG_DSI_8960_PHY_STRENGTH_0				0x00000480
+#define REG_DSI_28nm_8960_PHY_STRENGTH_0			0x00000180
 
-#define REG_DSI_8960_PHY_STRENGTH_1				0x00000484
+#define REG_DSI_28nm_8960_PHY_STRENGTH_1			0x00000184
 
-#define REG_DSI_8960_PHY_STRENGTH_2				0x00000488
+#define REG_DSI_28nm_8960_PHY_STRENGTH_2			0x00000188
 
-#define REG_DSI_8960_PHY_BIST_CTRL_0				0x0000048c
+#define REG_DSI_28nm_8960_PHY_BIST_CTRL_0			0x0000018c
 
-#define REG_DSI_8960_PHY_BIST_CTRL_1				0x00000490
+#define REG_DSI_28nm_8960_PHY_BIST_CTRL_1			0x00000190
 
-#define REG_DSI_8960_PHY_BIST_CTRL_2				0x00000494
+#define REG_DSI_28nm_8960_PHY_BIST_CTRL_2			0x00000194
 
-#define REG_DSI_8960_PHY_BIST_CTRL_3				0x00000498
+#define REG_DSI_28nm_8960_PHY_BIST_CTRL_3			0x00000198
 
-#define REG_DSI_8960_PHY_BIST_CTRL_4				0x0000049c
+#define REG_DSI_28nm_8960_PHY_BIST_CTRL_4			0x0000019c
 
-#define REG_DSI_8960_PHY_LDO_CTRL				0x000004b0
+#define REG_DSI_28nm_8960_PHY_LDO_CTRL				0x000001b0
 
-#define REG_DSI_8960_PHY_REGULATOR_CTRL_0			0x00000500
+#define REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CTRL_0		0x00000000
 
-#define REG_DSI_8960_PHY_REGULATOR_CTRL_1			0x00000504
+#define REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CTRL_1		0x00000004
 
-#define REG_DSI_8960_PHY_REGULATOR_CTRL_2			0x00000508
+#define REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CTRL_2		0x00000008
 
-#define REG_DSI_8960_PHY_REGULATOR_CTRL_3			0x0000050c
+#define REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CTRL_3		0x0000000c
 
-#define REG_DSI_8960_PHY_REGULATOR_CTRL_4			0x00000510
+#define REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CTRL_4		0x00000010
 
-#define REG_DSI_8960_PHY_REGULATOR_CAL_PWR_CFG			0x00000518
+#define REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CTRL_5		0x00000014
 
-#define REG_DSI_8960_PHY_CAL_HW_TRIGGER				0x00000528
+#define REG_DSI_28nm_8960_PHY_MISC_REGULATOR_CAL_PWR_CFG	0x00000018
 
-#define REG_DSI_8960_PHY_CAL_SW_CFG_0				0x0000052c
+#define REG_DSI_28nm_8960_PHY_MISC_CAL_HW_TRIGGER		0x00000028
 
-#define REG_DSI_8960_PHY_CAL_SW_CFG_1				0x00000530
+#define REG_DSI_28nm_8960_PHY_MISC_CAL_SW_CFG_0			0x0000002c
 
-#define REG_DSI_8960_PHY_CAL_SW_CFG_2				0x00000534
+#define REG_DSI_28nm_8960_PHY_MISC_CAL_SW_CFG_1			0x00000030
 
-#define REG_DSI_8960_PHY_CAL_HW_CFG_0				0x00000538
+#define REG_DSI_28nm_8960_PHY_MISC_CAL_SW_CFG_2			0x00000034
 
-#define REG_DSI_8960_PHY_CAL_HW_CFG_1				0x0000053c
+#define REG_DSI_28nm_8960_PHY_MISC_CAL_HW_CFG_0			0x00000038
 
-#define REG_DSI_8960_PHY_CAL_HW_CFG_2				0x00000540
+#define REG_DSI_28nm_8960_PHY_MISC_CAL_HW_CFG_1			0x0000003c
 
-#define REG_DSI_8960_PHY_CAL_HW_CFG_3				0x00000544
+#define REG_DSI_28nm_8960_PHY_MISC_CAL_HW_CFG_2			0x00000040
 
-#define REG_DSI_8960_PHY_CAL_HW_CFG_4				0x00000548
+#define REG_DSI_28nm_8960_PHY_MISC_CAL_HW_CFG_3			0x00000044
 
-#define REG_DSI_8960_PHY_CAL_STATUS				0x00000550
-#define DSI_8960_PHY_CAL_STATUS_CAL_BUSY			0x00000010
+#define REG_DSI_28nm_8960_PHY_MISC_CAL_HW_CFG_4			0x00000048
+
+#define REG_DSI_28nm_8960_PHY_MISC_CAL_STATUS			0x00000050
+#define DSI_28nm_8960_PHY_MISC_CAL_STATUS_CAL_BUSY		0x00000010
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_0			0x00000000
+#define DSI_28nm_8960_PHY_PLL_CTRL_0_ENABLE			0x00000001
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_1			0x00000004
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_2			0x00000008
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_3			0x0000000c
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_4			0x00000010
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_5			0x00000014
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_6			0x00000018
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_7			0x0000001c
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_8			0x00000020
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_9			0x00000024
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_10			0x00000028
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_11			0x0000002c
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_12			0x00000030
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_13			0x00000034
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_14			0x00000038
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_15			0x0000003c
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_16			0x00000040
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_17			0x00000044
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_18			0x00000048
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_19			0x0000004c
+
+#define REG_DSI_28nm_8960_PHY_PLL_CTRL_20			0x00000050
+
+#define REG_DSI_28nm_8960_PHY_PLL_RDY				0x00000080
+#define DSI_28nm_8960_PHY_PLL_RDY_PLL_RDY			0x00000001
 
 static inline uint32_t REG_DSI_28nm_PHY_LN(uint32_t i0) { return 0x00000000 + 0x40*i0; }
 
@@ -1182,6 +1303,258 @@ static inline uint32_t DSI_20nm_PHY_TIMING_CTRL_11_TRIG3_CMD(uint32_t val)
 #define REG_DSI_20nm_PHY_REGULATOR_CTRL_5			0x00000014
 
 #define REG_DSI_20nm_PHY_REGULATOR_CAL_PWR_CFG			0x00000018
+
+#define REG_DSI_14nm_PHY_CMN_REVISION_ID0			0x00000000
+
+#define REG_DSI_14nm_PHY_CMN_REVISION_ID1			0x00000004
+
+#define REG_DSI_14nm_PHY_CMN_REVISION_ID2			0x00000008
+
+#define REG_DSI_14nm_PHY_CMN_REVISION_ID3			0x0000000c
+
+#define REG_DSI_14nm_PHY_CMN_CLK_CFG0				0x00000010
+#define DSI_14nm_PHY_CMN_CLK_CFG0_DIV_CTRL_3_0__MASK		0x000000f0
+#define DSI_14nm_PHY_CMN_CLK_CFG0_DIV_CTRL_3_0__SHIFT		4
+static inline uint32_t DSI_14nm_PHY_CMN_CLK_CFG0_DIV_CTRL_3_0(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_CMN_CLK_CFG0_DIV_CTRL_3_0__SHIFT) & DSI_14nm_PHY_CMN_CLK_CFG0_DIV_CTRL_3_0__MASK;
+}
+#define DSI_14nm_PHY_CMN_CLK_CFG0_DIV_CTRL_7_4__MASK		0x000000f0
+#define DSI_14nm_PHY_CMN_CLK_CFG0_DIV_CTRL_7_4__SHIFT		4
+static inline uint32_t DSI_14nm_PHY_CMN_CLK_CFG0_DIV_CTRL_7_4(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_CMN_CLK_CFG0_DIV_CTRL_7_4__SHIFT) & DSI_14nm_PHY_CMN_CLK_CFG0_DIV_CTRL_7_4__MASK;
+}
+
+#define REG_DSI_14nm_PHY_CMN_CLK_CFG1				0x00000014
+#define DSI_14nm_PHY_CMN_CLK_CFG1_DSICLK_SEL			0x00000001
+
+#define REG_DSI_14nm_PHY_CMN_GLBL_TEST_CTRL			0x00000018
+#define DSI_14nm_PHY_CMN_GLBL_TEST_CTRL_BITCLK_HS_SEL		0x00000004
+
+#define REG_DSI_14nm_PHY_CMN_CTRL_0				0x0000001c
+
+#define REG_DSI_14nm_PHY_CMN_CTRL_1				0x00000020
+
+#define REG_DSI_14nm_PHY_CMN_HW_TRIGGER				0x00000024
+
+#define REG_DSI_14nm_PHY_CMN_SW_CFG0				0x00000028
+
+#define REG_DSI_14nm_PHY_CMN_SW_CFG1				0x0000002c
+
+#define REG_DSI_14nm_PHY_CMN_SW_CFG2				0x00000030
+
+#define REG_DSI_14nm_PHY_CMN_HW_CFG0				0x00000034
+
+#define REG_DSI_14nm_PHY_CMN_HW_CFG1				0x00000038
+
+#define REG_DSI_14nm_PHY_CMN_HW_CFG2				0x0000003c
+
+#define REG_DSI_14nm_PHY_CMN_HW_CFG3				0x00000040
+
+#define REG_DSI_14nm_PHY_CMN_HW_CFG4				0x00000044
+
+#define REG_DSI_14nm_PHY_CMN_PLL_CNTRL				0x00000048
+#define DSI_14nm_PHY_CMN_PLL_CNTRL_PLL_START			0x00000001
+
+#define REG_DSI_14nm_PHY_CMN_LDO_CNTRL				0x0000004c
+#define DSI_14nm_PHY_CMN_LDO_CNTRL_VREG_CTRL__MASK		0x0000003f
+#define DSI_14nm_PHY_CMN_LDO_CNTRL_VREG_CTRL__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_CMN_LDO_CNTRL_VREG_CTRL(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_CMN_LDO_CNTRL_VREG_CTRL__SHIFT) & DSI_14nm_PHY_CMN_LDO_CNTRL_VREG_CTRL__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN(uint32_t i0) { return 0x00000000 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_CFG0(uint32_t i0) { return 0x00000000 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_CFG0_PREPARE_DLY__MASK			0x000000c0
+#define DSI_14nm_PHY_LN_CFG0_PREPARE_DLY__SHIFT			6
+static inline uint32_t DSI_14nm_PHY_LN_CFG0_PREPARE_DLY(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_CFG0_PREPARE_DLY__SHIFT) & DSI_14nm_PHY_LN_CFG0_PREPARE_DLY__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_CFG1(uint32_t i0) { return 0x00000004 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_CFG1_HALFBYTECLK_EN			0x00000001
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_CFG2(uint32_t i0) { return 0x00000008 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_CFG3(uint32_t i0) { return 0x0000000c + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TEST_DATAPATH(uint32_t i0) { return 0x00000010 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TEST_STR(uint32_t i0) { return 0x00000014 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_4(uint32_t i0) { return 0x00000018 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_4_HS_EXIT__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_4_HS_EXIT__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_4_HS_EXIT(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_4_HS_EXIT__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_4_HS_EXIT__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_5(uint32_t i0) { return 0x0000001c + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_5_HS_ZERO__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_5_HS_ZERO__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_5_HS_ZERO(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_5_HS_ZERO__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_5_HS_ZERO__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_6(uint32_t i0) { return 0x00000020 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_6_HS_PREPARE__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_6_HS_PREPARE__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_6_HS_PREPARE(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_6_HS_PREPARE__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_6_HS_PREPARE__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_7(uint32_t i0) { return 0x00000024 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_7_HS_TRAIL__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_7_HS_TRAIL__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_7_HS_TRAIL(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_7_HS_TRAIL__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_7_HS_TRAIL__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_8(uint32_t i0) { return 0x00000028 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_8_HS_RQST__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_8_HS_RQST__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_8_HS_RQST(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_8_HS_RQST__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_8_HS_RQST__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_9(uint32_t i0) { return 0x0000002c + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_GO__MASK		0x00000007
+#define DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_GO__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_GO(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_GO__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_GO__MASK;
+}
+#define DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_SURE__MASK		0x00000070
+#define DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_SURE__SHIFT		4
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_SURE(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_SURE__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_9_TA_SURE__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_10(uint32_t i0) { return 0x00000030 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_10_TA_GET__MASK		0x00000007
+#define DSI_14nm_PHY_LN_TIMING_CTRL_10_TA_GET__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_10_TA_GET(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_10_TA_GET__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_10_TA_GET__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_TIMING_CTRL_11(uint32_t i0) { return 0x00000034 + 0x80*i0; }
+#define DSI_14nm_PHY_LN_TIMING_CTRL_11_TRIG3_CMD__MASK		0x000000ff
+#define DSI_14nm_PHY_LN_TIMING_CTRL_11_TRIG3_CMD__SHIFT		0
+static inline uint32_t DSI_14nm_PHY_LN_TIMING_CTRL_11_TRIG3_CMD(uint32_t val)
+{
+	return ((val) << DSI_14nm_PHY_LN_TIMING_CTRL_11_TRIG3_CMD__SHIFT) & DSI_14nm_PHY_LN_TIMING_CTRL_11_TRIG3_CMD__MASK;
+}
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_STRENGTH_CTRL_0(uint32_t i0) { return 0x00000038 + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_STRENGTH_CTRL_1(uint32_t i0) { return 0x0000003c + 0x80*i0; }
+
+static inline uint32_t REG_DSI_14nm_PHY_LN_VREG_CNTRL(uint32_t i0) { return 0x00000064 + 0x80*i0; }
+
+#define REG_DSI_14nm_PHY_PLL_IE_TRIM				0x00000000
+
+#define REG_DSI_14nm_PHY_PLL_IP_TRIM				0x00000004
+
+#define REG_DSI_14nm_PHY_PLL_IPTAT_TRIM				0x00000010
+
+#define REG_DSI_14nm_PHY_PLL_CLKBUFLR_EN			0x0000001c
+
+#define REG_DSI_14nm_PHY_PLL_SYSCLK_EN_RESET			0x00000028
+
+#define REG_DSI_14nm_PHY_PLL_RESETSM_CNTRL			0x0000002c
+
+#define REG_DSI_14nm_PHY_PLL_RESETSM_CNTRL2			0x00000030
+
+#define REG_DSI_14nm_PHY_PLL_RESETSM_CNTRL3			0x00000034
+
+#define REG_DSI_14nm_PHY_PLL_RESETSM_CNTRL4			0x00000038
+
+#define REG_DSI_14nm_PHY_PLL_RESETSM_CNTRL5			0x0000003c
+
+#define REG_DSI_14nm_PHY_PLL_KVCO_DIV_REF1			0x00000040
+
+#define REG_DSI_14nm_PHY_PLL_KVCO_DIV_REF2			0x00000044
+
+#define REG_DSI_14nm_PHY_PLL_KVCO_COUNT1			0x00000048
+
+#define REG_DSI_14nm_PHY_PLL_KVCO_COUNT2			0x0000004c
+
+#define REG_DSI_14nm_PHY_PLL_VREF_CFG1				0x0000005c
+
+#define REG_DSI_14nm_PHY_PLL_KVCO_CODE				0x00000058
+
+#define REG_DSI_14nm_PHY_PLL_VCO_DIV_REF1			0x0000006c
+
+#define REG_DSI_14nm_PHY_PLL_VCO_DIV_REF2			0x00000070
+
+#define REG_DSI_14nm_PHY_PLL_VCO_COUNT1				0x00000074
+
+#define REG_DSI_14nm_PHY_PLL_VCO_COUNT2				0x00000078
+
+#define REG_DSI_14nm_PHY_PLL_PLLLOCK_CMP1			0x0000007c
+
+#define REG_DSI_14nm_PHY_PLL_PLLLOCK_CMP2			0x00000080
+
+#define REG_DSI_14nm_PHY_PLL_PLLLOCK_CMP3			0x00000084
+
+#define REG_DSI_14nm_PHY_PLL_PLLLOCK_CMP_EN			0x00000088
+
+#define REG_DSI_14nm_PHY_PLL_PLL_VCO_TUNE			0x0000008c
+
+#define REG_DSI_14nm_PHY_PLL_DEC_START				0x00000090
+
+#define REG_DSI_14nm_PHY_PLL_SSC_EN_CENTER			0x00000094
+
+#define REG_DSI_14nm_PHY_PLL_SSC_ADJ_PER1			0x00000098
+
+#define REG_DSI_14nm_PHY_PLL_SSC_ADJ_PER2			0x0000009c
+
+#define REG_DSI_14nm_PHY_PLL_SSC_PER1				0x000000a0
+
+#define REG_DSI_14nm_PHY_PLL_SSC_PER2				0x000000a4
+
+#define REG_DSI_14nm_PHY_PLL_SSC_STEP_SIZE1			0x000000a8
+
+#define REG_DSI_14nm_PHY_PLL_SSC_STEP_SIZE2			0x000000ac
+
+#define REG_DSI_14nm_PHY_PLL_DIV_FRAC_START1			0x000000b4
+
+#define REG_DSI_14nm_PHY_PLL_DIV_FRAC_START2			0x000000b8
+
+#define REG_DSI_14nm_PHY_PLL_DIV_FRAC_START3			0x000000bc
+
+#define REG_DSI_14nm_PHY_PLL_TXCLK_EN				0x000000c0
+
+#define REG_DSI_14nm_PHY_PLL_PLL_CRCTRL				0x000000c4
+
+#define REG_DSI_14nm_PHY_PLL_RESET_SM_READY_STATUS		0x000000cc
+
+#define REG_DSI_14nm_PHY_PLL_PLL_MISC1				0x000000e8
+
+#define REG_DSI_14nm_PHY_PLL_CP_SET_CUR				0x000000f0
+
+#define REG_DSI_14nm_PHY_PLL_PLL_ICPMSET			0x000000f4
+
+#define REG_DSI_14nm_PHY_PLL_PLL_ICPCSET			0x000000f8
+
+#define REG_DSI_14nm_PHY_PLL_PLL_ICP_SET			0x000000fc
+
+#define REG_DSI_14nm_PHY_PLL_PLL_LPF1				0x00000100
+
+#define REG_DSI_14nm_PHY_PLL_PLL_LPF2_POSTDIV			0x00000104
+
+#define REG_DSI_14nm_PHY_PLL_PLL_BANDGAP			0x00000108
 
 
 #endif /* DSI_XML */

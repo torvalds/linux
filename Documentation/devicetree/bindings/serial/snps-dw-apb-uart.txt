@@ -15,6 +15,9 @@ The supplying peripheral clock can also be handled, needing a second property
 	Required elements: "baudclk", "apb_pclk"
 
 Optional properties:
+- snps,uart-16550-compatible : reflects the value of UART_16550_COMPATIBLE
+  configuration parameter. Define this if your UART does not implement the busy
+  functionality.
 - resets : phandle to the parent reset controller.
 - reg-shift : quantity to shift the register offsets by.  If this property is
   not present then the register offsets are not shifted.

@@ -402,7 +402,6 @@ static int hv_kbd_remove(struct hv_device *hv_dev)
 {
 	struct hv_kbd_dev *kbd_dev = hv_get_drvdata(hv_dev);
 
-	device_init_wakeup(&hv_dev->device, false);
 	serio_unregister_port(kbd_dev->hv_serio);
 	vmbus_close(hv_dev->channel);
 	kfree(kbd_dev);
@@ -411,16 +410,6 @@ static int hv_kbd_remove(struct hv_device *hv_dev)
 
 	return 0;
 }
-
-/*
- * Keyboard GUID
- * {f912ad6d-2b17-48ea-bd65-f927a61c7684}
- */
-#define HV_KBD_GUID \
-	.guid = { \
-			0x6d, 0xad, 0x12, 0xf9, 0x17, 0x2b, 0xea, 0x48, \
-			0xbd, 0x65, 0xf9, 0x27, 0xa6, 0x1c, 0x76, 0x84 \
-	}
 
 static const struct hv_vmbus_device_id id_table[] = {
 	/* Keyboard guid */

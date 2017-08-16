@@ -142,7 +142,7 @@ static int memory_set_cur_bandwidth(struct thermal_cooling_device *cdev,
 	return 0;
 }
 
-static struct thermal_cooling_device_ops memory_cooling_ops = {
+static const struct thermal_cooling_device_ops memory_cooling_ops = {
 	.get_max_state = memory_get_max_bandwidth,
 	.get_cur_state = memory_get_cur_bandwidth,
 	.set_cur_state = memory_set_cur_bandwidth,
@@ -306,66 +306,61 @@ static int sensor_set_auxtrip(acpi_handle handle, int index, int value)
 #define to_intel_menlow_attr(_attr)	\
 	container_of(_attr, struct intel_menlow_attribute, attr)
 
-static ssize_t aux0_show(struct device *dev,
-			 struct device_attribute *dev_attr, char *buf)
+static ssize_t aux_show(struct device *dev, struct device_attribute *dev_attr,
+			char *buf, int idx)
 {
 	struct intel_menlow_attribute *attr = to_intel_menlow_attr(dev_attr);
 	unsigned long long value;
 	int result;
 
-	result = sensor_get_auxtrip(attr->handle, 0, &value);
+	result = sensor_get_auxtrip(attr->handle, idx, &value);
 
-	return result ? result : sprintf(buf, "%lu", KELVIN_TO_CELSIUS(value));
+	return result ? result : sprintf(buf, "%lu", DECI_KELVIN_TO_CELSIUS(value));
+}
+
+static ssize_t aux0_show(struct device *dev,
+			 struct device_attribute *dev_attr, char *buf)
+{
+	return aux_show(dev, dev_attr, buf, 0);
 }
 
 static ssize_t aux1_show(struct device *dev,
 			 struct device_attribute *dev_attr, char *buf)
 {
+	return aux_show(dev, dev_attr, buf, 1);
+}
+
+static ssize_t aux_store(struct device *dev, struct device_attribute *dev_attr,
+			 const char *buf, size_t count, int idx)
+{
 	struct intel_menlow_attribute *attr = to_intel_menlow_attr(dev_attr);
-	unsigned long long value;
+	int value;
 	int result;
 
-	result = sensor_get_auxtrip(attr->handle, 1, &value);
+	/*Sanity check; should be a positive integer */
+	if (!sscanf(buf, "%d", &value))
+		return -EINVAL;
 
-	return result ? result : sprintf(buf, "%lu", KELVIN_TO_CELSIUS(value));
+	if (value < 0)
+		return -EINVAL;
+
+	result = sensor_set_auxtrip(attr->handle, idx, 
+				    CELSIUS_TO_DECI_KELVIN(value));
+	return result ? result : count;
 }
 
 static ssize_t aux0_store(struct device *dev,
 			  struct device_attribute *dev_attr,
 			  const char *buf, size_t count)
 {
-	struct intel_menlow_attribute *attr = to_intel_menlow_attr(dev_attr);
-	int value;
-	int result;
-
-	/*Sanity check; should be a positive integer */
-	if (!sscanf(buf, "%d", &value))
-		return -EINVAL;
-
-	if (value < 0)
-		return -EINVAL;
-
-	result = sensor_set_auxtrip(attr->handle, 0, CELSIUS_TO_KELVIN(value));
-	return result ? result : count;
+	return aux_store(dev, dev_attr, buf, count, 0);
 }
 
 static ssize_t aux1_store(struct device *dev,
 			  struct device_attribute *dev_attr,
 			  const char *buf, size_t count)
 {
-	struct intel_menlow_attribute *attr = to_intel_menlow_attr(dev_attr);
-	int value;
-	int result;
-
-	/*Sanity check; should be a positive integer */
-	if (!sscanf(buf, "%d", &value))
-		return -EINVAL;
-
-	if (value < 0)
-		return -EINVAL;
-
-	result = sensor_set_auxtrip(attr->handle, 1, CELSIUS_TO_KELVIN(value));
-	return result ? result : count;
+	return aux_store(dev, dev_attr, buf, count, 1);
 }
 
 /* BIOS can enable/disable the thermal user application in dabney platform */

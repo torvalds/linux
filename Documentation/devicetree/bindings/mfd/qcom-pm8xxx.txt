@@ -10,6 +10,7 @@ voltages and other various functionality to Qualcomm SoCs.
 	Value type: <string>
 	Definition: must be one of:
 		    "qcom,pm8058"
+		    "qcom,pm8821"
 		    "qcom,pm8921"
 
 - #address-cells:
@@ -62,6 +63,7 @@ The below bindings specify the set of valid subnodes.
 		    "qcom,pm8058-rtc"
 		    "qcom,pm8921-rtc"
 		    "qcom,pm8941-rtc"
+		    "qcom,pm8018-rtc"
 
 - reg:
 	Usage: required

@@ -64,23 +64,23 @@ static inline void epit_irq_disable(void)
 {
 	u32 val;
 
-	val = __raw_readl(timer_base + EPITCR);
+	val = imx_readl(timer_base + EPITCR);
 	val &= ~EPITCR_OCIEN;
-	__raw_writel(val, timer_base + EPITCR);
+	imx_writel(val, timer_base + EPITCR);
 }
 
 static inline void epit_irq_enable(void)
 {
 	u32 val;
 
-	val = __raw_readl(timer_base + EPITCR);
+	val = imx_readl(timer_base + EPITCR);
 	val |= EPITCR_OCIEN;
-	__raw_writel(val, timer_base + EPITCR);
+	imx_writel(val, timer_base + EPITCR);
 }
 
 static void epit_irq_acknowledge(void)
 {
-	__raw_writel(EPITSR_OCIF, timer_base + EPITSR);
+	imx_writel(EPITSR_OCIF, timer_base + EPITSR);
 }
 
 static int __init epit_clocksource_init(struct clk *timer_clk)
@@ -98,9 +98,9 @@ static int epit_set_next_event(unsigned long evt,
 {
 	unsigned long tcmp;
 
-	tcmp = __raw_readl(timer_base + EPITCNR);
+	tcmp = imx_readl(timer_base + EPITCNR);
 
-	__raw_writel(tcmp - evt, timer_base + EPITCMPR);
+	imx_writel(tcmp - evt, timer_base + EPITCMPR);
 
 	return 0;
 }
@@ -213,11 +213,11 @@ void __init epit_timer_init(void __iomem *base, int irq)
 	/*
 	 * Initialise to a known state (all timers off, and timing reset)
 	 */
-	__raw_writel(0x0, timer_base + EPITCR);
+	imx_writel(0x0, timer_base + EPITCR);
 
-	__raw_writel(0xffffffff, timer_base + EPITLR);
-	__raw_writel(EPITCR_EN | EPITCR_CLKSRC_REF_HIGH | EPITCR_WAITEN,
-			timer_base + EPITCR);
+	imx_writel(0xffffffff, timer_base + EPITLR);
+	imx_writel(EPITCR_EN | EPITCR_CLKSRC_REF_HIGH | EPITCR_WAITEN,
+		   timer_base + EPITCR);
 
 	/* init and register the timer to the framework */
 	epit_clocksource_init(timer_clk);

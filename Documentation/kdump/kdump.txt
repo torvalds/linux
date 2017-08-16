@@ -18,7 +18,7 @@ memory image to a dump file on the local disk, or across the network to
 a remote system.
 
 Kdump and kexec are currently supported on the x86, x86_64, ppc64, ia64,
-s390x and arm architectures.
+s390x, arm and arm64 architectures.
 
 When the system kernel boots, it reserves a small section of memory for
 the dump-capture kernel. This ensures that ongoing Direct Memory Access
@@ -112,8 +112,8 @@ There are two possible methods of using Kdump.
 2) Or use the system kernel binary itself as dump-capture kernel and there is
    no need to build a separate dump-capture kernel. This is possible
    only with the architectures which support a relocatable kernel. As
-   of today, i386, x86_64, ppc64, ia64 and arm architectures support relocatable
-   kernel.
+   of today, i386, x86_64, ppc64, ia64, arm and arm64 architectures support
+   relocatable kernel.
 
 Building a relocatable kernel is advantageous from the point of view that
 one does not have to build a second kernel for capturing the dump. But
@@ -249,6 +249,13 @@ Dump-capture kernel config options (Arch Dependent, arm)
 
     AUTO_ZRELADDR=y
 
+Dump-capture kernel config options (Arch Dependent, arm64)
+----------------------------------------------------------
+
+- Please note that kvm of the dump-capture kernel will not be enabled
+  on non-VHE systems even if it is configured. This is because the CPU
+  will not be reset to EL2 on panic.
+
 Extended crashkernel syntax
 ===========================
 
@@ -262,12 +269,6 @@ The syntax is:
 
     crashkernel=<range1>:<size1>[,<range2>:<size2>,...][@offset]
     range=start-[end]
-
-Please note, on arm, the offset is required.
-    crashkernel=<range1>:<size1>[,<range2>:<size2>,...]@offset
-    range=start-[end]
-
-    'start' is inclusive and 'end' is exclusive.
 
 For example:
 
@@ -307,11 +308,12 @@ Boot into System Kernel
    on the memory consumption of the kdump system. In general this is not
    dependent on the memory size of the production system.
 
-   On arm, use "crashkernel=Y@X". Note that the start address of the kernel
-   will be aligned to 128MiB (0x08000000), so if the start address is not then
-   any space below the alignment point may be overwritten by the dump-capture kernel,
-   which means it is possible that the vmcore is not that precise as expected.
+   On arm, the use of "crashkernel=Y@X" is no longer necessary; the
+   kernel will automatically locate the crash kernel image within the
+   first 512MB of RAM if X is not given.
 
+   On arm64, use "crashkernel=Y[@X]".  Note that the start address of
+   the kernel, X if explicitly specified, must be aligned to 2MiB (0x200000).
 
 Load the Dump-capture Kernel
 ============================
@@ -334,8 +336,10 @@ For s390x:
 	- Use image or bzImage
 For arm:
 	- Use zImage
+For arm64:
+	- Use vmlinux or Image
 
-If you are using a uncompressed vmlinux image then use following command
+If you are using an uncompressed vmlinux image then use following command
 to load dump-capture kernel.
 
    kexec -p <dump-capture-kernel-vmlinux-image> \
@@ -357,6 +361,12 @@ to load dump-capture kernel.
    --dtb=<dtb-for-dump-capture-kernel> \
    --append="root=<root-dev> <arch-specific-options>"
 
+If you are using an uncompressed Image, then use following command
+to load dump-capture kernel.
+
+   kexec -p <dump-capture-kernel-Image> \
+   --initrd=<initrd-for-dump-capture-kernel> \
+   --append="root=<root-dev> <arch-specific-options>"
 
 Please note, that --args-linux does not need to be specified for ia64.
 It is planned to make this a no-op on that architecture, but for now
@@ -375,6 +385,9 @@ For s390x:
 	"1 maxcpus=1 cgroup_disable=memory"
 
 For arm:
+	"1 maxcpus=1 reset_devices"
+
+For arm64:
 	"1 maxcpus=1 reset_devices"
 
 Notes on loading the dump-capture kernel:
@@ -400,6 +413,15 @@ Notes on loading the dump-capture kernel:
 * We generally don' have to bring up a SMP kernel just to capture the
   dump. Hence generally it is useful either to build a UP dump-capture
   kernel or specify maxcpus=1 option while loading dump-capture kernel.
+  Note, though maxcpus always works, you had better replace it with
+  nr_cpus to save memory if supported by the current ARCH, such as x86.
+
+* You should enable multi-cpu support in dump-capture kernel if you intend
+  to use multi-thread programs with it, such as parallel dump feature of
+  makedumpfile. Otherwise, the multi-thread program may have a great
+  performance degradation. To enable multi-cpu support, you should bring up an
+  SMP dump-capture kernel and specify maxcpus/nr_cpus, disable_cpu_apicid=[X]
+  options while loading it.
 
 * For s390x there are two kdump modes: If a ELF header is specified with
   the elfcorehdr= kernel parameter, it is used by the kdump kernel as it

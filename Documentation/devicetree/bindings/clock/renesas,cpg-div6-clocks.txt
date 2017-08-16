@@ -1,7 +1,7 @@
 * Renesas CPG DIV6 Clock
 
 The CPG DIV6 clocks are variable factor clocks provided by the Clock Pulse
-Generator (CPG). They clock input is divided by a configurable factor from 1
+Generator (CPG). Their clock input is divided by a configurable factor from 1
 to 64.
 
 Required Properties:
@@ -20,6 +20,10 @@ Required Properties:
     clocks must be specified.  For clocks with multiple parents, invalid
     settings must be specified as "<0>".
   - #clock-cells: Must be 0
+
+
+Optional Properties:
+
   - clock-output-names: The name of the clock as a free-form string
 
 

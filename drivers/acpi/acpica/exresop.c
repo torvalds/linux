@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,8 +90,8 @@ acpi_ex_check_object_type(acpi_object_type type_needed,
 		 * specification, a store to a constant is a noop.)
 		 */
 		if ((this_type == ACPI_TYPE_INTEGER) &&
-		    (((union acpi_operand_object *)object)->common.
-		     flags & AOPOBJ_AML_CONSTANT)) {
+		    (((union acpi_operand_object *)object)->common.flags &
+		     AOPOBJ_AML_CONSTANT)) {
 			return (AE_OK);
 		}
 	}
@@ -131,8 +131,8 @@ acpi_ex_check_object_type(acpi_object_type type_needed,
 
 acpi_status
 acpi_ex_resolve_operands(u16 opcode,
-			 union acpi_operand_object ** stack_ptr,
-			 struct acpi_walk_state * walk_state)
+			 union acpi_operand_object **stack_ptr,
+			 struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status = AE_OK;
@@ -196,10 +196,10 @@ acpi_ex_resolve_operands(u16 opcode,
 			 * thus, the attached object is always the aliased namespace node
 			 */
 			if (object_type == ACPI_TYPE_LOCAL_ALIAS) {
-				obj_desc =
-				    acpi_ns_get_attached_object((struct
-								 acpi_namespace_node
-								 *)obj_desc);
+				obj_desc = acpi_ns_get_attached_object((struct
+									acpi_namespace_node
+									*)
+								       obj_desc);
 				*stack_ptr = obj_desc;
 				object_type =
 				    ((struct acpi_namespace_node *)obj_desc)->
@@ -285,8 +285,8 @@ acpi_ex_resolve_operands(u16 opcode,
 		case ARGI_REF_OR_STRING:	/* Can be a String or Reference */
 
 			if ((ACPI_GET_DESCRIPTOR_TYPE(obj_desc) ==
-			     ACPI_DESC_TYPE_OPERAND)
-			    && (obj_desc->common.type == ACPI_TYPE_STRING)) {
+			     ACPI_DESC_TYPE_OPERAND) &&
+			    (obj_desc->common.type == ACPI_TYPE_STRING)) {
 				/*
 				 * String found - the string references a named object and
 				 * must be resolved to a node
@@ -305,8 +305,9 @@ acpi_ex_resolve_operands(u16 opcode,
 		case ARGI_OBJECT_REF:
 		case ARGI_DEVICE_REF:
 		case ARGI_TARGETREF:	/* Allows implicit conversion rules before store */
-		case ARGI_FIXED_TARGET:	/* No implicit conversion before store to target */
 		case ARGI_SIMPLE_TARGET:	/* Name, Local, or arg - no implicit conversion  */
+		case ARGI_STORE_TARGET:
+
 			/*
 			 * Need an operand of type ACPI_TYPE_LOCAL_REFERENCE
 			 * A Namespace Node is OK as-is
@@ -408,12 +409,13 @@ acpi_ex_resolve_operands(u16 opcode,
 		case ARGI_INTEGER:
 
 			/*
-			 * Need an operand of type ACPI_TYPE_INTEGER,
-			 * But we can implicitly convert from a STRING or BUFFER
-			 * aka - "Implicit Source Operand Conversion"
+			 * Need an operand of type ACPI_TYPE_INTEGER, but we can
+			 * implicitly convert from a STRING or BUFFER.
+			 *
+			 * Known as "Implicit Source Operand Conversion"
 			 */
-			status =
-			    acpi_ex_convert_to_integer(obj_desc, stack_ptr, 16);
+			status = acpi_ex_convert_to_integer(obj_desc, stack_ptr,
+							    ACPI_STRTOUL_BASE16);
 			if (ACPI_FAILURE(status)) {
 				if (status == AE_TYPE) {
 					ACPI_ERROR((AE_INFO,
@@ -463,8 +465,9 @@ acpi_ex_resolve_operands(u16 opcode,
 			 * But we can implicitly convert from a BUFFER or INTEGER
 			 * aka - "Implicit Source Operand Conversion"
 			 */
-			status = acpi_ex_convert_to_string(obj_desc, stack_ptr,
-							   ACPI_IMPLICIT_CONVERT_HEX);
+			status =
+			    acpi_ex_convert_to_string(obj_desc, stack_ptr,
+						      ACPI_IMPLICIT_CONVERT_HEX);
 			if (ACPI_FAILURE(status)) {
 				if (status == AE_TYPE) {
 					ACPI_ERROR((AE_INFO,
@@ -595,8 +598,10 @@ acpi_ex_resolve_operands(u16 opcode,
 
 		case ARGI_REGION_OR_BUFFER:	/* Used by Load() only */
 
-			/* Need an operand of type REGION or a BUFFER (which could be a resolved region field) */
-
+			/*
+			 * Need an operand of type REGION or a BUFFER
+			 * (which could be a resolved region field)
+			 */
 			switch (obj_desc->common.type) {
 			case ACPI_TYPE_BUFFER:
 			case ACPI_TYPE_REGION:
@@ -638,9 +643,9 @@ acpi_ex_resolve_operands(u16 opcode,
 
 				if (acpi_gbl_enable_interpreter_slack) {
 					/*
-					 * Enable original behavior of Store(), allowing any and all
-					 * objects as the source operand. The ACPI spec does not
-					 * allow this, however.
+					 * Enable original behavior of Store(), allowing any
+					 * and all objects as the source operand. The ACPI
+					 * spec does not allow this, however.
 					 */
 					break;
 				}
@@ -653,7 +658,8 @@ acpi_ex_resolve_operands(u16 opcode,
 				}
 
 				ACPI_ERROR((AE_INFO,
-					    "Needed Integer/Buffer/String/Package/Ref/Ddb], found [%s] %p",
+					    "Needed Integer/Buffer/String/Package/Ref/Ddb]"
+					    ", found [%s] %p",
 					    acpi_ut_get_object_type_name
 					    (obj_desc), obj_desc));
 
@@ -676,9 +682,10 @@ acpi_ex_resolve_operands(u16 opcode,
 		 * Make sure that the original object was resolved to the
 		 * required object type (Simple cases only).
 		 */
-		status = acpi_ex_check_object_type(type_needed,
-						   (*stack_ptr)->common.type,
-						   *stack_ptr);
+		status =
+		    acpi_ex_check_object_type(type_needed,
+					      (*stack_ptr)->common.type,
+					      *stack_ptr);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}

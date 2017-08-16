@@ -13,17 +13,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <12000000>;
-		};
-	};
-
-	clocks {
 		slow_xtal {
 			clock-frequency = <32768>;
 		};
@@ -48,38 +37,61 @@
 			};
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "hw";
-			atmel,has-pmecc;	/* Enable PMECC */
-			atmel,pmecc-cap = <2>;
-			atmel,pmecc-sector-size = <512>;
-			nand-on-flash-bbt;
+		ebi: ebi@10000000 {
+			pinctrl-0 = <&pinctrl_ebi_addr_nand
+				     &pinctrl_ebi_data_0_7>;
+			pinctrl-names = "default";
 			status = "okay";
 
-			at91bootstrap@0 {
-				label = "at91bootstrap";
-				reg = <0x0 0x40000>;
-			};
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_oe_we
+					     &pinctrl_nand_cs
+					     &pinctrl_nand_rb>;
+				pinctrl-names = "default";
 
-			uboot@40000 {
-				label = "u-boot";
-				reg = <0x40000 0x80000>;
-			};
+				nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					rb-gpios = <&pioD 5 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioD 4 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "hw";
+					nand-ecc-strength = <2>;
+					nand-ecc-step-size = <512>;
+					nand-on-flash-bbt;
+					label = "atmel_nand";
 
-			ubootenv@c0000 {
-				label = "U-Boot Env";
-				reg = <0xc0000 0x140000>;
-			};
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
 
-			kernel@200000 {
-				label = "kernel";
-				reg = <0x200000 0x600000>;
-			};
+						at91bootstrap@0 {
+							label = "at91bootstrap";
+							reg = <0x0 0x40000>;
+						};
 
-			rootfs@800000 {
-				label = "rootfs";
-				reg = <0x800000 0x1f800000>;
+						uboot@40000 {
+							label = "u-boot";
+							reg = <0x40000 0x80000>;
+						};
+
+						ubootenv@c0000 {
+							label = "U-Boot Env";
+							reg = <0xc0000 0x140000>;
+						};
+
+						kernel@200000 {
+							label = "kernel";
+							reg = <0x200000 0x600000>;
+						};
+
+						rootfs@800000 {
+							label = "rootfs";
+							reg = <0x800000 0x1f800000>;
+						};
+					};
+				};
 			};
 		};
 	};

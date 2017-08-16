@@ -36,13 +36,14 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/crc32c.h>
 
 static struct crypto_shash *tfm;
 
 u32 crc32c(u32 crc, const void *address, unsigned int length)
 {
 	SHASH_DESC_ON_STACK(shash, tfm);
-	u32 *ctx = (u32 *)shash_desc_ctx(shash);
+	u32 ret, *ctx = (u32 *)shash_desc_ctx(shash);
 	int err;
 
 	shash->tfm = tfm;
@@ -52,7 +53,9 @@ u32 crc32c(u32 crc, const void *address, unsigned int length)
 	err = crypto_shash_update(shash, address, length);
 	BUG_ON(err);
 
-	return *ctx;
+	ret = *ctx;
+	barrier_data(ctx);
+	return ret;
 }
 
 EXPORT_SYMBOL(crc32c);
@@ -74,3 +77,4 @@ module_exit(libcrc32c_mod_fini);
 MODULE_AUTHOR("Clay Haapala <chaapala@cisco.com>");
 MODULE_DESCRIPTION("CRC32c (Castagnoli) calculations");
 MODULE_LICENSE("GPL");
+MODULE_SOFTDEP("pre: crc32c");

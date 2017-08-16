@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 

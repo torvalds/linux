@@ -28,9 +28,9 @@ several reasons why such integration is hard/impossible:
 
 - the unpredictable [O(N)] overhead of cascading leads to delays which
   necessitate a more complex handling of high resolution timers, which
-  in turn decreases robustness. Such a design still led to rather large
+  in turn decreases robustness. Such a design still leads to rather large
   timing inaccuracies. Cascading is a fundamental property of the timer
-  wheel concept, it cannot be 'designed out' without unevitably
+  wheel concept, it cannot be 'designed out' without inevitably
   degrading other portions of the timers.c code in an unacceptable way.
 
 - the implementation of the current posix-timer subsystem on top of
@@ -119,7 +119,7 @@ was not really a win, due to the different data structures. Also, the
 hrtimer functions now have clearer behavior and clearer names - such as
 hrtimer_try_to_cancel() and hrtimer_cancel() [which are roughly
 equivalent to del_timer() and del_timer_sync()] - so there's no direct
-1:1 mapping between them on the algorithmical level, and thus no real
+1:1 mapping between them on the algorithmic level, and thus no real
 potential for code sharing either.
 
 Basic data types: every time value, absolute or relative, is in a

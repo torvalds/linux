@@ -30,6 +30,12 @@ Supported adapters:
   * Intel BayTrail (SOC)
   * Intel Sunrise Point-H (PCH)
   * Intel Sunrise Point-LP (PCH)
+  * Intel DNV (SOC)
+  * Intel Broxton (SOC)
+  * Intel Lewisburg (PCH)
+  * Intel Gemini Lake (SOC)
+  * Intel Cannon Lake-H (PCH)
+  * Intel Cannon Lake-LP (PCH)
    Datasheets: Publicly available at the Intel website
 
 On Intel Patsburg and later chipsets, both the normal host SMBus controller

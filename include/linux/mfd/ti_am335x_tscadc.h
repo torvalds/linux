@@ -23,6 +23,8 @@
 #define REG_IRQENABLE		0x02C
 #define REG_IRQCLR		0x030
 #define REG_IRQWAKEUP		0x034
+#define REG_DMAENABLE_SET	0x038
+#define REG_DMAENABLE_CLEAR	0x03c
 #define REG_CTRL		0x040
 #define REG_ADCFSM		0x044
 #define REG_CLKDIV		0x04C
@@ -36,6 +38,7 @@
 #define REG_FIFO0THR		0xE8
 #define REG_FIFO1CNT		0xF0
 #define REG_FIFO1THR		0xF4
+#define REG_DMA1REQ		0xF8
 #define REG_FIFO0		0x100
 #define REG_FIFO1		0x200
 
@@ -126,6 +129,10 @@
 #define FIFOREAD_DATA_MASK (0xfff << 0)
 #define FIFOREAD_CHNLID_MASK (0xf << 16)
 
+/* DMA ENABLE/CLEAR Register */
+#define DMA_FIFO0		BIT(0)
+#define DMA_FIFO1		BIT(1)
+
 /* Sequencer Status */
 #define SEQ_STATUS BIT(5)
 #define CHARGE_STEP		0x11
@@ -138,23 +145,24 @@
 /*
  * time in us for processing a single channel, calculated as follows:
  *
- * num cycles = open delay + (sample delay + conv time) * averaging
+ * max num cycles = open delay + (sample delay + conv time) * averaging
  *
- * num cycles: 152 + (1 + 13) * 16 = 376
+ * max num cycles: 262143 + (255 + 13) * 16 = 266431
  *
  * clock frequency: 26MHz / 8 = 3.25MHz
  * clock period: 1 / 3.25MHz = 308ns
  *
- * processing time: 376 * 308ns = 116us
+ * max processing time: 266431 * 308ns = 83ms(approx)
  */
-#define IDLE_TIMEOUT 116 /* microsec */
+#define IDLE_TIMEOUT 83 /* milliseconds */
 
 #define TSCADC_CELLS		2
 
 struct ti_tscadc_dev {
 	struct device *dev;
-	struct regmap *regmap_tscadc;
+	struct regmap *regmap;
 	void __iomem *tscadc_base;
+	phys_addr_t tscadc_phys_base;
 	int irq;
 	int used_cells;	/* 1-2 */
 	int tsc_wires;

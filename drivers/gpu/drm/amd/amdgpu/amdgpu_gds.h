@@ -31,19 +31,11 @@
 #define AMDGPU_GWS_SHIFT	PAGE_SHIFT
 #define AMDGPU_OA_SHIFT		PAGE_SHIFT
 
-#define AMDGPU_PL_GDS		TTM_PL_PRIV0
-#define AMDGPU_PL_GWS		TTM_PL_PRIV1
-#define AMDGPU_PL_OA		TTM_PL_PRIV2
-
-#define AMDGPU_PL_FLAG_GDS		TTM_PL_FLAG_PRIV0
-#define AMDGPU_PL_FLAG_GWS		TTM_PL_FLAG_PRIV1
-#define AMDGPU_PL_FLAG_OA		TTM_PL_FLAG_PRIV2
-
 struct amdgpu_ring;
 struct amdgpu_bo;
 
 struct amdgpu_gds_asic_info {
-	uint32_t 	total_size;
+	uint32_t	total_size;
 	uint32_t	gfx_partition_size;
 	uint32_t	cs_partition_size;
 };
@@ -52,8 +44,8 @@ struct amdgpu_gds {
 	struct amdgpu_gds_asic_info	mem;
 	struct amdgpu_gds_asic_info	gws;
 	struct amdgpu_gds_asic_info	oa;
-	/* At present, GDS, GWS and OA resources for gfx (graphics) 
-	 * is always pre-allocated and available for graphics operation. 
+	/* At present, GDS, GWS and OA resources for gfx (graphics)
+	 * is always pre-allocated and available for graphics operation.
 	 * Such resource is shared between all gfx clients.
 	 * TODO: move this operation to user space
 	 * */

@@ -13,6 +13,7 @@
 /dts-v1/;
 #include "imx28.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Ka-Ro electronics TX28 module";
@@ -129,7 +130,7 @@
 			compatible = "fixed-clock";
 			reg = <0>;
 			#clock-cells = <0>;
-			clock-frequency = <27000000>;
+			clock-frequency = <26000000>;
 		};
 	};
 
@@ -172,7 +173,7 @@
 		default-brightness-level = <50>;
 	};
 
-	matrix_keypad: matrix-keypad@0 {
+	matrix_keypad: matrix-keypad {
 		compatible = "gpio-matrix-keypad";
 		col-gpios = <
 			&gpio5 0 GPIO_ACTIVE_HIGH
@@ -201,7 +202,7 @@
 			0x02020049 /* row 2, col 2, KEY_KP9 */
 		>;
 		gpio-activelow;
-		linux,wakeup;
+		wakeup-source;
 		debounce-delay-ms = <100>;
 		col-scan-delay-us = <5000>;
 		linux,no-autorepeat;
@@ -324,7 +325,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&tx28_edt_ft5x06_pins>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <5 0>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
 		wake-gpios = <&gpio4 9 GPIO_ACTIVE_HIGH>;
 	};

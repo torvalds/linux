@@ -60,6 +60,7 @@ static inline int ieee754dp_finite(union ieee754dp x)
 	while ((m >> DP_FBITS) == 0) { m <<= 1; e--; }
 #define DPDNORMX	DPDNORMx(xm, xe)
 #define DPDNORMY	DPDNORMx(ym, ye)
+#define DPDNORMZ	DPDNORMx(zm, ze)
 
 static inline union ieee754dp builddp(int s, int bx, u64 m)
 {

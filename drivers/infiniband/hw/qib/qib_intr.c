@@ -74,7 +74,7 @@ static void signal_ib_event(struct qib_pportdata *ppd, enum ib_event_type ev)
 	struct ib_event event;
 	struct qib_devdata *dd = ppd->dd;
 
-	event.device = &dd->verbs_dev.ibdev;
+	event.device = &dd->verbs_dev.rdi.ibdev;
 	event.element.port_num = ppd->port;
 	event.event = ev;
 	ib_dispatch_event(&event);

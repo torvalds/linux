@@ -106,6 +106,9 @@ BUILD_CPC_R_(revision,		MIPS_CPC_GCB_OFS + 0x20)
 BUILD_CPC_Cx_RW(cmd,		0x00)
 BUILD_CPC_Cx_RW(stat_conf,	0x08)
 BUILD_CPC_Cx_RW(other,		0x10)
+BUILD_CPC_Cx_RW(vp_stop,	0x20)
+BUILD_CPC_Cx_RW(vp_run,		0x28)
+BUILD_CPC_Cx_RW(vp_running,	0x30)
 
 /* CPC_Cx_CMD register fields */
 #define CPC_Cx_CMD_SHF				0
@@ -149,7 +152,8 @@ BUILD_CPC_Cx_RW(other,		0x10)
  * core: the other core to be accessed
  *
  * Call before operating upon a core via the 'other' register region in
- * order to prevent the region being moved during access. Must be followed
+ * order to prevent the region being moved during access. Must be called
+ * within the bounds of a mips_cm_{lock,unlock}_other pair, and followed
  * by a call to mips_cpc_unlock_other.
  */
 extern void mips_cpc_lock_other(unsigned int core);

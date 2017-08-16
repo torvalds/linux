@@ -14,8 +14,22 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/filter.h>
 #include <linux/if_team.h>
+
+static rx_handler_result_t lb_receive(struct team *team, struct team_port *port,
+				      struct sk_buff *skb)
+{
+	if (unlikely(skb->protocol == htons(ETH_P_SLOW))) {
+		/* LACPDU packets should go to exact delivery */
+		const unsigned char *dest = eth_hdr(skb)->h_dest;
+
+		if (is_link_local_ether_addr(dest) && dest[5] == 0x02)
+			return RX_HANDLER_EXACT;
+	}
+	return RX_HANDLER_ANOTHER;
+}
 
 struct lb_priv;
 
@@ -652,6 +666,7 @@ static const struct team_mode_ops lb_mode_ops = {
 	.port_enter		= lb_port_enter,
 	.port_leave		= lb_port_leave,
 	.port_disabled		= lb_port_disabled,
+	.receive		= lb_receive,
 	.transmit		= lb_transmit,
 };
 
@@ -661,6 +676,7 @@ static const struct team_mode lb_mode = {
 	.priv_size	= sizeof(struct lb_priv),
 	.port_priv_size	= sizeof(struct lb_port_priv),
 	.ops		= &lb_mode_ops,
+	.lag_tx_type	= NETDEV_LAG_TX_TYPE_HASH,
 };
 
 static int __init lb_init_module(void)
@@ -679,4 +695,4 @@ module_exit(lb_cleanup_module);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jiri Pirko <jpirko@redhat.com>");
 MODULE_DESCRIPTION("Load-balancing mode for team");
-MODULE_ALIAS("team-mode-loadbalance");
+MODULE_ALIAS_TEAM_MODE("loadbalance");

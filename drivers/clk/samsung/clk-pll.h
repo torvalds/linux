@@ -31,7 +31,9 @@ enum samsung_pll_type {
 	pll_s3c2410_mpll,
 	pll_s3c2410_upll,
 	pll_s3c2440_mpll,
+	pll_2550x,
 	pll_2550xx,
+	pll_2650x,
 	pll_2650xx,
 	pll_1450x,
 	pll_1451x,
@@ -100,9 +102,5 @@ struct samsung_pll_rate_table {
 	unsigned int mrr;
 	unsigned int vsel;
 };
-
-extern struct clk * __init samsung_clk_register_pll2550x(const char *name,
-			const char *pname, const void __iomem *reg_base,
-			const unsigned long offset);
 
 #endif /* __SAMSUNG_CLK_PLL_H */

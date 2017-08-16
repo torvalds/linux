@@ -25,7 +25,7 @@
 #include <drm/drmP.h>
 #include <linux/dma-buf.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_gem.h"
 
 struct sg_table *nouveau_gem_prime_get_sg_table(struct drm_gem_object *obj)
@@ -60,6 +60,7 @@ struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
 							 struct dma_buf_attachment *attach,
 							 struct sg_table *sg)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_bo *nvbo;
 	struct reservation_object *robj = attach->dmabuf->resv;
 	u32 flags = 0;
@@ -68,7 +69,7 @@ struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
 	flags = TTM_PL_FLAG_TT;
 
 	ww_mutex_lock(&robj->lock, NULL);
-	ret = nouveau_bo_new(dev, attach->dmabuf->size, 0, flags, 0, 0,
+	ret = nouveau_bo_new(&drm->client, attach->dmabuf->size, 0, flags, 0, 0,
 			     sg, robj, &nvbo);
 	ww_mutex_unlock(&robj->lock);
 	if (ret)

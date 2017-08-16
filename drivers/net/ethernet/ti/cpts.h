@@ -20,13 +20,17 @@
 #ifndef _TI_CPTS_H_
 #define _TI_CPTS_H_
 
+#if IS_ENABLED(CONFIG_TI_CPTS)
+
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clocksource.h>
 #include <linux/device.h>
 #include <linux/list.h>
+#include <linux/of.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/skbuff.h>
+#include <linux/ptp_classify.h>
 #include <linux/timecounter.h>
 
 struct cpsw_cpts {
@@ -94,9 +98,6 @@ enum {
 	CPTS_EV_TX,   /* Ethernet Transmit Event */
 };
 
-/* This covers any input clock up to about 500 MHz. */
-#define CPTS_OVERFLOW_PERIOD (HZ * 8)
-
 #define CPTS_FIFO_DEPTH 16
 #define CPTS_MAX_EVENTS 32
 
@@ -108,38 +109,117 @@ struct cpts_event {
 };
 
 struct cpts {
+	struct device *dev;
 	struct cpsw_cpts __iomem *reg;
 	int tx_enable;
 	int rx_enable;
-#ifdef CONFIG_TI_CPTS
 	struct ptp_clock_info info;
 	struct ptp_clock *clock;
 	spinlock_t lock; /* protects time registers */
 	u32 cc_mult; /* for the nominal frequency */
 	struct cyclecounter cc;
 	struct timecounter tc;
-	struct delayed_work overflow_work;
 	int phc_index;
 	struct clk *refclk;
 	struct list_head events;
 	struct list_head pool;
 	struct cpts_event pool_data[CPTS_MAX_EVENTS];
-#endif
+	unsigned long ov_check_period;
+	struct sk_buff_head txq;
 };
 
-#ifdef CONFIG_TI_CPTS
 void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb);
 void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb);
+int cpts_register(struct cpts *cpts);
+void cpts_unregister(struct cpts *cpts);
+struct cpts *cpts_create(struct device *dev, void __iomem *regs,
+			 struct device_node *node);
+void cpts_release(struct cpts *cpts);
+
+static inline void cpts_rx_enable(struct cpts *cpts, int enable)
+{
+	cpts->rx_enable = enable;
+}
+
+static inline bool cpts_is_rx_enabled(struct cpts *cpts)
+{
+	return !!cpts->rx_enable;
+}
+
+static inline void cpts_tx_enable(struct cpts *cpts, int enable)
+{
+	cpts->tx_enable = enable;
+}
+
+static inline bool cpts_is_tx_enabled(struct cpts *cpts)
+{
+	return !!cpts->tx_enable;
+}
+
+static inline bool cpts_can_timestamp(struct cpts *cpts, struct sk_buff *skb)
+{
+	unsigned int class = ptp_classify_raw(skb);
+
+	if (class == PTP_CLASS_NONE)
+		return false;
+
+	return true;
+}
+
 #else
+struct cpts;
+
 static inline void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 {
 }
 static inline void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 {
 }
+
+static inline
+struct cpts *cpts_create(struct device *dev, void __iomem *regs,
+			 struct device_node *node)
+{
+	return NULL;
+}
+
+static inline void cpts_release(struct cpts *cpts)
+{
+}
+
+static inline int
+cpts_register(struct cpts *cpts)
+{
+	return 0;
+}
+
+static inline void cpts_unregister(struct cpts *cpts)
+{
+}
+
+static inline void cpts_rx_enable(struct cpts *cpts, int enable)
+{
+}
+
+static inline bool cpts_is_rx_enabled(struct cpts *cpts)
+{
+	return false;
+}
+
+static inline void cpts_tx_enable(struct cpts *cpts, int enable)
+{
+}
+
+static inline bool cpts_is_tx_enabled(struct cpts *cpts)
+{
+	return false;
+}
+
+static inline bool cpts_can_timestamp(struct cpts *cpts, struct sk_buff *skb)
+{
+	return false;
+}
 #endif
 
-int cpts_register(struct device *dev, struct cpts *cpts, u32 mult, u32 shift);
-void cpts_unregister(struct cpts *cpts);
 
 #endif

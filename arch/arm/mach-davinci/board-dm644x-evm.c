@@ -14,7 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pcf857x.h>
+#include <linux/platform_data/pcf857x.h>
 #include <linux/platform_data/at24.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -25,8 +25,9 @@
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>
 #include <linux/export.h>
+#include <linux/leds.h>
 
-#include <media/tvp514x.h>
+#include <media/i2c/tvp514x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -264,10 +265,8 @@ static struct platform_device rtc_dev = {
 	.id             = -1,
 };
 
-static struct snd_platform_data dm644x_evm_snd_data;
-
 /*----------------------------------------------------------------------*/
-
+#ifdef CONFIG_I2C
 /*
  * I2C GPIO expanders
  */
@@ -288,7 +287,7 @@ static struct gpio_led evm_leds[] = {
 	{ .name = "DS2", .active_low = 1,
 		.default_trigger = "mmc0", },
 	{ .name = "DS1", .active_low = 1,
-		.default_trigger = "ide-disk", },
+		.default_trigger = "disk-activity", },
 };
 
 static const struct gpio_led_platform_data evm_led_data = {
@@ -546,9 +545,7 @@ static int dm6444evm_msp430_get_pins(void)
 	if (status < 0)
 		return status;
 
-	dev_dbg(&dm6446evm_msp->dev,
-		"PINS: %02x %02x %02x %02x\n",
-		buf[0], buf[1], buf[2], buf[3]);
+	dev_dbg(&dm6446evm_msp->dev, "PINS: %4ph\n", buf);
 
 	return (buf[3] << 8) | buf[2];
 }
@@ -614,6 +611,7 @@ static void __init evm_init_i2c(void)
 	i2c_add_driver(&dm6446evm_msp_driver);
 	i2c_register_board_info(1, i2c_info, ARRAY_SIZE(i2c_info));
 }
+#endif
 
 #define VENC_STD_ALL	(V4L2_STD_NTSC | V4L2_STD_PAL)
 
@@ -746,7 +744,8 @@ static int davinci_phy_fixup(struct phy_device *phydev)
 	return 0;
 }
 
-#define HAS_ATA		IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710)
+#define HAS_ATA		(IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
+			 IS_ENABLED(CONFIG_PATA_BK3710))
 
 #define HAS_NOR		IS_ENABLED(CONFIG_MTD_PHYSMAP)
 
@@ -782,7 +781,9 @@ static __init void davinci_evm_init(void)
 				pr_warn("%s: Cannot configure AEMIF\n",
 					__func__);
 
+#ifdef CONFIG_I2C
 			evm_leds[7].default_trigger = "nand-disk";
+#endif
 			if (HAS_NOR)
 				pr_warn("WARNING: both NAND and NOR flash are enabled; disable one of them.\n");
 		} else if (HAS_NOR)
@@ -791,13 +792,14 @@ static __init void davinci_evm_init(void)
 
 	platform_add_devices(davinci_evm_devices,
 			     ARRAY_SIZE(davinci_evm_devices));
+#ifdef CONFIG_I2C
 	evm_init_i2c();
-
 	davinci_setup_mmc(0, &dm6446evm_mmc_config);
+#endif
 	dm644x_init_video(&dm644xevm_capture_cfg, &dm644xevm_display_cfg);
 
 	davinci_serial_init(dm644x_serial_device);
-	dm644x_init_asp(&dm644x_evm_snd_data);
+	dm644x_init_asp();
 
 	/* irlml6401 switches over 1A, in under 8 msec */
 	davinci_setup_usb(1000, 8);

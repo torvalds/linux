@@ -6,16 +6,12 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ *****************************************************************************/
 #ifndef __INC_QOS_TYPE_H
 #define __INC_QOS_TYPE_H
 
@@ -172,9 +168,6 @@ union qos_tclas {
 		u16		TagType;
 	} TYPE2_8021Q;
 };
-
-#define IsACValid(ac)		((ac >= 0 && ac <= 7) ? true : false)
-
 
 union aci_aifsn {
 	u8	charData;

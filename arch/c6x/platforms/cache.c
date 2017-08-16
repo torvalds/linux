@@ -145,7 +145,7 @@ loop:
 		spin_lock_irqsave(&cache_lock, flags);
 
 		/*
-		 * If another cache operation is occuring
+		 * If another cache operation is occurring
 		 */
 		if (unlikely(imcr_get(wc_reg))) {
 			spin_unlock_irqrestore(&cache_lock, flags);

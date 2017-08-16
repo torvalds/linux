@@ -166,7 +166,7 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 		case ATOM_IIO_END:
 			return temp;
 		default:
-			printk(KERN_INFO "Unknown IIO opcode.\n");
+			pr_info("Unknown IIO opcode\n");
 			return 0;
 		}
 }
@@ -190,22 +190,19 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			val = gctx->card->reg_read(gctx->card, idx);
 			break;
 		case ATOM_IO_PCI:
-			printk(KERN_INFO
-			       "PCI registers are not implemented.\n");
+			pr_info("PCI registers are not implemented\n");
 			return 0;
 		case ATOM_IO_SYSIO:
-			printk(KERN_INFO
-			       "SYSIO registers are not implemented.\n");
+			pr_info("SYSIO registers are not implemented\n");
 			return 0;
 		default:
 			if (!(gctx->io_mode & 0x80)) {
-				printk(KERN_INFO "Bad IO mode.\n");
+				pr_info("Bad IO mode\n");
 				return 0;
 			}
 			if (!gctx->iio[gctx->io_mode & 0x7F]) {
-				printk(KERN_INFO
-				       "Undefined indirect IO read method %d.\n",
-				       gctx->io_mode & 0x7F);
+				pr_info("Undefined indirect IO read method %d\n",
+					gctx->io_mode & 0x7F);
 				return 0;
 			}
 			val =
@@ -469,22 +466,19 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 				gctx->card->reg_write(gctx->card, idx, val);
 			break;
 		case ATOM_IO_PCI:
-			printk(KERN_INFO
-			       "PCI registers are not implemented.\n");
+			pr_info("PCI registers are not implemented\n");
 			return;
 		case ATOM_IO_SYSIO:
-			printk(KERN_INFO
-			       "SYSIO registers are not implemented.\n");
+			pr_info("SYSIO registers are not implemented\n");
 			return;
 		default:
 			if (!(gctx->io_mode & 0x80)) {
-				printk(KERN_INFO "Bad IO mode.\n");
+				pr_info("Bad IO mode\n");
 				return;
 			}
 			if (!gctx->iio[gctx->io_mode & 0xFF]) {
-				printk(KERN_INFO
-				       "Undefined indirect IO write method %d.\n",
-				       gctx->io_mode & 0x7F);
+				pr_info("Undefined indirect IO write method %d\n",
+					gctx->io_mode & 0x7F);
 				return;
 			}
 			atom_iio_execute(gctx, gctx->iio[gctx->io_mode & 0xFF],
@@ -685,6 +679,27 @@ static void atom_op_div(atom_exec_context *ctx, int *ptr, int arg)
 	}
 }
 
+static void atom_op_div32(atom_exec_context *ctx, int *ptr, int arg)
+{
+	uint64_t val64;
+	uint8_t attr = U8((*ptr)++);
+	uint32_t dst, src;
+	SDEBUG("   src1: ");
+	dst = atom_get_dst(ctx, arg, attr, ptr, NULL, 1);
+	SDEBUG("   src2: ");
+	src = atom_get_src(ctx, attr, ptr);
+	if (src != 0) {
+		val64 = dst;
+		val64 |= ((uint64_t)ctx->ctx->divmul[1]) << 32;
+		do_div(val64, src);
+		ctx->ctx->divmul[0] = lower_32_bits(val64);
+		ctx->ctx->divmul[1] = upper_32_bits(val64);
+	} else {
+		ctx->ctx->divmul[0] = 0;
+		ctx->ctx->divmul[1] = 0;
+	}
+}
+
 static void atom_op_eot(atom_exec_context *ctx, int *ptr, int arg)
 {
 	/* functionally, a nop */
@@ -788,6 +803,20 @@ static void atom_op_mul(atom_exec_context *ctx, int *ptr, int arg)
 	ctx->ctx->divmul[0] = dst * src;
 }
 
+static void atom_op_mul32(atom_exec_context *ctx, int *ptr, int arg)
+{
+	uint64_t val64;
+	uint8_t attr = U8((*ptr)++);
+	uint32_t dst, src;
+	SDEBUG("   src1: ");
+	dst = atom_get_dst(ctx, arg, attr, ptr, NULL, 1);
+	SDEBUG("   src2: ");
+	src = atom_get_src(ctx, attr, ptr);
+	val64 = (uint64_t)dst * (uint64_t)src;
+	ctx->ctx->divmul[0] = lower_32_bits(val64);
+	ctx->ctx->divmul[1] = upper_32_bits(val64);
+}
+
 static void atom_op_nop(atom_exec_context *ctx, int *ptr, int arg)
 {
 	/* nothing */
@@ -815,17 +844,17 @@ static void atom_op_postcard(atom_exec_context *ctx, int *ptr, int arg)
 
 static void atom_op_repeat(atom_exec_context *ctx, int *ptr, int arg)
 {
-	printk(KERN_INFO "unimplemented!\n");
+	pr_info("unimplemented!\n");
 }
 
 static void atom_op_restorereg(atom_exec_context *ctx, int *ptr, int arg)
 {
-	printk(KERN_INFO "unimplemented!\n");
+	pr_info("unimplemented!\n");
 }
 
 static void atom_op_savereg(atom_exec_context *ctx, int *ptr, int arg)
 {
-	printk(KERN_INFO "unimplemented!\n");
+	pr_info("unimplemented!\n");
 }
 
 static void atom_op_setdatablock(atom_exec_context *ctx, int *ptr, int arg)
@@ -988,7 +1017,7 @@ static void atom_op_switch(atom_exec_context *ctx, int *ptr, int arg)
 			}
 			(*ptr) += 2;
 		} else {
-			printk(KERN_INFO "Bad case.\n");
+			pr_info("Bad case\n");
 			return;
 		}
 	(*ptr) += 2;
@@ -1022,7 +1051,15 @@ static void atom_op_xor(atom_exec_context *ctx, int *ptr, int arg)
 
 static void atom_op_debug(atom_exec_context *ctx, int *ptr, int arg)
 {
-	printk(KERN_INFO "unimplemented!\n");
+	uint8_t val = U8((*ptr)++);
+	SDEBUG("DEBUG output: 0x%02X\n", val);
+}
+
+static void atom_op_processds(atom_exec_context *ctx, int *ptr, int arg)
+{
+	uint16_t val = U16(*ptr);
+	(*ptr) += val + 2;
+	SDEBUG("PROCESSDS output: 0x%02X\n", val);
 }
 
 static struct {
@@ -1151,7 +1188,13 @@ static struct {
 	atom_op_shr, ATOM_ARG_FB}, {
 	atom_op_shr, ATOM_ARG_PLL}, {
 	atom_op_shr, ATOM_ARG_MC}, {
-atom_op_debug, 0},};
+	atom_op_debug, 0}, {
+	atom_op_processds, 0}, {
+	atom_op_mul32, ATOM_ARG_PS}, {
+	atom_op_mul32, ATOM_ARG_WS}, {
+	atom_op_div32, ATOM_ARG_PS}, {
+	atom_op_div32, ATOM_ARG_WS},
+};
 
 static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t * params)
 {
@@ -1257,8 +1300,7 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 	struct atom_context *ctx =
 	    kzalloc(sizeof(struct atom_context), GFP_KERNEL);
 	char *str;
-	char name[512];
-	int i;
+	u16 idx;
 
 	if (!ctx)
 		return NULL;
@@ -1267,14 +1309,14 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 	ctx->bios = bios;
 
 	if (CU16(0) != ATOM_BIOS_MAGIC) {
-		printk(KERN_INFO "Invalid BIOS magic.\n");
+		pr_info("Invalid BIOS magic\n");
 		kfree(ctx);
 		return NULL;
 	}
 	if (strncmp
 	    (CSTR(ATOM_ATI_MAGIC_PTR), ATOM_ATI_MAGIC,
 	     strlen(ATOM_ATI_MAGIC))) {
-		printk(KERN_INFO "Invalid ATI magic.\n");
+		pr_info("Invalid ATI magic\n");
 		kfree(ctx);
 		return NULL;
 	}
@@ -1283,7 +1325,7 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 	if (strncmp
 	    (CSTR(base + ATOM_ROM_MAGIC_PTR), ATOM_ROM_MAGIC,
 	     strlen(ATOM_ROM_MAGIC))) {
-		printk(KERN_INFO "Invalid ATOM magic.\n");
+		pr_info("Invalid ATOM magic\n");
 		kfree(ctx);
 		return NULL;
 	}
@@ -1296,18 +1338,13 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 		return NULL;
 	}
 
-	str = CSTR(CU16(base + ATOM_ROM_MSG_PTR));
-	while (*str && ((*str == '\n') || (*str == '\r')))
-		str++;
-	/* name string isn't always 0 terminated */
-	for (i = 0; i < 511; i++) {
-		name[i] = str[i];
-		if (name[i] < '.' || name[i] > 'z') {
-			name[i] = 0;
-			break;
-		}
-	}
-	printk(KERN_INFO "ATOM BIOS: %s\n", name);
+	idx = CU16(ATOM_ROM_PART_NUMBER_PTR);
+	if (idx == 0)
+		idx = 0x80;
+
+	str = CSTR(idx);
+	if (*str != '\0')
+		pr_info("ATOM BIOS: %s\n", str);
 
 	return ctx;
 }
@@ -1380,29 +1417,3 @@ bool amdgpu_atom_parse_cmd_header(struct atom_context *ctx, int index, uint8_t *
 	return true;
 }
 
-int amdgpu_atom_allocate_fb_scratch(struct atom_context *ctx)
-{
-	int index = GetIndexIntoMasterTable(DATA, VRAM_UsageByFirmware);
-	uint16_t data_offset;
-	int usage_bytes = 0;
-	struct _ATOM_VRAM_USAGE_BY_FIRMWARE *firmware_usage;
-
-	if (amdgpu_atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
-		firmware_usage = (struct _ATOM_VRAM_USAGE_BY_FIRMWARE *)(ctx->bios + data_offset);
-
-		DRM_DEBUG("atom firmware requested %08x %dkb\n",
-			  le32_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware),
-			  le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb));
-
-		usage_bytes = le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb) * 1024;
-	}
-	ctx->scratch_size_bytes = 0;
-	if (usage_bytes == 0)
-		usage_bytes = 20 * 1024;
-	/* allocate some scratch memory */
-	ctx->scratch = kzalloc(usage_bytes, GFP_KERNEL);
-	if (!ctx->scratch)
-		return -ENOMEM;
-	ctx->scratch_size_bytes = usage_bytes;
-	return 0;
-}

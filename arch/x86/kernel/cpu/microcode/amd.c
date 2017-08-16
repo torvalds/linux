@@ -1,52 +1,366 @@
 /*
  *  AMD CPU Microcode Update Driver for Linux
- *  Copyright (C) 2008-2011 Advanced Micro Devices Inc.
- *
- *  Author: Peter Oruba <peter.oruba@amd.com>
- *
- *  Based on work by:
- *  Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
- *
- *  Maintainers:
- *  Andreas Herrmann <herrmann.der.user@googlemail.com>
- *  Borislav Petkov <bp@alien8.de>
  *
  *  This driver allows to upgrade microcode on F10h AMD
  *  CPUs and later.
  *
+ *  Copyright (C) 2008-2011 Advanced Micro Devices Inc.
+ *	          2013-2016 Borislav Petkov <bp@alien8.de>
+ *
+ *  Author: Peter Oruba <peter.oruba@amd.com>
+ *
+ *  Based on work by:
+ *  Tigran Aivazian <aivazian.tigran@gmail.com>
+ *
+ *  early loader:
+ *  Copyright (C) 2013 Advanced Micro Devices, Inc.
+ *
+ *  Author: Jacob Shin <jacob.shin@amd.com>
+ *  Fixes: Borislav Petkov <bp@suse.de>
+ *
  *  Licensed under the terms of the GNU General Public
  *  License version 2. See file COPYING for details.
  */
+#define pr_fmt(fmt) "microcode: " fmt
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
+#include <linux/earlycpio.h>
 #include <linux/firmware.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+#include <linux/initrd.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/pci.h>
 
+#include <asm/microcode_amd.h>
 #include <asm/microcode.h>
 #include <asm/processor.h>
+#include <asm/setup.h>
+#include <asm/cpu.h>
 #include <asm/msr.h>
-#include <asm/microcode_amd.h>
-
-MODULE_DESCRIPTION("AMD Microcode Update Driver");
-MODULE_AUTHOR("Peter Oruba");
-MODULE_LICENSE("GPL v2");
 
 static struct equiv_cpu_entry *equiv_cpu_table;
 
-struct ucode_patch {
-	struct list_head plist;
-	void *data;
-	u32 patch_id;
-	u16 equiv_cpu;
+/*
+ * This points to the current valid container of microcode patches which we will
+ * save from the initrd/builtin before jettisoning its contents. @mc is the
+ * microcode patch we found to match.
+ */
+struct cont_desc {
+	struct microcode_amd *mc;
+	u32		     cpuid_1_eax;
+	u32		     psize;
+	u8		     *data;
+	size_t		     size;
 };
 
-static LIST_HEAD(pcache);
+static u32 ucode_new_rev;
+static u8 amd_ucode_patch[PATCH_MAX_SIZE];
 
+/*
+ * Microcode patch container file is prepended to the initrd in cpio
+ * format. See Documentation/x86/early-microcode.txt
+ */
+static const char
+ucode_path[] __maybe_unused = "kernel/x86/microcode/AuthenticAMD.bin";
+
+static u16 find_equiv_id(struct equiv_cpu_entry *equiv_table, u32 sig)
+{
+	for (; equiv_table && equiv_table->installed_cpu; equiv_table++) {
+		if (sig == equiv_table->installed_cpu)
+			return equiv_table->equiv_cpu;
+	}
+
+	return 0;
+}
+
+/*
+ * This scans the ucode blob for the proper container as we can have multiple
+ * containers glued together. Returns the equivalence ID from the equivalence
+ * table or 0 if none found.
+ * Returns the amount of bytes consumed while scanning. @desc contains all the
+ * data we're going to use in later stages of the application.
+ */
+static ssize_t parse_container(u8 *ucode, ssize_t size, struct cont_desc *desc)
+{
+	struct equiv_cpu_entry *eq;
+	ssize_t orig_size = size;
+	u32 *hdr = (u32 *)ucode;
+	u16 eq_id;
+	u8 *buf;
+
+	/* Am I looking at an equivalence table header? */
+	if (hdr[0] != UCODE_MAGIC ||
+	    hdr[1] != UCODE_EQUIV_CPU_TABLE_TYPE ||
+	    hdr[2] == 0)
+		return CONTAINER_HDR_SZ;
+
+	buf = ucode;
+
+	eq = (struct equiv_cpu_entry *)(buf + CONTAINER_HDR_SZ);
+
+	/* Find the equivalence ID of our CPU in this table: */
+	eq_id = find_equiv_id(eq, desc->cpuid_1_eax);
+
+	buf  += hdr[2] + CONTAINER_HDR_SZ;
+	size -= hdr[2] + CONTAINER_HDR_SZ;
+
+	/*
+	 * Scan through the rest of the container to find where it ends. We do
+	 * some basic sanity-checking too.
+	 */
+	while (size > 0) {
+		struct microcode_amd *mc;
+		u32 patch_size;
+
+		hdr = (u32 *)buf;
+
+		if (hdr[0] != UCODE_UCODE_TYPE)
+			break;
+
+		/* Sanity-check patch size. */
+		patch_size = hdr[1];
+		if (patch_size > PATCH_MAX_SIZE)
+			break;
+
+		/* Skip patch section header: */
+		buf  += SECTION_HDR_SIZE;
+		size -= SECTION_HDR_SIZE;
+
+		mc = (struct microcode_amd *)buf;
+		if (eq_id == mc->hdr.processor_rev_id) {
+			desc->psize = patch_size;
+			desc->mc = mc;
+		}
+
+		buf  += patch_size;
+		size -= patch_size;
+	}
+
+	/*
+	 * If we have found a patch (desc->mc), it means we're looking at the
+	 * container which has a patch for this CPU so return 0 to mean, @ucode
+	 * already points to the proper container. Otherwise, we return the size
+	 * we scanned so that we can advance to the next container in the
+	 * buffer.
+	 */
+	if (desc->mc) {
+		desc->data = ucode;
+		desc->size = orig_size - size;
+
+		return 0;
+	}
+
+	return orig_size - size;
+}
+
+/*
+ * Scan the ucode blob for the proper container as we can have multiple
+ * containers glued together.
+ */
+static void scan_containers(u8 *ucode, size_t size, struct cont_desc *desc)
+{
+	ssize_t rem = size;
+
+	while (rem >= 0) {
+		ssize_t s = parse_container(ucode, rem, desc);
+		if (!s)
+			return;
+
+		ucode += s;
+		rem   -= s;
+	}
+}
+
+static int __apply_microcode_amd(struct microcode_amd *mc)
+{
+	u32 rev, dummy;
+
+	native_wrmsrl(MSR_AMD64_PATCH_LOADER, (u64)(long)&mc->hdr.data_code);
+
+	/* verify patch application was successful */
+	native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+	if (rev != mc->hdr.patch_id)
+		return -1;
+
+	return 0;
+}
+
+/*
+ * Early load occurs before we can vmalloc(). So we look for the microcode
+ * patch container file in initrd, traverse equivalent cpu table, look for a
+ * matching microcode patch, and update, all in initrd memory in place.
+ * When vmalloc() is available for use later -- on 64-bit during first AP load,
+ * and on 32-bit during save_microcode_in_initrd_amd() -- we can call
+ * load_microcode_amd() to save equivalent cpu table and microcode patches in
+ * kernel heap memory.
+ *
+ * Returns true if container found (sets @desc), false otherwise.
+ */
+static bool
+apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size, bool save_patch)
+{
+	struct cont_desc desc = { 0 };
+	u8 (*patch)[PATCH_MAX_SIZE];
+	struct microcode_amd *mc;
+	u32 rev, dummy, *new_rev;
+	bool ret = false;
+
+#ifdef CONFIG_X86_32
+	new_rev = (u32 *)__pa_nodebug(&ucode_new_rev);
+	patch	= (u8 (*)[PATCH_MAX_SIZE])__pa_nodebug(&amd_ucode_patch);
+#else
+	new_rev = &ucode_new_rev;
+	patch	= &amd_ucode_patch;
+#endif
+
+	desc.cpuid_1_eax = cpuid_1_eax;
+
+	scan_containers(ucode, size, &desc);
+
+	mc = desc.mc;
+	if (!mc)
+		return ret;
+
+	native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+	if (rev >= mc->hdr.patch_id)
+		return ret;
+
+	if (!__apply_microcode_amd(mc)) {
+		*new_rev = mc->hdr.patch_id;
+		ret      = true;
+
+		if (save_patch)
+			memcpy(patch, mc, min_t(u32, desc.psize, PATCH_MAX_SIZE));
+	}
+
+	return ret;
+}
+
+static bool get_builtin_microcode(struct cpio_data *cp, unsigned int family)
+{
+#ifdef CONFIG_X86_64
+	char fw_name[36] = "amd-ucode/microcode_amd.bin";
+
+	if (family >= 0x15)
+		snprintf(fw_name, sizeof(fw_name),
+			 "amd-ucode/microcode_amd_fam%.2xh.bin", family);
+
+	return get_builtin_firmware(cp, fw_name);
+#else
+	return false;
+#endif
+}
+
+static void __load_ucode_amd(unsigned int cpuid_1_eax, struct cpio_data *ret)
+{
+	struct ucode_cpu_info *uci;
+	struct cpio_data cp;
+	const char *path;
+	bool use_pa;
+
+	if (IS_ENABLED(CONFIG_X86_32)) {
+		uci	= (struct ucode_cpu_info *)__pa_nodebug(ucode_cpu_info);
+		path	= (const char *)__pa_nodebug(ucode_path);
+		use_pa	= true;
+	} else {
+		uci     = ucode_cpu_info;
+		path	= ucode_path;
+		use_pa	= false;
+	}
+
+	if (!get_builtin_microcode(&cp, x86_family(cpuid_1_eax)))
+		cp = find_microcode_in_initrd(path, use_pa);
+
+	/* Needed in load_microcode_amd() */
+	uci->cpu_sig.sig = cpuid_1_eax;
+
+	*ret = cp;
+}
+
+void __init load_ucode_amd_bsp(unsigned int cpuid_1_eax)
+{
+	struct cpio_data cp = { };
+
+	__load_ucode_amd(cpuid_1_eax, &cp);
+	if (!(cp.data && cp.size))
+		return;
+
+	apply_microcode_early_amd(cpuid_1_eax, cp.data, cp.size, true);
+}
+
+void load_ucode_amd_ap(unsigned int cpuid_1_eax)
+{
+	struct microcode_amd *mc;
+	struct cpio_data cp;
+	u32 *new_rev, rev, dummy;
+
+	if (IS_ENABLED(CONFIG_X86_32)) {
+		mc	= (struct microcode_amd *)__pa_nodebug(amd_ucode_patch);
+		new_rev = (u32 *)__pa_nodebug(&ucode_new_rev);
+	} else {
+		mc	= (struct microcode_amd *)amd_ucode_patch;
+		new_rev = &ucode_new_rev;
+	}
+
+	native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+
+	/* Check whether we have saved a new patch already: */
+	if (*new_rev && rev < mc->hdr.patch_id) {
+		if (!__apply_microcode_amd(mc)) {
+			*new_rev = mc->hdr.patch_id;
+			return;
+		}
+	}
+
+	__load_ucode_amd(cpuid_1_eax, &cp);
+	if (!(cp.data && cp.size))
+		return;
+
+	apply_microcode_early_amd(cpuid_1_eax, cp.data, cp.size, false);
+}
+
+static enum ucode_state
+load_microcode_amd(bool save, u8 family, const u8 *data, size_t size);
+
+int __init save_microcode_in_initrd_amd(unsigned int cpuid_1_eax)
+{
+	struct cont_desc desc = { 0 };
+	enum ucode_state ret;
+	struct cpio_data cp;
+
+	cp = find_microcode_in_initrd(ucode_path, false);
+	if (!(cp.data && cp.size))
+		return -EINVAL;
+
+	desc.cpuid_1_eax = cpuid_1_eax;
+
+	scan_containers(cp.data, cp.size, &desc);
+	if (!desc.mc)
+		return -EINVAL;
+
+	ret = load_microcode_amd(true, x86_family(cpuid_1_eax), desc.data, desc.size);
+	if (ret != UCODE_OK)
+		return -EINVAL;
+
+	return 0;
+}
+
+void reload_ucode_amd(void)
+{
+	struct microcode_amd *mc;
+	u32 rev, dummy;
+
+	mc = (struct microcode_amd *)amd_ucode_patch;
+
+	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+
+	if (rev < mc->hdr.patch_id) {
+		if (!__apply_microcode_amd(mc)) {
+			ucode_new_rev = mc->hdr.patch_id;
+			pr_info("reload patch_level=0x%08x\n", ucode_new_rev);
+		}
+	}
+}
 static u16 __find_equiv_id(unsigned int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
@@ -74,7 +388,7 @@ static struct ucode_patch *cache_find_patch(u16 equiv_cpu)
 {
 	struct ucode_patch *p;
 
-	list_for_each_entry(p, &pcache, plist)
+	list_for_each_entry(p, &microcode_cache, plist)
 		if (p->equiv_cpu == equiv_cpu)
 			return p;
 	return NULL;
@@ -84,7 +398,7 @@ static void update_cache(struct ucode_patch *new_patch)
 {
 	struct ucode_patch *p;
 
-	list_for_each_entry(p, &pcache, plist) {
+	list_for_each_entry(p, &microcode_cache, plist) {
 		if (p->equiv_cpu == new_patch->equiv_cpu) {
 			if (p->patch_id >= new_patch->patch_id)
 				/* we already have the latest patch */
@@ -97,14 +411,14 @@ static void update_cache(struct ucode_patch *new_patch)
 		}
 	}
 	/* no patch found, add it */
-	list_add_tail(&new_patch->plist, &pcache);
+	list_add_tail(&new_patch->plist, &microcode_cache);
 }
 
 static void free_cache(void)
 {
 	struct ucode_patch *p, *tmp;
 
-	list_for_each_entry_safe(p, tmp, &pcache, plist) {
+	list_for_each_entry_safe(p, tmp, &microcode_cache, plist) {
 		__list_del(p->plist.prev, p->plist.next);
 		kfree(p->data);
 		kfree(p);
@@ -177,21 +491,7 @@ static unsigned int verify_patch_size(u8 family, u32 patch_size,
 	return patch_size;
 }
 
-int __apply_microcode_amd(struct microcode_amd *mc_amd)
-{
-	u32 rev, dummy;
-
-	native_wrmsrl(MSR_AMD64_PATCH_LOADER, (u64)(long)&mc_amd->hdr.data_code);
-
-	/* verify patch application was successful */
-	native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
-	if (rev != mc_amd->hdr.patch_id)
-		return -1;
-
-	return 0;
-}
-
-int apply_microcode_amd(int cpu)
+static int apply_microcode_amd(int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	struct microcode_amd *mc_amd;
@@ -318,15 +618,13 @@ static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover)
 		return -EINVAL;
 	}
 
-	patch->data = kzalloc(patch_size, GFP_KERNEL);
+	patch->data = kmemdup(fw + SECTION_HDR_SIZE, patch_size, GFP_KERNEL);
 	if (!patch->data) {
 		pr_err("Patch data allocation failure.\n");
 		kfree(patch);
 		return -EINVAL;
 	}
 
-	/* All looks ok, copy patch... */
-	memcpy(patch->data, fw + SECTION_HDR_SIZE, patch_size);
 	INIT_LIST_HEAD(&patch->plist);
 	patch->patch_id  = mc_hdr->patch_id;
 	patch->equiv_cpu = proc_id;
@@ -375,7 +673,8 @@ static enum ucode_state __load_microcode_amd(u8 family, const u8 *data,
 	return UCODE_OK;
 }
 
-enum ucode_state load_microcode_amd(int cpu, u8 family, const u8 *data, size_t size)
+static enum ucode_state
+load_microcode_amd(bool save, u8 family, const u8 *data, size_t size)
 {
 	enum ucode_state ret;
 
@@ -387,10 +686,10 @@ enum ucode_state load_microcode_amd(int cpu, u8 family, const u8 *data, size_t s
 	if (ret != UCODE_OK)
 		cleanup();
 
-#if defined(CONFIG_MICROCODE_AMD_EARLY) && defined(CONFIG_X86_32)
+#ifdef CONFIG_X86_32
 	/* save BSP's matching patch for early load */
-	if (cpu_data(cpu).cpu_index == boot_cpu_data.cpu_index) {
-		struct ucode_patch *p = find_patch(cpu);
+	if (save) {
+		struct ucode_patch *p = find_patch(0);
 		if (p) {
 			memset(amd_ucode_patch, 0, PATCH_MAX_SIZE);
 			memcpy(amd_ucode_patch, p->data, min_t(u32, ksize(p->data),
@@ -422,11 +721,12 @@ static enum ucode_state request_microcode_amd(int cpu, struct device *device,
 {
 	char fw_name[36] = "amd-ucode/microcode_amd.bin";
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	bool bsp = c->cpu_index == boot_cpu_data.cpu_index;
 	enum ucode_state ret = UCODE_NFOUND;
 	const struct firmware *fw;
 
 	/* reload ucode container only on the boot cpu */
-	if (!refresh_fw || c->cpu_index != boot_cpu_data.cpu_index)
+	if (!refresh_fw || !bsp)
 		return UCODE_OK;
 
 	if (c->x86 >= 0x15)
@@ -443,7 +743,7 @@ static enum ucode_state request_microcode_amd(int cpu, struct device *device,
 		goto fw_release;
 	}
 
-	ret = load_microcode_amd(cpu, c->x86, fw->data, fw->size);
+	ret = load_microcode_amd(bsp, c->x86, fw->data, fw->size);
 
  fw_release:
 	release_firmware(fw);
@@ -475,12 +775,16 @@ static struct microcode_ops microcode_amd_ops = {
 
 struct microcode_ops * __init init_amd_microcode(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(0);
+	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	if (c->x86_vendor != X86_VENDOR_AMD || c->x86 < 0x10) {
-		pr_warning("AMD CPU family 0x%x not supported\n", c->x86);
+		pr_warn("AMD CPU family 0x%x not supported\n", c->x86);
 		return NULL;
 	}
+
+	if (ucode_new_rev)
+		pr_info_once("microcode updated early to new patch_level=0x%08x\n",
+			     ucode_new_rev);
 
 	return &microcode_amd_ops;
 }

@@ -1,0 +1,82 @@
+/*
+ * Device Tree Source for the RZ/A1H RSK board
+ *
+ * Copyright (C) 2016 Renesas Electronics
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "r7s72100.dtsi"
+
+/ {
+	model = "RSKRZA1";
+	compatible = "renesas,rskrza1", "renesas,r7s72100";
+
+	aliases {
+		serial0 = &scif2;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@8000000 {
+		device_type = "memory";
+		reg = <0x08000000 0x02000000>;
+	};
+
+	lbsc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+};
+
+&extal_clk {
+	clock-frequency = <13330000>;
+};
+
+&usb_x1_clk {
+	clock-frequency = <48000000>;
+};
+
+&rtc_x1_clk {
+	clock-frequency = <32768>;
+};
+
+&mtu2 {
+	status = "okay";
+};
+
+&ether {
+	status = "okay";
+	renesas,no-ether-link;
+	phy-handle = <&phy0>;
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&sdhi1 {
+	bus-width = <4>;
+	status = "okay";
+};
+
+&ostm0 {
+	status = "okay";
+};
+
+&ostm1 {
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
+};
+
+&scif2 {
+	status = "okay";
+};

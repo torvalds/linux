@@ -1243,12 +1243,10 @@ static int setup_input_dev(void)
 
 	error = input_register_polled_device(wistron_idev);
 	if (error)
-		goto err_free_keymap;
+		goto err_free_dev;
 
 	return 0;
 
- err_free_keymap:
-	sparse_keymap_free(input_dev);
  err_free_dev:
 	input_free_polled_device(wistron_idev);
 	return error;
@@ -1300,7 +1298,6 @@ static int wistron_remove(struct platform_device *dev)
 {
 	wistron_led_remove();
 	input_unregister_polled_device(wistron_idev);
-	sparse_keymap_free(wistron_idev->input);
 	input_free_polled_device(wistron_idev);
 	bios_detach();
 

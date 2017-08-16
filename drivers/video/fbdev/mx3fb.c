@@ -33,7 +33,7 @@
 #include <linux/platform_data/video-mx3fb.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define MX3FB_NAME		"mx3_sdc_fb"
 
@@ -845,7 +845,7 @@ static int __set_par(struct fb_info *fbi, bool lock)
 		if (fbi->var.sync & FB_SYNC_SHARP_MODE)
 			mode = IPU_PANEL_SHARP_TFT;
 
-		dev_dbg(fbi->device, "pixclock = %ul Hz\n",
+		dev_dbg(fbi->device, "pixclock = %u Hz\n",
 			(u32) (PICOS2KHZ(fbi->var.pixclock) * 1000UL));
 
 		if (sdc_init_panel(mx3fb, mode,
@@ -1336,9 +1336,8 @@ static int mx3fb_map_video_memory(struct fb_info *fbi, unsigned int mem_len,
 	int retval = 0;
 	dma_addr_t addr;
 
-	fbi->screen_base = dma_alloc_writecombine(fbi->device,
-						  mem_len,
-						  &addr, GFP_DMA | GFP_KERNEL);
+	fbi->screen_base = dma_alloc_wc(fbi->device, mem_len, &addr,
+					GFP_DMA | GFP_KERNEL);
 
 	if (!fbi->screen_base) {
 		dev_err(fbi->device, "Cannot allocate %u bytes framebuffer memory\n",
@@ -1378,8 +1377,8 @@ err0:
  */
 static int mx3fb_unmap_video_memory(struct fb_info *fbi)
 {
-	dma_free_writecombine(fbi->device, fbi->fix.smem_len,
-			      fbi->screen_base, fbi->fix.smem_start);
+	dma_free_wc(fbi->device, fbi->fix.smem_len, fbi->screen_base,
+		    fbi->fix.smem_start);
 
 	fbi->screen_base = NULL;
 	mutex_lock(&fbi->mm_lock);

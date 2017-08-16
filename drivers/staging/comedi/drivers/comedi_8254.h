@@ -53,13 +53,15 @@ struct comedi_subdevice;
 #define I8254_COUNTER2_REG		0x02
 #define I8254_CTRL_REG			0x03
 #define I8254_CTRL_SEL_CTR(x)		((x) << 6)
-#define I8254_CTRL_READBACK_COUNT	((3 << 6) | (1 << 4))
-#define I8254_CTRL_READBACK_STATUS	((3 << 6) | (1 << 5))
+#define I8254_CTRL_READBACK(x)		(I8254_CTRL_SEL_CTR(3) | BIT(x))
+#define I8254_CTRL_READBACK_COUNT	I8254_CTRL_READBACK(4)
+#define I8254_CTRL_READBACK_STATUS	I8254_CTRL_READBACK(5)
 #define I8254_CTRL_READBACK_SEL_CTR(x)	(2 << (x))
-#define I8254_CTRL_LATCH		(0 << 4)
-#define I8254_CTRL_LSB_ONLY		(1 << 4)
-#define I8254_CTRL_MSB_ONLY		(2 << 4)
-#define I8254_CTRL_LSB_MSB		(3 << 4)
+#define I8254_CTRL_RW(x)		(((x) & 0x3) << 4)
+#define I8254_CTRL_LATCH		I8254_CTRL_RW(0)
+#define I8254_CTRL_LSB_ONLY		I8254_CTRL_RW(1)
+#define I8254_CTRL_MSB_ONLY		I8254_CTRL_RW(2)
+#define I8254_CTRL_LSB_MSB		I8254_CTRL_RW(3)
 
 /* counter maps zero to 0x10000 */
 #define I8254_MAX_COUNT			0x10000
@@ -98,34 +100,36 @@ struct comedi_8254 {
 	unsigned int gate_src[3];
 	bool busy[3];
 
-	int (*insn_config)(struct comedi_device *, struct comedi_subdevice *s,
-			   struct comedi_insn *, unsigned int *data);
+	int (*insn_config)(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data);
 };
 
-unsigned int comedi_8254_status(struct comedi_8254 *, unsigned int counter);
-unsigned int comedi_8254_read(struct comedi_8254 *, unsigned int counter);
-void comedi_8254_write(struct comedi_8254 *,
+unsigned int comedi_8254_status(struct comedi_8254 *i8254,
+				unsigned int counter);
+unsigned int comedi_8254_read(struct comedi_8254 *i8254, unsigned int counter);
+void comedi_8254_write(struct comedi_8254 *i8254,
 		       unsigned int counter, unsigned int val);
 
-int comedi_8254_set_mode(struct comedi_8254 *,
+int comedi_8254_set_mode(struct comedi_8254 *i8254,
 			 unsigned int counter, unsigned int mode);
-int comedi_8254_load(struct comedi_8254 *,
+int comedi_8254_load(struct comedi_8254 *i8254,
 		     unsigned int counter, unsigned int val, unsigned int mode);
 
-void comedi_8254_pacer_enable(struct comedi_8254 *,
+void comedi_8254_pacer_enable(struct comedi_8254 *i8254,
 			      unsigned int counter1, unsigned int counter2,
 			      bool enable);
-void comedi_8254_update_divisors(struct comedi_8254 *);
-void comedi_8254_cascade_ns_to_timer(struct comedi_8254 *,
+void comedi_8254_update_divisors(struct comedi_8254 *i8254);
+void comedi_8254_cascade_ns_to_timer(struct comedi_8254 *i8254,
 				     unsigned int *nanosec, unsigned int flags);
-void comedi_8254_ns_to_timer(struct comedi_8254 *,
+void comedi_8254_ns_to_timer(struct comedi_8254 *i8254,
 			     unsigned int *nanosec, unsigned int flags);
 
-void comedi_8254_set_busy(struct comedi_8254 *,
+void comedi_8254_set_busy(struct comedi_8254 *i8254,
 			  unsigned int counter, bool busy);
 
-void comedi_8254_subdevice_init(struct comedi_subdevice *,
-				struct comedi_8254 *);
+void comedi_8254_subdevice_init(struct comedi_subdevice *s,
+				struct comedi_8254 *i8254);
 
 struct comedi_8254 *comedi_8254_init(unsigned long iobase,
 				     unsigned int osc_base,

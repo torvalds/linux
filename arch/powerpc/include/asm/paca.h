@@ -16,14 +16,21 @@
 
 #ifdef CONFIG_PPC64
 
+#include <linux/string.h>
 #include <asm/types.h>
 #include <asm/lppaca.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
+#ifdef CONFIG_PPC_BOOK3E
 #include <asm/exception-64e.h>
+#else
+#include <asm/exception-64s.h>
+#endif
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 #include <asm/kvm_book3s_asm.h>
 #endif
+#include <asm/accounting.h>
+#include <asm/hmi.h>
 
 register struct paca_struct *local_paca asm("r13");
 
@@ -95,9 +102,8 @@ struct paca_struct {
 	 * Now, starting in cacheline 2, the exception save areas
 	 */
 	/* used for most interrupts/exceptions */
-	u64 exgen[13] __attribute__((aligned(0x80)));
-	u64 exmc[13];		/* used for machine checks */
-	u64 exslb[13];		/* used for SLB/segment table misses
+	u64 exgen[EX_SIZE] __attribute__((aligned(0x80)));
+	u64 exslb[EX_SIZE];	/* used for SLB/segment table misses
  				 * on the linear mapping */
 	/* SLB related definitions */
 	u16 vmalloc_sllp;
@@ -131,7 +137,17 @@ struct paca_struct {
 	struct tlb_core_data tcd;
 #endif /* CONFIG_PPC_BOOK3E */
 
-	mm_context_t context;
+#ifdef CONFIG_PPC_BOOK3S
+	mm_context_id_t mm_ctx_id;
+#ifdef CONFIG_PPC_MM_SLICES
+	u64 mm_ctx_low_slices_psize;
+	unsigned char mm_ctx_high_slices_psize[SLICE_ARRAY_SIZE];
+	unsigned long addr_limit;
+#else
+	u16 mm_ctx_user_psize;
+	u16 mm_ctx_sllp;
+#endif
+#endif
 
 	/*
 	 * then miscellaneous read-write fields
@@ -160,28 +176,37 @@ struct paca_struct {
 	u8 thread_mask;
 	/* Mask to denote subcore sibling threads */
 	u8 subcore_sibling_mask;
+	/*
+	 * Pointer to an array which contains pointer
+	 * to the sibling threads' paca.
+	 */
+	struct paca_struct **thread_sibling_pacas;
+	/* The PSSCR value that the kernel requested before going to stop */
+	u64 requested_psscr;
 #endif
 
+#ifdef CONFIG_PPC_STD_MMU_64
+	/* Non-maskable exceptions that are not performance critical */
+	u64 exnmi[EX_SIZE];	/* used for system reset (nmi) */
+	u64 exmc[EX_SIZE];	/* used for machine checks */
+#endif
 #ifdef CONFIG_PPC_BOOK3S_64
-	/* Exclusive emergency stack pointer for machine check exception. */
+	/* Exclusive stacks for system reset and machine check exception. */
+	void *nmi_emergency_sp;
 	void *mc_emergency_sp;
+
+	u16 in_nmi;			/* In nmi handler */
+
 	/*
 	 * Flag to check whether we are in machine check early handler
 	 * and already using emergency stack.
 	 */
 	u16 in_mce;
-	u8 hmi_event_available;		 /* HMI event is available */
+	u8 hmi_event_available;		/* HMI event is available */
 #endif
 
 	/* Stuff for accurate time accounting */
-	u64 user_time;			/* accumulated usermode TB ticks */
-	u64 system_time;		/* accumulated system TB ticks */
-	u64 user_time_scaled;		/* accumulated usermode SPURR ticks */
-	u64 starttime;			/* TB value snapshot */
-	u64 starttime_user;		/* TB value on exit to usermode */
-	u64 startspurr;			/* SPURR value snapshot */
-	u64 utime_sspurr;		/* ->user_time when ->startspurr set */
-	u64 stolen_time;		/* TB ticks taken by hypervisor */
+	struct cpu_accounting_data accounting;
 	u64 dtl_ridx;			/* read index in dispatch log */
 	struct dtl_entry *dtl_curr;	/* pointer corresponding to dtl_ridx */
 
@@ -191,9 +216,17 @@ struct paca_struct {
 	struct kvmppc_book3s_shadow_vcpu shadow_vcpu;
 #endif
 	struct kvmppc_host_state kvm_hstate;
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	/*
+	 * Bitmap for sibling subcore status. See kvm/book3s_hv_ras.c for
+	 * more details
+	 */
+	struct sibling_subcore_state *sibling_subcore_state;
+#endif
 #endif
 };
 
+extern void copy_mm_to_paca(struct mm_struct *mm);
 extern struct paca_struct *paca;
 extern void initialise_paca(struct paca_struct *new_paca, int cpu);
 extern void setup_paca(struct paca_struct *new_paca);

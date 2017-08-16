@@ -29,8 +29,8 @@
 #include <linux/module.h>
 #include <linux/console.h>
 #include <linux/pci.h>
-#include "drmP.h"
-#include "drm/drm.h"
+#include <drm/drmP.h>
+#include <drm/drm.h>
 
 #include "virtgpu_drv.h"
 static struct drm_driver driver;
@@ -42,10 +42,8 @@ module_param_named(modeset, virtio_gpu_modeset, int, 0400);
 
 static int virtio_gpu_probe(struct virtio_device *vdev)
 {
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && virtio_gpu_modeset == -1)
 		return -EINVAL;
-#endif
 
 	if (virtio_gpu_modeset == 0)
 		return -EINVAL;
@@ -73,6 +71,14 @@ static struct virtio_device_id id_table[] = {
 };
 
 static unsigned int features[] = {
+#ifdef __LITTLE_ENDIAN
+	/*
+	 * Gallium command stream send by virgl is native endian.
+	 * Because of that we only support little endian guests on
+	 * little endian hosts.
+	 */
+	VIRTIO_GPU_F_VIRGL,
+#endif
 };
 static struct virtio_driver virtio_gpu_driver = {
 	.feature_table = features,
@@ -102,18 +108,17 @@ static const struct file_operations virtio_gpu_driver_fops = {
 	.read = drm_read,
 	.unlocked_ioctl	= drm_ioctl,
 	.release = drm_release,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM,
-	.set_busid = drm_virtio_set_busid,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_RENDER | DRIVER_ATOMIC,
 	.load = virtio_gpu_driver_load,
 	.unload = virtio_gpu_driver_unload,
+	.open = virtio_gpu_driver_open,
+	.postclose = virtio_gpu_driver_postclose,
 
 	.dumb_create = virtio_gpu_mode_dumb_create,
 	.dumb_map_offset = virtio_gpu_mode_dumb_mmap,
@@ -121,11 +126,26 @@ static struct drm_driver driver = {
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = virtio_gpu_debugfs_init,
-	.debugfs_cleanup = virtio_gpu_debugfs_takedown,
 #endif
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = drm_gem_prime_export,
+	.gem_prime_import = drm_gem_prime_import,
+	.gem_prime_pin = virtgpu_gem_prime_pin,
+	.gem_prime_unpin = virtgpu_gem_prime_unpin,
+	.gem_prime_get_sg_table = virtgpu_gem_prime_get_sg_table,
+	.gem_prime_import_sg_table = virtgpu_gem_prime_import_sg_table,
+	.gem_prime_vmap = virtgpu_gem_prime_vmap,
+	.gem_prime_vunmap = virtgpu_gem_prime_vunmap,
+	.gem_prime_mmap = virtgpu_gem_prime_mmap,
 
-	.gem_free_object = virtio_gpu_gem_free_object,
+	.gem_free_object_unlocked = virtio_gpu_gem_free_object,
+	.gem_open_object = virtio_gpu_gem_object_open,
+	.gem_close_object = virtio_gpu_gem_object_close,
 	.fops = &virtio_gpu_driver_fops,
+
+	.ioctls = virtio_gpu_ioctls,
+	.num_ioctls = DRM_VIRTIO_NUM_IOCTLS,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

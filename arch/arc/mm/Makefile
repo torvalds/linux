@@ -8,3 +8,4 @@
 
 obj-y	:= extable.o ioremap.o dma.o fault.o init.o
 obj-y	+= tlb.o tlbex.o cache.o mmap.o
+obj-$(CONFIG_HIGHMEM)	+= highmem.o

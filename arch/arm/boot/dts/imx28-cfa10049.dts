@@ -327,7 +327,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&mac0_pins_a
 				&mac0_pins_cfa10049>;
-			phy-reset-gpios = <&gpio2 21 0>;
+			phy-reset-gpios = <&gpio2 21 GPIO_ACTIVE_LOW>;
 			phy-reset-duration = <100>;
 			status = "okay";
 		};
@@ -426,7 +426,7 @@
 
 	};
 
-	onewire@0 {
+	onewire {
 		compatible = "w1-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&w1_gpio_pins>;

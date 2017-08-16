@@ -13,17 +13,17 @@
 			     &pmx_button_reset>;
 		pinctrl-names = "default";
 
-		button@1 {
+		power {
 			label = "Power button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
 		};
-		button@2 {
+		eject {
 			label = "USB unmount button";
 			linux,code = <KEY_EJECTCD>;
 			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};
-		button@3 {
+		reset {
 			label = "Reset button";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;

@@ -174,8 +174,12 @@ static void cs_automute(struct hda_codec *codec)
 	snd_hda_gen_update_outputs(codec);
 
 	if (spec->gpio_eapd_hp || spec->gpio_eapd_speaker) {
-		spec->gpio_data = spec->gen.hp_jack_present ?
-			spec->gpio_eapd_hp : spec->gpio_eapd_speaker;
+		if (spec->gen.automute_speaker)
+			spec->gpio_data = spec->gen.hp_jack_present ?
+				spec->gpio_eapd_hp : spec->gpio_eapd_speaker;
+		else
+			spec->gpio_data =
+				spec->gpio_eapd_hp | spec->gpio_eapd_speaker;
 		snd_hda_codec_write(codec, 0x01, 0,
 				    AC_VERB_SET_GPIO_DATA, spec->gpio_data);
 	}
@@ -357,6 +361,7 @@ static int cs_parse_auto_config(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
 	int err;
+	int i;
 
 	err = snd_hda_parse_pin_defcfg(codec, &spec->gen.autocfg, NULL, 0);
 	if (err < 0)
@@ -365,6 +370,19 @@ static int cs_parse_auto_config(struct hda_codec *codec)
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
 		return err;
+
+	/* keep the ADCs powered up when it's dynamically switchable */
+	if (spec->gen.dyn_adc_switch) {
+		unsigned int done = 0;
+		for (i = 0; i < spec->gen.input_mux.num_items; i++) {
+			int idx = spec->gen.dyn_adc_idx[i];
+			if (done & (1 << idx))
+				continue;
+			snd_hda_gen_fix_pin_power(codec,
+						  spec->gen.adc_nids[idx]);
+			done |= 1 << idx;
+		}
+	}
 
 	return 0;
 }
@@ -570,6 +588,7 @@ static struct cs_spec *cs_alloc_spec(struct hda_codec *codec, int vendor_nid)
 		return NULL;
 	codec->spec = spec;
 	spec->vendor_nid = vendor_nid;
+	codec->power_save_node = 1;
 	snd_hda_gen_spec_init(&spec->gen);
 
 	return spec;
@@ -613,6 +632,7 @@ enum {
 	CS4208_MAC_AUTO,
 	CS4208_MBA6,
 	CS4208_MBP11,
+	CS4208_MACMINI,
 	CS4208_GPIO0,
 };
 
@@ -620,6 +640,7 @@ static const struct hda_model_fixup cs4208_models[] = {
 	{ .id = CS4208_GPIO0, .name = "gpio0" },
 	{ .id = CS4208_MBA6, .name = "mba6" },
 	{ .id = CS4208_MBP11, .name = "mbp11" },
+	{ .id = CS4208_MACMINI, .name = "macmini" },
 	{}
 };
 
@@ -631,6 +652,7 @@ static const struct snd_pci_quirk cs4208_fixup_tbl[] = {
 /* codec SSID matching */
 static const struct snd_pci_quirk cs4208_mac_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x5e00, "MacBookPro 11,2", CS4208_MBP11),
+	SND_PCI_QUIRK(0x106b, 0x6c00, "MacMini 7,1", CS4208_MACMINI),
 	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookAir 6,1", CS4208_MBA6),
 	SND_PCI_QUIRK(0x106b, 0x7200, "MacBookAir 6,2", CS4208_MBA6),
 	SND_PCI_QUIRK(0x106b, 0x7b00, "MacBookPro 12,1", CS4208_MBP11),
@@ -663,6 +685,24 @@ static void cs4208_fixup_mac(struct hda_codec *codec,
 	if (codec->fixup_id == HDA_FIXUP_ID_NOT_SET)
 		codec->fixup_id = CS4208_GPIO0; /* default fixup */
 	snd_hda_apply_fixup(codec, action);
+}
+
+/* MacMini 7,1 has the inverted jack detection */
+static void cs4208_fixup_macmini(struct hda_codec *codec,
+				 const struct hda_fixup *fix, int action)
+{
+	static const struct hda_pintbl pincfgs[] = {
+		{ 0x18, 0x00ab9150 }, /* mic (audio-in) jack: disable detect */
+		{ 0x21, 0x004be140 }, /* SPDIF: disable detect */
+		{ }
+	};
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		/* HP pin (0x10) has an inverted detection */
+		codec->inv_jack_detect = 1;
+		/* disable the bogus Mic and SPDIF jack detections */
+		snd_hda_apply_pincfgs(codec, pincfgs);
+	}
 }
 
 static int cs4208_spdif_sw_put(struct snd_kcontrol *kcontrol,
@@ -705,6 +745,12 @@ static const struct hda_fixup cs4208_fixups[] = {
 	[CS4208_MBP11] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cs4208_fixup_spdif_switch,
+		.chained = true,
+		.chain_id = CS4208_GPIO0,
+	},
+	[CS4208_MACMINI] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs4208_fixup_macmini,
 		.chained = true,
 		.chain_id = CS4208_GPIO0,
 	},
@@ -1200,26 +1246,21 @@ static int patch_cs4213(struct hda_codec *codec)
 /*
  * patch entries
  */
-static const struct hda_codec_preset snd_hda_preset_cirrus[] = {
-	{ .id = 0x10134206, .name = "CS4206", .patch = patch_cs420x },
-	{ .id = 0x10134207, .name = "CS4207", .patch = patch_cs420x },
-	{ .id = 0x10134208, .name = "CS4208", .patch = patch_cs4208 },
-	{ .id = 0x10134210, .name = "CS4210", .patch = patch_cs4210 },
-	{ .id = 0x10134213, .name = "CS4213", .patch = patch_cs4213 },
+static const struct hda_device_id snd_hda_id_cirrus[] = {
+	HDA_CODEC_ENTRY(0x10134206, "CS4206", patch_cs420x),
+	HDA_CODEC_ENTRY(0x10134207, "CS4207", patch_cs420x),
+	HDA_CODEC_ENTRY(0x10134208, "CS4208", patch_cs4208),
+	HDA_CODEC_ENTRY(0x10134210, "CS4210", patch_cs4210),
+	HDA_CODEC_ENTRY(0x10134213, "CS4213", patch_cs4213),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:10134206");
-MODULE_ALIAS("snd-hda-codec-id:10134207");
-MODULE_ALIAS("snd-hda-codec-id:10134208");
-MODULE_ALIAS("snd-hda-codec-id:10134210");
-MODULE_ALIAS("snd-hda-codec-id:10134213");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_cirrus);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cirrus Logic HD-audio codec");
 
 static struct hda_codec_driver cirrus_driver = {
-	.preset = snd_hda_preset_cirrus,
+	.id = snd_hda_id_cirrus,
 };
 
 module_hda_codec_driver(cirrus_driver);

@@ -1,0 +1,57 @@
+Freescale imx21 Framebuffer
+
+This framebuffer driver supports devices imx1, imx21, imx25, and imx27.
+
+Required properties:
+- compatible : "fsl,<chip>-fb", chip should be imx1 or imx21
+- reg : Should contain 1 register ranges(address and length)
+- interrupts : One interrupt of the fb dev
+
+Required nodes:
+- display: Phandle to a display node as described in
+	Documentation/devicetree/bindings/display/panel/display-timing.txt
+	Additional, the display node has to define properties:
+	- bits-per-pixel: Bits per pixel
+	- fsl,pcr: LCDC PCR value
+	A display node may optionally define
+	- fsl,aus-mode: boolean to enable AUS mode (only for imx21)
+
+Optional properties:
+- lcd-supply: Regulator for LCD supply voltage.
+- fsl,dmacr: DMA Control Register value. This is optional. By default, the
+	register is not modified as recommended by the datasheet.
+- fsl,lpccr: Contrast Control Register value. This property provides the
+	default value for the contrast control register.
+	If that property is omitted, the register is zeroed.
+- fsl,lscr1: LCDC Sharp Configuration Register value.
+
+Example:
+
+	imxfb: fb@10021000 {
+		compatible = "fsl,imx21-fb";
+		interrupts = <61>;
+		reg = <0x10021000 0x1000>;
+		display = <&display0>;
+	};
+
+	...
+
+	display0: display0 {
+		model = "Primeview-PD050VL1";
+		native-mode = <&timing_disp0>;
+		bits-per-pixel = <16>;
+		fsl,pcr = <0xf0c88080>;	/* non-standard but required */
+		display-timings {
+			timing_disp0: 640x480 {
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <112>;
+				hfront-porch = <36>;
+				hsync-len = <32>;
+				vback-porch = <33>;
+				vfront-porch = <33>;
+				vsync-len = <2>;
+				clock-frequency = <25000000>;
+			};
+		};
+	};

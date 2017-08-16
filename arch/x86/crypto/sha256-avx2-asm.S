@@ -723,7 +723,7 @@ done_hash:
 	ret
 ENDPROC(sha256_transform_rorx)
 
-.data
+.section	.rodata.cst512.K256, "aM", @progbits, 512
 .align 64
 K256:
 	.long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
@@ -759,14 +759,21 @@ K256:
 	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 	.long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 
+.section	.rodata.cst32.PSHUFFLE_BYTE_FLIP_MASK, "aM", @progbits, 32
+.align 32
 PSHUFFLE_BYTE_FLIP_MASK:
 	.octa 0x0c0d0e0f08090a0b0405060700010203,0x0c0d0e0f08090a0b0405060700010203
 
 # shuffle xBxA -> 00BA
+.section	.rodata.cst32._SHUF_00BA, "aM", @progbits, 32
+.align 32
 _SHUF_00BA:
 	.octa 0xFFFFFFFFFFFFFFFF0b0a090803020100,0xFFFFFFFFFFFFFFFF0b0a090803020100
 
 # shuffle xDxC -> DC00
+.section	.rodata.cst32._SHUF_DC00, "aM", @progbits, 32
+.align 32
 _SHUF_DC00:
 	.octa 0x0b0a090803020100FFFFFFFFFFFFFFFF,0x0b0a090803020100FFFFFFFFFFFFFFFF
+
 #endif

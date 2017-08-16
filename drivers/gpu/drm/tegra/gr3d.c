@@ -48,7 +48,7 @@ static int gr3d_init(struct host1x_client *client)
 
 	client->syncpts[0] = host1x_syncpt_request(client->dev, flags);
 	if (!client->syncpts[0]) {
-		host1x_channel_free(gr3d->channel);
+		host1x_channel_put(gr3d->channel);
 		return -ENOMEM;
 	}
 
@@ -67,7 +67,7 @@ static int gr3d_exit(struct host1x_client *client)
 		return err;
 
 	host1x_syncpt_free(client->syncpts[0]);
-	host1x_channel_free(gr3d->channel);
+	host1x_channel_put(gr3d->channel);
 
 	return 0;
 }
@@ -268,9 +268,9 @@ static int gr3d_probe(struct platform_device *pdev)
 
 	if (of_device_is_compatible(np, "nvidia,tegra30-gr3d")) {
 		gr3d->clk_secondary = devm_clk_get(&pdev->dev, "3d2");
-		if (IS_ERR(gr3d->clk)) {
+		if (IS_ERR(gr3d->clk_secondary)) {
 			dev_err(&pdev->dev, "cannot get secondary clock\n");
-			return PTR_ERR(gr3d->clk);
+			return PTR_ERR(gr3d->clk_secondary);
 		}
 
 		gr3d->rst_secondary = devm_reset_control_get(&pdev->dev,

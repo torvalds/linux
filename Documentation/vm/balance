@@ -1,12 +1,14 @@
 Started Jan 2000 by Kanoj Sarcar <kanoj@sgi.com>
 
-Memory balancing is needed for non __GFP_WAIT as well as for non
-__GFP_IO allocations.
+Memory balancing is needed for !__GFP_ATOMIC and !__GFP_KSWAPD_RECLAIM as
+well as for non __GFP_IO allocations.
 
-There are two reasons to be requesting non __GFP_WAIT allocations:
-the caller can not sleep (typically intr context), or does not want
-to incur cost overheads of page stealing and possible swap io for
-whatever reasons.
+The first reason why a caller may avoid reclaim is that the caller can not
+sleep due to holding a spinlock or is in interrupt context. The second may
+be that the caller is willing to fail the allocation without incurring the
+overhead of page reclaim. This may happen for opportunistic high-order
+allocation requests that have order-0 fallback options. In such cases,
+the caller may also wish to avoid waking kswapd.
 
 __GFP_IO allocation requests are made to prevent file system deadlocks.
 

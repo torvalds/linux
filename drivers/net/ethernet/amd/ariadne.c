@@ -706,7 +706,6 @@ static const struct net_device_ops ariadne_netdev_ops = {
 	.ndo_get_stats		= ariadne_get_stats,
 	.ndo_set_rx_mode	= set_multicast_list,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 

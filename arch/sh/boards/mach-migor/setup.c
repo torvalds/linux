@@ -13,7 +13,6 @@
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mtd/nand.h>
@@ -27,10 +26,10 @@
 #include <linux/videodev2.h>
 #include <linux/sh_intc.h>
 #include <video/sh_mobile_lcdc.h>
-#include <media/sh_mobile_ceu.h>
-#include <media/ov772x.h>
+#include <media/drv-intf/sh_mobile_ceu.h>
+#include <media/i2c/ov772x.h>
 #include <media/soc_camera.h>
-#include <media/tw9910.h>
+#include <media/i2c/tw9910.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
@@ -167,7 +166,7 @@ static struct mtd_partition migor_nand_flash_partitions[] = {
 static void migor_nand_flash_cmd_ctl(struct mtd_info *mtd, int cmd,
 				     unsigned int ctrl)
 {
-	struct nand_chip *chip = mtd->priv;
+	struct nand_chip *chip = mtd_to_nand(mtd);
 
 	if (cmd == NAND_CMD_NONE)
 		return;

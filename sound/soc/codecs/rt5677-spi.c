@@ -20,9 +20,7 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/sched.h>
-#include <linux/kthread.h>
 #include <linux/uaccess.h>
-#include <linux/miscdevice.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_qos.h>
 #include <linux/sysfs.h>
@@ -232,7 +230,6 @@ static int rt5677_spi_probe(struct spi_device *spi)
 static struct spi_driver rt5677_spi_driver = {
 	.driver = {
 		.name = "rt5677",
-		.owner = THIS_MODULE,
 	},
 	.probe = rt5677_spi_probe,
 };

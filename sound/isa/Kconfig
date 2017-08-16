@@ -3,6 +3,7 @@
 config SND_WSS_LIB
         tristate
         select SND_PCM
+	select SND_TIMER
 
 config SND_SB_COMMON
         tristate
@@ -42,6 +43,7 @@ config SND_AD1816A
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_TIMER
 	help
 	  Say Y here to include support for Analog Devices SoundPort
 	  AD1816A or compatible sound chips.
@@ -209,6 +211,7 @@ config SND_GUSCLASSIC
 	tristate "Gravis UltraSound Classic"
 	select SND_RAWMIDI
 	select SND_PCM
+	select SND_TIMER
 	help
 	  Say Y here to include support for Gravis UltraSound Classic
 	  soundcards.
@@ -221,6 +224,7 @@ config SND_GUSEXTREME
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
+	select SND_TIMER
 	help
 	  Say Y here to include support for Gravis UltraSound Extreme
 	  soundcards.
@@ -373,12 +377,20 @@ config SND_SBAWE
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_SB16_DSP
+	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 	help
 	  Say Y here to include support for Sound Blaster AWE soundcards
 	  (including the Plug and Play version).
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sbawe.
+
+# select SEQ stuff to min(SND_SEQUENCER,SND_XXX)
+config SND_SBAWE_SEQ
+	def_tristate SND_SEQUENCER && SND_SBAWE
+	select SND_SEQ_MIDI_EMUL
+	select SND_SEQ_VIRMIDI
+	select SND_SYNTH_EMUX
 
 config SND_SB16_CSP
 	bool "Sound Blaster 16/AWE CSP support"

@@ -38,12 +38,12 @@ void signalfd_cleanup(struct sighand_struct *sighand)
 	/*
 	 * The lockless check can race with remove_wait_queue() in progress,
 	 * but in this case its caller should run under rcu_read_lock() and
-	 * sighand_cachep is SLAB_DESTROY_BY_RCU, we can safely return.
+	 * sighand_cachep is SLAB_TYPESAFE_BY_RCU, we can safely return.
 	 */
 	if (likely(!waitqueue_active(wqh)))
 		return;
 
-	/* wait_queue_t->func(POLLFREE) should do remove_wait_queue() */
+	/* wait_queue_entry_t->func(POLLFREE) should do remove_wait_queue() */
 	wake_up_poll(wqh, POLLHUP | POLLFREE);
 }
 

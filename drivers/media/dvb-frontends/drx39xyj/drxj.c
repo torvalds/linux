@@ -601,7 +601,7 @@ static struct drxj_data drxj_data_g = {
 	0,			/* hi_cfg_wake_up_key    */
 	0,			/* hi_cfg_ctrl         */
 	0,			/* HICfgTimeout      */
-	/* UIO configuartion */
+	/* UIO configuration */
 	DRX_UIO_MODE_DISABLE,	/* uio_sma_rx_mode      */
 	DRX_UIO_MODE_DISABLE,	/* uio_sma_tx_mode      */
 	DRX_UIO_MODE_DISABLE,	/* uioASELMode       */
@@ -619,7 +619,7 @@ static struct drxj_data drxj_data_g = {
 /*   false,                  * flagHDevSet       */
 /*   (u16) 0xFFF,          * rdsLastCount      */
 
-	/* ATV configuartion */
+	/* ATV configuration */
 	0UL,			/* flags cfg changes */
 	/* shadow of ATV_TOP_EQU0__A */
 	{-5,
@@ -1240,12 +1240,15 @@ static u32 frac_times1e6(u32 N, u32 D)
 *        and rounded. For calc used formula: 16*10^(prescaleGain[dB]/20).
 *
 */
+#if 0
+/* Currently, unused as we lack support for analog TV */
 static const u16 nicam_presc_table_val[43] = {
 	1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4,
 	5, 5, 6, 6, 7, 8, 9, 10, 11, 13, 14, 16,
 	18, 20, 23, 25, 28, 32, 36, 40, 45,
 	51, 57, 64, 71, 80, 90, 101, 113, 127
 };
+#endif
 
 /*============================================================================*/
 /*==                        END HELPER FUNCTIONS                            ==*/
@@ -2834,7 +2837,8 @@ ctrl_set_cfg_mpeg_output(struct drx_demod_instance *demod, struct drx_cfg_mpeg_o
 			/* coef = 188/204                          */
 			max_bit_rate =
 			    (ext_attr->curr_symbol_rate / 8) * nr_bits * 188;
-			/* pass through b/c Annex A/c need following settings */
+			/* pass through as b/c Annex A/c need following settings */
+			/* fall-through */
 		case DRX_STANDARD_ITU_B:
 			rc = drxj_dap_write_reg16(dev_addr, FEC_OC_FCT_USAGE__A, FEC_OC_FCT_USAGE__PRE, 0);
 			if (rc != 0) {
@@ -3349,7 +3353,7 @@ rw_error:
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
-/* miscellaneous configuartions - begin                           */
+/* miscellaneous configurations - begin                           */
 /*----------------------------------------------------------------------------*/
 
 /**
@@ -3512,7 +3516,7 @@ rw_error:
 }
 
 /*----------------------------------------------------------------------------*/
-/* miscellaneous configuartions - end                             */
+/* miscellaneous configurations - end                             */
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -4131,7 +4135,7 @@ int drxj_dap_scu_atomic_read_write_block(struct i2c_device_addr *dev_addr, u32 a
 {
 	struct drxjscu_cmd scu_cmd;
 	int rc;
-	u16 set_param_parameters[15];
+	u16 set_param_parameters[18];
 	u16 cmd_result[15];
 
 	/* Parameter check */
@@ -4773,9 +4777,9 @@ set_frequency(struct drx_demod_instance *demod,
 	   No need to account for mirroring on RF
 	 */
 	switch (ext_attr->standard) {
-	case DRX_STANDARD_ITU_A:	/* fallthrough */
-	case DRX_STANDARD_ITU_C:	/* fallthrough */
-	case DRX_STANDARD_PAL_SECAM_LP:	/* fallthrough */
+	case DRX_STANDARD_ITU_A:
+	case DRX_STANDARD_ITU_C:
+	case DRX_STANDARD_PAL_SECAM_LP:
 	case DRX_STANDARD_8VSB:
 		select_pos_image = true;
 		break;
@@ -4784,11 +4788,12 @@ set_frequency(struct drx_demod_instance *demod,
 		   Sound carrier is already 3Mhz above centre frequency due
 		   to tuner setting so now add an extra shift of 1MHz... */
 		fm_frequency_shift = 1000;
-	case DRX_STANDARD_ITU_B:	/* fallthrough */
-	case DRX_STANDARD_NTSC:	/* fallthrough */
-	case DRX_STANDARD_PAL_SECAM_BG:	/* fallthrough */
-	case DRX_STANDARD_PAL_SECAM_DK:	/* fallthrough */
-	case DRX_STANDARD_PAL_SECAM_I:	/* fallthrough */
+		/*fall through */
+	case DRX_STANDARD_ITU_B:
+	case DRX_STANDARD_NTSC:
+	case DRX_STANDARD_PAL_SECAM_BG:
+	case DRX_STANDARD_PAL_SECAM_DK:
+	case DRX_STANDARD_PAL_SECAM_I:
 	case DRX_STANDARD_PAL_SECAM_L:
 		select_pos_image = false;
 		break;
@@ -9597,12 +9602,13 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod)
 
 	   Precision errors still possible.
 	 */
-	e = post_bit_err_rs * 742686;
-	m = fec_oc_period * 100;
-	if (fec_oc_period == 0)
+	if (!fec_oc_period) {
 		qam_post_rs_ber = 0xFFFFFFFF;
-	else
+	} else {
+		e = post_bit_err_rs * 742686;
+		m = fec_oc_period * 100;
 		qam_post_rs_ber = e / m;
+	}
 
 	/* fill signal quality data structure */
 	p->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
@@ -10948,7 +10954,7 @@ rw_error:
 
 static void drxj_reset_mode(struct drxj_data *ext_attr)
 {
-	/* Initialize default AFE configuartion for QAM */
+	/* Initialize default AFE configuration for QAM */
 	if (ext_attr->has_lna) {
 		/* IF AGC off, PGA active */
 #ifndef DRXJ_VSB_ONLY
@@ -10992,7 +10998,7 @@ static void drxj_reset_mode(struct drxj_data *ext_attr)
 	ext_attr->qam_pre_saw_cfg.reference = 0x07;
 	ext_attr->qam_pre_saw_cfg.use_pre_saw = true;
 #endif
-	/* Initialize default AFE configuartion for VSB */
+	/* Initialize default AFE configuration for VSB */
 	ext_attr->vsb_rf_agc_cfg.standard = DRX_STANDARD_8VSB;
 	ext_attr->vsb_rf_agc_cfg.ctrl_mode = DRX_AGC_CTRL_AUTO;
 	ext_attr->vsb_rf_agc_cfg.min_output_level = 0;
@@ -11068,9 +11074,9 @@ ctrl_power_mode(struct drx_demod_instance *demod, enum drx_power_mode *mode)
 	}
 
 	if ((*mode == DRX_POWER_UP)) {
-		/* Restore analog & pin configuartion */
+		/* Restore analog & pin configuration */
 
-		/* Initialize default AFE configuartion for VSB */
+		/* Initialize default AFE configuration for VSB */
 		drxj_reset_mode(ext_attr);
 	} else {
 		/* Power down to requested mode */
@@ -12260,7 +12266,7 @@ static void drx39xxj_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops drx39xxj_ops;
+static const struct dvb_frontend_ops drx39xxj_ops;
 
 struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 {
@@ -12359,7 +12365,7 @@ error:
 }
 EXPORT_SYMBOL(drx39xxj_attach);
 
-static struct dvb_frontend_ops drx39xxj_ops = {
+static const struct dvb_frontend_ops drx39xxj_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		 .name = "Micronas DRX39xxj family Frontend",

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -20,22 +21,6 @@
 #include "bfi_reg.h"
 
 BFA_TRC_FILE(HAL, CORE);
-
-/*
- * BFA module list terminated by NULL
- */
-static struct bfa_module_s *hal_mods[] = {
-	&hal_mod_fcdiag,
-	&hal_mod_sgpg,
-	&hal_mod_fcport,
-	&hal_mod_fcxp,
-	&hal_mod_lps,
-	&hal_mod_uf,
-	&hal_mod_rport,
-	&hal_mod_fcp,
-	&hal_mod_dconf,
-	NULL
-};
 
 /*
  * Message handlers for various modules.
@@ -89,6 +74,25 @@ static bfa_ioc_mbox_mcfunc_t  bfa_mbox_isrs[BFI_MC_MAX] = {
 };
 
 
+
+void
+__bfa_trc(struct bfa_trc_mod_s *trcm, int fileno, int line, u64 data)
+{
+	int		tail = trcm->tail;
+	struct bfa_trc_s	*trc = &trcm->trc[tail];
+
+	if (trcm->stopped)
+		return;
+
+	trc->fileno = (u16) fileno;
+	trc->line = (u16) line;
+	trc->data.u64 = data;
+	trc->timestamp = BFA_TRC_TS(trcm);
+
+	trcm->tail = (trcm->tail + 1) & (BFA_TRC_MAX - 1);
+	if (trcm->tail == trcm->head)
+		trcm->head = (trcm->head + 1) & (BFA_TRC_MAX - 1);
+}
 
 static void
 bfa_com_port_attach(struct bfa_s *bfa)
@@ -1171,8 +1175,13 @@ bfa_iocfc_start_submod(struct bfa_s *bfa)
 	for (i = 0; i < BFI_IOC_MAX_CQS; i++)
 		bfa_isr_rspq_ack(bfa, i, bfa_rspq_ci(bfa, i));
 
-	for (i = 0; hal_mods[i]; i++)
-		hal_mods[i]->start(bfa);
+	bfa_fcport_start(bfa);
+	bfa_uf_start(bfa);
+	/*
+	 * bfa_init() with flash read is complete. now invalidate the stale
+	 * content of lun mask like unit attention, rp tag and lp tag.
+	 */
+	bfa_ioim_lm_init(BFA_FCP_MOD(bfa)->bfa);
 
 	bfa->iocfc.submod_enabled = BFA_TRUE;
 }
@@ -1183,13 +1192,16 @@ bfa_iocfc_start_submod(struct bfa_s *bfa)
 static void
 bfa_iocfc_disable_submod(struct bfa_s *bfa)
 {
-	int		i;
-
 	if (bfa->iocfc.submod_enabled == BFA_FALSE)
 		return;
 
-	for (i = 0; hal_mods[i]; i++)
-		hal_mods[i]->iocdisable(bfa);
+	bfa_fcdiag_iocdisable(bfa);
+	bfa_fcport_iocdisable(bfa);
+	bfa_fcxp_iocdisable(bfa);
+	bfa_lps_iocdisable(bfa);
+	bfa_rport_iocdisable(bfa);
+	bfa_fcp_iocdisable(bfa);
+	bfa_dconf_iocdisable(bfa);
 
 	bfa->iocfc.submod_enabled = BFA_FALSE;
 }
@@ -1753,7 +1765,6 @@ void
 bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 		struct bfa_s *bfa)
 {
-	int		i;
 	struct bfa_mem_dma_s *port_dma = BFA_MEM_PORT_DMA(bfa);
 	struct bfa_mem_dma_s *ablk_dma = BFA_MEM_ABLK_DMA(bfa);
 	struct bfa_mem_dma_s *cee_dma = BFA_MEM_CEE_DMA(bfa);
@@ -1772,9 +1783,14 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 	INIT_LIST_HEAD(&meminfo->kva_info.qe);
 
 	bfa_iocfc_meminfo(cfg, meminfo, bfa);
-
-	for (i = 0; hal_mods[i]; i++)
-		hal_mods[i]->meminfo(cfg, meminfo, bfa);
+	bfa_sgpg_meminfo(cfg, meminfo, bfa);
+	bfa_fcport_meminfo(cfg, meminfo, bfa);
+	bfa_fcxp_meminfo(cfg, meminfo, bfa);
+	bfa_lps_meminfo(cfg, meminfo, bfa);
+	bfa_uf_meminfo(cfg, meminfo, bfa);
+	bfa_rport_meminfo(cfg, meminfo, bfa);
+	bfa_fcp_meminfo(cfg, meminfo, bfa);
+	bfa_dconf_meminfo(cfg, meminfo, bfa);
 
 	/* dma info setup */
 	bfa_mem_dma_setup(meminfo, port_dma, bfa_port_meminfo());
@@ -1820,7 +1836,6 @@ void
 bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	       struct bfa_meminfo_s *meminfo, struct bfa_pcidev_s *pcidev)
 {
-	int	i;
 	struct bfa_mem_dma_s *dma_info, *dma_elem;
 	struct bfa_mem_kva_s *kva_info, *kva_elem;
 	struct list_head *dm_qe, *km_qe;
@@ -1849,10 +1864,15 @@ bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	}
 
 	bfa_iocfc_attach(bfa, bfad, cfg, pcidev);
-
-	for (i = 0; hal_mods[i]; i++)
-		hal_mods[i]->attach(bfa, bfad, cfg, pcidev);
-
+	bfa_fcdiag_attach(bfa, bfad, cfg, pcidev);
+	bfa_sgpg_attach(bfa, bfad, cfg, pcidev);
+	bfa_fcport_attach(bfa, bfad, cfg, pcidev);
+	bfa_fcxp_attach(bfa, bfad, cfg, pcidev);
+	bfa_lps_attach(bfa, bfad, cfg, pcidev);
+	bfa_uf_attach(bfa, bfad, cfg, pcidev);
+	bfa_rport_attach(bfa, bfad, cfg, pcidev);
+	bfa_fcp_attach(bfa, bfad, cfg, pcidev);
+	bfa_dconf_attach(bfa, bfad, cfg);
 	bfa_com_port_attach(bfa);
 	bfa_com_ablk_attach(bfa);
 	bfa_com_cee_attach(bfa);
@@ -1879,10 +1899,6 @@ bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 void
 bfa_detach(struct bfa_s *bfa)
 {
-	int	i;
-
-	for (i = 0; hal_mods[i]; i++)
-		hal_mods[i]->detach(bfa);
 	bfa_ioc_detach(&bfa->ioc);
 }
 

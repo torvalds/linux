@@ -90,7 +90,7 @@
 #define FSCTL_SRV_ENUMERATE_SNAPSHOTS 0x00144064
 /* Retrieve an opaque file reference for server-side data movement ie copy */
 #define FSCTL_SRV_REQUEST_RESUME_KEY 0x00140078
-#define FSCTL_LMR_REQUEST_RESILIENCY 0x001401D4 /* BB add struct */
+#define FSCTL_LMR_REQUEST_RESILIENCY 0x001401D4
 #define FSCTL_LMR_GET_LINK_TRACK_INF 0x001400E8 /* BB add struct */
 #define FSCTL_LMR_SET_LINK_TRACK_INF 0x001400EC /* BB add struct */
 #define FSCTL_VALIDATE_NEGOTIATE_INFO 0x00140204

@@ -48,7 +48,7 @@ struct arc_callchain_trace {
 static int callchain_trace(unsigned int addr, void *data)
 {
 	struct arc_callchain_trace *ctrl = data;
-	struct perf_callchain_entry *entry = ctrl->perf_stuff;
+	struct perf_callchain_entry_ctx *entry = ctrl->perf_stuff;
 	perf_callchain_store(entry, addr);
 
 	if (ctrl->depth++ < 3)
@@ -58,7 +58,7 @@ static int callchain_trace(unsigned int addr, void *data)
 }
 
 void
-perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	struct arc_callchain_trace ctrl = {
 		.depth = 0,
@@ -69,7 +69,7 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 }
 
 void
-perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
+perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
 {
 	/*
 	 * User stack can't be unwound trivially with kernel dwarf unwinder
@@ -108,7 +108,7 @@ static void arc_perf_event_update(struct perf_event *event,
 	int64_t delta = new_raw_count - prev_raw_count;
 
 	/*
-	 * We don't afaraid of hwc->prev_count changing beneath our feet
+	 * We aren't afraid of hwc->prev_count changing beneath our feet
 	 * because there's no way for us to re-enter this function anytime.
 	 */
 	local64_set(&hwc->prev_count, new_raw_count);
@@ -179,8 +179,8 @@ static int arc_pmu_event_init(struct perf_event *event)
 		if (arc_pmu->ev_hw_idx[event->attr.config] < 0)
 			return -ENOENT;
 		hwc->config |= arc_pmu->ev_hw_idx[event->attr.config];
-		pr_debug("init event %d with h/w %d \'%s\'\n",
-			 (int) event->attr.config, (int) hwc->config,
+		pr_debug("init event %d with h/w %08x \'%s\'\n",
+			 (int)event->attr.config, (int)hwc->config,
 			 arc_pmu_ev_hw_map[event->attr.config]);
 		return 0;
 
@@ -189,6 +189,8 @@ static int arc_pmu_event_init(struct perf_event *event)
 		if (ret < 0)
 			return ret;
 		hwc->config |= arc_pmu->ev_hw_idx[ret];
+		pr_debug("init cache event with h/w %08x \'%s\'\n",
+			 (int)hwc->config, arc_pmu_ev_hw_map[ret]);
 		return 0;
 	default:
 		return -ENOENT;
@@ -428,12 +430,11 @@ static irqreturn_t arc_pmu_intr(int irq, void *dev)
 
 #endif /* CONFIG_ISA_ARCV2 */
 
-void arc_cpu_pmu_irq_init(void)
+static void arc_cpu_pmu_irq_init(void *data)
 {
-	struct arc_pmu_cpu *pmu_cpu = this_cpu_ptr(&arc_pmu_cpu);
+	int irq = *(int *)data;
 
-	arc_request_percpu_irq(arc_pmu->irq, smp_processor_id(), arc_pmu_intr,
-			       "ARC perf counters", pmu_cpu);
+	enable_percpu_irq(irq, IRQ_TYPE_NONE);
 
 	/* Clear all pending interrupt flags */
 	write_aux_reg(ARC_REG_PCT_INT_ACT, 0xffffffff);
@@ -515,7 +516,6 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 
 	if (has_interrupts) {
 		int irq = platform_get_irq(pdev, 0);
-		unsigned long flags;
 
 		if (irq < 0) {
 			pr_err("Cannot get IRQ number for the platform\n");
@@ -524,24 +524,12 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 
 		arc_pmu->irq = irq;
 
-		/*
-		 * arc_cpu_pmu_irq_init() needs to be called on all cores for
-		 * their respective local PMU.
-		 * However we use opencoded on_each_cpu() to ensure it is called
-		 * on core0 first, so that arc_request_percpu_irq() sets up
-		 * AUTOEN etc. Otherwise enable_percpu_irq() fails to enable
-		 * perf IRQ on non master cores.
-		 * see arc_request_percpu_irq()
-		 */
-		preempt_disable();
-		local_irq_save(flags);
-		arc_cpu_pmu_irq_init();
-		local_irq_restore(flags);
-		smp_call_function((smp_call_func_t)arc_cpu_pmu_irq_init, 0, 1);
-		preempt_enable();
+		/* intc map function ensures irq_set_percpu_devid() called */
+		request_percpu_irq(irq, arc_pmu_intr, "ARC perf counters",
+				   this_cpu_ptr(&arc_pmu_cpu));
 
-		/* Clean all pending interrupt flags */
-		write_aux_reg(ARC_REG_PCT_INT_ACT, 0xffffffff);
+		on_each_cpu(arc_cpu_pmu_irq_init, &irq, 1);
+
 	} else
 		arc_pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 

@@ -23,8 +23,8 @@
 #include "ade7854.h"
 
 static ssize_t ade7854_read_8bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	int ret;
 	u8 val = 0;
@@ -40,8 +40,8 @@ static ssize_t ade7854_read_8bit(struct device *dev,
 }
 
 static ssize_t ade7854_read_16bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u16 val = 0;
@@ -57,8 +57,8 @@ static ssize_t ade7854_read_16bit(struct device *dev,
 }
 
 static ssize_t ade7854_read_24bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u32 val;
@@ -74,8 +74,8 @@ static ssize_t ade7854_read_24bit(struct device *dev,
 }
 
 static ssize_t ade7854_read_32bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u32 val = 0;
@@ -91,9 +91,9 @@ static ssize_t ade7854_read_32bit(struct device *dev,
 }
 
 static ssize_t ade7854_write_8bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				  struct device_attribute *attr,
+				  const char *buf,
+				  size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -112,9 +112,9 @@ error_ret:
 }
 
 static ssize_t ade7854_write_16bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -133,9 +133,9 @@ error_ret:
 }
 
 static ssize_t ade7854_write_24bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -154,9 +154,9 @@ error_ret:
 }
 
 static ssize_t ade7854_write_32bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -181,132 +181,132 @@ static int ade7854_reset(struct device *dev)
 	u16 val;
 
 	st->read_reg_16(dev, ADE7854_CONFIG, &val);
-	val |= 1 << 7; /* Software Chip Reset */
+	val |= BIT(7); /* Software Chip Reset */
 
 	return st->write_reg_16(dev, ADE7854_CONFIG, val);
 }
 
-static IIO_DEV_ATTR_AIGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_AIGAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_AIGAIN);
-static IIO_DEV_ATTR_BIGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_BIGAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_BIGAIN);
-static IIO_DEV_ATTR_CIGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CIGAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_CIGAIN);
-static IIO_DEV_ATTR_NIGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_NIGAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_NIGAIN);
-static IIO_DEV_ATTR_AVGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_AVGAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_AVGAIN);
-static IIO_DEV_ATTR_BVGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_BVGAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_BVGAIN);
-static IIO_DEV_ATTR_CVGAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CVGAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_CVGAIN);
-static IIO_DEV_ATTR_APPARENT_POWER_A_GAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_APPARENT_POWER_A_GAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_AVAGAIN);
-static IIO_DEV_ATTR_APPARENT_POWER_B_GAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_APPARENT_POWER_B_GAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_BVAGAIN);
-static IIO_DEV_ATTR_APPARENT_POWER_C_GAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_APPARENT_POWER_C_GAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_CVAGAIN);
-static IIO_DEV_ATTR_ACTIVE_POWER_A_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_ACTIVE_POWER_A_OFFSET(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_AWATTOS);
-static IIO_DEV_ATTR_ACTIVE_POWER_B_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_ACTIVE_POWER_B_OFFSET(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_BWATTOS);
-static IIO_DEV_ATTR_ACTIVE_POWER_C_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_ACTIVE_POWER_C_OFFSET(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_CWATTOS);
-static IIO_DEV_ATTR_REACTIVE_POWER_A_GAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_REACTIVE_POWER_A_GAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_AVARGAIN);
-static IIO_DEV_ATTR_REACTIVE_POWER_B_GAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_REACTIVE_POWER_B_GAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_BVARGAIN);
-static IIO_DEV_ATTR_REACTIVE_POWER_C_GAIN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_REACTIVE_POWER_C_GAIN(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_CVARGAIN);
-static IIO_DEV_ATTR_REACTIVE_POWER_A_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_REACTIVE_POWER_A_OFFSET(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_AVAROS);
-static IIO_DEV_ATTR_REACTIVE_POWER_B_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_REACTIVE_POWER_B_OFFSET(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_BVAROS);
-static IIO_DEV_ATTR_REACTIVE_POWER_C_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_REACTIVE_POWER_C_OFFSET(0644,
 		ade7854_read_24bit,
 		ade7854_write_24bit,
 		ADE7854_CVAROS);
-static IIO_DEV_ATTR_VPEAK(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_VPEAK(0644,
 		ade7854_read_32bit,
 		ade7854_write_32bit,
 		ADE7854_VPEAK);
-static IIO_DEV_ATTR_IPEAK(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_IPEAK(0644,
 		ade7854_read_32bit,
 		ade7854_write_32bit,
 		ADE7854_VPEAK);
-static IIO_DEV_ATTR_APHCAL(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_APHCAL(0644,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_APHCAL);
-static IIO_DEV_ATTR_BPHCAL(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_BPHCAL(0644,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_BPHCAL);
-static IIO_DEV_ATTR_CPHCAL(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CPHCAL(0644,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_CPHCAL);
-static IIO_DEV_ATTR_CF1DEN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CF1DEN(0644,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_CF1DEN);
-static IIO_DEV_ATTR_CF2DEN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CF2DEN(0644,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_CF2DEN);
-static IIO_DEV_ATTR_CF3DEN(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CF3DEN(0644,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_CF3DEN);
-static IIO_DEV_ATTR_LINECYC(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_LINECYC(0644,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_LINECYC);
-static IIO_DEV_ATTR_SAGCYC(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_SAGCYC(0644,
 		ade7854_read_8bit,
 		ade7854_write_8bit,
 		ADE7854_SAGCYC);
-static IIO_DEV_ATTR_CFCYC(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_CFCYC(0644,
 		ade7854_read_8bit,
 		ade7854_write_8bit,
 		ADE7854_CFCYC);
-static IIO_DEV_ATTR_PEAKCYC(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_PEAKCYC(0644,
 		ade7854_read_8bit,
 		ade7854_write_8bit,
 		ADE7854_PEAKCYC);
@@ -318,55 +318,55 @@ static IIO_DEV_ATTR_ANGLE1(ade7854_read_24bit,
 		ADE7854_ANGLE1);
 static IIO_DEV_ATTR_ANGLE2(ade7854_read_24bit,
 		ADE7854_ANGLE2);
-static IIO_DEV_ATTR_AIRMS(S_IRUGO,
+static IIO_DEV_ATTR_AIRMS(0444,
 		ade7854_read_24bit,
 		NULL,
 		ADE7854_AIRMS);
-static IIO_DEV_ATTR_BIRMS(S_IRUGO,
+static IIO_DEV_ATTR_BIRMS(0444,
 		ade7854_read_24bit,
 		NULL,
 		ADE7854_BIRMS);
-static IIO_DEV_ATTR_CIRMS(S_IRUGO,
+static IIO_DEV_ATTR_CIRMS(0444,
 		ade7854_read_24bit,
 		NULL,
 		ADE7854_CIRMS);
-static IIO_DEV_ATTR_NIRMS(S_IRUGO,
+static IIO_DEV_ATTR_NIRMS(0444,
 		ade7854_read_24bit,
 		NULL,
 		ADE7854_NIRMS);
-static IIO_DEV_ATTR_AVRMS(S_IRUGO,
+static IIO_DEV_ATTR_AVRMS(0444,
 		ade7854_read_24bit,
 		NULL,
 		ADE7854_AVRMS);
-static IIO_DEV_ATTR_BVRMS(S_IRUGO,
+static IIO_DEV_ATTR_BVRMS(0444,
 		ade7854_read_24bit,
 		NULL,
 		ADE7854_BVRMS);
-static IIO_DEV_ATTR_CVRMS(S_IRUGO,
+static IIO_DEV_ATTR_CVRMS(0444,
 		ade7854_read_24bit,
 		NULL,
 		ADE7854_CVRMS);
-static IIO_DEV_ATTR_AIRMSOS(S_IRUGO,
+static IIO_DEV_ATTR_AIRMSOS(0444,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_AIRMSOS);
-static IIO_DEV_ATTR_BIRMSOS(S_IRUGO,
+static IIO_DEV_ATTR_BIRMSOS(0444,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_BIRMSOS);
-static IIO_DEV_ATTR_CIRMSOS(S_IRUGO,
+static IIO_DEV_ATTR_CIRMSOS(0444,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_CIRMSOS);
-static IIO_DEV_ATTR_AVRMSOS(S_IRUGO,
+static IIO_DEV_ATTR_AVRMSOS(0444,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_AVRMSOS);
-static IIO_DEV_ATTR_BVRMSOS(S_IRUGO,
+static IIO_DEV_ATTR_BVRMSOS(0444,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_BVRMSOS);
-static IIO_DEV_ATTR_CVRMSOS(S_IRUGO,
+static IIO_DEV_ATTR_CVRMSOS(0444,
 		ade7854_read_16bit,
 		ade7854_write_16bit,
 		ADE7854_CVRMSOS);
@@ -417,20 +417,16 @@ static int ade7854_set_irq(struct device *dev, bool enable)
 
 	ret = st->read_reg_32(dev, ADE7854_MASK0, &irqen);
 	if (ret)
-		goto error_ret;
+		return ret;
 
 	if (enable)
-		irqen |= 1 << 17; /* 1: interrupt enabled when all periodical
-				     (at 8 kHz rate) DSP computations finish. */
+		irqen |= BIT(17); /* 1: interrupt enabled when all periodical
+				   * (at 8 kHz rate) DSP computations finish.
+				   */
 	else
-		irqen &= ~(1 << 17);
+		irqen &= ~BIT(17);
 
-	ret = st->write_reg_32(dev, ADE7854_MASK0, irqen);
-	if (ret)
-		goto error_ret;
-
-error_ret:
-	return ret;
+	return st->write_reg_32(dev, ADE7854_MASK0, irqen);
 }
 
 static int ade7854_initial_setup(struct iio_dev *indio_dev)
@@ -446,7 +442,7 @@ static int ade7854_initial_setup(struct iio_dev *indio_dev)
 	}
 
 	ade7854_reset(dev);
-	msleep(ADE7854_STARTUP_DELAY);
+	usleep_range(ADE7854_STARTUP_DELAY, ADE7854_STARTUP_DELAY + 100);
 
 err_ret:
 	return ret;
@@ -548,30 +544,14 @@ int ade7854_probe(struct iio_dev *indio_dev, struct device *dev)
 	indio_dev->info = &ade7854_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
 		return ret;
 
 	/* Get the device into a sane initial state */
-	ret = ade7854_initial_setup(indio_dev);
-	if (ret)
-		goto error_unreg_dev;
-
-	return 0;
-
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
-	return ret;
+	return ade7854_initial_setup(indio_dev);
 }
 EXPORT_SYMBOL(ade7854_probe);
-
-int ade7854_remove(struct iio_dev *indio_dev)
-{
-	iio_device_unregister(indio_dev);
-
-	return 0;
-}
-EXPORT_SYMBOL(ade7854_remove);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7854/58/68/78 Polyphase Energy Meter");

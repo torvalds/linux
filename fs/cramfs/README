@@ -86,26 +86,26 @@ Block Size
 
 (Block size in cramfs refers to the size of input data that is
 compressed at a time.  It's intended to be somewhere around
-PAGE_CACHE_SIZE for cramfs_readpage's convenience.)
+PAGE_SIZE for cramfs_readpage's convenience.)
 
 The superblock ought to indicate the block size that the fs was
 written for, since comments in <linux/pagemap.h> indicate that
-PAGE_CACHE_SIZE may grow in future (if I interpret the comment
+PAGE_SIZE may grow in future (if I interpret the comment
 correctly).
 
-Currently, mkcramfs #define's PAGE_CACHE_SIZE as 4096 and uses that
-for blksize, whereas Linux-2.3.39 uses its PAGE_CACHE_SIZE, which in
+Currently, mkcramfs #define's PAGE_SIZE as 4096 and uses that
+for blksize, whereas Linux-2.3.39 uses its PAGE_SIZE, which in
 turn is defined as PAGE_SIZE (which can be as large as 32KB on arm).
 This discrepancy is a bug, though it's not clear which should be
 changed.
 
-One option is to change mkcramfs to take its PAGE_CACHE_SIZE from
+One option is to change mkcramfs to take its PAGE_SIZE from
 <asm/page.h>.  Personally I don't like this option, but it does
 require the least amount of change: just change `#define
-PAGE_CACHE_SIZE (4096)' to `#include <asm/page.h>'.  The disadvantage
+PAGE_SIZE (4096)' to `#include <asm/page.h>'.  The disadvantage
 is that the generated cramfs cannot always be shared between different
 kernels, not even necessarily kernels of the same architecture if
-PAGE_CACHE_SIZE is subject to change between kernel versions
+PAGE_SIZE is subject to change between kernel versions
 (currently possible with arm and ia64).
 
 The remaining options try to make cramfs more sharable.
@@ -126,22 +126,22 @@ size.  The options are:
   1. Always 4096 bytes.
 
   2. Writer chooses blocksize; kernel adapts but rejects blocksize >
-     PAGE_CACHE_SIZE.
+     PAGE_SIZE.
 
   3. Writer chooses blocksize; kernel adapts even to blocksize >
-     PAGE_CACHE_SIZE.
+     PAGE_SIZE.
 
 It's easy enough to change the kernel to use a smaller value than
-PAGE_CACHE_SIZE: just make cramfs_readpage read multiple blocks.
+PAGE_SIZE: just make cramfs_readpage read multiple blocks.
 
-The cost of option 1 is that kernels with a larger PAGE_CACHE_SIZE
+The cost of option 1 is that kernels with a larger PAGE_SIZE
 value don't get as good compression as they can.
 
 The cost of option 2 relative to option 1 is that the code uses
 variables instead of #define'd constants.  The gain is that people
-with kernels having larger PAGE_CACHE_SIZE can make use of that if
+with kernels having larger PAGE_SIZE can make use of that if
 they don't mind their cramfs being inaccessible to kernels with
-smaller PAGE_CACHE_SIZE values.
+smaller PAGE_SIZE values.
 
 Option 3 is easy to implement if we don't mind being CPU-inefficient:
 e.g. get readpage to decompress to a buffer of size MAX_BLKSIZE (which

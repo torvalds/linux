@@ -26,14 +26,13 @@
 &cspi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_cspi>;
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio4 11 0>, <&gpio4 13 0>;
 	status = "okay";
 
 	flash: m25p32@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "m25p32", "m25p80";
+		compatible = "m25p32", "jedec,spi-nor";
 		spi-max-frequency = <25000000>;
 		reg = <1>;
 
@@ -54,7 +53,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio4 12 0>;
+	phy-reset-gpios = <&gpio4 12 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

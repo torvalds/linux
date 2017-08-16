@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/rational.h>
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-dv-timings.h>
@@ -165,7 +166,8 @@ bool v4l2_valid_dv_timings(const struct v4l2_dv_timings *t,
 	    bt->width > cap->max_width ||
 	    bt->pixelclock < cap->min_pixelclock ||
 	    bt->pixelclock > cap->max_pixelclock ||
-	    (cap->standards && bt->standards &&
+	    (!(caps & V4L2_DV_BT_CAP_CUSTOM) &&
+	     cap->standards && bt->standards &&
 	     !(bt->standards & cap->standards)) ||
 	    (bt->interlaced && !(caps & V4L2_DV_BT_CAP_INTERLACED)) ||
 	    (!bt->interlaced && !(caps & V4L2_DV_BT_CAP_PROGRESSIVE)))
@@ -209,8 +211,13 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
 		if (v4l2_valid_dv_timings(v4l2_dv_timings_presets + i, cap,
 					  fnc, fnc_handle) &&
 		    v4l2_match_dv_timings(t, v4l2_dv_timings_presets + i,
-					  pclock_delta)) {
+					  pclock_delta, false)) {
+			u32 flags = t->bt.flags & V4L2_DV_FL_REDUCED_FPS;
+
 			*t = v4l2_dv_timings_presets[i];
+			if (can_reduce_fps(&t->bt))
+				t->bt.flags |= flags;
+
 			return true;
 		}
 	}
@@ -218,17 +225,37 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
 }
 EXPORT_SYMBOL_GPL(v4l2_find_dv_timings_cap);
 
+bool v4l2_find_dv_timings_cea861_vic(struct v4l2_dv_timings *t, u8 vic)
+{
+	unsigned int i;
+
+	for (i = 0; i < v4l2_dv_timings_presets[i].bt.width; i++) {
+		const struct v4l2_bt_timings *bt =
+			&v4l2_dv_timings_presets[i].bt;
+
+		if ((bt->flags & V4L2_DV_FL_HAS_CEA861_VIC) &&
+		    bt->cea861_vic == vic) {
+			*t = v4l2_dv_timings_presets[i];
+			return true;
+		}
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(v4l2_find_dv_timings_cea861_vic);
+
 /**
  * v4l2_match_dv_timings - check if two timings match
  * @t1 - compare this v4l2_dv_timings struct...
  * @t2 - with this struct.
  * @pclock_delta - the allowed pixelclock deviation.
+ * @match_reduced_fps - if true, then fail if V4L2_DV_FL_REDUCED_FPS does not
+ * match.
  *
  * Compare t1 with t2 with a given margin of error for the pixelclock.
  */
 bool v4l2_match_dv_timings(const struct v4l2_dv_timings *t1,
 			   const struct v4l2_dv_timings *t2,
-			   unsigned pclock_delta)
+			   unsigned pclock_delta, bool match_reduced_fps)
 {
 	if (t1->type != t2->type || t1->type != V4L2_DV_BT_656_1120)
 		return false;
@@ -239,9 +266,14 @@ bool v4l2_match_dv_timings(const struct v4l2_dv_timings *t1,
 	    t1->bt.pixelclock >= t2->bt.pixelclock - pclock_delta &&
 	    t1->bt.pixelclock <= t2->bt.pixelclock + pclock_delta &&
 	    t1->bt.hfrontporch == t2->bt.hfrontporch &&
+	    t1->bt.hsync == t2->bt.hsync &&
+	    t1->bt.hbackporch == t2->bt.hbackporch &&
 	    t1->bt.vfrontporch == t2->bt.vfrontporch &&
 	    t1->bt.vsync == t2->bt.vsync &&
 	    t1->bt.vbackporch == t2->bt.vbackporch &&
+	    (!match_reduced_fps ||
+	     (t1->bt.flags & V4L2_DV_FL_REDUCED_FPS) ==
+		(t2->bt.flags & V4L2_DV_FL_REDUCED_FPS)) &&
 	    (!t1->bt.interlaced ||
 		(t1->bt.il_vfrontporch == t2->bt.il_vfrontporch &&
 		 t1->bt.il_vsync == t2->bt.il_vsync &&
@@ -293,7 +325,8 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
 			(bt->polarities & V4L2_DV_VSYNC_POS_POL) ? "+" : "-",
 			bt->il_vsync, bt->il_vbackporch);
 	pr_info("%s: pixelclock: %llu\n", dev_prefix, bt->pixelclock);
-	pr_info("%s: flags (0x%x):%s%s%s%s%s%s\n", dev_prefix, bt->flags,
+	pr_info("%s: flags (0x%x):%s%s%s%s%s%s%s%s%s%s\n",
+			dev_prefix, bt->flags,
 			(bt->flags & V4L2_DV_FL_REDUCED_BLANKING) ?
 			" REDUCED_BLANKING" : "",
 			((bt->flags & V4L2_DV_FL_REDUCED_BLANKING) &&
@@ -305,14 +338,52 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
 			(bt->flags & V4L2_DV_FL_HALF_LINE) ?
 			" HALF_LINE" : "",
 			(bt->flags & V4L2_DV_FL_IS_CE_VIDEO) ?
-			" CE_VIDEO" : "");
-	pr_info("%s: standards (0x%x):%s%s%s%s\n", dev_prefix, bt->standards,
+			" CE_VIDEO" : "",
+			(bt->flags & V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE) ?
+			" FIRST_FIELD_EXTRA_LINE" : "",
+			(bt->flags & V4L2_DV_FL_HAS_PICTURE_ASPECT) ?
+			" HAS_PICTURE_ASPECT" : "",
+			(bt->flags & V4L2_DV_FL_HAS_CEA861_VIC) ?
+			" HAS_CEA861_VIC" : "",
+			(bt->flags & V4L2_DV_FL_HAS_HDMI_VIC) ?
+			" HAS_HDMI_VIC" : "");
+	pr_info("%s: standards (0x%x):%s%s%s%s%s\n", dev_prefix, bt->standards,
 			(bt->standards & V4L2_DV_BT_STD_CEA861) ?  " CEA" : "",
 			(bt->standards & V4L2_DV_BT_STD_DMT) ?  " DMT" : "",
 			(bt->standards & V4L2_DV_BT_STD_CVT) ?  " CVT" : "",
-			(bt->standards & V4L2_DV_BT_STD_GTF) ?  " GTF" : "");
+			(bt->standards & V4L2_DV_BT_STD_GTF) ?  " GTF" : "",
+			(bt->standards & V4L2_DV_BT_STD_SDI) ?  " SDI" : "");
+	if (bt->flags & V4L2_DV_FL_HAS_PICTURE_ASPECT)
+		pr_info("%s: picture aspect (hor:vert): %u:%u\n", dev_prefix,
+			bt->picture_aspect.numerator,
+			bt->picture_aspect.denominator);
+	if (bt->flags & V4L2_DV_FL_HAS_CEA861_VIC)
+		pr_info("%s: CEA-861 VIC: %u\n", dev_prefix, bt->cea861_vic);
+	if (bt->flags & V4L2_DV_FL_HAS_HDMI_VIC)
+		pr_info("%s: HDMI VIC: %u\n", dev_prefix, bt->hdmi_vic);
 }
 EXPORT_SYMBOL_GPL(v4l2_print_dv_timings);
+
+struct v4l2_fract v4l2_dv_timings_aspect_ratio(const struct v4l2_dv_timings *t)
+{
+	struct v4l2_fract ratio = { 1, 1 };
+	unsigned long n, d;
+
+	if (t->type != V4L2_DV_BT_656_1120)
+		return ratio;
+	if (!(t->bt.flags & V4L2_DV_FL_HAS_PICTURE_ASPECT))
+		return ratio;
+
+	ratio.numerator = t->bt.width * t->bt.picture_aspect.denominator;
+	ratio.denominator = t->bt.height * t->bt.picture_aspect.numerator;
+
+	rational_best_approximation(ratio.numerator, ratio.denominator,
+				    ratio.numerator, ratio.denominator, &n, &d);
+	ratio.numerator = n;
+	ratio.denominator = d;
+	return ratio;
+}
+EXPORT_SYMBOL_GPL(v4l2_dv_timings_aspect_ratio);
 
 /*
  * CVT defines

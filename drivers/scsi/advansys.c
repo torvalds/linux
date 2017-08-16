@@ -6291,18 +6291,17 @@ static uchar AscGetSynPeriodIndex(ASC_DVC_VAR *asc_dvc, uchar syn_time)
 static uchar
 AscMsgOutSDTR(ASC_DVC_VAR *asc_dvc, uchar sdtr_period, uchar sdtr_offset)
 {
-	EXT_MSG sdtr_buf;
-	uchar sdtr_period_index;
-	PortAddr iop_base;
-
-	iop_base = asc_dvc->iop_base;
-	sdtr_buf.msg_type = EXTENDED_MESSAGE;
-	sdtr_buf.msg_len = MS_SDTR_LEN;
-	sdtr_buf.msg_req = EXTENDED_SDTR;
-	sdtr_buf.xfer_period = sdtr_period;
+	PortAddr iop_base = asc_dvc->iop_base;
+	uchar sdtr_period_index = AscGetSynPeriodIndex(asc_dvc, sdtr_period);
+	EXT_MSG sdtr_buf = {
+		.msg_type = EXTENDED_MESSAGE,
+		.msg_len = MS_SDTR_LEN,
+		.msg_req = EXTENDED_SDTR,
+		.xfer_period = sdtr_period,
+		.req_ack_offset = sdtr_offset,
+	};
 	sdtr_offset &= ASC_SYN_MAX_OFFSET;
-	sdtr_buf.req_ack_offset = sdtr_offset;
-	sdtr_period_index = AscGetSynPeriodIndex(asc_dvc, sdtr_period);
+
 	if (sdtr_period_index <= asc_dvc->max_sdtr_index) {
 		AscMemWordCopyPtrToLram(iop_base, ASCV_MSGOUT_BEG,
 					(uchar *)&sdtr_buf,
@@ -7803,7 +7802,7 @@ adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 		return ASC_BUSY;
 	}
 	scsiqp->sense_addr = cpu_to_le32(sense_addr);
-	scsiqp->sense_len = cpu_to_le32(SCSI_SENSE_BUFFERSIZE);
+	scsiqp->sense_len = SCSI_SENSE_BUFFERSIZE;
 
 	/* Build ADV_SCSI_REQ_Q */
 
@@ -10819,7 +10818,6 @@ static struct scsi_host_template advansys_template = {
 	 * by enabling clustering, I/O throughput increases as well.
 	 */
 	.use_clustering = ENABLE_CLUSTERING,
-	.use_blk_tags = 1,
 };
 
 static int advansys_wide_init_chip(struct Scsi_Host *shost)
@@ -11031,6 +11029,9 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
 		ASC_DBG(2, "AdvInitGetConfig()\n");
 
 		ret = AdvInitGetConfig(pdev, shost) ? -ENODEV : 0;
+#else
+		share_irq = 0;
+		ret = -ENODEV;
 #endif /* CONFIG_PCI */
 	}
 
@@ -11210,11 +11211,6 @@ static int advansys_board_found(struct Scsi_Host *shost, unsigned int iop,
 
 		/* Set maximum number of queues the adapter can handle. */
 		shost->can_queue = adv_dvc_varp->max_host_qng;
-	}
-	ret = scsi_init_shared_tag_map(shost, shost->can_queue);
-	if (ret) {
-		shost_printk(KERN_ERR, shost, "init tag map failed\n");
-		goto err_free_dma;
 	}
 
 	/*

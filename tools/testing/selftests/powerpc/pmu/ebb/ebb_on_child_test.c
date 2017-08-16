@@ -47,6 +47,8 @@ int ebb_on_child(void)
 	struct event event;
 	pid_t pid;
 
+	SKIP_IF(!ebb_is_supported());
+
 	FAIL_IF(pipe(read_pipe.fds) == -1);
 	FAIL_IF(pipe(write_pipe.fds) == -1);
 

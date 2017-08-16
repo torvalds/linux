@@ -32,15 +32,15 @@
 #include <linux/i2c.h>
 #include <linux/i2c-ocores.h>
 #include <linux/i2c-xiic.h>
-#include <linux/i2c/tsc2007.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/xilinx_spi.h>
 #include <linux/spi/max7301.h>
 #include <linux/spi/mc33880.h>
 
-#include <media/timb_radio.h>
-#include <media/timb_video.h>
+#include <linux/platform_data/tsc2007.h>
+#include <linux/platform_data/media/timb_radio.h>
+#include <linux/platform_data/media/timb_video.h>
 
 #include <linux/timb_dma.h>
 

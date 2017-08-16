@@ -35,7 +35,6 @@
 #include <asm/cputype.h>
 #include <asm/current.h>
 #include <asm/hw_breakpoint.h>
-#include <asm/kdebug.h>
 #include <asm/traps.h>
 
 /* Breakpoint currently in use for each BRP. */
@@ -632,7 +631,7 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	info->address &= ~alignment_mask;
 	info->ctrl.len <<= offset;
 
-	if (!bp->overflow_handler) {
+	if (is_default_overflow_handler(bp)) {
 		/*
 		 * Mismatch breakpoints are required for single-stepping
 		 * breakpoints.
@@ -755,7 +754,7 @@ static void watchpoint_handler(unsigned long addr, unsigned int fsr,
 		 * mismatch breakpoint so we can single-step over the
 		 * watchpoint trigger.
 		 */
-		if (!wp->overflow_handler)
+		if (is_default_overflow_handler(wp))
 			enable_single_step(wp, instruction_pointer(regs));
 
 unlock:
@@ -926,9 +925,9 @@ static bool core_has_os_save_restore(void)
 	}
 }
 
-static void reset_ctrl_regs(void *unused)
+static void reset_ctrl_regs(unsigned int cpu)
 {
-	int i, raw_num_brps, err = 0, cpu = smp_processor_id();
+	int i, raw_num_brps, err = 0;
 	u32 val;
 
 	/*
@@ -1021,25 +1020,20 @@ out_mdbgen:
 		cpumask_or(&debug_err_mask, &debug_err_mask, cpumask_of(cpu));
 }
 
-static int dbg_reset_notify(struct notifier_block *self,
-				      unsigned long action, void *cpu)
+static int dbg_reset_online(unsigned int cpu)
 {
-	if ((action & ~CPU_TASKS_FROZEN) == CPU_ONLINE)
-		smp_call_function_single((int)cpu, reset_ctrl_regs, NULL, 1);
-
-	return NOTIFY_OK;
+	local_irq_disable();
+	reset_ctrl_regs(cpu);
+	local_irq_enable();
+	return 0;
 }
-
-static struct notifier_block dbg_reset_nb = {
-	.notifier_call = dbg_reset_notify,
-};
 
 #ifdef CONFIG_CPU_PM
 static int dbg_cpu_pm_notify(struct notifier_block *self, unsigned long action,
 			     void *v)
 {
 	if (action == CPU_PM_EXIT)
-		reset_ctrl_regs(NULL);
+		reset_ctrl_regs(smp_processor_id());
 
 	return NOTIFY_OK;
 }
@@ -1060,10 +1054,28 @@ static inline void pm_init(void)
 
 static int __init arch_hw_breakpoint_init(void)
 {
+	int ret;
+
 	debug_arch = get_debug_arch();
 
 	if (!debug_arch_supported()) {
 		pr_info("debug architecture 0x%x unsupported.\n", debug_arch);
+		return 0;
+	}
+
+	/*
+	 * Scorpion CPUs (at least those in APQ8060) seem to set DBGPRSR.SPD
+	 * whenever a WFI is issued, even if the core is not powered down, in
+	 * violation of the architecture.  When DBGPRSR.SPD is set, accesses to
+	 * breakpoint and watchpoint registers are treated as undefined, so
+	 * this results in boot time and runtime failures when these are
+	 * accessed and we unexpectedly take a trap.
+	 *
+	 * It's not clear if/how this can be worked around, so we blacklist
+	 * Scorpion CPUs to avoid these issues.
+	*/
+	if (read_cpuid_part() == ARM_CPU_PART_SCORPION) {
+		pr_info("Scorpion CPU detected. Hardware breakpoints and watchpoints disabled\n");
 		return 0;
 	}
 
@@ -1073,25 +1085,29 @@ static int __init arch_hw_breakpoint_init(void)
 	core_num_brps = get_num_brps();
 	core_num_wrps = get_num_wrps();
 
-	cpu_notifier_register_begin();
-
 	/*
 	 * We need to tread carefully here because DBGSWENABLE may be
 	 * driven low on this core and there isn't an architected way to
 	 * determine that.
 	 */
+	cpus_read_lock();
 	register_undef_hook(&debug_reg_hook);
 
 	/*
-	 * Reset the breakpoint resources. We assume that a halting
-	 * debugger will leave the world in a nice state for us.
+	 * Register CPU notifier which resets the breakpoint resources. We
+	 * assume that a halting debugger will leave the world in a nice state
+	 * for us.
 	 */
-	on_each_cpu(reset_ctrl_regs, NULL, 1);
+	ret = cpuhp_setup_state_cpuslocked(CPUHP_AP_ONLINE_DYN,
+					   "arm/hw_breakpoint:online",
+					   dbg_reset_online, NULL);
 	unregister_undef_hook(&debug_reg_hook);
-	if (!cpumask_empty(&debug_err_mask)) {
+	if (WARN_ON(ret < 0) || !cpumask_empty(&debug_err_mask)) {
 		core_num_brps = 0;
 		core_num_wrps = 0;
-		cpu_notifier_register_done();
+		if (ret > 0)
+			cpuhp_remove_state_nocalls_cpuslocked(ret);
+		cpus_read_unlock();
 		return 0;
 	}
 
@@ -1109,12 +1125,9 @@ static int __init arch_hw_breakpoint_init(void)
 			TRAP_HWBKPT, "watchpoint debug exception");
 	hook_ifault_code(FAULT_CODE_DEBUG, hw_breakpoint_pending, SIGTRAP,
 			TRAP_HWBKPT, "breakpoint debug exception");
+	cpus_read_unlock();
 
-	/* Register hotplug and PM notifiers. */
-	__register_cpu_notifier(&dbg_reset_nb);
-
-	cpu_notifier_register_done();
-
+	/* Register PM notifiers. */
 	pm_init();
 	return 0;
 }

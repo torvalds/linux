@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2008 Thomas Gleixner <tglx@linutronix.de>
  *  Copyright (C) 2008-2011 Red Hat, Inc., Ingo Molnar
- *  Copyright (C) 2008-2011 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
+ *  Copyright (C) 2008-2011 Red Hat, Inc., Peter Zijlstra
  *  Copyright  ©  2009 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
  *
  * For licensing details see kernel-base/COPYING
@@ -11,6 +11,8 @@
 
 #include <linux/perf_event.h>
 #include <linux/slab.h>
+#include <linux/sched/task_stack.h>
+
 #include "internal.h"
 
 struct callchain_cpus_entries {
@@ -18,18 +20,28 @@ struct callchain_cpus_entries {
 	struct perf_callchain_entry	*cpu_entries[0];
 };
 
+int sysctl_perf_event_max_stack __read_mostly = PERF_MAX_STACK_DEPTH;
+int sysctl_perf_event_max_contexts_per_stack __read_mostly = PERF_MAX_CONTEXTS_PER_STACK;
+
+static inline size_t perf_callchain_entry__sizeof(void)
+{
+	return (sizeof(struct perf_callchain_entry) +
+		sizeof(__u64) * (sysctl_perf_event_max_stack +
+				 sysctl_perf_event_max_contexts_per_stack));
+}
+
 static DEFINE_PER_CPU(int, callchain_recursion[PERF_NR_CONTEXTS]);
 static atomic_t nr_callchain_events;
 static DEFINE_MUTEX(callchain_mutex);
 static struct callchain_cpus_entries *callchain_cpus_entries;
 
 
-__weak void perf_callchain_kernel(struct perf_callchain_entry *entry,
+__weak void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 				  struct pt_regs *regs)
 {
 }
 
-__weak void perf_callchain_user(struct perf_callchain_entry *entry,
+__weak void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 				struct pt_regs *regs)
 {
 }
@@ -73,7 +85,7 @@ static int alloc_callchain_buffers(void)
 	if (!entries)
 		return -ENOMEM;
 
-	size = sizeof(struct perf_callchain_entry) * PERF_NR_CONTEXTS;
+	size = perf_callchain_entry__sizeof() * PERF_NR_CONTEXTS;
 
 	for_each_possible_cpu(cpu) {
 		entries->cpu_entries[cpu] = kmalloc_node(size, GFP_KERNEL,
@@ -94,7 +106,7 @@ fail:
 	return -ENOMEM;
 }
 
-int get_callchain_buffers(void)
+int get_callchain_buffers(int event_max_stack)
 {
 	int err = 0;
 	int count;
@@ -111,6 +123,15 @@ int get_callchain_buffers(void)
 		/* If the allocation failed, give up */
 		if (!callchain_cpus_entries)
 			err = -ENOMEM;
+		/*
+		 * If requesting per event more than the global cap,
+		 * return a different error to help userspace figure
+		 * this out.
+		 *
+		 * And also do it here so that we have &callchain_mutex held.
+		 */
+		if (event_max_stack > sysctl_perf_event_max_stack)
+			err = -EOVERFLOW;
 		goto exit;
 	}
 
@@ -147,7 +168,8 @@ static struct perf_callchain_entry *get_callchain_entry(int *rctx)
 
 	cpu = smp_processor_id();
 
-	return &entries->cpu_entries[cpu][*rctx];
+	return (((void *)entries->cpu_entries[cpu]) +
+		(*rctx * perf_callchain_entry__sizeof()));
 }
 
 static void
@@ -159,14 +181,25 @@ put_callchain_entry(int rctx)
 struct perf_callchain_entry *
 perf_callchain(struct perf_event *event, struct pt_regs *regs)
 {
-	int rctx;
-	struct perf_callchain_entry *entry;
-
-	int kernel = !event->attr.exclude_callchain_kernel;
-	int user   = !event->attr.exclude_callchain_user;
+	bool kernel = !event->attr.exclude_callchain_kernel;
+	bool user   = !event->attr.exclude_callchain_user;
+	/* Disallow cross-task user callchains. */
+	bool crosstask = event->ctx->task && event->ctx->task != current;
+	const u32 max_stack = event->attr.sample_max_stack;
 
 	if (!kernel && !user)
 		return NULL;
+
+	return get_perf_callchain(regs, 0, kernel, user, max_stack, crosstask, true);
+}
+
+struct perf_callchain_entry *
+get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
+		   u32 max_stack, bool crosstask, bool add_mark)
+{
+	struct perf_callchain_entry *entry;
+	struct perf_callchain_entry_ctx ctx;
+	int rctx;
 
 	entry = get_callchain_entry(&rctx);
 	if (rctx == -1)
@@ -175,11 +208,16 @@ perf_callchain(struct perf_event *event, struct pt_regs *regs)
 	if (!entry)
 		goto exit_put;
 
-	entry->nr = 0;
+	ctx.entry     = entry;
+	ctx.max_stack = max_stack;
+	ctx.nr	      = entry->nr = init_nr;
+	ctx.contexts       = 0;
+	ctx.contexts_maxed = false;
 
 	if (kernel && !user_mode(regs)) {
-		perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
-		perf_callchain_kernel(entry, regs);
+		if (add_mark)
+			perf_callchain_store_context(&ctx, PERF_CONTEXT_KERNEL);
+		perf_callchain_kernel(&ctx, regs);
 	}
 
 	if (user) {
@@ -191,14 +229,18 @@ perf_callchain(struct perf_event *event, struct pt_regs *regs)
 		}
 
 		if (regs) {
-			/*
-			 * Disallow cross-task user callchains.
-			 */
-			if (event->ctx->task && event->ctx->task != current)
+			mm_segment_t fs;
+
+			if (crosstask)
 				goto exit_put;
 
-			perf_callchain_store(entry, PERF_CONTEXT_USER);
-			perf_callchain_user(entry, regs);
+			if (add_mark)
+				perf_callchain_store_context(&ctx, PERF_CONTEXT_USER);
+
+			fs = get_fs();
+			set_fs(USER_DS);
+			perf_callchain_user(&ctx, regs);
+			set_fs(fs);
 		}
 	}
 
@@ -206,4 +248,31 @@ exit_put:
 	put_callchain_entry(rctx);
 
 	return entry;
+}
+
+/*
+ * Used for sysctl_perf_event_max_stack and
+ * sysctl_perf_event_max_contexts_per_stack.
+ */
+int perf_event_max_stack_handler(struct ctl_table *table, int write,
+				 void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int *value = table->data;
+	int new_value = *value, ret;
+	struct ctl_table new_table = *table;
+
+	new_table.data = &new_value;
+	ret = proc_dointvec_minmax(&new_table, write, buffer, lenp, ppos);
+	if (ret || !write)
+		return ret;
+
+	mutex_lock(&callchain_mutex);
+	if (atomic_read(&nr_callchain_events))
+		ret = -EBUSY;
+	else
+		*value = new_value;
+
+	mutex_unlock(&callchain_mutex);
+
+	return ret;
 }

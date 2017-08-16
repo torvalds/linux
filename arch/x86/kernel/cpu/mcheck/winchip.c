@@ -17,7 +17,7 @@ static void winchip_machine_check(struct pt_regs *regs, long error_code)
 {
 	ist_enter(regs);
 
-	printk(KERN_EMERG "CPU0: Machine Check Exception.\n");
+	pr_emerg("CPU0: Machine Check Exception.\n");
 	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 
 	ist_exit(regs);
@@ -39,6 +39,5 @@ void winchip_mcheck_init(struct cpuinfo_x86 *c)
 
 	cr4_set_bits(X86_CR4_MCE);
 
-	printk(KERN_INFO
-	       "Winchip machine check reporting enabled on CPU#0.\n");
+	pr_info("Winchip machine check reporting enabled on CPU#0.\n");
 }

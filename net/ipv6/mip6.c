@@ -118,7 +118,7 @@ static int mip6_mh_filter(struct sock *sk, struct sk_buff *skb)
 
 struct mip6_report_rate_limiter {
 	spinlock_t lock;
-	struct timeval stamp;
+	ktime_t stamp;
 	int iif;
 	struct in6_addr src;
 	struct in6_addr dst;
@@ -184,20 +184,18 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
-static inline int mip6_report_rl_allow(struct timeval *stamp,
+static inline int mip6_report_rl_allow(ktime_t stamp,
 				       const struct in6_addr *dst,
 				       const struct in6_addr *src, int iif)
 {
 	int allow = 0;
 
 	spin_lock_bh(&mip6_report_rl.lock);
-	if (mip6_report_rl.stamp.tv_sec != stamp->tv_sec ||
-	    mip6_report_rl.stamp.tv_usec != stamp->tv_usec ||
+	if (mip6_report_rl.stamp != stamp ||
 	    mip6_report_rl.iif != iif ||
 	    !ipv6_addr_equal(&mip6_report_rl.src, src) ||
 	    !ipv6_addr_equal(&mip6_report_rl.dst, dst)) {
-		mip6_report_rl.stamp.tv_sec = stamp->tv_sec;
-		mip6_report_rl.stamp.tv_usec = stamp->tv_usec;
+		mip6_report_rl.stamp = stamp;
 		mip6_report_rl.iif = iif;
 		mip6_report_rl.src = *src;
 		mip6_report_rl.dst = *dst;
@@ -216,7 +214,7 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
 	struct ipv6_destopt_hao *hao = NULL;
 	struct xfrm_selector sel;
 	int offset;
-	struct timeval stamp;
+	ktime_t stamp;
 	int err = 0;
 
 	if (unlikely(fl6->flowi6_proto == IPPROTO_MH &&
@@ -230,9 +228,9 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb,
 					(skb_network_header(skb) + offset);
 	}
 
-	skb_get_timestamp(skb, &stamp);
+	stamp = skb_get_ktime(skb);
 
-	if (!mip6_report_rl_allow(&stamp, &ipv6_hdr(skb)->daddr,
+	if (!mip6_report_rl_allow(stamp, &ipv6_hdr(skb)->daddr,
 				  hao ? &hao->addr : &ipv6_hdr(skb)->saddr,
 				  opt->iif))
 		goto out;

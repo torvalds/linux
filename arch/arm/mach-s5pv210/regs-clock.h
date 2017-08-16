@@ -188,10 +188,6 @@
 #define S5P_SLEEP_CFG_USBOSC_EN		(1 << 1)
 
 /* OTHERS Resgister */
-#define S5P_OTHERS_RET_IO		(1 << 31)
-#define S5P_OTHERS_RET_CF		(1 << 30)
-#define S5P_OTHERS_RET_MMC		(1 << 29)
-#define S5P_OTHERS_RET_UART		(1 << 28)
 #define S5P_OTHERS_USB_SIG_MASK		(1 << 16)
 
 /* S5P_DAC_CONTROL */

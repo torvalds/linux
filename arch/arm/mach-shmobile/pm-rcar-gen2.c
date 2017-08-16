@@ -13,21 +13,36 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/smp.h>
+#include <linux/soc/renesas/rcar-sysc.h>
 #include <asm/io.h>
 #include "common.h"
-#include "pm-rcar.h"
 #include "rcar-gen2.h"
 
 /* RST */
 #define RST		0xe6160000
-#define CA15BAR		0x0020
-#define CA7BAR		0x0030
-#define CA15RESCNT	0x0040
-#define CA7RESCNT	0x0044
+
+#define CA15BAR		0x0020		/* CA15 Boot Address Register */
+#define CA7BAR		0x0030		/* CA7 Boot Address Register */
+#define CA15RESCNT	0x0040		/* CA15 Reset Control Register */
+#define CA7RESCNT	0x0044		/* CA7 Reset Control Register */
+
+/* SYS Boot Address Register */
+#define SBAR_BAREN	BIT(4)		/* SBAR is valid */
+
+/* Reset Control Registers */
+#define CA15RESCNT_CODE	0xa5a50000
+#define CA15RESCNT_CPUS	0xf		/* CPU0-3 */
+#define CA7RESCNT_CODE	0x5a5a0000
+#define CA7RESCNT_CPUS	0xf		/* CPU0-3 */
+
 
 /* On-chip RAM */
-#define MERAM		0xe8080000
-#define RAM		0xe6300000
+#define ICRAM1		0xe63c0000	/* Inter Connect RAM1 (4 KiB) */
+
+static inline u32 phys_to_sbar(phys_addr_t addr)
+{
+	return (addr >> 8) & 0xfffffc00;
+}
 
 /* SYSC */
 #define SYSCIER 0x0c
@@ -37,11 +52,7 @@
 
 static void __init rcar_gen2_sysc_init(u32 syscier)
 {
-	void __iomem *base = rcar_sysc_init(0xe6180000);
-
-	/* enable all interrupt sources, but do not use interrupt handler */
-	iowrite32(syscier, base + SYSCIER);
-	iowrite32(0, base + SYSCIMR);
+	rcar_sysc_init(0xe6180000, syscier);
 }
 
 #else /* CONFIG_SMP */
@@ -58,7 +69,7 @@ void __init rcar_gen2_pm_init(void)
 	struct device_node *np, *cpus;
 	bool has_a7 = false;
 	bool has_a15 = false;
-	phys_addr_t boot_vector_addr = 0;
+	phys_addr_t boot_vector_addr = ICRAM1;
 	u32 syscier = 0;
 
 	if (once++)
@@ -75,14 +86,10 @@ void __init rcar_gen2_pm_init(void)
 			has_a7 = true;
 	}
 
-	if (of_machine_is_compatible("renesas,r8a7790")) {
-		boot_vector_addr = MERAM;
+	if (of_machine_is_compatible("renesas,r8a7790"))
 		syscier = 0x013111ef;
-
-	} else if (of_machine_is_compatible("renesas,r8a7791")) {
-		boot_vector_addr = RAM;
+	else if (of_machine_is_compatible("renesas,r8a7791"))
 		syscier = 0x00111003;
-	}
 
 	/* RAM for jump stub, because BAR requires 256KB aligned address */
 	p = ioremap_nocache(boot_vector_addr, shmobile_boot_size);
@@ -91,22 +98,24 @@ void __init rcar_gen2_pm_init(void)
 
 	/* setup reset vectors */
 	p = ioremap_nocache(RST, 0x63);
-	bar = (boot_vector_addr >> 8) & 0xfffffc00;
+	bar = phys_to_sbar(boot_vector_addr);
 	if (has_a15) {
 		writel_relaxed(bar, p + CA15BAR);
-		writel_relaxed(bar | 0x10, p + CA15BAR);
+		writel_relaxed(bar | SBAR_BAREN, p + CA15BAR);
 
 		/* de-assert reset for CA15 CPUs */
-		writel_relaxed((readl_relaxed(p + CA15RESCNT) & ~0x0f) |
-				0xa5a50000, p + CA15RESCNT);
+		writel_relaxed((readl_relaxed(p + CA15RESCNT) &
+				~CA15RESCNT_CPUS) | CA15RESCNT_CODE,
+			       p + CA15RESCNT);
 	}
 	if (has_a7) {
 		writel_relaxed(bar, p + CA7BAR);
-		writel_relaxed(bar | 0x10, p + CA7BAR);
+		writel_relaxed(bar | SBAR_BAREN, p + CA7BAR);
 
 		/* de-assert reset for CA7 CPUs */
-		writel_relaxed((readl_relaxed(p + CA7RESCNT) & ~0x0f) |
-				0x5a5a0000, p + CA7RESCNT);
+		writel_relaxed((readl_relaxed(p + CA7RESCNT) &
+				~CA7RESCNT_CPUS) | CA7RESCNT_CODE,
+			       p + CA7RESCNT);
 	}
 	iounmap(p);
 

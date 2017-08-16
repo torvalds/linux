@@ -101,5 +101,5 @@ Although the LCD won't get updated until the next refresh time arrives.
 Also, you can mmap the framebuffer: open & mmap, munmap & close...
 which is the best option for most uses.
 
-Check Documentation/auxdisplay/cfag12864b-example.c
+Check samples/auxdisplay/cfag12864b-example.c
 for a real working userspace complete program with usage examples.

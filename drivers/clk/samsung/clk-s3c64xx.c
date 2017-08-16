@@ -121,7 +121,7 @@ static struct syscore_ops s3c64xx_clk_syscore_ops = {
 	.resume = s3c64xx_clk_resume,
 };
 
-static void s3c64xx_clk_sleep_init(void)
+static void __init s3c64xx_clk_sleep_init(void)
 {
 	s3c64xx_save_common = samsung_clk_alloc_reg_dump(s3c64xx_clk_regs,
 						ARRAY_SIZE(s3c64xx_clk_regs));
@@ -145,7 +145,7 @@ err_warn:
 		__func__);
 }
 #else
-static void s3c64xx_clk_sleep_init(void) {}
+static void __init s3c64xx_clk_sleep_init(void) {}
 #endif
 
 /* List of parent clocks common for all S3C64xx SoCs. */
@@ -176,14 +176,14 @@ PNAME(audio2_p6410)	= { "mout_epll", "dout_mpll", "fin_pll", "iiscdclk2",
 
 /* Fixed rate clocks generated outside the SoC. */
 FIXED_RATE_CLOCKS(s3c64xx_fixed_rate_ext_clks) __initdata = {
-	FRATE(0, "fin_pll", NULL, CLK_IS_ROOT, 0),
-	FRATE(0, "xusbxti", NULL, CLK_IS_ROOT, 0),
+	FRATE(0, "fin_pll", NULL, 0, 0),
+	FRATE(0, "xusbxti", NULL, 0, 0),
 };
 
 /* Fixed rate clocks generated inside the SoC. */
 FIXED_RATE_CLOCKS(s3c64xx_fixed_rate_clks) __initdata = {
-	FRATE(CLK27M, "clk27m", NULL, CLK_IS_ROOT, 27000000),
-	FRATE(CLK48M, "clk48m", NULL, CLK_IS_ROOT, 48000000),
+	FRATE(CLK27M, "clk27m", NULL, 0, 27000000),
+	FRATE(CLK48M, "clk48m", NULL, 0, 48000000),
 };
 
 /* List of clock muxes present on all S3C64xx SoCs. */
@@ -471,8 +471,6 @@ void __init s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
 	}
 
 	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
-	if (!ctx)
-		panic("%s: unable to allocate context.\n", __func__);
 
 	/* Register external clocks. */
 	if (!np)

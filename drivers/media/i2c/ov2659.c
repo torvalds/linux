@@ -37,14 +37,14 @@
 #include <linux/videodev2.h>
 
 #include <media/media-entity.h>
-#include <media/ov2659.h>
+#include <media/i2c/ov2659.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-of.h>
 #include <media/v4l2-subdev.h>
 
 #define DRIVER_NAME "ov2659"
@@ -1121,7 +1121,6 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	mf->colorspace = V4L2_COLORSPACE_SRGB;
-	mf->code = ov2659_formats[index].code;
 	mf->field = V4L2_FIELD_NONE;
 
 	mutex_lock(&ov2659->lock);
@@ -1249,7 +1248,7 @@ static int ov2659_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops ov2659_ctrl_ops = {
+static const struct v4l2_ctrl_ops ov2659_ctrl_ops = {
 	.s_ctrl = ov2659_s_ctrl,
 };
 
@@ -1309,7 +1308,8 @@ static const struct v4l2_subdev_internal_ops ov2659_subdev_internal_ops = {
 static int ov2659_detect(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u8 pid, ver;
+	u8 pid = 0;
+	u8 ver = 0;
 	int ret;
 
 	dev_dbg(&client->dev, "%s:\n", __func__);
@@ -1320,10 +1320,6 @@ static int ov2659_detect(struct v4l2_subdev *sd)
 		return -ENODEV;
 	}
 	usleep_range(1000, 2000);
-
-	ret = ov2659_init(sd, 0);
-	if (ret < 0)
-		return ret;
 
 	/* Check sensor revision */
 	ret = ov2659_read(client, REG_SC_CHIP_ID_H, &pid);
@@ -1338,8 +1334,10 @@ static int ov2659_detect(struct v4l2_subdev *sd)
 			dev_err(&client->dev,
 				"Sensor detection failed (%04X, %d)\n",
 				id, ret);
-		else
+		else {
 			dev_info(&client->dev, "Found OV%04X sensor\n", id);
+			ret = ov2659_init(sd, 0);
+		}
 	}
 
 	return ret;
@@ -1349,7 +1347,7 @@ static struct ov2659_platform_data *
 ov2659_get_pdata(struct i2c_client *client)
 {
 	struct ov2659_platform_data *pdata;
-	struct v4l2_of_endpoint *bus_cfg;
+	struct v4l2_fwnode_endpoint *bus_cfg;
 	struct device_node *endpoint;
 
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
@@ -1359,7 +1357,7 @@ ov2659_get_pdata(struct i2c_client *client)
 	if (!endpoint)
 		return NULL;
 
-	bus_cfg = v4l2_of_alloc_parse_endpoint(endpoint);
+	bus_cfg = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(endpoint));
 	if (IS_ERR(bus_cfg)) {
 		pdata = NULL;
 		goto done;
@@ -1379,7 +1377,7 @@ ov2659_get_pdata(struct i2c_client *client)
 	pdata->link_frequency = bus_cfg->link_frequencies[0];
 
 done:
-	v4l2_of_free_endpoint(bus_cfg);
+	v4l2_fwnode_endpoint_free(bus_cfg);
 	of_node_put(endpoint);
 	return pdata;
 }
@@ -1445,8 +1443,8 @@ static int ov2659_probe(struct i2c_client *client,
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	ov2659->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &ov2659->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &ov2659->pad);
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&ov2659->ctrls);
 		return ret;

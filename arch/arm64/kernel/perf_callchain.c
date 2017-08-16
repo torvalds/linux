@@ -31,7 +31,7 @@ struct frame_tail {
  */
 static struct frame_tail __user *
 user_backtrace(struct frame_tail __user *tail,
-	       struct perf_callchain_entry *entry)
+	       struct perf_callchain_entry_ctx *entry)
 {
 	struct frame_tail buftail;
 	unsigned long err;
@@ -76,7 +76,7 @@ struct compat_frame_tail {
 
 static struct compat_frame_tail __user *
 compat_user_backtrace(struct compat_frame_tail __user *tail,
-		      struct perf_callchain_entry *entry)
+		      struct perf_callchain_entry_ctx *entry)
 {
 	struct compat_frame_tail buftail;
 	unsigned long err;
@@ -106,7 +106,7 @@ compat_user_backtrace(struct compat_frame_tail __user *tail,
 }
 #endif /* CONFIG_COMPAT */
 
-void perf_callchain_user(struct perf_callchain_entry *entry,
+void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)
 {
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
@@ -122,7 +122,7 @@ void perf_callchain_user(struct perf_callchain_entry *entry,
 
 		tail = (struct frame_tail __user *)regs->regs[29];
 
-		while (entry->nr < PERF_MAX_STACK_DEPTH &&
+		while (entry->nr < entry->max_stack &&
 		       tail && !((unsigned long)tail & 0xf))
 			tail = user_backtrace(tail, entry);
 	} else {
@@ -132,7 +132,7 @@ void perf_callchain_user(struct perf_callchain_entry *entry,
 
 		tail = (struct compat_frame_tail __user *)regs->compat_fp - 1;
 
-		while ((entry->nr < PERF_MAX_STACK_DEPTH) &&
+		while ((entry->nr < entry->max_stack) &&
 			tail && !((unsigned long)tail & 0x3))
 			tail = compat_user_backtrace(tail, entry);
 #endif
@@ -146,12 +146,12 @@ void perf_callchain_user(struct perf_callchain_entry *entry,
  */
 static int callchain_trace(struct stackframe *frame, void *data)
 {
-	struct perf_callchain_entry *entry = data;
+	struct perf_callchain_entry_ctx *entry = data;
 	perf_callchain_store(entry, frame->pc);
 	return 0;
 }
 
-void perf_callchain_kernel(struct perf_callchain_entry *entry,
+void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 			   struct pt_regs *regs)
 {
 	struct stackframe frame;
@@ -164,8 +164,11 @@ void perf_callchain_kernel(struct perf_callchain_entry *entry,
 	frame.fp = regs->regs[29];
 	frame.sp = regs->sp;
 	frame.pc = regs->pc;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	frame.graph = current->curr_ret_stack;
+#endif
 
-	walk_stackframe(&frame, callchain_trace, entry);
+	walk_stackframe(current, &frame, callchain_trace, entry);
 }
 
 unsigned long perf_instruction_pointer(struct pt_regs *regs)

@@ -250,15 +250,20 @@ int main(int argc, char *argv[])
 				syslog(LOG_ERR, "/etc/fstab and /proc/mounts");
 			}
 			break;
+		case VSS_OP_HOT_BACKUP:
+			syslog(LOG_INFO, "VSS: op=CHECK HOT BACKUP\n");
+			break;
 		default:
 			syslog(LOG_ERR, "Illegal op:%d\n", op);
 		}
 		vss_msg->error = error;
-		len = write(vss_fd, &error, sizeof(struct hv_vss_msg));
+		len = write(vss_fd, vss_msg, sizeof(struct hv_vss_msg));
 		if (len != sizeof(struct hv_vss_msg)) {
 			syslog(LOG_ERR, "write failed; error: %d %s", errno,
 			       strerror(errno));
-			exit(EXIT_FAILURE);
+
+			if (op == VSS_OP_FREEZE)
+				vss_operate(VSS_OP_THAW);
 		}
 	}
 

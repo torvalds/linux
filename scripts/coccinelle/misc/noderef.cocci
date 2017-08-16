@@ -16,6 +16,7 @@ virtual patch
 @depends on patch@
 expression *x;
 expression f;
+expression i;
 type T;
 @@
 
@@ -30,15 +31,26 @@ f(...,(T)(x),...,sizeof(
 + *x
    ),...)
 |
-f(...,sizeof(x),...,(T)(
+f(...,sizeof(
+- x
++ *x
+   ),...,(T)(x),...)
+|
+f(...,(T)(x),...,i*sizeof(
 - x
 + *x
    ),...)
+|
+f(...,i*sizeof(
+- x
++ *x
+   ),...,(T)(x),...)
 )
 
 @r depends on !patch@
 expression *x;
 expression f;
+expression i;
 position p;
 type T;
 @@
@@ -49,6 +61,10 @@ type T;
 *f(...,(T)(x),...,sizeof@p(x),...)
 |
 *f(...,sizeof@p(x),...,(T)(x),...)
+|
+*f(...,(T)(x),...,i*sizeof@p(x),...)
+|
+*f(...,i*sizeof@p(x),...,(T)(x),...)
 )
 
 @script:python depends on org@

@@ -79,4 +79,7 @@ void iio_device_unregister_eventset(struct iio_dev *indio_dev);
 void iio_device_wakeup_eventset(struct iio_dev *indio_dev);
 int iio_event_getfd(struct iio_dev *indio_dev);
 
+struct iio_event_interface;
+bool iio_event_enabled(const struct iio_event_interface *ev_int);
+
 #endif

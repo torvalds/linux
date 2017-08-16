@@ -36,51 +36,6 @@
 
 #define K(x) ((x) << (PAGE_SHIFT-10))
 
-/*
- * The normal show_free_areas() is too verbose on Tile, with dozens
- * of processors and often four NUMA zones each with high and lowmem.
- */
-void show_mem(unsigned int filter)
-{
-	struct zone *zone;
-
-	pr_err("Active:%lu inactive:%lu dirty:%lu writeback:%lu unstable:%lu free:%lu\n slab:%lu mapped:%lu pagetables:%lu bounce:%lu pagecache:%lu swap:%lu\n",
-	       (global_page_state(NR_ACTIVE_ANON) +
-		global_page_state(NR_ACTIVE_FILE)),
-	       (global_page_state(NR_INACTIVE_ANON) +
-		global_page_state(NR_INACTIVE_FILE)),
-	       global_page_state(NR_FILE_DIRTY),
-	       global_page_state(NR_WRITEBACK),
-	       global_page_state(NR_UNSTABLE_NFS),
-	       global_page_state(NR_FREE_PAGES),
-	       (global_page_state(NR_SLAB_RECLAIMABLE) +
-		global_page_state(NR_SLAB_UNRECLAIMABLE)),
-	       global_page_state(NR_FILE_MAPPED),
-	       global_page_state(NR_PAGETABLE),
-	       global_page_state(NR_BOUNCE),
-	       global_page_state(NR_FILE_PAGES),
-	       get_nr_swap_pages());
-
-	for_each_zone(zone) {
-		unsigned long flags, order, total = 0, largest_order = -1;
-
-		if (!populated_zone(zone))
-			continue;
-
-		spin_lock_irqsave(&zone->lock, flags);
-		for (order = 0; order < MAX_ORDER; order++) {
-			int nr = zone->free_area[order].nr_free;
-			total += nr << order;
-			if (nr)
-				largest_order = order;
-		}
-		spin_unlock_irqrestore(&zone->lock, flags);
-		pr_err("Node %d %7s: %lukB (largest %luKb)\n",
-		       zone_to_nid(zone), zone->name,
-		       K(total), largest_order ? K(1UL) << largest_order : 0);
-	}
-}
-
 /**
  * shatter_huge_page() - ensure a given address is mapped by a small page.
  *
@@ -231,7 +186,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 struct page *pgtable_alloc_one(struct mm_struct *mm, unsigned long address,
 			       int order)
 {
-	gfp_t flags = GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO;
+	gfp_t flags = GFP_KERNEL|__GFP_ZERO;
 	struct page *p;
 	int i;
 
@@ -547,6 +502,17 @@ void __iomem *ioremap_prot(resource_size_t phys_addr, unsigned long size,
 	return (__force void __iomem *) (offset + (char *)addr);
 }
 EXPORT_SYMBOL(ioremap_prot);
+
+#if !defined(CONFIG_PCI) || !defined(CONFIG_TILEGX)
+/* ioremap is conditionally declared in pci_gx.c */
+
+void __iomem *ioremap(resource_size_t phys_addr, unsigned long size)
+{
+	return NULL;
+}
+EXPORT_SYMBOL(ioremap);
+
+#endif
 
 /* Unmap an MMIO VA mapping. */
 void iounmap(volatile void __iomem *addr_in)

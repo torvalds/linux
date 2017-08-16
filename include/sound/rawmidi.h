@@ -30,7 +30,7 @@
 #include <linux/workqueue.h>
 #include <linux/device.h>
 
-#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 #include <sound/seq_device.h>
 #endif
 
@@ -103,7 +103,7 @@ struct snd_rawmidi_substream {
 	struct snd_rawmidi_runtime *runtime;
 	struct pid *pid;
 	/* hardware layer */
-	struct snd_rawmidi_ops *ops;
+	const struct snd_rawmidi_ops *ops;
 };
 
 struct snd_rawmidi_file {
@@ -130,7 +130,7 @@ struct snd_rawmidi {
 	int ossreg;
 #endif
 
-	struct snd_rawmidi_global_ops *ops;
+	const struct snd_rawmidi_global_ops *ops;
 
 	struct snd_rawmidi_str streams[2];
 
@@ -144,7 +144,7 @@ struct snd_rawmidi {
 
 	struct snd_info_entry *proc_entry;
 
-#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	struct snd_seq_device *seq_dev;
 #endif
 };
@@ -155,7 +155,7 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 		    int output_count, int input_count,
 		    struct snd_rawmidi **rmidi);
 void snd_rawmidi_set_ops(struct snd_rawmidi *rmidi, int stream,
-			 struct snd_rawmidi_ops *ops);
+			 const struct snd_rawmidi_ops *ops);
 
 /* callbacks */
 
@@ -167,6 +167,10 @@ int snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
 int snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream, int count);
 int snd_rawmidi_transmit(struct snd_rawmidi_substream *substream,
 			 unsigned char *buffer, int count);
+int __snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
+			      unsigned char *buffer, int count);
+int __snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream,
+			       int count);
 
 /* main midi functions */
 

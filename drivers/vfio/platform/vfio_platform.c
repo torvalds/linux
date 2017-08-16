@@ -23,6 +23,10 @@
 #define DRIVER_AUTHOR   "Antonios Motakis <a.motakis@virtualopensystems.com>"
 #define DRIVER_DESC     "VFIO for platform devices - User Level meta-driver"
 
+static bool reset_required = true;
+module_param(reset_required, bool, 0444);
+MODULE_PARM_DESC(reset_required, "override reset requirement (default: 1)");
+
 /* probing devices from the linux platform bus */
 
 static struct resource *get_platform_resource(struct vfio_platform_device *vdev,
@@ -65,6 +69,8 @@ static int vfio_platform_probe(struct platform_device *pdev)
 	vdev->flags = VFIO_DEVICE_FLAGS_PLATFORM;
 	vdev->get_resource = get_platform_resource;
 	vdev->get_irq = get_platform_irq;
+	vdev->parent_module = THIS_MODULE;
+	vdev->reset_required = reset_required;
 
 	ret = vfio_platform_probe_common(vdev, &pdev->dev);
 	if (ret)
@@ -91,7 +97,6 @@ static struct platform_driver vfio_platform_driver = {
 	.remove		= vfio_platform_remove,
 	.driver	= {
 		.name	= "vfio-platform",
-		.owner	= THIS_MODULE,
 	},
 };
 

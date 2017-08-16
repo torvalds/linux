@@ -28,7 +28,6 @@ static ssize_t device_show(struct device *d,
 
 	return sprintf(buf, "0x%04x\n", dev->id.device);
 }
-
 static DEVICE_ATTR_RO(device);
 
 static ssize_t vendor_show(struct device *d,
@@ -38,7 +37,6 @@ static ssize_t vendor_show(struct device *d,
 
 	return sprintf(buf, "0x%04x\n", dev->id.vendor);
 }
-
 static DEVICE_ATTR_RO(vendor);
 
 static ssize_t modalias_show(struct device *d,
@@ -49,7 +47,6 @@ static ssize_t modalias_show(struct device *d,
 	return sprintf(buf, "scif:d%08Xv%08X\n",
 		       dev->id.device, dev->id.vendor);
 }
-
 static DEVICE_ATTR_RO(modalias);
 
 static struct attribute *scif_dev_attrs[] = {
@@ -141,10 +138,11 @@ static void scif_release_dev(struct device *d)
 }
 
 struct scif_hw_dev *
-scif_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
+scif_register_device(struct device *pdev, int id, const struct dma_map_ops *dma_ops,
 		     struct scif_hw_ops *hw_ops, u8 dnode, u8 snode,
 		     struct mic_mw *mmio, struct mic_mw *aper, void *dp,
-		     void __iomem *rdp, struct dma_chan **chan, int num_chan)
+		     void __iomem *rdp, struct dma_chan **chan, int num_chan,
+		     bool card_rel_da)
 {
 	int ret;
 	struct scif_hw_dev *sdev;
@@ -156,7 +154,7 @@ scif_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
 	sdev->dev.parent = pdev;
 	sdev->id.device = id;
 	sdev->id.vendor = SCIF_DEV_ANY_ID;
-	sdev->dev.archdata.dma_ops = dma_ops;
+	sdev->dev.dma_ops = dma_ops;
 	sdev->dev.release = scif_release_dev;
 	sdev->hw_ops = hw_ops;
 	sdev->dnode = dnode;
@@ -171,6 +169,7 @@ scif_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
 	dma_set_mask(&sdev->dev, DMA_BIT_MASK(64));
 	sdev->dma_ch = chan;
 	sdev->num_dma_ch = num_chan;
+	sdev->card_rel_da = card_rel_da;
 	dev_set_name(&sdev->dev, "scif-dev%u", sdev->dnode);
 	/*
 	 * device_register() causes the bus infrastructure to look for a
@@ -181,7 +180,7 @@ scif_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
 		goto free_sdev;
 	return sdev;
 free_sdev:
-	kfree(sdev);
+	put_device(&sdev->dev);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(scif_register_device);

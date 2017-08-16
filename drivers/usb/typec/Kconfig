@@ -1,0 +1,24 @@
+
+menu "USB Power Delivery and Type-C drivers"
+
+config TYPEC
+	tristate
+
+config TYPEC_WCOVE
+	tristate "Intel WhiskeyCove PMIC USB Type-C PHY driver"
+	depends on ACPI
+	depends on INTEL_SOC_PMIC
+	depends on INTEL_PMC_IPC
+	depends on BXT_WC_PMIC_OPREGION
+	select TYPEC
+	help
+	  This driver adds support for USB Type-C detection on Intel Broxton
+	  platforms that have Intel Whiskey Cove PMIC. The driver can detect the
+	  role and cable orientation.
+
+	  To compile this driver as module, choose M here: the module will be
+	  called typec_wcove
+
+source "drivers/usb/typec/ucsi/Kconfig"
+
+endmenu

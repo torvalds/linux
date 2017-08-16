@@ -1,7 +1,7 @@
 Rotary encoder DT bindings
 
 Required properties:
-- gpios: a spec for two GPIOs to be used
+- gpios: a spec for at least two GPIOs to be used, most significant first
 
 Optional properties:
 - linux,axis: the input subsystem axis to map to this rotary encoder.
@@ -12,9 +12,21 @@ Optional properties:
 - rotary-encoder,relative-axis: register a relative axis rather than an
   absolute one. Relative axis will only generate +1/-1 events on the input
   device, hence no steps need to be passed.
-- rotary-encoder,rollover: Automatic rollove when the rotary value becomes
+- rotary-encoder,rollover: Automatic rollover when the rotary value becomes
   greater than the specified steps or smaller than 0. For absolute axis only.
+- rotary-encoder,steps-per-period: Number of steps (stable states) per period.
+  The values have the following meaning:
+  1: Full-period mode (default)
+  2: Half-period mode
+  4: Quarter-period mode
+- wakeup-source: Boolean, rotary encoder can wake up the system.
+- rotary-encoder,encoding: String, the method used to encode steps.
+  Supported are "gray" (the default and more common) and "binary".
+
+Deprecated properties:
 - rotary-encoder,half-period: Makes the driver work on half-period mode.
+  This property is deprecated. Instead, a 'steps-per-period ' value should
+  be used, such as "rotary-encoder,steps-per-period = <2>".
 
 See Documentation/input/rotary-encoder.txt for more information.
 
@@ -24,6 +36,7 @@ Example:
 			compatible = "rotary-encoder";
 			gpios = <&gpio 19 1>, <&gpio 20 0>; /* GPIO19 is inverted */
 			linux,axis = <0>; /* REL_X */
+			rotary-encoder,encoding = "gray";
 			rotary-encoder,relative-axis;
 		};
 
@@ -32,5 +45,6 @@ Example:
 			gpios = <&gpio 21 0>, <&gpio 22 0>;
 			linux,axis = <1>; /* ABS_Y */
 			rotary-encoder,steps = <24>;
+			rotary-encoder,encoding = "binary";
 			rotary-encoder,rollover;
 		};

@@ -23,6 +23,8 @@ enum zpci_ioat_dtype {
 #define ZPCI_IOTA_FS_2G			2
 #define ZPCI_KEY			(PAGE_DEFAULT_KEY << 5)
 
+#define ZPCI_TABLE_SIZE_RT	(1UL << 42)
+
 #define ZPCI_IOTA_STO_FLAG	(ZPCI_IOTA_IOT_ENABLED | ZPCI_KEY | ZPCI_IOTA_DT_ST)
 #define ZPCI_IOTA_RTTO_FLAG	(ZPCI_IOTA_IOT_ENABLED | ZPCI_KEY | ZPCI_IOTA_DT_RT)
 #define ZPCI_IOTA_RSTO_FLAG	(ZPCI_IOTA_IOT_ENABLED | ZPCI_KEY | ZPCI_IOTA_DT_RS)
@@ -192,5 +194,10 @@ static inline unsigned long *get_st_pto(unsigned long entry)
 /* Prototypes */
 int zpci_dma_init_device(struct zpci_dev *);
 void zpci_dma_exit_device(struct zpci_dev *);
+void dma_free_seg_table(unsigned long);
+unsigned long *dma_alloc_cpu_table(void);
+void dma_cleanup_tables(unsigned long *);
+unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr);
+void dma_update_cpu_trans(unsigned long *entry, void *page_addr, int flags);
 
 #endif

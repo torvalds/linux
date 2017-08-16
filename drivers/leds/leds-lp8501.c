@@ -272,16 +272,17 @@ static void lp8501_firmware_loaded(struct lp55xx_chip *chip)
 	lp8501_update_program_memory(chip, fw->data, fw->size);
 }
 
-static void lp8501_led_brightness_work(struct work_struct *work)
+static int lp8501_led_brightness(struct lp55xx_led *led)
 {
-	struct lp55xx_led *led = container_of(work, struct lp55xx_led,
-					      brightness_work);
 	struct lp55xx_chip *chip = led->chip;
+	int ret;
 
 	mutex_lock(&chip->lock);
-	lp55xx_write(chip, LP8501_REG_LED_PWM_BASE + led->chan_nr,
+	ret = lp55xx_write(chip, LP8501_REG_LED_PWM_BASE + led->chan_nr,
 		     led->brightness);
 	mutex_unlock(&chip->lock);
+
+	return ret;
 }
 
 /* Chip specific configurations */
@@ -296,7 +297,7 @@ static struct lp55xx_device_config lp8501_cfg = {
 	},
 	.max_channel  = LP8501_MAX_LEDS,
 	.post_init_device   = lp8501_post_init_device,
-	.brightness_work_fn = lp8501_led_brightness_work,
+	.brightness_fn      = lp8501_led_brightness,
 	.set_led_current    = lp8501_set_led_current,
 	.firmware_cb        = lp8501_firmware_loaded,
 	.run_engine         = lp8501_run_engine,

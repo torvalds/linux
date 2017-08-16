@@ -90,8 +90,6 @@ struct ctlr_info
 #	define SIMPLE_MODE_INT	2
 #	define MEMQ_MODE_INT	3
 	unsigned int intr[4];
-	unsigned int msix_vector;
-	unsigned int msi_vector;
 	int	intr_mode;
 	int 	cciss_max_sectors;
 	BYTE	cciss_read;
@@ -333,7 +331,7 @@ static unsigned long SA5_performant_completed(ctlr_info_t *h)
 	 */
 	register_value = readl(h->vaddr + SA5_OUTDB_STATUS);
 	/* msi auto clears the interrupt pending bit. */
-	if (!(h->msi_vector || h->msix_vector)) {
+	if (!(h->pdev->msi_enabled || h->pdev->msix_enabled)) {
 		writel(SA5_OUTDB_CLEAR_PERF_BIT, h->vaddr + SA5_OUTDB_CLEAR);
 		/* Do a read in order to flush the write to the controller
 		 * (as per spec.)
@@ -393,7 +391,7 @@ static bool SA5_performant_intr_pending(ctlr_info_t *h)
 	if (!register_value)
 		return false;
 
-	if (h->msi_vector || h->msix_vector)
+	if (h->pdev->msi_enabled || h->pdev->msix_enabled)
 		return true;
 
 	/* Read outbound doorbell to flush */
@@ -402,27 +400,27 @@ static bool SA5_performant_intr_pending(ctlr_info_t *h)
 }
 
 static struct access_method SA5_access = {
-	SA5_submit_command,
-	SA5_intr_mask,
-	SA5_fifo_full,
-	SA5_intr_pending,
-	SA5_completed,
+	.submit_command = SA5_submit_command,
+	.set_intr_mask = SA5_intr_mask,
+	.fifo_full = SA5_fifo_full,
+	.intr_pending = SA5_intr_pending,
+	.command_completed = SA5_completed,
 };
 
 static struct access_method SA5B_access = {
-        SA5_submit_command,
-        SA5B_intr_mask,
-        SA5_fifo_full,
-        SA5B_intr_pending,
-        SA5_completed,
+	.submit_command = SA5_submit_command,
+	.set_intr_mask = SA5B_intr_mask,
+	.fifo_full = SA5_fifo_full,
+	.intr_pending = SA5B_intr_pending,
+	.command_completed = SA5_completed,
 };
 
 static struct access_method SA5_performant_access = {
-	SA5_submit_command,
-	SA5_performant_intr_mask,
-	SA5_fifo_full,
-	SA5_performant_intr_pending,
-	SA5_performant_completed,
+	.submit_command = SA5_submit_command,
+	.set_intr_mask = SA5_performant_intr_mask,
+	.fifo_full = SA5_fifo_full,
+	.intr_pending = SA5_performant_intr_pending,
+	.command_completed = SA5_performant_completed,
 };
 
 struct board_type {

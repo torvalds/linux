@@ -12,7 +12,7 @@
 
 static void *dma_alloc(struct device *dev, size_t size,
 		       dma_addr_t *dma_handle, gfp_t gfp,
-		       struct dma_attrs *attrs)
+		       unsigned long attrs)
 {
 	void *ret;
 
@@ -32,7 +32,7 @@ static void *dma_alloc(struct device *dev, size_t size,
 
 static void dma_free(struct device *dev, size_t size,
 		     void *vaddr, dma_addr_t dma_handle,
-		     struct dma_attrs *attrs)
+		     unsigned long attrs)
 
 {
 	free_pages((unsigned long)vaddr, get_order(size));
@@ -41,14 +41,14 @@ static void dma_free(struct device *dev, size_t size,
 static dma_addr_t map_page(struct device *dev, struct page *page,
 				  unsigned long offset, size_t size,
 				  enum dma_data_direction direction,
-				  struct dma_attrs *attrs)
+				  unsigned long attrs)
 {
 	return page_to_phys(page) + offset;
 }
 
 static int map_sg(struct device *dev, struct scatterlist *sgl,
 		  int nents, enum dma_data_direction direction,
-		  struct dma_attrs *attrs)
+		  unsigned long attrs)
 {
 	struct scatterlist *sg;
 	int i;
@@ -60,7 +60,7 @@ static int map_sg(struct device *dev, struct scatterlist *sgl,
 	return nents;
 }
 
-struct dma_map_ops h8300_dma_map_ops = {
+const struct dma_map_ops h8300_dma_map_ops = {
 	.alloc = dma_alloc,
 	.free = dma_free,
 	.map_page = map_page,

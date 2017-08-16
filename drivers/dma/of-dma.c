@@ -240,8 +240,9 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 	struct of_phandle_args	dma_spec;
 	struct of_dma		*ofdma;
 	struct dma_chan		*chan;
-	int			count, i;
+	int			count, i, start;
 	int			ret_no_channel = -ENODEV;
+	static atomic_t		last_index;
 
 	if (!np || !name) {
 		pr_err("%s: not enough information provided\n", __func__);
@@ -259,8 +260,15 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 		return ERR_PTR(-ENODEV);
 	}
 
+	/*
+	 * approximate an average distribution across multiple
+	 * entries with the same name
+	 */
+	start = atomic_inc_return(&last_index);
 	for (i = 0; i < count; i++) {
-		if (of_dma_match_channel(np, name, i, &dma_spec))
+		if (of_dma_match_channel(np, name,
+					 (i + start) % count,
+					 &dma_spec))
 			continue;
 
 		mutex_lock(&of_dma_lock);

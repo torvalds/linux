@@ -20,10 +20,7 @@
 
 extern int
 xfs_ioc_space(
-	struct xfs_inode	*ip,
-	struct inode		*inode,
 	struct file		*filp,
-	int			ioflags,
 	unsigned int		cmd,
 	xfs_flock64_t		*bf);
 
@@ -51,22 +48,22 @@ xfs_attrmulti_attr_get(
 	struct inode		*inode,
 	unsigned char		*name,
 	unsigned char		__user *ubuf,
-	__uint32_t		*len,
-	__uint32_t		flags);
+	uint32_t		*len,
+	uint32_t		flags);
 
 extern int
 xfs_attrmulti_attr_set(
 	struct inode		*inode,
 	unsigned char		*name,
 	const unsigned char	__user *ubuf,
-	__uint32_t		len,
-	__uint32_t		flags);
+	uint32_t		len,
+	uint32_t		flags);
 
 extern int
 xfs_attrmulti_attr_remove(
 	struct inode		*inode,
 	unsigned char		*name,
-	__uint32_t		flags);
+	uint32_t		flags);
 
 extern struct dentry *
 xfs_handle_to_dentry(

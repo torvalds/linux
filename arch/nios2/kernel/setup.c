@@ -14,10 +14,12 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
 #include <linux/console.h>
 #include <linux/bootmem.h>
 #include <linux/initrd.h>
 #include <linux/of_fdt.h>
+#include <linux/screen_info.h>
 
 #include <asm/mmu_context.h>
 #include <asm/sections.h>
@@ -35,6 +37,10 @@ unsigned long memory_size;
 static struct pt_regs fake_regs = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 					0, 0, 0, 0, 0, 0,
 					0};
+
+#ifdef CONFIG_VT
+struct screen_info screen_info;
+#endif
 
 /* Copy a short hook instruction sequence to the exception address */
 static inline void copy_exception_handler(unsigned int addr)
@@ -104,7 +110,7 @@ asmlinkage void __init nios2_boot_init(unsigned r4, unsigned r5, unsigned r6,
 				       unsigned r7)
 {
 	unsigned dtb_passed = 0;
-	char cmdline_passed[COMMAND_LINE_SIZE] = { 0, };
+	char cmdline_passed[COMMAND_LINE_SIZE] __maybe_unused = { 0, };
 
 #if defined(CONFIG_NIOS2_PASS_CMDLINE)
 	if (r4 == 0x534f494e) { /* r4 is magic NIOS */
@@ -131,6 +137,8 @@ asmlinkage void __init nios2_boot_init(unsigned r4, unsigned r5, unsigned r6,
 		strncpy(boot_command_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
 #endif
 #endif
+
+	parse_early_param();
 }
 
 void __init setup_arch(char **cmdline_p)
@@ -138,10 +146,6 @@ void __init setup_arch(char **cmdline_p)
 	int bootmap_size;
 
 	console_verbose();
-
-#ifdef CONFIG_EARLY_PRINTK
-	setup_early_printk();
-#endif
 
 	memory_start = PAGE_ALIGN((unsigned long)__pa(_end));
 	memory_end = (unsigned long) CONFIG_NIOS2_MEM_BASE + memory_size;
@@ -194,6 +198,9 @@ void __init setup_arch(char **cmdline_p)
 				initrd_end - initrd_start, BOOTMEM_DEFAULT);
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
+
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
 
 	unflatten_and_copy_device_tree();
 

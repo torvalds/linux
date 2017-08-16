@@ -4,10 +4,12 @@ The Mediatek's Pin controller is used to control SoC pins.
 
 Required properties:
 - compatible: value should be one of the following.
-    (a) "mediatek,mt8135-pinctrl", compatible with mt8135 pinctrl.
-    (b) "mediatek,mt8173-pinctrl", compatible with mt8173 pinctrl.
-    (c) "mediatek,mt6397-pinctrl", compatible with mt6397 pinctrl.
-    (d) "mediatek,mt8127-pinctrl", compatible with mt8127 pinctrl.
+	"mediatek,mt2701-pinctrl", compatible with mt2701 pinctrl.
+	"mediatek,mt6397-pinctrl", compatible with mt6397 pinctrl.
+	"mediatek,mt7623-pinctrl", compatible with mt7623 pinctrl.
+	"mediatek,mt8127-pinctrl", compatible with mt8127 pinctrl.
+	"mediatek,mt8135-pinctrl", compatible with mt8135 pinctrl.
+	"mediatek,mt8173-pinctrl", compatible with mt8173 pinctrl.
 - pins-are-numbered: Specify the subnodes are using numbered pinmux to
   specify pins.
 - gpio-controller : Marks the device node as a gpio controller.

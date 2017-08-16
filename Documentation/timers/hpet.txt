@@ -1,9 +1,7 @@
 		High Precision Event Timer Driver for Linux
 
 The High Precision Event Timer (HPET) hardware follows a specification
-by Intel and Microsoft which can be found at
-
-	http://www.intel.com/hardwaredesign/hpetspec_1.pdf
+by Intel and Microsoft, revision 1.
 
 Each HPET has one fixed-rate counter (at 10+ MHz, hence "High Precision")
 and up to 32 comparators.  Normally three or more comparators are provided,
@@ -27,4 +25,4 @@ arch/x86/kernel/hpet.c.
 
 The driver provides a userspace API which resembles the API found in the
 RTC driver framework.  An example user space program is provided in
-file:Documentation/timers/hpet_example.c
+file:samples/timers/hpet_example.c

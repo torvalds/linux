@@ -478,10 +478,8 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 	pm_runtime_enable(priv->dev);
 
 	ret = i2c_add_adapter(&priv->adap);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add bus to i2c core\n");
+	if (ret < 0)
 		goto err_runtime;
-	}
 
 	return ret;
 

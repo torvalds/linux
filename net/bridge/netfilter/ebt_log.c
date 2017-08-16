@@ -36,14 +36,12 @@ static int ebt_log_tg_check(const struct xt_tgchk_param *par)
 	return 0;
 }
 
-struct tcpudphdr
-{
+struct tcpudphdr {
 	__be16 src;
 	__be16 dst;
 };
 
-struct arppayload
-{
+struct arppayload {
 	unsigned char mac_src[ETH_ALEN];
 	unsigned char ip_src[4];
 	unsigned char mac_dst[ETH_ALEN];
@@ -64,10 +62,10 @@ print_ports(const struct sk_buff *skb, uint8_t protocol, int offset)
 		pptr = skb_header_pointer(skb, offset,
 					  sizeof(_ports), &_ports);
 		if (pptr == NULL) {
-			printk(" INCOMPLETE TCP/UDP header");
+			pr_cont(" INCOMPLETE TCP/UDP header");
 			return;
 		}
-		printk(" SPT=%u DPT=%u", ntohs(pptr->src), ntohs(pptr->dst));
+		pr_cont(" SPT=%u DPT=%u", ntohs(pptr->src), ntohs(pptr->dst));
 	}
 }
 
@@ -80,7 +78,7 @@ ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 	unsigned int bitmask;
 
 	/* FIXME: Disabled from containers until syslog ns is supported */
-	if (!net_eq(net, &init_net))
+	if (!net_eq(net, &init_net) && !sysctl_nf_log_all_netns)
 		return;
 
 	spin_lock_bh(&ebt_log_lock);
@@ -93,7 +91,7 @@ ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 	if (loginfo->type == NF_LOG_TYPE_LOG)
 		bitmask = loginfo->u.log.logflags;
 	else
-		bitmask = NF_LOG_MASK;
+		bitmask = NF_LOG_DEFAULT_MASK;
 
 	if ((bitmask & EBT_LOG_IP) && eth_hdr(skb)->h_proto ==
 	   htons(ETH_P_IP)) {
@@ -102,11 +100,11 @@ ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 		ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
 		if (ih == NULL) {
-			printk(" INCOMPLETE IP header");
+			pr_cont(" INCOMPLETE IP header");
 			goto out;
 		}
-		printk(" IP SRC=%pI4 IP DST=%pI4, IP tos=0x%02X, IP proto=%d",
-		       &ih->saddr, &ih->daddr, ih->tos, ih->protocol);
+		pr_cont(" IP SRC=%pI4 IP DST=%pI4, IP tos=0x%02X, IP proto=%d",
+			&ih->saddr, &ih->daddr, ih->tos, ih->protocol);
 		print_ports(skb, ih->protocol, ih->ihl*4);
 		goto out;
 	}
@@ -122,11 +120,11 @@ ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 		ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
 		if (ih == NULL) {
-			printk(" INCOMPLETE IPv6 header");
+			pr_cont(" INCOMPLETE IPv6 header");
 			goto out;
 		}
-		printk(" IPv6 SRC=%pI6 IPv6 DST=%pI6, IPv6 priority=0x%01X, Next Header=%d",
-		       &ih->saddr, &ih->daddr, ih->priority, ih->nexthdr);
+		pr_cont(" IPv6 SRC=%pI6 IPv6 DST=%pI6, IPv6 priority=0x%01X, Next Header=%d",
+			&ih->saddr, &ih->daddr, ih->priority, ih->nexthdr);
 		nexthdr = ih->nexthdr;
 		offset_ph = ipv6_skip_exthdr(skb, sizeof(_iph), &nexthdr, &frag_off);
 		if (offset_ph == -1)
@@ -144,15 +142,16 @@ ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 		ah = skb_header_pointer(skb, 0, sizeof(_arph), &_arph);
 		if (ah == NULL) {
-			printk(" INCOMPLETE ARP header");
+			pr_cont(" INCOMPLETE ARP header");
 			goto out;
 		}
-		printk(" ARP HTYPE=%d, PTYPE=0x%04x, OPCODE=%d",
-		       ntohs(ah->ar_hrd), ntohs(ah->ar_pro),
-		       ntohs(ah->ar_op));
+		pr_cont(" ARP HTYPE=%d, PTYPE=0x%04x, OPCODE=%d",
+			ntohs(ah->ar_hrd), ntohs(ah->ar_pro),
+			ntohs(ah->ar_op));
 
 		/* If it's for Ethernet and the lengths are OK,
-		 * then log the ARP payload */
+		 * then log the ARP payload
+		 */
 		if (ah->ar_hrd == htons(1) &&
 		    ah->ar_hln == ETH_ALEN &&
 		    ah->ar_pln == sizeof(__be32)) {
@@ -162,17 +161,17 @@ ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
 			ap = skb_header_pointer(skb, sizeof(_arph),
 						sizeof(_arpp), &_arpp);
 			if (ap == NULL) {
-				printk(" INCOMPLETE ARP payload");
+				pr_cont(" INCOMPLETE ARP payload");
 				goto out;
 			}
-			printk(" ARP MAC SRC=%pM ARP IP SRC=%pI4 ARP MAC DST=%pM ARP IP DST=%pI4",
-					ap->mac_src, ap->ip_src, ap->mac_dst, ap->ip_dst);
+			pr_cont(" ARP MAC SRC=%pM ARP IP SRC=%pI4 ARP MAC DST=%pM ARP IP DST=%pI4",
+				ap->mac_src, ap->ip_src,
+				ap->mac_dst, ap->ip_dst);
 		}
 	}
 out:
-	printk("\n");
+	pr_cont("\n");
 	spin_unlock_bh(&ebt_log_lock);
-
 }
 
 static unsigned int
@@ -180,7 +179,7 @@ ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_log_info *info = par->targinfo;
 	struct nf_loginfo li;
-	struct net *net = dev_net(par->in ? par->in : par->out);
+	struct net *net = xt_net(par);
 
 	li.type = NF_LOG_TYPE_LOG;
 	li.u.log.level = info->loglevel;
@@ -191,11 +190,12 @@ ebt_log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	 * nf_log_packet() with NFT_LOG_TYPE_LOG here. --Pablo
 	 */
 	if (info->bitmask & EBT_LOG_NFLOG)
-		nf_log_packet(net, NFPROTO_BRIDGE, par->hooknum, skb,
-			      par->in, par->out, &li, "%s", info->prefix);
+		nf_log_packet(net, NFPROTO_BRIDGE, xt_hooknum(par), skb,
+			      xt_in(par), xt_out(par), &li, "%s",
+			      info->prefix);
 	else
-		ebt_log_packet(net, NFPROTO_BRIDGE, par->hooknum, skb, par->in,
-			       par->out, &li, info->prefix);
+		ebt_log_packet(net, NFPROTO_BRIDGE, xt_hooknum(par), skb,
+			       xt_in(par), xt_out(par), &li, info->prefix);
 	return EBT_CONTINUE;
 }
 

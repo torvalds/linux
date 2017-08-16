@@ -48,8 +48,11 @@
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
-#ifdef TTM_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 #include <asm/agp.h>
+#endif
+#ifdef CONFIG_X86
+#include <asm/set_memory.h>
 #endif
 
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(struct page *))
@@ -219,7 +222,7 @@ static struct ttm_pool_manager *_manager;
 #ifndef CONFIG_X86
 static int set_pages_array_wb(struct page **pages, int addrinarray)
 {
-#ifdef TTM_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	int i;
 
 	for (i = 0; i < addrinarray; i++)
@@ -230,7 +233,7 @@ static int set_pages_array_wb(struct page **pages, int addrinarray)
 
 static int set_pages_array_wc(struct page **pages, int addrinarray)
 {
-#ifdef TTM_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	int i;
 
 	for (i = 0; i < addrinarray; i++)
@@ -241,7 +244,7 @@ static int set_pages_array_wc(struct page **pages, int addrinarray)
 
 static int set_pages_array_uc(struct page **pages, int addrinarray)
 {
-#ifdef TTM_HAS_AGP
+#if IS_ENABLED(CONFIG_AGP)
 	int i;
 
 	for (i = 0; i < addrinarray; i++)

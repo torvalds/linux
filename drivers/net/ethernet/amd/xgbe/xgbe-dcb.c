@@ -6,7 +6,7 @@
  *
  * License 1: GPLv2
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  *
  * This file is free software; you may copy, redistribute and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@
  *
  * License 2: Modified BSD
  *
- * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * Copyright (c) 2014-2016 Advanced Micro Devices, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -146,6 +146,7 @@ static int xgbe_dcb_ieee_setets(struct net_device *netdev,
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	unsigned int i, tc_ets, tc_ets_weight;
+	u8 max_tc = 0;
 
 	tc_ets = 0;
 	tc_ets_weight = 0;
@@ -157,12 +158,9 @@ static int xgbe_dcb_ieee_setets(struct net_device *netdev,
 		netif_dbg(pdata, drv, netdev, "PRIO%u: TC=%hhu\n", i,
 			  ets->prio_tc[i]);
 
-		if ((ets->tc_tx_bw[i] || ets->tc_tsa[i]) &&
-		    (i >= pdata->hw_feat.tc_cnt))
-				return -EINVAL;
-
-		if (ets->prio_tc[i] >= pdata->hw_feat.tc_cnt)
-			return -EINVAL;
+		max_tc = max_t(u8, max_tc, ets->prio_tc[i]);
+		if ((ets->tc_tx_bw[i] || ets->tc_tsa[i]))
+			max_tc = max_t(u8, max_tc, i);
 
 		switch (ets->tc_tsa[i]) {
 		case IEEE_8021QAZ_TSA_STRICT:
@@ -171,15 +169,28 @@ static int xgbe_dcb_ieee_setets(struct net_device *netdev,
 			tc_ets = 1;
 			tc_ets_weight += ets->tc_tx_bw[i];
 			break;
-
 		default:
+			netif_err(pdata, drv, netdev,
+				  "unsupported TSA algorithm (%hhu)\n",
+				  ets->tc_tsa[i]);
 			return -EINVAL;
 		}
 	}
 
-	/* Weights must add up to 100% */
-	if (tc_ets && (tc_ets_weight != 100))
+	/* Check maximum traffic class requested */
+	if (max_tc >= pdata->hw_feat.tc_cnt) {
+		netif_err(pdata, drv, netdev,
+			  "exceeded number of supported traffic classes\n");
 		return -EINVAL;
+	}
+
+	/* Weights must add up to 100% */
+	if (tc_ets && (tc_ets_weight != 100)) {
+		netif_err(pdata, drv, netdev,
+			  "sum of ETS algorithm weights is not 100 (%u)\n",
+			  tc_ets_weight);
+		return -EINVAL;
+	}
 
 	if (!pdata->ets) {
 		pdata->ets = devm_kzalloc(pdata->dev, sizeof(*pdata->ets),
@@ -188,6 +199,7 @@ static int xgbe_dcb_ieee_setets(struct net_device *netdev,
 			return -ENOMEM;
 	}
 
+	pdata->num_tcs = max_tc + 1;
 	memcpy(pdata->ets, ets, sizeof(*pdata->ets));
 
 	pdata->hw_if.config_dcb_tc(pdata);
@@ -220,6 +232,13 @@ static int xgbe_dcb_ieee_setpfc(struct net_device *netdev,
 	netif_dbg(pdata, drv, netdev,
 		  "cap=%hhu, en=%#hhx, mbc=%hhu, delay=%hhu\n",
 		  pfc->pfc_cap, pfc->pfc_en, pfc->mbc, pfc->delay);
+
+	/* Check PFC for supported number of traffic classes */
+	if (pfc->pfc_en & ~((1 << pdata->hw_feat.tc_cnt) - 1)) {
+		netif_err(pdata, drv, netdev,
+			  "PFC requested for unsupported traffic class\n");
+		return -EINVAL;
+	}
 
 	if (!pdata->pfc) {
 		pdata->pfc = devm_kzalloc(pdata->dev, sizeof(*pdata->pfc),

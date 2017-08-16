@@ -5,7 +5,8 @@
 
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <as-layout.h>
@@ -50,6 +51,13 @@ struct host_vm_change {
 	   .index	= 0, \
 	   .force	= force })
 
+static void report_enomem(void)
+{
+	printk(KERN_ERR "UML ran out of memory on the host side! "
+			"This can happen due to a memory limitation or "
+			"vm.max_map_count has been reached.\n");
+}
+
 static int do_ops(struct host_vm_change *hvc, int end,
 		  int finished)
 {
@@ -80,6 +88,9 @@ static int do_ops(struct host_vm_change *hvc, int end,
 			break;
 		}
 	}
+
+	if (ret == -ENOMEM)
+		report_enomem();
 
 	return ret;
 }
@@ -433,8 +444,12 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
 	else if (pte_newprot(*pte))
 		err = protect(mm_id, address, PAGE_SIZE, prot, 1, &flush);
 
-	if (err)
+	if (err) {
+		if (err == -ENOMEM)
+			report_enomem();
+
 		goto kill;
+	}
 
 	*pte = pte_mkuptodate(*pte);
 

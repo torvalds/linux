@@ -1,0 +1,85 @@
+#!/bin/sh
+# description: Test creation and deletion of trace instances
+
+if [ ! -d instances ] ; then
+    echo "no instance directory with this kernel"
+    exit_unsupported;
+fi
+
+fail() { # mesg
+    rmdir x y z 2>/dev/null
+    echo $1
+    set -e
+    exit $FAIL
+}
+
+cd instances
+
+# we don't want to fail on error
+set +e
+
+mkdir x
+rmdir x
+result=$?
+
+if [ $result -ne 0 ]; then
+    echo "instance rmdir not supported"
+    exit_unsupported
+fi
+
+instance_slam() {
+    while :; do
+	mkdir x
+	mkdir y
+	mkdir z
+	rmdir x
+	rmdir y
+	rmdir z
+    done 2>/dev/null
+}
+
+instance_slam &
+p1=$!
+echo $p1
+
+instance_slam &
+p2=$!
+echo $p2
+
+instance_slam &
+p3=$!
+echo $p3
+
+instance_slam &
+p4=$!
+echo $p4
+
+instance_slam &
+p5=$!
+echo $p5
+
+ls -lR >/dev/null
+sleep 1
+
+kill -1 $p1
+kill -1 $p2
+kill -1 $p3
+kill -1 $p4
+kill -1 $p5
+
+echo "Wait for processes to finish"
+wait $p1 $p2 $p3 $p4 $p5
+echo "all processes finished, wait for cleanup"
+
+mkdir x y z
+ls x y z
+rmdir x y z
+for d in x y z; do
+        if [ -d $d ]; then
+                fail "instance $d still exists"
+        fi
+done
+
+set -e
+
+exit 0

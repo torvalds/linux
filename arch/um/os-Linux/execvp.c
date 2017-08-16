@@ -136,7 +136,7 @@ int main(int argc, char**argv)
 	int ret;
 	argc--;
 	if (!argc) {
-		fprintf(stderr, "Not enough arguments\n");
+		os_warn("Not enough arguments\n");
 		return 1;
 	}
 	argv++;

@@ -203,8 +203,6 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "#include <scsi/scsi_proto.h>\n\n"
 	buf += "#include <target/target_core_base.h>\n"
 	buf += "#include <target/target_core_fabric.h>\n"
-	buf += "#include <target/target_core_fabric_configfs.h>\n"
-	buf += "#include <target/configfs_macros.h>\n\n"
 	buf += "#include \"" + fabric_mod_name + "_base.h\"\n"
 	buf += "#include \"" + fabric_mod_name + "_fabric.h\"\n\n"
 
@@ -283,19 +281,6 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "				struct " + fabric_mod_name + "_" + fabric_mod_port + ", " + fabric_mod_port + "_wwn);\n"
 	buf += "	kfree(" + fabric_mod_port + ");\n"
 	buf += "}\n\n"
-	buf += "static ssize_t " + fabric_mod_name + "_wwn_show_attr_version(\n"
-	buf += "	struct target_fabric_configfs *tf,\n"
-	buf += "	char *page)\n"
-	buf += "{\n"
-	buf += "	return sprintf(page, \"" + fabric_mod_name.upper() + " fabric module %s on %s/%s\"\n"
-	buf += "		\"on \"UTS_RELEASE\"\\n\", " + fabric_mod_name.upper() + "_VERSION, utsname()->sysname,\n"
-	buf += "		utsname()->machine);\n"
-	buf += "}\n\n"
-	buf += "TF_WWN_ATTR_RO(" + fabric_mod_name + ", version);\n\n"
-	buf += "static struct configfs_attribute *" + fabric_mod_name + "_wwn_attrs[] = {\n"
-	buf += "	&" + fabric_mod_name + "_wwn_version.attr,\n"
-	buf += "	NULL,\n"
-	buf += "};\n\n"
 
 	buf += "static const struct target_core_fabric_ops " + fabric_mod_name + "_ops = {\n"
 	buf += "	.module				= THIS_MODULE,\n"
@@ -309,8 +294,6 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	.tpg_check_prod_mode_write_protect = " + fabric_mod_name + "_check_false,\n"
 	buf += "	.tpg_get_inst_index		= " + fabric_mod_name + "_tpg_get_inst_index,\n"
 	buf += "	.release_cmd			= " + fabric_mod_name + "_release_cmd,\n"
-	buf += "	.shutdown_session		= " + fabric_mod_name + "_shutdown_session,\n"
-	buf += "	.close_session			= " + fabric_mod_name + "_close_session,\n"
 	buf += "	.sess_get_index			= " + fabric_mod_name + "_sess_get_index,\n"
 	buf += "	.sess_get_initiator_sid		= NULL,\n"
 	buf += "	.write_pending			= " + fabric_mod_name + "_write_pending,\n"
@@ -328,8 +311,6 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	.fabric_drop_wwn		= " + fabric_mod_name + "_drop_" + fabric_mod_port + ",\n"
 	buf += "	.fabric_make_tpg		= " + fabric_mod_name + "_make_tpg,\n"
 	buf += "	.fabric_drop_tpg		= " + fabric_mod_name + "_drop_tpg,\n"
-	buf += "\n"
-	buf += "	.tfc_wwn_attrs			= " + fabric_mod_name + "_wwn_attrs,\n"
 	buf += "};\n\n"
 
 	buf += "static int __init " + fabric_mod_name + "_init(void)\n"
@@ -483,20 +464,6 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 			buf += "	return;\n"
 			buf += "}\n\n"
 			bufi += "void " + fabric_mod_name + "_release_cmd(struct se_cmd *);\n"
-
-		if re.search('shutdown_session\)\(', fo):
-			buf += "int " + fabric_mod_name + "_shutdown_session(struct se_session *se_sess)\n"
-			buf += "{\n"
-			buf += "	return 0;\n"
-			buf += "}\n\n"
-			bufi += "int " + fabric_mod_name + "_shutdown_session(struct se_session *);\n"
-
-		if re.search('close_session\)\(', fo):
-			buf += "void " + fabric_mod_name + "_close_session(struct se_session *se_sess)\n"
-			buf += "{\n"
-			buf += "	return;\n"
-			buf += "}\n\n"
-			bufi += "void " + fabric_mod_name + "_close_session(struct se_session *);\n"
 
 		if re.search('sess_get_index\)\(', fo):
 			buf += "u32 " + fabric_mod_name + "_sess_get_index(struct se_session *se_sess)\n"

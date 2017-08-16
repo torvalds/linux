@@ -224,7 +224,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				rtc@68 {
-					compatible = "stm,m41t80", "m41st85";
+					compatible = "st,m41t80", "m41st85";
 					reg = <0x68>;
 				};
 			};

@@ -976,17 +976,16 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	//
 	HTSetConnectBwMode(ieee, (HT_CHANNEL_WIDTH)(pPeerHTCap->ChlWidth), (HT_EXTCHNL_OFFSET)(pPeerHTInfo->ExtChlOffset));
 
-//	if (pHTInfo->bCurBW40MHz)
-		pHTInfo->bCurTxBW40MHz = ((pPeerHTInfo->RecommemdedTxWidth == 1)?true:false);
+	pHTInfo->bCurTxBW40MHz = (pPeerHTInfo->RecommemdedTxWidth == 1);
 
 	//
 	// Update short GI/ long GI setting
 	//
 	// TODO:
-	pHTInfo->bCurShortGI20MHz=
-		((pHTInfo->bRegShortGI20MHz)?((pPeerHTCap->ShortGI20Mhz==1)?true:false):false);
-	pHTInfo->bCurShortGI40MHz=
-		((pHTInfo->bRegShortGI40MHz)?((pPeerHTCap->ShortGI40Mhz==1)?true:false):false);
+	pHTInfo->bCurShortGI20MHz = pHTInfo->bRegShortGI20MHz &&
+				    (pPeerHTCap->ShortGI20Mhz == 1);
+	pHTInfo->bCurShortGI40MHz = pHTInfo->bRegShortGI40MHz &&
+				   (pPeerHTCap->ShortGI40Mhz == 1);
 
 	//
 	// Config TX STBC setting
@@ -997,8 +996,8 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	// Config DSSS/CCK  mode in 40MHz mode
 	//
 	// TODO:
-	pHTInfo->bCurSuppCCK =
-		((pHTInfo->bRegSuppCCK)?((pPeerHTCap->DssCCk==1)?true:false):false);
+	pHTInfo->bCurSuppCCK = pHTInfo->bRegSuppCCK &&
+			       (pPeerHTCap->DssCCk == 1);
 
 
 	//

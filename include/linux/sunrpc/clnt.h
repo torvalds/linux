@@ -25,6 +25,7 @@
 #include <asm/signal.h>
 #include <linux/path.h>
 #include <net/ipv6.h>
+#include <linux/sunrpc/xprtmultipath.h>
 
 struct rpc_inode;
 
@@ -38,7 +39,7 @@ struct rpc_clnt {
 	struct list_head	cl_tasks;	/* List of tasks */
 	spinlock_t		cl_lock;	/* spinlock */
 	struct rpc_xprt __rcu *	cl_xprt;	/* transport */
-	struct rpc_procinfo *	cl_procinfo;	/* procedure info */
+	const struct rpc_procinfo *cl_procinfo;	/* procedure info */
 	u32			cl_prog,	/* RPC program number */
 				cl_vers,	/* RPC version number */
 				cl_maxproc;	/* max procedure number */
@@ -67,6 +68,7 @@ struct rpc_clnt {
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	struct dentry		*cl_debugfs;	/* debugfs directory */
 #endif
+	struct rpc_xprt_iter	cl_xpi;
 };
 
 /*
@@ -85,7 +87,8 @@ struct rpc_program {
 struct rpc_version {
 	u32			number;		/* version number */
 	unsigned int		nrprocs;	/* number of procs */
-	struct rpc_procinfo *	procs;		/* procedure array */
+	const struct rpc_procinfo *procs;	/* procedure array */
+	unsigned int		*counts;	/* call counts */
 };
 
 /*
@@ -97,7 +100,6 @@ struct rpc_procinfo {
 	kxdrdproc_t		p_decode;	/* XDR decode function */
 	unsigned int		p_arglen;	/* argument hdr length (u32) */
 	unsigned int		p_replen;	/* reply hdr length (u32) */
-	unsigned int		p_count;	/* call count */
 	unsigned int		p_timer;	/* Which RTT timer to use */
 	u32			p_statidx;	/* Which procedure to account */
 	const char *		p_name;		/* name of procedure */
@@ -123,6 +125,13 @@ struct rpc_create_args {
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
 };
 
+struct rpc_add_xprt_test {
+	int (*add_xprt_test)(struct rpc_clnt *,
+		struct rpc_xprt *,
+		void *calldata);
+	void *data;
+};
+
 /* Values for "flags" field */
 #define RPC_CLNT_CREATE_HARDRTRY	(1UL << 0)
 #define RPC_CLNT_CREATE_AUTOBIND	(1UL << 2)
@@ -135,11 +144,8 @@ struct rpc_create_args {
 #define RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT	(1UL << 9)
 
 struct rpc_clnt *rpc_create(struct rpc_create_args *args);
-struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
-					struct rpc_xprt *xprt);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
 				const struct rpc_program *, u32);
-void rpc_task_reset_client(struct rpc_task *task, struct rpc_clnt *clnt);
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 struct rpc_clnt *rpc_clone_client_set_auth(struct rpc_clnt *,
 				rpc_authflavor_t);
@@ -175,12 +181,41 @@ void		rpc_setbufsize(struct rpc_clnt *, unsigned int, unsigned int);
 int		rpc_protocol(struct rpc_clnt *);
 struct net *	rpc_net_ns(struct rpc_clnt *);
 size_t		rpc_max_payload(struct rpc_clnt *);
-unsigned long	rpc_get_timeout(struct rpc_clnt *clnt);
+size_t		rpc_max_bc_payload(struct rpc_clnt *);
 void		rpc_force_rebind(struct rpc_clnt *);
 size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
 const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
 int		rpc_localaddr(struct rpc_clnt *, struct sockaddr *, size_t);
 
+int 		rpc_clnt_iterate_for_each_xprt(struct rpc_clnt *clnt,
+			int (*fn)(struct rpc_clnt *, struct rpc_xprt *, void *),
+			void *data);
+
+int 		rpc_clnt_test_and_add_xprt(struct rpc_clnt *clnt,
+			struct rpc_xprt_switch *xps,
+			struct rpc_xprt *xprt,
+			void *dummy);
+int		rpc_clnt_add_xprt(struct rpc_clnt *, struct xprt_create *,
+			int (*setup)(struct rpc_clnt *,
+				struct rpc_xprt_switch *,
+				struct rpc_xprt *,
+				void *),
+			void *data);
+void		rpc_set_connect_timeout(struct rpc_clnt *clnt,
+			unsigned long connect_timeout,
+			unsigned long reconnect_timeout);
+
+int		rpc_clnt_setup_test_and_add_xprt(struct rpc_clnt *,
+			struct rpc_xprt_switch *,
+			struct rpc_xprt *,
+			void *);
+
 const char *rpc_proc_name(const struct rpc_task *task);
+
+void rpc_clnt_xprt_switch_put(struct rpc_clnt *);
+void rpc_clnt_xprt_switch_add_xprt(struct rpc_clnt *, struct rpc_xprt *);
+bool rpc_clnt_xprt_switch_has_addr(struct rpc_clnt *clnt,
+			const struct sockaddr *sap);
+void rpc_cleanup_clids(void);
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */

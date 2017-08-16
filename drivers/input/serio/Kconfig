@@ -292,4 +292,18 @@ config SERIO_SUN4I_PS2
 	  To compile this driver as a module, choose M here: the
 	  module will be called sun4i-ps2.
 
+config USERIO
+	tristate "User space serio port driver support"
+	help
+	  Say Y here if you want to support user level drivers for serio
+	  subsystem accessible under char device 10:240 - /dev/userio. Using
+	  this facility userspace programs can implement serio ports that
+	  will be used by the standard in-kernel serio consumer drivers,
+	  such as psmouse and atkbd.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called userio.
+
+	  If you are unsure, say N.
+
 endif

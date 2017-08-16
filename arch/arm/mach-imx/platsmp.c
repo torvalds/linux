@@ -88,7 +88,7 @@ static void __init imx_smp_prepare_cpus(unsigned int max_cpus)
 	sync_cache_w(&g_diag_reg);
 }
 
-struct smp_operations  imx_smp_ops __initdata = {
+const struct smp_operations imx_smp_ops __initconst = {
 	.smp_init_cpus		= imx_smp_init_cpus,
 	.smp_prepare_cpus	= imx_smp_prepare_cpus,
 	.smp_boot_secondary	= imx_boot_secondary,
@@ -117,13 +117,13 @@ static void __init ls1021a_smp_prepare_cpus(unsigned int max_cpus)
 	dcfg_base = of_iomap(np, 0);
 	BUG_ON(!dcfg_base);
 
-	paddr = virt_to_phys(secondary_startup);
+	paddr = __pa_symbol(secondary_startup);
 	writel_relaxed(cpu_to_be32(paddr), dcfg_base + DCFG_CCSR_SCRATCHRW1);
 
 	iounmap(dcfg_base);
 }
 
-struct smp_operations  ls1021a_smp_ops __initdata = {
+const struct smp_operations ls1021a_smp_ops __initconst = {
 	.smp_prepare_cpus	= ls1021a_smp_prepare_cpus,
 	.smp_boot_secondary	= ls1021a_boot_secondary,
 };

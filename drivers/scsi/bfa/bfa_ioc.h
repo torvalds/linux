@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -110,20 +111,24 @@ struct bfa_meminfo_s {
 	struct bfa_mem_kva_s kva_info;
 };
 
-/* BFA memory segment setup macros */
-#define bfa_mem_dma_setup(_meminfo, _dm_ptr, _seg_sz) do {	\
-	((bfa_mem_dma_t *)(_dm_ptr))->mem_len = (_seg_sz);	\
-	if (_seg_sz)						\
-		list_add_tail(&((bfa_mem_dma_t *)_dm_ptr)->qe,	\
-			      &(_meminfo)->dma_info.qe);	\
-} while (0)
+/* BFA memory segment setup helpers */
+static inline void bfa_mem_dma_setup(struct bfa_meminfo_s *meminfo,
+				     struct bfa_mem_dma_s *dm_ptr,
+				     size_t seg_sz)
+{
+	dm_ptr->mem_len = seg_sz;
+	if (seg_sz)
+		list_add_tail(&dm_ptr->qe, &meminfo->dma_info.qe);
+}
 
-#define bfa_mem_kva_setup(_meminfo, _kva_ptr, _seg_sz) do {	\
-	((bfa_mem_kva_t *)(_kva_ptr))->mem_len = (_seg_sz);	\
-	if (_seg_sz)						\
-		list_add_tail(&((bfa_mem_kva_t *)_kva_ptr)->qe,	\
-			      &(_meminfo)->kva_info.qe);	\
-} while (0)
+static inline void bfa_mem_kva_setup(struct bfa_meminfo_s *meminfo,
+				     struct bfa_mem_kva_s *kva_ptr,
+				     size_t seg_sz)
+{
+	kva_ptr->mem_len = seg_sz;
+	if (seg_sz)
+		list_add_tail(&kva_ptr->qe, &meminfo->kva_info.qe);
+}
 
 /* BFA dma memory segments iterator */
 #define bfa_mem_dma_sptr(_mod, _i)	(&(_mod)->dma_seg[(_i)])

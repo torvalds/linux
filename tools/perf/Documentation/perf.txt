@@ -27,6 +27,14 @@ OPTIONS
 	Setup buildid cache directory. It has higher priority than
 	buildid.dir config file option.
 
+-v::
+--version::
+  Display perf version.
+
+-h::
+--help::
+  Run perf help command.
+
 DESCRIPTION
 -----------
 Performance counters for Linux are a new kernel-based subsystem

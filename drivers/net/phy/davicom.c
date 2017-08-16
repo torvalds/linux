@@ -32,7 +32,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define MII_DM9161_SCR		0x10
 #define MII_DM9161_SCR_INIT	0x0610
@@ -156,7 +156,6 @@ static struct phy_driver dm91xx_driver[] = {
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= dm9161_ack_interrupt,
 	.config_intr	= dm9161_config_intr,
-	.driver		= { .owner = THIS_MODULE,},
 }, {
 	.phy_id		= 0x0181b8b0,
 	.name		= "Davicom DM9161B/C",
@@ -168,7 +167,6 @@ static struct phy_driver dm91xx_driver[] = {
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= dm9161_ack_interrupt,
 	.config_intr	= dm9161_config_intr,
-	.driver		= { .owner = THIS_MODULE,},
 }, {
 	.phy_id		= 0x0181b8a0,
 	.name		= "Davicom DM9161A",
@@ -180,7 +178,6 @@ static struct phy_driver dm91xx_driver[] = {
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= dm9161_ack_interrupt,
 	.config_intr	= dm9161_config_intr,
-	.driver		= { .owner = THIS_MODULE,},
 }, {
 	.phy_id		= 0x00181b80,
 	.name		= "Davicom DM9131",
@@ -191,7 +188,6 @@ static struct phy_driver dm91xx_driver[] = {
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= dm9161_ack_interrupt,
 	.config_intr	= dm9161_config_intr,
-	.driver		= { .owner = THIS_MODULE,},
 } };
 
 module_phy_driver(dm91xx_driver);

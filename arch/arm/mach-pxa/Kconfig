@@ -4,8 +4,20 @@ menu "Intel PXA2xx/PXA3xx Implementations"
 
 comment "Intel/Marvell Dev Platforms (sorted by hardware release time)"
 
+config MACH_PXA25X_DT
+	bool "Support PXA25x platforms from device tree"
+	select PINCTRL
+	select POWER_SUPPLY
+	select PXA25x
+	select USE_OF
+	help
+	  Include support for Marvell PXA25x based platforms using
+	  the device tree. Needn't select any other machine while
+	  MACH_PXA25x_DT is enabled.
+
 config MACH_PXA27X_DT
 	bool "Support PXA27x platforms from device tree"
+	select PINCTRL
 	select POWER_SUPPLY
 	select PXA27x
 	select USE_OF
@@ -17,6 +29,7 @@ config MACH_PXA27X_DT
 config MACH_PXA3XX_DT
 	bool "Support PXA3xx platforms from device tree"
 	select CPU_PXA300
+	select PINCTRL
 	select POWER_SUPPLY
 	select PXA3xx
 	select USE_OF
@@ -297,7 +310,6 @@ config MACH_MAGICIAN
 
 config MACH_MIOA701
 	bool "Mitac Mio A701 Support"
-	select GPIO_SYSFS
 	select IWMMXT
 	select PXA27x
 	help
@@ -529,7 +541,7 @@ config MACH_TOSA
 
 config TOSA_BT
 	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"
-	depends on MACH_TOSA
+	depends on MACH_TOSA && NET
 	select RFKILL
 	help
 	  This is a simple driver that is able to control
@@ -554,6 +566,7 @@ config MACH_ICONTROL
 config ARCH_PXA_ESERIES
 	bool "PXA based Toshiba e-series PDAs"
 	select FB_W100
+	select FB
 	select PXA25x
 
 config MACH_E330

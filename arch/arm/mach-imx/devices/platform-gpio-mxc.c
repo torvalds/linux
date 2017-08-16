@@ -7,6 +7,7 @@
  * Free Software Foundation.
  */
 #include "devices-common.h"
+#include "../common.h"
 
 struct platform_device *__init mxc_register_gpio(char *name, int id,
 	resource_size_t iobase, resource_size_t iosize, int irq, int irq_high)

@@ -48,6 +48,7 @@
 #include <scsi/osd_sense.h>
 
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_request.h>
 
 #include "osd_debug.h"
 
@@ -170,10 +171,7 @@ static int _osd_get_print_system_info(struct osd_dev *od,
 
 	/* FIXME: Where are the time utilities */
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("CLOCK                  [0x%02x%02x%02x%02x%02x%02x]\n",
-		((char *)pFirst)[0], ((char *)pFirst)[1],
-		((char *)pFirst)[2], ((char *)pFirst)[3],
-		((char *)pFirst)[4], ((char *)pFirst)[5]);
+	OSD_INFO("CLOCK                  [0x%6phN]\n", pFirst);
 
 	if (a < nelem) { /* IBM-OSD-SIM bug, Might not have it */
 		unsigned len = get_attrs[a].len;
@@ -448,7 +446,7 @@ static void _put_request(struct request *rq)
 	 *       code paths.
 	 */
 	if (unlikely(rq->bio))
-		blk_end_request(rq, -ENOMEM, blk_rq_bytes(rq));
+		blk_end_request(rq, BLK_STS_IOERR, blk_rq_bytes(rq));
 	else
 		blk_put_request(rq);
 }
@@ -476,27 +474,34 @@ void osd_end_request(struct osd_request *or)
 EXPORT_SYMBOL(osd_end_request);
 
 static void _set_error_resid(struct osd_request *or, struct request *req,
-			     int error)
+			     blk_status_t error)
 {
 	or->async_error = error;
-	or->req_errors = req->errors ? : error;
-	or->sense_len = req->sense_len;
+	or->req_errors = scsi_req(req)->result;
+	or->sense_len = scsi_req(req)->sense_len;
+	if (or->sense_len)
+		memcpy(or->sense, scsi_req(req)->sense, or->sense_len);
 	if (or->out.req)
-		or->out.residual = or->out.req->resid_len;
+		or->out.residual = scsi_req(or->out.req)->resid_len;
 	if (or->in.req)
-		or->in.residual = or->in.req->resid_len;
+		or->in.residual = scsi_req(or->in.req)->resid_len;
 }
 
 int osd_execute_request(struct osd_request *or)
 {
-	int error = blk_execute_rq(or->request->q, NULL, or->request, 0);
+	blk_execute_rq(or->request->q, NULL, or->request, 0);
 
-	_set_error_resid(or, or->request, error);
-	return error;
+	if (scsi_req(or->request)->result) {
+		_set_error_resid(or, or->request, BLK_STS_IOERR);
+		return -EIO;
+	}
+
+	_set_error_resid(or, or->request, BLK_STS_OK);
+	return 0;
 }
 EXPORT_SYMBOL(osd_execute_request);
 
-static void osd_request_async_done(struct request *req, int error)
+static void osd_request_async_done(struct request *req, blk_status_t error)
 {
 	struct osd_request *or = req->end_io_data;
 
@@ -729,7 +734,7 @@ static int _osd_req_list_objects(struct osd_request *or,
 		return PTR_ERR(bio);
 	}
 
-	bio->bi_rw &= ~REQ_WRITE;
+	bio_set_op_attrs(bio, REQ_OP_READ, 0);
 	or->in.bio = bio;
 	or->in.total_bytes = bio->bi_iter.bi_size;
 	return 0;
@@ -827,7 +832,7 @@ void osd_req_write(struct osd_request *or,
 {
 	_osd_req_encode_common(or, OSD_ACT_WRITE, obj, offset, len);
 	WARN_ON(or->out.bio || or->out.total_bytes);
-	WARN_ON(0 == (bio->bi_rw & REQ_WRITE));
+	WARN_ON(!op_is_write(bio_op(bio)));
 	or->out.bio = bio;
 	or->out.total_bytes = len;
 }
@@ -842,7 +847,7 @@ int osd_req_write_kern(struct osd_request *or,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	bio->bi_rw |= REQ_WRITE; /* FIXME: bio_set_dir() */
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 	osd_req_write(or, obj, offset, bio, len);
 	return 0;
 }
@@ -878,7 +883,7 @@ void osd_req_read(struct osd_request *or,
 {
 	_osd_req_encode_common(or, OSD_ACT_READ, obj, offset, len);
 	WARN_ON(or->in.bio || or->in.total_bytes);
-	WARN_ON(bio->bi_rw & REQ_WRITE);
+	WARN_ON(op_is_write(bio_op(bio)));
 	or->in.bio = bio;
 	or->in.total_bytes = len;
 }
@@ -959,7 +964,7 @@ static int _osd_req_finalize_cdb_cont(struct osd_request *or, const u8 *cap_key)
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	bio->bi_rw |= REQ_WRITE;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 	/* integrity check the continuation before the bio is linked
 	 * with the other data segments since the continuation
@@ -1080,7 +1085,7 @@ int osd_req_write_sg_kern(struct osd_request *or,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	bio->bi_rw |= REQ_WRITE;
+	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 	osd_req_write_sg(or, obj, bio, sglist, numentries);
 
 	return 0;
@@ -1290,7 +1295,7 @@ int osd_req_add_get_attr_list(struct osd_request *or,
 	or->enc_get_attr.total_bytes = total_bytes;
 
 	OSD_DEBUG(
-	       "get_attr.total_bytes=%u(%u) enc_get_attr.total_bytes=%u(%Zu)\n",
+	       "get_attr.total_bytes=%u(%u) enc_get_attr.total_bytes=%u(%zu)\n",
 	       or->get_attr.total_bytes,
 	       or->get_attr.total_bytes - _osd_req_sizeof_alist_header(or),
 	       or->enc_get_attr.total_bytes,
@@ -1561,18 +1566,22 @@ static int _osd_req_finalize_data_integrity(struct osd_request *or,
 static struct request *_make_request(struct request_queue *q, bool has_write,
 			      struct _osd_io_info *oii, gfp_t flags)
 {
-	if (oii->bio)
-		return blk_make_request(q, oii->bio, flags);
-	else {
-		struct request *req;
+	struct request *req;
+	struct bio *bio = oii->bio;
+	int ret;
 
-		req = blk_get_request(q, has_write ? WRITE : READ, flags);
-		if (IS_ERR(req))
-			return req;
-
-		blk_rq_set_block_pc(req);
+	req = blk_get_request(q, has_write ? REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN,
+			flags);
+	if (IS_ERR(req))
 		return req;
+
+	for_each_bio(bio) {
+		ret = blk_rq_append_bio(req, bio);
+		if (ret)
+			return ERR_PTR(ret);
 	}
+
+	return req;
 }
 
 static int _init_blk_request(struct osd_request *or,
@@ -1591,12 +1600,10 @@ static int _init_blk_request(struct osd_request *or,
 	}
 
 	or->request = req;
-	req->cmd_flags |= REQ_QUIET;
+	req->rq_flags |= RQF_QUIET;
 
 	req->timeout = or->timeout;
-	req->retries = or->retries;
-	req->sense = or->sense;
-	req->sense_len = 0;
+	scsi_req(req)->retries = or->retries;
 
 	if (has_out) {
 		or->out.req = req;
@@ -1608,7 +1615,6 @@ static int _init_blk_request(struct osd_request *or,
 				ret = PTR_ERR(req);
 				goto out;
 			}
-			blk_rq_set_block_pc(req);
 			or->in.req = or->request->next_rq = req;
 		}
 	} else if (has_in)
@@ -1671,7 +1677,7 @@ int osd_finalize_request(struct osd_request *or,
 		}
 	} else {
 		/* TODO: I think that for the GET_ATTR command these 2 should
-		 * be reversed to keep them in execution order (for embeded
+		 * be reversed to keep them in execution order (for embedded
 		 * targets with low memory footprint)
 		 */
 		ret = _osd_req_finalize_set_attr_list(or);
@@ -1695,8 +1701,8 @@ int osd_finalize_request(struct osd_request *or,
 
 	osd_sec_sign_cdb(&or->cdb, cap_key);
 
-	or->request->cmd = or->cdb.buff;
-	or->request->cmd_len = _osd_req_cdb_len(or);
+	scsi_req(or->request)->cmd = or->cdb.buff;
+	scsi_req(or->request)->cmd_len = _osd_req_cdb_len(or);
 
 	return 0;
 }
@@ -1905,7 +1911,7 @@ analyze:
 		/* scsi sense is Empty, the request was never issued to target
 		 * linux return code might tell us what happened.
 		 */
-		if (or->async_error == -ENOMEM)
+		if (or->async_error == BLK_STS_RESOURCE)
 			osi->osd_err_pri = OSD_ERR_PRI_RESOURCE;
 		else
 			osi->osd_err_pri = OSD_ERR_PRI_UNREACHABLE;
@@ -2009,9 +2015,8 @@ EXPORT_SYMBOL(osd_sec_init_nosec_doall_caps);
  */
 void osd_set_caps(struct osd_cdb *cdb, const void *caps)
 {
-	bool is_ver1 = true;
 	/* NOTE: They start at same address */
-	memcpy(&cdb->v1.caps, caps, is_ver1 ? OSDv1_CAP_LEN : OSD_CAP_LEN);
+	memcpy(&cdb->v1.caps, caps, OSDv1_CAP_LEN);
 }
 
 bool osd_is_sec_alldata(struct osd_security_parameters *sec_parms __unused)

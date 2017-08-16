@@ -37,6 +37,8 @@
 
 #define ALX_DEV_ID_AR8161				0x1091
 #define ALX_DEV_ID_E2200				0xe091
+#define ALX_DEV_ID_E2400				0xe0a1
+#define ALX_DEV_ID_E2500				0xe0b1
 #define ALX_DEV_ID_AR8162				0x1090
 #define ALX_DEV_ID_AR8171				0x10A1
 #define ALX_DEV_ID_AR8172				0x10A0

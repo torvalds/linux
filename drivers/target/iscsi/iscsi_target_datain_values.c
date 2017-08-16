@@ -16,8 +16,8 @@
  * GNU General Public License for more details.
  ******************************************************************************/
 
+#include <linux/slab.h>
 #include <scsi/iscsi_proto.h>
-
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_seq_pdu_list.h"
 #include "iscsi_target_erl1.h"
@@ -524,3 +524,4 @@ struct iscsi_datain_req *iscsit_get_datain_values(
 
 	return NULL;
 }
+EXPORT_SYMBOL(iscsit_get_datain_values);

@@ -1,0 +1,162 @@
+Freescale i.MX DRM master device
+================================
+
+The freescale i.MX DRM master device is a virtual device needed to list all
+IPU or other display interface nodes that comprise the graphics subsystem.
+
+Required properties:
+- compatible: Should be "fsl,imx-display-subsystem"
+- ports: Should contain a list of phandles pointing to display interface ports
+  of IPU devices
+
+example:
+
+display-subsystem {
+	compatible = "fsl,display-subsystem";
+	ports = <&ipu_di0>;
+};
+
+
+Freescale i.MX IPUv3
+====================
+
+Required properties:
+- compatible: Should be "fsl,<chip>-ipu" where <chip> is one of
+  - imx51
+  - imx53
+  - imx6q
+  - imx6qp
+- reg: should be register base and length as documented in the
+  datasheet
+- interrupts: Should contain sync interrupt and error interrupt,
+  in this order.
+- resets: phandle pointing to the system reset controller and
+          reset line index, see reset/fsl,imx-src.txt for details
+Additional required properties for fsl,imx6qp-ipu:
+- fsl,prg: phandle to prg node associated with this IPU instance
+Optional properties:
+- port@[0-3]: Port nodes with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt.
+  Ports 0 and 1 should correspond to CSI0 and CSI1,
+  ports 2 and 3 should correspond to DI0 and DI1, respectively.
+
+example:
+
+ipu: ipu@18000000 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "fsl,imx53-ipu";
+	reg = <0x18000000 0x080000000>;
+	interrupts = <11 10>;
+	resets = <&src 2>;
+
+	ipu_di0: port@2 {
+		reg = <2>;
+
+		ipu_di0_disp0: endpoint {
+			remote-endpoint = <&display_in>;
+		};
+	};
+};
+
+Freescale i.MX PRE (Prefetch Resolve Engine)
+============================================
+
+Required properties:
+- compatible: should be "fsl,imx6qp-pre"
+- reg: should be register base and length as documented in the
+  datasheet
+- clocks : phandle to the PRE axi clock input, as described
+  in Documentation/devicetree/bindings/clock/clock-bindings.txt and
+  Documentation/devicetree/bindings/clock/imx6q-clock.txt.
+- clock-names: should be "axi"
+- interrupts: should contain the PRE interrupt
+- fsl,iram: phandle pointing to the mmio-sram device node, that should be
+  used for the PRE SRAM double buffer.
+
+example:
+
+pre@21c8000 {
+	compatible = "fsl,imx6qp-pre";
+	reg = <0x021c8000 0x1000>;
+	interrupts = <GIC_SPI 90 IRQ_TYPE_EDGE_RISING>;
+	clocks = <&clks IMX6QDL_CLK_PRE0>;
+	clock-names = "axi";
+	fsl,iram = <&ocram2>;
+};
+
+Freescale i.MX PRG (Prefetch Resolve Gasket)
+============================================
+
+Required properties:
+- compatible: should be "fsl,imx6qp-prg"
+- reg: should be register base and length as documented in the
+  datasheet
+- clocks : phandles to the PRG ipg and axi clock inputs, as described
+  in Documentation/devicetree/bindings/clock/clock-bindings.txt and
+  Documentation/devicetree/bindings/clock/imx6q-clock.txt.
+- clock-names: should be "ipg" and "axi"
+- fsl,pres: phandles to the PRE units attached to this PRG, with the fixed
+  PRE as the first entry and the muxable PREs following.
+
+example:
+
+prg@21cc000 {
+	compatible = "fsl,imx6qp-prg";
+	reg = <0x021cc000 0x1000>;
+	clocks = <&clks IMX6QDL_CLK_PRG0_APB>,
+		 <&clks IMX6QDL_CLK_PRG0_AXI>;
+	clock-names = "ipg", "axi";
+	fsl,pres = <&pre1>, <&pre2>, <&pre3>;
+};
+
+Parallel display support
+========================
+
+Required properties:
+- compatible: Should be "fsl,imx-parallel-display"
+Optional properties:
+- interface_pix_fmt: How this display is connected to the
+  display interface. Currently supported types: "rgb24", "rgb565", "bgr666"
+  and "lvds666".
+- edid: verbatim EDID data block describing attached display.
+- ddc: phandle describing the i2c bus handling the display data
+  channel
+- port@[0-1]: Port nodes with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt.
+  Port 0 is the input port connected to the IPU display interface,
+  port 1 is the output port connected to a panel.
+
+example:
+
+display@di0 {
+	compatible = "fsl,imx-parallel-display";
+	edid = [edid-data];
+	interface-pix-fmt = "rgb24";
+
+	port@0 {
+		reg = <0>;
+
+		display_in: endpoint {
+			remote-endpoint = <&ipu_di0_disp0>;
+		};
+	};
+
+	port@1 {
+		reg = <1>;
+
+		display_out: endpoint {
+			remote-endpoint = <&panel_in>;
+		};
+	};
+};
+
+panel {
+	...
+
+	port {
+		panel_in: endpoint {
+			remote-endpoint = <&display_out>;
+		};
+	};
+};

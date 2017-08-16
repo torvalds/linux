@@ -1,0 +1,81 @@
+Texas Instruments System Control Interface (TI-SCI) Message Protocol
+--------------------------------------------------------------------
+
+Texas Instrument's processors including those belonging to Keystone generation
+of processors have separate hardware entity which is now responsible for the
+management of the System on Chip (SoC) system. These include various system
+level functions as well.
+
+An example of such an SoC is K2G, which contains the system control hardware
+block called Power Management Micro Controller (PMMC). This hardware block is
+initialized early into boot process and provides services to Operating Systems
+on multiple processors including ones running Linux.
+
+See http://processors.wiki.ti.com/index.php/TISCI for protocol definition.
+
+TI-SCI controller Device Node:
+=============================
+
+The TI-SCI node describes the Texas Instrument's System Controller entity node.
+This parent node may optionally have additional children nodes which describe
+specific functionality such as clocks, power domain, reset or additional
+functionality as may be required for the SoC. This hierarchy also describes the
+relationship between the TI-SCI parent node to the child node.
+
+Required properties:
+-------------------
+- compatible: should be "ti,k2g-sci"
+- mbox-names:
+	"rx" - Mailbox corresponding to receive path
+	"tx" - Mailbox corresponding to transmit path
+
+- mboxes: Mailboxes corresponding to the mbox-names. Each value of the mboxes
+	  property should contain a phandle to the mailbox controller device
+	  node and an args specifier that will be the phandle to the intended
+	  sub-mailbox child node to be used for communication.
+
+See Documentation/devicetree/bindings/mailbox/mailbox.txt for more details
+about the generic mailbox controller and client driver bindings. Also see
+Documentation/devicetree/bindings/mailbox/ti,message-manager.txt for typical
+controller that is used to communicate with this System controllers.
+
+Optional Properties:
+-------------------
+- reg-names:
+	debug_messages - Map the Debug message region
+- reg:  register space corresponding to the debug_messages
+- ti,system-reboot-controller: If system reboot can be triggered by SoC reboot
+
+Example (K2G):
+-------------
+	pmmc: pmmc {
+		compatible = "ti,k2g-sci";
+		mbox-names = "rx", "tx";
+		mboxes= <&msgmgr &msgmgr_proxy_pmmc_rx>,
+			<&msgmgr &msgmgr_proxy_pmmc_tx>;
+		reg-names = "debug_messages";
+		reg = <0x02921800 0x800>;
+	};
+
+
+TI-SCI Client Device Node:
+=========================
+
+Client nodes are maintained as children of the relevant TI-SCI device node.
+
+Example (K2G):
+-------------
+	pmmc: pmmc {
+		compatible = "ti,k2g-sci";
+		...
+
+		my_clk_node: clk_node {
+			...
+			...
+		};
+
+		my_pd_node: pd_node {
+			...
+			...
+		};
+	};

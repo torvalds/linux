@@ -6,16 +6,12 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ ******************************************************************************/
 #include "rtllib.h"
 #include <linux/etherdevice.h>
 #include "rtl819x_TS.h"
@@ -327,12 +323,6 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	if (ieee->current_network.qos_data.supported == 0) {
 		UP = 0;
 	} else {
-		if (!IsACValid(TID)) {
-			netdev_warn(ieee->dev, "%s(): TID(%d) is not valid\n",
-				    __func__, TID);
-			return false;
-		}
-
 		switch (TID) {
 		case 0:
 		case 3:
@@ -350,6 +340,10 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		case 7:
 			UP = 7;
 			break;
+		default:
+			netdev_warn(ieee->dev, "%s(): TID(%d) is not valid\n",
+				    __func__, TID);
+			return false;
 		}
 	}
 

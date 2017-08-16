@@ -1625,7 +1625,6 @@ static const struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(VBIOS_CS),
 
 	/* PTW (mobule: LBSC, EVC, SCIF) */
-	GPIO_FN(A16),
 	GPIO_FN(A15),
 	GPIO_FN(A14),
 	GPIO_FN(A13),
@@ -2238,6 +2237,6 @@ const struct sh_pfc_soc_info sh7757_pinmux_info = {
 	.cfg_regs = pinmux_config_regs,
 	.data_regs = pinmux_data_regs,
 
-	.gpio_data = pinmux_data,
-	.gpio_data_size = ARRAY_SIZE(pinmux_data),
+	.pinmux_data = pinmux_data,
+	.pinmux_data_size = ARRAY_SIZE(pinmux_data),
 };

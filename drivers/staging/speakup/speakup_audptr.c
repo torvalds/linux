@@ -15,16 +15,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * specificly written as a driver for the speakup screenreview
  * s not a general device driver.
  */
 #include "spk_priv.h"
 #include "speakup.h"
-#include "serialio.h"
 
 #define DRV_VERSION "2.11"
 #define SYNTH_CLEAR 0x18 /* flush synth buffer */
@@ -49,30 +44,30 @@ static struct var_t vars[] = {
  * These attributes will appear in /sys/accessibility/speakup/audptr.
  */
 static struct kobj_attribute caps_start_attribute =
-	__ATTR(caps_start, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(caps_start, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute caps_stop_attribute =
-	__ATTR(caps_stop, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(caps_stop, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute pitch_attribute =
-	__ATTR(pitch, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(pitch, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute punct_attribute =
-	__ATTR(punct, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(punct, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
-	__ATTR(rate, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(rate, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute tone_attribute =
-	__ATTR(tone, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(tone, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute vol_attribute =
-	__ATTR(vol, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(vol, 0644, spk_var_show, spk_var_store);
 
 static struct kobj_attribute delay_time_attribute =
-	__ATTR(delay_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(delay_time, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute direct_attribute =
-	__ATTR(direct, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(direct, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute full_time_attribute =
-	__ATTR(full_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(full_time, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute jiffy_delta_attribute =
-	__ATTR(jiffy_delta, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(jiffy_delta, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute trigger_time_attribute =
-	__ATTR(trigger_time, S_IWUSR|S_IRUGO, spk_var_show, spk_var_store);
+	__ATTR(trigger_time, 0644, spk_var_show, spk_var_store);
 
 /*
  * Create a group of attributes so that we can create and destroy them all
@@ -105,12 +100,14 @@ static struct spk_synth synth_audptr = {
 	.trigger = 50,
 	.jiffies = 30,
 	.full = 18000,
+	.dev_name = SYNTH_DEFAULT_DEV,
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
+	.io_ops = &spk_ttyio_ops,
 	.probe = synth_probe,
-	.release = spk_serial_release,
-	.synth_immediate = spk_synth_immediate,
+	.release = spk_ttyio_release,
+	.synth_immediate = spk_ttyio_synth_immediate,
 	.catch_up = spk_do_catch_up,
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -131,15 +128,9 @@ static struct spk_synth synth_audptr = {
 
 static void synth_flush(struct spk_synth *synth)
 {
-	int timeout = SPK_XMITR_TIMEOUT;
-
-	while (spk_serial_tx_busy()) {
-		if (!--timeout)
-			break;
-		udelay(1);
-	}
-	outb(SYNTH_CLEAR, speakup_info.port_tts);
-	spk_serial_out(PROCSPEECH);
+	synth->io_ops->flush_buffer();
+	synth->io_ops->send_xchar(SYNTH_CLEAR);
+	synth->io_ops->synth_out(synth, PROCSPEECH);
 }
 
 static void synth_version(struct spk_synth *synth)
@@ -147,12 +138,12 @@ static void synth_version(struct spk_synth *synth)
 	unsigned char test = 0;
 	char synth_id[40] = "";
 
-	spk_synth_immediate(synth, "\x05[Q]");
-	synth_id[test] = spk_serial_in();
+	synth->synth_immediate(synth, "\x05[Q]");
+	synth_id[test] = synth->io_ops->synth_in();
 	if (synth_id[test] == 'A') {
 		do {
 			/* read version string from synth */
-			synth_id[++test] = spk_serial_in();
+			synth_id[++test] = synth->io_ops->synth_in();
 		} while (synth_id[test] != '\n' && test < 32);
 		synth_id[++test] = 0x00;
 	}
@@ -162,19 +153,21 @@ static void synth_version(struct spk_synth *synth)
 
 static int synth_probe(struct spk_synth *synth)
 {
-	int failed = 0;
+	int failed;
 
-	failed = spk_serial_synth_probe(synth);
+	failed = spk_ttyio_synth_probe(synth);
 	if (failed == 0)
 		synth_version(synth);
 	synth->alive = !failed;
 	return 0;
 }
 
-module_param_named(ser, synth_audptr.ser, int, S_IRUGO);
-module_param_named(start, synth_audptr.startup, short, S_IRUGO);
+module_param_named(ser, synth_audptr.ser, int, 0444);
+module_param_named(dev, synth_audptr.dev_name, charp, S_IRUGO);
+module_param_named(start, synth_audptr.startup, short, 0444);
 
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
+MODULE_PARM_DESC(dev, "Set the device e.g. ttyUSB0, for the synthesizer.");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
 module_spk_synth(synth_audptr);

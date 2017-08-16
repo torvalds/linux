@@ -12,22 +12,6 @@
 / {
 	compatible = "ti,dra722", "ti,dra72", "ti,dra7";
 
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		cpu0: cpu@0 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <0>;
-
-			/* cooling options */
-			cooling-min-level = <0>;
-			cooling-max-level = <2>;
-			#cooling-cells = <2>; /* min followed by max */
-		};
-	};
-
 	pmu {
 		compatible = "arm,cortex-a15-pmu";
 		interrupt-parent = <&wakeupgen>;
@@ -44,4 +28,25 @@
 	clocks = <&dss_dss_clk>,
 		 <&dss_video1_clk>;
 	clock-names = "fck", "video1_clk";
+};
+
+&mailbox5 {
+	mbox_ipu1_ipc3x: mbox_ipu1_ipc3x {
+		ti,mbox-tx = <6 2 2>;
+		ti,mbox-rx = <4 2 2>;
+		status = "disabled";
+	};
+	mbox_dsp1_ipc3x: mbox_dsp1_ipc3x {
+		ti,mbox-tx = <5 2 2>;
+		ti,mbox-rx = <1 2 2>;
+		status = "disabled";
+	};
+};
+
+&mailbox6 {
+	mbox_ipu2_ipc3x: mbox_ipu2_ipc3x {
+		ti,mbox-tx = <6 2 2>;
+		ti,mbox-rx = <4 2 2>;
+		status = "disabled";
+	};
 };

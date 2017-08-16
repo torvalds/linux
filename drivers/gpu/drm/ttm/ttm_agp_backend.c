@@ -34,7 +34,6 @@
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
-#ifdef TTM_HAS_AGP
 #include <drm/ttm/ttm_placement.h>
 #include <linux/agp_backend.h>
 #include <linux/module.h>
@@ -148,5 +147,3 @@ void ttm_agp_tt_unpopulate(struct ttm_tt *ttm)
 	ttm_pool_unpopulate(ttm);
 }
 EXPORT_SYMBOL(ttm_agp_tt_unpopulate);
-
-#endif

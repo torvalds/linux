@@ -86,4 +86,88 @@ static inline void dma_set_residue(struct dma_tx_state *state, u32 residue)
 		state->residue = residue;
 }
 
+struct dmaengine_desc_callback {
+	dma_async_tx_callback callback;
+	dma_async_tx_callback_result callback_result;
+	void *callback_param;
+};
+
+/**
+ * dmaengine_desc_get_callback - get the passed in callback function
+ * @tx: tx descriptor
+ * @cb: temp struct to hold the callback info
+ *
+ * Fill the passed in cb struct with what's available in the passed in
+ * tx descriptor struct
+ * No locking is required.
+ */
+static inline void
+dmaengine_desc_get_callback(struct dma_async_tx_descriptor *tx,
+			    struct dmaengine_desc_callback *cb)
+{
+	cb->callback = tx->callback;
+	cb->callback_result = tx->callback_result;
+	cb->callback_param = tx->callback_param;
+}
+
+/**
+ * dmaengine_desc_callback_invoke - call the callback function in cb struct
+ * @cb: temp struct that is holding the callback info
+ * @result: transaction result
+ *
+ * Call the callback function provided in the cb struct with the parameter
+ * in the cb struct.
+ * Locking is dependent on the driver.
+ */
+static inline void
+dmaengine_desc_callback_invoke(struct dmaengine_desc_callback *cb,
+			       const struct dmaengine_result *result)
+{
+	struct dmaengine_result dummy_result = {
+		.result = DMA_TRANS_NOERROR,
+		.residue = 0
+	};
+
+	if (cb->callback_result) {
+		if (!result)
+			result = &dummy_result;
+		cb->callback_result(cb->callback_param, result);
+	} else if (cb->callback) {
+		cb->callback(cb->callback_param);
+	}
+}
+
+/**
+ * dmaengine_desc_get_callback_invoke - get the callback in tx descriptor and
+ * 					then immediately call the callback.
+ * @tx: dma async tx descriptor
+ * @result: transaction result
+ *
+ * Call dmaengine_desc_get_callback() and dmaengine_desc_callback_invoke()
+ * in a single function since no work is necessary in between for the driver.
+ * Locking is dependent on the driver.
+ */
+static inline void
+dmaengine_desc_get_callback_invoke(struct dma_async_tx_descriptor *tx,
+				   const struct dmaengine_result *result)
+{
+	struct dmaengine_desc_callback cb;
+
+	dmaengine_desc_get_callback(tx, &cb);
+	dmaengine_desc_callback_invoke(&cb, result);
+}
+
+/**
+ * dmaengine_desc_callback_valid - verify the callback is valid in cb
+ * @cb: callback info struct
+ *
+ * Return a bool that verifies whether callback in cb is valid or not.
+ * No locking is required.
+ */
+static inline bool
+dmaengine_desc_callback_valid(struct dmaengine_desc_callback *cb)
+{
+	return (cb->callback) ? true : false;
+}
+
 #endif

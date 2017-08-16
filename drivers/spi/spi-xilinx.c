@@ -270,6 +270,7 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 	while (remaining_words) {
 		int n_words, tx_words, rx_words;
+		u32 sr;
 
 		n_words = min(remaining_words, xspi->buffer_size);
 
@@ -284,24 +285,33 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 		if (use_irq) {
 			xspi->write_fn(cr, xspi->regs + XSPI_CR_OFFSET);
 			wait_for_completion(&xspi->done);
-		} else
-			while (!(xspi->read_fn(xspi->regs + XSPI_SR_OFFSET) &
-						XSPI_SR_TX_EMPTY_MASK))
-				;
-
-		/* A transmit has just completed. Process received data and
-		 * check for more data to transmit. Always inhibit the
-		 * transmitter while the Isr refills the transmit register/FIFO,
-		 * or make sure it is stopped if we're done.
-		 */
-		if (use_irq)
+			/* A transmit has just completed. Process received data
+			 * and check for more data to transmit. Always inhibit
+			 * the transmitter while the Isr refills the transmit
+			 * register/FIFO, or make sure it is stopped if we're
+			 * done.
+			 */
 			xspi->write_fn(cr | XSPI_CR_TRANS_INHIBIT,
-			       xspi->regs + XSPI_CR_OFFSET);
+				       xspi->regs + XSPI_CR_OFFSET);
+			sr = XSPI_SR_TX_EMPTY_MASK;
+		} else
+			sr = xspi->read_fn(xspi->regs + XSPI_SR_OFFSET);
 
 		/* Read out all the data from the Rx FIFO */
 		rx_words = n_words;
-		while (rx_words--)
-			xilinx_spi_rx(xspi);
+		while (rx_words) {
+			if ((sr & XSPI_SR_TX_EMPTY_MASK) && (rx_words > 1)) {
+				xilinx_spi_rx(xspi);
+				rx_words--;
+				continue;
+			}
+
+			sr = xspi->read_fn(xspi->regs + XSPI_SR_OFFSET);
+			if (!(sr & XSPI_SR_RX_EMPTY_MASK)) {
+				xilinx_spi_rx(xspi);
+				rx_words--;
+			}
+		}
 
 		remaining_words -= n_words;
 	}
@@ -331,9 +341,10 @@ static irqreturn_t xilinx_spi_irq(int irq, void *dev_id)
 
 	if (ipif_isr & XSPI_INTR_TX_EMPTY) {	/* Transmission completed */
 		complete(&xspi->done);
+		return IRQ_HANDLED;
 	}
 
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 static int xilinx_spi_find_buffer_size(struct xilinx_spi *xspi)
@@ -445,7 +456,10 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	xspi->buffer_size = xilinx_spi_find_buffer_size(xspi);
 
 	xspi->irq = platform_get_irq(pdev, 0);
-	if (xspi->irq >= 0) {
+	if (xspi->irq < 0 && xspi->irq != -ENXIO) {
+		ret = xspi->irq;
+		goto put_master;
+	} else if (xspi->irq >= 0) {
 		/* Register for SPI Interrupt */
 		ret = devm_request_irq(&pdev->dev, xspi->irq, xilinx_spi_irq, 0,
 				dev_name(&pdev->dev), xspi);

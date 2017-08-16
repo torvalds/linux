@@ -22,7 +22,7 @@
  * Authors: Alex Deucher
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "rv740d.h"
 #include "r600_dpm.h"
@@ -36,28 +36,28 @@ u32 rv740_get_decoded_reference_divider(u32 encoded_ref)
 	u32 ref = 0;
 
 	switch (encoded_ref) {
-        case 0:
+	case 0:
 		ref = 1;
 		break;
-        case 16:
+	case 16:
 		ref = 2;
 		break;
-        case 17:
+	case 17:
 		ref = 3;
 		break;
-        case 18:
+	case 18:
 		ref = 2;
 		break;
-        case 19:
+	case 19:
 		ref = 3;
 		break;
-        case 20:
+	case 20:
 		ref = 4;
 		break;
-        case 21:
+	case 21:
 		ref = 5;
 		break;
-        default:
+	default:
 		DRM_ERROR("Invalid encoded Reference Divider\n");
 		ref = 0;
 		break;

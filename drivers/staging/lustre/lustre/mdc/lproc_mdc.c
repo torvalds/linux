@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -27,7 +23,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -40,6 +36,42 @@
 #include "../include/lprocfs_status.h"
 #include "mdc_internal.h"
 
+static ssize_t active_show(struct kobject *kobj, struct attribute *attr,
+			   char *buf)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+
+	return sprintf(buf, "%u\n", !dev->u.cli.cl_import->imp_deactive);
+}
+
+static ssize_t active_store(struct kobject *kobj, struct attribute *attr,
+			    const char *buffer, size_t count)
+{
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	unsigned long val;
+	int rc;
+
+	rc = kstrtoul(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	if (val < 0 || val > 1)
+		return -ERANGE;
+
+	/* opposite senses */
+	if (dev->u.cli.cl_import->imp_deactive == val) {
+		rc = ptlrpc_set_import_active(dev->u.cli.cl_import, val);
+		if (rc)
+			count = rc;
+	} else {
+		CDEBUG(D_CONFIG, "activate %lu: ignoring repeat request\n", val);
+	}
+	return count;
+}
+LUSTRE_RW_ATTR(active);
+
 static ssize_t max_rpcs_in_flight_show(struct kobject *kobj,
 				       struct attribute *attr,
 				       char *buf)
@@ -47,11 +79,10 @@ static ssize_t max_rpcs_in_flight_show(struct kobject *kobj,
 	int len;
 	struct obd_device *dev = container_of(kobj, struct obd_device,
 					      obd_kobj);
-	struct client_obd *cli = &dev->u.cli;
+	__u32 max;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
-	len = sprintf(buf, "%u\n", cli->cl_max_rpcs_in_flight);
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	max = obd_get_max_rpcs_in_flight(&dev->u.cli);
+	len = sprintf(buf, "%u\n", max);
 
 	return len;
 }
@@ -63,7 +94,6 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 {
 	struct obd_device *dev = container_of(kobj, struct obd_device,
 					      obd_kobj);
-	struct client_obd *cli = &dev->u.cli;
 	int rc;
 	unsigned long val;
 
@@ -71,92 +101,71 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 	if (rc)
 		return rc;
 
-	if (val < 1 || val > MDC_MAX_RIF_MAX)
-		return -ERANGE;
-
-	client_obd_list_lock(&cli->cl_loi_list_lock);
-	cli->cl_max_rpcs_in_flight = val;
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	rc = obd_set_max_rpcs_in_flight(&dev->u.cli, val);
+	if (rc)
+		count = rc;
 
 	return count;
 }
 LUSTRE_RW_ATTR(max_rpcs_in_flight);
 
-static int mdc_kuc_open(struct inode *inode, struct file *file)
+static ssize_t max_mod_rpcs_in_flight_show(struct kobject *kobj,
+					   struct attribute *attr,
+					   char *buf)
 {
-	return single_open(file, NULL, inode->i_private);
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	u16 max;
+	int len;
+
+	max = dev->u.cli.cl_max_mod_rpcs_in_flight;
+	len = sprintf(buf, "%hu\n", max);
+
+	return len;
 }
 
-/* temporary for testing */
-static ssize_t mdc_kuc_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+static ssize_t max_mod_rpcs_in_flight_store(struct kobject *kobj,
+					    struct attribute *attr,
+					    const char *buffer,
+					    size_t count)
 {
-	struct obd_device *obd =
-			((struct seq_file *)file->private_data)->private;
-	struct kuc_hdr		*lh;
-	struct hsm_action_list	*hal;
-	struct hsm_action_item	*hai;
-	int			 len;
-	int			 fd, rc;
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
+	u16 val;
+	int rc;
 
-	rc = lprocfs_write_helper(buffer, count, &fd);
+	rc = kstrtou16(buffer, 10, &val);
 	if (rc)
 		return rc;
 
-	if (fd < 0)
-		return -ERANGE;
-	CWARN("message to fd %d\n", fd);
+	rc = obd_set_max_mod_rpcs_in_flight(&dev->u.cli, val);
+	if (rc)
+		count = rc;
 
-	len = sizeof(*lh) + sizeof(*hal) + MTI_NAME_MAXLEN +
-		/* for mockup below */ 2 * cfs_size_round(sizeof(*hai));
-
-	lh = kzalloc(len, GFP_NOFS);
-	if (!lh)
-		return -ENOMEM;
-
-	lh->kuc_magic = KUC_MAGIC;
-	lh->kuc_transport = KUC_TRANSPORT_HSM;
-	lh->kuc_msgtype = HMT_ACTION_LIST;
-	lh->kuc_msglen = len;
-
-	hal = (struct hsm_action_list *)(lh + 1);
-	hal->hal_version = HAL_VERSION;
-	hal->hal_archive_id = 1;
-	hal->hal_flags = 0;
-	obd_uuid2fsname(hal->hal_fsname, obd->obd_name, MTI_NAME_MAXLEN);
-
-	/* mock up an action list */
-	hal->hal_count = 2;
-	hai = hai_zero(hal);
-	hai->hai_action = HSMA_ARCHIVE;
-	hai->hai_fid.f_oid = 5;
-	hai->hai_len = sizeof(*hai);
-	hai = hai_next(hai);
-	hai->hai_action = HSMA_RESTORE;
-	hai->hai_fid.f_oid = 10;
-	hai->hai_len = sizeof(*hai);
-
-	/* This works for either broadcast or unicast to a single fd */
-	if (fd == 0) {
-		rc = libcfs_kkuc_group_put(KUC_GRP_HSM, lh);
-	} else {
-		struct file *fp = fget(fd);
-
-		rc = libcfs_kkuc_msg_put(fp, lh);
-		fput(fp);
-	}
-	kfree(lh);
-	if (rc < 0)
-		return rc;
 	return count;
 }
+LUSTRE_RW_ATTR(max_mod_rpcs_in_flight);
 
-static struct file_operations mdc_kuc_fops = {
-	.open		= mdc_kuc_open,
-	.write		= mdc_kuc_write,
-	.release	= single_release,
-};
+static int mdc_rpc_stats_seq_show(struct seq_file *seq, void *v)
+{
+	struct obd_device *dev = seq->private;
+
+	return obd_mod_rpc_stats_seq_show(&dev->u.cli, seq);
+}
+
+static ssize_t mdc_rpc_stats_seq_write(struct file *file,
+				       const char __user *buf,
+				       size_t len, loff_t *off)
+{
+	struct seq_file *seq = file->private_data;
+	struct obd_device *dev = seq->private;
+	struct client_obd *cli = &dev->u.cli;
+
+	lprocfs_oh_clear(&cli->cl_mod_rpcs_hist);
+
+	return len;
+}
+LPROC_SEQ_FOPS(mdc_rpc_stats);
 
 LPROC_SEQ_FOPS_WR_ONLY(mdc, ping);
 
@@ -196,13 +205,16 @@ static struct lprocfs_vars lprocfs_mdc_obd_vars[] = {
 	{ "timeouts",		&mdc_timeouts_fops,		NULL, 0 },
 	{ "import",		&mdc_import_fops,		NULL, 0 },
 	{ "state",		&mdc_state_fops,		NULL, 0 },
-	{ "hsm_nl",		&mdc_kuc_fops,			NULL, 0200 },
 	{ "pinger_recov",	&mdc_pinger_recov_fops,		NULL, 0 },
+	{ .name =	"rpc_stats",
+	  .fops =	&mdc_rpc_stats_fops		},
 	{ NULL }
 };
 
 static struct attribute *mdc_attrs[] = {
+	&lustre_attr_active.attr,
 	&lustre_attr_max_rpcs_in_flight.attr,
+	&lustre_attr_max_mod_rpcs_in_flight.attr,
 	&lustre_attr_max_pages_per_rpc.attr,
 	NULL,
 };

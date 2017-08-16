@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <crypto/hmac.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
 #include <linux/of.h>
@@ -822,8 +823,8 @@ static int mv_hash_setkey(struct crypto_ahash *tfm, const u8 * key,
 		memcpy(opad, ipad, bs);
 
 		for (i = 0; i < bs; i++) {
-			ipad[i] ^= 0x36;
-			opad[i] ^= 0x5c;
+			ipad[i] ^= HMAC_IPAD_VALUE;
+			opad[i] ^= HMAC_OPAD_VALUE;
 		}
 
 		rc = crypto_shash_init(shash) ? :
@@ -1073,7 +1074,7 @@ static int mv_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENXIO;
 
-	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
+	cp = devm_kzalloc(&pdev->dev, sizeof(*cp), GFP_KERNEL);
 	if (!cp)
 		return -ENOMEM;
 
@@ -1091,11 +1092,8 @@ static int mv_probe(struct platform_device *pdev)
 
 	cp->max_req_size = cp->sram_size - SRAM_CFG_SPACE;
 
-	if (pdev->dev.of_node)
-		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	else
-		irq = platform_get_irq(pdev, 0);
-	if (irq < 0 || irq == NO_IRQ) {
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
 		ret = irq;
 		goto err;
 	}
@@ -1166,7 +1164,6 @@ err_irq:
 err_thread:
 	kthread_stop(cp->queue_th);
 err:
-	kfree(cp);
 	cpg = NULL;
 	return ret;
 }
@@ -1190,7 +1187,6 @@ static int mv_remove(struct platform_device *pdev)
 		clk_put(cp->clk);
 	}
 
-	kfree(cp);
 	cpg = NULL;
 	return 0;
 }

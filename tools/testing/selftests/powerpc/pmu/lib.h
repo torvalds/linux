@@ -19,7 +19,6 @@ union pipe {
 	int fds[2];
 };
 
-extern int pick_online_cpu(void);
 extern int bind_to_cpu(int cpu);
 extern int kill_child_and_wait(pid_t child_pid);
 extern int wait_for_child(pid_t child_pid);

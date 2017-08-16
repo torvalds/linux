@@ -560,19 +560,11 @@ sas_domain_attach_transport(struct sas_domain_function_template *dft)
 	i = to_sas_internal(stt);
 	i->dft = dft;
 	stt->create_work_queue = 1;
-	stt->eh_timed_out = sas_scsi_timed_out;
 	stt->eh_strategy_handler = sas_scsi_recover_host;
 
 	return stt;
 }
 EXPORT_SYMBOL_GPL(sas_domain_attach_transport);
-
-
-void sas_domain_release_transport(struct scsi_transport_template *stt)
-{
-	sas_release_transport(stt);
-}
-EXPORT_SYMBOL_GPL(sas_domain_release_transport);
 
 /* ---------- SAS Class register/unregister ---------- */
 

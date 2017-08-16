@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "../../util/header.h"
-#include "../../util/util.h"
+#include <linux/stringify.h>
+#include "header.h"
+#include "util.h"
 
 #define mfspr(rn)       ({unsigned long rval; \
 			 asm volatile("mfspr %0," __stringify(rn) \
@@ -31,4 +31,15 @@ get_cpuid(char *buffer, size_t sz)
 		return 0;
 	}
 	return -1;
+}
+
+char *
+get_cpuid_str(void)
+{
+	char *bufp;
+
+	if (asprintf(&bufp, "%.8lx", mfspr(SPRN_PVR)) < 0)
+		bufp = NULL;
+
+	return bufp;
 }

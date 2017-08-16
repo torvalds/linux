@@ -36,7 +36,7 @@ struct syscon {
 	struct list_head list;
 };
 
-static struct regmap_config syscon_regmap_config = {
+static const struct regmap_config syscon_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -47,8 +47,10 @@ static struct syscon *of_syscon_register(struct device_node *np)
 	struct syscon *syscon;
 	struct regmap *regmap;
 	void __iomem *base;
+	u32 reg_io_width;
 	int ret;
 	struct regmap_config syscon_config = syscon_regmap_config;
+	struct resource res;
 
 	if (!of_device_is_compatible(np, "syscon"))
 		return ERR_PTR(-EINVAL);
@@ -57,7 +59,12 @@ static struct syscon *of_syscon_register(struct device_node *np)
 	if (!syscon)
 		return ERR_PTR(-ENOMEM);
 
-	base = of_iomap(np, 0);
+	if (of_address_to_resource(np, 0, &res)) {
+		ret = -ENOMEM;
+		goto err_map;
+	}
+
+	base = ioremap(res.start, resource_size(&res));
 	if (!base) {
 		ret = -ENOMEM;
 		goto err_map;
@@ -66,8 +73,23 @@ static struct syscon *of_syscon_register(struct device_node *np)
 	/* Parse the device's DT node for an endianness specification */
 	if (of_property_read_bool(np, "big-endian"))
 		syscon_config.val_format_endian = REGMAP_ENDIAN_BIG;
-	 else if (of_property_read_bool(np, "little-endian"))
+	else if (of_property_read_bool(np, "little-endian"))
 		syscon_config.val_format_endian = REGMAP_ENDIAN_LITTLE;
+	else if (of_property_read_bool(np, "native-endian"))
+		syscon_config.val_format_endian = REGMAP_ENDIAN_NATIVE;
+
+	/*
+	 * search for reg-io-width property in DT. If it is not provided,
+	 * default to 4 bytes. regmap_init_mmio will return an error if values
+	 * are invalid so there is no need to check them here.
+	 */
+	ret = of_property_read_u32(np, "reg-io-width", &reg_io_width);
+	if (ret)
+		reg_io_width = 4;
+
+	syscon_config.reg_stride = reg_io_width;
+	syscon_config.val_bits = reg_io_width * 8;
+	syscon_config.max_register = resource_size(&res) - reg_io_width;
 
 	regmap = regmap_init_mmio(NULL, base, &syscon_config);
 	if (IS_ERR(regmap)) {
@@ -179,6 +201,7 @@ static int syscon_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct syscon_platform_data *pdata = dev_get_platdata(dev);
 	struct syscon *syscon;
+	struct regmap_config syscon_config = syscon_regmap_config;
 	struct resource *res;
 	void __iomem *base;
 
@@ -194,11 +217,10 @@ static int syscon_probe(struct platform_device *pdev)
 	if (!base)
 		return -ENOMEM;
 
-	syscon_regmap_config.max_register = res->end - res->start - 3;
+	syscon_config.max_register = res->end - res->start - 3;
 	if (pdata)
-		syscon_regmap_config.name = pdata->label;
-	syscon->regmap = devm_regmap_init_mmio(dev, base,
-					&syscon_regmap_config);
+		syscon_config.name = pdata->label;
+	syscon->regmap = devm_regmap_init_mmio(dev, base, &syscon_config);
 	if (IS_ERR(syscon->regmap)) {
 		dev_err(dev, "regmap init failed\n");
 		return PTR_ERR(syscon->regmap);

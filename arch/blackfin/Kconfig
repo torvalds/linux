@@ -26,7 +26,7 @@ config BLACKFIN
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select ARCH_HAVE_CUSTOM_GPIO_H
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select HAVE_UID16
 	select HAVE_UNDERSCORE_SYMBOL_PREFIX
 	select VIRT_TO_BUS
@@ -40,6 +40,8 @@ config BLACKFIN
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
 	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_NMI
+	select ARCH_NO_COHERENT_DMA_MMAP
 
 config GENERIC_CSUM
 	def_bool y
@@ -1232,8 +1234,6 @@ config PCI
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 

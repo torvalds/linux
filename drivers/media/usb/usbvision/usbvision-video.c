@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * Let's call the version 0.... until compression decoding is completely
  * implemented.
  *
@@ -59,7 +55,7 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 
-#include <media/saa7115.h>
+#include <media/i2c/saa7115.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
@@ -162,8 +158,7 @@ MODULE_ALIAS(DRIVER_ALIAS);
 
 static inline struct usb_usbvision *cd_to_usbvision(struct device *cd)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	return video_get_drvdata(vdev);
 }
 
@@ -177,8 +172,7 @@ static DEVICE_ATTR(version, S_IRUGO, show_version, NULL);
 static ssize_t show_model(struct device *cd,
 			  struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       usbvision_device_data[usbvision->dev_model].model_string);
@@ -188,68 +182,55 @@ static DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
 static ssize_t show_hue(struct device *cd,
 			struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
-	struct v4l2_control ctrl;
-	ctrl.id = V4L2_CID_HUE;
-	ctrl.value = 0;
-	if (usbvision->user)
-		call_all(usbvision, core, g_ctrl, &ctrl);
-	return sprintf(buf, "%d\n", ctrl.value);
+	s32 val = v4l2_ctrl_g_ctrl(v4l2_ctrl_find(&usbvision->hdl,
+						  V4L2_CID_HUE));
+
+	return sprintf(buf, "%d\n", val);
 }
 static DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
 
 static ssize_t show_contrast(struct device *cd,
 			     struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
-	struct v4l2_control ctrl;
-	ctrl.id = V4L2_CID_CONTRAST;
-	ctrl.value = 0;
-	if (usbvision->user)
-		call_all(usbvision, core, g_ctrl, &ctrl);
-	return sprintf(buf, "%d\n", ctrl.value);
+	s32 val = v4l2_ctrl_g_ctrl(v4l2_ctrl_find(&usbvision->hdl,
+						  V4L2_CID_CONTRAST));
+
+	return sprintf(buf, "%d\n", val);
 }
 static DEVICE_ATTR(contrast, S_IRUGO, show_contrast, NULL);
 
 static ssize_t show_brightness(struct device *cd,
 			       struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
-	struct v4l2_control ctrl;
-	ctrl.id = V4L2_CID_BRIGHTNESS;
-	ctrl.value = 0;
-	if (usbvision->user)
-		call_all(usbvision, core, g_ctrl, &ctrl);
-	return sprintf(buf, "%d\n", ctrl.value);
+	s32 val = v4l2_ctrl_g_ctrl(v4l2_ctrl_find(&usbvision->hdl,
+						  V4L2_CID_BRIGHTNESS));
+
+	return sprintf(buf, "%d\n", val);
 }
 static DEVICE_ATTR(brightness, S_IRUGO, show_brightness, NULL);
 
 static ssize_t show_saturation(struct device *cd,
 			       struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
-	struct v4l2_control ctrl;
-	ctrl.id = V4L2_CID_SATURATION;
-	ctrl.value = 0;
-	if (usbvision->user)
-		call_all(usbvision, core, g_ctrl, &ctrl);
-	return sprintf(buf, "%d\n", ctrl.value);
+	s32 val = v4l2_ctrl_g_ctrl(v4l2_ctrl_find(&usbvision->hdl,
+						  V4L2_CID_SATURATION));
+
+	return sprintf(buf, "%d\n", val);
 }
 static DEVICE_ATTR(saturation, S_IRUGO, show_saturation, NULL);
 
 static ssize_t show_streaming(struct device *cd,
 			      struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       YES_NO(usbvision->streaming == stream_on ? 1 : 0));
@@ -259,8 +240,7 @@ static DEVICE_ATTR(streaming, S_IRUGO, show_streaming, NULL);
 static ssize_t show_compression(struct device *cd,
 				struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%s\n",
 		       YES_NO(usbvision->isoc_mode == ISOC_MODE_COMPRESS));
@@ -270,8 +250,7 @@ static DEVICE_ATTR(compression, S_IRUGO, show_compression, NULL);
 static ssize_t show_device_bridge(struct device *cd,
 				  struct device_attribute *attr, char *buf)
 {
-	struct video_device *vdev =
-		container_of(cd, struct video_device, dev);
+	struct video_device *vdev = to_video_device(cd);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%d\n", usbvision->bridge_type);
 }
@@ -1156,6 +1135,7 @@ static int usbvision_radio_close(struct file *file)
 	usbvision_audio_off(usbvision);
 	usbvision->radio = 0;
 	usbvision->user--;
+	mutex_unlock(&usbvision->v4l2_lock);
 
 	if (usbvision->remove_pending) {
 		printk(KERN_INFO "%s: Final disconnect\n", __func__);
@@ -1164,7 +1144,6 @@ static int usbvision_radio_close(struct file *file)
 		return 0;
 	}
 
-	mutex_unlock(&usbvision->v4l2_lock);
 	PDEBUG(DBG_IO, "success");
 	return v4l2_fh_release(file);
 }
@@ -1357,7 +1336,6 @@ static struct usb_usbvision *usbvision_alloc(struct usb_device *dev,
 	usbvision->ctrl_urb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
 	if (usbvision->ctrl_urb == NULL)
 		goto err_unreg;
-	init_waitqueue_head(&usbvision->ctrl_urb_wq);
 
 	return usbvision;
 
@@ -1449,8 +1427,8 @@ static int usbvision_probe(struct usb_interface *intf,
 	int model, i, ret;
 
 	PDEBUG(DBG_PROBE, "VID=%#04x, PID=%#04x, ifnum=%u",
-				dev->descriptor.idVendor,
-				dev->descriptor.idProduct, ifnum);
+				le16_to_cpu(dev->descriptor.idVendor),
+				le16_to_cpu(dev->descriptor.idProduct), ifnum);
 
 	model = devid->driver_info;
 	if (model < 0 || model >= usbvision_device_data_size) {
@@ -1463,9 +1441,23 @@ static int usbvision_probe(struct usb_interface *intf,
 
 	if (usbvision_device_data[model].interface >= 0)
 		interface = &dev->actconfig->interface[usbvision_device_data[model].interface]->altsetting[0];
-	else
+	else if (ifnum < dev->actconfig->desc.bNumInterfaces)
 		interface = &dev->actconfig->interface[ifnum]->altsetting[0];
+	else {
+		dev_err(&intf->dev, "interface %d is invalid, max is %d\n",
+		    ifnum, dev->actconfig->desc.bNumInterfaces - 1);
+		ret = -ENODEV;
+		goto err_usb;
+	}
+
+	if (interface->desc.bNumEndpoints < 2) {
+		dev_err(&intf->dev, "interface %d has %d endpoints, but must have minimum 2\n",
+			ifnum, interface->desc.bNumEndpoints);
+		ret = -ENODEV;
+		goto err_usb;
+	}
 	endpoint = &interface->endpoint[1].desc;
+
 	if (!usb_endpoint_xfer_isoc(endpoint)) {
 		dev_err(&intf->dev, "%s: interface %d. has non-ISO endpoint!\n",
 		    __func__, ifnum);
@@ -1509,7 +1501,14 @@ static int usbvision_probe(struct usb_interface *intf,
 	}
 
 	for (i = 0; i < usbvision->num_alt; i++) {
-		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
+		u16 tmp;
+
+		if (uif->altsetting[i].desc.bNumEndpoints < 2) {
+			ret = -ENODEV;
+			goto err_pkt;
+		}
+
+		tmp = le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
 				      wMaxPacketSize);
 		usbvision->alt_max_pkt_size[i] =
 			(tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);

@@ -23,7 +23,17 @@ static int xt_nat_checkentry_v0(const struct xt_tgchk_param *par)
 			par->target->name);
 		return -EINVAL;
 	}
-	return 0;
+	return nf_ct_netns_get(par->net, par->family);
+}
+
+static int xt_nat_checkentry(const struct xt_tgchk_param *par)
+{
+	return nf_ct_netns_get(par->net, par->family);
+}
+
+static void xt_nat_destroy(const struct xt_tgdtor_param *par)
+{
+	nf_ct_netns_put(par->net, par->family);
 }
 
 static void xt_nat_convert_range(struct nf_nat_range *dst,
@@ -106,6 +116,7 @@ static struct xt_target xt_nat_target_reg[] __read_mostly = {
 		.name		= "SNAT",
 		.revision	= 0,
 		.checkentry	= xt_nat_checkentry_v0,
+		.destroy	= xt_nat_destroy,
 		.target		= xt_snat_target_v0,
 		.targetsize	= sizeof(struct nf_nat_ipv4_multi_range_compat),
 		.family		= NFPROTO_IPV4,
@@ -118,6 +129,7 @@ static struct xt_target xt_nat_target_reg[] __read_mostly = {
 		.name		= "DNAT",
 		.revision	= 0,
 		.checkentry	= xt_nat_checkentry_v0,
+		.destroy	= xt_nat_destroy,
 		.target		= xt_dnat_target_v0,
 		.targetsize	= sizeof(struct nf_nat_ipv4_multi_range_compat),
 		.family		= NFPROTO_IPV4,
@@ -129,6 +141,8 @@ static struct xt_target xt_nat_target_reg[] __read_mostly = {
 	{
 		.name		= "SNAT",
 		.revision	= 1,
+		.checkentry	= xt_nat_checkentry,
+		.destroy	= xt_nat_destroy,
 		.target		= xt_snat_target_v1,
 		.targetsize	= sizeof(struct nf_nat_range),
 		.table		= "nat",
@@ -139,6 +153,8 @@ static struct xt_target xt_nat_target_reg[] __read_mostly = {
 	{
 		.name		= "DNAT",
 		.revision	= 1,
+		.checkentry	= xt_nat_checkentry,
+		.destroy	= xt_nat_destroy,
 		.target		= xt_dnat_target_v1,
 		.targetsize	= sizeof(struct nf_nat_range),
 		.table		= "nat",

@@ -22,25 +22,14 @@ The slave DMA usage consists of following steps:
    Channel allocation is slightly different in the slave DMA context,
    client drivers typically need a channel from a particular DMA
    controller only and even in some cases a specific channel is desired.
-   To request a channel dma_request_channel() API is used.
+   To request a channel dma_request_chan() API is used.
 
    Interface:
-	struct dma_chan *dma_request_channel(dma_cap_mask_t mask,
-			dma_filter_fn filter_fn,
-			void *filter_param);
-   where dma_filter_fn is defined as:
-	typedef bool (*dma_filter_fn)(struct dma_chan *chan, void *filter_param);
+	struct dma_chan *dma_request_chan(struct device *dev, const char *name);
 
-   The 'filter_fn' parameter is optional, but highly recommended for
-   slave and cyclic channels as they typically need to obtain a specific
-   DMA channel.
-
-   When the optional 'filter_fn' parameter is NULL, dma_request_channel()
-   simply returns the first channel that satisfies the capability mask.
-
-   Otherwise, the 'filter_fn' routine will be called once for each free
-   channel which has a capability in 'mask'.  'filter_fn' is expected to
-   return 'true' when the desired DMA channel is found.
+   Which will find and return the 'name' DMA channel associated with the 'dev'
+   device. The association is done via DT, ACPI or board file based
+   dma_slave_map matching table.
 
    A channel allocated via this interface is exclusive to the caller,
    until dma_release_channel() is called.
@@ -48,8 +37,8 @@ The slave DMA usage consists of following steps:
 2. Set slave and controller specific parameters
 
    Next step is always to pass some specific information to the DMA
-   driver.  Most of the generic information which a slave DMA can use
-   is in struct dma_slave_config.  This allows the clients to specify
+   driver. Most of the generic information which a slave DMA can use
+   is in struct dma_slave_config. This allows the clients to specify
    DMA direction, DMA addresses, bus widths, DMA burst lengths etc
    for the peripheral.
 
@@ -63,7 +52,7 @@ The slave DMA usage consists of following steps:
 				  struct dma_slave_config *config)
 
    Please see the dma_slave_config structure definition in dmaengine.h
-   for a detailed explanation of the struct members.  Please note
+   for a detailed explanation of the struct members. Please note
    that the 'direction' member will be going away as it duplicates the
    direction given in the prepare call.
 
@@ -112,7 +101,7 @@ The slave DMA usage consists of following steps:
 	desc = dmaengine_prep_slave_sg(chan, sgl, nr_sg, direction, flags);
 
    Once a descriptor has been obtained, the callback information can be
-   added and the descriptor must then be submitted.  Some DMA engine
+   added and the descriptor must then be submitted. Some DMA engine
    drivers may hold a spinlock between a successful preparation and
    submission so it is important that these two operations are closely
    paired.
@@ -128,7 +117,7 @@ The slave DMA usage consists of following steps:
 	transaction.
 
 	For cyclic DMA, a callback function may wish to terminate the
-	DMA via dmaengine_terminate_all().
+	DMA via dmaengine_terminate_async().
 
 	Therefore, it is important that DMA engine drivers drop any
 	locks before calling the callback function which may cause a
@@ -149,7 +138,7 @@ The slave DMA usage consists of following steps:
    activity via other DMA engine calls not covered in this document.
 
    dmaengine_submit() will not start the DMA operation, it merely adds
-   it to the pending queue.  For this, see step 5, dma_async_issue_pending.
+   it to the pending queue. For this, see step 5, dma_async_issue_pending.
 
 5. Issue pending DMA requests and wait for callback notification
 
@@ -166,11 +155,28 @@ The slave DMA usage consists of following steps:
 
 Further APIs:
 
-1. int dmaengine_terminate_all(struct dma_chan *chan)
+1. int dmaengine_terminate_sync(struct dma_chan *chan)
+   int dmaengine_terminate_async(struct dma_chan *chan)
+   int dmaengine_terminate_all(struct dma_chan *chan) /* DEPRECATED */
 
    This causes all activity for the DMA channel to be stopped, and may
    discard data in the DMA FIFO which hasn't been fully transferred.
    No callback functions will be called for any incomplete transfers.
+
+   Two variants of this function are available.
+
+   dmaengine_terminate_async() might not wait until the DMA has been fully
+   stopped or until any running complete callbacks have finished. But it is
+   possible to call dmaengine_terminate_async() from atomic context or from
+   within a complete callback. dmaengine_synchronize() must be called before it
+   is safe to free the memory accessed by the DMA transfer or free resources
+   accessed from within the complete callback.
+
+   dmaengine_terminate_sync() will wait for the transfer and any running
+   complete callbacks to finish before it returns. But the function must not be
+   called from atomic context or from within a complete callback.
+
+   dmaengine_terminate_all() is deprecated and should not be used in new code.
 
 2. int dmaengine_pause(struct dma_chan *chan)
 
@@ -178,13 +184,13 @@ Further APIs:
 
 3. int dmaengine_resume(struct dma_chan *chan)
 
-   Resume a previously paused DMA channel.  It is invalid to resume a
+   Resume a previously paused DMA channel. It is invalid to resume a
    channel which is not currently paused.
 
 4. enum dma_status dma_async_is_tx_complete(struct dma_chan *chan,
         dma_cookie_t cookie, dma_cookie_t *last, dma_cookie_t *used)
 
-   This can be used to check the status of the channel.  Please see
+   This can be used to check the status of the channel. Please see
    the documentation in include/linux/dmaengine.h for a more complete
    description of this API.
 
@@ -194,6 +200,23 @@ Further APIs:
 
    Note:
 	Not all DMA engine drivers can return reliable information for
-	a running DMA channel.  It is recommended that DMA engine users
+	a running DMA channel. It is recommended that DMA engine users
 	pause or stop (via dmaengine_terminate_all()) the channel before
 	using this API.
+
+5. void dmaengine_synchronize(struct dma_chan *chan)
+
+  Synchronize the termination of the DMA channel to the current context.
+
+  This function should be used after dmaengine_terminate_async() to synchronize
+  the termination of the DMA channel to the current context. The function will
+  wait for the transfer and any running complete callbacks to finish before it
+  returns.
+
+  If dmaengine_terminate_async() is used to stop the DMA channel this function
+  must be called before it is safe to free memory accessed by previously
+  submitted descriptors or to free any resources accessed within the complete
+  callback of previously submitted descriptors.
+
+  The behavior of this function is undefined if dma_async_issue_pending() has
+  been called between dmaengine_terminate_async() and this function.

@@ -124,12 +124,13 @@ static void sxgbe_eee_ctrl_timer(unsigned long arg)
  */
 bool sxgbe_eee_init(struct sxgbe_priv_data * const priv)
 {
+	struct net_device *ndev = priv->dev;
 	bool ret = false;
 
 	/* MAC core supports the EEE feature. */
 	if (priv->hw_cap.eee) {
 		/* Check if the PHY supports EEE */
-		if (phy_init_eee(priv->phydev, 1))
+		if (phy_init_eee(ndev->phydev, 1))
 			return false;
 
 		priv->eee_active = 1;
@@ -152,12 +153,14 @@ bool sxgbe_eee_init(struct sxgbe_priv_data * const priv)
 
 static void sxgbe_eee_adjust(const struct sxgbe_priv_data *priv)
 {
+	struct net_device *ndev = priv->dev;
+
 	/* When the EEE has been already initialised we have to
 	 * modify the PLS bit in the LPI ctrl & status reg according
 	 * to the PHY link status. For this reason.
 	 */
 	if (priv->eee_enabled)
-		priv->hw->mac->set_eee_pls(priv->ioaddr, priv->phydev->link);
+		priv->hw->mac->set_eee_pls(priv->ioaddr, ndev->phydev->link);
 }
 
 /**
@@ -203,7 +206,7 @@ static inline u32 sxgbe_tx_avail(struct sxgbe_tx_queue *queue, int tx_qsize)
 static void sxgbe_adjust_link(struct net_device *dev)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 	u8 new_state = 0;
 	u8 speed = 0xff;
 
@@ -306,9 +309,6 @@ static int sxgbe_init_phy(struct net_device *ndev)
 	netdev_dbg(ndev, "%s: attached to PHY (UID 0x%x) Link = %d\n",
 		   __func__, phydev->phy_id, phydev->link);
 
-	/* save phy device in private structure */
-	priv->phydev = phydev;
-
 	return 0;
 }
 
@@ -387,7 +387,7 @@ static void sxgbe_free_rx_buffers(struct net_device *dev,
 /**
  * init_tx_ring - init the TX descriptor ring
  * @dev: net device structure
- * @tx_ring: ring to be intialised
+ * @tx_ring: ring to be initialised
  * @tx_rsize: ring size
  * Description:  this function initializes the DMA TX descriptor
  */
@@ -426,9 +426,6 @@ static int init_tx_ring(struct device *dev, u8 queue_no,
 	tx_ring->dirty_tx = 0;
 	tx_ring->cur_tx = 0;
 
-	/* initialise TX queue lock */
-	spin_lock_init(&tx_ring->tx_lock);
-
 	return 0;
 
 dmamem_err:
@@ -440,7 +437,7 @@ dmamem_err:
 /**
  * free_rx_ring - free the RX descriptor ring
  * @dev: net device structure
- * @rx_ring: ring to be intialised
+ * @rx_ring: ring to be initialised
  * @rx_rsize: ring size
  * Description:  this function initializes the DMA RX descriptor
  */
@@ -456,7 +453,7 @@ static void free_rx_ring(struct device *dev, struct sxgbe_rx_queue *rx_ring,
 /**
  * init_rx_ring - init the RX descriptor ring
  * @dev: net device structure
- * @rx_ring: ring to be intialised
+ * @rx_ring: ring to be initialised
  * @rx_rsize: ring size
  * Description:  this function initializes the DMA RX descriptor
  */
@@ -542,7 +539,7 @@ err_free_dma_rx:
 /**
  * free_tx_ring - free the TX descriptor ring
  * @dev: net device structure
- * @tx_ring: ring to be intialised
+ * @tx_ring: ring to be initialised
  * @tx_rsize: ring size
  * Description:  this function initializes the DMA TX descriptor
  */
@@ -743,7 +740,7 @@ static void sxgbe_tx_queue_clean(struct sxgbe_tx_queue *tqueue)
 
 	dev_txq = netdev_get_tx_queue(priv->dev, queue_no);
 
-	spin_lock(&tqueue->tx_lock);
+	__netif_tx_lock(dev_txq, smp_processor_id());
 
 	priv->xstats.tx_clean++;
 	while (tqueue->dirty_tx != tqueue->cur_tx) {
@@ -781,18 +778,13 @@ static void sxgbe_tx_queue_clean(struct sxgbe_tx_queue *tqueue)
 
 	/* wake up queue */
 	if (unlikely(netif_tx_queue_stopped(dev_txq) &&
-		     sxgbe_tx_avail(tqueue, tx_rsize) > SXGBE_TX_THRESH(priv))) {
-		netif_tx_lock(priv->dev);
-		if (netif_tx_queue_stopped(dev_txq) &&
-		    sxgbe_tx_avail(tqueue, tx_rsize) > SXGBE_TX_THRESH(priv)) {
-			if (netif_msg_tx_done(priv))
-				pr_debug("%s: restart transmit\n", __func__);
-			netif_tx_wake_queue(dev_txq);
-		}
-		netif_tx_unlock(priv->dev);
+	    sxgbe_tx_avail(tqueue, tx_rsize) > SXGBE_TX_THRESH(priv))) {
+		if (netif_msg_tx_done(priv))
+			pr_debug("%s: restart transmit\n", __func__);
+		netif_tx_wake_queue(dev_txq);
 	}
 
-	spin_unlock(&tqueue->tx_lock);
+	__netif_tx_unlock(dev_txq);
 }
 
 /**
@@ -1173,8 +1165,8 @@ static int sxgbe_open(struct net_device *dev)
 	priv->hw->dma->start_tx(priv->ioaddr, SXGBE_TX_QUEUES);
 	priv->hw->dma->start_rx(priv->ioaddr, SXGBE_RX_QUEUES);
 
-	if (priv->phydev)
-		phy_start(priv->phydev);
+	if (dev->phydev)
+		phy_start(dev->phydev);
 
 	/* initialise TX coalesce parameters */
 	sxgbe_tx_init_coalesce(priv);
@@ -1194,8 +1186,8 @@ static int sxgbe_open(struct net_device *dev)
 
 init_error:
 	free_dma_desc_resources(priv);
-	if (priv->phydev)
-		phy_disconnect(priv->phydev);
+	if (dev->phydev)
+		phy_disconnect(dev->phydev);
 phy_error:
 	clk_disable_unprepare(priv->sxgbe_clk);
 
@@ -1216,10 +1208,9 @@ static int sxgbe_release(struct net_device *dev)
 		del_timer_sync(&priv->eee_ctrl_timer);
 
 	/* Stop and disconnect the PHY */
-	if (priv->phydev) {
-		phy_stop(priv->phydev);
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
+	if (dev->phydev) {
+		phy_stop(dev->phydev);
+		phy_disconnect(dev->phydev);
 	}
 
 	netif_tx_stop_all_queues(dev);
@@ -1305,9 +1296,6 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 		      tqueue->hwts_tx_en)))
 		ctxt_desc_req = 1;
 
-	/* get the spinlock */
-	spin_lock(&tqueue->tx_lock);
-
 	if (priv->tx_path_in_lpi_mode)
 		sxgbe_disable_eee_mode(priv);
 
@@ -1317,8 +1305,6 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 			netdev_err(dev, "%s: Tx Ring is full when %d queue is awake\n",
 				   __func__, txq_index);
 		}
-		/* release the spin lock in case of BUSY */
-		spin_unlock(&tqueue->tx_lock);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1432,12 +1418,9 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 		priv->hw->desc->tx_enable_tstamp(first_desc);
 	}
 
-	if (!tqueue->hwts_tx_en)
-		skb_tx_timestamp(skb);
+	skb_tx_timestamp(skb);
 
 	priv->hw->dma->enable_dma_transmission(priv->ioaddr, txq_index);
-
-	spin_unlock(&tqueue->tx_lock);
 
 	return NETDEV_TX_OK;
 }
@@ -1579,7 +1562,7 @@ static int sxgbe_poll(struct napi_struct *napi, int budget)
 
 	work_done = sxgbe_rx(priv, budget);
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		priv->hw->dma->enable_dma_irq(priv->ioaddr, qnum);
 	}
 
@@ -1722,11 +1705,9 @@ static inline u64 sxgbe_get_stat64(void __iomem *ioaddr, int reg_lo, int reg_hi)
  *  This function is a driver entry point whenever ifconfig command gets
  *  executed to see device statistics. Statistics are number of
  *  bytes sent or received, errors occurred etc.
- *  Return value:
- *  This function returns various statistical information of device.
  */
-static struct rtnl_link_stats64 *sxgbe_get_stats64(struct net_device *dev,
-						   struct rtnl_link_stats64 *stats)
+static void sxgbe_get_stats64(struct net_device *dev,
+			      struct rtnl_link_stats64 *stats)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
 	void __iomem *ioaddr = priv->ioaddr;
@@ -1777,8 +1758,6 @@ static struct rtnl_link_stats64 *sxgbe_get_stats64(struct net_device *dev,
 						 SXGBE_MMC_TXUFLWHI_GBCNT_REG);
 	writel(0, ioaddr + SXGBE_MMC_CTL_REG);
 	spin_unlock(&priv->stats_lock);
-
-	return stats;
 }
 
 /*  sxgbe_set_features - entry point to set offload features of the device.
@@ -1821,19 +1800,6 @@ static int sxgbe_set_features(struct net_device *dev,
  */
 static int sxgbe_change_mtu(struct net_device *dev, int new_mtu)
 {
-	/* RFC 791, page 25, "Every internet module must be able to forward
-	 * a datagram of 68 octets without further fragmentation."
-	 */
-	if (new_mtu < MIN_MTU || (new_mtu > MAX_MTU)) {
-		netdev_err(dev, "invalid MTU, MTU should be in between %d and %d\n",
-			   MIN_MTU, MAX_MTU);
-		return -EINVAL;
-	}
-
-	/* Return if the buffer sizes will not change */
-	if (dev->mtu == new_mtu)
-		return 0;
-
 	dev->mtu = new_mtu;
 
 	if (!netif_running(dev))
@@ -1969,7 +1935,6 @@ static void sxgbe_poll_controller(struct net_device *dev)
  */
 static int sxgbe_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct sxgbe_priv_data *priv = netdev_priv(dev);
 	int ret = -EOPNOTSUPP;
 
 	if (!netif_running(dev))
@@ -1979,9 +1944,9 @@ static int sxgbe_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
-		if (!priv->phydev)
+		if (!dev->phydev)
 			return -EINVAL;
-		ret = phy_mii_ioctl(priv->phydev, rq, cmd);
+		ret = phy_mii_ioctl(dev->phydev, rq, cmd);
 		break;
 	default:
 		break;
@@ -2145,6 +2110,10 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 
 	/* assign filtering support */
 	ndev->priv_flags |= IFF_UNICAST_FLT;
+
+	/* MTU range: 68 - 9000 */
+	ndev->min_mtu = MIN_MTU;
+	ndev->max_mtu = MAX_MTU;
 
 	priv->msg_enable = netif_msg_init(debug, default_msg_level);
 

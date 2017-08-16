@@ -7296,6 +7296,8 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_84823_CTL_LED_CTL_1			0xa8e3
 #define MDIO_PMA_REG_84833_CTL_LED_CTL_1			0xa8ec
 #define MDIO_PMA_REG_84823_LED3_STRETCH_EN			0x0080
+/* BCM84858 only */
+#define MDIO_PMA_REG_84858_ALLOW_GPHY_ACT			0x8000
 
 /* BCM84833 only */
 #define MDIO_84833_TOP_CFG_FW_REV			0x400f
@@ -7337,6 +7339,10 @@ Theotherbitsarereservedandshouldbezero*/
 #define PHY84833_STATUS_CMD_NOT_OPEN_FOR_CMDS		0x0040
 #define PHY84833_STATUS_CMD_CLEAR_COMPLETE		0x0080
 #define PHY84833_STATUS_CMD_OPEN_OVERRIDE		0xa5a5
+/* Mailbox Process */
+#define PHY84833_MB_PROCESS1				1
+#define PHY84833_MB_PROCESS2				2
+#define PHY84833_MB_PROCESS3				3
 
 /* Mailbox status set used by 84858 only */
 #define PHY84858_STATUS_CMD_RECEIVED			0x0001

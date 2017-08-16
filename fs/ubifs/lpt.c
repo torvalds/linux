@@ -1498,11 +1498,10 @@ static struct ubifs_nnode *dirty_cow_nnode(struct ubifs_info *c,
 	}
 
 	/* nnode is being committed, so copy it */
-	n = kmalloc(sizeof(struct ubifs_nnode), GFP_NOFS);
+	n = kmemdup(nnode, sizeof(struct ubifs_nnode), GFP_NOFS);
 	if (unlikely(!n))
 		return ERR_PTR(-ENOMEM);
 
-	memcpy(n, nnode, sizeof(struct ubifs_nnode));
 	n->cnext = NULL;
 	__set_bit(DIRTY_CNODE, &n->flags);
 	__clear_bit(COW_CNODE, &n->flags);
@@ -1549,11 +1548,10 @@ static struct ubifs_pnode *dirty_cow_pnode(struct ubifs_info *c,
 	}
 
 	/* pnode is being committed, so copy it */
-	p = kmalloc(sizeof(struct ubifs_pnode), GFP_NOFS);
+	p = kmemdup(pnode, sizeof(struct ubifs_pnode), GFP_NOFS);
 	if (unlikely(!p))
 		return ERR_PTR(-ENOMEM);
 
-	memcpy(p, pnode, sizeof(struct ubifs_pnode));
 	p->cnext = NULL;
 	__set_bit(DIRTY_CNODE, &p->flags);
 	__clear_bit(COW_CNODE, &p->flags);

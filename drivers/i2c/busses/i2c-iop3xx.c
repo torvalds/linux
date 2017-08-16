@@ -50,10 +50,7 @@ iic_cook_addr(struct i2c_msg *msg)
 {
 	unsigned char addr;
 
-	addr = (msg->addr << 1);
-
-	if (msg->flags & I2C_M_RD)
-		addr |= 1;
+	addr = i2c_8bit_addr_from_msg(msg);
 
 	return addr;
 }

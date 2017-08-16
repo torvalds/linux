@@ -62,7 +62,7 @@ There are four components to pagemap:
     14. SWAPBACKED
     15. COMPOUND_HEAD
     16. COMPOUND_TAIL
-    16. HUGE
+    17. HUGE
     18. UNEVICTABLE
     19. HWPOISON
     20. NOPAGE

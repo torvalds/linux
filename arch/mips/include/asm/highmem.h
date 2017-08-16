@@ -19,12 +19,11 @@
 
 #ifdef __KERNEL__
 
+#include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
+#include <asm/cpu-features.h>
 #include <asm/kmap_types.h>
-
-/* undef for production */
-#define HIGHMEM_DEBUG 1
 
 /* declarations for highmem.c */
 extern unsigned long highstart_pfn, highend_pfn;
@@ -36,7 +35,12 @@ extern pte_t *pkmap_page_table;
  * easily, subsequent pte tables have to be allocated in one physical
  * chunk of RAM.
  */
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+#define LAST_PKMAP 512
+#else
 #define LAST_PKMAP 1024
+#endif
+
 #define LAST_PKMAP_MASK (LAST_PKMAP-1)
 #define PKMAP_NR(virt)	((virt-PKMAP_BASE) >> PAGE_SHIFT)
 #define PKMAP_ADDR(nr)	(PKMAP_BASE + ((nr) << PAGE_SHIFT))
@@ -49,9 +53,8 @@ extern void kunmap(struct page *page);
 extern void *kmap_atomic(struct page *page);
 extern void __kunmap_atomic(void *kvaddr);
 extern void *kmap_atomic_pfn(unsigned long pfn);
-extern struct page *kmap_atomic_to_page(void *ptr);
 
-#define flush_cache_kmaps()	flush_cache_all()
+#define flush_cache_kmaps()	BUG_ON(cpu_has_dc_aliases)
 
 extern void kmap_init(void);
 

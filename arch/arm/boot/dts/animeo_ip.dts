@@ -32,15 +32,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <18432000>;
-		};
-
 		slow_xtal {
 			clock-frequency = <32768>;
 		};
@@ -92,29 +83,48 @@
 			};
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "soft";
-			nand-on-flash-bbt;
+		ebi: ebi@10000000 {
 			status = "okay";
 
-			barebox@0 {
-				label = "barebox";
-				reg = <0x0 0x58000>;
-			};
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_cs &pinctrl_nand_rb>;
+				pinctrl-names = "default";
 
-			u_boot_env@58000 {
-				label = "u_boot_env";
-				reg = <0x58000 0x8000>;
-			};
+				nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					rb-gpios = <&pioC 13 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioC 14 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "soft";
+					nand-on-flash-bbt;
+					label = "atmel_nand";
 
-			ubi@60000 {
-				label = "ubi";
-				reg = <0x60000 0x1FA0000>;
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						barebox@0 {
+							label = "barebox";
+							reg = <0x0 0x58000>;
+						};
+
+						u_boot_env@58000 {
+							label = "u_boot_env";
+							reg = <0x58000 0x8000>;
+						};
+
+						ubi@60000 {
+							label = "ubi";
+							reg = <0x60000 0x1FA0000>;
+						};
+					};
+				};
 			};
 		};
 
-		usb0: ohci@00500000 {
+		usb0: ohci@500000 {
 			num-ports = <2>;
 			atmel,vbus-gpio = <&pioB 15 GPIO_ACTIVE_LOW>;
 			status = "okay";
@@ -155,21 +165,21 @@
 			label = "keyswitch_in";
 			gpios = <&pioB 1 GPIO_ACTIVE_HIGH>;
 			linux,code = <28>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		error_in {
 			label = "error_in";
 			gpios = <&pioB 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <29>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		btn {
 			label = "btn";
 			gpios = <&pioC 23 GPIO_ACTIVE_HIGH>;
 			linux,code = <31>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 };

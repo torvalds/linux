@@ -37,15 +37,6 @@ const struct vivid_fmt *vivid_get_format(struct vivid_dev *dev, u32 pixelformat)
 bool vivid_vid_can_loop(struct vivid_dev *dev);
 void vivid_send_source_change(struct vivid_dev *dev, unsigned type);
 
-bool rect_overlap(const struct v4l2_rect *r1, const struct v4l2_rect *r2);
-void rect_set_size_to(struct v4l2_rect *r, const struct v4l2_rect *size);
-void rect_set_min_size(struct v4l2_rect *r, const struct v4l2_rect *min_size);
-void rect_set_max_size(struct v4l2_rect *r, const struct v4l2_rect *max_size);
-void rect_map_inside(struct v4l2_rect *r, const struct v4l2_rect *boundary);
-bool rect_same_size(const struct v4l2_rect *r1, const struct v4l2_rect *r2);
-struct v4l2_rect rect_intersect(const struct v4l2_rect *a, const struct v4l2_rect *b);
-void rect_scale(struct v4l2_rect *r, const struct v4l2_rect *from,
-				     const struct v4l2_rect *to);
 int vivid_vid_adjust_sel(unsigned flags, struct v4l2_rect *r);
 
 int vivid_enum_fmt_vid(struct file *file, void  *priv, struct v4l2_fmtdesc *f);

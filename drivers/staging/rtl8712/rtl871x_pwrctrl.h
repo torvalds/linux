@@ -48,11 +48,11 @@ enum Power_Mgnt {
 };
 
 /*
-	BIT[2:0] = HW state
-	BIT[3] = Protocol PS state, 0: register active state,
-				    1: register sleep state
-	BIT[4] = sub-state
-*/
+ * BIT[2:0] = HW state
+ * BIT[3] = Protocol PS state, 0: register active state,
+ *				1: register sleep state
+ * BIT[4] = sub-state
+ */
 
 #define		PS_DPS				BIT(0)
 #define		PS_LCLK				(PS_DPS)
@@ -87,16 +87,12 @@ struct reportpwrstate_parm {
 	unsigned short rsvd;
 };
 
-static inline void _enter_pwrlock(struct semaphore *plock)
-{
-	_down_sema(plock);
-}
-
 struct	pwrctrl_priv {
-	struct semaphore lock;
+	struct mutex mutex_lock;
 	/*volatile*/ u8 rpwm; /* requested power state for fw */
 	/* fw current power state. updated when 1. read from HCPWM or
-	 * 2. driver lowers power level */
+	 * 2. driver lowers power level
+	 */
 	/*volatile*/ u8 cpwm;
 	/*volatile*/ u8 tog; /* toggling */
 	/*volatile*/ u8 cpwm_tog; /* toggling */

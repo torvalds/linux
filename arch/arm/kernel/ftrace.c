@@ -21,6 +21,7 @@
 #include <asm/opcodes.h>
 #include <asm/ftrace.h>
 #include <asm/insn.h>
+#include <asm/set_memory.h>
 
 #ifdef CONFIG_THUMB2_KERNEL
 #define	NOP		0xf85deb04	/* pop.w {lr} */
@@ -29,11 +30,6 @@
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-#ifdef CONFIG_OLD_MCOUNT
-#define OLD_MCOUNT_ADDR	((unsigned long) mcount)
-#define OLD_FTRACE_ADDR ((unsigned long) ftrace_caller_old)
-
-#define	OLD_NOP		0xe1a00000	/* mov r0, r0 */
 
 static int __ftrace_modify_code(void *data)
 {
@@ -50,6 +46,12 @@ void arch_ftrace_update_code(int command)
 {
 	stop_machine(__ftrace_modify_code, &command, NULL);
 }
+
+#ifdef CONFIG_OLD_MCOUNT
+#define OLD_MCOUNT_ADDR	((unsigned long) mcount)
+#define OLD_FTRACE_ADDR ((unsigned long) ftrace_caller_old)
+
+#define	OLD_NOP		0xe1a00000	/* mov r0, r0 */
 
 static unsigned long ftrace_nop_replace(struct dyn_ftrace *rec)
 {
@@ -139,6 +141,15 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 
 	ret = ftrace_modify_code(pc, 0, new, false);
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	if (!ret) {
+		pc = (unsigned long)&ftrace_regs_call;
+		new = ftrace_call_replace(pc, (unsigned long)func);
+
+		ret = ftrace_modify_code(pc, 0, new, false);
+	}
+#endif
+
 #ifdef CONFIG_OLD_MCOUNT
 	if (!ret) {
 		pc = (unsigned long)&ftrace_call_old;
@@ -157,10 +168,28 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned long ip = rec->ip;
 
 	old = ftrace_nop_replace(rec);
+
 	new = ftrace_call_replace(ip, adjust_address(rec, addr));
 
 	return ftrace_modify_code(rec->ip, old, new, true);
 }
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+
+int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
+				unsigned long addr)
+{
+	unsigned long new, old;
+	unsigned long ip = rec->ip;
+
+	old = ftrace_call_replace(ip, adjust_address(rec, old_addr));
+
+	new = ftrace_call_replace(ip, adjust_address(rec, addr));
+
+	return ftrace_modify_code(rec->ip, old, new, true);
+}
+
+#endif
 
 int ftrace_make_nop(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
@@ -218,7 +247,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	}
 
 	err = ftrace_push_return_trace(old, self_addr, &trace.depth,
-				       frame_pointer);
+				       frame_pointer, NULL);
 	if (err == -EBUSY) {
 		*parent = old;
 		return;
@@ -229,6 +258,8 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 extern unsigned long ftrace_graph_call;
 extern unsigned long ftrace_graph_call_old;
 extern void ftrace_graph_caller_old(void);
+extern unsigned long ftrace_graph_regs_call;
+extern void ftrace_graph_regs_caller(void);
 
 static int __ftrace_modify_caller(unsigned long *callsite,
 				  void (*func) (void), bool enable)
@@ -250,6 +281,14 @@ static int ftrace_modify_graph_caller(bool enable)
 	ret = __ftrace_modify_caller(&ftrace_graph_call,
 				     ftrace_graph_caller,
 				     enable);
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	if (!ret)
+		ret = __ftrace_modify_caller(&ftrace_graph_regs_call,
+				     ftrace_graph_regs_caller,
+				     enable);
+#endif
+
 
 #ifdef CONFIG_OLD_MCOUNT
 	if (!ret)

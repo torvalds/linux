@@ -13,20 +13,27 @@ So having this generic sound card allows all Freescale SoC users to benefit
 from the simplification of a new card support and the capability of the wide
 sample rates support through ASRC.
 
-Note: The card is initially designed for those sound cards who use I2S and
-      PCM DAI formats. However, it'll be also possible to support those non
-      I2S/PCM type sound cards, such as S/PDIF audio and HDMI audio, as long
-      as the driver has been properly upgraded.
+Note: The card is initially designed for those sound cards who use AC'97, I2S
+      and PCM DAI formats. However, it'll be also possible to support those non
+      AC'97/I2S/PCM type sound cards, such as S/PDIF audio and HDMI audio, as
+      long as the driver has been properly upgraded.
 
 
 The compatible list for this generic sound card currently:
+ "fsl,imx-audio-ac97"
+
  "fsl,imx-audio-cs42888"
+
+ "fsl,imx-audio-cs427x"
+ (compatible with CS4271 and CS4272)
 
  "fsl,imx-audio-wm8962"
  (compatible with Documentation/devicetree/bindings/sound/imx-audio-wm8962.txt)
 
  "fsl,imx-audio-sgtl5000"
  (compatible with Documentation/devicetree/bindings/sound/imx-audio-sgtl5000.txt)
+
+ "fsl,imx-audio-wm8960"
 
 Required properties:
 
@@ -51,13 +58,19 @@ Required properties:
 			   * DMIC (stands for Digital Microphone Jack)
 
 			  Note: The "Mic Jack" and "AMIC" are redundant while
-			        coexsiting in order to support the old bindings
+			        coexisting in order to support the old bindings
 				of wm8962 and sgtl5000.
 
 Optional properties:
 
   - audio-asrc		: The phandle of ASRC. It can be absent if there's no
 			  need to add ASRC support via DPCM.
+
+Optional unless SSI is selected as a CPU DAI:
+
+  - mux-int-port	: The internal port of the i.MX audio muxer (AUDMUX)
+
+  - mux-ext-port	: The external port of the i.MX audio muxer
 
 Example:
 sound-cs42888 {

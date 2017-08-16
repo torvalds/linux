@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/spinlock.h>
 #include <asm/irq_cpu.h>
@@ -311,7 +310,7 @@ static int bcm63xx_external_irq_set_type(struct irq_data *d,
 		break;
 
 	default:
-		printk(KERN_ERR "bogus flow type combination given !\n");
+		pr_err("bogus flow type combination given !\n");
 		return -EINVAL;
 	}
 

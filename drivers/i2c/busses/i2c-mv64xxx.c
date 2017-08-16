@@ -134,9 +134,7 @@ struct mv64xxx_i2c_data {
 	int			rc;
 	u32			freq_m;
 	u32			freq_n;
-#if defined(CONFIG_HAVE_CLK)
 	struct clk              *clk;
-#endif
 	wait_queue_head_t	waitq;
 	spinlock_t		lock;
 	struct i2c_msg		*msg;
@@ -146,6 +144,8 @@ struct mv64xxx_i2c_data {
 	bool			errata_delay;
 	struct reset_control	*rstc;
 	bool			irq_clear_inverted;
+	/* Clk div is 2 to the power n, not 2 to the power n + 1 */
+	bool			clk_n_base_0;
 };
 
 static struct mv64xxx_i2c_regs mv64xxx_i2c_regs_mv64xxx = {
@@ -669,8 +669,6 @@ mv64xxx_i2c_can_offload(struct mv64xxx_i2c_data *drv_data)
 	struct i2c_msg *msgs = drv_data->msgs;
 	int num = drv_data->num_msgs;
 
-	return false;
-
 	if (!drv_data->offload_enabled)
 		return false;
 
@@ -757,27 +755,30 @@ static const struct of_device_id mv64xxx_i2c_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, mv64xxx_i2c_of_match_table);
 
 #ifdef CONFIG_OF
-#ifdef CONFIG_HAVE_CLK
 static int
-mv64xxx_calc_freq(const int tclk, const int n, const int m)
+mv64xxx_calc_freq(struct mv64xxx_i2c_data *drv_data,
+		  const int tclk, const int n, const int m)
 {
-	return tclk / (10 * (m + 1) * (2 << n));
+	if (drv_data->clk_n_base_0)
+		return tclk / (10 * (m + 1) * (1 << n));
+	else
+		return tclk / (10 * (m + 1) * (2 << n));
 }
 
 static bool
-mv64xxx_find_baud_factors(const u32 req_freq, const u32 tclk, u32 *best_n,
-			  u32 *best_m)
+mv64xxx_find_baud_factors(struct mv64xxx_i2c_data *drv_data,
+			  const u32 req_freq, const u32 tclk)
 {
 	int freq, delta, best_delta = INT_MAX;
 	int m, n;
 
 	for (n = 0; n <= 7; n++)
 		for (m = 0; m <= 15; m++) {
-			freq = mv64xxx_calc_freq(tclk, n, m);
+			freq = mv64xxx_calc_freq(drv_data, tclk, n, m);
 			delta = req_freq - freq;
 			if (delta >= 0 && delta < best_delta) {
-				*best_m = m;
-				*best_n = n;
+				drv_data->freq_m = m;
+				drv_data->freq_n = n;
 				best_delta = delta;
 			}
 			if (best_delta == 0)
@@ -787,25 +788,20 @@ mv64xxx_find_baud_factors(const u32 req_freq, const u32 tclk, u32 *best_n,
 		return false;
 	return true;
 }
-#endif /* CONFIG_HAVE_CLK */
 
 static int
 mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		  struct device *dev)
 {
-	/* CLK is mandatory when using DT to describe the i2c bus. We
-	 * need to know tclk in order to calculate bus clock
-	 * factors.
-	 */
-#if !defined(CONFIG_HAVE_CLK)
-	/* Have OF but no CLK */
-	return -ENODEV;
-#else
 	const struct of_device_id *device;
 	struct device_node *np = dev->of_node;
 	u32 bus_freq, tclk;
 	int rc = 0;
 
+	/* CLK is mandatory when using DT to describe the i2c bus. We
+	 * need to know tclk in order to calculate bus clock
+	 * factors.
+	 */
 	if (IS_ERR(drv_data->clk)) {
 		rc = -ENODEV;
 		goto out;
@@ -815,22 +811,21 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 	if (of_property_read_u32(np, "clock-frequency", &bus_freq))
 		bus_freq = 100000; /* 100kHz by default */
 
-	if (!mv64xxx_find_baud_factors(bus_freq, tclk,
-				       &drv_data->freq_n, &drv_data->freq_m)) {
+	if (of_device_is_compatible(np, "allwinner,sun4i-a10-i2c") ||
+	    of_device_is_compatible(np, "allwinner,sun6i-a31-i2c"))
+		drv_data->clk_n_base_0 = true;
+
+	if (!mv64xxx_find_baud_factors(drv_data, bus_freq, tclk)) {
 		rc = -EINVAL;
 		goto out;
 	}
-	drv_data->irq = irq_of_parse_and_map(np, 0);
 
 	drv_data->rstc = devm_reset_control_get_optional(dev, NULL);
 	if (IS_ERR(drv_data->rstc)) {
-		if (PTR_ERR(drv_data->rstc) == -EPROBE_DEFER) {
-			rc = -EPROBE_DEFER;
-			goto out;
-		}
-	} else {
-		reset_control_deassert(drv_data->rstc);
+		rc = PTR_ERR(drv_data->rstc);
+		goto out;
 	}
+	reset_control_deassert(drv_data->rstc);
 
 	/* Its not yet defined how timeouts will be specified in device tree.
 	 * So hard code the value to 1 second.
@@ -862,7 +857,6 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 
 out:
 	return rc;
-#endif
 }
 #else /* CONFIG_OF */
 static int
@@ -900,18 +894,18 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	init_waitqueue_head(&drv_data->waitq);
 	spin_lock_init(&drv_data->lock);
 
-#if defined(CONFIG_HAVE_CLK)
 	/* Not all platforms have a clk */
 	drv_data->clk = devm_clk_get(&pd->dev, NULL);
-	if (!IS_ERR(drv_data->clk)) {
-		clk_prepare(drv_data->clk);
-		clk_enable(drv_data->clk);
-	}
-#endif
+	if (IS_ERR(drv_data->clk) && PTR_ERR(drv_data->clk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+	if (!IS_ERR(drv_data->clk))
+		clk_prepare_enable(drv_data->clk);
+
+	drv_data->irq = platform_get_irq(pd, 0);
+
 	if (pdata) {
 		drv_data->freq_m = pdata->freq_m;
 		drv_data->freq_n = pdata->freq_n;
-		drv_data->irq = platform_get_irq(pd, 0);
 		drv_data->adapter.timeout = msecs_to_jiffies(pdata->timeout);
 		drv_data->offload_enabled = false;
 		memcpy(&drv_data->reg_offsets, &mv64xxx_i2c_regs_mv64xxx, sizeof(drv_data->reg_offsets));
@@ -921,7 +915,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 			goto exit_clk;
 	}
 	if (drv_data->irq < 0) {
-		rc = -ENXIO;
+		rc = drv_data->irq;
 		goto exit_reset;
 	}
 
@@ -954,16 +948,12 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 exit_free_irq:
 	free_irq(drv_data->irq, drv_data);
 exit_reset:
-	if (!IS_ERR_OR_NULL(drv_data->rstc))
-		reset_control_assert(drv_data->rstc);
+	reset_control_assert(drv_data->rstc);
 exit_clk:
-#if defined(CONFIG_HAVE_CLK)
 	/* Not all platforms have a clk */
-	if (!IS_ERR(drv_data->clk)) {
-		clk_disable(drv_data->clk);
-		clk_unprepare(drv_data->clk);
-	}
-#endif
+	if (!IS_ERR(drv_data->clk))
+		clk_disable_unprepare(drv_data->clk);
+
 	return rc;
 }
 
@@ -974,24 +964,40 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 
 	i2c_del_adapter(&drv_data->adapter);
 	free_irq(drv_data->irq, drv_data);
-	if (!IS_ERR_OR_NULL(drv_data->rstc))
-		reset_control_assert(drv_data->rstc);
-#if defined(CONFIG_HAVE_CLK)
+	reset_control_assert(drv_data->rstc);
 	/* Not all platforms have a clk */
-	if (!IS_ERR(drv_data->clk)) {
-		clk_disable(drv_data->clk);
-		clk_unprepare(drv_data->clk);
-	}
-#endif
+	if (!IS_ERR(drv_data->clk))
+		clk_disable_unprepare(drv_data->clk);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int mv64xxx_i2c_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct mv64xxx_i2c_data *drv_data = platform_get_drvdata(pdev);
+
+	mv64xxx_i2c_hw_init(drv_data);
+
+	return 0;
+}
+
+static const struct dev_pm_ops mv64xxx_i2c_pm = {
+	.resume = mv64xxx_i2c_resume,
+};
+
+#define mv64xxx_i2c_pm_ops (&mv64xxx_i2c_pm)
+#else
+#define mv64xxx_i2c_pm_ops NULL
+#endif
 
 static struct platform_driver mv64xxx_i2c_driver = {
 	.probe	= mv64xxx_i2c_probe,
 	.remove	= mv64xxx_i2c_remove,
 	.driver	= {
 		.name	= MV64XXX_I2C_CTLR_NAME,
+		.pm     = mv64xxx_i2c_pm_ops,
 		.of_match_table = mv64xxx_i2c_of_match_table,
 	},
 };

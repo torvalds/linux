@@ -37,7 +37,6 @@ static int alloc_clips(struct qxl_device *qdev,
  * the qxl_clip_rects. This is *not* the same as the memory allocated
  * on the device, it is offset to qxl_clip_rects.chunk.data */
 static struct qxl_rect *drawable_set_clipping(struct qxl_device *qdev,
-					      struct qxl_drawable *drawable,
 					      unsigned num_clips,
 					      struct qxl_bo *clips_bo)
 {
@@ -58,11 +57,8 @@ static struct qxl_rect *drawable_set_clipping(struct qxl_device *qdev,
 static int
 alloc_drawable(struct qxl_device *qdev, struct qxl_release **release)
 {
-	int ret;
-	ret = qxl_alloc_release_reserved(qdev, sizeof(struct qxl_drawable),
-					 QXL_RELEASE_DRAWABLE, release,
-					 NULL);
-	return ret;
+	return qxl_alloc_release_reserved(qdev, sizeof(struct qxl_drawable),
+					  QXL_RELEASE_DRAWABLE, release, NULL);
 }
 
 static void
@@ -136,6 +132,8 @@ static int qxl_palette_create_1bit(struct qxl_bo *palette_bo,
 				 * correctly globaly, since that would require
 				 * tracking all of our palettes. */
 	ret = qxl_bo_kmap(palette_bo, (void **)&pal);
+	if (ret)
+		return ret;
 	pal->num_ents = 2;
 	pal->unique = unique++;
 	if (visual == FB_VISUAL_TRUECOLOR || visual == FB_VISUAL_DIRECTCOLOR) {
@@ -285,7 +283,7 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 	struct qxl_rect *rects;
 	int stride = qxl_fb->base.pitches[0];
 	/* depth is not actually interesting, we don't mask with it */
-	int depth = qxl_fb->base.bits_per_pixel;
+	int depth = qxl_fb->base.format->cpp[0] * 8;
 	uint8_t *surface_base;
 	struct qxl_release *release;
 	struct qxl_bo *clips_bo;
@@ -349,7 +347,7 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 	if (ret)
 		goto out_release_backoff;
 
-	rects = drawable_set_clipping(qdev, drawable, num_clips, clips_bo);
+	rects = drawable_set_clipping(qdev, num_clips, clips_bo);
 	if (!rects)
 		goto out_release_backoff;
 

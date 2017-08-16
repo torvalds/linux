@@ -301,7 +301,7 @@ exit:
 	return ret;
 }
 
-static struct rtc_class_ops mtk_rtc_ops = {
+static const struct rtc_class_ops mtk_rtc_ops = {
 	.read_time  = mtk_rtc_read_time,
 	.set_time   = mtk_rtc_set_time,
 	.read_alarm = mtk_rtc_read_alarm,
@@ -419,4 +419,3 @@ module_platform_driver(mtk_rtc_driver);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Tianping Fang <tianping.fang@mediatek.com>");
 MODULE_DESCRIPTION("RTC Driver for MediaTek MT6397 PMIC");
-MODULE_ALIAS("platform:mt6397-rtc");

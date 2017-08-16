@@ -313,9 +313,6 @@ extern unsigned char fontdata_8x16[];
  *	* Draws cursor *
  *	int (*fb_cursor) (struct fb_info *info, struct fb_cursor *cursor);
  *
- *	* Rotates the display *
- *	void (*fb_rotate)(struct fb_info *info, int angle);
- *
  *	* wait for blit idle, optional *
  *	int (*fb_sync)(struct fb_info *info);
  *

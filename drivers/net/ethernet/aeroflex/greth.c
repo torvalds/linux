@@ -34,6 +34,7 @@
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/of_device.h>
+#include <linux/of_net.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
@@ -806,7 +807,8 @@ static int greth_rx(struct net_device *dev, int limit)
 				if (netif_msg_pktdata(greth))
 					greth_print_rx_packet(phys_to_virt(dma_addr), pkt_len);
 
-				memcpy(skb_put(skb, pkt_len), phys_to_virt(dma_addr), pkt_len);
+				skb_put_data(skb, phys_to_virt(dma_addr),
+					     pkt_len);
 
 				skb->protocol = eth_type_trans(skb, dev);
 				dev->stats.rx_bytes += pkt_len;
@@ -1008,7 +1010,7 @@ restart_txrx_poll:
 			spin_unlock_irqrestore(&greth->devlock, flags);
 			goto restart_txrx_poll;
 		} else {
-			__napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			spin_unlock_irqrestore(&greth->devlock, flags);
 		}
 	}
@@ -1105,27 +1107,6 @@ static void greth_set_msglevel(struct net_device *dev, u32 value)
 	struct greth_private *greth = netdev_priv(dev);
 	greth->msg_enable = value;
 }
-static int greth_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct greth_private *greth = netdev_priv(dev);
-	struct phy_device *phy = greth->phy;
-
-	if (!phy)
-		return -ENODEV;
-
-	return phy_ethtool_gset(phy, cmd);
-}
-
-static int greth_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct greth_private *greth = netdev_priv(dev);
-	struct phy_device *phy = greth->phy;
-
-	if (!phy)
-		return -ENODEV;
-
-	return phy_ethtool_sset(phy, cmd);
-}
 
 static int greth_get_regs_len(struct net_device *dev)
 {
@@ -1141,8 +1122,6 @@ static void greth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *in
 	strlcpy(info->version, "revision: 1.0", sizeof(info->version));
 	strlcpy(info->bus_info, greth->dev->bus->name, sizeof(info->bus_info));
 	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	info->eedump_len = 0;
-	info->regdump_len = sizeof(struct greth_regs);
 }
 
 static void greth_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
@@ -1159,12 +1138,12 @@ static void greth_get_regs(struct net_device *dev, struct ethtool_regs *regs, vo
 static const struct ethtool_ops greth_ethtool_ops = {
 	.get_msglevel		= greth_get_msglevel,
 	.set_msglevel		= greth_set_msglevel,
-	.get_settings		= greth_get_settings,
-	.set_settings		= greth_set_settings,
 	.get_drvinfo		= greth_get_drvinfo,
 	.get_regs_len           = greth_get_regs_len,
 	.get_regs               = greth_get_regs,
 	.get_link		= ethtool_op_get_link,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
 static struct net_device_ops greth_netdev_ops = {
@@ -1226,7 +1205,7 @@ static int greth_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 static void greth_link_change(struct net_device *dev)
 {
 	struct greth_private *greth = netdev_priv(dev);
-	struct phy_device *phydev = greth->phy;
+	struct phy_device *phydev = dev->phydev;
 	unsigned long flags;
 	int status_change = 0;
 	u32 ctrl;
@@ -1309,24 +1288,15 @@ static int greth_mdio_probe(struct net_device *dev)
 	greth->link = 0;
 	greth->speed = 0;
 	greth->duplex = -1;
-	greth->phy = phy;
 
 	return 0;
 }
 
-static inline int phy_aneg_done(struct phy_device *phydev)
-{
-	int retval;
-
-	retval = phy_read(phydev, MII_BMSR);
-
-	return (retval < 0) ? retval : (retval & BMSR_ANEGCOMPLETE);
-}
-
 static int greth_mdio_init(struct greth_private *greth)
 {
-	int ret, phy;
+	int ret;
 	unsigned long timeout;
+	struct net_device *ndev = greth->netdev;
 
 	greth->mdio = mdiobus_alloc();
 	if (!greth->mdio) {
@@ -1338,11 +1308,6 @@ static int greth_mdio_init(struct greth_private *greth)
 	greth->mdio->read = greth_mdio_read;
 	greth->mdio->write = greth_mdio_write;
 	greth->mdio->priv = greth;
-
-	greth->mdio->irq = greth->mdio_irqs;
-
-	for (phy = 0; phy < PHY_MAX_ADDR; phy++)
-		greth->mdio->irq[phy] = PHY_POLL;
 
 	ret = mdiobus_register(greth->mdio);
 	if (ret) {
@@ -1356,15 +1321,16 @@ static int greth_mdio_init(struct greth_private *greth)
 		goto unreg_mdio;
 	}
 
-	phy_start(greth->phy);
+	phy_start(ndev->phydev);
 
 	/* If Ethernet debug link is used make autoneg happen right away */
 	if (greth->edcl && greth_edcl == 1) {
-		phy_start_aneg(greth->phy);
+		phy_start_aneg(ndev->phydev);
 		timeout = jiffies + 6*HZ;
-		while (!phy_aneg_done(greth->phy) && time_before(jiffies, timeout)) {
+		while (!phy_aneg_done(ndev->phydev) &&
+		       time_before(jiffies, timeout)) {
 		}
-		phy_read_status(greth->phy);
+		phy_read_status(ndev->phydev);
 		greth_link_change(greth->netdev);
 	}
 
@@ -1490,11 +1456,10 @@ static int greth_of_probe(struct platform_device *ofdev)
 			break;
 	}
 	if (i == 6) {
-		const unsigned char *addr;
-		int len;
-		addr = of_get_property(ofdev->dev.of_node, "local-mac-address",
-					&len);
-		if (addr != NULL && len == 6) {
+		const u8 *addr;
+
+		addr = of_get_mac_address(ofdev->dev.of_node);
+		if (addr) {
 			for (i = 0; i < 6; i++)
 				macaddr[i] = (unsigned int) addr[i];
 		} else {
@@ -1576,8 +1541,8 @@ static int greth_of_remove(struct platform_device *of_dev)
 
 	dma_free_coherent(&of_dev->dev, 1024, greth->tx_bd_base, greth->tx_bd_base_phys);
 
-	if (greth->phy)
-		phy_stop(greth->phy);
+	if (ndev->phydev)
+		phy_stop(ndev->phydev);
 	mdiobus_unregister(greth->mdio);
 
 	unregister_netdev(ndev);

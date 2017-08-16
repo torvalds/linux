@@ -49,17 +49,6 @@ void flush_hash_entry(struct mm_struct *mm, pte_t *ptep, unsigned long addr)
 EXPORT_SYMBOL(flush_hash_entry);
 
 /*
- * Called by ptep_set_access_flags, must flush on CPUs for which the
- * DSI handler can't just "fixup" the TLB on a write fault
- */
-void flush_tlb_page_nohash(struct vm_area_struct *vma, unsigned long addr)
-{
-	if (Hash != 0)
-		return;
-	_tlbie(addr);
-}
-
-/*
  * Called at the end of a mmu_gather operation to make sure the
  * TLB flush is completely done.
  */

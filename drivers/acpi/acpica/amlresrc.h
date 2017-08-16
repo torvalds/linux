@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,7 @@
 #define ACPI_RESTAG_DRIVESTRENGTH               "_DRS"
 #define ACPI_RESTAG_ENDIANNESS                  "_END"
 #define ACPI_RESTAG_FLOWCONTROL                 "_FLC"
+#define ACPI_RESTAG_FUNCTION                    "_FUN"
 #define ACPI_RESTAG_GRANULARITY                 "_GRA"
 #define ACPI_RESTAG_INTERRUPT                   "_INT"
 #define ACPI_RESTAG_INTERRUPTLEVEL              "_LL_"	/* active_lo(1), active_hi(0) */
@@ -84,6 +85,8 @@
 #define ACPI_RESTAG_PHASE                       "_PHA"
 #define ACPI_RESTAG_PIN                         "_PIN"
 #define ACPI_RESTAG_PINCONFIG                   "_PPI"
+#define ACPI_RESTAG_PINCONFIG_TYPE              "_TYP"
+#define ACPI_RESTAG_PINCONFIG_VALUE             "_VAL"
 #define ACPI_RESTAG_POLARITY                    "_POL"
 #define ACPI_RESTAG_REGISTERBITOFFSET           "_RBO"
 #define ACPI_RESTAG_REGISTERBITWIDTH            "_RBW"
@@ -404,6 +407,102 @@ struct aml_resource_uart_serialbus {
 #define AML_RESOURCE_UART_TYPE_REVISION         1	/* ACPI 5.0 */
 #define AML_RESOURCE_UART_MIN_DATA_LEN          10
 
+struct aml_resource_pin_function {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 revision_id;
+	u16 flags;
+	u8 pin_config;
+	u16 function_number;
+	u16 pin_table_offset;
+	u8 res_source_index;
+	u16 res_source_offset;
+	u16 vendor_offset;
+	u16 vendor_length;
+	/*
+	 * Optional fields follow immediately:
+	 * 1) PIN list (Words)
+	 * 2) Resource Source String
+	 * 3) Vendor Data bytes
+	 */
+};
+
+#define AML_RESOURCE_PIN_FUNCTION_REVISION      1	/* ACPI 6.2 */
+
+struct aml_resource_pin_config {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 revision_id;
+	u16 flags;
+	u8 pin_config_type;
+	u32 pin_config_value;
+	u16 pin_table_offset;
+	u8 res_source_index;
+	u16 res_source_offset;
+	u16 vendor_offset;
+	u16 vendor_length;
+	/*
+	 * Optional fields follow immediately:
+	 * 1) PIN list (Words)
+	 * 2) Resource Source String
+	 * 3) Vendor Data bytes
+	 */
+};
+
+#define AML_RESOURCE_PIN_CONFIG_REVISION      1	/* ACPI 6.2 */
+
+struct aml_resource_pin_group {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 revision_id;
+	u16 flags;
+	u16 pin_table_offset;
+	u16 label_offset;
+	u16 vendor_offset;
+	u16 vendor_length;
+	/*
+	 * Optional fields follow immediately:
+	 * 1) PIN list (Words)
+	 * 2) Resource Label String
+	 * 3) Vendor Data bytes
+	 */
+};
+
+#define AML_RESOURCE_PIN_GROUP_REVISION      1	/* ACPI 6.2 */
+
+struct aml_resource_pin_group_function {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 revision_id;
+	u16 flags;
+	u16 function_number;
+	u8 res_source_index;
+	u16 res_source_offset;
+	u16 res_source_label_offset;
+	u16 vendor_offset;
+	u16 vendor_length;
+	/*
+	 * Optional fields follow immediately:
+	 * 1) Resource Source String
+	 * 2) Resource Source Label String
+	 * 3) Vendor Data bytes
+	 */
+};
+
+#define AML_RESOURCE_PIN_GROUP_FUNCTION_REVISION    1	/* ACPI 6.2 */
+
+struct aml_resource_pin_group_config {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 revision_id;
+	u16 flags;
+	u8 pin_config_type;
+	u32 pin_config_value;
+	u8 res_source_index;
+	u16 res_source_offset;
+	u16 res_source_label_offset;
+	u16 vendor_offset;
+	u16 vendor_length;
+	/*
+	 * Optional fields follow immediately:
+	 * 1) Resource Source String
+	 * 2) Resource Source Label String
+	 * 3) Vendor Data bytes
+	 */
+};
+
+#define AML_RESOURCE_PIN_GROUP_CONFIG_REVISION    1	/* ACPI 6.2 */
+
 /* restore default alignment */
 
 #pragma pack()
@@ -446,6 +545,11 @@ union aml_resource {
 	struct aml_resource_spi_serialbus spi_serial_bus;
 	struct aml_resource_uart_serialbus uart_serial_bus;
 	struct aml_resource_common_serialbus common_serial_bus;
+	struct aml_resource_pin_function pin_function;
+	struct aml_resource_pin_config pin_config;
+	struct aml_resource_pin_group pin_group;
+	struct aml_resource_pin_group_function pin_group_function;
+	struct aml_resource_pin_group_config pin_group_config;
 
 	/* Utility overlays */
 

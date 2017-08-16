@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/device.h>   // for linux/firmware.h
@@ -188,9 +184,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 	if (arg_cnt_send > (ARRAY_SIZE(wrData) - 4)) {
 		pvr2_trace(
 			PVR2_TRACE_ERROR_LEGS,
-			"Failed to write cx23416 command"
-			" - too many input arguments"
-			" (was given %u limit %lu)",
+			"Failed to write cx23416 command - too many input arguments (was given %u limit %lu)",
 			arg_cnt_send, (long unsigned) ARRAY_SIZE(wrData) - 4);
 		return -EINVAL;
 	}
@@ -198,9 +192,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 	if (arg_cnt_recv > (ARRAY_SIZE(rdData) - 4)) {
 		pvr2_trace(
 			PVR2_TRACE_ERROR_LEGS,
-			"Failed to write cx23416 command"
-			" - too many return arguments"
-			" (was given %u limit %lu)",
+			"Failed to write cx23416 command - too many return arguments (was given %u limit %lu)",
 			arg_cnt_recv, (long unsigned) ARRAY_SIZE(rdData) - 4);
 		return -EINVAL;
 	}
@@ -248,14 +240,12 @@ static int pvr2_encoder_cmd(void *ctxt,
 				retry_flag = !0;
 				pvr2_trace(
 					PVR2_TRACE_ERROR_LEGS,
-					"Encoder timed out waiting for us"
-					"; arranging to retry");
+					"Encoder timed out waiting for us; arranging to retry");
 			} else {
 				pvr2_trace(
 					PVR2_TRACE_ERROR_LEGS,
-					"***WARNING*** device's encoder"
-					" appears to be stuck"
-					" (status=0x%08x)",rdData[0]);
+					"***WARNING*** device's encoder appears to be stuck (status=0x%08x)",
+rdData[0]);
 			}
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
@@ -293,11 +283,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 			}
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
-				"Giving up on command."
-				"  This is normally recovered via a firmware"
-				" reload and re-initialization; concern"
-				" is only warranted if this happens repeatedly"
-				" and rapidly.");
+				"Giving up on command.  This is normally recovered via a firmware reload and re-initialization; concern is only warranted if this happens repeatedly and rapidly.");
 			break;
 		}
 		wrData[0] = 0x7;
@@ -325,9 +311,7 @@ static int pvr2_encoder_vcmd(struct pvr2_hdw *hdw, int cmd,
 	if (args > ARRAY_SIZE(data)) {
 		pvr2_trace(
 			PVR2_TRACE_ERROR_LEGS,
-			"Failed to write cx23416 command"
-			" - too many arguments"
-			" (was given %u limit %lu)",
+			"Failed to write cx23416 command - too many arguments (was given %u limit %lu)",
 			args, (long unsigned) ARRAY_SIZE(data));
 		return -EINVAL;
 	}
@@ -433,8 +417,7 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 {
 	int ret;
 	int val;
-	pvr2_trace(PVR2_TRACE_ENCODER,"pvr2_encoder_configure"
-		   " (cx2341x module)");
+	pvr2_trace(PVR2_TRACE_ENCODER, "pvr2_encoder_configure (cx2341x module)");
 	hdw->enc_ctl_state.port = CX2341X_PORT_STREAMING;
 	hdw->enc_ctl_state.width = hdw->res_hor_val;
 	hdw->enc_ctl_state.height = hdw->res_ver_val;

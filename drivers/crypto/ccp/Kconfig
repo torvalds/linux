@@ -3,14 +3,18 @@ config CRYPTO_DEV_CCP_DD
 	depends on CRYPTO_DEV_CCP
 	default m
 	select HW_RANDOM
+	select DMA_ENGINE
+	select DMADEVICES
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
 	help
 	  Provides the interface to use the AMD Cryptographic Coprocessor
-	  which can be used to accelerate or offload encryption operations
-	  such as SHA, AES and more. If you choose 'M' here, this module
-	  will be called ccp.
+	  which can be used to offload encryption operations such as SHA,
+	  AES and more. If you choose 'M' here, this module will be called
+	  ccp.
 
 config CRYPTO_DEV_CCP_CRYPTO
-	tristate "Encryption and hashing acceleration support"
+	tristate "Encryption and hashing offload support"
 	depends on CRYPTO_DEV_CCP_DD
 	default m
 	select CRYPTO_HASH
@@ -18,6 +22,5 @@ config CRYPTO_DEV_CCP_CRYPTO
 	select CRYPTO_AUTHENC
 	help
 	  Support for using the cryptographic API with the AMD Cryptographic
-	  Coprocessor. This module supports acceleration and offload of SHA
-	  and AES algorithms.  If you choose 'M' here, this module will be
-	  called ccp_crypto.
+	  Coprocessor. This module supports offload of SHA and AES algorithms.
+	  If you choose 'M' here, this module will be called ccp_crypto.

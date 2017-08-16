@@ -94,7 +94,7 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	int retval, level;
 	struct slot *slot = (struct slot *)hotplug_slot->private;
 
-	retval = rtas_get_power_level (slot->power_domain, &level);
+	retval = rtas_get_power_level(slot->power_domain, &level);
 	if (!retval)
 		*value = level;
 	return retval;
@@ -356,8 +356,7 @@ EXPORT_SYMBOL_GPL(rpaphp_add_slot);
 
 static void __exit cleanup_slots(void)
 {
-	struct list_head *tmp, *n;
-	struct slot *slot;
+	struct slot *slot, *next;
 
 	/*
 	 * Unregister all of our slots with the pci_hotplug subsystem,
@@ -365,8 +364,8 @@ static void __exit cleanup_slots(void)
 	 * memory will be freed in release_slot callback.
 	 */
 
-	list_for_each_safe(tmp, n, &rpaphp_slot_head) {
-		slot = list_entry(tmp, struct slot, rpaphp_slot_list);
+	list_for_each_entry_safe(slot, next, &rpaphp_slot_head,
+				 rpaphp_slot_list) {
 		list_del(&slot->rpaphp_slot_list);
 		pci_hp_deregister(slot->hotplug_slot);
 	}
@@ -405,7 +404,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 
 	if (state == PRESENT) {
 		pci_lock_rescan_remove();
-		pcibios_add_pci_devices(slot->bus);
+		pci_hp_add_devices(slot->bus);
 		pci_unlock_rescan_remove();
 		slot->state = CONFIGURED;
 	} else if (state == EMPTY) {
@@ -427,7 +426,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 		return -EINVAL;
 
 	pci_lock_rescan_remove();
-	pcibios_remove_pci_devices(slot->bus);
+	pci_hp_remove_devices(slot->bus);
 	pci_unlock_rescan_remove();
 	vm_unmap_aliases();
 

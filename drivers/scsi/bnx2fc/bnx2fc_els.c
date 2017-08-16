@@ -1,10 +1,11 @@
 /*
- * bnx2fc_els.c: QLogic NetXtreme II Linux FCoE offload driver.
+ * bnx2fc_els.c: QLogic Linux FCoE offload driver.
  * This file contains helper routines that handle ELS requests
  * and responses.
  *
- * Copyright (c) 2008 - 2013 Broadcom Corporation
- * Copyright (c) 2014, QLogic Corporation
+ * Copyright (c) 2008-2013 Broadcom Corporation
+ * Copyright (c) 2014-2016 QLogic Corporation
+ * Copyright (c) 2016-2017 Cavium Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,12 +62,19 @@ int bnx2fc_send_rrq(struct bnx2fc_cmd *aborted_io_req)
 
 	struct fc_els_rrq rrq;
 	struct bnx2fc_rport *tgt = aborted_io_req->tgt;
-	struct fc_lport *lport = tgt->rdata->local_port;
+	struct fc_lport *lport = NULL;
 	struct bnx2fc_els_cb_arg *cb_arg = NULL;
-	u32 sid = tgt->sid;
-	u32 r_a_tov = lport->r_a_tov;
+	u32 sid = 0;
+	u32 r_a_tov = 0;
 	unsigned long start = jiffies;
 	int rc;
+
+	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags))
+		return -EINVAL;
+
+	lport = tgt->rdata->local_port;
+	sid = tgt->sid;
+	r_a_tov = lport->r_a_tov;
 
 	BNX2FC_ELS_DBG("Sending RRQ orig_xid = 0x%x\n",
 		   aborted_io_req->xid);
@@ -254,7 +262,7 @@ int bnx2fc_send_rls(struct bnx2fc_rport *tgt, struct fc_frame *fp)
 	return rc;
 }
 
-void bnx2fc_srr_compl(struct bnx2fc_els_cb_arg *cb_arg)
+static void bnx2fc_srr_compl(struct bnx2fc_els_cb_arg *cb_arg)
 {
 	struct bnx2fc_mp_req *mp_req;
 	struct fc_frame_header *fc_hdr, *fh;
@@ -364,7 +372,7 @@ srr_compl_done:
 	kref_put(&orig_io_req->refcount, bnx2fc_cmd_release);
 }
 
-void bnx2fc_rec_compl(struct bnx2fc_els_cb_arg *cb_arg)
+static void bnx2fc_rec_compl(struct bnx2fc_els_cb_arg *cb_arg)
 {
 	struct bnx2fc_cmd *orig_io_req, *new_io_req;
 	struct bnx2fc_cmd *rec_req;
@@ -689,8 +697,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 		rc = -EINVAL;
 		goto els_err;
 	}
-	if (!(test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) ||
-	     (test_bit(BNX2FC_FLAG_EXPL_LOGO, &tgt->flags))) {
+	if (!(test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags))) {
 		printk(KERN_ERR PFX "els 0x%x: tgt not ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
@@ -707,6 +714,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 	els_req->cb_func = cb_func;
 	cb_arg->io_req = els_req;
 	els_req->cb_arg = cb_arg;
+	els_req->data_xfer_len = data_len;
 
 	mp_req = (struct bnx2fc_mp_req *)&(els_req->mp_req);
 	rc = bnx2fc_init_mp_req(els_req);

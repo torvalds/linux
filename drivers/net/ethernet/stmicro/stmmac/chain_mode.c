@@ -16,10 +16,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -30,13 +26,15 @@
 
 static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 {
-	struct stmmac_priv *priv = (struct stmmac_priv *)p;
-	unsigned int txsize = priv->dma_tx_size;
-	unsigned int entry = priv->cur_tx % txsize;
-	struct dma_desc *desc = priv->dma_tx + entry;
+	struct stmmac_tx_queue *tx_q = (struct stmmac_tx_queue *)p;
 	unsigned int nopaged_len = skb_headlen(skb);
-	unsigned int bmax;
+	struct stmmac_priv *priv = tx_q->priv_data;
+	unsigned int entry = tx_q->cur_tx;
+	unsigned int bmax, des2;
 	unsigned int i = 1, len;
+	struct dma_desc *desc;
+
+	desc = tx_q->dma_tx + entry;
 
 	if (priv->plat->enh_desc)
 		bmax = BUF_SIZE_8KiB;
@@ -45,43 +43,55 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 
 	len = nopaged_len - bmax;
 
-	desc->des2 = dma_map_single(priv->device, skb->data,
-				    bmax, DMA_TO_DEVICE);
-	if (dma_mapping_error(priv->device, desc->des2))
+	des2 = dma_map_single(priv->device, skb->data,
+			      bmax, DMA_TO_DEVICE);
+	desc->des2 = cpu_to_le32(des2);
+	if (dma_mapping_error(priv->device, des2))
 		return -1;
-	priv->tx_skbuff_dma[entry].buf = desc->des2;
-	priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum, STMMAC_CHAIN_MODE);
+	tx_q->tx_skbuff_dma[entry].buf = des2;
+	tx_q->tx_skbuff_dma[entry].len = bmax;
+	/* do not close the descriptor and do not set own bit */
+	priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum, STMMAC_CHAIN_MODE,
+					0, false, skb->len);
 
 	while (len != 0) {
-		priv->tx_skbuff[entry] = NULL;
-		entry = (++priv->cur_tx) % txsize;
-		desc = priv->dma_tx + entry;
+		tx_q->tx_skbuff[entry] = NULL;
+		entry = STMMAC_GET_ENTRY(entry, DMA_TX_SIZE);
+		desc = tx_q->dma_tx + entry;
 
 		if (len > bmax) {
-			desc->des2 = dma_map_single(priv->device,
-						    (skb->data + bmax * i),
-						    bmax, DMA_TO_DEVICE);
-			if (dma_mapping_error(priv->device, desc->des2))
+			des2 = dma_map_single(priv->device,
+					      (skb->data + bmax * i),
+					      bmax, DMA_TO_DEVICE);
+			desc->des2 = cpu_to_le32(des2);
+			if (dma_mapping_error(priv->device, des2))
 				return -1;
-			priv->tx_skbuff_dma[entry].buf = desc->des2;
+			tx_q->tx_skbuff_dma[entry].buf = des2;
+			tx_q->tx_skbuff_dma[entry].len = bmax;
 			priv->hw->desc->prepare_tx_desc(desc, 0, bmax, csum,
-							STMMAC_CHAIN_MODE);
-			priv->hw->desc->set_tx_owner(desc);
+							STMMAC_CHAIN_MODE, 1,
+							false, skb->len);
 			len -= bmax;
 			i++;
 		} else {
-			desc->des2 = dma_map_single(priv->device,
-						    (skb->data + bmax * i), len,
-						    DMA_TO_DEVICE);
-			if (dma_mapping_error(priv->device, desc->des2))
+			des2 = dma_map_single(priv->device,
+					      (skb->data + bmax * i), len,
+					      DMA_TO_DEVICE);
+			desc->des2 = cpu_to_le32(des2);
+			if (dma_mapping_error(priv->device, des2))
 				return -1;
-			priv->tx_skbuff_dma[entry].buf = desc->des2;
+			tx_q->tx_skbuff_dma[entry].buf = des2;
+			tx_q->tx_skbuff_dma[entry].len = len;
+			/* last descriptor can be set now */
 			priv->hw->desc->prepare_tx_desc(desc, 0, len, csum,
-							STMMAC_CHAIN_MODE);
-			priv->hw->desc->set_tx_owner(desc);
+							STMMAC_CHAIN_MODE, 1,
+							true, skb->len);
 			len = 0;
 		}
 	}
+
+	tx_q->cur_tx = entry;
+
 	return entry;
 }
 
@@ -111,50 +121,53 @@ static void stmmac_init_dma_chain(void *des, dma_addr_t phy_addr,
 		struct dma_extended_desc *p = (struct dma_extended_desc *)des;
 		for (i = 0; i < (size - 1); i++) {
 			dma_phy += sizeof(struct dma_extended_desc);
-			p->basic.des3 = (unsigned int)dma_phy;
+			p->basic.des3 = cpu_to_le32((unsigned int)dma_phy);
 			p++;
 		}
-		p->basic.des3 = (unsigned int)phy_addr;
+		p->basic.des3 = cpu_to_le32((unsigned int)phy_addr);
 
 	} else {
 		struct dma_desc *p = (struct dma_desc *)des;
 		for (i = 0; i < (size - 1); i++) {
 			dma_phy += sizeof(struct dma_desc);
-			p->des3 = (unsigned int)dma_phy;
+			p->des3 = cpu_to_le32((unsigned int)dma_phy);
 			p++;
 		}
-		p->des3 = (unsigned int)phy_addr;
+		p->des3 = cpu_to_le32((unsigned int)phy_addr);
 	}
 }
 
 static void stmmac_refill_desc3(void *priv_ptr, struct dma_desc *p)
 {
-	struct stmmac_priv *priv = (struct stmmac_priv *)priv_ptr;
+	struct stmmac_rx_queue *rx_q = (struct stmmac_rx_queue *)priv_ptr;
+	struct stmmac_priv *priv = rx_q->priv_data;
 
 	if (priv->hwts_rx_en && !priv->extend_desc)
 		/* NOTE: Device will overwrite des3 with timestamp value if
 		 * 1588-2002 time stamping is enabled, hence reinitialize it
 		 * to keep explicit chaining in the descriptor.
 		 */
-		p->des3 = (unsigned int)(priv->dma_rx_phy +
-					 (((priv->dirty_rx) + 1) %
-					  priv->dma_rx_size) *
-					 sizeof(struct dma_desc));
+		p->des3 = cpu_to_le32((unsigned int)(rx_q->dma_rx_phy +
+				      (((rx_q->dirty_rx) + 1) %
+				       DMA_RX_SIZE) *
+				      sizeof(struct dma_desc)));
 }
 
 static void stmmac_clean_desc3(void *priv_ptr, struct dma_desc *p)
 {
-	struct stmmac_priv *priv = (struct stmmac_priv *)priv_ptr;
+	struct stmmac_tx_queue *tx_q = (struct stmmac_tx_queue *)priv_ptr;
+	struct stmmac_priv *priv = tx_q->priv_data;
+	unsigned int entry = tx_q->dirty_tx;
 
-	if (priv->hw->desc->get_tx_ls(p) && !priv->extend_desc)
+	if (tx_q->tx_skbuff_dma[entry].last_segment && !priv->extend_desc &&
+	    priv->hwts_tx_en)
 		/* NOTE: Device will overwrite des3 with timestamp value if
 		 * 1588-2002 time stamping is enabled, hence reinitialize it
 		 * to keep explicit chaining in the descriptor.
 		 */
-		p->des3 = (unsigned int)(priv->dma_tx_phy +
-					 (((priv->dirty_tx + 1) %
-					   priv->dma_tx_size) *
-					  sizeof(struct dma_desc)));
+		p->des3 = cpu_to_le32((unsigned int)((tx_q->dma_tx_phy +
+				      ((tx_q->dirty_tx + 1) % DMA_TX_SIZE))
+				      * sizeof(struct dma_desc)));
 }
 
 const struct stmmac_mode_ops chain_mode_ops = {

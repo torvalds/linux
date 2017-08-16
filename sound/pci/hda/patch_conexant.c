@@ -52,6 +52,12 @@ struct conexant_spec {
 	bool dc_enable;
 	unsigned int dc_input_bias; /* offset into olpc_xo_dc_bias */
 	struct nid_path *dc_mode_path;
+
+	int mute_led_polarity;
+	unsigned int gpio_led;
+	unsigned int gpio_mute_led_mask;
+	unsigned int gpio_mic_led_mask;
+
 };
 
 
@@ -204,8 +210,13 @@ static void cx_auto_reboot_notify(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 
-	if (codec->core.vendor_id != 0x14f150f2)
+	switch (codec->core.vendor_id) {
+	case 0x14f150f2: /* CX20722 */
+	case 0x14f150f4: /* CX20724 */
+		break;
+	default:
 		return;
+	}
 
 	/* Turn the CX20722 codec into D3 to avoid spurious noises
 	   from the internal speaker during (and after) reboot */
@@ -256,6 +267,10 @@ enum {
 	CXT_FIXUP_HP_530,
 	CXT_FIXUP_CAP_MIX_AMP_5047,
 	CXT_FIXUP_MUTE_LED_EAPD,
+	CXT_FIXUP_HP_DOCK,
+	CXT_FIXUP_HP_SPECTRE,
+	CXT_FIXUP_HP_GATE_MIC,
+	CXT_FIXUP_MUTE_LED_GPIO,
 };
 
 /* for hda_fixup_thinkpad_acpi() */
@@ -627,6 +642,85 @@ static void cxt_fixup_cap_mix_amp_5047(struct hda_codec *codec,
 				  (1 << AC_AMPCAP_MUTE_SHIFT));
 }
 
+static void cxt_fixup_hp_gate_mic_jack(struct hda_codec *codec,
+				       const struct hda_fixup *fix,
+				       int action)
+{
+	/* the mic pin (0x19) doesn't give an unsolicited event;
+	 * probe the mic pin together with the headphone pin (0x16)
+	 */
+	if (action == HDA_FIXUP_ACT_PROBE)
+		snd_hda_jack_set_gating_jack(codec, 0x19, 0x16);
+}
+
+/* update LED status via GPIO */
+static void cxt_update_gpio_led(struct hda_codec *codec, unsigned int mask,
+				bool enabled)
+{
+	struct conexant_spec *spec = codec->spec;
+	unsigned int oldval = spec->gpio_led;
+
+	if (spec->mute_led_polarity)
+		enabled = !enabled;
+
+	if (enabled)
+		spec->gpio_led &= ~mask;
+	else
+		spec->gpio_led |= mask;
+	if (spec->gpio_led != oldval)
+		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
+				    spec->gpio_led);
+}
+
+/* turn on/off mute LED via GPIO per vmaster hook */
+static void cxt_fixup_gpio_mute_hook(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	struct conexant_spec *spec = codec->spec;
+
+	cxt_update_gpio_led(codec, spec->gpio_mute_led_mask, enabled);
+}
+
+/* turn on/off mic-mute LED via GPIO per capture hook */
+static void cxt_fixup_gpio_mic_mute_hook(struct hda_codec *codec,
+					 struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct conexant_spec *spec = codec->spec;
+
+	if (ucontrol)
+		cxt_update_gpio_led(codec, spec->gpio_mic_led_mask,
+				    ucontrol->value.integer.value[0] ||
+				    ucontrol->value.integer.value[1]);
+}
+
+
+static void cxt_fixup_mute_led_gpio(struct hda_codec *codec,
+				const struct hda_fixup *fix, int action)
+{
+	struct conexant_spec *spec = codec->spec;
+	static const struct hda_verb gpio_init[] = {
+		{ 0x01, AC_VERB_SET_GPIO_MASK, 0x03 },
+		{ 0x01, AC_VERB_SET_GPIO_DIRECTION, 0x03 },
+		{}
+	};
+	codec_info(codec, "action: %d gpio_led: %d\n", action, spec->gpio_led);
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->gen.vmaster_mute.hook = cxt_fixup_gpio_mute_hook;
+		spec->gen.cap_sync_hook = cxt_fixup_gpio_mic_mute_hook;
+		spec->gpio_led = 0;
+		spec->mute_led_polarity = 0;
+		spec->gpio_mute_led_mask = 0x01;
+		spec->gpio_mic_led_mask = 0x02;
+	}
+	snd_hda_add_verbs(codec, gpio_init);
+	if (spec->gpio_led)
+		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
+				    spec->gpio_led);
+}
+
+
 /* ThinkPad X200 & co with cxt5051 */
 static const struct hda_pintbl cxt_pincfg_lenovo_x200[] = {
 	{ 0x16, 0x042140ff }, /* HP (seq# overridden) */
@@ -760,6 +854,32 @@ static const struct hda_fixup cxt_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cxt_fixup_mute_led_eapd,
 	},
+	[CXT_FIXUP_HP_DOCK] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x16, 0x21011020 }, /* line-out */
+			{ 0x18, 0x2181103f }, /* line-in */
+			{ }
+		},
+		.chained = true,
+		.chain_id = CXT_FIXUP_MUTE_LED_GPIO,
+	},
+	[CXT_FIXUP_HP_SPECTRE] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			/* enable NID 0x1d for the speaker on top */
+			{ 0x1d, 0x91170111 },
+			{ }
+		}
+	},
+	[CXT_FIXUP_HP_GATE_MIC] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cxt_fixup_hp_gate_mic_jack,
+	},
+	[CXT_FIXUP_MUTE_LED_GPIO] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cxt_fixup_mute_led_gpio,
+	},
 };
 
 static const struct snd_pci_quirk cxt5045_fixups[] = {
@@ -809,6 +929,11 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x1025, 0x0543, "Acer Aspire One 522", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x1025, 0x054c, "Acer Aspire 3830TG", CXT_FIXUP_ASPIRE_DMIC),
 	SND_PCI_QUIRK(0x1025, 0x054f, "Acer Aspire 4830T", CXT_FIXUP_ASPIRE_DMIC),
+	SND_PCI_QUIRK(0x103c, 0x8079, "HP EliteBook 840 G3", CXT_FIXUP_HP_DOCK),
+	SND_PCI_QUIRK(0x103c, 0x8174, "HP Spectre x360", CXT_FIXUP_HP_SPECTRE),
+	SND_PCI_QUIRK(0x103c, 0x8115, "HP Z1 Gen3", CXT_FIXUP_HP_GATE_MIC),
+	SND_PCI_QUIRK(0x103c, 0x814f, "HP ZBook 15u G3", CXT_FIXUP_MUTE_LED_GPIO),
+	SND_PCI_QUIRK(0x103c, 0x822e, "HP ProBook 440 G4", CXT_FIXUP_MUTE_LED_GPIO),
 	SND_PCI_QUIRK(0x1043, 0x138d, "Asus", CXT_FIXUP_HEADPHONE_MIC_PIN),
 	SND_PCI_QUIRK(0x152d, 0x0833, "OLPC XO-1.5", CXT_FIXUP_OLPC_XO),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo T400", CXT_PINCFG_LENOVO_TP410),
@@ -819,6 +944,7 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x17aa, 0x21da, "Lenovo X220", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x21db, "Lenovo X220-tablet", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo IdeaPad Z560", CXT_FIXUP_MUTE_LED_EAPD),
+	SND_PCI_QUIRK(0x17aa, 0x390b, "Lenovo G50-80", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x3975, "Lenovo U300s", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x3977, "Lenovo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x17aa, 0x397b, "Lenovo S205", CXT_FIXUP_STEREO_DMIC),
@@ -838,6 +964,8 @@ static const struct hda_model_fixup cxt5066_fixup_models[] = {
 	{ .id = CXT_PINCFG_LEMOTE_A1205, .name = "lemote-a1205" },
 	{ .id = CXT_FIXUP_OLPC_XO, .name = "olpc-xo" },
 	{ .id = CXT_FIXUP_MUTE_LED_EAPD, .name = "mute-led-eapd" },
+	{ .id = CXT_FIXUP_HP_DOCK, .name = "hp-dock" },
+	{ .id = CXT_FIXUP_MUTE_LED_GPIO, .name = "mute-led-gpio" },
 	{}
 };
 
@@ -900,6 +1028,9 @@ static int patch_conexant_auto(struct hda_codec *codec)
 		snd_hda_pick_fixup(codec, cxt5051_fixup_models,
 				   cxt5051_fixups, cxt_fixups);
 		break;
+	case 0x14f150f2:
+		codec->power_save_node = 1;
+		/* Fall through */
 	default:
 		codec->pin_amp_workaround = 1;
 		snd_hda_pick_fixup(codec, cxt5066_fixup_models,
@@ -953,100 +1084,45 @@ static int patch_conexant_auto(struct hda_codec *codec)
 /*
  */
 
-static const struct hda_codec_preset snd_hda_preset_conexant[] = {
-	{ .id = 0x14f15045, .name = "CX20549 (Venice)",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15047, .name = "CX20551 (Waikiki)",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15051, .name = "CX20561 (Hermosa)",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15066, .name = "CX20582 (Pebble)",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15067, .name = "CX20583 (Pebble HSF)",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15068, .name = "CX20584",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15069, .name = "CX20585",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f1506c, .name = "CX20588",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f1506e, .name = "CX20590",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15097, .name = "CX20631",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15098, .name = "CX20632",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150a1, .name = "CX20641",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150a2, .name = "CX20642",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150ab, .name = "CX20651",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150ac, .name = "CX20652",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150b8, .name = "CX20664",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150b9, .name = "CX20665",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150f1, .name = "CX20721",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150f2, .name = "CX20722",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150f3, .name = "CX20723",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f150f4, .name = "CX20724",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f1510f, .name = "CX20751/2",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15110, .name = "CX20751/2",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15111, .name = "CX20753/4",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15113, .name = "CX20755",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15114, .name = "CX20756",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f15115, .name = "CX20757",
-	  .patch = patch_conexant_auto },
-	{ .id = 0x14f151d7, .name = "CX20952",
-	  .patch = patch_conexant_auto },
+static const struct hda_device_id snd_hda_id_conexant[] = {
+	HDA_CODEC_ENTRY(0x14f12008, "CX8200", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15045, "CX20549 (Venice)", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15047, "CX20551 (Waikiki)", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15051, "CX20561 (Hermosa)", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15066, "CX20582 (Pebble)", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15067, "CX20583 (Pebble HSF)", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15068, "CX20584", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15069, "CX20585", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f1506c, "CX20588", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f1506e, "CX20590", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15097, "CX20631", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15098, "CX20632", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150a1, "CX20641", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150a2, "CX20642", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150ab, "CX20651", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150ac, "CX20652", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150b8, "CX20664", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150b9, "CX20665", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150f1, "CX21722", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150f2, "CX20722", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150f3, "CX21724", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f150f4, "CX20724", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f1510f, "CX20751/2", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15110, "CX20751/2", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15111, "CX20753/4", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15113, "CX20755", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15114, "CX20756", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f15115, "CX20757", patch_conexant_auto),
+	HDA_CODEC_ENTRY(0x14f151d7, "CX20952", patch_conexant_auto),
 	{} /* terminator */
 };
-
-MODULE_ALIAS("snd-hda-codec-id:14f15045");
-MODULE_ALIAS("snd-hda-codec-id:14f15047");
-MODULE_ALIAS("snd-hda-codec-id:14f15051");
-MODULE_ALIAS("snd-hda-codec-id:14f15066");
-MODULE_ALIAS("snd-hda-codec-id:14f15067");
-MODULE_ALIAS("snd-hda-codec-id:14f15068");
-MODULE_ALIAS("snd-hda-codec-id:14f15069");
-MODULE_ALIAS("snd-hda-codec-id:14f1506c");
-MODULE_ALIAS("snd-hda-codec-id:14f1506e");
-MODULE_ALIAS("snd-hda-codec-id:14f15097");
-MODULE_ALIAS("snd-hda-codec-id:14f15098");
-MODULE_ALIAS("snd-hda-codec-id:14f150a1");
-MODULE_ALIAS("snd-hda-codec-id:14f150a2");
-MODULE_ALIAS("snd-hda-codec-id:14f150ab");
-MODULE_ALIAS("snd-hda-codec-id:14f150ac");
-MODULE_ALIAS("snd-hda-codec-id:14f150b8");
-MODULE_ALIAS("snd-hda-codec-id:14f150b9");
-MODULE_ALIAS("snd-hda-codec-id:14f150f1");
-MODULE_ALIAS("snd-hda-codec-id:14f150f2");
-MODULE_ALIAS("snd-hda-codec-id:14f150f3");
-MODULE_ALIAS("snd-hda-codec-id:14f150f4");
-MODULE_ALIAS("snd-hda-codec-id:14f1510f");
-MODULE_ALIAS("snd-hda-codec-id:14f15110");
-MODULE_ALIAS("snd-hda-codec-id:14f15111");
-MODULE_ALIAS("snd-hda-codec-id:14f15113");
-MODULE_ALIAS("snd-hda-codec-id:14f15114");
-MODULE_ALIAS("snd-hda-codec-id:14f15115");
-MODULE_ALIAS("snd-hda-codec-id:14f151d7");
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_conexant);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Conexant HD-audio codec");
 
 static struct hda_codec_driver conexant_driver = {
-	.preset = snd_hda_preset_conexant,
+	.id = snd_hda_id_conexant,
 };
 
 module_hda_codec_driver(conexant_driver);

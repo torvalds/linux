@@ -138,7 +138,7 @@ static int gpio_tilt_polled_probe(struct platform_device *pdev)
 
 	input->name = pdev->name;
 	input->phys = DRV_NAME"/input0";
-	input->dev.parent = &pdev->dev;
+	input->dev.parent = dev;
 
 	input->id.bustype = BUS_HOST;
 	input->id.vendor = 0x0001;

@@ -2,19 +2,32 @@ Common i2c bus multiplexer/switch properties.
 
 An i2c bus multiplexer/switch will have several child busses that are
 numbered uniquely in a device dependent manner.  The nodes for an i2c bus
-multiplexer/switch will have one child node for each child
-bus.
+multiplexer/switch will have one child node for each child bus.
 
-Required properties:
+Optional properties:
+- #address-cells = <1>;
+   This property is required is the i2c-mux child node does not exist.
+
+- #size-cells = <0>;
+   This property is required is the i2c-mux child node does not exist.
+
+- i2c-mux
+   For i2c multiplexers/switches that have child nodes that are a mixture
+   of both i2c child busses and other child nodes, the 'i2c-mux' subnode
+   can be used for populating the i2c child busses.  If an 'i2c-mux'
+   subnode is present, only subnodes of this will be considered as i2c
+   child busses.
+
+Required properties for the i2c-mux child node:
 - #address-cells = <1>;
 - #size-cells = <0>;
 
-Required properties for child nodes:
+Required properties for i2c child bus nodes:
 - #address-cells = <1>;
 - #size-cells = <0>;
 - reg : The sub-bus number.
 
-Optional properties for child nodes:
+Optional properties for i2c child bus nodes:
 - Other properties specific to the multiplexer/switch hardware.
 - Child nodes conforming to i2c bus binding
 

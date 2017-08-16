@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -25,8 +21,7 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
-		"Serge A. Suchkov <Serge.A.S@tochka.ru>");
+MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, Serge A. Suchkov <Serge.A.S@tochka.ru>");
 MODULE_DESCRIPTION("GSPCA ZC03xx/VC3xx USB Camera Driver");
 MODULE_LICENSE("GPL");
 
@@ -53,7 +48,6 @@ struct sd {
 	struct v4l2_ctrl *jpegqual;
 
 	struct work_struct work;
-	struct workqueue_struct *work_thread;
 
 	u8 reg08;		/* webcam compression quality */
 
@@ -6826,8 +6820,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return gspca_dev->usb_err;
 
 	/* Start the transfer parameters update thread */
-	sd->work_thread = create_singlethread_workqueue(KBUILD_MODNAME);
-	queue_work(sd->work_thread, &sd->work);
+	schedule_work(&sd->work);
 
 	return 0;
 }
@@ -6838,12 +6831,9 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->work_thread != NULL) {
-		mutex_unlock(&gspca_dev->usb_lock);
-		destroy_workqueue(sd->work_thread);
-		mutex_lock(&gspca_dev->usb_lock);
-		sd->work_thread = NULL;
-	}
+	mutex_unlock(&gspca_dev->usb_lock);
+	flush_work(&sd->work);
+	mutex_lock(&gspca_dev->usb_lock);
 	if (!gspca_dev->present)
 		return;
 	send_unknown(gspca_dev, sd->sensor);

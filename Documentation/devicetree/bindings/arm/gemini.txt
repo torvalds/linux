@@ -1,0 +1,108 @@
+Cortina systems Gemini platforms
+
+The Gemini SoC is the project name for an ARMv4 FA525-based SoC originally
+produced by Storlink Semiconductor around 2005. The company was renamed
+later renamed Storm Semiconductor. The chip product name is Storlink SL3516.
+It was derived from earlier products from Storm named SL3316 (Centroid) and
+SL3512 (Bulverde).
+
+Storm Semiconductor was acquired by Cortina Systems in 2008 and the SoC was
+produced and used for NAS and similar usecases. In 2014 Cortina Systems was
+in turn acquired by Inphi, who seem to have discontinued this product family.
+
+Many of the IP blocks used in the SoC comes from Faraday Technology.
+
+Required properties (in root node):
+	compatible = "cortina,gemini";
+
+Required nodes:
+
+- soc: the SoC should be represented by a simple bus encompassing all the
+  onchip devices, this is referred to as the soc bus node.
+
+- syscon: the soc bus node must have a system controller node pointing to the
+  global control registers, with the compatible string
+  "cortina,gemini-syscon", "syscon";
+
+  Required properties on the syscon:
+  - reg: syscon register location and size.
+  - #clock-cells: should be set to <1> - the system controller is also a
+                  clock provider.
+  - #reset-cells: should be set to <1> - the system controller is also a
+                  reset line provider.
+
+  The clock sources have shorthand defines in the include file:
+  <dt-bindings/clock/cortina,gemini-clock.h>
+
+  The reset lines have shorthand defines in the include file:
+  <dt-bindings/reset/cortina,gemini-reset.h>
+
+- timer: the soc bus node must have a timer node pointing to the SoC timer
+  block, with the compatible string "cortina,gemini-timer"
+  See: clocksource/cortina,gemini-timer.txt
+
+- interrupt-controller: the sob bus node must have an interrupt controller
+  node pointing to the SoC interrupt controller block, with the compatible
+  string "cortina,gemini-interrupt-controller"
+  See interrupt-controller/cortina,gemini-interrupt-controller.txt
+
+Example:
+
+/ {
+	model = "Foo Gemini Machine";
+	compatible = "cortina,gemini";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		compatible = "simple-bus";
+		interrupt-parent = <&intcon>;
+
+		syscon: syscon@40000000 {
+			compatible = "cortina,gemini-syscon", "syscon";
+			reg = <0x40000000 0x1000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
+
+		uart0: serial@42000000 {
+			compatible = "ns16550a";
+			reg = <0x42000000 0x100>;
+			resets = <&syscon GEMINI_RESET_UART>;
+			clocks = <&syscon GEMINI_CLK_UART>;
+			interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+		};
+
+		timer@43000000 {
+			compatible = "cortina,gemini-timer";
+			reg = <0x43000000 0x1000>;
+			interrupt-parent = <&intcon>;
+			interrupts = <14 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
+				     <15 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
+				     <16 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
+			resets = <&syscon GEMINI_RESET_TIMER>;
+			/* APB clock or RTC clock */
+			clocks = <&syscon GEMINI_CLK_APB>,
+				 <&syscon GEMINI_CLK_RTC>;
+			clock-names = "PCLK", "EXTCLK";
+			syscon = <&syscon>;
+		};
+
+		intcon: interrupt-controller@48000000 {
+			compatible = "cortina,gemini-interrupt-controller";
+			reg = <0x48000000 0x1000>;
+			resets = <&syscon GEMINI_RESET_INTCON0>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+};

@@ -1,0 +1,178 @@
+/*
+ * Device Tree common file for the Seagate Personal Cloud NAS 1 and 2-Bay
+ * (Armada 370 SoC).
+ *
+ * Copyright (C) 2015 Seagate
+ *
+ * Author: Simon Guinot <simon.guinot@sequanux.org>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/*
+ * TODO: add support for the white SATA LED.
+ */
+
+#include "armada-370.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>; /* 512 MB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
+
+		internal-regs {
+			coherency-fabric@20200 {
+				broken-idle;
+			};
+
+			serial@12000 {
+				status = "okay";
+			};
+
+			ethernet@74000 {
+				status = "okay";
+				pinctrl-0 = <&ge1_rgmii_pins>;
+				pinctrl-names = "default";
+				phy = <&phy0>;
+				phy-mode = "rgmii-id";
+			};
+
+			usb@50000 {
+				status = "okay";
+			};
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "USB Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio1 27 GPIO_ACTIVE_LOW>;
+		};
+		regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "SATA0 power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		power {
+			label = "Power button";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 19 GPIO_ACTIVE_HIGH>;
+			debounce-interval = <100>;
+		};
+		reset {
+			label = "Reset Button";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
+			debounce-interval = <100>;
+		};
+		button {
+			label = "USB VBUS error";
+			linux,code = <KEY_UNKNOWN>;
+			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
+			debounce-interval = <100>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		red-sata0 {
+			label = "cumulus:red:sata0";
+			gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio1 25 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/* USB 3.0 Bridge ASM1042A */
+	pcie@1,0 {
+		status = "okay";
+	};
+};
+
+&mdio {
+	pinctrl-0 = <&mdio_pins>;
+	pinctrl-names = "default";
+
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&pinctrl {
+	pinctrl-0 = <&sata_led_pin>;
+	pinctrl-names = "default";
+
+	sata_led_pin: sata-led-pin {
+		marvell,pins = "mpp60";
+		marvell,function = "sata0";
+	};
+	gpio_led_pin: gpio-led-pin {
+		marvell,pins = "mpp60";
+		marvell,function = "gpio";
+	};
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-0 = <&spi0_pins2>;
+	pinctrl-names = "default";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		/* MX25L8006E */
+		compatible = "mxicy,mx25l8005", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <50000000>;
+
+		partition@0 {
+			label = "u-boot";
+			reg = <0x0 0x100000>;
+		};
+	};
+};

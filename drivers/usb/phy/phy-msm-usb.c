@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/extcon.h>
 #include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -35,6 +36,8 @@
 #include <linux/of_device.h>
 #include <linux/reboot.h>
 #include <linux/reset.h>
+#include <linux/types.h>
+#include <linux/usb/otg.h>
 
 #include <linux/usb.h>
 #include <linux/usb/otg.h>
@@ -42,9 +45,169 @@
 #include <linux/usb/ulpi.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/hcd.h>
-#include <linux/usb/msm_hsusb.h>
 #include <linux/usb/msm_hsusb_hw.h>
 #include <linux/regulator/consumer.h>
+
+/**
+ * OTG control
+ *
+ * OTG_NO_CONTROL	Id/VBUS notifications not required. Useful in host
+ *                      only configuration.
+ * OTG_PHY_CONTROL	Id/VBUS notifications comes form USB PHY.
+ * OTG_PMIC_CONTROL	Id/VBUS notifications comes from PMIC hardware.
+ * OTG_USER_CONTROL	Id/VBUS notifcations comes from User via sysfs.
+ *
+ */
+enum otg_control_type {
+	OTG_NO_CONTROL = 0,
+	OTG_PHY_CONTROL,
+	OTG_PMIC_CONTROL,
+	OTG_USER_CONTROL,
+};
+
+/**
+ * PHY used in
+ *
+ * INVALID_PHY			Unsupported PHY
+ * CI_45NM_INTEGRATED_PHY	Chipidea 45nm integrated PHY
+ * SNPS_28NM_INTEGRATED_PHY	Synopsis 28nm integrated PHY
+ *
+ */
+enum msm_usb_phy_type {
+	INVALID_PHY = 0,
+	CI_45NM_INTEGRATED_PHY,
+	SNPS_28NM_INTEGRATED_PHY,
+};
+
+#define IDEV_CHG_MAX	1500
+#define IUNIT		100
+
+/**
+ * Different states involved in USB charger detection.
+ *
+ * USB_CHG_STATE_UNDEFINED	USB charger is not connected or detection
+ *                              process is not yet started.
+ * USB_CHG_STATE_WAIT_FOR_DCD	Waiting for Data pins contact.
+ * USB_CHG_STATE_DCD_DONE	Data pin contact is detected.
+ * USB_CHG_STATE_PRIMARY_DONE	Primary detection is completed (Detects
+ *                              between SDP and DCP/CDP).
+ * USB_CHG_STATE_SECONDARY_DONE	Secondary detection is completed (Detects
+ *                              between DCP and CDP).
+ * USB_CHG_STATE_DETECTED	USB charger type is determined.
+ *
+ */
+enum usb_chg_state {
+	USB_CHG_STATE_UNDEFINED = 0,
+	USB_CHG_STATE_WAIT_FOR_DCD,
+	USB_CHG_STATE_DCD_DONE,
+	USB_CHG_STATE_PRIMARY_DONE,
+	USB_CHG_STATE_SECONDARY_DONE,
+	USB_CHG_STATE_DETECTED,
+};
+
+/**
+ * USB charger types
+ *
+ * USB_INVALID_CHARGER	Invalid USB charger.
+ * USB_SDP_CHARGER	Standard downstream port. Refers to a downstream port
+ *                      on USB2.0 compliant host/hub.
+ * USB_DCP_CHARGER	Dedicated charger port (AC charger/ Wall charger).
+ * USB_CDP_CHARGER	Charging downstream port. Enumeration can happen and
+ *                      IDEV_CHG_MAX can be drawn irrespective of USB state.
+ *
+ */
+enum usb_chg_type {
+	USB_INVALID_CHARGER = 0,
+	USB_SDP_CHARGER,
+	USB_DCP_CHARGER,
+	USB_CDP_CHARGER,
+};
+
+/**
+ * struct msm_otg_platform_data - platform device data
+ *              for msm_otg driver.
+ * @phy_init_seq: PHY configuration sequence values. Value of -1 is reserved as
+ *              "do not overwrite default vaule at this address".
+ * @phy_init_sz: PHY configuration sequence size.
+ * @vbus_power: VBUS power on/off routine.
+ * @power_budget: VBUS power budget in mA (0 will be treated as 500mA).
+ * @mode: Supported mode (OTG/peripheral/host).
+ * @otg_control: OTG switch controlled by user/Id pin
+ */
+struct msm_otg_platform_data {
+	int *phy_init_seq;
+	int phy_init_sz;
+	void (*vbus_power)(bool on);
+	unsigned power_budget;
+	enum usb_dr_mode mode;
+	enum otg_control_type otg_control;
+	enum msm_usb_phy_type phy_type;
+	void (*setup_gpio)(enum usb_otg_state state);
+};
+
+/**
+ * struct msm_otg: OTG driver data. Shared by HCD and DCD.
+ * @otg: USB OTG Transceiver structure.
+ * @pdata: otg device platform data.
+ * @irq: IRQ number assigned for HSUSB controller.
+ * @clk: clock struct of usb_hs_clk.
+ * @pclk: clock struct of usb_hs_pclk.
+ * @core_clk: clock struct of usb_hs_core_clk.
+ * @regs: ioremapped register base address.
+ * @inputs: OTG state machine inputs(Id, SessValid etc).
+ * @sm_work: OTG state machine work.
+ * @in_lpm: indicates low power mode (LPM) state.
+ * @async_int: Async interrupt arrived.
+ * @cur_power: The amount of mA available from downstream port.
+ * @chg_work: Charger detection work.
+ * @chg_state: The state of charger detection process.
+ * @chg_type: The type of charger attached.
+ * @dcd_retires: The retry count used to track Data contact
+ *               detection process.
+ * @manual_pullup: true if VBUS is not routed to USB controller/phy
+ *	and controller driver therefore enables pull-up explicitly before
+ *	starting controller using usbcmd run/stop bit.
+ * @vbus: VBUS signal state trakining, using extcon framework
+ * @id: ID signal state trakining, using extcon framework
+ * @switch_gpio: Descriptor for GPIO used to control external Dual
+ *               SPDT USB Switch.
+ * @reboot: Used to inform the driver to route USB D+/D- line to Device
+ *	    connector
+ */
+struct msm_otg {
+	struct usb_phy phy;
+	struct msm_otg_platform_data *pdata;
+	int irq;
+	struct clk *clk;
+	struct clk *pclk;
+	struct clk *core_clk;
+	void __iomem *regs;
+#define ID		0
+#define B_SESS_VLD	1
+	unsigned long inputs;
+	struct work_struct sm_work;
+	atomic_t in_lpm;
+	int async_int;
+	unsigned cur_power;
+	int phy_number;
+	struct delayed_work chg_work;
+	enum usb_chg_state chg_state;
+	enum usb_chg_type chg_type;
+	u8 dcd_retries;
+	struct regulator *v3p3;
+	struct regulator *v1p8;
+	struct regulator *vddcx;
+	struct regulator_bulk_data supplies[3];
+
+	struct reset_control *phy_rst;
+	struct reset_control *link_rst;
+	int vdd_levels[3];
+
+	bool manual_pullup;
+
+	struct gpio_desc *switch_gpio;
+	struct notifier_block reboot;
+};
 
 #define MSM_USB_BASE	(motg->regs)
 #define DRIVER_NAME	"msm_otg"
@@ -666,23 +829,6 @@ static void msm_otg_notify_charger(struct msm_otg *motg, unsigned mA)
 	motg->cur_power = mA;
 }
 
-static int msm_otg_set_power(struct usb_phy *phy, unsigned mA)
-{
-	struct msm_otg *motg = container_of(phy, struct msm_otg, phy);
-
-	/*
-	 * Gadget driver uses set_power method to notify about the
-	 * available current based on suspend/configured states.
-	 *
-	 * IDEV_CHG can be drawn irrespective of suspend/un-configured
-	 * states when CDP/ACA is connected.
-	 */
-	if (motg->chg_type == USB_SDP_CHARGER)
-		msm_otg_notify_charger(motg, mA);
-
-	return 0;
-}
-
 static void msm_otg_start_host(struct usb_phy *phy, int on)
 {
 	struct msm_otg *motg = container_of(phy, struct msm_otg, phy);
@@ -757,14 +903,8 @@ static int msm_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 	otg->host = host;
 	dev_dbg(otg->usb_phy->dev, "host driver registered w/ tranceiver\n");
 
-	/*
-	 * Kick the state machine work, if peripheral is not supported
-	 * or peripheral is already registered with us.
-	 */
-	if (motg->pdata->mode == USB_DR_MODE_HOST || otg->gadget) {
-		pm_runtime_get_sync(otg->usb_phy->dev);
-		schedule_work(&motg->sm_work);
-	}
+	pm_runtime_get_sync(otg->usb_phy->dev);
+	schedule_work(&motg->sm_work);
 
 	return 0;
 }
@@ -827,14 +967,8 @@ static int msm_otg_set_peripheral(struct usb_otg *otg,
 	dev_dbg(otg->usb_phy->dev,
 		"peripheral driver registered w/ tranceiver\n");
 
-	/*
-	 * Kick the state machine work, if host is not supported
-	 * or host is already registered with us.
-	 */
-	if (motg->pdata->mode == USB_DR_MODE_PERIPHERAL || otg->host) {
-		pm_runtime_get_sync(otg->usb_phy->dev);
-		schedule_work(&motg->sm_work);
-	}
+	pm_runtime_get_sync(otg->usb_phy->dev);
+	schedule_work(&motg->sm_work);
 
 	return 0;
 }
@@ -1465,8 +1599,8 @@ MODULE_DEVICE_TABLE(of, msm_otg_dt_match);
 static int msm_otg_vbus_notifier(struct notifier_block *nb, unsigned long event,
 				void *ptr)
 {
-	struct msm_usb_cable *vbus = container_of(nb, struct msm_usb_cable, nb);
-	struct msm_otg *motg = container_of(vbus, struct msm_otg, vbus);
+	struct usb_phy *usb_phy = container_of(nb, struct usb_phy, vbus_nb);
+	struct msm_otg *motg = container_of(usb_phy, struct msm_otg, phy);
 
 	if (event)
 		set_bit(B_SESS_VLD, &motg->inputs);
@@ -1489,8 +1623,8 @@ static int msm_otg_vbus_notifier(struct notifier_block *nb, unsigned long event,
 static int msm_otg_id_notifier(struct notifier_block *nb, unsigned long event,
 				void *ptr)
 {
-	struct msm_usb_cable *id = container_of(nb, struct msm_usb_cable, nb);
-	struct msm_otg *motg = container_of(id, struct msm_otg, id);
+	struct usb_phy *usb_phy = container_of(nb, struct usb_phy, id_nb);
+	struct msm_otg *motg = container_of(usb_phy, struct msm_otg, phy);
 
 	if (event)
 		clear_bit(ID, &motg->inputs);
@@ -1505,8 +1639,6 @@ static int msm_otg_id_notifier(struct notifier_block *nb, unsigned long event,
 static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 {
 	struct msm_otg_platform_data *pdata;
-	struct extcon_dev *ext_id, *ext_vbus;
-	const struct of_device_id *id;
 	struct device_node *node = pdev->dev.of_node;
 	struct property *prop;
 	int len, ret, words;
@@ -1518,8 +1650,9 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 
 	motg->pdata = pdata;
 
-	id = of_match_device(msm_otg_dt_match, &pdev->dev);
-	pdata->phy_type = (enum msm_usb_phy_type) id->data;
+	pdata->phy_type = (enum msm_usb_phy_type)of_device_get_match_data(&pdev->dev);
+	if (!pdata->phy_type)
+		return 1;
 
 	motg->link_rst = devm_reset_control_get(&pdev->dev, "link");
 	if (IS_ERR(motg->link_rst))
@@ -1529,7 +1662,7 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 	if (IS_ERR(motg->phy_rst))
 		motg->phy_rst = NULL;
 
-	pdata->mode = of_usb_get_dr_mode(node);
+	pdata->mode = usb_get_dr_mode(&pdev->dev);
 	if (pdata->mode == USB_DR_MODE_UNKNOWN)
 		pdata->mode = USB_DR_MODE_OTG;
 
@@ -1560,54 +1693,6 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 						    GPIOD_OUT_LOW);
 	if (IS_ERR(motg->switch_gpio))
 		return PTR_ERR(motg->switch_gpio);
-
-	ext_id = ERR_PTR(-ENODEV);
-	ext_vbus = ERR_PTR(-ENODEV);
-	if (of_property_read_bool(node, "extcon")) {
-
-		/* Each one of them is not mandatory */
-		ext_vbus = extcon_get_edev_by_phandle(&pdev->dev, 0);
-		if (IS_ERR(ext_vbus) && PTR_ERR(ext_vbus) != -ENODEV)
-			return PTR_ERR(ext_vbus);
-
-		ext_id = extcon_get_edev_by_phandle(&pdev->dev, 1);
-		if (IS_ERR(ext_id) && PTR_ERR(ext_id) != -ENODEV)
-			return PTR_ERR(ext_id);
-	}
-
-	if (!IS_ERR(ext_vbus)) {
-		motg->vbus.extcon = ext_vbus;
-		motg->vbus.nb.notifier_call = msm_otg_vbus_notifier;
-		ret = extcon_register_notifier(ext_vbus, EXTCON_USB,
-						&motg->vbus.nb);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "register VBUS notifier failed\n");
-			return ret;
-		}
-
-		ret = extcon_get_cable_state_(ext_vbus, EXTCON_USB);
-		if (ret)
-			set_bit(B_SESS_VLD, &motg->inputs);
-		else
-			clear_bit(B_SESS_VLD, &motg->inputs);
-	}
-
-	if (!IS_ERR(ext_id)) {
-		motg->id.extcon = ext_id;
-		motg->id.nb.notifier_call = msm_otg_id_notifier;
-		ret = extcon_register_notifier(ext_id, EXTCON_USB_HOST,
-						&motg->id.nb);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "register ID notifier failed\n");
-			return ret;
-		}
-
-		ret = extcon_get_cable_state_(ext_id, EXTCON_USB_HOST);
-		if (ret)
-			clear_bit(ID, &motg->inputs);
-		else
-			set_bit(ID, &motg->inputs);
-	}
 
 	prop = of_find_property(node, "qcom,phy-init-sequence", &len);
 	if (!prop || !len)
@@ -1647,7 +1732,6 @@ static int msm_otg_reboot_notify(struct notifier_block *this,
 
 static int msm_otg_probe(struct platform_device *pdev)
 {
-	struct regulator_bulk_data regs[3];
 	int ret = 0;
 	struct device_node *np = pdev->dev.of_node;
 	struct msm_otg_platform_data *pdata;
@@ -1659,15 +1743,6 @@ static int msm_otg_probe(struct platform_device *pdev)
 	motg = devm_kzalloc(&pdev->dev, sizeof(struct msm_otg), GFP_KERNEL);
 	if (!motg)
 		return -ENOMEM;
-
-	pdata = dev_get_platdata(&pdev->dev);
-	if (!pdata) {
-		if (!np)
-			return -ENXIO;
-		ret = msm_otg_read_dt(pdev, motg);
-		if (ret)
-			return ret;
-	}
 
 	motg->phy.otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 				     GFP_KERNEL);
@@ -1710,6 +1785,15 @@ static int msm_otg_probe(struct platform_device *pdev)
 	if (!motg->regs)
 		return -ENOMEM;
 
+	pdata = dev_get_platdata(&pdev->dev);
+	if (!pdata) {
+		if (!np)
+			return -ENXIO;
+		ret = msm_otg_read_dt(pdev, motg);
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 * NOTE: The PHYs can be multiplexed between the chipidea controller
 	 * and the dwc3 controller, using a single bit. It is important that
@@ -1719,6 +1803,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 		phy_select = devm_ioremap_nocache(&pdev->dev, USB2_PHY_SEL, 4);
 		if (!phy_select)
 			return -ENOMEM;
+
 		/* Enable second PHY with the OTG port */
 		writel(0x1, phy_select);
 	}
@@ -1728,20 +1813,22 @@ static int msm_otg_probe(struct platform_device *pdev)
 	motg->irq = platform_get_irq(pdev, 0);
 	if (motg->irq < 0) {
 		dev_err(&pdev->dev, "platform_get_irq failed\n");
+		ret = motg->irq;
 		return motg->irq;
 	}
 
-	regs[0].supply = "vddcx";
-	regs[1].supply = "v3p3";
-	regs[2].supply = "v1p8";
+	motg->supplies[0].supply = "vddcx";
+	motg->supplies[1].supply = "v3p3";
+	motg->supplies[2].supply = "v1p8";
 
-	ret = devm_regulator_bulk_get(motg->phy.dev, ARRAY_SIZE(regs), regs);
+	ret = devm_regulator_bulk_get(motg->phy.dev, ARRAY_SIZE(motg->supplies),
+				      motg->supplies);
 	if (ret)
 		return ret;
 
-	motg->vddcx = regs[0].consumer;
-	motg->v3p3  = regs[1].consumer;
-	motg->v1p8  = regs[2].consumer;
+	motg->vddcx = motg->supplies[0].consumer;
+	motg->v3p3  = motg->supplies[1].consumer;
+	motg->v1p8  = motg->supplies[2].consumer;
 
 	clk_set_rate(motg->clk, 60000000);
 
@@ -1781,9 +1868,10 @@ static int msm_otg_probe(struct platform_device *pdev)
 	}
 
 	phy->init = msm_phy_init;
-	phy->set_power = msm_otg_set_power;
 	phy->notify_disconnect = msm_phy_notify_disconnect;
 	phy->type = USB_PHY_TYPE_USB2;
+	phy->vbus_nb.notifier_call = msm_otg_vbus_notifier;
+	phy->id_nb.notifier_call = msm_otg_id_notifier;
 
 	phy->io_ops = &msm_otg_io_ops;
 
@@ -1798,6 +1886,18 @@ static int msm_otg_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "usb_add_phy failed\n");
 		goto disable_ldo;
 	}
+
+	ret = extcon_get_state(phy->edev, EXTCON_USB);
+	if (ret)
+		set_bit(B_SESS_VLD, &motg->inputs);
+	else
+		clear_bit(B_SESS_VLD, &motg->inputs);
+
+	ret = extcon_get_state(phy->id_edev, EXTCON_USB_HOST);
+	if (ret)
+		clear_bit(ID, &motg->inputs);
+	else
+		set_bit(ID, &motg->inputs);
 
 	platform_set_drvdata(pdev, motg);
 	device_init_wakeup(&pdev->dev, 1);
@@ -1834,6 +1934,7 @@ disable_clks:
 	clk_disable_unprepare(motg->clk);
 	if (!IS_ERR(motg->core_clk))
 		clk_disable_unprepare(motg->core_clk);
+
 	return ret;
 }
 
@@ -1853,9 +1954,6 @@ static int msm_otg_remove(struct platform_device *pdev)
 	 * we could load bootloader/kernel at next reboot
 	 */
 	gpiod_set_value_cansleep(motg->switch_gpio, 0);
-
-	extcon_unregister_notifier(motg->id.extcon, EXTCON_USB_HOST, &motg->id.nb);
-	extcon_unregister_notifier(motg->vbus.extcon, EXTCON_USB, &motg->vbus.nb);
 
 	msm_otg_debugfs_cleanup();
 	cancel_delayed_work_sync(&motg->chg_work);

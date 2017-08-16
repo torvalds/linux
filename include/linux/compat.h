@@ -5,6 +5,8 @@
  * syscall compatibility layer.
  */
 
+#include <linux/types.h>
+
 #ifdef CONFIG_COMPAT
 
 #include <linux/stat.h>
@@ -92,6 +94,10 @@ struct compat_itimerval {
 	struct compat_timeval	it_value;
 };
 
+struct itimerval;
+int get_compat_itimerval(struct itimerval *, const struct compat_itimerval __user *);
+int put_compat_itimerval(struct compat_itimerval __user *, const struct itimerval *);
+
 struct compat_tms {
 	compat_clock_t		tms_utime;
 	compat_clock_t		tms_stime;
@@ -126,6 +132,10 @@ struct compat_timex {
 	compat_int_t:32; compat_int_t:32; compat_int_t:32;
 };
 
+struct timex;
+int compat_get_timex(struct timex *, const struct compat_timex __user *);
+int compat_put_timex(struct compat_timex __user *, const struct timex *);
+
 #define _COMPAT_NSIG_WORDS	(_COMPAT_NSIG / _COMPAT_NSIG_BPW)
 
 typedef struct {
@@ -154,6 +164,12 @@ extern int compat_get_timespec(struct timespec *, const void __user *);
 extern int compat_put_timespec(const struct timespec *, void __user *);
 extern int compat_get_timeval(struct timeval *, const void __user *);
 extern int compat_put_timeval(const struct timeval *, void __user *);
+extern int compat_get_timespec64(struct timespec64 *, const void __user *);
+extern int compat_put_timespec64(const struct timespec64 *, void __user *);
+extern int get_compat_itimerspec64(struct itimerspec64 *its,
+			const struct compat_itimerspec __user *uits);
+extern int put_compat_itimerspec64(const struct itimerspec64 *its,
+			struct compat_itimerspec __user *uits);
 
 /*
  * This function convert a timespec if necessary and returns a *user
@@ -293,6 +309,13 @@ struct compat_old_sigaction {
 };
 #endif
 
+struct compat_keyctl_kdf_params {
+	compat_uptr_t hashname;
+	compat_uptr_t otherinfo;
+	__u32 otherinfolen;
+	__u32 __spare[8];
+};
+
 struct compat_statfs;
 struct compat_statfs64;
 struct compat_old_linux_dirent;
@@ -340,6 +363,12 @@ asmlinkage ssize_t compat_sys_preadv(compat_ulong_t fd,
 asmlinkage ssize_t compat_sys_pwritev(compat_ulong_t fd,
 		const struct compat_iovec __user *vec,
 		compat_ulong_t vlen, u32 pos_low, u32 pos_high);
+asmlinkage ssize_t compat_sys_preadv2(compat_ulong_t fd,
+		const struct compat_iovec __user *vec,
+		compat_ulong_t vlen, u32 pos_low, u32 pos_high, int flags);
+asmlinkage ssize_t compat_sys_pwritev2(compat_ulong_t fd,
+		const struct compat_iovec __user *vec,
+		compat_ulong_t vlen, u32 pos_low, u32 pos_high, int flags);
 
 #ifdef __ARCH_WANT_COMPAT_SYS_PREADV64
 asmlinkage long compat_sys_preadv64(unsigned long fd,
@@ -373,8 +402,7 @@ asmlinkage long compat_sys_wait4(compat_pid_t pid,
 
 #define BITS_PER_COMPAT_LONG    (8*sizeof(compat_long_t))
 
-#define BITS_TO_COMPAT_LONGS(bits) \
-	(((bits)+BITS_PER_COMPAT_LONG-1)/BITS_PER_COMPAT_LONG)
+#define BITS_TO_COMPAT_LONGS(bits) DIV_ROUND_UP(bits, BITS_PER_COMPAT_LONG)
 
 long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 		       unsigned long bitmap_size);
@@ -424,7 +452,6 @@ asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
 
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 
-extern __printf(1, 2) int compat_printk(const char *fmt, ...);
 extern void sigset_from_compat(sigset_t *set, const compat_sigset_t *compat);
 extern void sigset_to_compat(compat_sigset_t *compat, const sigset_t *set);
 
@@ -521,11 +548,6 @@ asmlinkage long compat_sys_old_readdir(unsigned int fd,
 asmlinkage long compat_sys_getdents(unsigned int fd,
 				    struct compat_linux_dirent __user *dirent,
 				    unsigned int count);
-#ifdef __ARCH_WANT_COMPAT_SYS_GETDENTS64
-asmlinkage long compat_sys_getdents64(unsigned int fd,
-				      struct linux_dirent64 __user *dirent,
-				      unsigned int count);
-#endif
 asmlinkage long compat_sys_vmsplice(int fd, const struct compat_iovec __user *,
 				    unsigned int nr_segs, unsigned int flags);
 asmlinkage long compat_sys_open(const char __user *filename, int flags,
@@ -704,8 +726,10 @@ int __compat_save_altstack(compat_stack_t __user *, unsigned long);
 	compat_stack_t __user *__uss = uss; \
 	struct task_struct *t = current; \
 	put_user_ex(ptr_to_compat((void __user *)t->sas_ss_sp), &__uss->ss_sp); \
-	put_user_ex(sas_ss_flags(sp), &__uss->ss_flags); \
+	put_user_ex(t->sas_ss_flags, &__uss->ss_flags); \
 	put_user_ex(t->sas_ss_size, &__uss->ss_size); \
+	if (t->sas_ss_flags & SS_AUTODISARM) \
+		sas_ss_reset(t); \
 } while (0);
 
 asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
@@ -713,9 +737,42 @@ asmlinkage long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 
 asmlinkage long compat_sys_fanotify_mark(int, unsigned int, __u32, __u32,
 					    int, const char __user *);
-#else
+
+asmlinkage long compat_sys_arch_prctl(int option, unsigned long arg2);
+
+/*
+ * For most but not all architectures, "am I in a compat syscall?" and
+ * "am I a compat task?" are the same question.  For architectures on which
+ * they aren't the same question, arch code can override in_compat_syscall.
+ */
+
+#ifndef in_compat_syscall
+static inline bool in_compat_syscall(void) { return is_compat_task(); }
+#endif
+
+/**
+ * ns_to_compat_timeval - Compat version of ns_to_timeval
+ * @nsec:	the nanoseconds value to be converted
+ *
+ * Returns the compat_timeval representation of the nsec parameter.
+ */
+static inline struct compat_timeval ns_to_compat_timeval(s64 nsec)
+{
+	struct timeval tv;
+	struct compat_timeval ctv;
+
+	tv = ns_to_timeval(nsec);
+	ctv.tv_sec = tv.tv_sec;
+	ctv.tv_usec = tv.tv_usec;
+
+	return ctv;
+}
+
+#else /* !CONFIG_COMPAT */
 
 #define is_compat_task() (0)
+static inline bool in_compat_syscall(void) { return false; }
 
 #endif /* CONFIG_COMPAT */
+
 #endif /* _LINUX_COMPAT_H */

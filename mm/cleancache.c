@@ -22,7 +22,7 @@
  * cleancache_ops is set by cleancache_register_ops to contain the pointers
  * to the cleancache "backend" implementation functions.
  */
-static struct cleancache_ops *cleancache_ops __read_mostly;
+static const struct cleancache_ops *cleancache_ops __read_mostly;
 
 /*
  * Counters available via /sys/kernel/debug/cleancache (if debugfs is
@@ -49,7 +49,7 @@ static void cleancache_register_ops_sb(struct super_block *sb, void *unused)
 /*
  * Register operations for cleancache. Returns 0 on success.
  */
-int cleancache_register_ops(struct cleancache_ops *ops)
+int cleancache_register_ops(const struct cleancache_ops *ops)
 {
 	if (cmpxchg(&cleancache_ops, NULL, ops))
 		return -EBUSY;
@@ -130,7 +130,7 @@ void __cleancache_init_shared_fs(struct super_block *sb)
 	int pool_id = CLEANCACHE_NO_BACKEND_SHARED;
 
 	if (cleancache_ops) {
-		pool_id = cleancache_ops->init_shared_fs(sb->s_uuid, PAGE_SIZE);
+		pool_id = cleancache_ops->init_shared_fs(&sb->s_uuid, PAGE_SIZE);
 		if (pool_id < 0)
 			pool_id = CLEANCACHE_NO_POOL;
 	}

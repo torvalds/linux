@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <media/ths7303.h>
+#include <media/i2c/ths7303.h>
 #include <media/v4l2-device.h>
 
 #define THS7303_CHANNEL_1	1
@@ -285,7 +285,7 @@ static int ths7303_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "stream %s\n", state->stream_on ? "On" : "Off");
 
 	if (state->bt.pixelclock) {
-		struct v4l2_bt_timings *bt = bt = &state->bt;
+		struct v4l2_bt_timings *bt = &state->bt;
 		u32 frame_width, frame_height;
 
 		frame_width = V4L2_DV_BT_FRAME_WIDTH(bt);

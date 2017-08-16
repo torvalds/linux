@@ -1,30 +1,37 @@
 	Locking scheme used for directory operations is based on two
-kinds of locks - per-inode (->i_mutex) and per-filesystem
+kinds of locks - per-inode (->i_rwsem) and per-filesystem
 (->s_vfs_rename_mutex).
 
-	When taking the i_mutex on multiple non-directory objects, we
+	When taking the i_rwsem on multiple non-directory objects, we
 always acquire the locks in order by increasing address.  We'll call
 that "inode pointer" order in the following.
 
 	For our purposes all operations fall in 5 classes:
 
 1) read access.  Locking rules: caller locks directory we are accessing.
+The lock is taken shared.
 
-2) object creation.  Locking rules: same as above.
+2) object creation.  Locking rules: same as above, but the lock is taken
+exclusive.
 
 3) object removal.  Locking rules: caller locks parent, finds victim,
-locks victim and calls the method.
+locks victim and calls the method.  Locks are exclusive.
 
 4) rename() that is _not_ cross-directory.  Locking rules: caller locks
-the parent and finds source and target.  If target already exists, lock
-it.  If source is a non-directory, lock it.  If that means we need to
-lock both, lock them in inode pointer order.
+the parent and finds source and target.  In case of exchange (with
+RENAME_EXCHANGE in flags argument) lock both.  In any case,
+if the target already exists, lock it.  If the source is a non-directory,
+lock it.  If we need to lock both, lock them in inode pointer order.
+Then call the method.  All locks are exclusive.
+NB: we might get away with locking the the source (and target in exchange
+case) shared.
 
 5) link creation.  Locking rules:
 	* lock parent
 	* check that source is not a directory
 	* lock source
 	* call the method.
+All locks are exclusive.
 
 6) cross-directory rename.  The trickiest in the whole bunch.  Locking
 rules:
@@ -35,11 +42,12 @@ rules:
 		fail with -ENOTEMPTY
 	* if new parent is equal to or is a descendent of source
 		fail with -ELOOP
-	* If target exists, lock it.  If source is a non-directory, lock
-	  it.  In case that means we need to lock both source and target,
-	  do so in inode pointer order.
+	* If it's an exchange, lock both the source and the target.
+	* If the target exists, lock it.  If the source is a non-directory,
+	  lock it.  If we need to lock both, do so in inode pointer order.
 	* call the method.
-
+All ->i_rwsem are taken exclusive.  Again, we might get away with locking
+the the source (and target in exchange case) shared.
 
 The rules above obviously guarantee that all directories that are going to be
 read, modified or removed by method will be locked by caller.
@@ -73,7 +81,7 @@ objects - A < B iff A is an ancestor of B.
 attempt to acquire some lock and already holds at least one lock.  Let's
 consider the set of contended locks.  First of all, filesystem lock is
 not contended, since any process blocked on it is not holding any locks.
-Thus all processes are blocked on ->i_mutex.
+Thus all processes are blocked on ->i_rwsem.
 
 	By (3), any process holding a non-directory lock can only be
 waiting on another non-directory lock with a larger address.  Therefore

@@ -134,7 +134,7 @@ static void serio_find_driver(struct serio *serio)
 	int error;
 
 	error = device_attach(&serio->dev);
-	if (error < 0)
+	if (error < 0 && error != -EPROBE_DEFER)
 		dev_warn(&serio->dev,
 			 "device_attach() failed for %s (%s), error: %d\n",
 			 serio->phys, serio->name, error);
@@ -285,8 +285,8 @@ static int serio_queue_event(void *object, struct module *owner,
 	}
 
 	if (!try_module_get(owner)) {
-		pr_warning("Can't get module reference, dropping event %d\n",
-			   event_type);
+		pr_warn("Can't get module reference, dropping event %d\n",
+			event_type);
 		kfree(event);
 		retval = -EINVAL;
 		goto out;
@@ -823,8 +823,8 @@ static void serio_attach_driver(struct serio_driver *drv)
 
 	error = driver_attach(&drv->driver);
 	if (error)
-		pr_warning("driver_attach() failed for %s with error %d\n",
-			   drv->driver.name, error);
+		pr_warn("driver_attach() failed for %s with error %d\n",
+			drv->driver.name, error);
 }
 
 int __serio_register_driver(struct serio_driver *drv, struct module *owner, const char *mod_name)
@@ -953,12 +953,24 @@ static int serio_suspend(struct device *dev)
 static int serio_resume(struct device *dev)
 {
 	struct serio *serio = to_serio_port(dev);
+	int error = -ENOENT;
 
-	/*
-	 * Driver reconnect can take a while, so better let kseriod
-	 * deal with it.
-	 */
-	serio_queue_event(serio, NULL, SERIO_RECONNECT_PORT);
+	mutex_lock(&serio->drv_mutex);
+	if (serio->drv && serio->drv->fast_reconnect) {
+		error = serio->drv->fast_reconnect(serio);
+		if (error && error != -ENOENT)
+			dev_warn(dev, "fast reconnect failed with error %d\n",
+				 error);
+	}
+	mutex_unlock(&serio->drv_mutex);
+
+	if (error) {
+		/*
+		 * Driver reconnect can take a while, so better let
+		 * kseriod deal with it.
+		 */
+		serio_queue_event(serio, NULL, SERIO_RECONNECT_PORT);
+	}
 
 	return 0;
 }

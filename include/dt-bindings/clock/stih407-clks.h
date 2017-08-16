@@ -5,6 +5,10 @@
 #ifndef _DT_BINDINGS_CLK_STIH407
 #define _DT_BINDINGS_CLK_STIH407
 
+/* CLOCKGEN A0 */
+#define CLK_IC_LMI0		0
+#define CLK_IC_LMI1		1
+
 /* CLOCKGEN C0 */
 #define CLK_ICN_GPU		0
 #define CLK_FDMA		1

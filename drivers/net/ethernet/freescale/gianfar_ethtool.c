@@ -32,7 +32,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/crc32.h>
 #include <asm/types.h>
@@ -182,42 +182,6 @@ static void gfar_gdrvinfo(struct net_device *dev,
 		sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, "N/A", sizeof(drvinfo->bus_info));
-	drvinfo->regdump_len = 0;
-	drvinfo->eedump_len = 0;
-}
-
-
-static int gfar_ssettings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
-
-	if (NULL == phydev)
-		return -ENODEV;
-
-	return phy_ethtool_sset(phydev, cmd);
-}
-
-
-/* Return the current settings in the ethtool_cmd structure */
-static int gfar_gsettings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
-	struct gfar_priv_rx_q *rx_queue = NULL;
-	struct gfar_priv_tx_q *tx_queue = NULL;
-
-	if (NULL == phydev)
-		return -ENODEV;
-	tx_queue = priv->tx_queue[0];
-	rx_queue = priv->rx_queue[0];
-
-	/* etsec-1.7 and older versions have only one txic
-	 * and rxic regs although they support multiple queues */
-	cmd->maxtxpkt = get_icft_value(tx_queue->txic);
-	cmd->maxrxpkt = get_icft_value(rx_queue->rxic);
-
-	return phy_ethtool_gset(phydev, cmd);
 }
 
 /* Return the length of the register structure */
@@ -244,10 +208,12 @@ static void gfar_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 static unsigned int gfar_usecs2ticks(struct gfar_private *priv,
 				     unsigned int usecs)
 {
+	struct net_device *ndev = priv->ndev;
+	struct phy_device *phydev = ndev->phydev;
 	unsigned int count;
 
 	/* The timer is different, depending on the interface speed */
-	switch (priv->phydev->speed) {
+	switch (phydev->speed) {
 	case SPEED_1000:
 		count = GFAR_GBIT_TIME;
 		break;
@@ -269,10 +235,12 @@ static unsigned int gfar_usecs2ticks(struct gfar_private *priv,
 static unsigned int gfar_ticks2usecs(struct gfar_private *priv,
 				     unsigned int ticks)
 {
+	struct net_device *ndev = priv->ndev;
+	struct phy_device *phydev = ndev->phydev;
 	unsigned int count;
 
 	/* The timer is different, depending on the interface speed */
-	switch (priv->phydev->speed) {
+	switch (phydev->speed) {
 	case SPEED_1000:
 		count = GFAR_GBIT_TIME;
 		break;
@@ -306,7 +274,7 @@ static int gfar_gcoalesce(struct net_device *dev,
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
-	if (NULL == priv->phydev)
+	if (!dev->phydev)
 		return -ENODEV;
 
 	rx_queue = priv->rx_queue[0];
@@ -367,7 +335,7 @@ static int gfar_scoalesce(struct net_device *dev,
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
-	if (NULL == priv->phydev)
+	if (!dev->phydev)
 		return -ENODEV;
 
 	/* Check the bounds of the values */
@@ -531,7 +499,7 @@ static int gfar_spauseparam(struct net_device *dev,
 			    struct ethtool_pauseparam *epause)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = priv->phydev;
+	struct phy_device *phydev = dev->phydev;
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 oldadv, newadv;
 
@@ -644,28 +612,49 @@ static void gfar_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) {
-		wol->supported = WAKE_MAGIC;
-		wol->wolopts = priv->wol_en ? WAKE_MAGIC : 0;
-	} else {
-		wol->supported = wol->wolopts = 0;
-	}
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (priv->wol_supported & GFAR_WOL_MAGIC)
+		wol->supported |= WAKE_MAGIC;
+
+	if (priv->wol_supported & GFAR_WOL_FILER_UCAST)
+		wol->supported |= WAKE_UCAST;
+
+	if (priv->wol_opts & GFAR_WOL_MAGIC)
+		wol->wolopts |= WAKE_MAGIC;
+
+	if (priv->wol_opts & GFAR_WOL_FILER_UCAST)
+		wol->wolopts |= WAKE_UCAST;
 }
 
 static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	u16 wol_opts = 0;
+	int err;
 
-	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
-	    wol->wolopts != 0)
+	if (!priv->wol_supported && wol->wolopts)
 		return -EINVAL;
 
-	if (wol->wolopts & ~WAKE_MAGIC)
+	if (wol->wolopts & ~(WAKE_MAGIC | WAKE_UCAST))
 		return -EINVAL;
 
-	device_set_wakeup_enable(&dev->dev, wol->wolopts & WAKE_MAGIC);
+	if (wol->wolopts & WAKE_MAGIC) {
+		wol_opts |= GFAR_WOL_MAGIC;
+	} else {
+		if (wol->wolopts & WAKE_UCAST)
+			wol_opts |= GFAR_WOL_FILER_UCAST;
+	}
 
-	priv->wol_en = !!device_may_wakeup(&dev->dev);
+	wol_opts &= priv->wol_supported;
+	priv->wol_opts = 0;
+
+	err = device_set_wakeup_enable(priv->dev, wol_opts);
+	if (err)
+		return err;
+
+	priv->wol_opts = wol_opts;
 
 	return 0;
 }
@@ -676,14 +665,14 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	u32 fcr = 0x0, fpr = FPR_FILER_MASK;
 
 	if (ethflow & RXH_L2DA) {
-		fcr = RQFCR_PID_DAH |RQFCR_CMP_NOMATCH |
+		fcr = RQFCR_PID_DAH | RQFCR_CMP_NOMATCH |
 		      RQFCR_HASH | RQFCR_AND | RQFCR_HASHTBL_0;
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
 		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 
-		fcr = RQFCR_PID_DAL | RQFCR_AND | RQFCR_CMP_NOMATCH |
+		fcr = RQFCR_PID_DAL | RQFCR_CMP_NOMATCH |
 		      RQFCR_HASH | RQFCR_AND | RQFCR_HASHTBL_0;
 		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
 		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
@@ -1546,8 +1535,6 @@ static int gfar_get_ts_info(struct net_device *dev,
 }
 
 const struct ethtool_ops gfar_ethtool_ops = {
-	.get_settings = gfar_gsettings,
-	.set_settings = gfar_ssettings,
 	.get_drvinfo = gfar_gdrvinfo,
 	.get_regs_len = gfar_reglen,
 	.get_regs = gfar_get_regs,
@@ -1570,4 +1557,6 @@ const struct ethtool_ops gfar_ethtool_ops = {
 	.set_rxnfc = gfar_set_nfc,
 	.get_rxnfc = gfar_get_nfc,
 	.get_ts_info = gfar_get_ts_info,
+	.get_link_ksettings = phy_ethtool_get_link_ksettings,
+	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };

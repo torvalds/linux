@@ -1,4 +1,5 @@
-/* Driver for Freecom USB/IDE adaptor
+/*
+ * Driver for Freecom USB/IDE adaptor
  *
  * Freecom v0.1:
  *
@@ -84,25 +85,33 @@ struct freecom_status {
 	u8    Pad[60];
 };
 
-/* Freecom stuffs the interrupt status in the INDEX_STAT bit of the ide
- * register. */
+/*
+ * Freecom stuffs the interrupt status in the INDEX_STAT bit of the ide
+ * register.
+ */
 #define FCM_INT_STATUS		0x02 /* INDEX_STAT */
 #define FCM_STATUS_BUSY		0x80
 
-/* These are the packet types.  The low bit indicates that this command
- * should wait for an interrupt. */
+/*
+ * These are the packet types.  The low bit indicates that this command
+ * should wait for an interrupt.
+ */
 #define FCM_PACKET_ATAPI	0x21
 #define FCM_PACKET_STATUS	0x20
 
-/* Receive data from the IDE interface.  The ATAPI packet has already
- * waited, so the data should be immediately available. */
+/*
+ * Receive data from the IDE interface.  The ATAPI packet has already
+ * waited, so the data should be immediately available.
+ */
 #define FCM_PACKET_INPUT	0x81
 
 /* Send data to the IDE interface. */
 #define FCM_PACKET_OUTPUT	0x01
 
-/* Write a value to an ide register.  Or the ide register to write after
- * munging the address a bit. */
+/*
+ * Write a value to an ide register.  Or the ide register to write after
+ * munging the address a bit.
+ */
 #define FCM_PACKET_IDE_WRITE	0x40
 #define FCM_PACKET_IDE_READ	0xC0
 
@@ -251,16 +260,20 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 	result = usb_stor_bulk_transfer_buf (us, opipe, fcb,
 			FCM_PACKET_LENGTH, NULL);
 
-	/* The Freecom device will only fail if there is something wrong in
+	/*
+	 * The Freecom device will only fail if there is something wrong in
 	 * USB land.  It returns the status in its own registers, which
-	 * come back in the bulk pipe. */
+	 * come back in the bulk pipe.
+	 */
 	if (result != USB_STOR_XFER_GOOD) {
 		usb_stor_dbg(us, "freecom transport error\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
-	/* There are times we can optimize out this status read, but it
-	 * doesn't hurt us to always do it now. */
+	/*
+	 * There are times we can optimize out this status read, but it
+	 * doesn't hurt us to always do it now.
+	 */
 	result = usb_stor_bulk_transfer_buf (us, ipipe, fst,
 			FCM_STATUS_PACKET_LENGTH, &partial);
 	usb_stor_dbg(us, "foo Status result %d %u\n", result, partial);
@@ -269,7 +282,8 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	US_DEBUG(pdump(us, (void *)fst, partial));
 
-	/* The firmware will time-out commands after 20 seconds. Some commands
+	/*
+	 * The firmware will time-out commands after 20 seconds. Some commands
 	 * can legitimately take longer than this, so we use a different
 	 * command that only waits for the interrupt and then sends status,
 	 * without having to send a new ATAPI command to the device.
@@ -291,7 +305,8 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 		result = usb_stor_bulk_transfer_buf (us, opipe, fcb,
 				FCM_PACKET_LENGTH, NULL);
 
-		/* The Freecom device will only fail if there is something
+		/*
+		 * The Freecom device will only fail if there is something
 		 * wrong in USB land.  It returns the status in its own
 		 * registers, which come back in the bulk pipe.
 		 */
@@ -318,9 +333,11 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 		return USB_STOR_TRANSPORT_FAILED;
 	}
 
-	/* The device might not have as much data available as we
+	/*
+	 * The device might not have as much data available as we
 	 * requested.  If you ask for more than the device has, this reads
-	 * and such will hang. */
+	 * and such will hang.
+	 */
 	usb_stor_dbg(us, "Device indicates that it has %d bytes available\n",
 		     le16_to_cpu(fst->Count));
 	usb_stor_dbg(us, "SCSI requested %d\n", scsi_bufflen(srb));
@@ -344,16 +361,20 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 			     length);
 	}
 
-	/* What we do now depends on what direction the data is supposed to
-	 * move in. */
+	/*
+	 * What we do now depends on what direction the data is supposed to
+	 * move in.
+	 */
 
 	switch (us->srb->sc_data_direction) {
 	case DMA_FROM_DEVICE:
 		/* catch bogus "read 0 length" case */
 		if (!length)
 			break;
-		/* Make sure that the status indicates that the device
-		 * wants data as well. */
+		/*
+		 * Make sure that the status indicates that the device
+		 * wants data as well.
+		 */
 		if ((fst->Status & DRQ_STAT) == 0 || (fst->Reason & 3) != 2) {
 			usb_stor_dbg(us, "SCSI wants data, drive doesn't have any\n");
 			return USB_STOR_TRANSPORT_FAILED;
@@ -384,8 +405,10 @@ static int freecom_transport(struct scsi_cmnd *srb, struct us_data *us)
 		/* catch bogus "write 0 length" case */
 		if (!length)
 			break;
-		/* Make sure the status indicates that the device wants to
-		 * send us data. */
+		/*
+		 * Make sure the status indicates that the device wants to
+		 * send us data.
+		 */
 		/* !!IMPLEMENT!! */
 		result = freecom_writedata (srb, us, ipipe, opipe, length);
 		if (result != USB_STOR_TRANSPORT_GOOD)
@@ -431,7 +454,8 @@ static int init_freecom(struct us_data *us)
 	int result;
 	char *buffer = us->iobuf;
 
-	/* The DMA-mapped I/O buffer is 64 bytes long, just right for
+	/*
+	 * The DMA-mapped I/O buffer is 64 bytes long, just right for
 	 * all our packets.  No need to allocate any extra buffer space.
 	 */
 
@@ -440,7 +464,8 @@ static int init_freecom(struct us_data *us)
 	buffer[32] = '\0';
 	usb_stor_dbg(us, "String returned from FC init is: %s\n", buffer);
 
-	/* Special thanks to the people at Freecom for providing me with
+	/*
+	 * Special thanks to the people at Freecom for providing me with
 	 * this "magic sequence", which they use in their Windows and MacOS
 	 * drivers to make sure that all the attached perhiperals are
 	 * properly reset.

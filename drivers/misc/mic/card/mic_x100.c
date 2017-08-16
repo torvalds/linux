@@ -261,7 +261,7 @@ static int __init mic_probe(struct platform_device *pdev)
 	mic_hw_intr_init(mdrv);
 	platform_set_drvdata(pdev, mdrv);
 	mdrv->dma_mbdev = mbus_register_device(mdrv->dev, MBUS_DEV_DMA_MIC,
-					       NULL, &mbus_hw_ops,
+					       NULL, &mbus_hw_ops, 0,
 					       mdrv->mdev.mmio.va);
 	if (IS_ERR(mdrv->dma_mbdev)) {
 		rc = PTR_ERR(mdrv->dma_mbdev);
@@ -326,6 +326,7 @@ static int __init mic_init(void)
 		goto done;
 	}
 
+	request_module("mic_x100_dma");
 	mic_init_card_debugfs();
 	ret = platform_device_register(&mic_platform_dev);
 	if (ret) {

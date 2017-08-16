@@ -3,6 +3,7 @@
 *.bc
 *.bin
 *.bz2
+*.c.[012]*.*
 *.cis
 *.cpio
 *.csp
@@ -115,9 +116,10 @@ crc32table.h*
 cscope.*
 defkeymap.c
 devlist.h*
+devicetable-offsets.h
 dnotify_test
-docproc
 dslm
+dtc
 elf2ecoff
 elfconfig.h*
 evergreen_reg_safe.h
@@ -138,7 +140,6 @@ hpet_example
 hugepage-mmap
 hugepage-shm
 ihex2fw
-ikconfig.h*
 inat-tables.c
 initramfs_list
 int16.c
@@ -153,8 +154,8 @@ keywords.c
 ksym.c*
 ksym.h*
 kxgettext
-lex.c
-lex.*.c
+*lex.c
+*lex.*.c
 linux
 logo_*.c
 logo_*_clut224.c
@@ -165,7 +166,6 @@ mach-types.h
 machtypes.h
 map
 map_hugetlb
-media
 mconf
 miboot*
 mk_elfconfig
@@ -206,6 +206,8 @@ r200_reg_safe.h
 r300_reg_safe.h
 r420_reg_safe.h
 r600_reg_safe.h
+randomize_layout_hash.h
+randomize_layout_seed.h
 recordmcount
 relocs
 rlim_names.h
@@ -216,6 +218,7 @@ series
 setup
 setup.bin
 setup.elf
+sortextable
 sImage
 sm_tbl*
 split-include

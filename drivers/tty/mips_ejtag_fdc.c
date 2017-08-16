@@ -689,7 +689,7 @@ static void mips_ejtag_fdc_tty_timer(unsigned long opaque)
 
 	mips_ejtag_fdc_handle(priv);
 	if (!priv->removing)
-		mod_timer_pinned(&priv->poll_timer, jiffies + FDC_TTY_POLL);
+		mod_timer(&priv->poll_timer, jiffies + FDC_TTY_POLL);
 }
 
 /* TTY Port operations */
@@ -977,7 +977,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 	/* Try requesting the IRQ */
 	if (priv->irq >= 0) {
 		/*
-		 * IRQF_SHARED, IRQF_NO_SUSPEND: The FDC IRQ may be shared with
+		 * IRQF_SHARED, IRQF_COND_SUSPEND: The FDC IRQ may be shared with
 		 * other local interrupts such as the timer which sets
 		 * IRQF_TIMER (including IRQF_NO_SUSPEND).
 		 *
@@ -987,7 +987,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		 */
 		ret = devm_request_irq(priv->dev, priv->irq, mips_ejtag_fdc_isr,
 				       IRQF_PERCPU | IRQF_SHARED |
-				       IRQF_NO_THREAD | IRQF_NO_SUSPEND,
+				       IRQF_NO_THREAD | IRQF_COND_SUSPEND,
 				       priv->fdc_name, priv);
 		if (ret)
 			priv->irq = -1;
@@ -1002,7 +1002,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 		raw_spin_unlock_irq(&priv->lock);
 	} else {
 		/* If we didn't get an usable IRQ, poll instead */
-		setup_timer(&priv->poll_timer, mips_ejtag_fdc_tty_timer,
+		setup_pinned_timer(&priv->poll_timer, mips_ejtag_fdc_tty_timer,
 			    (unsigned long)priv);
 		priv->poll_timer.expires = jiffies + FDC_TTY_POLL;
 		/*
@@ -1046,38 +1046,6 @@ err_destroy_ports:
 	}
 	put_tty_driver(priv->driver);
 	return ret;
-}
-
-static int mips_ejtag_fdc_tty_remove(struct mips_cdmm_device *dev)
-{
-	struct mips_ejtag_fdc_tty *priv = mips_cdmm_get_drvdata(dev);
-	struct mips_ejtag_fdc_tty_port *dport;
-	int nport;
-	unsigned int cfg;
-
-	if (priv->irq >= 0) {
-		raw_spin_lock_irq(&priv->lock);
-		cfg = mips_ejtag_fdc_read(priv, REG_FDCFG);
-		/* Disable interrupts */
-		cfg &= ~(REG_FDCFG_TXINTTHRES | REG_FDCFG_RXINTTHRES);
-		cfg |= REG_FDCFG_TXINTTHRES_DISABLED;
-		cfg |= REG_FDCFG_RXINTTHRES_DISABLED;
-		mips_ejtag_fdc_write(priv, REG_FDCFG, cfg);
-		raw_spin_unlock_irq(&priv->lock);
-	} else {
-		priv->removing = true;
-		del_timer_sync(&priv->poll_timer);
-	}
-	kthread_stop(priv->thread);
-	if (dev->cpu == 0)
-		mips_ejtag_fdc_con.tty_drv = NULL;
-	tty_unregister_driver(priv->driver);
-	for (nport = 0; nport < NUM_TTY_CHANNELS; nport++) {
-		dport = &priv->ports[nport];
-		tty_port_destroy(&dport->port);
-	}
-	put_tty_driver(priv->driver);
-	return 0;
 }
 
 static int mips_ejtag_fdc_tty_cpu_down(struct mips_cdmm_device *dev)
@@ -1152,12 +1120,11 @@ static struct mips_cdmm_driver mips_ejtag_fdc_tty_driver = {
 		.name	= "mips_ejtag_fdc",
 	},
 	.probe		= mips_ejtag_fdc_tty_probe,
-	.remove		= mips_ejtag_fdc_tty_remove,
 	.cpu_down	= mips_ejtag_fdc_tty_cpu_down,
 	.cpu_up		= mips_ejtag_fdc_tty_cpu_up,
 	.id_table	= mips_ejtag_fdc_tty_ids,
 };
-module_mips_cdmm_driver(mips_ejtag_fdc_tty_driver);
+builtin_mips_cdmm_driver(mips_ejtag_fdc_tty_driver);
 
 static int __init mips_ejtag_fdc_init_console(void)
 {

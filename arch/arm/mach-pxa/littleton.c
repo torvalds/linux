@@ -27,7 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/leds.h>
 #include <linux/mfd/da903x.h>
-#include <linux/i2c/max732x.h>
+#include <linux/platform_data/max732x.h>
 #include <linux/i2c/pxa-i2c.h>
 
 #include <asm/types.h>
@@ -41,11 +41,11 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/pxa300.h>
+#include "pxa300.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/keypad-pxa27x.h>
-#include <mach/littleton.h>
+#include "littleton.h"
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
 #include "generic.h"

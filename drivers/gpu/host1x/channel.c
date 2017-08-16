@@ -24,17 +24,31 @@
 #include "job.h"
 
 /* Constructor for the host1x device list */
-int host1x_channel_list_init(struct host1x *host)
+int host1x_channel_list_init(struct host1x_channel_list *chlist,
+			     unsigned int num_channels)
 {
-	INIT_LIST_HEAD(&host->chlist.list);
-	mutex_init(&host->chlist_mutex);
+	chlist->channels = kcalloc(num_channels, sizeof(struct host1x_channel),
+				   GFP_KERNEL);
+	if (!chlist->channels)
+		return -ENOMEM;
 
-	if (host->info->nb_channels > BITS_PER_LONG) {
-		WARN(1, "host1x hardware has more channels than supported by the driver\n");
-		return -ENOSYS;
+	chlist->allocated_channels =
+		kcalloc(BITS_TO_LONGS(num_channels), sizeof(unsigned long),
+			GFP_KERNEL);
+	if (!chlist->allocated_channels) {
+		kfree(chlist->channels);
+		return -ENOMEM;
 	}
 
+	bitmap_zero(chlist->allocated_channels, num_channels);
+
 	return 0;
+}
+
+void host1x_channel_list_free(struct host1x_channel_list *chlist)
+{
+	kfree(chlist->allocated_channels);
+	kfree(chlist->channels);
 }
 
 int host1x_job_submit(struct host1x_job *job)
@@ -47,85 +61,107 @@ EXPORT_SYMBOL(host1x_job_submit);
 
 struct host1x_channel *host1x_channel_get(struct host1x_channel *channel)
 {
-	int err = 0;
+	kref_get(&channel->refcount);
 
-	mutex_lock(&channel->reflock);
-
-	if (channel->refcount == 0)
-		err = host1x_cdma_init(&channel->cdma);
-
-	if (!err)
-		channel->refcount++;
-
-	mutex_unlock(&channel->reflock);
-
-	return err ? NULL : channel;
+	return channel;
 }
 EXPORT_SYMBOL(host1x_channel_get);
 
+/**
+ * host1x_channel_get_index() - Attempt to get channel reference by index
+ * @host: Host1x device object
+ * @index: Index of channel
+ *
+ * If channel number @index is currently allocated, increase its refcount
+ * and return a pointer to it. Otherwise, return NULL.
+ */
+struct host1x_channel *host1x_channel_get_index(struct host1x *host,
+						unsigned int index)
+{
+	struct host1x_channel *ch = &host->channel_list.channels[index];
+
+	if (!kref_get_unless_zero(&ch->refcount))
+		return NULL;
+
+	return ch;
+}
+
+static void release_channel(struct kref *kref)
+{
+	struct host1x_channel *channel =
+		container_of(kref, struct host1x_channel, refcount);
+	struct host1x *host = dev_get_drvdata(channel->dev->parent);
+	struct host1x_channel_list *chlist = &host->channel_list;
+
+	host1x_hw_cdma_stop(host, &channel->cdma);
+	host1x_cdma_deinit(&channel->cdma);
+
+	clear_bit(channel->id, chlist->allocated_channels);
+}
+
 void host1x_channel_put(struct host1x_channel *channel)
 {
-	mutex_lock(&channel->reflock);
-
-	if (channel->refcount == 1) {
-		struct host1x *host = dev_get_drvdata(channel->dev->parent);
-
-		host1x_hw_cdma_stop(host, &channel->cdma);
-		host1x_cdma_deinit(&channel->cdma);
-	}
-
-	channel->refcount--;
-
-	mutex_unlock(&channel->reflock);
+	kref_put(&channel->refcount, release_channel);
 }
 EXPORT_SYMBOL(host1x_channel_put);
 
+static struct host1x_channel *acquire_unused_channel(struct host1x *host)
+{
+	struct host1x_channel_list *chlist = &host->channel_list;
+	unsigned int max_channels = host->info->nb_channels;
+	unsigned int index;
+
+	index = find_first_zero_bit(chlist->allocated_channels, max_channels);
+	if (index >= max_channels) {
+		dev_err(host->dev, "failed to find free channel\n");
+		return NULL;
+	}
+
+	chlist->channels[index].id = index;
+
+	set_bit(index, chlist->allocated_channels);
+
+	return &chlist->channels[index];
+}
+
+/**
+ * host1x_channel_request() - Allocate a channel
+ * @device: Host1x unit this channel will be used to send commands to
+ *
+ * Allocates a new host1x channel for @device. If there are no free channels,
+ * this will sleep until one becomes available. May return NULL if CDMA
+ * initialization fails.
+ */
 struct host1x_channel *host1x_channel_request(struct device *dev)
 {
 	struct host1x *host = dev_get_drvdata(dev->parent);
-	int max_channels = host->info->nb_channels;
-	struct host1x_channel *channel = NULL;
-	int index, err;
+	struct host1x_channel_list *chlist = &host->channel_list;
+	struct host1x_channel *channel;
+	int err;
 
-	mutex_lock(&host->chlist_mutex);
-
-	index = find_first_zero_bit(&host->allocated_channels, max_channels);
-	if (index >= max_channels)
-		goto fail;
-
-	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
+	channel = acquire_unused_channel(host);
 	if (!channel)
-		goto fail;
+		return NULL;
 
-	err = host1x_hw_channel_init(host, channel, index);
+	kref_init(&channel->refcount);
+	mutex_init(&channel->submitlock);
+	channel->dev = dev;
+
+	err = host1x_hw_channel_init(host, channel, channel->id);
 	if (err < 0)
 		goto fail;
 
-	/* Link device to host1x_channel */
-	channel->dev = dev;
+	err = host1x_cdma_init(&channel->cdma);
+	if (err < 0)
+		goto fail;
 
-	/* Add to channel list */
-	list_add_tail(&channel->list, &host->chlist.list);
-
-	host->allocated_channels |= BIT(index);
-
-	mutex_unlock(&host->chlist_mutex);
 	return channel;
 
 fail:
-	dev_err(dev, "failed to init channel\n");
-	kfree(channel);
-	mutex_unlock(&host->chlist_mutex);
+	clear_bit(channel->id, chlist->allocated_channels);
+
+	dev_err(dev, "failed to initialize channel\n");
+
 	return NULL;
 }
 EXPORT_SYMBOL(host1x_channel_request);
-
-void host1x_channel_free(struct host1x_channel *channel)
-{
-	struct host1x *host = dev_get_drvdata(channel->dev->parent);
-
-	host->allocated_channels &= ~BIT(channel->id);
-	list_del(&channel->list);
-	kfree(channel);
-}
-EXPORT_SYMBOL(host1x_channel_free);

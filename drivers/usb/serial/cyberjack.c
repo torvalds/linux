@@ -77,6 +77,7 @@ static struct usb_serial_driver cyberjack_device = {
 	.description =		"Reiner SCT Cyberjack USB card reader",
 	.id_table =		id_table,
 	.num_ports =		1,
+	.num_bulk_out =		1,
 	.port_probe =		cyberjack_port_probe,
 	.port_remove =		cyberjack_port_remove,
 	.open =			cyberjack_open,
@@ -140,7 +141,6 @@ static int  cyberjack_open(struct tty_struct *tty,
 {
 	struct cyberjack_private *priv;
 	unsigned long flags;
-	int result = 0;
 
 	dev_dbg(&port->dev, "%s - usb_clear_halt\n", __func__);
 	usb_clear_halt(port->serial->dev, port->write_urb->pipe);
@@ -152,7 +152,7 @@ static int  cyberjack_open(struct tty_struct *tty,
 	priv->wrsent = 0;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return result;
+	return 0;
 }
 
 static void cyberjack_close(struct usb_serial_port *port)

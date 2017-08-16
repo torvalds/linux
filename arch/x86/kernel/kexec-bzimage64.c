@@ -19,13 +19,13 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/efi.h>
-#include <linux/verify_pefile.h>
-#include <keys/system_keyring.h>
+#include <linux/verification.h>
 
 #include <asm/bootparam.h>
 #include <asm/setup.h>
 #include <asm/crash.h>
 #include <asm/efi.h>
+#include <asm/e820/api.h>
 #include <asm/kexec-bzimage64.h>
 
 #define MAX_ELFCOREHDR_STR_LEN	30	/* elfcorehdr=0x<64bit-value> */
@@ -100,15 +100,14 @@ static int setup_e820_entries(struct boot_params *params)
 {
 	unsigned int nr_e820_entries;
 
-	nr_e820_entries = e820_saved.nr_map;
+	nr_e820_entries = e820_table_kexec->nr_entries;
 
-	/* TODO: Pass entries more than E820MAX in bootparams setup data */
-	if (nr_e820_entries > E820MAX)
-		nr_e820_entries = E820MAX;
+	/* TODO: Pass entries more than E820_MAX_ENTRIES_ZEROPAGE in bootparams setup data */
+	if (nr_e820_entries > E820_MAX_ENTRIES_ZEROPAGE)
+		nr_e820_entries = E820_MAX_ENTRIES_ZEROPAGE;
 
 	params->e820_entries = nr_e820_entries;
-	memcpy(&params->e820_map, &e820_saved.map,
-	       nr_e820_entries * sizeof(struct e820entry));
+	memcpy(&params->e820_table, &e820_table_kexec->entries, nr_e820_entries*sizeof(struct e820_entry));
 
 	return 0;
 }
@@ -233,10 +232,10 @@ setup_boot_parameters(struct kimage *image, struct boot_params *params,
 	nr_e820_entries = params->e820_entries;
 
 	for (i = 0; i < nr_e820_entries; i++) {
-		if (params->e820_map[i].type != E820_RAM)
+		if (params->e820_table[i].type != E820_TYPE_RAM)
 			continue;
-		start = params->e820_map[i].addr;
-		end = params->e820_map[i].addr + params->e820_map[i].size - 1;
+		start = params->e820_table[i].addr;
+		end = params->e820_table[i].addr + params->e820_table[i].size - 1;
 
 		if ((start <= 0x100000) && end > 0x100000) {
 			mem_k = (end >> 10) - (0x100000 >> 10);
@@ -271,7 +270,7 @@ static int bzImage64_probe(const char *buf, unsigned long len)
 	int ret = -ENOEXEC;
 	struct setup_header *header;
 
-	/* kernel should be atleast two sectors long */
+	/* kernel should be at least two sectors long */
 	if (len < 2 * 512) {
 		pr_err("File is too short to be a bzImage\n");
 		return ret;
@@ -332,17 +331,17 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 
 	struct setup_header *header;
 	int setup_sects, kern16_size, ret = 0;
-	unsigned long setup_header_size, params_cmdline_sz, params_misc_sz;
+	unsigned long setup_header_size, params_cmdline_sz;
 	struct boot_params *params;
 	unsigned long bootparam_load_addr, kernel_load_addr, initrd_load_addr;
 	unsigned long purgatory_load_addr;
-	unsigned long kernel_bufsz, kernel_memsz, kernel_align;
-	char *kernel_buf;
 	struct bzimage64_data *ldata;
 	struct kexec_entry64_regs regs64;
 	void *stack;
 	unsigned int setup_hdr_offset = offsetof(struct boot_params, hdr);
 	unsigned int efi_map_offset, efi_map_sz, efi_setup_data_offset;
+	struct kexec_buf kbuf = { .image = image, .buf_max = ULONG_MAX,
+				  .top_down = true };
 
 	header = (struct setup_header *)(kernel + setup_hdr_offset);
 	setup_sects = header->setup_sects;
@@ -403,11 +402,11 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	params_cmdline_sz = sizeof(struct boot_params) + cmdline_len +
 				MAX_ELFCOREHDR_STR_LEN;
 	params_cmdline_sz = ALIGN(params_cmdline_sz, 16);
-	params_misc_sz = params_cmdline_sz + efi_map_sz +
+	kbuf.bufsz = params_cmdline_sz + efi_map_sz +
 				sizeof(struct setup_data) +
 				sizeof(struct efi_setup_data);
 
-	params = kzalloc(params_misc_sz, GFP_KERNEL);
+	params = kzalloc(kbuf.bufsz, GFP_KERNEL);
 	if (!params)
 		return ERR_PTR(-ENOMEM);
 	efi_map_offset = params_cmdline_sz;
@@ -419,37 +418,41 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	/* Is there a limit on setup header size? */
 	memcpy(&params->hdr, (kernel + setup_hdr_offset), setup_header_size);
 
-	ret = kexec_add_buffer(image, (char *)params, params_misc_sz,
-			       params_misc_sz, 16, MIN_BOOTPARAM_ADDR,
-			       ULONG_MAX, 1, &bootparam_load_addr);
+	kbuf.buffer = params;
+	kbuf.memsz = kbuf.bufsz;
+	kbuf.buf_align = 16;
+	kbuf.buf_min = MIN_BOOTPARAM_ADDR;
+	ret = kexec_add_buffer(&kbuf);
 	if (ret)
 		goto out_free_params;
+	bootparam_load_addr = kbuf.mem;
 	pr_debug("Loaded boot_param, command line and misc at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
-		 bootparam_load_addr, params_misc_sz, params_misc_sz);
+		 bootparam_load_addr, kbuf.bufsz, kbuf.bufsz);
 
 	/* Load kernel */
-	kernel_buf = kernel + kern16_size;
-	kernel_bufsz =  kernel_len - kern16_size;
-	kernel_memsz = PAGE_ALIGN(header->init_size);
-	kernel_align = header->kernel_alignment;
-
-	ret = kexec_add_buffer(image, kernel_buf,
-			       kernel_bufsz, kernel_memsz, kernel_align,
-			       MIN_KERNEL_LOAD_ADDR, ULONG_MAX, 1,
-			       &kernel_load_addr);
+	kbuf.buffer = kernel + kern16_size;
+	kbuf.bufsz =  kernel_len - kern16_size;
+	kbuf.memsz = PAGE_ALIGN(header->init_size);
+	kbuf.buf_align = header->kernel_alignment;
+	kbuf.buf_min = MIN_KERNEL_LOAD_ADDR;
+	ret = kexec_add_buffer(&kbuf);
 	if (ret)
 		goto out_free_params;
+	kernel_load_addr = kbuf.mem;
 
 	pr_debug("Loaded 64bit kernel at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
-		 kernel_load_addr, kernel_memsz, kernel_memsz);
+		 kernel_load_addr, kbuf.bufsz, kbuf.memsz);
 
 	/* Load initrd high */
 	if (initrd) {
-		ret = kexec_add_buffer(image, initrd, initrd_len, initrd_len,
-				       PAGE_SIZE, MIN_INITRD_LOAD_ADDR,
-				       ULONG_MAX, 1, &initrd_load_addr);
+		kbuf.buffer = initrd;
+		kbuf.bufsz = kbuf.memsz = initrd_len;
+		kbuf.buf_align = PAGE_SIZE;
+		kbuf.buf_min = MIN_INITRD_LOAD_ADDR;
+		ret = kexec_add_buffer(&kbuf);
 		if (ret)
 			goto out_free_params;
+		initrd_load_addr = kbuf.mem;
 
 		pr_debug("Loaded initrd at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
 				initrd_load_addr, initrd_len, initrd_len);
@@ -529,18 +532,9 @@ static int bzImage64_cleanup(void *loader_data)
 #ifdef CONFIG_KEXEC_BZIMAGE_VERIFY_SIG
 static int bzImage64_verify_sig(const char *kernel, unsigned long kernel_len)
 {
-	bool trusted;
-	int ret;
-
-	ret = verify_pefile_signature(kernel, kernel_len,
-				      system_trusted_keyring,
-				      VERIFYING_KEXEC_PE_SIGNATURE,
-				      &trusted);
-	if (ret < 0)
-		return ret;
-	if (!trusted)
-		return -EKEYREJECTED;
-	return 0;
+	return verify_pefile_signature(kernel, kernel_len,
+				       NULL,
+				       VERIFYING_KEXEC_PE_SIGNATURE);
 }
 #endif
 

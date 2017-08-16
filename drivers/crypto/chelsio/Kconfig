@@ -1,0 +1,20 @@
+config CRYPTO_DEV_CHELSIO
+	tristate "Chelsio Crypto Co-processor Driver"
+	depends on CHELSIO_T4
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_AUTHENC
+	---help---
+	  The Chelsio Crypto Co-processor driver for T6 adapters.
+
+	  For general information about Chelsio and our products, visit
+	  our website at <http://www.chelsio.com>.
+
+	  For customer support, please visit our customer support page at
+	  <http://www.chelsio.com/support.html>.
+
+	  Please send feedback to <linux-bugs@chelsio.com>.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called chcr.

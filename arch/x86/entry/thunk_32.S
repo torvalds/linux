@@ -6,6 +6,7 @@
  */
 	#include <linux/linkage.h>
 	#include <asm/asm.h>
+	#include <asm/export.h>
 
 	/* put return address in eax (arg1) */
 	.macro THUNK name, func, put_ret_addr_in_eax=0
@@ -36,5 +37,7 @@
 #ifdef CONFIG_PREEMPT
 	THUNK ___preempt_schedule, preempt_schedule
 	THUNK ___preempt_schedule_notrace, preempt_schedule_notrace
+	EXPORT_SYMBOL(___preempt_schedule)
+	EXPORT_SYMBOL(___preempt_schedule_notrace)
 #endif
 

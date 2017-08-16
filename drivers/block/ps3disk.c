@@ -158,7 +158,7 @@ static int ps3disk_submit_request_sg(struct ps3_storage_device *dev,
 	if (res) {
 		dev_err(&dev->sbd.core, "%s:%u: %s failed %d\n", __func__,
 			__LINE__, op, res);
-		__blk_end_request_all(req, -EIO);
+		__blk_end_request_all(req, BLK_STS_IOERR);
 		return 0;
 	}
 
@@ -180,7 +180,7 @@ static int ps3disk_submit_flush_request(struct ps3_storage_device *dev,
 	if (res) {
 		dev_err(&dev->sbd.core, "%s:%u: sync cache failed 0x%llx\n",
 			__func__, __LINE__, res);
-		__blk_end_request_all(req, -EIO);
+		__blk_end_request_all(req, BLK_STS_IOERR);
 		return 0;
 	}
 
@@ -196,16 +196,19 @@ static void ps3disk_do_request(struct ps3_storage_device *dev,
 	dev_dbg(&dev->sbd.core, "%s:%u\n", __func__, __LINE__);
 
 	while ((req = blk_fetch_request(q))) {
-		if (req->cmd_flags & REQ_FLUSH) {
+		switch (req_op(req)) {
+		case REQ_OP_FLUSH:
 			if (ps3disk_submit_flush_request(dev, req))
-				break;
-		} else if (req->cmd_type == REQ_TYPE_FS) {
+				return;
+			break;
+		case REQ_OP_READ:
+		case REQ_OP_WRITE:
 			if (ps3disk_submit_request_sg(dev, req))
-				break;
-		} else {
+				return;
+			break;
+		default:
 			blk_dump_rq_flags(req, DEVICE_NAME " bad request");
-			__blk_end_request_all(req, -EIO);
-			continue;
+			__blk_end_request_all(req, BLK_STS_IOERR);
 		}
 	}
 }
@@ -228,7 +231,8 @@ static irqreturn_t ps3disk_interrupt(int irq, void *data)
 	struct ps3_storage_device *dev = data;
 	struct ps3disk_private *priv;
 	struct request *req;
-	int res, read, error;
+	int res, read;
+	blk_status_t error;
 	u64 tag, status;
 	const char *op;
 
@@ -256,7 +260,7 @@ static irqreturn_t ps3disk_interrupt(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-	if (req->cmd_flags & REQ_FLUSH) {
+	if (req_op(req) == REQ_OP_FLUSH) {
 		read = 0;
 		op = "flush";
 	} else {
@@ -266,7 +270,7 @@ static irqreturn_t ps3disk_interrupt(int irq, void *data)
 	if (status) {
 		dev_dbg(&dev->sbd.core, "%s:%u: %s failed 0x%llx\n", __func__,
 			__LINE__, op, status);
-		error = -EIO;
+		error = BLK_STS_IOERR;
 	} else {
 		dev_dbg(&dev->sbd.core, "%s:%u: %s completed\n", __func__,
 			__LINE__, op);
@@ -468,7 +472,7 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 	blk_queue_dma_alignment(queue, dev->blk_size-1);
 	blk_queue_logical_block_size(queue, dev->blk_size);
 
-	blk_queue_flush(queue, REQ_FLUSH);
+	blk_queue_write_cache(queue, true, false);
 
 	blk_queue_max_segments(queue, -1);
 	blk_queue_max_segment_size(queue, dev->bounce_size);
@@ -487,7 +491,6 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 	gendisk->fops = &ps3disk_fops;
 	gendisk->queue = queue;
 	gendisk->private_data = dev;
-	gendisk->driverfs_dev = &dev->sbd.core;
 	snprintf(gendisk->disk_name, sizeof(gendisk->disk_name), PS3DISK_NAME,
 		 devidx+'a');
 	priv->blocking_factor = dev->blk_size >> 9;
@@ -499,7 +502,7 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 		 gendisk->disk_name, priv->model, priv->raw_capacity >> 11,
 		 get_capacity(gendisk) >> 11);
 
-	add_disk(gendisk);
+	device_add_disk(&dev->sbd.core, gendisk);
 	return 0;
 
 fail_cleanup_queue:

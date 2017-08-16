@@ -25,7 +25,7 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/lppaca.h>
 #include <asm/hvcall.h>
 #include <asm/firmware.h>
@@ -37,6 +37,7 @@
 #include <asm/mmu.h>
 #include <asm/machdep.h>
 
+#include "pseries.h"
 
 /*
  * This isn't a module but we expose that to userspace
@@ -484,8 +485,9 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	seq_printf(m, "shared_processor_mode=%d\n",
 		   lppaca_shared_proc(get_lppaca()));
 
+#ifdef CONFIG_PPC_STD_MMU_64
 	seq_printf(m, "slb_size=%d\n", mmu_slb_size);
-
+#endif
 	parse_em_data(m);
 
 	return 0;

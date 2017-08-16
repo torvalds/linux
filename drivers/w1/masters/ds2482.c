@@ -20,8 +20,22 @@
 #include <linux/delay.h>
 #include <asm/delay.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
+#include <linux/w1.h>
+
+/**
+ * Allow the active pullup to be disabled, default is enabled.
+ *
+ * Note from the DS2482 datasheet:
+ * The APU bit controls whether an active pullup (controlled slew-rate
+ * transistor) or a passive pullup (Rwpu resistor) will be used to drive
+ * a 1-Wire line from low to high. When APU = 0, active pullup is disabled
+ * (resistor mode). Active Pullup should always be selected unless there is
+ * only a single slave on the 1-Wire line.
+ */
+static int ds2482_active_pullup = 1;
+module_param_named(active_pullup, ds2482_active_pullup, int, 0644);
+MODULE_PARM_DESC(active_pullup, "Active pullup (apply to all buses): " \
+				"0-disable, 1-enable (default)");
 
 /**
  * The DS2482 registers - there are 3 registers that are addressed by a read
@@ -80,30 +94,6 @@ static const u8 ds2482_chan_rd[8] =
 #define DS2482_REG_STS_PPD		0x02
 #define DS2482_REG_STS_1WB		0x01
 
-
-static int ds2482_probe(struct i2c_client *client,
-			const struct i2c_device_id *id);
-static int ds2482_remove(struct i2c_client *client);
-
-
-/**
- * Driver data (common to all clients)
- */
-static const struct i2c_device_id ds2482_id[] = {
-	{ "ds2482", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, ds2482_id);
-
-static struct i2c_driver ds2482_driver = {
-	.driver = {
-		.name	= "ds2482",
-	},
-	.probe		= ds2482_probe,
-	.remove		= ds2482_remove,
-	.id_table	= ds2482_id,
-};
-
 /*
  * Client data (each client gets its own)
  */
@@ -138,6 +128,9 @@ struct ds2482_data {
  */
 static inline u8 ds2482_calculate_config(u8 conf)
 {
+	if (ds2482_active_pullup)
+		conf |= DS2482_REG_CFG_APU;
+
 	return conf | ((~conf & 0x0f) << 4);
 }
 
@@ -544,6 +537,23 @@ static int ds2482_remove(struct i2c_client *client)
 	return 0;
 }
 
+/**
+ * Driver data (common to all clients)
+ */
+static const struct i2c_device_id ds2482_id[] = {
+	{ "ds2482", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ds2482_id);
+
+static struct i2c_driver ds2482_driver = {
+	.driver = {
+		.name	= "ds2482",
+	},
+	.probe		= ds2482_probe,
+	.remove		= ds2482_remove,
+	.id_table	= ds2482_id,
+};
 module_i2c_driver(ds2482_driver);
 
 MODULE_AUTHOR("Ben Gardner <bgardner@wabtec.com>");

@@ -125,7 +125,7 @@ static phys_addr_t octeon_small_dma_to_phys(struct device *dev,
 
 static dma_addr_t octeon_dma_map_page(struct device *dev, struct page *page,
 	unsigned long offset, size_t size, enum dma_data_direction direction,
-	struct dma_attrs *attrs)
+	unsigned long attrs)
 {
 	dma_addr_t daddr = swiotlb_map_page(dev, page, offset, size,
 					    direction, attrs);
@@ -135,7 +135,7 @@ static dma_addr_t octeon_dma_map_page(struct device *dev, struct page *page,
 }
 
 static int octeon_dma_map_sg(struct device *dev, struct scatterlist *sg,
-	int nents, enum dma_data_direction direction, struct dma_attrs *attrs)
+	int nents, enum dma_data_direction direction, unsigned long attrs)
 {
 	int r = swiotlb_map_sg_attrs(dev, sg, nents, direction, attrs);
 	mb();
@@ -157,26 +157,21 @@ static void octeon_dma_sync_sg_for_device(struct device *dev,
 }
 
 static void *octeon_dma_alloc_coherent(struct device *dev, size_t size,
-	dma_addr_t *dma_handle, gfp_t gfp, struct dma_attrs *attrs)
+	dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
 {
 	void *ret;
 
 	/* ignore region specifiers */
 	gfp &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
 
-#ifdef CONFIG_ZONE_DMA
-	if (dev == NULL)
+	if (IS_ENABLED(CONFIG_ZONE_DMA) && dev == NULL)
 		gfp |= __GFP_DMA;
-	else if (dev->coherent_dma_mask <= DMA_BIT_MASK(24))
+	else if (IS_ENABLED(CONFIG_ZONE_DMA) &&
+		 dev->coherent_dma_mask <= DMA_BIT_MASK(24))
 		gfp |= __GFP_DMA;
-	else
-#endif
-#ifdef CONFIG_ZONE_DMA32
-	     if (dev->coherent_dma_mask <= DMA_BIT_MASK(32))
+	else if (IS_ENABLED(CONFIG_ZONE_DMA32) &&
+		 dev->coherent_dma_mask <= DMA_BIT_MASK(32))
 		gfp |= __GFP_DMA32;
-	else
-#endif
-		;
 
 	/* Don't invoke OOM killer */
 	gfp |= __GFP_NORETRY;
@@ -189,7 +184,7 @@ static void *octeon_dma_alloc_coherent(struct device *dev, size_t size,
 }
 
 static void octeon_dma_free_coherent(struct device *dev, size_t size,
-	void *vaddr, dma_addr_t dma_handle, struct dma_attrs *attrs)
+	void *vaddr, dma_addr_t dma_handle, unsigned long attrs)
 {
 	swiotlb_free_coherent(dev, size, vaddr, dma_handle);
 }
@@ -205,7 +200,7 @@ static phys_addr_t octeon_unity_dma_to_phys(struct device *dev, dma_addr_t daddr
 }
 
 struct octeon_dma_map_ops {
-	struct dma_map_ops dma_map_ops;
+	const struct dma_map_ops dma_map_ops;
 	dma_addr_t (*phys_to_dma)(struct device *dev, phys_addr_t paddr);
 	phys_addr_t (*dma_to_phys)(struct device *dev, dma_addr_t daddr);
 };
@@ -333,7 +328,7 @@ static struct octeon_dma_map_ops _octeon_pci_dma_map_ops = {
 	},
 };
 
-struct dma_map_ops *octeon_pci_dma_map_ops;
+const struct dma_map_ops *octeon_pci_dma_map_ops;
 
 void __init octeon_pci_dma_init(void)
 {

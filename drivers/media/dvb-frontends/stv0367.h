@@ -17,18 +17,16 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef STV0367_H
 #define STV0367_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
+
+#define STV0367_ICSPEED_53125	53125000
+#define STV0367_ICSPEED_58000	58000000
 
 struct stv0367_config {
 	u8 demod_address;
@@ -46,6 +44,9 @@ dvb_frontend *stv0367ter_attach(const struct stv0367_config *config,
 extern struct
 dvb_frontend *stv0367cab_attach(const struct stv0367_config *config,
 					struct i2c_adapter *i2c);
+extern struct
+dvb_frontend *stv0367ddb_attach(const struct stv0367_config *config,
+					struct i2c_adapter *i2c);
 #else
 static inline struct
 dvb_frontend *stv0367ter_attach(const struct stv0367_config *config,
@@ -56,6 +57,13 @@ dvb_frontend *stv0367ter_attach(const struct stv0367_config *config,
 }
 static inline struct
 dvb_frontend *stv0367cab_attach(const struct stv0367_config *config,
+					struct i2c_adapter *i2c)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return NULL;
+}
+static inline struct
+dvb_frontend *stv0367ddb_attach(const struct stv0367_config *config,
 					struct i2c_adapter *i2c)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);

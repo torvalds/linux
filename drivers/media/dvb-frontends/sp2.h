@@ -17,7 +17,6 @@
 #ifndef SP2_H
 #define SP2_H
 
-#include <linux/kconfig.h>
 #include "dvb_ca_en50221.h"
 
 /*

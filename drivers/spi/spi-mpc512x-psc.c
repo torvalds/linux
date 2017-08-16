@@ -302,11 +302,9 @@ static int mpc512x_psc_spi_msg_xfer(struct spi_master *master,
 	cs_change = 1;
 	status = 0;
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (t->bits_per_word || t->speed_hz) {
-			status = mpc512x_psc_spi_transfer_setup(spi, t);
-			if (status < 0)
-				break;
-		}
+		status = mpc512x_psc_spi_transfer_setup(spi, t);
+		if (status < 0)
+			break;
 
 		if (cs_change)
 			mpc512x_psc_spi_activate_cs(spi);

@@ -399,15 +399,10 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 			csum_dest = skb->csum_offset + csum_start;
 		}
 
-		if (skb_headroom(skb) < dev->needed_headroom) {
-			struct sk_buff *tmp_skb = skb;
-
-			skb = skb_realloc_headroom(skb, dev->needed_headroom);
-			kfree_skb(tmp_skb);
-			if (skb == NULL) {
-				vif->net_stats.tx_dropped++;
-				return 0;
-			}
+		if (skb_cow_head(skb, dev->needed_headroom)) {
+			dev->stats.tx_dropped++;
+			kfree_skb(skb);
+			return 0;
 		}
 
 		if (ath6kl_wmi_dix_2_dot3(ar->wmi, skb)) {
@@ -520,8 +515,8 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 fail_tx:
 	dev_kfree_skb(skb);
 
-	vif->net_stats.tx_dropped++;
-	vif->net_stats.tx_aborted_errors++;
+	dev->stats.tx_dropped++;
+	dev->stats.tx_aborted_errors++;
 
 	return 0;
 }
@@ -767,7 +762,7 @@ void ath6kl_tx_complete(struct htc_target *target,
 				/* a packet was flushed  */
 				flushing[if_idx] = true;
 
-			vif->net_stats.tx_errors++;
+			vif->ndev->stats.tx_errors++;
 
 			if (status != -ENOSPC && status != -ECANCELED)
 				ath6kl_warn("tx complete error: %d\n", status);
@@ -783,8 +778,8 @@ void ath6kl_tx_complete(struct htc_target *target,
 				   eid, "OK");
 
 			flushing[if_idx] = false;
-			vif->net_stats.tx_packets++;
-			vif->net_stats.tx_bytes += skb->len;
+			vif->ndev->stats.tx_packets++;
+			vif->ndev->stats.tx_bytes += skb->len;
 		}
 
 		ath6kl_tx_clear_node_map(vif, eid, map_no);
@@ -1365,8 +1360,8 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	 */
 	spin_lock_bh(&vif->if_lock);
 
-	vif->net_stats.rx_packets++;
-	vif->net_stats.rx_bytes += packet->act_len;
+	vif->ndev->stats.rx_packets++;
+	vif->ndev->stats.rx_bytes += packet->act_len;
 
 	spin_unlock_bh(&vif->if_lock);
 
@@ -1395,11 +1390,15 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	    ((packet->act_len < min_hdr_len) ||
 	     (packet->act_len > WMI_MAX_AMSDU_RX_DATA_FRAME_LENGTH))) {
 		ath6kl_info("frame len is too short or too long\n");
-		vif->net_stats.rx_errors++;
-		vif->net_stats.rx_length_errors++;
+		vif->ndev->stats.rx_errors++;
+		vif->ndev->stats.rx_length_errors++;
 		dev_kfree_skb(skb);
 		return;
 	}
+
+	pad_before_data_start =
+		(le16_to_cpu(dhdr->info3) >> WMI_DATA_HDR_PAD_BEFORE_DATA_SHIFT)
+			& WMI_DATA_HDR_PAD_BEFORE_DATA_MASK;
 
 	/* Get the Power save state of the STA */
 	if (vif->nw_type == AP_NETWORK) {
@@ -1408,7 +1407,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		ps_state = !!((dhdr->info >> WMI_DATA_HDR_PS_SHIFT) &
 			      WMI_DATA_HDR_PS_MASK);
 
-		offset = sizeof(struct wmi_data_hdr);
+		offset = sizeof(struct wmi_data_hdr) + pad_before_data_start;
 		trig_state = !!(le16_to_cpu(dhdr->info3) & WMI_DATA_HDR_TRIG);
 
 		switch (meta_type) {
@@ -1523,9 +1522,6 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	seq_no = wmi_data_hdr_get_seqno(dhdr);
 	meta_type = wmi_data_hdr_get_meta(dhdr);
 	dot11_hdr = wmi_data_hdr_get_dot11(dhdr);
-	pad_before_data_start =
-		(le16_to_cpu(dhdr->info3) >> WMI_DATA_HDR_PAD_BEFORE_DATA_SHIFT)
-			& WMI_DATA_HDR_PAD_BEFORE_DATA_MASK;
 
 	skb_pull(skb, sizeof(struct wmi_data_hdr));
 
@@ -1618,7 +1614,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			return;
 		}
 	} else if (!is_broadcast_ether_addr(datap->h_dest)) {
-		vif->net_stats.multicast++;
+		vif->ndev->stats.multicast++;
 	}
 
 	ath6kl_deliver_frames_to_nw_stack(vif->ndev, skb);

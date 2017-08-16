@@ -17,10 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/i2c.h>
@@ -577,12 +573,12 @@ static int pluto_read_serial(struct pluto *pluto)
 		for (j = 0; j < 32; j += 8) {
 			if ((val & 0xff) == 0xff)
 				goto out;
-			printk("%c", val & 0xff);
+			printk(KERN_CONT "%c", val & 0xff);
 			val >>= 8;
 		}
 	}
 out:
-	printk("\n");
+	printk(KERN_CONT "\n");
 	pci_iounmap(pdev, cis);
 
 	return 0;

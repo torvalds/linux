@@ -115,21 +115,6 @@
 
 /*****************************************************************************/
 
-/* A skeleton used for sending messages to the m5602 bridge */
-static const unsigned char bridge_urb_skeleton[] = {
-	0x13, 0x00, 0x81, 0x00
-};
-
-/* A skeleton used for sending messages to the sensor */
-static const unsigned char sensor_urb_skeleton[] = {
-	0x23, M5602_XB_GPIO_EN_H, 0x81, 0x06,
-	0x23, M5602_XB_MISC_CTRL, 0x81, 0x80,
-	0x13, M5602_XB_I2C_DEV_ADDR, 0x81, 0x00,
-	0x13, M5602_XB_I2C_REG_ADDR, 0x81, 0x00,
-	0x13, M5602_XB_I2C_DATA, 0x81, 0x00,
-	0x13, M5602_XB_I2C_CTRL, 0x81, 0x11
-};
-
 struct sd {
 	struct gspca_dev gspca_dev;
 

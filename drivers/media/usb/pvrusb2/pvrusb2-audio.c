@@ -13,17 +13,13 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include "pvrusb2-audio.h"
 #include "pvrusb2-hdw-internal.h"
 #include "pvrusb2-debug.h"
 #include <linux/videodev2.h>
-#include <media/msp3400.h>
+#include <media/drv-intf/msp3400.h>
 #include <media/v4l2-common.h>
 
 
@@ -74,9 +70,7 @@ void pvr2_msp3400_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 			input = sp->def[hdw->input_val];
 		} else {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "*** WARNING *** subdev msp3400 set_input:"
-				   " Invalid routing scheme (%u)"
-				   " and/or input (%d)",
+				   "*** WARNING *** subdev msp3400 set_input: Invalid routing scheme (%u) and/or input (%d)",
 				   sid, hdw->input_val);
 			return;
 		}

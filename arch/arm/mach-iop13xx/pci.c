@@ -27,7 +27,7 @@
 #include <asm/sizes.h>
 #include <asm/signal.h>
 #include <asm/mach/pci.h>
-#include <mach/pci.h>
+#include "pci.h"
 
 #define IOP13XX_PCI_DEBUG 0
 #define PRINTK(x...) ((void)(IOP13XX_PCI_DEBUG && printk(x)))
@@ -504,10 +504,10 @@ iop13xx_pci_abort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 /* Scan an IOP13XX PCI bus.  nr selects which ATU we use.
  */
-struct pci_bus *iop13xx_scan_bus(int nr, struct pci_sys_data *sys)
+int iop13xx_scan_bus(int nr, struct pci_host_bridge *bridge)
 {
-	int which_atu;
-	struct pci_bus *bus = NULL;
+	int which_atu, ret;
+	struct pci_sys_data *sys = pci_host_bridge_priv(bridge);
 
 	switch (init_atu) {
 	case IOP13XX_INIT_ATU_ATUX:
@@ -525,8 +525,13 @@ struct pci_bus *iop13xx_scan_bus(int nr, struct pci_sys_data *sys)
 
 	if (!which_atu) {
 		BUG();
-		return NULL;
+		return -ENODEV;
 	}
+
+	list_splice_init(&sys->resources, &bridge->windows);
+	bridge->dev.parent = NULL;
+	bridge->sysdata = sys;
+	bridge->busnr = sys->busnr;
 
 	switch (which_atu) {
 	case IOP13XX_INIT_ATU_ATUX:
@@ -535,18 +540,22 @@ struct pci_bus *iop13xx_scan_bus(int nr, struct pci_sys_data *sys)
 			while(time_before(jiffies, atux_trhfa_timeout))
 				udelay(100);
 
-		bus = pci_bus_atux = pci_scan_root_bus(NULL, sys->busnr,
-						       &iop13xx_atux_ops,
-						       sys, &sys->resources);
+		bridge->ops = &iop13xx_atux_ops;
+		ret = pci_scan_root_bus_bridge(bridge);
+		if (!ret)
+			pci_bus_atux = bridge->bus;
 		break;
 	case IOP13XX_INIT_ATU_ATUE:
-		bus = pci_bus_atue = pci_scan_root_bus(NULL, sys->busnr,
-						       &iop13xx_atue_ops,
-						       sys, &sys->resources);
+		bridge->ops = &iop13xx_atue_ops;
+		ret = pci_scan_root_bus_bridge(bridge);
+		if (!ret)
+			pci_bus_atue = bridge->bus;
 		break;
+	default:
+		ret = -EINVAL;
 	}
 
-	return bus;
+	return ret;
 }
 
 /* This function is called from iop13xx_pci_init() after assigning valid

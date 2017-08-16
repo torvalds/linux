@@ -53,8 +53,6 @@ static void ipaq_micro_trigger_tx(struct ipaq_micro *micro)
 	tx->buf[bp++] = checksum;
 	tx->len = bp;
 	tx->index = 0;
-	print_hex_dump_debug("data: ", DUMP_PREFIX_OFFSET, 16, 1,
-			     tx->buf, tx->len, true);
 
 	/* Enable interrupt */
 	val = readl(micro->base + UTCR3);
@@ -281,9 +279,6 @@ static void __init ipaq_micro_eeprom_dump(struct ipaq_micro *micro)
 	dev_info(micro->dev, "RAM size: %u KiB\n", ipaq_micro_to_u16(dump+92));
 	dev_info(micro->dev, "screen: %u x %u\n",
 		 ipaq_micro_to_u16(dump+94), ipaq_micro_to_u16(dump+96));
-	print_hex_dump_debug("eeprom: ", DUMP_PREFIX_OFFSET, 16, 1,
-			     dump, 256, true);
-
 }
 
 static void micro_tx_chars(struct ipaq_micro *micro)
@@ -376,7 +371,7 @@ static const struct mfd_cell micro_cells[] = {
 	{ .name = "ipaq-micro-leds", },
 };
 
-static int micro_resume(struct device *dev)
+static int __maybe_unused micro_resume(struct device *dev)
 {
 	struct ipaq_micro *micro = dev_get_drvdata(dev);
 
@@ -400,9 +395,6 @@ static int __init micro_probe(struct platform_device *pdev)
 	micro->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
 	micro->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(micro->base))
 		return PTR_ERR(micro->base);

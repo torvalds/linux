@@ -2,7 +2,7 @@
  * Ralink RT288x/RT3xxx/MT76xx built-in hardware watchdog timer
  *
  * Copyright (C) 2011 Gabor Juhos <juhosg@openwrt.org>
- * Copyright (C) 2013 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2013 John Crispin <john@phrozen.org>
  *
  * This driver was based on: drivers/watchdog/softdog.c
  *
@@ -124,7 +124,7 @@ static struct watchdog_info rt288x_wdt_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 };
 
-static struct watchdog_ops rt288x_wdt_ops = {
+static const struct watchdog_ops rt288x_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = rt288x_wdt_start,
 	.stop = rt288x_wdt_stop,
@@ -158,7 +158,6 @@ static int rt288x_wdt_probe(struct platform_device *pdev)
 
 	rt288x_wdt_freq = clk_get_rate(rt288x_wdt_clk) / RALINK_WDT_PRESCALE;
 
-	rt288x_wdt_dev.dev = &pdev->dev;
 	rt288x_wdt_dev.bootstatus = rt288x_wdt_bootcause();
 	rt288x_wdt_dev.max_timeout = (0xfffful / rt288x_wdt_freq);
 	rt288x_wdt_dev.parent = &pdev->dev;

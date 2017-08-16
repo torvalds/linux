@@ -73,10 +73,10 @@
 				 (ID_LED_OFF1_ON2  <<  4) | \
 				 (ID_LED_DEF1_DEF2))
 
-#define E1000_ICH_NVM_SIG_WORD		0x13
-#define E1000_ICH_NVM_SIG_MASK		0xC000
-#define E1000_ICH_NVM_VALID_SIG_MASK	0xC0
-#define E1000_ICH_NVM_SIG_VALUE		0x80
+#define E1000_ICH_NVM_SIG_WORD		0x13u
+#define E1000_ICH_NVM_SIG_MASK		0xC000u
+#define E1000_ICH_NVM_VALID_SIG_MASK	0xC0u
+#define E1000_ICH_NVM_SIG_VALUE		0x80u
 
 #define E1000_ICH8_LAN_INIT_TIMEOUT	1500
 
@@ -188,6 +188,10 @@
 #define I218_ULP_CONFIG1_INBAND_EXIT	0x0020	/* Inband on ULP exit */
 #define I218_ULP_CONFIG1_WOL_HOST	0x0040	/* WoL Host on ULP exit */
 #define I218_ULP_CONFIG1_RESET_TO_SMBUS	0x0100	/* Reset to SMBus mode */
+/* enable ULP even if when phy powered down via lanphypc */
+#define I218_ULP_CONFIG1_EN_ULP_LANPHYPC	0x0400
+/* disable clear of sticky ULP on PERST */
+#define I218_ULP_CONFIG1_DIS_CLR_STICKY_ON_PERST	0x0800
 #define I218_ULP_CONFIG1_DISABLE_SMB_PERST	0x1000	/* Disable on PERST# */
 
 /* SMBus Address Phy Register */
@@ -225,6 +229,9 @@
 #define HV_PM_CTRL		PHY_REG(770, 17)
 #define HV_PM_CTRL_PLL_STOP_IN_K1_GIGA	0x100
 #define HV_PM_CTRL_K1_ENABLE		0x4000
+
+#define I217_PLL_CLOCK_GATE_REG	PHY_REG(772, 28)
+#define I217_PLL_CLOCK_GATE_MASK	0x07FF
 
 #define SW_FLAG_TIMEOUT		1000	/* SW Semaphore flag timeout in ms */
 

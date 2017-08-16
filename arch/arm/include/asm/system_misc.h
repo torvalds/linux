@@ -22,6 +22,11 @@ extern void (*arm_pm_idle)(void);
 
 extern unsigned int user_debug;
 
+static inline int handle_guest_sea(phys_addr_t addr, unsigned int esr)
+{
+	return -1;
+}
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_ARM_SYSTEM_MISC_H */

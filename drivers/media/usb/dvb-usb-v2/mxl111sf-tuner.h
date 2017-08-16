@@ -12,16 +12,11 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __MXL111SF_TUNER_H__
 #define __MXL111SF_TUNER_H__
 
-#include <linux/kconfig.h>
 #include "dvb_frontend.h"
 #include "mxl111sf.h"
 
@@ -63,13 +58,13 @@ struct mxl111sf_tuner_config {
 #if IS_ENABLED(CONFIG_DVB_USB_MXL111SF)
 extern
 struct dvb_frontend *mxl111sf_tuner_attach(struct dvb_frontend *fe,
-					   struct mxl111sf_state *mxl_state,
-					   struct mxl111sf_tuner_config *cfg);
+				struct mxl111sf_state *mxl_state,
+				const struct mxl111sf_tuner_config *cfg);
 #else
 static inline
 struct dvb_frontend *mxl111sf_tuner_attach(struct dvb_frontend *fe,
-					   struct mxl111sf_state *mxl_state,
-					   struct mxl111sf_tuner_config *cfg)
+				struct mxl111sf_state *mxl_state,
+				const struct mxl111sf_tuner_config *cfg)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;

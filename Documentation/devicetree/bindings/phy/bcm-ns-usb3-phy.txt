@@ -1,0 +1,34 @@
+Driver for Broadcom Northstar USB 3.0 PHY
+
+Required properties:
+
+- compatible: one of: "brcm,ns-ax-usb3-phy", "brcm,ns-bx-usb3-phy".
+- reg: address of MDIO bus device
+- usb3-dmp-syscon: phandle to syscon with DMP (Device Management Plugin)
+		   registers
+- #phy-cells: must be 0
+
+Initialization of USB 3.0 PHY depends on Northstar version. There are currently
+three known series: Ax, Bx and Cx.
+Known A0: BCM4707 rev 0
+Known B0: BCM4707 rev 4, BCM53573 rev 2
+Known B1: BCM4707 rev 6
+Known C0: BCM47094 rev 0
+
+Example:
+	mdio: mdio@0 {
+		reg = <0x0>;
+		#size-cells = <1>;
+		#address-cells = <0>;
+
+		usb3-phy@10 {
+			compatible = "brcm,ns-ax-usb3-phy";
+			reg = <0x10>;
+			usb3-dmp-syscon = <&usb3_dmp>;
+			#phy-cells = <0>;
+		};
+	};
+
+	usb3_dmp: syscon@18105000 {
+		reg = <0x18105000 0x1000>;
+	};

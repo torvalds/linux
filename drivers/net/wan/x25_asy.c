@@ -124,9 +124,6 @@ static int x25_asy_change_mtu(struct net_device *dev, int newmtu)
 	unsigned char *xbuff, *rbuff;
 	int len;
 
-	if (newmtu > 65534)
-		return -EINVAL;
-
 	len = 2 * newmtu;
 	xbuff = kmalloc(len + 4, GFP_ATOMIC);
 	rbuff = kmalloc(len + 4, GFP_ATOMIC);
@@ -205,7 +202,7 @@ static void x25_asy_bump(struct x25_asy *sl)
 		return;
 	}
 	skb_push(skb, 1);	/* LAPB internal control */
-	memcpy(skb_put(skb, count), sl->rbuff, count);
+	skb_put_data(skb, sl->rbuff, count);
 	skb->protocol = x25_type_trans(skb, sl->dev);
 	err = lapb_data_received(skb->dev, skb);
 	if (err != LAPB_OK) {
@@ -549,15 +546,11 @@ static void x25_asy_receive_buf(struct tty_struct *tty,
 
 static int x25_asy_open_tty(struct tty_struct *tty)
 {
-	struct x25_asy *sl = tty->disc_data;
+	struct x25_asy *sl;
 	int err;
 
 	if (tty->ops->write == NULL)
 		return -EOPNOTSUPP;
-
-	/* First make sure we're not already connected. */
-	if (sl && sl->magic == X25_ASY_MAGIC)
-		return -EEXIST;
 
 	/* OK.  Find a free X.25 channel to use. */
 	sl = x25_asy_alloc();
@@ -575,8 +568,10 @@ static int x25_asy_open_tty(struct tty_struct *tty)
 
 	/* Perform the low-level X.25 async init */
 	err = x25_asy_open(sl->dev);
-	if (err)
+	if (err) {
+		x25_asy_free(sl);
 		return err;
+	}
 	/* Done.  We have linked the TTY line to a channel. */
 	return 0;
 }
@@ -753,6 +748,8 @@ static void x25_asy_setup(struct net_device *dev)
 	 */
 
 	dev->mtu		= SL_MTU;
+	dev->min_mtu		= 0;
+	dev->max_mtu		= 65534;
 	dev->netdev_ops		= &x25_asy_netdev_ops;
 	dev->watchdog_timeo	= HZ*20;
 	dev->hard_header_len	= 0;

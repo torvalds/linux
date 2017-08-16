@@ -15,6 +15,7 @@
 #ifndef MT7601U_H
 #define MT7601U_H
 
+#include <linux/bitfield.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
@@ -24,7 +25,6 @@
 #include <linux/debugfs.h>
 
 #include "regs.h"
-#include "util.h"
 
 #define MT_CALIBRATE_INTERVAL		(4 * HZ)
 
@@ -299,7 +299,7 @@ bool mt76_poll_msec(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val,
 
 /* Compatibility with mt76 */
 #define mt76_rmw_field(_dev, _reg, _field, _val)	\
-	mt76_rmw(_dev, _reg, _field, MT76_SET(_field, _val))
+	mt76_rmw(_dev, _reg, _field, FIELD_PREP(_field, _val))
 
 static inline u32 mt76_rr(struct mt7601u_dev *dev, u32 offset)
 {

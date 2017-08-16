@@ -5,6 +5,7 @@
 #include "../debug.h"
 #include "helpline.h"
 #include "ui.h"
+#include "../util.h"
 
 char ui_helpline__current[512];
 
@@ -70,4 +71,14 @@ void ui_helpline__puts(const char *msg)
 int ui_helpline__vshow(const char *fmt, va_list ap)
 {
 	return helpline_fns->show(fmt, ap);
+}
+
+void ui_helpline__printf(const char *fmt, ...)
+{
+	va_list ap;
+
+	ui_helpline__pop();
+	va_start(ap, fmt);
+	ui_helpline__vpush(fmt, ap);
+	va_end(ap);
 }

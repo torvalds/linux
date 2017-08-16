@@ -122,7 +122,7 @@ size_t gxio_mpipe_calc_buffer_stack_bytes(unsigned long buffers)
 {
 	const int BUFFERS_PER_LINE = 12;
 
-	/* Count the number of cachlines. */
+	/* Count the number of cachelines. */
 	unsigned long lines =
 		(buffers + BUFFERS_PER_LINE - 1) / BUFFERS_PER_LINE;
 

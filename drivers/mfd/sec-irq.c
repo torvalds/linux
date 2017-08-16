@@ -407,6 +407,11 @@ static const struct regmap_irq_chip s2mps14_irq_chip = {
 	S2MPS1X_IRQ_CHIP_COMMON_DATA,
 };
 
+static const struct regmap_irq_chip s2mps15_irq_chip = {
+	.name = "s2mps15",
+	S2MPS1X_IRQ_CHIP_COMMON_DATA,
+};
+
 static const struct regmap_irq_chip s2mpu02_irq_chip = {
 	.name = "s2mpu02",
 	.irqs = s2mpu02_irqs,
@@ -466,6 +471,9 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 	case S2MPS14X:
 		sec_irq_chip = &s2mps14_irq_chip;
 		break;
+	case S2MPS15X:
+		sec_irq_chip = &s2mps15_irq_chip;
+		break;
 	case S2MPU02:
 		sec_irq_chip = &s2mpu02_irq_chip;
 		break;
@@ -475,10 +483,11 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 		return -EINVAL;
 	}
 
-	ret = regmap_add_irq_chip(sec_pmic->regmap_pmic, sec_pmic->irq,
-			  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-			  sec_pmic->irq_base, sec_irq_chip,
-			  &sec_pmic->irq_data);
+	ret = devm_regmap_add_irq_chip(sec_pmic->dev, sec_pmic->regmap_pmic,
+				       sec_pmic->irq,
+				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				       sec_pmic->irq_base, sec_irq_chip,
+				       &sec_pmic->irq_data);
 	if (ret != 0) {
 		dev_err(sec_pmic->dev, "Failed to register IRQ chip: %d\n", ret);
 		return ret;
@@ -491,9 +500,4 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 	BUILD_BUG_ON(((enum s2mps14_irq)S2MPS11_IRQ_RTCA0) != S2MPS14_IRQ_RTCA0);
 
 	return 0;
-}
-
-void sec_irq_exit(struct sec_pmic_dev *sec_pmic)
-{
-	regmap_del_irq_chip(sec_pmic->irq, sec_pmic->irq_data);
 }

@@ -49,25 +49,17 @@ depends on CONFIG_PCIEPORTBUS, so pls. set CONFIG_PCIEPORTBUS=y and
 CONFIG_PCIEAER = y.
 
 2.2 Load PCI Express AER Root Driver
-There is a case where a system has AER support in BIOS. Enabling the AER
-Root driver and having AER support in BIOS may result unpredictable
-behavior. To avoid this conflict, a successful load of the AER Root driver
-requires ACPI _OSC support in the BIOS to allow the AER Root driver to
-request for native control of AER. See the PCI FW 3.0 Specification for
-details regarding OSC usage. Currently, lots of firmwares don't provide
-_OSC support while they use PCI Express. To support such firmwares,
-forceload, a parameter of type bool, could enable AER to continue to
-be initiated although firmwares have no _OSC support. To enable the
-walkaround, pls. add aerdriver.forceload=y to kernel boot parameter line
-when booting kernel. Note that forceload=n by default.
 
-nosourceid, another parameter of type bool, can be used when broken
-hardware (mostly chipsets) has root ports that cannot obtain the reporting
-source ID. nosourceid=n by default.
+Some systems have AER support in firmware. Enabling Linux AER support at
+the same time the firmware handles AER may result in unpredictable
+behavior. Therefore, Linux does not handle AER events unless the firmware
+grants AER control to the OS via the ACPI _OSC method. See the PCI FW 3.0
+Specification for details regarding _OSC usage.
 
 2.3 AER error output
-When a PCI-E AER error is captured, an error message will be outputted to
-console. If it's a correctable error, it is outputted as a warning.
+
+When a PCIe AER error is captured, an error message will be output to
+console. If it's a correctable error, it is output as a warning.
 Otherwise, it is printed as an error. So users could choose different
 log level to filter out correctable error messages.
 
@@ -264,7 +256,7 @@ After reboot with new kernel or insert the module, a device file named
 
 Then, you need a user space tool named aer-inject, which can be gotten
 from:
-    http://www.kernel.org/pub/linux/utils/pci/aer-inject/
+    https://git.kernel.org/cgit/linux/kernel/git/gong.chen/aer-inject.git/
 
 More information about aer-inject can be found in the document comes
 with its source code.

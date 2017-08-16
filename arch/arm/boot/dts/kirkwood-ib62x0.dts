@@ -62,12 +62,12 @@
 		pinctrl-0 = <&pmx_button_reset &pmx_button_usb_copy>;
 		pinctrl-names = "default";
 
-		button@1 {
+		copy {
 			label = "USB Copy";
 			linux,code = <KEY_COPY>;
 			gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
 		};
-		button@2 {
+		reset {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio0 28 GPIO_ACTIVE_LOW>;
@@ -113,7 +113,7 @@
 
 	partition@e0000 {
 		label = "u-boot environment";
-		reg = <0xe0000 0x100000>;
+		reg = <0xe0000 0x20000>;
 	};
 
 	partition@100000 {

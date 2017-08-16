@@ -318,11 +318,13 @@ timer_trig_interrupt(int irq, void *dev_id)
 
 static void timer_trig_handler(struct work_struct *work)
 {
-  reg_timer_rw_ack_intr ack_intr = { 0 };
-  reg_timer_rw_intr_mask intr_mask;
-  reg_timer_rw_trig_cfg trig_cfg = { 0 };
-  struct fast_timer *t;
-  unsigned long flags;
+	reg_timer_rw_ack_intr ack_intr = { 0 };
+	reg_timer_rw_intr_mask intr_mask;
+	reg_timer_rw_trig_cfg trig_cfg = { 0 };
+	struct fast_timer *t;
+	fast_timer_function_type *f;
+	unsigned long d;
+	unsigned long flags;
 
 	/* We keep interrupts disabled not only when we modify the
 	 * fast timer list, but any time we hold a reference to a
@@ -349,9 +351,6 @@ static void timer_trig_handler(struct work_struct *work)
 
   fast_timer_running = 0;
   fast_timer_ints++;
-
-	fast_timer_function_type *f;
-	unsigned long d;
 
   t = fast_timer_list;
 	while (t) {

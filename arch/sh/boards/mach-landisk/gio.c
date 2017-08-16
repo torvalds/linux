@@ -18,7 +18,7 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <mach-landisk/mach/gio.h>
 #include <mach-landisk/mach/iodata_landisk.h>
 

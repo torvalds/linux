@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -38,7 +34,11 @@
 #define LUSTRE_INTENT_H
 
 /* intent IT_XXX are defined in lustre/include/obd.h */
-struct lustre_intent_data {
+
+struct lookup_intent {
+	int		it_op;
+	int		it_create_mode;
+	__u64		it_flags;
 	int		it_disposition;
 	int		it_status;
 	__u64		it_lock_handle;
@@ -46,17 +46,23 @@ struct lustre_intent_data {
 	int		it_lock_mode;
 	int		it_remote_lock_mode;
 	__u64	   it_remote_lock_handle;
-	void	   *it_data;
+	struct ptlrpc_request *it_request;
 	unsigned int    it_lock_set:1;
 };
 
-struct lookup_intent {
-	int     it_op;
-	int     it_create_mode;
-	__u64   it_flags;
-	union {
-		struct lustre_intent_data lustre;
-	} d;
-};
+static inline int it_disposition(struct lookup_intent *it, int flag)
+{
+	return it->it_disposition & flag;
+}
+
+static inline void it_set_disposition(struct lookup_intent *it, int flag)
+{
+	it->it_disposition |= flag;
+}
+
+static inline void it_clear_disposition(struct lookup_intent *it, int flag)
+{
+	it->it_disposition &= ~flag;
+}
 
 #endif

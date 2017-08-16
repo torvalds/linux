@@ -45,6 +45,8 @@ gk104_ltc = {
 	.zbc = 16,
 	.zbc_clear_color = gf100_ltc_zbc_clear_color,
 	.zbc_clear_depth = gf100_ltc_zbc_clear_depth,
+	.invalidate = gf100_ltc_invalidate,
+	.flush = gf100_ltc_flush,
 };
 
 int

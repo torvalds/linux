@@ -119,8 +119,8 @@ static void ch7006_encoder_mode_set(struct drm_encoder *encoder,
 	struct ch7006_encoder_params *params = &priv->params;
 	struct ch7006_state *state = &priv->state;
 	uint8_t *regs = state->regs;
-	struct ch7006_mode *mode = priv->mode;
-	struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
+	const struct ch7006_mode *mode = priv->mode;
+	const struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
 	int start_active;
 
 	ch7006_dbg(client, "\n");
@@ -226,7 +226,7 @@ static int ch7006_encoder_get_modes(struct drm_encoder *encoder,
 				    struct drm_connector *connector)
 {
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
-	struct ch7006_mode *mode;
+	const struct ch7006_mode *mode;
 	int n = 0;
 
 	for (mode = ch7006_modes; mode->mode.clock; mode++) {
@@ -253,6 +253,8 @@ static int ch7006_encoder_create_resources(struct drm_encoder *encoder,
 	drm_mode_create_tv_properties(dev, NUM_TV_NORMS, ch7006_tv_norm_names);
 
 	priv->scale_property = drm_property_create_range(dev, 0, "scale", 0, 2);
+	if (!priv->scale_property)
+		return -ENOMEM;
 
 	drm_object_attach_property(&connector->base, conf->tv_select_subconnector_property,
 				      priv->select_subconnector);
@@ -359,19 +361,14 @@ static int ch7006_encoder_set_property(struct drm_encoder *encoder,
 
 		/* Disable the crtc to ensure a full modeset is
 		 * performed whenever it's turned on again. */
-		if (crtc) {
-			struct drm_mode_set modeset = {
-				.crtc = crtc,
-			};
-
-			drm_mode_set_config_internal(&modeset);
-		}
+		if (crtc)
+			drm_crtc_force_disable(crtc);
 	}
 
 	return 0;
 }
 
-static struct drm_encoder_slave_funcs ch7006_encoder_funcs = {
+static const struct drm_encoder_slave_funcs ch7006_encoder_funcs = {
 	.set_config = ch7006_encoder_set_config,
 	.destroy = ch7006_encoder_destroy,
 	.dpms = ch7006_encoder_dpms,

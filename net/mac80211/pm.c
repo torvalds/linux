@@ -6,6 +6,13 @@
 #include "driver-ops.h"
 #include "led.h"
 
+static void ieee80211_sched_scan_cancel(struct ieee80211_local *local)
+{
+	if (ieee80211_request_sched_scan_stop(local))
+		return;
+	cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy, 0);
+}
+
 int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -23,7 +30,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	ieee80211_del_virtual_monitor(local);
 
-	if (ieee80211_hw_check(hw, AMPDU_AGGREGATION)) {
+	if (ieee80211_hw_check(hw, AMPDU_AGGREGATION) &&
+	    !(wowlan && wowlan->any)) {
 		mutex_lock(&local->sta_mtx);
 		list_for_each_entry(sta, &local->sta_list, list) {
 			set_sta_flag(sta, WLAN_STA_BLOCK_BA);
@@ -32,6 +40,10 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		}
 		mutex_unlock(&local->sta_mtx);
 	}
+
+	/* keep sched_scan only in case of 'any' trigger */
+	if (!(wowlan && wowlan->any))
+		ieee80211_sched_scan_cancel(local);
 
 	ieee80211_stop_queues_by_reason(hw,
 					IEEE80211_MAX_QUEUE_MAP,
@@ -156,6 +168,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			break;
 		}
 
+		flush_delayed_work(&sdata->dec_tailroom_needed_wk);
 		drv_remove_interface(local, sdata);
 	}
 
@@ -166,8 +179,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	WARN_ON(!list_empty(&local->chanctx_list));
 
 	/* stop hardware - this must stop RX */
-	if (local->open_count)
-		ieee80211_stop_device(local);
+	ieee80211_stop_device(local);
 
  suspend:
 	local->suspended = true;

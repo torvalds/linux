@@ -30,10 +30,6 @@ jiffies = jiffies_64 + 4;
 jiffies = jiffies_64;
 #endif
 
-#ifndef KERNELOFFSET
-#define KERNELOFFSET 0xd0003000
-#endif
-
 /* Note: In the following macros, it would be nice to specify only the
    vector name and section kind and construct "sym" and "section" using
    CPP concatenation, but that does not work reliably.  Concatenating a
@@ -63,6 +59,7 @@ jiffies = jiffies_64;
  * garbage.)
  */
 
+#ifdef CONFIG_VECTORS_OFFSET
 #define SECTION_VECTOR(sym, section, addr, max_prevsec_size, prevsec)       \
   section addr : AT((MIN(LOADADDR(prevsec) + max_prevsec_size,		    \
 		         LOADADDR(prevsec) + SIZEOF(prevsec)) + 3) & ~ 3)   \
@@ -72,6 +69,11 @@ jiffies = jiffies_64;
     *(section)								    \
     sym ## _end = ABSOLUTE(.);						    \
   }
+#else
+#define SECTION_VECTOR(section, addr)					    \
+  . = addr;								    \
+  *(section)
+#endif
 
 /*
  *  Mapping of input sections to output sections when linking.
@@ -89,10 +91,44 @@ SECTIONS
   {
     /* The HEAD_TEXT section must be the first section! */
     HEAD_TEXT
+
+#ifndef CONFIG_VECTORS_OFFSET
+  . = ALIGN(PAGE_SIZE);
+  _vecbase = .;
+
+  SECTION_VECTOR (.WindowVectors.text, WINDOW_VECTORS_VADDR)
+#if XCHAL_EXCM_LEVEL >= 2
+  SECTION_VECTOR (.Level2InterruptVector.text, INTLEVEL2_VECTOR_VADDR)
+#endif
+#if XCHAL_EXCM_LEVEL >= 3
+  SECTION_VECTOR (.Level3InterruptVector.text, INTLEVEL3_VECTOR_VADDR)
+#endif
+#if XCHAL_EXCM_LEVEL >= 4
+  SECTION_VECTOR (.Level4InterruptVector.text, INTLEVEL4_VECTOR_VADDR)
+#endif
+#if XCHAL_EXCM_LEVEL >= 5
+  SECTION_VECTOR (.Level5InterruptVector.text, INTLEVEL5_VECTOR_VADDR)
+#endif
+#if XCHAL_EXCM_LEVEL >= 6
+  SECTION_VECTOR (.Level6InterruptVector.text, INTLEVEL6_VECTOR_VADDR)
+#endif
+  SECTION_VECTOR (.DebugInterruptVector.literal, DEBUG_VECTOR_VADDR - 4)
+  SECTION_VECTOR (.DebugInterruptVector.text, DEBUG_VECTOR_VADDR)
+  SECTION_VECTOR (.KernelExceptionVector.literal, KERNEL_VECTOR_VADDR - 4)
+  SECTION_VECTOR (.KernelExceptionVector.text, KERNEL_VECTOR_VADDR)
+  SECTION_VECTOR (.UserExceptionVector.literal, USER_VECTOR_VADDR - 4)
+  SECTION_VECTOR (.UserExceptionVector.text, USER_VECTOR_VADDR)
+  SECTION_VECTOR (.DoubleExceptionVector.literal, DOUBLEEXC_VECTOR_VADDR - 20)
+  SECTION_VECTOR (.DoubleExceptionVector.text, DOUBLEEXC_VECTOR_VADDR)
+#endif
+
     TEXT_TEXT
     VMLINUX_SYMBOL(__sched_text_start) = .;
     *(.sched.literal .sched.text)
     VMLINUX_SYMBOL(__sched_text_end) = .;
+    VMLINUX_SYMBOL(__cpuidle_text_start) = .;
+    *(.cpuidle.literal .cpuidle.text)
+    VMLINUX_SYMBOL(__cpuidle_text_end) = .;
     VMLINUX_SYMBOL(__lock_text_start) = .;
     *(.spinlock.literal .spinlock.text)
     VMLINUX_SYMBOL(__lock_text_end) = .;
@@ -133,6 +169,7 @@ SECTIONS
     . = ALIGN(16);
     __boot_reloc_table_start = ABSOLUTE(.);
 
+#ifdef CONFIG_VECTORS_OFFSET
     RELOCATE_ENTRY(_WindowVectors_text,
 		   .WindowVectors.text);
 #if XCHAL_EXCM_LEVEL >= 2
@@ -165,9 +202,8 @@ SECTIONS
 		   .DoubleExceptionVector.text);
     RELOCATE_ENTRY(_DebugInterruptVector_text,
 		   .DebugInterruptVector.text);
+#endif
 #if defined(CONFIG_SMP)
-    RELOCATE_ENTRY(_SecondaryResetVector_literal,
-		   .SecondaryResetVector.literal);
     RELOCATE_ENTRY(_SecondaryResetVector_text,
 		   .SecondaryResetVector.text);
 #endif
@@ -189,6 +225,7 @@ SECTIONS
   . = ALIGN(4);
   .dummy : { LONG(0) }
 
+#ifdef CONFIG_VECTORS_OFFSET
   /* The vectors are relocated to the real position at startup time */
 
   SECTION_VECTOR (_WindowVectors_text,
@@ -269,30 +306,25 @@ SECTIONS
 		  .UserExceptionVector.literal)
   SECTION_VECTOR (_DoubleExceptionVector_literal,
 		  .DoubleExceptionVector.literal,
-		  DOUBLEEXC_VECTOR_VADDR - 48,
+		  DOUBLEEXC_VECTOR_VADDR - 20,
 		  SIZEOF(.UserExceptionVector.text),
 		  .UserExceptionVector.text)
   SECTION_VECTOR (_DoubleExceptionVector_text,
 		  .DoubleExceptionVector.text,
 		  DOUBLEEXC_VECTOR_VADDR,
-		  48,
+		  20,
 		  .DoubleExceptionVector.literal)
 
   . = (LOADADDR( .DoubleExceptionVector.text ) + SIZEOF( .DoubleExceptionVector.text ) + 3) & ~ 3;
 
+#endif
 #if defined(CONFIG_SMP)
-
-  SECTION_VECTOR (_SecondaryResetVector_literal,
-		  .SecondaryResetVector.literal,
-		  RESET_VECTOR1_VADDR - 4,
-		  SIZEOF(.DoubleExceptionVector.text),
-		  .DoubleExceptionVector.text)
 
   SECTION_VECTOR (_SecondaryResetVector_text,
 		  .SecondaryResetVector.text,
 		  RESET_VECTOR1_VADDR,
-		  4,
-		  .SecondaryResetVector.literal)
+		  SIZEOF(.DoubleExceptionVector.text),
+		  .DoubleExceptionVector.text)
 
   . = LOADADDR(.SecondaryResetVector.text)+SIZEOF(.SecondaryResetVector.text);
 
@@ -305,31 +337,6 @@ SECTIONS
   BSS_SECTION(0, 8192, 0)
 
   _end = .;
-
-  /* only used by the boot loader  */
-
-  . = ALIGN(0x10);
-  .bootstrap : { *(.bootstrap.literal .bootstrap.text .bootstrap.data) }
-
-  .ResetVector.text RESET_VECTOR_VADDR :
-  {
-    *(.ResetVector.text)
-  }
-
-
-  /*
-   * This is a remapped copy of the Secondary Reset Vector Code.
-   * It keeps gdb in sync with the PC after switching
-   * to the temporary mapping used while setting up
-   * the V2 MMU mappings for Linux.
-   *
-   * Only debug information about this section is put in the kernel image.
-   */
-  .SecondaryResetVector.remapped_text 0x46000000 (INFO):
-  {
-	*(.SecondaryResetVector.remapped_text)
-  }
-
 
   .xt.lit : { *(.xt.lit) }
   .xt.prop : { *(.xt.prop) }

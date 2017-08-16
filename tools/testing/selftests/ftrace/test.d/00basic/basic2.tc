@@ -1,5 +1,6 @@
 #!/bin/sh
 # description: Basic test for tracers
+# flags: instance
 test -f available_tracers
 for t in `cat available_tracers`; do
   echo $t > current_tracer

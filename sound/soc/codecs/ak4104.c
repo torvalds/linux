@@ -163,7 +163,10 @@ static struct snd_soc_dai_driver ak4104_dai = {
 		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_192000,
+		.rates = SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 |
+			 SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
+			 SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000 |
+			 SNDRV_PCM_RATE_176400 | SNDRV_PCM_RATE_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE  |
 			   SNDRV_PCM_FMTBIT_S24_3LE |
 			   SNDRV_PCM_FMTBIT_S24_LE
@@ -245,10 +248,12 @@ static struct snd_soc_codec_driver soc_codec_device_ak4104 = {
 	.suspend = ak4104_soc_suspend,
 	.resume = ak4104_soc_resume,
 
-	.dapm_widgets = ak4104_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ak4104_dapm_widgets),
-	.dapm_routes = ak4104_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(ak4104_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= ak4104_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ak4104_dapm_widgets),
+		.dapm_routes		= ak4104_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(ak4104_dapm_routes),
+	}
 };
 
 static const struct regmap_config ak4104_regmap = {
@@ -344,7 +349,6 @@ MODULE_DEVICE_TABLE(spi, ak4104_id_table);
 static struct spi_driver ak4104_spi_driver = {
 	.driver  = {
 		.name   = "ak4104",
-		.owner  = THIS_MODULE,
 		.of_match_table = ak4104_of_match,
 	},
 	.id_table = ak4104_id_table,

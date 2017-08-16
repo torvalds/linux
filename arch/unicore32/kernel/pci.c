@@ -265,10 +265,8 @@ static int __init pci_common_init(void)
 
 	pci_fixup_irqs(pci_common_swizzle, pci_puv3_map_irq);
 
-	if (!pci_has_flag(PCI_PROBE_ONLY)) {
-		pci_bus_size_bridges(puv3_bus);
-		pci_bus_assign_resources(puv3_bus);
-	}
+	pci_bus_size_bridges(puv3_bus);
+	pci_bus_assign_resources(puv3_bus);
 	pci_bus_add_devices(puv3_bus);
 	return 0;
 }
@@ -278,9 +276,6 @@ char * __init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "debug")) {
 		debug_pci = 1;
-		return NULL;
-	} else if (!strcmp(str, "firmware")) {
-		pci_add_flags(PCI_PROBE_ONLY);
 		return NULL;
 	}
 	return str;
@@ -359,28 +354,5 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 		       pci_name(dev), old_cmd, cmd);
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
-	return 0;
-}
-
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state, int write_combine)
-{
-	unsigned long phys;
-
-	if (mmap_state == pci_mmap_io)
-		return -EINVAL;
-
-	phys = vma->vm_pgoff;
-
-	/*
-	 * Mark this as IO
-	 */
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	if (remap_pfn_range(vma, vma->vm_start, phys,
-			     vma->vm_end - vma->vm_start,
-			     vma->vm_page_prot))
-		return -EAGAIN;
-
 	return 0;
 }

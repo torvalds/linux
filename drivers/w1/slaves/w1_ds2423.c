@@ -30,9 +30,9 @@
 #include <linux/delay.h>
 #include <linux/crc16.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
+#define W1_COUNTER_DS2423	0x1D
 
 #define CRC16_VALID	0xb001
 #define CRC16_INIT	0
@@ -138,21 +138,9 @@ static struct w1_family w1_family_1d = {
 	.fid = W1_COUNTER_DS2423,
 	.fops = &w1_f1d_fops,
 };
+module_w1_family(w1_family_1d);
 
-static int __init w1_f1d_init(void)
-{
-	return w1_register_family(&w1_family_1d);
-}
-
-static void __exit w1_f1d_exit(void)
-{
-	w1_unregister_family(&w1_family_1d);
-}
-
-module_init(w1_f1d_init);
-module_exit(w1_f1d_exit);
-
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mika Laitio <lamikr@pilppa.org>");
 MODULE_DESCRIPTION("w1 family 1d driver for DS2423, 4 counters and 4kb ram");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("w1-family-" __stringify(W1_COUNTER_DS2423));

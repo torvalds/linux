@@ -6,22 +6,16 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ ******************************************************************************/
 #ifndef __INC_DOT11D_H
 #define __INC_DOT11D_H
 
 #include "rtllib.h"
-
-
 
 struct chnl_txpow_triple {
 	u8 FirstChnl;
@@ -36,8 +30,8 @@ enum dot11d_state {
 };
 
 /**
- * struct rt_dot11d_info * @CountryIeLen: value greater than 0 if @CountryIeBuf contains
- *		  valid country information element.
+ * struct rt_dot11d_info * @CountryIeLen: value greater than 0 if
+ *		  @CountryIeBuf contains valid country information element.
  * @channel_map: holds channel values
  *		0 - invalid,
  *		1 - valid (active scan),
@@ -46,7 +40,6 @@ enum dot11d_state {
  */
 
 struct rt_dot11d_info {
-
 	bool bEnabled;
 
 	u16 CountryIeLen;
@@ -54,8 +47,8 @@ struct rt_dot11d_info {
 	u8  CountryIeSrcAddr[6];
 	u8  CountryIeWatchdog;
 
-	u8  channel_map[MAX_CHANNEL_NUMBER+1];
-	u8  MaxTxPwrDbmList[MAX_CHANNEL_NUMBER+1];
+	u8  channel_map[MAX_CHANNEL_NUMBER + 1];
+	u8  MaxTxPwrDbmList[MAX_CHANNEL_NUMBER + 1];
 
 	enum dot11d_state State;
 };
@@ -85,6 +78,7 @@ static inline void RESET_CIE_WATCHDOG(struct rtllib_device *__pIeeeDev)
 {
 	GET_CIE_WATCHDOG(__pIeeeDev) = 0;
 }
+
 #define UPDATE_CIE_WATCHDOG(__pIeeeDev) (++GET_CIE_WATCHDOG(__pIeeeDev))
 
 void dot11d_init(struct rtllib_device *dev);

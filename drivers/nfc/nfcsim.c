@@ -16,521 +16,494 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/ctype.h>
+#include <linux/debugfs.h>
 #include <linux/nfc.h>
 #include <net/nfc/nfc.h>
+#include <net/nfc/digital.h>
 
-#define DEV_ERR(_dev, fmt, args...) nfc_err(&_dev->nfc_dev->dev, \
-						"%s: " fmt, __func__, ## args)
+#define NFCSIM_ERR(d, fmt, args...) nfc_err(&d->nfc_digital_dev->nfc_dev->dev, \
+					    "%s: " fmt, __func__, ## args)
 
-#define DEV_DBG(_dev, fmt, args...) dev_dbg(&_dev->nfc_dev->dev, \
-						"%s: " fmt, __func__, ## args)
+#define NFCSIM_DBG(d, fmt, args...) dev_dbg(&d->nfc_digital_dev->nfc_dev->dev, \
+					    "%s: " fmt, __func__, ## args)
 
-#define NFCSIM_VERSION "0.1"
+#define NFCSIM_VERSION "0.2"
 
-#define NFCSIM_POLL_NONE	0
-#define NFCSIM_POLL_INITIATOR	1
-#define NFCSIM_POLL_TARGET	2
-#define NFCSIM_POLL_DUAL	(NFCSIM_POLL_INITIATOR | NFCSIM_POLL_TARGET)
+#define NFCSIM_MODE_NONE	0
+#define NFCSIM_MODE_INITIATOR	1
+#define NFCSIM_MODE_TARGET	2
+
+#define NFCSIM_CAPABILITIES (NFC_DIGITAL_DRV_CAPS_IN_CRC   | \
+			     NFC_DIGITAL_DRV_CAPS_TG_CRC)
 
 struct nfcsim {
-	struct nfc_dev *nfc_dev;
+	struct nfc_digital_dev *nfc_digital_dev;
 
+	struct work_struct recv_work;
+	struct delayed_work send_work;
+
+	struct nfcsim_link *link_in;
+	struct nfcsim_link *link_out;
+
+	bool up;
+	u8 mode;
+	u8 rf_tech;
+
+	u16 recv_timeout;
+
+	nfc_digital_cmd_complete_t cb;
+	void *arg;
+
+	u8 dropframe;
+};
+
+struct nfcsim_link {
 	struct mutex lock;
 
-	struct delayed_work recv_work;
+	u8 rf_tech;
+	u8 mode;
 
-	struct sk_buff *clone_skb;
+	u8 shutdown;
 
-	struct delayed_work poll_work;
-	u8 polling_mode;
-	u8 curr_polling_mode;
-
-	u8 shutting_down;
-
-	u8 up;
-
-	u8 initiator;
-
-	data_exchange_cb_t cb;
-	void *cb_context;
-
-	struct nfcsim *peer_dev;
+	struct sk_buff *skb;
+	wait_queue_head_t recv_wait;
+	u8 cond;
 };
+
+static struct nfcsim_link *nfcsim_link_new(void)
+{
+	struct nfcsim_link *link;
+
+	link = kzalloc(sizeof(struct nfcsim_link), GFP_KERNEL);
+	if (!link)
+		return NULL;
+
+	mutex_init(&link->lock);
+	init_waitqueue_head(&link->recv_wait);
+
+	return link;
+}
+
+static void nfcsim_link_free(struct nfcsim_link *link)
+{
+	dev_kfree_skb(link->skb);
+	kfree(link);
+}
+
+static void nfcsim_link_recv_wake(struct nfcsim_link *link)
+{
+	link->cond = 1;
+	wake_up_interruptible(&link->recv_wait);
+}
+
+static void nfcsim_link_set_skb(struct nfcsim_link *link, struct sk_buff *skb,
+				u8 rf_tech, u8 mode)
+{
+	mutex_lock(&link->lock);
+
+	dev_kfree_skb(link->skb);
+	link->skb = skb;
+	link->rf_tech = rf_tech;
+	link->mode = mode;
+
+	mutex_unlock(&link->lock);
+}
+
+static void nfcsim_link_recv_cancel(struct nfcsim_link *link)
+{
+	mutex_lock(&link->lock);
+
+	link->mode = NFCSIM_MODE_NONE;
+
+	mutex_unlock(&link->lock);
+
+	nfcsim_link_recv_wake(link);
+}
+
+static void nfcsim_link_shutdown(struct nfcsim_link *link)
+{
+	mutex_lock(&link->lock);
+
+	link->shutdown = 1;
+	link->mode = NFCSIM_MODE_NONE;
+
+	mutex_unlock(&link->lock);
+
+	nfcsim_link_recv_wake(link);
+}
+
+static struct sk_buff *nfcsim_link_recv_skb(struct nfcsim_link *link,
+					    int timeout, u8 rf_tech, u8 mode)
+{
+	int rc;
+	struct sk_buff *skb;
+
+	rc = wait_event_interruptible_timeout(link->recv_wait,
+					      link->cond,
+					      msecs_to_jiffies(timeout));
+
+	mutex_lock(&link->lock);
+
+	skb = link->skb;
+	link->skb = NULL;
+
+	if (!rc) {
+		rc = -ETIMEDOUT;
+		goto done;
+	}
+
+	if (!skb || link->rf_tech != rf_tech || link->mode == mode) {
+		rc = -EINVAL;
+		goto done;
+	}
+
+	if (link->shutdown) {
+		rc = -ENODEV;
+		goto done;
+	}
+
+done:
+	mutex_unlock(&link->lock);
+
+	if (rc < 0) {
+		dev_kfree_skb(skb);
+		skb = ERR_PTR(rc);
+	}
+
+	link->cond = 0;
+
+	return skb;
+}
+
+static void nfcsim_send_wq(struct work_struct *work)
+{
+	struct nfcsim *dev = container_of(work, struct nfcsim, send_work.work);
+
+	/*
+	 * To effectively send data, the device just wake up its link_out which
+	 * is the link_in of the peer device. The exchanged skb has already been
+	 * stored in the dev->link_out through nfcsim_link_set_skb().
+	 */
+	nfcsim_link_recv_wake(dev->link_out);
+}
+
+static void nfcsim_recv_wq(struct work_struct *work)
+{
+	struct nfcsim *dev = container_of(work, struct nfcsim, recv_work);
+	struct sk_buff *skb;
+
+	skb = nfcsim_link_recv_skb(dev->link_in, dev->recv_timeout,
+				   dev->rf_tech, dev->mode);
+
+	if (!dev->up) {
+		NFCSIM_ERR(dev, "Device is down\n");
+
+		if (!IS_ERR(skb))
+			dev_kfree_skb(skb);
+
+		skb = ERR_PTR(-ENODEV);
+	}
+
+	dev->cb(dev->nfc_digital_dev, dev->arg, skb);
+}
+
+static int nfcsim_send(struct nfc_digital_dev *ddev, struct sk_buff *skb,
+		       u16 timeout, nfc_digital_cmd_complete_t cb, void *arg)
+{
+	struct nfcsim *dev = nfc_digital_get_drvdata(ddev);
+	u8 delay;
+
+	if (!dev->up) {
+		NFCSIM_ERR(dev, "Device is down\n");
+		return -ENODEV;
+	}
+
+	dev->recv_timeout = timeout;
+	dev->cb = cb;
+	dev->arg = arg;
+
+	schedule_work(&dev->recv_work);
+
+	if (dev->dropframe) {
+		NFCSIM_DBG(dev, "dropping frame (out of %d)\n", dev->dropframe);
+		dev_kfree_skb(skb);
+		dev->dropframe--;
+
+		return 0;
+	}
+
+	if (skb) {
+		nfcsim_link_set_skb(dev->link_out, skb, dev->rf_tech,
+				    dev->mode);
+
+		/* Add random delay (between 3 and 10 ms) before sending data */
+		get_random_bytes(&delay, 1);
+		delay = 3 + (delay & 0x07);
+
+		schedule_delayed_work(&dev->send_work, msecs_to_jiffies(delay));
+	}
+
+	return 0;
+}
+
+static void nfcsim_abort_cmd(struct nfc_digital_dev *ddev)
+{
+	struct nfcsim *dev = nfc_digital_get_drvdata(ddev);
+
+	nfcsim_link_recv_cancel(dev->link_in);
+}
+
+static int nfcsim_switch_rf(struct nfc_digital_dev *ddev, bool on)
+{
+	struct nfcsim *dev = nfc_digital_get_drvdata(ddev);
+
+	dev->up = on;
+
+	return 0;
+}
+
+static int nfcsim_in_configure_hw(struct nfc_digital_dev *ddev,
+					  int type, int param)
+{
+	struct nfcsim *dev = nfc_digital_get_drvdata(ddev);
+
+	switch (type) {
+	case NFC_DIGITAL_CONFIG_RF_TECH:
+		dev->up = true;
+		dev->mode = NFCSIM_MODE_INITIATOR;
+		dev->rf_tech = param;
+		break;
+
+	case NFC_DIGITAL_CONFIG_FRAMING:
+		break;
+
+	default:
+		NFCSIM_ERR(dev, "Invalid configuration type: %d\n", type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int nfcsim_in_send_cmd(struct nfc_digital_dev *ddev,
+			       struct sk_buff *skb, u16 timeout,
+			       nfc_digital_cmd_complete_t cb, void *arg)
+{
+	return nfcsim_send(ddev, skb, timeout, cb, arg);
+}
+
+static int nfcsim_tg_configure_hw(struct nfc_digital_dev *ddev,
+					  int type, int param)
+{
+	struct nfcsim *dev = nfc_digital_get_drvdata(ddev);
+
+	switch (type) {
+	case NFC_DIGITAL_CONFIG_RF_TECH:
+		dev->up = true;
+		dev->mode = NFCSIM_MODE_TARGET;
+		dev->rf_tech = param;
+		break;
+
+	case NFC_DIGITAL_CONFIG_FRAMING:
+		break;
+
+	default:
+		NFCSIM_ERR(dev, "Invalid configuration type: %d\n", type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int nfcsim_tg_send_cmd(struct nfc_digital_dev *ddev,
+			       struct sk_buff *skb, u16 timeout,
+			       nfc_digital_cmd_complete_t cb, void *arg)
+{
+	return nfcsim_send(ddev, skb, timeout, cb, arg);
+}
+
+static int nfcsim_tg_listen(struct nfc_digital_dev *ddev, u16 timeout,
+			    nfc_digital_cmd_complete_t cb, void *arg)
+{
+	return nfcsim_send(ddev, NULL, timeout, cb, arg);
+}
+
+static struct nfc_digital_ops nfcsim_digital_ops = {
+	.in_configure_hw = nfcsim_in_configure_hw,
+	.in_send_cmd = nfcsim_in_send_cmd,
+
+	.tg_listen = nfcsim_tg_listen,
+	.tg_configure_hw = nfcsim_tg_configure_hw,
+	.tg_send_cmd = nfcsim_tg_send_cmd,
+
+	.abort_cmd = nfcsim_abort_cmd,
+	.switch_rf = nfcsim_switch_rf,
+};
+
+static struct dentry *nfcsim_debugfs_root;
+
+static void nfcsim_debugfs_init(void)
+{
+	nfcsim_debugfs_root = debugfs_create_dir("nfcsim", NULL);
+
+	if (!nfcsim_debugfs_root)
+		pr_err("Could not create debugfs entry\n");
+
+}
+
+static void nfcsim_debugfs_remove(void)
+{
+	debugfs_remove_recursive(nfcsim_debugfs_root);
+}
+
+static void nfcsim_debugfs_init_dev(struct nfcsim *dev)
+{
+	struct dentry *dev_dir;
+	char devname[5]; /* nfcX\0 */
+	u32 idx;
+	int n;
+
+	if (!nfcsim_debugfs_root) {
+		NFCSIM_ERR(dev, "nfcsim debugfs not initialized\n");
+		return;
+	}
+
+	idx = dev->nfc_digital_dev->nfc_dev->idx;
+	n = snprintf(devname, sizeof(devname), "nfc%d", idx);
+	if (n >= sizeof(devname)) {
+		NFCSIM_ERR(dev, "Could not compute dev name for dev %d\n", idx);
+		return;
+	}
+
+	dev_dir = debugfs_create_dir(devname, nfcsim_debugfs_root);
+	if (!dev_dir) {
+		NFCSIM_ERR(dev, "Could not create debugfs entries for nfc%d\n",
+			   idx);
+		return;
+	}
+
+	debugfs_create_u8("dropframe", 0664, dev_dir, &dev->dropframe);
+}
+
+static struct nfcsim *nfcsim_device_new(struct nfcsim_link *link_in,
+					struct nfcsim_link *link_out)
+{
+	struct nfcsim *dev;
+	int rc;
+
+	dev = kzalloc(sizeof(struct nfcsim), GFP_KERNEL);
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_DELAYED_WORK(&dev->send_work, nfcsim_send_wq);
+	INIT_WORK(&dev->recv_work, nfcsim_recv_wq);
+
+	dev->nfc_digital_dev =
+			nfc_digital_allocate_device(&nfcsim_digital_ops,
+						    NFC_PROTO_NFC_DEP_MASK,
+						    NFCSIM_CAPABILITIES,
+						    0, 0);
+	if (!dev->nfc_digital_dev) {
+		kfree(dev);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	nfc_digital_set_drvdata(dev->nfc_digital_dev, dev);
+
+	dev->link_in = link_in;
+	dev->link_out = link_out;
+
+	rc = nfc_digital_register_device(dev->nfc_digital_dev);
+	if (rc) {
+		pr_err("Could not register digital device (%d)\n", rc);
+		nfc_digital_free_device(dev->nfc_digital_dev);
+		kfree(dev);
+
+		return ERR_PTR(rc);
+	}
+
+	nfcsim_debugfs_init_dev(dev);
+
+	return dev;
+}
+
+static void nfcsim_device_free(struct nfcsim *dev)
+{
+	nfc_digital_unregister_device(dev->nfc_digital_dev);
+
+	dev->up = false;
+
+	nfcsim_link_shutdown(dev->link_in);
+
+	cancel_delayed_work_sync(&dev->send_work);
+	cancel_work_sync(&dev->recv_work);
+
+	nfc_digital_free_device(dev->nfc_digital_dev);
+
+	kfree(dev);
+}
 
 static struct nfcsim *dev0;
 static struct nfcsim *dev1;
 
-static struct workqueue_struct *wq;
-
-static void nfcsim_cleanup_dev(struct nfcsim *dev, u8 shutdown)
-{
-	DEV_DBG(dev, "shutdown=%d\n", shutdown);
-
-	mutex_lock(&dev->lock);
-
-	dev->polling_mode = NFCSIM_POLL_NONE;
-	dev->shutting_down = shutdown;
-	dev->cb = NULL;
-	dev_kfree_skb(dev->clone_skb);
-	dev->clone_skb = NULL;
-
-	mutex_unlock(&dev->lock);
-
-	cancel_delayed_work_sync(&dev->poll_work);
-	cancel_delayed_work_sync(&dev->recv_work);
-}
-
-static int nfcsim_target_found(struct nfcsim *dev)
-{
-	struct nfc_target nfc_tgt;
-
-	DEV_DBG(dev, "\n");
-
-	memset(&nfc_tgt, 0, sizeof(struct nfc_target));
-
-	nfc_tgt.supported_protocols = NFC_PROTO_NFC_DEP_MASK;
-	nfc_targets_found(dev->nfc_dev, &nfc_tgt, 1);
-
-	return 0;
-}
-
-static int nfcsim_dev_up(struct nfc_dev *nfc_dev)
-{
-	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
-
-	DEV_DBG(dev, "\n");
-
-	mutex_lock(&dev->lock);
-
-	dev->up = 1;
-
-	mutex_unlock(&dev->lock);
-
-	return 0;
-}
-
-static int nfcsim_dev_down(struct nfc_dev *nfc_dev)
-{
-	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
-
-	DEV_DBG(dev, "\n");
-
-	mutex_lock(&dev->lock);
-
-	dev->up = 0;
-
-	mutex_unlock(&dev->lock);
-
-	return 0;
-}
-
-static int nfcsim_dep_link_up(struct nfc_dev *nfc_dev,
-			      struct nfc_target *target,
-			      u8 comm_mode, u8 *gb, size_t gb_len)
-{
-	int rc;
-	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
-	struct nfcsim *peer = dev->peer_dev;
-	u8 *remote_gb;
-	size_t remote_gb_len;
-
-	DEV_DBG(dev, "target_idx: %d, comm_mode: %d\n", target->idx, comm_mode);
-
-	mutex_lock(&peer->lock);
-
-	nfc_tm_activated(peer->nfc_dev, NFC_PROTO_NFC_DEP_MASK,
-			 NFC_COMM_ACTIVE, gb, gb_len);
-
-	remote_gb = nfc_get_local_general_bytes(peer->nfc_dev, &remote_gb_len);
-	if (!remote_gb) {
-		DEV_ERR(peer, "Can't get remote general bytes\n");
-
-		mutex_unlock(&peer->lock);
-		return -EINVAL;
-	}
-
-	mutex_unlock(&peer->lock);
-
-	mutex_lock(&dev->lock);
-
-	rc = nfc_set_remote_general_bytes(nfc_dev, remote_gb, remote_gb_len);
-	if (rc) {
-		DEV_ERR(dev, "Can't set remote general bytes\n");
-		mutex_unlock(&dev->lock);
-		return rc;
-	}
-
-	rc = nfc_dep_link_is_up(nfc_dev, target->idx, NFC_COMM_ACTIVE,
-				NFC_RF_INITIATOR);
-
-	mutex_unlock(&dev->lock);
-
-	return rc;
-}
-
-static int nfcsim_dep_link_down(struct nfc_dev *nfc_dev)
-{
-	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
-
-	DEV_DBG(dev, "\n");
-
-	nfcsim_cleanup_dev(dev, 0);
-
-	return 0;
-}
-
-static int nfcsim_start_poll(struct nfc_dev *nfc_dev,
-			     u32 im_protocols, u32 tm_protocols)
-{
-	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
-	int rc;
-
-	mutex_lock(&dev->lock);
-
-	if (dev->polling_mode != NFCSIM_POLL_NONE) {
-		DEV_ERR(dev, "Already in polling mode\n");
-		rc = -EBUSY;
-		goto exit;
-	}
-
-	if (im_protocols & NFC_PROTO_NFC_DEP_MASK)
-		dev->polling_mode |= NFCSIM_POLL_INITIATOR;
-
-	if (tm_protocols & NFC_PROTO_NFC_DEP_MASK)
-		dev->polling_mode |= NFCSIM_POLL_TARGET;
-
-	if (dev->polling_mode == NFCSIM_POLL_NONE) {
-		DEV_ERR(dev, "Unsupported polling mode\n");
-		rc = -EINVAL;
-		goto exit;
-	}
-
-	dev->initiator = 0;
-	dev->curr_polling_mode = NFCSIM_POLL_NONE;
-
-	queue_delayed_work(wq, &dev->poll_work, 0);
-
-	DEV_DBG(dev, "Start polling: im: 0x%X, tm: 0x%X\n", im_protocols,
-		tm_protocols);
-
-	rc = 0;
-exit:
-	mutex_unlock(&dev->lock);
-
-	return rc;
-}
-
-static void nfcsim_stop_poll(struct nfc_dev *nfc_dev)
-{
-	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
-
-	DEV_DBG(dev, "Stop poll\n");
-
-	mutex_lock(&dev->lock);
-
-	dev->polling_mode = NFCSIM_POLL_NONE;
-
-	mutex_unlock(&dev->lock);
-
-	cancel_delayed_work_sync(&dev->poll_work);
-}
-
-static int nfcsim_activate_target(struct nfc_dev *nfc_dev,
-				  struct nfc_target *target, u32 protocol)
-{
-	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
-
-	DEV_DBG(dev, "\n");
-
-	return -ENOTSUPP;
-}
-
-static void nfcsim_deactivate_target(struct nfc_dev *nfc_dev,
-				     struct nfc_target *target)
-{
-	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
-
-	DEV_DBG(dev, "\n");
-}
-
-static void nfcsim_wq_recv(struct work_struct *work)
-{
-	struct nfcsim *dev = container_of(work, struct nfcsim,
-					  recv_work.work);
-
-	mutex_lock(&dev->lock);
-
-	if (dev->shutting_down || !dev->up || !dev->clone_skb) {
-		dev_kfree_skb(dev->clone_skb);
-		goto exit;
-	}
-
-	if (dev->initiator) {
-		if (!dev->cb) {
-			DEV_ERR(dev, "Null recv callback\n");
-			dev_kfree_skb(dev->clone_skb);
-			goto exit;
-		}
-
-		dev->cb(dev->cb_context, dev->clone_skb, 0);
-		dev->cb = NULL;
-	} else {
-		nfc_tm_data_received(dev->nfc_dev, dev->clone_skb);
-	}
-
-exit:
-	dev->clone_skb = NULL;
-
-	mutex_unlock(&dev->lock);
-}
-
-static int nfcsim_tx(struct nfc_dev *nfc_dev, struct nfc_target *target,
-		     struct sk_buff *skb, data_exchange_cb_t cb,
-		     void *cb_context)
-{
-	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
-	struct nfcsim *peer = dev->peer_dev;
-	int err;
-
-	mutex_lock(&dev->lock);
-
-	if (dev->shutting_down || !dev->up) {
-		mutex_unlock(&dev->lock);
-		err = -ENODEV;
-		goto exit;
-	}
-
-	dev->cb = cb;
-	dev->cb_context = cb_context;
-
-	mutex_unlock(&dev->lock);
-
-	mutex_lock(&peer->lock);
-
-	peer->clone_skb = skb_clone(skb, GFP_KERNEL);
-
-	if (!peer->clone_skb) {
-		DEV_ERR(dev, "skb_clone failed\n");
-		mutex_unlock(&peer->lock);
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	/* This simulates an arbitrary transmission delay between the 2 devices.
-	 * If packet transmission occurs immediately between them, we have a
-	 * non-stop flow of several tens of thousands SYMM packets per second
-	 * and a burning cpu.
-	 *
-	 * TODO: Add support for a sysfs entry to control this delay.
-	 */
-	queue_delayed_work(wq, &peer->recv_work, msecs_to_jiffies(5));
-
-	mutex_unlock(&peer->lock);
-
-	err = 0;
-exit:
-	dev_kfree_skb(skb);
-
-	return err;
-}
-
-static int nfcsim_im_transceive(struct nfc_dev *nfc_dev,
-				struct nfc_target *target, struct sk_buff *skb,
-				data_exchange_cb_t cb, void *cb_context)
-{
-	return nfcsim_tx(nfc_dev, target, skb, cb, cb_context);
-}
-
-static int nfcsim_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
-{
-	return nfcsim_tx(nfc_dev, NULL, skb, NULL, NULL);
-}
-
-static struct nfc_ops nfcsim_nfc_ops = {
-	.dev_up = nfcsim_dev_up,
-	.dev_down = nfcsim_dev_down,
-	.dep_link_up = nfcsim_dep_link_up,
-	.dep_link_down = nfcsim_dep_link_down,
-	.start_poll = nfcsim_start_poll,
-	.stop_poll = nfcsim_stop_poll,
-	.activate_target = nfcsim_activate_target,
-	.deactivate_target = nfcsim_deactivate_target,
-	.im_transceive = nfcsim_im_transceive,
-	.tm_send = nfcsim_tm_send,
-};
-
-static void nfcsim_set_polling_mode(struct nfcsim *dev)
-{
-	if (dev->polling_mode == NFCSIM_POLL_NONE) {
-		dev->curr_polling_mode = NFCSIM_POLL_NONE;
-		return;
-	}
-
-	if (dev->curr_polling_mode == NFCSIM_POLL_NONE) {
-		if (dev->polling_mode & NFCSIM_POLL_INITIATOR)
-			dev->curr_polling_mode = NFCSIM_POLL_INITIATOR;
-		else
-			dev->curr_polling_mode = NFCSIM_POLL_TARGET;
-
-		return;
-	}
-
-	if (dev->polling_mode == NFCSIM_POLL_DUAL) {
-		if (dev->curr_polling_mode == NFCSIM_POLL_TARGET)
-			dev->curr_polling_mode = NFCSIM_POLL_INITIATOR;
-		else
-			dev->curr_polling_mode = NFCSIM_POLL_TARGET;
-	}
-}
-
-static void nfcsim_wq_poll(struct work_struct *work)
-{
-	struct nfcsim *dev = container_of(work, struct nfcsim, poll_work.work);
-	struct nfcsim *peer = dev->peer_dev;
-
-	/* These work items run on an ordered workqueue and are therefore
-	 * serialized. So we can take both mutexes without being dead locked.
-	 */
-	mutex_lock(&dev->lock);
-	mutex_lock(&peer->lock);
-
-	nfcsim_set_polling_mode(dev);
-
-	if (dev->curr_polling_mode == NFCSIM_POLL_NONE) {
-		DEV_DBG(dev, "Not polling\n");
-		goto unlock;
-	}
-
-	DEV_DBG(dev, "Polling as %s",
-		dev->curr_polling_mode == NFCSIM_POLL_INITIATOR ?
-		"initiator\n" : "target\n");
-
-	if (dev->curr_polling_mode == NFCSIM_POLL_TARGET)
-		goto sched_work;
-
-	if (peer->curr_polling_mode == NFCSIM_POLL_TARGET) {
-		peer->polling_mode = NFCSIM_POLL_NONE;
-		dev->polling_mode = NFCSIM_POLL_NONE;
-
-		dev->initiator = 1;
-
-		nfcsim_target_found(dev);
-
-		goto unlock;
-	}
-
-sched_work:
-	/* This defines the delay for an initiator to check if the other device
-	 * is polling in target mode.
-	 * If the device starts in dual mode polling, it switches between
-	 * initiator and target at every round.
-	 * Because the wq is ordered and only 1 work item is executed at a time,
-	 * we'll always have one device polling as initiator and the other as
-	 * target at some point, even if both are started in dual mode.
-	 */
-	queue_delayed_work(wq, &dev->poll_work, msecs_to_jiffies(200));
-
-unlock:
-	mutex_unlock(&peer->lock);
-	mutex_unlock(&dev->lock);
-}
-
-static struct nfcsim *nfcsim_init_dev(void)
-{
-	struct nfcsim *dev;
-	int rc = -ENOMEM;
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	mutex_init(&dev->lock);
-
-	INIT_DELAYED_WORK(&dev->recv_work, nfcsim_wq_recv);
-	INIT_DELAYED_WORK(&dev->poll_work, nfcsim_wq_poll);
-
-	dev->nfc_dev = nfc_allocate_device(&nfcsim_nfc_ops,
-					   NFC_PROTO_NFC_DEP_MASK,
-					   0, 0);
-	if (!dev->nfc_dev)
-		goto error;
-
-	nfc_set_drvdata(dev->nfc_dev, dev);
-
-	rc = nfc_register_device(dev->nfc_dev);
-	if (rc)
-		goto free_nfc_dev;
-
-	return dev;
-
-free_nfc_dev:
-	nfc_free_device(dev->nfc_dev);
-
-error:
-	kfree(dev);
-
-	return ERR_PTR(rc);
-}
-
-static void nfcsim_free_device(struct nfcsim *dev)
-{
-	nfc_unregister_device(dev->nfc_dev);
-
-	nfc_free_device(dev->nfc_dev);
-
-	kfree(dev);
-}
-
 static int __init nfcsim_init(void)
 {
+	struct nfcsim_link *link0, *link1;
 	int rc;
 
-	/* We need an ordered wq to ensure that poll_work items are executed
-	 * one at a time.
-	 */
-	wq = alloc_ordered_workqueue("nfcsim", 0);
-	if (!wq) {
+	link0 = nfcsim_link_new();
+	link1 = nfcsim_link_new();
+	if (!link0 || !link1) {
 		rc = -ENOMEM;
-		goto exit;
+		goto exit_err;
 	}
 
-	dev0 = nfcsim_init_dev();
+	nfcsim_debugfs_init();
+
+	dev0 = nfcsim_device_new(link0, link1);
 	if (IS_ERR(dev0)) {
 		rc = PTR_ERR(dev0);
-		goto exit;
+		goto exit_err;
 	}
 
-	dev1 = nfcsim_init_dev();
+	dev1 = nfcsim_device_new(link1, link0);
 	if (IS_ERR(dev1)) {
-		kfree(dev0);
+		nfcsim_device_free(dev0);
 
 		rc = PTR_ERR(dev1);
-		goto exit;
+		goto exit_err;
 	}
 
-	dev0->peer_dev = dev1;
-	dev1->peer_dev = dev0;
+	pr_info("nfcsim " NFCSIM_VERSION " initialized\n");
 
-	pr_debug("NFCsim " NFCSIM_VERSION " initialized\n");
+	return 0;
 
-	rc = 0;
-exit:
-	if (rc)
-		pr_err("Failed to initialize nfcsim driver (%d)\n",
-		       rc);
+exit_err:
+	pr_err("Failed to initialize nfcsim driver (%d)\n", rc);
+
+	if (link0)
+		nfcsim_link_free(link0);
+	if (link1)
+		nfcsim_link_free(link1);
 
 	return rc;
 }
 
 static void __exit nfcsim_exit(void)
 {
-	nfcsim_cleanup_dev(dev0, 1);
-	nfcsim_cleanup_dev(dev1, 1);
+	struct nfcsim_link *link0, *link1;
 
-	nfcsim_free_device(dev0);
-	nfcsim_free_device(dev1);
+	link0 = dev0->link_in;
+	link1 = dev0->link_out;
 
-	destroy_workqueue(wq);
+	nfcsim_device_free(dev0);
+	nfcsim_device_free(dev1);
+
+	nfcsim_link_free(link0);
+	nfcsim_link_free(link1);
+
+	nfcsim_debugfs_remove();
 }
 
 module_init(nfcsim_init);

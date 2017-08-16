@@ -26,6 +26,40 @@ to_drm_gem_cma_obj(struct drm_gem_object *gem_obj)
 	return container_of(gem_obj, struct drm_gem_cma_object, base);
 }
 
+#ifndef CONFIG_MMU
+#define DRM_GEM_CMA_UNMAPPED_AREA_FOPS \
+	.get_unmapped_area	= drm_gem_cma_get_unmapped_area,
+#else
+#define DRM_GEM_CMA_UNMAPPED_AREA_FOPS
+#endif
+
+/**
+ * DEFINE_DRM_GEM_CMA_FOPS() - macro to generate file operations for CMA drivers
+ * @name: name for the generated structure
+ *
+ * This macro autogenerates a suitable &struct file_operations for CMA based
+ * drivers, which can be assigned to &drm_driver.fops. Note that this structure
+ * cannot be shared between drivers, because it contains a reference to the
+ * current module using THIS_MODULE.
+ *
+ * Note that the declaration is already marked as static - if you need a
+ * non-static version of this you're probably doing it wrong and will break the
+ * THIS_MODULE reference by accident.
+ */
+#define DEFINE_DRM_GEM_CMA_FOPS(name) \
+	static const struct file_operations name = {\
+		.owner		= THIS_MODULE,\
+		.open		= drm_open,\
+		.release	= drm_release,\
+		.unlocked_ioctl	= drm_ioctl,\
+		.compat_ioctl	= drm_compat_ioctl,\
+		.poll		= drm_poll,\
+		.read		= drm_read,\
+		.llseek		= noop_llseek,\
+		.mmap		= drm_gem_cma_mmap,\
+		DRM_GEM_CMA_UNMAPPED_AREA_FOPS \
+	}
+
 /* free GEM object */
 void drm_gem_cma_free_object(struct drm_gem_object *gem_obj);
 
@@ -52,6 +86,14 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 					      size_t size);
 
 extern const struct vm_operations_struct drm_gem_cma_vm_ops;
+
+#ifndef CONFIG_MMU
+unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
+					    unsigned long addr,
+					    unsigned long len,
+					    unsigned long pgoff,
+					    unsigned long flags);
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 void drm_gem_cma_describe(struct drm_gem_cma_object *obj, struct seq_file *m);

@@ -1,0 +1,25 @@
+Maxim Semiconductor MAX8903 Battery Charger bindings
+
+Required properties:
+- compatible: "maxim,max8903" for MAX8903 Battery Charger
+- dok-gpios: Valid DC power has been detected (active low, input), optional if uok-gpios is provided
+- uok-gpios: Valid USB power has been detected (active low, input), optional if dok-gpios is provided
+
+Optional properties:
+- cen-gpios: Charge enable pin (active low, output)
+- chg-gpios: Charger status pin (active low, input)
+- flt-gpios: Fault pin (active low, output)
+- dcm-gpios: Current limit mode setting (DC=1 or USB=0, output)
+- usus-gpios: USB suspend pin (active high, output)
+
+
+Example:
+
+	max8903-charger {
+		compatible = "maxim,max8903";
+		dok-gpios = <&gpio2 3 GPIO_ACTIVE_LOW>;
+		flt-gpios = <&gpio2 2 GPIO_ACTIVE_LOW>;
+		chg-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
+		cen-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};

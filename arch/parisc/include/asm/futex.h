@@ -35,70 +35,57 @@ static inline int
 futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 {
 	unsigned long int flags;
-	u32 val;
 	int op = (encoded_op >> 28) & 7;
 	int cmp = (encoded_op >> 24) & 15;
 	int oparg = (encoded_op << 8) >> 20;
 	int cmparg = (encoded_op << 20) >> 20;
-	int oldval = 0, ret;
+	int oldval, ret;
+	u32 tmp;
+
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
 
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(*uaddr)))
 		return -EFAULT;
 
+	_futex_spin_lock_irqsave(uaddr, &flags);
 	pagefault_disable();
 
-	_futex_spin_lock_irqsave(uaddr, &flags);
+	ret = -EFAULT;
+	if (unlikely(get_user(oldval, uaddr) != 0))
+		goto out_pagefault_enable;
+
+	ret = 0;
+	tmp = oldval;
 
 	switch (op) {
 	case FUTEX_OP_SET:
-		/* *(int *)UADDR2 = OPARG; */
-		ret = get_user(oldval, uaddr);
-		if (!ret)
-			ret = put_user(oparg, uaddr);
+		tmp = oparg;
 		break;
 	case FUTEX_OP_ADD:
-		/* *(int *)UADDR2 += OPARG; */
-		ret = get_user(oldval, uaddr);
-		if (!ret) {
-			val = oldval + oparg;
-			ret = put_user(val, uaddr);
-		}
+		tmp += oparg;
 		break;
 	case FUTEX_OP_OR:
-		/* *(int *)UADDR2 |= OPARG; */
-		ret = get_user(oldval, uaddr);
-		if (!ret) {
-			val = oldval | oparg;
-			ret = put_user(val, uaddr);
-		}
+		tmp |= oparg;
 		break;
 	case FUTEX_OP_ANDN:
-		/* *(int *)UADDR2 &= ~OPARG; */
-		ret = get_user(oldval, uaddr);
-		if (!ret) {
-			val = oldval & ~oparg;
-			ret = put_user(val, uaddr);
-		}
+		tmp &= ~oparg;
 		break;
 	case FUTEX_OP_XOR:
-		/* *(int *)UADDR2 ^= OPARG; */
-		ret = get_user(oldval, uaddr);
-		if (!ret) {
-			val = oldval ^ oparg;
-			ret = put_user(val, uaddr);
-		}
+		tmp ^= oparg;
 		break;
 	default:
 		ret = -ENOSYS;
 	}
 
+	if (ret == 0 && unlikely(put_user(tmp, uaddr) != 0))
+		ret = -EFAULT;
+
+out_pagefault_enable:
+	pagefault_enable();
 	_futex_spin_unlock_irqrestore(uaddr, &flags);
 
-	pagefault_enable();
-
-	if (!ret) {
+	if (ret == 0) {
 		switch (cmp) {
 		case FUTEX_OP_CMP_EQ: ret = (oldval == cmparg); break;
 		case FUTEX_OP_CMP_NE: ret = (oldval != cmparg); break;
@@ -112,19 +99,17 @@ futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
 	return ret;
 }
 
-/* Non-atomic version */
 static inline int
 futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 			      u32 oldval, u32 newval)
 {
-	int ret;
 	u32 val;
 	unsigned long flags;
 
 	/* futex.c wants to do a cmpxchg_inatomic on kernel NULL, which is
 	 * our gateway page, and causes no end of trouble...
 	 */
-	if (segment_eq(KERNEL_DS, get_fs()) && !uaddr)
+	if (uaccess_kernel() && !uaddr)
 		return -EFAULT;
 
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
@@ -137,17 +122,20 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	 */
 
 	_futex_spin_lock_irqsave(uaddr, &flags);
+	if (unlikely(get_user(val, uaddr) != 0)) {
+		_futex_spin_unlock_irqrestore(uaddr, &flags);
+		return -EFAULT;
+	}
 
-	ret = get_user(val, uaddr);
-
-	if (!ret && val == oldval)
-		ret = put_user(newval, uaddr);
+	if (val == oldval && unlikely(put_user(newval, uaddr) != 0)) {
+		_futex_spin_unlock_irqrestore(uaddr, &flags);
+		return -EFAULT;
+	}
 
 	*uval = val;
-
 	_futex_spin_unlock_irqrestore(uaddr, &flags);
 
-	return ret;
+	return 0;
 }
 
 #endif /*__KERNEL__*/

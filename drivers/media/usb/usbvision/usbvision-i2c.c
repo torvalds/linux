@@ -17,10 +17,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -315,10 +311,13 @@ usbvision_i2c_read_max4(struct usb_usbvision *usbvision, unsigned char addr,
 	switch (len) {
 	case 4:
 		buf[3] = usbvision_read_reg(usbvision, USBVISION_SER_DAT4);
+		/* fall through */
 	case 3:
 		buf[2] = usbvision_read_reg(usbvision, USBVISION_SER_DAT3);
+		/* fall through */
 	case 2:
 		buf[1] = usbvision_read_reg(usbvision, USBVISION_SER_DAT2);
+		/* fall through */
 	case 1:
 		buf[0] = usbvision_read_reg(usbvision, USBVISION_SER_DAT1);
 		break;

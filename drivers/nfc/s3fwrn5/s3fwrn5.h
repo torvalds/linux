@@ -44,7 +44,7 @@ struct s3fwrn5_info {
 	void *phy_id;
 	struct device *pdev;
 
-	struct s3fwrn5_phy_ops *phy_ops;
+	const struct s3fwrn5_phy_ops *phy_ops;
 	unsigned int max_payload;
 
 	struct s3fwrn5_fw_info fw_info;
@@ -90,7 +90,7 @@ static inline int s3fwrn5_write(struct s3fwrn5_info *info, struct sk_buff *skb)
 }
 
 int s3fwrn5_probe(struct nci_dev **ndev, void *phy_id, struct device *pdev,
-	struct s3fwrn5_phy_ops *phy_ops, unsigned int max_payload);
+	const struct s3fwrn5_phy_ops *phy_ops, unsigned int max_payload);
 void s3fwrn5_remove(struct nci_dev *ndev);
 
 int s3fwrn5_recv_frame(struct nci_dev *ndev, struct sk_buff *skb,

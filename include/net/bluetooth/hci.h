@@ -44,6 +44,9 @@
 #define HCI_DEV_DOWN			4
 #define HCI_DEV_SUSPEND			5
 #define HCI_DEV_RESUME			6
+#define HCI_DEV_OPEN			7
+#define HCI_DEV_CLOSE			8
+#define HCI_DEV_SETUP			9
 
 /* HCI notify events */
 #define HCI_NOTIFY_CONN_ADD		1
@@ -58,9 +61,12 @@
 #define HCI_RS232	4
 #define HCI_PCI		5
 #define HCI_SDIO	6
+#define HCI_SPI		7
+#define HCI_I2C		8
+#define HCI_SMD		9
 
 /* HCI controller types */
-#define HCI_BREDR	0x00
+#define HCI_PRIMARY	0x00
 #define HCI_AMP		0x01
 
 /* First BR/EDR Controller shall have ID = 0 */
@@ -168,6 +174,15 @@ enum {
 	 * during the hdev->setup vendor callback.
 	 */
 	HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
+
+	/* When this quirk is set, the enabling of diagnostic mode is
+	 * not persistent over HCI Reset. Every time the controller
+	 * is brought up it needs to be reprogrammed.
+	 *
+	 * This quirk can be set before hci_register_dev is called or
+	 * during the hdev->setup vendor callback.
+	 */
+	HCI_QUIRK_NON_PERSISTENT_DIAG,
 };
 
 /* HCI device flags */
@@ -193,7 +208,11 @@ enum {
 	HCI_MGMT_INDEX_EVENTS,
 	HCI_MGMT_UNCONF_INDEX_EVENTS,
 	HCI_MGMT_EXT_INDEX_EVENTS,
-	HCI_MGMT_GENERIC_EVENTS,
+	HCI_MGMT_EXT_INFO_EVENTS,
+	HCI_MGMT_OPTION_EVENTS,
+	HCI_MGMT_SETTING_EVENTS,
+	HCI_MGMT_DEV_CLASS_EVENTS,
+	HCI_MGMT_LOCAL_NAME_EVENTS,
 	HCI_MGMT_OOB_DATA_EVENTS,
 };
 
@@ -221,13 +240,13 @@ enum {
 	HCI_SC_ENABLED,
 	HCI_SC_ONLY,
 	HCI_PRIVACY,
+	HCI_LIMITED_PRIVACY,
 	HCI_RPA_EXPIRED,
 	HCI_RPA_RESOLVING,
 	HCI_HS_ENABLED,
 	HCI_LE_ENABLED,
 	HCI_ADVERTISING,
 	HCI_ADVERTISING_CONNECTABLE,
-	HCI_ADVERTISING_INSTANCE,
 	HCI_CONNECTABLE,
 	HCI_DISCOVERABLE,
 	HCI_LIMITED_DISCOVERABLE,
@@ -238,6 +257,7 @@ enum {
 	HCI_LE_SCAN_INTERRUPTED,
 
 	HCI_DUT_MODE,
+	HCI_VENDOR_DIAG,
 	HCI_FORCE_BREDR_SMP,
 	HCI_FORCE_STATIC_ADDR,
 
@@ -260,6 +280,7 @@ enum {
 #define HCI_ACLDATA_PKT		0x02
 #define HCI_SCODATA_PKT		0x03
 #define HCI_EVENT_PKT		0x04
+#define HCI_DIAG_PKT		0xf0
 #define HCI_VENDOR_PKT		0xff
 
 /* HCI packet types */
@@ -378,6 +399,7 @@ enum {
 #define HCI_LE_PING			0x10
 #define HCI_LE_DATA_LEN_EXT		0x20
 #define HCI_LE_EXT_SCAN_POLICY		0x80
+#define HCI_LE_CHAN_SEL_ALG2		0x40
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
@@ -429,6 +451,7 @@ enum {
 /* ---- HCI Error Codes ---- */
 #define HCI_ERROR_UNKNOWN_CONN_ID	0x02
 #define HCI_ERROR_AUTH_FAILURE		0x05
+#define HCI_ERROR_PIN_OR_KEY_MISSING	0x06
 #define HCI_ERROR_MEMORY_EXCEEDED	0x07
 #define HCI_ERROR_CONNECTION_TIMEOUT	0x08
 #define HCI_ERROR_REJ_LIMITED_RESOURCES	0x0d
@@ -438,7 +461,8 @@ enum {
 #define HCI_ERROR_REMOTE_POWER_OFF	0x15
 #define HCI_ERROR_LOCAL_HOST_TERM	0x16
 #define HCI_ERROR_PAIRING_NOT_ALLOWED	0x18
-#define HCI_ERROR_INVALID_LL_PARAMS	0x1E
+#define HCI_ERROR_INVALID_LL_PARAMS	0x1e
+#define HCI_ERROR_UNSPECIFIED		0x1f
 #define HCI_ERROR_ADVERTISING_TIMEOUT	0x3c
 
 /* Flow control modes */
@@ -1473,6 +1497,13 @@ struct hci_rp_le_read_max_data_len {
 	__le16	tx_time;
 	__le16	rx_len;
 	__le16	rx_time;
+} __packed;
+
+#define HCI_OP_LE_SET_DEFAULT_PHY	0x2031
+struct hci_cp_le_set_default_phy {
+	__u8    all_phys;
+	__u8    tx_phys;
+	__u8    rx_phys;
 } __packed;
 
 /* ---- HCI Events ---- */

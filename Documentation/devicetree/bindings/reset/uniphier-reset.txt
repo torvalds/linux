@@ -1,0 +1,94 @@
+UniPhier reset controller
+
+
+System reset
+------------
+
+Required properties:
+- compatible: should be one of the following:
+    "socionext,uniphier-sld3-reset" - for sLD3 SoC
+    "socionext,uniphier-ld4-reset"  - for LD4 SoC
+    "socionext,uniphier-pro4-reset" - for Pro4 SoC
+    "socionext,uniphier-sld8-reset" - for sLD8 SoC
+    "socionext,uniphier-pro5-reset" - for Pro5 SoC
+    "socionext,uniphier-pxs2-reset" - for PXs2/LD6b SoC
+    "socionext,uniphier-ld11-reset" - for LD11 SoC
+    "socionext,uniphier-ld20-reset" - for LD20 SoC
+- #reset-cells: should be 1.
+
+Example:
+
+	sysctrl@61840000 {
+		compatible = "socionext,uniphier-ld11-sysctrl",
+			     "simple-mfd", "syscon";
+		reg = <0x61840000 0x4000>;
+
+		reset {
+			compatible = "socionext,uniphier-ld11-reset";
+			#reset-cells = <1>;
+		};
+
+		other nodes ...
+	};
+
+
+Media I/O (MIO) reset, SD reset
+-------------------------------
+
+Required properties:
+- compatible: should be one of the following:
+    "socionext,uniphier-sld3-mio-reset" - for sLD3 SoC
+    "socionext,uniphier-ld4-mio-reset"  - for LD4 SoC
+    "socionext,uniphier-pro4-mio-reset" - for Pro4 SoC
+    "socionext,uniphier-sld8-mio-reset" - for sLD8 SoC
+    "socionext,uniphier-pro5-sd-reset"  - for Pro5 SoC
+    "socionext,uniphier-pxs2-sd-reset"  - for PXs2/LD6b SoC
+    "socionext,uniphier-ld11-mio-reset" - for LD11 SoC (MIO)
+    "socionext,uniphier-ld11-sd-reset"  - for LD11 SoC (SD)
+    "socionext,uniphier-ld20-sd-reset"  - for LD20 SoC
+- #reset-cells: should be 1.
+
+Example:
+
+	mioctrl@59810000 {
+		compatible = "socionext,uniphier-ld11-mioctrl",
+			     "simple-mfd", "syscon";
+		reg = <0x59810000 0x800>;
+
+		reset {
+			compatible = "socionext,uniphier-ld11-mio-reset";
+			#reset-cells = <1>;
+		};
+
+		other nodes ...
+	};
+
+
+Peripheral reset
+----------------
+
+Required properties:
+- compatible: should be one of the following:
+    "socionext,uniphier-ld4-peri-reset"  - for LD4 SoC
+    "socionext,uniphier-pro4-peri-reset" - for Pro4 SoC
+    "socionext,uniphier-sld8-peri-reset" - for sLD8 SoC
+    "socionext,uniphier-pro5-peri-reset" - for Pro5 SoC
+    "socionext,uniphier-pxs2-peri-reset" - for PXs2/LD6b SoC
+    "socionext,uniphier-ld11-peri-reset" - for LD11 SoC
+    "socionext,uniphier-ld20-peri-reset" - for LD20 SoC
+- #reset-cells: should be 1.
+
+Example:
+
+	perictrl@59820000 {
+		compatible = "socionext,uniphier-ld11-perictrl",
+			     "simple-mfd", "syscon";
+		reg = <0x59820000 0x200>;
+
+		reset {
+			compatible = "socionext,uniphier-ld11-peri-reset";
+			#reset-cells = <1>;
+		};
+
+		other nodes ...
+	};

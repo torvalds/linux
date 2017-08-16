@@ -93,7 +93,7 @@
 		compatible = "arm,vexpress,config-bus";
 		arm,vexpress,config-bridge = <&v2m_sysreg>;
 
-		smbclk: osc@4 {
+		smbclk: smclk {
 			/* SMC clock */
 			compatible = "arm,vexpress-osc";
 			arm,vexpress-sysreg,func = <1 4>;
@@ -102,7 +102,7 @@
 			clock-output-names = "smclk";
 		};
 
-		volt@0 {
+		volt-vio {
 			/* VIO to expansion board above */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 0>;
@@ -112,7 +112,7 @@
 			regulator-always-on;
 		};
 
-		volt@1 {
+		volt-12v {
 			/* 12V from power connector J6 */
 			compatible = "arm,vexpress-volt";
 			arm,vexpress-sysreg,func = <2 1>;
@@ -120,7 +120,7 @@
 			regulator-always-on;
 		};
 
-		temp@0 {
+		temp-fpga {
 			/* FPGA temperature */
 			compatible = "arm,vexpress-temp";
 			arm,vexpress-sysreg,func = <4 0>;
@@ -128,7 +128,7 @@
 		};
 	};
 
-	smb {
+	smb@08000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;
@@ -186,6 +186,6 @@
 				<0 0 41 &gic GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
 				<0 0 42 &gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 
-		/include/ "../../../../arm/boot/dts/vexpress-v2m-rs1.dtsi"
+		/include/ "vexpress-v2m-rs1.dtsi"
 	};
 };

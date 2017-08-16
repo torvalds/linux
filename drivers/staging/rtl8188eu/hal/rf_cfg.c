@@ -11,11 +11,6 @@
 * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 * more details.
 *
-* You should have received a copy of the GNU General Public License along with
-* this program; if not, write to the Free Software Foundation, Inc.,
-* 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
-*
-*
 ******************************************************************************/
 
 #include "odm_precomp.h"
@@ -24,7 +19,7 @@
 
 static bool check_condition(struct adapter *adapt, const u32  condition)
 {
-	struct odm_dm_struct *odm = &GET_HAL_DATA(adapt)->odmpriv;
+	struct odm_dm_struct *odm = &adapt->HalData->odmpriv;
 	u32 _board = odm->BoardType;
 	u32 _platform = odm->SupportPlatform;
 	u32 _interface = odm->SupportInterface;
@@ -188,7 +183,7 @@ static void rtl8188e_config_rf_reg(struct adapter *adapt,
 	u32 addr, u32 data)
 {
 	u32 content = 0x1000; /*RF Content: radio_a_txt*/
-	u32 maskforphyset = (u32)(content & 0xE000);
+	u32 maskforphyset = content & 0xE000;
 
 	rtl_rfreg_delay(adapt, RF90_PATH_A, addr | maskforphyset,
 			RFREG_OFFSET_MASK,
@@ -198,7 +193,7 @@ static void rtl8188e_config_rf_reg(struct adapter *adapt,
 static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 {
 	u32 i;
-	u32 array_len = sizeof(Array_RadioA_1T_8188E)/sizeof(u32);
+	u32 array_len = ARRAY_SIZE(Array_RadioA_1T_8188E);
 	u32 *array = Array_RadioA_1T_8188E;
 
 	for (i = 0; i < array_len; i += 2) {
@@ -214,7 +209,7 @@ static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 				while (v2 != 0xDEAD && v2 != 0xCDEF &&
 				       v2 != 0xCDCD && i < array_len - 2)
 					READ_NEXT_PAIR(v1, v2, i);
-					i -= 2;
+				i -= 2;
 			} else {
 				READ_NEXT_PAIR(v1, v2, i);
 				while (v2 != 0xDEAD && v2 != 0xCDEF &&
@@ -233,84 +228,35 @@ static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 
 static bool rf6052_conf_para(struct adapter *adapt)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *hal_data = adapt->HalData;
 	u32 u4val = 0;
-	u8 rfpath;
 	bool rtstatus = true;
 	struct bb_reg_def *pphyreg;
 
-	for (rfpath = 0; rfpath < hal_data->NumTotalRFPath; rfpath++) {
-		pphyreg = &hal_data->PHYRegDef[rfpath];
+	pphyreg = &hal_data->PHYRegDef[RF90_PATH_A];
+	u4val = phy_query_bb_reg(adapt, pphyreg->rfintfs, BRFSI_RFENV);
 
-		switch (rfpath) {
-		case RF90_PATH_A:
-		case RF90_PATH_C:
-			u4val = phy_query_bb_reg(adapt, pphyreg->rfintfs,
-						 BRFSI_RFENV);
-			break;
-		case RF90_PATH_B:
-		case RF90_PATH_D:
-			u4val = phy_query_bb_reg(adapt, pphyreg->rfintfs,
-						 BRFSI_RFENV << 16);
-			break;
-		}
+	phy_set_bb_reg(adapt, pphyreg->rfintfe, BRFSI_RFENV << 16, 0x1);
+	udelay(1);
 
-		phy_set_bb_reg(adapt, pphyreg->rfintfe, BRFSI_RFENV << 16, 0x1);
-		udelay(1);
+	phy_set_bb_reg(adapt, pphyreg->rfintfo, BRFSI_RFENV, 0x1);
+	udelay(1);
 
-		phy_set_bb_reg(adapt, pphyreg->rfintfo, BRFSI_RFENV, 0x1);
-		udelay(1);
+	phy_set_bb_reg(adapt, pphyreg->rfHSSIPara2, B3WIREADDREAALENGTH, 0x0);
+	udelay(1);
 
-		phy_set_bb_reg(adapt, pphyreg->rfHSSIPara2,
-			      B3WIREADDREAALENGTH, 0x0);
-		udelay(1);
+	phy_set_bb_reg(adapt, pphyreg->rfHSSIPara2, B3WIREDATALENGTH, 0x0);
+	udelay(1);
 
-		phy_set_bb_reg(adapt, pphyreg->rfHSSIPara2,
-			       B3WIREDATALENGTH, 0x0);
-		udelay(1);
+	rtstatus = rtl88e_phy_config_rf_with_headerfile(adapt);
 
-		switch (rfpath) {
-		case RF90_PATH_A:
-			rtstatus = rtl88e_phy_config_rf_with_headerfile(adapt);
-			break;
-		case RF90_PATH_B:
-			rtstatus = rtl88e_phy_config_rf_with_headerfile(adapt);
-			break;
-		case RF90_PATH_C:
-			break;
-		case RF90_PATH_D:
-			break;
-		}
-
-		switch (rfpath) {
-		case RF90_PATH_A:
-		case RF90_PATH_C:
-			phy_set_bb_reg(adapt, pphyreg->rfintfs,
-				       BRFSI_RFENV, u4val);
-			break;
-		case RF90_PATH_B:
-		case RF90_PATH_D:
-			phy_set_bb_reg(adapt, pphyreg->rfintfs,
-				       BRFSI_RFENV << 16, u4val);
-			break;
-		}
-
-		if (!rtstatus)
-			return false;
-	}
+	phy_set_bb_reg(adapt, pphyreg->rfintfs, BRFSI_RFENV, u4val);
 
 	return rtstatus;
 }
 
 static bool rtl88e_phy_rf6052_config(struct adapter *adapt)
 {
-	struct hal_data_8188e *hal_data = GET_HAL_DATA(adapt);
-
-	if (hal_data->rf_type == RF_1T1R)
-		hal_data->NumTotalRFPath = 1;
-	else
-		hal_data->NumTotalRFPath = 2;
-
 	return rf6052_conf_para(adapt);
 }
 

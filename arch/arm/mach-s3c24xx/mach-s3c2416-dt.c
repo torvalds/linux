@@ -17,7 +17,6 @@
 
 #include <linux/clocksource.h>
 #include <linux/irqchip.h>
-#include <linux/of_platform.h>
 #include <linux/serial_s3c.h>
 
 #include <asm/mach/arch.h>
@@ -35,7 +34,6 @@ static void __init s3c2416_dt_map_io(void)
 
 static void __init s3c2416_dt_machine_init(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	s3c_pm_init();
 }
 

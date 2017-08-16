@@ -130,13 +130,13 @@ static int rn5t618_wdt_ping(struct watchdog_device *wdt_dev)
 				  RN5T618_PWRIRQ_IR_WDOG, 0);
 }
 
-static struct watchdog_info rn5t618_wdt_info = {
+static const struct watchdog_info rn5t618_wdt_info = {
 	.options	= WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE |
 			  WDIOF_KEEPALIVEPING,
 	.identity	= DRIVER_NAME,
 };
 
-static struct watchdog_ops rn5t618_wdt_ops = {
+static const struct watchdog_ops rn5t618_wdt_ops = {
 	.owner          = THIS_MODULE,
 	.start          = rn5t618_wdt_start,
 	.stop           = rn5t618_wdt_stop,

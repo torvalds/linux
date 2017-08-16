@@ -443,7 +443,7 @@ static int lcc_ipq806x_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 
 	/* Configure the rate of PLL4 if the bootloader hasn't already */
-	val = regmap_read(regmap, 0x0, &val);
+	regmap_read(regmap, 0x0, &val);
 	if (!val)
 		clk_pll_configure_sr(&pll4, regmap, &pll4_config, true);
 	/* Enable PLL4 source on the LPASS Primary PLL Mux */
@@ -452,15 +452,8 @@ static int lcc_ipq806x_probe(struct platform_device *pdev)
 	return qcom_cc_really_probe(pdev, &lcc_ipq806x_desc, regmap);
 }
 
-static int lcc_ipq806x_remove(struct platform_device *pdev)
-{
-	qcom_cc_remove(pdev);
-	return 0;
-}
-
 static struct platform_driver lcc_ipq806x_driver = {
 	.probe		= lcc_ipq806x_probe,
-	.remove		= lcc_ipq806x_remove,
 	.driver		= {
 		.name	= "lcc-ipq806x",
 		.of_match_table = lcc_ipq806x_match_table,

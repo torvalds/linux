@@ -1,0 +1,44 @@
+Maxim MAX98504 class D mono speaker amplifier
+
+This device supports I2C control interface and an IRQ output signal. It features
+a PCM and PDM digital audio interface (DAI) and a differential analog input.
+
+Required properties:
+
+ - compatible : "maxim,max98504"
+ - reg : should contain the I2C slave device address
+ - DVDD-supply, DIOVDD-supply, PVDD-supply: power supplies for the device,
+   as covered in ../regulator/regulator.txt
+ - interrupts : should specify the interrupt line the device is connected to,
+   as described in ../interrupt-controller/interrupts.txt
+
+Optional properties:
+
+ - maxim,brownout-threshold - the PVDD brownout threshold, the value must be
+   from 0, 1...21 range, corresponding to 2.6V, 2.65V...3.65V voltage range
+ - maxim,brownout-attenuation - the brownout attenuation to the speaker gain
+   applied during the "attack hold" and "timed hold" phase, the value must be
+   from 0...6 (dB) range
+ - maxim,brownout-attack-hold-ms - the brownout attack hold phase time in ms,
+   0...255 (VBATBROWN_ATTK_HOLD, register 0x0018)
+ - maxim,brownout-timed-hold-ms - the brownout timed hold phase time in ms,
+   0...255 (VBATBROWN_TIME_HOLD, register 0x0019)
+ - maxim,brownout-release-rate-ms - the brownout release phase step time in ms,
+   0...255 (VBATBROWN_RELEASE, register 0x001A)
+
+The default value when the above properties are not specified is 0,
+the maxim,brownout-threshold property must be specified to actually enable
+the PVDD brownout protection.
+
+Example:
+
+ max98504@31 {
+	compatible = "maxim,max98504";
+	reg = <0x31>;
+	interrupt-parent = <&gpio_bank_0>;
+	interrupts = <2 0>;
+
+	DVDD-supply = <&regulator>;
+	DIOVDD-supply = <&regulator>;
+	PVDD-supply = <&regulator>;
+};

@@ -52,6 +52,10 @@ struct nf_conntrack_l3proto {
 	int (*tuple_to_nlattr)(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *t);
 
+	/* Called when netns wants to use connection tracking */
+	int (*net_ns_get)(struct net *);
+	void (*net_ns_put)(struct net *);
+
 	/*
 	 * Calculate size of tuple nlattr
 	 */
@@ -63,22 +67,24 @@ struct nf_conntrack_l3proto {
 
 	size_t nla_size;
 
-#ifdef CONFIG_SYSCTL
-	const char		*ctl_table_path;
-#endif /* CONFIG_SYSCTL */
-
-	/* Init l3proto pernet data */
-	int (*init_net)(struct net *net);
-
 	/* Module (if any) which this is connected to. */
 	struct module *me;
 };
 
-extern struct nf_conntrack_l3proto __rcu *nf_ct_l3protos[AF_MAX];
+extern struct nf_conntrack_l3proto __rcu *nf_ct_l3protos[NFPROTO_NUMPROTO];
 
+#ifdef CONFIG_SYSCTL
 /* Protocol pernet registration. */
 int nf_ct_l3proto_pernet_register(struct net *net,
 				  struct nf_conntrack_l3proto *proto);
+#else
+static inline int nf_ct_l3proto_pernet_register(struct net *n,
+						struct nf_conntrack_l3proto *p)
+{
+	return 0;
+}
+#endif
+
 void nf_ct_l3proto_pernet_unregister(struct net *net,
 				     struct nf_conntrack_l3proto *proto);
 
@@ -94,7 +100,7 @@ extern struct nf_conntrack_l3proto nf_conntrack_l3proto_generic;
 static inline struct nf_conntrack_l3proto *
 __nf_ct_l3proto_find(u_int16_t l3proto)
 {
-	if (unlikely(l3proto >= AF_MAX))
+	if (unlikely(l3proto >= NFPROTO_NUMPROTO))
 		return &nf_conntrack_l3proto_generic;
 	return rcu_dereference(nf_ct_l3protos[l3proto]);
 }

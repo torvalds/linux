@@ -132,7 +132,7 @@ static int max8925_set_dvm_disable(struct regulator_dev *rdev)
 	return max8925_set_bits(info->i2c, info->vol_reg, 1 << SD1_DVM_EN, 0);
 }
 
-static struct regulator_ops max8925_regulator_sdv_ops = {
+static const struct regulator_ops max8925_regulator_sdv_ops = {
 	.map_voltage		= regulator_map_voltage_linear,
 	.list_voltage		= regulator_list_voltage_linear,
 	.set_voltage_sel	= max8925_set_voltage_sel,
@@ -145,7 +145,7 @@ static struct regulator_ops max8925_regulator_sdv_ops = {
 	.set_suspend_disable	= max8925_set_dvm_disable,
 };
 
-static struct regulator_ops max8925_regulator_ldo_ops = {
+static const struct regulator_ops max8925_regulator_ldo_ops = {
 	.map_voltage		= regulator_map_voltage_linear,
 	.list_voltage		= regulator_list_voltage_linear,
 	.set_voltage_sel	= max8925_set_voltage_sel,

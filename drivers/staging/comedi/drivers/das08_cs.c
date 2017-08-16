@@ -1,43 +1,42 @@
 /*
-    comedi/drivers/das08_cs.c
-    DAS08 driver
+ * Comedi driver for DAS008 PCMCIA boards
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ * Copyright (C) 2001,2002,2003 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * PCMCIA support code for this driver is adapted from the dummy_cs.c
+ * driver of the Linux PCMCIA Card Services package.
+ *
+ * The initial developer of the original code is David A. Hinds
+ * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
+ * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-    Copyright (C) 2001,2002,2003 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    PCMCIA support code for this driver is adapted from the dummy_cs.c
-    driver of the Linux PCMCIA Card Services package.
-
-    The initial developer of the original code is David A. Hinds
-    <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
-    are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
-*/
 /*
-Driver: das08_cs
-Description: DAS-08 PCMCIA boards
-Author: Warren Jasper, ds, Frank Hess
-Devices: [ComputerBoards] PCM-DAS08 (pcm-das08)
-Status: works
-
-This is the PCMCIA-specific support split off from the
-das08 driver.
-
-Options (for pcm-das08):
-	NONE
-
-Command support does not exist, but could be added for this board.
-*/
+ * Driver: das08_cs
+ * Description: DAS-08 PCMCIA boards
+ * Author: Warren Jasper, ds, Frank Hess
+ * Devices: [ComputerBoards] PCM-DAS08 (pcm-das08)
+ * Status: works
+ *
+ * This is the PCMCIA-specific support split off from the
+ * das08 driver.
+ *
+ * Configuration Options: none, uses PCMCIA auto config
+ *
+ * Command support does not exist, but could be added for this board.
+ */
 
 #include <linux/module.h>
 

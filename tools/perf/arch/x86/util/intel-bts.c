@@ -13,6 +13,7 @@
  *
  */
 
+#include <errno.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -33,10 +34,6 @@
 #define MiB(x) ((x) * 1024 * 1024)
 #define KiB_MASK(x) (KiB(x) - 1)
 #define MiB_MASK(x) (MiB(x) - 1)
-
-#define INTEL_BTS_DFLT_SAMPLE_SIZE	KiB(4)
-
-#define INTEL_BTS_MAX_SAMPLE_SIZE	KiB(60)
 
 struct intel_bts_snapshot_ref {
 	void	*ref_buf;
@@ -60,7 +57,9 @@ struct branch {
 	u64 misc;
 };
 
-static size_t intel_bts_info_priv_size(struct auxtrace_record *itr __maybe_unused)
+static size_t
+intel_bts_info_priv_size(struct auxtrace_record *itr __maybe_unused,
+			 struct perf_evlist *evlist __maybe_unused)
 {
 	return INTEL_BTS_AUXTRACE_PRIV_SIZE;
 }
@@ -122,7 +121,7 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 	btsr->evlist = evlist;
 	btsr->snapshot_mode = opts->auxtrace_snapshot_mode;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type == intel_bts_pmu->type) {
 			if (intel_bts_evsel) {
 				pr_err("There may be only one " INTEL_BTS_PMU_NAME " event\n");
@@ -325,9 +324,9 @@ static int intel_bts_snapshot_start(struct auxtrace_record *itr)
 			container_of(itr, struct intel_bts_recording, itr);
 	struct perf_evsel *evsel;
 
-	evlist__for_each(btsr->evlist, evsel) {
+	evlist__for_each_entry(btsr->evlist, evsel) {
 		if (evsel->attr.type == btsr->intel_bts_pmu->type)
-			return perf_evlist__disable_event(btsr->evlist, evsel);
+			return perf_evsel__disable(evsel);
 	}
 	return -EINVAL;
 }
@@ -338,9 +337,9 @@ static int intel_bts_snapshot_finish(struct auxtrace_record *itr)
 			container_of(itr, struct intel_bts_recording, itr);
 	struct perf_evsel *evsel;
 
-	evlist__for_each(btsr->evlist, evsel) {
+	evlist__for_each_entry(btsr->evlist, evsel) {
 		if (evsel->attr.type == btsr->intel_bts_pmu->type)
-			return perf_evlist__enable_event(btsr->evlist, evsel);
+			return perf_evsel__enable(evsel);
 	}
 	return -EINVAL;
 }
@@ -420,7 +419,7 @@ static int intel_bts_read_finish(struct auxtrace_record *itr, int idx)
 			container_of(itr, struct intel_bts_recording, itr);
 	struct perf_evsel *evsel;
 
-	evlist__for_each(btsr->evlist, evsel) {
+	evlist__for_each_entry(btsr->evlist, evsel) {
 		if (evsel->attr.type == btsr->intel_bts_pmu->type)
 			return perf_evlist__enable_event_idx(btsr->evlist,
 							     evsel, idx);
@@ -435,6 +434,11 @@ struct auxtrace_record *intel_bts_recording_init(int *err)
 
 	if (!intel_bts_pmu)
 		return NULL;
+
+	if (setenv("JITDUMP_USE_ARCH_TIMESTAMP", "1", 1)) {
+		*err = -errno;
+		return NULL;
+	}
 
 	btsr = zalloc(sizeof(struct intel_bts_recording));
 	if (!btsr) {

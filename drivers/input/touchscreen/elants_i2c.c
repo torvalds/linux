@@ -298,7 +298,7 @@ static u16 elants_i2c_parse_version(u8 *buf)
 	return get_unaligned_be32(buf) >> 4;
 }
 
-static int elants_i2c_query_fw_id(struct elants_data *ts)
+static int elants_i2c_query_hw_version(struct elants_data *ts)
 {
 	struct i2c_client *client = ts->client;
 	int error, retry_cnt;
@@ -318,8 +318,13 @@ static int elants_i2c_query_fw_id(struct elants_data *ts)
 			error, (int)sizeof(resp), resp);
 	}
 
-	dev_err(&client->dev,
-		"Failed to read fw id or fw id is invalid\n");
+	if (error) {
+		dev_err(&client->dev,
+			"Failed to read fw id: %d\n", error);
+		return error;
+	}
+
+	dev_err(&client->dev, "Invalid fw id: %#04x\n", ts->hw_version);
 
 	return -EINVAL;
 }
@@ -508,7 +513,7 @@ static int elants_i2c_fastboot(struct i2c_client *client)
 static int elants_i2c_initialize(struct elants_data *ts)
 {
 	struct i2c_client *client = ts->client;
-	int error, retry_cnt;
+	int error, error2, retry_cnt;
 	const u8 hello_packet[] = { 0x55, 0x55, 0x55, 0x55 };
 	const u8 recov_packet[] = { 0x55, 0x55, 0x80, 0x80 };
 	u8 buf[HEADER_SIZE];
@@ -553,18 +558,22 @@ static int elants_i2c_initialize(struct elants_data *ts)
 		}
 	}
 
+	/* hw version is available even if device in recovery state */
+	error2 = elants_i2c_query_hw_version(ts);
 	if (!error)
-		error = elants_i2c_query_fw_id(ts);
+		error = error2;
+
 	if (!error)
 		error = elants_i2c_query_fw_version(ts);
+	if (!error)
+		error = elants_i2c_query_test_version(ts);
+	if (!error)
+		error = elants_i2c_query_bc_version(ts);
+	if (!error)
+		error = elants_i2c_query_ts_info(ts);
 
-	if (error) {
+	if (error)
 		ts->iap_mode = ELAN_IAP_RECOVERY;
-	} else {
-		elants_i2c_query_test_version(ts);
-		elants_i2c_query_bc_version(ts);
-		elants_i2c_query_ts_info(ts);
-	}
 
 	return 0;
 }
@@ -905,9 +914,9 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 
 		case QUEUE_HEADER_NORMAL:
 			report_count = ts->buf[FW_HDR_COUNT];
-			if (report_count > 3) {
+			if (report_count == 0 || report_count > 3) {
 				dev_err(&client->dev,
-					"too large report count: %*ph\n",
+					"bad report count: %*ph\n",
 					HEADER_SIZE, ts->buf);
 				break;
 			}
@@ -1251,8 +1260,6 @@ static int elants_i2c_probe(struct i2c_client *client,
 	input_abs_set_res(ts->input, ABS_MT_POSITION_X, ts->x_res);
 	input_abs_set_res(ts->input, ABS_MT_POSITION_Y, ts->y_res);
 
-	input_set_drvdata(ts->input, ts);
-
 	error = input_register_device(ts->input);
 	if (error) {
 		dev_err(&client->dev,
@@ -1316,7 +1323,13 @@ static int __maybe_unused elants_i2c_suspend(struct device *dev)
 
 	disable_irq(client->irq);
 
-	if (device_may_wakeup(dev) || ts->keep_power_in_suspend) {
+	if (device_may_wakeup(dev)) {
+		/*
+		 * The device will automatically enter idle mode
+		 * that has reduced power consumption.
+		 */
+		ts->wake_irq_enabled = (enable_irq_wake(client->irq) == 0);
+	} else if (ts->keep_power_in_suspend) {
 		for (retry_cnt = 0; retry_cnt < MAX_RETRIES; retry_cnt++) {
 			error = elants_i2c_send(client, set_sleep_cmd,
 						sizeof(set_sleep_cmd));
@@ -1326,10 +1339,6 @@ static int __maybe_unused elants_i2c_suspend(struct device *dev)
 			dev_err(&client->dev,
 				"suspend command failed: %d\n", error);
 		}
-
-		if (device_may_wakeup(dev))
-			ts->wake_irq_enabled =
-					(enable_irq_wake(client->irq) == 0);
 	} else {
 		elants_i2c_power_off(ts);
 	}
@@ -1345,10 +1354,11 @@ static int __maybe_unused elants_i2c_resume(struct device *dev)
 	int retry_cnt;
 	int error;
 
-	if (device_may_wakeup(dev) && ts->wake_irq_enabled)
-		disable_irq_wake(client->irq);
-
-	if (ts->keep_power_in_suspend) {
+	if (device_may_wakeup(dev)) {
+		if (ts->wake_irq_enabled)
+			disable_irq_wake(client->irq);
+		elants_i2c_sw_reset(client);
+	} else if (ts->keep_power_in_suspend) {
 		for (retry_cnt = 0; retry_cnt < MAX_RETRIES; retry_cnt++) {
 			error = elants_i2c_send(client, set_active_cmd,
 						sizeof(set_active_cmd));

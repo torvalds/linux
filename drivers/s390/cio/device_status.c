@@ -26,6 +26,7 @@
 static void
 ccw_device_msg_control_check(struct ccw_device *cdev, struct irb *irb)
 {
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	char dbf_text[15];
 
 	if (!scsw_is_valid_cstat(&irb->scsw) ||
@@ -36,10 +37,10 @@ ccw_device_msg_control_check(struct ccw_device *cdev, struct irb *irb)
 		      "received"
 		      " ... device %04x on subchannel 0.%x.%04x, dev_stat "
 		      ": %02X sch_stat : %02X\n",
-		      cdev->private->dev_id.devno, cdev->private->schid.ssid,
-		      cdev->private->schid.sch_no,
+		      cdev->private->dev_id.devno, sch->schid.ssid,
+		      sch->schid.sch_no,
 		      scsw_dstat(&irb->scsw), scsw_cstat(&irb->scsw));
-	sprintf(dbf_text, "chk%x", cdev->private->schid.sch_no);
+	sprintf(dbf_text, "chk%x", sch->schid.sch_no);
 	CIO_TRACE_EVENT(0, dbf_text);
 	CIO_HEX_EVENT(0, irb, sizeof(struct irb));
 }

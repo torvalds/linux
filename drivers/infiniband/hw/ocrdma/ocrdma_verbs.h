@@ -117,17 +117,12 @@ int ocrdma_post_srq_recv(struct ib_srq *, struct ib_recv_wr *,
 
 int ocrdma_dereg_mr(struct ib_mr *);
 struct ib_mr *ocrdma_get_dma_mr(struct ib_pd *, int acc);
-struct ib_mr *ocrdma_reg_kernel_mr(struct ib_pd *,
-				   struct ib_phys_buf *buffer_list,
-				   int num_phys_buf, int acc, u64 *iova_start);
 struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *, u64 start, u64 length,
 				 u64 virt, int acc, struct ib_udata *);
 struct ib_mr *ocrdma_alloc_mr(struct ib_pd *pd,
 			      enum ib_mr_type mr_type,
 			      u32 max_num_sg);
-struct ib_fast_reg_page_list *ocrdma_alloc_frmr_page_list(struct ib_device
-							*ibdev,
-							int page_list_len);
-void ocrdma_free_frmr_page_list(struct ib_fast_reg_page_list *page_list);
+int ocrdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		     unsigned int *sg_offset);
 
 #endif				/* __OCRDMA_VERBS_H__ */

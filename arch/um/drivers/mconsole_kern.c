@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <linux/sched/debug.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/syscalls.h>
@@ -24,7 +25,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/switch_to.h>
 
 #include <init.h>
@@ -133,7 +134,7 @@ void mconsole_proc(struct mc_request *req)
 	ptr += strlen("proc");
 	ptr = skip_spaces(ptr);
 
-	file = file_open_root(mnt->mnt_root, mnt, ptr, O_RDONLY);
+	file = file_open_root(mnt->mnt_root, mnt, ptr, O_RDONLY, 0);
 	if (IS_ERR(file)) {
 		mconsole_reply(req, "Failed to open file", 1, 0);
 		printk(KERN_ERR "open /proc/%s: %ld\n", ptr, PTR_ERR(file));
@@ -748,19 +749,11 @@ static ssize_t mconsole_proc_write(struct file *file,
 {
 	char *buf;
 
-	buf = kmalloc(count + 1, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, buffer, count)) {
-		count = -EFAULT;
-		goto out;
-	}
-
-	buf[count] = '\0';
+	buf = memdup_user_nul(buffer, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	mconsole_notify(notify_socket, MCONSOLE_USER_NOTIFY, buf, count);
- out:
 	kfree(buf);
 	return count;
 }

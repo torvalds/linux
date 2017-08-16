@@ -155,13 +155,8 @@ static inline int ubifs_wbuf_sync(struct ubifs_wbuf *wbuf)
  */
 static inline int ubifs_encode_dev(union ubifs_dev_desc *dev, dev_t rdev)
 {
-	if (new_valid_dev(rdev)) {
-		dev->new = cpu_to_le32(new_encode_dev(rdev));
-		return sizeof(dev->new);
-	} else {
-		dev->huge = cpu_to_le64(huge_encode_dev(rdev));
-		return sizeof(dev->huge);
-	}
+	dev->new = cpu_to_le32(new_encode_dev(rdev));
+	return sizeof(dev->new);
 }
 
 /**
@@ -227,16 +222,6 @@ static inline void *ubifs_idx_key(const struct ubifs_info *c,
 				  const struct ubifs_idx_node *idx)
 {
 	return (void *)((struct ubifs_branch *)idx->branches)->key;
-}
-
-/**
- * ubifs_current_time - round current time to time granularity.
- * @inode: inode
- */
-static inline struct timespec ubifs_current_time(struct inode *inode)
-{
-	return (inode->i_sb->s_time_gran < NSEC_PER_SEC) ?
-		current_fs_time(inode->i_sb) : CURRENT_TIME_SEC;
 }
 
 /**

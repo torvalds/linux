@@ -32,10 +32,10 @@
 *
 */
 
+#include <crypto/hash.h>
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/namei.h>
-#include <linux/crypto.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/module.h>
@@ -104,29 +104,35 @@ static int
 nfs4_make_rec_clidname(char *dname, const struct xdr_netobj *clname)
 {
 	struct xdr_netobj cksum;
-	struct hash_desc desc;
-	struct scatterlist sg;
+	struct crypto_shash *tfm;
 	int status;
 
 	dprintk("NFSD: nfs4_make_rec_clidname for %.*s\n",
 			clname->len, clname->data);
-	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-	desc.tfm = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(desc.tfm)) {
-		status = PTR_ERR(desc.tfm);
+	tfm = crypto_alloc_shash("md5", 0, 0);
+	if (IS_ERR(tfm)) {
+		status = PTR_ERR(tfm);
 		goto out_no_tfm;
 	}
 
-	cksum.len = crypto_hash_digestsize(desc.tfm);
+	cksum.len = crypto_shash_digestsize(tfm);
 	cksum.data = kmalloc(cksum.len, GFP_KERNEL);
 	if (cksum.data == NULL) {
 		status = -ENOMEM;
  		goto out;
 	}
 
-	sg_init_one(&sg, clname->data, clname->len);
+	{
+		SHASH_DESC_ON_STACK(desc, tfm);
 
-	status = crypto_hash_digest(&desc, &sg, sg.length, cksum.data);
+		desc->tfm = tfm;
+		desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+		status = crypto_shash_digest(desc, clname->data, clname->len,
+					     cksum.data);
+		shash_desc_zero(desc);
+	}
+
 	if (status)
 		goto out;
 
@@ -135,7 +141,7 @@ nfs4_make_rec_clidname(char *dname, const struct xdr_netobj *clname)
 	status = 0;
 out:
 	kfree(cksum.data);
-	crypto_free_hash(desc.tfm);
+	crypto_free_shash(tfm);
 out_no_tfm:
 	return status;
 }
@@ -192,7 +198,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 
 	dir = nn->rec_file->f_path.dentry;
 	/* lock the parent */
-	mutex_lock(&d_inode(dir)->i_mutex);
+	inode_lock(d_inode(dir));
 
 	dentry = lookup_one_len(dname, dir, HEXDIR_LEN-1);
 	if (IS_ERR(dentry)) {
@@ -213,7 +219,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 out_put:
 	dput(dentry);
 out_unlock:
-	mutex_unlock(&d_inode(dir)->i_mutex);
+	inode_unlock(d_inode(dir));
 	if (status == 0) {
 		if (nn->in_grace) {
 			crp = nfs4_client_to_reclaim(dname, nn);
@@ -286,7 +292,7 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 	}
 
 	status = iterate_dir(nn->rec_file, &ctx.ctx);
-	mutex_lock_nested(&d_inode(dir)->i_mutex, I_MUTEX_PARENT);
+	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
 
 	list_for_each_entry_safe(entry, tmp, &ctx.names, list) {
 		if (!status) {
@@ -302,7 +308,7 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 		list_del(&entry->list);
 		kfree(entry);
 	}
-	mutex_unlock(&d_inode(dir)->i_mutex);
+	inode_unlock(d_inode(dir));
 	nfs4_reset_creds(original_cred);
 
 	list_for_each_entry_safe(entry, tmp, &ctx.names, list) {
@@ -322,7 +328,7 @@ nfsd4_unlink_clid_dir(char *name, int namlen, struct nfsd_net *nn)
 	dprintk("NFSD: nfsd4_unlink_clid_dir. name %.*s\n", namlen, name);
 
 	dir = nn->rec_file->f_path.dentry;
-	mutex_lock_nested(&d_inode(dir)->i_mutex, I_MUTEX_PARENT);
+	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
 	dentry = lookup_one_len(name, dir, namlen);
 	if (IS_ERR(dentry)) {
 		status = PTR_ERR(dentry);
@@ -335,7 +341,7 @@ nfsd4_unlink_clid_dir(char *name, int namlen, struct nfsd_net *nn)
 out:
 	dput(dentry);
 out_unlock:
-	mutex_unlock(&d_inode(dir)->i_mutex);
+	inode_unlock(d_inode(dir));
 	return status;
 }
 
@@ -631,7 +637,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 	return -ENOENT;
 }
 
-static struct nfsd4_client_tracking_ops nfsd4_legacy_tracking_ops = {
+static const struct nfsd4_client_tracking_ops nfsd4_legacy_tracking_ops = {
 	.init		= nfsd4_legacy_tracking_init,
 	.exit		= nfsd4_legacy_tracking_exit,
 	.create		= nfsd4_create_clid_dir,
@@ -1050,7 +1056,7 @@ out_err:
 		printk(KERN_ERR "NFSD: Unable to end grace period: %d\n", ret);
 }
 
-static struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops = {
+static const struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops = {
 	.init		= nfsd4_init_cld_pipe,
 	.exit		= nfsd4_remove_cld_pipe,
 	.create		= nfsd4_cld_create,
@@ -1260,6 +1266,7 @@ nfsd4_umh_cltrack_init(struct net *net)
 	/* XXX: The usermode helper s not working in container yet. */
 	if (net != &init_net) {
 		pr_warn("NFSD: attempt to initialize umh client tracking in a container ignored.\n");
+		kfree(grace_start);
 		return -EINVAL;
 	}
 
@@ -1394,7 +1401,7 @@ nfsd4_umh_cltrack_grace_done(struct nfsd_net *nn)
 	kfree(legacy);
 }
 
-static struct nfsd4_client_tracking_ops nfsd4_umh_tracking_ops = {
+static const struct nfsd4_client_tracking_ops nfsd4_umh_tracking_ops = {
 	.init		= nfsd4_umh_cltrack_init,
 	.exit		= NULL,
 	.create		= nfsd4_umh_cltrack_create,

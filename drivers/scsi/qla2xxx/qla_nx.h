@@ -7,6 +7,8 @@
 #ifndef __QLA_NX_H
 #define __QLA_NX_H
 
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 /*
  * Following are the states of the Phantom. Phantom will set them and
  * Host will read to check if the fields are correct.
@@ -819,21 +821,6 @@ struct qla82xx_uri_data_desc{
 #define MIU_TEST_AGT_WRDATA_UPPER_LO		(0x0b0)
 #define	MIU_TEST_AGT_WRDATA_UPPER_HI		(0x0b4)
 
-#ifndef readq
-static inline u64 readq(void __iomem *addr)
-{
-	return readl(addr) | (((u64) readl(addr + 4)) << 32LL);
-}
-#endif
-
-#ifndef writeq
-static inline void writeq(u64 val, void __iomem *addr)
-{
-	writel(((u32) (val)), (addr));
-	writel(((u32) (val >> 32)), (addr + 4));
-}
-#endif
-
 /* Request and response queue size */
 #define REQUEST_ENTRY_CNT_82XX		128	/* Number of request entries. */
 #define RESPONSE_ENTRY_CNT_82XX		128	/* Number of response entries.*/
@@ -1176,14 +1163,12 @@ struct qla82xx_md_entry_queue {
 #define MD_MIU_TEST_AGT_ADDR_LO		0x41000094
 #define MD_MIU_TEST_AGT_ADDR_HI		0x41000098
 
-static const int MD_MIU_TEST_AGT_RDDATA[] = { 0x410000A8, 0x410000AC,
-	0x410000B8, 0x410000BC };
+extern const int MD_MIU_TEST_AGT_RDDATA[4];
 
 #define CRB_NIU_XG_PAUSE_CTL_P0        0x1
 #define CRB_NIU_XG_PAUSE_CTL_P1        0x8
 
 #define qla82xx_get_temp_val(x)          ((x) >> 16)
-#define qla82xx_get_temp_val1(x)          ((x) && 0x0000FFFF)
 #define qla82xx_get_temp_state(x)        ((x) & 0xffff)
 #define qla82xx_encode_temp(val, state)  (((val) << 16) | (state))
 

@@ -1,0 +1,51 @@
+Texas Instruments DaVinci McBSP module
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This binding describes the "Multi-channel Buffered Serial Port" (McBSP)
+audio interface found in some TI DaVinci processors like the OMAP-L138 or AM180x.
+
+
+Required properties:
+~~~~~~~~~~~~~~~~~~~~
+- compatible :
+        "ti,da850-mcbsp" : for DA850, AM180x and OPAM-L138 platforms
+
+- reg : physical base address and length of the controller memory mapped
+        region(s).
+- reg-names : Should contain:
+        * "mpu" for the main registers (required).
+        * "dat" for the data FIFO (optional).
+
+- dmas: three element list of DMA controller phandles, DMA request line and
+	TC channel ordered triplets.
+- dma-names: identifier string for each DMA request line in the dmas property.
+	These strings correspond 1:1 with the ordered pairs in dmas. The dma
+	identifiers must be "rx" and "tx".
+
+Optional properties:
+~~~~~~~~~~~~~~~~~~~~
+- interrupts : Interrupt numbers for McBSP
+- interrupt-names : Known interrupt names are "rx" and "tx"
+
+- pinctrl-0: Should specify pin control group used for this controller.
+- pinctrl-names: Should contain only one value - "default", for more details
+        please refer to pinctrl-bindings.txt
+
+Example (AM1808):
+~~~~~~~~~~~~~~~~~
+
+mcbsp0: mcbsp@1d10000 {
+	compatible = "ti,da850-mcbsp";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp0_pins>;
+
+	reg = 	<0x00110000 0x1000>,
+		<0x00310000 0x1000>;
+	reg-names = "mpu", "dat";
+	interrupts = <97 98>;
+	interrupt-names = "rx", "tx";
+	dmas = <&edma0 3 1
+		&edma0 2 1>;
+	dma-names = "tx", "rx";
+	status = "okay";
+};

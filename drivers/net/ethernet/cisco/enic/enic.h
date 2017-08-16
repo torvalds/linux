@@ -33,7 +33,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"2.3.0.12"
+#define DRV_VERSION		"2.3.0.42"
 #define DRV_COPYRIGHT		"Copyright 2008-2013 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
@@ -47,9 +47,10 @@
 
 struct enic_msix_entry {
 	int requested;
-	char devname[IFNAMSIZ];
+	char devname[IFNAMSIZ + 8];
 	irqreturn_t (*isr)(int, void *);
 	void *devid;
+	cpumask_var_t affinity_mask;
 };
 
 /* Store only the lower range.  Higher range is given by fw. */
@@ -134,6 +135,11 @@ struct enic_rfs_flw_tbl {
 	struct timer_list rfs_may_expire;
 };
 
+struct vxlan_offload {
+	u16 vxlan_udp_port_number;
+	u8 patch_level;
+};
+
 /* Per-instance private data structure */
 struct enic {
 	struct net_device *netdev;
@@ -143,6 +149,7 @@ struct enic {
 	struct vnic_dev *vdev;
 	struct timer_list notify_timer;
 	struct work_struct reset;
+	struct work_struct tx_hang_reset;
 	struct work_struct change_mtu_work;
 	struct msix_entry msix_entry[ENIC_INTR_MAX];
 	struct enic_msix_entry msix[ENIC_INTR_MAX];
@@ -173,6 +180,7 @@ struct enic {
 	/* receive queue cache line section */
 	____cacheline_aligned struct vnic_rq rq[ENIC_RQ_MAX];
 	unsigned int rq_count;
+	struct vxlan_offload vxlan;
 	u64 rq_truncated_pkts;
 	u64 rq_bad_fcs;
 	struct napi_struct napi[ENIC_RQ_MAX + ENIC_WQ_MAX];
@@ -199,16 +207,20 @@ static inline struct net_device *vnic_get_netdev(struct vnic_dev *vdev)
 }
 
 /* wrappers function for kernel log
- * Make sure variable vdev of struct vnic_dev is available in the block where
- * these macros are used
  */
-#define vdev_info(args...)	dev_info(&vdev->pdev->dev, args)
-#define vdev_warn(args...)	dev_warn(&vdev->pdev->dev, args)
-#define vdev_err(args...)	dev_err(&vdev->pdev->dev, args)
+#define vdev_err(vdev, fmt, ...)					\
+	dev_err(&(vdev)->pdev->dev, fmt, ##__VA_ARGS__)
+#define vdev_warn(vdev, fmt, ...)					\
+	dev_warn(&(vdev)->pdev->dev, fmt, ##__VA_ARGS__)
+#define vdev_info(vdev, fmt, ...)					\
+	dev_info(&(vdev)->pdev->dev, fmt, ##__VA_ARGS__)
 
-#define vdev_netinfo(args...)	netdev_info(vnic_get_netdev(vdev), args)
-#define vdev_netwarn(args...)	netdev_warn(vnic_get_netdev(vdev), args)
-#define vdev_neterr(args...)	netdev_err(vnic_get_netdev(vdev), args)
+#define vdev_neterr(vdev, fmt, ...)					\
+	netdev_err(vnic_get_netdev(vdev), fmt, ##__VA_ARGS__)
+#define vdev_netwarn(vdev, fmt, ...)					\
+	netdev_warn(vnic_get_netdev(vdev), fmt, ##__VA_ARGS__)
+#define vdev_netinfo(vdev, fmt, ...)					\
+	netdev_info(vnic_get_netdev(vdev), fmt, ##__VA_ARGS__)
 
 static inline struct device *enic_get_dev(struct enic *enic)
 {
@@ -260,6 +272,32 @@ static inline unsigned int enic_msix_err_intr(struct enic *enic)
 static inline unsigned int enic_msix_notify_intr(struct enic *enic)
 {
 	return enic->rq_count + enic->wq_count + 1;
+}
+
+static inline bool enic_is_err_intr(struct enic *enic, int intr)
+{
+	switch (vnic_dev_get_intr_mode(enic->vdev)) {
+	case VNIC_DEV_INTR_MODE_INTX:
+		return intr == enic_legacy_err_intr();
+	case VNIC_DEV_INTR_MODE_MSIX:
+		return intr == enic_msix_err_intr(enic);
+	case VNIC_DEV_INTR_MODE_MSI:
+	default:
+		return false;
+	}
+}
+
+static inline bool enic_is_notify_intr(struct enic *enic, int intr)
+{
+	switch (vnic_dev_get_intr_mode(enic->vdev)) {
+	case VNIC_DEV_INTR_MODE_INTX:
+		return intr == enic_legacy_notify_intr();
+	case VNIC_DEV_INTR_MODE_MSIX:
+		return intr == enic_msix_notify_intr(enic);
+	case VNIC_DEV_INTR_MODE_MSI:
+	default:
+		return false;
+	}
 }
 
 static inline int enic_dma_map_check(struct enic *enic, dma_addr_t dma_addr)

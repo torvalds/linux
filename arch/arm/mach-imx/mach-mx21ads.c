@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/physmap.h>
-#include <linux/basic_mmio_gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/gpio.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -302,12 +302,16 @@ static void __init mx21ads_board_init(void)
 	imx21_add_imx_uart0(&uart_pdata_rts);
 	imx21_add_imx_uart2(&uart_pdata_norts);
 	imx21_add_imx_uart3(&uart_pdata_rts);
-	imx21_add_mxc_mmc(0, &mx21ads_sdhc_pdata);
 	imx21_add_mxc_nand(&mx21ads_nand_board_info);
 
-	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
-
 	imx21_add_imx_fb(&mx21ads_fb_data);
+}
+
+static void __init mx21ads_late_init(void)
+{
+	imx21_add_mxc_mmc(0, &mx21ads_sdhc_pdata);
+
+	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 	mx21ads_cs8900_resources[1].start =
 			gpio_to_irq(MX21ADS_CS8900A_IRQ_GPIO);
@@ -328,6 +332,7 @@ MACHINE_START(MX21ADS, "Freescale i.MX21ADS")
 	.init_early = imx21_init_early,
 	.init_irq = mx21_init_irq,
 	.init_time	= mx21ads_timer_init,
-	.init_machine = mx21ads_board_init,
+	.init_machine	= mx21ads_board_init,
+	.init_late	= mx21ads_late_init,
 	.restart	= mxc_restart,
 MACHINE_END

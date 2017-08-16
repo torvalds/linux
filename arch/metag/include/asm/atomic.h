@@ -39,10 +39,9 @@
 #define atomic_dec(v) atomic_sub(1, (v))
 
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+#define atomic_dec_if_positive(v)       atomic_sub_if_positive(1, v)
 
 #endif
-
-#define atomic_dec_if_positive(v)       atomic_sub_if_positive(1, v)
 
 #include <asm-generic/atomic64.h>
 

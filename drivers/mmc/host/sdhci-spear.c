@@ -165,6 +165,9 @@ static int sdhci_suspend(struct device *dev)
 	struct spear_sdhci *sdhci = sdhci_priv(host);
 	int ret;
 
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
 	ret = sdhci_suspend_host(host);
 	if (!ret)
 		clk_disable(sdhci->clk);

@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/oid_registry.h>
-#include "public_key.h"
+#include <crypto/public_key.h>
 #include "pkcs7_parser.h"
 #include "pkcs7-asn1.h"
 
@@ -44,9 +44,7 @@ struct pkcs7_parse_context {
 static void pkcs7_free_signed_info(struct pkcs7_signed_info *sinfo)
 {
 	if (sinfo) {
-		mpi_free(sinfo->sig.mpi[0]);
-		kfree(sinfo->sig.digest);
-		kfree(sinfo->signing_cert_id);
+		public_key_signature_free(sinfo->sig);
 		kfree(sinfo);
 	}
 }
@@ -87,7 +85,7 @@ EXPORT_SYMBOL_GPL(pkcs7_free_message);
 static int pkcs7_check_authattrs(struct pkcs7_message *msg)
 {
 	struct pkcs7_signed_info *sinfo;
-	bool want;
+	bool want = false;
 
 	sinfo = msg->signed_infos;
 	if (sinfo->authattrs) {
@@ -125,6 +123,10 @@ struct pkcs7_message *pkcs7_parse_message(const void *data, size_t datalen)
 	ctx->sinfo = kzalloc(sizeof(struct pkcs7_signed_info), GFP_KERNEL);
 	if (!ctx->sinfo)
 		goto out_no_sinfo;
+	ctx->sinfo->sig = kzalloc(sizeof(struct public_key_signature),
+				  GFP_KERNEL);
+	if (!ctx->sinfo->sig)
+		goto out_no_sig;
 
 	ctx->data = (unsigned long)data;
 	ctx->ppcerts = &ctx->certs;
@@ -150,6 +152,7 @@ out:
 		ctx->certs = cert->next;
 		x509_free_certificate(cert);
 	}
+out_no_sig:
 	pkcs7_free_signed_info(ctx->sinfo);
 out_no_sinfo:
 	pkcs7_free_message(ctx->msg);
@@ -165,24 +168,25 @@ EXPORT_SYMBOL_GPL(pkcs7_parse_message);
  * @pkcs7: The preparsed PKCS#7 message to access
  * @_data: Place to return a pointer to the data
  * @_data_len: Place to return the data length
- * @want_wrapper: True if the ASN.1 object header should be included in the data
+ * @_headerlen: Size of ASN.1 header not included in _data
  *
- * Get access to the data content of the PKCS#7 message, including, optionally,
- * the header of the ASN.1 object that contains it.  Returns -ENODATA if the
- * data object was missing from the message.
+ * Get access to the data content of the PKCS#7 message.  The size of the
+ * header of the ASN.1 object that contains it is also provided and can be used
+ * to adjust *_data and *_data_len to get the entire object.
+ *
+ * Returns -ENODATA if the data object was missing from the message.
  */
 int pkcs7_get_content_data(const struct pkcs7_message *pkcs7,
 			   const void **_data, size_t *_data_len,
-			   bool want_wrapper)
+			   size_t *_headerlen)
 {
-	size_t wrapper;
-
 	if (!pkcs7->data)
 		return -ENODATA;
 
-	wrapper = want_wrapper ? pkcs7->data_hdrlen : 0;
-	*_data = pkcs7->data - wrapper;
-	*_data_len = pkcs7->data_len + wrapper;
+	*_data = pkcs7->data;
+	*_data_len = pkcs7->data_len;
+	if (_headerlen)
+		*_headerlen = pkcs7->data_hdrlen;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pkcs7_get_content_data);
@@ -218,25 +222,26 @@ int pkcs7_sig_note_digest_algo(void *context, size_t hdrlen,
 
 	switch (ctx->last_oid) {
 	case OID_md4:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_MD4;
+		ctx->sinfo->sig->hash_algo = "md4";
 		break;
 	case OID_md5:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_MD5;
+		ctx->sinfo->sig->hash_algo = "md5";
 		break;
 	case OID_sha1:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA1;
+		ctx->sinfo->sig->hash_algo = "sha1";
 		break;
 	case OID_sha256:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA256;
+		ctx->sinfo->sig->hash_algo = "sha256";
 		break;
 	case OID_sha384:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA384;
+		ctx->sinfo->sig->hash_algo = "sha384";
 		break;
 	case OID_sha512:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA512;
+		ctx->sinfo->sig->hash_algo = "sha512";
 		break;
 	case OID_sha224:
-		ctx->sinfo->sig.pkey_hash_algo = HASH_ALGO_SHA224;
+		ctx->sinfo->sig->hash_algo = "sha224";
+		break;
 	default:
 		printk("Unsupported digest algo: %u\n", ctx->last_oid);
 		return -ENOPKG;
@@ -255,7 +260,7 @@ int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
 
 	switch (ctx->last_oid) {
 	case OID_rsaEncryption:
-		ctx->sinfo->sig.pkey_algo = PKEY_ALGO_RSA;
+		ctx->sinfo->sig->pkey_algo = "rsa";
 		break;
 	default:
 		printk("Unsupported pkey algo: %u\n", ctx->last_oid);
@@ -547,9 +552,7 @@ int pkcs7_sig_note_set_of_authattrs(void *context, size_t hdrlen,
 	struct pkcs7_signed_info *sinfo = ctx->sinfo;
 
 	if (!test_bit(sinfo_has_content_type, &sinfo->aa_set) ||
-	    !test_bit(sinfo_has_message_digest, &sinfo->aa_set) ||
-	    (ctx->msg->data_type == OID_msIndirectData &&
-	     !test_bit(sinfo_has_ms_opus_info, &sinfo->aa_set))) {
+	    !test_bit(sinfo_has_message_digest, &sinfo->aa_set)) {
 		pr_warn("Missing required AuthAttr\n");
 		return -EBADMSG;
 	}
@@ -616,16 +619,12 @@ int pkcs7_sig_note_signature(void *context, size_t hdrlen,
 			     const void *value, size_t vlen)
 {
 	struct pkcs7_parse_context *ctx = context;
-	MPI mpi;
 
-	BUG_ON(ctx->sinfo->sig.pkey_algo != PKEY_ALGO_RSA);
-
-	mpi = mpi_read_raw_data(value, vlen);
-	if (!mpi)
+	ctx->sinfo->sig->s = kmemdup(value, vlen, GFP_KERNEL);
+	if (!ctx->sinfo->sig->s)
 		return -ENOMEM;
 
-	ctx->sinfo->sig.mpi[0] = mpi;
-	ctx->sinfo->sig.nr_mpi = 1;
+	ctx->sinfo->sig->s_size = vlen;
 	return 0;
 }
 
@@ -661,12 +660,16 @@ int pkcs7_note_signed_info(void *context, size_t hdrlen,
 
 	pr_devel("SINFO KID: %u [%*phN]\n", kid->len, kid->len, kid->data);
 
-	sinfo->signing_cert_id = kid;
+	sinfo->sig->auth_ids[0] = kid;
 	sinfo->index = ++ctx->sinfo_index;
 	*ctx->ppsinfo = sinfo;
 	ctx->ppsinfo = &sinfo->next;
 	ctx->sinfo = kzalloc(sizeof(struct pkcs7_signed_info), GFP_KERNEL);
 	if (!ctx->sinfo)
+		return -ENOMEM;
+	ctx->sinfo->sig = kzalloc(sizeof(struct public_key_signature),
+				  GFP_KERNEL);
+	if (!ctx->sinfo->sig)
 		return -ENOMEM;
 	return 0;
 }

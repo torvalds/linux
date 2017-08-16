@@ -18,7 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <mach/pxa320.h>
+#include "pxa320.h"
 
 #include "generic.h"
 #include "devices.h"

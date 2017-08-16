@@ -24,15 +24,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <12000000>;
-		};
-
 		slow_xtal {
 		      clock-frequency = <32768>;
 		};
@@ -198,6 +189,8 @@
 					isi_0: endpoint {
 						remote-endpoint = <&ov2640_0>;
 						bus-width = <8>;
+						vsync-active = <1>;
+						hsync-active = <1>;
 					};
 				};
 			};
@@ -252,25 +245,44 @@
 			};
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "soft";
-			nand-on-flash-bbt;
+		ebi: ebi@10000000 {
 			status = "okay";
 
-			boot@0 {
-				label = "bootstrap/uboot/kernel";
-				reg = <0x0 0x400000>;
-			};
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_cs &pinctrl_nand_rb>;
+				pinctrl-names = "default";
 
-			rootfs@400000 {
-				label = "rootfs";
-				reg = <0x400000 0x3C00000>;
-			};
+				nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					rb-gpios = <&pioC 8 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioC 14 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "soft";
+					nand-on-flash-bbt;
+					label = "atmel_nand";
 
-			data@4000000 {
-				label = "data";
-				reg = <0x4000000 0xC000000>;
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						boot@0 {
+							label = "bootstrap/uboot/kernel";
+							reg = <0x0 0x400000>;
+						};
+
+						rootfs@400000 {
+							label = "rootfs";
+							reg = <0x400000 0x3C00000>;
+						};
+
+						data@4000000 {
+							label = "data";
+							reg = <0x4000000 0xC000000>;
+						};
+					};
+				};
 			};
 		};
 
@@ -321,14 +333,14 @@
 			label = "left_click";
 			gpios = <&pioB 6 GPIO_ACTIVE_LOW>;
 			linux,code = <272>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		right_click {
 			label = "right_click";
 			gpios = <&pioB 7 GPIO_ACTIVE_LOW>;
 			linux,code = <273>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		left {

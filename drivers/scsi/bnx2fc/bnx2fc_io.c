@@ -1,8 +1,9 @@
-/* bnx2fc_io.c: QLogic NetXtreme II Linux FCoE offload driver.
+/* bnx2fc_io.c: QLogic Linux FCoE offload driver.
  * IO manager and SCSI IO processing.
  *
- * Copyright (c) 2008 - 2013 Broadcom Corporation
- * Copyright (c) 2014, QLogic Corporation
+ * Copyright (c) 2008-2013 Broadcom Corporation
+ * Copyright (c) 2014-2016 QLogic Corporation
+ * Copyright (c) 2016-2017 Cavium Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,11 +41,8 @@ static void bnx2fc_cmd_timeout(struct work_struct *work)
 {
 	struct bnx2fc_cmd *io_req = container_of(work, struct bnx2fc_cmd,
 						 timeout_work.work);
-	struct fc_lport *lport;
-	struct fc_rport_priv *rdata;
 	u8 cmd_type = io_req->cmd_type;
 	struct bnx2fc_rport *tgt = io_req->tgt;
-	int logo_issued;
 	int rc;
 
 	BNX2FC_IO_DBG(io_req, "cmd_timeout, cmd_type = %d,"
@@ -77,28 +75,17 @@ static void bnx2fc_cmd_timeout(struct work_struct *work)
 				    &io_req->req_flags)) {
 			/* Handle internally generated ABTS timeout */
 			BNX2FC_IO_DBG(io_req, "ABTS timed out refcnt = %d\n",
-					io_req->refcount.refcount.counter);
+					kref_read(&io_req->refcount));
 			if (!(test_and_set_bit(BNX2FC_FLAG_ABTS_DONE,
 					       &io_req->req_flags))) {
-
-				lport = io_req->port->lport;
-				rdata = io_req->tgt->rdata;
-				logo_issued = test_and_set_bit(
-						BNX2FC_FLAG_EXPL_LOGO,
-						&tgt->flags);
+				/*
+				 * Cleanup and return original command to
+				 * mid-layer.
+				 */
+				bnx2fc_initiate_cleanup(io_req);
 				kref_put(&io_req->refcount, bnx2fc_cmd_release);
 				spin_unlock_bh(&tgt->tgt_lock);
 
-				/* Explicitly logo the target */
-				if (!logo_issued) {
-					BNX2FC_IO_DBG(io_req, "Explicit "
-						   "logo - tgt flags = 0x%lx\n",
-						   tgt->flags);
-
-					mutex_lock(&lport->disc.disc_mutex);
-					lport->tt.rport_logoff(rdata);
-					mutex_unlock(&lport->disc.disc_mutex);
-				}
 				return;
 			}
 		} else {
@@ -116,28 +103,10 @@ static void bnx2fc_cmd_timeout(struct work_struct *work)
 				rc = bnx2fc_initiate_abts(io_req);
 				if (rc == SUCCESS)
 					goto done;
-				/*
-				 * Explicitly logo the target if
-				 * abts initiation fails
-				 */
-				lport = io_req->port->lport;
-				rdata = io_req->tgt->rdata;
-				logo_issued = test_and_set_bit(
-						BNX2FC_FLAG_EXPL_LOGO,
-						&tgt->flags);
+
 				kref_put(&io_req->refcount, bnx2fc_cmd_release);
 				spin_unlock_bh(&tgt->tgt_lock);
 
-				if (!logo_issued) {
-					BNX2FC_IO_DBG(io_req, "Explicit "
-						   "logo - tgt flags = 0x%lx\n",
-						   tgt->flags);
-
-
-					mutex_lock(&lport->disc.disc_mutex);
-					lport->tt.rport_logoff(rdata);
-					mutex_unlock(&lport->disc.disc_mutex);
-				}
 				return;
 			} else {
 				BNX2FC_IO_DBG(io_req, "IO already in "
@@ -152,22 +121,9 @@ static void bnx2fc_cmd_timeout(struct work_struct *work)
 
 			if (!test_and_set_bit(BNX2FC_FLAG_ABTS_DONE,
 					      &io_req->req_flags)) {
-				lport = io_req->port->lport;
-				rdata = io_req->tgt->rdata;
-				logo_issued = test_and_set_bit(
-						BNX2FC_FLAG_EXPL_LOGO,
-						&tgt->flags);
 				kref_put(&io_req->refcount, bnx2fc_cmd_release);
 				spin_unlock_bh(&tgt->tgt_lock);
 
-				/* Explicitly logo the target */
-				if (!logo_issued) {
-					BNX2FC_IO_DBG(io_req, "Explicitly logo"
-						   "(els)\n");
-					mutex_lock(&lport->disc.disc_mutex);
-					lport->tt.rport_logoff(rdata);
-					mutex_unlock(&lport->disc.disc_mutex);
-				}
 				return;
 			}
 		} else {
@@ -224,12 +180,24 @@ static void bnx2fc_scsi_done(struct bnx2fc_cmd *io_req, int err_code)
 
 	bnx2fc_unmap_sg_list(io_req);
 	io_req->sc_cmd = NULL;
+
+	/* Sanity checks before returning command to mid-layer */
 	if (!sc_cmd) {
 		printk(KERN_ERR PFX "scsi_done - sc_cmd NULL. "
 				    "IO(0x%x) already cleaned up\n",
 		       io_req->xid);
 		return;
 	}
+	if (!sc_cmd->device) {
+		pr_err(PFX "0x%x: sc_cmd->device is NULL.\n", io_req->xid);
+		return;
+	}
+	if (!sc_cmd->device->host) {
+		pr_err(PFX "0x%x: sc_cmd->device->host is NULL.\n",
+		    io_req->xid);
+		return;
+	}
+
 	sc_cmd->result = err_code << 16;
 
 	BNX2FC_IO_DBG(io_req, "sc=%p, result=0x%x, retries=%d, allowed=%d\n",
@@ -623,8 +591,12 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 	mp_req = (struct bnx2fc_mp_req *)&(io_req->mp_req);
 	memset(mp_req, 0, sizeof(struct bnx2fc_mp_req));
 
-	mp_req->req_len = sizeof(struct fcp_cmnd);
-	io_req->data_xfer_len = mp_req->req_len;
+	if (io_req->cmd_type != BNX2FC_ELS) {
+		mp_req->req_len = sizeof(struct fcp_cmnd);
+		io_req->data_xfer_len = mp_req->req_len;
+	} else
+		mp_req->req_len = io_req->data_xfer_len;
+
 	mp_req->req_buf = dma_alloc_coherent(&hba->pcidev->dev, CNIC_PAGE_SIZE,
 					     &mp_req->req_buf_dma,
 					     GFP_ATOMIC);
@@ -811,7 +783,7 @@ retry_tmf:
 	spin_unlock_bh(&tgt->tgt_lock);
 
 	rc = wait_for_completion_timeout(&io_req->tm_done,
-					 BNX2FC_TM_TIMEOUT * HZ);
+					 interface->tm_timeout * HZ);
 	spin_lock_bh(&tgt->tgt_lock);
 
 	io_req->wait_for_comp = 0;
@@ -1108,18 +1080,11 @@ int bnx2fc_eh_device_reset(struct scsi_cmnd *sc_cmd)
 	return bnx2fc_initiate_tmf(sc_cmd, FCP_TMF_LUN_RESET);
 }
 
-int bnx2fc_expl_logo(struct fc_lport *lport, struct bnx2fc_cmd *io_req)
+static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
 {
 	struct bnx2fc_rport *tgt = io_req->tgt;
-	struct fc_rport_priv *rdata = tgt->rdata;
-	int logo_issued;
 	int rc = SUCCESS;
-	int wait_cnt = 0;
 
-	BNX2FC_IO_DBG(io_req, "Expl logo - tgt flags = 0x%lx\n",
-		      tgt->flags);
-	logo_issued = test_and_set_bit(BNX2FC_FLAG_EXPL_LOGO,
-				       &tgt->flags);
 	io_req->wait_for_comp = 1;
 	bnx2fc_initiate_cleanup(io_req);
 
@@ -1132,21 +1097,8 @@ int bnx2fc_expl_logo(struct fc_lport *lport, struct bnx2fc_cmd *io_req)
 	 * release the reference taken in eh_abort to allow the
 	 * target to re-login after flushing IOs
 	 */
-	 kref_put(&io_req->refcount, bnx2fc_cmd_release);
+	kref_put(&io_req->refcount, bnx2fc_cmd_release);
 
-	if (!logo_issued) {
-		clear_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags);
-		mutex_lock(&lport->disc.disc_mutex);
-		lport->tt.rport_logoff(rdata);
-		mutex_unlock(&lport->disc.disc_mutex);
-		do {
-			msleep(BNX2FC_RELOGIN_WAIT_TIME);
-			if (wait_cnt++ > BNX2FC_RELOGIN_WAIT_CNT) {
-				rc = FAILED;
-				break;
-			}
-		} while (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags));
-	}
 	spin_lock_bh(&tgt->tgt_lock);
 	return rc;
 }
@@ -1165,8 +1117,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	struct bnx2fc_cmd *io_req;
 	struct fc_lport *lport;
 	struct bnx2fc_rport *tgt;
-	int rc = FAILED;
-
+	int rc;
 
 	rc = fc_block_scsi_eh(sc_cmd);
 	if (rc)
@@ -1175,7 +1126,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	lport = shost_priv(sc_cmd->device->host);
 	if ((lport->state != LPORT_ST_READY) || !(lport->link_up)) {
 		printk(KERN_ERR PFX "eh_abort: link not ready\n");
-		return rc;
+		return FAILED;
 	}
 
 	tgt = (struct bnx2fc_rport *)&rp[1];
@@ -1191,7 +1142,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		return SUCCESS;
 	}
 	BNX2FC_IO_DBG(io_req, "eh_abort - refcnt = %d\n",
-		      io_req->refcount.refcount.counter);
+		      kref_read(&io_req->refcount));
 
 	/* Hold IO request across abort processing */
 	kref_get(&io_req->refcount);
@@ -1216,16 +1167,11 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		printk(KERN_ERR PFX "eh_abort: io_req (xid = 0x%x) "
 				"not on active_q\n", io_req->xid);
 		/*
-		 * This condition can happen only due to the FW bug,
-		 * where we do not receive cleanup response from
-		 * the FW. Handle this case gracefully by erroring
-		 * back the IO request to SCSI-ml
+		 * The IO is still with the FW.
+		 * Return failure and let SCSI-ml retry eh_abort.
 		 */
-		bnx2fc_scsi_done(io_req, DID_ABORT);
-
-		kref_put(&io_req->refcount, bnx2fc_cmd_release);
 		spin_unlock_bh(&tgt->tgt_lock);
-		return SUCCESS;
+		return FAILED;
 	}
 
 	/*
@@ -1248,7 +1194,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		if (cancel_delayed_work(&io_req->timeout_work))
 			kref_put(&io_req->refcount,
 				 bnx2fc_cmd_release); /* drop timer hold */
-		rc = bnx2fc_expl_logo(lport, io_req);
+		rc = bnx2fc_abts_cleanup(io_req);
 		/* This only occurs when an task abort was requested while ABTS
 		   is in progress.  Setting the IO_CLEANUP flag will skip the
 		   RRQ process in the case when the fw generated SCSI_CMD cmpl
@@ -1287,7 +1233,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		/* Let the scsi-ml try to recover this command */
 		printk(KERN_ERR PFX "abort failed, xid = 0x%x\n",
 		       io_req->xid);
-		rc = bnx2fc_expl_logo(lport, io_req);
+		rc = bnx2fc_abts_cleanup(io_req);
 		goto out;
 	} else {
 		/*
@@ -1349,7 +1295,7 @@ void bnx2fc_process_cleanup_compl(struct bnx2fc_cmd *io_req,
 {
 	BNX2FC_IO_DBG(io_req, "Entered process_cleanup_compl "
 			      "refcnt = %d, cmd_type = %d\n",
-		   io_req->refcount.refcount.counter, io_req->cmd_type);
+		   kref_read(&io_req->refcount), io_req->cmd_type);
 	bnx2fc_scsi_done(io_req, DID_ERROR);
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
 	if (io_req->wait_for_comp)
@@ -1368,7 +1314,7 @@ void bnx2fc_process_abts_compl(struct bnx2fc_cmd *io_req,
 	BNX2FC_IO_DBG(io_req, "Entered process_abts_compl xid = 0x%x"
 			      "refcnt = %d, cmd_type = %d\n",
 		   io_req->xid,
-		   io_req->refcount.refcount.counter, io_req->cmd_type);
+		   kref_read(&io_req->refcount), io_req->cmd_type);
 
 	if (test_and_set_bit(BNX2FC_FLAG_ABTS_DONE,
 				       &io_req->req_flags)) {
@@ -1755,7 +1701,10 @@ static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
 	int fcp_rsp_len = 0;
 
 	io_req->fcp_status = FC_GOOD;
-	io_req->fcp_resid = fcp_rsp->fcp_resid;
+	io_req->fcp_resid = 0;
+	if (rsp_flags & (FCOE_FCP_RSP_FLAGS_FCP_RESID_OVER |
+	    FCOE_FCP_RSP_FLAGS_FCP_RESID_UNDER))
+		io_req->fcp_resid = fcp_rsp->fcp_resid;
 
 	io_req->scsi_comp_flags = rsp_flags;
 	CMD_SCSI_STATUS(sc_cmd) = io_req->cdb_status =
@@ -1805,7 +1754,7 @@ static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
 		if ((fcp_rsp_len == 4) || (fcp_rsp_len == 8)) {
 			/* Only for task management function */
 			io_req->fcp_rsp_code = rq_data[3];
-			printk(KERN_ERR PFX "fcp_rsp_code = %d\n",
+			BNX2FC_IO_DBG(io_req, "fcp_rsp_code = %d\n",
 				io_req->fcp_rsp_code);
 		}
 

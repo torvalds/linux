@@ -48,10 +48,10 @@ int wl18xx_cmd_channel_switch(struct wl1271 *wl,
 	cmd->stop_tx = ch_switch->block_tx;
 
 	switch (ch_switch->chandef.chan->band) {
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		cmd->band = WLCORE_BAND_2_4GHZ;
 		break;
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		cmd->band = WLCORE_BAND_5GHZ;
 		break;
 	default:
@@ -187,7 +187,7 @@ int wl18xx_cmd_set_cac(struct wl1271 *wl, struct wl12xx_vif *wlvif, bool start)
 
 	cmd->role_id = wlvif->role_id;
 	cmd->channel = wlvif->channel;
-	if (wlvif->band == IEEE80211_BAND_5GHZ)
+	if (wlvif->band == NL80211_BAND_5GHZ)
 		cmd->band = WLCORE_BAND_5GHZ;
 	cmd->bandwidth = wlcore_get_native_channel_type(wlvif->channel_type);
 

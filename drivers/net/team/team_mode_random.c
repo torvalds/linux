@@ -46,6 +46,7 @@ static const struct team_mode rnd_mode = {
 	.kind		= "random",
 	.owner		= THIS_MODULE,
 	.ops		= &rnd_mode_ops,
+	.lag_tx_type	= NETDEV_LAG_TX_TYPE_RANDOM,
 };
 
 static int __init rnd_init_module(void)
@@ -64,4 +65,4 @@ module_exit(rnd_cleanup_module);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jiri Pirko <jiri@resnulli.us>");
 MODULE_DESCRIPTION("Random mode for team");
-MODULE_ALIAS("team-mode-random");
+MODULE_ALIAS_TEAM_MODE("random");

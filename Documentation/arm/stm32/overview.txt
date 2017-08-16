@@ -5,7 +5,8 @@ Introduction
 ------------
 
   The STMicroelectronics family of Cortex-M based MCUs are supported by the
-  'STM32' platform of ARM Linux. Currently only the STM32F429 is supported.
+  'STM32' platform of ARM Linux. Currently only the STM32F429 (Cortex-M4)
+  and STM32F746 (Cortex-M7) are supported.
 
 
 Configuration

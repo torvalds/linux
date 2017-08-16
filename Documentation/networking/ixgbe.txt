@@ -272,7 +272,7 @@ Additional Configurations
   ethtool version is required for this functionality.
 
   The latest release of ethtool can be found from
-  http://ftp.kernel.org/pub/software/network/ethtool/
+  https://www.kernel.org/pub/software/network/ethtool/
 
   FCoE
   ----

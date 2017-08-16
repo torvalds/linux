@@ -49,7 +49,7 @@
 			#interrupt-cells = <1>;
 		};
 
-		clcd@fc200000 {
+		clcd: clcd@fc200000 {
 			compatible = "arm,pl110", "arm,primecell";
 			reg = <0xfc200000 0x1000>;
 			interrupt-parent = <&vic1>;
@@ -57,7 +57,7 @@
 			status = "disabled";
 		};
 
-		dma@fc400000 {
+		dmac: dma@fc400000 {
 			compatible = "arm,pl080", "arm,primecell";
 			reg = <0xfc400000 0x1000>;
 			interrupt-parent = <&vic1>;
@@ -97,7 +97,7 @@
 			status = "disabled";
 		};
 
-		ehci@e1800000 {
+		ehci_usb0: ehci@e1800000 {
 			compatible = "st,spear600-ehci", "usb-ehci";
 			reg = <0xe1800000 0x1000>;
 			interrupt-parent = <&vic1>;
@@ -105,7 +105,7 @@
 			status = "disabled";
 		};
 
-		ehci@e2000000 {
+		ehci_usb1: ehci@e2000000 {
 			compatible = "st,spear600-ehci", "usb-ehci";
 			reg = <0xe2000000 0x1000>;
 			interrupt-parent = <&vic1>;
@@ -113,7 +113,7 @@
 			status = "disabled";
 		};
 
-		ohci@e1900000 {
+		ohci_usb0: ohci@e1900000 {
 			compatible = "st,spear600-ohci", "usb-ohci";
 			reg = <0xe1900000 0x1000>;
 			interrupt-parent = <&vic1>;
@@ -121,7 +121,7 @@
 			status = "disabled";
 		};
 
-		ohci@e2100000 {
+		ohci_usb1: ohci@e2100000 {
 			compatible = "st,spear600-ohci", "usb-ohci";
 			reg = <0xe2100000 0x1000>;
 			interrupt-parent = <&vic1>;
@@ -135,7 +135,7 @@
 			compatible = "simple-bus";
 			ranges = <0xd0000000 0xd0000000 0x30000000>;
 
-			serial@d0000000 {
+			uart0: serial@d0000000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xd0000000 0x1000>;
 				interrupt-parent = <&vic0>;
@@ -143,7 +143,7 @@
 				status = "disabled";
 			};
 
-			serial@d0080000 {
+			uart1: serial@d0080000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xd0080000 0x1000>;
 				interrupt-parent = <&vic0>;
@@ -181,7 +181,7 @@
 				interrupts = <4>;
 			};
 
-			i2c@d0200000 {
+			i2c: i2c@d0200000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "snps,designware-i2c";
@@ -191,7 +191,7 @@
 				status = "disabled";
 			};
 
-			rtc@fc900000 {
+			rtc: rtc@fc900000 {
 				compatible = "st,spear600-rtc";
 				reg = <0xfc900000 0x1000>;
 				interrupts = <10>;
@@ -203,6 +203,14 @@
 				reg = <0xf0000000 0x400>;
 				interrupt-parent = <&vic0>;
 				interrupts = <16>;
+			};
+
+			adc: adc@d820b000 {
+				compatible = "st,spear600-adc";
+				reg = <0xd820b000 0x1000>;
+				interrupt-parent = <&vic1>;
+				interrupts = <6>;
+				status = "disabled";
 			};
 		};
 	};

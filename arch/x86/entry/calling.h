@@ -1,3 +1,5 @@
+#include <linux/jump_label.h>
+
 /*
 
  x86 function call convention, 64-bit:
@@ -88,8 +90,8 @@ For 32-bit we have the following conventions - kernel is built with
 
 #define SIZEOF_PTREGS	21*8
 
-	.macro ALLOC_PT_GPREGS_ON_STACK addskip=0
-	addq	$-(15*8+\addskip), %rsp
+	.macro ALLOC_PT_GPREGS_ON_STACK
+	addq	$-(15*8), %rsp
 	.endm
 
 	.macro SAVE_C_REGS_HELPER offset=0 rax=1 rcx=1 r8910=1 r11=1
@@ -145,15 +147,6 @@ For 32-bit we have the following conventions - kernel is built with
 	movq 5*8+\offset(%rsp), %rbx
 	.endm
 
-	.macro ZERO_EXTRA_REGS
-	xorl	%r15d, %r15d
-	xorl	%r14d, %r14d
-	xorl	%r13d, %r13d
-	xorl	%r12d, %r12d
-	xorl	%ebp, %ebp
-	xorl	%ebx, %ebx
-	.endm
-
 	.macro RESTORE_C_REGS_HELPER rstor_rax=1, rstor_rcx=1, rstor_r11=1, rstor_r8910=1, rstor_rdx=1
 	.if \rstor_r11
 	movq 6*8(%rsp), %r11
@@ -199,36 +192,38 @@ For 32-bit we have the following conventions - kernel is built with
 	.byte 0xf1
 	.endm
 
-#else /* CONFIG_X86_64 */
-
 /*
- * For 32bit only simplified versions of SAVE_ALL/RESTORE_ALL. These
- * are different from the entry_32.S versions in not changing the segment
- * registers. So only suitable for in kernel use, not when transitioning
- * from or to user space. The resulting stack frame is not a standard
- * pt_regs frame. The main use case is calling C code from assembler
- * when all the registers need to be preserved.
+ * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
+ * frame pointer is replaced with an encoded pointer to pt_regs.  The encoding
+ * is just setting the LSB, which makes it an invalid stack address and is also
+ * a signal to the unwinder that it's a pt_regs pointer in disguise.
+ *
+ * NOTE: This macro must be used *after* SAVE_EXTRA_REGS because it corrupts
+ * the original rbp.
  */
-
-	.macro SAVE_ALL
-	pushl %eax
-	pushl %ebp
-	pushl %edi
-	pushl %esi
-	pushl %edx
-	pushl %ecx
-	pushl %ebx
-	.endm
-
-	.macro RESTORE_ALL
-	popl %ebx
-	popl %ecx
-	popl %edx
-	popl %esi
-	popl %edi
-	popl %ebp
-	popl %eax
-	.endm
+.macro ENCODE_FRAME_POINTER ptregs_offset=0
+#ifdef CONFIG_FRAME_POINTER
+	.if \ptregs_offset
+		leaq \ptregs_offset(%rsp), %rbp
+	.else
+		mov %rsp, %rbp
+	.endif
+	orq	$0x1, %rbp
+#endif
+.endm
 
 #endif /* CONFIG_X86_64 */
 
+/*
+ * This does 'call enter_from_user_mode' unless we can avoid it based on
+ * kernel config or using the static jump infrastructure.
+ */
+.macro CALL_enter_from_user_mode
+#ifdef CONFIG_CONTEXT_TRACKING
+#ifdef HAVE_JUMP_LABEL
+	STATIC_JUMP_IF_FALSE .Lafter_call_\@, context_tracking_enabled, def=0
+#endif
+	call enter_from_user_mode
+.Lafter_call_\@:
+#endif
+.endm

@@ -1,5 +1,0 @@
-RsaKey ::= SEQUENCE {
-	n INTEGER ({ rsa_get_n }),
-	e INTEGER ({ rsa_get_e }),
-	d INTEGER ({ rsa_get_d })
-}

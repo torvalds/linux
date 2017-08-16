@@ -18,16 +18,13 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <video/mipi_display.h>
 
 #include "fbtft.h"
 
@@ -38,17 +35,14 @@
 #define DEFAULT_GAMMA	"1F 1A 18 0A 0F 06 45 87 32 0A 07 02 07 05 00\n" \
 			"00 25 27 05 10 09 3A 78 4D 05 18 0D 38 3A 1F"
 
-
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	/* startup sequence for MI0283QT-9A */
-	write_reg(par, 0x01); /* software reset */
+	write_reg(par, MIPI_DCS_SOFT_RESET);
 	mdelay(5);
-	write_reg(par, 0x28); /* display off */
+	write_reg(par, MIPI_DCS_SET_DISPLAY_OFF);
 	/* --------------------------------------------------------- */
 	write_reg(par, 0xCF, 0x00, 0x83, 0x30);
 	write_reg(par, 0xED, 0x64, 0x03, 0x12, 0x81);
@@ -63,18 +57,18 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0xC5, 0x35, 0x3E);
 	write_reg(par, 0xC7, 0xBE);
 	/* ------------memory access control------------------------ */
-	write_reg(par, 0x3A, 0x55); /* 16bit pixel */
+	write_reg(par, MIPI_DCS_SET_PIXEL_FORMAT, 0x55); /* 16bit pixel */
 	/* ------------frame rate----------------------------------- */
 	write_reg(par, 0xB1, 0x00, 0x1B);
 	/* ------------Gamma---------------------------------------- */
 	/* write_reg(par, 0xF2, 0x08); */ /* Gamma Function Disable */
-	write_reg(par, 0x26, 0x01);
+	write_reg(par, MIPI_DCS_SET_GAMMA_CURVE, 0x01);
 	/* ------------display-------------------------------------- */
 	write_reg(par, 0xB7, 0x07); /* entry mode set */
 	write_reg(par, 0xB6, 0x0A, 0x82, 0x27, 0x00);
-	write_reg(par, 0x11); /* sleep out */
+	write_reg(par, MIPI_DCS_EXIT_SLEEP_MODE);
 	mdelay(100);
-	write_reg(par, 0x29); /* display on */
+	write_reg(par, MIPI_DCS_SET_DISPLAY_ON);
 	mdelay(20);
 
 	return 0;
@@ -82,45 +76,39 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
+	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
+		  (xs >> 8) & 0xFF, xs & 0xFF, (xe >> 8) & 0xFF, xe & 0xFF);
 
-	/* Column address set */
-	write_reg(par, 0x2A,
-		(xs >> 8) & 0xFF, xs & 0xFF, (xe >> 8) & 0xFF, xe & 0xFF);
+	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
+		  (ys >> 8) & 0xFF, ys & 0xFF, (ye >> 8) & 0xFF, ye & 0xFF);
 
-	/* Row address set */
-	write_reg(par, 0x2B,
-		(ys >> 8) & 0xFF, ys & 0xFF, (ye >> 8) & 0xFF, ye & 0xFF);
-
-	/* Memory write */
-	write_reg(par, 0x2C);
+	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 }
 
-#define MEM_Y   (7) /* MY row address order */
-#define MEM_X   (6) /* MX column address order */
-#define MEM_V   (5) /* MV row / column exchange */
-#define MEM_L   (4) /* ML vertical refresh order */
-#define MEM_H   (2) /* MH horizontal refresh order */
+#define MEM_Y   BIT(7) /* MY row address order */
+#define MEM_X   BIT(6) /* MX column address order */
+#define MEM_V   BIT(5) /* MV row / column exchange */
+#define MEM_L   BIT(4) /* ML vertical refresh order */
+#define MEM_H   BIT(2) /* MH horizontal refresh order */
 #define MEM_BGR (3) /* RGB-BGR Order */
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0x36, (1 << MEM_X) | (par->bgr << MEM_BGR));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MEM_X | (par->bgr << MEM_BGR));
 		break;
 	case 270:
-		write_reg(par, 0x36,
-			(1<<MEM_V) | (1 << MEM_L) | (par->bgr << MEM_BGR));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MEM_V | MEM_L | (par->bgr << MEM_BGR));
 		break;
 	case 180:
-		write_reg(par, 0x36, (1 << MEM_Y) | (par->bgr << MEM_BGR));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MEM_Y | (par->bgr << MEM_BGR));
 		break;
 	case 90:
-		write_reg(par, 0x36, (1 << MEM_Y) | (1 << MEM_X) |
-				     (1 << MEM_V) | (par->bgr << MEM_BGR));
+		write_reg(par, MIPI_DCS_SET_ADDRESS_MODE,
+			  MEM_Y | MEM_X | MEM_V | (par->bgr << MEM_BGR));
 		break;
 	}
 
@@ -128,29 +116,27 @@ static int set_var(struct fbtft_par *par)
 }
 
 /*
-  Gamma string format:
-    Positive: Par1 Par2 [...] Par15
-    Negative: Par1 Par2 [...] Par15
-*/
-#define CURVE(num, idx)  curves[num*par->gamma.num_values + idx]
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+ * Gamma string format:
+ *  Positive: Par1 Par2 [...] Par15
+ *  Negative: Par1 Par2 [...] Par15
+ */
+#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	int i;
 
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	for (i = 0; i < par->gamma.num_curves; i++)
 		write_reg(par, 0xE0 + i,
-			CURVE(i, 0), CURVE(i, 1), CURVE(i, 2),
-			CURVE(i, 3), CURVE(i, 4), CURVE(i, 5),
-			CURVE(i, 6), CURVE(i, 7), CURVE(i, 8),
-			CURVE(i, 9), CURVE(i, 10), CURVE(i, 11),
-			CURVE(i, 12), CURVE(i, 13), CURVE(i, 14));
+			  CURVE(i, 0), CURVE(i, 1), CURVE(i, 2),
+			  CURVE(i, 3), CURVE(i, 4), CURVE(i, 5),
+			  CURVE(i, 6), CURVE(i, 7), CURVE(i, 8),
+			  CURVE(i, 9), CURVE(i, 10), CURVE(i, 11),
+			  CURVE(i, 12), CURVE(i, 13), CURVE(i, 14));
 
 	return 0;
 }
-#undef CURVE
 
+#undef CURVE
 
 static struct fbtft_display display = {
 	.regwidth = 8,
@@ -167,6 +153,7 @@ static struct fbtft_display display = {
 		.set_gamma = set_gamma,
 	},
 };
+
 FBTFT_REGISTER_DRIVER(DRVNAME, "ilitek,ili9341", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);

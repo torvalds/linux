@@ -18,17 +18,17 @@
  *     published by the Free Software Foundation; either version 2 of the
  *     License, or (at your option) any later version.
  *
- *     This file is distributed in the hope that it will be useful
+ *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- * Or, alternatively
+ * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
  *     obtaining a copy of this software and associated documentation
  *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use
+ *     restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or
  *     sell copies of the Software, and to permit persons to whom the
  *     Software is furnished to do so, subject to the following
@@ -37,11 +37,11 @@
  *     The above copyright notice and this permission notice shall be
  *     included in all copies or substantial portions of the Software.
  *
- *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
@@ -49,8 +49,6 @@
  * This file contains the definitions that are common to the Armada
  * 370 and Armada XP SoC.
  */
-
-/include/ "skeleton64.dtsi"
 
 #define MBUS_ID(target,attributes) (((target) << 24) | ((attributes) << 16))
 
@@ -86,7 +84,7 @@
 		pcie-mem-aperture = <0xf8000000 0x7e00000>;
 		pcie-io-aperture  = <0xffe00000 0x100000>;
 
-		devbus-bootcs {
+		devbus_bootcs: devbus-bootcs {
 			compatible = "marvell,mvebu-devbus";
 			reg = <MBUS_ID(0xf0, 0x01) 0x10400 0x8>;
 			ranges = <0 MBUS_ID(0x01, 0x2f) 0 0xffffffff>;
@@ -96,7 +94,7 @@
 			status = "disabled";
 		};
 
-		devbus-cs0 {
+		devbus_cs0: devbus-cs0 {
 			compatible = "marvell,mvebu-devbus";
 			reg = <MBUS_ID(0xf0, 0x01) 0x10408 0x8>;
 			ranges = <0 MBUS_ID(0x01, 0x3e) 0 0xffffffff>;
@@ -106,7 +104,7 @@
 			status = "disabled";
 		};
 
-		devbus-cs1 {
+		devbus_cs1: devbus-cs1 {
 			compatible = "marvell,mvebu-devbus";
 			reg = <MBUS_ID(0xf0, 0x01) 0x10410 0x8>;
 			ranges = <0 MBUS_ID(0x01, 0x3d) 0 0xffffffff>;
@@ -116,7 +114,7 @@
 			status = "disabled";
 		};
 
-		devbus-cs2 {
+		devbus_cs2: devbus-cs2 {
 			compatible = "marvell,mvebu-devbus";
 			reg = <MBUS_ID(0xf0, 0x01) 0x10418 0x8>;
 			ranges = <0 MBUS_ID(0x01, 0x3b) 0 0xffffffff>;
@@ -126,7 +124,7 @@
 			status = "disabled";
 		};
 
-		devbus-cs3 {
+		devbus_cs3: devbus-cs3 {
 			compatible = "marvell,mvebu-devbus";
 			reg = <MBUS_ID(0xf0, 0x01) 0x10420 0x8>;
 			ranges = <0 MBUS_ID(0x01, 0x37) 0 0xffffffff>;
@@ -142,30 +140,10 @@
 			#size-cells = <1>;
 			ranges = <0 MBUS_ID(0xf0, 0x01) 0 0x100000>;
 
-			rtc@10300 {
+			rtc: rtc@10300 {
 				compatible = "marvell,orion-rtc";
 				reg = <0x10300 0x20>;
 				interrupts = <50>;
-			};
-
-			spi0: spi@10600 {
-				reg = <0x10600 0x28>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				cell-index = <0>;
-				interrupts = <30>;
-				clocks = <&coreclk 0>;
-				status = "disabled";
-			};
-
-			spi1: spi@10680 {
-				reg = <0x10680 0x28>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				cell-index = <1>;
-				interrupts = <92>;
-				clocks = <&coreclk 0>;
-				status = "disabled";
 			};
 
 			i2c0: i2c@11000 {
@@ -234,33 +212,38 @@
 				msi-controller;
 			};
 
-			coherency-fabric@20200 {
+			coherencyfab: coherency-fabric@20200 {
 				compatible = "marvell,coherency-fabric";
 				reg = <0x20200 0xb0>, <0x21010 0x1c>;
 			};
 
-			timer@20300 {
+			timer: timer@20300 {
 				reg = <0x20300 0x30>, <0x21040 0x30>;
 				interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
 			};
 
-			watchdog@20300 {
+			watchdog: watchdog@20300 {
 				reg = <0x20300 0x34>, <0x20704 0x4>;
 			};
 
-			pmsu@22000 {
+			cpurst: cpurst@20800 {
+				compatible = "marvell,armada-370-cpu-reset";
+				reg = <0x20800 0x8>;
+			};
+
+			pmsu: pmsu@22000 {
 				compatible = "marvell,armada-370-pmsu";
 				reg = <0x22000 0x1000>;
 			};
 
-			usb@50000 {
+			usb0: usb@50000 {
 				compatible = "marvell,orion-ehci";
 				reg = <0x50000 0x500>;
 				interrupts = <45>;
 				status = "disabled";
 			};
 
-			usb@51000 {
+			usb1: usb@51000 {
 				compatible = "marvell,orion-ehci";
 				reg = <0x51000 0x500>;
 				interrupts = <46>;
@@ -274,7 +257,7 @@
 				status = "disabled";
 			};
 
-			mdio: mdio {
+			mdio: mdio@72004 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
@@ -289,7 +272,7 @@
 				status = "disabled";
 			};
 
-			sata@a0000 {
+			sata: sata@a0000 {
 				compatible = "marvell,armada-370-sata";
 				reg = <0xa0000 0x5000>;
 				interrupts = <55>;
@@ -298,7 +281,7 @@
 				status = "disabled";
 			};
 
-			nand@d0000 {
+			nand: nand@d0000 {
 				compatible = "marvell,armada370-nand";
 				reg = <0xd0000 0x54>;
 				#address-cells = <1>;
@@ -308,7 +291,7 @@
 				status = "disabled";
 			};
 
-			mvsdio@d4000 {
+			sdio: mvsdio@d4000 {
 				compatible = "marvell,orion-sdio";
 				reg = <0xd4000 0x200>;
 				interrupts = <54>;
@@ -319,6 +302,42 @@
 				cap-mmc-highspeed;
 				status = "disabled";
 			};
+		};
+
+		spi0: spi@10600 {
+			reg = <MBUS_ID(0xf0, 0x01) 0x10600 0x28>, /* control */
+			      <MBUS_ID(0x01, 0x1e) 0 0xffffffff>, /* CS0 */
+			      <MBUS_ID(0x01, 0x5e) 0 0xffffffff>, /* CS1 */
+			      <MBUS_ID(0x01, 0x9e) 0 0xffffffff>, /* CS2 */
+			      <MBUS_ID(0x01, 0xde) 0 0xffffffff>, /* CS3 */
+			      <MBUS_ID(0x01, 0x1f) 0 0xffffffff>, /* CS4 */
+			      <MBUS_ID(0x01, 0x5f) 0 0xffffffff>, /* CS5 */
+			      <MBUS_ID(0x01, 0x9f) 0 0xffffffff>, /* CS6 */
+			      <MBUS_ID(0x01, 0xdf) 0 0xffffffff>; /* CS7 */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			interrupts = <30>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		spi1: spi@10680 {
+			reg = <MBUS_ID(0xf0, 0x01) 0x10680 0x28>, /* control */
+			      <MBUS_ID(0x01, 0x1a) 0 0xffffffff>, /* CS0 */
+			      <MBUS_ID(0x01, 0x5a) 0 0xffffffff>, /* CS1 */
+			      <MBUS_ID(0x01, 0x9a) 0 0xffffffff>, /* CS2 */
+			      <MBUS_ID(0x01, 0xda) 0 0xffffffff>, /* CS3 */
+			      <MBUS_ID(0x01, 0x1b) 0 0xffffffff>, /* CS4 */
+			      <MBUS_ID(0x01, 0x5b) 0 0xffffffff>, /* CS5 */
+			      <MBUS_ID(0x01, 0x9b) 0 0xffffffff>, /* CS6 */
+			      <MBUS_ID(0x01, 0xdb) 0 0xffffffff>; /* CS7 */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			interrupts = <92>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
 		};
 	};
 

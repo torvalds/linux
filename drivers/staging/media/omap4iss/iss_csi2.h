@@ -116,8 +116,8 @@ struct iss_csi2_ctrl_cfg {
 #define CSI2_PAD_SOURCE		1
 #define CSI2_PADS_NUM		2
 
-#define CSI2_OUTPUT_IPIPEIF	(1 << 0)
-#define CSI2_OUTPUT_MEMORY	(1 << 1)
+#define CSI2_OUTPUT_IPIPEIF	BIT(0)
+#define CSI2_OUTPUT_MEMORY	BIT(1)
 
 struct iss_csi2_device {
 	struct v4l2_subdev subdev;
@@ -151,6 +151,7 @@ struct iss_csi2_device {
 void omap4iss_csi2_isr(struct iss_csi2_device *csi2);
 int omap4iss_csi2_reset(struct iss_csi2_device *csi2);
 int omap4iss_csi2_init(struct iss_device *iss);
+int omap4iss_csi2_create_links(struct iss_device *iss);
 void omap4iss_csi2_cleanup(struct iss_device *iss);
 void omap4iss_csi2_unregister_entities(struct iss_csi2_device *csi2);
 int omap4iss_csi2_register_entities(struct iss_csi2_device *csi2,

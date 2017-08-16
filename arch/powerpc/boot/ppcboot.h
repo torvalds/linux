@@ -43,7 +43,7 @@ typedef struct bd_info {
 	unsigned long	bi_sramstart;	/* start of SRAM memory */
 	unsigned long	bi_sramsize;	/* size	 of SRAM memory */
 #if defined(TARGET_8xx) || defined(TARGET_CPM2) || defined(TARGET_85xx) ||\
-	defined(TARGET_83xx)
+	defined(TARGET_83xx) || defined(TARGET_86xx)
 	unsigned long	bi_immr_base;	/* base of IMMR register */
 #endif
 #if defined(TARGET_PPC_MPC52xx)

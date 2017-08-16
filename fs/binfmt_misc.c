@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/magic.h>
 #include <linux/binfmts.h>
 #include <linux/slab.h>
@@ -25,6 +25,8 @@
 #include <linux/syscalls.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
+
+#include "internal.h"
 
 #ifdef DEBUG
 # define USE_DEBUG 1
@@ -43,6 +45,7 @@ enum {Enabled, Magic};
 #define MISC_FMT_PRESERVE_ARGV0 (1 << 31)
 #define MISC_FMT_OPEN_BINARY (1 << 30)
 #define MISC_FMT_CREDENTIALS (1 << 29)
+#define MISC_FMT_OPEN_FILE (1 << 28)
 
 typedef struct {
 	struct list_head list;
@@ -54,6 +57,7 @@ typedef struct {
 	char *interpreter;		/* filename of interpreter */
 	char *name;
 	struct dentry *dentry;
+	struct file *interp_file;
 } Node;
 
 static DEFINE_RWLOCK(entries_lock);
@@ -201,7 +205,13 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	if (retval < 0)
 		goto error;
 
-	interp_file = open_exec(iname);
+	if (fmt->flags & MISC_FMT_OPEN_FILE && fmt->interp_file) {
+		interp_file = filp_clone_open(fmt->interp_file);
+		if (!IS_ERR(interp_file))
+			deny_write_access(interp_file);
+	} else {
+		interp_file = open_exec(iname);
+	}
 	retval = PTR_ERR(interp_file);
 	if (IS_ERR(interp_file))
 		goto error;
@@ -284,6 +294,11 @@ static char *check_special_flags(char *sfs, Node *e)
 			   open-binary flag */
 			e->flags |= (MISC_FMT_CREDENTIALS |
 					MISC_FMT_OPEN_BINARY);
+			break;
+		case 'F':
+			pr_debug("register: flag: F: open interpreter file now\n");
+			p++;
+			e->flags |= MISC_FMT_OPEN_FILE;
 			break;
 		default:
 			cont = 0;
@@ -543,6 +558,8 @@ static void entry_status(Node *e, char *page)
 		*dp++ = 'O';
 	if (e->flags & MISC_FMT_CREDENTIALS)
 		*dp++ = 'C';
+	if (e->flags & MISC_FMT_OPEN_FILE)
+		*dp++ = 'F';
 	*dp++ = '\n';
 
 	if (!test_bit(Magic, &e->flags)) {
@@ -567,7 +584,7 @@ static struct inode *bm_get_inode(struct super_block *sb, int mode)
 		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_atime = inode->i_mtime = inode->i_ctime =
-			current_fs_time(inode->i_sb);
+			current_time(inode);
 	}
 	return inode;
 }
@@ -589,6 +606,11 @@ static void kill_node(Node *e)
 		e->dentry = NULL;
 	}
 	write_unlock(&entries_lock);
+
+	if ((e->flags & MISC_FMT_OPEN_FILE) && e->interp_file) {
+		filp_close(e->interp_file, NULL);
+		e->interp_file = NULL;
+	}
 
 	if (dentry) {
 		drop_nlink(d_inode(dentry));
@@ -637,13 +659,12 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 		break;
 	case 3:
 		/* Delete this handler. */
-		root = dget(file->f_path.dentry->d_sb->s_root);
-		mutex_lock(&d_inode(root)->i_mutex);
+		root = file_inode(file)->i_sb->s_root;
+		inode_lock(d_inode(root));
 
 		kill_node(e);
 
-		mutex_unlock(&d_inode(root)->i_mutex);
-		dput(root);
+		inode_unlock(d_inode(root));
 		break;
 	default:
 		return res;
@@ -665,8 +686,8 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 {
 	Node *e;
 	struct inode *inode;
-	struct dentry *root, *dentry;
-	struct super_block *sb = file->f_path.dentry->d_sb;
+	struct super_block *sb = file_inode(file)->i_sb;
+	struct dentry *root = sb->s_root, *dentry;
 	int err = 0;
 
 	e = create_entry(buffer, count);
@@ -674,8 +695,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 	if (IS_ERR(e))
 		return PTR_ERR(e);
 
-	root = dget(sb->s_root);
-	mutex_lock(&d_inode(root)->i_mutex);
+	inode_lock(d_inode(root));
 	dentry = lookup_one_len(e->name, root, strlen(e->name));
 	err = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
@@ -698,6 +718,21 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 		goto out2;
 	}
 
+	if (e->flags & MISC_FMT_OPEN_FILE) {
+		struct file *f;
+
+		f = open_exec(e->interpreter);
+		if (IS_ERR(f)) {
+			err = PTR_ERR(f);
+			pr_notice("register: failed to install interpreter file %s\n", e->interpreter);
+			simple_release_fs(&bm_mnt, &entry_count);
+			iput(inode);
+			inode = NULL;
+			goto out2;
+		}
+		e->interp_file = f;
+	}
+
 	e->dentry = dget(dentry);
 	inode->i_private = e;
 	inode->i_fop = &bm_entry_operations;
@@ -711,12 +746,11 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 out2:
 	dput(dentry);
 out:
-	mutex_unlock(&d_inode(root)->i_mutex);
-	dput(root);
+	inode_unlock(d_inode(root));
 
 	if (err) {
 		kfree(e);
-		return -EINVAL;
+		return err;
 	}
 	return count;
 }
@@ -753,14 +787,13 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 		break;
 	case 3:
 		/* Delete all handlers. */
-		root = dget(file->f_path.dentry->d_sb->s_root);
-		mutex_lock(&d_inode(root)->i_mutex);
+		root = file_inode(file)->i_sb->s_root;
+		inode_lock(d_inode(root));
 
 		while (!list_empty(&entries))
 			kill_node(list_entry(entries.next, Node, list));
 
-		mutex_unlock(&d_inode(root)->i_mutex);
-		dput(root);
+		inode_unlock(d_inode(root));
 		break;
 	default:
 		return res;
@@ -785,7 +818,7 @@ static const struct super_operations s_ops = {
 static int bm_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int err;
-	static struct tree_descr bm_files[] = {
+	static const struct tree_descr bm_files[] = {
 		[2] = {"status", &bm_status_operations, S_IWUSR|S_IRUGO},
 		[3] = {"register", &bm_register_operations, S_IWUSR},
 		/* last one */ {""}

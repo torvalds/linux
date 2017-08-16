@@ -26,7 +26,7 @@
 #include <linux/mtd/partitions.h>
 
 #include <linux/i2c/pxa-i2c.h>
-#include <linux/i2c/pcf857x.h>
+#include <linux/platform_data/pcf857x.h>
 #include <linux/platform_data/at24.h>
 #include <linux/smc91x.h>
 #include <linux/gpio.h>
@@ -43,10 +43,10 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <linux/platform_data/mmc-pxamci.h>
-#include <mach/udc.h>
-#include <mach/pxa27x-udc.h>
+#include "udc.h"
+#include "pxa27x-udc.h"
 #include <mach/smemc.h>
 
 #include <linux/spi/spi.h>
@@ -673,6 +673,7 @@ static struct resource smc91x_resources[] = {
 static struct smc91x_platdata stargate2_smc91x_info = {
 	.flags = SMC91X_USE_8BIT | SMC91X_USE_16BIT | SMC91X_USE_32BIT
 	| SMC91X_NOWAIT | SMC91X_USE_DMA,
+	.pxa_u16_align4 = true,
 };
 
 static struct platform_device smc91x_device = {

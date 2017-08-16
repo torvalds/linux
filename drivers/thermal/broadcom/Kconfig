@@ -1,0 +1,17 @@
+config BCM2835_THERMAL
+	tristate "Thermal sensors on bcm2835 SoC"
+	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on THERMAL_OF
+	help
+	  Support for thermal sensors on Broadcom bcm2835 SoCs.
+
+config BCM_NS_THERMAL
+	tristate "Northstar thermal driver"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	default y if ARCH_BCM_IPROC
+	help
+	  Support for the Northstar and Northstar Plus family of SoCs (e.g.
+	  BCM4708, BCM4709, BCM5301x, BCM95852X, etc). It contains DMU (Device
+	  Management Unit) block with a thermal sensor that allows checking CPU
+	  temperature.

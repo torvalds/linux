@@ -19,7 +19,7 @@ executing kernel.
 Address:      sysram_ns_base_addr
 Offset        Value                                        Purpose
 =============================================================================
-0x08          exynos_cpu_resume_ns                         System suspend
+0x08          exynos_cpu_resume_ns, mcpm_entry_point       System suspend
 0x0c          0x00000bad (Magic cookie)                    System suspend
 0x1c          exynos4_secondary_startup                    Secondary CPU boot
 0x1c + 4*cpu  exynos4_secondary_startup (Exynos4412)       Secondary CPU boot
@@ -56,7 +56,8 @@ Offset        Value                                        Purpose
 Address:      pmu_base_addr
 Offset        Value                           Purpose
 =============================================================================
-0x0908        Non-zero (only Exynos3250)      Secondary CPU boot up indicator
+0x0908        Non-zero                        Secondary CPU boot up indicator
+                                              on Exynos3250 and Exynos542x
 
 
 4. Glossary

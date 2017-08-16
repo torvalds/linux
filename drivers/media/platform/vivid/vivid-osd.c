@@ -85,6 +85,7 @@ static int vivid_fb_ioctl(struct fb_info *info, unsigned cmd, unsigned long arg)
 	case FBIOGET_VBLANK: {
 		struct fb_vblank vblank;
 
+		memset(&vblank, 0, sizeof(vblank));
 		vblank.flags = FB_VBLANK_HAVE_COUNT | FB_VBLANK_HAVE_VCOUNT |
 			FB_VBLANK_HAVE_VSYNC;
 		vblank.count = 0;
@@ -359,7 +360,7 @@ void vivid_fb_release_buffers(struct vivid_dev *dev)
 
 	/* Release pseudo palette */
 	kfree(dev->fb_info.pseudo_palette);
-	kfree((void *)dev->video_vbase);
+	kfree(dev->video_vbase);
 }
 
 /* Initialize the specified card */

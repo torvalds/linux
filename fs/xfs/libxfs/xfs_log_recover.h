@@ -26,7 +26,7 @@
 #define XLOG_RHASH_SIZE	16
 #define XLOG_RHASH_SHIFT 2
 #define XLOG_RHASH(tid)	\
-	((((__uint32_t)tid)>>XLOG_RHASH_SHIFT) & (XLOG_RHASH_SIZE-1))
+	((((uint32_t)tid)>>XLOG_RHASH_SHIFT) & (XLOG_RHASH_SIZE-1))
 
 #define XLOG_MAX_REGIONS_IN_ITEM   (XFS_MAX_BLOCKSIZE / XFS_BLF_CHUNK / 2 + 1)
 
@@ -42,7 +42,6 @@ typedef struct xlog_recover_item {
 	xfs_log_iovec_t		*ri_buf;	/* ptr to regions buffer */
 } xlog_recover_item_t;
 
-struct xlog_tid;
 typedef struct xlog_recover {
 	struct hlist_node	r_list;
 	xlog_tid_t		r_log_tid;	/* log's transaction id */
@@ -52,7 +51,7 @@ typedef struct xlog_recover {
 	struct list_head	r_itemq;	/* q for items */
 } xlog_recover_t;
 
-#define ITEM_TYPE(i)	(*(ushort *)(i)->ri_buf[0].i_addr)
+#define ITEM_TYPE(i)	(*(unsigned short *)(i)->ri_buf[0].i_addr)
 
 /*
  * This is the number of entries in the l_buf_cancel_table used during
@@ -60,6 +59,7 @@ typedef struct xlog_recover {
  */
 #define	XLOG_BC_TABLE_SIZE	64
 
+#define	XLOG_RECOVER_CRCPASS	0
 #define	XLOG_RECOVER_PASS1	1
 #define	XLOG_RECOVER_PASS2	2
 

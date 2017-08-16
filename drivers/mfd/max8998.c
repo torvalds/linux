@@ -21,8 +21,6 @@
  */
 
 #include <linux/err.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -138,7 +136,6 @@ static const struct of_device_id max8998_dt_match[] = {
 	{ .compatible = "ti,lp3974", .data = (void *)TYPE_LP3974 },
 	{},
 };
-MODULE_DEVICE_TABLE(of, max8998_dt_match);
 #endif
 
 /*
@@ -254,27 +251,15 @@ err:
 	return ret;
 }
 
-static int max8998_i2c_remove(struct i2c_client *i2c)
-{
-	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
-
-	mfd_remove_devices(max8998->dev);
-	max8998_irq_exit(max8998);
-	i2c_unregister_device(max8998->rtc);
-
-	return 0;
-}
-
 static const struct i2c_device_id max8998_i2c_id[] = {
 	{ "max8998", TYPE_MAX8998 },
 	{ "lp3974", TYPE_LP3974},
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, max8998_i2c_id);
 
 static int max8998_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -284,7 +269,7 @@ static int max8998_suspend(struct device *dev)
 
 static int max8998_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -344,7 +329,7 @@ static struct max8998_reg_dump max8998_dump[] = {
 /* Save registers before hibernation */
 static int max8998_freeze(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(max8998_dump); i++)
@@ -357,7 +342,7 @@ static int max8998_freeze(struct device *dev)
 /* Restore registers after hibernation */
 static int max8998_restore(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(max8998_dump); i++)
@@ -378,10 +363,10 @@ static struct i2c_driver max8998_i2c_driver = {
 	.driver = {
 		   .name = "max8998",
 		   .pm = &max8998_pm,
+		   .suppress_bind_attrs = true,
 		   .of_match_table = of_match_ptr(max8998_dt_match),
 	},
 	.probe = max8998_i2c_probe,
-	.remove = max8998_i2c_remove,
 	.id_table = max8998_i2c_id,
 };
 
@@ -391,13 +376,3 @@ static int __init max8998_i2c_init(void)
 }
 /* init early so consumer devices can complete system boot */
 subsys_initcall(max8998_i2c_init);
-
-static void __exit max8998_i2c_exit(void)
-{
-	i2c_del_driver(&max8998_i2c_driver);
-}
-module_exit(max8998_i2c_exit);
-
-MODULE_DESCRIPTION("MAXIM 8998 multi-function core driver");
-MODULE_AUTHOR("Kyungmin Park <kyungmin.park@samsung.com>");
-MODULE_LICENSE("GPL");

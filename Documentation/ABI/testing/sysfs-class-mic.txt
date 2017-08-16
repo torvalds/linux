@@ -41,18 +41,15 @@ Description:
 		When read, this entry provides the current state of an Intel
 		MIC device in the context of the card OS. Possible values that
 		will be read are:
-		"offline" - The MIC device is ready to boot the card OS. On
+		"ready" - The MIC device is ready to boot the card OS. On
 		reading this entry after an OSPM resume, a "boot" has to be
 		written to this entry if the card was previously shutdown
 		during OSPM suspend.
-		"online" - The MIC device has initiated booting a card OS.
+		"booting" - The MIC device has initiated booting a card OS.
+		"online" - The MIC device has completed boot and is online
 		"shutting_down" - The card OS is shutting down.
+		"resetting" - A reset has been initiated for the MIC device
 		"reset_failed" - The MIC device has failed to reset.
-		"suspending" - The MIC device is currently being prepared for
-		suspend. On reading this entry, a "suspend" has to be written
-		to the state sysfs entry to ensure the card is shutdown during
-		OSPM suspend.
-		"suspended" - The MIC device has been suspended.
 
 		When written, this sysfs entry triggers different state change
 		operations depending upon the current state of the card OS.
@@ -62,8 +59,6 @@ Description:
 			sysfs entries.
 		"reset" - Initiates device reset.
 		"shutdown" - Initiates card OS shutdown.
-		"suspend" - Initiates card OS shutdown and also marks the card
-		as suspended.
 
 What:		/sys/class/mic/mic(x)/shutdown_status
 Date:		October 2013
@@ -126,7 +121,7 @@ Description:
 		the card. This sysfs entry can be written with the following
 		valid strings:
 		a) linux - Boot a Linux image.
-		b) elf - Boot an elf image for flash updates.
+		b) flash - Boot an image for flash updates.
 
 What:		/sys/class/mic/mic(x)/log_buf_addr
 Date:		October 2013
@@ -155,3 +150,17 @@ Description:
 		daemon to set the log buffer length address. The correct log
 		buffer length address to be written can be found in the
 		System.map file of the card OS.
+
+What:		/sys/class/mic/mic(x)/heartbeat_enable
+Date:		March 2015
+KernelVersion:	4.4
+Contact:	Ashutosh Dixit <ashutosh.dixit@intel.com>
+Description:
+		The MIC drivers detect and inform user space about card crashes
+		via a heartbeat mechanism (see the description of
+		shutdown_status above). User space can turn off this
+		notification by setting heartbeat_enable to 0 and enable it by
+		setting this entry to 1. If this notification is disabled it is
+		the responsibility of user space to detect card crashes via
+		alternative means such as a network ping. This setting is
+		enabled by default.

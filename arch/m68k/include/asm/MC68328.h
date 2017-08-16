@@ -8,6 +8,7 @@
  * Copyright (C) 1998  Kenneth Albanowski <kjahds@kjahds.com>,
  *
  */
+#include <linux/compiler.h>
 
 #ifndef _MC68328_H_
 #define _MC68328_H_
@@ -798,7 +799,7 @@
 
 /**********
  *
- * 0xFFFFF7xx -- Serial Periferial Interface Slave (SPIS)
+ * 0xFFFFF7xx -- Serial Peripheral Interface Slave (SPIS)
  *
  **********/
 
@@ -824,7 +825,7 @@
 
 /**********
  *
- * 0xFFFFF8xx -- Serial Periferial Interface Master (SPIM)
+ * 0xFFFFF8xx -- Serial Peripheral Interface Master (SPIM)
  *
  **********/
 
@@ -904,7 +905,7 @@
 
 #define UBAUD_PRESCALER_MASK	0x003f	/* Actual divisor is 65 - PRESCALER */
 #define UBAUD_PRESCALER_SHIFT	0
-#define UBAUD_DIVIDE_MASK	0x0700	/* Baud Rate freq. divizor */
+#define UBAUD_DIVIDE_MASK	0x0700	/* Baud Rate freq. divisor */
 #define UBAUD_DIVIDE_SHIFT	8
 #define UBAUD_BAUD_SRC		0x0800	/* Baud Rate Source */
 #define UBAUD_GPIOSRC		0x1000	/* GPIO source */
@@ -993,7 +994,7 @@ typedef volatile struct {
   volatile unsigned short int pad1;
   volatile unsigned short int pad2;
   volatile unsigned short int pad3;
-} __attribute__((packed)) m68328_uart;
+} __packed m68328_uart;
 
 
 /**********

@@ -25,10 +25,8 @@ static void register_onboard_backlight(struct fbtft_par *par);
 
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
-	if (par->pdata
-		&& par->pdata->display.backlight == FBTFT_ONBOARD_BACKLIGHT) {
+	if (par->pdata &&
+	    par->pdata->display.backlight == FBTFT_ONBOARD_BACKLIGHT) {
 		/* module uses onboard GPIO for panel power */
 		par->fbtftops.register_backlight = register_onboard_backlight;
 	}
@@ -61,9 +59,6 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	write_reg(par, 0x15, xs, xe);
 	write_reg(par, 0x75, ys, ye);
 	write_reg(par, 0x5c);
@@ -71,15 +66,13 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int set_var(struct fbtft_par *par)
 {
-	unsigned remap;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
+	unsigned int remap;
 
 	if (par->fbtftops.init_display != init_display) {
 		/* don't risk messing up register A0h */
 		fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-			"%s: skipping since custom init_display() is used\n",
-			__func__);
+			      "%s: skipping since custom init_display() is used\n",
+			       __func__);
 		return 0;
 	}
 
@@ -87,10 +80,10 @@ static int set_var(struct fbtft_par *par)
 
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0xA0, remap | 0x00 | 1<<4);
+		write_reg(par, 0xA0, remap | 0x00 | 1 << 4);
 		break;
 	case 270:
-		write_reg(par, 0xA0, remap | 0x03 | 1<<4);
+		write_reg(par, 0xA0, remap | 0x03 | 1 << 4);
 		break;
 	case 180:
 		write_reg(par, 0xA0, remap | 0x02);
@@ -104,33 +97,30 @@ static int set_var(struct fbtft_par *par)
 }
 
 /*
-	Grayscale Lookup Table
-	GS1 - GS63
-	The driver Gamma curve contains the relative values between the entries
-	in the Lookup table.
-
-	From datasheet:
-	8.8 Gray Scale Decoder
-
-		there are total 180 Gamma Settings (Setting 0 to Setting 180)
-		available for the Gray Scale table.
-
-		The gray scale is defined in incremental way, with reference
-		to the length of previous table entry:
-			Setting of GS1 has to be >= 0
-			Setting of GS2 has to be > Setting of GS1 +1
-			Setting of GS3 has to be > Setting of GS2 +1
-			:
-			Setting of GS63 has to be > Setting of GS62 +1
-
-
-*/
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+ * Grayscale Lookup Table
+ * GS1 - GS63
+ * The driver Gamma curve contains the relative values between the entries
+ * in the Lookup table.
+ *
+ * From datasheet:
+ * 8.8 Gray Scale Decoder
+ *
+ *	there are total 180 Gamma Settings (Setting 0 to Setting 180)
+ *	available for the Gray Scale table.
+ *
+ *	The gray scale is defined in incremental way, with reference
+ *	to the length of previous table entry:
+ *		Setting of GS1 has to be >= 0
+ *		Setting of GS2 has to be > Setting of GS1 +1
+ *		Setting of GS3 has to be > Setting of GS2 +1
+ *		:
+ *		Setting of GS63 has to be > Setting of GS62 +1
+ *
+ */
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long tmp[GAMMA_NUM * GAMMA_LEN];
 	int i, acc = 0;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	for (i = 0; i < 63; i++) {
 		if (i > 0 && curves[i] < 2) {
@@ -173,7 +163,6 @@ static int blank(struct fbtft_par *par, bool on)
 	return 0;
 }
 
-
 static struct fbtft_display display = {
 	.regwidth = 8,
 	.width = WIDTH,
@@ -200,33 +189,28 @@ static int update_onboard_backlight(struct backlight_device *bd)
 		"%s: power=%d, fb_blank=%d\n",
 		__func__, bd->props.power, bd->props.fb_blank);
 
-	on = (bd->props.power == FB_BLANK_UNBLANK)
-		&& (bd->props.fb_blank == FB_BLANK_UNBLANK);
+	on = (bd->props.power == FB_BLANK_UNBLANK) &&
+	     (bd->props.fb_blank == FB_BLANK_UNBLANK);
 	/* Onboard backlight connected to GPIO0 on SSD1351, GPIO1 unused */
 	write_reg(par, 0xB5, on ? 0x03 : 0x02);
 
 	return 0;
 }
 
+static const struct backlight_ops bl_ops = {
+	.update_status = update_onboard_backlight,
+};
+
 static void register_onboard_backlight(struct fbtft_par *par)
 {
 	struct backlight_device *bd;
 	struct backlight_properties bl_props = { 0, };
-	struct backlight_ops *bl_ops;
 
-	fbtft_par_dbg(DEBUG_BACKLIGHT, par, "%s()\n", __func__);
-
-	bl_ops = devm_kzalloc(par->info->device, sizeof(struct backlight_ops),
-				GFP_KERNEL);
-	if (!bl_ops)
-		return;
-
-	bl_ops->update_status = update_onboard_backlight;
 	bl_props.type = BACKLIGHT_RAW;
 	bl_props.power = FB_BLANK_POWERDOWN;
 
 	bd = backlight_device_register(dev_driver_string(par->info->device),
-				par->info->device, par, bl_ops, &bl_props);
+				par->info->device, par, &bl_ops, &bl_props);
 	if (IS_ERR(bd)) {
 		dev_err(par->info->device,
 			"cannot register backlight device (%ld)\n",
@@ -241,7 +225,6 @@ static void register_onboard_backlight(struct fbtft_par *par)
 #else
 static void register_onboard_backlight(struct fbtft_par *par) { };
 #endif
-
 
 FBTFT_REGISTER_DRIVER(DRVNAME, "solomon,ssd1351", &display);
 

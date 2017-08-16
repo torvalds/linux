@@ -16,7 +16,8 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
 #include <linux/kernel_stat.h>
 #include <linux/bootmem.h>
 #include <linux/notifier.h>
@@ -160,7 +161,7 @@ static void start_secondary(void)
 	__this_cpu_write(current_asid, min_asid);
 
 	/* Set up this thread as another owner of the init_mm */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	if (current->mm)
 		BUG();
@@ -208,7 +209,7 @@ void online_secondary(void)
 	/* Set up tile-timer clock-event device on this cpu */
 	setup_tile_timer();
 
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)

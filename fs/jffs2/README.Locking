@@ -2,10 +2,6 @@
 	JFFS2 LOCKING DOCUMENTATION
 	---------------------------
 
-At least theoretically, JFFS2 does not require the Big Kernel Lock
-(BKL), which was always helpfully obtained for it by Linux 2.4 VFS
-code. It has its own locking, as described below.
-
 This document attempts to describe the existing locking rules for
 JFFS2. It is not expected to remain perfectly up to date, but ought to
 be fairly close.
@@ -69,6 +65,7 @@ Ordering constraints:
 	   any f->sem held.
 	2. Never attempt to lock two file mutexes in one thread.
 	   No ordering rules have been made for doing so.
+	3. Never lock a page cache page with f->sem held.
 
 
 	erase_completion_lock spinlock

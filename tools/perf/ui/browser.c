@@ -1,5 +1,6 @@
 #include "../util.h"
-#include "../cache.h"
+#include "../string2.h"
+#include "../config.h"
 #include "../../perf.h"
 #include "libslang.h"
 #include "ui.h"
@@ -13,6 +14,7 @@
 #include "helpline.h"
 #include "keysyms.h"
 #include "../color.h"
+#include "sane_ctype.h"
 
 static int ui_browser__percent_color(struct ui_browser *browser,
 				     double percent, bool current)
@@ -393,6 +395,7 @@ int ui_browser__run(struct ui_browser *browser, int delay_secs)
 
 		if (browser->use_navkeypressed && !browser->navkeypressed) {
 			if (key == K_DOWN || key == K_UP ||
+			    (browser->columns && (key == K_LEFT || key == K_RIGHT)) ||
 			    key == K_PGDN || key == K_PGUP ||
 			    key == K_HOME || key == K_END ||
 			    key == ' ') {
@@ -420,6 +423,18 @@ int ui_browser__run(struct ui_browser *browser, int delay_secs)
 				--browser->top_idx;
 				browser->seek(browser, -1, SEEK_CUR);
 			}
+			break;
+		case K_RIGHT:
+			if (!browser->columns)
+				goto out;
+			if (browser->horiz_scroll < browser->columns - 1)
+				++browser->horiz_scroll;
+			break;
+		case K_LEFT:
+			if (!browser->columns)
+				goto out;
+			if (browser->horiz_scroll != 0)
+				--browser->horiz_scroll;
 			break;
 		case K_PGDN:
 		case ' ':
@@ -459,6 +474,7 @@ int ui_browser__run(struct ui_browser *browser, int delay_secs)
 			browser->seek(browser, -offset, SEEK_END);
 			break;
 		default:
+		out:
 			return key;
 		}
 	}
@@ -514,11 +530,11 @@ static struct ui_browser_colorset {
 		.colorset = HE_COLORSET_SELECTED,
 		.name	  = "selected",
 		.fg	  = "black",
-		.bg	  = "lightgray",
+		.bg	  = "yellow",
 	},
 	{
-		.colorset = HE_COLORSET_CODE,
-		.name	  = "code",
+		.colorset = HE_COLORSET_JUMP_ARROWS,
+		.name	  = "jump_arrows",
 		.fg	  = "blue",
 		.bg	  = "default",
 	},
@@ -565,7 +581,7 @@ static int ui_browser__color_config(const char *var, const char *value,
 			break;
 
 		*bg = '\0';
-		while (isspace(*++bg));
+		bg = ltrim(++bg);
 		ui_browser__colorsets[i].bg = bg;
 		ui_browser__colorsets[i].fg = fg;
 		return 0;
@@ -688,7 +704,7 @@ static void __ui_browser__line_arrow_down(struct ui_browser *browser,
 		ui_browser__gotorc(browser, row, column + 1);
 		SLsmg_draw_hline(2);
 
-		if (row++ == 0)
+		if (++row == 0)
 			goto out;
 	} else
 		row = 0;

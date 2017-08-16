@@ -156,6 +156,7 @@ nv40_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		return -ENOMEM;
 	nvkm_object_ctor(&nv40_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
+	chan->fifo = fifoch;
 	*pobject = &chan->object;
 
 	spin_lock_irqsave(&chan->gr->base.engine.lock, flags);
@@ -437,7 +438,7 @@ nv40_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
 	*pgr = &gr->base;
 	INIT_LIST_HEAD(&gr->chan);
 
-	return nvkm_gr_ctor(func, device, index, 0x00001000, true, &gr->base);
+	return nvkm_gr_ctor(func, device, index, true, &gr->base);
 }
 
 static const struct nvkm_gr_func

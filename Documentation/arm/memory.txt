@@ -54,7 +54,7 @@ VMALLOC_START	VMALLOC_END-1	vmalloc() / ioremap() space.
 				located here through iotable_init().
 				VMALLOC_START is based upon the value
 				of the high_memory variable, and VMALLOC_END
-				is equal to 0xff000000.
+				is equal to 0xff800000.
 
 PAGE_OFFSET	high_memory-1	Kernel direct-mapped RAM region.
 				This maps the platforms RAM, and typically

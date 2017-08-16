@@ -1,0 +1,33 @@
+# Select broken dependency issue
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Test with:
+#
+# make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.select-break menuconfig
+#
+# kconfig will not complain and enable this layout for configuration. This is
+# currently a feature of kconfig, given select was designed to be heavy handed.
+# Kconfig currently does not check the list of symbols listed on a symbol's
+# "select" list, this is done on purpose to help load a set of known required
+# symbols. Because of this use of select should be used with caution. An
+# example of this issue is below.
+#
+# The option B and C are clearly contradicting with respect to A.
+# However, when A is set, C can be set as well because Kconfig does not
+# visit the dependencies of the select target (in this case B).  And since
+# Kconfig does not visit the dependencies, it breaks the dependencies of B
+# (!A).
+
+mainmenu "Simple example to demo kconfig select broken dependency issue"
+
+config A
+	bool "CONFIG A"
+
+config B
+	bool "CONFIG B"
+	depends on !A
+
+config C
+	bool "CONFIG C"
+	depends on A
+	select B

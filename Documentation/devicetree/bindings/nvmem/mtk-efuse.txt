@@ -1,0 +1,36 @@
+= Mediatek MTK-EFUSE device tree bindings =
+
+This binding is intended to represent MTK-EFUSE which is found in most Mediatek SOCs.
+
+Required properties:
+- compatible: should be "mediatek,mt8173-efuse" or "mediatek,efuse"
+- reg: Should contain registers location and length
+
+= Data cells =
+Are child nodes of MTK-EFUSE, bindings of which as described in
+bindings/nvmem/nvmem.txt
+
+Example:
+
+	efuse: efuse@10206000 {
+		compatible = "mediatek,mt8173-efuse";
+		reg	   = <0 0x10206000 0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* Data cells */
+		thermal_calibration: calib@528 {
+			reg = <0x528 0xc>;
+		};
+	};
+
+= Data consumers =
+Are device nodes which consume nvmem data cells.
+
+For example:
+
+	thermal {
+		...
+		nvmem-cells = <&thermal_calibration>;
+		nvmem-cell-names = "calibration";
+	};

@@ -16,17 +16,8 @@
 #include "kirkwood-ts219.dtsi"
 #include "kirkwood-ts419.dtsi"
 
-/ {
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@2,0 {
-				status = "okay";
-			};
-		};
-	};
-};
-
 &ethphy0 { reg = <0>; };
 &ethphy1 { reg = <1>; };
+
+&pciec { status = "okay"; };
+&pcie1 { status = "okay"; };

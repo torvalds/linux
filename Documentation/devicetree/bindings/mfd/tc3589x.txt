@@ -56,6 +56,7 @@ Optional nodes:
    bindings/input/matrix-keymap.txt
  - linux,no-autorepeat: do no enable autorepeat feature.
  - wakeup-source: use any event on keypad as wakeup event.
+		  (Legacy property supported: "linux,wakeup")
 
 Example:
 

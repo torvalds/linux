@@ -52,7 +52,7 @@ struct snd_seq_timer {
 	unsigned int skew;
 	unsigned int skew_base;
 
-	struct timeval 		last_update;	 /* time of last clock update, used for interpolation */
+	struct timespec64	last_update;	 /* time of last clock update, used for interpolation */
 
 	spinlock_t lock;
 };

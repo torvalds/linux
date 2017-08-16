@@ -223,9 +223,9 @@ static snd_pcm_uframes_t snd_solo_pcm_pointer(struct snd_pcm_substream *ss)
 	return idx * G723_FRAMES_PER_PAGE;
 }
 
-static int snd_solo_pcm_copy(struct snd_pcm_substream *ss, int channel,
-			     snd_pcm_uframes_t pos, void __user *dst,
-			     snd_pcm_uframes_t count)
+static int __snd_solo_pcm_copy(struct snd_pcm_substream *ss,
+			       unsigned long pos, void *dst,
+			       unsigned long count, bool in_kernel)
 {
 	struct solo_snd_pcm *solo_pcm = snd_pcm_substream_chip(ss);
 	struct solo_dev *solo_dev = solo_pcm->solo_dev;
@@ -242,17 +242,32 @@ static int snd_solo_pcm_copy(struct snd_pcm_substream *ss, int channel,
 		if (err)
 			return err;
 
-		err = copy_to_user(dst + (i * G723_PERIOD_BYTES),
-				   solo_pcm->g723_buf, G723_PERIOD_BYTES);
-
-		if (err)
+		if (in_kernel)
+			memcpy(dst, solo_pcm->g723_buf, G723_PERIOD_BYTES);
+		else if (copy_to_user((void __user *)dst,
+				      solo_pcm->g723_buf, G723_PERIOD_BYTES))
 			return -EFAULT;
+		dst += G723_PERIOD_BYTES;
 	}
 
 	return 0;
 }
 
-static struct snd_pcm_ops snd_solo_pcm_ops = {
+static int snd_solo_pcm_copy_user(struct snd_pcm_substream *ss, int channel,
+				  unsigned long pos, void __user *dst,
+				  unsigned long count)
+{
+	return __snd_solo_pcm_copy(ss, pos, (void *)dst, count, false);
+}
+
+static int snd_solo_pcm_copy_kernel(struct snd_pcm_substream *ss, int channel,
+				    unsigned long pos, void *dst,
+				    unsigned long count)
+{
+	return __snd_solo_pcm_copy(ss, pos, dst, count, true);
+}
+
+static const struct snd_pcm_ops snd_solo_pcm_ops = {
 	.open = snd_solo_pcm_open,
 	.close = snd_solo_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -261,7 +276,8 @@ static struct snd_pcm_ops snd_solo_pcm_ops = {
 	.prepare = snd_solo_pcm_prepare,
 	.trigger = snd_solo_pcm_trigger,
 	.pointer = snd_solo_pcm_pointer,
-	.copy = snd_solo_pcm_copy,
+	.copy_user = snd_solo_pcm_copy_user,
+	.copy_kernel = snd_solo_pcm_copy_kernel,
 };
 
 static int snd_solo_capture_volume_info(struct snd_kcontrol *kcontrol,
@@ -350,7 +366,7 @@ static int solo_snd_pcm_init(struct solo_dev *solo_dev)
 
 int solo_g723_init(struct solo_dev *solo_dev)
 {
-	static struct snd_device_ops ops = { NULL };
+	static struct snd_device_ops ops = { };
 	struct snd_card *card;
 	struct snd_kcontrol_new kctl;
 	char name[32];

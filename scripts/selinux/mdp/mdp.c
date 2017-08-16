@@ -24,10 +24,15 @@
  * Authors: Serge E. Hallyn <serue@us.ibm.com>
  */
 
+
+/* NOTE: we really do want to use the kernel headers here */
+#define __EXPORTED_HEADERS__
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/socket.h>
 
 static void usage(char *name)
 {

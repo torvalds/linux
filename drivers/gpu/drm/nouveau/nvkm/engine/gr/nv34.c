@@ -75,8 +75,8 @@ nv34_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		nvkm_wo32(chan->inst, i, 0x00040004);
 	for (i = 0x15ac; i <= 0x271c ; i += 16) {
 		nvkm_wo32(chan->inst, i + 0, 0x10700ff9);
-		nvkm_wo32(chan->inst, i + 1, 0x0436086c);
-		nvkm_wo32(chan->inst, i + 2, 0x000c001b);
+		nvkm_wo32(chan->inst, i + 4, 0x0436086c);
+		nvkm_wo32(chan->inst, i + 8, 0x000c001b);
 	}
 	for (i = 0x274c; i < 0x275c; i += 4)
 		nvkm_wo32(chan->inst, i, 0x0000ffff);
@@ -123,6 +123,7 @@ nv34_gr = {
 		{ -1, -1, 0x0389, &nv04_gr_object }, /* sifm (nv30) */
 		{ -1, -1, 0x038a, &nv04_gr_object }, /* ifc (nv30) */
 		{ -1, -1, 0x039e, &nv04_gr_object }, /* swzsurf (nv30) */
+		{ -1, -1, 0x0597, &nv04_gr_object }, /* kelvin */
 		{ -1, -1, 0x0697, &nv04_gr_object }, /* rankine */
 		{}
 	}

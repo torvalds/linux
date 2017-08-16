@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
 
 #include <linux/mfd/arizona/core.h>
@@ -28,30 +29,64 @@ struct arizona_gpio {
 	struct gpio_chip gpio_chip;
 };
 
-static inline struct arizona_gpio *to_arizona_gpio(struct gpio_chip *chip)
-{
-	return container_of(chip, struct arizona_gpio, gpio_chip);
-}
-
 static int arizona_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
+	bool persistent = gpiochip_line_is_persistent(chip, offset);
+	bool change;
+	int ret;
 
-	return regmap_update_bits(arizona->regmap, ARIZONA_GPIO1_CTRL + offset,
-				  ARIZONA_GPN_DIR, ARIZONA_GPN_DIR);
+	ret = regmap_update_bits_check(arizona->regmap,
+				       ARIZONA_GPIO1_CTRL + offset,
+				       ARIZONA_GPN_DIR, ARIZONA_GPN_DIR,
+				       &change);
+	if (ret < 0)
+		return ret;
+
+	if (change && persistent) {
+		pm_runtime_mark_last_busy(chip->parent);
+		pm_runtime_put_autosuspend(chip->parent);
+	}
+
+	return 0;
 }
 
 static int arizona_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
-	unsigned int val;
+	unsigned int reg, val;
 	int ret;
 
-	ret = regmap_read(arizona->regmap, ARIZONA_GPIO1_CTRL + offset, &val);
+	reg = ARIZONA_GPIO1_CTRL + offset;
+	ret = regmap_read(arizona->regmap, reg, &val);
 	if (ret < 0)
 		return ret;
+
+	/* Resume to read actual registers for input pins */
+	if (val & ARIZONA_GPN_DIR) {
+		ret = pm_runtime_get_sync(chip->parent);
+		if (ret < 0) {
+			dev_err(chip->parent, "Failed to resume: %d\n", ret);
+			return ret;
+		}
+
+		/* Register is cached, drop it to ensure a physical read */
+		ret = regcache_drop_region(arizona->regmap, reg, reg);
+		if (ret < 0) {
+			dev_err(chip->parent, "Failed to drop cache: %d\n",
+				ret);
+			return ret;
+		}
+
+		ret = regmap_read(arizona->regmap, reg, &val);
+		if (ret < 0)
+			return ret;
+
+		pm_runtime_mark_last_busy(chip->parent);
+		pm_runtime_put_autosuspend(chip->parent);
+	}
 
 	if (val & ARIZONA_GPN_LVL)
 		return 1;
@@ -62,8 +97,23 @@ static int arizona_gpio_get(struct gpio_chip *chip, unsigned offset)
 static int arizona_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
+	bool persistent = gpiochip_line_is_persistent(chip, offset);
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(arizona->regmap, ARIZONA_GPIO1_CTRL + offset, &val);
+	if (ret < 0)
+		return ret;
+
+	if ((val & ARIZONA_GPN_DIR) && persistent) {
+		ret = pm_runtime_get_sync(chip->parent);
+		if (ret < 0) {
+			dev_err(chip->parent, "Failed to resume: %d\n", ret);
+			return ret;
+		}
+	}
 
 	if (value)
 		value = ARIZONA_GPN_LVL;
@@ -74,7 +124,7 @@ static int arizona_gpio_direction_out(struct gpio_chip *chip,
 
 static void arizona_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
 
 	if (value)
@@ -84,7 +134,7 @@ static void arizona_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 			   ARIZONA_GPN_LVL, value);
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "arizona",
 	.owner			= THIS_MODULE,
 	.direction_input	= arizona_gpio_direction_in,
@@ -108,7 +158,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 
 	arizona_gpio->arizona = arizona;
 	arizona_gpio->gpio_chip = template_chip;
-	arizona_gpio->gpio_chip.dev = &pdev->dev;
+	arizona_gpio->gpio_chip.parent = &pdev->dev;
 #ifdef CONFIG_OF_GPIO
 	arizona_gpio->gpio_chip.of_node = arizona->dev->of_node;
 #endif
@@ -118,7 +168,13 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 	case WM5110:
 	case WM8280:
 	case WM8997:
+	case WM8998:
+	case WM1814:
 		arizona_gpio->gpio_chip.ngpio = 5;
+		break;
+	case WM1831:
+	case CS47L24:
+		arizona_gpio->gpio_chip.ngpio = 2;
 		break;
 	default:
 		dev_err(&pdev->dev, "Unknown chip variant %d\n",
@@ -131,33 +187,22 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 	else
 		arizona_gpio->gpio_chip.base = -1;
 
-	ret = gpiochip_add(&arizona_gpio->gpio_chip);
+	pm_runtime_enable(&pdev->dev);
+
+	ret = devm_gpiochip_add_data(&pdev->dev, &arizona_gpio->gpio_chip,
+				     arizona_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
 
-	platform_set_drvdata(pdev, arizona_gpio);
-
-	return ret;
-
-err:
-	return ret;
-}
-
-static int arizona_gpio_remove(struct platform_device *pdev)
-{
-	struct arizona_gpio *arizona_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&arizona_gpio->gpio_chip);
 	return 0;
 }
 
 static struct platform_driver arizona_gpio_driver = {
 	.driver.name	= "arizona-gpio",
 	.probe		= arizona_gpio_probe,
-	.remove		= arizona_gpio_remove,
 };
 
 module_platform_driver(arizona_gpio_driver);

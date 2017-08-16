@@ -251,20 +251,21 @@ static unsigned int pmac_pic_get_irq(void)
 	}
 	raw_spin_unlock_irqrestore(&pmac_pic_lock, flags);
 	if (unlikely(irq < 0))
-		return NO_IRQ;
+		return 0;
 	return irq_linear_revmap(pmac_pic_host, irq);
 }
 
 #ifdef CONFIG_XMON
 static struct irqaction xmon_action = {
 	.handler	= xmon_irq,
-	.flags		= 0,
+	.flags		= IRQF_NO_THREAD,
 	.name		= "NMI - XMON"
 };
 #endif
 
 static struct irqaction gatwick_cascade_action = {
 	.handler	= gatwick_action,
+	.flags		= IRQF_NO_THREAD,
 	.name		= "cascade",
 };
 
@@ -388,7 +389,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 		out_le32(&pmac_irq_hw[i]->enable, 0);
 
 	/* Hookup cascade irq */
-	if (slave && pmac_irq_cascade != NO_IRQ)
+	if (slave && pmac_irq_cascade)
 		setup_irq(pmac_irq_cascade, &gatwick_cascade_action);
 
 	printk(KERN_INFO "irq: System has %d possible interrupts\n", max_irqs);
@@ -443,7 +444,7 @@ static void __init pmac_pic_setup_mpic_nmi(struct mpic *mpic)
 	pswitch = of_find_node_by_name(NULL, "programmer-switch");
 	if (pswitch) {
 		nmi_irq = irq_of_parse_and_map(pswitch, 0);
-		if (nmi_irq != NO_IRQ) {
+		if (nmi_irq) {
 			mpic_irq_set_priority(nmi_irq, 9);
 			setup_irq(nmi_irq, &xmon_action);
 		}

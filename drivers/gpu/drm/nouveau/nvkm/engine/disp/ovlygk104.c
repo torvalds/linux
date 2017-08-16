@@ -80,7 +80,7 @@ gk104_disp_ovly_mthd_base = {
 	}
 };
 
-static const struct nv50_disp_chan_mthd
+const struct nv50_disp_chan_mthd
 gk104_disp_ovly_chan_mthd = {
 	.name = "Overlay",
 	.addr = 0x001000,

@@ -5,7 +5,6 @@
  */
 #include <linux/pci.h>
 #include <linux/acpi.h>
-#include <linux/vga_switcheroo.h>
 #include <drm/drmP.h>
 #include "i915_drv.h"
 
@@ -16,13 +15,9 @@ static struct intel_dsm_priv {
 	acpi_handle dhandle;
 } intel_dsm_priv;
 
-static const u8 intel_dsm_guid[] = {
-	0xd3, 0x73, 0xd8, 0x7e,
-	0xd0, 0xc2,
-	0x4f, 0x4e,
-	0xa8, 0x54,
-	0x0f, 0x13, 0x17, 0xb0, 0x1c, 0x2c
-};
+static const guid_t intel_dsm_guid =
+	GUID_INIT(0x7ed873d3, 0xc2d0, 0x4e4f,
+		  0xa8, 0x54, 0x0f, 0x13, 0x17, 0xb0, 0x1c, 0x2c);
 
 static char *intel_dsm_port_name(u8 id)
 {
@@ -81,7 +76,7 @@ static void intel_dsm_platform_mux_info(void)
 	int i;
 	union acpi_object *pkg, *connector_count;
 
-	pkg = acpi_evaluate_dsm_typed(intel_dsm_priv.dhandle, intel_dsm_guid,
+	pkg = acpi_evaluate_dsm_typed(intel_dsm_priv.dhandle, &intel_dsm_guid,
 			INTEL_DSM_REVISION_ID, INTEL_DSM_FN_PLATFORM_MUX_INFO,
 			NULL, ACPI_TYPE_PACKAGE);
 	if (!pkg) {
@@ -119,7 +114,7 @@ static bool intel_dsm_pci_probe(struct pci_dev *pdev)
 	if (!dhandle)
 		return false;
 
-	if (!acpi_check_dsm(dhandle, intel_dsm_guid, INTEL_DSM_REVISION_ID,
+	if (!acpi_check_dsm(dhandle, &intel_dsm_guid, INTEL_DSM_REVISION_ID,
 			    1 << INTEL_DSM_FN_PLATFORM_MUX_INFO)) {
 		DRM_DEBUG_KMS("no _DSM method for intel device\n");
 		return false;
@@ -146,7 +141,7 @@ static bool intel_dsm_detect(void)
 
 	if (vga_count == 2 && has_dsm) {
 		acpi_get_name(intel_dsm_priv.dhandle, ACPI_FULL_PATHNAME, &buffer);
-		DRM_DEBUG_DRIVER("VGA switcheroo: detected DSM switching method %s handle\n",
+		DRM_DEBUG_DRIVER("vga_switcheroo: detected DSM switching method %s handle\n",
 				 acpi_method_name);
 		return true;
 	}

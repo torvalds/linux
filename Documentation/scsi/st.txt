@@ -2,7 +2,7 @@ This file contains brief information about the SCSI tape driver.
 The driver is currently maintained by Kai Mäkisara (email
 Kai.Makisara@kolumbus.fi)
 
-Last modified: Sun Aug 29 18:25:47 2010 by kai.makisara
+Last modified: Tue Feb  9 21:54:16 2016 by kai.makisara
 
 
 BASICS
@@ -408,10 +408,15 @@ MTSETPART Moves the tape to the partition given by the argument at the
 	specified by MTSEEK. MTSETPART is inactive unless
 	MT_ST_CAN_PARTITIONS set.
 MTMKPART Formats the tape with one partition (argument zero) or two
-	partitions (the argument gives in megabytes the size of
-	partition 1 that is physically the first partition of the
-	tape). The drive has to support partitions with size specified
-	by the initiator. Inactive unless MT_ST_CAN_PARTITIONS set.
+	partitions (argument non-zero). If the argument is positive,
+	it specifies the size of partition 1 in megabytes. For DDS
+	drives and several early drives this is the physically first
+	partition of the tape. If the argument is negative, its absolute
+	value specifies the size of partition 0 in megabytes. This is
+	the physically first partition of many later drives, like the
+	LTO drives from LTO-5 upwards. The drive has to support partitions
+	with size specified by the initiator. Inactive unless
+	MT_ST_CAN_PARTITIONS set.
 MTSETDRVBUFFER
 	Is used for several purposes. The command is obtained from count
         with mask MT_SET_OPTIONS, the low order bits are used as argument.
@@ -569,7 +574,9 @@ Debugging code is now compiled in by default but debugging is turned off
 with the kernel module parameter debug_flag defaulting to 0.  Debugging
 can still be switched on and off with an ioctl.  To enable debug at
 module load time add debug_flag=1 to the module load options, the
-debugging output is not voluminous.
+debugging output is not voluminous. Debugging can also be enabled
+and disabled by writing a '0' (disable) or '1' (enable) to the sysfs
+file /sys/bus/scsi/drivers/st/debug_flag.
 
 If the tape seems to hang, I would be very interested to hear where
 the driver is waiting. With the command 'ps -l' you can see the state

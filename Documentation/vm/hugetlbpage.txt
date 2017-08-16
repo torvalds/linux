@@ -220,7 +220,7 @@ resulting effect on persistent huge page allocation is as follows:
    node list of "all" with numactl --interleave or --membind [-m] to achieve
    interleaving over all nodes in the system or cpuset.
 
-4) Any task mempolicy specifed--e.g., using numactl--will be constrained by
+4) Any task mempolicy specified--e.g., using numactl--will be constrained by
    the resource limits of any cpuset in which the task runs.  Thus, there will
    be no way for a task with non-default policy running in a cpuset with a
    subset of the system nodes to allocate huge pages outside the cpuset
@@ -275,10 +275,10 @@ This command mounts a (pseudo) filesystem of type hugetlbfs on the directory
 options sets the owner and group of the root of the file system.  By default
 the uid and gid of the current process are taken.  The mode option sets the
 mode of root of file system to value & 01777.  This value is given in octal.
-By default the value 0755 is picked. If the paltform supports multiple huge
+By default the value 0755 is picked. If the platform supports multiple huge
 page sizes, the pagesize option can be used to specify the huge page size and
 associated pool.  pagesize is specified in bytes.  If pagesize is not specified
-the paltform's default huge page size and associated pool will be used. The
+the platform's default huge page size and associated pool will be used. The
 size option sets the maximum value of memory (huge pages) allowed for that
 filesystem (/mnt/huge).  The size option can be specified in bytes, or as a
 percentage of the specified huge page pool (nr_hugepages).  The size is

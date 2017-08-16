@@ -32,6 +32,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/include/ "t1040si-post.dtsi"
+#include "t1040si-post.dtsi"
 
 /* Place holder for ethernet related device tree nodes */

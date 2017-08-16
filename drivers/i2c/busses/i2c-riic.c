@@ -80,6 +80,7 @@
 #define ICIER_TEIE	0x40
 #define ICIER_RIE	0x20
 #define ICIER_NAKIE	0x10
+#define ICIER_SPIE	0x08
 
 #define ICSR2_NACKF	0x10
 
@@ -216,11 +217,14 @@ static irqreturn_t riic_tend_isr(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	if (riic->is_last || riic->err)
+	if (riic->is_last || riic->err) {
+		riic_clear_set_bit(riic, ICIER_TEIE, ICIER_SPIE, RIIC_ICIER);
 		writeb(ICCR2_SP, riic->base + RIIC_ICCR2);
-
-	writeb(0, riic->base + RIIC_ICIER);
-	complete(&riic->msg_done);
+	} else {
+		/* Transfer is complete, but do not send STOP */
+		riic_clear_set_bit(riic, ICIER_TEIE, 0, RIIC_ICIER);
+		complete(&riic->msg_done);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -240,13 +244,13 @@ static irqreturn_t riic_rdrf_isr(int irq, void *data)
 
 	if (riic->bytes_left == 1) {
 		/* STOP must come before we set ACKBT! */
-		if (riic->is_last)
+		if (riic->is_last) {
+			riic_clear_set_bit(riic, 0, ICIER_SPIE, RIIC_ICIER);
 			writeb(ICCR2_SP, riic->base + RIIC_ICCR2);
+		}
 
 		riic_clear_set_bit(riic, 0, ICMR3_ACKBT, RIIC_ICMR3);
 
-		writeb(0, riic->base + RIIC_ICIER);
-		complete(&riic->msg_done);
 	} else {
 		riic_clear_set_bit(riic, ICMR3_ACKBT, 0, RIIC_ICMR3);
 	}
@@ -255,6 +259,21 @@ static irqreturn_t riic_rdrf_isr(int irq, void *data)
 	*riic->buf = readb(riic->base + RIIC_ICDRR);
 	riic->buf++;
 	riic->bytes_left--;
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t riic_stop_isr(int irq, void *data)
+{
+	struct riic_dev *riic = data;
+
+	/* read back registers to confirm writes have fully propagated */
+	writeb(0, riic->base + RIIC_ICSR2);
+	readb(riic->base + RIIC_ICSR2);
+	writeb(0, riic->base + RIIC_ICIER);
+	readb(riic->base + RIIC_ICIER);
+
+	complete(&riic->msg_done);
 
 	return IRQ_HANDLED;
 }
@@ -326,6 +345,7 @@ static struct riic_irq_desc riic_irqs[] = {
 	{ .res_num = 0, .isr = riic_tend_isr, .name = "riic-tend" },
 	{ .res_num = 1, .isr = riic_rdrf_isr, .name = "riic-rdrf" },
 	{ .res_num = 2, .isr = riic_tdre_isr, .name = "riic-tdre" },
+	{ .res_num = 3, .isr = riic_stop_isr, .name = "riic-stop" },
 	{ .res_num = 5, .isr = riic_tend_isr, .name = "riic-nack" },
 };
 
@@ -383,10 +403,8 @@ static int riic_i2c_probe(struct platform_device *pdev)
 
 
 	ret = i2c_add_adapter(adap);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add adapter\n");
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, riic);
 

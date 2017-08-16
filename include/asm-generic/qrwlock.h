@@ -25,7 +25,20 @@
 #include <asm-generic/qrwlock_types.h>
 
 /*
- * Writer states & reader shift and bias
+ * Writer states & reader shift and bias.
+ *
+ *       | +0 | +1 | +2 | +3 |
+ *   ----+----+----+----+----+
+ *    LE | 78 | 56 | 34 | 12 | 0x12345678
+ *   ----+----+----+----+----+
+ *       | wr |      rd      |
+ *       +----+----+----+----+
+ *
+ *   ----+----+----+----+----+
+ *    BE | 12 | 34 | 56 | 78 | 0x12345678
+ *   ----+----+----+----+----+
+ *       |      rd      | wr |
+ *       +----+----+----+----+
  */
 #define	_QW_WAITING	1		/* A writer is waiting	   */
 #define	_QW_LOCKED	0xff		/* A writer holds the lock */
@@ -134,12 +147,22 @@ static inline void queued_read_unlock(struct qrwlock *lock)
 }
 
 /**
+ * __qrwlock_write_byte - retrieve the write byte address of a queue rwlock
+ * @lock : Pointer to queue rwlock structure
+ * Return: the write byte address of a queue rwlock
+ */
+static inline u8 *__qrwlock_write_byte(struct qrwlock *lock)
+{
+	return (u8 *)lock + 3 * IS_BUILTIN(CONFIG_CPU_BIG_ENDIAN);
+}
+
+/**
  * queued_write_unlock - release write lock of a queue rwlock
  * @lock : Pointer to queue rwlock structure
  */
 static inline void queued_write_unlock(struct qrwlock *lock)
 {
-	smp_store_release((u8 *)&lock->cnts, 0);
+	smp_store_release(__qrwlock_write_byte(lock), 0);
 }
 
 /*

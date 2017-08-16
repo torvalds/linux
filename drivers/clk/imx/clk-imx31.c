@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <soc/imx/revision.h>
 #include <soc/imx/timer.h>
 #include <asm/irq.h>
@@ -62,14 +63,18 @@ enum mx31_clks {
 static struct clk *clk[clk_max];
 static struct clk_onecell_data clk_data;
 
-int __init mx31_clocks_init(unsigned long fref)
+static struct clk ** const uart_clks[] __initconst = {
+	&clk[ipg],
+	&clk[uart1_gate],
+	&clk[uart2_gate],
+	&clk[uart3_gate],
+	&clk[uart4_gate],
+	&clk[uart5_gate],
+	NULL
+};
+
+static void __init _mx31_clocks_init(void __iomem *base, unsigned long fref)
 {
-	void __iomem *base;
-	struct device_node *np;
-
-	base = ioremap(MX31_CCM_BASE_ADDR, SZ_4K);
-	BUG_ON(!base);
-
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
 	clk[ckil] = imx_clk_fixed("ckil", 32768);
@@ -132,13 +137,22 @@ int __init mx31_clocks_init(unsigned long fref)
 
 	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx31-ccm");
+	clk_set_parent(clk[csi], clk[upll]);
+	clk_prepare_enable(clk[emi_gate]);
+	clk_prepare_enable(clk[iim_gate]);
+	mx31_revision();
+	clk_disable_unprepare(clk[iim_gate]);
+}
 
-	if (np) {
-		clk_data.clks = clk;
-		clk_data.clk_num = ARRAY_SIZE(clk);
-		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-	}
+int __init mx31_clocks_init(unsigned long fref)
+{
+	void __iomem *base;
+
+	base = ioremap(MX31_CCM_BASE_ADDR, SZ_4K);
+	if (!base)
+		panic("%s: failed to map registers\n", __func__);
+
+	_mx31_clocks_init(base, fref);
 
 	clk_register_clkdev(clk[gpt_gate], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
@@ -194,29 +208,38 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[sdma_gate], NULL, "imx31-sdma");
 	clk_register_clkdev(clk[iim_gate], "iim", NULL);
 
-	clk_set_parent(clk[csi], clk[upll]);
-	clk_prepare_enable(clk[emi_gate]);
-	clk_prepare_enable(clk[iim_gate]);
-	mx31_revision();
-	clk_disable_unprepare(clk[iim_gate]);
 
+	imx_register_uart_clocks(uart_clks);
 	mxc_timer_init(MX31_GPT1_BASE_ADDR, MX31_INT_GPT, GPT_TYPE_IMX31);
 
 	return 0;
 }
 
-int __init mx31_clocks_init_dt(void)
+static void __init mx31_clocks_init_dt(struct device_node *np)
 {
-	struct device_node *np;
+	struct device_node *osc_np;
 	u32 fref = 26000000; /* default */
+	void __iomem *ccm;
 
-	for_each_compatible_node(np, NULL, "fixed-clock") {
-		if (!of_device_is_compatible(np, "fsl,imx-osc26m"))
+	for_each_compatible_node(osc_np, NULL, "fixed-clock") {
+		if (!of_device_is_compatible(osc_np, "fsl,imx-osc26m"))
 			continue;
 
-		if (!of_property_read_u32(np, "clock-frequency", &fref))
+		if (!of_property_read_u32(osc_np, "clock-frequency", &fref)) {
+			of_node_put(osc_np);
 			break;
+		}
 	}
 
-	return mx31_clocks_init(fref);
+	ccm = of_iomap(np, 0);
+	if (!ccm)
+		panic("%s: failed to map registers\n", __func__);
+
+	_mx31_clocks_init(ccm, fref);
+
+	clk_data.clks = clk;
+	clk_data.clk_num = ARRAY_SIZE(clk);
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 }
+
+CLK_OF_DECLARE(imx31_ccm, "fsl,imx31-ccm", mx31_clocks_init_dt);

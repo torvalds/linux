@@ -1,7 +1,7 @@
 .TH "CPUPOWER-IDLE-SET" "1" "0.1" "" "cpupower Manual"
 .SH "NAME"
 .LP
-cpupower idle\-set \- Utility to set cpu idle state specific kernel options
+cpupower\-idle\-set \- Utility to set cpu idle state specific kernel options
 .SH "SYNTAX"
 .LP
 cpupower [ \-c cpulist ] idle\-info [\fIoptions\fP]
@@ -20,7 +20,9 @@ Disable a specific processor sleep state.
 Enable a specific processor sleep state.
 .TP
 \fB\-D\fR \fB\-\-disable-by-latency\fR <LATENCY>
-Disable all idle states with a equal or higher latency than <LATENCY>
+Disable all idle states with a equal or higher latency than <LATENCY>.
+
+Enable all idle states with a latency lower than <LATENCY>.
 .TP
 \fB\-E\fR \fB\-\-enable-all\fR
 Enable all idle states if not enabled already.

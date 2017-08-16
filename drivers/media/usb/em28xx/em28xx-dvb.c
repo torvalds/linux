@@ -21,11 +21,12 @@
  the Free Software Foundation; either version 2 of the License.
  */
 
+#include "em28xx.h"
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 
-#include "em28xx.h"
 #include <media/v4l2-common.h>
 #include <dvb_demux.h>
 #include <dvb_net.h>
@@ -36,8 +37,10 @@
 
 #include "lgdt330x.h"
 #include "lgdt3305.h"
+#include "lgdt3306a.h"
 #include "zl10353.h"
 #include "s5h1409.h"
+#include "mt2060.h"
 #include "mt352.h"
 #include "mt352_priv.h" /* FIXME */
 #include "tda1002x.h"
@@ -57,6 +60,8 @@
 #include "ts2020.h"
 #include "si2168.h"
 #include "si2157.h"
+#include "tc90522.h"
+#include "qm1d1c0042.h"
 
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
@@ -69,9 +74,10 @@ MODULE_PARM_DESC(debug, "enable debug messages [dvb]");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-#define dprintk(level, fmt, arg...) do {			\
-if (debug >= level)						\
-	printk(KERN_DEBUG "%s/2-dvb: " fmt, dev->name, ## arg);	\
+#define dprintk(level, fmt, arg...) do {				\
+	if (debug >= level)						\
+		dev_printk(KERN_DEBUG, &dev->intf->dev,			\
+			   "dvb: " fmt, ## arg);			\
 } while (0)
 
 struct em28xx_dvb {
@@ -193,6 +199,7 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 	int rc;
 	struct em28xx_i2c_bus *i2c_bus = dvb->adapter.priv;
 	struct em28xx *dev = i2c_bus->dev;
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	int dvb_max_packet_size, packet_multiplier, dvb_alt;
 
 	if (dev->dvb_xfer_bulk) {
@@ -211,7 +218,7 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 		dvb_alt = dev->dvb_alt_isoc;
 	}
 
-	usb_set_interface(dev->udev, dev->ifnum, dvb_alt);
+	usb_set_interface(udev, dev->ifnum, dvb_alt);
 	rc = em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	if (rc < 0)
 		return rc;
@@ -731,13 +738,13 @@ static int em28xx_pctv_290e_set_lna(struct dvb_frontend *fe)
 
 	ret = gpio_request_one(dvb->lna_gpio, flags, NULL);
 	if (ret)
-		em28xx_errdev("gpio request failed %d\n", ret);
+		dev_err(&dev->intf->dev, "gpio request failed %d\n", ret);
 	else
 		gpio_free(dvb->lna_gpio);
 
 	return ret;
 #else
-	dev_warn(&dev->udev->dev, "%s: LNA control is disabled (lna=%u)\n",
+	dev_warn(&dev->intf->dev, "%s: LNA control is disabled (lna=%u)\n",
 		 KBUILD_MODNAME, c->lna);
 	return 0;
 #endif
@@ -786,6 +793,68 @@ static int em28xx_mt352_terratec_xs_init(struct dvb_frontend *fe)
 	return 0;
 }
 
+static void px_bcud_init(struct em28xx *dev)
+{
+	int i;
+	struct {
+		unsigned char r[4];
+		int len;
+	} regs1[] = {
+		{{ 0x0e, 0x77 }, 2},
+		{{ 0x0f, 0x77 }, 2},
+		{{ 0x03, 0x90 }, 2},
+	}, regs2[] = {
+		{{ 0x07, 0x01 }, 2},
+		{{ 0x08, 0x10 }, 2},
+		{{ 0x13, 0x00 }, 2},
+		{{ 0x17, 0x00 }, 2},
+		{{ 0x03, 0x01 }, 2},
+		{{ 0x10, 0xb1 }, 2},
+		{{ 0x11, 0x40 }, 2},
+		{{ 0x85, 0x7a }, 2},
+		{{ 0x87, 0x04 }, 2},
+	};
+	static struct em28xx_reg_seq gpio[] = {
+		{EM28XX_R06_I2C_CLK,		0x40,	0xff,	300},
+		{EM2874_R80_GPIO_P0_CTRL,	0xfd,	0xff,	60},
+		{EM28XX_R15_RGAIN,		0x20,	0xff,	0},
+		{EM28XX_R16_GGAIN,		0x20,	0xff,	0},
+		{EM28XX_R17_BGAIN,		0x20,	0xff,	0},
+		{EM28XX_R18_ROFFSET,		0x00,	0xff,	0},
+		{EM28XX_R19_GOFFSET,		0x00,	0xff,	0},
+		{EM28XX_R1A_BOFFSET,		0x00,	0xff,	0},
+		{EM28XX_R23_UOFFSET,		0x00,	0xff,	0},
+		{EM28XX_R24_VOFFSET,		0x00,	0xff,	0},
+		{EM28XX_R26_COMPR,		0x00,	0xff,	0},
+		{0x13,				0x08,	0xff,	0},
+		{EM28XX_R12_VINENABLE,		0x27,	0xff,	0},
+		{EM28XX_R0C_USBSUSP,		0x10,	0xff,	0},
+		{EM28XX_R27_OUTFMT,		0x00,	0xff,	0},
+		{EM28XX_R10_VINMODE,		0x00,	0xff,	0},
+		{EM28XX_R11_VINCTRL,		0x11,	0xff,	0},
+		{EM2874_R50_IR_CONFIG,		0x01,	0xff,	0},
+		{EM2874_R5F_TS_ENABLE,		0x80,	0xff,	0},
+		{EM28XX_R06_I2C_CLK,		0x46,	0xff,	0},
+	};
+	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x46);
+	/* sleeping ISDB-T */
+	dev->dvb->i2c_client_demod->addr = 0x14;
+	for (i = 0; i < ARRAY_SIZE(regs1); i++)
+		i2c_master_send(dev->dvb->i2c_client_demod, regs1[i].r,
+				regs1[i].len);
+	/* sleeping ISDB-S */
+	dev->dvb->i2c_client_demod->addr = 0x15;
+	for (i = 0; i < ARRAY_SIZE(regs2); i++)
+		i2c_master_send(dev->dvb->i2c_client_demod, regs2[i].r,
+				regs2[i].len);
+	for (i = 0; i < ARRAY_SIZE(gpio); i++) {
+		em28xx_write_reg_bits(dev, gpio[i].reg, gpio[i].val,
+				      gpio[i].mask);
+		if (gpio[i].sleep > 0)
+			msleep(gpio[i].sleep);
+	}
+};
+
 static struct mt352_config terratec_xs_mt352_cfg = {
 	.demod_address = (0x1e >> 1),
 	.no_tuner = 1,
@@ -815,6 +884,10 @@ static struct zl10353_config em28xx_zl10353_no_i2c_gate_dev = {
 	.parallel_ts = 1,
 };
 
+static struct mt2060_config em28xx_mt2060_config = {
+	.i2c_address = 0x60,
+};
+
 static struct qt1010_config em28xx_qt1010_config = {
 	.i2c_address = 0x62
 };
@@ -835,17 +908,6 @@ static struct tda18271_config c3tech_duo_tda18271_config = {
 	.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
 };
 
-static const struct m88ds3103_config pctv_461e_m88ds3103_config = {
-	.i2c_addr = 0x68,
-	.clock = 27000000,
-	.i2c_wr_max = 33,
-	.clock_out = 0,
-	.ts_mode = M88DS3103_TS_PARALLEL,
-	.ts_clk = 16000,
-	.ts_clk_pol = 1,
-	.agc = 0x99,
-};
-
 static struct tda18271_std_map drx_j_std_map = {
 	.atsc_6   = { .if_freq = 5000, .agc_mode = 3, .std = 0, .if_lvl = 1,
 		      .rfagc_top = 0x37, },
@@ -857,6 +919,17 @@ static struct tda18271_config pinnacle_80e_dvb_config = {
 	.std_map = &drx_j_std_map,
 	.gate    = TDA18271_GATE_DIGITAL,
 	.role    = TDA18271_MASTER,
+};
+
+static struct lgdt3306a_config hauppauge_01595_lgdt3306a_config = {
+	.qam_if_khz         = 4000,
+	.vsb_if_khz         = 3250,
+	.spectral_inversion = 0,
+	.deny_i2c_rptr      = 0,
+	.mpeg_mode          = LGDT3306A_MPEG_SERIAL,
+	.tpclk_edge         = LGDT3306A_TPCLK_RISING_EDGE,
+	.tpvalid_polarity   = LGDT3306A_TP_VALID_HIGH,
+	.xtalMHz            = 25,
 };
 
 /* ------------------------------------------------------------------ */
@@ -876,20 +949,20 @@ static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
 	cfg.ctrl  = &ctl;
 
 	if (!dev->dvb->fe[0]) {
-		em28xx_errdev("/2: dvb frontend not attached. "
-				"Can't attach xc3028\n");
+		dev_err(&dev->intf->dev,
+			"dvb frontend not attached. Can't attach xc3028\n");
 		return -EINVAL;
 	}
 
 	fe = dvb_attach(xc2028_attach, dev->dvb->fe[0], &cfg);
 	if (!fe) {
-		em28xx_errdev("/2: xc3028 attach failed\n");
+		dev_err(&dev->intf->dev, "xc3028 attach failed\n");
 		dvb_frontend_detach(dev->dvb->fe[0]);
 		dev->dvb->fe[0] = NULL;
 		return -EINVAL;
 	}
 
-	em28xx_info("%s/2: xc3028 attached\n", dev->name);
+	dev_info(&dev->intf->dev, "xc3028 attached\n");
 
 	return 0;
 }
@@ -900,17 +973,23 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 			       struct em28xx *dev, struct device *device)
 {
 	int result;
+	bool create_rf_connector = false;
 
 	mutex_init(&dvb->lock);
 
 	/* register adapter */
-	result = dvb_register_adapter(&dvb->adapter, dev->name, module, device,
-				      adapter_nr);
+	result = dvb_register_adapter(&dvb->adapter,
+				      dev_name(&dev->intf->dev), module,
+				      device, adapter_nr);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: dvb_register_adapter failed (errno = %d)\n",
-		       dev->name, result);
+		dev_warn(&dev->intf->dev,
+			 "dvb_register_adapter failed (errno = %d)\n",
+			 result);
 		goto fail_adapter;
 	}
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	dvb->adapter.mdev = dev->media_dev;
+#endif
 
 	/* Ensure all frontends negotiate bus access */
 	dvb->fe[0]->ops.ts_bus_ctrl = em28xx_dvb_bus_ctrl;
@@ -922,8 +1001,9 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->fe[0]);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: dvb_register_frontend failed (errno = %d)\n",
-		       dev->name, result);
+		dev_warn(&dev->intf->dev,
+			 "dvb_register_frontend failed (errno = %d)\n",
+			 result);
 		goto fail_frontend0;
 	}
 
@@ -931,8 +1011,9 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	if (dvb->fe[1]) {
 		result = dvb_register_frontend(&dvb->adapter, dvb->fe[1]);
 		if (result < 0) {
-			printk(KERN_WARNING "%s: 2nd dvb_register_frontend failed (errno = %d)\n",
-			       dev->name, result);
+			dev_warn(&dev->intf->dev,
+				 "2nd dvb_register_frontend failed (errno = %d)\n",
+				 result);
 			goto fail_frontend1;
 		}
 	}
@@ -949,8 +1030,9 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: dvb_dmx_init failed (errno = %d)\n",
-		       dev->name, result);
+		dev_warn(&dev->intf->dev,
+			 "dvb_dmx_init failed (errno = %d)\n",
+			 result);
 		goto fail_dmx;
 	}
 
@@ -959,38 +1041,53 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	dvb->dmxdev.capabilities = 0;
 	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: dvb_dmxdev_init failed (errno = %d)\n",
-		       dev->name, result);
+		dev_warn(&dev->intf->dev,
+			 "dvb_dmxdev_init failed (errno = %d)\n",
+			 result);
 		goto fail_dmxdev;
 	}
 
 	dvb->fe_hw.source = DMX_FRONTEND_0;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
-		       dev->name, result);
+		dev_warn(&dev->intf->dev,
+			 "add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+			 result);
 		goto fail_fe_hw;
 	}
 
 	dvb->fe_mem.source = DMX_MEMORY_FE;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
-		       dev->name, result);
+		dev_warn(&dev->intf->dev,
+			 "add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+			 result);
 		goto fail_fe_mem;
 	}
 
 	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: connect_frontend failed (errno = %d)\n",
-		       dev->name, result);
+		dev_warn(&dev->intf->dev,
+			 "connect_frontend failed (errno = %d)\n",
+			 result);
 		goto fail_fe_conn;
 	}
 
 	/* register network adapter */
 	dvb_net_init(&dvb->adapter, &dvb->net, &dvb->demux.dmx);
+
+	/* If the analog part won't create RF connectors, DVB will do it */
+	if (!dev->has_video || (dev->tuner_type == TUNER_ABSENT))
+		create_rf_connector = true;
+
+	result = dvb_create_media_graph(&dvb->adapter, create_rf_connector);
+	if (result < 0)
+		goto fail_create_graph;
+
 	return 0;
 
+fail_create_graph:
+	dvb_net_release(&dvb->net);
 fail_fe_conn:
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 fail_fe_mem:
@@ -1044,13 +1141,12 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		return 0;
 	}
 
-	em28xx_info("Binding DVB extension\n");
+	dev_info(&dev->intf->dev, "Binding DVB extension\n");
 
 	dvb = kzalloc(sizeof(struct em28xx_dvb), GFP_KERNEL);
-	if (dvb == NULL) {
-		em28xx_info("em28xx_dvb: memory allocation failed\n");
+	if (!dvb)
 		return -ENOMEM;
-	}
+
 	dev->dvb = dvb;
 	dvb->fe[0] = dvb->fe[1] = NULL;
 
@@ -1069,7 +1165,8 @@ static int em28xx_dvb_init(struct em28xx *dev)
 					   EM28XX_DVB_NUM_ISOC_PACKETS);
 	}
 	if (result) {
-		em28xx_errdev("em28xx_dvb: failed to pre-allocate USB transfer buffers for DVB.\n");
+		dev_err(&dev->intf->dev,
+			"failed to pre-allocate USB transfer buffers for DVB.\n");
 		kfree(dvb);
 		dev->dvb = NULL;
 		return result;
@@ -1142,6 +1239,16 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			goto out_free;
 		}
 		break;
+	case EM2870_BOARD_TERRATEC_XS_MT2060:
+		dvb->fe[0] = dvb_attach(zl10353_attach,
+						&em28xx_zl10353_no_i2c_gate_dev,
+						&dev->i2c_adap[dev->def_i2c_bus]);
+		if (dvb->fe[0] != NULL) {
+			dvb_attach(mt2060_attach, dvb->fe[0],
+					&dev->i2c_adap[dev->def_i2c_bus],
+					&em28xx_mt2060_config, 1220);
+		}
+		break;
 	case EM2870_BOARD_KWORLD_355U:
 		dvb->fe[0] = dvb_attach(zl10353_attach,
 					   &em28xx_zl10353_no_i2c_gate_dev,
@@ -1176,7 +1283,8 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
 	case EM2882_BOARD_PINNACLE_HYBRID_PRO_330E:
 		dvb->fe[0] = dvb_attach(drxd_attach, &em28xx_drxd, NULL,
-					   &dev->i2c_adap[dev->def_i2c_bus], &dev->udev->dev);
+					&dev->i2c_adap[dev->def_i2c_bus],
+					&dev->intf->dev);
 		if (em28xx_attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
 			goto out_free;
@@ -1238,8 +1346,9 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			result = gpio_request_one(dvb->lna_gpio,
 						  GPIOF_OUT_INIT_LOW, NULL);
 			if (result)
-				em28xx_errdev("gpio request failed %d\n",
-					      result);
+				dev_err(&dev->intf->dev,
+					"gpio request failed %d\n",
+					result);
 			else
 				gpio_free(dvb->lna_gpio);
 
@@ -1413,6 +1522,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		break;
 	case EM2884_BOARD_ELGATO_EYETV_HYBRID_2008:
 	case EM2884_BOARD_CINERGY_HTC_STICK:
+	case EM2884_BOARD_TERRATEC_H6:
 		terratec_htc_stick_init(dev);
 
 		/* attach demodulator */
@@ -1641,6 +1751,9 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			memset(&si2157_config, 0, sizeof(si2157_config));
 			si2157_config.fe = dvb->fe[0];
 			si2157_config.if_port = 1;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+			si2157_config.mdev = dev->media_dev;
+#endif
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
 			info.addr = 0x60;
@@ -1702,6 +1815,9 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			memset(&si2157_config, 0, sizeof(si2157_config));
 			si2157_config.fe = dvb->fe[0];
 			si2157_config.if_port = 0;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+			si2157_config.mdev = dev->media_dev;
+#endif
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2146", I2C_NAME_SIZE);
 			info.addr = 0x60;
@@ -1726,13 +1842,196 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			dvb->i2c_client_tuner = client;
 		}
 		break;
+
+	case EM28178_BOARD_PLEX_PX_BCUD:
+		{
+			struct i2c_client *client;
+			struct i2c_board_info info;
+			struct tc90522_config tc90522_config;
+			struct qm1d1c0042_config qm1d1c0042_config;
+
+			/* attach demod */
+			memset(&tc90522_config, 0, sizeof(tc90522_config));
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "tc90522sat", I2C_NAME_SIZE);
+			info.addr = 0x15;
+			info.platform_data = &tc90522_config;
+			request_module("tc90522");
+			client = i2c_new_device(&dev->i2c_adap[dev->def_i2c_bus], &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				result = -ENODEV;
+				goto out_free;
+			}
+			dvb->i2c_client_demod = client;
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			/* attach tuner */
+			memset(&qm1d1c0042_config, 0,
+			       sizeof(qm1d1c0042_config));
+			qm1d1c0042_config.fe = tc90522_config.fe;
+			qm1d1c0042_config.lpf = 1;
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "qm1d1c0042", I2C_NAME_SIZE);
+			info.addr = 0x61;
+			info.platform_data = &qm1d1c0042_config;
+			request_module(info.type);
+			client = i2c_new_device(tc90522_config.tuner_i2c,
+						&info);
+			if (client == NULL || client->dev.driver == NULL) {
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+			dvb->i2c_client_tuner = client;
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+			dvb->fe[0] = tc90522_config.fe;
+			px_bcud_init(dev);
+		}
+		break;
+	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB:
+		{
+			struct i2c_adapter *adapter;
+			struct i2c_client *client;
+			struct i2c_board_info info;
+			struct si2168_config si2168_config;
+			struct si2157_config si2157_config;
+
+			/* attach demod */
+			memset(&si2168_config, 0, sizeof(si2168_config));
+			si2168_config.i2c_adapter = &adapter;
+			si2168_config.fe = &dvb->fe[0];
+			si2168_config.ts_mode = SI2168_TS_SERIAL;
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+			info.addr = 0x64;
+			info.platform_data = &si2168_config;
+			request_module(info.type);
+			client = i2c_new_device(&dev->i2c_adap[dev->def_i2c_bus], &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			dvb->i2c_client_demod = client;
+
+			/* attach tuner */
+			memset(&si2157_config, 0, sizeof(si2157_config));
+			si2157_config.fe = dvb->fe[0];
+			si2157_config.if_port = 1;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+			si2157_config.mdev = dev->media_dev;
+#endif
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+			info.addr = 0x60;
+			info.platform_data = &si2157_config;
+			request_module(info.type);
+			client = i2c_new_device(adapter, &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			dvb->i2c_client_tuner = client;
+
+		}
+		break;
+	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595:
+		{
+			struct i2c_adapter *adapter;
+			struct i2c_client *client;
+			struct i2c_board_info info = {};
+			struct lgdt3306a_config lgdt3306a_config;
+			struct si2157_config si2157_config = {};
+
+			/* attach demod */
+			lgdt3306a_config = hauppauge_01595_lgdt3306a_config;
+			lgdt3306a_config.fe = &dvb->fe[0];
+			lgdt3306a_config.i2c_adapter = &adapter;
+			strlcpy(info.type, "lgdt3306a", sizeof(info.type));
+			info.addr = 0x59;
+			info.platform_data = &lgdt3306a_config;
+			request_module(info.type);
+			client = i2c_new_device(&dev->i2c_adap[dev->def_i2c_bus],
+					&info);
+			if (client == NULL || client->dev.driver == NULL) {
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			dvb->i2c_client_demod = client;
+
+			/* attach tuner */
+			si2157_config.fe = dvb->fe[0];
+			si2157_config.if_port = 1;
+			si2157_config.inversion = 1;
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+			si2157_config.mdev = dev->media_dev;
+#endif
+			memset(&info, 0, sizeof(struct i2c_board_info));
+			strlcpy(info.type, "si2157", sizeof(info.type));
+			info.addr = 0x60;
+			info.platform_data = &si2157_config;
+			request_module(info.type);
+
+			client = i2c_new_device(adapter, &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				module_put(dvb->i2c_client_demod->dev.driver->owner);
+				i2c_unregister_device(dvb->i2c_client_demod);
+				result = -ENODEV;
+				goto out_free;
+			}
+
+			dvb->i2c_client_tuner = client;
+		}
+		break;
 	default:
-		em28xx_errdev("/2: The frontend of your DVB/ATSC card"
-				" isn't supported yet\n");
+		dev_err(&dev->intf->dev,
+			"The frontend of your DVB/ATSC card isn't supported yet\n");
 		break;
 	}
 	if (NULL == dvb->fe[0]) {
-		em28xx_errdev("/2: frontend initialization failed\n");
+		dev_err(&dev->intf->dev, "frontend initialization failed\n");
 		result = -EINVAL;
 		goto out_free;
 	}
@@ -1742,12 +2041,12 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		dvb->fe[1]->callback = em28xx_tuner_callback;
 
 	/* register everything */
-	result = em28xx_register_dvb(dvb, THIS_MODULE, dev, &dev->udev->dev);
+	result = em28xx_register_dvb(dvb, THIS_MODULE, dev, &dev->intf->dev);
 
 	if (result < 0)
 		goto out_free;
 
-	em28xx_info("DVB extension successfully initialized\n");
+	dev_info(&dev->intf->dev, "DVB extension successfully initialized\n");
 
 	kref_get(&dev->ref);
 
@@ -1787,7 +2086,7 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	if (!dev->dvb)
 		return 0;
 
-	em28xx_info("Closing DVB extension\n");
+	dev_info(&dev->intf->dev, "Closing DVB extension\n");
 
 	dvb = dev->dvb;
 
@@ -1845,17 +2144,17 @@ static int em28xx_dvb_suspend(struct em28xx *dev)
 	if (!dev->board.has_dvb)
 		return 0;
 
-	em28xx_info("Suspending DVB extension\n");
+	dev_info(&dev->intf->dev, "Suspending DVB extension\n");
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
 
 		if (dvb->fe[0]) {
 			ret = dvb_frontend_suspend(dvb->fe[0]);
-			em28xx_info("fe0 suspend %d\n", ret);
+			dev_info(&dev->intf->dev, "fe0 suspend %d\n", ret);
 		}
 		if (dvb->fe[1]) {
 			dvb_frontend_suspend(dvb->fe[1]);
-			em28xx_info("fe1 suspend %d\n", ret);
+			dev_info(&dev->intf->dev, "fe1 suspend %d\n", ret);
 		}
 	}
 
@@ -1872,18 +2171,18 @@ static int em28xx_dvb_resume(struct em28xx *dev)
 	if (!dev->board.has_dvb)
 		return 0;
 
-	em28xx_info("Resuming DVB extension\n");
+	dev_info(&dev->intf->dev, "Resuming DVB extension\n");
 	if (dev->dvb) {
 		struct em28xx_dvb *dvb = dev->dvb;
 
 		if (dvb->fe[0]) {
 			ret = dvb_frontend_resume(dvb->fe[0]);
-			em28xx_info("fe0 resume %d\n", ret);
+			dev_info(&dev->intf->dev, "fe0 resume %d\n", ret);
 		}
 
 		if (dvb->fe[1]) {
 			ret = dvb_frontend_resume(dvb->fe[1]);
-			em28xx_info("fe1 resume %d\n", ret);
+			dev_info(&dev->intf->dev, "fe1 resume %d\n", ret);
 		}
 	}
 

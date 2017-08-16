@@ -15,11 +15,14 @@
 #include <linux/kernel.h>
 #include <drm/drm.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
 #include "rockchip_drm_drv.h"
+#include "rockchip_drm_fb.h"
 #include "rockchip_drm_gem.h"
+#include "rockchip_drm_psr.h"
 
 #define to_rockchip_fb(x) container_of(x, struct rockchip_drm_fb, fb)
 
@@ -38,19 +41,14 @@ struct drm_gem_object *rockchip_fb_get_gem_obj(struct drm_framebuffer *fb,
 
 	return rk_fb->obj[plane];
 }
-EXPORT_SYMBOL_GPL(rockchip_fb_get_gem_obj);
 
 static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 {
 	struct rockchip_drm_fb *rockchip_fb = to_rockchip_fb(fb);
-	struct drm_gem_object *obj;
 	int i;
 
-	for (i = 0; i < ROCKCHIP_MAX_FB_BUFFER; i++) {
-		obj = rockchip_fb->obj[i];
-		if (obj)
-			drm_gem_object_unreference_unlocked(obj);
-	}
+	for (i = 0; i < ROCKCHIP_MAX_FB_BUFFER; i++)
+		drm_gem_object_unreference_unlocked(rockchip_fb->obj[i]);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(rockchip_fb);
@@ -66,13 +64,24 @@ static int rockchip_drm_fb_create_handle(struct drm_framebuffer *fb,
 				     rockchip_fb->obj[0], handle);
 }
 
-static struct drm_framebuffer_funcs rockchip_drm_fb_funcs = {
+static int rockchip_drm_fb_dirty(struct drm_framebuffer *fb,
+				 struct drm_file *file,
+				 unsigned int flags, unsigned int color,
+				 struct drm_clip_rect *clips,
+				 unsigned int num_clips)
+{
+	rockchip_drm_psr_flush_all(fb->dev);
+	return 0;
+}
+
+static const struct drm_framebuffer_funcs rockchip_drm_fb_funcs = {
 	.destroy	= rockchip_drm_fb_destroy,
 	.create_handle	= rockchip_drm_fb_create_handle,
+	.dirty		= rockchip_drm_fb_dirty,
 };
 
 static struct rockchip_drm_fb *
-rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
+rockchip_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2 *mode_cmd,
 		  struct drm_gem_object **obj, unsigned int num_planes)
 {
 	struct rockchip_drm_fb *rockchip_fb;
@@ -83,7 +92,7 @@ rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
 	if (!rockchip_fb)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(&rockchip_fb->fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &rockchip_fb->fb, mode_cmd);
 
 	for (i = 0; i < num_planes; i++)
 		rockchip_fb->obj[i] = obj[i];
@@ -102,7 +111,7 @@ rockchip_fb_alloc(struct drm_device *dev, struct drm_mode_fb_cmd2 *mode_cmd,
 
 static struct drm_framebuffer *
 rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
-			struct drm_mode_fb_cmd2 *mode_cmd)
+			const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct rockchip_drm_fb *rockchip_fb;
 	struct drm_gem_object *objs[ROCKCHIP_MAX_FB_BUFFER];
@@ -123,8 +132,7 @@ rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		unsigned int height = mode_cmd->height / (i ? vsub : 1);
 		unsigned int min_size;
 
-		obj = drm_gem_object_lookup(dev, file_priv,
-					    mode_cmd->handles[i]);
+		obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[i]);
 		if (!obj) {
 			dev_err(dev->dev, "Failed to lookup GEM object\n");
 			ret = -ENXIO;
@@ -166,21 +174,46 @@ static void rockchip_drm_output_poll_changed(struct drm_device *dev)
 		drm_fb_helper_hotplug_event(fb_helper);
 }
 
+static void
+rockchip_atomic_commit_tail(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+
+	drm_atomic_helper_commit_modeset_disables(dev, state);
+
+	drm_atomic_helper_commit_modeset_enables(dev, state);
+
+	drm_atomic_helper_commit_planes(dev, state,
+					DRM_PLANE_COMMIT_ACTIVE_ONLY);
+
+	drm_atomic_helper_commit_hw_done(state);
+
+	drm_atomic_helper_wait_for_vblanks(dev, state);
+
+	drm_atomic_helper_cleanup_planes(dev, state);
+}
+
+static const struct drm_mode_config_helper_funcs rockchip_mode_config_helpers = {
+	.atomic_commit_tail = rockchip_atomic_commit_tail,
+};
+
 static const struct drm_mode_config_funcs rockchip_drm_mode_config_funcs = {
 	.fb_create = rockchip_user_fb_create,
 	.output_poll_changed = rockchip_drm_output_poll_changed,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 struct drm_framebuffer *
 rockchip_drm_framebuffer_init(struct drm_device *dev,
-			      struct drm_mode_fb_cmd2 *mode_cmd,
+			      const struct drm_mode_fb_cmd2 *mode_cmd,
 			      struct drm_gem_object *obj)
 {
 	struct rockchip_drm_fb *rockchip_fb;
 
 	rockchip_fb = rockchip_fb_alloc(dev, mode_cmd, &obj, 1);
 	if (IS_ERR(rockchip_fb))
-		return NULL;
+		return ERR_CAST(rockchip_fb);
 
 	return &rockchip_fb->fb;
 }
@@ -199,4 +232,5 @@ void rockchip_drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.max_height = 4096;
 
 	dev->mode_config.funcs = &rockchip_drm_mode_config_funcs;
+	dev->mode_config.helper_private = &rockchip_mode_config_helpers;
 }

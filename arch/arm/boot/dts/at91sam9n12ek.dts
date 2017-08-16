@@ -23,15 +23,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		main_clock: clock@0 {
-			compatible = "atmel,osc", "fixed-clock";
-			clock-frequency = <16000000>;
-		};
-
 		slow_xtal {
 			clock-frequency = <32768>;
 		};
@@ -69,10 +60,6 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_qt1070_irq>;
 				};
-			};
-
-			i2c1: i2c@f8014000 {
-				status = "okay";
 			};
 
 			mmc0: mmc@f0008000 {
@@ -160,14 +147,26 @@
 			};
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "hw";
-			atmel,has-pmecc;
-			atmel,pmecc-cap = <2>;
-			atmel,pmecc-sector-size = <512>;
-			nand-on-flash-bbt;
+		ebi: ebi@10000000 {
 			status = "okay";
+
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_cs &pinctrl_nand_rb>;
+				pinctrl-names = "default";
+
+				nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					rb-gpios = <&pioD 5 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioD 4 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "soft";
+					nand-ecc-strength = <2>;
+					nand-ecc-step-size = <512>;
+					nand-on-flash-bbt;
+					label = "atmel_nand";
+				};
+			};
 		};
 
 		usb0: ohci@00500000 {
@@ -204,13 +203,13 @@
 		};
 
 		d9 {
-			label = "d6";
+			label = "d9";
 			gpios = <&pioB 5 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "nand-disk";
 		};
 
 		d10 {
-			label = "d7";
+			label = "d10";
 			gpios = <&pioB 6 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
@@ -223,12 +222,12 @@
 			label = "Enter";
 			gpios = <&pioB 3 GPIO_ACTIVE_LOW>;
 			linux,code = <28>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
 	panel: panel {
-		compatible = "qd,qd43003c0-40", "simple-panel";
+		compatible = "qiaodian,qd43003c0-40", "simple-panel";
 		backlight = <&backlight>;
 		power-supply = <&panel_reg>;
 		#address-cells = <1>;

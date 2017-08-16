@@ -14,6 +14,7 @@
 #define _OMAP_IOMMU_H
 
 #include <linux/bitops.h>
+#include <linux/iommu.h>
 
 #define for_each_iotlb_cr(obj, n, __i, cr)				\
 	for (__i = 0;							\
@@ -27,9 +28,27 @@ struct iotlb_entry {
 	u32 endian, elsz, mixed;
 };
 
+/**
+ * struct omap_iommu_domain - omap iommu domain
+ * @pgtable:	the page table
+ * @iommu_dev:	an omap iommu device attached to this domain. only a single
+ *		iommu device can be attached for now.
+ * @dev:	Device using this domain.
+ * @lock:	domain lock, should be taken when attaching/detaching
+ * @domain:	generic domain handle used by iommu core code
+ */
+struct omap_iommu_domain {
+	u32 *pgtable;
+	struct omap_iommu *iommu_dev;
+	struct device *dev;
+	spinlock_t lock;
+	struct iommu_domain domain;
+};
+
 struct omap_iommu {
 	const char	*name;
 	void __iomem	*regbase;
+	struct regmap	*syscfg;
 	struct device	*dev;
 	struct iommu_domain *domain;
 	struct dentry	*debug_dir;
@@ -48,6 +67,23 @@ struct omap_iommu {
 	void *ctx; /* iommu context: registres saved area */
 
 	int has_bus_err_back;
+	u32 id;
+
+	struct iommu_device iommu;
+	struct iommu_group *group;
+};
+
+/**
+ * struct omap_iommu_arch_data - omap iommu private data
+ * @iommu_dev: handle of the iommu device
+ *
+ * This is an omap iommu private data object, which binds an iommu user
+ * to its iommu device. This object should be placed at the iommu user's
+ * dev_archdata so generic IOMMU API can be used without having to
+ * utilize omap-specific plumbing anymore.
+ */
+struct omap_iommu_arch_data {
+	struct omap_iommu *iommu_dev;
 };
 
 struct cr_regs {
@@ -157,6 +193,13 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 	 ((pgsz) == MMU_CAM_PGSZ_1M)  ? 0xfff00000 :	\
 	 ((pgsz) == MMU_CAM_PGSZ_64K) ? 0xffff0000 :	\
 	 ((pgsz) == MMU_CAM_PGSZ_4K)  ? 0xfffff000 : 0)
+
+/*
+ * DSP_SYSTEM registers and bit definitions (applicable only for DRA7xx DSP)
+ */
+#define DSP_SYS_REVISION		0x00
+#define DSP_SYS_MMU_CONFIG		0x18
+#define DSP_SYS_MMU_CONFIG_EN_SHIFT	4
 
 /*
  * utilities for super page(16MB, 1MB, 64KB and 4KB)

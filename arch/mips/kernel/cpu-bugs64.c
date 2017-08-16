@@ -148,11 +148,11 @@ static inline void check_mult_sh(void)
 			bug = 1;
 
 	if (bug == 0) {
-		printk("no.\n");
+		pr_cont("no.\n");
 		return;
 	}
 
-	printk("yes, workaround... ");
+	pr_cont("yes, workaround... ");
 
 	fix = 1;
 	for (i = 0; i < 8; i++)
@@ -160,11 +160,11 @@ static inline void check_mult_sh(void)
 			fix = 0;
 
 	if (fix == 1) {
-		printk("yes.\n");
+		pr_cont("yes.\n");
 		return;
 	}
 
-	printk("no.\n");
+	pr_cont("no.\n");
 	panic(bug64hit, !R4000_WAR ? r4kwar : nowar);
 }
 
@@ -190,7 +190,7 @@ static inline void check_daddi(void)
 	printk("Checking for the daddi bug... ");
 
 	local_irq_save(flags);
-	handler = set_except_vector(12, handle_daddi_ov);
+	handler = set_except_vector(EXCCODE_OV, handle_daddi_ov);
 	/*
 	 * The following code fails to trigger an overflow exception
 	 * when executed on R4000 rev. 2.2 or 3.0 (PRId 00000422 or
@@ -214,37 +214,37 @@ static inline void check_daddi(void)
 		".set	pop"
 		: "=r" (v), "=&r" (tmp)
 		: "I" (0xffffffffffffdb9aUL), "I" (0x1234));
-	set_except_vector(12, handler);
+	set_except_vector(EXCCODE_OV, handler);
 	local_irq_restore(flags);
 
 	if (daddi_ov) {
-		printk("no.\n");
+		pr_cont("no.\n");
 		return;
 	}
 
-	printk("yes, workaround... ");
+	pr_cont("yes, workaround... ");
 
 	local_irq_save(flags);
-	handler = set_except_vector(12, handle_daddi_ov);
+	handler = set_except_vector(EXCCODE_OV, handle_daddi_ov);
 	asm volatile(
 		"addiu	%1, $0, %2\n\t"
 		"dsrl	%1, %1, 1\n\t"
 		"daddi	%0, %1, %3"
 		: "=r" (v), "=&r" (tmp)
 		: "I" (0xffffffffffffdb9aUL), "I" (0x1234));
-	set_except_vector(12, handler);
+	set_except_vector(EXCCODE_OV, handler);
 	local_irq_restore(flags);
 
 	if (daddi_ov) {
-		printk("yes.\n");
+		pr_cont("yes.\n");
 		return;
 	}
 
-	printk("no.\n");
+	pr_cont("no.\n");
 	panic(bug64hit, !DADDI_WAR ? daddiwar : nowar);
 }
 
-int daddiu_bug	= config_enabled(CONFIG_CPU_MIPSR6) ? 0 : -1;
+int daddiu_bug	= IS_ENABLED(CONFIG_CPU_MIPSR6) ? 0 : -1;
 
 static inline void check_daddiu(void)
 {
@@ -288,11 +288,11 @@ static inline void check_daddiu(void)
 	daddiu_bug = v != w;
 
 	if (!daddiu_bug) {
-		printk("no.\n");
+		pr_cont("no.\n");
 		return;
 	}
 
-	printk("yes, workaround... ");
+	pr_cont("yes, workaround... ");
 
 	asm volatile(
 		"addiu	%2, $0, %3\n\t"
@@ -304,17 +304,17 @@ static inline void check_daddiu(void)
 		: "I" (0xffffffffffffdb9aUL), "I" (0x1234));
 
 	if (v == w) {
-		printk("yes.\n");
+		pr_cont("yes.\n");
 		return;
 	}
 
-	printk("no.\n");
+	pr_cont("no.\n");
 	panic(bug64hit, !DADDI_WAR ? daddiwar : nowar);
 }
 
 void __init check_bugs64_early(void)
 {
-	if (!config_enabled(CONFIG_CPU_MIPSR6)) {
+	if (!IS_ENABLED(CONFIG_CPU_MIPSR6)) {
 		check_mult_sh();
 		check_daddiu();
 	}
@@ -322,6 +322,6 @@ void __init check_bugs64_early(void)
 
 void __init check_bugs64(void)
 {
-	if (!config_enabled(CONFIG_CPU_MIPSR6))
+	if (!IS_ENABLED(CONFIG_CPU_MIPSR6))
 		check_daddi();
 }

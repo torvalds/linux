@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -114,7 +114,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 				    ((op->common.parent->common.aml_opcode ==
 				      AML_PACKAGE_OP)
 				     || (op->common.parent->common.aml_opcode ==
-					 AML_VAR_PACKAGE_OP))) {
+					 AML_VARIABLE_PACKAGE_OP))) {
 					/*
 					 * We didn't find the target and we are populating elements
 					 * of a package - ignore if slack enabled. Some ASL code
@@ -144,7 +144,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 
 		if ((op->common.parent->common.aml_opcode == AML_PACKAGE_OP) ||
 		    (op->common.parent->common.aml_opcode ==
-		     AML_VAR_PACKAGE_OP)) {
+		     AML_VARIABLE_PACKAGE_OP)) {
 			/*
 			 * Attempt to resolve the node to a value before we insert it into
 			 * the package. If this is a reference to a common data type,
@@ -398,7 +398,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 
 	parent = op->common.parent;
 	while ((parent->common.aml_opcode == AML_PACKAGE_OP) ||
-	       (parent->common.aml_opcode == AML_VAR_PACKAGE_OP)) {
+	       (parent->common.aml_opcode == AML_VARIABLE_PACKAGE_OP)) {
 		parent = parent->common.parent;
 	}
 
@@ -463,10 +463,10 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 						  arg->common.node);
 			}
 		} else {
-			status = acpi_ds_build_internal_object(walk_state, arg,
-							       &obj_desc->
-							       package.
-							       elements[i]);
+			status =
+			    acpi_ds_build_internal_object(walk_state, arg,
+							  &obj_desc->package.
+							  elements[i]);
 		}
 
 		if (*obj_desc_ptr) {
@@ -524,8 +524,8 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 			arg = arg->common.next;
 		}
 
-		ACPI_INFO((AE_INFO,
-			   "Actual Package length (%u) is larger than NumElements field (%u), truncated",
+		ACPI_INFO(("Actual Package length (%u) is larger than "
+			   "NumElements field (%u), truncated",
 			   i, element_count));
 	} else if (i < element_count) {
 		/*
@@ -533,7 +533,8 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		 * Note: this is not an error, the package is padded out with NULLs.
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Package List length (%u) smaller than NumElements count (%u), padded with null elements\n",
+				  "Package List length (%u) smaller than NumElements "
+				  "count (%u), padded with null elements\n",
 				  i, element_count));
 	}
 
@@ -584,8 +585,9 @@ acpi_ds_create_node(struct acpi_walk_state *walk_state,
 
 	/* Build an internal object for the argument(s) */
 
-	status = acpi_ds_build_internal_object(walk_state, op->common.value.arg,
-					       &obj_desc);
+	status =
+	    acpi_ds_build_internal_object(walk_state, op->common.value.arg,
+					  &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -767,10 +769,10 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 		switch (op_info->type) {
 		case AML_TYPE_LOCAL_VARIABLE:
 
-			/* Local ID (0-7) is (AML opcode - base AML_LOCAL_OP) */
+			/* Local ID (0-7) is (AML opcode - base AML_FIRST_LOCAL_OP) */
 
 			obj_desc->reference.value =
-			    ((u32)opcode) - AML_LOCAL_OP;
+			    ((u32)opcode) - AML_FIRST_LOCAL_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_LOCAL;
 
 #ifndef ACPI_NO_METHOD_EXECUTION
@@ -788,9 +790,10 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 		case AML_TYPE_METHOD_ARGUMENT:
 
-			/* Arg ID (0-6) is (AML opcode - base AML_ARG_OP) */
+			/* Arg ID (0-6) is (AML opcode - base AML_FIRST_ARG_OP) */
 
-			obj_desc->reference.value = ((u32)opcode) - AML_ARG_OP;
+			obj_desc->reference.value =
+			    ((u32)opcode) - AML_FIRST_ARG_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_ARG;
 
 #ifndef ACPI_NO_METHOD_EXECUTION

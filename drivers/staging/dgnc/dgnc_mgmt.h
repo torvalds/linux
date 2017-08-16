@@ -13,13 +13,14 @@
  * PURPOSE.  See the GNU General Public License for more details.
  */
 
-#ifndef __DGNC_MGMT_H
-#define __DGNC_MGMT_H
+#ifndef _DGNC_MGMT_H
+#define _DGNC_MGMT_H
 
 #define MAXMGMTDEVICES 8
 
 int dgnc_mgmt_open(struct inode *inode, struct file *file);
 int dgnc_mgmt_close(struct inode *inode, struct file *file);
 long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-#endif
+
+#endif	/* _DGNC_MGMT_H */
 

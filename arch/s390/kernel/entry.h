@@ -1,6 +1,7 @@
 #ifndef _ENTRY_H
 #define _ENTRY_H
 
+#include <linux/percpu.h>
 #include <linux/types.h>
 #include <linux/signal.h>
 #include <asm/ptrace.h>
@@ -16,12 +17,9 @@ void io_int_handler(void);
 void mcck_int_handler(void);
 void restart_int_handler(void);
 void restart_call_handler(void);
-void psw_idle(struct s390_idle_data *, unsigned long);
 
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
 asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);
-
-int alloc_vector_registers(struct task_struct *tsk);
 
 void do_protection_exception(struct pt_regs *regs);
 void do_dat_exception(struct pt_regs *regs);
@@ -76,6 +74,14 @@ long sys_sigreturn(void);
 
 long sys_s390_personality(unsigned int personality);
 long sys_s390_runtime_instr(int command, int signum);
+long sys_s390_guarded_storage(int command, struct gs_cb __user *);
 long sys_s390_pci_mmio_write(unsigned long, const void __user *, size_t);
 long sys_s390_pci_mmio_read(unsigned long, void __user *, size_t);
+
+DECLARE_PER_CPU(u64, mt_cycles[8]);
+
+void verify_facilities(void);
+void gs_load_bc_cb(struct pt_regs *regs);
+void set_fs_fixup(void);
+
 #endif /* _ENTRY_H */

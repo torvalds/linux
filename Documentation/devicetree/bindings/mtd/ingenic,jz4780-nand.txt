@@ -1,0 +1,86 @@
+* Ingenic JZ4780 NAND/BCH
+
+This file documents the device tree bindings for NAND flash devices on the
+JZ4780. NAND devices are connected to the NEMC controller (described in
+memory-controllers/ingenic,jz4780-nemc.txt), and thus NAND device nodes must
+be children of the NEMC node.
+
+Required NAND controller device properties:
+- compatible: Should be set to "ingenic,jz4780-nand".
+- reg: For each bank with a NAND chip attached, should specify a bank number,
+  an offset of 0 and a size of 0x1000000 (i.e. the whole NEMC bank).
+
+Optional NAND controller device properties:
+- ingenic,bch-controller: To make use of the hardware BCH controller, this
+  property must contain a phandle for the BCH controller node. The required
+  properties for this node are described below. If this is not specified,
+  software BCH will be used instead.
+
+Optional children nodes:
+- Individual NAND chips are children of the NAND controller node.
+
+Required children node properties:
+- reg: An integer ranging from 1 to 6 representing the CS line to use.
+
+Optional children node properties:
+- nand-ecc-step-size: ECC block size in bytes.
+- nand-ecc-strength: ECC strength (max number of correctable bits).
+- nand-ecc-mode: String, operation mode of the NAND ecc mode. "hw" by default
+- nand-on-flash-bbt: boolean to enable on flash bbt option, if not present false
+- rb-gpios: GPIO specifier for the busy pin.
+- wp-gpios: GPIO specifier for the write protect pin.
+
+Optional child node of NAND chip nodes:
+- partitions: see Documentation/devicetree/bindings/mtd/partition.txt
+
+Example:
+
+nemc: nemc@13410000 {
+	...
+
+	nandc: nand-controller@1 {
+		compatible = "ingenic,jz4780-nand";
+		reg = <1 0 0x1000000>;	/* Bank 1 */
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ingenic,bch-controller = <&bch>;
+
+		nand@1 {
+			reg = <1>;
+
+			nand-ecc-step-size = <1024>;
+			nand-ecc-strength = <24>;
+			nand-ecc-mode = "hw";
+			nand-on-flash-bbt;
+
+			rb-gpios = <&gpa 20 GPIO_ACTIVE_LOW>;
+			wp-gpios = <&gpf 22 GPIO_ACTIVE_LOW>;
+
+			partitions {
+				#address-cells = <2>;
+				#size-cells = <2>;
+				...
+			}
+		};
+	};
+};
+
+The BCH controller is a separate SoC component used for error correction on
+NAND devices. The following is a description of the device properties for a
+BCH controller.
+
+Required BCH properties:
+- compatible: Should be set to "ingenic,jz4780-bch".
+- reg: Should specify the BCH controller registers location and length.
+- clocks: Clock for the BCH controller.
+
+Example:
+
+bch: bch@134d0000 {
+	compatible = "ingenic,jz4780-bch";
+	reg = <0x134d0000 0x10000>;
+
+	clocks = <&cgu JZ4780_CLK_BCH>;
+};

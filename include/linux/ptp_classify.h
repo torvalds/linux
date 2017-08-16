@@ -32,9 +32,9 @@
 #define PTP_CLASS_VMASK 0x0f /* max protocol version is 15 */
 #define PTP_CLASS_IPV4  0x10 /* event in an IPV4 UDP packet */
 #define PTP_CLASS_IPV6  0x20 /* event in an IPV6 UDP packet */
-#define PTP_CLASS_L2    0x30 /* event in a L2 packet */
-#define PTP_CLASS_PMASK 0x30 /* mask for the packet type field */
-#define PTP_CLASS_VLAN  0x40 /* event in a VLAN tagged packet */
+#define PTP_CLASS_L2    0x40 /* event in a L2 packet */
+#define PTP_CLASS_PMASK	0x70 /* mask for the packet type field */
+#define PTP_CLASS_VLAN	0x80 /* event in a VLAN tagged packet */
 
 #define PTP_CLASS_V1_IPV4 (PTP_CLASS_V1 | PTP_CLASS_IPV4)
 #define PTP_CLASS_V1_IPV6 (PTP_CLASS_V1 | PTP_CLASS_IPV6) /* probably DNE */
@@ -42,6 +42,7 @@
 #define PTP_CLASS_V2_IPV6 (PTP_CLASS_V2 | PTP_CLASS_IPV6)
 #define PTP_CLASS_V2_L2   (PTP_CLASS_V2 | PTP_CLASS_L2)
 #define PTP_CLASS_V2_VLAN (PTP_CLASS_V2 | PTP_CLASS_VLAN)
+#define PTP_CLASS_L4      (PTP_CLASS_IPV4 | PTP_CLASS_IPV6)
 
 #define PTP_EV_PORT 319
 #define PTP_GEN_BIT 0x08 /* indicates general message, if set in message type */

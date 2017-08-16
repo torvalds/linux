@@ -95,10 +95,11 @@ static unsigned time_diff(struct timeval *now, struct timeval *then)
 		1000000 - (then->tv_usec - now->tv_usec);
 }
 
-u32 via_get_vblank_counter(struct drm_device *dev, int crtc)
+u32 via_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
-	if (crtc != 0)
+
+	if (pipe != 0)
 		return 0;
 
 	return atomic_read(&dev_priv->vbl_received);
@@ -170,13 +171,13 @@ static __inline__ void viadrv_acknowledge_irqs(drm_via_private_t *dev_priv)
 	}
 }
 
-int via_enable_vblank(struct drm_device *dev, int crtc)
+int via_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
 	u32 status;
 
-	if (crtc != 0) {
-		DRM_ERROR("%s:  bad crtc %d\n", __func__, crtc);
+	if (pipe != 0) {
+		DRM_ERROR("%s:  bad crtc %u\n", __func__, pipe);
 		return -EINVAL;
 	}
 
@@ -189,7 +190,7 @@ int via_enable_vblank(struct drm_device *dev, int crtc)
 	return 0;
 }
 
-void via_disable_vblank(struct drm_device *dev, int crtc)
+void via_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
 	u32 status;
@@ -200,8 +201,8 @@ void via_disable_vblank(struct drm_device *dev, int crtc)
 	VIA_WRITE8(0x83d4, 0x11);
 	VIA_WRITE8(0x83d5, VIA_READ8(0x83d5) & ~0x30);
 
-	if (crtc != 0)
-		DRM_ERROR("%s:  bad crtc %d\n", __func__, crtc);
+	if (pipe != 0)
+		DRM_ERROR("%s:  bad crtc %u\n", __func__, pipe);
 }
 
 static int

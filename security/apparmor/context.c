@@ -13,11 +13,11 @@
  * License.
  *
  *
- * AppArmor sets confinement on every task, via the the aa_task_cxt and
- * the aa_task_cxt.profile, both of which are required and are not allowed
- * to be NULL.  The aa_task_cxt is not reference counted and is unique
- * to each cred (which is reference count).  The profile pointed to by
- * the task_cxt is reference counted.
+ * AppArmor sets confinement on every task, via the the aa_task_ctx and
+ * the aa_task_ctx.label, both of which are required and are not allowed
+ * to be NULL.  The aa_task_ctx is not reference counted and is unique
+ * to each cred (which is reference count).  The label pointed to by
+ * the task_ctx is reference counted.
  *
  * TODO
  * If a task uses change_hat it currently does not return to the old
@@ -30,28 +30,28 @@
 #include "include/policy.h"
 
 /**
- * aa_alloc_task_context - allocate a new task_cxt
+ * aa_alloc_task_context - allocate a new task_ctx
  * @flags: gfp flags for allocation
  *
  * Returns: allocated buffer or NULL on failure
  */
-struct aa_task_cxt *aa_alloc_task_context(gfp_t flags)
+struct aa_task_ctx *aa_alloc_task_context(gfp_t flags)
 {
-	return kzalloc(sizeof(struct aa_task_cxt), flags);
+	return kzalloc(sizeof(struct aa_task_ctx), flags);
 }
 
 /**
- * aa_free_task_context - free a task_cxt
- * @cxt: task_cxt to free (MAYBE NULL)
+ * aa_free_task_context - free a task_ctx
+ * @ctx: task_ctx to free (MAYBE NULL)
  */
-void aa_free_task_context(struct aa_task_cxt *cxt)
+void aa_free_task_context(struct aa_task_ctx *ctx)
 {
-	if (cxt) {
-		aa_put_profile(cxt->profile);
-		aa_put_profile(cxt->previous);
-		aa_put_profile(cxt->onexec);
+	if (ctx) {
+		aa_put_label(ctx->label);
+		aa_put_label(ctx->previous);
+		aa_put_label(ctx->onexec);
 
-		kzfree(cxt);
+		kzfree(ctx);
 	}
 }
 
@@ -60,64 +60,69 @@ void aa_free_task_context(struct aa_task_cxt *cxt)
  * @new: a blank task context      (NOT NULL)
  * @old: the task context to copy  (NOT NULL)
  */
-void aa_dup_task_context(struct aa_task_cxt *new, const struct aa_task_cxt *old)
+void aa_dup_task_context(struct aa_task_ctx *new, const struct aa_task_ctx *old)
 {
 	*new = *old;
-	aa_get_profile(new->profile);
-	aa_get_profile(new->previous);
-	aa_get_profile(new->onexec);
+	aa_get_label(new->label);
+	aa_get_label(new->previous);
+	aa_get_label(new->onexec);
 }
 
 /**
- * aa_get_task_profile - Get another task's profile
+ * aa_get_task_label - Get another task's label
  * @task: task to query  (NOT NULL)
  *
- * Returns: counted reference to @task's profile
+ * Returns: counted reference to @task's label
  */
-struct aa_profile *aa_get_task_profile(struct task_struct *task)
+struct aa_label *aa_get_task_label(struct task_struct *task)
 {
-	struct aa_profile *p;
+	struct aa_label *p;
 
 	rcu_read_lock();
-	p = aa_get_profile(__aa_task_profile(task));
+	p = aa_get_newest_label(__aa_task_raw_label(task));
 	rcu_read_unlock();
 
 	return p;
 }
 
 /**
- * aa_replace_current_profile - replace the current tasks profiles
- * @profile: new profile  (NOT NULL)
+ * aa_replace_current_label - replace the current tasks label
+ * @label: new label  (NOT NULL)
  *
  * Returns: 0 or error on failure
  */
-int aa_replace_current_profile(struct aa_profile *profile)
+int aa_replace_current_label(struct aa_label *label)
 {
-	struct aa_task_cxt *cxt = current_cxt();
+	struct aa_task_ctx *ctx = current_ctx();
 	struct cred *new;
-	BUG_ON(!profile);
+	AA_BUG(!label);
 
-	if (cxt->profile == profile)
+	if (ctx->label == label)
 		return 0;
+
+	if (current_cred() != current_real_cred())
+		return -EBUSY;
 
 	new  = prepare_creds();
 	if (!new)
 		return -ENOMEM;
 
-	cxt = cred_cxt(new);
-	if (unconfined(profile) || (cxt->profile->ns != profile->ns))
-		/* if switching to unconfined or a different profile namespace
+	ctx = cred_ctx(new);
+	if (unconfined(label) || (labels_ns(ctx->label) != labels_ns(label)))
+		/* if switching to unconfined or a different label namespace
 		 * clear out context state
 		 */
-		aa_clear_task_cxt_trans(cxt);
+		aa_clear_task_ctx_trans(ctx);
 
-	/* be careful switching cxt->profile, when racing replacement it
-	 * is possible that cxt->profile->replacedby->profile is the reference
+	/*
+	 * be careful switching ctx->profile, when racing replacement it
+	 * is possible that ctx->profile->proxy->profile is the reference
 	 * keeping @profile valid, so make sure to get its reference before
-	 * dropping the reference on cxt->profile */
-	aa_get_profile(profile);
-	aa_put_profile(cxt->profile);
-	cxt->profile = profile;
+	 * dropping the reference on ctx->profile
+	 */
+	aa_get_label(label);
+	aa_put_label(ctx->label);
+	ctx->label = label;
 
 	commit_creds(new);
 	return 0;
@@ -125,21 +130,22 @@ int aa_replace_current_profile(struct aa_profile *profile)
 
 /**
  * aa_set_current_onexec - set the tasks change_profile to happen onexec
- * @profile: system profile to set at exec  (MAYBE NULL to clear value)
- *
+ * @label: system label to set at exec  (MAYBE NULL to clear value)
+ * @stack: whether stacking should be done
  * Returns: 0 or error on failure
  */
-int aa_set_current_onexec(struct aa_profile *profile)
+int aa_set_current_onexec(struct aa_label *label, bool stack)
 {
-	struct aa_task_cxt *cxt;
+	struct aa_task_ctx *ctx;
 	struct cred *new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
 
-	cxt = cred_cxt(new);
-	aa_get_profile(profile);
-	aa_put_profile(cxt->onexec);
-	cxt->onexec = profile;
+	ctx = cred_ctx(new);
+	aa_get_label(label);
+	aa_clear_task_ctx_trans(ctx);
+	ctx->onexec = label;
+	ctx->token = stack;
 
 	commit_creds(new);
 	return 0;
@@ -147,7 +153,7 @@ int aa_set_current_onexec(struct aa_profile *profile)
 
 /**
  * aa_set_current_hat - set the current tasks hat
- * @profile: profile to set as the current hat  (NOT NULL)
+ * @label: label to set as the current hat  (NOT NULL)
  * @token: token value that must be specified to change from the hat
  *
  * Do switch of tasks hat.  If the task is currently in a hat
@@ -155,67 +161,67 @@ int aa_set_current_onexec(struct aa_profile *profile)
  *
  * Returns: 0 or error on failure
  */
-int aa_set_current_hat(struct aa_profile *profile, u64 token)
+int aa_set_current_hat(struct aa_label *label, u64 token)
 {
-	struct aa_task_cxt *cxt;
+	struct aa_task_ctx *ctx;
 	struct cred *new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
-	BUG_ON(!profile);
+	AA_BUG(!label);
 
-	cxt = cred_cxt(new);
-	if (!cxt->previous) {
+	ctx = cred_ctx(new);
+	if (!ctx->previous) {
 		/* transfer refcount */
-		cxt->previous = cxt->profile;
-		cxt->token = token;
-	} else if (cxt->token == token) {
-		aa_put_profile(cxt->profile);
+		ctx->previous = ctx->label;
+		ctx->token = token;
+	} else if (ctx->token == token) {
+		aa_put_label(ctx->label);
 	} else {
-		/* previous_profile && cxt->token != token */
+		/* previous_profile && ctx->token != token */
 		abort_creds(new);
 		return -EACCES;
 	}
-	cxt->profile = aa_get_newest_profile(profile);
+	ctx->label = aa_get_newest_label(label);
 	/* clear exec on switching context */
-	aa_put_profile(cxt->onexec);
-	cxt->onexec = NULL;
+	aa_put_label(ctx->onexec);
+	ctx->onexec = NULL;
 
 	commit_creds(new);
 	return 0;
 }
 
 /**
- * aa_restore_previous_profile - exit from hat context restoring the profile
+ * aa_restore_previous_label - exit from hat context restoring previous label
  * @token: the token that must be matched to exit hat context
  *
- * Attempt to return out of a hat to the previous profile.  The token
+ * Attempt to return out of a hat to the previous label.  The token
  * must match the stored token value.
  *
  * Returns: 0 or error of failure
  */
-int aa_restore_previous_profile(u64 token)
+int aa_restore_previous_label(u64 token)
 {
-	struct aa_task_cxt *cxt;
+	struct aa_task_ctx *ctx;
 	struct cred *new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
 
-	cxt = cred_cxt(new);
-	if (cxt->token != token) {
+	ctx = cred_ctx(new);
+	if (ctx->token != token) {
 		abort_creds(new);
 		return -EACCES;
 	}
-	/* ignore restores when there is no saved profile */
-	if (!cxt->previous) {
+	/* ignore restores when there is no saved label */
+	if (!ctx->previous) {
 		abort_creds(new);
 		return 0;
 	}
 
-	aa_put_profile(cxt->profile);
-	cxt->profile = aa_get_newest_profile(cxt->previous);
-	BUG_ON(!cxt->profile);
+	aa_put_label(ctx->label);
+	ctx->label = aa_get_newest_label(ctx->previous);
+	AA_BUG(!ctx->label);
 	/* clear exec && prev information when restoring to previous context */
-	aa_clear_task_cxt_trans(cxt);
+	aa_clear_task_ctx_trans(ctx);
 
 	commit_creds(new);
 	return 0;

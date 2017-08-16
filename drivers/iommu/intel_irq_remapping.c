@@ -76,7 +76,7 @@ static struct hpet_scope ir_hpet[MAX_HPET_TBS];
  * the dmar_global_lock.
  */
 static DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
-static struct irq_domain_ops intel_ir_domain_ops;
+static const struct irq_domain_ops intel_ir_domain_ops;
 
 static void iommu_disable_irq_remapping(struct intel_iommu *iommu);
 static int __init parse_ioapics_under_ir(void);
@@ -169,8 +169,26 @@ static int modify_irte(struct irq_2_iommu *irq_iommu,
 	index = irq_iommu->irte_index + irq_iommu->sub_handle;
 	irte = &iommu->ir_table->base[index];
 
-	set_64bit(&irte->low, irte_modified->low);
-	set_64bit(&irte->high, irte_modified->high);
+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE)
+	if ((irte->pst == 1) || (irte_modified->pst == 1)) {
+		bool ret;
+
+		ret = cmpxchg_double(&irte->low, &irte->high,
+				     irte->low, irte->high,
+				     irte_modified->low, irte_modified->high);
+		/*
+		 * We use cmpxchg16 to atomically update the 128-bit IRTE,
+		 * and it cannot be updated by the hardware or other processors
+		 * behind us, so the return value of cmpxchg16 should be the
+		 * same as the old value.
+		 */
+		WARN_ON(!ret);
+	} else
+#endif
+	{
+		set_64bit(&irte->low, irte_modified->low);
+		set_64bit(&irte->high, irte_modified->high);
+	}
 	__iommu_flush_cache(iommu, irte, sizeof(*irte));
 
 	rc = qi_flush_iec(iommu, index, 0);
@@ -384,19 +402,11 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 
 static int iommu_load_old_irte(struct intel_iommu *iommu)
 {
-	struct irte __iomem *old_ir_table;
+	struct irte *old_ir_table;
 	phys_addr_t irt_phys;
 	unsigned int i;
 	size_t size;
 	u64 irta;
-
-	if (!is_kdump_kernel()) {
-		pr_warn("IRQ remapping was enabled on %s but we are not in kdump mode\n",
-			iommu->name);
-		clear_ir_pre_enabled(iommu);
-		iommu_disable_irq_remapping(iommu);
-		return -EINVAL;
-	}
 
 	/* Check whether the old ir-table has the same size as ours */
 	irta = dmar_readq(iommu->reg + DMAR_IRTA_REG);
@@ -408,12 +418,12 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 	size     = INTR_REMAP_TABLE_ENTRIES*sizeof(struct irte);
 
 	/* Map the old IR table */
-	old_ir_table = ioremap_cache(irt_phys, size);
+	old_ir_table = memremap(irt_phys, size, MEMREMAP_WB);
 	if (!old_ir_table)
 		return -ENOMEM;
 
 	/* Copy data over */
-	memcpy_fromio(iommu->ir_table->base, old_ir_table, size);
+	memcpy(iommu->ir_table->base, old_ir_table, size);
 
 	__iommu_flush_cache(iommu, iommu->ir_table->base, size);
 
@@ -426,7 +436,7 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 			bitmap_set(iommu->ir_table->bitmap, i, 1);
 	}
 
-	iounmap(old_ir_table);
+	memunmap(old_ir_table);
 
 	return 0;
 }
@@ -490,8 +500,9 @@ static void iommu_enable_irq_remapping(struct intel_iommu *iommu)
 static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 {
 	struct ir_table *ir_table;
-	struct page *pages;
+	struct fwnode_handle *fn;
 	unsigned long *bitmap;
+	struct page *pages;
 
 	if (iommu->ir_table)
 		return 0;
@@ -515,15 +526,24 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 		goto out_free_pages;
 	}
 
-	iommu->ir_domain = irq_domain_add_hierarchy(arch_get_ir_parent_domain(),
-						    0, INTR_REMAP_TABLE_ENTRIES,
-						    NULL, &intel_ir_domain_ops,
-						    iommu);
+	fn = irq_domain_alloc_named_id_fwnode("INTEL-IR", iommu->seq_id);
+	if (!fn)
+		goto out_free_bitmap;
+
+	iommu->ir_domain =
+		irq_domain_create_hierarchy(arch_get_ir_parent_domain(),
+					    0, INTR_REMAP_TABLE_ENTRIES,
+					    fn, &intel_ir_domain_ops,
+					    iommu);
+	irq_domain_free_fwnode(fn);
 	if (!iommu->ir_domain) {
 		pr_err("IR%d: failed to allocate irqdomain\n", iommu->seq_id);
 		goto out_free_bitmap;
 	}
-	iommu->ir_msi_domain = arch_create_msi_irq_domain(iommu->ir_domain);
+	iommu->ir_msi_domain =
+		arch_create_remap_msi_irq_domain(iommu->ir_domain,
+						 "INTEL-IR-MSI",
+						 iommu->seq_id);
 
 	ir_table->base = page_address(pages);
 	ir_table->bitmap = bitmap;
@@ -549,7 +569,12 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 	init_ir_status(iommu);
 
 	if (ir_pre_enabled(iommu)) {
-		if (iommu_load_old_irte(iommu))
+		if (!is_kdump_kernel()) {
+			pr_warn("IRQ remapping was enabled on %s but we are not in kdump mode\n",
+				iommu->name);
+			clear_ir_pre_enabled(iommu);
+			iommu_disable_irq_remapping(iommu);
+		} else if (iommu_load_old_irte(iommu))
 			pr_err("Failed to copy IR table for %s from previous kernel\n",
 			       iommu->name);
 		else
@@ -611,7 +636,7 @@ static void iommu_disable_irq_remapping(struct intel_iommu *iommu)
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flags);
 
-	sts = dmar_readq(iommu->reg + DMAR_GSTS_REG);
+	sts = readl(iommu->reg + DMAR_GSTS_REG);
 	if (!(sts & DMA_GSTS_IRES))
 		goto end;
 
@@ -672,7 +697,7 @@ static int __init intel_prepare_irq_remapping(void)
 	if (!dmar_ir_support())
 		return -ENODEV;
 
-	if (parse_ioapics_under_ir() != 1) {
+	if (parse_ioapics_under_ir()) {
 		pr_info("Not enabling interrupt remapping\n");
 		goto error;
 	}
@@ -727,7 +752,16 @@ static inline void set_irq_posting_cap(void)
 	struct intel_iommu *iommu;
 
 	if (!disable_irq_post) {
-		intel_irq_remap_ops.capability |= 1 << IRQ_POSTING_CAP;
+		/*
+		 * If IRTE is in posted format, the 'pda' field goes across the
+		 * 64-bit boundary, we need use cmpxchg16b to atomically update
+		 * it. We only expose posted-interrupt when X86_FEATURE_CX16
+		 * is supported. Actually, hardware platforms supporting PI
+		 * should have X86_FEATURE_CX16 support, this has been confirmed
+		 * with Intel hardware guys.
+		 */
+		if (boot_cpu_has(X86_FEATURE_CX16))
+			intel_irq_remap_ops.capability |= 1 << IRQ_POSTING_CAP;
 
 		for_each_iommu(iommu, drhd)
 			if (!cap_pi_support(iommu->cap)) {
@@ -907,16 +941,21 @@ static int __init parse_ioapics_under_ir(void)
 	bool ir_supported = false;
 	int ioapic_idx;
 
-	for_each_iommu(iommu, drhd)
-		if (ecap_ir_support(iommu->ecap)) {
-			if (ir_parse_ioapic_hpet_scope(drhd->hdr, iommu))
-				return -1;
+	for_each_iommu(iommu, drhd) {
+		int ret;
 
-			ir_supported = true;
-		}
+		if (!ecap_ir_support(iommu->ecap))
+			continue;
+
+		ret = ir_parse_ioapic_hpet_scope(drhd->hdr, iommu);
+		if (ret)
+			return ret;
+
+		ir_supported = true;
+	}
 
 	if (!ir_supported)
-		return 0;
+		return -ENODEV;
 
 	for (ioapic_idx = 0; ioapic_idx < nr_ioapics; ioapic_idx++) {
 		int ioapic_id = mpc_ioapic_id(ioapic_idx);
@@ -928,7 +967,7 @@ static int __init parse_ioapics_under_ir(void)
 		}
 	}
 
-	return 1;
+	return 0;
 }
 
 static int __init ir_dev_scope_init(void)
@@ -1176,10 +1215,11 @@ static int intel_ir_set_vcpu_affinity(struct irq_data *data, void *info)
 }
 
 static struct irq_chip intel_ir_chip = {
-	.irq_ack = ir_ack_apic_edge,
-	.irq_set_affinity = intel_ir_set_affinity,
-	.irq_compose_msi_msg = intel_ir_compose_msi_msg,
-	.irq_set_vcpu_affinity = intel_ir_set_vcpu_affinity,
+	.name			= "INTEL-IR",
+	.irq_ack		= ir_ack_apic_edge,
+	.irq_set_affinity	= intel_ir_set_affinity,
+	.irq_compose_msi_msg	= intel_ir_compose_msi_msg,
+	.irq_set_vcpu_affinity	= intel_ir_set_vcpu_affinity,
 };
 
 static void intel_irq_remapping_prepare_irte(struct intel_ir_data *data,
@@ -1367,7 +1407,7 @@ static void intel_irq_remapping_deactivate(struct irq_domain *domain,
 	modify_irte(&data->irq_2_iommu, &entry);
 }
 
-static struct irq_domain_ops intel_ir_domain_ops = {
+static const struct irq_domain_ops intel_ir_domain_ops = {
 	.alloc = intel_irq_remapping_alloc,
 	.free = intel_irq_remapping_free,
 	.activate = intel_irq_remapping_activate,

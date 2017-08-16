@@ -589,6 +589,7 @@
 #define   FORCE_ASPM_NO_ASPM		0x00
 #define PM_CLK_FORCE_CTL		0xFE58
 #define FUNC_FORCE_CTL			0xFE59
+#define   FUNC_FORCE_UPME_XMT_DBG	0x02
 #define PERST_GLITCH_WIDTH		0xFE5C
 #define CHANGE_LINK_STATE		0xFE5B
 #define RESET_LOAD_REG			0xFE5E
@@ -712,6 +713,7 @@
 #define PHY_RCR1			0x02
 #define   PHY_RCR1_ADP_TIME_4		0x0400
 #define   PHY_RCR1_VCO_COARSE		0x001F
+#define   PHY_RCR1_INIT_27S		0x0A1F
 #define PHY_SSCCR2			0x02
 #define   PHY_SSCCR2_PLL_NCODE		0x0A00
 #define   PHY_SSCCR2_TIME0		0x001C
@@ -724,6 +726,7 @@
 #define   PHY_RCR2_FREQSEL_12		0x0040
 #define   PHY_RCR2_CDR_SC_12P		0x0010
 #define   PHY_RCR2_CALIB_LATE		0x0002
+#define   PHY_RCR2_INIT_27S		0xC152
 #define PHY_SSCCR3			0x03
 #define   PHY_SSCCR3_STEP_IN		0x2740
 #define   PHY_SSCCR3_CHECK_DELAY	0x0008
@@ -800,12 +803,14 @@
 #define   PHY_ANA1A_RXT_BIST		0x0500
 #define   PHY_ANA1A_TXR_BIST		0x0040
 #define   PHY_ANA1A_REV			0x0006
+#define   PHY_FLD0_INIT_27S		0x2546
 #define PHY_FLD1			0x1B
 #define PHY_FLD2			0x1C
 #define PHY_FLD3			0x1D
 #define   PHY_FLD3_TIMER_4		0x0800
 #define   PHY_FLD3_TIMER_6		0x0020
 #define   PHY_FLD3_RXDELINK		0x0004
+#define   PHY_FLD3_INIT_27S		0x0004
 #define PHY_ANA1D			0x1D
 #define   PHY_ANA1D_DEBUG_ADDR		0x0004
 #define _PHY_FLD0			0x1D
@@ -824,6 +829,7 @@
 #define   PHY_FLD4_BER_COUNT		0x00E0
 #define   PHY_FLD4_BER_TIMER		0x000A
 #define   PHY_FLD4_BER_CHK_EN		0x0001
+#define   PHY_FLD4_INIT_27S		0x5C7F
 #define PHY_DIG1E			0x1E
 #define   PHY_DIG1E_REV			0x4000
 #define   PHY_DIG1E_D0_X_D1		0x1000
@@ -843,6 +849,9 @@
 #define PCR_SETTING_REG3		0x747
 
 #define rtsx_pci_init_cmd(pcr)		((pcr)->ci = 0)
+
+#define RTS5227_DEVICE_ID		0x5227
+#define RTS_MAX_TIMES_FREQ_REDUCTION	8
 
 struct rtsx_pcr;
 
@@ -951,6 +960,8 @@ struct rtsx_pcr {
 
 	int				num_slots;
 	struct rtsx_slot		*slots;
+
+	u8				dma_error_count;
 };
 
 #define CHK_PCI_PID(pcr, pid)		((pcr)->pci->device == (pid))

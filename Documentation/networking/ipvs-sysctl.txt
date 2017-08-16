@@ -157,6 +157,16 @@ expire_quiescent_template - BOOLEAN
 	persistence template if it is to be used to schedule a new
 	connection and the destination server is quiescent.
 
+ignore_tunneled - BOOLEAN
+	0 - disabled (default)
+	not 0 - enabled
+
+	If set, ipvs will set the ipvs_property on all packets which are of
+	unrecognized protocols.  This prevents us from routing tunneled
+	protocols like ipip, which is useful to prevent rescheduling
+	packets that have been tunneled to the ipvs host (i.e. to prevent
+	ipvs routing loops when ipvs is also acting as a real server).
+
 nat_icmp_send - BOOLEAN
         0 - disabled (default)
         not 0 - enabled
@@ -164,6 +174,14 @@ nat_icmp_send - BOOLEAN
         It controls sending icmp error messages (ICMP_DEST_UNREACH)
         for VS/NAT when the load balancer receives packets from real
         servers but the connection entries don't exist.
+
+pmtu_disc - BOOLEAN
+	0 - disabled
+	not 0 - enabled (default)
+
+	By default, reject with FRAG_NEEDED all DF packets that exceed
+	the PMTU, irrespective of the forwarding method. For TUN method
+	the flag can be disabled to fragment such packets.
 
 secure_tcp - INTEGER
         0  - disabled (default)
@@ -175,15 +193,59 @@ secure_tcp - INTEGER
         The value definition is the same as that of drop_entry and
         drop_packet.
 
-sync_threshold - INTEGER
-        default 3
+sync_threshold - vector of 2 INTEGERs: sync_threshold, sync_period
+	default 3 50
 
-        It sets synchronization threshold, which is the minimum number
-        of incoming packets that a connection needs to receive before
-        the connection will be synchronized. A connection will be
-        synchronized, every time the number of its incoming packets
-        modulus 50 equals the threshold. The range of the threshold is
-        from 0 to 49.
+	It sets synchronization threshold, which is the minimum number
+	of incoming packets that a connection needs to receive before
+	the connection will be synchronized. A connection will be
+	synchronized, every time the number of its incoming packets
+	modulus sync_period equals the threshold. The range of the
+	threshold is from 0 to sync_period.
+
+	When sync_period and sync_refresh_period are 0, send sync only
+	for state changes or only once when pkts matches sync_threshold
+
+sync_refresh_period - UNSIGNED INTEGER
+	default 0
+
+	In seconds, difference in reported connection timer that triggers
+	new sync message. It can be used to avoid sync messages for the
+	specified period (or half of the connection timeout if it is lower)
+	if connection state is not changed since last sync.
+
+	This is useful for normal connections with high traffic to reduce
+	sync rate. Additionally, retry sync_retries times with period of
+	sync_refresh_period/8.
+
+sync_retries - INTEGER
+	default 0
+
+	Defines sync retries with period of sync_refresh_period/8. Useful
+	to protect against loss of sync messages. The range of the
+	sync_retries is from 0 to 3.
+
+sync_qlen_max - UNSIGNED LONG
+
+	Hard limit for queued sync messages that are not sent yet. It
+	defaults to 1/32 of the memory pages but actually represents
+	number of messages. It will protect us from allocating large
+	parts of memory when the sending rate is lower than the queuing
+	rate.
+
+sync_sock_size - INTEGER
+	default 0
+
+	Configuration of SNDBUF (master) or RCVBUF (slave) socket limit.
+	Default value is 0 (preserve system defaults).
+
+sync_ports - INTEGER
+	default 1
+
+	The number of threads that master and backup servers can use for
+	sync traffic. Every thread will use single UDP port, thread 0 will
+	use the default port 8848 while last thread will use port
+	8848+sync_ports-1.
 
 snat_reroute - BOOLEAN
 	0 - disabled

@@ -1,9 +1,14 @@
+
+/* NOTE: we really do want to use the kernel headers here */
+#define __EXPORTED_HEADERS__
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
+#include <sys/socket.h>
 
 struct security_class_mapping {
 	const char *name;

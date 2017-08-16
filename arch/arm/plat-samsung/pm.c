@@ -23,14 +23,10 @@
 #include <asm/cacheflush.h>
 #include <asm/suspend.h>
 
-#ifdef CONFIG_SAMSUNG_ATAGS
 #include <mach/map.h>
-#ifndef CONFIG_ARCH_EXYNOS
 #include <mach/regs-clock.h>
 #include <mach/regs-irq.h>
-#endif
 #include <mach/irqs.h>
-#endif
 
 #include <asm/irq.h>
 

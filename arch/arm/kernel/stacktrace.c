@@ -1,5 +1,6 @@
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/stacktrace.h>
 
 #include <asm/stacktrace.h>

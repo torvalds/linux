@@ -120,6 +120,7 @@ struct clk *hisi_register_clkgate_sep(struct device *dev, const char *name,
 	sclk->bit_idx = bit_idx;
 	sclk->flags = clk_gate_flags;
 	sclk->hw.init = &init;
+	sclk->lock = lock;
 
 	clk = clk_register(dev, &sclk->hw);
 	if (IS_ERR(clk))

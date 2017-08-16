@@ -25,6 +25,8 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -788,7 +790,7 @@ static irqreturn_t max1363_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct max1363_state *st = iio_priv(indio_dev);
-	s64 timestamp = iio_get_time_ns();
+	s64 timestamp = iio_get_time_ns(indio_dev);
 	unsigned long mask, loc;
 	u8 rx;
 	u8 tx[2] = { st->setupbyte,
@@ -1005,9 +1007,8 @@ static struct attribute *max1363_event_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group max1363_event_attribute_group = {
+static const struct attribute_group max1363_event_attribute_group = {
 	.attrs = max1363_event_attributes,
-	.name = "events",
 };
 
 static int max1363_update_scan_mode(struct iio_dev *indio_dev,
@@ -1387,7 +1388,7 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 	},
 	[max11644] = {
 		.bits = 12,
-		.int_vref_mv = 2048,
+		.int_vref_mv = 4096,
 		.mode_list = max11644_mode_list,
 		.num_modes = ARRAY_SIZE(max11644_mode_list),
 		.default_mode = s0to1,
@@ -1397,7 +1398,7 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 	},
 	[max11645] = {
 		.bits = 12,
-		.int_vref_mv = 4096,
+		.int_vref_mv = 2048,
 		.mode_list = max11644_mode_list,
 		.num_modes = ARRAY_SIZE(max11644_mode_list),
 		.default_mode = s0to1,
@@ -1407,7 +1408,7 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 	},
 	[max11646] = {
 		.bits = 10,
-		.int_vref_mv = 2048,
+		.int_vref_mv = 4096,
 		.mode_list = max11644_mode_list,
 		.num_modes = ARRAY_SIZE(max11644_mode_list),
 		.default_mode = s0to1,
@@ -1417,7 +1418,7 @@ static const struct max1363_chip_info max1363_chip_info_tbl[] = {
 	},
 	[max11647] = {
 		.bits = 10,
-		.int_vref_mv = 4096,
+		.int_vref_mv = 2048,
 		.mode_list = max11644_mode_list,
 		.num_modes = ARRAY_SIZE(max11644_mode_list),
 		.default_mode = s0to1,
@@ -1507,7 +1508,8 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	if (b_sent < 0)
 		goto done_free;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, rxbuf, iio_get_time_ns());
+	iio_push_to_buffers_with_timestamp(indio_dev, rxbuf,
+					   iio_get_time_ns(indio_dev));
 
 done_free:
 	kfree(rxbuf);
@@ -1517,6 +1519,57 @@ done:
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_OF
+
+#define MAX1363_COMPATIBLE(of_compatible, cfg) {		\
+			.compatible = of_compatible,		\
+			.data = &max1363_chip_info_tbl[cfg],	\
+}
+
+static const struct of_device_id max1363_of_match[] = {
+	MAX1363_COMPATIBLE("maxim,max1361", max1361),
+	MAX1363_COMPATIBLE("maxim,max1362", max1362),
+	MAX1363_COMPATIBLE("maxim,max1363", max1363),
+	MAX1363_COMPATIBLE("maxim,max1364", max1364),
+	MAX1363_COMPATIBLE("maxim,max1036", max1036),
+	MAX1363_COMPATIBLE("maxim,max1037", max1037),
+	MAX1363_COMPATIBLE("maxim,max1038", max1038),
+	MAX1363_COMPATIBLE("maxim,max1039", max1039),
+	MAX1363_COMPATIBLE("maxim,max1136", max1136),
+	MAX1363_COMPATIBLE("maxim,max1137", max1137),
+	MAX1363_COMPATIBLE("maxim,max1138", max1138),
+	MAX1363_COMPATIBLE("maxim,max1139", max1139),
+	MAX1363_COMPATIBLE("maxim,max1236", max1236),
+	MAX1363_COMPATIBLE("maxim,max1237", max1237),
+	MAX1363_COMPATIBLE("maxim,max1238", max1238),
+	MAX1363_COMPATIBLE("maxim,max1239", max1239),
+	MAX1363_COMPATIBLE("maxim,max11600", max11600),
+	MAX1363_COMPATIBLE("maxim,max11601", max11601),
+	MAX1363_COMPATIBLE("maxim,max11602", max11602),
+	MAX1363_COMPATIBLE("maxim,max11603", max11603),
+	MAX1363_COMPATIBLE("maxim,max11604", max11604),
+	MAX1363_COMPATIBLE("maxim,max11605", max11605),
+	MAX1363_COMPATIBLE("maxim,max11606", max11606),
+	MAX1363_COMPATIBLE("maxim,max11607", max11607),
+	MAX1363_COMPATIBLE("maxim,max11608", max11608),
+	MAX1363_COMPATIBLE("maxim,max11609", max11609),
+	MAX1363_COMPATIBLE("maxim,max11610", max11610),
+	MAX1363_COMPATIBLE("maxim,max11611", max11611),
+	MAX1363_COMPATIBLE("maxim,max11612", max11612),
+	MAX1363_COMPATIBLE("maxim,max11613", max11613),
+	MAX1363_COMPATIBLE("maxim,max11614", max11614),
+	MAX1363_COMPATIBLE("maxim,max11615", max11615),
+	MAX1363_COMPATIBLE("maxim,max11616", max11616),
+	MAX1363_COMPATIBLE("maxim,max11617", max11617),
+	MAX1363_COMPATIBLE("maxim,max11644", max11644),
+	MAX1363_COMPATIBLE("maxim,max11645", max11645),
+	MAX1363_COMPATIBLE("maxim,max11646", max11646),
+	MAX1363_COMPATIBLE("maxim,max11647", max11647),
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, max1363_of_match);
+#endif
+
 static int max1363_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1524,6 +1577,7 @@ static int max1363_probe(struct i2c_client *client,
 	struct max1363_state *st;
 	struct iio_dev *indio_dev;
 	struct regulator *vref;
+	const struct of_device_id *match;
 
 	indio_dev = devm_iio_device_alloc(&client->dev,
 					  sizeof(struct max1363_state));
@@ -1550,7 +1604,12 @@ static int max1363_probe(struct i2c_client *client,
 	/* this is only used for device removal purposes */
 	i2c_set_clientdata(client, indio_dev);
 
-	st->chip_info = &max1363_chip_info_tbl[id->driver_data];
+	match = of_match_device(of_match_ptr(max1363_of_match),
+				&client->dev);
+	if (match)
+		st->chip_info = of_device_get_match_data(&client->dev);
+	else
+		st->chip_info = &max1363_chip_info_tbl[id->driver_data];
 	st->client = client;
 
 	st->vref_uv = st->chip_info->int_vref_mv * 1000;
@@ -1588,6 +1647,7 @@ static int max1363_probe(struct i2c_client *client,
 
 	/* Establish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
+	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->name = id->name;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
@@ -1681,6 +1741,10 @@ static const struct i2c_device_id max1363_id[] = {
 	{ "max11615", max11615 },
 	{ "max11616", max11616 },
 	{ "max11617", max11617 },
+	{ "max11644", max11644 },
+	{ "max11645", max11645 },
+	{ "max11646", max11646 },
+	{ "max11647", max11647 },
 	{}
 };
 
@@ -1689,6 +1753,7 @@ MODULE_DEVICE_TABLE(i2c, max1363_id);
 static struct i2c_driver max1363_driver = {
 	.driver = {
 		.name = "max1363",
+		.of_match_table = of_match_ptr(max1363_of_match),
 	},
 	.probe = max1363_probe,
 	.remove = max1363_remove,

@@ -12,10 +12,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
-#include <cpufreq.h>
 
-#include "helpers/helpers.h"
+#include <cpuidle.h>
+
 #include "helpers/sysfs.h"
+#include "helpers/helpers.h"
 #include "helpers/bitmask.h"
 
 #define LINE_LEN 10
@@ -25,9 +26,7 @@ static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 	unsigned int idlestates, idlestate;
 	char *tmp;
 
-	printf(_ ("Analyzing CPU %d:\n"), cpu);
-
-	idlestates = sysfs_get_idlestate_count(cpu);
+	idlestates = cpuidle_state_count(cpu);
 	if (idlestates == 0) {
 		printf(_("CPU %u: No idle states\n"), cpu);
 		return;
@@ -36,7 +35,7 @@ static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 	printf(_("Number of idle states: %d\n"), idlestates);
 	printf(_("Available idle states:"));
 	for (idlestate = 0; idlestate < idlestates; idlestate++) {
-		tmp = sysfs_get_idlestate_name(cpu, idlestate);
+		tmp = cpuidle_state_name(cpu, idlestate);
 		if (!tmp)
 			continue;
 		printf(" %s", tmp);
@@ -48,37 +47,36 @@ static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 		return;
 
 	for (idlestate = 0; idlestate < idlestates; idlestate++) {
-		int disabled = sysfs_is_idlestate_disabled(cpu, idlestate);
+		int disabled = cpuidle_is_state_disabled(cpu, idlestate);
 		/* Disabled interface not supported on older kernels */
 		if (disabled < 0)
 			disabled = 0;
-		tmp = sysfs_get_idlestate_name(cpu, idlestate);
+		tmp = cpuidle_state_name(cpu, idlestate);
 		if (!tmp)
 			continue;
 		printf("%s%s:\n", tmp, (disabled) ? " (DISABLED) " : "");
 		free(tmp);
 
-		tmp = sysfs_get_idlestate_desc(cpu, idlestate);
+		tmp = cpuidle_state_desc(cpu, idlestate);
 		if (!tmp)
 			continue;
 		printf(_("Flags/Description: %s\n"), tmp);
 		free(tmp);
 
 		printf(_("Latency: %lu\n"),
-		       sysfs_get_idlestate_latency(cpu, idlestate));
+		       cpuidle_state_latency(cpu, idlestate));
 		printf(_("Usage: %lu\n"),
-		       sysfs_get_idlestate_usage(cpu, idlestate));
+		       cpuidle_state_usage(cpu, idlestate));
 		printf(_("Duration: %llu\n"),
-		       sysfs_get_idlestate_time(cpu, idlestate));
+		       cpuidle_state_time(cpu, idlestate));
 	}
-	printf("\n");
 }
 
 static void cpuidle_general_output(void)
 {
 	char *tmp;
 
-	tmp = sysfs_get_cpuidle_driver();
+	tmp = cpuidle_get_driver();
 	if (!tmp) {
 		printf(_("Could not determine cpuidle driver\n"));
 		return;
@@ -87,7 +85,7 @@ static void cpuidle_general_output(void)
 	printf(_("CPUidle driver: %s\n"), tmp);
 	free(tmp);
 
-	tmp = sysfs_get_cpuidle_governor();
+	tmp = cpuidle_get_governor();
 	if (!tmp) {
 		printf(_("Could not determine cpuidle governor\n"));
 		return;
@@ -102,7 +100,7 @@ static void proc_cpuidle_cpu_output(unsigned int cpu)
 	long max_allowed_cstate = 2000000000;
 	unsigned int cstate, cstates;
 
-	cstates = sysfs_get_idlestate_count(cpu);
+	cstates = cpuidle_state_count(cpu);
 	if (cstates == 0) {
 		printf(_("CPU %u: No C-states info\n"), cpu);
 		return;
@@ -117,17 +115,17 @@ static void proc_cpuidle_cpu_output(unsigned int cpu)
 			 "type[C%d] "), cstate, cstate);
 		printf(_("promotion[--] demotion[--] "));
 		printf(_("latency[%03lu] "),
-		       sysfs_get_idlestate_latency(cpu, cstate));
+		       cpuidle_state_latency(cpu, cstate));
 		printf(_("usage[%08lu] "),
-		       sysfs_get_idlestate_usage(cpu, cstate));
+		       cpuidle_state_usage(cpu, cstate));
 		printf(_("duration[%020Lu] \n"),
-		       sysfs_get_idlestate_time(cpu, cstate));
+		       cpuidle_state_time(cpu, cstate));
 	}
 }
 
 static struct option info_opts[] = {
-	{ .name = "silent",	.has_arg = no_argument,	.flag = NULL,	.val = 's'},
-	{ .name = "proc",	.has_arg = no_argument,	.flag = NULL,	.val = 'o'},
+	{"silent", no_argument, NULL, 's'},
+	{"proc", no_argument, NULL, 'o'},
 	{ },
 };
 
@@ -189,9 +187,16 @@ int cmd_idle_info(int argc, char **argv)
 	for (cpu = bitmask_first(cpus_chosen);
 	     cpu <= bitmask_last(cpus_chosen); cpu++) {
 
-		if (!bitmask_isbitset(cpus_chosen, cpu) ||
-		    cpufreq_cpu_exists(cpu))
+		if (!bitmask_isbitset(cpus_chosen, cpu))
 			continue;
+
+		printf(_("analyzing CPU %d:\n"), cpu);
+
+		if (sysfs_is_cpu_online(cpu) != 1) {
+			printf(_(" *is offline\n"));
+			printf("\n");
+			continue;
+		}
 
 		switch (output_param) {
 
@@ -203,6 +208,7 @@ int cmd_idle_info(int argc, char **argv)
 			cpuidle_cpu_output(cpu, verbose);
 			break;
 		}
+		printf("\n");
 	}
 	return EXIT_SUCCESS;
 }

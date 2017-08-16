@@ -10,7 +10,7 @@
  */
 
 
-#include <mpc5121.dtsi>
+#include "mpc5121.dtsi"
 
 / {
 	model = "ac14xx";
@@ -231,7 +231,7 @@
 			};
 
 			rtc@68 {
-				compatible = "stm,m41t00";
+				compatible = "st,m41t00";
 				reg = <0x68>;
 			};
 		};

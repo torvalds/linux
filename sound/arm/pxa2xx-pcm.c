@@ -46,17 +46,13 @@ static int pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 
 	rtd->params = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
 		      client->playback_params : client->capture_params;
-	ret = pxa_request_dma("dma", DMA_PRIO_LOW,
-			      pxa2xx_pcm_dma_irq, substream);
-	if (ret < 0)
-		goto err2;
-	rtd->dma_ch = ret;
 
 	ret = client->startup(substream);
 	if (!ret)
-		goto out;
+		goto err2;
 
-	pxa_free_dma(rtd->dma_ch);
+	return 0;
+
  err2:
 	__pxa2xx_pcm_close(substream);
  out:
@@ -66,9 +62,7 @@ static int pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 static int pxa2xx_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct pxa2xx_pcm_client *client = substream->private_data;
-	struct pxa2xx_runtime_data *rtd = substream->runtime->private_data;
 
-	pxa_free_dma(rtd->dma_ch);
 	client->shutdown(substream);
 
 	return __pxa2xx_pcm_close(substream);

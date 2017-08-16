@@ -41,38 +41,36 @@
  */
 
 /* BR -> actual ratio: 0-3 -> 5, 10, 11, 13 */
-static unsigned ratio = 2;
-module_param(ratio, uint, 0);
+static unsigned int ratio = 2;
+module_param(ratio, uint, 0000);
 MODULE_PARM_DESC(ratio, "BR[1:0] Bias voltage ratio: 0-3 (default: 2)");
 
-static unsigned gain = 3;
-module_param(gain, uint, 0);
+static unsigned int gain = 3;
+module_param(gain, uint, 0000);
 MODULE_PARM_DESC(gain, "GN[1:0] Bias voltage gain: 0-3 (default: 3)");
 
-static unsigned pot = 16;
-module_param(pot, uint, 0);
+static unsigned int pot = 16;
+module_param(pot, uint, 0000);
 MODULE_PARM_DESC(pot, "PM[6:0] Bias voltage pot.: 0-63 (default: 16)");
 
 /* TC -> % compensation per deg C: 0-3 -> -.05, -.10, -.015, -.20 */
-static unsigned temp;
-module_param(temp, uint, 0);
+static unsigned int temp;
+module_param(temp, uint, 0000);
 MODULE_PARM_DESC(temp, "TC[1:0] Temperature compensation: 0-3 (default: 0)");
 
 /* PC[1:0] -> LCD capacitance: 0-3 -> <20nF, 20-28 nF, 29-40 nF, 40-56 nF */
-static unsigned load = 1;
-module_param(load, uint, 0);
+static unsigned int load = 1;
+module_param(load, uint, 0000);
 MODULE_PARM_DESC(load, "PC[1:0] Panel Loading: 0-3 (default: 1)");
 
 /* PC[3:2] -> V_LCD: 0, 1, 3 -> ext., int. with ratio = 5, int. standard */
-static unsigned pump = 3;
-module_param(pump, uint, 0);
+static unsigned int pump = 3;
+module_param(pump, uint, 0000);
 MODULE_PARM_DESC(pump, "PC[3:2] Pump control: 0,1,3 (default: 3)");
 
 static int init_display(struct fbtft_par *par)
 {
 	int ret;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	/* Set CS active high */
 	par->spi->mode |= SPI_CS_HIGH;
@@ -115,10 +113,6 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		      "%s(xs=%d, ys=%d, xe=%d, ye=%d)\n",
-		      __func__, xs, ys, xe, ye);
-
 	switch (par->info->var.rotate) {
 	case 90:
 	case 270:
@@ -156,8 +150,6 @@ static int blank(struct fbtft_par *par, bool on)
 
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* par->info->fix.visual = FB_VISUAL_PSEUDOCOLOR; */
 	par->info->var.grayscale = 1;
 	par->info->var.red.offset    = 0;
@@ -229,16 +221,14 @@ static int set_var(struct fbtft_par *par)
 
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
-	u8 *vmem8 = (u8 *)(par->info->screen_base);
-	u8 *buf8 = (u8 *)(par->txbuf.buf);
-	u16 *buf16 = (u16 *)(par->txbuf.buf);
+	u8 *vmem8 = (u8 *)(par->info->screen_buffer);
+	u8 *buf8 = par->txbuf.buf;
+	u16 *buf16 = par->txbuf.buf;
 	int line_length = par->info->fix.line_length;
 	int y_start = (offset / line_length);
 	int y_end = (offset + len - 1) / line_length;
 	int x, y, i;
 	int ret = 0;
-
-	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
 
 	switch (par->pdata->display.buswidth) {
 	case 8:

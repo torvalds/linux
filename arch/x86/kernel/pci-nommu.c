@@ -11,6 +11,8 @@
 #include <asm/iommu.h>
 #include <asm/dma.h>
 
+#define NOMMU_MAPPING_ERROR		0
+
 static int
 check_addr(char *name, struct device *hwdev, dma_addr_t bus, size_t size)
 {
@@ -28,12 +30,12 @@ check_addr(char *name, struct device *hwdev, dma_addr_t bus, size_t size)
 static dma_addr_t nommu_map_page(struct device *dev, struct page *page,
 				 unsigned long offset, size_t size,
 				 enum dma_data_direction dir,
-				 struct dma_attrs *attrs)
+				 unsigned long attrs)
 {
 	dma_addr_t bus = page_to_phys(page) + offset;
 	WARN_ON(size == 0);
 	if (!check_addr("map_single", dev, bus, size))
-		return DMA_ERROR_CODE;
+		return NOMMU_MAPPING_ERROR;
 	flush_write_buffers();
 	return bus;
 }
@@ -55,7 +57,7 @@ static dma_addr_t nommu_map_page(struct device *dev, struct page *page,
  */
 static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
 			int nents, enum dma_data_direction dir,
-			struct dma_attrs *attrs)
+			unsigned long attrs)
 {
 	struct scatterlist *s;
 	int i;
@@ -88,7 +90,12 @@ static void nommu_sync_sg_for_device(struct device *dev,
 	flush_write_buffers();
 }
 
-struct dma_map_ops nommu_dma_ops = {
+static int nommu_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return dma_addr == NOMMU_MAPPING_ERROR;
+}
+
+const struct dma_map_ops nommu_dma_ops = {
 	.alloc			= dma_generic_alloc_coherent,
 	.free			= dma_generic_free_coherent,
 	.map_sg			= nommu_map_sg,
@@ -96,4 +103,6 @@ struct dma_map_ops nommu_dma_ops = {
 	.sync_single_for_device = nommu_sync_single_for_device,
 	.sync_sg_for_device	= nommu_sync_sg_for_device,
 	.is_phys		= 1,
+	.mapping_error		= nommu_mapping_error,
+	.dma_supported		= x86_dma_supported,
 };

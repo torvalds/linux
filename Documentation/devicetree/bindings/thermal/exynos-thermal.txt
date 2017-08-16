@@ -11,6 +11,7 @@
 	       "samsung,exynos5420-tmu" for TMU channel 0, 1 on Exynos5420
 	       "samsung,exynos5420-tmu-ext-triminfo" for TMU channels 2, 3 and 4
 			Exynos5420 (Must pass triminfo base and triminfo clock)
+               "samsung,exynos5433-tmu"
 	       "samsung,exynos5440-tmu"
 	       "samsung,exynos7-tmu"
 - interrupt-parent : The phandle for the interrupt controller
@@ -40,9 +41,14 @@
 		for current TMU channel
 	-- "tmu_sclk" clock for functional operation of the current TMU
 		channel
-- vtmu-supply: This entry is optional and provides the regulator node supplying
-		voltage to TMU. If needed this entry can be placed inside
-		board/platform specific dts file.
+
+The Exynos TMU supports generating interrupts when reaching given
+temperature thresholds. Number of supported thermal trip points depends
+on the SoC (only first trip points defined in DT will be configured):
+ - most of SoC: 4
+ - samsung,exynos5433-tmu: 8
+ - samsung,exynos7-tmu: 8
+
 Following properties are mandatory (depending on SoC):
 - samsung,tmu_gain: Gain value for internal TMU operation.
 - samsung,tmu_reference_voltage: Value of TMU IP block's reference voltage
@@ -55,6 +61,12 @@ Following properties are mandatory (depending on SoC):
 - samsung,tmu_second_point_trim: Second point trimming value
 - samsung,tmu_default_temp_offset: Default temperature offset
 - samsung,tmu_cal_type: Callibration type
+
+** Optional properties:
+
+- vtmu-supply: This entry is optional and provides the regulator node supplying
+		voltage to TMU. If needed this entry can be placed inside
+		board/platform specific dts file.
 
 Example 1):
 

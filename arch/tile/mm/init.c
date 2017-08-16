@@ -190,9 +190,9 @@ static void __init page_table_range_init(unsigned long start,
 
 static int __initdata ktext_hash = 1;  /* .text pages */
 static int __initdata kdata_hash = 1;  /* .data and .bss pages */
-int __write_once hash_default = 1;     /* kernel allocator pages */
+int __ro_after_init hash_default = 1;     /* kernel allocator pages */
 EXPORT_SYMBOL(hash_default);
-int __write_once kstack_hash = 1;      /* if no homecaching, use h4h */
+int __ro_after_init kstack_hash = 1;      /* if no homecaching, use h4h */
 
 /*
  * CPUs to use to for striping the pages of kernel data.  If hash-for-home
@@ -203,7 +203,7 @@ int __write_once kstack_hash = 1;      /* if no homecaching, use h4h */
 static __initdata struct cpumask kdata_mask;
 static __initdata int kdata_arg_seen;
 
-int __write_once kdata_huge;       /* if no homecaching, small pages */
+int __ro_after_init kdata_huge;       /* if no homecaching, small pages */
 
 
 /* Combine a generic pgprot_t with cache home to get a cache-aware pgprot. */
@@ -679,7 +679,7 @@ static void __init init_free_pfn_range(unsigned long start, unsigned long end)
 			 * Hacky direct set to avoid unnecessary
 			 * lock take/release for EVERY page here.
 			 */
-			p->_count.counter = 0;
+			p->_refcount.counter = 0;
 			p->_mapcount.counter = -1;
 		}
 		init_page_count(page);
@@ -857,36 +857,6 @@ void __init mem_init(void)
 #endif
 }
 
-/*
- * this is for the non-NUMA, single node SMP system case.
- * Specifically, in the case of x86, we will always add
- * memory to the highmem for now.
- */
-#ifndef CONFIG_NEED_MULTIPLE_NODES
-int arch_add_memory(u64 start, u64 size, bool for_device)
-{
-	struct pglist_data *pgdata = &contig_page_data;
-	struct zone *zone = pgdata->node_zones + MAX_NR_ZONES-1;
-	unsigned long start_pfn = start >> PAGE_SHIFT;
-	unsigned long nr_pages = size >> PAGE_SHIFT;
-
-	return __add_pages(zone, start_pfn, nr_pages);
-}
-
-int remove_memory(u64 start, u64 size)
-{
-	return -EINVAL;
-}
-
-#ifdef CONFIG_MEMORY_HOTREMOVE
-int arch_remove_memory(u64 start, u64 size)
-{
-	/* TODO */
-	return -EBUSY;
-}
-#endif
-#endif
-
 struct kmem_cache *pgd_cache;
 
 void __init pgtable_cache_init(void)
@@ -896,17 +866,15 @@ void __init pgtable_cache_init(void)
 		panic("pgtable_cache_init(): Cannot create pgd cache");
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-static long __write_once initfree;
-#else
-static long __write_once initfree = 1;
-#endif
+static long __ro_after_init initfree = 1;
+static bool __ro_after_init set_initfree_done;
 
 /* Select whether to free (1) or mark unusable (0) the __init pages. */
 static int __init set_initfree(char *str)
 {
 	long val;
 	if (kstrtol(str, 0, &val) == 0) {
+		set_initfree_done = true;
 		initfree = val;
 		pr_info("initfree: %s free init pages\n",
 			initfree ? "will" : "won't");
@@ -919,6 +887,11 @@ static void free_init_pages(char *what, unsigned long begin, unsigned long end)
 {
 	unsigned long addr = (unsigned long) begin;
 
+	/* Prefer user request first */
+	if (!set_initfree_done) {
+		if (debug_pagealloc_enabled())
+			initfree = 0;
+	}
 	if (kdata_huge && !initfree) {
 		pr_warn("Warning: ignoring initfree=0: incompatible with kdata=huge\n");
 		initfree = 1;

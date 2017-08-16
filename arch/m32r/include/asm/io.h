@@ -168,12 +168,20 @@ static inline void _writel(unsigned long l, unsigned long addr)
 #define writew_relaxed writew
 #define writel_relaxed writel
 
-#define ioread8 read
+#define ioread8 readb
 #define ioread16 readw
 #define ioread32 readl
 #define iowrite8 writeb
 #define iowrite16 writew
 #define iowrite32 writel
+
+#define ioread8_rep(p, dst, count) insb((unsigned long)(p), (dst), (count))
+#define ioread16_rep(p, dst, count) insw((unsigned long)(p), (dst), (count))
+#define ioread32_rep(p, dst, count) insl((unsigned long)(p), (dst), (count))
+
+#define iowrite8_rep(p, src, count) outsb((unsigned long)(p), (src), (count))
+#define iowrite16_rep(p, src, count) outsw((unsigned long)(p), (src), (count))
+#define iowrite32_rep(p, src, count) outsl((unsigned long)(p), (src), (count))
 
 #define ioread16be(addr)	be16_to_cpu(readw(addr))
 #define ioread32be(addr)	be32_to_cpu(readl(addr))

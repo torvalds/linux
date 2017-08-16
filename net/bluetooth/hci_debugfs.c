@@ -76,6 +76,30 @@ static const struct file_operations __name ## _fops = {			      \
 	.llseek		= default_llseek,				      \
 }									      \
 
+#define DEFINE_INFO_ATTRIBUTE(__name, __field)				      \
+static int __name ## _show(struct seq_file *f, void *ptr)		      \
+{									      \
+	struct hci_dev *hdev = f->private;				      \
+									      \
+	hci_dev_lock(hdev);						      \
+	seq_printf(f, "%s\n", hdev->__field ? : "");			      \
+	hci_dev_unlock(hdev);						      \
+									      \
+	return 0;							      \
+}									      \
+									      \
+static int __name ## _open(struct inode *inode, struct file *file)	      \
+{									      \
+	return single_open(file, __name ## _show, inode->i_private);	      \
+}									      \
+									      \
+static const struct file_operations __name ## _fops = {			      \
+	.open		= __name ## _open,				      \
+	.read		= seq_read,					      \
+	.llseek		= seq_lseek,					      \
+	.release	= single_release,				      \
+}									      \
+
 static int features_show(struct seq_file *f, void *ptr)
 {
 	struct hci_dev *hdev = f->private;
@@ -349,6 +373,9 @@ static const struct file_operations sc_only_mode_fops = {
 	.llseek		= default_llseek,
 };
 
+DEFINE_INFO_ATTRIBUTE(hardware_info, hw_info);
+DEFINE_INFO_ATTRIBUTE(firmware_info, fw_info);
+
 void hci_debugfs_create_common(struct hci_dev *hdev)
 {
 	debugfs_create_file("features", 0444, hdev->debugfs, hdev,
@@ -382,6 +409,14 @@ void hci_debugfs_create_common(struct hci_dev *hdev)
 	if (lmp_sc_capable(hdev) || lmp_le_capable(hdev))
 		debugfs_create_file("sc_only_mode", 0444, hdev->debugfs,
 				    hdev, &sc_only_mode_fops);
+
+	if (hdev->hw_info)
+		debugfs_create_file("hardware_info", 0444, hdev->debugfs,
+				    hdev, &hardware_info_fops);
+
+	if (hdev->fw_info)
+		debugfs_create_file("firmware_info", 0444, hdev->debugfs,
+				    hdev, &firmware_info_fops);
 }
 
 static int inquiry_cache_show(struct seq_file *f, void *p)

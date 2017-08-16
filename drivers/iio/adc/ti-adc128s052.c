@@ -1,10 +1,11 @@
 /*
  * Copyright (C) 2014 Angelo Compagnucci <angelo.compagnucci@gmail.com>
  *
- * Driver for Texas Instruments' ADC128S052 and ADC122S021 ADC chip.
+ * Driver for Texas Instruments' ADC128S052, ADC122S021 and ADC124S021 ADC chip.
  * Datasheets can be found here:
  * http://www.ti.com/lit/ds/symlink/adc128s052.pdf
  * http://www.ti.com/lit/ds/symlink/adc122s021.pdf
+ * http://www.ti.com/lit/ds/symlink/adc124s021.pdf
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -114,9 +115,17 @@ static const struct iio_chan_spec adc122s021_channels[] = {
 	ADC128_VOLTAGE_CHANNEL(1),
 };
 
+static const struct iio_chan_spec adc124s021_channels[] = {
+	ADC128_VOLTAGE_CHANNEL(0),
+	ADC128_VOLTAGE_CHANNEL(1),
+	ADC128_VOLTAGE_CHANNEL(2),
+	ADC128_VOLTAGE_CHANNEL(3),
+};
+
 static const struct adc128_configuration adc128_config[] = {
 	{ adc128s052_channels, ARRAY_SIZE(adc128s052_channels) },
 	{ adc122s021_channels, ARRAY_SIZE(adc122s021_channels) },
+	{ adc124s021_channels, ARRAY_SIZE(adc124s021_channels) },
 };
 
 static const struct iio_info adc128_info = {
@@ -141,6 +150,7 @@ static int adc128_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->dev.parent = &spi->dev;
+	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &adc128_info;
@@ -174,9 +184,18 @@ static int adc128_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id adc128_of_match[] = {
+	{ .compatible = "ti,adc128s052", },
+	{ .compatible = "ti,adc122s021", },
+	{ .compatible = "ti,adc124s021", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, adc128_of_match);
+
 static const struct spi_device_id adc128_id[] = {
 	{ "adc128s052", 0},	/* index into adc128_config */
 	{ "adc122s021",	1},
+	{ "adc124s021", 2},
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, adc128_id);
@@ -184,7 +203,7 @@ MODULE_DEVICE_TABLE(spi, adc128_id);
 static struct spi_driver adc128_driver = {
 	.driver = {
 		.name = "adc128s052",
-		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(adc128_of_match),
 	},
 	.probe = adc128_probe,
 	.remove = adc128_remove,

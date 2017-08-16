@@ -13,8 +13,8 @@
 #include "imx28-m28.dtsi"
 
 / {
-	model = "DENX M28EVK";
-	compatible = "denx,m28evk", "fsl,imx28";
+	model = "Aries/DENX M28EVK";
+	compatible = "aries,m28evk", "denx,m28evk", "fsl,imx28";
 
 	apb@80000000 {
 		apbh@80000000 {
@@ -41,7 +41,7 @@
 				flash: m25p80@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "m25p80";
+					compatible = "m25p80", "jedec,spi-nor";
 					spi-max-frequency = <40000000>;
 					reg = <0>;
 				};

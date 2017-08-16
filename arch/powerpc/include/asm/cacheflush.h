@@ -11,6 +11,7 @@
 
 #include <linux/mm.h>
 #include <asm/cputable.h>
+#include <asm/cpu_has_feature.h>
 
 /*
  * No cache flushing is required when address mappings are changed,
@@ -30,8 +31,6 @@ extern void flush_dcache_page(struct page *page);
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
-extern void __flush_disable_L1(void);
-
 extern void flush_icache_range(unsigned long, unsigned long);
 extern void flush_icache_user_range(struct vm_area_struct *vma,
 				    struct page *page, unsigned long addr,
@@ -47,12 +46,58 @@ static inline void __flush_dcache_icache_phys(unsigned long physaddr)
 }
 #endif
 
-extern void flush_dcache_range(unsigned long start, unsigned long stop);
 #ifdef CONFIG_PPC32
-extern void clean_dcache_range(unsigned long start, unsigned long stop);
-extern void invalidate_dcache_range(unsigned long start, unsigned long stop);
+/*
+ * Write any modified data cache blocks out to memory and invalidate them.
+ * Does not invalidate the corresponding instruction cache blocks.
+ */
+static inline void flush_dcache_range(unsigned long start, unsigned long stop)
+{
+	void *addr = (void *)(start & ~(L1_CACHE_BYTES - 1));
+	unsigned long size = stop - (unsigned long)addr + (L1_CACHE_BYTES - 1);
+	unsigned long i;
+
+	for (i = 0; i < size >> L1_CACHE_SHIFT; i++, addr += L1_CACHE_BYTES)
+		dcbf(addr);
+	mb();	/* sync */
+}
+
+/*
+ * Write any modified data cache blocks out to memory.
+ * Does not invalidate the corresponding cache lines (especially for
+ * any corresponding instruction cache).
+ */
+static inline void clean_dcache_range(unsigned long start, unsigned long stop)
+{
+	void *addr = (void *)(start & ~(L1_CACHE_BYTES - 1));
+	unsigned long size = stop - (unsigned long)addr + (L1_CACHE_BYTES - 1);
+	unsigned long i;
+
+	for (i = 0; i < size >> L1_CACHE_SHIFT; i++, addr += L1_CACHE_BYTES)
+		dcbst(addr);
+	mb();	/* sync */
+}
+
+/*
+ * Like above, but invalidate the D-cache.  This is used by the 8xx
+ * to invalidate the cache so the PPC core doesn't get stale data
+ * from the CPM (no cache snooping here :-).
+ */
+static inline void invalidate_dcache_range(unsigned long start,
+					   unsigned long stop)
+{
+	void *addr = (void *)(start & ~(L1_CACHE_BYTES - 1));
+	unsigned long size = stop - (unsigned long)addr + (L1_CACHE_BYTES - 1);
+	unsigned long i;
+
+	for (i = 0; i < size >> L1_CACHE_SHIFT; i++, addr += L1_CACHE_BYTES)
+		dcbi(addr);
+	mb();	/* sync */
+}
+
 #endif /* CONFIG_PPC32 */
 #ifdef CONFIG_PPC64
+extern void flush_dcache_range(unsigned long start, unsigned long stop);
 extern void flush_inval_dcache_range(unsigned long start, unsigned long stop);
 extern void flush_dcache_phys_range(unsigned long start, unsigned long stop);
 #endif

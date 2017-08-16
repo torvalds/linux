@@ -35,7 +35,7 @@ static const struct drm_framebuffer_funcs armada_fb_funcs = {
 };
 
 struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
-	struct drm_mode_fb_cmd2 *mode, struct armada_gem_object *obj)
+	const struct drm_mode_fb_cmd2 *mode, struct armada_gem_object *obj)
 {
 	struct armada_framebuffer *dfb;
 	uint8_t format, config;
@@ -81,7 +81,7 @@ struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
 	dfb->mod = config;
 	dfb->obj = obj;
 
-	drm_helper_mode_fill_fb_struct(&dfb->fb, mode);
+	drm_helper_mode_fill_fb_struct(dev, &dfb->fb, mode);
 
 	ret = drm_framebuffer_init(dev, &dfb->fb, &armada_fb_funcs);
 	if (ret) {
@@ -101,7 +101,7 @@ struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
 }
 
 static struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
-	struct drm_file *dfile, struct drm_mode_fb_cmd2 *mode)
+	struct drm_file *dfile, const struct drm_mode_fb_cmd2 *mode)
 {
 	struct armada_gem_object *obj;
 	struct armada_framebuffer *dfb;
@@ -120,7 +120,7 @@ static struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 		goto err;
 	}
 
-	obj = armada_gem_object_lookup(dev, dfile, mode->handles[0]);
+	obj = armada_gem_object_lookup(dfile, mode->handles[0]);
 	if (!obj) {
 		ret = -ENOENT;
 		goto err;
@@ -133,7 +133,7 @@ static struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 	}
 
 	/* Framebuffer objects must have a valid device address for scanout */
-	if (obj->dev_addr == DMA_ERROR_CODE) {
+	if (!obj->mapped) {
 		ret = -EINVAL;
 		goto err_unref;
 	}

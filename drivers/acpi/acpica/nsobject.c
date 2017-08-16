@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -399,7 +399,7 @@ acpi_ns_attach_data(struct acpi_namespace_node *node,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_detach_data(struct acpi_namespace_node * node,
+acpi_ns_detach_data(struct acpi_namespace_node *node,
 		    acpi_object_handler handler)
 {
 	union acpi_operand_object *obj_desc;
@@ -444,7 +444,7 @@ acpi_ns_detach_data(struct acpi_namespace_node * node,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_get_attached_data(struct acpi_namespace_node * node,
+acpi_ns_get_attached_data(struct acpi_namespace_node *node,
 			  acpi_object_handler handler, void **data)
 {
 	union acpi_operand_object *obj_desc;

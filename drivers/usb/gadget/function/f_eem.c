@@ -195,11 +195,8 @@ static int eem_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		goto fail;
 
 	if (intf == eem->ctrl_id) {
-
-		if (eem->port.in_ep->driver_data) {
-			DBG(cdev, "reset eem\n");
-			gether_disconnect(&eem->port);
-		}
+		DBG(cdev, "reset eem\n");
+		gether_disconnect(&eem->port);
 
 		if (!eem->port.in_ep->desc || !eem->port.out_ep->desc) {
 			DBG(cdev, "init eem\n");
@@ -237,7 +234,7 @@ static void eem_disable(struct usb_function *f)
 
 	DBG(cdev, "eem deactivated\n");
 
-	if (eem->port.in_ep->driver_data)
+	if (eem->port.in_ep->enabled)
 		gether_disconnect(&eem->port);
 }
 
@@ -293,13 +290,11 @@ static int eem_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!ep)
 		goto fail;
 	eem->port.in_ep = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	ep = usb_ep_autoconfig(cdev->gadget, &eem_fs_out_desc);
 	if (!ep)
 		goto fail;
 	eem->port.out_ep = ep;
-	ep->driver_data = cdev;	/* claim */
 
 	status = -ENOMEM;
 
@@ -314,7 +309,7 @@ static int eem_bind(struct usb_configuration *c, struct usb_function *f)
 	eem_ss_out_desc.bEndpointAddress = eem_fs_out_desc.bEndpointAddress;
 
 	status = usb_assign_descriptors(f, eem_fs_function, eem_hs_function,
-			eem_ss_function);
+			eem_ss_function, NULL);
 	if (status)
 		goto fail;
 
@@ -325,11 +320,6 @@ static int eem_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	if (eem->port.out_ep)
-		eem->port.out_ep->driver_data = NULL;
-	if (eem->port.in_ep)
-		eem->port.in_ep->driver_data = NULL;
-
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
 
 	return status;
@@ -351,11 +341,15 @@ static struct sk_buff *eem_wrap(struct gether *port, struct sk_buff *skb)
 {
 	struct sk_buff	*skb2 = NULL;
 	struct usb_ep	*in = port->in_ep;
-	int		padlen = 0;
-	u16		len = skb->len;
+	int		headroom, tailroom, padlen = 0;
+	u16		len;
 
-	int headroom = skb_headroom(skb);
-	int tailroom = skb_tailroom(skb);
+	if (!skb)
+		return NULL;
+
+	len = skb->len;
+	headroom = skb_headroom(skb);
+	tailroom = skb_tailroom(skb);
 
 	/* When (len + EEM_HLEN + ETH_FCS_LEN) % in->maxpacket) is 0,
 	 * stick two bytes of zero-length EEM packet on the end.
@@ -555,10 +549,10 @@ USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(eem);
 USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(eem);
 
 static struct configfs_attribute *eem_attrs[] = {
-	&f_eem_opts_dev_addr.attr,
-	&f_eem_opts_host_addr.attr,
-	&f_eem_opts_qmult.attr,
-	&f_eem_opts_ifname.attr,
+	&eem_opts_attr_dev_addr,
+	&eem_opts_attr_host_addr,
+	&eem_opts_attr_qmult,
+	&eem_opts_attr_ifname,
 	NULL,
 };
 

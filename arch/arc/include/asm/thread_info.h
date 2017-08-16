@@ -103,7 +103,7 @@ static inline __attribute_const__ struct thread_info *current_thread_info(void)
 
 /*
  * _TIF_ALLWORK_MASK includes SYSCALL_TRACE, but we don't need it.
- * SYSCALL_TRACE is anways seperately/unconditionally tested right after a
+ * SYSCALL_TRACE is anyway seperately/unconditionally tested right after a
  * syscall, so all that reamins to be tested is _TIF_WORK_MASK
  */
 

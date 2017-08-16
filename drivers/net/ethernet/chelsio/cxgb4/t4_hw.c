@@ -1,7 +1,7 @@
 /*
  * This file is part of the Chelsio T4 Ethernet driver for Linux.
  *
- * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
+ * Copyright (c) 2003-2016 Chelsio Communications, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -224,18 +224,34 @@ static void fw_asrt(struct adapter *adap, u32 mbox_addr)
 		  be32_to_cpu(asrt.u.assert.x), be32_to_cpu(asrt.u.assert.y));
 }
 
-static void dump_mbox(struct adapter *adap, int mbox, u32 data_reg)
+/**
+ *	t4_record_mbox - record a Firmware Mailbox Command/Reply in the log
+ *	@adapter: the adapter
+ *	@cmd: the Firmware Mailbox Command or Reply
+ *	@size: command length in bytes
+ *	@access: the time (ms) needed to access the Firmware Mailbox
+ *	@execute: the time (ms) the command spent being executed
+ */
+static void t4_record_mbox(struct adapter *adapter,
+			   const __be64 *cmd, unsigned int size,
+			   int access, int execute)
 {
-	dev_err(adap->pdev_dev,
-		"mbox %d: %llx %llx %llx %llx %llx %llx %llx %llx\n", mbox,
-		(unsigned long long)t4_read_reg64(adap, data_reg),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 8),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 16),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 24),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 32),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 40),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 48),
-		(unsigned long long)t4_read_reg64(adap, data_reg + 56));
+	struct mbox_cmd_log *log = adapter->mbox_log;
+	struct mbox_cmd *entry;
+	int i;
+
+	entry = mbox_cmd_log_entry(log, log->cursor++);
+	if (log->cursor == log->size)
+		log->cursor = 0;
+
+	for (i = 0; i < size / 8; i++)
+		entry->cmd[i] = be64_to_cpu(cmd[i]);
+	while (i < MBOX_LEN / 8)
+		entry->cmd[i++] = 0;
+	entry->timestamp = jiffies;
+	entry->seqno = log->seqno++;
+	entry->access = access;
+	entry->execute = execute;
 }
 
 /**
@@ -268,12 +284,17 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 		1, 1, 3, 5, 10, 10, 20, 50, 100, 200
 	};
 
+	struct mbox_list entry;
+	u16 access = 0;
+	u16 execute = 0;
 	u32 v;
 	u64 res;
-	int i, ms, delay_idx;
+	int i, ms, delay_idx, ret;
 	const __be64 *p = cmd;
 	u32 data_reg = PF_REG(mbox, CIM_PF_MAILBOX_DATA_A);
 	u32 ctl_reg = PF_REG(mbox, CIM_PF_MAILBOX_CTRL_A);
+	__be64 cmd_rpl[MBOX_LEN / 8];
+	u32 pcie_fw;
 
 	if ((size & 15) || size > MBOX_LEN)
 		return -EINVAL;
@@ -285,13 +306,75 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	if (adap->pdev->error_state != pci_channel_io_normal)
 		return -EIO;
 
+	/* If we have a negative timeout, that implies that we can't sleep. */
+	if (timeout < 0) {
+		sleep_ok = false;
+		timeout = -timeout;
+	}
+
+	/* Queue ourselves onto the mailbox access list.  When our entry is at
+	 * the front of the list, we have rights to access the mailbox.  So we
+	 * wait [for a while] till we're at the front [or bail out with an
+	 * EBUSY] ...
+	 */
+	spin_lock(&adap->mbox_lock);
+	list_add_tail(&entry.list, &adap->mlist.list);
+	spin_unlock(&adap->mbox_lock);
+
+	delay_idx = 0;
+	ms = delay[0];
+
+	for (i = 0; ; i += ms) {
+		/* If we've waited too long, return a busy indication.  This
+		 * really ought to be based on our initial position in the
+		 * mailbox access list but this is a start.  We very rearely
+		 * contend on access to the mailbox ...
+		 */
+		pcie_fw = t4_read_reg(adap, PCIE_FW_A);
+		if (i > FW_CMD_MAX_TIMEOUT || (pcie_fw & PCIE_FW_ERR_F)) {
+			spin_lock(&adap->mbox_lock);
+			list_del(&entry.list);
+			spin_unlock(&adap->mbox_lock);
+			ret = (pcie_fw & PCIE_FW_ERR_F) ? -ENXIO : -EBUSY;
+			t4_record_mbox(adap, cmd, size, access, ret);
+			return ret;
+		}
+
+		/* If we're at the head, break out and start the mailbox
+		 * protocol.
+		 */
+		if (list_first_entry(&adap->mlist.list, struct mbox_list,
+				     list) == &entry)
+			break;
+
+		/* Delay for a bit before checking again ... */
+		if (sleep_ok) {
+			ms = delay[delay_idx];  /* last element may repeat */
+			if (delay_idx < ARRAY_SIZE(delay) - 1)
+				delay_idx++;
+			msleep(ms);
+		} else {
+			mdelay(ms);
+		}
+	}
+
+	/* Loop trying to get ownership of the mailbox.  Return an error
+	 * if we can't gain ownership.
+	 */
 	v = MBOWNER_G(t4_read_reg(adap, ctl_reg));
 	for (i = 0; v == MBOX_OWNER_NONE && i < 3; i++)
 		v = MBOWNER_G(t4_read_reg(adap, ctl_reg));
+	if (v != MBOX_OWNER_DRV) {
+		spin_lock(&adap->mbox_lock);
+		list_del(&entry.list);
+		spin_unlock(&adap->mbox_lock);
+		ret = (v == MBOX_OWNER_FW) ? -EBUSY : -ETIMEDOUT;
+		t4_record_mbox(adap, cmd, MBOX_LEN, access, ret);
+		return ret;
+	}
 
-	if (v != MBOX_OWNER_DRV)
-		return v ? -EBUSY : -ETIMEDOUT;
-
+	/* Copy in the new mailbox command and send it on its way ... */
+	t4_record_mbox(adap, cmd, MBOX_LEN, access, 0);
 	for (i = 0; i < size; i += 8)
 		t4_write_reg64(adap, data_reg + i, be64_to_cpu(*p++));
 
@@ -301,7 +384,10 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	delay_idx = 0;
 	ms = delay[0];
 
-	for (i = 0; i < timeout; i += ms) {
+	for (i = 0;
+	     !((pcie_fw = t4_read_reg(adap, PCIE_FW_A)) & PCIE_FW_ERR_F) &&
+	     i < timeout;
+	     i += ms) {
 		if (sleep_ok) {
 			ms = delay[delay_idx];  /* last element may repeat */
 			if (delay_idx < ARRAY_SIZE(delay) - 1)
@@ -317,26 +403,38 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 				continue;
 			}
 
-			res = t4_read_reg64(adap, data_reg);
+			get_mbox_rpl(adap, cmd_rpl, MBOX_LEN / 8, data_reg);
+			res = be64_to_cpu(cmd_rpl[0]);
+
 			if (FW_CMD_OP_G(res >> 32) == FW_DEBUG_CMD) {
 				fw_asrt(adap, data_reg);
 				res = FW_CMD_RETVAL_V(EIO);
 			} else if (rpl) {
-				get_mbox_rpl(adap, rpl, size / 8, data_reg);
+				memcpy(rpl, cmd_rpl, size);
 			}
 
-			if (FW_CMD_RETVAL_G((int)res))
-				dump_mbox(adap, mbox, data_reg);
 			t4_write_reg(adap, ctl_reg, 0);
+
+			execute = i + ms;
+			t4_record_mbox(adap, cmd_rpl,
+				       MBOX_LEN, access, execute);
+			spin_lock(&adap->mbox_lock);
+			list_del(&entry.list);
+			spin_unlock(&adap->mbox_lock);
 			return -FW_CMD_RETVAL_G((int)res);
 		}
 	}
 
-	dump_mbox(adap, mbox, data_reg);
+	ret = (pcie_fw & PCIE_FW_ERR_F) ? -ENXIO : -ETIMEDOUT;
+	t4_record_mbox(adap, cmd, MBOX_LEN, access, ret);
 	dev_err(adap->pdev_dev, "command %#x in mailbox %d timed out\n",
 		*(const u8 *)cmd, mbox);
 	t4_report_fw_error(adap);
-	return -ETIMEDOUT;
+	spin_lock(&adap->mbox_lock);
+	list_del(&entry.list);
+	spin_unlock(&adap->mbox_lock);
+	t4_fatal_err(adap);
+	return ret;
 }
 
 int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
@@ -699,50 +797,107 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 {
 	static const unsigned int t4_reg_ranges[] = {
 		0x1008, 0x1108,
-		0x1180, 0x11b4,
+		0x1180, 0x1184,
+		0x1190, 0x1194,
+		0x11a0, 0x11a4,
+		0x11b0, 0x11b4,
 		0x11fc, 0x123c,
 		0x1300, 0x173c,
 		0x1800, 0x18fc,
-		0x3000, 0x305c,
-		0x3068, 0x30d8,
-		0x30e0, 0x5924,
-		0x5960, 0x59d4,
-		0x5a00, 0x5af8,
+		0x3000, 0x30d8,
+		0x30e0, 0x30e4,
+		0x30ec, 0x5910,
+		0x5920, 0x5924,
+		0x5960, 0x5960,
+		0x5968, 0x5968,
+		0x5970, 0x5970,
+		0x5978, 0x5978,
+		0x5980, 0x5980,
+		0x5988, 0x5988,
+		0x5990, 0x5990,
+		0x5998, 0x5998,
+		0x59a0, 0x59d4,
+		0x5a00, 0x5ae0,
+		0x5ae8, 0x5ae8,
+		0x5af0, 0x5af0,
+		0x5af8, 0x5af8,
 		0x6000, 0x6098,
 		0x6100, 0x6150,
 		0x6200, 0x6208,
 		0x6240, 0x6248,
-		0x6280, 0x6338,
+		0x6280, 0x62b0,
+		0x62c0, 0x6338,
 		0x6370, 0x638c,
 		0x6400, 0x643c,
 		0x6500, 0x6524,
-		0x6a00, 0x6a38,
-		0x6a60, 0x6a78,
-		0x6b00, 0x6b84,
-		0x6bf0, 0x6c84,
-		0x6cf0, 0x6d84,
-		0x6df0, 0x6e84,
-		0x6ef0, 0x6f84,
-		0x6ff0, 0x7084,
-		0x70f0, 0x7184,
-		0x71f0, 0x7284,
-		0x72f0, 0x7384,
-		0x73f0, 0x7450,
+		0x6a00, 0x6a04,
+		0x6a14, 0x6a38,
+		0x6a60, 0x6a70,
+		0x6a78, 0x6a78,
+		0x6b00, 0x6b0c,
+		0x6b1c, 0x6b84,
+		0x6bf0, 0x6bf8,
+		0x6c00, 0x6c0c,
+		0x6c1c, 0x6c84,
+		0x6cf0, 0x6cf8,
+		0x6d00, 0x6d0c,
+		0x6d1c, 0x6d84,
+		0x6df0, 0x6df8,
+		0x6e00, 0x6e0c,
+		0x6e1c, 0x6e84,
+		0x6ef0, 0x6ef8,
+		0x6f00, 0x6f0c,
+		0x6f1c, 0x6f84,
+		0x6ff0, 0x6ff8,
+		0x7000, 0x700c,
+		0x701c, 0x7084,
+		0x70f0, 0x70f8,
+		0x7100, 0x710c,
+		0x711c, 0x7184,
+		0x71f0, 0x71f8,
+		0x7200, 0x720c,
+		0x721c, 0x7284,
+		0x72f0, 0x72f8,
+		0x7300, 0x730c,
+		0x731c, 0x7384,
+		0x73f0, 0x73f8,
+		0x7400, 0x7450,
 		0x7500, 0x7530,
-		0x7600, 0x761c,
+		0x7600, 0x760c,
+		0x7614, 0x761c,
 		0x7680, 0x76cc,
 		0x7700, 0x7798,
 		0x77c0, 0x77fc,
 		0x7900, 0x79fc,
-		0x7b00, 0x7c38,
-		0x7d00, 0x7efc,
-		0x8dc0, 0x8e1c,
+		0x7b00, 0x7b58,
+		0x7b60, 0x7b84,
+		0x7b8c, 0x7c38,
+		0x7d00, 0x7d38,
+		0x7d40, 0x7d80,
+		0x7d8c, 0x7ddc,
+		0x7de4, 0x7e04,
+		0x7e10, 0x7e1c,
+		0x7e24, 0x7e38,
+		0x7e40, 0x7e44,
+		0x7e4c, 0x7e78,
+		0x7e80, 0x7ea4,
+		0x7eac, 0x7edc,
+		0x7ee8, 0x7efc,
+		0x8dc0, 0x8e04,
+		0x8e10, 0x8e1c,
 		0x8e30, 0x8e78,
-		0x8ea0, 0x8f6c,
-		0x8fc0, 0x9074,
+		0x8ea0, 0x8eb8,
+		0x8ec0, 0x8f6c,
+		0x8fc0, 0x9008,
+		0x9010, 0x9058,
+		0x9060, 0x9060,
+		0x9068, 0x9074,
 		0x90fc, 0x90fc,
-		0x9400, 0x9458,
-		0x9600, 0x96bc,
+		0x9400, 0x9408,
+		0x9410, 0x9458,
+		0x9600, 0x9600,
+		0x9608, 0x9638,
+		0x9640, 0x96bc,
 		0x9800, 0x9808,
 		0x9820, 0x983c,
 		0x9850, 0x9864,
@@ -754,23 +909,42 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x9e80, 0x9eec,
 		0x9f00, 0x9f6c,
 		0x9f80, 0x9fec,
-		0xd004, 0xd03c,
+		0xd004, 0xd004,
+		0xd010, 0xd03c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0xea7c,
-		0xf000, 0x11110,
-		0x11118, 0x11190,
+		0xf000, 0x11190,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
-		0x1908c, 0x19124,
-		0x19150, 0x191b0,
+		0x1908c, 0x190e4,
+		0x190f0, 0x190f8,
+		0x19100, 0x19110,
+		0x19120, 0x19124,
+		0x19150, 0x19194,
+		0x1919c, 0x191b0,
 		0x191d0, 0x191e8,
 		0x19238, 0x1924c,
-		0x193f8, 0x19474,
-		0x19490, 0x194f8,
-		0x19800, 0x19f4c,
-		0x1a000, 0x1a06c,
-		0x1a0b0, 0x1a120,
-		0x1a128, 0x1a138,
+		0x193f8, 0x1943c,
+		0x1944c, 0x19474,
+		0x19490, 0x194e0,
+		0x194f0, 0x194f8,
+		0x19800, 0x19c08,
+		0x19c10, 0x19c90,
+		0x19ca0, 0x19ce4,
+		0x19cf0, 0x19d40,
+		0x19d50, 0x19d94,
+		0x19da0, 0x19de8,
+		0x19df0, 0x19e40,
+		0x19e50, 0x19e90,
+		0x19ea0, 0x19f4c,
+		0x1a000, 0x1a004,
+		0x1a010, 0x1a06c,
+		0x1a0b0, 0x1a0e4,
+		0x1a0ec, 0x1a0f4,
+		0x1a100, 0x1a108,
+		0x1a114, 0x1a120,
+		0x1a128, 0x1a130,
+		0x1a138, 0x1a138,
 		0x1a190, 0x1a1c4,
 		0x1a1fc, 0x1a1fc,
 		0x1e040, 0x1e04c,
@@ -823,9 +997,12 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x1ffc0, 0x1ffc8,
 		0x20000, 0x2002c,
 		0x20100, 0x2013c,
-		0x20190, 0x201c8,
+		0x20190, 0x201a0,
+		0x201a8, 0x201b8,
+		0x201c4, 0x201c8,
 		0x20200, 0x20318,
-		0x20400, 0x20528,
+		0x20400, 0x204b4,
+		0x204c0, 0x20528,
 		0x20540, 0x20614,
 		0x21000, 0x21040,
 		0x2104c, 0x21060,
@@ -834,22 +1011,62 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x21270, 0x21284,
 		0x212fc, 0x21388,
 		0x21400, 0x21404,
-		0x21500, 0x21518,
-		0x2152c, 0x2153c,
+		0x21500, 0x21500,
+		0x21510, 0x21518,
+		0x2152c, 0x21530,
+		0x2153c, 0x2153c,
 		0x21550, 0x21554,
 		0x21600, 0x21600,
-		0x21608, 0x21628,
-		0x21630, 0x2163c,
+		0x21608, 0x2161c,
+		0x21624, 0x21628,
+		0x21630, 0x21634,
+		0x2163c, 0x2163c,
 		0x21700, 0x2171c,
 		0x21780, 0x2178c,
-		0x21800, 0x21c38,
-		0x21c80, 0x21d7c,
+		0x21800, 0x21818,
+		0x21820, 0x21828,
+		0x21830, 0x21848,
+		0x21850, 0x21854,
+		0x21860, 0x21868,
+		0x21870, 0x21870,
+		0x21878, 0x21898,
+		0x218a0, 0x218a8,
+		0x218b0, 0x218c8,
+		0x218d0, 0x218d4,
+		0x218e0, 0x218e8,
+		0x218f0, 0x218f0,
+		0x218f8, 0x21a18,
+		0x21a20, 0x21a28,
+		0x21a30, 0x21a48,
+		0x21a50, 0x21a54,
+		0x21a60, 0x21a68,
+		0x21a70, 0x21a70,
+		0x21a78, 0x21a98,
+		0x21aa0, 0x21aa8,
+		0x21ab0, 0x21ac8,
+		0x21ad0, 0x21ad4,
+		0x21ae0, 0x21ae8,
+		0x21af0, 0x21af0,
+		0x21af8, 0x21c18,
+		0x21c20, 0x21c20,
+		0x21c28, 0x21c30,
+		0x21c38, 0x21c38,
+		0x21c80, 0x21c98,
+		0x21ca0, 0x21ca8,
+		0x21cb0, 0x21cc8,
+		0x21cd0, 0x21cd4,
+		0x21ce0, 0x21ce8,
+		0x21cf0, 0x21cf0,
+		0x21cf8, 0x21d7c,
 		0x21e00, 0x21e04,
 		0x22000, 0x2202c,
 		0x22100, 0x2213c,
-		0x22190, 0x221c8,
+		0x22190, 0x221a0,
+		0x221a8, 0x221b8,
+		0x221c4, 0x221c8,
 		0x22200, 0x22318,
-		0x22400, 0x22528,
+		0x22400, 0x224b4,
+		0x224c0, 0x22528,
 		0x22540, 0x22614,
 		0x23000, 0x23040,
 		0x2304c, 0x23060,
@@ -858,22 +1075,62 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x23270, 0x23284,
 		0x232fc, 0x23388,
 		0x23400, 0x23404,
-		0x23500, 0x23518,
-		0x2352c, 0x2353c,
+		0x23500, 0x23500,
+		0x23510, 0x23518,
+		0x2352c, 0x23530,
+		0x2353c, 0x2353c,
 		0x23550, 0x23554,
 		0x23600, 0x23600,
-		0x23608, 0x23628,
-		0x23630, 0x2363c,
+		0x23608, 0x2361c,
+		0x23624, 0x23628,
+		0x23630, 0x23634,
+		0x2363c, 0x2363c,
 		0x23700, 0x2371c,
 		0x23780, 0x2378c,
-		0x23800, 0x23c38,
-		0x23c80, 0x23d7c,
+		0x23800, 0x23818,
+		0x23820, 0x23828,
+		0x23830, 0x23848,
+		0x23850, 0x23854,
+		0x23860, 0x23868,
+		0x23870, 0x23870,
+		0x23878, 0x23898,
+		0x238a0, 0x238a8,
+		0x238b0, 0x238c8,
+		0x238d0, 0x238d4,
+		0x238e0, 0x238e8,
+		0x238f0, 0x238f0,
+		0x238f8, 0x23a18,
+		0x23a20, 0x23a28,
+		0x23a30, 0x23a48,
+		0x23a50, 0x23a54,
+		0x23a60, 0x23a68,
+		0x23a70, 0x23a70,
+		0x23a78, 0x23a98,
+		0x23aa0, 0x23aa8,
+		0x23ab0, 0x23ac8,
+		0x23ad0, 0x23ad4,
+		0x23ae0, 0x23ae8,
+		0x23af0, 0x23af0,
+		0x23af8, 0x23c18,
+		0x23c20, 0x23c20,
+		0x23c28, 0x23c30,
+		0x23c38, 0x23c38,
+		0x23c80, 0x23c98,
+		0x23ca0, 0x23ca8,
+		0x23cb0, 0x23cc8,
+		0x23cd0, 0x23cd4,
+		0x23ce0, 0x23ce8,
+		0x23cf0, 0x23cf0,
+		0x23cf8, 0x23d7c,
 		0x23e00, 0x23e04,
 		0x24000, 0x2402c,
 		0x24100, 0x2413c,
-		0x24190, 0x241c8,
+		0x24190, 0x241a0,
+		0x241a8, 0x241b8,
+		0x241c4, 0x241c8,
 		0x24200, 0x24318,
-		0x24400, 0x24528,
+		0x24400, 0x244b4,
+		0x244c0, 0x24528,
 		0x24540, 0x24614,
 		0x25000, 0x25040,
 		0x2504c, 0x25060,
@@ -882,22 +1139,62 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x25270, 0x25284,
 		0x252fc, 0x25388,
 		0x25400, 0x25404,
-		0x25500, 0x25518,
-		0x2552c, 0x2553c,
+		0x25500, 0x25500,
+		0x25510, 0x25518,
+		0x2552c, 0x25530,
+		0x2553c, 0x2553c,
 		0x25550, 0x25554,
 		0x25600, 0x25600,
-		0x25608, 0x25628,
-		0x25630, 0x2563c,
+		0x25608, 0x2561c,
+		0x25624, 0x25628,
+		0x25630, 0x25634,
+		0x2563c, 0x2563c,
 		0x25700, 0x2571c,
 		0x25780, 0x2578c,
-		0x25800, 0x25c38,
-		0x25c80, 0x25d7c,
+		0x25800, 0x25818,
+		0x25820, 0x25828,
+		0x25830, 0x25848,
+		0x25850, 0x25854,
+		0x25860, 0x25868,
+		0x25870, 0x25870,
+		0x25878, 0x25898,
+		0x258a0, 0x258a8,
+		0x258b0, 0x258c8,
+		0x258d0, 0x258d4,
+		0x258e0, 0x258e8,
+		0x258f0, 0x258f0,
+		0x258f8, 0x25a18,
+		0x25a20, 0x25a28,
+		0x25a30, 0x25a48,
+		0x25a50, 0x25a54,
+		0x25a60, 0x25a68,
+		0x25a70, 0x25a70,
+		0x25a78, 0x25a98,
+		0x25aa0, 0x25aa8,
+		0x25ab0, 0x25ac8,
+		0x25ad0, 0x25ad4,
+		0x25ae0, 0x25ae8,
+		0x25af0, 0x25af0,
+		0x25af8, 0x25c18,
+		0x25c20, 0x25c20,
+		0x25c28, 0x25c30,
+		0x25c38, 0x25c38,
+		0x25c80, 0x25c98,
+		0x25ca0, 0x25ca8,
+		0x25cb0, 0x25cc8,
+		0x25cd0, 0x25cd4,
+		0x25ce0, 0x25ce8,
+		0x25cf0, 0x25cf0,
+		0x25cf8, 0x25d7c,
 		0x25e00, 0x25e04,
 		0x26000, 0x2602c,
 		0x26100, 0x2613c,
-		0x26190, 0x261c8,
+		0x26190, 0x261a0,
+		0x261a8, 0x261b8,
+		0x261c4, 0x261c8,
 		0x26200, 0x26318,
-		0x26400, 0x26528,
+		0x26400, 0x264b4,
+		0x264c0, 0x26528,
 		0x26540, 0x26614,
 		0x27000, 0x27040,
 		0x2704c, 0x27060,
@@ -906,51 +1203,120 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x27270, 0x27284,
 		0x272fc, 0x27388,
 		0x27400, 0x27404,
-		0x27500, 0x27518,
-		0x2752c, 0x2753c,
+		0x27500, 0x27500,
+		0x27510, 0x27518,
+		0x2752c, 0x27530,
+		0x2753c, 0x2753c,
 		0x27550, 0x27554,
 		0x27600, 0x27600,
-		0x27608, 0x27628,
-		0x27630, 0x2763c,
+		0x27608, 0x2761c,
+		0x27624, 0x27628,
+		0x27630, 0x27634,
+		0x2763c, 0x2763c,
 		0x27700, 0x2771c,
 		0x27780, 0x2778c,
-		0x27800, 0x27c38,
-		0x27c80, 0x27d7c,
+		0x27800, 0x27818,
+		0x27820, 0x27828,
+		0x27830, 0x27848,
+		0x27850, 0x27854,
+		0x27860, 0x27868,
+		0x27870, 0x27870,
+		0x27878, 0x27898,
+		0x278a0, 0x278a8,
+		0x278b0, 0x278c8,
+		0x278d0, 0x278d4,
+		0x278e0, 0x278e8,
+		0x278f0, 0x278f0,
+		0x278f8, 0x27a18,
+		0x27a20, 0x27a28,
+		0x27a30, 0x27a48,
+		0x27a50, 0x27a54,
+		0x27a60, 0x27a68,
+		0x27a70, 0x27a70,
+		0x27a78, 0x27a98,
+		0x27aa0, 0x27aa8,
+		0x27ab0, 0x27ac8,
+		0x27ad0, 0x27ad4,
+		0x27ae0, 0x27ae8,
+		0x27af0, 0x27af0,
+		0x27af8, 0x27c18,
+		0x27c20, 0x27c20,
+		0x27c28, 0x27c30,
+		0x27c38, 0x27c38,
+		0x27c80, 0x27c98,
+		0x27ca0, 0x27ca8,
+		0x27cb0, 0x27cc8,
+		0x27cd0, 0x27cd4,
+		0x27ce0, 0x27ce8,
+		0x27cf0, 0x27cf0,
+		0x27cf8, 0x27d7c,
 		0x27e00, 0x27e04,
 	};
 
 	static const unsigned int t5_reg_ranges[] = {
-		0x1008, 0x1148,
-		0x1180, 0x11b4,
+		0x1008, 0x10c0,
+		0x10cc, 0x10f8,
+		0x1100, 0x1100,
+		0x110c, 0x1148,
+		0x1180, 0x1184,
+		0x1190, 0x1194,
+		0x11a0, 0x11a4,
+		0x11b0, 0x11b4,
 		0x11fc, 0x123c,
 		0x1280, 0x173c,
 		0x1800, 0x18fc,
 		0x3000, 0x3028,
-		0x3068, 0x30d8,
+		0x3060, 0x30b0,
+		0x30b8, 0x30d8,
 		0x30e0, 0x30fc,
 		0x3140, 0x357c,
 		0x35a8, 0x35cc,
 		0x35ec, 0x35ec,
 		0x3600, 0x5624,
-		0x56cc, 0x575c,
+		0x56cc, 0x56ec,
+		0x56f4, 0x5720,
+		0x5728, 0x575c,
 		0x580c, 0x5814,
-		0x5890, 0x58bc,
-		0x5940, 0x59dc,
+		0x5890, 0x589c,
+		0x58a4, 0x58ac,
+		0x58b8, 0x58bc,
+		0x5940, 0x59c8,
+		0x59d0, 0x59dc,
 		0x59fc, 0x5a18,
-		0x5a60, 0x5a9c,
+		0x5a60, 0x5a70,
+		0x5a80, 0x5a9c,
 		0x5b94, 0x5bfc,
-		0x6000, 0x6040,
-		0x6058, 0x614c,
+		0x6000, 0x6020,
+		0x6028, 0x6040,
+		0x6058, 0x609c,
+		0x60a8, 0x614c,
 		0x7700, 0x7798,
 		0x77c0, 0x78fc,
-		0x7b00, 0x7c54,
-		0x7d00, 0x7efc,
+		0x7b00, 0x7b58,
+		0x7b60, 0x7b84,
+		0x7b8c, 0x7c54,
+		0x7d00, 0x7d38,
+		0x7d40, 0x7d80,
+		0x7d8c, 0x7ddc,
+		0x7de4, 0x7e04,
+		0x7e10, 0x7e1c,
+		0x7e24, 0x7e38,
+		0x7e40, 0x7e44,
+		0x7e4c, 0x7e78,
+		0x7e80, 0x7edc,
+		0x7ee8, 0x7efc,
 		0x8dc0, 0x8de0,
-		0x8df8, 0x8e84,
+		0x8df8, 0x8e04,
+		0x8e10, 0x8e84,
 		0x8ea0, 0x8f84,
-		0x8fc0, 0x90f8,
-		0x9400, 0x9470,
-		0x9600, 0x96f4,
+		0x8fc0, 0x9058,
+		0x9060, 0x9060,
+		0x9068, 0x90f8,
+		0x9400, 0x9408,
+		0x9410, 0x9470,
+		0x9600, 0x9600,
+		0x9608, 0x9638,
+		0x9640, 0x96f4,
 		0x9800, 0x9808,
 		0x9820, 0x983c,
 		0x9850, 0x9864,
@@ -962,103 +1328,143 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x9e80, 0x9eec,
 		0x9f00, 0x9f6c,
 		0x9f80, 0xa020,
-		0xd004, 0xd03c,
+		0xd004, 0xd004,
+		0xd010, 0xd03c,
 		0xdfc0, 0xdfe0,
-		0xe000, 0x11088,
-		0x1109c, 0x11110,
-		0x11118, 0x1117c,
+		0xe000, 0x1106c,
+		0x11074, 0x11088,
+		0x1109c, 0x1117c,
 		0x11190, 0x11204,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
-		0x1908c, 0x19124,
-		0x19150, 0x191b0,
+		0x1908c, 0x190e8,
+		0x190f0, 0x190f8,
+		0x19100, 0x19110,
+		0x19120, 0x19124,
+		0x19150, 0x19194,
+		0x1919c, 0x191b0,
 		0x191d0, 0x191e8,
 		0x19238, 0x19290,
-		0x193f8, 0x19474,
+		0x193f8, 0x19428,
+		0x19430, 0x19444,
+		0x1944c, 0x1946c,
+		0x19474, 0x19474,
 		0x19490, 0x194cc,
 		0x194f0, 0x194f8,
-		0x19c00, 0x19c60,
-		0x19c94, 0x19e10,
-		0x19e50, 0x19f34,
+		0x19c00, 0x19c08,
+		0x19c10, 0x19c60,
+		0x19c94, 0x19ce4,
+		0x19cf0, 0x19d40,
+		0x19d50, 0x19d94,
+		0x19da0, 0x19de8,
+		0x19df0, 0x19e10,
+		0x19e50, 0x19e90,
+		0x19ea0, 0x19f24,
+		0x19f34, 0x19f34,
 		0x19f40, 0x19f50,
-		0x19f90, 0x19fe4,
-		0x1a000, 0x1a06c,
-		0x1a0b0, 0x1a120,
-		0x1a128, 0x1a138,
+		0x19f90, 0x19fb4,
+		0x19fc4, 0x19fe4,
+		0x1a000, 0x1a004,
+		0x1a010, 0x1a06c,
+		0x1a0b0, 0x1a0e4,
+		0x1a0ec, 0x1a0f8,
+		0x1a100, 0x1a108,
+		0x1a114, 0x1a120,
+		0x1a128, 0x1a130,
+		0x1a138, 0x1a138,
 		0x1a190, 0x1a1c4,
 		0x1a1fc, 0x1a1fc,
 		0x1e008, 0x1e00c,
-		0x1e040, 0x1e04c,
+		0x1e040, 0x1e044,
+		0x1e04c, 0x1e04c,
 		0x1e284, 0x1e290,
 		0x1e2c0, 0x1e2c0,
 		0x1e2e0, 0x1e2e0,
 		0x1e300, 0x1e384,
 		0x1e3c0, 0x1e3c8,
 		0x1e408, 0x1e40c,
-		0x1e440, 0x1e44c,
+		0x1e440, 0x1e444,
+		0x1e44c, 0x1e44c,
 		0x1e684, 0x1e690,
 		0x1e6c0, 0x1e6c0,
 		0x1e6e0, 0x1e6e0,
 		0x1e700, 0x1e784,
 		0x1e7c0, 0x1e7c8,
 		0x1e808, 0x1e80c,
-		0x1e840, 0x1e84c,
+		0x1e840, 0x1e844,
+		0x1e84c, 0x1e84c,
 		0x1ea84, 0x1ea90,
 		0x1eac0, 0x1eac0,
 		0x1eae0, 0x1eae0,
 		0x1eb00, 0x1eb84,
 		0x1ebc0, 0x1ebc8,
 		0x1ec08, 0x1ec0c,
-		0x1ec40, 0x1ec4c,
+		0x1ec40, 0x1ec44,
+		0x1ec4c, 0x1ec4c,
 		0x1ee84, 0x1ee90,
 		0x1eec0, 0x1eec0,
 		0x1eee0, 0x1eee0,
 		0x1ef00, 0x1ef84,
 		0x1efc0, 0x1efc8,
 		0x1f008, 0x1f00c,
-		0x1f040, 0x1f04c,
+		0x1f040, 0x1f044,
+		0x1f04c, 0x1f04c,
 		0x1f284, 0x1f290,
 		0x1f2c0, 0x1f2c0,
 		0x1f2e0, 0x1f2e0,
 		0x1f300, 0x1f384,
 		0x1f3c0, 0x1f3c8,
 		0x1f408, 0x1f40c,
-		0x1f440, 0x1f44c,
+		0x1f440, 0x1f444,
+		0x1f44c, 0x1f44c,
 		0x1f684, 0x1f690,
 		0x1f6c0, 0x1f6c0,
 		0x1f6e0, 0x1f6e0,
 		0x1f700, 0x1f784,
 		0x1f7c0, 0x1f7c8,
 		0x1f808, 0x1f80c,
-		0x1f840, 0x1f84c,
+		0x1f840, 0x1f844,
+		0x1f84c, 0x1f84c,
 		0x1fa84, 0x1fa90,
 		0x1fac0, 0x1fac0,
 		0x1fae0, 0x1fae0,
 		0x1fb00, 0x1fb84,
 		0x1fbc0, 0x1fbc8,
 		0x1fc08, 0x1fc0c,
-		0x1fc40, 0x1fc4c,
+		0x1fc40, 0x1fc44,
+		0x1fc4c, 0x1fc4c,
 		0x1fe84, 0x1fe90,
 		0x1fec0, 0x1fec0,
 		0x1fee0, 0x1fee0,
 		0x1ff00, 0x1ff84,
 		0x1ffc0, 0x1ffc8,
 		0x30000, 0x30030,
+		0x30038, 0x30038,
+		0x30040, 0x30040,
 		0x30100, 0x30144,
-		0x30190, 0x301d0,
+		0x30190, 0x301a0,
+		0x301a8, 0x301b8,
+		0x301c4, 0x301c8,
+		0x301d0, 0x301d0,
 		0x30200, 0x30318,
-		0x30400, 0x3052c,
+		0x30400, 0x304b4,
+		0x304c0, 0x3052c,
 		0x30540, 0x3061c,
-		0x30800, 0x30834,
+		0x30800, 0x30828,
+		0x30834, 0x30834,
 		0x308c0, 0x30908,
 		0x30910, 0x309ac,
-		0x30a00, 0x30a2c,
+		0x30a00, 0x30a14,
+		0x30a1c, 0x30a2c,
 		0x30a44, 0x30a50,
-		0x30a74, 0x30c24,
+		0x30a74, 0x30a74,
+		0x30a7c, 0x30afc,
+		0x30b08, 0x30c24,
 		0x30d00, 0x30d00,
 		0x30d08, 0x30d14,
 		0x30d1c, 0x30d20,
-		0x30d3c, 0x30d50,
+		0x30d3c, 0x30d3c,
+		0x30d48, 0x30d50,
 		0x31200, 0x3120c,
 		0x31220, 0x31220,
 		0x31240, 0x31240,
@@ -1078,27 +1484,65 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x322c8, 0x322fc,
 		0x32600, 0x32630,
 		0x32a00, 0x32abc,
-		0x32b00, 0x32b70,
-		0x33000, 0x33048,
-		0x33060, 0x3309c,
-		0x330f0, 0x33148,
-		0x33160, 0x3319c,
-		0x331f0, 0x332e4,
-		0x332f8, 0x333e4,
-		0x333f8, 0x33448,
-		0x33460, 0x3349c,
-		0x334f0, 0x33548,
-		0x33560, 0x3359c,
-		0x335f0, 0x336e4,
-		0x336f8, 0x337e4,
+		0x32b00, 0x32b10,
+		0x32b20, 0x32b30,
+		0x32b40, 0x32b50,
+		0x32b60, 0x32b70,
+		0x33000, 0x33028,
+		0x33030, 0x33048,
+		0x33060, 0x33068,
+		0x33070, 0x3309c,
+		0x330f0, 0x33128,
+		0x33130, 0x33148,
+		0x33160, 0x33168,
+		0x33170, 0x3319c,
+		0x331f0, 0x33238,
+		0x33240, 0x33240,
+		0x33248, 0x33250,
+		0x3325c, 0x33264,
+		0x33270, 0x332b8,
+		0x332c0, 0x332e4,
+		0x332f8, 0x33338,
+		0x33340, 0x33340,
+		0x33348, 0x33350,
+		0x3335c, 0x33364,
+		0x33370, 0x333b8,
+		0x333c0, 0x333e4,
+		0x333f8, 0x33428,
+		0x33430, 0x33448,
+		0x33460, 0x33468,
+		0x33470, 0x3349c,
+		0x334f0, 0x33528,
+		0x33530, 0x33548,
+		0x33560, 0x33568,
+		0x33570, 0x3359c,
+		0x335f0, 0x33638,
+		0x33640, 0x33640,
+		0x33648, 0x33650,
+		0x3365c, 0x33664,
+		0x33670, 0x336b8,
+		0x336c0, 0x336e4,
+		0x336f8, 0x33738,
+		0x33740, 0x33740,
+		0x33748, 0x33750,
+		0x3375c, 0x33764,
+		0x33770, 0x337b8,
+		0x337c0, 0x337e4,
 		0x337f8, 0x337fc,
 		0x33814, 0x33814,
 		0x3382c, 0x3382c,
 		0x33880, 0x3388c,
 		0x338e8, 0x338ec,
-		0x33900, 0x33948,
-		0x33960, 0x3399c,
-		0x339f0, 0x33ae4,
+		0x33900, 0x33928,
+		0x33930, 0x33948,
+		0x33960, 0x33968,
+		0x33970, 0x3399c,
+		0x339f0, 0x33a38,
+		0x33a40, 0x33a40,
+		0x33a48, 0x33a50,
+		0x33a5c, 0x33a64,
+		0x33a70, 0x33ab8,
+		0x33ac0, 0x33ae4,
 		0x33af8, 0x33b10,
 		0x33b28, 0x33b28,
 		0x33b3c, 0x33b50,
@@ -1107,21 +1551,32 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x33c3c, 0x33c50,
 		0x33cf0, 0x33cfc,
 		0x34000, 0x34030,
+		0x34038, 0x34038,
+		0x34040, 0x34040,
 		0x34100, 0x34144,
-		0x34190, 0x341d0,
+		0x34190, 0x341a0,
+		0x341a8, 0x341b8,
+		0x341c4, 0x341c8,
+		0x341d0, 0x341d0,
 		0x34200, 0x34318,
-		0x34400, 0x3452c,
+		0x34400, 0x344b4,
+		0x344c0, 0x3452c,
 		0x34540, 0x3461c,
-		0x34800, 0x34834,
+		0x34800, 0x34828,
+		0x34834, 0x34834,
 		0x348c0, 0x34908,
 		0x34910, 0x349ac,
-		0x34a00, 0x34a2c,
+		0x34a00, 0x34a14,
+		0x34a1c, 0x34a2c,
 		0x34a44, 0x34a50,
-		0x34a74, 0x34c24,
+		0x34a74, 0x34a74,
+		0x34a7c, 0x34afc,
+		0x34b08, 0x34c24,
 		0x34d00, 0x34d00,
 		0x34d08, 0x34d14,
 		0x34d1c, 0x34d20,
-		0x34d3c, 0x34d50,
+		0x34d3c, 0x34d3c,
+		0x34d48, 0x34d50,
 		0x35200, 0x3520c,
 		0x35220, 0x35220,
 		0x35240, 0x35240,
@@ -1141,27 +1596,65 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x362c8, 0x362fc,
 		0x36600, 0x36630,
 		0x36a00, 0x36abc,
-		0x36b00, 0x36b70,
-		0x37000, 0x37048,
-		0x37060, 0x3709c,
-		0x370f0, 0x37148,
-		0x37160, 0x3719c,
-		0x371f0, 0x372e4,
-		0x372f8, 0x373e4,
-		0x373f8, 0x37448,
-		0x37460, 0x3749c,
-		0x374f0, 0x37548,
-		0x37560, 0x3759c,
-		0x375f0, 0x376e4,
-		0x376f8, 0x377e4,
+		0x36b00, 0x36b10,
+		0x36b20, 0x36b30,
+		0x36b40, 0x36b50,
+		0x36b60, 0x36b70,
+		0x37000, 0x37028,
+		0x37030, 0x37048,
+		0x37060, 0x37068,
+		0x37070, 0x3709c,
+		0x370f0, 0x37128,
+		0x37130, 0x37148,
+		0x37160, 0x37168,
+		0x37170, 0x3719c,
+		0x371f0, 0x37238,
+		0x37240, 0x37240,
+		0x37248, 0x37250,
+		0x3725c, 0x37264,
+		0x37270, 0x372b8,
+		0x372c0, 0x372e4,
+		0x372f8, 0x37338,
+		0x37340, 0x37340,
+		0x37348, 0x37350,
+		0x3735c, 0x37364,
+		0x37370, 0x373b8,
+		0x373c0, 0x373e4,
+		0x373f8, 0x37428,
+		0x37430, 0x37448,
+		0x37460, 0x37468,
+		0x37470, 0x3749c,
+		0x374f0, 0x37528,
+		0x37530, 0x37548,
+		0x37560, 0x37568,
+		0x37570, 0x3759c,
+		0x375f0, 0x37638,
+		0x37640, 0x37640,
+		0x37648, 0x37650,
+		0x3765c, 0x37664,
+		0x37670, 0x376b8,
+		0x376c0, 0x376e4,
+		0x376f8, 0x37738,
+		0x37740, 0x37740,
+		0x37748, 0x37750,
+		0x3775c, 0x37764,
+		0x37770, 0x377b8,
+		0x377c0, 0x377e4,
 		0x377f8, 0x377fc,
 		0x37814, 0x37814,
 		0x3782c, 0x3782c,
 		0x37880, 0x3788c,
 		0x378e8, 0x378ec,
-		0x37900, 0x37948,
-		0x37960, 0x3799c,
-		0x379f0, 0x37ae4,
+		0x37900, 0x37928,
+		0x37930, 0x37948,
+		0x37960, 0x37968,
+		0x37970, 0x3799c,
+		0x379f0, 0x37a38,
+		0x37a40, 0x37a40,
+		0x37a48, 0x37a50,
+		0x37a5c, 0x37a64,
+		0x37a70, 0x37ab8,
+		0x37ac0, 0x37ae4,
 		0x37af8, 0x37b10,
 		0x37b28, 0x37b28,
 		0x37b3c, 0x37b50,
@@ -1170,21 +1663,32 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x37c3c, 0x37c50,
 		0x37cf0, 0x37cfc,
 		0x38000, 0x38030,
+		0x38038, 0x38038,
+		0x38040, 0x38040,
 		0x38100, 0x38144,
-		0x38190, 0x381d0,
+		0x38190, 0x381a0,
+		0x381a8, 0x381b8,
+		0x381c4, 0x381c8,
+		0x381d0, 0x381d0,
 		0x38200, 0x38318,
-		0x38400, 0x3852c,
+		0x38400, 0x384b4,
+		0x384c0, 0x3852c,
 		0x38540, 0x3861c,
-		0x38800, 0x38834,
+		0x38800, 0x38828,
+		0x38834, 0x38834,
 		0x388c0, 0x38908,
 		0x38910, 0x389ac,
-		0x38a00, 0x38a2c,
+		0x38a00, 0x38a14,
+		0x38a1c, 0x38a2c,
 		0x38a44, 0x38a50,
-		0x38a74, 0x38c24,
+		0x38a74, 0x38a74,
+		0x38a7c, 0x38afc,
+		0x38b08, 0x38c24,
 		0x38d00, 0x38d00,
 		0x38d08, 0x38d14,
 		0x38d1c, 0x38d20,
-		0x38d3c, 0x38d50,
+		0x38d3c, 0x38d3c,
+		0x38d48, 0x38d50,
 		0x39200, 0x3920c,
 		0x39220, 0x39220,
 		0x39240, 0x39240,
@@ -1204,27 +1708,65 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x3a2c8, 0x3a2fc,
 		0x3a600, 0x3a630,
 		0x3aa00, 0x3aabc,
-		0x3ab00, 0x3ab70,
-		0x3b000, 0x3b048,
-		0x3b060, 0x3b09c,
-		0x3b0f0, 0x3b148,
-		0x3b160, 0x3b19c,
-		0x3b1f0, 0x3b2e4,
-		0x3b2f8, 0x3b3e4,
-		0x3b3f8, 0x3b448,
-		0x3b460, 0x3b49c,
-		0x3b4f0, 0x3b548,
-		0x3b560, 0x3b59c,
-		0x3b5f0, 0x3b6e4,
-		0x3b6f8, 0x3b7e4,
+		0x3ab00, 0x3ab10,
+		0x3ab20, 0x3ab30,
+		0x3ab40, 0x3ab50,
+		0x3ab60, 0x3ab70,
+		0x3b000, 0x3b028,
+		0x3b030, 0x3b048,
+		0x3b060, 0x3b068,
+		0x3b070, 0x3b09c,
+		0x3b0f0, 0x3b128,
+		0x3b130, 0x3b148,
+		0x3b160, 0x3b168,
+		0x3b170, 0x3b19c,
+		0x3b1f0, 0x3b238,
+		0x3b240, 0x3b240,
+		0x3b248, 0x3b250,
+		0x3b25c, 0x3b264,
+		0x3b270, 0x3b2b8,
+		0x3b2c0, 0x3b2e4,
+		0x3b2f8, 0x3b338,
+		0x3b340, 0x3b340,
+		0x3b348, 0x3b350,
+		0x3b35c, 0x3b364,
+		0x3b370, 0x3b3b8,
+		0x3b3c0, 0x3b3e4,
+		0x3b3f8, 0x3b428,
+		0x3b430, 0x3b448,
+		0x3b460, 0x3b468,
+		0x3b470, 0x3b49c,
+		0x3b4f0, 0x3b528,
+		0x3b530, 0x3b548,
+		0x3b560, 0x3b568,
+		0x3b570, 0x3b59c,
+		0x3b5f0, 0x3b638,
+		0x3b640, 0x3b640,
+		0x3b648, 0x3b650,
+		0x3b65c, 0x3b664,
+		0x3b670, 0x3b6b8,
+		0x3b6c0, 0x3b6e4,
+		0x3b6f8, 0x3b738,
+		0x3b740, 0x3b740,
+		0x3b748, 0x3b750,
+		0x3b75c, 0x3b764,
+		0x3b770, 0x3b7b8,
+		0x3b7c0, 0x3b7e4,
 		0x3b7f8, 0x3b7fc,
 		0x3b814, 0x3b814,
 		0x3b82c, 0x3b82c,
 		0x3b880, 0x3b88c,
 		0x3b8e8, 0x3b8ec,
-		0x3b900, 0x3b948,
-		0x3b960, 0x3b99c,
-		0x3b9f0, 0x3bae4,
+		0x3b900, 0x3b928,
+		0x3b930, 0x3b948,
+		0x3b960, 0x3b968,
+		0x3b970, 0x3b99c,
+		0x3b9f0, 0x3ba38,
+		0x3ba40, 0x3ba40,
+		0x3ba48, 0x3ba50,
+		0x3ba5c, 0x3ba64,
+		0x3ba70, 0x3bab8,
+		0x3bac0, 0x3bae4,
 		0x3baf8, 0x3bb10,
 		0x3bb28, 0x3bb28,
 		0x3bb3c, 0x3bb50,
@@ -1233,21 +1775,32 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x3bc3c, 0x3bc50,
 		0x3bcf0, 0x3bcfc,
 		0x3c000, 0x3c030,
+		0x3c038, 0x3c038,
+		0x3c040, 0x3c040,
 		0x3c100, 0x3c144,
-		0x3c190, 0x3c1d0,
+		0x3c190, 0x3c1a0,
+		0x3c1a8, 0x3c1b8,
+		0x3c1c4, 0x3c1c8,
+		0x3c1d0, 0x3c1d0,
 		0x3c200, 0x3c318,
-		0x3c400, 0x3c52c,
+		0x3c400, 0x3c4b4,
+		0x3c4c0, 0x3c52c,
 		0x3c540, 0x3c61c,
-		0x3c800, 0x3c834,
+		0x3c800, 0x3c828,
+		0x3c834, 0x3c834,
 		0x3c8c0, 0x3c908,
 		0x3c910, 0x3c9ac,
-		0x3ca00, 0x3ca2c,
+		0x3ca00, 0x3ca14,
+		0x3ca1c, 0x3ca2c,
 		0x3ca44, 0x3ca50,
-		0x3ca74, 0x3cc24,
+		0x3ca74, 0x3ca74,
+		0x3ca7c, 0x3cafc,
+		0x3cb08, 0x3cc24,
 		0x3cd00, 0x3cd00,
 		0x3cd08, 0x3cd14,
 		0x3cd1c, 0x3cd20,
-		0x3cd3c, 0x3cd50,
+		0x3cd3c, 0x3cd3c,
+		0x3cd48, 0x3cd50,
 		0x3d200, 0x3d20c,
 		0x3d220, 0x3d220,
 		0x3d240, 0x3d240,
@@ -1267,27 +1820,65 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x3e2c8, 0x3e2fc,
 		0x3e600, 0x3e630,
 		0x3ea00, 0x3eabc,
-		0x3eb00, 0x3eb70,
-		0x3f000, 0x3f048,
-		0x3f060, 0x3f09c,
-		0x3f0f0, 0x3f148,
-		0x3f160, 0x3f19c,
-		0x3f1f0, 0x3f2e4,
-		0x3f2f8, 0x3f3e4,
-		0x3f3f8, 0x3f448,
-		0x3f460, 0x3f49c,
-		0x3f4f0, 0x3f548,
-		0x3f560, 0x3f59c,
-		0x3f5f0, 0x3f6e4,
-		0x3f6f8, 0x3f7e4,
+		0x3eb00, 0x3eb10,
+		0x3eb20, 0x3eb30,
+		0x3eb40, 0x3eb50,
+		0x3eb60, 0x3eb70,
+		0x3f000, 0x3f028,
+		0x3f030, 0x3f048,
+		0x3f060, 0x3f068,
+		0x3f070, 0x3f09c,
+		0x3f0f0, 0x3f128,
+		0x3f130, 0x3f148,
+		0x3f160, 0x3f168,
+		0x3f170, 0x3f19c,
+		0x3f1f0, 0x3f238,
+		0x3f240, 0x3f240,
+		0x3f248, 0x3f250,
+		0x3f25c, 0x3f264,
+		0x3f270, 0x3f2b8,
+		0x3f2c0, 0x3f2e4,
+		0x3f2f8, 0x3f338,
+		0x3f340, 0x3f340,
+		0x3f348, 0x3f350,
+		0x3f35c, 0x3f364,
+		0x3f370, 0x3f3b8,
+		0x3f3c0, 0x3f3e4,
+		0x3f3f8, 0x3f428,
+		0x3f430, 0x3f448,
+		0x3f460, 0x3f468,
+		0x3f470, 0x3f49c,
+		0x3f4f0, 0x3f528,
+		0x3f530, 0x3f548,
+		0x3f560, 0x3f568,
+		0x3f570, 0x3f59c,
+		0x3f5f0, 0x3f638,
+		0x3f640, 0x3f640,
+		0x3f648, 0x3f650,
+		0x3f65c, 0x3f664,
+		0x3f670, 0x3f6b8,
+		0x3f6c0, 0x3f6e4,
+		0x3f6f8, 0x3f738,
+		0x3f740, 0x3f740,
+		0x3f748, 0x3f750,
+		0x3f75c, 0x3f764,
+		0x3f770, 0x3f7b8,
+		0x3f7c0, 0x3f7e4,
 		0x3f7f8, 0x3f7fc,
 		0x3f814, 0x3f814,
 		0x3f82c, 0x3f82c,
 		0x3f880, 0x3f88c,
 		0x3f8e8, 0x3f8ec,
-		0x3f900, 0x3f948,
-		0x3f960, 0x3f99c,
-		0x3f9f0, 0x3fae4,
+		0x3f900, 0x3f928,
+		0x3f930, 0x3f948,
+		0x3f960, 0x3f968,
+		0x3f970, 0x3f99c,
+		0x3f9f0, 0x3fa38,
+		0x3fa40, 0x3fa40,
+		0x3fa48, 0x3fa50,
+		0x3fa5c, 0x3fa64,
+		0x3fa70, 0x3fab8,
+		0x3fac0, 0x3fae4,
 		0x3faf8, 0x3fb10,
 		0x3fb28, 0x3fb28,
 		0x3fb3c, 0x3fb50,
@@ -1296,108 +1887,228 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x3fc3c, 0x3fc50,
 		0x3fcf0, 0x3fcfc,
 		0x40000, 0x4000c,
-		0x40040, 0x40068,
-		0x4007c, 0x40144,
+		0x40040, 0x40050,
+		0x40060, 0x40068,
+		0x4007c, 0x4008c,
+		0x40094, 0x400b0,
+		0x400c0, 0x40144,
 		0x40180, 0x4018c,
-		0x40200, 0x40298,
-		0x402ac, 0x4033c,
+		0x40200, 0x40254,
+		0x40260, 0x40264,
+		0x40270, 0x40288,
+		0x40290, 0x40298,
+		0x402ac, 0x402c8,
+		0x402d0, 0x402e0,
+		0x402f0, 0x402f0,
+		0x40300, 0x4033c,
 		0x403f8, 0x403fc,
 		0x41304, 0x413c4,
-		0x41400, 0x4141c,
+		0x41400, 0x4140c,
+		0x41414, 0x4141c,
 		0x41480, 0x414d0,
-		0x44000, 0x44078,
-		0x440c0, 0x44278,
-		0x442c0, 0x44478,
-		0x444c0, 0x44678,
-		0x446c0, 0x44878,
-		0x448c0, 0x449fc,
-		0x45000, 0x45068,
+		0x44000, 0x44054,
+		0x4405c, 0x44078,
+		0x440c0, 0x44174,
+		0x44180, 0x441ac,
+		0x441b4, 0x441b8,
+		0x441c0, 0x44254,
+		0x4425c, 0x44278,
+		0x442c0, 0x44374,
+		0x44380, 0x443ac,
+		0x443b4, 0x443b8,
+		0x443c0, 0x44454,
+		0x4445c, 0x44478,
+		0x444c0, 0x44574,
+		0x44580, 0x445ac,
+		0x445b4, 0x445b8,
+		0x445c0, 0x44654,
+		0x4465c, 0x44678,
+		0x446c0, 0x44774,
+		0x44780, 0x447ac,
+		0x447b4, 0x447b8,
+		0x447c0, 0x44854,
+		0x4485c, 0x44878,
+		0x448c0, 0x44974,
+		0x44980, 0x449ac,
+		0x449b4, 0x449b8,
+		0x449c0, 0x449fc,
+		0x45000, 0x45004,
+		0x45010, 0x45030,
+		0x45040, 0x45060,
+		0x45068, 0x45068,
 		0x45080, 0x45084,
 		0x450a0, 0x450b0,
-		0x45200, 0x45268,
+		0x45200, 0x45204,
+		0x45210, 0x45230,
+		0x45240, 0x45260,
+		0x45268, 0x45268,
 		0x45280, 0x45284,
 		0x452a0, 0x452b0,
 		0x460c0, 0x460e4,
-		0x47000, 0x4708c,
+		0x47000, 0x4703c,
+		0x47044, 0x4708c,
 		0x47200, 0x47250,
-		0x47400, 0x47420,
+		0x47400, 0x47408,
+		0x47414, 0x47420,
 		0x47600, 0x47618,
 		0x47800, 0x47814,
 		0x48000, 0x4800c,
-		0x48040, 0x48068,
-		0x4807c, 0x48144,
+		0x48040, 0x48050,
+		0x48060, 0x48068,
+		0x4807c, 0x4808c,
+		0x48094, 0x480b0,
+		0x480c0, 0x48144,
 		0x48180, 0x4818c,
-		0x48200, 0x48298,
-		0x482ac, 0x4833c,
+		0x48200, 0x48254,
+		0x48260, 0x48264,
+		0x48270, 0x48288,
+		0x48290, 0x48298,
+		0x482ac, 0x482c8,
+		0x482d0, 0x482e0,
+		0x482f0, 0x482f0,
+		0x48300, 0x4833c,
 		0x483f8, 0x483fc,
 		0x49304, 0x493c4,
-		0x49400, 0x4941c,
+		0x49400, 0x4940c,
+		0x49414, 0x4941c,
 		0x49480, 0x494d0,
-		0x4c000, 0x4c078,
-		0x4c0c0, 0x4c278,
-		0x4c2c0, 0x4c478,
-		0x4c4c0, 0x4c678,
-		0x4c6c0, 0x4c878,
-		0x4c8c0, 0x4c9fc,
-		0x4d000, 0x4d068,
+		0x4c000, 0x4c054,
+		0x4c05c, 0x4c078,
+		0x4c0c0, 0x4c174,
+		0x4c180, 0x4c1ac,
+		0x4c1b4, 0x4c1b8,
+		0x4c1c0, 0x4c254,
+		0x4c25c, 0x4c278,
+		0x4c2c0, 0x4c374,
+		0x4c380, 0x4c3ac,
+		0x4c3b4, 0x4c3b8,
+		0x4c3c0, 0x4c454,
+		0x4c45c, 0x4c478,
+		0x4c4c0, 0x4c574,
+		0x4c580, 0x4c5ac,
+		0x4c5b4, 0x4c5b8,
+		0x4c5c0, 0x4c654,
+		0x4c65c, 0x4c678,
+		0x4c6c0, 0x4c774,
+		0x4c780, 0x4c7ac,
+		0x4c7b4, 0x4c7b8,
+		0x4c7c0, 0x4c854,
+		0x4c85c, 0x4c878,
+		0x4c8c0, 0x4c974,
+		0x4c980, 0x4c9ac,
+		0x4c9b4, 0x4c9b8,
+		0x4c9c0, 0x4c9fc,
+		0x4d000, 0x4d004,
+		0x4d010, 0x4d030,
+		0x4d040, 0x4d060,
+		0x4d068, 0x4d068,
 		0x4d080, 0x4d084,
 		0x4d0a0, 0x4d0b0,
-		0x4d200, 0x4d268,
+		0x4d200, 0x4d204,
+		0x4d210, 0x4d230,
+		0x4d240, 0x4d260,
+		0x4d268, 0x4d268,
 		0x4d280, 0x4d284,
 		0x4d2a0, 0x4d2b0,
 		0x4e0c0, 0x4e0e4,
-		0x4f000, 0x4f08c,
+		0x4f000, 0x4f03c,
+		0x4f044, 0x4f08c,
 		0x4f200, 0x4f250,
-		0x4f400, 0x4f420,
+		0x4f400, 0x4f408,
+		0x4f414, 0x4f420,
 		0x4f600, 0x4f618,
 		0x4f800, 0x4f814,
-		0x50000, 0x500cc,
+		0x50000, 0x50084,
+		0x50090, 0x500cc,
 		0x50400, 0x50400,
-		0x50800, 0x508cc,
+		0x50800, 0x50884,
+		0x50890, 0x508cc,
 		0x50c00, 0x50c00,
 		0x51000, 0x5101c,
 		0x51300, 0x51308,
 	};
 
 	static const unsigned int t6_reg_ranges[] = {
-		0x1008, 0x1124,
-		0x1138, 0x114c,
-		0x1180, 0x11b4,
-		0x11fc, 0x1254,
-		0x1280, 0x133c,
+		0x1008, 0x101c,
+		0x1024, 0x10a8,
+		0x10b4, 0x10f8,
+		0x1100, 0x1114,
+		0x111c, 0x112c,
+		0x1138, 0x113c,
+		0x1144, 0x114c,
+		0x1180, 0x1184,
+		0x1190, 0x1194,
+		0x11a0, 0x11a4,
+		0x11b0, 0x11b4,
+		0x11fc, 0x1258,
+		0x1280, 0x12d4,
+		0x12d9, 0x12d9,
+		0x12de, 0x12de,
+		0x12e3, 0x12e3,
+		0x12e8, 0x133c,
 		0x1800, 0x18fc,
 		0x3000, 0x302c,
-		0x3060, 0x30d8,
+		0x3060, 0x30b0,
+		0x30b8, 0x30d8,
 		0x30e0, 0x30fc,
 		0x3140, 0x357c,
 		0x35a8, 0x35cc,
 		0x35ec, 0x35ec,
 		0x3600, 0x5624,
-		0x56cc, 0x575c,
+		0x56cc, 0x56ec,
+		0x56f4, 0x5720,
+		0x5728, 0x575c,
 		0x580c, 0x5814,
-		0x5890, 0x58bc,
+		0x5890, 0x589c,
+		0x58a4, 0x58ac,
+		0x58b8, 0x58bc,
 		0x5940, 0x595c,
 		0x5980, 0x598c,
-		0x59b0, 0x59dc,
+		0x59b0, 0x59c8,
+		0x59d0, 0x59dc,
 		0x59fc, 0x5a18,
 		0x5a60, 0x5a6c,
-		0x5a80, 0x5a9c,
+		0x5a80, 0x5a8c,
+		0x5a94, 0x5a9c,
 		0x5b94, 0x5bfc,
-		0x5c10, 0x5ec0,
-		0x5ec8, 0x5ecc,
-		0x6000, 0x6040,
-		0x6058, 0x619c,
+		0x5c10, 0x5e48,
+		0x5e50, 0x5e94,
+		0x5ea0, 0x5eb0,
+		0x5ec0, 0x5ec0,
+		0x5ec8, 0x5ed0,
+		0x6000, 0x6020,
+		0x6028, 0x6040,
+		0x6058, 0x609c,
+		0x60a8, 0x619c,
 		0x7700, 0x7798,
 		0x77c0, 0x7880,
 		0x78cc, 0x78fc,
-		0x7b00, 0x7c54,
-		0x7d00, 0x7efc,
+		0x7b00, 0x7b58,
+		0x7b60, 0x7b84,
+		0x7b8c, 0x7c54,
+		0x7d00, 0x7d38,
+		0x7d40, 0x7d84,
+		0x7d8c, 0x7ddc,
+		0x7de4, 0x7e04,
+		0x7e10, 0x7e1c,
+		0x7e24, 0x7e38,
+		0x7e40, 0x7e44,
+		0x7e4c, 0x7e78,
+		0x7e80, 0x7edc,
+		0x7ee8, 0x7efc,
 		0x8dc0, 0x8de4,
-		0x8df8, 0x8e84,
+		0x8df8, 0x8e04,
+		0x8e10, 0x8e84,
 		0x8ea0, 0x8f88,
-		0x8fb8, 0x9124,
+		0x8fb8, 0x9058,
+		0x9060, 0x9060,
+		0x9068, 0x90f8,
+		0x9100, 0x9124,
 		0x9400, 0x9470,
-		0x9600, 0x971c,
+		0x9600, 0x9600,
+		0x9608, 0x9638,
+		0x9640, 0x9704,
+		0x9710, 0x971c,
 		0x9800, 0x9808,
 		0x9820, 0x983c,
 		0x9850, 0x9864,
@@ -1411,109 +2122,171 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x9f80, 0xa020,
 		0xd004, 0xd03c,
 		0xd100, 0xd118,
-		0xd200, 0xd31c,
+		0xd200, 0xd214,
+		0xd220, 0xd234,
+		0xd240, 0xd254,
+		0xd260, 0xd274,
+		0xd280, 0xd294,
+		0xd2a0, 0xd2b4,
+		0xd2c0, 0xd2d4,
+		0xd2e0, 0xd2f4,
+		0xd300, 0xd31c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0xf008,
 		0x11000, 0x11014,
-		0x11048, 0x1117c,
-		0x11190, 0x11270,
+		0x11048, 0x1106c,
+		0x11074, 0x11088,
+		0x11098, 0x11120,
+		0x1112c, 0x1117c,
+		0x11190, 0x112e0,
 		0x11300, 0x1130c,
 		0x12000, 0x1206c,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
-		0x1908c, 0x19124,
-		0x19150, 0x191b0,
+		0x1908c, 0x190e8,
+		0x190f0, 0x190f8,
+		0x19100, 0x19110,
+		0x19120, 0x19124,
+		0x19150, 0x19194,
+		0x1919c, 0x191b0,
 		0x191d0, 0x191e8,
-		0x19238, 0x192bc,
-		0x193f8, 0x19474,
+		0x19238, 0x19290,
+		0x192a4, 0x192b0,
+		0x192bc, 0x192bc,
+		0x19348, 0x1934c,
+		0x193f8, 0x19418,
+		0x19420, 0x19428,
+		0x19430, 0x19444,
+		0x1944c, 0x1946c,
+		0x19474, 0x19474,
 		0x19490, 0x194cc,
 		0x194f0, 0x194f8,
-		0x19c00, 0x19c80,
-		0x19c94, 0x19cbc,
-		0x19ce4, 0x19d28,
+		0x19c00, 0x19c48,
+		0x19c50, 0x19c80,
+		0x19c94, 0x19c98,
+		0x19ca0, 0x19cbc,
+		0x19ce4, 0x19ce4,
+		0x19cf0, 0x19cf8,
+		0x19d00, 0x19d28,
 		0x19d50, 0x19d78,
-		0x19d94, 0x19dc8,
+		0x19d94, 0x19d98,
+		0x19da0, 0x19dc8,
 		0x19df0, 0x19e10,
 		0x19e50, 0x19e6c,
-		0x19ea0, 0x19f34,
+		0x19ea0, 0x19ebc,
+		0x19ec4, 0x19ef4,
+		0x19f04, 0x19f2c,
+		0x19f34, 0x19f34,
 		0x19f40, 0x19f50,
 		0x19f90, 0x19fac,
-		0x19fc4, 0x19fe4,
-		0x1a000, 0x1a06c,
-		0x1a0b0, 0x1a120,
-		0x1a128, 0x1a138,
+		0x19fc4, 0x19fc8,
+		0x19fd0, 0x19fe4,
+		0x1a000, 0x1a004,
+		0x1a010, 0x1a06c,
+		0x1a0b0, 0x1a0e4,
+		0x1a0ec, 0x1a0f8,
+		0x1a100, 0x1a108,
+		0x1a114, 0x1a120,
+		0x1a128, 0x1a130,
+		0x1a138, 0x1a138,
 		0x1a190, 0x1a1c4,
 		0x1a1fc, 0x1a1fc,
 		0x1e008, 0x1e00c,
-		0x1e040, 0x1e04c,
+		0x1e040, 0x1e044,
+		0x1e04c, 0x1e04c,
 		0x1e284, 0x1e290,
 		0x1e2c0, 0x1e2c0,
 		0x1e2e0, 0x1e2e0,
 		0x1e300, 0x1e384,
 		0x1e3c0, 0x1e3c8,
 		0x1e408, 0x1e40c,
-		0x1e440, 0x1e44c,
+		0x1e440, 0x1e444,
+		0x1e44c, 0x1e44c,
 		0x1e684, 0x1e690,
 		0x1e6c0, 0x1e6c0,
 		0x1e6e0, 0x1e6e0,
 		0x1e700, 0x1e784,
 		0x1e7c0, 0x1e7c8,
 		0x1e808, 0x1e80c,
-		0x1e840, 0x1e84c,
+		0x1e840, 0x1e844,
+		0x1e84c, 0x1e84c,
 		0x1ea84, 0x1ea90,
 		0x1eac0, 0x1eac0,
 		0x1eae0, 0x1eae0,
 		0x1eb00, 0x1eb84,
 		0x1ebc0, 0x1ebc8,
 		0x1ec08, 0x1ec0c,
-		0x1ec40, 0x1ec4c,
+		0x1ec40, 0x1ec44,
+		0x1ec4c, 0x1ec4c,
 		0x1ee84, 0x1ee90,
 		0x1eec0, 0x1eec0,
 		0x1eee0, 0x1eee0,
 		0x1ef00, 0x1ef84,
 		0x1efc0, 0x1efc8,
 		0x1f008, 0x1f00c,
-		0x1f040, 0x1f04c,
+		0x1f040, 0x1f044,
+		0x1f04c, 0x1f04c,
 		0x1f284, 0x1f290,
 		0x1f2c0, 0x1f2c0,
 		0x1f2e0, 0x1f2e0,
 		0x1f300, 0x1f384,
 		0x1f3c0, 0x1f3c8,
 		0x1f408, 0x1f40c,
-		0x1f440, 0x1f44c,
+		0x1f440, 0x1f444,
+		0x1f44c, 0x1f44c,
 		0x1f684, 0x1f690,
 		0x1f6c0, 0x1f6c0,
 		0x1f6e0, 0x1f6e0,
 		0x1f700, 0x1f784,
 		0x1f7c0, 0x1f7c8,
 		0x1f808, 0x1f80c,
-		0x1f840, 0x1f84c,
+		0x1f840, 0x1f844,
+		0x1f84c, 0x1f84c,
 		0x1fa84, 0x1fa90,
 		0x1fac0, 0x1fac0,
 		0x1fae0, 0x1fae0,
 		0x1fb00, 0x1fb84,
 		0x1fbc0, 0x1fbc8,
 		0x1fc08, 0x1fc0c,
-		0x1fc40, 0x1fc4c,
+		0x1fc40, 0x1fc44,
+		0x1fc4c, 0x1fc4c,
 		0x1fe84, 0x1fe90,
 		0x1fec0, 0x1fec0,
 		0x1fee0, 0x1fee0,
 		0x1ff00, 0x1ff84,
 		0x1ffc0, 0x1ffc8,
-		0x30000, 0x30070,
-		0x30100, 0x301d0,
+		0x30000, 0x30030,
+		0x30038, 0x30038,
+		0x30040, 0x30040,
+		0x30048, 0x30048,
+		0x30050, 0x30050,
+		0x3005c, 0x30060,
+		0x30068, 0x30068,
+		0x30070, 0x30070,
+		0x30100, 0x30168,
+		0x30190, 0x301a0,
+		0x301a8, 0x301b8,
+		0x301c4, 0x301c8,
+		0x301d0, 0x301d0,
 		0x30200, 0x30320,
-		0x30400, 0x3052c,
+		0x30400, 0x304b4,
+		0x304c0, 0x3052c,
 		0x30540, 0x3061c,
-		0x30800, 0x30890,
+		0x30800, 0x308a0,
 		0x308c0, 0x30908,
 		0x30910, 0x309b8,
 		0x30a00, 0x30a04,
-		0x30a0c, 0x30a2c,
+		0x30a0c, 0x30a14,
+		0x30a1c, 0x30a2c,
 		0x30a44, 0x30a50,
-		0x30a74, 0x30c24,
-		0x30d00, 0x30d3c,
-		0x30d44, 0x30d7c,
+		0x30a74, 0x30a74,
+		0x30a7c, 0x30afc,
+		0x30b08, 0x30c24,
+		0x30d00, 0x30d14,
+		0x30d1c, 0x30d3c,
+		0x30d44, 0x30d4c,
+		0x30d54, 0x30d74,
+		0x30d7c, 0x30d7c,
 		0x30de0, 0x30de0,
 		0x30e00, 0x30ed4,
 		0x30f00, 0x30fa4,
@@ -1542,7 +2315,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x31bb0, 0x31bb4,
 		0x31bc8, 0x31bd4,
 		0x32140, 0x3218c,
-		0x321f0, 0x32200,
+		0x321f0, 0x321f4,
+		0x32200, 0x32200,
 		0x32218, 0x32218,
 		0x32400, 0x32400,
 		0x32408, 0x3241c,
@@ -1551,46 +2325,108 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x326a8, 0x326a8,
 		0x326ec, 0x326ec,
 		0x32a00, 0x32abc,
-		0x32b00, 0x32b78,
+		0x32b00, 0x32b38,
+		0x32b40, 0x32b58,
+		0x32b60, 0x32b78,
 		0x32c00, 0x32c00,
 		0x32c08, 0x32c3c,
 		0x32e00, 0x32e2c,
 		0x32f00, 0x32f2c,
-		0x33000, 0x330ac,
-		0x330c0, 0x331ac,
-		0x331c0, 0x332c4,
-		0x332e4, 0x333c4,
-		0x333e4, 0x334ac,
-		0x334c0, 0x335ac,
-		0x335c0, 0x336c4,
-		0x336e4, 0x337c4,
+		0x33000, 0x3302c,
+		0x33034, 0x33050,
+		0x33058, 0x33058,
+		0x33060, 0x3308c,
+		0x3309c, 0x330ac,
+		0x330c0, 0x330c0,
+		0x330c8, 0x330d0,
+		0x330d8, 0x330e0,
+		0x330ec, 0x3312c,
+		0x33134, 0x33150,
+		0x33158, 0x33158,
+		0x33160, 0x3318c,
+		0x3319c, 0x331ac,
+		0x331c0, 0x331c0,
+		0x331c8, 0x331d0,
+		0x331d8, 0x331e0,
+		0x331ec, 0x33290,
+		0x33298, 0x332c4,
+		0x332e4, 0x33390,
+		0x33398, 0x333c4,
+		0x333e4, 0x3342c,
+		0x33434, 0x33450,
+		0x33458, 0x33458,
+		0x33460, 0x3348c,
+		0x3349c, 0x334ac,
+		0x334c0, 0x334c0,
+		0x334c8, 0x334d0,
+		0x334d8, 0x334e0,
+		0x334ec, 0x3352c,
+		0x33534, 0x33550,
+		0x33558, 0x33558,
+		0x33560, 0x3358c,
+		0x3359c, 0x335ac,
+		0x335c0, 0x335c0,
+		0x335c8, 0x335d0,
+		0x335d8, 0x335e0,
+		0x335ec, 0x33690,
+		0x33698, 0x336c4,
+		0x336e4, 0x33790,
+		0x33798, 0x337c4,
 		0x337e4, 0x337fc,
 		0x33814, 0x33814,
 		0x33854, 0x33868,
 		0x33880, 0x3388c,
 		0x338c0, 0x338d0,
 		0x338e8, 0x338ec,
-		0x33900, 0x339ac,
-		0x339c0, 0x33ac4,
+		0x33900, 0x3392c,
+		0x33934, 0x33950,
+		0x33958, 0x33958,
+		0x33960, 0x3398c,
+		0x3399c, 0x339ac,
+		0x339c0, 0x339c0,
+		0x339c8, 0x339d0,
+		0x339d8, 0x339e0,
+		0x339ec, 0x33a90,
+		0x33a98, 0x33ac4,
 		0x33ae4, 0x33b10,
-		0x33b24, 0x33b50,
+		0x33b24, 0x33b28,
+		0x33b38, 0x33b50,
 		0x33bf0, 0x33c10,
-		0x33c24, 0x33c50,
+		0x33c24, 0x33c28,
+		0x33c38, 0x33c50,
 		0x33cf0, 0x33cfc,
-		0x34000, 0x34070,
-		0x34100, 0x341d0,
+		0x34000, 0x34030,
+		0x34038, 0x34038,
+		0x34040, 0x34040,
+		0x34048, 0x34048,
+		0x34050, 0x34050,
+		0x3405c, 0x34060,
+		0x34068, 0x34068,
+		0x34070, 0x34070,
+		0x34100, 0x34168,
+		0x34190, 0x341a0,
+		0x341a8, 0x341b8,
+		0x341c4, 0x341c8,
+		0x341d0, 0x341d0,
 		0x34200, 0x34320,
-		0x34400, 0x3452c,
+		0x34400, 0x344b4,
+		0x344c0, 0x3452c,
 		0x34540, 0x3461c,
-		0x34800, 0x34890,
+		0x34800, 0x348a0,
 		0x348c0, 0x34908,
 		0x34910, 0x349b8,
 		0x34a00, 0x34a04,
-		0x34a0c, 0x34a2c,
+		0x34a0c, 0x34a14,
+		0x34a1c, 0x34a2c,
 		0x34a44, 0x34a50,
-		0x34a74, 0x34c24,
-		0x34d00, 0x34d3c,
-		0x34d44, 0x34d7c,
+		0x34a74, 0x34a74,
+		0x34a7c, 0x34afc,
+		0x34b08, 0x34c24,
+		0x34d00, 0x34d14,
+		0x34d1c, 0x34d3c,
+		0x34d44, 0x34d4c,
+		0x34d54, 0x34d74,
+		0x34d7c, 0x34d7c,
 		0x34de0, 0x34de0,
 		0x34e00, 0x34ed4,
 		0x34f00, 0x34fa4,
@@ -1619,7 +2455,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x35bb0, 0x35bb4,
 		0x35bc8, 0x35bd4,
 		0x36140, 0x3618c,
-		0x361f0, 0x36200,
+		0x361f0, 0x361f4,
+		0x36200, 0x36200,
 		0x36218, 0x36218,
 		0x36400, 0x36400,
 		0x36408, 0x3641c,
@@ -1628,31 +2465,75 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x366a8, 0x366a8,
 		0x366ec, 0x366ec,
 		0x36a00, 0x36abc,
-		0x36b00, 0x36b78,
+		0x36b00, 0x36b38,
+		0x36b40, 0x36b58,
+		0x36b60, 0x36b78,
 		0x36c00, 0x36c00,
 		0x36c08, 0x36c3c,
 		0x36e00, 0x36e2c,
 		0x36f00, 0x36f2c,
-		0x37000, 0x370ac,
-		0x370c0, 0x371ac,
-		0x371c0, 0x372c4,
-		0x372e4, 0x373c4,
-		0x373e4, 0x374ac,
-		0x374c0, 0x375ac,
-		0x375c0, 0x376c4,
-		0x376e4, 0x377c4,
+		0x37000, 0x3702c,
+		0x37034, 0x37050,
+		0x37058, 0x37058,
+		0x37060, 0x3708c,
+		0x3709c, 0x370ac,
+		0x370c0, 0x370c0,
+		0x370c8, 0x370d0,
+		0x370d8, 0x370e0,
+		0x370ec, 0x3712c,
+		0x37134, 0x37150,
+		0x37158, 0x37158,
+		0x37160, 0x3718c,
+		0x3719c, 0x371ac,
+		0x371c0, 0x371c0,
+		0x371c8, 0x371d0,
+		0x371d8, 0x371e0,
+		0x371ec, 0x37290,
+		0x37298, 0x372c4,
+		0x372e4, 0x37390,
+		0x37398, 0x373c4,
+		0x373e4, 0x3742c,
+		0x37434, 0x37450,
+		0x37458, 0x37458,
+		0x37460, 0x3748c,
+		0x3749c, 0x374ac,
+		0x374c0, 0x374c0,
+		0x374c8, 0x374d0,
+		0x374d8, 0x374e0,
+		0x374ec, 0x3752c,
+		0x37534, 0x37550,
+		0x37558, 0x37558,
+		0x37560, 0x3758c,
+		0x3759c, 0x375ac,
+		0x375c0, 0x375c0,
+		0x375c8, 0x375d0,
+		0x375d8, 0x375e0,
+		0x375ec, 0x37690,
+		0x37698, 0x376c4,
+		0x376e4, 0x37790,
+		0x37798, 0x377c4,
 		0x377e4, 0x377fc,
 		0x37814, 0x37814,
 		0x37854, 0x37868,
 		0x37880, 0x3788c,
 		0x378c0, 0x378d0,
 		0x378e8, 0x378ec,
-		0x37900, 0x379ac,
-		0x379c0, 0x37ac4,
+		0x37900, 0x3792c,
+		0x37934, 0x37950,
+		0x37958, 0x37958,
+		0x37960, 0x3798c,
+		0x3799c, 0x379ac,
+		0x379c0, 0x379c0,
+		0x379c8, 0x379d0,
+		0x379d8, 0x379e0,
+		0x379ec, 0x37a90,
+		0x37a98, 0x37ac4,
 		0x37ae4, 0x37b10,
-		0x37b24, 0x37b50,
+		0x37b24, 0x37b28,
+		0x37b38, 0x37b50,
 		0x37bf0, 0x37c10,
-		0x37c24, 0x37c50,
+		0x37c24, 0x37c28,
+		0x37c38, 0x37c50,
 		0x37cf0, 0x37cfc,
 		0x40040, 0x40040,
 		0x40080, 0x40084,
@@ -1664,36 +2545,63 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x40280, 0x40280,
 		0x40304, 0x40304,
 		0x40330, 0x4033c,
-		0x41304, 0x413dc,
-		0x41400, 0x4141c,
+		0x41304, 0x413b8,
+		0x413c0, 0x413c8,
+		0x413d0, 0x413dc,
+		0x413f0, 0x413f0,
+		0x41400, 0x4140c,
+		0x41414, 0x4141c,
 		0x41480, 0x414d0,
 		0x44000, 0x4407c,
-		0x440c0, 0x4427c,
-		0x442c0, 0x4447c,
-		0x444c0, 0x4467c,
-		0x446c0, 0x4487c,
-		0x448c0, 0x44a7c,
-		0x44ac0, 0x44c7c,
-		0x44cc0, 0x44e7c,
-		0x44ec0, 0x4507c,
-		0x450c0, 0x451fc,
-		0x45800, 0x45868,
+		0x440c0, 0x441ac,
+		0x441b4, 0x4427c,
+		0x442c0, 0x443ac,
+		0x443b4, 0x4447c,
+		0x444c0, 0x445ac,
+		0x445b4, 0x4467c,
+		0x446c0, 0x447ac,
+		0x447b4, 0x4487c,
+		0x448c0, 0x449ac,
+		0x449b4, 0x44a7c,
+		0x44ac0, 0x44bac,
+		0x44bb4, 0x44c7c,
+		0x44cc0, 0x44dac,
+		0x44db4, 0x44e7c,
+		0x44ec0, 0x44fac,
+		0x44fb4, 0x4507c,
+		0x450c0, 0x451ac,
+		0x451b4, 0x451fc,
+		0x45800, 0x45804,
+		0x45810, 0x45830,
+		0x45840, 0x45860,
+		0x45868, 0x45868,
 		0x45880, 0x45884,
 		0x458a0, 0x458b0,
-		0x45a00, 0x45a68,
+		0x45a00, 0x45a04,
+		0x45a10, 0x45a30,
+		0x45a40, 0x45a60,
+		0x45a68, 0x45a68,
 		0x45a80, 0x45a84,
 		0x45aa0, 0x45ab0,
 		0x460c0, 0x460e4,
-		0x47000, 0x4708c,
+		0x47000, 0x4703c,
+		0x47044, 0x4708c,
 		0x47200, 0x47250,
-		0x47400, 0x47420,
+		0x47400, 0x47408,
+		0x47414, 0x47420,
 		0x47600, 0x47618,
-		0x47800, 0x4782c,
-		0x50000, 0x500cc,
+		0x47800, 0x47814,
+		0x47820, 0x4782c,
+		0x50000, 0x50084,
+		0x50090, 0x500cc,
+		0x50300, 0x50384,
 		0x50400, 0x50400,
-		0x50800, 0x508cc,
+		0x50800, 0x50884,
+		0x50890, 0x508cc,
+		0x50b00, 0x50b84,
 		0x50c00, 0x50c00,
-		0x51000, 0x510b0,
+		0x51000, 0x51020,
+		0x51028, 0x510b0,
 		0x51300, 0x51324,
 	};
 
@@ -1747,6 +2655,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 }
 
 #define EEPROM_STAT_ADDR   0x7bfc
+#define VPD_SIZE           0x800
 #define VPD_BASE           0x400
 #define VPD_BASE_OLD       0
 #define VPD_LEN            1024
@@ -1783,6 +2692,15 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	vpd = vmalloc(VPD_LEN);
 	if (!vpd)
 		return -ENOMEM;
+
+	/* We have two VPD data structures stored in the adapter VPD area.
+	 * By default, Linux calculates the size of the VPD area by traversing
+	 * the first VPD area at offset 0x0, so we need to tell the OS what
+	 * our real VPD size is.
+	 */
+	ret = pci_set_vpd_size(adapter->pdev, VPD_SIZE);
+	if (ret < 0)
+		goto out;
 
 	/* Card information normally starts at VPD_BASE but early cards had
 	 * it at 0.
@@ -1870,7 +2788,7 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 
 out:
 	vfree(vpd);
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 /**
@@ -2117,6 +3035,20 @@ int t4_get_fw_version(struct adapter *adapter, u32 *vers)
 }
 
 /**
+ *	t4_get_bs_version - read the firmware bootstrap version
+ *	@adapter: the adapter
+ *	@vers: where to place the version
+ *
+ *	Reads the FW Bootstrap version from flash.
+ */
+int t4_get_bs_version(struct adapter *adapter, u32 *vers)
+{
+	return t4_read_flash(adapter, FLASH_FWBOOTSTRAP_START +
+			     offsetof(struct fw_hdr, fw_ver), 1,
+			     vers, 0);
+}
+
+/**
  *	t4_get_tp_version - read the TP microcode version
  *	@adapter: the adapter
  *	@vers: where to place the version
@@ -2177,11 +3109,15 @@ int t4_get_exprom_version(struct adapter *adap, u32 *vers)
  */
 int t4_check_fw_version(struct adapter *adap)
 {
-	int ret, major, minor, micro;
+	int i, ret, major, minor, micro;
 	int exp_major, exp_minor, exp_micro;
 	unsigned int chip_version = CHELSIO_CHIP_VERSION(adap->params.chip);
 
 	ret = t4_get_fw_version(adap, &adap->params.fw_vers);
+	/* Try multiple times before returning error */
+	for (i = 0; (ret == -EBUSY || ret == -EAGAIN) && i < 3; i++)
+		ret = t4_get_fw_version(adap, &adap->params.fw_vers);
+
 	if (ret)
 		return ret;
 
@@ -2604,7 +3540,7 @@ int t4_load_phy_fw(struct adapter *adap,
 		 FW_PARAMS_PARAM_Z_V(FW_PARAMS_PARAM_DEV_PHYFW_DOWNLOAD));
 	val = phy_fw_size;
 	ret = t4_query_params_rw(adap, adap->mbox, adap->pf, 0, 1,
-				 &param, &val, 1);
+				 &param, &val, 1, true);
 	if (ret < 0)
 		return ret;
 	mtype = val >> 8;
@@ -2750,7 +3686,8 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_25G | \
+		     FW_PORT_CAP_SPEED_40G | FW_PORT_CAP_SPEED_100G | \
 		     FW_PORT_CAP_ANEG)
 
 /**
@@ -2770,13 +3707,21 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc)
 {
 	struct fw_port_cmd c;
-	unsigned int fc = 0, mdi = FW_PORT_CAP_MDI_V(FW_PORT_CAP_MDI_AUTO);
+	unsigned int mdi = FW_PORT_CAP_MDI_V(FW_PORT_CAP_MDI_AUTO);
+	unsigned int fc = 0, fec = 0, fw_fec = 0;
 
 	lc->link_ok = 0;
 	if (lc->requested_fc & PAUSE_RX)
 		fc |= FW_PORT_CAP_FC_RX;
 	if (lc->requested_fc & PAUSE_TX)
 		fc |= FW_PORT_CAP_FC_TX;
+
+	fec = lc->requested_fec & FEC_AUTO ? lc->auto_fec : lc->requested_fec;
+
+	if (fec & FEC_RS)
+		fw_fec |= FW_PORT_CAP_FEC_RS;
+	if (fec & FEC_BASER_RS)
+		fw_fec |= FW_PORT_CAP_FEC_BASER_RS;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
@@ -2788,13 +3733,15 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 
 	if (!(lc->supported & FW_PORT_CAP_ANEG)) {
 		c.u.l1cfg.rcap = cpu_to_be32((lc->supported & ADVERT_MASK) |
-					     fc);
+					     fc | fw_fec);
 		lc->fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
 	} else if (lc->autoneg == AUTONEG_DISABLE) {
-		c.u.l1cfg.rcap = cpu_to_be32(lc->requested_speed | fc | mdi);
+		c.u.l1cfg.rcap = cpu_to_be32(lc->requested_speed | fc |
+					     fw_fec | mdi);
 		lc->fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
 	} else
-		c.u.l1cfg.rcap = cpu_to_be32(lc->advertising | fc | mdi);
+		c.u.l1cfg.rcap = cpu_to_be32(lc->advertising | fc |
+					     fw_fec | mdi);
 
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
@@ -3093,6 +4040,7 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ MBHOSTPARERR_F, "CIM mailbox host parity error", -1, 1 },
 		{ TIEQINPARERRINT_F, "CIM TIEQ outgoing parity error", -1, 1 },
 		{ TIEQOUTPARERRINT_F, "CIM TIEQ incoming parity error", -1, 1 },
+		{ TIMER0INT_F, "CIM TIMER0 interrupt", -1, 1 },
 		{ 0 }
 	};
 	static const struct intr_info cim_upintr_info[] = {
@@ -3127,10 +4075,26 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ 0 }
 	};
 
+	u32 val, fw_err;
 	int fat;
 
-	if (t4_read_reg(adapter, PCIE_FW_A) & PCIE_FW_ERR_F)
+	fw_err = t4_read_reg(adapter, PCIE_FW_A);
+	if (fw_err & PCIE_FW_ERR_F)
 		t4_report_fw_error(adapter);
+
+	/* When the Firmware detects an internal error which normally
+	 * wouldn't raise a Host Interrupt, it forces a CIM Timer0 interrupt
+	 * in order to make sure the Host sees the Firmware Crash.  So
+	 * if we have a Timer0 interrupt and don't see a Firmware Crash,
+	 * ignore the Timer0 interrupt.
+	 */
+
+	val = t4_read_reg(adapter, CIM_HOST_INT_CAUSE_A);
+	if (val & TIMER0INT_F)
+		if (!(fw_err & PCIE_FW_ERR_F) ||
+		    (PCIE_FW_EVAL_G(fw_err) != PCIE_FW_EVAL_CRASH))
+			t4_write_reg(adapter, CIM_HOST_INT_CAUSE_A,
+				     TIMER0INT_F);
 
 	fat = t4_handle_intr_status(adapter, CIM_HOST_INT_CAUSE_A,
 				    cim_intr_info) +
@@ -3498,7 +4462,7 @@ static void pl_intr_handler(struct adapter *adap)
 #define PF_INTR_MASK (PFSW_F)
 #define GLBL_INTR_MASK (CIM_F | MPS_F | PL_F | PCIE_F | MC_F | EDC0_F | \
 		EDC1_F | LE_F | TP_F | MA_F | PM_TX_F | PM_RX_F | ULP_RX_F | \
-		CPL_SWITCH_F | SGE_F | ULP_TX_F)
+		CPL_SWITCH_F | SGE_F | ULP_TX_F | SF_F)
 
 /**
  *	t4_slow_intr_handler - control path interrupt handler
@@ -3610,29 +4574,17 @@ void t4_intr_enable(struct adapter *adapter)
  */
 void t4_intr_disable(struct adapter *adapter)
 {
-	u32 whoami = t4_read_reg(adapter, PL_WHOAMI_A);
-	u32 pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
+	u32 whoami, pf;
+
+	if (pci_channel_offline(adapter->pdev))
+		return;
+
+	whoami = t4_read_reg(adapter, PL_WHOAMI_A);
+	pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
 			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 
 	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE_A), 0);
 	t4_set_reg_field(adapter, PL_INT_MAP0_A, 1 << pf, 0);
-}
-
-/**
- *	hash_mac_addr - return the hash value of a MAC address
- *	@addr: the 48-bit Ethernet MAC address
- *
- *	Hashes a MAC address according to the hash function used by HW inexact
- *	(hash) address matching.
- */
-static int hash_mac_addr(const u8 *addr)
-{
-	u32 a = ((u32)addr[0] << 16) | ((u32)addr[1] << 8) | addr[2];
-	u32 b = ((u32)addr[3] << 16) | ((u32)addr[4] << 8) | addr[5];
-	a ^= b;
-	a ^= (a >> 12);
-	a ^= (a >> 6);
-	return a & 0x3f;
 }
 
 /**
@@ -4446,7 +5398,7 @@ void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 	int i;
 	u32 data[2];
 
-	for (i = 0; i < PM_NSTATS; i++) {
+	for (i = 0; i < adap->params.arch.pm_stats_cnt; i++) {
 		t4_write_reg(adap, PM_TX_STAT_CONFIG_A, i + 1);
 		cnt[i] = t4_read_reg(adap, PM_TX_STAT_COUNT_A);
 		if (is_t4(adap->params.chip)) {
@@ -4473,7 +5425,7 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 	int i;
 	u32 data[2];
 
-	for (i = 0; i < PM_NSTATS; i++) {
+	for (i = 0; i < adap->params.arch.pm_stats_cnt; i++) {
 		t4_write_reg(adap, PM_RX_STAT_CONFIG_A, i + 1);
 		cnt[i] = t4_read_reg(adap, PM_RX_STAT_COUNT_A);
 		if (is_t4(adap->params.chip)) {
@@ -4488,23 +5440,155 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 }
 
 /**
- *	t4_get_mps_bg_map - return the buffer groups associated with a port
+ *	compute_mps_bg_map - compute the MPS Buffer Group Map for a Port
  *	@adap: the adapter
- *	@idx: the port index
+ *	@pidx: the port index
+ *
+ *	Computes and returns a bitmap indicating which MPS buffer groups are
+ *	associated with the given Port.  Bit i is set if buffer group i is
+ *	used by the Port.
+ */
+static inline unsigned int compute_mps_bg_map(struct adapter *adapter,
+					      int pidx)
+{
+	unsigned int chip_version, nports;
+
+	chip_version = CHELSIO_CHIP_VERSION(adapter->params.chip);
+	nports = 1 << NUMPORTS_G(t4_read_reg(adapter, MPS_CMN_CTL_A));
+
+	switch (chip_version) {
+	case CHELSIO_T4:
+	case CHELSIO_T5:
+		switch (nports) {
+		case 1: return 0xf;
+		case 2: return 3 << (2 * pidx);
+		case 4: return 1 << pidx;
+		}
+		break;
+
+	case CHELSIO_T6:
+		switch (nports) {
+		case 2: return 1 << (2 * pidx);
+		}
+		break;
+	}
+
+	dev_err(adapter->pdev_dev, "Need MPS Buffer Group Map for Chip %0x, Nports %d\n",
+		chip_version, nports);
+
+	return 0;
+}
+
+/**
+ *	t4_get_mps_bg_map - return the buffer groups associated with a port
+ *	@adapter: the adapter
+ *	@pidx: the port index
  *
  *	Returns a bitmap indicating which MPS buffer groups are associated
- *	with the given port.  Bit i is set if buffer group i is used by the
- *	port.
+ *	with the given Port.  Bit i is set if buffer group i is used by the
+ *	Port.
  */
-unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
+unsigned int t4_get_mps_bg_map(struct adapter *adapter, int pidx)
 {
-	u32 n = NUMPORTS_G(t4_read_reg(adap, MPS_CMN_CTL_A));
+	u8 *mps_bg_map;
+	unsigned int nports;
 
-	if (n == 0)
-		return idx == 0 ? 0xf : 0;
-	if (n == 1)
-		return idx < 2 ? (3 << (2 * idx)) : 0;
-	return 1 << idx;
+	nports = 1 << NUMPORTS_G(t4_read_reg(adapter, MPS_CMN_CTL_A));
+	if (pidx >= nports) {
+		CH_WARN(adapter, "MPS Port Index %d >= Nports %d\n",
+			pidx, nports);
+		return 0;
+	}
+
+	/* If we've already retrieved/computed this, just return the result.
+	 */
+	mps_bg_map = adapter->params.mps_bg_map;
+	if (mps_bg_map[pidx])
+		return mps_bg_map[pidx];
+
+	/* Newer Firmware can tell us what the MPS Buffer Group Map is.
+	 * If we're talking to such Firmware, let it tell us.  If the new
+	 * API isn't supported, revert back to old hardcoded way.  The value
+	 * obtained from Firmware is encoded in below format:
+	 *
+	 * val = (( MPSBGMAP[Port 3] << 24 ) |
+	 *        ( MPSBGMAP[Port 2] << 16 ) |
+	 *        ( MPSBGMAP[Port 1] <<  8 ) |
+	 *        ( MPSBGMAP[Port 0] <<  0 ))
+	 */
+	if (adapter->flags & FW_OK) {
+		u32 param, val;
+		int ret;
+
+		param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_MPSBGMAP));
+		ret = t4_query_params_ns(adapter, adapter->mbox, adapter->pf,
+					 0, 1, &param, &val);
+		if (!ret) {
+			int p;
+
+			/* Store the BG Map for all of the Ports in order to
+			 * avoid more calls to the Firmware in the future.
+			 */
+			for (p = 0; p < MAX_NPORTS; p++, val >>= 8)
+				mps_bg_map[p] = val & 0xff;
+
+			return mps_bg_map[pidx];
+		}
+	}
+
+	/* Either we're not talking to the Firmware or we're dealing with
+	 * older Firmware which doesn't support the new API to get the MPS
+	 * Buffer Group Map.  Fall back to computing it ourselves.
+	 */
+	mps_bg_map[pidx] = compute_mps_bg_map(adapter, pidx);
+	return mps_bg_map[pidx];
+}
+
+/**
+ *	t4_get_tp_ch_map - return TP ingress channels associated with a port
+ *	@adapter: the adapter
+ *	@pidx: the port index
+ *
+ *	Returns a bitmap indicating which TP Ingress Channels are associated
+ *	with a given Port.  Bit i is set if TP Ingress Channel i is used by
+ *	the Port.
+ */
+unsigned int t4_get_tp_ch_map(struct adapter *adap, int pidx)
+{
+	unsigned int chip_version = CHELSIO_CHIP_VERSION(adap->params.chip);
+	unsigned int nports = 1 << NUMPORTS_G(t4_read_reg(adap, MPS_CMN_CTL_A));
+
+	if (pidx >= nports) {
+		dev_warn(adap->pdev_dev, "TP Port Index %d >= Nports %d\n",
+			 pidx, nports);
+		return 0;
+	}
+
+	switch (chip_version) {
+	case CHELSIO_T4:
+	case CHELSIO_T5:
+		/* Note that this happens to be the same values as the MPS
+		 * Buffer Group Map for these Chips.  But we replicate the code
+		 * here because they're really separate concepts.
+		 */
+		switch (nports) {
+		case 1: return 0xf;
+		case 2: return 3 << (2 * pidx);
+		case 4: return 1 << pidx;
+		}
+		break;
+
+	case CHELSIO_T6:
+		switch (nports) {
+		case 2: return 1 << pidx;
+		}
+		break;
+	}
+
+	dev_err(adap->pdev_dev, "Need TP Channel Map for Chip %0x, Nports %d\n",
+		chip_version, nports);
+	return 0;
 }
 
 /**
@@ -4514,22 +5598,28 @@ unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
 const char *t4_get_port_type_description(enum fw_port_type port_type)
 {
 	static const char *const port_type_description[] = {
-		"R XFI",
-		"R XAUI",
-		"T SGMII",
-		"T XFI",
-		"T XAUI",
+		"Fiber_XFI",
+		"Fiber_XAUI",
+		"BT_SGMII",
+		"BT_XFI",
+		"BT_XAUI",
 		"KX4",
 		"CX4",
 		"KX",
 		"KR",
-		"R SFP+",
-		"KR/KX",
-		"KR/KX/KX4",
-		"R QSFP_10G",
-		"R QSA",
-		"R QSFP",
-		"R BP40_BA",
+		"SFP",
+		"BP_AP",
+		"BP4_AP",
+		"QSFP_10G",
+		"QSA",
+		"QSFP",
+		"BP40_BA",
+		"KR4_100G",
+		"CR4_QSFP",
+		"CR_QSFP",
+		"CR2_QSFP",
+		"SFP28",
+		"KR_SFP28",
 	};
 
 	if (port_type < ARRAY_SIZE(port_type_description))
@@ -4570,6 +5660,7 @@ void t4_get_port_stats_offset(struct adapter *adap, int idx,
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 {
 	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+	u32 stat_ctl = t4_read_reg(adap, MPS_STAT_CTL_A);
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
@@ -4601,6 +5692,14 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->tx_ppp6             = GET_STAT(TX_PORT_PPP6);
 	p->tx_ppp7             = GET_STAT(TX_PORT_PPP7);
 
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) >= CHELSIO_T5) {
+		if (stat_ctl & COUNTPAUSESTATTX_F) {
+			p->tx_frames -= p->tx_pause;
+			p->tx_octets -= p->tx_pause * 64;
+		}
+		if (stat_ctl & COUNTPAUSEMCTX_F)
+			p->tx_mcast_frames -= p->tx_pause;
+	}
 	p->rx_octets           = GET_STAT(RX_PORT_BYTES);
 	p->rx_frames           = GET_STAT(RX_PORT_FRAMES);
 	p->rx_bcast_frames     = GET_STAT(RX_PORT_BCAST);
@@ -4628,6 +5727,15 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_ppp5             = GET_STAT(RX_PORT_PPP5);
 	p->rx_ppp6             = GET_STAT(RX_PORT_PPP6);
 	p->rx_ppp7             = GET_STAT(RX_PORT_PPP7);
+
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) >= CHELSIO_T5) {
+		if (stat_ctl & COUNTPAUSESTATRX_F) {
+			p->rx_frames -= p->rx_pause;
+			p->rx_octets -= p->rx_pause * 64;
+		}
+		if (stat_ctl & COUNTPAUSEMCRX_F)
+			p->rx_mcast_frames -= p->rx_pause;
+	}
 
 	p->rx_ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_MAC_DROP_FRAME) : 0;
 	p->rx_ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_MAC_DROP_FRAME) : 0;
@@ -4881,6 +5989,39 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
 		"IDMA_FL_SEND_PADDING",
 		"IDMA_FL_SEND_COMPLETION_TO_IMSG",
 	};
+	static const char * const t6_decode[] = {
+		"IDMA_IDLE",
+		"IDMA_PUSH_MORE_CPL_FIFO",
+		"IDMA_PUSH_CPL_MSG_HEADER_TO_FIFO",
+		"IDMA_SGEFLRFLUSH_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PCIEHDR",
+		"IDMA_PHYSADDR_SEND_PAYLOAD_FIRST",
+		"IDMA_PHYSADDR_SEND_PAYLOAD",
+		"IDMA_FL_REQ_DATA_FL",
+		"IDMA_FL_DROP",
+		"IDMA_FL_DROP_SEND_INC",
+		"IDMA_FL_H_REQ_HEADER_FL",
+		"IDMA_FL_H_SEND_PCIEHDR",
+		"IDMA_FL_H_PUSH_CPL_FIFO",
+		"IDMA_FL_H_SEND_CPL",
+		"IDMA_FL_H_SEND_IP_HDR_FIRST",
+		"IDMA_FL_H_SEND_IP_HDR",
+		"IDMA_FL_H_REQ_NEXT_HEADER_FL",
+		"IDMA_FL_H_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_H_SEND_IP_HDR_PADDING",
+		"IDMA_FL_D_SEND_PCIEHDR",
+		"IDMA_FL_D_SEND_CPL_AND_IP_HDR",
+		"IDMA_FL_D_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_PCIEHDR",
+		"IDMA_FL_PUSH_CPL_FIFO",
+		"IDMA_FL_SEND_CPL",
+		"IDMA_FL_SEND_PAYLOAD_FIRST",
+		"IDMA_FL_SEND_PAYLOAD",
+		"IDMA_FL_REQ_NEXT_DATA_FL",
+		"IDMA_FL_SEND_NEXT_PCIEHDR",
+		"IDMA_FL_SEND_PADDING",
+		"IDMA_FL_SEND_COMPLETION_TO_IMSG",
+	};
 	static const u32 sge_regs[] = {
 		SGE_DEBUG_DATA_LOW_INDEX_2_A,
 		SGE_DEBUG_DATA_LOW_INDEX_3_A,
@@ -4889,6 +6030,32 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
 	const char **sge_idma_decode;
 	int sge_idma_decode_nstates;
 	int i;
+	unsigned int chip_version = CHELSIO_CHIP_VERSION(adapter->params.chip);
+
+	/* Select the right set of decode strings to dump depending on the
+	 * adapter chip type.
+	 */
+	switch (chip_version) {
+	case CHELSIO_T4:
+		sge_idma_decode = (const char **)t4_decode;
+		sge_idma_decode_nstates = ARRAY_SIZE(t4_decode);
+		break;
+
+	case CHELSIO_T5:
+		sge_idma_decode = (const char **)t5_decode;
+		sge_idma_decode_nstates = ARRAY_SIZE(t5_decode);
+		break;
+
+	case CHELSIO_T6:
+		sge_idma_decode = (const char **)t6_decode;
+		sge_idma_decode_nstates = ARRAY_SIZE(t6_decode);
+		break;
+
+	default:
+		dev_err(adapter->pdev_dev,
+			"Unsupported chip version %d\n", chip_version);
+		return;
+	}
 
 	if (is_t4(adapter->params.chip)) {
 		sge_idma_decode = (const char **)t4_decode;
@@ -5268,13 +6435,18 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	if (!t4_fw_matches_chip(adap, fw_hdr))
 		return -EINVAL;
 
+	/* Disable FW_OK flag so that mbox commands with FW_OK flag set
+	 * wont be sent when we are flashing FW.
+	 */
+	adap->flags &= ~FW_OK;
+
 	ret = t4_fw_halt(adap, mbox, force);
 	if (ret < 0 && !force)
-		return ret;
+		goto out;
 
 	ret = t4_load_fw(adap, fw_data, size);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	/*
 	 * Older versions of the firmware don't understand the new
@@ -5285,7 +6457,70 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	 * its header flags to see if it advertises the capability.
 	 */
 	reset = ((be32_to_cpu(fw_hdr->flags) & FW_HDR_FLAGS_RESET_HALT) == 0);
-	return t4_fw_restart(adap, mbox, reset);
+	ret = t4_fw_restart(adap, mbox, reset);
+
+	/* Grab potentially new Firmware Device Log parameters so we can see
+	 * how healthy the new Firmware is.  It's okay to contact the new
+	 * Firmware for these parameters even though, as far as it's
+	 * concerned, we've never said "HELLO" to it ...
+	 */
+	(void)t4_init_devlog_params(adap);
+out:
+	adap->flags |= FW_OK;
+	return ret;
+}
+
+/**
+ *	t4_fl_pkt_align - return the fl packet alignment
+ *	@adap: the adapter
+ *
+ *	T4 has a single field to specify the packing and padding boundary.
+ *	T5 onwards has separate fields for this and hence the alignment for
+ *	next packet offset is maximum of these two.
+ *
+ */
+int t4_fl_pkt_align(struct adapter *adap)
+{
+	u32 sge_control, sge_control2;
+	unsigned int ingpadboundary, ingpackboundary, fl_align, ingpad_shift;
+
+	sge_control = t4_read_reg(adap, SGE_CONTROL_A);
+
+	/* T4 uses a single control field to specify both the PCIe Padding and
+	 * Packing Boundary.  T5 introduced the ability to specify these
+	 * separately.  The actual Ingress Packet Data alignment boundary
+	 * within Packed Buffer Mode is the maximum of these two
+	 * specifications.  (Note that it makes no real practical sense to
+	 * have the Pading Boudary be larger than the Packing Boundary but you
+	 * could set the chip up that way and, in fact, legacy T4 code would
+	 * end doing this because it would initialize the Padding Boundary and
+	 * leave the Packing Boundary initialized to 0 (16 bytes).)
+	 * Padding Boundary values in T6 starts from 8B,
+	 * where as it is 32B for T4 and T5.
+	 */
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
+		ingpad_shift = INGPADBOUNDARY_SHIFT_X;
+	else
+		ingpad_shift = T6_INGPADBOUNDARY_SHIFT_X;
+
+	ingpadboundary = 1 << (INGPADBOUNDARY_G(sge_control) + ingpad_shift);
+
+	fl_align = ingpadboundary;
+	if (!is_t4(adap->params.chip)) {
+		/* T5 has a weird interpretation of one of the PCIe Packing
+		 * Boundary values.  No idea why ...
+		 */
+		sge_control2 = t4_read_reg(adap, SGE_CONTROL2_A);
+		ingpackboundary = INGPACKBOUNDARY_G(sge_control2);
+		if (ingpackboundary == INGPACKBOUNDARY_16B_X)
+			ingpackboundary = 16;
+		else
+			ingpackboundary = 1 << (ingpackboundary +
+						INGPACKBOUNDARY_SHIFT_X);
+
+		fl_align = max(ingpadboundary, ingpackboundary);
+	}
+	return fl_align;
 }
 
 /**
@@ -5325,6 +6560,10 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 						  INGPADBOUNDARY_SHIFT_X) |
 				 EGRSTATUSPAGESIZE_V(stat_len != 64));
 	} else {
+		unsigned int pack_align;
+		unsigned int ingpad, ingpack;
+		unsigned int pcie_cap;
+
 		/* T5 introduced the separation of the Free List Padding and
 		 * Packing Boundaries.  Thus, we can select a smaller Padding
 		 * Boundary to avoid uselessly chewing up PCIe Link and Memory
@@ -5337,31 +6576,71 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 		 * Size (the minimum unit of transfer to/from Memory).  If we
 		 * have a Padding Boundary which is smaller than the Memory
 		 * Line Size, that'll involve a Read-Modify-Write cycle on the
-		 * Memory Controller which is never good.  For T5 the smallest
-		 * Padding Boundary which we can select is 32 bytes which is
-		 * larger than any known Memory Controller Line Size so we'll
-		 * use that.
-		 *
-		 * T5 has a different interpretation of the "0" value for the
-		 * Packing Boundary.  This corresponds to 16 bytes instead of
-		 * the expected 32 bytes.  We never have a Packing Boundary
-		 * less than 32 bytes so we can't use that special value but
-		 * on the other hand, if we wanted 32 bytes, the best we can
-		 * really do is 64 bytes.
-		*/
-		if (fl_align <= 32) {
-			fl_align = 64;
-			fl_align_log = 6;
+		 * Memory Controller which is never good.
+		 */
+
+		/* We want the Packing Boundary to be based on the Cache Line
+		 * Size in order to help avoid False Sharing performance
+		 * issues between CPUs, etc.  We also want the Packing
+		 * Boundary to incorporate the PCI-E Maximum Payload Size.  We
+		 * get best performance when the Packing Boundary is a
+		 * multiple of the Maximum Payload Size.
+		 */
+		pack_align = fl_align;
+		pcie_cap = pci_find_capability(adap->pdev, PCI_CAP_ID_EXP);
+		if (pcie_cap) {
+			unsigned int mps, mps_log;
+			u16 devctl;
+
+			/* The PCIe Device Control Maximum Payload Size field
+			 * [bits 7:5] encodes sizes as powers of 2 starting at
+			 * 128 bytes.
+			 */
+			pci_read_config_word(adap->pdev,
+					     pcie_cap + PCI_EXP_DEVCTL,
+					     &devctl);
+			mps_log = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5) + 7;
+			mps = 1 << mps_log;
+			if (mps > pack_align)
+				pack_align = mps;
 		}
+
+		/* N.B. T5/T6 have a crazy special interpretation of the "0"
+		 * value for the Packing Boundary.  This corresponds to 16
+		 * bytes instead of the expected 32 bytes.  So if we want 32
+		 * bytes, the best we can really do is 64 bytes ...
+		 */
+		if (pack_align <= 16) {
+			ingpack = INGPACKBOUNDARY_16B_X;
+			fl_align = 16;
+		} else if (pack_align == 32) {
+			ingpack = INGPACKBOUNDARY_64B_X;
+			fl_align = 64;
+		} else {
+			unsigned int pack_align_log = fls(pack_align) - 1;
+
+			ingpack = pack_align_log - INGPACKBOUNDARY_SHIFT_X;
+			fl_align = pack_align;
+		}
+
+		/* Use the smallest Ingress Padding which isn't smaller than
+		 * the Memory Controller Read/Write Size.  We'll take that as
+		 * being 8 bytes since we don't know of any system with a
+		 * wider Memory Controller Bus Width.
+		 */
+		if (is_t5(adap->params.chip))
+			ingpad = INGPADBOUNDARY_32B_X;
+		else
+			ingpad = T6_INGPADBOUNDARY_8B_X;
+
 		t4_set_reg_field(adap, SGE_CONTROL_A,
 				 INGPADBOUNDARY_V(INGPADBOUNDARY_M) |
 				 EGRSTATUSPAGESIZE_F,
-				 INGPADBOUNDARY_V(INGPCIEBOUNDARY_32B_X) |
+				 INGPADBOUNDARY_V(ingpad) |
 				 EGRSTATUSPAGESIZE_V(stat_len != 64));
 		t4_set_reg_field(adap, SGE_CONTROL2_A,
 				 INGPACKBOUNDARY_V(INGPACKBOUNDARY_M),
-				 INGPACKBOUNDARY_V(fl_align_log -
-						   INGPACKBOUNDARY_SHIFT_X));
+				 INGPACKBOUNDARY_V(ingpack));
 	}
 	/*
 	 * Adjust various SGE Free List Host Buffer Sizes.
@@ -5424,13 +6703,14 @@ int t4_fw_initialize(struct adapter *adap, unsigned int mbox)
  *	@params: the parameter names
  *	@val: the parameter values
  *	@rw: Write and read flag
+ *	@sleep_ok: if true, we may sleep awaiting mbox cmd completion
  *
  *	Reads the value of FW or device parameters.  Up to 7 parameters can be
  *	queried at once.
  */
 int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		       unsigned int vf, unsigned int nparams, const u32 *params,
-		       u32 *val, int rw)
+		       u32 *val, int rw, bool sleep_ok)
 {
 	int i, ret;
 	struct fw_params_cmd c;
@@ -5453,7 +6733,7 @@ int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		p++;
 	}
 
-	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	ret = t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), &c, sleep_ok);
 	if (ret == 0)
 		for (i = 0, p = &c.param[0].val; i < nparams; i++, p += 2)
 			*val++ = be32_to_cpu(*p);
@@ -5464,7 +6744,16 @@ int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
 		    u32 *val)
 {
-	return t4_query_params_rw(adap, mbox, pf, vf, nparams, params, val, 0);
+	return t4_query_params_rw(adap, mbox, pf, vf, nparams, params, val, 0,
+				  true);
+}
+
+int t4_query_params_ns(struct adapter *adap, unsigned int mbox, unsigned int pf,
+		       unsigned int vf, unsigned int nparams, const u32 *params,
+		       u32 *val)
+{
+	return t4_query_params_rw(adap, mbox, pf, vf, nparams, params, val, 0,
+				  false);
 }
 
 /**
@@ -5798,6 +7087,81 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 }
 
 /**
+ *	t4_free_mac_filt - frees exact-match filters of given MAC addresses
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@viid: the VI id
+ *	@naddr: the number of MAC addresses to allocate filters for (up to 7)
+ *	@addr: the MAC address(es)
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Frees the exact-match filter for each of the supplied addresses
+ *
+ *	Returns a negative error number or the number of filters freed.
+ */
+int t4_free_mac_filt(struct adapter *adap, unsigned int mbox,
+		     unsigned int viid, unsigned int naddr,
+		     const u8 **addr, bool sleep_ok)
+{
+	int offset, ret = 0;
+	struct fw_vi_mac_cmd c;
+	unsigned int nfilters = 0;
+	unsigned int max_naddr = is_t4(adap->params.chip) ?
+				       NUM_MPS_CLS_SRAM_L_INSTANCES :
+				       NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
+	unsigned int rem = naddr;
+
+	if (naddr > max_naddr)
+		return -EINVAL;
+
+	for (offset = 0; offset < (int)naddr ; /**/) {
+		unsigned int fw_naddr = (rem < ARRAY_SIZE(c.u.exact)
+					 ? rem
+					 : ARRAY_SIZE(c.u.exact));
+		size_t len16 = DIV_ROUND_UP(offsetof(struct fw_vi_mac_cmd,
+						     u.exact[fw_naddr]), 16);
+		struct fw_vi_mac_exact *p;
+		int i;
+
+		memset(&c, 0, sizeof(c));
+		c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				     FW_CMD_REQUEST_F |
+				     FW_CMD_WRITE_F |
+				     FW_CMD_EXEC_V(0) |
+				     FW_VI_MAC_CMD_VIID_V(viid));
+		c.freemacs_to_len16 =
+				cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(0) |
+					    FW_CMD_LEN16_V(len16));
+
+		for (i = 0, p = c.u.exact; i < (int)fw_naddr; i++, p++) {
+			p->valid_to_idx = cpu_to_be16(
+				FW_VI_MAC_CMD_VALID_F |
+				FW_VI_MAC_CMD_IDX_V(FW_VI_MAC_MAC_BASED_FREE));
+			memcpy(p->macaddr, addr[offset+i], sizeof(p->macaddr));
+		}
+
+		ret = t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), &c, sleep_ok);
+		if (ret)
+			break;
+
+		for (i = 0, p = c.u.exact; i < fw_naddr; i++, p++) {
+			u16 index = FW_VI_MAC_CMD_IDX_G(
+						be16_to_cpu(p->valid_to_idx));
+
+			if (index < max_naddr)
+				nfilters++;
+		}
+
+		offset += fw_naddr;
+		rem -= fw_naddr;
+	}
+
+	if (ret == 0)
+		ret = nfilters;
+	return ret;
+}
+
+/**
  *	t4_change_mac - modifies the exact-match filter for a MAC address
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -5942,6 +7306,39 @@ int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 }
 
 /**
+ *	t4_iq_stop - stop an ingress queue and its FLs
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@pf: the PF owning the queues
+ *	@vf: the VF owning the queues
+ *	@iqtype: the ingress queue type (FW_IQ_TYPE_FL_INT_CAP, etc.)
+ *	@iqid: ingress queue id
+ *	@fl0id: FL0 queue id or 0xffff if no attached FL0
+ *	@fl1id: FL1 queue id or 0xffff if no attached FL1
+ *
+ *	Stops an ingress queue and its associated FLs, if any.  This causes
+ *	any current or future data/messages destined for these queues to be
+ *	tossed.
+ */
+int t4_iq_stop(struct adapter *adap, unsigned int mbox, unsigned int pf,
+	       unsigned int vf, unsigned int iqtype, unsigned int iqid,
+	       unsigned int fl0id, unsigned int fl1id)
+{
+	struct fw_iq_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_IQ_CMD) | FW_CMD_REQUEST_F |
+				  FW_CMD_EXEC_F | FW_IQ_CMD_PFN_V(pf) |
+				  FW_IQ_CMD_VFN_V(vf));
+	c.alloc_to_len16 = cpu_to_be32(FW_IQ_CMD_IQSTOP_F | FW_LEN16(c));
+	c.type_to_iqandstindex = cpu_to_be32(FW_IQ_CMD_TYPE_V(iqtype));
+	c.iqid = cpu_to_be16(iqid);
+	c.fl0id = cpu_to_be16(fl0id);
+	c.fl1id = cpu_to_be16(fl1id);
+	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
  *	t4_iq_free - free an ingress queue and its FLs
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -6048,52 +7445,157 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 }
 
 /**
- *	t4_handle_fw_rpl - process a FW reply message
+ *	t4_link_down_rc_str - return a string for a Link Down Reason Code
  *	@adap: the adapter
+ *	@link_down_rc: Link Down Reason Code
+ *
+ *	Returns a string representation of the Link Down Reason Code.
+ */
+static const char *t4_link_down_rc_str(unsigned char link_down_rc)
+{
+	static const char * const reason[] = {
+		"Link Down",
+		"Remote Fault",
+		"Auto-negotiation Failure",
+		"Reserved",
+		"Insufficient Airflow",
+		"Unable To Determine Reason",
+		"No RX Signal Detected",
+		"Reserved",
+	};
+
+	if (link_down_rc >= ARRAY_SIZE(reason))
+		return "Bad Reason Code";
+
+	return reason[link_down_rc];
+}
+
+/**
+ *	t4_handle_get_port_info - process a FW reply message
+ *	@pi: the port info
  *	@rpl: start of the FW message
  *
- *	Processes a FW message, such as link state change messages.
+ *	Processes a GET_PORT_INFO FW reply message.
+ */
+void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
+{
+	const struct fw_port_cmd *p = (const void *)rpl;
+	struct adapter *adap = pi->adapter;
+
+	/* link/module state change message */
+	int speed = 0, fc = 0;
+	struct link_config *lc;
+	u32 stat = be32_to_cpu(p->u.info.lstatus_to_modtype);
+	int link_ok = (stat & FW_PORT_CMD_LSTATUS_F) != 0;
+	u32 mod = FW_PORT_CMD_MODTYPE_G(stat);
+
+	if (stat & FW_PORT_CMD_RXPAUSE_F)
+		fc |= PAUSE_RX;
+	if (stat & FW_PORT_CMD_TXPAUSE_F)
+		fc |= PAUSE_TX;
+	if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
+		speed = 100;
+	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
+		speed = 1000;
+	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
+		speed = 10000;
+	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_25G))
+		speed = 25000;
+	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
+		speed = 40000;
+	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100G))
+		speed = 100000;
+
+	lc = &pi->link_cfg;
+
+	if (mod != pi->mod_type) {
+		pi->mod_type = mod;
+		t4_os_portmod_changed(adap, pi->port_id);
+	}
+	if (link_ok != lc->link_ok || speed != lc->speed ||
+	    fc != lc->fc) {	/* something changed */
+		if (!link_ok && lc->link_ok) {
+			unsigned char rc = FW_PORT_CMD_LINKDNRC_G(stat);
+
+			lc->link_down_rc = rc;
+			dev_warn(adap->pdev_dev,
+				 "Port %d link down, reason: %s\n",
+				 pi->port_id, t4_link_down_rc_str(rc));
+		}
+		lc->link_ok = link_ok;
+		lc->speed = speed;
+		lc->fc = fc;
+		lc->supported = be16_to_cpu(p->u.info.pcap);
+		lc->lp_advertising = be16_to_cpu(p->u.info.lpacap);
+
+		t4_os_link_changed(adap, pi->port_id, link_ok);
+	}
+}
+
+/**
+ *	t4_update_port_info - retrieve and update port information if changed
+ *	@pi: the port_info
+ *
+ *	We issue a Get Port Information Command to the Firmware and, if
+ *	successful, we check to see if anything is different from what we
+ *	last recorded and update things accordingly.
+ */
+int t4_update_port_info(struct port_info *pi)
+{
+	struct fw_port_cmd port_cmd;
+	int ret;
+
+	memset(&port_cmd, 0, sizeof(port_cmd));
+	port_cmd.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
+					    FW_CMD_REQUEST_F | FW_CMD_READ_F |
+					    FW_PORT_CMD_PORTID_V(pi->port_id));
+	port_cmd.action_to_len16 = cpu_to_be32(
+		FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_GET_PORT_INFO) |
+		FW_LEN16(port_cmd));
+	ret = t4_wr_mbox(pi->adapter, pi->adapter->mbox,
+			 &port_cmd, sizeof(port_cmd), &port_cmd);
+	if (ret)
+		return ret;
+
+	t4_handle_get_port_info(pi, (__be64 *)&port_cmd);
+	return 0;
+}
+
+/**
+ *      t4_handle_fw_rpl - process a FW reply message
+ *      @adap: the adapter
+ *      @rpl: start of the FW message
+ *
+ *      Processes a FW message, such as link state change messages.
  */
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 {
 	u8 opcode = *(const u8 *)rpl;
 
-	if (opcode == FW_PORT_CMD) {    /* link/module state change message */
-		int speed = 0, fc = 0;
-		const struct fw_port_cmd *p = (void *)rpl;
+	/* This might be a port command ... this simplifies the following
+	 * conditionals ...  We can get away with pre-dereferencing
+	 * action_to_len16 because it's in the first 16 bytes and all messages
+	 * will be at least that long.
+	 */
+	const struct fw_port_cmd *p = (const void *)rpl;
+	unsigned int action =
+		FW_PORT_CMD_ACTION_G(be32_to_cpu(p->action_to_len16));
+
+	if (opcode == FW_PORT_CMD && action == FW_PORT_ACTION_GET_PORT_INFO) {
+		int i;
 		int chan = FW_PORT_CMD_PORTID_G(be32_to_cpu(p->op_to_portid));
-		int port = adap->chan_map[chan];
-		struct port_info *pi = adap2pinfo(adap, port);
-		struct link_config *lc = &pi->link_cfg;
-		u32 stat = be32_to_cpu(p->u.info.lstatus_to_modtype);
-		int link_ok = (stat & FW_PORT_CMD_LSTATUS_F) != 0;
-		u32 mod = FW_PORT_CMD_MODTYPE_G(stat);
+		struct port_info *pi = NULL;
 
-		if (stat & FW_PORT_CMD_RXPAUSE_F)
-			fc |= PAUSE_RX;
-		if (stat & FW_PORT_CMD_TXPAUSE_F)
-			fc |= PAUSE_TX;
-		if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
-			speed = 100;
-		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
-			speed = 1000;
-		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
-			speed = 10000;
-		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
-			speed = 40000;
+		for_each_port(adap, i) {
+			pi = adap2pinfo(adap, i);
+			if (pi->tx_chan == chan)
+				break;
+		}
 
-		if (link_ok != lc->link_ok || speed != lc->speed ||
-		    fc != lc->fc) {                    /* something changed */
-			lc->link_ok = link_ok;
-			lc->speed = speed;
-			lc->fc = fc;
-			lc->supported = be16_to_cpu(p->u.info.pcap);
-			t4_os_link_changed(adap, port, link_ok);
-		}
-		if (mod != pi->mod_type) {
-			pi->mod_type = mod;
-			t4_os_portmod_changed(adap, port);
-		}
+		t4_handle_get_port_info(pi, rpl);
+	} else {
+		dev_warn(adap->pdev_dev, "Unknown firmware reply %d\n", opcode);
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -6117,12 +7619,26 @@ static void get_pci_mode(struct adapter *adapter, struct pci_params *p)
  *	Initializes the SW state maintained for each link, including the link's
  *	capabilities and default speed/flow-control/autonegotiation settings.
  */
-static void init_link_config(struct link_config *lc, unsigned int caps)
+static void init_link_config(struct link_config *lc, unsigned int pcaps,
+			     unsigned int acaps)
 {
-	lc->supported = caps;
+	lc->supported = pcaps;
+	lc->lp_advertising = 0;
 	lc->requested_speed = 0;
 	lc->speed = 0;
 	lc->requested_fc = lc->fc = PAUSE_RX | PAUSE_TX;
+	lc->auto_fec = 0;
+
+	/* For Forward Error Control, we default to whatever the Firmware
+	 * tells us the Link is currently advertising.
+	 */
+	if (acaps & FW_PORT_CAP_FEC_RS)
+		lc->auto_fec |= FEC_RS;
+	if (acaps & FW_PORT_CAP_FEC_BASER_RS)
+		lc->auto_fec |= FEC_BASER_RS;
+	lc->requested_fec = FEC_AUTO;
+	lc->fec = lc->auto_fec;
+
 	if (lc->supported & FW_PORT_CAP_ANEG) {
 		lc->advertising = lc->supported & ADVERT_MASK;
 		lc->autoneg = AUTONEG_ENABLE;
@@ -6252,7 +7768,12 @@ int t4_prep_adapter(struct adapter *adapter)
 				 NUM_MPS_CLS_SRAM_L_INSTANCES;
 		adapter->params.arch.mps_rplc_size = 128;
 		adapter->params.arch.nchan = NCHAN;
+		adapter->params.arch.pm_stats_cnt = PM_NSTATS;
 		adapter->params.arch.vfcount = 128;
+		/* Congestion map is for 4 channels so that
+		 * MPS can have 4 priority per port.
+		 */
+		adapter->params.arch.cng_ch_bits_log = 2;
 		break;
 	case CHELSIO_T5:
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, pl_rev);
@@ -6261,7 +7782,9 @@ int t4_prep_adapter(struct adapter *adapter)
 				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 		adapter->params.arch.mps_rplc_size = 128;
 		adapter->params.arch.nchan = NCHAN;
+		adapter->params.arch.pm_stats_cnt = PM_NSTATS;
 		adapter->params.arch.vfcount = 128;
+		adapter->params.arch.cng_ch_bits_log = 2;
 		break;
 	case CHELSIO_T6:
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T6, pl_rev);
@@ -6270,7 +7793,12 @@ int t4_prep_adapter(struct adapter *adapter)
 				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 		adapter->params.arch.mps_rplc_size = 256;
 		adapter->params.arch.nchan = 2;
+		adapter->params.arch.pm_stats_cnt = T6_PM_NSTATS;
 		adapter->params.arch.vfcount = 256;
+		/* Congestion map will be for 2 channels so that
+		 * MPS can have 8 priority per port.
+		 */
+		adapter->params.arch.cng_ch_bits_log = 3;
 		break;
 	default:
 		dev_err(adapter->pdev_dev, "Device %d is not supported\n",
@@ -6290,6 +7818,38 @@ int t4_prep_adapter(struct adapter *adapter)
 
 	/* Set pci completion timeout value to 4 seconds. */
 	set_pcie_completion_timeout(adapter, 0xd);
+	return 0;
+}
+
+/**
+ *	t4_shutdown_adapter - shut down adapter, host & wire
+ *	@adapter: the adapter
+ *
+ *	Perform an emergency shutdown of the adapter and stop it from
+ *	continuing any further communication on the ports or DMA to the
+ *	host.  This is typically used when the adapter and/or firmware
+ *	have crashed and we want to prevent any further accidental
+ *	communication with the rest of the world.  This will also force
+ *	the port Link Status to go down -- if register writes work --
+ *	which should help our peers figure out that we're down.
+ */
+int t4_shutdown_adapter(struct adapter *adapter)
+{
+	int port;
+
+	t4_intr_disable(adapter);
+	t4_write_reg(adapter, DBG_GPIO_EN_A, 0);
+	for_each_port(adapter, port) {
+		u32 a_port_cfg = is_t4(adapter->params.chip) ?
+				       PORT_REG(port, XGMAC_PORT_CFG_A) :
+				       T5_PORT_REG(port, MAC_PORT_CFG_A);
+
+		t4_write_reg(adapter, a_port_cfg,
+			     t4_read_reg(adapter, a_port_cfg)
+			     & ~SIGNAL_DET_V(1));
+	}
+	t4_set_reg_field(adapter, SGE_CONTROL_A, GLOBALENABLE_F, 0);
+
 	return 0;
 }
 
@@ -6503,6 +8063,13 @@ int t4_init_tp_params(struct adapter *adap)
 				 &adap->params.tp.ingress_config, 1,
 				 TP_INGRESS_CONFIG_A);
 	}
+	/* For T6, cache the adapter's compressed error vector
+	 * and passing outer header info for encapsulated packets.
+	 */
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
+		v = t4_read_reg(adap, TP_OUT_CONFIG_A);
+		adap->params.tp.rx_pkt_encap = (v & CRXPKTENC_F) ? 1 : 0;
+	}
 
 	/* Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
 	 * shift positions of several elements of the Compressed Filter Tuple
@@ -6601,61 +8168,74 @@ int t4_init_rss_mode(struct adapter *adap, int mbox)
 	return 0;
 }
 
+/**
+ *	t4_init_portinfo - allocate a virtual interface amd initialize port_info
+ *	@pi: the port_info
+ *	@mbox: mailbox to use for the FW command
+ *	@port: physical port associated with the VI
+ *	@pf: the PF owning the VI
+ *	@vf: the VF owning the VI
+ *	@mac: the MAC address of the VI
+ *
+ *	Allocates a virtual interface for the given physical port.  If @mac is
+ *	not %NULL it contains the MAC address of the VI as assigned by FW.
+ *	@mac should be large enough to hold an Ethernet address.
+ *	Returns < 0 on error.
+ */
+int t4_init_portinfo(struct port_info *pi, int mbox,
+		     int port, int pf, int vf, u8 mac[])
+{
+	int ret;
+	struct fw_port_cmd c;
+	unsigned int rss_size;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
+				     FW_CMD_REQUEST_F | FW_CMD_READ_F |
+				     FW_PORT_CMD_PORTID_V(port));
+	c.action_to_len16 = cpu_to_be32(
+		FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_GET_PORT_INFO) |
+		FW_LEN16(c));
+	ret = t4_wr_mbox(pi->adapter, mbox, &c, sizeof(c), &c);
+	if (ret)
+		return ret;
+
+	ret = t4_alloc_vi(pi->adapter, mbox, port, pf, vf, 1, mac, &rss_size);
+	if (ret < 0)
+		return ret;
+
+	pi->viid = ret;
+	pi->tx_chan = port;
+	pi->lport = port;
+	pi->rss_size = rss_size;
+
+	ret = be32_to_cpu(c.u.info.lstatus_to_modtype);
+	pi->mdio_addr = (ret & FW_PORT_CMD_MDIOCAP_F) ?
+		FW_PORT_CMD_MDIOADDR_G(ret) : -1;
+	pi->port_type = FW_PORT_CMD_PTYPE_G(ret);
+	pi->mod_type = FW_PORT_MOD_TYPE_NA;
+
+	init_link_config(&pi->link_cfg, be16_to_cpu(c.u.info.pcap),
+			 be16_to_cpu(c.u.info.acap));
+	return 0;
+}
+
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 {
 	u8 addr[6];
 	int ret, i, j = 0;
-	struct fw_port_cmd c;
-	struct fw_rss_vi_config_cmd rvc;
-
-	memset(&c, 0, sizeof(c));
-	memset(&rvc, 0, sizeof(rvc));
 
 	for_each_port(adap, i) {
-		unsigned int rss_size;
-		struct port_info *p = adap2pinfo(adap, i);
+		struct port_info *pi = adap2pinfo(adap, i);
 
 		while ((adap->params.portvec & (1 << j)) == 0)
 			j++;
 
-		c.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
-					     FW_CMD_REQUEST_F | FW_CMD_READ_F |
-					     FW_PORT_CMD_PORTID_V(j));
-		c.action_to_len16 = cpu_to_be32(
-			FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_GET_PORT_INFO) |
-			FW_LEN16(c));
-		ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+		ret = t4_init_portinfo(pi, mbox, j, pf, vf, addr);
 		if (ret)
 			return ret;
 
-		ret = t4_alloc_vi(adap, mbox, j, pf, vf, 1, addr, &rss_size);
-		if (ret < 0)
-			return ret;
-
-		p->viid = ret;
-		p->tx_chan = j;
-		p->lport = j;
-		p->rss_size = rss_size;
 		memcpy(adap->port[i]->dev_addr, addr, ETH_ALEN);
-		adap->port[i]->dev_port = j;
-
-		ret = be32_to_cpu(c.u.info.lstatus_to_modtype);
-		p->mdio_addr = (ret & FW_PORT_CMD_MDIOCAP_F) ?
-			FW_PORT_CMD_MDIOADDR_G(ret) : -1;
-		p->port_type = FW_PORT_CMD_PTYPE_G(ret);
-		p->mod_type = FW_PORT_MOD_TYPE_NA;
-
-		rvc.op_to_viid =
-			cpu_to_be32(FW_CMD_OP_V(FW_RSS_VI_CONFIG_CMD) |
-				    FW_CMD_REQUEST_F | FW_CMD_READ_F |
-				    FW_RSS_VI_CONFIG_CMD_VIID(p->viid));
-		rvc.retval_len16 = cpu_to_be32(FW_LEN16(rvc));
-		ret = t4_wr_mbox(adap, mbox, &rvc, sizeof(rvc), &rvc);
-		if (ret)
-			return ret;
-		p->rss_mode = be32_to_cpu(rvc.u.basicvirtual.defaultq_to_udpen);
-
-		init_link_config(&p->link_cfg, be16_to_cpu(c.u.info.pcap));
 		j++;
 	}
 	return 0;
@@ -6888,7 +8468,16 @@ int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr)
 		ret = t4_cim_read(adap, UP_UP_DBG_LA_DATA_A, 1, &la_buf[i]);
 		if (ret)
 			break;
-		idx = (idx + 1) & UPDBGLARDPTR_M;
+
+		/* Bits 0-3 of UpDbgLaRdPtr can be between 0000 to 1001 to
+		 * identify the 32-bit portion of the full 312-bit data
+		 */
+		if (is_t6(adap->params.chip) && (idx & 0xf) >= 9)
+			idx = (idx & 0xff0) + 0x10;
+		else
+			idx++;
+		/* address can't exceed 0xfff */
+		idx &= UPDBGLARDPTR_M;
 	}
 restart:
 	if (cfg & UPDBGLAEN_F) {
@@ -7072,4 +8661,74 @@ void t4_idma_monitor(struct adapter *adapter,
 			 debug0, debug11);
 		t4_sge_decode_idma_state(adapter, idma->idma_state[i]);
 	}
+}
+
+/**
+ *	t4_set_vf_mac - Set MAC address for the specified VF
+ *	@adapter: The adapter
+ *	@vf: one of the VFs instantiated by the specified PF
+ *	@naddr: the number of MAC addresses
+ *	@addr: the MAC address(es) to be set to the specified VF
+ */
+int t4_set_vf_mac_acl(struct adapter *adapter, unsigned int vf,
+		      unsigned int naddr, u8 *addr)
+{
+	struct fw_acl_mac_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_ACL_MAC_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_WRITE_F |
+				    FW_ACL_MAC_CMD_PFN_V(adapter->pf) |
+				    FW_ACL_MAC_CMD_VFN_V(vf));
+
+	/* Note: Do not enable the ACL */
+	cmd.en_to_len16 = cpu_to_be32((unsigned int)FW_LEN16(cmd));
+	cmd.nmac = naddr;
+
+	switch (adapter->pf) {
+	case 3:
+		memcpy(cmd.macaddr3, addr, sizeof(cmd.macaddr3));
+		break;
+	case 2:
+		memcpy(cmd.macaddr2, addr, sizeof(cmd.macaddr2));
+		break;
+	case 1:
+		memcpy(cmd.macaddr1, addr, sizeof(cmd.macaddr1));
+		break;
+	case 0:
+		memcpy(cmd.macaddr0, addr, sizeof(cmd.macaddr0));
+		break;
+	}
+
+	return t4_wr_mbox(adapter, adapter->mbox, &cmd, sizeof(cmd), &cmd);
+}
+
+int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
+		    int rateunit, int ratemode, int channel, int class,
+		    int minrate, int maxrate, int weight, int pktsize)
+{
+	struct fw_sched_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_write = cpu_to_be32(FW_CMD_OP_V(FW_SCHED_CMD) |
+				      FW_CMD_REQUEST_F |
+				      FW_CMD_WRITE_F);
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
+
+	cmd.u.params.sc = FW_SCHED_SC_PARAMS;
+	cmd.u.params.type = type;
+	cmd.u.params.level = level;
+	cmd.u.params.mode = mode;
+	cmd.u.params.ch = channel;
+	cmd.u.params.cl = class;
+	cmd.u.params.unit = rateunit;
+	cmd.u.params.rate = ratemode;
+	cmd.u.params.min = cpu_to_be32(minrate);
+	cmd.u.params.max = cpu_to_be32(maxrate);
+	cmd.u.params.weight = cpu_to_be16(weight);
+	cmd.u.params.pktsize = cpu_to_be16(pktsize);
+
+	return t4_wr_mbox_meat(adapter, adapter->mbox, &cmd, sizeof(cmd),
+			       NULL, 1);
 }

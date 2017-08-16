@@ -39,7 +39,7 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 	unsigned long dec_nsec;
 	unsigned long long dec_time;
 
-	pr_debug("mtDEC: %x\n", vcpu->arch.dec);
+	pr_debug("mtDEC: %lx\n", vcpu->arch.dec);
 	hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
 
 #ifdef CONFIG_PPC_BOOK3S
@@ -109,7 +109,7 @@ static int kvmppc_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	case SPRN_TBWU: break;
 
 	case SPRN_DEC:
-		vcpu->arch.dec = spr_val;
+		vcpu->arch.dec = (u32) spr_val;
 		kvmppc_emulate_dec(vcpu);
 		break;
 
@@ -259,10 +259,18 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 		case OP_31_XOP_MFSPR:
 			emulated = kvmppc_emulate_mfspr(vcpu, sprn, rt);
+			if (emulated == EMULATE_AGAIN) {
+				emulated = EMULATE_DONE;
+				advance = 0;
+			}
 			break;
 
 		case OP_31_XOP_MTSPR:
 			emulated = kvmppc_emulate_mtspr(vcpu, sprn, rs);
+			if (emulated == EMULATE_AGAIN) {
+				emulated = EMULATE_DONE;
+				advance = 0;
+			}
 			break;
 
 		case OP_31_XOP_TLBSYNC:
@@ -302,7 +310,6 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			advance = 0;
 			printk(KERN_ERR "Couldn't emulate instruction 0x%08x "
 			       "(op %d xop %d)\n", inst, get_op(inst), get_xop(inst));
-			kvmppc_core_queue_program(vcpu, 0);
 		}
 	}
 

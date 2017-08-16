@@ -30,9 +30,10 @@
  * whenever the backing MOB is evicted.
  */
 
+#include <drm/ttm/ttm_placement.h>
+
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
-#include <ttm/ttm_placement.h>
 #include "vmwgfx_so.h"
 
 /**
@@ -421,9 +422,9 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	}
 
 	bo = &buf->base;
-	WARN_ON_ONCE(ttm_bo_reserve(bo, false, true, false, NULL));
+	WARN_ON_ONCE(ttm_bo_reserve(bo, false, true, NULL));
 
-	ret = ttm_bo_wait(old_bo, false, false, false);
+	ret = ttm_bo_wait(old_bo, false, false);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed waiting for cotable unbind.\n");
 		goto out_wait;
@@ -583,7 +584,7 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 		return ERR_PTR(ret);
 
 	vcotbl = kzalloc(sizeof(*vcotbl), GFP_KERNEL);
-	if (unlikely(vcotbl == NULL)) {
+	if (unlikely(!vcotbl)) {
 		ret = -ENOMEM;
 		goto out_no_alloc;
 	}

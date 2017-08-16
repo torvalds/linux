@@ -1,10 +1,10 @@
 config UNICORE32
 	def_bool y
+	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select HAVE_MEMBLOCK
 	select HAVE_GENERIC_DMA_COHERENT
-	select HAVE_DMA_ATTRS
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select GENERIC_ATOMIC64
@@ -31,9 +31,6 @@ config NO_IOPORT_MAP
 	bool
 
 config STACKTRACE_SUPPORT
-	def_bool y
-
-config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
 config LOCKDEP_SUPPORT
@@ -83,7 +80,7 @@ config ARCH_PUV3
 	select CPU_UCV2
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 
 # CONFIGs for ARCH_PUV3
 
@@ -222,7 +219,7 @@ config I2C_BATTERY_BQ27200
 	tristate "I2C Battery BQ27200 Support"
 	select I2C_PUV3
 	select POWER_SUPPLY
-	select BATTERY_BQ27x00
+	select BATTERY_BQ27XXX
 
 config I2C_EEPROM_AT24
 	tristate "I2C EEPROMs AT24 support"

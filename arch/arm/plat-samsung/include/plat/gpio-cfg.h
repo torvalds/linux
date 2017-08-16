@@ -26,7 +26,7 @@
 
 #include <linux/types.h>
 
-typedef unsigned int __bitwise__ samsung_gpio_pull_t;
+typedef unsigned int __bitwise samsung_gpio_pull_t;
 
 /* forward declaration if gpio-core.h hasn't been included */
 struct samsung_gpio_chip;
@@ -35,7 +35,7 @@ struct samsung_gpio_chip;
  * struct samsung_gpio_cfg GPIO configuration
  * @cfg_eint: Configuration setting when used for external interrupt source
  * @get_pull: Read the current pull configuration for the GPIO
- * @set_pull: Set the current pull configuraiton for the GPIO
+ * @set_pull: Set the current pull configuration for the GPIO
  * @set_config: Set the current configuration for the GPIO
  * @get_config: Read the current configuration for the GPIO
  *

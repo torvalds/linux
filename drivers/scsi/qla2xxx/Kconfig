@@ -2,7 +2,9 @@ config SCSI_QLA_FC
 	tristate "QLogic QLA2XXX Fibre Channel Support"
 	depends on PCI && SCSI
 	depends on SCSI_FC_ATTRS
+	depends on NVME_FC || !NVME_FC
 	select FW_LOADER
+	select BTREE
 	---help---
 	This qla2xxx driver supports all QLogic Fibre Channel
 	PCI and PCIe host adapters.
@@ -18,9 +20,6 @@ config SCSI_QLA_FC
 	2322, 6322        ql2322_fw.bin
 	24xx, 54xx        ql2400_fw.bin
 	25xx              ql2500_fw.bin
-	2031              ql2600_fw.bin
-	8031              ql8300_fw.bin
-	27xx              ql2700_fw.bin
 
 	Upon request, the driver caches the firmware image until
 	the driver is unloaded.
@@ -39,3 +38,12 @@ config TCM_QLA2XXX
 	default n
 	---help---
 	Say Y here to enable the TCM_QLA2XXX fabric module for QLogic 24xx+ series target mode HBAs
+
+if TCM_QLA2XXX
+config TCM_QLA2XXX_DEBUG
+	bool "TCM_QLA2XXX fabric module DEBUG mode for QLogic 24xx+ series target mode HBAs"
+	default n
+	---help---
+	Say Y here to enable the TCM_QLA2XXX fabric module DEBUG for QLogic 24xx+ series target mode HBAs
+	This will include code to enable the SCSI command jammer
+endif

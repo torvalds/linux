@@ -13,10 +13,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  **
  * The data sheet for this tuner can be found at:
  *    http://www.mcmilk.de/projects/dvb-card/datasheets/ZL10036.pdf
@@ -85,8 +81,8 @@ static int zl10036_read_status_reg(struct zl10036_state *state)
 	deb_i2c("R(status): %02x  [FL=%d]\n", status,
 		(status & STATUS_FL) ? 1 : 0);
 	if (status & STATUS_POR)
-		deb_info("%s: Power-On-Reset bit enabled - "
-			"need to initialize the tuner\n", __func__);
+		deb_info("%s: Power-On-Reset bit enabled - need to initialize the tuner\n",
+			 __func__);
 
 	return status;
 }
@@ -134,14 +130,12 @@ static int zl10036_write(struct zl10036_state *state, u8 buf[], u8 count)
 	return 0;
 }
 
-static int zl10036_release(struct dvb_frontend *fe)
+static void zl10036_release(struct dvb_frontend *fe)
 {
 	struct zl10036_state *state = fe->tuner_priv;
 
 	fe->tuner_priv = NULL;
 	kfree(state);
-
-	return 0;
 }
 
 static int zl10036_sleep(struct dvb_frontend *fe)
@@ -446,7 +440,7 @@ static int zl10036_init(struct dvb_frontend *fe)
 	return ret;
 }
 
-static struct dvb_tuner_ops zl10036_tuner_ops = {
+static const struct dvb_tuner_ops zl10036_tuner_ops = {
 	.info = {
 		.name = "Zarlink ZL10036",
 		.frequency_min = 950000,

@@ -161,9 +161,15 @@ static int hfs_readdir(struct file *file, struct dir_context *ctx)
 		}
 		file->private_data = rd;
 		rd->file = file;
+		spin_lock(&HFS_I(inode)->open_dir_lock);
 		list_add(&rd->list, &HFS_I(inode)->open_dir_list);
+		spin_unlock(&HFS_I(inode)->open_dir_lock);
 	}
-	memcpy(&rd->key, &fd.key, sizeof(struct hfs_cat_key));
+	/*
+	 * Can be done after the list insertion; exclusion with
+	 * hfs_delete_cat() is provided by directory lock.
+	 */
+	memcpy(&rd->key, &fd.key->cat, sizeof(struct hfs_cat_key));
 out:
 	hfs_find_exit(&fd);
 	return err;
@@ -173,9 +179,9 @@ static int hfs_dir_release(struct inode *inode, struct file *file)
 {
 	struct hfs_readdir_data *rd = file->private_data;
 	if (rd) {
-		mutex_lock(&inode->i_mutex);
+		spin_lock(&HFS_I(inode)->open_dir_lock);
 		list_del(&rd->list);
-		mutex_unlock(&inode->i_mutex);
+		spin_unlock(&HFS_I(inode)->open_dir_lock);
 		kfree(rd);
 	}
 	return 0;
@@ -262,7 +268,7 @@ static int hfs_remove(struct inode *dir, struct dentry *dentry)
 	if (res)
 		return res;
 	clear_nlink(inode);
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = current_time(inode);
 	hfs_delete_inode(inode);
 	mark_inode_dirty(inode);
 	return 0;
@@ -280,9 +286,13 @@ static int hfs_remove(struct inode *dir, struct dentry *dentry)
  * XXX: how do you handle must_be dir?
  */
 static int hfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		      struct inode *new_dir, struct dentry *new_dentry)
+		      struct inode *new_dir, struct dentry *new_dentry,
+		      unsigned int flags)
 {
 	int res;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	/* Unlink destination if it already exists */
 	if (d_really_is_positive(new_dentry)) {
@@ -303,7 +313,7 @@ static int hfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 const struct file_operations hfs_dir_operations = {
 	.read		= generic_read_dir,
-	.iterate	= hfs_readdir,
+	.iterate_shared	= hfs_readdir,
 	.llseek		= generic_file_llseek,
 	.release	= hfs_dir_release,
 };

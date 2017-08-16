@@ -75,7 +75,7 @@ static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)
 				break;
 			}
 
-		page_cache_release(page);
+		put_page(page);
 		pages--;
 		index++;
 	}
@@ -124,7 +124,7 @@ static int block2mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 			return PTR_ERR(page);
 
 		memcpy(buf, page_address(page) + offset, cpylen);
-		page_cache_release(page);
+		put_page(page);
 
 		if (retlen)
 			*retlen += cpylen;
@@ -164,7 +164,7 @@ static int _block2mtd_write(struct block2mtd_dev *dev, const u_char *buf,
 			unlock_page(page);
 			balance_dirty_pages_ratelimited(mapping);
 		}
-		page_cache_release(page);
+		put_page(page);
 
 		if (retlen)
 			*retlen += cpylen;

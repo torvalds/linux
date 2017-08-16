@@ -4,6 +4,8 @@
  * Copyright (C) 2003, Axis Communications AB
  */
 
+#include <linux/init.h>
+
 #define ASSEMBLER_MACROS_ONLY
 
 /*
@@ -36,7 +38,7 @@
 	.global nand_boot
 	.global swapper_pg_dir
 
-	.text
+	__HEAD
 tstart:
 	;; This is the entry point of the kernel. The CPU is currently in
 	;; supervisor mode.
@@ -177,7 +179,7 @@ _inflash0:
 
 	;; Put the following in a section so that storage for it can be
 	;; reclaimed after init is finished.
-	.section ".init.text", "ax"
+	__INIT
 
 _inflash:
 
@@ -292,11 +294,7 @@ _no_romfs_in_flash:
 	;; For cramfs, partition starts with magic and length.
 	;; For jffs2, a jhead is prepended which contains with magic and length.
 	;; The jhead is not part of the jffs2 partition however.
-#ifndef CONFIG_ETRAXFS_SIM
 	move.d	__bss_start, $r0
-#else
-	move.d	__end, $r0
-#endif
 	move.d	[$r0], $r1
 	cmp.d	CRAMFS_MAGIC, $r1 ; cramfs magic?
 	beq	2f		  ; yes, jump

@@ -64,10 +64,9 @@ nvkm_therm_update_trip(struct nvkm_therm *therm)
 }
 
 static int
-nvkm_therm_update_linear(struct nvkm_therm *therm)
+nvkm_therm_compute_linear_duty(struct nvkm_therm *therm, u8 linear_min_temp,
+                               u8 linear_max_temp)
 {
-	u8  linear_min_temp = therm->fan->bios.linear_min_temp;
-	u8  linear_max_temp = therm->fan->bios.linear_max_temp;
 	u8  temp = therm->func->temp_get(therm);
 	u16 duty;
 
@@ -83,6 +82,21 @@ nvkm_therm_update_linear(struct nvkm_therm *therm)
 	duty /= (linear_max_temp - linear_min_temp);
 	duty += therm->fan->bios.min_duty;
 	return duty;
+}
+
+static int
+nvkm_therm_update_linear(struct nvkm_therm *therm)
+{
+	u8  min = therm->fan->bios.linear_min_temp;
+	u8  max = therm->fan->bios.linear_max_temp;
+	return nvkm_therm_compute_linear_duty(therm, min, max);
+}
+
+static int
+nvkm_therm_update_linear_fallback(struct nvkm_therm *therm)
+{
+	u8 max = therm->bios_sensor.thrs_fan_boost.temp;
+	return nvkm_therm_compute_linear_duty(therm, 30, max);
 }
 
 static void
@@ -102,7 +116,7 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 
 	switch (mode) {
 	case NVKM_THERM_CTRL_MANUAL:
-		nvkm_timer_alarm_cancel(tmr, &therm->alarm);
+		nvkm_timer_alarm(tmr, 0, &therm->alarm);
 		duty = nvkm_therm_fan_get(therm);
 		if (duty < 0)
 			duty = 100;
@@ -119,6 +133,8 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 		case NVBIOS_THERM_FAN_OTHER:
 			if (therm->cstate)
 				duty = therm->cstate;
+			else
+				duty = nvkm_therm_update_linear_fallback(therm);
 			poll = false;
 			break;
 		}
@@ -126,11 +142,11 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 		break;
 	case NVKM_THERM_CTRL_NONE:
 	default:
-		nvkm_timer_alarm_cancel(tmr, &therm->alarm);
+		nvkm_timer_alarm(tmr, 0, &therm->alarm);
 		poll = false;
 	}
 
-	if (list_empty(&therm->alarm.head) && poll)
+	if (poll)
 		nvkm_timer_alarm(tmr, 1000000000ULL, &therm->alarm);
 	spin_unlock_irqrestore(&therm->lock, flags);
 
@@ -366,7 +382,7 @@ nvkm_therm_new_(const struct nvkm_therm_func *func, struct nvkm_device *device,
 	if (!(therm = *ptherm = kzalloc(sizeof(*therm), GFP_KERNEL)))
 		return -ENOMEM;
 
-	nvkm_subdev_ctor(&nvkm_therm, device, index, 0, &therm->subdev);
+	nvkm_subdev_ctor(&nvkm_therm, device, index, &therm->subdev);
 	therm->func = func;
 
 	nvkm_alarm_init(&therm->alarm, nvkm_therm_alarm);

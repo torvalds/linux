@@ -178,7 +178,7 @@
 
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "z8530.h"
 
@@ -540,7 +540,7 @@ static inline void scc_rxint(struct scc_channel *scc)
 		}
 		
 		scc->rx_buff = skb;
-		*(skb_put(skb, 1)) = 0;	/* KISS data */
+		skb_put_u8(skb, 0);	/* KISS data */
 	}
 	
 	if (skb->len >= scc->stat.bufsize)
@@ -555,7 +555,7 @@ static inline void scc_rxint(struct scc_channel *scc)
 		return;
 	}
 
-	*(skb_put(skb, 1)) = Inb(scc->data);
+	skb_put_u8(skb, Inb(scc->data));
 }
 
 
@@ -1669,7 +1669,7 @@ static netdev_tx_t scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb_del);
 	}
 	skb_queue_tail(&scc->tx_queue, skb);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	
 
 	/*

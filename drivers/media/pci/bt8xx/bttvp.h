@@ -41,8 +41,8 @@
 #include <media/videobuf-dma-sg.h>
 #include <media/tveeprom.h>
 #include <media/rc-core.h>
-#include <media/ir-kbd-i2c.h>
-#include <media/tea575x.h>
+#include <media/i2c/ir-kbd-i2c.h>
+#include <media/drv-intf/tea575x.h>
 
 #include "bt848.h"
 #include "bttv.h"
@@ -232,7 +232,7 @@ struct bttv_fh {
 	const struct bttv_format *ovfmt;
 	struct bttv_overlay      ov;
 
-	/* Application called VIDIOC_S_CROP. */
+	/* Application called VIDIOC_S_SELECTION. */
 	int                      do_crop;
 
 	/* vbi capture */

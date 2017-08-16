@@ -51,7 +51,7 @@ nvkm_i2c_aux_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			if (mcnt || remaining > 16)
 				cmd |= 4; /* MOT */
 
-			ret = aux->func->xfer(aux, true, cmd, msg->addr, ptr, cnt);
+			ret = aux->func->xfer(aux, true, cmd, msg->addr, ptr, &cnt);
 			if (ret < 0) {
 				nvkm_i2c_aux_release(aux);
 				return ret;
@@ -74,7 +74,7 @@ nvkm_i2c_aux_i2c_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-const struct i2c_algorithm
+static const struct i2c_algorithm
 nvkm_i2c_aux_i2c_algo = {
 	.master_xfer = nvkm_i2c_aux_i2c_xfer,
 	.functionality = nvkm_i2c_aux_i2c_func
@@ -115,8 +115,12 @@ nvkm_i2c_aux_acquire(struct nvkm_i2c_aux *aux)
 
 int
 nvkm_i2c_aux_xfer(struct nvkm_i2c_aux *aux, bool retry, u8 type,
-		  u32 addr, u8 *data, u8 size)
+		  u32 addr, u8 *data, u8 *size)
 {
+	if (!*size && !aux->func->address_only) {
+		AUX_ERR(aux, "address-only transaction dropped");
+		return -ENOSYS;
+	}
 	return aux->func->xfer(aux, retry, type, addr, data, size);
 }
 

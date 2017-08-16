@@ -212,14 +212,7 @@ static inline void release_thread(struct task_struct *dead_task)
 	/* Nothing for now */
 }
 
-extern int do_work_pending(struct pt_regs *regs, u32 flags);
-
-
-/*
- * Return saved (kernel) PC of a blocked thread.
- * Only used in a printk() in kernel/sched/core.c, so don't work too hard.
- */
-#define thread_saved_pc(t)   ((t)->thread.pc)
+extern void prepare_exit_to_usermode(struct pt_regs *regs, u32 flags);
 
 unsigned long get_wchan(struct task_struct *p);
 
@@ -263,8 +256,6 @@ static inline void cpu_relax(void)
 	__insn_mfspr(SPR_PASS);
 	barrier();
 }
-
-#define cpu_relax_lowlatency() cpu_relax()
 
 /* Info on this processor (see fs/proc/cpuinfo.c) */
 struct seq_operations;

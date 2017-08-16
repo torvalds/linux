@@ -70,7 +70,12 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 	BUG_ON(pixels_2 != pixels_current && pixels_2 != pixels_prev);
 	BUG_ON(pixels_current == pixels_prev);
 
-	obj = drm_gem_object_lookup(dev, file_priv, handle);
+	if (!handle || !file_priv) {
+		mga_hide_cursor(mdev);
+		return 0;
+	}
+
+	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj)
 		return -ENOENT;
 
@@ -86,12 +91,6 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 		WREG8(MGA_CURPOSXH, 0);
 		mgag200_bo_unreserve(pixels_1);
 		goto out_unreserve1;
-	}
-
-	if (!handle) {
-		mga_hide_cursor(mdev);
-		ret = 0;
-		goto out1;
 	}
 
 	/* Move cursor buffers into VRAM if they aren't already */

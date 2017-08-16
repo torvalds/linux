@@ -11,11 +11,9 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
-#include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/serial_reg.h>
 #include <linux/serial_8250.h>
-#include <linux/reboot.h>
 
 #include <asm/ce4100.h>
 #include <asm/prom.h>
@@ -24,11 +22,6 @@
 #include <asm/io.h>
 #include <asm/io_apic.h>
 #include <asm/emergency-restart.h>
-
-static int ce4100_i8042_detect(void)
-{
-	return 0;
-}
 
 /*
  * The CE4100 platform has an internal 8051 Microcontroller which is
@@ -91,7 +84,7 @@ static void ce4100_mem_serial_out(struct uart_port *p, int offset, int value)
 }
 
 static void ce4100_serial_fixup(int port, struct uart_port *up,
-	unsigned short *capabilites)
+	u32 *capabilites)
 {
 #ifdef CONFIG_EARLY_PRINTK
 	/*
@@ -147,7 +140,6 @@ static void sdv_pci_init(void)
 void __init x86_ce4100_early_setup(void)
 {
 	x86_init.oem.arch_setup = sdv_arch_setup;
-	x86_platform.i8042_detect = ce4100_i8042_detect;
 	x86_init.resources.probe_roms = x86_init_noop;
 	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
 	x86_init.mpparse.find_smp_config = x86_init_noop;

@@ -74,7 +74,7 @@ static inline void nvmem_cell_put(struct nvmem_cell *cell)
 {
 }
 
-static inline char *nvmem_cell_read(struct nvmem_cell *cell, size_t *len)
+static inline void *nvmem_cell_read(struct nvmem_cell *cell, size_t *len)
 {
 	return ERR_PTR(-ENOSYS);
 }

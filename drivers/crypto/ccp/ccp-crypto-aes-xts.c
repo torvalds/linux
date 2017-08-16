@@ -14,9 +14,8 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
-#include <linux/crypto.h>
-#include <crypto/algapi.h>
 #include <crypto/aes.h>
+#include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 
 #include "ccp-crypto.h"
@@ -110,18 +109,16 @@ static int ccp_aes_xts_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 	ctx->u.aes.key_len = key_len / 2;
 	sg_init_one(&ctx->u.aes.key_sg, ctx->u.aes.key, key_len);
 
-	return crypto_ablkcipher_setkey(ctx->u.aes.tfm_ablkcipher, key,
-					key_len);
+	return crypto_skcipher_setkey(ctx->u.aes.tfm_skcipher, key, key_len);
 }
 
 static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 			     unsigned int encrypt)
 {
-	struct crypto_tfm *tfm =
-		crypto_ablkcipher_tfm(crypto_ablkcipher_reqtfm(req));
 	struct ccp_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct ccp_aes_req_ctx *rctx = ablkcipher_request_ctx(req);
 	unsigned int unit;
+	u32 unit_size;
 	int ret;
 
 	if (!ctx->u.aes.key_len)
@@ -133,20 +130,31 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 	if (!req->info)
 		return -EINVAL;
 
-	for (unit = 0; unit < ARRAY_SIZE(unit_size_map); unit++)
-		if (!(req->nbytes & (unit_size_map[unit].size - 1)))
-			break;
+	unit_size = CCP_XTS_AES_UNIT_SIZE__LAST;
+	if (req->nbytes <= unit_size_map[0].size) {
+		for (unit = 0; unit < ARRAY_SIZE(unit_size_map); unit++) {
+			if (!(req->nbytes & (unit_size_map[unit].size - 1))) {
+				unit_size = unit_size_map[unit].value;
+				break;
+			}
+		}
+	}
 
-	if ((unit_size_map[unit].value == CCP_XTS_AES_UNIT_SIZE__LAST) ||
+	if ((unit_size == CCP_XTS_AES_UNIT_SIZE__LAST) ||
 	    (ctx->u.aes.key_len != AES_KEYSIZE_128)) {
+		SKCIPHER_REQUEST_ON_STACK(subreq, ctx->u.aes.tfm_skcipher);
+
 		/* Use the fallback to process the request for any
 		 * unsupported unit sizes or key sizes
 		 */
-		ablkcipher_request_set_tfm(req, ctx->u.aes.tfm_ablkcipher);
-		ret = (encrypt) ? crypto_ablkcipher_encrypt(req) :
-				  crypto_ablkcipher_decrypt(req);
-		ablkcipher_request_set_tfm(req, __crypto_ablkcipher_cast(tfm));
-
+		skcipher_request_set_tfm(subreq, ctx->u.aes.tfm_skcipher);
+		skcipher_request_set_callback(subreq, req->base.flags,
+					      NULL, NULL);
+		skcipher_request_set_crypt(subreq, req->src, req->dst,
+					   req->nbytes, req->info);
+		ret = encrypt ? crypto_skcipher_encrypt(subreq) :
+				crypto_skcipher_decrypt(subreq);
+		skcipher_request_zero(subreq);
 		return ret;
 	}
 
@@ -158,7 +166,7 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 	rctx->cmd.engine = CCP_ENGINE_XTS_AES_128;
 	rctx->cmd.u.xts.action = (encrypt) ? CCP_AES_ACTION_ENCRYPT
 					   : CCP_AES_ACTION_DECRYPT;
-	rctx->cmd.u.xts.unit_size = unit_size_map[unit].value;
+	rctx->cmd.u.xts.unit_size = unit_size;
 	rctx->cmd.u.xts.key = &ctx->u.aes.key_sg;
 	rctx->cmd.u.xts.key_len = ctx->u.aes.key_len;
 	rctx->cmd.u.xts.iv = &rctx->iv_sg;
@@ -185,23 +193,21 @@ static int ccp_aes_xts_decrypt(struct ablkcipher_request *req)
 static int ccp_aes_xts_cra_init(struct crypto_tfm *tfm)
 {
 	struct ccp_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct crypto_ablkcipher *fallback_tfm;
+	struct crypto_skcipher *fallback_tfm;
 
 	ctx->complete = ccp_aes_xts_complete;
 	ctx->u.aes.key_len = 0;
 
-	fallback_tfm = crypto_alloc_ablkcipher(crypto_tfm_alg_name(tfm), 0,
-					       CRYPTO_ALG_ASYNC |
-					       CRYPTO_ALG_NEED_FALLBACK);
+	fallback_tfm = crypto_alloc_skcipher("xts(aes)", 0,
+					     CRYPTO_ALG_ASYNC |
+					     CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(fallback_tfm)) {
-		pr_warn("could not load fallback driver %s\n",
-			crypto_tfm_alg_name(tfm));
+		pr_warn("could not load fallback driver xts(aes)\n");
 		return PTR_ERR(fallback_tfm);
 	}
-	ctx->u.aes.tfm_ablkcipher = fallback_tfm;
+	ctx->u.aes.tfm_skcipher = fallback_tfm;
 
-	tfm->crt_ablkcipher.reqsize = sizeof(struct ccp_aes_req_ctx) +
-				      fallback_tfm->base.crt_ablkcipher.reqsize;
+	tfm->crt_ablkcipher.reqsize = sizeof(struct ccp_aes_req_ctx);
 
 	return 0;
 }
@@ -210,9 +216,7 @@ static void ccp_aes_xts_cra_exit(struct crypto_tfm *tfm)
 {
 	struct ccp_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	if (ctx->u.aes.tfm_ablkcipher)
-		crypto_free_ablkcipher(ctx->u.aes.tfm_ablkcipher);
-	ctx->u.aes.tfm_ablkcipher = NULL;
+	crypto_free_skcipher(ctx->u.aes.tfm_skcipher);
 }
 
 static int ccp_register_aes_xts_alg(struct list_head *head,

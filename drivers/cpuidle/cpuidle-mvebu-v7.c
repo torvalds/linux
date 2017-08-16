@@ -99,44 +99,40 @@ static struct cpuidle_driver armada38x_idle_driver = {
 
 static int mvebu_v7_cpuidle_probe(struct platform_device *pdev)
 {
+	const struct platform_device_id *id = pdev->id_entry;
+
+	if (!id)
+		return -EINVAL;
+
 	mvebu_v7_cpu_suspend = pdev->dev.platform_data;
 
-	if (!strcmp(pdev->dev.driver->name, "cpuidle-armada-xp"))
-		return cpuidle_register(&armadaxp_idle_driver, NULL);
-	else if (!strcmp(pdev->dev.driver->name, "cpuidle-armada-370"))
-		return cpuidle_register(&armada370_idle_driver, NULL);
-	else if (!strcmp(pdev->dev.driver->name, "cpuidle-armada-38x"))
-		return cpuidle_register(&armada38x_idle_driver, NULL);
-	else
-		return -EINVAL;
+	return cpuidle_register((struct cpuidle_driver *)id->driver_data, NULL);
 }
 
-static struct platform_driver armadaxp_cpuidle_plat_driver = {
-	.driver = {
+static const struct platform_device_id mvebu_cpuidle_ids[] = {
+	{
 		.name = "cpuidle-armada-xp",
-	},
-	.probe = mvebu_v7_cpuidle_probe,
-};
-
-module_platform_driver(armadaxp_cpuidle_plat_driver);
-
-static struct platform_driver armada370_cpuidle_plat_driver = {
-	.driver = {
+		.driver_data = (unsigned long)&armadaxp_idle_driver,
+	}, {
 		.name = "cpuidle-armada-370",
-	},
-	.probe = mvebu_v7_cpuidle_probe,
-};
-
-module_platform_driver(armada370_cpuidle_plat_driver);
-
-static struct platform_driver armada38x_cpuidle_plat_driver = {
-	.driver = {
+		.driver_data = (unsigned long)&armada370_idle_driver,
+	}, {
 		.name = "cpuidle-armada-38x",
+		.driver_data = (unsigned long)&armada38x_idle_driver,
 	},
-	.probe = mvebu_v7_cpuidle_probe,
+	{}
 };
 
-module_platform_driver(armada38x_cpuidle_plat_driver);
+static struct platform_driver mvebu_cpuidle_driver = {
+	.probe = mvebu_v7_cpuidle_probe,
+	.driver = {
+		.name = "cpuidle-mbevu",
+		.suppress_bind_attrs = true,
+	},
+	.id_table = mvebu_cpuidle_ids,
+};
+
+builtin_platform_driver(mvebu_cpuidle_driver);
 
 MODULE_AUTHOR("Gregory CLEMENT <gregory.clement@free-electrons.com>");
 MODULE_DESCRIPTION("Marvell EBU v7 cpuidle driver");

@@ -2,20 +2,6 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
-config STRICT_DEVMEM
-	bool "Filter access to /dev/mem"
-	depends on MMU
-	---help---
-	  If this option is disabled, you allow userspace (root) access to all
-	  of memory, including kernel and userspace memory. Accidental
-	  access to this is obviously disastrous, but specific access can
-	  be used by people debugging the kernel.
-
-	  If this option is switched on, the /dev/mem file only allows
-	  userspace access to memory mapped peripherals.
-
-          If in doubt, say Y.
-
 config EARLY_PRINTK
 	def_bool DEBUG_OCD
 	help

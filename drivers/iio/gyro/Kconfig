@@ -52,15 +52,26 @@ config ADXRS450
 
 config BMG160
 	tristate "BOSCH BMG160 Gyro Sensor"
-	depends on I2C
+	depends on (I2C || SPI_MASTER)
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+	select BMG160_I2C if (I2C)
+	select BMG160_SPI if (SPI)
 	help
-	  Say yes here to build support for Bosch BMG160 Tri-axis Gyro Sensor
-	  driver. This driver also supports BMI055 gyroscope.
+	  Say yes here to build support for BOSCH BMG160 Tri-axis Gyro Sensor
+	  driver connected via I2C or SPI. This driver also supports BMI055
+	  gyroscope.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called bmg160.
+	  will be called bmg160_i2c or bmg160_spi.
+
+config BMG160_I2C
+	tristate
+	select REGMAP_I2C
+
+config BMG160_SPI
+	tristate
+	select REGMAP_SPI
 
 config HID_SENSOR_GYRO_3D
 	depends on HID_SENSOR_HUB
@@ -73,6 +84,24 @@ config HID_SENSOR_GYRO_3D
 	  Say yes here to build support for the HID SENSOR
 	  Gyroscope 3D.
 
+config MPU3050
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP
+
+config MPU3050_I2C
+	tristate "Invensense MPU3050 devices on I2C"
+	depends on !(INPUT_MPU3050=y || INPUT_MPU3050=m)
+	depends on I2C
+	select MPU3050
+	select REGMAP_I2C
+	select I2C_MUX
+	help
+	  This driver supports the Invensense MPU3050 gyroscope over I2C.
+	  This driver can be built as a module. The module will be called
+	  inv-mpu3050-i2c.
+
 config IIO_ST_GYRO_3AXIS
 	tristate "STMicroelectronics gyroscopes 3-Axis Driver"
 	depends on (I2C || SPI_MASTER) && SYSFS
@@ -82,7 +111,7 @@ config IIO_ST_GYRO_3AXIS
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics gyroscopes:
-	  L3G4200D, LSM330DL, L3GD20, LSM330DLC, L3G4IS, LSM330.
+	  L3G4200D, LSM330DL, L3GD20, LSM330DLC, L3G4IS, LSM330, LSM9DS0.
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:

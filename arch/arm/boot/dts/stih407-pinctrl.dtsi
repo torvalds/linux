@@ -53,12 +53,12 @@
 			reg = <0x0961f080 0x4>;
 			reg-names = "irqmux";
 			interrupts = <GIC_SPI 188 IRQ_TYPE_NONE>;
-			interrupts-names = "irqmux";
+			interrupt-names = "irqmux";
 			ranges = <0 0x09610000 0x6000>;
 
 			pio0: gpio@09610000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x0 0x100>;
@@ -66,7 +66,7 @@
 			};
 			pio1: gpio@09611000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x1000 0x100>;
@@ -74,7 +74,7 @@
 			};
 			pio2: gpio@09612000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x2000 0x100>;
@@ -82,7 +82,7 @@
 			};
 			pio3: gpio@09613000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x3000 0x100>;
@@ -90,7 +90,7 @@
 			};
 			pio4: gpio@09614000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x4000 0x100>;
@@ -99,7 +99,7 @@
 
 			pio5: gpio@09615000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x5000 0x100>;
@@ -107,10 +107,36 @@
 				st,retime-pin-mask = <0x3f>;
 			};
 
+			cec0 {
+				pinctrl_cec0_default: cec0-default {
+					st,pins {
+						hdmi_cec = <&pio2 4 ALT1 BIDIR>;
+					};
+				};
+			};
+
 			rc {
 				pinctrl_ir: ir0 {
 					st,pins {
 						ir = <&pio4 0 ALT2 IN>;
+					};
+				};
+
+				pinctrl_uhf: uhf0 {
+					st,pins {
+						ir = <&pio4 1 ALT2 IN>;
+					};
+				};
+
+				pinctrl_tx: tx0 {
+					st,pins {
+						tx = <&pio4 2 ALT2 OUT>;
+					};
+				};
+
+				pinctrl_tx_od: tx_od0 {
+					st,pins {
+						tx_od = <&pio4 3 ALT2 OUT>;
 					};
 				};
 			};
@@ -190,9 +216,9 @@
 						rxd2 = <&pio1 6 ALT1 IN DE_IO 0 CLK_A>;
 						rxd3 = <&pio1 7 ALT1 IN DE_IO 0 CLK_A>;
 						rxdv = <&pio2 0 ALT1 IN DE_IO 0 CLK_A>;
-						rxclk = <&pio2 2 ALT1 IN NICLK 500 CLK_A>;
+						rxclk = <&pio2 2 ALT1 IN NICLK 0 CLK_A>;
 						clk125 = <&pio3 7 ALT4 IN NICLK 0 CLK_A>;
-						phyclk = <&pio2 3 ALT4 OUT NICLK 1750 CLK_B>;
+						phyclk = <&pio2 3 ALT4 OUT NICLK 1250 CLK_B>;
 					};
 				};
 
@@ -201,6 +227,13 @@
 						mdio = <&pio1 0 ALT1 OUT BYPASS 0>;
 						mdc = <&pio1 1 ALT1 OUT NICLK 0 CLK_A>;
 						mdint = <&pio1 3 ALT1 IN BYPASS 0>;
+					};
+				};
+
+				pinctrl_rgmii1_mdio_1: rgmii1-mdio-1 {
+					st,pins {
+						mdio = <&pio1 0 ALT1 OUT BYPASS 0>;
+						mdc = <&pio1 1 ALT1 OUT NICLK 0 CLK_A>;
 					};
 				};
 
@@ -230,16 +263,45 @@
 						phyclk = <&pio2 3 ALT1 OUT NICLK 0 CLK_A>;
 					};
 				};
+
+				pinctrl_rmii1: rmii1-0 {
+					st,pins {
+						txd0 = <&pio0 0 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						txd1 = <&pio0 1 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						txen = <&pio0 5 ALT1 OUT SE_NICLK_IO 0 CLK_A>;
+						mdio = <&pio1 0 ALT1 OUT BYPASS 0>;
+						mdc = <&pio1 1 ALT1 OUT NICLK 0 CLK_A>;
+						mdint = <&pio1 3 ALT1 IN BYPASS 0>;
+						rxd0 = <&pio1 4 ALT1 IN SE_NICLK_IO 0 CLK_B>;
+						rxd1 = <&pio1 5 ALT1 IN SE_NICLK_IO 0 CLK_B>;
+						rxdv = <&pio2 0 ALT1 IN SE_NICLK_IO 0 CLK_B>;
+						rx_er = <&pio2 1 ALT1 IN SE_NICLK_IO 0 CLK_A>;
+					};
+				};
+
+				pinctrl_rmii1_phyclk: rmii1_phyclk {
+					st,pins {
+						phyclk = <&pio2 3 ALT1 OUT NICLK 0 CLK_A>;
+					};
+				};
+
+				pinctrl_rmii1_phyclk_ext: rmii1_phyclk_ext {
+					st,pins {
+						phyclk = <&pio2 3 ALT2 IN NICLK 0 CLK_A>;
+					};
+				};
 			};
 
 			pwm1 {
 				pinctrl_pwm1_chan0_default: pwm1-0-default {
 					st,pins {
 						pwm-out = <&pio3 0 ALT1 OUT>;
+						pwm-capturein = <&pio3 2 ALT1 IN>;
 					};
 				};
 				pinctrl_pwm1_chan1_default: pwm1-1-default {
 					st,pins {
+						pwm-capturein = <&pio4 3 ALT1 IN>;
 						pwm-out = <&pio4 4 ALT1 OUT>;
 					};
 				};
@@ -254,6 +316,57 @@
 					};
 				};
 			};
+
+			spi10 {
+				pinctrl_spi10_default: spi10-4w-alt1-0 {
+					st,pins {
+						mtsr = <&pio4 6 ALT1 OUT>;
+						mrst = <&pio4 7 ALT1 IN>;
+						scl = <&pio4 5 ALT1 OUT>;
+					};
+				};
+
+				pinctrl_spi10_3w_alt1_0: spi10-3w-alt1-0 {
+					st,pins {
+						mtsr = <&pio4 6 ALT1 BIDIR_PU>;
+						scl = <&pio4 5 ALT1 OUT>;
+					};
+				};
+			};
+
+			spi11 {
+				pinctrl_spi11_default: spi11-4w-alt2-0 {
+					st,pins {
+						mtsr = <&pio3 1 ALT2 OUT>;
+						mrst = <&pio3 0 ALT2 IN>;
+						scl = <&pio3 2 ALT2 OUT>;
+					};
+				};
+
+				pinctrl_spi11_3w_alt2_0: spi11-3w-alt2-0 {
+					st,pins {
+						mtsr = <&pio3 1 ALT2 BIDIR_PU>;
+						scl = <&pio3 2 ALT2 OUT>;
+					};
+				};
+			};
+
+			spi12 {
+				pinctrl_spi12_default: spi12-4w-alt2-0 {
+					st,pins {
+						mtsr = <&pio3 6 ALT2 OUT>;
+						mrst = <&pio3 4 ALT2 IN>;
+						scl = <&pio3 7 ALT2 OUT>;
+					};
+				};
+
+				pinctrl_spi12_3w_alt2_0: spi12-3w-alt2-0 {
+					st,pins {
+						mtsr = <&pio3 6 ALT2 BIDIR_PU>;
+						scl = <&pio3 7 ALT2 OUT>;
+					};
+				};
+			};
 		};
 
 		pin-controller-front0 {
@@ -264,12 +377,12 @@
 			reg = <0x0920f080 0x4>;
 			reg-names = "irqmux";
 			interrupts = <GIC_SPI 189 IRQ_TYPE_NONE>;
-			interrupts-names = "irqmux";
+			interrupt-names = "irqmux";
 			ranges = <0 0x09200000 0x10000>;
 
 			pio10: pio@09200000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x0 0x100>;
@@ -277,7 +390,7 @@
 			};
 			pio11: pio@09201000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x1000 0x100>;
@@ -285,7 +398,7 @@
 			};
 			pio12: pio@09202000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x2000 0x100>;
@@ -293,7 +406,7 @@
 			};
 			pio13: pio@09203000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x3000 0x100>;
@@ -301,7 +414,7 @@
 			};
 			pio14: pio@09204000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x4000 0x100>;
@@ -309,7 +422,7 @@
 			};
 			pio15: pio@09205000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x5000 0x100>;
@@ -317,7 +430,7 @@
 			};
 			pio16: pio@09206000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x6000 0x100>;
@@ -325,7 +438,7 @@
 			};
 			pio17: pio@09207000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x7000 0x100>;
@@ -333,7 +446,7 @@
 			};
 			pio18: pio@09208000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x8000 0x100>;
@@ -341,7 +454,7 @@
 			};
 			pio19: pio@09209000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x9000 0x100>;
@@ -352,8 +465,16 @@
 			serial0 {
 				pinctrl_serial0: serial0-0 {
 					st,pins {
-						tx = <&pio17 0 ALT1 OUT>;
-						rx = <&pio17 1 ALT1 IN>;
+						tx =  <&pio17 0 ALT1 OUT>;
+						rx =  <&pio17 1 ALT1 IN>;
+					};
+				};
+				pinctrl_serial0_hw_flowctrl: serial0-0_hw_flowctrl {
+					st,pins {
+						tx =  <&pio17 0 ALT1 OUT>;
+						rx =  <&pio17 1 ALT1 IN>;
+						cts = <&pio17 2 ALT1 IN>;
+						rts = <&pio17 3 ALT1 OUT>;
 					};
 				};
 			};
@@ -419,23 +540,190 @@
 						scl = <&pio15 5 ALT2 BIDIR>;
 					};
 				};
+
+				pinctrl_i2c2_alt2_1: i2c2-alt2-1 {
+					st,pins {
+						sda = <&pio12 6 ALT2 BIDIR>;
+						scl = <&pio12 5 ALT2 BIDIR>;
+					};
+				};
 			};
 
 			i2c3 {
-				pinctrl_i2c3_default: i2c3-default {
+				pinctrl_i2c3_default: i2c3-alt1-0 {
 					st,pins {
 						sda = <&pio18 6 ALT1 BIDIR>;
 						scl = <&pio18 5 ALT1 BIDIR>;
 					};
 				};
+				pinctrl_i2c3_alt1_1: i2c3-alt1-1 {
+					st,pins {
+						sda = <&pio17 7 ALT1 BIDIR>;
+						scl = <&pio17 6 ALT1 BIDIR>;
+					};
+				};
+				pinctrl_i2c3_alt3_0: i2c3-alt3-0 {
+					st,pins {
+						sda = <&pio13 6 ALT3 BIDIR>;
+						scl = <&pio13 5 ALT3 BIDIR>;
+					};
+				};
 			};
 
 			spi0 {
-				pinctrl_spi0_default: spi0-default {
+				pinctrl_spi0_default: spi0-4w-alt2-0 {
 					st,pins {
-						mtsr = <&pio12 6 ALT2 BIDIR>;
-						mrst = <&pio12 7 ALT2 BIDIR>;
-						scl = <&pio12 5 ALT2 BIDIR>;
+						mtsr = <&pio10 6 ALT2 OUT>;
+						mrst = <&pio10 7 ALT2 IN>;
+						scl = <&pio10 5 ALT2 OUT>;
+					};
+				};
+
+				pinctrl_spi0_3w_alt2_0: spi0-3w-alt2-0 {
+					st,pins {
+						mtsr = <&pio10 6 ALT2 BIDIR_PU>;
+						scl = <&pio10 5 ALT2 OUT>;
+					};
+				};
+
+				pinctrl_spi0_4w_alt1_0: spi0-4w-alt1-0 {
+					st,pins {
+						mtsr = <&pio19 7 ALT1 OUT>;
+						mrst = <&pio19 5 ALT1 IN>;
+						scl = <&pio19 6 ALT1 OUT>;
+					};
+				};
+
+				pinctrl_spi0_3w_alt1_0: spi0-3w-alt1-0 {
+					st,pins {
+						mtsr = <&pio19 7 ALT1 BIDIR_PU>;
+						scl = <&pio19 6 ALT1 OUT>;
+					};
+				};
+			};
+
+			spi1 {
+				pinctrl_spi1_default: spi1-4w-alt2-0 {
+					st,pins {
+						mtsr = <&pio11 1 ALT2 OUT>;
+						mrst = <&pio11 2 ALT2 IN>;
+						scl = <&pio11 0 ALT2 OUT>;
+					};
+				};
+
+				pinctrl_spi1_3w_alt2_0: spi1-3w-alt2-0 {
+					st,pins {
+						mtsr = <&pio11 1 ALT2 BIDIR_PU>;
+						scl = <&pio11 0 ALT2 OUT>;
+					};
+				};
+
+				pinctrl_spi1_4w_alt1_0: spi1-4w-alt1-0 {
+					st,pins {
+						mtsr = <&pio14 3 ALT1 OUT>;
+						mrst = <&pio14 4 ALT1 IN>;
+						scl = <&pio14 2 ALT1 OUT>;
+					};
+				};
+
+				pinctrl_spi1_3w_alt1_0: spi1-3w-alt1-0 {
+					st,pins {
+						mtsr = <&pio14 3 ALT1 BIDIR_PU>;
+						scl = <&pio14 2 ALT1 OUT>;
+					};
+				};
+			};
+
+			spi2 {
+				pinctrl_spi2_default: spi2-4w-alt2-0 {
+					st,pins {
+						mtsr = <&pio12 6 ALT2 OUT>;
+						mrst = <&pio12 7 ALT2 IN>;
+						scl = <&pio12 5 ALT2 OUT>;
+					};
+				};
+
+				pinctrl_spi2_3w_alt2_0: spi2-3w-alt2-0 {
+					st,pins {
+						mtsr = <&pio12 6 ALT2 BIDIR_PU>;
+						scl = <&pio12 5 ALT2 OUT>;
+					};
+				};
+
+				pinctrl_spi2_4w_alt1_0: spi2-4w-alt1-0 {
+					st,pins {
+						mtsr = <&pio14 6 ALT1 OUT>;
+						mrst = <&pio14 7 ALT1 IN>;
+						scl = <&pio14 5 ALT1 OUT>;
+					};
+				};
+
+				pinctrl_spi2_3w_alt1_0: spi2-3w-alt1-0 {
+					st,pins {
+						mtsr = <&pio14 6 ALT1 BIDIR_PU>;
+						scl = <&pio14 5 ALT1 OUT>;
+					};
+				};
+
+				pinctrl_spi2_4w_alt2_1: spi2-4w-alt2-1 {
+					st,pins {
+						mtsr = <&pio15 6 ALT2 OUT>;
+						mrst = <&pio15 7 ALT2 IN>;
+						scl = <&pio15 5 ALT2 OUT>;
+					};
+				};
+
+				pinctrl_spi2_3w_alt2_1: spi2-3w-alt2-1 {
+					st,pins {
+						mtsr = <&pio15 6 ALT2 BIDIR_PU>;
+						scl = <&pio15 5 ALT2 OUT>;
+					};
+				};
+			};
+
+			spi3 {
+				pinctrl_spi3_default: spi3-4w-alt3-0 {
+					st,pins {
+						mtsr = <&pio13 6 ALT3 OUT>;
+						mrst = <&pio13 7 ALT3 IN>;
+						scl = <&pio13 5 ALT3 OUT>;
+					};
+				};
+
+				pinctrl_spi3_3w_alt3_0: spi3-3w-alt3-0 {
+					st,pins {
+						mtsr = <&pio13 6 ALT3 BIDIR_PU>;
+						scl = <&pio13 5 ALT3 OUT>;
+					};
+				};
+
+				pinctrl_spi3_4w_alt1_0: spi3-4w-alt1-0 {
+					st,pins {
+						mtsr = <&pio17 7 ALT1 OUT>;
+						mrst = <&pio17 5 ALT1 IN>;
+						scl = <&pio17 6 ALT1 OUT>;
+					};
+				};
+
+				pinctrl_spi3_3w_alt1_0: spi3-3w-alt1-0 {
+					st,pins {
+						mtsr = <&pio17 7 ALT1 BIDIR_PU>;
+						scl = <&pio17 6 ALT1 OUT>;
+					};
+				};
+
+				pinctrl_spi3_4w_alt1_1: spi3-4w-alt1-1 {
+					st,pins {
+						mtsr = <&pio18 6 ALT1 OUT>;
+						mrst = <&pio18 7 ALT1 IN>;
+						scl = <&pio18 5 ALT1 OUT>;
+					};
+				};
+
+				pinctrl_spi3_3w_alt1_1: spi3-3w-alt1-1 {
+					st,pins {
+						mtsr = <&pio18 6 ALT1 BIDIR_PU>;
+						scl = <&pio18 5 ALT1 OUT>;
 					};
 				};
 			};
@@ -627,6 +915,18 @@
 					};
 				};
 			};
+
+			systrace {
+				pinctrl_systrace_default: systrace-default {
+					st,pins {
+						trc_data0 = <&pio11 3 ALT5 OUT>;
+						trc_data1 = <&pio11 4 ALT5 OUT>;
+						trc_data2 = <&pio11 5 ALT5 OUT>;
+						trc_data3 = <&pio11 6 ALT5 OUT>;
+						trc_clk   = <&pio11 7 ALT5 OUT>;
+					};
+				};
+			};
 		};
 
 		pin-controller-front1 {
@@ -637,8 +937,17 @@
 			reg = <0x0921f080 0x4>;
 			reg-names = "irqmux";
 			interrupts = <GIC_SPI 190 IRQ_TYPE_NONE>;
-			interrupts-names = "irqmux";
+			interrupt-names = "irqmux";
 			ranges = <0 0x09210000 0x10000>;
+
+			pio20: pio@09210000 {
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				reg = <0x0 0x100>;
+				st,bank-name = "PIO20";
+			};
 
 			tsin4 {
 				pinctrl_tsin4_serial_alt1: tsin4_serial_alt1 {
@@ -651,15 +960,6 @@
 					};
 				};
 			};
-
-			pio20: pio@09210000 {
-				gpio-controller;
-				#gpio-cells = <1>;
-				interrupt-controller;
-				#interrupt-cells = <2>;
-				reg = <0x0 0x100>;
-				st,bank-name = "PIO20";
-			};
 		};
 
 		pin-controller-rear {
@@ -670,12 +970,12 @@
 			reg = <0x0922f080 0x4>;
 			reg-names = "irqmux";
 			interrupts = <GIC_SPI 191 IRQ_TYPE_NONE>;
-			interrupts-names = "irqmux";
+			interrupt-names = "irqmux";
 			ranges = <0 0x09220000 0x6000>;
 
 			pio30: gpio@09220000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x0 0x100>;
@@ -683,7 +983,7 @@
 			};
 			pio31: gpio@09221000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x1000 0x100>;
@@ -691,7 +991,7 @@
 			};
 			pio32: gpio@09222000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x2000 0x100>;
@@ -699,7 +999,7 @@
 			};
 			pio33: gpio@09223000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x3000 0x100>;
@@ -707,7 +1007,7 @@
 			};
 			pio34: gpio@09224000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x4000 0x100>;
@@ -715,7 +1015,7 @@
 			};
 			pio35: gpio@09225000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x5000 0x100>;
@@ -754,7 +1054,104 @@
 			pwm0 {
 				pinctrl_pwm0_chan0_default: pwm0-0-default {
 					st,pins {
+						pwm-capturein = <&pio31 0 ALT1 IN>;
 						pwm-out = <&pio31 1 ALT1 OUT>;
+					};
+				};
+			};
+
+			spi4 {
+				pinctrl_spi4_default: spi4-4w-alt1-0 {
+					st,pins {
+						mtsr = <&pio30 1 ALT1 OUT>;
+						mrst = <&pio30 2 ALT1 IN>;
+						scl = <&pio30 0 ALT1 OUT>;
+					};
+				};
+
+				pinctrl_spi4_3w_alt1_0: spi4-3w-alt1-0 {
+					st,pins {
+						mtsr = <&pio30 1 ALT1 BIDIR_PU>;
+						scl = <&pio30 0 ALT1 OUT>;
+					};
+				};
+
+				pinctrl_spi4_4w_alt3_0: spi4-4w-alt3-0 {
+					st,pins {
+						mtsr = <&pio34 1 ALT3 OUT>;
+						mrst = <&pio34 2 ALT3 IN>;
+						scl = <&pio34 0 ALT3 OUT>;
+					};
+				};
+
+				pinctrl_spi4_3w_alt3_0: spi4-3w-alt3-0 {
+					st,pins {
+						mtsr = <&pio34 1 ALT3 BIDIR_PU>;
+						scl = <&pio34 0 ALT3 OUT>;
+					};
+				};
+			};
+
+			i2s_out {
+				pinctrl_i2s_8ch_out: i2s_8ch_out{
+					st,pins {
+						mclk = <&pio33 5 ALT1 OUT>;
+						lrclk = <&pio33 7 ALT1 OUT>;
+						sclk = <&pio33 6 ALT1 OUT>;
+						data0 = <&pio33 4 ALT1 OUT>;
+						data1 = <&pio34 0 ALT1 OUT>;
+						data2 = <&pio34 1 ALT1 OUT>;
+						data3 = <&pio34 2 ALT1 OUT>;
+					};
+				};
+
+				pinctrl_i2s_2ch_out: i2s_2ch_out{
+					st,pins {
+						mclk = <&pio33 5 ALT1 OUT>;
+						lrclk = <&pio33 7 ALT1 OUT>;
+						sclk = <&pio33 6 ALT1 OUT>;
+						data0 = <&pio33 4 ALT1 OUT>;
+					};
+				};
+			};
+
+			i2s_in {
+				pinctrl_i2s_8ch_in: i2s_8ch_in{
+					st,pins {
+						mclk = <&pio32 5 ALT1 IN>;
+						lrclk = <&pio32 7 ALT1 IN>;
+						sclk = <&pio32 6 ALT1 IN>;
+						data0 = <&pio32 4 ALT1 IN>;
+						data1 = <&pio33 0 ALT1 IN>;
+						data2 = <&pio33 1 ALT1 IN>;
+						data3 = <&pio33 2 ALT1 IN>;
+						data4 = <&pio33 3 ALT1 IN>;
+					};
+				};
+
+				pinctrl_i2s_2ch_in: i2s_2ch_in{
+					st,pins {
+						mclk = <&pio32 5 ALT1 IN>;
+						lrclk = <&pio32 7 ALT1 IN>;
+						sclk = <&pio32 6 ALT1 IN>;
+						data0 = <&pio32 4 ALT1 IN>;
+					};
+				};
+			};
+
+			spdif_out {
+				pinctrl_spdif_out: spdif_out{
+					st,pins {
+						spdif_out = <&pio34 7 ALT1 OUT>;
+					};
+				};
+			};
+
+			serial3 {
+				pinctrl_serial3: serial3-0 {
+					st,pins {
+						tx = <&pio31 3 ALT1 OUT>;
+						rx = <&pio31 4 ALT1 IN>;
 					};
 				};
 			};
@@ -768,12 +1165,12 @@
 			reg = <0x0923f080 0x4>;
 			reg-names = "irqmux";
 			interrupts = <GIC_SPI 192 IRQ_TYPE_NONE>;
-			interrupts-names = "irqmux";
+			interrupt-names = "irqmux";
 			ranges = <0 0x09230000 0x3000>;
 
 			pio40: gpio@09230000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0 0x100>;
@@ -781,7 +1178,7 @@
 			};
 			pio41: gpio@09231000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x1000 0x100>;
@@ -789,7 +1186,7 @@
 			};
 			pio42: gpio@09232000 {
 				gpio-controller;
-				#gpio-cells = <1>;
+				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x2000 0x100>;
@@ -809,6 +1206,57 @@
 						emmc_d5 = <&pio41 5 ALT1 BIDIR_PU>;
 						emmc_d6 = <&pio41 6 ALT1 BIDIR_PU>;
 						emmc_d7 = <&pio41 7 ALT1 BIDIR_PU>;
+					};
+				};
+				pinctrl_sd0: sd0-0 {
+					st,pins {
+						sd_clk = <&pio40 6 ALT1 BIDIR>;
+						sd_cmd = <&pio40 7 ALT1 BIDIR_PU>;
+						sd_dat0 = <&pio41 0 ALT1 BIDIR_PU>;
+						sd_dat1 = <&pio41 1 ALT1 BIDIR_PU>;
+						sd_dat2 = <&pio41 2 ALT1 BIDIR_PU>;
+						sd_dat3 = <&pio41 3 ALT1 BIDIR_PU>;
+						sd_led = <&pio42 0 ALT2 OUT>;
+						sd_pwren = <&pio42 2 ALT2 OUT>;
+						sd_vsel = <&pio42 3 ALT2 OUT>;
+						sd_cd = <&pio42 4 ALT2 IN>;
+						sd_wp = <&pio42 5 ALT2 IN>;
+					};
+				};
+			};
+
+			fsm {
+				pinctrl_fsm: fsm {
+					st,pins {
+						spi-fsm-clk = <&pio40 1 ALT1 OUT>;
+						spi-fsm-cs = <&pio40 0 ALT1 OUT>;
+						spi-fsm-mosi = <&pio40 2 ALT1 OUT>;
+						spi-fsm-miso = <&pio40 3 ALT1 IN>;
+						spi-fsm-hol = <&pio40 5 ALT1 OUT>;
+						spi-fsm-wp = <&pio40 4 ALT1 OUT>;
+					};
+				};
+			};
+
+			nand {
+				pinctrl_nand: nand {
+					st,pins {
+						nand_cs1 = <&pio40 6 ALT3 OUT>;
+						nand_cs0 = <&pio40 7 ALT3 OUT>;
+						nand_d0 = <&pio41 0 ALT3 BIDIR>;
+						nand_d1 = <&pio41 1 ALT3 BIDIR>;
+						nand_d2 = <&pio41 2 ALT3 BIDIR>;
+						nand_d3 = <&pio41 3 ALT3 BIDIR>;
+						nand_d4 = <&pio41 4 ALT3 BIDIR>;
+						nand_d5 = <&pio41 5 ALT3 BIDIR>;
+						nand_d6 = <&pio41 6 ALT3 BIDIR>;
+						nand_d7 = <&pio41 7 ALT3 BIDIR>;
+						nand_we = <&pio42 0 ALT3 OUT>;
+						nand_dqs = <&pio42 1 ALT3 OUT>;
+						nand_ale = <&pio42 2 ALT3 OUT>;
+						nand_cle = <&pio42 3 ALT3 OUT>;
+						nand_rnb = <&pio42 4 ALT3 IN>;
+						nand_oe = <&pio42 5 ALT3 OUT>;
 					};
 				};
 			};

@@ -42,6 +42,11 @@ static inline unsigned int get_dcrn(u32 inst)
 	return ((inst >> 16) & 0x1f) | ((inst >> 6) & 0x3e0);
 }
 
+static inline unsigned int get_tmrn(u32 inst)
+{
+	return ((inst >> 16) & 0x1f) | ((inst >> 6) & 0x3e0);
+}
+
 static inline unsigned int get_rt(u32 inst)
 {
 	return (inst >> 21) & 0x1f;
@@ -80,6 +85,11 @@ static inline unsigned int get_d(u32 inst)
 static inline unsigned int get_oc(u32 inst)
 {
 	return (inst >> 11) & 0x7fff;
+}
+
+static inline unsigned int get_tx_or_sx(u32 inst)
+{
+	return (inst) & 0x1;
 }
 
 #define IS_XFORM(inst)	(get_op(inst)  == 31)

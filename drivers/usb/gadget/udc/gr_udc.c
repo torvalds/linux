@@ -253,13 +253,12 @@ static struct gr_dma_desc *gr_alloc_dma_desc(struct gr_ep *ep, gfp_t gfp_flags)
 	dma_addr_t paddr;
 	struct gr_dma_desc *dma_desc;
 
-	dma_desc = dma_pool_alloc(ep->dev->desc_pool, gfp_flags, &paddr);
+	dma_desc = dma_pool_zalloc(ep->dev->desc_pool, gfp_flags, &paddr);
 	if (!dma_desc) {
 		dev_err(ep->dev->dev, "Could not allocate from DMA pool\n");
 		return NULL;
 	}
 
-	memset(dma_desc, 0, sizeof(*dma_desc));
 	dma_desc->paddr = paddr;
 
 	return dma_desc;
@@ -1540,7 +1539,7 @@ static int gr_ep_enable(struct usb_ep *_ep,
 	 * additional transactions.
 	 */
 	max = 0x7ff & usb_endpoint_maxp(desc);
-	nt = 0x3 & (usb_endpoint_maxp(desc) >> 11);
+	nt = usb_endpoint_maxp_mult(desc) - 1;
 	buffer_size = GR_BUFFER_SIZE(epctrl);
 	if (nt && (mode == 0 || mode == 2)) {
 		dev_err(dev->dev,
@@ -1842,7 +1841,7 @@ static void gr_fifo_flush(struct usb_ep *_ep)
 	spin_unlock(&ep->dev->lock);
 }
 
-static struct usb_ep_ops gr_ep_ops = {
+static const struct usb_ep_ops gr_ep_ops = {
 	.enable		= gr_ep_enable,
 	.disable	= gr_ep_disable,
 

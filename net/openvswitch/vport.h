@@ -27,7 +27,6 @@
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/u64_stats_sync.h>
-#include <net/route.h>
 
 #include "datapath.h"
 
@@ -53,16 +52,6 @@ int ovs_vport_set_upcall_portids(struct vport *, const struct nlattr *pids);
 int ovs_vport_get_upcall_portids(const struct vport *, struct sk_buff *);
 u32 ovs_vport_find_upcall_portid(const struct vport *, struct sk_buff *);
 
-int ovs_tunnel_get_egress_info(struct dp_upcall_info *upcall,
-			       struct net *net,
-			       struct sk_buff *,
-			       u8 ipproto,
-			       __be16 tp_src,
-			       __be16 tp_dst);
-
-int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				  struct dp_upcall_info *upcall);
-
 /**
  * struct vport_portids - array of netlink portids of a vport.
  *                        must be protected by rcu.
@@ -81,7 +70,7 @@ struct vport_portids {
 
 /**
  * struct vport - one port within a datapath
- * @rcu: RCU callback head for deferred destruction.
+ * @dev: Pointer to net_device.
  * @dp: Datapath to which this port belongs.
  * @upcall_portids: RCU protected 'struct vport_portids'.
  * @port_no: Index into @dp's @ports array.
@@ -89,6 +78,7 @@ struct vport_portids {
  * @dp_hash_node: Element in @datapath->ports hash table in datapath.c.
  * @ops: Class structure.
  * @detach_list: list used for detaching vport in net-exit call.
+ * @rcu: RCU callback head for deferred destruction.
  */
 struct vport {
 	struct net_device *dev;
@@ -140,8 +130,6 @@ struct vport_parms {
  * have any configuration.
  * @send: Send a packet on the device.
  * zero for dropped packets or negative for error.
- * @get_egress_tun_info: Get the egress tunnel 5-tuple and other info for
- * a packet.
  */
 struct vport_ops {
 	enum ovs_vport_type type;
@@ -153,10 +141,7 @@ struct vport_ops {
 	int (*set_options)(struct vport *, struct nlattr *);
 	int (*get_options)(const struct vport *, struct sk_buff *);
 
-	void (*send)(struct vport *, struct sk_buff *);
-	int (*get_egress_tun_info)(struct vport *, struct sk_buff *,
-				   struct dp_upcall_info *upcall);
-
+	netdev_tx_t (*send) (struct sk_buff *skb);
 	struct module *owner;
 	struct list_head list;
 };
@@ -164,7 +149,6 @@ struct vport_ops {
 struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *,
 			      const struct vport_parms *);
 void ovs_vport_free(struct vport *);
-void ovs_vport_deferred_free(struct vport *vport);
 
 #define VPORT_ALIGN 8
 
@@ -200,43 +184,19 @@ static inline struct vport *vport_from_priv(void *priv)
 int ovs_vport_receive(struct vport *, struct sk_buff *,
 		      const struct ip_tunnel_info *);
 
-static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
-				      const void *start, unsigned int len)
-{
-	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->csum = csum_add(skb->csum, csum_partial(start, len, 0));
-}
-
 static inline const char *ovs_vport_name(struct vport *vport)
 {
 	return vport->dev->name;
 }
 
-int ovs_vport_ops_register(struct vport_ops *ops);
+int __ovs_vport_ops_register(struct vport_ops *ops);
+#define ovs_vport_ops_register(ops)		\
+	({					\
+		(ops)->owner = THIS_MODULE;	\
+		__ovs_vport_ops_register(ops);	\
+	})
+
 void ovs_vport_ops_unregister(struct vport_ops *ops);
-
-static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
-						     const struct ip_tunnel_key *key,
-						     u32 mark,
-						     struct flowi4 *fl,
-						     u8 protocol)
-{
-	struct rtable *rt;
-
-	memset(fl, 0, sizeof(*fl));
-	fl->daddr = key->u.ipv4.dst;
-	fl->saddr = key->u.ipv4.src;
-	fl->flowi4_tos = RT_TOS(key->tos);
-	fl->flowi4_mark = mark;
-	fl->flowi4_proto = protocol;
-
-	rt = ip_route_output_key(net, fl);
-	return rt;
-}
-
-static inline void ovs_vport_send(struct vport *vport, struct sk_buff *skb)
-{
-	vport->ops->send(vport, skb);
-}
+void ovs_vport_send(struct vport *vport, struct sk_buff *skb, u8 mac_proto);
 
 #endif /* vport.h */

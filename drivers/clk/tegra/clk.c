@@ -17,6 +17,7 @@
 #include <linux/clkdev.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/clk/tegra.h>
 #include <linux/reset-controller.h>
@@ -84,7 +85,7 @@ static int (*special_reset_assert)(unsigned long);
 static int (*special_reset_deassert)(unsigned long);
 static unsigned int num_special_reset;
 
-static struct tegra_clk_periph_regs periph_regs[] = {
+static const struct tegra_clk_periph_regs periph_regs[] = {
 	[0] = {
 		.enb_reg = CLK_OUT_ENB_L,
 		.enb_set_reg = CLK_OUT_ENB_SET_L,
@@ -182,7 +183,21 @@ static int tegra_clk_rst_deassert(struct reset_controller_dev *rcdev,
 	return -EINVAL;
 }
 
-struct tegra_clk_periph_regs *get_reg_bank(int clkid)
+static int tegra_clk_rst_reset(struct reset_controller_dev *rcdev,
+		unsigned long id)
+{
+	int err;
+
+	err = tegra_clk_rst_assert(rcdev, id);
+	if (err)
+		return err;
+
+	udelay(1);
+
+	return tegra_clk_rst_deassert(rcdev, id);
+}
+
+const struct tegra_clk_periph_regs *get_reg_bank(int clkid)
 {
 	int reg_bank = clkid / 32;
 
@@ -271,9 +286,10 @@ void __init tegra_init_from_table(struct tegra_clk_init_table *tbl,
 	}
 }
 
-static struct reset_control_ops rst_ops = {
+static const struct reset_control_ops rst_ops = {
 	.assert = tegra_clk_rst_assert,
 	.deassert = tegra_clk_rst_deassert,
+	.reset = tegra_clk_rst_reset,
 };
 
 static struct reset_controller_dev rst_ctlr = {

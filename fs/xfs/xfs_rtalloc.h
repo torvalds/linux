@@ -23,6 +23,16 @@
 struct xfs_mount;
 struct xfs_trans;
 
+struct xfs_rtalloc_rec {
+	xfs_rtblock_t		ar_startblock;
+	xfs_rtblock_t		ar_blockcount;
+};
+
+typedef int (*xfs_rtalloc_query_range_fn)(
+	struct xfs_trans	*tp,
+	struct xfs_rtalloc_rec	*rec,
+	void			*priv);
+
 #ifdef CONFIG_XFS_RT
 /*
  * Function prototypes for exported functions.
@@ -40,7 +50,6 @@ xfs_rtallocate_extent(
 	xfs_extlen_t		minlen,	/* minimum length to allocate */
 	xfs_extlen_t		maxlen,	/* maximum length to allocate */
 	xfs_extlen_t		*len,	/* out: actual length allocated */
-	xfs_alloctype_t		type,	/* allocation type XFS_ALLOCTYPE... */
 	int			wasdel,	/* was a delayed allocation extent */
 	xfs_extlen_t		prod,	/* extent product factor */
 	xfs_rtblock_t		*rtblock); /* out: start block allocated */
@@ -121,13 +130,22 @@ int xfs_rtmodify_summary(struct xfs_mount *mp, struct xfs_trans *tp, int log,
 int xfs_rtfree_range(struct xfs_mount *mp, struct xfs_trans *tp,
 		     xfs_rtblock_t start, xfs_extlen_t len,
 		     struct xfs_buf **rbpp, xfs_fsblock_t *rsb);
-
-
+int xfs_rtalloc_query_range(struct xfs_trans *tp,
+			    struct xfs_rtalloc_rec *low_rec,
+			    struct xfs_rtalloc_rec *high_rec,
+			    xfs_rtalloc_query_range_fn fn,
+			    void *priv);
+int xfs_rtalloc_query_all(struct xfs_trans *tp,
+			  xfs_rtalloc_query_range_fn fn,
+			  void *priv);
 #else
-# define xfs_rtallocate_extent(t,b,min,max,l,a,f,p,rb)  (ENOSYS)
+# define xfs_rtallocate_extent(t,b,min,max,l,f,p,rb)    (ENOSYS)
 # define xfs_rtfree_extent(t,b,l)                       (ENOSYS)
 # define xfs_rtpick_extent(m,t,l,rb)                    (ENOSYS)
 # define xfs_growfs_rt(mp,in)                           (ENOSYS)
+# define xfs_rtalloc_query_range(t,l,h,f,p)             (ENOSYS)
+# define xfs_rtalloc_query_all(t,f,p)                   (ENOSYS)
+# define xfs_rtbuf_get(m,t,b,i,p)                       (ENOSYS)
 static inline int		/* error */
 xfs_rtmount_init(
 	xfs_mount_t	*mp)	/* file system mount structure */

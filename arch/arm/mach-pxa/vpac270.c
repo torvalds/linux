@@ -15,6 +15,7 @@
 #include <linux/irq.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/leds.h>
 #include <linux/gpio.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/mtd/mtd.h>
@@ -31,14 +32,14 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/audio.h>
 #include <mach/vpac270.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
-#include <mach/pxa27x-udc.h>
-#include <mach/udc.h>
+#include "pxa27x-udc.h"
+#include "udc.h"
 #include <linux/platform_data/ata-pxa.h>
 
 #include "generic.h"

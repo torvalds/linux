@@ -18,6 +18,8 @@ config CRYPTO_DEV_UX500_HASH
         tristate "UX500 crypto driver for HASH block"
         depends on CRYPTO_DEV_UX500
         select CRYPTO_HASH
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
         help
           This selects the hash driver for the UX500_HASH hardware.
           Depends on UX500/STM DMA if running in DMA mode.

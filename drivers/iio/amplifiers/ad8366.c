@@ -195,11 +195,11 @@ static const struct spi_device_id ad8366_id[] = {
 	{"ad8366", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, ad8366_id);
 
 static struct spi_driver ad8366_driver = {
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ad8366_probe,
 	.remove		= ad8366_remove,

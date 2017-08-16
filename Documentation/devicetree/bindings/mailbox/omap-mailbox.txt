@@ -75,6 +75,14 @@ data that represent the following:
     Cell #3 (usr_id)  - mailbox user id for identifying the interrupt line
                         associated with generating a tx/rx fifo interrupt.
 
+Optional Properties:
+--------------------
+- ti,mbox-send-noirq:   Quirk flag to allow the client user of this sub-mailbox
+                        to send messages without triggering a Tx ready interrupt,
+                        and to control the Tx ticker. Should be used only on
+                        sub-mailboxes used to communicate with WkupM3 remote
+                        processor on AM33xx/AM43xx SoCs.
+
 Mailbox Users:
 ==============
 A device needing to communicate with a target processor device should specify

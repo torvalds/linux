@@ -1,1 +1,2 @@
-obj-$(CONFIG_ARCH_MEDIATEK) += mediatek.o
+obj-$(CONFIG_SMP)	+= platsmp.o
+obj-y			+= mediatek.o

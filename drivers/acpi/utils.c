@@ -29,6 +29,7 @@
 #include <linux/dynamic_debug.h>
 
 #include "internal.h"
+#include "sleep.h"
 
 #define _COMPONENT		ACPI_BUS_COMPONENT
 ACPI_MODULE_NAME("utils");
@@ -199,10 +200,6 @@ acpi_extract_package(union acpi_object *package,
 
 		u8 **pointer = NULL;
 		union acpi_object *element = &(package->package.elements[i]);
-
-		if (!element) {
-			return AE_BAD_DATA;
-		}
 
 		switch (element->type) {
 
@@ -616,19 +613,19 @@ acpi_status acpi_evaluate_lck(acpi_handle handle, int lock)
 /**
  * acpi_evaluate_dsm - evaluate device's _DSM method
  * @handle: ACPI device handle
- * @uuid: UUID of requested functions, should be 16 bytes
+ * @guid: GUID of requested functions, should be 16 bytes
  * @rev: revision number of requested function
  * @func: requested function number
  * @argv4: the function specific parameter
  *
- * Evaluate device's _DSM method with specified UUID, revision id and
+ * Evaluate device's _DSM method with specified GUID, revision id and
  * function number. Caller needs to free the returned object.
  *
  * Though ACPI defines the fourth parameter for _DSM should be a package,
  * some old BIOSes do expect a buffer or an integer etc.
  */
 union acpi_object *
-acpi_evaluate_dsm(acpi_handle handle, const u8 *uuid, int rev, int func,
+acpi_evaluate_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 func,
 		  union acpi_object *argv4)
 {
 	acpi_status ret;
@@ -641,7 +638,7 @@ acpi_evaluate_dsm(acpi_handle handle, const u8 *uuid, int rev, int func,
 
 	params[0].type = ACPI_TYPE_BUFFER;
 	params[0].buffer.length = 16;
-	params[0].buffer.pointer = (char *)uuid;
+	params[0].buffer.pointer = (u8 *)guid;
 	params[1].type = ACPI_TYPE_INTEGER;
 	params[1].integer.value = rev;
 	params[2].type = ACPI_TYPE_INTEGER;
@@ -669,7 +666,7 @@ EXPORT_SYMBOL(acpi_evaluate_dsm);
 /**
  * acpi_check_dsm - check if _DSM method supports requested functions.
  * @handle: ACPI device handle
- * @uuid: UUID of requested functions, should be 16 bytes at least
+ * @guid: GUID of requested functions, should be 16 bytes at least
  * @rev: revision number of requested functions
  * @funcs: bitmap of requested functions
  *
@@ -677,7 +674,7 @@ EXPORT_SYMBOL(acpi_evaluate_dsm);
  * functions. Currently only support 64 functions at maximum, should be
  * enough for now.
  */
-bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, int rev, u64 funcs)
+bool acpi_check_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 funcs)
 {
 	int i;
 	u64 mask = 0;
@@ -686,7 +683,7 @@ bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, int rev, u64 funcs)
 	if (funcs == 0)
 		return false;
 
-	obj = acpi_evaluate_dsm(handle, uuid, rev, 0, NULL);
+	obj = acpi_evaluate_dsm(handle, guid, rev, 0, NULL);
 	if (!obj)
 		return false;
 
@@ -695,12 +692,12 @@ bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, int rev, u64 funcs)
 		mask = obj->integer.value;
 	else if (obj->type == ACPI_TYPE_BUFFER)
 		for (i = 0; i < obj->buffer.length && i < 8; i++)
-			mask |= (((u8)obj->buffer.pointer[i]) << (i * 8));
+			mask |= (((u64)obj->buffer.pointer[i]) << (i * 8));
 	ACPI_FREE(obj);
 
 	/*
 	 * Bit 0 indicates whether there's support for any functions other than
-	 * function 0 for the specified UUID and revision.
+	 * function 0 for the specified GUID and revision.
 	 */
 	if ((mask & 0x1) && (mask & funcs) == funcs)
 		return true;
@@ -708,6 +705,102 @@ bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, int rev, u64 funcs)
 	return false;
 }
 EXPORT_SYMBOL(acpi_check_dsm);
+
+/**
+ * acpi_dev_found - Detect presence of a given ACPI device in the namespace.
+ * @hid: Hardware ID of the device.
+ *
+ * Return %true if the device was present at the moment of invocation.
+ * Note that if the device is pluggable, it may since have disappeared.
+ *
+ * For this function to work, acpi_bus_scan() must have been executed
+ * which happens in the subsys_initcall() subsection. Hence, do not
+ * call from a subsys_initcall() or earlier (use acpi_get_devices()
+ * instead). Calling from module_init() is fine (which is synonymous
+ * with device_initcall()).
+ */
+bool acpi_dev_found(const char *hid)
+{
+	struct acpi_device_bus_id *acpi_device_bus_id;
+	bool found = false;
+
+	mutex_lock(&acpi_device_lock);
+	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node)
+		if (!strcmp(acpi_device_bus_id->bus_id, hid)) {
+			found = true;
+			break;
+		}
+	mutex_unlock(&acpi_device_lock);
+
+	return found;
+}
+EXPORT_SYMBOL(acpi_dev_found);
+
+struct acpi_dev_present_info {
+	struct acpi_device_id hid[2];
+	const char *uid;
+	s64 hrv;
+};
+
+static int acpi_dev_present_cb(struct device *dev, void *data)
+{
+	struct acpi_device *adev = to_acpi_device(dev);
+	struct acpi_dev_present_info *match = data;
+	unsigned long long hrv;
+	acpi_status status;
+
+	if (acpi_match_device_ids(adev, match->hid))
+		return 0;
+
+	if (match->uid && (!adev->pnp.unique_id ||
+	    strcmp(adev->pnp.unique_id, match->uid)))
+		return 0;
+
+	if (match->hrv == -1)
+		return 1;
+
+	status = acpi_evaluate_integer(adev->handle, "_HRV", NULL, &hrv);
+	if (ACPI_FAILURE(status))
+		return 0;
+
+	return hrv == match->hrv;
+}
+
+/**
+ * acpi_dev_present - Detect that a given ACPI device is present
+ * @hid: Hardware ID of the device.
+ * @uid: Unique ID of the device, pass NULL to not check _UID
+ * @hrv: Hardware Revision of the device, pass -1 to not check _HRV
+ *
+ * Return %true if a matching device was present at the moment of invocation.
+ * Note that if the device is pluggable, it may since have disappeared.
+ *
+ * Note that unlike acpi_dev_found() this function checks the status
+ * of the device. So for devices which are present in the dsdt, but
+ * which are disabled (their _STA callback returns 0) this function
+ * will return false.
+ *
+ * For this function to work, acpi_bus_scan() must have been executed
+ * which happens in the subsys_initcall() subsection. Hence, do not
+ * call from a subsys_initcall() or earlier (use acpi_get_devices()
+ * instead). Calling from module_init() is fine (which is synonymous
+ * with device_initcall()).
+ */
+bool acpi_dev_present(const char *hid, const char *uid, s64 hrv)
+{
+	struct acpi_dev_present_info match = {};
+	struct device *dev;
+
+	strlcpy(match.hid[0].id, hid, sizeof(match.hid[0].id));
+	match.uid = uid;
+	match.hrv = hrv;
+
+	dev = bus_find_device(&acpi_bus_type, NULL, &match,
+			      acpi_dev_present_cb);
+
+	return !!dev;
+}
+EXPORT_SYMBOL(acpi_dev_present);
 
 /*
  * acpi_backlight= handling, this is done here rather then in video_detect.c

@@ -54,7 +54,7 @@ typedef void (*drm_flip_func_t)(struct drm_flip_work *work, void *val);
 /**
  * struct drm_flip_task - flip work task
  * @node: list entry element
- * @data: data to pass to work->func
+ * @data: data to pass to &drm_flip_work.func
  */
 struct drm_flip_task {
 	struct list_head node;

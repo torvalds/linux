@@ -20,8 +20,7 @@
 #include <linux/of.h>
 #include <linux/delay.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
+#include <linux/w1.h>
 
 static u8 w1_gpio_set_pullup(void *data, int delay)
 {
@@ -198,11 +197,9 @@ static int w1_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-
-static int w1_gpio_suspend(struct platform_device *pdev, pm_message_t state)
+static int __maybe_unused w1_gpio_suspend(struct device *dev)
 {
-	struct w1_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct w1_gpio_platform_data *pdata = dev_get_platdata(dev);
 
 	if (pdata->enable_external_pullup)
 		pdata->enable_external_pullup(0);
@@ -210,9 +207,9 @@ static int w1_gpio_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int w1_gpio_resume(struct platform_device *pdev)
+static int __maybe_unused w1_gpio_resume(struct device *dev)
 {
-	struct w1_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct w1_gpio_platform_data *pdata = dev_get_platdata(dev);
 
 	if (pdata->enable_external_pullup)
 		pdata->enable_external_pullup(1);
@@ -220,20 +217,16 @@ static int w1_gpio_resume(struct platform_device *pdev)
 	return 0;
 }
 
-#else
-#define w1_gpio_suspend	NULL
-#define w1_gpio_resume	NULL
-#endif
+static SIMPLE_DEV_PM_OPS(w1_gpio_pm_ops, w1_gpio_suspend, w1_gpio_resume);
 
 static struct platform_driver w1_gpio_driver = {
 	.driver = {
 		.name	= "w1-gpio",
+		.pm	= &w1_gpio_pm_ops,
 		.of_match_table = of_match_ptr(w1_gpio_dt_ids),
 	},
 	.probe = w1_gpio_probe,
-	.remove	= w1_gpio_remove,
-	.suspend = w1_gpio_suspend,
-	.resume = w1_gpio_resume,
+	.remove = w1_gpio_remove,
 };
 
 module_platform_driver(w1_gpio_driver);

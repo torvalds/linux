@@ -4,6 +4,8 @@
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
  */
 
+#include <asm/export.h>
+
 /* In essence, this is just a fancy strlen. */
 
 #define LO_MAGIC 0x01010101
@@ -13,6 +15,8 @@
 	.align	4
 	.globl	__memscan_zero, __memscan_generic
 	.globl	memscan
+EXPORT_SYMBOL(__memscan_zero)
+EXPORT_SYMBOL(__memscan_generic)
 __memscan_zero:
 	/* %o0 = addr, %o1 = size */
 	cmp	%o1, 0

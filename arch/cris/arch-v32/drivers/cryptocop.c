@@ -14,7 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <linux/atomic.h>
 
@@ -525,7 +525,7 @@ static int setup_cipher_iv_desc(struct cryptocop_tfrm_ctx *tc, struct cryptocop_
 	return 0;
 }
 
-/* Map the ouput length of the transform to operation output starting on the inject index. */
+/* Map the output length of the transform to operation output starting on the inject index. */
 static int create_input_descriptors(struct cryptocop_operation *operation, struct cryptocop_tfrm_ctx *tc, struct cryptocop_dma_desc **id, int alloc_flag)
 {
 	int                        err = 0;
@@ -1210,7 +1210,7 @@ static int cryptocop_setup_dma_list(struct cryptocop_operation *operation, struc
 		assert(active_count >= eop_needed_count);
 		assert((eop_needed_count == 0) || (eop_needed_count == 1));
 		if (eop_needed_count) {
-			/* This means that the bulk operation (cipeher/m2m) is terminated. */
+			/* This means that the bulk operation (cipher/m2m) is terminated. */
 			if (active_count > 1) {
 				/* Use zero length EOP descriptor. */
 				struct cryptocop_dma_desc *ed = alloc_cdesc(alloc_flag);
@@ -2086,7 +2086,7 @@ static void cryptocop_job_queue_close(void)
 		dma_in_cfg.en = regk_dma_no;
 		REG_WR(dma, IN_DMA_INST, rw_cfg, dma_in_cfg);
 
-		/* Disble the cryptocop. */
+		/* Disable the cryptocop. */
 		rw_cfg = REG_RD(strcop, regi_strcop, rw_cfg);
 		rw_cfg.en = 0;
 		REG_WR(strcop, regi_strcop, rw_cfg, rw_cfg);
@@ -2719,12 +2719,9 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 	/* Acquire the mm page semaphore. */
 	down_read(&current->mm->mmap_sem);
 
-	err = get_user_pages(current,
-			     current->mm,
-			     (unsigned long int)(oper.indata + prev_ix),
+	err = get_user_pages((unsigned long int)(oper.indata + prev_ix),
 			     noinpages,
 			     0,  /* read access only for in data */
-			     0, /* no force */
 			     inpages,
 			     NULL);
 
@@ -2736,12 +2733,9 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 	}
 	noinpages = err;
 	if (oper.do_cipher){
-		err = get_user_pages(current,
-				     current->mm,
-				     (unsigned long int)oper.cipher_outdata,
+		err = get_user_pages((unsigned long int)oper.cipher_outdata,
 				     nooutpages,
-				     1, /* write access for out data */
-				     0, /* no force */
+				     FOLL_WRITE, /* write access for out data */
 				     outpages,
 				     NULL);
 		up_read(&current->mm->mmap_sem);
@@ -3155,7 +3149,7 @@ static void print_dma_descriptors(struct cryptocop_int_operation *iop)
 	printk("print_dma_descriptors start\n");
 
 	printk("iop:\n");
-	printk("\tsid: 0x%lld\n", iop->sid);
+	printk("\tsid: 0x%llx\n", iop->sid);
 
 	printk("\tcdesc_out: 0x%p\n", iop->cdesc_out);
 	printk("\tcdesc_in: 0x%p\n", iop->cdesc_in);

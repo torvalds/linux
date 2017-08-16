@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -116,6 +116,11 @@ struct acpi_table_bgrt {
 	u32 image_offset_y;
 };
 
+/* Flags for Status field above */
+
+#define ACPI_BGRT_DISPLAYED                 (1)
+#define ACPI_BGRT_ORIENTATION_OFFSET        (3 << 1)
+
 /*******************************************************************************
  *
  * DRTM - Dynamic Root of Trust for Measurement table
@@ -184,7 +189,7 @@ struct acpi_table_fpdt {
 	struct acpi_table_header header;	/* Common ACPI table header */
 };
 
-/* FPDT subtable header */
+/* FPDT subtable header (Performance Record Structure) */
 
 struct acpi_fpdt_header {
 	u16 type;
@@ -205,6 +210,57 @@ enum acpi_fpdt_type {
 
 /* 0: Firmware Basic Boot Performance Record */
 
+struct acpi_fpdt_boot_pointer {
+	struct acpi_fpdt_header header;
+	u8 reserved[4];
+	u64 address;
+};
+
+/* 1: S3 Performance Table Pointer Record */
+
+struct acpi_fpdt_s3pt_pointer {
+	struct acpi_fpdt_header header;
+	u8 reserved[4];
+	u64 address;
+};
+
+/*
+ * S3PT - S3 Performance Table. This table is pointed to by the
+ * S3 Pointer Record above.
+ */
+struct acpi_table_s3pt {
+	u8 signature[4];	/* "S3PT" */
+	u32 length;
+};
+
+/*
+ * S3PT Subtables (Not part of the actual FPDT)
+ */
+
+/* Values for Type field in S3PT header */
+
+enum acpi_s3pt_type {
+	ACPI_S3PT_TYPE_RESUME = 0,
+	ACPI_S3PT_TYPE_SUSPEND = 1,
+	ACPI_FPDT_BOOT_PERFORMANCE = 2
+};
+
+struct acpi_s3pt_resume {
+	struct acpi_fpdt_header header;
+	u32 resume_count;
+	u64 full_resume;
+	u64 average_resume;
+};
+
+struct acpi_s3pt_suspend {
+	struct acpi_fpdt_header header;
+	u64 suspend_start;
+	u64 suspend_end;
+};
+
+/*
+ * FPDT Boot Performance Record (Not part of the actual FPDT)
+ */
 struct acpi_fpdt_boot {
 	struct acpi_fpdt_header header;
 	u8 reserved[4];
@@ -213,52 +269,6 @@ struct acpi_fpdt_boot {
 	u64 startup_start;
 	u64 exit_services_entry;
 	u64 exit_services_exit;
-};
-
-/* 1: S3 Performance Table Pointer Record */
-
-struct acpi_fpdt_s3pt_ptr {
-	struct acpi_fpdt_header header;
-	u8 reserved[4];
-	u64 address;
-};
-
-/*
- * S3PT - S3 Performance Table. This table is pointed to by the
- * FPDT S3 Pointer Record above.
- */
-struct acpi_table_s3pt {
-	u8 signature[4];	/* "S3PT" */
-	u32 length;
-};
-
-/*
- * S3PT Subtables
- */
-struct acpi_s3pt_header {
-	u16 type;
-	u8 length;
-	u8 revision;
-};
-
-/* Values for Type field above */
-
-enum acpi_s3pt_type {
-	ACPI_S3PT_TYPE_RESUME = 0,
-	ACPI_S3PT_TYPE_SUSPEND = 1
-};
-
-struct acpi_s3pt_resume {
-	struct acpi_s3pt_header header;
-	u32 resume_count;
-	u64 full_resume;
-	u64 average_resume;
-};
-
-struct acpi_s3pt_suspend {
-	struct acpi_s3pt_header header;
-	u64 suspend_start;
-	u64 suspend_end;
 };
 
 /*******************************************************************************
@@ -457,7 +467,7 @@ struct acpi_mpst_shared {
 /*******************************************************************************
  *
  * PCCT - Platform Communications Channel Table (ACPI 5.0)
- *        Version 1
+ *        Version 2 (ACPI 6.2)
  *
  ******************************************************************************/
 
@@ -476,7 +486,10 @@ struct acpi_table_pcct {
 enum acpi_pcct_type {
 	ACPI_PCCT_TYPE_GENERIC_SUBSPACE = 0,
 	ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE = 1,
-	ACPI_PCCT_TYPE_RESERVED = 2	/* 2 and greater are reserved */
+	ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE_TYPE2 = 2,	/* ACPI 6.1 */
+	ACPI_PCCT_TYPE_EXT_PCC_MASTER_SUBSPACE = 3,	/* ACPI 6.2 */
+	ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE = 4,	/* ACPI 6.2 */
+	ACPI_PCCT_TYPE_RESERVED = 5	/* 5 and greater are reserved */
 };
 
 /*
@@ -502,7 +515,7 @@ struct acpi_pcct_subspace {
 
 struct acpi_pcct_hw_reduced {
 	struct acpi_subtable_header header;
-	u32 doorbell_interrupt;
+	u32 platform_interrupt;
 	u8 flags;
 	u8 reserved;
 	u64 base_address;
@@ -513,6 +526,82 @@ struct acpi_pcct_hw_reduced {
 	u32 latency;
 	u32 max_access_rate;
 	u16 min_turnaround_time;
+};
+
+/* 2: HW-reduced Communications Subspace Type 2 (ACPI 6.1) */
+
+struct acpi_pcct_hw_reduced_type2 {
+	struct acpi_subtable_header header;
+	u32 platform_interrupt;
+	u8 flags;
+	u8 reserved;
+	u64 base_address;
+	u64 length;
+	struct acpi_generic_address doorbell_register;
+	u64 preserve_mask;
+	u64 write_mask;
+	u32 latency;
+	u32 max_access_rate;
+	u16 min_turnaround_time;
+	struct acpi_generic_address platform_ack_register;
+	u64 ack_preserve_mask;
+	u64 ack_write_mask;
+};
+
+/* 3: Extended PCC Master Subspace Type 3 (ACPI 6.2) */
+
+struct acpi_pcct_ext_pcc_master {
+	struct acpi_subtable_header header;
+	u32 platform_interrupt;
+	u8 flags;
+	u8 reserved1;
+	u64 base_address;
+	u32 length;
+	struct acpi_generic_address doorbell_register;
+	u64 preserve_mask;
+	u64 write_mask;
+	u32 latency;
+	u32 max_access_rate;
+	u32 min_turnaround_time;
+	struct acpi_generic_address platform_ack_register;
+	u64 ack_preserve_mask;
+	u64 ack_set_mask;
+	u64 reserved2;
+	struct acpi_generic_address cmd_complete_register;
+	u64 cmd_complete_mask;
+	struct acpi_generic_address cmd_update_register;
+	u64 cmd_update_preserve_mask;
+	u64 cmd_update_set_mask;
+	struct acpi_generic_address error_status_register;
+	u64 error_status_mask;
+};
+
+/* 4: Extended PCC Slave Subspace Type 4 (ACPI 6.2) */
+
+struct acpi_pcct_ext_pcc_slave {
+	struct acpi_subtable_header header;
+	u32 platform_interrupt;
+	u8 flags;
+	u8 reserved1;
+	u64 base_address;
+	u32 length;
+	struct acpi_generic_address doorbell_register;
+	u64 preserve_mask;
+	u64 write_mask;
+	u32 latency;
+	u32 max_access_rate;
+	u32 min_turnaround_time;
+	struct acpi_generic_address platform_ack_register;
+	u64 ack_preserve_mask;
+	u64 ack_set_mask;
+	u64 reserved2;
+	struct acpi_generic_address cmd_complete_register;
+	u64 cmd_complete_mask;
+	struct acpi_generic_address cmd_update_register;
+	u64 cmd_update_preserve_mask;
+	u64 cmd_update_set_mask;
+	struct acpi_generic_address error_status_register;
+	u64 error_status_mask;
 };
 
 /* Values for doorbell flags above */
@@ -530,6 +619,15 @@ struct acpi_pcct_shared_memory {
 	u32 signature;
 	u16 command;
 	u16 status;
+};
+
+/* Extended PCC Subspace Shared Memory Region (ACPI 6.2) */
+
+struct acpi_pcct_ext_pcc_shared_memory {
+	u32 signature;
+	u32 flags;
+	u32 length;
+	u32 command;
 };
 
 /*******************************************************************************

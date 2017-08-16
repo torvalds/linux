@@ -10,7 +10,7 @@
 
 #undef PREALLOC_NOT_AVAIL
 
-ENTRY(memset)
+ENTRY_CFI(memset)
 	prefetchw [r0]		; Prefetch the write location
 	mov.f	0, r2
 ;;; if size is zero
@@ -112,11 +112,11 @@ ENTRY(memset)
 
 	j	[blink]
 
-END(memset)
+END_CFI(memset)
 
-ENTRY(memzero)
+ENTRY_CFI(memzero)
     ; adjust bzero args to memset args
     mov r2, r1
     b.d  memset    ;tail call so need to tinker with blink
     mov r1, 0
-END(memzero)
+END_CFI(memzero)

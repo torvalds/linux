@@ -13,18 +13,16 @@ typedef enum _sii164_hot_plug_mode_t {
 
 
 /* Silicon Image SiI164 chip prototype */
-long sii164InitChip(
-	unsigned char edgeSelect,
-	unsigned char busSelect,
-	unsigned char dualEdgeClkSelect,
-	unsigned char hsyncEnable,
-	unsigned char vsyncEnable,
-	unsigned char deskewEnable,
-	unsigned char deskewSetting,
-	unsigned char continuousSyncEnable,
-	unsigned char pllFilterEnable,
-	unsigned char pllFilterValue
-);
+long sii164InitChip(unsigned char edgeSelect,
+		    unsigned char busSelect,
+		    unsigned char dualEdgeClkSelect,
+		    unsigned char hsyncEnable,
+		    unsigned char vsyncEnable,
+		    unsigned char deskewEnable,
+		    unsigned char deskewSetting,
+		    unsigned char continuousSyncEnable,
+		    unsigned char pllFilterEnable,
+		    unsigned char pllFilterValue);
 
 unsigned short sii164GetVendorID(void);
 unsigned short sii164GetDeviceID(void);
@@ -39,7 +37,10 @@ unsigned char sii164IsConnected(void);
 unsigned char sii164CheckInterrupt(void);
 void sii164ClearInterrupt(void);
 #endif
-/* below register definination is used for Silicon Image SiI164 DVI controller chip */
+/*
+ * below register definition is used for
+ * Silicon Image SiI164 DVI controller chip
+ */
 /*
  * Vendor ID registers
  */

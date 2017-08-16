@@ -3,10 +3,6 @@ choice
 	prompt "Processor family"
 	default M686 if X86_32
 	default GENERIC_CPU if X86_64
-
-config M486
-	bool "486"
-	depends on X86_32
 	---help---
 	  This is the processor type of your CPU. This information is
 	  used for optimizing purposes. In order to compile a kernel
@@ -23,9 +19,9 @@ config M486
 
 	  Here are the settings recommended for greatest speed:
 	  - "486" for the AMD/Cyrix/IBM/Intel 486DX/DX2/DX4 or
-	  SL/SLC/SLC2/SLC3/SX/SX2 and UMC U5D or U5S.
+	    SL/SLC/SLC2/SLC3/SX/SX2 and UMC U5D or U5S.
 	  - "586" for generic Pentium CPUs lacking the TSC
-	  (time stamp counter) register.
+	    (time stamp counter) register.
 	  - "Pentium-Classic" for the Intel Pentium.
 	  - "Pentium-MMX" for the Intel Pentium MMX.
 	  - "Pentium-Pro" for the Intel Pentium Pro.
@@ -34,17 +30,31 @@ config M486
 	  - "Pentium-4" for the Intel Pentium 4 or P4-based Celeron.
 	  - "K6" for the AMD K6, K6-II and K6-III (aka K6-3D).
 	  - "Athlon" for the AMD K7 family (Athlon/Duron/Thunderbird).
+	  - "Opteron/Athlon64/Hammer/K8" for all K8 and newer AMD CPUs.
 	  - "Crusoe" for the Transmeta Crusoe series.
 	  - "Efficeon" for the Transmeta Efficeon series.
 	  - "Winchip-C6" for original IDT Winchip.
 	  - "Winchip-2" for IDT Winchips with 3dNow! capabilities.
+	  - "AMD Elan" for the 32-bit AMD Elan embedded CPU.
 	  - "GeodeGX1" for Geode GX1 (Cyrix MediaGX).
 	  - "Geode GX/LX" For AMD Geode GX and LX processors.
 	  - "CyrixIII/VIA C3" for VIA Cyrix III or VIA C3.
 	  - "VIA C3-2" for VIA C3-2 "Nehemiah" (model 9 and above).
 	  - "VIA C7" for VIA C7.
+	  - "Intel P4" for the Pentium 4/Netburst microarchitecture.
+	  - "Core 2/newer Xeon" for all core2 and newer Intel CPUs.
+	  - "Intel Atom" for the Atom-microarchitecture CPUs.
+	  - "Generic-x86-64" for a kernel which runs on any x86-64 CPU.
 
-	  If you don't know what to do, choose "486".
+	  See each option's help text for additional details. If you don't know
+	  what to do, choose "486".
+
+config M486
+	bool "486"
+	depends on X86_32
+	---help---
+	  Select this for an 486-class CPU such as AMD/Cyrix/IBM/Intel
+	  486DX/DX2/DX4 or SL/SLC/SLC2/SLC3/SX/SX2 and UMC U5D or U5S.
 
 config M586
 	bool "586/K5/5x86/6x86/6x86MX"

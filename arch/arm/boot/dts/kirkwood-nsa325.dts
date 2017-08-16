@@ -1,0 +1,235 @@
+/* Device tree file for the Zyxel NSA 325 NAS box.
+ *
+ * Copyright (c) 2015, Hans Ulli Kroll <ulli.kroll@googlemail.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
+ *
+ * Based upon the board setup file created by Peter Schildmann
+ */
+
+/dts-v1/;
+
+#include "kirkwood-nsa3x0-common.dtsi"
+
+/ {
+	model = "ZyXEL NSA325";
+	compatible = "zyxel,nsa325", "marvell,kirkwood-88f6282", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = &uart0;
+	};
+
+	ocp@f1000000 {
+		pinctrl: pin-controller@10000 {
+			pinctrl-names = "default";
+
+			pmx_led_hdd2_green: pmx-led-hdd2-green {
+				marvell,pins = "mpp12";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_hdd2_red: pmx-led-hdd2-red {
+				marvell,pins = "mpp13";
+				marvell,function = "gpio";
+			};
+
+			pmx_mcu_data: pmx-mcu-data {
+				marvell,pins = "mpp14";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_usb_green: pmx-led-usb-green {
+				marvell,pins = "mpp15";
+				marvell,function = "gpio";
+			};
+
+			pmx_mcu_clk: pmx-mcu-clk {
+				marvell,pins = "mpp16";
+				marvell,function = "gpio";
+			};
+
+			pmx_mcu_act: pmx-mcu-act {
+				marvell,pins = "mpp17";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_sys_green: pmx-led-sys-green {
+				marvell,pins = "mpp28";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_sys_orange: pmx-led-sys-orange {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_hdd1_green: pmx-led-hdd1-green {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_hdd1_red: pmx-led-hdd1-red {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+
+			pmx_htp: pmx-htp {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+
+			/*
+			 * Buzzer needs to be switched at around 1kHz so is
+			 * not compatible with the gpio-beeper driver.
+			 */
+			pmx_buzzer: pmx-buzzer {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+
+			pmx_vid_b1: pmx-vid-b1 {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+
+			pmx_power_resume_data: pmx-power-resume-data {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+
+			pmx_power_resume_clk: pmx-power-resume-clk {
+				marvell,pins = "mpp49";
+				marvell,function = "gpio";
+			};
+
+			pmx_pwr_sata1: pmx-pwr-sata1 {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+		};
+
+		/* This board uses the pcf8563 RTC instead of the SoC RTC */
+		rtc@10300 {
+			status = "disabled";
+		};
+
+		i2c@11000 {
+			status = "okay";
+
+			pcf8563: pcf8563@51 {
+				compatible = "nxp,pcf8563";
+				reg = <0x51>;
+			};
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_pwr_sata1>;
+		pinctrl-names = "default";
+
+		usb0_power: regulator@1 {
+			enable-active-high;
+		};
+
+		sata1_power: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "SATA1 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+			enable-active-high;
+			gpio = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_hdd2_green &pmx_led_hdd2_red
+			     &pmx_led_usb_green
+			     &pmx_led_sys_green &pmx_led_sys_orange
+			     &pmx_led_copy_green &pmx_led_copy_red
+			     &pmx_led_hdd1_green &pmx_led_hdd1_red>;
+		pinctrl-names = "default";
+
+		green-sys {
+			label = "nsa325:green:sys";
+			gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+		};
+		orange-sys {
+			label = "nsa325:orange:sys";
+			gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+		};
+		green-hdd1 {
+			label = "nsa325:green:hdd1";
+			gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+		};
+		red-hdd1 {
+			label = "nsa325:red:hdd1";
+			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+		};
+		green-hdd2 {
+			label = "nsa325:green:hdd2";
+			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+		};
+		red-hdd2 {
+			label = "nsa325:red:hdd2";
+			gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
+		};
+		green-usb {
+			label = "nsa325:green:usb";
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+		};
+		green-copy {
+			label = "nsa325:green:copy";
+			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+		};
+		red-copy {
+			label = "nsa325:red:copy";
+			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+		};
+
+	/* The following pins are currently not assigned to a driver,
+	   some of them should be configured as inputs.
+	pinctrl-0 = <&pmx_mcu_data &pmx_mcu_clk &pmx_mcu_act
+		     &pmx_htp &pmx_vid_b1
+		     &pmx_power_resume_data &pmx_power_resume_clk>; */
+	};
+
+
+};
+
+&mdio {
+	status = "okay";
+	ethphy0: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+};

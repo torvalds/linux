@@ -130,7 +130,7 @@ void start_benchmark(struct config *config)
 			_round, load_time, sleep_time);
 
 		if (config->verbose)
-			printf("avarage: %lius, rps:%li\n",
+			printf("average: %lius, rps:%li\n",
 				load_time / calculations,
 				1000000 * calculations / load_time);
 
@@ -177,7 +177,7 @@ void start_benchmark(struct config *config)
 
 		progress_time += sleep_time + load_time;
 
-		/* compare the avarage sleep/load cycles  */
+		/* compare the average sleep/load cycles  */
 		fprintf(config->output, "%li ",
 			powersave_time / config->cycles);
 		fprintf(config->output, "%.3f\n",

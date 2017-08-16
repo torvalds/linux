@@ -13,33 +13,62 @@
 #ifndef __VSP1_RWPF_H__
 #define __VSP1_RWPF_H__
 
+#include <linux/spinlock.h>
+
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
 #include "vsp1_entity.h"
-#include "vsp1_video.h"
 
 #define RWPF_PAD_SINK				0
 #define RWPF_PAD_SOURCE				1
 
+struct v4l2_ctrl;
+struct vsp1_dl_manager;
+struct vsp1_pipeline;
+struct vsp1_rwpf;
+struct vsp1_video;
+
+struct vsp1_rwpf_memory {
+	dma_addr_t addr[3];
+};
+
 struct vsp1_rwpf {
 	struct vsp1_entity entity;
-	struct vsp1_video video;
 	struct v4l2_ctrl_handler ctrls;
+
+	struct vsp1_pipeline *pipe;
+	struct vsp1_video *video;
 
 	unsigned int max_width;
 	unsigned int max_height;
 
-	struct {
-		unsigned int left;
-		unsigned int top;
-	} location;
-	struct v4l2_rect crop;
+	struct v4l2_pix_format_mplane format;
+	const struct vsp1_format_info *fmtinfo;
+	unsigned int bru_input;
 
-	unsigned int offsets[2];
-	dma_addr_t buf_addr[3];
+	unsigned int alpha;
+
+	u32 mult_alpha;
+	u32 outfmt;
+
+	struct {
+		spinlock_t lock;
+		struct {
+			struct v4l2_ctrl *vflip;
+			struct v4l2_ctrl *hflip;
+			struct v4l2_ctrl *rotate;
+		} ctrls;
+		unsigned int pending;
+		unsigned int active;
+		bool rotate;
+	} flip;
+
+	struct vsp1_rwpf_memory mem;
+
+	struct vsp1_dl_manager *dlm;
 };
 
 static inline struct vsp1_rwpf *to_rwpf(struct v4l2_subdev *subdev)
@@ -47,24 +76,19 @@ static inline struct vsp1_rwpf *to_rwpf(struct v4l2_subdev *subdev)
 	return container_of(subdev, struct vsp1_rwpf, entity.subdev);
 }
 
+static inline struct vsp1_rwpf *entity_to_rwpf(struct vsp1_entity *entity)
+{
+	return container_of(entity, struct vsp1_rwpf, entity);
+}
+
 struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index);
 struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index);
 
-int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,
-			     struct v4l2_subdev_pad_config *cfg,
-			     struct v4l2_subdev_mbus_code_enum *code);
-int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_pad_config *cfg,
-			      struct v4l2_subdev_frame_size_enum *fse);
-int vsp1_rwpf_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
-			 struct v4l2_subdev_format *fmt);
-int vsp1_rwpf_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
-			 struct v4l2_subdev_format *fmt);
-int vsp1_rwpf_get_selection(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_pad_config *cfg,
-			    struct v4l2_subdev_selection *sel);
-int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_pad_config *cfg,
-			    struct v4l2_subdev_selection *sel);
+int vsp1_rwpf_init_ctrls(struct vsp1_rwpf *rwpf, unsigned int ncontrols);
+
+extern const struct v4l2_subdev_pad_ops vsp1_rwpf_pad_ops;
+
+struct v4l2_rect *vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf,
+				     struct v4l2_subdev_pad_config *config);
 
 #endif /* __VSP1_RWPF_H__ */

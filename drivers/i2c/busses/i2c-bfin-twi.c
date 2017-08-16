@@ -563,7 +563,7 @@ static u32 bfin_twi_functionality(struct i2c_adapter *adap)
 	       I2C_FUNC_I2C | I2C_FUNC_SMBUS_I2C_BLOCK;
 }
 
-static struct i2c_algorithm bfin_twi_algorithm = {
+static const struct i2c_algorithm bfin_twi_algorithm = {
 	.master_xfer   = bfin_twi_master_xfer,
 	.smbus_xfer    = bfin_twi_smbus_xfer,
 	.functionality = bfin_twi_functionality,
@@ -685,10 +685,8 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 	write_CONTROL(iface, read_CONTROL(iface) | TWI_ENA);
 
 	rc = i2c_add_numbered_adapter(p_adap);
-	if (rc < 0) {
-		dev_err(&pdev->dev, "Can't add i2c adapter!\n");
+	if (rc < 0)
 		goto out_error;
-	}
 
 	platform_set_drvdata(pdev, iface);
 

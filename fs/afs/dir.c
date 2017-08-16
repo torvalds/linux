@@ -38,12 +38,13 @@ static int afs_link(struct dentry *from, struct inode *dir,
 static int afs_symlink(struct inode *dir, struct dentry *dentry,
 		       const char *content);
 static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		      struct inode *new_dir, struct dentry *new_dentry);
+		      struct inode *new_dir, struct dentry *new_dentry,
+		      unsigned int flags);
 
 const struct file_operations afs_dir_file_operations = {
 	.open		= afs_dir_open,
 	.release	= afs_release,
-	.iterate	= afs_readdir,
+	.iterate_shared	= afs_readdir,
 	.lock		= afs_lock,
 	.llseek		= generic_file_llseek,
 };
@@ -60,6 +61,7 @@ const struct inode_operations afs_dir_inode_operations = {
 	.permission	= afs_permission,
 	.getattr	= afs_getattr,
 	.setattr	= afs_setattr,
+	.listxattr	= afs_listxattr,
 };
 
 const struct dentry_operations afs_fs_dentry_operations = {
@@ -128,7 +130,7 @@ struct afs_lookup_cookie {
 /*
  * check that a directory page is valid
  */
-static inline void afs_dir_check_page(struct inode *dir, struct page *page)
+static inline bool afs_dir_check_page(struct inode *dir, struct page *page)
 {
 	struct afs_dir_page *dbuf;
 	loff_t latter;
@@ -168,11 +170,11 @@ static inline void afs_dir_check_page(struct inode *dir, struct page *page)
 	}
 
 	SetPageChecked(page);
-	return;
+	return true;
 
 error:
-	SetPageChecked(page);
 	SetPageError(page);
+	return false;
 }
 
 /*
@@ -181,7 +183,7 @@ error:
 static inline void afs_dir_put_page(struct page *page)
 {
 	kunmap(page);
-	page_cache_release(page);
+	put_page(page);
 }
 
 /*
@@ -196,10 +198,10 @@ static struct page *afs_dir_get_page(struct inode *dir, unsigned long index,
 	page = read_cache_page(dir->i_mapping, index, afs_page_filler, key);
 	if (!IS_ERR(page)) {
 		kmap(page);
-		if (!PageChecked(page))
-			afs_dir_check_page(dir, page);
-		if (PageError(page))
-			goto fail;
+		if (unlikely(!PageChecked(page))) {
+			if (PageError(page) || !afs_dir_check_page(dir, page))
+				goto fail;
+		}
 	}
 	return page;
 
@@ -251,7 +253,7 @@ static int afs_dir_iterate_block(struct dir_context *ctx,
 		/* skip entries marked unused in the bitmap */
 		if (!(block->pagehdr.bitmap[offset / 8] &
 		      (1 << (offset % 8)))) {
-			_debug("ENT[%Zu.%u]: unused",
+			_debug("ENT[%zu.%u]: unused",
 			       blkoff / sizeof(union afs_dir_block), offset);
 			if (offset >= curr)
 				ctx->pos = blkoff +
@@ -265,7 +267,7 @@ static int afs_dir_iterate_block(struct dir_context *ctx,
 			       sizeof(*block) -
 			       offset * sizeof(union afs_dirent));
 
-		_debug("ENT[%Zu.%u]: %s %Zu \"%s\"",
+		_debug("ENT[%zu.%u]: %s %zu \"%s\"",
 		       blkoff / sizeof(union afs_dir_block), offset,
 		       (offset < curr ? "skip" : "fill"),
 		       nlen, dire->u.name);
@@ -273,23 +275,23 @@ static int afs_dir_iterate_block(struct dir_context *ctx,
 		/* work out where the next possible entry is */
 		for (tmp = nlen; tmp > 15; tmp -= sizeof(union afs_dirent)) {
 			if (next >= AFS_DIRENT_PER_BLOCK) {
-				_debug("ENT[%Zu.%u]:"
+				_debug("ENT[%zu.%u]:"
 				       " %u travelled beyond end dir block"
-				       " (len %u/%Zu)",
+				       " (len %u/%zu)",
 				       blkoff / sizeof(union afs_dir_block),
 				       offset, next, tmp, nlen);
 				return -EIO;
 			}
 			if (!(block->pagehdr.bitmap[next / 8] &
 			      (1 << (next % 8)))) {
-				_debug("ENT[%Zu.%u]:"
-				       " %u unmarked extension (len %u/%Zu)",
+				_debug("ENT[%zu.%u]:"
+				       " %u unmarked extension (len %u/%zu)",
 				       blkoff / sizeof(union afs_dir_block),
 				       offset, next, tmp, nlen);
 				return -EIO;
 			}
 
-			_debug("ENT[%Zu.%u]: ext %u/%Zu",
+			_debug("ENT[%zu.%u]: ext %u/%zu",
 			       blkoff / sizeof(union afs_dir_block),
 			       next, tmp, nlen);
 			next++;
@@ -1083,11 +1085,15 @@ error:
  * rename a file in an AFS filesystem and/or move it between directories
  */
 static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		      struct inode *new_dir, struct dentry *new_dentry)
+		      struct inode *new_dir, struct dentry *new_dentry,
+		      unsigned int flags)
 {
 	struct afs_vnode *orig_dvnode, *new_dvnode, *vnode;
 	struct key *key;
 	int ret;
+
+	if (flags)
+		return -EINVAL;
 
 	vnode = AFS_FS_I(d_inode(old_dentry));
 	orig_dvnode = AFS_FS_I(old_dir);

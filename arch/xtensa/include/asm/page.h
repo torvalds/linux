@@ -15,15 +15,7 @@
 #include <asm/types.h>
 #include <asm/cache.h>
 #include <platform/hardware.h>
-
-/*
- * Fixed TLB translations in the processor.
- */
-
-#define XCHAL_KSEG_CACHED_VADDR __XTENSA_UL_CONST(0xd0000000)
-#define XCHAL_KSEG_BYPASS_VADDR __XTENSA_UL_CONST(0xd8000000)
-#define XCHAL_KSEG_PADDR        __XTENSA_UL_CONST(0x00000000)
-#define XCHAL_KSEG_SIZE         __XTENSA_UL_CONST(0x08000000)
+#include <asm/kmem_layout.h>
 
 /*
  * PAGE_SHIFT determines the page size
@@ -35,10 +27,13 @@
 
 #ifdef CONFIG_MMU
 #define PAGE_OFFSET	XCHAL_KSEG_CACHED_VADDR
-#define MAX_MEM_PFN	XCHAL_KSEG_SIZE
+#define PHYS_OFFSET	XCHAL_KSEG_PADDR
+#define MAX_LOW_PFN	(PHYS_PFN(XCHAL_KSEG_PADDR) + \
+			 PHYS_PFN(XCHAL_KSEG_SIZE))
 #else
-#define PAGE_OFFSET	__XTENSA_UL_CONST(0)
-#define MAX_MEM_PFN	(PLATFORM_DEFAULT_MEM_START + PLATFORM_DEFAULT_MEM_SIZE)
+#define PAGE_OFFSET	PLATFORM_DEFAULT_MEM_START
+#define PHYS_OFFSET	PLATFORM_DEFAULT_MEM_START
+#define MAX_LOW_PFN	PHYS_PFN(0xfffffffful)
 #endif
 
 #define PGTABLE_START	0x80000000
@@ -167,10 +162,25 @@ void copy_user_highpage(struct page *to, struct page *from,
  * addresses.
  */
 
-#define ARCH_PFN_OFFSET		(PLATFORM_DEFAULT_MEM_START >> PAGE_SHIFT)
+#define ARCH_PFN_OFFSET		(PHYS_OFFSET >> PAGE_SHIFT)
 
-#define __pa(x)			((unsigned long) (x) - PAGE_OFFSET)
-#define __va(x)			((void *)((unsigned long) (x) + PAGE_OFFSET))
+#ifdef CONFIG_MMU
+static inline unsigned long ___pa(unsigned long va)
+{
+	unsigned long off = va - PAGE_OFFSET;
+
+	if (off >= XCHAL_KSEG_SIZE)
+		off -= XCHAL_KSEG_SIZE;
+
+	return off + PHYS_OFFSET;
+}
+#define __pa(x)	___pa((unsigned long)(x))
+#else
+#define __pa(x)	\
+	((unsigned long) (x) - PAGE_OFFSET + PHYS_OFFSET)
+#endif
+#define __va(x)	\
+	((void *)((unsigned long) (x) - PHYS_OFFSET + PAGE_OFFSET))
 #define pfn_valid(pfn) \
 	((pfn) >= ARCH_PFN_OFFSET && ((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
 

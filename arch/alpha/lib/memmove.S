@@ -6,7 +6,7 @@
  * This is hand-massaged output from the original memcpy.c.  We defer to
  * memcpy whenever possible; the backwards copy loops are not unrolled.
  */
-        
+#include <asm/export.h>        
 	.set noat
 	.set noreorder
 	.text
@@ -179,3 +179,4 @@ $egress:
 	nop
 
 	.end memmove
+	EXPORT_SYMBOL(memmove)

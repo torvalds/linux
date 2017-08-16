@@ -34,7 +34,7 @@ command:
 	% ls -1 /sys/class/dma/
 
 Once started a message like "dmatest: Started 1 threads using dma0chan0" is
-emitted.  After that only test failure messages are reported until the test
+emitted. After that only test failure messages are reported until the test
 stops.
 
 Note that running a new test will not stop any in progress test.
@@ -43,11 +43,11 @@ The following command returns the state of the test.
 	% cat /sys/module/dmatest/parameters/run
 
 To wait for test completion userpace can poll 'run' until it is false, or use
-the wait parameter.  Specifying 'wait=1' when loading the module causes module
+the wait parameter. Specifying 'wait=1' when loading the module causes module
 initialization to pause until a test run has completed, while reading
 /sys/module/dmatest/parameters/wait waits for any running test to complete
-before returning.  For example, the following scripts wait for 42 tests
-to complete before exiting.  Note that if 'iterations' is set to 'infinite' then
+before returning. For example, the following scripts wait for 42 tests
+to complete before exiting. Note that if 'iterations' is set to 'infinite' then
 waiting is disabled.
 
 Example:
@@ -81,7 +81,7 @@ Example of output:
 
 The message format is unified across the different types of errors. A number in
 the parens represents additional information, e.g. error code, error counter,
-or status.  A test thread also emits a summary line at completion listing the
+or status. A test thread also emits a summary line at completion listing the
 number of tests executed, number that failed, and a result code.
 
 Example:

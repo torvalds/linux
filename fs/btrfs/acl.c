@@ -37,10 +37,10 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		name = POSIX_ACL_XATTR_ACCESS;
+		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
-		name = POSIX_ACL_XATTR_DEFAULT;
+		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
 		BUG();
@@ -48,23 +48,19 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 
 	size = __btrfs_getxattr(inode, name, "", 0);
 	if (size > 0) {
-		value = kzalloc(size, GFP_NOFS);
+		value = kzalloc(size, GFP_KERNEL);
 		if (!value)
 			return ERR_PTR(-ENOMEM);
 		size = __btrfs_getxattr(inode, name, value, size);
 	}
 	if (size > 0) {
 		acl = posix_acl_from_xattr(&init_user_ns, value, size);
-	} else if (size == -ENOENT || size == -ENODATA || size == 0) {
-		/* FIXME, who returns -ENOENT?  I think nobody */
+	} else if (size == -ERANGE || size == -ENODATA || size == 0) {
 		acl = NULL;
 	} else {
 		acl = ERR_PTR(-EIO);
 	}
 	kfree(value);
-
-	if (!IS_ERR(acl))
-		set_cached_acl(inode, type, acl);
 
 	return acl;
 }
@@ -81,20 +77,12 @@ static int __btrfs_set_acl(struct btrfs_trans_handle *trans,
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		name = POSIX_ACL_XATTR_ACCESS;
-		if (acl) {
-			ret = posix_acl_equiv_mode(acl, &inode->i_mode);
-			if (ret < 0)
-				return ret;
-			if (ret == 0)
-				acl = NULL;
-		}
-		ret = 0;
+		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
 		if (!S_ISDIR(inode->i_mode))
 			return acl ? -EINVAL : 0;
-		name = POSIX_ACL_XATTR_DEFAULT;
+		name = XATTR_NAME_POSIX_ACL_DEFAULT;
 		break;
 	default:
 		return -EINVAL;
@@ -102,7 +90,7 @@ static int __btrfs_set_acl(struct btrfs_trans_handle *trans,
 
 	if (acl) {
 		size = posix_acl_xattr_size(acl->a_count);
-		value = kmalloc(size, GFP_NOFS);
+		value = kmalloc(size, GFP_KERNEL);
 		if (!value) {
 			ret = -ENOMEM;
 			goto out;
@@ -125,6 +113,13 @@ out:
 
 int btrfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
+	int ret;
+
+	if (type == ACL_TYPE_ACCESS && acl) {
+		ret = posix_acl_update_mode(inode, &inode->i_mode, &acl);
+		if (ret)
+			return ret;
+	}
 	return __btrfs_set_acl(NULL, inode, acl, type);
 }
 

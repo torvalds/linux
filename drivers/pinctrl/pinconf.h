@@ -20,6 +20,9 @@ int pinconf_map_to_setting(struct pinctrl_map const *map,
 void pinconf_free_setting(struct pinctrl_setting const *setting);
 int pinconf_apply_setting(struct pinctrl_setting const *setting);
 
+int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned pin,
+		       unsigned long *configs, size_t nconfigs);
+
 /*
  * You will only be interested in these if you're using PINCONF
  * so don't supply any stubs for these.
@@ -54,6 +57,12 @@ static inline void pinconf_free_setting(struct pinctrl_setting const *setting)
 static inline int pinconf_apply_setting(struct pinctrl_setting const *setting)
 {
 	return 0;
+}
+
+static inline int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned pin,
+				     unsigned long *configs, size_t nconfigs)
+{
+	return -ENOTSUPP;
 }
 
 #endif

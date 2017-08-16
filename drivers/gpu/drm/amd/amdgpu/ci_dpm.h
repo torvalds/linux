@@ -193,6 +193,7 @@ struct ci_pt_defaults {
 
 struct ci_power_info {
 	struct ci_dpm_table dpm_table;
+	struct ci_dpm_table golden_dpm_table;
 	u32 voltage_control;
 	u32 mvdd_control;
 	u32 vddci_control;
@@ -294,6 +295,13 @@ struct ci_power_info {
 	bool fan_is_controlled_by_smc;
 	u32 t_min;
 	u32 fan_ctrl_default_mode;
+
+	/* power profile */
+	struct amd_pp_profile gfx_power_profile;
+	struct amd_pp_profile compute_power_profile;
+	struct amd_pp_profile default_gfx_power_profile;
+	struct amd_pp_profile default_compute_power_profile;
+	enum amd_pp_profile_type current_power_profile;
 };
 
 #define CISLANDS_VOLTAGE_CONTROL_NONE                   0x0

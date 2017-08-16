@@ -6,13 +6,14 @@
 #include <linux/spinlock.h>
 #include <linux/pfn.h>
 #include <linux/mm.h>
+#include <linux/device.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 
 #include <xen/interface/xen.h>
-#include <xen/grant_table.h>
+#include <xen/interface/grant_table.h>
 #include <xen/features.h>
 
 /* Xen machine address */
@@ -43,18 +44,38 @@ extern unsigned long *xen_p2m_addr;
 extern unsigned long  xen_p2m_size;
 extern unsigned long  xen_max_p2m_pfn;
 
+extern int xen_alloc_p2m_entry(unsigned long pfn);
+
 extern unsigned long get_phys_to_machine(unsigned long pfn);
 extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 extern bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 extern unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 						    unsigned long pfn_e);
 
+#ifdef CONFIG_XEN_PV
 extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 				   struct gnttab_map_grant_ref *kmap_ops,
 				   struct page **pages, unsigned int count);
 extern int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 				     struct gnttab_unmap_grant_ref *kunmap_ops,
 				     struct page **pages, unsigned int count);
+#else
+static inline int
+set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
+			struct gnttab_map_grant_ref *kmap_ops,
+			struct page **pages, unsigned int count)
+{
+	return 0;
+}
+
+static inline int
+clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
+			  struct gnttab_unmap_grant_ref *kunmap_ops,
+			  struct page **pages, unsigned int count)
+{
+	return 0;
+}
+#endif
 
 /*
  * Helper functions to write or read unsigned long values to/from
@@ -70,6 +91,7 @@ static inline int xen_safe_read_ulong(unsigned long *addr, unsigned long *val)
 	return __get_user(*val, (unsigned long __user *)addr);
 }
 
+#ifdef CONFIG_XEN_PV
 /*
  * When to use pfn_to_mfn(), __pfn_to_mfn() or get_phys_to_machine():
  * - pfn_to_mfn() returns either INVALID_P2M_ENTRY or the mfn. No indicator
@@ -96,6 +118,12 @@ static inline unsigned long __pfn_to_mfn(unsigned long pfn)
 
 	return mfn;
 }
+#else
+static inline unsigned long __pfn_to_mfn(unsigned long pfn)
+{
+	return pfn;
+}
+#endif
 
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
@@ -277,13 +305,17 @@ static inline pte_t __pte_ma(pteval_t x)
 
 #define pmd_val_ma(v) ((v).pmd)
 #ifdef __PAGETABLE_PUD_FOLDED
-#define pud_val_ma(v) ((v).pgd.pgd)
+#define pud_val_ma(v) ((v).p4d.pgd.pgd)
 #else
 #define pud_val_ma(v) ((v).pud)
 #endif
 #define __pmd_ma(x)	((pmd_t) { (x) } )
 
-#define pgd_val_ma(x)	((x).pgd)
+#ifdef __PAGETABLE_P4D_FOLDED
+#define p4d_val_ma(x)	((x).pgd.pgd)
+#else
+#define p4d_val_ma(x)	((x).p4d)
+#endif
 
 void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid);
 
@@ -296,8 +328,8 @@ void make_lowmem_page_readwrite(void *vaddr);
 #define xen_unmap(cookie) iounmap((cookie))
 
 static inline bool xen_arch_need_swiotlb(struct device *dev,
-					 unsigned long pfn,
-					 unsigned long bfn)
+					 phys_addr_t phys,
+					 dma_addr_t dev_addr)
 {
 	return false;
 }

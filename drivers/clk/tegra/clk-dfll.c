@@ -55,6 +55,7 @@
 #include <linux/seq_file.h>
 
 #include "clk-dfll.h"
+#include "cvb.h"
 
 /*
  * DFLL control registers - access via dfll_{readl,writel}
@@ -442,8 +443,8 @@ static void dfll_tune_low(struct tegra_dfll *td)
 {
 	td->tune_range = DFLL_TUNE_LOW;
 
-	dfll_writel(td, td->soc->tune0_low, DFLL_TUNE0);
-	dfll_writel(td, td->soc->tune1, DFLL_TUNE1);
+	dfll_writel(td, td->soc->cvb->cpu_dfll_data.tune0_low, DFLL_TUNE0);
+	dfll_writel(td, td->soc->cvb->cpu_dfll_data.tune1, DFLL_TUNE1);
 	dfll_wmb(td);
 
 	if (td->soc->set_clock_trimmers_low)
@@ -466,56 +467,6 @@ static unsigned long dfll_scale_dvco_rate(int scale_bits,
 					  unsigned long dvco_rate)
 {
 	return (u64)dvco_rate * (scale_bits + 1) / DFLL_FREQ_REQ_SCALE_MAX;
-}
-
-/*
- * Monitor control
- */
-
-/**
- * dfll_calc_monitored_rate - convert DFLL_MONITOR_DATA_VAL rate into real freq
- * @monitor_data: value read from the DFLL_MONITOR_DATA_VAL bitfield
- * @ref_rate: DFLL reference clock rate
- *
- * Convert @monitor_data from DFLL_MONITOR_DATA_VAL units into cycles
- * per second. Returns the converted value.
- */
-static u64 dfll_calc_monitored_rate(u32 monitor_data,
-				    unsigned long ref_rate)
-{
-	return monitor_data * (ref_rate / REF_CLK_CYC_PER_DVCO_SAMPLE);
-}
-
-/**
- * dfll_read_monitor_rate - return the DFLL's output rate from internal monitor
- * @td: DFLL instance
- *
- * If the DFLL is enabled, return the last rate reported by the DFLL's
- * internal monitoring hardware. This works in both open-loop and
- * closed-loop mode, and takes the output scaler setting into account.
- * Assumes that the monitor was programmed to monitor frequency before
- * the sample period started. If the driver believes that the DFLL is
- * currently uninitialized or disabled, it will return 0, since
- * otherwise the DFLL monitor data register will return the last
- * measured rate from when the DFLL was active.
- */
-static u64 dfll_read_monitor_rate(struct tegra_dfll *td)
-{
-	u32 v, s;
-	u64 pre_scaler_rate, post_scaler_rate;
-
-	if (!dfll_is_running(td))
-		return 0;
-
-	v = dfll_readl(td, DFLL_MONITOR_DATA);
-	v = (v & DFLL_MONITOR_DATA_VAL_MASK) >> DFLL_MONITOR_DATA_VAL_SHIFT;
-	pre_scaler_rate = dfll_calc_monitored_rate(v, td->ref_rate);
-
-	s = dfll_readl(td, DFLL_FREQ_REQ);
-	s = (s & DFLL_FREQ_REQ_SCALE_MASK) >> DFLL_FREQ_REQ_SCALE_SHIFT;
-	post_scaler_rate = dfll_scale_dvco_rate(s, pre_scaler_rate);
-
-	return post_scaler_rate;
 }
 
 /*
@@ -682,16 +633,12 @@ static int find_lut_index_for_rate(struct tegra_dfll *td, unsigned long rate)
 	struct dev_pm_opp *opp;
 	int i, uv;
 
-	rcu_read_lock();
-
 	opp = dev_pm_opp_find_freq_ceil(td->soc->dev, &rate);
-	if (IS_ERR(opp)) {
-		rcu_read_unlock();
+	if (IS_ERR(opp))
 		return PTR_ERR(opp);
-	}
-	uv = dev_pm_opp_get_voltage(opp);
 
-	rcu_read_unlock();
+	uv = dev_pm_opp_get_voltage(opp);
+	dev_pm_opp_put(opp);
 
 	for (i = 0; i < td->i2c_lut_size; i++) {
 		if (regulator_list_voltage(td->vdd_reg, td->i2c_lut[i]) == uv)
@@ -1006,24 +953,25 @@ static unsigned long dfll_clk_recalc_rate(struct clk_hw *hw,
 	return td->last_unrounded_rate;
 }
 
-static long dfll_clk_round_rate(struct clk_hw *hw,
-				unsigned long rate,
-				unsigned long *parent_rate)
+/* Must use determine_rate since it allows for rates exceeding 2^31-1 */
+static int dfll_clk_determine_rate(struct clk_hw *hw,
+				   struct clk_rate_request *clk_req)
 {
 	struct tegra_dfll *td = clk_hw_to_dfll(hw);
 	struct dfll_rate_req req;
 	int ret;
 
-	ret = dfll_calculate_rate_request(td, &req, rate);
+	ret = dfll_calculate_rate_request(td, &req, clk_req->rate);
 	if (ret)
 		return ret;
 
 	/*
-	 * Don't return the rounded rate, since it doesn't really matter as
+	 * Don't set the rounded rate, since it doesn't really matter as
 	 * the output rate will be voltage controlled anyway, and cpufreq
 	 * freaks out if any rounding happens.
 	 */
-	return rate;
+
+	return 0;
 }
 
 static int dfll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -1039,12 +987,11 @@ static const struct clk_ops dfll_clk_ops = {
 	.enable		= dfll_clk_enable,
 	.disable	= dfll_clk_disable,
 	.recalc_rate	= dfll_clk_recalc_rate,
-	.round_rate	= dfll_clk_round_rate,
+	.determine_rate	= dfll_clk_determine_rate,
 	.set_rate	= dfll_clk_set_rate,
 };
 
 static struct clk_init_data dfll_clk_init_data = {
-	.flags		= CLK_IS_ROOT,
 	.ops		= &dfll_clk_ops,
 	.num_parents	= 0,
 };
@@ -1101,6 +1048,55 @@ static void dfll_unregister_clk(struct tegra_dfll *td)
  */
 
 #ifdef CONFIG_DEBUG_FS
+/*
+ * Monitor control
+ */
+
+/**
+ * dfll_calc_monitored_rate - convert DFLL_MONITOR_DATA_VAL rate into real freq
+ * @monitor_data: value read from the DFLL_MONITOR_DATA_VAL bitfield
+ * @ref_rate: DFLL reference clock rate
+ *
+ * Convert @monitor_data from DFLL_MONITOR_DATA_VAL units into cycles
+ * per second. Returns the converted value.
+ */
+static u64 dfll_calc_monitored_rate(u32 monitor_data,
+				    unsigned long ref_rate)
+{
+	return monitor_data * (ref_rate / REF_CLK_CYC_PER_DVCO_SAMPLE);
+}
+
+/**
+ * dfll_read_monitor_rate - return the DFLL's output rate from internal monitor
+ * @td: DFLL instance
+ *
+ * If the DFLL is enabled, return the last rate reported by the DFLL's
+ * internal monitoring hardware. This works in both open-loop and
+ * closed-loop mode, and takes the output scaler setting into account.
+ * Assumes that the monitor was programmed to monitor frequency before
+ * the sample period started. If the driver believes that the DFLL is
+ * currently uninitialized or disabled, it will return 0, since
+ * otherwise the DFLL monitor data register will return the last
+ * measured rate from when the DFLL was active.
+ */
+static u64 dfll_read_monitor_rate(struct tegra_dfll *td)
+{
+	u32 v, s;
+	u64 pre_scaler_rate, post_scaler_rate;
+
+	if (!dfll_is_running(td))
+		return 0;
+
+	v = dfll_readl(td, DFLL_MONITOR_DATA);
+	v = (v & DFLL_MONITOR_DATA_VAL_MASK) >> DFLL_MONITOR_DATA_VAL_SHIFT;
+	pre_scaler_rate = dfll_calc_monitored_rate(v, td->ref_rate);
+
+	s = dfll_readl(td, DFLL_FREQ_REQ);
+	s = (s & DFLL_FREQ_REQ_SCALE_MASK) >> DFLL_FREQ_REQ_SCALE_SHIFT;
+	post_scaler_rate = dfll_scale_dvco_rate(s, pre_scaler_rate);
+
+	return post_scaler_rate;
+}
 
 static int attr_enable_get(void *data, u64 *val)
 {
@@ -1440,8 +1436,6 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 	struct dev_pm_opp *opp;
 	int lut;
 
-	rcu_read_lock();
-
 	rate = ULONG_MAX;
 	opp = dev_pm_opp_find_freq_floor(td->soc->dev, &rate);
 	if (IS_ERR(opp)) {
@@ -1449,8 +1443,9 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 		goto out;
 	}
 	v_max = dev_pm_opp_get_voltage(opp);
+	dev_pm_opp_put(opp);
 
-	v = td->soc->min_millivolts * 1000;
+	v = td->soc->cvb->min_millivolts * 1000;
 	lut = find_vdd_map_entry_exact(td, v);
 	if (lut < 0)
 		goto out;
@@ -1462,8 +1457,10 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 			break;
 		v_opp = dev_pm_opp_get_voltage(opp);
 
-		if (v_opp <= td->soc->min_millivolts * 1000)
+		if (v_opp <= td->soc->cvb->min_millivolts * 1000)
 			td->dvco_rate_min = dev_pm_opp_get_freq(opp);
+
+		dev_pm_opp_put(opp);
 
 		for (;;) {
 			v += max(1, (v_max - v) / (MAX_DFLL_VOLTAGES - j));
@@ -1491,13 +1488,11 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 
 	if (!td->dvco_rate_min)
 		dev_err(td->dev, "no opp above DFLL minimum voltage %d mV\n",
-			td->soc->min_millivolts);
+			td->soc->cvb->min_millivolts);
 	else
 		ret = 0;
 
 out:
-	rcu_read_unlock();
-
 	return ret;
 }
 

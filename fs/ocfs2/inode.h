@@ -43,9 +43,6 @@ struct ocfs2_inode_info
 	/* protects extended attribute changes on this inode */
 	struct rw_semaphore		ip_xattr_sem;
 
-	/* Number of outstanding AIO's which are not page aligned */
-	struct mutex			ip_unaligned_aio;
-
 	/* These fields are protected by ip_lock */
 	spinlock_t			ip_lock;
 	u32				ip_open_count;
@@ -56,6 +53,9 @@ struct ocfs2_inode_info
 	struct mutex			ip_io_mutex;
 	u32				ip_flags; /* see below */
 	u32				ip_attr; /* inode attributes */
+
+	/* Record unwritten extents during direct io. */
+	struct list_head		ip_unwritten_list;
 
 	/* protected by recovery_lock. */
 	struct inode			*ip_next_orphan;
@@ -112,6 +112,8 @@ struct ocfs2_inode_info
 #define OCFS2_INODE_OPEN_DIRECT		0x00000020
 /* Tell the inode wipe code it's not in orphan dir */
 #define OCFS2_INODE_SKIP_ORPHAN_DIR     0x00000040
+/* Entry in orphan dir with 'dio-' prefix */
+#define OCFS2_INODE_DIO_ORPHAN_ENTRY	0x00000080
 
 static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
 {
@@ -120,8 +122,6 @@ static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
 
 #define INODE_JOURNAL(i) (OCFS2_I(i)->ip_flags & OCFS2_INODE_JOURNAL)
 #define SET_INODE_JOURNAL(i) (OCFS2_I(i)->ip_flags |= OCFS2_INODE_JOURNAL)
-
-extern struct kmem_cache *ocfs2_inode_cache;
 
 extern const struct address_space_operations ocfs2_aops;
 extern const struct ocfs2_caching_operations ocfs2_inode_caching_ops;
@@ -137,25 +137,21 @@ int ocfs2_drop_inode(struct inode *inode);
 /* Flags for ocfs2_iget() */
 #define OCFS2_FI_FLAG_SYSFILE		0x1
 #define OCFS2_FI_FLAG_ORPHAN_RECOVERY	0x2
+#define OCFS2_FI_FLAG_FILECHECK_CHK	0x4
+#define OCFS2_FI_FLAG_FILECHECK_FIX	0x8
+
 struct inode *ocfs2_ilookup(struct super_block *sb, u64 feoff);
 struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 feoff, unsigned flags,
 			 int sysfile_type);
-int ocfs2_inode_init_private(struct inode *inode);
 int ocfs2_inode_revalidate(struct dentry *dentry);
 void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 			  int create_ino);
-void ocfs2_read_inode(struct inode *inode);
-void ocfs2_read_inode2(struct inode *inode, void *opaque);
-ssize_t ocfs2_rw_direct(int rw, struct file *filp, char *buf,
-			size_t size, loff_t *offp);
 void ocfs2_sync_blockdev(struct super_block *sb);
 void ocfs2_refresh_inode(struct inode *inode,
 			 struct ocfs2_dinode *fe);
 int ocfs2_mark_inode_dirty(handle_t *handle,
 			   struct inode *inode,
 			   struct buffer_head *bh);
-struct buffer_head *ocfs2_bread(struct inode *inode,
-				int block, int *err, int reada);
 
 void ocfs2_set_inode_flags(struct inode *inode);
 void ocfs2_get_inode_flags(struct ocfs2_inode_info *oi);
@@ -183,6 +179,12 @@ int ocfs2_read_inode_block_full(struct inode *inode, struct buffer_head **bh,
 static inline struct ocfs2_inode_info *cache_info_to_inode(struct ocfs2_caching_info *ci)
 {
 	return container_of(ci, struct ocfs2_inode_info, ip_metadata_cache);
+}
+
+/* Does this inode have the reflink flag set? */
+static inline bool ocfs2_is_refcount_inode(struct inode *inode)
+{
+	return (OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL);
 }
 
 #endif /* OCFS2_INODE_H */

@@ -21,10 +21,6 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/videodev2.h>
@@ -76,7 +72,7 @@ struct radio_tea5777 {
 	u32 read_reg;
 	u64 write_reg;
 	struct mutex mutex;
-	struct radio_tea5777_ops *ops;
+	const struct radio_tea5777_ops *ops;
 	void *private_data;
 	u8 card[32];
 	u8 bus_info[32];

@@ -48,7 +48,6 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
-#include <asm/pci-bridge.h>
 #include <net/checksum.h>
 
 #include "spider_net.h"
@@ -706,7 +705,7 @@ spider_net_prepare_tx_descr(struct spider_net_card *card,
 	wmb();
 	descr->prev->hwdescr->next_descr_addr = descr->bus_addr;
 
-	card->netdev->trans_start = jiffies; /* set netdev watchdog timer */
+	netif_trans_update(card->netdev); /* set netdev watchdog timer */
 	return 0;
 }
 
@@ -1271,31 +1270,12 @@ static int spider_net_poll(struct napi_struct *napi, int budget)
 	/* if all packets are in the stack, enable interrupts and return 0 */
 	/* if not, return 1 */
 	if (packets_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, packets_done);
 		spider_net_rx_irq_on(card);
 		card->ignore_rx_ramfull = 0;
 	}
 
 	return packets_done;
-}
-
-/**
- * spider_net_change_mtu - changes the MTU of an interface
- * @netdev: interface device structure
- * @new_mtu: new MTU value
- *
- * returns 0 on success, <0 on failure
- */
-static int
-spider_net_change_mtu(struct net_device *netdev, int new_mtu)
-{
-	/* no need to re-alloc skbs or so -- the max mtu is about 2.3k
-	 * and mtu is outbound only anyway */
-	if ( (new_mtu < SPIDER_NET_MIN_MTU ) ||
-		(new_mtu > SPIDER_NET_MAX_MTU) )
-		return -EINVAL;
-	netdev->mtu = new_mtu;
-	return 0;
 }
 
 /**
@@ -2230,7 +2210,6 @@ static const struct net_device_ops spider_net_ops = {
 	.ndo_start_xmit		= spider_net_xmit,
 	.ndo_set_rx_mode	= spider_net_set_multi,
 	.ndo_set_mac_address	= spider_net_set_mac,
-	.ndo_change_mtu		= spider_net_change_mtu,
 	.ndo_do_ioctl		= spider_net_do_ioctl,
 	.ndo_tx_timeout		= spider_net_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -2299,6 +2278,10 @@ spider_net_setup_netdev(struct spider_net_card *card)
 	netdev->features |= NETIF_F_IP_CSUM | NETIF_F_LLTX;
 	/* some time: NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 	 *		NETIF_F_HW_VLAN_CTAG_FILTER */
+
+	/* MTU range: 64 - 2294 */
+	netdev->min_mtu = SPIDER_NET_MIN_MTU;
+	netdev->max_mtu = SPIDER_NET_MAX_MTU;
 
 	netdev->irq = card->pdev->irq;
 	card->num_rx_ints = 0;

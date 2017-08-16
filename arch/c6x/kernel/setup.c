@@ -281,8 +281,6 @@ notrace void __init machine_init(unsigned long dt_ptr)
 	 */
 	set_ist(_vectors_start);
 
-	lockdep_init();
-
 	/*
 	 * dtb is passed in from bootloader.
 	 * fdt is linked in blob.

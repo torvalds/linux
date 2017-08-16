@@ -315,6 +315,7 @@ static unsigned int old_update_pointers(struct kbuffer *kbuf)
 		extend += delta;
 		delta = extend;
 		ptr += 4;
+		length = 0;
 		break;
 
 	case OLD_RINGBUF_TYPE_TIME_STAMP:
@@ -622,6 +623,7 @@ void *kbuffer_read_at_offset(struct kbuffer *kbuf, int offset,
 
 	/* Reset the buffer */
 	kbuffer_load_subbuffer(kbuf, kbuf->subbuffer);
+	data = kbuffer_read_event(kbuf, ts);
 
 	while (kbuf->curr < offset) {
 		data = kbuffer_next_event(kbuf, ts);

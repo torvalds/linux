@@ -1045,7 +1045,7 @@ static int zs_verify_port(struct uart_port *uport, struct serial_struct *ser)
 }
 
 
-static struct uart_ops zs_ops = {
+static const struct uart_ops zs_ops = {
 	.tx_empty	= zs_tx_empty,
 	.set_mctrl	= zs_set_mctrl,
 	.get_mctrl	= zs_get_mctrl,
@@ -1181,6 +1181,10 @@ static void zs_console_write(struct console *co, const char *s,
 	if (txint & TxINT_ENAB) {
 		zport->regs[1] |= TxINT_ENAB;
 		write_zsreg(zport, R1, zport->regs[1]);
+
+		/* Resume any transmission as the TxIP bit won't be set.  */
+		if (!zport->tx_stopped)
+			zs_raw_transmit_chars(zport);
 	}
 	spin_unlock_irqrestore(&scc->zlock, flags);
 }

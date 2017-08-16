@@ -40,14 +40,14 @@ static int vxlan_get_options(const struct vport *vport, struct sk_buff *skb)
 	if (nla_put_u16(skb, OVS_TUNNEL_ATTR_DST_PORT, ntohs(dst_port)))
 		return -EMSGSIZE;
 
-	if (vxlan->flags & VXLAN_F_GBP) {
+	if (vxlan->cfg.flags & VXLAN_F_GBP) {
 		struct nlattr *exts;
 
 		exts = nla_nest_start(skb, OVS_TUNNEL_ATTR_EXTENSION);
 		if (!exts)
 			return -EMSGSIZE;
 
-		if (vxlan->flags & VXLAN_F_GBP &&
+		if (vxlan->cfg.flags & VXLAN_F_GBP &&
 		    nla_put_flag(skb, OVS_VXLAN_EXT_GBP))
 			return -EMSGSIZE;
 
@@ -70,7 +70,8 @@ static int vxlan_configure_exts(struct vport *vport, struct nlattr *attr,
 	if (nla_len(attr) < sizeof(struct nlattr))
 		return -EINVAL;
 
-	err = nla_parse_nested(exts, OVS_VXLAN_EXT_MAX, attr, exts_policy);
+	err = nla_parse_nested(exts, OVS_VXLAN_EXT_MAX, attr, exts_policy,
+			       NULL);
 	if (err < 0)
 		return err;
 
@@ -90,7 +91,9 @@ static struct vport *vxlan_tnl_create(const struct vport_parms *parms)
 	int err;
 	struct vxlan_config conf = {
 		.no_share = true,
-		.flags = VXLAN_F_COLLECT_METADATA,
+		.flags = VXLAN_F_COLLECT_METADATA | VXLAN_F_UDP_ZERO_CSUM6_RX,
+		/* Don't restrict the packets that can be sent by MTU */
+		.mtu = IP_MAX_MTU,
 	};
 
 	if (!options) {
@@ -128,7 +131,14 @@ static struct vport *vxlan_tnl_create(const struct vport_parms *parms)
 		return ERR_CAST(dev);
 	}
 
-	dev_change_flags(dev, dev->flags | IFF_UP);
+	err = dev_change_flags(dev, dev->flags | IFF_UP);
+	if (err < 0) {
+		rtnl_delete_link(dev);
+		rtnl_unlock();
+		ovs_vport_free(vport);
+		goto error;
+	}
+
 	rtnl_unlock();
 	return vport;
 error:
@@ -146,31 +156,12 @@ static struct vport *vxlan_create(const struct vport_parms *parms)
 	return ovs_netdev_link(vport, parms->name);
 }
 
-static int vxlan_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
-				     struct dp_upcall_info *upcall)
-{
-	struct vxlan_dev *vxlan = netdev_priv(vport->dev);
-	struct net *net = ovs_dp_get_net(vport->dp);
-	__be16 dst_port = vxlan_dev_dst_port(vxlan);
-	__be16 src_port;
-	int port_min;
-	int port_max;
-
-	inet_get_local_port_range(net, &port_min, &port_max);
-	src_port = udp_flow_src_port(net, skb, 0, 0, true);
-
-	return ovs_tunnel_get_egress_info(upcall, net,
-					  skb, IPPROTO_UDP,
-					  src_port, dst_port);
-}
-
 static struct vport_ops ovs_vxlan_netdev_vport_ops = {
 	.type			= OVS_VPORT_TYPE_VXLAN,
 	.create			= vxlan_create,
 	.destroy		= ovs_netdev_tunnel_destroy,
 	.get_options		= vxlan_get_options,
-	.send			= ovs_netdev_send,
-	.get_egress_tun_info	= vxlan_get_egress_tun_info,
+	.send			= dev_queue_xmit,
 };
 
 static int __init ovs_vxlan_tnl_init(void)

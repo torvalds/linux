@@ -281,7 +281,7 @@ static ssize_t dynamic_ps_timeout_write(struct file *file,
 	}
 
 	if (value < 1 || value > 65535) {
-		wl1271_warning("dyanmic_ps_timeout is not in valid range");
+		wl1271_warning("dynamic_ps_timeout is not in valid range");
 		return -ERANGE;
 	}
 
@@ -1149,15 +1149,9 @@ static ssize_t dev_mem_write(struct file *file, const char __user *user_buf,
 	part.mem.start = *ppos;
 	part.mem.size = bytes;
 
-	buf = kmalloc(bytes, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	ret = copy_from_user(buf, user_buf, bytes);
-	if (ret) {
-		ret = -EFAULT;
-		goto err_out;
-	}
+	buf = memdup_user(user_buf, bytes);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	mutex_lock(&wl->mutex);
 
@@ -1197,7 +1191,6 @@ skip_write:
 	if (ret == 0)
 		*ppos += bytes;
 
-err_out:
 	kfree(buf);
 
 	return ((ret == 0) ? bytes : ret);
@@ -1205,26 +1198,11 @@ err_out:
 
 static loff_t dev_mem_seek(struct file *file, loff_t offset, int orig)
 {
-	loff_t ret;
-
 	/* only requests of dword-aligned size and offset are supported */
 	if (offset % 4)
 		return -EINVAL;
 
-	switch (orig) {
-	case SEEK_SET:
-		file->f_pos = offset;
-		ret = file->f_pos;
-		break;
-	case SEEK_CUR:
-		file->f_pos += offset;
-		ret = file->f_pos;
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	return ret;
+	return no_seek_end_llseek(file, offset, orig);
 }
 
 static const struct file_operations dev_mem_ops = {
@@ -1232,6 +1210,65 @@ static const struct file_operations dev_mem_ops = {
 	.read = dev_mem_read,
 	.write = dev_mem_write,
 	.llseek = dev_mem_seek,
+};
+
+static ssize_t fw_logger_read(struct file *file, char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+
+	return wl1271_format_buffer(user_buf, count,
+					ppos, "%d\n",
+					wl->conf.fwlog.output);
+}
+
+static ssize_t fw_logger_write(struct file *file,
+			       const char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	unsigned long value;
+	int ret;
+
+	ret = kstrtoul_from_user(user_buf, count, 0, &value);
+	if (ret < 0) {
+		wl1271_warning("illegal value in fw_logger");
+		return -EINVAL;
+	}
+
+	if ((value > 2) || (value == 0)) {
+		wl1271_warning("fw_logger value must be 1-UART 2-SDIO");
+		return -ERANGE;
+	}
+
+	if (wl->conf.fwlog.output == 0) {
+		wl1271_warning("invalid operation - fw logger disabled by default, please change mode via wlconf");
+		return -EINVAL;
+	}
+
+	mutex_lock(&wl->mutex);
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0) {
+		count = ret;
+		goto out;
+	}
+
+	wl->conf.fwlog.output = value;
+
+	ret = wl12xx_cmd_config_fwlog(wl);
+
+	wl1271_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static const struct file_operations fw_logger_ops = {
+	.open = simple_open,
+	.read = fw_logger_read,
+	.write = fw_logger_write,
+	.llseek = default_llseek,
 };
 
 static int wl1271_debugfs_add_files(struct wl1271 *wl,
@@ -1260,6 +1297,7 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_ADD(irq_timeout, rootdir);
 	DEBUGFS_ADD(fw_stats_raw, rootdir);
 	DEBUGFS_ADD(sleep_auth, rootdir);
+	DEBUGFS_ADD(fw_logger, rootdir);
 
 	streaming = debugfs_create_dir("rx_streaming", rootdir);
 	if (!streaming || IS_ERR(streaming))

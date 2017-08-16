@@ -15,6 +15,7 @@ typedef struct {
 #ifdef CONFIG_HAVE_KVM
 	unsigned int kvm_posted_intr_ipis;
 	unsigned int kvm_posted_intr_wakeup_ipis;
+	unsigned int kvm_posted_intr_nested_ipis;
 #endif
 	unsigned int x86_platform_ipis;	/* arch dependent */
 	unsigned int apic_perf_irqs;
@@ -22,12 +23,8 @@ typedef struct {
 #ifdef CONFIG_SMP
 	unsigned int irq_resched_count;
 	unsigned int irq_call_count;
-	/*
-	 * irq_tlb_count is double-counted in irq_call_count, so it must be
-	 * subtracted from irq_call_count when displaying irq_call_count
-	 */
-	unsigned int irq_tlb_count;
 #endif
+	unsigned int irq_tlb_count;
 #ifdef CONFIG_X86_THERMAL_VECTOR
 	unsigned int irq_thermal_count;
 #endif

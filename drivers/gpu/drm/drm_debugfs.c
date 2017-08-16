@@ -1,10 +1,3 @@
-/**
- * \file drm_debugfs.c
- * debugfs support for DRM
- *
- * \author Ben Gamari <bgamari@gmail.com>
- */
-
 /*
  * Created: Sun Dec 21 13:08:50 2008 by bgamari@gmail.com
  *
@@ -34,9 +27,14 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_debugfs.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_atomic.h>
+#include <drm/drmP.h>
+
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 #if defined(CONFIG_DEBUG_FS)
 
@@ -46,11 +44,8 @@
 
 static const struct drm_info_list drm_debugfs_list[] = {
 	{"name", drm_name_info, 0},
-	{"vm", drm_vm_info, 0},
 	{"clients", drm_clients_info, 0},
-	{"bufs", drm_bufs_info, 0},
 	{"gem_names", drm_gem_name_info, DRIVER_GEM},
-	{"vma", drm_vma_info, 0},
 };
 #define DRM_DEBUGFS_ENTRIES ARRAY_SIZE(drm_debugfs_list)
 
@@ -73,16 +68,16 @@ static const struct file_operations drm_debugfs_fops = {
 
 
 /**
- * Initialize a given set of debugfs files for a device
- *
- * \param files The array of files to create
- * \param count The number of files given
- * \param root DRI debugfs dir entry.
- * \param minor device minor number
- * \return Zero on success, non-zero on failure
+ * drm_debugfs_create_files - Initialize a given set of debugfs files for DRM
+ * 			minor
+ * @files: The array of files to create
+ * @count: The number of files given
+ * @root: DRI debugfs dir entry.
+ * @minor: device minor number
  *
  * Create a given set of debugfs files represented by an array of
- * gdm_debugfs_lists in the given root directory.
+ * &struct drm_info_list in the given root directory. These files will be removed
+ * automatically on drm_debugfs_cleanup().
  */
 int drm_debugfs_create_files(const struct drm_info_list *files, int count,
 			     struct dentry *root, struct drm_minor *minor)
@@ -107,8 +102,8 @@ int drm_debugfs_create_files(const struct drm_info_list *files, int count,
 		ent = debugfs_create_file(files[i].name, S_IFREG | S_IRUGO,
 					  root, tmp, &drm_debugfs_fops);
 		if (!ent) {
-			DRM_ERROR("Cannot create /sys/kernel/debug/dri/%s/%s\n",
-				  root->d_name.name, files[i].name);
+			DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/%s\n",
+				  root, files[i].name);
 			kfree(tmp);
 			ret = -1;
 			goto fail;
@@ -130,17 +125,6 @@ fail:
 }
 EXPORT_SYMBOL(drm_debugfs_create_files);
 
-/**
- * Initialize the DRI debugfs filesystem for a device
- *
- * \param dev DRM device
- * \param minor device minor number
- * \param root DRI debugfs dir entry.
- *
- * Create the DRI debugfs root entry "/sys/kernel/debug/dri", the device debugfs root entry
- * "/sys/kernel/debug/dri/%minor%/", and each entry in debugfs_list as
- * "/sys/kernel/debug/dri/%minor%/%name%".
- */
 int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		     struct dentry *root)
 {
@@ -166,6 +150,14 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		return ret;
 	}
 
+	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
+		ret = drm_atomic_debugfs_init(minor);
+		if (ret) {
+			DRM_ERROR("Failed to create atomic debugfs files\n");
+			return ret;
+		}
+	}
+
 	if (dev->driver->debugfs_init) {
 		ret = dev->driver->debugfs_init(minor);
 		if (ret) {
@@ -178,16 +170,6 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 }
 
 
-/**
- * Remove a list of debugfs files
- *
- * \param files The list of files
- * \param count The number of files
- * \param minor The minor of which we should remove the files
- * \return always zero.
- *
- * Remove all debugfs entries created by debugfs_init().
- */
 int drm_debugfs_remove_files(const struct drm_info_list *files, int count,
 			     struct drm_minor *minor)
 {
@@ -211,27 +193,27 @@ int drm_debugfs_remove_files(const struct drm_info_list *files, int count,
 }
 EXPORT_SYMBOL(drm_debugfs_remove_files);
 
-/**
- * Cleanup the debugfs filesystem resources.
- *
- * \param minor device minor number.
- * \return always zero.
- *
- * Remove all debugfs entries created by debugfs_init().
- */
+static void drm_debugfs_remove_all_files(struct drm_minor *minor)
+{
+	struct drm_info_node *node, *tmp;
+
+	mutex_lock(&minor->debugfs_lock);
+	list_for_each_entry_safe(node, tmp, &minor->debugfs_list, list) {
+		debugfs_remove(node->dent);
+		list_del(&node->list);
+		kfree(node);
+	}
+	mutex_unlock(&minor->debugfs_lock);
+}
+
 int drm_debugfs_cleanup(struct drm_minor *minor)
 {
-	struct drm_device *dev = minor->dev;
-
 	if (!minor->debugfs_root)
 		return 0;
 
-	if (dev->driver->debugfs_cleanup)
-		dev->driver->debugfs_cleanup(minor);
+	drm_debugfs_remove_all_files(minor);
 
-	drm_debugfs_remove_files(drm_debugfs_list, DRM_DEBUGFS_ENTRIES, minor);
-
-	debugfs_remove(minor->debugfs_root);
+	debugfs_remove_recursive(minor->debugfs_root);
 	minor->debugfs_root = NULL;
 
 	return 0;
@@ -240,30 +222,8 @@ int drm_debugfs_cleanup(struct drm_minor *minor)
 static int connector_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
-	const char *status;
 
-	switch (connector->force) {
-	case DRM_FORCE_ON:
-		status = "on\n";
-		break;
-
-	case DRM_FORCE_ON_DIGITAL:
-		status = "digital\n";
-		break;
-
-	case DRM_FORCE_OFF:
-		status = "off\n";
-		break;
-
-	case DRM_FORCE_UNSPECIFIED:
-		status = "unspecified\n";
-		break;
-
-	default:
-		return 0;
-	}
-
-	seq_puts(m, status);
+	seq_printf(m, "%s\n", drm_get_connector_force_name(connector->force));
 
 	return 0;
 }
@@ -418,5 +378,37 @@ void drm_debugfs_connector_remove(struct drm_connector *connector)
 	connector->debugfs_entry = NULL;
 }
 
-#endif /* CONFIG_DEBUG_FS */
+int drm_debugfs_crtc_add(struct drm_crtc *crtc)
+{
+	struct drm_minor *minor = crtc->dev->primary;
+	struct dentry *root;
+	char *name;
 
+	name = kasprintf(GFP_KERNEL, "crtc-%d", crtc->index);
+	if (!name)
+		return -ENOMEM;
+
+	root = debugfs_create_dir(name, minor->debugfs_root);
+	kfree(name);
+	if (!root)
+		return -ENOMEM;
+
+	crtc->debugfs_entry = root;
+
+	if (drm_debugfs_crtc_crc_add(crtc))
+		goto error;
+
+	return 0;
+
+error:
+	drm_debugfs_crtc_remove(crtc);
+	return -ENOMEM;
+}
+
+void drm_debugfs_crtc_remove(struct drm_crtc *crtc)
+{
+	debugfs_remove_recursive(crtc->debugfs_entry);
+	crtc->debugfs_entry = NULL;
+}
+
+#endif /* CONFIG_DEBUG_FS */

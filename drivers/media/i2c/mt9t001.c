@@ -21,7 +21,7 @@
 #include <linux/videodev2.h>
 #include <linux/v4l2-mediabus.h>
 
-#include <media/mt9t001.h>
+#include <media/i2c/mt9t001.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
@@ -233,10 +233,21 @@ static int __mt9t001_set_power(struct mt9t001 *mt9t001, bool on)
 	ret = mt9t001_reset(mt9t001);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to reset the camera\n");
-		return ret;
+		goto e_power;
 	}
 
-	return v4l2_ctrl_handler_setup(&mt9t001->ctrls);
+	ret = v4l2_ctrl_handler_setup(&mt9t001->ctrls);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed to set up control handlers\n");
+		goto e_power;
+	}
+
+	return 0;
+
+e_power:
+	mt9t001_power_off(mt9t001);
+
+	return ret;
 }
 
 /* -----------------------------------------------------------------------------
@@ -626,7 +637,7 @@ static int mt9t001_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops mt9t001_ctrl_ops = {
+static const struct v4l2_ctrl_ops mt9t001_ctrl_ops = {
 	.s_ctrl = mt9t001_s_ctrl,
 };
 
@@ -834,7 +845,7 @@ static struct v4l2_subdev_ops mt9t001_subdev_ops = {
 	.pad = &mt9t001_subdev_pad_ops,
 };
 
-static struct v4l2_subdev_internal_ops mt9t001_subdev_internal_ops = {
+static const struct v4l2_subdev_internal_ops mt9t001_subdev_internal_ops = {
 	.registered = mt9t001_registered,
 	.open = mt9t001_open,
 	.close = mt9t001_close,
@@ -933,7 +944,7 @@ static int mt9t001_probe(struct i2c_client *client,
 	mt9t001->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	mt9t001->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&mt9t001->subdev.entity, 1, &mt9t001->pad, 0);
+	ret = media_entity_pads_init(&mt9t001->subdev.entity, 1, &mt9t001->pad);
 
 done:
 	if (ret < 0) {

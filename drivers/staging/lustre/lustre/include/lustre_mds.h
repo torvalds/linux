@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -59,22 +55,8 @@ struct mds_group_info {
 	int group;
 };
 
-struct mds_capa_info {
-	struct obd_uuid	*uuid;
-	struct lustre_capa_key *capa;
-};
-
 #define MDD_OBD_NAME     "mdd_obd"
 #define MDD_OBD_UUID     "mdd_obd_uuid"
-
-static inline int md_should_create(__u64 flags)
-{
-       return !(flags & MDS_OPEN_DELAY_CREATE ||
-	       !(flags & FMODE_WRITE));
-}
-
-/* these are local flags, used only on the client, private */
-#define M_CHECK_STALE	   0200000000
 
 /** @} mds */
 

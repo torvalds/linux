@@ -16,10 +16,10 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/addr-map.h>
-#include <mach/mfp-pxa910.h>
-#include <mach/pxa910.h>
-#include <mach/irqs.h>
+#include "addr-map.h"
+#include "mfp-pxa910.h"
+#include "pxa910.h"
+#include "irqs.h"
 
 #include "common.h"
 

@@ -1,4 +1,5 @@
-/* Copyright (C) 2014-2015 Broadcom Corporation
+/*
+ * Copyright (C) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -8,6 +9,10 @@
  * kind, whether express or implied; without even the implied warranty
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ */
+
+/*
+ * Broadcom Cygnus IOMUX driver
  *
  * This file contains the Cygnus IOMUX driver that supports group based PINMUX
  * configuration. Although PINMUX configuration is mainly group based, the
@@ -17,7 +22,6 @@
 
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -737,7 +741,7 @@ static const struct pinctrl_ops cygnus_pinctrl_ops = {
 	.get_group_pins = cygnus_get_group_pins,
 	.pin_dbg_show = cygnus_pin_dbg_show,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int cygnus_get_functions_count(struct pinctrl_dev *pctrl_dev)
@@ -987,7 +991,7 @@ static int cygnus_pinmux_probe(struct platform_device *pdev)
 	cygnus_pinctrl_desc.pins = pins;
 	cygnus_pinctrl_desc.npins = num_pins;
 
-	pinctrl->pctl = pinctrl_register(&cygnus_pinctrl_desc, &pdev->dev,
+	pinctrl->pctl = devm_pinctrl_register(&pdev->dev, &cygnus_pinctrl_desc,
 			pinctrl);
 	if (IS_ERR(pinctrl->pctl)) {
 		dev_err(&pdev->dev, "unable to register Cygnus IOMUX pinctrl\n");
@@ -1016,7 +1020,3 @@ static int __init cygnus_pinmux_init(void)
 	return platform_driver_register(&cygnus_pinmux_driver);
 }
 arch_initcall(cygnus_pinmux_init);
-
-MODULE_AUTHOR("Ray Jui <rjui@broadcom.com>");
-MODULE_DESCRIPTION("Broadcom Cygnus IOMUX driver");
-MODULE_LICENSE("GPL v2");

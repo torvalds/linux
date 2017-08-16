@@ -49,9 +49,9 @@
 #define _IO_CMDMASK_	(0x1F80)
 
 /*
-	For prompt mode accessing, caller shall free io_req
-	Otherwise, io_handler will free io_req
-*/
+ *	For prompt mode accessing, caller shall free io_req
+ *	Otherwise, io_handler will free io_req
+ */
 /* IO STATUS TYPE */
 #define _IO_ERR_		BIT(2)
 #define _IO_SUCCESS_	BIT(1)
@@ -69,8 +69,8 @@
 #define IO_WR16_ASYNC	(_IO_WRITE_ | _IO_HW_)
 #define IO_WR8_ASYNC	(_IO_WRITE_ | _IO_BYTE_)
 /*
-	Only Sync. burst accessing is provided.
-*/
+ *	Only Sync. burst accessing is provided.
+ */
 #define IO_WR_BURST(x)		(IO_WRITE_ | _IO_SYNC_ | _IO_BURST_ | \
 				((x) & _IOSZ_MASK_))
 #define IO_RD_BURST(x)		(_IO_SYNC_ | _IO_BURST_ | ((x) & _IOSZ_MASK_))
@@ -218,8 +218,8 @@ struct reg_protocol_wt {
 };
 
 /*
-Below is the data structure used by _io_handler
-*/
+ * Below is the data structure used by _io_handler
+ */
 
 struct io_queue {
 	spinlock_t lock;
@@ -231,14 +231,6 @@ struct io_queue {
 	u8 *pallocated_free_ioreqs_buf;
 	struct	intf_hdl intf;
 };
-
-static inline u32 _RND4(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 2) + ((sz & 3) ? 1 : 0)) << 2;
-	return val;
-}
 
 u8 r8712_read8(struct _adapter *adapter, u32 addr);
 u16 r8712_read16(struct _adapter *adapter, u32 addr);

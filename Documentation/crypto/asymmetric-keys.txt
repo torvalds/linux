@@ -10,6 +10,7 @@ Contents:
     - Signature verification.
   - Asymmetric key subtypes.
   - Instantiation data parsers.
+  - Keyring link restrictions.
 
 
 ========
@@ -76,7 +77,7 @@ the criterion string:
 Looking in /proc/keys, the last 8 hex digits of the key fingerprint are
 displayed, along with the subtype:
 
-	1a39e171 I-----     1 perm 3f010000     0     0 asymmetri modsign.0: DSA 5acc2142 []
+	1a39e171 I-----     1 perm 3f010000     0     0 asymmetric modsign.0: DSA 5acc2142 []
 
 
 =========================
@@ -186,7 +187,7 @@ and looks like the following:
 					const struct public_key_signature *sig);
 	};
 
-Asymmetric keys point to this with their type_data[0] member.
+Asymmetric keys point to this with their payload[asym_subtype] member.
 
 The owner and name fields should be set to the owning module and the name of
 the subtype.  Currently, the name is only used for print statements.
@@ -265,12 +266,11 @@ mandatory:
 
      The caller passes a pointer to the following struct with all of the fields
      cleared, except for data, datalen and quotalen [see
-     Documentation/security/keys.txt].
+     Documentation/security/keys/core.rst].
 
 	struct key_preparsed_payload {
 		char		*description;
-		void		*type_data[2];
-		void		*payload;
+		void		*payload[4];
 		const void	*data;
 		size_t		datalen;
 		size_t		quotalen;
@@ -283,16 +283,18 @@ mandatory:
      not theirs.
 
      If the parser is happy with the blob, it should propose a description for
-     the key and attach it to ->description, ->type_data[0] should be set to
-     point to the subtype to be used, ->payload should be set to point to the
-     initialised data for that subtype, ->type_data[1] should point to a hex
-     fingerprint and quotalen should be updated to indicate how much quota this
-     key should account for.
+     the key and attach it to ->description, ->payload[asym_subtype] should be
+     set to point to the subtype to be used, ->payload[asym_crypto] should be
+     set to point to the initialised data for that subtype,
+     ->payload[asym_key_ids] should point to one or more hex fingerprints and
+     quotalen should be updated to indicate how much quota this key should
+     account for.
 
-     When clearing up, the data attached to ->type_data[1] and ->description
-     will be kfree()'d and the data attached to ->payload will be passed to the
-     subtype's ->destroy() method to be disposed of.  A module reference for
-     the subtype pointed to by ->type_data[0] will be put.
+     When clearing up, the data attached to ->payload[asym_key_ids] and
+     ->description will be kfree()'d and the data attached to
+     ->payload[asm_crypto] will be passed to the subtype's ->destroy() method
+     to be disposed of.  A module reference for the subtype pointed to by
+     ->payload[asym_subtype] will be put.
 
 
      If the data format is not recognised, -EBADMSG should be returned.  If it
@@ -310,3 +312,102 @@ Functions are provided to register and unregister parsers:
 
 Parsers may not have the same name.  The names are otherwise only used for
 displaying in debugging messages.
+
+
+=========================
+KEYRING LINK RESTRICTIONS
+=========================
+
+Keyrings created from userspace using add_key can be configured to check the
+signature of the key being linked.  Keys without a valid signature are not
+allowed to link.
+
+Several restriction methods are available:
+
+ (1) Restrict using the kernel builtin trusted keyring
+
+     - Option string used with KEYCTL_RESTRICT_KEYRING:
+       - "builtin_trusted"
+
+     The kernel builtin trusted keyring will be searched for the signing key.
+     If the builtin trusted keyring is not configured, all links will be
+     rejected.  The ca_keys kernel parameter also affects which keys are used
+     for signature verification.
+
+ (2) Restrict using the kernel builtin and secondary trusted keyrings
+
+     - Option string used with KEYCTL_RESTRICT_KEYRING:
+       - "builtin_and_secondary_trusted"
+
+     The kernel builtin and secondary trusted keyrings will be searched for the
+     signing key.  If the secondary trusted keyring is not configured, this
+     restriction will behave like the "builtin_trusted" option.  The ca_keys
+     kernel parameter also affects which keys are used for signature
+     verification.
+
+ (3) Restrict using a separate key or keyring
+
+     - Option string used with KEYCTL_RESTRICT_KEYRING:
+       - "key_or_keyring:<key or keyring serial number>[:chain]"
+
+     Whenever a key link is requested, the link will only succeed if the key
+     being linked is signed by one of the designated keys.  This key may be
+     specified directly by providing a serial number for one asymmetric key, or
+     a group of keys may be searched for the signing key by providing the
+     serial number for a keyring.
+
+     When the "chain" option is provided at the end of the string, the keys
+     within the destination keyring will also be searched for signing keys.
+     This allows for verification of certificate chains by adding each
+     certificate in order (starting closest to the root) to a keyring.  For
+     instance, one keyring can be populated with links to a set of root
+     certificates, with a separate, restricted keyring set up for each
+     certificate chain to be validated:
+
+	# Create and populate a keyring for root certificates
+	root_id=`keyctl add keyring root-certs "" @s`
+	keyctl padd asymmetric "" $root_id < root1.cert
+	keyctl padd asymmetric "" $root_id < root2.cert
+
+	# Create and restrict a keyring for the certificate chain
+	chain_id=`keyctl add keyring chain "" @s`
+	keyctl restrict_keyring $chain_id asymmetric key_or_keyring:$root_id:chain
+
+	# Attempt to add each certificate in the chain, starting with the
+	# certificate closest to the root.
+	keyctl padd asymmetric "" $chain_id < intermediateA.cert
+	keyctl padd asymmetric "" $chain_id < intermediateB.cert
+	keyctl padd asymmetric "" $chain_id < end-entity.cert
+
+     If the final end-entity certificate is successfully added to the "chain"
+     keyring, we can be certain that it has a valid signing chain going back to
+     one of the root certificates.
+
+     A single keyring can be used to verify a chain of signatures by
+     restricting the keyring after linking the root certificate:
+
+	# Create a keyring for the certificate chain and add the root
+	chain2_id=`keyctl add keyring chain2 "" @s`
+	keyctl padd asymmetric "" $chain2_id < root1.cert
+
+	# Restrict the keyring that already has root1.cert linked.  The cert
+	# will remain linked by the keyring.
+	keyctl restrict_keyring $chain2_id asymmetric key_or_keyring:0:chain
+
+	# Attempt to add each certificate in the chain, starting with the
+	# certificate closest to the root.
+	keyctl padd asymmetric "" $chain2_id < intermediateA.cert
+	keyctl padd asymmetric "" $chain2_id < intermediateB.cert
+	keyctl padd asymmetric "" $chain2_id < end-entity.cert
+
+     If the final end-entity certificate is successfully added to the "chain2"
+     keyring, we can be certain that there is a valid signing chain going back
+     to the root certificate that was added before the keyring was restricted.
+
+
+In all of these cases, if the signing key is found the signature of the key to
+be linked will be verified using the signing key.  The requested key is added
+to the keyring only if the signature is successfully verified.  -ENOKEY is
+returned if the parent certificate could not be found, or -EKEYREJECTED is
+returned if the signature check fails or the key is blacklisted.  Other errors
+may be returned if the signature check could not be performed.

@@ -1,0 +1,23 @@
+Innolux P079ZCA 7.85" 768x1024 TFT LCD panel
+
+Required properties:
+- compatible: should be "innolux,p079zca"
+- reg: DSI virtual channel of the peripheral
+- power-supply: phandle of the regulator that provides the supply voltage
+- enable-gpios: panel enable gpio
+
+Optional properties:
+- backlight: phandle of the backlight device attached to the panel
+
+Example:
+
+	&mipi_dsi {
+		panel {
+			compatible = "innolux,p079zca";
+			reg = <0>;
+			power-supply = <...>;
+			backlight = <&backlight>;
+			enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+			status = "okay";
+		};
+	};

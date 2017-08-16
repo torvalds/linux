@@ -33,7 +33,6 @@
 #define STUB_BUSID_ALLOC 3
 
 struct stub_device {
-	struct usb_interface *interface;
 	struct usb_device *udev;
 
 	struct usbip_device ud;

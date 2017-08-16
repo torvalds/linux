@@ -35,9 +35,10 @@
  * __loop  as
  *	   restart loop. 'as' register must not have been modified!
  *
- * __endla ar, at, incr
+ * __endla ar, as, incr
  *	   ar	start address (modified)
- *	   as	scratch register used by macro
+ *	   as	scratch register used by __loops/__loopi macros or
+ *		end address used by __loopt macro
  *	   inc	increment
  */
 
@@ -97,7 +98,7 @@
 	.endm
 
 /*
- * loop from ar to ax
+ * loop from ar to as
  */
 
 	.macro	__loopt	ar, as, at, incr_log2

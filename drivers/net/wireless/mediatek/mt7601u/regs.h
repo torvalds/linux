@@ -17,10 +17,6 @@
 
 #include <linux/bitops.h>
 
-#ifndef GENMASK
-#define GENMASK(h, l)       (((U32_C(1) << ((h) - (l) + 1)) - 1) << (l))
-#endif
-
 #define MT_ASIC_VERSION			0x0000
 
 #define MT76XX_REV_E3		0x22
@@ -195,6 +191,9 @@
 
 #define MT_BCN_OFFSET_BASE		0x041c
 #define MT_BCN_OFFSET(_n)		(MT_BCN_OFFSET_BASE + ((_n) << 2))
+
+#define MT_RXQ_STA			0x0430
+#define MT_TXQ_STA			0x0434
 
 #define	MT_RF_CSR_CFG			0x0500
 #define MT_RF_CSR_CFG_DATA		GENMASK(7, 0)

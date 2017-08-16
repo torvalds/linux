@@ -22,7 +22,6 @@
 #include <linux/list.h>
 #include <linux/bug.h>
 #include <linux/skbuff.h>
-#include <linux/semaphore.h>
 #include <linux/timer.h>
 
 struct ath10k;
@@ -50,6 +49,8 @@ struct ath10k;
  * Alignment: htc_hdr, payload and trailer are
  * 4-byte aligned.
  */
+
+#define HTC_HOST_MAX_MSG_PER_BUNDLE        8
 
 enum ath10k_htc_tx_flags {
 	ATH10K_HTC_FLAG_NEED_CREDIT_UPDATE = 0x01,
@@ -109,6 +110,10 @@ enum ath10k_htc_conn_svc_status {
 	ATH10K_HTC_CONN_SVC_STATUS_FAILED       = 2,
 	ATH10K_HTC_CONN_SVC_STATUS_NO_RESOURCES = 3,
 	ATH10K_HTC_CONN_SVC_STATUS_NO_MORE_EP   = 4
+};
+
+enum ath10k_htc_setup_complete_flags {
+	ATH10K_HTC_SETUP_COMPLETE_FLAGS_RX_BNDL_EN = 1
 };
 
 struct ath10k_ath10k_htc_msg_hdr {
@@ -175,8 +180,10 @@ struct ath10k_htc_msg {
 } __packed __aligned(4);
 
 enum ath10k_ath10k_htc_record_id {
-	ATH10K_HTC_RECORD_NULL    = 0,
-	ATH10K_HTC_RECORD_CREDITS = 1
+	ATH10K_HTC_RECORD_NULL             = 0,
+	ATH10K_HTC_RECORD_CREDITS          = 1,
+	ATH10K_HTC_RECORD_LOOKAHEAD        = 2,
+	ATH10K_HTC_RECORD_LOOKAHEAD_BUNDLE = 3,
 };
 
 struct ath10k_ath10k_htc_record_hdr {
@@ -193,10 +200,28 @@ struct ath10k_htc_credit_report {
 	u8 pad1;
 } __packed;
 
+struct ath10k_htc_lookahead_report {
+	u8 pre_valid;
+	u8 pad0;
+	u8 pad1;
+	u8 pad2;
+	u8 lookahead[4];
+	u8 post_valid;
+	u8 pad3;
+	u8 pad4;
+	u8 pad5;
+} __packed;
+
+struct ath10k_htc_lookahead_bundle {
+	u8 lookahead[4];
+} __packed;
+
 struct ath10k_htc_record {
 	struct ath10k_ath10k_htc_record_hdr hdr;
 	union {
 		struct ath10k_htc_credit_report credit_report[0];
+		struct ath10k_htc_lookahead_report lookahead_report[0];
+		struct ath10k_htc_lookahead_bundle lookahead_bundle[0];
 		u8 pauload[0];
 	};
 } __packed __aligned(4);
@@ -297,10 +322,10 @@ struct ath10k_htc_svc_conn_resp {
 #define ATH10K_NUM_CONTROL_TX_BUFFERS 2
 #define ATH10K_HTC_MAX_LEN 4096
 #define ATH10K_HTC_MAX_CTRL_MSG_LEN 256
-#define ATH10K_HTC_WAIT_TIMEOUT_HZ (1*HZ)
+#define ATH10K_HTC_WAIT_TIMEOUT_HZ (1 * HZ)
 #define ATH10K_HTC_CONTROL_BUFFER_SIZE (ATH10K_HTC_MAX_CTRL_MSG_LEN + \
 					sizeof(struct ath10k_htc_hdr))
-#define ATH10K_HTC_CONN_SVC_TIMEOUT_HZ (1*HZ)
+#define ATH10K_HTC_CONN_SVC_TIMEOUT_HZ (1 * HZ)
 
 struct ath10k_htc_ep {
 	struct ath10k_htc *htc;
@@ -312,13 +337,9 @@ struct ath10k_htc_ep {
 	int max_ep_message_len;
 	u8 ul_pipe_id;
 	u8 dl_pipe_id;
-	int ul_is_polled; /* call HIF to get tx completions */
-	int dl_is_polled; /* call HIF to fetch rx (not implemented) */
 
 	u8 seq_no; /* for debugging */
 	int tx_credits;
-	int tx_credit_size;
-	int tx_credits_per_max_message;
 	bool tx_credit_flow_enabled;
 };
 
@@ -342,8 +363,8 @@ struct ath10k_htc {
 	struct completion ctl_resp;
 
 	int total_transmit_credits;
-	struct ath10k_htc_svc_tx_credits service_tx_alloc[ATH10K_HTC_EP_COUNT];
 	int target_credit_size;
+	u8 max_msgs_per_htc_bundle;
 };
 
 int ath10k_htc_init(struct ath10k *ar);
@@ -355,5 +376,15 @@ int ath10k_htc_connect_service(struct ath10k_htc *htc,
 int ath10k_htc_send(struct ath10k_htc *htc, enum ath10k_htc_ep_id eid,
 		    struct sk_buff *packet);
 struct sk_buff *ath10k_htc_alloc_skb(struct ath10k *ar, int size);
+void ath10k_htc_tx_completion_handler(struct ath10k *ar, struct sk_buff *skb);
+void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb);
+void ath10k_htc_notify_tx_completion(struct ath10k_htc_ep *ep,
+				     struct sk_buff *skb);
+int ath10k_htc_process_trailer(struct ath10k_htc *htc,
+			       u8 *buffer,
+			       int length,
+			       enum ath10k_htc_ep_id src_eid,
+			       void *next_lookaheads,
+			       int *next_lookaheads_len);
 
 #endif

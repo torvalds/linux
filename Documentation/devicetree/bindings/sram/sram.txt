@@ -1,0 +1,78 @@
+Generic on-chip SRAM
+
+Simple IO memory regions to be managed by the genalloc API.
+
+Required properties:
+
+- compatible : mmio-sram or atmel,sama5d2-securam
+
+- reg : SRAM iomem address range
+
+Reserving sram areas:
+---------------------
+
+Each child of the sram node specifies a region of reserved memory. Each
+child node should use a 'reg' property to specify a specific range of
+reserved memory.
+
+Following the generic-names recommended practice, node names should
+reflect the purpose of the node. Unit address (@<address>) should be
+appended to the name.
+
+Required properties in the sram node:
+
+- #address-cells, #size-cells : should use the same values as the root node
+- ranges : standard definition, should translate from local addresses
+           within the sram to bus addresses
+
+Optional properties in the sram node:
+
+- no-memory-wc : the flag indicating, that SRAM memory region has not to
+                 be remapped as write combining. WC is used by default.
+
+Required properties in the area nodes:
+
+- reg : iomem address range, relative to the SRAM range
+
+Optional properties in the area nodes:
+
+- compatible : standard definition, should contain a vendor specific string
+               in the form <vendor>,[<device>-]<usage>
+- pool : indicates that the particular reserved SRAM area is addressable
+         and in use by another device or devices
+- export : indicates that the reserved SRAM area may be accessed outside
+           of the kernel, e.g. by bootloader or userspace
+- protect-exec : Same as 'pool' above but with the additional
+		 constraint that code wil be run from the region and
+		 that the memory is maintained as read-only, executable
+		 during code execution. NOTE: This region must be page
+		 aligned on start and end in order to properly allow
+		 manipulation of the page attributes.
+- label : the name for the reserved partition, if omitted, the label
+          is taken from the node name excluding the unit address.
+
+Example:
+
+sram: sram@5c000000 {
+	compatible = "mmio-sram";
+	reg = <0x5c000000 0x40000>; /* 256 KiB SRAM at address 0x5c000000 */
+
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0 0x5c000000 0x40000>;
+
+	smp-sram@100 {
+		compatible = "socvendor,smp-sram";
+		reg = <0x100 0x50>;
+	};
+
+	device-sram@1000 {
+		reg = <0x1000 0x1000>;
+		pool;
+	};
+
+	exported@20000 {
+		reg = <0x20000 0x20000>;
+		export;
+	};
+};

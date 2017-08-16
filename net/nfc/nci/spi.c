@@ -18,6 +18,8 @@
 
 #define pr_fmt(fmt) "nci_spi: %s: " fmt, __func__
 
+#include <linux/module.h>
+
 #include <linux/export.h>
 #include <linux/spi/spi.h>
 #include <linux/crc-ccitt.h>
@@ -56,6 +58,7 @@ static int __nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb,
 	}
 	t.cs_change = cs_change;
 	t.delay_usecs = nspi->xfer_udelay;
+	t.speed_hz = nspi->xfer_speed_hz;
 
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
@@ -83,8 +86,8 @@ int nci_spi_send(struct nci_spi *nspi,
 		u16 crc;
 
 		crc = crc_ccitt(CRC_INIT, skb->data, skb->len);
-		*skb_put(skb, 1) = crc >> 8;
-		*skb_put(skb, 1) = crc & 0xFF;
+		skb_put_u8(skb, crc >> 8);
+		skb_put_u8(skb, crc & 0xFF);
 	}
 
 	if (write_handshake_completion)	{
@@ -142,7 +145,8 @@ struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
 
 	nspi->acknowledge_mode = acknowledge_mode;
 	nspi->xfer_udelay = delay;
-
+	/* Use controller max SPI speed by default */
+	nspi->xfer_speed_hz = 0;
 	nspi->spi = spi;
 	nspi->ndev = ndev;
 	init_completion(&nspi->req_completion);
@@ -168,8 +172,8 @@ static int send_acknowledge(struct nci_spi *nspi, u8 acknowledge)
 	hdr[3] = 0;
 
 	crc = crc_ccitt(CRC_INIT, skb->data, skb->len);
-	*skb_put(skb, 1) = crc >> 8;
-	*skb_put(skb, 1) = crc & 0xFF;
+	skb_put_u8(skb, crc >> 8);
+	skb_put_u8(skb, crc & 0xFF);
 
 	ret = __nci_spi_send(nspi, skb, 0);
 
@@ -195,12 +199,14 @@ static struct sk_buff *__nci_spi_read(struct nci_spi *nspi)
 	tx.tx_buf = req;
 	tx.len = 2;
 	tx.cs_change = 0;
+	tx.speed_hz = nspi->xfer_speed_hz;
 	spi_message_add_tail(&tx, &m);
 
 	memset(&rx, 0, sizeof(struct spi_transfer));
 	rx.rx_buf = resp_hdr;
 	rx.len = 2;
 	rx.cs_change = 1;
+	rx.speed_hz = nspi->xfer_speed_hz;
 	spi_message_add_tail(&rx, &m);
 
 	ret = spi_sync(nspi->spi, &m);
@@ -224,6 +230,7 @@ static struct sk_buff *__nci_spi_read(struct nci_spi *nspi)
 	rx.len = rx_len;
 	rx.cs_change = 0;
 	rx.delay_usecs = nspi->xfer_udelay;
+	rx.speed_hz = nspi->xfer_speed_hz;
 	spi_message_add_tail(&rx, &m);
 
 	ret = spi_sync(nspi->spi, &m);
@@ -231,8 +238,8 @@ static struct sk_buff *__nci_spi_read(struct nci_spi *nspi)
 		goto receive_error;
 
 	if (nspi->acknowledge_mode == NCI_SPI_CRC_ENABLED) {
-		*skb_push(skb, 1) = resp_hdr[1];
-		*skb_push(skb, 1) = resp_hdr[0];
+		*(u8 *)skb_push(skb, 1) = resp_hdr[1];
+		*(u8 *)skb_push(skb, 1) = resp_hdr[0];
 	}
 
 	return skb;
@@ -320,3 +327,5 @@ done:
 	return skb;
 }
 EXPORT_SYMBOL_GPL(nci_spi_read);
+
+MODULE_LICENSE("GPL");

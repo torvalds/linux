@@ -19,14 +19,14 @@
 #include "common.h"
 
 #define CHAN2G(_freq, _idx)  { \
-	.band = IEEE80211_BAND_2GHZ, \
+	.band = NL80211_BAND_2GHZ, \
 	.center_freq = (_freq), \
 	.hw_value = (_idx), \
 	.max_power = 20, \
 }
 
 #define CHAN5G(_freq, _idx) { \
-	.band = IEEE80211_BAND_5GHZ, \
+	.band = NL80211_BAND_5GHZ, \
 	.center_freq = (_freq), \
 	.hw_value = (_idx), \
 	.max_power = 20, \
@@ -139,12 +139,12 @@ int ath9k_cmn_init_channels_rates(struct ath_common *common)
 
 		memcpy(channels, ath9k_2ghz_chantable,
 		       sizeof(ath9k_2ghz_chantable));
-		common->sbands[IEEE80211_BAND_2GHZ].channels = channels;
-		common->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
-		common->sbands[IEEE80211_BAND_2GHZ].n_channels =
+		common->sbands[NL80211_BAND_2GHZ].channels = channels;
+		common->sbands[NL80211_BAND_2GHZ].band = NL80211_BAND_2GHZ;
+		common->sbands[NL80211_BAND_2GHZ].n_channels =
 			ARRAY_SIZE(ath9k_2ghz_chantable);
-		common->sbands[IEEE80211_BAND_2GHZ].bitrates = ath9k_legacy_rates;
-		common->sbands[IEEE80211_BAND_2GHZ].n_bitrates =
+		common->sbands[NL80211_BAND_2GHZ].bitrates = ath9k_legacy_rates;
+		common->sbands[NL80211_BAND_2GHZ].n_bitrates =
 			ARRAY_SIZE(ath9k_legacy_rates);
 	}
 
@@ -156,13 +156,13 @@ int ath9k_cmn_init_channels_rates(struct ath_common *common)
 
 		memcpy(channels, ath9k_5ghz_chantable,
 		       sizeof(ath9k_5ghz_chantable));
-		common->sbands[IEEE80211_BAND_5GHZ].channels = channels;
-		common->sbands[IEEE80211_BAND_5GHZ].band = IEEE80211_BAND_5GHZ;
-		common->sbands[IEEE80211_BAND_5GHZ].n_channels =
+		common->sbands[NL80211_BAND_5GHZ].channels = channels;
+		common->sbands[NL80211_BAND_5GHZ].band = NL80211_BAND_5GHZ;
+		common->sbands[NL80211_BAND_5GHZ].n_channels =
 			ARRAY_SIZE(ath9k_5ghz_chantable);
-		common->sbands[IEEE80211_BAND_5GHZ].bitrates =
+		common->sbands[NL80211_BAND_5GHZ].bitrates =
 			ath9k_legacy_rates + 4;
-		common->sbands[IEEE80211_BAND_5GHZ].n_bitrates =
+		common->sbands[NL80211_BAND_5GHZ].n_bitrates =
 			ARRAY_SIZE(ath9k_legacy_rates) - 4;
 	}
 	return 0;
@@ -236,9 +236,9 @@ void ath9k_cmn_reload_chainmask(struct ath_hw *ah)
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
 		ath9k_cmn_setup_ht_cap(ah,
-			&common->sbands[IEEE80211_BAND_2GHZ].ht_cap);
+			&common->sbands[NL80211_BAND_2GHZ].ht_cap);
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
 		ath9k_cmn_setup_ht_cap(ah,
-			&common->sbands[IEEE80211_BAND_5GHZ].ht_cap);
+			&common->sbands[NL80211_BAND_5GHZ].ht_cap);
 }
 EXPORT_SYMBOL(ath9k_cmn_reload_chainmask);

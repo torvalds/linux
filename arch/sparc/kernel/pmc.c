@@ -15,7 +15,7 @@
 
 #include <asm/io.h>
 #include <asm/oplib.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/auxio.h>
 #include <asm/processor.h>
 
@@ -71,7 +71,7 @@ static int pmc_probe(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id pmc_match[] = {
+static const struct of_device_id pmc_match[] = {
 	{
 		.name = PMC_OBPNAME,
 	},

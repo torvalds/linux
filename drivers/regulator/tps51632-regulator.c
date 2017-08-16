@@ -94,11 +94,14 @@ static int tps51632_dcdc_set_ramp_delay(struct regulator_dev *rdev,
 		int ramp_delay)
 {
 	struct tps51632_chip *tps = rdev_get_drvdata(rdev);
-	int bit = ramp_delay/6000;
+	int bit;
 	int ret;
 
-	if (bit)
-		bit--;
+	if (ramp_delay == 0)
+		bit = 0;
+	else
+		bit = DIV_ROUND_UP(ramp_delay, 6000) - 1;
+
 	ret = regmap_write(tps->regmap, TPS51632_SLEW_REGS, BIT(bit));
 	if (ret < 0)
 		dev_err(tps->dev, "SLEW reg write failed, err %d\n", ret);

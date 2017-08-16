@@ -17,8 +17,10 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/kernel.h>
+#include <linux/sizes.h>
 #include <asm/boot.h>
 #include <asm/page.h>
+#include <asm/pgtable-prot.h>
 
 /*
  * Here we define all the compile-time 'special' virtual
@@ -55,16 +57,22 @@ enum fixed_addresses {
 	 * Temporary boot-time mappings, used by early_ioremap(),
 	 * before ioremap() is functional.
 	 */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define NR_FIX_BTMAPS		4
-#else
-#define NR_FIX_BTMAPS		64
-#endif
+#define NR_FIX_BTMAPS		(SZ_256K / PAGE_SIZE)
 #define FIX_BTMAPS_SLOTS	7
 #define TOTAL_FIX_BTMAPS	(NR_FIX_BTMAPS * FIX_BTMAPS_SLOTS)
 
 	FIX_BTMAP_END = __end_of_permanent_fixed_addresses,
 	FIX_BTMAP_BEGIN = FIX_BTMAP_END + TOTAL_FIX_BTMAPS - 1,
+
+	/*
+	 * Used for kernel page table creation, so unmapped memory may be used
+	 * for tables.
+	 */
+	FIX_PTE,
+	FIX_PMD,
+	FIX_PUD,
+	FIX_PGD,
+
 	__end_of_fixed_addresses
 };
 

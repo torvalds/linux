@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
 #include "vid.h"
@@ -103,7 +103,6 @@ static void iceland_ih_disable_interrupts(struct amdgpu_device *adev)
  */
 static int iceland_ih_irq_init(struct amdgpu_device *adev)
 {
-	int ret = 0;
 	int rb_bufsz;
 	u32 interrupt_cntl, ih_cntl, ih_rb_cntl;
 	u64 wptr_off;
@@ -157,7 +156,7 @@ static int iceland_ih_irq_init(struct amdgpu_device *adev)
 	/* enable interrupts */
 	iceland_ih_enable_interrupts(adev);
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -228,8 +227,9 @@ static void iceland_ih_decode_iv(struct amdgpu_device *adev,
 	dw[2] = le32_to_cpu(adev->irq.ih.ring[ring_index + 2]);
 	dw[3] = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
 
+	entry->client_id = AMDGPU_IH_CLIENTID_LEGACY;
 	entry->src_id = dw[0] & 0xff;
-	entry->src_data = dw[1] & 0xfffffff;
+	entry->src_data[0] = dw[1] & 0xfffffff;
 	entry->ring_id = dw[2] & 0xff;
 	entry->vm_id = (dw[2] >> 8) & 0xff;
 	entry->pas_id = (dw[2] >> 16) & 0xffff;
@@ -253,8 +253,14 @@ static void iceland_ih_set_rptr(struct amdgpu_device *adev)
 static int iceland_ih_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int ret;
+
+	ret = amdgpu_irq_add_domain(adev);
+	if (ret)
+		return ret;
 
 	iceland_ih_set_interrupt_funcs(adev);
+
 	return 0;
 }
 
@@ -278,6 +284,7 @@ static int iceland_ih_sw_fini(void *handle)
 
 	amdgpu_irq_fini(adev);
 	amdgpu_ih_ring_fini(adev);
+	amdgpu_irq_remove_domain(adev);
 
 	return 0;
 }
@@ -344,35 +351,6 @@ static int iceland_ih_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static void iceland_ih_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "ICELAND IH registers\n");
-	dev_info(adev->dev, "  SRBM_STATUS=0x%08X\n",
-		RREG32(mmSRBM_STATUS));
-	dev_info(adev->dev, "  SRBM_STATUS2=0x%08X\n",
-		RREG32(mmSRBM_STATUS2));
-	dev_info(adev->dev, "  INTERRUPT_CNTL=0x%08X\n",
-		 RREG32(mmINTERRUPT_CNTL));
-	dev_info(adev->dev, "  INTERRUPT_CNTL2=0x%08X\n",
-		 RREG32(mmINTERRUPT_CNTL2));
-	dev_info(adev->dev, "  IH_CNTL=0x%08X\n",
-		 RREG32(mmIH_CNTL));
-	dev_info(adev->dev, "  IH_RB_CNTL=0x%08X\n",
-		 RREG32(mmIH_RB_CNTL));
-	dev_info(adev->dev, "  IH_RB_BASE=0x%08X\n",
-		 RREG32(mmIH_RB_BASE));
-	dev_info(adev->dev, "  IH_RB_WPTR_ADDR_LO=0x%08X\n",
-		 RREG32(mmIH_RB_WPTR_ADDR_LO));
-	dev_info(adev->dev, "  IH_RB_WPTR_ADDR_HI=0x%08X\n",
-		 RREG32(mmIH_RB_WPTR_ADDR_HI));
-	dev_info(adev->dev, "  IH_RB_RPTR=0x%08X\n",
-		 RREG32(mmIH_RB_RPTR));
-	dev_info(adev->dev, "  IH_RB_WPTR=0x%08X\n",
-		 RREG32(mmIH_RB_WPTR));
-}
-
 static int iceland_ih_soft_reset(void *handle)
 {
 	u32 srbm_soft_reset = 0;
@@ -384,8 +362,6 @@ static int iceland_ih_soft_reset(void *handle)
 						SOFT_RESET_IH, 1);
 
 	if (srbm_soft_reset) {
-		iceland_ih_print_status((void *)adev);
-
 		tmp = RREG32(mmSRBM_SOFT_RESET);
 		tmp |= srbm_soft_reset;
 		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
@@ -400,8 +376,6 @@ static int iceland_ih_soft_reset(void *handle)
 
 		/* Wait a little for things to settle down */
 		udelay(50);
-
-		iceland_ih_print_status((void *)adev);
 	}
 
 	return 0;
@@ -419,7 +393,8 @@ static int iceland_ih_set_powergating_state(void *handle,
 	return 0;
 }
 
-const struct amd_ip_funcs iceland_ih_ip_funcs = {
+static const struct amd_ip_funcs iceland_ih_ip_funcs = {
+	.name = "iceland_ih",
 	.early_init = iceland_ih_early_init,
 	.late_init = NULL,
 	.sw_init = iceland_ih_sw_init,
@@ -431,7 +406,6 @@ const struct amd_ip_funcs iceland_ih_ip_funcs = {
 	.is_idle = iceland_ih_is_idle,
 	.wait_for_idle = iceland_ih_wait_for_idle,
 	.soft_reset = iceland_ih_soft_reset,
-	.print_status = iceland_ih_print_status,
 	.set_clockgating_state = iceland_ih_set_clockgating_state,
 	.set_powergating_state = iceland_ih_set_powergating_state,
 };
@@ -448,3 +422,11 @@ static void iceland_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 		adev->irq.ih_funcs = &iceland_ih_funcs;
 }
 
+const struct amdgpu_ip_block_version iceland_ih_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_IH,
+	.major = 2,
+	.minor = 4,
+	.rev = 0,
+	.funcs = &iceland_ih_ip_funcs,
+};

@@ -18,17 +18,17 @@
  */
 
 /*
-Driver: dt9812
-Description: Data Translation DT9812 USB module
-Author: anders.blomdell@control.lth.se (Anders Blomdell)
-Status: in development
-Devices: [Data Translation] DT9812 (dt9812)
-Updated: Sun Nov 20 20:18:34 EST 2005
-
-This driver works, but bulk transfers not implemented. Might be a starting point
-for someone else. I found out too late that USB has too high latencies (>1 ms)
-for my needs.
-*/
+ * Driver: dt9812
+ * Description: Data Translation DT9812 USB module
+ * Devices: [Data Translation] DT9812 (dt9812)
+ * Author: anders.blomdell@control.lth.se (Anders Blomdell)
+ * Status: in development
+ * Updated: Sun Nov 20 20:18:34 EST 2005
+ *
+ * This driver works, but bulk transfers not implemented. Might be a
+ * starting point for someone else. I found out too late that USB has
+ * too high latencies (>1 ms) for my needs.
+ */
 
 /*
  * Nota Bene:
@@ -80,7 +80,7 @@ for my needs.
 #define F020_MASK_ADC0CN_AD0INT		0x20
 #define F020_MASK_ADC0CN_AD0BUSY	0x10
 
-#define F020_MASK_DACxCN_DACxEN		0x80
+#define F020_MASK_DACXCN_DACXEN		0x80
 
 enum {
 					/* A/D  D/A  DI  DO  CT */
@@ -233,7 +233,7 @@ struct dt9812_usb_cmd {
 };
 
 struct dt9812_private {
-	struct semaphore sem;
+	struct mutex mut;
 	struct {
 		__u8 addr;
 		size_t size;
@@ -335,7 +335,7 @@ static int dt9812_digital_in(struct comedi_device *dev, u8 *bits)
 	u8 value[2];
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	ret = dt9812_read_multiple_registers(dev, 2, reg, value);
 	if (ret == 0) {
 		/*
@@ -345,7 +345,7 @@ static int dt9812_digital_in(struct comedi_device *dev, u8 *bits)
 		 */
 		*bits = (value[0] & 0x7f) | ((value[1] & 0x08) << 4);
 	}
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -357,9 +357,9 @@ static int dt9812_digital_out(struct comedi_device *dev, u8 bits)
 	u8 value[1] = { bits };
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	ret = dt9812_write_multiple_registers(dev, 1, reg, value);
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -444,7 +444,7 @@ static int dt9812_analog_in(struct comedi_device *dev,
 	u8 val[3];
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	/* 1 select the gain */
 	dt9812_configure_gain(dev, &rmw[0], gain);
@@ -493,7 +493,7 @@ static int dt9812_analog_in(struct comedi_device *dev,
 	}
 
 exit:
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -504,22 +504,21 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 	struct dt9812_rmw_byte rmw[3];
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	switch (channel) {
 	case 0:
 		/* 1. Set DAC mode */
 		rmw[0].address = F020_SFR_DAC0CN;
 		rmw[0].and_mask = 0xff;
-		rmw[0].or_value = F020_MASK_DACxCN_DACxEN;
+		rmw[0].or_value = F020_MASK_DACXCN_DACXEN;
 
-		/* 2 load low byte of DAC value first */
+		/* 2. load lsb of DAC value first */
 		rmw[1].address = F020_SFR_DAC0L;
 		rmw[1].and_mask = 0xff;
 		rmw[1].or_value = value & 0xff;
 
-		/* 3 load high byte of DAC value next to latch the
-			12-bit value */
+		/* 3. load msb of DAC value next to latch the 12-bit value */
 		rmw[2].address = F020_SFR_DAC0H;
 		rmw[2].and_mask = 0xff;
 		rmw[2].or_value = (value >> 8) & 0xf;
@@ -529,15 +528,14 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 		/* 1. Set DAC mode */
 		rmw[0].address = F020_SFR_DAC1CN;
 		rmw[0].and_mask = 0xff;
-		rmw[0].or_value = F020_MASK_DACxCN_DACxEN;
+		rmw[0].or_value = F020_MASK_DACXCN_DACXEN;
 
-		/* 2 load low byte of DAC value first */
+		/* 2. load lsb of DAC value first */
 		rmw[1].address = F020_SFR_DAC1L;
 		rmw[1].and_mask = 0xff;
 		rmw[1].or_value = value & 0xff;
 
-		/* 3 load high byte of DAC value next to latch the
-			12-bit value */
+		/* 3. load msb of DAC value next to latch the 12-bit value */
 		rmw[2].address = F020_SFR_DAC1H;
 		rmw[2].and_mask = 0xff;
 		rmw[2].or_value = (value >> 8) & 0xf;
@@ -545,7 +543,7 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 	}
 	ret = dt9812_rmw_multiple_registers(dev, 3, rmw);
 
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -608,9 +606,9 @@ static int dt9812_ao_insn_read(struct comedi_device *dev,
 	struct dt9812_private *devpriv = dev->private;
 	int ret;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 	ret = comedi_readback_insn_read(dev, s, insn, data);
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 
 	return ret;
 }
@@ -662,12 +660,12 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 		case 1:
 			dir = USB_DIR_OUT;
 			devpriv->cmd_wr.addr = ep->bEndpointAddress;
-			devpriv->cmd_wr.size = le16_to_cpu(ep->wMaxPacketSize);
+			devpriv->cmd_wr.size = usb_endpoint_maxp(ep);
 			break;
 		case 2:
 			dir = USB_DIR_IN;
 			devpriv->cmd_rd.addr = ep->bEndpointAddress;
-			devpriv->cmd_rd.size = le16_to_cpu(ep->wMaxPacketSize);
+			devpriv->cmd_rd.size = usb_endpoint_maxp(ep);
 			break;
 		case 3:
 			/* unused write stream */
@@ -774,7 +772,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
-	sema_init(&devpriv->sem, 1);
+	mutex_init(&devpriv->mut);
 	usb_set_intfdata(intf, devpriv);
 
 	ret = dt9812_find_endpoints(dev);
@@ -846,11 +844,11 @@ static void dt9812_detach(struct comedi_device *dev)
 	if (!devpriv)
 		return;
 
-	down(&devpriv->sem);
+	mutex_lock(&devpriv->mut);
 
 	usb_set_intfdata(intf, NULL);
 
-	up(&devpriv->sem);
+	mutex_unlock(&devpriv->mut);
 }
 
 static struct comedi_driver dt9812_driver = {

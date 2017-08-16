@@ -11,6 +11,9 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/fs.h>
@@ -33,15 +36,6 @@ void default_idle(void)
 	etrax_gpio_wake_up_check();
 #endif
 	local_irq_enable();
-}
-
-/*
- * Free current thread data structures etc..
- */
-
-void exit_thread(void)
-{
-	/* Nothing needs to be done.  */
 }
 
 /* if the watchdog is enabled, we can simply disable interrupts and go
@@ -73,14 +67,6 @@ void hard_reset_now (void)
 #endif
 
 	while(1) /* waiting for RETRIBUTION! */ ;
-}
-
-/*
- * Return saved PC of a blocked thread.
- */
-unsigned long thread_saved_pc(struct task_struct *t)
-{
-	return task_pt_regs(t)->irp;
 }
 
 /* setup the child's kernel stack with a pt_regs and switch_stack on it.

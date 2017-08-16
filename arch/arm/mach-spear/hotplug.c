@@ -80,7 +80,7 @@ static inline void spear13xx_do_lowpower(unsigned int cpu, int *spurious)
  *
  * Called with IRQs disabled
  */
-void __ref spear13xx_cpu_die(unsigned int cpu)
+void spear13xx_cpu_die(unsigned int cpu)
 {
 	int spurious = 0;
 

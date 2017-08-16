@@ -37,16 +37,19 @@
 
 STATIC struct posix_acl *
 xfs_acl_from_disk(
-	struct xfs_acl	*aclp,
-	int		max_entries)
+	const struct xfs_acl	*aclp,
+	int			len,
+	int			max_entries)
 {
 	struct posix_acl_entry *acl_e;
 	struct posix_acl *acl;
-	struct xfs_acl_entry *ace;
+	const struct xfs_acl_entry *ace;
 	unsigned int count, i;
 
+	if (len < sizeof(*aclp))
+		return ERR_PTR(-EFSCORRUPTED);
 	count = be32_to_cpu(aclp->acl_cnt);
-	if (count > max_entries)
+	if (count > max_entries || XFS_ACL_SIZE(count) != len)
 		return ERR_PTR(-EFSCORRUPTED);
 
 	acl = posix_acl_alloc(count, GFP_KERNEL);
@@ -155,27 +158,20 @@ xfs_get_acl(struct inode *inode, int type)
 	if (error) {
 		/*
 		 * If the attribute doesn't exist make sure we have a negative
-		 * cache entry, for any other error assume it is transient and
-		 * leave the cache entry as ACL_NOT_CACHED.
+		 * cache entry, for any other error assume it is transient.
 		 */
-		if (error == -ENOATTR)
-			goto out_update_cache;
-		goto out;
+		if (error != -ENOATTR)
+			acl = ERR_PTR(error);
+	} else  {
+		acl = xfs_acl_from_disk(xfs_acl, len,
+					XFS_ACL_MAX_ENTRIES(ip->i_mount));
 	}
-
-	acl = xfs_acl_from_disk(xfs_acl, XFS_ACL_MAX_ENTRIES(ip->i_mount));
-	if (IS_ERR(acl))
-		goto out;
-
-out_update_cache:
-	set_cached_acl(inode, type, acl);
-out:
 	kmem_free(xfs_acl);
 	return acl;
 }
 
-STATIC int
-__xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
+int
+__xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	struct xfs_inode *ip = XFS_I(inode);
 	unsigned char *ea_name;
@@ -240,35 +236,12 @@ xfs_set_mode(struct inode *inode, umode_t mode)
 
 		iattr.ia_valid = ATTR_MODE | ATTR_CTIME;
 		iattr.ia_mode = mode;
-		iattr.ia_ctime = current_fs_time(inode->i_sb);
+		iattr.ia_ctime = current_time(inode);
 
 		error = xfs_setattr_nonsize(XFS_I(inode), &iattr, XFS_ATTR_NOACL);
 	}
 
 	return error;
-}
-
-static int
-xfs_acl_exists(struct inode *inode, unsigned char *name)
-{
-	int len = XFS_ACL_MAX_SIZE(XFS_M(inode->i_sb));
-
-	return (xfs_attr_get(XFS_I(inode), name, NULL, &len,
-			    ATTR_ROOT|ATTR_KERNOVAL) == 0);
-}
-
-int
-posix_acl_access_exists(struct inode *inode)
-{
-	return xfs_acl_exists(inode, SGI_ACL_FILE);
-}
-
-int
-posix_acl_default_exists(struct inode *inode)
-{
-	if (!S_ISDIR(inode->i_mode))
-		return 0;
-	return xfs_acl_exists(inode, SGI_ACL_DEFAULT);
 }
 
 int
@@ -284,21 +257,16 @@ xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		return error;
 
 	if (type == ACL_TYPE_ACCESS) {
-		umode_t mode = inode->i_mode;
-		error = posix_acl_equiv_mode(acl, &mode);
+		umode_t mode;
 
-		if (error <= 0) {
-			acl = NULL;
-
-			if (error < 0)
-				return error;
-		}
-
+		error = posix_acl_update_mode(inode, &mode, &acl);
+		if (error)
+			return error;
 		error = xfs_set_mode(inode, mode);
 		if (error)
 			return error;
 	}
 
  set_acl:
-	return __xfs_set_acl(inode, type, acl);
+	return __xfs_set_acl(inode, acl, type);
 }

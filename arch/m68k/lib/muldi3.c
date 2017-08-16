@@ -14,6 +14,9 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details. */
 
+#include <linux/compiler.h>
+#include <linux/export.h>
+
 #ifdef CONFIG_CPU_HAS_NO_MULDIV64
 
 #define SI_TYPE_SIZE 32
@@ -62,10 +65,10 @@ GNU General Public License for more details. */
     umul_ppmm (__w.s.high, __w.s.low, u, v);				\
     __w.ll; })
 
-typedef 	 int SItype	__attribute__ ((mode (SI)));
-typedef unsigned int USItype	__attribute__ ((mode (SI)));
-typedef		 int DItype	__attribute__ ((mode (DI)));
-typedef int word_type __attribute__ ((mode (__word__)));
+typedef 	 int SItype	__mode(SI);
+typedef unsigned int USItype	__mode(SI);
+typedef		 int DItype	__mode(DI);
+typedef int word_type           __mode(__word__);
 
 struct DIstruct {SItype high, low;};
 
@@ -90,3 +93,4 @@ __muldi3 (DItype u, DItype v)
 
   return w.ll;
 }
+EXPORT_SYMBOL(__muldi3);

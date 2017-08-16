@@ -26,16 +26,12 @@
 #include <linux/regulator/machine.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
-#include <linux/memblock.h>
-
-#include <media/soc_camera.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
-#include <asm/memblock.h>
 
 #include "3ds_debugboard.h"
 #include "common.h"
@@ -137,120 +133,11 @@ static int mx31_3ds_pins[] = {
 	MX31_PIN_HSYNC__HSYNC,
 	MX31_PIN_FPSHIFT__FPSHIFT,
 	MX31_PIN_CONTRAST__CONTRAST,
-	/* CSI */
-	MX31_PIN_CSI_D6__CSI_D6,
-	MX31_PIN_CSI_D7__CSI_D7,
-	MX31_PIN_CSI_D8__CSI_D8,
-	MX31_PIN_CSI_D9__CSI_D9,
-	MX31_PIN_CSI_D10__CSI_D10,
-	MX31_PIN_CSI_D11__CSI_D11,
-	MX31_PIN_CSI_D12__CSI_D12,
-	MX31_PIN_CSI_D13__CSI_D13,
-	MX31_PIN_CSI_D14__CSI_D14,
-	MX31_PIN_CSI_D15__CSI_D15,
-	MX31_PIN_CSI_HSYNC__CSI_HSYNC,
-	MX31_PIN_CSI_MCLK__CSI_MCLK,
-	MX31_PIN_CSI_PIXCLK__CSI_PIXCLK,
-	MX31_PIN_CSI_VSYNC__CSI_VSYNC,
-	MX31_PIN_CSI_D5__GPIO3_5, /* CMOS PWDN */
-	IOMUX_MODE(MX31_PIN_RI_DTE1, IOMUX_CONFIG_GPIO), /* CMOS reset */
 	/* SSI */
 	MX31_PIN_STXD4__STXD4,
 	MX31_PIN_SRXD4__SRXD4,
 	MX31_PIN_SCK4__SCK4,
 	MX31_PIN_SFS4__SFS4,
-};
-
-/*
- * Camera support
- */
-static phys_addr_t mx3_camera_base __initdata;
-#define MX31_3DS_CAMERA_BUF_SIZE SZ_8M
-
-#define MX31_3DS_GPIO_CAMERA_PW IOMUX_TO_GPIO(MX31_PIN_CSI_D5)
-#define MX31_3DS_GPIO_CAMERA_RST IOMUX_TO_GPIO(MX31_PIN_RI_DTE1)
-
-static struct gpio mx31_3ds_camera_gpios[] = {
-	{ MX31_3DS_GPIO_CAMERA_PW, GPIOF_OUT_INIT_HIGH, "camera-power" },
-	{ MX31_3DS_GPIO_CAMERA_RST, GPIOF_OUT_INIT_HIGH, "camera-reset" },
-};
-
-static const struct mx3_camera_pdata mx31_3ds_camera_pdata __initconst = {
-	.flags = MX3_CAMERA_DATAWIDTH_10,
-	.mclk_10khz = 2600,
-};
-
-static int __init mx31_3ds_init_camera(void)
-{
-	int dma, ret = -ENOMEM;
-	struct platform_device *pdev =
-		imx31_alloc_mx3_camera(&mx31_3ds_camera_pdata);
-
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	if (!mx3_camera_base)
-		goto err;
-
-	dma = dma_declare_coherent_memory(&pdev->dev,
-					mx3_camera_base, mx3_camera_base,
-					MX31_3DS_CAMERA_BUF_SIZE,
-					DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
-
-	if (!(dma & DMA_MEMORY_MAP))
-		goto err;
-
-	ret = platform_device_add(pdev);
-	if (ret)
-err:
-		platform_device_put(pdev);
-
-	return ret;
-}
-
-static int mx31_3ds_camera_power(struct device *dev, int on)
-{
-	/* enable or disable the camera */
-	pr_debug("%s: %s the camera\n", __func__, on ? "ENABLE" : "DISABLE");
-	gpio_set_value(MX31_3DS_GPIO_CAMERA_PW, on ? 0 : 1);
-
-	if (!on)
-		goto out;
-
-	/* If enabled, give a reset impulse */
-	gpio_set_value(MX31_3DS_GPIO_CAMERA_RST, 0);
-	msleep(20);
-	gpio_set_value(MX31_3DS_GPIO_CAMERA_RST, 1);
-	msleep(100);
-
-out:
-	return 0;
-}
-
-static struct i2c_board_info mx31_3ds_i2c_camera = {
-	I2C_BOARD_INFO("ov2640", 0x30),
-};
-
-static struct regulator_bulk_data mx31_3ds_camera_regs[] = {
-	{ .supply = "cmos_vcore" },
-	{ .supply = "cmos_2v8" },
-};
-
-static struct soc_camera_link iclink_ov2640 = {
-	.bus_id		= 0,
-	.board_info	= &mx31_3ds_i2c_camera,
-	.i2c_adapter_id	= 0,
-	.power		= mx31_3ds_camera_power,
-	.regulators	= mx31_3ds_camera_regs,
-	.num_regulators	= ARRAY_SIZE(mx31_3ds_camera_regs),
-};
-
-static struct platform_device mx31_3ds_ov2640 = {
-	.name	= "soc-camera-pdrv",
-	.id	= 0,
-	.dev	= {
-		.platform_data = &iclink_ov2640,
-	},
 };
 
 /*
@@ -410,7 +297,6 @@ static struct regulator_init_data vmmc2_init = {
 
 static struct regulator_consumer_supply vmmc1_consumers[] = {
 	REGULATOR_SUPPLY("vcore", "spi0.0"),
-	REGULATOR_SUPPLY("cmos_2v8", "soc-camera-pdrv.0"),
 };
 
 static struct regulator_init_data vmmc1_init = {
@@ -441,22 +327,6 @@ static struct regulator_init_data vgen_init = {
 	.consumer_supplies = vgen_consumers,
 };
 
-static struct regulator_consumer_supply vvib_consumers[] = {
-	REGULATOR_SUPPLY("cmos_vcore", "soc-camera-pdrv.0"),
-};
-
-static struct regulator_init_data vvib_init = {
-	.constraints = {
-		.min_uV = 1300000,
-		.max_uV = 1300000,
-		.apply_uV = 1,
-		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
-				  REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies = ARRAY_SIZE(vvib_consumers),
-	.consumer_supplies = vvib_consumers,
-};
-
 static struct mc13xxx_regulator_init_data mx31_3ds_regulators[] = {
 	{
 		.id = MC13783_REG_PWGT1SPI, /* Power Gate for ARM core. */
@@ -480,9 +350,6 @@ static struct mc13xxx_regulator_init_data mx31_3ds_regulators[] = {
 	}, {
 		.id = MC13783_REG_VGEN,  /* Power LCD */
 		.init_data = &vgen_init,
-	}, {
-		.id = MC13783_REG_VVIB,  /* Power CMOS */
-		.init_data = &vvib_init,
 	},
 };
 
@@ -508,6 +375,8 @@ static struct imx_ssi_platform_data mx31_3ds_ssi_pdata = {
 
 /* SPI */
 static int spi0_internal_chipselect[] = {
+	MXC_SPI_CS(0),
+	MXC_SPI_CS(1),
 	MXC_SPI_CS(2),
 };
 
@@ -518,6 +387,7 @@ static const struct spi_imx_master spi0_pdata __initconst = {
 
 static int spi1_internal_chipselect[] = {
 	MXC_SPI_CS(0),
+	MXC_SPI_CS(1),
 	MXC_SPI_CS(2),
 };
 
@@ -531,7 +401,7 @@ static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {
 		.modalias	= "mc13783",
 		.max_speed_hz	= 1000000,
 		.bus_num	= 1,
-		.chip_select	= 1, /* SS2 */
+		.chip_select	= 2, /* SS2 */
 		.platform_data	= &mc13783_pdata,
 		/* irq number is run-time assigned */
 		.mode = SPI_CS_HIGH,
@@ -539,7 +409,7 @@ static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {
 		.modalias	= "l4f00242t03",
 		.max_speed_hz	= 5000000,
 		.bus_num	= 0,
-		.chip_select	= 0, /* SS2 */
+		.chip_select	= 2, /* SS2 */
 		.platform_data	= &mx31_3ds_l4f00242t03_pdata,
 	},
 };
@@ -688,14 +558,8 @@ static const struct imxi2c_platform_data mx31_3ds_i2c0_data __initconst = {
 	.bitrate = 100000,
 };
 
-static struct platform_device *devices[] __initdata = {
-	&mx31_3ds_ov2640,
-};
-
 static void __init mx31_3ds_init(void)
 {
-	int ret;
-
 	imx31_soc_init();
 
 	/* Configure SPI1 IOMUX */
@@ -708,13 +572,26 @@ static void __init mx31_3ds_init(void)
 	imx31_add_mxc_nand(&mx31_3ds_nand_board_info);
 
 	imx31_add_spi_imx1(&spi1_pdata);
-	mx31_3ds_spi_devs[0].irq = gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
-	spi_register_board_info(mx31_3ds_spi_devs,
-						ARRAY_SIZE(mx31_3ds_spi_devs));
-
-	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx31_add_imx_keypad(&mx31_3ds_keymap_data);
+
+	imx31_add_imx2_wdt();
+	imx31_add_imx_i2c0(&mx31_3ds_i2c0_data);
+
+	imx31_add_spi_imx0(&spi0_pdata);
+	imx31_add_ipu_core();
+	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
+
+	imx31_add_imx_ssi(0, &mx31_3ds_ssi_pdata);
+
+	imx_add_platform_device("imx_mc13783", 0, NULL, 0, NULL, 0);
+}
+
+static void __init mx31_3ds_late(void)
+{
+	mx31_3ds_spi_devs[0].irq = gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
+	spi_register_board_info(mx31_3ds_spi_devs,
+				ARRAY_SIZE(mx31_3ds_spi_devs));
 
 	mx31_3ds_usbotg_init();
 	if (otg_mode_host) {
@@ -733,41 +610,14 @@ static void __init mx31_3ds_init(void)
 
 	if (mxc_expio_init(MX31_CS5_BASE_ADDR, IOMUX_TO_GPIO(MX31_PIN_GPIO1_1)))
 		printk(KERN_WARNING "Init of the debug board failed, all "
-				    "devices on the debug board are unusable.\n");
-	imx31_add_imx2_wdt();
-	imx31_add_imx_i2c0(&mx31_3ds_i2c0_data);
+		       "devices on the debug board are unusable.\n");
+
 	imx31_add_mxc_mmc(0, &sdhc1_pdata);
-
-	imx31_add_spi_imx0(&spi0_pdata);
-	imx31_add_ipu_core();
-	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
-
-	/* CSI */
-	/* Camera power: default - off */
-	ret = gpio_request_array(mx31_3ds_camera_gpios,
-				 ARRAY_SIZE(mx31_3ds_camera_gpios));
-	if (ret) {
-		pr_err("Failed to request camera gpios");
-		iclink_ov2640.power = NULL;
-	}
-
-	mx31_3ds_init_camera();
-
-	imx31_add_imx_ssi(0, &mx31_3ds_ssi_pdata);
-
-	imx_add_platform_device("imx_mc13783", 0, NULL, 0, NULL, 0);
 }
 
 static void __init mx31_3ds_timer_init(void)
 {
 	mx31_clocks_init(26000000);
-}
-
-static void __init mx31_3ds_reserve(void)
-{
-	/* reserve MX31_3DS_CAMERA_BUF_SIZE bytes for mx3-camera */
-	mx3_camera_base = arm_memblock_steal(MX31_3DS_CAMERA_BUF_SIZE,
-					 MX31_3DS_CAMERA_BUF_SIZE);
 }
 
 MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
@@ -778,6 +628,6 @@ MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	.init_irq = mx31_init_irq,
 	.init_time	= mx31_3ds_timer_init,
 	.init_machine = mx31_3ds_init,
-	.reserve = mx31_3ds_reserve,
+	.init_late	= mx31_3ds_late,
 	.restart	= mxc_restart,
 MACHINE_END

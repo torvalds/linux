@@ -296,11 +296,10 @@ static int mt2266_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int mt2266_release(struct dvb_frontend *fe)
+static void mt2266_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static const struct dvb_tuner_ops mt2266_tuner_ops = {

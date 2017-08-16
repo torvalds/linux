@@ -16,7 +16,7 @@
 #include <linux/ratelimit.h>
 #include <asm/processor.h>
 #include <asm/machvec.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/thread_info.h>
 #include <cpu/mmu_context.h>
 
@@ -99,7 +99,7 @@ static inline void handle_one_irq(unsigned int irq)
 			"mov	%0, r4		\n"
 			"mov	r15, r8		\n"
 			"jsr	@%1		\n"
-			/* swith to the irq stack */
+			/* switch to the irq stack */
 			" mov	%2, r15		\n"
 			/* restore the stack (ring zero) */
 			"mov	r8, r15		\n"

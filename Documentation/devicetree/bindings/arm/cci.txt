@@ -11,13 +11,6 @@ clusters, through memory mapped interface, with a global control register
 space and multiple sets of interface control registers, one per slave
 interface.
 
-Bindings for the CCI node follow the ePAPR standard, available from:
-
-www.power.org/documentation/epapr-version-1-1/
-
-with the addition of the bindings described in this document which are
-specific to ARM.
-
 * CCI interconnect node
 
 	Description: Describes a CCI cache coherent Interconnect component
@@ -34,6 +27,7 @@ specific to ARM.
 		Definition: must contain one of the following:
 			    "arm,cci-400"
 			    "arm,cci-500"
+			    "arm,cci-550"
 
 	- reg
 		Usage: required
@@ -49,10 +43,10 @@ specific to ARM.
 			    as a tuple of cells, containing child address,
 			    parent address and the size of the region in the
 			    child address space.
-		Definition: A standard property. Follow rules in the ePAPR for
-			    hierarchical bus addressing. CCI interfaces
-			    addresses refer to the parent node addressing
-			    scheme to declare their register bases.
+		Definition: A standard property. Follow rules in the Devicetree
+			    Specification for hierarchical bus addressing. CCI
+			    interfaces addresses refer to the parent node
+			    addressing scheme to declare their register bases.
 
 	CCI interconnect node can define the following child nodes:
 
@@ -99,8 +93,9 @@ specific to ARM.
 				 "arm,cci-400-pmu,r0"
 				 "arm,cci-400-pmu,r1"
 				 "arm,cci-400-pmu"  - DEPRECATED, permitted only where OS has
-						      secure acces to CCI registers
+						      secure access to CCI registers
 				 "arm,cci-500-pmu,r0"
+				 "arm,cci-550-pmu,r0"
 		- reg:
 			Usage: required
 			Value type: Integer cells. A register entry, expressed

@@ -108,7 +108,7 @@ static ssize_t flash_strobe_store(struct device *dev,
 	if (ret)
 		goto unlock;
 
-	if (state < 0 || state > 1) {
+	if (state > 1) {
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -298,7 +298,7 @@ int led_classdev_flash_register(struct device *parent,
 	led_cdev = &fled_cdev->led_cdev;
 
 	if (led_cdev->flags & LED_DEV_CAP_FLASH) {
-		if (!led_cdev->brightness_set_sync)
+		if (!led_cdev->brightness_set_blocking)
 			return -EINVAL;
 
 		ops = fled_cdev->ops;
@@ -315,10 +315,6 @@ int led_classdev_flash_register(struct device *parent,
 	ret = led_classdev_register(parent, led_cdev);
 	if (ret < 0)
 		return ret;
-
-	/* Setting a torch brightness needs to have immediate effect */
-	led_cdev->flags &= ~SET_BRIGHTNESS_ASYNC;
-	led_cdev->flags |= SET_BRIGHTNESS_SYNC;
 
 	return 0;
 }

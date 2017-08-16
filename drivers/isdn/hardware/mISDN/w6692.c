@@ -848,13 +848,12 @@ dbusy_timer_handler(struct dchannel *dch)
 	}
 }
 
-void initW6692(struct w6692_hw *card)
+static void initW6692(struct w6692_hw *card)
 {
 	u8	val;
 
-	card->dch.timer.function = (void *)dbusy_timer_handler;
-	card->dch.timer.data = (u_long)&card->dch;
-	init_timer(&card->dch.timer);
+	setup_timer(&card->dch.timer, (void *)dbusy_timer_handler,
+		    (u_long)&card->dch);
 	w6692_mode(&card->bc[0], ISDN_P_NONE);
 	w6692_mode(&card->bc[1], ISDN_P_NONE);
 	WriteW6692(card, W_D_CTL, 0x00);
@@ -1399,7 +1398,7 @@ w6692_remove_pci(struct pci_dev *pdev)
 			pr_notice("%s: drvdata already removed\n", __func__);
 }
 
-static struct pci_device_id w6692_ids[] = {
+static const struct pci_device_id w6692_ids[] = {
 	{ PCI_VENDOR_ID_DYNALINK, PCI_DEVICE_ID_DYNALINK_IS64PH,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, (ulong)&w6692_map[0]},
 	{ PCI_VENDOR_ID_WINBOND2, PCI_DEVICE_ID_WINBOND2_6692,

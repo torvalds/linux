@@ -7,9 +7,6 @@
  *
  */
 
-
-#include <linux/module.h>
-
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/types.h>
@@ -264,7 +261,6 @@ static const struct net_device_ops e100_netdev_ops = {
 	.ndo_do_ioctl		= e100_ioctl,
 	.ndo_set_mac_address	= e100_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_config		= e100_set_config,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= e100_netpoll,
@@ -412,6 +408,7 @@ etrax_ethernet_init(void)
 	led_next_time = jiffies;
 	return 0;
 }
+device_initcall(etrax_ethernet_init)
 
 /* set MAC address of the interface. called from the core after a
  * SIOCSIFADDR ioctl, and from the bootup above.
@@ -1106,7 +1103,7 @@ e100_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	myNextTxDesc->skb = skb;
 
-	dev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
+	netif_trans_update(dev); /* NETIF_F_LLTX driver :( */
 
 	e100_hardware_send_packet(np, buf, skb->len);
 
@@ -1415,31 +1412,38 @@ e100_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return rc;
 }
 
-static int e100_get_settings(struct net_device *dev,
-			     struct ethtool_cmd *cmd)
+static int e100_get_link_ksettings(struct net_device *dev,
+				   struct ethtool_link_ksettings *cmd)
 {
 	struct net_local *np = netdev_priv(dev);
-	int err;
+	u32 supported;
 
 	spin_lock_irq(&np->lock);
-	err = mii_ethtool_gset(&np->mii_if, cmd);
+	mii_ethtool_get_link_ksettings(&np->mii_if, cmd);
 	spin_unlock_irq(&np->lock);
 
 	/* The PHY may support 1000baseT, but the Etrax100 does not.  */
-	cmd->supported &= ~(SUPPORTED_1000baseT_Half
-			    | SUPPORTED_1000baseT_Full);
-	return err;
+	ethtool_convert_link_mode_to_legacy_u32(&supported,
+						cmd->link_modes.supported);
+
+	supported &= ~(SUPPORTED_1000baseT_Half | SUPPORTED_1000baseT_Full);
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+
+	return 0;
 }
 
-static int e100_set_settings(struct net_device *dev,
-			     struct ethtool_cmd *ecmd)
+static int e100_set_link_ksettings(struct net_device *dev,
+				   const struct ethtool_link_ksettings *ecmd)
 {
-	if (ecmd->autoneg == AUTONEG_ENABLE) {
+	if (ecmd->base.autoneg == AUTONEG_ENABLE) {
 		e100_set_duplex(dev, autoneg);
 		e100_set_speed(dev, 0);
 	} else {
-		e100_set_duplex(dev, ecmd->duplex == DUPLEX_HALF ? half : full);
-		e100_set_speed(dev, ecmd->speed == SPEED_10 ? 10: 100);
+		e100_set_duplex(dev, ecmd->base.duplex == DUPLEX_HALF ?
+				half : full);
+		e100_set_speed(dev, ecmd->base.speed == SPEED_10 ? 10 : 100);
 	}
 
 	return 0;
@@ -1462,11 +1466,11 @@ static int e100_nway_reset(struct net_device *dev)
 }
 
 static const struct ethtool_ops e100_ethtool_ops = {
-	.get_settings	= e100_get_settings,
-	.set_settings	= e100_set_settings,
 	.get_drvinfo	= e100_get_drvinfo,
 	.nway_reset	= e100_nway_reset,
 	.get_link	= ethtool_op_get_link,
+	.get_link_ksettings	= e100_get_link_ksettings,
+	.set_link_ksettings	= e100_set_link_ksettings,
 };
 
 static int
@@ -1715,11 +1719,6 @@ e100_netpoll(struct net_device* netdev)
 }
 #endif
 
-static int
-etrax_init_module(void)
-{
-	return etrax_ethernet_init();
-}
 
 static int __init
 e100_boot_setup(char* str)
@@ -1742,5 +1741,3 @@ e100_boot_setup(char* str)
 }
 
 __setup("etrax100_eth=", e100_boot_setup);
-
-module_init(etrax_init_module);

@@ -8,7 +8,8 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/clk.h>
@@ -195,7 +196,7 @@ int bcm63xx_timer_init(void)
 	irq = bcm63xx_get_irq_number(IRQ_TIMER);
 	ret = request_irq(irq, timer_interrupt, 0, "bcm63xx_timer", NULL);
 	if (ret) {
-		printk(KERN_ERR "bcm63xx_timer: failed to register irq\n");
+		pr_err("%s: failed to register irq\n", __func__);
 		return ret;
 	}
 

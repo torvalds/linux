@@ -600,7 +600,7 @@ static int pmic_probe(struct spi_device *spi)
 
 	memset(hw, 0, sizeof(struct tps6524x));
 	hw->dev = dev;
-	hw->spi = spi_dev_get(spi);
+	hw->spi = spi;
 	mutex_init(&hw->lock);
 
 	for (i = 0; i < N_REGULATORS; i++, info++, init_data++) {
@@ -629,7 +629,6 @@ static struct spi_driver pmic_driver = {
 	.probe		= pmic_probe,
 	.driver		= {
 		.name	= "tps6524x",
-		.owner	= THIS_MODULE,
 	},
 };
 

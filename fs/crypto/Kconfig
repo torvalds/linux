@@ -1,0 +1,16 @@
+config FS_ENCRYPTION
+	tristate "FS Encryption (Per-file encryption)"
+	select CRYPTO
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	select CRYPTO_ECB
+	select CRYPTO_XTS
+	select CRYPTO_CTS
+	select CRYPTO_CTR
+	select CRYPTO_SHA256
+	select KEYS
+	help
+	  Enable encryption of files and directories.  This
+	  feature is similar to ecryptfs, but it is more memory
+	  efficient since it avoids caching the encrypted and
+	  decrypted pages in the page cache.

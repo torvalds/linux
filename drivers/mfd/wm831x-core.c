@@ -19,6 +19,8 @@
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
@@ -1613,12 +1615,24 @@ struct regmap_config wm831x_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(wm831x_regmap_config);
 
+const struct of_device_id wm831x_of_match[] = {
+	{ .compatible = "wlf,wm8310", .data = (void *)WM8310 },
+	{ .compatible = "wlf,wm8311", .data = (void *)WM8311 },
+	{ .compatible = "wlf,wm8312", .data = (void *)WM8312 },
+	{ .compatible = "wlf,wm8320", .data = (void *)WM8320 },
+	{ .compatible = "wlf,wm8321", .data = (void *)WM8321 },
+	{ .compatible = "wlf,wm8325", .data = (void *)WM8325 },
+	{ .compatible = "wlf,wm8326", .data = (void *)WM8326 },
+	{ },
+};
+EXPORT_SYMBOL_GPL(wm831x_of_match);
+
 /*
  * Instantiate the generic non-control parts of the device.
  */
-int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
+int wm831x_device_init(struct wm831x *wm831x, int irq)
 {
-	struct wm831x_pdata *pdata = dev_get_platdata(wm831x->dev);
+	struct wm831x_pdata *pdata = &wm831x->pdata;
 	int rev, wm831x_num;
 	enum wm831x_parent parent;
 	int ret, i;
@@ -1626,6 +1640,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	mutex_init(&wm831x->io_lock);
 	mutex_init(&wm831x->key_lock);
 	dev_set_drvdata(wm831x->dev, wm831x);
+
 	wm831x->soft_shutdown = pdata->soft_shutdown;
 
 	ret = wm831x_reg_read(wm831x, WM831X_PARENT_ID);
@@ -1661,7 +1676,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	 */
 	if (ret == 0) {
 		dev_info(wm831x->dev, "Device is an engineering sample\n");
-		ret = id;
+		ret = wm831x->type;
 	}
 
 	switch (ret) {
@@ -1734,9 +1749,9 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	/* This will need revisiting in future but is OK for all
 	 * current parts.
 	 */
-	if (parent != id)
-		dev_warn(wm831x->dev, "Device was registered as a WM%lx\n",
-			 id);
+	if (parent != wm831x->type)
+		dev_warn(wm831x->dev, "Device was registered as a WM%x\n",
+			 wm831x->type);
 
 	/* Bootstrap the user key */
 	ret = wm831x_reg_read(wm831x, WM831X_SECURITY_KEY);
@@ -1751,7 +1766,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	}
 	wm831x->locked = 1;
 
-	if (pdata && pdata->pre_init) {
+	if (pdata->pre_init) {
 		ret = pdata->pre_init(wm831x);
 		if (ret != 0) {
 			dev_err(wm831x->dev, "pre_init() failed: %d\n", ret);
@@ -1759,19 +1774,17 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		}
 	}
 
-	if (pdata) {
-		for (i = 0; i < ARRAY_SIZE(pdata->gpio_defaults); i++) {
-			if (!pdata->gpio_defaults[i])
-				continue;
+	for (i = 0; i < ARRAY_SIZE(pdata->gpio_defaults); i++) {
+		if (!pdata->gpio_defaults[i])
+			continue;
 
-			wm831x_reg_write(wm831x,
-					 WM831X_GPIO1_CONTROL + i,
-					 pdata->gpio_defaults[i] & 0xffff);
-		}
+		wm831x_reg_write(wm831x,
+				 WM831X_GPIO1_CONTROL + i,
+				 pdata->gpio_defaults[i] & 0xffff);
 	}
 
 	/* Multiply by 10 as we have many subdevices of the same type */
-	if (pdata && pdata->wm831x_num)
+	if (pdata->wm831x_num)
 		wm831x_num = pdata->wm831x_num * 10;
 	else
 		wm831x_num = -1;
@@ -1794,7 +1807,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8311_devs, ARRAY_SIZE(wm8311_devs),
 				      NULL, 0, NULL);
-		if (!pdata || !pdata->disable_touch)
+		if (!pdata->disable_touch)
 			mfd_add_devices(wm831x->dev, wm831x_num,
 					touch_devs, ARRAY_SIZE(touch_devs),
 					NULL, 0, NULL);
@@ -1804,7 +1817,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8312_devs, ARRAY_SIZE(wm8312_devs),
 				      NULL, 0, NULL);
-		if (!pdata || !pdata->disable_touch)
+		if (!pdata->disable_touch)
 			mfd_add_devices(wm831x->dev, wm831x_num,
 					touch_devs, ARRAY_SIZE(touch_devs),
 					NULL, 0, NULL);
@@ -1850,7 +1863,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		dev_info(wm831x->dev, "32.768kHz clock disabled, no RTC\n");
 	}
 
-	if (pdata && pdata->backlight) {
+	if (pdata->backlight) {
 		/* Treat errors as non-critical */
 		ret = mfd_add_devices(wm831x->dev, wm831x_num, backlight_devs,
 				      ARRAY_SIZE(backlight_devs), NULL,
@@ -1862,7 +1875,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 
 	wm831x_otp_init(wm831x);
 
-	if (pdata && pdata->post_init) {
+	if (pdata->post_init) {
 		ret = pdata->post_init(wm831x);
 		if (ret != 0) {
 			dev_err(wm831x->dev, "post_init() failed: %d\n", ret);

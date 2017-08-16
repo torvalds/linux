@@ -29,6 +29,7 @@
 
 #include "atom.h"
 #include "atom-bits.h"
+#include "radeon_asic.h"
 
 extern void
 radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum,
@@ -437,7 +438,9 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 	}
 
 	/* Fujitsu D3003-S2 board lists DVI-I as DVI-D and VGA */
-	if (((dev->pdev->device == 0x9802) || (dev->pdev->device == 0x9806)) &&
+	if (((dev->pdev->device == 0x9802) ||
+	     (dev->pdev->device == 0x9805) ||
+	     (dev->pdev->device == 0x9806)) &&
 	    (dev->pdev->subsystem_vendor == 0x1734) &&
 	    (dev->pdev->subsystem_device == 0x11bd)) {
 		if (*connector_type == DRM_MODE_CONNECTOR_VGA) {
@@ -446,14 +449,6 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		} else if (*connector_type == DRM_MODE_CONNECTOR_DVID) {
 			*connector_type = DRM_MODE_CONNECTOR_DVII;
 		}
-	}
-
-	/* Fujitsu D3003-S2 board lists DVI-I as DVI-I and VGA */
-	if ((dev->pdev->device == 0x9805) &&
-	    (dev->pdev->subsystem_vendor == 0x1734) &&
-	    (dev->pdev->subsystem_device == 0x11bd)) {
-		if (*connector_type == DRM_MODE_CONNECTOR_VGA)
-			return false;
 	}
 
 	return true;
@@ -1112,6 +1107,31 @@ union firmware_info {
 	ATOM_FIRMWARE_INFO_V2_2 info_22;
 };
 
+union igp_info {
+	struct _ATOM_INTEGRATED_SYSTEM_INFO info;
+	struct _ATOM_INTEGRATED_SYSTEM_INFO_V2 info_2;
+	struct _ATOM_INTEGRATED_SYSTEM_INFO_V6 info_6;
+	struct _ATOM_INTEGRATED_SYSTEM_INFO_V1_7 info_7;
+	struct _ATOM_INTEGRATED_SYSTEM_INFO_V1_8 info_8;
+};
+
+static void radeon_atombios_get_dentist_vco_freq(struct radeon_device *rdev)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, IntegratedSystemInfo);
+	union igp_info *igp_info;
+	u8 frev, crev;
+	u16 data_offset;
+
+	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+			&frev, &crev, &data_offset)) {
+		igp_info = (union igp_info *)(mode_info->atom_context->bios +
+			data_offset);
+		rdev->clock.vco_freq =
+			le32_to_cpu(igp_info->info_6.ulDentistVCOFreq);
+	}
+}
+
 bool radeon_atom_get_clock_info(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
@@ -1136,7 +1156,7 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		    le16_to_cpu(firmware_info->info.usReferenceClock);
 		p1pll->reference_div = 0;
 
-		if (crev < 2)
+		if ((frev < 2) && (crev < 2))
 			p1pll->pll_out_min =
 				le16_to_cpu(firmware_info->info.usMinPixelClockPLL_Output);
 		else
@@ -1145,7 +1165,7 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		p1pll->pll_out_max =
 		    le32_to_cpu(firmware_info->info.ulMaxPixelClockPLL_Output);
 
-		if (crev >= 4) {
+		if (((frev < 2) && (crev >= 4)) || (frev >= 2)) {
 			p1pll->lcd_pll_out_min =
 				le16_to_cpu(firmware_info->info_14.usLcdMinPixelClockPLL_Output) * 100;
 			if (p1pll->lcd_pll_out_min == 0)
@@ -1263,19 +1283,24 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		rdev->mode_info.firmware_flags =
 			le16_to_cpu(firmware_info->info.usFirmwareCapability.susAccess);
 
+		if (ASIC_IS_DCE8(rdev))
+			rdev->clock.vco_freq =
+				le32_to_cpu(firmware_info->info_22.ulGPUPLL_OutputFreq);
+		else if (ASIC_IS_DCE5(rdev))
+			rdev->clock.vco_freq = rdev->clock.current_dispclk;
+		else if (ASIC_IS_DCE41(rdev))
+			radeon_atombios_get_dentist_vco_freq(rdev);
+		else
+			rdev->clock.vco_freq = rdev->clock.current_dispclk;
+
+		if (rdev->clock.vco_freq == 0)
+			rdev->clock.vco_freq = 360000;	/* 3.6 GHz */
+
 		return true;
 	}
 
 	return false;
 }
-
-union igp_info {
-	struct _ATOM_INTEGRATED_SYSTEM_INFO info;
-	struct _ATOM_INTEGRATED_SYSTEM_INFO_V2 info_2;
-	struct _ATOM_INTEGRATED_SYSTEM_INFO_V6 info_6;
-	struct _ATOM_INTEGRATED_SYSTEM_INFO_V1_7 info_7;
-	struct _ATOM_INTEGRATED_SYSTEM_INFO_V1_8 info_8;
-};
 
 bool radeon_atombios_sideport_present(struct radeon_device *rdev)
 {
@@ -2071,7 +2096,7 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 	struct radeon_i2c_bus_rec i2c_bus;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
-        u16 data_offset;
+	u16 data_offset;
 	u8 frev, crev;
 
 	if (!atom_parse_data_header(mode_info->atom_context, index, NULL,
@@ -2551,7 +2576,7 @@ static int radeon_atombios_parse_power_table_4_5(struct radeon_device *rdev)
 	bool valid;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
-        u16 data_offset;
+	u16 data_offset;
 	u8 frev, crev;
 
 	if (!atom_parse_data_header(mode_info->atom_context, index, NULL,
@@ -2642,7 +2667,7 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
 	bool valid;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
-        u16 data_offset;
+	u16 data_offset;
 	u8 frev, crev;
 	u8 *power_state_offset;
 

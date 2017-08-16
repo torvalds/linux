@@ -38,8 +38,8 @@ struct s3c64xx_spi_csinfo {
 struct s3c64xx_spi_info {
 	int src_clk_nr;
 	int num_cs;
+	bool no_cs;
 	int (*cfg_gpio)(void);
-	dma_filter_fn filter;
 };
 
 /**

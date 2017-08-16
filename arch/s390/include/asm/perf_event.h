@@ -1,7 +1,7 @@
 /*
  * Performance event support - s390 specific definitions.
  *
- * Copyright IBM Corp. 2009, 2013
+ * Copyright IBM Corp. 2009, 2017
  * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
@@ -21,7 +21,7 @@
 #define PMU_F_ERR_LSDA			0x0200
 #define PMU_F_ERR_MASK			(PMU_F_ERR_IBE|PMU_F_ERR_LSDA)
 
-/* Perf defintions for PMU event attributes in sysfs */
+/* Perf definitions for PMU event attributes in sysfs */
 extern __init const struct attribute_group **cpumf_cf_event_group(void);
 extern ssize_t cpumf_events_sysfs_show(struct device *dev,
 				       struct device_attribute *attr,
@@ -47,7 +47,7 @@ struct perf_sf_sde_regs {
 };
 
 /* Perf PMU definitions for the counter facility */
-#define PERF_CPUM_CF_MAX_CTR		256
+#define PERF_CPUM_CF_MAX_CTR		0xffffUL  /* Max ctr for ECCTR */
 
 /* Perf PMU definitions for the sampling facility */
 #define PERF_CPUM_SF_MAX_CTR		2
@@ -85,17 +85,5 @@ struct sf_raw_sample {
 	struct hws_diag_entry	 diag;	  /* Diagnostic-sampling data entry */
 	u8		    padding[];	  /* Padding to next multiple of 8 */
 } __packed;
-
-/* Perf hardware reserve and release functions */
-#ifdef CONFIG_PERF_EVENTS
-int perf_reserve_sampling(void);
-void perf_release_sampling(void);
-#else /* CONFIG_PERF_EVENTS */
-static inline int perf_reserve_sampling(void)
-{
-	return 0;
-}
-static inline void perf_release_sampling(void) {}
-#endif /* CONFIG_PERF_EVENTS */
 
 #endif /* _ASM_S390_PERF_EVENT_H */

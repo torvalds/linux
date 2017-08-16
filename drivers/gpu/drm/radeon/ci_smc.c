@@ -23,7 +23,7 @@
  */
 
 #include <linux/firmware.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "radeon.h"
 #include "cikd.h"
 #include "ppsmc.h"
@@ -194,11 +194,11 @@ PPSMC_Result ci_wait_for_smc_inactive(struct radeon_device *rdev)
 		return PPSMC_Result_OK;
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
-                tmp = RREG32_SMC(SMC_SYSCON_CLOCK_CNTL_0);
-                if ((tmp & CKEN) == 0)
+		tmp = RREG32_SMC(SMC_SYSCON_CLOCK_CNTL_0);
+		if ((tmp & CKEN) == 0)
 			break;
-                udelay(1);
-        }
+		udelay(1);
+	}
 
 	return PPSMC_Result_OK;
 }

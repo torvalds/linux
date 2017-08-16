@@ -35,7 +35,7 @@
 
 /* A few routines that create sysfs entries for the hot plug controller */
 
-static ssize_t show_ctrl (struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_ctrl(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev;
 	char *out = buf;
@@ -43,7 +43,7 @@ static ssize_t show_ctrl (struct device *dev, struct device_attribute *attr, cha
 	struct resource *res;
 	struct pci_bus *bus;
 
-	pdev = container_of (dev, struct pci_dev, dev);
+	pdev = to_pci_dev(dev);
 	bus = pdev->subordinate;
 
 	out += sprintf(buf, "Free resources: memory\n");
@@ -83,11 +83,11 @@ static ssize_t show_ctrl (struct device *dev, struct device_attribute *attr, cha
 
 	return out - buf;
 }
-static DEVICE_ATTR (ctrl, S_IRUGO, show_ctrl, NULL);
+static DEVICE_ATTR(ctrl, S_IRUGO, show_ctrl, NULL);
 
-int shpchp_create_ctrl_files (struct controller *ctrl)
+int shpchp_create_ctrl_files(struct controller *ctrl)
 {
-	return device_create_file (&ctrl->pci_dev->dev, &dev_attr_ctrl);
+	return device_create_file(&ctrl->pci_dev->dev, &dev_attr_ctrl);
 }
 
 void shpchp_remove_ctrl_files(struct controller *ctrl)

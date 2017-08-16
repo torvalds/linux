@@ -5,12 +5,13 @@
  *
  * Author(s):
  *   Jan Glauber <jang@linux.vnet.ibm.com>
+ *
+ * License: GPL
  */
 
 #define KMSG_COMPONENT "zpci"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
@@ -20,10 +21,6 @@
 
 #define SLOT_NAME_SIZE	10
 static LIST_HEAD(s390_hotplug_slot_list);
-
-MODULE_AUTHOR("Jan Glauber <jang@linux.vnet.ibm.com");
-MODULE_DESCRIPTION("Hot Plug PCI Controller for System z");
-MODULE_LICENSE("GPL");
 
 static int zpci_fn_configured(enum zpci_state state)
 {
@@ -93,13 +90,17 @@ out_deconfigure:
 static int disable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct slot *slot = hotplug_slot->private;
+	struct pci_dev *pdev;
 	int rc;
 
 	if (!zpci_fn_configured(slot->zdev->state))
 		return -EIO;
 
-	if (slot->zdev->pdev)
-		pci_stop_and_remove_bus_device_locked(slot->zdev->pdev);
+	pdev = pci_get_slot(slot->zdev->bus, ZPCI_DEVFN);
+	if (pdev) {
+		pci_stop_and_remove_bus_device_locked(pdev);
+		pci_dev_put(pdev);
+	}
 
 	rc = zpci_disable_device(slot->zdev);
 	if (rc)
@@ -201,11 +202,10 @@ error:
 
 void zpci_exit_slot(struct zpci_dev *zdev)
 {
-	struct list_head *tmp, *n;
-	struct slot *slot;
+	struct slot *slot, *next;
 
-	list_for_each_safe(tmp, n, &s390_hotplug_slot_list) {
-		slot = list_entry(tmp, struct slot, slot_list);
+	list_for_each_entry_safe(slot, next, &s390_hotplug_slot_list,
+				 slot_list) {
 		if (slot->zdev != zdev)
 			continue;
 		list_del(&slot->slot_list);

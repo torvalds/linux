@@ -45,8 +45,7 @@
    assumed that we want to share code when debugging (exposes more
    trouble). */
 #ifndef SHARE_LIB_CORE
-# if (defined(__KERNEL__) || !defined(RELOC_DEBUG)) \
-     && !defined(CONFIG_SHARE_SHLIB_CORE)
+# if (defined(__KERNEL__) || !defined(RELOC_DEBUG))
 #  define SHARE_LIB_CORE 0
 # else
 #  define SHARE_LIB_CORE 1

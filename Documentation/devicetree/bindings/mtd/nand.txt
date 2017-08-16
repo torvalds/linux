@@ -1,8 +1,31 @@
-* MTD generic binding
+* NAND chip and NAND controller generic binding
+
+NAND controller/NAND chip representation:
+
+The NAND controller should be represented with its own DT node, and all
+NAND chips attached to this controller should be defined as children nodes
+of the NAND controller. This representation should be enforced even for
+simple controllers supporting only one chip.
+
+Mandatory NAND controller properties:
+- #address-cells: depends on your controller. Should at least be 1 to
+		  encode the CS line id.
+- #size-cells: depends on your controller. Put zero unless you need a
+	       mapping between CS lines and dedicated memory regions
+
+Optional NAND controller properties
+- ranges: only needed if you need to define a mapping between CS lines and
+	  memory regions
+
+Optional NAND chip properties:
 
 - nand-ecc-mode : String, operation mode of the NAND ecc mode.
-  Supported values are: "none", "soft", "hw", "hw_syndrome", "hw_oob_first",
-  "soft_bch".
+		  Supported values are: "none", "soft", "hw", "hw_syndrome",
+		  "hw_oob_first", "on-die".
+		  Deprecated values:
+		  "soft_bch": use "soft" and nand-ecc-algo instead
+- nand-ecc-algo: string, algorithm of NAND ECC.
+		 Supported values are: "hamming", "bch".
 - nand-bus-width : 8 or 16 bus width if not present 8
 - nand-on-flash-bbt: boolean to enable on flash bbt option if not present false
 
@@ -12,6 +35,15 @@
 - nand-ecc-step-size: integer representing the number of data bytes
 		      that are covered by a single ECC step.
 
+- nand-ecc-maximize: boolean used to specify that you want to maximize ECC
+		     strength. The maximum ECC strength is both controller and
+		     chip dependent. The controller side has to select the ECC
+		     config providing the best strength and taking the OOB area
+		     size constraint into account.
+		     This is particularly useful when only the in-band area is
+		     used by the upper layers, and you want to make your NAND
+		     as reliable as possible.
+
 The ECC strength and ECC step size properties define the correction capability
 of a controller. Together, they say a controller can correct "{strength} bit
 errors per {size} bytes".
@@ -19,3 +51,20 @@ errors per {size} bytes".
 The interpretation of these parameters is implementation-defined, so not all
 implementations must support all possible combinations. However, implementations
 are encouraged to further specify the value(s) they support.
+
+Example:
+
+	nand-controller {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* controller specific properties */
+
+		nand@0 {
+			reg = <0>;
+			nand-ecc-mode = "soft";
+			nand-ecc-algo = "bch";
+
+			/* controller specific properties */
+		};
+	};

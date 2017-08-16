@@ -33,7 +33,7 @@ void *dm_block_data(struct dm_block *b);
 struct dm_block_manager;
 struct dm_block_manager *dm_block_manager_create(
 	struct block_device *bdev, unsigned block_size,
-	unsigned cache_size, unsigned max_held_per_thread);
+	unsigned max_held_per_thread);
 void dm_block_manager_destroy(struct dm_block_manager *bm);
 
 unsigned dm_bm_block_size(struct dm_block_manager *bm);
@@ -94,7 +94,7 @@ int dm_bm_write_lock_zero(struct dm_block_manager *bm, dm_block_t b,
 			  struct dm_block_validator *v,
 			  struct dm_block **result);
 
-int dm_bm_unlock(struct dm_block *b);
+void dm_bm_unlock(struct dm_block *b);
 
 /*
  * It's a common idiom to have a superblock that should be committed last.

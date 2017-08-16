@@ -14,7 +14,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/page.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Nothing too terribly exciting here ..

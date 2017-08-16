@@ -72,4 +72,7 @@ int xfs_inobt_rec_check_count(struct xfs_mount *,
 #define xfs_inobt_rec_check_count(mp, rec)	0
 #endif	/* DEBUG */
 
+int xfs_finobt_calc_reserves(struct xfs_mount *mp, xfs_agnumber_t agno,
+		xfs_extlen_t *ask, xfs_extlen_t *used);
+
 #endif	/* __XFS_IALLOC_BTREE_H__ */

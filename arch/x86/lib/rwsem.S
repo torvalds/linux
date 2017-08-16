@@ -15,6 +15,7 @@
 
 #include <linux/linkage.h>
 #include <asm/alternative-asm.h>
+#include <asm/frame.h>
 
 #define __ASM_HALF_REG(reg)	__ASM_SEL(reg, e##reg)
 #define __ASM_HALF_SIZE(inst)	__ASM_SEL(inst##w, inst##l)
@@ -28,8 +29,10 @@
  * there is contention on the semaphore.
  *
  * %eax contains the semaphore pointer on entry. Save the C-clobbered
- * registers (%eax, %edx and %ecx) except %eax whish is either a return
- * value or just clobbered..
+ * registers (%eax, %edx and %ecx) except %eax which is either a return
+ * value or just gets clobbered. Same is true for %edx so make sure GCC
+ * reloads it after the slow path, by making it hold a temporary, for
+ * example see ____down_write().
  */
 
 #define save_common_regs \
@@ -84,24 +87,39 @@
 
 /* Fix up special calling conventions */
 ENTRY(call_rwsem_down_read_failed)
+	FRAME_BEGIN
 	save_common_regs
 	__ASM_SIZE(push,) %__ASM_REG(dx)
 	movq %rax,%rdi
 	call rwsem_down_read_failed
 	__ASM_SIZE(pop,) %__ASM_REG(dx)
 	restore_common_regs
+	FRAME_END
 	ret
 ENDPROC(call_rwsem_down_read_failed)
 
 ENTRY(call_rwsem_down_write_failed)
+	FRAME_BEGIN
 	save_common_regs
 	movq %rax,%rdi
 	call rwsem_down_write_failed
 	restore_common_regs
+	FRAME_END
 	ret
 ENDPROC(call_rwsem_down_write_failed)
 
+ENTRY(call_rwsem_down_write_failed_killable)
+	FRAME_BEGIN
+	save_common_regs
+	movq %rax,%rdi
+	call rwsem_down_write_failed_killable
+	restore_common_regs
+	FRAME_END
+	ret
+ENDPROC(call_rwsem_down_write_failed_killable)
+
 ENTRY(call_rwsem_wake)
+	FRAME_BEGIN
 	/* do nothing if still outstanding active readers */
 	__ASM_HALF_SIZE(dec) %__ASM_HALF_REG(dx)
 	jnz 1f
@@ -109,15 +127,18 @@ ENTRY(call_rwsem_wake)
 	movq %rax,%rdi
 	call rwsem_wake
 	restore_common_regs
-1:	ret
+1:	FRAME_END
+	ret
 ENDPROC(call_rwsem_wake)
 
 ENTRY(call_rwsem_downgrade_wake)
+	FRAME_BEGIN
 	save_common_regs
 	__ASM_SIZE(push,) %__ASM_REG(dx)
 	movq %rax,%rdi
 	call rwsem_downgrade_wake
 	__ASM_SIZE(pop,) %__ASM_REG(dx)
 	restore_common_regs
+	FRAME_END
 	ret
 ENDPROC(call_rwsem_downgrade_wake)

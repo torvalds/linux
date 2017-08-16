@@ -32,7 +32,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/types.h>
 
 #include "ucc_geth.h"
@@ -105,23 +105,22 @@ static const char rx_fw_stat_gstrings[][ETH_GSTRING_LEN] = {
 #define UEC_RX_FW_STATS_LEN ARRAY_SIZE(rx_fw_stat_gstrings)
 
 static int
-uec_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
+uec_get_ksettings(struct net_device *netdev, struct ethtool_link_ksettings *cmd)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
 	struct phy_device *phydev = ugeth->phydev;
-	struct ucc_geth_info *ug_info = ugeth->ug_info;
 
 	if (!phydev)
 		return -ENODEV;
 
-	ecmd->maxtxpkt = 1;
-	ecmd->maxrxpkt = ug_info->interruptcoalescingmaxvalue[0];
+	phy_ethtool_ksettings_get(phydev, cmd);
 
-	return phy_ethtool_gset(phydev, ecmd);
+	return 0;
 }
 
 static int
-uec_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
+uec_set_ksettings(struct net_device *netdev,
+		  const struct ethtool_link_ksettings *cmd)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
 	struct phy_device *phydev = ugeth->phydev;
@@ -129,7 +128,7 @@ uec_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	if (!phydev)
 		return -ENODEV;
 
-	return phy_ethtool_sset(phydev, ecmd);
+	return phy_ethtool_ksettings_set(phydev, cmd);
 }
 
 static void
@@ -335,13 +334,6 @@ static void uec_get_ethtool_stats(struct net_device *netdev,
 	}
 }
 
-static int uec_nway_reset(struct net_device *netdev)
-{
-	struct ucc_geth_private *ugeth = netdev_priv(netdev);
-
-	return phy_start_aneg(ugeth->phydev);
-}
-
 /* Report driver information */
 static void
 uec_get_drvinfo(struct net_device *netdev,
@@ -351,8 +343,6 @@ uec_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, "QUICC ENGINE", sizeof(drvinfo->bus_info));
-	drvinfo->eedump_len = 0;
-	drvinfo->regdump_len = uec_get_regs_len(netdev);
 }
 
 #ifdef CONFIG_PM
@@ -394,14 +384,12 @@ static int uec_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 #endif /* CONFIG_PM */
 
 static const struct ethtool_ops uec_ethtool_ops = {
-	.get_settings           = uec_get_settings,
-	.set_settings           = uec_set_settings,
 	.get_drvinfo            = uec_get_drvinfo,
 	.get_regs_len           = uec_get_regs_len,
 	.get_regs               = uec_get_regs,
 	.get_msglevel           = uec_get_msglevel,
 	.set_msglevel           = uec_set_msglevel,
-	.nway_reset             = uec_nway_reset,
+	.nway_reset             = phy_ethtool_nway_reset,
 	.get_link               = ethtool_op_get_link,
 	.get_ringparam          = uec_get_ringparam,
 	.set_ringparam          = uec_set_ringparam,
@@ -413,6 +401,8 @@ static const struct ethtool_ops uec_ethtool_ops = {
 	.get_wol		= uec_get_wol,
 	.set_wol		= uec_set_wol,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_link_ksettings	= uec_get_ksettings,
+	.set_link_ksettings	= uec_set_ksettings,
 };
 
 void uec_set_ethtool_ops(struct net_device *netdev)

@@ -8,6 +8,49 @@
 #define _NFSD_TRACE_H
 
 #include <linux/tracepoint.h>
+#include "nfsfh.h"
+
+DECLARE_EVENT_CLASS(nfsd_io_class,
+	TP_PROTO(struct svc_rqst *rqstp,
+		 struct svc_fh	*fhp,
+		 loff_t		offset,
+		 int		len),
+	TP_ARGS(rqstp, fhp, offset, len),
+	TP_STRUCT__entry(
+		__field(__be32, xid)
+		__field_struct(struct knfsd_fh, fh)
+		__field(loff_t, offset)
+		__field(int, len)
+	),
+	TP_fast_assign(
+		__entry->xid = rqstp->rq_xid,
+		fh_copy_shallow(&__entry->fh, &fhp->fh_handle);
+		__entry->offset = offset;
+		__entry->len = len;
+	),
+	TP_printk("xid=0x%x fh=0x%x offset=%lld len=%d",
+		  __be32_to_cpu(__entry->xid), knfsd_fh_hash(&__entry->fh),
+		  __entry->offset, __entry->len)
+)
+
+#define DEFINE_NFSD_IO_EVENT(name)		\
+DEFINE_EVENT(nfsd_io_class, name,		\
+	TP_PROTO(struct svc_rqst *rqstp,	\
+		 struct svc_fh	*fhp,		\
+		 loff_t		offset,		\
+		 int		len),		\
+	TP_ARGS(rqstp, fhp, offset, len))
+
+DEFINE_NFSD_IO_EVENT(read_start);
+DEFINE_NFSD_IO_EVENT(read_opened);
+DEFINE_NFSD_IO_EVENT(read_io_done);
+DEFINE_NFSD_IO_EVENT(read_done);
+DEFINE_NFSD_IO_EVENT(write_start);
+DEFINE_NFSD_IO_EVENT(write_opened);
+DEFINE_NFSD_IO_EVENT(write_io_done);
+DEFINE_NFSD_IO_EVENT(write_done);
+
+#include "state.h"
 
 DECLARE_EVENT_CLASS(nfsd_stateid_class,
 	TP_PROTO(stateid_t *stp),

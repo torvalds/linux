@@ -46,7 +46,7 @@
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
-#include "mthca_user.h"
+#include <rdma/mthca-abi.h>
 #include "mthca_memfree.h"
 
 static void init_query_mad(struct ib_smp *mad)
@@ -146,7 +146,7 @@ static int mthca_query_port(struct ib_device *ibdev,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	memset(props, 0, sizeof *props);
+	/* props being zeroed by the caller, avoid zeroing it here */
 
 	init_query_mad(in_mad);
 	in_mad->attr_id  = IB_SMP_ATTR_PORT_INFO;
@@ -193,7 +193,8 @@ static int mthca_modify_device(struct ib_device *ibdev,
 	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
 		if (mutex_lock_interruptible(&to_mdev(ibdev)->cap_mask_mutex))
 			return -ERESTARTSYS;
-		memcpy(ibdev->node_desc, props->node_desc, 64);
+		memcpy(ibdev->node_desc, props->node_desc,
+		       IB_DEVICE_NODE_DESC_MAX);
 		mutex_unlock(&to_mdev(ibdev)->cap_mask_mutex);
 	}
 
@@ -211,7 +212,7 @@ static int mthca_modify_port(struct ib_device *ibdev,
 	if (mutex_lock_interruptible(&to_mdev(ibdev)->cap_mask_mutex))
 		return -ERESTARTSYS;
 
-	err = mthca_query_port(ibdev, port, &attr);
+	err = ib_query_port(ibdev, port, &attr);
 	if (err)
 		goto out;
 
@@ -409,7 +410,9 @@ static int mthca_dealloc_pd(struct ib_pd *pd)
 }
 
 static struct ib_ah *mthca_ah_create(struct ib_pd *pd,
-				     struct ib_ah_attr *ah_attr)
+				     struct rdma_ah_attr *ah_attr,
+				     struct ib_udata *udata)
+
 {
 	int err;
 	struct mthca_ah *ah;
@@ -898,89 +901,6 @@ static struct ib_mr *mthca_get_dma_mr(struct ib_pd *pd, int acc)
 	return &mr->ibmr;
 }
 
-static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
-				       struct ib_phys_buf *buffer_list,
-				       int                 num_phys_buf,
-				       int                 acc,
-				       u64                *iova_start)
-{
-	struct mthca_mr *mr;
-	u64 *page_list;
-	u64 total_size;
-	unsigned long mask;
-	int shift;
-	int npages;
-	int err;
-	int i, j, n;
-
-	mask = buffer_list[0].addr ^ *iova_start;
-	total_size = 0;
-	for (i = 0; i < num_phys_buf; ++i) {
-		if (i != 0)
-			mask |= buffer_list[i].addr;
-		if (i != num_phys_buf - 1)
-			mask |= buffer_list[i].addr + buffer_list[i].size;
-
-		total_size += buffer_list[i].size;
-	}
-
-	if (mask & ~PAGE_MASK)
-		return ERR_PTR(-EINVAL);
-
-	shift = __ffs(mask | 1 << 31);
-
-	buffer_list[0].size += buffer_list[0].addr & ((1ULL << shift) - 1);
-	buffer_list[0].addr &= ~0ull << shift;
-
-	mr = kmalloc(sizeof *mr, GFP_KERNEL);
-	if (!mr)
-		return ERR_PTR(-ENOMEM);
-
-	npages = 0;
-	for (i = 0; i < num_phys_buf; ++i)
-		npages += (buffer_list[i].size + (1ULL << shift) - 1) >> shift;
-
-	if (!npages)
-		return &mr->ibmr;
-
-	page_list = kmalloc(npages * sizeof *page_list, GFP_KERNEL);
-	if (!page_list) {
-		kfree(mr);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	n = 0;
-	for (i = 0; i < num_phys_buf; ++i)
-		for (j = 0;
-		     j < (buffer_list[i].size + (1ULL << shift) - 1) >> shift;
-		     ++j)
-			page_list[n++] = buffer_list[i].addr + ((u64) j << shift);
-
-	mthca_dbg(to_mdev(pd->device), "Registering memory at %llx (iova %llx) "
-		  "in PD %x; shift %d, npages %d.\n",
-		  (unsigned long long) buffer_list[0].addr,
-		  (unsigned long long) *iova_start,
-		  to_mpd(pd)->pd_num,
-		  shift, npages);
-
-	err = mthca_mr_alloc_phys(to_mdev(pd->device),
-				  to_mpd(pd)->pd_num,
-				  page_list, shift, npages,
-				  *iova_start, total_size,
-				  convert_access(acc), mr);
-
-	if (err) {
-		kfree(page_list);
-		kfree(mr);
-		return ERR_PTR(err);
-	}
-
-	kfree(page_list);
-	mr->umem = NULL;
-
-	return &mr->ibmr;
-}
-
 static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				       u64 virt, int acc, struct ib_udata *udata)
 {
@@ -1017,7 +937,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		goto err;
 	}
 
-	shift = ffs(mr->umem->page_size) - 1;
+	shift = mr->umem->page_shift;
 	n = mr->umem->nmap;
 
 	mr->mtt = mthca_alloc_mtt(dev, n);
@@ -1039,8 +959,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
 		len = sg_dma_len(sg) >> shift;
 		for (k = 0; k < len; ++k) {
-			pages[i++] = sg_dma_address(sg) +
-				mr->umem->page_size * k;
+			pages[i++] = sg_dma_address(sg) + (k << shift);
 			/*
 			 * Be friendly to write_mtt and pass it chunks
 			 * of appropriate size.
@@ -1164,16 +1083,6 @@ static ssize_t show_rev(struct device *device, struct device_attribute *attr,
 	return sprintf(buf, "%x\n", dev->rev_id);
 }
 
-static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
-			   char *buf)
-{
-	struct mthca_dev *dev =
-		container_of(device, struct mthca_dev, ib_dev.dev);
-	return sprintf(buf, "%d.%d.%d\n", (int) (dev->fw_ver >> 32),
-		       (int) (dev->fw_ver >> 16) & 0xffff,
-		       (int) dev->fw_ver & 0xffff);
-}
-
 static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 			char *buf)
 {
@@ -1203,13 +1112,11 @@ static ssize_t show_board(struct device *device, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
-static DEVICE_ATTR(fw_ver,   S_IRUGO, show_fw_ver, NULL);
 static DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
 static DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
 
 static struct device_attribute *mthca_dev_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_fw_ver,
 	&dev_attr_hca_type,
 	&dev_attr_board_id
 };
@@ -1233,7 +1140,7 @@ static int mthca_init_node_data(struct mthca_dev *dev)
 	if (err)
 		goto out;
 
-	memcpy(dev->ib_dev.node_desc, out_mad->data, 64);
+	memcpy(dev->ib_dev.node_desc, out_mad->data, IB_DEVICE_NODE_DESC_MAX);
 
 	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
 
@@ -1258,16 +1165,28 @@ static int mthca_port_immutable(struct ib_device *ibdev, u8 port_num,
 	struct ib_port_attr attr;
 	int err;
 
-	err = mthca_query_port(ibdev, port_num, &attr);
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
+
+	err = ib_query_port(ibdev, port_num, &attr);
 	if (err)
 		return err;
 
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
-	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
 	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 
 	return 0;
+}
+
+static void get_dev_fw_str(struct ib_device *device, char *str,
+			   size_t str_len)
+{
+	struct mthca_dev *dev =
+		container_of(device, struct mthca_dev, ib_dev);
+	snprintf(str, str_len, "%d.%d.%d",
+		 (int) (dev->fw_ver >> 32),
+		 (int) (dev->fw_ver >> 16) & 0xffff,
+		 (int) dev->fw_ver & 0xffff);
 }
 
 int mthca_register_device(struct mthca_dev *dev)
@@ -1304,7 +1223,7 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.node_type            = RDMA_NODE_IB_CA;
 	dev->ib_dev.phys_port_cnt        = dev->limits.num_ports;
 	dev->ib_dev.num_comp_vectors     = 1;
-	dev->ib_dev.dma_device           = &dev->pdev->dev;
+	dev->ib_dev.dev.parent           = &dev->pdev->dev;
 	dev->ib_dev.query_device         = mthca_query_device;
 	dev->ib_dev.query_port           = mthca_query_port;
 	dev->ib_dev.modify_device        = mthca_modify_device;
@@ -1346,10 +1265,10 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.destroy_cq           = mthca_destroy_cq;
 	dev->ib_dev.poll_cq              = mthca_poll_cq;
 	dev->ib_dev.get_dma_mr           = mthca_get_dma_mr;
-	dev->ib_dev.reg_phys_mr          = mthca_reg_phys_mr;
 	dev->ib_dev.reg_user_mr          = mthca_reg_user_mr;
 	dev->ib_dev.dereg_mr             = mthca_dereg_mr;
 	dev->ib_dev.get_port_immutable   = mthca_port_immutable;
+	dev->ib_dev.get_dev_fw_str       = get_dev_fw_str;
 
 	if (dev->mthca_flags & MTHCA_FLAG_FMR) {
 		dev->ib_dev.alloc_fmr            = mthca_alloc_fmr;

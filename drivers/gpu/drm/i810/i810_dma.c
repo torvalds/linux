@@ -113,9 +113,7 @@ static const struct file_operations i810_buffer_fops = {
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = i810_mmap_buffers,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
@@ -1192,6 +1190,14 @@ static int i810_flip_bufs(struct drm_device *dev, void *data,
 
 int i810_driver_load(struct drm_device *dev, unsigned long flags)
 {
+	dev->agp = drm_agp_init(dev);
+	if (dev->agp) {
+		dev->agp->agp_mtrr = arch_phys_wc_add(
+			dev->agp->agp_info.aper_base,
+			dev->agp->agp_info.aper_size *
+			1024 * 1024);
+	}
+
 	/* Our userspace depends upon the agp mapping support. */
 	if (!dev->agp)
 		return -EINVAL;
@@ -1251,19 +1257,3 @@ const struct drm_ioctl_desc i810_ioctls[] = {
 };
 
 int i810_max_ioctl = ARRAY_SIZE(i810_ioctls);
-
-/**
- * Determine if the device really is AGP or not.
- *
- * All Intel graphics chipsets are treated as AGP, even if they are really
- * PCI-e.
- *
- * \param dev   The device to be tested.
- *
- * \returns
- * A value of 1 is always retured to indictate every i810 is AGP.
- */
-int i810_driver_device_is_agp(struct drm_device *dev)
-{
-	return 1;
-}

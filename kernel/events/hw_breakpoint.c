@@ -444,7 +444,7 @@ int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *att
 	 * current task.
 	 */
 	if (irqs_disabled() && bp->ctx && bp->ctx->task == current)
-		__perf_event_disable(bp);
+		perf_event_disable_local(bp);
 	else
 		perf_event_disable(bp);
 

@@ -50,6 +50,16 @@ OPTIONS
 
 include::itrace.txt[]
 
+--strip::
+	Use with --itrace to strip out non-synthesized events.
+
+-j::
+--jit::
+	Process jitdump files by injecting the mmap records corresponding to jitted
+	functions. This option also generates the ELF images for each jitted function
+	found in the jitdumps files captured in the input perf.data file. Use this option
+	if you are monitoring environment using JIT runtimes, such as Java, DART or V8.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-archive[1]

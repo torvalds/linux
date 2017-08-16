@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 
 #include <net/inet_sock.h>
 #include <net/sock.h>
@@ -201,7 +202,7 @@ void dccp_write_space(struct sock *sk)
 
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
-	if (wq_has_sleeper(wq))
+	if (skwq_has_sleeper(wq))
 		wake_up_interruptible(&wq->wait);
 	/* Should agree with poll, otherwise some programs break */
 	if (sock_writeable(sk))
@@ -390,7 +391,7 @@ int dccp_retransmit_skb(struct sock *sk)
 	return dccp_transmit_skb(sk, skb_clone(sk->sk_send_head, GFP_ATOMIC));
 }
 
-struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
+struct sk_buff *dccp_make_response(const struct sock *sk, struct dst_entry *dst,
 				   struct request_sock *req)
 {
 	struct dccp_hdr *dh;
@@ -398,13 +399,18 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	const u32 dccp_header_size = sizeof(struct dccp_hdr) +
 				     sizeof(struct dccp_hdr_ext) +
 				     sizeof(struct dccp_hdr_response);
-	struct sk_buff *skb = sock_wmalloc(sk, sk->sk_prot->max_header, 1,
-					   GFP_ATOMIC);
-	if (skb == NULL)
+	struct sk_buff *skb;
+
+	/* sk is marked const to clearly express we dont hold socket lock.
+	 * sock_wmalloc() will atomically change sk->sk_wmem_alloc,
+	 * it is safe to promote sk to non const.
+	 */
+	skb = sock_wmalloc((struct sock *)sk, MAX_DCCP_HEADER, 1,
+			   GFP_ATOMIC);
+	if (!skb)
 		return NULL;
 
-	/* Reserve space for headers. */
-	skb_reserve(skb, sk->sk_prot->max_header);
+	skb_reserve(skb, MAX_DCCP_HEADER);
 
 	skb_dst_set(skb, dst_clone(dst));
 

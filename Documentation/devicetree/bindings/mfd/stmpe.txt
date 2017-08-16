@@ -4,7 +4,7 @@ STMPE is an MFD device which may expose the following inbuilt devices: gpio,
 keypad, touchscreen, adc, pwm, rotator.
 
 Required properties:
- - compatible                   : "st,stmpe[610|801|811|1601|2401|2403]"
+ - compatible                   : "st,stmpe[610|801|811|1600|1601|2401|2403]"
  - reg                          : I2C/SPI address of the device
 
 Optional properties:

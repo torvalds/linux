@@ -123,7 +123,7 @@ static int __init request_isa_regions(void)
 }
 machine_device_initcall(amigaone, request_isa_regions);
 
-void amigaone_restart(char *cmd)
+void __noreturn amigaone_restart(char *cmd)
 {
 	local_irq_disable();
 
@@ -143,9 +143,7 @@ void amigaone_restart(char *cmd)
 
 static int __init amigaone_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (of_flat_dt_is_compatible(root, "eyetech,amigaone")) {
+	if (of_machine_is_compatible("eyetech,amigaone")) {
 		/*
 		 * Coherent memory access cause complete system lockup! Thus
 		 * disable this CPU feature, even if the CPU needs it.

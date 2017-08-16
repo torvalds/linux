@@ -1,14 +1,10 @@
-#include <linux/compiler.h>
 #include <linux/file.h>
-#include <linux/fs.h>
-#include <linux/linkage.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/sched.h>
-#include <linux/stat.h>
 #include <linux/utime.h>
 #include <linux/syscalls.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/compat.h>
 #include <asm/unistd.h>
 
 #ifdef __ARCH_WANT_SYS_UTIME
@@ -48,7 +44,7 @@ static bool nsec_valid(long nsec)
 	return nsec >= 0 && nsec <= 999999999;
 }
 
-static int utimes_common(struct path *path, struct timespec *times)
+static int utimes_common(const struct path *path, struct timespec *times)
 {
 	int error;
 	struct iattr newattrs;
@@ -81,38 +77,24 @@ static int utimes_common(struct path *path, struct timespec *times)
 			newattrs.ia_valid |= ATTR_MTIME_SET;
 		}
 		/*
-		 * Tell inode_change_ok(), that this is an explicit time
+		 * Tell setattr_prepare(), that this is an explicit time
 		 * update, even if neither ATTR_ATIME_SET nor ATTR_MTIME_SET
 		 * were used.
 		 */
 		newattrs.ia_valid |= ATTR_TIMES_SET;
 	} else {
-		/*
-		 * If times is NULL (or both times are UTIME_NOW),
-		 * then we need to check permissions, because
-		 * inode_change_ok() won't do it.
-		 */
-		error = -EACCES;
-                if (IS_IMMUTABLE(inode))
-			goto mnt_drop_write_and_out;
-
-		if (!inode_owner_or_capable(inode)) {
-			error = inode_permission(inode, MAY_WRITE);
-			if (error)
-				goto mnt_drop_write_and_out;
-		}
+		newattrs.ia_valid |= ATTR_TOUCH;
 	}
 retry_deleg:
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	error = notify_change(path->dentry, &newattrs, &delegated_inode);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	if (delegated_inode) {
 		error = break_deleg_wait(&delegated_inode);
 		if (!error)
 			goto retry_deleg;
 	}
 
-mnt_drop_write_and_out:
 	mnt_drop_write(path->mnt);
 out:
 	return error;
@@ -233,3 +215,63 @@ SYSCALL_DEFINE2(utimes, char __user *, filename,
 {
 	return sys_futimesat(AT_FDCWD, filename, utimes);
 }
+
+#ifdef CONFIG_COMPAT
+/*
+ * Not all architectures have sys_utime, so implement this in terms
+ * of sys_utimes.
+ */
+COMPAT_SYSCALL_DEFINE2(utime, const char __user *, filename,
+		       struct compat_utimbuf __user *, t)
+{
+	struct timespec tv[2];
+
+	if (t) {
+		if (get_user(tv[0].tv_sec, &t->actime) ||
+		    get_user(tv[1].tv_sec, &t->modtime))
+			return -EFAULT;
+		tv[0].tv_nsec = 0;
+		tv[1].tv_nsec = 0;
+	}
+	return do_utimes(AT_FDCWD, filename, t ? tv : NULL, 0);
+}
+
+COMPAT_SYSCALL_DEFINE4(utimensat, unsigned int, dfd, const char __user *, filename, struct compat_timespec __user *, t, int, flags)
+{
+	struct timespec tv[2];
+
+	if  (t) {
+		if (compat_get_timespec(&tv[0], &t[0]) ||
+		    compat_get_timespec(&tv[1], &t[1]))
+			return -EFAULT;
+
+		if (tv[0].tv_nsec == UTIME_OMIT && tv[1].tv_nsec == UTIME_OMIT)
+			return 0;
+	}
+	return do_utimes(dfd, filename, t ? tv : NULL, flags);
+}
+
+COMPAT_SYSCALL_DEFINE3(futimesat, unsigned int, dfd, const char __user *, filename, struct compat_timeval __user *, t)
+{
+	struct timespec tv[2];
+
+	if (t) {
+		if (get_user(tv[0].tv_sec, &t[0].tv_sec) ||
+		    get_user(tv[0].tv_nsec, &t[0].tv_usec) ||
+		    get_user(tv[1].tv_sec, &t[1].tv_sec) ||
+		    get_user(tv[1].tv_nsec, &t[1].tv_usec))
+			return -EFAULT;
+		if (tv[0].tv_nsec >= 1000000 || tv[0].tv_nsec < 0 ||
+		    tv[1].tv_nsec >= 1000000 || tv[1].tv_nsec < 0)
+			return -EINVAL;
+		tv[0].tv_nsec *= 1000;
+		tv[1].tv_nsec *= 1000;
+	}
+	return do_utimes(dfd, filename, t ? tv : NULL, 0);
+}
+
+COMPAT_SYSCALL_DEFINE2(utimes, const char __user *, filename, struct compat_timeval __user *, t)
+{
+	return compat_sys_futimesat(AT_FDCWD, filename, t);
+}
+#endif

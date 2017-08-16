@@ -10,21 +10,19 @@
  * Version 2.  See the file COPYING for more details.
  */
 
+#include <linux/bug.h>
+#include <asm/purgatory.h>
+
 #include "sha256.h"
 #include "../boot/string.h"
 
-struct sha_region {
-	unsigned long start;
-	unsigned long len;
-};
+unsigned long purgatory_backup_dest __section(.kexec-purgatory);
+unsigned long purgatory_backup_src __section(.kexec-purgatory);
+unsigned long purgatory_backup_sz __section(.kexec-purgatory);
 
-unsigned long backup_dest = 0;
-unsigned long backup_src = 0;
-unsigned long backup_sz = 0;
+u8 purgatory_sha256_digest[SHA256_DIGEST_SIZE] __section(.kexec-purgatory);
 
-u8 sha256_digest[SHA256_DIGEST_SIZE] = { 0 };
-
-struct sha_region sha_regions[16] = {};
+struct kexec_sha_region purgatory_sha_regions[KEXEC_SEGMENT_MAX] __section(.kexec-purgatory);
 
 /*
  * On x86, second kernel requries first 640K of memory to boot. Copy
@@ -33,26 +31,28 @@ struct sha_region sha_regions[16] = {};
  */
 static int copy_backup_region(void)
 {
-	if (backup_dest)
-		memcpy((void *)backup_dest, (void *)backup_src, backup_sz);
-
+	if (purgatory_backup_dest) {
+		memcpy((void *)purgatory_backup_dest,
+		       (void *)purgatory_backup_src, purgatory_backup_sz);
+	}
 	return 0;
 }
 
-int verify_sha256_digest(void)
+static int verify_sha256_digest(void)
 {
-	struct sha_region *ptr, *end;
+	struct kexec_sha_region *ptr, *end;
 	u8 digest[SHA256_DIGEST_SIZE];
 	struct sha256_state sctx;
 
 	sha256_init(&sctx);
-	end = &sha_regions[sizeof(sha_regions)/sizeof(sha_regions[0])];
-	for (ptr = sha_regions; ptr < end; ptr++)
+	end = purgatory_sha_regions + ARRAY_SIZE(purgatory_sha_regions);
+
+	for (ptr = purgatory_sha_regions; ptr < end; ptr++)
 		sha256_update(&sctx, (uint8_t *)(ptr->start), ptr->len);
 
 	sha256_final(&sctx, digest);
 
-	if (memcmp(digest, sha256_digest, sizeof(digest)))
+	if (memcmp(digest, purgatory_sha256_digest, sizeof(digest)))
 		return 1;
 
 	return 0;

@@ -57,9 +57,10 @@ void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 	ttm_bo_kunmap(&bo->dma_buf_vmap);
 }
 
-struct drm_gem_object *amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
-							struct dma_buf_attachment *attach,
-							struct sg_table *sg)
+struct drm_gem_object *
+amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
+				 struct dma_buf_attachment *attach,
+				 struct sg_table *sg)
 {
 	struct reservation_object *resv = attach->dmabuf->resv;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -73,24 +74,36 @@ struct drm_gem_object *amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	mutex_lock(&adev->gem.mutex);
-	list_add_tail(&bo->list, &adev->gem.objects);
-	mutex_unlock(&adev->gem.mutex);
-
+	bo->prime_shared_count = 1;
 	return &bo->gem_base;
 }
 
 int amdgpu_gem_prime_pin(struct drm_gem_object *obj)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
-	int ret = 0;
+	long ret = 0;
 
 	ret = amdgpu_bo_reserve(bo, false);
 	if (unlikely(ret != 0))
 		return ret;
 
+	/*
+	 * Wait for all shared fences to complete before we switch to future
+	 * use of exclusive fence on this prime shared bo.
+	 */
+	ret = reservation_object_wait_timeout_rcu(bo->tbo.resv, true, false,
+						  MAX_SCHEDULE_TIMEOUT);
+	if (unlikely(ret < 0)) {
+		DRM_DEBUG_PRIME("Fence wait failed: %li\n", ret);
+		amdgpu_bo_unreserve(bo);
+		return ret;
+	}
+
 	/* pin buffer into GTT */
 	ret = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT, NULL);
+	if (likely(ret == 0))
+		bo->prime_shared_count++;
+
 	amdgpu_bo_unreserve(bo);
 	return ret;
 }
@@ -100,11 +113,13 @@ void amdgpu_gem_prime_unpin(struct drm_gem_object *obj)
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
 	int ret = 0;
 
-	ret = amdgpu_bo_reserve(bo, false);
+	ret = amdgpu_bo_reserve(bo, true);
 	if (unlikely(ret != 0))
 		return;
 
 	amdgpu_bo_unpin(bo);
+	if (bo->prime_shared_count)
+		bo->prime_shared_count--;
 	amdgpu_bo_unreserve(bo);
 }
 
@@ -121,7 +136,7 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(gobj);
 
-	if (amdgpu_ttm_tt_has_userptr(bo->tbo.ttm))
+	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm))
 		return ERR_PTR(-EPERM);
 
 	return drm_gem_prime_export(dev, gobj, flags);

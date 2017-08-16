@@ -134,10 +134,10 @@
 /*
  * PXA2xx specific Core clock definitions
  */
-#define CCCR		__REG(0x41300000)  /* Core Clock Configuration Register */
-#define CCSR		__REG(0x4130000C)  /* Core Clock Status Register */
-#define CKEN		__REG(0x41300004)  /* Clock Enable Register */
-#define OSCC		__REG(0x41300008)  /* Oscillator Configuration Register */
+#define CCCR		io_p2v(0x41300000)  /* Core Clock Configuration Register */
+#define CCSR		io_p2v(0x4130000C)  /* Core Clock Status Register */
+#define CKEN		io_p2v(0x41300004)  /* Clock Enable Register */
+#define OSCC		io_p2v(0x41300008)  /* Oscillator Configuration Register */
 
 #define CCCR_N_MASK	0x0380	/* Run Mode Frequency to Turbo Mode Frequency Multiplier */
 #define CCCR_M_MASK	0x0060	/* Memory Frequency to Run Mode Frequency Multiplier */

@@ -323,12 +323,12 @@ static void dashtty_timer(unsigned long ignored)
 	if (channel >= 0)
 		fetch_data(channel);
 
-	mod_timer_pinned(&poll_timer, jiffies + DA_TTY_POLL);
+	mod_timer(&poll_timer, jiffies + DA_TTY_POLL);
 }
 
 static void add_poll_timer(struct timer_list *poll_timer)
 {
-	setup_timer(poll_timer, dashtty_timer, 0);
+	setup_pinned_timer(poll_timer, dashtty_timer, 0);
 	poll_timer->expires = jiffies + DA_TTY_POLL;
 
 	/*

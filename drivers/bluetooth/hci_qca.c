@@ -41,13 +41,13 @@
 #define HCI_IBS_SLEEP_IND	0xFE
 #define HCI_IBS_WAKE_IND	0xFD
 #define HCI_IBS_WAKE_ACK	0xFC
-#define HCI_MAX_IBS_SIZE 	10
+#define HCI_MAX_IBS_SIZE	10
 
 /* Controller states */
 #define STATE_IN_BAND_SLEEP_ENABLED	1
 
-#define IBS_WAKE_RETRANS_TIMEOUT_MS 	100
-#define IBS_TX_IDLE_TIMEOUT_MS 		2000
+#define IBS_WAKE_RETRANS_TIMEOUT_MS	100
+#define IBS_TX_IDLE_TIMEOUT_MS		2000
 #define BAUDRATE_SETTLE_TIMEOUT_MS	300
 
 /* HCI_IBS transmit side sleep protocol states */
@@ -80,8 +80,8 @@ struct qca_data {
 	spinlock_t hci_ibs_lock;	/* HCI_IBS state lock	*/
 	u8 tx_ibs_state;	/* HCI_IBS transmit side power state*/
 	u8 rx_ibs_state;	/* HCI_IBS receive side power state */
-	u32 tx_vote;		/* Clock must be on for TX */
-	u32 rx_vote;		/* Clock must be on for RX */
+	bool tx_vote;		/* Clock must be on for TX */
+	bool rx_vote;		/* Clock must be on for RX */
 	struct timer_list tx_idle_timer;
 	u32 tx_idle_delay;
 	struct timer_list wake_retrans_timer;
@@ -181,8 +181,8 @@ static void serial_clock_vote(unsigned long vote, struct hci_uart *hu)
 		else
 			__serial_clock_off(hu->tty);
 
-		BT_DBG("Vote serial clock %s(%s)", new_vote? "true" : "false",
-		       vote? "true" : "false");
+		BT_DBG("Vote serial clock %s(%s)", new_vote ? "true" : "false",
+		       vote ? "true" : "false");
 
 		diff = jiffies_to_msecs(jiffies - qca->vote_last_jif);
 
@@ -215,7 +215,7 @@ static int send_hci_ibs_cmd(u8 cmd, struct hci_uart *hu)
 	}
 
 	/* Assign HCI_IBS type */
-	*skb_put(skb, 1) = cmd;
+	skb_put_u8(skb, cmd);
 
 	skb_queue_tail(&qca->txq, skb);
 
@@ -335,7 +335,7 @@ static void hci_ibs_tx_idle_timeout(unsigned long arg)
 		/* Fall through */
 
 	default:
-		BT_ERR("Spurrious timeout tx state %d", qca->tx_ibs_state);
+		BT_ERR("Spurious timeout tx state %d", qca->tx_ibs_state);
 		break;
 	}
 
@@ -347,7 +347,7 @@ static void hci_ibs_wake_retrans_timeout(unsigned long arg)
 	struct hci_uart *hu = (struct hci_uart *)arg;
 	struct qca_data *qca = hu->priv;
 	unsigned long flags, retrans_delay;
-	unsigned long retransmit = 0;
+	bool retransmit = false;
 
 	BT_DBG("hu %p wake retransmit timeout in %d state",
 		hu, qca->tx_ibs_state);
@@ -358,7 +358,7 @@ static void hci_ibs_wake_retrans_timeout(unsigned long arg)
 	switch (qca->tx_ibs_state) {
 	case HCI_IBS_TX_WAKING:
 		/* No WAKE_ACK, retransmit WAKE */
-		retransmit = 1;
+		retransmit = true;
 		if (send_hci_ibs_cmd(HCI_IBS_WAKE_IND, hu) < 0) {
 			BT_ERR("Failed to acknowledge device wake up");
 			break;
@@ -373,7 +373,7 @@ static void hci_ibs_wake_retrans_timeout(unsigned long arg)
 		/* Fall through */
 
 	default:
-		BT_ERR("Spurrious timeout tx state %d", qca->tx_ibs_state);
+		BT_ERR("Spurious timeout tx state %d", qca->tx_ibs_state);
 		break;
 	}
 
@@ -397,7 +397,7 @@ static int qca_open(struct hci_uart *hu)
 	skb_queue_head_init(&qca->txq);
 	skb_queue_head_init(&qca->tx_wait_q);
 	spin_lock_init(&qca->hci_ibs_lock);
-	qca->workqueue = create_singlethread_workqueue("qca_wq");
+	qca->workqueue = alloc_ordered_workqueue("qca_wq", 0);
 	if (!qca->workqueue) {
 		BT_ERR("QCA Workqueue not initialized properly");
 		kfree(qca);
@@ -438,14 +438,11 @@ static int qca_open(struct hci_uart *hu)
 
 	hu->priv = qca;
 
-	init_timer(&qca->wake_retrans_timer);
-	qca->wake_retrans_timer.function = hci_ibs_wake_retrans_timeout;
-	qca->wake_retrans_timer.data = (u_long)hu;
+	setup_timer(&qca->wake_retrans_timer, hci_ibs_wake_retrans_timeout,
+		    (u_long)hu);
 	qca->wake_retrans = IBS_WAKE_RETRANS_TIMEOUT_MS;
 
-	init_timer(&qca->tx_idle_timer);
-	qca->tx_idle_timer.function = hci_ibs_tx_idle_timeout;
-	qca->tx_idle_timer.data = (u_long)hu;
+	setup_timer(&qca->tx_idle_timer, hci_ibs_tx_idle_timeout, (u_long)hu);
 	qca->tx_idle_delay = IBS_TX_IDLE_TIMEOUT_MS;
 
 	BT_DBG("HCI_UART_QCA open, tx_idle_delay=%u, wake_retrans=%u",
@@ -678,7 +675,7 @@ static int qca_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	       qca->tx_ibs_state);
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 
 	/* Don't go to sleep in middle of patch download or
 	 * Out-Of-Band(GPIOs control) sleep is selected.
@@ -821,7 +818,7 @@ static struct sk_buff *qca_dequeue(struct hci_uart *hu)
 
 static uint8_t qca_get_baudrate_value(int speed)
 {
-	switch(speed) {
+	switch (speed) {
 	case 9600:
 		return QCA_BAUDRATE_9600;
 	case 19200:
@@ -872,8 +869,8 @@ static int qca_set_baudrate(struct hci_dev *hdev, uint8_t baudrate)
 	}
 
 	/* Assign commands to change baudrate and packet type. */
-	memcpy(skb_put(skb, sizeof(cmd)), cmd, sizeof(cmd));
-	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
+	skb_put_data(skb, cmd, sizeof(cmd));
+	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
 
 	skb_queue_tail(&qca->txq, skb);
 	hci_uart_tx_wakeup(hu);
@@ -947,6 +944,7 @@ static int qca_setup(struct hci_uart *hu)
 static struct hci_uart_proto qca_proto = {
 	.id		= HCI_UART_QCA,
 	.name		= "QCA",
+	.manufacturer	= 29,
 	.init_speed	= 115200,
 	.oper_speed	= 3000000,
 	.open		= qca_open,

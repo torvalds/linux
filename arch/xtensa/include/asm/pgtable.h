@@ -11,14 +11,20 @@
 #ifndef _XTENSA_PGTABLE_H
 #define _XTENSA_PGTABLE_H
 
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopmd.h>
 #include <asm/page.h>
+#include <asm/kmem_layout.h>
 
 /*
  * We only use two ring levels, user and kernel space.
  */
 
+#ifdef CONFIG_MMU
 #define USER_RING		1	/* user ring level */
+#else
+#define USER_RING		0
+#endif
 #define KERNEL_RING		0	/* kernel ring level */
 
 /*
@@ -64,9 +70,9 @@
  * Virtual memory area. We keep a distance to other memory regions to be
  * on the safe side. We also use this area for cache aliasing.
  */
-#define VMALLOC_START		0xC0000000
-#define VMALLOC_END		0xC7FEFFFF
-#define TLBTEMP_BASE_1		0xC7FF0000
+#define VMALLOC_START		(XCHAL_KSEG_CACHED_VADDR - 0x10000000)
+#define VMALLOC_END		(VMALLOC_START + 0x07FEFFFF)
+#define TLBTEMP_BASE_1		(VMALLOC_END + 1)
 #define TLBTEMP_BASE_2		(TLBTEMP_BASE_1 + DCACHE_WAY_SIZE)
 #if 2 * DCACHE_WAY_SIZE > ICACHE_WAY_SIZE
 #define TLBTEMP_SIZE		(2 * DCACHE_WAY_SIZE)

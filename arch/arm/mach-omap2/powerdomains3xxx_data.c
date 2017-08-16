@@ -384,14 +384,14 @@ static struct powerdomain isp_814x_pwrdm = {
 	.voltdm		= { .name = "core" },
 };
 
-static struct powerdomain active_816x_pwrdm = {
+static struct powerdomain active_81xx_pwrdm = {
 	.name		  = "active_pwrdm",
 	.prcm_offs	  = TI816X_PRM_ACTIVE_MOD,
 	.pwrsts		  = PWRSTS_OFF_ON,
 	.voltdm		  = { .name = "core" },
 };
 
-static struct powerdomain default_816x_pwrdm = {
+static struct powerdomain default_81xx_pwrdm = {
 	.name		  = "default_pwrdm",
 	.prcm_offs	  = TI81XX_PRM_DEFAULT_MOD,
 	.pwrsts		  = PWRSTS_OFF_ON,
@@ -486,6 +486,8 @@ static struct powerdomain *powerdomains_am35x[] __initdata = {
 static struct powerdomain *powerdomains_ti814x[] __initdata = {
 	&alwon_81xx_pwrdm,
 	&device_81xx_pwrdm,
+	&active_81xx_pwrdm,
+	&default_81xx_pwrdm,
 	&gem_814x_pwrdm,
 	&ivahd_814x_pwrdm,
 	&hdvpss_814x_pwrdm,
@@ -497,8 +499,8 @@ static struct powerdomain *powerdomains_ti814x[] __initdata = {
 static struct powerdomain *powerdomains_ti816x[] __initdata = {
 	&alwon_81xx_pwrdm,
 	&device_81xx_pwrdm,
-	&active_816x_pwrdm,
-	&default_816x_pwrdm,
+	&active_81xx_pwrdm,
+	&default_81xx_pwrdm,
 	&ivahd0_816x_pwrdm,
 	&ivahd1_816x_pwrdm,
 	&ivahd2_816x_pwrdm,
@@ -582,7 +584,7 @@ void __init omap3xxx_powerdomains_init(void)
 
 	/* Only 81xx needs custom pwrdm_operations */
 	if (!cpu_is_ti81xx())
-		pwrdm_register_platform_funcs(&omap3_pwrdm_operations);;
+		pwrdm_register_platform_funcs(&omap3_pwrdm_operations);
 
 	rev = omap_rev();
 

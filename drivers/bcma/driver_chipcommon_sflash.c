@@ -38,6 +38,7 @@ static const struct bcma_sflash_tbl_e bcma_sflash_st_tbl[] = {
 	{ "M25P32", 0x15, 0x10000, 64, },
 	{ "M25P64", 0x16, 0x10000, 128, },
 	{ "M25FL128", 0x17, 0x10000, 256, },
+	{ "MX25L25635F", 0x18, 0x10000, 512, },
 	{ NULL },
 };
 
@@ -145,7 +146,6 @@ int bcma_sflash_init(struct bcma_drv_cc *cc)
 		return -ENOTSUPP;
 	}
 
-	sflash->window = BCMA_SOC_FLASH2;
 	sflash->blocksize = e->blocksize;
 	sflash->numblocks = e->numblocks;
 	sflash->size = sflash->blocksize * sflash->numblocks;

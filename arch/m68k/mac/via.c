@@ -68,7 +68,7 @@ static int gIER,gIFR,gBufA,gBufB;
  * interrupt. This limitation also seems to apply to VIA clone logic cores in
  * Quadra-like ASICs. (RBV and OSS machines don't have this limitation.)
  *
- * We used to fake it by configuring the relevent VIA pin as an output
+ * We used to fake it by configuring the relevant VIA pin as an output
  * (to mask the interrupt) or input (to unmask). That scheme did not work on
  * (at least) the Quadra 700. A NuBus card's /NMRQ signal is an open-collector
  * circuit (see Designing Cards and Drivers for Macintosh II and Macintosh SE,
@@ -550,10 +550,6 @@ void via_irq_enable(int irq) {
 	int irq_src	= IRQ_SRC(irq);
 	int irq_idx	= IRQ_IDX(irq);
 
-#ifdef DEBUG_IRQUSE
-	printk(KERN_DEBUG "via_irq_enable(%d)\n", irq);
-#endif
-
 	if (irq_src == 1) {
 		via1[vIER] = IER_SET_BIT(irq_idx);
 	} else if (irq_src == 2) {
@@ -581,10 +577,6 @@ void via_irq_enable(int irq) {
 void via_irq_disable(int irq) {
 	int irq_src	= IRQ_SRC(irq);
 	int irq_idx	= IRQ_IDX(irq);
-
-#ifdef DEBUG_IRQUSE
-	printk(KERN_DEBUG "via_irq_disable(%d)\n", irq);
-#endif
 
 	if (irq_src == 1) {
 		via1[vIER] = IER_CLR_BIT(irq_idx);

@@ -84,9 +84,10 @@
 #define APCI1032_MODE2_REG		0x08
 #define APCI1032_STATUS_REG		0x0c
 #define APCI1032_CTRL_REG		0x10
-#define APCI1032_CTRL_INT_OR		(0 << 1)
-#define APCI1032_CTRL_INT_AND		(1 << 1)
-#define APCI1032_CTRL_INT_ENA		(1 << 2)
+#define APCI1032_CTRL_INT_MODE(x)	(((x) & 0x1) << 1)
+#define APCI1032_CTRL_INT_OR		APCI1032_CTRL_INT_MODE(0)
+#define APCI1032_CTRL_INT_AND		APCI1032_CTRL_INT_MODE(1)
+#define APCI1032_CTRL_INT_ENA		BIT(2)
 
 struct apci1032_private {
 	unsigned long amcc_iobase;	/* base of AMCC I/O registers */

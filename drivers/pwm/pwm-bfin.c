@@ -103,7 +103,7 @@ static void bfin_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	disable_gptimer(priv->pin);
 }
 
-static struct pwm_ops bfin_pwm_ops = {
+static const struct pwm_ops bfin_pwm_ops = {
 	.request = bfin_pwm_request,
 	.free = bfin_pwm_free,
 	.config = bfin_pwm_config,
@@ -118,10 +118,8 @@ static int bfin_pwm_probe(struct platform_device *pdev)
 	int ret;
 
 	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
-	if (!pwm) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!pwm)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, pwm);
 

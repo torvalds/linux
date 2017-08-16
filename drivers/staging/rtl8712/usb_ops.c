@@ -41,17 +41,17 @@ static u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr)
 	u16 wvalue;
 	u16 index;
 	u16 len;
-	u32 data;
+	__le32 data;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
 
 	request = 0x05;
 	requesttype = 0x01; /* read_in */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,
 			  requesttype);
-	return (u8)(le32_to_cpu(data)&0x0ff);
+	return (u8)(le32_to_cpu(data) & 0x0ff);
 }
 
 static u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
@@ -61,17 +61,17 @@ static u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
 	u16 wvalue;
 	u16 index;
 	u16 len;
-	u32 data;
+	__le32 data;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
 
 	request = 0x05;
 	requesttype = 0x01; /* read_in */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,
 			  requesttype);
-	return (u16)(le32_to_cpu(data)&0xffff);
+	return (u16)(le32_to_cpu(data) & 0xffff);
 }
 
 static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
@@ -81,13 +81,13 @@ static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
 	u16 wvalue;
 	u16 index;
 	u16 len;
-	u32 data;
+	__le32 data;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
 
 	request = 0x05;
 	requesttype = 0x01; /* read_in */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,
 			  requesttype);
@@ -101,16 +101,15 @@ static void usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
 	u16 wvalue;
 	u16 index;
 	u16 len;
-	u32 data;
+	__le32 data;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
 
 	request = 0x05;
 	requesttype = 0x00; /* write_out */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
-	data = val;
-	data = cpu_to_le32(data&0x000000ff);
+	data = cpu_to_le32((u32)val & 0x000000ff);
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,
 			  requesttype);
 }
@@ -122,16 +121,15 @@ static void usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
 	u16 wvalue;
 	u16 index;
 	u16 len;
-	u32 data;
+	__le32 data;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
 
 	request = 0x05;
 	requesttype = 0x00; /* write_out */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
-	data = val;
-	data = cpu_to_le32(data&0x0000ffff);
+	data = cpu_to_le32((u32)val & 0x0000ffff);
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,
 			  requesttype);
 }
@@ -143,13 +141,13 @@ static void usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 	u16 wvalue;
 	u16 index;
 	u16 len;
-	u32 data;
+	__le32 data;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
 
 	request = 0x05;
 	requesttype = 0x00; /* write_out */
 	index = 0;
-	wvalue = (u16)(addr&0x0000ffff);
+	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 	data = cpu_to_le32(val);
 	r8712_usbctrl_vendorreq(pintfpriv, request, wvalue, index, &data, len,
@@ -179,22 +177,22 @@ static void usb_intf_hdl_close(u8 *priv)
 
 void r8712_usb_set_intf_funs(struct intf_hdl *pintf_hdl)
 {
-	pintf_hdl->intf_hdl_init = &usb_intf_hdl_init;
-	pintf_hdl->intf_hdl_unload = &usb_intf_hdl_unload;
-	pintf_hdl->intf_hdl_open = &usb_intf_hdl_open;
-	pintf_hdl->intf_hdl_close = &usb_intf_hdl_close;
+	pintf_hdl->intf_hdl_init = usb_intf_hdl_init;
+	pintf_hdl->intf_hdl_unload = usb_intf_hdl_unload;
+	pintf_hdl->intf_hdl_open = usb_intf_hdl_open;
+	pintf_hdl->intf_hdl_close = usb_intf_hdl_close;
 }
 
 void r8712_usb_set_intf_ops(struct _io_ops	*pops)
 {
 	memset((u8 *)pops, 0, sizeof(struct _io_ops));
-	pops->_read8 = &usb_read8;
-	pops->_read16 = &usb_read16;
-	pops->_read32 = &usb_read32;
-	pops->_read_port = &r8712_usb_read_port;
-	pops->_write8 = &usb_write8;
-	pops->_write16 = &usb_write16;
-	pops->_write32 = &usb_write32;
-	pops->_write_mem = &r8712_usb_write_mem;
-	pops->_write_port = &r8712_usb_write_port;
+	pops->_read8 = usb_read8;
+	pops->_read16 = usb_read16;
+	pops->_read32 = usb_read32;
+	pops->_read_port = r8712_usb_read_port;
+	pops->_write8 = usb_write8;
+	pops->_write16 = usb_write16;
+	pops->_write32 = usb_write32;
+	pops->_write_mem = r8712_usb_write_mem;
+	pops->_write_port = r8712_usb_write_port;
 }

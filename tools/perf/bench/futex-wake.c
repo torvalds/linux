@@ -8,18 +8,23 @@
  * one or more tasks, and thus the waitqueue is never empty.
  */
 
-#include "../perf.h"
-#include "../util/util.h"
+/* For the CLR_() macros */
+#include <string.h>
+#include <pthread.h>
+
+#include <signal.h>
 #include "../util/stat.h"
-#include "../util/parse-options.h"
-#include "../util/header.h"
+#include <subcmd/parse-options.h>
+#include <linux/compiler.h>
+#include <linux/kernel.h>
+#include <linux/time64.h>
+#include <errno.h>
 #include "bench.h"
 #include "futex.h"
 
 #include <err.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <pthread.h>
 
 /* all threads will block on the same futex */
 static u_int32_t futex1 = 0;
@@ -78,7 +83,7 @@ static void print_summary(void)
 	printf("Wokeup %d of %d threads in %.4f ms (+-%.2f%%)\n",
 	       wakeup_avg,
 	       nthreads,
-	       waketime_avg/1e3,
+	       waketime_avg / USEC_PER_MSEC,
 	       rel_stddev_stats(waketime_stddev, waketime_avg));
 }
 
@@ -110,8 +115,7 @@ static void toggle_done(int sig __maybe_unused,
 	done = true;
 }
 
-int bench_futex_wake(int argc, const char **argv,
-		     const char *prefix __maybe_unused)
+int bench_futex_wake(int argc, const char **argv)
 {
 	int ret = 0;
 	unsigned int i, j;
@@ -179,7 +183,7 @@ int bench_futex_wake(int argc, const char **argv,
 
 		if (!silent) {
 			printf("[Run %d]: Wokeup %d of %d threads in %.4f ms\n",
-			       j + 1, nwoken, nthreads, runtime.tv_usec/1e3);
+			       j + 1, nwoken, nthreads, runtime.tv_usec / (double)USEC_PER_MSEC);
 		}
 
 		for (i = 0; i < nthreads; i++) {

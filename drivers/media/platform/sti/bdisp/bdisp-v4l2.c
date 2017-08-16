@@ -180,7 +180,7 @@ static struct bdisp_frame *ctx_get_frame(struct bdisp_ctx *ctx,
 
 static void bdisp_job_finish(struct bdisp_ctx *ctx, int vb_state)
 {
-	struct vb2_buffer *src_vb, *dst_vb;
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 
 	if (WARN(!ctx || !ctx->fh.m2m_ctx, "Null hardware context\n"))
 		return;
@@ -191,10 +191,10 @@ static void bdisp_job_finish(struct bdisp_ctx *ctx, int vb_state)
 	dst_vb = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 
 	if (src_vb && dst_vb) {
-		dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
-		dst_vb->v4l2_buf.timecode = src_vb->v4l2_buf.timecode;
-		dst_vb->v4l2_buf.flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-		dst_vb->v4l2_buf.flags |= src_vb->v4l2_buf.flags &
+		dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
+		dst_vb->timecode = src_vb->timecode;
+		dst_vb->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+		dst_vb->flags |= src_vb->flags &
 					  V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 		v4l2_m2m_buf_done(src_vb, vb_state);
@@ -281,23 +281,23 @@ static int bdisp_get_addr(struct bdisp_ctx *ctx, struct vb2_buffer *vb,
 static int bdisp_get_bufs(struct bdisp_ctx *ctx)
 {
 	struct bdisp_frame *src, *dst;
-	struct vb2_buffer *src_vb, *dst_vb;
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
 	int ret;
 
 	src = &ctx->src;
 	dst = &ctx->dst;
 
 	src_vb = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
-	ret = bdisp_get_addr(ctx, src_vb, src, src->paddr);
+	ret = bdisp_get_addr(ctx, &src_vb->vb2_buf, src, src->paddr);
 	if (ret)
 		return ret;
 
 	dst_vb = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
-	ret = bdisp_get_addr(ctx, dst_vb, dst, dst->paddr);
+	ret = bdisp_get_addr(ctx, &dst_vb->vb2_buf, dst, dst->paddr);
 	if (ret)
 		return ret;
 
-	dst_vb->v4l2_buf.timestamp = src_vb->v4l2_buf.timestamp;
+	dst_vb->vb2_buf.timestamp = src_vb->vb2_buf.timestamp;
 
 	return 0;
 }
@@ -438,9 +438,8 @@ static void bdisp_ctrls_delete(struct bdisp_ctx *ctx)
 }
 
 static int bdisp_queue_setup(struct vb2_queue *vq,
-			     const struct v4l2_format *fmt,
 			     unsigned int *nb_buf, unsigned int *nb_planes,
-			     unsigned int sizes[], void *allocators[])
+			     unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct bdisp_ctx *ctx = vb2_get_drv_priv(vq);
 	struct bdisp_frame *frame = ctx_get_frame(ctx, vq->type);
@@ -455,12 +454,11 @@ static int bdisp_queue_setup(struct vb2_queue *vq,
 		return -EINVAL;
 	}
 
-	if (fmt && fmt->fmt.pix.sizeimage < frame->sizeimage)
-		return -EINVAL;
+	if (*nb_planes)
+		return sizes[0] < frame->sizeimage ? -EINVAL : 0;
 
 	*nb_planes = 1;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : frame->sizeimage;
-	allocators[0] = ctx->bdisp_dev->alloc_ctx;
+	sizes[0] = frame->sizeimage;
 
 	return 0;
 }
@@ -483,6 +481,7 @@ static int bdisp_buf_prepare(struct vb2_buffer *vb)
 
 static void bdisp_buf_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct bdisp_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 
 	/* return to V4L2 any 0-size buffer so it can be dequeued by user */
@@ -493,13 +492,13 @@ static void bdisp_buf_queue(struct vb2_buffer *vb)
 	}
 
 	if (ctx->fh.m2m_ctx)
-		v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vb);
+		v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 }
 
 static int bdisp_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct bdisp_ctx *ctx = q->drv_priv;
-	struct vb2_buffer *buf;
+	struct vb2_v4l2_buffer *buf;
 	int ret = pm_runtime_get_sync(ctx->bdisp_dev->dev);
 
 	if (ret < 0) {
@@ -528,7 +527,7 @@ static void bdisp_stop_streaming(struct vb2_queue *q)
 	pm_runtime_put(ctx->bdisp_dev->dev);
 }
 
-static struct vb2_ops bdisp_qops = {
+static const struct vb2_ops bdisp_qops = {
 	.queue_setup     = bdisp_queue_setup,
 	.buf_prepare     = bdisp_buf_prepare,
 	.buf_queue       = bdisp_buf_queue,
@@ -553,6 +552,7 @@ static int queue_init(void *priv,
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &ctx->bdisp_dev->lock;
+	src_vq->dev = ctx->bdisp_dev->v4l2_dev.dev;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -567,6 +567,7 @@ static int queue_init(void *priv,
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = &ctx->bdisp_dev->lock;
+	dst_vq->dev = ctx->bdisp_dev->v4l2_dev.dev;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -631,8 +632,8 @@ static int bdisp_open(struct file *file)
 
 error_ctrls:
 	bdisp_ctrls_delete(ctx);
-error_fh:
 	v4l2_fh_del(&ctx->fh);
+error_fh:
 	v4l2_fh_exit(&ctx->fh);
 	bdisp_hw_free_nodes(ctx);
 mem_ctx:
@@ -1269,8 +1270,6 @@ static int bdisp_remove(struct platform_device *pdev)
 
 	bdisp_hw_free_filters(bdisp->dev);
 
-	vb2_dma_contig_cleanup_ctx(bdisp->alloc_ctx);
-
 	pm_runtime_disable(&pdev->dev);
 
 	bdisp_debugfs_remove(bdisp);
@@ -1338,6 +1337,7 @@ static int bdisp_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(dev, "failed to get IRQ resource\n");
+		ret = -EINVAL;
 		goto err_clk;
 	}
 
@@ -1371,18 +1371,11 @@ static int bdisp_probe(struct platform_device *pdev)
 		goto err_dbg;
 	}
 
-	/* Continuous memory allocator */
-	bdisp->alloc_ctx = vb2_dma_contig_init_ctx(dev);
-	if (IS_ERR(bdisp->alloc_ctx)) {
-		ret = PTR_ERR(bdisp->alloc_ctx);
-		goto err_pm;
-	}
-
 	/* Filters */
 	if (bdisp_hw_alloc_filters(bdisp->dev)) {
 		dev_err(bdisp->dev, "no memory for filters\n");
 		ret = -ENOMEM;
-		goto err_vb2_dma;
+		goto err_pm;
 	}
 
 	/* Register */
@@ -1401,8 +1394,6 @@ static int bdisp_probe(struct platform_device *pdev)
 
 err_filter:
 	bdisp_hw_free_filters(bdisp->dev);
-err_vb2_dma:
-	vb2_dma_contig_cleanup_ctx(bdisp->alloc_ctx);
 err_pm:
 	pm_runtime_put(dev);
 err_dbg:

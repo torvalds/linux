@@ -21,7 +21,18 @@
 #define ACLK_MSCL_532			8
 #define DOUT_SCLK_AUD_PLL		9
 #define FOUT_AUD_PLL			10
-#define TOPC_NR_CLK			11
+#define SCLK_AUD_PLL			11
+#define SCLK_MFC_PLL_B			12
+#define SCLK_MFC_PLL_A			13
+#define SCLK_BUS1_PLL_B			14
+#define SCLK_BUS1_PLL_A			15
+#define SCLK_BUS0_PLL_B			16
+#define SCLK_BUS0_PLL_A			17
+#define SCLK_CC_PLL_B			18
+#define SCLK_CC_PLL_A			19
+#define ACLK_CCORE_133			20
+#define ACLK_PERIS_66			21
+#define TOPC_NR_CLK			22
 
 /* TOP0 */
 #define DOUT_ACLK_PERIC1		1
@@ -38,7 +49,9 @@
 #define CLK_SCLK_SPDIF			12
 #define CLK_SCLK_PCM1			13
 #define CLK_SCLK_I2S1			14
-#define TOP0_NR_CLK			15
+#define CLK_ACLK_PERIC0_66		15
+#define CLK_ACLK_PERIC1_66		16
+#define TOP0_NR_CLK			17
 
 /* TOP1 */
 #define DOUT_ACLK_FSYS1_200		1
@@ -49,7 +62,16 @@
 #define CLK_SCLK_MMC2			6
 #define CLK_SCLK_MMC1			7
 #define CLK_SCLK_MMC0			8
-#define TOP1_NR_CLK			9
+#define CLK_ACLK_FSYS0_200		9
+#define CLK_ACLK_FSYS1_200		10
+#define CLK_SCLK_PHY_FSYS1		11
+#define CLK_SCLK_PHY_FSYS1_26M		12
+#define MOUT_SCLK_UFSUNIPRO20		13
+#define DOUT_SCLK_UFSUNIPRO20		14
+#define CLK_SCLK_UFSUNIPRO20		15
+#define DOUT_SCLK_PHY_FSYS1		16
+#define DOUT_SCLK_PHY_FSYS1_26M		17
+#define TOP1_NR_CLK			18
 
 /* CCORE */
 #define PCLK_RTC			1
@@ -124,7 +146,20 @@
 /* FSYS1 */
 #define ACLK_MMC1			1
 #define ACLK_MMC0			2
-#define FSYS1_NR_CLK			3
+#define PHYCLK_UFS20_TX0_SYMBOL		3
+#define PHYCLK_UFS20_RX0_SYMBOL		4
+#define PHYCLK_UFS20_RX1_SYMBOL		5
+#define ACLK_UFS20_LINK			6
+#define SCLK_UFSUNIPRO20_USER		7
+#define PHYCLK_UFS20_RX1_SYMBOL_USER	8
+#define PHYCLK_UFS20_RX0_SYMBOL_USER	9
+#define PHYCLK_UFS20_TX0_SYMBOL_USER	10
+#define OSCCLK_PHY_CLKOUT_EMBEDDED_COMBO_PHY	11
+#define SCLK_COMBO_PHY_EMBEDDED_26M	12
+#define DOUT_PCLK_FSYS1			13
+#define PCLK_GPIO_FSYS1			14
+#define MOUT_FSYS1_PHYCLK_SEL1		15
+#define FSYS1_NR_CLK			16
 
 /* MSCL */
 #define USERMUX_ACLK_MSCL_532		1

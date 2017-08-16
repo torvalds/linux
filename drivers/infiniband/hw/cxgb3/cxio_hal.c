@@ -110,8 +110,7 @@ int cxio_hal_cq_op(struct cxio_rdev *rdev_p, struct t3_cq *cq,
 		while (!CQ_VLD_ENTRY(rptr, cq->size_log2, cqe)) {
 			udelay(1);
 			if (i++ > 1000000) {
-				printk(KERN_ERR "%s: stalled rnic\n",
-				       rdev_p->dev_name);
+				pr_err("%s: stalled rnic\n", rdev_p->dev_name);
 				return -EIO;
 			}
 		}
@@ -140,11 +139,10 @@ static int cxio_hal_clear_qp_ctx(struct cxio_rdev *rdev_p, u32 qpid)
 	struct t3_modify_qp_wr *wqe;
 	struct sk_buff *skb = alloc_skb(sizeof(*wqe), GFP_KERNEL);
 	if (!skb) {
-		PDBG("%s alloc_skb failed\n", __func__);
+		pr_debug("%s alloc_skb failed\n", __func__);
 		return -ENOMEM;
 	}
-	wqe = (struct t3_modify_qp_wr *) skb_put(skb, sizeof(*wqe));
-	memset(wqe, 0, sizeof(*wqe));
+	wqe = skb_put_zero(skb, sizeof(*wqe));
 	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD,
 		       T3_COMPLETION_FLAG | T3_NOTIFY_FLAG, 0, qpid, 7,
 		       T3_SOPEOP);
@@ -230,7 +228,7 @@ static u32 get_qpid(struct cxio_rdev *rdev_p, struct cxio_ucontext *uctx)
 	}
 out:
 	mutex_unlock(&uctx->lock);
-	PDBG("%s qpid 0x%x\n", __func__, qpid);
+	pr_debug("%s qpid 0x%x\n", __func__, qpid);
 	return qpid;
 }
 
@@ -242,7 +240,7 @@ static void put_qpid(struct cxio_rdev *rdev_p, u32 qpid,
 	entry = kmalloc(sizeof *entry, GFP_KERNEL);
 	if (!entry)
 		return;
-	PDBG("%s qpid 0x%x\n", __func__, qpid);
+	pr_debug("%s qpid 0x%x\n", __func__, qpid);
 	entry->qpid = qpid;
 	mutex_lock(&uctx->lock);
 	list_add_tail(&entry->entry, &uctx->qpids);
@@ -306,8 +304,8 @@ int cxio_create_qp(struct cxio_rdev *rdev_p, u32 kernel_domain,
 		wq->udb = (u64)rdev_p->rnic_info.udbell_physbase +
 					(wq->qpid << rdev_p->qpshift);
 	wq->rdev = rdev_p;
-	PDBG("%s qpid 0x%x doorbell 0x%p udb 0x%llx\n", __func__,
-	     wq->qpid, wq->doorbell, (unsigned long long) wq->udb);
+	pr_debug("%s qpid 0x%x doorbell 0x%p udb 0x%llx\n",
+		 __func__, wq->qpid, wq->doorbell, (unsigned long long)wq->udb);
 	return 0;
 err4:
 	kfree(wq->sq);
@@ -327,7 +325,7 @@ int cxio_destroy_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq)
 	kfree(cq->sw_queue);
 	dma_free_coherent(&(rdev_p->rnic_info.pdev->dev),
 			  (1UL << (cq->size_log2))
-			  * sizeof(struct t3_cqe), cq->queue,
+			  * sizeof(struct t3_cqe) + 1, cq->queue,
 			  dma_unmap_addr(cq, mapping));
 	cxio_hal_put_cqid(rdev_p->rscp, cq->cqid);
 	return err;
@@ -351,8 +349,8 @@ static void insert_recv_cqe(struct t3_wq *wq, struct t3_cq *cq)
 {
 	struct t3_cqe cqe;
 
-	PDBG("%s wq %p cq %p sw_rptr 0x%x sw_wptr 0x%x\n", __func__,
-	     wq, cq, cq->sw_rptr, cq->sw_wptr);
+	pr_debug("%s wq %p cq %p sw_rptr 0x%x sw_wptr 0x%x\n", __func__,
+		 wq, cq, cq->sw_rptr, cq->sw_wptr);
 	memset(&cqe, 0, sizeof(cqe));
 	cqe.header = cpu_to_be32(V_CQE_STATUS(TPT_ERR_SWFLUSH) |
 			         V_CQE_OPCODE(T3_SEND) |
@@ -370,11 +368,11 @@ int cxio_flush_rq(struct t3_wq *wq, struct t3_cq *cq, int count)
 	u32 ptr;
 	int flushed = 0;
 
-	PDBG("%s wq %p cq %p\n", __func__, wq, cq);
+	pr_debug("%s wq %p cq %p\n", __func__, wq, cq);
 
 	/* flush RQ */
-	PDBG("%s rq_rptr %u rq_wptr %u skip count %u\n", __func__,
-	    wq->rq_rptr, wq->rq_wptr, count);
+	pr_debug("%s rq_rptr %u rq_wptr %u skip count %u\n", __func__,
+		 wq->rq_rptr, wq->rq_wptr, count);
 	ptr = wq->rq_rptr + count;
 	while (ptr++ != wq->rq_wptr) {
 		insert_recv_cqe(wq, cq);
@@ -388,8 +386,8 @@ static void insert_sq_cqe(struct t3_wq *wq, struct t3_cq *cq,
 {
 	struct t3_cqe cqe;
 
-	PDBG("%s wq %p cq %p sw_rptr 0x%x sw_wptr 0x%x\n", __func__,
-	     wq, cq, cq->sw_rptr, cq->sw_wptr);
+	pr_debug("%s wq %p cq %p sw_rptr 0x%x sw_wptr 0x%x\n", __func__,
+		 wq, cq, cq->sw_rptr, cq->sw_wptr);
 	memset(&cqe, 0, sizeof(cqe));
 	cqe.header = cpu_to_be32(V_CQE_STATUS(TPT_ERR_SWFLUSH) |
 			         V_CQE_OPCODE(sqp->opcode) |
@@ -429,11 +427,11 @@ void cxio_flush_hw_cq(struct t3_cq *cq)
 {
 	struct t3_cqe *cqe, *swcqe;
 
-	PDBG("%s cq %p cqid 0x%x\n", __func__, cq, cq->cqid);
+	pr_debug("%s cq %p cqid 0x%x\n", __func__, cq, cq->cqid);
 	cqe = cxio_next_hw_cqe(cq);
 	while (cqe) {
-		PDBG("%s flushing hwcq rptr 0x%x to swcq wptr 0x%x\n",
-		     __func__, cq->rptr, cq->sw_wptr);
+		pr_debug("%s flushing hwcq rptr 0x%x to swcq wptr 0x%x\n",
+			 __func__, cq->rptr, cq->sw_wptr);
 		swcqe = cq->sw_queue + Q_PTR2IDX(cq->sw_wptr, cq->size_log2);
 		*swcqe = *cqe;
 		swcqe->header |= cpu_to_be32(V_CQE_SWCQE(1));
@@ -476,7 +474,7 @@ void cxio_count_scqes(struct t3_cq *cq, struct t3_wq *wq, int *count)
 			(*count)++;
 		ptr++;
 	}
-	PDBG("%s cq %p count %d\n", __func__, cq, *count);
+	pr_debug("%s cq %p count %d\n", __func__, cq, *count);
 }
 
 void cxio_count_rcqes(struct t3_cq *cq, struct t3_wq *wq, int *count)
@@ -485,7 +483,7 @@ void cxio_count_rcqes(struct t3_cq *cq, struct t3_wq *wq, int *count)
 	u32 ptr;
 
 	*count = 0;
-	PDBG("%s count zero %d\n", __func__, *count);
+	pr_debug("%s count zero %d\n", __func__, *count);
 	ptr = cq->sw_rptr;
 	while (!Q_EMPTY(ptr, cq->sw_wptr)) {
 		cqe = cq->sw_queue + (Q_PTR2IDX(ptr, cq->size_log2));
@@ -494,7 +492,7 @@ void cxio_count_rcqes(struct t3_cq *cq, struct t3_wq *wq, int *count)
 			(*count)++;
 		ptr++;
 	}
-	PDBG("%s cq %p count %d\n", __func__, cq, *count);
+	pr_debug("%s cq %p count %d\n", __func__, cq, *count);
 }
 
 static int cxio_hal_init_ctrl_cq(struct cxio_rdev *rdev_p)
@@ -521,12 +519,12 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 
 	skb = alloc_skb(sizeof(*wqe), GFP_KERNEL);
 	if (!skb) {
-		PDBG("%s alloc_skb failed\n", __func__);
+		pr_debug("%s alloc_skb failed\n", __func__);
 		return -ENOMEM;
 	}
 	err = cxio_hal_init_ctrl_cq(rdev_p);
 	if (err) {
-		PDBG("%s err %d initializing ctrl_cq\n", __func__, err);
+		pr_debug("%s err %d initializing ctrl_cq\n", __func__, err);
 		goto err;
 	}
 	rdev_p->ctrl_qp.workq = dma_alloc_coherent(
@@ -536,7 +534,7 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 					&(rdev_p->ctrl_qp.dma_addr),
 					GFP_KERNEL);
 	if (!rdev_p->ctrl_qp.workq) {
-		PDBG("%s dma_alloc_coherent failed\n", __func__);
+		pr_debug("%s dma_alloc_coherent failed\n", __func__);
 		err = -ENOMEM;
 		goto err;
 	}
@@ -562,8 +560,7 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 	ctx1 |= ((u64) (V_EC_BASE_HI((u32) base_addr & 0xf) | V_EC_RESPQ(0) |
 			V_EC_TYPE(0) | V_EC_GEN(1) |
 			V_EC_UP_TOKEN(T3_CTL_QP_TID) | F_EC_VALID)) << 32;
-	wqe = (struct t3_modify_qp_wr *) skb_put(skb, sizeof(*wqe));
-	memset(wqe, 0, sizeof(*wqe));
+	wqe = skb_put_zero(skb, sizeof(*wqe));
 	build_fw_riwrh((struct fw_riwrh *) wqe, T3_WR_QP_MOD, 0, 0,
 		       T3_CTL_QP_TID, 7, T3_SOPEOP);
 	wqe->flags = cpu_to_be32(MODQP_WRITE_EC);
@@ -571,9 +568,9 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 	wqe->sge_cmd = cpu_to_be64(sge_cmd);
 	wqe->ctx1 = cpu_to_be64(ctx1);
 	wqe->ctx0 = cpu_to_be64(ctx0);
-	PDBG("CtrlQP dma_addr 0x%llx workq %p size %d\n",
-	     (unsigned long long) rdev_p->ctrl_qp.dma_addr,
-	     rdev_p->ctrl_qp.workq, 1 << T3_CTRL_QP_SIZE_LOG2);
+	pr_debug("CtrlQP dma_addr 0x%llx workq %p size %d\n",
+		 (unsigned long long)rdev_p->ctrl_qp.dma_addr,
+		 rdev_p->ctrl_qp.workq, 1 << T3_CTRL_QP_SIZE_LOG2);
 	skb->priority = CPL_PRIORITY_CONTROL;
 	return iwch_cxgb3_ofld_send(rdev_p->t3cdev_p, skb);
 err:
@@ -605,26 +602,26 @@ static int cxio_hal_ctrl_qp_write_mem(struct cxio_rdev *rdev_p, u32 addr,
 	u64 utx_cmd;
 	addr &= 0x7FFFFFF;
 	nr_wqe = len % 96 ? len / 96 + 1 : len / 96;	/* 96B max per WQE */
-	PDBG("%s wptr 0x%x rptr 0x%x len %d, nr_wqe %d data %p addr 0x%0x\n",
-	     __func__, rdev_p->ctrl_qp.wptr, rdev_p->ctrl_qp.rptr, len,
-	     nr_wqe, data, addr);
+	pr_debug("%s wptr 0x%x rptr 0x%x len %d, nr_wqe %d data %p addr 0x%0x\n",
+		 __func__, rdev_p->ctrl_qp.wptr, rdev_p->ctrl_qp.rptr, len,
+		 nr_wqe, data, addr);
 	utx_len = 3;		/* in 32B unit */
 	for (i = 0; i < nr_wqe; i++) {
 		if (Q_FULL(rdev_p->ctrl_qp.rptr, rdev_p->ctrl_qp.wptr,
 		           T3_CTRL_QP_SIZE_LOG2)) {
-			PDBG("%s ctrl_qp full wtpr 0x%0x rptr 0x%0x, "
-			     "wait for more space i %d\n", __func__,
-			     rdev_p->ctrl_qp.wptr, rdev_p->ctrl_qp.rptr, i);
+			pr_debug("%s ctrl_qp full wtpr 0x%0x rptr 0x%0x, wait for more space i %d\n",
+				 __func__,
+				 rdev_p->ctrl_qp.wptr, rdev_p->ctrl_qp.rptr, i);
 			if (wait_event_interruptible(rdev_p->ctrl_qp.waitq,
 					     !Q_FULL(rdev_p->ctrl_qp.rptr,
 						     rdev_p->ctrl_qp.wptr,
 						     T3_CTRL_QP_SIZE_LOG2))) {
-				PDBG("%s ctrl_qp workq interrupted\n",
-				     __func__);
+				pr_debug("%s ctrl_qp workq interrupted\n",
+					 __func__);
 				return -ERESTARTSYS;
 			}
-			PDBG("%s ctrl_qp wakeup, continue posting work request "
-			     "i %d\n", __func__, i);
+			pr_debug("%s ctrl_qp wakeup, continue posting work request i %d\n",
+				 __func__, i);
 		}
 		wqe = (__be64 *)(rdev_p->ctrl_qp.workq + (rdev_p->ctrl_qp.wptr %
 						(1 << T3_CTRL_QP_SIZE_LOG2)));
@@ -645,7 +642,7 @@ static int cxio_hal_ctrl_qp_write_mem(struct cxio_rdev *rdev_p, u32 addr,
 		if ((i != 0) &&
 		    (i % (((1 << T3_CTRL_QP_SIZE_LOG2)) >> 1) == 0)) {
 			flag = T3_COMPLETION_FLAG;
-			PDBG("%s force completion at i %d\n", __func__, i);
+			pr_debug("%s force completion at i %d\n", __func__, i);
 		}
 
 		/* build the utx mem command */
@@ -717,8 +714,8 @@ static int __cxio_tpt_op(struct cxio_rdev *rdev_p, u32 reset_tpt_entry,
 			return -ENOMEM;
 		*stag = (stag_idx << 8) | ((*stag) & 0xFF);
 	}
-	PDBG("%s stag_state 0x%0x type 0x%0x pdid 0x%0x, stag_idx 0x%x\n",
-	     __func__, stag_state, type, pdid, stag_idx);
+	pr_debug("%s stag_state 0x%0x type 0x%0x pdid 0x%0x, stag_idx 0x%x\n",
+		 __func__, stag_state, type, pdid, stag_idx);
 
 	mutex_lock(&rdev_p->ctrl_qp.lock);
 
@@ -767,9 +764,9 @@ int cxio_write_pbl(struct cxio_rdev *rdev_p, __be64 *pbl,
 	u32 wptr;
 	int err;
 
-	PDBG("%s *pdb_addr 0x%x, pbl_base 0x%x, pbl_size %d\n",
-	     __func__, pbl_addr, rdev_p->rnic_info.pbl_base,
-	     pbl_size);
+	pr_debug("%s *pdb_addr 0x%x, pbl_base 0x%x, pbl_size %d\n",
+		 __func__, pbl_addr, rdev_p->rnic_info.pbl_base,
+		 pbl_size);
 
 	mutex_lock(&rdev_p->ctrl_qp.lock);
 	err = cxio_hal_ctrl_qp_write_mem(rdev_p, pbl_addr >> 5, pbl_size << 3,
@@ -837,8 +834,8 @@ int cxio_rdma_init(struct cxio_rdev *rdev_p, struct t3_rdma_init_attr *attr)
 	struct sk_buff *skb = alloc_skb(sizeof(*wqe), GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
-	PDBG("%s rdev_p %p\n", __func__, rdev_p);
-	wqe = (struct t3_rdma_init_wr *) __skb_put(skb, sizeof(*wqe));
+	pr_debug("%s rdev_p %p\n", __func__, rdev_p);
+	wqe = __skb_put(skb, sizeof(*wqe));
 	wqe->wrh.op_seop_flags = cpu_to_be32(V_FW_RIWR_OP(T3_WR_INIT));
 	wqe->wrh.gen_tid_len = cpu_to_be32(V_FW_RIWR_TID(attr->tid) |
 					   V_FW_RIWR_LEN(sizeof(*wqe) >> 3));
@@ -880,22 +877,20 @@ static int cxio_hal_ev_handler(struct t3cdev *t3cdev_p, struct sk_buff *skb)
 	static int cnt;
 	struct cxio_rdev *rdev_p = NULL;
 	struct respQ_msg_t *rsp_msg = (struct respQ_msg_t *) skb->data;
-	PDBG("%d: %s cq_id 0x%x cq_ptr 0x%x genbit %0x overflow %0x an %0x"
-	     " se %0x notify %0x cqbranch %0x creditth %0x\n",
-	     cnt, __func__, RSPQ_CQID(rsp_msg), RSPQ_CQPTR(rsp_msg),
-	     RSPQ_GENBIT(rsp_msg), RSPQ_OVERFLOW(rsp_msg), RSPQ_AN(rsp_msg),
-	     RSPQ_SE(rsp_msg), RSPQ_NOTIFY(rsp_msg), RSPQ_CQBRANCH(rsp_msg),
-	     RSPQ_CREDIT_THRESH(rsp_msg));
-	PDBG("CQE: QPID 0x%0x genbit %0x type 0x%0x status 0x%0x opcode %d "
-	     "len 0x%0x wrid_hi_stag 0x%x wrid_low_msn 0x%x\n",
-	     CQE_QPID(rsp_msg->cqe), CQE_GENBIT(rsp_msg->cqe),
-	     CQE_TYPE(rsp_msg->cqe), CQE_STATUS(rsp_msg->cqe),
-	     CQE_OPCODE(rsp_msg->cqe), CQE_LEN(rsp_msg->cqe),
-	     CQE_WRID_HI(rsp_msg->cqe), CQE_WRID_LOW(rsp_msg->cqe));
+	pr_debug("%d: %s cq_id 0x%x cq_ptr 0x%x genbit %0x overflow %0x an %0x se %0x notify %0x cqbranch %0x creditth %0x\n",
+		 cnt, __func__, RSPQ_CQID(rsp_msg), RSPQ_CQPTR(rsp_msg),
+		 RSPQ_GENBIT(rsp_msg), RSPQ_OVERFLOW(rsp_msg), RSPQ_AN(rsp_msg),
+		 RSPQ_SE(rsp_msg), RSPQ_NOTIFY(rsp_msg), RSPQ_CQBRANCH(rsp_msg),
+		 RSPQ_CREDIT_THRESH(rsp_msg));
+	pr_debug("CQE: QPID 0x%0x genbit %0x type 0x%0x status 0x%0x opcode %d len 0x%0x wrid_hi_stag 0x%x wrid_low_msn 0x%x\n",
+		 CQE_QPID(rsp_msg->cqe), CQE_GENBIT(rsp_msg->cqe),
+		 CQE_TYPE(rsp_msg->cqe), CQE_STATUS(rsp_msg->cqe),
+		 CQE_OPCODE(rsp_msg->cqe), CQE_LEN(rsp_msg->cqe),
+		 CQE_WRID_HI(rsp_msg->cqe), CQE_WRID_LOW(rsp_msg->cqe));
 	rdev_p = (struct cxio_rdev *)t3cdev_p->ulp;
 	if (!rdev_p) {
-		PDBG("%s called by t3cdev %p with null ulp\n", __func__,
-		     t3cdev_p);
+		pr_debug("%s called by t3cdev %p with null ulp\n", __func__,
+			 t3cdev_p);
 		return 0;
 	}
 	if (CQE_QPID(rsp_msg->cqe) == T3_CTRL_QP_ID) {
@@ -934,13 +929,13 @@ int cxio_rdev_open(struct cxio_rdev *rdev_p)
 		strncpy(rdev_p->dev_name, rdev_p->t3cdev_p->name,
 			T3_MAX_DEV_NAME_LEN);
 	} else {
-		PDBG("%s t3cdev_p or dev_name must be set\n", __func__);
+		pr_debug("%s t3cdev_p or dev_name must be set\n", __func__);
 		return -EINVAL;
 	}
 
 	list_add_tail(&rdev_p->entry, &rdev_list);
 
-	PDBG("%s opening rnic dev %s\n", __func__, rdev_p->dev_name);
+	pr_debug("%s opening rnic dev %s\n", __func__, rdev_p->dev_name);
 	memset(&rdev_p->ctrl_qp, 0, sizeof(rdev_p->ctrl_qp));
 	if (!rdev_p->t3cdev_p)
 		rdev_p->t3cdev_p = dev2t3cdev(netdev_p);
@@ -949,13 +944,12 @@ int cxio_rdev_open(struct cxio_rdev *rdev_p)
 	err = rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, GET_EMBEDDED_INFO,
 					 &(rdev_p->fw_info));
 	if (err) {
-		printk(KERN_ERR "%s t3cdev_p(%p)->ctl returned error %d.\n",
-		     __func__, rdev_p->t3cdev_p, err);
+		pr_err("%s t3cdev_p(%p)->ctl returned error %d\n",
+		       __func__, rdev_p->t3cdev_p, err);
 		goto err1;
 	}
 	if (G_FW_VERSION_MAJOR(rdev_p->fw_info.fw_vers) != CXIO_FW_MAJ) {
-		printk(KERN_ERR MOD "fatal firmware version mismatch: "
-		       "need version %u but adapter has version %u\n",
+		pr_err("fatal firmware version mismatch: need version %u but adapter has version %u\n",
 		       CXIO_FW_MAJ,
 		       G_FW_VERSION_MAJOR(rdev_p->fw_info.fw_vers));
 		err = -EINVAL;
@@ -965,15 +959,15 @@ int cxio_rdev_open(struct cxio_rdev *rdev_p)
 	err = rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, RDMA_GET_PARAMS,
 					 &(rdev_p->rnic_info));
 	if (err) {
-		printk(KERN_ERR "%s t3cdev_p(%p)->ctl returned error %d.\n",
-		     __func__, rdev_p->t3cdev_p, err);
+		pr_err("%s t3cdev_p(%p)->ctl returned error %d\n",
+		       __func__, rdev_p->t3cdev_p, err);
 		goto err1;
 	}
 	err = rdev_p->t3cdev_p->ctl(rdev_p->t3cdev_p, GET_PORTS,
 				    &(rdev_p->port_info));
 	if (err) {
-		printk(KERN_ERR "%s t3cdev_p(%p)->ctl returned error %d.\n",
-		     __func__, rdev_p->t3cdev_p, err);
+		pr_err("%s t3cdev_p(%p)->ctl returned error %d\n",
+		       __func__, rdev_p->t3cdev_p, err);
 		goto err1;
 	}
 
@@ -988,42 +982,39 @@ int cxio_rdev_open(struct cxio_rdev *rdev_p)
 					      PAGE_SHIFT));
 	rdev_p->qpnr = rdev_p->rnic_info.udbell_len >> PAGE_SHIFT;
 	rdev_p->qpmask = (65536 >> ilog2(rdev_p->qpnr)) - 1;
-	PDBG("%s rnic %s info: tpt_base 0x%0x tpt_top 0x%0x num stags %d "
-	     "pbl_base 0x%0x pbl_top 0x%0x rqt_base 0x%0x, rqt_top 0x%0x\n",
-	     __func__, rdev_p->dev_name, rdev_p->rnic_info.tpt_base,
-	     rdev_p->rnic_info.tpt_top, cxio_num_stags(rdev_p),
-	     rdev_p->rnic_info.pbl_base,
-	     rdev_p->rnic_info.pbl_top, rdev_p->rnic_info.rqt_base,
-	     rdev_p->rnic_info.rqt_top);
-	PDBG("udbell_len 0x%0x udbell_physbase 0x%lx kdb_addr %p qpshift %lu "
-	     "qpnr %d qpmask 0x%x\n",
-	     rdev_p->rnic_info.udbell_len,
-	     rdev_p->rnic_info.udbell_physbase, rdev_p->rnic_info.kdb_addr,
-	     rdev_p->qpshift, rdev_p->qpnr, rdev_p->qpmask);
+	pr_debug("%s rnic %s info: tpt_base 0x%0x tpt_top 0x%0x num stags %d pbl_base 0x%0x pbl_top 0x%0x rqt_base 0x%0x, rqt_top 0x%0x\n",
+		 __func__, rdev_p->dev_name, rdev_p->rnic_info.tpt_base,
+		 rdev_p->rnic_info.tpt_top, cxio_num_stags(rdev_p),
+		 rdev_p->rnic_info.pbl_base,
+		 rdev_p->rnic_info.pbl_top, rdev_p->rnic_info.rqt_base,
+		 rdev_p->rnic_info.rqt_top);
+	pr_debug("udbell_len 0x%0x udbell_physbase 0x%lx kdb_addr %p qpshift %lu qpnr %d qpmask 0x%x\n",
+		 rdev_p->rnic_info.udbell_len,
+		 rdev_p->rnic_info.udbell_physbase, rdev_p->rnic_info.kdb_addr,
+		 rdev_p->qpshift, rdev_p->qpnr, rdev_p->qpmask);
 
 	err = cxio_hal_init_ctrl_qp(rdev_p);
 	if (err) {
-		printk(KERN_ERR "%s error %d initializing ctrl_qp.\n",
-		       __func__, err);
+		pr_err("%s error %d initializing ctrl_qp\n", __func__, err);
 		goto err1;
 	}
 	err = cxio_hal_init_resource(rdev_p, cxio_num_stags(rdev_p), 0,
 				     0, T3_MAX_NUM_QP, T3_MAX_NUM_CQ,
 				     T3_MAX_NUM_PD);
 	if (err) {
-		printk(KERN_ERR "%s error %d initializing hal resources.\n",
+		pr_err("%s error %d initializing hal resources\n",
 		       __func__, err);
 		goto err2;
 	}
 	err = cxio_hal_pblpool_create(rdev_p);
 	if (err) {
-		printk(KERN_ERR "%s error %d initializing pbl mem pool.\n",
+		pr_err("%s error %d initializing pbl mem pool\n",
 		       __func__, err);
 		goto err3;
 	}
 	err = cxio_hal_rqtpool_create(rdev_p);
 	if (err) {
-		printk(KERN_ERR "%s error %d initializing rqt mem pool.\n",
+		pr_err("%s error %d initializing rqt mem pool\n",
 		       __func__, err);
 		goto err4;
 	}
@@ -1086,9 +1077,9 @@ static void flush_completed_wrs(struct t3_wq *wq, struct t3_cq *cq)
 			/*
 			 * Insert this completed cqe into the swcq.
 			 */
-			PDBG("%s moving cqe into swcq sq idx %ld cq idx %ld\n",
-			     __func__, Q_PTR2IDX(ptr,  wq->sq_size_log2),
-			     Q_PTR2IDX(cq->sw_wptr, cq->size_log2));
+			pr_debug("%s moving cqe into swcq sq idx %ld cq idx %ld\n",
+				 __func__, Q_PTR2IDX(ptr,  wq->sq_size_log2),
+				 Q_PTR2IDX(cq->sw_wptr, cq->size_log2));
 			sqp->cqe.header |= htonl(V_CQE_SWCQE(1));
 			*(cq->sw_queue + Q_PTR2IDX(cq->sw_wptr, cq->size_log2))
 				= sqp->cqe;
@@ -1154,12 +1145,11 @@ int cxio_poll_cq(struct t3_wq *wq, struct t3_cq *cq, struct t3_cqe *cqe,
 	*credit = 0;
 	hw_cqe = cxio_next_cqe(cq);
 
-	PDBG("%s CQE OOO %d qpid 0x%0x genbit %d type %d status 0x%0x"
-	     " opcode 0x%0x len 0x%0x wrid_hi_stag 0x%x wrid_low_msn 0x%x\n",
-	     __func__, CQE_OOO(*hw_cqe), CQE_QPID(*hw_cqe),
-	     CQE_GENBIT(*hw_cqe), CQE_TYPE(*hw_cqe), CQE_STATUS(*hw_cqe),
-	     CQE_OPCODE(*hw_cqe), CQE_LEN(*hw_cqe), CQE_WRID_HI(*hw_cqe),
-	     CQE_WRID_LOW(*hw_cqe));
+	pr_debug("%s CQE OOO %d qpid 0x%0x genbit %d type %d status 0x%0x opcode 0x%0x len 0x%0x wrid_hi_stag 0x%x wrid_low_msn 0x%x\n",
+		 __func__, CQE_OOO(*hw_cqe), CQE_QPID(*hw_cqe),
+		 CQE_GENBIT(*hw_cqe), CQE_TYPE(*hw_cqe), CQE_STATUS(*hw_cqe),
+		 CQE_OPCODE(*hw_cqe), CQE_LEN(*hw_cqe), CQE_WRID_HI(*hw_cqe),
+		 CQE_WRID_LOW(*hw_cqe));
 
 	/*
 	 * skip cqe's not affiliated with a QP.
@@ -1278,9 +1268,10 @@ int cxio_poll_cq(struct t3_wq *wq, struct t3_cq *cq, struct t3_cqe *cqe,
 	if (!SW_CQE(*hw_cqe) && (CQE_WRID_SQ_WPTR(*hw_cqe) != wq->sq_rptr)) {
 		struct t3_swsq *sqp;
 
-		PDBG("%s out of order completion going in swsq at idx %ld\n",
-		     __func__,
-		     Q_PTR2IDX(CQE_WRID_SQ_WPTR(*hw_cqe), wq->sq_size_log2));
+		pr_debug("%s out of order completion going in swsq at idx %ld\n",
+			 __func__,
+			 Q_PTR2IDX(CQE_WRID_SQ_WPTR(*hw_cqe),
+				   wq->sq_size_log2));
 		sqp = wq->sq +
 		      Q_PTR2IDX(CQE_WRID_SQ_WPTR(*hw_cqe), wq->sq_size_log2);
 		sqp->cqe = *hw_cqe;
@@ -1298,13 +1289,13 @@ proc_cqe:
 	 */
 	if (SQ_TYPE(*hw_cqe)) {
 		wq->sq_rptr = CQE_WRID_SQ_WPTR(*hw_cqe);
-		PDBG("%s completing sq idx %ld\n", __func__,
-		     Q_PTR2IDX(wq->sq_rptr, wq->sq_size_log2));
+		pr_debug("%s completing sq idx %ld\n", __func__,
+			 Q_PTR2IDX(wq->sq_rptr, wq->sq_size_log2));
 		*cookie = wq->sq[Q_PTR2IDX(wq->sq_rptr, wq->sq_size_log2)].wr_id;
 		wq->sq_rptr++;
 	} else {
-		PDBG("%s completing rq idx %ld\n", __func__,
-		     Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2));
+		pr_debug("%s completing rq idx %ld\n", __func__,
+			 Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2));
 		*cookie = wq->rq[Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2)].wr_id;
 		if (wq->rq[Q_PTR2IDX(wq->rq_rptr, wq->rq_size_log2)].pbl_addr)
 			cxio_hal_pblpool_free(wq->rdev,
@@ -1322,12 +1313,12 @@ flush_wq:
 
 skip_cqe:
 	if (SW_CQE(*hw_cqe)) {
-		PDBG("%s cq %p cqid 0x%x skip sw cqe sw_rptr 0x%x\n",
-		     __func__, cq, cq->cqid, cq->sw_rptr);
+		pr_debug("%s cq %p cqid 0x%x skip sw cqe sw_rptr 0x%x\n",
+			 __func__, cq, cq->cqid, cq->sw_rptr);
 		++cq->sw_rptr;
 	} else {
-		PDBG("%s cq %p cqid 0x%x skip hw cqe rptr 0x%x\n",
-		     __func__, cq, cq->cqid, cq->rptr);
+		pr_debug("%s cq %p cqid 0x%x skip hw cqe rptr 0x%x\n",
+			 __func__, cq, cq->cqid, cq->rptr);
 		++cq->rptr;
 
 		/*

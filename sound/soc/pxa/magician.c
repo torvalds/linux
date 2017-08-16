@@ -255,12 +255,12 @@ static int magician_capture_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops magician_capture_ops = {
+static const struct snd_soc_ops magician_capture_ops = {
 	.startup = magician_startup,
 	.hw_params = magician_capture_hw_params,
 };
 
-static struct snd_soc_ops magician_playback_ops = {
+static const struct snd_soc_ops magician_playback_ops = {
 	.startup = magician_startup,
 	.hw_params = magician_playback_hw_params,
 };
@@ -308,17 +308,17 @@ static int magician_set_spk(struct snd_kcontrol *kcontrol,
 static int magician_get_input(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = magician_in_sel;
+	ucontrol->value.enumerated.item[0] = magician_in_sel;
 	return 0;
 }
 
 static int magician_set_input(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	if (magician_in_sel == ucontrol->value.integer.value[0])
+	if (magician_in_sel == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	magician_in_sel = ucontrol->value.integer.value[0];
+	magician_in_sel = ucontrol->value.enumerated.item[0];
 
 	switch (magician_in_sel) {
 	case MAGICIAN_MIC:
@@ -376,7 +376,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"VINM", NULL, "Call Mic"},
 };
 
-static const char *input_select[] = {"Call Mic", "Headset Mic"};
+static const char * const input_select[] = {"Call Mic", "Headset Mic"};
 static const struct soc_enum magician_in_sel_enum =
 	SOC_ENUM_SINGLE_EXT(2, input_select);
 

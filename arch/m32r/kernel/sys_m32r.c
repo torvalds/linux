@@ -22,7 +22,7 @@
 #include <linux/utsname.h>
 #include <linux/ipc.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cachectl.h>
 #include <asm/cacheflush.h>
 #include <asm/syscall.h>

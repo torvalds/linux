@@ -1072,12 +1072,14 @@ static const struct snd_soc_codec_driver soc_codec_device_alc5632 = {
 	.set_bias_level = alc5632_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = alc5632_snd_controls,
-	.num_controls = ARRAY_SIZE(alc5632_snd_controls),
-	.dapm_widgets = alc5632_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(alc5632_dapm_widgets),
-	.dapm_routes = alc5632_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(alc5632_dapm_routes),
+	.component_driver = {
+		.controls		= alc5632_snd_controls,
+		.num_controls		= ARRAY_SIZE(alc5632_snd_controls),
+		.dapm_widgets		= alc5632_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(alc5632_dapm_widgets),
+		.dapm_routes		= alc5632_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(alc5632_dapm_routes),
+	},
 };
 
 static const struct regmap_config alc5632_regmap = {

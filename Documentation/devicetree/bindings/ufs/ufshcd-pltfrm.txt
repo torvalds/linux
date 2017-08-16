@@ -4,11 +4,18 @@ UFSHC nodes are defined to describe on-chip UFS host controllers.
 Each UFS controller instance should have its own node.
 
 Required properties:
-- compatible        : compatible list, contains "jedec,ufs-1.1"
+- compatible		: must contain "jedec,ufs-1.1" or "jedec,ufs-2.0", may
+			  also list one or more of the following:
+					  "qcom,msm8994-ufshc"
+					  "qcom,msm8996-ufshc"
+					  "qcom,ufshc"
 - interrupts        : <interrupt mapping for UFS host controller IRQ>
 - reg               : <registers mapping>
 
 Optional properties:
+- phys                  : phandle to UFS PHY node
+- phy-names             : the string "ufsphy" when is found in a node, along
+                          with "phys" attribute, provides phandle to UFS PHY node
 - vdd-hba-supply        : phandle to UFS host controller supply regulator node
 - vcc-supply            : phandle to VCC supply regulator node
 - vccq-supply           : phandle to VCCQ supply regulator node
@@ -31,6 +38,9 @@ Optional properties:
 			  defined or a value in the array is "0" then it is assumed
 			  that the frequency is set by the parent clock or a
 			  fixed rate clock source.
+-lanes-per-direction	: number of lanes available per direction - either 1 or 2.
+			  Note that it is assume same number of lanes is used both
+			  directions at once. If not specified, default is 2 lanes per direction.
 
 Note: If above properties are not defined it can be assumed that the supply
 regulators or clocks are always on.
@@ -54,4 +64,6 @@ Example:
 		clocks = <&core 0>, <&ref 0>, <&iface 0>;
 		clock-names = "core_clk", "ref_clk", "iface_clk";
 		freq-table-hz = <100000000 200000000>, <0 0>, <0 0>;
+		phys = <&ufsphy1>;
+		phy-names = "ufsphy";
 	};

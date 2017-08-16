@@ -16,6 +16,7 @@
 #include <linux/videodev2.h>
 #include <linux/bitmap.h>
 #include <linux/fb.h>
+#include <linux/of.h>
 #include <media/v4l2-mediabus.h>
 #include <video/videomode.h>
 
@@ -62,21 +63,39 @@ enum ipu_csi_dest {
 /*
  * Enumeration of IPU rotation modes
  */
+#define IPU_ROT_BIT_VFLIP (1 << 0)
+#define IPU_ROT_BIT_HFLIP (1 << 1)
+#define IPU_ROT_BIT_90    (1 << 2)
+
 enum ipu_rotate_mode {
 	IPU_ROTATE_NONE = 0,
-	IPU_ROTATE_VERT_FLIP,
-	IPU_ROTATE_HORIZ_FLIP,
-	IPU_ROTATE_180,
-	IPU_ROTATE_90_RIGHT,
-	IPU_ROTATE_90_RIGHT_VFLIP,
-	IPU_ROTATE_90_RIGHT_HFLIP,
-	IPU_ROTATE_90_LEFT,
+	IPU_ROTATE_VERT_FLIP = IPU_ROT_BIT_VFLIP,
+	IPU_ROTATE_HORIZ_FLIP = IPU_ROT_BIT_HFLIP,
+	IPU_ROTATE_180 = (IPU_ROT_BIT_VFLIP | IPU_ROT_BIT_HFLIP),
+	IPU_ROTATE_90_RIGHT = IPU_ROT_BIT_90,
+	IPU_ROTATE_90_RIGHT_VFLIP = (IPU_ROT_BIT_90 | IPU_ROT_BIT_VFLIP),
+	IPU_ROTATE_90_RIGHT_HFLIP = (IPU_ROT_BIT_90 | IPU_ROT_BIT_HFLIP),
+	IPU_ROTATE_90_LEFT = (IPU_ROT_BIT_90 |
+			      IPU_ROT_BIT_VFLIP | IPU_ROT_BIT_HFLIP),
 };
+
+/* 90-degree rotations require the IRT unit */
+#define ipu_rot_mode_is_irt(m) (((m) & IPU_ROT_BIT_90) != 0)
 
 enum ipu_color_space {
 	IPUV3_COLORSPACE_RGB,
 	IPUV3_COLORSPACE_YUV,
 	IPUV3_COLORSPACE_UNKNOWN,
+};
+
+/*
+ * Enumeration of VDI MOTION select
+ */
+enum ipu_motion_sel {
+	MOTION_NONE = 0,
+	LOW_MOTION,
+	MED_MOTION,
+	HIGH_MOTION,
 };
 
 struct ipuv3_channel;
@@ -96,20 +115,42 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_CSI2			 2
 #define IPUV3_CHANNEL_CSI3			 3
 #define IPUV3_CHANNEL_VDI_MEM_IC_VF		 5
+/*
+ * NOTE: channels 6,7 are unused in the IPU and are not IDMAC channels,
+ * but the direct CSI->VDI linking is handled the same way as IDMAC
+ * channel linking in the FSU via the IPU_FS_PROC_FLOW registers, so
+ * these channel names are used to support the direct CSI->VDI link.
+ */
+#define IPUV3_CHANNEL_CSI_DIRECT		 6
+#define IPUV3_CHANNEL_CSI_VDI_PREV		 7
+#define IPUV3_CHANNEL_MEM_VDI_PREV		 8
+#define IPUV3_CHANNEL_MEM_VDI_CUR		 9
+#define IPUV3_CHANNEL_MEM_VDI_NEXT		10
 #define IPUV3_CHANNEL_MEM_IC_PP			11
 #define IPUV3_CHANNEL_MEM_IC_PRP_VF		12
+#define IPUV3_CHANNEL_VDI_MEM_RECENT		13
 #define IPUV3_CHANNEL_G_MEM_IC_PRP_VF		14
 #define IPUV3_CHANNEL_G_MEM_IC_PP		15
+#define IPUV3_CHANNEL_G_MEM_IC_PRP_VF_ALPHA	17
+#define IPUV3_CHANNEL_G_MEM_IC_PP_ALPHA		18
+#define IPUV3_CHANNEL_MEM_VDI_PLANE1_COMB_ALPHA	19
 #define IPUV3_CHANNEL_IC_PRP_ENC_MEM		20
 #define IPUV3_CHANNEL_IC_PRP_VF_MEM		21
 #define IPUV3_CHANNEL_IC_PP_MEM			22
 #define IPUV3_CHANNEL_MEM_BG_SYNC		23
 #define IPUV3_CHANNEL_MEM_BG_ASYNC		24
+#define IPUV3_CHANNEL_MEM_VDI_PLANE1_COMB	25
+#define IPUV3_CHANNEL_MEM_VDI_PLANE3_COMB	26
 #define IPUV3_CHANNEL_MEM_FG_SYNC		27
 #define IPUV3_CHANNEL_MEM_DC_SYNC		28
 #define IPUV3_CHANNEL_MEM_FG_ASYNC		29
 #define IPUV3_CHANNEL_MEM_FG_SYNC_ALPHA		31
+#define IPUV3_CHANNEL_MEM_FG_ASYNC_ALPHA	33
+#define IPUV3_CHANNEL_DC_MEM_READ		40
 #define IPUV3_CHANNEL_MEM_DC_ASYNC		41
+#define IPUV3_CHANNEL_MEM_DC_COMMAND		42
+#define IPUV3_CHANNEL_MEM_DC_COMMAND2		43
+#define IPUV3_CHANNEL_MEM_DC_OUTPUT_MASK	44
 #define IPUV3_CHANNEL_MEM_ROT_ENC		45
 #define IPUV3_CHANNEL_MEM_ROT_VF		46
 #define IPUV3_CHANNEL_MEM_ROT_PP		47
@@ -117,6 +158,30 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_ROT_VF_MEM		49
 #define IPUV3_CHANNEL_ROT_PP_MEM		50
 #define IPUV3_CHANNEL_MEM_BG_SYNC_ALPHA		51
+#define IPUV3_CHANNEL_MEM_BG_ASYNC_ALPHA	52
+#define IPUV3_NUM_CHANNELS			64
+
+static inline int ipu_channel_alpha_channel(int ch_num)
+{
+	switch (ch_num) {
+	case IPUV3_CHANNEL_G_MEM_IC_PRP_VF:
+		return IPUV3_CHANNEL_G_MEM_IC_PRP_VF_ALPHA;
+	case IPUV3_CHANNEL_G_MEM_IC_PP:
+		return IPUV3_CHANNEL_G_MEM_IC_PP_ALPHA;
+	case IPUV3_CHANNEL_MEM_FG_SYNC:
+		return IPUV3_CHANNEL_MEM_FG_SYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_FG_ASYNC:
+		return IPUV3_CHANNEL_MEM_FG_ASYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_BG_SYNC:
+		return IPUV3_CHANNEL_MEM_BG_SYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_BG_ASYNC:
+		return IPUV3_CHANNEL_MEM_BG_ASYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_VDI_PLANE1_COMB:
+		return IPUV3_CHANNEL_MEM_VDI_PLANE1_COMB_ALPHA;
+	default:
+		return -EINVAL;
+	}
+}
 
 int ipu_map_irq(struct ipu_soc *ipu, int irq);
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
@@ -137,6 +202,7 @@ int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
 /*
  * IPU Common functions
  */
+int ipu_get_num(struct ipu_soc *ipu);
 void ipu_set_csi_src_mux(struct ipu_soc *ipu, int csi_id, bool mipi_csi2);
 void ipu_set_ic_src_mux(struct ipu_soc *ipu, int csi_id, bool vdi);
 void ipu_dump(struct ipu_soc *ipu);
@@ -159,6 +225,10 @@ int ipu_idmac_get_current_buffer(struct ipuv3_channel *channel);
 bool ipu_idmac_buffer_is_ready(struct ipuv3_channel *channel, u32 buf_num);
 void ipu_idmac_select_buffer(struct ipuv3_channel *channel, u32 buf_num);
 void ipu_idmac_clear_buffer(struct ipuv3_channel *channel, u32 buf_num);
+int ipu_fsu_link(struct ipu_soc *ipu, int src_ch, int sink_ch);
+int ipu_fsu_unlink(struct ipu_soc *ipu, int src_ch, int sink_ch);
+int ipu_idmac_link(struct ipuv3_channel *src, struct ipuv3_channel *sink);
+int ipu_idmac_unlink(struct ipuv3_channel *src, struct ipuv3_channel *sink);
 
 /*
  * IPU Channel Parameter Memory (cpmem) functions
@@ -180,11 +250,14 @@ struct ipu_image {
 
 void ipu_cpmem_zero(struct ipuv3_channel *ch);
 void ipu_cpmem_set_resolution(struct ipuv3_channel *ch, int xres, int yres);
+void ipu_cpmem_skip_odd_chroma_rows(struct ipuv3_channel *ch);
 void ipu_cpmem_set_stride(struct ipuv3_channel *ch, int stride);
 void ipu_cpmem_set_high_priority(struct ipuv3_channel *ch);
 void ipu_cpmem_set_buffer(struct ipuv3_channel *ch, int bufnum, dma_addr_t buf);
+void ipu_cpmem_set_uv_offset(struct ipuv3_channel *ch, u32 u_off, u32 v_off);
 void ipu_cpmem_interlaced_scan(struct ipuv3_channel *ch, int stride);
 void ipu_cpmem_set_axi_id(struct ipuv3_channel *ch, u32 id);
+int ipu_cpmem_get_burstsize(struct ipuv3_channel *ch);
 void ipu_cpmem_set_burstsize(struct ipuv3_channel *ch, int burstsize);
 void ipu_cpmem_set_block_mode(struct ipuv3_channel *ch);
 void ipu_cpmem_set_rotation(struct ipuv3_channel *ch,
@@ -194,10 +267,9 @@ int ipu_cpmem_set_format_rgb(struct ipuv3_channel *ch,
 int ipu_cpmem_set_format_passthrough(struct ipuv3_channel *ch, int width);
 void ipu_cpmem_set_yuv_interleaved(struct ipuv3_channel *ch, u32 pixel_format);
 void ipu_cpmem_set_yuv_planar_full(struct ipuv3_channel *ch,
-				   u32 pixel_format, int stride,
-				   int u_offset, int v_offset);
-void ipu_cpmem_set_yuv_planar(struct ipuv3_channel *ch,
-			      u32 pixel_format, int stride, int height);
+				   unsigned int uv_stride,
+				   unsigned int u_offset,
+				   unsigned int v_offset);
 int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc);
 int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image);
 void ipu_cpmem_dump(struct ipuv3_channel *ch);
@@ -233,10 +305,7 @@ int ipu_di_init_sync_panel(struct ipu_di *, struct ipu_di_signal_cfg *sig);
 struct dmfc_channel;
 int ipu_dmfc_enable_channel(struct dmfc_channel *dmfc);
 void ipu_dmfc_disable_channel(struct dmfc_channel *dmfc);
-int ipu_dmfc_alloc_bandwidth(struct dmfc_channel *dmfc,
-		unsigned long bandwidth_mbs, int burstsize);
-void ipu_dmfc_free_bandwidth(struct dmfc_channel *dmfc);
-int ipu_dmfc_init_channel(struct dmfc_channel *dmfc, int width);
+void ipu_dmfc_config_wait4eot(struct dmfc_channel *dmfc, int width);
 struct dmfc_channel *ipu_dmfc_get(struct ipu_soc *ipu, int ipuv3_channel);
 void ipu_dmfc_put(struct dmfc_channel *dmfc);
 
@@ -254,13 +323,28 @@ struct ipu_dp *ipu_dp_get(struct ipu_soc *ipu, unsigned int flow);
 void ipu_dp_put(struct ipu_dp *);
 int ipu_dp_enable(struct ipu_soc *ipu);
 int ipu_dp_enable_channel(struct ipu_dp *dp);
-void ipu_dp_disable_channel(struct ipu_dp *dp);
+void ipu_dp_disable_channel(struct ipu_dp *dp, bool sync);
 void ipu_dp_disable(struct ipu_soc *ipu);
 int ipu_dp_setup_channel(struct ipu_dp *dp,
 		enum ipu_color_space in, enum ipu_color_space out);
 int ipu_dp_set_window_pos(struct ipu_dp *, u16 x_pos, u16 y_pos);
 int ipu_dp_set_global_alpha(struct ipu_dp *dp, bool enable, u8 alpha,
 		bool bg_chan);
+
+/*
+ * IPU Prefetch Resolve Gasket (prg) functions
+ */
+int ipu_prg_max_active_channels(void);
+bool ipu_prg_present(struct ipu_soc *ipu);
+bool ipu_prg_format_supported(struct ipu_soc *ipu, uint32_t format,
+			      uint64_t modifier);
+int ipu_prg_enable(struct ipu_soc *ipu);
+void ipu_prg_disable(struct ipu_soc *ipu);
+void ipu_prg_channel_disable(struct ipuv3_channel *ipu_chan);
+int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
+			      unsigned int axi_id,  unsigned int width,
+			      unsigned int height, unsigned int stride,
+			      u32 format, unsigned long *eba);
 
 /*
  * IPU CMOS Sensor Interface (csi) functions
@@ -272,6 +356,7 @@ int ipu_csi_init_interface(struct ipu_csi *csi,
 bool ipu_csi_is_interlaced(struct ipu_csi *csi);
 void ipu_csi_get_window(struct ipu_csi *csi, struct v4l2_rect *w);
 void ipu_csi_set_window(struct ipu_csi *csi, struct v4l2_rect *w);
+void ipu_csi_set_downsize(struct ipu_csi *csi, bool horiz, bool vert);
 void ipu_csi_set_test_generator(struct ipu_csi *csi, bool active,
 				u32 r_value, u32 g_value, u32 b_value,
 				u32 pix_clk);
@@ -318,6 +403,19 @@ void ipu_ic_put(struct ipu_ic *ic);
 void ipu_ic_dump(struct ipu_ic *ic);
 
 /*
+ * IPU Video De-Interlacer (vdi) functions
+ */
+struct ipu_vdi;
+void ipu_vdi_set_field_order(struct ipu_vdi *vdi, v4l2_std_id std, u32 field);
+void ipu_vdi_set_motion(struct ipu_vdi *vdi, enum ipu_motion_sel motion_sel);
+void ipu_vdi_setup(struct ipu_vdi *vdi, u32 code, int xres, int yres);
+void ipu_vdi_unsetup(struct ipu_vdi *vdi);
+int ipu_vdi_enable(struct ipu_vdi *vdi);
+int ipu_vdi_disable(struct ipu_vdi *vdi);
+struct ipu_vdi *ipu_vdi_get(struct ipu_soc *ipu);
+void ipu_vdi_put(struct ipu_vdi *vdi);
+
+/*
  * IPU Sensor Multiple FIFO Controller (SMFC) functions
  */
 struct ipu_smfc *ipu_smfc_get(struct ipu_soc *ipu, unsigned int chno);
@@ -343,8 +441,8 @@ struct ipu_client_platformdata {
 	int di;
 	int dc;
 	int dp;
-	int dmfc;
 	int dma[2];
+	struct device_node *of_node;
 };
 
 #endif /* __DRM_IPU_H__ */

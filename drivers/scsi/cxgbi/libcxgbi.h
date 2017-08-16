@@ -24,8 +24,11 @@
 #include <linux/scatterlist.h>
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
+#include <linux/version.h>
 #include <scsi/scsi_device.h>
 #include <scsi/libiscsi_tcp.h>
+
+#include <libcxgb_ppm.h>
 
 enum cxgbi_dbg_flag {
 	CXGBI_DBG_ISCSI,
@@ -84,91 +87,10 @@ static inline unsigned int cxgbi_ulp_extra_len(int submode)
 	return ulp2_extra_len[submode & 3];
 }
 
-/*
- * struct pagepod_hdr, pagepod - pagepod format
- */
-
 #define CPL_RX_DDP_STATUS_DDP_SHIFT	16 /* ddp'able */
 #define CPL_RX_DDP_STATUS_PAD_SHIFT	19 /* pad error */
 #define CPL_RX_DDP_STATUS_HCRC_SHIFT	20 /* hcrc error */
 #define CPL_RX_DDP_STATUS_DCRC_SHIFT	21 /* dcrc error */
-
-struct cxgbi_pagepod_hdr {
-	u32 vld_tid;
-	u32 pgsz_tag_clr;
-	u32 max_offset;
-	u32 page_offset;
-	u64 rsvd;
-};
-
-#define PPOD_PAGES_MAX			4
-struct cxgbi_pagepod {
-	struct cxgbi_pagepod_hdr hdr;
-	u64 addr[PPOD_PAGES_MAX + 1];
-};
-
-struct cxgbi_tag_format {
-	unsigned char sw_bits;
-	unsigned char rsvd_bits;
-	unsigned char rsvd_shift;
-	unsigned char filler[1];
-	u32 rsvd_mask;
-};
-
-struct cxgbi_gather_list {
-	unsigned int tag;
-	unsigned int length;
-	unsigned int offset;
-	unsigned int nelem;
-	struct page **pages;
-	dma_addr_t phys_addr[0];
-};
-
-struct cxgbi_ddp_info {
-	struct kref refcnt;
-	struct cxgbi_device *cdev;
-	struct pci_dev *pdev;
-	unsigned int max_txsz;
-	unsigned int max_rxsz;
-	unsigned int llimit;
-	unsigned int ulimit;
-	unsigned int nppods;
-	unsigned int idx_last;
-	unsigned char idx_bits;
-	unsigned char filler[3];
-	unsigned int idx_mask;
-	unsigned int rsvd_tag_mask;
-	spinlock_t map_lock;
-	struct cxgbi_gather_list **gl_map;
-};
-
-#define DDP_PGIDX_MAX		4
-#define DDP_THRESHOLD		2048
-
-#define PPOD_PAGES_SHIFT	2       /*  4 pages per pod */
-
-#define PPOD_SIZE               sizeof(struct cxgbi_pagepod)  /*  64 */
-#define PPOD_SIZE_SHIFT         6
-
-#define ULPMEM_DSGL_MAX_NPPODS	16	/*  1024/PPOD_SIZE */
-#define ULPMEM_IDATA_MAX_NPPODS	4	/*  256/PPOD_SIZE */
-#define PCIE_MEMWIN_MAX_NPPODS	16	/*  1024/PPOD_SIZE */
-
-#define PPOD_COLOR_SHIFT	0
-#define PPOD_COLOR(x)		((x) << PPOD_COLOR_SHIFT)
-
-#define PPOD_IDX_SHIFT          6
-#define PPOD_IDX_MAX_SIZE       24
-
-#define PPOD_TID_SHIFT		0
-#define PPOD_TID(x)		((x) << PPOD_TID_SHIFT)
-
-#define PPOD_TAG_SHIFT		6
-#define PPOD_TAG(x)		((x) << PPOD_TAG_SHIFT)
-
-#define PPOD_VALID_SHIFT	24
-#define PPOD_VALID(x)		((x) << PPOD_VALID_SHIFT)
-#define PPOD_VALID_FLAG		PPOD_VALID(1U)
 
 /*
  * sge_opaque_hdr -
@@ -265,6 +187,7 @@ enum cxgbi_sock_flags {
 	CTPF_HAS_ATID,		/* reserved atid */
 	CTPF_HAS_TID,		/* reserved hw tid */
 	CTPF_OFFLOAD_DOWN,	/* offload function off */
+	CTPF_LOGOUT_RSP_RCVD,   /* received logout response */
 };
 
 struct cxgbi_skb_rx_cb {
@@ -273,16 +196,21 @@ struct cxgbi_skb_rx_cb {
 };
 
 struct cxgbi_skb_tx_cb {
-	void *l2t;
+	void *handle;
+	void *arp_err_handler;
 	struct sk_buff *wr_next;
 };
 
 enum cxgbi_skcb_flags {
 	SKCBF_TX_NEED_HDR,	/* packet needs a header */
+	SKCBF_TX_MEM_WRITE,     /* memory write */
+	SKCBF_TX_FLAG_COMPL,    /* wr completion flag */
+	SKCBF_TX_DONE,		/* skb tx done */
 	SKCBF_RX_COALESCED,	/* received whole pdu */
 	SKCBF_RX_HDR,		/* received pdu header */
 	SKCBF_RX_DATA,		/* received pdu payload */
 	SKCBF_RX_STATUS,	/* received ddp status */
+	SKCBF_RX_ISCSI_COMPL,   /* received iscsi completion */
 	SKCBF_RX_DATA_DDPD,	/* pdu payload ddp'd */
 	SKCBF_RX_HCRC_ERR,	/* header digest error */
 	SKCBF_RX_DCRC_ERR,	/* data digest error */
@@ -290,13 +218,13 @@ enum cxgbi_skcb_flags {
 };
 
 struct cxgbi_skb_cb {
-	unsigned char ulp_mode;
-	unsigned long flags;
-	unsigned int seq;
 	union {
 		struct cxgbi_skb_rx_cb rx;
 		struct cxgbi_skb_tx_cb tx;
 	};
+	unsigned char ulp_mode;
+	unsigned long flags;
+	unsigned int seq;
 };
 
 #define CXGBI_SKB_CB(skb)	((struct cxgbi_skb_cb *)&((skb)->cb[0]))
@@ -376,7 +304,7 @@ static inline void __cxgbi_sock_put(const char *fn, struct cxgbi_sock *csk)
 {
 	log_debug(1 << CXGBI_DBG_SOCK,
 		"%s, put csk 0x%p, ref %u-1.\n",
-		fn, csk, atomic_read(&csk->refcnt.refcount));
+		fn, csk, kref_read(&csk->refcnt));
 	kref_put(&csk->refcnt, cxgbi_sock_free);
 }
 #define cxgbi_sock_put(csk)	__cxgbi_sock_put(__func__, csk)
@@ -385,7 +313,7 @@ static inline void __cxgbi_sock_get(const char *fn, struct cxgbi_sock *csk)
 {
 	log_debug(1 << CXGBI_DBG_SOCK,
 		"%s, get csk 0x%p, ref %u+1.\n",
-		fn, csk, atomic_read(&csk->refcnt.refcount));
+		fn, csk, kref_read(&csk->refcnt));
 	kref_get(&csk->refcnt);
 }
 #define cxgbi_sock_get(csk)	__cxgbi_sock_get(__func__, csk)
@@ -449,11 +377,9 @@ static inline void cxgbi_sock_enqueue_wr(struct cxgbi_sock *csk,
 	cxgbi_skcb_tx_wr_next(skb) = NULL;
 	/*
 	 * We want to take an extra reference since both us and the driver
-	 * need to free the packet before it's really freed. We know there's
-	 * just one user currently so we use atomic_set rather than skb_get
-	 * to avoid the atomic op.
+	 * need to free the packet before it's really freed.
 	 */
-	atomic_set(&skb->users, 2);
+	skb_get(skb);
 
 	if (!csk->wr_pending_head)
 		csk->wr_pending_head = skb;
@@ -527,6 +453,9 @@ struct cxgbi_ports_map {
 #define CXGBI_FLAG_DEV_T4		0x2
 #define CXGBI_FLAG_ADAPTER_RESET	0x4
 #define CXGBI_FLAG_IPV4_SET		0x10
+#define CXGBI_FLAG_USE_PPOD_OFLDQ       0x40
+#define CXGBI_FLAG_DDP_OFF		0x100
+
 struct cxgbi_device {
 	struct list_head list_head;
 	struct list_head rcu_node;
@@ -540,6 +469,7 @@ struct cxgbi_device {
 	struct pci_dev *pdev;
 	struct dentry *debugfs_root;
 	struct iscsi_transport *itp;
+	struct module *owner;
 
 	unsigned int pfvf;
 	unsigned int rx_credit_thres;
@@ -547,16 +477,16 @@ struct cxgbi_device {
 	unsigned int skb_rx_extra;	/* for msg coalesced mode */
 	unsigned int tx_max_size;
 	unsigned int rx_max_size;
+	unsigned int rxq_idx_cntr;
 	struct cxgbi_ports_map pmap;
-	struct cxgbi_tag_format tag_format;
-	struct cxgbi_ddp_info *ddp;
 
 	void (*dev_ddp_cleanup)(struct cxgbi_device *);
-	int (*csk_ddp_set)(struct cxgbi_sock *, struct cxgbi_pagepod_hdr *,
-				unsigned int, unsigned int,
-				struct cxgbi_gather_list *);
-	void (*csk_ddp_clear)(struct cxgbi_hba *,
-				unsigned int, unsigned int, unsigned int);
+	struct cxgbi_ppm* (*cdev2ppm)(struct cxgbi_device *);
+	int (*csk_ddp_set_map)(struct cxgbi_ppm *, struct cxgbi_sock *,
+			       struct cxgbi_task_tag_info *);
+	void (*csk_ddp_clear_map)(struct cxgbi_device *cdev,
+				  struct cxgbi_ppm *,
+				  struct cxgbi_task_tag_info *);
 	int (*csk_ddp_setup_digest)(struct cxgbi_sock *,
 				unsigned int, int, int, int);
 	int (*csk_ddp_setup_pgidx)(struct cxgbi_sock *,
@@ -580,6 +510,8 @@ struct cxgbi_conn {
 	struct iscsi_conn *iconn;
 	struct cxgbi_hba *chba;
 	u32 task_idx_bits;
+	unsigned int ddp_full;
+	unsigned int ddp_tag_full;
 };
 
 struct cxgbi_endpoint {
@@ -593,84 +525,14 @@ struct cxgbi_task_data {
 	unsigned short nr_frags;
 	struct page_frag frags[MAX_PDU_FRAGS];
 	struct sk_buff *skb;
+	unsigned int dlen;
 	unsigned int offset;
 	unsigned int count;
 	unsigned int sgoffset;
+	struct cxgbi_task_tag_info ttinfo;
 };
 #define iscsi_task_cxgbi_data(task) \
 	((task)->dd_data + sizeof(struct iscsi_tcp_task))
-
-static inline int cxgbi_is_ddp_tag(struct cxgbi_tag_format *tformat, u32 tag)
-{
-	return !(tag & (1 << (tformat->rsvd_bits + tformat->rsvd_shift - 1)));
-}
-
-static inline int cxgbi_sw_tag_usable(struct cxgbi_tag_format *tformat,
-					u32 sw_tag)
-{
-	sw_tag >>= (32 - tformat->rsvd_bits);
-	return !sw_tag;
-}
-
-static inline u32 cxgbi_set_non_ddp_tag(struct cxgbi_tag_format *tformat,
-					u32 sw_tag)
-{
-	unsigned char shift = tformat->rsvd_bits + tformat->rsvd_shift - 1;
-	u32 mask = (1 << shift) - 1;
-
-	if (sw_tag && (sw_tag & ~mask)) {
-		u32 v1 = sw_tag & ((1 << shift) - 1);
-		u32 v2 = (sw_tag >> (shift - 1)) << shift;
-
-		return v2 | v1 | 1 << shift;
-	}
-
-	return sw_tag | 1 << shift;
-}
-
-static inline u32 cxgbi_ddp_tag_base(struct cxgbi_tag_format *tformat,
-					u32 sw_tag)
-{
-	u32 mask = (1 << tformat->rsvd_shift) - 1;
-
-	if (sw_tag && (sw_tag & ~mask)) {
-		u32 v1 = sw_tag & mask;
-		u32 v2 = sw_tag >> tformat->rsvd_shift;
-
-		v2 <<= tformat->rsvd_bits + tformat->rsvd_shift;
-
-		return v2 | v1;
-	}
-
-	return sw_tag;
-}
-
-static inline u32 cxgbi_tag_rsvd_bits(struct cxgbi_tag_format *tformat,
-					u32 tag)
-{
-	if (cxgbi_is_ddp_tag(tformat, tag))
-		return (tag >> tformat->rsvd_shift) & tformat->rsvd_mask;
-
-	return 0;
-}
-
-static inline u32 cxgbi_tag_nonrsvd_bits(struct cxgbi_tag_format *tformat,
-					u32 tag)
-{
-	unsigned char shift = tformat->rsvd_bits + tformat->rsvd_shift - 1;
-	u32 v1, v2;
-
-	if (cxgbi_is_ddp_tag(tformat, tag)) {
-		v1 = tag & ((1 << tformat->rsvd_shift) - 1);
-		v2 = (tag >> (shift + 1)) << tformat->rsvd_shift;
-	} else {
-		u32 mask = (1 << shift) - 1;
-		tag &= ~(1 << shift);
-		v1 = tag & mask;
-		v2 = (tag >> 1) & ~mask;
-	}
-	return v1 | v2;
-}
 
 static inline void *cxgbi_alloc_big_mem(unsigned int size,
 					gfp_t gfp)
@@ -749,7 +611,11 @@ int cxgbi_ddp_init(struct cxgbi_device *, unsigned int, unsigned int,
 			unsigned int, unsigned int);
 int cxgbi_ddp_cleanup(struct cxgbi_device *);
 void cxgbi_ddp_page_size_factor(int *);
-void cxgbi_ddp_ppod_clear(struct cxgbi_pagepod *);
-void cxgbi_ddp_ppod_set(struct cxgbi_pagepod *, struct cxgbi_pagepod_hdr *,
-			struct cxgbi_gather_list *, unsigned int);
+void cxgbi_ddp_set_one_ppod(struct cxgbi_pagepod *,
+			    struct cxgbi_task_tag_info *,
+			    struct scatterlist **sg_pp, unsigned int *sg_off);
+void cxgbi_ddp_ppm_setup(void **ppm_pp, struct cxgbi_device *,
+			 struct cxgbi_tag_format *, unsigned int ppmax,
+			 unsigned int llimit, unsigned int start,
+			 unsigned int rsvd_factor);
 #endif	/*__LIBCXGBI_H__*/

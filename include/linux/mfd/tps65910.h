@@ -134,6 +134,7 @@
 
 /* RTC_CTRL_REG bitfields */
 #define TPS65910_RTC_CTRL_STOP_RTC			0x01 /*0=stop, 1=run */
+#define TPS65910_RTC_CTRL_AUTO_COMP			0x04
 #define TPS65910_RTC_CTRL_GET_TIME			0x40
 
 /* RTC_STATUS_REG bitfields */
@@ -878,7 +879,7 @@ struct tps65910_board {
 	bool en_ck32k_xtal;
 	bool en_dev_slp;
 	bool pm_off;
-	struct tps65910_sleep_keepon_data *slp_keepon;
+	struct tps65910_sleep_keepon_data slp_keepon;
 	bool en_gpio_sleep[TPS6591X_MAX_NUM_GPIO];
 	unsigned long regulator_ext_sleep_control[TPS65910_NUM_REGS];
 	struct regulator_init_data *tps65910_pmic_init_data[TPS65910_NUM_REGS];

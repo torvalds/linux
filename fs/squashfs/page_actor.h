@@ -24,7 +24,7 @@ static inline struct squashfs_page_actor *squashfs_page_actor_init(void **page,
 	if (actor == NULL)
 		return NULL;
 
-	actor->length = length ? : pages * PAGE_CACHE_SIZE;
+	actor->length = length ? : pages * PAGE_SIZE;
 	actor->page = page;
 	actor->pages = pages;
 	actor->next_page = 0;

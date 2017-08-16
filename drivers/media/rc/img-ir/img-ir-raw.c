@@ -110,7 +110,7 @@ int img_ir_probe_raw(struct img_ir_priv *priv)
 	setup_timer(&raw->timer, img_ir_echo_timer, (unsigned long)priv);
 
 	/* Allocate raw decoder */
-	raw->rdev = rdev = rc_allocate_device();
+	raw->rdev = rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rdev) {
 		dev_err(priv->dev, "cannot allocate raw input device\n");
 		return -ENOMEM;
@@ -118,7 +118,6 @@ int img_ir_probe_raw(struct img_ir_priv *priv)
 	rdev->priv = priv;
 	rdev->map_name = RC_MAP_EMPTY;
 	rdev->input_name = "IMG Infrared Decoder Raw";
-	rdev->driver_type = RC_DRIVER_IR_RAW;
 
 	/* Register raw decoder */
 	error = rc_register_device(rdev);

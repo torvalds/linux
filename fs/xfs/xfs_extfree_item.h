@@ -98,4 +98,7 @@ int			xfs_efi_copy_format(xfs_log_iovec_t *buf,
 void			xfs_efi_item_free(xfs_efi_log_item_t *);
 void			xfs_efi_release(struct xfs_efi_log_item *);
 
+int			xfs_efi_recover(struct xfs_mount *mp,
+					struct xfs_efi_log_item *efip);
+
 #endif	/* __XFS_EXTFREE_ITEM_H__ */

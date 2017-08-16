@@ -221,7 +221,7 @@ pcibios_bus_report_status_early(struct pci_channel *hose,
  * We can't use pci_find_device() here since we are
  * called from interrupt context.
  */
-static void __init_refok
+static void __ref
 pcibios_bus_report_status(struct pci_bus *bus, unsigned int status_mask,
 			  int warn)
 {
@@ -256,7 +256,7 @@ pcibios_bus_report_status(struct pci_bus *bus, unsigned int status_mask,
 			pcibios_bus_report_status(dev->subordinate, status_mask, warn);
 }
 
-void __init_refok pcibios_report_status(unsigned int status_mask, int warn)
+void __ref pcibios_report_status(unsigned int status_mask, int warn)
 {
 	struct pci_channel *hose;
 
@@ -267,27 +267,6 @@ void __init_refok pcibios_report_status(unsigned int status_mask, int warn)
 		else
 			pcibios_bus_report_status(hose->bus, status_mask, warn);
 	}
-}
-
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state, int write_combine)
-{
-	/*
-	 * I/O space can be accessed via normal processor loads and stores on
-	 * this platform but for now we elect not to do this and portable
-	 * drivers should not do this anyway.
-	 */
-	if (mmap_state == pci_mmap_io)
-		return -EINVAL;
-
-	/*
-	 * Ignore write-combine; for now only return uncached mappings.
-	 */
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	return remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-			       vma->vm_end - vma->vm_start,
-			       vma->vm_page_prot);
 }
 
 #ifndef CONFIG_GENERIC_IOMAP

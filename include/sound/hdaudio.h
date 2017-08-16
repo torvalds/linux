@@ -21,21 +21,12 @@ struct hdac_stream;
 struct hdac_device;
 struct hdac_driver;
 struct hdac_widget_tree;
+struct hda_device_id;
 
 /*
  * exported bus type
  */
 extern struct bus_type snd_hda_bus_type;
-
-/*
- * HDA device table
- */
-struct hda_device_id {
-	__u32 vendor_id;
-	__u32 rev_id;
-	const char *name;
-	unsigned long driver_data;
-};
 
 /*
  * generic arrays
@@ -117,6 +108,8 @@ int snd_hdac_device_init(struct hdac_device *dev, struct hdac_bus *bus,
 void snd_hdac_device_exit(struct hdac_device *dev);
 int snd_hdac_device_register(struct hdac_device *codec);
 void snd_hdac_device_unregister(struct hdac_device *codec);
+int snd_hdac_device_set_chip_name(struct hdac_device *codec, const char *name);
+int snd_hdac_codec_modalias(struct hdac_device *hdac, char *buf, size_t size);
 
 int snd_hdac_refresh_widgets(struct hdac_device *codec);
 int snd_hdac_refresh_widget_sysfs(struct hdac_device *codec);
@@ -147,6 +140,12 @@ int snd_hdac_query_supported_pcm(struct hdac_device *codec, hda_nid_t nid,
 bool snd_hdac_is_supported_format(struct hdac_device *codec, hda_nid_t nid,
 				  unsigned int format);
 
+int snd_hdac_codec_read(struct hdac_device *hdac, hda_nid_t nid,
+			int flags, unsigned int verb, unsigned int parm);
+int snd_hdac_codec_write(struct hdac_device *hdac, hda_nid_t nid,
+			int flags, unsigned int verb, unsigned int parm);
+bool snd_hdac_check_power_state(struct hdac_device *hdac,
+		hda_nid_t nid, unsigned int target_state);
 /**
  * snd_hdac_read_parm - read a codec parameter
  * @codec: the codec object
@@ -169,11 +168,13 @@ int snd_hdac_power_up(struct hdac_device *codec);
 int snd_hdac_power_down(struct hdac_device *codec);
 int snd_hdac_power_up_pm(struct hdac_device *codec);
 int snd_hdac_power_down_pm(struct hdac_device *codec);
+int snd_hdac_keep_power_up(struct hdac_device *codec);
 #else
 static inline int snd_hdac_power_up(struct hdac_device *codec) { return 0; }
 static inline int snd_hdac_power_down(struct hdac_device *codec) { return 0; }
 static inline int snd_hdac_power_up_pm(struct hdac_device *codec) { return 0; }
 static inline int snd_hdac_power_down_pm(struct hdac_device *codec) { return 0; }
+static inline int snd_hdac_keep_power_up(struct hdac_device *codec) { return 0; }
 #endif
 
 /*
@@ -244,6 +245,12 @@ struct hdac_rb {
 
 /*
  * HD-audio bus base driver
+ *
+ * @ppcap: pp capabilities pointer
+ * @spbcap: SPIB capabilities pointer
+ * @mlcap: MultiLink capabilities pointer
+ * @gtscap: gts capabilities pointer
+ * @drsmcap: dma resume capabilities pointer
  */
 struct hdac_bus {
 	struct device *dev;
@@ -254,6 +261,12 @@ struct hdac_bus {
 	unsigned long addr;
 	void __iomem *remap_addr;
 	int irq;
+
+	void __iomem *ppcap;
+	void __iomem *spbcap;
+	void __iomem *mlcap;
+	void __iomem *gtscap;
+	void __iomem *drsmcap;
 
 	/* codec linked list */
 	struct list_head codec_list;
@@ -334,6 +347,7 @@ static inline void snd_hdac_codec_link_down(struct hdac_device *codec)
 int snd_hdac_bus_send_cmd(struct hdac_bus *bus, unsigned int val);
 int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 			      unsigned int *res);
+int snd_hdac_bus_parse_capabilities(struct hdac_bus *bus);
 int snd_hdac_link_power(struct hdac_device *codec, bool enable);
 
 bool snd_hdac_bus_init_chip(struct hdac_bus *bus, bool full_reset);
@@ -344,7 +358,7 @@ void snd_hdac_bus_enter_link_reset(struct hdac_bus *bus);
 void snd_hdac_bus_exit_link_reset(struct hdac_bus *bus);
 
 void snd_hdac_bus_update_rirb(struct hdac_bus *bus);
-void snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
+int snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
 				    void (*ack)(struct hdac_bus *,
 						struct hdac_stream *));
 
@@ -354,24 +368,32 @@ void snd_hdac_bus_free_stream_pages(struct hdac_bus *bus);
 /*
  * macros for easy use
  */
-#define _snd_hdac_chip_write(type, chip, reg, value) \
-	((chip)->io_ops->reg_write ## type(value, (chip)->remap_addr + (reg)))
-#define _snd_hdac_chip_read(type, chip, reg) \
-	((chip)->io_ops->reg_read ## type((chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_writeb(chip, reg, value) \
+	((chip)->io_ops->reg_writeb(value, (chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_readb(chip, reg) \
+	((chip)->io_ops->reg_readb((chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_writew(chip, reg, value) \
+	((chip)->io_ops->reg_writew(value, (chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_readw(chip, reg) \
+	((chip)->io_ops->reg_readw((chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_writel(chip, reg, value) \
+	((chip)->io_ops->reg_writel(value, (chip)->remap_addr + (reg)))
+#define _snd_hdac_chip_readl(chip, reg) \
+	((chip)->io_ops->reg_readl((chip)->remap_addr + (reg)))
 
 /* read/write a register, pass without AZX_REG_ prefix */
 #define snd_hdac_chip_writel(chip, reg, value) \
-	_snd_hdac_chip_write(l, chip, AZX_REG_ ## reg, value)
+	_snd_hdac_chip_writel(chip, AZX_REG_ ## reg, value)
 #define snd_hdac_chip_writew(chip, reg, value) \
-	_snd_hdac_chip_write(w, chip, AZX_REG_ ## reg, value)
+	_snd_hdac_chip_writew(chip, AZX_REG_ ## reg, value)
 #define snd_hdac_chip_writeb(chip, reg, value) \
-	_snd_hdac_chip_write(b, chip, AZX_REG_ ## reg, value)
+	_snd_hdac_chip_writeb(chip, AZX_REG_ ## reg, value)
 #define snd_hdac_chip_readl(chip, reg) \
-	_snd_hdac_chip_read(l, chip, AZX_REG_ ## reg)
+	_snd_hdac_chip_readl(chip, AZX_REG_ ## reg)
 #define snd_hdac_chip_readw(chip, reg) \
-	_snd_hdac_chip_read(w, chip, AZX_REG_ ## reg)
+	_snd_hdac_chip_readw(chip, AZX_REG_ ## reg)
 #define snd_hdac_chip_readb(chip, reg) \
-	_snd_hdac_chip_read(b, chip, AZX_REG_ ## reg)
+	_snd_hdac_chip_readb(chip, AZX_REG_ ## reg)
 
 /* update a register, pass without AZX_REG_ prefix */
 #define snd_hdac_chip_updatel(chip, reg, mask, val) \

@@ -93,13 +93,13 @@ struct knav_reg_pdsp_regs {
 struct knav_reg_acc_command {
 	u32		command;
 	u32		queue_mask;
-	u32		list_phys;
+	u32		list_dma;
 	u32		queue_num;
 	u32		timer_config;
 };
 
 struct knav_link_ram_block {
-	dma_addr_t	 phys;
+	dma_addr_t	 dma;
 	void		*virt;
 	size_t		 size;
 };
@@ -135,9 +135,10 @@ struct knav_pdsp_info {
 	};
 	void __iomem					*intd;
 	u32 __iomem					*iram;
-	const char					*firmware;
 	u32						id;
 	struct list_head				list;
+	bool						loaded;
+	bool						started;
 };
 
 struct knav_qmgr_info {

@@ -13,11 +13,26 @@ include scripts/Kbuild.include
 # Create output directory if not already present
 _dummy := $(shell [ -d $(obj) ] || mkdir -p $(obj))
 
+# Stale wrappers when the corresponding files are removed from generic-y
+# need removing.
+generated-y   := $(generic-y) $(generated-y)
+all-files     := $(patsubst %, $(obj)/%, $(generated-y))
+old-headers   := $(wildcard $(obj)/*.h)
+unwanted      := $(filter-out $(all-files),$(old-headers))
+
 quiet_cmd_wrap = WRAP    $@
 cmd_wrap = echo "\#include <asm-generic/$*.h>" >$@
 
-all: $(patsubst %, $(obj)/%, $(generic-y))
+quiet_cmd_remove = REMOVE  $(unwanted)
+cmd_remove = rm -f $(unwanted)
+
+all: $(patsubst %, $(obj)/%, $(generic-y)) FORCE
+	$(if $(unwanted),$(call cmd,remove),)
 	@:
 
 $(obj)/%.h:
 	$(call cmd,wrap)
+
+PHONY += FORCE
+.PHONY: $(PHONY)
+FORCE: ;

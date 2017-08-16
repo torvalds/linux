@@ -1,0 +1,168 @@
+Broadcom VC4 (VideoCore4) GPU
+
+The VC4 device present on the Raspberry Pi includes a display system
+with HDMI output and the HVS (Hardware Video Scaler) for compositing
+display planes.
+
+Required properties for VC4:
+- compatible:	Should be "brcm,bcm2835-vc4" or "brcm,cygnus-vc4"
+
+Required properties for Pixel Valve:
+- compatible:	Should be one of "brcm,bcm2835-pixelvalve0",
+		  "brcm,bcm2835-pixelvalve1", or "brcm,bcm2835-pixelvalve2"
+- reg:		Physical base address and length of the PV's registers
+- interrupts:	The interrupt number
+		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
+
+Required properties for HVS:
+- compatible:	Should be "brcm,bcm2835-hvs"
+- reg:		Physical base address and length of the HVS's registers
+- interrupts:	The interrupt number
+		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
+
+Required properties for HDMI
+- compatible:	Should be "brcm,bcm2835-hdmi"
+- reg:		Physical base address and length of the two register ranges
+		  ("HDMI" and "HD", in that order)
+- interrupts:	The interrupt numbers
+		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
+- ddc:		phandle of the I2C controller used for DDC EDID probing
+- clocks:	a) hdmi: The HDMI state machine clock
+		b) pixel: The pixel clock.
+
+Optional properties for HDMI:
+- hpd-gpios:	The GPIO pin for HDMI hotplug detect (if it doesn't appear
+		  as an interrupt/status bit in the HDMI controller
+		  itself).  See bindings/pinctrl/brcm,bcm2835-gpio.txt
+- dmas:		Should contain one entry pointing to the DMA channel used to
+		transfer audio data
+- dma-names:	Should contain "audio-rx"
+
+Required properties for DPI:
+- compatible:	Should be "brcm,bcm2835-dpi"
+- reg:		Physical base address and length of the registers
+- clocks:	a) core: The core clock the unit runs on
+		b) pixel: The pixel clock that feeds the pixelvalve
+- port:		Port node with a single endpoint connecting to the panel
+		  device, as defined in [1]
+
+Required properties for VEC:
+- compatible:	Should be "brcm,bcm2835-vec"
+- reg:		Physical base address and length of the registers
+- clocks:	The core clock the unit runs on
+- interrupts:	The interrupt number
+		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
+
+Required properties for V3D:
+- compatible:	Should be "brcm,bcm2835-v3d" or "brcm,cygnus-v3d"
+- reg:		Physical base address and length of the V3D's registers
+- interrupts:	The interrupt number
+		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
+
+Optional properties for V3D:
+- clocks:	The clock the unit runs on
+
+Required properties for DSI:
+- compatible:	Should be "brcm,bcm2835-dsi0" or "brcm,bcm2835-dsi1"
+- reg:		Physical base address and length of the DSI block's registers
+- interrupts:	The interrupt number
+		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
+- clocks:	a) phy: The DSI PLL clock feeding the DSI analog PHY
+		b) escape: The DSI ESC clock from CPRMAN
+		c) pixel: The DSI pixel clock from CPRMAN
+- clock-output-names:
+		The 3 clocks output from the DSI analog PHY: dsi[01]_byte,
+		dsi[01]_ddr2, and dsi[01]_ddr
+
+[1] Documentation/devicetree/bindings/media/video-interfaces.txt
+
+Example:
+pixelvalve@7e807000 {
+	compatible = "brcm,bcm2835-pixelvalve2";
+	reg = <0x7e807000 0x100>;
+	interrupts = <2 10>; /* pixelvalve */
+};
+
+hvs@7e400000 {
+	compatible = "brcm,bcm2835-hvs";
+	reg = <0x7e400000 0x6000>;
+	interrupts = <2 1>;
+};
+
+hdmi: hdmi@7e902000 {
+	compatible = "brcm,bcm2835-hdmi";
+	reg = <0x7e902000 0x600>,
+	      <0x7e808000 0x100>;
+	interrupts = <2 8>, <2 9>;
+	ddc = <&i2c2>;
+	hpd-gpios = <&gpio 46 GPIO_ACTIVE_HIGH>;
+	clocks = <&clocks BCM2835_PLLH_PIX>,
+		 <&clocks BCM2835_CLOCK_HSM>;
+	clock-names = "pixel", "hdmi";
+};
+
+dpi: dpi@7e208000 {
+	compatible = "brcm,bcm2835-dpi";
+	reg = <0x7e208000 0x8c>;
+	clocks = <&clocks BCM2835_CLOCK_VPU>,
+	         <&clocks BCM2835_CLOCK_DPI>;
+	clock-names = "core", "pixel";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	port {
+		dpi_out: endpoint@0 {
+			remote-endpoint = <&panel_in>;
+		};
+	};
+};
+
+dsi1: dsi@7e700000 {
+	compatible = "brcm,bcm2835-dsi1";
+	reg = <0x7e700000 0x8c>;
+	interrupts = <2 12>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	#clock-cells = <1>;
+
+	clocks = <&clocks BCM2835_PLLD_DSI1>,
+		 <&clocks BCM2835_CLOCK_DSI1E>,
+		 <&clocks BCM2835_CLOCK_DSI1P>;
+	clock-names = "phy", "escape", "pixel";
+
+	clock-output-names = "dsi1_byte", "dsi1_ddr2", "dsi1_ddr";
+
+	pitouchscreen: panel@0 {
+		compatible = "raspberrypi,touchscreen";
+		reg = <0>;
+
+		<...>
+	};
+};
+
+vec: vec@7e806000 {
+	compatible = "brcm,bcm2835-vec";
+	reg = <0x7e806000 0x1000>;
+	clocks = <&clocks BCM2835_CLOCK_VEC>;
+	interrupts = <2 27>;
+};
+
+v3d: v3d@7ec00000 {
+	compatible = "brcm,bcm2835-v3d";
+	reg = <0x7ec00000 0x1000>;
+	interrupts = <1 10>;
+};
+
+vc4: gpu {
+	compatible = "brcm,bcm2835-vc4";
+};
+
+panel: panel {
+	compatible = "ontat,yx700wv03", "simple-panel";
+
+	port {
+		panel_in: endpoint {
+			remote-endpoint = <&dpi_out>;
+		};
+	};
+};

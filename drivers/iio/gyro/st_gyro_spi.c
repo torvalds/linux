@@ -54,13 +54,13 @@ static const struct spi_device_id st_gyro_id_table[] = {
 	{ L3GD20_GYRO_DEV_NAME },
 	{ L3G4IS_GYRO_DEV_NAME },
 	{ LSM330_GYRO_DEV_NAME },
+	{ LSM9DS0_GYRO_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_gyro_id_table);
 
 static struct spi_driver st_gyro_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "st-gyro-spi",
 	},
 	.probe = st_gyro_spi_probe,

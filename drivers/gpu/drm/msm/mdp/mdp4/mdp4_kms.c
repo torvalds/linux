@@ -17,6 +17,7 @@
 
 
 #include "msm_drv.h"
+#include "msm_gem.h"
 #include "msm_mmu.h"
 #include "mdp4_kms.h"
 
@@ -49,30 +50,6 @@ static int mdp4_hw_init(struct msm_kms *kms)
 	}
 
 	mdp4_kms->rev = minor;
-
-	if (mdp4_kms->dsi_pll_vdda) {
-		if ((mdp4_kms->rev == 2) || (mdp4_kms->rev == 4)) {
-			ret = regulator_set_voltage(mdp4_kms->dsi_pll_vdda,
-					1200000, 1200000);
-			if (ret) {
-				dev_err(dev->dev,
-					"failed to set dsi_pll_vdda voltage: %d\n", ret);
-				goto out;
-			}
-		}
-	}
-
-	if (mdp4_kms->dsi_pll_vddio) {
-		if (mdp4_kms->rev == 2) {
-			ret = regulator_set_voltage(mdp4_kms->dsi_pll_vddio,
-					1800000, 1800000);
-			if (ret) {
-				dev_err(dev->dev,
-					"failed to set dsi_pll_vddio voltage: %d\n", ret);
-				goto out;
-			}
-		}
-	}
 
 	if (mdp4_kms->rev > 1) {
 		mdp4_write(mdp4_kms, REG_MDP4_CS_CONTROLLER0, 0x0707ffff);
@@ -130,31 +107,27 @@ out:
 static void mdp4_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	int i, ncrtcs = state->dev->mode_config.num_crtc;
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 
 	mdp4_enable(mdp4_kms);
 
 	/* see 119ecb7fd */
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc)
-			continue;
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_get(crtc);
-	}
 }
 
 static void mdp4_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	int i, ncrtcs = state->dev->mode_config.num_crtc;
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 
 	/* see 119ecb7fd */
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc)
-			continue;
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_put(crtc);
-	}
 
 	mdp4_disable(mdp4_kms);
 }
@@ -169,26 +142,39 @@ static long mdp4_round_pixclk(struct msm_kms *kms, unsigned long rate,
 		struct drm_encoder *encoder)
 {
 	/* if we had >1 encoder, we'd need something more clever: */
-	return mdp4_dtv_round_pixclk(encoder, rate);
+	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_TMDS:
+		return mdp4_dtv_round_pixclk(encoder, rate);
+	case DRM_MODE_ENCODER_LVDS:
+	case DRM_MODE_ENCODER_DSI:
+	default:
+		return rate;
+	}
 }
 
-static void mdp4_preclose(struct msm_kms *kms, struct drm_file *file)
-{
-	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	struct msm_drm_private *priv = mdp4_kms->dev->dev_private;
-	unsigned i;
-
-	for (i = 0; i < priv->num_crtcs; i++)
-		mdp4_crtc_cancel_pending_flip(priv->crtcs[i], file);
-}
+static const char * const iommu_ports[] = {
+	"mdp_port0_cb0", "mdp_port1_cb0",
+};
 
 static void mdp4_destroy(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+	struct device *dev = mdp4_kms->dev->dev;
+	struct msm_gem_address_space *aspace = kms->aspace;
+
 	if (mdp4_kms->blank_cursor_iova)
-		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id);
-	if (mdp4_kms->blank_cursor_bo)
-		drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
+		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, kms->aspace);
+	drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
+
+	if (aspace) {
+		aspace->mmu->funcs->detach(aspace->mmu,
+				iommu_ports, ARRAY_SIZE(iommu_ports));
+		msm_gem_address_space_put(aspace);
+	}
+
+	if (mdp4_kms->rpm_enabled)
+		pm_runtime_disable(dev);
+
 	kfree(mdp4_kms);
 }
 
@@ -206,7 +192,6 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.wait_for_crtc_commit_done = mdp4_wait_for_crtc_commit_done,
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp4_round_pixclk,
-		.preclose        = mdp4_preclose,
 		.destroy         = mdp4_destroy,
 	},
 	.set_irqmask         = mdp4_set_irqmask,
@@ -240,42 +225,103 @@ int mdp4_enable(struct mdp4_kms *mdp4_kms)
 	return 0;
 }
 
-#ifdef CONFIG_OF
-static struct drm_panel *detect_panel(struct drm_device *dev)
+
+static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
+				  int intf_type)
 {
-	struct device_node *endpoint, *panel_node;
-	struct device_node *np = dev->dev->of_node;
-	struct drm_panel *panel = NULL;
+	struct drm_device *dev = mdp4_kms->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+	struct device_node *panel_node;
+	int dsi_id;
+	int ret;
 
-	endpoint = of_graph_get_next_endpoint(np, NULL);
-	if (!endpoint) {
-		dev_err(dev->dev, "no valid endpoint\n");
-		return ERR_PTR(-ENODEV);
+	switch (intf_type) {
+	case DRM_MODE_ENCODER_LVDS:
+		/*
+		 * bail out early if there is no panel node (no need to
+		 * initialize LCDC encoder and LVDS connector)
+		 */
+		panel_node = of_graph_get_remote_node(dev->dev->of_node, 0, 0);
+		if (!panel_node)
+			return 0;
+
+		encoder = mdp4_lcdc_encoder_init(dev, panel_node);
+		if (IS_ERR(encoder)) {
+			dev_err(dev->dev, "failed to construct LCDC encoder\n");
+			return PTR_ERR(encoder);
+		}
+
+		/* LCDC can be hooked to DMA_P (TODO: Add DMA_S later?) */
+		encoder->possible_crtcs = 1 << DMA_P;
+
+		connector = mdp4_lvds_connector_init(dev, panel_node, encoder);
+		if (IS_ERR(connector)) {
+			dev_err(dev->dev, "failed to initialize LVDS connector\n");
+			return PTR_ERR(connector);
+		}
+
+		priv->encoders[priv->num_encoders++] = encoder;
+		priv->connectors[priv->num_connectors++] = connector;
+
+		break;
+	case DRM_MODE_ENCODER_TMDS:
+		encoder = mdp4_dtv_encoder_init(dev);
+		if (IS_ERR(encoder)) {
+			dev_err(dev->dev, "failed to construct DTV encoder\n");
+			return PTR_ERR(encoder);
+		}
+
+		/* DTV can be hooked to DMA_E: */
+		encoder->possible_crtcs = 1 << 1;
+
+		if (priv->hdmi) {
+			/* Construct bridge/connector for HDMI: */
+			ret = msm_hdmi_modeset_init(priv->hdmi, dev, encoder);
+			if (ret) {
+				dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
+				return ret;
+			}
+		}
+
+		priv->encoders[priv->num_encoders++] = encoder;
+
+		break;
+	case DRM_MODE_ENCODER_DSI:
+		/* only DSI1 supported for now */
+		dsi_id = 0;
+
+		if (!priv->dsi[dsi_id])
+			break;
+
+		encoder = mdp4_dsi_encoder_init(dev);
+		if (IS_ERR(encoder)) {
+			ret = PTR_ERR(encoder);
+			dev_err(dev->dev,
+				"failed to construct DSI encoder: %d\n", ret);
+			return ret;
+		}
+
+		/* TODO: Add DMA_S later? */
+		encoder->possible_crtcs = 1 << DMA_P;
+		priv->encoders[priv->num_encoders++] = encoder;
+
+		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, encoder);
+		if (ret) {
+			dev_err(dev->dev, "failed to initialize DSI: %d\n",
+				ret);
+			return ret;
+		}
+
+		break;
+	default:
+		dev_err(dev->dev, "Invalid or unsupported interface\n");
+		return -EINVAL;
 	}
 
-	panel_node = of_graph_get_remote_port_parent(endpoint);
-	if (!panel_node) {
-		dev_err(dev->dev, "no valid panel node\n");
-		of_node_put(endpoint);
-		return ERR_PTR(-ENODEV);
-	}
-
-	of_node_put(endpoint);
-
-	panel = of_drm_find_panel(panel_node);
-	if (!panel) {
-		of_node_put(panel_node);
-		return ERR_PTR(-EPROBE_DEFER);
-	}
-
-	return panel;
+	return 0;
 }
-#else
-static struct drm_panel *detect_panel(struct drm_device *dev)
-{
-	// ??? maybe use a module param to specify which panel is attached?
-}
-#endif
 
 static int modeset_init(struct mdp4_kms *mdp4_kms)
 {
@@ -283,111 +329,73 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
-	struct drm_encoder *encoder;
-	struct drm_connector *connector;
-	struct drm_panel *panel;
-	int ret;
+	int i, ret;
+	static const enum mdp4_pipe rgb_planes[] = {
+		RGB1, RGB2,
+	};
+	static const enum mdp4_pipe vg_planes[] = {
+		VG1, VG2,
+	};
+	static const enum mdp4_dma mdp4_crtcs[] = {
+		DMA_P, DMA_E,
+	};
+	static const char * const mdp4_crtc_names[] = {
+		"DMA_P", "DMA_E",
+	};
+	static const int mdp4_intfs[] = {
+		DRM_MODE_ENCODER_LVDS,
+		DRM_MODE_ENCODER_DSI,
+		DRM_MODE_ENCODER_TMDS,
+	};
 
 	/* construct non-private planes: */
-	plane = mdp4_plane_init(dev, VG1, false);
-	if (IS_ERR(plane)) {
-		dev_err(dev->dev, "failed to construct plane for VG1\n");
-		ret = PTR_ERR(plane);
-		goto fail;
+	for (i = 0; i < ARRAY_SIZE(vg_planes); i++) {
+		plane = mdp4_plane_init(dev, vg_planes[i], false);
+		if (IS_ERR(plane)) {
+			dev_err(dev->dev,
+				"failed to construct plane for VG%d\n", i + 1);
+			ret = PTR_ERR(plane);
+			goto fail;
+		}
+		priv->planes[priv->num_planes++] = plane;
 	}
-	priv->planes[priv->num_planes++] = plane;
 
-	plane = mdp4_plane_init(dev, VG2, false);
-	if (IS_ERR(plane)) {
-		dev_err(dev->dev, "failed to construct plane for VG2\n");
-		ret = PTR_ERR(plane);
-		goto fail;
+	for (i = 0; i < ARRAY_SIZE(mdp4_crtcs); i++) {
+		plane = mdp4_plane_init(dev, rgb_planes[i], true);
+		if (IS_ERR(plane)) {
+			dev_err(dev->dev,
+				"failed to construct plane for RGB%d\n", i + 1);
+			ret = PTR_ERR(plane);
+			goto fail;
+		}
+
+		crtc  = mdp4_crtc_init(dev, plane, priv->num_crtcs, i,
+				mdp4_crtcs[i]);
+		if (IS_ERR(crtc)) {
+			dev_err(dev->dev, "failed to construct crtc for %s\n",
+				mdp4_crtc_names[i]);
+			ret = PTR_ERR(crtc);
+			goto fail;
+		}
+
+		priv->crtcs[priv->num_crtcs++] = crtc;
 	}
-	priv->planes[priv->num_planes++] = plane;
 
 	/*
-	 * Setup the LCDC/LVDS path: RGB2 -> DMA_P -> LCDC -> LVDS:
+	 * we currently set up two relatively fixed paths:
+	 *
+	 * LCDC/LVDS path: RGB1 -> DMA_P -> LCDC -> LVDS
+	 *			or
+	 * DSI path: RGB1 -> DMA_P -> DSI1 -> DSI Panel
+	 *
+	 * DTV/HDMI path: RGB2 -> DMA_E -> DTV -> HDMI
 	 */
 
-	panel = detect_panel(dev);
-	if (IS_ERR(panel)) {
-		ret = PTR_ERR(panel);
-		dev_err(dev->dev, "failed to detect LVDS panel: %d\n", ret);
-		goto fail;
-	}
-
-	plane = mdp4_plane_init(dev, RGB2, true);
-	if (IS_ERR(plane)) {
-		dev_err(dev->dev, "failed to construct plane for RGB2\n");
-		ret = PTR_ERR(plane);
-		goto fail;
-	}
-
-	crtc  = mdp4_crtc_init(dev, plane, priv->num_crtcs, 0, DMA_P);
-	if (IS_ERR(crtc)) {
-		dev_err(dev->dev, "failed to construct crtc for DMA_P\n");
-		ret = PTR_ERR(crtc);
-		goto fail;
-	}
-
-	encoder = mdp4_lcdc_encoder_init(dev, panel);
-	if (IS_ERR(encoder)) {
-		dev_err(dev->dev, "failed to construct LCDC encoder\n");
-		ret = PTR_ERR(encoder);
-		goto fail;
-	}
-
-	/* LCDC can be hooked to DMA_P: */
-	encoder->possible_crtcs = 1 << priv->num_crtcs;
-
-	priv->crtcs[priv->num_crtcs++] = crtc;
-	priv->encoders[priv->num_encoders++] = encoder;
-
-	connector = mdp4_lvds_connector_init(dev, panel, encoder);
-	if (IS_ERR(connector)) {
-		ret = PTR_ERR(connector);
-		dev_err(dev->dev, "failed to initialize LVDS connector: %d\n", ret);
-		goto fail;
-	}
-
-	priv->connectors[priv->num_connectors++] = connector;
-
-	/*
-	 * Setup DTV/HDMI path: RGB1 -> DMA_E -> DTV -> HDMI:
-	 */
-
-	plane = mdp4_plane_init(dev, RGB1, true);
-	if (IS_ERR(plane)) {
-		dev_err(dev->dev, "failed to construct plane for RGB1\n");
-		ret = PTR_ERR(plane);
-		goto fail;
-	}
-
-	crtc  = mdp4_crtc_init(dev, plane, priv->num_crtcs, 1, DMA_E);
-	if (IS_ERR(crtc)) {
-		dev_err(dev->dev, "failed to construct crtc for DMA_E\n");
-		ret = PTR_ERR(crtc);
-		goto fail;
-	}
-
-	encoder = mdp4_dtv_encoder_init(dev);
-	if (IS_ERR(encoder)) {
-		dev_err(dev->dev, "failed to construct DTV encoder\n");
-		ret = PTR_ERR(encoder);
-		goto fail;
-	}
-
-	/* DTV can be hooked to DMA_E: */
-	encoder->possible_crtcs = 1 << priv->num_crtcs;
-
-	priv->crtcs[priv->num_crtcs++] = crtc;
-	priv->encoders[priv->num_encoders++] = encoder;
-
-	if (priv->hdmi) {
-		/* Construct bridge/connector for HDMI: */
-		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
+	for (i = 0; i < ARRAY_SIZE(mdp4_intfs); i++) {
+		ret = mdp4_modeset_init_intf(mdp4_kms, mdp4_intfs[i]);
 		if (ret) {
-			dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
+			dev_err(dev->dev, "failed to initialize intf: %d, %d\n",
+				i, ret);
 			goto fail;
 		}
 	}
@@ -398,18 +406,14 @@ fail:
 	return ret;
 }
 
-static const char *iommu_ports[] = {
-		"mdp_port0_cb0", "mdp_port1_cb0",
-};
-
 struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 {
-	struct platform_device *pdev = dev->platformdev;
+	struct platform_device *pdev = to_platform_device(dev->dev);
 	struct mdp4_platform_config *config = mdp4_get_config(pdev);
 	struct mdp4_kms *mdp4_kms;
 	struct msm_kms *kms = NULL;
-	struct msm_mmu *mmu;
-	int ret;
+	struct msm_gem_address_space *aspace;
+	int irq, ret;
 
 	mdp4_kms = kzalloc(sizeof(*mdp4_kms), GFP_KERNEL);
 	if (!mdp4_kms) {
@@ -430,15 +434,14 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_kms->dsi_pll_vdda =
-			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vdda");
-	if (IS_ERR(mdp4_kms->dsi_pll_vdda))
-		mdp4_kms->dsi_pll_vdda = NULL;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		dev_err(dev->dev, "failed to get irq: %d\n", ret);
+		goto fail;
+	}
 
-	mdp4_kms->dsi_pll_vddio =
-			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vddio");
-	if (IS_ERR(mdp4_kms->dsi_pll_vddio))
-		mdp4_kms->dsi_pll_vddio = NULL;
+	kms->irq = irq;
 
 	/* NOTE: driver for this regulator still missing upstream.. use
 	 * _get_exclusive() and ignore the error if it does not exist
@@ -475,7 +478,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "mdp_axi_clk");
+	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "bus_clk");
 	if (IS_ERR(mdp4_kms->axi_clk)) {
 		dev_err(dev->dev, "failed to get axi_clk\n");
 		ret = PTR_ERR(mdp4_kms->axi_clk);
@@ -484,6 +487,9 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 
 	clk_set_rate(mdp4_kms->clk, config->max_clk);
 	clk_set_rate(mdp4_kms->lut_clk, config->max_clk);
+
+	pm_runtime_enable(dev->dev);
+	mdp4_kms->rpm_enabled = true;
 
 	/* make sure things are off before attaching iommu (bootloader could
 	 * have left things on, in which case we'll start getting faults if
@@ -497,26 +503,23 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	mdelay(16);
 
 	if (config->iommu) {
-		mmu = msm_iommu_new(&pdev->dev, config->iommu);
-		if (IS_ERR(mmu)) {
-			ret = PTR_ERR(mmu);
+		aspace = msm_gem_address_space_create(&pdev->dev,
+				config->iommu, "mdp4");
+		if (IS_ERR(aspace)) {
+			ret = PTR_ERR(aspace);
 			goto fail;
 		}
-		ret = mmu->funcs->attach(mmu, iommu_ports,
+
+		kms->aspace = aspace;
+
+		ret = aspace->mmu->funcs->attach(aspace->mmu, iommu_ports,
 				ARRAY_SIZE(iommu_ports));
 		if (ret)
 			goto fail;
 	} else {
 		dev_info(dev->dev, "no iommu, fallback to phys "
 				"contig buffers for scanout\n");
-		mmu = NULL;
-	}
-
-	mdp4_kms->id = msm_register_mmu(dev, mmu);
-	if (mdp4_kms->id < 0) {
-		ret = mdp4_kms->id;
-		dev_err(dev->dev, "failed to register mdp4 iommu: %d\n", ret);
-		goto fail;
+		aspace = NULL;
 	}
 
 	ret = modeset_init(mdp4_kms);
@@ -525,9 +528,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mutex_lock(&dev->struct_mutex);
 	mdp4_kms->blank_cursor_bo = msm_gem_new(dev, SZ_16K, MSM_BO_WC);
-	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(mdp4_kms->blank_cursor_bo)) {
 		ret = PTR_ERR(mdp4_kms->blank_cursor_bo);
 		dev_err(dev->dev, "could not allocate blank-cursor bo: %d\n", ret);
@@ -535,7 +536,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	ret = msm_gem_get_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id,
+	ret = msm_gem_get_iova(mdp4_kms->blank_cursor_bo, kms->aspace,
 			&mdp4_kms->blank_cursor_iova);
 	if (ret) {
 		dev_err(dev->dev, "could not pin blank-cursor bo: %d\n", ret);
@@ -558,17 +559,14 @@ fail:
 static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
 {
 	static struct mdp4_platform_config config = {};
-#ifdef CONFIG_OF
-	/* TODO */
+
+	/* TODO: Chips that aren't apq8064 have a 200 Mhz max_clk */
 	config.max_clk = 266667000;
 	config.iommu = iommu_domain_alloc(&platform_bus_type);
-#else
-	if (cpu_is_apq8064())
-		config.max_clk = 266667000;
-	else
-		config.max_clk = 200000000;
+	if (config.iommu) {
+		config.iommu->geometry.aperture_start = 0x1000;
+		config.iommu->geometry.aperture_end = 0xffffffff;
+	}
 
-	config.iommu = msm_get_iommu_domain(DISPLAY_READ_DOMAIN);
-#endif
 	return &config;
 }

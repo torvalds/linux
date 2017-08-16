@@ -8,10 +8,13 @@ Sub-nodes:
 - regulators : Contain the regulator nodes. The DA9052/53 regulators are
   bound using their names as listed below:
 
-    buck0     : regulator BUCK0
-    buck1     : regulator BUCK1
-    buck2     : regulator BUCK2
-    buck3     : regulator BUCK3
+    buck1     : regulator BUCK CORE
+    buck2     : regulator BUCK PRO
+    buck3     : regulator BUCK MEM
+    buck4     : regulator BUCK PERI
+    ldo1      : regulator LDO1
+    ldo2      : regulator LDO2
+    ldo3      : regulator LDO3
     ldo4      : regulator LDO4
     ldo5      : regulator LDO5
     ldo6      : regulator LDO6
@@ -19,9 +22,6 @@ Sub-nodes:
     ldo8      : regulator LDO8
     ldo9      : regulator LDO9
     ldo10     : regulator LDO10
-    ldo11     : regulator LDO11
-    ldo12     : regulator LDO12
-    ldo13     : regulator LDO13
 
   The bindings details of individual regulator device can be found in:
   Documentation/devicetree/bindings/regulator/regulator.txt
@@ -36,22 +36,22 @@ i2c@63fc8000 { /* I2C1 */
 		reg = <0x48>;
 
 		regulators {
-			buck0 {
-				regulator-min-microvolt = <500000>;
-				regulator-max-microvolt = <2075000>;
-			};
-
 			buck1 {
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <2075000>;
 			};
 
 			buck2 {
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <2075000>;
+			};
+
+			buck3 {
 				regulator-min-microvolt = <925000>;
 				regulator-max-microvolt = <2500000>;
 			};
 
-			buck3 {
+			buck4 {
 				regulator-min-microvolt = <925000>;
 				regulator-max-microvolt = <2500000>;
 			};
