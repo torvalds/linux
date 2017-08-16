@@ -442,8 +442,6 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 					i,
 					ADDRESS_WATCH_REG_CNTL);
 
-		aw_reg_add_dword /= sizeof(uint32_t);
-
 		packets_vec[0].bitfields2.reg_offset =
 					aw_reg_add_dword - AMD_CONFIG_REG_BASE;
 
@@ -455,8 +453,6 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 					i,
 					ADDRESS_WATCH_REG_ADDR_HI);
 
-		aw_reg_add_dword /= sizeof(uint32_t);
-
 		packets_vec[1].bitfields2.reg_offset =
 					aw_reg_add_dword - AMD_CONFIG_REG_BASE;
 		packets_vec[1].reg_data[0] = addrHi.u32All;
@@ -466,8 +462,6 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 					dbgdev->dev->kgd,
 					i,
 					ADDRESS_WATCH_REG_ADDR_LO);
-
-		aw_reg_add_dword /= sizeof(uint32_t);
 
 		packets_vec[2].bitfields2.reg_offset =
 				aw_reg_add_dword - AMD_CONFIG_REG_BASE;
@@ -484,8 +478,6 @@ static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
 					dbgdev->dev->kgd,
 					i,
 					ADDRESS_WATCH_REG_CNTL);
-
-		aw_reg_add_dword /= sizeof(uint32_t);
 
 		packets_vec[3].bitfields2.reg_offset =
 					aw_reg_add_dword - AMD_CONFIG_REG_BASE;
