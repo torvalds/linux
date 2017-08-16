@@ -36,7 +36,6 @@
 #include <net/ip.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
-#include <linux/vmalloc.h>
 
 #include <rdma/ib_cache.h>
 #include <rdma/ib_pack.h>
@@ -1174,16 +1173,10 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 
-		qp->sq.wrid = kmalloc_array(qp->sq.wqe_cnt, sizeof(u64),
-					GFP_KERNEL | __GFP_NOWARN);
-		if (!qp->sq.wrid)
-			qp->sq.wrid = __vmalloc(qp->sq.wqe_cnt * sizeof(u64),
-						GFP_KERNEL, PAGE_KERNEL);
-		qp->rq.wrid = kmalloc_array(qp->rq.wqe_cnt, sizeof(u64),
-					GFP_KERNEL | __GFP_NOWARN);
-		if (!qp->rq.wrid)
-			qp->rq.wrid = __vmalloc(qp->rq.wqe_cnt * sizeof(u64),
-						GFP_KERNEL, PAGE_KERNEL);
+		qp->sq.wrid = kvmalloc_array(qp->sq.wqe_cnt,
+					     sizeof(u64), GFP_KERNEL);
+		qp->rq.wrid = kvmalloc_array(qp->rq.wqe_cnt,
+					     sizeof(u64), GFP_KERNEL);
 		if (!qp->sq.wrid || !qp->rq.wrid) {
 			err = -ENOMEM;
 			goto err_wrid;
