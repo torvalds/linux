@@ -711,7 +711,7 @@ struct hfa384x_hscan_result {
 #define HFA384x_LINK_ASSOCFAIL		((u16)6)
 
 struct hfa384x_link_status {
-	u16 linkstatus;
+	__le16 linkstatus;
 } __packed;
 
 /*--  Unsolicited Frame, MAC Mgmt: AssociationStatus (--*/
