@@ -647,9 +647,23 @@ void vmbus_close(struct vmbus_channel *channel)
 }
 EXPORT_SYMBOL_GPL(vmbus_close);
 
-int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
-			 u32 bufferlen, u64 requestid,
-			 enum vmbus_packet_type type, u32 flags)
+/**
+ * vmbus_sendpacket() - Send the specified buffer on the given channel
+ * @channel: Pointer to vmbus_channel structure.
+ * @buffer: Pointer to the buffer you want to receive the data into.
+ * @bufferlen: Maximum size of what the the buffer will hold
+ * @requestid: Identifier of the request
+ * @type: Type of packet that is being send e.g. negotiate, time
+ * packet etc.
+ *
+ * Sends data in @buffer directly to hyper-v via the vmbus
+ * This will send the data unparsed to hyper-v.
+ *
+ * Mainly used by Hyper-V drivers.
+ */
+int vmbus_sendpacket(struct vmbus_channel *channel, void *buffer,
+			   u32 bufferlen, u64 requestid,
+			   enum vmbus_packet_type type, u32 flags)
 {
 	struct vmpacket_descriptor desc;
 	u32 packetlen = sizeof(struct vmpacket_descriptor) + bufferlen;
@@ -675,29 +689,6 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
 	return hv_ringbuffer_write(channel, bufferlist, num_vecs);
-}
-EXPORT_SYMBOL(vmbus_sendpacket_ctl);
-
-/**
- * vmbus_sendpacket() - Send the specified buffer on the given channel
- * @channel: Pointer to vmbus_channel structure.
- * @buffer: Pointer to the buffer you want to receive the data into.
- * @bufferlen: Maximum size of what the the buffer will hold
- * @requestid: Identifier of the request
- * @type: Type of packet that is being send e.g. negotiate, time
- * packet etc.
- *
- * Sends data in @buffer directly to hyper-v via the vmbus
- * This will send the data unparsed to hyper-v.
- *
- * Mainly used by Hyper-V drivers.
- */
-int vmbus_sendpacket(struct vmbus_channel *channel, void *buffer,
-			   u32 bufferlen, u64 requestid,
-			   enum vmbus_packet_type type, u32 flags)
-{
-	return vmbus_sendpacket_ctl(channel, buffer, bufferlen, requestid,
-				    type, flags);
 }
 EXPORT_SYMBOL(vmbus_sendpacket);
 

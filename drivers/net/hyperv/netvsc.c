@@ -780,11 +780,10 @@ static inline int netvsc_send_pkt(
 						  &nvmsg, sizeof(nvmsg),
 						  req_id);
 	} else {
-		ret = vmbus_sendpacket_ctl(out_channel, &nvmsg,
-					   sizeof(struct nvsp_message),
-					   req_id,
-					   VM_PKT_DATA_INBAND,
-					   VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = vmbus_sendpacket(out_channel,
+				       &nvmsg, sizeof(nvmsg),
+				       req_id, VM_PKT_DATA_INBAND,
+				       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	}
 
 	if (ret == 0) {
