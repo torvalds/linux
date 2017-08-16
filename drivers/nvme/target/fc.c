@@ -394,7 +394,7 @@ nvmet_fc_free_ls_iodlist(struct nvmet_fc_tgtport *tgtport)
 static struct nvmet_fc_ls_iod *
 nvmet_fc_alloc_ls_iod(struct nvmet_fc_tgtport *tgtport)
 {
-	static struct nvmet_fc_ls_iod *iod;
+	struct nvmet_fc_ls_iod *iod;
 	unsigned long flags;
 
 	spin_lock_irqsave(&tgtport->lock, flags);
@@ -471,7 +471,7 @@ nvmet_fc_destroy_fcp_iodlist(struct nvmet_fc_tgtport *tgtport,
 static struct nvmet_fc_fcp_iod *
 nvmet_fc_alloc_fcp_iod(struct nvmet_fc_tgt_queue *queue)
 {
-	static struct nvmet_fc_fcp_iod *fod;
+	struct nvmet_fc_fcp_iod *fod;
 
 	lockdep_assert_held(&queue->qlock);
 
