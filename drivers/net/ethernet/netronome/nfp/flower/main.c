@@ -332,6 +332,7 @@ err_invalid_port:
 static int nfp_flower_init(struct nfp_app *app)
 {
 	const struct nfp_pf *pf = app->pf;
+	struct nfp_flower_priv *app_priv;
 	u64 version;
 	int err;
 
@@ -362,9 +363,13 @@ static int nfp_flower_init(struct nfp_app *app)
 		return -EINVAL;
 	}
 
-	app->priv = vzalloc(sizeof(struct nfp_flower_priv));
-	if (!app->priv)
+	app_priv = vzalloc(sizeof(struct nfp_flower_priv));
+	if (!app_priv)
 		return -ENOMEM;
+
+	app->priv = app_priv;
+	skb_queue_head_init(&app_priv->cmsg_skbs);
+	INIT_WORK(&app_priv->cmsg_work, nfp_flower_cmsg_process_rx);
 
 	err = nfp_flower_metadata_init(app);
 	if (err)
@@ -379,6 +384,11 @@ err_free_app_priv:
 
 static void nfp_flower_clean(struct nfp_app *app)
 {
+	struct nfp_flower_priv *app_priv = app->priv;
+
+	skb_queue_purge(&app_priv->cmsg_skbs);
+	flush_work(&app_priv->cmsg_work);
+
 	nfp_flower_metadata_cleanup(app);
 	vfree(app->priv);
 	app->priv = NULL;
