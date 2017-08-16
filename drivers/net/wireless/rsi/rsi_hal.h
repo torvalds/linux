@@ -126,7 +126,7 @@ struct rsi_mgmt_desc {
 	__le16 bbp_info;
 	__le16 seq_ctrl;
 	u8 reserved2;
-	u8 vap_info;
+	u8 sta_id;
 } __packed;
 
 struct rsi_data_desc {

@@ -63,6 +63,7 @@
 #define BBP_REG_WRITE                   0
 #define RF_RESET_ENABLE                 BIT(3)
 #define RATE_INFO_ENABLE                BIT(0)
+#define MORE_DATA_PRESENT		BIT(1)
 #define RSI_BROADCAST_PKT               BIT(9)
 #define RSI_DESC_REQUIRE_CFM_TO_HOST	BIT(2)
 #define RSI_ADD_DELTA_TSF_VAP_ID	BIT(3)

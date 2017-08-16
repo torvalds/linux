@@ -18,6 +18,7 @@
 #include "rsi_mgmt.h"
 #include "rsi_hal.h"
 #include "rsi_sdio.h"
+#include "rsi_common.h"
 
 /* FLASH Firmware */
 static struct ta_metadata metadata_flash_content[] = {
@@ -41,13 +42,18 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	struct ieee80211_hdr *wh = NULL;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_conf *conf = &adapter->hw->conf;
-	struct ieee80211_vif *vif = NULL;
+	struct ieee80211_vif *vif = adapter->vifs[0];
 	struct rsi_mgmt_desc *mgmt_desc;
 	struct skb_info *tx_params;
 	struct ieee80211_bss_conf *bss = NULL;
 	struct xtended_desc *xtend_desc = NULL;
 	u8 header_size;
 	u32 dword_align_bytes = 0;
+
+	if (skb->len > MAX_MGMT_PKT_SIZE) {
+		rsi_dbg(INFO_ZONE, "%s: Dropping mgmt pkt > 512\n", __func__);
+		return -EINVAL;
+	}
 
 	info = IEEE80211_SKB_CB(skb);
 	tx_params = (struct skb_info *)info->driver_data;
@@ -74,15 +80,10 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	memset(&skb->data[0], 0, header_size);
 	bss = &info->control.vif->bss_conf;
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
-	vif = adapter->vifs[0];
 
 	mgmt_desc = (struct rsi_mgmt_desc *)skb->data;
 	xtend_desc = (struct xtended_desc *)&skb->data[FRAME_DESC_SZ];
 
-	if (skb->len > MAX_MGMT_PKT_SIZE) {
-		rsi_dbg(INFO_ZONE, "%s: Dropping mgmt pkt > 512\n", __func__);
-		return -EINVAL;
-	}
 	rsi_set_len_qno(&mgmt_desc->len_qno, (skb->len - FRAME_DESC_SZ),
 			RSI_WIFI_MGMT_Q);
 	mgmt_desc->frame_type = TX_DOT11_MGMT;
@@ -113,6 +114,22 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 		}
 	}
 
+	if (ieee80211_is_probe_resp(wh->frame_control)) {
+		mgmt_desc->misc_flags |= (RSI_ADD_DELTA_TSF_VAP_ID |
+					  RSI_FETCH_RETRY_CNT_FRM_HST);
+#define PROBE_RESP_RETRY_CNT	3
+		xtend_desc->retry_cnt = PROBE_RESP_RETRY_CNT;
+	}
+
+	if ((vif->type == NL80211_IFTYPE_AP) &&
+	    (ieee80211_is_action(wh->frame_control))) {
+		struct rsi_sta *rsta = rsi_find_sta(common, wh->addr1);
+
+		if (rsta)
+			mgmt_desc->sta_id = tx_params->sta_id;
+		else
+			return -EINVAL;
+	}
 	return 0;
 }
 
@@ -157,7 +174,7 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 
 	xtend_desc = (struct xtended_desc *)&skb->data[FRAME_DESC_SZ];
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
-	seq_num = (le16_to_cpu(wh->seq_ctrl) >> 4);
+	seq_num = IEEE80211_SEQ_TO_SN(le16_to_cpu(wh->seq_ctrl));
 	vif = adapter->vifs[0];
 
 	data_desc->xtend_desc_size = header_size - FRAME_DESC_SZ;
@@ -191,12 +208,11 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		if (conf_is_ht40(&common->priv->hw->conf))
 			data_desc->bbp_info = cpu_to_le16(FULL40M_ENABLE);
 
-		if (common->vif_info[0].sgi) {
-			if (common->min_rate & 0x100) /* Only MCS rates */
-				data_desc->rate_info |=
-					cpu_to_le16(ENABLE_SHORTGI_RATE);
+		if ((common->vif_info[0].sgi) && (common->min_rate & 0x100)) {
+		       /* Only MCS rates */
+			data_desc->rate_info |=
+				cpu_to_le16(ENABLE_SHORTGI_RATE);
 		}
-
 	}
 
 	if (skb->protocol == cpu_to_be16(ETH_P_PAE)) {
@@ -223,7 +239,17 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		data_desc->frame_info = cpu_to_le16(RATE_INFO_ENABLE);
 		data_desc->frame_info |= cpu_to_le16(RSI_BROADCAST_PKT);
 		data_desc->sta_id = vap_id;
+
+		if (vif->type == NL80211_IFTYPE_AP) {
+			if (common->band == NL80211_BAND_5GHZ)
+				data_desc->rate_info = cpu_to_le16(RSI_RATE_6);
+			else
+				data_desc->rate_info = cpu_to_le16(RSI_RATE_1);
+		}
 	}
+	if ((vif->type == NL80211_IFTYPE_AP) &&
+	    (ieee80211_has_moredata(wh->frame_control)))
+		data_desc->frame_info |= cpu_to_le16(MORE_DATA_PRESENT);
 
 	return 0;
 }
@@ -232,17 +258,23 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 {
 	struct rsi_hw *adapter = common->priv;
+	struct ieee80211_vif *vif = adapter->vifs[0];
 	struct ieee80211_tx_info *info;
 	struct ieee80211_bss_conf *bss;
-	int status = -EIO;
+	int status = -EINVAL;
+
+	if (!skb)
+		return 0;
+	if (common->iface_down)
+		goto err;
 
 	info = IEEE80211_SKB_CB(skb);
+	if (!info->control.vif)
+		goto err;
 	bss = &info->control.vif->bss_conf;
 
-	if (!bss->assoc) {
-		status = -EINVAL;
+	if ((vif->type == NL80211_IFTYPE_STATION) && (!bss->assoc))
 		goto err;
-	}
 
 	status = rsi_prepare_data_desc(common, skb);
 	if (status)
