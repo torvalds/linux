@@ -831,12 +831,14 @@ out:
 	return ret;
 }
 
-static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr)
+static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr,
+		       sector_t offset)
 {
 	struct ppl_conf *ppl_conf = log->ppl_conf;
 	struct md_rdev *rdev = log->rdev;
 	struct mddev *mddev = rdev->mddev;
-	sector_t ppl_sector = rdev->ppl.sector + (PPL_HEADER_SIZE >> 9);
+	sector_t ppl_sector = rdev->ppl.sector + offset +
+			      (PPL_HEADER_SIZE >> 9);
 	struct page *page;
 	int i;
 	int ret = 0;
@@ -920,6 +922,9 @@ static int ppl_write_empty_header(struct ppl_log *log)
 		return -ENOMEM;
 
 	pplhdr = page_address(page);
+	/* zero out PPL space to avoid collision with old PPLs */
+	blkdev_issue_zeroout(rdev->bdev, rdev->ppl.sector,
+			    log->rdev->ppl.size, GFP_NOIO, 0);
 	memset(pplhdr->reserved, 0xff, PPL_HDR_RESERVED);
 	pplhdr->signature = cpu_to_le32(log->ppl_conf->signature);
 	pplhdr->checksum = cpu_to_le32(~crc32c_le(~0, pplhdr, PAGE_SIZE));
@@ -940,63 +945,110 @@ static int ppl_load_distributed(struct ppl_log *log)
 	struct ppl_conf *ppl_conf = log->ppl_conf;
 	struct md_rdev *rdev = log->rdev;
 	struct mddev *mddev = rdev->mddev;
-	struct page *page;
-	struct ppl_header *pplhdr;
+	struct page *page, *page2, *tmp;
+	struct ppl_header *pplhdr = NULL, *prev_pplhdr = NULL;
 	u32 crc, crc_stored;
 	u32 signature;
-	int ret = 0;
+	int ret = 0, i;
+	sector_t pplhdr_offset = 0, prev_pplhdr_offset = 0;
 
 	pr_debug("%s: disk: %d\n", __func__, rdev->raid_disk);
-
-	/* read PPL header */
+	/* read PPL headers, find the recent one */
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
 
-	if (!sync_page_io(rdev, rdev->ppl.sector - rdev->data_offset,
-			  PAGE_SIZE, page, REQ_OP_READ, 0, false)) {
-		md_error(mddev, rdev);
-		ret = -EIO;
-		goto out;
+	page2 = alloc_page(GFP_KERNEL);
+	if (!page2) {
+		__free_page(page);
+		return -ENOMEM;
 	}
-	pplhdr = page_address(page);
 
-	/* check header validity */
-	crc_stored = le32_to_cpu(pplhdr->checksum);
-	pplhdr->checksum = 0;
-	crc = ~crc32c_le(~0, pplhdr, PAGE_SIZE);
+	/* searching ppl area for latest ppl */
+	while (pplhdr_offset < rdev->ppl.size - (PPL_HEADER_SIZE >> 9)) {
+		if (!sync_page_io(rdev,
+				  rdev->ppl.sector - rdev->data_offset +
+				  pplhdr_offset, PAGE_SIZE, page, REQ_OP_READ,
+				  0, false)) {
+			md_error(mddev, rdev);
+			ret = -EIO;
+			/* if not able to read - don't recover any PPL */
+			pplhdr = NULL;
+			break;
+		}
+		pplhdr = page_address(page);
 
-	if (crc_stored != crc) {
-		pr_debug("%s: ppl header crc does not match: stored: 0x%x calculated: 0x%x\n",
-			 __func__, crc_stored, crc);
+		/* check header validity */
+		crc_stored = le32_to_cpu(pplhdr->checksum);
+		pplhdr->checksum = 0;
+		crc = ~crc32c_le(~0, pplhdr, PAGE_SIZE);
+
+		if (crc_stored != crc) {
+			pr_debug("%s: ppl header crc does not match: stored: 0x%x calculated: 0x%x (offset: %llu)\n",
+				 __func__, crc_stored, crc,
+				 (unsigned long long)pplhdr_offset);
+			pplhdr = prev_pplhdr;
+			pplhdr_offset = prev_pplhdr_offset;
+			break;
+		}
+
+		signature = le32_to_cpu(pplhdr->signature);
+
+		if (mddev->external) {
+			/*
+			 * For external metadata the header signature is set and
+			 * validated in userspace.
+			 */
+			ppl_conf->signature = signature;
+		} else if (ppl_conf->signature != signature) {
+			pr_debug("%s: ppl header signature does not match: stored: 0x%x configured: 0x%x (offset: %llu)\n",
+				 __func__, signature, ppl_conf->signature,
+				 (unsigned long long)pplhdr_offset);
+			pplhdr = prev_pplhdr;
+			pplhdr_offset = prev_pplhdr_offset;
+			break;
+		}
+
+		if (prev_pplhdr && le64_to_cpu(prev_pplhdr->generation) >
+		    le64_to_cpu(pplhdr->generation)) {
+			/* previous was newest */
+			pplhdr = prev_pplhdr;
+			pplhdr_offset = prev_pplhdr_offset;
+			break;
+		}
+
+		prev_pplhdr_offset = pplhdr_offset;
+		prev_pplhdr = pplhdr;
+
+		tmp = page;
+		page = page2;
+		page2 = tmp;
+
+		/* calculate next potential ppl offset */
+		for (i = 0; i < le32_to_cpu(pplhdr->entries_count); i++)
+			pplhdr_offset +=
+			    le32_to_cpu(pplhdr->entries[i].pp_size) >> 9;
+		pplhdr_offset += PPL_HEADER_SIZE >> 9;
+	}
+
+	/* no valid ppl found */
+	if (!pplhdr)
 		ppl_conf->mismatch_count++;
-		goto out;
-	}
-
-	signature = le32_to_cpu(pplhdr->signature);
-
-	if (mddev->external) {
-		/*
-		 * For external metadata the header signature is set and
-		 * validated in userspace.
-		 */
-		ppl_conf->signature = signature;
-	} else if (ppl_conf->signature != signature) {
-		pr_debug("%s: ppl header signature does not match: stored: 0x%x configured: 0x%x\n",
-			 __func__, signature, ppl_conf->signature);
-		ppl_conf->mismatch_count++;
-		goto out;
-	}
+	else
+		pr_debug("%s: latest PPL found at offset: %llu, with generation: %llu\n",
+		    __func__, (unsigned long long)pplhdr_offset,
+		    le64_to_cpu(pplhdr->generation));
 
 	/* attempt to recover from log if we are starting a dirty array */
-	if (!mddev->pers && mddev->recovery_cp != MaxSector)
-		ret = ppl_recover(log, pplhdr);
-out:
+	if (pplhdr && !mddev->pers && mddev->recovery_cp != MaxSector)
+		ret = ppl_recover(log, pplhdr, pplhdr_offset);
+
 	/* write empty header if we are starting the array */
 	if (!ret && !mddev->pers)
 		ret = ppl_write_empty_header(log);
 
 	__free_page(page);
+	__free_page(page2);
 
 	pr_debug("%s: return: %d mismatch_count: %d recovered_entries: %d\n",
 		 __func__, ret, ppl_conf->mismatch_count,
