@@ -77,7 +77,7 @@ static int __init omap_dss_init(void)
 			goto err_reg;
 	}
 
-	omap_drm_device = platform_device_register_simple("omapdrm_", 0, NULL, 0);
+	omap_drm_device = platform_device_register_simple("omapdrm", 0, NULL, 0);
 	if (IS_ERR(omap_drm_device)) {
 		r = PTR_ERR(omap_drm_device);
 		goto err_reg;

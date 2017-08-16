@@ -768,7 +768,7 @@ static SIMPLE_DEV_PM_OPS(omapdrm_pm_ops, omap_drm_suspend, omap_drm_resume);
 
 static struct platform_driver pdev = {
 	.driver = {
-		.name = "omapdrm_",
+		.name = "omapdrm",
 		.pm = &omapdrm_pm_ops,
 	},
 	.probe = pdev_probe,
