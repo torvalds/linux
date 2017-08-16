@@ -109,11 +109,9 @@ static int v2_read_file_info(struct super_block *sb, int type)
 		return -1;
 	}
 	info->dqi_priv = kmalloc(sizeof(struct qtree_mem_dqinfo), GFP_NOFS);
-	if (!info->dqi_priv) {
-		printk(KERN_WARNING
-		       "Not enough memory for quota information structure.\n");
+	if (!info->dqi_priv)
 		return -ENOMEM;
-	}
+
 	qinfo = info->dqi_priv;
 	if (version == 0) {
 		/* limits are stored as unsigned 32-bit data */
