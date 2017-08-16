@@ -785,7 +785,8 @@ static uint32_t kgd_address_watch_get_offset(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					unsigned int reg_offset)
 {
-	return watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX + reg_offset];
+	return watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX + reg_offset]
+		/ 4;
 }
 
 static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd, uint8_t vmid)
