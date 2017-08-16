@@ -1221,7 +1221,7 @@ static ssize_t iwl_dbgfs_cont_recording_write(struct iwl_mvm *mvm,
 					      loff_t *ppos)
 {
 	struct iwl_trans *trans = mvm->trans;
-	const struct iwl_fw_dbg_dest_tlv *dest = trans->dbg_dest_tlv;
+	const struct iwl_fw_dbg_dest_tlv_v1 *dest = trans->dbg_dest_tlv;
 	struct iwl_continuous_record_cmd cont_rec = {};
 	int ret, rec_mode;
 

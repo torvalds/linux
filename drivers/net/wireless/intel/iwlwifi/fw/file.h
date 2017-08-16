@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -540,7 +540,7 @@ struct iwl_fw_dbg_mem_seg_tlv {
 } __packed;
 
 /**
- * struct iwl_fw_dbg_dest_tlv - configures the destination of the debug data
+ * struct iwl_fw_dbg_dest_tlv_v1 - configures the destination of the debug data
  *
  * @version: version of the TLV - currently 0
  * @monitor_mode: &enum iwl_fw_dbg_monitor_mode
@@ -555,7 +555,7 @@ struct iwl_fw_dbg_mem_seg_tlv {
  *
  * This parses IWL_UCODE_TLV_FW_DBG_DEST
  */
-struct iwl_fw_dbg_dest_tlv {
+struct iwl_fw_dbg_dest_tlv_v1 {
 	u8 version;
 	u8 monitor_mode;
 	u8 size_power;
@@ -566,6 +566,26 @@ struct iwl_fw_dbg_dest_tlv {
 	__le32 wrap_count;
 	u8 base_shift;
 	u8 end_shift;
+	struct iwl_fw_dbg_reg_op reg_ops[0];
+} __packed;
+
+/* Mask of the register for defining the LDBG MAC2SMEM buffer SMEM size */
+#define IWL_LDBG_M2S_BUF_SIZE_MSK	0x0fff0000
+/* Mask of the register for defining the LDBG MAC2SMEM SMEM base address */
+#define IWL_LDBG_M2S_BUF_BA_MSK		0x00000fff
+/* The smem buffer chunks are in units of 256 bits */
+#define IWL_M2S_UNIT_SIZE			0x100
+
+struct iwl_fw_dbg_dest_tlv {
+	u8 version;
+	u8 monitor_mode;
+	u8 size_power;
+	u8 reserved;
+	__le32 cfg_reg;
+	__le32 write_ptr_reg;
+	__le32 wrap_count;
+	u8 base_shift;
+	u8 size_shift;
 	struct iwl_fw_dbg_reg_op reg_ops[0];
 } __packed;
 
