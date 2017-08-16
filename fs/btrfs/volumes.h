@@ -353,7 +353,6 @@ struct map_lookup {
 	int io_align;
 	int io_width;
 	u64 stripe_len;
-	int sector_size;
 	int num_stripes;
 	int sub_stripes;
 	struct btrfs_bio_stripe stripes[];
