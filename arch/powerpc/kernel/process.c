@@ -230,7 +230,8 @@ void enable_kernel_fp(void)
 }
 EXPORT_SYMBOL(enable_kernel_fp);
 
-static int restore_fp(struct task_struct *tsk) {
+static int restore_fp(struct task_struct *tsk)
+{
 	if (tsk->thread.load_fp || msr_tm_active(tsk->thread.regs->msr)) {
 		load_fp_state(&current->thread.fp_state);
 		current->thread.load_fp++;
