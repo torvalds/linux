@@ -500,7 +500,8 @@ struct aa_profile *aa_fqlookupn_profile(struct aa_label *base,
 struct aa_profile *aa_new_null_profile(struct aa_profile *parent, bool hat,
 				       const char *base, gfp_t gfp)
 {
-	struct aa_profile *profile;
+	struct aa_profile *p, *profile;
+	const char *bname;
 	char *name;
 
 	AA_BUG(!parent);
@@ -523,7 +524,8 @@ struct aa_profile *aa_new_null_profile(struct aa_profile *parent, bool hat,
 
 name:
 	/* lookup to see if this is a dup creation */
-	profile = aa_find_child(parent, basename(name));
+	bname = basename(name);
+	profile = aa_find_child(parent, bname);
 	if (profile)
 		goto out;
 
@@ -544,7 +546,13 @@ name:
 	profile->policy.dfa = aa_get_dfa(nulldfa);
 
 	mutex_lock(&profile->ns->lock);
-	__add_profile(&parent->base.profiles, profile);
+	p = __find_child(&parent->base.profiles, bname);
+	if (p) {
+		aa_free_profile(profile);
+		profile = aa_get_profile(p);
+	} else {
+		__add_profile(&parent->base.profiles, profile);
+	}
 	mutex_unlock(&profile->ns->lock);
 
 	/* refcount released by caller */
