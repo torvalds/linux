@@ -211,13 +211,9 @@ struct nvme_ns {
 	bool ext;
 	u8 pi_type;
 	unsigned long flags;
-	u16 noiob;
-
 #define NVME_NS_REMOVING 0
 #define NVME_NS_DEAD     1
-
-	u64 mode_select_num_blocks;
-	u32 mode_select_block_len;
+	u16 noiob;
 };
 
 struct nvme_ctrl_ops {
