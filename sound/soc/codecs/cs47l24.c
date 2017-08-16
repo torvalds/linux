@@ -1203,7 +1203,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs47l24 = {
 	},
 };
 
-static struct snd_compr_ops cs47l24_compr_ops = {
+static const struct snd_compr_ops cs47l24_compr_ops = {
 	.open = cs47l24_open,
 	.free = wm_adsp_compr_free,
 	.set_params = wm_adsp_compr_set_params,
