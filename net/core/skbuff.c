@@ -2285,7 +2285,7 @@ do_frag_list:
 
 		slen = min_t(int, len, skb_headlen(skb) - offset);
 		kv.iov_base = skb->data + offset;
-		kv.iov_len = len;
+		kv.iov_len = slen;
 		memset(&msg, 0, sizeof(msg));
 
 		ret = kernel_sendmsg_locked(sk, &msg, &kv, 1, slen);

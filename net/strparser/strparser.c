@@ -373,6 +373,9 @@ static int strp_read_sock(struct strparser *strp)
 	struct socket *sock = strp->sk->sk_socket;
 	read_descriptor_t desc;
 
+	if (unlikely(!sock || !sock->ops || !sock->ops->read_sock))
+		return -EBUSY;
+
 	desc.arg.data = strp;
 	desc.error = 0;
 	desc.count = 1; /* give more than one skb per call */
@@ -486,12 +489,7 @@ int strp_init(struct strparser *strp, struct sock *sk,
 	 * The upper layer calls strp_process for each skb to be parsed.
 	 */
 
-	if (sk) {
-		struct socket *sock = sk->sk_socket;
-
-		if (!sock->ops->read_sock || !sock->ops->peek_len)
-			return -EAFNOSUPPORT;
-	} else {
+	if (!sk) {
 		if (!cb->lock || !cb->unlock)
 			return -EINVAL;
 	}

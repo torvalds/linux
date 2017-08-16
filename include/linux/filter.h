@@ -727,6 +727,8 @@ void xdp_do_flush_map(void);
 void bpf_warn_invalid_xdp_action(u32 act);
 void bpf_warn_invalid_xdp_redirect(u32 ifindex);
 
+struct sock *do_sk_redirect_map(void);
+
 #ifdef CONFIG_BPF_JIT
 extern int bpf_jit_enable;
 extern int bpf_jit_harden;
