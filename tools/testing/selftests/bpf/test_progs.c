@@ -75,39 +75,6 @@ static struct {
 	__ret;								\
 })
 
-static int bpf_prog_load(const char *file, enum bpf_prog_type type,
-			 struct bpf_object **pobj, int *prog_fd)
-{
-	struct bpf_program *prog;
-	struct bpf_object *obj;
-	int err;
-
-	obj = bpf_object__open(file);
-	if (IS_ERR(obj)) {
-		error_cnt++;
-		return -ENOENT;
-	}
-
-	prog = bpf_program__next(NULL, obj);
-	if (!prog) {
-		bpf_object__close(obj);
-		error_cnt++;
-		return -ENOENT;
-	}
-
-	bpf_program__set_type(prog, type);
-	err = bpf_object__load(obj);
-	if (err) {
-		bpf_object__close(obj);
-		error_cnt++;
-		return -EINVAL;
-	}
-
-	*pobj = obj;
-	*prog_fd = bpf_program__fd(prog);
-	return 0;
-}
-
 static int bpf_find_map(const char *test, struct bpf_object *obj,
 			const char *name)
 {
@@ -130,8 +97,10 @@ static void test_pkt_access(void)
 	int err, prog_fd;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
-	if (err)
+	if (err) {
+		error_cnt++;
 		return;
+	}
 
 	err = bpf_prog_test_run(prog_fd, 100000, &pkt_v4, sizeof(pkt_v4),
 				NULL, NULL, &retval, &duration);
@@ -162,8 +131,10 @@ static void test_xdp(void)
 	int err, prog_fd, map_fd;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
-	if (err)
+	if (err) {
+		error_cnt++;
 		return;
+	}
 
 	map_fd = bpf_find_map(__func__, obj, "vip2tnl");
 	if (map_fd < 0)
@@ -223,8 +194,10 @@ static void test_l4lb(void)
 	u32 *magic = (u32 *)buf;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
-	if (err)
+	if (err) {
+		error_cnt++;
 		return;
+	}
 
 	map_fd = bpf_find_map(__func__, obj, "vip_map");
 	if (map_fd < 0)
@@ -280,8 +253,10 @@ static void test_tcp_estats(void)
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
 	CHECK(err, "", "err %d errno %d\n", err, errno);
-	if (err)
+	if (err) {
+		error_cnt++;
 		return;
+	}
 
 	bpf_object__close(obj);
 }
@@ -336,6 +311,8 @@ static void test_bpf_obj_id(void)
 		/* test_obj_id.o is a dumb prog. It should never fail
 		 * to load.
 		 */
+		if (err)
+			error_cnt++;
 		assert(!err);
 
 		/* Check getting prog info */
@@ -496,8 +473,10 @@ static void test_pkt_md_access(void)
 	int err, prog_fd;
 
 	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
-	if (err)
+	if (err) {
+		error_cnt++;
 		return;
+	}
 
 	err = bpf_prog_test_run(prog_fd, 10, &pkt_v4, sizeof(pkt_v4),
 				NULL, NULL, &retval, &duration);
