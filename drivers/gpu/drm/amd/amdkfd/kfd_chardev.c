@@ -883,6 +883,46 @@ bind_process_to_device_fail:
 	return err;
 }
 
+static int kfd_ioctl_get_tile_config(struct file *filep,
+		struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_get_tile_config_args *args = data;
+	struct kfd_dev *dev;
+	struct tile_config config;
+	int err = 0;
+
+	dev = kfd_device_by_id(args->gpu_id);
+
+	dev->kfd2kgd->get_tile_config(dev->kgd, &config);
+
+	args->gb_addr_config = config.gb_addr_config;
+	args->num_banks = config.num_banks;
+	args->num_ranks = config.num_ranks;
+
+	if (args->num_tile_configs > config.num_tile_configs)
+		args->num_tile_configs = config.num_tile_configs;
+	err = copy_to_user((void __user *)args->tile_config_ptr,
+			config.tile_config_ptr,
+			args->num_tile_configs * sizeof(uint32_t));
+	if (err) {
+		args->num_tile_configs = 0;
+		return -EFAULT;
+	}
+
+	if (args->num_macro_tile_configs > config.num_macro_tile_configs)
+		args->num_macro_tile_configs =
+				config.num_macro_tile_configs;
+	err = copy_to_user((void __user *)args->macro_tile_config_ptr,
+			config.macro_tile_config_ptr,
+			args->num_macro_tile_configs * sizeof(uint32_t));
+	if (err) {
+		args->num_macro_tile_configs = 0;
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 #define AMDKFD_IOCTL_DEF(ioctl, _func, _flags) \
 	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, \
 			    .cmd_drv = 0, .name = #ioctl}
@@ -939,6 +979,9 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_SCRATCH_BACKING_VA,
 			kfd_ioctl_set_scratch_backing_va, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_TILE_CONFIG,
+			kfd_ioctl_get_tile_config, 0)
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
