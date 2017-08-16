@@ -188,6 +188,9 @@ static void smap_state_change(struct sock *sk)
 			smap_release_sock(sk);
 		break;
 	default:
+		psock = smap_psock_sk(sk);
+		if (unlikely(!psock))
+			break;
 		smap_report_sk_error(psock, EPIPE);
 		break;
 	}
