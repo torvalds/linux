@@ -679,13 +679,6 @@ static int eb_select_context(struct i915_execbuffer *eb)
 	if (unlikely(!ctx))
 		return -ENOENT;
 
-	if (unlikely(i915_gem_context_is_banned(ctx))) {
-		DRM_DEBUG("Context %u tried to submit while banned\n",
-			  ctx->user_handle);
-		i915_gem_context_put(ctx);
-		return -EIO;
-	}
-
 	eb->ctx = ctx;
 	eb->vm = ctx->ppgtt ? &ctx->ppgtt->base : &eb->i915->ggtt.base;
 
@@ -706,6 +699,12 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 	unsigned int i;
 	int slow_pass = -1;
 	int err;
+
+	if (unlikely(i915_gem_context_is_closed(eb->ctx)))
+		return -ENOENT;
+
+	if (unlikely(i915_gem_context_is_banned(eb->ctx)))
+		return -EIO;
 
 	INIT_LIST_HEAD(&eb->relocs);
 	INIT_LIST_HEAD(&eb->unbound);
