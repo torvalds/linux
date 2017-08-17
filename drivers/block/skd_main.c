@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
 #include <linux/workqueue.h>
-#include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/time.h>
 #include <linux/hdreg.h>
@@ -30,7 +29,6 @@
 #include <linux/version.h>
 #include <linux/err.h>
 #include <linux/aer.h>
-#include <linux/ctype.h>
 #include <linux/wait.h>
 #include <linux/uio.h>
 #include <scsi/scsi.h>
