@@ -2031,31 +2031,36 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 		skd_skdev_state_to_str(skdev->state), skdev->state);
 }
 
+static void skd_recover_request(struct skd_device *skdev,
+				struct skd_request_context *skreq)
+{
+	struct request *req = skreq->req;
+
+	if (skreq->state != SKD_REQ_STATE_BUSY)
+		return;
+
+	skd_log_skreq(skdev, skreq, "recover");
+
+	SKD_ASSERT(req != NULL);
+
+	/* Release DMA resources for the request. */
+	if (skreq->n_sg > 0)
+		skd_postop_sg_list(skdev, skreq);
+
+	skreq->req = NULL;
+	skreq->state = SKD_REQ_STATE_IDLE;
+
+	skd_end_request(skdev, req, BLK_STS_IOERR);
+}
+
 static void skd_recover_requests(struct skd_device *skdev)
 {
 	int i;
 
 	for (i = 0; i < skdev->num_req_context; i++) {
 		struct skd_request_context *skreq = &skdev->skreq_table[i];
-		struct request *req = skreq->req;
 
-		if (skreq->state == SKD_REQ_STATE_BUSY) {
-			skd_log_skreq(skdev, skreq, "recover");
-
-			SKD_ASSERT((skreq->id & SKD_ID_INCR) != 0);
-			SKD_ASSERT(req != NULL);
-
-			/* Release DMA resources for the request. */
-			if (skreq->n_sg > 0)
-				skd_postop_sg_list(skdev, skreq);
-
-			skreq->req = NULL;
-
-			skreq->state = SKD_REQ_STATE_IDLE;
-			skreq->id += SKD_ID_INCR;
-
-			skd_end_request(skdev, req, BLK_STS_IOERR);
-		}
+		skd_recover_request(skdev, skreq);
 	}
 
 	for (i = 0; i < SKD_N_TIMEOUT_SLOT; i++)
