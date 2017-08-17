@@ -54,13 +54,15 @@ struct medusa_comm_attribute_s {
 #define	MED_COMM_TYPE_UNSIGNED		0x01	/* unsigned integer attr */
 #define	MED_COMM_TYPE_SIGNED		0x02	/* signed integer attr */
 #define	MED_COMM_TYPE_STRING		0x03	/* string attr */
-#define	MED_COMM_TYPE_BITMAP_8		0x04	/* bitmap attr, bitmap formed from bytes */
-#define	MED_COMM_TYPE_BITMAP_16		0x05	/* bitmap attr, bitmap formed from words */
-#define	MED_COMM_TYPE_BITMAP_32		0x06	/* bitmap attr, bitmap formed from dwords */
-#define	MED_COMM_TYPE_BITMAP		MED_COMM_TYPE_BITMAP_8 /* default bitmap subtype */
+#define	MED_COMM_TYPE_BITMAP		0x04	/* bitmap attr, bitmap formed from dwords */
+#define	MED_COMM_TYPE_BYTES		0x05	/* sequence of bytes */
 
 #define	MED_COMM_TYPE_READ_ONLY		0x80	/* this attribute is read-only */
 #define	MED_COMM_TYPE_PRIMARY_KEY	0x40	/* this attribute is used to lookup object */
+/* if it is some data structure with fixed endianness, we determine it by this 2 bits:
+ * 0 - endianness by cpu, 1 - unused, 2 - big, 3 - little */
+#define MED_COMM_TYPE_LITTLE_ENDIAN	0x30	/* fixed endianness: little */
+#define MED_COMM_TYPE_BIG_ENDIAN	0x20	/* fixed endianness: big */
 
 #pragma pack(push,1)
 struct medusa_comm_kclass_s {

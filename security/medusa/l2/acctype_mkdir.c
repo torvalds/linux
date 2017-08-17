@@ -18,7 +18,7 @@ struct mkdir_access {
 
 MED_ATTRS(mkdir_access) {
 	MED_ATTR_RO (mkdir_access, filename, "filename", MED_STRING),
-	MED_ATTR_RO (mkdir_access, mode, "mode", MED_BITMAP_16),
+	MED_ATTR_RO (mkdir_access, mode, "mode", MED_UNSIGNED),
 	MED_ATTR_END
 };
 

@@ -54,7 +54,7 @@ int file_kern2kobj(struct file_kobject * fk, struct inode * inode)
 MED_ATTRS(file_kobject) {
 	MED_ATTR_KEY_RO	(file_kobject, dev, "dev", MED_UNSIGNED),
 	MED_ATTR_KEY_RO	(file_kobject, ino, "ino", MED_UNSIGNED),
-	MED_ATTR	(file_kobject, mode, "mode", MED_BITMAP_16),
+	MED_ATTR	(file_kobject, mode, "mode", MED_UNSIGNED),
 	MED_ATTR_RO	(file_kobject, nlink, "nlink", MED_UNSIGNED),
 	MED_ATTR	(file_kobject, uid, "uid", MED_UNSIGNED),
 	MED_ATTR	(file_kobject, gid, "gid", MED_UNSIGNED),
@@ -62,9 +62,9 @@ MED_ATTRS(file_kobject) {
 	MED_ATTR_OBJECT	(file_kobject),
 	MED_ATTR	(file_kobject, user, "user", MED_UNSIGNED),
 #ifdef CONFIG_MEDUSA_FILE_CAPABILITIES
-	MED_ATTR	(file_kobject, ecap, "ecap", MED_BITMAP_32),
-	MED_ATTR	(file_kobject, icap, "icap", MED_BITMAP_32),
-	MED_ATTR	(file_kobject, pcap, "pcap", MED_BITMAP_32),
+	MED_ATTR	(file_kobject, ecap, "ecap", MED_BITMAP | MED_LE),
+	MED_ATTR	(file_kobject, icap, "icap", MED_BITMAP | MED_LE),
+	MED_ATTR	(file_kobject, pcap, "pcap", MED_BITMAP | MED_LE),
 #endif
 	MED_ATTR_END
 };

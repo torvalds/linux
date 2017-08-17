@@ -115,16 +115,16 @@ MED_ATTRS(process_kobject) {
 	MED_ATTR	(process_kobject, egid, "egid", MED_UNSIGNED),
 	MED_ATTR	(process_kobject, sgid, "sgid", MED_UNSIGNED),
 	MED_ATTR	(process_kobject, fsgid, "fsgid", MED_UNSIGNED),
-	MED_ATTR	(process_kobject, ecap, "ecap", MED_BITMAP_32),
-	MED_ATTR	(process_kobject, icap, "icap", MED_BITMAP_32),
-	MED_ATTR	(process_kobject, pcap, "pcap", MED_BITMAP_32),
+	MED_ATTR	(process_kobject, ecap, "ecap", MED_BITMAP | MED_LE),
+	MED_ATTR	(process_kobject, icap, "icap", MED_BITMAP | MED_LE),
+	MED_ATTR	(process_kobject, pcap, "pcap", MED_BITMAP | MED_LE),
 
 	MED_ATTR	(process_kobject, luid, "luid", MED_UNSIGNED),
 	MED_ATTR_SUBJECT(process_kobject),
 	MED_ATTR_OBJECT	(process_kobject),
 	MED_ATTR	(process_kobject, user, "user", MED_UNSIGNED),
 #ifdef CONFIG_MEDUSA_SYSCALL
-	MED_ATTR	(process_kobject, med_syscall, "syscall", MED_BITMAP_8),
+	MED_ATTR	(process_kobject, med_syscall, "syscall", MED_BYTES),
 #endif
 
 	MED_ATTR_END
