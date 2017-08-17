@@ -98,8 +98,7 @@ struct mlx4_ib_create_srq_resp {
 struct mlx4_ib_create_qp_rss {
 	__u64   rx_hash_fields_mask;
 	__u8    rx_hash_function;
-	__u8    rx_key_len;
-	__u8    reserved[6];
+	__u8    reserved[7];
 	__u8    rx_hash_key[40];
 	__u32   comp_mask;
 	__u32   reserved1;
