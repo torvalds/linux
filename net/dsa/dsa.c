@@ -186,7 +186,7 @@ struct net_device *dsa_dev_to_net_device(struct device *dev)
 EXPORT_SYMBOL_GPL(dsa_dev_to_net_device);
 
 static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
-			  struct packet_type *pt, struct net_device *orig_dev)
+			  struct packet_type *pt, struct net_device *unused)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct sk_buff *nskb = NULL;
@@ -202,7 +202,7 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!skb)
 		return 0;
 
-	nskb = dst->rcv(skb, dev, pt, orig_dev);
+	nskb = dst->rcv(skb, dev, pt);
 	if (!nskb) {
 		kfree_skb(skb);
 		return 0;

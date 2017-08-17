@@ -104,8 +104,7 @@ struct packet_type;
 struct dsa_device_ops {
 	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
-			       struct packet_type *pt,
-			       struct net_device *orig_dev);
+			       struct packet_type *pt);
 	int (*flow_dissect)(const struct sk_buff *skb, __be16 *proto,
 			    int *offset);
 };
@@ -134,8 +133,7 @@ struct dsa_switch_tree {
 	/* Copy of tag_ops->rcv for faster access in hot path */
 	struct sk_buff *	(*rcv)(struct sk_buff *skb,
 				       struct net_device *dev,
-				       struct packet_type *pt,
-				       struct net_device *orig_dev);
+				       struct packet_type *pt);
 
 	/*
 	 * The switch port to which the CPU is attached.
