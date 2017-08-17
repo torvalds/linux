@@ -5824,6 +5824,30 @@ void intel_update_watermarks(struct intel_crtc *crtc)
 		dev_priv->display.update_wm(crtc);
 }
 
+void intel_enable_ipc(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	val = I915_READ(DISP_ARB_CTL2);
+
+	if (dev_priv->ipc_enabled)
+		val |= DISP_IPC_ENABLE;
+	else
+		val &= ~DISP_IPC_ENABLE;
+
+	I915_WRITE(DISP_ARB_CTL2, val);
+}
+
+void intel_init_ipc(struct drm_i915_private *dev_priv)
+{
+	dev_priv->ipc_enabled = false;
+	if (!HAS_IPC(dev_priv))
+		return;
+
+	dev_priv->ipc_enabled = true;
+	intel_enable_ipc(dev_priv);
+}
+
 /*
  * Lock protecting IPS related data structures
  */

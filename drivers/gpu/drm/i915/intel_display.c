@@ -15255,6 +15255,7 @@ void intel_display_resume(struct drm_device *dev)
 	if (!ret)
 		ret = __intel_display_resume(dev, state, &ctx);
 
+	intel_enable_ipc(dev_priv);
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
