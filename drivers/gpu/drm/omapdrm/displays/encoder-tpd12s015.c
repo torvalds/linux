@@ -159,8 +159,12 @@ static int tpd_read_edid(struct omap_dss_device *dssdev,
 static bool tpd_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
+	struct omap_dss_device *in = ddata->in;
+	bool connected = gpiod_get_value_cansleep(ddata->hpd_gpio);
 
-	return gpiod_get_value_cansleep(ddata->hpd_gpio);
+	if (!connected && in->ops.hdmi->lost_hotplug)
+		in->ops.hdmi->lost_hotplug(in);
+	return connected;
 }
 
 static int tpd_register_hpd_cb(struct omap_dss_device *dssdev,

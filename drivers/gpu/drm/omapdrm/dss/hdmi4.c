@@ -401,8 +401,6 @@ static void hdmi_display_disable(struct omap_dss_device *dssdev)
 
 	DSSDBG("Enter hdmi_display_disable\n");
 
-	hdmi4_cec_set_phys_addr(&hdmi.core, CEC_PHYS_ADDR_INVALID);
-
 	mutex_lock(&hdmi.lock);
 
 	spin_lock_irqsave(&hdmi.audio_playing_lock, flags);
@@ -514,6 +512,11 @@ static int hdmi_read_edid(struct omap_dss_device *dssdev,
 	return r;
 }
 
+static void hdmi_lost_hotplug(struct omap_dss_device *dssdev)
+{
+	hdmi4_cec_set_phys_addr(&hdmi.core, CEC_PHYS_ADDR_INVALID);
+}
+
 static int hdmi_set_infoframe(struct omap_dss_device *dssdev,
 		const struct hdmi_avi_infoframe *avi)
 {
@@ -540,6 +543,7 @@ static const struct omapdss_hdmi_ops hdmi_ops = {
 	.get_timings		= hdmi_display_get_timings,
 
 	.read_edid		= hdmi_read_edid,
+	.lost_hotplug		= hdmi_lost_hotplug,
 	.set_infoframe		= hdmi_set_infoframe,
 	.set_hdmi_mode		= hdmi_set_hdmi_mode,
 };
