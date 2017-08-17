@@ -2208,6 +2208,79 @@ void __rcu **idr_get_free(struct radix_tree_root *root,
 	return slot;
 }
 
+void __rcu **idr_get_free_ext(struct radix_tree_root *root,
+			      struct radix_tree_iter *iter,
+			      gfp_t gfp, unsigned long end)
+{
+	struct radix_tree_node *node = NULL, *child;
+	void __rcu **slot = (void __rcu **)&root->rnode;
+	unsigned long maxindex, start = iter->next_index;
+	unsigned long max = end - 1;
+	unsigned int shift, offset = 0;
+
+ grow:
+	shift = radix_tree_load_root(root, &child, &maxindex);
+	if (!radix_tree_tagged(root, IDR_FREE))
+		start = max(start, maxindex + 1);
+	if (start > max)
+		return ERR_PTR(-ENOSPC);
+
+	if (start > maxindex) {
+		int error = radix_tree_extend(root, gfp, start, shift);
+
+		if (error < 0)
+			return ERR_PTR(error);
+		shift = error;
+		child = rcu_dereference_raw(root->rnode);
+	}
+
+	while (shift) {
+		shift -= RADIX_TREE_MAP_SHIFT;
+		if (child == NULL) {
+			/* Have to add a child node.  */
+			child = radix_tree_node_alloc(gfp, node, root, shift,
+						      offset, 0, 0);
+			if (!child)
+				return ERR_PTR(-ENOMEM);
+			all_tag_set(child, IDR_FREE);
+			rcu_assign_pointer(*slot, node_to_entry(child));
+			if (node)
+				node->count++;
+		} else if (!radix_tree_is_internal_node(child))
+			break;
+
+		node = entry_to_node(child);
+		offset = radix_tree_descend(node, &child, start);
+		if (!tag_get(node, IDR_FREE, offset)) {
+			offset = radix_tree_find_next_bit(node, IDR_FREE,
+							  offset + 1);
+			start = next_index(start, node, offset);
+			if (start > max)
+				return ERR_PTR(-ENOSPC);
+			while (offset == RADIX_TREE_MAP_SIZE) {
+				offset = node->offset + 1;
+				node = node->parent;
+				if (!node)
+					goto grow;
+				shift = node->shift;
+			}
+			child = rcu_dereference_raw(node->slots[offset]);
+		}
+		slot = &node->slots[offset];
+	}
+
+	iter->index = start;
+	if (node)
+		iter->next_index = 1 + min(max, (start | node_maxindex(node)));
+	else
+		iter->next_index = 1;
+	iter->node = node;
+	__set_iter_shift(iter, shift);
+	set_iter_tags(iter, node, offset, IDR_FREE);
+
+	return slot;
+}
+
 /**
  * idr_destroy - release all internal memory from an IDR
  * @idr: idr handle

@@ -359,6 +359,9 @@ int radix_tree_join(struct radix_tree_root *, unsigned long index,
 			unsigned new_order, void *);
 void __rcu **idr_get_free(struct radix_tree_root *, struct radix_tree_iter *,
 			gfp_t, int end);
+void __rcu **idr_get_free_ext(struct radix_tree_root *root,
+			      struct radix_tree_iter *iter,
+			      gfp_t gfp, unsigned long end);
 
 enum {
 	RADIX_TREE_ITER_TAG_MASK = 0x0f,	/* tag index in lower nybble */

@@ -47,6 +47,29 @@ int idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
 }
 EXPORT_SYMBOL_GPL(idr_alloc);
 
+int idr_alloc_ext(struct idr *idr, void *ptr, unsigned long *index,
+		  unsigned long start, unsigned long end, gfp_t gfp)
+{
+	void __rcu **slot;
+	struct radix_tree_iter iter;
+
+	if (WARN_ON_ONCE(radix_tree_is_internal_node(ptr)))
+		return -EINVAL;
+
+	radix_tree_iter_init(&iter, start);
+	slot = idr_get_free_ext(&idr->idr_rt, &iter, gfp, end);
+	if (IS_ERR(slot))
+		return PTR_ERR(slot);
+
+	radix_tree_iter_replace(&idr->idr_rt, &iter, slot, ptr);
+	radix_tree_iter_tag_clear(&idr->idr_rt, &iter, IDR_FREE);
+
+	if (index)
+		*index = iter.index;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(idr_alloc_ext);
+
 /**
  * idr_alloc_cyclic - allocate new idr entry in a cyclical fashion
  * @idr: idr handle
@@ -134,6 +157,20 @@ void *idr_get_next(struct idr *idr, int *nextid)
 }
 EXPORT_SYMBOL(idr_get_next);
 
+void *idr_get_next_ext(struct idr *idr, unsigned long *nextid)
+{
+	struct radix_tree_iter iter;
+	void __rcu **slot;
+
+	slot = radix_tree_iter_find(&idr->idr_rt, &iter, *nextid);
+	if (!slot)
+		return NULL;
+
+	*nextid = iter.index;
+	return rcu_dereference_raw(*slot);
+}
+EXPORT_SYMBOL(idr_get_next_ext);
+
 /**
  * idr_replace - replace pointer for given id
  * @idr: idr handle
@@ -168,6 +205,25 @@ void *idr_replace(struct idr *idr, void *ptr, int id)
 	return entry;
 }
 EXPORT_SYMBOL(idr_replace);
+
+void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id)
+{
+	struct radix_tree_node *node;
+	void __rcu **slot = NULL;
+	void *entry;
+
+	if (WARN_ON_ONCE(radix_tree_is_internal_node(ptr)))
+		return ERR_PTR(-EINVAL);
+
+	entry = __radix_tree_lookup(&idr->idr_rt, id, &node, &slot);
+	if (!slot || radix_tree_tag_get(&idr->idr_rt, id, IDR_FREE))
+		return ERR_PTR(-ENOENT);
+
+	__radix_tree_replace(&idr->idr_rt, node, slot, ptr, NULL, NULL);
+
+	return entry;
+}
+EXPORT_SYMBOL(idr_replace_ext);
 
 /**
  * DOC: IDA description

@@ -81,14 +81,23 @@ static inline void idr_set_cursor(struct idr *idr, unsigned int val)
 
 void idr_preload(gfp_t gfp_mask);
 int idr_alloc(struct idr *, void *entry, int start, int end, gfp_t);
+int idr_alloc_ext(struct idr *idr, void *ptr, unsigned long *index,
+		  unsigned long start, unsigned long end, gfp_t gfp);
 int idr_alloc_cyclic(struct idr *, void *entry, int start, int end, gfp_t);
 int idr_for_each(const struct idr *,
 		 int (*fn)(int id, void *p, void *data), void *data);
 void *idr_get_next(struct idr *, int *nextid);
+void *idr_get_next_ext(struct idr *idr, unsigned long *nextid);
 void *idr_replace(struct idr *, void *, int id);
+void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id);
 void idr_destroy(struct idr *);
 
 static inline void *idr_remove(struct idr *idr, int id)
+{
+	return radix_tree_delete_item(&idr->idr_rt, id, NULL);
+}
+
+static inline void *idr_remove_ext(struct idr *idr, unsigned long id)
 {
 	return radix_tree_delete_item(&idr->idr_rt, id, NULL);
 }
@@ -133,6 +142,11 @@ static inline void *idr_find(const struct idr *idr, int id)
 	return radix_tree_lookup(&idr->idr_rt, id);
 }
 
+static inline void *idr_find_ext(const struct idr *idr, unsigned long id)
+{
+	return radix_tree_lookup(&idr->idr_rt, id);
+}
+
 /**
  * idr_for_each_entry - iterate over an idr's elements of a given type
  * @idr:     idr handle
@@ -145,6 +159,8 @@ static inline void *idr_find(const struct idr *idr, int id)
  */
 #define idr_for_each_entry(idr, entry, id)			\
 	for (id = 0; ((entry) = idr_get_next(idr, &(id))) != NULL; ++id)
+#define idr_for_each_entry_ext(idr, entry, id)			\
+	for (id = 0; ((entry) = idr_get_next_ext(idr, &(id))) != NULL; ++id)
 
 /**
  * idr_for_each_entry_continue - continue iteration over an idr's elements of a given type
