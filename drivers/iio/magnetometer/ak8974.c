@@ -661,11 +661,17 @@ static bool ak8974_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
+static bool ak8974_precious_reg(struct device *dev, unsigned int reg)
+{
+	return reg == AK8974_INT_CLEAR;
+}
+
 static const struct regmap_config ak8974_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0xff,
 	.writeable_reg = ak8974_writeable_reg,
+	.precious_reg = ak8974_precious_reg,
 };
 
 static int ak8974_probe(struct i2c_client *i2c,
