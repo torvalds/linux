@@ -6169,6 +6169,7 @@ void gen6_rps_boost(struct drm_i915_gem_request *rq,
 		    struct intel_rps_client *rps)
 {
 	struct drm_i915_private *i915 = rq->i915;
+	unsigned long flags;
 	bool boost;
 
 	/* This is intentionally racy! We peek at the state here, then
@@ -6178,13 +6179,13 @@ void gen6_rps_boost(struct drm_i915_gem_request *rq,
 		return;
 
 	boost = false;
-	spin_lock_irq(&rq->lock);
+	spin_lock_irqsave(&rq->lock, flags);
 	if (!rq->waitboost && !i915_gem_request_completed(rq)) {
 		atomic_inc(&i915->rps.num_waiters);
 		rq->waitboost = true;
 		boost = true;
 	}
-	spin_unlock_irq(&rq->lock);
+	spin_unlock_irqrestore(&rq->lock, flags);
 	if (!boost)
 		return;
 
@@ -9153,43 +9154,6 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 		return byt_freq_opcode(dev_priv, val);
 	else
 		return DIV_ROUND_CLOSEST(val, GT_FREQUENCY_MULTIPLIER);
-}
-
-struct request_boost {
-	struct work_struct work;
-	struct drm_i915_gem_request *req;
-};
-
-static void __intel_rps_boost_work(struct work_struct *work)
-{
-	struct request_boost *boost = container_of(work, struct request_boost, work);
-	struct drm_i915_gem_request *req = boost->req;
-
-	if (!i915_gem_request_completed(req))
-		gen6_rps_boost(req, NULL);
-
-	i915_gem_request_put(req);
-	kfree(boost);
-}
-
-void intel_queue_rps_boost_for_request(struct drm_i915_gem_request *req)
-{
-	struct request_boost *boost;
-
-	if (req == NULL || INTEL_GEN(req->i915) < 6)
-		return;
-
-	if (i915_gem_request_completed(req))
-		return;
-
-	boost = kmalloc(sizeof(*boost), GFP_ATOMIC);
-	if (boost == NULL)
-		return;
-
-	boost->req = i915_gem_request_get(req);
-
-	INIT_WORK(&boost->work, __intel_rps_boost_work);
-	queue_work(req->i915->wq, &boost->work);
 }
 
 void intel_pm_setup(struct drm_i915_private *dev_priv)
