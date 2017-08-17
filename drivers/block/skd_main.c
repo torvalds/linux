@@ -263,7 +263,7 @@ typedef enum skd_irq_type {
 #define SKD_MAX_BARS                    2
 
 struct skd_device {
-	volatile void __iomem *mem_map[SKD_MAX_BARS];
+	void __iomem *mem_map[SKD_MAX_BARS];
 	resource_size_t mem_phys[SKD_MAX_BARS];
 	u32 mem_size[SKD_MAX_BARS];
 
@@ -1094,9 +1094,8 @@ static int skd_sg_io_put_status(struct skd_device *skdev,
 				struct skd_sg_io *sksgio);
 
 static void skd_complete_special(struct skd_device *skdev,
-				 volatile struct fit_completion_entry_v1
-				 *skcomp,
-				 volatile struct fit_comp_error_info *skerr,
+				 struct fit_completion_entry_v1 *skcomp,
+				 struct fit_comp_error_info *skerr,
 				 struct skd_special_context *skspcl);
 
 static int skd_bdev_ioctl(struct block_device *bdev, fmode_t mode,
@@ -1841,9 +1840,8 @@ static void skd_log_check_status(struct skd_device *skdev, u8 status, u8 key,
 }
 
 static void skd_complete_internal(struct skd_device *skdev,
-				  volatile struct fit_completion_entry_v1
-				  *skcomp,
-				  volatile struct fit_comp_error_info *skerr,
+				  struct fit_completion_entry_v1 *skcomp,
+				  struct fit_comp_error_info *skerr,
 				  struct skd_special_context *skspcl)
 {
 	u8 *buf = skspcl->data_buf;
@@ -2100,8 +2098,8 @@ static void skd_send_special_fitmsg(struct skd_device *skdev,
  */
 
 static void skd_complete_other(struct skd_device *skdev,
-			       volatile struct fit_completion_entry_v1 *skcomp,
-			       volatile struct fit_comp_error_info *skerr);
+			       struct fit_completion_entry_v1 *skcomp,
+			       struct fit_comp_error_info *skerr);
 
 struct sns_info {
 	u8 type;
@@ -2150,7 +2148,7 @@ static struct sns_info skd_chkstat_table[] = {
 
 static enum skd_check_status_action
 skd_check_status(struct skd_device *skdev,
-		 u8 cmp_status, volatile struct fit_comp_error_info *skerr)
+		 u8 cmp_status, struct fit_comp_error_info *skerr)
 {
 	int i;
 
@@ -2311,8 +2309,8 @@ static void skd_release_skreq(struct skd_device *skdev,
 #define DRIVER_INQ_EVPD_PAGE_CODE   0xDA
 
 static void skd_do_inq_page_00(struct skd_device *skdev,
-			       volatile struct fit_completion_entry_v1 *skcomp,
-			       volatile struct fit_comp_error_info *skerr,
+			       struct fit_completion_entry_v1 *skcomp,
+			       struct fit_comp_error_info *skerr,
 			       uint8_t *cdb, uint8_t *buf)
 {
 	uint16_t insert_pt, max_bytes, drive_pages, drive_bytes, new_size;
@@ -2408,8 +2406,8 @@ static void skd_get_link_info(struct pci_dev *pdev, u8 *speed, u8 *width)
 }
 
 static void skd_do_inq_page_da(struct skd_device *skdev,
-			       volatile struct fit_completion_entry_v1 *skcomp,
-			       volatile struct fit_comp_error_info *skerr,
+			       struct fit_completion_entry_v1 *skcomp,
+			       struct fit_comp_error_info *skerr,
 			       uint8_t *cdb, uint8_t *buf)
 {
 	struct pci_dev *pdev = skdev->pdev;
@@ -2461,8 +2459,8 @@ static void skd_do_inq_page_da(struct skd_device *skdev,
 }
 
 static void skd_do_driver_inq(struct skd_device *skdev,
-			      volatile struct fit_completion_entry_v1 *skcomp,
-			      volatile struct fit_comp_error_info *skerr,
+			      struct fit_completion_entry_v1 *skcomp,
+			      struct fit_comp_error_info *skerr,
 			      uint8_t *cdb, uint8_t *buf)
 {
 	if (!buf)
@@ -2489,9 +2487,8 @@ static unsigned char *skd_sg_1st_page_ptr(struct scatterlist *sg)
 }
 
 static void skd_process_scsi_inq(struct skd_device *skdev,
-				 volatile struct fit_completion_entry_v1
-				 *skcomp,
-				 volatile struct fit_comp_error_info *skerr,
+				 struct fit_completion_entry_v1 *skcomp,
+				 struct fit_comp_error_info *skerr,
 				 struct skd_special_context *skspcl)
 {
 	uint8_t *buf;
@@ -2508,8 +2505,8 @@ static void skd_process_scsi_inq(struct skd_device *skdev,
 static int skd_isr_completion_posted(struct skd_device *skdev,
 					int limit, int *enqueued)
 {
-	volatile struct fit_completion_entry_v1 *skcmp;
-	volatile struct fit_comp_error_info *skerr;
+	struct fit_completion_entry_v1 *skcmp;
+	struct fit_comp_error_info *skerr;
 	u16 req_id;
 	u32 req_slot;
 	struct skd_request_context *skreq;
@@ -2651,8 +2648,8 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 }
 
 static void skd_complete_other(struct skd_device *skdev,
-			       volatile struct fit_completion_entry_v1 *skcomp,
-			       volatile struct fit_comp_error_info *skerr)
+			       struct fit_completion_entry_v1 *skcomp,
+			       struct fit_comp_error_info *skerr)
 {
 	u32 req_id = 0;
 	u32 req_table;
@@ -2729,9 +2726,8 @@ static void skd_complete_other(struct skd_device *skdev,
 }
 
 static void skd_complete_special(struct skd_device *skdev,
-				 volatile struct fit_completion_entry_v1
-				 *skcomp,
-				 volatile struct fit_comp_error_info *skerr,
+				 struct fit_completion_entry_v1 *skcomp,
+				 struct fit_comp_error_info *skerr,
 				 struct skd_special_context *skspcl)
 {
 	lockdep_assert_held(&skdev->lock);
