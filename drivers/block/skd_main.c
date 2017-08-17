@@ -30,7 +30,6 @@
 #include <linux/err.h>
 #include <linux/aer.h>
 #include <linux/wait.h>
-#include <linux/uio.h>
 #include <linux/stringify.h>
 #include <scsi/scsi.h>
 #include <scsi/sg.h>
@@ -42,13 +41,6 @@
 
 static int skd_dbg_level;
 static int skd_isr_comp_limit = 4;
-
-enum {
-	STEC_LINK_2_5GTS = 0,
-	STEC_LINK_5GTS = 1,
-	STEC_LINK_8GTS = 2,
-	STEC_LINK_UNKNOWN = 0xFF
-};
 
 enum {
 	SKD_FLUSH_INITIALIZER,
@@ -68,8 +60,6 @@ enum {
 #define DRV_VERSION "2.2.1"
 #define DRV_BUILD_ID "0260"
 #define PFX DRV_NAME ": "
-#define DRV_BIN_VERSION 0x100
-#define DRV_VER_COMPL   "2.2.1." DRV_BUILD_ID
 
 MODULE_LICENSE("GPL");
 
@@ -89,14 +79,12 @@ MODULE_VERSION(DRV_VERSION "-" DRV_BUILD_ID);
 #define SKD_N_FITMSG_BYTES      (512u)
 #define SKD_MAX_REQ_PER_MSG	14
 
-#define SKD_N_SPECIAL_CONTEXT   32u
 #define SKD_N_SPECIAL_FITMSG_BYTES      (128u)
 
 /* SG elements are 32 bytes, so we can make this 4096 and still be under the
  * 128KB limit.  That allows 4096*4K = 16M xfer size
  */
 #define SKD_N_SG_PER_REQ_DEFAULT 256u
-#define SKD_N_SG_PER_SPECIAL    256u
 
 #define SKD_N_COMPLETION_ENTRY  256u
 #define SKD_N_READ_CAP_BYTES    (8u)
@@ -112,7 +100,6 @@ MODULE_VERSION(DRV_VERSION "-" DRV_BUILD_ID);
 #define SKD_ID_TABLE_MASK       (3u << 8u)
 #define  SKD_ID_RW_REQUEST      (0u << 8u)
 #define  SKD_ID_INTERNAL        (1u << 8u)
-#define  SKD_ID_SPECIAL_REQUEST (2u << 8u)
 #define  SKD_ID_FIT_MSG         (3u << 8u)
 #define SKD_ID_SLOT_MASK        0x00FFu
 #define SKD_ID_SLOT_AND_TABLE_MASK 0x03FFu
@@ -229,29 +216,11 @@ struct skd_request_context {
 struct skd_special_context {
 	struct skd_request_context req;
 
-	u8 orphaned;
-
 	void *data_buf;
 	dma_addr_t db_dma_address;
 
 	struct skd_msg_buf *msg_buf;
 	dma_addr_t mb_dma_address;
-};
-
-struct skd_sg_io {
-	fmode_t mode;
-	void __user *argp;
-
-	struct sg_io_hdr sg;
-
-	u8 cdb[16];
-
-	u32 dxfer_len;
-	u32 iovcnt;
-	struct sg_iovec *iov;
-	struct sg_iovec no_iov_iov;
-
-	struct skd_special_context *skspcl;
 };
 
 typedef enum skd_irq_type {
@@ -302,9 +271,6 @@ struct skd_device {
 	struct skd_request_context *skreq_free_list;
 	struct skd_request_context *skreq_table;
 
-	struct skd_special_context *skspcl_free_list;
-	struct skd_special_context *skspcl_table;
-
 	struct skd_special_context internal_skspcl;
 	u32 read_cap_blocksize;
 	u32 read_cap_last_lba;
@@ -324,7 +290,6 @@ struct skd_device {
 	u32 timer_countdown;
 	u32 timer_substate;
 
-	int n_special;
 	int sgs_per_request;
 	u32 last_mtd;
 
@@ -402,10 +367,10 @@ MODULE_PARM_DESC(skd_sgs_per_request,
 		 "Maximum SG elements per block request."
 		 " (1-4096, default==256)");
 
-static int skd_max_pass_thru = SKD_N_SPECIAL_CONTEXT;
+static int skd_max_pass_thru = 1;
 module_param(skd_max_pass_thru, int, 0444);
 MODULE_PARM_DESC(skd_max_pass_thru,
-		 "Maximum SCSI pass-thru at a time." " (1-50, default==32)");
+		 "Maximum SCSI pass-thru at a time. IGNORED");
 
 module_param(skd_dbg_level, int, 0444);
 MODULE_PARM_DESC(skd_dbg_level, "s1120 debug level (0,1,2)");
@@ -433,8 +398,6 @@ static void skd_postop_sg_list(struct skd_device *skdev,
 static void skd_restart_device(struct skd_device *skdev);
 static int skd_quiesce_dev(struct skd_device *skdev);
 static int skd_unquiesce_dev(struct skd_device *skdev);
-static void skd_release_special(struct skd_device *skdev,
-				struct skd_special_context *skspcl);
 static void skd_disable_interrupts(struct skd_device *skdev);
 static void skd_isr_fwstate(struct skd_device *skdev);
 static void skd_recover_requests(struct skd_device *skdev);
@@ -1068,626 +1031,6 @@ static void skd_kill_timer(struct skd_device *skdev)
 
 /*
  *****************************************************************************
- * IOCTL
- *****************************************************************************
- */
-static int skd_ioctl_sg_io(struct skd_device *skdev,
-			   fmode_t mode, void __user *argp);
-static int skd_sg_io_get_and_check_args(struct skd_device *skdev,
-					struct skd_sg_io *sksgio);
-static int skd_sg_io_obtain_skspcl(struct skd_device *skdev,
-				   struct skd_sg_io *sksgio);
-static int skd_sg_io_prep_buffering(struct skd_device *skdev,
-				    struct skd_sg_io *sksgio);
-static int skd_sg_io_copy_buffer(struct skd_device *skdev,
-				 struct skd_sg_io *sksgio, int dxfer_dir);
-static int skd_sg_io_send_fitmsg(struct skd_device *skdev,
-				 struct skd_sg_io *sksgio);
-static int skd_sg_io_await(struct skd_device *skdev, struct skd_sg_io *sksgio);
-static int skd_sg_io_release_skspcl(struct skd_device *skdev,
-				    struct skd_sg_io *sksgio);
-static int skd_sg_io_put_status(struct skd_device *skdev,
-				struct skd_sg_io *sksgio);
-
-static void skd_complete_special(struct skd_device *skdev,
-				 struct fit_completion_entry_v1 *skcomp,
-				 struct fit_comp_error_info *skerr,
-				 struct skd_special_context *skspcl);
-
-static int skd_bdev_ioctl(struct block_device *bdev, fmode_t mode,
-			  uint cmd_in, ulong arg)
-{
-	static const int sg_version_num = 30527;
-	int rc = 0, timeout;
-	struct gendisk *disk = bdev->bd_disk;
-	struct skd_device *skdev = disk->private_data;
-	int __user *p = (int __user *)arg;
-
-	dev_dbg(&skdev->pdev->dev,
-		"%s: CMD[%s] ioctl  mode 0x%x, cmd 0x%x arg %0lx\n",
-		disk->disk_name, current->comm, mode, cmd_in, arg);
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	switch (cmd_in) {
-	case SG_SET_TIMEOUT:
-		rc = get_user(timeout, p);
-		if (!rc)
-			disk->queue->sg_timeout = clock_t_to_jiffies(timeout);
-		break;
-	case SG_GET_TIMEOUT:
-		rc = jiffies_to_clock_t(disk->queue->sg_timeout);
-		break;
-	case SG_GET_VERSION_NUM:
-		rc = put_user(sg_version_num, p);
-		break;
-	case SG_IO:
-		rc = skd_ioctl_sg_io(skdev, mode, (void __user *)arg);
-		break;
-
-	default:
-		rc = -ENOTTY;
-		break;
-	}
-
-	dev_dbg(&skdev->pdev->dev, "%s:  completion rc %d\n", disk->disk_name,
-		rc);
-	return rc;
-}
-
-static int skd_ioctl_sg_io(struct skd_device *skdev, fmode_t mode,
-			   void __user *argp)
-{
-	int rc;
-	struct skd_sg_io sksgio;
-
-	memset(&sksgio, 0, sizeof(sksgio));
-	sksgio.mode = mode;
-	sksgio.argp = argp;
-	sksgio.iov = &sksgio.no_iov_iov;
-
-	switch (skdev->state) {
-	case SKD_DRVR_STATE_ONLINE:
-	case SKD_DRVR_STATE_BUSY_IMMINENT:
-		break;
-
-	default:
-		dev_dbg(&skdev->pdev->dev, "drive not online\n");
-		rc = -ENXIO;
-		goto out;
-	}
-
-	rc = skd_sg_io_get_and_check_args(skdev, &sksgio);
-	if (rc)
-		goto out;
-
-	rc = skd_sg_io_obtain_skspcl(skdev, &sksgio);
-	if (rc)
-		goto out;
-
-	rc = skd_sg_io_prep_buffering(skdev, &sksgio);
-	if (rc)
-		goto out;
-
-	rc = skd_sg_io_copy_buffer(skdev, &sksgio, SG_DXFER_TO_DEV);
-	if (rc)
-		goto out;
-
-	rc = skd_sg_io_send_fitmsg(skdev, &sksgio);
-	if (rc)
-		goto out;
-
-	rc = skd_sg_io_await(skdev, &sksgio);
-	if (rc)
-		goto out;
-
-	rc = skd_sg_io_copy_buffer(skdev, &sksgio, SG_DXFER_FROM_DEV);
-	if (rc)
-		goto out;
-
-	rc = skd_sg_io_put_status(skdev, &sksgio);
-	if (rc)
-		goto out;
-
-	rc = 0;
-
-out:
-	skd_sg_io_release_skspcl(skdev, &sksgio);
-
-	if (sksgio.iov != NULL && sksgio.iov != &sksgio.no_iov_iov)
-		kfree(sksgio.iov);
-	return rc;
-}
-
-static int skd_sg_io_get_and_check_args(struct skd_device *skdev,
-					struct skd_sg_io *sksgio)
-{
-	struct sg_io_hdr *sgp = &sksgio->sg;
-	int i, __maybe_unused acc;
-
-	if (!access_ok(VERIFY_WRITE, sksgio->argp, sizeof(sg_io_hdr_t))) {
-		dev_dbg(&skdev->pdev->dev, "access sg failed %p\n",
-			sksgio->argp);
-		return -EFAULT;
-	}
-
-	if (__copy_from_user(sgp, sksgio->argp, sizeof(sg_io_hdr_t))) {
-		dev_dbg(&skdev->pdev->dev, "copy_from_user sg failed %p\n",
-			sksgio->argp);
-		return -EFAULT;
-	}
-
-	if (sgp->interface_id != SG_INTERFACE_ID_ORIG) {
-		dev_dbg(&skdev->pdev->dev, "interface_id invalid 0x%x\n",
-			sgp->interface_id);
-		return -EINVAL;
-	}
-
-	if (sgp->cmd_len > sizeof(sksgio->cdb)) {
-		dev_dbg(&skdev->pdev->dev, "cmd_len invalid %d\n",
-			sgp->cmd_len);
-		return -EINVAL;
-	}
-
-	if (sgp->iovec_count > 256) {
-		dev_dbg(&skdev->pdev->dev, "iovec_count invalid %d\n",
-			sgp->iovec_count);
-		return -EINVAL;
-	}
-
-	if (sgp->dxfer_len > (PAGE_SIZE * SKD_N_SG_PER_SPECIAL)) {
-		dev_dbg(&skdev->pdev->dev, "dxfer_len invalid %d\n",
-			sgp->dxfer_len);
-		return -EINVAL;
-	}
-
-	switch (sgp->dxfer_direction) {
-	case SG_DXFER_NONE:
-		acc = -1;
-		break;
-
-	case SG_DXFER_TO_DEV:
-		acc = VERIFY_READ;
-		break;
-
-	case SG_DXFER_FROM_DEV:
-	case SG_DXFER_TO_FROM_DEV:
-		acc = VERIFY_WRITE;
-		break;
-
-	default:
-		dev_dbg(&skdev->pdev->dev, "dxfer_dir invalid %d\n",
-			sgp->dxfer_direction);
-		return -EINVAL;
-	}
-
-	if (copy_from_user(sksgio->cdb, sgp->cmdp, sgp->cmd_len)) {
-		dev_dbg(&skdev->pdev->dev, "copy_from_user cmdp failed %p\n",
-			sgp->cmdp);
-		return -EFAULT;
-	}
-
-	if (sgp->mx_sb_len != 0) {
-		if (!access_ok(VERIFY_WRITE, sgp->sbp, sgp->mx_sb_len)) {
-			dev_dbg(&skdev->pdev->dev, "access sbp failed %p\n",
-				sgp->sbp);
-			return -EFAULT;
-		}
-	}
-
-	if (sgp->iovec_count == 0) {
-		sksgio->iov[0].iov_base = sgp->dxferp;
-		sksgio->iov[0].iov_len = sgp->dxfer_len;
-		sksgio->iovcnt = 1;
-		sksgio->dxfer_len = sgp->dxfer_len;
-	} else {
-		struct sg_iovec *iov;
-		uint nbytes = sizeof(*iov) * sgp->iovec_count;
-		size_t iov_data_len;
-
-		iov = kmalloc(nbytes, GFP_KERNEL);
-		if (iov == NULL) {
-			dev_dbg(&skdev->pdev->dev, "alloc iovec failed %d\n",
-				sgp->iovec_count);
-			return -ENOMEM;
-		}
-		sksgio->iov = iov;
-		sksgio->iovcnt = sgp->iovec_count;
-
-		if (copy_from_user(iov, sgp->dxferp, nbytes)) {
-			dev_dbg(&skdev->pdev->dev,
-				"copy_from_user iovec failed %p\n",
-				sgp->dxferp);
-			return -EFAULT;
-		}
-
-		/*
-		 * Sum up the vecs, making sure they don't overflow
-		 */
-		iov_data_len = 0;
-		for (i = 0; i < sgp->iovec_count; i++) {
-			if (iov_data_len + iov[i].iov_len < iov_data_len)
-				return -EINVAL;
-			iov_data_len += iov[i].iov_len;
-		}
-
-		/* SG_IO howto says that the shorter of the two wins */
-		if (sgp->dxfer_len < iov_data_len) {
-			sksgio->iovcnt = iov_shorten((struct iovec *)iov,
-						     sgp->iovec_count,
-						     sgp->dxfer_len);
-			sksgio->dxfer_len = sgp->dxfer_len;
-		} else
-			sksgio->dxfer_len = iov_data_len;
-	}
-
-	if (sgp->dxfer_direction != SG_DXFER_NONE) {
-		struct sg_iovec *iov = sksgio->iov;
-		for (i = 0; i < sksgio->iovcnt; i++, iov++) {
-			if (!access_ok(acc, iov->iov_base, iov->iov_len)) {
-				dev_dbg(&skdev->pdev->dev,
-					"access data failed %p/%zd\n",
-					iov->iov_base, iov->iov_len);
-				return -EFAULT;
-			}
-		}
-	}
-
-	return 0;
-}
-
-static int skd_sg_io_obtain_skspcl(struct skd_device *skdev,
-				   struct skd_sg_io *sksgio)
-{
-	struct skd_special_context *skspcl = NULL;
-	int rc;
-
-	for (;;) {
-		ulong flags;
-
-		spin_lock_irqsave(&skdev->lock, flags);
-		skspcl = skdev->skspcl_free_list;
-		if (skspcl != NULL) {
-			skdev->skspcl_free_list =
-				(struct skd_special_context *)skspcl->req.next;
-			skspcl->req.id += SKD_ID_INCR;
-			skspcl->req.state = SKD_REQ_STATE_SETUP;
-			skspcl->orphaned = 0;
-			skspcl->req.n_sg = 0;
-		}
-		spin_unlock_irqrestore(&skdev->lock, flags);
-
-		if (skspcl != NULL) {
-			rc = 0;
-			break;
-		}
-
-		dev_dbg(&skdev->pdev->dev, "blocking\n");
-
-		rc = wait_event_interruptible_timeout(
-				skdev->waitq,
-				(skdev->skspcl_free_list != NULL),
-				msecs_to_jiffies(sksgio->sg.timeout));
-
-		dev_dbg(&skdev->pdev->dev, "unblocking, rc=%d\n", rc);
-
-		if (rc <= 0) {
-			if (rc == 0)
-				rc = -ETIMEDOUT;
-			else
-				rc = -EINTR;
-			break;
-		}
-		/*
-		 * If we get here rc > 0 meaning the timeout to
-		 * wait_event_interruptible_timeout() had time left, hence the
-		 * sought event -- non-empty free list -- happened.
-		 * Retry the allocation.
-		 */
-	}
-	sksgio->skspcl = skspcl;
-
-	return rc;
-}
-
-static int skd_skreq_prep_buffering(struct skd_device *skdev,
-				    struct skd_request_context *skreq,
-				    u32 dxfer_len)
-{
-	u32 resid = dxfer_len;
-
-	/*
-	 * The DMA engine must have aligned addresses and byte counts.
-	 */
-	resid += (-resid) & 3;
-	skreq->sg_byte_count = resid;
-
-	skreq->n_sg = 0;
-
-	while (resid > 0) {
-		u32 nbytes = PAGE_SIZE;
-		u32 ix = skreq->n_sg;
-		struct scatterlist *sg = &skreq->sg[ix];
-		struct fit_sg_descriptor *sksg = &skreq->sksg_list[ix];
-		struct page *page;
-
-		if (nbytes > resid)
-			nbytes = resid;
-
-		page = alloc_page(GFP_KERNEL);
-		if (page == NULL)
-			return -ENOMEM;
-
-		sg_set_page(sg, page, nbytes, 0);
-
-		/* TODO: This should be going through a pci_???()
-		 * routine to do proper mapping. */
-		sksg->control = FIT_SGD_CONTROL_NOT_LAST;
-		sksg->byte_count = nbytes;
-
-		sksg->host_side_addr = sg_phys(sg);
-
-		sksg->dev_side_addr = 0;
-		sksg->next_desc_ptr = skreq->sksg_dma_address +
-				      (ix + 1) * sizeof(*sksg);
-
-		skreq->n_sg++;
-		resid -= nbytes;
-	}
-
-	if (skreq->n_sg > 0) {
-		u32 ix = skreq->n_sg - 1;
-		struct fit_sg_descriptor *sksg = &skreq->sksg_list[ix];
-
-		sksg->control = FIT_SGD_CONTROL_LAST;
-		sksg->next_desc_ptr = 0;
-	}
-
-	if (unlikely(skdev->dbg_level > 1)) {
-		u32 i;
-
-		dev_dbg(&skdev->pdev->dev,
-			"skreq=%x sksg_list=%p sksg_dma=%llx\n",
-			skreq->id, skreq->sksg_list, skreq->sksg_dma_address);
-		for (i = 0; i < skreq->n_sg; i++) {
-			struct fit_sg_descriptor *sgd = &skreq->sksg_list[i];
-
-			dev_dbg(&skdev->pdev->dev,
-				"  sg[%d] count=%u ctrl=0x%x addr=0x%llx next=0x%llx\n",
-				i, sgd->byte_count, sgd->control,
-				sgd->host_side_addr, sgd->next_desc_ptr);
-		}
-	}
-
-	return 0;
-}
-
-static int skd_sg_io_prep_buffering(struct skd_device *skdev,
-				    struct skd_sg_io *sksgio)
-{
-	struct skd_special_context *skspcl = sksgio->skspcl;
-	struct skd_request_context *skreq = &skspcl->req;
-	u32 dxfer_len = sksgio->dxfer_len;
-	int rc;
-
-	rc = skd_skreq_prep_buffering(skdev, skreq, dxfer_len);
-	/*
-	 * Eventually, errors or not, skd_release_special() is called
-	 * to recover allocations including partial allocations.
-	 */
-	return rc;
-}
-
-static int skd_sg_io_copy_buffer(struct skd_device *skdev,
-				 struct skd_sg_io *sksgio, int dxfer_dir)
-{
-	struct skd_special_context *skspcl = sksgio->skspcl;
-	u32 iov_ix = 0;
-	struct sg_iovec curiov;
-	u32 sksg_ix = 0;
-	u8 *bufp = NULL;
-	u32 buf_len = 0;
-	u32 resid = sksgio->dxfer_len;
-	int rc;
-
-	curiov.iov_len = 0;
-	curiov.iov_base = NULL;
-
-	if (dxfer_dir != sksgio->sg.dxfer_direction) {
-		if (dxfer_dir != SG_DXFER_TO_DEV ||
-		    sksgio->sg.dxfer_direction != SG_DXFER_TO_FROM_DEV)
-			return 0;
-	}
-
-	while (resid > 0) {
-		u32 nbytes = PAGE_SIZE;
-
-		if (curiov.iov_len == 0) {
-			curiov = sksgio->iov[iov_ix++];
-			continue;
-		}
-
-		if (buf_len == 0) {
-			struct page *page;
-			page = sg_page(&skspcl->req.sg[sksg_ix++]);
-			bufp = page_address(page);
-			buf_len = PAGE_SIZE;
-		}
-
-		nbytes = min_t(u32, nbytes, resid);
-		nbytes = min_t(u32, nbytes, curiov.iov_len);
-		nbytes = min_t(u32, nbytes, buf_len);
-
-		if (dxfer_dir == SG_DXFER_TO_DEV)
-			rc = __copy_from_user(bufp, curiov.iov_base, nbytes);
-		else
-			rc = __copy_to_user(curiov.iov_base, bufp, nbytes);
-
-		if (rc)
-			return -EFAULT;
-
-		resid -= nbytes;
-		curiov.iov_len -= nbytes;
-		curiov.iov_base += nbytes;
-		buf_len -= nbytes;
-	}
-
-	return 0;
-}
-
-static int skd_sg_io_send_fitmsg(struct skd_device *skdev,
-				 struct skd_sg_io *sksgio)
-{
-	struct skd_special_context *skspcl = sksgio->skspcl;
-	struct fit_msg_hdr *fmh = &skspcl->msg_buf->fmh;
-	struct skd_scsi_request *scsi_req = &skspcl->msg_buf->scsi[0];
-
-	memset(skspcl->msg_buf, 0, SKD_N_SPECIAL_FITMSG_BYTES);
-
-	/* Initialize the FIT msg header */
-	fmh->protocol_id = FIT_PROTOCOL_ID_SOFIT;
-	fmh->num_protocol_cmds_coalesced = 1;
-
-	/* Initialize the SCSI request */
-	if (sksgio->sg.dxfer_direction != SG_DXFER_NONE)
-		scsi_req->hdr.sg_list_dma_address =
-			cpu_to_be64(skspcl->req.sksg_dma_address);
-	scsi_req->hdr.tag = skspcl->req.id;
-	scsi_req->hdr.sg_list_len_bytes =
-		cpu_to_be32(skspcl->req.sg_byte_count);
-	memcpy(scsi_req->cdb, sksgio->cdb, sizeof(scsi_req->cdb));
-
-	skspcl->req.state = SKD_REQ_STATE_BUSY;
-	skd_send_special_fitmsg(skdev, skspcl);
-
-	return 0;
-}
-
-static int skd_sg_io_await(struct skd_device *skdev, struct skd_sg_io *sksgio)
-{
-	unsigned long flags;
-	int rc;
-
-	rc = wait_event_interruptible_timeout(skdev->waitq,
-					      (sksgio->skspcl->req.state !=
-					       SKD_REQ_STATE_BUSY),
-					      msecs_to_jiffies(sksgio->sg.
-							       timeout));
-
-	spin_lock_irqsave(&skdev->lock, flags);
-
-	if (sksgio->skspcl->req.state == SKD_REQ_STATE_ABORTED) {
-		dev_dbg(&skdev->pdev->dev, "skspcl %p aborted\n",
-			sksgio->skspcl);
-
-		/* Build check cond, sense and let command finish. */
-		/* For a timeout, we must fabricate completion and sense
-		 * data to complete the command */
-		sksgio->skspcl->req.completion.status =
-			SAM_STAT_CHECK_CONDITION;
-
-		memset(&sksgio->skspcl->req.err_info, 0,
-		       sizeof(sksgio->skspcl->req.err_info));
-		sksgio->skspcl->req.err_info.type = 0x70;
-		sksgio->skspcl->req.err_info.key = ABORTED_COMMAND;
-		sksgio->skspcl->req.err_info.code = 0x44;
-		sksgio->skspcl->req.err_info.qual = 0;
-		rc = 0;
-	} else if (sksgio->skspcl->req.state != SKD_REQ_STATE_BUSY)
-		/* No longer on the adapter. We finish. */
-		rc = 0;
-	else {
-		/* Something's gone wrong. Still busy. Timeout or
-		 * user interrupted (control-C). Mark as an orphan
-		 * so it will be disposed when completed. */
-		sksgio->skspcl->orphaned = 1;
-		sksgio->skspcl = NULL;
-		if (rc == 0) {
-			dev_dbg(&skdev->pdev->dev, "timed out %p (%u ms)\n",
-				sksgio, sksgio->sg.timeout);
-			rc = -ETIMEDOUT;
-		} else {
-			dev_dbg(&skdev->pdev->dev, "cntlc %p\n", sksgio);
-			rc = -EINTR;
-		}
-	}
-
-	spin_unlock_irqrestore(&skdev->lock, flags);
-
-	return rc;
-}
-
-static int skd_sg_io_put_status(struct skd_device *skdev,
-				struct skd_sg_io *sksgio)
-{
-	struct sg_io_hdr *sgp = &sksgio->sg;
-	struct skd_special_context *skspcl = sksgio->skspcl;
-	int resid = 0;
-
-	u32 nb = be32_to_cpu(skspcl->req.completion.num_returned_bytes);
-
-	sgp->status = skspcl->req.completion.status;
-	resid = sksgio->dxfer_len - nb;
-
-	sgp->masked_status = sgp->status & STATUS_MASK;
-	sgp->msg_status = 0;
-	sgp->host_status = 0;
-	sgp->driver_status = 0;
-	sgp->resid = resid;
-	if (sgp->masked_status || sgp->host_status || sgp->driver_status)
-		sgp->info |= SG_INFO_CHECK;
-
-	dev_dbg(&skdev->pdev->dev, "status %x masked %x resid 0x%x\n",
-		sgp->status, sgp->masked_status, sgp->resid);
-
-	if (sgp->masked_status == SAM_STAT_CHECK_CONDITION) {
-		if (sgp->mx_sb_len > 0) {
-			struct fit_comp_error_info *ei = &skspcl->req.err_info;
-			u32 nbytes = sizeof(*ei);
-
-			nbytes = min_t(u32, nbytes, sgp->mx_sb_len);
-
-			sgp->sb_len_wr = nbytes;
-
-			if (__copy_to_user(sgp->sbp, ei, nbytes)) {
-				dev_dbg(&skdev->pdev->dev,
-					"copy_to_user sense failed %p\n",
-					sgp->sbp);
-				return -EFAULT;
-			}
-		}
-	}
-
-	if (__copy_to_user(sksgio->argp, sgp, sizeof(sg_io_hdr_t))) {
-		dev_dbg(&skdev->pdev->dev, "copy_to_user sg failed %p\n",
-			sksgio->argp);
-		return -EFAULT;
-	}
-
-	return 0;
-}
-
-static int skd_sg_io_release_skspcl(struct skd_device *skdev,
-				    struct skd_sg_io *sksgio)
-{
-	struct skd_special_context *skspcl = sksgio->skspcl;
-
-	if (skspcl != NULL) {
-		ulong flags;
-
-		sksgio->skspcl = NULL;
-
-		spin_lock_irqsave(&skdev->lock, flags);
-		skd_release_special(skdev, skspcl);
-		spin_unlock_irqrestore(&skdev->lock, flags);
-	}
-
-	return 0;
-}
-
-/*
- *****************************************************************************
  * INTERNAL REQUESTS -- generated by driver itself
  *****************************************************************************
  */
@@ -2305,202 +1648,6 @@ static void skd_release_skreq(struct skd_device *skdev,
 	skdev->skreq_free_list = skreq;
 }
 
-#define DRIVER_INQ_EVPD_PAGE_CODE   0xDA
-
-static void skd_do_inq_page_00(struct skd_device *skdev,
-			       struct fit_completion_entry_v1 *skcomp,
-			       struct fit_comp_error_info *skerr,
-			       uint8_t *cdb, uint8_t *buf)
-{
-	uint16_t insert_pt, max_bytes, drive_pages, drive_bytes, new_size;
-
-	/* Caller requested "supported pages".  The driver needs to insert
-	 * its page.
-	 */
-	dev_dbg(&skdev->pdev->dev,
-		"skd_do_driver_inquiry: modify supported pages.\n");
-
-	/* If the device rejected the request because the CDB was
-	 * improperly formed, then just leave.
-	 */
-	if (skcomp->status == SAM_STAT_CHECK_CONDITION &&
-	    skerr->key == ILLEGAL_REQUEST && skerr->code == 0x24)
-		return;
-
-	/* Get the amount of space the caller allocated */
-	max_bytes = (cdb[3] << 8) | cdb[4];
-
-	/* Get the number of pages actually returned by the device */
-	drive_pages = (buf[2] << 8) | buf[3];
-	drive_bytes = drive_pages + 4;
-	new_size = drive_pages + 1;
-
-	/* Supported pages must be in numerical order, so find where
-	 * the driver page needs to be inserted into the list of
-	 * pages returned by the device.
-	 */
-	for (insert_pt = 4; insert_pt < drive_bytes; insert_pt++) {
-		if (buf[insert_pt] == DRIVER_INQ_EVPD_PAGE_CODE)
-			return; /* Device using this page code. abort */
-		else if (buf[insert_pt] > DRIVER_INQ_EVPD_PAGE_CODE)
-			break;
-	}
-
-	if (insert_pt < max_bytes) {
-		uint16_t u;
-
-		/* Shift everything up one byte to make room. */
-		for (u = new_size + 3; u > insert_pt; u--)
-			buf[u] = buf[u - 1];
-		buf[insert_pt] = DRIVER_INQ_EVPD_PAGE_CODE;
-
-		/* SCSI byte order increment of num_returned_bytes by 1 */
-		skcomp->num_returned_bytes =
-			cpu_to_be32(be32_to_cpu(skcomp->num_returned_bytes) + 1);
-	}
-
-	/* update page length field to reflect the driver's page too */
-	buf[2] = (uint8_t)((new_size >> 8) & 0xFF);
-	buf[3] = (uint8_t)((new_size >> 0) & 0xFF);
-}
-
-static void skd_get_link_info(struct pci_dev *pdev, u8 *speed, u8 *width)
-{
-	int pcie_reg;
-	u16 pci_bus_speed;
-	u8 pci_lanes;
-
-	pcie_reg = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	if (pcie_reg) {
-		u16 linksta;
-		pci_read_config_word(pdev, pcie_reg + PCI_EXP_LNKSTA, &linksta);
-
-		pci_bus_speed = linksta & 0xF;
-		pci_lanes = (linksta & 0x3F0) >> 4;
-	} else {
-		*speed = STEC_LINK_UNKNOWN;
-		*width = 0xFF;
-		return;
-	}
-
-	switch (pci_bus_speed) {
-	case 1:
-		*speed = STEC_LINK_2_5GTS;
-		break;
-	case 2:
-		*speed = STEC_LINK_5GTS;
-		break;
-	case 3:
-		*speed = STEC_LINK_8GTS;
-		break;
-	default:
-		*speed = STEC_LINK_UNKNOWN;
-		break;
-	}
-
-	if (pci_lanes <= 0x20)
-		*width = pci_lanes;
-	else
-		*width = 0xFF;
-}
-
-static void skd_do_inq_page_da(struct skd_device *skdev,
-			       struct fit_completion_entry_v1 *skcomp,
-			       struct fit_comp_error_info *skerr,
-			       uint8_t *cdb, uint8_t *buf)
-{
-	struct pci_dev *pdev = skdev->pdev;
-	unsigned max_bytes;
-	struct driver_inquiry_data inq;
-	u16 val;
-
-	dev_dbg(&skdev->pdev->dev, "skd_do_driver_inquiry: return driver page\n");
-
-	memset(&inq, 0, sizeof(inq));
-
-	inq.page_code = DRIVER_INQ_EVPD_PAGE_CODE;
-
-	skd_get_link_info(pdev, &inq.pcie_link_speed, &inq.pcie_link_lanes);
-	inq.pcie_bus_number = cpu_to_be16(pdev->bus->number);
-	inq.pcie_device_number = PCI_SLOT(pdev->devfn);
-	inq.pcie_function_number = PCI_FUNC(pdev->devfn);
-
-	pci_read_config_word(pdev, PCI_VENDOR_ID, &val);
-	inq.pcie_vendor_id = cpu_to_be16(val);
-
-	pci_read_config_word(pdev, PCI_DEVICE_ID, &val);
-	inq.pcie_device_id = cpu_to_be16(val);
-
-	pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &val);
-	inq.pcie_subsystem_vendor_id = cpu_to_be16(val);
-
-	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &val);
-	inq.pcie_subsystem_device_id = cpu_to_be16(val);
-
-	/* Driver version, fixed lenth, padded with spaces on the right */
-	inq.driver_version_length = sizeof(inq.driver_version);
-	memset(&inq.driver_version, ' ', sizeof(inq.driver_version));
-	memcpy(inq.driver_version, DRV_VER_COMPL,
-	       min(sizeof(inq.driver_version), strlen(DRV_VER_COMPL)));
-
-	inq.page_length = cpu_to_be16((sizeof(inq) - 4));
-
-	/* Clear the error set by the device */
-	skcomp->status = SAM_STAT_GOOD;
-	memset((void *)skerr, 0, sizeof(*skerr));
-
-	/* copy response into output buffer */
-	max_bytes = (cdb[3] << 8) | cdb[4];
-	memcpy(buf, &inq, min_t(unsigned, max_bytes, sizeof(inq)));
-
-	skcomp->num_returned_bytes =
-		cpu_to_be32(min_t(uint16_t, max_bytes, sizeof(inq)));
-}
-
-static void skd_do_driver_inq(struct skd_device *skdev,
-			      struct fit_completion_entry_v1 *skcomp,
-			      struct fit_comp_error_info *skerr,
-			      uint8_t *cdb, uint8_t *buf)
-{
-	if (!buf)
-		return;
-	else if (cdb[0] != INQUIRY)
-		return;         /* Not an INQUIRY */
-	else if ((cdb[1] & 1) == 0)
-		return;         /* EVPD not set */
-	else if (cdb[2] == 0)
-		/* Need to add driver's page to supported pages list */
-		skd_do_inq_page_00(skdev, skcomp, skerr, cdb, buf);
-	else if (cdb[2] == DRIVER_INQ_EVPD_PAGE_CODE)
-		/* Caller requested driver's page */
-		skd_do_inq_page_da(skdev, skcomp, skerr, cdb, buf);
-}
-
-static unsigned char *skd_sg_1st_page_ptr(struct scatterlist *sg)
-{
-	if (!sg)
-		return NULL;
-	if (!sg_page(sg))
-		return NULL;
-	return sg_virt(sg);
-}
-
-static void skd_process_scsi_inq(struct skd_device *skdev,
-				 struct fit_completion_entry_v1 *skcomp,
-				 struct fit_comp_error_info *skerr,
-				 struct skd_special_context *skspcl)
-{
-	uint8_t *buf;
-	struct skd_scsi_request *scsi_req = &skspcl->msg_buf->scsi[0];
-
-	dma_sync_sg_for_cpu(skdev->class_dev, skspcl->req.sg, skspcl->req.n_sg,
-			    skspcl->req.data_dir);
-	buf = skd_sg_1st_page_ptr(skspcl->req.sg);
-
-	if (buf)
-		skd_do_driver_inq(skdev, skcomp, skerr, scsi_req->cdb, buf);
-}
-
 static int skd_isr_completion_posted(struct skd_device *skdev,
 					int limit, int *enqueued)
 {
@@ -2678,22 +1825,6 @@ static void skd_complete_other(struct skd_device *skdev,
 		 */
 		break;
 
-	case SKD_ID_SPECIAL_REQUEST:
-		/*
-		 * Make sure the req_slot is in bounds and that the id
-		 * matches.
-		 */
-		if (req_slot < skdev->n_special) {
-			skspcl = &skdev->skspcl_table[req_slot];
-			if (skspcl->req.id == req_id &&
-			    skspcl->req.state == SKD_REQ_STATE_BUSY) {
-				skd_complete_special(skdev,
-						     skcomp, skerr, skspcl);
-				return;
-			}
-		}
-		break;
-
 	case SKD_ID_INTERNAL:
 		if (req_slot == 0) {
 			skspcl = &skdev->internal_skspcl;
@@ -2722,61 +1853,6 @@ static void skd_complete_other(struct skd_device *skdev,
 	/*
 	 * If we get here it is a bad or stale id.
 	 */
-}
-
-static void skd_complete_special(struct skd_device *skdev,
-				 struct fit_completion_entry_v1 *skcomp,
-				 struct fit_comp_error_info *skerr,
-				 struct skd_special_context *skspcl)
-{
-	lockdep_assert_held(&skdev->lock);
-
-	dev_dbg(&skdev->pdev->dev, " completing special request %p\n", skspcl);
-	if (skspcl->orphaned) {
-		/* Discard orphaned request */
-		/* ?: Can this release directly or does it need
-		 * to use a worker? */
-		dev_dbg(&skdev->pdev->dev, "release orphaned %p\n", skspcl);
-		skd_release_special(skdev, skspcl);
-		return;
-	}
-
-	skd_process_scsi_inq(skdev, skcomp, skerr, skspcl);
-
-	skspcl->req.state = SKD_REQ_STATE_COMPLETED;
-	skspcl->req.completion = *skcomp;
-	skspcl->req.err_info = *skerr;
-
-	skd_log_check_status(skdev, skspcl->req.completion.status, skerr->key,
-			     skerr->code, skerr->qual, skerr->fruc);
-
-	wake_up_interruptible(&skdev->waitq);
-}
-
-/* assume spinlock is already held */
-static void skd_release_special(struct skd_device *skdev,
-				struct skd_special_context *skspcl)
-{
-	int i, was_depleted;
-
-	for (i = 0; i < skspcl->req.n_sg; i++) {
-		struct page *page = sg_page(&skspcl->req.sg[i]);
-		__free_page(page);
-	}
-
-	was_depleted = (skdev->skspcl_free_list == NULL);
-
-	skspcl->req.state = SKD_REQ_STATE_IDLE;
-	skspcl->req.id += SKD_ID_INCR;
-	skspcl->req.next =
-		(struct skd_request_context *)skdev->skspcl_free_list;
-	skdev->skspcl_free_list = (struct skd_special_context *)skspcl;
-
-	if (was_depleted) {
-		dev_dbg(&skdev->pdev->dev, "skspcl was depleted\n");
-		/* Free list was depleted. Their might be waiters. */
-		wake_up_interruptible(&skdev->waitq);
-	}
 }
 
 static void skd_reset_skcomp(struct skd_device *skdev)
@@ -3070,30 +2146,6 @@ static void skd_recover_requests(struct skd_device *skdev)
 		skmsg->next = NULL;
 	}
 	skdev->skmsg_free_list = skdev->skmsg_table;
-
-	for (i = 0; i < skdev->n_special; i++) {
-		struct skd_special_context *skspcl = &skdev->skspcl_table[i];
-
-		/* If orphaned, reclaim it because it has already been reported
-		 * to the process as an error (it was just waiting for
-		 * a completion that didn't come, and now it will never come)
-		 * If busy, change to a state that will cause it to error
-		 * out in the wait routine and let it do the normal
-		 * reporting and reclaiming
-		 */
-		if (skspcl->req.state == SKD_REQ_STATE_BUSY) {
-			if (skspcl->orphaned) {
-				dev_dbg(&skdev->pdev->dev, "orphaned %p\n",
-					skspcl);
-				skd_release_special(skdev, skspcl);
-			} else {
-				dev_dbg(&skdev->pdev->dev, "not orphaned %p\n",
-					skspcl);
-				skspcl->req.state = SKD_REQ_STATE_ABORTED;
-			}
-		}
-	}
-	skdev->skspcl_free_list = skdev->skspcl_table;
 
 	for (i = 0; i < SKD_N_TIMEOUT_SLOT; i++)
 		skdev->timeout_slot[i] = 0;
@@ -3947,72 +2999,6 @@ err_out:
 	return rc;
 }
 
-static int skd_cons_skspcl(struct skd_device *skdev)
-{
-	int rc = 0;
-	u32 i, nbytes;
-
-	dev_dbg(&skdev->pdev->dev,
-		"skspcl_table kcalloc, struct %lu, count %u total %lu\n",
-		sizeof(struct skd_special_context), skdev->n_special,
-		sizeof(struct skd_special_context) * skdev->n_special);
-
-	skdev->skspcl_table = kcalloc(skdev->n_special,
-				      sizeof(struct skd_special_context),
-				      GFP_KERNEL);
-	if (skdev->skspcl_table == NULL) {
-		rc = -ENOMEM;
-		goto err_out;
-	}
-
-	for (i = 0; i < skdev->n_special; i++) {
-		struct skd_special_context *skspcl;
-
-		skspcl = &skdev->skspcl_table[i];
-
-		skspcl->req.id = i + SKD_ID_SPECIAL_REQUEST;
-		skspcl->req.state = SKD_REQ_STATE_IDLE;
-
-		skspcl->req.next = &skspcl[1].req;
-
-		nbytes = SKD_N_SPECIAL_FITMSG_BYTES;
-
-		skspcl->msg_buf =
-			pci_zalloc_consistent(skdev->pdev, nbytes,
-					      &skspcl->mb_dma_address);
-		if (skspcl->msg_buf == NULL) {
-			rc = -ENOMEM;
-			goto err_out;
-		}
-
-		skspcl->req.sg = kcalloc(SKD_N_SG_PER_SPECIAL,
-					 sizeof(struct scatterlist),
-					 GFP_KERNEL);
-		if (skspcl->req.sg == NULL) {
-			rc = -ENOMEM;
-			goto err_out;
-		}
-
-		skspcl->req.sksg_list = skd_cons_sg_list(skdev,
-							 SKD_N_SG_PER_SPECIAL,
-							 &skspcl->req.
-							 sksg_dma_address);
-		if (skspcl->req.sksg_list == NULL) {
-			rc = -ENOMEM;
-			goto err_out;
-		}
-	}
-
-	/* Free list is in order starting with the 0th entry. */
-	skdev->skspcl_table[i - 1].req.next = NULL;
-	skdev->skspcl_free_list = skdev->skspcl_table;
-
-	return rc;
-
-err_out:
-	return rc;
-}
-
 static int skd_cons_sksb(struct skd_device *skdev)
 {
 	int rc = 0;
@@ -4132,7 +3118,6 @@ static struct skd_device *skd_construct(struct pci_dev *pdev)
 
 	skdev->num_req_context = skd_max_queue_depth;
 	skdev->num_fitmsg_context = skd_max_queue_depth;
-	skdev->n_special = skd_max_pass_thru;
 	skdev->cur_max_queue_depth = 1;
 	skdev->queue_low_water_mark = 1;
 	skdev->proto_ver = 99;
@@ -4155,11 +3140,6 @@ static struct skd_device *skd_construct(struct pci_dev *pdev)
 
 	dev_dbg(&skdev->pdev->dev, "skreq\n");
 	rc = skd_cons_skreq(skdev);
-	if (rc < 0)
-		goto err_out;
-
-	dev_dbg(&skdev->pdev->dev, "skspcl\n");
-	rc = skd_cons_skspcl(skdev);
 	if (rc < 0)
 		goto err_out;
 
@@ -4262,43 +3242,6 @@ static void skd_free_skreq(struct skd_device *skdev)
 	skdev->skreq_table = NULL;
 }
 
-static void skd_free_skspcl(struct skd_device *skdev)
-{
-	u32 i;
-	u32 nbytes;
-
-	if (skdev->skspcl_table == NULL)
-		return;
-
-	for (i = 0; i < skdev->n_special; i++) {
-		struct skd_special_context *skspcl;
-
-		skspcl = &skdev->skspcl_table[i];
-
-		if (skspcl->msg_buf != NULL) {
-			nbytes = SKD_N_SPECIAL_FITMSG_BYTES;
-			pci_free_consistent(skdev->pdev, nbytes,
-					    skspcl->msg_buf,
-					    skspcl->mb_dma_address);
-		}
-
-		skspcl->msg_buf = NULL;
-		skspcl->mb_dma_address = 0;
-
-		skd_free_sg_list(skdev, skspcl->req.sksg_list,
-				 SKD_N_SG_PER_SPECIAL,
-				 skspcl->req.sksg_dma_address);
-
-		skspcl->req.sksg_list = NULL;
-		skspcl->req.sksg_dma_address = 0;
-
-		kfree(skspcl->req.sg);
-	}
-
-	kfree(skdev->skspcl_table);
-	skdev->skspcl_table = NULL;
-}
-
 static void skd_free_sksb(struct skd_device *skdev)
 {
 	struct skd_special_context *skspcl;
@@ -4360,9 +3303,6 @@ static void skd_destruct(struct skd_device *skdev)
 	dev_dbg(&skdev->pdev->dev, "sksb\n");
 	skd_free_sksb(skdev);
 
-	dev_dbg(&skdev->pdev->dev, "skspcl\n");
-	skd_free_skspcl(skdev);
-
 	dev_dbg(&skdev->pdev->dev, "skreq\n");
 	skd_free_skreq(skdev);
 
@@ -4412,7 +3352,6 @@ static int skd_bdev_attach(struct device *parent, struct skd_device *skdev)
 
 static const struct block_device_operations skd_blockdev_ops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= skd_bdev_ioctl,
 	.getgeo		= skd_bdev_getgeo,
 };
 
@@ -4995,12 +3934,6 @@ static int __init skd_init(void)
 		pr_err(PFX "skd_isr_comp_limit %d invalid, set to %d\n",
 		       skd_isr_comp_limit, 0);
 		skd_isr_comp_limit = 0;
-	}
-
-	if (skd_max_pass_thru < 1 || skd_max_pass_thru > 50) {
-		pr_err(PFX "skd_max_pass_thru %d invalid, re-set to %d\n",
-		       skd_max_pass_thru, SKD_N_SPECIAL_CONTEXT);
-		skd_max_pass_thru = SKD_N_SPECIAL_CONTEXT;
 	}
 
 	return pci_register_driver(&skd_driver);
