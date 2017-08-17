@@ -4622,9 +4622,10 @@ skl_compute_linetime_wm(struct intel_crtc_state *cstate)
 
 	linetime_wm = fixed16_to_u32_round_up(mul_u32_fixed16(8, linetime_us));
 
-	/* Display WA #1135: bxt. */
-	if (IS_BROXTON(dev_priv) && dev_priv->ipc_enabled)
-		linetime_wm = DIV_ROUND_UP(linetime_wm, 2);
+	/* Display WA #1135: bxt:ALL GLK:ALL */
+	if ((IS_BROXTON(dev_priv) || IS_GEMINILAKE(dev_priv)) &&
+	    dev_priv->ipc_enabled)
+		linetime_wm /= 2;
 
 	return linetime_wm;
 }
