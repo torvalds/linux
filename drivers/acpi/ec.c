@@ -1586,9 +1586,7 @@ static bool acpi_is_boot_ec(struct acpi_ec *ec)
 {
 	if (!boot_ec)
 		return false;
-	if (ec->handle == boot_ec->handle &&
-	    ec->gpe == boot_ec->gpe &&
-	    ec->command_addr == boot_ec->command_addr &&
+	if (ec->command_addr == boot_ec->command_addr &&
 	    ec->data_addr == boot_ec->data_addr)
 		return true;
 	return false;
@@ -1613,6 +1611,13 @@ static int acpi_ec_add(struct acpi_device *device)
 
 	if (acpi_is_boot_ec(ec)) {
 		boot_ec_is_ecdt = false;
+		/*
+		 * Trust PNP0C09 namespace location rather than ECDT ID.
+		 *
+		 * But trust ECDT GPE rather than _GPE because of ASUS quirks,
+		 * so do not change boot_ec->gpe to ec->gpe.
+		 */
+		boot_ec->handle = ec->handle;
 		acpi_handle_debug(ec->handle, "duplicated.\n");
 		acpi_ec_free(ec);
 		ec = boot_ec;
@@ -1747,18 +1752,20 @@ static int __init acpi_ec_ecdt_start(void)
 
 	if (!boot_ec)
 		return -ENODEV;
-	/*
-	 * The DSDT EC should have already been started in
-	 * acpi_ec_add().
-	 */
+	/* In case acpi_ec_ecdt_start() is called after acpi_ec_add() */
 	if (!boot_ec_is_ecdt)
 		return -ENODEV;
 
 	/*
 	 * At this point, the namespace and the GPE is initialized, so
 	 * start to find the namespace objects and handle the events.
+	 *
+	 * Note: ec->handle can be valid if this function is called after
+	 * acpi_ec_add(), hence the fast path.
 	 */
-	if (!acpi_ec_ecdt_get_handle(&handle))
+	if (boot_ec->handle != ACPI_ROOT_OBJECT)
+		handle = boot_ec->handle;
+	else if (!acpi_ec_ecdt_get_handle(&handle))
 		return -ENODEV;
 	return acpi_config_boot_ec(boot_ec, handle, true, true);
 }
@@ -2011,8 +2018,8 @@ int __init acpi_ec_init(void)
 		return result;
 
 	/* Drivers must be started after acpi_ec_query_init() */
-	ecdt_fail = acpi_ec_ecdt_start();
 	dsdt_fail = acpi_bus_register_driver(&acpi_ec_driver);
+	ecdt_fail = acpi_ec_ecdt_start();
 	return ecdt_fail && dsdt_fail ? -ENODEV : 0;
 }
 
