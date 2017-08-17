@@ -341,49 +341,27 @@ struct skd_device {
 
 static inline u32 skd_reg_read32(struct skd_device *skdev, u32 offset)
 {
-	u32 val;
+	u32 val = readl(skdev->mem_map[1] + offset);
 
-	if (likely(skdev->dbg_level < 2))
-		return readl(skdev->mem_map[1] + offset);
-	else {
-		barrier();
-		val = readl(skdev->mem_map[1] + offset);
-		barrier();
-		pr_debug("%s:%s:%d offset %x = %x\n",
-			 skdev->name, __func__, __LINE__, offset, val);
-		return val;
-	}
-
+	if (unlikely(skdev->dbg_level >= 2))
+		pr_debug("%s offset %x = %x\n", skdev->name, offset, val);
+	return val;
 }
 
 static inline void skd_reg_write32(struct skd_device *skdev, u32 val,
 				   u32 offset)
 {
-	if (likely(skdev->dbg_level < 2)) {
-		writel(val, skdev->mem_map[1] + offset);
-		barrier();
-	} else {
-		barrier();
-		writel(val, skdev->mem_map[1] + offset);
-		barrier();
-		pr_debug("%s:%s:%d offset %x = %x\n",
-			 skdev->name, __func__, __LINE__, offset, val);
-	}
+	writel(val, skdev->mem_map[1] + offset);
+	if (unlikely(skdev->dbg_level >= 2))
+		pr_debug("%s offset %x = %x\n", skdev->name, offset, val);
 }
 
 static inline void skd_reg_write64(struct skd_device *skdev, u64 val,
 				   u32 offset)
 {
-	if (likely(skdev->dbg_level < 2)) {
-		writeq(val, skdev->mem_map[1] + offset);
-		barrier();
-	} else {
-		barrier();
-		writeq(val, skdev->mem_map[1] + offset);
-		barrier();
-		pr_debug("%s:%s:%d offset %x = %016llx\n",
-			 skdev->name, __func__, __LINE__, offset, val);
-	}
+	writeq(val, skdev->mem_map[1] + offset);
+	if (unlikely(skdev->dbg_level >= 2))
+		pr_debug("%s offset %x = %016llx\n", skdev->name, offset, val);
 }
 
 
