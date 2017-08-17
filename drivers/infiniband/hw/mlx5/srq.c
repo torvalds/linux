@@ -292,13 +292,16 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	in.wqe_shift = srq->msrq.wqe_shift - 4;
 	if (srq->wq_sig)
 		in.flags |= MLX5_SRQ_FLAG_WQ_SIG;
-	if (init_attr->srq_type == IB_SRQT_XRC) {
+
+	if (init_attr->srq_type == IB_SRQT_XRC)
 		in.xrcd = to_mxrcd(init_attr->ext.xrc.xrcd)->xrcdn;
-		in.cqn = to_mcq(init_attr->ext.xrc.cq)->mcq.cqn;
-	} else if (init_attr->srq_type == IB_SRQT_BASIC) {
+	else
 		in.xrcd = to_mxrcd(dev->devr.x0)->xrcdn;
+
+	if (ib_srq_has_cq(init_attr->srq_type))
+		in.cqn = to_mcq(init_attr->ext.cq)->mcq.cqn;
+	else
 		in.cqn = to_mcq(dev->devr.c0)->mcq.cqn;
-	}
 
 	in.pd = to_mpd(pd)->pdn;
 	in.db_record = srq->db.dma;
