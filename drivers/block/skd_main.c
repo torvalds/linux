@@ -506,7 +506,47 @@ skd_prep_zerosize_flush_cdb(struct skd_scsi_request *scsi_req,
 	scsi_req->cdb[9] = 0;
 }
 
-static void skd_request_fn_not_online(struct request_queue *q);
+static void skd_request_fn_not_online(struct request_queue *q)
+{
+	struct skd_device *skdev = q->queuedata;
+
+	SKD_ASSERT(skdev->state != SKD_DRVR_STATE_ONLINE);
+
+	skd_log_skdev(skdev, "req_not_online");
+	switch (skdev->state) {
+	case SKD_DRVR_STATE_PAUSING:
+	case SKD_DRVR_STATE_PAUSED:
+	case SKD_DRVR_STATE_STARTING:
+	case SKD_DRVR_STATE_RESTARTING:
+	case SKD_DRVR_STATE_WAIT_BOOT:
+	/* In case of starting, we haven't started the queue,
+	 * so we can't get here... but requests are
+	 * possibly hanging out waiting for us because we
+	 * reported the dev/skd0 already.  They'll wait
+	 * forever if connect doesn't complete.
+	 * What to do??? delay dev/skd0 ??
+	 */
+	case SKD_DRVR_STATE_BUSY:
+	case SKD_DRVR_STATE_BUSY_IMMINENT:
+	case SKD_DRVR_STATE_BUSY_ERASE:
+	case SKD_DRVR_STATE_DRAINING_TIMEOUT:
+		return;
+
+	case SKD_DRVR_STATE_BUSY_SANITIZE:
+	case SKD_DRVR_STATE_STOPPING:
+	case SKD_DRVR_STATE_SYNCING:
+	case SKD_DRVR_STATE_FAULT:
+	case SKD_DRVR_STATE_DISAPPEARED:
+	default:
+		break;
+	}
+
+	/* If we get here, terminate all pending block requeusts
+	 * with EIO and any scsi pass thru with appropriate sense
+	 */
+
+	skd_fail_all_pending(skdev);
+}
 
 static void skd_request_fn(struct request_queue *q)
 {
@@ -808,48 +848,6 @@ static void skd_postop_sg_list(struct skd_device *skdev,
 		skreq->sksg_dma_address +
 		((skreq->n_sg) * sizeof(struct fit_sg_descriptor));
 	pci_unmap_sg(skdev->pdev, &skreq->sg[0], skreq->n_sg, skreq->data_dir);
-}
-
-static void skd_request_fn_not_online(struct request_queue *q)
-{
-	struct skd_device *skdev = q->queuedata;
-
-	SKD_ASSERT(skdev->state != SKD_DRVR_STATE_ONLINE);
-
-	skd_log_skdev(skdev, "req_not_online");
-	switch (skdev->state) {
-	case SKD_DRVR_STATE_PAUSING:
-	case SKD_DRVR_STATE_PAUSED:
-	case SKD_DRVR_STATE_STARTING:
-	case SKD_DRVR_STATE_RESTARTING:
-	case SKD_DRVR_STATE_WAIT_BOOT:
-	/* In case of starting, we haven't started the queue,
-	 * so we can't get here... but requests are
-	 * possibly hanging out waiting for us because we
-	 * reported the dev/skd0 already.  They'll wait
-	 * forever if connect doesn't complete.
-	 * What to do??? delay dev/skd0 ??
-	 */
-	case SKD_DRVR_STATE_BUSY:
-	case SKD_DRVR_STATE_BUSY_IMMINENT:
-	case SKD_DRVR_STATE_BUSY_ERASE:
-	case SKD_DRVR_STATE_DRAINING_TIMEOUT:
-		return;
-
-	case SKD_DRVR_STATE_BUSY_SANITIZE:
-	case SKD_DRVR_STATE_STOPPING:
-	case SKD_DRVR_STATE_SYNCING:
-	case SKD_DRVR_STATE_FAULT:
-	case SKD_DRVR_STATE_DISAPPEARED:
-	default:
-		break;
-	}
-
-	/* If we get here, terminate all pending block requeusts
-	 * with EIO and any scsi pass thru with appropriate sense
-	 */
-
-	skd_fail_all_pending(skdev);
 }
 
 /*
