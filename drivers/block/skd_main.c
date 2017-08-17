@@ -44,12 +44,6 @@
 static int skd_dbg_level;
 static int skd_isr_comp_limit = 4;
 
-enum {
-	SKD_FLUSH_INITIALIZER,
-	SKD_FLUSH_ZERO_SIZE_FIRST,
-	SKD_FLUSH_DATA_SECOND,
-};
-
 #define SKD_ASSERT(expr) \
 	do { \
 		if (unlikely(!(expr))) { \
@@ -497,30 +491,14 @@ static void skd_process_request(struct request *req, bool last)
 	struct skd_request_context *const skreq = blk_mq_rq_to_pdu(req);
 	struct skd_scsi_request *scsi_req;
 	unsigned long flags;
-	unsigned long io_flags;
-	u32 lba;
-	u32 count;
-	int data_dir;
-	__be64 be_dmaa;
-	int flush, fua;
+	const u32 lba = blk_rq_pos(req);
+	const u32 count = blk_rq_sectors(req);
+	const int data_dir = rq_data_dir(req);
 
 	WARN_ONCE(tag >= skd_max_queue_depth, "%#x > %#x (nr_requests = %lu)\n",
 		  tag, skd_max_queue_depth, q->nr_requests);
 
 	SKD_ASSERT(skreq->state == SKD_REQ_STATE_IDLE);
-
-	flush = fua = 0;
-
-	lba = (u32)blk_rq_pos(req);
-	count = blk_rq_sectors(req);
-	data_dir = rq_data_dir(req);
-	io_flags = req->cmd_flags;
-
-	if (req_op(req) == REQ_OP_FLUSH)
-		flush++;
-
-	if (io_flags & REQ_FUA)
-		fua++;
 
 	dev_dbg(&skdev->pdev->dev,
 		"new req=%p lba=%u(0x%x) count=%u(0x%x) dir=%d\n", req, lba,
@@ -568,19 +546,18 @@ static void skd_process_request(struct request *req, bool last)
 	scsi_req = &skmsg->msg_buf->scsi[fmh->num_protocol_cmds_coalesced];
 	memset(scsi_req, 0, sizeof(*scsi_req));
 
-	be_dmaa = cpu_to_be64(skreq->sksg_dma_address);
-
 	scsi_req->hdr.tag = skreq->id;
-	scsi_req->hdr.sg_list_dma_address = be_dmaa;
+	scsi_req->hdr.sg_list_dma_address =
+		cpu_to_be64(skreq->sksg_dma_address);
 
-	if (flush == SKD_FLUSH_ZERO_SIZE_FIRST) {
+	if (req_op(req) == REQ_OP_FLUSH) {
 		skd_prep_zerosize_flush_cdb(scsi_req, skreq);
 		SKD_ASSERT(skreq->flush_cmd == 1);
 	} else {
 		skd_prep_rw_cdb(scsi_req, data_dir, lba, count);
 	}
 
-	if (fua)
+	if (req->cmd_flags & REQ_FUA)
 		scsi_req->cdb[1] |= SKD_FUA_NV;
 
 	scsi_req->hdr.sg_list_len_bytes = cpu_to_be32(skreq->sg_byte_count);
