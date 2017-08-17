@@ -3648,7 +3648,23 @@ exit:
 	return reserved;
 }
 
-int handle_mmio_page_fault(struct kvm_vcpu *vcpu, u64 addr, bool direct)
+/*
+ * Return values of handle_mmio_page_fault:
+ * RET_MMIO_PF_EMULATE: it is a real mmio page fault, emulate the instruction
+ *			directly.
+ * RET_MMIO_PF_INVALID: invalid spte is detected then let the real page
+ *			fault path update the mmio spte.
+ * RET_MMIO_PF_RETRY: let CPU fault again on the address.
+ * RET_MMIO_PF_BUG: a bug was detected (and a WARN was printed).
+ */
+enum {
+	RET_MMIO_PF_EMULATE = 1,
+	RET_MMIO_PF_INVALID = 2,
+	RET_MMIO_PF_RETRY = 0,
+	RET_MMIO_PF_BUG = -1
+};
+
+static int handle_mmio_page_fault(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 {
 	u64 spte;
 	bool reserved;
@@ -4837,6 +4853,7 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 			return 1;
 		if (r < 0)
 			return r;
+		/* Must be RET_MMIO_PF_INVALID.  */
 	}
 
 	r = vcpu->arch.mmu.page_fault(vcpu, cr2, lower_32_bits(error_code),
