@@ -2453,7 +2453,8 @@ amdgpu_dm_connector_detect(struct drm_connector *connector, bool force)
 	 * 2. This interface *is called* in context of user-mode ioctl. Which
 	 * makes it a bad place for *any* MST-related activit. */
 
-	if (aconnector->base.force == DRM_FORCE_UNSPECIFIED)
+	if (aconnector->base.force == DRM_FORCE_UNSPECIFIED &&
+	    !aconnector->fake_enable)
 		connected = (aconnector->dc_sink != NULL);
 	else
 		connected = (aconnector->base.force == DRM_FORCE_ON);
