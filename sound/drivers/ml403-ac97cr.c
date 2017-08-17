@@ -373,7 +373,7 @@ struct snd_ml403_ac97cr {
 	struct snd_pcm_indirect2 capture_ind2_rec;
 };
 
-static struct snd_pcm_hardware snd_ml403_ac97cr_playback = {
+static const struct snd_pcm_hardware snd_ml403_ac97cr_playback = {
 	.info =	            (SNDRV_PCM_INFO_MMAP |
 			     SNDRV_PCM_INFO_INTERLEAVED |
 			     SNDRV_PCM_INFO_MMAP_VALID),
@@ -392,7 +392,7 @@ static struct snd_pcm_hardware snd_ml403_ac97cr_playback = {
 	.fifo_size =	    0,
 };
 
-static struct snd_pcm_hardware snd_ml403_ac97cr_capture = {
+static const struct snd_pcm_hardware snd_ml403_ac97cr_capture = {
 	.info =	            (SNDRV_PCM_INFO_MMAP |
 			     SNDRV_PCM_INFO_INTERLEAVED |
 			     SNDRV_PCM_INFO_MMAP_VALID),
