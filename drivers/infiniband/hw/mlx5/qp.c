@@ -1729,10 +1729,15 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	MLX5_SET(qpc, qpc, rq_type, get_rx_type(qp, init_attr));
 
-	if (qp->sq.wqe_cnt)
+	if (qp->sq.wqe_cnt) {
 		MLX5_SET(qpc, qpc, log_sq_size, ilog2(qp->sq.wqe_cnt));
-	else
+	} else {
 		MLX5_SET(qpc, qpc, no_sq, 1);
+		if (init_attr->srq &&
+		    init_attr->srq->srq_type == IB_SRQT_TM)
+			MLX5_SET(qpc, qpc, offload_type,
+				 MLX5_QPC_OFFLOAD_TYPE_RNDV);
+	}
 
 	/* Set default resources */
 	switch (init_attr->qp_type) {

@@ -101,7 +101,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 				 udata->inlen - sizeof(ucmd)))
 		return -EINVAL;
 
-	if (in->type == IB_SRQT_XRC) {
+	if (in->type != IB_SRQT_BASIC) {
 		err = get_srq_user_index(to_mucontext(pd->uobject->context),
 					 &ucmd, udata->inlen, &uidx);
 		if (err)
@@ -145,7 +145,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 	in->log_page_size = page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 	in->page_offset = offset;
 	if (MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1 &&
-	    in->type == IB_SRQT_XRC)
+	    in->type != IB_SRQT_BASIC)
 		in->user_index = uidx;
 
 	return 0;
@@ -205,7 +205,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 
 	in->log_page_size = srq->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 	if (MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1 &&
-	    in->type == IB_SRQT_XRC)
+	    in->type != IB_SRQT_BASIC)
 		in->user_index = MLX5_IB_DEFAULT_UIDX;
 
 	return 0;
@@ -297,6 +297,18 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 		in.xrcd = to_mxrcd(init_attr->ext.xrc.xrcd)->xrcdn;
 	else
 		in.xrcd = to_mxrcd(dev->devr.x0)->xrcdn;
+
+	if (init_attr->srq_type == IB_SRQT_TM) {
+		in.tm_log_list_size =
+			ilog2(init_attr->ext.tag_matching.max_num_tags) + 1;
+		if (in.tm_log_list_size >
+		    MLX5_CAP_GEN(dev->mdev, log_tag_matching_list_sz)) {
+			mlx5_ib_dbg(dev, "TM SRQ max_num_tags exceeding limit\n");
+			err = -EINVAL;
+			goto err_usr_kern_srq;
+		}
+		in.flags |= MLX5_SRQ_FLAG_RNDV;
+	}
 
 	if (ib_srq_has_cq(init_attr->srq_type))
 		in.cqn = to_mcq(init_attr->ext.cq)->mcq.cqn;
