@@ -243,7 +243,7 @@ struct skd_device {
 	enum skd_drvr_state state;
 	u32 drive_state;
 
-	u32 in_flight;
+	atomic_t in_flight;
 	u32 cur_max_queue_depth;
 	u32 queue_low_water_mark;
 	u32 dev_max_queue_depth;
@@ -251,8 +251,8 @@ struct skd_device {
 	u32 num_fitmsg_context;
 	u32 num_req_context;
 
-	u32 timeout_slot[SKD_N_TIMEOUT_SLOT];
-	u32 timeout_stamp;
+	atomic_t timeout_slot[SKD_N_TIMEOUT_SLOT];
+	atomic_t timeout_stamp;
 	struct skd_fitmsg_context *skmsg_table;
 
 	struct skd_request_context *skreq_table;
@@ -517,7 +517,8 @@ static void skd_request_fn(struct request_queue *q)
 	}
 
 	if (blk_queue_stopped(skdev->queue)) {
-		if (skdev->in_flight >= skdev->queue_low_water_mark)
+		if (atomic_read(&skdev->in_flight) >=
+		    skdev->queue_low_water_mark)
 			/* There is still some kind of shortage */
 			return;
 
@@ -559,9 +560,11 @@ static void skd_request_fn(struct request_queue *q)
 		/* At this point we know there is a request */
 
 		/* Are too many requets already in progress? */
-		if (skdev->in_flight >= skdev->cur_max_queue_depth) {
+		if (atomic_read(&skdev->in_flight) >=
+		    skdev->cur_max_queue_depth) {
 			dev_dbg(&skdev->pdev->dev, "qdepth %d, limit %d\n",
-				skdev->in_flight, skdev->cur_max_queue_depth);
+				atomic_read(&skdev->in_flight),
+				skdev->cur_max_queue_depth);
 			break;
 		}
 
@@ -647,12 +650,12 @@ static void skd_request_fn(struct request_queue *q)
 		 * Update the active request counts.
 		 * Capture the timeout timestamp.
 		 */
-		skreq->timeout_stamp = skdev->timeout_stamp;
+		skreq->timeout_stamp = atomic_read(&skdev->timeout_stamp);
 		timo_slot = skreq->timeout_stamp & SKD_TIMEOUT_SLOT_MASK;
-		skdev->timeout_slot[timo_slot]++;
-		skdev->in_flight++;
+		atomic_inc(&skdev->timeout_slot[timo_slot]);
+		atomic_inc(&skdev->in_flight);
 		dev_dbg(&skdev->pdev->dev, "req=0x%x busy=%d\n", skreq->id,
-			skdev->in_flight);
+			atomic_read(&skdev->in_flight));
 
 		/*
 		 * If the FIT msg buffer is full send it.
@@ -805,22 +808,24 @@ static void skd_timer_tick(ulong arg)
 		skd_timer_tick_not_online(skdev);
 		goto timer_func_out;
 	}
-	skdev->timeout_stamp++;
-	timo_slot = skdev->timeout_stamp & SKD_TIMEOUT_SLOT_MASK;
+	timo_slot = atomic_inc_return(&skdev->timeout_stamp) &
+		SKD_TIMEOUT_SLOT_MASK;
 
 	/*
 	 * All requests that happened during the previous use of
 	 * this slot should be done by now. The previous use was
 	 * over 7 seconds ago.
 	 */
-	if (skdev->timeout_slot[timo_slot] == 0)
+	if (atomic_read(&skdev->timeout_slot[timo_slot]) == 0)
 		goto timer_func_out;
 
 	/* Something is overdue */
 	dev_dbg(&skdev->pdev->dev, "found %d timeouts, draining busy=%d\n",
-		skdev->timeout_slot[timo_slot], skdev->in_flight);
+		atomic_read(&skdev->timeout_slot[timo_slot]),
+		atomic_read(&skdev->in_flight));
 	dev_err(&skdev->pdev->dev, "Overdue IOs (%d), busy %d\n",
-		skdev->timeout_slot[timo_slot], skdev->in_flight);
+		atomic_read(&skdev->timeout_slot[timo_slot]),
+		atomic_read(&skdev->in_flight));
 
 	skdev->timer_countdown = SKD_DRAINING_TIMO;
 	skdev->state = SKD_DRVR_STATE_DRAINING_TIMEOUT;
@@ -900,10 +905,10 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 		dev_dbg(&skdev->pdev->dev,
 			"draining busy [%d] tick[%d] qdb[%d] tmls[%d]\n",
 			skdev->timo_slot, skdev->timer_countdown,
-			skdev->in_flight,
-			skdev->timeout_slot[skdev->timo_slot]);
+			atomic_read(&skdev->in_flight),
+			atomic_read(&skdev->timeout_slot[skdev->timo_slot]));
 		/* if the slot has cleared we can let the I/O continue */
-		if (skdev->timeout_slot[skdev->timo_slot] == 0) {
+		if (atomic_read(&skdev->timeout_slot[skdev->timo_slot]) == 0) {
 			dev_dbg(&skdev->pdev->dev,
 				"Slot drained, starting queue.\n");
 			skdev->state = SKD_DRVR_STATE_ONLINE;
@@ -1310,7 +1315,7 @@ static void skd_send_fitmsg(struct skd_device *skdev,
 	u64 qcmd;
 
 	dev_dbg(&skdev->pdev->dev, "dma address 0x%llx, busy=%d\n",
-		skmsg->mb_dma_address, skdev->in_flight);
+		skmsg->mb_dma_address, atomic_read(&skdev->in_flight));
 	dev_dbg(&skdev->pdev->dev, "msg_buf %p\n", skmsg->msg_buf);
 
 	qcmd = skmsg->mb_dma_address;
@@ -1550,12 +1555,12 @@ static void skd_release_skreq(struct skd_device *skdev,
 	 * Decrease the number of active requests.
 	 * Also decrements the count in the timeout slot.
 	 */
-	SKD_ASSERT(skdev->in_flight > 0);
-	skdev->in_flight -= 1;
+	SKD_ASSERT(atomic_read(&skdev->in_flight) > 0);
+	atomic_dec(&skdev->in_flight);
 
 	timo_slot = skreq->timeout_stamp & SKD_TIMEOUT_SLOT_MASK;
-	SKD_ASSERT(skdev->timeout_slot[timo_slot] > 0);
-	skdev->timeout_slot[timo_slot] -= 1;
+	SKD_ASSERT(atomic_read(&skdev->timeout_slot[timo_slot]) > 0);
+	atomic_dec(&skdev->timeout_slot[timo_slot]);
 
 	/*
 	 * Reset backpointer
@@ -1615,8 +1620,8 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 		dev_dbg(&skdev->pdev->dev,
 			"cycle=%d ix=%d got cycle=%d cmdctxt=0x%x stat=%d busy=%d rbytes=0x%x proto=%d\n",
 			skdev->skcomp_cycle, skdev->skcomp_ix, cmp_cycle,
-			cmp_cntxt, cmp_status, skdev->in_flight, cmp_bytes,
-			skdev->proto_ver);
+			cmp_cntxt, cmp_status, atomic_read(&skdev->in_flight),
+			cmp_bytes, skdev->proto_ver);
 
 		if (cmp_cycle != skdev->skcomp_cycle) {
 			dev_dbg(&skdev->pdev->dev, "end of completions\n");
@@ -1707,8 +1712,8 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 		}
 	}
 
-	if ((skdev->state == SKD_DRVR_STATE_PAUSING)
-		&& (skdev->in_flight) == 0) {
+	if (skdev->state == SKD_DRVR_STATE_PAUSING &&
+	    atomic_read(&skdev->in_flight) == 0) {
 		skdev->state = SKD_DRVR_STATE_PAUSED;
 		wake_up_interruptible(&skdev->waitq);
 	}
@@ -2053,9 +2058,9 @@ static void skd_recover_requests(struct skd_device *skdev)
 	}
 
 	for (i = 0; i < SKD_N_TIMEOUT_SLOT; i++)
-		skdev->timeout_slot[i] = 0;
+		atomic_set(&skdev->timeout_slot[i], 0);
 
-	skdev->in_flight = 0;
+	atomic_set(&skdev->in_flight, 0);
 }
 
 static void skd_isr_msg_from_dev(struct skd_device *skdev)
@@ -3714,10 +3719,11 @@ static void skd_log_skdev(struct skd_device *skdev, const char *event)
 		skd_drive_state_to_str(skdev->drive_state), skdev->drive_state,
 		skd_skdev_state_to_str(skdev->state), skdev->state);
 	dev_dbg(&skdev->pdev->dev, "  busy=%d limit=%d dev=%d lowat=%d\n",
-		skdev->in_flight, skdev->cur_max_queue_depth,
+		atomic_read(&skdev->in_flight), skdev->cur_max_queue_depth,
 		skdev->dev_max_queue_depth, skdev->queue_low_water_mark);
 	dev_dbg(&skdev->pdev->dev, "  timestamp=0x%x cycle=%d cycle_ix=%d\n",
-		skdev->timeout_stamp, skdev->skcomp_cycle, skdev->skcomp_ix);
+		atomic_read(&skdev->timeout_stamp), skdev->skcomp_cycle,
+		skdev->skcomp_ix);
 }
 
 static void skd_log_skreq(struct skd_device *skdev,
