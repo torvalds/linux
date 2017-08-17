@@ -593,6 +593,16 @@ struct mlx5_ifc_qos_cap_bits {
 	u8         reserved_at_100[0x700];
 };
 
+struct mlx5_ifc_debug_cap_bits {
+	u8         reserved_at_0[0x20];
+
+	u8         reserved_at_20[0x2];
+	u8         stall_detect[0x1];
+	u8         reserved_at_23[0x1d];
+
+	u8         reserved_at_40[0x7c0];
+};
+
 struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         csum_cap[0x1];
 	u8         vlan_cap[0x1];
@@ -855,7 +865,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         out_of_seq_cnt[0x1];
 	u8         vport_counters[0x1];
 	u8         retransmission_q_counters[0x1];
-	u8         reserved_at_183[0x1];
+	u8         debug[0x1];
 	u8         modify_rq_counter_set_id[0x1];
 	u8         rq_delay_drop[0x1];
 	u8         max_qp_cnt[0xa];
@@ -1572,7 +1582,17 @@ struct mlx5_ifc_eth_per_prio_grp_data_layout_bits {
 
 	u8         rx_pause_transition_low[0x20];
 
-	u8         reserved_at_3c0[0x400];
+	u8         reserved_at_3c0[0x40];
+
+	u8         device_stall_minor_watermark_cnt_high[0x20];
+
+	u8         device_stall_minor_watermark_cnt_low[0x20];
+
+	u8         device_stall_critical_watermark_cnt_high[0x20];
+
+	u8         device_stall_critical_watermark_cnt_low[0x20];
+
+	u8         reserved_at_480[0x340];
 };
 
 struct mlx5_ifc_eth_extended_cntrs_grp_data_layout_bits {
@@ -7874,8 +7894,10 @@ struct mlx5_ifc_peir_reg_bits {
 };
 
 struct mlx5_ifc_pcam_enhanced_features_bits {
-	u8         reserved_at_0[0x7b];
+	u8         reserved_at_0[0x76];
 
+	u8         pfcc_mask[0x1];
+	u8         reserved_at_77[0x4];
 	u8         rx_buffer_fullness_counters[0x1];
 	u8         ptys_connector_type[0x1];
 	u8         reserved_at_7d[0x1];

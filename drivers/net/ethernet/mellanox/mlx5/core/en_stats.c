@@ -754,7 +754,15 @@ static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
 	{ "rx_%s_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
 };
 
+static const struct counter_desc pport_pfc_stall_stats_desc[] = {
+	{ "tx_pause_storm_warning_events ", PPORT_PER_PRIO_OFF(device_stall_minor_watermark_cnt) },
+	{ "tx_pause_storm_error_events", PPORT_PER_PRIO_OFF(device_stall_critical_watermark_cnt) },
+};
+
 #define NUM_PPORT_PER_PRIO_PFC_COUNTERS		ARRAY_SIZE(pport_per_prio_pfc_stats_desc)
+#define NUM_PPORT_PFC_STALL_COUNTERS(priv)	(ARRAY_SIZE(pport_pfc_stall_stats_desc) * \
+						 MLX5_CAP_PCAM_FEATURE((priv)->mdev, pfcc_mask) * \
+						 MLX5_CAP_DEBUG((priv)->mdev, stall_detect))
 
 static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
 {
@@ -790,7 +798,8 @@ static int mlx5e_grp_per_prio_pfc_get_num_stats(struct mlx5e_priv *priv)
 {
 	return (mlx5e_query_global_pause_combined(priv) +
 		hweight8(mlx5e_query_pfc_combined(priv))) *
-		NUM_PPORT_PER_PRIO_PFC_COUNTERS;
+		NUM_PPORT_PER_PRIO_PFC_COUNTERS +
+		NUM_PPORT_PFC_STALL_COUNTERS(priv);
 }
 
 static int mlx5e_grp_per_prio_pfc_fill_strings(struct mlx5e_priv *priv,
@@ -818,6 +827,10 @@ static int mlx5e_grp_per_prio_pfc_fill_strings(struct mlx5e_priv *priv,
 		}
 	}
 
+	for (i = 0; i < NUM_PPORT_PFC_STALL_COUNTERS(priv); i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       pport_pfc_stall_stats_desc[i].format);
+
 	return idx;
 }
 
@@ -844,6 +857,10 @@ static int mlx5e_grp_per_prio_pfc_fill_stats(struct mlx5e_priv *priv,
 						    pport_per_prio_pfc_stats_desc, i);
 		}
 	}
+
+	for (i = 0; i < NUM_PPORT_PFC_STALL_COUNTERS(priv); i++)
+		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[0],
+						  pport_pfc_stall_stats_desc, i);
 
 	return idx;
 }
