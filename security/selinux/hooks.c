@@ -3,7 +3,7 @@
  *
  *  This file contains the SELinux hook function implementations.
  *
- *  Authors:  Stephen Smalley, <sds@epoch.ncsc.mil>
+ *  Authors:  Stephen Smalley, <sds@tycho.nsa.gov>
  *	      Chris Vance, <cvance@nai.com>
  *	      Wayne Salamon, <wsalamon@nai.com>
  *	      James Morris <jmorris@redhat.com>
