@@ -37,10 +37,10 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
+#include <linux/sys_soc.h>
 
 #include "omapdss.h"
 #include "dss.h"
-#include "dss_features.h"
 
 /* Venc registers */
 #define VENC_REV_ID				0x00
@@ -263,7 +263,7 @@ static const struct venc_config venc_config_pal_bdghi = {
 	.fid_ext_start_y__fid_ext_offset_y	= 0x01380005,
 };
 
-const struct videomode omap_dss_pal_vm = {
+static const struct videomode omap_dss_pal_vm = {
 	.hactive	= 720,
 	.vactive	= 574,
 	.pixelclock	= 13500000,
@@ -279,9 +279,8 @@ const struct videomode omap_dss_pal_vm = {
 			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
 			  DISPLAY_FLAGS_SYNC_NEGEDGE,
 };
-EXPORT_SYMBOL(omap_dss_pal_vm);
 
-const struct videomode omap_dss_ntsc_vm = {
+static const struct videomode omap_dss_ntsc_vm = {
 	.hactive	= 720,
 	.vactive	= 482,
 	.pixelclock	= 13500000,
@@ -297,7 +296,6 @@ const struct videomode omap_dss_ntsc_vm = {
 			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
 			  DISPLAY_FLAGS_SYNC_NEGEDGE,
 };
-EXPORT_SYMBOL(omap_dss_ntsc_vm);
 
 static struct {
 	struct platform_device *pdev;
@@ -311,6 +309,7 @@ static struct {
 	struct videomode vm;
 	enum omap_dss_venc_type type;
 	bool invert_polarity;
+	bool requires_tv_dac_clk;
 
 	struct omap_dss_device output;
 } venc;
@@ -693,7 +692,7 @@ static int venc_get_clocks(struct platform_device *pdev)
 {
 	struct clk *clk;
 
-	if (dss_has_feature(FEAT_VENC_REQUIRES_TV_DAC_CLK)) {
+	if (venc.requires_tv_dac_clk) {
 		clk = devm_clk_get(&pdev->dev, "tv_dac_clk");
 		if (IS_ERR(clk)) {
 			DSSERR("can't get tv_dac_clk\n");
@@ -828,6 +827,12 @@ err:
 }
 
 /* VENC HW IP initialisation */
+static const struct soc_device_attribute venc_soc_devices[] = {
+	{ .machine = "OMAP3[45]*" },
+	{ .machine = "AM35*" },
+	{ /* sentinel */ }
+};
+
 static int venc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -836,6 +841,10 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 	int r;
 
 	venc.pdev = pdev;
+
+	/* The OMAP34xx, OMAP35xx and AM35xx VENC require the TV DAC clock. */
+	if (soc_device_match(venc_soc_devices))
+		venc.requires_tv_dac_clk = true;
 
 	mutex_init(&venc.venc_lock);
 

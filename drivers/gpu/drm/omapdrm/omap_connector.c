@@ -35,6 +35,23 @@ struct omap_connector {
 	bool hdmi_mode;
 };
 
+static void omap_connector_hpd_cb(void *cb_data,
+				  enum drm_connector_status status)
+{
+	struct omap_connector *omap_connector = cb_data;
+	struct drm_connector *connector = &omap_connector->base;
+	struct drm_device *dev = connector->dev;
+	enum drm_connector_status old_status;
+
+	mutex_lock(&dev->mode_config.mutex);
+	old_status = connector->status;
+	connector->status = status;
+	mutex_unlock(&dev->mode_config.mutex);
+
+	if (old_status != status)
+		drm_kms_helper_hotplug_event(dev);
+}
+
 bool omap_connector_get_hdmi_mode(struct drm_connector *connector)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
@@ -75,6 +92,10 @@ static void omap_connector_destroy(struct drm_connector *connector)
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
 
 	DBG("%s", omap_connector->dssdev->name);
+	if (connector->polled == DRM_CONNECTOR_POLL_HPD &&
+	    dssdev->driver->unregister_hpd_cb) {
+		dssdev->driver->unregister_hpd_cb(dssdev);
+	}
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(omap_connector);
@@ -215,6 +236,7 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 {
 	struct drm_connector *connector = NULL;
 	struct omap_connector *omap_connector;
+	bool hpd_supported = false;
 
 	DBG("%s", dssdev->name);
 
@@ -232,7 +254,20 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 				connector_type);
 	drm_connector_helper_add(connector, &omap_connector_helper_funcs);
 
-	if (dssdev->driver->detect)
+	if (dssdev->driver->register_hpd_cb) {
+		int ret = dssdev->driver->register_hpd_cb(dssdev,
+							  omap_connector_hpd_cb,
+							  omap_connector);
+		if (!ret)
+			hpd_supported = true;
+		else if (ret != -ENOTSUPP)
+			DBG("%s: Failed to register HPD callback (%d).",
+			    dssdev->name, ret);
+	}
+
+	if (hpd_supported)
+		connector->polled = DRM_CONNECTOR_POLL_HPD;
+	else if (dssdev->driver->detect)
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
 				    DRM_CONNECTOR_POLL_DISCONNECT;
 	else
