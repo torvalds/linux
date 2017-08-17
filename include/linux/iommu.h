@@ -425,13 +425,13 @@ static inline struct iommu_domain *iommu_get_domain_for_dev(struct device *dev)
 }
 
 static inline int iommu_map(struct iommu_domain *domain, unsigned long iova,
-			    phys_addr_t paddr, int gfp_order, int prot)
+			    phys_addr_t paddr, size_t size, int prot)
 {
 	return -ENODEV;
 }
 
 static inline int iommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			      int gfp_order)
+			      size_t size)
 {
 	return -ENODEV;
 }
