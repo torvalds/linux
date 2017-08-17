@@ -44,6 +44,9 @@
 #include "btbcm.h"
 #include "hci_uart.h"
 
+#define BCM_NULL_PKT 0x00
+#define BCM_NULL_SIZE 0
+
 #define BCM_LM_DIAG_PKT 0x07
 #define BCM_LM_DIAG_SIZE 63
 
@@ -468,11 +471,19 @@ finalize:
 	.lsize = 0, \
 	.maxlen = BCM_LM_DIAG_SIZE
 
+#define BCM_RECV_NULL \
+	.type = BCM_NULL_PKT, \
+	.hlen = BCM_NULL_SIZE, \
+	.loff = 0, \
+	.lsize = 0, \
+	.maxlen = BCM_NULL_SIZE
+
 static const struct h4_recv_pkt bcm_recv_pkts[] = {
 	{ H4_RECV_ACL,      .recv = hci_recv_frame },
 	{ H4_RECV_SCO,      .recv = hci_recv_frame },
 	{ H4_RECV_EVENT,    .recv = hci_recv_frame },
 	{ BCM_RECV_LM_DIAG, .recv = hci_recv_diag  },
+	{ BCM_RECV_NULL,    .recv = hci_recv_diag  },
 };
 
 static int bcm_recv(struct hci_uart *hu, const void *data, int count)
