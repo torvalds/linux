@@ -437,7 +437,7 @@ static void skd_release_special(struct skd_device *skdev,
 				struct skd_special_context *skspcl);
 static void skd_disable_interrupts(struct skd_device *skdev);
 static void skd_isr_fwstate(struct skd_device *skdev);
-static void skd_recover_requests(struct skd_device *skdev, int requeue);
+static void skd_recover_requests(struct skd_device *skdev);
 static void skd_soft_reset(struct skd_device *skdev);
 
 const char *skd_drive_state_to_str(int state);
@@ -930,7 +930,7 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 			skdev->timer_countdown--;
 			return;
 		}
-		skd_recover_requests(skdev, 0);
+		skd_recover_requests(skdev);
 		break;
 
 	case SKD_DRVR_STATE_BUSY:
@@ -1027,13 +1027,13 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 			/* It never came out of soft reset. Try to
 			 * recover the requests and then let them
 			 * fail. This is to mitigate hung processes. */
-			skd_recover_requests(skdev, 0);
+			skd_recover_requests(skdev);
 		else {
 			dev_err(&skdev->pdev->dev, "Disable BusMaster (%x)\n",
 				skdev->drive_state);
 			pci_disable_device(skdev->pdev);
 			skd_disable_interrupts(skdev);
-			skd_recover_requests(skdev, 0);
+			skd_recover_requests(skdev);
 		}
 
 		/*start the queue so we can respond with error to requests */
@@ -2935,7 +2935,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 			break;
 		}
 		if (skdev->state == SKD_DRVR_STATE_RESTARTING)
-			skd_recover_requests(skdev, 0);
+			skd_recover_requests(skdev);
 		if (skdev->state == SKD_DRVR_STATE_WAIT_BOOT) {
 			skdev->timer_countdown = SKD_STARTING_TIMO;
 			skdev->state = SKD_DRVR_STATE_STARTING;
@@ -3009,7 +3009,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 
 	case FIT_SR_DRIVE_FAULT:
 		skd_drive_fault(skdev);
-		skd_recover_requests(skdev, 0);
+		skd_recover_requests(skdev);
 		blk_start_queue(skdev->queue);
 		break;
 
@@ -3018,7 +3018,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 		dev_info(&skdev->pdev->dev, "state=0x%x sense=0x%x\n", state,
 			 sense);
 		skd_drive_disappeared(skdev);
-		skd_recover_requests(skdev, 0);
+		skd_recover_requests(skdev);
 		blk_start_queue(skdev->queue);
 		break;
 	default:
@@ -3032,7 +3032,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 		skd_skdev_state_to_str(skdev->state), skdev->state);
 }
 
-static void skd_recover_requests(struct skd_device *skdev, int requeue)
+static void skd_recover_requests(struct skd_device *skdev)
 {
 	int i;
 
@@ -3049,12 +3049,7 @@ static void skd_recover_requests(struct skd_device *skdev, int requeue)
 			if (skreq->n_sg > 0)
 				skd_postop_sg_list(skdev, skreq);
 
-			if (requeue &&
-			    (unsigned long) ++skreq->req->special <
-			    SKD_MAX_RETRIES)
-				blk_requeue_request(skdev->queue, skreq->req);
-			else
-				skd_end_request(skdev, skreq, BLK_STS_IOERR);
+			skd_end_request(skdev, skreq, BLK_STS_IOERR);
 
 			skreq->req = NULL;
 
