@@ -238,7 +238,6 @@ struct skd_device {
 	enum skd_drvr_state state;
 	u32 drive_state;
 
-	atomic_t in_flight;
 	u32 cur_max_queue_depth;
 	u32 queue_low_water_mark;
 	u32 dev_max_queue_depth;
@@ -391,6 +390,22 @@ static void skd_log_skreq(struct skd_device *skdev,
  * READ/WRITE REQUESTS
  *****************************************************************************
  */
+static void skd_inc_in_flight(struct request *rq, void *data, bool reserved)
+{
+	int *count = data;
+
+	count++;
+}
+
+static int skd_in_flight(struct skd_device *skdev)
+{
+	int count = 0;
+
+	blk_mq_tagset_busy_iter(&skdev->tag_set, skd_inc_in_flight, &count);
+
+	return count;
+}
+
 static void
 skd_prep_rw_cdb(struct skd_scsi_request *scsi_req,
 		int data_dir, unsigned lba,
@@ -567,9 +582,8 @@ static void skd_process_request(struct request *req, bool last)
 	skmsg->length += sizeof(struct skd_scsi_request);
 	fmh->num_protocol_cmds_coalesced++;
 
-	atomic_inc(&skdev->in_flight);
 	dev_dbg(&skdev->pdev->dev, "req=0x%x busy=%d\n", skreq->id,
-		atomic_read(&skdev->in_flight));
+		skd_in_flight(skdev));
 
 	/*
 	 * If the FIT msg buffer is full send it.
@@ -1218,7 +1232,7 @@ static void skd_send_fitmsg(struct skd_device *skdev,
 	u64 qcmd;
 
 	dev_dbg(&skdev->pdev->dev, "dma address 0x%llx, busy=%d\n",
-		skmsg->mb_dma_address, atomic_read(&skdev->in_flight));
+		skmsg->mb_dma_address, skd_in_flight(skdev));
 	dev_dbg(&skdev->pdev->dev, "msg_buf %p\n", skmsg->msg_buf);
 
 	qcmd = skmsg->mb_dma_address;
@@ -1452,13 +1466,6 @@ static void skd_release_skreq(struct skd_device *skdev,
 			      struct skd_request_context *skreq)
 {
 	/*
-	 * Decrease the number of active requests.
-	 * Also decrements the count in the timeout slot.
-	 */
-	SKD_ASSERT(atomic_read(&skdev->in_flight) > 0);
-	atomic_dec(&skdev->in_flight);
-
-	/*
 	 * Reclaim the skd_request_context
 	 */
 	skreq->state = SKD_REQ_STATE_IDLE;
@@ -1498,7 +1505,7 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 		dev_dbg(&skdev->pdev->dev,
 			"cycle=%d ix=%d got cycle=%d cmdctxt=0x%x stat=%d busy=%d rbytes=0x%x proto=%d\n",
 			skdev->skcomp_cycle, skdev->skcomp_ix, cmp_cycle,
-			cmp_cntxt, cmp_status, atomic_read(&skdev->in_flight),
+			cmp_cntxt, cmp_status, skd_in_flight(skdev),
 			cmp_bytes, skdev->proto_ver);
 
 		if (cmp_cycle != skdev->skcomp_cycle) {
@@ -1590,7 +1597,7 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 	}
 
 	if (skdev->state == SKD_DRVR_STATE_PAUSING &&
-	    atomic_read(&skdev->in_flight) == 0) {
+	    skd_in_flight(skdev) == 0) {
 		skdev->state = SKD_DRVR_STATE_PAUSED;
 		wake_up_interruptible(&skdev->waitq);
 	}
@@ -1929,8 +1936,6 @@ static void skd_recover_request(struct request *req, void *data, bool reserved)
 static void skd_recover_requests(struct skd_device *skdev)
 {
 	blk_mq_tagset_busy_iter(&skdev->tag_set, skd_recover_request, skdev);
-
-	atomic_set(&skdev->in_flight, 0);
 }
 
 static void skd_isr_msg_from_dev(struct skd_device *skdev)
@@ -3560,7 +3565,7 @@ static void skd_log_skdev(struct skd_device *skdev, const char *event)
 		skd_drive_state_to_str(skdev->drive_state), skdev->drive_state,
 		skd_skdev_state_to_str(skdev->state), skdev->state);
 	dev_dbg(&skdev->pdev->dev, "  busy=%d limit=%d dev=%d lowat=%d\n",
-		atomic_read(&skdev->in_flight), skdev->cur_max_queue_depth,
+		skd_in_flight(skdev), skdev->cur_max_queue_depth,
 		skdev->dev_max_queue_depth, skdev->queue_low_water_mark);
 	dev_dbg(&skdev->pdev->dev, "  cycle=%d cycle_ix=%d\n",
 		skdev->skcomp_cycle, skdev->skcomp_ix);
