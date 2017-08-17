@@ -855,6 +855,10 @@ static void handle_hpd_irq(void *param)
 	 * since (for MST case) MST does this in it's own context.
 	 */
 	mutex_lock(&aconnector->hpd_lock);
+
+	if (aconnector->fake_enable)
+		aconnector->fake_enable = false;
+
 	if (dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD)) {
 		amdgpu_dm_update_connector_after_detect(aconnector);
 
@@ -2278,6 +2282,25 @@ static void decide_crtc_timing_for_drm_display_mode(
 	}
 }
 
+static void create_fake_sink(struct amdgpu_dm_connector *aconnector)
+{
+	struct dc_sink *sink = NULL;
+	struct dc_sink_init_data sink_init_data = { 0 };
+
+	sink_init_data.link = aconnector->dc_link;
+	sink_init_data.sink_signal = aconnector->dc_link->connector_signal;
+
+	sink = dc_sink_create(&sink_init_data);
+	if (!sink)
+		DRM_ERROR("Failed to create sink!\n");
+
+	sink->sink_signal = SIGNAL_TYPE_VIRTUAL;
+	aconnector->fake_enable = true;
+
+	aconnector->dc_sink = sink;
+	aconnector->dc_link->local_sink = sink;
+}
+
 static struct dc_stream_state *create_stream_for_sink(
 		struct amdgpu_dm_connector *aconnector,
 		const struct drm_display_mode *drm_mode,
@@ -2300,6 +2323,10 @@ static struct dc_stream_state *create_stream_for_sink(
 	}
 
 	drm_connector = &aconnector->base;
+
+	if (!aconnector->dc_sink)
+		create_fake_sink(aconnector);
+
 	stream = dc_create_stream_for_sink(aconnector->dc_sink);
 
 	if (stream == NULL) {
@@ -4373,7 +4400,7 @@ static int dm_update_crtcs_state(
 		aconnector = amdgpu_dm_find_first_crct_matching_connector(state, crtc, true);
 
 		/* TODO This hack should go away */
-		if (aconnector && aconnector->dc_sink) {
+		if (aconnector) {
 			conn_state = drm_atomic_get_connector_state(state,
 								    &aconnector->base);
 
