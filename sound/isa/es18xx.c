@@ -2017,7 +2017,7 @@ static int isa_registered;
 static int pnp_registered;
 static int pnpc_registered;
 
-static struct pnp_device_id snd_audiodrive_pnpbiosids[] = {
+static const struct pnp_device_id snd_audiodrive_pnpbiosids[] = {
 	{ .id = "ESS1869" },
 	{ .id = "ESS1879" },
 	{ .id = "" }		/* end */
@@ -2062,7 +2062,7 @@ static int snd_audiodrive_pnp(int dev, struct snd_es18xx *chip,
 	return 0;
 }
 
-static struct pnp_card_device_id snd_audiodrive_pnpids[] = {
+static const struct pnp_card_device_id snd_audiodrive_pnpids[] = {
 	/* ESS 1868 (integrated on Compaq dual P-Pro motherboard and Genius 18PnP 3D) */
 	{ .id = "ESS1868", .devs = { { "ESS1868" }, { "ESS0000" } } },
 	/* ESS 1868 (integrated on Maxisound Cards) */
