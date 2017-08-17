@@ -506,7 +506,10 @@ skd_prep_zerosize_flush_cdb(struct skd_scsi_request *scsi_req,
 	scsi_req->cdb[9] = 0;
 }
 
-static void skd_request_fn_not_online(struct request_queue *q)
+/*
+ * Return true if and only if all pending requests should be failed.
+ */
+static bool skd_fail_all(struct request_queue *q)
 {
 	struct skd_device *skdev = q->queuedata;
 
@@ -530,7 +533,7 @@ static void skd_request_fn_not_online(struct request_queue *q)
 	case SKD_DRVR_STATE_BUSY_IMMINENT:
 	case SKD_DRVR_STATE_BUSY_ERASE:
 	case SKD_DRVR_STATE_DRAINING_TIMEOUT:
-		return;
+		return false;
 
 	case SKD_DRVR_STATE_BUSY_SANITIZE:
 	case SKD_DRVR_STATE_STOPPING:
@@ -538,14 +541,8 @@ static void skd_request_fn_not_online(struct request_queue *q)
 	case SKD_DRVR_STATE_FAULT:
 	case SKD_DRVR_STATE_DISAPPEARED:
 	default:
-		break;
+		return true;
 	}
-
-	/* If we get here, terminate all pending block requeusts
-	 * with EIO and any scsi pass thru with appropriate sense
-	 */
-
-	skd_fail_all_pending(skdev);
 }
 
 static void skd_request_fn(struct request_queue *q)
@@ -566,7 +563,8 @@ static void skd_request_fn(struct request_queue *q)
 	int flush, fua;
 
 	if (skdev->state != SKD_DRVR_STATE_ONLINE) {
-		skd_request_fn_not_online(q);
+		if (skd_fail_all(q))
+			skd_fail_all_pending(skdev);
 		return;
 	}
 
