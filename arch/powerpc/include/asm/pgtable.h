@@ -80,6 +80,13 @@ unsigned long vmalloc_to_phys(void *vmalloc_addr);
 
 void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
 void pgtable_cache_init(void);
+
+#ifdef CONFIG_STRICT_KERNEL_RWX
+void mark_initmem_nx(void);
+#else
+static inline void mark_initmem_nx(void) { }
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_PGTABLE_H */

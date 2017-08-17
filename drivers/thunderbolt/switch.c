@@ -30,7 +30,7 @@ static DEFINE_IDA(nvm_ida);
 
 struct nvm_auth_status {
 	struct list_head list;
-	uuid_be uuid;
+	uuid_t uuid;
 	u32 status;
 };
 
@@ -47,7 +47,7 @@ static struct nvm_auth_status *__nvm_get_auth_status(const struct tb_switch *sw)
 	struct nvm_auth_status *st;
 
 	list_for_each_entry(st, &nvm_auth_status_cache, list) {
-		if (!uuid_be_cmp(st->uuid, *sw->uuid))
+		if (uuid_equal(&st->uuid, sw->uuid))
 			return st;
 	}
 
@@ -281,9 +281,11 @@ static struct nvmem_device *register_nvmem(struct tb_switch *sw, int id,
 	if (active) {
 		config.name = "nvm_active";
 		config.reg_read = tb_switch_nvm_read;
+		config.read_only = true;
 	} else {
 		config.name = "nvm_non_active";
 		config.reg_write = tb_switch_nvm_write;
+		config.root_only = true;
 	}
 
 	config.id = id;
@@ -292,7 +294,6 @@ static struct nvmem_device *register_nvmem(struct tb_switch *sw, int id,
 	config.size = size;
 	config.dev = &sw->dev;
 	config.owner = THIS_MODULE;
-	config.root_only = true;
 	config.priv = sw;
 
 	return nvmem_register(&config);
@@ -1460,7 +1461,7 @@ struct tb_sw_lookup {
 	struct tb *tb;
 	u8 link;
 	u8 depth;
-	const uuid_be *uuid;
+	const uuid_t *uuid;
 };
 
 static int tb_switch_match(struct device *dev, void *data)
@@ -1517,7 +1518,7 @@ struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link, u8 depth)
  * Returned switch has reference count increased so the caller needs to
  * call tb_switch_put() when done with the switch.
  */
-struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_be *uuid)
+struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_t *uuid)
 {
 	struct tb_sw_lookup lookup;
 	struct device *dev;

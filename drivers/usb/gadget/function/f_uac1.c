@@ -92,9 +92,9 @@ static struct uac_input_terminal_descriptor usb_out_it_desc = {
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	UAC_INPUT_TERMINAL,
 	.bTerminalID =		USB_OUT_IT_ID,
-	.wTerminalType =	UAC_TERMINAL_STREAMING,
+	.wTerminalType =	cpu_to_le16(UAC_TERMINAL_STREAMING),
 	.bAssocTerminal =	0,
-	.wChannelConfig =	0x3,
+	.wChannelConfig =	cpu_to_le16(0x3),
 };
 
 #define IO_OUT_OT_ID	2
@@ -103,7 +103,7 @@ static struct uac1_output_terminal_descriptor io_out_ot_desc = {
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype	= UAC_OUTPUT_TERMINAL,
 	.bTerminalID		= IO_OUT_OT_ID,
-	.wTerminalType		= UAC_OUTPUT_TERMINAL_SPEAKER,
+	.wTerminalType		= cpu_to_le16(UAC_OUTPUT_TERMINAL_SPEAKER),
 	.bAssocTerminal		= 0,
 	.bSourceID		= USB_OUT_IT_ID,
 };
@@ -114,9 +114,9 @@ static struct uac_input_terminal_descriptor io_in_it_desc = {
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype	= UAC_INPUT_TERMINAL,
 	.bTerminalID		= IO_IN_IT_ID,
-	.wTerminalType		= UAC_INPUT_TERMINAL_MICROPHONE,
+	.wTerminalType		= cpu_to_le16(UAC_INPUT_TERMINAL_MICROPHONE),
 	.bAssocTerminal		= 0,
-	.wChannelConfig		= 0x3,
+	.wChannelConfig		= cpu_to_le16(0x3),
 };
 
 #define USB_IN_OT_ID	4
@@ -125,7 +125,7 @@ static struct uac1_output_terminal_descriptor usb_in_ot_desc = {
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	UAC_OUTPUT_TERMINAL,
 	.bTerminalID =		USB_IN_OT_ID,
-	.wTerminalType =	UAC_TERMINAL_STREAMING,
+	.wTerminalType =	cpu_to_le16(UAC_TERMINAL_STREAMING),
 	.bAssocTerminal =	0,
 	.bSourceID =		IO_IN_IT_ID,
 };
@@ -174,7 +174,7 @@ static struct uac1_as_header_descriptor as_out_header_desc = {
 	.bDescriptorSubtype =	UAC_AS_GENERAL,
 	.bTerminalLink =	USB_OUT_IT_ID,
 	.bDelay =		1,
-	.wFormatTag =		UAC_FORMAT_TYPE_I_PCM,
+	.wFormatTag =		cpu_to_le16(UAC_FORMAT_TYPE_I_PCM),
 };
 
 static struct uac1_as_header_descriptor as_in_header_desc = {
@@ -183,7 +183,7 @@ static struct uac1_as_header_descriptor as_in_header_desc = {
 	.bDescriptorSubtype =	UAC_AS_GENERAL,
 	.bTerminalLink =	USB_IN_OT_ID,
 	.bDelay =		1,
-	.wFormatTag =		UAC_FORMAT_TYPE_I_PCM,
+	.wFormatTag =		cpu_to_le16(UAC_FORMAT_TYPE_I_PCM),
 };
 
 DECLARE_UAC_FORMAT_TYPE_I_DISCRETE_DESC(1);
@@ -606,8 +606,8 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	if (status)
 		goto fail;
 
-	audio->out_ep_maxpsize = as_out_ep_desc.wMaxPacketSize;
-	audio->in_ep_maxpsize = as_in_ep_desc.wMaxPacketSize;
+	audio->out_ep_maxpsize = le16_to_cpu(as_out_ep_desc.wMaxPacketSize);
+	audio->in_ep_maxpsize = le16_to_cpu(as_in_ep_desc.wMaxPacketSize);
 	audio->params.c_chmask = audio_opts->c_chmask;
 	audio->params.c_srate = audio_opts->c_srate;
 	audio->params.c_ssize = audio_opts->c_ssize;

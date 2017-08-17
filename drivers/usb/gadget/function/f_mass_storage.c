@@ -2490,7 +2490,7 @@ static int fsg_main_thread(void *common_)
 		int i;
 
 		down_write(&common->filesem);
-		for (i = 0; i < ARRAY_SIZE(common->luns); --i) {
+		for (i = 0; i < ARRAY_SIZE(common->luns); i++) {
 			struct fsg_lun *curlun = common->luns[i];
 			if (!curlun || !fsg_lun_is_open(curlun))
 				continue;

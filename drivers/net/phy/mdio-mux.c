@@ -135,8 +135,8 @@ int mdio_mux_init(struct device *dev,
 	for_each_available_child_of_node(dev->of_node, child_bus_node) {
 		int v;
 
-		v = of_mdio_parse_addr(dev, child_bus_node);
-		if (v < 0) {
+		r = of_property_read_u32(child_bus_node, "reg", &v);
+		if (r) {
 			dev_err(dev,
 				"Error: Failed to find reg for child %s\n",
 				of_node_full_name(child_bus_node));

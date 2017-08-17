@@ -657,7 +657,7 @@ try:
  * be directed to disk.
  */
 int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
-			struct ppa_addr ppa, int bio_iter)
+			struct ppa_addr ppa, int bio_iter, bool advanced_bio)
 {
 	struct pblk *pblk = container_of(rb, struct pblk, rwb);
 	struct pblk_rb_entry *entry;
@@ -694,7 +694,7 @@ int pblk_rb_copy_to_bio(struct pblk_rb *rb, struct bio *bio, sector_t lba,
 	 * filled with data from the cache). If part of the data resides on the
 	 * media, we will read later on
 	 */
-	if (unlikely(!bio->bi_iter.bi_idx))
+	if (unlikely(!advanced_bio))
 		bio_advance(bio, bio_iter * PBLK_EXPOSED_PAGE_SIZE);
 
 	data = bio_data(bio);

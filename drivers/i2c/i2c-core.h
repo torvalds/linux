@@ -31,9 +31,18 @@ int i2c_check_addr_validity(unsigned addr, unsigned short flags);
 int i2c_check_7bit_addr_validity_strict(unsigned short addr);
 
 #ifdef CONFIG_ACPI
+const struct acpi_device_id *
+i2c_acpi_match_device(const struct acpi_device_id *matches,
+		      struct i2c_client *client);
 void i2c_acpi_register_devices(struct i2c_adapter *adap);
 #else /* CONFIG_ACPI */
 static inline void i2c_acpi_register_devices(struct i2c_adapter *adap) { }
+static inline const struct acpi_device_id *
+i2c_acpi_match_device(const struct acpi_device_id *matches,
+		      struct i2c_client *client)
+{
+	return NULL;
+}
 #endif /* CONFIG_ACPI */
 extern struct notifier_block i2c_acpi_notifier;
 

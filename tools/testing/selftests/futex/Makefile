@@ -14,7 +14,7 @@ all:
 	done
 
 override define RUN_TESTS
-	@if [ `dirname $(OUTPUT)` = $(PWD) ]; then ./run.sh; fi
+	$(OUTPUT)/run.sh
 endef
 
 override define INSTALL_RULE

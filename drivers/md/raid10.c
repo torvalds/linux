@@ -110,14 +110,7 @@ static void end_reshape(struct r10conf *conf);
 #define raid10_log(md, fmt, args...)				\
 	do { if ((md)->queue) blk_add_trace_msg((md)->queue, "raid10 " fmt, ##args); } while (0)
 
-/*
- * 'strct resync_pages' stores actual pages used for doing the resync
- *  IO, and it is per-bio, so make .bi_private points to it.
- */
-static inline struct resync_pages *get_resync_pages(struct bio *bio)
-{
-	return bio->bi_private;
-}
+#include "raid1-10.c"
 
 /*
  * for resync bio, r10bio pointer can be retrieved from the per-bio
@@ -221,7 +214,6 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 			resync_get_all_pages(rp);
 		}
 
-		rp->idx = 0;
 		rp->raid_bio = r10_bio;
 		bio->bi_private = rp;
 		if (rbio) {
@@ -913,8 +905,7 @@ static void flush_pending_writes(struct r10conf *conf)
 			bio->bi_next = NULL;
 			bio->bi_bdev = rdev->bdev;
 			if (test_bit(Faulty, &rdev->flags)) {
-				bio->bi_status = BLK_STS_IOERR;
-				bio_endio(bio);
+				bio_io_error(bio);
 			} else if (unlikely((bio_op(bio) ==  REQ_OP_DISCARD) &&
 					    !blk_queue_discard(bdev_get_queue(bio->bi_bdev))))
 				/* Just ignore it */
@@ -1098,8 +1089,7 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 		bio->bi_next = NULL;
 		bio->bi_bdev = rdev->bdev;
 		if (test_bit(Faulty, &rdev->flags)) {
-			bio->bi_status = BLK_STS_IOERR;
-			bio_endio(bio);
+			bio_io_error(bio);
 		} else if (unlikely((bio_op(bio) ==  REQ_OP_DISCARD) &&
 				    !blk_queue_discard(bdev_get_queue(bio->bi_bdev))))
 			/* Just ignore it */
@@ -2087,8 +2077,8 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 		rp = get_resync_pages(tbio);
 		bio_reset(tbio);
 
-		tbio->bi_vcnt = vcnt;
-		tbio->bi_iter.bi_size = fbio->bi_iter.bi_size;
+		md_bio_reset_resync_pages(tbio, rp, fbio->bi_iter.bi_size);
+
 		rp->raid_bio = r10_bio;
 		tbio->bi_private = rp;
 		tbio->bi_iter.bi_sector = r10_bio->devs[i].addr;
@@ -2853,6 +2843,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 	sector_t sectors_skipped = 0;
 	int chunks_skipped = 0;
 	sector_t chunk_mask = conf->geo.chunk_mask;
+	int page_idx = 0;
 
 	if (!conf->r10buf_pool)
 		if (init_resync(conf))
@@ -3355,7 +3346,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			break;
 		for (bio= biolist ; bio ; bio=bio->bi_next) {
 			struct resync_pages *rp = get_resync_pages(bio);
-			page = resync_fetch_page(rp, rp->idx++);
+			page = resync_fetch_page(rp, page_idx);
 			/*
 			 * won't fail because the vec table is big enough
 			 * to hold all these pages
@@ -3364,7 +3355,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		}
 		nr_sectors += len>>9;
 		sector_nr += len>>9;
-	} while (get_resync_pages(biolist)->idx < RESYNC_PAGES);
+	} while (++page_idx < RESYNC_PAGES);
 	r10_bio->sectors = nr_sectors;
 
 	while (biolist) {

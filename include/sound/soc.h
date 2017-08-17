@@ -795,10 +795,6 @@ struct snd_soc_component_driver {
 	int (*suspend)(struct snd_soc_component *);
 	int (*resume)(struct snd_soc_component *);
 
-	/* pcm creation and destruction */
-	int (*pcm_new)(struct snd_soc_pcm_runtime *);
-	void (*pcm_free)(struct snd_pcm *);
-
 	/* DT */
 	int (*of_xlate_dai_name)(struct snd_soc_component *component,
 				 struct of_phandle_args *args,
@@ -874,8 +870,6 @@ struct snd_soc_component {
 	void (*remove)(struct snd_soc_component *);
 	int (*suspend)(struct snd_soc_component *);
 	int (*resume)(struct snd_soc_component *);
-	int (*pcm_new)(struct snd_soc_pcm_runtime *);
-	void (*pcm_free)(struct snd_pcm *);
 
 	/* machine specific init */
 	int (*init)(struct snd_soc_component *component);

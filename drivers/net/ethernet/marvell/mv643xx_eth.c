@@ -2734,7 +2734,7 @@ static int mv643xx_eth_shared_of_add_port(struct platform_device *pdev,
 	ppd.shared = pdev;
 
 	memset(&res, 0, sizeof(res));
-	if (!of_irq_to_resource(pnp, 0, &res)) {
+	if (of_irq_to_resource(pnp, 0, &res) <= 0) {
 		dev_err(&pdev->dev, "missing interrupt on %s\n", pnp->name);
 		return -EINVAL;
 	}

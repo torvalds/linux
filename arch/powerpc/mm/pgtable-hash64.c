@@ -425,33 +425,51 @@ int hash__has_transparent_hugepage(void)
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
-void hash__mark_rodata_ro(void)
+static bool hash__change_memory_range(unsigned long start, unsigned long end,
+				      unsigned long newpp)
 {
-	unsigned long start = (unsigned long)_stext;
-	unsigned long end = (unsigned long)__init_begin;
 	unsigned long idx;
 	unsigned int step, shift;
-	unsigned long newpp = PP_RXXX;
 
 	shift = mmu_psize_defs[mmu_linear_psize].shift;
 	step = 1 << shift;
 
-	start = ((start + step - 1) >> shift) << shift;
-	end = (end >> shift) << shift;
+	start = ALIGN_DOWN(start, step);
+	end = ALIGN(end, step); // aligns up
 
-	pr_devel("marking ro start %lx, end %lx, step %x\n",
-			start, end, step);
+	if (start >= end)
+		return false;
 
-	if (start == end) {
-		pr_warn("could not set rodata ro, relocate the start"
-			" of the kernel to a 0x%x boundary\n", step);
-		return;
-	}
+	pr_debug("Changing page protection on range 0x%lx-0x%lx, to 0x%lx, step 0x%x\n",
+		 start, end, newpp, step);
 
 	for (idx = start; idx < end; idx += step)
 		/* Not sure if we can do much with the return value */
 		mmu_hash_ops.hpte_updateboltedpp(newpp, idx, mmu_linear_psize,
 							mmu_kernel_ssize);
 
+	return true;
+}
+
+void hash__mark_rodata_ro(void)
+{
+	unsigned long start, end;
+
+	start = (unsigned long)_stext;
+	end = (unsigned long)__init_begin;
+
+	WARN_ON(!hash__change_memory_range(start, end, PP_RXXX));
+}
+
+void hash__mark_initmem_nx(void)
+{
+	unsigned long start, end, pp;
+
+	start = (unsigned long)__init_begin;
+	end = (unsigned long)__init_end;
+
+	pp = htab_convert_pte_flags(pgprot_val(PAGE_KERNEL));
+
+	WARN_ON(!hash__change_memory_range(start, end, pp));
 }
 #endif

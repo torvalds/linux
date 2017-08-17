@@ -485,18 +485,19 @@ static int isdn_divert_icall(isdn_ctrl *ic)
 				cs->deflect_dest[0] = '\0';
 				retval = 4; /* only proceed */
 			}
-			sprintf(cs->info, "%d 0x%lx %s %s %s %s 0x%x 0x%x %d %d %s\n",
-				cs->akt_state,
-				cs->divert_id,
-				divert_if.drv_to_name(cs->ics.driver),
-				(ic->command == ISDN_STAT_ICALLW) ? "1" : "0",
-				cs->ics.parm.setup.phone,
-				cs->ics.parm.setup.eazmsn,
-				cs->ics.parm.setup.si1,
-				cs->ics.parm.setup.si2,
-				cs->ics.parm.setup.screen,
-				dv->rule.waittime,
-				cs->deflect_dest);
+			snprintf(cs->info, sizeof(cs->info),
+				 "%d 0x%lx %s %s %s %s 0x%x 0x%x %d %d %s\n",
+				 cs->akt_state,
+				 cs->divert_id,
+				 divert_if.drv_to_name(cs->ics.driver),
+				 (ic->command == ISDN_STAT_ICALLW) ? "1" : "0",
+				 cs->ics.parm.setup.phone,
+				 cs->ics.parm.setup.eazmsn,
+				 cs->ics.parm.setup.si1,
+				 cs->ics.parm.setup.si2,
+				 cs->ics.parm.setup.screen,
+				 dv->rule.waittime,
+				 cs->deflect_dest);
 			if ((dv->rule.action == DEFLECT_REPORT) ||
 			    (dv->rule.action == DEFLECT_REJECT)) {
 				put_info_buffer(cs->info);

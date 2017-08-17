@@ -13,9 +13,9 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/of_platform.h>
+#include <linux/io.h>
 
 #include <asm/octeon/octeon.h>
-#include <asm/octeon/cvmx-gpio-defs.h>
 
 /* USB Control Register */
 union cvm_usbdrd_uctl_ctl {
