@@ -1057,7 +1057,6 @@ static int skd_start_timer(struct skd_device *skdev)
 {
 	int rc;
 
-	init_timer(&skdev->timer);
 	setup_timer(&skdev->timer, skd_timer_tick, (ulong)skdev);
 
 	rc = mod_timer(&skdev->timer, (jiffies + HZ));
