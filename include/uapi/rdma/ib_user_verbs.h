@@ -1024,7 +1024,7 @@ struct ib_uverbs_create_xsrq {
 	__u32 max_wr;
 	__u32 max_sge;
 	__u32 srq_limit;
-	__u32 reserved;
+	__u32 max_num_tags;
 	__u32 xrcd_handle;
 	__u32 cq_handle;
 	__u64 driver_data[0];
