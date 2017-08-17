@@ -1,11 +1,9 @@
-/* Copyright 2012 STEC, Inc.
+/*
+ * Copyright 2012 STEC, Inc.
+ * Copyright (c) 2017 Western Digital Corporation or its affiliates.
  *
- * This file is licensed under the terms of the 3-clause
- * BSD License (http://opensource.org/licenses/BSD-3-Clause)
- * or the GNU GPL-2.0 (http://www.gnu.org/licenses/gpl-2.0.html),
- * at your option. Both licenses are also available in the LICENSE file
- * distributed with this project. This file may not be copied, modified,
- * or distributed except in accordance with those terms.
+ * This file is part of the Linux kernel, and is made available under
+ * the terms of the GNU General Public License version 2.
  */
 
 
