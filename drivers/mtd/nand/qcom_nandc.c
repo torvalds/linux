@@ -203,6 +203,11 @@ nandc_set_reg(nandc, NAND_READ_LOCATION_##reg,			\
 #define NAND_BAM_NWD			BIT(1)
 /* Finish writing in the current BAM sgl and start writing in another BAM sgl */
 #define NAND_BAM_NEXT_SGL		BIT(2)
+/*
+ * Erased codeword status is being used two times in single transfer so this
+ * flag will determine the current value of erased codeword status register
+ */
+#define NAND_ERASED_CW_SET		BIT(4)
 
 /*
  * This data type corresponds to the BAM transaction which will be used for all
@@ -281,6 +286,8 @@ struct nandc_regs {
 	__le32 read_location2;
 	__le32 read_location3;
 
+	__le32 erased_cw_detect_cfg_clr;
+	__le32 erased_cw_detect_cfg_set;
 };
 
 /*
@@ -810,6 +817,13 @@ static int write_reg_dma(struct qcom_nand_controller *nandc, int first,
 	if (first == NAND_FLASH_CMD)
 		flow_control = true;
 
+	if (first == NAND_ERASED_CW_DETECT_CFG) {
+		if (flags & NAND_ERASED_CW_SET)
+			vaddr = &regs->erased_cw_detect_cfg_set;
+		else
+			vaddr = &regs->erased_cw_detect_cfg_clr;
+	}
+
 	if (first == NAND_EXEC_CMD)
 		flags |= NAND_BAM_NWD;
 
@@ -864,6 +878,9 @@ static void config_nand_page_read(struct qcom_nand_controller *nandc)
 	write_reg_dma(nandc, NAND_ADDR0, 2, 0);
 	write_reg_dma(nandc, NAND_DEV0_CFG0, 3, 0);
 	write_reg_dma(nandc, NAND_EBI2_ECC_BUF_CFG, 1, 0);
+	write_reg_dma(nandc, NAND_ERASED_CW_DETECT_CFG, 1, 0);
+	write_reg_dma(nandc, NAND_ERASED_CW_DETECT_CFG, 1,
+		      NAND_ERASED_CW_SET | NAND_BAM_NEXT_SGL);
 }
 
 /*
@@ -2264,6 +2281,10 @@ static int qcom_nand_host_setup(struct qcom_nand_host *host)
 
 	host->clrflashstatus = FS_READY_BSY_N;
 	host->clrreadstatus = 0xc0;
+	nandc->regs->erased_cw_detect_cfg_clr =
+		cpu_to_le32(CLR_ERASED_PAGE_DET);
+	nandc->regs->erased_cw_detect_cfg_set =
+		cpu_to_le32(SET_ERASED_PAGE_DET);
 
 	dev_dbg(nandc->dev,
 		"cfg0 %x cfg1 %x ecc_buf_cfg %x ecc_bch cfg %x cw_size %d cw_data %d strength %d parity_bytes %d steps %d\n",
