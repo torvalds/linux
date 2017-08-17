@@ -748,7 +748,7 @@ static int create_qp_rss(struct mlx4_ib_dev *dev, struct ib_pd *ibpd,
 	INIT_LIST_HEAD(&qp->gid_list);
 	INIT_LIST_HEAD(&qp->steering_rules);
 
-	qp->mlx4_ib_qp_type = MLX4_IB_QPT_RAW_ETHERTYPE;
+	qp->mlx4_ib_qp_type = MLX4_IB_QPT_RAW_PACKET;
 	qp->state = IB_QPS_RESET;
 
 	/* Set dummy send resources to be compatible with HV and PRM */
