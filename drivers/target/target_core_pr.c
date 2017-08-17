@@ -4011,6 +4011,7 @@ core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 		 * Set the ADDITIONAL DESCRIPTOR LENGTH
 		 */
 		put_unaligned_be32(desc_len, &buf[off]);
+		off += 4;
 		/*
 		 * Size of full desctipor header minus TransportID
 		 * containing $FABRIC_MOD specific) initiator device/port
