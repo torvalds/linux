@@ -298,11 +298,12 @@ void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
 }
 EXPORT_SYMBOL(blk_mq_tagset_busy_iter);
 
-int blk_mq_reinit_tagset(struct blk_mq_tag_set *set)
+int blk_mq_reinit_tagset(struct blk_mq_tag_set *set,
+			 int (reinit_request)(void *, struct request *))
 {
 	int i, j, ret = 0;
 
-	if (!set->ops->reinit_request)
+	if (WARN_ON_ONCE(!reinit_request))
 		goto out;
 
 	for (i = 0; i < set->nr_hw_queues; i++) {
@@ -315,8 +316,8 @@ int blk_mq_reinit_tagset(struct blk_mq_tag_set *set)
 			if (!tags->static_rqs[j])
 				continue;
 
-			ret = set->ops->reinit_request(set->driver_data,
-						tags->static_rqs[j]);
+			ret = reinit_request(set->driver_data,
+					     tags->static_rqs[j]);
 			if (ret)
 				goto out;
 		}

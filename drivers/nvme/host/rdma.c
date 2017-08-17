@@ -704,14 +704,16 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 	if (ctrl->ctrl.queue_count > 1) {
 		nvme_rdma_free_io_queues(ctrl);
 
-		ret = blk_mq_reinit_tagset(&ctrl->tag_set);
+		ret = blk_mq_reinit_tagset(&ctrl->tag_set,
+					   nvme_rdma_reinit_request);
 		if (ret)
 			goto requeue;
 	}
 
 	nvme_rdma_stop_and_free_queue(&ctrl->queues[0]);
 
-	ret = blk_mq_reinit_tagset(&ctrl->admin_tag_set);
+	ret = blk_mq_reinit_tagset(&ctrl->admin_tag_set,
+				   nvme_rdma_reinit_request);
 	if (ret)
 		goto requeue;
 
@@ -1503,7 +1505,6 @@ static const struct blk_mq_ops nvme_rdma_mq_ops = {
 	.complete	= nvme_rdma_complete_rq,
 	.init_request	= nvme_rdma_init_request,
 	.exit_request	= nvme_rdma_exit_request,
-	.reinit_request	= nvme_rdma_reinit_request,
 	.init_hctx	= nvme_rdma_init_hctx,
 	.poll		= nvme_rdma_poll,
 	.timeout	= nvme_rdma_timeout,
@@ -1514,7 +1515,6 @@ static const struct blk_mq_ops nvme_rdma_admin_mq_ops = {
 	.complete	= nvme_rdma_complete_rq,
 	.init_request	= nvme_rdma_init_request,
 	.exit_request	= nvme_rdma_exit_request,
-	.reinit_request	= nvme_rdma_reinit_request,
 	.init_hctx	= nvme_rdma_init_admin_hctx,
 	.timeout	= nvme_rdma_timeout,
 };
@@ -1712,7 +1712,8 @@ static void nvme_rdma_reset_ctrl_work(struct work_struct *work)
 	}
 
 	if (ctrl->ctrl.queue_count > 1) {
-		ret = blk_mq_reinit_tagset(&ctrl->tag_set);
+		ret = blk_mq_reinit_tagset(&ctrl->tag_set,
+					   nvme_rdma_reinit_request);
 		if (ret)
 			goto del_dead_ctrl;
 
