@@ -811,6 +811,27 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	if (field_avail(typeof(resp), reserved, uhw->outlen))
 		resp.response_length += sizeof(resp.reserved);
 
+	if (field_avail(typeof(resp), sw_parsing_caps,
+			uhw->outlen)) {
+		resp.response_length += sizeof(resp.sw_parsing_caps);
+		if (MLX5_CAP_ETH(mdev, swp)) {
+			resp.sw_parsing_caps.sw_parsing_offloads |=
+				MLX5_IB_SW_PARSING;
+
+			if (MLX5_CAP_ETH(mdev, swp_csum))
+				resp.sw_parsing_caps.sw_parsing_offloads |=
+					MLX5_IB_SW_PARSING_CSUM;
+
+			if (MLX5_CAP_ETH(mdev, swp_lso))
+				resp.sw_parsing_caps.sw_parsing_offloads |=
+					MLX5_IB_SW_PARSING_LSO;
+
+			if (resp.sw_parsing_caps.sw_parsing_offloads)
+				resp.sw_parsing_caps.supported_qpts =
+					BIT(IB_QPT_RAW_PACKET);
+		}
+	}
+
 	if (uhw->outlen) {
 		err = ib_copy_to_udata(uhw, &resp, resp.response_length);
 
