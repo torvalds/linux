@@ -248,7 +248,7 @@ struct fit_msg_hdr {
  *  20-23 of the FIT_MTD_FITFW_INIT response.
  */
 struct fit_completion_entry_v1 {
-	uint32_t	num_returned_bytes;
+	__be32		num_returned_bytes;
 	uint16_t	tag;
 	uint8_t		status;  /* SCSI status */
 	uint8_t		cycle;
@@ -290,11 +290,11 @@ struct fit_comp_error_info {
  * Version one has the last 32 bits sg_list_len_bytes;
  */
 struct skd_command_header {
-	uint64_t	sg_list_dma_address;
+	__be64		sg_list_dma_address;
 	uint16_t	tag;
 	uint8_t		attribute;
 	uint8_t		add_cdb_len;     /* In 32 bit words */
-	uint32_t	sg_list_len_bytes;
+	__be32		sg_list_len_bytes;
 };
 
 struct skd_scsi_request {
@@ -307,16 +307,16 @@ struct driver_inquiry_data {
 	uint8_t		peripheral_device_type:5;
 	uint8_t		qualifier:3;
 	uint8_t		page_code;
-	uint16_t	page_length;
-	uint16_t	pcie_bus_number;
+	__be16		page_length;
+	__be16		pcie_bus_number;
 	uint8_t		pcie_device_number;
 	uint8_t		pcie_function_number;
 	uint8_t		pcie_link_speed;
 	uint8_t		pcie_link_lanes;
-	uint16_t	pcie_vendor_id;
-	uint16_t	pcie_device_id;
-	uint16_t	pcie_subsystem_vendor_id;
-	uint16_t	pcie_subsystem_device_id;
+	__be16		pcie_vendor_id;
+	__be16		pcie_device_id;
+	__be16		pcie_subsystem_vendor_id;
+	__be16		pcie_subsystem_device_id;
 	uint8_t		reserved1[2];
 	uint8_t		reserved2[3];
 	uint8_t		driver_version_length;

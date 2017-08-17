@@ -512,7 +512,7 @@ static void skd_request_fn(struct request_queue *q)
 	u32 lba;
 	u32 count;
 	int data_dir;
-	u64 be_dmaa;
+	__be64 be_dmaa;
 	u64 cmdctxt;
 	u32 timo_slot;
 	void *cmd_ptr;
@@ -645,7 +645,7 @@ static void skd_request_fn(struct request_queue *q)
 		cmd_ptr = &skmsg->msg_buf[skmsg->length];
 		memset(cmd_ptr, 0, 32);
 
-		be_dmaa = cpu_to_be64((u64)skreq->sksg_dma_address);
+		be_dmaa = cpu_to_be64(skreq->sksg_dma_address);
 		cmdctxt = skreq->id + SKD_ID_INCR;
 
 		scsi_req = cmd_ptr;
@@ -2402,9 +2402,7 @@ static void skd_do_inq_page_00(struct skd_device *skdev,
 
 		/* SCSI byte order increment of num_returned_bytes by 1 */
 		skcomp->num_returned_bytes =
-			be32_to_cpu(skcomp->num_returned_bytes) + 1;
-		skcomp->num_returned_bytes =
-			be32_to_cpu(skcomp->num_returned_bytes);
+			cpu_to_be32(be32_to_cpu(skcomp->num_returned_bytes) + 1);
 	}
 
 	/* update page length field to reflect the driver's page too */
@@ -2502,7 +2500,7 @@ static void skd_do_inq_page_da(struct skd_device *skdev,
 	memcpy(buf, &inq, min_t(unsigned, max_bytes, sizeof(inq)));
 
 	skcomp->num_returned_bytes =
-		be32_to_cpu(min_t(uint16_t, max_bytes, sizeof(inq)));
+		cpu_to_be32(min_t(uint16_t, max_bytes, sizeof(inq)));
 }
 
 static void skd_do_driver_inq(struct skd_device *skdev,
@@ -4674,7 +4672,7 @@ static void skd_pci_remove(struct pci_dev *pdev)
 
 	for (i = 0; i < SKD_MAX_BARS; i++)
 		if (skdev->mem_map[i])
-			iounmap((u32 *)skdev->mem_map[i]);
+			iounmap(skdev->mem_map[i]);
 
 	if (skdev->pcie_error_reporting_is_enabled)
 		pci_disable_pcie_error_reporting(pdev);
@@ -4705,7 +4703,7 @@ static int skd_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	for (i = 0; i < SKD_MAX_BARS; i++)
 		if (skdev->mem_map[i])
-			iounmap((u32 *)skdev->mem_map[i]);
+			iounmap(skdev->mem_map[i]);
 
 	if (skdev->pcie_error_reporting_is_enabled)
 		pci_disable_pcie_error_reporting(pdev);
