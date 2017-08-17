@@ -65,9 +65,11 @@ static int v2_read_header(struct super_block *sb, int type,
 	if (size != sizeof(struct v2_disk_dqheader)) {
 		quota_error(sb, "Failed header read: expected=%zd got=%zd",
 			    sizeof(struct v2_disk_dqheader), size);
-		return 0;
+		if (size < 0)
+			return size;
+		return -EIO;
 	}
-	return 1;
+	return 0;
 }
 
 /* Check whether given file is really vfsv0 quotafile */
@@ -77,7 +79,7 @@ static int v2_check_quota_file(struct super_block *sb, int type)
 	static const uint quota_magics[] = V2_INITQMAGICS;
 	static const uint quota_versions[] = V2_INITQVERSIONS;
  
-	if (!v2_read_header(sb, type, &dqhead))
+	if (v2_read_header(sb, type, &dqhead))
 		return 0;
 	if (le32_to_cpu(dqhead.dqh_magic) != quota_magics[type] ||
 	    le32_to_cpu(dqhead.dqh_version) > quota_versions[type])
@@ -98,10 +100,9 @@ static int v2_read_file_info(struct super_block *sb, int type)
 	int ret;
 
 	down_read(&dqopt->dqio_sem);
-	if (!v2_read_header(sb, type, &dqhead)) {
-		ret = -EIO;
+	ret = v2_read_header(sb, type, &dqhead);
+	if (ret < 0)
 		goto out;
-	}
 	version = le32_to_cpu(dqhead.dqh_version);
 	if ((info->dqi_fmt_id == QFMT_VFS_V0 && version != 0) ||
 	    (info->dqi_fmt_id == QFMT_VFS_V1 && version != 1)) {
@@ -113,7 +114,10 @@ static int v2_read_file_info(struct super_block *sb, int type)
 	       sizeof(struct v2_disk_dqinfo), V2_DQINFOOFF);
 	if (size != sizeof(struct v2_disk_dqinfo)) {
 		quota_error(sb, "Can't read info structure");
-		ret = -EIO;
+		if (size < 0)
+			ret = size;
+		else
+			ret = -EIO;
 		goto out;
 	}
 	info->dqi_priv = kmalloc(sizeof(struct qtree_mem_dqinfo), GFP_NOFS);
