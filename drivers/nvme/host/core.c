@@ -1236,6 +1236,8 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 	struct nvme_ns *ns = disk->private_data;
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_id_ns *id;
+	u8 eui64[8] = { 0 }, nguid[16] = { 0 };
+	uuid_t uuid = uuid_null;
 	int ret = 0;
 
 	if (test_bit(NVME_NS_DEAD, &ns->flags)) {
@@ -1252,7 +1254,15 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 		goto out;
 	}
 
-	nvme_report_ns_ids(ctrl, ns->ns_id, id, ns->eui, ns->nguid, &ns->uuid);
+	nvme_report_ns_ids(ctrl, ns->ns_id, id, eui64, nguid, &uuid);
+	if (!uuid_equal(&ns->uuid, &uuid) ||
+	    memcmp(&ns->nguid, &nguid, sizeof(ns->nguid)) ||
+	    memcmp(&ns->eui, &eui64, sizeof(ns->eui))) {
+		dev_err(ctrl->device,
+			"identifiers changed for nsid %d\n", ns->ns_id);
+		ret = -ENODEV;
+	}
+
 out:
 	kfree(id);
 	return ret;
