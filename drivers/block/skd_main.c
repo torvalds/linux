@@ -230,6 +230,7 @@ struct skd_device {
 
 	spinlock_t lock;
 	struct gendisk *disk;
+	struct blk_mq_tag_set tag_set;
 	struct request_queue *queue;
 	struct skd_fitmsg_context *skmsg;
 	struct device *class_dev;
@@ -287,6 +288,7 @@ struct skd_device {
 
 	u32 timo_slot;
 
+	struct work_struct start_queue;
 	struct work_struct completion_worker;
 };
 
@@ -371,7 +373,6 @@ static void skd_send_fitmsg(struct skd_device *skdev,
 			    struct skd_fitmsg_context *skmsg);
 static void skd_send_special_fitmsg(struct skd_device *skdev,
 				    struct skd_special_context *skspcl);
-static void skd_request_fn(struct request_queue *rq);
 static void skd_end_request(struct skd_device *skdev, struct request *req,
 			    blk_status_t status);
 static bool skd_preop_sg_list(struct skd_device *skdev,
@@ -398,20 +399,6 @@ static void skd_log_skreq(struct skd_device *skdev,
  * READ/WRITE REQUESTS
  *****************************************************************************
  */
-static void skd_fail_all_pending(struct skd_device *skdev)
-{
-	struct request_queue *q = skdev->queue;
-	struct request *req;
-
-	for (;; ) {
-		req = blk_peek_request(q);
-		if (req == NULL)
-			break;
-		WARN_ON_ONCE(blk_queue_start_tag(q, req));
-		__blk_end_request_all(req, BLK_STS_IOERR);
-	}
-}
-
 static void
 skd_prep_rw_cdb(struct skd_scsi_request *scsi_req,
 		int data_dir, unsigned lba,
@@ -490,7 +477,7 @@ static bool skd_fail_all(struct request_queue *q)
 	}
 }
 
-static void skd_process_request(struct request *req)
+static void skd_process_request(struct request *req, bool last)
 {
 	struct request_queue *const q = req->q;
 	struct skd_device *skdev = q->queuedata;
@@ -499,6 +486,7 @@ static void skd_process_request(struct request *req)
 	const u32 tag = blk_mq_unique_tag(req);
 	struct skd_request_context *const skreq = blk_mq_rq_to_pdu(req);
 	struct skd_scsi_request *scsi_req;
+	unsigned long flags;
 	unsigned long io_flags;
 	u32 lba;
 	u32 count;
@@ -545,6 +533,7 @@ static void skd_process_request(struct request *req)
 		return;
 	}
 
+	spin_lock_irqsave(&skdev->lock, flags);
 	/* Either a FIT msg is in progress or we have to start one. */
 	skmsg = skdev->skmsg;
 	if (!skmsg) {
@@ -602,83 +591,30 @@ static void skd_process_request(struct request *req)
 	/*
 	 * If the FIT msg buffer is full send it.
 	 */
-	if (fmh->num_protocol_cmds_coalesced >= skd_max_req_per_msg) {
+	if (last || fmh->num_protocol_cmds_coalesced >= skd_max_req_per_msg) {
 		skd_send_fitmsg(skdev, skmsg);
 		skdev->skmsg = NULL;
 	}
+	spin_unlock_irqrestore(&skdev->lock, flags);
 }
 
-static void skd_request_fn(struct request_queue *q)
+static blk_status_t skd_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
+				    const struct blk_mq_queue_data *mqd)
 {
+	struct request *req = mqd->rq;
+	struct request_queue *q = req->q;
 	struct skd_device *skdev = q->queuedata;
-	struct request *req;
 
-	if (skdev->state != SKD_DRVR_STATE_ONLINE) {
-		if (skd_fail_all(q))
-			skd_fail_all_pending(skdev);
-		return;
+	if (skdev->state == SKD_DRVR_STATE_ONLINE) {
+		blk_mq_start_request(req);
+		skd_process_request(req, mqd->last);
+
+		return BLK_STS_OK;
+	} else {
+		return skd_fail_all(q) ? BLK_STS_IOERR : BLK_STS_RESOURCE;
 	}
 
-	if (blk_queue_stopped(skdev->queue)) {
-		if (atomic_read(&skdev->in_flight) >=
-		    skdev->queue_low_water_mark)
-			/* There is still some kind of shortage */
-			return;
-
-		queue_flag_clear(QUEUE_FLAG_STOPPED, skdev->queue);
-	}
-
-	/*
-	 * Stop conditions:
-	 *  - There are no more native requests
-	 *  - There are already the maximum number of requests in progress
-	 *  - There are no more skd_request_context entries
-	 *  - There are no more FIT msg buffers
-	 */
-	for (;; ) {
-		req = blk_peek_request(q);
-
-		/* Are there any native requests to start? */
-		if (req == NULL)
-			break;
-
-		/* At this point we know there is a request */
-
-		/* Are too many requets already in progress? */
-		if (atomic_read(&skdev->in_flight) >=
-		    skdev->cur_max_queue_depth) {
-			dev_dbg(&skdev->pdev->dev, "qdepth %d, limit %d\n",
-				atomic_read(&skdev->in_flight),
-				skdev->cur_max_queue_depth);
-			break;
-		}
-
-		/*
-		 * OK to now dequeue request from q.
-		 *
-		 * At this point we are comitted to either start or reject
-		 * the native request. Note that skd_request_context is
-		 * available but is still at the head of the free list.
-		 */
-		WARN_ON_ONCE(blk_queue_start_tag(q, req));
-		skd_process_request(req);
-	}
-
-	/* If the FIT msg buffer is not empty send what we got. */
-	if (skdev->skmsg) {
-		struct fit_msg_hdr *fmh = &skdev->skmsg->msg_buf->fmh;
-
-		WARN_ON_ONCE(!fmh->num_protocol_cmds_coalesced);
-		skd_send_fitmsg(skdev, skdev->skmsg);
-		skdev->skmsg = NULL;
-	}
-
-	/*
-	 * If req is non-NULL it means there is something to do but
-	 * we are out of a resource.
-	 */
-	if (req)
-		blk_stop_queue(skdev->queue);
+	return BLK_STS_OK;
 }
 
 static void skd_end_request(struct skd_device *skdev, struct request *req,
@@ -696,7 +632,7 @@ static void skd_end_request(struct skd_device *skdev, struct request *req,
 		dev_dbg(&skdev->pdev->dev, "id=0x%x error=%d\n", req->tag,
 			error);
 
-	__blk_end_request_all(req, error);
+	blk_mq_end_request(req, error);
 }
 
 static bool skd_preop_sg_list(struct skd_device *skdev,
@@ -780,6 +716,19 @@ static void skd_postop_sg_list(struct skd_device *skdev,
  */
 
 static void skd_timer_tick_not_online(struct skd_device *skdev);
+
+static void skd_start_queue(struct work_struct *work)
+{
+	struct skd_device *skdev = container_of(work, typeof(*skdev),
+						start_queue);
+
+	/*
+	 * Although it is safe to call blk_start_queue() from interrupt
+	 * context, blk_mq_start_hw_queues() must not be called from
+	 * interrupt context.
+	 */
+	blk_mq_start_hw_queues(skdev->queue);
+}
 
 static void skd_timer_tick(ulong arg)
 {
@@ -886,7 +835,7 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 
 		/*start the queue so we can respond with error to requests */
 		/* wakeup anyone waiting for startup complete */
-		blk_start_queue(skdev->queue);
+		schedule_work(&skdev->start_queue);
 		skdev->gendisk_on = -1;
 		wake_up_interruptible(&skdev->waitq);
 		break;
@@ -961,7 +910,7 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 
 		/*start the queue so we can respond with error to requests */
 		/* wakeup anyone waiting for startup complete */
-		blk_start_queue(skdev->queue);
+		schedule_work(&skdev->start_queue);
 		skdev->gendisk_on = -1;
 		wake_up_interruptible(&skdev->waitq);
 		break;
@@ -1543,7 +1492,6 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 	}
 }
 
-/* assume spinlock is already held */
 static void skd_release_skreq(struct skd_device *skdev,
 			      struct skd_request_context *skreq)
 {
@@ -1574,6 +1522,7 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 	struct fit_comp_error_info *skerr;
 	u16 req_id;
 	u32 tag;
+	u16 hwq = 0;
 	struct request *rq;
 	struct skd_request_context *skreq;
 	u16 cmp_cntxt;
@@ -1629,13 +1578,13 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 			/*
 			 * This is not a completion for a r/w request.
 			 */
-			WARN_ON_ONCE(blk_map_queue_find_tag(skdev->queue->
-							    queue_tags, tag));
+			WARN_ON_ONCE(blk_mq_tag_to_rq(skdev->tag_set.tags[hwq],
+						      tag));
 			skd_complete_other(skdev, skcmp, skerr);
 			continue;
 		}
 
-		rq = blk_map_queue_find_tag(skdev->queue->queue_tags, tag);
+		rq = blk_mq_tag_to_rq(skdev->tag_set.tags[hwq], tag);
 		if (WARN(!rq, "No request for tag %#x -> %#x\n", cmp_cntxt,
 			 tag))
 			continue;
@@ -1789,7 +1738,7 @@ static void skd_completion_worker(struct work_struct *work)
 	 * process everything in compq
 	 */
 	skd_isr_completion_posted(skdev, 0, &flush_enqueued);
-	blk_run_queue_async(skdev->queue);
+	schedule_work(&skdev->start_queue);
 
 	spin_unlock_irqrestore(&skdev->lock, flags);
 }
@@ -1865,12 +1814,12 @@ skd_isr(int irq, void *ptr)
 	}
 
 	if (unlikely(flush_enqueued))
-		blk_run_queue_async(skdev->queue);
+		schedule_work(&skdev->start_queue);
 
 	if (deferred)
 		schedule_work(&skdev->completion_worker);
 	else if (!flush_enqueued)
-		blk_run_queue_async(skdev->queue);
+		schedule_work(&skdev->start_queue);
 
 	spin_unlock(&skdev->lock);
 
@@ -1953,7 +1902,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 		 */
 		skdev->state = SKD_DRVR_STATE_BUSY_SANITIZE;
 		skdev->timer_countdown = SKD_TIMER_SECONDS(3);
-		blk_start_queue(skdev->queue);
+		schedule_work(&skdev->start_queue);
 		break;
 	case FIT_SR_DRIVE_BUSY_ERASE:
 		skdev->state = SKD_DRVR_STATE_BUSY_ERASE;
@@ -1987,7 +1936,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 	case FIT_SR_DRIVE_FAULT:
 		skd_drive_fault(skdev);
 		skd_recover_requests(skdev);
-		blk_start_queue(skdev->queue);
+		schedule_work(&skdev->start_queue);
 		break;
 
 	/* PCIe bus returned all Fs? */
@@ -1996,7 +1945,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 			 sense);
 		skd_drive_disappeared(skdev);
 		skd_recover_requests(skdev);
-		blk_start_queue(skdev->queue);
+		schedule_work(&skdev->start_queue);
 		break;
 	default:
 		/*
@@ -2009,17 +1958,15 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 		skd_skdev_state_to_str(skdev->state), skdev->state);
 }
 
-static void skd_recover_request(struct skd_device *skdev,
-				struct skd_request_context *skreq)
+static void skd_recover_request(struct request *req, void *data, bool reserved)
 {
-	struct request *req = blk_mq_rq_from_pdu(skreq);
+	struct skd_device *const skdev = data;
+	struct skd_request_context *skreq = blk_mq_rq_to_pdu(req);
 
 	if (skreq->state != SKD_REQ_STATE_BUSY)
 		return;
 
 	skd_log_skreq(skdev, skreq, "recover");
-
-	SKD_ASSERT(req != NULL);
 
 	/* Release DMA resources for the request. */
 	if (skreq->n_sg > 0)
@@ -2034,15 +1981,7 @@ static void skd_recover_requests(struct skd_device *skdev)
 {
 	int i;
 
-	for (i = 0; i < skdev->num_req_context; i++) {
-		struct request *rq = blk_map_queue_find_tag(skdev->queue->
-							    queue_tags, i);
-		struct skd_request_context *skreq = blk_mq_rq_to_pdu(rq);
-
-		if (!rq)
-			continue;
-		skd_recover_request(skdev, skreq);
-	}
+	blk_mq_tagset_busy_iter(&skdev->tag_set, skd_recover_request, skdev);
 
 	for (i = 0; i < SKD_N_TIMEOUT_SLOT; i++)
 		atomic_set(&skdev->timeout_slot[i], 0);
@@ -2263,7 +2202,7 @@ static void skd_start_device(struct skd_device *skdev)
 		skd_drive_fault(skdev);
 		/*start the queue so we can respond with error to requests */
 		dev_dbg(&skdev->pdev->dev, "starting queue\n");
-		blk_start_queue(skdev->queue);
+		schedule_work(&skdev->start_queue);
 		skdev->gendisk_on = -1;
 		wake_up_interruptible(&skdev->waitq);
 		break;
@@ -2275,7 +2214,7 @@ static void skd_start_device(struct skd_device *skdev)
 		/*start the queue so we can respond with error to requests */
 		dev_dbg(&skdev->pdev->dev,
 			"starting queue to error-out reqs\n");
-		blk_start_queue(skdev->queue);
+		schedule_work(&skdev->start_queue);
 		skdev->gendisk_on = -1;
 		wake_up_interruptible(&skdev->waitq);
 		break;
@@ -2408,7 +2347,7 @@ static int skd_quiesce_dev(struct skd_device *skdev)
 	case SKD_DRVR_STATE_BUSY:
 	case SKD_DRVR_STATE_BUSY_IMMINENT:
 		dev_dbg(&skdev->pdev->dev, "stopping queue\n");
-		blk_stop_queue(skdev->queue);
+		blk_mq_stop_hw_queues(skdev->queue);
 		break;
 	case SKD_DRVR_STATE_ONLINE:
 	case SKD_DRVR_STATE_STOPPING:
@@ -2473,7 +2412,7 @@ static int skd_unquiesce_dev(struct skd_device *skdev)
 			"**** device ONLINE...starting block queue\n");
 		dev_dbg(&skdev->pdev->dev, "starting queue\n");
 		dev_info(&skdev->pdev->dev, "STEC s1120 ONLINE\n");
-		blk_start_queue(skdev->queue);
+		schedule_work(&skdev->start_queue);
 		skdev->gendisk_on = 1;
 		wake_up_interruptible(&skdev->waitq);
 		break;
@@ -2537,12 +2476,12 @@ static irqreturn_t skd_comp_q(int irq, void *skd_host_data)
 	deferred = skd_isr_completion_posted(skdev, skd_isr_comp_limit,
 						&flush_enqueued);
 	if (flush_enqueued)
-		blk_run_queue_async(skdev->queue);
+		schedule_work(&skdev->start_queue);
 
 	if (deferred)
 		schedule_work(&skdev->completion_worker);
 	else if (!flush_enqueued)
-		blk_run_queue_async(skdev->queue);
+		schedule_work(&skdev->start_queue);
 
 	spin_unlock_irqrestore(&skdev->lock, flags);
 
@@ -2843,9 +2782,10 @@ static void skd_free_sg_list(struct skd_device *skdev,
 	pci_free_consistent(skdev->pdev, nbytes, sg_list, dma_addr);
 }
 
-static int skd_init_rq(struct request_queue *q, struct request *rq, gfp_t gfp)
+static int skd_init_request(struct blk_mq_tag_set *set, struct request *rq,
+			    unsigned int hctx_idx, unsigned int numa_node)
 {
-	struct skd_device *skdev = q->queuedata;
+	struct skd_device *skdev = set->driver_data;
 	struct skd_request_context *skreq = blk_mq_rq_to_pdu(rq);
 
 	skreq->state = SKD_REQ_STATE_IDLE;
@@ -2857,9 +2797,10 @@ static int skd_init_rq(struct request_queue *q, struct request *rq, gfp_t gfp)
 	return skreq->sksg_list ? 0 : -ENOMEM;
 }
 
-static void skd_exit_rq(struct request_queue *q, struct request *rq)
+static void skd_exit_request(struct blk_mq_tag_set *set, struct request *rq,
+			     unsigned int hctx_idx)
 {
-	struct skd_device *skdev = q->queuedata;
+	struct skd_device *skdev = set->driver_data;
 	struct skd_request_context *skreq = blk_mq_rq_to_pdu(rq);
 
 	skd_free_sg_list(skdev, skreq->sksg_list,
@@ -2911,6 +2852,12 @@ err_out:
 	return rc;
 }
 
+static const struct blk_mq_ops skd_mq_ops = {
+	.queue_rq	= skd_mq_queue_rq,
+	.init_request	= skd_init_request,
+	.exit_request	= skd_exit_request,
+};
+
 static int skd_cons_disk(struct skd_device *skdev)
 {
 	int rc = 0;
@@ -2932,27 +2879,30 @@ static int skd_cons_disk(struct skd_device *skdev)
 	disk->fops = &skd_blockdev_ops;
 	disk->private_data = skdev;
 
-	q = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE);
+	q = NULL;
+	memset(&skdev->tag_set, 0, sizeof(skdev->tag_set));
+	skdev->tag_set.ops = &skd_mq_ops;
+	skdev->tag_set.nr_hw_queues = 1;
+	skdev->tag_set.queue_depth = skd_max_queue_depth;
+	skdev->tag_set.cmd_size = sizeof(struct skd_request_context) +
+		skdev->sgs_per_request * sizeof(struct scatterlist);
+	skdev->tag_set.numa_node = NUMA_NO_NODE;
+	skdev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE |
+		BLK_MQ_F_SG_MERGE |
+		BLK_ALLOC_POLICY_TO_MQ_FLAG(BLK_TAG_ALLOC_FIFO);
+	skdev->tag_set.driver_data = skdev;
+	if (blk_mq_alloc_tag_set(&skdev->tag_set) >= 0) {
+		q = blk_mq_init_queue(&skdev->tag_set);
+		if (!q)
+			blk_mq_free_tag_set(&skdev->tag_set);
+	}
 	if (!q) {
 		rc = -ENOMEM;
 		goto err_out;
 	}
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
 	q->queuedata = skdev;
-	q->request_fn = skd_request_fn;
-	q->queue_lock = &skdev->lock;
 	q->nr_requests = skd_max_queue_depth / 2;
-	q->cmd_size = sizeof(struct skd_request_context) +
-		skdev->sgs_per_request * sizeof(struct scatterlist);
-	q->init_rq_fn = skd_init_rq;
-	q->exit_rq_fn = skd_exit_rq;
-	rc = blk_init_allocated_queue(q);
-	if (rc < 0)
-		goto cleanup_q;
-	rc = blk_queue_init_tags(q, skd_max_queue_depth, NULL,
-				 BLK_TAG_ALLOC_FIFO);
-	if (rc < 0)
-		goto cleanup_q;
 
 	skdev->queue = q;
 	disk->queue = q;
@@ -2969,15 +2919,11 @@ static int skd_cons_disk(struct skd_device *skdev)
 
 	spin_lock_irqsave(&skdev->lock, flags);
 	dev_dbg(&skdev->pdev->dev, "stopping queue\n");
-	blk_stop_queue(skdev->queue);
+	blk_mq_stop_hw_queues(skdev->queue);
 	spin_unlock_irqrestore(&skdev->lock, flags);
 
 err_out:
 	return rc;
-
-cleanup_q:
-	blk_cleanup_queue(q);
-	goto err_out;
 }
 
 #define SKD_N_DEV_TABLE         16u
@@ -3012,6 +2958,7 @@ static struct skd_device *skd_construct(struct pci_dev *pdev)
 
 	spin_lock_init(&skdev->lock);
 
+	INIT_WORK(&skdev->start_queue, skd_start_queue);
 	INIT_WORK(&skdev->completion_worker, skd_completion_worker);
 
 	dev_dbg(&skdev->pdev->dev, "skcomp\n");
@@ -3130,6 +3077,9 @@ static void skd_free_disk(struct skd_device *skdev)
 		disk->queue = NULL;
 	}
 
+	if (skdev->tag_set.tags)
+		blk_mq_free_tag_set(&skdev->tag_set);
+
 	put_disk(disk);
 	skdev->disk = NULL;
 }
@@ -3138,6 +3088,8 @@ static void skd_destruct(struct skd_device *skdev)
 {
 	if (skdev == NULL)
 		return;
+
+	cancel_work_sync(&skdev->start_queue);
 
 	dev_dbg(&skdev->pdev->dev, "disk\n");
 	skd_free_disk(skdev);
@@ -3682,6 +3634,7 @@ static void skd_log_skreq(struct skd_device *skdev,
 		skreq->fitmsg_id);
 	dev_dbg(&skdev->pdev->dev, "  timo=0x%x sg_dir=%d n_sg=%d\n",
 		skreq->timeout_stamp, skreq->data_dir, skreq->n_sg);
+
 	dev_dbg(&skdev->pdev->dev,
 		"req=%p lba=%u(0x%x) count=%u(0x%x) dir=%d\n", req, lba, lba,
 		count, count, (int)rq_data_dir(req));
