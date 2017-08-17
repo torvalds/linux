@@ -509,7 +509,7 @@ static void snd_pmac_pcm_update(struct snd_pmac *chip, struct pmac_stream *rec)
  * hw info
  */
 
-static struct snd_pcm_hardware snd_pmac_playback =
+static const struct snd_pcm_hardware snd_pmac_playback =
 {
 	.info =			(SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP |
@@ -528,7 +528,7 @@ static struct snd_pcm_hardware snd_pmac_playback =
 	.periods_max =		PMAC_MAX_FRAGS,
 };
 
-static struct snd_pcm_hardware snd_pmac_capture =
+static const struct snd_pcm_hardware snd_pmac_capture =
 {
 	.info =			(SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP |
