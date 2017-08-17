@@ -41,7 +41,6 @@ static bool construct(struct dc_stream_state *stream,
 
 	stream->sink = dc_sink_data;
 	stream->ctx = stream->sink->ctx;
-	stream->sink = dc_sink_data;
 
 	dc_sink_retain(dc_sink_data);
 
