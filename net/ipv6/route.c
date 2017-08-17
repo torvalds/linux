@@ -958,10 +958,34 @@ int ip6_ins_rt(struct rt6_info *rt)
 	return __ip6_ins_rt(rt, &info, &mxc, NULL);
 }
 
+/* called with rcu_lock held */
+static struct net_device *ip6_rt_get_dev_rcu(struct rt6_info *rt)
+{
+	struct net_device *dev = rt->dst.dev;
+
+	if (rt->rt6i_flags & RTF_LOCAL) {
+		/* for copies of local routes, dst->dev needs to be the
+		 * device if it is a master device, the master device if
+		 * device is enslaved, and the loopback as the default
+		 */
+		if (netif_is_l3_slave(dev) &&
+		    !rt6_need_strict(&rt->rt6i_dst.addr))
+			dev = l3mdev_master_dev_rcu(dev);
+		else if (!netif_is_l3_master(dev))
+			dev = dev_net(dev)->loopback_dev;
+		/* last case is netif_is_l3_master(dev) is true in which
+		 * case we want dev returned to be dev
+		 */
+	}
+
+	return dev;
+}
+
 static struct rt6_info *ip6_rt_cache_alloc(struct rt6_info *ort,
 					   const struct in6_addr *daddr,
 					   const struct in6_addr *saddr)
 {
+	struct net_device *dev;
 	struct rt6_info *rt;
 
 	/*
@@ -971,8 +995,10 @@ static struct rt6_info *ip6_rt_cache_alloc(struct rt6_info *ort,
 	if (ort->rt6i_flags & (RTF_CACHE | RTF_PCPU))
 		ort = (struct rt6_info *)ort->dst.from;
 
-	rt = __ip6_dst_alloc(dev_net(ort->dst.dev), ort->dst.dev, 0);
-
+	rcu_read_lock();
+	dev = ip6_rt_get_dev_rcu(ort);
+	rt = __ip6_dst_alloc(dev_net(dev), dev, 0);
+	rcu_read_unlock();
 	if (!rt)
 		return NULL;
 
@@ -1000,11 +1026,13 @@ static struct rt6_info *ip6_rt_cache_alloc(struct rt6_info *ort,
 
 static struct rt6_info *ip6_rt_pcpu_alloc(struct rt6_info *rt)
 {
+	struct net_device *dev;
 	struct rt6_info *pcpu_rt;
 
-	pcpu_rt = __ip6_dst_alloc(dev_net(rt->dst.dev),
-				  rt->dst.dev, rt->dst.flags);
-
+	rcu_read_lock();
+	dev = ip6_rt_get_dev_rcu(rt);
+	pcpu_rt = __ip6_dst_alloc(dev_net(dev), dev, rt->dst.flags);
+	rcu_read_unlock();
 	if (!pcpu_rt)
 		return NULL;
 	ip6_rt_copy_init(pcpu_rt, rt);
@@ -2688,14 +2716,8 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 {
 	u32 tb_id;
 	struct net *net = dev_net(idev->dev);
-	struct net_device *dev = net->loopback_dev;
+	struct net_device *dev = idev->dev;
 	struct rt6_info *rt;
-
-	/* use L3 Master device as loopback for host routes if device
-	 * is enslaved and address is not link local or multicast
-	 */
-	if (!rt6_need_strict(addr))
-		dev = l3mdev_master_dev_rcu(idev->dev) ? : dev;
 
 	rt = ip6_dst_alloc(net, dev, DST_NOCOUNT);
 	if (!rt)
