@@ -403,7 +403,7 @@ static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
 		return 0;
 
 	reservation_object_init(&bo->ttm_resv);
-	BUG_ON(reservation_object_lock(&bo->ttm_resv, NULL));
+	BUG_ON(!reservation_object_trylock(&bo->ttm_resv));
 
 	r = reservation_object_copy_fences(&bo->ttm_resv, bo->resv);
 	if (r) {
