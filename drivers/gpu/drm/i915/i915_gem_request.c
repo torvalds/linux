@@ -244,27 +244,60 @@ int i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno)
 	return reset_all_global_seqno(dev_priv, seqno - 1);
 }
 
-static int reserve_seqno(struct intel_engine_cs *engine)
+static void mark_busy(struct drm_i915_private *i915)
 {
+	if (i915->gt.awake)
+		return;
+
+	GEM_BUG_ON(!i915->gt.active_requests);
+
+	intel_runtime_pm_get_noresume(i915);
+	i915->gt.awake = true;
+
+	intel_enable_gt_powersave(i915);
+	i915_update_gfx_val(i915);
+	if (INTEL_GEN(i915) >= 6)
+		gen6_rps_busy(i915);
+
+	queue_delayed_work(i915->wq,
+			   &i915->gt.retire_work,
+			   round_jiffies_up_relative(HZ));
+}
+
+static int reserve_engine(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = engine->i915;
 	u32 active = ++engine->timeline->inflight_seqnos;
 	u32 seqno = engine->timeline->seqno;
 	int ret;
 
 	/* Reservation is fine until we need to wrap around */
-	if (likely(!add_overflows(seqno, active)))
-		return 0;
-
-	ret = reset_all_global_seqno(engine->i915, 0);
-	if (ret) {
-		engine->timeline->inflight_seqnos--;
-		return ret;
+	if (unlikely(add_overflows(seqno, active))) {
+		ret = reset_all_global_seqno(i915, 0);
+		if (ret) {
+			engine->timeline->inflight_seqnos--;
+			return ret;
+		}
 	}
+
+	if (!i915->gt.active_requests++)
+		mark_busy(i915);
 
 	return 0;
 }
 
-static void unreserve_seqno(struct intel_engine_cs *engine)
+static void unreserve_engine(struct intel_engine_cs *engine)
 {
+	struct drm_i915_private *i915 = engine->i915;
+
+	if (!--i915->gt.active_requests) {
+		/* Cancel the mark_busy() from our reserve_engine() */
+		GEM_BUG_ON(!i915->gt.awake);
+		mod_delayed_work(i915->wq,
+				 &i915->gt.idle_work,
+				 msecs_to_jiffies(100));
+	}
+
 	GEM_BUG_ON(!engine->timeline->inflight_seqnos);
 	engine->timeline->inflight_seqnos--;
 }
@@ -333,13 +366,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	list_del_init(&request->link);
 	spin_unlock_irq(&engine->timeline->lock);
 
-	if (!--request->i915->gt.active_requests) {
-		GEM_BUG_ON(!request->i915->gt.awake);
-		mod_delayed_work(request->i915->wq,
-				 &request->i915->gt.idle_work,
-				 msecs_to_jiffies(100));
-	}
-	unreserve_seqno(request->engine);
+	unreserve_engine(request->engine);
 	advance_ring(request);
 
 	free_capture_list(request);
@@ -575,7 +602,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		return ERR_CAST(ring);
 	GEM_BUG_ON(!ring);
 
-	ret = reserve_seqno(engine);
+	ret = reserve_engine(engine);
 	if (ret)
 		goto err_unpin;
 
@@ -681,7 +708,7 @@ err_ctx:
 
 	kmem_cache_free(dev_priv->requests, req);
 err_unreserve:
-	unreserve_seqno(engine);
+	unreserve_engine(engine);
 err_unpin:
 	engine->context_unpin(engine, ctx);
 	return ERR_PTR(ret);
@@ -863,28 +890,6 @@ i915_gem_request_await_object(struct drm_i915_gem_request *to,
 	return ret;
 }
 
-static void i915_gem_mark_busy(const struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	if (dev_priv->gt.awake)
-		return;
-
-	GEM_BUG_ON(!dev_priv->gt.active_requests);
-
-	intel_runtime_pm_get_noresume(dev_priv);
-	dev_priv->gt.awake = true;
-
-	intel_enable_gt_powersave(dev_priv);
-	i915_update_gfx_val(dev_priv);
-	if (INTEL_GEN(dev_priv) >= 6)
-		gen6_rps_busy(dev_priv);
-
-	queue_delayed_work(dev_priv->wq,
-			   &dev_priv->gt.retire_work,
-			   round_jiffies_up_relative(HZ));
-}
-
 /*
  * NB: This function is not allowed to fail. Doing so would mean the the
  * request is not being tracked for completion but the work itself is
@@ -965,9 +970,6 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 
 	list_add_tail(&request->ring_link, &ring->request_list);
 	request->emitted_jiffies = jiffies;
-
-	if (!request->i915->gt.active_requests++)
-		i915_gem_mark_busy(engine);
 
 	/* Let the backend know a new request has arrived that may need
 	 * to adjust the existing execution schedule due to a high priority
