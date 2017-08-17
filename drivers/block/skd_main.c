@@ -612,6 +612,15 @@ static void skd_request_fn(struct request_queue *q)
 		skreq->req = req;
 		skreq->fitmsg_id = 0;
 
+		skreq->sg_data_dir = data_dir == READ ?
+			SKD_DATA_DIR_CARD_TO_HOST : SKD_DATA_DIR_HOST_TO_CARD;
+
+		if (req->bio && !skd_preop_sg_list(skdev, skreq)) {
+			dev_dbg(&skdev->pdev->dev, "error Out\n");
+			skd_end_request(skdev, skreq, BLK_STS_RESOURCE);
+			continue;
+		}
+
 		/* Either a FIT msg is in progress or we have to start one. */
 		if (skmsg == NULL) {
 			/* Are there any FIT msg buffers available? */
@@ -639,15 +648,6 @@ static void skd_request_fn(struct request_queue *q)
 
 		skreq->fitmsg_id = skmsg->id;
 
-		/*
-		 * Note that a FIT msg may have just been started
-		 * but contains no SoFIT requests yet.
-		 */
-
-		/*
-		 * Transcode the request, checking as we go. The outcome of
-		 * the transcoding is represented by the error variable.
-		 */
 		cmd_ptr = &skmsg->msg_buf[skmsg->length];
 		memset(cmd_ptr, 0, 32);
 
@@ -657,11 +657,6 @@ static void skd_request_fn(struct request_queue *q)
 		scsi_req = cmd_ptr;
 		scsi_req->hdr.tag = cmdctxt;
 		scsi_req->hdr.sg_list_dma_address = be_dmaa;
-
-		if (data_dir == READ)
-			skreq->sg_data_dir = SKD_DATA_DIR_CARD_TO_HOST;
-		else
-			skreq->sg_data_dir = SKD_DATA_DIR_HOST_TO_CARD;
 
 		if (flush == SKD_FLUSH_ZERO_SIZE_FIRST) {
 			skd_prep_zerosize_flush_cdb(scsi_req, skreq);
@@ -673,25 +668,6 @@ static void skd_request_fn(struct request_queue *q)
 		if (fua)
 			scsi_req->cdb[1] |= SKD_FUA_NV;
 
-		if (!req->bio)
-			goto skip_sg;
-
-		if (!skd_preop_sg_list(skdev, skreq)) {
-			/*
-			 * Complete the native request with error.
-			 * Note that the request context is still at the
-			 * head of the free list, and that the SoFIT request
-			 * was encoded into the FIT msg buffer but the FIT
-			 * msg length has not been updated. In short, the
-			 * only resource that has been allocated but might
-			 * not be used is that the FIT msg could be empty.
-			 */
-			dev_dbg(&skdev->pdev->dev, "error Out\n");
-			skd_end_request(skdev, skreq, BLK_STS_RESOURCE);
-			continue;
-		}
-
-skip_sg:
 		scsi_req->hdr.sg_list_len_bytes =
 			cpu_to_be32(skreq->sg_byte_count);
 
