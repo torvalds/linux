@@ -105,9 +105,6 @@ MODULE_VERSION(DRV_VERSION "-" DRV_BUILD_ID);
 #define SKD_ID_SLOT_MASK        0x00FFu
 #define SKD_ID_SLOT_AND_TABLE_MASK 0x03FFu
 
-#define SKD_N_TIMEOUT_SLOT      4u
-#define SKD_TIMEOUT_SLOT_MASK   3u
-
 #define SKD_N_MAX_SECTORS 2048u
 
 #define SKD_MAX_RETRIES 2u
@@ -125,7 +122,6 @@ enum skd_drvr_state {
 	SKD_DRVR_STATE_ONLINE,
 	SKD_DRVR_STATE_PAUSING,
 	SKD_DRVR_STATE_PAUSED,
-	SKD_DRVR_STATE_DRAINING_TIMEOUT,
 	SKD_DRVR_STATE_RESTARTING,
 	SKD_DRVR_STATE_RESUMING,
 	SKD_DRVR_STATE_STOPPING,
@@ -142,7 +138,6 @@ enum skd_drvr_state {
 #define SKD_WAIT_BOOT_TIMO      SKD_TIMER_SECONDS(90u)
 #define SKD_STARTING_TIMO       SKD_TIMER_SECONDS(8u)
 #define SKD_RESTARTING_TIMO     SKD_TIMER_MINUTES(4u)
-#define SKD_DRAINING_TIMO       SKD_TIMER_SECONDS(6u)
 #define SKD_BUSY_TIMO           SKD_TIMER_MINUTES(20u)
 #define SKD_STARTED_BUSY_TIMO   SKD_TIMER_SECONDS(60u)
 #define SKD_START_WAIT_SECONDS  90u
@@ -185,7 +180,6 @@ struct skd_request_context {
 
 	u8 flush_cmd;
 
-	u32 timeout_stamp;
 	enum dma_data_direction data_dir;
 	struct scatterlist *sg;
 	u32 n_sg;
@@ -252,8 +246,6 @@ struct skd_device {
 	u32 num_fitmsg_context;
 	u32 num_req_context;
 
-	atomic_t timeout_slot[SKD_N_TIMEOUT_SLOT];
-	atomic_t timeout_stamp;
 	struct skd_fitmsg_context *skmsg_table;
 
 	struct skd_special_context internal_skspcl;
@@ -464,7 +456,6 @@ static bool skd_fail_all(struct request_queue *q)
 	case SKD_DRVR_STATE_BUSY:
 	case SKD_DRVR_STATE_BUSY_IMMINENT:
 	case SKD_DRVR_STATE_BUSY_ERASE:
-	case SKD_DRVR_STATE_DRAINING_TIMEOUT:
 		return false;
 
 	case SKD_DRVR_STATE_BUSY_SANITIZE:
@@ -492,7 +483,6 @@ static void skd_process_request(struct request *req, bool last)
 	u32 count;
 	int data_dir;
 	__be64 be_dmaa;
-	u32 timo_slot;
 	int flush, fua;
 
 	WARN_ONCE(tag >= skd_max_queue_depth, "%#x > %#x (nr_requests = %lu)\n",
@@ -577,13 +567,6 @@ static void skd_process_request(struct request *req, bool last)
 	skmsg->length += sizeof(struct skd_scsi_request);
 	fmh->num_protocol_cmds_coalesced++;
 
-	/*
-	 * Update the active request counts.
-	 * Capture the timeout timestamp.
-	 */
-	skreq->timeout_stamp = atomic_read(&skdev->timeout_stamp);
-	timo_slot = skreq->timeout_stamp & SKD_TIMEOUT_SLOT_MASK;
-	atomic_inc(&skdev->timeout_slot[timo_slot]);
 	atomic_inc(&skdev->in_flight);
 	dev_dbg(&skdev->pdev->dev, "req=0x%x busy=%d\n", skreq->id,
 		atomic_read(&skdev->in_flight));
@@ -617,6 +600,16 @@ static blk_status_t skd_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_STS_OK;
 }
 
+static enum blk_eh_timer_return skd_timed_out(struct request *req)
+{
+	struct skd_device *skdev = req->q->queuedata;
+
+	dev_err(&skdev->pdev->dev, "request with tag %#x timed out\n",
+		blk_mq_unique_tag(req));
+
+	return BLK_EH_HANDLED;
+}
+
 static void skd_end_request(struct skd_device *skdev, struct request *req,
 			    blk_status_t error)
 {
@@ -633,6 +626,18 @@ static void skd_end_request(struct skd_device *skdev, struct request *req,
 			error);
 
 	blk_mq_end_request(req, error);
+}
+
+/* Only called in case of a request timeout */
+static void skd_softirq_done(struct request *req)
+{
+	struct skd_device *skdev = req->q->queuedata;
+	struct skd_request_context *skreq = blk_mq_rq_to_pdu(req);
+	unsigned long flags;
+
+	spin_lock_irqsave(&skdev->lock, flags);
+	skd_end_request(skdev, blk_mq_rq_from_pdu(skreq), BLK_STS_TIMEOUT);
+	spin_unlock_irqrestore(&skdev->lock, flags);
 }
 
 static bool skd_preop_sg_list(struct skd_device *skdev,
@@ -733,8 +738,6 @@ static void skd_start_queue(struct work_struct *work)
 static void skd_timer_tick(ulong arg)
 {
 	struct skd_device *skdev = (struct skd_device *)arg;
-
-	u32 timo_slot;
 	unsigned long reqflags;
 	u32 state;
 
@@ -751,35 +754,9 @@ static void skd_timer_tick(ulong arg)
 	if (state != skdev->drive_state)
 		skd_isr_fwstate(skdev);
 
-	if (skdev->state != SKD_DRVR_STATE_ONLINE) {
+	if (skdev->state != SKD_DRVR_STATE_ONLINE)
 		skd_timer_tick_not_online(skdev);
-		goto timer_func_out;
-	}
-	timo_slot = atomic_inc_return(&skdev->timeout_stamp) &
-		SKD_TIMEOUT_SLOT_MASK;
 
-	/*
-	 * All requests that happened during the previous use of
-	 * this slot should be done by now. The previous use was
-	 * over 7 seconds ago.
-	 */
-	if (atomic_read(&skdev->timeout_slot[timo_slot]) == 0)
-		goto timer_func_out;
-
-	/* Something is overdue */
-	dev_dbg(&skdev->pdev->dev, "found %d timeouts, draining busy=%d\n",
-		atomic_read(&skdev->timeout_slot[timo_slot]),
-		atomic_read(&skdev->in_flight));
-	dev_err(&skdev->pdev->dev, "Overdue IOs (%d), busy %d\n",
-		atomic_read(&skdev->timeout_slot[timo_slot]),
-		atomic_read(&skdev->in_flight));
-
-	skdev->timer_countdown = SKD_DRAINING_TIMO;
-	skdev->state = SKD_DRVR_STATE_DRAINING_TIMEOUT;
-	skdev->timo_slot = timo_slot;
-	blk_stop_queue(skdev->queue);
-
-timer_func_out:
 	mod_timer(&skdev->timer, (jiffies + HZ));
 
 	spin_unlock_irqrestore(&skdev->lock, reqflags);
@@ -846,27 +823,6 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 
 	case SKD_DRVR_STATE_PAUSING:
 	case SKD_DRVR_STATE_PAUSED:
-		break;
-
-	case SKD_DRVR_STATE_DRAINING_TIMEOUT:
-		dev_dbg(&skdev->pdev->dev,
-			"draining busy [%d] tick[%d] qdb[%d] tmls[%d]\n",
-			skdev->timo_slot, skdev->timer_countdown,
-			atomic_read(&skdev->in_flight),
-			atomic_read(&skdev->timeout_slot[skdev->timo_slot]));
-		/* if the slot has cleared we can let the I/O continue */
-		if (atomic_read(&skdev->timeout_slot[skdev->timo_slot]) == 0) {
-			dev_dbg(&skdev->pdev->dev,
-				"Slot drained, starting queue.\n");
-			skdev->state = SKD_DRVR_STATE_ONLINE;
-			blk_start_queue(skdev->queue);
-			return;
-		}
-		if (skdev->timer_countdown > 0) {
-			skdev->timer_countdown--;
-			return;
-		}
-		skd_restart_device(skdev);
 		break;
 
 	case SKD_DRVR_STATE_RESTARTING:
@@ -1495,18 +1451,12 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 static void skd_release_skreq(struct skd_device *skdev,
 			      struct skd_request_context *skreq)
 {
-	u32 timo_slot;
-
 	/*
 	 * Decrease the number of active requests.
 	 * Also decrements the count in the timeout slot.
 	 */
 	SKD_ASSERT(atomic_read(&skdev->in_flight) > 0);
 	atomic_dec(&skdev->in_flight);
-
-	timo_slot = skreq->timeout_stamp & SKD_TIMEOUT_SLOT_MASK;
-	SKD_ASSERT(atomic_read(&skdev->timeout_slot[timo_slot]) > 0);
-	atomic_dec(&skdev->timeout_slot[timo_slot]);
 
 	/*
 	 * Reclaim the skd_request_context
@@ -1620,7 +1570,6 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 		if (skreq->n_sg > 0)
 			skd_postop_sg_list(skdev, skreq);
 
-		/* Mark the FIT msg and timeout slot as free. */
 		skd_release_skreq(skdev, skreq);
 
 		/*
@@ -1979,12 +1928,7 @@ static void skd_recover_request(struct request *req, void *data, bool reserved)
 
 static void skd_recover_requests(struct skd_device *skdev)
 {
-	int i;
-
 	blk_mq_tagset_busy_iter(&skdev->tag_set, skd_recover_request, skdev);
-
-	for (i = 0; i < SKD_N_TIMEOUT_SLOT; i++)
-		atomic_set(&skdev->timeout_slot[i], 0);
 
 	atomic_set(&skdev->in_flight, 0);
 }
@@ -2917,6 +2861,10 @@ static int skd_cons_disk(struct skd_device *skdev)
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
 	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
 
+	blk_queue_rq_timeout(q, 8 * HZ);
+	blk_queue_rq_timed_out(q, skd_timed_out);
+	blk_queue_softirq_done(q, skd_softirq_done);
+
 	spin_lock_irqsave(&skdev->lock, flags);
 	dev_dbg(&skdev->pdev->dev, "stopping queue\n");
 	blk_mq_stop_hw_queues(skdev->queue);
@@ -3561,8 +3509,6 @@ const char *skd_skdev_state_to_str(enum skd_drvr_state state)
 		return "PAUSING";
 	case SKD_DRVR_STATE_PAUSED:
 		return "PAUSED";
-	case SKD_DRVR_STATE_DRAINING_TIMEOUT:
-		return "DRAINING_TIMEOUT";
 	case SKD_DRVR_STATE_RESTARTING:
 		return "RESTARTING";
 	case SKD_DRVR_STATE_RESUMING:
@@ -3616,9 +3562,8 @@ static void skd_log_skdev(struct skd_device *skdev, const char *event)
 	dev_dbg(&skdev->pdev->dev, "  busy=%d limit=%d dev=%d lowat=%d\n",
 		atomic_read(&skdev->in_flight), skdev->cur_max_queue_depth,
 		skdev->dev_max_queue_depth, skdev->queue_low_water_mark);
-	dev_dbg(&skdev->pdev->dev, "  timestamp=0x%x cycle=%d cycle_ix=%d\n",
-		atomic_read(&skdev->timeout_stamp), skdev->skcomp_cycle,
-		skdev->skcomp_ix);
+	dev_dbg(&skdev->pdev->dev, "  cycle=%d cycle_ix=%d\n",
+		skdev->skcomp_cycle, skdev->skcomp_ix);
 }
 
 static void skd_log_skreq(struct skd_device *skdev,
@@ -3632,8 +3577,8 @@ static void skd_log_skreq(struct skd_device *skdev,
 	dev_dbg(&skdev->pdev->dev, "  state=%s(%d) id=0x%04x fitmsg=0x%04x\n",
 		skd_skreq_state_to_str(skreq->state), skreq->state, skreq->id,
 		skreq->fitmsg_id);
-	dev_dbg(&skdev->pdev->dev, "  timo=0x%x sg_dir=%d n_sg=%d\n",
-		skreq->timeout_stamp, skreq->data_dir, skreq->n_sg);
+	dev_dbg(&skdev->pdev->dev, "  sg_dir=%d n_sg=%d\n",
+		skreq->data_dir, skreq->n_sg);
 
 	dev_dbg(&skdev->pdev->dev,
 		"req=%p lba=%u(0x%x) count=%u(0x%x) dir=%d\n", req, lba, lba,
