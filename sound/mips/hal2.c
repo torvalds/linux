@@ -496,7 +496,7 @@ static void hal2_free_dmabuf(struct hal2_codec *codec)
 		       DMA_ATTR_NON_CONSISTENT);
 }
 
-static struct snd_pcm_hardware hal2_pcm_hw = {
+static const struct snd_pcm_hardware hal2_pcm_hw = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_INTERLEAVED |
