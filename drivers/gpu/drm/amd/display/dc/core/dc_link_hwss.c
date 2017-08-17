@@ -310,6 +310,20 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 
 			link->dc->hwss.unblank_stream(&pipes[i],
 					link_setting);
+
+			if (pipes[i].stream_res.audio) {
+				/* notify audio driver for
+				 * audio modes of monitor */
+				pipes[i].stream_res.audio->funcs->az_enable(
+						pipes[i].stream_res.audio);
+
+				/* un-mute audio */
+				/* TODO: audio should be per stream rather than
+				 * per link */
+				pipes[i].stream_res.stream_enc->funcs->
+				audio_mute_control(
+					pipes[i].stream_res.stream_enc, false);
+			}
 		}
 	}
 }
