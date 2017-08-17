@@ -105,7 +105,7 @@ function create_package {
 }
 
 function rsync_repo {
-        rsync -avz --exclude 'Documentation' --exclude '*.o' --exclude '.*' --exclude '*.cmd' --exclude '.git' --exclude '*.xz' -e ssh . $DEST 
+        rsync -avz --exclude 'Documentation' --exclude '*.o' --exclude '.*' --exclude '*.cmd' --exclude '.git' --exclude '*.xz' --exclude '*ctags' -e ssh . $DEST 
 }
 
 function install_package {

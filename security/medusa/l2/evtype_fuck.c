@@ -12,12 +12,12 @@ MED_ATTRS(getfuck_event) {
         MED_ATTR_END
 };
 
-MED_EVTYPE(getfuck_event, "getfuck", fuck_kobject, "fuck",
-                fuck_kobject, "parent");
+/*MED_EVTYPE(getfuck_event, "getfuck", fuck_kobject, "fuck",
+                fuck_kobject, "parent");*/
 
 int __init getfuck_evtype_init(void) {
-        MED_REGISTER_EVTYPE(getfuck_event,
-                        MEDUSA_EVTYPE_TRIGGEREDBYOBJECTTBIT);
+        //MED_REGISTER_EVTYPE(getfuck_event,
+        //                MEDUSA_EVTYPE_TRIGGEREDBYOBJECTTBIT);
         return 0;
 }
 

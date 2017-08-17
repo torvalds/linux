@@ -21,7 +21,6 @@
 #include <linux/medusa/l3/registry.h>
 
 struct cstrmem_kobject {
-	MEDUSA_KOBJECT_HEADER;
 	pid_t  pid;		/* pid of process to read/write */
 	void * address;		/* address for read/write */
 	size_t size;		/* size of the data, must be <= 512 */

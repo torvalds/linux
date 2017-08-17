@@ -14,8 +14,6 @@
 #define MAX_FORCE_SIZE 16384	/* TODO: configurable size */
 
 struct force_kobject {
-	MEDUSA_KOBJECT_HEADER;
-
 	pid_t pid;
 	unsigned char code[MAX_FORCE_SIZE];
 };
@@ -72,7 +70,7 @@ MED_KCLASS(force_kobject) {
 };
 
 int __init force_kobject_init(void) {
-	MED_REGISTER_KCLASS(force_kobject);
+	//MED_REGISTER_KCLASS(force_kobject);
 	return 0;
 }
 

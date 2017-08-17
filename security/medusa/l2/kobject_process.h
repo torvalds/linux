@@ -29,7 +29,6 @@
 #define task_cap_permitted(task) (task_cred_xxx((task), cap_permitted))
 
 struct process_kobject { /* was: m_proc_inf */
-	MEDUSA_KOBJECT_HEADER;
 
 	pid_t pid, parent_pid, child_pid, sibling_pid;
 	struct pid* pgrp;

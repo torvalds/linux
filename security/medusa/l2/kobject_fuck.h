@@ -19,7 +19,6 @@ int fuck_free(struct medusa_l1_inode_s* med);
 
 
 struct fuck_kobject {	
-	MEDUSA_KOBJECT_HEADER;
 	char path[PATH_MAX];    /* primary key in 'fetch' operation */
 	unsigned long ino;      /* primary key in 'update' operation */
 	unsigned int dev;       /* primary key in 'update' operation */

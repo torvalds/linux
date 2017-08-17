@@ -123,13 +123,8 @@ struct medusa_kclass_s {
 /**/
 /**/
 
-/* this is the kobject header - use it at the beginning of l2 structures */
-#define MEDUSA_KOBJECT_HEADER \
-	struct medusa_kclass_s * kclass_id	/* kclass - type of kobject */
-	
 /* used by l3 and l4 to easily access the header of l2 structures */
 struct medusa_kobject_s {
-	MEDUSA_KOBJECT_HEADER;
 	unsigned char data[0];
 };
 
