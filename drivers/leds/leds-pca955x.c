@@ -473,10 +473,14 @@ static int pca955x_probe(struct i2c_client *client,
 			 * Platform data can specify LED names and
 			 * default triggers
 			 */
-			if (pdata->leds[i].name)
-				snprintf(pca955x_led->name,
-					sizeof(pca955x_led->name), "pca955x:%s",
-					pdata->leds[i].name);
+			if (pdata->leds[i].name[0] == '\0')
+				snprintf(pdata->leds[i].name,
+					sizeof(pdata->leds[i].name), "%d", i);
+
+			snprintf(pca955x_led->name,
+				sizeof(pca955x_led->name), "pca955x:%s",
+				pdata->leds[i].name);
+
 			if (pdata->leds[i].default_trigger)
 				pca955x_led->led_cdev.default_trigger =
 					pdata->leds[i].default_trigger;
