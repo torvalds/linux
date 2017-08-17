@@ -798,7 +798,8 @@ struct intel_csr {
 	func(cursor_needs_physical); \
 	func(hws_needs_physical); \
 	func(overlay_needs_physical); \
-	func(supports_tv);
+	func(supports_tv); \
+	func(has_ipc);
 
 struct sseu_dev_info {
 	u8 slice_mask;
@@ -3118,6 +3119,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define HAS_RUNTIME_PM(dev_priv) ((dev_priv)->info.has_runtime_pm)
 #define HAS_64BIT_RELOC(dev_priv) ((dev_priv)->info.has_64bit_reloc)
+
+#define HAS_IPC(dev_priv)		 ((dev_priv)->info.has_ipc)
 
 /*
  * For now, anything with a GuC requires uCode loading, and then supports
