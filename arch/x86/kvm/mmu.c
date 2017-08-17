@@ -3596,6 +3596,13 @@ static bool is_shadow_zero_bits_set(struct kvm_mmu *mmu, u64 spte, int level)
 
 static bool mmio_info_in_cache(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 {
+	/*
+	 * A nested guest cannot use the MMIO cache if it is using nested
+	 * page tables, because cr2 is a nGPA while the cache stores GPAs.
+	 */
+	if (mmu_is_nested(vcpu))
+		return false;
+
 	if (direct)
 		return vcpu_match_mmio_gpa(vcpu, addr);
 
@@ -4841,7 +4848,7 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 {
 	int r, emulation_type = EMULTYPE_RETRY;
 	enum emulation_result er;
-	bool direct = vcpu->arch.mmu.direct_map || mmu_is_nested(vcpu);
+	bool direct = vcpu->arch.mmu.direct_map;
 
 	/* With shadow page tables, fault_address contains a GVA or nGPA.  */
 	if (vcpu->arch.mmu.direct_map) {

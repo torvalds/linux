@@ -90,7 +90,11 @@ static inline u32 bit(int bitno)
 static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
 					gva_t gva, gfn_t gfn, unsigned access)
 {
-	vcpu->arch.mmio_gva = gva & PAGE_MASK;
+	/*
+	 * If this is a shadow nested page table, the "GVA" is
+	 * actually a nGPA.
+	 */
+	vcpu->arch.mmio_gva = mmu_is_nested(vcpu) ? 0 : gva & PAGE_MASK;
 	vcpu->arch.access = access;
 	vcpu->arch.mmio_gfn = gfn;
 	vcpu->arch.mmio_gen = kvm_memslots(vcpu->kvm)->generation;

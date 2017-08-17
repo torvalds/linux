@@ -790,8 +790,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 			 &map_writable))
 		return 0;
 
-	if (handle_abnormal_pfn(vcpu, mmu_is_nested(vcpu) ? 0 : addr,
-				walker.gfn, pfn, walker.pte_access, &r))
+	if (handle_abnormal_pfn(vcpu, addr, walker.gfn, pfn, walker.pte_access, &r))
 		return r;
 
 	/*
