@@ -9,7 +9,7 @@
  */
 
 #include <linux/wait.h>
-#ifdef CONFIG_LOCKDEP_COMPLETE
+#ifdef CONFIG_LOCKDEP_COMPLETIONS
 #include <linux/lockdep.h>
 #endif
 
@@ -28,12 +28,12 @@
 struct completion {
 	unsigned int done;
 	wait_queue_head_t wait;
-#ifdef CONFIG_LOCKDEP_COMPLETE
+#ifdef CONFIG_LOCKDEP_COMPLETIONS
 	struct lockdep_map_cross map;
 #endif
 };
 
-#ifdef CONFIG_LOCKDEP_COMPLETE
+#ifdef CONFIG_LOCKDEP_COMPLETIONS
 static inline void complete_acquire(struct completion *x)
 {
 	lock_acquire_exclusive((struct lockdep_map *)&x->map, 0, 0, NULL, _RET_IP_);
@@ -64,7 +64,7 @@ static inline void complete_release(struct completion *x) {}
 static inline void complete_release_commit(struct completion *x) {}
 #endif
 
-#ifdef CONFIG_LOCKDEP_COMPLETE
+#ifdef CONFIG_LOCKDEP_COMPLETIONS
 #define COMPLETION_INITIALIZER(work) \
 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait), \
 	STATIC_CROSS_LOCKDEP_MAP_INIT("(complete)" #work, &(work)) }

@@ -1082,7 +1082,7 @@ config PROVE_LOCKING
 	select DEBUG_RT_MUTEXES if RT_MUTEXES
 	select DEBUG_LOCK_ALLOC
 	select LOCKDEP_CROSSRELEASE
-	select LOCKDEP_COMPLETE
+	select LOCKDEP_COMPLETIONS
 	select TRACE_IRQFLAGS
 	default n
 	help
@@ -1162,7 +1162,7 @@ config LOCKDEP_CROSSRELEASE
 	 such as page locks or completions can use the lock correctness
 	 detector, lockdep.
 
-config LOCKDEP_COMPLETE
+config LOCKDEP_COMPLETIONS
 	bool "Lock debugging: allow completions to use deadlock detector"
 	help
 	 A deadlock caused by wait_for_completion() and complete() can be
