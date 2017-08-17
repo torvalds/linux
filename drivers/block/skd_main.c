@@ -2509,16 +2509,16 @@ static void skd_process_scsi_inq(struct skd_device *skdev,
 static int skd_isr_completion_posted(struct skd_device *skdev,
 					int limit, int *enqueued)
 {
-	volatile struct fit_completion_entry_v1 *skcmp = NULL;
+	volatile struct fit_completion_entry_v1 *skcmp;
 	volatile struct fit_comp_error_info *skerr;
 	u16 req_id;
 	u32 req_slot;
 	struct skd_request_context *skreq;
-	u16 cmp_cntxt = 0;
-	u8 cmp_status = 0;
-	u8 cmp_cycle = 0;
-	u32 cmp_bytes = 0;
-	int rc = 0;
+	u16 cmp_cntxt;
+	u8 cmp_status;
+	u8 cmp_cycle;
+	u32 cmp_bytes;
+	int rc;
 	int processed = 0;
 
 	lockdep_assert_held(&skdev->lock);
