@@ -309,8 +309,8 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 	usnic_dbg("\n");
 
 	mutex_lock(&us_ibdev->usdev_lock);
-	if (!ib_get_eth_speed(ibdev, port, &props->active_speed,
-			      &props->active_width)) {
+	if (ib_get_eth_speed(ibdev, port, &props->active_speed,
+			     &props->active_width)) {
 		mutex_unlock(&us_ibdev->usdev_lock);
 		return -EINVAL;
 	}

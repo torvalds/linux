@@ -264,8 +264,8 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 	 * IB stack to avoid race in the NETDEV_UNREG path
 	 */
 	if (test_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags))
-		if (!ib_get_eth_speed(ibdev, port_num, &port_attr->active_speed,
-				      &port_attr->active_width))
+		if (ib_get_eth_speed(ibdev, port_num, &port_attr->active_speed,
+				     &port_attr->active_width))
 			return -EINVAL;
 	return 0;
 }
