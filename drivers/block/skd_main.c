@@ -152,7 +152,6 @@ enum skd_req_state {
 	SKD_REQ_STATE_BUSY,
 	SKD_REQ_STATE_COMPLETED,
 	SKD_REQ_STATE_TIMEOUT,
-	SKD_REQ_STATE_ABORTED,
 };
 
 enum skd_fit_msg_state {
@@ -1733,15 +1732,6 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 		}
 
 		SKD_ASSERT(skreq->state == SKD_REQ_STATE_BUSY);
-
-		if (skreq->state == SKD_REQ_STATE_ABORTED) {
-			dev_dbg(&skdev->pdev->dev, "reclaim req %p id=%04x\n",
-				skreq, skreq->id);
-			/* a previously timed out command can
-			 * now be cleaned up */
-			skd_release_skreq(skdev, skreq);
-			continue;
-		}
 
 		skreq->completion = *skcmp;
 		if (unlikely(cmp_status == SAM_STAT_CHECK_CONDITION)) {
@@ -3823,8 +3813,6 @@ static const char *skd_skreq_state_to_str(enum skd_req_state state)
 		return "COMPLETED";
 	case SKD_REQ_STATE_TIMEOUT:
 		return "TIMEOUT";
-	case SKD_REQ_STATE_ABORTED:
-		return "ABORTED";
 	default:
 		return "???";
 	}
