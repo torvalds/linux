@@ -1127,12 +1127,13 @@ static const struct attribute_group *disk_attr_groups[] = {
  * original ptbl is freed using RCU callback.
  *
  * LOCKING:
- * Matching bd_mutx locked.
+ * Matching bd_mutex locked or the caller is the only user of @disk.
  */
 static void disk_replace_part_tbl(struct gendisk *disk,
 				  struct disk_part_tbl *new_ptbl)
 {
-	struct disk_part_tbl *old_ptbl = disk->part_tbl;
+	struct disk_part_tbl *old_ptbl =
+		rcu_dereference_protected(disk->part_tbl, 1);
 
 	rcu_assign_pointer(disk->part_tbl, new_ptbl);
 
@@ -1151,14 +1152,16 @@ static void disk_replace_part_tbl(struct gendisk *disk,
  * uses RCU to allow unlocked dereferencing for stats and other stuff.
  *
  * LOCKING:
- * Matching bd_mutex locked, might sleep.
+ * Matching bd_mutex locked or the caller is the only user of @disk.
+ * Might sleep.
  *
  * RETURNS:
  * 0 on success, -errno on failure.
  */
 int disk_expand_part_tbl(struct gendisk *disk, int partno)
 {
-	struct disk_part_tbl *old_ptbl = disk->part_tbl;
+	struct disk_part_tbl *old_ptbl =
+		rcu_dereference_protected(disk->part_tbl, 1);
 	struct disk_part_tbl *new_ptbl;
 	int len = old_ptbl ? old_ptbl->len : 0;
 	int i, target;
@@ -1352,6 +1355,7 @@ EXPORT_SYMBOL(alloc_disk);
 struct gendisk *alloc_disk_node(int minors, int node_id)
 {
 	struct gendisk *disk;
+	struct disk_part_tbl *ptbl;
 
 	disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
 	if (disk) {
@@ -1365,7 +1369,8 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 			kfree(disk);
 			return NULL;
 		}
-		disk->part_tbl->part[0] = &disk->part0;
+		ptbl = rcu_dereference_protected(disk->part_tbl, 1);
+		rcu_assign_pointer(ptbl->part[0], &disk->part0);
 
 		/*
 		 * set_capacity() and get_capacity() currently don't use
