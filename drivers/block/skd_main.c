@@ -2340,7 +2340,7 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 			blk_requeue_request(skdev->queue, skreq->req);
 			break;
 		}
-	/* fall through to report error */
+		/* fall through */
 
 	case SKD_CHECK_STATUS_REPORT_ERROR:
 	default:
