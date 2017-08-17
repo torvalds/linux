@@ -126,7 +126,7 @@ static inline uint_fixed_16_16_t u32_to_fixed16(uint32_t val)
 {
 	uint_fixed_16_16_t fp;
 
-	WARN_ON(val >> 16);
+	WARN_ON(val > U16_MAX);
 
 	fp.val = val << 16;
 	return fp;
@@ -163,8 +163,8 @@ static inline uint_fixed_16_16_t max_fixed16(uint_fixed_16_16_t max1,
 static inline uint_fixed_16_16_t clamp_u64_to_fixed16(uint64_t val)
 {
 	uint_fixed_16_16_t fp;
-	WARN_ON(val >> 32);
-	fp.val = clamp_t(uint32_t, val, 0, ~0);
+	WARN_ON(val > U32_MAX);
+	fp.val = (uint32_t) val;
 	return fp;
 }
 
@@ -181,8 +181,8 @@ static inline uint32_t mul_round_up_u32_fixed16(uint32_t val,
 
 	intermediate_val = (uint64_t) val * mul.val;
 	intermediate_val = DIV_ROUND_UP_ULL(intermediate_val, 1 << 16);
-	WARN_ON(intermediate_val >> 32);
-	return clamp_t(uint32_t, intermediate_val, 0, ~0);
+	WARN_ON(intermediate_val > U32_MAX);
+	return (uint32_t) intermediate_val;
 }
 
 static inline uint_fixed_16_16_t mul_fixed16(uint_fixed_16_16_t val,
@@ -211,8 +211,8 @@ static inline uint32_t div_round_up_u32_fixed16(uint32_t val,
 
 	interm_val = (uint64_t)val << 16;
 	interm_val = DIV_ROUND_UP_ULL(interm_val, d.val);
-	WARN_ON(interm_val >> 32);
-	return clamp_t(uint32_t, interm_val, 0, ~0);
+	WARN_ON(interm_val > U32_MAX);
+	return (uint32_t) interm_val;
 }
 
 static inline uint_fixed_16_16_t mul_u32_fixed16(uint32_t val,
