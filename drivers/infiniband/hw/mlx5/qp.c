@@ -1083,6 +1083,8 @@ static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
 
 	sqc = MLX5_ADDR_OF(create_sq_in, in, ctx);
 	MLX5_SET(sqc, sqc, flush_in_error_en, 1);
+	if (MLX5_CAP_ETH(dev->mdev, multi_pkt_send_wqe))
+		MLX5_SET(sqc, sqc, allow_multi_pkt_send_wqe, 1);
 	MLX5_SET(sqc, sqc, state, MLX5_SQC_STATE_RST);
 	MLX5_SET(sqc, sqc, user_index, MLX5_GET(qpc, qpc, user_index));
 	MLX5_SET(sqc, sqc, cqn, MLX5_GET(qpc, qpc, cqn_snd));

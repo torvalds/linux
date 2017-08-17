@@ -2445,7 +2445,7 @@ struct mlx5_ifc_sqc_bits {
 	u8         cd_master[0x1];
 	u8         fre[0x1];
 	u8         flush_in_error_en[0x1];
-	u8         reserved_at_4[0x1];
+	u8         allow_multi_pkt_send_wqe[0x1];
 	u8	   min_wqe_inline_mode[0x3];
 	u8         state[0x4];
 	u8         reg_umr[0x1];

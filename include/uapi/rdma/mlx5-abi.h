@@ -168,6 +168,11 @@ struct mlx5_packet_pacing_caps {
 	__u32 reserved;
 };
 
+enum mlx5_ib_mpw_caps {
+	MPW_RESERVED		= 1 << 0,
+	MLX5_IB_ALLOW_MPW	= 1 << 1,
+};
+
 enum mlx5_ib_sw_parsing_offloads {
 	MLX5_IB_SW_PARSING = 1 << 0,
 	MLX5_IB_SW_PARSING_CSUM = 1 << 1,

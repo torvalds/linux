@@ -802,8 +802,9 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 
 	if (field_avail(typeof(resp), mlx5_ib_support_multi_pkt_send_wqes,
 			uhw->outlen)) {
-		resp.mlx5_ib_support_multi_pkt_send_wqes =
-			MLX5_CAP_ETH(mdev, multi_pkt_send_wqe);
+		if (MLX5_CAP_ETH(mdev, multi_pkt_send_wqe))
+			resp.mlx5_ib_support_multi_pkt_send_wqes =
+				MLX5_IB_ALLOW_MPW;
 		resp.response_length +=
 			sizeof(resp.mlx5_ib_support_multi_pkt_send_wqes);
 	}
