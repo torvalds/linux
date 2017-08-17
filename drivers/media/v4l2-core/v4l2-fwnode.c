@@ -19,6 +19,7 @@
  */
 #include <linux/acpi.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/property.h>
@@ -26,6 +27,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
+#include <media/v4l2-async.h>
 #include <media/v4l2-fwnode.h>
 
 enum v4l2_fwnode_bus_type {
@@ -387,6 +389,200 @@ void v4l2_fwnode_put_link(struct v4l2_fwnode_link *link)
 	fwnode_handle_put(link->remote_node);
 }
 EXPORT_SYMBOL_GPL(v4l2_fwnode_put_link);
+
+static int v4l2_async_notifier_realloc(struct v4l2_async_notifier *notifier,
+				       unsigned int max_subdevs)
+{
+	struct v4l2_async_subdev **subdevs;
+
+	if (max_subdevs <= notifier->max_subdevs)
+		return 0;
+
+	subdevs = kvmalloc_array(
+		max_subdevs, sizeof(*notifier->subdevs),
+		GFP_KERNEL | __GFP_ZERO);
+	if (!subdevs)
+		return -ENOMEM;
+
+	if (notifier->subdevs) {
+		memcpy(subdevs, notifier->subdevs,
+		       sizeof(*subdevs) * notifier->num_subdevs);
+
+		kvfree(notifier->subdevs);
+	}
+
+	notifier->subdevs = subdevs;
+	notifier->max_subdevs = max_subdevs;
+
+	return 0;
+}
+
+static int v4l2_async_notifier_fwnode_parse_endpoint(
+	struct device *dev, struct v4l2_async_notifier *notifier,
+	struct fwnode_handle *endpoint, unsigned int asd_struct_size,
+	int (*parse_endpoint)(struct device *dev,
+			    struct v4l2_fwnode_endpoint *vep,
+			    struct v4l2_async_subdev *asd))
+{
+	struct v4l2_async_subdev *asd;
+	struct v4l2_fwnode_endpoint *vep;
+	int ret = 0;
+
+	asd = kzalloc(asd_struct_size, GFP_KERNEL);
+	if (!asd)
+		return -ENOMEM;
+
+	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
+	asd->match.fwnode.fwnode =
+		fwnode_graph_get_remote_port_parent(endpoint);
+	if (!asd->match.fwnode.fwnode) {
+		dev_warn(dev, "bad remote port parent\n");
+		ret = -EINVAL;
+		goto out_err;
+	}
+
+	vep = v4l2_fwnode_endpoint_alloc_parse(endpoint);
+	if (IS_ERR(vep)) {
+		ret = PTR_ERR(vep);
+		dev_warn(dev, "unable to parse V4L2 fwnode endpoint (%d)\n",
+			 ret);
+		goto out_err;
+	}
+
+	ret = parse_endpoint ? parse_endpoint(dev, vep, asd) : 0;
+	if (ret == -ENOTCONN)
+		dev_dbg(dev, "ignoring port@%u/endpoint@%u\n", vep->base.port,
+			vep->base.id);
+	else if (ret < 0)
+		dev_warn(dev,
+			 "driver could not parse port@%u/endpoint@%u (%d)\n",
+			 vep->base.port, vep->base.id, ret);
+	v4l2_fwnode_endpoint_free(vep);
+	if (ret < 0)
+		goto out_err;
+
+	notifier->subdevs[notifier->num_subdevs] = asd;
+	notifier->num_subdevs++;
+
+	return 0;
+
+out_err:
+	fwnode_handle_put(asd->match.fwnode.fwnode);
+	kfree(asd);
+
+	return ret == -ENOTCONN ? 0 : ret;
+}
+
+static int __v4l2_async_notifier_parse_fwnode_endpoints(
+	struct device *dev, struct v4l2_async_notifier *notifier,
+	size_t asd_struct_size, unsigned int port, bool has_port,
+	int (*parse_endpoint)(struct device *dev,
+			    struct v4l2_fwnode_endpoint *vep,
+			    struct v4l2_async_subdev *asd))
+{
+	struct fwnode_handle *fwnode;
+	unsigned int max_subdevs = notifier->max_subdevs;
+	int ret;
+
+	if (WARN_ON(asd_struct_size < sizeof(struct v4l2_async_subdev)))
+		return -EINVAL;
+
+	for (fwnode = NULL; (fwnode = fwnode_graph_get_next_endpoint(
+				     dev_fwnode(dev), fwnode)); ) {
+		struct fwnode_handle *dev_fwnode;
+		bool is_available;
+
+		dev_fwnode = fwnode_graph_get_port_parent(fwnode);
+		is_available = fwnode_device_is_available(dev_fwnode);
+		fwnode_handle_put(dev_fwnode);
+		if (!is_available)
+			continue;
+
+		if (has_port) {
+			struct fwnode_endpoint ep;
+
+			ret = fwnode_graph_parse_endpoint(fwnode, &ep);
+			if (ret) {
+				fwnode_handle_put(fwnode);
+				return ret;
+			}
+
+			if (ep.port != port)
+				continue;
+		}
+		max_subdevs++;
+	}
+
+	/* No subdevs to add? Return here. */
+	if (max_subdevs == notifier->max_subdevs)
+		return 0;
+
+	ret = v4l2_async_notifier_realloc(notifier, max_subdevs);
+	if (ret)
+		return ret;
+
+	for (fwnode = NULL; (fwnode = fwnode_graph_get_next_endpoint(
+				     dev_fwnode(dev), fwnode)); ) {
+		struct fwnode_handle *dev_fwnode;
+		bool is_available;
+
+		dev_fwnode = fwnode_graph_get_port_parent(fwnode);
+		is_available = fwnode_device_is_available(dev_fwnode);
+		fwnode_handle_put(dev_fwnode);
+
+		if (!fwnode_device_is_available(dev_fwnode))
+			continue;
+
+		if (WARN_ON(notifier->num_subdevs >= notifier->max_subdevs)) {
+			ret = -EINVAL;
+			break;
+		}
+
+		if (has_port) {
+			struct fwnode_endpoint ep;
+
+			ret = fwnode_graph_parse_endpoint(fwnode, &ep);
+			if (ret)
+				break;
+
+			if (ep.port != port)
+				continue;
+		}
+
+		ret = v4l2_async_notifier_fwnode_parse_endpoint(
+			dev, notifier, fwnode, asd_struct_size, parse_endpoint);
+		if (ret < 0)
+			break;
+	}
+
+	fwnode_handle_put(fwnode);
+
+	return ret;
+}
+
+int v4l2_async_notifier_parse_fwnode_endpoints(
+	struct device *dev, struct v4l2_async_notifier *notifier,
+	size_t asd_struct_size,
+	int (*parse_endpoint)(struct device *dev,
+			    struct v4l2_fwnode_endpoint *vep,
+			    struct v4l2_async_subdev *asd))
+{
+	return __v4l2_async_notifier_parse_fwnode_endpoints(
+		dev, notifier, asd_struct_size, 0, false, parse_endpoint);
+}
+EXPORT_SYMBOL_GPL(v4l2_async_notifier_parse_fwnode_endpoints);
+
+int v4l2_async_notifier_parse_fwnode_endpoints_by_port(
+	struct device *dev, struct v4l2_async_notifier *notifier,
+	size_t asd_struct_size, unsigned int port,
+	int (*parse_endpoint)(struct device *dev,
+			    struct v4l2_fwnode_endpoint *vep,
+			    struct v4l2_async_subdev *asd))
+{
+	return __v4l2_async_notifier_parse_fwnode_endpoints(
+		dev, notifier, asd_struct_size, port, true, parse_endpoint);
+}
+EXPORT_SYMBOL_GPL(v4l2_async_notifier_parse_fwnode_endpoints_by_port);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@linux.intel.com>");

@@ -18,7 +18,6 @@ struct device;
 struct device_node;
 struct v4l2_device;
 struct v4l2_subdev;
-struct v4l2_async_notifier;
 
 /* A random max subdevice number, used to allocate an array on stack */
 #define V4L2_MAX_SUBDEVS 128U
@@ -50,6 +49,10 @@ enum v4l2_async_match_type {
  * @match:	union of per-bus type matching data sets
  * @list:	used to link struct v4l2_async_subdev objects, waiting to be
  *		probed, to a notifier->waiting list
+ *
+ * When this struct is used as a member in a driver specific struct,
+ * the driver specific struct shall contain the &struct
+ * v4l2_async_subdev as its first member.
  */
 struct v4l2_async_subdev {
 	enum v4l2_async_match_type match_type;
@@ -78,7 +81,8 @@ struct v4l2_async_subdev {
 /**
  * struct v4l2_async_notifier - v4l2_device notifier data
  *
- * @num_subdevs: number of subdevices
+ * @num_subdevs: number of subdevices used in the subdevs array
+ * @max_subdevs: number of subdevices allocated in the subdevs array
  * @subdevs:	array of pointers to subdevice descriptors
  * @v4l2_dev:	pointer to struct v4l2_device
  * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers
@@ -90,6 +94,7 @@ struct v4l2_async_subdev {
  */
 struct v4l2_async_notifier {
 	unsigned int num_subdevs;
+	unsigned int max_subdevs;
 	struct v4l2_async_subdev **subdevs;
 	struct v4l2_device *v4l2_dev;
 	struct list_head waiting;
@@ -119,6 +124,21 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
  * @notifier: pointer to &struct v4l2_async_notifier
  */
 void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier);
+
+/**
+ * v4l2_async_notifier_cleanup - clean up notifier resources
+ * @notifier: the notifier the resources of which are to be cleaned up
+ *
+ * Release memory resources related to a notifier, including the async
+ * sub-devices allocated for the purposes of the notifier but not the notifier
+ * itself. The user is responsible for calling this function to clean up the
+ * notifier after calling @v4l2_async_notifier_parse_fwnode_endpoints.
+ *
+ * There is no harm from calling v4l2_async_notifier_cleanup in other
+ * cases as long as its memory has been zeroed after it has been
+ * allocated.
+ */
+void v4l2_async_notifier_cleanup(struct v4l2_async_notifier *notifier);
 
 /**
  * v4l2_async_register_subdev - registers a sub-device to the asynchronous

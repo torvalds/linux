@@ -22,6 +22,7 @@
 
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
 static bool match_i2c(struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
@@ -236,6 +237,36 @@ void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 	notifier->v4l2_dev = NULL;
 }
 EXPORT_SYMBOL(v4l2_async_notifier_unregister);
+
+void v4l2_async_notifier_cleanup(struct v4l2_async_notifier *notifier)
+{
+	unsigned int i;
+
+	if (!notifier->max_subdevs)
+		return;
+
+	for (i = 0; i < notifier->num_subdevs; i++) {
+		struct v4l2_async_subdev *asd = notifier->subdevs[i];
+
+		switch (asd->match_type) {
+		case V4L2_ASYNC_MATCH_FWNODE:
+			fwnode_handle_put(asd->match.fwnode.fwnode);
+			break;
+		default:
+			WARN_ON_ONCE(true);
+			break;
+		}
+
+		kfree(asd);
+	}
+
+	notifier->max_subdevs = 0;
+	notifier->num_subdevs = 0;
+
+	kvfree(notifier->subdevs);
+	notifier->subdevs = NULL;
+}
+EXPORT_SYMBOL_GPL(v4l2_async_notifier_cleanup);
 
 int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 {
