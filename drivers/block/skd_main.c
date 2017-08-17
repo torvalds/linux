@@ -232,6 +232,7 @@ struct skd_device {
 	spinlock_t lock;
 	struct gendisk *disk;
 	struct request_queue *queue;
+	struct skd_fitmsg_context *skmsg;
 	struct device *class_dev;
 	int gendisk_on;
 	int sync_done;
@@ -492,23 +493,128 @@ static bool skd_fail_all(struct request_queue *q)
 	}
 }
 
-static void skd_request_fn(struct request_queue *q)
+static void skd_process_request(struct request *req)
 {
+	struct request_queue *const q = req->q;
 	struct skd_device *skdev = q->queuedata;
-	struct skd_fitmsg_context *skmsg = NULL;
-	struct fit_msg_hdr *fmh = NULL;
-	struct skd_request_context *skreq;
-	struct request *req = NULL;
+	struct skd_fitmsg_context *skmsg;
+	struct fit_msg_hdr *fmh;
+	const u32 tag = blk_mq_unique_tag(req);
+	struct skd_request_context *const skreq = &skdev->skreq_table[tag];
 	struct skd_scsi_request *scsi_req;
 	unsigned long io_flags;
 	u32 lba;
 	u32 count;
 	int data_dir;
 	__be64 be_dmaa;
-	u64 cmdctxt;
 	u32 timo_slot;
 	int flush, fua;
-	u32 tag;
+
+	WARN_ONCE(tag >= skd_max_queue_depth, "%#x > %#x (nr_requests = %lu)\n",
+		  tag, skd_max_queue_depth, q->nr_requests);
+
+	SKD_ASSERT(skreq->state == SKD_REQ_STATE_IDLE);
+
+	flush = fua = 0;
+
+	lba = (u32)blk_rq_pos(req);
+	count = blk_rq_sectors(req);
+	data_dir = rq_data_dir(req);
+	io_flags = req->cmd_flags;
+
+	if (req_op(req) == REQ_OP_FLUSH)
+		flush++;
+
+	if (io_flags & REQ_FUA)
+		fua++;
+
+	dev_dbg(&skdev->pdev->dev,
+		"new req=%p lba=%u(0x%x) count=%u(0x%x) dir=%d\n", req, lba,
+		lba, count, count, data_dir);
+
+	skreq->id = tag + SKD_ID_RW_REQUEST;
+	skreq->flush_cmd = 0;
+	skreq->n_sg = 0;
+	skreq->sg_byte_count = 0;
+
+	skreq->req = req;
+	skreq->fitmsg_id = 0;
+
+	skreq->data_dir = data_dir == READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+
+	if (req->bio && !skd_preop_sg_list(skdev, skreq)) {
+		dev_dbg(&skdev->pdev->dev, "error Out\n");
+		skd_end_request(skdev, skreq->req, BLK_STS_RESOURCE);
+		return;
+	}
+
+	/* Either a FIT msg is in progress or we have to start one. */
+	skmsg = skdev->skmsg;
+	if (!skmsg) {
+		skmsg = &skdev->skmsg_table[tag];
+		skdev->skmsg = skmsg;
+
+		/* Initialize the FIT msg header */
+		fmh = &skmsg->msg_buf->fmh;
+		memset(fmh, 0, sizeof(*fmh));
+		fmh->protocol_id = FIT_PROTOCOL_ID_SOFIT;
+		skmsg->length = sizeof(*fmh);
+	} else {
+		fmh = &skmsg->msg_buf->fmh;
+	}
+
+	skreq->fitmsg_id = skmsg->id;
+
+	scsi_req = &skmsg->msg_buf->scsi[fmh->num_protocol_cmds_coalesced];
+	memset(scsi_req, 0, sizeof(*scsi_req));
+
+	be_dmaa = cpu_to_be64(skreq->sksg_dma_address);
+
+	scsi_req->hdr.tag = skreq->id;
+	scsi_req->hdr.sg_list_dma_address = be_dmaa;
+
+	if (flush == SKD_FLUSH_ZERO_SIZE_FIRST) {
+		skd_prep_zerosize_flush_cdb(scsi_req, skreq);
+		SKD_ASSERT(skreq->flush_cmd == 1);
+	} else {
+		skd_prep_rw_cdb(scsi_req, data_dir, lba, count);
+	}
+
+	if (fua)
+		scsi_req->cdb[1] |= SKD_FUA_NV;
+
+	scsi_req->hdr.sg_list_len_bytes = cpu_to_be32(skreq->sg_byte_count);
+
+	/* Complete resource allocations. */
+	skreq->state = SKD_REQ_STATE_BUSY;
+
+	skmsg->length += sizeof(struct skd_scsi_request);
+	fmh->num_protocol_cmds_coalesced++;
+
+	/*
+	 * Update the active request counts.
+	 * Capture the timeout timestamp.
+	 */
+	skreq->timeout_stamp = atomic_read(&skdev->timeout_stamp);
+	timo_slot = skreq->timeout_stamp & SKD_TIMEOUT_SLOT_MASK;
+	atomic_inc(&skdev->timeout_slot[timo_slot]);
+	atomic_inc(&skdev->in_flight);
+	dev_dbg(&skdev->pdev->dev, "req=0x%x busy=%d\n", skreq->id,
+		atomic_read(&skdev->in_flight));
+
+	/*
+	 * If the FIT msg buffer is full send it.
+	 */
+	if (fmh->num_protocol_cmds_coalesced >= skd_max_req_per_msg) {
+		skd_send_fitmsg(skdev, skmsg);
+		skdev->skmsg = NULL;
+	}
+}
+
+static void skd_request_fn(struct request_queue *q)
+{
+	struct skd_device *skdev = q->queuedata;
+	struct request *req;
 
 	if (skdev->state != SKD_DRVR_STATE_ONLINE) {
 		if (skd_fail_all(q))
@@ -533,29 +639,11 @@ static void skd_request_fn(struct request_queue *q)
 	 *  - There are no more FIT msg buffers
 	 */
 	for (;; ) {
-
-		flush = fua = 0;
-
 		req = blk_peek_request(q);
 
 		/* Are there any native requests to start? */
 		if (req == NULL)
 			break;
-
-		lba = (u32)blk_rq_pos(req);
-		count = blk_rq_sectors(req);
-		data_dir = rq_data_dir(req);
-		io_flags = req->cmd_flags;
-
-		if (req_op(req) == REQ_OP_FLUSH)
-			flush++;
-
-		if (io_flags & REQ_FUA)
-			fua++;
-
-		dev_dbg(&skdev->pdev->dev,
-			"new req=%p lba=%u(0x%x) count=%u(0x%x) dir=%d\n",
-			req, lba, lba, count, count, data_dir);
 
 		/* At this point we know there is a request */
 
@@ -576,103 +664,16 @@ static void skd_request_fn(struct request_queue *q)
 		 * available but is still at the head of the free list.
 		 */
 		WARN_ON_ONCE(blk_queue_start_tag(q, req));
-
-		tag = blk_mq_unique_tag(req);
-		WARN_ONCE(tag >= skd_max_queue_depth,
-			  "%#x > %#x (nr_requests = %lu)\n", tag,
-			  skd_max_queue_depth, q->nr_requests);
-
-		skreq = &skdev->skreq_table[tag];
-		SKD_ASSERT(skreq->state == SKD_REQ_STATE_IDLE);
-		SKD_ASSERT((skreq->id & SKD_ID_INCR) == 0);
-
-		skreq->id = tag + SKD_ID_RW_REQUEST;
-		skreq->flush_cmd = 0;
-		skreq->n_sg = 0;
-		skreq->sg_byte_count = 0;
-
-		skreq->req = req;
-		skreq->fitmsg_id = 0;
-
-		skreq->data_dir = data_dir == READ ? DMA_FROM_DEVICE :
-			DMA_TO_DEVICE;
-
-		if (req->bio && !skd_preop_sg_list(skdev, skreq)) {
-			dev_dbg(&skdev->pdev->dev, "error Out\n");
-			skd_end_request(skdev, skreq->req, BLK_STS_RESOURCE);
-			continue;
-		}
-
-		/* Either a FIT msg is in progress or we have to start one. */
-		if (skmsg == NULL) {
-			skmsg = &skdev->skmsg_table[tag];
-
-			/* Initialize the FIT msg header */
-			fmh = &skmsg->msg_buf->fmh;
-			memset(fmh, 0, sizeof(*fmh));
-			fmh->protocol_id = FIT_PROTOCOL_ID_SOFIT;
-			skmsg->length = sizeof(*fmh);
-		}
-
-		skreq->fitmsg_id = skmsg->id;
-
-		scsi_req =
-			&skmsg->msg_buf->scsi[fmh->num_protocol_cmds_coalesced];
-		memset(scsi_req, 0, sizeof(*scsi_req));
-
-		be_dmaa = cpu_to_be64(skreq->sksg_dma_address);
-		cmdctxt = skreq->id + SKD_ID_INCR;
-
-		scsi_req->hdr.tag = cmdctxt;
-		scsi_req->hdr.sg_list_dma_address = be_dmaa;
-
-		if (flush == SKD_FLUSH_ZERO_SIZE_FIRST) {
-			skd_prep_zerosize_flush_cdb(scsi_req, skreq);
-			SKD_ASSERT(skreq->flush_cmd == 1);
-		} else {
-			skd_prep_rw_cdb(scsi_req, data_dir, lba, count);
-		}
-
-		if (fua)
-			scsi_req->cdb[1] |= SKD_FUA_NV;
-
-		scsi_req->hdr.sg_list_len_bytes =
-			cpu_to_be32(skreq->sg_byte_count);
-
-		/* Complete resource allocations. */
-		skreq->state = SKD_REQ_STATE_BUSY;
-		skreq->id += SKD_ID_INCR;
-
-		skmsg->length += sizeof(struct skd_scsi_request);
-		fmh->num_protocol_cmds_coalesced++;
-
-		/*
-		 * Update the active request counts.
-		 * Capture the timeout timestamp.
-		 */
-		skreq->timeout_stamp = atomic_read(&skdev->timeout_stamp);
-		timo_slot = skreq->timeout_stamp & SKD_TIMEOUT_SLOT_MASK;
-		atomic_inc(&skdev->timeout_slot[timo_slot]);
-		atomic_inc(&skdev->in_flight);
-		dev_dbg(&skdev->pdev->dev, "req=0x%x busy=%d\n", skreq->id,
-			atomic_read(&skdev->in_flight));
-
-		/*
-		 * If the FIT msg buffer is full send it.
-		 */
-		if (fmh->num_protocol_cmds_coalesced >= skd_max_req_per_msg) {
-			skd_send_fitmsg(skdev, skmsg);
-			skmsg = NULL;
-			fmh = NULL;
-		}
+		skd_process_request(req);
 	}
 
 	/* If the FIT msg buffer is not empty send what we got. */
-	if (skmsg) {
+	if (skdev->skmsg) {
+		struct fit_msg_hdr *fmh = &skdev->skmsg->msg_buf->fmh;
+
 		WARN_ON_ONCE(!fmh->num_protocol_cmds_coalesced);
-		skd_send_fitmsg(skdev, skmsg);
-		skmsg = NULL;
-		fmh = NULL;
+		skd_send_fitmsg(skdev, skdev->skmsg);
+		skdev->skmsg = NULL;
 	}
 
 	/*
