@@ -39,8 +39,6 @@ struct kgd_mem {
 int amdgpu_amdkfd_init(void);
 void amdgpu_amdkfd_fini(void);
 
-bool amdgpu_amdkfd_load_interface(struct amdgpu_device *adev);
-
 void amdgpu_amdkfd_suspend(struct amdgpu_device *adev);
 int amdgpu_amdkfd_resume(struct amdgpu_device *adev);
 void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,

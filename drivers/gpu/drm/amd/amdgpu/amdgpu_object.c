@@ -220,7 +220,7 @@ static void amdgpu_fill_placement_to_bo(struct amdgpu_bo *bo,
 }
 
 /**
- * amdgpu_bo_create_kernel - create BO for kernel use
+ * amdgpu_bo_create_reserved - create reserved BO for kernel use
  *
  * @adev: amdgpu device object
  * @size: size for the new BO
@@ -230,24 +230,30 @@ static void amdgpu_fill_placement_to_bo(struct amdgpu_bo *bo,
  * @gpu_addr: GPU addr of the pinned BO
  * @cpu_addr: optional CPU address mapping
  *
- * Allocates and pins a BO for kernel internal use.
+ * Allocates and pins a BO for kernel internal use, and returns it still
+ * reserved.
  *
  * Returns 0 on success, negative error code otherwise.
  */
-int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
-			    unsigned long size, int align,
-			    u32 domain, struct amdgpu_bo **bo_ptr,
-			    u64 *gpu_addr, void **cpu_addr)
+int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
+			      unsigned long size, int align,
+			      u32 domain, struct amdgpu_bo **bo_ptr,
+			      u64 *gpu_addr, void **cpu_addr)
 {
+	bool free = false;
 	int r;
 
-	r = amdgpu_bo_create(adev, size, align, true, domain,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-			     NULL, NULL, bo_ptr);
-	if (r) {
-		dev_err(adev->dev, "(%d) failed to allocate kernel bo\n", r);
-		return r;
+	if (!*bo_ptr) {
+		r = amdgpu_bo_create(adev, size, align, true, domain,
+				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
+				     NULL, NULL, 0, bo_ptr);
+		if (r) {
+			dev_err(adev->dev, "(%d) failed to allocate kernel bo\n",
+				r);
+			return r;
+		}
+		free = true;
 	}
 
 	r = amdgpu_bo_reserve(*bo_ptr, false);
@@ -270,17 +276,49 @@ int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
 		}
 	}
 
-	amdgpu_bo_unreserve(*bo_ptr);
-
 	return 0;
 
 error_unreserve:
 	amdgpu_bo_unreserve(*bo_ptr);
 
 error_free:
-	amdgpu_bo_unref(bo_ptr);
+	if (free)
+		amdgpu_bo_unref(bo_ptr);
 
 	return r;
+}
+
+/**
+ * amdgpu_bo_create_kernel - create BO for kernel use
+ *
+ * @adev: amdgpu device object
+ * @size: size for the new BO
+ * @align: alignment for the new BO
+ * @domain: where to place it
+ * @bo_ptr: resulting BO
+ * @gpu_addr: GPU addr of the pinned BO
+ * @cpu_addr: optional CPU address mapping
+ *
+ * Allocates and pins a BO for kernel internal use.
+ *
+ * Returns 0 on success, negative error code otherwise.
+ */
+int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
+			    unsigned long size, int align,
+			    u32 domain, struct amdgpu_bo **bo_ptr,
+			    u64 *gpu_addr, void **cpu_addr)
+{
+	int r;
+
+	r = amdgpu_bo_create_reserved(adev, size, align, domain, bo_ptr,
+				      gpu_addr, cpu_addr);
+
+	if (r)
+		return r;
+
+	amdgpu_bo_unreserve(*bo_ptr);
+
+	return 0;
 }
 
 /**
@@ -318,6 +356,7 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 				struct sg_table *sg,
 				struct ttm_placement *placement,
 				struct reservation_object *resv,
+				uint64_t init_value,
 				struct amdgpu_bo **bo_ptr)
 {
 	struct amdgpu_bo *bo;
@@ -352,13 +391,13 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	}
 	INIT_LIST_HEAD(&bo->shadow_list);
 	INIT_LIST_HEAD(&bo->va);
-	bo->prefered_domains = domain & (AMDGPU_GEM_DOMAIN_VRAM |
+	bo->preferred_domains = domain & (AMDGPU_GEM_DOMAIN_VRAM |
 					 AMDGPU_GEM_DOMAIN_GTT |
 					 AMDGPU_GEM_DOMAIN_CPU |
 					 AMDGPU_GEM_DOMAIN_GDS |
 					 AMDGPU_GEM_DOMAIN_GWS |
 					 AMDGPU_GEM_DOMAIN_OA);
-	bo->allowed_domains = bo->prefered_domains;
+	bo->allowed_domains = bo->preferred_domains;
 	if (!kernel && bo->allowed_domains == AMDGPU_GEM_DOMAIN_VRAM)
 		bo->allowed_domains |= AMDGPU_GEM_DOMAIN_GTT;
 
@@ -418,7 +457,7 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	    bo->tbo.mem.placement & TTM_PL_FLAG_VRAM) {
 		struct dma_fence *fence;
 
-		r = amdgpu_fill_buffer(bo, 0, bo->tbo.resv, &fence);
+		r = amdgpu_fill_buffer(bo, init_value, bo->tbo.resv, &fence);
 		if (unlikely(r))
 			goto fail_unreserve;
 
@@ -470,6 +509,7 @@ static int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
 					AMDGPU_GEM_CREATE_CPU_GTT_USWC,
 					NULL, &placement,
 					bo->tbo.resv,
+					0,
 					&bo->shadow);
 	if (!r) {
 		bo->shadow->parent = amdgpu_bo_ref(bo);
@@ -481,11 +521,15 @@ static int amdgpu_bo_create_shadow(struct amdgpu_device *adev,
 	return r;
 }
 
+/* init_value will only take effect when flags contains
+ * AMDGPU_GEM_CREATE_VRAM_CLEARED.
+ */
 int amdgpu_bo_create(struct amdgpu_device *adev,
 		     unsigned long size, int byte_align,
 		     bool kernel, u32 domain, u64 flags,
 		     struct sg_table *sg,
 		     struct reservation_object *resv,
+		     uint64_t init_value,
 		     struct amdgpu_bo **bo_ptr)
 {
 	struct ttm_placement placement = {0};
@@ -500,7 +544,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 
 	r = amdgpu_bo_create_restricted(adev, size, byte_align, kernel,
 					domain, flags, sg, &placement,
-					resv, bo_ptr);
+					resv, init_value, bo_ptr);
 	if (r)
 		return r;
 
@@ -562,7 +606,7 @@ int amdgpu_bo_validate(struct amdgpu_bo *bo)
 	if (bo->pin_count)
 		return 0;
 
-	domain = bo->prefered_domains;
+	domain = bo->preferred_domains;
 
 retry:
 	amdgpu_ttm_placement_from_domain(bo, domain);
@@ -609,16 +653,16 @@ err:
 
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 {
-	bool is_iomem;
+	void *kptr;
 	long r;
 
 	if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
 		return -EPERM;
 
-	if (bo->kptr) {
-		if (ptr) {
-			*ptr = bo->kptr;
-		}
+	kptr = amdgpu_bo_kptr(bo);
+	if (kptr) {
+		if (ptr)
+			*ptr = kptr;
 		return 0;
 	}
 
@@ -631,19 +675,23 @@ int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 	if (r)
 		return r;
 
-	bo->kptr = ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
 	if (ptr)
-		*ptr = bo->kptr;
+		*ptr = amdgpu_bo_kptr(bo);
 
 	return 0;
 }
 
+void *amdgpu_bo_kptr(struct amdgpu_bo *bo)
+{
+	bool is_iomem;
+
+	return ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
+}
+
 void amdgpu_bo_kunmap(struct amdgpu_bo *bo)
 {
-	if (bo->kptr == NULL)
-		return;
-	bo->kptr = NULL;
-	ttm_bo_kunmap(&bo->kmap);
+	if (bo->kmap.bo)
+		ttm_bo_kunmap(&bo->kmap);
 }
 
 struct amdgpu_bo *amdgpu_bo_ref(struct amdgpu_bo *bo)

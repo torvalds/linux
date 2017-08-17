@@ -267,7 +267,7 @@ static void radeon_unpin_work_func(struct work_struct *__work)
 	} else
 		DRM_ERROR("failed to reserve buffer after flip\n");
 
-	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
+	drm_gem_object_put_unlocked(&work->old_rbo->gem_base);
 	kfree(work);
 }
 
@@ -504,7 +504,7 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 	obj = old_radeon_fb->obj;
 
 	/* take a reference to the old object */
-	drm_gem_object_reference(obj);
+	drm_gem_object_get(obj);
 	work->old_rbo = gem_to_radeon_bo(obj);
 
 	new_radeon_fb = to_radeon_framebuffer(fb);
@@ -603,7 +603,7 @@ pflip_cleanup:
 	radeon_bo_unreserve(new_rbo);
 
 cleanup:
-	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
+	drm_gem_object_put_unlocked(&work->old_rbo->gem_base);
 	dma_fence_put(work->fence);
 	kfree(work);
 	return r;
@@ -1288,7 +1288,7 @@ static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct radeon_framebuffer *radeon_fb = to_radeon_framebuffer(fb);
 
-	drm_gem_object_unreference_unlocked(radeon_fb->obj);
+	drm_gem_object_put_unlocked(radeon_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(radeon_fb);
 }
@@ -1348,14 +1348,14 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 
 	radeon_fb = kzalloc(sizeof(*radeon_fb), GFP_KERNEL);
 	if (radeon_fb == NULL) {
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	ret = radeon_framebuffer_init(dev, radeon_fb, mode_cmd, obj);
 	if (ret) {
 		kfree(radeon_fb);
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		return ERR_PTR(ret);
 	}
 

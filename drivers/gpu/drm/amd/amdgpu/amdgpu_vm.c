@@ -288,6 +288,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 	unsigned pt_idx, from, to;
 	int r;
 	u64 flags;
+	uint64_t init_value = 0;
 
 	if (!parent->entries) {
 		unsigned num_entries = amdgpu_vm_num_entries(adev, level);
@@ -321,6 +322,12 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 		flags |= (AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
 				AMDGPU_GEM_CREATE_SHADOW);
 
+	if (vm->pte_support_ats) {
+		init_value = AMDGPU_PTE_SYSTEM;
+		if (level != adev->vm_manager.num_level - 1)
+			init_value |= AMDGPU_PDE_PTE;
+	}
+
 	/* walk over the address space and allocate the page tables */
 	for (pt_idx = from; pt_idx <= to; ++pt_idx) {
 		struct reservation_object *resv = vm->root.bo->tbo.resv;
@@ -333,7 +340,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 					     AMDGPU_GPU_PAGE_SIZE, true,
 					     AMDGPU_GEM_DOMAIN_VRAM,
 					     flags,
-					     NULL, resv, &pt);
+					     NULL, resv, init_value, &pt);
 			if (r)
 				return r;
 
@@ -1060,7 +1067,7 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 	shadow = parent->bo->shadow;
 
 	if (vm->use_cpu_for_update) {
-		pd_addr = (unsigned long)parent->bo->kptr;
+		pd_addr = (unsigned long)amdgpu_bo_kptr(parent->bo);
 		r = amdgpu_vm_wait_pd(adev, vm, AMDGPU_FENCE_OWNER_VM);
 		if (unlikely(r))
 			return r;
@@ -1401,7 +1408,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 
 		pt = entry->bo;
 		if (use_cpu_update) {
-			pe_start = (unsigned long)pt->kptr;
+			pe_start = (unsigned long)amdgpu_bo_kptr(pt);
 		} else {
 			if (pt->shadow) {
 				pe_start = amdgpu_bo_gpu_offset(pt->shadow);
@@ -1995,15 +2002,19 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 	struct amdgpu_bo_va_mapping *mapping;
 	struct dma_fence *f = NULL;
 	int r;
+	uint64_t init_pte_value = 0;
 
 	while (!list_empty(&vm->freed)) {
 		mapping = list_first_entry(&vm->freed,
 			struct amdgpu_bo_va_mapping, list);
 		list_del(&mapping->list);
 
+		if (vm->pte_support_ats)
+			init_pte_value = AMDGPU_PTE_SYSTEM;
+
 		r = amdgpu_vm_bo_update_mapping(adev, NULL, 0, NULL, vm,
 						mapping->start, mapping->last,
-						0, 0, &f);
+						init_pte_value, 0, &f);
 		amdgpu_vm_free_mapping(adev, vm, mapping, f);
 		if (r) {
 			dma_fence_put(f);
@@ -2494,6 +2505,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	struct amd_sched_rq *rq;
 	int r, i;
 	u64 flags;
+	uint64_t init_pde_value = 0;
 
 	vm->va = RB_ROOT;
 	vm->client_id = atomic64_inc_return(&adev->vm_manager.client_counter);
@@ -2515,10 +2527,17 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (r)
 		return r;
 
-	if (vm_context == AMDGPU_VM_CONTEXT_COMPUTE)
+	vm->pte_support_ats = false;
+
+	if (vm_context == AMDGPU_VM_CONTEXT_COMPUTE) {
 		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
 						AMDGPU_VM_USE_CPU_FOR_COMPUTE);
-	else
+
+		if (adev->asic_type == CHIP_RAVEN) {
+			vm->pte_support_ats = true;
+			init_pde_value = AMDGPU_PTE_SYSTEM | AMDGPU_PDE_PTE;
+		}
+	} else
 		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
 						AMDGPU_VM_USE_CPU_FOR_GFX);
 	DRM_DEBUG_DRIVER("VM update mode is %s\n",
@@ -2538,7 +2557,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	r = amdgpu_bo_create(adev, amdgpu_vm_bo_size(adev, 0), align, true,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     flags,
-			     NULL, NULL, &vm->root.bo);
+			     NULL, NULL, init_pde_value, &vm->root.bo);
 	if (r)
 		goto error_free_sched_entity;
 

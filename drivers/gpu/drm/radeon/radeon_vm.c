@@ -139,7 +139,7 @@ struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 
 	/* add the vm page table to the list */
 	list[0].robj = vm->page_directory;
-	list[0].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
+	list[0].preferred_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 	list[0].tv.bo = &vm->page_directory->tbo;
 	list[0].tv.shared = true;
@@ -151,7 +151,7 @@ struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 			continue;
 
 		list[idx].robj = vm->page_tables[i].bo;
-		list[idx].prefered_domains = RADEON_GEM_DOMAIN_VRAM;
+		list[idx].preferred_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].allowed_domains = RADEON_GEM_DOMAIN_VRAM;
 		list[idx].tv.bo = &list[idx].robj->tbo;
 		list[idx].tv.shared = true;

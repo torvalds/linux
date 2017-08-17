@@ -373,78 +373,10 @@ struct amdgpu_clock {
 };
 
 /*
- * BO.
+ * GEM.
  */
-struct amdgpu_bo_list_entry {
-	struct amdgpu_bo		*robj;
-	struct ttm_validate_buffer	tv;
-	struct amdgpu_bo_va		*bo_va;
-	uint32_t			priority;
-	struct page			**user_pages;
-	int				user_invalidated;
-};
-
-struct amdgpu_bo_va_mapping {
-	struct list_head		list;
-	struct rb_node			rb;
-	uint64_t			start;
-	uint64_t			last;
-	uint64_t			__subtree_last;
-	uint64_t			offset;
-	uint64_t			flags;
-};
-
-/* bo virtual addresses in a specific vm */
-struct amdgpu_bo_va {
-	/* protected by bo being reserved */
-	struct list_head		bo_list;
-	struct dma_fence	        *last_pt_update;
-	unsigned			ref_count;
-
-	/* protected by vm mutex and spinlock */
-	struct list_head		vm_status;
-
-	/* mappings for this bo_va */
-	struct list_head		invalids;
-	struct list_head		valids;
-
-	/* constant after initialization */
-	struct amdgpu_vm		*vm;
-	struct amdgpu_bo		*bo;
-};
 
 #define AMDGPU_GEM_DOMAIN_MAX		0x3
-
-struct amdgpu_bo {
-	/* Protected by tbo.reserved */
-	u32				prefered_domains;
-	u32				allowed_domains;
-	struct ttm_place		placements[AMDGPU_GEM_DOMAIN_MAX + 1];
-	struct ttm_placement		placement;
-	struct ttm_buffer_object	tbo;
-	struct ttm_bo_kmap_obj		kmap;
-	u64				flags;
-	unsigned			pin_count;
-	void				*kptr;
-	u64				tiling_flags;
-	u64				metadata_flags;
-	void				*metadata;
-	u32				metadata_size;
-	unsigned			prime_shared_count;
-	/* list of all virtual address to which this bo
-	 * is associated to
-	 */
-	struct list_head		va;
-	/* Constant after initialization */
-	struct drm_gem_object		gem_base;
-	struct amdgpu_bo		*parent;
-	struct amdgpu_bo		*shadow;
-
-	struct ttm_bo_kmap_obj		dma_buf_vmap;
-	struct amdgpu_mn		*mn;
-	struct list_head		mn_list;
-	struct list_head		shadow_list;
-};
 #define gem_to_amdgpu_bo(gobj) container_of((gobj), struct amdgpu_bo, gem_base)
 
 void amdgpu_gem_object_free(struct drm_gem_object *obj);
@@ -678,15 +610,15 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	/* overlap the doorbell assignment with VCN as they are  mutually exclusive
 	 * VCE engine's doorbell is 32 bit and two VCE ring share one QWORD
 	 */
-	AMDGPU_DOORBELL64_RING0_1                 = 0xF8,
-	AMDGPU_DOORBELL64_RING2_3                 = 0xF9,
-	AMDGPU_DOORBELL64_RING4_5                 = 0xFA,
-	AMDGPU_DOORBELL64_RING6_7                 = 0xFB,
+	AMDGPU_DOORBELL64_UVD_RING0_1             = 0xF8,
+	AMDGPU_DOORBELL64_UVD_RING2_3             = 0xF9,
+	AMDGPU_DOORBELL64_UVD_RING4_5             = 0xFA,
+	AMDGPU_DOORBELL64_UVD_RING6_7             = 0xFB,
 
-	AMDGPU_DOORBELL64_UVD_RING0_1             = 0xFC,
-	AMDGPU_DOORBELL64_UVD_RING2_3             = 0xFD,
-	AMDGPU_DOORBELL64_UVD_RING4_5             = 0xFE,
-	AMDGPU_DOORBELL64_UVD_RING6_7             = 0xFF,
+	AMDGPU_DOORBELL64_VCE_RING0_1             = 0xFC,
+	AMDGPU_DOORBELL64_VCE_RING2_3             = 0xFD,
+	AMDGPU_DOORBELL64_VCE_RING4_5             = 0xFE,
+	AMDGPU_DOORBELL64_VCE_RING6_7             = 0xFF,
 
 	AMDGPU_DOORBELL64_MAX_ASSIGNMENT          = 0xFF,
 	AMDGPU_DOORBELL64_INVALID                 = 0xFFFF
@@ -825,6 +757,14 @@ struct amdgpu_fpriv {
 /*
  * residency list
  */
+struct amdgpu_bo_list_entry {
+	struct amdgpu_bo		*robj;
+	struct ttm_validate_buffer	tv;
+	struct amdgpu_bo_va		*bo_va;
+	uint32_t			priority;
+	struct page			**user_pages;
+	int				user_invalidated;
+};
 
 struct amdgpu_bo_list {
 	struct mutex lock;
@@ -1191,10 +1131,6 @@ struct amdgpu_wb {
 
 int amdgpu_wb_get(struct amdgpu_device *adev, u32 *wb);
 void amdgpu_wb_free(struct amdgpu_device *adev, u32 wb);
-int amdgpu_wb_get_64bit(struct amdgpu_device *adev, u32 *wb);
-int amdgpu_wb_get_256Bit(struct amdgpu_device *adev, u32 *wb);
-void amdgpu_wb_free_64bit(struct amdgpu_device *adev, u32 wb);
-void amdgpu_wb_free_256bit(struct amdgpu_device *adev, u32 wb);
 
 void amdgpu_get_pcie_info(struct amdgpu_device *adev);
 
@@ -1488,7 +1424,7 @@ struct amdgpu_device {
 	bool				is_atom_fw;
 	uint8_t				*bios;
 	uint32_t			bios_size;
-	struct amdgpu_bo		*stollen_vga_memory;
+	struct amdgpu_bo		*stolen_vga_memory;
 	uint32_t			bios_scratch_reg_offset;
 	uint32_t			bios_scratch[AMDGPU_BIOS_NUM_SCRATCH];
 

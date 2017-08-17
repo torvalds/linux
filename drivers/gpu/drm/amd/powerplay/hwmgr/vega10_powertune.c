@@ -543,7 +543,7 @@ static const struct vega10_didt_config_reg SEEDCCtrlForceStallConfig_Vega10[] =
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  */
 	/* SQ */
-	{   ixDIDT_SQ_EDC_CTRL,                DIDT_SQ_EDC_CTRL__EDC_EN_MASK,                       DIDT_SQ_EDC_CTRL__EDC_EN__SHIFT,                        0x0001 },
+	{   ixDIDT_SQ_EDC_CTRL,                DIDT_SQ_EDC_CTRL__EDC_EN_MASK,                       DIDT_SQ_EDC_CTRL__EDC_EN__SHIFT,                        0x0000 },
 	{   ixDIDT_SQ_EDC_CTRL,                DIDT_SQ_EDC_CTRL__EDC_SW_RST_MASK,                   DIDT_SQ_EDC_CTRL__EDC_SW_RST__SHIFT,                    0x0000 },
 	{   ixDIDT_SQ_EDC_CTRL,                DIDT_SQ_EDC_CTRL__EDC_CLK_EN_OVERRIDE_MASK,          DIDT_SQ_EDC_CTRL__EDC_CLK_EN_OVERRIDE__SHIFT,           0x0000 },
 	{   ixDIDT_SQ_EDC_CTRL,                DIDT_SQ_EDC_CTRL__EDC_FORCE_STALL_MASK,              DIDT_SQ_EDC_CTRL__EDC_FORCE_STALL__SHIFT,               0x0001 },
@@ -556,7 +556,7 @@ static const struct vega10_didt_config_reg SEEDCCtrlForceStallConfig_Vega10[] =
 	{   ixDIDT_SQ_EDC_CTRL,                DIDT_SQ_EDC_CTRL__SE_EDC_LEVEL_COMB_EN_MASK,         DIDT_SQ_EDC_CTRL__SE_EDC_LEVEL_COMB_EN__SHIFT,          0x0001 },
 
 	/* TD */
-	{   ixDIDT_TD_EDC_CTRL,                DIDT_TD_EDC_CTRL__EDC_EN_MASK,                       DIDT_TD_EDC_CTRL__EDC_EN__SHIFT,                        0x0001 },
+	{   ixDIDT_TD_EDC_CTRL,                DIDT_TD_EDC_CTRL__EDC_EN_MASK,                       DIDT_TD_EDC_CTRL__EDC_EN__SHIFT,                        0x0000 },
 	{   ixDIDT_TD_EDC_CTRL,                DIDT_TD_EDC_CTRL__EDC_SW_RST_MASK,                   DIDT_TD_EDC_CTRL__EDC_SW_RST__SHIFT,                    0x0000 },
 	{   ixDIDT_TD_EDC_CTRL,                DIDT_TD_EDC_CTRL__EDC_CLK_EN_OVERRIDE_MASK,          DIDT_TD_EDC_CTRL__EDC_CLK_EN_OVERRIDE__SHIFT,           0x0000 },
 	{   ixDIDT_TD_EDC_CTRL,                DIDT_TD_EDC_CTRL__EDC_FORCE_STALL_MASK,              DIDT_TD_EDC_CTRL__EDC_FORCE_STALL__SHIFT,               0x0001 },
@@ -1208,7 +1208,7 @@ static int vega10_enable_se_edc_force_stall_config(struct pp_hwmgr *hwmgr)
 	if (0 != result)
 		return result;
 
-	vega10_didt_set_mask(hwmgr, true);
+	vega10_didt_set_mask(hwmgr, false);
 
 	cgs_enter_safe_mode(hwmgr->device, false);
 

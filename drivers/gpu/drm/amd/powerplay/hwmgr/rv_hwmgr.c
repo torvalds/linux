@@ -265,6 +265,15 @@ static int rv_tf_set_clock_limit(struct pp_hwmgr *hwmgr, void *input,
 		}
 	} */
 
+	if (((hwmgr->uvd_arbiter.vclk_soft_min / 100) != rv_data->vclk_soft_min) ||
+	    ((hwmgr->uvd_arbiter.dclk_soft_min / 100) != rv_data->dclk_soft_min)) {
+		rv_data->vclk_soft_min = hwmgr->uvd_arbiter.vclk_soft_min / 100;
+		rv_data->dclk_soft_min = hwmgr->uvd_arbiter.dclk_soft_min / 100;
+		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			PPSMC_MSG_SetSoftMinVcn,
+			(rv_data->vclk_soft_min << 16) | rv_data->vclk_soft_min);
+	}
+
 	if((hwmgr->gfx_arbiter.sclk_hard_min != 0) &&
 		((hwmgr->gfx_arbiter.sclk_hard_min / 100) != rv_data->soc_actual_hard_min_freq)) {
 		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,

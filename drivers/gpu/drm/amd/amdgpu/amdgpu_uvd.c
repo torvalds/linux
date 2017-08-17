@@ -1051,7 +1051,7 @@ int amdgpu_uvd_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-			     NULL, NULL, &bo);
+			     NULL, NULL, 0, &bo);
 	if (r)
 		return r;
 
@@ -1101,7 +1101,7 @@ int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-			     NULL, NULL, &bo);
+			     NULL, NULL, 0, &bo);
 	if (r)
 		return r;
 

@@ -142,7 +142,7 @@ int pp_atomfwctrl_get_voltage_table_v4(struct pp_hwmgr *hwmgr,
 		}
 	} else if (voltage_mode == VOLTAGE_OBJ_SVID2) {
 		voltage_table->psi1_enable =
-			voltage_object->svid2_voltage_obj.loadline_psi1 & 0x1;
+			(voltage_object->svid2_voltage_obj.loadline_psi1 & 0x20) >> 5;
 		voltage_table->psi0_enable =
 			voltage_object->svid2_voltage_obj.psi0_enable & 0x1;
 		voltage_table->max_vid_step =

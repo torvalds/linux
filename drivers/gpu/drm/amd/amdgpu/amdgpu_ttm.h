@@ -73,7 +73,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       struct dma_fence **fence, bool direct_submit,
 		       bool vm_needs_flush);
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
-			uint32_t src_data,
+			uint64_t src_data,
 			struct reservation_object *resv,
 			struct dma_fence **fence);
 
