@@ -503,7 +503,7 @@ struct mlx5_ib_mr {
 	struct mlx5_shared_mr_info	*smr_info;
 	struct list_head	list;
 	int			order;
-	int			umred;
+	bool			allocated_from_cache;
 	int			npages;
 	struct mlx5_ib_dev     *dev;
 	u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
