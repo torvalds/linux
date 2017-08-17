@@ -72,7 +72,6 @@ enum {
 #define DRV_BIN_VERSION 0x100
 #define DRV_VER_COMPL   "2.2.1." DRV_BUILD_ID
 
-MODULE_AUTHOR("bug-reports: support@stec-inc.com");
 MODULE_LICENSE("GPL");
 
 MODULE_DESCRIPTION("STEC s1120 PCIe SSD block driver (b" DRV_BUILD_ID ")");
