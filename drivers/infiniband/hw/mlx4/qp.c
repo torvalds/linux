@@ -812,6 +812,9 @@ static struct ib_qp *_mlx4_ib_create_qp_rss(struct ib_pd *pd,
 		return ERR_PTR(-EFAULT);
 	}
 
+	if (memchr_inv(ucmd.reserved, 0, sizeof(ucmd.reserved)))
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (ucmd.comp_mask || ucmd.reserved1)
 		return ERR_PTR(-EOPNOTSUPP);
 
