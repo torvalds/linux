@@ -33,6 +33,7 @@ Required properties
  - vdd-micbias-supply: phandle of VDD_MICBIAS supply's regulator DT node.
 
 Optional Properties:
+- qcom,micbias-lvl:  Voltage (mV) for Mic Bias
 - qcom,micbias1-ext-cap: boolean, present if micbias1 has external capacitor
 			 connected.
 - qcom,micbias2-ext-cap: boolean, present if micbias2 has external capacitor
