@@ -124,7 +124,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	struct perf_evlist *evlist;
 	int i, ret = TEST_FAIL, err = 0, count = 0;
 
-	struct parse_events_evlist parse_evlist;
+	struct parse_events_state parse_evlist;
 	struct parse_events_error parse_error;
 
 	bzero(&parse_error, sizeof(parse_error));

@@ -589,7 +589,7 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 }
 
 struct __add_bpf_event_param {
-	struct parse_events_evlist *data;
+	struct parse_events_state *data;
 	struct list_head *list;
 	struct list_head *head_config;
 };
@@ -599,7 +599,7 @@ static int add_bpf_event(const char *group, const char *event, int fd,
 {
 	LIST_HEAD(new_evsels);
 	struct __add_bpf_event_param *param = _param;
-	struct parse_events_evlist *evlist = param->data;
+	struct parse_events_state *parse_state = param->data;
 	struct list_head *list = param->list;
 	struct perf_evsel *pos;
 	int err;
@@ -607,8 +607,8 @@ static int add_bpf_event(const char *group, const char *event, int fd,
 	pr_debug("add bpf event %s:%s and attach bpf program %d\n",
 		 group, event, fd);
 
-	err = parse_events_add_tracepoint(&new_evsels, &evlist->idx, group,
-					  event, evlist->error,
+	err = parse_events_add_tracepoint(&new_evsels, &parse_state->idx, group,
+					  event, parse_state->error,
 					  param->head_config);
 	if (err) {
 		struct perf_evsel *evsel, *tmp;
@@ -632,7 +632,7 @@ static int add_bpf_event(const char *group, const char *event, int fd,
 	return 0;
 }
 
-int parse_events_load_bpf_obj(struct parse_events_evlist *data,
+int parse_events_load_bpf_obj(struct parse_events_state *data,
 			      struct list_head *list,
 			      struct bpf_object *obj,
 			      struct list_head *head_config)
@@ -686,7 +686,7 @@ errout:
 }
 
 static int
-parse_events_config_bpf(struct parse_events_evlist *data,
+parse_events_config_bpf(struct parse_events_state *data,
 			struct bpf_object *obj,
 			struct list_head *head_config)
 {
@@ -762,7 +762,7 @@ split_bpf_config_terms(struct list_head *evt_head_config,
 			list_move_tail(&term->list, obj_head_config);
 }
 
-int parse_events_load_bpf(struct parse_events_evlist *data,
+int parse_events_load_bpf(struct parse_events_state *data,
 			  struct list_head *list,
 			  char *bpf_file_name,
 			  bool source,
@@ -1184,7 +1184,7 @@ int parse_events_add_tracepoint(struct list_head *list, int *idx,
 					    err, head_config);
 }
 
-int parse_events_add_numeric(struct parse_events_evlist *data,
+int parse_events_add_numeric(struct parse_events_state *data,
 			     struct list_head *list,
 			     u32 type, u64 config,
 			     struct list_head *head_config)
@@ -1209,7 +1209,7 @@ int parse_events_add_numeric(struct parse_events_evlist *data,
 			 get_config_name(head_config), &config_terms);
 }
 
-int parse_events_add_pmu(struct parse_events_evlist *data,
+int parse_events_add_pmu(struct parse_events_state *data,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config)
 {
@@ -1267,7 +1267,7 @@ int parse_events_add_pmu(struct parse_events_evlist *data,
 	return evsel ? 0 : -ENOMEM;
 }
 
-int parse_events_multi_pmu_add(struct parse_events_evlist *data,
+int parse_events_multi_pmu_add(struct parse_events_state *data,
 			       char *str, struct list_head **listp)
 {
 	struct list_head *head;
@@ -1675,7 +1675,7 @@ int parse_events_terms(struct list_head *terms, const char *str)
 int parse_events(struct perf_evlist *evlist, const char *str,
 		 struct parse_events_error *err)
 {
-	struct parse_events_evlist data = {
+	struct parse_events_state data = {
 		.list   = LIST_HEAD_INIT(data.list),
 		.idx    = evlist->nr_entries,
 		.error  = err,
@@ -2520,7 +2520,7 @@ void parse_events__clear_array(struct parse_events_array *a)
 	zfree(&a->ranges);
 }
 
-void parse_events_evlist_error(struct parse_events_evlist *data,
+void parse_events_evlist_error(struct parse_events_state *data,
 			       int idx, const char *str)
 {
 	struct parse_events_error *err = data->error;
