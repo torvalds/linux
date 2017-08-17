@@ -141,7 +141,7 @@ struct snd_opl3sa2 {
 
 #ifdef CONFIG_PNP
 
-static struct pnp_device_id snd_opl3sa2_pnpbiosids[] = {
+static const struct pnp_device_id snd_opl3sa2_pnpbiosids[] = {
 	{ .id = "YMH0021" },
 	{ .id = "NMX2210" },	/* Gateway Solo 2500 */
 	{ .id = "" }		/* end */
@@ -149,7 +149,7 @@ static struct pnp_device_id snd_opl3sa2_pnpbiosids[] = {
 
 MODULE_DEVICE_TABLE(pnp, snd_opl3sa2_pnpbiosids);
 
-static struct pnp_card_device_id snd_opl3sa2_pnpids[] = {
+static const struct pnp_card_device_id snd_opl3sa2_pnpids[] = {
 	/* Yamaha YMF719E-S (Genius Sound Maker 3DX) */
 	{ .id = "YMH0020", .devs = { { "YMH0021" } } },
 	/* Yamaha OPL3-SA3 (integrated on Intel's Pentium II AL440LX motherboard) */
