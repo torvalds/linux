@@ -2027,8 +2027,8 @@ static u8 gid_type_to_qpc(enum ib_gid_type gid_type)
  */
 static int bringup_rss_rwqs(struct ib_rwq_ind_table *ind_tbl, u8 port_num)
 {
+	int err = 0;
 	int i;
-	int err;
 
 	for (i = 0; i < (1 << ind_tbl->log_ind_tbl_size); i++) {
 		struct ib_wq *ibwq = ind_tbl->ind_tbl[i];
