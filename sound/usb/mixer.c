@@ -318,11 +318,14 @@ static int get_ctl_value_v1(struct usb_mixer_elem_info *cval, int request,
 
 	while (timeout-- > 0) {
 		idx = snd_usb_ctrl_intf(chip) | (cval->head.id << 8);
-		if (snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0), request,
-				    USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
-				    validx, idx, buf, val_len) >= val_len) {
+		err = snd_usb_ctl_msg(chip->dev, usb_rcvctrlpipe(chip->dev, 0), request,
+				      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_IN,
+				      validx, idx, buf, val_len);
+		if (err >= val_len) {
 			*value_ret = convert_signed_value(cval, snd_usb_combine_bytes(buf, val_len));
 			err = 0;
+			goto out;
+		} else if (err == -ETIMEDOUT) {
 			goto out;
 		}
 	}
@@ -483,11 +486,14 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 
 	while (timeout-- > 0) {
 		idx = snd_usb_ctrl_intf(chip) | (cval->head.id << 8);
-		if (snd_usb_ctl_msg(chip->dev,
-				    usb_sndctrlpipe(chip->dev, 0), request,
-				    USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
-				    validx, idx, buf, val_len) >= 0) {
+		err = snd_usb_ctl_msg(chip->dev,
+				      usb_sndctrlpipe(chip->dev, 0), request,
+				      USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
+				      validx, idx, buf, val_len);
+		if (err >= 0) {
 			err = 0;
+			goto out;
+		} else if (err == -ETIMEDOUT) {
 			goto out;
 		}
 	}
