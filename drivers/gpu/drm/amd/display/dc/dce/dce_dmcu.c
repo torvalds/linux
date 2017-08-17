@@ -260,6 +260,8 @@ static void dce_psr_wait_loop(
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 	union dce_dmcu_psr_config_data_wait_loop_reg1 masterCmdData1;
+	if (cached_wait_loop_number == wait_loop_number)
+		return;
 
 	/* waitDMCUReadyForCmd */
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 1, 10000);
@@ -500,7 +502,7 @@ static void dcn10_psr_wait_loop(
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 	union dce_dmcu_psr_config_data_wait_loop_reg1 masterCmdData1;
-
+	if (wait_loop_number != 0) {
 	/* waitDMCUReadyForCmd */
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 1, 10000);
 
@@ -514,6 +516,7 @@ static void dcn10_psr_wait_loop(
 
 	/* notifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
+	}
 }
 
 static void dcn10_get_psr_wait_loop(unsigned int *psr_wait_loop_number)

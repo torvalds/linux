@@ -417,9 +417,10 @@ static int dce112_set_clock(
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 
-	if (abm->funcs->is_dmcu_initialized(abm))
+	if (abm->funcs->is_dmcu_initialized(abm) && clk_dce->dfs_bypass_disp_clk != actual_clock)
 		dmcu->funcs->set_psr_wait_loop(dmcu,
 				actual_clock / 1000 / 7);
+	clk_dce->dfs_bypass_disp_clk = actual_clock;
 	return actual_clock;
 }
 
