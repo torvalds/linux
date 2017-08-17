@@ -838,7 +838,7 @@ static snd_pcm_uframes_t snd_es18xx_capture_pointer(struct snd_pcm_substream *su
 	return pos >> chip->dma1_shift;
 }
 
-static struct snd_pcm_hardware snd_es18xx_playback =
+static const struct snd_pcm_hardware snd_es18xx_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_RESUME |
@@ -858,7 +858,7 @@ static struct snd_pcm_hardware snd_es18xx_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_es18xx_capture =
+static const struct snd_pcm_hardware snd_es18xx_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_RESUME |

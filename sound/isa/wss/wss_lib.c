@@ -1452,7 +1452,7 @@ static int snd_wss_probe(struct snd_wss *chip)
 
  */
 
-static struct snd_pcm_hardware snd_wss_playback =
+static const struct snd_pcm_hardware snd_wss_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -1472,7 +1472,7 @@ static struct snd_pcm_hardware snd_wss_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_wss_capture =
+static const struct snd_pcm_hardware snd_wss_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID |

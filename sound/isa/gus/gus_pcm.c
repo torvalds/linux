@@ -650,7 +650,7 @@ static void snd_gf1_pcm_interrupt_dma_read(struct snd_gus_card * gus)
 	}
 }
 
-static struct snd_pcm_hardware snd_gf1_pcm_playback =
+static const struct snd_pcm_hardware snd_gf1_pcm_playback =
 {
 	.info =			SNDRV_PCM_INFO_NONINTERLEAVED,
 	.formats		= (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8 |
@@ -668,7 +668,7 @@ static struct snd_pcm_hardware snd_gf1_pcm_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_gf1_pcm_capture =
+static const struct snd_pcm_hardware snd_gf1_pcm_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
