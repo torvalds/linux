@@ -568,6 +568,15 @@ static int msm8916_wcd_digital_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int msm8916_wcd_digital_codec_set_sysclk(struct snd_soc_codec *codec,
+						int clk_id, int source,
+						unsigned int freq, int dir)
+{
+	struct msm8916_wcd_digital_priv *p = dev_get_drvdata(codec->dev);
+
+	return clk_set_rate(p->mclk, freq);
+}
+
 static int msm8916_wcd_digital_hw_params(struct snd_pcm_substream *substream,
 					 struct snd_pcm_hw_params *params,
 					 struct snd_soc_dai *dai)
@@ -788,7 +797,7 @@ static void msm8916_wcd_digital_shutdown(struct snd_pcm_substream *substream,
 			    LPASS_CDC_CLK_PDM_CTL_PDM_CLK_SEL_MASK, 0);
 }
 
-static struct snd_soc_dai_ops msm8916_wcd_digital_dai_ops = {
+static const struct snd_soc_dai_ops msm8916_wcd_digital_dai_ops = {
 	.startup = msm8916_wcd_digital_startup,
 	.shutdown = msm8916_wcd_digital_shutdown,
 	.hw_params = msm8916_wcd_digital_hw_params,
@@ -821,8 +830,9 @@ static struct snd_soc_dai_driver msm8916_wcd_digital_dai[] = {
 	       },
 };
 
-static struct snd_soc_codec_driver msm8916_wcd_digital = {
+static const struct snd_soc_codec_driver msm8916_wcd_digital = {
 	.probe = msm8916_wcd_digital_codec_probe,
+	.set_sysclk = msm8916_wcd_digital_codec_set_sysclk,
 	.component_driver = {
 		.controls = msm8916_wcd_digital_snd_controls,
 		.num_controls = ARRAY_SIZE(msm8916_wcd_digital_snd_controls),

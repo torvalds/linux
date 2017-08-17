@@ -3473,7 +3473,7 @@ static struct snd_soc_dai_driver rt5645_dai[] = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt5645 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt5645 = {
 	.probe = rt5645_probe,
 	.remove = rt5645_remove,
 	.suspend = rt5645_suspend,

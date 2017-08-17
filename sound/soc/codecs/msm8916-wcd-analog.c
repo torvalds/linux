@@ -785,7 +785,7 @@ static struct snd_soc_dai_driver pm8916_wcd_analog_dai[] = {
 	       },
 };
 
-static struct snd_soc_codec_driver pm8916_wcd_analog = {
+static const struct snd_soc_codec_driver pm8916_wcd_analog = {
 	.probe = pm8916_wcd_analog_probe,
 	.remove = pm8916_wcd_analog_remove,
 	.get_regmap = pm8916_get_regmap,

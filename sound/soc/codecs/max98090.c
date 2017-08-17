@@ -2499,7 +2499,7 @@ static void max98090_seq_notifier(struct snd_soc_dapm_context *dapm,
 	}
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_max98090 = {
+static const struct snd_soc_codec_driver soc_codec_dev_max98090 = {
 	.probe   = max98090_probe,
 	.remove  = max98090_remove,
 	.seq_notifier = max98090_seq_notifier,
