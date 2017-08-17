@@ -4630,12 +4630,56 @@ skl_compute_linetime_wm(struct intel_crtc_state *cstate)
 }
 
 static void skl_compute_transition_wm(struct intel_crtc_state *cstate,
+				      struct skl_wm_params *wp,
+				      struct skl_wm_level *wm_l0,
+				      uint16_t ddb_allocation,
 				      struct skl_wm_level *trans_wm /* out */)
 {
-	if (!cstate->base.active)
-		return;
+	struct drm_device *dev = cstate->base.crtc->dev;
+	const struct drm_i915_private *dev_priv = to_i915(dev);
+	uint16_t trans_min, trans_y_tile_min;
+	const uint16_t trans_amount = 10; /* This is configurable amount */
+	uint16_t trans_offset_b, res_blocks;
 
-	/* Until we know more, just disable transition WMs */
+	if (!cstate->base.active)
+		goto exit;
+
+	/* Transition WM are not recommended by HW team for GEN9 */
+	if (INTEL_GEN(dev_priv) <= 9)
+		goto exit;
+
+	/* Transition WM don't make any sense if ipc is disabled */
+	if (!dev_priv->ipc_enabled)
+		goto exit;
+
+	if (INTEL_GEN(dev_priv) >= 10)
+		trans_min = 4;
+
+	trans_offset_b = trans_min + trans_amount;
+
+	if (wp->y_tiled) {
+		trans_y_tile_min = (uint16_t) mul_round_up_u32_fixed16(2,
+							wp->y_tile_minimum);
+		res_blocks = max(wm_l0->plane_res_b, trans_y_tile_min) +
+				trans_offset_b;
+	} else {
+		res_blocks = wm_l0->plane_res_b + trans_offset_b;
+
+		/* WA BUG:1938466 add one block for non y-tile planes */
+		if (IS_CNL_REVID(dev_priv, CNL_REVID_A0, CNL_REVID_A0))
+			res_blocks += 1;
+
+	}
+
+	res_blocks += 1;
+
+	if (res_blocks < ddb_allocation) {
+		trans_wm->plane_res_b = res_blocks;
+		trans_wm->plane_en = true;
+		return;
+	}
+
+exit:
 	trans_wm->plane_en = false;
 }
 
@@ -4662,8 +4706,11 @@ static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
 						to_intel_plane_state(pstate);
 		enum plane_id plane_id = to_intel_plane(plane)->id;
 		struct skl_wm_params wm_params;
+		enum pipe pipe = to_intel_crtc(cstate->base.crtc)->pipe;
+		uint16_t ddb_blocks;
 
 		wm = &pipe_wm->planes[plane_id];
+		ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][plane_id]);
 		memset(&wm_params, 0, sizeof(struct skl_wm_params));
 
 		ret = skl_compute_plane_wm_params(dev_priv, cstate,
@@ -4675,7 +4722,8 @@ static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
 					    intel_pstate, &wm_params, wm);
 		if (ret)
 			return ret;
-		skl_compute_transition_wm(cstate, &wm->trans_wm);
+		skl_compute_transition_wm(cstate, &wm_params, &wm->wm[0],
+					  ddb_blocks, &wm->trans_wm);
 	}
 	pipe_wm->linetime = skl_compute_linetime_wm(cstate);
 
