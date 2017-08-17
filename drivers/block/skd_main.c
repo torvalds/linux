@@ -1050,6 +1050,7 @@ static int skd_format_internal_skspcl(struct skd_device *skdev)
 	memset(scsi, 0, sizeof(*scsi));
 	dma_address = skspcl->req.sksg_dma_address;
 	scsi->hdr.sg_list_dma_address = cpu_to_be64(dma_address);
+	skspcl->req.n_sg = 1;
 	sgd->control = FIT_SGD_CONTROL_LAST;
 	sgd->byte_count = 0;
 	sgd->host_side_addr = skspcl->db_dma_address;
