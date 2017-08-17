@@ -2125,7 +2125,7 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
  * it won't fall into the multicast flow steering table and this rule
  * could steal other multicast packets.
  */
-static bool flow_is_multicast_only(struct ib_flow_attr *ib_attr)
+static bool flow_is_multicast_only(const struct ib_flow_attr *ib_attr)
 {
 	union ib_flow_spec *flow_spec;
 
@@ -2337,10 +2337,31 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 	return err ? ERR_PTR(err) : prio;
 }
 
-static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
-						     struct mlx5_ib_flow_prio *ft_prio,
-						     const struct ib_flow_attr *flow_attr,
-						     struct mlx5_flow_destination *dst)
+static void set_underlay_qp(struct mlx5_ib_dev *dev,
+			    struct mlx5_flow_spec *spec,
+			    u32 underlay_qpn)
+{
+	void *misc_params_c = MLX5_ADDR_OF(fte_match_param,
+					   spec->match_criteria,
+					   misc_parameters);
+	void *misc_params_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+					   misc_parameters);
+
+	if (underlay_qpn &&
+	    MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
+				      ft_field_support.bth_dst_qp)) {
+		MLX5_SET(fte_match_set_misc,
+			 misc_params_v, bth_dst_qp, underlay_qpn);
+		MLX5_SET(fte_match_set_misc,
+			 misc_params_c, bth_dst_qp, 0xffffff);
+	}
+}
+
+static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
+						      struct mlx5_ib_flow_prio *ft_prio,
+						      const struct ib_flow_attr *flow_attr,
+						      struct mlx5_flow_destination *dst,
+						      u32 underlay_qpn)
 {
 	struct mlx5_flow_table	*ft = ft_prio->flow_table;
 	struct mlx5_ib_flow_handler *handler;
@@ -2375,6 +2396,9 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 
 		ib_flow += ((union ib_flow_spec *)ib_flow)->size;
 	}
+
+	if (!flow_is_multicast_only(flow_attr))
+		set_underlay_qp(dev, spec, underlay_qpn);
 
 	spec->match_criteria_enable = get_match_criteria_enable(spec->match_criteria);
 	if (is_drop) {
@@ -2413,6 +2437,14 @@ free:
 		kfree(handler);
 	kvfree(spec);
 	return err ? ERR_PTR(err) : handler;
+}
+
+static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
+						     struct mlx5_ib_flow_prio *ft_prio,
+						     const struct ib_flow_attr *flow_attr,
+						     struct mlx5_flow_destination *dst)
+{
+	return _create_flow_rule(dev, ft_prio, flow_attr, dst, 0);
 }
 
 static struct mlx5_ib_flow_handler *create_dont_trap_rule(struct mlx5_ib_dev *dev,
@@ -2551,6 +2583,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 	struct mlx5_ib_flow_prio *ft_prio_tx = NULL;
 	struct mlx5_ib_flow_prio *ft_prio;
 	int err;
+	int underlay_qpn;
 
 	if (flow_attr->priority > MLX5_IB_FLOW_LAST_PRIO)
 		return ERR_PTR(-ENOMEM);
@@ -2591,8 +2624,10 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 			handler = create_dont_trap_rule(dev, ft_prio,
 							flow_attr, dst);
 		} else {
-			handler = create_flow_rule(dev, ft_prio, flow_attr,
-						   dst);
+			underlay_qpn = (mqp->flags & MLX5_IB_QP_UNDERLAY) ?
+					mqp->underlay_qpn : 0;
+			handler = _create_flow_rule(dev, ft_prio, flow_attr,
+						    dst, underlay_qpn);
 		}
 	} else if (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
 		   flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT) {
