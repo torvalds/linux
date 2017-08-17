@@ -12,12 +12,26 @@
 #include <linux/ftrace.h>
 
 #include <asm/kaiser.h>
+#include <asm/tlbflush.h>	/* to verify its kaiser declarations */
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/desc.h>
-#ifdef CONFIG_KAISER
 
-__visible DEFINE_PER_CPU_USER_MAPPED(unsigned long, unsafe_stack_register_backup);
+#ifdef CONFIG_KAISER
+__visible
+DEFINE_PER_CPU_USER_MAPPED(unsigned long, unsafe_stack_register_backup);
+
+/*
+ * These can have bit 63 set, so we can not just use a plain "or"
+ * instruction to get their value or'd into CR3.  It would take
+ * another register.  So, we use a memory reference to these instead.
+ *
+ * This is also handy because systems that do not support PCIDs
+ * just end up or'ing a 0 into their CR3, which does no harm.
+ */
+__aligned(PAGE_SIZE) unsigned long X86_CR3_PCID_KERN_VAR;
+DEFINE_PER_CPU(unsigned long, X86_CR3_PCID_USER_VAR);
+
 /*
  * At runtime, the only things we map are some things for CPU
  * hotplug, and stacks for new processes.  No two CPUs will ever
@@ -239,9 +253,6 @@ static void __init kaiser_init_all_pgds(void)
 	WARN_ON(__ret);							\
 } while (0)
 
-extern char __per_cpu_user_mapped_start[], __per_cpu_user_mapped_end[];
-extern unsigned long X86_CR3_PCID_KERN_VAR;
-extern unsigned long X86_CR3_PCID_USER_VAR;
 /*
  * If anything in here fails, we will likely die on one of the
  * first kernel->user transitions and init will die.  But, we
@@ -294,8 +305,6 @@ void __init kaiser_init(void)
 				  __PAGE_KERNEL);
 
 	kaiser_add_user_map_early(&X86_CR3_PCID_KERN_VAR, PAGE_SIZE,
-				  __PAGE_KERNEL);
-	kaiser_add_user_map_early(&X86_CR3_PCID_USER_VAR, PAGE_SIZE,
 				  __PAGE_KERNEL);
 }
 
@@ -361,4 +370,33 @@ pgd_t kaiser_set_shadow_pgd(pgd_t *pgdp, pgd_t pgd)
 	}
 	return pgd;
 }
+
+void kaiser_setup_pcid(void)
+{
+	unsigned long kern_cr3 = 0;
+	unsigned long user_cr3 = KAISER_SHADOW_PGD_OFFSET;
+
+	if (this_cpu_has(X86_FEATURE_PCID)) {
+		kern_cr3 |= X86_CR3_PCID_KERN_NOFLUSH;
+		user_cr3 |= X86_CR3_PCID_USER_NOFLUSH;
+	}
+	/*
+	 * These variables are used by the entry/exit
+	 * code to change PCID and pgd and TLB flushing.
+	 */
+	X86_CR3_PCID_KERN_VAR = kern_cr3;
+	this_cpu_write(X86_CR3_PCID_USER_VAR, user_cr3);
+}
+
+/*
+ * Make a note that this cpu will need to flush USER tlb on return to user.
+ * Caller checks whether this_cpu_has(X86_FEATURE_PCID) before calling:
+ * if cpu does not, then the NOFLUSH bit will never have been set.
+ */
+void kaiser_flush_tlb_on_return_to_user(void)
+{
+	this_cpu_write(X86_CR3_PCID_USER_VAR,
+			X86_CR3_PCID_USER_FLUSH | KAISER_SHADOW_PGD_OFFSET);
+}
+EXPORT_SYMBOL(kaiser_flush_tlb_on_return_to_user);
 #endif /* CONFIG_KAISER */

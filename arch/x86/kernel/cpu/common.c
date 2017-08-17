@@ -321,32 +321,11 @@ static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 	}
 }
 
-/*
- * These can have bit 63 set, so we can not just use a plain "or"
- * instruction to get their value or'd into CR3.  It would take
- * another register.  So, we use a memory reference to these
- * instead.
- *
- * This is also handy because systems that do not support
- * PCIDs just end up or'ing a 0 into their CR3, which does
- * no harm.
- */
-__aligned(PAGE_SIZE) unsigned long X86_CR3_PCID_KERN_VAR = 0;
-__aligned(PAGE_SIZE) unsigned long X86_CR3_PCID_USER_VAR = 0;
-
 static void setup_pcid(struct cpuinfo_x86 *c)
 {
 	if (cpu_has(c, X86_FEATURE_PCID)) {
 		if (cpu_has(c, X86_FEATURE_PGE)) {
 			cr4_set_bits(X86_CR4_PCIDE);
-			/*
-			 * These variables are used by the entry/exit
-			 * code to change PCIDs.
-			 */
-#ifdef CONFIG_KAISER
-			X86_CR3_PCID_KERN_VAR = X86_CR3_PCID_KERN_NOFLUSH;
-			X86_CR3_PCID_USER_VAR = X86_CR3_PCID_USER_NOFLUSH;
-#endif
 			/*
 			 * INVPCID has two "groups" of types:
 			 * 1/2: Invalidate an individual address
@@ -372,6 +351,7 @@ static void setup_pcid(struct cpuinfo_x86 *c)
 			clear_cpu_cap(c, X86_FEATURE_PCID);
 		}
 	}
+	kaiser_setup_pcid();
 }
 
 /*

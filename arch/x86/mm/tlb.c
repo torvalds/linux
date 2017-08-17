@@ -6,13 +6,14 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
+#include <linux/debugfs.h>
 
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/cache.h>
 #include <asm/apic.h>
 #include <asm/uv/uv.h>
-#include <linux/debugfs.h>
+#include <asm/kaiser.h>
 
 /*
  *	TLB flushing, formerly SMP-only
@@ -38,34 +39,23 @@ static void load_new_mm_cr3(pgd_t *pgdir)
 {
 	unsigned long new_mm_cr3 = __pa(pgdir);
 
-	/*
-	 * KAISER, plus PCIDs needs some extra work here.  But,
-	 * if either of features is not present, we need no
-	 * PCIDs here and just do a normal, full TLB flush with
-	 * the write_cr3()
-	 */
-	if (!IS_ENABLED(CONFIG_KAISER) ||
-	    !cpu_feature_enabled(X86_FEATURE_PCID))
-		goto out_set_cr3;
-	/*
-	 * We reuse the same PCID for different tasks, so we must
-	 * flush all the entires for the PCID out when we change
-	 * tasks.
-	 */
-	new_mm_cr3 = X86_CR3_PCID_KERN_FLUSH | __pa(pgdir);
+#ifdef CONFIG_KAISER
+	if (this_cpu_has(X86_FEATURE_PCID)) {
+		/*
+		 * We reuse the same PCID for different tasks, so we must
+		 * flush all the entries for the PCID out when we change tasks.
+		 * Flush KERN below, flush USER when returning to userspace in
+		 * kaiser's SWITCH_USER_CR3 (_SWITCH_TO_USER_CR3) macro.
+		 *
+		 * invpcid_flush_single_context(X86_CR3_PCID_ASID_USER) could
+		 * do it here, but can only be used if X86_FEATURE_INVPCID is
+		 * available - and many machines support pcid without invpcid.
+		 */
+		new_mm_cr3 |= X86_CR3_PCID_KERN_FLUSH;
+		kaiser_flush_tlb_on_return_to_user();
+	}
+#endif /* CONFIG_KAISER */
 
-	/*
-	 * The flush from load_cr3() may leave old TLB entries
-	 * for userspace in place.  We must flush that context
-	 * separately.  We can theoretically delay doing this
-	 * until we actually load up the userspace CR3, but
-	 * that's a bit tricky.  We have to have the "need to
-	 * flush userspace PCID" bit per-cpu and check it in the
-	 * exit-to-userspace paths.
-	 */
-	invpcid_flush_single_context(X86_CR3_PCID_ASID_USER);
-
-out_set_cr3:
 	/*
 	 * Caution: many callers of this function expect
 	 * that load_cr3() is serializing and orders TLB
