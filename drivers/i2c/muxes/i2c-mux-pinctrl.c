@@ -173,7 +173,7 @@ static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 err_del_adapter:
 	i2c_mux_del_adapters(muxc);
 err_put_parent:
-	i2c_put_adapter(muxc->parent);
+	i2c_put_adapter(parent);
 
 	return ret;
 }
