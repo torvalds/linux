@@ -81,8 +81,8 @@ struct iwl_nvm_data {
 	__le16 kelvin_voltage;
 	__le16 xtal_calib[2];
 
-	bool sku_cap_band_24GHz_enable;
-	bool sku_cap_band_52GHz_enable;
+	bool sku_cap_band_24ghz_enable;
+	bool sku_cap_band_52ghz_enable;
 	bool sku_cap_11n_enable;
 	bool sku_cap_11ac_enable;
 	bool sku_cap_11ax_enable;

@@ -319,7 +319,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 		ch_flags = __le16_to_cpup(nvm_ch_flags + ch_idx);
 
-		if (is_5ghz && !data->sku_cap_band_52GHz_enable)
+		if (is_5ghz && !data->sku_cap_band_52ghz_enable)
 			continue;
 
 		/* workaround to disable wide channels in 5GHz */
@@ -745,8 +745,8 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		rx_chains &= data->valid_rx_ant;
 
 	sku = iwl_get_sku(cfg, nvm_sw, phy_sku);
-	data->sku_cap_band_24GHz_enable = sku & NVM_SKU_CAP_BAND_24GHZ;
-	data->sku_cap_band_52GHz_enable = sku & NVM_SKU_CAP_BAND_52GHZ;
+	data->sku_cap_band_24ghz_enable = sku & NVM_SKU_CAP_BAND_24GHZ;
+	data->sku_cap_band_52ghz_enable = sku & NVM_SKU_CAP_BAND_52GHZ;
 	data->sku_cap_11n_enable = sku & NVM_SKU_CAP_11N_ENABLE;
 	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
 		data->sku_cap_11n_enable = false;
