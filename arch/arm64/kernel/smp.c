@@ -977,10 +977,20 @@ void smp_send_stop(void)
 }
 
 #ifdef CONFIG_KEXEC_CORE
-void smp_send_crash_stop(void)
+void crash_smp_send_stop(void)
 {
+	static int cpus_stopped;
 	cpumask_t mask;
 	unsigned long timeout;
+
+	/*
+	 * This function can be called twice in panic path, but obviously
+	 * we execute this only once.
+	 */
+	if (cpus_stopped)
+		return;
+
+	cpus_stopped = 1;
 
 	if (num_online_cpus() == 1)
 		return;
