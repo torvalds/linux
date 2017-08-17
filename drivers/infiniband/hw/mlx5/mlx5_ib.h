@@ -107,6 +107,11 @@ enum {
 	MLX5_CQE_VERSION_V1,
 };
 
+enum {
+	MLX5_TM_MAX_RNDV_MSG_SIZE	= 64,
+	MLX5_TM_MAX_SGE			= 1,
+};
+
 struct mlx5_ib_vma_private_data {
 	struct list_head list;
 	struct vm_area_struct *vma;
