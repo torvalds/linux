@@ -103,7 +103,6 @@
 };
 
 &sdmmc {
-	status = "okay";
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
@@ -115,7 +114,6 @@
 };
 
 &sdio {
-	status = "okay";
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
@@ -164,30 +162,6 @@
 };
 
 &uart2 {
-	status = "okay";
-};
-
-&usb_host0_ehci {
-	status = "okay";
-};
-
-&usb_host0_ohci {
-	status = "okay";
-};
-
-&usb_host1_ehci {
-	status = "okay";
-};
-
-&usb_host1_ohci {
-	status = "okay";
-};
-
-&usb_host2_ehci {
-	status = "okay";
-};
-
-&usb_host2_ohci {
 	status = "okay";
 };
 

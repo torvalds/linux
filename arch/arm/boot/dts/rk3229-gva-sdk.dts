@@ -348,8 +348,3 @@
 	assigned-clocks = <&cru SCLK_SDIO_SRC>;
 	assigned-clock-parents = <&xin24m>;
 };
-
-&sdmmc {
-	status = "disabled";
-};
-

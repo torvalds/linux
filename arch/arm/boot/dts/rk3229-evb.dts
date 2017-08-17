@@ -203,10 +203,38 @@
 	status = "okay";
 };
 
+&sdmmc {
+	status = "okay";
+};
+
 &u2phy0_host {
 	phy-supply = <&vcc_host>;
 };
 
 &u2phy1_host {
 	phy-supply = <&vcc_host>;
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+&usb_host2_ehci {
+	status = "okay";
+};
+
+&usb_host2_ohci {
+	status = "okay";
 };
