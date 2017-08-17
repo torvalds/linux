@@ -74,6 +74,11 @@ enum {
 	 * aren't writeable from inside the namespace.
 	 */
 	CGRP_ROOT_NS_DELEGATE	= (1 << 3),
+
+	/*
+	 * Enable cpuset controller in v1 cgroup to use v2 behavior.
+	 */
+	CGRP_ROOT_CPUSET_V2_MODE = (1 << 4),
 };
 
 /* cftype->flags */
