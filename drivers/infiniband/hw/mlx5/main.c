@@ -3793,6 +3793,8 @@ static int delay_drop_debugfs_init(struct mlx5_ib_dev *dev)
 	if (!dbg->timeout_debugfs)
 		goto out_debugfs;
 
+	dev->delay_drop.dbg = dbg;
+
 	return 0;
 
 out_debugfs:
