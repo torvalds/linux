@@ -212,7 +212,7 @@ struct skd_request_context {
 	u8 flush_cmd;
 
 	u32 timeout_stamp;
-	u8 sg_data_dir;
+	enum dma_data_direction data_dir;
 	struct scatterlist *sg;
 	u32 n_sg;
 	u32 sg_byte_count;
@@ -225,8 +225,6 @@ struct skd_request_context {
 	struct fit_comp_error_info err_info;
 
 };
-#define SKD_DATA_DIR_HOST_TO_CARD       1
-#define SKD_DATA_DIR_CARD_TO_HOST       2
 
 struct skd_special_context {
 	struct skd_request_context req;
@@ -615,8 +613,8 @@ static void skd_request_fn(struct request_queue *q)
 		skreq->req = req;
 		skreq->fitmsg_id = 0;
 
-		skreq->sg_data_dir = data_dir == READ ?
-			SKD_DATA_DIR_CARD_TO_HOST : SKD_DATA_DIR_HOST_TO_CARD;
+		skreq->data_dir = data_dir == READ ? DMA_FROM_DEVICE :
+			DMA_TO_DEVICE;
 
 		if (req->bio && !skd_preop_sg_list(skdev, skreq)) {
 			dev_dbg(&skdev->pdev->dev, "error Out\n");
@@ -742,16 +740,14 @@ static bool skd_preop_sg_list(struct skd_device *skdev,
 			     struct skd_request_context *skreq)
 {
 	struct request *req = skreq->req;
-	int writing = skreq->sg_data_dir == SKD_DATA_DIR_HOST_TO_CARD;
-	int pci_dir = writing ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE;
 	struct scatterlist *sg = &skreq->sg[0];
 	int n_sg;
 	int i;
 
 	skreq->sg_byte_count = 0;
 
-	/* SKD_ASSERT(skreq->sg_data_dir == SKD_DATA_DIR_HOST_TO_CARD ||
-		   skreq->sg_data_dir == SKD_DATA_DIR_CARD_TO_HOST); */
+	WARN_ON_ONCE(skreq->data_dir != DMA_TO_DEVICE &&
+		     skreq->data_dir != DMA_FROM_DEVICE);
 
 	n_sg = blk_rq_map_sg(skdev->queue, req, sg);
 	if (n_sg <= 0)
@@ -761,7 +757,7 @@ static bool skd_preop_sg_list(struct skd_device *skdev,
 	 * Map scatterlist to PCI bus addresses.
 	 * Note PCI might change the number of entries.
 	 */
-	n_sg = pci_map_sg(skdev->pdev, sg, n_sg, pci_dir);
+	n_sg = pci_map_sg(skdev->pdev, sg, n_sg, skreq->data_dir);
 	if (n_sg <= 0)
 		return false;
 
@@ -804,9 +800,6 @@ static bool skd_preop_sg_list(struct skd_device *skdev,
 static void skd_postop_sg_list(struct skd_device *skdev,
 			       struct skd_request_context *skreq)
 {
-	int writing = skreq->sg_data_dir == SKD_DATA_DIR_HOST_TO_CARD;
-	int pci_dir = writing ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE;
-
 	/*
 	 * restore the next ptr for next IO request so we
 	 * don't have to set it every time.
@@ -814,7 +807,7 @@ static void skd_postop_sg_list(struct skd_device *skdev,
 	skreq->sksg_list[skreq->n_sg - 1].next_desc_ptr =
 		skreq->sksg_dma_address +
 		((skreq->n_sg) * sizeof(struct fit_sg_descriptor));
-	pci_unmap_sg(skdev->pdev, &skreq->sg[0], skreq->n_sg, pci_dir);
+	pci_unmap_sg(skdev->pdev, &skreq->sg[0], skreq->n_sg, skreq->data_dir);
 }
 
 static void skd_request_fn_not_online(struct request_queue *q)
@@ -2506,7 +2499,7 @@ static void skd_process_scsi_inq(struct skd_device *skdev,
 	struct skd_scsi_request *scsi_req = &skspcl->msg_buf->scsi[0];
 
 	dma_sync_sg_for_cpu(skdev->class_dev, skspcl->req.sg, skspcl->req.n_sg,
-			    skspcl->req.sg_data_dir);
+			    skspcl->req.data_dir);
 	buf = skd_sg_1st_page_ptr(skspcl->req.sg);
 
 	if (buf)
@@ -4935,7 +4928,7 @@ static void skd_log_skreq(struct skd_device *skdev,
 		skd_skreq_state_to_str(skreq->state), skreq->state, skreq->id,
 		skreq->fitmsg_id);
 	dev_dbg(&skdev->pdev->dev, "  timo=0x%x sg_dir=%d n_sg=%d\n",
-		skreq->timeout_stamp, skreq->sg_data_dir, skreq->n_sg);
+		skreq->timeout_stamp, skreq->data_dir, skreq->n_sg);
 
 	if (skreq->req != NULL) {
 		struct request *req = skreq->req;
