@@ -292,7 +292,8 @@ static struct iwl_nvm_data *
 iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 {
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
-	const __le16 *hw, *sw, *calib, *regulatory, *mac_override, *phy_sku;
+	const __be16 *hw;
+	const __le16 *sw, *calib, *regulatory, *mac_override, *phy_sku;
 	bool lar_enabled;
 
 	/* Checking for required sections */
@@ -326,7 +327,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 		}
 	}
 
-	hw = (const __le16 *)sections[mvm->cfg->nvm_hw_section_num].data;
+	hw = (const __be16 *)sections[mvm->cfg->nvm_hw_section_num].data;
 	sw = (const __le16 *)sections[NVM_SECTION_TYPE_SW].data;
 	calib = (const __le16 *)sections[NVM_SECTION_TYPE_CALIBRATION].data;
 	regulatory = (const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY].data;

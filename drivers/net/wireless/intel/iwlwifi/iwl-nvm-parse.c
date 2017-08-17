@@ -582,7 +582,7 @@ static void iwl_set_hw_address_family_8000(struct iwl_trans *trans,
 					   const struct iwl_cfg *cfg,
 					   struct iwl_nvm_data *data,
 					   const __le16 *mac_override,
-					   const __le16 *nvm_hw)
+					   const __be16 *nvm_hw)
 {
 	const u8 *hw_addr;
 
@@ -629,7 +629,7 @@ static void iwl_set_hw_address_family_8000(struct iwl_trans *trans,
 
 static int iwl_set_hw_address(struct iwl_trans *trans,
 			      const struct iwl_cfg *cfg,
-			      struct iwl_nvm_data *data, const __le16 *nvm_hw,
+			      struct iwl_nvm_data *data, const __be16 *nvm_hw,
 			      const __le16 *mac_override)
 {
 	if (cfg->mac_addr_from_csr) {
@@ -661,7 +661,7 @@ static int iwl_set_hw_address(struct iwl_trans *trans,
 
 static bool
 iwl_nvm_no_wide_in_5ghz(struct device *dev, const struct iwl_cfg *cfg,
-			const __le16 *nvm_hw)
+			const __be16 *nvm_hw)
 {
 	/*
 	 * Workaround a bug in Indonesia SKUs where the regulatory in
@@ -677,8 +677,7 @@ iwl_nvm_no_wide_in_5ghz(struct device *dev, const struct iwl_cfg *cfg,
 		 * Unlike the other sections in the NVM, the hw
 		 * section uses big-endian.
 		 */
-		u16 subsystem_id = be16_to_cpup((const __be16 *)nvm_hw
-						+ SUBSYSTEM_ID);
+		u16 subsystem_id = be16_to_cpup(nvm_hw + SUBSYSTEM_ID);
 		u8 sku = (subsystem_id & 0x1e) >> 1;
 
 		if (sku == 5 || sku == 9) {
@@ -694,7 +693,7 @@ iwl_nvm_no_wide_in_5ghz(struct device *dev, const struct iwl_cfg *cfg,
 
 struct iwl_nvm_data *
 iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
-		   const __le16 *nvm_hw, const __le16 *nvm_sw,
+		   const __be16 *nvm_hw, const __le16 *nvm_sw,
 		   const __le16 *nvm_calib, const __le16 *regulatory,
 		   const __le16 *mac_override, const __le16 *phy_sku,
 		   u8 tx_chains, u8 rx_chains, bool lar_fw_supported)
