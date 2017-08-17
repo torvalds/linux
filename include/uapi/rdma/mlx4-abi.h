@@ -111,8 +111,8 @@ struct mlx4_ib_create_qp {
 	__u8	log_sq_bb_count;
 	__u8	log_sq_stride;
 	__u8	sq_no_prefetch;
-	__u32	inl_recv_sz;
 	__u8	reserved;
+	__u32	inl_recv_sz;
 };
 
 struct mlx4_ib_create_wq {
