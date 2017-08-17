@@ -1710,7 +1710,7 @@ static const struct snd_soc_dai_ops fsi_dai_ops = {
  *		pcm ops
  */
 
-static struct snd_pcm_hardware fsi_pcm_hardware = {
+static const struct snd_pcm_hardware fsi_pcm_hardware = {
 	.info =		SNDRV_PCM_INFO_INTERLEAVED	|
 			SNDRV_PCM_INFO_MMAP		|
 			SNDRV_PCM_INFO_MMAP_VALID,
