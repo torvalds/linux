@@ -473,9 +473,9 @@ skd_prep_rw_cdb(struct skd_scsi_request *scsi_req,
 		unsigned count)
 {
 	if (data_dir == READ)
-		scsi_req->cdb[0] = 0x28;
+		scsi_req->cdb[0] = READ_10;
 	else
-		scsi_req->cdb[0] = 0x2a;
+		scsi_req->cdb[0] = WRITE_10;
 
 	scsi_req->cdb[1] = 0;
 	scsi_req->cdb[2] = (lba & 0xff000000) >> 24;
@@ -494,7 +494,7 @@ skd_prep_zerosize_flush_cdb(struct skd_scsi_request *scsi_req,
 {
 	skreq->flush_cmd = 1;
 
-	scsi_req->cdb[0] = 0x35;
+	scsi_req->cdb[0] = SYNCHRONIZE_CACHE;
 	scsi_req->cdb[1] = 0;
 	scsi_req->cdb[2] = 0;
 	scsi_req->cdb[3] = 0;
@@ -1880,7 +1880,8 @@ static void skd_complete_internal(struct skd_device *skdev,
 			}
 			dev_dbg(&skdev->pdev->dev,
 				"**** TUR failed, retry skerr\n");
-			skd_send_internal_skspcl(skdev, skspcl, 0x00);
+			skd_send_internal_skspcl(skdev, skspcl,
+						 TEST_UNIT_READY);
 		}
 		break;
 
@@ -1896,7 +1897,8 @@ static void skd_complete_internal(struct skd_device *skdev,
 			}
 			dev_dbg(&skdev->pdev->dev,
 				"**** write buffer failed, retry skerr\n");
-			skd_send_internal_skspcl(skdev, skspcl, 0x00);
+			skd_send_internal_skspcl(skdev, skspcl,
+						 TEST_UNIT_READY);
 		}
 		break;
 
@@ -1929,7 +1931,8 @@ static void skd_complete_internal(struct skd_device *skdev,
 			}
 			dev_dbg(&skdev->pdev->dev,
 				"**** read buffer failed, retry skerr\n");
-			skd_send_internal_skspcl(skdev, skspcl, 0x00);
+			skd_send_internal_skspcl(skdev, skspcl,
+						 TEST_UNIT_READY);
 		}
 		break;
 
