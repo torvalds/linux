@@ -1656,7 +1656,7 @@ static int parse_events__scanner(const char *str, void *data, int start_token)
  */
 int parse_events_terms(struct list_head *terms, const char *str)
 {
-	struct parse_events_terms data = {
+	struct parse_events_state data = {
 		.terms = NULL,
 	};
 	int ret;
