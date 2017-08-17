@@ -4959,6 +4959,11 @@ static void skd_log_skreq(struct skd_device *skdev,
 
 static int __init skd_init(void)
 {
+	BUILD_BUG_ON(sizeof(struct fit_completion_entry_v1) != 8);
+	BUILD_BUG_ON(sizeof(struct fit_comp_error_info) != 32);
+	BUILD_BUG_ON(sizeof(struct skd_command_header) != 16);
+	BUILD_BUG_ON(sizeof(struct skd_scsi_request) != 32);
+	BUILD_BUG_ON(sizeof(struct driver_inquiry_data) != 44);
 	BUILD_BUG_ON(offsetof(struct skd_msg_buf, fmh) != 0);
 	BUILD_BUG_ON(offsetof(struct skd_msg_buf, scsi) != 64);
 	BUILD_BUG_ON(sizeof(struct skd_msg_buf) != SKD_N_FITMSG_BYTES);
