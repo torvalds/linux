@@ -4022,7 +4022,7 @@ static int ibmvnic_resume(struct device *dev)
 	return 0;
 }
 
-static struct vio_device_id ibmvnic_device_table[] = {
+static const struct vio_device_id ibmvnic_device_table[] = {
 	{"network", "IBM,vnic"},
 	{"", "" }
 };
