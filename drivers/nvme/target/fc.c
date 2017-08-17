@@ -114,6 +114,11 @@ struct nvmet_fc_tgtport {
 	struct kref			ref;
 };
 
+struct nvmet_fc_defer_fcp_req {
+	struct list_head		req_list;
+	struct nvmefc_tgt_fcp_req	*fcp_req;
+};
+
 struct nvmet_fc_tgt_queue {
 	bool				ninetypercent;
 	u16				qid;
@@ -132,6 +137,8 @@ struct nvmet_fc_tgt_queue {
 	struct nvmet_fc_tgt_assoc	*assoc;
 	struct nvmet_fc_fcp_iod		*fod;		/* array of fcp_iods */
 	struct list_head		fod_list;
+	struct list_head		pending_cmd_list;
+	struct list_head		avail_defer_list;
 	struct workqueue_struct		*work_q;
 	struct kref			ref;
 } __aligned(sizeof(unsigned long long));
@@ -223,6 +230,8 @@ static void nvmet_fc_tgt_q_put(struct nvmet_fc_tgt_queue *queue);
 static int nvmet_fc_tgt_q_get(struct nvmet_fc_tgt_queue *queue);
 static void nvmet_fc_tgtport_put(struct nvmet_fc_tgtport *tgtport);
 static int nvmet_fc_tgtport_get(struct nvmet_fc_tgtport *tgtport);
+static void nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
+					struct nvmet_fc_fcp_iod *fod);
 
 
 /* *********************** FC-NVME DMA Handling **************************** */
@@ -463,9 +472,9 @@ static struct nvmet_fc_fcp_iod *
 nvmet_fc_alloc_fcp_iod(struct nvmet_fc_tgt_queue *queue)
 {
 	static struct nvmet_fc_fcp_iod *fod;
-	unsigned long flags;
 
-	spin_lock_irqsave(&queue->qlock, flags);
+	lockdep_assert_held(&queue->qlock);
+
 	fod = list_first_entry_or_null(&queue->fod_list,
 					struct nvmet_fc_fcp_iod, fcp_list);
 	if (fod) {
@@ -477,10 +486,29 @@ nvmet_fc_alloc_fcp_iod(struct nvmet_fc_tgt_queue *queue)
 		 * will "inherit" that reference.
 		 */
 	}
-	spin_unlock_irqrestore(&queue->qlock, flags);
 	return fod;
 }
 
+
+static void
+nvmet_fc_queue_fcp_req(struct nvmet_fc_tgtport *tgtport,
+		       struct nvmet_fc_tgt_queue *queue,
+		       struct nvmefc_tgt_fcp_req *fcpreq)
+{
+	struct nvmet_fc_fcp_iod *fod = fcpreq->nvmet_fc_private;
+
+	/*
+	 * put all admin cmds on hw queue id 0. All io commands go to
+	 * the respective hw queue based on a modulo basis
+	 */
+	fcpreq->hwqid = queue->qid ?
+			((queue->qid - 1) % tgtport->ops->max_hw_queues) : 0;
+
+	if (tgtport->ops->target_features & NVMET_FCTGTFEAT_CMD_IN_ISR)
+		queue_work_on(queue->cpu, queue->work_q, &fod->work);
+	else
+		nvmet_fc_handle_fcp_rqst(tgtport, fod);
+}
 
 static void
 nvmet_fc_free_fcp_iod(struct nvmet_fc_tgt_queue *queue,
@@ -488,6 +516,7 @@ nvmet_fc_free_fcp_iod(struct nvmet_fc_tgt_queue *queue,
 {
 	struct nvmefc_tgt_fcp_req *fcpreq = fod->fcpreq;
 	struct nvmet_fc_tgtport *tgtport = fod->tgtport;
+	struct nvmet_fc_defer_fcp_req *deferfcp;
 	unsigned long flags;
 
 	fc_dma_sync_single_for_cpu(tgtport->dev, fod->rspdma,
@@ -495,21 +524,56 @@ nvmet_fc_free_fcp_iod(struct nvmet_fc_tgt_queue *queue,
 
 	fcpreq->nvmet_fc_private = NULL;
 
-	spin_lock_irqsave(&queue->qlock, flags);
-	list_add_tail(&fod->fcp_list, &fod->queue->fod_list);
 	fod->active = false;
 	fod->abort = false;
 	fod->aborted = false;
 	fod->writedataactive = false;
 	fod->fcpreq = NULL;
-	spin_unlock_irqrestore(&queue->qlock, flags);
-
-	/*
-	 * release the reference taken at queue lookup and fod allocation
-	 */
-	nvmet_fc_tgt_q_put(queue);
 
 	tgtport->ops->fcp_req_release(&tgtport->fc_target_port, fcpreq);
+
+	spin_lock_irqsave(&queue->qlock, flags);
+	deferfcp = list_first_entry_or_null(&queue->pending_cmd_list,
+				struct nvmet_fc_defer_fcp_req, req_list);
+	if (!deferfcp) {
+		list_add_tail(&fod->fcp_list, &fod->queue->fod_list);
+		spin_unlock_irqrestore(&queue->qlock, flags);
+
+		/* Release reference taken at queue lookup and fod allocation */
+		nvmet_fc_tgt_q_put(queue);
+		return;
+	}
+
+	/* Re-use the fod for the next pending cmd that was deferred */
+	list_del(&deferfcp->req_list);
+
+	fcpreq = deferfcp->fcp_req;
+
+	/* deferfcp can be reused for another IO at a later date */
+	list_add_tail(&deferfcp->req_list, &queue->avail_defer_list);
+
+	spin_unlock_irqrestore(&queue->qlock, flags);
+
+	/* Save NVME CMD IO in fod */
+	memcpy(&fod->cmdiubuf, fcpreq->rspaddr, fcpreq->rsplen);
+
+	/* Setup new fcpreq to be processed */
+	fcpreq->rspaddr = NULL;
+	fcpreq->rsplen  = 0;
+	fcpreq->nvmet_fc_private = fod;
+	fod->fcpreq = fcpreq;
+	fod->active = true;
+
+	/* inform LLDD IO is now being processed */
+	tgtport->ops->defer_rcv(&tgtport->fc_target_port, fcpreq);
+
+	/* Submit deferred IO for processing */
+	nvmet_fc_queue_fcp_req(tgtport, queue, fcpreq);
+
+	/*
+	 * Leave the queue lookup get reference taken when
+	 * fod was originally allocated.
+	 */
 }
 
 static int
@@ -569,6 +633,8 @@ nvmet_fc_alloc_target_queue(struct nvmet_fc_tgt_assoc *assoc,
 	queue->port = assoc->tgtport->port;
 	queue->cpu = nvmet_fc_queue_to_cpu(assoc->tgtport, qid);
 	INIT_LIST_HEAD(&queue->fod_list);
+	INIT_LIST_HEAD(&queue->avail_defer_list);
+	INIT_LIST_HEAD(&queue->pending_cmd_list);
 	atomic_set(&queue->connected, 0);
 	atomic_set(&queue->sqtail, 0);
 	atomic_set(&queue->rsn, 1);
@@ -638,6 +704,7 @@ nvmet_fc_delete_target_queue(struct nvmet_fc_tgt_queue *queue)
 {
 	struct nvmet_fc_tgtport *tgtport = queue->assoc->tgtport;
 	struct nvmet_fc_fcp_iod *fod = queue->fod;
+	struct nvmet_fc_defer_fcp_req *deferfcp;
 	unsigned long flags;
 	int i, writedataactive;
 	bool disconnect;
@@ -665,6 +732,35 @@ nvmet_fc_delete_target_queue(struct nvmet_fc_tgt_queue *queue)
 					&tgtport->fc_target_port, fod->fcpreq);
 			}
 		}
+	}
+
+	/* Cleanup defer'ed IOs in queue */
+	list_for_each_entry(deferfcp, &queue->avail_defer_list, req_list) {
+		list_del(&deferfcp->req_list);
+		kfree(deferfcp);
+	}
+
+	for (;;) {
+		deferfcp = list_first_entry_or_null(&queue->pending_cmd_list,
+				struct nvmet_fc_defer_fcp_req, req_list);
+		if (!deferfcp)
+			break;
+
+		list_del(&deferfcp->req_list);
+		spin_unlock_irqrestore(&queue->qlock, flags);
+
+		tgtport->ops->defer_rcv(&tgtport->fc_target_port,
+				deferfcp->fcp_req);
+
+		tgtport->ops->fcp_abort(&tgtport->fc_target_port,
+				deferfcp->fcp_req);
+
+		tgtport->ops->fcp_req_release(&tgtport->fc_target_port,
+				deferfcp->fcp_req);
+
+		kfree(deferfcp);
+
+		spin_lock_irqsave(&queue->qlock, flags);
 	}
 	spin_unlock_irqrestore(&queue->qlock, flags);
 
@@ -2172,11 +2268,38 @@ nvmet_fc_handle_fcp_rqst_work(struct work_struct *work)
  * Pass a FC-NVME FCP CMD IU received from the FC link to the nvmet-fc
  * layer for processing.
  *
- * The nvmet-fc layer will copy cmd payload to an internal structure for
- * processing.  As such, upon completion of the routine, the LLDD may
- * immediately free/reuse the CMD IU buffer passed in the call.
+ * The nvmet_fc layer allocates a local job structure (struct
+ * nvmet_fc_fcp_iod) from the queue for the io and copies the
+ * CMD IU buffer to the job structure. As such, on a successful
+ * completion (returns 0), the LLDD may immediately free/reuse
+ * the CMD IU buffer passed in the call.
  *
- * If this routine returns error, the lldd should abort the exchange.
+ * However, in some circumstances, due to the packetized nature of FC
+ * and the api of the FC LLDD which may issue a hw command to send the
+ * response, but the LLDD may not get the hw completion for that command
+ * and upcall the nvmet_fc layer before a new command may be
+ * asynchronously received - its possible for a command to be received
+ * before the LLDD and nvmet_fc have recycled the job structure. It gives
+ * the appearance of more commands received than fits in the sq.
+ * To alleviate this scenario, a temporary queue is maintained in the
+ * transport for pending LLDD requests waiting for a queue job structure.
+ * In these "overrun" cases, a temporary queue element is allocated
+ * the LLDD request and CMD iu buffer information remembered, and the
+ * routine returns a -EOVERFLOW status. Subsequently, when a queue job
+ * structure is freed, it is immediately reallocated for anything on the
+ * pending request list. The LLDDs defer_rcv() callback is called,
+ * informing the LLDD that it may reuse the CMD IU buffer, and the io
+ * is then started normally with the transport.
+ *
+ * The LLDD, when receiving an -EOVERFLOW completion status, is to treat
+ * the completion as successful but must not reuse the CMD IU buffer
+ * until the LLDD's defer_rcv() callback has been called for the
+ * corresponding struct nvmefc_tgt_fcp_req pointer.
+ *
+ * If there is any other condition in which an error occurs, the
+ * transport will return a non-zero status indicating the error.
+ * In all cases other than -EOVERFLOW, the transport has not accepted the
+ * request and the LLDD should abort the exchange.
  *
  * @target_port: pointer to the (registered) target port the FCP CMD IU
  *              was received on.
@@ -2194,6 +2317,8 @@ nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *target_port,
 	struct nvme_fc_cmd_iu *cmdiu = cmdiubuf;
 	struct nvmet_fc_tgt_queue *queue;
 	struct nvmet_fc_fcp_iod *fod;
+	struct nvmet_fc_defer_fcp_req *deferfcp;
+	unsigned long flags;
 
 	/* validate iu, so the connection id can be used to find the queue */
 	if ((cmdiubuf_len != sizeof(*cmdiu)) ||
@@ -2214,29 +2339,60 @@ nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *target_port,
 	 * when the fod is freed.
 	 */
 
+	spin_lock_irqsave(&queue->qlock, flags);
+
 	fod = nvmet_fc_alloc_fcp_iod(queue);
-	if (!fod) {
+	if (fod) {
+		spin_unlock_irqrestore(&queue->qlock, flags);
+
+		fcpreq->nvmet_fc_private = fod;
+		fod->fcpreq = fcpreq;
+
+		memcpy(&fod->cmdiubuf, cmdiubuf, cmdiubuf_len);
+
+		nvmet_fc_queue_fcp_req(tgtport, queue, fcpreq);
+
+		return 0;
+	}
+
+	if (!tgtport->ops->defer_rcv) {
+		spin_unlock_irqrestore(&queue->qlock, flags);
 		/* release the queue lookup reference */
 		nvmet_fc_tgt_q_put(queue);
 		return -ENOENT;
 	}
 
-	fcpreq->nvmet_fc_private = fod;
-	fod->fcpreq = fcpreq;
-	/*
-	 * put all admin cmds on hw queue id 0. All io commands go to
-	 * the respective hw queue based on a modulo basis
-	 */
-	fcpreq->hwqid = queue->qid ?
-			((queue->qid - 1) % tgtport->ops->max_hw_queues) : 0;
-	memcpy(&fod->cmdiubuf, cmdiubuf, cmdiubuf_len);
+	deferfcp = list_first_entry_or_null(&queue->avail_defer_list,
+			struct nvmet_fc_defer_fcp_req, req_list);
+	if (deferfcp) {
+		/* Just re-use one that was previously allocated */
+		list_del(&deferfcp->req_list);
+	} else {
+		spin_unlock_irqrestore(&queue->qlock, flags);
 
-	if (tgtport->ops->target_features & NVMET_FCTGTFEAT_CMD_IN_ISR)
-		queue_work_on(queue->cpu, queue->work_q, &fod->work);
-	else
-		nvmet_fc_handle_fcp_rqst(tgtport, fod);
+		/* Now we need to dynamically allocate one */
+		deferfcp = kmalloc(sizeof(*deferfcp), GFP_KERNEL);
+		if (!deferfcp) {
+			/* release the queue lookup reference */
+			nvmet_fc_tgt_q_put(queue);
+			return -ENOMEM;
+		}
+		spin_lock_irqsave(&queue->qlock, flags);
+	}
 
-	return 0;
+	/* For now, use rspaddr / rsplen to save payload information */
+	fcpreq->rspaddr = cmdiubuf;
+	fcpreq->rsplen  = cmdiubuf_len;
+	deferfcp->fcp_req = fcpreq;
+
+	/* defer processing till a fod becomes available */
+	list_add_tail(&deferfcp->req_list, &queue->pending_cmd_list);
+
+	/* NOTE: the queue lookup reference is still valid */
+
+	spin_unlock_irqrestore(&queue->qlock, flags);
+
+	return -EOVERFLOW;
 }
 EXPORT_SYMBOL_GPL(nvmet_fc_rcv_fcp_req);
 

@@ -49,9 +49,9 @@ static int ipt_init_target(struct net *net, struct xt_entry_target *t,
 		return PTR_ERR(target);
 
 	t->u.kernel.target = target;
+	memset(&par, 0, sizeof(par));
 	par.net       = net;
 	par.table     = table;
-	par.entryinfo = NULL;
 	par.target    = target;
 	par.targinfo  = t->data;
 	par.hook_mask = hook;

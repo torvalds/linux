@@ -684,8 +684,8 @@ EXPORT_SYMBOL(blk_mq_kick_requeue_list);
 void blk_mq_delay_kick_requeue_list(struct request_queue *q,
 				    unsigned long msecs)
 {
-	kblockd_schedule_delayed_work(&q->requeue_work,
-				      msecs_to_jiffies(msecs));
+	kblockd_mod_delayed_work_on(WORK_CPU_UNBOUND, &q->requeue_work,
+				    msecs_to_jiffies(msecs));
 }
 EXPORT_SYMBOL(blk_mq_delay_kick_requeue_list);
 
