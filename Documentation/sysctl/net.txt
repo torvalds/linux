@@ -36,8 +36,23 @@ bpf_jit_enable
 --------------
 
 This enables Berkeley Packet Filter Just in Time compiler.
-Currently supported on x86_64 architecture, bpf_jit provides a framework
-to speed packet filtering, the one used by tcpdump/libpcap for example.
+
+There are two flavors of JIT, the new eBPF JIT supported on:
+  - x86_64
+  - arm64
+  - ppc64
+  - sparc64
+  - mips64
+
+And the older cBPF JIT supported on:
+  - arm
+  - mips
+  - ppc
+  - sparc
+
+The BPF JIT provides a framework to speed packet filtering, the one used by
+tcpdump/libpcap for example.
+
 Values :
 	0 - disable the JIT (default value)
 	1 - enable the JIT
