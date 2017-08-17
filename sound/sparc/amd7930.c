@@ -666,7 +666,7 @@ static snd_pcm_uframes_t snd_amd7930_capture_pointer(struct snd_pcm_substream *s
 }
 
 /* Playback and capture have identical properties.  */
-static struct snd_pcm_hardware snd_amd7930_pcm_hw =
+static const struct snd_pcm_hardware snd_amd7930_pcm_hw =
 {
 	.info			= (SNDRV_PCM_INFO_MMAP |
 				   SNDRV_PCM_INFO_MMAP_VALID |

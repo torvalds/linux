@@ -1089,7 +1089,7 @@ static int snd_cs4231_probe(struct snd_cs4231 *chip)
 	return 0;		/* all things are ok.. */
 }
 
-static struct snd_pcm_hardware snd_cs4231_playback = {
+static const struct snd_pcm_hardware snd_cs4231_playback = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_MMAP_VALID |
@@ -1113,7 +1113,7 @@ static struct snd_pcm_hardware snd_cs4231_playback = {
 	.periods_max		= 1024,
 };
 
-static struct snd_pcm_hardware snd_cs4231_capture = {
+static const struct snd_pcm_hardware snd_cs4231_capture = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_MMAP_VALID |
