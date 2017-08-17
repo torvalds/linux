@@ -1277,7 +1277,7 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 	/* In the case of a mixed PT the PDE must point to it*/
 	if (p->adev->asic_type < CHIP_VEGA10 ||
 	    nptes != AMDGPU_VM_PTE_COUNT(p->adev) ||
-	    p->func == amdgpu_vm_do_copy_ptes ||
+	    p->src ||
 	    !(flags & AMDGPU_PTE_VALID)) {
 
 		dst = amdgpu_bo_gpu_offset(entry->bo);
@@ -1294,9 +1294,23 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 	entry->addr = (dst | flags);
 
 	if (use_cpu_update) {
+		/* In case a huge page is replaced with a system
+		 * memory mapping, p->pages_addr != NULL and
+		 * amdgpu_vm_cpu_set_ptes would try to translate dst
+		 * through amdgpu_vm_map_gart. But dst is already a
+		 * GPU address (of the page table). Disable
+		 * amdgpu_vm_map_gart temporarily.
+		 */
+		dma_addr_t *tmp;
+
+		tmp = p->pages_addr;
+		p->pages_addr = NULL;
+
 		pd_addr = (unsigned long)amdgpu_bo_kptr(parent->bo);
 		pde = pd_addr + (entry - parent->entries) * 8;
 		amdgpu_vm_cpu_set_ptes(p, pde, dst, 1, 0, flags);
+
+		p->pages_addr = tmp;
 	} else {
 		if (parent->bo->shadow) {
 			pd_addr = amdgpu_bo_gpu_offset(parent->bo->shadow);
