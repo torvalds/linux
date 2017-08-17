@@ -1878,6 +1878,7 @@ static void ipoib_build_priv(struct net_device *dev)
 	spin_lock_init(&priv->lock);
 	init_rwsem(&priv->vlan_rwsem);
 	mutex_init(&priv->mcast_mutex);
+	mutex_init(&priv->sysfs_mutex);
 
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);
@@ -2329,7 +2330,11 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 		cancel_delayed_work(&priv->neigh_reap_task);
 		flush_workqueue(priv->wq);
 
+		/* Wrap rtnl_lock/unlock with mutex to protect sysfs calls */
+		mutex_lock(&priv->sysfs_mutex);
 		unregister_netdev(priv->dev);
+		mutex_unlock(&priv->sysfs_mutex);
+
 		rn->free_rdma_netdev(priv->dev);
 
 		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list)
