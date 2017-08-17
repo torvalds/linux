@@ -791,18 +791,17 @@ static void halbtc_display_wifi_status(struct btc_coexist *btcoexist,
 				       struct seq_file *m)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
-	s32	wifi_rssi = 0, bt_hs_rssi = 0;
-	bool	scan = false, link = false, roam = false, wifi_busy = false,
-		wifi_under_b_mode = false,
-		wifi_under_5g = false;
-	u32	wifi_bw = BTC_WIFI_BW_HT20,
-		wifi_traffic_dir = BTC_WIFI_TRAFFIC_TX,
-		wifi_freq = BTC_FREQ_2_4G;
-	u32	wifi_link_status = 0x0;
-	bool	bt_hs_on = false, under_ips = false, under_lps = false,
-		low_power = false, dc_mode = false;
-	u8	wifi_chnl = 0, wifi_hs_chnl = 0, fw_ps_state;
-	u8	ap_num = 0;
+	s32 wifi_rssi = 0, bt_hs_rssi = 0;
+	bool scan = false, link = false, roam = false, wifi_busy = false;
+	bool wifi_under_b_mode = false, wifi_under_5g = false;
+	u32 wifi_bw = BTC_WIFI_BW_HT20;
+	u32 wifi_traffic_dir = BTC_WIFI_TRAFFIC_TX;
+	u32 wifi_freq = BTC_FREQ_2_4G;
+	u32 wifi_link_status = 0x0;
+	bool bt_hs_on = false, under_ips = false, under_lps = false;
+	bool low_power = false, dc_mode = false;
+	u8 wifi_chnl = 0, wifi_hs_chnl = 0, fw_ps_state;
+	u8 ap_num = 0;
 
 	wifi_link_status = halbtc_get_wifi_link_status(btcoexist);
 	seq_printf(m, "\n %-35s = %d/ %d/ %d/ %d/ %d",

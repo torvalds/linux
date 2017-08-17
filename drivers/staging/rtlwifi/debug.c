@@ -511,10 +511,7 @@ void rtl_debug_add_one(struct ieee80211_hw *hw)
 
 	rtlpriv->dbg.msg_buf = vzalloc(80 * 25);
 
-	snprintf(rtlpriv->dbg.debugfs_name, 18, "%02x-%02x-%02x-%02x-%02x-%02x",
-		 rtlefuse->dev_addr[0], rtlefuse->dev_addr[1],
-		 rtlefuse->dev_addr[2], rtlefuse->dev_addr[3],
-		 rtlefuse->dev_addr[4], rtlefuse->dev_addr[5]);
+	snprintf(rtlpriv->dbg.debugfs_name, 18, "%pMF", rtlefuse->dev_addr);
 
 	rtlpriv->dbg.debugfs_dir =
 		debugfs_create_dir(rtlpriv->dbg.debugfs_name, debugfs_topdir);
