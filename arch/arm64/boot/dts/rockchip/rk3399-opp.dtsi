@@ -77,17 +77,45 @@
 	gpu_opp_table: opp-table2 {
 		compatible = "operating-points-v2";
 
+		rockchip,pvtm-voltage-sel = <
+			0        121000   0
+			121001   125500   1
+			125501   128500   2
+			128501   999999   3
+		>;
+		rockchip,pvtm-freq = <200000>;
+		rockchip,pvtm-volt = <900000>;
+		rockchip,pvtm-ch = <3 0>;
+		rockchip,pvtm-sample-time = <1000>;
+		rockchip,pvtm-number = <10>;
+		rockchip,pvtm-error = <1000>;
+		rockchip,pvtm-ref-temp = <41>;
+		rockchip,pvtm-temp-prop = <46 12>;
+		rockchip,pvtm-thermal-zone = "gpu-thermal";
+
 		opp00 {
 			opp-hz = /bits/ 64 <200000000>;
-			opp-microvolt = <800000>;
+			opp-microvolt = <825000>;
+			opp-microvolt-L0 = <825000>;
+			opp-microvolt-L1 = <825000>;
+			opp-microvolt-L2 = <825000>;
+			opp-microvolt-L3 = <825000>;
 		};
 		opp01 {
 			opp-hz = /bits/ 64 <297000000>;
-			opp-microvolt = <800000>;
+			opp-microvolt = <825000>;
+			opp-microvolt-L0 = <825000>;
+			opp-microvolt-L1 = <825000>;
+			opp-microvolt-L2 = <825000>;
+			opp-microvolt-L3 = <825000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <825000>;
+			opp-microvolt-L0 = <825000>;
+			opp-microvolt-L1 = <825000>;
+			opp-microvolt-L2 = <825000>;
+			opp-microvolt-L3 = <825000>;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <500000000>;
@@ -96,10 +124,18 @@
 		opp04 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <925000>;
+			opp-microvolt-L0 = <925000>;
+			opp-microvolt-L1 = <925000>;
+			opp-microvolt-L2 = <900000>;
+			opp-microvolt-L3 = <900000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <1100000>;
+			opp-microvolt-L0 = <1100000>;
+			opp-microvolt-L1 = <1075000>;
+			opp-microvolt-L2 = <1050000>;
+			opp-microvolt-L3 = <1025000>;
 		};
 	};
 };
