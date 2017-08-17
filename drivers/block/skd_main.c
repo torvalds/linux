@@ -271,7 +271,6 @@ struct skd_device {
 	int gendisk_on;
 	int sync_done;
 
-	atomic_t device_count;
 	u32 devno;
 	u32 major;
 	char name[32];
@@ -4312,8 +4311,6 @@ static struct skd_device *skd_construct(struct pci_dev *pdev)
 	skdev->proto_ver = 99;
 	skdev->sgs_per_request = skd_sgs_per_request;
 	skdev->dbg_level = skd_dbg_level;
-
-	atomic_set(&skdev->device_count, 0);
 
 	spin_lock_init(&skdev->lock);
 
