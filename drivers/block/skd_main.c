@@ -333,7 +333,6 @@ struct skd_device {
 
 	u32 timo_slot;
 
-
 	struct work_struct completion_worker;
 };
 
@@ -694,7 +693,6 @@ static void skd_request_fn(struct request_queue *q)
 		if (flush == SKD_FLUSH_ZERO_SIZE_FIRST) {
 			skd_prep_zerosize_flush_cdb(scsi_req, skreq);
 			SKD_ASSERT(skreq->flush_cmd == 1);
-
 		} else {
 			skd_prep_rw_cdb(scsi_req, data_dir, lba, count);
 		}
@@ -2004,16 +2002,14 @@ static void skd_complete_internal(struct skd_device *skdev,
 				skd_send_internal_skspcl(skdev, skspcl,
 							 READ_CAPACITY);
 			else {
-				pr_err(
-				       "(%s):*** W/R Buffer mismatch %d ***\n",
+				pr_err("(%s):*** W/R Buffer mismatch %d ***\n",
 				       skd_name(skdev), skdev->connect_retries);
 				if (skdev->connect_retries <
 				    SKD_MAX_CONNECT_RETRIES) {
 					skdev->connect_retries++;
 					skd_soft_reset(skdev);
 				} else {
-					pr_err(
-					       "(%s): W/R Buffer Connect Error\n",
+					pr_err("(%s): W/R Buffer Connect Error\n",
 					       skd_name(skdev));
 					return;
 				}
@@ -2621,7 +2617,6 @@ static void skd_process_scsi_inq(struct skd_device *skdev,
 		skd_do_driver_inq(skdev, skcomp, skerr, scsi_req->cdb, buf);
 }
 
-
 static int skd_isr_completion_posted(struct skd_device *skdev,
 					int limit, int *enqueued)
 {
@@ -3083,8 +3078,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 			skdev->cur_max_queue_depth * 2 / 3 + 1;
 		if (skdev->queue_low_water_mark < 1)
 			skdev->queue_low_water_mark = 1;
-		pr_info(
-		       "(%s): Queue depth limit=%d dev=%d lowat=%d\n",
+		pr_info("(%s): Queue depth limit=%d dev=%d lowat=%d\n",
 		       skd_name(skdev),
 		       skdev->cur_max_queue_depth,
 		       skdev->dev_max_queue_depth, skdev->queue_low_water_mark);
@@ -4553,7 +4547,6 @@ static void skd_destruct(struct skd_device *skdev)
 	if (skdev == NULL)
 		return;
 
-
 	pr_debug("%s:%s:%d disk\n", skdev->name, __func__, __LINE__);
 	skd_free_disk(skdev);
 
@@ -4616,7 +4609,6 @@ static const struct block_device_operations skd_blockdev_ops = {
 	.ioctl		= skd_bdev_ioctl,
 	.getgeo		= skd_bdev_getgeo,
 };
-
 
 /*
  *****************************************************************************
@@ -4716,13 +4708,11 @@ static int skd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 	rc = pci_enable_pcie_error_reporting(pdev);
 	if (rc) {
-		pr_err(
-		       "(%s): bad enable of PCIe error reporting rc=%d\n",
+		pr_err("(%s): bad enable of PCIe error reporting rc=%d\n",
 		       skd_name(skdev), rc);
 		skdev->pcie_error_reporting_is_enabled = 0;
 	} else
 		skdev->pcie_error_reporting_is_enabled = 1;
-
 
 	pci_set_drvdata(pdev, skdev);
 
@@ -4768,8 +4758,7 @@ static int skd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		/* we timed out, something is wrong with the device,
 		   don't add the disk structure */
-		pr_err(
-		       "(%s): error: waiting for s1120 timed out %d!\n",
+		pr_err("(%s): error: waiting for s1120 timed out %d!\n",
 		       skd_name(skdev), rc);
 		/* in case of no error; we timeout with ENXIO */
 		if (!rc)
