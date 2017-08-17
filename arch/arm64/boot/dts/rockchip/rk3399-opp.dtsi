@@ -187,6 +187,9 @@
 	gpu_opp_table: opp-table2 {
 		compatible = "operating-points-v2";
 
+		nvmem-cells = <&gpu_leakage>;
+		nvmem-cell-names = "gpu_leakage";
+
 		rockchip,pvtm-voltage-sel = <
 			0        121000   0
 			121001   125500   1
