@@ -412,7 +412,7 @@ lio_irq_reallocate_irqs(struct octeon_device *oct, uint32_t num_ioqs)
 	kfree(oct->irq_name_storage);
 	oct->irq_name_storage = NULL;
 	if (octeon_setup_interrupt(oct, num_ioqs)) {
-		dev_info(&oct->pci_dev->dev, "Setup interuupt failed\n");
+		dev_info(&oct->pci_dev->dev, "Setup interrupt failed\n");
 		return 1;
 	}
 
