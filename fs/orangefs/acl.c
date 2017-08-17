@@ -35,7 +35,7 @@ struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
 	 * I don't do that for now.
 	 */
 	value = kmalloc(ORANGEFS_MAX_XATTR_VALUELEN, GFP_KERNEL);
-	if (value == NULL)
+	if (!value)
 		return ERR_PTR(-ENOMEM);
 
 	gossip_debug(GOSSIP_ACL_DEBUG,
