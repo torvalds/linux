@@ -171,6 +171,7 @@ struct mlx5_packet_pacing_caps {
 enum mlx5_ib_mpw_caps {
 	MPW_RESERVED		= 1 << 0,
 	MLX5_IB_ALLOW_MPW	= 1 << 1,
+	MLX5_IB_SUPPORT_EMPW	= 1 << 2,
 };
 
 enum mlx5_ib_sw_parsing_offloads {
