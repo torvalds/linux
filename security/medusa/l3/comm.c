@@ -32,8 +32,6 @@ medusa_answer_t med_decide(struct medusa_evtype_s * evtype, void * event, void *
 	MED_UNLOCK_W(registry_lock);
 
 	((struct medusa_event_s *)event)->evtype_id = evtype;
-	((struct medusa_kobject_s *)o1)->kclass_id = evtype->arg_kclass[0];
-	((struct medusa_kobject_s *)o2)->kclass_id = evtype->arg_kclass[1];
 	retval = authserver->decide(event, o1, o2);
 #ifdef CONFIG_MEDUSA_PROFILING
 	if (retval != MED_ERR) {

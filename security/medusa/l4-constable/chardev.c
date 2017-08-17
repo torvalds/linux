@@ -9,8 +9,8 @@
  * This server communicates with an user-space
  * authorization daemon, using a character device
  *
- *      /dev/medusa c 111 0		on Linux
- *      /dev/medusa c 90 0		on NetBSD
+ *	  /dev/medusa c 111 0		on Linux
+ *	  /dev/medusa c 90 0		on NetBSD
  */
 
 /* define this if you want fatal protocol errors to cause segfault of
@@ -47,7 +47,7 @@
 
 #define MEDUSA_MAJOR 111
 #define MODULENAME "chardev/linux"
-#define wakeup(p) wake_up(p)
+//#define wakeup(p) wake_up(p)
 #define CURRENTPTR current
 
 #include <linux/medusa/l3/registry.h>
@@ -133,9 +133,39 @@ static struct medusa_authserver_s chardev_medusa = {
 	l4_decide		/* decide */
 };
 
+int am_i_constable(void) {
+	struct task_struct* task;
+	struct list_head *i;
+	int ret = 0;
+
+	if (!constable)
+		return 0;
+
+	if (constable == current)
+		return 1;
+
+	rcu_read_lock();
+	if (current->parent == constable || current->real_parent == constable) {
+		ret = 1;
+		goto out;
+	}
+
+	list_for_each(i, &current->real_parent->children) {
+		task = list_entry(i, struct task_struct, sibling);
+		if (task == constable) {
+			ret = 1;
+			goto out;
+		}
+	}
+	
+out:
+	rcu_read_unlock();
+	return ret;
+}
+
 static void l4_close_wake(void)
 {
-	wakeup(&close_wait);
+	wake_up(&close_wait);
 }
 
 static int l4_add_kclass(struct medusa_kclass_s * cl)
@@ -147,7 +177,7 @@ static int l4_add_kclass(struct medusa_kclass_s * cl)
 	barrier();
 	atomic_set(&announce_ready, 1);
 	barrier();
-	wakeup(&userspace);
+	wake_up(&userspace);
 	MED_UNLOCK_W(registration_lock);
 	return MED_YES;
 }
@@ -160,7 +190,7 @@ static int l4_add_evtype(struct medusa_evtype_s * at)
 	barrier();
 	atomic_set(&announce_ready, 1);
 	barrier();
-	wakeup(&userspace);
+	wake_up(&userspace);
 	MED_UNLOCK_W(registration_lock);
 	return MED_YES;
 }
@@ -180,7 +210,7 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 		MED_PRINTF("decide called from interrupt context :(\n");
 		return MED_ERR;
 	}
-	if (current == constable || current == gdb)
+	if (am_i_constable() || current == gdb)
 		return MED_OK;
 
 	if (current->pid < 1)
@@ -211,11 +241,11 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 	barrier(); /* gcc optimalization causes segfault on multiprocessor machines */
 	atomic_set(&question_ready, 1); /* doesn't matter whether this is atomic or not */
 	barrier();
-	wakeup(&userspace);
+	wake_up(&userspace);
 	barrier();
 	if (wait_for_completion_timeout(&userspace_answer, 5*HZ) == 0){
-        user_release(NULL, NULL);    
-    }
+		user_release(NULL, NULL);	
+	}
 	barrier();
 	if (atomic_read(&question_ready)) {
 		atomic_set(&question_ready, 0);
@@ -278,11 +308,8 @@ static ssize_t user_read(struct file * filp, char * buf,
 {
 	ssize_t retval;
 
-        /* TODO TODO TODO: permission check turned-off due python thread handling... */
-        //printk("MEDUSA: user_read: constable=%d, pid=%d, ppid=%d\n", \
-        //                constable->pid, current->pid, current->real_parent->pid); 
-	//if (constable != current)
-	//	return -EPERM;
+	if (!am_i_constable())
+		return -EPERM;
 	if (*ppos != filp->f_pos)
 		return -ESPIPE;
 	if (!access_ok(VERIFY_WRITE, buf, count))
@@ -438,11 +465,8 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 	size_t orig_count = count;
 	struct medusa_kclass_s * cl;
 
-        /* TODO TODO TODO: permission check turned-off due python thread handling... */
-        //printk("MEDUSA: user_write: constable=%d, pid=%d, ppid=%d\n", \
-        //                constable->pid, current->pid, current->real_parent->pid); 
-	//if (constable != current)
-	//	return -EPERM;
+	if (!am_i_constable())
+		return -EPERM;
 	if (*ppos != filp->f_pos)
 		return -ESPIPE;
 	if (!access_ok(VERIFY_READ, buf, count))
@@ -535,19 +559,20 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
  */
 static unsigned int user_poll(struct file *filp, poll_table * wait)
 {
-        /* TODO TODO TODO: permission check turned-off due python thread handling... */
-	//if (constable != current)
-	//	return -EPERM;
-        //printk("MEDUSA: user_poll: constable=%d, pid=%d, ppid=%d\n", \
-        //                constable->pid, current->pid, current->real_parent->pid); 
+	unsigned int mask = 0;
+
+	if (!am_i_constable())
+		return -EPERM;
+
 	poll_wait(filp, &userspace, wait);
-	if (atomic_read(&currently_receiving))
-		return POLLOUT | POLLWRNORM;
+//	if (atomic_read(&currently_receiving))
+		mask |= POLLOUT | POLLWRNORM;
 	if (teleport.cycle != tpc_HALT)
-		return POLLIN | POLLRDNORM;
-	if (atomic_read(&send_fetch_or_update_answer) || atomic_read(&announce_ready) || atomic_read(&question_ready))
-		return POLLIN | POLLRDNORM;
-	return POLLOUT | POLLWRNORM;
+		mask |= POLLIN | POLLRDNORM;
+	else if (atomic_read(&send_fetch_or_update_answer) || atomic_read(&announce_ready) || atomic_read(&question_ready))
+		mask |= POLLIN | POLLRDNORM;
+	//return POLLOUT | POLLWRNORM;
+	return mask;
 }
 
 /*
@@ -599,13 +624,13 @@ static int user_release(struct inode *inode, struct file *file)
 	if (!atomic_read(&constable_present))
 		return 0;
 
-    /* this function is invoked also from context of process which requires decision 
-       after 5s of inactivity of our brave user space authorization server constable;
-       so we comment next two lines ;) */
+	/* this function is invoked also from context of process which requires decision 
+	   after 5s of inactivity of our brave user space authorization server constable;
+	   so we comment next two lines ;) */
 	/* 
-    if (constable != CURRENTPTR)
-		return 0; // ;) 
-    */
+	if (!am_i_constable())
+		return 0; 
+	*/
 	MED_LOCK_W(registration_lock);
 	if (evtypes_registered) {
 		struct medusa_evtype_s * p1, * p2;
@@ -655,10 +680,10 @@ static int user_release(struct inode *inode, struct file *file)
 	atomic_set(&question_ready, 0);
 	atomic_set(&announce_ready, 0);
 	MED_UNLOCK_W(constable_openclose);
-    if (constable == CURRENTPTR)
-	    schedule();
-    else
-        MED_PRINTF("Authorization server is not responding.\n");
+	if (am_i_constable())
+		schedule();
+	else
+		MED_PRINTF("Authorization server is not responding.\n");
 	remove_wait_queue(&close_wait, &wait);
 	//MOD_DEC_USE_COUNT; Not needed anymore? JK
 	return 0;
@@ -674,11 +699,6 @@ static int chardev_constable_init(void)
 		MED_PRINTF(MODULENAME ": cannot register character device with major %d\n", MEDUSA_MAJOR);
 		return -1;
 	}
-	//devfs_register(NULL, "medusa", DEVFS_FL_DEFAULT, JK???
-	//	MEDUSA_MAJOR, 0,
-	//	S_IFCHR | S_IRUSR | S_IWUSR ,
-	//	&fops, NULL);
-	// JK begin create node
 
 	medusa_class = class_create(THIS_MODULE, "medusa");
 	if (IS_ERR(medusa_class)) {
@@ -697,11 +717,6 @@ static int chardev_constable_init(void)
 
 static void chardev_constable_exit(void)
 {
-//	devfs_unregister(devfs_find_handle // ??? JK
-//			(NULL, "medusa", MEDUSA_MAJOR, 0,
-//			DEVFS_SPECIAL_CHR, 0));
-
-	
 	device_destroy(medusa_class, MKDEV(MEDUSA_MAJOR, 0));
 	class_unregister(medusa_class);
 	class_destroy(medusa_class);

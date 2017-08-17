@@ -25,7 +25,6 @@
 #define inode_security(inode) (*(struct medusa_l1_inode_s*)(inode->i_security))
 
 struct file_kobject { /* was: m_inode_inf */
-	MEDUSA_KOBJECT_HEADER;
 /*
  * As a preparation for the total deletion of device numbers,
  * we introduce a type unsigned long to hold them. No information about
