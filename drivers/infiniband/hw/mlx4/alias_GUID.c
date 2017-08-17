@@ -781,7 +781,7 @@ void mlx4_ib_init_alias_guid_work(struct mlx4_ib_dev *dev, int port)
 	spin_lock_irqsave(&dev->sriov.going_down_lock, flags);
 	spin_lock_irqsave(&dev->sriov.alias_guid.ag_work_lock, flags1);
 	if (!dev->sriov.is_going_down) {
-		/* If there is pending one should cancell then run, otherwise
+		/* If there is pending one should cancel then run, otherwise
 		  * won't run till previous one is ended as same work
 		  * struct is used.
 		  */
