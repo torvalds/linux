@@ -33,7 +33,6 @@
 #define OV5670_REG_VTS			0x380e
 #define OV5670_VTS_30FPS		0x0808 /* default for 30 fps */
 #define OV5670_VTS_MAX			0xffff
-#define OV5670_VBLANK_MIN		56
 
 /* horizontal-timings from sensor */
 #define OV5670_REG_HTS			0x380c
@@ -100,8 +99,11 @@ struct ov5670_mode {
 	/* Frame height in pixels */
 	u32 height;
 
-	/* Vertical timining size */
-	u32 vts;
+	/* Default vertical timining size */
+	u32 vts_def;
+
+	/* Min vertical timining size */
+	u32 vts_min;
 
 	/* Link frequency needed for this resolution */
 	u32 link_freq_index;
@@ -1737,7 +1739,8 @@ static const struct ov5670_mode supported_modes[] = {
 	{
 		.width = 2592,
 		.height = 1944,
-		.vts = OV5670_VTS_30FPS,
+		.vts_def = OV5670_VTS_30FPS,
+		.vts_min = OV5670_VTS_30FPS,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_2592x1944_regs),
 			.regs = mode_2592x1944_regs,
@@ -1747,7 +1750,8 @@ static const struct ov5670_mode supported_modes[] = {
 	{
 		.width = 1296,
 		.height = 972,
-		.vts = OV5670_VTS_30FPS,
+		.vts_def = OV5670_VTS_30FPS,
+		.vts_min = 996,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1296x972_regs),
 			.regs = mode_1296x972_regs,
@@ -1757,7 +1761,8 @@ static const struct ov5670_mode supported_modes[] = {
 	{
 		.width = 648,
 		.height = 486,
-		.vts = OV5670_VTS_30FPS,
+		.vts_def = OV5670_VTS_30FPS,
+		.vts_min = 516,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_648x486_regs),
 			.regs = mode_648x486_regs,
@@ -1767,7 +1772,8 @@ static const struct ov5670_mode supported_modes[] = {
 	{
 		.width = 2560,
 		.height = 1440,
-		.vts = OV5670_VTS_30FPS,
+		.vts_def = OV5670_VTS_30FPS,
+		.vts_min = OV5670_VTS_30FPS,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_2560x1440_regs),
 			.regs = mode_2560x1440_regs,
@@ -1777,7 +1783,8 @@ static const struct ov5670_mode supported_modes[] = {
 	{
 		.width = 1280,
 		.height = 720,
-		.vts = OV5670_VTS_30FPS,
+		.vts_def = OV5670_VTS_30FPS,
+		.vts_min = 1020,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1280x720_regs),
 			.regs = mode_1280x720_regs,
@@ -1787,7 +1794,8 @@ static const struct ov5670_mode supported_modes[] = {
 	{
 		.width = 640,
 		.height = 360,
-		.vts = OV5670_VTS_30FPS,
+		.vts_def = OV5670_VTS_30FPS,
+		.vts_min = 510,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_640x360_regs),
 			.regs = mode_640x360_regs,
@@ -2046,6 +2054,7 @@ static int ov5670_init_controls(struct ov5670 *ov5670)
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 vblank_max;
 	s64 vblank_def;
+	s64 vblank_min;
 	s64 exposure_max;
 	int ret;
 
@@ -2070,9 +2079,10 @@ static int ov5670_init_controls(struct ov5670 *ov5670)
 					       link_freq_configs[0].pixel_rate);
 
 	vblank_max = OV5670_VTS_MAX - ov5670->cur_mode->height;
-	vblank_def = ov5670->cur_mode->vts - ov5670->cur_mode->height;
+	vblank_def = ov5670->cur_mode->vts_def - ov5670->cur_mode->height;
+	vblank_min = ov5670->cur_mode->vts_min - ov5670->cur_mode->height;
 	ov5670->vblank = v4l2_ctrl_new_std(ctrl_hdlr, &ov5670_ctrl_ops,
-					   V4L2_CID_VBLANK, OV5670_VBLANK_MIN,
+					   V4L2_CID_VBLANK, vblank_min,
 					   vblank_max, 1, vblank_def);
 
 	ov5670->hblank = v4l2_ctrl_new_std(
@@ -2094,7 +2104,7 @@ static int ov5670_init_controls(struct ov5670 *ov5670)
 			  OV5670_DGTL_GAIN_STEP, OV5670_DGTL_GAIN_DEFAULT);
 
 	/* Get min, max, step, default from sensor */
-	exposure_max = ov5670->cur_mode->vts - 8;
+	exposure_max = ov5670->cur_mode->vts_def - 8;
 	ov5670->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &ov5670_ctrl_ops,
 					     V4L2_CID_EXPOSURE,
 					     OV5670_EXPOSURE_MIN,
@@ -2242,9 +2252,11 @@ static int ov5670_set_pad_format(struct v4l2_subdev *sd,
 			ov5670->pixel_rate,
 			link_freq_configs[mode->link_freq_index].pixel_rate);
 		/* Update limits and set FPS to default */
-		vblank_def = ov5670->cur_mode->vts - ov5670->cur_mode->height;
+		vblank_def = ov5670->cur_mode->vts_def -
+			     ov5670->cur_mode->height;
 		__v4l2_ctrl_modify_range(
-			ov5670->vblank, OV5670_VBLANK_MIN,
+			ov5670->vblank,
+			ov5670->cur_mode->vts_min - ov5670->cur_mode->height,
 			OV5670_VTS_MAX - ov5670->cur_mode->height, 1,
 			vblank_def);
 		__v4l2_ctrl_s_ctrl(ov5670->vblank, vblank_def);
