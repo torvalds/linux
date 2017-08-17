@@ -606,7 +606,6 @@ void cper_estatus_print(const char *pfx,
 			const struct acpi_hest_generic_status *estatus)
 {
 	struct acpi_hest_generic_data *gdata;
-	unsigned int data_len;
 	int sec_no = 0;
 	char newpfx[64];
 	__u16 severity;
@@ -617,14 +616,10 @@ void cper_estatus_print(const char *pfx,
 		       "It has been corrected by h/w "
 		       "and requires no further action");
 	printk("%s""event severity: %s\n", pfx, cper_severity_str(severity));
-	data_len = estatus->data_length;
-	gdata = (struct acpi_hest_generic_data *)(estatus + 1);
 	snprintf(newpfx, sizeof(newpfx), "%s%s", pfx, INDENT_SP);
 
-	while (data_len >= acpi_hest_get_size(gdata)) {
+	apei_estatus_for_each_section(estatus, gdata) {
 		cper_estatus_print_section(newpfx, gdata, sec_no);
-		data_len -= acpi_hest_get_record_size(gdata);
-		gdata = acpi_hest_get_next(gdata);
 		sec_no++;
 	}
 }
@@ -653,15 +648,12 @@ int cper_estatus_check(const struct acpi_hest_generic_status *estatus)
 	if (rc)
 		return rc;
 	data_len = estatus->data_length;
-	gdata = (struct acpi_hest_generic_data *)(estatus + 1);
 
-	while (data_len >= acpi_hest_get_size(gdata)) {
+	apei_estatus_for_each_section(estatus, gdata) {
 		gedata_len = acpi_hest_get_error_length(gdata);
 		if (gedata_len > data_len - acpi_hest_get_size(gdata))
 			return -EINVAL;
-
 		data_len -= acpi_hest_get_record_size(gdata);
-		gdata = acpi_hest_get_next(gdata);
 	}
 	if (data_len)
 		return -EINVAL;

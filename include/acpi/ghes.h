@@ -113,6 +113,11 @@ static inline void *acpi_hest_get_next(struct acpi_hest_generic_data *gdata)
 	return (void *)(gdata) + acpi_hest_get_record_size(gdata);
 }
 
+#define apei_estatus_for_each_section(estatus, section)			\
+	for (section = (struct acpi_hest_generic_data *)(estatus + 1);	\
+	     (void *)section - (void *)(estatus + 1) < estatus->data_length; \
+	     section = acpi_hest_get_next(section))
+
 int ghes_notify_sea(void);
 
 #endif /* GHES_H */
