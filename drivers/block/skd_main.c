@@ -2830,14 +2830,13 @@ static void skd_isr_msg_from_dev(struct skd_device *skdev);
 static irqreturn_t
 skd_isr(int irq, void *ptr)
 {
-	struct skd_device *skdev;
+	struct skd_device *skdev = ptr;
 	u32 intstat;
 	u32 ack;
 	int rc = 0;
 	int deferred = 0;
 	int flush_enqueued = 0;
 
-	skdev = (struct skd_device *)ptr;
 	spin_lock(&skdev->lock);
 
 	for (;; ) {
