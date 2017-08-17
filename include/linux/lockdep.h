@@ -583,6 +583,7 @@ extern void crossrelease_hist_end(enum xhlock_context_t c);
 extern void lockdep_init_task(struct task_struct *task);
 extern void lockdep_free_task(struct task_struct *task);
 #else
+#define lockdep_init_map_crosslock(m, n, k, s) do {} while (0)
 /*
  * To initialize a lockdep_map statically use this macro.
  * Note that _name must not be NULL.

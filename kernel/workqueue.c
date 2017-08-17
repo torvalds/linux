@@ -2476,7 +2476,16 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
 	 */
 	INIT_WORK_ONSTACK(&barr->work, wq_barrier_func);
 	__set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(&barr->work));
-	init_completion(&barr->done);
+
+	/*
+	 * Explicitly init the crosslock for wq_barrier::done, make its lock
+	 * key a subkey of the corresponding work. As a result we won't
+	 * build a dependency between wq_barrier::done and unrelated work.
+	 */
+	lockdep_init_map_crosslock((struct lockdep_map *)&barr->done.map,
+				   "(complete)wq_barr::done",
+				   target->lockdep_map.key, 1);
+	__init_completion(&barr->done);
 	barr->task = current;
 
 	/*
