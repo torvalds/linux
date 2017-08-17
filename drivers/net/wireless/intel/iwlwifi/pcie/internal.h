@@ -443,6 +443,7 @@ struct iwl_trans_pcie {
 	bool bc_table_dword;
 	bool scd_set_active;
 	bool sw_csum_tx;
+	bool pcie_dbg_dumped_once;
 	u32 rx_page_order;
 
 	/*protect hw register */
