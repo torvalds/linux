@@ -28,6 +28,7 @@
 #include <linux/cache.h> /* for __read_mostly */
 
 #define I915_PARAMS_FOR_EACH(func) \
+	func(char *, vbt_firmware); \
 	func(int, modeset); \
 	func(int, panel_ignore_lid); \
 	func(int, semaphores); \

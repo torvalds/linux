@@ -118,6 +118,10 @@ MODULE_PARM_DESC(vbt_sdvo_panel_type,
 module_param_named_unsafe(reset, i915.reset, int, 0600);
 MODULE_PARM_DESC(reset, "Attempt GPU resets (0=disabled, 1=full gpu reset, 2=engine reset [default])");
 
+module_param_named_unsafe(vbt_firmware, i915.vbt_firmware, charp, 0400);
+MODULE_PARM_DESC(vbt_firmware,
+		 "Load VBT from specified file under /lib/firmware");
+
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 module_param_named(error_capture, i915.error_capture, bool, 0600);
 MODULE_PARM_DESC(error_capture,
