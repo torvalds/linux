@@ -236,6 +236,20 @@ struct ib_uverbs_rss_caps {
 	__u32 reserved;
 };
 
+struct ib_uverbs_tm_caps {
+	/* Max size of rendezvous request message */
+	__u32 max_rndv_hdr_size;
+	/* Max number of entries in tag matching list */
+	__u32 max_num_tags;
+	/* TM flags */
+	__u32 flags;
+	/* Max number of outstanding list operations */
+	__u32 max_ops;
+	/* Max number of SGE in tag matching entry */
+	__u32 max_sge;
+	__u32 reserved;
+};
+
 struct ib_uverbs_ex_query_device_resp {
 	struct ib_uverbs_query_device_resp base;
 	__u32 comp_mask;
@@ -247,6 +261,7 @@ struct ib_uverbs_ex_query_device_resp {
 	struct ib_uverbs_rss_caps rss_caps;
 	__u32  max_wq_type_rq;
 	__u32 raw_packet_caps;
+	struct ib_uverbs_tm_caps xrq_caps;
 };
 
 struct ib_uverbs_query_port {
