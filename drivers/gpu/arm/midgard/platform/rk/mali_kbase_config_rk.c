@@ -20,6 +20,7 @@
 #include <linux/suspend.h>
 #include <linux/of.h>
 #include <linux/delay.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/soc/rockchip/pvtm.h>
 #include <linux/thermal.h>
 
@@ -27,6 +28,7 @@
 
 #define MAX_PROP_NAME_LEN	3
 #define LEAKAGE_TABLE_END	~1
+#define LEAKAGE_INVALID		0xff
 
 struct pvtm_config {
 	unsigned int freq;
@@ -449,6 +451,34 @@ static void kbase_platform_rk_remove_sysfs_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_utilisation);
 }
 
+static int rockchip_get_efuse_value(struct device_node *np, char *porp_name,
+				    int *value)
+{
+	struct nvmem_cell *cell;
+	unsigned char *buf;
+	size_t len;
+
+	cell = of_nvmem_cell_get(np, porp_name);
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
+
+	buf = (unsigned char *)nvmem_cell_read(cell, &len);
+
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	if (buf[0] == LEAKAGE_INVALID)
+		return -EINVAL;
+
+	*value = buf[0];
+
+	kfree(buf);
+
+	return 0;
+}
+
 static int rockchip_get_volt_sel_table(struct device_node *np, char *porp_name,
 				       struct volt_sel_table **table)
 {
@@ -641,7 +671,8 @@ void kbase_platform_rk_set_opp_info(struct kbase_device *kbdev)
 {
 	struct device_node *np;
 	char name[MAX_PROP_NAME_LEN];
-	int pvmt_value, volt_sel = -1;
+	int pvmt_value, leakage;
+	int lkg_volt_sel, pvtm_volt_sel, volt_sel = -1;
 	int err = 0;
 
 	if (!kbdev)
@@ -658,19 +689,34 @@ void kbase_platform_rk_set_opp_info(struct kbase_device *kbdev)
 		return;
 	}
 
+	err = rockchip_get_efuse_value(np, "gpu_leakage", &leakage);
+	if (!err) {
+		dev_info(kbdev->dev, "leakage=%d\n", leakage);
+		err = rockchip_get_volt_sel(np, "rockchip,leakage-voltage-sel",
+					    leakage, &lkg_volt_sel);
+		if (!err) {
+			dev_info(kbdev->dev, "leakage-sel=%d\n", lkg_volt_sel);
+			volt_sel = lkg_volt_sel;
+		}
+	}
+
 	err = rockchip_get_pvtm_specific_value(kbdev->dev, np, kbdev->clock,
 					       kbdev->regulator,
 					       &pvmt_value);
 	if (!err) {
 		err = rockchip_get_volt_sel(np, "rockchip,pvtm-voltage-sel",
-					    pvmt_value, &volt_sel);
+					    pvmt_value, &pvtm_volt_sel);
 		if (!err) {
-			dev_info(kbdev->dev, "pvtm-sel=%d\n", volt_sel);
-			snprintf(name, MAX_PROP_NAME_LEN, "L%d", volt_sel);
-			err = dev_pm_opp_set_prop_name(kbdev->dev, name);
-			if (err)
-				dev_err(kbdev->dev,
-					"Failed to set prop name\n");
+			dev_info(kbdev->dev, "pvtm-sel=%d\n", pvtm_volt_sel);
+			if (volt_sel < 0 || volt_sel > pvtm_volt_sel)
+				volt_sel = pvtm_volt_sel;
 		}
+	}
+
+	if (volt_sel >= 0) {
+		snprintf(name, MAX_PROP_NAME_LEN, "L%d", volt_sel);
+		err = dev_pm_opp_set_prop_name(kbdev->dev, name);
+		if (err)
+			dev_err(kbdev->dev, "Failed to set prop name\n");
 	}
 }
