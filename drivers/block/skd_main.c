@@ -2790,7 +2790,7 @@ static void skd_complete_other(struct skd_device *skdev,
 	switch (req_table) {
 	case SKD_ID_RW_REQUEST:
 		/*
-		 * The caller, skd_completion_posted_isr() above,
+		 * The caller, skd_isr_completion_posted() above,
 		 * handles r/w requests. The only way we get here
 		 * is if the req_slot is out of bounds.
 		 */
