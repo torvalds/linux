@@ -18,6 +18,7 @@ obj-y					+= broadcom/	\
 					   marvell/	\
 					   motorola/	\
 					   qualcomm/	\
+					   ralink/	\
 					   samsung/	\
 					   st/		\
 					   ti/
