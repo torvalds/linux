@@ -2773,6 +2773,12 @@ static const struct qcom_nandc_props ipq806x_nandc_props = {
 	.dev_cmd_reg_start = 0x0,
 };
 
+static const struct qcom_nandc_props ipq4019_nandc_props = {
+	.ecc_modes = (ECC_BCH_4BIT | ECC_BCH_8BIT),
+	.is_bam = true,
+	.dev_cmd_reg_start = 0x0,
+};
+
 /*
  * data will hold a struct pointer containing more differences once we support
  * more controller variants
@@ -2781,6 +2787,10 @@ static const struct of_device_id qcom_nandc_of_match[] = {
 	{
 		.compatible = "qcom,ipq806x-nand",
 		.data = &ipq806x_nandc_props,
+	},
+	{
+		.compatible = "qcom,ipq4019-nand",
+		.data = &ipq4019_nandc_props,
 	},
 	{}
 };
