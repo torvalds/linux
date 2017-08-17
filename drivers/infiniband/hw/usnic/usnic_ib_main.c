@@ -351,7 +351,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 {
 	struct usnic_ib_dev *us_ibdev;
 	union ib_gid gid;
-	struct in_ifaddr *in;
+	struct in_device *ind;
 	struct net_device *netdev;
 
 	usnic_dbg("\n");
@@ -441,9 +441,11 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	if (netif_carrier_ok(us_ibdev->netdev))
 		usnic_fwd_carrier_up(us_ibdev->ufdev);
 
-	in = ((struct in_device *)(netdev->ip_ptr))->ifa_list;
-	if (in != NULL)
-		usnic_fwd_add_ipaddr(us_ibdev->ufdev, in->ifa_address);
+	ind = in_dev_get(netdev);
+	if (ind->ifa_list)
+		usnic_fwd_add_ipaddr(us_ibdev->ufdev,
+				     ind->ifa_list->ifa_address);
+	in_dev_put(ind);
 
 	usnic_mac_ip_to_gid(us_ibdev->netdev->perm_addr,
 				us_ibdev->ufdev->inaddr, &gid.raw[0]);
