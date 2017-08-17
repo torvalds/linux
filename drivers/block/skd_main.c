@@ -190,7 +190,6 @@ struct skd_fitmsg_context {
 	u16 outstanding;
 
 	u32 length;
-	u32 offset;
 
 	u8 *msg_buf;
 	dma_addr_t mb_dma_address;
@@ -2016,8 +2015,7 @@ static void skd_send_fitmsg(struct skd_device *skdev,
 
 	dev_dbg(&skdev->pdev->dev, "dma address 0x%llx, busy=%d\n",
 		skmsg->mb_dma_address, skdev->in_flight);
-	dev_dbg(&skdev->pdev->dev, "msg_buf 0x%p, offset %x\n", skmsg->msg_buf,
-		skmsg->offset);
+	dev_dbg(&skdev->pdev->dev, "msg_buf %p\n", skmsg->msg_buf);
 
 	qcmd = skmsg->mb_dma_address;
 	qcmd |= FIT_QCMD_QID_NORMAL;
@@ -3854,7 +3852,7 @@ static int skd_cons_skmsg(struct skd_device *skdev)
 
 		skmsg->state = SKD_MSG_STATE_IDLE;
 		skmsg->msg_buf = pci_alloc_consistent(skdev->pdev,
-						      SKD_N_FITMSG_BYTES + 64,
+						      SKD_N_FITMSG_BYTES,
 						      &skmsg->mb_dma_address);
 
 		if (skmsg->msg_buf == NULL) {
@@ -3862,13 +3860,10 @@ static int skd_cons_skmsg(struct skd_device *skdev)
 			goto err_out;
 		}
 
-		skmsg->offset = (u32)((u64)skmsg->msg_buf &
-				      (~FIT_QCMD_BASE_ADDRESS_MASK));
-		skmsg->msg_buf += ~FIT_QCMD_BASE_ADDRESS_MASK;
-		skmsg->msg_buf = (u8 *)((u64)skmsg->msg_buf &
-				       FIT_QCMD_BASE_ADDRESS_MASK);
-		skmsg->mb_dma_address += ~FIT_QCMD_BASE_ADDRESS_MASK;
-		skmsg->mb_dma_address &= FIT_QCMD_BASE_ADDRESS_MASK;
+		WARN(((uintptr_t)skmsg->msg_buf | skmsg->mb_dma_address) &
+		     (FIT_QCMD_ALIGN - 1),
+		     "not aligned: msg_buf %p mb_dma_address %#llx\n",
+		     skmsg->msg_buf, skmsg->mb_dma_address);
 		memset(skmsg->msg_buf, 0, SKD_N_FITMSG_BYTES);
 
 		skmsg->next = &skmsg[1];
@@ -4230,8 +4225,6 @@ static void skd_free_skmsg(struct skd_device *skdev)
 		skmsg = &skdev->skmsg_table[i];
 
 		if (skmsg->msg_buf != NULL) {
-			skmsg->msg_buf += skmsg->offset;
-			skmsg->mb_dma_address += skmsg->offset;
 			pci_free_consistent(skdev->pdev, SKD_N_FITMSG_BYTES,
 					    skmsg->msg_buf,
 					    skmsg->mb_dma_address);

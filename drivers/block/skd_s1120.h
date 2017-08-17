@@ -28,7 +28,7 @@
 #define  FIT_QCMD_MSGSIZE_128		(0x1 << 4)
 #define  FIT_QCMD_MSGSIZE_256		(0x2 << 4)
 #define  FIT_QCMD_MSGSIZE_512		(0x3 << 4)
-#define  FIT_QCMD_BASE_ADDRESS_MASK	(0xFFFFFFFFFFFFFFC0ull)
+#define  FIT_QCMD_ALIGN			L1_CACHE_BYTES
 
 /*
  * Control, 32-bit r/w
