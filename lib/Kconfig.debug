@@ -1153,7 +1153,7 @@ config LOCK_STAT
 	 (CONFIG_LOCKDEP defines "acquire" and "release" events.)
 
 config LOCKDEP_CROSSRELEASE
-	bool "Lock debugging: make lockdep work for crosslocks"
+	bool "Lock debugging: enable cross-locking checks in lockdep"
 	help
 	 This makes lockdep work for crosslock which is a lock allowed to
 	 be released in a different context from the acquisition context.
