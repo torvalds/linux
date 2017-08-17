@@ -1153,7 +1153,7 @@ config LOCK_STAT
 	 (CONFIG_LOCKDEP defines "acquire" and "release" events.)
 
 config LOCKDEP_CROSSRELEASE
-	bool "Lock debugging: enable cross-locking checks in lockdep"
+	bool
 	help
 	 This makes lockdep work for crosslock which is a lock allowed to
 	 be released in a different context from the acquisition context.
@@ -1163,7 +1163,7 @@ config LOCKDEP_CROSSRELEASE
 	 detector, lockdep.
 
 config LOCKDEP_COMPLETIONS
-	bool "Lock debugging: allow completions to use deadlock detector"
+	bool
 	help
 	 A deadlock caused by wait_for_completion() and complete() can be
 	 detected by lockdep using crossrelease feature.
