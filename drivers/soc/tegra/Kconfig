@@ -107,6 +107,11 @@ config ARCH_TEGRA_186_SOC
 endif
 endif
 
+config SOC_TEGRA_FUSE
+	def_bool y
+	depends on ARCH_TEGRA
+	select SOC_BUS
+
 config SOC_TEGRA_FLOWCTRL
 	bool
 
