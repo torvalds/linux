@@ -43,11 +43,6 @@
 #define RT_SDIO_INTERFACE	3
 #define DEV_BUS_TYPE		RT_PCI_INTERFACE
 
-#include "halbtc8192e2ant.h"
-#include "halbtc8723b1ant.h"
-#include "halbtc8723b2ant.h"
-#include "halbtc8821a2ant.h"
-#include "halbtc8821a1ant.h"
 #include "halbtc8822b1ant.h"
 #include "halbtc8822b2ant.h"
 #include "halbtc8822bwifionly.h"
