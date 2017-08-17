@@ -1352,6 +1352,8 @@ struct iommu_domain *iommu_get_domain_for_dev(struct device *dev)
 	struct iommu_group *group;
 
 	group = iommu_group_get(dev);
+	if (!group)
+		return NULL;
 
 	domain = group->domain;
 
