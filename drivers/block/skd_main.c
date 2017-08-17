@@ -4273,7 +4273,7 @@ static int skd_cons_disk(struct skd_device *skdev)
 	blk_queue_max_segments(q, skdev->sgs_per_request);
 	blk_queue_max_hw_sectors(q, SKD_N_MAX_SECTORS);
 
-	/* set sysfs ptimal_io_size to 8K */
+	/* set optimal I/O size to 8KB */
 	blk_queue_io_opt(q, 8192);
 
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
