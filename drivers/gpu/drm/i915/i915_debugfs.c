@@ -3522,6 +3522,57 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_ipc_status_show(struct seq_file *m, void *data)
+{
+	struct drm_i915_private *dev_priv = m->private;
+
+	seq_printf(m, "Isochronous Priority Control: %s\n",
+			yesno(dev_priv->ipc_enabled));
+	return 0;
+}
+
+static int i915_ipc_status_open(struct inode *inode, struct file *file)
+{
+	struct drm_i915_private *dev_priv = inode->i_private;
+
+	if (!HAS_IPC(dev_priv))
+		return -ENODEV;
+
+	return single_open(file, i915_ipc_status_show, dev_priv);
+}
+
+static ssize_t i915_ipc_status_write(struct file *file, const char __user *ubuf,
+				     size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_i915_private *dev_priv = m->private;
+	int ret;
+	bool enable;
+
+	ret = kstrtobool_from_user(ubuf, len, &enable);
+	if (ret < 0)
+		return ret;
+
+	intel_runtime_pm_get(dev_priv);
+	if (!dev_priv->ipc_enabled && enable)
+		DRM_INFO("Enabling IPC: WM will be proper only after next commit\n");
+	dev_priv->wm.distrust_bios_wm = true;
+	dev_priv->ipc_enabled = enable;
+	intel_enable_ipc(dev_priv);
+	intel_runtime_pm_put(dev_priv);
+
+	return len;
+}
+
+static const struct file_operations i915_ipc_status_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_ipc_status_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = i915_ipc_status_write
+};
+
 static int i915_ddb_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -4858,7 +4909,8 @@ static const struct i915_debugfs_files {
 	{"i915_dp_test_type", &i915_displayport_test_type_fops},
 	{"i915_dp_test_active", &i915_displayport_test_active_fops},
 	{"i915_guc_log_control", &i915_guc_log_control_fops},
-	{"i915_hpd_storm_ctl", &i915_hpd_storm_ctl_fops}
+	{"i915_hpd_storm_ctl", &i915_hpd_storm_ctl_fops},
+	{"i915_ipc_status", &i915_ipc_status_fops}
 };
 
 int i915_debugfs_register(struct drm_i915_private *dev_priv)
