@@ -3080,6 +3080,8 @@ static int power_control_init(struct platform_device *pdev)
 		}
 	}
 
+	kbase_platform_rk_set_opp_info(kbdev);
+
 #if defined(CONFIG_OF) && defined(CONFIG_PM_OPP)
 	/* Register the OPPs if they are available in device tree */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) \

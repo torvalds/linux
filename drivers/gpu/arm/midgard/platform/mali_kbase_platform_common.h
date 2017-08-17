@@ -13,6 +13,7 @@
  *
  */
 
+#include <mali_kbase.h>
 
 
 /**
@@ -24,3 +25,4 @@
  * @return Zero to indicate success non-zero for failure.
  */
 int kbase_platform_early_init(void);
+void kbase_platform_rk_set_opp_info(struct kbase_device *kbdev);
