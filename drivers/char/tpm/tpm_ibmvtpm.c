@@ -32,7 +32,7 @@
 
 static const char tpm_ibmvtpm_driver_name[] = "tpm_ibmvtpm";
 
-static struct vio_device_id tpm_ibmvtpm_device_table[] = {
+static const struct vio_device_id tpm_ibmvtpm_device_table[] = {
 	{ "IBM,vtpm", "IBM,vtpm"},
 	{ "", "" }
 };
