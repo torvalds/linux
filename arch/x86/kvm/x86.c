@@ -4657,25 +4657,18 @@ static int emulator_read_write_onepage(unsigned long addr, void *val,
 	 */
 	if (vcpu->arch.gpa_available &&
 	    emulator_can_use_gpa(ctxt) &&
-	    vcpu_is_mmio_gpa(vcpu, addr, exception->address, write) &&
-	    (addr & ~PAGE_MASK) == (exception->address & ~PAGE_MASK)) {
-		gpa = exception->address;
-		goto mmio;
+	    (addr & ~PAGE_MASK) == (vcpu->arch.gpa_val & ~PAGE_MASK)) {
+		gpa = vcpu->arch.gpa_val;
+		ret = vcpu_is_mmio_gpa(vcpu, addr, gpa, write);
+	} else {
+		ret = vcpu_mmio_gva_to_gpa(vcpu, addr, &gpa, exception, write);
+		if (ret < 0)
+			return X86EMUL_PROPAGATE_FAULT;
 	}
 
-	ret = vcpu_mmio_gva_to_gpa(vcpu, addr, &gpa, exception, write);
-
-	if (ret < 0)
-		return X86EMUL_PROPAGATE_FAULT;
-
-	/* For APIC access vmexit */
-	if (ret)
-		goto mmio;
-
-	if (ops->read_write_emulate(vcpu, gpa, val, bytes))
+	if (!ret && ops->read_write_emulate(vcpu, gpa, val, bytes))
 		return X86EMUL_CONTINUE;
 
-mmio:
 	/*
 	 * Is this MMIO handled locally?
 	 */
@@ -7002,6 +6995,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.apic_attention)
 		kvm_lapic_sync_from_vapic(vcpu);
 
+	vcpu->arch.gpa_available = false;
 	r = kvm_x86_ops->handle_exit(vcpu);
 	return r;
 
