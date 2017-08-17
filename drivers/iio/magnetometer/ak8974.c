@@ -20,6 +20,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/random.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
@@ -470,6 +471,7 @@ static int ak8974_detect(struct ak8974 *ak8974)
 		ret = ak8974_get_u16_val(ak8974, AMI305_SN, &sn);
 		if (ret)
 			return ret;
+		add_device_randomness(&sn, sizeof(sn));
 		dev_info(&ak8974->i2c->dev,
 			 "detected %s, FW ver %02x, S/N: %04x\n",
 			 name, fw, sn);
