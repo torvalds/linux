@@ -1258,7 +1258,7 @@ EXPORT_SYMBOL(blk_mq_queue_stopped);
 /*
  * This function is often used for pausing .queue_rq() by driver when
  * there isn't enough resource or some conditions aren't satisfied, and
- * BLK_MQ_RQ_QUEUE_BUSY is usually returned.
+ * BLK_STS_RESOURCE is usually returned.
  *
  * We do not guarantee that dispatch can be drained or blocked
  * after blk_mq_stop_hw_queue() returns. Please use
@@ -1275,7 +1275,7 @@ EXPORT_SYMBOL(blk_mq_stop_hw_queue);
 /*
  * This function is often used for pausing .queue_rq() by driver when
  * there isn't enough resource or some conditions aren't satisfied, and
- * BLK_MQ_RQ_QUEUE_BUSY is usually returned.
+ * BLK_STS_RESOURCE is usually returned.
  *
  * We do not guarantee that dispatch can be drained or blocked
  * after blk_mq_stop_hw_queues() returns. Please use
