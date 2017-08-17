@@ -4777,20 +4777,6 @@ static int skd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_timer;
 	}
 
-
-#ifdef SKD_VMK_POLL_HANDLER
-	if (skdev->irq_type == SKD_IRQ_MSIX) {
-		/* MSIX completion handler is being used for coredump */
-		vmklnx_scsi_register_poll_handler(skdev->scsi_host,
-						  skdev->msix_entries[5].vector,
-						  skd_comp_q, skdev);
-	} else {
-		vmklnx_scsi_register_poll_handler(skdev->scsi_host,
-						  skdev->pdev->irq, skd_isr,
-						  skdev);
-	}
-#endif  /* SKD_VMK_POLL_HANDLER */
-
 	return rc;
 
 err_out_timer:
