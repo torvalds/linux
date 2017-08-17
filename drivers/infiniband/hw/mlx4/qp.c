@@ -1046,9 +1046,8 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		}
 
 		if (src == MLX4_IB_RWQ_SRC) {
-			if (ucmd.wq.comp_mask || ucmd.wq.reserved1 ||
-			    ucmd.wq.reserved[0] || ucmd.wq.reserved[1] ||
-			    ucmd.wq.reserved[2]) {
+			if (ucmd.wq.comp_mask || ucmd.wq.reserved[0] ||
+			    ucmd.wq.reserved[1] || ucmd.wq.reserved[2]) {
 				pr_debug("user command isn't supported\n");
 				err = -EOPNOTSUPP;
 				goto err;
@@ -4146,8 +4145,8 @@ struct ib_wq *mlx4_ib_create_wq(struct ib_pd *pd,
 	if (!(udata && pd->uobject))
 		return ERR_PTR(-EINVAL);
 
-	required_cmd_sz = offsetof(typeof(ucmd), reserved) +
-			  sizeof(ucmd.reserved);
+	required_cmd_sz = offsetof(typeof(ucmd), comp_mask) +
+			  sizeof(ucmd.comp_mask);
 	if (udata->inlen < required_cmd_sz) {
 		pr_debug("invalid inlen\n");
 		return ERR_PTR(-EINVAL);
