@@ -1438,15 +1438,6 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_RUNNING)
 		liquidio_stop(netdev);
 
-	if (fw_type_is_none()) {
-		struct octnic_ctrl_pkt nctrl;
-
-		memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
-		nctrl.ncmd.s.cmd = OCTNET_CMD_RESET_PF;
-		nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-		octnet_send_nic_ctrl_pkt(oct, &nctrl);
-	}
-
 	if (oct->props[lio->ifidx].napi_enabled == 1) {
 		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
 			napi_disable(napi);
