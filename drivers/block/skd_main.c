@@ -693,36 +693,17 @@ static void skd_request_fn(struct request_queue *q)
 		/*
 		 * If the FIT msg buffer is full send it.
 		 */
-		if (skmsg->length >= SKD_N_FITMSG_BYTES ||
-		    fmh->num_protocol_cmds_coalesced >= skd_max_req_per_msg) {
+		if (fmh->num_protocol_cmds_coalesced >= skd_max_req_per_msg) {
 			skd_send_fitmsg(skdev, skmsg);
 			skmsg = NULL;
 			fmh = NULL;
 		}
 	}
 
-	/*
-	 * Is a FIT msg in progress? If it is empty put the buffer back
-	 * on the free list. If it is non-empty send what we got.
-	 * This minimizes latency when there are fewer requests than
-	 * what fits in a FIT msg.
-	 */
-	if (skmsg != NULL) {
-		/* Bigger than just a FIT msg header? */
-		if (skmsg->length > sizeof(struct fit_msg_hdr)) {
-			dev_dbg(&skdev->pdev->dev, "sending msg=%p, len %d\n",
-				skmsg, skmsg->length);
-			skd_send_fitmsg(skdev, skmsg);
-		} else {
-			/*
-			 * The FIT msg is empty. It means we got started
-			 * on the msg, but the requests were rejected.
-			 */
-			skmsg->state = SKD_MSG_STATE_IDLE;
-			skmsg->id += SKD_ID_INCR;
-			skmsg->next = skdev->skmsg_free_list;
-			skdev->skmsg_free_list = skmsg;
-		}
+	/* If the FIT msg buffer is not empty send what we got. */
+	if (skmsg) {
+		WARN_ON_ONCE(!fmh->num_protocol_cmds_coalesced);
+		skd_send_fitmsg(skdev, skmsg);
 		skmsg = NULL;
 		fmh = NULL;
 	}
