@@ -157,7 +157,7 @@ static int calc_rate_offset(int hz)
 /*
  */
 
-static struct snd_pcm_hardware emu8k_pcm_hw = {
+static const struct snd_pcm_hardware emu8k_pcm_hw = {
 #ifdef USE_NONINTERLEAVE
 	.info =			SNDRV_PCM_INFO_NONINTERLEAVED,
 #else

@@ -532,7 +532,7 @@ static irqreturn_t snd_sgio2audio_error_isr(int irq, void *dev_id)
 
 /* PCM part */
 /* PCM hardware definition */
-static struct snd_pcm_hardware snd_sgio2audio_pcm_hw = {
+static const struct snd_pcm_hardware snd_sgio2audio_pcm_hw = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_INTERLEAVED |

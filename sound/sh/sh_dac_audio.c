@@ -93,7 +93,7 @@ static void dac_audio_set_rate(struct snd_sh_dac *chip)
 
 /* PCM INTERFACE */
 
-static struct snd_pcm_hardware snd_sh_dac_pcm_hw = {
+static const struct snd_pcm_hardware snd_sh_dac_pcm_hw = {
 	.info			= (SNDRV_PCM_INFO_MMAP |
 					SNDRV_PCM_INFO_MMAP_VALID |
 					SNDRV_PCM_INFO_INTERLEAVED |

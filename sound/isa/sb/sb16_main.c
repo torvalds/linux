@@ -473,7 +473,7 @@ static snd_pcm_uframes_t snd_sb16_capture_pointer(struct snd_pcm_substream *subs
 
  */
 
-static struct snd_pcm_hardware snd_sb16_playback =
+static const struct snd_pcm_hardware snd_sb16_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -491,7 +491,7 @@ static struct snd_pcm_hardware snd_sb16_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_sb16_capture =
+static const struct snd_pcm_hardware snd_sb16_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),

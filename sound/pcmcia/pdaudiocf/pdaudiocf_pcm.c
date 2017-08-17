@@ -193,7 +193,7 @@ static int pdacf_pcm_prepare(struct snd_pcm_substream *subs)
  * capture hw information
  */
 
-static struct snd_pcm_hardware pdacf_pcm_capture_hw = {
+static const struct snd_pcm_hardware pdacf_pcm_capture_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID |

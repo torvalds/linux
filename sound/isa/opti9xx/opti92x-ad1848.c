@@ -151,7 +151,7 @@ static int snd_opti9xx_pnp_is_probed;
 
 #ifdef CONFIG_PNP
 
-static struct pnp_card_device_id snd_opti9xx_pnpids[] = {
+static const struct pnp_card_device_id snd_opti9xx_pnpids[] = {
 #ifndef OPTi93X
 	/* OPTi 82C924 */
 	{ .id = "OPT0924",

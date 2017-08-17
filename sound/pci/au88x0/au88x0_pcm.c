@@ -30,7 +30,7 @@
 #define VORTEX_PCM_TYPE(x) (x->name[40])
 
 /* hardware definition */
-static struct snd_pcm_hardware snd_vortex_playback_hw_adb = {
+static const struct snd_pcm_hardware snd_vortex_playback_hw_adb = {
 	.info =
 	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
@@ -51,7 +51,7 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_adb = {
 };
 
 #ifndef CHIP_AU8820
-static struct snd_pcm_hardware snd_vortex_playback_hw_a3d = {
+static const struct snd_pcm_hardware snd_vortex_playback_hw_a3d = {
 	.info =
 	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
@@ -71,7 +71,7 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_a3d = {
 	.periods_max = 64,
 };
 #endif
-static struct snd_pcm_hardware snd_vortex_playback_hw_spdif = {
+static const struct snd_pcm_hardware snd_vortex_playback_hw_spdif = {
 	.info =
 	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
@@ -94,7 +94,7 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_spdif = {
 };
 
 #ifndef CHIP_AU8810
-static struct snd_pcm_hardware snd_vortex_playback_hw_wt = {
+static const struct snd_pcm_hardware snd_vortex_playback_hw_wt = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		 SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID),

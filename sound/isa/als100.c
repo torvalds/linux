@@ -79,7 +79,7 @@ struct snd_card_als100 {
 	struct snd_sb *chip;
 };
 
-static struct pnp_card_device_id snd_als100_pnpids[] = {
+static const struct pnp_card_device_id snd_als100_pnpids[] = {
 	/* DT197A30 */
 	{ .id = "RWB1688",
 	  .devs = { { "@@@0001" }, { "@X@0001" }, { "@H@0001" } },

@@ -149,7 +149,7 @@ static const struct pnp_device_id snd_cs423x_pnpbiosids[] = {
 MODULE_DEVICE_TABLE(pnp, snd_cs423x_pnpbiosids);
 
 #define CS423X_ISAPNP_DRIVER	"cs4232_isapnp"
-static struct pnp_card_device_id snd_cs423x_pnpids[] = {
+static const struct pnp_card_device_id snd_cs423x_pnpids[] = {
 	/* Philips PCA70PS */
 	{ .id = "CSC0d32", .devs = { { "CSC0000" }, { "CSC0010" }, { "PNPb006" } } },
 	/* TerraTec Maestro 32/96 (CS4232) */

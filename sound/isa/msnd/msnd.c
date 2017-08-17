@@ -437,7 +437,7 @@ static void snd_msnd_capture_reset_queue(struct snd_msnd *chip,
 	}
 }
 
-static struct snd_pcm_hardware snd_msnd_playback = {
+static const struct snd_pcm_hardware snd_msnd_playback = {
 	.info =			SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_MMAP_VALID |
@@ -456,7 +456,7 @@ static struct snd_pcm_hardware snd_msnd_playback = {
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_msnd_capture = {
+static const struct snd_pcm_hardware snd_msnd_capture = {
 	.info =			SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_MMAP_VALID |
