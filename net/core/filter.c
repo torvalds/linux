@@ -2568,7 +2568,6 @@ int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp,
 
 	fwd = dev_get_by_index_rcu(dev_net(dev), index);
 	ri->ifindex = 0;
-	ri->map = NULL;
 	if (unlikely(!fwd)) {
 		bpf_warn_invalid_xdp_redirect(index);
 		return -EINVAL;
