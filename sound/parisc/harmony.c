@@ -260,7 +260,7 @@ snd_harmony_rate_bits(int rate)
 	return HARMONY_SR_44KHZ;
 }
 
-static struct snd_pcm_hardware snd_harmony_playback =
+static const struct snd_pcm_hardware snd_harmony_playback =
 {
 	.info =	(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED | 
 		 SNDRV_PCM_INFO_JOINT_DUPLEX | SNDRV_PCM_INFO_MMAP_VALID |
@@ -281,7 +281,7 @@ static struct snd_pcm_hardware snd_harmony_playback =
 	.fifo_size = 0,
 };
 
-static struct snd_pcm_hardware snd_harmony_capture =
+static const struct snd_pcm_hardware snd_harmony_capture =
 {
         .info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
                  SNDRV_PCM_INFO_JOINT_DUPLEX | SNDRV_PCM_INFO_MMAP_VALID |
