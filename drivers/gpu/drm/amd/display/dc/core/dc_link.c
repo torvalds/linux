@@ -607,6 +607,12 @@ bool dc_link_detect(struct dc_link *link, bool boot)
 			if (link->type == dc_connection_mst_branch) {
 				LINK_INFO("link=%d, mst branch is now Connected\n",
 					link->link_index);
+				/* Need to setup mst link_cap struct here
+				 * otherwise dc_link_detect() will leave mst link_cap
+				 * empty which leads to allocate_mst_payload() has "0"
+				 * pbn_per_slot value leading to exception on dal_fixed31_32_div()
+				 */
+				link->verified_link_cap = link->reported_link_cap;
 				return false;
 			}
 
@@ -672,13 +678,9 @@ bool dc_link_detect(struct dc_link *link, bool boot)
 			 * TODO debug why Dell 2413 doesn't like
 			 *  two link trainings
 			 */
-			if (is_mst_supported(link)) {
-				link->verified_link_cap =
-						link->reported_link_cap;
-			} else {
-				dp_hbr_verify_link_cap(link,
-				    &link->reported_link_cap);
-			}
+
+			/* deal with non-mst cases */
+			dp_hbr_verify_link_cap(link, &link->reported_link_cap);
 		}
 
 		/* HDMI-DVI Dongle */
