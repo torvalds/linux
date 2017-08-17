@@ -101,10 +101,12 @@ static inline void __tlb_flush_kernel(void)
 
 static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
 {
+	spin_lock(&mm->context.lock);
 	if (mm->context.flush_mm) {
-		__tlb_flush_mm(mm);
 		mm->context.flush_mm = 0;
+		__tlb_flush_mm(mm);
 	}
+	spin_unlock(&mm->context.lock);
 }
 
 /*
