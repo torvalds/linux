@@ -7,6 +7,10 @@
 
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
+. $(dirname $0)/lib/probe.sh
+
+skip_if_no_perf_probe || exit 2
+
 . $(dirname $0)/lib/probe_vfs_getname.sh
 
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)

@@ -104,9 +104,9 @@ system, asynchronous, interrupt, transaction abort, trace begin, trace end, and
 in transaction, respectively.
 
 While it is possible to create scripts to analyze the data, an alternative
-approach is available to export the data to a postgresql database.  Refer to
-script export-to-postgresql.py for more details, and to script
-call-graph-from-postgresql.py for an example of using the database.
+approach is available to export the data to a sqlite or postgresql database.
+Refer to script export-to-sqlite.py or export-to-postgresql.py for more details,
+and to script call-graph-from-sql.py for an example of using the database.
 
 There is also script intel-pt-events.py which provides an example of how to
 unpack the raw data for power events and PTWRITE.
