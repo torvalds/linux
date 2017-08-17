@@ -183,7 +183,6 @@ struct skd_request_context {
 	u16 id;
 	u32 fitmsg_id;
 
-	struct request *req;
 	u8 flush_cmd;
 
 	u32 timeout_stamp;
@@ -255,8 +254,6 @@ struct skd_device {
 	atomic_t timeout_slot[SKD_N_TIMEOUT_SLOT];
 	atomic_t timeout_stamp;
 	struct skd_fitmsg_context *skmsg_table;
-
-	struct skd_request_context *skreq_table;
 
 	struct skd_special_context internal_skspcl;
 	u32 read_cap_blocksize;
@@ -500,7 +497,7 @@ static void skd_process_request(struct request *req)
 	struct skd_fitmsg_context *skmsg;
 	struct fit_msg_hdr *fmh;
 	const u32 tag = blk_mq_unique_tag(req);
-	struct skd_request_context *const skreq = &skdev->skreq_table[tag];
+	struct skd_request_context *const skreq = blk_mq_rq_to_pdu(req);
 	struct skd_scsi_request *scsi_req;
 	unsigned long io_flags;
 	u32 lba;
@@ -537,14 +534,14 @@ static void skd_process_request(struct request *req)
 	skreq->n_sg = 0;
 	skreq->sg_byte_count = 0;
 
-	skreq->req = req;
 	skreq->fitmsg_id = 0;
 
 	skreq->data_dir = data_dir == READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
 	if (req->bio && !skd_preop_sg_list(skdev, skreq)) {
 		dev_dbg(&skdev->pdev->dev, "error Out\n");
-		skd_end_request(skdev, skreq->req, BLK_STS_RESOURCE);
+		skd_end_request(skdev, blk_mq_rq_from_pdu(skreq),
+				BLK_STS_RESOURCE);
 		return;
 	}
 
@@ -705,7 +702,7 @@ static void skd_end_request(struct skd_device *skdev, struct request *req,
 static bool skd_preop_sg_list(struct skd_device *skdev,
 			     struct skd_request_context *skreq)
 {
-	struct request *req = skreq->req;
+	struct request *req = blk_mq_rq_from_pdu(skreq);
 	struct scatterlist *sgl = &skreq->sg[0], *sg;
 	int n_sg;
 	int i;
@@ -1564,29 +1561,10 @@ static void skd_release_skreq(struct skd_device *skdev,
 	atomic_dec(&skdev->timeout_slot[timo_slot]);
 
 	/*
-	 * Reset backpointer
-	 */
-	skreq->req = NULL;
-
-	/*
 	 * Reclaim the skd_request_context
 	 */
 	skreq->state = SKD_REQ_STATE_IDLE;
 	skreq->id += SKD_ID_INCR;
-}
-
-static struct skd_request_context *skd_skreq_from_rq(struct skd_device *skdev,
-						     struct request *rq)
-{
-	struct skd_request_context *skreq;
-	int i;
-
-	for (i = 0, skreq = skdev->skreq_table; i < skdev->num_fitmsg_context;
-	     i++, skreq++)
-		if (skreq->req == rq)
-			return skreq;
-
-	return NULL;
 }
 
 static int skd_isr_completion_posted(struct skd_device *skdev,
@@ -1661,7 +1639,7 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 		if (WARN(!rq, "No request for tag %#x -> %#x\n", cmp_cntxt,
 			 tag))
 			continue;
-		skreq = skd_skreq_from_rq(skdev, rq);
+		skreq = blk_mq_rq_to_pdu(rq);
 
 		/*
 		 * Make sure the request ID for the slot matches.
@@ -2034,7 +2012,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 static void skd_recover_request(struct skd_device *skdev,
 				struct skd_request_context *skreq)
 {
-	struct request *req = skreq->req;
+	struct request *req = blk_mq_rq_from_pdu(skreq);
 
 	if (skreq->state != SKD_REQ_STATE_BUSY)
 		return;
@@ -2047,7 +2025,6 @@ static void skd_recover_request(struct skd_device *skdev,
 	if (skreq->n_sg > 0)
 		skd_postop_sg_list(skdev, skreq);
 
-	skreq->req = NULL;
 	skreq->state = SKD_REQ_STATE_IDLE;
 
 	skd_end_request(skdev, req, BLK_STS_IOERR);
@@ -2058,8 +2035,12 @@ static void skd_recover_requests(struct skd_device *skdev)
 	int i;
 
 	for (i = 0; i < skdev->num_req_context; i++) {
-		struct skd_request_context *skreq = &skdev->skreq_table[i];
+		struct request *rq = blk_map_queue_find_tag(skdev->queue->
+							    queue_tags, i);
+		struct skd_request_context *skreq = blk_mq_rq_to_pdu(rq);
 
+		if (!rq)
+			continue;
 		skd_recover_request(skdev, skreq);
 	}
 
@@ -2862,53 +2843,28 @@ static void skd_free_sg_list(struct skd_device *skdev,
 	pci_free_consistent(skdev->pdev, nbytes, sg_list, dma_addr);
 }
 
-static int skd_cons_skreq(struct skd_device *skdev)
+static int skd_init_rq(struct request_queue *q, struct request *rq, gfp_t gfp)
 {
-	int rc = 0;
-	u32 i;
+	struct skd_device *skdev = q->queuedata;
+	struct skd_request_context *skreq = blk_mq_rq_to_pdu(rq);
 
-	dev_dbg(&skdev->pdev->dev,
-		"skreq_table kcalloc, struct %lu, count %u total %lu\n",
-		sizeof(struct skd_request_context), skdev->num_req_context,
-		sizeof(struct skd_request_context) * skdev->num_req_context);
+	skreq->state = SKD_REQ_STATE_IDLE;
+	skreq->sg = (void *)(skreq + 1);
+	sg_init_table(skreq->sg, skd_sgs_per_request);
+	skreq->sksg_list = skd_cons_sg_list(skdev, skd_sgs_per_request,
+					    &skreq->sksg_dma_address);
 
-	skdev->skreq_table = kcalloc(skdev->num_req_context,
-				     sizeof(struct skd_request_context),
-				     GFP_KERNEL);
-	if (skdev->skreq_table == NULL) {
-		rc = -ENOMEM;
-		goto err_out;
-	}
+	return skreq->sksg_list ? 0 : -ENOMEM;
+}
 
-	dev_dbg(&skdev->pdev->dev, "alloc sg_table sg_per_req %u scatlist %lu total %lu\n",
-		skdev->sgs_per_request, sizeof(struct scatterlist),
-		skdev->sgs_per_request * sizeof(struct scatterlist));
+static void skd_exit_rq(struct request_queue *q, struct request *rq)
+{
+	struct skd_device *skdev = q->queuedata;
+	struct skd_request_context *skreq = blk_mq_rq_to_pdu(rq);
 
-	for (i = 0; i < skdev->num_req_context; i++) {
-		struct skd_request_context *skreq;
-
-		skreq = &skdev->skreq_table[i];
-		skreq->state = SKD_REQ_STATE_IDLE;
-		skreq->sg = kcalloc(skdev->sgs_per_request,
-				    sizeof(struct scatterlist), GFP_KERNEL);
-		if (skreq->sg == NULL) {
-			rc = -ENOMEM;
-			goto err_out;
-		}
-		sg_init_table(skreq->sg, skdev->sgs_per_request);
-
-		skreq->sksg_list = skd_cons_sg_list(skdev,
-						    skdev->sgs_per_request,
-						    &skreq->sksg_dma_address);
-
-		if (skreq->sksg_list == NULL) {
-			rc = -ENOMEM;
-			goto err_out;
-		}
-	}
-
-err_out:
-	return rc;
+	skd_free_sg_list(skdev, skreq->sksg_list,
+			 skdev->sgs_per_request,
+			 skreq->sksg_dma_address);
 }
 
 static int skd_cons_sksb(struct skd_device *skdev)
@@ -2976,18 +2932,30 @@ static int skd_cons_disk(struct skd_device *skdev)
 	disk->fops = &skd_blockdev_ops;
 	disk->private_data = skdev;
 
-	q = blk_init_queue(skd_request_fn, &skdev->lock);
+	q = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE);
 	if (!q) {
 		rc = -ENOMEM;
 		goto err_out;
 	}
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
+	q->queuedata = skdev;
+	q->request_fn = skd_request_fn;
+	q->queue_lock = &skdev->lock;
 	q->nr_requests = skd_max_queue_depth / 2;
-	blk_queue_init_tags(q, skd_max_queue_depth, NULL, BLK_TAG_ALLOC_FIFO);
+	q->cmd_size = sizeof(struct skd_request_context) +
+		skdev->sgs_per_request * sizeof(struct scatterlist);
+	q->init_rq_fn = skd_init_rq;
+	q->exit_rq_fn = skd_exit_rq;
+	rc = blk_init_allocated_queue(q);
+	if (rc < 0)
+		goto cleanup_q;
+	rc = blk_queue_init_tags(q, skd_max_queue_depth, NULL,
+				 BLK_TAG_ALLOC_FIFO);
+	if (rc < 0)
+		goto cleanup_q;
 
 	skdev->queue = q;
 	disk->queue = q;
-	q->queuedata = skdev;
 
 	blk_queue_write_cache(q, true, true);
 	blk_queue_max_segments(q, skdev->sgs_per_request);
@@ -3006,6 +2974,10 @@ static int skd_cons_disk(struct skd_device *skdev)
 
 err_out:
 	return rc;
+
+cleanup_q:
+	blk_cleanup_queue(q);
+	goto err_out;
 }
 
 #define SKD_N_DEV_TABLE         16u
@@ -3049,11 +3021,6 @@ static struct skd_device *skd_construct(struct pci_dev *pdev)
 
 	dev_dbg(&skdev->pdev->dev, "skmsg\n");
 	rc = skd_cons_skmsg(skdev);
-	if (rc < 0)
-		goto err_out;
-
-	dev_dbg(&skdev->pdev->dev, "skreq\n");
-	rc = skd_cons_skreq(skdev);
 	if (rc < 0)
 		goto err_out;
 
@@ -3117,32 +3084,6 @@ static void skd_free_skmsg(struct skd_device *skdev)
 	skdev->skmsg_table = NULL;
 }
 
-static void skd_free_skreq(struct skd_device *skdev)
-{
-	u32 i;
-
-	if (skdev->skreq_table == NULL)
-		return;
-
-	for (i = 0; i < skdev->num_req_context; i++) {
-		struct skd_request_context *skreq;
-
-		skreq = &skdev->skreq_table[i];
-
-		skd_free_sg_list(skdev, skreq->sksg_list,
-				 skdev->sgs_per_request,
-				 skreq->sksg_dma_address);
-
-		skreq->sksg_list = NULL;
-		skreq->sksg_dma_address = 0;
-
-		kfree(skreq->sg);
-	}
-
-	kfree(skdev->skreq_table);
-	skdev->skreq_table = NULL;
-}
-
 static void skd_free_sksb(struct skd_device *skdev)
 {
 	struct skd_special_context *skspcl;
@@ -3203,9 +3144,6 @@ static void skd_destruct(struct skd_device *skdev)
 
 	dev_dbg(&skdev->pdev->dev, "sksb\n");
 	skd_free_sksb(skdev);
-
-	dev_dbg(&skdev->pdev->dev, "skreq\n");
-	skd_free_skreq(skdev);
 
 	dev_dbg(&skdev->pdev->dev, "skmsg\n");
 	skd_free_skmsg(skdev);
@@ -3734,23 +3672,19 @@ static void skd_log_skdev(struct skd_device *skdev, const char *event)
 static void skd_log_skreq(struct skd_device *skdev,
 			  struct skd_request_context *skreq, const char *event)
 {
+	struct request *req = blk_mq_rq_from_pdu(skreq);
+	u32 lba = blk_rq_pos(req);
+	u32 count = blk_rq_sectors(req);
+
 	dev_dbg(&skdev->pdev->dev, "skreq=%p event='%s'\n", skreq, event);
 	dev_dbg(&skdev->pdev->dev, "  state=%s(%d) id=0x%04x fitmsg=0x%04x\n",
 		skd_skreq_state_to_str(skreq->state), skreq->state, skreq->id,
 		skreq->fitmsg_id);
 	dev_dbg(&skdev->pdev->dev, "  timo=0x%x sg_dir=%d n_sg=%d\n",
 		skreq->timeout_stamp, skreq->data_dir, skreq->n_sg);
-
-	if (skreq->req != NULL) {
-		struct request *req = skreq->req;
-		u32 lba = (u32)blk_rq_pos(req);
-		u32 count = blk_rq_sectors(req);
-
-		dev_dbg(&skdev->pdev->dev,
-			"req=%p lba=%u(0x%x) count=%u(0x%x) dir=%d\n", req,
-			lba, lba, count, count, (int)rq_data_dir(req));
-	} else
-		dev_dbg(&skdev->pdev->dev, "req=NULL\n");
+	dev_dbg(&skdev->pdev->dev,
+		"req=%p lba=%u(0x%x) count=%u(0x%x) dir=%d\n", req, lba, lba,
+		count, count, (int)rq_data_dir(req));
 }
 
 /*
