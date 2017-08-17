@@ -1373,6 +1373,7 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 				tcpm_set_current_limit(port,
 						       port->current_limit,
 						       port->supply_voltage);
+				port->explicit_contract = true;
 				tcpm_set_state(port, SNK_READY, 0);
 			} else {
 				/*
@@ -2467,9 +2468,11 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SNK_READY:
 		port->try_snk_count = 0;
-		port->explicit_contract = true;
-		typec_set_pwr_opmode(port->typec_port, TYPEC_PWR_MODE_PD);
-		port->pwr_opmode = TYPEC_PWR_MODE_PD;
+		if (port->explicit_contract) {
+			typec_set_pwr_opmode(port->typec_port,
+					     TYPEC_PWR_MODE_PD);
+			port->pwr_opmode = TYPEC_PWR_MODE_PD;
+		}
 
 		tcpm_swap_complete(port, 0);
 		tcpm_typec_connect(port);
@@ -2958,6 +2961,7 @@ static void _tcpm_pd_vbus_on(struct tcpm_port *port)
 	port->vbus_present = true;
 	switch (port->state) {
 	case SNK_TRANSITION_SINK_VBUS:
+		port->explicit_contract = true;
 		tcpm_set_state(port, SNK_READY, 0);
 		break;
 	case SNK_DISCOVERY:
