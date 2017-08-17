@@ -135,7 +135,8 @@ static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
 	/* Fall through and free skb otherwise */
 	case SK_DROP:
 	default:
-		preempt_enable();
+		if (rc != SK_REDIRECT)
+			preempt_enable();
 		kfree_skb(skb);
 	}
 }
