@@ -1383,6 +1383,10 @@ int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail_free_encoder;
 		}
+		/*
+		 * Temporary disable until pplib/smu interaction is implemented
+		 */
+		dm->dc->debug.disable_stutter = true;
 		break;
 #endif
 	default:
