@@ -3815,12 +3815,13 @@ static int skd_cons_skmsg(struct skd_device *skdev)
 	u32 i;
 
 	dev_dbg(&skdev->pdev->dev,
-		"skmsg_table kzalloc, struct %lu, count %u total %lu\n",
+		"skmsg_table kcalloc, struct %lu, count %u total %lu\n",
 		sizeof(struct skd_fitmsg_context), skdev->num_fitmsg_context,
 		sizeof(struct skd_fitmsg_context) * skdev->num_fitmsg_context);
 
-	skdev->skmsg_table = kzalloc(sizeof(struct skd_fitmsg_context)
-				     *skdev->num_fitmsg_context, GFP_KERNEL);
+	skdev->skmsg_table = kcalloc(skdev->num_fitmsg_context,
+				     sizeof(struct skd_fitmsg_context),
+				     GFP_KERNEL);
 	if (skdev->skmsg_table == NULL) {
 		rc = -ENOMEM;
 		goto err_out;
@@ -3895,12 +3896,13 @@ static int skd_cons_skreq(struct skd_device *skdev)
 	u32 i;
 
 	dev_dbg(&skdev->pdev->dev,
-		"skreq_table kzalloc, struct %lu, count %u total %lu\n",
+		"skreq_table kcalloc, struct %lu, count %u total %lu\n",
 		sizeof(struct skd_request_context), skdev->num_req_context,
 		sizeof(struct skd_request_context) * skdev->num_req_context);
 
-	skdev->skreq_table = kzalloc(sizeof(struct skd_request_context)
-				     * skdev->num_req_context, GFP_KERNEL);
+	skdev->skreq_table = kcalloc(skdev->num_req_context,
+				     sizeof(struct skd_request_context),
+				     GFP_KERNEL);
 	if (skdev->skreq_table == NULL) {
 		rc = -ENOMEM;
 		goto err_out;
@@ -3918,8 +3920,8 @@ static int skd_cons_skreq(struct skd_device *skdev)
 		skreq->id = i + SKD_ID_RW_REQUEST;
 		skreq->state = SKD_REQ_STATE_IDLE;
 
-		skreq->sg = kzalloc(sizeof(struct scatterlist) *
-				    skdev->sgs_per_request, GFP_KERNEL);
+		skreq->sg = kcalloc(skdev->sgs_per_request,
+				    sizeof(struct scatterlist), GFP_KERNEL);
 		if (skreq->sg == NULL) {
 			rc = -ENOMEM;
 			goto err_out;
@@ -3952,12 +3954,13 @@ static int skd_cons_skspcl(struct skd_device *skdev)
 	u32 i, nbytes;
 
 	dev_dbg(&skdev->pdev->dev,
-		"skspcl_table kzalloc, struct %lu, count %u total %lu\n",
+		"skspcl_table kcalloc, struct %lu, count %u total %lu\n",
 		sizeof(struct skd_special_context), skdev->n_special,
 		sizeof(struct skd_special_context) * skdev->n_special);
 
-	skdev->skspcl_table = kzalloc(sizeof(struct skd_special_context)
-				      * skdev->n_special, GFP_KERNEL);
+	skdev->skspcl_table = kcalloc(skdev->n_special,
+				      sizeof(struct skd_special_context),
+				      GFP_KERNEL);
 	if (skdev->skspcl_table == NULL) {
 		rc = -ENOMEM;
 		goto err_out;
@@ -3983,8 +3986,9 @@ static int skd_cons_skspcl(struct skd_device *skdev)
 			goto err_out;
 		}
 
-		skspcl->req.sg = kzalloc(sizeof(struct scatterlist) *
-					 SKD_N_SG_PER_SPECIAL, GFP_KERNEL);
+		skspcl->req.sg = kcalloc(SKD_N_SG_PER_SPECIAL,
+					 sizeof(struct scatterlist),
+					 GFP_KERNEL);
 		if (skspcl->req.sg == NULL) {
 			rc = -ENOMEM;
 			goto err_out;
