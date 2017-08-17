@@ -2160,7 +2160,7 @@ static enum skd_check_status_action
 skd_check_status(struct skd_device *skdev,
 		 u8 cmp_status, volatile struct fit_comp_error_info *skerr)
 {
-	int i, n;
+	int i;
 
 	dev_err(&skdev->pdev->dev, "key/asc/ascq/fruc %02x/%02x/%02x/%02x\n",
 		skerr->key, skerr->code, skerr->qual, skerr->fruc);
@@ -2171,8 +2171,7 @@ skd_check_status(struct skd_device *skdev,
 		skerr->fruc);
 
 	/* Does the info match an entry in the good category? */
-	n = sizeof(skd_chkstat_table) / sizeof(skd_chkstat_table[0]);
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < ARRAY_SIZE(skd_chkstat_table); i++) {
 		struct sns_info *sns = &skd_chkstat_table[i];
 
 		if (sns->mask & 0x10)
