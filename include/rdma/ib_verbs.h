@@ -991,12 +991,14 @@ enum ib_cq_notify_flags {
 
 enum ib_srq_type {
 	IB_SRQT_BASIC,
-	IB_SRQT_XRC
+	IB_SRQT_XRC,
+	IB_SRQT_TM,
 };
 
 static inline bool ib_srq_has_cq(enum ib_srq_type srq_type)
 {
-	return srq_type == IB_SRQT_XRC;
+	return srq_type == IB_SRQT_XRC ||
+	       srq_type == IB_SRQT_TM;
 }
 
 enum ib_srq_attr_mask {
@@ -1022,6 +1024,10 @@ struct ib_srq_init_attr {
 			struct {
 				struct ib_xrcd *xrcd;
 			} xrc;
+
+			struct {
+				u32		max_num_tags;
+			} tag_matching;
 		};
 	} ext;
 };
