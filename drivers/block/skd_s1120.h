@@ -10,8 +10,6 @@
 #ifndef SKD_S1120_H
 #define SKD_S1120_H
 
-#pragma pack(push, s1120_h, 1)
-
 /*
  * Q-channel, 64-bit r/w
  */
@@ -276,7 +274,7 @@ struct fit_comp_error_info {
 	uint16_t	sks_low; /* 10: Sense Key Specific (LSW) */
 	uint16_t	reserved3; /* 12: Part of additional sense bytes (unused) */
 	uint16_t	uec; /* 14: Additional Sense Bytes */
-	uint64_t	per; /* 16: Additional Sense Bytes */
+	uint64_t	per __packed; /* 16: Additional Sense Bytes */
 	uint8_t		reserved4[2]; /* 1E: Additional Sense Bytes (unused) */
 };
 
@@ -322,7 +320,5 @@ struct driver_inquiry_data {
 	uint8_t		driver_version_length;
 	uint8_t		driver_version[0x14];
 };
-
-#pragma pack(pop, s1120_h)
 
 #endif /* SKD_S1120_H */
