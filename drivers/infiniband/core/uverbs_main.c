@@ -595,7 +595,6 @@ struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file
 {
 	struct ib_uverbs_async_event_file *ev_file;
 	struct file *filp;
-	int ret;
 
 	ev_file = kzalloc(sizeof(*ev_file), GFP_KERNEL);
 	if (!ev_file)
@@ -621,20 +620,10 @@ struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file
 	INIT_IB_EVENT_HANDLER(&uverbs_file->event_handler,
 			      ib_dev,
 			      ib_uverbs_event_handler);
-	ret = ib_register_event_handler(&uverbs_file->event_handler);
-	if (ret)
-		goto err_put_file;
-
+	ib_register_event_handler(&uverbs_file->event_handler);
 	/* At that point async file stuff was fully set */
 
 	return filp;
-
-err_put_file:
-	fput(filp);
-	kref_put(&uverbs_file->async_file->ref,
-		 ib_uverbs_release_async_event_file);
-	uverbs_file->async_file = NULL;
-	return ERR_PTR(ret);
 
 err_put_refs:
 	kref_put(&ev_file->uverbs_file->ref, ib_uverbs_release_file);
