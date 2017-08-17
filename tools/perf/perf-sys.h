@@ -10,12 +10,10 @@
 #include <asm/barrier.h>
 
 #if defined(__i386__)
-#define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #define CPUINFO_PROC	{"model name"}
 #endif
 
 #if defined(__x86_64__)
-#define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #define CPUINFO_PROC	{"model name"}
 #endif
 
@@ -44,7 +42,6 @@
 #endif
 
 #ifdef __ia64__
-#define cpu_relax()	asm volatile ("hint @pause" ::: "memory")
 #define CPUINFO_PROC	{"model name"}
 #endif
 
@@ -53,7 +50,6 @@
 #endif
 
 #ifdef __aarch64__
-#define cpu_relax()	asm volatile("yield" ::: "memory")
 #endif
 
 #ifdef __mips__
@@ -73,12 +69,7 @@
 #endif
 
 #ifdef __tile__
-#define cpu_relax()	asm volatile ("mfspr zero, PASS" ::: "memory")
 #define CPUINFO_PROC    {"model name"}
-#endif
-
-#ifndef cpu_relax
-#define cpu_relax() barrier()
 #endif
 
 static inline int
