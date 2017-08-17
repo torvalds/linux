@@ -296,7 +296,7 @@ static int rcar_du_probe(struct platform_device *pdev)
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rcdu->mmio = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(rcdu->mmio))
-		ret = PTR_ERR(rcdu->mmio);
+		return PTR_ERR(rcdu->mmio);
 
 	/* DRM/KMS objects */
 	ddev = drm_dev_alloc(&rcar_du_driver, &pdev->dev);

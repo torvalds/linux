@@ -641,11 +641,12 @@ static int virtblk_probe(struct virtio_device *vdev)
 	if (err)
 		goto out_put_disk;
 
-	q = vblk->disk->queue = blk_mq_init_queue(&vblk->tag_set);
+	q = blk_mq_init_queue(&vblk->tag_set);
 	if (IS_ERR(q)) {
 		err = -ENOMEM;
 		goto out_free_tags;
 	}
+	vblk->disk->queue = q;
 
 	q->queuedata = vblk;
 
