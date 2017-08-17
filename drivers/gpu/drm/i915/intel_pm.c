@@ -4492,7 +4492,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	}
 
 	/* Display WA #1141: kbl,cfl */
-	if ((IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) &&
+	if ((IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv) ||
+	    IS_CNL_REVID(dev_priv, CNL_REVID_A0, CNL_REVID_B0)) &&
 	    dev_priv->ipc_enabled)
 		latency += 4;
 
