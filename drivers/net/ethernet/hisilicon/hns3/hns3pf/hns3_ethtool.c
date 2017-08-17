@@ -304,7 +304,7 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 	struct hnae3_handle *h = priv->ae_handle;
 	u32 supported_caps;
 	u32 advertised_caps;
-	u8 media_type;
+	u8 media_type = HNAE3_MEDIA_TYPE_UNKNOWN;
 	u8 link_stat;
 	u8 auto_neg;
 	u8 duplex;
