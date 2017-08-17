@@ -753,6 +753,7 @@ struct intel_crtc_state {
 	struct intel_link_m_n fdi_m_n;
 
 	bool ips_enabled;
+	bool ips_force_disable;
 
 	bool enable_fbc;
 
