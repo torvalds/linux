@@ -306,7 +306,7 @@ static void bxt_exec_gpio(struct drm_i915_private *dev_priv,
 
 	if (!gpio_desc) {
 		gpio_desc = devm_gpiod_get_index(dev_priv->drm.dev,
-						 "panel", gpio_index,
+						 NULL, gpio_index,
 						 value ? GPIOD_OUT_LOW :
 						 GPIOD_OUT_HIGH);
 
