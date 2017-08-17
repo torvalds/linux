@@ -2850,6 +2850,18 @@ static struct fit_sg_descriptor *skd_cons_sg_list(struct skd_device *skdev,
 	return sg_list;
 }
 
+static void skd_free_sg_list(struct skd_device *skdev,
+			     struct fit_sg_descriptor *sg_list, u32 n_sg,
+			     dma_addr_t dma_addr)
+{
+	u32 nbytes = sizeof(*sg_list) * n_sg;
+
+	if (WARN_ON_ONCE(!sg_list))
+		return;
+
+	pci_free_consistent(skdev->pdev, nbytes, sg_list, dma_addr);
+}
+
 static int skd_cons_skreq(struct skd_device *skdev)
 {
 	int rc = 0;
@@ -3103,19 +3115,6 @@ static void skd_free_skmsg(struct skd_device *skdev)
 
 	kfree(skdev->skmsg_table);
 	skdev->skmsg_table = NULL;
-}
-
-static void skd_free_sg_list(struct skd_device *skdev,
-			     struct fit_sg_descriptor *sg_list,
-			     u32 n_sg, dma_addr_t dma_addr)
-{
-	if (sg_list != NULL) {
-		u32 nbytes;
-
-		nbytes = sizeof(*sg_list) * n_sg;
-
-		pci_free_consistent(skdev->pdev, nbytes, sg_list, dma_addr);
-	}
 }
 
 static void skd_free_skreq(struct skd_device *skdev)
