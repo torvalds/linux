@@ -129,7 +129,7 @@ static int install_filter(void)
 		/* Check that read is only using stdin. */
 		BPF_STMT(BPF_LD+BPF_W+BPF_ABS, syscall_arg(0)),
 		BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, STDIN_FILENO, 4, 0),
-		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL_THREAD),
+		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL),
 
 		/* Check that write is only using stdout */
 		BPF_STMT(BPF_LD+BPF_W+BPF_ABS, syscall_arg(0)),
@@ -139,7 +139,7 @@ static int install_filter(void)
 
 		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
 		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_TRAP),
-		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL_THREAD),
+		BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL),
 	};
 	struct sock_fprog prog = {
 		.len = (unsigned short)(sizeof(filter)/sizeof(filter[0])),
