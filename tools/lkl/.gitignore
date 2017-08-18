@@ -7,3 +7,4 @@ tests/valgrind*.xml
 *.exe
 *.dll
 tests/net-test
+tests/disk

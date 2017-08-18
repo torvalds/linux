@@ -21,8 +21,8 @@ define for_fs
 	for fs in $(FS_TYPES); do $(call $1,$$fs); done
 endef
 
-define run
-	for fs in $(FS_TYPES); do ./boot.sh -t $$fs || exit 1; done
+define disk
+	for fs in $(FS_TYPES); do ./disk.sh -t $$fs || exit 1; done
 endef
 
 QUICK?=0
@@ -45,7 +45,8 @@ endif
 
 ifneq ($(LKL_ANDROID_TEST),1)
 test:
-	$(call run,)
+	./boot
+	$(call disk)
 	$(call lklfuse)
 	$(HIJACK_TEST)
 	./net.sh

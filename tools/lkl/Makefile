@@ -139,7 +139,8 @@ ifneq (,$(filter $(OUTPUT_DEF),__ANDROID__))
   $(OUTPUT)tests/boot: LDLIBS += -lc
 endif
 $(OUTPUT)tests/net-test: $(OUTPUT)tests/net-test-in.o $(OUTPUT)liblkl.a
-$(TEST_TARGETS): $(OUTPUT)tests/boot $(OUTPUT)tests/net-test
+$(OUTPUT)tests/disk: $(OUTPUT)tests/disk-in.o $(OUTPUT)liblkl.a
+$(TEST_TARGETS): $(OUTPUT)tests/boot $(OUTPUT)tests/net-test $(OUTPUT)tests/disk
 
 # because of libdl, liblkl-hijack will not compile on windows
 # fortunately, the test target will handle a missing libhijack.so correctly
@@ -159,7 +160,7 @@ $(OUTPUT)lib/lkl.o:
 $(OUTPUT)liblkl.a: $(OUTPUT)lib/lkl-in.o $(OUTPUT)lib/lkl.o
 	$(QUIET_AR)$(AR) -rc $@ $^
 
-$(OUTPUT)liblkl$(SOSUF) $(OUTPUT)liblkl-hijack$(SOSUF) $(OUTPUT)lklfuse$(EXESUF) $(OUTPUT)fs2tar$(EXESUF) $(OUTPUT)cptofs$(EXESUF) $(OUTPUT)tests/boot $(OUTPUT)tests/net-test:
+$(OUTPUT)liblkl$(SOSUF) $(OUTPUT)liblkl-hijack$(SOSUF) $(OUTPUT)lklfuse$(EXESUF) $(OUTPUT)fs2tar$(EXESUF) $(OUTPUT)cptofs$(EXESUF) $(OUTPUT)tests/boot $(OUTPUT)tests/net-test $(OUTPUT)tests/disk:
 	$(QUIET_LINK)$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(OUTPUT)cpfromfs$(EXESUF): cptofs$(EXESUF)
@@ -183,7 +184,7 @@ clean:
 	$(call QUIET_CLEAN, "host libraries")$(RM) $(OUTPUT)/liblkl.a liblkl$(SOSUF)
 	$(call QUIET_CLEAN, "hijack library")$(RM) $(OUTPUT)/liblkl-hijack$(SOSUF)
 	$(call QUIET_CLEAN, programs)$(RM) $(ALL_PROGRAMS)
-	$(call QUIET_CLEAN, tests)$(RM) tests/boot tests/net-test
+	$(call QUIET_CLEAN, tests)$(RM) tests/boot tests/net-test tests/disk
 
 $(TEST_TARGETS):
 	$(MAKE) -C tests $@

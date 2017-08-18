@@ -1,2 +1,3 @@
 boot-y += boot.o cla.o
+disk-y += disk.o cla.o
 net-test-y += net-test.o cla.o
