@@ -835,7 +835,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"n             Search next string\n"
 		"o             Toggle disassembler output/simplified view\n"
 		"s             Toggle source code view\n"
-		"t             Toggle total period view\n"
+		"t             Circulate percent, total period, samples view\n"
 		"/             Search string\n"
 		"k             Toggle line numbers\n"
 		"r             Run available scripts\n"
@@ -912,8 +912,13 @@ show_sup_ins:
 			}
 			continue;
 		case 't':
-			annotate_browser__opts.show_total_period =
-			  !annotate_browser__opts.show_total_period;
+			if (annotate_browser__opts.show_total_period) {
+				annotate_browser__opts.show_total_period = false;
+				annotate_browser__opts.show_nr_samples = true;
+			} else if (annotate_browser__opts.show_nr_samples)
+				annotate_browser__opts.show_nr_samples = false;
+			else
+				annotate_browser__opts.show_total_period = true;
 			annotate_browser__update_addr_width(browser);
 			continue;
 		case K_LEFT:
