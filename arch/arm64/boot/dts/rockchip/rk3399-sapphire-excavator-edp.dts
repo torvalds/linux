@@ -50,15 +50,49 @@
 	model = "Rockchip RK3399 Excavator Board edp (Android)";
 	compatible = "rockchip,android", "rockchip,rk3399-excavator-edp", "rockchip,rk3399";
 
-	edp_panel: edp-panel {
-		compatible = "lg,lp079qx1-sp0v", "panel-simple";
+	vcc_lcd: vcc-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_lcd";
+		gpio = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <20000>;
+		enable-active-high;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	panel: panel {
+		compatible = "simple-panel";
 		backlight = <&backlight>;
-		power-supply = <&vcc3v3_s0>;
-		enable-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		power-supply = <&vcc_lcd>;
+		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		prepare-delay-ms = <20>;
+		enable-delay-ms = <20>;
+
+		display-timings {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
+				clock-frequency = <200000000>;
+				hactive = <1536>;
+				vactive = <2048>;
+				hfront-porch = <12>;
+				hsync-len = <16>;
+				hback-porch = <48>;
+				vfront-porch = <8>;
+				vsync-len = <4>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
 
 		ports {
-			panel_in_edp: endpoint {
-				remote-endpoint = <&edp_out_panel>;
+			panel_in: endpoint {
+				remote-endpoint = <&edp_out>;
 			};
 		};
 	};
@@ -81,21 +115,19 @@
 
 &backlight {
 	status = "okay";
-	enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+	enable-gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
 };
 
 &edp {
 	status = "okay";
+	force-hpd;
 
 	ports {
-		edp_out: port@1 {
+		port@1 {
 			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			edp_out_panel: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&panel_in_edp>;
+			edp_out: endpoint {
+				remote-endpoint = <&panel_in>;
 			};
 		};
 	};
