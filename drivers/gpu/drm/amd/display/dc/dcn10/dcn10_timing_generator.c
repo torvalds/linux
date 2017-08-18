@@ -1100,6 +1100,9 @@ static bool tgn10_is_stereo_left_eye(struct timing_generator *tg)
 void tgn10_read_otg_state(struct dcn10_timing_generator *tgn10,
 		struct dcn_otg_state *s)
 {
+	REG_GET(OTG_CONTROL,
+			OTG_MASTER_EN, &s->otg_enabled);
+
 	REG_GET_2(OTG_V_BLANK_START_END,
 			OTG_V_BLANK_START, &s->v_blank_start,
 			OTG_V_BLANK_END, &s->v_blank_end);

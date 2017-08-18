@@ -370,6 +370,7 @@ struct dcn_otg_state {
 	uint32_t h_sync_a_pol;
 	uint32_t h_total;
 	uint32_t underflow_occurred_status;
+	uint32_t otg_enabled;
 };
 
 void tgn10_read_otg_state(struct dcn10_timing_generator *tgn10,
