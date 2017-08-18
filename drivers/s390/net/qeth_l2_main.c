@@ -746,7 +746,7 @@ static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
 		rc = -EINVAL;
 		goto out;
 	}
-	rc = qeth_do_send_packet(card, queue, skb_copy, hdr, 0, elements);
+	rc = qeth_do_send_packet(card, queue, skb_copy, hdr, 0, 0, elements);
 out:
 	if (!rc) {
 		/* tx success, free dangling original */
@@ -778,7 +778,7 @@ static int qeth_l2_xmit_osn(struct qeth_card *card, struct sk_buff *skb,
 		return -E2BIG;
 	if (qeth_hdr_chk_and_bounce(skb, &hdr, sizeof(*hdr)))
 		return -EINVAL;
-	return qeth_do_send_packet(card, queue, skb, hdr, 0, elements);
+	return qeth_do_send_packet(card, queue, skb, hdr, 0, 0, elements);
 }
 
 static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
