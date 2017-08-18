@@ -508,7 +508,7 @@ static ssize_t phys_switch_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(phys_switch_id);
 
-static struct attribute *net_class_attrs[] = {
+static struct attribute *net_class_attrs[] __ro_after_init = {
 	&dev_attr_netdev_group.attr,
 	&dev_attr_type.attr,
 	&dev_attr_dev_id.attr,
@@ -597,7 +597,7 @@ NETSTAT_ENTRY(rx_compressed);
 NETSTAT_ENTRY(tx_compressed);
 NETSTAT_ENTRY(rx_nohandler);
 
-static struct attribute *netstat_attrs[] = {
+static struct attribute *netstat_attrs[] __ro_after_init = {
 	&dev_attr_rx_packets.attr,
 	&dev_attr_tx_packets.attr,
 	&dev_attr_rx_bytes.attr,
