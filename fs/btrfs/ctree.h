@@ -2567,6 +2567,17 @@ static inline gfp_t btrfs_alloc_write_mask(struct address_space *mapping)
 
 /* extent-tree.c */
 
+enum btrfs_inline_ref_type {
+	BTRFS_REF_TYPE_INVALID =	 0,
+	BTRFS_REF_TYPE_BLOCK =		 1,
+	BTRFS_REF_TYPE_DATA =		 2,
+	BTRFS_REF_TYPE_ANY =		 3,
+};
+
+int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,
+				     struct btrfs_extent_inline_ref *iref,
+				     enum btrfs_inline_ref_type is_data);
+
 u64 btrfs_csum_bytes_to_leaves(struct btrfs_fs_info *fs_info, u64 csum_bytes);
 
 static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_fs_info *fs_info,

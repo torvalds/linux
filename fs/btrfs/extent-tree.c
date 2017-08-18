@@ -1148,6 +1148,43 @@ static int convert_extent_item_v0(struct btrfs_trans_handle *trans,
 }
 #endif
 
+/*
+ * is_data == BTRFS_REF_TYPE_BLOCK, tree block type is required,
+ * is_data == BTRFS_REF_TYPE_DATA, data type is requried,
+ * is_data == BTRFS_REF_TYPE_ANY, either type is OK.
+ */
+int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,
+				     struct btrfs_extent_inline_ref *iref,
+				     enum btrfs_inline_ref_type is_data)
+{
+	int type = btrfs_extent_inline_ref_type(eb, iref);
+
+	if (type == BTRFS_TREE_BLOCK_REF_KEY ||
+	    type == BTRFS_SHARED_BLOCK_REF_KEY ||
+	    type == BTRFS_SHARED_DATA_REF_KEY ||
+	    type == BTRFS_EXTENT_DATA_REF_KEY) {
+		if (is_data == BTRFS_REF_TYPE_BLOCK) {
+			if (type == BTRFS_TREE_BLOCK_REF_KEY ||
+			    type == BTRFS_SHARED_BLOCK_REF_KEY)
+				return type;
+		} else if (is_data == BTRFS_REF_TYPE_DATA) {
+			if (type == BTRFS_EXTENT_DATA_REF_KEY ||
+			    type == BTRFS_SHARED_DATA_REF_KEY)
+				return type;
+		} else {
+			ASSERT(is_data == BTRFS_REF_TYPE_ANY);
+			return type;
+		}
+	}
+
+	btrfs_print_leaf((struct extent_buffer *)eb);
+	btrfs_err(eb->fs_info, "eb %llu invalid extent inline ref type %d",
+		  eb->start, type);
+	WARN_ON(1);
+
+	return BTRFS_REF_TYPE_INVALID;
+}
+
 static u64 hash_extent_data_ref(u64 root_objectid, u64 owner, u64 offset)
 {
 	u32 high_crc = ~(u32)0;
