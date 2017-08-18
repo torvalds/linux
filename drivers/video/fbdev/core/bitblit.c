@@ -203,7 +203,7 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 }
 
 static void bit_clear_margins(struct vc_data *vc, struct fb_info *info,
-			      int bottom_only)
+			      int color, int bottom_only)
 {
 	unsigned int cw = vc->vc_font.width;
 	unsigned int ch = vc->vc_font.height;
@@ -213,7 +213,7 @@ static void bit_clear_margins(struct vc_data *vc, struct fb_info *info,
 	unsigned int bs = info->var.yres - bh;
 	struct fb_fillrect region;
 
-	region.color = 0;
+	region.color = color;
 	region.rop = ROP_COPY;
 
 	if (rw && !bottom_only) {

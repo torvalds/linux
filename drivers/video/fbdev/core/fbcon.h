@@ -60,7 +60,7 @@ struct fbcon_ops {
 		      const unsigned short *s, int count, int yy, int xx,
 		      int fg, int bg);
 	void (*clear_margins)(struct vc_data *vc, struct fb_info *info,
-			      int bottom_only);
+			      int color, int bottom_only);
 	void (*cursor)(struct vc_data *vc, struct fb_info *info, int mode,
 		       int softback_lines, int fg, int bg);
 	int  (*update_start)(struct fb_info *info);

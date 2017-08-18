@@ -138,6 +138,7 @@ static int info_idx = -1;
 /* console rotation */
 static int initial_rotation = -1;
 static int fbcon_has_sysfs;
+static int margin_color;
 
 static const struct consw fb_con;
 
@@ -490,6 +491,15 @@ static int __init fb_console_setup(char *this_opt)
 				initial_rotation = simple_strtoul(options, &options, 0);
 			if (initial_rotation > 3)
 				initial_rotation = 0;
+			continue;
+		}
+
+		if (!strncmp(options, "margin:", 7)) {
+			options += 7;
+			if (*options)
+				margin_color = simple_strtoul(options, &options, 0);
+			if (margin_color > 7)
+				margin_color = 0;
 			continue;
 		}
 	}
@@ -1306,7 +1316,7 @@ static void fbcon_clear_margins(struct vc_data *vc, int bottom_only)
 	struct fbcon_ops *ops = info->fbcon_par;
 
 	if (!fbcon_is_inactive(vc, info))
-		ops->clear_margins(vc, info, bottom_only);
+		ops->clear_margins(vc, info, margin_color, bottom_only);
 }
 
 static void fbcon_cursor(struct vc_data *vc, int mode)

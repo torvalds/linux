@@ -74,7 +74,7 @@ static void tile_putcs(struct vc_data *vc, struct fb_info *info,
 }
 
 static void tile_clear_margins(struct vc_data *vc, struct fb_info *info,
-			       int bottom_only)
+			       int color, int bottom_only)
 {
 	return;
 }
