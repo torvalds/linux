@@ -102,10 +102,8 @@ static struct nfs_pgio_header *nfs_writehdr_alloc(void)
 {
 	struct nfs_pgio_header *p = mempool_alloc(nfs_wdata_mempool, GFP_NOIO);
 
-	if (p) {
-		memset(p, 0, sizeof(*p));
-		p->rw_mode = FMODE_WRITE;
-	}
+	memset(p, 0, sizeof(*p));
+	p->rw_mode = FMODE_WRITE;
 	return p;
 }
 
