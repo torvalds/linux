@@ -785,7 +785,7 @@ static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
 	DRM_ERROR("Timeout waiting for DDI BUF %c idle bit\n", port_name(port));
 }
 
-static uint32_t hsw_pll_to_ddi_pll_sel(struct intel_shared_dpll *pll)
+static uint32_t hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll)
 {
 	switch (pll->id) {
 	case DPLL_ID_WRPLL1:
@@ -2080,7 +2080,7 @@ uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 }
 
 static void intel_ddi_clk_select(struct intel_encoder *encoder,
-				 struct intel_shared_dpll *pll)
+				 const struct intel_shared_dpll *pll)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = intel_ddi_get_encoder_port(encoder);
@@ -2153,7 +2153,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 				      bool has_infoframe,
 				      const struct intel_crtc_state *crtc_state,
 				      const struct drm_connector_state *conn_state,
-				      struct intel_shared_dpll *pll)
+				      const struct intel_shared_dpll *pll)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(&encoder->base);
 	struct intel_hdmi *intel_hdmi = &intel_dig_port->hdmi;
@@ -2182,8 +2182,8 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 }
 
 static void intel_ddi_pre_enable(struct intel_encoder *encoder,
-				 struct intel_crtc_state *pipe_config,
-				 struct drm_connector_state *conn_state)
+				 const struct intel_crtc_state *pipe_config,
+				 const struct drm_connector_state *conn_state)
 {
 	int type = encoder->type;
 
@@ -2204,8 +2204,8 @@ static void intel_ddi_pre_enable(struct intel_encoder *encoder,
 }
 
 static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
-				   struct intel_crtc_state *old_crtc_state,
-				   struct drm_connector_state *old_conn_state)
+				   const struct intel_crtc_state *old_crtc_state,
+				   const struct drm_connector_state *old_conn_state)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
@@ -2270,8 +2270,8 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 }
 
 void intel_ddi_fdi_post_disable(struct intel_encoder *encoder,
-				struct intel_crtc_state *old_crtc_state,
-				struct drm_connector_state *old_conn_state)
+				const struct intel_crtc_state *old_crtc_state,
+				const struct drm_connector_state *old_conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	uint32_t val;
@@ -2303,8 +2303,8 @@ void intel_ddi_fdi_post_disable(struct intel_encoder *encoder,
 }
 
 static void intel_enable_ddi(struct intel_encoder *intel_encoder,
-			     struct intel_crtc_state *pipe_config,
-			     struct drm_connector_state *conn_state)
+			     const struct intel_crtc_state *pipe_config,
+			     const struct drm_connector_state *conn_state)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
@@ -2344,8 +2344,8 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder,
 }
 
 static void intel_disable_ddi(struct intel_encoder *intel_encoder,
-			      struct intel_crtc_state *old_crtc_state,
-			      struct drm_connector_state *old_conn_state)
+			      const struct intel_crtc_state *old_crtc_state,
+			      const struct drm_connector_state *old_conn_state)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	int type = intel_encoder->type;
@@ -2369,8 +2369,8 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder,
 }
 
 static void bxt_ddi_pre_pll_enable(struct intel_encoder *encoder,
-				   struct intel_crtc_state *pipe_config,
-				   struct drm_connector_state *conn_state)
+				   const struct intel_crtc_state *pipe_config,
+				   const struct drm_connector_state *conn_state)
 {
 	uint8_t mask = pipe_config->lane_lat_optim_mask;
 

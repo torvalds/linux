@@ -1861,7 +1861,7 @@ void intel_dp_set_link_params(struct intel_dp *intel_dp,
 }
 
 static void intel_dp_prepare(struct intel_encoder *encoder,
-			     struct intel_crtc_state *pipe_config)
+			     const struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -2461,7 +2461,7 @@ static void assert_edp_pll(struct drm_i915_private *dev_priv, bool state)
 #define assert_edp_pll_disabled(d) assert_edp_pll((d), false)
 
 static void ironlake_edp_pll_on(struct intel_dp *intel_dp,
-				struct intel_crtc_state *pipe_config)
+				const struct intel_crtc_state *pipe_config)
 {
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -2688,8 +2688,8 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 }
 
 static void intel_disable_dp(struct intel_encoder *encoder,
-			     struct intel_crtc_state *old_crtc_state,
-			     struct drm_connector_state *old_conn_state)
+			     const struct intel_crtc_state *old_crtc_state,
+			     const struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -2713,8 +2713,8 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 }
 
 static void ilk_post_disable_dp(struct intel_encoder *encoder,
-				struct intel_crtc_state *old_crtc_state,
-				struct drm_connector_state *old_conn_state)
+				const struct intel_crtc_state *old_crtc_state,
+				const struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
@@ -2727,8 +2727,8 @@ static void ilk_post_disable_dp(struct intel_encoder *encoder,
 }
 
 static void vlv_post_disable_dp(struct intel_encoder *encoder,
-				struct intel_crtc_state *old_crtc_state,
-				struct drm_connector_state *old_conn_state)
+				const struct intel_crtc_state *old_crtc_state,
+				const struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
@@ -2736,8 +2736,8 @@ static void vlv_post_disable_dp(struct intel_encoder *encoder,
 }
 
 static void chv_post_disable_dp(struct intel_encoder *encoder,
-				struct intel_crtc_state *old_crtc_state,
-				struct drm_connector_state *old_conn_state)
+				const struct intel_crtc_state *old_crtc_state,
+				const struct drm_connector_state *old_conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
@@ -2842,7 +2842,7 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 }
 
 static void intel_dp_enable_port(struct intel_dp *intel_dp,
-				 struct intel_crtc_state *old_crtc_state)
+				 const struct intel_crtc_state *old_crtc_state)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -2866,8 +2866,8 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 }
 
 static void intel_enable_dp(struct intel_encoder *encoder,
-			    struct intel_crtc_state *pipe_config,
-			    struct drm_connector_state *conn_state)
+			    const struct intel_crtc_state *pipe_config,
+			    const struct drm_connector_state *conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
@@ -2914,16 +2914,16 @@ static void intel_enable_dp(struct intel_encoder *encoder,
 }
 
 static void g4x_enable_dp(struct intel_encoder *encoder,
-			  struct intel_crtc_state *pipe_config,
-			  struct drm_connector_state *conn_state)
+			  const struct intel_crtc_state *pipe_config,
+			  const struct drm_connector_state *conn_state)
 {
 	intel_enable_dp(encoder, pipe_config, conn_state);
 	intel_edp_backlight_on(pipe_config, conn_state);
 }
 
 static void vlv_enable_dp(struct intel_encoder *encoder,
-			  struct intel_crtc_state *pipe_config,
-			  struct drm_connector_state *conn_state)
+			  const struct intel_crtc_state *pipe_config,
+			  const struct drm_connector_state *conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
@@ -2932,8 +2932,8 @@ static void vlv_enable_dp(struct intel_encoder *encoder,
 }
 
 static void g4x_pre_enable_dp(struct intel_encoder *encoder,
-			      struct intel_crtc_state *pipe_config,
-			      struct drm_connector_state *conn_state)
+			      const struct intel_crtc_state *pipe_config,
+			      const struct drm_connector_state *conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
@@ -3055,8 +3055,8 @@ static void vlv_init_panel_power_sequencer(struct intel_dp *intel_dp)
 }
 
 static void vlv_pre_enable_dp(struct intel_encoder *encoder,
-			      struct intel_crtc_state *pipe_config,
-			      struct drm_connector_state *conn_state)
+			      const struct intel_crtc_state *pipe_config,
+			      const struct drm_connector_state *conn_state)
 {
 	vlv_phy_pre_encoder_enable(encoder);
 
@@ -3064,8 +3064,8 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder,
 }
 
 static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder,
-				  struct intel_crtc_state *pipe_config,
-				  struct drm_connector_state *conn_state)
+				  const struct intel_crtc_state *pipe_config,
+				  const struct drm_connector_state *conn_state)
 {
 	intel_dp_prepare(encoder, pipe_config);
 
@@ -3073,8 +3073,8 @@ static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder,
 }
 
 static void chv_pre_enable_dp(struct intel_encoder *encoder,
-			      struct intel_crtc_state *pipe_config,
-			      struct drm_connector_state *conn_state)
+			      const struct intel_crtc_state *pipe_config,
+			      const struct drm_connector_state *conn_state)
 {
 	chv_phy_pre_encoder_enable(encoder);
 
@@ -3085,8 +3085,8 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder,
 }
 
 static void chv_dp_pre_pll_enable(struct intel_encoder *encoder,
-				  struct intel_crtc_state *pipe_config,
-				  struct drm_connector_state *conn_state)
+				  const struct intel_crtc_state *pipe_config,
+				  const struct drm_connector_state *conn_state)
 {
 	intel_dp_prepare(encoder, pipe_config);
 
@@ -3094,8 +3094,8 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder,
 }
 
 static void chv_dp_post_pll_disable(struct intel_encoder *encoder,
-				    struct intel_crtc_state *pipe_config,
-				    struct drm_connector_state *conn_state)
+				    const struct intel_crtc_state *pipe_config,
+				    const struct drm_connector_state *conn_state)
 {
 	chv_phy_post_pll_disable(encoder);
 }
@@ -5450,7 +5450,7 @@ static void intel_dp_pps_init(struct drm_device *dev,
  * The caller of this function needs to take a lock on dev_priv->drrs.
  */
 static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
-				    struct intel_crtc_state *crtc_state,
+				    const struct intel_crtc_state *crtc_state,
 				    int refresh_rate)
 {
 	struct intel_encoder *encoder;
@@ -5547,7 +5547,7 @@ static void intel_dp_set_drrs_state(struct drm_i915_private *dev_priv,
  * Initializes frontbuffer_bits and drrs.dp
  */
 void intel_edp_drrs_enable(struct intel_dp *intel_dp,
-			   struct intel_crtc_state *crtc_state)
+			   const struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -5578,7 +5578,7 @@ unlock:
  *
  */
 void intel_edp_drrs_disable(struct intel_dp *intel_dp,
-			    struct intel_crtc_state *old_crtc_state)
+			    const struct intel_crtc_state *old_crtc_state)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dev);

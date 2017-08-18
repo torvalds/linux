@@ -220,23 +220,23 @@ struct intel_encoder {
 			       struct intel_crtc_state *,
 			       struct drm_connector_state *);
 	void (*pre_pll_enable)(struct intel_encoder *,
-			       struct intel_crtc_state *,
-			       struct drm_connector_state *);
+			       const struct intel_crtc_state *,
+			       const struct drm_connector_state *);
 	void (*pre_enable)(struct intel_encoder *,
-			   struct intel_crtc_state *,
-			   struct drm_connector_state *);
+			   const struct intel_crtc_state *,
+			   const struct drm_connector_state *);
 	void (*enable)(struct intel_encoder *,
-		       struct intel_crtc_state *,
-		       struct drm_connector_state *);
+		       const struct intel_crtc_state *,
+		       const struct drm_connector_state *);
 	void (*disable)(struct intel_encoder *,
-			struct intel_crtc_state *,
-			struct drm_connector_state *);
+			const struct intel_crtc_state *,
+			const struct drm_connector_state *);
 	void (*post_disable)(struct intel_encoder *,
-			     struct intel_crtc_state *,
-			     struct drm_connector_state *);
+			     const struct intel_crtc_state *,
+			     const struct drm_connector_state *);
 	void (*post_pll_disable)(struct intel_encoder *,
-				 struct intel_crtc_state *,
-				 struct drm_connector_state *);
+				 const struct intel_crtc_state *,
+				 const struct drm_connector_state *);
 	/* Read out the current hw state of this connector, returning true if
 	 * the encoder is active. If the encoder is enabled it also set the pipe
 	 * it is connected to in the pipe parameter. */
@@ -1247,8 +1247,8 @@ void intel_crt_reset(struct drm_encoder *encoder);
 
 /* intel_ddi.c */
 void intel_ddi_fdi_post_disable(struct intel_encoder *intel_encoder,
-				struct intel_crtc_state *old_crtc_state,
-				struct drm_connector_state *old_conn_state);
+				const struct intel_crtc_state *old_crtc_state,
+				const struct drm_connector_state *old_conn_state);
 void hsw_fdi_link_train(struct intel_crtc *crtc,
 			const struct intel_crtc_state *crtc_state);
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port);
@@ -1520,9 +1520,9 @@ void intel_power_sequencer_reset(struct drm_i915_private *dev_priv);
 uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes);
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_edp_drrs_enable(struct intel_dp *intel_dp,
-			   struct intel_crtc_state *crtc_state);
+			   const struct intel_crtc_state *crtc_state);
 void intel_edp_drrs_disable(struct intel_dp *intel_dp,
-			   struct intel_crtc_state *crtc_state);
+			    const struct intel_crtc_state *crtc_state);
 void intel_edp_drrs_invalidate(struct drm_i915_private *dev_priv,
 			       unsigned int frontbuffer_bits);
 void intel_edp_drrs_flush(struct drm_i915_private *dev_priv,
