@@ -59,74 +59,44 @@ enum nfp_dump_diag {
 	NFP_DUMP_NSP_DIAG = 0,
 };
 
-/* Support for stats. Returns netdev, driver, and device stats */
-enum { NETDEV_ET_STATS, NFP_NET_DRV_ET_STATS, NFP_NET_DEV_ET_STATS };
-struct _nfp_net_et_stats {
+struct nfp_et_stat {
 	char name[ETH_GSTRING_LEN];
-	int type;
-	int sz;
 	int off;
 };
 
-#define NN_ET_NETDEV_STAT(m) NETDEV_ET_STATS,			\
-		FIELD_SIZEOF(struct net_device_stats, m),	\
-		offsetof(struct net_device_stats, m)
-/* For stats in the control BAR (other than Q stats) */
-#define NN_ET_DEV_STAT(m) NFP_NET_DEV_ET_STATS,			\
-		sizeof(u64),					\
-		(m)
-static const struct _nfp_net_et_stats nfp_net_et_stats[] = {
-	/* netdev stats */
-	{"rx_packets", NN_ET_NETDEV_STAT(rx_packets)},
-	{"tx_packets", NN_ET_NETDEV_STAT(tx_packets)},
-	{"rx_bytes", NN_ET_NETDEV_STAT(rx_bytes)},
-	{"tx_bytes", NN_ET_NETDEV_STAT(tx_bytes)},
-	{"rx_errors", NN_ET_NETDEV_STAT(rx_errors)},
-	{"tx_errors", NN_ET_NETDEV_STAT(tx_errors)},
-	{"rx_dropped", NN_ET_NETDEV_STAT(rx_dropped)},
-	{"tx_dropped", NN_ET_NETDEV_STAT(tx_dropped)},
-	{"multicast", NN_ET_NETDEV_STAT(multicast)},
-	{"collisions", NN_ET_NETDEV_STAT(collisions)},
-	{"rx_over_errors", NN_ET_NETDEV_STAT(rx_over_errors)},
-	{"rx_crc_errors", NN_ET_NETDEV_STAT(rx_crc_errors)},
-	{"rx_frame_errors", NN_ET_NETDEV_STAT(rx_frame_errors)},
-	{"rx_fifo_errors", NN_ET_NETDEV_STAT(rx_fifo_errors)},
-	{"rx_missed_errors", NN_ET_NETDEV_STAT(rx_missed_errors)},
-	{"tx_aborted_errors", NN_ET_NETDEV_STAT(tx_aborted_errors)},
-	{"tx_carrier_errors", NN_ET_NETDEV_STAT(tx_carrier_errors)},
-	{"tx_fifo_errors", NN_ET_NETDEV_STAT(tx_fifo_errors)},
+static const struct nfp_et_stat nfp_net_et_stats[] = {
 	/* Stats from the device */
-	{"dev_rx_discards", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_DISCARDS)},
-	{"dev_rx_errors", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_ERRORS)},
-	{"dev_rx_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_OCTETS)},
-	{"dev_rx_uc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_UC_OCTETS)},
-	{"dev_rx_mc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_MC_OCTETS)},
-	{"dev_rx_bc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_BC_OCTETS)},
-	{"dev_rx_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_FRAMES)},
-	{"dev_rx_mc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_MC_FRAMES)},
-	{"dev_rx_bc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_BC_FRAMES)},
+	{ "dev_rx_discards",	NFP_NET_CFG_STATS_RX_DISCARDS },
+	{ "dev_rx_errors",	NFP_NET_CFG_STATS_RX_ERRORS },
+	{ "dev_rx_bytes",	NFP_NET_CFG_STATS_RX_OCTETS },
+	{ "dev_rx_uc_bytes",	NFP_NET_CFG_STATS_RX_UC_OCTETS },
+	{ "dev_rx_mc_bytes",	NFP_NET_CFG_STATS_RX_MC_OCTETS },
+	{ "dev_rx_bc_bytes",	NFP_NET_CFG_STATS_RX_BC_OCTETS },
+	{ "dev_rx_pkts",	NFP_NET_CFG_STATS_RX_FRAMES },
+	{ "dev_rx_mc_pkts",	NFP_NET_CFG_STATS_RX_MC_FRAMES },
+	{ "dev_rx_bc_pkts",	NFP_NET_CFG_STATS_RX_BC_FRAMES },
 
-	{"dev_tx_discards", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_DISCARDS)},
-	{"dev_tx_errors", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_ERRORS)},
-	{"dev_tx_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_OCTETS)},
-	{"dev_tx_uc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_UC_OCTETS)},
-	{"dev_tx_mc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_MC_OCTETS)},
-	{"dev_tx_bc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_BC_OCTETS)},
-	{"dev_tx_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_FRAMES)},
-	{"dev_tx_mc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_MC_FRAMES)},
-	{"dev_tx_bc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_BC_FRAMES)},
+	{ "dev_tx_discards",	NFP_NET_CFG_STATS_TX_DISCARDS },
+	{ "dev_tx_errors",	NFP_NET_CFG_STATS_TX_ERRORS },
+	{ "dev_tx_bytes",	NFP_NET_CFG_STATS_TX_OCTETS },
+	{ "dev_tx_uc_bytes",	NFP_NET_CFG_STATS_TX_UC_OCTETS },
+	{ "dev_tx_mc_bytes",	NFP_NET_CFG_STATS_TX_MC_OCTETS },
+	{ "dev_tx_bc_bytes",	NFP_NET_CFG_STATS_TX_BC_OCTETS },
+	{ "dev_tx_pkts",	NFP_NET_CFG_STATS_TX_FRAMES },
+	{ "dev_tx_mc_pkts",	NFP_NET_CFG_STATS_TX_MC_FRAMES },
+	{ "dev_tx_bc_pkts",	NFP_NET_CFG_STATS_TX_BC_FRAMES },
 
-	{"bpf_pass_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP0_FRAMES)},
-	{"bpf_pass_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP0_BYTES)},
+	{ "bpf_pass_pkts",	NFP_NET_CFG_STATS_APP0_FRAMES },
+	{ "bpf_pass_bytes",	NFP_NET_CFG_STATS_APP0_BYTES },
 	/* see comments in outro functions in nfp_bpf_jit.c to find out
 	 * how different BPF modes use app-specific counters
 	 */
-	{"bpf_app1_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP1_FRAMES)},
-	{"bpf_app1_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP1_BYTES)},
-	{"bpf_app2_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP2_FRAMES)},
-	{"bpf_app2_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP2_BYTES)},
-	{"bpf_app3_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP3_FRAMES)},
-	{"bpf_app3_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP3_BYTES)},
+	{ "bpf_app1_pkts",	NFP_NET_CFG_STATS_APP1_FRAMES },
+	{ "bpf_app1_bytes",	NFP_NET_CFG_STATS_APP1_BYTES },
+	{ "bpf_app2_pkts",	NFP_NET_CFG_STATS_APP2_FRAMES },
+	{ "bpf_app2_bytes",	NFP_NET_CFG_STATS_APP2_BYTES },
+	{ "bpf_app3_pkts",	NFP_NET_CFG_STATS_APP3_FRAMES },
+	{ "bpf_app3_bytes",	NFP_NET_CFG_STATS_APP3_BYTES },
 };
 
 #define NN_ET_GLOBAL_STATS_LEN ARRAY_SIZE(nfp_net_et_stats)
@@ -421,28 +391,13 @@ static void nfp_net_get_stats(struct net_device *netdev,
 {
 	u64 gathered_stats[NN_ET_RVEC_GATHER_STATS] = {};
 	struct nfp_net *nn = netdev_priv(netdev);
-	struct rtnl_link_stats64 *netdev_stats;
-	struct rtnl_link_stats64 temp = {};
 	u64 tmp[NN_ET_RVEC_GATHER_STATS];
 	u8 __iomem *io_p;
 	int i, j, k;
-	u8 *p;
-
-	netdev_stats = dev_get_stats(netdev, &temp);
 
 	for (i = 0; i < NN_ET_GLOBAL_STATS_LEN; i++) {
-		switch (nfp_net_et_stats[i].type) {
-		case NETDEV_ET_STATS:
-			p = (char *)netdev_stats + nfp_net_et_stats[i].off;
-			data[i] = nfp_net_et_stats[i].sz == sizeof(u64) ?
-				*(u64 *)p : *(u32 *)p;
-			break;
-
-		case NFP_NET_DEV_ET_STATS:
-			io_p = nn->dp.ctrl_bar + nfp_net_et_stats[i].off;
-			data[i] = readq(io_p);
-			break;
-		}
+		io_p = nn->dp.ctrl_bar + nfp_net_et_stats[i].off;
+		data[i] = readq(io_p);
 	}
 	for (j = 0; j < nn->dp.num_r_vecs; j++) {
 		unsigned int start;
