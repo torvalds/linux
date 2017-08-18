@@ -25,6 +25,7 @@
 #include "meta_io.h"
 #include "quota.h"
 #include "rgrp.h"
+#include "super.h"
 #include "trans.h"
 #include "util.h"
 
