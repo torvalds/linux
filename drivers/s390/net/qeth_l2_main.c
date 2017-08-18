@@ -695,7 +695,7 @@ static int qeth_l2_xmit_iqd(struct qeth_card *card, struct sk_buff *skb,
 		goto out;
 	}
 	rc = qeth_do_send_packet_fast(card, queue, skb, hdr, data_offset,
-				      data_offset);
+				      sizeof(*hdr) + data_offset);
 out:
 	if (rc)
 		kmem_cache_free(qeth_core_header_cache, hdr);

@@ -3981,8 +3981,7 @@ static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 		is_first_elem = false;
 
 		buffer->element[element].addr = hdr;
-		buffer->element[element].length = sizeof(struct qeth_hdr) +
-							hd_len;
+		buffer->element[element].length = hd_len;
 		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
 		buf->is_header[element] = 1;
 		buf->next_element_to_fill++;

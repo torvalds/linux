@@ -2670,6 +2670,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	if (card->info.type == QETH_CARD_TYPE_IQD) {
 		new_skb = skb;
 		data_offset = ETH_HLEN;
+		hd_len = sizeof(*hdr);
 		hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
 		if (!hdr)
 			goto tx_drop;
@@ -2771,7 +2772,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 					 hd_len, elements);
 	} else
 		rc = qeth_do_send_packet_fast(card, queue, new_skb, hdr,
-					      data_offset, 0);
+					      data_offset, hd_len);
 
 	if (!rc) {
 		card->stats.tx_packets++;
