@@ -90,9 +90,14 @@ struct pci_endpoint_test {
 	/* mutex to protect the ioctls */
 	struct mutex	mutex;
 	struct miscdevice miscdev;
+	enum pci_barno test_reg_bar;
 };
 
-static int bar_size[] = { 4, 512, 1024, 16384, 131072, 1048576 };
+struct pci_endpoint_test_data {
+	enum pci_barno test_reg_bar;
+};
+
+static int bar_size[] = { 512, 512, 1024, 16384, 131072, 1048576 };
 
 static inline u32 pci_endpoint_test_readl(struct pci_endpoint_test *test,
 					  u32 offset)
@@ -146,6 +151,9 @@ static bool pci_endpoint_test_bar(struct pci_endpoint_test *test,
 		return false;
 
 	size = bar_size[barno];
+
+	if (barno == test->test_reg_bar)
+		size = 0x4;
 
 	for (j = 0; j < size; j += 4)
 		pci_endpoint_test_bar_writel(test, barno, j, 0xA0A0A0A0);
@@ -390,6 +398,8 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	void __iomem *base;
 	struct device *dev = &pdev->dev;
 	struct pci_endpoint_test *test;
+	struct pci_endpoint_test_data *data;
+	enum pci_barno test_reg_bar = BAR_0;
 	struct miscdevice *misc_device;
 
 	if (pci_is_bridge(pdev))
@@ -399,7 +409,13 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	if (!test)
 		return -ENOMEM;
 
+	test->test_reg_bar = 0;
 	test->pdev = pdev;
+
+	data = (struct pci_endpoint_test_data *)ent->driver_data;
+	if (data)
+		test_reg_bar = data->test_reg_bar;
+
 	init_completion(&test->irq_raised);
 	mutex_init(&test->mutex);
 
@@ -441,14 +457,15 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 		base = pci_ioremap_bar(pdev, bar);
 		if (!base) {
 			dev_err(dev, "failed to read BAR%d\n", bar);
-			WARN_ON(bar == BAR_0);
+			WARN_ON(bar == test_reg_bar);
 		}
 		test->bar[bar] = base;
 	}
 
-	test->base = test->bar[0];
+	test->base = test->bar[test_reg_bar];
 	if (!test->base) {
-		dev_err(dev, "Cannot perform PCI test without BAR0\n");
+		dev_err(dev, "Cannot perform PCI test without BAR%d\n",
+			test_reg_bar);
 		goto err_iounmap;
 	}
 
