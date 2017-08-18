@@ -1576,11 +1576,11 @@ static int batch_buffer_needs_scan(struct parser_exec_state *s)
 	return 1;
 }
 
-static uint32_t find_bb_size(struct parser_exec_state *s)
+static int find_bb_size(struct parser_exec_state *s)
 {
 	unsigned long gma = 0;
 	struct cmd_info *info;
-	uint32_t bb_size = 0;
+	int bb_size = 0;
 	uint32_t cmd_len = 0;
 	bool met_bb_end = false;
 	struct intel_vgpu *vgpu = s->vgpu;
@@ -1637,6 +1637,8 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 
 	/* get the size of the batch buffer */
 	bb_size = find_bb_size(s);
+	if (bb_size < 0)
+		return -EINVAL;
 
 	/* allocate shadow batch buffer */
 	entry_obj = kmalloc(sizeof(*entry_obj), GFP_KERNEL);
