@@ -615,6 +615,7 @@ struct nfsd4_compoundargs {
 	__be32 *			end;
 	struct page **			pagelist;
 	int				pagelen;
+	bool				tail;
 	__be32				tmp[8];
 	__be32 *			tmpp;
 	struct svcxdr_tmpbuf		*to_free;

@@ -159,6 +159,25 @@ static __be32 *read_buf(struct nfsd4_compoundargs *argp, u32 nbytes)
 	 */
 	unsigned int avail = (char *)argp->end - (char *)argp->p;
 	__be32 *p;
+
+	if (argp->pagelen == 0) {
+		struct kvec *vec = &argp->rqstp->rq_arg.tail[0];
+
+		if (!argp->tail) {
+			argp->tail = true;
+			avail = vec->iov_len;
+			argp->p = vec->iov_base;
+			argp->end = vec->iov_base + avail;
+		}
+
+		if (avail < nbytes)
+			return NULL;
+
+		p = argp->p;
+		argp->p += XDR_QUADLEN(nbytes);
+		return p;
+	}
+
 	if (avail + argp->pagelen < nbytes)
 		return NULL;
 	if (avail + PAGE_SIZE < nbytes) /* need more than a page !! */
@@ -4471,6 +4490,7 @@ nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, __be32 *p)
 	args->end = rqstp->rq_arg.head[0].iov_base + rqstp->rq_arg.head[0].iov_len;
 	args->pagelist = rqstp->rq_arg.pages;
 	args->pagelen = rqstp->rq_arg.page_len;
+	args->tail = false;
 	args->tmpp = NULL;
 	args->to_free = NULL;
 	args->ops = args->iops;
