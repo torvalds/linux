@@ -313,7 +313,7 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 	if (!h->ae_algo || !h->ae_algo->ops)
 		return -EOPNOTSUPP;
 
-	/* 1.auto_neg&speed&duplex from cmd */
+	/* 1.auto_neg & speed & duplex from cmd */
 	if (h->ae_algo->ops->get_ksettings_an_result) {
 		h->ae_algo->ops->get_ksettings_an_result(h, &auto_neg,
 							 &speed, &duplex);
@@ -329,50 +329,61 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 	}
 
 	/* 2.media_type get from bios parameter block */
-	if (h->ae_algo->ops->get_media_type)
+	if (h->ae_algo->ops->get_media_type) {
 		h->ae_algo->ops->get_media_type(h, &media_type);
 
-	switch (media_type) {
-	case HNAE3_MEDIA_TYPE_FIBER:
-		cmd->base.port = PORT_FIBRE;
-		supported_caps = HNS3_LM_FIBRE_BIT | HNS3_LM_AUTONEG_BIT |
-			HNS3_LM_PAUSE_BIT | HNS3_LM_1000BASET_FULL_BIT;
+		switch (media_type) {
+		case HNAE3_MEDIA_TYPE_FIBER:
+			cmd->base.port = PORT_FIBRE;
+			supported_caps = HNS3_LM_FIBRE_BIT |
+					 HNS3_LM_AUTONEG_BIT |
+					 HNS3_LM_PAUSE_BIT |
+					 HNS3_LM_1000BASET_FULL_BIT;
 
-		advertised_caps = supported_caps;
-		break;
-	case HNAE3_MEDIA_TYPE_COPPER:
-		cmd->base.port = PORT_TP;
-		supported_caps = HNS3_LM_TP_BIT | HNS3_LM_AUTONEG_BIT |
-			HNS3_LM_PAUSE_BIT | HNS3_LM_1000BASET_FULL_BIT |
-			HNS3_LM_100BASET_FULL_BIT | HNS3_LM_100BASET_HALF_BIT |
-			HNS3_LM_10BASET_FULL_BIT | HNS3_LM_10BASET_HALF_BIT;
-		advertised_caps = supported_caps;
-		break;
-	case HNAE3_MEDIA_TYPE_BACKPLANE:
-		cmd->base.port = PORT_NONE;
-		supported_caps = HNS3_LM_BACKPLANE_BIT | HNS3_LM_PAUSE_BIT |
-			HNS3_LM_AUTONEG_BIT | HNS3_LM_1000BASET_FULL_BIT |
-			HNS3_LM_100BASET_FULL_BIT | HNS3_LM_100BASET_HALF_BIT |
-			HNS3_LM_10BASET_FULL_BIT | HNS3_LM_10BASET_HALF_BIT;
+			advertised_caps = supported_caps;
+			break;
+		case HNAE3_MEDIA_TYPE_COPPER:
+			cmd->base.port = PORT_TP;
+			supported_caps = HNS3_LM_TP_BIT |
+					 HNS3_LM_AUTONEG_BIT |
+					 HNS3_LM_PAUSE_BIT |
+					 HNS3_LM_1000BASET_FULL_BIT |
+					 HNS3_LM_100BASET_FULL_BIT |
+					 HNS3_LM_100BASET_HALF_BIT |
+					 HNS3_LM_10BASET_FULL_BIT |
+					 HNS3_LM_10BASET_HALF_BIT;
+			advertised_caps = supported_caps;
+			break;
+		case HNAE3_MEDIA_TYPE_BACKPLANE:
+			cmd->base.port = PORT_NONE;
+			supported_caps = HNS3_LM_BACKPLANE_BIT |
+					 HNS3_LM_PAUSE_BIT |
+					 HNS3_LM_AUTONEG_BIT |
+					 HNS3_LM_1000BASET_FULL_BIT |
+					 HNS3_LM_100BASET_FULL_BIT |
+					 HNS3_LM_100BASET_HALF_BIT |
+					 HNS3_LM_10BASET_FULL_BIT |
+					 HNS3_LM_10BASET_HALF_BIT;
 
-		advertised_caps = supported_caps;
-		break;
-	case HNAE3_MEDIA_TYPE_UNKNOWN:
-	default:
-		cmd->base.port = PORT_OTHER;
-		supported_caps = 0;
-		advertised_caps = 0;
-		break;
+			advertised_caps = supported_caps;
+			break;
+		case HNAE3_MEDIA_TYPE_UNKNOWN:
+		default:
+			cmd->base.port = PORT_OTHER;
+			supported_caps = 0;
+			advertised_caps = 0;
+			break;
+		}
+
+		/* now, map driver link modes to ethtool link modes */
+		hns3_driv_to_eth_caps(supported_caps, cmd, false);
+		hns3_driv_to_eth_caps(advertised_caps, cmd, true);
 	}
-
-	/* now, map driver link modes to ethtool link modes */
-	hns3_driv_to_eth_caps(supported_caps, cmd, false);
-	hns3_driv_to_eth_caps(advertised_caps, cmd, true);
 
 	/* 3.mdix_ctrl&mdix get from phy reg */
 	if (h->ae_algo->ops->get_mdix_mode)
 		h->ae_algo->ops->get_mdix_mode(h, &cmd->base.eth_tp_mdix_ctrl,
-			&cmd->base.eth_tp_mdix);
+					       &cmd->base.eth_tp_mdix);
 	/* 4.mdio_support */
 	cmd->base.mdio_support = ETH_MDIO_SUPPORTS_C22;
 
