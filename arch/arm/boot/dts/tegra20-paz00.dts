@@ -452,7 +452,9 @@
 	};
 
 	usb@c5000000 {
+		compatible = "nvidia,tegra20-udc";
 		status = "okay";
+		dr_mode = "peripheral";
 	};
 
 	usb-phy@c5000000 {
