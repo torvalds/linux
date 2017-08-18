@@ -292,7 +292,7 @@ static void return_buf_error(struct venus_inst *inst,
 	if (vbuf->vb2_buf.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		v4l2_m2m_src_buf_remove_by_buf(m2m_ctx, vbuf);
 	else
-		v4l2_m2m_src_buf_remove_by_buf(m2m_ctx, vbuf);
+		v4l2_m2m_dst_buf_remove_by_buf(m2m_ctx, vbuf);
 
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
 }
