@@ -163,15 +163,6 @@
 
 			};
 
-			cps_sata0: sata@540000 {
-				compatible = "marvell,armada-8k-ahci",
-					     "generic-ahci";
-				reg = <0x540000 0x30000>;
-				interrupts = <ICU_GRP_NSR 107 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&cps_clk 1 15>;
-				status = "disabled";
-			};
-
 			cps_usb3_0: usb3@500000 {
 				compatible = "marvell,armada-8k-xhci",
 					     "generic-xhci";
@@ -189,6 +180,15 @@
 				dma-coherent;
 				interrupts = <ICU_GRP_NSR 105 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cps_clk 1 23>;
+				status = "disabled";
+			};
+
+			cps_sata0: sata@540000 {
+				compatible = "marvell,armada-8k-ahci",
+					     "generic-ahci";
+				reg = <0x540000 0x30000>;
+				interrupts = <ICU_GRP_NSR 107 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cps_clk 1 15>;
 				status = "disabled";
 			};
 
@@ -247,6 +247,21 @@
 				#size-cells = <0>;
 				interrupts = <ICU_GRP_NSR 121 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cps_clk 1 21>;
+				status = "disabled";
+			};
+
+			cps_nand: nand@720000 {
+				/*
+				 * Due to the limiation of the pin available
+				 * this controller is only usable on the CPM
+				 * for A7K and on the CPS for A8K.
+				 */
+				compatible = "marvell,armada370-nand";
+				reg = <0x720000 0x54>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				interrupts = <ICU_GRP_NSR 115 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cps_clk 1 2>;
 				status = "disabled";
 			};
 
