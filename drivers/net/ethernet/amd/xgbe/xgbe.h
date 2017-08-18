@@ -668,6 +668,11 @@ struct xgbe_ext_stats {
 	u64 tx_tso_packets;
 	u64 rx_split_header_packets;
 	u64 rx_buffer_unavailable;
+
+	u64 txq_packets[XGBE_MAX_DMA_CHANNELS];
+	u64 txq_bytes[XGBE_MAX_DMA_CHANNELS];
+	u64 rxq_packets[XGBE_MAX_DMA_CHANNELS];
+	u64 rxq_bytes[XGBE_MAX_DMA_CHANNELS];
 };
 
 struct xgbe_hw_if {

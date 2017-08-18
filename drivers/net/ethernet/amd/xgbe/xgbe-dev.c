@@ -1609,6 +1609,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	struct xgbe_ring_data *rdata;
 	struct xgbe_ring_desc *rdesc;
 	struct xgbe_packet_data *packet = &ring->packet_data;
+	unsigned int tx_packets, tx_bytes;
 	unsigned int csum, tso, vlan;
 	unsigned int tso_context, vlan_context;
 	unsigned int tx_set_ic;
@@ -1617,6 +1618,9 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	int i;
 
 	DBGPR("-->xgbe_dev_xmit\n");
+
+	tx_packets = packet->tx_packets;
+	tx_bytes = packet->tx_bytes;
 
 	csum = XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
 			      CSUM_ENABLE);
@@ -1645,13 +1649,12 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	 *     - Addition of Tx frame count to the frame count since the
 	 *       last interrupt was set does not exceed the frame count setting
 	 */
-	ring->coalesce_count += packet->tx_packets;
+	ring->coalesce_count += tx_packets;
 	if (!pdata->tx_frames)
 		tx_set_ic = 0;
-	else if (packet->tx_packets > pdata->tx_frames)
+	else if (tx_packets > pdata->tx_frames)
 		tx_set_ic = 1;
-	else if ((ring->coalesce_count % pdata->tx_frames) <
-		 packet->tx_packets)
+	else if ((ring->coalesce_count % pdata->tx_frames) < tx_packets)
 		tx_set_ic = 1;
 	else
 		tx_set_ic = 0;
@@ -1741,7 +1744,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, TCPHDRLEN,
 				  packet->tcp_header_len / 4);
 
-		pdata->ext_stats.tx_tso_packets += packet->tx_packets;
+		pdata->ext_stats.tx_tso_packets += tx_packets;
 	} else {
 		/* Enable CRC and Pad Insertion */
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CPC, 0);
@@ -1789,8 +1792,11 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 		XGMAC_SET_BITS_LE(rdesc->desc2, TX_NORMAL_DESC2, IC, 1);
 
 	/* Save the Tx info to report back during cleanup */
-	rdata->tx.packets = packet->tx_packets;
-	rdata->tx.bytes = packet->tx_bytes;
+	rdata->tx.packets = tx_packets;
+	rdata->tx.bytes = tx_bytes;
+
+	pdata->ext_stats.txq_packets[channel->queue_index] += tx_packets;
+	pdata->ext_stats.txq_bytes[channel->queue_index] += tx_bytes;
 
 	/* In case the Tx DMA engine is running, make sure everything
 	 * is written to the descriptor(s) before setting the OWN bit
@@ -1943,6 +1949,9 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 			XGMAC_SET_BITS(packet->errors, RX_PACKET_ERRORS,
 				       FRAME, 1);
 	}
+
+	pdata->ext_stats.rxq_packets[channel->queue_index]++;
+	pdata->ext_stats.rxq_bytes[channel->queue_index] += rdata->rx.len;
 
 	DBGPR("<--xgbe_dev_read: %s - descriptor=%u (cur=%d)\n", channel->name,
 	      ring->cur & (ring->rdesc_count - 1), ring->cur);

@@ -186,6 +186,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 
 static void xgbe_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	int i;
 
 	switch (stringset) {
@@ -193,6 +194,18 @@ static void xgbe_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 		for (i = 0; i < XGBE_STATS_COUNT; i++) {
 			memcpy(data, xgbe_gstring_stats[i].stat_string,
 			       ETH_GSTRING_LEN);
+			data += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < pdata->tx_ring_count; i++) {
+			sprintf(data, "txq_%u_packets", i);
+			data += ETH_GSTRING_LEN;
+			sprintf(data, "txq_%u_bytes", i);
+			data += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < pdata->rx_ring_count; i++) {
+			sprintf(data, "rxq_%u_packets", i);
+			data += ETH_GSTRING_LEN;
+			sprintf(data, "rxq_%u_bytes", i);
 			data += ETH_GSTRING_LEN;
 		}
 		break;
@@ -211,15 +224,26 @@ static void xgbe_get_ethtool_stats(struct net_device *netdev,
 		stat = (u8 *)pdata + xgbe_gstring_stats[i].stat_offset;
 		*data++ = *(u64 *)stat;
 	}
+	for (i = 0; i < pdata->tx_ring_count; i++) {
+		*data++ = pdata->ext_stats.txq_packets[i];
+		*data++ = pdata->ext_stats.txq_bytes[i];
+	}
+	for (i = 0; i < pdata->rx_ring_count; i++) {
+		*data++ = pdata->ext_stats.rxq_packets[i];
+		*data++ = pdata->ext_stats.rxq_bytes[i];
+	}
 }
 
 static int xgbe_get_sset_count(struct net_device *netdev, int stringset)
 {
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	int ret;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		ret = XGBE_STATS_COUNT;
+		ret = XGBE_STATS_COUNT +
+		      (pdata->tx_ring_count * 2) +
+		      (pdata->rx_ring_count * 2);
 		break;
 
 	default:
