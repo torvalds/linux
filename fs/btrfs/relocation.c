@@ -3772,7 +3772,10 @@ int add_data_references(struct reloc_control *rc,
 			ret = find_data_references(rc, extent_key,
 						   eb, dref, blocks);
 		} else {
-			BUG();
+			ret = -EINVAL;
+			btrfs_err(rc->extent_root->fs_info,
+		     "extent %llu slot %d has an invalid inline ref type",
+			     eb->start, path->slots[0]);
 		}
 		if (ret) {
 			err = ret;
