@@ -428,7 +428,7 @@ static int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode)
 	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
 		if (pci_num_vf(bp->pdev) == 0) {
 			netdev_info(bp->dev,
-				    "Enable VFs before setting swtichdev mode");
+				    "Enable VFs before setting switchdev mode");
 			rc = -EPERM;
 			goto done;
 		}
