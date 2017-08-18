@@ -399,7 +399,7 @@ static int loadtime_init(struct qib_devdata *dd)
 	if (((dd->revision >> QLOGIC_IB_R_SOFTWARE_SHIFT) &
 	     QLOGIC_IB_R_SOFTWARE_MASK) != QIB_CHIP_SWVERSION) {
 		qib_dev_err(dd,
-			"Driver only handles version %d, chip swversion is %d (%llx), failng\n",
+			"Driver only handles version %d, chip swversion is %d (%llx), failing\n",
 			QIB_CHIP_SWVERSION,
 			(int)(dd->revision >>
 				QLOGIC_IB_R_SOFTWARE_SHIFT) &

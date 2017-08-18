@@ -1077,7 +1077,7 @@ static void pvrdma_pci_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static struct pci_device_id pvrdma_pci_table[] = {
+static const struct pci_device_id pvrdma_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VMWARE, PCI_DEVICE_ID_VMWARE_PVRDMA), },
 	{ 0 },
 };

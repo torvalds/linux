@@ -3372,7 +3372,7 @@ int bnxt_re_dealloc_ucontext(struct ib_ucontext *ib_uctx)
 					    &rdev->qplib_res.dpi_tbl,
 					    &uctx->dpi);
 		if (rc)
-			dev_err(rdev_to_dev(rdev), "Deallocte HW DPI failed!");
+			dev_err(rdev_to_dev(rdev), "Deallocate HW DPI failed!");
 			/* Don't fail, continue*/
 		uctx->dpi.dbr = NULL;
 	}

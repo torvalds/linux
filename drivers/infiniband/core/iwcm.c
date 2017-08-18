@@ -1177,7 +1177,7 @@ static int __init iw_cm_init(void)
 		pr_err("iw_cm: couldn't init iwpm\n");
 	else
 		rdma_nl_register(RDMA_NL_IWCM, iwcm_nl_cb_table);
-	iwcm_wq = alloc_ordered_workqueue("iw_cm_wq", WQ_MEM_RECLAIM);
+	iwcm_wq = alloc_ordered_workqueue("iw_cm_wq", 0);
 	if (!iwcm_wq)
 		return -ENOMEM;
 

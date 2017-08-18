@@ -3687,8 +3687,6 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	cm_node->accelerated = 1;
 	if (cm_node->accept_pend) {
-		if (!cm_node->listener)
-			i40iw_pr_err("cm_node->listener NULL for passive node\n");
 		atomic_dec(&cm_node->listener->pend_accepts_cnt);
 		cm_node->accept_pend = 0;
 	}
@@ -4056,12 +4054,7 @@ static void i40iw_cm_event_connected(struct i40iw_cm_event *event)
 	i40iw_modify_qp(&iwqp->ibqp, &attr, IB_QP_STATE, NULL);
 
 	cm_node->accelerated = 1;
-	if (cm_node->accept_pend) {
-		if (!cm_node->listener)
-			i40iw_pr_err("listener is null for passive node\n");
-		atomic_dec(&cm_node->listener->pend_accepts_cnt);
-		cm_node->accept_pend = 0;
-	}
+
 	return;
 
 error:
