@@ -727,18 +727,18 @@ static int nfp_net_get_coalesce(struct net_device *netdev,
 /* Other debug dumps
  */
 static int
-nfp_dump_nsp_diag(struct nfp_net *nn, struct ethtool_dump *dump, void *buffer)
+nfp_dump_nsp_diag(struct nfp_app *app, struct ethtool_dump *dump, void *buffer)
 {
 	struct nfp_resource *res;
 	int ret;
 
-	if (!nn->app)
+	if (!app)
 		return -EOPNOTSUPP;
 
 	dump->version = 1;
 	dump->flag = NFP_DUMP_NSP_DIAG;
 
-	res = nfp_resource_acquire(nn->app->cpp, NFP_RESOURCE_NSP_DIAG);
+	res = nfp_resource_acquire(app->cpp, NFP_RESOURCE_NSP_DIAG);
 	if (IS_ERR(res))
 		return PTR_ERR(res);
 
@@ -748,7 +748,7 @@ nfp_dump_nsp_diag(struct nfp_net *nn, struct ethtool_dump *dump, void *buffer)
 			goto exit_release;
 		}
 
-		ret = nfp_cpp_read(nn->app->cpp, nfp_resource_cpp_id(res),
+		ret = nfp_cpp_read(app->cpp, nfp_resource_cpp_id(res),
 				   nfp_resource_address(res),
 				   buffer, dump->len);
 		if (ret != dump->len)
@@ -765,32 +765,30 @@ exit_release:
 	return ret;
 }
 
-static int nfp_net_set_dump(struct net_device *netdev, struct ethtool_dump *val)
+static int nfp_app_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 {
-	struct nfp_net *nn = netdev_priv(netdev);
+	struct nfp_app *app = nfp_app_from_netdev(netdev);
 
-	if (!nn->app)
+	if (!app)
 		return -EOPNOTSUPP;
 
 	if (val->flag != NFP_DUMP_NSP_DIAG)
 		return -EINVAL;
 
-	nn->ethtool_dump_flag = val->flag;
-
 	return 0;
 }
 
 static int
-nfp_net_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
+nfp_app_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 {
-	return nfp_dump_nsp_diag(netdev_priv(netdev), dump, NULL);
+	return nfp_dump_nsp_diag(nfp_app_from_netdev(netdev), dump, NULL);
 }
 
 static int
-nfp_net_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
+nfp_app_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 		      void *buffer)
 {
-	return nfp_dump_nsp_diag(netdev_priv(netdev), dump, buffer);
+	return nfp_dump_nsp_diag(nfp_app_from_netdev(netdev), dump, buffer);
 }
 
 static int nfp_net_set_coalesce(struct net_device *netdev,
@@ -947,9 +945,9 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_rxfh		= nfp_net_set_rxfh,
 	.get_regs_len		= nfp_net_get_regs_len,
 	.get_regs		= nfp_net_get_regs,
-	.set_dump		= nfp_net_set_dump,
-	.get_dump_flag		= nfp_net_get_dump_flag,
-	.get_dump_data		= nfp_net_get_dump_data,
+	.set_dump		= nfp_app_set_dump,
+	.get_dump_flag		= nfp_app_get_dump_flag,
+	.get_dump_data		= nfp_app_get_dump_data,
 	.get_coalesce           = nfp_net_get_coalesce,
 	.set_coalesce           = nfp_net_set_coalesce,
 	.get_channels		= nfp_net_get_channels,
@@ -961,6 +959,9 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 const struct ethtool_ops nfp_port_ethtool_ops = {
 	.get_drvinfo		= nfp_app_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
+	.set_dump		= nfp_app_set_dump,
+	.get_dump_flag		= nfp_app_get_dump_flag,
+	.get_dump_data		= nfp_app_get_dump_data,
 };
 
 void nfp_net_set_ethtool_ops(struct net_device *netdev)
