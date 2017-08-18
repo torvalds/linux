@@ -131,6 +131,7 @@
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
 #include <linux/dcache.h>
+#include <linux/ethtool.h>
 
 #define XGBE_DRV_NAME		"amd-xgbe"
 #define XGBE_DRV_VERSION	"1.0.3"
@@ -295,6 +296,48 @@
 
 /* MDIO port types */
 #define XGMAC_MAX_C22_PORT		3
+
+/* Link mode bit operations */
+#define XGBE_ZERO_SUP(_ls)		\
+	ethtool_link_ksettings_zero_link_mode((_ls), supported)
+
+#define XGBE_SET_SUP(_ls, _mode)	\
+	ethtool_link_ksettings_add_link_mode((_ls), supported, _mode)
+
+#define XGBE_CLR_SUP(_ls, _mode)	\
+	ethtool_link_ksettings_del_link_mode((_ls), supported, _mode)
+
+#define XGBE_IS_SUP(_ls, _mode)	\
+	ethtool_link_ksettings_test_link_mode((_ls), supported, _mode)
+
+#define XGBE_ZERO_ADV(_ls)		\
+	ethtool_link_ksettings_zero_link_mode((_ls), advertising)
+
+#define XGBE_SET_ADV(_ls, _mode)	\
+	ethtool_link_ksettings_add_link_mode((_ls), advertising, _mode)
+
+#define XGBE_CLR_ADV(_ls, _mode)	\
+	ethtool_link_ksettings_del_link_mode((_ls), advertising, _mode)
+
+#define XGBE_ADV(_ls, _mode)		\
+	ethtool_link_ksettings_test_link_mode((_ls), advertising, _mode)
+
+#define XGBE_ZERO_LP_ADV(_ls)		\
+	ethtool_link_ksettings_zero_link_mode((_ls), lp_advertising)
+
+#define XGBE_SET_LP_ADV(_ls, _mode)	\
+	ethtool_link_ksettings_add_link_mode((_ls), lp_advertising, _mode)
+
+#define XGBE_CLR_LP_ADV(_ls, _mode)	\
+	ethtool_link_ksettings_del_link_mode((_ls), lp_advertising, _mode)
+
+#define XGBE_LP_ADV(_ls, _mode)		\
+	ethtool_link_ksettings_test_link_mode((_ls), lp_advertising, _mode)
+
+#define XGBE_LM_COPY(_dst, _dname, _src, _sname)	\
+	bitmap_copy((_dst)->link_modes._dname,		\
+		    (_src)->link_modes._sname,		\
+		    __ETHTOOL_LINK_MODE_MASK_NBITS)
 
 struct xgbe_prv_data;
 
@@ -563,9 +606,7 @@ enum xgbe_mdio_mode {
 };
 
 struct xgbe_phy {
-	u32 supported;
-	u32 advertising;
-	u32 lp_advertising;
+	struct ethtool_link_ksettings lks;
 
 	int address;
 
@@ -817,7 +858,8 @@ struct xgbe_phy_impl_if {
 	int (*an_config)(struct xgbe_prv_data *);
 
 	/* Set/override auto-negotiation advertisement settings */
-	unsigned int (*an_advertising)(struct xgbe_prv_data *);
+	void (*an_advertising)(struct xgbe_prv_data *,
+			       struct ethtool_link_ksettings *);
 
 	/* Process results of auto-negotiation */
 	enum xgbe_mode (*an_outcome)(struct xgbe_prv_data *);

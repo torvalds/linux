@@ -267,6 +267,7 @@ static int xgbe_set_pauseparam(struct net_device *netdev,
 			       struct ethtool_pauseparam *pause)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct ethtool_link_ksettings *lks = &pdata->phy.lks;
 	int ret = 0;
 
 	if (pause->autoneg && (pdata->phy.autoneg != AUTONEG_ENABLE)) {
@@ -279,16 +280,21 @@ static int xgbe_set_pauseparam(struct net_device *netdev,
 	pdata->phy.tx_pause = pause->tx_pause;
 	pdata->phy.rx_pause = pause->rx_pause;
 
-	pdata->phy.advertising &= ~ADVERTISED_Pause;
-	pdata->phy.advertising &= ~ADVERTISED_Asym_Pause;
+	XGBE_CLR_ADV(lks, Pause);
+	XGBE_CLR_ADV(lks, Asym_Pause);
 
 	if (pause->rx_pause) {
-		pdata->phy.advertising |= ADVERTISED_Pause;
-		pdata->phy.advertising |= ADVERTISED_Asym_Pause;
+		XGBE_SET_ADV(lks, Pause);
+		XGBE_SET_ADV(lks, Asym_Pause);
 	}
 
-	if (pause->tx_pause)
-		pdata->phy.advertising ^= ADVERTISED_Asym_Pause;
+	if (pause->tx_pause) {
+		/* Equivalent to XOR of Asym_Pause */
+		if (XGBE_ADV(lks, Asym_Pause))
+			XGBE_CLR_ADV(lks, Asym_Pause);
+		else
+			XGBE_SET_ADV(lks, Asym_Pause);
+	}
 
 	if (netif_running(netdev))
 		ret = pdata->phy_if.phy_config_aneg(pdata);
@@ -300,21 +306,19 @@ static int xgbe_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct ethtool_link_ksettings *lks = &pdata->phy.lks;
 
 	cmd->base.phy_address = pdata->phy.address;
-
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
-						pdata->phy.supported);
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
-						pdata->phy.advertising);
-	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.lp_advertising,
-						pdata->phy.lp_advertising);
 
 	cmd->base.autoneg = pdata->phy.autoneg;
 	cmd->base.speed = pdata->phy.speed;
 	cmd->base.duplex = pdata->phy.duplex;
 
 	cmd->base.port = PORT_NONE;
+
+	XGBE_LM_COPY(cmd, supported, lks, supported);
+	XGBE_LM_COPY(cmd, advertising, lks, advertising);
+	XGBE_LM_COPY(cmd, lp_advertising, lks, lp_advertising);
 
 	return 0;
 }
@@ -323,7 +327,8 @@ static int xgbe_set_link_ksettings(struct net_device *netdev,
 				   const struct ethtool_link_ksettings *cmd)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	u32 advertising;
+	struct ethtool_link_ksettings *lks = &pdata->phy.lks;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
 	u32 speed;
 	int ret;
 
@@ -355,15 +360,17 @@ static int xgbe_set_link_ksettings(struct net_device *netdev,
 		}
 	}
 
-	ethtool_convert_link_mode_to_legacy_u32(&advertising,
-						cmd->link_modes.advertising);
-
 	netif_dbg(pdata, link, netdev,
-		  "requested advertisement %#x, phy supported %#x\n",
-		  advertising, pdata->phy.supported);
+		  "requested advertisement 0x%*pb, phy supported 0x%*pb\n",
+		  __ETHTOOL_LINK_MODE_MASK_NBITS, cmd->link_modes.advertising,
+		  __ETHTOOL_LINK_MODE_MASK_NBITS, lks->link_modes.supported);
 
-	advertising &= pdata->phy.supported;
-	if ((cmd->base.autoneg == AUTONEG_ENABLE) && !advertising) {
+	bitmap_and(advertising,
+		   cmd->link_modes.advertising, lks->link_modes.supported,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+
+	if ((cmd->base.autoneg == AUTONEG_ENABLE) &&
+	    bitmap_empty(advertising, __ETHTOOL_LINK_MODE_MASK_NBITS)) {
 		netdev_err(netdev,
 			   "unsupported requested advertisement\n");
 		return -EINVAL;
@@ -373,12 +380,13 @@ static int xgbe_set_link_ksettings(struct net_device *netdev,
 	pdata->phy.autoneg = cmd->base.autoneg;
 	pdata->phy.speed = speed;
 	pdata->phy.duplex = cmd->base.duplex;
-	pdata->phy.advertising = advertising;
+	bitmap_copy(lks->link_modes.advertising, advertising,
+		    __ETHTOOL_LINK_MODE_MASK_NBITS);
 
 	if (cmd->base.autoneg == AUTONEG_ENABLE)
-		pdata->phy.advertising |= ADVERTISED_Autoneg;
+		XGBE_SET_ADV(lks, Autoneg);
 	else
-		pdata->phy.advertising &= ~ADVERTISED_Autoneg;
+		XGBE_CLR_ADV(lks, Autoneg);
 
 	if (netif_running(netdev))
 		ret = pdata->phy_if.phy_config_aneg(pdata);
