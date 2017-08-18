@@ -41,7 +41,7 @@ pe_header:
 
 coff_header:
 		.short	0x01c2			@ ARM or Thumb
-		.short	2			@ nr_sections
+		.short	1			@ nr_sections
 		.long	0 			@ TimeDateStamp
 		.long	0			@ PointerToSymbolTable
 		.long	0			@ NumberOfSymbols
@@ -96,22 +96,6 @@ extra_header_fields:
 		.quad	0			@ BaseRelocationTable
 
 section_table:
-		@
-		@ The EFI application loader requires a relocation section
-		@ because EFI applications must be relocatable. This is a
-		@ dummy section as far as we are concerned.
-		@
-		.ascii	".reloc\0\0"
-		.long	0			@ VirtualSize
-		.long	0			@ VirtualAddress
-		.long	0			@ SizeOfRawData
-		.long	0			@ PointerToRawData
-		.long	0			@ PointerToRelocations
-		.long	0			@ PointerToLineNumbers
-		.short	0			@ NumberOfRelocations
-		.short	0			@ NumberOfLineNumbers
-		.long	0x42000040		@ Characteristics
-
 		.ascii	".text\0\0\0"
 		.long	_end - __efi_start	@ VirtualSize
 		.long	__efi_start		@ VirtualAddress
