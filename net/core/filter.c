@@ -2535,14 +2535,16 @@ int xdp_do_redirect_map(struct net_device *dev, struct xdp_buff *xdp,
 	struct bpf_map *map = ri->map;
 	u32 index = ri->ifindex;
 	struct net_device *fwd;
-	int err = -EINVAL;
+	int err;
 
 	ri->ifindex = 0;
 	ri->map = NULL;
 
 	fwd = __dev_map_lookup_elem(map, index);
-	if (!fwd)
+	if (!fwd) {
+		err = -EINVAL;
 		goto out;
+	}
 
 	if (ri->map_to_flush && (ri->map_to_flush != map))
 		xdp_do_flush_map();
@@ -2552,7 +2554,7 @@ int xdp_do_redirect_map(struct net_device *dev, struct xdp_buff *xdp,
 		ri->map_to_flush = map;
 
 out:
-	trace_xdp_redirect(dev, fwd, xdp_prog, XDP_REDIRECT);
+	trace_xdp_redirect(dev, fwd, xdp_prog, XDP_REDIRECT, err);
 	return err;
 }
 
@@ -2562,6 +2564,7 @@ int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp,
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
 	struct net_device *fwd;
 	u32 index = ri->ifindex;
+	int err;
 
 	if (ri->map)
 		return xdp_do_redirect_map(dev, xdp, xdp_prog);
@@ -2570,12 +2573,14 @@ int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp,
 	ri->ifindex = 0;
 	if (unlikely(!fwd)) {
 		bpf_warn_invalid_xdp_redirect(index);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 
-	trace_xdp_redirect(dev, fwd, xdp_prog, XDP_REDIRECT);
-
-	return __bpf_tx_xdp(fwd, NULL, xdp, 0);
+	err = __bpf_tx_xdp(fwd, NULL, xdp, 0);
+out:
+	trace_xdp_redirect(dev, fwd, xdp_prog, XDP_REDIRECT, err);
+	return err;
 }
 EXPORT_SYMBOL_GPL(xdp_do_redirect);
 

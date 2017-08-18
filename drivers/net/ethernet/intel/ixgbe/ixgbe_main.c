@@ -9860,7 +9860,7 @@ static int ixgbe_xdp_xmit(struct net_device *dev, struct xdp_buff *xdp)
 
 	err = ixgbe_xmit_xdp_ring(adapter, xdp);
 	if (err != IXGBE_XDP_TX)
-		return -ENOMEM;
+		return -ENOSPC;
 
 	return 0;
 }
