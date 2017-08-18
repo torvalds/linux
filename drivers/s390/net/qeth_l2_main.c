@@ -259,13 +259,14 @@ static void qeth_l2_hdr_csum(struct qeth_card *card, struct qeth_hdr *hdr,
 		card->perf_stats.tx_csum++;
 }
 
-static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
-			struct sk_buff *skb, int cast_type)
+static void qeth_l2_fill_header(struct qeth_hdr *hdr, struct sk_buff *skb,
+				int cast_type, unsigned int data_len)
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb_mac_header(skb);
 
 	memset(hdr, 0, sizeof(struct qeth_hdr));
 	hdr->hdr.l2.id = QETH_HEADER_TYPE_LAYER2;
+	hdr->hdr.l2.pkt_length = data_len;
 
 	/* set byte byte 3 to casting flags */
 	if (cast_type == RTN_MULTICAST)
@@ -275,7 +276,6 @@ static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	else
 		hdr->hdr.l2.flags[2] |= QETH_LAYER2_FLAG_UNICAST;
 
-	hdr->hdr.l2.pkt_length = skb->len - sizeof(struct qeth_hdr);
 	/* VSWITCH relies on the VLAN
 	 * information to be present in
 	 * the QDIO header */
@@ -686,8 +686,7 @@ static int qeth_l2_xmit_iqd(struct qeth_card *card, struct sk_buff *skb,
 	hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
 	if (!hdr)
 		return -ENOMEM;
-	qeth_l2_fill_header(card, hdr, skb, cast_type);
-	hdr->hdr.l2.pkt_length = skb->len;
+	qeth_l2_fill_header(hdr, skb, cast_type, skb->len);
 	skb_copy_from_linear_data(skb, ((char *)hdr) + sizeof(*hdr),
 				  data_offset);
 
@@ -733,7 +732,8 @@ static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
 	if (!skb_copy)
 		return -ENOMEM;
 	hdr = skb_push(skb_copy, sizeof(struct qeth_hdr));
-	qeth_l2_fill_header(card, hdr, skb_copy, cast_type);
+	qeth_l2_fill_header(hdr, skb_copy, cast_type,
+			    skb_copy->len - sizeof(*hdr));
 	if (skb_copy->ip_summed == CHECKSUM_PARTIAL)
 		qeth_l2_hdr_csum(card, hdr, skb_copy);
 
