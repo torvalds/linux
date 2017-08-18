@@ -496,14 +496,6 @@ static int pci_epf_test_probe(struct pci_epf *epf)
 	return 0;
 }
 
-static int pci_epf_test_remove(struct pci_epf *epf)
-{
-	struct pci_epf_test *epf_test = epf_get_drvdata(epf);
-
-	kfree(epf_test);
-	return 0;
-}
-
 static struct pci_epf_ops ops = {
 	.unbind	= pci_epf_test_unbind,
 	.bind	= pci_epf_test_bind,
@@ -513,7 +505,6 @@ static struct pci_epf_ops ops = {
 static struct pci_epf_driver test_driver = {
 	.driver.name	= "pci_epf_test",
 	.probe		= pci_epf_test_probe,
-	.remove		= pci_epf_test_remove,
 	.id_table	= pci_epf_test_ids,
 	.ops		= &ops,
 	.owner		= THIS_MODULE,
