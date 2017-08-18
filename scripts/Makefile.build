@@ -262,6 +262,9 @@ objtool_args = check
 ifndef CONFIG_FRAME_POINTER
 objtool_args += --no-fp
 endif
+ifdef CONFIG_GCOV_KERNEL
+objtool_args += --no-unreachable
+endif
 
 # 'OBJECT_FILES_NON_STANDARD := y': skip objtool checking for a directory
 # 'OBJECT_FILES_NON_STANDARD_foo.o := 'y': skip objtool checking for a file

@@ -33,11 +33,11 @@ struct alternative {
 };
 
 const char *objname;
-static bool nofp;
+static bool no_fp;
 struct cfi_state initial_func_cfi;
 
-static struct instruction *find_insn(struct objtool_file *file,
-				     struct section *sec, unsigned long offset)
+struct instruction *find_insn(struct objtool_file *file,
+			      struct section *sec, unsigned long offset)
 {
 	struct instruction *insn;
 
@@ -57,19 +57,6 @@ static struct instruction *next_insn_same_sec(struct objtool_file *file,
 		return NULL;
 
 	return next;
-}
-
-static bool gcov_enabled(struct objtool_file *file)
-{
-	struct section *sec;
-	struct symbol *sym;
-
-	for_each_sec(file, sec)
-		list_for_each_entry(sym, &sec->symbol_list, list)
-			if (!strncmp(sym->name, "__gcov_.", 8))
-				return true;
-
-	return false;
 }
 
 #define func_for_each_insn(file, func, insn)				\
@@ -100,7 +87,6 @@ static bool gcov_enabled(struct objtool_file *file)
 static bool ignore_func(struct objtool_file *file, struct symbol *func)
 {
 	struct rela *rela;
-	struct instruction *insn;
 
 	/* check for STACK_FRAME_NON_STANDARD */
 	if (file->whitelist && file->whitelist->rela)
@@ -112,11 +98,6 @@ static bool ignore_func(struct objtool_file *file, struct symbol *func)
 			if (rela->sym->type == STT_FUNC && rela->sym == func)
 				return true;
 		}
-
-	/* check if it has a context switching instruction */
-	func_for_each_insn(file, func, insn)
-		if (insn->type == INSN_CONTEXT_SWITCH)
-			return true;
 
 	return false;
 }
@@ -258,6 +239,11 @@ static int decode_instructions(struct objtool_file *file)
 
 		if (!(sec->sh.sh_flags & SHF_EXECINSTR))
 			continue;
+
+		if (strcmp(sec->name, ".altinstr_replacement") &&
+		    strcmp(sec->name, ".altinstr_aux") &&
+		    strncmp(sec->name, ".discard.", 9))
+			sec->text = true;
 
 		for (offset = 0; offset < sec->len; offset += insn->len) {
 			insn = malloc(sizeof(*insn));
@@ -874,6 +860,99 @@ static int add_switch_table_alts(struct objtool_file *file)
 	return 0;
 }
 
+static int read_unwind_hints(struct objtool_file *file)
+{
+	struct section *sec, *relasec;
+	struct rela *rela;
+	struct unwind_hint *hint;
+	struct instruction *insn;
+	struct cfi_reg *cfa;
+	int i;
+
+	sec = find_section_by_name(file->elf, ".discard.unwind_hints");
+	if (!sec)
+		return 0;
+
+	relasec = sec->rela;
+	if (!relasec) {
+		WARN("missing .rela.discard.unwind_hints section");
+		return -1;
+	}
+
+	if (sec->len % sizeof(struct unwind_hint)) {
+		WARN("struct unwind_hint size mismatch");
+		return -1;
+	}
+
+	file->hints = true;
+
+	for (i = 0; i < sec->len / sizeof(struct unwind_hint); i++) {
+		hint = (struct unwind_hint *)sec->data->d_buf + i;
+
+		rela = find_rela_by_dest(sec, i * sizeof(*hint));
+		if (!rela) {
+			WARN("can't find rela for unwind_hints[%d]", i);
+			return -1;
+		}
+
+		insn = find_insn(file, rela->sym->sec, rela->addend);
+		if (!insn) {
+			WARN("can't find insn for unwind_hints[%d]", i);
+			return -1;
+		}
+
+		cfa = &insn->state.cfa;
+
+		if (hint->type == UNWIND_HINT_TYPE_SAVE) {
+			insn->save = true;
+			continue;
+
+		} else if (hint->type == UNWIND_HINT_TYPE_RESTORE) {
+			insn->restore = true;
+			insn->hint = true;
+			continue;
+		}
+
+		insn->hint = true;
+
+		switch (hint->sp_reg) {
+		case ORC_REG_UNDEFINED:
+			cfa->base = CFI_UNDEFINED;
+			break;
+		case ORC_REG_SP:
+			cfa->base = CFI_SP;
+			break;
+		case ORC_REG_BP:
+			cfa->base = CFI_BP;
+			break;
+		case ORC_REG_SP_INDIRECT:
+			cfa->base = CFI_SP_INDIRECT;
+			break;
+		case ORC_REG_R10:
+			cfa->base = CFI_R10;
+			break;
+		case ORC_REG_R13:
+			cfa->base = CFI_R13;
+			break;
+		case ORC_REG_DI:
+			cfa->base = CFI_DI;
+			break;
+		case ORC_REG_DX:
+			cfa->base = CFI_DX;
+			break;
+		default:
+			WARN_FUNC("unsupported unwind_hint sp base reg %d",
+				  insn->sec, insn->offset, hint->sp_reg);
+			return -1;
+		}
+
+		cfa->offset = hint->sp_offset;
+		insn->state.type = hint->type;
+	}
+
+	return 0;
+}
+
 static int decode_sections(struct objtool_file *file)
 {
 	int ret;
@@ -901,6 +980,10 @@ static int decode_sections(struct objtool_file *file)
 		return ret;
 
 	ret = add_switch_table_alts(file);
+	if (ret)
+		return ret;
+
+	ret = read_unwind_hints(file);
 	if (ret)
 		return ret;
 
@@ -945,6 +1028,30 @@ static bool has_valid_stack_frame(struct insn_state *state)
 		return true;
 
 	return false;
+}
+
+static int update_insn_state_regs(struct instruction *insn, struct insn_state *state)
+{
+	struct cfi_reg *cfa = &state->cfa;
+	struct stack_op *op = &insn->stack_op;
+
+	if (cfa->base != CFI_SP)
+		return 0;
+
+	/* push */
+	if (op->dest.type == OP_DEST_PUSH)
+		cfa->offset += 8;
+
+	/* pop */
+	if (op->src.type == OP_SRC_POP)
+		cfa->offset -= 8;
+
+	/* add immediate to sp */
+	if (op->dest.type == OP_DEST_REG && op->src.type == OP_SRC_ADD &&
+	    op->dest.reg == CFI_SP && op->src.reg == CFI_SP)
+		cfa->offset -= op->src.offset;
+
+	return 0;
 }
 
 static void save_reg(struct insn_state *state, unsigned char reg, int base,
@@ -1032,6 +1139,9 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 		return 0;
 	}
 
+	if (state->type == ORC_TYPE_REGS || state->type == ORC_TYPE_REGS_IRET)
+		return update_insn_state_regs(insn, state);
+
 	switch (op->dest.type) {
 
 	case OP_DEST_REG:
@@ -1051,7 +1161,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 				regs[CFI_BP].base = CFI_BP;
 				regs[CFI_BP].offset = -state->stack_size;
 				state->bp_scratch = false;
-			} else if (!nofp) {
+			} else if (!no_fp) {
 
 				WARN_FUNC("unknown stack-related register move",
 					  insn->sec, insn->offset);
@@ -1222,7 +1332,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 		}
 
 		/* detect when asm code uses rbp as a scratch register */
-		if (!nofp && insn->func && op->src.reg == CFI_BP &&
+		if (!no_fp && insn->func && op->src.reg == CFI_BP &&
 		    cfa->base != CFI_BP)
 			state->bp_scratch = true;
 		break;
@@ -1323,6 +1433,10 @@ static bool insn_state_match(struct instruction *insn, struct insn_state *state)
 			break;
 		}
 
+	} else if (state1->type != state2->type) {
+		WARN_FUNC("stack state mismatch: type1=%d type2=%d",
+			  insn->sec, insn->offset, state1->type, state2->type);
+
 	} else if (state1->drap != state2->drap ||
 		 (state1->drap && state1->drap_reg != state2->drap_reg)) {
 		WARN_FUNC("stack state mismatch: drap1=%d(%d) drap2=%d(%d)",
@@ -1346,7 +1460,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 			   struct insn_state state)
 {
 	struct alternative *alt;
-	struct instruction *insn;
+	struct instruction *insn, *next_insn;
 	struct section *sec;
 	struct symbol *func = NULL;
 	int ret;
@@ -1361,6 +1475,8 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 	}
 
 	while (1) {
+		next_insn = next_insn_same_sec(file, insn);
+
 		if (file->c_file && insn->func) {
 			if (func && func != insn->func) {
 				WARN("%s() falls through to next function %s()",
@@ -1378,13 +1494,54 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 		}
 
 		if (insn->visited) {
-			if (!!insn_state_match(insn, &state))
+			if (!insn->hint && !insn_state_match(insn, &state))
 				return 1;
 
 			return 0;
 		}
 
-		insn->state = state;
+		if (insn->hint) {
+			if (insn->restore) {
+				struct instruction *save_insn, *i;
+
+				i = insn;
+				save_insn = NULL;
+				func_for_each_insn_continue_reverse(file, func, i) {
+					if (i->save) {
+						save_insn = i;
+						break;
+					}
+				}
+
+				if (!save_insn) {
+					WARN_FUNC("no corresponding CFI save for CFI restore",
+						  sec, insn->offset);
+					return 1;
+				}
+
+				if (!save_insn->visited) {
+					/*
+					 * Oops, no state to copy yet.
+					 * Hopefully we can reach this
+					 * instruction from another branch
+					 * after the save insn has been
+					 * visited.
+					 */
+					if (insn == first)
+						return 0;
+
+					WARN_FUNC("objtool isn't smart enough to handle this CFI save/restore combo",
+						  sec, insn->offset);
+					return 1;
+				}
+
+				insn->state = save_insn->state;
+			}
+
+			state = insn->state;
+
+		} else
+			insn->state = state;
 
 		insn->visited = true;
 
@@ -1423,7 +1580,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 
 			/* fallthrough */
 		case INSN_CALL_DYNAMIC:
-			if (!nofp && func && !has_valid_stack_frame(&state)) {
+			if (!no_fp && func && !has_valid_stack_frame(&state)) {
 				WARN_FUNC("call without frame pointer save/setup",
 					  sec, insn->offset);
 				return 1;
@@ -1461,6 +1618,14 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 
 			return 0;
 
+		case INSN_CONTEXT_SWITCH:
+			if (func && (!next_insn || !next_insn->hint)) {
+				WARN_FUNC("unsupported instruction in callable function",
+					  sec, insn->offset);
+				return 1;
+			}
+			return 0;
+
 		case INSN_STACK:
 			if (update_insn_state(insn, &state))
 				return -1;
@@ -1474,7 +1639,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 		if (insn->dead_end)
 			return 0;
 
-		insn = next_insn_same_sec(file, insn);
+		insn = next_insn;
 		if (!insn) {
 			WARN("%s: unexpected end of section", sec->name);
 			return 1;
@@ -1482,6 +1647,27 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 	}
 
 	return 0;
+}
+
+static int validate_unwind_hints(struct objtool_file *file)
+{
+	struct instruction *insn;
+	int ret, warnings = 0;
+	struct insn_state state;
+
+	if (!file->hints)
+		return 0;
+
+	clear_insn_state(&state);
+
+	for_each_insn(file, insn) {
+		if (insn->hint && !insn->visited) {
+			ret = validate_branch(file, insn, state);
+			warnings += ret;
+		}
+	}
+
+	return warnings;
 }
 
 static bool is_kasan_insn(struct instruction *insn)
@@ -1580,15 +1766,6 @@ static int validate_reachable_instructions(struct objtool_file *file)
 		if (insn->visited || ignore_unreachable_insn(insn))
 			continue;
 
-		/*
-		 * gcov produces a lot of unreachable instructions.  If we get
-		 * an unreachable warning and the file has gcov enabled, just
-		 * ignore it, and all other such warnings for the file.  Do
-		 * this here because this is an expensive function.
-		 */
-		if (gcov_enabled(file))
-			return 0;
-
 		WARN_FUNC("unreachable instruction", insn->sec, insn->offset);
 		return 1;
 	}
@@ -1613,15 +1790,15 @@ static void cleanup(struct objtool_file *file)
 	elf_close(file->elf);
 }
 
-int check(const char *_objname, bool _nofp)
+int check(const char *_objname, bool _no_fp, bool no_unreachable, bool orc)
 {
 	struct objtool_file file;
 	int ret, warnings = 0;
 
 	objname = _objname;
-	nofp = _nofp;
+	no_fp = _no_fp;
 
-	file.elf = elf_open(objname);
+	file.elf = elf_open(objname, orc ? O_RDWR : O_RDONLY);
 	if (!file.elf)
 		return 1;
 
@@ -1629,8 +1806,9 @@ int check(const char *_objname, bool _nofp)
 	hash_init(file.insn_hash);
 	file.whitelist = find_section_by_name(file.elf, ".discard.func_stack_frame_non_standard");
 	file.rodata = find_section_by_name(file.elf, ".rodata");
-	file.ignore_unreachables = false;
 	file.c_file = find_section_by_name(file.elf, ".comment");
+	file.ignore_unreachables = no_unreachable;
+	file.hints = false;
 
 	arch_initial_func_cfi_state(&initial_func_cfi);
 
@@ -1647,11 +1825,30 @@ int check(const char *_objname, bool _nofp)
 		goto out;
 	warnings += ret;
 
+	ret = validate_unwind_hints(&file);
+	if (ret < 0)
+		goto out;
+	warnings += ret;
+
 	if (!warnings) {
 		ret = validate_reachable_instructions(&file);
 		if (ret < 0)
 			goto out;
 		warnings += ret;
+	}
+
+	if (orc) {
+		ret = create_orc(&file);
+		if (ret < 0)
+			goto out;
+
+		ret = create_orc_sections(&file);
+		if (ret < 0)
+			goto out;
+
+		ret = elf_write(file.elf);
+		if (ret < 0)
+			goto out;
 	}
 
 out:
