@@ -2736,6 +2736,8 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 	intel_encoder->cloneable = 0;
 
+	intel_infoframe_init(intel_dig_port);
+
 	if (init_dp) {
 		if (!intel_ddi_init_dp_connector(intel_dig_port))
 			goto err;
