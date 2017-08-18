@@ -321,8 +321,8 @@ void kernel_neon_end(void)
 }
 EXPORT_SYMBOL(kernel_neon_end);
 
-DEFINE_PER_CPU(struct fpsimd_state, efi_fpsimd_state);
-DEFINE_PER_CPU(bool, efi_fpsimd_state_used);
+static DEFINE_PER_CPU(struct fpsimd_state, efi_fpsimd_state);
+static DEFINE_PER_CPU(bool, efi_fpsimd_state_used);
 
 /*
  * EFI runtime services support functions
