@@ -200,7 +200,6 @@ static const struct intel_device_info intel_gm45_info __initconst = {
 #define GEN5_FEATURES \
 	.gen = 5, .num_pipes = 2, \
 	.has_hotplug = 1, \
-	.has_gmbus_irq = 1, \
 	.ring_mask = RENDER_RING | BSD_RING, \
 	.has_snoop = true, \
 	GEN_DEFAULT_PIPEOFFSETS, \
@@ -225,7 +224,6 @@ static const struct intel_device_info intel_ironlake_m_info __initconst = {
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
-	.has_gmbus_irq = 1, \
 	.has_aliasing_ppgtt = 1, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	CURSOR_OFFSETS
@@ -268,7 +266,6 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info __initconst =
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
-	.has_gmbus_irq = 1, \
 	.has_aliasing_ppgtt = 1, \
 	.has_full_ppgtt = 1, \
 	GEN_DEFAULT_PIPEOFFSETS, \
@@ -321,7 +318,6 @@ static const struct intel_device_info intel_valleyview_info __initconst = {
 	.has_psr = 1,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
-	.has_gmbus_irq = 1,
 	.has_gmch_display = 1,
 	.has_hotplug = 1,
 	.has_aliasing_ppgtt = 1,
@@ -412,7 +408,6 @@ static const struct intel_device_info intel_cherryview_info __initconst = {
 	.has_runtime_pm = 1,
 	.has_resource_streamer = 1,
 	.has_rc6 = 1,
-	.has_gmbus_irq = 1,
 	.has_logical_ring_contexts = 1,
 	.has_gmch_display = 1,
 	.has_aliasing_ppgtt = 1,
@@ -474,7 +469,6 @@ static const struct intel_device_info intel_skylake_gt4_info __initconst = {
 	.has_resource_streamer = 1, \
 	.has_rc6 = 1, \
 	.has_dp_mst = 1, \
-	.has_gmbus_irq = 1, \
 	.has_logical_ring_contexts = 1, \
 	.has_guc = 1, \
 	.has_aliasing_ppgtt = 1, \

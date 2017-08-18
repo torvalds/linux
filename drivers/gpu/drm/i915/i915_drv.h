@@ -777,7 +777,6 @@ struct intel_csr {
 	func(has_fpga_dbg); \
 	func(has_full_ppgtt); \
 	func(has_full_48bit_ppgtt); \
-	func(has_gmbus_irq); \
 	func(has_gmch_display); \
 	func(has_guc); \
 	func(has_guc_ct); \
@@ -3095,9 +3094,12 @@ intel_info(const struct drm_i915_private *dev_priv)
  * even when in MSI mode. This results in spurious interrupt warnings if the
  * legacy irq no. is shared with another device. The kernel then disables that
  * interrupt source and so prevents the other device from working properly.
+ *
+ * Since we don't enable MSI anymore on gen4, we can always use GMBUS/AUX
+ * interrupts.
  */
-#define HAS_AUX_IRQ(dev_priv)   ((dev_priv)->info.gen >= 5)
-#define HAS_GMBUS_IRQ(dev_priv) ((dev_priv)->info.has_gmbus_irq)
+#define HAS_AUX_IRQ(dev_priv)   true
+#define HAS_GMBUS_IRQ(dev_priv) (INTEL_GEN(dev_priv) >= 4)
 
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
