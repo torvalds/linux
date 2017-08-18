@@ -2435,14 +2435,7 @@ static int dib0090_tune(struct dvb_frontend *fe)
 			Den = 1;
 
 			if (Rest > 0) {
-				if (state->config->analog_output)
-					lo6 |= (1 << 2) | 2;
-				else {
-					if (state->identity.in_soc)
-						lo6 |= (1 << 2) | 2;
-					else
-						lo6 |= (1 << 2) | 2;
-				}
+				lo6 |= (1 << 2) | 2;
 				Den = 255;
 			}
 			dib0090_write_reg(state, 0x15, (u16) FBDiv);
