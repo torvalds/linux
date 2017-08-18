@@ -202,7 +202,7 @@ static void check_from_zero(refcount_t *ref)
 		pr_warn("Zero detected: unsafely reset to max\n");
 		break;
 	default:
-		pr_info("Fail: zero not detected, incremeted to %d\n",
+		pr_info("Fail: zero not detected, incremented to %d\n",
 			refcount_read(ref));
 	}
 }
