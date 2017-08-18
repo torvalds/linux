@@ -2637,6 +2637,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 			qeth_get_priority_queue(card, skb, ipv, cast_type) :
 			card->qdio.default_out_queue];
 	int tx_bytes = skb->len;
+	unsigned int hd_len = 0;
 	bool use_tso;
 	int data_offset = -1;
 	unsigned int nr_frags;
@@ -2669,6 +2670,7 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	if (card->info.type == QETH_CARD_TYPE_IQD) {
 		new_skb = skb;
 		data_offset = ETH_HLEN;
+		hd_len = sizeof(*hdr);
 		hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
 		if (!hdr)
 			goto tx_drop;
@@ -2756,19 +2758,21 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 
 	if (card->info.type != QETH_CARD_TYPE_IQD) {
 		int len;
-		if (use_tso)
-			len = ((unsigned long)tcp_hdr(new_skb) +
-				tcp_hdrlen(new_skb)) -
-				(unsigned long)new_skb->data;
-		else
+		if (use_tso) {
+			hd_len = sizeof(struct qeth_hdr_tso) +
+				 ip_hdrlen(new_skb) + tcp_hdrlen(new_skb);
+			len = hd_len;
+		} else {
 			len = sizeof(struct qeth_hdr_layer3);
+		}
 
 		if (qeth_hdr_chk_and_bounce(new_skb, &hdr, len))
 			goto tx_drop;
-		rc = qeth_do_send_packet(card, queue, new_skb, hdr, elements);
+		rc = qeth_do_send_packet(card, queue, new_skb, hdr, hd_len,
+					 hd_len, elements);
 	} else
 		rc = qeth_do_send_packet_fast(card, queue, new_skb, hdr,
-					      data_offset, 0);
+					      data_offset, hd_len);
 
 	if (!rc) {
 		card->stats.tx_packets++;

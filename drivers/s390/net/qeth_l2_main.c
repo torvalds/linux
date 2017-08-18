@@ -259,13 +259,14 @@ static void qeth_l2_hdr_csum(struct qeth_card *card, struct qeth_hdr *hdr,
 		card->perf_stats.tx_csum++;
 }
 
-static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
-			struct sk_buff *skb, int cast_type)
+static void qeth_l2_fill_header(struct qeth_hdr *hdr, struct sk_buff *skb,
+				int cast_type, unsigned int data_len)
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb_mac_header(skb);
 
 	memset(hdr, 0, sizeof(struct qeth_hdr));
 	hdr->hdr.l2.id = QETH_HEADER_TYPE_LAYER2;
+	hdr->hdr.l2.pkt_length = data_len;
 
 	/* set byte byte 3 to casting flags */
 	if (cast_type == RTN_MULTICAST)
@@ -275,7 +276,6 @@ static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	else
 		hdr->hdr.l2.flags[2] |= QETH_LAYER2_FLAG_UNICAST;
 
-	hdr->hdr.l2.pkt_length = skb->len - sizeof(struct qeth_hdr);
 	/* VSWITCH relies on the VLAN
 	 * information to be present in
 	 * the QDIO header */
@@ -676,21 +676,127 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 		qeth_promisc_to_bridge(card);
 }
 
+static int qeth_l2_xmit_iqd(struct qeth_card *card, struct sk_buff *skb,
+			    struct qeth_qdio_out_q *queue, int cast_type)
+{
+	unsigned int data_offset = ETH_HLEN;
+	struct qeth_hdr *hdr;
+	int rc;
+
+	hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
+	if (!hdr)
+		return -ENOMEM;
+	qeth_l2_fill_header(hdr, skb, cast_type, skb->len);
+	skb_copy_from_linear_data(skb, ((char *)hdr) + sizeof(*hdr),
+				  data_offset);
+
+	if (!qeth_get_elements_no(card, skb, 1, data_offset)) {
+		rc = -E2BIG;
+		goto out;
+	}
+	rc = qeth_do_send_packet_fast(card, queue, skb, hdr, data_offset,
+				      sizeof(*hdr) + data_offset);
+out:
+	if (rc)
+		kmem_cache_free(qeth_core_header_cache, hdr);
+	return rc;
+}
+
+static int qeth_l2_xmit_osa(struct qeth_card *card, struct sk_buff *skb,
+			    struct qeth_qdio_out_q *queue, int cast_type)
+{
+	int push_len = sizeof(struct qeth_hdr);
+	unsigned int elements, nr_frags;
+	unsigned int hdr_elements = 0;
+	struct qeth_hdr *hdr = NULL;
+	unsigned int hd_len = 0;
+	int rc;
+
+	/* fix hardware limitation: as long as we do not have sbal
+	 * chaining we can not send long frag lists
+	 */
+	if (!qeth_get_elements_no(card, skb, 0, 0)) {
+		rc = skb_linearize(skb);
+
+		if (card->options.performance_stats) {
+			if (rc)
+				card->perf_stats.tx_linfail++;
+			else
+				card->perf_stats.tx_lin++;
+		}
+		if (rc)
+			return rc;
+	}
+	nr_frags = skb_shinfo(skb)->nr_frags;
+
+	rc = skb_cow_head(skb, push_len);
+	if (rc)
+		return rc;
+	push_len = qeth_push_hdr(skb, &hdr, push_len);
+	if (push_len < 0)
+		return push_len;
+	if (!push_len) {
+		/* hdr was allocated from cache */
+		hd_len = sizeof(*hdr);
+		hdr_elements = 1;
+	}
+	qeth_l2_fill_header(hdr, skb, cast_type, skb->len - push_len);
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		qeth_l2_hdr_csum(card, hdr, skb);
+
+	elements = qeth_get_elements_no(card, skb, hdr_elements, 0);
+	if (!elements) {
+		rc = -E2BIG;
+		goto out;
+	}
+	elements += hdr_elements;
+
+	/* TODO: remove the skb_orphan() once TX completion is fast enough */
+	skb_orphan(skb);
+	rc = qeth_do_send_packet(card, queue, skb, hdr, 0, hd_len, elements);
+out:
+	if (!rc) {
+		if (card->options.performance_stats && nr_frags) {
+			card->perf_stats.sg_skbs_sent++;
+			/* nr_frags + skb->data */
+			card->perf_stats.sg_frags_sent += nr_frags + 1;
+		}
+	} else {
+		if (hd_len)
+			kmem_cache_free(qeth_core_header_cache, hdr);
+		if (rc == -EBUSY)
+			/* roll back to ETH header */
+			skb_pull(skb, push_len);
+	}
+	return rc;
+}
+
+static int qeth_l2_xmit_osn(struct qeth_card *card, struct sk_buff *skb,
+			    struct qeth_qdio_out_q *queue)
+{
+	unsigned int elements;
+	struct qeth_hdr *hdr;
+
+	if (skb->protocol == htons(ETH_P_IPV6))
+		return -EPROTONOSUPPORT;
+
+	hdr = (struct qeth_hdr *)skb->data;
+	elements = qeth_get_elements_no(card, skb, 0, 0);
+	if (!elements)
+		return -E2BIG;
+	if (qeth_hdr_chk_and_bounce(skb, &hdr, sizeof(*hdr)))
+		return -EINVAL;
+	return qeth_do_send_packet(card, queue, skb, hdr, 0, 0, elements);
+}
+
 static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 					   struct net_device *dev)
 {
-	int rc;
-	struct qeth_hdr *hdr = NULL;
-	int elements = 0;
 	struct qeth_card *card = dev->ml_priv;
-	struct sk_buff *new_skb = skb;
 	int cast_type = qeth_l2_get_cast_type(card, skb);
 	struct qeth_qdio_out_q *queue;
 	int tx_bytes = skb->len;
-	int data_offset = -1;
-	int elements_needed = 0;
-	int hd_len = 0;
-	unsigned int nr_frags;
+	int rc;
 
 	if (card->qdio.do_prio_queueing || (cast_type &&
 					card->info.is_multicast_different))
@@ -704,115 +810,38 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 		goto tx_drop;
 	}
 
-	if ((card->info.type == QETH_CARD_TYPE_OSN) &&
-	    (skb->protocol == htons(ETH_P_IPV6)))
-		goto tx_drop;
-
 	if (card->options.performance_stats) {
 		card->perf_stats.outbound_cnt++;
 		card->perf_stats.outbound_start_time = qeth_get_micros();
 	}
 	netif_stop_queue(dev);
 
-	/* fix hardware limitation: as long as we do not have sbal
-	 * chaining we can not send long frag lists
-	 */
-	if ((card->info.type != QETH_CARD_TYPE_IQD) &&
-	    !qeth_get_elements_no(card, new_skb, 0, 0)) {
-		int lin_rc = skb_linearize(new_skb);
-
-		if (card->options.performance_stats) {
-			if (lin_rc)
-				card->perf_stats.tx_linfail++;
-			else
-				card->perf_stats.tx_lin++;
-		}
-		if (lin_rc)
-			goto tx_drop;
-	}
-	nr_frags = skb_shinfo(new_skb)->nr_frags;
-
-	if (card->info.type == QETH_CARD_TYPE_OSN)
-		hdr = (struct qeth_hdr *)skb->data;
-	else {
-		if (card->info.type == QETH_CARD_TYPE_IQD) {
-			new_skb = skb;
-			data_offset = ETH_HLEN;
-			hd_len = ETH_HLEN;
-			hdr = kmem_cache_alloc(qeth_core_header_cache,
-						GFP_ATOMIC);
-			if (!hdr)
-				goto tx_drop;
-			elements_needed++;
-			qeth_l2_fill_header(card, hdr, new_skb, cast_type);
-			hdr->hdr.l2.pkt_length = new_skb->len;
-			skb_copy_from_linear_data(new_skb,
-						  ((char *)hdr) + sizeof(*hdr),
-						  ETH_HLEN);
-		} else {
-			/* create a clone with writeable headroom */
-			new_skb = skb_realloc_headroom(skb,
-						sizeof(struct qeth_hdr));
-			if (!new_skb)
-				goto tx_drop;
-			hdr = skb_push(new_skb, sizeof(struct qeth_hdr));
-			qeth_l2_fill_header(card, hdr, new_skb, cast_type);
-			if (new_skb->ip_summed == CHECKSUM_PARTIAL)
-				qeth_l2_hdr_csum(card, hdr, new_skb);
-		}
+	switch (card->info.type) {
+	case QETH_CARD_TYPE_OSN:
+		rc = qeth_l2_xmit_osn(card, skb, queue);
+		break;
+	case QETH_CARD_TYPE_IQD:
+		rc = qeth_l2_xmit_iqd(card, skb, queue, cast_type);
+		break;
+	default:
+		rc = qeth_l2_xmit_osa(card, skb, queue, cast_type);
 	}
 
-	elements = qeth_get_elements_no(card, new_skb, elements_needed,
-					(data_offset > 0) ? data_offset : 0);
-	if (!elements) {
-		if (data_offset >= 0)
-			kmem_cache_free(qeth_core_header_cache, hdr);
-		goto tx_drop;
-	}
-
-	if (card->info.type != QETH_CARD_TYPE_IQD) {
-		if (qeth_hdr_chk_and_bounce(new_skb, &hdr,
-		    sizeof(struct qeth_hdr_layer2)))
-			goto tx_drop;
-		rc = qeth_do_send_packet(card, queue, new_skb, hdr,
-					 elements);
-	} else
-		rc = qeth_do_send_packet_fast(card, queue, new_skb, hdr,
-					      data_offset, hd_len);
 	if (!rc) {
 		card->stats.tx_packets++;
 		card->stats.tx_bytes += tx_bytes;
-		if (card->options.performance_stats && nr_frags) {
-			card->perf_stats.sg_skbs_sent++;
-			/* nr_frags + skb->data */
-			card->perf_stats.sg_frags_sent += nr_frags + 1;
-		}
-		if (new_skb != skb)
-			dev_kfree_skb_any(skb);
-		rc = NETDEV_TX_OK;
-	} else {
-		if (data_offset >= 0)
-			kmem_cache_free(qeth_core_header_cache, hdr);
-
-		if (rc == -EBUSY) {
-			if (new_skb != skb)
-				dev_kfree_skb_any(new_skb);
-			return NETDEV_TX_BUSY;
-		} else
-			goto tx_drop;
-	}
-
-	netif_wake_queue(dev);
-	if (card->options.performance_stats)
-		card->perf_stats.outbound_time += qeth_get_micros() -
-			card->perf_stats.outbound_start_time;
-	return rc;
+		if (card->options.performance_stats)
+			card->perf_stats.outbound_time += qeth_get_micros() -
+				card->perf_stats.outbound_start_time;
+		netif_wake_queue(dev);
+		return NETDEV_TX_OK;
+	} else if (rc == -EBUSY) {
+		return NETDEV_TX_BUSY;
+	} /* else fall through */
 
 tx_drop:
 	card->stats.tx_dropped++;
 	card->stats.tx_errors++;
-	if ((new_skb != skb) && new_skb)
-		dev_kfree_skb_any(new_skb);
 	dev_kfree_skb_any(skb);
 	netif_wake_queue(dev);
 	return NETDEV_TX_OK;
@@ -990,6 +1019,12 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 			card->dev->vlan_features |= NETIF_F_RXCSUM;
 		}
 	}
+	if (card->info.type != QETH_CARD_TYPE_OSN &&
+	    card->info.type != QETH_CARD_TYPE_IQD) {
+		card->dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+		card->dev->needed_headroom = sizeof(struct qeth_hdr);
+	}
+
 	card->info.broadcast_capable = 1;
 	qeth_l2_request_initial_mac(card);
 	card->dev->gso_max_size = (QETH_MAX_BUFFER_ELEMENTS(card) - 1) *

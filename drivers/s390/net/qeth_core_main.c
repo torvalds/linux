@@ -3890,6 +3890,34 @@ int qeth_hdr_chk_and_bounce(struct sk_buff *skb, struct qeth_hdr **hdr, int len)
 }
 EXPORT_SYMBOL_GPL(qeth_hdr_chk_and_bounce);
 
+/**
+ * qeth_push_hdr() - push a qeth_hdr onto an skb.
+ * @skb: skb that the qeth_hdr should be pushed onto.
+ * @hdr: double pointer to a qeth_hdr. When returning with >= 0,
+ *	 it contains a valid pointer to a qeth_hdr.
+ * @len: length of the hdr that needs to be pushed on.
+ *
+ * Returns the pushed length. If the header can't be pushed on
+ * (eg. because it would cross a page boundary), it is allocated from
+ * the cache instead and 0 is returned.
+ * Error to create the hdr is indicated by returning with < 0.
+ */
+int qeth_push_hdr(struct sk_buff *skb, struct qeth_hdr **hdr, unsigned int len)
+{
+	if (skb_headroom(skb) >= len &&
+	    qeth_get_elements_for_range((addr_t)skb->data - len,
+					(addr_t)skb->data) == 1) {
+		*hdr = skb_push(skb, len);
+		return len;
+	}
+	/* fall back */
+	*hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
+	if (!*hdr)
+		return -ENOMEM;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qeth_push_hdr);
+
 static void __qeth_fill_buffer(struct sk_buff *skb,
 			       struct qeth_qdio_out_buffer *buf,
 			       bool is_first_elem, unsigned int offset)
@@ -3953,43 +3981,38 @@ static void __qeth_fill_buffer(struct sk_buff *skb,
 	buf->next_element_to_fill = element;
 }
 
+/**
+ * qeth_fill_buffer() - map skb into an output buffer
+ * @queue:	QDIO queue to submit the buffer on
+ * @buf:	buffer to transport the skb
+ * @skb:	skb to map into the buffer
+ * @hdr:	qeth_hdr for this skb. Either at skb->data, or allocated
+ *		from qeth_core_header_cache.
+ * @offset:	when mapping the skb, start at skb->data + offset
+ * @hd_len:	if > 0, build a dedicated header element of this size
+ */
 static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 			    struct qeth_qdio_out_buffer *buf,
 			    struct sk_buff *skb, struct qeth_hdr *hdr,
-			    unsigned int offset, int hd_len)
+			    unsigned int offset, unsigned int hd_len)
 {
-	struct qdio_buffer *buffer;
-	int flush_cnt = 0, hdr_len;
+	struct qdio_buffer *buffer = buf->buffer;
 	bool is_first_elem = true;
+	int flush_cnt = 0;
 
-	buffer = buf->buffer;
 	refcount_inc(&skb->users);
 	skb_queue_tail(&buf->skb_list, skb);
 
-	if (hdr->hdr.l3.id == QETH_HEADER_TYPE_TSO) {
-		int element = buf->next_element_to_fill;
-		is_first_elem = false;
-
-		hdr_len = sizeof(struct qeth_hdr_tso) +
-			((struct qeth_hdr_tso *)hdr)->ext.dg_hdr_len;
-		/*fill first buffer entry only with header information */
-		buffer->element[element].addr = skb->data;
-		buffer->element[element].length = hdr_len;
-		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
-		buf->next_element_to_fill++;
-		skb_pull(skb, hdr_len);
-	}
-
-	/* IQD */
-	if (offset > 0) {
+	/* build dedicated header element */
+	if (hd_len) {
 		int element = buf->next_element_to_fill;
 		is_first_elem = false;
 
 		buffer->element[element].addr = hdr;
-		buffer->element[element].length = sizeof(struct qeth_hdr) +
-							hd_len;
+		buffer->element[element].length = hd_len;
 		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
-		buf->is_header[element] = 1;
+		/* remember to free cache-allocated qeth_hdr: */
+		buf->is_header[element] = ((void *)hdr != skb->data);
 		buf->next_element_to_fill++;
 	}
 
@@ -4020,7 +4043,7 @@ static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 int qeth_do_send_packet_fast(struct qeth_card *card,
 			     struct qeth_qdio_out_q *queue, struct sk_buff *skb,
 			     struct qeth_hdr *hdr, unsigned int offset,
-			     int hd_len)
+			     unsigned int hd_len)
 {
 	struct qeth_qdio_out_buffer *buffer;
 	int index;
@@ -4050,8 +4073,9 @@ out:
 EXPORT_SYMBOL_GPL(qeth_do_send_packet_fast);
 
 int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
-		struct sk_buff *skb, struct qeth_hdr *hdr,
-		int elements_needed)
+			struct sk_buff *skb, struct qeth_hdr *hdr,
+			unsigned int offset, unsigned int hd_len,
+			int elements_needed)
 {
 	struct qeth_qdio_out_buffer *buffer;
 	int start_index;
@@ -4100,7 +4124,7 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			}
 		}
 	}
-	tmp = qeth_fill_buffer(queue, buffer, skb, hdr, 0, 0);
+	tmp = qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len);
 	queue->next_buf_to_fill = (queue->next_buf_to_fill + tmp) %
 				  QDIO_MAX_BUFFERS_PER_Q;
 	flush_count += tmp;
