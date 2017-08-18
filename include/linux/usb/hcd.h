@@ -406,6 +406,7 @@ struct hc_driver {
 	int	(*find_raw_port_number)(struct usb_hcd *, int);
 	/* Call for power on/off the port if necessary */
 	int	(*port_power)(struct usb_hcd *hcd, int portnum, bool enable);
+	int	(*get_core_id)(struct usb_hcd *hcd);
 
 };
 
@@ -445,6 +446,7 @@ extern int usb_hcd_alloc_bandwidth(struct usb_device *udev,
 		struct usb_host_interface *old_alt,
 		struct usb_host_interface *new_alt);
 extern int usb_hcd_get_frame_number(struct usb_device *udev);
+extern int usb_hcd_get_controller_id(struct usb_device *udev);
 
 struct usb_hcd *__usb_create_hcd(const struct hc_driver *driver,
 		struct device *sysdev, struct device *dev, const char *bus_name,

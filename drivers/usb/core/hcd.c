@@ -2235,6 +2235,16 @@ int usb_hcd_get_frame_number (struct usb_device *udev)
 
 /*-------------------------------------------------------------------------*/
 
+int usb_hcd_get_controller_id(struct usb_device *udev)
+{
+	struct usb_hcd	*hcd = bus_to_hcd(udev->bus);
+
+	if (!HCD_RH_RUNNING(hcd))
+		return -EINVAL;
+
+	return hcd->driver->get_core_id(hcd);
+}
+
 #ifdef	CONFIG_PM
 
 int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
