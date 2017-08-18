@@ -1952,7 +1952,7 @@ int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex)
 			       HCLGE_CFG_SPEED_S, 5);
 		break;
 	default:
-		dev_err(&hdev->pdev->dev, "invald speed (%d)\n", speed);
+		dev_err(&hdev->pdev->dev, "invalid speed (%d)\n", speed);
 		return -EINVAL;
 	}
 
@@ -3476,7 +3476,7 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 	} else {
 		/* This mac addr do not exist, can't delete it */
 		dev_err(&hdev->pdev->dev,
-			"Rm mutilcast mac addr failed, ret = %d.\n",
+			"Rm multicast mac addr failed, ret = %d.\n",
 			status);
 		return -EIO;
 	}

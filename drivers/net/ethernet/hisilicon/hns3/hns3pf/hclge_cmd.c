@@ -334,7 +334,7 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 	}
 	hdev->fw_version = version;
 
-	dev_info(&hdev->pdev->dev, "The firware version is %08x\n", version);
+	dev_info(&hdev->pdev->dev, "The firmware version is %08x\n", version);
 
 	return 0;
 err_csq:
