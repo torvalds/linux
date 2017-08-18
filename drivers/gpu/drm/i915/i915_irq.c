@@ -3544,20 +3544,12 @@ static int cherryview_irq_postinstall(struct drm_device *dev)
 
 static void gen8_irq_uninstall(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	if (!dev_priv)
-		return;
-
 	gen8_irq_reset(dev);
 }
 
 static void valleyview_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	if (!dev_priv)
-		return;
 
 	I915_WRITE(VLV_MASTER_IER, 0);
 	POSTING_READ(VLV_MASTER_IER);
@@ -3576,9 +3568,6 @@ static void cherryview_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	if (!dev_priv)
-		return;
-
 	I915_WRITE(GEN8_MASTER_IRQ, 0);
 	POSTING_READ(GEN8_MASTER_IRQ);
 
@@ -3594,11 +3583,6 @@ static void cherryview_irq_uninstall(struct drm_device *dev)
 
 static void ironlake_irq_uninstall(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	if (!dev_priv)
-		return;
-
 	ironlake_irq_reset(dev);
 }
 
@@ -4102,9 +4086,6 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 static void i965_irq_uninstall(struct drm_device * dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	if (!dev_priv)
-		return;
 
 	i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
