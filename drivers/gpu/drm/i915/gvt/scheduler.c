@@ -342,8 +342,10 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 
 	if (workload->prepare) {
 		ret = workload->prepare(workload);
-		if (ret)
+		if (ret) {
+			engine->context_unpin(engine, shadow_ctx);
 			goto out;
+		}
 	}
 
 out:
