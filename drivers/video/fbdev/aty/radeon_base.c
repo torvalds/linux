@@ -2241,7 +2241,7 @@ static ssize_t radeon_show_edid2(struct file *filp, struct kobject *kobj,
 	return radeon_show_one_edid(buf, off, count, rinfo->mon2_EDID);
 }
 
-static struct bin_attribute edid1_attr = {
+static const struct bin_attribute edid1_attr = {
 	.attr   = {
 		.name	= "edid1",
 		.mode	= 0444,
@@ -2250,7 +2250,7 @@ static struct bin_attribute edid1_attr = {
 	.read	= radeon_show_edid1,
 };
 
-static struct bin_attribute edid2_attr = {
+static const struct bin_attribute edid2_attr = {
 	.attr   = {
 		.name	= "edid2",
 		.mode	= 0444,
