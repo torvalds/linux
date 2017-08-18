@@ -54,20 +54,22 @@ coff_header:
 			IMAGE_FILE_EXECUTABLE_IMAGE | \
 			IMAGE_FILE_LINE_NUMS_STRIPPED	@ Characteristics
 
+#define __pecoff_code_size (__pecoff_data_start - __efi_start)
+
 optional_header:
 		.short	PE_OPT_MAGIC_PE32		@ PE32 format
 		.byte	0x02				@ MajorLinkerVersion
 		.byte	0x14				@ MinorLinkerVersion
-		.long	_end - __efi_start		@ SizeOfCode
-		.long	0				@ SizeOfInitializedData
+		.long	__pecoff_code_size		@ SizeOfCode
+		.long	__pecoff_data_size		@ SizeOfInitializedData
 		.long	0				@ SizeOfUninitializedData
 		.long	efi_stub_entry - start		@ AddressOfEntryPoint
 		.long	start_offset			@ BaseOfCode
-		.long	0				@ BaseOfData
+		.long	__pecoff_data_start - start	@ BaseOfData
 
 extra_header_fields:
 		.long	0				@ ImageBase
-		.long	SZ_512				@ SectionAlignment
+		.long	SZ_4K				@ SectionAlignment
 		.long	SZ_512				@ FileAlignment
 		.short	0				@ MajorOsVersion
 		.short	0				@ MinorOsVersion
@@ -77,7 +79,7 @@ extra_header_fields:
 		.short	0				@ MinorSubsystemVersion
 		.long	0				@ Win32VersionValue
 
-		.long	_end - start			@ SizeOfImage
+		.long	__pecoff_end - start		@ SizeOfImage
 		.long	start_offset			@ SizeOfHeaders
 		.long	0				@ CheckSum
 		.short	IMAGE_SUBSYSTEM_EFI_APPLICATION	@ Subsystem
@@ -98,9 +100,9 @@ extra_header_fields:
 
 section_table:
 		.ascii	".text\0\0\0"
-		.long	_end - __efi_start		@ VirtualSize
+		.long	__pecoff_code_size		@ VirtualSize
 		.long	__efi_start			@ VirtualAddress
-		.long	_edata - __efi_start		@ SizeOfRawData
+		.long	__pecoff_code_size		@ SizeOfRawData
 		.long	__efi_start			@ PointerToRawData
 		.long	0				@ PointerToRelocations
 		.long	0				@ PointerToLineNumbers
@@ -108,12 +110,24 @@ section_table:
 		.short	0				@ NumberOfLineNumbers
 		.long	IMAGE_SCN_CNT_CODE | \
 			IMAGE_SCN_MEM_READ | \
-			IMAGE_SCN_MEM_WRITE | \
 			IMAGE_SCN_MEM_EXECUTE		@ Characteristics
+
+		.ascii	".data\0\0\0"
+		.long	__pecoff_data_size		@ VirtualSize
+		.long	__pecoff_data_start - start	@ VirtualAddress
+		.long	__pecoff_data_rawsize		@ SizeOfRawData
+		.long	__pecoff_data_start - start	@ PointerToRawData
+		.long	0				@ PointerToRelocations
+		.long	0				@ PointerToLineNumbers
+		.short	0				@ NumberOfRelocations
+		.short	0				@ NumberOfLineNumbers
+		.long	IMAGE_SCN_CNT_INITIALIZED_DATA | \
+			IMAGE_SCN_MEM_READ | \
+			IMAGE_SCN_MEM_WRITE		@ Characteristics
 
 		.set	section_count, (. - section_table) / 40
 
-		.align	9
+		.align	12
 __efi_start:
 #endif
 		.endm
