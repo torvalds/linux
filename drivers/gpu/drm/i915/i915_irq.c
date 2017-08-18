@@ -3058,7 +3058,8 @@ static void ironlake_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	I915_WRITE(HWSTAM, 0xffffffff);
+	if (IS_GEN5(dev_priv))
+		I915_WRITE(HWSTAM, 0xffffffff);
 
 	GEN3_IRQ_RESET(DE);
 	if (IS_GEN7(dev_priv))
@@ -3419,8 +3420,6 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	dev_priv->irq_mask = ~display_mask;
 
-	I915_WRITE(HWSTAM, 0xeffe);
-
 	ibx_irq_pre_postinstall(dev);
 
 	GEN3_IRQ_INIT(DE, dev_priv->irq_mask, display_mask | extra_mask);
@@ -3621,8 +3620,6 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 
 	gen5_gt_irq_reset(dev_priv);
 
-	I915_WRITE(HWSTAM, 0xffffffff);
-
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display_irqs_enabled)
 		vlv_display_irq_reset(dev_priv);
@@ -3656,6 +3653,8 @@ static void i8xx_irq_preinstall(struct drm_device * dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	i9xx_pipestat_irq_reset(dev_priv);
+
+	I915_WRITE16(HWSTAM, 0xffff);
 
 	GEN2_IRQ_RESET();
 }
@@ -3738,6 +3737,8 @@ static void i8xx_irq_uninstall(struct drm_device * dev)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
+	I915_WRITE16(HWSTAM, 0xffff);
+
 	GEN2_IRQ_RESET();
 }
 
@@ -3752,7 +3753,7 @@ static void i915_irq_preinstall(struct drm_device * dev)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	I915_WRITE(HWSTAM, 0xffffeffe);
+	I915_WRITE(HWSTAM, 0xffffffff);
 
 	GEN3_IRQ_RESET();
 }
@@ -3873,7 +3874,7 @@ static void i965_irq_preinstall(struct drm_device * dev)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	I915_WRITE(HWSTAM, 0xeffe);
+	I915_WRITE(HWSTAM, 0xffffffff);
 
 	GEN3_IRQ_RESET();
 }
