@@ -2318,6 +2318,33 @@ static void its_vpe_db_proxy_map_locked(struct its_vpe *vpe)
 	its_send_mapti(vpe_proxy.dev, vpe->vpe_db_lpi, vpe->vpe_proxy_event);
 }
 
+static void its_vpe_db_proxy_move(struct its_vpe *vpe, int from, int to)
+{
+	unsigned long flags;
+	struct its_collection *target_col;
+
+	if (gic_rdists->has_direct_lpi) {
+		void __iomem *rdbase;
+
+		rdbase = per_cpu_ptr(gic_rdists->rdist, from)->rd_base;
+		gic_write_lpir(vpe->vpe_db_lpi, rdbase + GICR_CLRLPIR);
+		while (gic_read_lpir(rdbase + GICR_SYNCR) & 1)
+			cpu_relax();
+
+		return;
+	}
+
+	raw_spin_lock_irqsave(&vpe_proxy.lock, flags);
+
+	its_vpe_db_proxy_map_locked(vpe);
+
+	target_col = &vpe_proxy.dev->its->collections[to];
+	its_send_movi(vpe_proxy.dev, target_col, vpe->vpe_proxy_event);
+	vpe_proxy.dev->event_map.col_map[vpe->vpe_proxy_event] = to;
+
+	raw_spin_unlock_irqrestore(&vpe_proxy.lock, flags);
+}
+
 static int its_vpe_set_affinity(struct irq_data *d,
 				const struct cpumask *mask_val,
 				bool force)
@@ -2328,12 +2355,15 @@ static int its_vpe_set_affinity(struct irq_data *d,
 	/*
 	 * Changing affinity is mega expensive, so let's be as lazy as
 	 * we can and only do it if we really have to. Also, if mapped
-	 * into the proxy device, we need to nuke that mapping.
+	 * into the proxy device, we need to move the doorbell
+	 * interrupt to its new location.
 	 */
 	if (vpe->col_idx != cpu) {
-		its_vpe_db_proxy_unmap(vpe);
+		int from = vpe->col_idx;
+
 		vpe->col_idx = cpu;
 		its_send_vmovp(vpe);
+		its_vpe_db_proxy_move(vpe, from, cpu);
 	}
 
 	return IRQ_SET_MASK_OK_DONE;
