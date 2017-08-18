@@ -295,7 +295,7 @@ venc_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 	pixmp->height = clamp(pixmp->height, inst->cap_height.min,
 			      inst->cap_height.max);
 
-	if (inst->core->res->hfi_version == HFI_VERSION_1XX)
+	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		pixmp->height = ALIGN(pixmp->height, 32);
 
 	pixmp->width = ALIGN(pixmp->width, 2);
@@ -753,8 +753,8 @@ static int venc_init_session(struct venus_inst *inst)
 	if (ret)
 		return ret;
 
-	ret = venus_helper_set_input_resolution(inst, inst->out_width,
-						inst->out_height);
+	ret = venus_helper_set_input_resolution(inst, inst->width,
+						inst->height);
 	if (ret)
 		goto deinit;
 
@@ -1016,6 +1016,8 @@ static int m2m_queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->allow_zero_bytesused = 1;
 	src_vq->min_buffers_needed = 1;
 	src_vq->dev = inst->core->dev;
+	if (inst->core->res->hfi_version == HFI_VERSION_1XX)
+		src_vq->bidirectional = 1;
 	ret = vb2_queue_init(src_vq);
 	if (ret)
 		return ret;
