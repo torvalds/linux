@@ -3890,6 +3890,34 @@ int qeth_hdr_chk_and_bounce(struct sk_buff *skb, struct qeth_hdr **hdr, int len)
 }
 EXPORT_SYMBOL_GPL(qeth_hdr_chk_and_bounce);
 
+/**
+ * qeth_push_hdr() - push a qeth_hdr onto an skb.
+ * @skb: skb that the qeth_hdr should be pushed onto.
+ * @hdr: double pointer to a qeth_hdr. When returning with >= 0,
+ *	 it contains a valid pointer to a qeth_hdr.
+ * @len: length of the hdr that needs to be pushed on.
+ *
+ * Returns the pushed length. If the header can't be pushed on
+ * (eg. because it would cross a page boundary), it is allocated from
+ * the cache instead and 0 is returned.
+ * Error to create the hdr is indicated by returning with < 0.
+ */
+int qeth_push_hdr(struct sk_buff *skb, struct qeth_hdr **hdr, unsigned int len)
+{
+	if (skb_headroom(skb) >= len &&
+	    qeth_get_elements_for_range((addr_t)skb->data - len,
+					(addr_t)skb->data) == 1) {
+		*hdr = skb_push(skb, len);
+		return len;
+	}
+	/* fall back */
+	*hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
+	if (!*hdr)
+		return -ENOMEM;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qeth_push_hdr);
+
 static void __qeth_fill_buffer(struct sk_buff *skb,
 			       struct qeth_qdio_out_buffer *buf,
 			       bool is_first_elem, unsigned int offset)
