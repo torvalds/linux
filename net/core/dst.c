@@ -299,7 +299,8 @@ EXPORT_SYMBOL_GPL(metadata_dst_alloc);
 void metadata_dst_free(struct metadata_dst *md_dst)
 {
 #ifdef CONFIG_DST_CACHE
-	dst_cache_destroy(&md_dst->u.tun_info.dst_cache);
+	if (md_dst->type == METADATA_IP_TUNNEL)
+		dst_cache_destroy(&md_dst->u.tun_info.dst_cache);
 #endif
 	kfree(md_dst);
 }
