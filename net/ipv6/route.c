@@ -3624,6 +3624,8 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 		if (!fibmatch)
 			dst = ip6_route_input_lookup(net, dev, &fl6, flags);
+		else
+			dst = ip6_route_lookup(net, &fl6, 0);
 
 		rcu_read_unlock();
 	} else {
@@ -3631,10 +3633,10 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 		if (!fibmatch)
 			dst = ip6_route_output(net, NULL, &fl6);
+		else
+			dst = ip6_route_lookup(net, &fl6, 0);
 	}
 
-	if (fibmatch)
-		dst = ip6_route_lookup(net, &fl6, 0);
 
 	rt = container_of(dst, struct rt6_info, dst);
 	if (rt->dst.error) {
