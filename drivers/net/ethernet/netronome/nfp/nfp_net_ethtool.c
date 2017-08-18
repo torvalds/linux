@@ -99,6 +99,86 @@ static const struct nfp_et_stat nfp_net_et_stats[] = {
 	{ "bpf_app3_bytes",	NFP_NET_CFG_STATS_APP3_BYTES },
 };
 
+static const struct nfp_et_stat nfp_mac_et_stats[] = {
+	{ "rx_octets",			NFP_MAC_STATS_RX_IN_OCTETS, },
+	{ "rx_frame_too_long_errors",
+			NFP_MAC_STATS_RX_FRAME_TOO_LONG_ERRORS, },
+	{ "rx_range_length_errors",	NFP_MAC_STATS_RX_RANGE_LENGTH_ERRORS, },
+	{ "rx_vlan_reveive_ok",		NFP_MAC_STATS_RX_VLAN_REVEIVE_OK, },
+	{ "rx_errors",			NFP_MAC_STATS_RX_IN_ERRORS, },
+	{ "rx_broadcast_pkts",		NFP_MAC_STATS_RX_IN_BROADCAST_PKTS, },
+	{ "rx_drop_events",		NFP_MAC_STATS_RX_DROP_EVENTS, },
+	{ "rx_alignment_errors",	NFP_MAC_STATS_RX_ALIGNMENT_ERRORS, },
+	{ "rx_pause_mac_ctrl_frames",
+			NFP_MAC_STATS_RX_PAUSE_MAC_CTRL_FRAMES, },
+	{ "rx_frames_received_ok",	NFP_MAC_STATS_RX_FRAMES_RECEIVED_OK, },
+	{ "rx_frame_check_sequence_errors",
+			NFP_MAC_STATS_RX_FRAME_CHECK_SEQUENCE_ERRORS, },
+	{ "rx_unicast_pkts",		NFP_MAC_STATS_RX_UNICAST_PKTS, },
+	{ "rx_multicast_pkts",		NFP_MAC_STATS_RX_MULTICAST_PKTS, },
+	{ "rx_pkts",			NFP_MAC_STATS_RX_PKTS, },
+	{ "rx_undersize_pkts",		NFP_MAC_STATS_RX_UNDERSIZE_PKTS, },
+	{ "rx_pkts_64_octets",		NFP_MAC_STATS_RX_PKTS_64_OCTETS, },
+	{ "rx_pkts_65_to_127_octets",
+			NFP_MAC_STATS_RX_PKTS_65_TO_127_OCTETS, },
+	{ "rx_pkts_128_to_255_octets",
+			NFP_MAC_STATS_RX_PKTS_128_TO_255_OCTETS, },
+	{ "rx_pkts_256_to_511_octets",
+			NFP_MAC_STATS_RX_PKTS_256_TO_511_OCTETS, },
+	{ "rx_pkts_512_to_1023_octets",
+			NFP_MAC_STATS_RX_PKTS_512_TO_1023_OCTETS, },
+	{ "rx_pkts_1024_to_1518_octets",
+			NFP_MAC_STATS_RX_PKTS_1024_TO_1518_OCTETS, },
+	{ "rx_pkts_1519_to_max_octets",
+			NFP_MAC_STATS_RX_PKTS_1519_TO_MAX_OCTETS, },
+	{ "rx_jabbers",			NFP_MAC_STATS_RX_JABBERS, },
+	{ "rx_fragments",		NFP_MAC_STATS_RX_FRAGMENTS, },
+	{ "rx_oversize_pkts",		NFP_MAC_STATS_RX_OVERSIZE_PKTS, },
+	{ "rx_pause_frames_class0",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS0, },
+	{ "rx_pause_frames_class1",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS1, },
+	{ "rx_pause_frames_class2",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS2, },
+	{ "rx_pause_frames_class3",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS3, },
+	{ "rx_pause_frames_class4",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS4, },
+	{ "rx_pause_frames_class5",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS5, },
+	{ "rx_pause_frames_class6",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS6, },
+	{ "rx_pause_frames_class7",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS7, },
+	{ "rx_mac_ctrl_frames_received",
+			NFP_MAC_STATS_RX_MAC_CTRL_FRAMES_RECEIVED, },
+	{ "rx_mac_head_drop",		NFP_MAC_STATS_RX_MAC_HEAD_DROP, },
+	{ "tx_queue_drop",		NFP_MAC_STATS_TX_QUEUE_DROP, },
+	{ "tx_octets",			NFP_MAC_STATS_TX_OUT_OCTETS, },
+	{ "tx_vlan_transmitted_ok",	NFP_MAC_STATS_TX_VLAN_TRANSMITTED_OK, },
+	{ "tx_errors",			NFP_MAC_STATS_TX_OUT_ERRORS, },
+	{ "tx_broadcast_pkts",		NFP_MAC_STATS_TX_BROADCAST_PKTS, },
+	{ "tx_pause_mac_ctrl_frames",
+			NFP_MAC_STATS_TX_PAUSE_MAC_CTRL_FRAMES, },
+	{ "tx_frames_transmitted_ok",
+			NFP_MAC_STATS_TX_FRAMES_TRANSMITTED_OK, },
+	{ "tx_unicast_pkts",		NFP_MAC_STATS_TX_UNICAST_PKTS, },
+	{ "tx_multicast_pkts",		NFP_MAC_STATS_TX_MULTICAST_PKTS, },
+	{ "tx_pkts_64_octets",		NFP_MAC_STATS_TX_PKTS_64_OCTETS, },
+	{ "tx_pkts_65_to_127_octets",
+			NFP_MAC_STATS_TX_PKTS_65_TO_127_OCTETS, },
+	{ "tx_pkts_128_to_255_octets",
+			NFP_MAC_STATS_TX_PKTS_128_TO_255_OCTETS, },
+	{ "tx_pkts_256_to_511_octets",
+			NFP_MAC_STATS_TX_PKTS_256_TO_511_OCTETS, },
+	{ "tx_pkts_512_to_1023_octets",
+			NFP_MAC_STATS_TX_PKTS_512_TO_1023_OCTETS, },
+	{ "tx_pkts_1024_to_1518_octets",
+			NFP_MAC_STATS_TX_PKTS_1024_TO_1518_OCTETS, },
+	{ "tx_pkts_1519_to_max_octets",
+			NFP_MAC_STATS_TX_PKTS_1519_TO_MAX_OCTETS, },
+	{ "tx_pause_frames_class0",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS0, },
+	{ "tx_pause_frames_class1",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS1, },
+	{ "tx_pause_frames_class2",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS2, },
+	{ "tx_pause_frames_class3",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS3, },
+	{ "tx_pause_frames_class4",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS4, },
+	{ "tx_pause_frames_class5",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS5, },
+	{ "tx_pause_frames_class6",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS6, },
+	{ "tx_pause_frames_class7",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS7, },
+};
+
 #define NN_ET_GLOBAL_STATS_LEN ARRAY_SIZE(nfp_net_et_stats)
 #define NN_ET_RVEC_GATHER_STATS 7
 
@@ -459,6 +539,47 @@ nfp_vnic_get_hw_stats(u64 *data, u8 __iomem *mem,
 	return data;
 }
 
+static unsigned int nfp_mac_get_stats_count(struct net_device *netdev)
+{
+	struct nfp_port *port;
+
+	port = nfp_port_from_netdev(netdev);
+	if (!__nfp_port_get_eth_port(port) || !port->eth_stats)
+		return 0;
+
+	return ARRAY_SIZE(nfp_mac_et_stats);
+}
+
+static u8 *nfp_mac_get_stats_strings(struct net_device *netdev, u8 *data)
+{
+	struct nfp_port *port;
+	unsigned int i;
+
+	port = nfp_port_from_netdev(netdev);
+	if (!__nfp_port_get_eth_port(port) || !port->eth_stats)
+		return data;
+
+	for (i = 0; i < ARRAY_SIZE(nfp_mac_et_stats); i++)
+		data = nfp_pr_et(data, "mac.%s", nfp_mac_et_stats[i].name);
+
+	return data;
+}
+
+static u64 *nfp_mac_get_stats(struct net_device *netdev, u64 *data)
+{
+	struct nfp_port *port;
+	unsigned int i;
+
+	port = nfp_port_from_netdev(netdev);
+	if (!__nfp_port_get_eth_port(port) || !port->eth_stats)
+		return data;
+
+	for (i = 0; i < ARRAY_SIZE(nfp_mac_et_stats); i++)
+		*data++ = readq(port->eth_stats + nfp_mac_et_stats[i].off);
+
+	return data;
+}
+
 static void nfp_net_get_strings(struct net_device *netdev,
 				u32 stringset, u8 *data)
 {
@@ -469,6 +590,7 @@ static void nfp_net_get_strings(struct net_device *netdev,
 		data = nfp_vnic_get_sw_stats_strings(netdev, data);
 		data = nfp_vnic_get_hw_stats_strings(data, nn->dp.num_rx_rings,
 						     nn->dp.num_tx_rings);
+		data = nfp_mac_get_stats_strings(netdev, data);
 		break;
 	}
 }
@@ -482,6 +604,7 @@ nfp_net_get_stats(struct net_device *netdev, struct ethtool_stats *stats,
 	data = nfp_vnic_get_sw_stats(netdev, data);
 	data = nfp_vnic_get_hw_stats(data, nn->dp.ctrl_bar,
 				     nn->dp.num_rx_rings, nn->dp.num_tx_rings);
+	data = nfp_mac_get_stats(netdev, data);
 }
 
 static int nfp_net_get_sset_count(struct net_device *netdev, int sset)
@@ -492,7 +615,8 @@ static int nfp_net_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_STATS:
 		return nfp_vnic_get_sw_stats_count(netdev) +
 		       nfp_vnic_get_hw_stats_count(nn->dp.num_rx_rings,
-						   nn->dp.num_tx_rings);
+						   nn->dp.num_tx_rings) +
+		       nfp_mac_get_stats_count(netdev);
 	default:
 		return -EOPNOTSUPP;
 	}
