@@ -92,6 +92,8 @@ OPTIONS
 --asm-raw::
 	Show raw instruction encoding of assembly instructions.
 
+--show-total-period:: Show a column with the sum of periods.
+
 --source::
 	Interleave source code with assembly code. Enabled by default,
 	disable with --no-source.
