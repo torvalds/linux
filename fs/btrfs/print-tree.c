@@ -44,7 +44,7 @@ static void print_dev_item(struct extent_buffer *eb,
 static void print_extent_data_ref(struct extent_buffer *eb,
 				  struct btrfs_extent_data_ref *ref)
 {
-	pr_info("\t\textent data backref root %llu objectid %llu offset %llu count %u\n",
+	pr_cont("extent data backref root %llu objectid %llu offset %llu count %u\n",
 	       btrfs_extent_data_ref_root(eb, ref),
 	       btrfs_extent_data_ref_objectid(eb, ref),
 	       btrfs_extent_data_ref_offset(eb, ref),
@@ -63,6 +63,7 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 	u32 item_size = btrfs_item_size_nr(eb, slot);
 	u64 flags;
 	u64 offset;
+	int ref_index = 0;
 
 	if (item_size < sizeof(*ei)) {
 #ifdef BTRFS_COMPAT_EXTENT_TREE_V0
@@ -104,12 +105,20 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 		iref = (struct btrfs_extent_inline_ref *)ptr;
 		type = btrfs_extent_inline_ref_type(eb, iref);
 		offset = btrfs_extent_inline_ref_offset(eb, iref);
+		pr_info("\t\tref#%d: ", ref_index++);
 		switch (type) {
 		case BTRFS_TREE_BLOCK_REF_KEY:
-			pr_info("\t\ttree block backref root %llu\n", offset);
+			pr_cont("tree block backref root %llu\n", offset);
 			break;
 		case BTRFS_SHARED_BLOCK_REF_KEY:
-			pr_info("\t\tshared block backref parent %llu\n", offset);
+			pr_cont("shared block backref parent %llu\n", offset);
+			/*
+			 * offset is supposed to be a tree block which
+			 * must be aligned to nodesize.
+			 */
+			if (!IS_ALIGNED(offset, eb->fs_info->nodesize))
+				pr_info("\t\t\t(parent %llu is NOT ALIGNED to nodesize %llu)\n",
+					offset, (unsigned long long)eb->fs_info->nodesize);
 			break;
 		case BTRFS_EXTENT_DATA_REF_KEY:
 			dref = (struct btrfs_extent_data_ref *)(&iref->offset);
@@ -117,12 +126,18 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 			break;
 		case BTRFS_SHARED_DATA_REF_KEY:
 			sref = (struct btrfs_shared_data_ref *)(iref + 1);
-			pr_info("\t\tshared data backref parent %llu count %u\n",
+			pr_cont("shared data backref parent %llu count %u\n",
 			       offset, btrfs_shared_data_ref_count(eb, sref));
+			/*
+			 * offset is supposed to be a tree block which
+			 * must be aligned to nodesize.
+			 */
+			if (!IS_ALIGNED(offset, eb->fs_info->nodesize))
+				pr_info("\t\t\t(parent %llu is NOT ALIGNED to nodesize %llu)\n",
+				     offset, (unsigned long long)eb->fs_info->nodesize);
 			break;
 		default:
-			btrfs_err(eb->fs_info,
-				  "extent %llu has invalid ref type %d",
+			pr_cont("(extent %llu has INVALID ref type %d)\n",
 				  eb->start, type);
 			return;
 		}

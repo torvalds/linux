@@ -1158,19 +1158,40 @@ int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,
 				     enum btrfs_inline_ref_type is_data)
 {
 	int type = btrfs_extent_inline_ref_type(eb, iref);
+	u64 offset = btrfs_extent_inline_ref_offset(eb, iref);
 
 	if (type == BTRFS_TREE_BLOCK_REF_KEY ||
 	    type == BTRFS_SHARED_BLOCK_REF_KEY ||
 	    type == BTRFS_SHARED_DATA_REF_KEY ||
 	    type == BTRFS_EXTENT_DATA_REF_KEY) {
 		if (is_data == BTRFS_REF_TYPE_BLOCK) {
-			if (type == BTRFS_TREE_BLOCK_REF_KEY ||
-			    type == BTRFS_SHARED_BLOCK_REF_KEY)
+			if (type == BTRFS_TREE_BLOCK_REF_KEY)
 				return type;
+			if (type == BTRFS_SHARED_BLOCK_REF_KEY) {
+				ASSERT(eb->fs_info);
+				/*
+				 * Every shared one has parent tree
+				 * block, which must be aligned to
+				 * nodesize.
+				 */
+				if (offset &&
+				    IS_ALIGNED(offset, eb->fs_info->nodesize))
+					return type;
+			}
 		} else if (is_data == BTRFS_REF_TYPE_DATA) {
-			if (type == BTRFS_EXTENT_DATA_REF_KEY ||
-			    type == BTRFS_SHARED_DATA_REF_KEY)
+			if (type == BTRFS_EXTENT_DATA_REF_KEY)
 				return type;
+			if (type == BTRFS_SHARED_DATA_REF_KEY) {
+				ASSERT(eb->fs_info);
+				/*
+				 * Every shared one has parent tree
+				 * block, which must be aligned to
+				 * nodesize.
+				 */
+				if (offset &&
+				    IS_ALIGNED(offset, eb->fs_info->nodesize))
+					return type;
+			}
 		} else {
 			ASSERT(is_data == BTRFS_REF_TYPE_ANY);
 			return type;
