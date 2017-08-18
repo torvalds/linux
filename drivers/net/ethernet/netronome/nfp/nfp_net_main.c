@@ -388,7 +388,7 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 					NFP_PF_CSR_SLICE_SIZE,
 					&pf->ctrl_vnic_bar);
 	if (IS_ERR(ctrl_bar)) {
-		nfp_err(pf->cpp, "Failed to find data vNIC memory symbol\n");
+		nfp_err(pf->cpp, "Failed to find ctrl vNIC memory symbol\n");
 		err = PTR_ERR(ctrl_bar);
 		goto err_app_clean;
 	}
@@ -504,7 +504,7 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 	int err;
 
 	min_size = pf->max_data_vnics * NFP_PF_CSR_SLICE_SIZE;
-	mem = nfp_net_pf_map_rtsym(pf, "net.ctrl", "_pf%d_net_bar0",
+	mem = nfp_net_pf_map_rtsym(pf, "net.bar0", "_pf%d_net_bar0",
 				   min_size, &pf->data_vnic_bar);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to find data vNIC memory symbol\n");
