@@ -90,10 +90,9 @@ static void vmcp_response_free(struct vmcp_session *session)
 		page = phys_to_page((unsigned long)session->response);
 		cma_release(vmcp_cma, page, nr_pages);
 		session->cma_alloc = 0;
-		goto out;
+	} else {
+		free_pages((unsigned long)session->response, order);
 	}
-	free_pages((unsigned long)session->response, order);
-out:
 	session->response = NULL;
 }
 
