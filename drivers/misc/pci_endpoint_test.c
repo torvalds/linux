@@ -97,6 +97,7 @@ struct pci_endpoint_test {
 struct pci_endpoint_test_data {
 	enum pci_barno test_reg_bar;
 	size_t alignment;
+	bool no_msi;
 };
 
 static int bar_size[] = { 512, 512, 1024, 16384, 131072, 1048576 };
@@ -449,8 +450,9 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 {
 	int i;
 	int err;
-	int irq;
+	int irq = 0;
 	int id;
+	bool no_msi = false;
 	char name[20];
 	enum pci_barno bar;
 	void __iomem *base;
@@ -475,6 +477,7 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	if (data) {
 		test_reg_bar = data->test_reg_bar;
 		test->alignment = data->alignment;
+		no_msi = data->no_msi;
 	}
 
 	init_completion(&test->irq_raised);
@@ -494,9 +497,11 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	irq = pci_alloc_irq_vectors(pdev, 1, 32, PCI_IRQ_MSI);
-	if (irq < 0)
-		dev_err(dev, "failed to get MSI interrupts\n");
+	if (!no_msi) {
+		irq = pci_alloc_irq_vectors(pdev, 1, 32, PCI_IRQ_MSI);
+		if (irq < 0)
+			dev_err(dev, "failed to get MSI interrupts\n");
+	}
 
 	err = devm_request_irq(dev, pdev->irq, pci_endpoint_test_irqhandler,
 			       IRQF_SHARED, DRV_MODULE_NAME, test);
