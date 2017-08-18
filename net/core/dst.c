@@ -55,7 +55,7 @@ const struct dst_metrics dst_default_metrics = {
 	 * We really want to avoid false sharing on this variable, and catch
 	 * any writes on it.
 	 */
-	.refcnt = ATOMIC_INIT(1),
+	.refcnt = REFCOUNT_INIT(1),
 };
 
 void dst_init(struct dst_entry *dst, struct dst_ops *ops,
@@ -213,7 +213,7 @@ u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old)
 		struct dst_metrics *old_p = (struct dst_metrics *)__DST_METRICS_PTR(old);
 		unsigned long prev, new;
 
-		atomic_set(&p->refcnt, 1);
+		refcount_set(&p->refcnt, 1);
 		memcpy(p->metrics, old_p->metrics, sizeof(p->metrics));
 
 		new = (unsigned long) p;
@@ -225,7 +225,7 @@ u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old)
 			if (prev & DST_METRICS_READ_ONLY)
 				p = NULL;
 		} else if (prev & DST_METRICS_REFCOUNTED) {
-			if (atomic_dec_and_test(&old_p->refcnt))
+			if (refcount_dec_and_test(&old_p->refcnt))
 				kfree(old_p);
 		}
 	}

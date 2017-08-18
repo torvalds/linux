@@ -1398,7 +1398,7 @@ static void ipv4_dst_destroy(struct dst_entry *dst)
 	struct dst_metrics *p = (struct dst_metrics *)DST_METRICS_PTR(dst);
 	struct rtable *rt = (struct rtable *) dst;
 
-	if (p != &dst_default_metrics && atomic_dec_and_test(&p->refcnt))
+	if (p != &dst_default_metrics && refcount_dec_and_test(&p->refcnt))
 		kfree(p);
 
 	if (!list_empty(&rt->rt_uncached)) {
@@ -1456,7 +1456,7 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 		dst_init_metrics(&rt->dst, fi->fib_metrics->metrics, true);
 		if (fi->fib_metrics != &dst_default_metrics) {
 			rt->dst._metrics |= DST_METRICS_REFCOUNTED;
-			atomic_inc(&fi->fib_metrics->refcnt);
+			refcount_inc(&fi->fib_metrics->refcnt);
 		}
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		rt->dst.tclassid = nh->nh_tclassid;

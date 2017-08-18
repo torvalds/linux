@@ -220,7 +220,7 @@ static void free_fib_info_rcu(struct rcu_head *head)
 	} endfor_nexthops(fi);
 
 	m = fi->fib_metrics;
-	if (m != &dst_default_metrics && atomic_dec_and_test(&m->refcnt))
+	if (m != &dst_default_metrics && refcount_dec_and_test(&m->refcnt))
 		kfree(m);
 	kfree(fi);
 }
@@ -1090,7 +1090,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 			kfree(fi);
 			return ERR_PTR(err);
 		}
-		atomic_set(&fi->fib_metrics->refcnt, 1);
+		refcount_set(&fi->fib_metrics->refcnt, 1);
 	} else {
 		fi->fib_metrics = (struct dst_metrics *)&dst_default_metrics;
 	}
