@@ -3697,8 +3697,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	u16 iir, new_iir;
-	irqreturn_t ret;
+	irqreturn_t ret = IRQ_NONE;
 
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
@@ -3706,34 +3705,31 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(dev_priv);
 
-	ret = IRQ_NONE;
-	iir = I915_READ16(IIR);
-	if (iir == 0)
-		goto out;
-
-	while (iir) {
+	do {
 		u32 pipe_stats[I915_MAX_PIPES] = {};
+		u16 iir;
 
-		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
+		iir = I915_READ16(IIR);
+		if (iir == 0)
+			break;
+
+		ret = IRQ_HANDLED;
 
 		/* Call regardless, as some status bits might not be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
 		I915_WRITE16(IIR, iir);
-		new_iir = I915_READ16(IIR); /* Flush posted writes */
 
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev_priv->engine[RCS]);
 
+		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
+			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
+
 		i8xx_pipestat_irq_handler(dev_priv, iir, pipe_stats);
+	} while (0);
 
-		iir = new_iir;
-	}
-	ret = IRQ_HANDLED;
-
-out:
 	enable_rpm_wakeref_asserts(dev_priv);
 
 	return ret;
@@ -3809,8 +3805,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	u32 iir, new_iir;
-	int ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_NONE;
 
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
@@ -3818,55 +3813,38 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(dev_priv);
 
-	iir = I915_READ(IIR);
 	do {
 		u32 pipe_stats[I915_MAX_PIPES] = {};
-		bool irq_received = iir != 0;
+		u32 hotplug_status = 0;
+		u32 iir;
 
-		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
+		iir = I915_READ(IIR);
+		if (iir == 0)
+			break;
+
+		ret = IRQ_HANDLED;
+
+		if (I915_HAS_HOTPLUG(dev_priv) &&
+		    iir & I915_DISPLAY_PORT_INTERRUPT)
+			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
 		/* Call regardless, as some status bits might not be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
-		if (!irq_received)
-			break;
-
-		/* Consume port.  Then clear IIR or we'll miss events */
-		if (I915_HAS_HOTPLUG(dev_priv) &&
-		    iir & I915_DISPLAY_PORT_INTERRUPT) {
-			u32 hotplug_status = i9xx_hpd_irq_ack(dev_priv);
-			if (hotplug_status)
-				i9xx_hpd_irq_handler(dev_priv, hotplug_status);
-		}
-
 		I915_WRITE(IIR, iir);
-		new_iir = I915_READ(IIR); /* Flush posted writes */
 
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev_priv->engine[RCS]);
 
-		i915_pipestat_irq_handler(dev_priv, iir, pipe_stats);
+		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
+			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
 
-		/* With MSI, interrupts are only generated when iir
-		 * transitions from zero to nonzero.  If another bit got
-		 * set while we were handling the existing iir bits, then
-		 * we would never get another interrupt.
-		 *
-		 * This is fine on non-MSI as well, as if we hit this path
-		 * we avoid exiting the interrupt handler only to generate
-		 * another one.
-		 *
-		 * Note that for MSI this could cause a stray interrupt report
-		 * if an interrupt landed in the time between writing IIR and
-		 * the posting read.  This should be rare enough to never
-		 * trigger the 99% of 100,000 interrupts test for disabling
-		 * stray interrupts.
-		 */
-		ret = IRQ_HANDLED;
-		iir = new_iir;
-	} while (iir);
+		if (hotplug_status)
+			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
+
+		i915_pipestat_irq_handler(dev_priv, iir, pipe_stats);
+	} while (0);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
@@ -3987,8 +3965,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	u32 iir, new_iir;
-	int ret = IRQ_NONE;
+	irqreturn_t ret = IRQ_NONE;
 
 	if (!intel_irqs_enabled(dev_priv))
 		return IRQ_NONE;
@@ -3996,58 +3973,40 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(dev_priv);
 
-	iir = I915_READ(IIR);
-
-	for (;;) {
+	do {
 		u32 pipe_stats[I915_MAX_PIPES] = {};
-		bool irq_received = iir != 0;
+		u32 hotplug_status = 0;
+		u32 iir;
 
-		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
+		iir = I915_READ(IIR);
+		if (iir == 0)
+			break;
+
+		ret = IRQ_HANDLED;
+
+		if (iir & I915_DISPLAY_PORT_INTERRUPT)
+			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
 		/* Call regardless, as some status bits might not be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
-		if (!irq_received)
-			break;
-
-		ret = IRQ_HANDLED;
-
-		/* Consume port.  Then clear IIR or we'll miss events */
-		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
-			u32 hotplug_status = i9xx_hpd_irq_ack(dev_priv);
-			if (hotplug_status)
-				i9xx_hpd_irq_handler(dev_priv, hotplug_status);
-		}
-
 		I915_WRITE(IIR, iir);
-		new_iir = I915_READ(IIR); /* Flush posted writes */
 
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev_priv->engine[RCS]);
+
 		if (iir & I915_BSD_USER_INTERRUPT)
 			notify_ring(dev_priv->engine[VCS]);
 
-		i965_pipestat_irq_handler(dev_priv, iir, pipe_stats);
+		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
+			DRM_DEBUG("Command parser error, iir 0x%08x\n", iir);
 
-		/* With MSI, interrupts are only generated when iir
-		 * transitions from zero to nonzero.  If another bit got
-		 * set while we were handling the existing iir bits, then
-		 * we would never get another interrupt.
-		 *
-		 * This is fine on non-MSI as well, as if we hit this path
-		 * we avoid exiting the interrupt handler only to generate
-		 * another one.
-		 *
-		 * Note that for MSI this could cause a stray interrupt report
-		 * if an interrupt landed in the time between writing IIR and
-		 * the posting read.  This should be rare enough to never
-		 * trigger the 99% of 100,000 interrupts test for disabling
-		 * stray interrupts.
-		 */
-		iir = new_iir;
-	}
+		if (hotplug_status)
+			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
+
+		i965_pipestat_irq_handler(dev_priv, iir, pipe_stats);
+	} while (0);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
