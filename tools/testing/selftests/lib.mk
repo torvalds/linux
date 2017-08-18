@@ -18,7 +18,7 @@ define RUN_TESTS
 			echo "selftests: Warning: file $$BASENAME_TEST is not executable, correct this.";\
 			echo "selftests: $$BASENAME_TEST [FAIL]"; \
 		else					\
-			cd `dirname $$TEST`; (./$$BASENAME_TEST && echo "selftests: $$BASENAME_TEST [PASS]") || echo "selftests:  $$BASENAME_TEST [FAIL]"; cd -;\
+			cd `dirname $$TEST` > /dev/null; (./$$BASENAME_TEST && echo "selftests: $$BASENAME_TEST [PASS]") || echo "selftests:  $$BASENAME_TEST [FAIL]"; cd - > /dev/null;\
 		fi;					\
 	done;
 endef
