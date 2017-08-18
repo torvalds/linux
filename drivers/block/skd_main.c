@@ -53,13 +53,11 @@ static int skd_isr_comp_limit = 4;
 	} while (0)
 
 #define DRV_NAME "skd"
-#define DRV_VERSION "3.0.0"
 #define PFX DRV_NAME ": "
 
 MODULE_LICENSE("GPL");
 
 MODULE_DESCRIPTION("STEC s1120 PCIe SSD block driver");
-MODULE_VERSION(DRV_VERSION);
 
 #define PCI_VENDOR_ID_STEC      0x1B39
 #define PCI_DEVICE_ID_S1120     0x0001
