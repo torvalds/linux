@@ -428,6 +428,9 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
 		mmio = RING_HWS_PGA(engine->mmio_base);
 	}
 
+	if (INTEL_GEN(dev_priv) >= 6)
+		I915_WRITE(RING_HWSTAM(engine->mmio_base), 0xffffffff);
+
 	I915_WRITE(mmio, engine->status_page.ggtt_offset);
 	POSTING_READ(mmio);
 
