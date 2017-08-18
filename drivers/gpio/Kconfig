@@ -450,6 +450,15 @@ config GPIO_TS4800
 	help
 	  This driver support TS-4800 FPGA GPIO controllers.
 
+config GPIO_THUNDERX
+	tristate "Cavium ThunderX/OCTEON-TX GPIO"
+	depends on ARCH_THUNDER || (64BIT && COMPILE_TEST)
+	depends on PCI_MSI && IRQ_DOMAIN_HIERARCHY
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
+	help
+	  Say yes here to support the on-chip GPIO lines on the ThunderX
+	  and OCTEON-TX families of SoCs.
+
 config GPIO_TZ1090
 	bool "Toumaz Xenif TZ1090 GPIO support"
 	depends on SOC_TZ1090
