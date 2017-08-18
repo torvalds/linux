@@ -3769,14 +3769,14 @@ static int i915_irq_postinstall(struct drm_device *dev)
 
 	GEN3_IRQ_INIT(, dev_priv->irq_mask, enable_mask);
 
-	i915_enable_asle_pipestat(dev_priv);
-
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
 	spin_lock_irq(&dev_priv->irq_lock);
 	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
 	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
 	spin_unlock_irq(&dev_priv->irq_lock);
+
+	i915_enable_asle_pipestat(dev_priv);
 
 	return 0;
 }
@@ -3935,17 +3935,25 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(EMR, error_mask);
 
 	/* Unmask the interrupts that we always want on. */
-	dev_priv->irq_mask = ~(I915_ASLE_INTERRUPT |
-			       I915_DISPLAY_PORT_INTERRUPT |
-			       I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-			       I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-			       I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
+	dev_priv->irq_mask =
+		~(I915_ASLE_INTERRUPT |
+		  I915_DISPLAY_PORT_INTERRUPT |
+		  I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+		  I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
 
-	enable_mask = ~dev_priv->irq_mask;
-	enable_mask |= I915_USER_INTERRUPT;
+	enable_mask =
+		I915_ASLE_INTERRUPT |
+		I915_DISPLAY_PORT_INTERRUPT |
+		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+		I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT |
+		I915_USER_INTERRUPT;
 
 	if (IS_G4X(dev_priv))
 		enable_mask |= I915_BSD_USER_INTERRUPT;
+
+	GEN3_IRQ_INIT(, dev_priv->irq_mask, enable_mask);
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
@@ -3954,8 +3962,6 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
 	i915_enable_pipestat(dev_priv, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
 	spin_unlock_irq(&dev_priv->irq_lock);
-
-	GEN3_IRQ_INIT(, dev_priv->irq_mask, enable_mask);
 
 	i915_enable_asle_pipestat(dev_priv);
 
