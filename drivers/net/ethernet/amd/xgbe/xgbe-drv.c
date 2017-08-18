@@ -887,7 +887,7 @@ static int xgbe_request_irqs(struct xgbe_prv_data *pdata)
 		     (unsigned long)pdata);
 
 	ret = devm_request_irq(pdata->dev, pdata->dev_irq, xgbe_isr, 0,
-			       netdev->name, pdata);
+			       netdev_name(netdev), pdata);
 	if (ret) {
 		netdev_alert(netdev, "error requesting irq %d\n",
 			     pdata->dev_irq);
@@ -1589,16 +1589,42 @@ static int xgbe_open(struct net_device *netdev)
 
 	DBGPR("-->xgbe_open\n");
 
+	/* Create the various names based on netdev name */
+	snprintf(pdata->an_name, sizeof(pdata->an_name) - 1, "%s-pcs",
+		 netdev_name(netdev));
+
+	snprintf(pdata->ecc_name, sizeof(pdata->ecc_name) - 1, "%s-ecc",
+		 netdev_name(netdev));
+
+	snprintf(pdata->i2c_name, sizeof(pdata->i2c_name) - 1, "%s-i2c",
+		 netdev_name(netdev));
+
+	/* Create workqueues */
+	pdata->dev_workqueue =
+		create_singlethread_workqueue(netdev_name(netdev));
+	if (!pdata->dev_workqueue) {
+		netdev_err(netdev, "device workqueue creation failed\n");
+		return -ENOMEM;
+	}
+
+	pdata->an_workqueue =
+		create_singlethread_workqueue(pdata->an_name);
+	if (!pdata->an_workqueue) {
+		netdev_err(netdev, "phy workqueue creation failed\n");
+		ret = -ENOMEM;
+		goto err_dev_wq;
+	}
+
 	/* Reset the phy settings */
 	ret = xgbe_phy_reset(pdata);
 	if (ret)
-		return ret;
+		goto err_an_wq;
 
 	/* Enable the clocks */
 	ret = clk_prepare_enable(pdata->sysclk);
 	if (ret) {
 		netdev_alert(netdev, "dma clk_prepare_enable failed\n");
-		return ret;
+		goto err_an_wq;
 	}
 
 	ret = clk_prepare_enable(pdata->ptpclk);
@@ -1651,6 +1677,12 @@ err_ptpclk:
 err_sysclk:
 	clk_disable_unprepare(pdata->sysclk);
 
+err_an_wq:
+	destroy_workqueue(pdata->an_workqueue);
+
+err_dev_wq:
+	destroy_workqueue(pdata->dev_workqueue);
+
 	return ret;
 }
 
@@ -1673,6 +1705,12 @@ static int xgbe_close(struct net_device *netdev)
 	/* Disable the clocks */
 	clk_disable_unprepare(pdata->ptpclk);
 	clk_disable_unprepare(pdata->sysclk);
+
+	flush_workqueue(pdata->an_workqueue);
+	destroy_workqueue(pdata->an_workqueue);
+
+	flush_workqueue(pdata->dev_workqueue);
+	destroy_workqueue(pdata->dev_workqueue);
 
 	set_bit(XGBE_DOWN, &pdata->dev_state);
 
