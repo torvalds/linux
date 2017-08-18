@@ -1054,6 +1054,7 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 		/* fetch the tx stats */
 		ring = priv->ring_data[idx].ring;
 		do {
+			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			tx_bytes += ring->stats.tx_bytes;
 			tx_pkts += ring->stats.tx_pkts;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
@@ -1061,6 +1062,7 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 		/* fetch the rx stats */
 		ring = priv->ring_data[idx + queue_num].ring;
 		do {
+			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			rx_bytes += ring->stats.rx_bytes;
 			rx_pkts += ring->stats.rx_pkts;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
