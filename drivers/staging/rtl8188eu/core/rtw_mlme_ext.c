@@ -3974,7 +3974,8 @@ static int has_channel(struct rt_channel_info *channel_set,
 
 static void init_channel_list(struct adapter *padapter, struct rt_channel_info *channel_set,
 							  u8 chanset_size,
-							  struct p2p_channels *channel_list) {
+							struct p2p_channels *channel_list)
+{
 	struct p2p_oper_class_map op_class[] = {
 		{ IEEE80211G,  81,   1,  13,  1, BW20 },
 		{ IEEE80211G,  82,  14,  14,  1, BW20 },
