@@ -136,7 +136,7 @@ static char fontname[40];
 static int info_idx = -1;
 
 /* console rotation */
-static int initial_rotation;
+static int initial_rotation = -1;
 static int fbcon_has_sysfs;
 
 static const struct consw fb_con;
@@ -955,7 +955,10 @@ static const char *fbcon_startup(void)
 	ops->cur_rotate = -1;
 	ops->cur_blink_jiffies = HZ / 5;
 	info->fbcon_par = ops;
-	p->con_rotate = initial_rotation;
+	if (initial_rotation != -1)
+		p->con_rotate = initial_rotation;
+	else
+		p->con_rotate = fbcon_platform_get_rotate(info);
 	set_blitting_type(vc, info);
 
 	if (info->fix.type != FB_TYPE_TEXT) {
@@ -1092,7 +1095,10 @@ static void fbcon_init(struct vc_data *vc, int init)
 
 	ops = info->fbcon_par;
 	ops->cur_blink_jiffies = msecs_to_jiffies(vc->vc_cur_blink_ms);
-	p->con_rotate = initial_rotation;
+	if (initial_rotation != -1)
+		p->con_rotate = initial_rotation;
+	else
+		p->con_rotate = fbcon_platform_get_rotate(info);
 	set_blitting_type(vc, info);
 
 	cols = vc->vc_cols;
