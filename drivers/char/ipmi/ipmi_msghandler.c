@@ -46,6 +46,7 @@
 #include <linux/proc_fs.h>
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
+#include <linux/moduleparam.h>
 
 #define PFX "IPMI message handler: "
 
@@ -60,6 +61,74 @@ static int handle_one_recv_msg(ipmi_smi_t          intf,
 			       struct ipmi_smi_msg *msg);
 
 static int initialized;
+
+enum ipmi_panic_event_op {
+	IPMI_SEND_PANIC_EVENT_NONE,
+	IPMI_SEND_PANIC_EVENT,
+	IPMI_SEND_PANIC_EVENT_STRING
+};
+#ifdef CONFIG_IPMI_PANIC_STRING
+#define IPMI_PANIC_DEFAULT IPMI_SEND_PANIC_EVENT_STRING
+#elif defined(CONFIG_IPMI_PANIC_EVENT)
+#define IPMI_PANIC_DEFAULT IPMI_SEND_PANIC_EVENT
+#else
+#define IPMI_PANIC_DEFAULT IPMI_SEND_PANIC_EVENT_NONE
+#endif
+static enum ipmi_panic_event_op ipmi_send_panic_event = IPMI_PANIC_DEFAULT;
+
+static int panic_op_write_handler(const char *val,
+				  const struct kernel_param *kp)
+{
+	char valcp[16];
+	char *s;
+
+	strncpy(valcp, val, 16);
+	valcp[15] = '\0';
+
+	s = strstrip(valcp);
+
+	if (strcmp(s, "none") == 0)
+		ipmi_send_panic_event = IPMI_SEND_PANIC_EVENT_NONE;
+	else if (strcmp(s, "event") == 0)
+		ipmi_send_panic_event = IPMI_SEND_PANIC_EVENT;
+	else if (strcmp(s, "string") == 0)
+		ipmi_send_panic_event = IPMI_SEND_PANIC_EVENT_STRING;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int panic_op_read_handler(char *buffer, const struct kernel_param *kp)
+{
+	switch (ipmi_send_panic_event) {
+	case IPMI_SEND_PANIC_EVENT_NONE:
+		strcpy(buffer, "none");
+		break;
+
+	case IPMI_SEND_PANIC_EVENT:
+		strcpy(buffer, "event");
+		break;
+
+	case IPMI_SEND_PANIC_EVENT_STRING:
+		strcpy(buffer, "string");
+		break;
+
+	default:
+		strcpy(buffer, "???");
+		break;
+	}
+
+	return strlen(buffer);
+}
+
+static const struct kernel_param_ops panic_op_ops = {
+	.set = panic_op_write_handler,
+	.get = panic_op_read_handler
+};
+module_param_cb(panic_op, &panic_op_ops, NULL, 0600);
+MODULE_PARM_DESC(panic_op, "Sets if the IPMI driver will attempt to store panic information in the event log in the event of a panic.  Set to 'none' for no, 'event' for a single event, or 'string' for a generic event and the panic string in IPMI OEM events.");
+
 
 #ifdef CONFIG_PROC_FS
 static struct proc_dir_entry *proc_ipmi_root;
@@ -4271,8 +4340,6 @@ void ipmi_free_recv_msg(struct ipmi_recv_msg *msg)
 }
 EXPORT_SYMBOL(ipmi_free_recv_msg);
 
-#ifdef CONFIG_IPMI_PANIC_EVENT
-
 static atomic_t panic_done_count = ATOMIC_INIT(0);
 
 static void dummy_smi_done_handler(struct ipmi_smi_msg *msg)
@@ -4320,7 +4387,6 @@ static void ipmi_panic_request_and_wait(ipmi_smi_t           intf,
 		ipmi_poll(intf);
 }
 
-#ifdef CONFIG_IPMI_PANIC_STRING
 static void event_receiver_fetcher(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 {
 	if ((msg->addr.addr_type == IPMI_SYSTEM_INTERFACE_ADDR_TYPE)
@@ -4347,7 +4413,6 @@ static void device_id_fetcher(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 		intf->local_event_generator = (msg->msg.data[6] >> 5) & 1;
 	}
 }
-#endif
 
 static void send_panic_events(char *str)
 {
@@ -4356,6 +4421,9 @@ static void send_panic_events(char *str)
 	unsigned char                     data[16];
 	struct ipmi_system_interface_addr *si;
 	struct ipmi_addr                  addr;
+
+	if (ipmi_send_panic_event == IPMI_SEND_PANIC_EVENT_NONE)
+		return;
 
 	si = (struct ipmi_system_interface_addr *) &addr;
 	si->addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
@@ -4385,20 +4453,19 @@ static void send_panic_events(char *str)
 
 	/* For every registered interface, send the event. */
 	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
-		if (!intf->handlers)
-			/* Interface is not ready. */
+		if (!intf->handlers || !intf->handlers->poll)
+			/* Interface is not ready or can't run at panic time. */
 			continue;
 
 		/* Send the event announcing the panic. */
 		ipmi_panic_request_and_wait(intf, &addr, &msg);
 	}
 
-#ifdef CONFIG_IPMI_PANIC_STRING
 	/*
 	 * On every interface, dump a bunch of OEM event holding the
 	 * string.
 	 */
-	if (!str)
+	if (ipmi_send_panic_event != IPMI_SEND_PANIC_EVENT_STRING || !str)
 		return;
 
 	/* For every registered interface, send the event. */
@@ -4507,9 +4574,7 @@ static void send_panic_events(char *str)
 			ipmi_panic_request_and_wait(intf, &addr, &msg);
 		}
 	}
-#endif /* CONFIG_IPMI_PANIC_STRING */
 }
-#endif /* CONFIG_IPMI_PANIC_EVENT */
 
 static int has_panicked;
 
@@ -4547,12 +4612,12 @@ static int panic_event(struct notifier_block *this,
 			spin_unlock(&intf->waiting_rcv_msgs_lock);
 
 		intf->run_to_completion = 1;
-		intf->handlers->set_run_to_completion(intf->send_info, 1);
+		if (intf->handlers->set_run_to_completion)
+			intf->handlers->set_run_to_completion(intf->send_info,
+							      1);
 	}
 
-#ifdef CONFIG_IPMI_PANIC_EVENT
 	send_panic_events(ptr);
-#endif
 
 	return NOTIFY_DONE;
 }
