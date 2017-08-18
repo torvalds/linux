@@ -1088,7 +1088,7 @@ static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
 	 */
 	pinctrl_base = of_args.args[1];
 	gpioport = RZA1_PIN_ID_TO_PORT(pinctrl_base);
-	if (gpioport > RZA1_NPORTS) {
+	if (gpioport >= RZA1_NPORTS) {
 		dev_err(rza1_pctl->dev,
 			"Invalid values in property %s\n", list_name);
 		return -EINVAL;
