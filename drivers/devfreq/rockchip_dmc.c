@@ -216,6 +216,10 @@ struct rockchip_dmcfreq {
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
 
+	unsigned long min;
+	unsigned long max;
+	unsigned long auto_min_rate;
+	unsigned long status_rate;
 	unsigned long normal_rate;
 	unsigned long video_1080p_rate;
 	unsigned long video_4k_rate;
@@ -231,9 +235,9 @@ struct rockchip_dmcfreq {
 	unsigned long low_power_rate;
 
 	unsigned int min_cpu_freq;
-	unsigned int auto_min_freq;
 	unsigned int auto_freq_en;
-	unsigned int aotu_self_refresh;
+	unsigned int refresh;
+	unsigned int last_refresh;
 
 	int (*set_auto_self_refresh)(u32 en);
 };
@@ -327,6 +331,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		}
 	}
 
+	dev_dbg(dev, "%lu-->%lu\n", old_clk_rate, target_rate);
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
 	if (err) {
 		dev_err(dev, "Cannot set frequency %lu (%d)\n",
@@ -1027,14 +1032,56 @@ static int rockchip_get_system_status_rate(struct device_node *np,
 	return 0;
 }
 
-static void rockchip_dmcfreq_update_status(struct rockchip_dmcfreq *dmcfreq,
-					   unsigned long status)
+static void rockchip_dmcfreq_update_target(struct rockchip_dmcfreq *dmcfreq)
 {
 	struct devfreq *df = dmcfreq->devfreq;
-	struct devfreq_dev_profile *devp = df->profile;
-	unsigned long min = devp->freq_table[0];
-	unsigned long max =
-		devp->freq_table[devp->max_state ? devp->max_state - 1 : 0];
+	unsigned long min_freq = 0, max_freq = 0;
+
+	mutex_lock(&df->lock);
+
+	if (dmcfreq->last_refresh != dmcfreq->refresh) {
+		if (dmcfreq->set_auto_self_refresh)
+			dmcfreq->set_auto_self_refresh(dmcfreq->refresh);
+		dmcfreq->last_refresh = dmcfreq->refresh;
+	}
+
+	if (dmcfreq->auto_freq_en) {
+		min_freq = max(dmcfreq->status_rate, dmcfreq->auto_min_rate);
+		if (!min_freq)
+			min_freq = dmcfreq->min;
+		max_freq = dmcfreq->max;
+	} else {
+		if (dmcfreq->status_rate) {
+			min_freq = dmcfreq->status_rate;
+			max_freq = dmcfreq->status_rate;
+		} else if (dmcfreq->normal_rate) {
+			min_freq = dmcfreq->normal_rate;
+			max_freq = dmcfreq->normal_rate;
+		} else {
+			dev_err(&df->dev, "Invalid status\n");
+			goto out;
+		}
+	}
+
+	if (min_freq == df->min_freq && max_freq == df->max_freq)
+		goto out;
+	df->min_freq = min_freq;
+	df->max_freq = max_freq;
+
+	dev_dbg(&df->dev, "min=%lu max=%lu\n", df->min_freq, df->max_freq);
+
+	update_devfreq(df);
+
+out:
+	mutex_unlock(&df->lock);
+}
+
+static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
+						   unsigned long status,
+						   void *ptr)
+{
+	struct rockchip_dmcfreq *dmcfreq = system_status_to_dmcfreq(nb);
+	struct devfreq *df = dmcfreq->devfreq;
 	unsigned long target_rate = 0;
 	unsigned int refresh = false;
 
@@ -1094,44 +1141,10 @@ static void rockchip_dmcfreq_update_status(struct rockchip_dmcfreq *dmcfreq,
 
 next:
 
-	mutex_lock(&df->lock);
-
-	if (target_rate) {
-		df->min_freq = target_rate;
-		df->max_freq = target_rate;
-	} else {
-		if (dmcfreq->auto_freq_en) {
-			if (dmcfreq->auto_min_freq)
-				df->min_freq = dmcfreq->auto_min_freq * 1000;
-			else
-				df->min_freq = min;
-			df->max_freq = max;
-		} else if (dmcfreq->normal_rate) {
-			df->min_freq = dmcfreq->normal_rate;
-			df->max_freq = dmcfreq->normal_rate;
-		}
-	}
-
-	dev_dbg(&df->dev, "status=0x%x min=%lu max=%lu\n",
-		(unsigned int)status, df->min_freq, df->min_freq);
-
-	if (dmcfreq->aotu_self_refresh != refresh) {
-		if (dmcfreq->set_auto_self_refresh)
-			dmcfreq->set_auto_self_refresh(refresh);
-		dmcfreq->aotu_self_refresh = refresh;
-	}
-
-	update_devfreq(df);
-
-	mutex_unlock(&df->lock);
-}
-
-static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
-						   unsigned long val, void *ptr)
-{
-	struct rockchip_dmcfreq *dmcfreq = system_status_to_dmcfreq(nb);
-
-	rockchip_dmcfreq_update_status(dmcfreq, val);
+	dev_dbg(&df->dev, "status=0x%x\n", (unsigned int)status);
+	dmcfreq->refresh = refresh;
+	dmcfreq->status_rate = target_rate;
+	rockchip_dmcfreq_update_target(dmcfreq);
 
 	return NOTIFY_OK;
 }
@@ -1437,8 +1450,9 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	of_property_read_u32(np, "min-cpu-freq", &data->min_cpu_freq);
 	if (rockchip_get_system_status_rate(np, "system-status-freq", data))
 		dev_err(dev, "failed to get system status rate\n");
-	of_property_read_u32(np, "auto-min-freq", &data->auto_min_freq);
 	of_property_read_u32(np, "auto-freq-en", &data->auto_freq_en);
+	of_property_read_u32(np, "auto-min-freq", (u32 *)&data->auto_min_rate);
+	data->auto_min_rate *= 1000;
 
 	data->rate = clk_get_rate(data->dmc_clk);
 	data->volt = regulator_get_voltage(data->vdd_center);
@@ -1453,9 +1467,10 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 
 	devm_devfreq_register_opp_notifier(dev, data->devfreq);
 
-	data->devfreq->min_freq = devp->freq_table[0];
-	data->devfreq->max_freq =
-		devp->freq_table[devp->max_state ? devp->max_state - 1 : 0];
+	data->min = devp->freq_table[0];
+	data->max = devp->freq_table[devp->max_state ? devp->max_state - 1 : 0];
+	data->devfreq->min_freq = data->min;
+	data->devfreq->max_freq = data->max;
 
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);
