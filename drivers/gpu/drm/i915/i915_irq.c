@@ -136,6 +136,16 @@ static const u32 hpd_bxt[HPD_NUM_PINS] = {
 	POSTING_READ(type##IIR); \
 } while (0)
 
+#define GEN2_IRQ_RESET(type) do { \
+	I915_WRITE16(type##IMR, 0xffff); \
+	POSTING_READ16(type##IMR); \
+	I915_WRITE16(type##IER, 0); \
+	I915_WRITE16(type##IIR, 0xffff); \
+	POSTING_READ16(type##IIR); \
+	I915_WRITE16(type##IIR, 0xffff); \
+	POSTING_READ16(type##IIR); \
+} while (0)
+
 /*
  * We should clear IMR at preinstall/uninstall, and just check at postinstall.
  */
@@ -155,6 +165,22 @@ static void gen3_assert_iir_is_zero(struct drm_i915_private *dev_priv,
 	POSTING_READ(reg);
 }
 
+static void gen2_assert_iir_is_zero(struct drm_i915_private *dev_priv,
+				    i915_reg_t reg)
+{
+	u16 val = I915_READ16(reg);
+
+	if (val == 0)
+		return;
+
+	WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n",
+	     i915_mmio_reg_offset(reg), val);
+	I915_WRITE16(reg, 0xffff);
+	POSTING_READ16(reg);
+	I915_WRITE16(reg, 0xffff);
+	POSTING_READ16(reg);
+}
+
 #define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) do { \
 	gen3_assert_iir_is_zero(dev_priv, GEN8_##type##_IIR(which)); \
 	I915_WRITE(GEN8_##type##_IER(which), (ier_val)); \
@@ -167,6 +193,13 @@ static void gen3_assert_iir_is_zero(struct drm_i915_private *dev_priv,
 	I915_WRITE(type##IER, (ier_val)); \
 	I915_WRITE(type##IMR, (imr_val)); \
 	POSTING_READ(type##IMR); \
+} while (0)
+
+#define GEN2_IRQ_INIT(type, imr_val, ier_val) do { \
+	gen2_assert_iir_is_zero(dev_priv, type##IIR); \
+	I915_WRITE16(type##IER, (ier_val)); \
+	I915_WRITE16(type##IMR, (imr_val)); \
+	POSTING_READ16(type##IMR); \
 } while (0)
 
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir);
@@ -3575,14 +3608,13 @@ static void i8xx_irq_preinstall(struct drm_device * dev)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	I915_WRITE16(IMR, 0xffff);
-	I915_WRITE16(IER, 0x0);
-	POSTING_READ16(IER);
+	GEN2_IRQ_RESET();
 }
 
 static int i8xx_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	u16 enable_mask;
 
 	I915_WRITE16(EMR,
 		     ~(I915_ERROR_PAGE_TABLE | I915_ERROR_MEMORY_REFRESH));
@@ -3591,13 +3623,13 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 	dev_priv->irq_mask =
 		~(I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT);
-	I915_WRITE16(IMR, dev_priv->irq_mask);
 
-	I915_WRITE16(IER,
-		     I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		     I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		     I915_USER_INTERRUPT);
-	POSTING_READ16(IER);
+	enable_mask =
+		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+		I915_USER_INTERRUPT;
+
+	GEN2_IRQ_INIT(, dev_priv->irq_mask, enable_mask);
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
@@ -3689,9 +3721,7 @@ static void i8xx_irq_uninstall(struct drm_device * dev)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	I915_WRITE16(IMR, 0xffff);
-	I915_WRITE16(IER, 0x0);
-	I915_WRITE16(IIR, I915_READ16(IIR));
+	GEN2_IRQ_RESET();
 }
 
 static void i915_irq_preinstall(struct drm_device * dev)
