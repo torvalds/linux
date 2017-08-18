@@ -436,8 +436,8 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 	return 0;
 }
 
-static void hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
-				 u8 *il4_proto)
+static int hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
+				u8 *il4_proto)
 {
 	union {
 		struct iphdr *v4;
@@ -461,6 +461,8 @@ static void hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
 					 &l4_proto_tmp, &frag_off);
 	} else if (skb->protocol == htons(ETH_P_IP)) {
 		l4_proto_tmp = l3.v4->protocol;
+	} else {
+		return -EINVAL;
 	}
 
 	*ol4_proto = l4_proto_tmp;
@@ -468,7 +470,7 @@ static void hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
 	/* tunnel packet */
 	if (!skb->encapsulation) {
 		*il4_proto = 0;
-		return;
+		return 0;
 	}
 
 	/* find inner header point */
@@ -486,6 +488,8 @@ static void hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
 	}
 
 	*il4_proto = l4_proto_tmp;
+
+	return 0;
 }
 
 static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
@@ -757,7 +761,9 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 				protocol = vlan_get_protocol(skb);
 				skb->protocol = protocol;
 			}
-			hns3_get_l4_protocol(skb, &ol4_proto, &il4_proto);
+			ret = hns3_get_l4_protocol(skb, &ol4_proto, &il4_proto);
+			if (ret)
+				return ret;
 			hns3_set_l2l3l4_len(skb, ol4_proto, il4_proto,
 					    &type_cs_vlan_tso,
 					    &ol_type_vlan_len_msec);
@@ -1054,6 +1060,7 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 		/* fetch the tx stats */
 		ring = priv->ring_data[idx].ring;
 		do {
+			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			tx_bytes += ring->stats.tx_bytes;
 			tx_pkts += ring->stats.tx_pkts;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
@@ -1061,6 +1068,7 @@ hns3_nic_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 		/* fetch the rx stats */
 		ring = priv->ring_data[idx + queue_num].ring;
 		do {
+			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			rx_bytes += ring->stats.rx_bytes;
 			rx_pkts += ring->stats.rx_pkts;
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
