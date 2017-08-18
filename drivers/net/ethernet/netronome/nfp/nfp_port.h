@@ -116,6 +116,11 @@ extern const struct switchdev_ops nfp_port_switchdev_ops;
 int nfp_port_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 		      void *type_data);
 
+static inline bool nfp_port_is_vnic(const struct nfp_port *port)
+{
+	return port->type == NFP_PORT_PF_PORT || port->type == NFP_PORT_VF_PORT;
+}
+
 struct nfp_port *nfp_port_from_netdev(struct net_device *netdev);
 struct nfp_port *
 nfp_port_from_id(struct nfp_pf *pf, enum nfp_port_type type, unsigned int id);

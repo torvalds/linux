@@ -180,6 +180,7 @@ static const struct nfp_et_stat nfp_mac_et_stats[] = {
 };
 
 #define NN_ET_GLOBAL_STATS_LEN ARRAY_SIZE(nfp_net_et_stats)
+#define NN_ET_SWITCH_STATS_LEN 9
 #define NN_ET_RVEC_GATHER_STATS 7
 
 static void nfp_net_get_nspinfo(struct nfp_app *app, char *version)
@@ -497,11 +498,24 @@ nfp_vnic_get_hw_stats_count(unsigned int rx_rings, unsigned int tx_rings)
 
 static u8 *
 nfp_vnic_get_hw_stats_strings(u8 *data, unsigned int rx_rings,
-			      unsigned int tx_rings)
+			      unsigned int tx_rings, bool repr)
 {
-	int i;
+	int swap_off, i;
 
-	for (i = 0; i < NN_ET_GLOBAL_STATS_LEN; i++)
+	BUILD_BUG_ON(NN_ET_GLOBAL_STATS_LEN < NN_ET_SWITCH_STATS_LEN * 2);
+	/* If repr is true first add SWITCH_STATS_LEN and then subtract it
+	 * effectively swapping the RX and TX statistics (giving us the RX
+	 * and TX from perspective of the switch).
+	 */
+	swap_off = repr * NN_ET_SWITCH_STATS_LEN;
+
+	for (i = 0; i < NN_ET_SWITCH_STATS_LEN; i++)
+		data = nfp_pr_et(data, nfp_net_et_stats[i + swap_off].name);
+
+	for (i = NN_ET_SWITCH_STATS_LEN; i < NN_ET_SWITCH_STATS_LEN * 2; i++)
+		data = nfp_pr_et(data, nfp_net_et_stats[i - swap_off].name);
+
+	for (i = NN_ET_SWITCH_STATS_LEN * 2; i < NN_ET_GLOBAL_STATS_LEN; i++)
 		data = nfp_pr_et(data, nfp_net_et_stats[i].name);
 
 	for (i = 0; i < tx_rings; i++) {
@@ -589,7 +603,8 @@ static void nfp_net_get_strings(struct net_device *netdev,
 	case ETH_SS_STATS:
 		data = nfp_vnic_get_sw_stats_strings(netdev, data);
 		data = nfp_vnic_get_hw_stats_strings(data, nn->dp.num_rx_rings,
-						     nn->dp.num_tx_rings);
+						     nn->dp.num_tx_rings,
+						     false);
 		data = nfp_mac_get_stats_strings(netdev, data);
 		break;
 	}
@@ -617,6 +632,50 @@ static int nfp_net_get_sset_count(struct net_device *netdev, int sset)
 		       nfp_vnic_get_hw_stats_count(nn->dp.num_rx_rings,
 						   nn->dp.num_tx_rings) +
 		       nfp_mac_get_stats_count(netdev);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void nfp_port_get_strings(struct net_device *netdev,
+				 u32 stringset, u8 *data)
+{
+	struct nfp_port *port = nfp_port_from_netdev(netdev);
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		if (nfp_port_is_vnic(port))
+			data = nfp_vnic_get_hw_stats_strings(data, 0, 0, true);
+		else
+			data = nfp_mac_get_stats_strings(netdev, data);
+		break;
+	}
+}
+
+static void
+nfp_port_get_stats(struct net_device *netdev, struct ethtool_stats *stats,
+		   u64 *data)
+{
+	struct nfp_port *port = nfp_port_from_netdev(netdev);
+
+	if (nfp_port_is_vnic(port))
+		data = nfp_vnic_get_hw_stats(data, port->vnic, 0, 0);
+	else
+		data = nfp_mac_get_stats(netdev, data);
+}
+
+static int nfp_port_get_sset_count(struct net_device *netdev, int sset)
+{
+	struct nfp_port *port = nfp_port_from_netdev(netdev);
+	unsigned int count;
+
+	switch (sset) {
+	case ETH_SS_STATS:
+		if (nfp_port_is_vnic(port))
+			count = nfp_vnic_get_hw_stats_count(0, 0);
+		else
+			count = nfp_mac_get_stats_count(netdev);
+		return count;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1085,6 +1144,9 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 const struct ethtool_ops nfp_port_ethtool_ops = {
 	.get_drvinfo		= nfp_app_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
+	.get_strings		= nfp_port_get_strings,
+	.get_ethtool_stats	= nfp_port_get_stats,
+	.get_sset_count		= nfp_port_get_sset_count,
 	.set_dump		= nfp_app_set_dump,
 	.get_dump_flag		= nfp_app_get_dump_flag,
 	.get_dump_data		= nfp_app_get_dump_data,
