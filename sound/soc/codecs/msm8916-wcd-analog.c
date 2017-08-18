@@ -753,7 +753,7 @@ static void pm8916_wcd_analog_shutdown(struct snd_pcm_substream *substream,
 			    RST_CTL_DIG_SW_RST_N_MASK, 0);
 }
 
-static struct snd_soc_dai_ops pm8916_wcd_analog_dai_ops = {
+static const struct snd_soc_dai_ops pm8916_wcd_analog_dai_ops = {
 	.startup = pm8916_wcd_analog_startup,
 	.shutdown = pm8916_wcd_analog_shutdown,
 };
