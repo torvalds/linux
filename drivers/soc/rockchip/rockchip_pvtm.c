@@ -25,6 +25,7 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/soc/rockchip/pvtm.h>
 
@@ -82,6 +83,7 @@ struct rockchip_pvtm {
 	struct device *dev;
 	struct regmap *grf;
 	struct clk *clk;
+	struct reset_control *rst;
 	const struct rockchip_pvtm_channel *channel;
 	u32 (*get_value)(struct rockchip_pvtm *pvtm, unsigned int sub_ch,
 			 unsigned int time_us);
@@ -166,6 +168,27 @@ late_initcall(pvtm_debug_init);
 
 #endif
 
+static int rockchip_pvtm_reset(struct rockchip_pvtm *pvtm)
+{
+	int ret;
+
+	ret = reset_control_assert(pvtm->rst);
+	if (ret) {
+		dev_err(pvtm->dev, "failed to assert pvtm %d\n", ret);
+		return ret;
+	}
+
+	udelay(2);
+
+	ret = reset_control_deassert(pvtm->rst);
+	if (ret) {
+		dev_err(pvtm->dev, "failed to deassert pvtm %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 u32 rockchip_get_pvtm_value(unsigned int ch, unsigned int sub_ch,
 			    unsigned int time_us)
 {
@@ -236,6 +259,14 @@ static u32 rockchip_pvtm_get_value(struct rockchip_pvtm *pvtm,
 	if (ret < 0) {
 		dev_err(pvtm->dev, "failed to enable %d\n", ch);
 		return 0;
+	}
+
+	if (pvtm->rst) {
+		ret = rockchip_pvtm_reset(pvtm);
+		if (ret) {
+			clk_disable_unprepare(pvtm->clk);
+			return 0;
+		}
 	}
 
 	regmap_write(pvtm->grf, pvtm->con,
@@ -396,6 +427,14 @@ static int rockchip_pvtm_probe(struct platform_device *pdev)
 			dev_err(dev, "failed to get clk %d %s\n", i,
 				info->channels[i].clk_name);
 			return PTR_ERR(pvtm[i].clk);
+		}
+
+		pvtm[i].rst =
+			devm_reset_control_get(dev, info->channels[i].clk_name);
+		if (IS_ERR_OR_NULL(pvtm[i].rst)) {
+			dev_info(dev, "failed to get rst %d %s\n", i,
+				 info->channels[i].clk_name);
+			pvtm[i].rst = NULL;
 		}
 
 		list_add(&pvtm[i].node, &pvtm_list);
