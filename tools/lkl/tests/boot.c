@@ -9,8 +9,6 @@
 #ifndef __MINGW32__
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <net/if.h>
-#include <linux/if_tun.h>
 #include <sys/ioctl.h>
 #include <sys/epoll.h>
 #else
@@ -23,7 +21,6 @@
 static struct {
 	int printk;
 	const char *disk_filename;
-	const char *tap_ifname;
 	const char *fstype;
 	int part;
 } cla;
@@ -32,7 +29,6 @@ struct cl_arg args[] = {
 	{"printk", 'p', "show Linux printks", 0, CL_ARG_BOOL, &cla.printk},
 	{"disk", 'd', "disk file to use", 1, CL_ARG_STR, &cla.disk_filename},
 	{"partition", 'P', "partition to mount", 1, CL_ARG_INT, &cla.part},
-	{"tap", 'n', "tap interface to use", 1, CL_ARG_STR, &cla.tap_ifname},
 	{"type", 't', "filesystem type", 1, CL_ARG_STR, &cla.fstype},
 	{0},
 };
@@ -341,50 +337,6 @@ out:
 
 	return TEST_FAILURE;
 }
-
-#ifndef __MINGW32__
-static int netdev_id = -1;
-
-int test_netdev_add(char *str, int len)
-{
-	struct lkl_netdev *netdev;
-	int ret = 0;
-
-	netdev = lkl_netdev_tap_create(cla.tap_ifname, 0);
-	if (!netdev)
-		goto out;
-
-	ret = lkl_netdev_add((struct lkl_netdev *)netdev, NULL);
-	if (ret < 0)
-		goto out;
-
-	netdev_id = ret;
-
-out:
-	snprintf(str, len, "%d %p %d", ret, netdev, netdev_id);
-	return ret >= 0 ? TEST_SUCCESS : TEST_FAILURE;
-}
-
-static int test_netdev_ifup(char *str, int len)
-{
-	long ret;
-	int ifindex = -1;
-
-	ret = lkl_netdev_get_ifindex(netdev_id);
-	if (ret < 0)
-		goto out;
-	ifindex = ret;
-
-	ret = lkl_if_up(ifindex);
-
-out:
-	snprintf(str, len, "%ld %d", ret, ifindex);
-
-	if (!ret)
-		return TEST_SUCCESS;
-	return TEST_FAILURE;
-}
-#endif /* __MINGW32__ */
 
 static int test_pipe2(char *str, int len)
 {
@@ -800,8 +752,6 @@ static int test_join(char *str, int len)
 }
 
 
-
-
 int main(int argc, const char **argv)
 {
 	if (parse_args(argc, argv, args) < 0)
@@ -816,10 +766,6 @@ int main(int argc, const char **argv)
 
 	if (cla.disk_filename)
 		TEST(disk_add);
-#ifndef __MINGW32__
-	if (cla.tap_ifname)
-		TEST(netdev_add);
-#endif /* __MINGW32__ */
 	lkl_start_kernel(&lkl_host_ops, "mem=16M loglevel=8");
 
 	TEST(getpid);
@@ -837,8 +783,6 @@ int main(int argc, const char **argv)
 	TEST(stat);
 #ifndef __MINGW32__
 	TEST(nanosleep);
-	if (netdev_id >= 0)
-		TEST(netdev_ifup);
 #endif  /* __MINGW32__ */
 	TEST(pipe2);
 	TEST(epoll);
