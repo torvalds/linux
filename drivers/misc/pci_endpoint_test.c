@@ -100,8 +100,6 @@ struct pci_endpoint_test_data {
 	bool no_msi;
 };
 
-static int bar_size[] = { 512, 512, 1024, 16384, 131072, 1048576 };
-
 static inline u32 pci_endpoint_test_readl(struct pci_endpoint_test *test,
 					  u32 offset)
 {
@@ -149,11 +147,12 @@ static bool pci_endpoint_test_bar(struct pci_endpoint_test *test,
 	int j;
 	u32 val;
 	int size;
+	struct pci_dev *pdev = test->pdev;
 
 	if (!test->bar[barno])
 		return false;
 
-	size = bar_size[barno];
+	size = pci_resource_len(pdev, barno);
 
 	if (barno == test->test_reg_bar)
 		size = 0x4;
