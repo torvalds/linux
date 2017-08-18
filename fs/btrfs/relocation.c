@@ -799,9 +799,17 @@ again:
 		if (ptr < end) {
 			/* update key for inline back ref */
 			struct btrfs_extent_inline_ref *iref;
+			int type;
 			iref = (struct btrfs_extent_inline_ref *)ptr;
-			key.type = btrfs_extent_inline_ref_type(eb, iref);
+			type = btrfs_get_extent_inline_ref_type(eb, iref,
+							BTRFS_REF_TYPE_BLOCK);
+			if (type == BTRFS_REF_TYPE_INVALID) {
+				err = -EINVAL;
+				goto out;
+			}
+			key.type = type;
 			key.offset = btrfs_extent_inline_ref_offset(eb, iref);
+
 			WARN_ON(key.type != BTRFS_TREE_BLOCK_REF_KEY &&
 				key.type != BTRFS_SHARED_BLOCK_REF_KEY);
 		}
@@ -3753,7 +3761,8 @@ int add_data_references(struct reloc_control *rc,
 
 	while (ptr < end) {
 		iref = (struct btrfs_extent_inline_ref *)ptr;
-		key.type = btrfs_extent_inline_ref_type(eb, iref);
+		key.type = btrfs_get_extent_inline_ref_type(eb, iref,
+							BTRFS_REF_TYPE_DATA);
 		if (key.type == BTRFS_SHARED_DATA_REF_KEY) {
 			key.offset = btrfs_extent_inline_ref_offset(eb, iref);
 			ret = __add_tree_block(rc, key.offset, blocksize,
