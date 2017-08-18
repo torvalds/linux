@@ -266,7 +266,7 @@ static snd_pcm_uframes_t pdacf_pcm_capture_pointer(struct snd_pcm_substream *sub
 /*
  * operators for PCM capture
  */
-static struct snd_pcm_ops pdacf_pcm_capture_ops = {
+static const struct snd_pcm_ops pdacf_pcm_capture_ops = {
 	.open =		pdacf_pcm_capture_open,
 	.close =	pdacf_pcm_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
