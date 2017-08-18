@@ -1125,14 +1125,13 @@ static int pi433_probe(struct spi_device *spi)
 	if (retval < 0)
 		return retval;
 
-	switch(retval)
-	{
-		case 0x24:
-			dev_dbg(&spi->dev, "found pi433 (ver. 0x%x)", retval);
-			break;
-		default:
-			dev_dbg(&spi->dev, "unknown chip version: 0x%x", retval);
-			return -ENODEV;
+	switch (retval) {
+	case 0x24:
+		dev_dbg(&spi->dev, "found pi433 (ver. 0x%x)", retval);
+		break;
+	default:
+		dev_dbg(&spi->dev, "unknown chip version: 0x%x", retval);
+		return -ENODEV;
 	}
 
 	/* Allocate driver data */
