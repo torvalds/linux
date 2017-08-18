@@ -3953,37 +3953,38 @@ static void __qeth_fill_buffer(struct sk_buff *skb,
 	buf->next_element_to_fill = element;
 }
 
+/**
+ * qeth_fill_buffer() - map skb into an output buffer
+ * @queue:	QDIO queue to submit the buffer on
+ * @buf:	buffer to transport the skb
+ * @skb:	skb to map into the buffer
+ * @hdr:	qeth_hdr for this skb. Either at skb->data, or allocated
+ *		from qeth_core_header_cache.
+ * @offset:	when mapping the skb, start at skb->data + offset
+ * @hd_len:	if > 0, build a dedicated header element of this size
+ */
 static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 			    struct qeth_qdio_out_buffer *buf,
 			    struct sk_buff *skb, struct qeth_hdr *hdr,
 			    unsigned int offset, unsigned int hd_len)
 {
-	struct qdio_buffer *buffer;
+	struct qdio_buffer *buffer = buf->buffer;
 	bool is_first_elem = true;
 	int flush_cnt = 0;
 
-	buffer = buf->buffer;
 	refcount_inc(&skb->users);
 	skb_queue_tail(&buf->skb_list, skb);
 
-	if (hdr->hdr.l3.id == QETH_HEADER_TYPE_TSO) {
-		int element = buf->next_element_to_fill;
-		is_first_elem = false;
-
-		/*fill first buffer entry only with header information */
-		buffer->element[element].addr = skb->data;
-		buffer->element[element].length = hd_len;
-		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
-		buf->next_element_to_fill++;
-	/* IQD */
-	} else if (offset) {
+	/* build dedicated header element */
+	if (hd_len) {
 		int element = buf->next_element_to_fill;
 		is_first_elem = false;
 
 		buffer->element[element].addr = hdr;
 		buffer->element[element].length = hd_len;
 		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
-		buf->is_header[element] = 1;
+		/* remember to free cache-allocated qeth_hdr: */
+		buf->is_header[element] = ((void *)hdr != skb->data);
 		buf->next_element_to_fill++;
 	}
 
