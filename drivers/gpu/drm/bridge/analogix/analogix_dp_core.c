@@ -765,7 +765,6 @@ static int analogix_dp_set_link_train(struct analogix_dp_device *dp,
 
 static int analogix_dp_config_video(struct analogix_dp_device *dp)
 {
-	int retval = 0;
 	int timeout_loop = 0;
 	int done_count = 0;
 
@@ -802,8 +801,10 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 	/* Configure video slave mode */
 	analogix_dp_enable_video_master(dp, 0);
 
-	timeout_loop = 0;
+	/* Enable video input */
+	analogix_dp_start_video(dp);
 
+	timeout_loop = 0;
 	for (;;) {
 		timeout_loop++;
 		if (analogix_dp_is_video_stream_on(dp) == 0) {
@@ -821,10 +822,7 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 		usleep_range(1000, 1001);
 	}
 
-	if (retval != 0)
-		dev_err(dp->dev, "Video stream is not detected!\n");
-
-	return retval;
+	return 0;
 }
 
 static void analogix_dp_enable_scramble(struct analogix_dp_device *dp,
@@ -925,9 +923,6 @@ static void analogix_dp_commit(struct analogix_dp_device *dp)
 		if (drm_panel_enable(dp->plat_data->panel))
 			DRM_ERROR("failed to enable the panel\n");
 	}
-
-	/* Enable video */
-	analogix_dp_start_video(dp);
 }
 
 int analogix_dp_get_modes(struct drm_connector *connector)
