@@ -320,6 +320,8 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	repr->dst->u.port_info.lower_dev = pf_netdev;
 
 	netdev->netdev_ops = &nfp_repr_netdev_ops;
+	netdev->ethtool_ops = &nfp_port_ethtool_ops;
+
 	SWITCHDEV_SET_OPS(netdev, &nfp_port_switchdev_ops);
 
 	if (nfp_app_has_tc(app)) {

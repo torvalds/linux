@@ -106,6 +106,7 @@ struct nfp_port {
 	struct list_head port_list;
 };
 
+extern const struct ethtool_ops nfp_port_ethtool_ops;
 extern const struct switchdev_ops nfp_port_switchdev_ops;
 
 int nfp_port_setup_tc(struct net_device *netdev, enum tc_setup_type type,

@@ -939,6 +939,10 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_link_ksettings	= nfp_net_set_link_ksettings,
 };
 
+const struct ethtool_ops nfp_port_ethtool_ops = {
+	.get_link		= ethtool_op_get_link,
+};
+
 void nfp_net_set_ethtool_ops(struct net_device *netdev)
 {
 	netdev->ethtool_ops = &nfp_net_ethtool_ops;
