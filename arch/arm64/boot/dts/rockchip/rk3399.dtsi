@@ -1168,6 +1168,8 @@
 			compatible = "rockchip,rk3399-pmu-pvtm";
 			clocks = <&pmucru SCLK_PVTM_PMU>;
 			clock-names = "pmu";
+			resets = <&cru SRST_PVTM>;
+			reset-names = "pmu";
 			status = "disabled";
 		};
 	};
@@ -1570,6 +1572,11 @@
 				 <&cru SCLK_PVTM_GPU>,
 				 <&cru SCLK_PVTM_DDR>;
 			clock-names = "core_l", "core_b", "gpu", "ddr";
+			resets = <&cru SRST_PVTM_CORE_L>,
+				 <&cru SRST_PVTM_CORE_B>,
+				 <&cru SRST_PVTM_GPU>,
+				 <&cru SRST_PVTM_DDR>;
+			reset-names = "core_l", "core_b", "gpu", "ddr";
 			status = "disabled";
 		};
 	};
