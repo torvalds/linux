@@ -263,22 +263,26 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	int ret;
 	u8 irq;
 	u8 msi_count;
+	u32 command;
 	struct pci_epf_test *epf_test = container_of(work, struct pci_epf_test,
 						     cmd_handler.work);
 	struct pci_epf *epf = epf_test->epf;
 	struct pci_epc *epc = epf->epc;
 	volatile struct pci_epf_test_reg *reg = epf_test->reg[0];
 
-	if (!reg->command)
+	command = reg->command;
+	if (!command)
 		goto reset_handler;
 
-	if (reg->command & COMMAND_RAISE_LEGACY_IRQ) {
+	reg->command = 0;
+
+	if (command & COMMAND_RAISE_LEGACY_IRQ) {
 		reg->status = STATUS_IRQ_RAISED;
 		pci_epc_raise_irq(epc, PCI_EPC_IRQ_LEGACY, 0);
 		goto reset_handler;
 	}
 
-	if (reg->command & COMMAND_WRITE) {
+	if (command & COMMAND_WRITE) {
 		ret = pci_epf_test_write(epf_test);
 		if (ret)
 			reg->status |= STATUS_WRITE_FAIL;
@@ -288,7 +292,7 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 		goto reset_handler;
 	}
 
-	if (reg->command & COMMAND_READ) {
+	if (command & COMMAND_READ) {
 		ret = pci_epf_test_read(epf_test);
 		if (!ret)
 			reg->status |= STATUS_READ_SUCCESS;
@@ -298,7 +302,7 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 		goto reset_handler;
 	}
 
-	if (reg->command & COMMAND_COPY) {
+	if (command & COMMAND_COPY) {
 		ret = pci_epf_test_copy(epf_test);
 		if (!ret)
 			reg->status |= STATUS_COPY_SUCCESS;
@@ -308,9 +312,9 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 		goto reset_handler;
 	}
 
-	if (reg->command & COMMAND_RAISE_MSI_IRQ) {
+	if (command & COMMAND_RAISE_MSI_IRQ) {
 		msi_count = pci_epc_get_msi(epc);
-		irq = (reg->command & MSI_NUMBER_MASK) >> MSI_NUMBER_SHIFT;
+		irq = (command & MSI_NUMBER_MASK) >> MSI_NUMBER_SHIFT;
 		if (irq > msi_count || msi_count <= 0)
 			goto reset_handler;
 		reg->status = STATUS_IRQ_RAISED;
@@ -319,8 +323,6 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	}
 
 reset_handler:
-	reg->command = 0;
-
 	queue_delayed_work(kpcitest_workqueue, &epf_test->cmd_handler,
 			   msecs_to_jiffies(1));
 }
