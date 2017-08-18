@@ -649,6 +649,7 @@ static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 		target_col = &its_dev->its->collections[cpu];
 		its_send_movi(its_dev, target_col, id);
 		its_dev->event_map.col_map[id] = cpu;
+		irq_data_update_effective_affinity(d, cpumask_of(cpu));
 	}
 
 	return IRQ_SET_MASK_OK_DONE;
@@ -1481,6 +1482,7 @@ static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 
 		irq_domain_set_hwirq_and_chip(domain, virq + i,
 					      hwirq, &its_irq_chip, its_dev);
+		irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(virq + i)));
 		pr_debug("ID:%d pID:%d vID:%d\n",
 			 (int)(hwirq - its_dev->event_map.lpi_base),
 			 (int) hwirq, virq + i);
@@ -1495,13 +1497,16 @@ static void its_irq_domain_activate(struct irq_domain *domain,
 	struct its_device *its_dev = irq_data_get_irq_chip_data(d);
 	u32 event = its_get_event_id(d);
 	const struct cpumask *cpu_mask = cpu_online_mask;
+	int cpu;
 
 	/* get the cpu_mask of local node */
 	if (its_dev->its->numa_node >= 0)
 		cpu_mask = cpumask_of_node(its_dev->its->numa_node);
 
 	/* Bind the LPI to the first possible CPU */
-	its_dev->event_map.col_map[event] = cpumask_first(cpu_mask);
+	cpu = cpumask_first(cpu_mask);
+	its_dev->event_map.col_map[event] = cpu;
+	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 
 	/* Map the GIC IRQ and event to the device */
 	its_send_mapti(its_dev, d->hwirq, event);
