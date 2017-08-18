@@ -100,7 +100,7 @@ struct xilinxfb_platform_data {
 /*
  * Default xilinxfb configuration
  */
-static struct xilinxfb_platform_data xilinx_fb_default_pdata = {
+static const struct xilinxfb_platform_data xilinx_fb_default_pdata = {
 	.xres = 640,
 	.yres = 480,
 	.xvirt = 1024,
