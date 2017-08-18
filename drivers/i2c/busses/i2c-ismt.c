@@ -324,6 +324,8 @@ static int ismt_process_desc(const struct ismt_desc *desc,
 
 	dev_dbg(&priv->pci_dev->dev, "Processing completed descriptor\n");
 	__ismt_desc_dump(&priv->pci_dev->dev, desc);
+	ismt_gen_reg_dump(priv);
+	ismt_mstr_reg_dump(priv);
 
 	if (desc->status & ISMT_DESC_SCS) {
 		if (read_write == I2C_SMBUS_WRITE &&
