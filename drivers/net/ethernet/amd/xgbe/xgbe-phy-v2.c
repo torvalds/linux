@@ -2921,7 +2921,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 			phy_data->start_mode = XGBE_MODE_KR;
 		}
 
-		phy_data->phydev_mode = XGBE_MDIO_MODE_NONE;
+		phy_data->phydev_mode = XGBE_MDIO_MODE_CL45;
 		break;
 
 	/* 10GBase-R support */
