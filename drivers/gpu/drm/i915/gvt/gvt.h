@@ -166,6 +166,9 @@ struct intel_vgpu {
 	struct list_head workload_q_head[I915_NUM_ENGINES];
 	struct kmem_cache *workloads;
 	atomic_t running_workload_num;
+	/* 1/2K for each reserve ring buffer */
+	void *reserve_ring_buffer_va[I915_NUM_ENGINES];
+	int reserve_ring_buffer_size[I915_NUM_ENGINES];
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	struct i915_gem_context *shadow_ctx;
 	DECLARE_BITMAP(shadow_ctx_desc_updated, I915_NUM_ENGINES);

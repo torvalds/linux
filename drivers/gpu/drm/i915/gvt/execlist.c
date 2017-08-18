@@ -820,10 +820,21 @@ static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask)
 
 void intel_vgpu_clean_execlist(struct intel_vgpu *vgpu)
 {
+	enum intel_engine_id i;
+	struct intel_engine_cs *engine;
+
 	clean_workloads(vgpu, ALL_ENGINES);
 	kmem_cache_destroy(vgpu->workloads);
+
+	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
+		kfree(vgpu->reserve_ring_buffer_va[i]);
+		vgpu->reserve_ring_buffer_va[i] = NULL;
+		vgpu->reserve_ring_buffer_size[i] = 0;
+	}
+
 }
 
+#define RESERVE_RING_BUFFER_SIZE		((1 * PAGE_SIZE)/8)
 int intel_vgpu_init_execlist(struct intel_vgpu *vgpu)
 {
 	enum intel_engine_id i;
@@ -843,7 +854,26 @@ int intel_vgpu_init_execlist(struct intel_vgpu *vgpu)
 	if (!vgpu->workloads)
 		return -ENOMEM;
 
+	/* each ring has a shadow ring buffer until vgpu destroyed */
+	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
+		vgpu->reserve_ring_buffer_va[i] =
+			kmalloc(RESERVE_RING_BUFFER_SIZE, GFP_KERNEL);
+		if (!vgpu->reserve_ring_buffer_va[i]) {
+			gvt_vgpu_err("fail to alloc reserve ring buffer\n");
+			goto out;
+		}
+		vgpu->reserve_ring_buffer_size[i] = RESERVE_RING_BUFFER_SIZE;
+	}
 	return 0;
+out:
+	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
+		if (vgpu->reserve_ring_buffer_size[i]) {
+			kfree(vgpu->reserve_ring_buffer_va[i]);
+			vgpu->reserve_ring_buffer_va[i] = NULL;
+			vgpu->reserve_ring_buffer_size[i] = 0;
+		}
+	}
+	return -ENOMEM;
 }
 
 void intel_vgpu_reset_execlist(struct intel_vgpu *vgpu,
