@@ -4049,6 +4049,18 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	atomic_set(&octeon_dev->status, OCT_DEV_INTR_SET_DONE);
 
+	/* Send Credit for Octeon Output queues. Credits are always sent BEFORE
+	 * the output queue is enabled.
+	 * This ensures that we'll receive the f/w CORE DRV_ACTIVE message in
+	 * case we've configured CN23XX_SLI_GBL_CONTROL[NOPTR_D] = 0.
+	 * Otherwise, it is possible that the DRV_ACTIVE message will be sent
+	 * before any credits have been issued, causing the ring to be reset
+	 * (and the f/w appear to never have started).
+	 */
+	for (j = 0; j < octeon_dev->num_oqs; j++)
+		writel(octeon_dev->droq[j]->max_count,
+		       octeon_dev->droq[j]->pkts_credit_reg);
+
 	/* Enable the input and output queues for this Octeon device */
 	ret = octeon_dev->fn_list.enable_io_queues(octeon_dev);
 	if (ret) {
@@ -4133,14 +4145,6 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	atomic_set(&octeon_dev->status, OCT_DEV_HOST_OK);
 
-	/* Send Credit for Octeon Output queues. Credits are always sent after
-	 * the output queue is enabled.
-	 */
-	for (j = 0; j < octeon_dev->num_oqs; j++)
-		writel(octeon_dev->droq[j]->max_count,
-		       octeon_dev->droq[j]->pkts_credit_reg);
-
-	/* Packets can start arriving on the output queues from this point. */
 	return 0;
 }
 
