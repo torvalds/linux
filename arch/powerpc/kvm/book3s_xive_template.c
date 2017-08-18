@@ -17,6 +17,12 @@ static void GLUE(X_PFX,ack_pending)(struct kvmppc_xive_vcpu *xc)
 	u16 ack;
 
 	/*
+	 * Ensure any previous store to CPPR is ordered vs.
+	 * the subsequent loads from PIPR or ACK.
+	 */
+	eieio();
+
+	/*
 	 * DD1 bug workaround: If PIPR is less favored than CPPR
 	 * ignore the interrupt or we might incorrectly lose an IPB
 	 * bit.
@@ -244,6 +250,11 @@ skip_ipi:
 	/*
 	 * If we found an interrupt, adjust what the guest CPPR should
 	 * be as if we had just fetched that interrupt from HW.
+	 *
+	 * Note: This can only make xc->cppr smaller as the previous
+	 * loop will only exit with hirq != 0 if prio is lower than
+	 * the current xc->cppr. Thus we don't need to re-check xc->mfrr
+	 * for pending IPIs.
 	 */
 	if (hirq)
 		xc->cppr = prio;
@@ -390,6 +401,12 @@ X_STATIC int GLUE(X_PFX,h_cppr)(struct kvm_vcpu *vcpu, unsigned long cppr)
 	xc->cppr = cppr;
 
 	/*
+	 * Order the above update of xc->cppr with the subsequent
+	 * read of xc->mfrr inside push_pending_to_hw()
+	 */
+	smp_mb();
+
+	/*
 	 * We are masking less, we need to look for pending things
 	 * to deliver and set VP pending bits accordingly to trigger
 	 * a new interrupt otherwise we might miss MFRR changes for
@@ -429,21 +446,37 @@ X_STATIC int GLUE(X_PFX,h_eoi)(struct kvm_vcpu *vcpu, unsigned long xirr)
 	 * used to signal MFRR changes is EOId when fetched from
 	 * the queue.
 	 */
-	if (irq == XICS_IPI || irq == 0)
+	if (irq == XICS_IPI || irq == 0) {
+		/*
+		 * This barrier orders the setting of xc->cppr vs.
+		 * subsquent test of xc->mfrr done inside
+		 * scan_interrupts and push_pending_to_hw
+		 */
+		smp_mb();
 		goto bail;
+	}
 
 	/* Find interrupt source */
 	sb = kvmppc_xive_find_source(xive, irq, &src);
 	if (!sb) {
 		pr_devel(" source not found !\n");
 		rc = H_PARAMETER;
+		/* Same as above */
+		smp_mb();
 		goto bail;
 	}
 	state = &sb->irq_state[src];
 	kvmppc_xive_select_irq(state, &hw_num, &xd);
 
 	state->in_eoi = true;
-	mb();
+
+	/*
+	 * This barrier orders both setting of in_eoi above vs,
+	 * subsequent test of guest_priority, and the setting
+	 * of xc->cppr vs. subsquent test of xc->mfrr done inside
+	 * scan_interrupts and push_pending_to_hw
+	 */
+	smp_mb();
 
 again:
 	if (state->guest_priority == MASKED) {
@@ -470,6 +503,14 @@ again:
 
 	}
 
+	/*
+	 * This barrier orders the above guest_priority check
+	 * and spin_lock/unlock with clearing in_eoi below.
+	 *
+	 * It also has to be a full mb() as it must ensure
+	 * the MMIOs done in source_eoi() are completed before
+	 * state->in_eoi is visible.
+	 */
 	mb();
 	state->in_eoi = false;
 bail:
@@ -503,6 +544,18 @@ X_STATIC int GLUE(X_PFX,h_ipi)(struct kvm_vcpu *vcpu, unsigned long server,
 
 	/* Locklessly write over MFRR */
 	xc->mfrr = mfrr;
+
+	/*
+	 * The load of xc->cppr below and the subsequent MMIO store
+	 * to the IPI must happen after the above mfrr update is
+	 * globally visible so that:
+	 *
+	 * - Synchronize with another CPU doing an H_EOI or a H_CPPR
+	 *   updating xc->cppr then reading xc->mfrr.
+	 *
+	 * - The target of the IPI sees the xc->mfrr update
+	 */
+	mb();
 
 	/* Shoot the IPI if most favored than target cppr */
 	if (mfrr < xc->cppr)
