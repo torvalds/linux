@@ -2622,12 +2622,6 @@ static int amdgpu_recover_vram_from_shadow(struct amdgpu_device *adev,
 			goto err;
 		}
 
-		r = amdgpu_ttm_bind(&bo->shadow->tbo, &bo->shadow->tbo.mem);
-		if (r) {
-			DRM_ERROR("%p bind failed\n", bo->shadow);
-			goto err;
-		}
-
 		r = amdgpu_bo_restore_from_shadow(adev, ring, bo,
 						 NULL, fence, true);
 		if (r) {

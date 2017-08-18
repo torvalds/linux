@@ -165,14 +165,6 @@ static int amdgpu_vm_validate_level(struct amdgpu_vm_pt *parent,
 	unsigned i;
 	int r;
 
-	if (parent->bo->shadow) {
-		struct amdgpu_bo *shadow = parent->bo->shadow;
-
-		r = amdgpu_ttm_bind(&shadow->tbo, &shadow->tbo.mem);
-		if (r)
-			return r;
-	}
-
 	if (use_cpu_for_update) {
 		r = amdgpu_bo_kmap(parent->bo, NULL);
 		if (r)
