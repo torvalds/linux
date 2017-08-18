@@ -34,11 +34,12 @@ driver consists of:
 - ISPIF (ISP Interface) module. Handles the routing of the data streams from
   the CSIDs to the inputs of the VFE;
 - VFE (Video Front End) module. Contains a pipeline of image processing hardware
-  blocks. The VFE has different input interfaces. The PIX input interface feeds
-  the input data to the image processing pipeline. The image processing pipeline
-  contains also a scale and crop module at the end. Three RDI input interfaces
-  bypass the image processing pipeline. The VFE also contains the AXI bus
-  interface which writes the output data to memory.
+  blocks. The VFE has different input interfaces. The PIX (Pixel) input
+  interface feeds the input data to the image processing pipeline. The image
+  processing pipeline contains also a scale and crop module at the end. Three
+  RDI (Raw Dump Interface) input interfaces bypass the image processing
+  pipeline. The VFE also contains the AXI bus interface which writes the output
+  data to memory.
 
 
 Supported functionality
