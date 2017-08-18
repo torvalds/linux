@@ -401,7 +401,7 @@ fdb_add:
 	esw_debug(esw->dev, "\tADDED UC MAC: vport[%d] %pM fr(%p)\n",
 		  vport, mac, vaddr->flow_rule);
 
-	return err;
+	return 0;
 }
 
 static int esw_del_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
