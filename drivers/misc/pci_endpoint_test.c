@@ -72,6 +72,11 @@ static DEFINE_IDA(pci_endpoint_test_ida);
 
 #define to_endpoint_test(priv) container_of((priv), struct pci_endpoint_test, \
 					    miscdev)
+
+static bool no_msi;
+module_param(no_msi, bool, 0444);
+MODULE_PARM_DESC(no_msi, "Disable MSI interrupt in pci_endpoint_test");
+
 enum pci_barno {
 	BAR_0,
 	BAR_1,
@@ -451,7 +456,6 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	int err;
 	int irq = 0;
 	int id;
-	bool no_msi = false;
 	char name[20];
 	enum pci_barno bar;
 	void __iomem *base;
