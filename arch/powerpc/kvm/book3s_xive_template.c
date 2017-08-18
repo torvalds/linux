@@ -16,7 +16,16 @@ static void GLUE(X_PFX,ack_pending)(struct kvmppc_xive_vcpu *xc)
 	u8 cppr;
 	u16 ack;
 
-	/* XXX DD1 bug workaround: Check PIPR vs. CPPR first ! */
+	/*
+	 * DD1 bug workaround: If PIPR is less favored than CPPR
+	 * ignore the interrupt or we might incorrectly lose an IPB
+	 * bit.
+	 */
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		u8 pipr = __x_readb(__x_tima + TM_QW1_OS + TM_PIPR);
+		if (pipr >= xc->hw_cppr)
+			return;
+	}
 
 	/* Perform the acknowledge OS to register cycle. */
 	ack = be16_to_cpu(__x_readw(__x_tima + TM_SPC_ACK_OS_REG));
