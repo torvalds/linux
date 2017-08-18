@@ -186,6 +186,7 @@ struct dw_pcie_ep {
 	struct dw_pcie_ep_ops	*ops;
 	phys_addr_t		phys_base;
 	size_t			addr_size;
+	size_t			page_size;
 	u8			bar_to_atu[6];
 	phys_addr_t		*outbound_addr;
 	unsigned long		ib_window_map;
