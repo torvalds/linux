@@ -459,7 +459,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 }
 
 void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif,
-				 const u8 *addr, unsigned int bit)
+				 const u8 *addr, unsigned int tid)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
@@ -470,7 +470,7 @@ void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif,
 	if (!sta)
 		goto unlock;
 
-	set_bit(bit, sta->ampdu_mlme.tid_rx_manage_offl);
+	set_bit(tid, sta->ampdu_mlme.tid_rx_manage_offl);
 	ieee80211_queue_work(&local->hw, &sta->ampdu_mlme.work);
  unlock:
 	rcu_read_unlock();
