@@ -1879,6 +1879,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 err_detach:
 	tun_detach_all(dev);
+	/* register_netdevice() already called tun_free_netdev() */
+	goto err_free_dev;
+
 err_free_flow:
 	tun_flow_uninit(tun);
 	security_tun_dev_free_security(tun->security);
