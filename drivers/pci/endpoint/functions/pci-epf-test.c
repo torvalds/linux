@@ -267,7 +267,7 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 						     cmd_handler.work);
 	struct pci_epf *epf = epf_test->epf;
 	struct pci_epc *epc = epf->epc;
-	struct pci_epf_test_reg *reg = epf_test->reg[0];
+	volatile struct pci_epf_test_reg *reg = epf_test->reg[0];
 
 	if (!reg->command)
 		goto reset_handler;
