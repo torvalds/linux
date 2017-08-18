@@ -2155,9 +2155,9 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 				      const struct drm_connector_state *conn_state,
 				      struct intel_shared_dpll *pll)
 {
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(&encoder->base);
+	struct intel_hdmi *intel_hdmi = &intel_dig_port->hdmi;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct drm_encoder *drm_encoder = &encoder->base;
 	enum port port = intel_ddi_get_encoder_port(encoder);
 	int level = intel_ddi_hdmi_level(dev_priv, port);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
@@ -2176,9 +2176,9 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 	else if (IS_CANNONLAKE(dev_priv))
 		cnl_ddi_vswing_sequence(encoder, level);
 
-	intel_hdmi->set_infoframes(drm_encoder,
-				   has_infoframe,
-				   crtc_state, conn_state);
+	intel_dig_port->set_infoframes(&encoder->base,
+				       has_infoframe,
+				       crtc_state, conn_state);
 }
 
 static void intel_ddi_pre_enable(struct intel_encoder *encoder,
@@ -2239,10 +2239,8 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder,
 		intel_wait_ddi_buf_idle(dev_priv, port);
 
 	if (type == INTEL_OUTPUT_HDMI) {
-		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
-
-		intel_hdmi->set_infoframes(encoder, false,
-					   old_crtc_state, old_conn_state);
+		dig_port->set_infoframes(encoder, false,
+					 old_crtc_state, old_conn_state);
 	}
 
 	if (type == INTEL_OUTPUT_DP || type == INTEL_OUTPUT_EDP) {
@@ -2444,7 +2442,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
-	struct intel_hdmi *intel_hdmi;
+	struct intel_digital_port *intel_dig_port;
 	u32 temp, flags = 0;
 
 	/* XXX: DSI transcoder paranoia */
@@ -2483,9 +2481,9 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	switch (temp & TRANS_DDI_MODE_SELECT_MASK) {
 	case TRANS_DDI_MODE_SELECT_HDMI:
 		pipe_config->has_hdmi_sink = true;
-		intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+		intel_dig_port = enc_to_dig_port(&encoder->base);
 
-		if (intel_hdmi->infoframe_enabled(&encoder->base, pipe_config))
+		if (intel_dig_port->infoframe_enabled(&encoder->base, pipe_config))
 			pipe_config->has_infoframe = true;
 
 		if ((temp & TRANS_DDI_HDMI_SCRAMBLING_MASK) ==
