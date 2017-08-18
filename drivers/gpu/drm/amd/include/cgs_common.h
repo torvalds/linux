@@ -50,6 +50,7 @@ enum cgs_ind_reg {
 	CGS_IND_REG__UVD_CTX,
 	CGS_IND_REG__DIDT,
 	CGS_IND_REG_GC_CAC,
+	CGS_IND_REG_SE_CAC,
 	CGS_IND_REG__AUDIO_ENDPT
 };
 
@@ -406,6 +407,8 @@ typedef int (*cgs_is_virtualization_enabled_t)(void *cgs_device);
 
 typedef int (*cgs_enter_safe_mode)(struct cgs_device *cgs_device, bool en);
 
+typedef void (*cgs_lock_grbm_idx)(struct cgs_device *cgs_device, bool lock);
+
 struct cgs_ops {
 	/* memory management calls (similar to KFD interface) */
 	cgs_alloc_gpu_mem_t alloc_gpu_mem;
@@ -441,6 +444,7 @@ struct cgs_ops {
 	cgs_query_system_info query_system_info;
 	cgs_is_virtualization_enabled_t is_virtualization_enabled;
 	cgs_enter_safe_mode enter_safe_mode;
+	cgs_lock_grbm_idx lock_grbm_idx;
 };
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
@@ -517,4 +521,6 @@ struct cgs_device
 #define cgs_enter_safe_mode(cgs_device, en) \
 		CGS_CALL(enter_safe_mode, cgs_device, en)
 
+#define cgs_lock_grbm_idx(cgs_device, lock) \
+		CGS_CALL(lock_grbm_idx, cgs_device, lock)
 #endif /* _CGS_COMMON_H */

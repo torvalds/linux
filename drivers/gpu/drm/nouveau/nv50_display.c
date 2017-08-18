@@ -3658,15 +3658,24 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	drm_mode_connector_attach_encoder(connector, encoder);
 
 	if (dcbe->type == DCB_OUTPUT_DP) {
+		struct nv50_disp *disp = nv50_disp(encoder->dev);
 		struct nvkm_i2c_aux *aux =
 			nvkm_i2c_aux_find(i2c, dcbe->i2c_index);
 		if (aux) {
-			nv_encoder->i2c = &nv_connector->aux.ddc;
+			if (disp->disp->oclass < GF110_DISP) {
+				/* HW has no support for address-only
+				 * transactions, so we're required to
+				 * use custom I2C-over-AUX code.
+				 */
+				nv_encoder->i2c = &aux->i2c;
+			} else {
+				nv_encoder->i2c = &nv_connector->aux.ddc;
+			}
 			nv_encoder->aux = aux;
 		}
 
 		/*TODO: Use DP Info Table to check for support. */
-		if (nv50_disp(encoder->dev)->disp->oclass >= GF110_DISP) {
+		if (disp->disp->oclass >= GF110_DISP) {
 			ret = nv50_mstm_new(nv_encoder, &nv_connector->aux, 16,
 					    nv_connector->base.base.id,
 					    &nv_encoder->dp.mstm);
@@ -3888,7 +3897,7 @@ static void
 nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
-	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc_state *new_crtc_state, *old_crtc_state;
 	struct drm_crtc *crtc;
 	struct drm_plane_state *new_plane_state;
 	struct drm_plane *plane;
@@ -3909,12 +3918,14 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		mutex_lock(&disp->mutex);
 
 	/* Disable head(s). */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
 		struct nv50_head *head = nv50_head(crtc);
 
 		NV_ATOMIC(drm, "%s: clr %04x (set %04x)\n", crtc->name,
 			  asyh->clr.mask, asyh->set.mask);
+		if (old_crtc_state->active && !new_crtc_state->active)
+			drm_crtc_vblank_off(crtc);
 
 		if (asyh->clr.mask) {
 			nv50_head_flush_clr(head, asyh, atom->flush_disable);
@@ -3989,7 +4000,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	/* Update head(s). */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
 		struct nv50_head *head = nv50_head(crtc);
 
@@ -4000,11 +4011,13 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 			nv50_head_flush_set(head, asyh);
 			interlock_core = 1;
 		}
-	}
 
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-		if (new_crtc_state->event)
-			drm_crtc_vblank_get(crtc);
+		if (new_crtc_state->active) {
+			if (!old_crtc_state->active)
+				drm_crtc_vblank_on(crtc);
+			if (new_crtc_state->event)
+				drm_crtc_vblank_get(crtc);
+		}
 	}
 
 	/* Update plane(s). */
@@ -4051,12 +4064,15 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 		if (new_crtc_state->event) {
 			unsigned long flags;
 			/* Get correct count/ts if racing with vblank irq */
-			drm_crtc_accurate_vblank_count(crtc);
+			if (new_crtc_state->active)
+				drm_crtc_accurate_vblank_count(crtc);
 			spin_lock_irqsave(&crtc->dev->event_lock, flags);
 			drm_crtc_send_vblank_event(crtc, new_crtc_state->event);
 			spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
 			new_crtc_state->event = NULL;
-			drm_crtc_vblank_put(crtc);
+			if (new_crtc_state->active)
+				drm_crtc_vblank_put(crtc);
 		}
 	}
 

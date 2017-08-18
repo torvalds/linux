@@ -40,7 +40,7 @@ struct panel_drv_data {
 	struct spi_device *spi_dev;
 };
 
-static struct videomode td028ttec1_panel_vm = {
+static const struct videomode td028ttec1_panel_vm = {
 	.hactive	= 480,
 	.vactive	= 640,
 	.pixelclock	= 22153000,

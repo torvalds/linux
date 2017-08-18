@@ -2010,8 +2010,8 @@ static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder, u32 level)
 		val = I915_READ(CNL_PORT_TX_DW4_LN(port, ln));
 		val &= ~LOADGEN_SELECT;
 
-		if (((rate < 600000) && (width == 4) && (ln >= 1))  ||
-		    ((rate < 600000) && (width < 4) && ((ln == 1) || (ln == 2)))) {
+		if ((rate <= 600000 && width == 4 && ln >= 1)  ||
+		    (rate <= 600000 && width < 4 && (ln == 1 || ln == 2))) {
 			val |= LOADGEN_SELECT;
 		}
 		I915_WRITE(CNL_PORT_TX_DW4_LN(port, ln), val);

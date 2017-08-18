@@ -560,9 +560,6 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 		eb->args->flags |= __EXEC_HAS_RELOC;
 	}
 
-	entry->flags |= __EXEC_OBJECT_HAS_PIN;
-	GEM_BUG_ON(eb_vma_misplaced(entry, vma));
-
 	if (unlikely(entry->flags & EXEC_OBJECT_NEEDS_FENCE)) {
 		err = i915_vma_get_fence(vma);
 		if (unlikely(err)) {
@@ -573,6 +570,9 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 		if (i915_vma_pin_fence(vma))
 			entry->flags |= __EXEC_OBJECT_HAS_FENCE;
 	}
+
+	entry->flags |= __EXEC_OBJECT_HAS_PIN;
+	GEM_BUG_ON(eb_vma_misplaced(entry, vma));
 
 	return 0;
 }
@@ -1459,7 +1459,7 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 	 * to read. However, if the array is not writable the user loses
 	 * the updated relocation values.
 	 */
-	if (unlikely(!access_ok(VERIFY_READ, urelocs, remain*sizeof(urelocs))))
+	if (unlikely(!access_ok(VERIFY_READ, urelocs, remain*sizeof(*urelocs))))
 		return -EFAULT;
 
 	do {
@@ -1776,7 +1776,7 @@ out:
 		}
 	}
 
-	return err ?: have_copy;
+	return err;
 }
 
 static int eb_relocate(struct i915_execbuffer *eb)
@@ -1826,7 +1826,7 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 	int err;
 
 	for (i = 0; i < count; i++) {
-		const struct drm_i915_gem_exec_object2 *entry = &eb->exec[i];
+		struct drm_i915_gem_exec_object2 *entry = &eb->exec[i];
 		struct i915_vma *vma = exec_to_vma(entry);
 		struct drm_i915_gem_object *obj = vma->obj;
 
@@ -1842,11 +1842,13 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 			eb->request->capture_list = capture;
 		}
 
+		if (unlikely(obj->cache_dirty && !obj->cache_coherent)) {
+			if (i915_gem_clflush_object(obj, 0))
+				entry->flags &= ~EXEC_OBJECT_ASYNC;
+		}
+
 		if (entry->flags & EXEC_OBJECT_ASYNC)
 			goto skip_flushes;
-
-		if (unlikely(obj->cache_dirty && !obj->cache_coherent))
-			i915_gem_clflush_object(obj, 0);
 
 		err = i915_gem_request_await_object
 			(eb->request, obj, entry->flags & EXEC_OBJECT_WRITE);
@@ -2210,7 +2212,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		goto err_rpm;
 
 	err = eb_relocate(&eb);
-	if (err)
+	if (err) {
 		/*
 		 * If the user expects the execobject.offset and
 		 * reloc.presumed_offset to be an exact match,
@@ -2219,8 +2221,8 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		 * relocation.
 		 */
 		args->flags &= ~__EXEC_HAS_RELOC;
-	if (err < 0)
 		goto err_vma;
+	}
 
 	if (unlikely(eb.batch->exec_entry->flags & EXEC_OBJECT_WRITE)) {
 		DRM_DEBUG("Attempting to use self-modifying batch buffer\n");

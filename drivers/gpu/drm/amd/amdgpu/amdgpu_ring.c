@@ -184,32 +184,16 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 			return r;
 	}
 
-	if (ring->funcs->support_64bit_ptrs) {
-		r = amdgpu_wb_get_64bit(adev, &ring->rptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
-			return r;
-		}
+	r = amdgpu_wb_get(adev, &ring->rptr_offs);
+	if (r) {
+		dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
+		return r;
+	}
 
-		r = amdgpu_wb_get_64bit(adev, &ring->wptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
-			return r;
-		}
-
-	} else {
-		r = amdgpu_wb_get(adev, &ring->rptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
-			return r;
-		}
-
-		r = amdgpu_wb_get(adev, &ring->wptr_offs);
-		if (r) {
-			dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
-			return r;
-		}
-
+	r = amdgpu_wb_get(adev, &ring->wptr_offs);
+	if (r) {
+		dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
+		return r;
 	}
 
 	r = amdgpu_wb_get(adev, &ring->fence_offs);
@@ -277,18 +261,15 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 {
 	ring->ready = false;
 
-	if (ring->funcs->support_64bit_ptrs) {
-		amdgpu_wb_free_64bit(ring->adev, ring->cond_exe_offs);
-		amdgpu_wb_free_64bit(ring->adev, ring->fence_offs);
-		amdgpu_wb_free_64bit(ring->adev, ring->rptr_offs);
-		amdgpu_wb_free_64bit(ring->adev, ring->wptr_offs);
-	} else {
-		amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
-		amdgpu_wb_free(ring->adev, ring->fence_offs);
-		amdgpu_wb_free(ring->adev, ring->rptr_offs);
-		amdgpu_wb_free(ring->adev, ring->wptr_offs);
-	}
+	/* Not to finish a ring which is not initialized */
+	if (!(ring->adev) || !(ring->adev->rings[ring->idx]))
+		return;
 
+	amdgpu_wb_free(ring->adev, ring->rptr_offs);
+	amdgpu_wb_free(ring->adev, ring->wptr_offs);
+
+	amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
+	amdgpu_wb_free(ring->adev, ring->fence_offs);
 
 	amdgpu_bo_free_kernel(&ring->ring_obj,
 			      &ring->gpu_addr,

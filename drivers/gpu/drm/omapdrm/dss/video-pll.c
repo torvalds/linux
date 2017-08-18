@@ -19,7 +19,6 @@
 
 #include "omapdss.h"
 #include "dss.h"
-#include "dss_features.h"
 
 struct dss_video_pll {
 	struct dss_pll pll;

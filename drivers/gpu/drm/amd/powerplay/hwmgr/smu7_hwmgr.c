@@ -1962,9 +1962,6 @@ static int smu7_thermal_parameter_init(struct pp_hwmgr *hwmgr)
 			temp_reg = PHM_SET_FIELD(temp_reg, CNB_PWRMGT_CNTL, DPM_ENABLED, 0x1);
 			break;
 		default:
-			PP_ASSERT_WITH_CODE(0,
-			"Failed to setup PCC HW register! Wrong GPIO assigned for VDDC_PCC_GPIO_PINID!",
-			);
 			break;
 		}
 		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCNB_PWRMGT_CNTL, temp_reg);
@@ -4630,6 +4627,15 @@ static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
 
 static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
 {
+	struct pp_smumgr *smumgr = (struct pp_smumgr *)(hwmgr->smumgr);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
+
+	if (smu_data == NULL)
+		return -EINVAL;
+
+	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
+		return 0;
+
 	if (enable) {
 		if (!PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 				CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON))

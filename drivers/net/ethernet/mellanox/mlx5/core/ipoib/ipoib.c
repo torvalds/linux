@@ -178,8 +178,6 @@ out:
 
 static void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, struct mlx5_core_qp *qp)
 {
-	mlx5_fs_remove_rx_underlay_qpn(mdev, qp->qpn);
-
 	mlx5_core_destroy_qp(mdev, qp);
 }
 
@@ -193,8 +191,6 @@ static int mlx5i_init_tx(struct mlx5e_priv *priv)
 		mlx5_core_warn(priv->mdev, "create underlay QP failed, %d\n", err);
 		return err;
 	}
-
-	mlx5_fs_add_rx_underlay_qpn(priv->mdev, ipriv->qp.qpn);
 
 	err = mlx5e_create_tis(priv->mdev, 0 /* tc */, ipriv->qp.qpn, &priv->tisn[0]);
 	if (err) {
@@ -253,6 +249,7 @@ static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 
 static int mlx5i_init_rx(struct mlx5e_priv *priv)
 {
+	struct mlx5i_priv *ipriv  = priv->ppriv;
 	int err;
 
 	err = mlx5e_create_indirect_rqt(priv);
@@ -271,12 +268,18 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_indirect_tirs;
 
-	err = mlx5i_create_flow_steering(priv);
+	err = mlx5_fs_add_rx_underlay_qpn(priv->mdev, ipriv->qp.qpn);
 	if (err)
 		goto err_destroy_direct_tirs;
 
+	err = mlx5i_create_flow_steering(priv);
+	if (err)
+		goto err_remove_rx_underlay_qpn;
+
 	return 0;
 
+err_remove_rx_underlay_qpn:
+	mlx5_fs_remove_rx_underlay_qpn(priv->mdev, ipriv->qp.qpn);
 err_destroy_direct_tirs:
 	mlx5e_destroy_direct_tirs(priv);
 err_destroy_indirect_tirs:
@@ -290,6 +293,9 @@ err_destroy_indirect_rqts:
 
 static void mlx5i_cleanup_rx(struct mlx5e_priv *priv)
 {
+	struct mlx5i_priv *ipriv  = priv->ppriv;
+
+	mlx5_fs_remove_rx_underlay_qpn(priv->mdev, ipriv->qp.qpn);
 	mlx5i_destroy_flow_steering(priv);
 	mlx5e_destroy_direct_tirs(priv);
 	mlx5e_destroy_indirect_tirs(priv);

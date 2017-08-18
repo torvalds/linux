@@ -42,13 +42,17 @@ struct amdgpu_gtt_mgr {
 static int amdgpu_gtt_mgr_init(struct ttm_mem_type_manager *man,
 			       unsigned long p_size)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
 	struct amdgpu_gtt_mgr *mgr;
+	uint64_t start, size;
 
 	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (!mgr)
 		return -ENOMEM;
 
-	drm_mm_init(&mgr->mm, 0, p_size);
+	start = AMDGPU_GTT_MAX_TRANSFER_SIZE * AMDGPU_GTT_NUM_TRANSFER_WINDOWS;
+	size = (adev->mc.gart_size >> PAGE_SHIFT) - start;
+	drm_mm_init(&mgr->mm, start, size);
 	spin_lock_init(&mgr->lock);
 	mgr->available = p_size;
 	man->priv = mgr;
@@ -81,6 +85,20 @@ static int amdgpu_gtt_mgr_fini(struct ttm_mem_type_manager *man)
 }
 
 /**
+ * amdgpu_gtt_mgr_is_allocated - Check if mem has address space
+ *
+ * @mem: the mem object to check
+ *
+ * Check if a mem object has already address space allocated.
+ */
+bool amdgpu_gtt_mgr_is_allocated(struct ttm_mem_reg *mem)
+{
+	struct drm_mm_node *node = mem->mm_node;
+
+	return (node->start != AMDGPU_BO_INVALID_OFFSET);
+}
+
+/**
  * amdgpu_gtt_mgr_alloc - allocate new ranges
  *
  * @man: TTM memory type manager
@@ -95,13 +113,14 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 			 const struct ttm_place *place,
 			 struct ttm_mem_reg *mem)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
 	struct amdgpu_gtt_mgr *mgr = man->priv;
 	struct drm_mm_node *node = mem->mm_node;
 	enum drm_mm_insert_mode mode;
 	unsigned long fpfn, lpfn;
 	int r;
 
-	if (node->start != AMDGPU_BO_INVALID_OFFSET)
+	if (amdgpu_gtt_mgr_is_allocated(mem))
 		return 0;
 
 	if (place)
@@ -112,7 +131,7 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 	if (place && place->lpfn)
 		lpfn = place->lpfn;
 	else
-		lpfn = man->size;
+		lpfn = adev->gart.num_cpu_pages;
 
 	mode = DRM_MM_INSERT_BEST;
 	if (place && place->flags & TTM_PL_FLAG_TOPDOWN)

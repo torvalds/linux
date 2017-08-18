@@ -472,6 +472,23 @@ struct ttm_bo_driver {
 	 */
 	unsigned long (*io_mem_pfn)(struct ttm_buffer_object *bo,
 				    unsigned long page_offset);
+
+	/**
+	 * Read/write memory buffers for ptrace access
+	 *
+	 * @bo: the BO to access
+	 * @offset: the offset from the start of the BO
+	 * @buf: pointer to source/destination buffer
+	 * @len: number of bytes to copy
+	 * @write: whether to read (0) from or write (non-0) to BO
+	 *
+	 * If successful, this function should return the number of
+	 * bytes copied, -EIO otherwise. If the number of bytes
+	 * returned is < len, the function may be called again with
+	 * the remainder of the buffer to copy.
+	 */
+	int (*access_memory)(struct ttm_buffer_object *bo, unsigned long offset,
+			     void *buf, int len, int write);
 };
 
 /**
