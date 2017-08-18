@@ -132,6 +132,7 @@
 #include <linux/interrupt.h>
 #include <linux/dcache.h>
 #include <linux/ethtool.h>
+#include <linux/list.h>
 
 #define XGBE_DRV_NAME		"amd-xgbe"
 #define XGBE_DRV_VERSION	"1.0.3"
@@ -817,6 +818,11 @@ struct xgbe_hw_if {
 	/* For ECC */
 	void (*disable_ecc_ded)(struct xgbe_prv_data *);
 	void (*disable_ecc_sec)(struct xgbe_prv_data *, enum xgbe_ecc_sec);
+
+	/* For VXLAN */
+	void (*enable_vxlan)(struct xgbe_prv_data *);
+	void (*disable_vxlan)(struct xgbe_prv_data *);
+	void (*set_vxlan_id)(struct xgbe_prv_data *);
 };
 
 /* This structure represents implementation specific routines for an
@@ -941,6 +947,7 @@ struct xgbe_hw_features {
 	unsigned int addn_mac;		/* Additional MAC Addresses */
 	unsigned int ts_src;		/* Timestamp Source */
 	unsigned int sa_vlan_ins;	/* Source Address or VLAN Insertion */
+	unsigned int vxn;		/* VXLAN/NVGRE */
 
 	/* HW Feature Register1 */
 	unsigned int rx_fifo_size;	/* MTL Receive FIFO Size */
@@ -977,6 +984,12 @@ struct xgbe_version_data {
 	unsigned int irq_reissue_support;
 	unsigned int tx_desc_prefetch;
 	unsigned int rx_desc_prefetch;
+};
+
+struct xgbe_vxlan_data {
+	struct list_head list;
+	sa_family_t sa_family;
+	__be16 port;
 };
 
 struct xgbe_prv_data {
@@ -1119,6 +1132,15 @@ struct xgbe_prv_data {
 	u8 rss_key[XGBE_RSS_HASH_KEY_SIZE];
 	u32 rss_table[XGBE_RSS_MAX_TABLE_SIZE];
 	u32 rss_options;
+
+	/* VXLAN settings */
+	unsigned int vxlan_port_set;
+	unsigned int vxlan_offloads_set;
+	unsigned int vxlan_force_disable;
+	unsigned int vxlan_port_count;
+	struct list_head vxlan_ports;
+	u16 vxlan_port;
+	netdev_features_t vxlan_features;
 
 	/* Netdev related settings */
 	unsigned char mac_addr[ETH_ALEN];

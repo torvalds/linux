@@ -193,6 +193,7 @@ struct xgbe_prv_data *xgbe_alloc_pdata(struct device *dev)
 	mutex_init(&pdata->i2c_mutex);
 	init_completion(&pdata->i2c_complete);
 	init_completion(&pdata->mdio_complete);
+	INIT_LIST_HEAD(&pdata->vxlan_ports);
 
 	pdata->msg_enable = netif_msg_init(debug, default_msg_level);
 
@@ -373,6 +374,28 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 
 	if (pdata->hw_feat.rss)
 		netdev->hw_features |= NETIF_F_RXHASH;
+
+	if (pdata->hw_feat.vxn) {
+		netdev->hw_enc_features = NETIF_F_SG |
+					  NETIF_F_IP_CSUM |
+					  NETIF_F_IPV6_CSUM |
+					  NETIF_F_RXCSUM |
+					  NETIF_F_TSO |
+					  NETIF_F_TSO6 |
+					  NETIF_F_GRO |
+					  NETIF_F_GSO_UDP_TUNNEL |
+					  NETIF_F_GSO_UDP_TUNNEL_CSUM |
+					  NETIF_F_RX_UDP_TUNNEL_PORT;
+
+		netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL |
+				       NETIF_F_GSO_UDP_TUNNEL_CSUM |
+				       NETIF_F_RX_UDP_TUNNEL_PORT;
+
+		pdata->vxlan_offloads_set = 1;
+		pdata->vxlan_features = NETIF_F_GSO_UDP_TUNNEL |
+					NETIF_F_GSO_UDP_TUNNEL_CSUM |
+					NETIF_F_RX_UDP_TUNNEL_PORT;
+	}
 
 	netdev->vlan_features |= NETIF_F_SG |
 				 NETIF_F_IP_CSUM |

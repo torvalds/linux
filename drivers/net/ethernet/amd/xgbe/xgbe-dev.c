@@ -479,6 +479,50 @@ static bool xgbe_is_pfc_queue(struct xgbe_prv_data *pdata,
 	return false;
 }
 
+static void xgbe_set_vxlan_id(struct xgbe_prv_data *pdata)
+{
+	/* Program the VXLAN port */
+	XGMAC_IOWRITE_BITS(pdata, MAC_TIR, TNID, pdata->vxlan_port);
+
+	netif_dbg(pdata, drv, pdata->netdev, "VXLAN tunnel id set to %hx\n",
+		  pdata->vxlan_port);
+}
+
+static void xgbe_enable_vxlan(struct xgbe_prv_data *pdata)
+{
+	if (!pdata->hw_feat.vxn)
+		return;
+
+	/* Program the VXLAN port */
+	xgbe_set_vxlan_id(pdata);
+
+	/* Allow for IPv6/UDP zero-checksum VXLAN packets */
+	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VUCC, 1);
+
+	/* Enable VXLAN tunneling mode */
+	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, VNM, 0);
+	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, VNE, 1);
+
+	netif_dbg(pdata, drv, pdata->netdev, "VXLAN acceleration enabled\n");
+}
+
+static void xgbe_disable_vxlan(struct xgbe_prv_data *pdata)
+{
+	if (!pdata->hw_feat.vxn)
+		return;
+
+	/* Disable tunneling mode */
+	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, VNE, 0);
+
+	/* Clear IPv6/UDP zero-checksum VXLAN packets setting */
+	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VUCC, 0);
+
+	/* Clear the VXLAN port */
+	XGMAC_IOWRITE_BITS(pdata, MAC_TIR, TNID, 0);
+
+	netif_dbg(pdata, drv, pdata->netdev, "VXLAN acceleration disabled\n");
+}
+
 static int xgbe_disable_tx_flow_control(struct xgbe_prv_data *pdata)
 {
 	unsigned int max_q_count, q_count;
@@ -1610,7 +1654,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	struct xgbe_ring_desc *rdesc;
 	struct xgbe_packet_data *packet = &ring->packet_data;
 	unsigned int tx_packets, tx_bytes;
-	unsigned int csum, tso, vlan;
+	unsigned int csum, tso, vlan, vxlan;
 	unsigned int tso_context, vlan_context;
 	unsigned int tx_set_ic;
 	int start_index = ring->cur;
@@ -1628,6 +1672,8 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 			     TSO_ENABLE);
 	vlan = XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
 			      VLAN_CTAG);
+	vxlan = XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
+			       VXLAN);
 
 	if (tso && (packet->mss != ring->tx.cur_mss))
 		tso_context = 1;
@@ -1758,6 +1804,10 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, FL,
 				  packet->length);
 	}
+
+	if (vxlan)
+		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, VNP,
+				  TX_NORMAL_DESC3_VXLAN_PACKET);
 
 	for (i = cur_index - start_index + 1; i < packet->rdesc_count; i++) {
 		cur_index++;
@@ -1920,9 +1970,27 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	rdata->rx.len = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, PL);
 
 	/* Set checksum done indicator as appropriate */
-	if (netdev->features & NETIF_F_RXCSUM)
+	if (netdev->features & NETIF_F_RXCSUM) {
 		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 			       CSUM_DONE, 1);
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       TNPCSUM_DONE, 1);
+	}
+
+	/* Set the tunneled packet indicator */
+	if (XGMAC_GET_BITS_LE(rdesc->desc2, RX_NORMAL_DESC2, TNP)) {
+		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+			       TNP, 1);
+
+		l34t = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, L34T);
+		switch (l34t) {
+		case RX_DESC3_L34T_IPV4_UNKNOWN:
+		case RX_DESC3_L34T_IPV6_UNKNOWN:
+			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+				       TNPCSUM_DONE, 0);
+			break;
+		}
+	}
 
 	/* Check for errors (only valid in last descriptor) */
 	err = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, ES);
@@ -1942,12 +2010,23 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 				  packet->vlan_ctag);
 		}
 	} else {
-		if ((etlt == 0x05) || (etlt == 0x06))
+		unsigned int tnp = XGMAC_GET_BITS(packet->attributes,
+						  RX_PACKET_ATTRIBUTES, TNP);
+
+		if ((etlt == 0x05) || (etlt == 0x06)) {
 			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 				       CSUM_DONE, 0);
-		else
+			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+				       TNPCSUM_DONE, 0);
+		} else if (tnp && ((etlt == 0x09) || (etlt == 0x0a))) {
+			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+				       CSUM_DONE, 0);
+			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
+				       TNPCSUM_DONE, 0);
+		} else {
 			XGMAC_SET_BITS(packet->errors, RX_PACKET_ERRORS,
 				       FRAME, 1);
+		}
 	}
 
 	pdata->ext_stats.rxq_packets[channel->queue_index]++;
@@ -3535,6 +3614,11 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	/* For ECC */
 	hw_if->disable_ecc_ded = xgbe_disable_ecc_ded;
 	hw_if->disable_ecc_sec = xgbe_disable_ecc_sec;
+
+	/* For VXLAN */
+	hw_if->enable_vxlan = xgbe_enable_vxlan;
+	hw_if->disable_vxlan = xgbe_disable_vxlan;
+	hw_if->set_vxlan_id = xgbe_set_vxlan_id;
 
 	DBGPR("<--xgbe_init_function_ptrs\n");
 }
