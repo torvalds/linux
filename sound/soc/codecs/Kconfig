@@ -60,6 +60,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4271_I2C if I2C
 	select SND_SOC_CS4271_SPI if SPI_MASTER
 	select SND_SOC_CS42XX8_I2C if I2C
+	select SND_SOC_CS43130 if I2C
 	select SND_SOC_CS4349 if I2C
 	select SND_SOC_CS47L24 if MFD_CS47L24
 	select SND_SOC_CS53L30 if I2C
@@ -485,6 +486,11 @@ config SND_SOC_CS42XX8_I2C
 	depends on I2C
 	select SND_SOC_CS42XX8
 	select REGMAP_I2C
+
+# Cirrus Logic CS43130 HiFi DAC
+config SND_SOC_CS43130
+        tristate "Cirrus Logic CS43130 CODEC"
+        depends on I2C
 
 # Cirrus Logic CS4349 HiFi DAC
 config SND_SOC_CS4349
