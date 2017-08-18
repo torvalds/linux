@@ -126,7 +126,7 @@ static const u32 hpd_bxt[HPD_NUM_PINS] = {
 	POSTING_READ(GEN8_##type##_IIR(which)); \
 } while (0)
 
-#define GEN5_IRQ_RESET(type) do { \
+#define GEN3_IRQ_RESET(type) do { \
 	I915_WRITE(type##IMR, 0xffffffff); \
 	POSTING_READ(type##IMR); \
 	I915_WRITE(type##IER, 0); \
@@ -139,7 +139,7 @@ static const u32 hpd_bxt[HPD_NUM_PINS] = {
 /*
  * We should clear IMR at preinstall/uninstall, and just check at postinstall.
  */
-static void gen5_assert_iir_is_zero(struct drm_i915_private *dev_priv,
+static void gen3_assert_iir_is_zero(struct drm_i915_private *dev_priv,
 				    i915_reg_t reg)
 {
 	u32 val = I915_READ(reg);
@@ -156,14 +156,14 @@ static void gen5_assert_iir_is_zero(struct drm_i915_private *dev_priv,
 }
 
 #define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) do { \
-	gen5_assert_iir_is_zero(dev_priv, GEN8_##type##_IIR(which)); \
+	gen3_assert_iir_is_zero(dev_priv, GEN8_##type##_IIR(which)); \
 	I915_WRITE(GEN8_##type##_IER(which), (ier_val)); \
 	I915_WRITE(GEN8_##type##_IMR(which), (imr_val)); \
 	POSTING_READ(GEN8_##type##_IMR(which)); \
 } while (0)
 
-#define GEN5_IRQ_INIT(type, imr_val, ier_val) do { \
-	gen5_assert_iir_is_zero(dev_priv, type##IIR); \
+#define GEN3_IRQ_INIT(type, imr_val, ier_val) do { \
+	gen3_assert_iir_is_zero(dev_priv, type##IIR); \
 	I915_WRITE(type##IER, (ier_val)); \
 	I915_WRITE(type##IMR, (imr_val)); \
 	POSTING_READ(type##IMR); \
@@ -2876,7 +2876,7 @@ static void ibx_irq_reset(struct drm_i915_private *dev_priv)
 	if (HAS_PCH_NOP(dev_priv))
 		return;
 
-	GEN5_IRQ_RESET(SDE);
+	GEN3_IRQ_RESET(SDE);
 
 	if (HAS_PCH_CPT(dev_priv) || HAS_PCH_LPT(dev_priv))
 		I915_WRITE(SERR_INT, 0xffffffff);
@@ -2904,9 +2904,9 @@ static void ibx_irq_pre_postinstall(struct drm_device *dev)
 
 static void gen5_gt_irq_reset(struct drm_i915_private *dev_priv)
 {
-	GEN5_IRQ_RESET(GT);
+	GEN3_IRQ_RESET(GT);
 	if (INTEL_GEN(dev_priv) >= 6)
-		GEN5_IRQ_RESET(GEN6_PM);
+		GEN3_IRQ_RESET(GEN6_PM);
 }
 
 static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
@@ -2921,7 +2921,7 @@ static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	GEN5_IRQ_RESET(VLV_);
+	GEN3_IRQ_RESET(VLV_);
 	dev_priv->irq_mask = ~0;
 }
 
@@ -2951,7 +2951,7 @@ static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	dev_priv->irq_mask = ~enable_mask;
 
-	GEN5_IRQ_INIT(VLV_, dev_priv->irq_mask, enable_mask);
+	GEN3_IRQ_INIT(VLV_, dev_priv->irq_mask, enable_mask);
 }
 
 /* drm_dma.h hooks
@@ -2962,7 +2962,7 @@ static void ironlake_irq_reset(struct drm_device *dev)
 
 	I915_WRITE(HWSTAM, 0xffffffff);
 
-	GEN5_IRQ_RESET(DE);
+	GEN3_IRQ_RESET(DE);
 	if (IS_GEN7(dev_priv))
 		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
 
@@ -3009,9 +3009,9 @@ static void gen8_irq_reset(struct drm_device *dev)
 						   POWER_DOMAIN_PIPE(pipe)))
 			GEN8_IRQ_RESET_NDX(DE_PIPE, pipe);
 
-	GEN5_IRQ_RESET(GEN8_DE_PORT_);
-	GEN5_IRQ_RESET(GEN8_DE_MISC_);
-	GEN5_IRQ_RESET(GEN8_PCU_);
+	GEN3_IRQ_RESET(GEN8_DE_PORT_);
+	GEN3_IRQ_RESET(GEN8_DE_MISC_);
+	GEN3_IRQ_RESET(GEN8_PCU_);
 
 	if (HAS_PCH_SPLIT(dev_priv))
 		ibx_irq_reset(dev_priv);
@@ -3054,7 +3054,7 @@ static void cherryview_irq_preinstall(struct drm_device *dev)
 
 	gen8_gt_irq_reset(dev_priv);
 
-	GEN5_IRQ_RESET(GEN8_PCU_);
+	GEN3_IRQ_RESET(GEN8_PCU_);
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display_irqs_enabled)
@@ -3251,7 +3251,7 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 	else
 		mask = SDE_GMBUS_CPT;
 
-	gen5_assert_iir_is_zero(dev_priv, SDEIIR);
+	gen3_assert_iir_is_zero(dev_priv, SDEIIR);
 	I915_WRITE(SDEIMR, ~mask);
 
 	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv) ||
@@ -3282,7 +3282,7 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 		gt_irqs |= GT_BLT_USER_INTERRUPT | GT_BSD_USER_INTERRUPT;
 	}
 
-	GEN5_IRQ_INIT(GT, dev_priv->gt_irq_mask, gt_irqs);
+	GEN3_IRQ_INIT(GT, dev_priv->gt_irq_mask, gt_irqs);
 
 	if (INTEL_GEN(dev_priv) >= 6) {
 		/*
@@ -3295,7 +3295,7 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 		}
 
 		dev_priv->pm_imr = 0xffffffff;
-		GEN5_IRQ_INIT(GEN6_PM, dev_priv->pm_imr, pm_irqs);
+		GEN3_IRQ_INIT(GEN6_PM, dev_priv->pm_imr, pm_irqs);
 	}
 }
 
@@ -3325,7 +3325,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	ibx_irq_pre_postinstall(dev);
 
-	GEN5_IRQ_INIT(DE, dev_priv->irq_mask, display_mask | extra_mask);
+	GEN3_IRQ_INIT(DE, dev_priv->irq_mask, display_mask | extra_mask);
 
 	gen5_gt_irq_postinstall(dev);
 
@@ -3464,8 +3464,8 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 					  dev_priv->de_irq_mask[pipe],
 					  de_pipe_enables);
 
-	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~de_port_masked, de_port_enables);
-	GEN5_IRQ_INIT(GEN8_DE_MISC_, ~de_misc_masked, de_misc_masked);
+	GEN3_IRQ_INIT(GEN8_DE_PORT_, ~de_port_masked, de_port_enables);
+	GEN3_IRQ_INIT(GEN8_DE_MISC_, ~de_misc_masked, de_misc_masked);
 
 	if (IS_GEN9_LP(dev_priv))
 		bxt_hpd_detection_setup(dev_priv);
@@ -3551,7 +3551,7 @@ static void cherryview_irq_uninstall(struct drm_device *dev)
 
 	gen8_gt_irq_reset(dev_priv);
 
-	GEN5_IRQ_RESET(GEN8_PCU_);
+	GEN3_IRQ_RESET(GEN8_PCU_);
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	if (dev_priv->display_irqs_enabled)
