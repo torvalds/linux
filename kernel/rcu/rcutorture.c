@@ -89,6 +89,7 @@ torture_param(int, shutdown_secs, 0, "Shutdown time (s), <= zero to disable.");
 torture_param(int, stall_cpu, 0, "Stall duration (s), zero to disable.");
 torture_param(int, stall_cpu_holdoff, 10,
 	     "Time to wait before starting stall (s).");
+torture_param(int, stall_cpu_irqsoff, 0, "Disable interrupts while stalling.");
 torture_param(int, stat_interval, 60,
 	     "Number of seconds between stats printk()s");
 torture_param(int, stutter, 5, "Number of seconds to run/halt test");
@@ -1357,7 +1358,7 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 "fqs_duration=%d fqs_holdoff=%d fqs_stutter=%d "
 		 "test_boost=%d/%d test_boost_interval=%d "
 		 "test_boost_duration=%d shutdown_secs=%d "
-		 "stall_cpu=%d stall_cpu_holdoff=%d "
+		 "stall_cpu=%d stall_cpu_holdoff=%d stall_cpu_irqsoff=%d "
 		 "n_barrier_cbs=%d "
 		 "onoff_interval=%d onoff_holdoff=%d\n",
 		 torture_type, tag, nrealreaders, nfakewriters,
@@ -1365,7 +1366,7 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 stutter, irqreader, fqs_duration, fqs_holdoff, fqs_stutter,
 		 test_boost, cur_ops->can_boost,
 		 test_boost_interval, test_boost_duration, shutdown_secs,
-		 stall_cpu, stall_cpu_holdoff,
+		 stall_cpu, stall_cpu_holdoff, stall_cpu_irqsoff,
 		 n_barrier_cbs,
 		 onoff_interval, onoff_holdoff);
 }
@@ -1430,12 +1431,19 @@ static int rcu_torture_stall(void *args)
 	if (!kthread_should_stop()) {
 		stop_at = get_seconds() + stall_cpu;
 		/* RCU CPU stall is expected behavior in following code. */
-		pr_alert("rcu_torture_stall start.\n");
 		rcu_read_lock();
-		preempt_disable();
+		if (stall_cpu_irqsoff)
+			local_irq_disable();
+		else
+			preempt_disable();
+		pr_alert("rcu_torture_stall start on CPU %d.\n",
+			 smp_processor_id());
 		while (ULONG_CMP_LT(get_seconds(), stop_at))
 			continue;  /* Induce RCU CPU stall warning. */
-		preempt_enable();
+		if (stall_cpu_irqsoff)
+			local_irq_enable();
+		else
+			preempt_enable();
 		rcu_read_unlock();
 		pr_alert("rcu_torture_stall end.\n");
 	}
