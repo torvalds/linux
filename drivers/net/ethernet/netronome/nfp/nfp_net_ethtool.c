@@ -147,34 +147,53 @@ static void nfp_net_get_nspinfo(struct nfp_app *app, char *version)
 	if (IS_ERR(nsp))
 		return;
 
-	snprintf(version, ETHTOOL_FWVERS_LEN, "sp:%hu.%hu",
+	snprintf(version, ETHTOOL_FWVERS_LEN, "%hu.%hu",
 		 nfp_nsp_get_abi_ver_major(nsp),
 		 nfp_nsp_get_abi_ver_minor(nsp));
 
 	nfp_nsp_close(nsp);
 }
 
-static void nfp_net_get_drvinfo(struct net_device *netdev,
-				struct ethtool_drvinfo *drvinfo)
+static void
+nfp_get_drvinfo(struct nfp_app *app, struct pci_dev *pdev,
+		const char *vnic_version, struct ethtool_drvinfo *drvinfo)
 {
 	char nsp_version[ETHTOOL_FWVERS_LEN] = {};
-	struct nfp_net *nn = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver, nn->pdev->driver->name,
-		sizeof(drvinfo->driver));
+	strlcpy(drvinfo->driver, pdev->driver->name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, nfp_driver_version, sizeof(drvinfo->version));
 
-	nfp_net_get_nspinfo(nn->app, nsp_version);
+	nfp_net_get_nspinfo(app, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		 "%d.%d.%d.%d %s %s %s",
+		 "%s %s %s %s", vnic_version, nsp_version,
+		 nfp_app_mip_name(app), nfp_app_name(app));
+}
+
+static void
+nfp_net_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
+{
+	char vnic_version[ETHTOOL_FWVERS_LEN] = {};
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	snprintf(vnic_version, sizeof(vnic_version), "%d.%d.%d.%d",
 		 nn->fw_ver.resv, nn->fw_ver.class,
-		 nn->fw_ver.major, nn->fw_ver.minor, nsp_version,
-		 nfp_app_mip_name(nn->app), nfp_app_name(nn->app));
+		 nn->fw_ver.major, nn->fw_ver.minor);
 	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));
 
-	drvinfo->n_stats = NN_ET_STATS_LEN;
-	drvinfo->regdump_len = NFP_NET_CFG_BAR_SZ;
+	nfp_get_drvinfo(nn->app, nn->pdev, vnic_version, drvinfo);
+}
+
+static void
+nfp_app_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
+{
+	struct nfp_app *app;
+
+	app = nfp_app_from_netdev(netdev);
+	if (!app)
+		return;
+
+	nfp_get_drvinfo(app, app->pdev, "*", drvinfo);
 }
 
 /**
@@ -940,6 +959,7 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 };
 
 const struct ethtool_ops nfp_port_ethtool_ops = {
+	.get_drvinfo		= nfp_app_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 };
 
