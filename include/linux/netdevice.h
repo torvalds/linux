@@ -4013,17 +4013,17 @@ static inline netdev_tx_t netdev_start_xmit(struct sk_buff *skb, struct net_devi
 	return rc;
 }
 
-int netdev_class_create_file_ns(struct class_attribute *class_attr,
+int netdev_class_create_file_ns(const struct class_attribute *class_attr,
 				const void *ns);
-void netdev_class_remove_file_ns(struct class_attribute *class_attr,
+void netdev_class_remove_file_ns(const struct class_attribute *class_attr,
 				 const void *ns);
 
-static inline int netdev_class_create_file(struct class_attribute *class_attr)
+static inline int netdev_class_create_file(const struct class_attribute *class_attr)
 {
 	return netdev_class_create_file_ns(class_attr, NULL);
 }
 
-static inline void netdev_class_remove_file(struct class_attribute *class_attr)
+static inline void netdev_class_remove_file(const struct class_attribute *class_attr)
 {
 	netdev_class_remove_file_ns(class_attr, NULL);
 }

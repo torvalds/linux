@@ -1618,14 +1618,14 @@ int netdev_register_kobject(struct net_device *ndev)
 	return error;
 }
 
-int netdev_class_create_file_ns(struct class_attribute *class_attr,
+int netdev_class_create_file_ns(const struct class_attribute *class_attr,
 				const void *ns)
 {
 	return class_create_file_ns(&net_class, class_attr, ns);
 }
 EXPORT_SYMBOL(netdev_class_create_file_ns);
 
-void netdev_class_remove_file_ns(struct class_attribute *class_attr,
+void netdev_class_remove_file_ns(const struct class_attribute *class_attr,
 				 const void *ns)
 {
 	class_remove_file_ns(&net_class, class_attr, ns);
