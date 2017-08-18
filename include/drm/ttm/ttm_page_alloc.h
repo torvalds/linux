@@ -83,6 +83,17 @@ extern int ttm_dma_page_alloc_debugfs(struct seq_file *m, void *data);
 extern int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev);
 extern void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev);
 
+
+/**
+ * Populates and DMA maps pages to fullfil a ttm_dma_populate() request
+ */
+int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt);
+
+/**
+ * Unpopulates and DMA unmaps pages as part of a
+ * ttm_dma_unpopulate() request */
+void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt);
+
 #else
 static inline int ttm_dma_page_alloc_init(struct ttm_mem_global *glob,
 					  unsigned max_pages)
@@ -105,6 +116,16 @@ static inline void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma,
 				      struct device *dev)
 {
 }
+
+static inline int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt)
+{
+	return -ENOMEM;
+}
+
+static inline void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt)
+{
+}
+
 #endif
 
 #endif
