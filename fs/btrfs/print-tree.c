@@ -121,7 +121,10 @@ static void print_extent_item(struct extent_buffer *eb, int slot, int type)
 			       offset, btrfs_shared_data_ref_count(eb, sref));
 			break;
 		default:
-			BUG();
+			btrfs_err(eb->fs_info,
+				  "extent %llu has invalid ref type %d",
+				  eb->start, type);
+			return;
 		}
 		ptr += btrfs_extent_inline_ref_size(type);
 	}
