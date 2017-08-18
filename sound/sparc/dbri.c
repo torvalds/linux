@@ -2213,7 +2213,7 @@ static snd_pcm_uframes_t snd_dbri_pointer(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static struct snd_pcm_ops snd_dbri_ops = {
+static const struct snd_pcm_ops snd_dbri_ops = {
 	.open = snd_dbri_open,
 	.close = snd_dbri_close,
 	.ioctl = snd_pcm_lib_ioctl,
