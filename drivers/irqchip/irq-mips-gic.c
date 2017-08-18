@@ -55,6 +55,15 @@ static struct irq_chip gic_level_irq_controller, gic_edge_irq_controller;
 DECLARE_BITMAP(ipi_resrv, GIC_MAX_INTRS);
 DECLARE_BITMAP(ipi_available, GIC_MAX_INTRS);
 
+static void gic_clear_pcpu_masks(unsigned int intr)
+{
+	unsigned int i;
+
+	/* Clear the interrupt's bit in all pcpu_masks */
+	for_each_possible_cpu(i)
+		clear_bit(intr, per_cpu_ptr(pcpu_masks, i));
+}
+
 static bool gic_local_irq_is_routable(int intr)
 {
 	u32 vpe_ctl;
@@ -133,24 +142,17 @@ static void gic_handle_shared_int(bool chained)
 	unsigned int intr, virq;
 	unsigned long *pcpu_mask;
 	DECLARE_BITMAP(pending, GIC_MAX_INTRS);
-	DECLARE_BITMAP(intrmask, GIC_MAX_INTRS);
 
 	/* Get per-cpu bitmaps */
 	pcpu_mask = this_cpu_ptr(pcpu_masks);
 
-	if (mips_cm_is64) {
+	if (mips_cm_is64)
 		__ioread64_copy(pending, addr_gic_pend(),
 				DIV_ROUND_UP(gic_shared_intrs, 64));
-		__ioread64_copy(intrmask, addr_gic_mask(),
-				DIV_ROUND_UP(gic_shared_intrs, 64));
-	} else {
+	else
 		__ioread32_copy(pending, addr_gic_pend(),
 				DIV_ROUND_UP(gic_shared_intrs, 32));
-		__ioread32_copy(intrmask, addr_gic_mask(),
-				DIV_ROUND_UP(gic_shared_intrs, 32));
-	}
 
-	bitmap_and(pending, pending, intrmask, gic_shared_intrs);
 	bitmap_and(pending, pending, pcpu_mask, gic_shared_intrs);
 
 	for_each_set_bit(intr, pending, gic_shared_intrs) {
@@ -165,12 +167,23 @@ static void gic_handle_shared_int(bool chained)
 
 static void gic_mask_irq(struct irq_data *d)
 {
-	write_gic_rmask(BIT(GIC_HWIRQ_TO_SHARED(d->hwirq)));
+	unsigned int intr = GIC_HWIRQ_TO_SHARED(d->hwirq);
+
+	write_gic_rmask(BIT(intr));
+	gic_clear_pcpu_masks(intr);
 }
 
 static void gic_unmask_irq(struct irq_data *d)
 {
-	write_gic_smask(BIT(GIC_HWIRQ_TO_SHARED(d->hwirq)));
+	struct cpumask *affinity = irq_data_get_affinity_mask(d);
+	unsigned int intr = GIC_HWIRQ_TO_SHARED(d->hwirq);
+	unsigned int cpu;
+
+	write_gic_smask(BIT(intr));
+
+	gic_clear_pcpu_masks(intr);
+	cpu = cpumask_first_and(affinity, cpu_online_mask);
+	set_bit(intr, per_cpu_ptr(pcpu_masks, cpu));
 }
 
 static void gic_ack_irq(struct irq_data *d)
@@ -239,7 +252,6 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 	unsigned int irq = GIC_HWIRQ_TO_SHARED(d->hwirq);
 	cpumask_t	tmp = CPU_MASK_NONE;
 	unsigned long	flags;
-	int		i;
 
 	cpumask_and(&tmp, cpumask, cpu_online_mask);
 	if (cpumask_empty(&tmp))
@@ -252,9 +264,9 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 	write_gic_map_vp(irq, BIT(mips_cm_vp_id(cpumask_first(&tmp))));
 
 	/* Update the pcpu_masks */
-	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
-		clear_bit(irq, per_cpu_ptr(pcpu_masks, i));
-	set_bit(irq, per_cpu_ptr(pcpu_masks, cpumask_first(&tmp)));
+	gic_clear_pcpu_masks(irq);
+	if (read_gic_mask(irq))
+		set_bit(irq, per_cpu_ptr(pcpu_masks, cpumask_first(&tmp)));
 
 	cpumask_copy(irq_data_get_affinity_mask(d), cpumask);
 	spin_unlock_irqrestore(&gic_lock, flags);
@@ -405,18 +417,16 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 }
 
 static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
-				     irq_hw_number_t hw, unsigned int vpe)
+				     irq_hw_number_t hw, unsigned int cpu)
 {
 	int intr = GIC_HWIRQ_TO_SHARED(hw);
 	unsigned long flags;
-	int i;
 
 	spin_lock_irqsave(&gic_lock, flags);
 	write_gic_map_pin(intr, GIC_MAP_PIN_MAP_TO_PIN | gic_cpu_pin);
-	write_gic_map_vp(intr, BIT(mips_cm_vp_id(vpe)));
-	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
-		clear_bit(intr, per_cpu_ptr(pcpu_masks, i));
-	set_bit(intr, per_cpu_ptr(pcpu_masks, vpe));
+	write_gic_map_vp(intr, BIT(mips_cm_vp_id(cpu)));
+	gic_clear_pcpu_masks(intr);
+	set_bit(intr, per_cpu_ptr(pcpu_masks, cpu));
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return 0;
