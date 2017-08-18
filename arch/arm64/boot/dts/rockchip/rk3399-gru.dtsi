@@ -616,7 +616,7 @@ ap_i2c_mic: &i2c1 {
 		interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&mic_int>;
-		realtek,dmic-init-delay = <20>;
+		realtek,dmic-init-delay-ms = <20>;
 		wakeup-source;
 	};
 };
