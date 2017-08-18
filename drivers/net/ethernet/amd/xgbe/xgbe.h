@@ -182,8 +182,6 @@
 #define XGBE_IRQ_MODE_EDGE	0
 #define XGBE_IRQ_MODE_LEVEL	1
 
-#define XGBE_DMA_INTERRUPT_MASK	0x31c7
-
 #define XGMAC_MIN_PACKET	60
 #define XGMAC_STD_PACKET_MTU	1500
 #define XGMAC_MAX_STD_PACKET	1518
@@ -462,6 +460,8 @@ struct xgbe_channel {
 	/* Netdev related settings */
 	struct napi_struct napi;
 
+	/* Per channel interrupt enablement tracker */
+	unsigned int curr_ier;
 	unsigned int saved_ier;
 
 	unsigned int tx_timer_active;

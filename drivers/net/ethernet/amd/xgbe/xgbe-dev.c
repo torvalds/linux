@@ -605,7 +605,6 @@ static void xgbe_config_flow_control(struct xgbe_prv_data *pdata)
 static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_channel *channel;
-	unsigned int dma_ch_isr, dma_ch_ier;
 	unsigned int i;
 
 	/* Set the interrupt mode if supported */
@@ -617,20 +616,20 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 		channel = pdata->channel[i];
 
 		/* Clear all the interrupts which are set */
-		dma_ch_isr = XGMAC_DMA_IOREAD(channel, DMA_CH_SR);
-		XGMAC_DMA_IOWRITE(channel, DMA_CH_SR, dma_ch_isr);
+		XGMAC_DMA_IOWRITE(channel, DMA_CH_SR,
+				  XGMAC_DMA_IOREAD(channel, DMA_CH_SR));
 
 		/* Clear all interrupt enable bits */
-		dma_ch_ier = 0;
+		channel->curr_ier = 0;
 
 		/* Enable following interrupts
 		 *   NIE  - Normal Interrupt Summary Enable
 		 *   AIE  - Abnormal Interrupt Summary Enable
 		 *   FBEE - Fatal Bus Error Enable
 		 */
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, NIE, 1);
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, AIE, 1);
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, FBEE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, NIE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, AIE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, FBEE, 1);
 
 		if (channel->tx_ring) {
 			/* Enable the following Tx interrupts
@@ -639,7 +638,8 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 			 *          mode)
 			 */
 			if (!pdata->per_channel_irq || pdata->channel_irq_mode)
-				XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 1);
+				XGMAC_SET_BITS(channel->curr_ier,
+					       DMA_CH_IER, TIE, 1);
 		}
 		if (channel->rx_ring) {
 			/* Enable following Rx interrupts
@@ -648,12 +648,13 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 			 *          per channel interrupts in edge triggered
 			 *          mode)
 			 */
-			XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RBUE, 1);
+			XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RBUE, 1);
 			if (!pdata->per_channel_irq || pdata->channel_irq_mode)
-				XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 1);
+				XGMAC_SET_BITS(channel->curr_ier,
+					       DMA_CH_IER, RIE, 1);
 		}
 
-		XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, dma_ch_ier);
+		XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, channel->curr_ier);
 	}
 }
 
@@ -1964,44 +1965,40 @@ static int xgbe_is_last_desc(struct xgbe_ring_desc *rdesc)
 static int xgbe_enable_int(struct xgbe_channel *channel,
 			   enum xgbe_int int_id)
 {
-	unsigned int dma_ch_ier;
-
-	dma_ch_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
-
 	switch (int_id) {
 	case XGMAC_INT_DMA_CH_SR_TI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TIE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TPS:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TXSE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TXSE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TBU:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TBUE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TBUE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RIE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RBU:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RBUE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RBUE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RPS:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RSE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RSE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TI_RI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 1);
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TIE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RIE, 1);
 		break;
 	case XGMAC_INT_DMA_CH_SR_FBE:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, FBEE, 1);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, FBEE, 1);
 		break;
 	case XGMAC_INT_DMA_ALL:
-		dma_ch_ier |= channel->saved_ier;
+		channel->curr_ier |= channel->saved_ier;
 		break;
 	default:
 		return -1;
 	}
 
-	XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, dma_ch_ier);
+	XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, channel->curr_ier);
 
 	return 0;
 }
@@ -2009,45 +2006,41 @@ static int xgbe_enable_int(struct xgbe_channel *channel,
 static int xgbe_disable_int(struct xgbe_channel *channel,
 			    enum xgbe_int int_id)
 {
-	unsigned int dma_ch_ier;
-
-	dma_ch_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
-
 	switch (int_id) {
 	case XGMAC_INT_DMA_CH_SR_TI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TIE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TPS:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TXSE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TXSE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TBU:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TBUE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TBUE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RIE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RBU:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RBUE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RBUE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_RPS:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RSE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RSE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_TI_RI:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, TIE, 0);
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, RIE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, TIE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, RIE, 0);
 		break;
 	case XGMAC_INT_DMA_CH_SR_FBE:
-		XGMAC_SET_BITS(dma_ch_ier, DMA_CH_IER, FBEE, 0);
+		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, FBEE, 0);
 		break;
 	case XGMAC_INT_DMA_ALL:
-		channel->saved_ier = dma_ch_ier & XGBE_DMA_INTERRUPT_MASK;
-		dma_ch_ier &= ~XGBE_DMA_INTERRUPT_MASK;
+		channel->saved_ier = channel->curr_ier;
+		channel->curr_ier = 0;
 		break;
 	default:
 		return -1;
 	}
 
-	XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, dma_ch_ier);
+	XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, channel->curr_ier);
 
 	return 0;
 }
