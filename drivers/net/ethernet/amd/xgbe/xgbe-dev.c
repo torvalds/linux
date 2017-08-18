@@ -1805,9 +1805,12 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 				  packet->length);
 	}
 
-	if (vxlan)
+	if (vxlan) {
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, VNP,
 				  TX_NORMAL_DESC3_VXLAN_PACKET);
+
+		pdata->ext_stats.tx_vxlan_packets += packet->tx_packets;
+	}
 
 	for (i = cur_index - start_index + 1; i < packet->rdesc_count; i++) {
 		cur_index++;
@@ -1981,6 +1984,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	if (XGMAC_GET_BITS_LE(rdesc->desc2, RX_NORMAL_DESC2, TNP)) {
 		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 			       TNP, 1);
+		pdata->ext_stats.rx_vxlan_packets++;
 
 		l34t = XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, L34T);
 		switch (l34t) {
@@ -2018,11 +2022,13 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 				       CSUM_DONE, 0);
 			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 				       TNPCSUM_DONE, 0);
+			pdata->ext_stats.rx_csum_errors++;
 		} else if (tnp && ((etlt == 0x09) || (etlt == 0x0a))) {
 			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 				       CSUM_DONE, 0);
 			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 				       TNPCSUM_DONE, 0);
+			pdata->ext_stats.rx_vxlan_csum_errors++;
 		} else {
 			XGMAC_SET_BITS(packet->errors, RX_PACKET_ERRORS,
 				       FRAME, 1);

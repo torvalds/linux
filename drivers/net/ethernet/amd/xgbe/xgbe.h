@@ -715,6 +715,11 @@ struct xgbe_ext_stats {
 	u64 txq_bytes[XGBE_MAX_DMA_CHANNELS];
 	u64 rxq_packets[XGBE_MAX_DMA_CHANNELS];
 	u64 rxq_bytes[XGBE_MAX_DMA_CHANNELS];
+
+	u64 tx_vxlan_packets;
+	u64 rx_vxlan_packets;
+	u64 rx_csum_errors;
+	u64 rx_vxlan_csum_errors;
 };
 
 struct xgbe_hw_if {
