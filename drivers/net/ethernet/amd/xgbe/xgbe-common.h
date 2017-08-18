@@ -1339,6 +1339,7 @@
 #define XGBE_AN_CL37_PCS_MODE_BASEX	0x00
 #define XGBE_AN_CL37_PCS_MODE_SGMII	0x04
 #define XGBE_AN_CL37_TX_CONFIG_MASK	0x08
+#define XGBE_AN_CL37_MII_CTRL_8BIT	0x0100
 
 /* Bit setting and getting macros
  *  The get macro will extract the current bit field value from within

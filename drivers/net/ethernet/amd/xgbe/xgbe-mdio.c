@@ -982,6 +982,8 @@ static void xgbe_an37_init(struct xgbe_prv_data *pdata)
 		break;
 	}
 
+	reg |= XGBE_AN_CL37_MII_CTRL_8BIT;
+
 	XMDIO_WRITE(pdata, MDIO_MMD_VEND2, MDIO_VEND2_AN_CTRL, reg);
 
 	netif_dbg(pdata, link, pdata->netdev, "CL37 AN (%s) initialized\n",
