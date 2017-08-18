@@ -8952,8 +8952,14 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_USE_MFP]) {
 		connect.mfp = nla_get_u32(info->attrs[NL80211_ATTR_USE_MFP]);
+		if (connect.mfp == NL80211_MFP_OPTIONAL &&
+		    !wiphy_ext_feature_isset(&rdev->wiphy,
+					     NL80211_EXT_FEATURE_MFP_OPTIONAL))
+			return -EOPNOTSUPP;
+
 		if (connect.mfp != NL80211_MFP_REQUIRED &&
-		    connect.mfp != NL80211_MFP_NO)
+		    connect.mfp != NL80211_MFP_NO &&
+		    connect.mfp != NL80211_MFP_OPTIONAL)
 			return -EINVAL;
 	} else {
 		connect.mfp = NL80211_MFP_NO;
