@@ -1,7 +1,7 @@
 /*
  * camss-ispif.h
  *
- * Qualcomm MSM Camera Subsystem - ISPIF Module
+ * Qualcomm MSM Camera Subsystem - ISPIF (ISP Interface) Module
  *
  * Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015-2017 Linaro Ltd.

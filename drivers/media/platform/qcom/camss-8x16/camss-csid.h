@@ -1,7 +1,7 @@
 /*
  * camss-csid.h
  *
- * Qualcomm MSM Camera Subsystem - CSID Module
+ * Qualcomm MSM Camera Subsystem - CSID (CSI Decoder) Module
  *
  * Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015-2017 Linaro Ltd.

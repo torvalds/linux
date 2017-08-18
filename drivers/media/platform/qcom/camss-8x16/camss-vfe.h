@@ -1,7 +1,7 @@
 /*
  * camss-vfe.h
  *
- * Qualcomm MSM Camera Subsystem - VFE Module
+ * Qualcomm MSM Camera Subsystem - VFE (Video Front End) Module
  *
  * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015-2017 Linaro Ltd.
