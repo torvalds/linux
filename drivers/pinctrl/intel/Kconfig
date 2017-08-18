@@ -81,6 +81,14 @@ config PINCTRL_GEMINILAKE
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Gemini Lake SoC pins and using them as GPIOs.
 
+config PINCTRL_LEWISBURG
+	tristate "Intel Lewisburg pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Lewisburg pins and using them as GPIOs.
+
 config PINCTRL_SUNRISEPOINT
 	tristate "Intel Sunrisepoint pinctrl and GPIO driver"
 	depends on ACPI
