@@ -2886,7 +2886,8 @@ static int rk818_bat_init_irqs(struct rk818_battery *di)
 	}
 
 	ret = devm_request_threaded_irq(di->dev, vb_lo_irq, NULL,
-					rk818_vb_low_irq, IRQF_TRIGGER_HIGH,
+					rk818_vb_low_irq,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 					"rk818_vb_low", di);
 	if (ret) {
 		dev_err(&pdev->dev, "vb_lo_irq request failed!\n");
