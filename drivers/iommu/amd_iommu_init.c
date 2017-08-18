@@ -854,7 +854,7 @@ static int get_dev_entry_bit(u16 devid, u8 bit)
 
 static bool copy_device_table(void)
 {
-	u64 int_ctl, int_tab_len, entry, last_entry = 0;
+	u64 int_ctl, int_tab_len, entry = 0, last_entry = 0;
 	struct dev_table_entry *old_devtb = NULL;
 	u32 lo, hi, devid, old_devtb_size;
 	phys_addr_t old_devtb_phys;
