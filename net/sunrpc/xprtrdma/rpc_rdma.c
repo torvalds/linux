@@ -1051,7 +1051,7 @@ rpcrdma_reply_handler(struct work_struct *work)
 	 * RPC completion while holding the transport lock to ensure
 	 * the rep, rqst, and rq_task pointers remain stable.
 	 */
-	spin_lock_bh(&xprt->transport_lock);
+	spin_lock(&xprt->recv_lock);
 	rqst = xprt_lookup_rqst(xprt, headerp->rm_xid);
 	if (!rqst)
 		goto out_norqst;
@@ -1136,7 +1136,7 @@ out:
 		xprt_release_rqst_cong(rqst->rq_task);
 
 	xprt_complete_rqst(rqst->rq_task, status);
-	spin_unlock_bh(&xprt->transport_lock);
+	spin_unlock(&xprt->recv_lock);
 	dprintk("RPC:       %s: xprt_complete_rqst(0x%p, 0x%p, %d)\n",
 		__func__, xprt, rqst, status);
 	return;
@@ -1187,12 +1187,12 @@ out_rdmaerr:
 	r_xprt->rx_stats.bad_reply_count++;
 	goto out;
 
-/* The req was still available, but by the time the transport_lock
+/* The req was still available, but by the time the recv_lock
  * was acquired, the rqst and task had been released. Thus the RPC
  * has already been terminated.
  */
 out_norqst:
-	spin_unlock_bh(&xprt->transport_lock);
+	spin_unlock(&xprt->recv_lock);
 	rpcrdma_buffer_put(req);
 	dprintk("RPC:       %s: race, no rqst left for req %p\n",
 		__func__, req);

@@ -134,19 +134,14 @@ EXPORT_SYMBOL_GPL(nfs_async_iocounter_wait);
 /*
  * nfs_page_group_lock - lock the head of the page group
  * @req - request in group that is to be locked
- * @nonblock - if true don't block waiting for lock
  *
- * this lock must be held if modifying the page group list
+ * this lock must be held when traversing or modifying the page
+ * group list
  *
- * return 0 on success, < 0 on error: -EDELAY if nonblocking or the
- * result from wait_on_bit_lock
- *
- * NOTE: calling with nonblock=false should always have set the
- *       lock bit (see fs/buffer.c and other uses of wait_on_bit_lock
- *       with TASK_UNINTERRUPTIBLE), so there is no need to check the result.
+ * return 0 on success, < 0 on error
  */
 int
-nfs_page_group_lock(struct nfs_page *req, bool nonblock)
+nfs_page_group_lock(struct nfs_page *req)
 {
 	struct nfs_page *head = req->wb_head;
 
@@ -155,35 +150,10 @@ nfs_page_group_lock(struct nfs_page *req, bool nonblock)
 	if (!test_and_set_bit(PG_HEADLOCK, &head->wb_flags))
 		return 0;
 
-	if (!nonblock) {
-		set_bit(PG_CONTENDED1, &head->wb_flags);
-		smp_mb__after_atomic();
-		return wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
-				TASK_UNINTERRUPTIBLE);
-	}
-
-	return -EAGAIN;
-}
-
-/*
- * nfs_page_group_lock_wait - wait for the lock to clear, but don't grab it
- * @req - a request in the group
- *
- * This is a blocking call to wait for the group lock to be cleared.
- */
-void
-nfs_page_group_lock_wait(struct nfs_page *req)
-{
-	struct nfs_page *head = req->wb_head;
-
-	WARN_ON_ONCE(head != head->wb_head);
-
-	if (!test_bit(PG_HEADLOCK, &head->wb_flags))
-		return;
 	set_bit(PG_CONTENDED1, &head->wb_flags);
 	smp_mb__after_atomic();
-	wait_on_bit(&head->wb_flags, PG_HEADLOCK,
-		TASK_UNINTERRUPTIBLE);
+	return wait_on_bit_lock(&head->wb_flags, PG_HEADLOCK,
+				TASK_UNINTERRUPTIBLE);
 }
 
 /*
@@ -246,7 +216,7 @@ bool nfs_page_group_sync_on_bit(struct nfs_page *req, unsigned int bit)
 {
 	bool ret;
 
-	nfs_page_group_lock(req, false);
+	nfs_page_group_lock(req);
 	ret = nfs_page_group_sync_on_bit_locked(req, bit);
 	nfs_page_group_unlock(req);
 
@@ -288,9 +258,7 @@ nfs_page_group_init(struct nfs_page *req, struct nfs_page *prev)
 			inode = page_file_mapping(req->wb_page)->host;
 			set_bit(PG_INODE_REF, &req->wb_flags);
 			kref_get(&req->wb_kref);
-			spin_lock(&inode->i_lock);
-			NFS_I(inode)->nrequests++;
-			spin_unlock(&inode->i_lock);
+			atomic_long_inc(&NFS_I(inode)->nrequests);
 		}
 	}
 }
@@ -306,14 +274,11 @@ static void
 nfs_page_group_destroy(struct kref *kref)
 {
 	struct nfs_page *req = container_of(kref, struct nfs_page, wb_kref);
+	struct nfs_page *head = req->wb_head;
 	struct nfs_page *tmp, *next;
 
-	/* subrequests must release the ref on the head request */
-	if (req->wb_head != req)
-		nfs_release_request(req->wb_head);
-
 	if (!nfs_page_group_sync_on_bit(req, PG_TEARDOWN))
-		return;
+		goto out;
 
 	tmp = req;
 	do {
@@ -324,6 +289,10 @@ nfs_page_group_destroy(struct kref *kref)
 		nfs_free_request(tmp);
 		tmp = next;
 	} while (tmp != req);
+out:
+	/* subrequests must release the ref on the head request */
+	if (head != req)
+		nfs_release_request(head);
 }
 
 /**
@@ -465,6 +434,7 @@ void nfs_release_request(struct nfs_page *req)
 {
 	kref_put(&req->wb_kref, nfs_page_group_destroy);
 }
+EXPORT_SYMBOL_GPL(nfs_release_request);
 
 /**
  * nfs_wait_on_request - Wait for a request to complete.
@@ -483,6 +453,7 @@ nfs_wait_on_request(struct nfs_page *req)
 	return wait_on_bit_io(&req->wb_flags, PG_BUSY,
 			      TASK_UNINTERRUPTIBLE);
 }
+EXPORT_SYMBOL_GPL(nfs_wait_on_request);
 
 /*
  * nfs_generic_pg_test - determine if requests can be coalesced
@@ -1036,7 +1007,7 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 	unsigned int bytes_left = 0;
 	unsigned int offset, pgbase;
 
-	nfs_page_group_lock(req, false);
+	nfs_page_group_lock(req);
 
 	subreq = req;
 	bytes_left = subreq->wb_bytes;
@@ -1058,7 +1029,7 @@ static int __nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 			if (mirror->pg_recoalesce)
 				return 0;
 			/* retry add_request for this subreq */
-			nfs_page_group_lock(req, false);
+			nfs_page_group_lock(req);
 			continue;
 		}
 
@@ -1155,7 +1126,7 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 
 	for (midx = 0; midx < desc->pg_mirror_count; midx++) {
 		if (midx) {
-			nfs_page_group_lock(req, false);
+			nfs_page_group_lock(req);
 
 			/* find the last request */
 			for (lastreq = req->wb_head;
