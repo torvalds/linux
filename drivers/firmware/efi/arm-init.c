@@ -145,6 +145,9 @@ static int __init uefi_init(void)
 					 sizeof(efi_config_table_t),
 					 arch_tables);
 
+	if (!retval)
+		efi.config_table = (unsigned long)efi.systab->tables;
+
 	early_memunmap(config_tables, table_size);
 out:
 	early_memunmap(efi.systab,  sizeof(efi_system_table_t));
