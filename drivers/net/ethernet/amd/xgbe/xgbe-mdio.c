@@ -1533,8 +1533,6 @@ static int xgbe_phy_best_advertised_speed(struct xgbe_prv_data *pdata)
 
 static void xgbe_phy_exit(struct xgbe_prv_data *pdata)
 {
-	xgbe_phy_stop(pdata);
-
 	pdata->phy_if.phy_impl.exit(pdata);
 }
 
