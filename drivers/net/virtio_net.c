@@ -2376,7 +2376,7 @@ err:
 
 #ifdef CONFIG_SYSFS
 static ssize_t mergeable_rx_buffer_size_show(struct netdev_rx_queue *queue,
-		struct rx_queue_attribute *attribute, char *buf)
+		char *buf)
 {
 	struct virtnet_info *vi = netdev_priv(queue->dev);
 	unsigned int queue_index = get_netdev_rx_queue_index(queue);

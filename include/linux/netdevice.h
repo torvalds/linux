@@ -694,10 +694,9 @@ struct netdev_rx_queue {
  */
 struct rx_queue_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct netdev_rx_queue *queue,
-	    struct rx_queue_attribute *attr, char *buf);
+	ssize_t (*show)(struct netdev_rx_queue *queue, char *buf);
 	ssize_t (*store)(struct netdev_rx_queue *queue,
-	    struct rx_queue_attribute *attr, const char *buf, size_t len);
+			 const char *buf, size_t len);
 };
 
 #ifdef CONFIG_XPS
