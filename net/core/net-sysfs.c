@@ -1144,9 +1144,9 @@ static ssize_t bql_set_hold_time(struct netdev_queue *queue,
 	return len;
 }
 
-static struct netdev_queue_attribute bql_hold_time_attribute =
-	__ATTR(hold_time, S_IRUGO | S_IWUSR, bql_show_hold_time,
-	    bql_set_hold_time);
+static struct netdev_queue_attribute bql_hold_time_attribute __ro_after_init
+	= __ATTR(hold_time, S_IRUGO | S_IWUSR,
+		 bql_show_hold_time, bql_set_hold_time);
 
 static ssize_t bql_show_inflight(struct netdev_queue *queue,
 				 char *buf)
@@ -1156,7 +1156,7 @@ static ssize_t bql_show_inflight(struct netdev_queue *queue,
 	return sprintf(buf, "%u\n", dql->num_queued - dql->num_completed);
 }
 
-static struct netdev_queue_attribute bql_inflight_attribute =
+static struct netdev_queue_attribute bql_inflight_attribute __ro_after_init =
 	__ATTR(inflight, S_IRUGO, bql_show_inflight, NULL);
 
 #define BQL_ATTR(NAME, FIELD)						\
@@ -1172,15 +1172,15 @@ static ssize_t bql_set_ ## NAME(struct netdev_queue *queue,		\
 	return bql_set(buf, len, &queue->dql.FIELD);			\
 }									\
 									\
-static struct netdev_queue_attribute bql_ ## NAME ## _attribute =	\
-	__ATTR(NAME, S_IRUGO | S_IWUSR, bql_show_ ## NAME,		\
-	    bql_set_ ## NAME);
+static struct netdev_queue_attribute bql_ ## NAME ## _attribute __ro_after_init \
+	= __ATTR(NAME, S_IRUGO | S_IWUSR,				\
+		 bql_show_ ## NAME, bql_set_ ## NAME)
 
-BQL_ATTR(limit, limit)
-BQL_ATTR(limit_max, max_limit)
-BQL_ATTR(limit_min, min_limit)
+BQL_ATTR(limit, limit);
+BQL_ATTR(limit_max, max_limit);
+BQL_ATTR(limit_min, min_limit);
 
-static struct attribute *dql_attrs[] = {
+static struct attribute *dql_attrs[] __ro_after_init = {
 	&bql_limit_attribute.attr,
 	&bql_limit_max_attribute.attr,
 	&bql_limit_min_attribute.attr,
