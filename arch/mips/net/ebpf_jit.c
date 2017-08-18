@@ -113,6 +113,7 @@ struct jit_ctx {
 	u64 *reg_val_types;
 	unsigned int long_b_conversion:1;
 	unsigned int gen_b_offsets:1;
+	unsigned int use_bbit_insns:1;
 };
 
 static void set_reg_val_type(u64 *rvt, int reg, enum reg_val_type type)
@@ -655,19 +656,6 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx, int this_idx)
 	return build_int_epilogue(ctx, MIPS_R_T9);
 }
 
-static bool use_bbit_insns(void)
-{
-	switch (current_cpu_type()) {
-	case CPU_CAVIUM_OCTEON:
-	case CPU_CAVIUM_OCTEON_PLUS:
-	case CPU_CAVIUM_OCTEON2:
-	case CPU_CAVIUM_OCTEON3:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static bool is_bad_offset(int b_off)
 {
 	return b_off > 0x1ffff || b_off < -0x20000;
@@ -1198,7 +1186,7 @@ jeq_common:
 		if (dst < 0)
 			return dst;
 
-		if (use_bbit_insns() && hweight32((u32)insn->imm) == 1) {
+		if (ctx->use_bbit_insns && hweight32((u32)insn->imm) == 1) {
 			if ((insn + 1)->code == (BPF_JMP | BPF_EXIT) && insn->off == 1) {
 				b_off = b_imm(exit_idx, ctx);
 				if (is_bad_offset(b_off))
@@ -1852,6 +1840,18 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	}
 
 	memset(&ctx, 0, sizeof(ctx));
+
+	preempt_disable();
+	switch (current_cpu_type()) {
+	case CPU_CAVIUM_OCTEON:
+	case CPU_CAVIUM_OCTEON_PLUS:
+	case CPU_CAVIUM_OCTEON2:
+	case CPU_CAVIUM_OCTEON3:
+		ctx.use_bbit_insns = 1;
+	default:
+		ctx.use_bbit_insns = 0;
+	}
+	preempt_enable();
 
 	ctx.offsets = kcalloc(prog->len + 1, sizeof(*ctx.offsets), GFP_KERNEL);
 	if (ctx.offsets == NULL)
