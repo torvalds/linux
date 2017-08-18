@@ -1122,6 +1122,33 @@ static bool fw_type_is_none(void)
 }
 
 /**
+ * \brief PCI FLR for each Octeon device.
+ * @param oct octeon device
+ */
+static void octeon_pci_flr(struct octeon_device *oct)
+{
+	int rc;
+
+	pci_save_state(oct->pci_dev);
+
+	pci_cfg_access_lock(oct->pci_dev);
+
+	/* Quiesce the device completely */
+	pci_write_config_word(oct->pci_dev, PCI_COMMAND,
+			      PCI_COMMAND_INTX_DISABLE);
+
+	rc = __pci_reset_function_locked(oct->pci_dev);
+
+	if (rc != 0)
+		dev_err(&oct->pci_dev->dev, "Error %d resetting PCI function %d\n",
+			rc, oct->pf_num);
+
+	pci_cfg_access_unlock(oct->pci_dev);
+
+	pci_restore_state(oct->pci_dev);
+}
+
+/**
  *\brief Destroy resources associated with octeon device
  * @param pdev PCI device structure
  * @param ent unused
@@ -1269,14 +1296,16 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 	case OCT_DEV_PCI_MAP_DONE:
 		refcount = octeon_deregister_device(oct);
 
-		if (!fw_type_is_none()) {
-			/* Soft reset the octeon device before exiting.
-			 * Implementation note: here, we reset the device
-			 * if it is a CN6XXX OR the last CN23XX device.
-			 */
-			if (OCTEON_CN6XXX(oct) || !refcount)
-				oct->fn_list.soft_reset(oct);
-		}
+		/* Soft reset the octeon device before exiting.
+		 * However, if fw was loaded from card (i.e. autoboot),
+		 * perform an FLR instead.
+		 * Implementation note: only soft-reset the device
+		 * if it is a CN6XXX OR the LAST CN23XX device.
+		 */
+		if (fw_type_is_none())
+			octeon_pci_flr(oct);
+		else if (OCTEON_CN6XXX(oct) || !refcount)
+			oct->fn_list.soft_reset(oct);
 
 		octeon_unmap_pci_barx(oct, 0);
 		octeon_unmap_pci_barx(oct, 1);
@@ -1911,11 +1940,6 @@ static int load_firmware(struct octeon_device *oct)
 	const struct firmware *fw;
 	char fw_name[LIO_MAX_FW_FILENAME_LEN];
 	char *tmp_fw_type;
-
-	if (fw_type_is_none()) {
-		dev_info(&oct->pci_dev->dev, "Skipping firmware load\n");
-		return ret;
-	}
 
 	if (fw_type[0] == '\0')
 		tmp_fw_type = LIO_FW_NAME_TYPE_NIC;
@@ -3900,18 +3924,16 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 	octeon_dev->app_mode = CVM_DRV_INVALID_APP;
 
 	if (OCTEON_CN23XX_PF(octeon_dev)) {
-		if (!cn23xx_fw_loaded(octeon_dev)) {
+		if (!cn23xx_fw_loaded(octeon_dev) && !fw_type_is_none()) {
 			fw_loaded = 0;
-			if (!fw_type_is_none()) {
-				/* Do a soft reset of the Octeon device. */
-				if (octeon_dev->fn_list.soft_reset(octeon_dev))
-					return 1;
-				/* things might have changed */
-				if (!cn23xx_fw_loaded(octeon_dev))
-					fw_loaded = 0;
-				else
-					fw_loaded = 1;
-			}
+			/* Do a soft reset of the Octeon device. */
+			if (octeon_dev->fn_list.soft_reset(octeon_dev))
+				return 1;
+			/* things might have changed */
+			if (!cn23xx_fw_loaded(octeon_dev))
+				fw_loaded = 0;
+			else
+				fw_loaded = 1;
 		} else {
 			fw_loaded = 1;
 		}
@@ -4027,6 +4049,18 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	atomic_set(&octeon_dev->status, OCT_DEV_INTR_SET_DONE);
 
+	/* Send Credit for Octeon Output queues. Credits are always sent BEFORE
+	 * the output queue is enabled.
+	 * This ensures that we'll receive the f/w CORE DRV_ACTIVE message in
+	 * case we've configured CN23XX_SLI_GBL_CONTROL[NOPTR_D] = 0.
+	 * Otherwise, it is possible that the DRV_ACTIVE message will be sent
+	 * before any credits have been issued, causing the ring to be reset
+	 * (and the f/w appear to never have started).
+	 */
+	for (j = 0; j < octeon_dev->num_oqs; j++)
+		writel(octeon_dev->droq[j]->max_count,
+		       octeon_dev->droq[j]->pkts_credit_reg);
+
 	/* Enable the input and output queues for this Octeon device */
 	ret = octeon_dev->fn_list.enable_io_queues(octeon_dev);
 	if (ret) {
@@ -4111,14 +4145,6 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	atomic_set(&octeon_dev->status, OCT_DEV_HOST_OK);
 
-	/* Send Credit for Octeon Output queues. Credits are always sent after
-	 * the output queue is enabled.
-	 */
-	for (j = 0; j < octeon_dev->num_oqs; j++)
-		writel(octeon_dev->droq[j]->max_count,
-		       octeon_dev->droq[j]->pkts_credit_reg);
-
-	/* Packets can start arriving on the output queues from this point. */
 	return 0;
 }
 
