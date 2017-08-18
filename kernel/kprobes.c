@@ -117,7 +117,7 @@ enum kprobe_slot_state {
 	SLOT_USED = 2,
 };
 
-static void *alloc_insn_page(void)
+void __weak *alloc_insn_page(void)
 {
 	return module_alloc(PAGE_SIZE);
 }

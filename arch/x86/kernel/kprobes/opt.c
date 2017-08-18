@@ -184,13 +184,13 @@ optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(optimized_callback);
 
-static int copy_optimized_instructions(u8 *dest, u8 *src)
+static int copy_optimized_instructions(u8 *dest, u8 *src, u8 *real)
 {
 	struct insn insn;
 	int len = 0, ret;
 
 	while (len < RELATIVEJUMP_SIZE) {
-		ret = __copy_instruction(dest + len, src + len, &insn);
+		ret = __copy_instruction(dest + len, src + len, real, &insn);
 		if (!ret || !can_boost(&insn, src + len))
 			return -EINVAL;
 		len += ret;
@@ -343,57 +343,66 @@ void arch_remove_optimized_kprobe(struct optimized_kprobe *op)
 int arch_prepare_optimized_kprobe(struct optimized_kprobe *op,
 				  struct kprobe *__unused)
 {
-	u8 *buf;
-	int ret;
+	u8 *buf = NULL, *slot;
+	int ret, len;
 	long rel;
 
 	if (!can_optimize((unsigned long)op->kp.addr))
 		return -EILSEQ;
 
-	op->optinsn.insn = get_optinsn_slot();
-	if (!op->optinsn.insn)
+	buf = kzalloc(MAX_OPTINSN_SIZE, GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
+
+	op->optinsn.insn = slot = get_optinsn_slot();
+	if (!slot) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/*
 	 * Verify if the address gap is in 2GB range, because this uses
 	 * a relative jump.
 	 */
-	rel = (long)op->optinsn.insn - (long)op->kp.addr + RELATIVEJUMP_SIZE;
+	rel = (long)slot - (long)op->kp.addr + RELATIVEJUMP_SIZE;
 	if (abs(rel) > 0x7fffffff) {
-		__arch_remove_optimized_kprobe(op, 0);
-		return -ERANGE;
+		ret = -ERANGE;
+		goto err;
 	}
-
-	buf = (u8 *)op->optinsn.insn;
-	set_memory_rw((unsigned long)buf & PAGE_MASK, 1);
-
-	/* Copy instructions into the out-of-line buffer */
-	ret = copy_optimized_instructions(buf + TMPL_END_IDX, op->kp.addr);
-	if (ret < 0) {
-		__arch_remove_optimized_kprobe(op, 0);
-		return ret;
-	}
-	op->optinsn.size = ret;
 
 	/* Copy arch-dep-instance from template */
 	memcpy(buf, &optprobe_template_entry, TMPL_END_IDX);
+
+	/* Copy instructions into the out-of-line buffer */
+	ret = copy_optimized_instructions(buf + TMPL_END_IDX, op->kp.addr,
+					  slot + TMPL_END_IDX);
+	if (ret < 0)
+		goto err;
+	op->optinsn.size = ret;
+	len = TMPL_END_IDX + op->optinsn.size;
 
 	/* Set probe information */
 	synthesize_set_arg1(buf + TMPL_MOVE_IDX, (unsigned long)op);
 
 	/* Set probe function call */
-	synthesize_relcall(buf + TMPL_CALL_IDX, optimized_callback);
+	synthesize_relcall(buf + TMPL_CALL_IDX,
+			   slot + TMPL_CALL_IDX, optimized_callback);
 
 	/* Set returning jmp instruction at the tail of out-of-line buffer */
-	synthesize_reljump(buf + TMPL_END_IDX + op->optinsn.size,
+	synthesize_reljump(buf + len, slot + len,
 			   (u8 *)op->kp.addr + op->optinsn.size);
+	len += RELATIVEJUMP_SIZE;
 
-	set_memory_ro((unsigned long)buf & PAGE_MASK, 1);
+	/* We have to use text_poke for instuction buffer because it is RO */
+	text_poke(slot, buf, len);
+	ret = 0;
+out:
+	kfree(buf);
+	return ret;
 
-	flush_icache_range((unsigned long) buf,
-			   (unsigned long) buf + TMPL_END_IDX +
-			   op->optinsn.size + RELATIVEJUMP_SIZE);
-	return 0;
+err:
+	__arch_remove_optimized_kprobe(op, 0);
+	goto out;
 }
 
 /*
