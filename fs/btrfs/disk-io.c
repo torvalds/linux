@@ -3433,9 +3433,10 @@ static int write_dev_supers(struct btrfs_device *device,
 		 */
 		if (i == 0) {
 			ret = btrfsic_submit_bh(REQ_OP_WRITE,
-						REQ_SYNC | REQ_FUA, bh);
+				REQ_SYNC | REQ_FUA | REQ_META | REQ_PRIO, bh);
 		} else {
-			ret = btrfsic_submit_bh(REQ_OP_WRITE, REQ_SYNC, bh);
+			ret = btrfsic_submit_bh(REQ_OP_WRITE,
+				REQ_SYNC | REQ_META | REQ_PRIO, bh);
 		}
 		if (ret)
 			errors++;
