@@ -3517,7 +3517,7 @@ static void write_dev_flush(struct btrfs_device *device)
 	init_completion(&device->flush_wait);
 	bio->bi_private = &device->flush_wait;
 
-	submit_bio(bio);
+	btrfsic_submit_bio(bio);
 	device->flush_bio_sent = 1;
 }
 
