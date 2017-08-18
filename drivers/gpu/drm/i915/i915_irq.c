@@ -3070,7 +3070,7 @@ static void ironlake_irq_reset(struct drm_device *dev)
 	ibx_irq_reset(dev_priv);
 }
 
-static void valleyview_irq_preinstall(struct drm_device *dev)
+static void valleyview_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -3144,7 +3144,7 @@ void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 	synchronize_irq(dev_priv->drm.irq);
 }
 
-static void cherryview_irq_preinstall(struct drm_device *dev)
+static void cherryview_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -3606,49 +3606,7 @@ static int cherryview_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static void gen8_irq_uninstall(struct drm_device *dev)
-{
-	gen8_irq_reset(dev);
-}
-
-static void valleyview_irq_uninstall(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	I915_WRITE(VLV_MASTER_IER, 0);
-	POSTING_READ(VLV_MASTER_IER);
-
-	gen5_gt_irq_reset(dev_priv);
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->display_irqs_enabled)
-		vlv_display_irq_reset(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
-}
-
-static void cherryview_irq_uninstall(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	I915_WRITE(GEN8_MASTER_IRQ, 0);
-	POSTING_READ(GEN8_MASTER_IRQ);
-
-	gen8_gt_irq_reset(dev_priv);
-
-	GEN3_IRQ_RESET(GEN8_PCU_);
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->display_irqs_enabled)
-		vlv_display_irq_reset(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
-}
-
-static void ironlake_irq_uninstall(struct drm_device *dev)
-{
-	ironlake_irq_reset(dev);
-}
-
-static void i8xx_irq_preinstall(struct drm_device * dev)
+static void i8xx_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -3731,18 +3689,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 	return ret;
 }
 
-static void i8xx_irq_uninstall(struct drm_device * dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	i9xx_pipestat_irq_reset(dev_priv);
-
-	I915_WRITE16(HWSTAM, 0xffff);
-
-	GEN2_IRQ_RESET();
-}
-
-static void i915_irq_preinstall(struct drm_device * dev)
+static void i915_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -3849,23 +3796,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 	return ret;
 }
 
-static void i915_irq_uninstall(struct drm_device * dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	if (I915_HAS_HOTPLUG(dev_priv)) {
-		i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
-		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
-	}
-
-	i9xx_pipestat_irq_reset(dev_priv);
-
-	I915_WRITE(HWSTAM, 0xffffffff);
-
-	GEN3_IRQ_RESET();
-}
-
-static void i965_irq_preinstall(struct drm_device * dev)
+static void i965_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
@@ -4011,20 +3942,6 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 	return ret;
 }
 
-static void i965_irq_uninstall(struct drm_device * dev)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
-	i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
-	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
-
-	i9xx_pipestat_irq_reset(dev_priv);
-
-	I915_WRITE(HWSTAM, 0xffffffff);
-
-	GEN3_IRQ_RESET();
-}
-
 /**
  * intel_irq_init - initializes irq support
  * @dev_priv: i915 device instance
@@ -4105,17 +4022,17 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		dev->driver->irq_handler = cherryview_irq_handler;
-		dev->driver->irq_preinstall = cherryview_irq_preinstall;
+		dev->driver->irq_preinstall = cherryview_irq_reset;
 		dev->driver->irq_postinstall = cherryview_irq_postinstall;
-		dev->driver->irq_uninstall = cherryview_irq_uninstall;
+		dev->driver->irq_uninstall = cherryview_irq_reset;
 		dev->driver->enable_vblank = i965_enable_vblank;
 		dev->driver->disable_vblank = i965_disable_vblank;
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		dev->driver->irq_handler = valleyview_irq_handler;
-		dev->driver->irq_preinstall = valleyview_irq_preinstall;
+		dev->driver->irq_preinstall = valleyview_irq_reset;
 		dev->driver->irq_postinstall = valleyview_irq_postinstall;
-		dev->driver->irq_uninstall = valleyview_irq_uninstall;
+		dev->driver->irq_uninstall = valleyview_irq_reset;
 		dev->driver->enable_vblank = i965_enable_vblank;
 		dev->driver->disable_vblank = i965_disable_vblank;
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
@@ -4123,7 +4040,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->irq_handler = gen8_irq_handler;
 		dev->driver->irq_preinstall = gen8_irq_reset;
 		dev->driver->irq_postinstall = gen8_irq_postinstall;
-		dev->driver->irq_uninstall = gen8_irq_uninstall;
+		dev->driver->irq_uninstall = gen8_irq_reset;
 		dev->driver->enable_vblank = gen8_enable_vblank;
 		dev->driver->disable_vblank = gen8_disable_vblank;
 		if (IS_GEN9_LP(dev_priv))
@@ -4137,29 +4054,29 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->irq_handler = ironlake_irq_handler;
 		dev->driver->irq_preinstall = ironlake_irq_reset;
 		dev->driver->irq_postinstall = ironlake_irq_postinstall;
-		dev->driver->irq_uninstall = ironlake_irq_uninstall;
+		dev->driver->irq_uninstall = ironlake_irq_reset;
 		dev->driver->enable_vblank = ironlake_enable_vblank;
 		dev->driver->disable_vblank = ironlake_disable_vblank;
 		dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
 	} else {
 		if (IS_GEN2(dev_priv)) {
-			dev->driver->irq_preinstall = i8xx_irq_preinstall;
+			dev->driver->irq_preinstall = i8xx_irq_reset;
 			dev->driver->irq_postinstall = i8xx_irq_postinstall;
 			dev->driver->irq_handler = i8xx_irq_handler;
-			dev->driver->irq_uninstall = i8xx_irq_uninstall;
+			dev->driver->irq_uninstall = i8xx_irq_reset;
 			dev->driver->enable_vblank = i8xx_enable_vblank;
 			dev->driver->disable_vblank = i8xx_disable_vblank;
 		} else if (IS_GEN3(dev_priv)) {
-			dev->driver->irq_preinstall = i915_irq_preinstall;
+			dev->driver->irq_preinstall = i915_irq_reset;
 			dev->driver->irq_postinstall = i915_irq_postinstall;
-			dev->driver->irq_uninstall = i915_irq_uninstall;
+			dev->driver->irq_uninstall = i915_irq_reset;
 			dev->driver->irq_handler = i915_irq_handler;
 			dev->driver->enable_vblank = i8xx_enable_vblank;
 			dev->driver->disable_vblank = i8xx_disable_vblank;
 		} else {
-			dev->driver->irq_preinstall = i965_irq_preinstall;
+			dev->driver->irq_preinstall = i965_irq_reset;
 			dev->driver->irq_postinstall = i965_irq_postinstall;
-			dev->driver->irq_uninstall = i965_irq_uninstall;
+			dev->driver->irq_uninstall = i965_irq_reset;
 			dev->driver->irq_handler = i965_irq_handler;
 			dev->driver->enable_vblank = i965_enable_vblank;
 			dev->driver->disable_vblank = i965_disable_vblank;
