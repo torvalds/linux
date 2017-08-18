@@ -474,8 +474,8 @@ int cmd_annotate(int argc, const char **argv)
 		annotate.sym_hist_filter = argv[0];
 	}
 
-	if (symbol_conf.show_nr_samples && !annotate.use_stdio) {
-		pr_err("--show-nr-samples is only available in --stdio mode at this time\n");
+	if (symbol_conf.show_nr_samples && annotate.use_gtk) {
+		pr_err("--show-nr-samples is not available in --gtk mode at this time\n");
 		return ret;
 	}
 
