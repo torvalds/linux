@@ -918,8 +918,17 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 		BUG();
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_pfp.bin", chip_name);
-	err = request_firmware(&adev->gfx.pfp_fw, fw_name, adev->dev);
+	if (adev->asic_type >= CHIP_POLARIS10 && adev->asic_type <= CHIP_POLARIS12) {
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_pfp_2.bin", chip_name);
+		err = request_firmware(&adev->gfx.pfp_fw, fw_name, adev->dev);
+		if (err == -ENOENT) {
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_pfp.bin", chip_name);
+			err = request_firmware(&adev->gfx.pfp_fw, fw_name, adev->dev);
+		}
+	} else {
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_pfp.bin", chip_name);
+		err = request_firmware(&adev->gfx.pfp_fw, fw_name, adev->dev);
+	}
 	if (err)
 		goto out;
 	err = amdgpu_ucode_validate(adev->gfx.pfp_fw);
@@ -929,8 +938,17 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	adev->gfx.pfp_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
 	adev->gfx.pfp_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_me.bin", chip_name);
-	err = request_firmware(&adev->gfx.me_fw, fw_name, adev->dev);
+	if (adev->asic_type >= CHIP_POLARIS10 && adev->asic_type <= CHIP_POLARIS12) {
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_me_2.bin", chip_name);
+		err = request_firmware(&adev->gfx.me_fw, fw_name, adev->dev);
+		if (err == -ENOENT) {
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_me.bin", chip_name);
+			err = request_firmware(&adev->gfx.me_fw, fw_name, adev->dev);
+		}
+	} else {
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_me.bin", chip_name);
+		err = request_firmware(&adev->gfx.me_fw, fw_name, adev->dev);
+	}
 	if (err)
 		goto out;
 	err = amdgpu_ucode_validate(adev->gfx.me_fw);
@@ -941,8 +959,17 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 
 	adev->gfx.me_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ce.bin", chip_name);
-	err = request_firmware(&adev->gfx.ce_fw, fw_name, adev->dev);
+	if (adev->asic_type >= CHIP_POLARIS10 && adev->asic_type <= CHIP_POLARIS12) {
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ce_2.bin", chip_name);
+		err = request_firmware(&adev->gfx.ce_fw, fw_name, adev->dev);
+		if (err == -ENOENT) {
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ce.bin", chip_name);
+			err = request_firmware(&adev->gfx.ce_fw, fw_name, adev->dev);
+		}
+	} else {
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ce.bin", chip_name);
+		err = request_firmware(&adev->gfx.ce_fw, fw_name, adev->dev);
+	}
 	if (err)
 		goto out;
 	err = amdgpu_ucode_validate(adev->gfx.ce_fw);
@@ -1012,8 +1039,17 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	for (i = 0 ; i < (rlc_hdr->reg_list_size_bytes >> 2); i++)
 		adev->gfx.rlc.register_restore[i] = le32_to_cpu(tmp[i]);
 
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec.bin", chip_name);
-	err = request_firmware(&adev->gfx.mec_fw, fw_name, adev->dev);
+	if (adev->asic_type >= CHIP_POLARIS10 && adev->asic_type <= CHIP_POLARIS12) {
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec_2.bin", chip_name);
+		err = request_firmware(&adev->gfx.mec_fw, fw_name, adev->dev);
+		if (err == -ENOENT) {
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec.bin", chip_name);
+			err = request_firmware(&adev->gfx.mec_fw, fw_name, adev->dev);
+		}
+	} else {
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec.bin", chip_name);
+		err = request_firmware(&adev->gfx.mec_fw, fw_name, adev->dev);
+	}
 	if (err)
 		goto out;
 	err = amdgpu_ucode_validate(adev->gfx.mec_fw);
@@ -1025,8 +1061,17 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 
 	if ((adev->asic_type != CHIP_STONEY) &&
 	    (adev->asic_type != CHIP_TOPAZ)) {
-		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec2.bin", chip_name);
-		err = request_firmware(&adev->gfx.mec2_fw, fw_name, adev->dev);
+		if (adev->asic_type >= CHIP_POLARIS10 && adev->asic_type <= CHIP_POLARIS12) {
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec2_2.bin", chip_name);
+			err = request_firmware(&adev->gfx.mec2_fw, fw_name, adev->dev);
+			if (err == -ENOENT) {
+				snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec2.bin", chip_name);
+				err = request_firmware(&adev->gfx.mec2_fw, fw_name, adev->dev);
+			}
+		} else {
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec2.bin", chip_name);
+			err = request_firmware(&adev->gfx.mec2_fw, fw_name, adev->dev);
+		}
 		if (!err) {
 			err = amdgpu_ucode_validate(adev->gfx.mec2_fw);
 			if (err)
