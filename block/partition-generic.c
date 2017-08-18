@@ -403,7 +403,6 @@ out_del:
 	device_del(pdev);
 out_put:
 	put_device(pdev);
-	blk_free_devt(devt);
 	return ERR_PTR(err);
 }
 
