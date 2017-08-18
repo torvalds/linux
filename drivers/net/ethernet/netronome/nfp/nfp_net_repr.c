@@ -78,12 +78,10 @@ void nfp_repr_inc_rx_stats(struct net_device *netdev, unsigned int len)
 }
 
 static void
-nfp_repr_phy_port_get_stats64(const struct nfp_app *app, u8 phy_port,
+nfp_repr_phy_port_get_stats64(struct nfp_port *port,
 			      struct rtnl_link_stats64 *stats)
 {
-	u8 __iomem *mem;
-
-	mem = app->pf->mac_stats_mem + phy_port * NFP_MAC_STATS_SIZE;
+	u8 __iomem *mem = port->eth_stats;
 
 	/* TX and RX stats are flipped as we are returning the stats as seen
 	 * at the switch port corresponding to the phys port.
@@ -141,7 +139,6 @@ static void
 nfp_repr_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 {
 	struct nfp_repr *repr = netdev_priv(netdev);
-	struct nfp_eth_table_port *eth_port;
 	struct nfp_app *app = repr->app;
 
 	if (WARN_ON(!repr->port))
@@ -149,10 +146,9 @@ nfp_repr_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 
 	switch (repr->port->type) {
 	case NFP_PORT_PHYS_PORT:
-		eth_port = __nfp_port_get_eth_port(repr->port);
-		if (!eth_port)
+		if (!__nfp_port_get_eth_port(repr->port))
 			break;
-		nfp_repr_phy_port_get_stats64(app, eth_port->index, stats);
+		nfp_repr_phy_port_get_stats64(repr->port, stats);
 		break;
 	case NFP_PORT_PF_PORT:
 		nfp_repr_pf_get_stats64(app, repr->port->pf_id, stats);
