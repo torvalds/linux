@@ -18,6 +18,9 @@
 #include "bpf_lru_list.h"
 #include "map_in_map.h"
 
+#define HTAB_CREATE_FLAG_MASK \
+	(BPF_F_NO_PREALLOC | BPF_F_NO_COMMON_LRU | BPF_F_NUMA_NODE)
+
 struct bucket {
 	struct hlist_nulls_head head;
 	raw_spinlock_t lock;
@@ -138,7 +141,8 @@ static int prealloc_init(struct bpf_htab *htab)
 	if (!htab_is_percpu(htab) && !htab_is_lru(htab))
 		num_entries += num_possible_cpus();
 
-	htab->elems = bpf_map_area_alloc(htab->elem_size * num_entries);
+	htab->elems = bpf_map_area_alloc(htab->elem_size * num_entries,
+					 htab->map.numa_node);
 	if (!htab->elems)
 		return -ENOMEM;
 
@@ -233,6 +237,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	 */
 	bool percpu_lru = (attr->map_flags & BPF_F_NO_COMMON_LRU);
 	bool prealloc = !(attr->map_flags & BPF_F_NO_PREALLOC);
+	int numa_node = bpf_map_attr_numa_node(attr);
 	struct bpf_htab *htab;
 	int err, i;
 	u64 cost;
@@ -248,7 +253,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 		 */
 		return ERR_PTR(-EPERM);
 
-	if (attr->map_flags & ~(BPF_F_NO_PREALLOC | BPF_F_NO_COMMON_LRU))
+	if (attr->map_flags & ~HTAB_CREATE_FLAG_MASK)
 		/* reserved bits should not be used */
 		return ERR_PTR(-EINVAL);
 
@@ -257,6 +262,9 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 
 	if (lru && !prealloc)
 		return ERR_PTR(-ENOTSUPP);
+
+	if (numa_node != NUMA_NO_NODE && (percpu || percpu_lru))
+		return ERR_PTR(-EINVAL);
 
 	htab = kzalloc(sizeof(*htab), GFP_USER);
 	if (!htab)
@@ -268,6 +276,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	htab->map.value_size = attr->value_size;
 	htab->map.max_entries = attr->max_entries;
 	htab->map.map_flags = attr->map_flags;
+	htab->map.numa_node = numa_node;
 
 	/* check sanity of attributes.
 	 * value_size == 0 may be allowed in the future to use map as a set
@@ -346,7 +355,8 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 
 	err = -ENOMEM;
 	htab->buckets = bpf_map_area_alloc(htab->n_buckets *
-					   sizeof(struct bucket));
+					   sizeof(struct bucket),
+					   htab->map.numa_node);
 	if (!htab->buckets)
 		goto free_htab;
 
@@ -689,7 +699,8 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 				atomic_dec(&htab->count);
 				return ERR_PTR(-E2BIG);
 			}
-		l_new = kmalloc(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN);
+		l_new = kmalloc_node(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN,
+				     htab->map.numa_node);
 		if (!l_new)
 			return ERR_PTR(-ENOMEM);
 	}
