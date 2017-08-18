@@ -393,6 +393,9 @@ qdisc_class_find(const struct Qdisc_class_hash *hash, u32 id)
 	struct Qdisc_class_common *cl;
 	unsigned int h;
 
+	if (!id)
+		return NULL;
+
 	h = qdisc_class_hash(id, hash->hashmask);
 	hlist_for_each_entry(cl, &hash->hash[h], hnode) {
 		if (cl->classid == id)
