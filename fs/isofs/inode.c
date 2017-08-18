@@ -1321,7 +1321,6 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 
 		tmpde = kmalloc(de_len, GFP_KERNEL);
 		if (tmpde == NULL) {
-			printk(KERN_INFO "%s: out of memory\n", __func__);
 			ret = -ENOMEM;
 			goto fail;
 		}
