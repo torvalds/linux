@@ -264,7 +264,7 @@ static int amd_iommu_enable_interrupts(void);
 static int __init iommu_go_to_state(enum iommu_init_state state);
 static void init_device_table_dma(void);
 
-static bool __initdata amd_iommu_pre_enabled = true;
+static bool amd_iommu_pre_enabled = true;
 
 bool translation_pre_enabled(struct amd_iommu *iommu)
 {
