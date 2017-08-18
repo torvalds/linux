@@ -455,6 +455,31 @@ void irq_set_default_host(struct irq_domain *domain)
 }
 EXPORT_SYMBOL_GPL(irq_set_default_host);
 
+static void irq_domain_clear_mapping(struct irq_domain *domain,
+				     irq_hw_number_t hwirq)
+{
+	if (hwirq < domain->revmap_size) {
+		domain->linear_revmap[hwirq] = 0;
+	} else {
+		mutex_lock(&revmap_trees_mutex);
+		radix_tree_delete(&domain->revmap_tree, hwirq);
+		mutex_unlock(&revmap_trees_mutex);
+	}
+}
+
+static void irq_domain_set_mapping(struct irq_domain *domain,
+				   irq_hw_number_t hwirq,
+				   struct irq_data *irq_data)
+{
+	if (hwirq < domain->revmap_size) {
+		domain->linear_revmap[hwirq] = irq_data->irq;
+	} else {
+		mutex_lock(&revmap_trees_mutex);
+		radix_tree_insert(&domain->revmap_tree, hwirq, irq_data);
+		mutex_unlock(&revmap_trees_mutex);
+	}
+}
+
 void irq_domain_disassociate(struct irq_domain *domain, unsigned int irq)
 {
 	struct irq_data *irq_data = irq_get_irq_data(irq);
@@ -483,13 +508,7 @@ void irq_domain_disassociate(struct irq_domain *domain, unsigned int irq)
 	domain->mapcount--;
 
 	/* Clear reverse map for this hwirq */
-	if (hwirq < domain->revmap_size) {
-		domain->linear_revmap[hwirq] = 0;
-	} else {
-		mutex_lock(&revmap_trees_mutex);
-		radix_tree_delete(&domain->revmap_tree, hwirq);
-		mutex_unlock(&revmap_trees_mutex);
-	}
+	irq_domain_clear_mapping(domain, hwirq);
 }
 
 int irq_domain_associate(struct irq_domain *domain, unsigned int virq,
@@ -533,13 +552,7 @@ int irq_domain_associate(struct irq_domain *domain, unsigned int virq,
 	}
 
 	domain->mapcount++;
-	if (hwirq < domain->revmap_size) {
-		domain->linear_revmap[hwirq] = virq;
-	} else {
-		mutex_lock(&revmap_trees_mutex);
-		radix_tree_insert(&domain->revmap_tree, hwirq, irq_data);
-		mutex_unlock(&revmap_trees_mutex);
-	}
+	irq_domain_set_mapping(domain, hwirq, irq_data);
 	mutex_unlock(&irq_domain_mutex);
 
 	irq_clear_status_flags(virq, IRQ_NOREQUEST);
@@ -1138,16 +1151,9 @@ static void irq_domain_insert_irq(int virq)
 
 	for (data = irq_get_irq_data(virq); data; data = data->parent_data) {
 		struct irq_domain *domain = data->domain;
-		irq_hw_number_t hwirq = data->hwirq;
 
 		domain->mapcount++;
-		if (hwirq < domain->revmap_size) {
-			domain->linear_revmap[hwirq] = virq;
-		} else {
-			mutex_lock(&revmap_trees_mutex);
-			radix_tree_insert(&domain->revmap_tree, hwirq, data);
-			mutex_unlock(&revmap_trees_mutex);
-		}
+		irq_domain_set_mapping(domain, data->hwirq, data);
 
 		/* If not already assigned, give the domain the chip's name */
 		if (!domain->name && data->chip)
@@ -1171,13 +1177,7 @@ static void irq_domain_remove_irq(int virq)
 		irq_hw_number_t hwirq = data->hwirq;
 
 		domain->mapcount--;
-		if (hwirq < domain->revmap_size) {
-			domain->linear_revmap[hwirq] = 0;
-		} else {
-			mutex_lock(&revmap_trees_mutex);
-			radix_tree_delete(&domain->revmap_tree, hwirq);
-			mutex_unlock(&revmap_trees_mutex);
-		}
+		irq_domain_clear_mapping(domain, hwirq);
 	}
 }
 
