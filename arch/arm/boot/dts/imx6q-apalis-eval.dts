@@ -50,8 +50,8 @@
 #include "imx6qdl-apalis.dtsi"
 
 / {
-	model = "Toradex Apalis iMX6Q/D Module on Ixora Carrier Board";
-	compatible = "toradex,apalis_imx6q-ixora", "toradex,apalis_imx6q",
+	model = "Toradex Apalis iMX6Q/D Module on Apalis Evaluation Board";
+	compatible = "toradex,apalis_imx6q-eval", "toradex,apalis_imx6q",
 		     "fsl,imx6q";
 
 	aliases {
@@ -117,31 +117,15 @@
 		};
 	};
 
-	leds {
-		compatible = "gpio-leds";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_leds_ixora>;
-
-		led4-green {
-			label = "LED_4_GREEN";
-			gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
-		};
-
-		led4-red {
-			label = "LED_4_RED";
-			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
-		};
-
-		led5-green {
-			label = "LED_5_GREEN";
-			gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
-		};
-
-		led5-red {
-			label = "LED_5_RED";
-			gpios = <&gpio2 2 GPIO_ACTIVE_HIGH>;
-		};
+	reg_pcie_switch: regulator-pcie-switch {
+		compatible = "regulator-fixed";
+		regulator-name = "pcie_switch";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <100000>;
+		enable-active-high;
+		status = "okay";
 	};
 };
 
@@ -167,9 +151,9 @@
 &i2c1 {
 	status = "okay";
 
-	eeprom@50 {
-		compatible = "atmel,24c02";
-		reg = <0x50>;
+	pcie-switch@58 {
+		compatible = "plx,pex8605";
+		reg = <0x58>;
 	};
 
 	/* M41T0M6 real time clock on carrier board */
@@ -199,6 +183,7 @@
 	/* active-high meaning opposite of regular PERST# active-low polarity */
 	reset-gpio = <&gpio1 28 GPIO_ACTIVE_HIGH>;
 	reset-gpio-active-high;
+	vpcie-supply = <&reg_pcie_switch>;
 	status = "okay";
 };
 
@@ -264,6 +249,14 @@
 	status = "okay";
 };
 
+/* MMC1 */
+&usdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc1_4bit &pinctrl_usdhc1_8bit &pinctrl_mmc_cd>;
+	cd-gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
 /* SD1 */
 &usdhc2 {
 	pinctrl-names = "default";
@@ -273,20 +266,13 @@
 };
 
 &iomuxc {
-	/* Mux the Apalis GPIOs */
+	/*
+	 * Mux the Apalis GPIOs
+	 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_apalis_gpio1 &pinctrl_apalis_gpio2
 		     &pinctrl_apalis_gpio3 &pinctrl_apalis_gpio4
 		     &pinctrl_apalis_gpio5 &pinctrl_apalis_gpio6
 		     &pinctrl_apalis_gpio7 &pinctrl_apalis_gpio8
 		    >;
-
-	pinctrl_leds_ixora: ledsixoragrp {
-		fsl,pins = <
-			MX6QDL_PAD_SD1_DAT1__GPIO1_IO17 0x1b0b0
-			MX6QDL_PAD_SD1_DAT3__GPIO1_IO21 0x1b0b0
-			MX6QDL_PAD_NANDF_D1__GPIO2_IO01 0x1b0b0
-			MX6QDL_PAD_NANDF_D2__GPIO2_IO02 0x1b0b0
-		>;
-	};
 };

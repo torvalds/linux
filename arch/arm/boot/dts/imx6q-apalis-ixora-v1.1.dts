@@ -50,8 +50,9 @@
 #include "imx6qdl-apalis.dtsi"
 
 / {
-	model = "Toradex Apalis iMX6Q/D Module on Ixora Carrier Board";
-	compatible = "toradex,apalis_imx6q-ixora", "toradex,apalis_imx6q",
+	model = "Toradex Apalis iMX6Q/D Module on Ixora Carrier Board V1.1";
+	compatible = "toradex,apalis_imx6q-ixora-v1.1",
+		     "toradex,apalis_imx6q-ixora", "toradex,apalis_imx6q",
 		     "fsl,imx6q";
 
 	aliases {
@@ -125,12 +126,12 @@
 
 		led4-green {
 			label = "LED_4_GREEN";
-			gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
 		};
 
 		led4-red {
 			label = "LED_4_RED";
-			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		};
 
 		led5-green {
@@ -166,11 +167,6 @@
 /* I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier board) */
 &i2c1 {
 	status = "okay";
-
-	eeprom@50 {
-		compatible = "atmel,24c02";
-		reg = <0x50>;
-	};
 
 	/* M41T0M6 real time clock on carrier board */
 	rtc_i2c: rtc@68 {
@@ -264,16 +260,19 @@
 	status = "okay";
 };
 
-/* SD1 */
-&usdhc2 {
+/* MMC1 */
+&usdhc1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc2 &pinctrl_sd_cd>;
-	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&pinctrl_usdhc1_4bit &pinctrl_mmc_cd>;
+	cd-gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
+	bus-width = <4>;
 	status = "okay";
 };
 
 &iomuxc {
-	/* Mux the Apalis GPIOs */
+	/*
+	 * Mux the Apalis GPIOs
+	 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_apalis_gpio1 &pinctrl_apalis_gpio2
 		     &pinctrl_apalis_gpio3 &pinctrl_apalis_gpio4
@@ -283,8 +282,8 @@
 
 	pinctrl_leds_ixora: ledsixoragrp {
 		fsl,pins = <
-			MX6QDL_PAD_SD1_DAT1__GPIO1_IO17 0x1b0b0
-			MX6QDL_PAD_SD1_DAT3__GPIO1_IO21 0x1b0b0
+			MX6QDL_PAD_SD2_DAT1__GPIO1_IO14 0x1b0b0
+			MX6QDL_PAD_SD2_DAT3__GPIO1_IO12 0x1b0b0
 			MX6QDL_PAD_NANDF_D1__GPIO2_IO01 0x1b0b0
 			MX6QDL_PAD_NANDF_D2__GPIO2_IO02 0x1b0b0
 		>;
