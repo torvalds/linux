@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2016 Rafał Miłecki <rafal@milecki.pl>
+ * Copyright (C) 2017 Broadcom
+ * Author: Florian Fainelli <f.fainelli@gmail.com>
  *
  * Licensed under the ISC license.
  */
@@ -9,8 +10,8 @@
 #include "bcm53573.dtsi"
 
 / {
-	compatible = "tenda,ac9", "brcm,bcm47189", "brcm,bcm53573";
-	model = "Tenda AC9";
+	compatible = "brcm,bcm947189acdbmr", "brcm,bcm47189", "brcm,bcm53573";
+	model = "Broadcom BCM947189ACDBMR";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon";
@@ -23,13 +24,6 @@
 	leds {
 		compatible = "gpio-leds";
 
-		usb {
-			label = "bcm53xx:blue:usb";
-			gpios = <&chipcommon 1 GPIO_ACTIVE_HIGH>;
-			trigger-sources = <&ohci_port1>, <&ehci_port1>;
-			linux,default-trigger = "usbport";
-		};
-
 		wps {
 			label = "bcm53xx:blue:wps";
 			gpios = <&chipcommon 10 GPIO_ACTIVE_HIGH>;
@@ -40,19 +34,9 @@
 			gpios = <&chipcommon 11 GPIO_ACTIVE_HIGH>;
 		};
 
-		system {
-			label = "bcm53xx:blue:system";
-			gpios = <&chipcommon 15 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "timer";
-		};
-	};
-
-	pcie0_leds {
-		compatible = "gpio-leds";
-
 		2ghz {
 			label = "bcm53xx:blue:2ghz";
-			gpios = <&pcie0_chipcommon 3 GPIO_ACTIVE_HIGH>;
+			gpios = <&chipcommon 12 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -61,16 +45,10 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		rfkill {
-			label = "WiFi";
-			linux,code = <KEY_RFKILL>;
-			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
-		};
-
 		restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
-			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
+			gpios = <&chipcommon 7 GPIO_ACTIVE_HIGH>;
 		};
 
 		wps {
@@ -78,6 +56,19 @@
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&chipcommon 9 GPIO_ACTIVE_LOW>;
 		};
+	};
+
+	spi {
+		compatible = "spi-gpio";
+		num-chipselects = <1>;
+		gpio-sck = <&chipcommon 21 0>;
+		gpio-miso = <&chipcommon 22 0>;
+		gpio-mosi = <&chipcommon 23 0>;
+		cs-gpios = <&chipcommon 24 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* External BCM6802 MoCA chip is connected */
 	};
 };
 
@@ -97,13 +88,10 @@
 			ranges = <0x00000000 0 0 0 0x00100000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-
-			pcie0_chipcommon: chipcommon@0 {
-				reg = <0 0x1000>;
-
-				gpio-controller;
-				#gpio-cells = <2>;
-			};
 		};
 	};
+};
+
+&usb2 {
+	vcc-gpio = <&chipcommon 8 GPIO_ACTIVE_HIGH>;
 };
