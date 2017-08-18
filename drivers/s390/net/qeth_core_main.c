@@ -3956,11 +3956,11 @@ static void __qeth_fill_buffer(struct sk_buff *skb,
 static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 			    struct qeth_qdio_out_buffer *buf,
 			    struct sk_buff *skb, struct qeth_hdr *hdr,
-			    unsigned int offset, int hd_len)
+			    unsigned int offset, unsigned int hd_len)
 {
 	struct qdio_buffer *buffer;
-	int flush_cnt = 0, hdr_len;
 	bool is_first_elem = true;
+	int flush_cnt = 0;
 
 	buffer = buf->buffer;
 	refcount_inc(&skb->users);
@@ -3970,14 +3970,12 @@ static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 		int element = buf->next_element_to_fill;
 		is_first_elem = false;
 
-		hdr_len = sizeof(struct qeth_hdr_tso) +
-			((struct qeth_hdr_tso *)hdr)->ext.dg_hdr_len;
 		/*fill first buffer entry only with header information */
 		buffer->element[element].addr = skb->data;
-		buffer->element[element].length = hdr_len;
+		buffer->element[element].length = hd_len;
 		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
 		buf->next_element_to_fill++;
-		skb_pull(skb, hdr_len);
+		skb_pull(skb, hd_len);
 	}
 
 	/* IQD */
@@ -4020,7 +4018,7 @@ static int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 int qeth_do_send_packet_fast(struct qeth_card *card,
 			     struct qeth_qdio_out_q *queue, struct sk_buff *skb,
 			     struct qeth_hdr *hdr, unsigned int offset,
-			     int hd_len)
+			     unsigned int hd_len)
 {
 	struct qeth_qdio_out_buffer *buffer;
 	int index;
@@ -4050,8 +4048,8 @@ out:
 EXPORT_SYMBOL_GPL(qeth_do_send_packet_fast);
 
 int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
-		struct sk_buff *skb, struct qeth_hdr *hdr,
-		int elements_needed)
+			struct sk_buff *skb, struct qeth_hdr *hdr,
+			unsigned int hd_len, int elements_needed)
 {
 	struct qeth_qdio_out_buffer *buffer;
 	int start_index;
@@ -4100,7 +4098,7 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			}
 		}
 	}
-	tmp = qeth_fill_buffer(queue, buffer, skb, hdr, 0, 0);
+	tmp = qeth_fill_buffer(queue, buffer, skb, hdr, 0, hd_len);
 	queue->next_buf_to_fill = (queue->next_buf_to_fill + tmp) %
 				  QDIO_MAX_BUFFERS_PER_Q;
 	flush_count += tmp;
