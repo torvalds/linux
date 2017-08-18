@@ -159,12 +159,18 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 			goto err_reprs_clean;
 		}
 
+		/* For now we only support 1 PF */
+		WARN_ON(repr_type == NFP_REPR_TYPE_PF && i);
+
 		port = nfp_port_alloc(app, port_type, reprs->reprs[i]);
 		if (repr_type == NFP_REPR_TYPE_PF) {
 			port->pf_id = i;
+			port->vnic = priv->nn->dp.ctrl_bar;
 		} else {
-			port->pf_id = 0; /* For now we only support 1 PF */
+			port->pf_id = 0;
 			port->vf_id = i;
+			port->vnic =
+				app->pf->vf_cfg_mem + i * NFP_NET_CFG_BAR_SZ;
 		}
 
 		eth_hw_addr_random(reprs->reprs[i]);
