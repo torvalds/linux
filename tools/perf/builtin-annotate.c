@@ -403,7 +403,7 @@ int cmd_annotate(int argc, const char **argv)
 	struct perf_data_file file = {
 		.mode  = PERF_DATA_MODE_READ,
 	};
-	const struct option options[] = {
+	struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
@@ -445,13 +445,20 @@ int cmd_annotate(int argc, const char **argv)
 		    "Show event group information together"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
+	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
+		    "Show a column with the number of samples"),
 	OPT_CALLBACK_DEFAULT(0, "stdio-color", NULL, "mode",
 			     "'always' (default), 'never' or 'auto' only applicable to --stdio mode",
 			     stdio__config_color, "always"),
 	OPT_END()
 	};
-	int ret = hists__init();
+	int ret;
 
+	set_option_flag(options, 0, "show-total-period", PARSE_OPT_EXCLUSIVE);
+	set_option_flag(options, 0, "show-nr-samples", PARSE_OPT_EXCLUSIVE);
+
+
+	ret = hists__init();
 	if (ret < 0)
 		return ret;
 
@@ -465,6 +472,11 @@ int cmd_annotate(int argc, const char **argv)
 			usage_with_options(annotate_usage, options);
 
 		annotate.sym_hist_filter = argv[0];
+	}
+
+	if (symbol_conf.show_nr_samples && !annotate.use_stdio) {
+		pr_err("--show-nr-samples is only available in --stdio mode at this time\n");
+		return ret;
 	}
 
 	if (quiet)

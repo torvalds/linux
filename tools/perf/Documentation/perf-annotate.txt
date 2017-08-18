@@ -43,6 +43,10 @@ OPTIONS
 --quiet::
 	Do not show any message.  (Suppress -v)
 
+-n::
+--show-nr-samples::
+	Show the number of samples for each symbol
+
 -D::
 --dump-raw-trace::
         Dump raw trace in ASCII.
