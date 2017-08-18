@@ -2698,7 +2698,7 @@ static void intel_disable_dp(struct intel_encoder *encoder,
 		intel_audio_codec_disable(encoder);
 
 	if (HAS_PSR(dev_priv) && !HAS_DDI(dev_priv))
-		intel_psr_disable(intel_dp);
+		intel_psr_disable(intel_dp, old_crtc_state);
 
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
@@ -2928,7 +2928,7 @@ static void vlv_enable_dp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
 	intel_edp_backlight_on(pipe_config, conn_state);
-	intel_psr_enable(intel_dp);
+	intel_psr_enable(intel_dp, pipe_config);
 }
 
 static void g4x_pre_enable_dp(struct intel_encoder *encoder,
