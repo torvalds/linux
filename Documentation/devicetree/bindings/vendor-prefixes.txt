@@ -342,6 +342,7 @@ tpo	TPO
 tronfy	Tronfy
 tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
+tsd	Theobroma Systems Design und Consulting GmbH
 tyan	Tyan Computer Corporation
 ucrobotics	uCRobotics
 udoo	Udoo
