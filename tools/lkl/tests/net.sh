@@ -2,11 +2,6 @@
 
 set -e
 
-# currently not supported mingw
-if [ "`printenv CONFIG_AUTO_LKL_POSIX_HOST`" != "y" ] ; then
-    exit 0
-fi
-
 # android doesn't have sudo
 if [ -z ${LKL_ANDROID_TEST} ] ; then
     SUDO="sudo"
@@ -35,6 +30,11 @@ trap clear_work_dir EXIT
 
 echo "== Loopback (LKL net) tests =="
 ./net-test --dst 127.0.0.1
+
+# the rest of the tests are not supported on mingw
+if [ "`printenv CONFIG_AUTO_LKL_POSIX_HOST`" != "y" ] ; then
+    exit 0
+fi
 
 echo "== PIPE (LKL net) tests =="
 if [ -z `which mkfifo` ]; then

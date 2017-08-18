@@ -2,26 +2,19 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-
-#include "cla.h"
-#include "test.h"
-
-#ifndef __MINGW32__
+#ifdef __MINGW32__
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#ifdef __ANDROID__
-#include <linux/icmp.h>
 #endif
 
 #include <lkl.h>
 #include <lkl_host.h>
 
-#include <net/if.h>
-#include <linux/if_tun.h>
-#include <sys/ioctl.h>
+#include "cla.h"
+#include "test.h"
 
 enum {
 	BACKEND_TAP,
@@ -87,8 +80,8 @@ in_cksum(const u_short *addr, register int len, u_short csum)
 static int test_icmp(char *str, int len)
 {
 	int sock, ret;
-	struct iphdr *iph;
-	struct icmphdr *icmp;
+	struct lkl_iphdr *iph;
+	struct lkl_icmphdr *icmp;
 	struct sockaddr_in saddr;
 	struct lkl_pollfd pfd;
 	char buf[32];
@@ -99,14 +92,14 @@ static int test_icmp(char *str, int len)
 
 	str += snprintf(str, len, "%s ", inet_ntoa(saddr.sin_addr));
 
-	sock = lkl_sys_socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+	sock = lkl_sys_socket(LKL_AF_INET, LKL_SOCK_RAW, LKL_IPPROTO_ICMP);
 	if (sock < 0) {
 		snprintf(str, len, "socket error (%s)", lkl_strerror(sock));
 		return TEST_FAILURE;
 	}
 
-	icmp = malloc(sizeof(struct icmphdr *));
-	icmp->type = ICMP_ECHO;
+	icmp = malloc(sizeof(struct lkl_icmphdr *));
+	icmp->type = LKL_ICMP_ECHO;
 	icmp->code = 0;
 	icmp->checksum = 0;
 	icmp->un.echo.sequence = 0;
@@ -133,17 +126,17 @@ static int test_icmp(char *str, int len)
 		return TEST_FAILURE;
 	}
 
-	ret = lkl_sys_recv(sock, buf, sizeof(buf), MSG_DONTWAIT);
+	ret = lkl_sys_recv(sock, buf, sizeof(buf), LKL_MSG_DONTWAIT);
 	if (ret < 0) {
 		snprintf(str, len, "recv error (%s)", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
-	iph = (struct iphdr *)buf;
-	icmp = (struct icmphdr *)(buf + iph->ihl * 4);
+	iph = (struct lkl_iphdr *)buf;
+	icmp = (struct lkl_icmphdr *)(buf + iph->ihl * 4);
 	/* DHCP server may issue an ICMP echo request to a dhcp client */
-	if ((icmp->type != ICMP_ECHOREPLY || icmp->code != 0) &&
-	    (icmp->type != ICMP_ECHO)) {
+	if ((icmp->type != LKL_ICMP_ECHOREPLY || icmp->code != 0) &&
+	    (icmp->type != LKL_ICMP_ECHO)) {
 		snprintf(str, len, "no ICMP echo reply (type=%d, code=%d)",
 			 icmp->type, icmp->code);
 		return TEST_FAILURE;
@@ -160,11 +153,12 @@ static int test_net_init(int argc, const char **argv)
 	if (parse_args(argc, argv, args) < 0)
 		return -1;
 
-	if (cla.ip != INADDR_NONE && (cla.nmlen < 0 || cla.nmlen > 32)) {
+	if (cla.ip != LKL_INADDR_NONE && (cla.nmlen < 0 || cla.nmlen > 32)) {
 		fprintf(stderr, "invalid netmask length %d\n", cla.nmlen);
 		return -1;
 	}
 
+#ifndef __MINGW32__
 	switch (cla.backend) {
 	case BACKEND_TAP:
 		nd = lkl_netdev_tap_create(cla.ifname, 0);
@@ -182,6 +176,7 @@ static int test_net_init(int argc, const char **argv)
 		nd = lkl_netdev_pipe_create(cla.ifname, 0);
 		break;
 	}
+#endif
 
 	if (nd) {
 		nd_id = lkl_netdev_add(nd, NULL);
@@ -212,31 +207,29 @@ static int test_net_init(int argc, const char **argv)
 				nd_id, lkl_strerror(nd_ifindex));
 	}
 
-	if (nd_ifindex >= 0 && cla.ip != INADDR_NONE) {
+	if (nd_ifindex >= 0 && cla.ip != LKL_INADDR_NONE) {
 		ret = lkl_if_set_ipv4(nd_ifindex, cla.ip, cla.nmlen);
 		if (ret < 0)
 			fprintf(stderr, "failed to set IPv4 address: %s\n",
 				lkl_strerror(ret));
 	}
 
-	if (nd_ifindex >= 0 && cla.gateway != INADDR_NONE) {
+	if (nd_ifindex >= 0 && cla.gateway != LKL_INADDR_NONE) {
 		ret = lkl_set_ipv4_gateway(cla.gateway);
 		if (ret < 0)
-			fprintf(stderr, "failed to set IPv4 gateway: %s %x\n",
-				lkl_strerror(ret), INADDR_NONE);
+			fprintf(stderr, "failed to set IPv4 gateway: %s\n",
+				lkl_strerror(ret));
 	}
 
 	return 0;
 }
-#endif /*!  __MINGW32__ */
 
 int main(int argc, const char **argv)
 {
-#ifndef __MINGW32__
 	if (test_net_init(argc, argv) < 0)
 		return -1;
 
 	TEST(icmp);
-#endif /* ! __MIGW32__ */
+
 	return g_test_pass;
 }
