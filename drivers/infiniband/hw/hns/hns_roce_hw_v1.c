@@ -733,7 +733,7 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 			continue;
 
 		free_mr->mr_free_qp[i] = hns_roce_v1_create_lp_qp(hr_dev, pd);
-		if (IS_ERR(free_mr->mr_free_qp[i])) {
+		if (!free_mr->mr_free_qp[i]) {
 			dev_err(dev, "Create loop qp failed!\n");
 			goto create_lp_qp_failed;
 		}

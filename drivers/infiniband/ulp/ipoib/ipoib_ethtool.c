@@ -52,7 +52,8 @@ static const struct ipoib_stats ipoib_gstrings_stats[] = {
 	IPOIB_NETDEV_STAT(tx_bytes),
 	IPOIB_NETDEV_STAT(tx_errors),
 	IPOIB_NETDEV_STAT(rx_dropped),
-	IPOIB_NETDEV_STAT(tx_dropped)
+	IPOIB_NETDEV_STAT(tx_dropped),
+	IPOIB_NETDEV_STAT(multicast),
 };
 
 #define IPOIB_GLOBAL_STATS_LEN	ARRAY_SIZE(ipoib_gstrings_stats)
