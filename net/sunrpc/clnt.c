@@ -2147,10 +2147,6 @@ call_status(struct rpc_task *task)
 		rpc_delay(task, 3*HZ);
 	case -ETIMEDOUT:
 		task->tk_action = call_timeout;
-		if (!(task->tk_flags & RPC_TASK_NO_RETRANS_TIMEOUT)
-		    && task->tk_client->cl_discrtry)
-			xprt_conditional_disconnect(req->rq_xprt,
-					req->rq_connect_cookie);
 		break;
 	case -ECONNREFUSED:
 	case -ECONNRESET:
