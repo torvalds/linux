@@ -5062,10 +5062,12 @@ static int __init bfq_init(void)
 
 	ret = elv_register(&iosched_bfq_mq);
 	if (ret)
-		goto err_pol_unreg;
+		goto slab_kill;
 
 	return 0;
 
+slab_kill:
+	bfq_slab_kill();
 err_pol_unreg:
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 	blkcg_policy_unregister(&blkcg_policy_bfq);
