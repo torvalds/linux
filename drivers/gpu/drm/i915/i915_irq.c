@@ -3707,9 +3707,7 @@ static void i915_irq_preinstall(struct drm_device * dev)
 
 	I915_WRITE16(HWSTAM, 0xeffe);
 
-	I915_WRITE(IMR, 0xffffffff);
-	I915_WRITE(IER, 0x0);
-	POSTING_READ(IER);
+	GEN3_IRQ_RESET();
 }
 
 static int i915_irq_postinstall(struct drm_device *dev)
@@ -3741,9 +3739,7 @@ static int i915_irq_postinstall(struct drm_device *dev)
 		dev_priv->irq_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
 	}
 
-	I915_WRITE(IMR, dev_priv->irq_mask);
-	I915_WRITE(IER, enable_mask);
-	POSTING_READ(IER);
+	GEN3_IRQ_INIT(, dev_priv->irq_mask, enable_mask);
 
 	i915_enable_asle_pipestat(dev_priv);
 
@@ -3872,9 +3868,7 @@ static void i915_irq_uninstall(struct drm_device * dev)
 
 	I915_WRITE16(HWSTAM, 0xffff);
 
-	I915_WRITE(IMR, 0xffffffff);
-	I915_WRITE(IER, 0x0);
-	I915_WRITE(IIR, I915_READ(IIR));
+	GEN3_IRQ_RESET();
 }
 
 static void i965_irq_preinstall(struct drm_device * dev)
@@ -3888,9 +3882,7 @@ static void i965_irq_preinstall(struct drm_device * dev)
 
 	I915_WRITE(HWSTAM, 0xeffe);
 
-	I915_WRITE(IMR, 0xffffffff);
-	I915_WRITE(IER, 0x0);
-	POSTING_READ(IER);
+	GEN3_IRQ_RESET();
 }
 
 static int i965_irq_postinstall(struct drm_device *dev)
@@ -3935,9 +3927,7 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	}
 	I915_WRITE(EMR, error_mask);
 
-	I915_WRITE(IMR, dev_priv->irq_mask);
-	I915_WRITE(IER, enable_mask);
-	POSTING_READ(IER);
+	GEN3_IRQ_INIT(, dev_priv->irq_mask, enable_mask);
 
 	i915_hotplug_interrupt_update(dev_priv, 0xffffffff, 0);
 	POSTING_READ(PORT_HOTPLUG_EN);
@@ -4092,9 +4082,7 @@ static void i965_irq_uninstall(struct drm_device * dev)
 
 	I915_WRITE(HWSTAM, 0xffffffff);
 
-	I915_WRITE(IMR, 0xffffffff);
-	I915_WRITE(IER, 0x0);
-	I915_WRITE(IIR, I915_READ(IIR));
+	GEN3_IRQ_RESET();
 }
 
 /**
