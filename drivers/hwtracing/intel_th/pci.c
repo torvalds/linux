@@ -30,6 +30,7 @@
 static int intel_th_pci_probe(struct pci_dev *pdev,
 			      const struct pci_device_id *id)
 {
+	struct intel_th_drvdata *drvdata = (void *)id->driver_data;
 	struct intel_th *th;
 	int err;
 
@@ -41,7 +42,7 @@ static int intel_th_pci_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	th = intel_th_alloc(&pdev->dev, pdev->resource,
+	th = intel_th_alloc(&pdev->dev, drvdata, pdev->resource,
 			    DEVICE_COUNT_RESOURCE, pdev->irq);
 	if (IS_ERR(th))
 		return PTR_ERR(th);

@@ -576,6 +576,7 @@ intel_th_subdevice_alloc(struct intel_th *th,
 	if (!thdev)
 		return ERR_PTR(-ENOMEM);
 
+	thdev->drvdata = th->drvdata;
 
 	memcpy(res, subdev->res,
 	       sizeof(struct resource) * subdev->nres);
@@ -789,8 +790,8 @@ static const struct file_operations intel_th_output_fops = {
  * @irq:	irq number
  */
 struct intel_th *
-intel_th_alloc(struct device *dev, struct resource *devres,
-	       unsigned int ndevres, int irq)
+intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
+	       struct resource *devres, unsigned int ndevres, int irq)
 {
 	struct intel_th *th;
 	int err;
@@ -812,6 +813,7 @@ intel_th_alloc(struct device *dev, struct resource *devres,
 		goto err_ida;
 	}
 	th->dev = dev;
+	th->drvdata = drvdata;
 
 	th->resource = devres;
 	th->num_resources = ndevres;

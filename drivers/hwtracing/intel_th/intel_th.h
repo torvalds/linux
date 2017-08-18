@@ -48,8 +48,19 @@ struct intel_th_output {
 };
 
 /**
+ * struct intel_th_drvdata - describes hardware capabilities and quirks
+ * @tscu_enable:	device needs SW to enable time stamping unit
+ */
+struct intel_th_drvdata {
+	unsigned int	tscu_enable        : 1;
+};
+
+#define INTEL_TH_CAP(_th, _cap) ((_th)->drvdata ? (_th)->drvdata->_cap : 0)
+
+/**
  * struct intel_th_device - device on the intel_th bus
  * @dev:		device
+ * @drvdata:		hardware capabilities/quirks
  * @resource:		array of resources available to this device
  * @num_resources:	number of resources in @resource array
  * @type:		INTEL_TH_{SOURCE,OUTPUT,SWITCH}
@@ -59,11 +70,12 @@ struct intel_th_output {
  * @name:		device name to match the driver
  */
 struct intel_th_device {
-	struct device	dev;
-	struct resource	*resource;
-	unsigned int	num_resources;
-	unsigned int	type;
-	int		id;
+	struct device		dev;
+	struct intel_th_drvdata *drvdata;
+	struct resource		*resource;
+	unsigned int		num_resources;
+	unsigned int		type;
+	int			id;
 
 	/* INTEL_TH_SWITCH specific */
 	bool			host_mode;
@@ -206,8 +218,8 @@ static inline struct intel_th *to_intel_th(struct intel_th_device *thdev)
 }
 
 struct intel_th *
-intel_th_alloc(struct device *dev, struct resource *devres,
-	       unsigned int ndevres, int irq);
+intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
+	       struct resource *devres, unsigned int ndevres, int irq);
 void intel_th_free(struct intel_th *th);
 
 int intel_th_driver_register(struct intel_th_driver *thdrv);
@@ -248,6 +260,7 @@ struct intel_th {
 
 	struct intel_th_device	*thdev[TH_SUBDEVICE_MAX];
 	struct intel_th_device	*hub;
+	struct intel_th_drvdata	*drvdata;
 
 	struct resource		*resource;
 	unsigned int		num_thdevs;
