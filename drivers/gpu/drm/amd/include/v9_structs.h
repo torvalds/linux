@@ -284,8 +284,8 @@ struct v9_mqd {
 	uint32_t gds_save_mask_hi;
 	uint32_t ctx_save_base_addr_lo;
 	uint32_t ctx_save_base_addr_hi;
-	uint32_t reserved_126;
-	uint32_t reserved_127;
+	uint32_t dynamic_cu_mask_addr_lo;
+	uint32_t dynamic_cu_mask_addr_hi;
 	uint32_t cp_mqd_base_addr_lo;
 	uint32_t cp_mqd_base_addr_hi;
 	uint32_t cp_hqd_active;
