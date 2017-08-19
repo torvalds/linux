@@ -18,6 +18,7 @@ config SOC_XWAY
 	select SOC_TYPE_XWAY
 	select HW_HAS_PCI
 	select MFD_SYSCON
+	select MFD_CORE
 
 config SOC_FALCON
 	bool "FALCON"
