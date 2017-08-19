@@ -747,6 +747,11 @@ static void destruct(struct dcn10_resource_pool *pool)
 			dce_aud_destroy(&pool->base.audios[i]);
 	}
 
+	for (i = 0; i < pool->base.res_cap->num_dwb; i++) {
+		dm_free(pool->base.dwbc[i]);
+		pool->base.dwbc[i] = NULL;
+	}
+
 	for (i = 0; i < pool->base.clk_src_count; i++) {
 		if (pool->base.clock_sources[i] != NULL) {
 			dcn10_clock_source_destroy(&pool->base.clock_sources[i]);
