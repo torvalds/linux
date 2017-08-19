@@ -714,9 +714,6 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 		     int io_flags,
 		     gfp_t gfp_flags)
 {
-	struct nfs_pgio_mirror *new;
-	int i;
-
 	desc->pg_moreio = 0;
 	desc->pg_inode = inode;
 	desc->pg_ops = pg_ops;
@@ -732,21 +729,9 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_mirror_count = 1;
 	desc->pg_mirror_idx = 0;
 
-	if (pg_ops->pg_get_mirror_count) {
-		/* until we have a request, we don't have an lseg and no
-		 * idea how many mirrors there will be */
-		new = kcalloc(NFS_PAGEIO_DESCRIPTOR_MIRROR_MAX,
-			      sizeof(struct nfs_pgio_mirror), gfp_flags);
-		desc->pg_mirrors_dynamic = new;
-		desc->pg_mirrors = new;
-
-		for (i = 0; i < NFS_PAGEIO_DESCRIPTOR_MIRROR_MAX; i++)
-			nfs_pageio_mirror_init(&desc->pg_mirrors[i], bsize);
-	} else {
-		desc->pg_mirrors_dynamic = NULL;
-		desc->pg_mirrors = desc->pg_mirrors_static;
-		nfs_pageio_mirror_init(&desc->pg_mirrors[0], bsize);
-	}
+	desc->pg_mirrors_dynamic = NULL;
+	desc->pg_mirrors = desc->pg_mirrors_static;
+	nfs_pageio_mirror_init(&desc->pg_mirrors[0], bsize);
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init);
 
@@ -865,32 +850,52 @@ static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 	return ret;
 }
 
+static struct nfs_pgio_mirror *
+nfs_pageio_alloc_mirrors(struct nfs_pageio_descriptor *desc,
+		unsigned int mirror_count)
+{
+	struct nfs_pgio_mirror *ret;
+	unsigned int i;
+
+	kfree(desc->pg_mirrors_dynamic);
+	desc->pg_mirrors_dynamic = NULL;
+	if (mirror_count == 1)
+		return desc->pg_mirrors_static;
+	ret = kmalloc_array(mirror_count, sizeof(*ret), GFP_NOFS);
+	if (ret != NULL) {
+		for (i = 0; i < mirror_count; i++)
+			nfs_pageio_mirror_init(&ret[i], desc->pg_bsize);
+		desc->pg_mirrors_dynamic = ret;
+	}
+	return ret;
+}
+
 /*
  * nfs_pageio_setup_mirroring - determine if mirroring is to be used
  *				by calling the pg_get_mirror_count op
  */
-static int nfs_pageio_setup_mirroring(struct nfs_pageio_descriptor *pgio,
+static void nfs_pageio_setup_mirroring(struct nfs_pageio_descriptor *pgio,
 				       struct nfs_page *req)
 {
-	int mirror_count = 1;
+	unsigned int mirror_count = 1;
 
-	if (!pgio->pg_ops->pg_get_mirror_count)
-		return 0;
+	if (pgio->pg_ops->pg_get_mirror_count)
+		mirror_count = pgio->pg_ops->pg_get_mirror_count(pgio, req);
+	if (mirror_count == pgio->pg_mirror_count || pgio->pg_error < 0)
+		return;
 
-	mirror_count = pgio->pg_ops->pg_get_mirror_count(pgio, req);
+	if (!mirror_count || mirror_count > NFS_PAGEIO_DESCRIPTOR_MIRROR_MAX) {
+		pgio->pg_error = -EINVAL;
+		return;
+	}
 
-	if (pgio->pg_error < 0)
-		return pgio->pg_error;
-
-	if (!mirror_count || mirror_count > NFS_PAGEIO_DESCRIPTOR_MIRROR_MAX)
-		return -EINVAL;
-
-	if (WARN_ON_ONCE(!pgio->pg_mirrors_dynamic))
-		return -EINVAL;
-
+	pgio->pg_mirrors = nfs_pageio_alloc_mirrors(pgio, mirror_count);
+	if (pgio->pg_mirrors == NULL) {
+		pgio->pg_error = -ENOMEM;
+		pgio->pg_mirrors = pgio->pg_mirrors_static;
+		mirror_count = 1;
+	}
 	pgio->pg_mirror_count = mirror_count;
-
-	return 0;
 }
 
 /*
