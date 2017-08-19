@@ -163,12 +163,8 @@ int ecryptfs_send_miscdev(char *data, size_t data_size,
 	struct ecryptfs_message *msg;
 
 	msg = kmalloc((sizeof(*msg) + data_size), GFP_KERNEL);
-	if (!msg) {
-		printk(KERN_ERR "%s: Out of memory whilst attempting "
-		       "to kmalloc(%zd, GFP_KERNEL)\n", __func__,
-		       (sizeof(*msg) + data_size));
+	if (!msg)
 		return -ENOMEM;
-	}
 
 	mutex_lock(&msg_ctx->mux);
 	msg_ctx->msg = msg;

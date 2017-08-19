@@ -147,8 +147,6 @@ ecryptfs_spawn_daemon(struct ecryptfs_daemon **daemon, struct file *file)
 	(*daemon) = kzalloc(sizeof(**daemon), GFP_KERNEL);
 	if (!(*daemon)) {
 		rc = -ENOMEM;
-		printk(KERN_ERR "%s: Failed to allocate [%zd] bytes of "
-		       "GFP_KERNEL memory\n", __func__, sizeof(**daemon));
 		goto out;
 	}
 	(*daemon)->file = file;
@@ -250,8 +248,6 @@ int ecryptfs_process_response(struct ecryptfs_daemon *daemon,
 	msg_ctx->msg = kmemdup(msg, msg_size, GFP_KERNEL);
 	if (!msg_ctx->msg) {
 		rc = -ENOMEM;
-		printk(KERN_ERR "%s: Failed to allocate [%zd] bytes of "
-		       "GFP_KERNEL memory\n", __func__, msg_size);
 		goto unlock;
 	}
 	msg_ctx->state = ECRYPTFS_MSG_CTX_STATE_DONE;
@@ -386,7 +382,6 @@ int __init ecryptfs_init_messaging(void)
 				       GFP_KERNEL);
 	if (!ecryptfs_daemon_hash) {
 		rc = -ENOMEM;
-		printk(KERN_ERR "%s: Failed to allocate memory\n", __func__);
 		mutex_unlock(&ecryptfs_daemon_hash_mux);
 		goto out;
 	}
@@ -398,7 +393,6 @@ int __init ecryptfs_init_messaging(void)
 				       GFP_KERNEL);
 	if (!ecryptfs_msg_ctx_arr) {
 		rc = -ENOMEM;
-		printk(KERN_ERR "%s: Failed to allocate memory\n", __func__);
 		goto out;
 	}
 	mutex_init(&ecryptfs_msg_ctx_lists_mux);
