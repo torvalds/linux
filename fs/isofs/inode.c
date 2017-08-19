@@ -1298,7 +1298,7 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
 	unsigned long block;
 	int high_sierra = sbi->s_high_sierra;
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	struct iso_directory_record *de;
 	struct iso_directory_record *tmpde = NULL;
 	unsigned int de_len;
