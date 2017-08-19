@@ -529,8 +529,8 @@ static int sun4i_i2s_startup(struct snd_pcm_substream *substream,
 	struct sun4i_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
 	/* Enable the whole hardware block */
-	regmap_write(i2s->regmap, SUN4I_I2S_CTRL_REG,
-		     SUN4I_I2S_CTRL_GL_EN);
+	regmap_update_bits(i2s->regmap, SUN4I_I2S_CTRL_REG,
+			   SUN4I_I2S_CTRL_GL_EN, SUN4I_I2S_CTRL_GL_EN);
 
 	/* Enable the first output line */
 	regmap_update_bits(i2s->regmap, SUN4I_I2S_CTRL_REG,
@@ -553,7 +553,8 @@ static void sun4i_i2s_shutdown(struct snd_pcm_substream *substream,
 			   SUN4I_I2S_CTRL_SDO_EN_MASK, 0);
 
 	/* Disable the whole hardware block */
-	regmap_write(i2s->regmap, SUN4I_I2S_CTRL_REG, 0);
+	regmap_update_bits(i2s->regmap, SUN4I_I2S_CTRL_REG,
+			   SUN4I_I2S_CTRL_GL_EN, 0);
 }
 
 static int sun4i_i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id,
