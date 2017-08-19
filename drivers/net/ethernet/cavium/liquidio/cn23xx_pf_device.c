@@ -1150,14 +1150,50 @@ static void cn23xx_get_pcie_qlmport(struct octeon_device *oct)
 		oct->pcie_port);
 }
 
-static void cn23xx_get_pf_num(struct octeon_device *oct)
+static int cn23xx_get_pf_num(struct octeon_device *oct)
 {
 	u32 fdl_bit = 0;
+	u64 pkt0_in_ctl, d64;
+	int pfnum, mac, trs, ret;
+
+	ret = 0;
 
 	/** Read Function Dependency Link reg to get the function number */
-	pci_read_config_dword(oct->pci_dev, CN23XX_PCIE_SRIOV_FDL, &fdl_bit);
-	oct->pf_num = ((fdl_bit >> CN23XX_PCIE_SRIOV_FDL_BIT_POS) &
-		       CN23XX_PCIE_SRIOV_FDL_MASK);
+	if (pci_read_config_dword(oct->pci_dev, CN23XX_PCIE_SRIOV_FDL,
+				  &fdl_bit) == 0) {
+		oct->pf_num = ((fdl_bit >> CN23XX_PCIE_SRIOV_FDL_BIT_POS) &
+			       CN23XX_PCIE_SRIOV_FDL_MASK);
+	} else {
+		ret = EINVAL;
+
+		/* Under some virtual environments, extended PCI regs are
+		 * inaccessible, in which case the above read will have failed.
+		 * In this case, read the PF number from the
+		 * SLI_PKT0_INPUT_CONTROL reg (written by f/w)
+		 */
+		pkt0_in_ctl = octeon_read_csr64(oct,
+						CN23XX_SLI_IQ_PKT_CONTROL64(0));
+		pfnum = (pkt0_in_ctl >> CN23XX_PKT_INPUT_CTL_PF_NUM_POS) &
+			CN23XX_PKT_INPUT_CTL_PF_NUM_MASK;
+		mac = (octeon_read_csr(oct, CN23XX_SLI_MAC_NUMBER)) & 0xff;
+
+		/* validate PF num by reading RINFO; f/w writes RINFO.trs == 1*/
+		d64 = octeon_read_csr64(oct,
+					CN23XX_SLI_PKT_MAC_RINFO64(mac, pfnum));
+		trs = (int)(d64 >> CN23XX_PKT_MAC_CTL_RINFO_TRS_BIT_POS) & 0xff;
+		if (trs == 1) {
+			dev_err(&oct->pci_dev->dev,
+				"OCTEON: error reading PCI cfg space pfnum, re-read %u\n",
+				pfnum);
+			oct->pf_num = pfnum;
+			ret = 0;
+		} else {
+			dev_err(&oct->pci_dev->dev,
+				"OCTEON: error reading PCI cfg space pfnum; could not ascertain PF number\n");
+		}
+	}
+
+	return ret;
 }
 
 static void cn23xx_setup_reg_address(struct octeon_device *oct)
@@ -1279,7 +1315,8 @@ int setup_cn23xx_octeon_pf_device(struct octeon_device *oct)
 		return 1;
 	}
 
-	cn23xx_get_pf_num(oct);
+	if (cn23xx_get_pf_num(oct) != 0)
+		return 1;
 
 	if (cn23xx_sriov_config(oct)) {
 		octeon_unmap_pci_barx(oct, 0);
