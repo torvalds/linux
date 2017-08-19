@@ -474,7 +474,7 @@ static int pnp_registered;
 #endif /* CONFIG_PNP */
 
 #ifdef CONFIG_EISA
-static struct eisa_device_id el3_eisa_ids[] = {
+static const struct eisa_device_id el3_eisa_ids[] = {
 		{ "TCM5090" },
 		{ "TCM5091" },
 		{ "TCM5092" },
