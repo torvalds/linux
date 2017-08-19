@@ -19,7 +19,8 @@
 #define KSFT_FAIL  1
 #define KSFT_XFAIL 2
 #define KSFT_XPASS 3
-#define KSFT_SKIP  4
+/* Treat skip as pass */
+#define KSFT_SKIP  KSFT_PASS
 
 /* counters */
 struct ksft_count {
