@@ -38,6 +38,7 @@
 #include "nfpcore/nfp_nffw.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
+#include "nfp_net.h"
 #include "nfp_net_repr.h"
 
 static const struct nfp_app_type *apps[] = {
@@ -47,6 +48,25 @@ static const struct nfp_app_type *apps[] = {
 	&app_flower,
 #endif
 };
+
+struct nfp_app *nfp_app_from_netdev(struct net_device *netdev)
+{
+	if (nfp_netdev_is_nfp_net(netdev)) {
+		struct nfp_net *nn = netdev_priv(netdev);
+
+		return nn->app;
+	}
+
+	if (nfp_netdev_is_nfp_repr(netdev)) {
+		struct nfp_repr *repr = netdev_priv(netdev);
+
+		return repr->app;
+	}
+
+	WARN(1, "Unknown netdev type for nfp_app\n");
+
+	return NULL;
+}
 
 const char *nfp_app_mip_name(struct nfp_app *app)
 {

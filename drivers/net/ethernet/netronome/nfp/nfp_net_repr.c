@@ -78,12 +78,10 @@ void nfp_repr_inc_rx_stats(struct net_device *netdev, unsigned int len)
 }
 
 static void
-nfp_repr_phy_port_get_stats64(const struct nfp_app *app, u8 phy_port,
+nfp_repr_phy_port_get_stats64(struct nfp_port *port,
 			      struct rtnl_link_stats64 *stats)
 {
-	u8 __iomem *mem;
-
-	mem = app->pf->mac_stats_mem + phy_port * NFP_MAC_STATS_SIZE;
+	u8 __iomem *mem = port->eth_stats;
 
 	/* TX and RX stats are flipped as we are returning the stats as seen
 	 * at the switch port corresponding to the phys port.
@@ -98,67 +96,38 @@ nfp_repr_phy_port_get_stats64(const struct nfp_app *app, u8 phy_port,
 }
 
 static void
-nfp_repr_vf_get_stats64(const struct nfp_app *app, u8 vf,
-			struct rtnl_link_stats64 *stats)
+nfp_repr_vnic_get_stats64(struct nfp_port *port,
+			  struct rtnl_link_stats64 *stats)
 {
-	u8 __iomem *mem;
-
-	mem = app->pf->vf_cfg_mem + vf * NFP_NET_CFG_BAR_SZ;
-
 	/* TX and RX stats are flipped as we are returning the stats as seen
 	 * at the switch port corresponding to the VF.
 	 */
-	stats->tx_packets = readq(mem + NFP_NET_CFG_STATS_RX_FRAMES);
-	stats->tx_bytes = readq(mem + NFP_NET_CFG_STATS_RX_OCTETS);
-	stats->tx_dropped = readq(mem + NFP_NET_CFG_STATS_RX_DISCARDS);
+	stats->tx_packets = readq(port->vnic + NFP_NET_CFG_STATS_RX_FRAMES);
+	stats->tx_bytes = readq(port->vnic + NFP_NET_CFG_STATS_RX_OCTETS);
+	stats->tx_dropped = readq(port->vnic + NFP_NET_CFG_STATS_RX_DISCARDS);
 
-	stats->rx_packets = readq(mem + NFP_NET_CFG_STATS_TX_FRAMES);
-	stats->rx_bytes = readq(mem + NFP_NET_CFG_STATS_TX_OCTETS);
-	stats->rx_dropped = readq(mem + NFP_NET_CFG_STATS_TX_DISCARDS);
-}
-
-static void
-nfp_repr_pf_get_stats64(const struct nfp_app *app, u8 pf,
-			struct rtnl_link_stats64 *stats)
-{
-	u8 __iomem *mem;
-
-	if (pf)
-		return;
-
-	mem = nfp_cpp_area_iomem(app->pf->data_vnic_bar);
-
-	stats->tx_packets = readq(mem + NFP_NET_CFG_STATS_RX_FRAMES);
-	stats->tx_bytes = readq(mem + NFP_NET_CFG_STATS_RX_OCTETS);
-	stats->tx_dropped = readq(mem + NFP_NET_CFG_STATS_RX_DISCARDS);
-
-	stats->rx_packets = readq(mem + NFP_NET_CFG_STATS_TX_FRAMES);
-	stats->rx_bytes = readq(mem + NFP_NET_CFG_STATS_TX_OCTETS);
-	stats->rx_dropped = readq(mem + NFP_NET_CFG_STATS_TX_DISCARDS);
+	stats->rx_packets = readq(port->vnic + NFP_NET_CFG_STATS_TX_FRAMES);
+	stats->rx_bytes = readq(port->vnic + NFP_NET_CFG_STATS_TX_OCTETS);
+	stats->rx_dropped = readq(port->vnic + NFP_NET_CFG_STATS_TX_DISCARDS);
 }
 
 static void
 nfp_repr_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 {
 	struct nfp_repr *repr = netdev_priv(netdev);
-	struct nfp_eth_table_port *eth_port;
-	struct nfp_app *app = repr->app;
 
 	if (WARN_ON(!repr->port))
 		return;
 
 	switch (repr->port->type) {
 	case NFP_PORT_PHYS_PORT:
-		eth_port = __nfp_port_get_eth_port(repr->port);
-		if (!eth_port)
+		if (!__nfp_port_get_eth_port(repr->port))
 			break;
-		nfp_repr_phy_port_get_stats64(app, eth_port->index, stats);
+		nfp_repr_phy_port_get_stats64(repr->port, stats);
 		break;
 	case NFP_PORT_PF_PORT:
-		nfp_repr_pf_get_stats64(app, repr->port->pf_id, stats);
-		break;
 	case NFP_PORT_VF_PORT:
-		nfp_repr_vf_get_stats64(app, repr->port->vf_id, stats);
+		nfp_repr_vnic_get_stats64(repr->port, stats);
 	default:
 		break;
 	}
@@ -320,6 +289,8 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	repr->dst->u.port_info.lower_dev = pf_netdev;
 
 	netdev->netdev_ops = &nfp_repr_netdev_ops;
+	netdev->ethtool_ops = &nfp_port_ethtool_ops;
+
 	SWITCHDEV_SET_OPS(netdev, &nfp_port_switchdev_ops);
 
 	if (nfp_app_has_tc(app)) {
