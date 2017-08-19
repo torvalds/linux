@@ -340,7 +340,7 @@ static struct attribute *mtd_attrs[] = {
 };
 ATTRIBUTE_GROUPS(mtd);
 
-static struct device_type mtd_devtype = {
+static const struct device_type mtd_devtype = {
 	.name		= "mtd",
 	.groups		= mtd_groups,
 	.release	= mtd_release,
