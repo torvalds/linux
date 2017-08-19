@@ -52,6 +52,7 @@ static void pci_pme_list_scan(struct work_struct *work);
 static LIST_HEAD(pci_pme_list);
 static DEFINE_MUTEX(pci_pme_list_mutex);
 static DECLARE_DELAYED_WORK(pci_pme_work, pci_pme_list_scan);
+static DEFINE_MUTEX(pci_bridge_mutex);
 
 struct pci_pme_device {
 	struct list_head list;
@@ -1348,10 +1349,16 @@ static void pci_enable_bridge(struct pci_dev *dev)
 	if (bridge)
 		pci_enable_bridge(bridge);
 
+	/*
+	 * Hold pci_bridge_mutex to prevent a race when enabling two
+	 * devices below the bridge simultaneously.  The race may cause a
+	 * PCI_COMMAND_MEMORY update to be lost (see changelog).
+	 */
+	mutex_lock(&pci_bridge_mutex);
 	if (pci_is_enabled(dev)) {
 		if (!dev->is_busmaster)
 			pci_set_master(dev);
-		return;
+		goto end;
 	}
 
 	retval = pci_enable_device(dev);
@@ -1359,6 +1366,8 @@ static void pci_enable_bridge(struct pci_dev *dev)
 		dev_err(&dev->dev, "Error enabling bridge (%d), continuing\n",
 			retval);
 	pci_set_master(dev);
+end:
+	mutex_unlock(&pci_bridge_mutex);
 }
 
 static int pci_enable_device_flags(struct pci_dev *dev, unsigned long flags)
@@ -1383,7 +1392,7 @@ static int pci_enable_device_flags(struct pci_dev *dev, unsigned long flags)
 		return 0;		/* already enabled */
 
 	bridge = pci_upstream_bridge(dev);
-	if (bridge)
+	if (bridge && !pci_is_enabled(bridge))
 		pci_enable_bridge(bridge);
 
 	/* only skip sriov related */
