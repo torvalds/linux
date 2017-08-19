@@ -596,7 +596,7 @@ snd_harmony_hw_free(struct snd_pcm_substream *ss)
 	return snd_pcm_lib_free_pages(ss);
 }
 
-static struct snd_pcm_ops snd_harmony_playback_ops = {
+static const struct snd_pcm_ops snd_harmony_playback_ops = {
 	.open =	snd_harmony_playback_open,
 	.close = snd_harmony_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -607,7 +607,7 @@ static struct snd_pcm_ops snd_harmony_playback_ops = {
  	.pointer = snd_harmony_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_harmony_capture_ops = {
+static const struct snd_pcm_ops snd_harmony_capture_ops = {
         .open = snd_harmony_capture_open,
         .close = snd_harmony_capture_close,
         .ioctl = snd_pcm_lib_ioctl,
