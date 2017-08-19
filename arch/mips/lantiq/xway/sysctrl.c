@@ -145,15 +145,7 @@ static u32 pmu_clk_cr_b[] = {
 #define pmu_w32(x, y)	ltq_w32((x), pmu_membase + (y))
 #define pmu_r32(x)	ltq_r32(pmu_membase + (x))
 
-#define XBAR_ALWAYS_LAST	0x430
-#define XBAR_FPI_BURST_EN	BIT(1)
-#define XBAR_AHB_BURST_EN	BIT(2)
-
-#define xbar_w32(x, y)	ltq_w32((x), ltq_xbar_membase + (y))
-#define xbar_r32(x)	ltq_r32(ltq_xbar_membase + (x))
-
 static void __iomem *pmu_membase;
-static void __iomem *ltq_xbar_membase;
 void __iomem *ltq_cgu_membase;
 void __iomem *ltq_ebu_membase;
 
@@ -291,16 +283,6 @@ static void pci_ext_disable(struct clk *clk)
 {
 	ltq_cgu_w32(ltq_cgu_r32(ifccr) | (1 << 16), ifccr);
 	ltq_cgu_w32((1 << 31) | (1 << 30), pcicr);
-}
-
-static void xbar_fpi_burst_disable(void)
-{
-	u32 reg;
-
-	/* bit 1 as 1 --burst; bit 1 as 0 -- single */
-	reg = xbar_r32(XBAR_ALWAYS_LAST);
-	reg &= ~XBAR_FPI_BURST_EN;
-	xbar_w32(reg, XBAR_ALWAYS_LAST);
 }
 
 /* enable a clockout source */
@@ -459,26 +441,6 @@ void __init ltq_soc_init(void)
 	if (!pmu_membase || !ltq_cgu_membase || !ltq_ebu_membase)
 		panic("Failed to remap core resources");
 
-	if (of_machine_is_compatible("lantiq,vr9")) {
-		struct resource res_xbar;
-		struct device_node *np_xbar =
-				of_find_compatible_node(NULL, NULL,
-							"lantiq,xbar-xway");
-
-		if (!np_xbar)
-			panic("Failed to load xbar nodes from devicetree");
-		if (of_address_to_resource(np_xbar, 0, &res_xbar))
-			panic("Failed to get xbar resources");
-		if (!request_mem_region(res_xbar.start, resource_size(&res_xbar),
-			res_xbar.name))
-			panic("Failed to get xbar resources");
-
-		ltq_xbar_membase = ioremap_nocache(res_xbar.start,
-						   resource_size(&res_xbar));
-		if (!ltq_xbar_membase)
-			panic("Failed to remap xbar resources");
-	}
-
 	/* make sure to unprotect the memory region where flash is located */
 	ltq_ebu_w32(ltq_ebu_r32(LTQ_EBU_BUSCON0) & ~EBU_WRDIS, LTQ_EBU_BUSCON0);
 
@@ -605,7 +567,4 @@ void __init ltq_soc_init(void)
 		clkdev_add_pmu("1e116000.mei", "dfe", 1, 0, PMU_DFE);
 		clkdev_add_pmu("1e100400.serial", NULL, 1, 0, PMU_ASC0);
 	}
-
-	if (of_machine_is_compatible("lantiq,vr9"))
-		xbar_fpi_burst_disable();
 }
