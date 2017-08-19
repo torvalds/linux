@@ -15,12 +15,6 @@
 
 #include <lantiq_soc.h>
 
-/* CPU0 Reset Source Register */
-#define SYS1_CPU0RS		0x0040
-/* reset cause mask */
-#define CPU0RS_MASK		0x0003
-/* CPU0 Boot Mode Register */
-#define SYS1_BM			0x00a0
 /* boot mode mask */
 #define BM_MASK			0x0005
 
@@ -29,13 +23,6 @@ unsigned char ltq_boot_select(void)
 {
 	return ltq_sys1_r32(SYS1_BM) & BM_MASK;
 }
-
-/* allow the watchdog driver to find out what the boot reason was */
-int ltq_reset_cause(void)
-{
-	return ltq_sys1_r32(SYS1_CPU0RS) & CPU0RS_MASK;
-}
-EXPORT_SYMBOL_GPL(ltq_reset_cause);
 
 #define BOOT_REG_BASE	(KSEG1 | 0x1F200000)
 #define BOOT_PW1_REG	(BOOT_REG_BASE | 0x20)

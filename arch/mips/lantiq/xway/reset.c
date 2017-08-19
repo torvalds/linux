@@ -119,25 +119,6 @@ static void ltq_rcu_w32_mask(uint32_t clr, uint32_t set, uint32_t reg_off)
 	spin_unlock_irqrestore(&ltq_rcu_lock, flags);
 }
 
-/* This function is used by the watchdog driver */
-int ltq_reset_cause(void)
-{
-	u32 val = ltq_rcu_r32(RCU_RST_STAT);
-	return val >> RCU_STAT_SHIFT;
-}
-EXPORT_SYMBOL_GPL(ltq_reset_cause);
-
-/* allow platform code to find out what source we booted from */
-unsigned char ltq_boot_select(void)
-{
-	u32 val = ltq_rcu_r32(RCU_RST_STAT);
-
-	if (of_device_is_compatible(ltq_rcu_np, "lantiq,rcu-xrx200"))
-		return RCU_BOOT_SEL_XRX200(val);
-
-	return RCU_BOOT_SEL(val);
-}
-
 struct ltq_gphy_reset {
 	u32 rd;
 	u32 addr;
