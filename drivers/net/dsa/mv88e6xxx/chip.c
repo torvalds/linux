@@ -307,7 +307,7 @@ out:
 	mutex_unlock(&chip->reg_lock);
 }
 
-static struct irq_chip mv88e6xxx_g1_irq_chip = {
+static const struct irq_chip mv88e6xxx_g1_irq_chip = {
 	.name			= "mv88e6xxx-g1",
 	.irq_mask		= mv88e6xxx_g1_irq_mask,
 	.irq_unmask		= mv88e6xxx_g1_irq_unmask,
