@@ -498,8 +498,8 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 		break; /* Success, it was handled */
 	case 1: /* Bound violation. */
 	{
+		struct task_struct *tsk = current;
 		struct mpx_fault_info mpx;
-		struct siginfo info;
 
 		if (mpx_fault_info(&mpx, regs)) {
 			/*
@@ -510,19 +510,18 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 		}
 		/*
 		 * Success, we decoded the instruction and retrieved
-		 * an 'info' containing the address being accessed
+		 * an 'mpx' containing the address being accessed
 		 * which caused the exception.  This information
 		 * allows and application to possibly handle the
 		 * #BR exception itself.
 		 */
-		clear_siginfo(&info);
-		info.si_signo = SIGSEGV;
-		info.si_errno = 0;
-		info.si_code  = SEGV_BNDERR;
-		info.si_addr  = mpx.addr;
-		info.si_lower = mpx.lower;
-		info.si_upper = mpx.upper;
-		do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code, &info);
+		if (!do_trap_no_signal(tsk, X86_TRAP_BR, "bounds", regs,
+				       error_code))
+			break;
+
+		show_signal(tsk, SIGSEGV, "trap ", "bounds", regs, error_code);
+
+		force_sig_bnderr(mpx.addr, mpx.lower, mpx.upper);
 		break;
 	}
 	case 0: /* No exception caused by Intel MPX operations. */
