@@ -900,7 +900,7 @@ static const struct dev_pm_ops vortex_pm_ops = {
 #endif /* !CONFIG_PM */
 
 #ifdef CONFIG_EISA
-static struct eisa_device_id vortex_eisa_ids[] = {
+static const struct eisa_device_id vortex_eisa_ids[] = {
 	{ "TCM5920", CH_3C592 },
 	{ "TCM5970", CH_3C597 },
 	{ "" }
