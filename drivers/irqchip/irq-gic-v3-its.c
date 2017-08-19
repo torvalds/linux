@@ -453,7 +453,13 @@ static void its_wait_for_range_completion(struct its_node *its,
 
 	while (1) {
 		rd_idx = readl_relaxed(its->base + GITS_CREADR);
-		if (rd_idx >= to_idx || rd_idx < from_idx)
+
+		/* Direct case */
+		if (from_idx < to_idx && rd_idx >= to_idx)
+			break;
+
+		/* Wrapped case */
+		if (from_idx >= to_idx && rd_idx >= to_idx && rd_idx < from_idx)
 			break;
 
 		count--;
