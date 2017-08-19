@@ -60,7 +60,7 @@
 
 static const unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
 
-static struct i2c_device_id fts_id[] = {
+static const struct i2c_device_id fts_id[] = {
 	{ "ftsteutates", 0 },
 	{ }
 };
