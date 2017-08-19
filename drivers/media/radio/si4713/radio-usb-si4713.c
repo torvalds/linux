@@ -409,7 +409,7 @@ static const struct i2c_algorithm si4713_algo = {
 
 /* This name value shows up in the sysfs filename associated
 		with this I2C adapter */
-static struct i2c_adapter si4713_i2c_adapter_template = {
+static const struct i2c_adapter si4713_i2c_adapter_template = {
 	.name   = "si4713-i2c",
 	.owner  = THIS_MODULE,
 	.algo   = &si4713_algo,
