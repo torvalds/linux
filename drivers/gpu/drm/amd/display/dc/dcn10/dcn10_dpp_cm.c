@@ -221,7 +221,7 @@ static void program_gamut_remap(
 
 }
 
-void dcn_dpp_set_gamut_remap(
+void dcn10_dpp_cm_set_gamut_remap(
 	struct transform *xfm,
 	const struct xfm_grph_csc_adjustment *adjust)
 {
@@ -256,7 +256,7 @@ void dcn_dpp_set_gamut_remap(
 	}
 }
 
-void oppn10_set_output_csc_default(
+void dcn10_dpp_cm_set_output_csc_default(
 		struct transform *xfm_base,
 		const struct default_adjustment *default_adjust)
 {
@@ -293,7 +293,7 @@ void oppn10_set_output_csc_default(
 
 }
 
-static void oppn10_program_color_matrix(
+static void dcn10_dpp_cm_program_color_matrix(
 		struct dcn10_dpp *xfm,
 		const struct out_csc_color_matrix *tbl_entry)
 {
@@ -363,7 +363,7 @@ static void oppn10_program_color_matrix(
 	}
 }
 
-void oppn10_set_output_csc_adjustment(
+void dcn10_dpp_cm_set_output_csc_adjustment(
 		struct transform *xfm_base,
 		const struct out_csc_color_matrix *tbl_entry)
 {
@@ -399,10 +399,10 @@ void oppn10_set_output_csc_adjustment(
 	*/
 
 	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
-	oppn10_program_color_matrix(xfm, tbl_entry);
+	dcn10_dpp_cm_program_color_matrix(xfm, tbl_entry);
 }
 
-void oppn10_power_on_regamma_lut(
+void dcn10_dpp_cm_power_on_regamma_lut(
 	struct transform *xfm_base,
 	bool power_on)
 {
@@ -412,7 +412,7 @@ void oppn10_power_on_regamma_lut(
 
 }
 
-void opp_program_regamma_lut(
+void dcn10_dpp_cm_program_regamma_lut(
 		struct transform *xfm_base,
 		const struct pwl_result_data *rgb,
 		uint32_t num)
@@ -435,7 +435,7 @@ void opp_program_regamma_lut(
 
 }
 
-void opp_configure_regamma_lut(
+void dcn10_dpp_cm_configure_regamma_lut(
 		struct transform *xfm_base,
 		bool is_ram_a)
 {
@@ -449,7 +449,7 @@ void opp_configure_regamma_lut(
 }
 
 /*program re gamma RAM A*/
-void opp_program_regamma_luta_settings(
+void dcn10_dpp_cm_program_regamma_luta_settings(
 		struct transform *xfm_base,
 		const struct pwl_params *params)
 {
@@ -612,7 +612,7 @@ void opp_program_regamma_luta_settings(
 }
 
 /*program re gamma RAM B*/
-void opp_program_regamma_lutb_settings(
+void dcn10_dpp_cm_program_regamma_lutb_settings(
 		struct transform *xfm_base,
 		const struct pwl_params *params)
 {

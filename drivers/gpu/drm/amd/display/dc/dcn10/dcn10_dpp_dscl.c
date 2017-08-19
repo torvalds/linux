@@ -636,7 +636,7 @@ static void dpp_set_recout(
 }
 
 /* Main function to program scaler and line buffer in manual scaling mode */
-void dcn10_dpp_set_scaler_manual_scale(
+void dcn10_dpp_dscl_set_scaler_manual_scale(
 	struct transform *xfm_base,
 	const struct scaler_data *scl_data)
 {

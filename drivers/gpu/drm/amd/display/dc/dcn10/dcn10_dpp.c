@@ -123,7 +123,7 @@ void dpp_set_gamut_remap_bypass(struct dcn10_dpp *xfm)
 #define IDENTITY_RATIO(ratio) (dal_fixed31_32_u2d19(ratio) == (1 << 19))
 
 
-static bool dpp_get_optimal_number_of_taps(
+bool dpp_get_optimal_number_of_taps(
 		struct transform *xfm,
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)
@@ -182,7 +182,7 @@ static bool dpp_get_optimal_number_of_taps(
 	return true;
 }
 
-static void dpp_reset(struct transform *xfm_base)
+void dpp_reset(struct transform *xfm_base)
 {
 	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
 
@@ -197,26 +197,26 @@ static void dpp_reset(struct transform *xfm_base)
 
 
 
-static bool oppn10_set_regamma_pwl(
+static bool dcn10_dpp_cm_set_regamma_pwl(
 	struct transform *xfm_base, const struct pwl_params *params)
 {
 	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
 
-	oppn10_power_on_regamma_lut(xfm_base, true);
-	opp_configure_regamma_lut(xfm_base, xfm->is_write_to_ram_a_safe);
+	dcn10_dpp_cm_power_on_regamma_lut(xfm_base, true);
+	dcn10_dpp_cm_configure_regamma_lut(xfm_base, xfm->is_write_to_ram_a_safe);
 
 	if (xfm->is_write_to_ram_a_safe)
-		opp_program_regamma_luta_settings(xfm_base, params);
+		dcn10_dpp_cm_program_regamma_luta_settings(xfm_base, params);
 	else
-		opp_program_regamma_lutb_settings(xfm_base, params);
+		dcn10_dpp_cm_program_regamma_lutb_settings(xfm_base, params);
 
-	opp_program_regamma_lut(
+	dcn10_dpp_cm_program_regamma_lut(
 			xfm_base, params->rgb_resulted, params->hw_points_num);
 
 	return true;
 }
 
-static void oppn10_set_regamma_mode(
+static void dcn10_dpp_cm_set_regamma_mode(
 	struct transform *xfm_base,
 	enum opp_regamma mode)
 {
@@ -251,19 +251,20 @@ static void oppn10_set_regamma_mode(
 
 static struct transform_funcs dcn10_dpp_funcs = {
 		.transform_reset = dpp_reset,
-		.transform_set_scaler = dcn10_dpp_set_scaler_manual_scale,
+		.transform_set_scaler = dcn10_dpp_dscl_set_scaler_manual_scale,
 		.transform_get_optimal_number_of_taps = dpp_get_optimal_number_of_taps,
-		.transform_set_gamut_remap = dcn_dpp_set_gamut_remap,
-		.opp_set_csc_adjustment = oppn10_set_output_csc_adjustment,
-		.opp_set_csc_default = oppn10_set_output_csc_default,
-		.opp_power_on_regamma_lut = oppn10_power_on_regamma_lut,
-		.opp_program_regamma_lut = opp_program_regamma_lut,
-		.opp_configure_regamma_lut = opp_configure_regamma_lut,
-		.opp_program_regamma_lutb_settings = opp_program_regamma_lutb_settings,
-		.opp_program_regamma_luta_settings = opp_program_regamma_luta_settings,
-		.opp_program_regamma_pwl = oppn10_set_regamma_pwl,
-		.opp_set_regamma_mode = oppn10_set_regamma_mode,
+		.transform_set_gamut_remap = dcn10_dpp_cm_set_gamut_remap,
+		.opp_set_csc_adjustment = dcn10_dpp_cm_set_output_csc_adjustment,
+		.opp_set_csc_default = dcn10_dpp_cm_set_output_csc_default,
+		.opp_power_on_regamma_lut = dcn10_dpp_cm_power_on_regamma_lut,
+		.opp_program_regamma_lut = dcn10_dpp_cm_program_regamma_lut,
+		.opp_configure_regamma_lut = dcn10_dpp_cm_configure_regamma_lut,
+		.opp_program_regamma_lutb_settings = dcn10_dpp_cm_program_regamma_lutb_settings,
+		.opp_program_regamma_luta_settings = dcn10_dpp_cm_program_regamma_luta_settings,
+		.opp_program_regamma_pwl = dcn10_dpp_cm_set_regamma_pwl,
+		.opp_set_regamma_mode = dcn10_dpp_cm_set_regamma_mode,
 };
+
 
 /*****************************************/
 /* Constructor, Destructor               */

@@ -1387,41 +1387,48 @@ struct dcn10_dpp {
 	bool is_write_to_ram_a_safe;
 };
 
-void opp_program_regamma_lut(
+bool dpp_get_optimal_number_of_taps(
+		struct transform *xfm,
+		struct scaler_data *scl_data,
+		const struct scaling_taps *in_taps);
+
+void dpp_reset(struct transform *xfm_base);
+
+void dcn10_dpp_cm_program_regamma_lut(
 		struct transform *xfm_base,
 		const struct pwl_result_data *rgb,
 		uint32_t num);
 
-void oppn10_power_on_regamma_lut(
+void dcn10_dpp_cm_power_on_regamma_lut(
 	struct transform *xfm_base,
 	bool power_on);
 
-void opp_configure_regamma_lut(
+void dcn10_dpp_cm_configure_regamma_lut(
 		struct transform *xfm_base,
 		bool is_ram_a);
 
 /*program re gamma RAM A*/
-void opp_program_regamma_luta_settings(
+void dcn10_dpp_cm_program_regamma_luta_settings(
 		struct transform *xfm_base,
 		const struct pwl_params *params);
 
 /*program re gamma RAM B*/
-void opp_program_regamma_lutb_settings(
+void dcn10_dpp_cm_program_regamma_lutb_settings(
 		struct transform *xfm_base,
 		const struct pwl_params *params);
-void oppn10_set_output_csc_adjustment(
+void dcn10_dpp_cm_set_output_csc_adjustment(
 		struct transform *xfm_base,
 		const struct out_csc_color_matrix *tbl_entry);
 
-void oppn10_set_output_csc_default(
+void dcn10_dpp_cm_set_output_csc_default(
 		struct transform *xfm_base,
 		const struct default_adjustment *default_adjust);
 
-void dcn_dpp_set_gamut_remap(
+void dcn10_dpp_cm_set_gamut_remap(
 	struct transform *xfm,
 	const struct xfm_grph_csc_adjustment *adjust);
 
-void dcn10_dpp_set_scaler_manual_scale(
+void dcn10_dpp_dscl_set_scaler_manual_scale(
 	struct transform *xfm_base,
 	const struct scaler_data *scl_data);
 
