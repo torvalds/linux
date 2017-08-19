@@ -98,6 +98,24 @@ enum graphics_csc_adjust_type {
 	GRAPHICS_CSC_ADJUST_TYPE_SW  /*use adjustments */
 };
 
+enum ipp_degamma_mode {
+	IPP_DEGAMMA_MODE_BYPASS,
+	IPP_DEGAMMA_MODE_HW_sRGB,
+	IPP_DEGAMMA_MODE_HW_xvYCC,
+	IPP_DEGAMMA_MODE_USER_PWL
+};
+
+enum ipp_output_format {
+	IPP_OUTPUT_FORMAT_12_BIT_FIX,
+	IPP_OUTPUT_FORMAT_16_BIT_BYPASS,
+	IPP_OUTPUT_FORMAT_FLOAT
+};
+
+enum expansion_mode {
+	EXPANSION_MODE_DYNAMIC,
+	EXPANSION_MODE_ZERO
+};
+
 struct default_adjustment {
 	enum lb_pixel_depth lb_color_depth;
 	enum dc_color_space out_color_space;

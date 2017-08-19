@@ -219,6 +219,26 @@ struct transform_funcs {
 	void (*opp_set_regamma_mode)(
 			struct transform *xfm_base,
 			enum opp_regamma mode);
+
+	void (*ipp_set_degamma)(
+			struct transform *xfm_base,
+			enum ipp_degamma_mode mode);
+
+	void (*ipp_program_input_lut)(
+			struct transform *xfm_base,
+			const struct dc_gamma *gamma);
+
+	void (*ipp_program_degamma_pwl)(struct transform *xfm_base,
+									 const struct pwl_params *params);
+
+	void (*ipp_setup)(
+			struct transform *xfm_base,
+			enum surface_pixel_format input_format,
+			enum expansion_mode mode,
+			enum ipp_output_format cnv_out_format);
+
+	void (*ipp_full_bypass)(struct transform *xfm_base);
+
 };
 
 extern const uint16_t filter_2tap_16p[18];

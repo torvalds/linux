@@ -225,7 +225,7 @@ static void dpp_set_lb(
 			DYNAMIC_PIXEL_DEPTH, dyn_pix_depth, /* Dynamic expansion pixel depth */
 			DITHER_EN, 0, /* Dithering enable: Disabled */
 			INTERLEAVE_EN, lb_params->interleave_en, /* Interleave source enable */
-			ALPHA_EN, lb_params->alpha_en); /* Alpha enable */
+			LB_DATA_FORMAT__ALPHA_EN, lb_params->alpha_en); /* Alpha enable */
 	}
 
 	REG_SET_2(LB_MEMORY_CTRL, 0,
@@ -716,4 +716,3 @@ void dcn10_dpp_dscl_set_scaler_manual_scale(
 
 	dpp_set_scl_filter(xfm, scl_data, ycbcr);
 }
-

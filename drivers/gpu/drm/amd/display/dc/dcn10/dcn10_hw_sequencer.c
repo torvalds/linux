@@ -1294,34 +1294,34 @@ static void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 static bool dcn10_set_input_transfer_func(
 	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
 {
-	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
+	struct transform *xfm_base = pipe_ctx->plane_res.xfm;
 	const struct dc_transfer_func *tf = NULL;
 	bool result = true;
 
-	if (ipp == NULL)
+	if (xfm_base == NULL)
 		return false;
 
 	if (plane_state->in_transfer_func)
 		tf = plane_state->in_transfer_func;
 
 	if (plane_state->gamma_correction && dce_use_lut(plane_state))
-		ipp->funcs->ipp_program_input_lut(ipp,
+		xfm_base->funcs->ipp_program_input_lut(xfm_base,
 				plane_state->gamma_correction);
 
 	if (tf == NULL)
-		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
+		xfm_base->funcs->ipp_set_degamma(xfm_base, IPP_DEGAMMA_MODE_BYPASS);
 	else if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
-			ipp->funcs->ipp_set_degamma(ipp,
+			xfm_base->funcs->ipp_set_degamma(xfm_base,
 					IPP_DEGAMMA_MODE_HW_sRGB);
 			break;
 		case TRANSFER_FUNCTION_BT709:
-			ipp->funcs->ipp_set_degamma(ipp,
+			xfm_base->funcs->ipp_set_degamma(xfm_base,
 					IPP_DEGAMMA_MODE_HW_xvYCC);
 			break;
 		case TRANSFER_FUNCTION_LINEAR:
-			ipp->funcs->ipp_set_degamma(ipp,
+			xfm_base->funcs->ipp_set_degamma(xfm_base,
 					IPP_DEGAMMA_MODE_BYPASS);
 			break;
 		case TRANSFER_FUNCTION_PQ:
@@ -1332,7 +1332,7 @@ static bool dcn10_set_input_transfer_func(
 			break;
 		}
 	} else if (tf->type == TF_TYPE_BYPASS) {
-		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
+		xfm_base->funcs->ipp_set_degamma(xfm_base, IPP_DEGAMMA_MODE_BYPASS);
 	} else {
 		/*TF_TYPE_DISTRIBUTED_POINTS*/
 		result = false;
@@ -2204,7 +2204,7 @@ static void update_dchubp_dpp(
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct mem_input *mi = pipe_ctx->plane_res.mi;
-	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
+	struct transform *xfm = pipe_ctx->plane_res.xfm;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	union plane_size size = plane_state->plane_size;
 	struct default_adjustment ocsc = {0};
@@ -2249,7 +2249,7 @@ static void update_dchubp_dpp(
 				hws
 				);
 
-	ipp->funcs->ipp_setup(ipp,
+	xfm->funcs->ipp_setup(xfm,
 			plane_state->format,
 			1,
 			IPP_OUTPUT_FORMAT_12_BIT_FIX);

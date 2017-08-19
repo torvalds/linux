@@ -52,6 +52,12 @@
 #define FN(reg_name, field_name) \
 	xfm->tf_shift->field_name, xfm->tf_mask->field_name
 
+enum pixel_format_description {
+	PIXEL_FORMAT_FIXED = 0,
+	PIXEL_FORMAT_FIXED16,
+	PIXEL_FORMAT_FLOAT
+
+};
 
 enum dcn10_coef_filter_type_sel {
 	SCL_COEF_LUMA_VERT_FILTER = 0,
@@ -249,6 +255,145 @@ static void dcn10_dpp_cm_set_regamma_mode(
 			OBUF_H_2X_UPSCALE_EN, obuf_hupscale);
 }
 
+static void ippn10_setup_format_flags(enum surface_pixel_format input_format,\
+						enum pixel_format_description *fmt)
+{
+
+	if (input_format == SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F ||
+		input_format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F)
+		*fmt = PIXEL_FORMAT_FLOAT;
+	else if (input_format == SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616)
+		*fmt = PIXEL_FORMAT_FIXED16;
+	else
+		*fmt = PIXEL_FORMAT_FIXED;
+}
+
+static void ippn10_set_degamma_format_float(
+		struct transform *xfm_base,
+		bool is_float)
+{
+	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+
+	if (is_float) {
+		REG_UPDATE(CM_IGAM_CONTROL, CM_IGAM_INPUT_FORMAT, 3);
+		REG_UPDATE(CM_IGAM_CONTROL, CM_IGAM_LUT_MODE, 1);
+	} else {
+		REG_UPDATE(CM_IGAM_CONTROL, CM_IGAM_INPUT_FORMAT, 2);
+		REG_UPDATE(CM_IGAM_CONTROL, CM_IGAM_LUT_MODE, 0);
+	}
+}
+
+void ippn10_cnv_setup (
+		struct transform *xfm_base,
+		enum surface_pixel_format input_format,
+		enum expansion_mode mode,
+		enum ipp_output_format cnv_out_format)
+{
+	uint32_t pixel_format;
+	uint32_t alpha_en;
+	enum pixel_format_description fmt ;
+	enum dc_color_space color_space;
+	enum dcn10_input_csc_select select;
+	bool is_float;
+	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	bool force_disable_cursor = false;
+
+	ippn10_setup_format_flags(input_format, &fmt);
+	alpha_en = 1;
+	pixel_format = 0;
+	color_space = COLOR_SPACE_SRGB;
+	select = INPUT_CSC_SELECT_BYPASS;
+	is_float = false;
+
+	switch (fmt) {
+	case PIXEL_FORMAT_FIXED:
+	case PIXEL_FORMAT_FIXED16:
+	/*when output is float then FORMAT_CONTROL__OUTPUT_FP=1*/
+		REG_SET_3(FORMAT_CONTROL, 0,
+			CNVC_BYPASS, 0,
+			FORMAT_EXPANSION_MODE, mode,
+			OUTPUT_FP, 0);
+		break;
+	case PIXEL_FORMAT_FLOAT:
+		REG_SET_3(FORMAT_CONTROL, 0,
+			CNVC_BYPASS, 0,
+			FORMAT_EXPANSION_MODE, mode,
+			OUTPUT_FP, 1);
+		is_float = true;
+		break;
+	default:
+
+		break;
+	}
+
+	ippn10_set_degamma_format_float(xfm_base, is_float);
+
+	switch (input_format) {
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
+		pixel_format = 1;
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_RGB565:
+		pixel_format = 3;
+		alpha_en = 0;
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
+		pixel_format = 8;
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
+		pixel_format = 10;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
+		force_disable_cursor = false;
+		pixel_format = 65;
+		color_space = COLOR_SPACE_YCBCR709;
+		select = INPUT_CSC_SELECT_ICSC;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
+		force_disable_cursor = true;
+		pixel_format = 64;
+		color_space = COLOR_SPACE_YCBCR709;
+		select = INPUT_CSC_SELECT_ICSC;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
+		force_disable_cursor = true;
+		pixel_format = 67;
+		color_space = COLOR_SPACE_YCBCR709;
+		select = INPUT_CSC_SELECT_ICSC;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
+		force_disable_cursor = true;
+		pixel_format = 66;
+		color_space = COLOR_SPACE_YCBCR709;
+		select = INPUT_CSC_SELECT_ICSC;
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+		pixel_format = 22;
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
+		pixel_format = 24;
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:
+		pixel_format = 25;
+		break;
+	default:
+		break;
+	}
+	REG_SET(CNVC_SURFACE_PIXEL_FORMAT, 0,
+			CNVC_SURFACE_PIXEL_FORMAT, pixel_format);
+	REG_UPDATE(FORMAT_CONTROL, FORMAT_CONTROL__ALPHA_EN, alpha_en);
+
+	ippn10_program_input_csc(xfm_base, color_space, select);
+
+	if (force_disable_cursor) {
+		REG_UPDATE(CURSOR_CONTROL,
+				CURSOR_ENABLE, 0);
+		REG_UPDATE(CURSOR0_CONTROL,
+				CUR0_ENABLE, 0);
+	}
+}
+
 static struct transform_funcs dcn10_dpp_funcs = {
 		.transform_reset = dpp_reset,
 		.transform_set_scaler = dcn10_dpp_dscl_set_scaler_manual_scale,
@@ -263,6 +408,11 @@ static struct transform_funcs dcn10_dpp_funcs = {
 		.opp_program_regamma_luta_settings = dcn10_dpp_cm_program_regamma_luta_settings,
 		.opp_program_regamma_pwl = dcn10_dpp_cm_set_regamma_pwl,
 		.opp_set_regamma_mode = dcn10_dpp_cm_set_regamma_mode,
+		.ipp_set_degamma = ippn10_set_degamma,
+		.ipp_program_input_lut		= ippn10_program_input_lut,
+		.ipp_program_degamma_pwl	= ippn10_set_degamma_pwl,
+		.ipp_setup			= ippn10_cnv_setup,
+		.ipp_full_bypass		= ippn10_full_bypass,
 };
 
 
