@@ -443,7 +443,7 @@ The main syscalls are:
      /sbin/request-key will be invoked in an attempt to obtain a key. The
      callout_info string will be passed as an argument to the program.
 
-     See also Documentation/security/keys-request-key.txt.
+     See also Documentation/security/keys/request-key.rst.
 
 
 The keyctl syscall functions are:
@@ -973,7 +973,7 @@ payload contents" for more information.
     If successful, the key will have been attached to the default keyring for
     implicitly obtained request-key keys, as set by KEYCTL_SET_REQKEY_KEYRING.
 
-    See also Documentation/security/keys-request-key.txt.
+    See also Documentation/security/keys/request-key.rst.
 
 
  *  To search for a key, passing auxiliary data to the upcaller, call::
