@@ -1985,7 +1985,7 @@ static int adv7511_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_device_id adv7511_id[] = {
+static const struct i2c_device_id adv7511_id[] = {
 	{ "adv7511", 0 },
 	{ }
 };
