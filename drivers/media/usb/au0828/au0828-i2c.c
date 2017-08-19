@@ -336,7 +336,7 @@ static const struct i2c_algorithm au0828_i2c_algo_template = {
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_adapter au0828_i2c_adap_template = {
+static const struct i2c_adapter au0828_i2c_adap_template = {
 	.name              = KBUILD_MODNAME,
 	.owner             = THIS_MODULE,
 	.algo              = &au0828_i2c_algo_template,

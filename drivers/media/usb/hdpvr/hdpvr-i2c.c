@@ -185,7 +185,7 @@ static const struct i2c_algorithm hdpvr_algo = {
 	.functionality = hdpvr_functionality,
 };
 
-static struct i2c_adapter hdpvr_i2c_adapter_template = {
+static const struct i2c_adapter hdpvr_i2c_adapter_template = {
 	.name   = "Hauppage HD PVR I2C",
 	.owner  = THIS_MODULE,
 	.algo   = &hdpvr_algo,

@@ -519,7 +519,7 @@ static const struct i2c_algorithm pvr2_i2c_algo_template = {
 	.functionality = pvr2_i2c_functionality,
 };
 
-static struct i2c_adapter pvr2_i2c_adap_template = {
+static const struct i2c_adapter pvr2_i2c_adap_template = {
 	.owner         = THIS_MODULE,
 	.class	       = 0,
 };

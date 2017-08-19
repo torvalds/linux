@@ -459,7 +459,7 @@ static const struct i2c_algorithm cx231xx_algo = {
 	.functionality = functionality,
 };
 
-static struct i2c_adapter cx231xx_adap_template = {
+static const struct i2c_adapter cx231xx_adap_template = {
 	.owner = THIS_MODULE,
 	.name = "cx231xx",
 	.algo = &cx231xx_algo,

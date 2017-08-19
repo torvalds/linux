@@ -173,7 +173,7 @@ static const struct i2c_algorithm usbvision_algo = {
 /* ----------------------------------------------------------------------- */
 /* usbvision specific I2C functions                                        */
 /* ----------------------------------------------------------------------- */
-static struct i2c_adapter i2c_adap_template;
+static const struct i2c_adapter i2c_adap_template;
 
 int usbvision_i2c_register(struct usb_usbvision *usbvision)
 {
@@ -441,7 +441,7 @@ static int usbvision_i2c_read(struct usb_usbvision *usbvision, unsigned char add
 	return rdcount;
 }
 
-static struct i2c_adapter i2c_adap_template = {
+static const struct i2c_adapter i2c_adap_template = {
 	.owner = THIS_MODULE,
 	.name              = "usbvision",
 };
