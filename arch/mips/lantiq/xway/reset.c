@@ -27,18 +27,6 @@
 #define RCU_RST_REQ		0x0010
 /* reset status register */
 #define RCU_RST_STAT		0x0014
-/* vr9 gphy registers */
-#define RCU_GFS_ADD0_XRX200	0x0020
-#define RCU_GFS_ADD1_XRX200	0x0068
-/* xRX300 gphy registers */
-#define RCU_GFS_ADD0_XRX300	0x0020
-#define RCU_GFS_ADD1_XRX300	0x0058
-#define RCU_GFS_ADD2_XRX300	0x00AC
-/* xRX330 gphy registers */
-#define RCU_GFS_ADD0_XRX330	0x0020
-#define RCU_GFS_ADD1_XRX330	0x0058
-#define RCU_GFS_ADD2_XRX330	0x00AC
-#define RCU_GFS_ADD3_XRX330	0x0264
 
 /* xbar BE flag */
 #define RCU_AHB_ENDIAN          0x004C
@@ -48,15 +36,6 @@
 #define RCU_RD_GPHY0_XRX200	BIT(31)
 #define RCU_RD_SRST		BIT(30)
 #define RCU_RD_GPHY1_XRX200	BIT(29)
-/* xRX300 bits */
-#define RCU_RD_GPHY0_XRX300	BIT(31)
-#define RCU_RD_GPHY1_XRX300	BIT(29)
-#define RCU_RD_GPHY2_XRX300	BIT(28)
-/* xRX330 bits */
-#define RCU_RD_GPHY0_XRX330	BIT(31)
-#define RCU_RD_GPHY1_XRX330	BIT(29)
-#define RCU_RD_GPHY2_XRX330	BIT(28)
-#define RCU_RD_GPHY3_XRX330	BIT(10)
 
 /* reset cause */
 #define RCU_STAT_SHIFT		26
@@ -98,7 +77,6 @@
 /* remapped base addr of the reset control unit */
 static void __iomem *ltq_rcu_membase;
 static struct device_node *ltq_rcu_np;
-static DEFINE_SPINLOCK(ltq_rcu_lock);
 
 static void ltq_rcu_w32(uint32_t val, uint32_t reg_off)
 {
@@ -108,90 +86,6 @@ static void ltq_rcu_w32(uint32_t val, uint32_t reg_off)
 static uint32_t ltq_rcu_r32(uint32_t reg_off)
 {
 	return ltq_r32(ltq_rcu_membase + reg_off);
-}
-
-static void ltq_rcu_w32_mask(uint32_t clr, uint32_t set, uint32_t reg_off)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ltq_rcu_lock, flags);
-	ltq_rcu_w32((ltq_rcu_r32(reg_off) & ~(clr)) | (set), reg_off);
-	spin_unlock_irqrestore(&ltq_rcu_lock, flags);
-}
-
-struct ltq_gphy_reset {
-	u32 rd;
-	u32 addr;
-};
-
-/* reset / boot a gphy */
-static struct ltq_gphy_reset xrx200_gphy[] = {
-	{RCU_RD_GPHY0_XRX200, RCU_GFS_ADD0_XRX200},
-	{RCU_RD_GPHY1_XRX200, RCU_GFS_ADD1_XRX200},
-};
-
-/* reset / boot a gphy */
-static struct ltq_gphy_reset xrx300_gphy[] = {
-	{RCU_RD_GPHY0_XRX300, RCU_GFS_ADD0_XRX300},
-	{RCU_RD_GPHY1_XRX300, RCU_GFS_ADD1_XRX300},
-	{RCU_RD_GPHY2_XRX300, RCU_GFS_ADD2_XRX300},
-};
-
-/* reset / boot a gphy */
-static struct ltq_gphy_reset xrx330_gphy[] = {
-	{RCU_RD_GPHY0_XRX330, RCU_GFS_ADD0_XRX330},
-	{RCU_RD_GPHY1_XRX330, RCU_GFS_ADD1_XRX330},
-	{RCU_RD_GPHY2_XRX330, RCU_GFS_ADD2_XRX330},
-	{RCU_RD_GPHY3_XRX330, RCU_GFS_ADD3_XRX330},
-};
-
-static void xrx200_gphy_boot_addr(struct ltq_gphy_reset *phy_regs,
-				  dma_addr_t dev_addr)
-{
-	ltq_rcu_w32_mask(0, phy_regs->rd, RCU_RST_REQ);
-	ltq_rcu_w32(dev_addr, phy_regs->addr);
-	ltq_rcu_w32_mask(phy_regs->rd, 0,  RCU_RST_REQ);
-}
-
-/* reset and boot a gphy. these phys only exist on xrx200 SoC */
-int xrx200_gphy_boot(struct device *dev, unsigned int id, dma_addr_t dev_addr)
-{
-	struct clk *clk;
-
-	if (!of_device_is_compatible(ltq_rcu_np, "lantiq,rcu-xrx200")) {
-		dev_err(dev, "this SoC has no GPHY\n");
-		return -EINVAL;
-	}
-
-	if (of_machine_is_compatible("lantiq,vr9")) {
-		clk = clk_get_sys("1f203000.rcu", "gphy");
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
-		clk_enable(clk);
-	}
-
-	dev_info(dev, "booting GPHY%u firmware at %X\n", id, dev_addr);
-
-	if (of_machine_is_compatible("lantiq,vr9")) {
-		if (id >= ARRAY_SIZE(xrx200_gphy)) {
-			dev_err(dev, "%u is an invalid gphy id\n", id);
-			return -EINVAL;
-		}
-		xrx200_gphy_boot_addr(&xrx200_gphy[id], dev_addr);
-	} else if (of_machine_is_compatible("lantiq,ar10")) {
-		if (id >= ARRAY_SIZE(xrx300_gphy)) {
-			dev_err(dev, "%u is an invalid gphy id\n", id);
-			return -EINVAL;
-		}
-		xrx200_gphy_boot_addr(&xrx300_gphy[id], dev_addr);
-	} else if (of_machine_is_compatible("lantiq,grx390")) {
-		if (id >= ARRAY_SIZE(xrx330_gphy)) {
-			dev_err(dev, "%u is an invalid gphy id\n", id);
-			return -EINVAL;
-		}
-		xrx200_gphy_boot_addr(&xrx330_gphy[id], dev_addr);
-	}
-	return 0;
 }
 
 static void ltq_machine_restart(char *command)
