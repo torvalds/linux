@@ -206,7 +206,7 @@ static int cx18_getsda(void *data)
 }
 
 /* template for i2c-bit-algo */
-static struct i2c_adapter cx18_i2c_adap_template = {
+static const struct i2c_adapter cx18_i2c_adap_template = {
 	.name = "cx18 i2c driver",
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */

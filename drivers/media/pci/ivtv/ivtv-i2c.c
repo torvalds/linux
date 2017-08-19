@@ -632,7 +632,7 @@ static const struct i2c_algorithm ivtv_algo = {
 };
 
 /* template for our-bit banger */
-static struct i2c_adapter ivtv_i2c_adap_hw_template = {
+static const struct i2c_adapter ivtv_i2c_adap_hw_template = {
 	.name = "ivtv i2c driver",
 	.algo = &ivtv_algo,
 	.algo_data = NULL,			/* filled from template */
@@ -682,7 +682,7 @@ static int ivtv_getsda_old(void *data)
 }
 
 /* template for i2c-bit-algo */
-static struct i2c_adapter ivtv_i2c_adap_template = {
+static const struct i2c_adapter ivtv_i2c_adap_template = {
 	.name = "ivtv i2c driver",
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */
