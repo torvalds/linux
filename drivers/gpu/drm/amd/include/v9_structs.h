@@ -672,6 +672,14 @@ struct v9_mqd {
 	uint32_t reserved_511;
 };
 
+struct v9_mqd_allocation {
+	struct v9_mqd mqd;
+	uint32_t wptr_poll_mem;
+	uint32_t rptr_report_mem;
+	uint32_t dynamic_cu_mask;
+	uint32_t dynamic_rb_mask;
+};
+
 /* from vega10 all CSA format is shifted to chain ib compatible mode */
 struct v9_ce_ib_state {
     /* section of non chained ib part */
