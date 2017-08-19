@@ -82,7 +82,7 @@
 #define SUN4I_I2S_TX_CNT_REG		0x2c
 
 #define SUN4I_I2S_TX_CHAN_SEL_REG	0x30
-#define SUN4I_I2S_TX_CHAN_SEL(num_chan)		(((num_chan) - 1) << 0)
+#define SUN4I_I2S_CHAN_SEL(num_chan)		(((num_chan) - 1) << 0)
 
 #define SUN4I_I2S_TX_CHAN_MAP_REG	0x34
 #define SUN4I_I2S_TX_CHAN_MAP(chan, sample)	((sample) << (chan << 2))
@@ -98,6 +98,10 @@
  * @sun4i_i2s_regmap: regmap config to use.
  * @mclk_offset: Value by which mclkdiv needs to be adjusted.
  * @bclk_offset: Value by which bclkdiv needs to be adjusted.
+ * @field_txchanmap: location of the tx channel mapping register.
+ * @field_rxchanmap: location of the rx channel mapping register.
+ * @field_txchansel: location of the tx channel select bit fields.
+ * @field_rxchansel: location of the rx channel select bit fields.
  */
 struct sun4i_i2s_quirks {
 	bool				has_reset;
@@ -105,6 +109,12 @@ struct sun4i_i2s_quirks {
 	const struct regmap_config	*sun4i_i2s_regmap;
 	unsigned int			mclk_offset;
 	unsigned int			bclk_offset;
+
+	/* Register fields for i2s */
+	struct reg_field		field_txchanmap;
+	struct reg_field		field_rxchanmap;
+	struct reg_field		field_txchansel;
+	struct reg_field		field_rxchansel;
 };
 
 struct sun4i_i2s {
@@ -117,6 +127,12 @@ struct sun4i_i2s {
 
 	struct snd_dmaengine_dai_dma_data	capture_dma_data;
 	struct snd_dmaengine_dai_dma_data	playback_dma_data;
+
+	/* Register fields for i2s */
+	struct regmap_field	*field_txchanmap;
+	struct regmap_field	*field_rxchanmap;
+	struct regmap_field	*field_txchansel;
+	struct regmap_field	*field_rxchansel;
 
 	const struct sun4i_i2s_quirks	*variant;
 };
@@ -267,6 +283,17 @@ static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	if (params_channels(params) != 2)
 		return -EINVAL;
+
+	/* Map the channels for playback and capture */
+	regmap_field_write(i2s->field_txchanmap, 0x76543210);
+	regmap_field_write(i2s->field_rxchanmap, 0x00003210);
+
+	/* Configure the channels */
+	regmap_field_write(i2s->field_txchansel,
+			   SUN4I_I2S_CHAN_SEL(params_channels(params)));
+
+	regmap_field_write(i2s->field_rxchansel,
+			   SUN4I_I2S_CHAN_SEL(params_channels(params)));
 
 	switch (params_physical_width(params)) {
 	case 16:
@@ -490,13 +517,6 @@ static int sun4i_i2s_startup(struct snd_pcm_substream *substream,
 			   SUN4I_I2S_CTRL_SDO_EN_MASK,
 			   SUN4I_I2S_CTRL_SDO_EN(0));
 
-	/* Enable the first two channels */
-	regmap_write(i2s->regmap, SUN4I_I2S_TX_CHAN_SEL_REG,
-		     SUN4I_I2S_TX_CHAN_SEL(2));
-
-	/* Map them to the two first samples coming in */
-	regmap_write(i2s->regmap, SUN4I_I2S_TX_CHAN_MAP_REG,
-		     SUN4I_I2S_TX_CHAN_MAP(0, 0) | SUN4I_I2S_TX_CHAN_MAP(1, 1));
 
 	return clk_prepare_enable(i2s->mod_clk);
 }
@@ -681,13 +701,48 @@ static const struct sun4i_i2s_quirks sun4i_a10_i2s_quirks = {
 	.has_reset		= false,
 	.reg_offset_txdata	= SUN4I_I2S_FIFO_TX_REG,
 	.sun4i_i2s_regmap	= &sun4i_i2s_regmap_config,
+	.field_txchanmap	= REG_FIELD(SUN4I_I2S_TX_CHAN_MAP_REG, 0, 31),
+	.field_rxchanmap	= REG_FIELD(SUN4I_I2S_RX_CHAN_MAP_REG, 0, 31),
+	.field_txchansel	= REG_FIELD(SUN4I_I2S_TX_CHAN_SEL_REG, 0, 2),
+	.field_rxchansel	= REG_FIELD(SUN4I_I2S_RX_CHAN_SEL_REG, 0, 2),
 };
 
 static const struct sun4i_i2s_quirks sun6i_a31_i2s_quirks = {
 	.has_reset		= true,
 	.reg_offset_txdata	= SUN4I_I2S_FIFO_TX_REG,
 	.sun4i_i2s_regmap	= &sun4i_i2s_regmap_config,
+	.field_txchanmap	= REG_FIELD(SUN4I_I2S_TX_CHAN_MAP_REG, 0, 31),
+	.field_rxchanmap	= REG_FIELD(SUN4I_I2S_RX_CHAN_MAP_REG, 0, 31),
+	.field_txchansel	= REG_FIELD(SUN4I_I2S_TX_CHAN_SEL_REG, 0, 2),
+	.field_rxchansel	= REG_FIELD(SUN4I_I2S_RX_CHAN_SEL_REG, 0, 2),
 };
+
+static int sun4i_i2s_init_regmap_fields(struct device *dev,
+					struct sun4i_i2s *i2s)
+{
+	i2s->field_txchanmap =
+			devm_regmap_field_alloc(dev, i2s->regmap,
+						i2s->variant->field_txchanmap);
+	if (IS_ERR(i2s->field_txchanmap))
+		return PTR_ERR(i2s->field_txchanmap);
+
+	i2s->field_rxchanmap =
+			devm_regmap_field_alloc(dev, i2s->regmap,
+						i2s->variant->field_rxchanmap);
+	if (IS_ERR(i2s->field_rxchanmap))
+		return PTR_ERR(i2s->field_rxchanmap);
+
+	i2s->field_txchansel =
+			devm_regmap_field_alloc(dev, i2s->regmap,
+						i2s->variant->field_txchansel);
+	if (IS_ERR(i2s->field_txchansel))
+		return PTR_ERR(i2s->field_txchansel);
+
+	i2s->field_rxchansel =
+			devm_regmap_field_alloc(dev, i2s->regmap,
+						i2s->variant->field_rxchansel);
+	return PTR_ERR_OR_ZERO(i2s->field_rxchansel);
+}
 
 static int sun4i_i2s_probe(struct platform_device *pdev)
 {
@@ -779,6 +834,12 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 	ret = snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM\n");
+		goto err_suspend;
+	}
+
+	ret = sun4i_i2s_init_regmap_fields(&pdev->dev, i2s);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not initialise regmap fields\n");
 		goto err_suspend;
 	}
 
