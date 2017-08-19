@@ -1094,7 +1094,7 @@ static void addrmatch_release(struct device *device)
 	kfree(device);
 }
 
-static struct device_type addrmatch_type = {
+static const struct device_type addrmatch_type = {
 	.groups		= addrmatch_groups,
 	.release	= addrmatch_release,
 };
@@ -1125,7 +1125,7 @@ static void all_channel_counts_release(struct device *device)
 	kfree(device);
 }
 
-static struct device_type all_channel_counts_type = {
+static const struct device_type all_channel_counts_type = {
 	.groups		= all_channel_counts_groups,
 	.release	= all_channel_counts_release,
 };

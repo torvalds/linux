@@ -304,7 +304,7 @@ static void csrow_attr_release(struct device *dev)
 	kfree(csrow);
 }
 
-static struct device_type csrow_attr_type = {
+static const struct device_type csrow_attr_type = {
 	.groups		= csrow_attr_groups,
 	.release	= csrow_attr_release,
 };
@@ -644,7 +644,7 @@ static void dimm_attr_release(struct device *dev)
 	kfree(dimm);
 }
 
-static struct device_type dimm_attr_type = {
+static const struct device_type dimm_attr_type = {
 	.groups		= dimm_attr_groups,
 	.release	= dimm_attr_release,
 };
@@ -920,7 +920,7 @@ static void mci_attr_release(struct device *dev)
 	kfree(mci);
 }
 
-static struct device_type mci_attr_type = {
+static const struct device_type mci_attr_type = {
 	.groups		= mci_attr_groups,
 	.release	= mci_attr_release,
 };
@@ -1074,7 +1074,7 @@ static void mc_attr_release(struct device *dev)
 	kfree(dev);
 }
 
-static struct device_type mc_attr_type = {
+static const struct device_type mc_attr_type = {
 	.release	= mc_attr_release,
 };
 /*
