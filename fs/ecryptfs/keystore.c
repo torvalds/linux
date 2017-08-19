@@ -685,7 +685,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 	 *    separator, and then the filename */
 	s->max_packet_size = (ECRYPTFS_TAG_70_MAX_METADATA_SIZE
 			      + s->block_aligned_filename_size);
-	if (dest == NULL) {
+	if (!dest) {
 		(*packet_size) = s->max_packet_size;
 		goto out_unlock;
 	}
