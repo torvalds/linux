@@ -333,3 +333,9 @@ void ldlm_flock_policy_wire_to_local(const union ldlm_wire_policy_data *wpolicy,
 				     union ldlm_policy_data *lpolicy);
 void ldlm_flock_policy_local_to_wire(const union ldlm_policy_data *lpolicy,
 				     union ldlm_wire_policy_data *wpolicy);
+
+static inline bool ldlm_res_eq(const struct ldlm_res_id *res0,
+			       const struct ldlm_res_id *res1)
+{
+	return memcmp(res0, res1, sizeof(*res0)) == 0;
+}

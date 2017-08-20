@@ -1336,5 +1336,18 @@ void ldlm_pool_add(struct ldlm_pool *pl, struct ldlm_lock *lock);
 void ldlm_pool_del(struct ldlm_pool *pl, struct ldlm_lock *lock);
 /** @} */
 
+static inline int ldlm_extent_overlap(const struct ldlm_extent *ex1,
+				      const struct ldlm_extent *ex2)
+{
+	return ex1->start <= ex2->end && ex2->start <= ex1->end;
+}
+
+/* check if @ex1 contains @ex2 */
+static inline int ldlm_extent_contain(const struct ldlm_extent *ex1,
+				      const struct ldlm_extent *ex2)
+{
+	return ex1->start <= ex2->start && ex1->end >= ex2->end;
+}
+
 #endif
 /** @} LDLM */

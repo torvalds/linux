@@ -2130,17 +2130,6 @@ struct mdt_rec_create {
 	__u32	   cr_padding_4;   /* rr_padding_4 */
 };
 
-static inline void set_mrc_cr_flags(struct mdt_rec_create *mrc, __u64 flags)
-{
-	mrc->cr_flags_l = (__u32)(flags & 0xFFFFFFFFUll);
-	mrc->cr_flags_h = (__u32)(flags >> 32);
-}
-
-static inline __u64 get_mrc_cr_flags(struct mdt_rec_create *mrc)
-{
-	return ((__u64)(mrc->cr_flags_l) | ((__u64)mrc->cr_flags_h << 32));
-}
-
 /* instance of mdt_reint_rec */
 struct mdt_rec_link {
 	__u32	   lk_opcode;
@@ -2403,25 +2392,6 @@ static inline int lmv_mds_md_stripe_count_get(const union lmv_mds_md *lmm)
 	}
 }
 
-static inline int lmv_mds_md_stripe_count_set(union lmv_mds_md *lmm,
-					      unsigned int stripe_count)
-{
-	int rc = 0;
-
-	switch (le32_to_cpu(lmm->lmv_magic)) {
-	case LMV_MAGIC_V1:
-		lmm->lmv_md_v1.lmv_stripe_count = cpu_to_le32(stripe_count);
-		break;
-	case LMV_USER_MAGIC:
-		lmm->lmv_user_md.lum_stripe_count = cpu_to_le32(stripe_count);
-		break;
-	default:
-		rc = -EINVAL;
-		break;
-	}
-	return rc;
-}
-
 enum fld_rpc_opc {
 	FLD_QUERY	= 900,
 	FLD_READ	= 901,
@@ -2502,12 +2472,6 @@ struct ldlm_res_id {
 #define PLDLMRES(res)	(res)->lr_name.name[0], (res)->lr_name.name[1], \
 			(res)->lr_name.name[2], (res)->lr_name.name[3]
 
-static inline bool ldlm_res_eq(const struct ldlm_res_id *res0,
-			       const struct ldlm_res_id *res1)
-{
-	return !memcmp(res0, res1, sizeof(*res0));
-}
-
 /* lock types */
 enum ldlm_mode {
 	LCK_MINMODE = 0,
@@ -2539,19 +2503,6 @@ struct ldlm_extent {
 	__u64 end;
 	__u64 gid;
 };
-
-static inline int ldlm_extent_overlap(const struct ldlm_extent *ex1,
-				      const struct ldlm_extent *ex2)
-{
-	return (ex1->start <= ex2->end) && (ex2->start <= ex1->end);
-}
-
-/* check if @ex1 contains @ex2 */
-static inline int ldlm_extent_contain(const struct ldlm_extent *ex1,
-				      const struct ldlm_extent *ex2)
-{
-	return (ex1->start <= ex2->start) && (ex1->end >= ex2->end);
-}
 
 struct ldlm_inodebits {
 	__u64 bits;
@@ -2626,18 +2577,6 @@ struct ldlm_request {
 	struct ldlm_lock_desc lock_desc;
 	struct lustre_handle lock_handle[LDLM_LOCKREQ_HANDLES];
 };
-
-/* If LDLM_ENQUEUE, 1 slot is already occupied, 1 is available.
- * Otherwise, 2 are available.
- */
-#define ldlm_request_bufsize(count, type)				\
-({								      \
-	int _avail = LDLM_LOCKREQ_HANDLES;			      \
-	_avail -= (type == LDLM_ENQUEUE ? LDLM_ENQUEUE_CANCEL_OFF : 0); \
-	sizeof(struct ldlm_request) +				   \
-	(count > _avail ? count - _avail : 0) *			 \
-	sizeof(struct lustre_handle);				   \
-})
 
 struct ldlm_reply {
 	__u32 lock_flags;
@@ -2942,12 +2881,6 @@ static inline const char *agent_req_status2name(const enum agent_req_status ars)
 	}
 }
 
-static inline bool agent_req_in_final_state(enum agent_req_status ars)
-{
-	return ((ars == ARS_SUCCEED) || (ars == ARS_FAILED) ||
-		(ars == ARS_CANCELED));
-}
-
 struct llog_agent_req_rec {
 	struct llog_rec_hdr	arr_hdr;	/**< record header */
 	__u32			arr_status;	/**< status of the request */
@@ -3141,12 +3074,6 @@ struct ll_fiemap_info_key {
 	struct obdo	lfik_oa;
 	struct fiemap	lfik_fiemap;
 };
-
-/* Functions for dumping PTLRPC fields */
-void dump_rniobuf(struct niobuf_remote *rnb);
-void dump_ioo(struct obd_ioobj *nb);
-void dump_ost_body(struct ost_body *ob);
-void dump_rcs(__u32 *rc);
 
 /* security opcodes */
 enum sec_cmd {
