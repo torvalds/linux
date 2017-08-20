@@ -30,8 +30,8 @@
  * Lustre is a trademark of Sun Microsystems, Inc.
  */
 
-#ifndef _LUSTRE_CFG_H
-#define _LUSTRE_CFG_H
+#ifndef _UAPI_LUSTRE_CFG_H_
+#define _UAPI_LUSTRE_CFG_H_
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -258,4 +258,4 @@ static inline int lustre_cfg_sanity_check(void *buf, size_t len)
 
 /** @} cfg */
 
-#endif /* _LUSTRE_CFG_H */
+#endif /* _UAPI_LUSTRE_CFG_H_ */
