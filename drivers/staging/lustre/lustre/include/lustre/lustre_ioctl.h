@@ -209,7 +209,6 @@ static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 }
 
 int obd_ioctl_getdata(char **buf, int *len, void __user *arg);
-int obd_ioctl_popdata(void __user *arg, void *data, int len);
 
 /*
  * OBD_IOC_DATA_TYPE is only for compatibility reasons with older
