@@ -148,6 +148,11 @@ static void dev_map_free(struct bpf_map *map)
 	 * no further reads against netdev_map. It does __not__ ensure pending
 	 * flush operations (if any) are complete.
 	 */
+
+	spin_lock(&dev_map_lock);
+	list_del_rcu(&dtab->list);
+	spin_unlock(&dev_map_lock);
+
 	synchronize_rcu();
 
 	/* To ensure all pending flush operations have completed wait for flush
@@ -162,10 +167,6 @@ static void dev_map_free(struct bpf_map *map)
 			cpu_relax();
 	}
 
-	/* Although we should no longer have datapath or bpf syscall operations
-	 * at this point we we can still race with netdev notifier, hence the
-	 * lock.
-	 */
 	for (i = 0; i < dtab->map.max_entries; i++) {
 		struct bpf_dtab_netdev *dev;
 
@@ -180,9 +181,6 @@ static void dev_map_free(struct bpf_map *map)
 	/* At this point bpf program is detached and all pending operations
 	 * _must_ be complete
 	 */
-	spin_lock(&dev_map_lock);
-	list_del_rcu(&dtab->list);
-	spin_unlock(&dev_map_lock);
 	free_percpu(dtab->flush_needed);
 	bpf_map_area_free(dtab->netdev_map);
 	kfree(dtab);
