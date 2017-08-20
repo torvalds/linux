@@ -35,13 +35,13 @@
 #ifndef __LNET_LIB_LNET_H__
 #define __LNET_LIB_LNET_H__
 
-#include "../libcfs/libcfs.h"
-#include "api.h"
-#include "lib-types.h"
-#include "../../uapi/linux/lnet/lnet-dlc.h"
-#include "../../uapi/linux/lnet/lnet-types.h"
-#include "../../uapi/linux/lnet/lnetctl.h"
-#include "../../uapi/linux/lnet/nidstr.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/api.h>
+#include <linux/lnet/lib-types.h>
+#include <uapi/linux/lnet/lnet-dlc.h>
+#include <uapi/linux/lnet/lnet-types.h>
+#include <uapi/linux/lnet/lnetctl.h>
+#include <uapi/linux/lnet/nidstr.h>
 
 extern struct lnet the_lnet;	/* THE network */
 

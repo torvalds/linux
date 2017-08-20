@@ -28,7 +28,7 @@
 #ifndef _LNET_NIDSTRINGS_H
 #define _LNET_NIDSTRINGS_H
 
-#include "lnet-types.h"
+#include <uapi/linux/lnet/lnet-types.h>
 
 /**
  *  Lustre Network Driver types.

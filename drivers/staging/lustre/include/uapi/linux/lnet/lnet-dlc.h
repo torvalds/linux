@@ -29,8 +29,8 @@
 #ifndef LNET_DLC_H
 #define LNET_DLC_H
 
-#include "libcfs_ioctl.h"
-#include "lnet-types.h"
+#include <uapi/linux/lnet/libcfs_ioctl.h>
+#include <uapi/linux/lnet/lnet-types.h>
 
 #define MAX_NUM_SHOW_ENTRIES	32
 #define LNET_MAX_STR_LEN	128

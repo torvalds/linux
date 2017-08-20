@@ -40,8 +40,8 @@
 #include <linux/types.h>
 #include <linux/completion.h>
 
-#include "../../uapi/linux/lnet/lnet-types.h"
-#include "../../uapi/linux/lnet/lnetctl.h"
+#include <uapi/linux/lnet/lnet-types.h>
+#include <uapi/linux/lnet/lnetctl.h>
 
 /* Max payload size */
 #define LNET_MAX_PAYLOAD      CONFIG_LNET_MAX_PAYLOAD
