@@ -85,17 +85,17 @@ struct ddb_regmap {
 	u32 irq_base_idma;
 	u32 irq_base_odma;
 
-	struct ddb_regset *i2c;
-	struct ddb_regset *i2c_buf;
-	struct ddb_regset *idma;
-	struct ddb_regset *idma_buf;
-	struct ddb_regset *odma;
-	struct ddb_regset *odma_buf;
+	const struct ddb_regset *i2c;
+	const struct ddb_regset *i2c_buf;
+	const struct ddb_regset *idma;
+	const struct ddb_regset *idma_buf;
+	const struct ddb_regset *odma;
+	const struct ddb_regset *odma_buf;
 
-	struct ddb_regset *input;
-	struct ddb_regset *output;
+	const struct ddb_regset *input;
+	const struct ddb_regset *output;
 
-	struct ddb_regset *channel;
+	const struct ddb_regset *channel;
 };
 
 struct ddb_ids {
@@ -133,7 +133,7 @@ struct ddb_info {
 #define TS_QUIRK_REVERSED 2
 #define TS_QUIRK_ALT_OSC  8
 	u32   tempmon_irq;
-	struct ddb_regmap *regmap;
+	const struct ddb_regmap *regmap;
 };
 
 /* DMA_SIZE MUST be smaller than 256k and

@@ -155,7 +155,8 @@ static void i2c_handler(unsigned long priv)
 }
 
 static int ddb_i2c_add(struct ddb *dev, struct ddb_i2c *i2c,
-		       struct ddb_regmap *regmap, int link, int i, int num)
+		       const struct ddb_regmap *regmap, int link,
+		       int i, int num)
 {
 	struct i2c_adapter *adap;
 
@@ -196,7 +197,7 @@ int ddb_i2c_init(struct ddb *dev)
 	u32 i, j, num = 0, l, base;
 	struct ddb_i2c *i2c;
 	struct i2c_adapter *adap;
-	struct ddb_regmap *regmap;
+	const struct ddb_regmap *regmap;
 
 	for (l = 0; l < DDB_MAX_LINK; l++) {
 		if (!dev->link[l].info)

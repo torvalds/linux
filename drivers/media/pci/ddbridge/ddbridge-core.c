@@ -2439,7 +2439,7 @@ static void output_handler(unsigned long data)
 /****************************************************************************/
 /****************************************************************************/
 
-static struct ddb_regmap *io_regmap(struct ddb_io *io, int link)
+static const struct ddb_regmap *io_regmap(struct ddb_io *io, int link)
 {
 	const struct ddb_info *info;
 
@@ -2457,7 +2457,7 @@ static struct ddb_regmap *io_regmap(struct ddb_io *io, int link)
 static void ddb_dma_init(struct ddb_io *io, int nr, int out)
 {
 	struct ddb_dma *dma;
-	struct ddb_regmap *rm = io_regmap(io, 0);
+	const struct ddb_regmap *rm = io_regmap(io, 0);
 
 	dma = out ? &io->port->dev->odma[nr] : &io->port->dev->idma[nr];
 	io->dma = dma;
@@ -2488,7 +2488,7 @@ static void ddb_input_init(struct ddb_port *port, int nr, int pnr, int anr)
 {
 	struct ddb *dev = port->dev;
 	struct ddb_input *input = &dev->input[anr];
-	struct ddb_regmap *rm;
+	const struct ddb_regmap *rm;
 
 	port->input[pnr] = input;
 	input->nr = nr;
@@ -2500,7 +2500,7 @@ static void ddb_input_init(struct ddb_port *port, int nr, int pnr, int anr)
 		port->lnr, nr, input->regs);
 
 	if (dev->has_dma) {
-		struct ddb_regmap *rm0 = io_regmap(input, 0);
+		const struct ddb_regmap *rm0 = io_regmap(input, 0);
 		u32 base = rm0->irq_base_idma;
 		u32 dma_nr = nr;
 
@@ -2520,7 +2520,7 @@ static void ddb_output_init(struct ddb_port *port, int nr)
 {
 	struct ddb *dev = port->dev;
 	struct ddb_output *output = &dev->output[nr];
-	struct ddb_regmap *rm;
+	const struct ddb_regmap *rm;
 
 	port->output = output;
 	output->nr = nr;
@@ -2533,7 +2533,7 @@ static void ddb_output_init(struct ddb_port *port, int nr)
 		 port->lnr, nr, output->regs);
 
 	if (dev->has_dma) {
-		struct ddb_regmap *rm0 = io_regmap(output, 0);
+		const struct ddb_regmap *rm0 = io_regmap(output, 0);
 		u32 base = rm0->irq_base_odma;
 
 		dev->handler[0][nr + base] = output_handler;
@@ -2576,7 +2576,7 @@ void ddb_ports_init(struct ddb *dev)
 	u32 i, l, p;
 	struct ddb_port *port;
 	const struct ddb_info *info;
-	struct ddb_regmap *rm;
+	const struct ddb_regmap *rm;
 
 	for (p = l = 0; l < DDB_MAX_LINK; l++) {
 		info = dev->link[l].info;
