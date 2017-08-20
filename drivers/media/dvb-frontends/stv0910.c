@@ -34,7 +34,7 @@
 #define BER_SRC_S    0x20
 #define BER_SRC_S2   0x20
 
-LIST_HEAD(stvlist);
+static LIST_HEAD(stvlist);
 
 enum receive_mode { RCVMODE_NONE, RCVMODE_DVBS, RCVMODE_DVBS2, RCVMODE_AUTO };
 
