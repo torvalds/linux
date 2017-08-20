@@ -51,7 +51,7 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_cksum.h"
+#include <obd_cksum.h>
 #include "llite_internal.h"
 
 static void ll_ra_stats_inc_sbi(struct ll_sb_info *sbi, enum ra_stat which);

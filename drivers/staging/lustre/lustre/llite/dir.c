@@ -44,14 +44,14 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
-#include "../include/lustre_lib.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_kernelcomm.h"
-#include "../include/lustre_swab.h"
+#include <obd_support.h>
+#include <obd_class.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_lib.h>
+#include <lustre_dlm.h>
+#include <lustre_fid.h>
+#include <lustre_kernelcomm.h>
+#include <lustre_swab.h>
 
 #include "llite_internal.h"
 

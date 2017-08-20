@@ -40,9 +40,9 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_support.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_dlm.h"
+#include <obd_support.h>
+#include <lustre_fid.h>
+#include <lustre_dlm.h>
 #include "llite_internal.h"
 
 static int ll_create_it(struct inode *dir, struct dentry *dentry,

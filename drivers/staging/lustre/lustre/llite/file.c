@@ -37,16 +37,16 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LLITE
-#include "../include/lustre_dlm.h"
+#include <lustre_dlm.h>
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/sched.h>
 #include <linux/mount.h>
-#include "../../include/uapi/linux/lustre/lustre_fiemap.h"
-#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
-#include "../include/lustre_swab.h"
+#include <uapi/linux/lustre/lustre_fiemap.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_swab.h>
 
-#include "../include/cl_object.h"
+#include <cl_object.h>
 #include "llite_internal.h"
 
 static int
