@@ -161,6 +161,9 @@ static inline void *lustre_cfg_buf(struct lustre_cfg *lcfg, __u32 index)
 	size_t offset;
 	__u32 bufcount;
 
+	if (!lcfg)
+		return NULL;
+
 	bufcount = lcfg->lcfg_bufcount;
 	if (index >= bufcount)
 		return NULL;
