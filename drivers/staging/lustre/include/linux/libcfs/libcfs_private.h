@@ -296,18 +296,4 @@ static inline size_t cfs_round_strlen(char *fset)
 	return cfs_size_round((int)strlen(fset) + 1);
 }
 
-#define LOGL(var, len, ptr)				       \
-do {							    \
-	if (var)						\
-		memcpy((char *)ptr, (const char *)var, len);    \
-	ptr += cfs_size_round(len);			     \
-} while (0)
-
-#define LOGU(var, len, ptr)				       \
-do {							    \
-	if (var)						\
-		memcpy((char *)var, (const char *)ptr, len);    \
-	ptr += cfs_size_round(len);			     \
-} while (0)
-
 #endif
