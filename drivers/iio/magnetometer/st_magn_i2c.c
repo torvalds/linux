@@ -40,6 +40,10 @@ static const struct of_device_id st_magn_of_match[] = {
 		.compatible = "st,lsm303agr-magn",
 		.data = LSM303AGR_MAGN_DEV_NAME,
 	},
+	{
+		.compatible = "st,lis2mdl",
+		.data = LIS2MDL_MAGN_DEV_NAME,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_magn_of_match);
@@ -85,6 +89,7 @@ static const struct i2c_device_id st_magn_id_table[] = {
 	{ LSM303DLM_MAGN_DEV_NAME },
 	{ LIS3MDL_MAGN_DEV_NAME },
 	{ LSM303AGR_MAGN_DEV_NAME },
+	{ LIS2MDL_MAGN_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_magn_id_table);

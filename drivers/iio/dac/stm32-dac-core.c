@@ -125,7 +125,7 @@ static int stm32_dac_probe(struct platform_device *pdev)
 		goto err_vref;
 	}
 
-	priv->rst = devm_reset_control_get(dev, NULL);
+	priv->rst = devm_reset_control_get_exclusive(dev, NULL);
 	if (!IS_ERR(priv->rst)) {
 		reset_control_assert(priv->rst);
 		udelay(2);

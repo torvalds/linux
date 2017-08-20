@@ -93,7 +93,7 @@ kvm_stat: FORCE
 all: acpi cgroup cpupower gpio hv firewire lguest liblockdep \
 		perf selftests turbostat usb \
 		virtio vm net x86_energy_perf_policy \
-		tmon freefall objtool kvm_stat
+		tmon freefall iio objtool kvm_stat
 
 acpi_install:
 	$(call descend,power/$(@:_install=),install)
@@ -101,7 +101,7 @@ acpi_install:
 cpupower_install:
 	$(call descend,power/$(@:_install=),install)
 
-cgroup_install firewire_install gpio_install hv_install lguest_install perf_install usb_install virtio_install vm_install net_install objtool_install:
+cgroup_install firewire_install gpio_install hv_install iio_install lguest_install perf_install usb_install virtio_install vm_install net_install objtool_install:
 	$(call descend,$(@:_install=),install)
 
 liblockdep_install:
@@ -123,7 +123,7 @@ kvm_stat_install:
 	$(call descend,kvm/$(@:_install=),install)
 
 install: acpi_install cgroup_install cpupower_install gpio_install \
-		hv_install firewire_install lguest_install liblockdep_install \
+		hv_install firewire_install iio_install lguest_install liblockdep_install \
 		perf_install selftests_install turbostat_install usb_install \
 		virtio_install vm_install net_install x86_energy_perf_policy_install \
 		tmon_install freefall_install objtool_install kvm_stat_install
