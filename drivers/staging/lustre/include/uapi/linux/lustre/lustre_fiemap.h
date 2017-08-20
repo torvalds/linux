@@ -29,8 +29,6 @@
  * This file is part of Lustre, http://www.lustre.org/
  * Lustre is a trademark of Sun Microsystems, Inc.
  *
- * lustre/include/lustre/ll_fiemap.h
- *
  * FIEMAP data structures and flags. This header file will be used until
  * fiemap.h is available in the upstream kernel.
  *
@@ -41,10 +39,8 @@
 #ifndef _LUSTRE_FIEMAP_H
 #define _LUSTRE_FIEMAP_H
 
-#ifndef __KERNEL__
 #include <stddef.h>
-#include <fiemap.h>
-#endif
+#include <linux/fiemap.h>
 
 /* XXX: We use fiemap_extent::fe_reserved[0] */
 #define fe_device	fe_reserved[0]

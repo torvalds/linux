@@ -38,7 +38,6 @@
 #include <linux/seq_file.h>
 
 #include "../include/obd_support.h"
-#include "../include/lustre/lustre_idl.h"
 #include "../include/lustre_fid.h"
 #include "../include/lustre_lib.h"
 #include "../include/lustre_net.h"

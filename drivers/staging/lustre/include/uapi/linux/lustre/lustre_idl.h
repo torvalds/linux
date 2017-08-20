@@ -29,8 +29,6 @@
  * This file is part of Lustre, http://www.lustre.org/
  * Lustre is a trademark of Sun Microsystems, Inc.
  *
- * lustre/include/lustre/lustre_idl.h
- *
  * Lustre wire protocol definitions.
  */
 
@@ -71,10 +69,10 @@
 
 #include <linux/types.h>
 
-#include "../../../include/uapi/linux/lnet/lnet-types.h"
+#include "../lnet/lnet-types.h"
 /* Defn's shared with user-space. */
 #include "lustre_user.h"
-#include "../lustre_ver.h"
+#include "lustre_ver.h"
 
 /*
  *  GENERAL STUFF

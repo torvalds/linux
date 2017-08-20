@@ -50,7 +50,6 @@
 #include "../include/obd_support.h"
 #include "../include/lustre_fid.h"
 #include "../include/lustre_dlm.h"
-#include "../include/lustre_ver.h"
 #include "../include/lustre_mdc.h"
 #include "../include/cl_object.h"
 

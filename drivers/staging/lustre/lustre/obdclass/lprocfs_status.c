@@ -38,7 +38,7 @@
 
 #include "../include/obd_class.h"
 #include "../include/lprocfs_status.h"
-#include "../include/lustre/lustre_idl.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
 #include <linux/seq_file.h>
 #include <linux/ctype.h>
 

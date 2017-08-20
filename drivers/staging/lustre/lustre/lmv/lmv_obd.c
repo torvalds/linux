@@ -41,7 +41,6 @@
 #include <linux/namei.h>
 #include <linux/uaccess.h>
 
-#include "../include/lustre/lustre_idl.h"
 #include "../include/obd_support.h"
 #include "../include/lustre_net.h"
 #include "../include/obd_class.h"

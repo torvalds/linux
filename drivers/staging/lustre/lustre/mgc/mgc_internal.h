@@ -34,7 +34,6 @@
 #define _MGC_INTERNAL_H
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include "../include/lustre/lustre_idl.h"
 #include "../include/lustre_lib.h"
 #include "../include/lustre_dlm.h"
 #include "../include/lustre_log.h"

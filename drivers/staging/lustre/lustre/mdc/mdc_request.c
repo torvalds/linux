@@ -38,8 +38,7 @@
 # include <linux/init.h>
 # include <linux/utsname.h>
 
-#include "../include/lustre/lustre_errno.h"
-
+#include "../include/lustre_errno.h"
 #include "../include/cl_object.h"
 #include "../include/llog_swab.h"
 #include "../include/lprocfs_status.h"

@@ -43,7 +43,7 @@
 #include "../include/obd.h"
 #include "../include/lustre_compat.h"
 #include "../include/obd_class.h"
-#include "../include/lustre/lustre_user.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
 #include "../include/lustre_log.h"
 #include "../include/lustre_disk.h"
 #include "../../include/uapi/linux/lustre/lustre_param.h"

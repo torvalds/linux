@@ -34,8 +34,8 @@
  * The definitions below are used in the kernel and userspace.
  */
 
-#ifndef __UAPI_KERNELCOMM_H__
-#define __UAPI_KERNELCOMM_H__
+#ifndef __UAPI_LUSTRE_KERNELCOMM_H__
+#define __UAPI_LUSTRE_KERNELCOMM_H__
 
 #include <linux/types.h>
 
@@ -91,4 +91,4 @@ struct lustre_kernelcomm {
 	__u32 lk_flags;
 } __packed;
 
-#endif	/* __UAPI_KERNELCOMM_H__ */
+#endif	/* __UAPI_LUSTRE_KERNELCOMM_H__ */

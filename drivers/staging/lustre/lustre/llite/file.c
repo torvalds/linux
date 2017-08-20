@@ -42,7 +42,7 @@
 #include <linux/file.h>
 #include <linux/sched.h>
 #include <linux/mount.h>
-#include "../include/lustre/ll_fiemap.h"
+#include "../../include/uapi/linux/lustre/lustre_fiemap.h"
 #include "../../include/uapi/linux/lustre/lustre_ioctl.h"
 #include "../include/lustre_swab.h"
 

@@ -44,7 +44,7 @@
 
 #include "../include/obd.h"
 #include "../include/obd_class.h"
-#include "../include/lustre_ver.h"
+#include "../../include/uapi/linux/lustre/lustre_ver.h"
 #include "../include/obd_support.h"
 #include "../include/lprocfs_status.h"
 

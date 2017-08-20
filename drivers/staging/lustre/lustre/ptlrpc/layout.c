@@ -46,12 +46,12 @@
 
 #include <linux/module.h>
 
-#include "../include/lustre/lustre_idl.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
 
 #include "../include/llog_swab.h"
 #include "../include/lustre_debug.h"
 #include "../include/lustre_swab.h"
-#include "../include/lustre_ver.h"
+#include "../../include/uapi/linux/lustre/lustre_ver.h"
 #include "../include/obd.h"
 #include "../include/obd_support.h"
 

@@ -46,8 +46,8 @@
 #include <linux/signal.h>
 #include <linux/types.h>
 #include "../../include/linux/libcfs/libcfs.h"
-#include "lustre/lustre_idl.h"
-#include "lustre_ver.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
+#include "../../include/uapi/linux/lustre/lustre_ver.h"
 #include "../../include/uapi/linux/lustre/lustre_cfg.h"
 
 /* target.c */

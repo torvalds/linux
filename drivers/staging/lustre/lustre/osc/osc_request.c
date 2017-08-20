@@ -36,7 +36,7 @@
 
 #include "../include/lustre_dlm.h"
 #include "../include/lustre_net.h"
-#include "../include/lustre/lustre_user.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
 #include "../include/obd_cksum.h"
 
 #include "../include/lustre_ha.h"

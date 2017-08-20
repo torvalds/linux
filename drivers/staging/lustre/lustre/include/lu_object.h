@@ -36,7 +36,7 @@
 #include <stdarg.h>
 #include <linux/percpu_counter.h>
 #include "../../include/linux/libcfs/libcfs.h"
-#include "lustre/lustre_idl.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
 #include "lu_ref.h"
 
 struct seq_file;

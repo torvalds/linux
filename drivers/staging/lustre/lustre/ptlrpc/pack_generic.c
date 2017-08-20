@@ -42,7 +42,7 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 
-#include "../include/lustre/ll_fiemap.h"
+#include "../../include/uapi/linux/lustre/lustre_fiemap.h"
 
 #include "../include/llog_swab.h"
 #include "../include/lustre_net.h"

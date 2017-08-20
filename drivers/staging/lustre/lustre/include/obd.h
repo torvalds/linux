@@ -35,7 +35,7 @@
 
 #include <linux/spinlock.h>
 
-#include "lustre/lustre_idl.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
 #include "lustre_lib.h"
 #include "lu_ref.h"
 #include "lustre_export.h"

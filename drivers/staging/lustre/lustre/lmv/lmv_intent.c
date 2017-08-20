@@ -39,7 +39,6 @@
 #include <linux/namei.h>
 #include "../include/lustre_intent.h"
 #include "../include/obd_support.h"
-#include "../include/lustre/lustre_idl.h"
 #include "../include/lustre_lib.h"
 #include "../include/lustre_net.h"
 #include "../include/lustre_dlm.h"

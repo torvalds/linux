@@ -26,7 +26,7 @@
  * Author: Di Wang <di.wang@intel.com>
  */
 
-#include "../include/lustre/lustre_idl.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
 #include "../include/obd.h"
 #include "../include/lustre_linkea.h"
 

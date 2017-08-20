@@ -56,7 +56,7 @@
 #ifndef __FLD_INTERNAL_H
 #define __FLD_INTERNAL_H
 
-#include "../include/lustre/lustre_idl.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
 
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../include/lustre_req_layout.h"

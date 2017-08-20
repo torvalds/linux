@@ -26,7 +26,7 @@
  */
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include "../include/lustre/lustre_errno.h"
+#include "../include/lustre_errno.h"
 
 /*
  * The two translation tables below must define a one-to-one mapping between

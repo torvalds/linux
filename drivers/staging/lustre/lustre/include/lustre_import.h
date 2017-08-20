@@ -44,7 +44,7 @@
  */
 
 #include "lustre_handles.h"
-#include "lustre/lustre_idl.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
 
 /**
  * Adaptive Timeout stuff

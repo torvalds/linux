@@ -43,7 +43,7 @@
  */
 
 #include "lprocfs_status.h"
-#include "lustre/lustre_idl.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
 #include "lustre_dlm.h"
 
 enum obd_option {

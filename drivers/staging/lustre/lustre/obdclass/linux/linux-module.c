@@ -66,7 +66,7 @@
 #include "../../include/obd_class.h"
 #include "../../include/lprocfs_status.h"
 #include "../../../include/uapi/linux/lustre/lustre_ioctl.h"
-#include "../../include/lustre_ver.h"
+#include "../../../include/uapi/linux/lustre/lustre_ver.h"
 
 static int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 {

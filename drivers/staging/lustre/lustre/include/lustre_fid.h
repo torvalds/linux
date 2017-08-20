@@ -150,7 +150,7 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../../include/uapi/linux/lustre/lustre_fid.h"
-#include "lustre/lustre_idl.h"
+#include "../../include/uapi/linux/lustre/lustre_idl.h"
 #include "../../include/uapi/linux/lustre/lustre_ostid.h"
 
 struct lu_env;
