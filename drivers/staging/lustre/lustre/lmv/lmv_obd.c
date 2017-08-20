@@ -41,15 +41,15 @@
 #include <linux/namei.h>
 #include <linux/uaccess.h>
 
-#include "../include/obd_support.h"
-#include "../include/lustre_net.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_lmv.h"
-#include "../include/lprocfs_status.h"
-#include "../include/cl_object.h"
-#include "../include/lustre_fid.h"
-#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
-#include "../include/lustre_kernelcomm.h"
+#include <obd_support.h>
+#include <lustre_net.h>
+#include <obd_class.h>
+#include <lustre_lmv.h>
+#include <lprocfs_status.h>
+#include <cl_object.h>
+#include <lustre_fid.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_kernelcomm.h>
 #include "lmv_internal.h"
 
 static int lmv_check_connect(struct obd_device *obd);

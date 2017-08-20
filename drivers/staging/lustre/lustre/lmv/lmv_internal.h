@@ -33,9 +33,9 @@
 #ifndef _LMV_INTERNAL_H_
 #define _LMV_INTERNAL_H_
 
-#include "../../include/uapi/linux/lustre/lustre_idl.h"
-#include "../include/obd.h"
-#include "../include/lustre_lmv.h"
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <obd.h>
+#include <lustre_lmv.h>
 
 #define LMV_MAX_TGT_COUNT 128
 

@@ -34,8 +34,8 @@
 
 #include <linux/seq_file.h>
 #include <linux/statfs.h>
-#include "../include/lprocfs_status.h"
-#include "../include/obd_class.h"
+#include <lprocfs_status.h>
+#include <obd_class.h>
 #include "lmv_internal.h"
 
 static ssize_t numobd_show(struct kobject *kobj, struct attribute *attr,
