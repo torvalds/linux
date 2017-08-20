@@ -25,8 +25,8 @@
  *
  * Copyright (c) 2011, 2015, Intel Corporation.
  */
-#ifndef LUSTRE_IOCTL_H_
-#define LUSTRE_IOCTL_H_
+#ifndef _UAPI_LUSTRE_IOCTL_H_
+#define _UAPI_LUSTRE_IOCTL_H_
 
 #include <linux/ioctl.h>
 #include <linux/kernel.h>
@@ -229,4 +229,4 @@ static inline __u32 obd_ioctl_packlen(struct obd_ioctl_data *data)
 
 #define IOC_OSC_SET_ACTIVE	_IOWR('h', 21, void *)
 
-#endif /* LUSTRE_IOCTL_H_ */
+#endif /* _UAPI_LUSTRE_IOCTL_H_ */
