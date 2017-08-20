@@ -224,6 +224,18 @@ static struct snd_motu_spec motu_828mk3 = {
 	.analog_out_ports = 8,
 };
 
+static struct snd_motu_spec motu_audio_express = {
+	.name = "AudioExpress",
+	.protocol = &snd_motu_protocol_v3,
+	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
+		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
+		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
+		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+	.analog_in_ports = 2,
+	.analog_out_ports = 4,
+};
+
 #define SND_MOTU_DEV_ENTRY(model, data)			\
 {							\
 	.match_flags	= IEEE1394_MATCH_VENDOR_ID |	\
@@ -239,6 +251,7 @@ static const struct ieee1394_device_id motu_id_table[] = {
 	SND_MOTU_DEV_ENTRY(0x101800, &motu_828mk2),
 	SND_MOTU_DEV_ENTRY(0x106800, &motu_828mk3),	/* FireWire only. */
 	SND_MOTU_DEV_ENTRY(0x100800, &motu_828mk3),	/* Hybrid. */
+	SND_MOTU_DEV_ENTRY(0x104800, &motu_audio_express),
 	{ }
 };
 MODULE_DEVICE_TABLE(ieee1394, motu_id_table);
