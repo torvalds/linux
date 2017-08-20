@@ -1067,7 +1067,6 @@ out_unlock:
 	spin_unlock(&dentry->d_lock);
 	if (old_lease_session)
 		ceph_put_mds_session(old_lease_session);
-	return;
 }
 
 /*
