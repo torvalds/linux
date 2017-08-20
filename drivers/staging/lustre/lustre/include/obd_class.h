@@ -105,10 +105,28 @@ struct llog_handle;
 struct llog_rec_hdr;
 typedef int (*llog_cb_t)(const struct lu_env *, struct llog_handle *,
 			 struct llog_rec_hdr *, void *);
+
 /* obd_config.c */
 int class_process_config(struct lustre_cfg *lcfg);
 int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 			     struct lustre_cfg *lcfg, void *data);
+
+/* For interoperability */
+struct cfg_interop_param {
+	char *old_param;
+	char *new_param;
+};
+
+int class_find_param(char *buf, char *key, char **valp);
+struct cfg_interop_param *class_find_old_param(const char *param,
+					       struct cfg_interop_param *ptr);
+int class_get_next_param(char **params, char *copy);
+int class_parse_nid(char *buf, lnet_nid_t *nid, char **endh);
+int class_parse_nid_quiet(char *buf, lnet_nid_t *nid, char **endh);
+int class_parse_net(char *buf, u32 *net, char **endh);
+int class_match_nid(char *buf, char *key, lnet_nid_t nid);
+int class_match_net(char *buf, char *key, u32 net);
+
 struct obd_device *class_incref(struct obd_device *obd,
 				const char *scope, const void *source);
 void class_decref(struct obd_device *obd,
