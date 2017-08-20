@@ -29,15 +29,13 @@
  * This file is part of Lustre, http://www.lustre.org/
  * Lustre is a trademark of Sun Microsystems, Inc.
  *
- * lustre/include/lustre_param.h
- *
  * User-settable parameter keys
  *
  * Author: Nathan Rutman <nathan@clusterfs.com>
  */
 
-#ifndef _LUSTRE_PARAM_H
-#define _LUSTRE_PARAM_H
+#ifndef _UAPI_LUSTRE_PARAM_H_
+#define _UAPI_LUSTRE_PARAM_H_
 
 /** \defgroup param param
  *
@@ -92,4 +90,4 @@
 
 /** @} param */
 
-#endif /* _LUSTRE_PARAM_H */
+#endif /* _UAPI_LUSTRE_PARAM_H_ */
