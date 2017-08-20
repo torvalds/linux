@@ -1097,7 +1097,7 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			goto out_free;
 		}
 out_free:
-		obd_ioctl_freedata(buf, len);
+		kvfree(buf);
 		return rc;
 	}
 	case LL_IOC_LMV_SETSTRIPE: {
@@ -1147,7 +1147,7 @@ out_free:
 #endif
 		rc = ll_dir_setdirstripe(inode, lum, filename, mode);
 lmv_out_free:
-		obd_ioctl_freedata(buf, len);
+		kvfree(buf);
 		return rc;
 	}
 	case LL_IOC_LMV_SET_DEFAULT_STRIPE: {
@@ -1626,7 +1626,7 @@ out_quotactl:
 
 		rc = ll_migrate(inode, file, mdtidx, filename, namelen - 1);
 migrate_free:
-		obd_ioctl_freedata(buf, len);
+		kvfree(buf);
 
 		return rc;
 	}

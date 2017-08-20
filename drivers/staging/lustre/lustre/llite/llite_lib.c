@@ -2231,8 +2231,7 @@ int ll_obd_statfs(struct inode *inode, void __user *arg)
 	if (rc)
 		goto out_statfs;
 out_statfs:
-	if (buf)
-		obd_ioctl_freedata(buf, len);
+	kvfree(buf);
 	return rc;
 }
 

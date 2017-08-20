@@ -369,8 +369,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 	}
 
  out:
-	if (buf)
-		obd_ioctl_freedata(buf, len);
+	kvfree(buf);
 	return err;
 } /* class_handle_ioctl */
 
