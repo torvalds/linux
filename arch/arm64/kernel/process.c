@@ -414,3 +414,11 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 	else
 		return randomize_page(mm->brk, SZ_1G);
 }
+
+/*
+ * Called from setup_new_exec() after (COMPAT_)SET_PERSONALITY.
+ */
+void arch_setup_new_exec(void)
+{
+	current->mm->context.flags = is_compat_task() ? MMCF_AARCH32 : 0;
+}

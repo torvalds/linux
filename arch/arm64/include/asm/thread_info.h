@@ -60,6 +60,9 @@ struct thread_info {
 #define thread_saved_fp(tsk)	\
 	((unsigned long)(tsk->thread.cpu_context.fp))
 
+void arch_setup_new_exec(void);
+#define arch_setup_new_exec     arch_setup_new_exec
+
 #endif
 
 /*
