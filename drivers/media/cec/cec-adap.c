@@ -1448,7 +1448,9 @@ static void cec_claim_log_addrs(struct cec_adapter *adap, bool block)
  */
 void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 {
-	if (phys_addr == adap->phys_addr || adap->devnode.unregistered)
+	if (phys_addr == adap->phys_addr)
+		return;
+	if (phys_addr != CEC_PHYS_ADDR_INVALID && adap->devnode.unregistered)
 		return;
 
 	dprintk(1, "new physical address %x.%x.%x.%x\n",
