@@ -70,10 +70,10 @@
 #include <asm/byteorder.h>
 #include <linux/types.h>
 
-#include "../lnet/lnet-types.h"
+#include <uapi/linux/lnet/lnet-types.h>
 /* Defn's shared with user-space. */
-#include "lustre_user.h"
-#include "lustre_ver.h"
+#include <uapi/linux/lustre/lustre_user.h>
+#include <uapi/linux/lustre/lustre_ver.h>
 
 /*
  *  GENERAL STUFF

@@ -55,7 +55,7 @@
 # include <sys/quota.h>
 # include <sys/stat.h>
 #endif /* __KERNEL__ */
-#include "lustre_fiemap.h"
+#include <uapi/linux/lustre/lustre_fiemap.h>
 
 /*
  * We need to always use 64bit version because the structure

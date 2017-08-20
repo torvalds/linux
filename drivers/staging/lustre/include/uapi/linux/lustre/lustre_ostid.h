@@ -35,7 +35,7 @@
 #define _UAPI_LUSTRE_OSTID_H_
 
 #include <linux/errno.h>
-#include "lustre_fid.h"
+#include <uapi/linux/lustre/lustre_fid.h>
 
 static inline __u64 lmm_oi_id(const struct ost_id *oi)
 {

@@ -37,7 +37,7 @@
 #ifndef _UAPI_LUSTRE_FID_H_
 #define _UAPI_LUSTRE_FID_H_
 
-#include "../../../uapi/linux/lustre/lustre_idl.h"
+#include <uapi/linux/lustre/lustre_idl.h>
 
 /** returns fid object sequence */
 static inline __u64 fid_seq(const struct lu_fid *fid)

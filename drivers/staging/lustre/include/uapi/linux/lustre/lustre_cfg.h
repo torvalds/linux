@@ -35,7 +35,7 @@
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include "../../../uapi/linux/lustre/lustre_user.h"
+#include <uapi/linux/lustre/lustre_user.h>
 
 /** \defgroup cfg cfg
  *
