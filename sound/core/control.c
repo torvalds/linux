@@ -948,9 +948,8 @@ static int snd_ctl_elem_write(struct snd_card *card, struct snd_ctl_file *file,
 		}
 		if (result > 0) {
 			struct snd_ctl_elem_id id = control->id;
-			up_read(&card->controls_rwsem);
 			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, &id);
-			return 0;
+			result = 0;
 		}
 	}
 	up_read(&card->controls_rwsem);
