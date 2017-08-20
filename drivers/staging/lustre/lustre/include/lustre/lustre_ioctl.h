@@ -208,8 +208,6 @@ static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 	return 0;
 }
 
-#ifdef __KERNEL__
-
 int obd_ioctl_getdata(char **buf, int *len, void __user *arg);
 int obd_ioctl_popdata(void __user *arg, void *data, int len);
 
@@ -217,91 +215,6 @@ static inline void obd_ioctl_freedata(char *buf, size_t len)
 {
 	kvfree(buf);
 }
-
-#else /* __KERNEL__ */
-
-static inline int obd_ioctl_pack(struct obd_ioctl_data *data, char **pbuf,
-				 int max_len)
-{
-	char *ptr;
-	struct obd_ioctl_data *overlay;
-
-	data->ioc_len = obd_ioctl_packlen(data);
-	data->ioc_version = OBD_IOCTL_VERSION;
-
-	if (*pbuf && data->ioc_len > max_len) {
-		fprintf(stderr, "pbuf = %p, ioc_len = %u, max_len = %d\n",
-			*pbuf, data->ioc_len, max_len);
-		return -EINVAL;
-	}
-
-	if (!*pbuf)
-		*pbuf = malloc(data->ioc_len);
-
-	if (!*pbuf)
-		return -ENOMEM;
-
-	overlay = (struct obd_ioctl_data *)*pbuf;
-	memcpy(*pbuf, data, sizeof(*data));
-
-	ptr = overlay->ioc_bulk;
-	if (data->ioc_inlbuf1)
-		LOGL(data->ioc_inlbuf1, data->ioc_inllen1, ptr);
-
-	if (data->ioc_inlbuf2)
-		LOGL(data->ioc_inlbuf2, data->ioc_inllen2, ptr);
-
-	if (data->ioc_inlbuf3)
-		LOGL(data->ioc_inlbuf3, data->ioc_inllen3, ptr);
-
-	if (data->ioc_inlbuf4)
-		LOGL(data->ioc_inlbuf4, data->ioc_inllen4, ptr);
-
-	if (obd_ioctl_is_invalid(overlay)) {
-		fprintf(stderr, "invalid ioctl data: ioc_len = %u, max_len = %d\n",
-			data->ioc_len, max_len);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static inline int
-obd_ioctl_unpack(struct obd_ioctl_data *data, char *pbuf, int max_len)
-{
-	char *ptr;
-	struct obd_ioctl_data *overlay;
-
-	if (!pbuf)
-		return 1;
-
-	overlay = (struct obd_ioctl_data *)pbuf;
-
-	/* Preserve the caller's buffer pointers */
-	overlay->ioc_inlbuf1 = data->ioc_inlbuf1;
-	overlay->ioc_inlbuf2 = data->ioc_inlbuf2;
-	overlay->ioc_inlbuf3 = data->ioc_inlbuf3;
-	overlay->ioc_inlbuf4 = data->ioc_inlbuf4;
-
-	memcpy(data, pbuf, sizeof(*data));
-
-	ptr = overlay->ioc_bulk;
-	if (data->ioc_inlbuf1)
-		LOGU(data->ioc_inlbuf1, data->ioc_inllen1, ptr);
-
-	if (data->ioc_inlbuf2)
-		LOGU(data->ioc_inlbuf2, data->ioc_inllen2, ptr);
-
-	if (data->ioc_inlbuf3)
-		LOGU(data->ioc_inlbuf3, data->ioc_inllen3, ptr);
-
-	if (data->ioc_inlbuf4)
-		LOGU(data->ioc_inlbuf4, data->ioc_inllen4, ptr);
-
-	return 0;
-}
-
-#endif /* !__KERNEL__ */
 
 /*
  * OBD_IOC_DATA_TYPE is only for compatibility reasons with older
