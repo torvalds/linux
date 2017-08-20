@@ -107,9 +107,9 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 	put_device(&adapter->dev);
 
 	mux->data.n_values = of_get_child_count(np);
-	if (of_find_property(np, "little-endian", NULL)) {
+	if (of_property_read_bool(np, "little-endian")) {
 		mux->data.little_endian = true;
-	} else if (of_find_property(np, "big-endian", NULL)) {
+	} else if (of_property_read_bool(np, "big-endian")) {
 		mux->data.little_endian = false;
 	} else {
 #if defined(__BYTE_ORDER) ? __BYTE_ORDER == __LITTLE_ENDIAN : \
@@ -122,10 +122,7 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 #error Endianness not defined?
 #endif
 	}
-	if (of_find_property(np, "write-only", NULL))
-		mux->data.write_only = true;
-	else
-		mux->data.write_only = false;
+	mux->data.write_only = of_property_read_bool(np, "write-only");
 
 	values = devm_kzalloc(&pdev->dev,
 			      sizeof(*mux->data.values) * mux->data.n_values,
