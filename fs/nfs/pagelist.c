@@ -711,8 +711,7 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 		     const struct nfs_pgio_completion_ops *compl_ops,
 		     const struct nfs_rw_ops *rw_ops,
 		     size_t bsize,
-		     int io_flags,
-		     gfp_t gfp_flags)
+		     int io_flags)
 {
 	desc->pg_moreio = 0;
 	desc->pg_inode = inode;
@@ -733,7 +732,6 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_mirrors = desc->pg_mirrors_static;
 	nfs_pageio_mirror_init(&desc->pg_mirrors[0], bsize);
 }
-EXPORT_SYMBOL_GPL(nfs_pageio_init);
 
 /**
  * nfs_pgio_result - Basic pageio error handling
