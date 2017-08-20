@@ -146,7 +146,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
 		| UPF_FIXED_PORT | UPF_FIXED_TYPE;
 
-	if (of_find_property(np, "no-loopback-test", NULL))
+	if (of_property_read_bool(np, "no-loopback-test"))
 		port->flags |= UPF_SKIP_TEST;
 
 	port->dev = &ofdev->dev;
@@ -192,7 +192,7 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 	if (!match)
 		return -EINVAL;
 
-	if (of_find_property(ofdev->dev.of_node, "used-by-rtas", NULL))
+	if (of_property_read_bool(ofdev->dev.of_node, "used-by-rtas"))
 		return -EBUSY;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
