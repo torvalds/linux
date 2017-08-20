@@ -125,8 +125,7 @@ extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     const struct nfs_pgio_completion_ops *compl_ops,
 			     const struct nfs_rw_ops *rw_ops,
 			     size_t bsize,
-			     int how,
-			     gfp_t gfp_flags);
+			     int how);
 extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,
 				   struct nfs_page *);
 extern  int nfs_pageio_resend(struct nfs_pageio_descriptor *,
