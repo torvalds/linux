@@ -149,8 +149,9 @@
  */
 
 #include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/uapi/linux/lustre/lustre_fid.h"
 #include "lustre/lustre_idl.h"
-#include "seq_range.h"
+#include "../../include/uapi/linux/lustre/lustre_ostid.h"
 
 struct lu_env;
 struct lu_site;
@@ -492,6 +493,52 @@ static inline int ostid_res_name_eq(const struct ost_id *oi,
 		return name->name[LUSTRE_RES_ID_SEQ_OFF] == ostid_seq(oi) &&
 		       name->name[LUSTRE_RES_ID_VER_OID_OFF] == ostid_id(oi);
 	}
+}
+
+/**
+ * Note: we need check oi_seq to decide where to set oi_id,
+ * so oi_seq should always be set ahead of oi_id.
+ */
+static inline int ostid_set_id(struct ost_id *oi, __u64 oid)
+{
+	if (fid_seq_is_mdt0(oi->oi.oi_seq)) {
+		if (oid >= IDIF_MAX_OID)
+			return -E2BIG;
+		oi->oi.oi_id = oid;
+	} else if (fid_is_idif(&oi->oi_fid)) {
+		if (oid >= IDIF_MAX_OID)
+			return -E2BIG;
+		oi->oi_fid.f_seq = fid_idif_seq(oid,
+						fid_idif_ost_idx(&oi->oi_fid));
+		oi->oi_fid.f_oid = oid;
+		oi->oi_fid.f_ver = oid >> 48;
+	} else {
+		if (oid >= OBIF_MAX_OID)
+			return -E2BIG;
+		oi->oi_fid.f_oid = oid;
+	}
+	return 0;
+}
+
+/* pack any OST FID into an ostid (id/seq) for the wire/disk */
+static inline int fid_to_ostid(const struct lu_fid *fid, struct ost_id *ostid)
+{
+	int rc = 0;
+
+	if (fid_seq_is_igif(fid->f_seq))
+		return -EBADF;
+
+	if (fid_is_idif(fid)) {
+		u64 objid = fid_idif_id(fid_seq(fid), fid_oid(fid),
+					fid_ver(fid));
+
+		ostid_set_seq_mdt0(ostid);
+		rc = ostid_set_id(ostid, objid);
+	} else {
+		ostid->oi_fid = *fid;
+	}
+
+	return rc;
 }
 
 /* The same as osc_build_res_name() */
