@@ -37,9 +37,11 @@
 
 #include "../libcfs/libcfs.h"
 #include "api.h"
-#include "lnet.h"
 #include "lib-types.h"
 #include "lib-dlc.h"
+#include "types.h"
+#include "lnetctl.h"
+#include "nidstr.h"
 
 extern struct lnet the_lnet;	/* THE network */
 
