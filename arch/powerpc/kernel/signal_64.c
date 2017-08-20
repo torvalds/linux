@@ -110,6 +110,8 @@ static long setup_sigcontext(struct sigcontext __user *sc,
 	struct pt_regs *regs = tsk->thread.regs;
 	unsigned long msr = regs->msr;
 	long err = 0;
+	/* Force usr to alway see softe as 1 (interrupts enabled) */
+	unsigned long softe = 0x1;
 
 	BUG_ON(tsk != current);
 
@@ -169,6 +171,7 @@ static long setup_sigcontext(struct sigcontext __user *sc,
 	WARN_ON(!FULL_REGS(regs));
 	err |= __copy_to_user(&sc->gp_regs, regs, GP_REGS_SIZE);
 	err |= __put_user(msr, &sc->gp_regs[PT_MSR]);
+	err |= __put_user(softe, &sc->gp_regs[PT_SOFTE]);
 	err |= __put_user(signr, &sc->signal);
 	err |= __put_user(handler, &sc->handler);
 	if (set != NULL)
