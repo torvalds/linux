@@ -63,7 +63,7 @@
 #include "dvb_ca_en50221.h"
 #include "dvb_net.h"
 
-#define DDBRIDGE_VERSION "0.9.29-integrated"
+#define DDBRIDGE_VERSION "0.9.31intermediate-integrated"
 
 #define DDB_MAX_I2C    32
 #define DDB_MAX_PORT   32
