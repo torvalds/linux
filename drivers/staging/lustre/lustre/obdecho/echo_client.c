@@ -31,18 +31,18 @@
  */
 
 #define DEBUG_SUBSYSTEM S_ECHO
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd.h"
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_debug.h"
-#include "../include/lprocfs_status.h"
-#include "../include/cl_object.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_acl.h"
-#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
-#include "../include/lustre_net.h"
+#include <obd.h>
+#include <obd_support.h>
+#include <obd_class.h>
+#include <lustre_debug.h>
+#include <lprocfs_status.h>
+#include <cl_object.h>
+#include <lustre_fid.h>
+#include <lustre_acl.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_net.h>
 
 #include "echo_internal.h"
 
