@@ -69,7 +69,15 @@
 #include <asm/pdcpat.h>
 #include <asm/processor.h>	/* for boot_cpu_data */
 
+#if defined(BOOTLOADER)
+# undef  spin_lock_irqsave
+# define spin_lock_irqsave(a, b) { b = 1; }
+# undef  spin_unlock_irqrestore
+# define spin_unlock_irqrestore(a, b)
+#else
 static DEFINE_SPINLOCK(pdc_lock);
+#endif
+
 extern unsigned long pdc_result[NUM_PDC_RESULT];
 extern unsigned long pdc_result2[NUM_PDC_RESULT];
 
@@ -186,6 +194,8 @@ void set_firmware_width(void)
 }
 #endif /*CONFIG_64BIT*/
 
+
+#if !defined(BOOTLOADER)
 /**
  * pdc_emergency_unlock - Unlock the linux pdc lock
  *
@@ -1149,6 +1159,8 @@ void pdc_io_reset_devices(void)
 	spin_unlock_irqrestore(&pdc_lock, flags);
 }
 
+#endif /* defined(BOOTLOADER) */
+
 /* locked by pdc_console_lock */
 static int __attribute__((aligned(8)))   iodc_retbuf[32];
 static char __attribute__((aligned(64))) iodc_dbuf[4096];
@@ -1193,6 +1205,7 @@ print:
 	return i;
 }
 
+#if !defined(BOOTLOADER)
 /**
  * pdc_iodc_getc - Read a character (non-blocking) from the PDC console.
  *
@@ -1555,6 +1568,7 @@ int pdc_pat_mem_get_dimm_phys_location(
 	return retval;
 }
 #endif /* CONFIG_64BIT */
+#endif /* defined(BOOTLOADER) */
 
 
 /***************** 32-bit real-mode calls ***********/
@@ -1664,4 +1678,3 @@ long real64_call(unsigned long fn, ...)
 }
 
 #endif /* CONFIG_64BIT */
-
