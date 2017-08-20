@@ -33,8 +33,8 @@
 #ifndef LOV_INTERNAL_H
 #define LOV_INTERNAL_H
 
-#include "../include/obd_class.h"
-#include "../../include/uapi/linux/lustre/lustre_idl.h"
+#include <obd_class.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 
 /*
  * If we are unable to get the maximum object size from the OST in

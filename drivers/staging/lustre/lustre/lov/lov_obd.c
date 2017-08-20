@@ -38,22 +38,22 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LOV
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../../include/uapi/linux/lustre/lustre_idl.h"
-#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
 
-#include "../include/cl_object.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_lib.h"
-#include "../include/lustre_mds.h"
-#include "../include/lustre_net.h"
-#include "../../include/uapi/linux/lustre/lustre_param.h"
-#include "../include/lustre_swab.h"
-#include "../include/lprocfs_status.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
+#include <cl_object.h>
+#include <lustre_dlm.h>
+#include <lustre_fid.h>
+#include <lustre_lib.h>
+#include <lustre_mds.h>
+#include <lustre_net.h>
+#include <uapi/linux/lustre/lustre_param.h>
+#include <lustre_swab.h>
+#include <lprocfs_status.h>
+#include <obd_class.h>
+#include <obd_support.h>
 
 #include "lov_internal.h"
 
