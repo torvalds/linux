@@ -41,7 +41,7 @@
  *
  * @{
  *
- * http://wiki.old.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
+ * http://wiki.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
  * describes the FID namespace and interoperability requirements for FIDs.
  * The important parts of that document are included here for reference.
  *
