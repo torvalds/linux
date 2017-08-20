@@ -272,8 +272,6 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, card);
-
 	return ret;
 }
 
