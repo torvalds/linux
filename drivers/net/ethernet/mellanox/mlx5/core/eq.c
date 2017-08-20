@@ -188,6 +188,7 @@ static enum mlx5_dev_event port_subtype_event(u8 subtype)
 static void eq_update_ci(struct mlx5_eq *eq, int arm)
 {
 	__be32 __iomem *addr = eq->doorbell + (arm ? 0 : 2);
+
 	u32 val = (eq->cons_index & 0xffffff) | (eq->eqn << 24);
 	__raw_writel((__force u32)cpu_to_be32(val), addr);
 	/* We still want ordering, just not swabbing, so add a barrier */
