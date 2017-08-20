@@ -199,7 +199,7 @@ static inline void lustre_cfg_init(struct lustre_cfg *lcfg, int cmd,
 				   struct lustre_cfg_bufs *bufs)
 {
 	char *ptr;
-	int i;
+	__u32 i;
 
 	lcfg->lcfg_version = LUSTRE_CFG_VERSION;
 	lcfg->lcfg_command = cmd;
