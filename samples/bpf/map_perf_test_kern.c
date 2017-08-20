@@ -40,6 +40,8 @@ struct bpf_map_def SEC("maps") inner_lru_hash_map = {
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
 	.max_entries = MAX_ENTRIES,
+	.map_flags = BPF_F_NUMA_NODE,
+	.numa_node = 0,
 };
 
 struct bpf_map_def SEC("maps") array_of_lru_hashs = {

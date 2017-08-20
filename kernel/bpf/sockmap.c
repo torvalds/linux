@@ -443,7 +443,9 @@ static struct smap_psock *smap_init_psock(struct sock *sock,
 {
 	struct smap_psock *psock;
 
-	psock = kzalloc(sizeof(struct smap_psock), GFP_ATOMIC | __GFP_NOWARN);
+	psock = kzalloc_node(sizeof(struct smap_psock),
+			     GFP_ATOMIC | __GFP_NOWARN,
+			     stab->map.numa_node);
 	if (!psock)
 		return ERR_PTR(-ENOMEM);
 
@@ -465,7 +467,7 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
-	    attr->value_size != 4 || attr->map_flags)
+	    attr->value_size != 4 || attr->map_flags & ~BPF_F_NUMA_NODE)
 		return ERR_PTR(-EINVAL);
 
 	if (attr->value_size > KMALLOC_MAX_SIZE)
@@ -481,6 +483,7 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 	stab->map.value_size = attr->value_size;
 	stab->map.max_entries = attr->max_entries;
 	stab->map.map_flags = attr->map_flags;
+	stab->map.numa_node = bpf_map_attr_numa_node(attr);
 
 	/* make sure page count doesn't overflow */
 	cost = (u64) stab->map.max_entries * sizeof(struct sock *);
@@ -495,7 +498,8 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 		goto free_stab;
 
 	stab->sock_map = bpf_map_area_alloc(stab->map.max_entries *
-					    sizeof(struct sock *));
+					    sizeof(struct sock *),
+					    stab->map.numa_node);
 	if (!stab->sock_map)
 		goto free_stab;
 

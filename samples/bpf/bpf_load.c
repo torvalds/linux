@@ -201,7 +201,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 static int load_maps(struct bpf_map_data *maps, int nr_maps,
 		     fixup_map_cb fixup_map)
 {
-	int i;
+	int i, numa_node;
 
 	for (i = 0; i < nr_maps; i++) {
 		if (fixup_map) {
@@ -213,21 +213,26 @@ static int load_maps(struct bpf_map_data *maps, int nr_maps,
 			}
 		}
 
+		numa_node = maps[i].def.map_flags & BPF_F_NUMA_NODE ?
+			maps[i].def.numa_node : -1;
+
 		if (maps[i].def.type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
 		    maps[i].def.type == BPF_MAP_TYPE_HASH_OF_MAPS) {
 			int inner_map_fd = map_fd[maps[i].def.inner_map_idx];
 
-			map_fd[i] = bpf_create_map_in_map(maps[i].def.type,
+			map_fd[i] = bpf_create_map_in_map_node(maps[i].def.type,
 							maps[i].def.key_size,
 							inner_map_fd,
 							maps[i].def.max_entries,
-							maps[i].def.map_flags);
+							maps[i].def.map_flags,
+							numa_node);
 		} else {
-			map_fd[i] = bpf_create_map(maps[i].def.type,
-						   maps[i].def.key_size,
-						   maps[i].def.value_size,
-						   maps[i].def.max_entries,
-						   maps[i].def.map_flags);
+			map_fd[i] = bpf_create_map_node(maps[i].def.type,
+							maps[i].def.key_size,
+							maps[i].def.value_size,
+							maps[i].def.max_entries,
+							maps[i].def.map_flags,
+							numa_node);
 		}
 		if (map_fd[i] < 0) {
 			printf("failed to create a map: %d %s\n",

@@ -80,7 +80,7 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
-	    attr->value_size != 4 || attr->map_flags)
+	    attr->value_size != 4 || attr->map_flags & ~BPF_F_NUMA_NODE)
 		return ERR_PTR(-EINVAL);
 
 	dtab = kzalloc(sizeof(*dtab), GFP_USER);
@@ -93,6 +93,7 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 	dtab->map.value_size = attr->value_size;
 	dtab->map.max_entries = attr->max_entries;
 	dtab->map.map_flags = attr->map_flags;
+	dtab->map.numa_node = bpf_map_attr_numa_node(attr);
 
 	err = -ENOMEM;
 
@@ -119,7 +120,8 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 		goto free_dtab;
 
 	dtab->netdev_map = bpf_map_area_alloc(dtab->map.max_entries *
-					      sizeof(struct bpf_dtab_netdev *));
+					      sizeof(struct bpf_dtab_netdev *),
+					      dtab->map.numa_node);
 	if (!dtab->netdev_map)
 		goto free_dtab;
 
@@ -344,7 +346,8 @@ static int dev_map_update_elem(struct bpf_map *map, void *key, void *value,
 	if (!ifindex) {
 		dev = NULL;
 	} else {
-		dev = kmalloc(sizeof(*dev), GFP_ATOMIC | __GFP_NOWARN);
+		dev = kmalloc_node(sizeof(*dev), GFP_ATOMIC | __GFP_NOWARN,
+				   map->numa_node);
 		if (!dev)
 			return -ENOMEM;
 

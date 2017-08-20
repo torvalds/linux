@@ -94,6 +94,7 @@ struct bpf_map_def {
 	unsigned int max_entries;
 	unsigned int map_flags;
 	unsigned int inner_map_idx;
+	unsigned int numa_node;
 };
 
 static int (*bpf_skb_load_bytes)(void *ctx, int off, void *to, int len) =
