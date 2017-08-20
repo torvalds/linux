@@ -37,6 +37,7 @@
 #include <linux/key.h>
 
 #include "../include/obd.h"
+#include "../include/obd_class.h"
 #include "../include/obd_support.h"
 #include "../include/lustre_import.h"
 #include "../../include/uapi/linux/lustre/lustre_param.h"

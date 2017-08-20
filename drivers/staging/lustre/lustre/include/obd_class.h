@@ -107,6 +107,7 @@ typedef int (*llog_cb_t)(const struct lu_env *, struct llog_handle *,
 			 struct llog_rec_hdr *, void *);
 
 /* obd_config.c */
+char *lustre_cfg_string(struct lustre_cfg *lcfg, u32 index);
 int class_process_config(struct lustre_cfg *lcfg);
 int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 			     struct lustre_cfg *lcfg, void *data);

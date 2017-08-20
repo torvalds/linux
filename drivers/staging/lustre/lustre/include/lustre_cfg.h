@@ -179,35 +179,6 @@ static inline void lustre_cfg_bufs_init(struct lustre_cfg_bufs *bufs,
 	}
 }
 
-static inline char *lustre_cfg_string(struct lustre_cfg *lcfg, __u32 index)
-{
-	char *s;
-
-	if (lcfg->lcfg_buflens[index] == 0)
-		return NULL;
-
-	s = lustre_cfg_buf(lcfg, index);
-	if (!s)
-		return NULL;
-
-	/*
-	 * make sure it's NULL terminated, even if this kills a char
-	 * of data.  Try to use the padding first though.
-	 */
-	if (s[lcfg->lcfg_buflens[index] - 1] != '\0') {
-		size_t last = min((size_t)lcfg->lcfg_buflens[index],
-				  cfs_size_round(lcfg->lcfg_buflens[index]) - 1);
-		char lost = s[last];
-
-		s[last] = '\0';
-		if (lost != '\0') {
-			CWARN("Truncated buf %d to '%s' (lost '%c'...)\n",
-			      index, s, lost);
-		}
-	}
-	return s;
-}
-
 static inline __u32 lustre_cfg_len(__u32 bufcount, __u32 *buflens)
 {
 	__u32 i;
