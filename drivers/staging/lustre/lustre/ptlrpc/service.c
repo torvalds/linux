@@ -35,7 +35,7 @@
 #include "../include/obd_class.h"
 #include "../include/lustre_net.h"
 #include "../include/lu_object.h"
-#include "../../include/linux/lnet/types.h"
+#include "../../include/uapi/linux/lnet/lnet-types.h"
 #include "ptlrpc_internal.h"
 
 /* The following are visible and mutable through /sys/module/ptlrpc */

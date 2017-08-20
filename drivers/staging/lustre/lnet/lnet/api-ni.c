@@ -35,7 +35,7 @@
 #include <linux/ktime.h>
 
 #include "../../include/linux/lnet/lib-lnet.h"
-#include "../../include/linux/lnet/lib-dlc.h"
+#include "../../include/uapi/linux/lnet/lnet-dlc.h"
 
 #define D_LNI D_CONSOLE
 

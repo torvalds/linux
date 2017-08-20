@@ -41,7 +41,7 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../../include/linux/lnet/lib-types.h"
-#include "../../include/linux/lnet/lnetst.h"
+#include "../../include/uapi/linux/lnet/lnetst.h"
 #include "selftest.h"
 #include "conrpc.h"
 

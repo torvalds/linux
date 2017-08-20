@@ -34,7 +34,7 @@
 #ifndef __LNET_LNET_SOCKLND_H__
 #define __LNET_LNET_SOCKLND_H__
 
-#include "types.h"
+#include "../../uapi/linux/lnet/lnet-types.h"
 #include "../../uapi/linux/lnet/socklnd.h"
 
 struct ksock_hello_msg {

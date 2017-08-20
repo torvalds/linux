@@ -38,7 +38,7 @@
 
 #include "../../include/linux/libcfs/libcfs.h"
 #include "../../include/linux/lnet/lib-lnet.h"
-#include "../../include/linux/lnet/lnetst.h"
+#include "../../include/uapi/linux/lnet/lnetst.h"
 #include "console.h"
 
 static int

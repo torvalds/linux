@@ -61,7 +61,7 @@
 #include <linux/kobject.h>
 
 #include "../../../include/linux/libcfs/libcfs.h"
-#include "../../../include/linux/lnet/lnetctl.h"
+#include "../../../include/uapi/linux/lnet/lnetctl.h"
 #include "../../include/obd_support.h"
 #include "../../include/obd_class.h"
 #include "../../include/lprocfs_status.h"

@@ -55,7 +55,7 @@
 
 #include "../../include/linux/libcfs/libcfs_crypto.h"
 #include "../../include/linux/lnet/lib-lnet.h"
-#include "../../include/linux/lnet/lib-dlc.h"
+#include "../../include/uapi/linux/lnet/lnet-dlc.h"
 #include "tracefile.h"
 
 static struct dentry *lnet_debugfs_root;
