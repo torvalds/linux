@@ -104,13 +104,13 @@ enum dev_state {
 	DEV_STATE_ERR
 };
 
-enum {
+enum cc_pause {
 	PAUSE_RX      = 1 << 0,
 	PAUSE_TX      = 1 << 1,
 	PAUSE_AUTONEG = 1 << 2
 };
 
-enum {
+enum cc_fec {
 	FEC_AUTO      = 1 << 0,	 /* IEEE 802.3 "automatic" */
 	FEC_RS        = 1 << 1,  /* Reed-Solomon */
 	FEC_BASER_RS  = 1 << 2   /* BaseR/Reed-Solomon */
@@ -366,6 +366,7 @@ struct adapter_params {
 	unsigned int max_ordird_qp;       /* Max read depth per RDMA QP */
 	unsigned int max_ird_adapter;     /* Max read depth per adapter */
 	bool fr_nsmr_tpte_wr_support;	  /* FW support for FR_NSMR_TPTE_WR */
+	u8 fw_caps_support;		/* 32-bit Port Capabilities */
 
 	/* MPS Buffer Group Map[per Port].  Bit i is set if buffer group i is
 	 * used by the Port
@@ -439,18 +440,34 @@ struct trace_params {
 	unsigned char port;
 };
 
+/* Firmware Port Capabilities types. */
+
+typedef u16 fw_port_cap16_t;	/* 16-bit Port Capabilities integral value */
+typedef u32 fw_port_cap32_t;	/* 32-bit Port Capabilities integral value */
+
+enum fw_caps {
+	FW_CAPS_UNKNOWN	= 0,	/* 0'ed out initial state */
+	FW_CAPS16	= 1,	/* old Firmware: 16-bit Port Capabilities */
+	FW_CAPS32	= 2,	/* new Firmware: 32-bit Port Capabilities */
+};
+
 struct link_config {
-	unsigned short supported;        /* link capabilities */
-	unsigned short advertising;      /* advertised capabilities */
-	unsigned short lp_advertising;   /* peer advertised capabilities */
-	unsigned int   requested_speed;  /* speed user has requested */
-	unsigned int   speed;            /* actual link speed */
-	unsigned char  requested_fc;     /* flow control user has requested */
-	unsigned char  fc;               /* actual link flow control */
-	unsigned char  auto_fec;	 /* Forward Error Correction: */
-	unsigned char  requested_fec;	 /* "automatic" (IEEE 802.3), */
-	unsigned char  fec;		 /* requested, and actual in use */
+	fw_port_cap32_t pcaps;           /* link capabilities */
+	fw_port_cap32_t def_acaps;       /* default advertised capabilities */
+	fw_port_cap32_t acaps;           /* advertised capabilities */
+	fw_port_cap32_t lpacaps;         /* peer advertised capabilities */
+
+	fw_port_cap32_t speed_caps;      /* speed(s) user has requested */
+	unsigned int   speed;            /* actual link speed (Mb/s) */
+
+	enum cc_pause  requested_fc;     /* flow control user has requested */
+	enum cc_pause  fc;               /* actual link flow control */
+
+	enum cc_fec    requested_fec;	 /* Forward Error Correction: */
+	enum cc_fec    fec;		 /* requested and actual in use */
+
 	unsigned char  autoneg;          /* autonegotiating? */
+
 	unsigned char  link_ok;          /* link up? */
 	unsigned char  link_down_rc;     /* link down reason */
 };
@@ -1580,6 +1597,8 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
 void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl);
 int t4_update_port_info(struct port_info *pi);
+int t4_get_link_params(struct port_info *pi, unsigned int *link_okp,
+		       unsigned int *speedp, unsigned int *mtup);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 void t4_db_full(struct adapter *adapter);
 void t4_db_dropped(struct adapter *adapter);
