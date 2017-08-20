@@ -39,18 +39,18 @@
 
 #define DEBUG_SUBSYSTEM S_FLD
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include <linux/module.h>
 #include <asm/div64.h>
 
-#include "../include/obd.h"
-#include "../include/obd_class.h"
-#include "../../include/uapi/linux/lustre/lustre_ver.h"
-#include "../include/obd_support.h"
-#include "../include/lprocfs_status.h"
+#include <obd.h>
+#include <obd_class.h>
+#include <uapi/linux/lustre/lustre_ver.h>
+#include <obd_support.h>
+#include <lprocfs_status.h>
 
-#include "../include/lustre_req_layout.h"
-#include "../include/lustre_fld.h"
+#include <lustre_req_layout.h>
+#include <lustre_fld.h>
 #include "fld_internal.h"
 
 /**
