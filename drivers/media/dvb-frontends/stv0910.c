@@ -1021,7 +1021,7 @@ static int start(struct stv *state, struct dtv_frontend_properties *p)
 		write_reg(state, RSTV0910_P2_PLROOT1 + state->regoff,
 			  (scrambling_code >> 8) & 0xff);
 		write_reg(state, RSTV0910_P2_PLROOT2 + state->regoff,
-			  (scrambling_code >> 16) & 0x07);
+			  (scrambling_code >> 16) & 0x0f);
 		state->cur_scrambling_code = scrambling_code;
 	}
 
