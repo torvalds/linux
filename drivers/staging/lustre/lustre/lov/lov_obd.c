@@ -41,7 +41,7 @@
 #include "../../include/linux/libcfs/libcfs.h"
 
 #include "../include/lustre/lustre_idl.h"
-#include "../include/lustre/lustre_ioctl.h"
+#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
 
 #include "../include/cl_object.h"
 #include "../include/lustre_dlm.h"

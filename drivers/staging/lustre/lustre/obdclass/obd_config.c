@@ -38,7 +38,7 @@
 
 #include <linux/string.h>
 
-#include "../include/lustre/lustre_ioctl.h"
+#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
 #include "../include/llog_swab.h"
 #include "../include/lprocfs_status.h"
 #include "../include/lustre_log.h"

@@ -41,7 +41,7 @@
 #include "../include/cl_object.h"
 #include "../include/lustre_fid.h"
 #include "../include/lustre_acl.h"
-#include "../include/lustre/lustre_ioctl.h"
+#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
 #include "../include/lustre_net.h"
 
 #include "echo_internal.h"

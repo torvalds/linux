@@ -29,13 +29,12 @@
 #define LUSTRE_IOCTL_H_
 
 #include <linux/types.h>
-#include "../../../include/linux/libcfs/libcfs.h"
-#include "lustre_idl.h"
+#include "../../../linux/libcfs/libcfs.h"
+#include "../../../../lustre/include/lustre/lustre_idl.h"
 
 #ifdef __KERNEL__
 # include <linux/ioctl.h>
 # include <linux/string.h>
-# include "../obd_support.h"
 #else /* __KERNEL__ */
 # include <malloc.h>
 # include <string.h>

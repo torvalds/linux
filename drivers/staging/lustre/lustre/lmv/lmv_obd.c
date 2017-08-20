@@ -49,7 +49,7 @@
 #include "../include/lprocfs_status.h"
 #include "../include/cl_object.h"
 #include "../include/lustre_fid.h"
-#include "../include/lustre/lustre_ioctl.h"
+#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
 #include "../include/lustre_kernelcomm.h"
 #include "lmv_internal.h"
 

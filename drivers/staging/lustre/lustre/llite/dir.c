@@ -46,7 +46,7 @@
 
 #include "../include/obd_support.h"
 #include "../include/obd_class.h"
-#include "../include/lustre/lustre_ioctl.h"
+#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
 #include "../include/lustre_lib.h"
 #include "../include/lustre_dlm.h"
 #include "../include/lustre_fid.h"

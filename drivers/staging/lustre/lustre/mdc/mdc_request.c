@@ -45,7 +45,7 @@
 #include "../include/lprocfs_status.h"
 #include "../include/lustre_acl.h"
 #include "../include/lustre_fid.h"
-#include "../include/lustre/lustre_ioctl.h"
+#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
 #include "../include/lustre_kernelcomm.h"
 #include "../include/lustre_lmv.h"
 #include "../include/lustre_log.h"
