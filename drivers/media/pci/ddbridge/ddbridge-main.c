@@ -41,16 +41,11 @@
 /****************************************************************************/
 /* module parameters */
 
-int adapter_alloc;
-module_param(adapter_alloc, int, 0444);
-MODULE_PARM_DESC(adapter_alloc,
-		 "0-one adapter per io, 1-one per tab with io, 2-one per tab, 3-one for all");
-
 #ifdef CONFIG_PCI_MSI
 #ifdef CONFIG_DVB_DDBRIDGE_MSIENABLE
-int msi = 1;
+static int msi = 1;
 #else
-int msi;
+static int msi;
 #endif
 module_param(msi, int, 0444);
 #ifdef CONFIG_DVB_DDBRIDGE_MSIENABLE
@@ -89,19 +84,8 @@ module_param(stv0910_single, int, 0444);
 MODULE_PARM_DESC(stv0910_single, "use stv0910 cards as single demods");
 
 /****************************************************************************/
-
-struct workqueue_struct *ddb_wq;
-
 /****************************************************************************/
 /****************************************************************************/
-/****************************************************************************/
-
-static void ddb_unmap(struct ddb *dev)
-{
-	if (dev->regs)
-		iounmap(dev->regs);
-	vfree(dev);
-}
 
 static void ddb_irq_disable(struct ddb *dev)
 {

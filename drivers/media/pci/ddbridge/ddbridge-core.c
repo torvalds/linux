@@ -58,9 +58,20 @@
 
 #define DDB_MAX_ADAPTER 64
 
+/****************************************************************************/
+
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+static int adapter_alloc;
+module_param(adapter_alloc, int, 0444);
+MODULE_PARM_DESC(adapter_alloc,
+		 "0-one adapter per io, 1-one per tab with io, 2-one per tab, 3-one for all");
+
+/****************************************************************************/
+
 DEFINE_MUTEX(redirect_lock);
+
+struct workqueue_struct *ddb_wq;
 
 static struct ddb *ddbs[DDB_MAX_ADAPTER];
 
@@ -3611,4 +3622,11 @@ fail2:
 fail:
 	dev_err(dev->dev, "fail1\n");
 	return -1;
+}
+
+void ddb_unmap(struct ddb *dev)
+{
+	if (dev->regs)
+		iounmap(dev->regs);
+	vfree(dev);
 }

@@ -369,8 +369,6 @@ int ddbridge_flashread(struct ddb *dev, u32 link, u8 *buf, u32 addr, u32 len);
 /****************************************************************************/
 
 /* ddbridge-main.c (modparams) */
-extern int adapter_alloc;
-extern int msi;
 extern int ci_bitrate;
 extern int ts_loop;
 extern int xo2_speed;
@@ -394,5 +392,6 @@ int ddb_device_create(struct ddb *dev);
 int ddb_class_create(void);
 void ddb_class_destroy(void);
 int ddb_init(struct ddb *dev);
+void ddb_unmap(struct ddb *dev);
 
 #endif /* DDBRIDGE_H */
