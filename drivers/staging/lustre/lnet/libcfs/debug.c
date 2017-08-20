@@ -37,7 +37,7 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include "tracefile.h"
 
 static char debug_file_name[1024];
