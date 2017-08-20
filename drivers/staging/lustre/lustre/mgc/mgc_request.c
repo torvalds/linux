@@ -1293,7 +1293,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 		       prev_version, max_version, obdname, params);
 
 		rc = class_process_config(lcfg);
-		lustre_cfg_free(lcfg);
+		kfree(lcfg);
 		if (rc)
 			CDEBUG(D_INFO, "process config for %s error %d\n",
 			       obdname, rc);

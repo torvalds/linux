@@ -1262,7 +1262,7 @@ int class_config_llog_handler(const struct lu_env *env,
 		lcfg_new->lcfg_nal = 0; /* illegal value for obsolete field */
 
 		rc = class_process_config(lcfg_new);
-		lustre_cfg_free(lcfg_new);
+		kfree(lcfg_new);
 
 		if (inst)
 			kfree(inst_name);
@@ -1442,7 +1442,7 @@ int class_manual_cleanup(struct obd_device *obd)
 	if (rc)
 		CERROR("detach failed %d: %s\n", rc, obd->obd_name);
 out:
-	lustre_cfg_free(lcfg);
+	kfree(lcfg);
 	return rc;
 }
 EXPORT_SYMBOL(class_manual_cleanup);

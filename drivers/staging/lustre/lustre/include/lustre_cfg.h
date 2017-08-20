@@ -246,12 +246,6 @@ static inline struct lustre_cfg *lustre_cfg_new(int cmd,
 	return lcfg;
 }
 
-static inline void lustre_cfg_free(struct lustre_cfg *lcfg)
-{
-	kfree(lcfg);
-	return;
-}
-
 static inline int lustre_cfg_sanity_check(void *buf, size_t len)
 {
 	struct lustre_cfg *lcfg = (struct lustre_cfg *)buf;

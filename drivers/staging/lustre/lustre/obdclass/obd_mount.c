@@ -90,7 +90,7 @@ int lustre_process_log(struct super_block *sb, char *logname,
 	lustre_cfg_bufs_set(bufs, 3, &sb, sizeof(sb));
 	lcfg = lustre_cfg_new(LCFG_LOG_START, bufs);
 	rc = obd_process_config(mgc, sizeof(*lcfg), lcfg);
-	lustre_cfg_free(lcfg);
+	kfree(lcfg);
 
 	kfree(bufs);
 
@@ -128,7 +128,7 @@ int lustre_end_log(struct super_block *sb, char *logname,
 		lustre_cfg_bufs_set(&bufs, 2, cfg, sizeof(*cfg));
 	lcfg = lustre_cfg_new(LCFG_LOG_END, &bufs);
 	rc = obd_process_config(mgc, sizeof(*lcfg), lcfg);
-	lustre_cfg_free(lcfg);
+	kfree(lcfg);
 	return rc;
 }
 EXPORT_SYMBOL(lustre_end_log);
@@ -161,7 +161,7 @@ static int do_lcfg(char *cfgname, lnet_nid_t nid, int cmd,
 	lcfg = lustre_cfg_new(cmd, &bufs);
 	lcfg->lcfg_nid = nid;
 	rc = class_process_config(lcfg);
-	lustre_cfg_free(lcfg);
+	kfree(lcfg);
 	return rc;
 }
 
