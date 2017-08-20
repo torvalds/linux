@@ -231,10 +231,12 @@ static int ddb_probe(struct pci_dev *pdev,
 	dev->link[0].ids.vendor = id->vendor;
 	dev->link[0].ids.device = id->device;
 	dev->link[0].ids.subvendor = id->subvendor;
-	dev->link[0].ids.subdevice = id->subdevice;
+	dev->link[0].ids.subdevice = pdev->subsystem_device;
 
 	dev->link[0].dev = dev;
-	dev->link[0].info = (struct ddb_info *) id->driver_data;
+	dev->link[0].info = get_ddb_info(id->vendor, id->device,
+					 id->subvendor, pdev->subsystem_device);
+
 	dev_info(&pdev->dev, "detected %s\n", dev->link[0].info->name);
 
 	dev->regs_len = pci_resource_len(dev->pdev, 0);
@@ -286,46 +288,11 @@ fail:
 /****************************************************************************/
 /****************************************************************************/
 
-#define DDVID 0xdd01 /* Digital Devices Vendor ID */
-
-#define DDB_DEVICE(_device, _subdevice, _driver_data) { \
-		PCI_DEVICE_SUB(DDVID, _device, DDVID, _subdevice), \
-			.driver_data = (kernel_ulong_t) &_driver_data }
-
-#define DDB_DEVICE_ANY(_device) { \
-		PCI_DEVICE_SUB(DDVID, _device, DDVID, PCI_ANY_ID), \
-			.driver_data = (kernel_ulong_t) &ddb_none }
+#define DDB_DEVICE_ANY(_device) \
+		{ PCI_DEVICE_SUB(DDVID, _device, DDVID, PCI_ANY_ID) }
 
 static const struct pci_device_id ddb_id_table[] = {
-	DDB_DEVICE(0x0002, 0x0001, ddb_octopus),
-	DDB_DEVICE(0x0003, 0x0001, ddb_octopus),
-	DDB_DEVICE(0x0005, 0x0004, ddb_octopusv3),
-	DDB_DEVICE(0x0003, 0x0002, ddb_octopus_le),
-	DDB_DEVICE(0x0003, 0x0003, ddb_octopus_oem),
-	DDB_DEVICE(0x0003, 0x0010, ddb_octopus_mini),
-	DDB_DEVICE(0x0005, 0x0011, ddb_octopus_mini),
-	DDB_DEVICE(0x0003, 0x0020, ddb_v6),
-	DDB_DEVICE(0x0003, 0x0021, ddb_v6_5),
-	DDB_DEVICE(0x0006, 0x0022, ddb_v7),
-	DDB_DEVICE(0x0006, 0x0024, ddb_v7a),
-	DDB_DEVICE(0x0003, 0x0030, ddb_dvbct),
-	DDB_DEVICE(0x0003, 0xdb03, ddb_satixS2v3),
-	DDB_DEVICE(0x0006, 0x0031, ddb_ctv7),
-	DDB_DEVICE(0x0006, 0x0032, ddb_ctv7),
-	DDB_DEVICE(0x0006, 0x0033, ddb_ctv7),
-	DDB_DEVICE(0x0007, 0x0023, ddb_s2_48),
-	DDB_DEVICE(0x0008, 0x0034, ddb_ct2_8),
-	DDB_DEVICE(0x0008, 0x0035, ddb_c2t2_8),
-	DDB_DEVICE(0x0008, 0x0036, ddb_isdbt_8),
-	DDB_DEVICE(0x0008, 0x0037, ddb_c2t2i_v0_8),
-	DDB_DEVICE(0x0008, 0x0038, ddb_c2t2i_8),
-	DDB_DEVICE(0x0006, 0x0039, ddb_ctv7),
-	DDB_DEVICE(0x0011, 0x0040, ddb_ci),
-	DDB_DEVICE(0x0011, 0x0041, ddb_cis),
-	DDB_DEVICE(0x0012, 0x0042, ddb_ci),
-	DDB_DEVICE(0x0013, 0x0043, ddb_ci_s2_pro),
-	DDB_DEVICE(0x0013, 0x0044, ddb_ci_s2_pro_a),
-	/* in case sub-ids got deleted in flash */
+	DDB_DEVICE_ANY(0x0002),
 	DDB_DEVICE_ANY(0x0003),
 	DDB_DEVICE_ANY(0x0005),
 	DDB_DEVICE_ANY(0x0006),

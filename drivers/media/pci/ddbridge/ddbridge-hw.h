@@ -23,6 +23,20 @@
 
 /******************************************************************************/
 
+#define DDVID 0xdd01 /* Digital Devices Vendor ID */
+
+/******************************************************************************/
+
+struct ddb_device_id {
+	u16 vendor;
+	u16 device;
+	u16 subvendor;
+	u16 subdevice;
+	const struct ddb_info *info;
+};
+
+/******************************************************************************/
+
 extern const struct ddb_info ddb_none;
 extern const struct ddb_info ddb_octopus;
 extern const struct ddb_info ddb_octopusv3;
@@ -52,5 +66,10 @@ extern const struct ddb_info ddb_c2t2i_8;
 /****************************************************************************/
 
 extern const struct ddb_info ddb_s2_48;
+
+/****************************************************************************/
+
+const struct ddb_info *get_ddb_info(u16 vendor, u16 device,
+				    u16 subvendor, u16 subdevice);
 
 #endif /* _DDBRIDGE_HW_H */

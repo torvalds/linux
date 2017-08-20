@@ -307,7 +307,7 @@ struct ddb_lnb {
 
 struct ddb_link {
 	struct ddb            *dev;
-	struct ddb_info       *info;
+	const struct ddb_info *info;
 	u32                    nr;
 	u32                    regs;
 	spinlock_t             lock;

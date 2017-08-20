@@ -17,6 +17,7 @@
  */
 
 #include "ddbridge.h"
+#include "ddbridge-hw.h"
 
 /******************************************************************************/
 
@@ -309,3 +310,67 @@ const struct ddb_info ddb_s2_48 = {
 	.board_control = 1,
 	.tempmon_irq = 24,
 };
+
+/****************************************************************************/
+/****************************************************************************/
+/****************************************************************************/
+
+#define DDB_DEVID(_device, _subdevice, _info) { \
+	.vendor = DDVID, \
+	.device = _device, \
+	.subvendor = DDVID, \
+	.subdevice = _subdevice, \
+	.info = &_info }
+
+static const struct ddb_device_id ddb_device_ids[] = {
+	/* PCIe devices */
+	DDB_DEVID(0x0002, 0x0001, ddb_octopus),
+	DDB_DEVID(0x0003, 0x0001, ddb_octopus),
+	DDB_DEVID(0x0005, 0x0004, ddb_octopusv3),
+	DDB_DEVID(0x0003, 0x0002, ddb_octopus_le),
+	DDB_DEVID(0x0003, 0x0003, ddb_octopus_oem),
+	DDB_DEVID(0x0003, 0x0010, ddb_octopus_mini),
+	DDB_DEVID(0x0005, 0x0011, ddb_octopus_mini),
+	DDB_DEVID(0x0003, 0x0020, ddb_v6),
+	DDB_DEVID(0x0003, 0x0021, ddb_v6_5),
+	DDB_DEVID(0x0006, 0x0022, ddb_v7),
+	DDB_DEVID(0x0006, 0x0024, ddb_v7a),
+	DDB_DEVID(0x0003, 0x0030, ddb_dvbct),
+	DDB_DEVID(0x0003, 0xdb03, ddb_satixS2v3),
+	DDB_DEVID(0x0006, 0x0031, ddb_ctv7),
+	DDB_DEVID(0x0006, 0x0032, ddb_ctv7),
+	DDB_DEVID(0x0006, 0x0033, ddb_ctv7),
+	DDB_DEVID(0x0007, 0x0023, ddb_s2_48),
+	DDB_DEVID(0x0008, 0x0034, ddb_ct2_8),
+	DDB_DEVID(0x0008, 0x0035, ddb_c2t2_8),
+	DDB_DEVID(0x0008, 0x0036, ddb_isdbt_8),
+	DDB_DEVID(0x0008, 0x0037, ddb_c2t2i_v0_8),
+	DDB_DEVID(0x0008, 0x0038, ddb_c2t2i_8),
+	DDB_DEVID(0x0006, 0x0039, ddb_ctv7),
+	DDB_DEVID(0x0011, 0x0040, ddb_ci),
+	DDB_DEVID(0x0011, 0x0041, ddb_cis),
+	DDB_DEVID(0x0012, 0x0042, ddb_ci),
+	DDB_DEVID(0x0013, 0x0043, ddb_ci_s2_pro),
+	DDB_DEVID(0x0013, 0x0044, ddb_ci_s2_pro_a),
+};
+
+/****************************************************************************/
+
+const struct ddb_info *get_ddb_info(u16 vendor, u16 device,
+				    u16 subvendor, u16 subdevice)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ddb_device_ids); i++) {
+		const struct ddb_device_id *id = &ddb_device_ids[i];
+
+		if (vendor == id->vendor &&
+		    device == id->device &&
+		    subvendor == id->subvendor &&
+		    ((subdevice == id->subdevice) ||
+		     (id->subdevice == 0xffff)))
+			return id->info;
+	}
+
+	return &ddb_none;
+}

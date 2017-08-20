@@ -2430,7 +2430,7 @@ static void output_handler(unsigned long data)
 
 static struct ddb_regmap *io_regmap(struct ddb_io *io, int link)
 {
-	struct ddb_info *info;
+	const struct ddb_info *info;
 
 	if (link)
 		info = io->port->dev->link[io->port->lnr].info;
@@ -2564,7 +2564,7 @@ void ddb_ports_init(struct ddb *dev)
 {
 	u32 i, l, p;
 	struct ddb_port *port;
-	struct ddb_info *info;
+	const struct ddb_info *info;
 	struct ddb_regmap *rm;
 
 	for (p = l = 0; l < DDB_MAX_LINK; l++) {
@@ -3527,7 +3527,7 @@ static int tempmon_init(struct ddb_link *link, int first_time)
 
 static int ddb_init_tempmon(struct ddb_link *link)
 {
-	struct ddb_info *info = link->info;
+	const struct ddb_info *info = link->info;
 
 	if (!info->tempmon_irq)
 		return 0;
@@ -3545,7 +3545,7 @@ static int ddb_init_tempmon(struct ddb_link *link)
 
 static int ddb_init_boards(struct ddb *dev)
 {
-	struct ddb_info *info;
+	const struct ddb_info *info;
 	struct ddb_link *link;
 	u32 l;
 
