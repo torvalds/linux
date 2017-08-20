@@ -44,7 +44,7 @@
 #include <linux/types.h>
 
 #include "../../include/linux/libcfs/libcfs.h"
-#include "lustre_cfg.h"
+#include "../../include/uapi/linux/lustre/lustre_cfg.h"
 #include "lustre/lustre_idl.h"
 
 struct lprocfs_vars {

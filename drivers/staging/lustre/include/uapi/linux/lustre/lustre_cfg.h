@@ -33,6 +33,8 @@
 #ifndef _LUSTRE_CFG_H
 #define _LUSTRE_CFG_H
 
+#include "../../../../lustre/include/lustre/lustre_user.h"
+
 /** \defgroup cfg cfg
  *
  * @{
@@ -191,8 +193,6 @@ static inline __u32 lustre_cfg_len(__u32 bufcount, __u32 *buflens)
 	return cfs_size_round(len);
 }
 
-#include "obd_support.h"
-
 static inline void lustre_cfg_init(struct lustre_cfg *lcfg, int cmd,
 				   struct lustre_cfg_bufs *bufs)
 {
@@ -237,8 +237,6 @@ static inline int lustre_cfg_sanity_check(void *buf, size_t len)
 
 	return 0;
 }
-
-#include "lustre/lustre_user.h"
 
 /** @} cfg */
 
