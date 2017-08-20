@@ -1102,8 +1102,11 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 		return -EINVAL;
 	}
 
-	if (!ostid_id(&oa->o_oi))
-		ostid_set_id(&oa->o_oi, ++last_object_id);
+	if (!ostid_id(&oa->o_oi)) {
+		rc = ostid_set_id(&oa->o_oi, ++last_object_id);
+		if (rc)
+			goto failed;
+	}
 
 	rc = obd_create(env, ec->ec_exp, oa);
 	if (rc != 0) {

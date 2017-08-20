@@ -515,32 +515,25 @@ static inline void ostid_set_seq_llog(struct ost_id *oi)
  * Note: we need check oi_seq to decide where to set oi_id,
  * so oi_seq should always be set ahead of oi_id.
  */
-static inline void ostid_set_id(struct ost_id *oi, __u64 oid)
+static inline int ostid_set_id(struct ost_id *oi, __u64 oid)
 {
 	if (fid_seq_is_mdt0(oi->oi.oi_seq)) {
-		if (oid >= IDIF_MAX_OID) {
-			CERROR("Too large OID %#llx to set MDT0 " DOSTID "\n",
-			       oid, POSTID(oi));
-			return;
-		}
+		if (oid >= IDIF_MAX_OID)
+			return -E2BIG;
 		oi->oi.oi_id = oid;
 	} else if (fid_is_idif(&oi->oi_fid)) {
-		if (oid >= IDIF_MAX_OID) {
-			CERROR("Too large OID %#llx to set IDIF " DOSTID "\n",
-			       oid, POSTID(oi));
-			return;
-		}
+		if (oid >= IDIF_MAX_OID)
+			return -E2BIG;
 		oi->oi_fid.f_seq = fid_idif_seq(oid,
 						fid_idif_ost_idx(&oi->oi_fid));
 		oi->oi_fid.f_oid = oid;
 		oi->oi_fid.f_ver = oid >> 48;
 	} else {
-		if (oid >= OBIF_MAX_OID) {
-			CERROR("Bad %llu to set " DOSTID "\n", oid, POSTID(oi));
-			return;
-		}
+		if (oid >= OBIF_MAX_OID)
+			return -E2BIG;
 		oi->oi_fid.f_oid = oid;
 	}
+	return 0;
 }
 
 static inline int fid_set_id(struct lu_fid *fid, __u64 oid)
