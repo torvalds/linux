@@ -3032,7 +3032,7 @@ static int emac_probe(struct platform_device *ofdev)
 
 	/* Init various config data based on device-tree */
 	err = emac_init_config(dev);
-	if (err != 0)
+	if (err)
 		goto err_free;
 
 	/* Get interrupts. EMAC irq is mandatory, WOL irq is optional */
@@ -3040,18 +3040,14 @@ static int emac_probe(struct platform_device *ofdev)
 	dev->wol_irq = irq_of_parse_and_map(np, 1);
 	if (!dev->emac_irq) {
 		printk(KERN_ERR "%pOF: Can't map main interrupt\n", np);
+		err = -ENODEV;
 		goto err_free;
 	}
 	ndev->irq = dev->emac_irq;
 
 	/* Map EMAC regs */
-	if (of_address_to_resource(np, 0, &dev->rsrc_regs)) {
-		printk(KERN_ERR "%pOF: Can't get registers address\n", np);
-		goto err_irq_unmap;
-	}
-	// TODO : request_mem_region
-	dev->emacp = ioremap(dev->rsrc_regs.start,
-			     resource_size(&dev->rsrc_regs));
+	// TODO : platform_get_resource() and devm_ioremap_resource()
+	dev->emacp = of_iomap(np, 0);
 	if (dev->emacp == NULL) {
 		printk(KERN_ERR "%pOF: Can't map device registers!\n", np);
 		err = -ENOMEM;
