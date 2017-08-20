@@ -669,7 +669,7 @@ struct dvb_frontend *stv6111_attach(struct dvb_frontend *fe,
 		fe->ops.i2c_gate_ctrl(fe, 0);
 	if (stat < 0) {
 		kfree(state);
-		return 0;
+		return NULL;
 	}
 	fe->tuner_priv = state;
 	return fe;
