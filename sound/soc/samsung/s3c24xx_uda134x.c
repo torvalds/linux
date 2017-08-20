@@ -237,7 +237,6 @@ static int s3c24xx_uda134x_probe(struct platform_device *pdev)
 	mutex_init(&priv->clk_lock);
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, priv);
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
