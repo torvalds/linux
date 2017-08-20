@@ -1494,6 +1494,7 @@ static int dvb_input_attach(struct ddb_input *input)
 			osc24 = 0;
 		else
 			osc24 = 1;
+		/* fall-through */
 	case DDB_TUNER_DVBCT2_SONY_P:
 	case DDB_TUNER_DVBC2T2_SONY_P:
 	case DDB_TUNER_ISDBT_SONY_P:
@@ -1514,6 +1515,7 @@ static int dvb_input_attach(struct ddb_input *input)
 		break;
 	case DDB_TUNER_DVBC2T2I_SONY:
 		osc24 = 1;
+		/* fall-through */
 	case DDB_TUNER_DVBCT2_SONY:
 	case DDB_TUNER_DVBC2T2_SONY:
 	case DDB_TUNER_ISDBT_SONY:
@@ -2260,6 +2262,7 @@ static int ddb_port_attach(struct ddb_port *port)
 		ret = ddb_ci_attach(port);
 		if (ret < 0)
 			break;
+		/* fall-through */
 	case DDB_PORT_LOOP:
 		ret = dvb_register_device(port->dvb[0].adap,
 					  &port->dvb[0].dev,
