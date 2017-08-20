@@ -68,6 +68,8 @@
 #include "../../../include/uapi/linux/lustre/lustre_ioctl.h"
 #include "../../../include/uapi/linux/lustre/lustre_ver.h"
 
+#define OBD_MAX_IOCTL_BUFFER	8192
+
 static int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 {
 	if (data->ioc_len > BIT(30)) {

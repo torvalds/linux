@@ -56,7 +56,6 @@ enum md_echo_cmd {
 
 #define OBD_IOCTL_VERSION	0x00010004
 #define OBD_DEV_BY_DEVNAME	0xffffd0de
-#define OBD_MAX_IOCTL_BUFFER	CONFIG_LUSTRE_OBD_MAX_IOCTL_BUFFER
 
 struct obd_ioctl_data {
 	__u32		ioc_len;
