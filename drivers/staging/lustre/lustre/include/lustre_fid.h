@@ -148,10 +148,10 @@
  *  Even so, the MDT and OST resources are also in different LDLM namespaces.
  */
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/uapi/linux/lustre/lustre_fid.h"
-#include "../../include/uapi/linux/lustre/lustre_idl.h"
-#include "../../include/uapi/linux/lustre/lustre_ostid.h"
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lustre/lustre_fid.h>
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <uapi/linux/lustre/lustre_ostid.h>
 
 struct lu_env;
 struct lu_site;

@@ -48,7 +48,7 @@
 #ifndef _LLOG_SWAB_H_
 #define _LLOG_SWAB_H_
 
-#include "../../include/uapi/linux/lustre/lustre_idl.h"
+#include <uapi/linux/lustre/lustre_idl.h>
 
 struct lustre_cfg;
 

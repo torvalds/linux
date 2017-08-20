@@ -43,9 +43,9 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/uapi/linux/lustre/lustre_cfg.h"
-#include "../../include/uapi/linux/lustre/lustre_idl.h"
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lustre/lustre_cfg.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 
 struct lprocfs_vars {
 	const char		*name;

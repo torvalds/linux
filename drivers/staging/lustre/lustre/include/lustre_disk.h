@@ -44,8 +44,10 @@
  * @{
  */
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <asm/byteorder.h>
+#include <linux/types.h>
 #include <linux/backing-dev.h>
+#include <linux/libcfs/libcfs.h>
 
 /****************** persistent mount data *********************/
 

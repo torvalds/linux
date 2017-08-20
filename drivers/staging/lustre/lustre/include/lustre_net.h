@@ -51,20 +51,20 @@
  */
 
 #include <linux/uio.h>
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/uapi/linux/lnet/nidstr.h"
-#include "../../include/linux/lnet/api.h"
-#include "../../include/uapi/linux/lustre/lustre_idl.h"
-#include "lustre_errno.h"
-#include "lustre_ha.h"
-#include "lustre_sec.h"
-#include "lustre_import.h"
-#include "lprocfs_status.h"
-#include "lu_object.h"
-#include "lustre_req_layout.h"
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lnet/nidstr.h>
+#include <linux/lnet/api.h>
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <lustre_errno.h>
+#include <lustre_ha.h>
+#include <lustre_sec.h>
+#include <lustre_import.h>
+#include <lprocfs_status.h>
+#include <lu_object.h>
+#include <lustre_req_layout.h>
 
-#include "obd_support.h"
-#include "../../include/uapi/linux/lustre/lustre_ver.h"
+#include <obd_support.h>
+#include <uapi/linux/lustre/lustre_ver.h>
 
 /* MD flags we _always_ use */
 #define PTLRPC_MD_OPTIONS  0
@@ -522,7 +522,7 @@ struct lu_env;
 
 struct ldlm_lock;
 
-#include "lustre_nrs.h"
+#include <lustre_nrs.h>
 
 /**
  * Basic request prioritization operations structure.

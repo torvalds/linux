@@ -35,15 +35,15 @@
 
 #include <linux/spinlock.h>
 
-#include "../../include/uapi/linux/lustre/lustre_idl.h"
-#include "lustre_lib.h"
-#include "lu_ref.h"
-#include "lustre_export.h"
-#include "lustre_fid.h"
-#include "lustre_fld.h"
-#include "lustre_handles.h"
-#include "lustre_intent.h"
-#include "cl_object.h"
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <lustre_lib.h>
+#include <lu_ref.h>
+#include <lustre_export.h>
+#include <lustre_fid.h>
+#include <lustre_fld.h>
+#include <lustre_handles.h>
+#include <lustre_intent.h>
+#include <cl_object.h>
 
 #define MAX_OBD_DEVICES 8192
 

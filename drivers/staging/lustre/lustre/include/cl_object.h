@@ -88,8 +88,8 @@
 /*
  * super-class definitions.
  */
-#include "lu_object.h"
-#include "lustre_compat.h"
+#include <lu_object.h>
+#include <lustre_compat.h>
 #include <linux/atomic.h>
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>

@@ -32,12 +32,12 @@
 #ifndef __CLASS_OBD_H
 #define __CLASS_OBD_H
 
-#include "obd_support.h"
-#include "lustre_import.h"
-#include "lustre_net.h"
-#include "obd.h"
-#include "lustre_lib.h"
-#include "lprocfs_status.h"
+#include <obd_support.h>
+#include <lustre_import.h>
+#include <lustre_net.h>
+#include <obd.h>
+#include <lustre_lib.h>
+#include <lprocfs_status.h>
 
 #define OBD_STATFS_NODELAY      0x0001  /* requests should be send without delay
 					 * and resends for avoid deadlocks
