@@ -206,7 +206,6 @@ static int apq8016_sbc_platform_probe(struct platform_device *pdev)
 	if (IS_ERR(data->spkr_iomux))
 		return PTR_ERR(data->spkr_iomux);
 
-	platform_set_drvdata(pdev, data);
 	snd_soc_card_set_drvdata(card, data);
 
 	return devm_snd_soc_register_card(&pdev->dev, card);
