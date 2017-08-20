@@ -43,6 +43,7 @@
  */
 
 #ifdef __KERNEL__
+# include <linux/fs.h>
 # include <linux/quota.h>
 # include <linux/sched/signal.h>
 # include <linux/string.h> /* snprintf() */
