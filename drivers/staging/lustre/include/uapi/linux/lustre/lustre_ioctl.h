@@ -28,18 +28,10 @@
 #ifndef LUSTRE_IOCTL_H_
 #define LUSTRE_IOCTL_H_
 
+#include <linux/ioctl.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include "../../../../lustre/include/lustre/lustre_idl.h"
-
-#ifdef __KERNEL__
-# include <linux/ioctl.h>
-# include <linux/string.h>
-#else /* __KERNEL__ */
-# include <malloc.h>
-# include <string.h>
-#include <libcfs/util/ioctl.h>
-#endif /* !__KERNEL__ */
 
 #if !defined(__KERNEL__) && !defined(LUSTRE_UTILS)
 # error This file is for Lustre internal use only.
