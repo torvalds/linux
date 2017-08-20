@@ -142,7 +142,7 @@ static int lnb_set_tone(struct ddb *dev, u32 link, u32 input,
 	default:
 		s = -EINVAL;
 		break;
-	};
+	}
 	if (!s)
 		s = lnb_command(dev, link, input, LNB_CMD_NOP);
 	return s;
@@ -170,7 +170,7 @@ static int lnb_set_voltage(struct ddb *dev, u32 link, u32 input,
 	default:
 		s = -EINVAL;
 		break;
-	};
+	}
 	dev->link[link].lnb.oldvoltage[input] = voltage;
 	return s;
 }
