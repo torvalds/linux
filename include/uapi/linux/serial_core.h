@@ -274,4 +274,7 @@
 /* MPS2 UART */
 #define PORT_MPS2UART	116
 
+/* MediaTek BTIF */
+#define PORT_MTK_BTIF	117
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */
