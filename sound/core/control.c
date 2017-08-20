@@ -967,9 +967,9 @@ static int snd_ctl_elem_write_user(struct snd_ctl_file *file,
 	snd_power_lock(card);
 	result = snd_power_wait(card, SNDRV_CTL_POWER_D0);
 	if (result >= 0) {
-		down_read(&card->controls_rwsem);
+		down_write(&card->controls_rwsem);
 		result = snd_ctl_elem_write(card, file, control);
-		up_read(&card->controls_rwsem);
+		up_write(&card->controls_rwsem);
 	}
 	snd_power_unlock(card);
 	if (result >= 0)
