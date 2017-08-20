@@ -208,8 +208,6 @@ static inline int obd_ioctl_is_invalid(struct obd_ioctl_data *data)
 	return 0;
 }
 
-int obd_ioctl_getdata(char **buf, int *len, void __user *arg);
-
 /*
  * OBD_IOC_DATA_TYPE is only for compatibility reasons with older
  * Linux Lustre user tools. New ioctls should NOT use this macro as

@@ -1559,4 +1559,7 @@ struct root_squash_info {
 	struct rw_semaphore	rsi_sem;
 };
 
+/* linux-module.c */
+int obd_ioctl_getdata(char **buf, int *len, void __user *arg);
+
 #endif /* __LINUX_OBD_CLASS_H */
