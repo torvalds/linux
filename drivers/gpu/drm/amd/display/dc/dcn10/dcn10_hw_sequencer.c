@@ -2550,7 +2550,10 @@ static void dcn10_set_bandwidth(
 		struct validate_context *context,
 		bool decrease_allowed)
 {
-	struct dm_pp_clock_for_voltage_req clock;
+	struct pp_smu_display_requirement_rv *smu_req_cur =
+			&dc->res_pool->pp_smu_req;
+	struct pp_smu_display_requirement_rv smu_req = *smu_req_cur;
+	struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
 
 	if (dc->debug.sanity_checks) {
 		verify_allow_pstate_change_high(dc->hwseq);
@@ -2569,19 +2572,12 @@ static void dcn10_set_bandwidth(
 	}
 	if (decrease_allowed || context->bw.dcn.calc_clk.dcfclk_khz
 			> dc->current_context->bw.dcn.cur_clk.dcfclk_khz) {
-		clock.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
-		clock.clocks_in_khz = context->bw.dcn.calc_clk.dcfclk_khz;
-		dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
-		dc->current_context->bw.dcn.cur_clk.dcfclk_khz = clock.clocks_in_khz;
-		context->bw.dcn.cur_clk.dcfclk_khz = clock.clocks_in_khz;
+		smu_req.hard_min_dcefclk_khz =
+				context->bw.dcn.calc_clk.dcfclk_khz;
 	}
 	if (decrease_allowed || context->bw.dcn.calc_clk.fclk_khz
 			> dc->current_context->bw.dcn.cur_clk.fclk_khz) {
-		clock.clk_type = DM_PP_CLOCK_TYPE_FCLK;
-		clock.clocks_in_khz = context->bw.dcn.calc_clk.fclk_khz;
-		dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
-		dc->current_context->bw.dcn.calc_clk.fclk_khz = clock.clocks_in_khz;
-		context->bw.dcn.cur_clk.fclk_khz = clock.clocks_in_khz;
+		smu_req.hard_min_fclk_khz = context->bw.dcn.calc_clk.fclk_khz;
 	}
 	if (decrease_allowed || context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz
 			> dc->current_context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz) {
@@ -2590,6 +2586,14 @@ static void dcn10_set_bandwidth(
 		context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz =
 				context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz;
 	}
+
+	smu_req.display_count = context->stream_count;
+
+	if (pp_smu->set_display_requirement)
+		pp_smu->set_display_requirement(&pp_smu->pp_smu, &smu_req);
+
+	*smu_req_cur = smu_req;
+
 	/* Decrease in freq is increase in period so opposite comparison for dram_ccm */
 	if (decrease_allowed || context->bw.dcn.calc_clk.dram_ccm_us
 			< dc->current_context->bw.dcn.cur_clk.dram_ccm_us) {

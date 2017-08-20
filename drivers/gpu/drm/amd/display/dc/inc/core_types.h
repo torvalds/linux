@@ -132,10 +132,10 @@ struct resource_pool {
 	struct output_pixel_processor *opps[MAX_PIPES];
 	struct timing_generator *timing_generators[MAX_PIPES];
 	struct stream_encoder *stream_enc[MAX_PIPES * 2];
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+
 	struct mpc *mpc;
 	struct pp_smu_funcs_rv *pp_smu;
-#endif
+	struct pp_smu_display_requirement_rv pp_smu_req;
 
 	struct dwbc *dwbc[MAX_DWB_PIPES];
 
@@ -234,7 +234,6 @@ struct dce_bw_output {
 	int blackout_recovery_time_us;
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 struct dcn_bw_clocks {
 	int dispclk_khz;
 	bool dppclk_div;
@@ -250,12 +249,9 @@ struct dcn_bw_output {
 	struct dcn_bw_clocks calc_clk;
 	struct dcn_watermark_set watermarks;
 };
-#endif
 
 union bw_context {
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	struct dcn_bw_output dcn;
-#endif
 	struct dce_bw_output dce;
 };
 
