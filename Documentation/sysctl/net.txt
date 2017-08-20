@@ -49,6 +49,7 @@ two flavors of JITs, the newer eBPF JIT currently supported on:
   - ppc64
   - sparc64
   - mips64
+  - s390x
 
 And the older cBPF JIT supported on the following archs:
   - arm
