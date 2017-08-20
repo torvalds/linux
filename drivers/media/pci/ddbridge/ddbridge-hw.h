@@ -37,38 +37,6 @@ struct ddb_device_id {
 
 /******************************************************************************/
 
-extern const struct ddb_info ddb_none;
-extern const struct ddb_info ddb_octopus;
-extern const struct ddb_info ddb_octopusv3;
-extern const struct ddb_info ddb_octopus_le;
-extern const struct ddb_info ddb_octopus_oem;
-extern const struct ddb_info ddb_octopus_mini;
-extern const struct ddb_info ddb_v6;
-extern const struct ddb_info ddb_v6_5;
-extern const struct ddb_info ddb_v7;
-extern const struct ddb_info ddb_v7a;
-extern const struct ddb_info ddb_ctv7;
-extern const struct ddb_info ddb_satixS2v3;
-extern const struct ddb_info ddb_ci;
-extern const struct ddb_info ddb_cis;
-extern const struct ddb_info ddb_ci_s2_pro;
-extern const struct ddb_info ddb_ci_s2_pro_a;
-extern const struct ddb_info ddb_dvbct;
-
-/****************************************************************************/
-
-extern const struct ddb_info ddb_ct2_8;
-extern const struct ddb_info ddb_c2t2_8;
-extern const struct ddb_info ddb_isdbt_8;
-extern const struct ddb_info ddb_c2t2i_v0_8;
-extern const struct ddb_info ddb_c2t2i_8;
-
-/****************************************************************************/
-
-extern const struct ddb_info ddb_s2_48;
-
-/****************************************************************************/
-
 const struct ddb_info *get_ddb_info(u16 vendor, u16 device,
 				    u16 subvendor, u16 subdevice);
 
