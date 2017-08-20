@@ -28,8 +28,8 @@
 #ifndef LUSTRE_IOCTL_H_
 #define LUSTRE_IOCTL_H_
 
+#include <linux/kernel.h>
 #include <linux/types.h>
-#include "../../../linux/libcfs/libcfs.h"
 #include "../../../../lustre/include/lustre/lustre_idl.h"
 
 #ifdef __KERNEL__
@@ -121,12 +121,12 @@ struct obd_ioctl_hdr {
 
 static inline __u32 obd_ioctl_packlen(struct obd_ioctl_data *data)
 {
-	__u32 len = cfs_size_round(sizeof(*data));
+	__u32 len = __ALIGN_KERNEL(sizeof(*data), 8);
 
-	len += cfs_size_round(data->ioc_inllen1);
-	len += cfs_size_round(data->ioc_inllen2);
-	len += cfs_size_round(data->ioc_inllen3);
-	len += cfs_size_round(data->ioc_inllen4);
+	len += __ALIGN_KERNEL(data->ioc_inllen1, 8);
+	len += __ALIGN_KERNEL(data->ioc_inllen2, 8);
+	len += __ALIGN_KERNEL(data->ioc_inllen3, 8);
+	len += __ALIGN_KERNEL(data->ioc_inllen4, 8);
 
 	return len;
 }
