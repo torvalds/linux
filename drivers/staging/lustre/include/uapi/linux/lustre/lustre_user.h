@@ -645,7 +645,7 @@ struct if_quotactl {
 #define SWAP_LAYOUTS_CHECK_DV2		(1 << 1)
 #define SWAP_LAYOUTS_KEEP_MTIME		(1 << 2)
 #define SWAP_LAYOUTS_KEEP_ATIME		(1 << 3)
-#define SWAP_LAYOUTS_CLOSE		BIT(4)
+#define SWAP_LAYOUTS_CLOSE		(1 << 4)
 
 /* Swap XATTR_NAME_HSM as well, only on the MDT so far */
 #define SWAP_LAYOUTS_MDS_HSM		(1 << 31)
@@ -792,15 +792,15 @@ static inline void hsm_set_cl_error(int *flags, int error)
 
 enum changelog_send_flag {
 	/* Not yet implemented */
-	CHANGELOG_FLAG_FOLLOW	= BIT(0),
+	CHANGELOG_FLAG_FOLLOW	= 0x01,
 	/*
 	 * Blocking IO makes sense in case of slow user parsing of the records,
 	 * but it also prevents us from cleaning up if the records are not
 	 * consumed.
 	 */
-	CHANGELOG_FLAG_BLOCK	= BIT(1),
+	CHANGELOG_FLAG_BLOCK	= 0x02,
 	/* Pack jobid into the changelog records if available. */
-	CHANGELOG_FLAG_JOBID	= BIT(2),
+	CHANGELOG_FLAG_JOBID	= 0x04,
 };
 
 #define CR_MAXSIZE cfs_size_round(2 * NAME_MAX + 2 + \
@@ -981,8 +981,8 @@ struct ioc_data_version {
 	__u64 idv_flags;     /* See LL_DV_xxx */
 };
 
-#define LL_DV_RD_FLUSH	BIT(0)	/* Flush dirty pages from clients */
-#define LL_DV_WR_FLUSH	BIT(1)	/* Flush all caching pages from clients */
+#define LL_DV_RD_FLUSH	(1 << 0) /* Flush dirty pages from clients */
+#define LL_DV_WR_FLUSH	(1 << 1) /* Flush all caching pages from clients */
 
 #ifndef offsetof
 # define offsetof(typ, memb)     ((unsigned long)((char *)&(((typ *)0)->memb)))
