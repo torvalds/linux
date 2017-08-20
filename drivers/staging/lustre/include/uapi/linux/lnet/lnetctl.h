@@ -32,10 +32,10 @@ enum {
 	LNET_CTL_DELAY_LIST,
 };
 
-#define LNET_ACK_BIT		BIT(0)
-#define LNET_PUT_BIT		BIT(1)
-#define LNET_GET_BIT		BIT(2)
-#define LNET_REPLY_BIT		BIT(3)
+#define LNET_ACK_BIT		(1 << 0)
+#define LNET_PUT_BIT		(1 << 1)
+#define LNET_GET_BIT		(1 << 2)
+#define LNET_REPLY_BIT		(1 << 3)
 
 /** ioctl parameter for LNet fault simulation */
 struct lnet_fault_attr {
