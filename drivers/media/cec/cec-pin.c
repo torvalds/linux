@@ -88,10 +88,10 @@ static const struct cec_state states[CEC_PIN_STATES] = {
 
 static void cec_pin_update(struct cec_pin *pin, bool v, bool force)
 {
-	if (!force && v == pin->cur_value)
+	if (!force && v == pin->adap->cec_pin_is_high)
 		return;
 
-	pin->cur_value = v;
+	pin->adap->cec_pin_is_high = v;
 	if (atomic_read(&pin->work_pin_events) < CEC_NUM_PIN_EVENTS) {
 		pin->work_pin_is_high[pin->work_pin_events_wr] = v;
 		pin->work_pin_ts[pin->work_pin_events_wr] = ktime_get();
@@ -781,7 +781,6 @@ struct cec_adapter *cec_pin_allocate_adapter(const struct cec_pin_ops *pin_ops,
 	if (pin == NULL)
 		return ERR_PTR(-ENOMEM);
 	pin->ops = pin_ops;
-	pin->cur_value = true;
 	hrtimer_init(&pin->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pin->timer.function = cec_pin_timer;
 	init_waitqueue_head(&pin->kthread_waitq);

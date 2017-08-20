@@ -128,7 +128,6 @@ struct cec_pin {
 	u16				la_mask;
 	bool				enabled;
 	bool				monitor_all;
-	bool				cur_value;
 	bool				rx_eom;
 	bool				enable_irq_failed;
 	enum cec_pin_state		state;
