@@ -67,6 +67,7 @@
 #ifndef _LUSTRE_IDL_H_
 #define _LUSTRE_IDL_H_
 
+#include <asm/byteorder.h>
 #include <linux/types.h>
 
 #include "../lnet/lnet-types.h"
@@ -389,7 +390,7 @@ enum lu_dirpage_flags {
 
 static inline struct lu_dirent *lu_dirent_start(struct lu_dirpage *dp)
 {
-	if (le32_to_cpu(dp->ldp_flags) & LDF_EMPTY)
+	if (__le32_to_cpu(dp->ldp_flags) & LDF_EMPTY)
 		return NULL;
 	else
 		return dp->ldp_entries;
@@ -399,8 +400,8 @@ static inline struct lu_dirent *lu_dirent_next(struct lu_dirent *ent)
 {
 	struct lu_dirent *next;
 
-	if (le16_to_cpu(ent->lde_reclen) != 0)
-		next = ((void *)ent) + le16_to_cpu(ent->lde_reclen);
+	if (__le16_to_cpu(ent->lde_reclen) != 0)
+		next = ((void *)ent) + __le16_to_cpu(ent->lde_reclen);
 	else
 		next = NULL;
 
@@ -1840,11 +1841,11 @@ static inline ssize_t lmv_mds_md_size(int stripe_count, unsigned int lmm_magic)
 
 static inline int lmv_mds_md_stripe_count_get(const union lmv_mds_md *lmm)
 {
-	switch (le32_to_cpu(lmm->lmv_magic)) {
+	switch (__le32_to_cpu(lmm->lmv_magic)) {
 	case LMV_MAGIC_V1:
-		return le32_to_cpu(lmm->lmv_md_v1.lmv_stripe_count);
+		return __le32_to_cpu(lmm->lmv_md_v1.lmv_stripe_count);
 	case LMV_USER_MAGIC:
-		return le32_to_cpu(lmm->lmv_user_md.lum_stripe_count);
+		return __le32_to_cpu(lmm->lmv_user_md.lum_stripe_count);
 	default:
 		return -EINVAL;
 	}
