@@ -38,11 +38,11 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/obd_class.h"
-#include "../include/lustre_log.h"
-#include "../include/lustre_net.h"
+#include <obd_class.h>
+#include <lustre_log.h>
+#include <lustre_net.h>
 #include <linux/list.h>
 
 #define LLOG_CLIENT_ENTRY(ctxt, imp) do {				\

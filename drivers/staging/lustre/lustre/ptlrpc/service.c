@@ -31,11 +31,12 @@
  */
 
 #define DEBUG_SUBSYSTEM S_RPC
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_net.h"
-#include "../include/lu_object.h"
-#include "../../include/uapi/linux/lnet/lnet-types.h"
+
+#include <obd_support.h>
+#include <obd_class.h>
+#include <lustre_net.h>
+#include <lu_object.h>
+#include <uapi/linux/lnet/lnet-types.h>
 #include "ptlrpc_internal.h"
 
 /* The following are visible and mutable through /sys/module/ptlrpc */

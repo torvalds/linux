@@ -37,10 +37,10 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../include/lustre_intent.h"
-#include "../include/lustre_swab.h"
-#include "../include/obd_class.h"
+#include <linux/libcfs/libcfs.h>
+#include <lustre_intent.h>
+#include <lustre_swab.h>
+#include <obd_class.h>
 #include "ldlm_internal.h"
 
 /* lock types */

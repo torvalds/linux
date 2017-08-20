@@ -36,9 +36,9 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LDLM
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"
-#include "../include/obd_class.h"
+#include <lustre_dlm.h>
+#include <lustre_fid.h>
+#include <obd_class.h>
 #include "ldlm_internal.h"
 
 struct kmem_cache *ldlm_resource_slab, *ldlm_lock_slab;
