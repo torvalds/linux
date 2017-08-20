@@ -51,7 +51,7 @@ struct mmc_queue_req {
 	struct mmc_async_req	areq;
 	enum mmc_drv_op		drv_op;
 	int			drv_op_result;
-	struct mmc_blk_ioc_data	**idata;
+	void			*drv_op_data;
 	unsigned int		ioc_count;
 };
 
