@@ -1142,7 +1142,7 @@ int class_config_llog_handler(const struct lu_env *env,
 		char *inst_name = NULL;
 		int inst_len = 0;
 		size_t lcfg_len;
-		int inst = 0, swab = 0;
+		int swab = 0;
 
 		lcfg = (struct lustre_cfg *)cfg_buf;
 		if (lcfg->lcfg_version == __swab32(LUSTRE_CFG_VERSION)) {
@@ -1233,7 +1233,6 @@ int class_config_llog_handler(const struct lu_env *env,
 
 		if (clli && clli->cfg_instance &&
 		    LUSTRE_CFG_BUFLEN(lcfg, 0) > 0) {
-			inst = 1;
 			inst_len = LUSTRE_CFG_BUFLEN(lcfg, 0) +
 				   sizeof(clli->cfg_instance) * 2 + 4;
 			inst_name = kasprintf(GFP_NOFS, "%s-%p",
@@ -1304,9 +1303,7 @@ int class_config_llog_handler(const struct lu_env *env,
 
 		rc = class_process_config(lcfg_new);
 		kfree(lcfg_new);
-
-		if (inst)
-			kfree(inst_name);
+		kfree(inst_name);
 		break;
 	}
 	default:
