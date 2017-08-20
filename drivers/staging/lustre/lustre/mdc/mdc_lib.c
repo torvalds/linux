@@ -31,8 +31,8 @@
  */
 
 #define DEBUG_SUBSYSTEM S_MDC
-#include "../include/lustre_net.h"
-#include "../../include/uapi/linux/lustre/lustre_idl.h"
+#include <lustre_net.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 #include "mdc_internal.h"
 
 static void set_mrc_cr_flags(struct mdt_rec_create *mrc, u64 flags)

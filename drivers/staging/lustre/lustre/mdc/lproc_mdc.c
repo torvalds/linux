@@ -32,8 +32,8 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <linux/vfs.h>
-#include "../include/obd_class.h"
-#include "../include/lprocfs_status.h"
+#include <obd_class.h>
+#include <lprocfs_status.h>
 #include "mdc_internal.h"
 
 static ssize_t active_show(struct kobject *kobj, struct attribute *attr,

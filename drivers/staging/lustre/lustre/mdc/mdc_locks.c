@@ -32,17 +32,17 @@
 
 #define DEBUG_SUBSYSTEM S_MDC
 
-# include <linux/module.h>
+#include <linux/module.h>
 
-#include "../include/lustre_intent.h"
-#include "../include/obd.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_mdc.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre_req_layout.h"
-#include "../include/lustre_swab.h"
+#include <lustre_intent.h>
+#include <obd.h>
+#include <obd_class.h>
+#include <lustre_dlm.h>
+#include <lustre_fid.h>
+#include <lustre_mdc.h>
+#include <lustre_net.h>
+#include <lustre_req_layout.h>
+#include <lustre_swab.h>
 
 #include "mdc_internal.h"
 
