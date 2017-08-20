@@ -38,7 +38,7 @@
 #ifndef __LIBCFS_DEBUG_H__
 #define __LIBCFS_DEBUG_H__
 
-#include "../../uapi/linux/lnet/libcfs_debug.h"
+#include <uapi/linux/lnet/libcfs_debug.h>
 
 /*
  *  Debugging

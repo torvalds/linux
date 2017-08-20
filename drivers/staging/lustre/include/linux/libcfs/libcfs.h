@@ -36,18 +36,18 @@
 #include <linux/gfp.h>
 #include <linux/list.h>
 
-#include "../../uapi/linux/lnet/libcfs_ioctl.h"
-#include "linux/libcfs.h"
-#include "libcfs_debug.h"
-#include "libcfs_private.h"
-#include "libcfs_cpu.h"
-#include "libcfs_prim.h"
-#include "libcfs_time.h"
-#include "libcfs_string.h"
-#include "libcfs_workitem.h"
-#include "libcfs_hash.h"
-#include "libcfs_fail.h"
-#include "curproc.h"
+#include <uapi/linux/lnet/libcfs_ioctl.h>
+#include <linux/libcfs/linux/libcfs.h>
+#include <linux/libcfs/libcfs_debug.h>
+#include <linux/libcfs/libcfs_private.h>
+#include <linux/libcfs/libcfs_cpu.h>
+#include <linux/libcfs/libcfs_prim.h>
+#include <linux/libcfs/libcfs_time.h>
+#include <linux/libcfs/libcfs_string.h>
+#include <linux/libcfs/libcfs_workitem.h>
+#include <linux/libcfs/libcfs_hash.h>
+#include <linux/libcfs/libcfs_fail.h>
+#include <linux/libcfs/curproc.h>
 
 #define LIBCFS_VERSION "0.7.0"
 
