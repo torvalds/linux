@@ -131,45 +131,4 @@ struct lnet_fault_stat {
 #define SMFS_DEV_MAJOR 10
 #define SMFS_DEV_MINOR 242
 
-int ptl_initialize(int argc, char **argv);
-int jt_ptl_network(int argc, char **argv);
-int jt_ptl_list_nids(int argc, char **argv);
-int jt_ptl_which_nid(int argc, char **argv);
-int jt_ptl_print_interfaces(int argc, char **argv);
-int jt_ptl_add_interface(int argc, char **argv);
-int jt_ptl_del_interface(int argc, char **argv);
-int jt_ptl_print_peers(int argc, char **argv);
-int jt_ptl_add_peer(int argc, char **argv);
-int jt_ptl_del_peer(int argc, char **argv);
-int jt_ptl_print_connections(int argc, char **argv);
-int jt_ptl_disconnect(int argc, char **argv);
-int jt_ptl_push_connection(int argc, char **argv);
-int jt_ptl_print_active_txs(int argc, char **argv);
-int jt_ptl_ping(int argc, char **argv);
-int jt_ptl_mynid(int argc, char **argv);
-int jt_ptl_add_uuid(int argc, char **argv);
-int jt_ptl_add_uuid_old(int argc, char **argv); /* backwards compatibility  */
-int jt_ptl_close_uuid(int argc, char **argv);
-int jt_ptl_del_uuid(int argc, char **argv);
-int jt_ptl_add_route(int argc, char **argv);
-int jt_ptl_del_route(int argc, char **argv);
-int jt_ptl_notify_router(int argc, char **argv);
-int jt_ptl_print_routes(int argc, char **argv);
-int jt_ptl_fail_nid(int argc, char **argv);
-int jt_ptl_lwt(int argc, char **argv);
-int jt_ptl_testprotocompat(int argc, char **argv);
-int jt_ptl_memhog(int argc, char **argv);
-
-int dbg_initialize(int argc, char **argv);
-int jt_dbg_filter(int argc, char **argv);
-int jt_dbg_show(int argc, char **argv);
-int jt_dbg_list(int argc, char **argv);
-int jt_dbg_debug_kernel(int argc, char **argv);
-int jt_dbg_debug_daemon(int argc, char **argv);
-int jt_dbg_debug_file(int argc, char **argv);
-int jt_dbg_clear_debug_buf(int argc, char **argv);
-int jt_dbg_mark_debug_buf(int argc, char **argv);
-int jt_dbg_modules(int argc, char **argv);
-int jt_dbg_panic(int argc, char **argv);
-
 #endif
