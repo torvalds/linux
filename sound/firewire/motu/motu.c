@@ -103,7 +103,10 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	if (motu->spec->flags & SND_MOTU_SPEC_HAS_MIDI) {
+	if ((motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_2ND_Q) ||
+	    (motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_3RD_Q) ||
+	    (motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_2ND_Q) ||
+	    (motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_3RD_Q)) {
 		err = snd_motu_create_midi_devices(motu);
 		if (err < 0)
 			goto error;
@@ -197,7 +200,8 @@ static struct snd_motu_spec motu_828mk2 = {
 		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
 		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
-		 SND_MOTU_SPEC_HAS_MIDI,
+		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+		 SND_MOTU_SPEC_TX_MIDI_2ND_Q,
 
 	.analog_in_ports = 8,
 	.analog_out_ports = 8,
@@ -213,7 +217,8 @@ static struct snd_motu_spec motu_828mk3 = {
 		 SND_MOTU_SPEC_TX_REVERB_CHUNK |
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_B |
-		 SND_MOTU_SPEC_HAS_MIDI,
+		 SND_MOTU_SPEC_RX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
 
 	.analog_in_ports = 8,
 	.analog_out_ports = 8,
