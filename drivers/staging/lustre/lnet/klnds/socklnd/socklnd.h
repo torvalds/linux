@@ -46,9 +46,9 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 
-#include "../../../include/linux/libcfs/libcfs.h"
-#include "../../../include/linux/lnet/lib-lnet.h"
-#include "../../../include/linux/lnet/socklnd.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/lib-lnet.h>
+#include <linux/lnet/socklnd.h>
 
 /* assume one thread for each connection type */
 #define SOCKNAL_NSCHEDS		3
