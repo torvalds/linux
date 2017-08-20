@@ -108,14 +108,6 @@ struct lustre_mount_data {
 
 #define lmd_is_client(x) ((x)->lmd_flags & LMD_FLG_CLIENT)
 
-/****************** last_rcvd file *********************/
-
-/** version recovery epoch */
-#define LR_EPOCH_BITS   32
-#define lr_epoch(a) ((a) >> LR_EPOCH_BITS)
-#define LR_EXPIRE_INTERVALS 16 /**< number of intervals to track transno */
-#define ENOENT_VERSION 1 /** 'virtual' version of non-existent object */
-
 /****************** superblock additional info *********************/
 
 struct ll_sb_info;
@@ -141,16 +133,6 @@ struct lustre_sb_info {
 #define     s2lsi_nocast(sb) ((sb)->s_fs_info)
 
 #define     get_profile_name(sb)   (s2lsi(sb)->lsi_lmd->lmd_profile)
-#define	    get_mount_flags(sb)	   (s2lsi(sb)->lsi_lmd->lmd_flags)
-#define	    get_mntdev_name(sb)	   (s2lsi(sb)->lsi_lmd->lmd_dev)
-
-/****************** mount lookup info *********************/
-
-struct lustre_mount_info {
-	char		 *lmi_name;
-	struct super_block   *lmi_sb;
-	struct list_head	    lmi_list_chain;
-};
 
 /****************** prototypes *********************/
 
