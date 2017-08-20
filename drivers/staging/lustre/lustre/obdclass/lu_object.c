@@ -40,19 +40,19 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-# include <linux/module.h>
+#include <linux/module.h>
 
 /* hash_long() */
-#include "../../include/linux/libcfs/libcfs_hash.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_disk.h"
-#include "../include/lustre_fid.h"
-#include "../include/lu_object.h"
-#include "../include/cl_object.h"
-#include "../include/lu_ref.h"
+#include <linux/libcfs/libcfs_hash.h>
+#include <obd_class.h>
+#include <obd_support.h>
+#include <lustre_disk.h>
+#include <lustre_fid.h>
+#include <lu_object.h>
+#include <cl_object.h>
+#include <lu_ref.h>
 #include <linux/list.h>
 
 enum {

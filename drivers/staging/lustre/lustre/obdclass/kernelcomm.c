@@ -38,8 +38,8 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 #define D_KUC D_OTHER
 
-#include "../include/obd_support.h"
-#include "../include/lustre_kernelcomm.h"
+#include <obd_support.h>
+#include <lustre_kernelcomm.h>
 
 /**
  * libcfs_kkuc_msg_put - send an message from kernel to userspace

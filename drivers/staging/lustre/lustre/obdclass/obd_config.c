@@ -38,12 +38,12 @@
 
 #include <linux/string.h>
 
-#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
-#include "../include/llog_swab.h"
-#include "../include/lprocfs_status.h"
-#include "../include/lustre_log.h"
-#include "../../include/uapi/linux/lustre/lustre_param.h"
-#include "../include/obd_class.h"
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <llog_swab.h>
+#include <lprocfs_status.h>
+#include <lustre_log.h>
+#include <uapi/linux/lustre/lustre_param.h>
+#include <obd_class.h>
 
 #include "llog_internal.h"
 

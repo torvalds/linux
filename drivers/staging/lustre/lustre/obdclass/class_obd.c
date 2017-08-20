@@ -33,14 +33,14 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 # include <linux/atomic.h>
 
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../../include/uapi/linux/lnet/lnetctl.h"
-#include "../include/lustre_debug.h"
-#include "../include/lprocfs_status.h"
+#include <obd_support.h>
+#include <obd_class.h>
+#include <uapi/linux/lnet/lnetctl.h>
+#include <lustre_debug.h>
+#include <lprocfs_status.h>
 #include <linux/list.h>
-#include "../include/cl_object.h"
-#include "../../include/uapi/linux/lustre/lustre_ioctl.h"
+#include <cl_object.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
 #include "llog_internal.h"
 
 struct obd_device *obd_devs[MAX_OBD_DEVICES];

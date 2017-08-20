@@ -60,13 +60,13 @@
 #include <linux/seq_file.h>
 #include <linux/kobject.h>
 
-#include "../../../include/linux/libcfs/libcfs.h"
-#include "../../../include/uapi/linux/lnet/lnetctl.h"
-#include "../../include/obd_support.h"
-#include "../../include/obd_class.h"
-#include "../../include/lprocfs_status.h"
-#include "../../../include/uapi/linux/lustre/lustre_ioctl.h"
-#include "../../../include/uapi/linux/lustre/lustre_ver.h"
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lnet/lnetctl.h>
+#include <obd_support.h>
+#include <obd_class.h>
+#include <lprocfs_status.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <uapi/linux/lustre/lustre_ver.h>
 
 #define OBD_MAX_IOCTL_BUFFER	8192
 
