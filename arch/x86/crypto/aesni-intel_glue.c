@@ -1067,9 +1067,10 @@ static struct skcipher_alg aesni_skciphers[] = {
 	}
 };
 
+static
 struct simd_skcipher_alg *aesni_simd_skciphers[ARRAY_SIZE(aesni_skciphers)];
 
-struct {
+static struct {
 	const char *algname;
 	const char *drvname;
 	const char *basename;
