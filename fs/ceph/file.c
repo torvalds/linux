@@ -175,7 +175,7 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 		dout("init_file %p %p 0%o (regular)\n", inode, file,
 		     inode->i_mode);
 		cf = kmem_cache_zalloc(ceph_file_cachep, GFP_KERNEL);
-		if (cf == NULL) {
+		if (!cf) {
 			ceph_put_fmode(ceph_inode(inode), fmode); /* clean up */
 			return -ENOMEM;
 		}

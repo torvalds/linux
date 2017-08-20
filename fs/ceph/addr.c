@@ -540,7 +540,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 
 	/* verify this is a writeable snap context */
 	snapc = page_snap_context(page);
-	if (snapc == NULL) {
+	if (!snapc) {
 		dout("writepage %p page %p not dirty?\n", inode, page);
 		return 0;
 	}

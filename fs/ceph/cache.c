@@ -240,7 +240,7 @@ void ceph_fscache_register_inode_cookie(struct inode *inode)
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 
 	/* No caching for filesystem */
-	if (fsc->fscache == NULL)
+	if (!fsc->fscache)
 		return;
 
 	/* Only cache for regular files that are read only */

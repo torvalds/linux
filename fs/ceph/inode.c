@@ -52,7 +52,7 @@ struct inode *ceph_get_inode(struct super_block *sb, struct ceph_vino vino)
 	ino_t t = ceph_vino_to_ino(vino);
 
 	inode = iget5_locked(sb, t, ceph_ino_compare, ceph_set_ino_cb, &vino);
-	if (inode == NULL)
+	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	if (inode->i_state & I_NEW) {
 		dout("get_inode created new inode %p %llx.%llx ino %llx\n",
@@ -1173,7 +1173,7 @@ retry_lookup:
 				dn = d_alloc(parent, &dname);
 				dout("d_alloc %p '%.*s' = %p\n", parent,
 				     dname.len, dname.name, dn);
-				if (dn == NULL) {
+				if (!dn) {
 					dput(parent);
 					err = -ENOMEM;
 					goto done;
@@ -1562,7 +1562,7 @@ retry_lookup:
 			dn = d_alloc(parent, &dname);
 			dout("d_alloc %p '%.*s' = %p\n", parent,
 			     dname.len, dname.name, dn);
-			if (dn == NULL) {
+			if (!dn) {
 				dout("d_alloc badness\n");
 				err = -ENOMEM;
 				goto out;
