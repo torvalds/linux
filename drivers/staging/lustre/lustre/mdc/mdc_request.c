@@ -49,7 +49,7 @@
 #include "../include/lustre_kernelcomm.h"
 #include "../include/lustre_lmv.h"
 #include "../include/lustre_log.h"
-#include "../include/lustre_param.h"
+#include "../../include/uapi/linux/lustre/lustre_param.h"
 #include "../include/lustre_swab.h"
 #include "../include/obd_class.h"
 

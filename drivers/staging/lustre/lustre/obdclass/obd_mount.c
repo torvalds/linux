@@ -46,7 +46,7 @@
 #include "../include/lustre/lustre_user.h"
 #include "../include/lustre_log.h"
 #include "../include/lustre_disk.h"
-#include "../include/lustre_param.h"
+#include "../../include/uapi/linux/lustre/lustre_param.h"
 
 static int (*client_fill_super)(struct super_block *sb,
 				struct vfsmount *mnt);

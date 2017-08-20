@@ -39,7 +39,7 @@
 #include "../include/obd.h"
 #include "../include/obd_support.h"
 #include "../include/lustre_import.h"
-#include "../include/lustre_param.h"
+#include "../../include/uapi/linux/lustre/lustre_param.h"
 #include "../include/lustre_sec.h"
 
 #include "ptlrpc_internal.h"

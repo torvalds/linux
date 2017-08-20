@@ -46,7 +46,7 @@
 #include "../include/lustre_dlm.h"
 #include "../include/lprocfs_status.h"
 #include "../include/lustre_disk.h"
-#include "../include/lustre_param.h"
+#include "../../include/uapi/linux/lustre/lustre_param.h"
 #include "../include/lustre_log.h"
 #include "../include/cl_object.h"
 #include "../include/obd_cksum.h"
