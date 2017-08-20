@@ -588,6 +588,10 @@ static int amdgpu_uvd_cs_msg_decode(struct amdgpu_device *adev, uint32_t *msg,
 		}
 		break;
 
+	case 8: /* MJPEG */
+		min_dpb_size = 0;
+		break;
+
 	case 16: /* H265 */
 		image_size = (ALIGN(width, 16) * ALIGN(height, 16) * 3) / 2;
 		image_size = ALIGN(image_size, 256);

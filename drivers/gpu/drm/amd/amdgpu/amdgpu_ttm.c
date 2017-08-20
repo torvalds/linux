@@ -43,6 +43,7 @@
 #include <linux/pagemap.h>
 #include <linux/debugfs.h>
 #include "amdgpu.h"
+#include "amdgpu_trace.h"
 #include "bif/bif_4_1_d.h"
 
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
@@ -662,6 +663,38 @@ release_pages:
 	return r;
 }
 
+static void amdgpu_trace_dma_map(struct ttm_tt *ttm)
+{
+	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	unsigned i;
+
+	if (unlikely(trace_amdgpu_ttm_tt_populate_enabled())) {
+		for (i = 0; i < ttm->num_pages; i++) {
+			trace_amdgpu_ttm_tt_populate(
+				adev,
+				gtt->ttm.dma_address[i],
+				page_to_phys(ttm->pages[i]));
+		}
+	}
+}
+
+static void amdgpu_trace_dma_unmap(struct ttm_tt *ttm)
+{
+	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	unsigned i;
+
+	if (unlikely(trace_amdgpu_ttm_tt_unpopulate_enabled())) {
+		for (i = 0; i < ttm->num_pages; i++) {
+			trace_amdgpu_ttm_tt_unpopulate(
+				adev,
+				gtt->ttm.dma_address[i],
+				page_to_phys(ttm->pages[i]));
+		}
+	}
+}
+
 /* prepare the sg table with the user pages */
 static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 {
@@ -687,6 +720,8 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 
 	drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
 					 gtt->ttm.dma_address, ttm->num_pages);
+
+	amdgpu_trace_dma_map(ttm);
 
 	return 0;
 
@@ -720,6 +755,8 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 		mark_page_accessed(page);
 		put_page(page);
 	}
+
+	amdgpu_trace_dma_unmap(ttm);
 
 	sg_free_table(ttm->sg);
 }
@@ -892,7 +929,7 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_bo_device *bdev,
 
 static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm)
 {
-	struct amdgpu_device *adev;
+	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	unsigned i;
 	int r;
@@ -915,14 +952,14 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm)
 		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
 						 gtt->ttm.dma_address, ttm->num_pages);
 		ttm->state = tt_unbound;
-		return 0;
+		r = 0;
+		goto trace_mappings;
 	}
-
-	adev = amdgpu_ttm_adev(ttm->bdev);
 
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl()) {
-		return ttm_dma_populate(&gtt->ttm, adev->dev);
+		r = ttm_dma_populate(&gtt->ttm, adev->dev);
+		goto trace_mappings;
 	}
 #endif
 
@@ -945,7 +982,12 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm)
 			return -EFAULT;
 		}
 	}
-	return 0;
+
+	r = 0;
+trace_mappings:
+	if (likely(!r))
+		amdgpu_trace_dma_map(ttm);
+	return r;
 }
 
 static void amdgpu_ttm_tt_unpopulate(struct ttm_tt *ttm)
@@ -965,6 +1007,8 @@ static void amdgpu_ttm_tt_unpopulate(struct ttm_tt *ttm)
 		return;
 
 	adev = amdgpu_ttm_adev(ttm->bdev);
+
+	amdgpu_trace_dma_unmap(ttm);
 
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl()) {
@@ -1597,32 +1641,16 @@ error_free:
 
 #if defined(CONFIG_DEBUG_FS)
 
-extern void amdgpu_gtt_mgr_print(struct seq_file *m, struct ttm_mem_type_manager
-				 *man);
 static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	unsigned ttm_pl = *(int *)node->info_ent->data;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	struct drm_mm *mm = (struct drm_mm *)adev->mman.bdev.man[ttm_pl].priv;
-	struct ttm_bo_global *glob = adev->mman.bdev.glob;
+	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[ttm_pl];
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	spin_lock(&glob->lru_lock);
-	drm_mm_print(mm, &p);
-	spin_unlock(&glob->lru_lock);
-	switch (ttm_pl) {
-	case TTM_PL_VRAM:
-		seq_printf(m, "man size:%llu pages, ram usage:%lluMB, vis usage:%lluMB\n",
-			   adev->mman.bdev.man[ttm_pl].size,
-			   (u64)atomic64_read(&adev->vram_usage) >> 20,
-			   (u64)atomic64_read(&adev->vram_vis_usage) >> 20);
-		break;
-	case TTM_PL_TT:
-		amdgpu_gtt_mgr_print(m, &adev->mman.bdev.man[TTM_PL_TT]);
-		break;
-	}
+	man->func->debug(man, &p);
 	return 0;
 }
 

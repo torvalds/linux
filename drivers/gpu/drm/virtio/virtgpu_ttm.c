@@ -192,7 +192,7 @@ static int ttm_bo_man_takedown(struct ttm_mem_type_manager *man)
 }
 
 static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
-			     const char *prefix)
+			     struct drm_printer *printer)
 {
 }
 

@@ -246,7 +246,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	}
 
 	total_vram = adev->mc.real_vram_size - adev->vram_pin_size;
-	used_vram = atomic64_read(&adev->vram_usage);
+	used_vram = amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 	free_vram = used_vram >= total_vram ? 0 : total_vram - used_vram;
 
 	spin_lock(&adev->mm_stats.lock);
@@ -292,7 +292,8 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	/* Do the same for visible VRAM if half of it is free */
 	if (adev->mc.visible_vram_size < adev->mc.real_vram_size) {
 		u64 total_vis_vram = adev->mc.visible_vram_size;
-		u64 used_vis_vram = atomic64_read(&adev->vram_vis_usage);
+		u64 used_vis_vram =
+			amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 
 		if (used_vis_vram < total_vis_vram) {
 			u64 free_vis_vram = total_vis_vram - used_vis_vram;
@@ -673,10 +674,8 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	}
 
 error_validate:
-	if (r) {
-		amdgpu_vm_move_pt_bos_in_lru(p->adev, &fpriv->vm);
+	if (r)
 		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
-	}
 
 error_free_pages:
 
@@ -724,21 +723,18 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
  * If error is set than unvalidate buffer, otherwise just free memory
  * used by parsing context.
  **/
-static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bool backoff)
+static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error,
+				  bool backoff)
 {
-	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
 	unsigned i;
 
-	if (!error) {
-		amdgpu_vm_move_pt_bos_in_lru(parser->adev, &fpriv->vm);
-
+	if (!error)
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 					    &parser->validated,
 					    parser->fence);
-	} else if (backoff) {
+	else if (backoff)
 		ttm_eu_backoff_reservation(&parser->ticket,
 					   &parser->validated);
-	}
 
 	for (i = 0; i < parser->num_post_dep_syncobjs; i++)
 		drm_syncobj_put(parser->post_dep_syncobjs[i]);
@@ -791,7 +787,8 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 
 	if (amdgpu_sriov_vf(adev)) {
 		struct dma_fence *f;
-		bo_va = vm->csa_bo_va;
+
+		bo_va = fpriv->csa_va;
 		BUG_ON(!bo_va);
 		r = amdgpu_vm_bo_update(adev, bo_va, false);
 		if (r)
@@ -828,7 +825,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 
 	}
 
-	r = amdgpu_vm_clear_invalids(adev, vm, &p->job->sync);
+	r = amdgpu_vm_clear_moved(adev, vm, &p->job->sync);
 
 	if (amdgpu_vm_debug && p->bo_list) {
 		/* Invalidate all BOs to test for userspace bugs */
@@ -1490,7 +1487,7 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 			    addr > mapping->last)
 				continue;
 
-			*bo = lobj->bo_va->bo;
+			*bo = lobj->bo_va->base.bo;
 			return mapping;
 		}
 
@@ -1499,7 +1496,7 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 			    addr > mapping->last)
 				continue;
 
-			*bo = lobj->bo_va->bo;
+			*bo = lobj->bo_va->base.bo;
 			return mapping;
 		}
 	}

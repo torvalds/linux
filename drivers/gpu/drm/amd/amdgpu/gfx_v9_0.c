@@ -2157,7 +2157,7 @@ static int gfx_v9_0_cp_gfx_start(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring = &adev->gfx.gfx_ring[0];
 	const struct cs_section_def *sect = NULL;
 	const struct cs_extent_def *ext = NULL;
-	int r, i;
+	int r, i, tmp;
 
 	/* init the CP */
 	WREG32_SOC15(GC, 0, mmCP_MAX_CONTEXT, adev->gfx.config.max_hw_contexts - 1);
@@ -2165,7 +2165,7 @@ static int gfx_v9_0_cp_gfx_start(struct amdgpu_device *adev)
 
 	gfx_v9_0_cp_gfx_enable(adev, true);
 
-	r = amdgpu_ring_alloc(ring, gfx_v9_0_get_csb_size(adev) + 4);
+	r = amdgpu_ring_alloc(ring, gfx_v9_0_get_csb_size(adev) + 4 + 3);
 	if (r) {
 		DRM_ERROR("amdgpu: cp failed to lock ring (%d).\n", r);
 		return r;
@@ -2202,6 +2202,12 @@ static int gfx_v9_0_cp_gfx_start(struct amdgpu_device *adev)
 	amdgpu_ring_write(ring, PACKET3_BASE_INDEX(CE_PARTITION_BASE));
 	amdgpu_ring_write(ring, 0x8000);
 	amdgpu_ring_write(ring, 0x8000);
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_UCONFIG_REG,1));
+	tmp = (PACKET3_SET_UCONFIG_REG_INDEX_TYPE |
+		(SOC15_REG_OFFSET(GC, 0, mmVGT_INDEX_TYPE) - PACKET3_SET_UCONFIG_REG_START));
+	amdgpu_ring_write(ring, tmp);
+	amdgpu_ring_write(ring, 0);
 
 	amdgpu_ring_commit(ring);
 

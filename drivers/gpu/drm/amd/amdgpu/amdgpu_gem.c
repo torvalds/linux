@@ -225,9 +225,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	if (args->in.domain_flags & ~(AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 				      AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
 				      AMDGPU_GEM_CREATE_CPU_GTT_USWC |
-				      AMDGPU_GEM_CREATE_VRAM_CLEARED|
-				      AMDGPU_GEM_CREATE_SHADOW |
-				      AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS))
+				      AMDGPU_GEM_CREATE_VRAM_CLEARED))
 		return -EINVAL;
 
 	/* reject invalid gem domains */
@@ -623,7 +621,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->operation) {
 	case AMDGPU_VA_OP_MAP:
-		r = amdgpu_vm_alloc_pts(adev, bo_va->vm, args->va_address,
+		r = amdgpu_vm_alloc_pts(adev, bo_va->base.vm, args->va_address,
 					args->map_size);
 		if (r)
 			goto error_backoff;
@@ -643,7 +641,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 						args->map_size);
 		break;
 	case AMDGPU_VA_OP_REPLACE:
-		r = amdgpu_vm_alloc_pts(adev, bo_va->vm, args->va_address,
+		r = amdgpu_vm_alloc_pts(adev, bo_va->base.vm, args->va_address,
 					args->map_size);
 		if (r)
 			goto error_backoff;
