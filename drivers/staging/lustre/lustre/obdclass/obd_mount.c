@@ -88,10 +88,17 @@ int lustre_process_log(struct super_block *sb, char *logname,
 	lustre_cfg_bufs_set_string(bufs, 1, logname);
 	lustre_cfg_bufs_set(bufs, 2, cfg, sizeof(*cfg));
 	lustre_cfg_bufs_set(bufs, 3, &sb, sizeof(sb));
-	lcfg = lustre_cfg_new(LCFG_LOG_START, bufs);
+	lcfg = kzalloc(lustre_cfg_len(bufs->lcfg_bufcount, bufs->lcfg_buflen),
+		       GFP_NOFS);
+	if (!lcfg) {
+		rc = -ENOMEM;
+		goto out;
+	}
+	lustre_cfg_init(lcfg, LCFG_LOG_START, bufs);
+
 	rc = obd_process_config(mgc, sizeof(*lcfg), lcfg);
 	kfree(lcfg);
-
+out:
 	kfree(bufs);
 
 	if (rc == -EINVAL)
@@ -126,7 +133,12 @@ int lustre_end_log(struct super_block *sb, char *logname,
 	lustre_cfg_bufs_set_string(&bufs, 1, logname);
 	if (cfg)
 		lustre_cfg_bufs_set(&bufs, 2, cfg, sizeof(*cfg));
-	lcfg = lustre_cfg_new(LCFG_LOG_END, &bufs);
+	lcfg = kzalloc(lustre_cfg_len(bufs.lcfg_bufcount, bufs.lcfg_buflen),
+		       GFP_NOFS);
+	if (!lcfg)
+		return -ENOMEM;
+	lustre_cfg_init(lcfg, LCFG_LOG_END, &bufs);
+
 	rc = obd_process_config(mgc, sizeof(*lcfg), lcfg);
 	kfree(lcfg);
 	return rc;
@@ -158,7 +170,11 @@ static int do_lcfg(char *cfgname, lnet_nid_t nid, int cmd,
 	if (s4)
 		lustre_cfg_bufs_set_string(&bufs, 4, s4);
 
-	lcfg = lustre_cfg_new(cmd, &bufs);
+	lcfg = kzalloc(lustre_cfg_len(bufs.lcfg_bufcount, bufs.lcfg_buflen),
+		       GFP_NOFS);
+	if (!lcfg)
+		return -ENOMEM;
+	lustre_cfg_init(lcfg, cmd, &bufs);
 	lcfg->lcfg_nid = nid;
 	rc = class_process_config(lcfg);
 	kfree(lcfg);

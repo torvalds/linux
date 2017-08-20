@@ -222,17 +222,11 @@ static inline __u32 lustre_cfg_len(__u32 bufcount, __u32 *buflens)
 
 #include "obd_support.h"
 
-static inline struct lustre_cfg *lustre_cfg_new(int cmd,
-						struct lustre_cfg_bufs *bufs)
+static inline void lustre_cfg_init(struct lustre_cfg *lcfg, int cmd,
+				   struct lustre_cfg_bufs *bufs)
 {
-	struct lustre_cfg *lcfg;
 	char *ptr;
 	int i;
-
-	lcfg = kzalloc(lustre_cfg_len(bufs->lcfg_bufcount, bufs->lcfg_buflen),
-		       GFP_NOFS);
-	if (!lcfg)
-		return ERR_PTR(-ENOMEM);
 
 	lcfg->lcfg_version = LUSTRE_CFG_VERSION;
 	lcfg->lcfg_command = cmd;
@@ -243,7 +237,6 @@ static inline struct lustre_cfg *lustre_cfg_new(int cmd,
 		lcfg->lcfg_buflens[i] = bufs->lcfg_buflen[i];
 		LOGL((char *)bufs->lcfg_buf[i], bufs->lcfg_buflen[i], ptr);
 	}
-	return lcfg;
 }
 
 static inline int lustre_cfg_sanity_check(void *buf, size_t len)

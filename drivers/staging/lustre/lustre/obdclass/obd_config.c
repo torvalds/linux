@@ -1107,6 +1107,7 @@ int class_config_llog_handler(const struct lu_env *env,
 		struct lustre_cfg_bufs bufs;
 		char *inst_name = NULL;
 		int inst_len = 0;
+		size_t lcfg_len;
 		int inst = 0, swab = 0;
 
 		lcfg = (struct lustre_cfg *)cfg_buf;
@@ -1238,8 +1239,14 @@ int class_config_llog_handler(const struct lu_env *env,
 						   clli->cfg_obdname);
 		}
 
-		lcfg_new = lustre_cfg_new(lcfg->lcfg_command, &bufs);
+		lcfg_len = lustre_cfg_len(bufs.lcfg_bufcount, bufs.lcfg_buflen);
+		lcfg_new = kzalloc(lcfg_len, GFP_NOFS);
+		if (!lcfg_new) {
+			rc = -ENOMEM;
+			goto out;
+		}
 
+		lustre_cfg_init(lcfg_new, lcfg->lcfg_command, &bufs);
 		lcfg_new->lcfg_num   = lcfg->lcfg_num;
 		lcfg_new->lcfg_flags = lcfg->lcfg_flags;
 
@@ -1426,9 +1433,11 @@ int class_manual_cleanup(struct obd_device *obd)
 
 	lustre_cfg_bufs_reset(&bufs, obd->obd_name);
 	lustre_cfg_bufs_set_string(&bufs, 1, flags);
-	lcfg = lustre_cfg_new(LCFG_CLEANUP, &bufs);
-	if (IS_ERR(lcfg))
-		return PTR_ERR(lcfg);
+	lcfg = kzalloc(lustre_cfg_len(bufs.lcfg_bufcount, bufs.lcfg_buflen),
+			GFP_NOFS);
+	if (!lcfg)
+		return -ENOMEM;
+	lustre_cfg_init(lcfg, LCFG_CLEANUP, &bufs);
 
 	rc = class_process_config(lcfg);
 	if (rc) {

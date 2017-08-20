@@ -1155,6 +1155,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 		char *cname;
 		char *params;
 		char *uuid;
+		size_t len;
 
 		rc = -EINVAL;
 		if (datalen < sizeof(*entry))
@@ -1283,11 +1284,13 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 		lustre_cfg_bufs_set_string(&bufs, 1, params);
 
 		rc = -ENOMEM;
-		lcfg = lustre_cfg_new(LCFG_PARAM, &bufs);
-		if (IS_ERR(lcfg)) {
-			CERROR("mgc: cannot allocate memory\n");
+		len = lustre_cfg_len(bufs.lcfg_bufcount, bufs.lcfg_buflen);
+		lcfg = kzalloc(len, GFP_NOFS);
+		if (!lcfg) {
+			rc = -ENOMEM;
 			break;
 		}
+		lustre_cfg_init(lcfg, LCFG_PARAM, &bufs);
 
 		CDEBUG(D_INFO, "ir apply logs %lld/%lld for %s -> %s\n",
 		       prev_version, max_version, obdname, params);
