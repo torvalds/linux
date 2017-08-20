@@ -59,6 +59,7 @@
 #include "mlx5_ib.h"
 #include "ib_rep.h"
 #include "cmd.h"
+#include <linux/mlx5/fs_helpers.h>
 
 #define DRIVER_NAME "mlx5_ib"
 #define DRIVER_VERSION "5.0-0"
@@ -2312,8 +2313,6 @@ static void set_tos(void *outer_c, void *outer_v, u8 mask, u8 val)
 		   offsetof(typeof(filter), field) -\
 		   sizeof(filter.field))
 
-#define IPV4_VERSION 4
-#define IPV6_VERSION 6
 static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
 			   u32 *match_v, const union ib_flow_spec *ib_spec,
 			   struct mlx5_flow_act *action)
@@ -2399,7 +2398,7 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 				 ip_version, 0xf);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-				 ip_version, IPV4_VERSION);
+				 ip_version, MLX5_FS_IPV4_VERSION);
 		} else {
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 				 ethertype, 0xffff);
@@ -2438,7 +2437,7 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 				 ip_version, 0xf);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v,
-				 ip_version, IPV6_VERSION);
+				 ip_version, MLX5_FS_IPV6_VERSION);
 		} else {
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c,
 				 ethertype, 0xffff);
