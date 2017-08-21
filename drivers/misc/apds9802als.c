@@ -298,7 +298,7 @@ static UNIVERSAL_DEV_PM_OPS(apds9802als_pm_ops, apds9802als_suspend,
 #define APDS9802ALS_PM_OPS NULL
 #endif	/* CONFIG_PM */
 
-static struct i2c_device_id apds9802als_id[] = {
+static const struct i2c_device_id apds9802als_id[] = {
 	{ DRIVER_NAME, 0 },
 	{ }
 };
