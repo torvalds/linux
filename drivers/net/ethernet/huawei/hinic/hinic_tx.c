@@ -67,6 +67,28 @@ void hinic_txq_clean_stats(struct hinic_txq *txq)
 }
 
 /**
+ * hinic_txq_get_stats - get statistics of Tx Queue
+ * @txq: Logical Tx Queue
+ * @stats: return updated stats here
+ **/
+void hinic_txq_get_stats(struct hinic_txq *txq, struct hinic_txq_stats *stats)
+{
+	struct hinic_txq_stats *txq_stats = &txq->txq_stats;
+	unsigned int start;
+
+	u64_stats_update_begin(&stats->syncp);
+	do {
+		start = u64_stats_fetch_begin(&txq_stats->syncp);
+		stats->pkts    = txq_stats->pkts;
+		stats->bytes   = txq_stats->bytes;
+		stats->tx_busy = txq_stats->tx_busy;
+		stats->tx_wake = txq_stats->tx_wake;
+		stats->tx_dropped = txq_stats->tx_dropped;
+	} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
+	u64_stats_update_end(&stats->syncp);
+}
+
+/**
  * txq_stats_init - Initialize the statistics of specific queue
  * @txq: Logical Tx Queue
  **/

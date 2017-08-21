@@ -56,6 +56,9 @@ struct hinic_dev {
 
 	struct hinic_txq                *txqs;
 	struct hinic_rxq                *rxqs;
+
+	struct hinic_txq_stats          tx_stats;
+	struct hinic_rxq_stats          rx_stats;
 };
 
 #endif

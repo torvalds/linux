@@ -45,6 +45,8 @@ struct hinic_rxq {
 
 void hinic_rxq_clean_stats(struct hinic_rxq *rxq);
 
+void hinic_rxq_get_stats(struct hinic_rxq *rxq, struct hinic_rxq_stats *stats);
+
 int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 		   struct net_device *netdev);
 

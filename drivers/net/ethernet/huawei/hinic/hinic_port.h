@@ -45,6 +45,33 @@ enum hinic_func_port_state {
 	HINIC_FUNC_PORT_ENABLE  = 2,
 };
 
+enum hinic_autoneg_cap {
+	HINIC_AUTONEG_UNSUPPORTED,
+	HINIC_AUTONEG_SUPPORTED,
+};
+
+enum hinic_autoneg_state {
+	HINIC_AUTONEG_DISABLED,
+	HINIC_AUTONEG_ACTIVE,
+};
+
+enum hinic_duplex {
+	HINIC_DUPLEX_HALF,
+	HINIC_DUPLEX_FULL,
+};
+
+enum hinic_speed {
+	HINIC_SPEED_10MB_LINK = 0,
+	HINIC_SPEED_100MB_LINK,
+	HINIC_SPEED_1000MB_LINK,
+	HINIC_SPEED_10GB_LINK,
+	HINIC_SPEED_25GB_LINK,
+	HINIC_SPEED_40GB_LINK,
+	HINIC_SPEED_100GB_LINK,
+
+	HINIC_SPEED_UNKNOWN = 0xFF,
+};
+
 struct hinic_port_mac_cmd {
 	u8              status;
 	u8              version;
@@ -125,6 +152,21 @@ struct hinic_port_func_state_cmd {
 	u8      rsvd2[3];
 };
 
+struct hinic_port_cap {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_idx;
+	u16     rsvd1;
+	u8      port_type;
+	u8      autoneg_cap;
+	u8      autoneg_state;
+	u8      duplex;
+	u8      speed;
+	u8      rsvd2[3];
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 
@@ -149,5 +191,8 @@ int hinic_port_set_state(struct hinic_dev *nic_dev,
 
 int hinic_port_set_func_state(struct hinic_dev *nic_dev,
 			      enum hinic_func_port_state state);
+
+int hinic_port_get_cap(struct hinic_dev *nic_dev,
+		       struct hinic_port_cap *port_cap);
 
 #endif

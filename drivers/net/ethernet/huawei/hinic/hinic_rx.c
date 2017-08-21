@@ -58,6 +58,25 @@ void hinic_rxq_clean_stats(struct hinic_rxq *rxq)
 }
 
 /**
+ * hinic_rxq_get_stats - get statistics of Rx Queue
+ * @rxq: Logical Rx Queue
+ * @stats: return updated stats here
+ **/
+void hinic_rxq_get_stats(struct hinic_rxq *rxq, struct hinic_rxq_stats *stats)
+{
+	struct hinic_rxq_stats *rxq_stats = &rxq->rxq_stats;
+	unsigned int start;
+
+	u64_stats_update_begin(&stats->syncp);
+	do {
+		start = u64_stats_fetch_begin(&rxq_stats->syncp);
+		stats->pkts = rxq_stats->pkts;
+		stats->bytes = rxq_stats->bytes;
+	} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
+	u64_stats_update_end(&stats->syncp);
+}
+
+/**
  * rxq_stats_init - Initialize the statistics of specific queue
  * @rxq: Logical Rx Queue
  **/
