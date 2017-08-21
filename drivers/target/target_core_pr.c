@@ -1521,7 +1521,7 @@ core_scsi3_decode_spec_i_port(
 	tidh_new = kzalloc(sizeof(struct pr_transport_id_holder), GFP_KERNEL);
 	if (!tidh_new) {
 		pr_err("Unable to allocate tidh_new\n");
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		return TCM_INSUFFICIENT_REGISTRATION_RESOURCES;
 	}
 	INIT_LIST_HEAD(&tidh_new->dest_list);
 	tidh_new->dest_tpg = tpg;
@@ -1533,7 +1533,7 @@ core_scsi3_decode_spec_i_port(
 				sa_res_key, all_tg_pt, aptpl);
 	if (!local_pr_reg) {
 		kfree(tidh_new);
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		return TCM_INSUFFICIENT_REGISTRATION_RESOURCES;
 	}
 	tidh_new->dest_pr_reg = local_pr_reg;
 	/*
@@ -1553,7 +1553,7 @@ core_scsi3_decode_spec_i_port(
 
 	buf = transport_kmap_data_sg(cmd);
 	if (!buf) {
-		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		ret = TCM_INSUFFICIENT_REGISTRATION_RESOURCES;
 		goto out;
 	}
 
@@ -1767,7 +1767,7 @@ core_scsi3_decode_spec_i_port(
 			core_scsi3_nodeacl_undepend_item(dest_node_acl);
 			core_scsi3_tpg_undepend_item(dest_tpg);
 			kfree(tidh_new);
-			ret = TCM_INVALID_PARAMETER_LIST;
+			ret = TCM_INSUFFICIENT_REGISTRATION_RESOURCES;
 			goto out_unmap;
 		}
 		tidh_new->dest_pr_reg = dest_pr_reg;
@@ -2103,7 +2103,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 					register_type, 0)) {
 				pr_err("Unable to allocate"
 					" struct t10_pr_registration\n");
-				return TCM_INVALID_PARAMETER_LIST;
+				return TCM_INSUFFICIENT_REGISTRATION_RESOURCES;
 			}
 		} else {
 			/*
@@ -3215,7 +3215,7 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 	 */
 	buf = transport_kmap_data_sg(cmd);
 	if (!buf) {
-		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		ret = TCM_INSUFFICIENT_REGISTRATION_RESOURCES;
 		goto out_put_pr_reg;
 	}
 
@@ -3267,7 +3267,7 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 
 	buf = transport_kmap_data_sg(cmd);
 	if (!buf) {
-		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		ret = TCM_INSUFFICIENT_REGISTRATION_RESOURCES;
 		goto out_put_pr_reg;
 	}
 	proto_ident = (buf[24] & 0x0f);
@@ -3466,7 +3466,7 @@ after_iport_check:
 		if (core_scsi3_alloc_registration(cmd->se_dev, dest_node_acl,
 					dest_lun, dest_se_deve, dest_se_deve->mapped_lun,
 					iport_ptr, sa_res_key, 0, aptpl, 2, 1)) {
-			ret = TCM_INVALID_PARAMETER_LIST;
+			ret = TCM_INSUFFICIENT_REGISTRATION_RESOURCES;
 			goto out;
 		}
 		spin_lock(&dev->dev_reservation_lock);

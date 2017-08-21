@@ -3145,6 +3145,21 @@ static const struct sense_info sense_info_table[] = {
 		.key = NOT_READY,
 		.asc = 0x08, /* LOGICAL UNIT COMMUNICATION FAILURE */
 	},
+	[TCM_INSUFFICIENT_REGISTRATION_RESOURCES] = {
+		/*
+		 * From spc4r22 section5.7.7,5.7.8
+		 * If a PERSISTENT RESERVE OUT command with a REGISTER service action
+		 * or a REGISTER AND IGNORE EXISTING KEY service action or
+		 * REGISTER AND MOVE service actionis attempted,
+		 * but there are insufficient device server resources to complete the
+		 * operation, then the command shall be terminated with CHECK CONDITION
+		 * status, with the sense key set to ILLEGAL REQUEST,and the additonal
+		 * sense code set to INSUFFICIENT REGISTRATION RESOURCES.
+		 */
+		.key = ILLEGAL_REQUEST,
+		.asc = 0x55,
+		.ascq = 0x04, /* INSUFFICIENT REGISTRATION RESOURCES */
+	},
 };
 
 static int translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
