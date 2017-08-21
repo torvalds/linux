@@ -953,6 +953,11 @@ static int ipmmu_probe(struct platform_device *pdev)
 
 	ipmmu_device_reset(mmu);
 
+	ret = iommu_device_sysfs_add(&mmu->iommu, &pdev->dev, NULL,
+				     dev_name(&pdev->dev));
+	if (ret)
+		return ret;
+
 	iommu_device_set_ops(&mmu->iommu, &ipmmu_ops);
 	iommu_device_set_fwnode(&mmu->iommu, &pdev->dev.of_node->fwnode);
 
@@ -975,6 +980,7 @@ static int ipmmu_remove(struct platform_device *pdev)
 {
 	struct ipmmu_vmsa_device *mmu = platform_get_drvdata(pdev);
 
+	iommu_device_sysfs_remove(&mmu->iommu);
 	iommu_device_unregister(&mmu->iommu);
 
 #if defined(CONFIG_ARM) && !defined(CONFIG_IOMMU_DMA)
