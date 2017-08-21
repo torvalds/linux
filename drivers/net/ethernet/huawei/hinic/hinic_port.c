@@ -1,0 +1,224 @@
+/*
+ * Huawei HiNIC PCI Express Linux driver
+ * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * for more details.
+ *
+ */
+
+#include <linux/types.h>
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
+#include <linux/pci.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+
+#include "hinic_hw_if.h"
+#include "hinic_hw_dev.h"
+#include "hinic_port.h"
+#include "hinic_dev.h"
+
+#define HINIC_MIN_MTU_SIZE              256
+#define HINIC_MAX_JUMBO_FRAME_SIZE      15872
+
+enum mac_op {
+	MAC_DEL,
+	MAC_SET,
+};
+
+/**
+ * change_mac - change(add or delete) mac address
+ * @nic_dev: nic device
+ * @addr: mac address
+ * @vlan_id: vlan number to set with the mac
+ * @op: add or delete the mac
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int change_mac(struct hinic_dev *nic_dev, const u8 *addr,
+		      u16 vlan_id, enum mac_op op)
+{
+	struct net_device *netdev = nic_dev->netdev;
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_port_mac_cmd port_mac_cmd;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	enum hinic_port_cmd cmd;
+	u16 out_size;
+	int err;
+
+	if (vlan_id >= VLAN_N_VID) {
+		netif_err(nic_dev, drv, netdev, "Invalid VLAN number\n");
+		return -EINVAL;
+	}
+
+	if (op == MAC_SET)
+		cmd = HINIC_PORT_CMD_SET_MAC;
+	else
+		cmd = HINIC_PORT_CMD_DEL_MAC;
+
+	port_mac_cmd.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
+	port_mac_cmd.vlan_id = vlan_id;
+	memcpy(port_mac_cmd.mac, addr, ETH_ALEN);
+
+	err = hinic_port_msg_cmd(hwdev, cmd, &port_mac_cmd,
+				 sizeof(port_mac_cmd),
+				 &port_mac_cmd, &out_size);
+	if (err || (out_size != sizeof(port_mac_cmd)) || port_mac_cmd.status) {
+		dev_err(&pdev->dev, "Failed to change MAC, ret = %d\n",
+			port_mac_cmd.status);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+/**
+ * hinic_port_add_mac - add mac address
+ * @nic_dev: nic device
+ * @addr: mac address
+ * @vlan_id: vlan number to set with the mac
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_port_add_mac(struct hinic_dev *nic_dev,
+		       const u8 *addr, u16 vlan_id)
+{
+	return change_mac(nic_dev, addr, vlan_id, MAC_SET);
+}
+
+/**
+ * hinic_port_del_mac - remove mac address
+ * @nic_dev: nic device
+ * @addr: mac address
+ * @vlan_id: vlan number that is connected to the mac
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_port_del_mac(struct hinic_dev *nic_dev, const u8 *addr,
+		       u16 vlan_id)
+{
+	return change_mac(nic_dev, addr, vlan_id, MAC_DEL);
+}
+
+/**
+ * hinic_port_get_mac - get the mac address of the nic device
+ * @nic_dev: nic device
+ * @addr: returned mac address
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_port_get_mac(struct hinic_dev *nic_dev, u8 *addr)
+{
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_port_mac_cmd port_mac_cmd;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	u16 out_size;
+	int err;
+
+	port_mac_cmd.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_MAC,
+				 &port_mac_cmd, sizeof(port_mac_cmd),
+				 &port_mac_cmd, &out_size);
+	if (err || (out_size != sizeof(port_mac_cmd)) || port_mac_cmd.status) {
+		dev_err(&pdev->dev, "Failed to get mac, ret = %d\n",
+			port_mac_cmd.status);
+		return -EFAULT;
+	}
+
+	memcpy(addr, port_mac_cmd.mac, ETH_ALEN);
+	return 0;
+}
+
+/**
+ * hinic_port_set_mtu - set mtu
+ * @nic_dev: nic device
+ * @new_mtu: new mtu
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_port_set_mtu(struct hinic_dev *nic_dev, int new_mtu)
+{
+	struct net_device *netdev = nic_dev->netdev;
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_port_mtu_cmd port_mtu_cmd;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	int err, max_frame;
+	u16 out_size;
+
+	if (new_mtu < HINIC_MIN_MTU_SIZE) {
+		netif_err(nic_dev, drv, netdev, "mtu < MIN MTU size");
+		return -EINVAL;
+	}
+
+	max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
+	if (max_frame > HINIC_MAX_JUMBO_FRAME_SIZE) {
+		netif_err(nic_dev, drv, netdev, "mtu > MAX MTU size");
+		return -EINVAL;
+	}
+
+	port_mtu_cmd.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
+	port_mtu_cmd.mtu = new_mtu;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_CHANGE_MTU,
+				 &port_mtu_cmd, sizeof(port_mtu_cmd),
+				 &port_mtu_cmd, &out_size);
+	if (err || (out_size != sizeof(port_mtu_cmd)) || port_mtu_cmd.status) {
+		dev_err(&pdev->dev, "Failed to set mtu, ret = %d\n",
+			port_mtu_cmd.status);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+/**
+ * hinic_port_add_vlan - add vlan to the nic device
+ * @nic_dev: nic device
+ * @vlan_id: the vlan number to add
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_port_add_vlan(struct hinic_dev *nic_dev, u16 vlan_id)
+{
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_port_vlan_cmd port_vlan_cmd;
+
+	port_vlan_cmd.func_idx = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	port_vlan_cmd.vlan_id = vlan_id;
+
+	return hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_ADD_VLAN,
+				  &port_vlan_cmd, sizeof(port_vlan_cmd),
+				  NULL, NULL);
+}
+
+/**
+ * hinic_port_del_vlan - delete vlan from the nic device
+ * @nic_dev: nic device
+ * @vlan_id: the vlan number to delete
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_port_del_vlan(struct hinic_dev *nic_dev, u16 vlan_id)
+{
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_port_vlan_cmd port_vlan_cmd;
+
+	port_vlan_cmd.func_idx = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	port_vlan_cmd.vlan_id = vlan_id;
+
+	return hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_DEL_VLAN,
+				 &port_vlan_cmd, sizeof(port_vlan_cmd),
+				 NULL, NULL);
+}

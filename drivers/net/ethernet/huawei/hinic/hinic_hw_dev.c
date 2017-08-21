@@ -200,6 +200,36 @@ static void disable_msix(struct hinic_hwdev *hwdev)
 }
 
 /**
+ * hinic_port_msg_cmd - send port msg to mgmt
+ * @hwdev: the NIC HW device
+ * @cmd: the port command
+ * @buf_in: input buffer
+ * @in_size: input size
+ * @buf_out: output buffer
+ * @out_size: returned output size
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_port_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_port_cmd cmd,
+		       void *buf_in, u16 in_size, void *buf_out, u16 *out_size)
+{
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_pfhwdev *pfhwdev;
+
+	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
+		dev_err(&pdev->dev, "unsupported PCI Function type\n");
+		return -EINVAL;
+	}
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	return hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_L2NIC, cmd,
+				 buf_in, in_size, buf_out, out_size,
+				 HINIC_MGMT_MSG_SYNC);
+}
+
+/**
  * init_pfhwdev - Initialize the extended components of PF
  * @pfhwdev: the HW device for PF
  *

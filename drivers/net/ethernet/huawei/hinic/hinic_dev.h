@@ -18,6 +18,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/types.h>
+#include <linux/semaphore.h>
 
 #include "hinic_hw_dev.h"
 
@@ -28,6 +29,9 @@ struct hinic_dev {
 	struct hinic_hwdev              *hwdev;
 
 	u32                             msg_enable;
+
+	struct semaphore                mgmt_lock;
+	unsigned long                   *vlan_bitmap;
 };
 
 #endif

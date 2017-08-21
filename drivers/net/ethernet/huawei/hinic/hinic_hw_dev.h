@@ -30,6 +30,31 @@ struct hinic_cap {
 	u16     num_qps;
 };
 
+enum hinic_port_cmd {
+	HINIC_PORT_CMD_CHANGE_MTU       = 2,
+
+	HINIC_PORT_CMD_ADD_VLAN         = 3,
+	HINIC_PORT_CMD_DEL_VLAN         = 4,
+
+	HINIC_PORT_CMD_SET_MAC          = 9,
+	HINIC_PORT_CMD_GET_MAC          = 10,
+	HINIC_PORT_CMD_DEL_MAC          = 11,
+
+	HINIC_PORT_CMD_SET_RX_MODE      = 12,
+
+	HINIC_PORT_CMD_GET_LINK_STATE   = 24,
+
+	HINIC_PORT_CMD_SET_PORT_STATE   = 41,
+
+	HINIC_PORT_CMD_FWCTXT_INIT      = 69,
+
+	HINIC_PORT_CMD_SET_FUNC_STATE   = 93,
+
+	HINIC_PORT_CMD_GET_GLOBAL_QPN   = 102,
+
+	HINIC_PORT_CMD_GET_CAP          = 170,
+};
+
 struct hinic_hwdev {
 	struct hinic_hwif               *hwif;
 	struct msix_entry               *msix_entries;
@@ -44,6 +69,10 @@ struct hinic_pfhwdev {
 
 	struct hinic_pf_to_mgmt         pf_to_mgmt;
 };
+
+int hinic_port_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_port_cmd cmd,
+		       void *buf_in, u16 in_size, void *buf_out,
+		       u16 *out_size);
 
 struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev);
 
