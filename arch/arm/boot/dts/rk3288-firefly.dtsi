@@ -89,7 +89,7 @@
 		power-supply = <&vcc_sys>;
 	};
 
-	panel: panel {
+	edp_panel: edp-panel {
 		compatible ="lg,lp079qx1-sp0v";
 		power-supply = <&vcc_sys>;
 		backlight = <&backlight>;
