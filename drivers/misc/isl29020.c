@@ -188,7 +188,7 @@ static int isl29020_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id isl29020_id[] = {
+static const struct i2c_device_id isl29020_id[] = {
 	{ "isl29020", 0 },
 	{ }
 };
