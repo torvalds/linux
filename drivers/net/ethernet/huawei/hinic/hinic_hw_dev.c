@@ -23,10 +23,131 @@
 #include <linux/err.h>
 
 #include "hinic_hw_if.h"
+#include "hinic_hw_eqs.h"
+#include "hinic_hw_mgmt.h"
 #include "hinic_hw_dev.h"
 
 #define MAX_IRQS(max_qps, num_aeqs, num_ceqs)   \
 		 (2 * (max_qps) + (num_aeqs) + (num_ceqs))
+
+enum intr_type {
+	INTR_MSIX_TYPE,
+};
+
+/* HW struct */
+struct hinic_dev_cap {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u8      rsvd1[5];
+	u8      intr_type;
+	u8      rsvd2[66];
+	u16     max_sqs;
+	u16     max_rqs;
+	u8      rsvd3[208];
+};
+
+/**
+ * get_capability - convert device capabilities to NIC capabilities
+ * @hwdev: the HW device to set and convert device capabilities for
+ * @dev_cap: device capabilities from FW
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int get_capability(struct hinic_hwdev *hwdev,
+			  struct hinic_dev_cap *dev_cap)
+{
+	struct hinic_cap *nic_cap = &hwdev->nic_cap;
+	int num_aeqs, num_ceqs, num_irqs;
+
+	if (!HINIC_IS_PF(hwdev->hwif) && !HINIC_IS_PPF(hwdev->hwif))
+		return -EINVAL;
+
+	if (dev_cap->intr_type != INTR_MSIX_TYPE)
+		return -EFAULT;
+
+	num_aeqs = HINIC_HWIF_NUM_AEQS(hwdev->hwif);
+	num_ceqs = HINIC_HWIF_NUM_CEQS(hwdev->hwif);
+	num_irqs = HINIC_HWIF_NUM_IRQS(hwdev->hwif);
+
+	/* Each QP has its own (SQ + RQ) interrupts */
+	nic_cap->num_qps = (num_irqs - (num_aeqs + num_ceqs)) / 2;
+
+	/* num_qps must be power of 2 */
+	nic_cap->num_qps = BIT(fls(nic_cap->num_qps) - 1);
+
+	nic_cap->max_qps = dev_cap->max_sqs + 1;
+	if (nic_cap->max_qps != (dev_cap->max_rqs + 1))
+		return -EFAULT;
+
+	if (nic_cap->num_qps > nic_cap->max_qps)
+		nic_cap->num_qps = nic_cap->max_qps;
+
+	return 0;
+}
+
+/**
+ * get_cap_from_fw - get device capabilities from FW
+ * @pfhwdev: the PF HW device to get capabilities for
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int get_cap_from_fw(struct hinic_pfhwdev *pfhwdev)
+{
+	struct hinic_hwdev *hwdev = &pfhwdev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_dev_cap dev_cap;
+	u16 in_len, out_len;
+	int err;
+
+	in_len = 0;
+	out_len = sizeof(dev_cap);
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_CFGM,
+				HINIC_CFG_NIC_CAP, &dev_cap, in_len, &dev_cap,
+				&out_len, HINIC_MGMT_MSG_SYNC);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to get capability from FW\n");
+		return err;
+	}
+
+	return get_capability(hwdev, &dev_cap);
+}
+
+/**
+ * get_dev_cap - get device capabilities
+ * @hwdev: the NIC HW device to get capabilities for
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int get_dev_cap(struct hinic_hwdev *hwdev)
+{
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	switch (HINIC_FUNC_TYPE(hwif)) {
+	case HINIC_PPF:
+	case HINIC_PF:
+		pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+		err = get_cap_from_fw(pfhwdev);
+		if (err) {
+			dev_err(&pdev->dev, "Failed to get capability from FW\n");
+			return err;
+		}
+		break;
+
+	default:
+		dev_err(&pdev->dev, "Unsupported PCI Function type\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 /**
  * init_msix - enable the msix and save the entries
@@ -86,7 +207,17 @@ static void disable_msix(struct hinic_hwdev *hwdev)
  **/
 static int init_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 {
-	/* Initialize PF HW device extended components */
+	struct hinic_hwdev *hwdev = &pfhwdev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	int err;
+
+	err = hinic_pf_to_mgmt_init(&pfhwdev->pf_to_mgmt, hwif);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize PF to MGMT channel\n");
+		return err;
+	}
+
 	return 0;
 }
 
@@ -96,6 +227,7 @@ static int init_pfhwdev(struct hinic_pfhwdev *pfhwdev)
  **/
 static void free_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 {
+	hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
 }
 
 /**
@@ -111,7 +243,7 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
 	struct hinic_pfhwdev *pfhwdev;
 	struct hinic_hwdev *hwdev;
 	struct hinic_hwif *hwif;
-	int err;
+	int err, num_aeqs;
 
 	hwif = devm_kzalloc(&pdev->dev, sizeof(*hwif), GFP_KERNEL);
 	if (!hwif)
@@ -144,15 +276,37 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
 		goto err_init_msix;
 	}
 
+	num_aeqs = HINIC_HWIF_NUM_AEQS(hwif);
+
+	err = hinic_aeqs_init(&hwdev->aeqs, hwif, num_aeqs,
+			      HINIC_DEFAULT_AEQ_LEN, HINIC_EQ_PAGE_SIZE,
+			      hwdev->msix_entries);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init async event queues\n");
+		goto err_aeqs_init;
+	}
+
 	err = init_pfhwdev(pfhwdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init PF HW device\n");
 		goto err_init_pfhwdev;
 	}
 
+	err = get_dev_cap(hwdev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to get device capabilities\n");
+		goto err_dev_cap;
+	}
+
 	return hwdev;
 
+err_dev_cap:
+	free_pfhwdev(pfhwdev);
+
 err_init_pfhwdev:
+	hinic_aeqs_free(&hwdev->aeqs);
+
+err_aeqs_init:
 	disable_msix(hwdev);
 
 err_init_msix:
@@ -174,6 +328,8 @@ void hinic_free_hwdev(struct hinic_hwdev *hwdev)
 
 	free_pfhwdev(pfhwdev);
 
+	hinic_aeqs_free(&hwdev->aeqs);
+
 	disable_msix(hwdev);
 
 	hinic_free_hwif(hwdev->hwif);
@@ -187,15 +343,7 @@ void hinic_free_hwdev(struct hinic_hwdev *hwdev)
  **/
 int hinic_hwdev_num_qps(struct hinic_hwdev *hwdev)
 {
-	int num_aeqs, num_ceqs, nr_irqs, num_qps;
+	struct hinic_cap *nic_cap = &hwdev->nic_cap;
 
-	num_aeqs = HINIC_HWIF_NUM_AEQS(hwdev->hwif);
-	num_ceqs = HINIC_HWIF_NUM_CEQS(hwdev->hwif);
-	nr_irqs  = HINIC_HWIF_NUM_IRQS(hwdev->hwif);
-
-	/* Each QP has its own (SQ + RQ) interrupt */
-	num_qps = (nr_irqs - (num_aeqs + num_ceqs)) / 2;
-
-	/* num_qps must be power of 2 */
-	return BIT(fls(num_qps) - 1);
+	return nic_cap->num_qps;
 }

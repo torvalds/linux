@@ -119,6 +119,14 @@ enum hinic_func_type {
 	HINIC_PPF       = 2,
 };
 
+enum hinic_mod_type {
+	HINIC_MOD_COMM  = 0,    /* HW communication module */
+	HINIC_MOD_L2NIC = 1,    /* L2NIC module */
+	HINIC_MOD_CFGM  = 7,    /* Configuration module */
+
+	HINIC_MOD_MAX   = 15
+};
+
 struct hinic_func_attr {
 	u16                     func_idx;
 	u8                      pf_idx;
