@@ -344,8 +344,9 @@ static void free_sched_groups(struct sched_group *sg, int free_sgc)
 static void destroy_sched_domain(struct sched_domain *sd)
 {
 	/*
-	 * A sched domain has many groups' reference, and an overlapping
-	 * domain has private groups, iterate and nuke them all.
+	 * A normal sched domain may have multiple group references, an
+	 * overlapping domain, having private groups, only one.  Iterate,
+	 * dropping group/capacity references, freeing where none remain.
 	 */
 	free_sched_groups(sd->groups, 1);
 
