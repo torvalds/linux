@@ -22,6 +22,12 @@ Optional properties:
 - ddr_timing:  DDR timing need to pass to arm trust firmware
 - upthreshold: The upthreshold to simpleondeamnd policy
 - downdifferential: The downdifferential to simpleondeamnd policy
+- vop-bw-dmc-freq: The property is an array of 3-tuples items, and
+		   each item consists of bandwidth and frequency like
+		   <min-bandwidth max-bandwidth frequency>.
+		   min-bandwidth: minimum ddr bandwidth in Mbyte/sec.
+		   max-bandwidth: maximum ddr bandwidth in Mbyte/sec.
+		   frequency: ddr frequency in KHz.
 
 Example:
 
