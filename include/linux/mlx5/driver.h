@@ -890,8 +890,6 @@ static inline void *mlx5_buf_offset(struct mlx5_buf *buf, int offset)
 		return buf->direct.buf + offset;
 }
 
-extern struct workqueue_struct *mlx5_core_wq;
-
 #define STRUCT_FIELD(header, field) \
 	.struct_offset_bytes = offsetof(struct ib_unpacked_ ## header, field),      \
 	.struct_size_bytes   = sizeof((struct ib_unpacked_ ## header *)0)->field
