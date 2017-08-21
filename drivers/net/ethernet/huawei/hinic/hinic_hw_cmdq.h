@@ -58,12 +58,50 @@
 			((val) & (~((u64)HINIC_CMDQ_CTXT_##member##_MASK \
 			 << HINIC_CMDQ_CTXT_##member##_SHIFT)))
 
+#define HINIC_SAVED_DATA_ARM_SHIFT                      31
+
+#define HINIC_SAVED_DATA_ARM_MASK                       0x1
+
+#define HINIC_SAVED_DATA_SET(val, member)               \
+			(((u32)(val) & HINIC_SAVED_DATA_##member##_MASK) \
+			 << HINIC_SAVED_DATA_##member##_SHIFT)
+
+#define HINIC_SAVED_DATA_GET(val, member)               \
+			(((val) >> HINIC_SAVED_DATA_##member##_SHIFT) \
+			 & HINIC_SAVED_DATA_##member##_MASK)
+
+#define HINIC_SAVED_DATA_CLEAR(val, member)             \
+			((val) & (~(HINIC_SAVED_DATA_##member##_MASK \
+			 << HINIC_SAVED_DATA_##member##_SHIFT)))
+
+#define HINIC_CMDQ_DB_INFO_HI_PROD_IDX_SHIFT            0
+#define HINIC_CMDQ_DB_INFO_PATH_SHIFT                   23
+#define HINIC_CMDQ_DB_INFO_CMDQ_TYPE_SHIFT              24
+#define HINIC_CMDQ_DB_INFO_DB_TYPE_SHIFT                27
+
+#define HINIC_CMDQ_DB_INFO_HI_PROD_IDX_MASK             0xFF
+#define HINIC_CMDQ_DB_INFO_PATH_MASK                    0x1
+#define HINIC_CMDQ_DB_INFO_CMDQ_TYPE_MASK               0x7
+#define HINIC_CMDQ_DB_INFO_DB_TYPE_MASK                 0x1F
+
+#define HINIC_CMDQ_DB_INFO_SET(val, member)             \
+			(((u32)(val) & HINIC_CMDQ_DB_INFO_##member##_MASK) \
+			 << HINIC_CMDQ_DB_INFO_##member##_SHIFT)
+
 #define HINIC_CMDQ_BUF_SIZE             2048
+
+#define HINIC_CMDQ_BUF_HW_RSVD          8
+#define HINIC_CMDQ_MAX_DATA_SIZE        (HINIC_CMDQ_BUF_SIZE - \
+					 HINIC_CMDQ_BUF_HW_RSVD)
 
 enum hinic_cmdq_type {
 	HINIC_CMDQ_SYNC,
 
 	HINIC_MAX_CMDQ_TYPES,
+};
+
+enum hinic_cmd_ack_type {
+	HINIC_CMD_ACK_TYPE_CMDQ,
 };
 
 struct hinic_cmdq_buf {

@@ -24,25 +24,44 @@
 #include <linux/sizes.h>
 #include <linux/atomic.h>
 #include <linux/log2.h>
+#include <linux/io.h>
+#include <linux/completion.h>
+#include <linux/err.h>
 #include <asm/byteorder.h>
+#include <asm/barrier.h>
 
+#include "hinic_common.h"
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
 #include "hinic_hw_mgmt.h"
+#include "hinic_hw_wqe.h"
 #include "hinic_hw_wq.h"
 #include "hinic_hw_cmdq.h"
 #include "hinic_hw_io.h"
 #include "hinic_hw_dev.h"
 
+#define CMDQ_DB_PI_OFF(pi)              (((u16)LOWER_8_BITS(pi)) << 3)
+
+#define CMDQ_DB_ADDR(db_base, pi)       ((db_base) + CMDQ_DB_PI_OFF(pi))
+
+#define CMDQ_WQE_HEADER(wqe)            ((struct hinic_cmdq_header *)(wqe))
+
+#define FIRST_DATA_TO_WRITE_LAST        sizeof(u64)
+
 #define CMDQ_DB_OFF                     SZ_2K
 
 #define CMDQ_WQEBB_SIZE                 64
+#define CMDQ_WQE_SIZE                   64
 #define CMDQ_DEPTH                      SZ_4K
 
 #define CMDQ_WQ_PAGE_SIZE               SZ_4K
 
 #define WQE_LCMD_SIZE                   64
 #define WQE_SCMD_SIZE                   64
+
+#define COMPLETE_LEN                    3
+
+#define CMDQ_TIMEOUT                    1000
 
 #define CMDQ_PFN(addr, page_size)       ((addr) >> (ilog2(page_size)))
 
@@ -56,6 +75,40 @@
 enum cmdq_wqe_type {
 	WQE_LCMD_TYPE = 0,
 	WQE_SCMD_TYPE = 1,
+};
+
+enum completion_format {
+	COMPLETE_DIRECT = 0,
+	COMPLETE_SGE    = 1,
+};
+
+enum data_format {
+	DATA_SGE        = 0,
+	DATA_DIRECT     = 1,
+};
+
+enum bufdesc_len {
+	BUFDESC_LCMD_LEN = 2,   /* 16 bytes - 2(8 byte unit) */
+	BUFDESC_SCMD_LEN = 3,   /* 24 bytes - 3(8 byte unit) */
+};
+
+enum ctrl_sect_len {
+	CTRL_SECT_LEN        = 1, /* 4 bytes (ctrl) - 1(8 byte unit) */
+	CTRL_DIRECT_SECT_LEN = 2, /* 12 bytes (ctrl + rsvd) - 2(8 byte unit) */
+};
+
+enum cmdq_scmd_type {
+	CMDQ_SET_ARM_CMD = 2,
+};
+
+enum cmdq_cmd_type {
+	CMDQ_CMD_SYNC_DIRECT_RESP = 0,
+	CMDQ_CMD_SYNC_SGE_RESP    = 1,
+};
+
+enum completion_request {
+	NO_CEQ  = 0,
+	CEQ_SET = 1,
 };
 
 /**
@@ -92,6 +145,221 @@ void hinic_free_cmdq_buf(struct hinic_cmdqs *cmdqs,
 	pci_pool_free(cmdqs->cmdq_buf_pool, cmdq_buf->buf, cmdq_buf->dma_addr);
 }
 
+static void cmdq_set_sge_completion(struct hinic_cmdq_completion *completion,
+				    struct hinic_cmdq_buf *buf_out)
+{
+	struct hinic_sge_resp *sge_resp = &completion->sge_resp;
+
+	hinic_set_sge(&sge_resp->sge, buf_out->dma_addr, buf_out->size);
+}
+
+static void cmdq_prepare_wqe_ctrl(struct hinic_cmdq_wqe *wqe, int wrapped,
+				  enum hinic_cmd_ack_type ack_type,
+				  enum hinic_mod_type mod, u8 cmd, u16 prod_idx,
+				  enum completion_format complete_format,
+				  enum data_format data_format,
+				  enum bufdesc_len buf_len)
+{
+	struct hinic_cmdq_wqe_lcmd *wqe_lcmd;
+	struct hinic_cmdq_wqe_scmd *wqe_scmd;
+	enum ctrl_sect_len ctrl_len;
+	struct hinic_ctrl *ctrl;
+	u32 saved_data;
+
+	if (data_format == DATA_SGE) {
+		wqe_lcmd = &wqe->wqe_lcmd;
+
+		wqe_lcmd->status.status_info = 0;
+		ctrl = &wqe_lcmd->ctrl;
+		ctrl_len = CTRL_SECT_LEN;
+	} else {
+		wqe_scmd = &wqe->direct_wqe.wqe_scmd;
+
+		wqe_scmd->status.status_info = 0;
+		ctrl = &wqe_scmd->ctrl;
+		ctrl_len = CTRL_DIRECT_SECT_LEN;
+	}
+
+	ctrl->ctrl_info = HINIC_CMDQ_CTRL_SET(prod_idx, PI)             |
+			  HINIC_CMDQ_CTRL_SET(cmd, CMD)                 |
+			  HINIC_CMDQ_CTRL_SET(mod, MOD)                 |
+			  HINIC_CMDQ_CTRL_SET(ack_type, ACK_TYPE);
+
+	CMDQ_WQE_HEADER(wqe)->header_info =
+		HINIC_CMDQ_WQE_HEADER_SET(buf_len, BUFDESC_LEN)            |
+		HINIC_CMDQ_WQE_HEADER_SET(complete_format, COMPLETE_FMT)   |
+		HINIC_CMDQ_WQE_HEADER_SET(data_format, DATA_FMT)           |
+		HINIC_CMDQ_WQE_HEADER_SET(CEQ_SET, COMPLETE_REQ)           |
+		HINIC_CMDQ_WQE_HEADER_SET(COMPLETE_LEN, COMPLETE_SECT_LEN) |
+		HINIC_CMDQ_WQE_HEADER_SET(ctrl_len, CTRL_LEN)              |
+		HINIC_CMDQ_WQE_HEADER_SET(wrapped, TOGGLED_WRAPPED);
+
+	saved_data = CMDQ_WQE_HEADER(wqe)->saved_data;
+	saved_data = HINIC_SAVED_DATA_CLEAR(saved_data, ARM);
+
+	if ((cmd == CMDQ_SET_ARM_CMD) && (mod == HINIC_MOD_COMM))
+		CMDQ_WQE_HEADER(wqe)->saved_data |=
+						HINIC_SAVED_DATA_SET(1, ARM);
+	else
+		CMDQ_WQE_HEADER(wqe)->saved_data = saved_data;
+}
+
+static void cmdq_set_lcmd_bufdesc(struct hinic_cmdq_wqe_lcmd *wqe_lcmd,
+				  struct hinic_cmdq_buf *buf_in)
+{
+	hinic_set_sge(&wqe_lcmd->buf_desc.sge, buf_in->dma_addr, buf_in->size);
+}
+
+static void cmdq_set_lcmd_wqe(struct hinic_cmdq_wqe *wqe,
+			      enum cmdq_cmd_type cmd_type,
+			      struct hinic_cmdq_buf *buf_in,
+			      struct hinic_cmdq_buf *buf_out, int wrapped,
+			      enum hinic_cmd_ack_type ack_type,
+			      enum hinic_mod_type mod, u8 cmd, u16 prod_idx)
+{
+	struct hinic_cmdq_wqe_lcmd *wqe_lcmd = &wqe->wqe_lcmd;
+	enum completion_format complete_format;
+
+	switch (cmd_type) {
+	case CMDQ_CMD_SYNC_SGE_RESP:
+		complete_format = COMPLETE_SGE;
+		cmdq_set_sge_completion(&wqe_lcmd->completion, buf_out);
+		break;
+	case CMDQ_CMD_SYNC_DIRECT_RESP:
+		complete_format = COMPLETE_DIRECT;
+		wqe_lcmd->completion.direct_resp = 0;
+		break;
+	}
+
+	cmdq_prepare_wqe_ctrl(wqe, wrapped, ack_type, mod, cmd,
+			      prod_idx, complete_format, DATA_SGE,
+			      BUFDESC_LCMD_LEN);
+
+	cmdq_set_lcmd_bufdesc(wqe_lcmd, buf_in);
+}
+
+static void cmdq_wqe_fill(void *dst, void *src)
+{
+	memcpy(dst + FIRST_DATA_TO_WRITE_LAST, src + FIRST_DATA_TO_WRITE_LAST,
+	       CMDQ_WQE_SIZE - FIRST_DATA_TO_WRITE_LAST);
+
+	wmb();          /* The first 8 bytes should be written last */
+
+	*(u64 *)dst = *(u64 *)src;
+}
+
+static void cmdq_fill_db(u32 *db_info,
+			 enum hinic_cmdq_type cmdq_type, u16 prod_idx)
+{
+	*db_info = HINIC_CMDQ_DB_INFO_SET(UPPER_8_BITS(prod_idx), HI_PROD_IDX) |
+		   HINIC_CMDQ_DB_INFO_SET(HINIC_CTRL_PATH, PATH)               |
+		   HINIC_CMDQ_DB_INFO_SET(cmdq_type, CMDQ_TYPE)                |
+		   HINIC_CMDQ_DB_INFO_SET(HINIC_DB_CMDQ_TYPE, DB_TYPE);
+}
+
+static void cmdq_set_db(struct hinic_cmdq *cmdq,
+			enum hinic_cmdq_type cmdq_type, u16 prod_idx)
+{
+	u32 db_info;
+
+	cmdq_fill_db(&db_info, cmdq_type, prod_idx);
+
+	/* The data that is written to HW should be in Big Endian Format */
+	db_info = cpu_to_be32(db_info);
+
+	wmb();  /* write all before the doorbell */
+
+	writel(db_info, CMDQ_DB_ADDR(cmdq->db_base, prod_idx));
+}
+
+static int cmdq_sync_cmd_direct_resp(struct hinic_cmdq *cmdq,
+				     enum hinic_mod_type mod, u8 cmd,
+				     struct hinic_cmdq_buf *buf_in,
+				     u64 *resp)
+{
+	struct hinic_cmdq_wqe *curr_cmdq_wqe, cmdq_wqe;
+	u16 curr_prod_idx, next_prod_idx;
+	int errcode, wrapped, num_wqebbs;
+	struct hinic_wq *wq = cmdq->wq;
+	struct hinic_hw_wqe *hw_wqe;
+	struct completion done;
+
+	/* Keep doorbell index correct. bh - for tasklet(ceq). */
+	spin_lock_bh(&cmdq->cmdq_lock);
+
+	/* WQE_SIZE = WQEBB_SIZE, we will get the wq element and not shadow*/
+	hw_wqe = hinic_get_wqe(wq, WQE_LCMD_SIZE, &curr_prod_idx);
+	if (IS_ERR(hw_wqe)) {
+		spin_unlock_bh(&cmdq->cmdq_lock);
+		return -EBUSY;
+	}
+
+	curr_cmdq_wqe = &hw_wqe->cmdq_wqe;
+
+	wrapped = cmdq->wrapped;
+
+	num_wqebbs = ALIGN(WQE_LCMD_SIZE, wq->wqebb_size) / wq->wqebb_size;
+	next_prod_idx = curr_prod_idx + num_wqebbs;
+	if (next_prod_idx >= wq->q_depth) {
+		cmdq->wrapped = !cmdq->wrapped;
+		next_prod_idx -= wq->q_depth;
+	}
+
+	cmdq->errcode[curr_prod_idx] = &errcode;
+
+	init_completion(&done);
+	cmdq->done[curr_prod_idx] = &done;
+
+	cmdq_set_lcmd_wqe(&cmdq_wqe, CMDQ_CMD_SYNC_DIRECT_RESP, buf_in, NULL,
+			  wrapped, HINIC_CMD_ACK_TYPE_CMDQ, mod, cmd,
+			  curr_prod_idx);
+
+	/* The data that is written to HW should be in Big Endian Format */
+	hinic_cpu_to_be32(&cmdq_wqe, WQE_LCMD_SIZE);
+
+	/* CMDQ WQE is not shadow, therefore wqe will be written to wq */
+	cmdq_wqe_fill(curr_cmdq_wqe, &cmdq_wqe);
+
+	cmdq_set_db(cmdq, HINIC_CMDQ_SYNC, next_prod_idx);
+
+	spin_unlock_bh(&cmdq->cmdq_lock);
+
+	if (!wait_for_completion_timeout(&done, CMDQ_TIMEOUT)) {
+		spin_lock_bh(&cmdq->cmdq_lock);
+
+		if (cmdq->errcode[curr_prod_idx] == &errcode)
+			cmdq->errcode[curr_prod_idx] = NULL;
+
+		if (cmdq->done[curr_prod_idx] == &done)
+			cmdq->done[curr_prod_idx] = NULL;
+
+		spin_unlock_bh(&cmdq->cmdq_lock);
+
+		return -ETIMEDOUT;
+	}
+
+	smp_rmb();      /* read error code after completion */
+
+	if (resp) {
+		struct hinic_cmdq_wqe_lcmd *wqe_lcmd = &curr_cmdq_wqe->wqe_lcmd;
+
+		*resp = cpu_to_be64(wqe_lcmd->completion.direct_resp);
+	}
+
+	if (errcode != 0)
+		return -EFAULT;
+
+	return 0;
+}
+
+static int cmdq_params_valid(struct hinic_cmdq_buf *buf_in)
+{
+	if (buf_in->size > HINIC_CMDQ_MAX_DATA_SIZE)
+		return -EINVAL;
+
+	return 0;
+}
+
 /**
  * hinic_cmdq_direct_resp - send command with direct data as resp
  * @cmdqs: the cmdqs
@@ -106,8 +374,18 @@ int hinic_cmdq_direct_resp(struct hinic_cmdqs *cmdqs,
 			   enum hinic_mod_type mod, u8 cmd,
 			   struct hinic_cmdq_buf *buf_in, u64 *resp)
 {
-	/* should be implemented */
-	return -EINVAL;
+	struct hinic_hwif *hwif = cmdqs->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	int err;
+
+	err = cmdq_params_valid(buf_in);
+	if (err) {
+		dev_err(&pdev->dev, "Invalid CMDQ parameters\n");
+		return err;
+	}
+
+	return cmdq_sync_cmd_direct_resp(&cmdqs->cmdq[HINIC_CMDQ_SYNC],
+					 mod, cmd, buf_in, resp);
 }
 
 /**

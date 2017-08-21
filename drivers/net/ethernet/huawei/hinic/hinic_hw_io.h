@@ -32,6 +32,16 @@
 
 #define HINIC_DB_MAX_AREAS      (HINIC_DB_SIZE / HINIC_DB_PAGE_SIZE)
 
+enum hinic_db_type {
+	HINIC_DB_CMDQ_TYPE,
+	HINIC_DB_SQ_TYPE,
+};
+
+enum hinic_io_path {
+	HINIC_CTRL_PATH,
+	HINIC_DATA_PATH,
+};
+
 struct hinic_free_db_area {
 	int             db_idx[HINIC_DB_MAX_AREAS];
 

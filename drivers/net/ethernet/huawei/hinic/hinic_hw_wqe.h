@@ -18,6 +18,50 @@
 
 #include "hinic_common.h"
 
+#define HINIC_CMDQ_CTRL_PI_SHIFT                        0
+#define HINIC_CMDQ_CTRL_CMD_SHIFT                       16
+#define HINIC_CMDQ_CTRL_MOD_SHIFT                       24
+#define HINIC_CMDQ_CTRL_ACK_TYPE_SHIFT                  29
+#define HINIC_CMDQ_CTRL_HW_BUSY_BIT_SHIFT               31
+
+#define HINIC_CMDQ_CTRL_PI_MASK                         0xFFFF
+#define HINIC_CMDQ_CTRL_CMD_MASK                        0xFF
+#define HINIC_CMDQ_CTRL_MOD_MASK                        0x1F
+#define HINIC_CMDQ_CTRL_ACK_TYPE_MASK                   0x3
+#define HINIC_CMDQ_CTRL_HW_BUSY_BIT_MASK                0x1
+
+#define HINIC_CMDQ_CTRL_SET(val, member)                        \
+			(((u32)(val) & HINIC_CMDQ_CTRL_##member##_MASK) \
+			 << HINIC_CMDQ_CTRL_##member##_SHIFT)
+
+#define HINIC_CMDQ_CTRL_GET(val, member)                        \
+			(((val) >> HINIC_CMDQ_CTRL_##member##_SHIFT) \
+			 & HINIC_CMDQ_CTRL_##member##_MASK)
+
+#define HINIC_CMDQ_WQE_HEADER_BUFDESC_LEN_SHIFT         0
+#define HINIC_CMDQ_WQE_HEADER_COMPLETE_FMT_SHIFT        15
+#define HINIC_CMDQ_WQE_HEADER_DATA_FMT_SHIFT            22
+#define HINIC_CMDQ_WQE_HEADER_COMPLETE_REQ_SHIFT        23
+#define HINIC_CMDQ_WQE_HEADER_COMPLETE_SECT_LEN_SHIFT   27
+#define HINIC_CMDQ_WQE_HEADER_CTRL_LEN_SHIFT            29
+#define HINIC_CMDQ_WQE_HEADER_TOGGLED_WRAPPED_SHIFT     31
+
+#define HINIC_CMDQ_WQE_HEADER_BUFDESC_LEN_MASK          0xFF
+#define HINIC_CMDQ_WQE_HEADER_COMPLETE_FMT_MASK         0x1
+#define HINIC_CMDQ_WQE_HEADER_DATA_FMT_MASK             0x1
+#define HINIC_CMDQ_WQE_HEADER_COMPLETE_REQ_MASK         0x1
+#define HINIC_CMDQ_WQE_HEADER_COMPLETE_SECT_LEN_MASK    0x3
+#define HINIC_CMDQ_WQE_HEADER_CTRL_LEN_MASK             0x3
+#define HINIC_CMDQ_WQE_HEADER_TOGGLED_WRAPPED_MASK      0x1
+
+#define HINIC_CMDQ_WQE_HEADER_SET(val, member)                  \
+			(((u32)(val) & HINIC_CMDQ_WQE_HEADER_##member##_MASK) \
+			 << HINIC_CMDQ_WQE_HEADER_##member##_SHIFT)
+
+#define HINIC_CMDQ_WQE_HEADER_GET(val, member)                  \
+			(((val) >> HINIC_CMDQ_WQE_HEADER_##member##_SHIFT) \
+			 & HINIC_CMDQ_WQE_HEADER_##member##_MASK)
+
 #define HINIC_SQ_CTRL_BUFDESC_SECT_LEN_SHIFT    0
 #define HINIC_SQ_CTRL_TASKSECT_LEN_SHIFT        16
 #define HINIC_SQ_CTRL_DATA_FORMAT_SHIFT         22
@@ -143,6 +187,8 @@
 		 sizeof(struct hinic_sq_task) + \
 		 (nr_sges) * sizeof(struct hinic_sq_bufdesc))
 
+#define HINIC_SCMD_DATA_LEN             16
+
 #define HINIC_MAX_SQ_BUFDESCS           17
 
 #define HINIC_SQ_WQE_MAX_SIZE           320
@@ -182,6 +228,74 @@ enum hinic_l2type {
 
 enum hinc_tunnel_l4type {
 	HINIC_TUNNEL_L4TYPE_UNKNOWN = 0,
+};
+
+struct hinic_cmdq_header {
+	u32     header_info;
+	u32     saved_data;
+};
+
+struct hinic_status {
+	u32 status_info;
+};
+
+struct hinic_ctrl {
+	u32 ctrl_info;
+};
+
+struct hinic_sge_resp {
+	struct hinic_sge        sge;
+	u32                     rsvd;
+};
+
+struct hinic_cmdq_completion {
+	/* HW Format */
+	union {
+		struct hinic_sge_resp   sge_resp;
+		u64                     direct_resp;
+	};
+};
+
+struct hinic_scmd_bufdesc {
+	u32     buf_len;
+	u32     rsvd;
+	u8      data[HINIC_SCMD_DATA_LEN];
+};
+
+struct hinic_lcmd_bufdesc {
+	struct hinic_sge        sge;
+	u32                     rsvd1;
+	u64                     rsvd2;
+	u64                     rsvd3;
+};
+
+struct hinic_cmdq_wqe_scmd {
+	struct hinic_cmdq_header        header;
+	u64                             rsvd;
+	struct hinic_status             status;
+	struct hinic_ctrl               ctrl;
+	struct hinic_cmdq_completion    completion;
+	struct hinic_scmd_bufdesc       buf_desc;
+};
+
+struct hinic_cmdq_wqe_lcmd {
+	struct hinic_cmdq_header        header;
+	struct hinic_status             status;
+	struct hinic_ctrl               ctrl;
+	struct hinic_cmdq_completion    completion;
+	struct hinic_lcmd_bufdesc       buf_desc;
+};
+
+struct hinic_cmdq_direct_wqe {
+	struct hinic_cmdq_wqe_scmd      wqe_scmd;
+};
+
+struct hinic_cmdq_wqe {
+	/* HW Format */
+	union {
+		struct hinic_cmdq_direct_wqe    direct_wqe;
+		struct hinic_cmdq_wqe_lcmd      wqe_lcmd;
+	};
 };
 
 struct hinic_sq_ctrl {
@@ -245,6 +359,7 @@ struct hinic_rq_wqe {
 struct hinic_hw_wqe {
 	/* HW Format */
 	union {
+		struct hinic_cmdq_wqe   cmdq_wqe;
 		struct hinic_sq_wqe     sq_wqe;
 		struct hinic_rq_wqe     rq_wqe;
 	};

@@ -21,6 +21,7 @@
 #include <linux/atomic.h>
 
 #include "hinic_hw_if.h"
+#include "hinic_hw_wqe.h"
 
 struct hinic_free_block {
 	int     page_idx;
@@ -99,5 +100,16 @@ int hinic_wq_allocate(struct hinic_wqs *wqs, struct hinic_wq *wq,
 		      u16 max_wqe_size);
 
 void hinic_wq_free(struct hinic_wqs *wqs, struct hinic_wq *wq);
+
+struct hinic_hw_wqe *hinic_get_wqe(struct hinic_wq *wq, unsigned int wqe_size,
+				   u16 *prod_idx);
+
+void hinic_put_wqe(struct hinic_wq *wq, unsigned int wqe_size);
+
+struct hinic_hw_wqe *hinic_read_wqe(struct hinic_wq *wq, unsigned int wqe_size,
+				    u16 *cons_idx);
+
+void hinic_write_wqe(struct hinic_wq *wq, struct hinic_hw_wqe *wqe,
+		     unsigned int wqe_size);
 
 #endif

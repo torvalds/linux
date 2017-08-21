@@ -13,6 +13,7 @@
  *
  */
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <asm/byteorder.h>
 
@@ -52,4 +53,28 @@ void hinic_be32_to_cpu(void *data, int len)
 		*mem = be32_to_cpu(*mem);
 		mem++;
 	}
+}
+
+/**
+ * hinic_set_sge - set dma area in scatter gather entry
+ * @sge: scatter gather entry
+ * @addr: dma address
+ * @len: length of relevant data in the dma address
+ **/
+void hinic_set_sge(struct hinic_sge *sge, dma_addr_t addr, int len)
+{
+	sge->hi_addr = upper_32_bits(addr);
+	sge->lo_addr = lower_32_bits(addr);
+	sge->len  = len;
+}
+
+/**
+ * hinic_sge_to_dma - get dma address from scatter gather entry
+ * @sge: scatter gather entry
+ *
+ * Return dma address of sg entry
+ **/
+dma_addr_t hinic_sge_to_dma(struct hinic_sge *sge)
+{
+	return (dma_addr_t)((((u64)sge->hi_addr) << 32) | sge->lo_addr);
 }
