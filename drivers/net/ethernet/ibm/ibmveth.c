@@ -1092,8 +1092,14 @@ retry_bounce:
 	 */
 	if (force_bounce || (!skb_is_nonlinear(skb) &&
 				(skb->len < tx_copybreak))) {
-		skb_copy_from_linear_data(skb, adapter->bounce_buffer,
-					  skb->len);
+		if (adapter->bounce_buffer) {
+			skb_copy_from_linear_data(skb, adapter->bounce_buffer,
+						  skb->len);
+		} else {
+			adapter->tx_send_failed++;
+			netdev->stats.tx_dropped++;
+			goto out;
+		}
 
 		descs[0].fields.flags_len = desc_flags | skb->len;
 		descs[0].fields.address = adapter->bounce_buffer_dma;
@@ -1690,9 +1696,6 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		netdev->hw_features |= NETIF_F_FRAGLIST;
 		netdev->features |= NETIF_F_FRAGLIST;
 	}
-
-	netdev->min_mtu = IBMVETH_MIN_MTU;
-	netdev->max_mtu = ETH_MAX_MTU;
 
 	memcpy(netdev->dev_addr, mac_addr_p, ETH_ALEN);
 
