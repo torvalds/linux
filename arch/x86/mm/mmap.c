@@ -50,8 +50,7 @@ unsigned long tasksize_64bit(void)
 static unsigned long stack_maxrandom_size(unsigned long task_size)
 {
 	unsigned long max = 0;
-	if ((current->flags & PF_RANDOMIZE) &&
-		!(current->personality & ADDR_NO_RANDOMIZE)) {
+	if (current->flags & PF_RANDOMIZE) {
 		max = (-1UL) & __STACK_RND_MASK(task_size == tasksize_32bit());
 		max <<= PAGE_SHIFT;
 	}
@@ -79,13 +78,13 @@ static int mmap_is_legacy(void)
 
 static unsigned long arch_rnd(unsigned int rndbits)
 {
+	if (!(current->flags & PF_RANDOMIZE))
+		return 0;
 	return (get_random_long() & ((1UL << rndbits) - 1)) << PAGE_SHIFT;
 }
 
 unsigned long arch_mmap_rnd(void)
 {
-	if (!(current->flags & PF_RANDOMIZE))
-		return 0;
 	return arch_rnd(mmap_is_ia32() ? mmap32_rnd_bits : mmap64_rnd_bits);
 }
 
