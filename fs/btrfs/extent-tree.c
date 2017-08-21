@@ -9956,9 +9956,9 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 	return 0;
 }
 
-static void __link_block_group(struct btrfs_space_info *space_info,
-			       struct btrfs_block_group_cache *cache)
+static void link_block_group(struct btrfs_block_group_cache *cache)
 {
+	struct btrfs_space_info *space_info = cache->space_info;
 	int index = get_block_group_index(cache);
 	bool first = false;
 
@@ -10166,7 +10166,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 
 		cache->space_info = space_info;
 
-		__link_block_group(space_info, cache);
+		link_block_group(cache);
 
 		set_avail_alloc_bits(info, cache->flags);
 		if (btrfs_chunk_readonly(info, cache->key.objectid)) {
@@ -10325,7 +10325,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 				cache->bytes_super, &cache->space_info);
 	update_global_block_rsv(fs_info);
 
-	__link_block_group(cache->space_info, cache);
+	link_block_group(cache);
 
 	list_add_tail(&cache->bg_list, &trans->new_bgs);
 
