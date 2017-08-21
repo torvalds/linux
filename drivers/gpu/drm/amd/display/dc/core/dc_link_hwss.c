@@ -299,10 +299,11 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 
 			dp_receiver_power_ctrl(link, true);
 
-			dc_link_dp_perform_link_training(
+			perform_link_training_with_retries(
 					link,
 					link_setting,
-					skip_video_pattern);
+					skip_video_pattern,
+					LINK_TRAINING_ATTEMPTS);
 
 			link->cur_link_settings = *link_setting;
 
