@@ -134,14 +134,6 @@ static void ahci_ceva_setup(struct ahci_host_priv *hpriv)
 	u32 tmp;
 	int i;
 
-	/*
-	 * AXI Data bus width to 64
-	 * Set Mem Addr Read, Write ID for data transfers
-	 * Transfer limit to 72 DWord
-	 */
-	tmp = PAXIC_ADBW_BW64 | PAXIC_MAWIDD | PAXIC_MARIDD | PAXIC_OTL;
-	writel(tmp, mmio + AHCI_VEND_PAXIC);
-
 	/* Set AHCI Enable */
 	tmp = readl(mmio + HOST_CTL);
 	tmp |= HOST_AHCI_EN;
@@ -151,6 +143,14 @@ static void ahci_ceva_setup(struct ahci_host_priv *hpriv)
 		/* TPSS TPRS scalars, CISE and Port Addr */
 		tmp = PCFG_TPSS_VAL | PCFG_TPRS_VAL | (PCFG_PAD_VAL + i);
 		writel(tmp, mmio + AHCI_VEND_PCFG);
+
+		/*
+		 * AXI Data bus width to 64
+		 * Set Mem Addr Read, Write ID for data transfers
+		 * Transfer limit to 72 DWord
+		 */
+		tmp = PAXIC_ADBW_BW64 | PAXIC_MAWIDD | PAXIC_MARIDD | PAXIC_OTL;
+		writel(tmp, mmio + AHCI_VEND_PAXIC);
 
 		/* Set AXI cache control register if CCi is enabled */
 		if (cevapriv->is_cci_enabled) {
