@@ -1198,7 +1198,7 @@ static int matroxfb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct fb_ops matroxfb_ops = {
+static const struct fb_ops matroxfb_ops = {
 	.owner =	THIS_MODULE,
 	.fb_open =	matroxfb_open,
 	.fb_release =	matroxfb_release,
