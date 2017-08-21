@@ -66,7 +66,7 @@ module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for Harmony driver.");
 
 
-static struct parisc_device_id snd_harmony_devtable[] = {
+static const struct parisc_device_id snd_harmony_devtable[] __initconst = {
 	/* bushmaster / flounder */
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0007A }, 
 	/* 712 / 715 */
@@ -960,7 +960,7 @@ free_and_ret:
 	return err;
 }
 
-static int
+static int __init
 snd_harmony_probe(struct parisc_device *padev)
 {
 	int err;
@@ -1000,18 +1000,18 @@ free_and_ret:
 	return err;
 }
 
-static int
+static int __exit
 snd_harmony_remove(struct parisc_device *padev)
 {
 	snd_card_free(parisc_get_drvdata(padev));
 	return 0;
 }
 
-static struct parisc_driver snd_harmony_driver = {
+static struct parisc_driver snd_harmony_driver __refdata = {
 	.name = "harmony",
 	.id_table = snd_harmony_devtable,
 	.probe = snd_harmony_probe,
-	.remove = snd_harmony_remove,
+	.remove = __exit_p(snd_harmony_remove),
 };
 
 static int __init 
