@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -41,6 +42,10 @@
 MODULE_AUTHOR("Huawei Technologies CO., Ltd");
 MODULE_DESCRIPTION("Huawei Intelligent NIC driver");
 MODULE_LICENSE("GPL");
+
+static unsigned int rx_weight = 64;
+module_param(rx_weight, uint, 0644);
+MODULE_PARM_DESC(rx_weight, "Number Rx packets for NAPI budget (default=64)");
 
 #define PCI_DEVICE_ID_HI1822_PF         0x1822
 
@@ -220,6 +225,13 @@ static int hinic_open(struct net_device *netdev)
 		goto err_port_state;
 	}
 
+	err = hinic_port_set_func_state(nic_dev, HINIC_FUNC_PORT_ENABLE);
+	if (err) {
+		netif_err(nic_dev, drv, netdev,
+			  "Failed to set func port state\n");
+		goto err_func_port_state;
+	}
+
 	/* Wait up to 3 sec between port enable to link state */
 	msleep(3000);
 
@@ -250,6 +262,12 @@ static int hinic_open(struct net_device *netdev)
 
 err_port_link:
 	up(&nic_dev->mgmt_lock);
+	ret = hinic_port_set_func_state(nic_dev, HINIC_FUNC_PORT_DISABLE);
+	if (ret)
+		netif_warn(nic_dev, drv, netdev,
+			   "Failed to revert func port state\n");
+
+err_func_port_state:
 	ret = hinic_port_set_state(nic_dev, HINIC_PORT_DISABLE);
 	if (ret)
 		netif_warn(nic_dev, drv, netdev,
@@ -282,6 +300,14 @@ static int hinic_close(struct net_device *netdev)
 	netif_tx_disable(netdev);
 
 	up(&nic_dev->mgmt_lock);
+
+	err = hinic_port_set_func_state(nic_dev, HINIC_FUNC_PORT_DISABLE);
+	if (err) {
+		netif_err(nic_dev, drv, netdev,
+			  "Failed to set func port state\n");
+		nic_dev->flags |= (flags & HINIC_INTF_UP);
+		return err;
+	}
 
 	err = hinic_port_set_state(nic_dev, HINIC_PORT_DISABLE);
 	if (err) {
@@ -664,6 +690,7 @@ static int nic_dev_init(struct pci_dev *pdev)
 	nic_dev->flags = 0;
 	nic_dev->txqs = NULL;
 	nic_dev->rxqs = NULL;
+	nic_dev->rx_weight = rx_weight;
 
 	sema_init(&nic_dev->mgmt_lock, 1);
 

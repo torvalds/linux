@@ -69,8 +69,21 @@ enum hinic_cfg_cmd {
 };
 
 enum hinic_comm_cmd {
+	HINIC_COMM_CMD_IO_STATUS_GET    = 0x3,
+
 	HINIC_COMM_CMD_CMDQ_CTXT_SET    = 0x10,
 	HINIC_COMM_CMD_CMDQ_CTXT_GET    = 0x11,
+
+	HINIC_COMM_CMD_HWCTXT_SET       = 0x12,
+	HINIC_COMM_CMD_HWCTXT_GET       = 0x13,
+
+	HINIC_COMM_CMD_SQ_HI_CI_SET     = 0x14,
+
+	HINIC_COMM_CMD_RES_STATE_SET    = 0x24,
+
+	HINIC_COMM_CMD_IO_RES_CLEAR     = 0x29,
+
+	HINIC_COMM_CMD_MAX              = 0x32,
 };
 
 enum hinic_mgmt_cb_state {

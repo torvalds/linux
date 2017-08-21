@@ -74,6 +74,76 @@ enum hinic_cb_state {
 	HINIC_CB_RUNNING = BIT(1),
 };
 
+enum hinic_res_state {
+	HINIC_RES_CLEAN         = 0,
+	HINIC_RES_ACTIVE        = 1,
+};
+
+struct hinic_cmd_fw_ctxt {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_idx;
+	u16     rx_buf_sz;
+
+	u32     rsvd1;
+};
+
+struct hinic_cmd_hw_ioctxt {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_idx;
+
+	u16     rsvd1;
+
+	u8      set_cmdq_depth;
+	u8      cmdq_depth;
+
+	u8      rsvd2;
+	u8      rsvd3;
+	u8      rsvd4;
+	u8      rsvd5;
+
+	u16     rq_depth;
+	u16     rx_buf_sz_idx;
+	u16     sq_depth;
+};
+
+struct hinic_cmd_io_status {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_idx;
+	u8      rsvd1;
+	u8      rsvd2;
+	u32     io_status;
+};
+
+struct hinic_cmd_clear_io_res {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_idx;
+	u8      rsvd1;
+	u8      rsvd2;
+};
+
+struct hinic_cmd_set_res_state {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_idx;
+	u8      state;
+	u8      rsvd1;
+	u32     rsvd2;
+};
+
 struct hinic_cmd_base_qpn {
 	u8      status;
 	u8      version;
@@ -136,5 +206,12 @@ int hinic_hwdev_num_qps(struct hinic_hwdev *hwdev);
 struct hinic_sq *hinic_hwdev_get_sq(struct hinic_hwdev *hwdev, int i);
 
 struct hinic_rq *hinic_hwdev_get_rq(struct hinic_hwdev *hwdev, int i);
+
+int hinic_hwdev_msix_cnt_set(struct hinic_hwdev *hwdev, u16 msix_index);
+
+int hinic_hwdev_msix_set(struct hinic_hwdev *hwdev, u16 msix_index,
+			 u8 pending_limit, u8 coalesc_timer,
+			 u8 lli_timer_cfg, u8 lli_credit_limit,
+			 u8 resend_timer);
 
 #endif

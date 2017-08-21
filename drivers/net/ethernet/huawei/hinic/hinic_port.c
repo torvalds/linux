@@ -314,3 +314,35 @@ int hinic_port_set_state(struct hinic_dev *nic_dev, enum hinic_port_state state)
 
 	return 0;
 }
+
+/**
+ * hinic_port_set_func_state- set func device state
+ * @nic_dev: nic device
+ * @state: the state to set
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_port_set_func_state(struct hinic_dev *nic_dev,
+			      enum hinic_func_port_state state)
+{
+	struct hinic_port_func_state_cmd func_state;
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	u16 out_size;
+	int err;
+
+	func_state.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
+	func_state.state = state;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_FUNC_STATE,
+				 &func_state, sizeof(func_state),
+				 &func_state, &out_size);
+	if (err || (out_size != sizeof(func_state)) || func_state.status) {
+		dev_err(&pdev->dev, "Failed to set port func state, ret = %d\n",
+			func_state.status);
+		return -EFAULT;
+	}
+
+	return 0;
+}

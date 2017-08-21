@@ -73,6 +73,21 @@
 #define HINIC_FA1_GET(val, member)                              \
 	(((val) >> HINIC_FA1_##member##_SHIFT) & HINIC_FA1_##member##_MASK)
 
+#define HINIC_FA4_OUTBOUND_STATE_SHIFT                          0
+#define HINIC_FA4_DB_STATE_SHIFT                                1
+
+#define HINIC_FA4_OUTBOUND_STATE_MASK                           0x1
+#define HINIC_FA4_DB_STATE_MASK                                 0x1
+
+#define HINIC_FA4_GET(val, member)                              \
+	(((val) >> HINIC_FA4_##member##_SHIFT) & HINIC_FA4_##member##_MASK)
+
+#define HINIC_FA4_SET(val, member)                              \
+	((((u32)val) & HINIC_FA4_##member##_MASK) << HINIC_FA4_##member##_SHIFT)
+
+#define HINIC_FA4_CLEAR(val, member)                            \
+	((val) & (~(HINIC_FA4_##member##_MASK << HINIC_FA4_##member##_SHIFT)))
+
 #define HINIC_FA5_PF_ACTION_SHIFT                               0
 #define HINIC_FA5_PF_ACTION_MASK                                0xFFFF
 
@@ -182,6 +197,16 @@ enum hinic_pf_action {
 	HINIC_PF_MGMT_ACTIVE = 0x11,
 };
 
+enum hinic_outbound_state {
+	HINIC_OUTBOUND_ENABLE  = 0,
+	HINIC_OUTBOUND_DISABLE = 1,
+};
+
+enum hinic_db_state {
+	HINIC_DB_ENABLE  = 0,
+	HINIC_DB_DISABLE = 1,
+};
+
 struct hinic_func_attr {
 	u16                     func_idx;
 	u8                      pf_idx;
@@ -229,6 +254,16 @@ int hinic_msix_attr_get(struct hinic_hwif *hwif, u16 msix_index,
 int hinic_msix_attr_cnt_clear(struct hinic_hwif *hwif, u16 msix_index);
 
 void hinic_set_pf_action(struct hinic_hwif *hwif, enum hinic_pf_action action);
+
+enum hinic_outbound_state hinic_outbound_state_get(struct hinic_hwif *hwif);
+
+void hinic_outbound_state_set(struct hinic_hwif *hwif,
+			      enum hinic_outbound_state outbound_state);
+
+enum hinic_db_state hinic_db_state_get(struct hinic_hwif *hwif);
+
+void hinic_db_state_set(struct hinic_hwif *hwif,
+			enum hinic_db_state db_state);
 
 int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev);
 

@@ -132,6 +132,42 @@ void hinic_set_pf_action(struct hinic_hwif *hwif, enum hinic_pf_action action)
 	hinic_hwif_write_reg(hwif, HINIC_CSR_FUNC_ATTR5_ADDR, attr5);
 }
 
+enum hinic_outbound_state hinic_outbound_state_get(struct hinic_hwif *hwif)
+{
+	u32 attr4 = hinic_hwif_read_reg(hwif, HINIC_CSR_FUNC_ATTR4_ADDR);
+
+	return HINIC_FA4_GET(attr4, OUTBOUND_STATE);
+}
+
+void hinic_outbound_state_set(struct hinic_hwif *hwif,
+			      enum hinic_outbound_state outbound_state)
+{
+	u32 attr4 = hinic_hwif_read_reg(hwif, HINIC_CSR_FUNC_ATTR4_ADDR);
+
+	attr4 = HINIC_FA4_CLEAR(attr4, OUTBOUND_STATE);
+	attr4 |= HINIC_FA4_SET(outbound_state, OUTBOUND_STATE);
+
+	hinic_hwif_write_reg(hwif, HINIC_CSR_FUNC_ATTR4_ADDR, attr4);
+}
+
+enum hinic_db_state hinic_db_state_get(struct hinic_hwif *hwif)
+{
+	u32 attr4 = hinic_hwif_read_reg(hwif, HINIC_CSR_FUNC_ATTR4_ADDR);
+
+	return HINIC_FA4_GET(attr4, DB_STATE);
+}
+
+void hinic_db_state_set(struct hinic_hwif *hwif,
+			enum hinic_db_state db_state)
+{
+	u32 attr4 = hinic_hwif_read_reg(hwif, HINIC_CSR_FUNC_ATTR4_ADDR);
+
+	attr4 = HINIC_FA4_CLEAR(attr4, DB_STATE);
+	attr4 |= HINIC_FA4_SET(db_state, DB_STATE);
+
+	hinic_hwif_write_reg(hwif, HINIC_CSR_FUNC_ATTR4_ADDR, attr4);
+}
+
 /**
  * hwif_ready - test if the HW is ready for use
  * @hwif: the HW interface of a pci function device

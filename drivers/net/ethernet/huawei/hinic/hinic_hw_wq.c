@@ -827,6 +827,18 @@ struct hinic_hw_wqe *hinic_read_wqe(struct hinic_wq *wq, unsigned int wqe_size,
 }
 
 /**
+ * hinic_read_wqe_direct - read wqe directly from ci position
+ * @wq: wq
+ * @cons_idx: ci position
+ *
+ * Return wqe
+ **/
+struct hinic_hw_wqe *hinic_read_wqe_direct(struct hinic_wq *wq, u16 cons_idx)
+{
+	return WQ_PAGE_ADDR(wq, cons_idx) + WQE_PAGE_OFF(wq, cons_idx);
+}
+
+/**
  * wqe_shadow - check if a wqe is shadow
  * @wq: wq of the wqe
  * @wqe: the wqe for shadow checking

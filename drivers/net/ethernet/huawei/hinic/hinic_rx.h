@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/u64_stats_sync.h>
+#include <linux/interrupt.h>
 
 #include "hinic_hw_qp.h"
 
@@ -34,6 +35,12 @@ struct hinic_rxq {
 	struct hinic_rq         *rq;
 
 	struct hinic_rxq_stats  rxq_stats;
+
+	char                    *irq_name;
+
+	struct tasklet_struct   rx_task;
+
+	struct napi_struct      napi;
 };
 
 void hinic_rxq_clean_stats(struct hinic_rxq *rxq);

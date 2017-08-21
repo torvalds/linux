@@ -20,6 +20,7 @@
 #define HINIC_CSR_FUNC_ATTR0_ADDR                       0x0
 #define HINIC_CSR_FUNC_ATTR1_ADDR                       0x4
 
+#define HINIC_CSR_FUNC_ATTR4_ADDR                       0x10
 #define HINIC_CSR_FUNC_ATTR5_ADDR                       0x14
 
 #define HINIC_DMA_ATTR_BASE                             0xC80

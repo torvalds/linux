@@ -21,6 +21,7 @@
 #include <linux/pci.h>
 #include <linux/skbuff.h>
 
+#include "hinic_common.h"
 #include "hinic_hw_if.h"
 #include "hinic_hw_wqe.h"
 #include "hinic_hw_wq.h"
@@ -99,5 +100,33 @@ int hinic_init_rq(struct hinic_rq *rq, struct hinic_hwif *hwif,
 		  struct hinic_wq *wq, struct msix_entry *entry);
 
 void hinic_clean_rq(struct hinic_rq *rq);
+
+int hinic_get_rq_free_wqebbs(struct hinic_rq *rq);
+
+struct hinic_rq_wqe *hinic_rq_get_wqe(struct hinic_rq *rq,
+				      unsigned int wqe_size, u16 *prod_idx);
+
+void hinic_rq_write_wqe(struct hinic_rq *rq, u16 prod_idx,
+			struct hinic_rq_wqe *wqe, struct sk_buff *skb);
+
+struct hinic_rq_wqe *hinic_rq_read_wqe(struct hinic_rq *rq,
+				       unsigned int wqe_size,
+				       struct sk_buff **skb, u16 *cons_idx);
+
+struct hinic_rq_wqe *hinic_rq_read_next_wqe(struct hinic_rq *rq,
+					    unsigned int wqe_size,
+					    struct sk_buff **skb,
+					    u16 *cons_idx);
+
+void hinic_rq_put_wqe(struct hinic_rq *rq, u16 cons_idx,
+		      unsigned int wqe_size);
+
+void hinic_rq_get_sge(struct hinic_rq *rq, struct hinic_rq_wqe *wqe,
+		      u16 cons_idx, struct hinic_sge *sge);
+
+void hinic_rq_prepare_wqe(struct hinic_rq *rq, u16 prod_idx,
+			  struct hinic_rq_wqe *wqe, struct hinic_sge *sge);
+
+void hinic_rq_update(struct hinic_rq *rq, u16 prod_idx);
 
 #endif

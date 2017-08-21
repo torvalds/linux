@@ -40,6 +40,11 @@ enum hinic_port_state {
 	HINIC_PORT_ENABLE       = 3,
 };
 
+enum hinic_func_port_state {
+	HINIC_FUNC_PORT_DISABLE = 0,
+	HINIC_FUNC_PORT_ENABLE  = 2,
+};
+
 struct hinic_port_mac_cmd {
 	u8              status;
 	u8              version;
@@ -109,6 +114,17 @@ struct hinic_port_link_status {
 	u8      rsvd2;
 };
 
+struct hinic_port_func_state_cmd {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_idx;
+	u16     rsvd1;
+	u8      state;
+	u8      rsvd2[3];
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 
@@ -130,5 +146,8 @@ int hinic_port_link_state(struct hinic_dev *nic_dev,
 
 int hinic_port_set_state(struct hinic_dev *nic_dev,
 			 enum hinic_port_state state);
+
+int hinic_port_set_func_state(struct hinic_dev *nic_dev,
+			      enum hinic_func_port_state state);
 
 #endif
