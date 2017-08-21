@@ -188,8 +188,8 @@ static int axon_ram_probe(struct platform_device *device)
 
 	axon_ram_bank_id++;
 
-	dev_info(&device->dev, "Found memory controller on %s\n",
-			device->dev.of_node->full_name);
+	dev_info(&device->dev, "Found memory controller on %pOF\n",
+			device->dev.of_node);
 
 	bank = kzalloc(sizeof(struct axon_ram_bank), GFP_KERNEL);
 	if (bank == NULL) {

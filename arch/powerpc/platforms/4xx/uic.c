@@ -243,16 +243,16 @@ static struct uic * __init uic_init_one(struct device_node *node)
 	raw_spin_lock_init(&uic->lock);
 	indexp = of_get_property(node, "cell-index", &len);
 	if (!indexp || (len != sizeof(u32))) {
-		printk(KERN_ERR "uic: Device node %s has missing or invalid "
-		       "cell-index property\n", node->full_name);
+		printk(KERN_ERR "uic: Device node %pOF has missing or invalid "
+		       "cell-index property\n", node);
 		return NULL;
 	}
 	uic->index = *indexp;
 
 	dcrreg = of_get_property(node, "dcr-reg", &len);
 	if (!dcrreg || (len != 2*sizeof(u32))) {
-		printk(KERN_ERR "uic: Device node %s has missing or invalid "
-		       "dcr-reg property\n", node->full_name);
+		printk(KERN_ERR "uic: Device node %pOF has missing or invalid "
+		       "dcr-reg property\n", node);
 		return NULL;
 	}
 	uic->dcrbase = *dcrreg;
@@ -292,7 +292,7 @@ void __init uic_init_tree(void)
 		      * top-level interrupt controller */
 	primary_uic = uic_init_one(np);
 	if (!primary_uic)
-		panic("Unable to initialize primary UIC %s\n", np->full_name);
+		panic("Unable to initialize primary UIC %pOF\n", np);
 
 	irq_set_default_host(primary_uic->irqhost);
 	of_node_put(np);
@@ -306,8 +306,8 @@ void __init uic_init_tree(void)
 
 			uic = uic_init_one(np);
 			if (! uic)
-				panic("Unable to initialize a secondary UIC %s\n",
-				      np->full_name);
+				panic("Unable to initialize a secondary UIC %pOF\n",
+				      np);
 
 			cascade_virq = irq_of_parse_and_map(np, 0);
 

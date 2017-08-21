@@ -233,8 +233,7 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 	/* Get MSI ranges */
 	err = of_address_to_resource(dev->dev.of_node, 0, &res);
 	if (err) {
-		dev_err(&dev->dev, "%s resource error!\n",
-			dev->dev.of_node->full_name);
+		dev_err(&dev->dev, "%pOF resource error!\n", dev->dev.of_node);
 		goto error_out;
 	}
 

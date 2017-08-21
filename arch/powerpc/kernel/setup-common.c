@@ -481,7 +481,7 @@ void __init smp_setup_cpu_maps(void)
 		__be32 cpu_be;
 		int j, len;
 
-		DBG("  * %s...\n", dn->full_name);
+		DBG("  * %pOF...\n", dn);
 
 		intserv = of_get_property(dn, "ibm,ppc-interrupt-server#s",
 				&len);

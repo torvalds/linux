@@ -127,9 +127,9 @@ static int __init ppc4xx_parse_dma_ranges(struct pci_controller *hose,
 		 * within 32 bits space
 		 */
 		if (cpu_addr != 0 || pci_addr > 0xffffffff) {
-			printk(KERN_WARNING "%s: Ignored unsupported dma range"
+			printk(KERN_WARNING "%pOF: Ignored unsupported dma range"
 			       " 0x%016llx...0x%016llx -> 0x%016llx\n",
-			       hose->dn->full_name,
+			       hose->dn,
 			       pci_addr, pci_addr + size - 1, cpu_addr);
 			continue;
 		}
@@ -152,8 +152,7 @@ static int __init ppc4xx_parse_dma_ranges(struct pci_controller *hose,
 
 	/* We only support one global DMA offset */
 	if (dma_offset_set && pci_dram_offset != res->start) {
-		printk(KERN_ERR "%s: dma-ranges(s) mismatch\n",
-		       hose->dn->full_name);
+		printk(KERN_ERR "%pOF: dma-ranges(s) mismatch\n", hose->dn);
 		return -ENXIO;
 	}
 
@@ -161,17 +160,16 @@ static int __init ppc4xx_parse_dma_ranges(struct pci_controller *hose,
 	 * DMA bounce buffers
 	 */
 	if (size < total_memory) {
-		printk(KERN_ERR "%s: dma-ranges too small "
+		printk(KERN_ERR "%pOF: dma-ranges too small "
 		       "(size=%llx total_memory=%llx)\n",
-		       hose->dn->full_name, size, (u64)total_memory);
+		       hose->dn, size, (u64)total_memory);
 		return -ENXIO;
 	}
 
 	/* Check we are a power of 2 size and that base is a multiple of size*/
 	if ((size & (size - 1)) != 0  ||
 	    (res->start & (size - 1)) != 0) {
-		printk(KERN_ERR "%s: dma-ranges unaligned\n",
-		       hose->dn->full_name);
+		printk(KERN_ERR "%pOF: dma-ranges unaligned\n", hose->dn);
 		return -ENXIO;
 	}
 
@@ -181,8 +179,8 @@ static int __init ppc4xx_parse_dma_ranges(struct pci_controller *hose,
 	if (res->end > 0xffffffff &&
 	    !(of_device_is_compatible(hose->dn, "ibm,plb-pciex-460sx")
 	      || of_device_is_compatible(hose->dn, "ibm,plb-pciex-476fpe"))) {
-		printk(KERN_ERR "%s: dma-ranges outside of 32 bits space\n",
-		       hose->dn->full_name);
+		printk(KERN_ERR "%pOF: dma-ranges outside of 32 bits space\n",
+		       hose->dn);
 		return -ENXIO;
 	}
  out:
@@ -233,8 +231,7 @@ static int __init ppc4xx_setup_one_pci_PMM(struct pci_controller	*hose,
 	 */
 	if ((plb_addr + size) > 0xffffffffull || !is_power_of_2(size) ||
 	    size < 0x1000 || (plb_addr & (size - 1)) != 0) {
-		printk(KERN_WARNING "%s: Resource out of range\n",
-		       hose->dn->full_name);
+		printk(KERN_WARNING "%pOF: Resource out of range\n", hose->dn);
 		return -1;
 	}
 	ma = (0xffffffffu << ilog2(size)) | 1;
@@ -266,8 +263,7 @@ static void __init ppc4xx_configure_pci_PMMs(struct pci_controller *hose,
 		if (!(res->flags & IORESOURCE_MEM))
 			continue;
 		if (j > 2) {
-			printk(KERN_WARNING "%s: Too many ranges\n",
-			       hose->dn->full_name);
+			printk(KERN_WARNING "%pOF: Too many ranges\n", hose->dn);
 			break;
 		}
 
@@ -292,8 +288,8 @@ static void __init ppc4xx_configure_pci_PMMs(struct pci_controller *hose,
 	if (j <= 2 && !found_isa_hole && hose->isa_mem_size)
 		if (ppc4xx_setup_one_pci_PMM(hose, reg, hose->isa_mem_phys, 0,
 					     hose->isa_mem_size, 0, j) == 0)
-			printk(KERN_INFO "%s: Legacy ISA memory support enabled\n",
-			       hose->dn->full_name);
+			printk(KERN_INFO "%pOF: Legacy ISA memory support enabled\n",
+			       hose->dn);
 }
 
 static void __init ppc4xx_configure_pci_PTMs(struct pci_controller *hose,
@@ -333,21 +329,20 @@ static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
 
 	/* Check if device is enabled */
 	if (!of_device_is_available(np)) {
-		printk(KERN_INFO "%s: Port disabled via device-tree\n",
-		       np->full_name);
+		printk(KERN_INFO "%pOF: Port disabled via device-tree\n", np);
 		return;
 	}
 
 	/* Fetch config space registers address */
 	if (of_address_to_resource(np, 0, &rsrc_cfg)) {
-		printk(KERN_ERR "%s: Can't get PCI config register base !",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't get PCI config register base !",
+		       np);
 		return;
 	}
 	/* Fetch host bridge internal registers address */
 	if (of_address_to_resource(np, 3, &rsrc_reg)) {
-		printk(KERN_ERR "%s: Can't get PCI internal register base !",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't get PCI internal register base !",
+		       np);
 		return;
 	}
 
@@ -361,7 +356,7 @@ static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
 	/* Map registers */
 	reg = ioremap(rsrc_reg.start, resource_size(&rsrc_reg));
 	if (reg == NULL) {
-		printk(KERN_ERR "%s: Can't map registers !", np->full_name);
+		printk(KERN_ERR "%pOF: Can't map registers !", np);
 		goto fail;
 	}
 
@@ -423,8 +418,8 @@ static int __init ppc4xx_setup_one_pcix_POM(struct pci_controller	*hose,
 
 	if (!is_power_of_2(size) || size < 0x1000 ||
 	    (plb_addr & (size - 1)) != 0) {
-		printk(KERN_WARNING "%s: Resource out of range\n",
-		       hose->dn->full_name);
+		printk(KERN_WARNING "%pOF: Resource out of range\n",
+		       hose->dn);
 		return -1;
 	}
 
@@ -467,8 +462,7 @@ static void __init ppc4xx_configure_pcix_POMs(struct pci_controller *hose,
 		if (!(res->flags & IORESOURCE_MEM))
 			continue;
 		if (j > 1) {
-			printk(KERN_WARNING "%s: Too many ranges\n",
-			       hose->dn->full_name);
+			printk(KERN_WARNING "%pOF: Too many ranges\n", hose->dn);
 			break;
 		}
 
@@ -493,8 +487,8 @@ static void __init ppc4xx_configure_pcix_POMs(struct pci_controller *hose,
 	if (j <= 1 && !found_isa_hole && hose->isa_mem_size)
 		if (ppc4xx_setup_one_pcix_POM(hose, reg, hose->isa_mem_phys, 0,
 					      hose->isa_mem_size, 0, j) == 0)
-			printk(KERN_INFO "%s: Legacy ISA memory support enabled\n",
-			       hose->dn->full_name);
+			printk(KERN_INFO "%pOF: Legacy ISA memory support enabled\n",
+			       hose->dn);
 }
 
 static void __init ppc4xx_configure_pcix_PIMs(struct pci_controller *hose,
@@ -539,14 +533,14 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 
 	/* Fetch config space registers address */
 	if (of_address_to_resource(np, 0, &rsrc_cfg)) {
-		printk(KERN_ERR "%s:Can't get PCI-X config register base !",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't get PCI-X config register base !",
+		       np);
 		return;
 	}
 	/* Fetch host bridge internal registers address */
 	if (of_address_to_resource(np, 3, &rsrc_reg)) {
-		printk(KERN_ERR "%s: Can't get PCI-X internal register base !",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't get PCI-X internal register base !",
+		       np);
 		return;
 	}
 
@@ -568,7 +562,7 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 	/* Map registers */
 	reg = ioremap(rsrc_reg.start, resource_size(&rsrc_reg));
 	if (reg == NULL) {
-		printk(KERN_ERR "%s: Can't map registers !", np->full_name);
+		printk(KERN_ERR "%pOF: Can't map registers !", np);
 		goto fail;
 	}
 
@@ -1246,8 +1240,8 @@ static void __init ppc460sx_pciex_check_link(struct ppc4xx_pciex_port *port)
 
 	mbase = ioremap(port->cfg_space.start + 0x10000000, 0x1000);
 	if (mbase == NULL) {
-		printk(KERN_ERR "%s: Can't map internal config space !",
-			port->node->full_name);
+		printk(KERN_ERR "%pOF: Can't map internal config space !",
+			port->node);
 		goto done;
 	}
 
@@ -1389,7 +1383,7 @@ static void __init ppc_476fpe_pciex_check_link(struct ppc4xx_pciex_port *port)
 		                    port->index);
 		return;
 	}
-		
+
 	while (timeout_ms--) {
 		val = in_le32(mbase + PECFG_TLDLP);
 
@@ -1448,8 +1442,7 @@ static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
 		ppc4xx_pciex_hwops = &ppc_476fpe_pcie_hwops;
 #endif
 	if (ppc4xx_pciex_hwops == NULL) {
-		printk(KERN_WARNING "PCIE: unknown host type %s\n",
-		       np->full_name);
+		printk(KERN_WARNING "PCIE: unknown host type %pOF\n", np);
 		return -ENODEV;
 	}
 
@@ -1730,8 +1723,7 @@ static int __init ppc4xx_setup_one_pciex_POM(struct ppc4xx_pciex_port	*port,
 	    (index < 2 && size < 0x100000) ||
 	    (index == 2 && size < 0x100) ||
 	    (plb_addr & (size - 1)) != 0) {
-		printk(KERN_WARNING "%s: Resource out of range\n",
-		       hose->dn->full_name);
+		printk(KERN_WARNING "%pOF: Resource out of range\n", hose->dn);
 		return -1;
 	}
 
@@ -1807,8 +1799,8 @@ static void __init ppc4xx_configure_pciex_POMs(struct ppc4xx_pciex_port *port,
 		if (!(res->flags & IORESOURCE_MEM))
 			continue;
 		if (j > 1) {
-			printk(KERN_WARNING "%s: Too many ranges\n",
-			       port->node->full_name);
+			printk(KERN_WARNING "%pOF: Too many ranges\n",
+			       port->node);
 			break;
 		}
 
@@ -1834,8 +1826,8 @@ static void __init ppc4xx_configure_pciex_POMs(struct ppc4xx_pciex_port *port,
 		if (ppc4xx_setup_one_pciex_POM(port, hose, mbase,
 					       hose->isa_mem_phys, 0,
 					       hose->isa_mem_size, 0, j) == 0)
-			printk(KERN_INFO "%s: Legacy ISA memory support enabled\n",
-			       hose->dn->full_name);
+			printk(KERN_INFO "%pOF: Legacy ISA memory support enabled\n",
+			       hose->dn);
 
 	/* Configure IO, always 64K starting at 0. We hard wire it to 64K !
 	 * Note also that it -has- to be region index 2 on this HW
@@ -1970,8 +1962,8 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 				   (hose->first_busno + 1) * 0x100000,
 				   busses * 0x100000);
 		if (cfg_data == NULL) {
-			printk(KERN_ERR "%s: Can't map external config space !",
-			       port->node->full_name);
+			printk(KERN_ERR "%pOF: Can't map external config space !",
+			       port->node);
 			goto fail;
 		}
 		hose->cfg_data = cfg_data;
@@ -1982,13 +1974,13 @@ static void __init ppc4xx_pciex_port_setup_hose(struct ppc4xx_pciex_port *port)
 	 */
 	mbase = ioremap(port->cfg_space.start + 0x10000000, 0x1000);
 	if (mbase == NULL) {
-		printk(KERN_ERR "%s: Can't map internal config space !",
-		       port->node->full_name);
+		printk(KERN_ERR "%pOF: Can't map internal config space !",
+		       port->node);
 		goto fail;
 	}
 	hose->cfg_addr = mbase;
 
-	pr_debug("PCIE %s, bus %d..%d\n", port->node->full_name,
+	pr_debug("PCIE %pOF, bus %d..%d\n", port->node,
 		 hose->first_busno, hose->last_busno);
 	pr_debug("     config space mapped at: root @0x%p, other @0x%p\n",
 		 hose->cfg_addr, hose->cfg_data);
@@ -2100,14 +2092,13 @@ static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
 	/* Get the port number from the device-tree */
 	pval = of_get_property(np, "port", NULL);
 	if (pval == NULL) {
-		printk(KERN_ERR "PCIE: Can't find port number for %s\n",
-		       np->full_name);
+		printk(KERN_ERR "PCIE: Can't find port number for %pOF\n", np);
 		return;
 	}
 	portno = *pval;
 	if (portno >= ppc4xx_pciex_port_count) {
-		printk(KERN_ERR "PCIE: port number out of range for %s\n",
-		       np->full_name);
+		printk(KERN_ERR "PCIE: port number out of range for %pOF\n",
+		       np);
 		return;
 	}
 	port = &ppc4xx_pciex_ports[portno];
@@ -2125,8 +2116,8 @@ static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
 	if (ppc4xx_pciex_hwops->want_sdr) {
 		pval = of_get_property(np, "sdr-base", NULL);
 		if (pval == NULL) {
-			printk(KERN_ERR "PCIE: missing sdr-base for %s\n",
-			       np->full_name);
+			printk(KERN_ERR "PCIE: missing sdr-base for %pOF\n",
+			       np);
 			return;
 		}
 		port->sdr_base = *pval;
@@ -2142,29 +2133,26 @@ static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
 	} else if (!strcmp(val, "pci")) {
 		port->endpoint = 0;
 	} else {
-		printk(KERN_ERR "PCIE: missing or incorrect device_type for %s\n",
-		       np->full_name);
+		printk(KERN_ERR "PCIE: missing or incorrect device_type for %pOF\n",
+		       np);
 		return;
 	}
 
 	/* Fetch config space registers address */
 	if (of_address_to_resource(np, 0, &port->cfg_space)) {
-		printk(KERN_ERR "%s: Can't get PCI-E config space !",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't get PCI-E config space !", np);
 		return;
 	}
 	/* Fetch host bridge internal registers address */
 	if (of_address_to_resource(np, 1, &port->utl_regs)) {
-		printk(KERN_ERR "%s: Can't get UTL register base !",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't get UTL register base !", np);
 		return;
 	}
 
 	/* Map DCRs */
 	dcrs = dcr_resource_start(np, 0);
 	if (dcrs == 0) {
-		printk(KERN_ERR "%s: Can't get DCR register base !",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't get DCR register base !", np);
 		return;
 	}
 	port->dcrs = dcr_map(np, dcrs, dcr_resource_len(np, 0));

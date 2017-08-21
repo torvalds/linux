@@ -193,7 +193,7 @@ void iowa_register_bus(struct pci_controller *phb, struct ppc_pci_io *ops,
 
 	if (iowa_bus_count >= IOWA_MAX_BUS) {
 		pr_err("IOWA:Too many pci bridges, "
-		       "workarounds disabled for %s\n", np->full_name);
+		       "workarounds disabled for %pOF\n", np);
 		return;
 	}
 
@@ -208,6 +208,6 @@ void iowa_register_bus(struct pci_controller *phb, struct ppc_pci_io *ops,
 
 	iowa_bus_count++;
 
-	pr_debug("IOWA:[%d]Add bus, %s.\n", iowa_bus_count-1, np->full_name);
+	pr_debug("IOWA:[%d]Add bus, %pOF.\n", iowa_bus_count-1, np);
 }
 

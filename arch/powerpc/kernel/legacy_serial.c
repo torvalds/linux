@@ -147,8 +147,8 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 		legacy_serial_ports[index].serial_out = tsi_serial_out;
 	}
 
-	printk(KERN_DEBUG "Found legacy serial port %d for %s\n",
-	       index, np->full_name);
+	printk(KERN_DEBUG "Found legacy serial port %d for %pOF\n",
+	       index, np);
 	printk(KERN_DEBUG "  %s=%llx, taddr=%llx, irq=%lx, clk=%d, speed=%d\n",
 	       (iotype == UPIO_PORT) ? "port" : "mem",
 	       (unsigned long long)base, (unsigned long long)taddr, irq,
@@ -207,7 +207,7 @@ static int __init add_legacy_isa_port(struct device_node *np,
 	int index = -1;
 	u64 taddr;
 
-	DBG(" -> add_legacy_isa_port(%s)\n", np->full_name);
+	DBG(" -> add_legacy_isa_port(%pOF)\n", np);
 
 	/* Get the ISA port number */
 	reg = of_get_property(np, "reg", NULL);
@@ -256,7 +256,7 @@ static int __init add_legacy_pci_port(struct device_node *np,
 	unsigned int flags;
 	int iotype, index = -1, lindex = 0;
 
-	DBG(" -> add_legacy_pci_port(%s)\n", np->full_name);
+	DBG(" -> add_legacy_pci_port(%pOF)\n", np);
 
 	/* We only support ports that have a clock frequency properly
 	 * encoded in the device-tree (that is have an fcode). Anything
@@ -374,7 +374,7 @@ void __init find_legacy_serial_ports(void)
 	if (path != NULL) {
 		stdout = of_find_node_by_path(path);
 		if (stdout)
-			DBG("stdout is %s\n", stdout->full_name);
+			DBG("stdout is %pOF\n", stdout);
 	} else {
 		DBG(" no linux,stdout-path !\n");
 	}
@@ -603,7 +603,7 @@ static int __init check_legacy_serial_console(void)
 		DBG(" can't find stdout package %s !\n", name);
 		return -ENODEV;
 	}
-	DBG("stdout is %s\n", prom_stdout->full_name);
+	DBG("stdout is %pOF\n", prom_stdout);
 
 	name = of_get_property(prom_stdout, "name", NULL);
 	if (!name) {

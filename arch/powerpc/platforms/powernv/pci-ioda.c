@@ -444,8 +444,8 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 
 	r = of_get_property(dn, "ibm,opal-m64-window", NULL);
 	if (!r) {
-		pr_info("  No <ibm,opal-m64-window> on %s\n",
-			dn->full_name);
+		pr_info("  No <ibm,opal-m64-window> on %pOF\n",
+			dn);
 		return;
 	}
 
@@ -3796,8 +3796,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	if (!of_device_is_available(np))
 		return;
 
-	pr_info("Initializing %s PHB (%s)\n",
-		pnv_phb_names[ioda_type], of_node_full_name(np));
+	pr_info("Initializing %s PHB (%pOF)\n",	pnv_phb_names[ioda_type], np);
 
 	prop64 = of_get_property(np, "ibm,opal-phbid", NULL);
 	if (!prop64) {
@@ -3812,8 +3811,8 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	/* Allocate PCI controller */
 	phb->hose = hose = pcibios_alloc_controller(np);
 	if (!phb->hose) {
-		pr_err("  Can't allocate PCI controller for %s\n",
-		       np->full_name);
+		pr_err("  Can't allocate PCI controller for %pOF\n",
+		       np);
 		memblock_free(__pa(phb), sizeof(struct pnv_phb));
 		return;
 	}
@@ -3824,7 +3823,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		hose->first_busno = be32_to_cpu(prop32[0]);
 		hose->last_busno = be32_to_cpu(prop32[1]);
 	} else {
-		pr_warn("  Broken <bus-range> on %s\n", np->full_name);
+		pr_warn("  Broken <bus-range> on %pOF\n", np);
 		hose->first_busno = 0;
 		hose->last_busno = 0xff;
 	}
@@ -4045,7 +4044,7 @@ void __init pnv_pci_init_ioda_hub(struct device_node *np)
 	const __be64 *prop64;
 	u64 hub_id;
 
-	pr_info("Probing IODA IO-Hub %s\n", np->full_name);
+	pr_info("Probing IODA IO-Hub %pOF\n", np);
 
 	prop64 = of_get_property(np, "ibm,opal-hubid", NULL);
 	if (!prop64) {

@@ -198,8 +198,7 @@ static int __init ppc4xx_add_gpiochips(void)
 			goto err;
 		continue;
 err:
-		pr_err("%s: registration failed with status %d\n",
-		       np->full_name, ret);
+		pr_err("%pOF: registration failed with status %d\n", np, ret);
 		kfree(ppc4xx_gc);
 		/* try others anyway */
 	}

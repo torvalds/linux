@@ -278,8 +278,8 @@ static int __init cpm_init(void)
 	dcr_len = dcr_resource_len(np, 0);
 
 	if (dcr_base == 0 || dcr_len == 0) {
-		printk(KERN_ERR "cpm: could not parse dcr property for %s\n",
-		       np->full_name);
+		printk(KERN_ERR "cpm: could not parse dcr property for %pOF\n",
+		       np);
 		ret = -EINVAL;
 		goto node_put;
 	}
@@ -287,8 +287,8 @@ static int __init cpm_init(void)
 	cpm.dcr_host = dcr_map(np, dcr_base, dcr_len);
 
 	if (!DCR_MAP_OK(cpm.dcr_host)) {
-		printk(KERN_ERR "cpm: failed to map dcr property for %s\n",
-		       np->full_name);
+		printk(KERN_ERR "cpm: failed to map dcr property for %pOF\n",
+		       np);
 		ret = -EINVAL;
 		goto node_put;
 	}

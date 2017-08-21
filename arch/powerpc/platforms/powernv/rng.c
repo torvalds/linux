@@ -125,7 +125,7 @@ static __init void rng_init_per_cpu(struct powernv_rng *rng,
 
 	chip_id = of_get_ibm_chip_id(dn);
 	if (chip_id == -1)
-		pr_warn("No ibm,chip-id found for %s.\n", dn->full_name);
+		pr_warn("No ibm,chip-id found for %pOF.\n", dn);
 
 	for_each_possible_cpu(cpu) {
 		if (per_cpu(powernv_rng, cpu) == NULL ||
@@ -178,8 +178,8 @@ static __init int rng_init(void)
 	for_each_compatible_node(dn, NULL, "ibm,power-rng") {
 		rc = rng_create(dn);
 		if (rc) {
-			pr_err("Failed creating rng for %s (%d).\n",
-				dn->full_name, rc);
+			pr_err("Failed creating rng for %pOF (%d).\n",
+				dn, rc);
 			continue;
 		}
 
