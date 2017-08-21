@@ -148,9 +148,21 @@ static struct fib6_node *node_alloc(void)
 	return fn;
 }
 
-static void node_free(struct fib6_node *fn)
+static void node_free_immediate(struct fib6_node *fn)
 {
 	kmem_cache_free(fib6_node_kmem, fn);
+}
+
+static void node_free_rcu(struct rcu_head *head)
+{
+	struct fib6_node *fn = container_of(head, struct fib6_node, rcu);
+
+	kmem_cache_free(fib6_node_kmem, fn);
+}
+
+static void node_free(struct fib6_node *fn)
+{
+	call_rcu(&fn->rcu, node_free_rcu);
 }
 
 static void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
@@ -601,9 +613,9 @@ insert_above:
 
 		if (!in || !ln) {
 			if (in)
-				node_free(in);
+				node_free_immediate(in);
 			if (ln)
-				node_free(ln);
+				node_free_immediate(ln);
 			return ERR_PTR(-ENOMEM);
 		}
 
@@ -1038,7 +1050,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 				   root, and then (in failure) stale node
 				   in main tree.
 				 */
-				node_free(sfn);
+				node_free_immediate(sfn);
 				err = PTR_ERR(sn);
 				goto failure;
 			}
