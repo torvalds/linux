@@ -4808,15 +4808,15 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	em_tree = &info->mapping_tree.map_tree;
 	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
-	if (!ret) {
-		list_add_tail(&em->list, &trans->transaction->pending_chunks);
-		refcount_inc(&em->refs);
-	}
-	write_unlock(&em_tree->lock);
 	if (ret) {
+		write_unlock(&em_tree->lock);
 		free_extent_map(em);
 		goto error;
 	}
+
+	list_add_tail(&em->list, &trans->transaction->pending_chunks);
+	refcount_inc(&em->refs);
+	write_unlock(&em_tree->lock);
 
 	ret = btrfs_make_block_group(trans, info, 0, type, start, num_bytes);
 	if (ret)
