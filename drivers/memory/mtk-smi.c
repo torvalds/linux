@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -288,9 +289,6 @@ static int mtk_smi_larb_probe(struct platform_device *pdev)
 	struct platform_device *smi_pdev;
 	int err;
 
-	if (!dev->pm_domain)
-		return -EPROBE_DEFER;
-
 	larb = devm_kzalloc(dev, sizeof(*larb), GFP_KERNEL);
 	if (!larb)
 		return -ENOMEM;
@@ -326,6 +324,8 @@ static int mtk_smi_larb_probe(struct platform_device *pdev)
 	smi_pdev = of_find_device_by_node(smi_node);
 	of_node_put(smi_node);
 	if (smi_pdev) {
+		if (!platform_get_drvdata(smi_pdev))
+			return -EPROBE_DEFER;
 		larb->smi_common_dev = &smi_pdev->dev;
 	} else {
 		dev_err(dev, "Failed to get the smi_common device\n");
@@ -376,9 +376,6 @@ static int mtk_smi_common_probe(struct platform_device *pdev)
 	struct resource *res;
 	enum mtk_smi_gen smi_gen;
 	int ret;
-
-	if (!dev->pm_domain)
-		return -EPROBE_DEFER;
 
 	common = devm_kzalloc(dev, sizeof(*common), GFP_KERNEL);
 	if (!common)
@@ -456,4 +453,4 @@ err_unreg_smi:
 	return ret;
 }
 
-subsys_initcall(mtk_smi_init);
+module_init(mtk_smi_init);
