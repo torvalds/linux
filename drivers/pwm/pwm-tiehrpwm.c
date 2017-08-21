@@ -498,9 +498,9 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 		goto err_clk_unprepare;
 	}
 
+	platform_set_drvdata(pdev, pc);
 	pm_runtime_enable(&pdev->dev);
 
-	platform_set_drvdata(pdev, pc);
 	return 0;
 
 err_clk_unprepare:
