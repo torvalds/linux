@@ -71,6 +71,10 @@
 #define DRV_NAME	"ahci-ceva"
 #define CEVA_FLAG_BROKEN_GEN2	1
 
+static unsigned int rx_watermark = PTC_RX_WM_VAL;
+module_param(rx_watermark, uint, 0644);
+MODULE_PARM_DESC(rx_watermark, "RxWaterMark value (0 - 0x80)");
+
 struct ceva_ahci_priv {
 	struct platform_device *ahci_pdev;
 	/* Port Phy2Cfg Register */
@@ -152,7 +156,7 @@ static void ahci_ceva_setup(struct ahci_host_priv *hpriv)
 		writel(cevapriv->pp5c[i], mmio + AHCI_VEND_PP5C);
 
 		/* Rx Watermark setting  */
-		tmp = PTC_RX_WM_VAL | PTC_RSVD;
+		tmp = rx_watermark | PTC_RSVD;
 		writel(tmp, mmio + AHCI_VEND_PTC);
 
 		/* Default to Gen 3 Speed and Gen 1 if Gen2 is broken */
