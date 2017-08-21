@@ -1230,6 +1230,7 @@ emul:
 				break;
 			}
 branch_common:
+			MIPS_FPU_EMU_INC_STATS(branches);
 			set_delay_slot(xcp);
 			if (cond) {
 				/*
