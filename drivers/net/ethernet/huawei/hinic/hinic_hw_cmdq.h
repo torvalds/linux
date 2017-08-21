@@ -100,6 +100,10 @@ enum hinic_cmdq_type {
 	HINIC_MAX_CMDQ_TYPES,
 };
 
+enum hinic_set_arm_qtype {
+	HINIC_SET_ARM_CMDQ,
+};
+
 enum hinic_cmd_ack_type {
 	HINIC_CMD_ACK_TYPE_CMDQ,
 };
@@ -108,6 +112,11 @@ struct hinic_cmdq_buf {
 	void            *buf;
 	dma_addr_t      dma_addr;
 	size_t          size;
+};
+
+struct hinic_cmdq_arm_bit {
+	u32     q_type;
+	u32     q_id;
 };
 
 struct hinic_cmdq_ctxt_info {
@@ -166,6 +175,9 @@ void hinic_free_cmdq_buf(struct hinic_cmdqs *cmdqs,
 int hinic_cmdq_direct_resp(struct hinic_cmdqs *cmdqs,
 			   enum hinic_mod_type mod, u8 cmd,
 			   struct hinic_cmdq_buf *buf_in, u64 *out_param);
+
+int hinic_set_arm_bit(struct hinic_cmdqs *cmdqs,
+		      enum hinic_set_arm_qtype q_type, u32 q_id);
 
 int hinic_init_cmdqs(struct hinic_cmdqs *cmdqs, struct hinic_hwif *hwif,
 		     void __iomem **db_area);
