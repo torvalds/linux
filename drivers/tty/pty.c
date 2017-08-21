@@ -448,48 +448,6 @@ err:
 	return retval;
 }
 
-/**
- *	pty_open_peer - open the peer of a pty
- *	@tty: the peer of the pty being opened
- *
- *	Open the cached dentry in tty->link, providing a safe way for userspace
- *	to get the slave end of a pty (where they have the master fd and cannot
- *	access or trust the mount namespace /dev/pts was mounted inside).
- */
-static struct file *pty_open_peer(struct tty_struct *tty, int flags)
-{
-	if (tty->driver->subtype != PTY_TYPE_MASTER)
-		return ERR_PTR(-EIO);
-	return dentry_open(tty->link->driver_data, flags, current_cred());
-}
-
-static int pty_get_peer(struct tty_struct *tty, int flags)
-{
-	int fd = -1;
-	struct file *filp = NULL;
-	int retval = -EINVAL;
-
-	fd = get_unused_fd_flags(0);
-	if (fd < 0) {
-		retval = fd;
-		goto err;
-	}
-
-	filp = pty_open_peer(tty, flags);
-	if (IS_ERR(filp)) {
-		retval = PTR_ERR(filp);
-		goto err_put;
-	}
-
-	fd_install(fd, filp);
-	return fd;
-
-err_put:
-	put_unused_fd(fd);
-err:
-	return retval;
-}
-
 static void pty_cleanup(struct tty_struct *tty)
 {
 	tty_port_put(tty->port);
@@ -646,8 +604,49 @@ static inline void legacy_pty_init(void) { }
 
 /* Unix98 devices */
 #ifdef CONFIG_UNIX98_PTYS
-
 static struct cdev ptmx_cdev;
+
+/**
+ *	pty_open_peer - open the peer of a pty
+ *	@tty: the peer of the pty being opened
+ *
+ *	Open the cached dentry in tty->link, providing a safe way for userspace
+ *	to get the slave end of a pty (where they have the master fd and cannot
+ *	access or trust the mount namespace /dev/pts was mounted inside).
+ */
+static struct file *pty_open_peer(struct tty_struct *tty, int flags)
+{
+	if (tty->driver->subtype != PTY_TYPE_MASTER)
+		return ERR_PTR(-EIO);
+	return dentry_open(tty->link->driver_data, flags, current_cred());
+}
+
+static int pty_get_peer(struct tty_struct *tty, int flags)
+{
+	int fd = -1;
+	struct file *filp = NULL;
+	int retval = -EINVAL;
+
+	fd = get_unused_fd_flags(0);
+	if (fd < 0) {
+		retval = fd;
+		goto err;
+	}
+
+	filp = pty_open_peer(tty, flags);
+	if (IS_ERR(filp)) {
+		retval = PTR_ERR(filp);
+		goto err_put;
+	}
+
+	fd_install(fd, filp);
+	return fd;
+
+err_put:
+	put_unused_fd(fd);
+err:
+	return retval;
+}
 
 static int pty_unix98_ioctl(struct tty_struct *tty,
 			    unsigned int cmd, unsigned long arg)
@@ -794,6 +793,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	struct tty_struct *tty;
 	struct path *pts_path;
 	struct dentry *dentry;
+	struct vfsmount *mnt;
 	int retval;
 	int index;
 
@@ -806,7 +806,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	if (retval)
 		return retval;
 
-	fsi = devpts_acquire(filp);
+	fsi = devpts_acquire(filp, &mnt);
 	if (IS_ERR(fsi)) {
 		retval = PTR_ERR(fsi);
 		goto out_free_file;
@@ -850,7 +850,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	pts_path = kmalloc(sizeof(struct path), GFP_KERNEL);
 	if (!pts_path)
 		goto err_release;
-	pts_path->mnt = filp->f_path.mnt;
+	pts_path->mnt = mnt;
 	pts_path->dentry = dentry;
 	path_get(pts_path);
 	tty->link->driver_data = pts_path;
@@ -867,6 +867,7 @@ err_path_put:
 	path_put(pts_path);
 	kfree(pts_path);
 err_release:
+	mntput(mnt);
 	tty_unlock(tty);
 	// This will also put-ref the fsi
 	tty_release(inode, filp);
@@ -875,6 +876,7 @@ out:
 	devpts_kill_index(fsi, index);
 out_put_fsi:
 	devpts_release(fsi);
+	mntput(mnt);
 out_free_file:
 	tty_free_file(filp);
 	return retval;

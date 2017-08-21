@@ -198,12 +198,16 @@ amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id)
 	result = idr_find(&fpriv->bo_list_handles, id);
 
 	if (result) {
-		if (kref_get_unless_zero(&result->refcount))
+		if (kref_get_unless_zero(&result->refcount)) {
+			rcu_read_unlock();
 			mutex_lock(&result->lock);
-		else
+		} else {
+			rcu_read_unlock();
 			result = NULL;
+		}
+	} else {
+		rcu_read_unlock();
 	}
-	rcu_read_unlock();
 
 	return result;
 }
