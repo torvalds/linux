@@ -11,6 +11,7 @@
 #include <linux/debugfs.h>
 #include <linux/gpio.h>
 #include <linux/hdmi.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
@@ -1663,20 +1664,15 @@ static irqreturn_t tegra_hdmi_irq(int irq, void *data)
 
 static int tegra_hdmi_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct tegra_hdmi *hdmi;
 	struct resource *regs;
 	int err;
-
-	match = of_match_node(tegra_hdmi_of_match, pdev->dev.of_node);
-	if (!match)
-		return -ENODEV;
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
 		return -ENOMEM;
 
-	hdmi->config = match->data;
+	hdmi->config = of_device_get_match_data(&pdev->dev);
 	hdmi->dev = &pdev->dev;
 
 	hdmi->audio_source = AUTO;
