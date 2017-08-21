@@ -60,6 +60,7 @@
 #define PORT1_BASE	0x180
 
 /* Port Control Register Bit Definitions */
+#define PORT_SCTL_SPD_GEN3	(0x3 << 4)
 #define PORT_SCTL_SPD_GEN2	(0x2 << 4)
 #define PORT_SCTL_SPD_GEN1	(0x1 << 4)
 #define PORT_SCTL_IPM		(0x3 << 8)
@@ -136,8 +137,8 @@ static void ahci_ceva_setup(struct ahci_host_priv *hpriv)
 		tmp = PTC_RX_WM_VAL | PTC_RSVD;
 		writel(tmp, mmio + AHCI_VEND_PTC);
 
-		/* Default to Gen 2 Speed and Gen 1 if Gen2 is broken */
-		tmp = PORT_SCTL_SPD_GEN2 | PORT_SCTL_IPM;
+		/* Default to Gen 3 Speed and Gen 1 if Gen2 is broken */
+		tmp = PORT_SCTL_SPD_GEN3 | PORT_SCTL_IPM;
 		if (cevapriv->flags & CEVA_FLAG_BROKEN_GEN2)
 			tmp = PORT_SCTL_SPD_GEN1 | PORT_SCTL_IPM;
 		writel(tmp, mmio + PORT_SCR_CTL + PORT_BASE + PORT_OFFSET * i);
