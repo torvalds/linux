@@ -11,8 +11,13 @@ Required properties:
  - "rockchip,rk3366-pmu-pvtm" - for RK3366 SoCs.
  - "rockchip,rk3399-pvtm" - for RK3399 SoCs.
  - "rockchip,rk3399-pmu-pvtm" - for RK3399 SoCs.
-- clocks: list of the clock controller input clock identifiers.
-- clock-names: list of the clock controller input clock names.
+- clocks: Must contain an entry for each entry in clock-names.
+  See ../../clocks/clock-bindings.txt for details.
+- clock-names: Should be "core_l", "core_b", "gpu", "ddr" and "pmu".
+- resets: Must contain an entry for each entry in reset-names.
+  See ../../reset/reset.txt for details.
+- reset-names: Should be "core_l", "core_b", "gpu", "ddr" and "pmu".
+
 
 Example:
 
@@ -27,7 +32,10 @@ grf: syscon@ff770000 {
 	pvtm: pvtm {
 		compatible = "rockchip,rk3399-pvtm";
 		clocks = <&cru SCLK_PVTM_CORE_L>, <&cru SCLK_PVTM_CORE_B>,
-			<&cru SCLK_PVTM_GPU>, <&cru SCLK_PVTM_DDR>;
+			 <&cru SCLK_PVTM_GPU>, <&cru SCLK_PVTM_DDR>;
 		clock-names = "core_l", "core_b", "gpu", "ddr";
+		resets = <&cru SRST_PVTM_CORE_L>, <&cru SRST_PVTM_CORE_B>,
+			 <&cru SRST_PVTM_GPU>, <&cru SRST_PVTM_DDR>;
+		reset-names = "core_l", "core_b", "gpu", "ddr";
 	};
 }
