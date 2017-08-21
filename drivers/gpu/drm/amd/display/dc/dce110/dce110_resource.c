@@ -891,21 +891,14 @@ static bool dce110_validate_surface_sets(
 		if (context->stream_status[i].plane_count > 2)
 			return false;
 
-		if (context->stream_status[i].plane_states[0]->format
-				>= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
+		if ((context->stream_status[i].plane_states[i]->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) &&
+		    (context->stream_status[i].plane_states[i]->src_rect.width > 1920 ||
+		     context->stream_status[i].plane_states[i]->src_rect.height > 1080))
 			return false;
 
-		if (context->stream_status[i].plane_count == 2) {
-			if (context->stream_status[i].plane_states[1]->format
-					< SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
-				return false;
-			if (context->stream_status[i].plane_states[1]->src_rect.width > 1920
-					|| context->stream_status[i].plane_states[1]->src_rect.height > 1080)
-				return false;
-
-			if (context->streams[i]->timing.pixel_encoding != PIXEL_ENCODING_RGB)
-				return false;
-		}
+		/* irrespective of plane format, stream should be RGB encoded */
+		if (context->streams[i]->timing.pixel_encoding != PIXEL_ENCODING_RGB)
+			return false;
 	}
 
 	return true;
