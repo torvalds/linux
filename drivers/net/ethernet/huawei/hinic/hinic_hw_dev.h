@@ -153,6 +153,25 @@ struct hinic_cmd_base_qpn {
 	u16     qpn;
 };
 
+struct hinic_cmd_hw_ci {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_idx;
+
+	u8      dma_attr_off;
+	u8      pending_limit;
+	u8      coalesc_timer;
+
+	u8      msix_en;
+	u16     msix_entry_idx;
+
+	u32     sq_id;
+	u32     rsvd1;
+	u64     ci_addr;
+};
+
 struct hinic_hwdev {
 	struct hinic_hwif               *hwif;
 	struct msix_entry               *msix_entries;
@@ -213,5 +232,8 @@ int hinic_hwdev_msix_set(struct hinic_hwdev *hwdev, u16 msix_index,
 			 u8 pending_limit, u8 coalesc_timer,
 			 u8 lli_timer_cfg, u8 lli_credit_limit,
 			 u8 resend_timer);
+
+int hinic_hwdev_hw_ci_addr_set(struct hinic_hwdev *hwdev, struct hinic_sq *sq,
+			       u8 pending_limit, u8 coalesc_timer);
 
 #endif

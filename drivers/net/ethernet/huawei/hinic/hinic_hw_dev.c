@@ -40,6 +40,8 @@
 #define MAX_IRQS(max_qps, num_aeqs, num_ceqs)   \
 		 (2 * (max_qps) + (num_aeqs) + (num_ceqs))
 
+#define ADDR_IN_4BYTES(addr)            ((addr) >> 2)
+
 enum intr_type {
 	INTR_MSIX_TYPE,
 };
@@ -999,4 +1001,48 @@ int hinic_hwdev_msix_set(struct hinic_hwdev *hwdev, u16 msix_index,
 				   pending_limit, coalesc_timer,
 				   lli_timer_cfg, lli_credit_limit,
 				   resend_timer);
+}
+
+/**
+ * hinic_hwdev_hw_ci_addr_set - set cons idx addr and attributes in HW for sq
+ * @hwdev: the NIC HW device
+ * @sq: send queue
+ * @pending_limit: the maximum pending update ci events (unit 8)
+ * @coalesc_timer: coalesc period for update ci (unit 8 us)
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_hwdev_hw_ci_addr_set(struct hinic_hwdev *hwdev, struct hinic_sq *sq,
+			       u8 pending_limit, u8 coalesc_timer)
+{
+	struct hinic_qp *qp = container_of(sq, struct hinic_qp, sq);
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_pfhwdev *pfhwdev;
+	struct hinic_cmd_hw_ci hw_ci;
+
+	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
+		dev_err(&pdev->dev, "Unsupported PCI Function type\n");
+		return -EINVAL;
+	}
+
+	hw_ci.dma_attr_off  = 0;
+	hw_ci.pending_limit = pending_limit;
+	hw_ci.coalesc_timer = coalesc_timer;
+
+	hw_ci.msix_en = 1;
+	hw_ci.msix_entry_idx = sq->msix_entry;
+
+	hw_ci.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
+
+	hw_ci.sq_id = qp->q_id;
+
+	hw_ci.ci_addr = ADDR_IN_4BYTES(sq->hw_ci_dma_addr);
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+	return hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt,
+				 HINIC_MOD_COMM,
+				 HINIC_COMM_CMD_SQ_HI_CI_SET,
+				 &hw_ci, sizeof(hw_ci), NULL,
+				 NULL, HINIC_MGMT_MSG_SYNC);
 }

@@ -16,6 +16,7 @@
 #ifndef HINIC_HW_QP_H
 #define HINIC_HW_QP_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/sizes.h>
 #include <linux/pci.h>
@@ -27,6 +28,22 @@
 #include "hinic_hw_wq.h"
 #include "hinic_hw_qp_ctxt.h"
 
+#define HINIC_SQ_DB_INFO_PI_HI_SHIFT            0
+#define HINIC_SQ_DB_INFO_QID_SHIFT              8
+#define HINIC_SQ_DB_INFO_PATH_SHIFT             23
+#define HINIC_SQ_DB_INFO_COS_SHIFT              24
+#define HINIC_SQ_DB_INFO_TYPE_SHIFT             27
+
+#define HINIC_SQ_DB_INFO_PI_HI_MASK             0xFF
+#define HINIC_SQ_DB_INFO_QID_MASK               0x3FF
+#define HINIC_SQ_DB_INFO_PATH_MASK              0x1
+#define HINIC_SQ_DB_INFO_COS_MASK               0x7
+#define HINIC_SQ_DB_INFO_TYPE_MASK              0x1F
+
+#define HINIC_SQ_DB_INFO_SET(val, member)       \
+		(((u32)(val) & HINIC_SQ_DB_INFO_##member##_MASK) \
+		 << HINIC_SQ_DB_INFO_##member##_SHIFT)
+
 #define HINIC_SQ_WQEBB_SIZE                     64
 #define HINIC_RQ_WQEBB_SIZE                     32
 
@@ -37,6 +54,12 @@
 #define HINIC_RQ_DEPTH                          SZ_4K
 
 #define HINIC_RX_BUF_SZ                         2048
+
+#define HINIC_MIN_TX_WQE_SIZE(wq)               \
+		ALIGN(HINIC_SQ_WQE_SIZE(1), (wq)->wqebb_size)
+
+#define HINIC_MIN_TX_NUM_WQEBBS(sq)             \
+		(HINIC_MIN_TX_WQE_SIZE((sq)->wq) / (sq)->wq->wqebb_size)
 
 struct hinic_sq {
 	struct hinic_hwif       *hwif;
@@ -101,7 +124,32 @@ int hinic_init_rq(struct hinic_rq *rq, struct hinic_hwif *hwif,
 
 void hinic_clean_rq(struct hinic_rq *rq);
 
+int hinic_get_sq_free_wqebbs(struct hinic_sq *sq);
+
 int hinic_get_rq_free_wqebbs(struct hinic_rq *rq);
+
+void hinic_sq_prepare_wqe(struct hinic_sq *sq, u16 prod_idx,
+			  struct hinic_sq_wqe *wqe, struct hinic_sge *sges,
+			  int nr_sges);
+
+void hinic_sq_write_db(struct hinic_sq *sq, u16 prod_idx, unsigned int wqe_size,
+		       unsigned int cos);
+
+struct hinic_sq_wqe *hinic_sq_get_wqe(struct hinic_sq *sq,
+				      unsigned int wqe_size, u16 *prod_idx);
+
+void hinic_sq_write_wqe(struct hinic_sq *sq, u16 prod_idx,
+			struct hinic_sq_wqe *wqe, struct sk_buff *skb,
+			unsigned int wqe_size);
+
+struct hinic_sq_wqe *hinic_sq_read_wqe(struct hinic_sq *sq,
+				       struct sk_buff **skb,
+				       unsigned int *wqe_size, u16 *cons_idx);
+
+void hinic_sq_put_wqe(struct hinic_sq *sq, unsigned int wqe_size);
+
+void hinic_sq_get_sges(struct hinic_sq_wqe *wqe, struct hinic_sge *sges,
+		       int nr_sges);
 
 struct hinic_rq_wqe *hinic_rq_get_wqe(struct hinic_rq *rq,
 				      unsigned int wqe_size, u16 *prod_idx);

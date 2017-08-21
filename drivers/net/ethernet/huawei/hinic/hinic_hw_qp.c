@@ -23,6 +23,7 @@
 #include <linux/sizes.h>
 #include <linux/atomic.h>
 #include <linux/skbuff.h>
+#include <linux/io.h>
 #include <asm/barrier.h>
 #include <asm/byteorder.h>
 
@@ -32,6 +33,7 @@
 #include "hinic_hw_wq.h"
 #include "hinic_hw_qp_ctxt.h"
 #include "hinic_hw_qp.h"
+#include "hinic_hw_io.h"
 
 #define SQ_DB_OFF               SZ_2K
 
@@ -53,10 +55,26 @@
 		(((max_rqs) + (max_sqs)) * CTXT_RSVD + \
 		 (max_sqs + (q_id)) * Q_CTXT_SIZE)
 
-#define SIZE_16BYTES(size)      (ALIGN(size, 16) >> 4)
-#define SIZE_8BYTES(size)       (ALIGN(size, 8) >> 3)
+#define SIZE_16BYTES(size)              (ALIGN(size, 16) >> 4)
+#define SIZE_8BYTES(size)               (ALIGN(size, 8) >> 3)
+#define SECT_SIZE_FROM_8BYTES(size)     ((size) << 3)
 
+#define SQ_DB_PI_HI_SHIFT       8
+#define SQ_DB_PI_HI(prod_idx)   ((prod_idx) >> SQ_DB_PI_HI_SHIFT)
+
+#define SQ_DB_PI_LOW_MASK       0xFF
+#define SQ_DB_PI_LOW(prod_idx)  ((prod_idx) & SQ_DB_PI_LOW_MASK)
+
+#define SQ_DB_ADDR(sq, pi)      ((u64 *)((sq)->db_base) + SQ_DB_PI_LOW(pi))
+
+#define SQ_MASKED_IDX(sq, idx)  ((idx) & (sq)->wq->mask)
 #define RQ_MASKED_IDX(rq, idx)  ((idx) & (rq)->wq->mask)
+
+#define TX_MAX_MSS_DEFAULT      0x3E00
+
+enum sq_wqe_type {
+	SQ_NORMAL_WQE = 0,
+};
 
 enum rq_completion_fmt {
 	RQ_COMPLETE_SGE = 1
@@ -436,6 +454,19 @@ void hinic_clean_rq(struct hinic_rq *rq)
 }
 
 /**
+ * hinic_get_sq_free_wqebbs - return number of free wqebbs for use
+ * @sq: send queue
+ *
+ * Return number of free wqebbs
+ **/
+int hinic_get_sq_free_wqebbs(struct hinic_sq *sq)
+{
+	struct hinic_wq *wq = sq->wq;
+
+	return atomic_read(&wq->delta) - 1;
+}
+
+/**
  * hinic_get_rq_free_wqebbs - return number of free wqebbs for use
  * @rq: recv queue
  *
@@ -446,6 +477,228 @@ int hinic_get_rq_free_wqebbs(struct hinic_rq *rq)
 	struct hinic_wq *wq = rq->wq;
 
 	return atomic_read(&wq->delta) - 1;
+}
+
+static void sq_prepare_ctrl(struct hinic_sq_ctrl *ctrl, u16 prod_idx,
+			    int nr_descs)
+{
+	u32 ctrl_size, task_size, bufdesc_size;
+
+	ctrl_size = SIZE_8BYTES(sizeof(struct hinic_sq_ctrl));
+	task_size = SIZE_8BYTES(sizeof(struct hinic_sq_task));
+	bufdesc_size = nr_descs * sizeof(struct hinic_sq_bufdesc);
+	bufdesc_size = SIZE_8BYTES(bufdesc_size);
+
+	ctrl->ctrl_info = HINIC_SQ_CTRL_SET(bufdesc_size, BUFDESC_SECT_LEN) |
+			  HINIC_SQ_CTRL_SET(task_size, TASKSECT_LEN)        |
+			  HINIC_SQ_CTRL_SET(SQ_NORMAL_WQE, DATA_FORMAT)     |
+			  HINIC_SQ_CTRL_SET(ctrl_size, LEN);
+
+	ctrl->queue_info = HINIC_SQ_CTRL_SET(TX_MAX_MSS_DEFAULT,
+					     QUEUE_INFO_MSS);
+}
+
+static void sq_prepare_task(struct hinic_sq_task *task)
+{
+	task->pkt_info0 =
+		HINIC_SQ_TASK_INFO0_SET(0, L2HDR_LEN) |
+		HINIC_SQ_TASK_INFO0_SET(HINIC_L4_OFF_DISABLE, L4_OFFLOAD) |
+		HINIC_SQ_TASK_INFO0_SET(HINIC_OUTER_L3TYPE_UNKNOWN,
+					INNER_L3TYPE) |
+		HINIC_SQ_TASK_INFO0_SET(HINIC_VLAN_OFF_DISABLE,
+					VLAN_OFFLOAD) |
+		HINIC_SQ_TASK_INFO0_SET(HINIC_PKT_NOT_PARSED, PARSE_FLAG);
+
+	task->pkt_info1 =
+		HINIC_SQ_TASK_INFO1_SET(HINIC_MEDIA_UNKNOWN, MEDIA_TYPE) |
+		HINIC_SQ_TASK_INFO1_SET(0, INNER_L4_LEN) |
+		HINIC_SQ_TASK_INFO1_SET(0, INNER_L3_LEN);
+
+	task->pkt_info2 =
+		HINIC_SQ_TASK_INFO2_SET(0, TUNNEL_L4_LEN) |
+		HINIC_SQ_TASK_INFO2_SET(0, OUTER_L3_LEN)  |
+		HINIC_SQ_TASK_INFO2_SET(HINIC_TUNNEL_L4TYPE_UNKNOWN,
+					TUNNEL_L4TYPE)    |
+		HINIC_SQ_TASK_INFO2_SET(HINIC_OUTER_L3TYPE_UNKNOWN,
+					OUTER_L3TYPE);
+
+	task->ufo_v6_identify = 0;
+
+	task->pkt_info4 = HINIC_SQ_TASK_INFO4_SET(HINIC_L2TYPE_ETH, L2TYPE);
+
+	task->zero_pad = 0;
+}
+
+/**
+ * hinic_sq_prepare_wqe - prepare wqe before insert to the queue
+ * @sq: send queue
+ * @prod_idx: pi value
+ * @sq_wqe: wqe to prepare
+ * @sges: sges for use by the wqe for send for buf addresses
+ * @nr_sges: number of sges
+ **/
+void hinic_sq_prepare_wqe(struct hinic_sq *sq, u16 prod_idx,
+			  struct hinic_sq_wqe *sq_wqe, struct hinic_sge *sges,
+			  int nr_sges)
+{
+	int i;
+
+	sq_prepare_ctrl(&sq_wqe->ctrl, prod_idx, nr_sges);
+
+	sq_prepare_task(&sq_wqe->task);
+
+	for (i = 0; i < nr_sges; i++)
+		sq_wqe->buf_descs[i].sge = sges[i];
+}
+
+/**
+ * sq_prepare_db - prepare doorbell to write
+ * @sq: send queue
+ * @prod_idx: pi value for the doorbell
+ * @cos: cos of the doorbell
+ *
+ * Return db value
+ **/
+static u32 sq_prepare_db(struct hinic_sq *sq, u16 prod_idx, unsigned int cos)
+{
+	struct hinic_qp *qp = container_of(sq, struct hinic_qp, sq);
+	u8 hi_prod_idx = SQ_DB_PI_HI(SQ_MASKED_IDX(sq, prod_idx));
+
+	/* Data should be written to HW in Big Endian Format */
+	return cpu_to_be32(HINIC_SQ_DB_INFO_SET(hi_prod_idx, PI_HI)     |
+			   HINIC_SQ_DB_INFO_SET(HINIC_DB_SQ_TYPE, TYPE) |
+			   HINIC_SQ_DB_INFO_SET(HINIC_DATA_PATH, PATH)  |
+			   HINIC_SQ_DB_INFO_SET(cos, COS)               |
+			   HINIC_SQ_DB_INFO_SET(qp->q_id, QID));
+}
+
+/**
+ * hinic_sq_write_db- write doorbell
+ * @sq: send queue
+ * @prod_idx: pi value for the doorbell
+ * @wqe_size: wqe size
+ * @cos: cos of the wqe
+ **/
+void hinic_sq_write_db(struct hinic_sq *sq, u16 prod_idx, unsigned int wqe_size,
+		       unsigned int cos)
+{
+	struct hinic_wq *wq = sq->wq;
+
+	/* increment prod_idx to the next */
+	prod_idx += ALIGN(wqe_size, wq->wqebb_size) / wq->wqebb_size;
+
+	wmb();  /* Write all before the doorbell */
+
+	writel(sq_prepare_db(sq, prod_idx, cos), SQ_DB_ADDR(sq, prod_idx));
+}
+
+/**
+ * hinic_sq_get_wqe - get wqe ptr in the current pi and update the pi
+ * @sq: sq to get wqe from
+ * @wqe_size: wqe size
+ * @prod_idx: returned pi
+ *
+ * Return wqe pointer
+ **/
+struct hinic_sq_wqe *hinic_sq_get_wqe(struct hinic_sq *sq,
+				      unsigned int wqe_size, u16 *prod_idx)
+{
+	struct hinic_hw_wqe *hw_wqe = hinic_get_wqe(sq->wq, wqe_size,
+						    prod_idx);
+
+	if (IS_ERR(hw_wqe))
+		return NULL;
+
+	return &hw_wqe->sq_wqe;
+}
+
+/**
+ * hinic_sq_write_wqe - write the wqe to the sq
+ * @sq: send queue
+ * @prod_idx: pi of the wqe
+ * @sq_wqe: the wqe to write
+ * @skb: skb to save
+ * @wqe_size: the size of the wqe
+ **/
+void hinic_sq_write_wqe(struct hinic_sq *sq, u16 prod_idx,
+			struct hinic_sq_wqe *sq_wqe,
+			struct sk_buff *skb, unsigned int wqe_size)
+{
+	struct hinic_hw_wqe *hw_wqe = (struct hinic_hw_wqe *)sq_wqe;
+
+	sq->saved_skb[prod_idx] = skb;
+
+	/* The data in the HW should be in Big Endian Format */
+	hinic_cpu_to_be32(sq_wqe, wqe_size);
+
+	hinic_write_wqe(sq->wq, hw_wqe, wqe_size);
+}
+
+/**
+ * hinic_sq_read_wqe - read wqe ptr in the current ci and update the ci
+ * @sq: send queue
+ * @skb: return skb that was saved
+ * @wqe_size: the size of the wqe
+ * @cons_idx: consumer index of the wqe
+ *
+ * Return wqe in ci position
+ **/
+struct hinic_sq_wqe *hinic_sq_read_wqe(struct hinic_sq *sq,
+				       struct sk_buff **skb,
+				       unsigned int *wqe_size, u16 *cons_idx)
+{
+	struct hinic_hw_wqe *hw_wqe;
+	struct hinic_sq_wqe *sq_wqe;
+	struct hinic_sq_ctrl *ctrl;
+	unsigned int buf_sect_len;
+	u32 ctrl_info;
+
+	/* read the ctrl section for getting wqe size */
+	hw_wqe = hinic_read_wqe(sq->wq, sizeof(*ctrl), cons_idx);
+	if (IS_ERR(hw_wqe))
+		return NULL;
+
+	sq_wqe = &hw_wqe->sq_wqe;
+	ctrl = &sq_wqe->ctrl;
+	ctrl_info = be32_to_cpu(ctrl->ctrl_info);
+	buf_sect_len = HINIC_SQ_CTRL_GET(ctrl_info, BUFDESC_SECT_LEN);
+
+	*wqe_size = sizeof(*ctrl) + sizeof(sq_wqe->task);
+	*wqe_size += SECT_SIZE_FROM_8BYTES(buf_sect_len);
+
+	*skb = sq->saved_skb[*cons_idx];
+
+	/* using the real wqe size to read wqe again */
+	hw_wqe = hinic_read_wqe(sq->wq, *wqe_size, cons_idx);
+
+	return &hw_wqe->sq_wqe;
+}
+
+/**
+ * hinic_sq_put_wqe - release the ci for new wqes
+ * @sq: send queue
+ * @wqe_size: the size of the wqe
+ **/
+void hinic_sq_put_wqe(struct hinic_sq *sq, unsigned int wqe_size)
+{
+	hinic_put_wqe(sq->wq, wqe_size);
+}
+
+/**
+ * hinic_sq_get_sges - get sges from the wqe
+ * @sq_wqe: wqe to get the sges from its buffer addresses
+ * @sges: returned sges
+ * @nr_sges: number sges to return
+ **/
+void hinic_sq_get_sges(struct hinic_sq_wqe *sq_wqe, struct hinic_sge *sges,
+		       int nr_sges)
+{
+	int i;
+
+	for (i = 0; i < nr_sges && i < HINIC_MAX_SQ_BUFDESCS; i++) {
+		sges[i] = sq_wqe->buf_descs[i].sge;
+		hinic_be32_to_cpu(&sges[i], sizeof(sges[i]));
+	}
 }
 
 /**

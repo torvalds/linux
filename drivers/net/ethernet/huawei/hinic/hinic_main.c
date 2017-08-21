@@ -43,6 +43,10 @@ MODULE_AUTHOR("Huawei Technologies CO., Ltd");
 MODULE_DESCRIPTION("Huawei Intelligent NIC driver");
 MODULE_LICENSE("GPL");
 
+static unsigned int tx_weight = 64;
+module_param(tx_weight, uint, 0644);
+MODULE_PARM_DESC(tx_weight, "Number Tx packets for NAPI budget (default=64)");
+
 static unsigned int rx_weight = 64;
 module_param(rx_weight, uint, 0644);
 MODULE_PARM_DESC(rx_weight, "Number Rx packets for NAPI budget (default=64)");
@@ -569,9 +573,11 @@ static void hinic_set_rx_mode(struct net_device *netdev)
 	queue_work(nic_dev->workq, &rx_mode_work->work);
 }
 
-netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+static void hinic_tx_timeout(struct net_device *netdev)
 {
-	return NETDEV_TX_BUSY;
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+
+	netif_err(nic_dev, drv, netdev, "Tx timeout\n");
 }
 
 static const struct net_device_ops hinic_netdev_ops = {
@@ -584,6 +590,7 @@ static const struct net_device_ops hinic_netdev_ops = {
 	.ndo_vlan_rx_kill_vid = hinic_vlan_rx_kill_vid,
 	.ndo_set_rx_mode = hinic_set_rx_mode,
 	.ndo_start_xmit = hinic_xmit_frame,
+	.ndo_tx_timeout = hinic_tx_timeout,
 	/* more operations should be filled */
 };
 
@@ -690,6 +697,7 @@ static int nic_dev_init(struct pci_dev *pdev)
 	nic_dev->flags = 0;
 	nic_dev->txqs = NULL;
 	nic_dev->rxqs = NULL;
+	nic_dev->tx_weight = tx_weight;
 	nic_dev->rx_weight = rx_weight;
 
 	sema_init(&nic_dev->mgmt_lock, 1);
