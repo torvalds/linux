@@ -298,6 +298,7 @@ enum rk818_reg {
 #define VOUT_LO_INT	BIT(0)
 #define CLK32KOUT2_EN	BIT(0)
 
+#define RK8XX_ID_MSK			0xfff0
 enum {
 	BUCK_ILMIN_50MA,
 	BUCK_ILMIN_100MA,

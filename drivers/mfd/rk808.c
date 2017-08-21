@@ -325,7 +325,7 @@ static int rk808_probe(struct i2c_client *client,
 	void (*pm_pwroff_fn)(void);
 	int nr_pre_init_regs;
 	int nr_cells;
-	int pm_off = 0;
+	int pm_off = 0, msb, lsb;
 	int ret;
 	int i;
 
@@ -333,14 +333,23 @@ static int rk808_probe(struct i2c_client *client,
 	if (!rk808)
 		return -ENOMEM;
 
-	rk808->variant = i2c_smbus_read_word_data(client, RK808_ID_MSB);
-	if (rk808->variant < 0) {
-		dev_err(&client->dev, "Failed to read the chip id at 0x%02x\n",
+	/* Read chip variant */
+	msb = i2c_smbus_read_byte_data(client, RK808_ID_MSB);
+	if (msb < 0) {
+		dev_err(&client->dev, "failed to read the chip id at 0x%x\n",
 			RK808_ID_MSB);
-		return rk808->variant;
+		return msb;
 	}
 
-	dev_dbg(&client->dev, "Chip id: 0x%x\n", (unsigned int)rk808->variant);
+	lsb = i2c_smbus_read_byte_data(client, RK808_ID_LSB);
+	if (lsb < 0) {
+		dev_err(&client->dev, "failed to read the chip id at 0x%x\n",
+			RK808_ID_LSB);
+		return lsb;
+	}
+
+	rk808->variant = ((msb << 8) | lsb) & RK8XX_ID_MSK;
+	dev_info(&client->dev, "chip id: 0x%x\n", (unsigned int)rk808->variant);
 
 	switch (rk808->variant) {
 	case RK808_ID:
