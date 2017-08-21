@@ -18,6 +18,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include <dt-bindings/clock/exynos-audss-clk.h>
 
@@ -36,14 +37,13 @@ static struct clk *epll;
 #define ASS_CLK_DIV 0x4
 #define ASS_CLK_GATE 0x8
 
-#ifdef CONFIG_PM_SLEEP
 static unsigned long reg_save[][2] = {
 	{ ASS_CLK_SRC,  0 },
 	{ ASS_CLK_DIV,  0 },
 	{ ASS_CLK_GATE, 0 },
 };
 
-static int exynos_audss_clk_suspend(struct device *dev)
+static int __maybe_unused exynos_audss_clk_suspend(struct device *dev)
 {
 	int i;
 
@@ -53,7 +53,7 @@ static int exynos_audss_clk_suspend(struct device *dev)
 	return 0;
 }
 
-static int exynos_audss_clk_resume(struct device *dev)
+static int __maybe_unused exynos_audss_clk_resume(struct device *dev)
 {
 	int i;
 
@@ -62,7 +62,6 @@ static int exynos_audss_clk_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 struct exynos_audss_clk_drvdata {
 	unsigned int has_adma_clk:1;
@@ -179,7 +178,18 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 			}
 		}
 	}
-	clk_table[EXYNOS_MOUT_AUDSS] = clk_hw_register_mux(NULL, "mout_audss",
+
+	/*
+	 * Enable runtime PM here to allow the clock core using runtime PM
+	 * for the registered clocks. Additionally, we increase the runtime
+	 * PM usage count before registering the clocks, to prevent the
+	 * clock core from runtime suspending the device.
+	 */
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	clk_table[EXYNOS_MOUT_AUDSS] = clk_hw_register_mux(dev, "mout_audss",
 				mout_audss_p, ARRAY_SIZE(mout_audss_p),
 				CLK_SET_RATE_NO_REPARENT,
 				reg_base + ASS_CLK_SRC, 0, 1, 0, &lock);
@@ -190,48 +200,48 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 		mout_i2s_p[1] = __clk_get_name(cdclk);
 	if (!IS_ERR(sclk_audio))
 		mout_i2s_p[2] = __clk_get_name(sclk_audio);
-	clk_table[EXYNOS_MOUT_I2S] = clk_hw_register_mux(NULL, "mout_i2s",
+	clk_table[EXYNOS_MOUT_I2S] = clk_hw_register_mux(dev, "mout_i2s",
 				mout_i2s_p, ARRAY_SIZE(mout_i2s_p),
 				CLK_SET_RATE_NO_REPARENT,
 				reg_base + ASS_CLK_SRC, 2, 2, 0, &lock);
 
-	clk_table[EXYNOS_DOUT_SRP] = clk_hw_register_divider(NULL, "dout_srp",
+	clk_table[EXYNOS_DOUT_SRP] = clk_hw_register_divider(dev, "dout_srp",
 				"mout_audss", 0, reg_base + ASS_CLK_DIV, 0, 4,
 				0, &lock);
 
-	clk_table[EXYNOS_DOUT_AUD_BUS] = clk_hw_register_divider(NULL,
+	clk_table[EXYNOS_DOUT_AUD_BUS] = clk_hw_register_divider(dev,
 				"dout_aud_bus", "dout_srp", 0,
 				reg_base + ASS_CLK_DIV, 4, 4, 0, &lock);
 
-	clk_table[EXYNOS_DOUT_I2S] = clk_hw_register_divider(NULL, "dout_i2s",
+	clk_table[EXYNOS_DOUT_I2S] = clk_hw_register_divider(dev, "dout_i2s",
 				"mout_i2s", 0, reg_base + ASS_CLK_DIV, 8, 4, 0,
 				&lock);
 
-	clk_table[EXYNOS_SRP_CLK] = clk_hw_register_gate(NULL, "srp_clk",
+	clk_table[EXYNOS_SRP_CLK] = clk_hw_register_gate(dev, "srp_clk",
 				"dout_srp", CLK_SET_RATE_PARENT,
 				reg_base + ASS_CLK_GATE, 0, 0, &lock);
 
-	clk_table[EXYNOS_I2S_BUS] = clk_hw_register_gate(NULL, "i2s_bus",
+	clk_table[EXYNOS_I2S_BUS] = clk_hw_register_gate(dev, "i2s_bus",
 				"dout_aud_bus", CLK_SET_RATE_PARENT,
 				reg_base + ASS_CLK_GATE, 2, 0, &lock);
 
-	clk_table[EXYNOS_SCLK_I2S] = clk_hw_register_gate(NULL, "sclk_i2s",
+	clk_table[EXYNOS_SCLK_I2S] = clk_hw_register_gate(dev, "sclk_i2s",
 				"dout_i2s", CLK_SET_RATE_PARENT,
 				reg_base + ASS_CLK_GATE, 3, 0, &lock);
 
-	clk_table[EXYNOS_PCM_BUS] = clk_hw_register_gate(NULL, "pcm_bus",
+	clk_table[EXYNOS_PCM_BUS] = clk_hw_register_gate(dev, "pcm_bus",
 				 "sclk_pcm", CLK_SET_RATE_PARENT,
 				reg_base + ASS_CLK_GATE, 4, 0, &lock);
 
 	sclk_pcm_in = devm_clk_get(dev, "sclk_pcm_in");
 	if (!IS_ERR(sclk_pcm_in))
 		sclk_pcm_p = __clk_get_name(sclk_pcm_in);
-	clk_table[EXYNOS_SCLK_PCM] = clk_hw_register_gate(NULL, "sclk_pcm",
+	clk_table[EXYNOS_SCLK_PCM] = clk_hw_register_gate(dev, "sclk_pcm",
 				sclk_pcm_p, CLK_SET_RATE_PARENT,
 				reg_base + ASS_CLK_GATE, 5, 0, &lock);
 
 	if (variant->has_adma_clk) {
-		clk_table[EXYNOS_ADMA] = clk_hw_register_gate(NULL, "adma",
+		clk_table[EXYNOS_ADMA] = clk_hw_register_gate(dev, "adma",
 				"dout_srp", CLK_SET_RATE_PARENT,
 				reg_base + ASS_CLK_GATE, 9, 0, &lock);
 	}
@@ -251,10 +261,14 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 		goto unregister;
 	}
 
+	pm_runtime_put_sync(dev);
+
 	return 0;
 
 unregister:
 	exynos_audss_clk_teardown();
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 
 	if (!IS_ERR(epll))
 		clk_disable_unprepare(epll);
@@ -267,6 +281,7 @@ static int exynos_audss_clk_remove(struct platform_device *pdev)
 	of_clk_del_provider(pdev->dev.of_node);
 
 	exynos_audss_clk_teardown();
+	pm_runtime_disable(&pdev->dev);
 
 	if (!IS_ERR(epll))
 		clk_disable_unprepare(epll);
@@ -275,8 +290,10 @@ static int exynos_audss_clk_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops exynos_audss_clk_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(exynos_audss_clk_suspend,
-				     exynos_audss_clk_resume)
+	SET_RUNTIME_PM_OPS(exynos_audss_clk_suspend, exynos_audss_clk_resume,
+			   NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				     pm_runtime_force_resume)
 };
 
 static struct platform_driver exynos_audss_clk_driver = {
