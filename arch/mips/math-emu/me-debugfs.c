@@ -28,14 +28,50 @@ static int fpuemu_stat_get(void *data, u64 *val)
 }
 DEFINE_SIMPLE_ATTRIBUTE(fops_fpuemu_stat, fpuemu_stat_get, NULL, "%llu\n");
 
+static int fpuemustats_clear_show(struct seq_file *s, void *unused)
+{
+	__this_cpu_write((fpuemustats).emulated, 0);
+	__this_cpu_write((fpuemustats).loads, 0);
+	__this_cpu_write((fpuemustats).stores, 0);
+	__this_cpu_write((fpuemustats).branches, 0);
+	__this_cpu_write((fpuemustats).cp1ops, 0);
+	__this_cpu_write((fpuemustats).cp1xops, 0);
+	__this_cpu_write((fpuemustats).errors, 0);
+	__this_cpu_write((fpuemustats).ieee754_inexact, 0);
+	__this_cpu_write((fpuemustats).ieee754_underflow, 0);
+	__this_cpu_write((fpuemustats).ieee754_overflow, 0);
+	__this_cpu_write((fpuemustats).ieee754_zerodiv, 0);
+	__this_cpu_write((fpuemustats).ieee754_invalidop, 0);
+	__this_cpu_write((fpuemustats).ds_emul, 0);
+
+	return 0;
+}
+
+static int fpuemustats_clear_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, fpuemustats_clear_show, inode->i_private);
+}
+
+static const struct file_operations fpuemustats_clear_fops = {
+	.open                   = fpuemustats_clear_open,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+
 static int __init debugfs_fpuemu(void)
 {
-	struct dentry *d, *dir;
+	struct dentry *d, *dir, *reset_file;
 
 	if (!mips_debugfs_dir)
 		return -ENODEV;
 	dir = debugfs_create_dir("fpuemustats", mips_debugfs_dir);
 	if (!dir)
+		return -ENOMEM;
+	reset_file = debugfs_create_file("fpuemustats_clear", 0444,
+					 mips_debugfs_dir, NULL,
+					 &fpuemustats_clear_fops);
+	if (!reset_file)
 		return -ENOMEM;
 
 #define FPU_EMU_STAT_OFFSET(m)						\
