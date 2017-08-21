@@ -2536,20 +2536,17 @@ MODULE_DEVICE_TABLE(of, tegra_sor_of_match);
 
 static int tegra_sor_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct device_node *np;
 	struct tegra_sor *sor;
 	struct resource *regs;
 	int err;
 
-	match = of_match_device(tegra_sor_of_match, &pdev->dev);
-
 	sor = devm_kzalloc(&pdev->dev, sizeof(*sor), GFP_KERNEL);
 	if (!sor)
 		return -ENOMEM;
 
+	sor->soc = of_device_get_match_data(&pdev->dev);
 	sor->output.dev = sor->dev = &pdev->dev;
-	sor->soc = match->data;
 
 	sor->settings = devm_kmemdup(&pdev->dev, sor->soc->settings,
 				     sor->soc->num_settings *
