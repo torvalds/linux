@@ -65,7 +65,21 @@
  */
 void amdgpu_gart_set_defaults(struct amdgpu_device *adev)
 {
-	adev->mc.gart_size = (uint64_t)amdgpu_gart_size << 20;
+	u64 gart_size;
+
+	if (amdgpu_gart_size == -1) {
+		/* make the GART larger for chips that
+		 * dont' support VM for all rings
+		 */
+		if (adev->asic_type <= CHIP_STONEY)
+			gart_size = 1024;
+		else
+			gart_size = 256;
+	} else {
+		gart_size = amdgpu_gart_size;
+	}
+
+	adev->mc.gart_size = gart_size << 20;
 }
 
 /**
