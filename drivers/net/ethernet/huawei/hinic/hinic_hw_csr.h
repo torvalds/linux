@@ -56,7 +56,13 @@
 #define HINIC_CSR_API_CMD_CHAIN_CTRL_ADDR(idx)          \
 	(HINIC_CSR_API_CMD_BASE + 0x14 + (idx) * HINIC_CSR_API_CMD_STRIDE)
 
+#define HINIC_CSR_API_CMD_CHAIN_PI_ADDR(idx)            \
+	(HINIC_CSR_API_CMD_BASE + 0x1C + (idx) * HINIC_CSR_API_CMD_STRIDE)
+
 #define HINIC_CSR_API_CMD_CHAIN_REQ_ADDR(idx)           \
 	(HINIC_CSR_API_CMD_BASE + 0x20 + (idx) * HINIC_CSR_API_CMD_STRIDE)
+
+#define HINIC_CSR_API_CMD_STATUS_ADDR(idx)              \
+	(HINIC_CSR_API_CMD_BASE + 0x30 + (idx) * HINIC_CSR_API_CMD_STRIDE)
 
 #endif
