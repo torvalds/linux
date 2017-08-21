@@ -45,9 +45,7 @@
 #define   CLK_DIV_MAX 63
 #define   CLK_SRC_MASK GENMASK(7, 6)
 #define   CLK_SRC_XTAL 0   /* external crystal */
-#define   CLK_SRC_XTAL_RATE 24000000
 #define   CLK_SRC_PLL 1    /* FCLK_DIV2 */
-#define   CLK_SRC_PLL_RATE 1000000000
 #define   CLK_CORE_PHASE_MASK GENMASK(9, 8)
 #define   CLK_TX_PHASE_MASK GENMASK(11, 10)
 #define   CLK_RX_PHASE_MASK GENMASK(13, 12)
@@ -57,7 +55,7 @@
 #define   CLK_PHASE_270 3
 #define   CLK_ALWAYS_ON BIT(24)
 
-#define SD_EMMC_DElAY 0x4
+#define SD_EMMC_DELAY 0x4
 #define SD_EMMC_ADJUST 0x8
 #define SD_EMMC_CALOUT 0x10
 #define SD_EMMC_START 0x40
