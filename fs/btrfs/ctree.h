@@ -2821,9 +2821,7 @@ enum btrfs_compare_tree_result {
 	BTRFS_COMPARE_TREE_CHANGED,
 	BTRFS_COMPARE_TREE_SAME,
 };
-typedef int (*btrfs_changed_cb_t)(struct btrfs_root *left_root,
-				  struct btrfs_root *right_root,
-				  struct btrfs_path *left_path,
+typedef int (*btrfs_changed_cb_t)(struct btrfs_path *left_path,
 				  struct btrfs_path *right_path,
 				  struct btrfs_key *key,
 				  enum btrfs_compare_tree_result result,
