@@ -196,7 +196,7 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 		if (arche_pdata->wake_detect_state == WD_STATE_IDLE) {
 			arche_pdata->wake_detect_start = jiffies;
 			/*
-			 * In the begining, when wake/detect goes low
+			 * In the beginning, when wake/detect goes low
 			 * (first time), we assume it is meant for coldboot
 			 * and set the flag. If wake/detect line stays low
 			 * beyond 30msec, then it is coldboot else fallback
