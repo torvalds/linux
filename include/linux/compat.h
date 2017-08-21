@@ -456,7 +456,8 @@ asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 
 extern void sigset_from_compat(sigset_t *set, const compat_sigset_t *compat);
-extern void sigset_to_compat(compat_sigset_t *compat, const sigset_t *set);
+extern int put_compat_sigset(compat_sigset_t __user *compat,
+			     const sigset_t *set, unsigned int size);
 
 asmlinkage long compat_sys_migrate_pages(compat_pid_t pid,
 		compat_ulong_t maxnode, const compat_ulong_t __user *old_nodes,

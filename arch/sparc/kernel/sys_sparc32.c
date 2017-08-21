@@ -159,7 +159,6 @@ COMPAT_SYSCALL_DEFINE5(rt_sigaction, int, sig,
 {
         struct k_sigaction new_ka, old_ka;
         int ret;
-	compat_sigset_t set32;
 
         /* XXX: Don't preclude handling different sized sigset_t's.  */
         if (sigsetsize != sizeof(compat_sigset_t))
@@ -167,6 +166,7 @@ COMPAT_SYSCALL_DEFINE5(rt_sigaction, int, sig,
 
         if (act) {
 		u32 u_handler, u_restorer;
+		compat_sigset_t set32;
 
 		new_ka.ka_restorer = restorer;
 		ret = get_user(u_handler, &act->sa_handler);
@@ -183,9 +183,9 @@ COMPAT_SYSCALL_DEFINE5(rt_sigaction, int, sig,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		sigset_to_compat(&set32, &old_ka.sa.sa_mask);
 		ret = put_user(ptr_to_compat(old_ka.sa.sa_handler), &oact->sa_handler);
-		ret |= copy_to_user(&oact->sa_mask, &set32, sizeof(compat_sigset_t));
+		ret |= put_compat_sigset(&oact->sa_mask, &old_ka.sa.sa_mask,
+					 sizeof(oact->sa_mask));
 		ret |= put_user(old_ka.sa.sa_flags, &oact->sa_flags);
 		ret |= put_user(ptr_to_compat(old_ka.sa.sa_restorer), &oact->sa_restorer);
 		if (ret)

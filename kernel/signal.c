@@ -2621,13 +2621,7 @@ COMPAT_SYSCALL_DEFINE4(rt_sigprocmask, int, how, compat_sigset_t __user *, nset,
 		if (error)
 			return error;
 	}
-	if (oset) {
-		compat_sigset_t old32;
-		sigset_to_compat(&old32, &old_set);
-		if (copy_to_user(oset, &old32, sizeof(compat_sigset_t)))
-			return -EFAULT;
-	}
-	return 0;
+	return oset ? put_compat_sigset(oset, &old_set, sizeof(*oset)) : 0;
 #else
 	return sys_rt_sigprocmask(how, (sigset_t __user *)nset,
 				  (sigset_t __user *)oset, sigsetsize);
@@ -2669,20 +2663,11 @@ SYSCALL_DEFINE2(rt_sigpending, sigset_t __user *, uset, size_t, sigsetsize)
 COMPAT_SYSCALL_DEFINE2(rt_sigpending, compat_sigset_t __user *, uset,
 		compat_size_t, sigsetsize)
 {
-#ifdef __BIG_ENDIAN
 	sigset_t set;
 	int err = do_sigpending(&set, sigsetsize);
-	if (!err) {
-		compat_sigset_t set32;
-		sigset_to_compat(&set32, &set);
-		/* we can get here only if sigsetsize <= sizeof(set) */
-		if (copy_to_user(uset, &set32, sigsetsize))
-			err = -EFAULT;
-	}
+	if (!err)
+		err = put_compat_sigset(uset, &set, sigsetsize);
 	return err;
-#else
-	return sys_rt_sigpending((sigset_t __user *)uset, sigsetsize);
-#endif
 }
 #endif
 
@@ -3451,7 +3436,6 @@ COMPAT_SYSCALL_DEFINE4(rt_sigaction, int, sig,
 		compat_size_t, sigsetsize)
 {
 	struct k_sigaction new_ka, old_ka;
-	compat_sigset_t mask;
 #ifdef __ARCH_HAS_SA_RESTORER
 	compat_uptr_t restorer;
 #endif
@@ -3463,6 +3447,7 @@ COMPAT_SYSCALL_DEFINE4(rt_sigaction, int, sig,
 
 	if (act) {
 		compat_uptr_t handler;
+		compat_sigset_t mask;
 		ret = get_user(handler, &act->sa_handler);
 		new_ka.sa.sa_handler = compat_ptr(handler);
 #ifdef __ARCH_HAS_SA_RESTORER
@@ -3478,10 +3463,10 @@ COMPAT_SYSCALL_DEFINE4(rt_sigaction, int, sig,
 
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 	if (!ret && oact) {
-		sigset_to_compat(&mask, &old_ka.sa.sa_mask);
 		ret = put_user(ptr_to_compat(old_ka.sa.sa_handler), 
 			       &oact->sa_handler);
-		ret |= copy_to_user(&oact->sa_mask, &mask, sizeof(mask));
+		ret |= put_compat_sigset(&oact->sa_mask, &old_ka.sa.sa_mask,
+					 sizeof(oact->sa_mask));
 		ret |= put_user(old_ka.sa.sa_flags, &oact->sa_flags);
 #ifdef __ARCH_HAS_SA_RESTORER
 		ret |= put_user(ptr_to_compat(old_ka.sa.sa_restorer),
