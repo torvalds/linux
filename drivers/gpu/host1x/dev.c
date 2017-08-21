@@ -116,15 +116,16 @@ MODULE_DEVICE_TABLE(of, host1x_of_match);
 
 static int host1x_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *id;
 	struct host1x *host;
 	struct resource *regs;
 	int syncpt_irq;
 	int err;
 
-	id = of_match_device(host1x_of_match, &pdev->dev);
-	if (!id)
-		return -EINVAL;
+	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
+	if (!host)
+		return -ENOMEM;
+
+	host->info = of_device_get_match_data(&pdev->dev);
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
@@ -138,15 +139,10 @@ static int host1x_probe(struct platform_device *pdev)
 		return syncpt_irq;
 	}
 
-	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
-	if (!host)
-		return -ENOMEM;
-
 	mutex_init(&host->devices_lock);
 	INIT_LIST_HEAD(&host->devices);
 	INIT_LIST_HEAD(&host->list);
 	host->dev = &pdev->dev;
-	host->info = id->data;
 
 	/* set common host1x device data */
 	platform_set_drvdata(pdev, host);
