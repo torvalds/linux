@@ -1,0 +1,102 @@
+/*
+ * Huawei HiNIC PCI Express Linux driver
+ * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * for more details.
+ *
+ */
+
+#ifndef HINIC_HW_API_CMD_H
+#define HINIC_HW_API_CMD_H
+
+#include <linux/types.h>
+
+#include "hinic_hw_if.h"
+
+enum hinic_api_cmd_chain_type {
+	HINIC_API_CMD_WRITE_TO_MGMT_CPU = 2,
+
+	HINIC_API_CMD_MAX,
+};
+
+struct hinic_api_cmd_chain_attr {
+	struct hinic_hwif               *hwif;
+	enum hinic_api_cmd_chain_type   chain_type;
+
+	u32                             num_cells;
+	u16                             cell_size;
+};
+
+struct hinic_api_cmd_status {
+	u64     header;
+	u32     status;
+	u32     rsvd0;
+	u32     rsvd1;
+	u32     rsvd2;
+	u64     rsvd3;
+};
+
+/* HW struct */
+struct hinic_api_cmd_cell {
+	u64 ctrl;
+
+	/* address is 64 bit in HW struct */
+	u64 next_cell_paddr;
+
+	u64 desc;
+
+	/* HW struct */
+	union {
+		struct {
+			u64 hw_cmd_paddr;
+		} write;
+
+		struct {
+			u64 hw_wb_resp_paddr;
+			u64 hw_cmd_paddr;
+		} read;
+	};
+};
+
+struct hinic_api_cmd_cell_ctxt {
+	dma_addr_t                      cell_paddr;
+	struct hinic_api_cmd_cell       *cell_vaddr;
+
+	dma_addr_t                      api_cmd_paddr;
+	u8                              *api_cmd_vaddr;
+};
+
+struct hinic_api_cmd_chain {
+	struct hinic_hwif               *hwif;
+	enum hinic_api_cmd_chain_type   chain_type;
+
+	u32                             num_cells;
+	u16                             cell_size;
+
+	/* HW members in 24 bit format */
+	u32                             prod_idx;
+	u32                             cons_idx;
+
+	struct hinic_api_cmd_cell_ctxt  *cell_ctxt;
+
+	dma_addr_t                      wb_status_paddr;
+	struct hinic_api_cmd_status     *wb_status;
+
+	dma_addr_t                      head_cell_paddr;
+	struct hinic_api_cmd_cell       *head_node;
+	struct hinic_api_cmd_cell       *curr_node;
+};
+
+int hinic_api_cmd_init(struct hinic_api_cmd_chain **chain,
+		       struct hinic_hwif *hwif);
+
+void hinic_api_cmd_free(struct hinic_api_cmd_chain **chain);
+
+#endif

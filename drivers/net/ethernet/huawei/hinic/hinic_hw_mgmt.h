@@ -19,6 +19,7 @@
 #include <linux/types.h>
 
 #include "hinic_hw_if.h"
+#include "hinic_hw_api_cmd.h"
 
 enum hinic_mgmt_msg_type {
 	HINIC_MGMT_MSG_SYNC = 1,
@@ -30,6 +31,8 @@ enum hinic_cfg_cmd {
 
 struct hinic_pf_to_mgmt {
 	struct hinic_hwif               *hwif;
+
+	struct hinic_api_cmd_chain      *cmd_chain[HINIC_API_CMD_MAX];
 };
 
 int hinic_msg_to_mgmt(struct hinic_pf_to_mgmt *pf_to_mgmt,
