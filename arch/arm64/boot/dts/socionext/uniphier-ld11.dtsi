@@ -150,6 +150,17 @@
 			clocks = <&peri_clk 3>;
 		};
 
+		adamv@57920000 {
+			compatible = "socionext,uniphier-ld11-adamv",
+				     "simple-mfd", "syscon";
+			reg = <0x57920000 0x1000>;
+
+			adamv_rst: reset {
+				compatible = "socionext,uniphier-ld11-adamv-reset";
+				#reset-cells = <1>;
+			};
+		};
+
 		i2c0: i2c@58780000 {
 			compatible = "socionext,uniphier-fi2c";
 			status = "disabled";
