@@ -772,7 +772,7 @@ static void power_on_plane(
 	hubp_pg_control(hws, plane_id, true);
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
-	dm_logger_write(hws->ctx->logger, LOG_DC,
+	dm_logger_write(hws->ctx->logger, LOG_DEBUG,
 			"Un-gated front end for pipe %d\n", plane_id);
 }
 
@@ -1003,7 +1003,7 @@ static void reset_back_end_for_pipe(
 		return;
 
 	pipe_ctx->stream = NULL;
-	dm_logger_write(dc->ctx->logger, LOG_DC,
+	dm_logger_write(dc->ctx->logger, LOG_DEBUG,
 					"Reset back end for pipe %d, tg:%d\n",
 					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);
 }
@@ -1096,7 +1096,7 @@ static void plane_atomic_power_down(struct dc *dc, int fe_idx)
 	xfm->funcs->transform_reset(xfm);
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
-	dm_logger_write(dc->ctx->logger, LOG_DC,
+	dm_logger_write(dc->ctx->logger, LOG_DEBUG,
 			"Power gated front end %d\n", fe_idx);
 
 	if (dc->debug.sanity_checks)
@@ -1153,7 +1153,7 @@ static void dcn10_power_down_fe(struct dc *dc, int fe_idx)
 	xfm->funcs->transform_reset(xfm);
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
-	dm_logger_write(dc->ctx->logger, LOG_DC,
+	dm_logger_write(dc->ctx->logger, LOG_DEBUG,
 			"Power gated front end %d\n", fe_idx);
 
 	if (dc->debug.sanity_checks)
@@ -1921,7 +1921,7 @@ static void dcn10_power_on_fe(
 	/*TODO: REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, 0x1f);*/
 
 	if (plane_state) {
-		dm_logger_write(dc->ctx->logger, LOG_DC,
+		dm_logger_write(dc->ctx->logger, LOG_DEBUG,
 				"Pipe:%d 0x%x: addr hi:0x%x, "
 				"addr low:0x%x, "
 				"src: %d, %d, %d,"
@@ -1939,7 +1939,7 @@ static void dcn10_power_on_fe(
 				plane_state->dst_rect.width,
 				plane_state->dst_rect.height);
 
-		dm_logger_write(dc->ctx->logger, LOG_HW_SET_MODE,
+		dm_logger_write(dc->ctx->logger, LOG_DEBUG,
 				"Pipe %d: width, height, x, y\n"
 				"viewport:%d, %d, %d, %d\n"
 				"recout:  %d, %d, %d, %d\n",
