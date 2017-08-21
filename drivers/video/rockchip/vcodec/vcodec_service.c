@@ -1046,12 +1046,6 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data,
 			continue;
 
 		/*
-		 * for avoiding cache sync issue, we need to map/unmap
-		 * input buffer every time. FIX ME, if it is unnecessary
-		 */
-		if (task->reg_rlc == tbl[i])
-			vcodec_iommu_free_fd(data->iommu_info, session, usr_fd);
-		/*
 		 * special offset scale case
 		 *
 		 * This translation is for fd + offset translation.
