@@ -831,7 +831,7 @@ static int cs35l33_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs35l33 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs35l33 = {
 	.probe = cs35l33_probe,
 
 	.set_bias_level = cs35l33_set_bias_level,

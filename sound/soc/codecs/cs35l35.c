@@ -1079,7 +1079,7 @@ static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs35l35 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs35l35 = {
 	.probe = cs35l35_codec_probe,
 	.set_sysclk = cs35l35_codec_set_sysclk,
 	.component_driver = {

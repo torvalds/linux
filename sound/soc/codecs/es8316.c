@@ -554,7 +554,7 @@ static int es8316_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_es8316 = {
+static const struct snd_soc_codec_driver soc_codec_dev_es8316 = {
 	.probe		= es8316_probe,
 	.idle_bias_off	= true,
 

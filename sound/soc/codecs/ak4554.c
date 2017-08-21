@@ -64,7 +64,7 @@ static struct snd_soc_dai_driver ak4554_dai = {
 	.symmetric_rates = 1,
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_ak4554 = {
+static const struct snd_soc_codec_driver soc_codec_dev_ak4554 = {
 	.component_driver = {
 		.dapm_widgets		= ak4554_dapm_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(ak4554_dapm_widgets),
