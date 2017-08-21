@@ -63,22 +63,51 @@
 		reg = <0x0 0xff910000 0x0 0x4000>, <0x0 0xff968000 0x0 0x8000>;
 		reg-names = "register", "dsihost-register";
 		clocks =
-			<&cru SCLK_CIF_OUT>, <&cru SCLK_CIF_OUT>,
-			<&cru SCLK_DPHY_TX1RX1_CFG>, <&cru SCLK_MIPIDPHY_REF>,
 			<&cru ACLK_ISP0_NOC>, <&cru ACLK_ISP0_WRAPPER>,
 			<&cru HCLK_ISP0_NOC>, <&cru HCLK_ISP0_WRAPPER>,
-			<&cru SCLK_ISP0>, <&cru SCLK_DPHY_RX0_CFG>;
+			<&cru SCLK_ISP0>, <&cru SCLK_DPHY_RX0_CFG>,
+			<&cru SCLK_CIF_OUT>, <&cru SCLK_CIF_OUT>,
+			<&cru SCLK_MIPIDPHY_REF>;
 		clock-names =
-			"clk_cif_out", "clk_cif_pll",
-			"pclk_dphytxrx", "pclk_dphy_ref",
 			"aclk_isp0_noc", "aclk_isp0_wrapper",
 			"hclk_isp0_noc", "hclk_isp0_wrapper",
-			"clk_isp0", "pclk_dphyrx";
+			"clk_isp0", "pclk_dphyrx",
+			"clk_cif_out", "clk_cif_pll",
+			"pclk_dphy_ref";
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "cif_isp10_irq";
 		power-domains = <&power RK3399_PD_ISP0>;
 		rockchip,isp,iommu-enable = <1>;
 		iommus = <&isp0_mmu>;
+		status = "disabled";
+	};
+
+	cif_isp1: cif_isp@ff920000 {
+		compatible = "rockchip,rk3399-cif-isp";
+		rockchip,grf = <&grf>;
+		reg = <0x0 0xff920000 0x0 0x4000>, <0x0 0xff968000 0x0 0x8000>;
+		reg-names = "register", "dsihost-register";
+		clocks =
+			<&cru ACLK_ISP1_NOC>, <&cru ACLK_ISP1_WRAPPER>,
+			<&cru HCLK_ISP1_NOC>, <&cru HCLK_ISP1_WRAPPER>,
+			<&cru SCLK_ISP1>, <&cru PCLK_ISP1_WRAPPER>,
+			<&cru SCLK_DPHY_TX1RX1_CFG>,
+			<&cru PCLK_MIPI_DSI1>, <&cru SCLK_MIPIDPHY_CFG>,
+			<&cru SCLK_CIF_OUT>, <&cru SCLK_CIF_OUT>,
+			<&cru SCLK_MIPIDPHY_REF>;
+		clock-names =
+			"aclk_isp1_noc", "aclk_isp1_wrapper",
+			"hclk_isp1_noc", "hclk_isp1_wrapper",
+			"clk_isp1", "pclkin_isp1",
+			"pclk_dphytxrx",
+			"pclk_mipi_dsi","mipi_dphy_cfg",
+			"clk_cif_out", "clk_cif_pll",
+			"pclk_dphy_ref";
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "cif_isp10_irq";
+		power-domains = <&power RK3399_PD_ISP1>;
+		rockchip,isp,iommu-enable = <1>;
+		iommus = <&isp1_mmu>;
 		status = "disabled";
 	};
 };
