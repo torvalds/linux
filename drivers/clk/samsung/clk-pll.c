@@ -1388,7 +1388,7 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 	pll->lock_reg = base + pll_clk->lock_offset;
 	pll->con_reg = base + pll_clk->con_offset;
 
-	ret = clk_hw_register(NULL, &pll->hw);
+	ret = clk_hw_register(ctx->dev, &pll->hw);
 	if (ret) {
 		pr_err("%s: failed to register pll clock %s : %d\n",
 			__func__, pll_clk->name, ret);
