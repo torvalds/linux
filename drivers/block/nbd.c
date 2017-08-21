@@ -165,7 +165,7 @@ static ssize_t pid_show(struct device *dev,
 	return sprintf(buf, "%d\n", task_pid_nr(nbd->task_recv));
 }
 
-static struct device_attribute pid_attr = {
+static const struct device_attribute pid_attr = {
 	.attr = { .name = "pid", .mode = S_IRUGO},
 	.show = pid_show,
 };
