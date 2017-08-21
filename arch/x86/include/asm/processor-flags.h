@@ -34,17 +34,17 @@
  */
 #ifdef CONFIG_X86_64
 /* Mask off the address space ID and SME encryption bits. */
-#define CR3_ADDR_MASK __sme_clr(0x7FFFFFFFFFFFF000ull)
-#define CR3_PCID_MASK 0xFFFull
-#define CR3_NOFLUSH (1UL << 63)
+#define CR3_ADDR_MASK	__sme_clr(0x7FFFFFFFFFFFF000ull)
+#define CR3_PCID_MASK	0xFFFull
+#define CR3_NOFLUSH	BIT_ULL(63)
 #else
 /*
  * CR3_ADDR_MASK needs at least bits 31:5 set on PAE systems, and we save
  * a tiny bit of code size by setting all the bits.
  */
-#define CR3_ADDR_MASK 0xFFFFFFFFull
-#define CR3_PCID_MASK 0ull
-#define CR3_NOFLUSH 0
+#define CR3_ADDR_MASK	0xFFFFFFFFull
+#define CR3_PCID_MASK	0ull
+#define CR3_NOFLUSH	0
 #endif
 
 #endif /* _ASM_X86_PROCESSOR_FLAGS_H */
