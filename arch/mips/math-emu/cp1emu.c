@@ -2144,8 +2144,8 @@ copcsr:
 				return SIGILL;
 
 			DPFROMREG(fs, MIPSInst_FS(ir));
-			rv.w = ieee754dp_2008class(fs);
-			rfmt = w_fmt;
+			rv.l = ieee754dp_2008class(fs);
+			rfmt = l_fmt;
 			break;
 		}
 
