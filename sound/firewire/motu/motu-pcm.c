@@ -145,7 +145,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 
 	mutex_lock(&motu->mutex);
 
-	err = protocol->cache_packet_formats(motu);
+	err = snd_motu_stream_cache_packet_formats(motu);
 	if (err < 0)
 		goto err_locked;
 
