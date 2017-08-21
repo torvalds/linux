@@ -23,7 +23,10 @@
 #include <soc/mediatek/smi.h>
 #include <dt-bindings/memory/mt2701-larb-port.h>
 
+/* mt8173 */
 #define SMI_LARB_MMU_EN		0xf00
+
+/* mt2701 */
 #define REG_SMI_SECUR_CON_BASE		0x5c0
 
 /* every register control 8 port, register offset 0x4 */
@@ -40,6 +43,10 @@
 #define SMI_SECUR_CON_VAL_VIRT(id)	BIT((((id) & 0x7) << 2) + 3)
 /* mt2701 domain should be set to 3 */
 #define SMI_SECUR_CON_VAL_DOMAIN(id)	(0x3 << ((((id) & 0x7) << 2) + 1))
+
+/* mt2712 */
+#define SMI_LARB_NONSEC_CON(id)	(0x380 + ((id) * 4))
+#define F_MMU_EN		BIT(0)
 
 struct mtk_smi_larb_gen {
 	bool need_larbid;
@@ -149,6 +156,15 @@ mtk_smi_larb_bind(struct device *dev, struct device *master, void *data)
 	struct mtk_smi_iommu *smi_iommu = data;
 	unsigned int         i;
 
+	if (larb->larb_gen->need_larbid) {
+		larb->mmu = &smi_iommu->larb_imu[larb->larbid].mmu;
+		return 0;
+	}
+
+	/*
+	 * If there is no larbid property, Loop to find the corresponding
+	 * iommu information.
+	 */
 	for (i = 0; i < smi_iommu->larb_nr; i++) {
 		if (dev == smi_iommu->larb_imu[i].dev) {
 			/* The 'mmu' may be updated in iommu-attach/detach. */
@@ -159,13 +175,32 @@ mtk_smi_larb_bind(struct device *dev, struct device *master, void *data)
 	return -ENODEV;
 }
 
-static void mtk_smi_larb_config_port(struct device *dev)
+static void mtk_smi_larb_config_port_mt2712(struct device *dev)
+{
+	struct mtk_smi_larb *larb = dev_get_drvdata(dev);
+	u32 reg;
+	int i;
+
+	/*
+	 * larb 8/9 is the bdpsys larb, the iommu_en is enabled defaultly.
+	 * Don't need to set it again.
+	 */
+	if (larb->larbid == 8 || larb->larbid == 9)
+		return;
+
+	for_each_set_bit(i, (unsigned long *)larb->mmu, 32) {
+		reg = readl_relaxed(larb->base + SMI_LARB_NONSEC_CON(i));
+		reg |= F_MMU_EN;
+		writel(reg, larb->base + SMI_LARB_NONSEC_CON(i));
+	}
+}
+
+static void mtk_smi_larb_config_port_mt8173(struct device *dev)
 {
 	struct mtk_smi_larb *larb = dev_get_drvdata(dev);
 
 	writel(*larb->mmu, larb->base + SMI_LARB_MMU_EN);
 }
-
 
 static void mtk_smi_larb_config_port_gen1(struct device *dev)
 {
@@ -211,7 +246,7 @@ static const struct component_ops mtk_smi_larb_component_ops = {
 
 static const struct mtk_smi_larb_gen mtk_smi_larb_mt8173 = {
 	/* mt8173 do not need the port in larb */
-	.config_port = mtk_smi_larb_config_port,
+	.config_port = mtk_smi_larb_config_port_mt8173,
 };
 
 static const struct mtk_smi_larb_gen mtk_smi_larb_mt2701 = {
@@ -223,6 +258,11 @@ static const struct mtk_smi_larb_gen mtk_smi_larb_mt2701 = {
 	.config_port = mtk_smi_larb_config_port_gen1,
 };
 
+static const struct mtk_smi_larb_gen mtk_smi_larb_mt2712 = {
+	.need_larbid = true,
+	.config_port = mtk_smi_larb_config_port_mt2712,
+};
+
 static const struct of_device_id mtk_smi_larb_of_ids[] = {
 	{
 		.compatible = "mediatek,mt8173-smi-larb",
@@ -231,6 +271,10 @@ static const struct of_device_id mtk_smi_larb_of_ids[] = {
 	{
 		.compatible = "mediatek,mt2701-smi-larb",
 		.data = &mtk_smi_larb_mt2701
+	},
+	{
+		.compatible = "mediatek,mt2712-smi-larb",
+		.data = &mtk_smi_larb_mt2712
 	},
 	{}
 };
@@ -317,6 +361,10 @@ static const struct of_device_id mtk_smi_common_of_ids[] = {
 	{
 		.compatible = "mediatek,mt2701-smi-common",
 		.data = (void *)MTK_SMI_GEN1
+	},
+	{
+		.compatible = "mediatek,mt2712-smi-common",
+		.data = (void *)MTK_SMI_GEN2
 	},
 	{}
 };
