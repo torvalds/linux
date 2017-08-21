@@ -1017,6 +1017,19 @@ struct atom_14nm_combphy_tmds_vs_set
   uint8_t margin_deemph_lane0__deemph_sel_val;         
 };
 
+struct atom_i2c_reg_info {
+  uint8_t ucI2cRegIndex;
+  uint8_t ucI2cRegVal;
+};
+
+struct atom_hdmi_retimer_redriver_set {
+  uint8_t HdmiSlvAddr;
+  uint8_t HdmiRegNum;
+  uint8_t Hdmi6GRegNum;
+  struct atom_i2c_reg_info HdmiRegSetting[9];        //For non 6G Hz use
+  struct atom_i2c_reg_info Hdmi6GhzRegSetting[3];    //For 6G Hz use.
+};
+
 struct atom_integrated_system_info_v1_11
 {
   struct  atom_common_table_header  table_header;
@@ -1052,7 +1065,11 @@ struct atom_integrated_system_info_v1_11
   struct atom_14nm_dpphy_dp_tuningset dp_tuningset;
   struct atom_14nm_dpphy_dp_tuningset dp_hbr3_tuningset;
   struct atom_camera_data  camera_info;
-  uint32_t  reserved[138];
+  struct atom_hdmi_retimer_redriver_set dp0_retimer_set;   //for DP0
+  struct atom_hdmi_retimer_redriver_set dp1_retimer_set;   //for DP1
+  struct atom_hdmi_retimer_redriver_set dp2_retimer_set;   //for DP2
+  struct atom_hdmi_retimer_redriver_set dp3_retimer_set;   //for DP3
+  uint32_t  reserved[108];
 };
 
 
