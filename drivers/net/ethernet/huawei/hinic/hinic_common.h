@@ -22,4 +22,8 @@ struct hinic_sge {
 	u32             len;
 };
 
+void hinic_cpu_to_be32(void *data, int len);
+
+void hinic_be32_to_cpu(void *data, int len);
+
 #endif

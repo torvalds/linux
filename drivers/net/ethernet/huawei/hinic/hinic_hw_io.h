@@ -23,6 +23,7 @@
 
 #include "hinic_hw_if.h"
 #include "hinic_hw_wq.h"
+#include "hinic_hw_cmdq.h"
 #include "hinic_hw_qp.h"
 
 #define HINIC_DB_PAGE_SIZE      SZ_4K
@@ -60,6 +61,10 @@ struct hinic_func_to_io {
 	dma_addr_t              ci_dma_base;
 
 	struct hinic_free_db_area       free_db_area;
+
+	void __iomem                    *cmdq_db_area[HINIC_MAX_CMDQ_TYPES];
+
+	struct hinic_cmdqs              cmdqs;
 };
 
 int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,

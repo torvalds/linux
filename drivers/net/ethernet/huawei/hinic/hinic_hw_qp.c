@@ -21,12 +21,172 @@
 #include <linux/vmalloc.h>
 #include <linux/errno.h>
 #include <linux/sizes.h>
+#include <linux/atomic.h>
+#include <asm/byteorder.h>
 
+#include "hinic_common.h"
 #include "hinic_hw_if.h"
 #include "hinic_hw_wq.h"
+#include "hinic_hw_qp_ctxt.h"
 #include "hinic_hw_qp.h"
 
 #define SQ_DB_OFF               SZ_2K
+
+/* The number of cache line to prefetch Until threshold state */
+#define WQ_PREFETCH_MAX         2
+/* The number of cache line to prefetch After threshold state */
+#define WQ_PREFETCH_MIN         1
+/* Threshold state */
+#define WQ_PREFETCH_THRESHOLD   256
+
+/* sizes of the SQ/RQ ctxt */
+#define Q_CTXT_SIZE             48
+#define CTXT_RSVD               240
+
+#define SQ_CTXT_OFFSET(max_sqs, max_rqs, q_id)  \
+		(((max_rqs) + (max_sqs)) * CTXT_RSVD + (q_id) * Q_CTXT_SIZE)
+
+#define RQ_CTXT_OFFSET(max_sqs, max_rqs, q_id)  \
+		(((max_rqs) + (max_sqs)) * CTXT_RSVD + \
+		 (max_sqs + (q_id)) * Q_CTXT_SIZE)
+
+#define SIZE_16BYTES(size)      (ALIGN(size, 16) >> 4)
+
+void hinic_qp_prepare_header(struct hinic_qp_ctxt_header *qp_ctxt_hdr,
+			     enum hinic_qp_ctxt_type ctxt_type,
+			     u16 num_queues, u16 max_queues)
+{
+	u16 max_sqs = max_queues;
+	u16 max_rqs = max_queues;
+
+	qp_ctxt_hdr->num_queues = num_queues;
+	qp_ctxt_hdr->queue_type = ctxt_type;
+
+	if (ctxt_type == HINIC_QP_CTXT_TYPE_SQ)
+		qp_ctxt_hdr->addr_offset = SQ_CTXT_OFFSET(max_sqs, max_rqs, 0);
+	else
+		qp_ctxt_hdr->addr_offset = RQ_CTXT_OFFSET(max_sqs, max_rqs, 0);
+
+	qp_ctxt_hdr->addr_offset = SIZE_16BYTES(qp_ctxt_hdr->addr_offset);
+
+	hinic_cpu_to_be32(qp_ctxt_hdr, sizeof(*qp_ctxt_hdr));
+}
+
+void hinic_sq_prepare_ctxt(struct hinic_sq_ctxt *sq_ctxt,
+			   struct hinic_sq *sq, u16 global_qid)
+{
+	u32 wq_page_pfn_hi, wq_page_pfn_lo, wq_block_pfn_hi, wq_block_pfn_lo;
+	u64 wq_page_addr, wq_page_pfn, wq_block_pfn;
+	u16 pi_start, ci_start;
+	struct hinic_wq *wq;
+
+	wq = sq->wq;
+	ci_start = atomic_read(&wq->cons_idx);
+	pi_start = atomic_read(&wq->prod_idx);
+
+	/* Read the first page paddr from the WQ page paddr ptrs */
+	wq_page_addr = be64_to_cpu(*wq->block_vaddr);
+
+	wq_page_pfn = HINIC_WQ_PAGE_PFN(wq_page_addr);
+	wq_page_pfn_hi = upper_32_bits(wq_page_pfn);
+	wq_page_pfn_lo = lower_32_bits(wq_page_pfn);
+
+	wq_block_pfn = HINIC_WQ_BLOCK_PFN(wq->block_paddr);
+	wq_block_pfn_hi = upper_32_bits(wq_block_pfn);
+	wq_block_pfn_lo = lower_32_bits(wq_block_pfn);
+
+	sq_ctxt->ceq_attr = HINIC_SQ_CTXT_CEQ_ATTR_SET(global_qid,
+						       GLOBAL_SQ_ID) |
+			    HINIC_SQ_CTXT_CEQ_ATTR_SET(0, EN);
+
+	sq_ctxt->ci_wrapped = HINIC_SQ_CTXT_CI_SET(ci_start, IDX) |
+			      HINIC_SQ_CTXT_CI_SET(1, WRAPPED);
+
+	sq_ctxt->wq_hi_pfn_pi =
+			HINIC_SQ_CTXT_WQ_PAGE_SET(wq_page_pfn_hi, HI_PFN) |
+			HINIC_SQ_CTXT_WQ_PAGE_SET(pi_start, PI);
+
+	sq_ctxt->wq_lo_pfn = wq_page_pfn_lo;
+
+	sq_ctxt->pref_cache =
+		HINIC_SQ_CTXT_PREF_SET(WQ_PREFETCH_MIN, CACHE_MIN) |
+		HINIC_SQ_CTXT_PREF_SET(WQ_PREFETCH_MAX, CACHE_MAX) |
+		HINIC_SQ_CTXT_PREF_SET(WQ_PREFETCH_THRESHOLD, CACHE_THRESHOLD);
+
+	sq_ctxt->pref_wrapped = 1;
+
+	sq_ctxt->pref_wq_hi_pfn_ci =
+		HINIC_SQ_CTXT_PREF_SET(ci_start, CI) |
+		HINIC_SQ_CTXT_PREF_SET(wq_page_pfn_hi, WQ_HI_PFN);
+
+	sq_ctxt->pref_wq_lo_pfn = wq_page_pfn_lo;
+
+	sq_ctxt->wq_block_hi_pfn =
+		HINIC_SQ_CTXT_WQ_BLOCK_SET(wq_block_pfn_hi, HI_PFN);
+
+	sq_ctxt->wq_block_lo_pfn = wq_block_pfn_lo;
+
+	hinic_cpu_to_be32(sq_ctxt, sizeof(*sq_ctxt));
+}
+
+void hinic_rq_prepare_ctxt(struct hinic_rq_ctxt *rq_ctxt,
+			   struct hinic_rq *rq, u16 global_qid)
+{
+	u32 wq_page_pfn_hi, wq_page_pfn_lo, wq_block_pfn_hi, wq_block_pfn_lo;
+	u64 wq_page_addr, wq_page_pfn, wq_block_pfn;
+	u16 pi_start, ci_start;
+	struct hinic_wq *wq;
+
+	wq = rq->wq;
+	ci_start = atomic_read(&wq->cons_idx);
+	pi_start = atomic_read(&wq->prod_idx);
+
+	/* Read the first page paddr from the WQ page paddr ptrs */
+	wq_page_addr = be64_to_cpu(*wq->block_vaddr);
+
+	wq_page_pfn = HINIC_WQ_PAGE_PFN(wq_page_addr);
+	wq_page_pfn_hi = upper_32_bits(wq_page_pfn);
+	wq_page_pfn_lo = lower_32_bits(wq_page_pfn);
+
+	wq_block_pfn = HINIC_WQ_BLOCK_PFN(wq->block_paddr);
+	wq_block_pfn_hi = upper_32_bits(wq_block_pfn);
+	wq_block_pfn_lo = lower_32_bits(wq_block_pfn);
+
+	rq_ctxt->ceq_attr = HINIC_RQ_CTXT_CEQ_ATTR_SET(0, EN) |
+			    HINIC_RQ_CTXT_CEQ_ATTR_SET(1, WRAPPED);
+
+	rq_ctxt->pi_intr_attr = HINIC_RQ_CTXT_PI_SET(pi_start, IDX) |
+				HINIC_RQ_CTXT_PI_SET(rq->msix_entry, INTR);
+
+	rq_ctxt->wq_hi_pfn_ci = HINIC_RQ_CTXT_WQ_PAGE_SET(wq_page_pfn_hi,
+							  HI_PFN) |
+				HINIC_RQ_CTXT_WQ_PAGE_SET(ci_start, CI);
+
+	rq_ctxt->wq_lo_pfn = wq_page_pfn_lo;
+
+	rq_ctxt->pref_cache =
+		HINIC_RQ_CTXT_PREF_SET(WQ_PREFETCH_MIN, CACHE_MIN) |
+		HINIC_RQ_CTXT_PREF_SET(WQ_PREFETCH_MAX, CACHE_MAX) |
+		HINIC_RQ_CTXT_PREF_SET(WQ_PREFETCH_THRESHOLD, CACHE_THRESHOLD);
+
+	rq_ctxt->pref_wrapped = 1;
+
+	rq_ctxt->pref_wq_hi_pfn_ci =
+		HINIC_RQ_CTXT_PREF_SET(wq_page_pfn_hi, WQ_HI_PFN) |
+		HINIC_RQ_CTXT_PREF_SET(ci_start, CI);
+
+	rq_ctxt->pref_wq_lo_pfn = wq_page_pfn_lo;
+
+	rq_ctxt->pi_paddr_hi = upper_32_bits(rq->pi_dma_addr);
+	rq_ctxt->pi_paddr_lo = lower_32_bits(rq->pi_dma_addr);
+
+	rq_ctxt->wq_block_hi_pfn =
+		HINIC_RQ_CTXT_WQ_BLOCK_SET(wq_block_pfn_hi, HI_PFN);
+
+	rq_ctxt->wq_block_lo_pfn = wq_block_pfn_lo;
+
+	hinic_cpu_to_be32(rq_ctxt, sizeof(*rq_ctxt));
+}
 
 /**
  * alloc_sq_skb_arr - allocate sq array for saved skb

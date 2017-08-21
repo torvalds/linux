@@ -72,6 +72,15 @@ struct hinic_wqs {
 	struct semaphore        alloc_blocks_lock;
 };
 
+struct hinic_cmdq_pages {
+	/* The addresses are 64 bit in the HW */
+	u64                     page_paddr;
+	u64                     *page_vaddr;
+	void                    **shadow_page_vaddr;
+
+	struct hinic_hwif       *hwif;
+};
+
 int hinic_wqs_alloc(struct hinic_wqs *wqs, int num_wqs,
 		    struct hinic_hwif *hwif);
 

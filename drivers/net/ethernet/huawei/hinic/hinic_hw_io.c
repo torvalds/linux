@@ -27,6 +27,8 @@
 #include "hinic_hw_if.h"
 #include "hinic_hw_wqe.h"
 #include "hinic_hw_wq.h"
+#include "hinic_hw_cmdq.h"
+#include "hinic_hw_qp_ctxt.h"
 #include "hinic_hw_qp.h"
 #include "hinic_hw_io.h"
 
@@ -39,6 +41,10 @@
 
 #define DB_IDX(db, db_base)             \
 	(((unsigned long)(db) - (unsigned long)(db_base)) / HINIC_DB_PAGE_SIZE)
+
+enum io_cmd {
+	IO_CMD_MODIFY_QUEUE_CTXT = 0,
+};
 
 static void init_db_area_idx(struct hinic_free_db_area *free_db_area)
 {
@@ -98,6 +104,109 @@ static void return_db_area(struct hinic_func_to_io *func_to_io,
 	free_db_area->num_free++;
 
 	up(&free_db_area->idx_lock);
+}
+
+static int write_sq_ctxts(struct hinic_func_to_io *func_to_io, u16 base_qpn,
+			  u16 num_sqs)
+{
+	struct hinic_hwif *hwif = func_to_io->hwif;
+	struct hinic_sq_ctxt_block *sq_ctxt_block;
+	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_cmdq_buf cmdq_buf;
+	struct hinic_sq_ctxt *sq_ctxt;
+	struct hinic_qp *qp;
+	u64 out_param;
+	int err, i;
+
+	err = hinic_alloc_cmdq_buf(&func_to_io->cmdqs, &cmdq_buf);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to allocate cmdq buf\n");
+		return err;
+	}
+
+	sq_ctxt_block = cmdq_buf.buf;
+	sq_ctxt = sq_ctxt_block->sq_ctxt;
+
+	hinic_qp_prepare_header(&sq_ctxt_block->hdr, HINIC_QP_CTXT_TYPE_SQ,
+				num_sqs, func_to_io->max_qps);
+	for (i = 0; i < num_sqs; i++) {
+		qp = &func_to_io->qps[i];
+
+		hinic_sq_prepare_ctxt(&sq_ctxt[i], &qp->sq,
+				      base_qpn + qp->q_id);
+	}
+
+	cmdq_buf.size = HINIC_SQ_CTXT_SIZE(num_sqs);
+
+	err = hinic_cmdq_direct_resp(&func_to_io->cmdqs, HINIC_MOD_L2NIC,
+				     IO_CMD_MODIFY_QUEUE_CTXT, &cmdq_buf,
+				     &out_param);
+	if ((err) || (out_param != 0)) {
+		dev_err(&pdev->dev, "Failed to set SQ ctxts\n");
+		err = -EFAULT;
+	}
+
+	hinic_free_cmdq_buf(&func_to_io->cmdqs, &cmdq_buf);
+	return err;
+}
+
+static int write_rq_ctxts(struct hinic_func_to_io *func_to_io, u16 base_qpn,
+			  u16 num_rqs)
+{
+	struct hinic_hwif *hwif = func_to_io->hwif;
+	struct hinic_rq_ctxt_block *rq_ctxt_block;
+	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_cmdq_buf cmdq_buf;
+	struct hinic_rq_ctxt *rq_ctxt;
+	struct hinic_qp *qp;
+	u64 out_param;
+	int err, i;
+
+	err = hinic_alloc_cmdq_buf(&func_to_io->cmdqs, &cmdq_buf);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to allocate cmdq buf\n");
+		return err;
+	}
+
+	rq_ctxt_block = cmdq_buf.buf;
+	rq_ctxt = rq_ctxt_block->rq_ctxt;
+
+	hinic_qp_prepare_header(&rq_ctxt_block->hdr, HINIC_QP_CTXT_TYPE_RQ,
+				num_rqs, func_to_io->max_qps);
+	for (i = 0; i < num_rqs; i++) {
+		qp = &func_to_io->qps[i];
+
+		hinic_rq_prepare_ctxt(&rq_ctxt[i], &qp->rq,
+				      base_qpn + qp->q_id);
+	}
+
+	cmdq_buf.size = HINIC_RQ_CTXT_SIZE(num_rqs);
+
+	err = hinic_cmdq_direct_resp(&func_to_io->cmdqs, HINIC_MOD_L2NIC,
+				     IO_CMD_MODIFY_QUEUE_CTXT, &cmdq_buf,
+				     &out_param);
+	if ((err) || (out_param != 0)) {
+		dev_err(&pdev->dev, "Failed to set RQ ctxts\n");
+		err = -EFAULT;
+	}
+
+	hinic_free_cmdq_buf(&func_to_io->cmdqs, &cmdq_buf);
+	return err;
+}
+
+/**
+ * write_qp_ctxts - write the qp ctxt to HW
+ * @func_to_io: func to io channel that holds the IO components
+ * @base_qpn: first qp number
+ * @num_qps: number of qps to write
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int write_qp_ctxts(struct hinic_func_to_io *func_to_io, u16 base_qpn,
+			  u16 num_qps)
+{
+	return (write_sq_ctxts(func_to_io, base_qpn, num_qps) ||
+		write_rq_ctxts(func_to_io, base_qpn, num_qps));
 }
 
 /**
@@ -265,8 +374,15 @@ int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
 		}
 	}
 
+	err = write_qp_ctxts(func_to_io, base_qpn, num_qps);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init QP ctxts\n");
+		goto err_write_qp_ctxts;
+	}
+
 	return 0;
 
+err_write_qp_ctxts:
 err_init_qp:
 	for (j = 0; j < i; j++)
 		destroy_qp(func_to_io, &func_to_io->qps[j]);
@@ -331,6 +447,8 @@ int hinic_io_init(struct hinic_func_to_io *func_to_io,
 		  struct msix_entry *ceq_msix_entries)
 {
 	struct pci_dev *pdev = hwif->pdev;
+	enum hinic_cmdq_type cmdq, type;
+	void __iomem *db_area;
 	int err;
 
 	func_to_io->hwif = hwif;
@@ -351,7 +469,33 @@ int hinic_io_init(struct hinic_func_to_io *func_to_io,
 	}
 
 	init_db_area_idx(&func_to_io->free_db_area);
+
+	for (cmdq = HINIC_CMDQ_SYNC; cmdq < HINIC_MAX_CMDQ_TYPES; cmdq++) {
+		db_area = get_db_area(func_to_io);
+		if (IS_ERR(db_area)) {
+			dev_err(&pdev->dev, "Failed to get cmdq db area\n");
+			err = PTR_ERR(db_area);
+			goto err_db_area;
+		}
+
+		func_to_io->cmdq_db_area[cmdq] = db_area;
+	}
+
+	err = hinic_init_cmdqs(&func_to_io->cmdqs, hwif,
+			       func_to_io->cmdq_db_area);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize cmdqs\n");
+		goto err_init_cmdqs;
+	}
+
 	return 0;
+
+err_init_cmdqs:
+err_db_area:
+	for (type = HINIC_CMDQ_SYNC; type < cmdq; type++)
+		return_db_area(func_to_io, func_to_io->cmdq_db_area[type]);
+
+	iounmap(func_to_io->db_base);
 
 err_db_ioremap:
 	hinic_wqs_free(&func_to_io->wqs);
@@ -364,6 +508,13 @@ err_db_ioremap:
  **/
 void hinic_io_free(struct hinic_func_to_io *func_to_io)
 {
+	enum hinic_cmdq_type cmdq;
+
+	hinic_free_cmdqs(&func_to_io->cmdqs);
+
+	for (cmdq = HINIC_CMDQ_SYNC; cmdq < HINIC_MAX_CMDQ_TYPES; cmdq++)
+		return_db_area(func_to_io, func_to_io->cmdq_db_area[cmdq]);
+
 	iounmap(func_to_io->db_base);
 	hinic_wqs_free(&func_to_io->wqs);
 }

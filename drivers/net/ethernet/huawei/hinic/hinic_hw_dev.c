@@ -25,6 +25,7 @@
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
 #include "hinic_hw_mgmt.h"
+#include "hinic_hw_qp_ctxt.h"
 #include "hinic_hw_qp.h"
 #include "hinic_hw_io.h"
 #include "hinic_hw_dev.h"
@@ -75,6 +76,9 @@ static int get_capability(struct hinic_hwdev *hwdev,
 
 	/* Each QP has its own (SQ + RQ) interrupts */
 	nic_cap->num_qps = (num_irqs - (num_aeqs + num_ceqs)) / 2;
+
+	if (nic_cap->num_qps > HINIC_Q_CTXT_MAX)
+		nic_cap->num_qps = HINIC_Q_CTXT_MAX;
 
 	/* num_qps must be power of 2 */
 	nic_cap->num_qps = BIT(fls(nic_cap->num_qps) - 1);
