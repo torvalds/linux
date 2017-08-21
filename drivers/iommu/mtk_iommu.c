@@ -262,9 +262,9 @@ static void mtk_iommu_config(struct mtk_iommu_data *data,
 	}
 }
 
-static int mtk_iommu_domain_finalise(struct mtk_iommu_data *data)
+static int mtk_iommu_domain_finalise(struct mtk_iommu_domain *dom)
 {
-	struct mtk_iommu_domain *dom = data->m4u_dom;
+	struct mtk_iommu_data *data = mtk_iommu_get_m4u_data();
 
 	spin_lock_init(&dom->pgtlock);
 
@@ -290,9 +290,6 @@ static int mtk_iommu_domain_finalise(struct mtk_iommu_data *data)
 
 	/* Update our support page sizes bitmap */
 	dom->domain.pgsize_bitmap = dom->cfg.pgsize_bitmap;
-
-	writel(data->m4u_dom->cfg.arm_v7s_cfg.ttbr[0],
-	       data->base + REG_MMU_PT_BASE_ADDR);
 	return 0;
 }
 
@@ -307,20 +304,30 @@ static struct iommu_domain *mtk_iommu_domain_alloc(unsigned type)
 	if (!dom)
 		return NULL;
 
-	if (iommu_get_dma_cookie(&dom->domain)) {
-		kfree(dom);
-		return NULL;
-	}
+	if (iommu_get_dma_cookie(&dom->domain))
+		goto  free_dom;
+
+	if (mtk_iommu_domain_finalise(dom))
+		goto  put_dma_cookie;
 
 	dom->domain.geometry.aperture_start = 0;
 	dom->domain.geometry.aperture_end = DMA_BIT_MASK(32);
 	dom->domain.geometry.force_aperture = true;
 
 	return &dom->domain;
+
+put_dma_cookie:
+	iommu_put_dma_cookie(&dom->domain);
+free_dom:
+	kfree(dom);
+	return NULL;
 }
 
 static void mtk_iommu_domain_free(struct iommu_domain *domain)
 {
+	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
+
+	free_io_pgtable_ops(dom->iop);
 	iommu_put_dma_cookie(domain);
 	kfree(to_mtk_domain(domain));
 }
@@ -329,33 +336,19 @@ static int mtk_iommu_attach_device(struct iommu_domain *domain,
 				   struct device *dev)
 {
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
-	struct mtk_iommu_data *curdata = dev->iommu_fwspec->iommu_priv;
-	struct mtk_iommu_data *data = mtk_iommu_get_m4u_data();
-	int ret;
+	struct mtk_iommu_data *data = dev->iommu_fwspec->iommu_priv;
 
-	if (!data || !curdata)
+	if (!data)
 		return -ENODEV;
 
+	/* Update the pgtable base address register of the M4U HW */
 	if (!data->m4u_dom) {
 		data->m4u_dom = dom;
-		ret = mtk_iommu_domain_finalise(data);
-		if (ret) {
-			data->m4u_dom = NULL;
-			return ret;
-		}
+		writel(dom->cfg.arm_v7s_cfg.ttbr[0],
+		       data->base + REG_MMU_PT_BASE_ADDR);
 	}
 
-	/*
-	 * Update the pgtable base address register of another M4U HW with the
-	 * existed pgtable if there are more than one M4U HW.
-	 */
-	if (!curdata->m4u_dom) {
-		curdata->m4u_dom = data->m4u_dom;
-		writel(data->m4u_dom->cfg.arm_v7s_cfg.ttbr[0],
-		       curdata->base + REG_MMU_PT_BASE_ADDR);
-	}
-
-	mtk_iommu_config(curdata, dev, true);
+	mtk_iommu_config(data, dev, true);
 	return 0;
 }
 
@@ -664,7 +657,6 @@ static int mtk_iommu_remove(struct platform_device *pdev)
 	if (iommu_present(&platform_bus_type))
 		bus_set_iommu(&platform_bus_type, NULL);
 
-	free_io_pgtable_ops(data->m4u_dom->iop);
 	clk_disable_unprepare(data->bclk);
 	devm_free_irq(&pdev->dev, data->irq, data);
 	component_master_del(&pdev->dev, &mtk_iommu_com_ops);
