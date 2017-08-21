@@ -197,7 +197,7 @@ static const struct i2c_algorithm i2c_powermac_algorithm = {
 	.functionality	= i2c_powermac_func,
 };
 
-static struct i2c_adapter_quirks i2c_powermac_quirks = {
+static const struct i2c_adapter_quirks i2c_powermac_quirks = {
 	.max_num_msgs = 1,
 };
 

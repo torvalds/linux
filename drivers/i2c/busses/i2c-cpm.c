@@ -413,7 +413,7 @@ static const struct i2c_algorithm cpm_i2c_algo = {
 };
 
 /* CPM_MAX_READ is also limiting writes according to the code! */
-static struct i2c_adapter_quirks cpm_i2c_quirks = {
+static const struct i2c_adapter_quirks cpm_i2c_quirks = {
 	.max_num_msgs = CPM_MAXBD,
 	.max_read_len = CPM_MAX_READ,
 	.max_write_len = CPM_MAX_READ,
