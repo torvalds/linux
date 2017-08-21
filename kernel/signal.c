@@ -2629,11 +2629,8 @@ COMPAT_SYSCALL_DEFINE4(rt_sigprocmask, int, how, compat_sigset_t __user *, nset,
 }
 #endif
 
-static int do_sigpending(void *set, unsigned long sigsetsize)
+static int do_sigpending(sigset_t *set)
 {
-	if (sigsetsize > sizeof(sigset_t))
-		return -EINVAL;
-
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(set, &current->pending.signal,
 		  &current->signal->shared_pending.signal);
@@ -2653,7 +2650,12 @@ static int do_sigpending(void *set, unsigned long sigsetsize)
 SYSCALL_DEFINE2(rt_sigpending, sigset_t __user *, uset, size_t, sigsetsize)
 {
 	sigset_t set;
-	int err = do_sigpending(&set, sigsetsize);
+	int err;
+
+	if (sigsetsize > sizeof(*uset))
+		return -EINVAL;
+
+	err = do_sigpending(&set);
 	if (!err && copy_to_user(uset, &set, sigsetsize))
 		err = -EFAULT;
 	return err;
@@ -2664,7 +2666,12 @@ COMPAT_SYSCALL_DEFINE2(rt_sigpending, compat_sigset_t __user *, uset,
 		compat_size_t, sigsetsize)
 {
 	sigset_t set;
-	int err = do_sigpending(&set, sigsetsize);
+	int err;
+
+	if (sigsetsize > sizeof(*uset))
+		return -EINVAL;
+
+	err = do_sigpending(&set);
 	if (!err)
 		err = put_compat_sigset(uset, &set, sigsetsize);
 	return err;
@@ -3331,7 +3338,7 @@ SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
 COMPAT_SYSCALL_DEFINE1(sigpending, compat_old_sigset_t __user *, set32)
 {
 	sigset_t set;
-	int err = do_sigpending(&set, sizeof(set.sig[0]));
+	int err = do_sigpending(&set);
 	if (!err)
 		err = put_user(set.sig[0], set32);
 	return err;
