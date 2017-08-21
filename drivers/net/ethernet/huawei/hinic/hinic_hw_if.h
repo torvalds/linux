@@ -93,6 +93,7 @@
 #define HINIC_HWIF_NUM_IRQS(hwif)       ((hwif)->attr.num_irqs)
 #define HINIC_HWIF_FUNC_IDX(hwif)       ((hwif)->attr.func_idx)
 #define HINIC_HWIF_PCI_INTF(hwif)       ((hwif)->attr.pci_intf_idx)
+#define HINIC_HWIF_PF_IDX(hwif)         ((hwif)->attr.pf_idx)
 
 #define HINIC_FUNC_TYPE(hwif)           ((hwif)->attr.func_type)
 #define HINIC_IS_PF(hwif)               (HINIC_FUNC_TYPE(hwif) == HINIC_PF)
@@ -125,6 +126,10 @@ enum hinic_mod_type {
 	HINIC_MOD_CFGM  = 7,    /* Configuration module */
 
 	HINIC_MOD_MAX   = 15
+};
+
+enum hinic_node_id {
+	HINIC_NODE_ID_MGMT = 21,
 };
 
 struct hinic_func_attr {

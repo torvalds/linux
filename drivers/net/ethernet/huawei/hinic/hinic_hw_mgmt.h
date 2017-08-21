@@ -17,9 +17,47 @@
 #define HINIC_HW_MGMT_H
 
 #include <linux/types.h>
+#include <linux/semaphore.h>
+#include <linux/completion.h>
 
 #include "hinic_hw_if.h"
 #include "hinic_hw_api_cmd.h"
+
+#define HINIC_MSG_HEADER_MSG_LEN_SHIFT                          0
+#define HINIC_MSG_HEADER_MODULE_SHIFT                           11
+#define HINIC_MSG_HEADER_SEG_LEN_SHIFT                          16
+#define HINIC_MSG_HEADER_NO_ACK_SHIFT                           22
+#define HINIC_MSG_HEADER_ASYNC_MGMT_TO_PF_SHIFT                 23
+#define HINIC_MSG_HEADER_SEQID_SHIFT                            24
+#define HINIC_MSG_HEADER_LAST_SHIFT                             30
+#define HINIC_MSG_HEADER_DIRECTION_SHIFT                        31
+#define HINIC_MSG_HEADER_CMD_SHIFT                              32
+#define HINIC_MSG_HEADER_ZEROS_SHIFT                            40
+#define HINIC_MSG_HEADER_PCI_INTF_SHIFT                         48
+#define HINIC_MSG_HEADER_PF_IDX_SHIFT                           50
+#define HINIC_MSG_HEADER_MSG_ID_SHIFT                           54
+
+#define HINIC_MSG_HEADER_MSG_LEN_MASK                           0x7FF
+#define HINIC_MSG_HEADER_MODULE_MASK                            0x1F
+#define HINIC_MSG_HEADER_SEG_LEN_MASK                           0x3F
+#define HINIC_MSG_HEADER_NO_ACK_MASK                            0x1
+#define HINIC_MSG_HEADER_ASYNC_MGMT_TO_PF_MASK                  0x1
+#define HINIC_MSG_HEADER_SEQID_MASK                             0x3F
+#define HINIC_MSG_HEADER_LAST_MASK                              0x1
+#define HINIC_MSG_HEADER_DIRECTION_MASK                         0x1
+#define HINIC_MSG_HEADER_CMD_MASK                               0xFF
+#define HINIC_MSG_HEADER_ZEROS_MASK                             0xFF
+#define HINIC_MSG_HEADER_PCI_INTF_MASK                          0x3
+#define HINIC_MSG_HEADER_PF_IDX_MASK                            0xF
+#define HINIC_MSG_HEADER_MSG_ID_MASK                            0x3FF
+
+#define HINIC_MSG_HEADER_SET(val, member)                       \
+		((u64)((val) & HINIC_MSG_HEADER_##member##_MASK) << \
+		 HINIC_MSG_HEADER_##member##_SHIFT)
+
+#define HINIC_MSG_HEADER_GET(val, member)                       \
+		(((val) >> HINIC_MSG_HEADER_##member##_SHIFT) & \
+		 HINIC_MSG_HEADER_##member##_MASK)
 
 enum hinic_mgmt_msg_type {
 	HINIC_MGMT_MSG_SYNC = 1,
@@ -29,8 +67,29 @@ enum hinic_cfg_cmd {
 	HINIC_CFG_NIC_CAP = 0,
 };
 
+struct hinic_recv_msg {
+	u8                      *msg;
+	u8                      *buf_out;
+
+	struct completion       recv_done;
+
+	u16                     cmd;
+	enum hinic_mod_type     mod;
+	int                     async_mgmt_to_pf;
+
+	u16                     msg_len;
+	u16                     msg_id;
+};
+
 struct hinic_pf_to_mgmt {
 	struct hinic_hwif               *hwif;
+
+	struct semaphore                sync_msg_lock;
+	u16                             sync_msg_id;
+	u8                              *sync_msg_buf;
+
+	struct hinic_recv_msg           recv_resp_msg_from_mgmt;
+	struct hinic_recv_msg           recv_msg_from_mgmt;
 
 	struct hinic_api_cmd_chain      *cmd_chain[HINIC_API_CMD_MAX];
 };

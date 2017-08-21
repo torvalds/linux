@@ -54,6 +54,41 @@ enum api_cmd_xor_chk_level {
 };
 
 /**
+ * api_cmd - API CMD command
+ * @chain: chain for the command
+ * @dest: destination node on the card that will receive the command
+ * @cmd: command data
+ * @size: the command size
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int api_cmd(struct hinic_api_cmd_chain *chain,
+		   enum hinic_node_id dest, u8 *cmd, u16 cmd_size)
+{
+	/* should be implemented */
+	return -EINVAL;
+}
+
+/**
+ * hinic_api_cmd_write - Write API CMD command
+ * @chain: chain for write command
+ * @dest: destination node on the card that will receive the command
+ * @cmd: command data
+ * @size: the command size
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_api_cmd_write(struct hinic_api_cmd_chain *chain,
+			enum hinic_node_id dest, u8 *cmd, u16 size)
+{
+	/* Verify the chain type */
+	if (chain->chain_type == HINIC_API_CMD_WRITE_TO_MGMT_CPU)
+		return api_cmd(chain, dest, cmd, size);
+
+	return -EINVAL;
+}
+
+/**
  * api_cmd_hw_restart - restart the chain in the HW
  * @chain: the API CMD specific chain to restart
  *
