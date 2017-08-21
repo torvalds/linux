@@ -1655,7 +1655,6 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 error:
 	if (dev) {
 
-		kref_put(&dev->kref, dlfb_free); /* ref for framebuffer */
 		kref_put(&dev->kref, dlfb_free); /* last ref from kref_init */
 
 		/* dev has been deallocated. Do not dereference */
