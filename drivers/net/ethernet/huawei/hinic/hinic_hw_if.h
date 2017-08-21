@@ -137,6 +137,7 @@
 #define HINIC_IS_PPF(hwif)              (HINIC_FUNC_TYPE(hwif) == HINIC_PPF)
 
 #define HINIC_PCI_CFG_REGS_BAR          0
+#define HINIC_PCI_DB_BAR                4
 
 #define HINIC_PCIE_ST_DISABLE           0
 #define HINIC_PCIE_AT_DISABLE           0

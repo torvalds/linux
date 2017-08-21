@@ -13,17 +13,92 @@
  *
  */
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/semaphore.h>
+#include <linux/dma-mapping.h>
+#include <linux/io.h>
+#include <linux/err.h>
 
 #include "hinic_hw_if.h"
 #include "hinic_hw_wqe.h"
 #include "hinic_hw_wq.h"
 #include "hinic_hw_qp.h"
 #include "hinic_hw_io.h"
+
+#define CI_Q_ADDR_SIZE                  sizeof(u32)
+
+#define CI_ADDR(base_addr, q_id)        ((base_addr) + \
+					 (q_id) * CI_Q_ADDR_SIZE)
+
+#define CI_TABLE_SIZE(num_qps)          ((num_qps) * CI_Q_ADDR_SIZE)
+
+#define DB_IDX(db, db_base)             \
+	(((unsigned long)(db) - (unsigned long)(db_base)) / HINIC_DB_PAGE_SIZE)
+
+static void init_db_area_idx(struct hinic_free_db_area *free_db_area)
+{
+	int i;
+
+	for (i = 0; i < HINIC_DB_MAX_AREAS; i++)
+		free_db_area->db_idx[i] = i;
+
+	free_db_area->alloc_pos = 0;
+	free_db_area->return_pos = HINIC_DB_MAX_AREAS;
+
+	free_db_area->num_free = HINIC_DB_MAX_AREAS;
+
+	sema_init(&free_db_area->idx_lock, 1);
+}
+
+static void __iomem *get_db_area(struct hinic_func_to_io *func_to_io)
+{
+	struct hinic_free_db_area *free_db_area = &func_to_io->free_db_area;
+	int pos, idx;
+
+	down(&free_db_area->idx_lock);
+
+	free_db_area->num_free--;
+
+	if (free_db_area->num_free < 0) {
+		free_db_area->num_free++;
+		up(&free_db_area->idx_lock);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	pos = free_db_area->alloc_pos++;
+	pos &= HINIC_DB_MAX_AREAS - 1;
+
+	idx = free_db_area->db_idx[pos];
+
+	free_db_area->db_idx[pos] = -1;
+
+	up(&free_db_area->idx_lock);
+
+	return func_to_io->db_base + idx * HINIC_DB_PAGE_SIZE;
+}
+
+static void return_db_area(struct hinic_func_to_io *func_to_io,
+			   void __iomem *db_base)
+{
+	struct hinic_free_db_area *free_db_area = &func_to_io->free_db_area;
+	int pos, idx = DB_IDX(db_base, func_to_io->db_base);
+
+	down(&free_db_area->idx_lock);
+
+	pos = free_db_area->return_pos++;
+	pos &= HINIC_DB_MAX_AREAS - 1;
+
+	free_db_area->db_idx[pos] = idx;
+
+	free_db_area->num_free++;
+
+	up(&free_db_area->idx_lock);
+}
 
 /**
  * init_qp - Initialize a Queue Pair
@@ -42,6 +117,7 @@ static int init_qp(struct hinic_func_to_io *func_to_io,
 {
 	struct hinic_hwif *hwif = func_to_io->hwif;
 	struct pci_dev *pdev = hwif->pdev;
+	void __iomem *db_base;
 	int err;
 
 	qp->q_id = q_id;
@@ -62,7 +138,41 @@ static int init_qp(struct hinic_func_to_io *func_to_io,
 		goto err_rq_alloc;
 	}
 
+	db_base = get_db_area(func_to_io);
+	if (IS_ERR(db_base)) {
+		dev_err(&pdev->dev, "Failed to get DB area for SQ\n");
+		err = PTR_ERR(db_base);
+		goto err_get_db;
+	}
+
+	func_to_io->sq_db[q_id] = db_base;
+
+	err = hinic_init_sq(&qp->sq, hwif, &func_to_io->sq_wq[q_id],
+			    sq_msix_entry,
+			    CI_ADDR(func_to_io->ci_addr_base, q_id),
+			    CI_ADDR(func_to_io->ci_dma_base, q_id), db_base);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init SQ\n");
+		goto err_sq_init;
+	}
+
+	err = hinic_init_rq(&qp->rq, hwif, &func_to_io->rq_wq[q_id],
+			    rq_msix_entry);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init RQ\n");
+		goto err_rq_init;
+	}
+
 	return 0;
+
+err_rq_init:
+	hinic_clean_sq(&qp->sq);
+
+err_sq_init:
+	return_db_area(func_to_io, db_base);
+
+err_get_db:
+	hinic_wq_free(&func_to_io->wqs, &func_to_io->rq_wq[q_id]);
 
 err_rq_alloc:
 	hinic_wq_free(&func_to_io->wqs, &func_to_io->sq_wq[q_id]);
@@ -78,6 +188,11 @@ static void destroy_qp(struct hinic_func_to_io *func_to_io,
 		       struct hinic_qp *qp)
 {
 	int q_id = qp->q_id;
+
+	hinic_clean_rq(&qp->rq);
+	hinic_clean_sq(&qp->sq);
+
+	return_db_area(func_to_io, func_to_io->sq_db[q_id]);
 
 	hinic_wq_free(&func_to_io->wqs, &func_to_io->rq_wq[q_id]);
 	hinic_wq_free(&func_to_io->wqs, &func_to_io->sq_wq[q_id]);
@@ -100,7 +215,8 @@ int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
 {
 	struct hinic_hwif *hwif = func_to_io->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	size_t qps_size, wq_size;
+	size_t qps_size, wq_size, db_size;
+	void *ci_addr_base;
 	int i, j, err;
 
 	qps_size = num_qps * sizeof(*func_to_io->qps);
@@ -122,6 +238,24 @@ int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
 		goto err_rq_wq;
 	}
 
+	db_size = num_qps * sizeof(*func_to_io->sq_db);
+	func_to_io->sq_db = devm_kzalloc(&pdev->dev, db_size, GFP_KERNEL);
+	if (!func_to_io->sq_db) {
+		err = -ENOMEM;
+		goto err_sq_db;
+	}
+
+	ci_addr_base = dma_zalloc_coherent(&pdev->dev, CI_TABLE_SIZE(num_qps),
+					   &func_to_io->ci_dma_base,
+					   GFP_KERNEL);
+	if (!ci_addr_base) {
+		dev_err(&pdev->dev, "Failed to allocate CI area\n");
+		err = -ENOMEM;
+		goto err_ci_base;
+	}
+
+	func_to_io->ci_addr_base = ci_addr_base;
+
 	for (i = 0; i < num_qps; i++) {
 		err = init_qp(func_to_io, &func_to_io->qps[i], i,
 			      &sq_msix_entries[i], &rq_msix_entries[i]);
@@ -137,6 +271,13 @@ err_init_qp:
 	for (j = 0; j < i; j++)
 		destroy_qp(func_to_io, &func_to_io->qps[j]);
 
+	dma_free_coherent(&pdev->dev, CI_TABLE_SIZE(num_qps),
+			  func_to_io->ci_addr_base, func_to_io->ci_dma_base);
+
+err_ci_base:
+	devm_kfree(&pdev->dev, func_to_io->sq_db);
+
+err_sq_db:
 	devm_kfree(&pdev->dev, func_to_io->rq_wq);
 
 err_rq_wq:
@@ -156,10 +297,18 @@ void hinic_io_destroy_qps(struct hinic_func_to_io *func_to_io, int num_qps)
 {
 	struct hinic_hwif *hwif = func_to_io->hwif;
 	struct pci_dev *pdev = hwif->pdev;
+	size_t ci_table_size;
 	int i;
+
+	ci_table_size = CI_TABLE_SIZE(num_qps);
 
 	for (i = 0; i < num_qps; i++)
 		destroy_qp(func_to_io, &func_to_io->qps[i]);
+
+	dma_free_coherent(&pdev->dev, ci_table_size, func_to_io->ci_addr_base,
+			  func_to_io->ci_dma_base);
+
+	devm_kfree(&pdev->dev, func_to_io->sq_db);
 
 	devm_kfree(&pdev->dev, func_to_io->rq_wq);
 	devm_kfree(&pdev->dev, func_to_io->sq_wq);
@@ -194,7 +343,19 @@ int hinic_io_init(struct hinic_func_to_io *func_to_io,
 		return err;
 	}
 
+	func_to_io->db_base = pci_ioremap_bar(pdev, HINIC_PCI_DB_BAR);
+	if (!func_to_io->db_base) {
+		dev_err(&pdev->dev, "Failed to remap IO DB area\n");
+		err = -ENOMEM;
+		goto err_db_ioremap;
+	}
+
+	init_db_area_idx(&func_to_io->free_db_area);
 	return 0;
+
+err_db_ioremap:
+	hinic_wqs_free(&func_to_io->wqs);
+	return err;
 }
 
 /**
@@ -203,5 +364,6 @@ int hinic_io_init(struct hinic_func_to_io *func_to_io,
  **/
 void hinic_io_free(struct hinic_func_to_io *func_to_io)
 {
+	iounmap(func_to_io->db_base);
 	hinic_wqs_free(&func_to_io->wqs);
 }

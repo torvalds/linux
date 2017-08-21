@@ -18,10 +18,29 @@
 
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/semaphore.h>
+#include <linux/sizes.h>
 
 #include "hinic_hw_if.h"
 #include "hinic_hw_wq.h"
 #include "hinic_hw_qp.h"
+
+#define HINIC_DB_PAGE_SIZE      SZ_4K
+#define HINIC_DB_SIZE           SZ_4M
+
+#define HINIC_DB_MAX_AREAS      (HINIC_DB_SIZE / HINIC_DB_PAGE_SIZE)
+
+struct hinic_free_db_area {
+	int             db_idx[HINIC_DB_MAX_AREAS];
+
+	int             alloc_pos;
+	int             return_pos;
+
+	int             num_free;
+
+	/* Lock for getting db area */
+	struct semaphore        idx_lock;
+};
 
 struct hinic_func_to_io {
 	struct hinic_hwif       *hwif;
@@ -33,6 +52,14 @@ struct hinic_func_to_io {
 
 	struct hinic_qp         *qps;
 	u16                     max_qps;
+
+	void __iomem            **sq_db;
+	void __iomem            *db_base;
+
+	void                    *ci_addr_base;
+	dma_addr_t              ci_dma_base;
+
+	struct hinic_free_db_area       free_db_area;
 };
 
 int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
