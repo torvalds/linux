@@ -88,6 +88,34 @@
 	((val) & (~(HINIC_PPF_ELECTION_##member##_MASK          \
 	 << HINIC_PPF_ELECTION_##member##_SHIFT)))
 
+#define HINIC_MSIX_PENDING_LIMIT_SHIFT                          0
+#define HINIC_MSIX_COALESC_TIMER_SHIFT                          8
+#define HINIC_MSIX_LLI_TIMER_SHIFT                              16
+#define HINIC_MSIX_LLI_CREDIT_SHIFT                             24
+#define HINIC_MSIX_RESEND_TIMER_SHIFT                           29
+
+#define HINIC_MSIX_PENDING_LIMIT_MASK                           0xFF
+#define HINIC_MSIX_COALESC_TIMER_MASK                           0xFF
+#define HINIC_MSIX_LLI_TIMER_MASK                               0xFF
+#define HINIC_MSIX_LLI_CREDIT_MASK                              0x1F
+#define HINIC_MSIX_RESEND_TIMER_MASK                            0x7
+
+#define HINIC_MSIX_ATTR_SET(val, member)                        \
+	(((u32)(val) & HINIC_MSIX_##member##_MASK) <<           \
+	 HINIC_MSIX_##member##_SHIFT)
+
+#define HINIC_MSIX_ATTR_GET(val, member)                        \
+	(((val) >> HINIC_MSIX_##member##_SHIFT) &               \
+	 HINIC_MSIX_##member##_MASK)
+
+#define HINIC_MSIX_CNT_RESEND_TIMER_SHIFT                       29
+
+#define HINIC_MSIX_CNT_RESEND_TIMER_MASK                        0x1
+
+#define HINIC_MSIX_CNT_SET(val, member)                         \
+	(((u32)(val) & HINIC_MSIX_CNT_##member##_MASK) <<       \
+	 HINIC_MSIX_CNT_##member##_SHIFT)
+
 #define HINIC_HWIF_NUM_AEQS(hwif)       ((hwif)->attr.num_aeqs)
 #define HINIC_HWIF_NUM_CEQS(hwif)       ((hwif)->attr.num_ceqs)
 #define HINIC_HWIF_NUM_IRQS(hwif)       ((hwif)->attr.num_irqs)
@@ -104,6 +132,12 @@
 #define HINIC_PCIE_ST_DISABLE           0
 #define HINIC_PCIE_AT_DISABLE           0
 #define HINIC_PCIE_PH_DISABLE           0
+
+#define HINIC_EQ_MSIX_PENDING_LIMIT_DEFAULT     0       /* Disabled */
+#define HINIC_EQ_MSIX_COALESC_TIMER_DEFAULT     0xFF    /* max */
+#define HINIC_EQ_MSIX_LLI_TIMER_DEFAULT         0       /* Disabled */
+#define HINIC_EQ_MSIX_LLI_CREDIT_LIMIT_DEFAULT  0       /* Disabled */
+#define HINIC_EQ_MSIX_RESEND_TIMER_DEFAULT      7       /* max */
 
 enum hinic_pcie_nosnoop {
 	HINIC_PCIE_SNOOP        = 0,
@@ -165,6 +199,18 @@ static inline void hinic_hwif_write_reg(struct hinic_hwif *hwif, u32 reg,
 {
 	writel(cpu_to_be32(val), hwif->cfg_regs_bar + reg);
 }
+
+int hinic_msix_attr_set(struct hinic_hwif *hwif, u16 msix_index,
+			u8 pending_limit, u8 coalesc_timer,
+			u8 lli_timer_cfg, u8 lli_credit_limit,
+			u8 resend_timer);
+
+int hinic_msix_attr_get(struct hinic_hwif *hwif, u16 msix_index,
+			u8 *pending_limit, u8 *coalesc_timer_cfg,
+			u8 *lli_timer, u8 *lli_credit_limit,
+			u8 *resend_timer);
+
+int hinic_msix_attr_cnt_clear(struct hinic_hwif *hwif, u16 msix_index);
 
 int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev);
 

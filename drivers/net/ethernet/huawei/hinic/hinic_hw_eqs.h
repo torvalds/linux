@@ -24,7 +24,83 @@
 
 #include "hinic_hw_if.h"
 
+#define HINIC_AEQ_CTRL_0_INT_IDX_SHIFT          0
+#define HINIC_AEQ_CTRL_0_DMA_ATTR_SHIFT         12
+#define HINIC_AEQ_CTRL_0_PCI_INTF_IDX_SHIFT     20
+#define HINIC_AEQ_CTRL_0_INT_MODE_SHIFT         31
+
+#define HINIC_AEQ_CTRL_0_INT_IDX_MASK           0x3FF
+#define HINIC_AEQ_CTRL_0_DMA_ATTR_MASK          0x3F
+#define HINIC_AEQ_CTRL_0_PCI_INTF_IDX_MASK      0x3
+#define HINIC_AEQ_CTRL_0_INT_MODE_MASK          0x1
+
+#define HINIC_AEQ_CTRL_0_SET(val, member)       \
+			(((u32)(val) & HINIC_AEQ_CTRL_0_##member##_MASK) << \
+			 HINIC_AEQ_CTRL_0_##member##_SHIFT)
+
+#define HINIC_AEQ_CTRL_0_CLEAR(val, member)     \
+			((val) & (~(HINIC_AEQ_CTRL_0_##member##_MASK \
+			 << HINIC_AEQ_CTRL_0_##member##_SHIFT)))
+
+#define HINIC_AEQ_CTRL_1_LEN_SHIFT              0
+#define HINIC_AEQ_CTRL_1_ELEM_SIZE_SHIFT        24
+#define HINIC_AEQ_CTRL_1_PAGE_SIZE_SHIFT        28
+
+#define HINIC_AEQ_CTRL_1_LEN_MASK               0x1FFFFF
+#define HINIC_AEQ_CTRL_1_ELEM_SIZE_MASK         0x3
+#define HINIC_AEQ_CTRL_1_PAGE_SIZE_MASK         0xF
+
+#define HINIC_AEQ_CTRL_1_SET(val, member)       \
+			(((u32)(val) & HINIC_AEQ_CTRL_1_##member##_MASK) << \
+			 HINIC_AEQ_CTRL_1_##member##_SHIFT)
+
+#define HINIC_AEQ_CTRL_1_CLEAR(val, member)     \
+			((val) & (~(HINIC_AEQ_CTRL_1_##member##_MASK \
+			 << HINIC_AEQ_CTRL_1_##member##_SHIFT)))
+
+#define HINIC_EQ_ELEM_DESC_TYPE_SHIFT           0
+#define HINIC_EQ_ELEM_DESC_SRC_SHIFT            7
+#define HINIC_EQ_ELEM_DESC_SIZE_SHIFT           8
+#define HINIC_EQ_ELEM_DESC_WRAPPED_SHIFT        31
+
+#define HINIC_EQ_ELEM_DESC_TYPE_MASK            0x7F
+#define HINIC_EQ_ELEM_DESC_SRC_MASK             0x1
+#define HINIC_EQ_ELEM_DESC_SIZE_MASK            0xFF
+#define HINIC_EQ_ELEM_DESC_WRAPPED_MASK         0x1
+
+#define HINIC_EQ_ELEM_DESC_SET(val, member)     \
+			(((u32)(val) & HINIC_EQ_ELEM_DESC_##member##_MASK) << \
+			 HINIC_EQ_ELEM_DESC_##member##_SHIFT)
+
+#define HINIC_EQ_ELEM_DESC_GET(val, member)     \
+			(((val) >> HINIC_EQ_ELEM_DESC_##member##_SHIFT) & \
+			 HINIC_EQ_ELEM_DESC_##member##_MASK)
+
+#define HINIC_EQ_CI_IDX_SHIFT                   0
+#define HINIC_EQ_CI_WRAPPED_SHIFT               20
+#define HINIC_EQ_CI_XOR_CHKSUM_SHIFT            24
+#define HINIC_EQ_CI_INT_ARMED_SHIFT             31
+
+#define HINIC_EQ_CI_IDX_MASK                    0xFFFFF
+#define HINIC_EQ_CI_WRAPPED_MASK                0x1
+#define HINIC_EQ_CI_XOR_CHKSUM_MASK             0xF
+#define HINIC_EQ_CI_INT_ARMED_MASK              0x1
+
+#define HINIC_EQ_CI_SET(val, member)            \
+			(((u32)(val) & HINIC_EQ_CI_##member##_MASK) << \
+			 HINIC_EQ_CI_##member##_SHIFT)
+
+#define HINIC_EQ_CI_CLEAR(val, member)          \
+			((val) & (~(HINIC_EQ_CI_##member##_MASK \
+			 << HINIC_EQ_CI_##member##_SHIFT)))
+
 #define HINIC_MAX_AEQS                  4
+
+#define HINIC_AEQE_SIZE                 64
+
+#define HINIC_AEQE_DESC_SIZE            4
+#define HINIC_AEQE_DATA_SIZE            \
+			(HINIC_AEQE_SIZE - HINIC_AEQE_DESC_SIZE)
 
 #define HINIC_DEFAULT_AEQ_LEN           64
 
@@ -43,6 +119,11 @@ enum hinic_aeq_type {
 enum hinic_eqe_state {
 	HINIC_EQE_ENABLED = BIT(0),
 	HINIC_EQE_RUNNING = BIT(1),
+};
+
+struct hinic_aeq_elem {
+	u8      data[HINIC_AEQE_DATA_SIZE];
+	u32     desc;
 };
 
 struct hinic_eq_work {

@@ -65,4 +65,53 @@
 #define HINIC_CSR_API_CMD_STATUS_ADDR(idx)              \
 	(HINIC_CSR_API_CMD_BASE + 0x30 + (idx) * HINIC_CSR_API_CMD_STRIDE)
 
+/* MSI-X registers */
+#define HINIC_CSR_MSIX_CTRL_BASE                        0x2000
+#define HINIC_CSR_MSIX_CNT_BASE                         0x2004
+
+#define HINIC_CSR_MSIX_STRIDE                           0x8
+
+#define HINIC_CSR_MSIX_CTRL_ADDR(idx)                   \
+	(HINIC_CSR_MSIX_CTRL_BASE + (idx) * HINIC_CSR_MSIX_STRIDE)
+
+#define HINIC_CSR_MSIX_CNT_ADDR(idx)                    \
+	(HINIC_CSR_MSIX_CNT_BASE + (idx) * HINIC_CSR_MSIX_STRIDE)
+
+/* EQ registers */
+#define HINIC_AEQ_MTT_OFF_BASE_ADDR                     0x200
+
+#define HINIC_EQ_MTT_OFF_STRIDE                         0x40
+
+#define HINIC_CSR_AEQ_MTT_OFF(id)                       \
+	(HINIC_AEQ_MTT_OFF_BASE_ADDR + (id) * HINIC_EQ_MTT_OFF_STRIDE)
+
+#define HINIC_CSR_EQ_PAGE_OFF_STRIDE                    8
+
+#define HINIC_CSR_AEQ_HI_PHYS_ADDR_REG(q_id, pg_num)    \
+	(HINIC_CSR_AEQ_MTT_OFF(q_id) + \
+	 (pg_num) * HINIC_CSR_EQ_PAGE_OFF_STRIDE)
+
+#define HINIC_CSR_AEQ_LO_PHYS_ADDR_REG(q_id, pg_num)    \
+	(HINIC_CSR_AEQ_MTT_OFF(q_id) + \
+	 (pg_num) * HINIC_CSR_EQ_PAGE_OFF_STRIDE + 4)
+
+#define HINIC_AEQ_CTRL_0_ADDR_BASE                      0xE00
+#define HINIC_AEQ_CTRL_1_ADDR_BASE                      0xE04
+#define HINIC_AEQ_CONS_IDX_ADDR_BASE                    0xE08
+#define HINIC_AEQ_PROD_IDX_ADDR_BASE                    0xE0C
+
+#define HINIC_EQ_OFF_STRIDE                             0x80
+
+#define HINIC_CSR_AEQ_CTRL_0_ADDR(idx)                  \
+	(HINIC_AEQ_CTRL_0_ADDR_BASE + (idx) * HINIC_EQ_OFF_STRIDE)
+
+#define HINIC_CSR_AEQ_CTRL_1_ADDR(idx)                  \
+	(HINIC_AEQ_CTRL_1_ADDR_BASE + (idx) * HINIC_EQ_OFF_STRIDE)
+
+#define HINIC_CSR_AEQ_CONS_IDX_ADDR(idx)                \
+	(HINIC_AEQ_CONS_IDX_ADDR_BASE + (idx) * HINIC_EQ_OFF_STRIDE)
+
+#define HINIC_CSR_AEQ_PROD_IDX_ADDR(idx)                \
+	(HINIC_AEQ_PROD_IDX_ADDR_BASE + (idx) * HINIC_EQ_OFF_STRIDE)
+
 #endif

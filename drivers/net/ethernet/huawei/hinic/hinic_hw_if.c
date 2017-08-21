@@ -25,6 +25,96 @@
 
 #define PCIE_ATTR_ENTRY         0
 
+#define VALID_MSIX_IDX(attr, msix_index) ((msix_index) < (attr)->num_irqs)
+
+/**
+ * hinic_msix_attr_set - set message attribute for msix entry
+ * @hwif: the HW interface of a pci function device
+ * @msix_index: msix_index
+ * @pending_limit: the maximum pending interrupt events (unit 8)
+ * @coalesc_timer: coalesc period for interrupt (unit 8 us)
+ * @lli_timer: replenishing period for low latency credit (unit 8 us)
+ * @lli_credit_limit: maximum credits for low latency msix messages (unit 8)
+ * @resend_timer: maximum wait for resending msix (unit coalesc period)
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_msix_attr_set(struct hinic_hwif *hwif, u16 msix_index,
+			u8 pending_limit, u8 coalesc_timer,
+			u8 lli_timer, u8 lli_credit_limit,
+			u8 resend_timer)
+{
+	u32 msix_ctrl, addr;
+
+	if (!VALID_MSIX_IDX(&hwif->attr, msix_index))
+		return -EINVAL;
+
+	msix_ctrl = HINIC_MSIX_ATTR_SET(pending_limit, PENDING_LIMIT)   |
+		    HINIC_MSIX_ATTR_SET(coalesc_timer, COALESC_TIMER)   |
+		    HINIC_MSIX_ATTR_SET(lli_timer, LLI_TIMER)           |
+		    HINIC_MSIX_ATTR_SET(lli_credit_limit, LLI_CREDIT)   |
+		    HINIC_MSIX_ATTR_SET(resend_timer, RESEND_TIMER);
+
+	addr = HINIC_CSR_MSIX_CTRL_ADDR(msix_index);
+
+	hinic_hwif_write_reg(hwif, addr, msix_ctrl);
+	return 0;
+}
+
+/**
+ * hinic_msix_attr_get - get message attribute of msix entry
+ * @hwif: the HW interface of a pci function device
+ * @msix_index: msix_index
+ * @pending_limit: the maximum pending interrupt events (unit 8)
+ * @coalesc_timer: coalesc period for interrupt (unit 8 us)
+ * @lli_timer: replenishing period for low latency credit (unit 8 us)
+ * @lli_credit_limit: maximum credits for low latency msix messages (unit 8)
+ * @resend_timer: maximum wait for resending msix (unit coalesc period)
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_msix_attr_get(struct hinic_hwif *hwif, u16 msix_index,
+			u8 *pending_limit, u8 *coalesc_timer,
+			u8 *lli_timer, u8 *lli_credit_limit,
+			u8 *resend_timer)
+{
+	u32 addr, val;
+
+	if (!VALID_MSIX_IDX(&hwif->attr, msix_index))
+		return -EINVAL;
+
+	addr = HINIC_CSR_MSIX_CTRL_ADDR(msix_index);
+	val  = hinic_hwif_read_reg(hwif, addr);
+
+	*pending_limit    = HINIC_MSIX_ATTR_GET(val, PENDING_LIMIT);
+	*coalesc_timer    = HINIC_MSIX_ATTR_GET(val, COALESC_TIMER);
+	*lli_timer        = HINIC_MSIX_ATTR_GET(val, LLI_TIMER);
+	*lli_credit_limit = HINIC_MSIX_ATTR_GET(val, LLI_CREDIT);
+	*resend_timer     = HINIC_MSIX_ATTR_GET(val, RESEND_TIMER);
+	return 0;
+}
+
+/**
+ * hinic_msix_attr_cnt_clear - clear message attribute counters for msix entry
+ * @hwif: the HW interface of a pci function device
+ * @msix_index: msix_index
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_msix_attr_cnt_clear(struct hinic_hwif *hwif, u16 msix_index)
+{
+	u32 msix_ctrl, addr;
+
+	if (!VALID_MSIX_IDX(&hwif->attr, msix_index))
+		return -EINVAL;
+
+	msix_ctrl = HINIC_MSIX_CNT_SET(1, RESEND_TIMER);
+	addr = HINIC_CSR_MSIX_CNT_ADDR(msix_index);
+
+	hinic_hwif_write_reg(hwif, addr, msix_ctrl);
+	return 0;
+}
+
 /**
  * hwif_ready - test if the HW is ready for use
  * @hwif: the HW interface of a pci function device
