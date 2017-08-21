@@ -1154,6 +1154,8 @@ int cif_isp10_pltfrm_dev_init(
 	struct iommu_domain *domain;
 	struct iommu_group *group;
 	struct device_node *np;
+	struct device_node *of_node = pdev->dev.of_node;
+	const char *compatible;
 	int err = 0;
 #endif
 
@@ -1175,6 +1177,7 @@ int cif_isp10_pltfrm_dev_init(
 		ret = -ENODEV;
 		goto err;
 	}
+
 	base_addr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR_OR_NULL(base_addr)) {
 		cif_isp10_pltfrm_pr_err(NULL, "devm_ioremap_resource failed\n");
@@ -1241,7 +1244,13 @@ int cif_isp10_pltfrm_dev_init(
 		pdata->irq_handlers[i].mis = -EINVAL;
 
 #ifdef CIF_ISP10_MODE_DMA_SG
-		np = of_find_node_by_name(NULL, "isp0_mmu");
+		of_property_read_string(of_node, "compatible", &compatible);
+		if ((strcmp(compatible, "rockchip,rk3399-cif-isp") == 0) &&
+			(res->start == 0xFF920000)) {
+			np = of_find_node_by_name(NULL, "isp1_mmu");
+		} else {
+			np = of_find_node_by_name(NULL, "isp0_mmu");
+		}
 		if (!np) {
 			int index = 0;
 			/* iommu domain */
@@ -1275,7 +1284,7 @@ int cif_isp10_pltfrm_dev_init(
 
 			cif_isp10_drm_iommu_cb(&pdev->dev, cif_isp10_dev, true);
 		} else {
-			//cif_isp10_mrv_iommu_cb();
+			/*cif_isp10_mrv_iommu_cb();*/
 		}
 #endif
 

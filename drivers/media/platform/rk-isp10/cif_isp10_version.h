@@ -57,8 +57,13 @@
  *v0.1.6:
  *Add isp output size in struct isp_supplemental_sensor_mode_data.
  *
+ *v0.1.7:
+ *Add support to isp1.
+ *The running of isp0 or isp1 is ok,
+ *but running of isp0 and isp1 at the same time has not been tested.
+ *
  */
 
-#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 6)
+#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 7)
 
 #endif

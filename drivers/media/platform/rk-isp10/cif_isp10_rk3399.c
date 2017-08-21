@@ -108,6 +108,11 @@
 #define read_dsihost_reg(addr)	\
 		__raw_readl((addr) + rk3399->dsihost_base)
 
+enum cif_isp10_isp_idx {
+	CIF_ISP10_ISP0 = 0,
+	CIF_ISP10_ISP1 = 1
+};
+
 struct cif_isp10_clk_rst_rk3399 {
 	struct clk      *hclk_isp0_noc;
 	struct clk      *hclk_isp0_wrapper;
@@ -135,6 +140,7 @@ struct cif_isp10_rk3399 {
 	void __iomem *isp_base;
 	struct cif_isp10_clk_rst_rk3399 clk_rst;
 	struct cif_isp10_device *cif_isp10;
+	enum cif_isp10_isp_idx isp_idx;
 };
 
 struct mipi_dphy_hsfreqrange {
@@ -254,7 +260,7 @@ static int mipi_dphy1_rd_reg(unsigned char addr)
 	write_dsihost_reg(DSIHOST_PHY_TEST_CTRL1, (0x00010000 | addr));
 	/* TESTCLK=0 */
 	write_dsihost_reg(DSIHOST_PHY_TEST_CTRL0, 0x00000000);
-	return (read_dsihost_reg(DSIHOST_PHY_TEST_CTRL1) >> 8);
+	return ((read_dsihost_reg(DSIHOST_PHY_TEST_CTRL1) & 0xff00) >> 8);
 }
 
 static int mipi_dphy_cfg(struct pltfrm_cam_mipi_config *para)
@@ -416,8 +422,12 @@ static int mipi_dphy_cfg(struct pltfrm_cam_mipi_config *para)
 		 */
 		write_dsihost_reg(DSIHOST_PHY_TEST_CTRL0, 0x00000002);
 		write_dsihost_reg(DSIHOST_PHY_TEST_CTRL1, 0x00000000);
-		write_dsihost_reg(DSIHOST_PHY_SHUTDOWNZ, 0x00000001);
-		write_dsihost_reg(DSIHOST_DPHY_RSTZ, 0x00000001);
+		/*SHUTDOWNZ=1,  RSTZ=1*/
+		write_dsihost_reg(DSIHOST_DPHY_RSTZ, 0x00000003);
+
+		write_cifisp_reg((MRV_MIPI_BASE + MRV_MIPI_CTRL),
+			read_cifisp_reg(MRV_MIPI_BASE + MRV_MIPI_CTRL)
+			| (0x0f << 8));
 	} else {
 		goto fail;
 	}
@@ -431,14 +441,28 @@ static int soc_clk_enable(void)
 {
 	struct cif_isp10_clk_rst_rk3399 *clk_rst = &rk3399->clk_rst;
 
-	clk_prepare_enable(clk_rst->hclk_isp0_noc);
-	clk_prepare_enable(clk_rst->hclk_isp0_wrapper);
-	clk_prepare_enable(clk_rst->aclk_isp0_noc);
-	clk_prepare_enable(clk_rst->aclk_isp0_wrapper);
-	clk_prepare_enable(clk_rst->clk_isp0);
-	clk_prepare_enable(clk_rst->cif_clk_out);
-	clk_prepare_enable(clk_rst->pclk_dphyrx);
-	clk_prepare_enable(clk_rst->pclk_dphy_ref);
+	if (rk3399->isp_idx == CIF_ISP10_ISP0) {
+		clk_prepare_enable(clk_rst->hclk_isp0_noc);
+		clk_prepare_enable(clk_rst->hclk_isp0_wrapper);
+		clk_prepare_enable(clk_rst->aclk_isp0_noc);
+		clk_prepare_enable(clk_rst->aclk_isp0_wrapper);
+		clk_prepare_enable(clk_rst->clk_isp0);
+		clk_prepare_enable(clk_rst->pclk_dphyrx);
+		clk_prepare_enable(clk_rst->cif_clk_out);
+		clk_prepare_enable(clk_rst->pclk_dphy_ref);
+	} else {
+		clk_prepare_enable(clk_rst->hclk_isp1_noc);
+		clk_prepare_enable(clk_rst->hclk_isp1_wrapper);
+		clk_prepare_enable(clk_rst->aclk_isp1_noc);
+		clk_prepare_enable(clk_rst->aclk_isp1_wrapper);
+		clk_prepare_enable(clk_rst->clk_isp1);
+		clk_prepare_enable(clk_rst->pclkin_isp1);
+		clk_prepare_enable(clk_rst->pclk_dphytxrx);
+		clk_prepare_enable(clk_rst->cif_clk_mipi_dsi);
+		clk_prepare_enable(clk_rst->cif_clk_mipi_dphy_cfg);
+		clk_prepare_enable(clk_rst->cif_clk_out);
+		clk_prepare_enable(clk_rst->pclk_dphy_ref);
+	}
 
 	return 0;
 }
@@ -447,18 +471,30 @@ static int soc_clk_disable(void)
 {
 	struct cif_isp10_clk_rst_rk3399 *clk_rst = &rk3399->clk_rst;
 
-	clk_disable_unprepare(clk_rst->hclk_isp0_noc);
-	clk_disable_unprepare(clk_rst->hclk_isp0_wrapper);
-	clk_disable_unprepare(clk_rst->aclk_isp0_noc);
-	clk_disable_unprepare(clk_rst->aclk_isp0_wrapper);
-	clk_disable_unprepare(clk_rst->clk_isp0);
-	clk_disable_unprepare(clk_rst->pclk_dphyrx);
-	clk_disable_unprepare(clk_rst->pclk_dphy_ref);
-	if (!IS_ERR_OR_NULL(clk_rst->cif_clk_pll)) {
-		clk_set_parent(clk_rst->cif_clk_out,
-			clk_rst->cif_clk_pll);
+	if (rk3399->isp_idx == CIF_ISP10_ISP0) {
+		clk_disable_unprepare(clk_rst->hclk_isp0_noc);
+		clk_disable_unprepare(clk_rst->hclk_isp0_wrapper);
+		clk_disable_unprepare(clk_rst->aclk_isp0_noc);
+		clk_disable_unprepare(clk_rst->aclk_isp0_wrapper);
+		clk_disable_unprepare(clk_rst->clk_isp0);
+		clk_disable_unprepare(clk_rst->pclk_dphyrx);
+		clk_set_parent(clk_rst->cif_clk_out, clk_rst->cif_clk_pll);
+		clk_disable_unprepare(clk_rst->cif_clk_out);
+		clk_disable_unprepare(clk_rst->pclk_dphy_ref);
+	} else {
+		clk_disable_unprepare(clk_rst->hclk_isp1_noc);
+		clk_disable_unprepare(clk_rst->hclk_isp1_wrapper);
+		clk_disable_unprepare(clk_rst->aclk_isp1_noc);
+		clk_disable_unprepare(clk_rst->aclk_isp1_wrapper);
+		clk_disable_unprepare(clk_rst->clk_isp1);
+		clk_disable_unprepare(clk_rst->pclkin_isp1);
+		clk_disable_unprepare(clk_rst->pclk_dphytxrx);
+		clk_disable_unprepare(clk_rst->cif_clk_mipi_dsi);
+		clk_disable_unprepare(clk_rst->cif_clk_mipi_dphy_cfg);
+		clk_set_parent(clk_rst->cif_clk_out, clk_rst->cif_clk_pll);
+		clk_disable_unprepare(clk_rst->cif_clk_out);
+		clk_disable_unprepare(clk_rst->pclk_dphy_ref);
 	}
-	clk_disable_unprepare(clk_rst->cif_clk_out);
 
 	return 0;
 }
@@ -511,41 +547,91 @@ static int soc_init(struct pltfrm_soc_init_para *init)
 
 	clk_rst = &rk3399->clk_rst;
 
-	clk_rst->hclk_isp0_noc	   =
-		devm_clk_get(&pdev->dev, "hclk_isp0_noc");
-	clk_rst->hclk_isp0_wrapper =
-		devm_clk_get(&pdev->dev, "hclk_isp0_wrapper");
-	clk_rst->aclk_isp0_noc	   =
-		devm_clk_get(&pdev->dev, "aclk_isp0_noc");
-	clk_rst->aclk_isp0_wrapper =
-		devm_clk_get(&pdev->dev, "aclk_isp0_wrapper");
-	clk_rst->clk_isp0		   =
-		devm_clk_get(&pdev->dev, "clk_isp0");
-	clk_rst->cif_clk_out	   =
-		devm_clk_get(&pdev->dev, "clk_cif_out");
-	clk_rst->cif_clk_pll	   =
-		devm_clk_get(&pdev->dev, "cif_clk_pll");
-	clk_rst->pclk_dphyrx	   =
-		devm_clk_get(&pdev->dev, "pclk_dphyrx");
-	clk_rst->pclk_dphy_ref	   =
-		devm_clk_get(&pdev->dev, "pclk_dphy_ref");
+	if (strcmp(pdev->name, "ff910000.cif_isp") == 0) {
+		clk_rst->hclk_isp0_noc	   =
+			devm_clk_get(&pdev->dev, "hclk_isp0_noc");
+		clk_rst->hclk_isp0_wrapper =
+			devm_clk_get(&pdev->dev, "hclk_isp0_wrapper");
+		clk_rst->aclk_isp0_noc	   =
+			devm_clk_get(&pdev->dev, "aclk_isp0_noc");
+		clk_rst->aclk_isp0_wrapper =
+			devm_clk_get(&pdev->dev, "aclk_isp0_wrapper");
+		clk_rst->clk_isp0		   =
+			devm_clk_get(&pdev->dev, "clk_isp0");
+		clk_rst->pclk_dphyrx	   =
+			devm_clk_get(&pdev->dev, "pclk_dphyrx");
+		clk_rst->cif_clk_out	   =
+			devm_clk_get(&pdev->dev, "clk_cif_out");
+		clk_rst->cif_clk_pll	   =
+			devm_clk_get(&pdev->dev, "cif_clk_pll");
+		clk_rst->pclk_dphy_ref	   =
+			devm_clk_get(&pdev->dev, "pclk_dphy_ref");
 
-	if (IS_ERR_OR_NULL(clk_rst->hclk_isp0_noc)		 ||
-		IS_ERR_OR_NULL(clk_rst->hclk_isp0_wrapper)	 ||
-		IS_ERR_OR_NULL(clk_rst->aclk_isp0_noc)		 ||
-		IS_ERR_OR_NULL(clk_rst->aclk_isp0_wrapper)	 ||
-		IS_ERR_OR_NULL(clk_rst->clk_isp0)			 ||
-		IS_ERR_OR_NULL(clk_rst->cif_clk_out)		 ||
-		IS_ERR_OR_NULL(clk_rst->pclk_dphy_ref)		 ||
-		IS_ERR_OR_NULL(clk_rst->pclk_dphyrx)) {
-		dev_err(&pdev->dev, "Get rk3399 cif isp10 clock resouce failed !\n");
-		err = -EINVAL;
-		goto clk_failed;
+		if (IS_ERR_OR_NULL(clk_rst->hclk_isp0_noc)		 ||
+			IS_ERR_OR_NULL(clk_rst->hclk_isp0_wrapper)	 ||
+			IS_ERR_OR_NULL(clk_rst->aclk_isp0_noc)		 ||
+			IS_ERR_OR_NULL(clk_rst->aclk_isp0_wrapper)	 ||
+			IS_ERR_OR_NULL(clk_rst->clk_isp0)		 ||
+			IS_ERR_OR_NULL(clk_rst->pclk_dphyrx)		 ||
+			IS_ERR_OR_NULL(clk_rst->cif_clk_out)		 ||
+			IS_ERR_OR_NULL(clk_rst->pclk_dphy_ref)) {
+			dev_err(&pdev->dev, "Get rk3399 cif isp10 clock resouce failed !\n");
+			err = -EINVAL;
+			goto clk_failed;
+		}
+
+		clk_set_rate(clk_rst->clk_isp0, 420000000);
+		rk3399->isp_idx = CIF_ISP10_ISP0;
+	} else {
+		clk_rst->hclk_isp1_noc	   =
+			devm_clk_get(&pdev->dev, "hclk_isp1_noc");
+		clk_rst->hclk_isp1_wrapper =
+			devm_clk_get(&pdev->dev, "hclk_isp1_wrapper");
+		clk_rst->aclk_isp1_noc	   =
+			devm_clk_get(&pdev->dev, "aclk_isp1_noc");
+		clk_rst->aclk_isp1_wrapper =
+			devm_clk_get(&pdev->dev, "aclk_isp1_wrapper");
+		clk_rst->clk_isp1		   =
+			devm_clk_get(&pdev->dev, "clk_isp1");
+		clk_rst->pclkin_isp1	   =
+			devm_clk_get(&pdev->dev, "pclkin_isp1");
+		clk_rst->pclk_dphytxrx	   =
+			devm_clk_get(&pdev->dev, "pclk_dphytxrx");
+
+		clk_rst->cif_clk_mipi_dsi	   =
+			devm_clk_get(&pdev->dev, "pclk_mipi_dsi");
+		clk_rst->cif_clk_mipi_dphy_cfg	   =
+			devm_clk_get(&pdev->dev, "mipi_dphy_cfg");
+
+		clk_rst->cif_clk_out	   =
+			devm_clk_get(&pdev->dev, "clk_cif_out");
+		clk_rst->cif_clk_pll	   =
+			devm_clk_get(&pdev->dev, "cif_clk_pll");
+		clk_rst->pclk_dphy_ref	   =
+			devm_clk_get(&pdev->dev, "pclk_dphy_ref");
+
+		if (IS_ERR_OR_NULL(clk_rst->hclk_isp1_noc)		 ||
+			IS_ERR_OR_NULL(clk_rst->hclk_isp1_wrapper)	 ||
+			IS_ERR_OR_NULL(clk_rst->aclk_isp1_noc)		 ||
+			IS_ERR_OR_NULL(clk_rst->aclk_isp1_wrapper)	 ||
+			IS_ERR_OR_NULL(clk_rst->clk_isp1)		 ||
+			IS_ERR_OR_NULL(clk_rst->pclkin_isp1)		 ||
+			IS_ERR_OR_NULL(clk_rst->pclk_dphytxrx)		 ||
+			IS_ERR_OR_NULL(clk_rst->cif_clk_mipi_dsi)	 ||
+			IS_ERR_OR_NULL(clk_rst->cif_clk_mipi_dphy_cfg)	 ||
+			IS_ERR_OR_NULL(clk_rst->cif_clk_out)		 ||
+			IS_ERR_OR_NULL(clk_rst->pclk_dphy_ref)) {
+			dev_err(&pdev->dev, "Get rk3399 cif isp10 clock resouce failed !\n");
+			err = -EINVAL;
+			goto clk_failed;
+		}
+
+		clk_set_rate(clk_rst->clk_isp1, 420000000);
+		rk3399->isp_idx = CIF_ISP10_ISP1;
 	}
 
-	clk_set_rate(clk_rst->clk_isp0, 420000000);
-
 	rk3399->isp_base = init->isp_base;
+
 	return 0;
 
 clk_failed:
@@ -564,14 +650,38 @@ clk_failed:
 	if (!IS_ERR_OR_NULL(clk_rst->clk_isp0))
 		devm_clk_put(&pdev->dev, clk_rst->clk_isp0);
 
-	if (!IS_ERR_OR_NULL(clk_rst->cif_clk_out))
-		devm_clk_put(&pdev->dev, clk_rst->cif_clk_out);
-
-	if (!IS_ERR_OR_NULL(clk_rst->cif_clk_pll))
-		devm_clk_put(&pdev->dev, clk_rst->cif_clk_pll);
-
 	if (!IS_ERR_OR_NULL(clk_rst->pclk_dphyrx))
 		devm_clk_put(&pdev->dev, clk_rst->pclk_dphyrx);
+
+	if (!IS_ERR_OR_NULL(clk_rst->hclk_isp1_noc))
+		devm_clk_put(&pdev->dev, clk_rst->hclk_isp1_noc);
+
+	if (!IS_ERR_OR_NULL(clk_rst->hclk_isp1_wrapper))
+		devm_clk_put(&pdev->dev, clk_rst->hclk_isp1_wrapper);
+
+	if (!IS_ERR_OR_NULL(clk_rst->aclk_isp1_noc))
+		devm_clk_put(&pdev->dev, clk_rst->aclk_isp1_noc);
+
+	if (!IS_ERR_OR_NULL(clk_rst->aclk_isp1_wrapper))
+		devm_clk_put(&pdev->dev, clk_rst->aclk_isp1_wrapper);
+
+	if (!IS_ERR_OR_NULL(clk_rst->clk_isp1))
+		devm_clk_put(&pdev->dev, clk_rst->clk_isp1);
+
+	if (!IS_ERR_OR_NULL(clk_rst->pclkin_isp1))
+		devm_clk_put(&pdev->dev, clk_rst->pclkin_isp1);
+
+	if (!IS_ERR_OR_NULL(clk_rst->pclk_dphytxrx))
+		devm_clk_put(&pdev->dev, clk_rst->pclk_dphytxrx);
+
+	if (!IS_ERR_OR_NULL(clk_rst->cif_clk_mipi_dsi))
+		devm_clk_put(&pdev->dev, clk_rst->cif_clk_mipi_dsi);
+
+	if (!IS_ERR_OR_NULL(clk_rst->cif_clk_mipi_dphy_cfg))
+		devm_clk_put(&pdev->dev, clk_rst->cif_clk_mipi_dphy_cfg);
+
+	if (!IS_ERR_OR_NULL(clk_rst->cif_clk_out))
+		devm_clk_put(&pdev->dev, clk_rst->cif_clk_out);
 
 	if (!IS_ERR_OR_NULL(clk_rst->pclk_dphy_ref))
 		devm_clk_put(&pdev->dev, clk_rst->pclk_dphy_ref);
