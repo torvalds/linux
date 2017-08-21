@@ -389,7 +389,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	host->cfg_div.width = __builtin_popcountl(CLK_DIV_MASK);
 	host->cfg_div.hw.init = &init;
 	host->cfg_div.flags = CLK_DIVIDER_ONE_BASED |
-		CLK_DIVIDER_ROUND_CLOSEST | CLK_DIVIDER_ALLOW_ZERO;
+		CLK_DIVIDER_ROUND_CLOSEST;
 
 	host->cfg_div_clk = devm_clk_register(host->dev, &host->cfg_div.hw);
 	if (WARN_ON(PTR_ERR_OR_ZERO(host->cfg_div_clk)))
