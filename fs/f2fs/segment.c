@@ -549,7 +549,10 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 	atomic_inc(&fcc->issing_flush);
 	llist_add(&cmd.llnode, &fcc->issue_list);
 
-	if (!fcc->dispatch_list)
+	/* update issue_list before we wake up issue_flush thread */
+	smp_mb();
+
+	if (waitqueue_active(&fcc->flush_wait_queue))
 		wake_up(&fcc->flush_wait_queue);
 
 	if (fcc->f2fs_issue_flush) {
