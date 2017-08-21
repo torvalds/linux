@@ -1805,8 +1805,7 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 				return SIGILL;
 
 			SPFROMREG(fs, MIPSInst_FS(ir));
-			rv.l = ieee754sp_tlong(fs);
-			rv.s = ieee754sp_flong(rv.l);
+			rv.s = ieee754sp_rint(fs);
 			goto copcsr;
 		}
 
@@ -2134,8 +2133,7 @@ copcsr:
 				return SIGILL;
 
 			DPFROMREG(fs, MIPSInst_FS(ir));
-			rv.l = ieee754dp_tlong(fs);
-			rv.d = ieee754dp_flong(rv.l);
+			rv.d = ieee754dp_rint(fs);
 			goto copcsr;
 		}
 
