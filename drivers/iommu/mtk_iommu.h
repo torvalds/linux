@@ -57,6 +57,8 @@ struct mtk_iommu_data {
 
 	struct iommu_device		iommu;
 	enum mtk_iommu_plat		m4u_plat;
+
+	struct list_head		list;
 };
 
 static inline int compare_of(struct device *dev, void *data)
