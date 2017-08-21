@@ -289,8 +289,35 @@
 	};
 
 	grf: syscon@10300000 {
-		compatible = "rockchip,rv1108-grf", "syscon";
+		compatible = "rockchip,rv1108-grf", "syscon", "simple-mfd";
 		reg = <0x10300000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		u2phy: usb2-phy@100 {
+			compatible = "rockchip,rv1108-usb2phy";
+			reg = <0x100 0x0c>;
+			clocks = <&cru SCLK_USBPHY>;
+			clock-names = "phyclk";
+			#clock-cells = <0>;
+			clock-output-names = "usbphy";
+			rockchip,usbgrf = <&usbgrf>;
+			status = "disabled";
+
+			u2phy_otg: otg-port {
+				interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "otg-mux";
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			u2phy_host: host-port {
+				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "linestate";
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+		};
 	};
 
 	watchdog: wdt@10360000 {
@@ -380,6 +407,11 @@
 		reg = <0x20060000 0x1000>;
 	};
 
+	usbgrf: syscon@202a0000 {
+		compatible = "rockchip,rv1108-usbgrf", "syscon";
+		reg = <0x202a0000 0x1000>;
+	};
+
 	cru: clock-controller@20200000 {
 		compatible = "rockchip,rv1108-cru";
 		reg = <0x20200000 0x1000>;
@@ -423,6 +455,45 @@
 		max-frequency = <100000000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
+		status = "disabled";
+	};
+
+	usb_host_ehci: usb@30140000 {
+		compatible = "generic-ehci";
+		reg = <0x30140000 0x20000>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_HOST0>, <&u2phy>;
+		clock-names = "usbhost", "utmi";
+		phys = <&u2phy_host>;
+		phy-names = "usb";
+		status = "disabled";
+	};
+
+	usb_host_ohci: usb@30160000 {
+		compatible = "generic-ohci";
+		reg = <0x30160000 0x20000>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_HOST0>, <&u2phy>;
+		clock-names = "usbhost", "utmi";
+		phys = <&u2phy_host>;
+		phy-names = "usb";
+		status = "disabled";
+	};
+
+	usb_otg: usb@30180000 {
+		compatible = "rockchip,rv1108-usb", "rockchip,rk3066-usb",
+			     "snps,dwc2";
+		reg = <0x30180000 0x40000>;
+		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_OTG>;
+		clock-names = "otg";
+		dr_mode = "otg";
+		g-np-tx-fifo-size = <16>;
+		g-rx-fifo-size = <280>;
+		g-tx-fifo-size = <256 128 128 64 32 16>;
+		g-use-dma;
+		phys = <&u2phy_otg>;
+		phy-names = "usb2-phy";
 		status = "disabled";
 	};
 
