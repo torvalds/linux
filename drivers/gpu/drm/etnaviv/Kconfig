@@ -10,6 +10,8 @@ config DRM_ETNAVIV
 	select IOMMU_API
 	select IOMMU_SUPPORT
 	select WANT_DEV_COREDUMP
+	select CMA if HAVE_DMA_CONTIGUOUS
+	select DMA_CMA if HAVE_DMA_CONTIGUOUS
 	help
 	  DRM driver for Vivante GPUs.
 

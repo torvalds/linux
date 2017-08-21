@@ -88,7 +88,7 @@ static int submit_lookup_objects(struct etnaviv_gem_submit *submit,
 		 * Take a refcount on the object. The file table lock
 		 * prevents the object_idr's refcount on this being dropped.
 		 */
-		drm_gem_object_reference(obj);
+		drm_gem_object_get(obj);
 
 		submit->bos[i].obj = to_etnaviv_bo(obj);
 	}
@@ -291,7 +291,7 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
 
 		submit_unlock_object(submit, i);
-		drm_gem_object_unreference_unlocked(&etnaviv_obj->base);
+		drm_gem_object_put_unlocked(&etnaviv_obj->base);
 	}
 
 	ww_acquire_fini(&submit->ticket);
