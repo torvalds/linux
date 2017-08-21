@@ -13,6 +13,7 @@
  *
  */
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
@@ -21,8 +22,12 @@
 #include <linux/dma-mapping.h>
 #include <linux/bitops.h>
 #include <linux/err.h>
+#include <linux/jiffies.h>
+#include <linux/delay.h>
+#include <linux/log2.h>
 #include <asm/byteorder.h>
 
+#include "hinic_hw_csr.h"
 #include "hinic_hw_if.h"
 #include "hinic_hw_api_cmd.h"
 
@@ -35,7 +40,156 @@
 		(((cell_size) >= API_CMD_CELL_SIZE_MIN) ? \
 		 (1 << (fls(cell_size - 1))) : API_CMD_CELL_SIZE_MIN)
 
+#define API_CMD_CELL_SIZE_VAL(size)             \
+		ilog2((size) >> API_CMD_CELL_SIZE_SHIFT)
+
 #define API_CMD_BUF_SIZE                        2048
+
+#define API_CMD_TIMEOUT                 1000
+
+enum api_cmd_xor_chk_level {
+	XOR_CHK_DIS = 0,
+
+	XOR_CHK_ALL = 3,
+};
+
+/**
+ * api_cmd_hw_restart - restart the chain in the HW
+ * @chain: the API CMD specific chain to restart
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int api_cmd_hw_restart(struct hinic_api_cmd_chain *chain)
+{
+	struct hinic_hwif *hwif = chain->hwif;
+	int err = -ETIMEDOUT;
+	unsigned long end;
+	u32 reg_addr, val;
+
+	/* Read Modify Write */
+	reg_addr = HINIC_CSR_API_CMD_CHAIN_REQ_ADDR(chain->chain_type);
+	val = hinic_hwif_read_reg(hwif, reg_addr);
+
+	val = HINIC_API_CMD_CHAIN_REQ_CLEAR(val, RESTART);
+	val |= HINIC_API_CMD_CHAIN_REQ_SET(1, RESTART);
+
+	hinic_hwif_write_reg(hwif, reg_addr, val);
+
+	end = jiffies + msecs_to_jiffies(API_CMD_TIMEOUT);
+	do {
+		val = hinic_hwif_read_reg(hwif, reg_addr);
+
+		if (!HINIC_API_CMD_CHAIN_REQ_GET(val, RESTART)) {
+			err = 0;
+			break;
+		}
+
+		msleep(20);
+	} while (time_before(jiffies, end));
+
+	return err;
+}
+
+/**
+ * api_cmd_ctrl_init - set the control register of a chain
+ * @chain: the API CMD specific chain to set control register for
+ **/
+static void api_cmd_ctrl_init(struct hinic_api_cmd_chain *chain)
+{
+	struct hinic_hwif *hwif = chain->hwif;
+	u32 addr, ctrl;
+	u16 cell_size;
+
+	/* Read Modify Write */
+	addr = HINIC_CSR_API_CMD_CHAIN_CTRL_ADDR(chain->chain_type);
+
+	cell_size = API_CMD_CELL_SIZE_VAL(chain->cell_size);
+
+	ctrl = hinic_hwif_read_reg(hwif, addr);
+
+	ctrl =  HINIC_API_CMD_CHAIN_CTRL_CLEAR(ctrl, RESTART_WB_STAT) &
+		HINIC_API_CMD_CHAIN_CTRL_CLEAR(ctrl, XOR_ERR)         &
+		HINIC_API_CMD_CHAIN_CTRL_CLEAR(ctrl, AEQE_EN)         &
+		HINIC_API_CMD_CHAIN_CTRL_CLEAR(ctrl, XOR_CHK_EN)      &
+		HINIC_API_CMD_CHAIN_CTRL_CLEAR(ctrl, CELL_SIZE);
+
+	ctrl |= HINIC_API_CMD_CHAIN_CTRL_SET(1, XOR_ERR)              |
+		HINIC_API_CMD_CHAIN_CTRL_SET(XOR_CHK_ALL, XOR_CHK_EN) |
+		HINIC_API_CMD_CHAIN_CTRL_SET(cell_size, CELL_SIZE);
+
+	hinic_hwif_write_reg(hwif, addr, ctrl);
+}
+
+/**
+ * api_cmd_set_status_addr - set the status address of a chain in the HW
+ * @chain: the API CMD specific chain to set in HW status address for
+ **/
+static void api_cmd_set_status_addr(struct hinic_api_cmd_chain *chain)
+{
+	struct hinic_hwif *hwif = chain->hwif;
+	u32 addr, val;
+
+	addr = HINIC_CSR_API_CMD_STATUS_HI_ADDR(chain->chain_type);
+	val = upper_32_bits(chain->wb_status_paddr);
+	hinic_hwif_write_reg(hwif, addr, val);
+
+	addr = HINIC_CSR_API_CMD_STATUS_LO_ADDR(chain->chain_type);
+	val = lower_32_bits(chain->wb_status_paddr);
+	hinic_hwif_write_reg(hwif, addr, val);
+}
+
+/**
+ * api_cmd_set_num_cells - set the number cells of a chain in the HW
+ * @chain: the API CMD specific chain to set in HW the number of cells for
+ **/
+static void api_cmd_set_num_cells(struct hinic_api_cmd_chain *chain)
+{
+	struct hinic_hwif *hwif = chain->hwif;
+	u32 addr, val;
+
+	addr = HINIC_CSR_API_CMD_CHAIN_NUM_CELLS_ADDR(chain->chain_type);
+	val  = chain->num_cells;
+	hinic_hwif_write_reg(hwif, addr, val);
+}
+
+/**
+ * api_cmd_head_init - set the head of a chain in the HW
+ * @chain: the API CMD specific chain to set in HW the head for
+ **/
+static void api_cmd_head_init(struct hinic_api_cmd_chain *chain)
+{
+	struct hinic_hwif *hwif = chain->hwif;
+	u32 addr, val;
+
+	addr = HINIC_CSR_API_CMD_CHAIN_HEAD_HI_ADDR(chain->chain_type);
+	val = upper_32_bits(chain->head_cell_paddr);
+	hinic_hwif_write_reg(hwif, addr, val);
+
+	addr = HINIC_CSR_API_CMD_CHAIN_HEAD_LO_ADDR(chain->chain_type);
+	val = lower_32_bits(chain->head_cell_paddr);
+	hinic_hwif_write_reg(hwif, addr, val);
+}
+
+/**
+ * api_cmd_chain_hw_clean - clean the HW
+ * @chain: the API CMD specific chain
+ **/
+static void api_cmd_chain_hw_clean(struct hinic_api_cmd_chain *chain)
+{
+	struct hinic_hwif *hwif = chain->hwif;
+	u32 addr, ctrl;
+
+	addr = HINIC_CSR_API_CMD_CHAIN_CTRL_ADDR(chain->chain_type);
+
+	ctrl = hinic_hwif_read_reg(hwif, addr);
+	ctrl = HINIC_API_CMD_CHAIN_CTRL_CLEAR(ctrl, RESTART_WB_STAT) &
+	       HINIC_API_CMD_CHAIN_CTRL_CLEAR(ctrl, XOR_ERR)         &
+	       HINIC_API_CMD_CHAIN_CTRL_CLEAR(ctrl, AEQE_EN)         &
+	       HINIC_API_CMD_CHAIN_CTRL_CLEAR(ctrl, XOR_CHK_EN)      &
+	       HINIC_API_CMD_CHAIN_CTRL_CLEAR(ctrl, CELL_SIZE);
+
+	hinic_hwif_write_reg(hwif, addr, ctrl);
+}
 
 /**
  * api_cmd_chain_hw_init - initialize the chain in the HW
@@ -45,7 +199,23 @@
  **/
 static int api_cmd_chain_hw_init(struct hinic_api_cmd_chain *chain)
 {
-	/* should be implemented */
+	struct hinic_hwif *hwif = chain->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	int err;
+
+	api_cmd_chain_hw_clean(chain);
+
+	api_cmd_set_status_addr(chain);
+
+	err = api_cmd_hw_restart(chain);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to restart API CMD HW\n");
+		return err;
+	}
+
+	api_cmd_ctrl_init(chain);
+	api_cmd_set_num_cells(chain);
+	api_cmd_head_init(chain);
 	return 0;
 }
 
@@ -373,6 +543,7 @@ err_create_cells:
  **/
 static void api_cmd_destroy_chain(struct hinic_api_cmd_chain *chain)
 {
+	api_cmd_chain_hw_clean(chain);
 	api_cmd_destroy_cells(chain, chain->num_cells);
 	api_chain_free(chain);
 }

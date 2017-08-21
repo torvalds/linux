@@ -20,6 +20,44 @@
 
 #include "hinic_hw_if.h"
 
+#define HINIC_API_CMD_CHAIN_REQ_RESTART_SHIFT                   1
+
+#define HINIC_API_CMD_CHAIN_REQ_RESTART_MASK                    0x1
+
+#define HINIC_API_CMD_CHAIN_REQ_SET(val, member)                \
+	(((u32)(val) & HINIC_API_CMD_CHAIN_REQ_##member##_MASK) << \
+	 HINIC_API_CMD_CHAIN_REQ_##member##_SHIFT)
+
+#define HINIC_API_CMD_CHAIN_REQ_GET(val, member)                \
+	(((val) >> HINIC_API_CMD_CHAIN_REQ_##member##_SHIFT) &  \
+	 HINIC_API_CMD_CHAIN_REQ_##member##_MASK)
+
+#define HINIC_API_CMD_CHAIN_REQ_CLEAR(val, member)              \
+	((val) & (~(HINIC_API_CMD_CHAIN_REQ_##member##_MASK     \
+	 << HINIC_API_CMD_CHAIN_REQ_##member##_SHIFT)))
+
+#define HINIC_API_CMD_CHAIN_CTRL_RESTART_WB_STAT_SHIFT          1
+#define HINIC_API_CMD_CHAIN_CTRL_XOR_ERR_SHIFT                  2
+#define HINIC_API_CMD_CHAIN_CTRL_AEQE_EN_SHIFT                  4
+#define HINIC_API_CMD_CHAIN_CTRL_AEQ_ID_SHIFT                   8
+#define HINIC_API_CMD_CHAIN_CTRL_XOR_CHK_EN_SHIFT               28
+#define HINIC_API_CMD_CHAIN_CTRL_CELL_SIZE_SHIFT                30
+
+#define HINIC_API_CMD_CHAIN_CTRL_RESTART_WB_STAT_MASK           0x1
+#define HINIC_API_CMD_CHAIN_CTRL_XOR_ERR_MASK                   0x1
+#define HINIC_API_CMD_CHAIN_CTRL_AEQE_EN_MASK                   0x1
+#define HINIC_API_CMD_CHAIN_CTRL_AEQ_ID_MASK                    0x3
+#define HINIC_API_CMD_CHAIN_CTRL_XOR_CHK_EN_MASK                0x3
+#define HINIC_API_CMD_CHAIN_CTRL_CELL_SIZE_MASK                 0x3
+
+#define HINIC_API_CMD_CHAIN_CTRL_SET(val, member)               \
+	(((u32)(val) & HINIC_API_CMD_CHAIN_CTRL_##member##_MASK) << \
+	 HINIC_API_CMD_CHAIN_CTRL_##member##_SHIFT)
+
+#define HINIC_API_CMD_CHAIN_CTRL_CLEAR(val, member)             \
+	((val) & (~(HINIC_API_CMD_CHAIN_CTRL_##member##_MASK    \
+	 << HINIC_API_CMD_CHAIN_CTRL_##member##_SHIFT)))
+
 enum hinic_api_cmd_chain_type {
 	HINIC_API_CMD_WRITE_TO_MGMT_CPU = 2,
 

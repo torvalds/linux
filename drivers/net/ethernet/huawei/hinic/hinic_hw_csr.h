@@ -33,4 +33,30 @@
 #define HINIC_CSR_PPF_ELECTION_ADDR(idx)                \
 	(HINIC_ELECTION_BASE +  (idx) * HINIC_PPF_ELECTION_STRIDE)
 
+/* API CMD registers */
+#define HINIC_CSR_API_CMD_BASE                          0xF000
+
+#define HINIC_CSR_API_CMD_STRIDE                        0x100
+
+#define HINIC_CSR_API_CMD_CHAIN_HEAD_HI_ADDR(idx)       \
+	(HINIC_CSR_API_CMD_BASE + 0x0 + (idx) * HINIC_CSR_API_CMD_STRIDE)
+
+#define HINIC_CSR_API_CMD_CHAIN_HEAD_LO_ADDR(idx)       \
+	(HINIC_CSR_API_CMD_BASE + 0x4 + (idx) * HINIC_CSR_API_CMD_STRIDE)
+
+#define HINIC_CSR_API_CMD_STATUS_HI_ADDR(idx)           \
+	(HINIC_CSR_API_CMD_BASE + 0x8 + (idx) * HINIC_CSR_API_CMD_STRIDE)
+
+#define HINIC_CSR_API_CMD_STATUS_LO_ADDR(idx)           \
+	(HINIC_CSR_API_CMD_BASE + 0xC + (idx) * HINIC_CSR_API_CMD_STRIDE)
+
+#define HINIC_CSR_API_CMD_CHAIN_NUM_CELLS_ADDR(idx)     \
+	(HINIC_CSR_API_CMD_BASE + 0x10 + (idx) * HINIC_CSR_API_CMD_STRIDE)
+
+#define HINIC_CSR_API_CMD_CHAIN_CTRL_ADDR(idx)          \
+	(HINIC_CSR_API_CMD_BASE + 0x14 + (idx) * HINIC_CSR_API_CMD_STRIDE)
+
+#define HINIC_CSR_API_CMD_CHAIN_REQ_ADDR(idx)           \
+	(HINIC_CSR_API_CMD_BASE + 0x20 + (idx) * HINIC_CSR_API_CMD_STRIDE)
+
 #endif
