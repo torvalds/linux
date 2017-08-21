@@ -32,6 +32,7 @@
 #define AHCI_VEND_PP3C  0xB0
 #define AHCI_VEND_PP4C  0xB4
 #define AHCI_VEND_PP5C  0xB8
+#define AHCI_VEND_AXICC 0xBC
 #define AHCI_VEND_PAXIC 0xC0
 #define AHCI_VEND_PTC   0xC8
 
@@ -40,6 +41,15 @@
 #define PAXIC_MAWIDD	(1 << 8)
 #define PAXIC_MARIDD	(1 << 16)
 #define PAXIC_OTL	(0x4 << 20)
+
+/* Register bit definitions for cache control */
+#define AXICC_ARCA_VAL  (0xF << 0)
+#define AXICC_ARCF_VAL  (0xF << 4)
+#define AXICC_ARCH_VAL  (0xF << 8)
+#define AXICC_ARCP_VAL  (0xF << 12)
+#define AXICC_AWCFD_VAL (0xF << 16)
+#define AXICC_AWCD_VAL  (0xF << 20)
+#define AXICC_AWCF_VAL  (0xF << 24)
 
 #define PCFG_TPSS_VAL	(0x32 << 16)
 #define PCFG_TPRS_VAL	(0x2 << 12)
@@ -82,6 +92,9 @@ struct ceva_ahci_priv {
 	u32 pp3c[NR_PORTS];
 	u32 pp4c[NR_PORTS];
 	u32 pp5c[NR_PORTS];
+	/* Axi Cache Control Register */
+	u32 axicc;
+	bool is_cci_enabled;
 	int flags;
 };
 
@@ -139,6 +152,16 @@ static void ahci_ceva_setup(struct ahci_host_priv *hpriv)
 		tmp = PCFG_TPSS_VAL | PCFG_TPRS_VAL | (PCFG_PAD_VAL + i);
 		writel(tmp, mmio + AHCI_VEND_PCFG);
 
+		/* Set AXI cache control register if CCi is enabled */
+		if (cevapriv->is_cci_enabled) {
+			tmp = readl(mmio + AHCI_VEND_AXICC);
+			tmp |= AXICC_ARCA_VAL | AXICC_ARCF_VAL |
+				AXICC_ARCH_VAL | AXICC_ARCP_VAL |
+				AXICC_AWCFD_VAL | AXICC_AWCD_VAL |
+				AXICC_AWCF_VAL;
+			writel(tmp, mmio + AHCI_VEND_AXICC);
+		}
+
 		/* Port Phy Cfg register enables */
 		tmp = PPCFG_TTA | PPCFG_PSS_EN | PPCFG_ESDF_EN;
 		writel(tmp, mmio + AHCI_VEND_PPCFG);
@@ -177,6 +200,7 @@ static int ceva_ahci_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ahci_host_priv *hpriv;
 	struct ceva_ahci_priv *cevapriv;
+	enum dev_dma_attr attr;
 	int rc;
 
 	cevapriv = devm_kzalloc(dev, sizeof(*cevapriv), GFP_KERNEL);
@@ -247,6 +271,13 @@ static int ceva_ahci_probe(struct platform_device *pdev)
 		dev_warn(dev, "ceva,p1-retry-params property not defined\n");
 		return -EINVAL;
 	}
+
+	/*
+	 * Check if CCI is enabled for SATA. The DEV_DMA_COHERENT is returned
+	 * if CCI is enabled, so check for DEV_DMA_COHERENT.
+	 */
+	attr = device_get_dma_attr(dev);
+	cevapriv->is_cci_enabled = (attr == DEV_DMA_COHERENT);
 
 	hpriv->plat_data = cevapriv;
 
