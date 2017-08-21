@@ -10,7 +10,13 @@ Optional properties:
 
 - ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
 - enable-gpios: GPIO pin to enable or disable the panel
+- reset-gpios: GPIO pin to reset the panel
 - backlight: phandle of the backlight device attached to the panel
+- reset-delay-ms: reset pulse width
+- enable-delay-ms: takes for the panel to display
+- prepare-delay-ms: take for the panel to receive video data
+- disable-delay-ms: takes for the panel to power off
+- unprepare-delay-ms: take for the panel to display off
 
 Required properties when compatible is "simple-panel" or "simple-panel-dsi":
 - display-timings: see display-timing.txt for information
@@ -19,13 +25,7 @@ Optional properties when compatible is a dsi devices:
 - dsi,flags: dsi operation mode related flags
 - dsi,format: pixel format for video mode
 - dsi,lanes: number of active data lanes
-- reset-gpios: GPIO pin to reset the panel
-- reset-delay-ms: reset pulse width
 - init-delay-ms: take for send command to panel
-- enable-delay-ms: takes for the panel to display
-- prepare-delay-ms: take for the panel to receive video data
-- disable-delay-ms: takes for the panel to power off
-- unprepare-delay-ms: take for the panel to display off
 - panel-init-sequence: A byte stream formed by simple multiple dcs packets.
 	byte 0: dcs data type
 	byte 1: wait number of specified ms after dcs command transmitted
@@ -50,27 +50,26 @@ Example:
 	};
 
 Or:
-	panel: panel {
+
+&dsi {
+	panel@0 {
 		compatible = "simple-panel-dsi";
-		ddc-i2c-bus = <&panelddc>;
-
-		power-supply = <&vdd_pnl_reg>;
-		enable-gpios = <&gpio 90 0>;
-
-		reset-gpios = <&gpio 91 0>;
-
-		reset-delay-ms = <20>;
-		init-delay-ms = <20>;
-		enable-delay-ms = <20>;
-		prepare-delay-ms = <20>;
-		disable-delay-ms = <20>;
-		unprepare-delay-ms = <20>;
-
+		reg = <0>;
 		backlight = <&backlight>;
 
-		dsi,flags = <MIPI_DSI_MODE_VIDEO |
-			     MIPI_DSI_MODE_VIDEO_BURST |
-			     MIPI_DSI_MODE_VIDEO_SYNC_PULSE>;
+		power-supply = <&vcc_lcd>;
+		enable-gpios = <&gpio2 27 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 13 GPIO_ACTIVE_LOW>;
+
+		reset-delay-ms = <120>;
+		init-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		prepare-delay-ms = <120>;
+		disable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+
+		dsi,flags = <MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			     MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET>;
 		dsi,format = <MIPI_DSI_FMT_RGB888>;
 		dsi,lanes = <4>;
 
@@ -79,7 +78,7 @@ Or:
 				 d7 23 80 c0 d2 58
 			...
 			05 78 01 11
-			05 00 01 29
+			05 78 01 29
 		];
 
 		panel-exit-sequence = [
@@ -89,6 +88,7 @@ Or:
 
 		display-timings {
 			native-mode = <&timing0>;
+
 			timing0: timing0 {
 				clock-frequency = <160000000>;
 				hactive = <1200>;
@@ -106,3 +106,4 @@ Or:
 			};
 		};
 	};
+};
