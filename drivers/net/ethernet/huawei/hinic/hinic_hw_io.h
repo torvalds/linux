@@ -20,10 +20,16 @@
 #include <linux/pci.h>
 
 #include "hinic_hw_if.h"
+#include "hinic_hw_wq.h"
 #include "hinic_hw_qp.h"
 
 struct hinic_func_to_io {
 	struct hinic_hwif       *hwif;
+
+	struct hinic_wqs        wqs;
+
+	struct hinic_wq         *sq_wq;
+	struct hinic_wq         *rq_wq;
 
 	struct hinic_qp         *qps;
 	u16                     max_qps;

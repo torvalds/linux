@@ -1,0 +1,516 @@
+/*
+ * Huawei HiNIC PCI Express Linux driver
+ * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * for more details.
+ *
+ */
+
+#include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/pci.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <linux/slab.h>
+#include <linux/atomic.h>
+#include <linux/semaphore.h>
+#include <linux/errno.h>
+#include <linux/vmalloc.h>
+#include <asm/byteorder.h>
+
+#include "hinic_hw_if.h"
+#include "hinic_hw_wq.h"
+
+#define WQS_BLOCKS_PER_PAGE             4
+
+#define WQ_BLOCK_SIZE                   4096
+#define WQS_PAGE_SIZE                   (WQS_BLOCKS_PER_PAGE * WQ_BLOCK_SIZE)
+
+#define WQS_MAX_NUM_BLOCKS              128
+#define WQS_FREE_BLOCKS_SIZE(wqs)       (WQS_MAX_NUM_BLOCKS * \
+					 sizeof((wqs)->free_blocks[0]))
+
+#define WQ_SIZE(wq)                     ((wq)->q_depth * (wq)->wqebb_size)
+
+#define WQ_PAGE_ADDR_SIZE               sizeof(u64)
+#define WQ_MAX_PAGES                    (WQ_BLOCK_SIZE / WQ_PAGE_ADDR_SIZE)
+
+#define WQ_BASE_VADDR(wqs, wq)          \
+			((void *)((wqs)->page_vaddr[(wq)->page_idx]) \
+				+ (wq)->block_idx * WQ_BLOCK_SIZE)
+
+#define WQ_BASE_PADDR(wqs, wq)          \
+			((wqs)->page_paddr[(wq)->page_idx] \
+				+ (wq)->block_idx * WQ_BLOCK_SIZE)
+
+#define WQ_BASE_ADDR(wqs, wq)           \
+			((void *)((wqs)->shadow_page_vaddr[(wq)->page_idx]) \
+				+ (wq)->block_idx * WQ_BLOCK_SIZE)
+
+/**
+ * queue_alloc_page - allocate page for Queue
+ * @hwif: HW interface for allocating DMA
+ * @vaddr: virtual address will be returned in this address
+ * @paddr: physical address will be returned in this address
+ * @shadow_vaddr: VM area will be return here for holding WQ page addresses
+ * @page_sz: page size of each WQ page
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int queue_alloc_page(struct hinic_hwif *hwif, u64 **vaddr, u64 *paddr,
+			    void ***shadow_vaddr, size_t page_sz)
+{
+	struct pci_dev *pdev = hwif->pdev;
+	dma_addr_t dma_addr;
+
+	*vaddr = dma_zalloc_coherent(&pdev->dev, page_sz, &dma_addr,
+				     GFP_KERNEL);
+	if (!*vaddr) {
+		dev_err(&pdev->dev, "Failed to allocate dma for wqs page\n");
+		return -ENOMEM;
+	}
+
+	*paddr = (u64)dma_addr;
+
+	/* use vzalloc for big mem */
+	*shadow_vaddr = vzalloc(page_sz);
+	if (!*shadow_vaddr)
+		goto err_shadow_vaddr;
+
+	return 0;
+
+err_shadow_vaddr:
+	dma_free_coherent(&pdev->dev, page_sz, *vaddr, dma_addr);
+	return -ENOMEM;
+}
+
+/**
+ * wqs_allocate_page - allocate page for WQ set
+ * @wqs: Work Queue Set
+ * @page_idx: the page index of the page will be allocated
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int wqs_allocate_page(struct hinic_wqs *wqs, int page_idx)
+{
+	return queue_alloc_page(wqs->hwif, &wqs->page_vaddr[page_idx],
+				&wqs->page_paddr[page_idx],
+				&wqs->shadow_page_vaddr[page_idx],
+				WQS_PAGE_SIZE);
+}
+
+/**
+ * wqs_free_page - free page of WQ set
+ * @wqs: Work Queue Set
+ * @page_idx: the page index of the page will be freed
+ **/
+static void wqs_free_page(struct hinic_wqs *wqs, int page_idx)
+{
+	struct hinic_hwif *hwif = wqs->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+
+	dma_free_coherent(&pdev->dev, WQS_PAGE_SIZE,
+			  wqs->page_vaddr[page_idx],
+			  (dma_addr_t)wqs->page_paddr[page_idx]);
+	vfree(wqs->shadow_page_vaddr[page_idx]);
+}
+
+static int alloc_page_arrays(struct hinic_wqs *wqs)
+{
+	struct hinic_hwif *hwif = wqs->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	size_t size;
+
+	size = wqs->num_pages * sizeof(*wqs->page_paddr);
+	wqs->page_paddr = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!wqs->page_paddr)
+		return -ENOMEM;
+
+	size = wqs->num_pages * sizeof(*wqs->page_vaddr);
+	wqs->page_vaddr = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!wqs->page_vaddr)
+		goto err_page_vaddr;
+
+	size = wqs->num_pages * sizeof(*wqs->shadow_page_vaddr);
+	wqs->shadow_page_vaddr = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!wqs->shadow_page_vaddr)
+		goto err_page_shadow_vaddr;
+
+	return 0;
+
+err_page_shadow_vaddr:
+	devm_kfree(&pdev->dev, wqs->page_vaddr);
+
+err_page_vaddr:
+	devm_kfree(&pdev->dev, wqs->page_paddr);
+	return -ENOMEM;
+}
+
+static void free_page_arrays(struct hinic_wqs *wqs)
+{
+	struct hinic_hwif *hwif = wqs->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+
+	devm_kfree(&pdev->dev, wqs->shadow_page_vaddr);
+	devm_kfree(&pdev->dev, wqs->page_vaddr);
+	devm_kfree(&pdev->dev, wqs->page_paddr);
+}
+
+static int wqs_next_block(struct hinic_wqs *wqs, int *page_idx,
+			  int *block_idx)
+{
+	int pos;
+
+	down(&wqs->alloc_blocks_lock);
+
+	wqs->num_free_blks--;
+
+	if (wqs->num_free_blks < 0) {
+		wqs->num_free_blks++;
+		up(&wqs->alloc_blocks_lock);
+		return -ENOMEM;
+	}
+
+	pos = wqs->alloc_blk_pos++;
+	pos &= WQS_MAX_NUM_BLOCKS - 1;
+
+	*page_idx = wqs->free_blocks[pos].page_idx;
+	*block_idx = wqs->free_blocks[pos].block_idx;
+
+	wqs->free_blocks[pos].page_idx = -1;
+	wqs->free_blocks[pos].block_idx = -1;
+
+	up(&wqs->alloc_blocks_lock);
+	return 0;
+}
+
+static void wqs_return_block(struct hinic_wqs *wqs, int page_idx,
+			     int block_idx)
+{
+	int pos;
+
+	down(&wqs->alloc_blocks_lock);
+
+	pos = wqs->return_blk_pos++;
+	pos &= WQS_MAX_NUM_BLOCKS - 1;
+
+	wqs->free_blocks[pos].page_idx = page_idx;
+	wqs->free_blocks[pos].block_idx = block_idx;
+
+	wqs->num_free_blks++;
+
+	up(&wqs->alloc_blocks_lock);
+}
+
+static void init_wqs_blocks_arr(struct hinic_wqs *wqs)
+{
+	int page_idx, blk_idx, pos = 0;
+
+	for (page_idx = 0; page_idx < wqs->num_pages; page_idx++) {
+		for (blk_idx = 0; blk_idx < WQS_BLOCKS_PER_PAGE; blk_idx++) {
+			wqs->free_blocks[pos].page_idx = page_idx;
+			wqs->free_blocks[pos].block_idx = blk_idx;
+			pos++;
+		}
+	}
+
+	wqs->alloc_blk_pos = 0;
+	wqs->return_blk_pos = pos;
+	wqs->num_free_blks = pos;
+
+	sema_init(&wqs->alloc_blocks_lock, 1);
+}
+
+/**
+ * hinic_wqs_alloc - allocate Work Queues set
+ * @wqs: Work Queue Set
+ * @max_wqs: maximum wqs to allocate
+ * @hwif: HW interface for use for the allocation
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_wqs_alloc(struct hinic_wqs *wqs, int max_wqs,
+		    struct hinic_hwif *hwif)
+{
+	struct pci_dev *pdev = hwif->pdev;
+	int err, i, page_idx;
+
+	max_wqs = ALIGN(max_wqs, WQS_BLOCKS_PER_PAGE);
+	if (max_wqs > WQS_MAX_NUM_BLOCKS)  {
+		dev_err(&pdev->dev, "Invalid max_wqs = %d\n", max_wqs);
+		return -EINVAL;
+	}
+
+	wqs->hwif = hwif;
+	wqs->num_pages = max_wqs / WQS_BLOCKS_PER_PAGE;
+
+	if (alloc_page_arrays(wqs)) {
+		dev_err(&pdev->dev,
+			"Failed to allocate mem for page addresses\n");
+		return -ENOMEM;
+	}
+
+	for (page_idx = 0; page_idx < wqs->num_pages; page_idx++) {
+		err = wqs_allocate_page(wqs, page_idx);
+		if (err) {
+			dev_err(&pdev->dev, "Failed wq page allocation\n");
+			goto err_wq_allocate_page;
+		}
+	}
+
+	wqs->free_blocks = devm_kzalloc(&pdev->dev, WQS_FREE_BLOCKS_SIZE(wqs),
+					GFP_KERNEL);
+	if (!wqs->free_blocks) {
+		err = -ENOMEM;
+		goto err_alloc_blocks;
+	}
+
+	init_wqs_blocks_arr(wqs);
+	return 0;
+
+err_alloc_blocks:
+err_wq_allocate_page:
+	for (i = 0; i < page_idx; i++)
+		wqs_free_page(wqs, i);
+
+	free_page_arrays(wqs);
+	return err;
+}
+
+/**
+ * hinic_wqs_free - free Work Queues set
+ * @wqs: Work Queue Set
+ **/
+void hinic_wqs_free(struct hinic_wqs *wqs)
+{
+	struct hinic_hwif *hwif = wqs->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	int page_idx;
+
+	devm_kfree(&pdev->dev, wqs->free_blocks);
+
+	for (page_idx = 0; page_idx < wqs->num_pages; page_idx++)
+		wqs_free_page(wqs, page_idx);
+
+	free_page_arrays(wqs);
+}
+
+/**
+ * alloc_wqes_shadow - allocate WQE shadows for WQ
+ * @wq: WQ to allocate shadows for
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int alloc_wqes_shadow(struct hinic_wq *wq)
+{
+	struct hinic_hwif *hwif = wq->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	size_t size;
+
+	size = wq->num_q_pages * wq->max_wqe_size;
+	wq->shadow_wqe = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!wq->shadow_wqe)
+		return -ENOMEM;
+
+	size = wq->num_q_pages * sizeof(wq->prod_idx);
+	wq->shadow_idx = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!wq->shadow_idx)
+		goto err_shadow_idx;
+
+	return 0;
+
+err_shadow_idx:
+	devm_kfree(&pdev->dev, wq->shadow_wqe);
+	return -ENOMEM;
+}
+
+/**
+ * free_wqes_shadow - free WQE shadows of WQ
+ * @wq: WQ to free shadows from
+ **/
+static void free_wqes_shadow(struct hinic_wq *wq)
+{
+	struct hinic_hwif *hwif = wq->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+
+	devm_kfree(&pdev->dev, wq->shadow_idx);
+	devm_kfree(&pdev->dev, wq->shadow_wqe);
+}
+
+/**
+ * free_wq_pages - free pages of WQ
+ * @hwif: HW interface for releasing dma addresses
+ * @wq: WQ to free pages from
+ * @num_q_pages: number pages to free
+ **/
+static void free_wq_pages(struct hinic_wq *wq, struct hinic_hwif *hwif,
+			  int num_q_pages)
+{
+	struct pci_dev *pdev = hwif->pdev;
+	int i;
+
+	for (i = 0; i < num_q_pages; i++) {
+		void **vaddr = &wq->shadow_block_vaddr[i];
+		u64 *paddr = &wq->block_vaddr[i];
+		dma_addr_t dma_addr;
+
+		dma_addr = (dma_addr_t)be64_to_cpu(*paddr);
+		dma_free_coherent(&pdev->dev, wq->wq_page_size, *vaddr,
+				  dma_addr);
+	}
+
+	free_wqes_shadow(wq);
+}
+
+/**
+ * alloc_wq_pages - alloc pages for WQ
+ * @hwif: HW interface for allocating dma addresses
+ * @wq: WQ to allocate pages for
+ * @max_pages: maximum pages allowed
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int alloc_wq_pages(struct hinic_wq *wq, struct hinic_hwif *hwif,
+			  int max_pages)
+{
+	struct pci_dev *pdev = hwif->pdev;
+	int i, err, num_q_pages;
+
+	num_q_pages = ALIGN(WQ_SIZE(wq), wq->wq_page_size) / wq->wq_page_size;
+	if (num_q_pages > max_pages) {
+		dev_err(&pdev->dev, "Number wq pages exceeds the limit\n");
+		return -EINVAL;
+	}
+
+	if (num_q_pages & (num_q_pages - 1)) {
+		dev_err(&pdev->dev, "Number wq pages must be power of 2\n");
+		return -EINVAL;
+	}
+
+	wq->num_q_pages = num_q_pages;
+
+	err = alloc_wqes_shadow(wq);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to allocate wqe shadow\n");
+		return err;
+	}
+
+	for (i = 0; i < num_q_pages; i++) {
+		void **vaddr = &wq->shadow_block_vaddr[i];
+		u64 *paddr = &wq->block_vaddr[i];
+		dma_addr_t dma_addr;
+
+		*vaddr = dma_zalloc_coherent(&pdev->dev, wq->wq_page_size,
+					     &dma_addr, GFP_KERNEL);
+		if (!*vaddr) {
+			dev_err(&pdev->dev, "Failed to allocate wq page\n");
+			goto err_alloc_wq_pages;
+		}
+
+		/* HW uses Big Endian Format */
+		*paddr = cpu_to_be64(dma_addr);
+	}
+
+	return 0;
+
+err_alloc_wq_pages:
+	free_wq_pages(wq, hwif, i);
+	return -ENOMEM;
+}
+
+/**
+ * hinic_wq_allocate - Allocate the WQ resources from the WQS
+ * @wqs: WQ set from which to allocate the WQ resources
+ * @wq: WQ to allocate resources for it from the WQ set
+ * @wqebb_size: Work Queue Block Byte Size
+ * @wq_page_size: the page size in the Work Queue
+ * @q_depth: number of wqebbs in WQ
+ * @max_wqe_size: maximum WQE size that will be used in the WQ
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_wq_allocate(struct hinic_wqs *wqs, struct hinic_wq *wq,
+		      u16 wqebb_size, u16 wq_page_size, u16 q_depth,
+		      u16 max_wqe_size)
+{
+	struct hinic_hwif *hwif = wqs->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	u16 num_wqebbs_per_page;
+	int err;
+
+	if (wqebb_size == 0) {
+		dev_err(&pdev->dev, "wqebb_size must be > 0\n");
+		return -EINVAL;
+	}
+
+	if (wq_page_size == 0) {
+		dev_err(&pdev->dev, "wq_page_size must be > 0\n");
+		return -EINVAL;
+	}
+
+	if (q_depth & (q_depth - 1)) {
+		dev_err(&pdev->dev, "WQ q_depth must be power of 2\n");
+		return -EINVAL;
+	}
+
+	num_wqebbs_per_page = ALIGN(wq_page_size, wqebb_size) / wqebb_size;
+
+	if (num_wqebbs_per_page & (num_wqebbs_per_page - 1)) {
+		dev_err(&pdev->dev, "num wqebbs per page must be power of 2\n");
+		return -EINVAL;
+	}
+
+	wq->hwif = hwif;
+
+	err = wqs_next_block(wqs, &wq->page_idx, &wq->block_idx);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to get free wqs next block\n");
+		return err;
+	}
+
+	wq->wqebb_size = wqebb_size;
+	wq->wq_page_size = wq_page_size;
+	wq->q_depth = q_depth;
+	wq->max_wqe_size = max_wqe_size;
+	wq->num_wqebbs_per_page = num_wqebbs_per_page;
+
+	wq->block_vaddr = WQ_BASE_VADDR(wqs, wq);
+	wq->shadow_block_vaddr = WQ_BASE_ADDR(wqs, wq);
+	wq->block_paddr = WQ_BASE_PADDR(wqs, wq);
+
+	err = alloc_wq_pages(wq, wqs->hwif, WQ_MAX_PAGES);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to allocate wq pages\n");
+		goto err_alloc_wq_pages;
+	}
+
+	atomic_set(&wq->cons_idx, 0);
+	atomic_set(&wq->prod_idx, 0);
+	atomic_set(&wq->delta, q_depth);
+	wq->mask = q_depth - 1;
+
+	return 0;
+
+err_alloc_wq_pages:
+	wqs_return_block(wqs, wq->page_idx, wq->block_idx);
+	return err;
+}
+
+/**
+ * hinic_wq_free - Free the WQ resources to the WQS
+ * @wqs: WQ set to free the WQ resources to it
+ * @wq: WQ to free its resources to the WQ set resources
+ **/
+void hinic_wq_free(struct hinic_wqs *wqs, struct hinic_wq *wq)
+{
+	free_wq_pages(wq, wqs->hwif, wq->num_q_pages);
+
+	wqs_return_block(wqs, wq->page_idx, wq->block_idx);
+}
