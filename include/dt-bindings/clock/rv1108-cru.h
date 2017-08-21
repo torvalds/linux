@@ -67,9 +67,9 @@
 #define SCLK_SPI			108
 #define SCLK_SARADC			109
 #define SCLK_TSADC			110
-#define SCLK_MACPHY_PRE			111
-#define SCLK_MACPHY			112
-#define SCLK_MACPHY_RX			113
+#define SCLK_MAC_PRE			111
+#define SCLK_MAC			112
+#define SCLK_MAC_RX			113
 #define SCLK_MAC_REF			114
 #define SCLK_MAC_REFOUT			115
 #define SCLK_DSP_PFM			116

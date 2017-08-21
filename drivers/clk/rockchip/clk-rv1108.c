@@ -140,7 +140,7 @@ PNAME(mux_pll_src_dpll_gpll_usb480m_p)	= { "dpll", "gpll", "usb480m" };
 PNAME(mux_uart0_p)		= { "uart0_src", "uart0_frac", "xin24m" };
 PNAME(mux_uart1_p)		= { "uart1_src", "uart1_frac", "xin24m" };
 PNAME(mux_uart2_p)		= { "uart2_src", "uart2_frac", "xin24m" };
-PNAME(mux_sclk_macphy_p)	= { "ext_gmac", "sclk_macphy_pre" };
+PNAME(mux_sclk_mac_p)		= { "ext_gmac", "sclk_mac_pre" };
 PNAME(mux_i2s0_pre_p)		= { "i2s0_src", "i2s0_frac", "ext_i2s", "xin12m" };
 PNAME(mux_i2s_out_p)		= { "i2s0_pre", "xin12m" };
 PNAME(mux_i2s1_p)		= { "i2s1_src", "i2s1_frac", "dummy", "xin12m" };
@@ -755,14 +755,14 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 			RV1108_CLKGATE_CON(5), 4, GFLAGS),
 	GATE(HCLK_SFC, "hclk_sfc", "hclk_periph", 0, RV1108_CLKGATE_CON(15), 10, GFLAGS),
 
-	COMPOSITE(SCLK_MACPHY_PRE, "sclk_macphy_pre", mux_pll_src_apll_gpll_p, 0,
+	COMPOSITE(SCLK_MAC_PRE, "sclk_mac_pre", mux_pll_src_apll_gpll_p, 0,
 			RV1108_CLKSEL_CON(24), 12, 1, MFLAGS, 0, 5, DFLAGS,
 			RV1108_CLKGATE_CON(4), 10, GFLAGS),
-	MUX(SCLK_MACPHY, "sclk_macphy", mux_sclk_macphy_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_MAC, "sclk_mac", mux_sclk_mac_p, CLK_SET_RATE_PARENT,
 			RV1108_CLKSEL_CON(24), 8, 1, MFLAGS),
-	GATE(SCLK_MACPHY_RX, "sclk_macphy_rx", "sclk_macphy", 0, RV1108_CLKGATE_CON(4), 8, GFLAGS),
-	GATE(SCLK_MAC_REF, "sclk_mac_ref", "sclk_macphy", 0, RV1108_CLKGATE_CON(4), 6, GFLAGS),
-	GATE(SCLK_MAC_REFOUT, "sclk_mac_refout", "sclk_macphy", 0, RV1108_CLKGATE_CON(4), 7, GFLAGS),
+	GATE(SCLK_MAC_RX, "sclk_mac_rx", "sclk_mac", 0, RV1108_CLKGATE_CON(4), 8, GFLAGS),
+	GATE(SCLK_MAC_REF, "sclk_mac_ref", "sclk_mac", 0, RV1108_CLKGATE_CON(4), 6, GFLAGS),
+	GATE(SCLK_MAC_REFOUT, "sclk_mac_refout", "sclk_mac", 0, RV1108_CLKGATE_CON(4), 7, GFLAGS),
 	GATE(ACLK_GMAC, "aclk_gmac", "aclk_periph", 0, RV1108_CLKGATE_CON(15), 4, GFLAGS),
 	GATE(PCLK_GMAC, "pclk_gmac", "pclk_periph", 0, RV1108_CLKGATE_CON(15), 5, GFLAGS),
 
