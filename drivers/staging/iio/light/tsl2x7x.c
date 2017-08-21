@@ -1977,7 +1977,7 @@ static int tsl2x7x_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id tsl2x7x_idtable[] = {
+static const struct i2c_device_id tsl2x7x_idtable[] = {
 	{ "tsl2571", tsl2571 },
 	{ "tsl2671", tsl2671 },
 	{ "tmd2671", tmd2671 },
