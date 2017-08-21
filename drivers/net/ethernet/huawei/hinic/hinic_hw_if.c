@@ -1,0 +1,208 @@
+/*
+ * Huawei HiNIC PCI Express Linux driver
+ * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * for more details.
+ *
+ */
+
+#include <linux/pci.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/io.h>
+#include <linux/types.h>
+#include <linux/bitops.h>
+
+#include "hinic_hw_csr.h"
+#include "hinic_hw_if.h"
+
+#define PCIE_ATTR_ENTRY         0
+
+/**
+ * hwif_ready - test if the HW is ready for use
+ * @hwif: the HW interface of a pci function device
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int hwif_ready(struct hinic_hwif *hwif)
+{
+	struct pci_dev *pdev = hwif->pdev;
+	u32 addr, attr1;
+
+	addr   = HINIC_CSR_FUNC_ATTR1_ADDR;
+	attr1  = hinic_hwif_read_reg(hwif, addr);
+
+	if (!HINIC_FA1_GET(attr1, INIT_STATUS)) {
+		dev_err(&pdev->dev, "hwif status is not ready\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+/**
+ * set_hwif_attr - set the attributes in the relevant members in hwif
+ * @hwif: the HW interface of a pci function device
+ * @attr0: the first attribute that was read from the hw
+ * @attr1: the second attribute that was read from the hw
+ **/
+static void set_hwif_attr(struct hinic_hwif *hwif, u32 attr0, u32 attr1)
+{
+	hwif->attr.func_idx     = HINIC_FA0_GET(attr0, FUNC_IDX);
+	hwif->attr.pf_idx       = HINIC_FA0_GET(attr0, PF_IDX);
+	hwif->attr.pci_intf_idx = HINIC_FA0_GET(attr0, PCI_INTF_IDX);
+	hwif->attr.func_type    = HINIC_FA0_GET(attr0, FUNC_TYPE);
+
+	hwif->attr.num_aeqs = BIT(HINIC_FA1_GET(attr1, AEQS_PER_FUNC));
+	hwif->attr.num_ceqs = BIT(HINIC_FA1_GET(attr1, CEQS_PER_FUNC));
+	hwif->attr.num_irqs = BIT(HINIC_FA1_GET(attr1, IRQS_PER_FUNC));
+	hwif->attr.num_dma_attr = BIT(HINIC_FA1_GET(attr1, DMA_ATTR_PER_FUNC));
+}
+
+/**
+ * read_hwif_attr - read the attributes and set members in hwif
+ * @hwif: the HW interface of a pci function device
+ **/
+static void read_hwif_attr(struct hinic_hwif *hwif)
+{
+	u32 addr, attr0, attr1;
+
+	addr   = HINIC_CSR_FUNC_ATTR0_ADDR;
+	attr0  = hinic_hwif_read_reg(hwif, addr);
+
+	addr   = HINIC_CSR_FUNC_ATTR1_ADDR;
+	attr1  = hinic_hwif_read_reg(hwif, addr);
+
+	set_hwif_attr(hwif, attr0, attr1);
+}
+
+/**
+ * set_ppf - try to set hwif as ppf and set the type of hwif in this case
+ * @hwif: the HW interface of a pci function device
+ **/
+static void set_ppf(struct hinic_hwif *hwif)
+{
+	struct hinic_func_attr *attr = &hwif->attr;
+	u32 addr, val, ppf_election;
+
+	/* Read Modify Write */
+	addr = HINIC_CSR_PPF_ELECTION_ADDR(HINIC_HWIF_PCI_INTF(hwif));
+
+	val = hinic_hwif_read_reg(hwif, addr);
+	val = HINIC_PPF_ELECTION_CLEAR(val, IDX);
+
+	ppf_election = HINIC_PPF_ELECTION_SET(HINIC_HWIF_FUNC_IDX(hwif), IDX);
+
+	val |= ppf_election;
+	hinic_hwif_write_reg(hwif, addr, val);
+
+	/* check PPF */
+	val = hinic_hwif_read_reg(hwif, addr);
+
+	attr->ppf_idx = HINIC_PPF_ELECTION_GET(val, IDX);
+	if (attr->ppf_idx == HINIC_HWIF_FUNC_IDX(hwif))
+		attr->func_type = HINIC_PPF;
+}
+
+/**
+ * set_dma_attr - set the dma attributes in the HW
+ * @hwif: the HW interface of a pci function device
+ * @entry_idx: the entry index in the dma table
+ * @st: PCIE TLP steering tag
+ * @at: PCIE TLP AT field
+ * @ph: PCIE TLP Processing Hint field
+ * @no_snooping: PCIE TLP No snooping
+ * @tph_en: PCIE TLP Processing Hint Enable
+ **/
+static void set_dma_attr(struct hinic_hwif *hwif, u32 entry_idx,
+			 u8 st, u8 at, u8 ph,
+			 enum hinic_pcie_nosnoop no_snooping,
+			 enum hinic_pcie_tph tph_en)
+{
+	u32 addr, val, dma_attr_entry;
+
+	/* Read Modify Write */
+	addr = HINIC_CSR_DMA_ATTR_ADDR(entry_idx);
+
+	val = hinic_hwif_read_reg(hwif, addr);
+	val = HINIC_DMA_ATTR_CLEAR(val, ST)             &
+	      HINIC_DMA_ATTR_CLEAR(val, AT)             &
+	      HINIC_DMA_ATTR_CLEAR(val, PH)             &
+	      HINIC_DMA_ATTR_CLEAR(val, NO_SNOOPING)    &
+	      HINIC_DMA_ATTR_CLEAR(val, TPH_EN);
+
+	dma_attr_entry = HINIC_DMA_ATTR_SET(st, ST)                     |
+			 HINIC_DMA_ATTR_SET(at, AT)                     |
+			 HINIC_DMA_ATTR_SET(ph, PH)                     |
+			 HINIC_DMA_ATTR_SET(no_snooping, NO_SNOOPING)   |
+			 HINIC_DMA_ATTR_SET(tph_en, TPH_EN);
+
+	val |= dma_attr_entry;
+	hinic_hwif_write_reg(hwif, addr, val);
+}
+
+/**
+ * dma_attr_table_init - initialize the the default dma attributes
+ * @hwif: the HW interface of a pci function device
+ **/
+static void dma_attr_init(struct hinic_hwif *hwif)
+{
+	set_dma_attr(hwif, PCIE_ATTR_ENTRY, HINIC_PCIE_ST_DISABLE,
+		     HINIC_PCIE_AT_DISABLE, HINIC_PCIE_PH_DISABLE,
+		     HINIC_PCIE_SNOOP, HINIC_PCIE_TPH_DISABLE);
+}
+
+/**
+ * hinic_init_hwif - initialize the hw interface
+ * @hwif: the HW interface of a pci function device
+ * @pdev: the pci device for acessing PCI resources
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev)
+{
+	int err;
+
+	hwif->pdev = pdev;
+
+	hwif->cfg_regs_bar = pci_ioremap_bar(pdev, HINIC_PCI_CFG_REGS_BAR);
+	if (!hwif->cfg_regs_bar) {
+		dev_err(&pdev->dev, "Failed to map configuration regs\n");
+		return -ENOMEM;
+	}
+
+	err = hwif_ready(hwif);
+	if (err) {
+		dev_err(&pdev->dev, "HW interface is not ready\n");
+		goto err_hwif_ready;
+	}
+
+	read_hwif_attr(hwif);
+
+	if (HINIC_IS_PF(hwif))
+		set_ppf(hwif);
+
+	/* No transactionss before DMA is initialized */
+	dma_attr_init(hwif);
+	return 0;
+
+err_hwif_ready:
+	iounmap(hwif->cfg_regs_bar);
+	return err;
+}
+
+/**
+ * hinic_free_hwif - free the HW interface
+ * @hwif: the HW interface of a pci function device
+ **/
+void hinic_free_hwif(struct hinic_hwif *hwif)
+{
+	iounmap(hwif->cfg_regs_bar);
+}
