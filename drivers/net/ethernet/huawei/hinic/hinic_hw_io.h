@@ -22,6 +22,7 @@
 #include <linux/sizes.h>
 
 #include "hinic_hw_if.h"
+#include "hinic_hw_eqs.h"
 #include "hinic_hw_wq.h"
 #include "hinic_hw_cmdq.h"
 #include "hinic_hw_qp.h"
@@ -45,6 +46,8 @@ struct hinic_free_db_area {
 
 struct hinic_func_to_io {
 	struct hinic_hwif       *hwif;
+
+	struct hinic_ceqs       ceqs;
 
 	struct hinic_wqs        wqs;
 

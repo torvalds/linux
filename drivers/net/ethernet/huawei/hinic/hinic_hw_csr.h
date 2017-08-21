@@ -81,11 +81,15 @@
 
 /* EQ registers */
 #define HINIC_AEQ_MTT_OFF_BASE_ADDR                     0x200
+#define HINIC_CEQ_MTT_OFF_BASE_ADDR                     0x400
 
 #define HINIC_EQ_MTT_OFF_STRIDE                         0x40
 
 #define HINIC_CSR_AEQ_MTT_OFF(id)                       \
 	(HINIC_AEQ_MTT_OFF_BASE_ADDR + (id) * HINIC_EQ_MTT_OFF_STRIDE)
+
+#define HINIC_CSR_CEQ_MTT_OFF(id)                       \
+	(HINIC_CEQ_MTT_OFF_BASE_ADDR + (id) * HINIC_EQ_MTT_OFF_STRIDE)
 
 #define HINIC_CSR_EQ_PAGE_OFF_STRIDE                    8
 
@@ -93,14 +97,27 @@
 	(HINIC_CSR_AEQ_MTT_OFF(q_id) + \
 	 (pg_num) * HINIC_CSR_EQ_PAGE_OFF_STRIDE)
 
+#define HINIC_CSR_CEQ_HI_PHYS_ADDR_REG(q_id, pg_num)    \
+	(HINIC_CSR_CEQ_MTT_OFF(q_id) +          \
+	 (pg_num) * HINIC_CSR_EQ_PAGE_OFF_STRIDE)
+
 #define HINIC_CSR_AEQ_LO_PHYS_ADDR_REG(q_id, pg_num)    \
 	(HINIC_CSR_AEQ_MTT_OFF(q_id) + \
+	 (pg_num) * HINIC_CSR_EQ_PAGE_OFF_STRIDE + 4)
+
+#define HINIC_CSR_CEQ_LO_PHYS_ADDR_REG(q_id, pg_num)    \
+	(HINIC_CSR_CEQ_MTT_OFF(q_id) +  \
 	 (pg_num) * HINIC_CSR_EQ_PAGE_OFF_STRIDE + 4)
 
 #define HINIC_AEQ_CTRL_0_ADDR_BASE                      0xE00
 #define HINIC_AEQ_CTRL_1_ADDR_BASE                      0xE04
 #define HINIC_AEQ_CONS_IDX_ADDR_BASE                    0xE08
 #define HINIC_AEQ_PROD_IDX_ADDR_BASE                    0xE0C
+
+#define HINIC_CEQ_CTRL_0_ADDR_BASE                      0x1000
+#define HINIC_CEQ_CTRL_1_ADDR_BASE                      0x1004
+#define HINIC_CEQ_CONS_IDX_ADDR_BASE                    0x1008
+#define HINIC_CEQ_PROD_IDX_ADDR_BASE                    0x100C
 
 #define HINIC_EQ_OFF_STRIDE                             0x80
 
@@ -115,5 +132,17 @@
 
 #define HINIC_CSR_AEQ_PROD_IDX_ADDR(idx)                \
 	(HINIC_AEQ_PROD_IDX_ADDR_BASE + (idx) * HINIC_EQ_OFF_STRIDE)
+
+#define HINIC_CSR_CEQ_CTRL_0_ADDR(idx)                  \
+	(HINIC_CEQ_CTRL_0_ADDR_BASE + (idx) * HINIC_EQ_OFF_STRIDE)
+
+#define HINIC_CSR_CEQ_CTRL_1_ADDR(idx)                  \
+	(HINIC_CEQ_CTRL_1_ADDR_BASE + (idx) * HINIC_EQ_OFF_STRIDE)
+
+#define HINIC_CSR_CEQ_CONS_IDX_ADDR(idx)                \
+	(HINIC_CEQ_CONS_IDX_ADDR_BASE + (idx) * HINIC_EQ_OFF_STRIDE)
+
+#define HINIC_CSR_CEQ_PROD_IDX_ADDR(idx)                \
+	(HINIC_CEQ_PROD_IDX_ADDR_BASE + (idx) * HINIC_EQ_OFF_STRIDE)
 
 #endif

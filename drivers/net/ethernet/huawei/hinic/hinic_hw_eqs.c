@@ -37,14 +37,21 @@
 
 #define GET_EQ_NUM_ELEMS_IN_PG(eq, pg_size)     ((pg_size) / (eq)->elem_size)
 
-#define EQ_CONS_IDX_REG_ADDR(eq)        HINIC_CSR_AEQ_CONS_IDX_ADDR((eq)->q_id)
-#define EQ_PROD_IDX_REG_ADDR(eq)        HINIC_CSR_AEQ_PROD_IDX_ADDR((eq)->q_id)
+#define EQ_CONS_IDX_REG_ADDR(eq)        (((eq)->type == HINIC_AEQ) ? \
+			HINIC_CSR_AEQ_CONS_IDX_ADDR((eq)->q_id) : \
+			HINIC_CSR_CEQ_CONS_IDX_ADDR((eq)->q_id))
 
-#define EQ_HI_PHYS_ADDR_REG(eq, pg_num) \
-		HINIC_CSR_AEQ_HI_PHYS_ADDR_REG((eq)->q_id, pg_num)
+#define EQ_PROD_IDX_REG_ADDR(eq)        (((eq)->type == HINIC_AEQ) ? \
+			HINIC_CSR_AEQ_PROD_IDX_ADDR((eq)->q_id) : \
+			HINIC_CSR_CEQ_PROD_IDX_ADDR((eq)->q_id))
 
-#define EQ_LO_PHYS_ADDR_REG(eq, pg_num) \
-		HINIC_CSR_AEQ_LO_PHYS_ADDR_REG((eq)->q_id, pg_num)
+#define EQ_HI_PHYS_ADDR_REG(eq, pg_num) (((eq)->type == HINIC_AEQ) ? \
+			HINIC_CSR_AEQ_HI_PHYS_ADDR_REG((eq)->q_id, pg_num) : \
+			HINIC_CSR_CEQ_HI_PHYS_ADDR_REG((eq)->q_id, pg_num))
+
+#define EQ_LO_PHYS_ADDR_REG(eq, pg_num) (((eq)->type == HINIC_AEQ) ? \
+			HINIC_CSR_AEQ_LO_PHYS_ADDR_REG((eq)->q_id, pg_num) : \
+			HINIC_CSR_CEQ_LO_PHYS_ADDR_REG((eq)->q_id, pg_num))
 
 #define GET_EQ_ELEMENT(eq, idx)         \
 		((eq)->virt_addr[(idx) / (eq)->num_elem_in_pg] + \
@@ -53,7 +60,12 @@
 #define GET_AEQ_ELEM(eq, idx)           ((struct hinic_aeq_elem *) \
 					GET_EQ_ELEMENT(eq, idx))
 
+#define GET_CEQ_ELEM(eq, idx)           ((u32 *) \
+					 GET_EQ_ELEMENT(eq, idx))
+
 #define GET_CURR_AEQ_ELEM(eq)           GET_AEQ_ELEM(eq, (eq)->cons_idx)
+
+#define GET_CURR_CEQ_ELEM(eq)           GET_CEQ_ELEM(eq, (eq)->cons_idx)
 
 #define PAGE_IN_4K(page_size)           ((page_size) >> 12)
 #define EQ_SET_HW_PAGE_SIZE_VAL(eq)     (ilog2(PAGE_IN_4K((eq)->page_size)))
@@ -63,13 +75,29 @@
 
 #define EQ_MAX_PAGES                    8
 
+#define CEQE_TYPE_SHIFT                 23
+#define CEQE_TYPE_MASK                  0x7
+
+#define CEQE_TYPE(ceqe)                 (((ceqe) >> CEQE_TYPE_SHIFT) &  \
+					 CEQE_TYPE_MASK)
+
+#define CEQE_DATA_MASK                  0x3FFFFFF
+#define CEQE_DATA(ceqe)                 ((ceqe) & CEQE_DATA_MASK)
+
 #define aeq_to_aeqs(eq)                 \
 		container_of((eq) - (eq)->q_id, struct hinic_aeqs, aeq[0])
+
+#define ceq_to_ceqs(eq)                 \
+		container_of((eq) - (eq)->q_id, struct hinic_ceqs, ceq[0])
 
 #define work_to_aeq_work(work)          \
 		container_of(work, struct hinic_eq_work, work)
 
 #define DMA_ATTR_AEQ_DEFAULT            0
+#define DMA_ATTR_CEQ_DEFAULT            0
+
+/* No coalescence */
+#define THRESH_CEQ_DEFAULT              0
 
 enum eq_int_mode {
 	EQ_INT_MODE_ARMED,
@@ -116,6 +144,42 @@ void hinic_aeq_unregister_hw_cb(struct hinic_aeqs *aeqs,
 		schedule();
 
 	hwe_cb->hwe_handler = NULL;
+}
+
+/**
+ * hinic_ceq_register_cb - register CEQ callback for specific event
+ * @ceqs: pointer to Completion eqs part of the chip
+ * @event: ceq event to register callback for it
+ * @handle: private data will be used by the callback
+ * @handler: callback function
+ **/
+void hinic_ceq_register_cb(struct hinic_ceqs *ceqs,
+			   enum hinic_ceq_type event, void *handle,
+			   void (*handler)(void *handle, u32 ceqe_data))
+{
+	struct hinic_ceq_cb *ceq_cb = &ceqs->ceq_cb[event];
+
+	ceq_cb->handler = handler;
+	ceq_cb->handle = handle;
+	ceq_cb->ceqe_state = HINIC_EQE_ENABLED;
+}
+
+/**
+ * hinic_ceq_unregister_cb - unregister the CEQ callback for specific event
+ * @ceqs: pointer to Completion eqs part of the chip
+ * @event: ceq event to unregister callback for it
+ **/
+void hinic_ceq_unregister_cb(struct hinic_ceqs *ceqs,
+			     enum hinic_ceq_type event)
+{
+	struct hinic_ceq_cb *ceq_cb = &ceqs->ceq_cb[event];
+
+	ceq_cb->ceqe_state &= ~HINIC_EQE_ENABLED;
+
+	while (ceq_cb->ceqe_state & HINIC_EQE_RUNNING)
+		schedule();
+
+	ceq_cb->handler = NULL;
 }
 
 static u8 eq_cons_idx_checksum_set(u32 val)
@@ -216,6 +280,70 @@ static void aeq_irq_handler(struct hinic_eq *eq)
 }
 
 /**
+ * ceq_event_handler - handler for the ceq events
+ * @ceqs: ceqs part of the chip
+ * @ceqe: ceq element that describes the event
+ **/
+static void ceq_event_handler(struct hinic_ceqs *ceqs, u32 ceqe)
+{
+	struct hinic_hwif *hwif = ceqs->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_ceq_cb *ceq_cb;
+	enum hinic_ceq_type event;
+	unsigned long eqe_state;
+
+	event = CEQE_TYPE(ceqe);
+	if (event >= HINIC_MAX_CEQ_EVENTS) {
+		dev_err(&pdev->dev, "Unknown CEQ event, event = %d\n", event);
+		return;
+	}
+
+	ceq_cb = &ceqs->ceq_cb[event];
+
+	eqe_state = cmpxchg(&ceq_cb->ceqe_state,
+			    HINIC_EQE_ENABLED,
+			    HINIC_EQE_ENABLED | HINIC_EQE_RUNNING);
+
+	if ((eqe_state == HINIC_EQE_ENABLED) && (ceq_cb->handler))
+		ceq_cb->handler(ceq_cb->handle, CEQE_DATA(ceqe));
+	else
+		dev_err(&pdev->dev, "Unhandled CEQ Event %d\n", event);
+
+	ceq_cb->ceqe_state &= ~HINIC_EQE_RUNNING;
+}
+
+/**
+ * ceq_irq_handler - handler for the CEQ event
+ * @eq: the Completion Event Queue that received the event
+ **/
+static void ceq_irq_handler(struct hinic_eq *eq)
+{
+	struct hinic_ceqs *ceqs = ceq_to_ceqs(eq);
+	u32 ceqe;
+	int i;
+
+	for (i = 0; i < eq->q_len; i++) {
+		ceqe = *(GET_CURR_CEQ_ELEM(eq));
+
+		/* Data in HW is in Big endian Format */
+		ceqe = be32_to_cpu(ceqe);
+
+		/* HW toggles the wrapped bit, when it adds eq element event */
+		if (HINIC_EQ_ELEM_DESC_GET(ceqe, WRAPPED) == eq->wrapped)
+			break;
+
+		ceq_event_handler(ceqs, ceqe);
+
+		eq->cons_idx++;
+
+		if (eq->cons_idx == eq->q_len) {
+			eq->cons_idx = 0;
+			eq->wrapped = !eq->wrapped;
+		}
+	}
+}
+
+/**
  * eq_irq_handler - handler for the EQ event
  * @data: the Event Queue that received the event
  **/
@@ -225,6 +353,8 @@ static void eq_irq_handler(void *data)
 
 	if (eq->type == HINIC_AEQ)
 		aeq_irq_handler(eq);
+	else if (eq->type == HINIC_CEQ)
+		ceq_irq_handler(eq);
 
 	eq_update_ci(eq);
 }
@@ -240,6 +370,17 @@ static void eq_irq_work(struct work_struct *work)
 
 	aeq = aeq_work->data;
 	eq_irq_handler(aeq);
+}
+
+/**
+ * ceq_tasklet - the tasklet of the EQ that received the event
+ * @ceq_data: the eq
+ **/
+static void ceq_tasklet(unsigned long ceq_data)
+{
+	struct hinic_eq *ceq = (struct hinic_eq *)ceq_data;
+
+	eq_irq_handler(ceq);
 }
 
 /**
@@ -261,6 +402,23 @@ static irqreturn_t aeq_interrupt(int irq, void *data)
 
 	aeqs = aeq_to_aeqs(aeq);
 	queue_work(aeqs->workq, &aeq_work->work);
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * ceq_interrupt - ceq interrupt handler
+ * @irq: irq number
+ * @data: the Completion Event Queue that collected the event
+ **/
+static irqreturn_t ceq_interrupt(int irq, void *data)
+{
+	struct hinic_eq *ceq = data;
+
+	/* clear resend timer cnt register */
+	hinic_msix_attr_cnt_clear(ceq->hwif, ceq->msix_entry.entry);
+
+	tasklet_schedule(&ceq->ceq_tasklet);
 
 	return IRQ_HANDLED;
 }
@@ -287,6 +445,28 @@ void set_ctrl0(struct hinic_eq *eq)
 			HINIC_AEQ_CTRL_0_SET(HINIC_HWIF_PCI_INTF(eq->hwif),
 					     PCI_INTF_IDX)                   |
 			HINIC_AEQ_CTRL_0_SET(EQ_INT_MODE_ARMED, INT_MODE);
+
+		val |= ctrl0;
+
+		hinic_hwif_write_reg(eq->hwif, addr, val);
+	} else if (type == HINIC_CEQ) {
+		/* RMW Ctrl0 */
+		addr = HINIC_CSR_CEQ_CTRL_0_ADDR(eq->q_id);
+
+		val = hinic_hwif_read_reg(eq->hwif, addr);
+
+		val = HINIC_CEQ_CTRL_0_CLEAR(val, INTR_IDX)     &
+		      HINIC_CEQ_CTRL_0_CLEAR(val, DMA_ATTR)     &
+		      HINIC_CEQ_CTRL_0_CLEAR(val, KICK_THRESH)  &
+		      HINIC_CEQ_CTRL_0_CLEAR(val, PCI_INTF_IDX) &
+		      HINIC_CEQ_CTRL_0_CLEAR(val, INTR_MODE);
+
+		ctrl0 = HINIC_CEQ_CTRL_0_SET(msix_entry->entry, INTR_IDX)     |
+			HINIC_CEQ_CTRL_0_SET(DMA_ATTR_CEQ_DEFAULT, DMA_ATTR)  |
+			HINIC_CEQ_CTRL_0_SET(THRESH_CEQ_DEFAULT, KICK_THRESH) |
+			HINIC_CEQ_CTRL_0_SET(HINIC_HWIF_PCI_INTF(eq->hwif),
+					     PCI_INTF_IDX)                    |
+			HINIC_CEQ_CTRL_0_SET(EQ_INT_MODE_ARMED, INTR_MODE);
 
 		val |= ctrl0;
 
@@ -320,6 +500,23 @@ void set_ctrl1(struct hinic_eq *eq)
 		val |= ctrl1;
 
 		hinic_hwif_write_reg(eq->hwif, addr, val);
+	} else if (type == HINIC_CEQ) {
+		/* RMW Ctrl1 */
+		addr = HINIC_CSR_CEQ_CTRL_1_ADDR(eq->q_id);
+
+		page_size_val = EQ_SET_HW_PAGE_SIZE_VAL(eq);
+
+		val = hinic_hwif_read_reg(eq->hwif, addr);
+
+		val = HINIC_CEQ_CTRL_1_CLEAR(val, LEN) &
+		      HINIC_CEQ_CTRL_1_CLEAR(val, PAGE_SIZE);
+
+		ctrl1 = HINIC_CEQ_CTRL_1_SET(eq->q_len, LEN) |
+			HINIC_CEQ_CTRL_1_SET(page_size_val, PAGE_SIZE);
+
+		val |= ctrl1;
+
+		hinic_hwif_write_reg(eq->hwif, addr, val);
 	}
 }
 
@@ -346,6 +543,24 @@ static void aeq_elements_init(struct hinic_eq *eq, u32 init_val)
 	for (i = 0; i < eq->q_len; i++) {
 		aeqe = GET_AEQ_ELEM(eq, i);
 		aeqe->desc = cpu_to_be32(init_val);
+	}
+
+	wmb();  /* Write the initilzation values */
+}
+
+/**
+ * ceq_elements_init - Initialize all the elements in the ceq
+ * @eq: the event queue
+ * @init_val: value to init with it the elements
+ **/
+static void ceq_elements_init(struct hinic_eq *eq, u32 init_val)
+{
+	u32 *ceqe;
+	int i;
+
+	for (i = 0; i < eq->q_len; i++) {
+		ceqe = GET_CEQ_ELEM(eq, i);
+		*(ceqe) = cpu_to_be32(init_val);
 	}
 
 	wmb();  /* Write the initilzation values */
@@ -402,6 +617,8 @@ static int alloc_eq_pages(struct hinic_eq *eq)
 
 	if (eq->type == HINIC_AEQ)
 		aeq_elements_init(eq, init_val);
+	else if (eq->type == HINIC_CEQ)
+		ceq_elements_init(eq, init_val);
 
 	return 0;
 
@@ -471,6 +688,8 @@ static int init_eq(struct hinic_eq *eq, struct hinic_hwif *hwif,
 
 	if (type == HINIC_AEQ) {
 		eq->elem_size = HINIC_AEQE_SIZE;
+	} else if (type == HINIC_CEQ) {
+		eq->elem_size = HINIC_CEQE_SIZE;
 	} else {
 		dev_err(&pdev->dev, "Invalid EQ type\n");
 		return -EINVAL;
@@ -504,6 +723,9 @@ static int init_eq(struct hinic_eq *eq, struct hinic_hwif *hwif,
 		struct hinic_eq_work *aeq_work = &eq->aeq_work;
 
 		INIT_WORK(&aeq_work->work, eq_irq_work);
+	} else if (type == HINIC_CEQ) {
+		tasklet_init(&eq->ceq_tasklet, ceq_tasklet,
+			     (unsigned long)eq);
 	}
 
 	/* set the attributes of the msix entry */
@@ -517,6 +739,9 @@ static int init_eq(struct hinic_eq *eq, struct hinic_hwif *hwif,
 	if (type == HINIC_AEQ)
 		err = request_irq(entry.vector, aeq_interrupt, 0,
 				  "hinic_aeq", eq);
+	else if (type == HINIC_CEQ)
+		err = request_irq(entry.vector, ceq_interrupt, 0,
+				  "hinic_ceq", eq);
 
 	if (err) {
 		dev_err(&pdev->dev, "Failed to request irq for the EQ\n");
@@ -544,6 +769,8 @@ static void remove_eq(struct hinic_eq *eq)
 		struct hinic_eq_work *aeq_work = &eq->aeq_work;
 
 		cancel_work_sync(&aeq_work->work);
+	} else if (eq->type == HINIC_CEQ) {
+		tasklet_kill(&eq->ceq_tasklet);
 	}
 
 	free_eq_pages(eq);
@@ -605,4 +832,55 @@ void hinic_aeqs_free(struct hinic_aeqs *aeqs)
 		remove_eq(&aeqs->aeq[q_id]);
 
 	destroy_workqueue(aeqs->workq);
+}
+
+/**
+ * hinic_ceqs_init - init all the ceqs
+ * @ceqs: ceqs part of the chip
+ * @hwif: the hardware interface of a pci function device
+ * @num_ceqs: number of CEQs
+ * @q_len: number of EQ elements
+ * @page_size: the page size of the event queue
+ * @msix_entries: msix entries associated with the event queues
+ *
+ * Return 0 - Success, Negative - Failure
+ **/
+int hinic_ceqs_init(struct hinic_ceqs *ceqs, struct hinic_hwif *hwif,
+		    int num_ceqs, u32 q_len, u32 page_size,
+		    struct msix_entry *msix_entries)
+{
+	struct pci_dev *pdev = hwif->pdev;
+	int i, q_id, err;
+
+	ceqs->hwif = hwif;
+	ceqs->num_ceqs = num_ceqs;
+
+	for (q_id = 0; q_id < num_ceqs; q_id++) {
+		err = init_eq(&ceqs->ceq[q_id], hwif, HINIC_CEQ, q_id, q_len,
+			      page_size, msix_entries[q_id]);
+		if (err) {
+			dev_err(&pdev->dev, "Failed to init ceq %d\n", q_id);
+			goto err_init_ceq;
+		}
+	}
+
+	return 0;
+
+err_init_ceq:
+	for (i = 0; i < q_id; i++)
+		remove_eq(&ceqs->ceq[i]);
+
+	return err;
+}
+
+/**
+ * hinic_ceqs_free - free all the ceqs
+ * @ceqs: ceqs part of the chip
+ **/
+void hinic_ceqs_free(struct hinic_ceqs *ceqs)
+{
+	int q_id;
+
+	for (q_id = 0; q_id < ceqs->num_ceqs; q_id++)
+		remove_eq(&ceqs->ceq[q_id]);
 }

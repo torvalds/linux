@@ -27,6 +27,7 @@
 #include <asm/byteorder.h>
 
 #include "hinic_hw_if.h"
+#include "hinic_hw_eqs.h"
 #include "hinic_hw_mgmt.h"
 #include "hinic_hw_wq.h"
 #include "hinic_hw_cmdq.h"
@@ -107,6 +108,16 @@ int hinic_cmdq_direct_resp(struct hinic_cmdqs *cmdqs,
 {
 	/* should be implemented */
 	return -EINVAL;
+}
+
+/**
+ * cmdq_ceq_handler - cmdq completion event handler
+ * @handle: private data for the handler(cmdqs)
+ * @ceqe_data: ceq element data
+ **/
+static void cmdq_ceq_handler(void *handle, u32 ceqe_data)
+{
+	/* should be implemented */
 }
 
 /**
@@ -320,6 +331,8 @@ int hinic_init_cmdqs(struct hinic_cmdqs *cmdqs, struct hinic_hwif *hwif,
 		goto err_cmdq_ctxt;
 	}
 
+	hinic_ceq_register_cb(&func_to_io->ceqs, HINIC_CEQ_CMDQ, cmdqs,
+			      cmdq_ceq_handler);
 	return 0;
 
 err_cmdq_ctxt:
@@ -340,9 +353,12 @@ err_saved_wqs:
  **/
 void hinic_free_cmdqs(struct hinic_cmdqs *cmdqs)
 {
+	struct hinic_func_to_io *func_to_io = cmdqs_to_func_to_io(cmdqs);
 	struct hinic_hwif *hwif = cmdqs->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	enum hinic_cmdq_type cmdq_type;
+
+	hinic_ceq_unregister_cb(&func_to_io->ceqs, HINIC_CEQ_CMDQ);
 
 	cmdq_type = HINIC_CMDQ_SYNC;
 	for (; cmdq_type < HINIC_MAX_CMDQ_TYPES; cmdq_type++)
