@@ -229,7 +229,7 @@ static int add_dt_node(__be32 parent_phandle, __be32 drc_index)
 	if (!dn)
 		return -ENOENT;
 
-	rc = dlpar_attach_node(dn);
+	rc = dlpar_attach_node(dn, parent_dn);
 	if (rc)
 		dlpar_free_cc_nodes(dn);
 
