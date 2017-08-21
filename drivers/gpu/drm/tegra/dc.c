@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/iommu.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
@@ -1985,7 +1986,6 @@ static int tegra_dc_parse_dt(struct tegra_dc *dc)
 
 static int tegra_dc_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *id;
 	struct resource *regs;
 	struct tegra_dc *dc;
 	int err;
@@ -1994,14 +1994,11 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	if (!dc)
 		return -ENOMEM;
 
-	id = of_match_node(tegra_dc_of_match, pdev->dev.of_node);
-	if (!id)
-		return -ENODEV;
+	dc->soc = of_device_get_match_data(&pdev->dev);
 
 	spin_lock_init(&dc->lock);
 	INIT_LIST_HEAD(&dc->list);
 	dc->dev = &pdev->dev;
-	dc->soc = id->data;
 
 	err = tegra_dc_parse_dt(dc);
 	if (err < 0)
