@@ -38,8 +38,10 @@
 
 /* Vendor Specific Register bit definitions */
 #define PAXIC_ADBW_BW64 0x1
-#define PAXIC_MAWIDD	(1 << 8)
-#define PAXIC_MARIDD	(1 << 16)
+#define PAXIC_MAWID(i)	(((i) * 2) << 4)
+#define PAXIC_MARID(i)	(((i) * 2) << 12)
+#define PAXIC_MARIDD(i)	((((i) * 2) + 1) << 16)
+#define PAXIC_MAWIDD(i)	((((i) * 2) + 1) << 8)
 #define PAXIC_OTL	(0x4 << 20)
 
 /* Register bit definitions for cache control */
@@ -147,9 +149,11 @@ static void ahci_ceva_setup(struct ahci_host_priv *hpriv)
 		/*
 		 * AXI Data bus width to 64
 		 * Set Mem Addr Read, Write ID for data transfers
+		 * Set Mem Addr Read ID, Write ID for non-data transfers
 		 * Transfer limit to 72 DWord
 		 */
-		tmp = PAXIC_ADBW_BW64 | PAXIC_MAWIDD | PAXIC_MARIDD | PAXIC_OTL;
+		tmp = PAXIC_ADBW_BW64 | PAXIC_MAWIDD(i) | PAXIC_MARIDD(i) |
+			PAXIC_MAWID(i) | PAXIC_MARID(i) | PAXIC_OTL;
 		writel(tmp, mmio + AHCI_VEND_PAXIC);
 
 		/* Set AXI cache control register if CCi is enabled */
