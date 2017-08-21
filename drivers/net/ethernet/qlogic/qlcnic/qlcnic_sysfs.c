@@ -1174,19 +1174,19 @@ static ssize_t qlcnic_83xx_sysfs_flash_write_handler(struct file *filp,
 	return size;
 }
 
-static struct device_attribute dev_attr_bridged_mode = {
+static const struct device_attribute dev_attr_bridged_mode = {
        .attr = {.name = "bridged_mode", .mode = (S_IRUGO | S_IWUSR)},
        .show = qlcnic_show_bridged_mode,
        .store = qlcnic_store_bridged_mode,
 };
 
-static struct device_attribute dev_attr_diag_mode = {
+static const struct device_attribute dev_attr_diag_mode = {
 	.attr = {.name = "diag_mode", .mode = (S_IRUGO | S_IWUSR)},
 	.show = qlcnic_show_diag_mode,
 	.store = qlcnic_store_diag_mode,
 };
 
-static struct device_attribute dev_attr_beacon = {
+static const struct device_attribute dev_attr_beacon = {
 	.attr = {.name = "beacon", .mode = (S_IRUGO | S_IWUSR)},
 	.show = qlcnic_show_beacon,
 	.store = qlcnic_store_beacon,
