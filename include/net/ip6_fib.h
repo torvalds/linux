@@ -68,6 +68,7 @@ struct fib6_node {
 	__u16			fn_flags;
 	int			fn_sernum;
 	struct rt6_info		*rr_ptr;
+	struct rcu_head		rcu;
 };
 
 #ifndef CONFIG_IPV6_SUBTREES
@@ -165,13 +166,40 @@ static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
 	rt0->rt6i_flags |= RTF_EXPIRES;
 }
 
+/* Function to safely get fn->sernum for passed in rt
+ * and store result in passed in cookie.
+ * Return true if we can get cookie safely
+ * Return false if not
+ */
+static inline bool rt6_get_cookie_safe(const struct rt6_info *rt,
+				       u32 *cookie)
+{
+	struct fib6_node *fn;
+	bool status = false;
+
+	rcu_read_lock();
+	fn = rcu_dereference(rt->rt6i_node);
+
+	if (fn) {
+		*cookie = fn->fn_sernum;
+		status = true;
+	}
+
+	rcu_read_unlock();
+	return status;
+}
+
 static inline u32 rt6_get_cookie(const struct rt6_info *rt)
 {
+	u32 cookie = 0;
+
 	if (rt->rt6i_flags & RTF_PCPU ||
 	    (unlikely(rt->dst.flags & DST_NOCACHE) && rt->dst.from))
 		rt = (struct rt6_info *)(rt->dst.from);
 
-	return rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
+	rt6_get_cookie_safe(rt, &cookie);
+
+	return cookie;
 }
 
 static inline void ip6_rt_put(struct rt6_info *rt)
