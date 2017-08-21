@@ -223,12 +223,12 @@ struct mem_dqinfo {
 	struct quota_format_type *dqi_format;
 	int dqi_fmt_id;		/* Id of the dqi_format - used when turning
 				 * quotas on after remount RW */
-	struct list_head dqi_dirty_list;	/* List of dirty dquots */
-	unsigned long dqi_flags;
-	unsigned int dqi_bgrace;
-	unsigned int dqi_igrace;
-	qsize_t dqi_max_spc_limit;
-	qsize_t dqi_max_ino_limit;
+	struct list_head dqi_dirty_list;	/* List of dirty dquots [dq_list_lock] */
+	unsigned long dqi_flags;	/* DFQ_ flags [dq_data_lock] */
+	unsigned int dqi_bgrace;	/* Space grace time [dq_data_lock] */
+	unsigned int dqi_igrace;	/* Inode grace time [dq_data_lock] */
+	qsize_t dqi_max_spc_limit;	/* Maximum space limit [static] */
+	qsize_t dqi_max_ino_limit;	/* Maximum inode limit [static] */
 	void *dqi_priv;
 };
 
@@ -293,16 +293,16 @@ static inline void dqstats_dec(unsigned int type)
 				 * clear them when it sees fit. */
 
 struct dquot {
-	struct hlist_node dq_hash;	/* Hash list in memory */
-	struct list_head dq_inuse;	/* List of all quotas */
-	struct list_head dq_free;	/* Free list element */
-	struct list_head dq_dirty;	/* List of dirty dquots */
+	struct hlist_node dq_hash;	/* Hash list in memory [dq_list_lock] */
+	struct list_head dq_inuse;	/* List of all quotas [dq_list_lock] */
+	struct list_head dq_free;	/* Free list element [dq_list_lock] */
+	struct list_head dq_dirty;	/* List of dirty dquots [dq_list_lock] */
 	struct mutex dq_lock;		/* dquot IO lock */
 	spinlock_t dq_dqb_lock;		/* Lock protecting dq_dqb changes */
 	atomic_t dq_count;		/* Use count */
 	struct super_block *dq_sb;	/* superblock this applies to */
 	struct kqid dq_id;		/* ID this applies to (uid, gid, projid) */
-	loff_t dq_off;			/* Offset of dquot on disk */
+	loff_t dq_off;			/* Offset of dquot on disk [dq_lock, stable once set] */
 	unsigned long dq_flags;		/* See DQ_* */
 	struct mem_dqblk dq_dqb;	/* Diskquota usage [dq_dqb_lock] */
 };
