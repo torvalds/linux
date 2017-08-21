@@ -82,8 +82,8 @@ static void nft_rt_get_eval(const struct nft_expr *expr,
 		if (nft_pf(pkt) != NFPROTO_IPV4)
 			goto err;
 
-		*dest = rt_nexthop((const struct rtable *)dst,
-				   ip_hdr(skb)->daddr);
+		*dest = (__force u32)rt_nexthop((const struct rtable *)dst,
+						ip_hdr(skb)->daddr);
 		break;
 	case NFT_RT_NEXTHOP6:
 		if (nft_pf(pkt) != NFPROTO_IPV6)
@@ -106,7 +106,7 @@ err:
 	regs->verdict.code = NFT_BREAK;
 }
 
-const struct nla_policy nft_rt_policy[NFTA_RT_MAX + 1] = {
+static const struct nla_policy nft_rt_policy[NFTA_RT_MAX + 1] = {
 	[NFTA_RT_DREG]		= { .type = NLA_U32 },
 	[NFTA_RT_KEY]		= { .type = NLA_U32 },
 };

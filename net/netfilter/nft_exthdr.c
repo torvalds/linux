@@ -388,7 +388,7 @@ nft_exthdr_select_ops(const struct nft_ctx *ctx,
 	if (tb[NFTA_EXTHDR_SREG] && tb[NFTA_EXTHDR_DREG])
 		return ERR_PTR(-EOPNOTSUPP);
 
-	op = ntohl(nla_get_u32(tb[NFTA_EXTHDR_OP]));
+	op = ntohl(nla_get_be32(tb[NFTA_EXTHDR_OP]));
 	switch (op) {
 	case NFT_EXTHDR_OP_TCPOPT:
 		if (tb[NFTA_EXTHDR_SREG])
