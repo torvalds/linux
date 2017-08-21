@@ -295,6 +295,10 @@ static int decode_choose_args(void **p, void *end, struct crush_map *c)
 			ret = decode_choose_arg(p, end, arg);
 			if (ret)
 				goto fail;
+
+			if (arg->ids_size &&
+			    arg->ids_size != c->buckets[bucket_index]->size)
+				goto e_inval;
 		}
 
 		insert_choose_arg_map(&c->choose_args, arg_map);
@@ -338,7 +342,7 @@ static void crush_finalize(struct crush_map *c)
 static struct crush_map *crush_decode(void *pbyval, void *end)
 {
 	struct crush_map *c;
-	int err = -EINVAL;
+	int err;
 	int i, j;
 	void **p = &pbyval;
 	void *start = pbyval;
@@ -407,7 +411,6 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 			size = sizeof(struct crush_bucket_straw2);
 			break;
 		default:
-			err = -EINVAL;
 			goto bad;
 		}
 		BUG_ON(size == 0);
@@ -439,31 +442,31 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 			err = crush_decode_uniform_bucket(p, end,
 				  (struct crush_bucket_uniform *)b);
 			if (err < 0)
-				goto bad;
+				goto fail;
 			break;
 		case CRUSH_BUCKET_LIST:
 			err = crush_decode_list_bucket(p, end,
 			       (struct crush_bucket_list *)b);
 			if (err < 0)
-				goto bad;
+				goto fail;
 			break;
 		case CRUSH_BUCKET_TREE:
 			err = crush_decode_tree_bucket(p, end,
 				(struct crush_bucket_tree *)b);
 			if (err < 0)
-				goto bad;
+				goto fail;
 			break;
 		case CRUSH_BUCKET_STRAW:
 			err = crush_decode_straw_bucket(p, end,
 				(struct crush_bucket_straw *)b);
 			if (err < 0)
-				goto bad;
+				goto fail;
 			break;
 		case CRUSH_BUCKET_STRAW2:
 			err = crush_decode_straw2_bucket(p, end,
 				(struct crush_bucket_straw2 *)b);
 			if (err < 0)
-				goto bad;
+				goto fail;
 			break;
 		}
 	}
@@ -474,7 +477,6 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		u32 yes;
 		struct crush_rule *r;
 
-		err = -EINVAL;
 		ceph_decode_32_safe(p, end, yes, bad);
 		if (!yes) {
 			dout("crush_decode NO rule %d off %x %p to %p\n",
@@ -489,7 +491,6 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 		/* len */
 		ceph_decode_32_safe(p, end, yes, bad);
 #if BITS_PER_LONG == 32
-		err = -EINVAL;
 		if (yes > (ULONG_MAX - sizeof(*r))
 			  / sizeof(struct crush_rule_step))
 			goto bad;
@@ -557,7 +558,7 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	if (*p != end) {
 		err = decode_choose_args(p, end, c);
 		if (err)
-			goto bad;
+			goto fail;
 	}
 
 done:
@@ -567,10 +568,14 @@ done:
 
 badmem:
 	err = -ENOMEM;
-bad:
+fail:
 	dout("crush_decode fail %d\n", err);
 	crush_destroy(c);
 	return ERR_PTR(err);
+
+bad:
+	err = -EINVAL;
+	goto fail;
 }
 
 int ceph_pg_compare(const struct ceph_pg *lhs, const struct ceph_pg *rhs)
@@ -1399,7 +1404,7 @@ static struct ceph_pg_mapping *__decode_pg_upmap_items(void **p, void *end,
 		return ERR_PTR(-EINVAL);
 
 	ceph_decode_need(p, end, 2 * len * sizeof(u32), e_inval);
-	pg = kzalloc(sizeof(*pg) + 2 * len * sizeof(u32), GFP_NOIO);
+	pg = alloc_pg_mapping(2 * len * sizeof(u32));
 	if (!pg)
 		return ERR_PTR(-ENOMEM);
 
@@ -1544,7 +1549,7 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 	if (struct_v >= 3) {
 		/* erasure_code_profiles */
 		ceph_decode_skip_map_of_map(p, end, string, string, string,
-					    bad);
+					    e_inval);
 	}
 
 	if (struct_v >= 4) {
@@ -1825,9 +1830,9 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	if (struct_v >= 3) {
 		/* new_erasure_code_profiles */
 		ceph_decode_skip_map_of_map(p, end, string, string, string,
-					    bad);
+					    e_inval);
 		/* old_erasure_code_profiles */
-		ceph_decode_skip_set(p, end, string, bad);
+		ceph_decode_skip_set(p, end, string, e_inval);
 	}
 
 	if (struct_v >= 4) {
@@ -2077,6 +2082,8 @@ bool ceph_is_new_interval(const struct ceph_osds *old_acting,
 			  u32 new_pg_num,
 			  bool old_sort_bitwise,
 			  bool new_sort_bitwise,
+			  bool old_recovery_deletes,
+			  bool new_recovery_deletes,
 			  const struct ceph_pg *pgid)
 {
 	return !osds_equal(old_acting, new_acting) ||
@@ -2084,7 +2091,8 @@ bool ceph_is_new_interval(const struct ceph_osds *old_acting,
 	       old_size != new_size ||
 	       old_min_size != new_min_size ||
 	       ceph_pg_is_split(pgid, old_pg_num, new_pg_num) ||
-	       old_sort_bitwise != new_sort_bitwise;
+	       old_sort_bitwise != new_sort_bitwise ||
+	       old_recovery_deletes != new_recovery_deletes;
 }
 
 static int calc_pg_rank(int osd, const struct ceph_osds *acting)
@@ -2300,10 +2308,17 @@ static u32 raw_pg_to_pps(struct ceph_pg_pool_info *pi,
 	}
 }
 
+/*
+ * Magic value used for a "default" fallback choose_args, used if the
+ * crush_choose_arg_map passed to do_crush() does not exist.  If this
+ * also doesn't exist, fall back to canonical weights.
+ */
+#define CEPH_DEFAULT_CHOOSE_ARGS	-1
+
 static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 		    int *result, int result_max,
 		    const __u32 *weight, int weight_max,
-		    u64 choose_args_index)
+		    s64 choose_args_index)
 {
 	struct crush_choose_arg_map *arg_map;
 	int r;
@@ -2312,6 +2327,9 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 
 	arg_map = lookup_choose_arg_map(&map->crush->choose_args,
 					choose_args_index);
+	if (!arg_map)
+		arg_map = lookup_choose_arg_map(&map->crush->choose_args,
+						CEPH_DEFAULT_CHOOSE_ARGS);
 
 	mutex_lock(&map->crush_workspace_mutex);
 	r = crush_do_rule(map->crush, ruleno, x, result, result_max,
@@ -2422,40 +2440,23 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 		for (i = 0; i < pg->pg_upmap.len; i++)
 			raw->osds[i] = pg->pg_upmap.osds[i];
 		raw->size = pg->pg_upmap.len;
-		return;
+		/* check and apply pg_upmap_items, if any */
 	}
 
 	pg = lookup_pg_mapping(&osdmap->pg_upmap_items, pgid);
 	if (pg) {
-		/*
-		 * Note: this approach does not allow a bidirectional swap,
-		 * e.g., [[1,2],[2,1]] applied to [0,1,2] -> [0,2,1].
-		 */
-		for (i = 0; i < pg->pg_upmap_items.len; i++) {
-			int from = pg->pg_upmap_items.from_to[i][0];
-			int to = pg->pg_upmap_items.from_to[i][1];
-			int pos = -1;
-			bool exists = false;
+		for (i = 0; i < raw->size; i++) {
+			for (j = 0; j < pg->pg_upmap_items.len; j++) {
+				int from = pg->pg_upmap_items.from_to[j][0];
+				int to = pg->pg_upmap_items.from_to[j][1];
 
-			/* make sure replacement doesn't already appear */
-			for (j = 0; j < raw->size; j++) {
-				int osd = raw->osds[j];
-
-				if (osd == to) {
-					exists = true;
+				if (from == raw->osds[i]) {
+					if (!(to != CRUSH_ITEM_NONE &&
+					      to < osdmap->max_osd &&
+					      osdmap->osd_weight[to] == 0))
+						raw->osds[i] = to;
 					break;
 				}
-				/* ignore mapping if target is marked out */
-				if (osd == from && pos < 0 &&
-				    !(to != CRUSH_ITEM_NONE &&
-				      to < osdmap->max_osd &&
-				      osdmap->osd_weight[to] == 0)) {
-					pos = j;
-				}
-			}
-			if (!exists && pos >= 0) {
-				raw->osds[pos] = to;
-				return;
 			}
 		}
 	}

@@ -60,11 +60,11 @@ static struct team_port *team_port_get_rtnl(const struct net_device *dev)
 static int __set_port_dev_addr(struct net_device *port_dev,
 			       const unsigned char *dev_addr)
 {
-	struct sockaddr addr;
+	struct sockaddr_storage addr;
 
-	memcpy(addr.sa_data, dev_addr, port_dev->addr_len);
-	addr.sa_family = port_dev->type;
-	return dev_set_mac_address(port_dev, &addr);
+	memcpy(addr.__data, dev_addr, port_dev->addr_len);
+	addr.ss_family = port_dev->type;
+	return dev_set_mac_address(port_dev, (struct sockaddr *)&addr);
 }
 
 static int team_port_set_orig_dev_addr(struct team_port *port)

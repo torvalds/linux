@@ -30,8 +30,10 @@
 struct cxd2099_cfg {
 	u32 bitrate;
 	u8  adr;
-	u8  polarity:1;
-	u8  clock_mode:1;
+	u8  polarity;
+	u8  clock_mode;
+
+	u32 max_i2c;
 };
 
 #if defined(CONFIG_DVB_CXD2099) || \

@@ -35,3 +35,11 @@ static inline int register_xen_selfballooning(struct device *dev)
 	return -ENOSYS;
 }
 #endif
+
+#ifdef CONFIG_XEN_BALLOON
+void xen_balloon_init(void);
+#else
+static inline void xen_balloon_init(void)
+{
+}
+#endif

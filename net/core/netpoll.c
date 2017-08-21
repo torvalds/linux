@@ -277,7 +277,7 @@ static void zap_completion_queue(void)
 			struct sk_buff *skb = clist;
 			clist = clist->next;
 			if (!skb_irq_freeable(skb)) {
-				refcount_inc(&skb->users);
+				refcount_set(&skb->users, 1);
 				dev_kfree_skb_any(skb); /* put this one back */
 			} else {
 				__kfree_skb(skb);
@@ -666,7 +666,7 @@ int netpoll_setup(struct netpoll *np)
 	int err;
 
 	rtnl_lock();
-	if (np->dev_name) {
+	if (np->dev_name[0]) {
 		struct net *net = current->nsproxy->net_ns;
 		ndev = __dev_get_by_name(net, np->dev_name);
 	}

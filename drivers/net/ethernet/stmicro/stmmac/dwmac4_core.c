@@ -117,7 +117,7 @@ static void dwmac4_tx_queue_routing(struct mac_device_info *hw,
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value;
 
-	const struct stmmac_rx_routing route_possibilities[] = {
+	static const struct stmmac_rx_routing route_possibilities[] = {
 		{ GMAC_RXQCTRL_AVCPQ_MASK, GMAC_RXQCTRL_AVCPQ_SHIFT },
 		{ GMAC_RXQCTRL_PTPQ_MASK, GMAC_RXQCTRL_PTPQ_SHIFT },
 		{ GMAC_RXQCTRL_DCBCPQ_MASK, GMAC_RXQCTRL_DCBCPQ_SHIFT },

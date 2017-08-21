@@ -145,8 +145,8 @@ enum {
 #ifdef CONFIG_DYNAMIC_FTRACE
 /* The hash used to know what functions callbacks trace */
 struct ftrace_ops_hash {
-	struct ftrace_hash		*notrace_hash;
-	struct ftrace_hash		*filter_hash;
+	struct ftrace_hash __rcu	*notrace_hash;
+	struct ftrace_hash __rcu	*filter_hash;
 	struct mutex			regex_lock;
 };
 
@@ -168,7 +168,7 @@ static inline void ftrace_free_init_mem(void) { }
  */
 struct ftrace_ops {
 	ftrace_func_t			func;
-	struct ftrace_ops		*next;
+	struct ftrace_ops __rcu		*next;
 	unsigned long			flags;
 	void				*private;
 	ftrace_func_t			saved_func;

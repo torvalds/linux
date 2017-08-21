@@ -835,7 +835,7 @@ out_nlmsg_trim:
 }
 
 static int
-act_get_notify(struct net *net, u32 portid, struct nlmsghdr *n,
+tcf_get_notify(struct net *net, u32 portid, struct nlmsghdr *n,
 	       struct list_head *actions, int event)
 {
 	struct sk_buff *skb;
@@ -1018,7 +1018,7 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	}
 
 	if (event == RTM_GETACTION)
-		ret = act_get_notify(net, portid, n, &actions, event);
+		ret = tcf_get_notify(net, portid, n, &actions, event);
 	else { /* delete */
 		ret = tcf_del_notify(net, n, &actions, portid);
 		if (ret)

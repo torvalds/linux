@@ -619,6 +619,12 @@ static unsigned int lpuart32_tx_empty(struct uart_port *port)
 		TIOCSER_TEMT : 0;
 }
 
+static bool lpuart_is_32(struct lpuart_port *sport)
+{
+	return sport->port.iotype == UPIO_MEM32 ||
+	       sport->port.iotype ==  UPIO_MEM32BE;
+}
+
 static irqreturn_t lpuart_txint(int irq, void *dev_id)
 {
 	struct lpuart_port *sport = dev_id;
@@ -627,7 +633,7 @@ static irqreturn_t lpuart_txint(int irq, void *dev_id)
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 	if (sport->port.x_char) {
-		if (sport->port.iotype & (UPIO_MEM32 | UPIO_MEM32BE))
+		if (lpuart_is_32(sport))
 			lpuart32_write(&sport->port, sport->port.x_char, UARTDATA);
 		else
 			writeb(sport->port.x_char, sport->port.membase + UARTDR);
@@ -635,14 +641,14 @@ static irqreturn_t lpuart_txint(int irq, void *dev_id)
 	}
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&sport->port)) {
-		if (sport->port.iotype & (UPIO_MEM32 | UPIO_MEM32BE))
+		if (lpuart_is_32(sport))
 			lpuart32_stop_tx(&sport->port);
 		else
 			lpuart_stop_tx(&sport->port);
 		goto out;
 	}
 
-	if (sport->port.iotype & (UPIO_MEM32 | UPIO_MEM32BE))
+	if (lpuart_is_32(sport))
 		lpuart32_transmit_buffer(sport);
 	else
 		lpuart_transmit_buffer(sport);
@@ -1978,12 +1984,12 @@ static int __init lpuart_console_setup(struct console *co, char *options)
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	else
-		if (sport->port.iotype & (UPIO_MEM32 | UPIO_MEM32BE))
+		if (lpuart_is_32(sport))
 			lpuart32_console_get_options(sport, &baud, &parity, &bits);
 		else
 			lpuart_console_get_options(sport, &baud, &parity, &bits);
 
-	if (sport->port.iotype & (UPIO_MEM32 | UPIO_MEM32BE))
+	if (lpuart_is_32(sport))
 		lpuart32_setup_watermark(sport);
 	else
 		lpuart_setup_watermark(sport);
@@ -2118,7 +2124,7 @@ static int lpuart_probe(struct platform_device *pdev)
 	}
 	sport->port.irq = ret;
 	sport->port.iotype = sdata->iotype;
-	if (sport->port.iotype & (UPIO_MEM32 | UPIO_MEM32BE))
+	if (lpuart_is_32(sport))
 		sport->port.ops = &lpuart32_pops;
 	else
 		sport->port.ops = &lpuart_pops;
@@ -2145,7 +2151,7 @@ static int lpuart_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, &sport->port);
 
-	if (sport->port.iotype & (UPIO_MEM32 | UPIO_MEM32BE))
+	if (lpuart_is_32(sport))
 		lpuart_reg.cons = LPUART32_CONSOLE;
 	else
 		lpuart_reg.cons = LPUART_CONSOLE;
@@ -2198,7 +2204,7 @@ static int lpuart_suspend(struct device *dev)
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	unsigned long temp;
 
-	if (sport->port.iotype & (UPIO_MEM32 | UPIO_MEM32BE)) {
+	if (lpuart_is_32(sport)) {
 		/* disable Rx/Tx and interrupts */
 		temp = lpuart32_read(&sport->port, UARTCTRL);
 		temp &= ~(UARTCTRL_TE | UARTCTRL_TIE | UARTCTRL_TCIE);
@@ -2249,7 +2255,7 @@ static int lpuart_resume(struct device *dev)
 	if (sport->port.suspended && !sport->port.irq_wake)
 		clk_prepare_enable(sport->clk);
 
-	if (sport->port.iotype & (UPIO_MEM32 | UPIO_MEM32BE)) {
+	if (lpuart_is_32(sport)) {
 		lpuart32_setup_watermark(sport);
 		temp = lpuart32_read(&sport->port, UARTCTRL);
 		temp |= (UARTCTRL_RIE | UARTCTRL_TIE | UARTCTRL_RE |

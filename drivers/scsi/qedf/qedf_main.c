@@ -1227,7 +1227,7 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 
 		if (rdata->spp_type != FC_TYPE_FCP) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-			    "Not offlading since since spp type isn't FCP\n");
+			    "Not offloading since spp type isn't FCP\n");
 			break;
 		}
 		if (!(rdata->ids.roles & FC_RPORT_ROLE_FCP_TARGET)) {
@@ -2760,11 +2760,9 @@ static int qedf_set_fcoe_pf_param(struct qedf_ctx *qedf)
 	 * we allocation is the minimum off:
 	 *
 	 * Number of CPUs
-	 * Number of MSI-X vectors
-	 * Max number allocated in hardware (QEDF_MAX_NUM_CQS)
+	 * Number allocated by qed for our PCI function
 	 */
-	qedf->num_queues = min((unsigned int)QEDF_MAX_NUM_CQS,
-	    num_online_cpus());
+	qedf->num_queues = MIN_NUM_CPUS_MSIX(qedf);
 
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC, "Number of CQs is %d.\n",
 		   qedf->num_queues);
@@ -2962,6 +2960,13 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		goto err1;
 	}
 
+	/* Learn information crucial for qedf to progress */
+	rc = qed_ops->fill_dev_info(qedf->cdev, &qedf->dev_info);
+	if (rc) {
+		QEDF_ERR(&(qedf->dbg_ctx), "Failed to dev info.\n");
+		goto err1;
+	}
+
 	/* queue allocation code should come here
 	 * order should be
 	 * 	slowpath_start
@@ -2976,13 +2981,6 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		goto err2;
 	}
 	qed_ops->common->update_pf_params(qedf->cdev, &qedf->pf_params);
-
-	/* Learn information crucial for qedf to progress */
-	rc = qed_ops->fill_dev_info(qedf->cdev, &qedf->dev_info);
-	if (rc) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Failed to dev info.\n");
-		goto err1;
-	}
 
 	/* Record BDQ producer doorbell addresses */
 	qedf->bdq_primary_prod = qedf->dev_info.primary_dbq_rq_addr;
