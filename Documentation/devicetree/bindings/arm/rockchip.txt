@@ -134,6 +134,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
      - compatible = "phytec,rk3288-pcm-947", "phytec,rk3288-phycore-som", "rockchip,rk3288";
 
+- Pine64 Rock64 board:
+    Required root node properties:
+    - compatible = "pine64,rock64", "rockchip,rk3328";
+
 - Rockchip PX3 Evaluation board:
     Required root node properties:
       - compatible = "rockchip,px3-evb", "rockchip,px3", "rockchip,rk3188";
