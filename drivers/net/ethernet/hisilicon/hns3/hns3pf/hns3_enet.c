@@ -1278,11 +1278,42 @@ static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 	return ret;
 }
 
+static int hns3_nic_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = priv->ae_handle;
+	bool if_running = netif_running(netdev);
+	int ret;
+
+	if (!h->ae_algo->ops->set_mtu)
+		return -EOPNOTSUPP;
+
+	/* if this was called with netdev up then bring netdevice down */
+	if (if_running) {
+		(void)hns3_nic_net_stop(netdev);
+		msleep(100);
+	}
+
+	ret = h->ae_algo->ops->set_mtu(h, new_mtu);
+	if (ret) {
+		netdev_err(netdev, "failed to change MTU in hardware %d\n",
+			   ret);
+		return ret;
+	}
+
+	/* if the netdev was running earlier, bring it up again */
+	if (if_running && hns3_nic_net_open(netdev))
+		ret = -EINVAL;
+
+	return ret;
+}
+
 static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_open		= hns3_nic_net_open,
 	.ndo_stop		= hns3_nic_net_stop,
 	.ndo_start_xmit		= hns3_nic_net_xmit,
 	.ndo_set_mac_address	= hns3_nic_net_set_mac_address,
+	.ndo_change_mtu		= hns3_nic_change_mtu,
 	.ndo_set_features	= hns3_nic_set_features,
 	.ndo_get_stats64	= hns3_nic_get_stats64,
 	.ndo_setup_tc		= hns3_nic_setup_tc,
@@ -2751,6 +2782,9 @@ static int hns3_client_init(struct hnae3_handle *handle)
 		dev_err(priv->dev, "probe register netdev fail!\n");
 		goto out_reg_netdev_fail;
 	}
+
+	/* MTU range: (ETH_MIN_MTU(kernel default) - 9706) */
+	netdev->max_mtu = HNS3_MAX_MTU - (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 
 	return ret;
 
