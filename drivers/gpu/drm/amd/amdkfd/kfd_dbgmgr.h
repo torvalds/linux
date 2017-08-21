@@ -30,13 +30,11 @@
 #pragma pack(push, 4)
 
 enum HSA_DBG_WAVEOP {
-	HSA_DBG_WAVEOP_HALT = 1,	/* Halts a wavefront		*/
-	HSA_DBG_WAVEOP_RESUME = 2,	/* Resumes a wavefront		*/
-	HSA_DBG_WAVEOP_KILL = 3,	/* Kills a wavefront		*/
-	HSA_DBG_WAVEOP_DEBUG = 4,	/* Causes wavefront to enter
-						debug mode		*/
-	HSA_DBG_WAVEOP_TRAP = 5,	/* Causes wavefront to take
-						a trap			*/
+	HSA_DBG_WAVEOP_HALT = 1,   /* Halts a wavefront */
+	HSA_DBG_WAVEOP_RESUME = 2, /* Resumes a wavefront */
+	HSA_DBG_WAVEOP_KILL = 3,   /* Kills a wavefront */
+	HSA_DBG_WAVEOP_DEBUG = 4,  /* Causes wavefront to enter dbg mode */
+	HSA_DBG_WAVEOP_TRAP = 5,   /* Causes wavefront to take a trap */
 	HSA_DBG_NUM_WAVEOP = 5,
 	HSA_DBG_MAX_WAVEOP = 0xFFFFFFFF
 };
@@ -81,15 +79,13 @@ struct HsaDbgWaveMsgAMDGen2 {
 			uint32_t UserData:8;	/* user data */
 			uint32_t ShaderArray:1;	/* Shader array */
 			uint32_t Priv:1;	/* Privileged */
-			uint32_t Reserved0:4;	/* This field is reserved,
-						   should be 0 */
+			uint32_t Reserved0:4;	/* Reserved, should be 0 */
 			uint32_t WaveId:4;	/* wave id */
 			uint32_t SIMD:2;	/* SIMD id */
 			uint32_t HSACU:4;	/* Compute unit */
 			uint32_t ShaderEngine:2;/* Shader engine */
 			uint32_t MessageType:2;	/* see HSA_DBG_WAVEMSG_TYPE */
-			uint32_t Reserved1:4;	/* This field is reserved,
-						   should be 0 */
+			uint32_t Reserved1:4;	/* Reserved, should be 0 */
 		} ui32;
 		uint32_t Value;
 	};
@@ -121,20 +117,23 @@ struct HsaDbgWaveMessage {
  * in the user mode instruction stream. The OS scheduler event is typically
  * associated and signaled by an interrupt issued by the GPU, but other HSA
  * system interrupt conditions from other HW (e.g. IOMMUv2) may be surfaced
- * by the KFD by this mechanism, too. */
+ * by the KFD by this mechanism, too.
+ */
 
 /* these are the new definitions for events */
 enum HSA_EVENTTYPE {
 	HSA_EVENTTYPE_SIGNAL = 0,	/* user-mode generated GPU signal */
 	HSA_EVENTTYPE_NODECHANGE = 1,	/* HSA node change (attach/detach) */
 	HSA_EVENTTYPE_DEVICESTATECHANGE = 2,	/* HSA device state change
-						   (start/stop) */
+						 * (start/stop)
+						 */
 	HSA_EVENTTYPE_HW_EXCEPTION = 3,	/* GPU shader exception event */
 	HSA_EVENTTYPE_SYSTEM_EVENT = 4,	/* GPU SYSCALL with parameter info */
 	HSA_EVENTTYPE_DEBUG_EVENT = 5,	/* GPU signal for debugging */
 	HSA_EVENTTYPE_PROFILE_EVENT = 6,/* GPU signal for profiling */
 	HSA_EVENTTYPE_QUEUE_EVENT = 7,	/* GPU signal queue idle state
-					   (EOP pm4) */
+					 * (EOP pm4)
+					 */
 	/* ...  */
 	HSA_EVENTTYPE_MAXID,
 	HSA_EVENTTYPE_TYPE_SIZE = 0xFFFFFFFF

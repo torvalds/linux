@@ -28,14 +28,14 @@
 #include <linux/module.h>
 
 const struct kgd2kfd_calls *kgd2kfd;
-bool (*kgd2kfd_init_p)(unsigned, const struct kgd2kfd_calls**);
+bool (*kgd2kfd_init_p)(unsigned int, const struct kgd2kfd_calls**);
 
 int amdgpu_amdkfd_init(void)
 {
 	int ret;
 
 #if defined(CONFIG_HSA_AMD_MODULE)
-	int (*kgd2kfd_init_p)(unsigned, const struct kgd2kfd_calls**);
+	int (*kgd2kfd_init_p)(unsigned int, const struct kgd2kfd_calls**);
 
 	kgd2kfd_init_p = symbol_request(kgd2kfd_init);
 
