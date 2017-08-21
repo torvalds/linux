@@ -1173,24 +1173,32 @@ void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 }
 EXPORT_SYMBOL_GPL(sdhci_send_command);
 
+static void sdhci_read_rsp_136(struct sdhci_host *host, struct mmc_command *cmd)
+{
+	int i, reg;
+
+	for (i = 0; i < 4; i++) {
+		reg = SDHCI_RESPONSE + (3 - i) * 4;
+		cmd->resp[i] = sdhci_readl(host, reg);
+	}
+
+	/* CRC is stripped so we need to do some shifting */
+	for (i = 0; i < 4; i++) {
+		cmd->resp[i] <<= 8;
+		if (i != 3)
+			cmd->resp[i] |= cmd->resp[i + 1] >> 24;
+	}
+}
+
 static void sdhci_finish_command(struct sdhci_host *host)
 {
 	struct mmc_command *cmd = host->cmd;
-	int i;
 
 	host->cmd = NULL;
 
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		if (cmd->flags & MMC_RSP_136) {
-			/* CRC is stripped so we need to do some shifting. */
-			for (i = 0;i < 4;i++) {
-				cmd->resp[i] = sdhci_readl(host,
-					SDHCI_RESPONSE + (3-i)*4) << 8;
-				if (i != 3)
-					cmd->resp[i] |=
-						sdhci_readb(host,
-						SDHCI_RESPONSE + (3-i)*4-1);
-			}
+			sdhci_read_rsp_136(host, cmd);
 		} else {
 			cmd->resp[0] = sdhci_readl(host, SDHCI_RESPONSE);
 		}
