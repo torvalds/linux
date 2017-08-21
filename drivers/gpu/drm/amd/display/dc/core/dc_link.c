@@ -1977,7 +1977,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 		/*skip power down the single pipe since it blocks the cstate*/
 		if (ASIC_REV_IS_RAVEN(link->ctx->asic_id.hw_internal_rev))
-			psr_context->psr_level.bits.SKIP_SINGLE_OTG_DISABLE = false;
+			psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
 #endif
 
 		/* SMU will perform additional powerdown sequence.

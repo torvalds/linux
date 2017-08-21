@@ -67,5 +67,6 @@ void dce110_fill_display_configs(
 
 uint32_t dce110_get_min_vblank_time_us(const struct validate_context *context);
 
+void dp_receiver_power_ctrl(struct dc_link *link, bool on);
 #endif /* __DC_HWSS_DCE110_H__ */
 
