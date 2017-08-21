@@ -763,6 +763,8 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 	GATE(SCLK_MACPHY_RX, "sclk_macphy_rx", "sclk_macphy", 0, RV1108_CLKGATE_CON(4), 8, GFLAGS),
 	GATE(SCLK_MAC_REF, "sclk_mac_ref", "sclk_macphy", 0, RV1108_CLKGATE_CON(4), 6, GFLAGS),
 	GATE(SCLK_MAC_REFOUT, "sclk_mac_refout", "sclk_macphy", 0, RV1108_CLKGATE_CON(4), 7, GFLAGS),
+	GATE(ACLK_GMAC, "aclk_gmac", "aclk_periph", 0, RV1108_CLKGATE_CON(15), 4, GFLAGS),
+	GATE(PCLK_GMAC, "pclk_gmac", "pclk_periph", 0, RV1108_CLKGATE_CON(15), 5, GFLAGS),
 
 	MMC(SCLK_SDMMC_DRV,    "sdmmc_drv",    "sclk_sdmmc", RV1108_SDMMC_CON0, 1),
 	MMC(SCLK_SDMMC_SAMPLE, "sdmmc_sample", "sclk_sdmmc", RV1108_SDMMC_CON1, 1),
