@@ -23,6 +23,8 @@
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
 #include "hinic_hw_mgmt.h"
+#include "hinic_hw_qp.h"
+#include "hinic_hw_io.h"
 
 #define HINIC_MAX_QPS   32
 
@@ -72,11 +74,21 @@ enum hinic_cb_state {
 	HINIC_CB_RUNNING = BIT(1),
 };
 
+struct hinic_cmd_base_qpn {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_idx;
+	u16     qpn;
+};
+
 struct hinic_hwdev {
 	struct hinic_hwif               *hwif;
 	struct msix_entry               *msix_entries;
 
 	struct hinic_aeqs               aeqs;
+	struct hinic_func_to_io         func_to_io;
 
 	struct hinic_cap                nic_cap;
 };
@@ -111,10 +123,18 @@ int hinic_port_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_port_cmd cmd,
 		       void *buf_in, u16 in_size, void *buf_out,
 		       u16 *out_size);
 
+int hinic_hwdev_ifup(struct hinic_hwdev *hwdev);
+
+void hinic_hwdev_ifdown(struct hinic_hwdev *hwdev);
+
 struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev);
 
 void hinic_free_hwdev(struct hinic_hwdev *hwdev);
 
 int hinic_hwdev_num_qps(struct hinic_hwdev *hwdev);
+
+struct hinic_sq *hinic_hwdev_get_sq(struct hinic_hwdev *hwdev, int i);
+
+struct hinic_rq *hinic_hwdev_get_rq(struct hinic_hwdev *hwdev, int i);
 
 #endif

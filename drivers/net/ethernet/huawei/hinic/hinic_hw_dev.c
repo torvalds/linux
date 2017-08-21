@@ -25,6 +25,8 @@
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
 #include "hinic_hw_mgmt.h"
+#include "hinic_hw_qp.h"
+#include "hinic_hw_io.h"
 #include "hinic_hw_dev.h"
 
 #define MAX_IRQS(max_qps, num_aeqs, num_ceqs)   \
@@ -227,6 +229,99 @@ int hinic_port_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_port_cmd cmd,
 	return hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_L2NIC, cmd,
 				 buf_in, in_size, buf_out, out_size,
 				 HINIC_MGMT_MSG_SYNC);
+}
+
+/**
+ * get_base_qpn - get the first qp number
+ * @hwdev: the NIC HW device
+ * @base_qpn: returned qp number
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int get_base_qpn(struct hinic_hwdev *hwdev, u16 *base_qpn)
+{
+	struct hinic_cmd_base_qpn cmd_base_qpn;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	u16 out_size;
+	int err;
+
+	cmd_base_qpn.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_GLOBAL_QPN,
+				 &cmd_base_qpn, sizeof(cmd_base_qpn),
+				 &cmd_base_qpn, &out_size);
+	if (err || (out_size != sizeof(cmd_base_qpn)) || cmd_base_qpn.status) {
+		dev_err(&pdev->dev, "Failed to get base qpn, status = %d\n",
+			cmd_base_qpn.status);
+		return -EFAULT;
+	}
+
+	*base_qpn = cmd_base_qpn.qpn;
+	return 0;
+}
+
+/**
+ * hinic_hwdev_ifup - Preparing the HW for passing IO
+ * @hwdev: the NIC HW device
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_hwdev_ifup(struct hinic_hwdev *hwdev)
+{
+	struct hinic_func_to_io *func_to_io = &hwdev->func_to_io;
+	struct hinic_cap *nic_cap = &hwdev->nic_cap;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	int err, num_aeqs, num_ceqs, num_qps;
+	struct msix_entry *sq_msix_entries;
+	struct msix_entry *rq_msix_entries;
+	struct pci_dev *pdev = hwif->pdev;
+	u16 base_qpn;
+
+	err = get_base_qpn(hwdev, &base_qpn);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to get global base qp number\n");
+		return err;
+	}
+
+	num_aeqs = HINIC_HWIF_NUM_AEQS(hwif);
+	num_ceqs = HINIC_HWIF_NUM_CEQS(hwif);
+	err = hinic_io_init(func_to_io, hwif, nic_cap->max_qps, 0, NULL);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init IO channel\n");
+		return err;
+	}
+
+	num_qps = nic_cap->num_qps;
+	sq_msix_entries = &hwdev->msix_entries[num_aeqs + num_ceqs];
+	rq_msix_entries = &hwdev->msix_entries[num_aeqs + num_ceqs + num_qps];
+
+	err = hinic_io_create_qps(func_to_io, base_qpn, num_qps,
+				  sq_msix_entries, rq_msix_entries);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to create QPs\n");
+		goto err_create_qps;
+	}
+
+	return 0;
+
+err_create_qps:
+	hinic_io_free(func_to_io);
+	return err;
+}
+
+/**
+ * hinic_hwdev_ifdown - Closing the HW for passing IO
+ * @hwdev: the NIC HW device
+ *
+ **/
+void hinic_hwdev_ifdown(struct hinic_hwdev *hwdev)
+{
+	struct hinic_func_to_io *func_to_io = &hwdev->func_to_io;
+	struct hinic_cap *nic_cap = &hwdev->nic_cap;
+
+	hinic_io_destroy_qps(func_to_io, nic_cap->num_qps);
+	hinic_io_free(func_to_io);
 }
 
 /**
@@ -498,4 +593,40 @@ int hinic_hwdev_num_qps(struct hinic_hwdev *hwdev)
 	struct hinic_cap *nic_cap = &hwdev->nic_cap;
 
 	return nic_cap->num_qps;
+}
+
+/**
+ * hinic_hwdev_get_sq - get SQ
+ * @hwdev: the NIC HW device
+ * @i: the position of the SQ
+ *
+ * Return: the SQ in the i position
+ **/
+struct hinic_sq *hinic_hwdev_get_sq(struct hinic_hwdev *hwdev, int i)
+{
+	struct hinic_func_to_io *func_to_io = &hwdev->func_to_io;
+	struct hinic_qp *qp = &func_to_io->qps[i];
+
+	if (i >= hinic_hwdev_num_qps(hwdev))
+		return NULL;
+
+	return &qp->sq;
+}
+
+/**
+ * hinic_hwdev_get_sq - get RQ
+ * @hwdev: the NIC HW device
+ * @i: the position of the RQ
+ *
+ * Return: the RQ in the i position
+ **/
+struct hinic_rq *hinic_hwdev_get_rq(struct hinic_hwdev *hwdev, int i)
+{
+	struct hinic_func_to_io *func_to_io = &hwdev->func_to_io;
+	struct hinic_qp *qp = &func_to_io->qps[i];
+
+	if (i >= hinic_hwdev_num_qps(hwdev))
+		return NULL;
+
+	return &qp->rq;
 }

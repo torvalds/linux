@@ -23,6 +23,8 @@
 #include <linux/bitops.h>
 
 #include "hinic_hw_dev.h"
+#include "hinic_tx.h"
+#include "hinic_rx.h"
 
 #define HINIC_DRV_NAME          "hinic"
 
@@ -49,6 +51,9 @@ struct hinic_dev {
 
 	struct hinic_rx_mode_work       rx_mode_work;
 	struct workqueue_struct         *workq;
+
+	struct hinic_txq                *txqs;
+	struct hinic_rxq                *rxqs;
 };
 
 #endif
