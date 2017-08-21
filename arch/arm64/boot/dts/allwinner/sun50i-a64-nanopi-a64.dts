@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 ARM Ltd.
+ * Copyright (C) 2017 Jagan Teki <jteki@openedev.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -47,52 +47,35 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "BananaPi-M64";
-	compatible = "sinovoip,bananapi-m64", "allwinner,sun50i-a64";
+	model = "FriendlyARM NanoPi A64";
+	compatible = "friendlyarm,nanopi-a64", "allwinner,sun50i-a64";
 
 	aliases {
 		serial0 = &uart0;
-		serial1 = &uart1;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+};
 
-	wifi_pwrseq: wifi_pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>; /* PL2 */
-	};
+&ehci0 {
+	status = "okay";
 };
 
 &ehci1 {
 	status = "okay";
 };
 
-&emac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&rgmii_pins>;
-	phy-mode = "rgmii";
-	phy-handle = <&ext_rgmii_phy>;
-	phy-supply = <&reg_dc1sw>;
-	status = "okay";
-};
-
+/* i2c1 connected with gpio headers like pine64, bananapi */
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c1_pins {
 	bias-pull-up;
-};
-
-&mdio {
-	ext_rgmii_phy: ethernet-phy@1 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <1>;
-	};
 };
 
 &mmc0 {
@@ -106,32 +89,7 @@
 	status = "okay";
 };
 
-&mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins>;
-	vmmc-supply = <&reg_dldo2>;
-	vqmmc-supply = <&reg_dldo4>;
-	mmc-pwrseq = <&wifi_pwrseq>;
-	bus-width = <4>;
-	non-removable;
-	status = "okay";
-
-	brcmf: wifi@1 {
-		reg = <1>;
-		compatible = "brcm,bcm4329-fmac";
-		interrupt-parent = <&r_pio>;
-		interrupts = <0 3 IRQ_TYPE_LEVEL_LOW>; /* PL3 */
-		interrupt-names = "host-wake";
-	};
-};
-
-&mmc2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc2_pins>;
-	vmmc-supply = <&reg_dcdc1>;
-	bus-width = <8>;
-	non-removable;
-	cap-mmc-hw-reset;
+&ohci0 {
 	status = "okay";
 };
 
@@ -166,15 +124,11 @@
 	regulator-name = "vcc-pll-avcc";
 };
 
-&reg_dc1sw {
-	regulator-name = "vcc-phy";
-};
-
 &reg_dcdc1 {
 	regulator-always-on;
-	regulator-min-microvolt = <3300000>;
-	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-3v3";
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-name = "vcc-3v";
 };
 
 &reg_dcdc2 {
@@ -201,21 +155,17 @@
 };
 
 &reg_dldo1 {
+	regulator-always-on;
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
 	regulator-name = "vcc-hdmi-dsi";
 };
 
-&reg_dldo2 {
-	regulator-min-microvolt = <3300000>;
-	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-wifi";
-};
-
 &reg_dldo4 {
-	regulator-min-microvolt = <1800000>;
-	regulator-max-microvolt = <3300000>;
-	regulator-name = "vcc-wifi-io";
+	regulator-always-on;
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-name = "vcc-pg-wifi-io";
 };
 
 &reg_eldo1 {
@@ -249,12 +199,6 @@
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
-	status = "okay";
-};
-
-&uart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
 	status = "okay";
 };
 
