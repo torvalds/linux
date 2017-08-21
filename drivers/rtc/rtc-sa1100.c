@@ -104,7 +104,7 @@ static int sa1100_rtc_open(struct device *dev)
 	ret = request_irq(info->irq_1hz, sa1100_rtc_interrupt, 0, "rtc 1Hz", dev);
 	if (ret) {
 		dev_err(dev, "IRQ %d already in use.\n", info->irq_1hz);
-		goto fail_ui;
+		return ret;
 	}
 	ret = request_irq(info->irq_alarm, sa1100_rtc_interrupt, 0, "rtc Alrm", dev);
 	if (ret) {
@@ -118,8 +118,6 @@ static int sa1100_rtc_open(struct device *dev)
 
  fail_ai:
 	free_irq(info->irq_1hz, dev);
- fail_ui:
-	clk_disable_unprepare(info->clk);
 	return ret;
 }
 
