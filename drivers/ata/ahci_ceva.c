@@ -50,21 +50,6 @@
 #define PPCFG_PSS_EN	(1 << 29)
 #define PPCFG_ESDF_EN	(1 << 31)
 
-#define PP2C_CIBGMN	0x0F
-#define PP2C_CIBGMX	(0x25 << 8)
-#define PP2C_CIBGN	(0x18 << 16)
-#define PP2C_CINMP	(0x29 << 24)
-
-#define PP3C_CWBGMN	0x04
-#define PP3C_CWBGMX	(0x0B << 8)
-#define PP3C_CWBGN	(0x08 << 16)
-#define PP3C_CWNMP	(0x0F << 24)
-
-#define PP4C_BMX	0x0a
-#define PP4C_BNM	(0x08 << 8)
-#define PP4C_SFD	(0x4a << 16)
-#define PP4C_PTST	(0x06 << 24)
-
 #define PP5C_RIT	0x60216
 #define PP5C_RCT	(0x7f0 << 20)
 
@@ -87,6 +72,11 @@
 
 struct ceva_ahci_priv {
 	struct platform_device *ahci_pdev;
+	/* Port Phy2Cfg Register */
+	u32 pp2c[NR_PORTS];
+	u32 pp3c[NR_PORTS];
+	u32 pp4c[NR_PORTS];
+	u32 pp5c[NR_PORTS];
 	int flags;
 };
 
@@ -131,20 +121,16 @@ static void ahci_ceva_setup(struct ahci_host_priv *hpriv)
 		writel(tmp, mmio + AHCI_VEND_PPCFG);
 
 		/* Phy Control OOB timing parameters COMINIT */
-		tmp = PP2C_CIBGMN | PP2C_CIBGMX | PP2C_CIBGN | PP2C_CINMP;
-		writel(tmp, mmio + AHCI_VEND_PP2C);
+		writel(cevapriv->pp2c[i], mmio + AHCI_VEND_PP2C);
 
 		/* Phy Control OOB timing parameters COMWAKE */
-		tmp = PP3C_CWBGMN | PP3C_CWBGMX | PP3C_CWBGN | PP3C_CWNMP;
-		writel(tmp, mmio + AHCI_VEND_PP3C);
+		writel(cevapriv->pp3c[i], mmio + AHCI_VEND_PP3C);
 
 		/* Phy Control Burst timing setting */
-		tmp = PP4C_BMX | PP4C_BNM | PP4C_SFD | PP4C_PTST;
-		writel(tmp, mmio + AHCI_VEND_PP4C);
+		writel(cevapriv->pp4c[i], mmio + AHCI_VEND_PP4C);
 
 		/* Rate Change Timer and Retry Interval Timer setting */
-		tmp = PP5C_RIT | PP5C_RCT;
-		writel(tmp, mmio + AHCI_VEND_PP5C);
+		writel(cevapriv->pp5c[i], mmio + AHCI_VEND_PP5C);
 
 		/* Rx Watermark setting  */
 		tmp = PTC_RX_WM_VAL | PTC_RSVD;
@@ -186,6 +172,58 @@ static int ceva_ahci_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(np, "ceva,broken-gen2"))
 		cevapriv->flags = CEVA_FLAG_BROKEN_GEN2;
+
+	/* Read OOB timing value for COMINIT from device-tree */
+	if (of_property_read_u8_array(np, "ceva,p0-cominit-params",
+					(u8 *)&cevapriv->pp2c[0], 4) < 0) {
+		dev_warn(dev, "ceva,p0-cominit-params property not defined\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u8_array(np, "ceva,p1-cominit-params",
+					(u8 *)&cevapriv->pp2c[1], 4) < 0) {
+		dev_warn(dev, "ceva,p1-cominit-params property not defined\n");
+		return -EINVAL;
+	}
+
+	/* Read OOB timing value for COMWAKE from device-tree*/
+	if (of_property_read_u8_array(np, "ceva,p0-comwake-params",
+					(u8 *)&cevapriv->pp3c[0], 4) < 0) {
+		dev_warn(dev, "ceva,p0-comwake-params property not defined\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u8_array(np, "ceva,p1-comwake-params",
+					(u8 *)&cevapriv->pp3c[1], 4) < 0) {
+		dev_warn(dev, "ceva,p1-comwake-params property not defined\n");
+		return -EINVAL;
+	}
+
+	/* Read phy BURST timing value from device-tree */
+	if (of_property_read_u8_array(np, "ceva,p0-burst-params",
+					(u8 *)&cevapriv->pp4c[0], 4) < 0) {
+		dev_warn(dev, "ceva,p0-burst-params property not defined\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u8_array(np, "ceva,p1-burst-params",
+					(u8 *)&cevapriv->pp4c[1], 4) < 0) {
+		dev_warn(dev, "ceva,p1-burst-params property not defined\n");
+		return -EINVAL;
+	}
+
+	/* Read phy RETRY interval timing value from device-tree */
+	if (of_property_read_u16_array(np, "ceva,p0-retry-params",
+					(u16 *)&cevapriv->pp5c[0], 2) < 0) {
+		dev_warn(dev, "ceva,p0-retry-params property not defined\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u16_array(np, "ceva,p1-retry-params",
+					(u16 *)&cevapriv->pp5c[1], 2) < 0) {
+		dev_warn(dev, "ceva,p1-retry-params property not defined\n");
+		return -EINVAL;
+	}
 
 	hpriv->plat_data = cevapriv;
 
