@@ -68,6 +68,11 @@ enum hinic_cfg_cmd {
 	HINIC_CFG_NIC_CAP = 0,
 };
 
+enum hinic_comm_cmd {
+	HINIC_COMM_CMD_CMDQ_CTXT_SET    = 0x10,
+	HINIC_COMM_CMD_CMDQ_CTXT_GET    = 0x11,
+};
+
 enum hinic_mgmt_cb_state {
 	HINIC_MGMT_CB_ENABLED = BIT(0),
 	HINIC_MGMT_CB_RUNNING = BIT(1),

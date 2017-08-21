@@ -106,6 +106,8 @@
 
 #define HINIC_EQ_PAGE_SIZE              SZ_4K
 
+#define HINIC_CEQ_ID_CMDQ               0
+
 enum hinic_eq_type {
 	HINIC_AEQ,
 };

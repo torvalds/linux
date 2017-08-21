@@ -81,6 +81,14 @@ struct hinic_cmdq_pages {
 	struct hinic_hwif       *hwif;
 };
 
+int hinic_wqs_cmdq_alloc(struct hinic_cmdq_pages *cmdq_pages,
+			 struct hinic_wq *wq, struct hinic_hwif *hwif,
+			 int cmdq_blocks, u16 wqebb_size, u16 wq_page_size,
+			 u16 q_depth, u16 max_wqe_size);
+
+void hinic_wqs_cmdq_free(struct hinic_cmdq_pages *cmdq_pages,
+			 struct hinic_wq *wq, int cmdq_blocks);
+
 int hinic_wqs_alloc(struct hinic_wqs *wqs, int num_wqs,
 		    struct hinic_hwif *hwif);
 

@@ -24,6 +24,40 @@
 #include "hinic_hw_if.h"
 #include "hinic_hw_wq.h"
 
+#define HINIC_CMDQ_CTXT_CURR_WQE_PAGE_PFN_SHIFT         0
+#define HINIC_CMDQ_CTXT_EQ_ID_SHIFT                     56
+#define HINIC_CMDQ_CTXT_CEQ_ARM_SHIFT                   61
+#define HINIC_CMDQ_CTXT_CEQ_EN_SHIFT                    62
+#define HINIC_CMDQ_CTXT_WRAPPED_SHIFT                   63
+
+#define HINIC_CMDQ_CTXT_CURR_WQE_PAGE_PFN_MASK          0xFFFFFFFFFFFFF
+#define HINIC_CMDQ_CTXT_EQ_ID_MASK                      0x1F
+#define HINIC_CMDQ_CTXT_CEQ_ARM_MASK                    0x1
+#define HINIC_CMDQ_CTXT_CEQ_EN_MASK                     0x1
+#define HINIC_CMDQ_CTXT_WRAPPED_MASK                    0x1
+
+#define HINIC_CMDQ_CTXT_PAGE_INFO_SET(val, member)      \
+			(((u64)(val) & HINIC_CMDQ_CTXT_##member##_MASK) \
+			 << HINIC_CMDQ_CTXT_##member##_SHIFT)
+
+#define HINIC_CMDQ_CTXT_PAGE_INFO_CLEAR(val, member)    \
+			((val) & (~((u64)HINIC_CMDQ_CTXT_##member##_MASK \
+			 << HINIC_CMDQ_CTXT_##member##_SHIFT)))
+
+#define HINIC_CMDQ_CTXT_WQ_BLOCK_PFN_SHIFT              0
+#define HINIC_CMDQ_CTXT_CI_SHIFT                        52
+
+#define HINIC_CMDQ_CTXT_WQ_BLOCK_PFN_MASK               0xFFFFFFFFFFFFF
+#define HINIC_CMDQ_CTXT_CI_MASK                         0xFFF
+
+#define HINIC_CMDQ_CTXT_BLOCK_INFO_SET(val, member)     \
+			(((u64)(val) & HINIC_CMDQ_CTXT_##member##_MASK) \
+			 << HINIC_CMDQ_CTXT_##member##_SHIFT)
+
+#define HINIC_CMDQ_CTXT_BLOCK_INFO_CLEAR(val, member)   \
+			((val) & (~((u64)HINIC_CMDQ_CTXT_##member##_MASK \
+			 << HINIC_CMDQ_CTXT_##member##_SHIFT)))
+
 #define HINIC_CMDQ_BUF_SIZE             2048
 
 enum hinic_cmdq_type {
@@ -36,6 +70,25 @@ struct hinic_cmdq_buf {
 	void            *buf;
 	dma_addr_t      dma_addr;
 	size_t          size;
+};
+
+struct hinic_cmdq_ctxt_info {
+	u64     curr_wqe_page_pfn;
+	u64     wq_block_pfn;
+};
+
+struct hinic_cmdq_ctxt {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_idx;
+	u8      cmdq_type;
+	u8      rsvd1[1];
+
+	u8      rsvd2[4];
+
+	struct hinic_cmdq_ctxt_info ctxt_info;
 };
 
 struct hinic_cmdq {

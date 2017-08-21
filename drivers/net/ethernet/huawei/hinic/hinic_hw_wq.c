@@ -27,6 +27,7 @@
 
 #include "hinic_hw_if.h"
 #include "hinic_hw_wq.h"
+#include "hinic_hw_cmdq.h"
 
 #define WQS_BLOCKS_PER_PAGE             4
 
@@ -42,6 +43,11 @@
 #define WQ_PAGE_ADDR_SIZE               sizeof(u64)
 #define WQ_MAX_PAGES                    (WQ_BLOCK_SIZE / WQ_PAGE_ADDR_SIZE)
 
+#define CMDQ_BLOCK_SIZE                 512
+#define CMDQ_PAGE_SIZE                  4096
+
+#define CMDQ_WQ_MAX_PAGES               (CMDQ_BLOCK_SIZE / WQ_PAGE_ADDR_SIZE)
+
 #define WQ_BASE_VADDR(wqs, wq)          \
 			((void *)((wqs)->page_vaddr[(wq)->page_idx]) \
 				+ (wq)->block_idx * WQ_BLOCK_SIZE)
@@ -53,6 +59,18 @@
 #define WQ_BASE_ADDR(wqs, wq)           \
 			((void *)((wqs)->shadow_page_vaddr[(wq)->page_idx]) \
 				+ (wq)->block_idx * WQ_BLOCK_SIZE)
+
+#define CMDQ_BASE_VADDR(cmdq_pages, wq) \
+			((void *)((cmdq_pages)->page_vaddr) \
+				+ (wq)->block_idx * CMDQ_BLOCK_SIZE)
+
+#define CMDQ_BASE_PADDR(cmdq_pages, wq) \
+			((cmdq_pages)->page_paddr \
+				+ (wq)->block_idx * CMDQ_BLOCK_SIZE)
+
+#define CMDQ_BASE_ADDR(cmdq_pages, wq)  \
+			((void *)((cmdq_pages)->shadow_page_vaddr) \
+				+ (wq)->block_idx * CMDQ_BLOCK_SIZE)
 
 /**
  * queue_alloc_page - allocate page for Queue
@@ -120,6 +138,37 @@ static void wqs_free_page(struct hinic_wqs *wqs, int page_idx)
 			  wqs->page_vaddr[page_idx],
 			  (dma_addr_t)wqs->page_paddr[page_idx]);
 	vfree(wqs->shadow_page_vaddr[page_idx]);
+}
+
+/**
+ * cmdq_allocate_page - allocate page for cmdq
+ * @cmdq_pages: the pages of the cmdq queue struct to hold the page
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int cmdq_allocate_page(struct hinic_cmdq_pages *cmdq_pages)
+{
+	return queue_alloc_page(cmdq_pages->hwif, &cmdq_pages->page_vaddr,
+				&cmdq_pages->page_paddr,
+				&cmdq_pages->shadow_page_vaddr,
+				CMDQ_PAGE_SIZE);
+}
+
+/**
+ * cmdq_free_page - free page from cmdq
+ * @cmdq_pages: the pages of the cmdq queue struct that hold the page
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static void cmdq_free_page(struct hinic_cmdq_pages *cmdq_pages)
+{
+	struct hinic_hwif *hwif = cmdq_pages->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+
+	dma_free_coherent(&pdev->dev, CMDQ_PAGE_SIZE,
+			  cmdq_pages->page_vaddr,
+			  (dma_addr_t)cmdq_pages->page_paddr);
+	vfree(cmdq_pages->shadow_page_vaddr);
 }
 
 static int alloc_page_arrays(struct hinic_wqs *wqs)
@@ -513,4 +562,111 @@ void hinic_wq_free(struct hinic_wqs *wqs, struct hinic_wq *wq)
 	free_wq_pages(wq, wqs->hwif, wq->num_q_pages);
 
 	wqs_return_block(wqs, wq->page_idx, wq->block_idx);
+}
+
+/**
+ * hinic_wqs_cmdq_alloc - Allocate wqs for cmdqs
+ * @cmdq_pages: will hold the pages of the cmdq
+ * @wq: returned wqs
+ * @hwif: HW interface
+ * @cmdq_blocks: number of cmdq blocks/wq to allocate
+ * @wqebb_size: Work Queue Block Byte Size
+ * @wq_page_size: the page size in the Work Queue
+ * @q_depth: number of wqebbs in WQ
+ * @max_wqe_size: maximum WQE size that will be used in the WQ
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+int hinic_wqs_cmdq_alloc(struct hinic_cmdq_pages *cmdq_pages,
+			 struct hinic_wq *wq, struct hinic_hwif *hwif,
+			 int cmdq_blocks, u16 wqebb_size, u16 wq_page_size,
+			 u16 q_depth, u16 max_wqe_size)
+{
+	struct pci_dev *pdev = hwif->pdev;
+	u16 num_wqebbs_per_page;
+	int i, j, err = -ENOMEM;
+
+	if (wqebb_size == 0) {
+		dev_err(&pdev->dev, "wqebb_size must be > 0\n");
+		return -EINVAL;
+	}
+
+	if (wq_page_size == 0) {
+		dev_err(&pdev->dev, "wq_page_size must be > 0\n");
+		return -EINVAL;
+	}
+
+	if (q_depth & (q_depth - 1)) {
+		dev_err(&pdev->dev, "WQ q_depth must be power of 2\n");
+		return -EINVAL;
+	}
+
+	num_wqebbs_per_page = ALIGN(wq_page_size, wqebb_size) / wqebb_size;
+
+	if (num_wqebbs_per_page & (num_wqebbs_per_page - 1)) {
+		dev_err(&pdev->dev, "num wqebbs per page must be power of 2\n");
+		return -EINVAL;
+	}
+
+	cmdq_pages->hwif = hwif;
+
+	err = cmdq_allocate_page(cmdq_pages);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to allocate CMDQ page\n");
+		return err;
+	}
+
+	for (i = 0; i < cmdq_blocks; i++) {
+		wq[i].hwif = hwif;
+		wq[i].page_idx = 0;
+		wq[i].block_idx = i;
+
+		wq[i].wqebb_size = wqebb_size;
+		wq[i].wq_page_size = wq_page_size;
+		wq[i].q_depth = q_depth;
+		wq[i].max_wqe_size = max_wqe_size;
+		wq[i].num_wqebbs_per_page = num_wqebbs_per_page;
+
+		wq[i].block_vaddr = CMDQ_BASE_VADDR(cmdq_pages, &wq[i]);
+		wq[i].shadow_block_vaddr = CMDQ_BASE_ADDR(cmdq_pages, &wq[i]);
+		wq[i].block_paddr = CMDQ_BASE_PADDR(cmdq_pages, &wq[i]);
+
+		err = alloc_wq_pages(&wq[i], cmdq_pages->hwif,
+				     CMDQ_WQ_MAX_PAGES);
+		if (err) {
+			dev_err(&pdev->dev, "Failed to alloc CMDQ blocks\n");
+			goto err_cmdq_block;
+		}
+
+		atomic_set(&wq[i].cons_idx, 0);
+		atomic_set(&wq[i].prod_idx, 0);
+		atomic_set(&wq[i].delta, q_depth);
+		wq[i].mask = q_depth - 1;
+	}
+
+	return 0;
+
+err_cmdq_block:
+	for (j = 0; j < i; j++)
+		free_wq_pages(&wq[j], cmdq_pages->hwif, wq[j].num_q_pages);
+
+	cmdq_free_page(cmdq_pages);
+	return err;
+}
+
+/**
+ * hinic_wqs_cmdq_free - Free wqs from cmdqs
+ * @cmdq_pages: hold the pages of the cmdq
+ * @wq: wqs to free
+ * @cmdq_blocks: number of wqs to free
+ **/
+void hinic_wqs_cmdq_free(struct hinic_cmdq_pages *cmdq_pages,
+			 struct hinic_wq *wq, int cmdq_blocks)
+{
+	int i;
+
+	for (i = 0; i < cmdq_blocks; i++)
+		free_wq_pages(&wq[i], cmdq_pages->hwif, wq[i].num_q_pages);
+
+	cmdq_free_page(cmdq_pages);
 }
