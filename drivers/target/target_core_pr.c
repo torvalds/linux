@@ -3528,8 +3528,6 @@ after_iport_check:
 
 	core_scsi3_update_and_write_aptpl(cmd->se_dev, aptpl);
 
-	transport_kunmap_data_sg(cmd);
-
 	core_scsi3_put_pr_reg(dest_pr_reg);
 	return 0;
 out:
