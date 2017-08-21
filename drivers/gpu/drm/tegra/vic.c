@@ -285,20 +285,17 @@ static const struct of_device_id vic_match[] = {
 
 static int vic_probe(struct platform_device *pdev)
 {
-	struct vic_config *vic_config = NULL;
 	struct device *dev = &pdev->dev;
 	struct host1x_syncpt **syncpts;
 	struct resource *regs;
-	const struct of_device_id *match;
 	struct vic *vic;
 	int err;
-
-	match = of_match_device(vic_match, dev);
-	vic_config = (struct vic_config *)match->data;
 
 	vic = devm_kzalloc(dev, sizeof(*vic), GFP_KERNEL);
 	if (!vic)
 		return -ENOMEM;
+
+	vic->config = of_device_get_match_data(dev);
 
 	syncpts = devm_kzalloc(dev, sizeof(*syncpts), GFP_KERNEL);
 	if (!syncpts)
@@ -328,7 +325,7 @@ static int vic_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	err = falcon_read_firmware(&vic->falcon, vic_config->firmware);
+	err = falcon_read_firmware(&vic->falcon, vic->config->firmware);
 	if (err < 0)
 		goto exit_falcon;
 
@@ -341,7 +338,6 @@ static int vic_probe(struct platform_device *pdev)
 	vic->client.base.syncpts = syncpts;
 	vic->client.base.num_syncpts = 1;
 	vic->dev = dev;
-	vic->config = vic_config;
 
 	INIT_LIST_HEAD(&vic->client.list);
 	vic->client.ops = &vic_ops;
