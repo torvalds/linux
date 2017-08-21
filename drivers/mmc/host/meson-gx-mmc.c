@@ -366,7 +366,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	init.num_parents = MUX_CLK_NUM_PARENTS;
 	host->mux.reg = host->regs + SD_EMMC_CLOCK;
 	host->mux.shift = __bf_shf(CLK_SRC_MASK);
-	host->mux.mask = CLK_SRC_MASK;
+	host->mux.mask = CLK_SRC_MASK >> host->mux.shift;
 	host->mux.flags = 0;
 	host->mux.table = NULL;
 	host->mux.hw.init = &init;
