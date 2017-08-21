@@ -704,7 +704,8 @@ static int omap_hdq_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq	< 0) {
-		ret = -ENXIO;
+		dev_dbg(&pdev->dev, "Failed to get IRQ: %d\n", irq);
+		ret = irq;
 		goto err_irq;
 	}
 

@@ -4368,12 +4368,12 @@ static int rt5665_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 		switch (dai->id) {
 		case RT5665_AIF2_1:
 		case RT5665_AIF2_2:
-			snd_soc_update_bits(codec, RT5665_ADDA_CLK_1,
+			snd_soc_update_bits(codec, RT5665_ADDA_CLK_2,
 				RT5665_I2S_BCLK_MS2_MASK,
 				RT5665_I2S_BCLK_MS2_64);
 			break;
 		case RT5665_AIF3:
-			snd_soc_update_bits(codec, RT5665_ADDA_CLK_1,
+			snd_soc_update_bits(codec, RT5665_ADDA_CLK_2,
 				RT5665_I2S_BCLK_MS3_MASK,
 				RT5665_I2S_BCLK_MS3_64);
 			break;
@@ -4562,7 +4562,7 @@ static struct snd_soc_dai_driver rt5665_dai[] = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt5665 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt5665 = {
 	.probe = rt5665_probe,
 	.remove = rt5665_remove,
 	.suspend = rt5665_suspend,

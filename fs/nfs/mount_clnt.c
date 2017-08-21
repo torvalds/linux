@@ -512,7 +512,7 @@ static const struct rpc_version mnt_version1 = {
 	.counts		= mnt_counts,
 };
 
-static unsigned int mnt3_counts[ARRAY_SIZE(mnt_procedures)];
+static unsigned int mnt3_counts[ARRAY_SIZE(mnt3_procedures)];
 static const struct rpc_version mnt_version3 = {
 	.number		= 3,
 	.nrprocs	= ARRAY_SIZE(mnt3_procedures),

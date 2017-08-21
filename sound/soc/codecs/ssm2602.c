@@ -591,7 +591,7 @@ static int ssm260x_codec_probe(struct snd_soc_codec *codec)
 	return ret;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_ssm2602 = {
+static const struct snd_soc_codec_driver soc_codec_dev_ssm2602 = {
 	.probe =	ssm260x_codec_probe,
 	.resume =	ssm2602_resume,
 	.set_bias_level = ssm2602_set_bias_level,

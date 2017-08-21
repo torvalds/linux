@@ -777,11 +777,11 @@ static void acpi_freeze_sync(void)
 	/*
 	 * Process all pending events in case there are any wakeup ones.
 	 *
-	 * The EC driver uses the system workqueue, so that one needs to be
-	 * flushed too.
+	 * The EC driver uses the system workqueue and an additional special
+	 * one, so those need to be flushed too.
 	 */
+	acpi_ec_flush_work();
 	acpi_os_wait_events_complete();
-	flush_scheduled_work();
 	s2idle_wakeup = false;
 }
 

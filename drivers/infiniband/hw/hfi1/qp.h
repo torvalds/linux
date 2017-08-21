@@ -123,8 +123,7 @@ void hfi1_migrate_qp(struct rvt_qp *qp);
 /*
  * Functions provided by hfi1 driver for rdmavt to use
  */
-void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-		    gfp_t gfp);
+void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 unsigned free_all_qps(struct rvt_dev_info *rdi);
 void notify_qp_reset(struct rvt_qp *qp);

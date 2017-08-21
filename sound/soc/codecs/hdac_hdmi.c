@@ -1858,7 +1858,7 @@ static void hdmi_codec_complete(struct device *dev)
 #define hdmi_codec_complete NULL
 #endif
 
-static struct snd_soc_codec_driver hdmi_hda_codec = {
+static const struct snd_soc_codec_driver hdmi_hda_codec = {
 	.probe		= hdmi_codec_probe,
 	.remove		= hdmi_codec_remove,
 	.idle_bias_off	= true,

@@ -779,7 +779,7 @@ static int cs35l34_probe(struct snd_soc_codec *codec)
 }
 
 
-static struct snd_soc_codec_driver soc_codec_dev_cs35l34 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs35l34 = {
 	.probe = cs35l34_probe,
 
 	.component_driver = {

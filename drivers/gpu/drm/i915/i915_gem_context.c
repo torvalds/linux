@@ -688,19 +688,19 @@ static inline bool skip_rcs_switch(struct i915_hw_ppgtt *ppgtt,
 }
 
 static bool
-needs_pd_load_pre(struct i915_hw_ppgtt *ppgtt,
-		  struct intel_engine_cs *engine,
-		  struct i915_gem_context *to)
+needs_pd_load_pre(struct i915_hw_ppgtt *ppgtt, struct intel_engine_cs *engine)
 {
+	struct i915_gem_context *from = engine->legacy_active_context;
+
 	if (!ppgtt)
 		return false;
 
 	/* Always load the ppgtt on first use */
-	if (!engine->legacy_active_context)
+	if (!from)
 		return true;
 
 	/* Same context without new entries, skip */
-	if (engine->legacy_active_context == to &&
+	if ((!from->ppgtt || from->ppgtt == ppgtt) &&
 	    !(intel_engine_flag(engine) & ppgtt->pd_dirty_rings))
 		return false;
 
@@ -744,7 +744,7 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 	if (skip_rcs_switch(ppgtt, engine, to))
 		return 0;
 
-	if (needs_pd_load_pre(ppgtt, engine, to)) {
+	if (needs_pd_load_pre(ppgtt, engine)) {
 		/* Older GENs and non render rings still want the load first,
 		 * "PP_DCLV followed by PP_DIR_BASE register through Load
 		 * Register Immediate commands in Ring Buffer before submitting
@@ -841,7 +841,7 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 		struct i915_hw_ppgtt *ppgtt =
 			to->ppgtt ?: req->i915->mm.aliasing_ppgtt;
 
-		if (needs_pd_load_pre(ppgtt, engine, to)) {
+		if (needs_pd_load_pre(ppgtt, engine)) {
 			int ret;
 
 			trace_switch_mm(engine, to);
@@ -852,6 +852,7 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 			ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
 		}
 
+		engine->legacy_active_context = to;
 		return 0;
 	}
 
