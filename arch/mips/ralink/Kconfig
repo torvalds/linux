@@ -82,6 +82,11 @@ choice
 		depends on SOC_MT7620
 		select BUILTIN_DTB
 
+	config DTB_VOCORE2
+		bool "VoCore2"
+		depends on SOC_MT7620
+		select BUILTIN_DTB
+
 endchoice
 
 endif
