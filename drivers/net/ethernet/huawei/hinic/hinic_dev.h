@@ -19,10 +19,22 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/semaphore.h>
+#include <linux/workqueue.h>
+#include <linux/bitops.h>
 
 #include "hinic_hw_dev.h"
 
 #define HINIC_DRV_NAME          "hinic"
+
+enum hinic_flags {
+	HINIC_LINK_UP = BIT(0),
+	HINIC_INTF_UP = BIT(1),
+};
+
+struct hinic_rx_mode_work {
+	struct work_struct      work;
+	u32                     rx_mode;
+};
 
 struct hinic_dev {
 	struct net_device               *netdev;
@@ -30,8 +42,13 @@ struct hinic_dev {
 
 	u32                             msg_enable;
 
+	unsigned int                    flags;
+
 	struct semaphore                mgmt_lock;
 	unsigned long                   *vlan_bitmap;
+
+	struct hinic_rx_mode_work       rx_mode_work;
+	struct workqueue_struct         *workq;
 };
 
 #endif

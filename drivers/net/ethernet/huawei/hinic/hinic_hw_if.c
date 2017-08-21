@@ -116,6 +116,23 @@ int hinic_msix_attr_cnt_clear(struct hinic_hwif *hwif, u16 msix_index)
 }
 
 /**
+ * hinic_set_pf_action - set action on pf channel
+ * @hwif: the HW interface of a pci function device
+ * @action: action on pf channel
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+void hinic_set_pf_action(struct hinic_hwif *hwif, enum hinic_pf_action action)
+{
+	u32 attr5 = hinic_hwif_read_reg(hwif, HINIC_CSR_FUNC_ATTR5_ADDR);
+
+	attr5 = HINIC_FA5_CLEAR(attr5, PF_ACTION);
+	attr5 |= HINIC_FA5_SET(action, PF_ACTION);
+
+	hinic_hwif_write_reg(hwif, HINIC_CSR_FUNC_ATTR5_ADDR, attr5);
+}
+
+/**
  * hwif_ready - test if the HW is ready for use
  * @hwif: the HW interface of a pci function device
  *

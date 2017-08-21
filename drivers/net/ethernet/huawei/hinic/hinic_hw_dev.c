@@ -230,6 +230,118 @@ int hinic_port_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_port_cmd cmd,
 }
 
 /**
+ * hinic_hwdev_cb_register - register callback handler for MGMT events
+ * @hwdev: the NIC HW device
+ * @cmd: the mgmt event
+ * @handle: private data for the handler
+ * @handler: event handler
+ **/
+void hinic_hwdev_cb_register(struct hinic_hwdev *hwdev,
+			     enum hinic_mgmt_msg_cmd cmd, void *handle,
+			     void (*handler)(void *handle, void *buf_in,
+					     u16 in_size, void *buf_out,
+					     u16 *out_size))
+{
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_pfhwdev *pfhwdev;
+	struct hinic_nic_cb *nic_cb;
+	u8 cmd_cb;
+
+	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
+		dev_err(&pdev->dev, "unsupported PCI Function type\n");
+		return;
+	}
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	cmd_cb = cmd - HINIC_MGMT_MSG_CMD_BASE;
+	nic_cb = &pfhwdev->nic_cb[cmd_cb];
+
+	nic_cb->handler = handler;
+	nic_cb->handle = handle;
+	nic_cb->cb_state = HINIC_CB_ENABLED;
+}
+
+/**
+ * hinic_hwdev_cb_unregister - unregister callback handler for MGMT events
+ * @hwdev: the NIC HW device
+ * @cmd: the mgmt event
+ **/
+void hinic_hwdev_cb_unregister(struct hinic_hwdev *hwdev,
+			       enum hinic_mgmt_msg_cmd cmd)
+{
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_pfhwdev *pfhwdev;
+	struct hinic_nic_cb *nic_cb;
+	u8 cmd_cb;
+
+	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
+		dev_err(&pdev->dev, "unsupported PCI Function type\n");
+		return;
+	}
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	cmd_cb = cmd - HINIC_MGMT_MSG_CMD_BASE;
+	nic_cb = &pfhwdev->nic_cb[cmd_cb];
+
+	nic_cb->cb_state &= ~HINIC_CB_ENABLED;
+
+	while (nic_cb->cb_state & HINIC_CB_RUNNING)
+		schedule();
+
+	nic_cb->handler = NULL;
+}
+
+/**
+ * nic_mgmt_msg_handler - nic mgmt event handler
+ * @handle: private data for the handler
+ * @buf_in: input buffer
+ * @in_size: input size
+ * @buf_out: output buffer
+ * @out_size: returned output size
+ **/
+static void nic_mgmt_msg_handler(void *handle, u8 cmd, void *buf_in,
+				 u16 in_size, void *buf_out, u16 *out_size)
+{
+	struct hinic_pfhwdev *pfhwdev = handle;
+	enum hinic_cb_state cb_state;
+	struct hinic_nic_cb *nic_cb;
+	struct hinic_hwdev *hwdev;
+	struct hinic_hwif *hwif;
+	struct pci_dev *pdev;
+	u8 cmd_cb;
+
+	hwdev = &pfhwdev->hwdev;
+	hwif = hwdev->hwif;
+	pdev = hwif->pdev;
+
+	if ((cmd < HINIC_MGMT_MSG_CMD_BASE) ||
+	    (cmd >= HINIC_MGMT_MSG_CMD_MAX)) {
+		dev_err(&pdev->dev, "unknown L2NIC event, cmd = %d\n", cmd);
+		return;
+	}
+
+	cmd_cb = cmd - HINIC_MGMT_MSG_CMD_BASE;
+
+	nic_cb = &pfhwdev->nic_cb[cmd_cb];
+
+	cb_state = cmpxchg(&nic_cb->cb_state,
+			   HINIC_CB_ENABLED,
+			   HINIC_CB_ENABLED | HINIC_CB_RUNNING);
+
+	if ((cb_state == HINIC_CB_ENABLED) && (nic_cb->handler))
+		nic_cb->handler(nic_cb->handle, buf_in,
+				in_size, buf_out, out_size);
+	else
+		dev_err(&pdev->dev, "Unhandled NIC Event %d\n", cmd);
+
+	nic_cb->cb_state &= ~HINIC_CB_RUNNING;
+}
+
+/**
  * init_pfhwdev - Initialize the extended components of PF
  * @pfhwdev: the HW device for PF
  *
@@ -248,6 +360,10 @@ static int init_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 		return err;
 	}
 
+	hinic_register_mgmt_msg_cb(&pfhwdev->pf_to_mgmt, HINIC_MOD_L2NIC,
+				   pfhwdev, nic_mgmt_msg_handler);
+
+	hinic_set_pf_action(hwif, HINIC_PF_MGMT_ACTIVE);
 	return 0;
 }
 
@@ -257,6 +373,12 @@ static int init_pfhwdev(struct hinic_pfhwdev *pfhwdev)
  **/
 static void free_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 {
+	struct hinic_hwdev *hwdev = &pfhwdev->hwdev;
+
+	hinic_set_pf_action(hwdev->hwif, HINIC_PF_MGMT_INIT);
+
+	hinic_unregister_mgmt_msg_cb(&pfhwdev->pf_to_mgmt, HINIC_MOD_L2NIC);
+
 	hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
 }
 

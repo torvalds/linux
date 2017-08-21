@@ -73,6 +73,46 @@ enum msg_ack_type {
 };
 
 /**
+ * hinic_register_mgmt_msg_cb - register msg handler for a msg from a module
+ * @pf_to_mgmt: PF to MGMT channel
+ * @mod: module in the chip that this handler will handle its messages
+ * @handle: private data for the callback
+ * @callback: the handler that will handle messages
+ **/
+void hinic_register_mgmt_msg_cb(struct hinic_pf_to_mgmt *pf_to_mgmt,
+				enum hinic_mod_type mod,
+				void *handle,
+				void (*callback)(void *handle,
+						 u8 cmd, void *buf_in,
+						 u16 in_size, void *buf_out,
+						 u16 *out_size))
+{
+	struct hinic_mgmt_cb *mgmt_cb = &pf_to_mgmt->mgmt_cb[mod];
+
+	mgmt_cb->cb = callback;
+	mgmt_cb->handle = handle;
+	mgmt_cb->state = HINIC_MGMT_CB_ENABLED;
+}
+
+/**
+ * hinic_unregister_mgmt_msg_cb - unregister msg handler for a msg from a module
+ * @pf_to_mgmt: PF to MGMT channel
+ * @mod: module in the chip that this handler handles its messages
+ **/
+void hinic_unregister_mgmt_msg_cb(struct hinic_pf_to_mgmt *pf_to_mgmt,
+				  enum hinic_mod_type mod)
+{
+	struct hinic_mgmt_cb *mgmt_cb = &pf_to_mgmt->mgmt_cb[mod];
+
+	mgmt_cb->state &= ~HINIC_MGMT_CB_ENABLED;
+
+	while (mgmt_cb->state & HINIC_MGMT_CB_RUNNING)
+		schedule();
+
+	mgmt_cb->cb = NULL;
+}
+
+/**
  * prepare_header - prepare the header of the message
  * @pf_to_mgmt: PF to MGMT channel
  * @msg_len: the length of the message
@@ -337,9 +377,31 @@ static void mgmt_recv_msg_handler(struct hinic_pf_to_mgmt *pf_to_mgmt,
 	struct hinic_hwif *hwif = pf_to_mgmt->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	u8 *buf_out = recv_msg->buf_out;
+	struct hinic_mgmt_cb *mgmt_cb;
+	unsigned long cb_state;
 	u16 out_size = 0;
 
-	dev_err(&pdev->dev, "No MGMT msg handler, mod = %d\n", recv_msg->mod);
+	if (recv_msg->mod >= HINIC_MOD_MAX) {
+		dev_err(&pdev->dev, "Unknown MGMT MSG module = %d\n",
+			recv_msg->mod);
+		return;
+	}
+
+	mgmt_cb = &pf_to_mgmt->mgmt_cb[recv_msg->mod];
+
+	cb_state = cmpxchg(&mgmt_cb->state,
+			   HINIC_MGMT_CB_ENABLED,
+			   HINIC_MGMT_CB_ENABLED | HINIC_MGMT_CB_RUNNING);
+
+	if ((cb_state == HINIC_MGMT_CB_ENABLED) && (mgmt_cb->cb))
+		mgmt_cb->cb(mgmt_cb->handle, recv_msg->cmd,
+			    recv_msg->msg, recv_msg->msg_len,
+			    buf_out, &out_size);
+	else
+		dev_err(&pdev->dev, "No MGMT msg handler, mod = %d\n",
+			recv_msg->mod);
+
+	mgmt_cb->state &= ~HINIC_MGMT_CB_RUNNING;
 
 	if (!recv_msg->async_mgmt_to_pf)
 		/* MGMT sent sync msg, send the response */

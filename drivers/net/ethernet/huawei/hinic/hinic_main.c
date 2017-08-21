@@ -24,9 +24,11 @@
 #include <linux/slab.h>
 #include <linux/if_vlan.h>
 #include <linux/semaphore.h>
+#include <linux/workqueue.h>
 #include <net/ip.h>
 #include <linux/bitops.h>
 #include <linux/bitmap.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 
 #include "hinic_hw_dev.h"
@@ -39,11 +41,98 @@ MODULE_LICENSE("GPL");
 
 #define PCI_DEVICE_ID_HI1822_PF         0x1822
 
+#define HINIC_WQ_NAME                   "hinic_dev"
+
 #define MSG_ENABLE_DEFAULT              (NETIF_MSG_DRV | NETIF_MSG_PROBE | \
 					 NETIF_MSG_IFUP |                  \
 					 NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
 
 #define VLAN_BITMAP_SIZE(nic_dev)       (ALIGN(VLAN_N_VID, 8) / 8)
+
+#define work_to_rx_mode_work(work)      \
+		container_of(work, struct hinic_rx_mode_work, work)
+
+#define rx_mode_work_to_nic_dev(rx_mode_work) \
+		container_of(rx_mode_work, struct hinic_dev, rx_mode_work)
+
+static int change_mac_addr(struct net_device *netdev, const u8 *addr);
+
+static int hinic_open(struct net_device *netdev)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	enum hinic_port_link_state link_state;
+	int err, ret;
+
+	err = hinic_port_set_state(nic_dev, HINIC_PORT_ENABLE);
+	if (err) {
+		netif_err(nic_dev, drv, netdev,
+			  "Failed to set port state\n");
+		return err;
+	}
+
+	/* Wait up to 3 sec between port enable to link state */
+	msleep(3000);
+
+	down(&nic_dev->mgmt_lock);
+
+	err = hinic_port_link_state(nic_dev, &link_state);
+	if (err) {
+		netif_err(nic_dev, drv, netdev, "Failed to get link state\n");
+		goto err_port_link;
+	}
+
+	if (link_state == HINIC_LINK_STATE_UP)
+		nic_dev->flags |= HINIC_LINK_UP;
+
+	nic_dev->flags |= HINIC_INTF_UP;
+
+	if ((nic_dev->flags & (HINIC_LINK_UP | HINIC_INTF_UP)) ==
+	    (HINIC_LINK_UP | HINIC_INTF_UP)) {
+		netif_info(nic_dev, drv, netdev, "link + intf UP\n");
+		netif_carrier_on(netdev);
+		netif_tx_wake_all_queues(netdev);
+	}
+
+	up(&nic_dev->mgmt_lock);
+
+	netif_info(nic_dev, drv, netdev, "HINIC_INTF is UP\n");
+	return 0;
+
+err_port_link:
+	up(&nic_dev->mgmt_lock);
+	ret = hinic_port_set_state(nic_dev, HINIC_PORT_DISABLE);
+	if (ret)
+		netif_warn(nic_dev, drv, netdev,
+			   "Failed to revert port state\n");
+	return err;
+}
+
+static int hinic_close(struct net_device *netdev)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	unsigned int flags;
+	int err;
+
+	down(&nic_dev->mgmt_lock);
+
+	flags = nic_dev->flags;
+	nic_dev->flags &= ~HINIC_INTF_UP;
+
+	netif_carrier_off(netdev);
+	netif_tx_disable(netdev);
+
+	up(&nic_dev->mgmt_lock);
+
+	err = hinic_port_set_state(nic_dev, HINIC_PORT_DISABLE);
+	if (err) {
+		netif_err(nic_dev, drv, netdev, "Failed to set port state\n");
+		nic_dev->flags |= (flags & HINIC_INTF_UP);
+		return err;
+	}
+
+	netif_info(nic_dev, drv, netdev, "HINIC_INTF is DOWN\n");
+	return 0;
+}
 
 static int hinic_change_mtu(struct net_device *netdev, int new_mtu)
 {
@@ -118,6 +207,77 @@ static int hinic_set_mac_addr(struct net_device *netdev, void *addr)
 	return err;
 }
 
+/**
+ * add_mac_addr - add mac address to network device
+ * @netdev: network device
+ * @addr: mac address to add
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int add_mac_addr(struct net_device *netdev, const u8 *addr)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u16 vid = 0;
+	int err;
+
+	if (!is_valid_ether_addr(addr))
+		return -EADDRNOTAVAIL;
+
+	netif_info(nic_dev, drv, netdev, "set mac addr = %02x %02x %02x %02x %02x %02x\n",
+		   addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+
+	down(&nic_dev->mgmt_lock);
+
+	do {
+		err = hinic_port_add_mac(nic_dev, addr, vid);
+		if (err) {
+			netif_err(nic_dev, drv, netdev, "Failed to add mac\n");
+			break;
+		}
+
+		vid = find_next_bit(nic_dev->vlan_bitmap, VLAN_N_VID, vid + 1);
+	} while (vid != VLAN_N_VID);
+
+	up(&nic_dev->mgmt_lock);
+	return err;
+}
+
+/**
+ * remove_mac_addr - remove mac address from network device
+ * @netdev: network device
+ * @addr: mac address to remove
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static int remove_mac_addr(struct net_device *netdev, const u8 *addr)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	u16 vid = 0;
+	int err;
+
+	if (!is_valid_ether_addr(addr))
+		return -EADDRNOTAVAIL;
+
+	netif_info(nic_dev, drv, netdev, "remove mac addr = %02x %02x %02x %02x %02x %02x\n",
+		   addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+
+	down(&nic_dev->mgmt_lock);
+
+	do {
+		err = hinic_port_del_mac(nic_dev, addr, vid);
+		if (err) {
+			netif_err(nic_dev, drv, netdev,
+				  "Failed to delete mac\n");
+			break;
+		}
+
+		vid = find_next_bit(nic_dev->vlan_bitmap, VLAN_N_VID, vid + 1);
+	} while (vid != VLAN_N_VID);
+
+	up(&nic_dev->mgmt_lock);
+	return err;
+}
+
 static int hinic_vlan_rx_add_vid(struct net_device *netdev,
 				 __always_unused __be16 proto, u16 vid)
 {
@@ -182,12 +342,56 @@ err_del_vlan:
 	return err;
 }
 
+static void set_rx_mode(struct work_struct *work)
+{
+	struct hinic_rx_mode_work *rx_mode_work = work_to_rx_mode_work(work);
+	struct hinic_dev *nic_dev = rx_mode_work_to_nic_dev(rx_mode_work);
+
+	netif_info(nic_dev, drv, nic_dev->netdev, "set rx mode work\n");
+
+	hinic_port_set_rx_mode(nic_dev, rx_mode_work->rx_mode);
+
+	__dev_uc_sync(nic_dev->netdev, add_mac_addr, remove_mac_addr);
+	__dev_mc_sync(nic_dev->netdev, add_mac_addr, remove_mac_addr);
+}
+
+static void hinic_set_rx_mode(struct net_device *netdev)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic_rx_mode_work *rx_mode_work;
+	u32 rx_mode;
+
+	rx_mode_work = &nic_dev->rx_mode_work;
+
+	rx_mode = HINIC_RX_MODE_UC |
+		  HINIC_RX_MODE_MC |
+		  HINIC_RX_MODE_BC;
+
+	if (netdev->flags & IFF_PROMISC)
+		rx_mode |= HINIC_RX_MODE_PROMISC;
+	else if (netdev->flags & IFF_ALLMULTI)
+		rx_mode |= HINIC_RX_MODE_MC_ALL;
+
+	rx_mode_work->rx_mode = rx_mode;
+
+	queue_work(nic_dev->workq, &rx_mode_work->work);
+}
+
+netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
+{
+	return NETDEV_TX_BUSY;
+}
+
 static const struct net_device_ops hinic_netdev_ops = {
+	.ndo_open = hinic_open,
+	.ndo_stop = hinic_close,
 	.ndo_change_mtu = hinic_change_mtu,
 	.ndo_set_mac_address = hinic_set_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_vlan_rx_add_vid = hinic_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = hinic_vlan_rx_kill_vid,
+	.ndo_set_rx_mode = hinic_set_rx_mode,
+	.ndo_start_xmit = hinic_xmit_frame,
 	/* more operations should be filled */
 };
 
@@ -201,6 +405,57 @@ static void netdev_features_init(struct net_device *netdev)
 }
 
 /**
+ * link_status_event_handler - link event handler
+ * @handle: nic device for the handler
+ * @buf_in: input buffer
+ * @in_size: input size
+ * @buf_in: output buffer
+ * @out_size: returned output size
+ *
+ * Return 0 - Success, negative - Failure
+ **/
+static void link_status_event_handler(void *handle, void *buf_in, u16 in_size,
+				      void *buf_out, u16 *out_size)
+{
+	struct hinic_port_link_status *link_status, *ret_link_status;
+	struct hinic_dev *nic_dev = handle;
+
+	link_status = buf_in;
+
+	if (link_status->link == HINIC_LINK_STATE_UP) {
+		down(&nic_dev->mgmt_lock);
+
+		nic_dev->flags |= HINIC_LINK_UP;
+
+		if ((nic_dev->flags & (HINIC_LINK_UP | HINIC_INTF_UP)) ==
+		    (HINIC_LINK_UP | HINIC_INTF_UP)) {
+			netif_carrier_on(nic_dev->netdev);
+			netif_tx_wake_all_queues(nic_dev->netdev);
+		}
+
+		up(&nic_dev->mgmt_lock);
+
+		netif_info(nic_dev, drv, nic_dev->netdev, "HINIC_Link is UP\n");
+	} else {
+		down(&nic_dev->mgmt_lock);
+
+		nic_dev->flags &= ~HINIC_LINK_UP;
+
+		netif_carrier_off(nic_dev->netdev);
+		netif_tx_disable(nic_dev->netdev);
+
+		up(&nic_dev->mgmt_lock);
+
+		netif_info(nic_dev, drv, nic_dev->netdev, "HINIC_Link is DOWN\n");
+	}
+
+	ret_link_status = buf_out;
+	ret_link_status->status = 0;
+
+	*out_size = sizeof(*ret_link_status);
+}
+
+/**
  * nic_dev_init - Initialize the NIC device
  * @pdev: the NIC pci device
  *
@@ -208,6 +463,7 @@ static void netdev_features_init(struct net_device *netdev)
  **/
 static int nic_dev_init(struct pci_dev *pdev)
 {
+	struct hinic_rx_mode_work *rx_mode_work;
 	struct hinic_dev *nic_dev;
 	struct net_device *netdev;
 	struct hinic_hwdev *hwdev;
@@ -239,6 +495,7 @@ static int nic_dev_init(struct pci_dev *pdev)
 	nic_dev->netdev = netdev;
 	nic_dev->hwdev  = hwdev;
 	nic_dev->msg_enable = MSG_ENABLE_DEFAULT;
+	nic_dev->flags = 0;
 
 	sema_init(&nic_dev->mgmt_lock, 1);
 
@@ -248,6 +505,12 @@ static int nic_dev_init(struct pci_dev *pdev)
 	if (!nic_dev->vlan_bitmap) {
 		err = -ENOMEM;
 		goto err_vlan_bitmap;
+	}
+
+	nic_dev->workq = create_singlethread_workqueue(HINIC_WQ_NAME);
+	if (!nic_dev->workq) {
+		err = -ENOMEM;
+		goto err_workq;
 	}
 
 	pci_set_drvdata(pdev, netdev);
@@ -268,9 +531,15 @@ static int nic_dev_init(struct pci_dev *pdev)
 		goto err_set_mtu;
 	}
 
+	rx_mode_work = &nic_dev->rx_mode_work;
+	INIT_WORK(&rx_mode_work->work, set_rx_mode);
+
 	netdev_features_init(netdev);
 
 	netif_carrier_off(netdev);
+
+	hinic_hwdev_cb_register(nic_dev->hwdev, HINIC_MGMT_MSG_CMD_LINK_STATUS,
+				nic_dev, link_status_event_handler);
 
 	err = register_netdev(netdev);
 	if (err) {
@@ -281,10 +550,16 @@ static int nic_dev_init(struct pci_dev *pdev)
 	return 0;
 
 err_reg_netdev:
+	hinic_hwdev_cb_unregister(nic_dev->hwdev,
+				  HINIC_MGMT_MSG_CMD_LINK_STATUS);
+	cancel_work_sync(&rx_mode_work->work);
+
 err_set_mtu:
 err_add_mac:
 	pci_set_drvdata(pdev, NULL);
+	destroy_workqueue(nic_dev->workq);
 
+err_workq:
 err_vlan_bitmap:
 	free_netdev(netdev);
 
@@ -357,10 +632,19 @@ static void hinic_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic_rx_mode_work *rx_mode_work;
 
 	unregister_netdev(netdev);
 
+	hinic_hwdev_cb_unregister(nic_dev->hwdev,
+				  HINIC_MGMT_MSG_CMD_LINK_STATUS);
+
+	rx_mode_work = &nic_dev->rx_mode_work;
+	cancel_work_sync(&rx_mode_work->work);
+
 	pci_set_drvdata(pdev, NULL);
+
+	destroy_workqueue(nic_dev->workq);
 
 	hinic_free_hwdev(nic_dev->hwdev);
 

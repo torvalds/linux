@@ -18,12 +18,16 @@
 
 #include <linux/pci.h>
 #include <linux/types.h>
+#include <linux/bitops.h>
 
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
 #include "hinic_hw_mgmt.h"
 
 #define HINIC_MAX_QPS   32
+
+#define HINIC_MGMT_NUM_MSG_CMD  (HINIC_MGMT_MSG_CMD_MAX - \
+				 HINIC_MGMT_MSG_CMD_BASE)
 
 struct hinic_cap {
 	u16     max_qps;
@@ -55,6 +59,19 @@ enum hinic_port_cmd {
 	HINIC_PORT_CMD_GET_CAP          = 170,
 };
 
+enum hinic_mgmt_msg_cmd {
+	HINIC_MGMT_MSG_CMD_BASE         = 160,
+
+	HINIC_MGMT_MSG_CMD_LINK_STATUS  = 160,
+
+	HINIC_MGMT_MSG_CMD_MAX,
+};
+
+enum hinic_cb_state {
+	HINIC_CB_ENABLED = BIT(0),
+	HINIC_CB_RUNNING = BIT(1),
+};
+
 struct hinic_hwdev {
 	struct hinic_hwif               *hwif;
 	struct msix_entry               *msix_entries;
@@ -64,11 +81,31 @@ struct hinic_hwdev {
 	struct hinic_cap                nic_cap;
 };
 
+struct hinic_nic_cb {
+	void    (*handler)(void *handle, void *buf_in,
+			   u16 in_size, void *buf_out,
+			   u16 *out_size);
+
+	void            *handle;
+	unsigned long   cb_state;
+};
+
 struct hinic_pfhwdev {
 	struct hinic_hwdev              hwdev;
 
 	struct hinic_pf_to_mgmt         pf_to_mgmt;
+
+	struct hinic_nic_cb             nic_cb[HINIC_MGMT_NUM_MSG_CMD];
 };
+
+void hinic_hwdev_cb_register(struct hinic_hwdev *hwdev,
+			     enum hinic_mgmt_msg_cmd cmd, void *handle,
+			     void (*handler)(void *handle, void *buf_in,
+					     u16 in_size, void *buf_out,
+					     u16 *out_size));
+
+void hinic_hwdev_cb_unregister(struct hinic_hwdev *hwdev,
+			       enum hinic_mgmt_msg_cmd cmd);
 
 int hinic_port_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_port_cmd cmd,
 		       void *buf_in, u16 in_size, void *buf_out,

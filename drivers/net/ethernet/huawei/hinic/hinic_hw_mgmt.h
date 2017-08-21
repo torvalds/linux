@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/semaphore.h>
 #include <linux/completion.h>
+#include <linux/bitops.h>
 
 #include "hinic_hw_if.h"
 #include "hinic_hw_api_cmd.h"
@@ -67,6 +68,11 @@ enum hinic_cfg_cmd {
 	HINIC_CFG_NIC_CAP = 0,
 };
 
+enum hinic_mgmt_cb_state {
+	HINIC_MGMT_CB_ENABLED = BIT(0),
+	HINIC_MGMT_CB_RUNNING = BIT(1),
+};
+
 struct hinic_recv_msg {
 	u8                      *msg;
 	u8                      *buf_out;
@@ -81,6 +87,15 @@ struct hinic_recv_msg {
 	u16                     msg_id;
 };
 
+struct hinic_mgmt_cb {
+	void    (*cb)(void *handle, u8 cmd,
+		      void *buf_in, u16 in_size,
+		      void *buf_out, u16 *out_size);
+
+	void            *handle;
+	unsigned long   state;
+};
+
 struct hinic_pf_to_mgmt {
 	struct hinic_hwif               *hwif;
 
@@ -92,7 +107,20 @@ struct hinic_pf_to_mgmt {
 	struct hinic_recv_msg           recv_msg_from_mgmt;
 
 	struct hinic_api_cmd_chain      *cmd_chain[HINIC_API_CMD_MAX];
+
+	struct hinic_mgmt_cb            mgmt_cb[HINIC_MOD_MAX];
 };
+
+void hinic_register_mgmt_msg_cb(struct hinic_pf_to_mgmt *pf_to_mgmt,
+				enum hinic_mod_type mod,
+				void *handle,
+				void (*callback)(void *handle,
+						 u8 cmd, void *buf_in,
+						 u16 in_size, void *buf_out,
+						 u16 *out_size));
+
+void hinic_unregister_mgmt_msg_cb(struct hinic_pf_to_mgmt *pf_to_mgmt,
+				  enum hinic_mod_type mod);
 
 int hinic_msg_to_mgmt(struct hinic_pf_to_mgmt *pf_to_mgmt,
 		      enum hinic_mod_type mod, u8 cmd,

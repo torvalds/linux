@@ -73,6 +73,15 @@
 #define HINIC_FA1_GET(val, member)                              \
 	(((val) >> HINIC_FA1_##member##_SHIFT) & HINIC_FA1_##member##_MASK)
 
+#define HINIC_FA5_PF_ACTION_SHIFT                               0
+#define HINIC_FA5_PF_ACTION_MASK                                0xFFFF
+
+#define HINIC_FA5_SET(val, member)                              \
+	(((u32)(val) & HINIC_FA5_##member##_MASK) << HINIC_FA5_##member##_SHIFT)
+
+#define HINIC_FA5_CLEAR(val, member)                            \
+	((val) & (~(HINIC_FA5_##member##_MASK << HINIC_FA5_##member##_SHIFT)))
+
 #define HINIC_PPF_ELECTION_IDX_SHIFT                            0
 #define HINIC_PPF_ELECTION_IDX_MASK                             0x1F
 
@@ -166,6 +175,12 @@ enum hinic_node_id {
 	HINIC_NODE_ID_MGMT = 21,
 };
 
+enum hinic_pf_action {
+	HINIC_PF_MGMT_INIT = 0x0,
+
+	HINIC_PF_MGMT_ACTIVE = 0x11,
+};
+
 struct hinic_func_attr {
 	u16                     func_idx;
 	u8                      pf_idx;
@@ -211,6 +226,8 @@ int hinic_msix_attr_get(struct hinic_hwif *hwif, u16 msix_index,
 			u8 *resend_timer);
 
 int hinic_msix_attr_cnt_clear(struct hinic_hwif *hwif, u16 msix_index);
+
+void hinic_set_pf_action(struct hinic_hwif *hwif, enum hinic_pf_action action);
 
 int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev);
 
