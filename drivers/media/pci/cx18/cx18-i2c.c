@@ -216,7 +216,7 @@ static const struct i2c_adapter cx18_i2c_adap_template = {
 #define CX18_SCL_PERIOD (10) /* usecs. 10 usec is period for a 100 KHz clock */
 #define CX18_ALGO_BIT_TIMEOUT (2) /* seconds */
 
-static struct i2c_algo_bit_data cx18_i2c_algo_template = {
+static const struct i2c_algo_bit_data cx18_i2c_algo_template = {
 	.setsda		= cx18_setsda,
 	.setscl		= cx18_setscl,
 	.getsda		= cx18_getsda,
