@@ -559,7 +559,7 @@ static ssize_t olpc_bat_error_read(struct device *dev,
 	return sprintf(buf, "%d\n", ec_byte);
 }
 
-static struct device_attribute olpc_bat_error = {
+static const struct device_attribute olpc_bat_error = {
 	.attr = {
 		.name = "error",
 		.mode = S_IRUGO,
