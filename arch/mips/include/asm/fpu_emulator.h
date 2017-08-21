@@ -36,6 +36,7 @@ struct mips_fpu_emulator_stats {
 	unsigned long emulated;
 	unsigned long loads;
 	unsigned long stores;
+	unsigned long branches;
 	unsigned long cp1ops;
 	unsigned long cp1xops;
 	unsigned long errors;

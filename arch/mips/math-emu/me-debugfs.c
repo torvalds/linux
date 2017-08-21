@@ -53,6 +53,7 @@ do {									\
 	FPU_STAT_CREATE(emulated);
 	FPU_STAT_CREATE(loads);
 	FPU_STAT_CREATE(stores);
+	FPU_STAT_CREATE(branches);
 	FPU_STAT_CREATE(cp1ops);
 	FPU_STAT_CREATE(cp1xops);
 	FPU_STAT_CREATE(errors);
