@@ -2394,6 +2394,7 @@ dcopuop:
 			break;
 			}
 		}
+		break;
 	}
 
 	case l_fmt:
@@ -2468,6 +2469,8 @@ dcopuop:
 			break;
 			}
 		}
+		break;
+
 	default:
 		return SIGILL;
 	}
