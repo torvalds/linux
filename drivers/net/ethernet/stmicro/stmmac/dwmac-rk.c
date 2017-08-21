@@ -787,6 +787,58 @@ static const struct rk_gmac_ops rk3399_ops = {
 	.set_rmii_speed = rk3399_set_rmii_speed,
 };
 
+#define RV1108_GRF_GMAC_CON0		0X0900
+
+/* RV1108_GRF_GMAC_CON0 */
+#define RV1108_GMAC_PHY_INTF_SEL_RMII	(GRF_CLR_BIT(4) | GRF_CLR_BIT(5) | \
+					GRF_BIT(6))
+#define RV1108_GMAC_FLOW_CTRL		GRF_BIT(3)
+#define RV1108_GMAC_FLOW_CTRL_CLR	GRF_CLR_BIT(3)
+#define RV1108_GMAC_SPEED_10M		GRF_CLR_BIT(2)
+#define RV1108_GMAC_SPEED_100M		GRF_BIT(2)
+#define RV1108_GMAC_RMII_CLK_25M	GRF_BIT(7)
+#define RV1108_GMAC_RMII_CLK_2_5M	GRF_CLR_BIT(7)
+
+static void rv1108_set_to_rmii(struct rk_priv_data *bsp_priv)
+{
+	struct device *dev = &bsp_priv->pdev->dev;
+
+	if (IS_ERR(bsp_priv->grf)) {
+		dev_err(dev, "%s: Missing rockchip,grf property\n", __func__);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RV1108_GRF_GMAC_CON0,
+		     RV1108_GMAC_PHY_INTF_SEL_RMII);
+}
+
+static void rv1108_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
+{
+	struct device *dev = &bsp_priv->pdev->dev;
+
+	if (IS_ERR(bsp_priv->grf)) {
+		dev_err(dev, "%s: Missing rockchip,grf property\n", __func__);
+		return;
+	}
+
+	if (speed == 10) {
+		regmap_write(bsp_priv->grf, RV1108_GRF_GMAC_CON0,
+			     RV1108_GMAC_RMII_CLK_2_5M |
+			     RV1108_GMAC_SPEED_10M);
+	} else if (speed == 100) {
+		regmap_write(bsp_priv->grf, RV1108_GRF_GMAC_CON0,
+			     RV1108_GMAC_RMII_CLK_25M |
+			     RV1108_GMAC_SPEED_100M);
+	} else {
+		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+	}
+}
+
+static const struct rk_gmac_ops rv1108_ops = {
+	.set_to_rmii = rv1108_set_to_rmii,
+	.set_rmii_speed = rv1108_set_rmii_speed,
+};
+
 #define RK_GRF_MACPHY_CON0		0xb00
 #define RK_GRF_MACPHY_CON1		0xb04
 #define RK_GRF_MACPHY_CON2		0xb08
@@ -1267,6 +1319,7 @@ static const struct of_device_id rk_gmac_dwmac_match[] = {
 	{ .compatible = "rockchip,rk3366-gmac", .data = &rk3366_ops },
 	{ .compatible = "rockchip,rk3368-gmac", .data = &rk3368_ops },
 	{ .compatible = "rockchip,rk3399-gmac", .data = &rk3399_ops },
+	{ .compatible = "rockchip,rv1108-gmac", .data = &rv1108_ops },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rk_gmac_dwmac_match);
