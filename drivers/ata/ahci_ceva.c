@@ -81,8 +81,26 @@ struct ceva_ahci_priv {
 	int flags;
 };
 
+static unsigned int ceva_ahci_read_id(struct ata_device *dev,
+					struct ata_taskfile *tf, u16 *id)
+{
+	u32 err_mask;
+
+	err_mask = ata_do_dev_read_id(dev, tf, id);
+	if (err_mask)
+		return err_mask;
+	/*
+	 * Since CEVA controller does not support device sleep feature, we
+	 * need to clear DEVSLP (bit 8) in word78 of the IDENTIFY DEVICE data.
+	 */
+	id[ATA_ID_FEATURE_SUPP] &= cpu_to_le16(~(1 << 8));
+
+	return 0;
+}
+
 static struct ata_port_operations ahci_ceva_ops = {
 	.inherits = &ahci_platform_ops,
+	.read_id = ceva_ahci_read_id,
 };
 
 static const struct ata_port_info ahci_ceva_port_info = {
