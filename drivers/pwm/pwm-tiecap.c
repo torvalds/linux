@@ -254,9 +254,9 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	platform_set_drvdata(pdev, pc);
 	pm_runtime_enable(&pdev->dev);
 
-	platform_set_drvdata(pdev, pc);
 	return 0;
 }
 
