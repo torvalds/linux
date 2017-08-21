@@ -61,6 +61,8 @@
 
 #define REG_MMU_IVRP_PADDR			0x114
 #define F_MMU_IVRP_PA_SET(pa, ext)		(((pa) >> 1) | ((!!(ext)) << 31))
+#define REG_MMU_VLD_PA_RNG			0x118
+#define F_MMU_VLD_PA_RNG(EA, SA)		(((EA) << 8) | (SA))
 
 #define REG_MMU_INT_CONTROL0			0x120
 #define F_L2_MULIT_HIT_EN			BIT(0)
@@ -85,7 +87,6 @@
 #define REG_MMU_FAULT_ST1			0x134
 
 #define REG_MMU_FAULT_VA			0x13c
-#define F_MMU_FAULT_VA_MSK			0xfffff000
 #define F_MMU_FAULT_VA_WRITE_BIT		BIT(1)
 #define F_MMU_FAULT_VA_LAYER_BIT		BIT(0)
 
@@ -214,7 +215,6 @@ static irqreturn_t mtk_iommu_isr(int irq, void *dev_id)
 	fault_iova = readl_relaxed(data->base + REG_MMU_FAULT_VA);
 	layer = fault_iova & F_MMU_FAULT_VA_LAYER_BIT;
 	write = fault_iova & F_MMU_FAULT_VA_WRITE_BIT;
-	fault_iova &= F_MMU_FAULT_VA_MSK;
 	fault_pa = readl_relaxed(data->base + REG_MMU_INVLD_PA);
 	regval = readl_relaxed(data->base + REG_MMU_INT_ID);
 	fault_larb = F_MMU0_INT_ID_LARB_ID(regval);
@@ -395,12 +395,16 @@ static phys_addr_t mtk_iommu_iova_to_phys(struct iommu_domain *domain,
 					  dma_addr_t iova)
 {
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
+	struct mtk_iommu_data *data = mtk_iommu_get_m4u_data();
 	unsigned long flags;
 	phys_addr_t pa;
 
 	spin_lock_irqsave(&dom->pgtlock, flags);
 	pa = dom->iop->iova_to_phys(dom->iop, iova);
 	spin_unlock_irqrestore(&dom->pgtlock, flags);
+
+	if (data->enable_4GB)
+		pa |= BIT(32);
 
 	return pa;
 }
@@ -529,6 +533,14 @@ static int mtk_iommu_hw_init(const struct mtk_iommu_data *data)
 
 	writel_relaxed(F_MMU_IVRP_PA_SET(data->protect_base, data->enable_4GB),
 		       data->base + REG_MMU_IVRP_PADDR);
+	if (data->enable_4GB && data->m4u_type != M4U_MT8173) {
+		/*
+		 * If 4GB mode is enabled, the validate PA range is from
+		 * 0x1_0000_0000 to 0x1_ffff_ffff. here record bit[32:30].
+		 */
+		regval = F_MMU_VLD_PA_RNG(7, 4);
+		writel_relaxed(regval, data->base + REG_MMU_VLD_PA_RNG);
+	}
 	writel_relaxed(0, data->base + REG_MMU_DCM_DIS);
 
 	/* It's MISC control register whose default value is ok except mt8173.*/
@@ -574,7 +586,7 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 	data->protect_base = ALIGN(virt_to_phys(protect), MTK_PROTECT_PA_ALIGN);
 
 	/* Whether the current dram is over 4GB */
-	data->enable_4GB = !!(max_pfn > (0xffffffffUL >> PAGE_SHIFT));
+	data->enable_4GB = !!(max_pfn > (BIT(32) >> PAGE_SHIFT));
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->base = devm_ioremap_resource(dev, res);
