@@ -298,12 +298,37 @@ disable_resources:
 
 static int __maybe_unused ceva_ahci_suspend(struct device *dev)
 {
-	return ahci_platform_suspend_host(dev);
+	return ahci_platform_suspend(dev);
 }
 
 static int __maybe_unused ceva_ahci_resume(struct device *dev)
 {
-	return ahci_platform_resume_host(dev);
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct ahci_host_priv *hpriv = host->private_data;
+	int rc;
+
+	rc = ahci_platform_enable_resources(hpriv);
+	if (rc)
+		return rc;
+
+	/* Configure CEVA specific config before resuming HBA */
+	ahci_ceva_setup(hpriv);
+
+	rc = ahci_platform_resume_host(dev);
+	if (rc)
+		goto disable_resources;
+
+	/* We resumed so update PM runtime state */
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	return 0;
+
+disable_resources:
+	ahci_platform_disable_resources(hpriv);
+
+	return rc;
 }
 
 static SIMPLE_DEV_PM_OPS(ahci_ceva_pm_ops, ceva_ahci_suspend, ceva_ahci_resume);
