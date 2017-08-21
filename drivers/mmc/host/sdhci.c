@@ -1182,6 +1182,9 @@ static void sdhci_read_rsp_136(struct sdhci_host *host, struct mmc_command *cmd)
 		cmd->resp[i] = sdhci_readl(host, reg);
 	}
 
+	if (host->quirks2 & SDHCI_QUIRK2_RSP_136_HAS_CRC)
+		return;
+
 	/* CRC is stripped so we need to do some shifting */
 	for (i = 0; i < 4; i++) {
 		cmd->resp[i] <<= 8;
