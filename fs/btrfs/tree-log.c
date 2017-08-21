@@ -4647,7 +4647,6 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_key min_key;
 	struct btrfs_key max_key;
 	struct btrfs_root *log = root->log_root;
-	struct extent_buffer *src = NULL;
 	LIST_HEAD(logged_list);
 	u64 last_extent = 0;
 	int err = 0;
@@ -4890,7 +4889,6 @@ again:
 			goto next_slot;
 		}
 
-		src = path->nodes[0];
 		if (ins_nr && ins_start_slot + ins_nr == path->slots[0]) {
 			ins_nr++;
 			goto next_slot;
