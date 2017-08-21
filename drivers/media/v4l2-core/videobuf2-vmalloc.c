@@ -87,7 +87,8 @@ static void *vb2_vmalloc_get_userptr(struct device *dev, unsigned long vaddr,
 	buf->dma_dir = dma_dir;
 	offset = vaddr & ~PAGE_MASK;
 	buf->size = size;
-	vec = vb2_create_framevec(vaddr, size, dma_dir == DMA_FROM_DEVICE);
+	vec = vb2_create_framevec(vaddr, size, dma_dir == DMA_FROM_DEVICE ||
+					       dma_dir == DMA_BIDIRECTIONAL);
 	if (IS_ERR(vec)) {
 		ret = PTR_ERR(vec);
 		goto fail_pfnvec_create;
@@ -137,7 +138,8 @@ static void vb2_vmalloc_put_userptr(void *buf_priv)
 		pages = frame_vector_pages(buf->vec);
 		if (vaddr)
 			vm_unmap_ram((void *)vaddr, n_pages);
-		if (buf->dma_dir == DMA_FROM_DEVICE)
+		if (buf->dma_dir == DMA_FROM_DEVICE ||
+		    buf->dma_dir == DMA_BIDIRECTIONAL)
 			for (i = 0; i < n_pages; i++)
 				set_page_dirty_lock(pages[i]);
 	} else {

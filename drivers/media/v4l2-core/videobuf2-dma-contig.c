@@ -508,7 +508,8 @@ static void *vb2_dc_get_userptr(struct device *dev, unsigned long vaddr,
 	buf->dma_dir = dma_dir;
 
 	offset = vaddr & ~PAGE_MASK;
-	vec = vb2_create_framevec(vaddr, size, dma_dir == DMA_FROM_DEVICE);
+	vec = vb2_create_framevec(vaddr, size, dma_dir == DMA_FROM_DEVICE ||
+					       dma_dir == DMA_BIDIRECTIONAL);
 	if (IS_ERR(vec)) {
 		ret = PTR_ERR(vec);
 		goto fail_buf;
