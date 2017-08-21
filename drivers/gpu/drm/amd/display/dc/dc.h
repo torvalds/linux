@@ -641,22 +641,11 @@ bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream);
 
 bool dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
-bool dc_validate_with_context(
-		struct dc *dc,
-		const struct dc_validation_set set[],
-		int set_count,
-		struct validate_context *context);
-
 bool dc_validate_global_state(
 		struct dc *dc,
 		const struct dc_validation_set set[],
 		int set_count,
 		struct validate_context *new_ctx);
-
-bool dc_validate_resources(
-		struct dc *dc,
-		const struct dc_validation_set set[],
-		uint8_t set_count);
 
 /*
  * This function takes a stream and checks if it is guaranteed to be supported.
@@ -665,10 +654,6 @@ bool dc_validate_resources(
  * After this call:
  *   No hardware is programmed for call.  Only validation is done.
  */
-
-bool dc_validate_guaranteed(
-		struct dc *dc,
-		struct dc_stream_state *stream);
 
 void dc_resource_validate_ctx_copy_construct(
 		const struct validate_context *src_ctx,
@@ -699,10 +684,6 @@ bool dc_commit_context(struct dc *dc, struct validate_context *context);
  *   Phy, Encoder, Timing Generator are programmed and enabled.
  *   New streams are enabled with blank stream; no memory read.
  */
-bool dc_commit_streams(
-		struct dc *dc,
-		struct dc_stream_state *streams[],
-		uint8_t stream_count);
 /*
  * Enable stereo when commit_streams is not required,
  * for example, frame alternate.
@@ -857,17 +838,9 @@ const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
  */
 struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_index);
 
-struct dwbc *dc_get_dwb_at_pipe(struct dc *dc, uint32_t pipe);
-
-/* Return id of physical connector represented by a dc_link at link_index.*/
-const struct graphics_object_id dc_get_link_id_at_index(
-		struct dc *dc, uint32_t link_index);
-
 /* Set backlight level of an embedded panel (eDP, LVDS). */
 bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
 		uint32_t frame_ramp, const struct dc_stream_state *stream);
-
-bool dc_link_set_abm_disable(const struct dc_link *dc_link);
 
 bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable);
 
@@ -907,7 +880,6 @@ void dc_link_remove_remote_sink(
 	struct dc_sink *sink);
 
 /* Used by diagnostics for virtual link at the moment */
-void dc_link_set_sink(struct dc_link *link, struct dc_sink *sink);
 
 void dc_link_dp_set_drive_settings(
 	struct dc_link *link,
@@ -970,8 +942,6 @@ struct dc_sink {
 void dc_sink_retain(struct dc_sink *sink);
 void dc_sink_release(struct dc_sink *sink);
 
-const struct audio **dc_get_audios(struct dc *dc);
-
 struct dc_sink_init_data {
 	enum signal_type sink_signal;
 	struct dc_link *link;
@@ -980,8 +950,6 @@ struct dc_sink_init_data {
 };
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
-bool dc_sink_get_container_id(struct dc_sink *dc_sink, struct dc_container_id *container_id);
-bool dc_sink_set_container_id(struct dc_sink *dc_sink, const struct dc_container_id *container_id);
 
 /*******************************************************************************
  * Cursor interfaces - To manages the cursor within a stream
@@ -1025,45 +993,6 @@ void dc_resume(struct dc *dc);
 /*
  * DPCD access interfaces
  */
-
-bool dc_read_aux_dpcd(
-		struct dc *dc,
-		uint32_t link_index,
-		uint32_t address,
-		uint8_t *data,
-		uint32_t size);
-
-bool dc_write_aux_dpcd(
-		struct dc *dc,
-		uint32_t link_index,
-		uint32_t address,
-		const uint8_t *data,
-		uint32_t size);
-
-bool dc_read_aux_i2c(
-		struct dc *dc,
-		uint32_t link_index,
-		enum i2c_mot_mode mot,
-		uint32_t address,
-		uint8_t *data,
-		uint32_t size);
-
-bool dc_write_aux_i2c(
-		struct dc *dc,
-		uint32_t link_index,
-		enum i2c_mot_mode mot,
-		uint32_t address,
-		const uint8_t *data,
-		uint32_t size);
-
-bool dc_query_ddc_data(
-		struct dc *dc,
-		uint32_t link_index,
-		uint32_t address,
-		uint8_t *write_buf,
-		uint32_t write_size,
-		uint8_t *read_buf,
-		uint32_t read_size);
 
 bool dc_submit_i2c(
 		struct dc *dc,

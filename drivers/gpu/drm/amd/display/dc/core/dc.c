@@ -670,67 +670,6 @@ void dc_destroy(struct dc **dc)
 	*dc = NULL;
 }
 
-static bool validate_streams (
-		struct dc *dc,
-		const struct dc_validation_set set[],
-		int set_count)
-{
-	int i;
-
-	for (i = 0; i < set_count; i++)
-		if (!dc_validate_stream(dc, set[i].stream))
-			return false;
-
-	return true;
-}
-
-static bool validate_surfaces(
-		struct dc *dc,
-		const struct dc_validation_set set[],
-		int set_count)
-{
-	int i, j;
-
-	for (i = 0; i < set_count; i++)
-		for (j = 0; j < set[i].plane_count; j++)
-			if (!dc_validate_plane(dc, set[i].plane_states[j]))
-				return false;
-
-	return true;
-}
-
-bool dc_validate_resources(
-		struct dc *dc,
-		const struct dc_validation_set set[],
-		uint8_t set_count)
-{
-	bool result = false;
-	struct validate_context *context;
-
-	if (!validate_streams(dc, set, set_count))
-		return false;
-
-	if (!validate_surfaces(dc, set, set_count))
-		return false;
-
-	context = dm_alloc(sizeof(struct validate_context));
-	if (context == NULL)
-		goto context_alloc_fail;
-
-	atomic_inc(&context->ref_count);
-
-	dc_resource_validate_ctx_copy_construct_current(dc, context);
-
-	result = dc_validate_with_context(
-				dc, set, set_count, context);
-
-context_alloc_fail:
-	dc_release_validate_context(context);
-	context = NULL;
-
-	return result;
-}
-
 bool dc_validate_guaranteed(
 		struct dc *dc,
 		struct dc_stream_state *stream)
@@ -849,24 +788,6 @@ static bool context_changed(
 
 	for (i = 0; i < dc->current_context->stream_count; i++) {
 		if (dc->current_context->streams[i] != context->streams[i])
-			return true;
-	}
-
-	return false;
-}
-
-static bool streams_changed(
-		struct dc *dc,
-		struct dc_stream_state *streams[],
-		uint8_t stream_count)
-{
-	uint8_t i;
-
-	if (stream_count != dc->current_context->stream_count)
-		return true;
-
-	for (i = 0; i < dc->current_context->stream_count; i++) {
-		if (dc->current_context->streams[i] != streams[i])
 			return true;
 	}
 
@@ -996,72 +917,6 @@ bool dc_commit_context(struct dc *dc, struct validate_context *context)
 	return (result == DC_OK);
 }
 
-
-bool dc_commit_streams(
-	struct dc *dc,
-	struct dc_stream_state *streams[],
-	uint8_t stream_count)
-{
-	struct dc  *core_dc = dc;
-	bool result = false;
-	struct validate_context *context;
-	struct dc_validation_set set[MAX_STREAMS] = { {0, {0} } };
-	int i;
-
-	if (false == streams_changed(core_dc, streams, stream_count))
-		return DC_OK;
-
-	dm_logger_write(core_dc->ctx->logger, LOG_DC, "%s: %d streams\n",
-				__func__, stream_count);
-
-	for (i = 0; i < stream_count; i++) {
-		struct dc_stream_state *stream = streams[i];
-		struct dc_stream_status *status = dc_stream_get_status(stream);
-		int j;
-
-		dc_stream_log(stream,
-				core_dc->ctx->logger,
-				LOG_DC);
-
-		set[i].stream = stream;
-
-		if (status) {
-			set[i].plane_count = status->plane_count;
-			for (j = 0; j < status->plane_count; j++)
-				set[i].plane_states[j] = status->plane_states[j];
-		}
-
-	}
-
-	if (!validate_streams(dc, set, stream_count))
-		return false;
-
-	if (!validate_surfaces(dc, set, stream_count))
-		return false;
-
-	context = dm_alloc(sizeof(struct validate_context));
-	if (context == NULL)
-		goto context_alloc_fail;
-
-	atomic_inc(&context->ref_count);
-
-	dc_resource_validate_ctx_copy_construct_current(dc, context);
-
-	result = dc_validate_with_context(
-			dc, set, stream_count, context);
-	if (!result) {
-		BREAK_TO_DEBUGGER();
-		goto fail;
-	}
-
-	result = dc_commit_context_no_check(dc, context);
-
-fail:
-	dc_release_validate_context(context);
-
-context_alloc_fail:
-	return result;
-}
 
 bool dc_post_update_surfaces_to_stream(struct dc *dc)
 {
