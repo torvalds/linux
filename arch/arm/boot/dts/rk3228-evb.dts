@@ -76,7 +76,7 @@
 	clock_in_out = "output";
 	phy-supply = <&vcc_phy>;
 	phy-mode = "rmii";
-	phy-handle = <&phy0>;
+	phy-handle = <&phy>;
 	status = "okay";
 
 	mdio {
@@ -84,7 +84,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		phy@0 {
+		phy: phy@0 {
 			compatible = "ethernet-phy-id1234.d400", "ethernet-phy-ieee802.3-c22";
 			reg = <0>;
 			clocks = <&cru SCLK_MAC_PHY>;
