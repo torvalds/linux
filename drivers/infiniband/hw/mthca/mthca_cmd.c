@@ -538,7 +538,7 @@ int mthca_cmd_init(struct mthca_dev *dev)
 		return -ENOMEM;
 	}
 
-	dev->cmd.pool = pci_pool_create("mthca_cmd", dev->pdev,
+	dev->cmd.pool = dma_pool_create("mthca_cmd", &dev->pdev->dev,
 					MTHCA_MAILBOX_SIZE,
 					MTHCA_MAILBOX_SIZE, 0);
 	if (!dev->cmd.pool) {
@@ -551,7 +551,7 @@ int mthca_cmd_init(struct mthca_dev *dev)
 
 void mthca_cmd_cleanup(struct mthca_dev *dev)
 {
-	pci_pool_destroy(dev->cmd.pool);
+	dma_pool_destroy(dev->cmd.pool);
 	iounmap(dev->hcr);
 	if (dev->cmd.flags & MTHCA_CMD_POST_DOORBELLS)
 		iounmap(dev->cmd.dbell_map);
@@ -621,7 +621,7 @@ struct mthca_mailbox *mthca_alloc_mailbox(struct mthca_dev *dev,
 	if (!mailbox)
 		return ERR_PTR(-ENOMEM);
 
-	mailbox->buf = pci_pool_alloc(dev->cmd.pool, gfp_mask, &mailbox->dma);
+	mailbox->buf = dma_pool_alloc(dev->cmd.pool, gfp_mask, &mailbox->dma);
 	if (!mailbox->buf) {
 		kfree(mailbox);
 		return ERR_PTR(-ENOMEM);
@@ -635,7 +635,7 @@ void mthca_free_mailbox(struct mthca_dev *dev, struct mthca_mailbox *mailbox)
 	if (!mailbox)
 		return;
 
-	pci_pool_free(dev->cmd.pool, mailbox->buf, mailbox->dma);
+	dma_pool_free(dev->cmd.pool, mailbox->buf, mailbox->dma);
 	kfree(mailbox);
 }
 
