@@ -1802,6 +1802,8 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
 	VOP_CTRL_SET(vop, overlay_mode, is_yuv_output(s->bus_format));
 	VOP_CTRL_SET(vop, dsp_out_yuv, is_yuv_output(s->bus_format));
+	VOP_CTRL_SET(vop, bcsh_r2y_en, !is_yuv_output(s->bus_format));
+	VOP_CTRL_SET(vop, bcsh_y2r_en, !is_yuv_output(s->bus_format));
 
 	/*
 	 * Background color is 10bit depth if vop version >= 3.5
@@ -2245,13 +2247,6 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 	VOP_CTRL_SET(vop, bcsh_sin_hue, sin_hue);
 	VOP_CTRL_SET(vop, bcsh_cos_hue, cos_hue);
 	VOP_CTRL_SET(vop, bcsh_en, 1);
-	if (!is_yuv_output(s->bus_format)) {
-		VOP_CTRL_SET(vop, bcsh_r2y_en, 1);
-		VOP_CTRL_SET(vop, bcsh_y2r_en, 1);
-	} else {
-		VOP_CTRL_SET(vop, bcsh_r2y_en, 0);
-		VOP_CTRL_SET(vop, bcsh_y2r_en, 0);
-	}
 }
 
 static void vop_cfg_update(struct drm_crtc *crtc,
