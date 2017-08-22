@@ -51,15 +51,7 @@ static struct attribute *visorbus_dev_attrs[] = {
 	NULL,
 };
 
-/* sysfs example for bridge-only sysfs files using device_type's */
-static const struct attribute_group visorbus_dev_group = {
-	.attrs = visorbus_dev_attrs,
-};
-
-static const struct attribute_group *visorbus_dev_groups[] = {
-	&visorbus_dev_group,
-	NULL,
-};
+ATTRIBUTE_GROUPS(visorbus_dev);
 
 /* filled in with info about parent chipset driver when we register with it */
 static struct visor_vbus_deviceinfo chipset_driverinfo;
@@ -292,15 +284,7 @@ static struct attribute *channel_attrs[] = {
 	NULL
 };
 
-static const struct attribute_group channel_attr_grp = {
-	.name = "channel",
-	.attrs = channel_attrs,
-};
-
-static const struct attribute_group *visorbus_channel_groups[] = {
-	&channel_attr_grp,
-	NULL
-};
+ATTRIBUTE_GROUPS(channel);
 
 /* end implementation of specific channel attributes */
 
@@ -379,7 +363,7 @@ static ssize_t channel_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(channel_id);
 
-static struct attribute *dev_attrs[] = {
+static struct attribute *visorbus_attrs[] = {
 	&dev_attr_partition_handle.attr,
 	&dev_attr_partition_guid.attr,
 	&dev_attr_partition_name.attr,
@@ -389,14 +373,7 @@ static struct attribute *dev_attrs[] = {
 	NULL
 };
 
-static const struct attribute_group dev_attr_grp = {
-	.attrs = dev_attrs,
-};
-
-static const struct attribute_group *visorbus_groups[] = {
-	&dev_attr_grp,
-	NULL
-};
+ATTRIBUTE_GROUPS(visorbus);
 
 /*
  *  BUS debugfs entries
@@ -666,7 +643,7 @@ int create_visor_device(struct visor_device *dev)
 
 	mutex_init(&dev->visordriver_callback_lock);
 	dev->device.bus = &visorbus_type;
-	dev->device.groups = visorbus_channel_groups;
+	dev->device.groups = channel_groups;
 	device_initialize(&dev->device);
 	dev->device.release = visorbus_release_device;
 	/* keep a reference just for us (now 2) */
