@@ -510,6 +510,7 @@ enum surface_update_type {
 
 struct dc_stream_status {
 	int primary_otg_inst;
+	int stream_enc_inst;
 	int plane_count;
 	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
 
