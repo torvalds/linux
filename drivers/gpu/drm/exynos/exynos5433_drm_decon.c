@@ -279,13 +279,11 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
 	case DRM_FORMAT_ARGB8888:
+	default:
 		val |= WINCONx_BPPMODE_32BPP_A8888;
 		val |= WINCONx_WSWP_F | WINCONx_BLD_PIX_F | WINCONx_ALPHA_SEL_F;
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
-	default:
-		DRM_ERROR("Proper pixel format is not set\n");
-		return;
 	}
 
 	DRM_DEBUG_KMS("cpp = %u\n", fb->format->cpp[0]);

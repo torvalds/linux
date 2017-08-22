@@ -309,14 +309,9 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
 	case DRM_FORMAT_BGRA8888:
+	default:
 		val |= WINCONx_BPPMODE_32BPP_BGRA | WINCONx_BLD_PIX |
 			WINCONx_ALPHA_SEL;
-		val |= WINCONx_BURSTLEN_16WORD;
-		break;
-	default:
-		DRM_DEBUG_KMS("invalid pixel size so using unpacked 24bpp.\n");
-
-		val |= WINCONx_BPPMODE_24BPP_xRGB;
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
 	}

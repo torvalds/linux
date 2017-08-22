@@ -583,15 +583,9 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
 	case DRM_FORMAT_ARGB8888:
+	default:
 		val |= WINCON1_BPPMODE_25BPP_A1888
 			| WINCON1_BLD_PIX | WINCON1_ALPHA_SEL;
-		val |= WINCONx_WSWP;
-		val |= WINCONx_BURSTLEN_16WORD;
-		break;
-	default:
-		DRM_DEBUG_KMS("invalid pixel size so using unpacked 24bpp.\n");
-
-		val |= WINCON0_BPPMODE_24BPP_888;
 		val |= WINCONx_WSWP;
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
