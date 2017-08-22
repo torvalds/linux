@@ -108,10 +108,10 @@ bool amdgpu_gtt_mgr_is_allocated(struct ttm_mem_reg *mem)
  *
  * Allocate the address space for a node.
  */
-int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
-			 struct ttm_buffer_object *tbo,
-			 const struct ttm_place *place,
-			 struct ttm_mem_reg *mem)
+static int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
+				struct ttm_buffer_object *tbo,
+				const struct ttm_place *place,
+				struct ttm_mem_reg *mem)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(man->bdev);
 	struct amdgpu_gtt_mgr *mgr = man->priv;
@@ -143,12 +143,8 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 					fpfn, lpfn, mode);
 	spin_unlock(&mgr->lock);
 
-	if (!r) {
+	if (!r)
 		mem->start = node->start;
-		if (&tbo->mem == mem)
-			tbo->offset = (tbo->mem.start << PAGE_SHIFT) +
-			    tbo->bdev->man[tbo->mem.mem_type].gpu_offset;
-	}
 
 	return r;
 }
