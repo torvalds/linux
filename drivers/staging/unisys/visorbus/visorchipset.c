@@ -210,7 +210,7 @@ static ssize_t error_show(struct device *dev, struct device_attribute *attr,
 				&error, sizeof(u32));
 	if (err)
 		return err;
-	return sprintf(buf, "%i\n", error);
+	return sprintf(buf, "%u\n", error);
 }
 
 static ssize_t error_store(struct device *dev, struct device_attribute *attr,
@@ -245,7 +245,7 @@ static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
 	if (err)
 		return err;
 
-	return sprintf(buf, "%i\n", text_id);
+	return sprintf(buf, "%u\n", text_id);
 }
 
 static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
