@@ -1,5 +1,4 @@
-/* visorchannel_funcs.c
- *
+/*
  * Copyright (C) 2010 - 2015 UNISYS CORPORATION
  * All rights reserved.
  *
