@@ -39,9 +39,6 @@
 #include "opp.h"
 #include "ipp.h"
 #include "mpc.h"
-#include "raven1/DCN/dcn_1_0_offset.h"
-#include "raven1/DCN/dcn_1_0_sh_mask.h"
-#include "vega10/soc15ip.h"
 #include "reg_helper.h"
 
 #define CTX \
