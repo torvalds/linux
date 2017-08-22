@@ -663,28 +663,13 @@ static void tc35874x_set_csi_color_space(struct v4l2_subdev *sd)
 	}
 }
 
-static unsigned tc35874x_num_csi_lanes_needed(struct v4l2_subdev *sd)
-{
-	struct tc35874x_state *state = to_state(sd);
-	struct v4l2_bt_timings *bt = &state->timings.bt;
-	struct tc35874x_platform_data *pdata = &state->pdata;
-	u32 bits_pr_pixel =
-		(state->mbus_fmt_code == MEDIA_BUS_FMT_UYVY8_1X16) ?  16 : 24;
-	u32 bps = bt->width * bt->height * fps(bt) * bits_pr_pixel;
-	u32 bps_pr_lane = (pdata->refclk_hz / pdata->pll_prd) * pdata->pll_fbd;
-
-	return DIV_ROUND_UP(bps, bps_pr_lane);
-}
-
 static void tc35874x_set_csi(struct v4l2_subdev *sd)
 {
 	struct tc35874x_state *state = to_state(sd);
 	struct tc35874x_platform_data *pdata = &state->pdata;
-	unsigned lanes = tc35874x_num_csi_lanes_needed(sd);
+	unsigned lanes = state->csi_lanes_in_use;
 
 	v4l2_dbg(3, debug, sd, "%s:\n", __func__);
-
-	state->csi_lanes_in_use = lanes;
 
 	tc35874x_reset(sd, MASK_CTXRST);
 
@@ -1155,8 +1140,6 @@ static int tc35874x_log_status(struct v4l2_subdev *sd)
 			true);
 
 	v4l2_info(sd, "-----CSI-TX status-----\n");
-	v4l2_info(sd, "Lanes needed: %d\n",
-			tc35874x_num_csi_lanes_needed(sd));
 	v4l2_info(sd, "Lanes in use: %d\n",
 			state->csi_lanes_in_use);
 	v4l2_info(sd, "Waiting for particular sync signal: %s\n",
@@ -1771,6 +1754,7 @@ static int tc35874x_probe_of(struct tc35874x_state *state)
 		goto free_endpoint;
 	}
 
+	state->csi_lanes_in_use = endpoint->bus.mipi_csi2.num_data_lanes;
 	state->bus = endpoint->bus.mipi_csi2;
 
 	ret = clk_prepare_enable(refclk);
