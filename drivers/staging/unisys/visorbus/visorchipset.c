@@ -53,18 +53,7 @@ struct parser_context {
 	char data[0];
 };
 
-/*
- * VMCALL_CONTROLVM_ADDR: Used by all guests, not just IO.
- *
- * Note: When a new VMCALL is added:
- * - The 1st 2 hex digits correspond to one of the VMCALL_MONITOR_INTERFACE
- *   types.
- * - The next 2 hex digits are the nth relative instance of within a type.
- * E.G. for VMCALL_VIRTPART_RECYCLE_PART,
- * - The 0x02 identifies it as a VMCALL_VIRTPART type.
- * - The 0x01 identifies it as the 1st instance of a VMCALL_VIRTPART type of
- *   VMCALL.
- */
+/* VMCALL_CONTROLVM_ADDR: Used by all guests, not just IO. */
 #define VMCALL_CONTROLVM_ADDR 0x0501
 
 enum vmcall_result {
