@@ -38,7 +38,7 @@
 
 #define SOUND_FS	256
 
-static unsigned int rt5514_dmic_delay;
+static unsigned int dmic_wakeup_delay;
 
 static struct snd_soc_jack rockchip_sound_jack;
 
@@ -126,7 +126,7 @@ static int rockchip_sound_rt5514_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Wait for DMIC stable */
-	msleep(rt5514_dmic_delay);
+	msleep(dmic_wakeup_delay);
 
 	return 0;
 }
@@ -348,13 +348,13 @@ static int rockchip_sound_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* Set DMIC delay */
-	ret = device_property_read_u32(&pdev->dev, "dmic-delay",
-					&rt5514_dmic_delay);
+	/* Set DMIC wakeup delay */
+	ret = device_property_read_u32(&pdev->dev, "dmic-wakeup-delay-ms",
+					&dmic_wakeup_delay);
 	if (ret) {
-		rt5514_dmic_delay = 0;
+		dmic_wakeup_delay = 0;
 		dev_dbg(&pdev->dev,
-			"no optional property 'dmic-delay' found, default: no delay\n");
+			"no optional property 'dmic-wakeup-delay-ms' found, default: no delay\n");
 	}
 
 	rockchip_dailinks[DAILINK_RT5514_DSP].cpu_name = kstrdup_const(dev_name(dev), GFP_KERNEL);
