@@ -2730,24 +2730,10 @@ static const struct cnl_procmon {
 		{ .dw1 = 0x00440000, .dw9 = 0x9A00AB25, .dw10 = 0x8AE38FF1, },
 };
 
-static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume)
+static void cnl_set_procmon_ref_values(struct drm_i915_private *dev_priv)
 {
-	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	const struct cnl_procmon *procmon;
-	struct i915_power_well *well;
 	u32 val;
-
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
-
-	/* 1. Enable PCH Reset Handshake */
-	val = I915_READ(HSW_NDE_RSTWRN_OPT);
-	val |= RESET_PCH_HANDSHAKE_ENABLE;
-	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
-
-	/* 2. Enable Comp */
-	val = I915_READ(CHICKEN_MISC_2);
-	val &= ~CNL_COMP_PWR_DOWN;
-	I915_WRITE(CHICKEN_MISC_2, val);
 
 	val = I915_READ(CNL_PORT_COMP_DW3);
 	switch (val & (PROCESS_INFO_MASK | VOLTAGE_INFO_MASK)) {
@@ -2777,6 +2763,27 @@ static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume
 
 	I915_WRITE(CNL_PORT_COMP_DW9, procmon->dw9);
 	I915_WRITE(CNL_PORT_COMP_DW10, procmon->dw10);
+}
+
+static void cnl_display_core_init(struct drm_i915_private *dev_priv, bool resume)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *well;
+	u32 val;
+
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+
+	/* 1. Enable PCH Reset Handshake */
+	val = I915_READ(HSW_NDE_RSTWRN_OPT);
+	val |= RESET_PCH_HANDSHAKE_ENABLE;
+	I915_WRITE(HSW_NDE_RSTWRN_OPT, val);
+
+	/* 2. Enable Comp */
+	val = I915_READ(CHICKEN_MISC_2);
+	val &= ~CNL_COMP_PWR_DOWN;
+	I915_WRITE(CHICKEN_MISC_2, val);
+
+	cnl_set_procmon_ref_values(dev_priv);
 
 	val = I915_READ(CNL_PORT_COMP_DW0);
 	val |= COMP_INIT;
