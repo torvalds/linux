@@ -886,6 +886,7 @@ static const struct vop_ctrl rk3366_lit_ctrl_data = {
 };
 
 static const struct vop_data rk3366_vop_lit = {
+	.version = VOP_VERSION(2, 3),
 	.max_input = {1920, 8192},
 	.max_output = {1920, 1080},
 	.ctrl = &rk3366_lit_ctrl_data,
@@ -894,9 +895,42 @@ static const struct vop_data rk3366_vop_lit = {
 	.win_size = ARRAY_SIZE(rk3366_vop_lit_win_data),
 };
 
+static const struct vop_win_phy rk3126_win1_data = {
+	.data_formats = formats_win_lite,
+	.nformats = ARRAY_SIZE(formats_win_lite),
+	.enable = VOP_REG(RK3036_SYS_CTRL, 0x1, 1),
+	.format = VOP_REG(RK3036_SYS_CTRL, 0x7, 6),
+	.rb_swap = VOP_REG(RK3036_SYS_CTRL, 0x1, 19),
+	.dsp_info = VOP_REG(RK3126_WIN1_DSP_INFO, 0x0fff0fff, 0),
+	.dsp_st = VOP_REG(RK3126_WIN1_DSP_ST, 0x1fff1fff, 0),
+	.yrgb_mst = VOP_REG(RK3126_WIN1_MST, 0xffffffff, 0),
+	.yrgb_vir = VOP_REG(RK3036_WIN1_VIR, 0xffff, 0),
+	.alpha_mode = VOP_REG(RK3036_DSP_CTRL0, 0x1, 19),
+	.alpha_en = VOP_REG(RK3036_ALPHA_CTRL, 0x1, 1)
+};
+
+static const struct vop_win_data rk3126_vop_win_data[] = {
+	{ .base = 0x00, .phy = &rk3036_win0_data,
+	  .type = DRM_PLANE_TYPE_PRIMARY },
+	{ .base = 0x00, .phy = &rk3126_win1_data,
+	  .type = DRM_PLANE_TYPE_CURSOR },
+};
+
+static const struct vop_data rk3126_vop = {
+	.version = VOP_VERSION(2, 4),
+	.max_input = {1920, 8192},
+	.max_output = {1920, 1080},
+	.ctrl = &rk3036_ctrl_data,
+	.intr = &rk3036_intr,
+	.win = rk3126_vop_win_data,
+	.win_size = ARRAY_SIZE(rk3126_vop_win_data),
+};
+
 static const struct of_device_id vop_driver_dt_match[] = {
 	{ .compatible = "rockchip,rk3036-vop",
 	  .data = &rk3036_vop },
+	{ .compatible = "rockchip,rk3126-vop",
+	  .data = &rk3126_vop },
 	{ .compatible = "rockchip,rk3288-vop",
 	  .data = &rk3288_vop },
 	{ .compatible = "rockchip,rk3368-vop",

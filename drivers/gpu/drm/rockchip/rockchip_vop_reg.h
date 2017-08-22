@@ -948,4 +948,10 @@
 #define RK3366_LIT_GAMMA_LUT_ADDR		0x00a00
 /* rk3366 register definition end */
 
+/* rk3126 register definition */
+#define RK3126_WIN1_MST				0x0004c
+#define RK3126_WIN1_DSP_INFO			0x00050
+#define RK3126_WIN1_DSP_ST			0x00054
+/* rk3126 register definition end */
+
 #endif /* _ROCKCHIP_VOP_REG_H */
