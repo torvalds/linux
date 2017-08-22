@@ -66,7 +66,7 @@ static int show_irq_affinity(int type, struct seq_file *m)
 #else
 		return -EINVAL;
 #endif
-	};
+	}
 
 	switch (type) {
 	case AFFINITY_LIST:
