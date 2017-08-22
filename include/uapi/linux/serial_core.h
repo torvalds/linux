@@ -57,7 +57,6 @@
 #define PORT_RT2880	29	/* Ralink RT2880 internal UART */
 #define PORT_16550A_FSL64 30	/* Freescale 16550 UART with 64 FIFOs */
 #define PORT_DA830	31	/* TI DA8xx/66AK2x */
-#define PORT_MAX_8250	31	/* max port ID */
 
 /*
  * ARM specific type numbers.  These are not currently guaranteed
@@ -76,6 +75,10 @@
 /* Sparc type numbers.  */
 #define PORT_SUNZILOG	38
 #define PORT_SUNSAB	39
+
+/* Intel EG20 */
+#define PORT_PCH_8LINE	44
+#define PORT_PCH_2LINE	45
 
 /* DEC */
 #define PORT_DZ		46
