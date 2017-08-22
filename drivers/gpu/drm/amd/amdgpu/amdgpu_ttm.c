@@ -824,20 +824,39 @@ bool amdgpu_ttm_is_bound(struct ttm_tt *ttm)
 
 int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct ttm_tt *ttm = bo->ttm;
+	struct ttm_mem_reg tmp;
+
+	struct ttm_placement placement;
+	struct ttm_place placements;
 	int r;
 
 	if (!ttm || amdgpu_ttm_is_bound(ttm))
 		return 0;
 
-	r = amdgpu_gtt_mgr_alloc(&bo->bdev->man[TTM_PL_TT], bo,
-				 NULL, bo_mem);
-	if (r) {
-		DRM_ERROR("Failed to allocate GTT address space (%d)\n", r);
-		return r;
-	}
+	tmp = bo->mem;
+	tmp.mm_node = NULL;
+	placement.num_placement = 1;
+	placement.placement = &placements;
+	placement.num_busy_placement = 1;
+	placement.busy_placement = &placements;
+	placements.fpfn = 0;
+	placements.lpfn = adev->mc.gart_size >> PAGE_SHIFT;
+	placements.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
 
-	return amdgpu_ttm_do_bind(ttm, bo_mem);
+	r = ttm_bo_mem_space(bo, &placement, &tmp, true, false);
+	if (unlikely(r))
+		return r;
+
+	r = ttm_bo_move_ttm(bo, true, false, &tmp);
+	if (unlikely(r))
+		ttm_bo_mem_put(bo, &tmp);
+	else
+		bo->offset = (bo->mem.start << PAGE_SHIFT) +
+			bo->bdev->man[bo->mem.mem_type].gpu_offset;
+
+	return r;
 }
 
 int amdgpu_ttm_recover_gart(struct amdgpu_device *adev)
