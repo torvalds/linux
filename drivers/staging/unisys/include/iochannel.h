@@ -498,36 +498,6 @@ struct uiscmdrsp_disknotify {
 	u32 channel, id, lun;
 } __packed;
 
-/*
- * struct uiscmdrsp_vdiskmgmt - The following is used by virthba/vSCSI to send
- *				the Acquire/Release commands to the IOVM.
- * @enum vdisktype:	 The type of task.
- * @struct vdest:	 The vdisk for which this task mgmt is generated.
- * @handle:		 This is a handle that the guest has saved off for its
- *			 own use. It's value is preserved by iopart and returned
- *			 as in the task mgmt rsp.
- * @notify_handle:	 For Linux guests, this is a pointer to wait_queue_head
- *			 that a thread is waiting on to see if the tskmgmt
- *			 command has completed. When the rsp is received by
- *			 guest, the thread receiving the response uses this to
- *			 notify the thread waiting for taskmgmt command
- *			 completion. It's value is preserved by iopart and
- *			 returned as in the task mgmt rsp.
- * @notifyresult_handle: Handle to the location in guest where the result of the
- *			 taskmgmt command (result field) is saved to when the
- *			 response is handled. It's value is preserved by iopart
- *			 and returned as in the task mgmt rsp.
- * @result: Result of taskmgmt command - set by IOPart.
- */
-struct uiscmdrsp_vdiskmgmt {
-	enum vdisk_mgmt_types vdisktype;
-	struct uisscsi_dest vdest;
-	u64 handle;
-	u64 notify_handle;
-	u64 notifyresult_handle;
-	char result;
-} __packed;
-
 /* Keeping cmd and rsp info in one structure for now cmd rsp packet for SCSI */
 struct uiscmdrsp {
 	char cmdtype;
@@ -536,13 +506,11 @@ struct uiscmdrsp {
 #define CMD_NET_TYPE	      2
 #define CMD_SCSITASKMGMT_TYPE 3
 #define CMD_NOTIFYGUEST_TYPE  4
-#define CMD_VDISKMGMT_TYPE    5
 	union {
 		struct uiscmdrsp_scsi scsi;
 		struct uiscmdrsp_net net;
 		struct uiscmdrsp_scsitaskmgmt scsitaskmgmt;
 		struct uiscmdrsp_disknotify disknotify;
-		struct uiscmdrsp_vdiskmgmt vdiskmgmt;
 	};
 	/* Send the response when the cmd is done (scsi and scsittaskmgmt). */
 	void *private_data;
