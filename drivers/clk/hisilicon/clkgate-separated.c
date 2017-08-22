@@ -88,7 +88,7 @@ static int clkgate_separated_is_enabled(struct clk_hw *hw)
 	return reg ? 1 : 0;
 }
 
-static struct clk_ops clkgate_separated_ops = {
+static const struct clk_ops clkgate_separated_ops = {
 	.enable		= clkgate_separated_enable,
 	.disable	= clkgate_separated_disable,
 	.is_enabled	= clkgate_separated_is_enabled,
