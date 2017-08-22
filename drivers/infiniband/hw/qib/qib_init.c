@@ -1398,7 +1398,6 @@ static void cleanup_device_data(struct qib_devdata *dd)
 		qib_free_ctxtdata(dd, rcd);
 	}
 	kfree(tmp);
-	kfree(dd->boardname);
 }
 
 /*

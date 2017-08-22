@@ -3582,75 +3582,69 @@ bail:;
 static unsigned qib_7322_boardname(struct qib_devdata *dd)
 {
 	/* Will need enumeration of board-types here */
-	char *n;
-	u32 boardid, namelen;
-	unsigned features = DUAL_PORT_CAP;
+	u32 boardid;
+	unsigned int features = DUAL_PORT_CAP;
 
 	boardid = SYM_FIELD(dd->revision, Revision, BoardID);
 
 	switch (boardid) {
 	case 0:
-		n = "InfiniPath_QLE7342_Emulation";
+		dd->boardname = "InfiniPath_QLE7342_Emulation";
 		break;
 	case 1:
-		n = "InfiniPath_QLE7340";
+		dd->boardname = "InfiniPath_QLE7340";
 		dd->flags |= QIB_HAS_QSFP;
 		features = PORT_SPD_CAP;
 		break;
 	case 2:
-		n = "InfiniPath_QLE7342";
+		dd->boardname = "InfiniPath_QLE7342";
 		dd->flags |= QIB_HAS_QSFP;
 		break;
 	case 3:
-		n = "InfiniPath_QMI7342";
+		dd->boardname = "InfiniPath_QMI7342";
 		break;
 	case 4:
-		n = "InfiniPath_Unsupported7342";
+		dd->boardname = "InfiniPath_Unsupported7342";
 		qib_dev_err(dd, "Unsupported version of QMH7342\n");
 		features = 0;
 		break;
 	case BOARD_QMH7342:
-		n = "InfiniPath_QMH7342";
+		dd->boardname = "InfiniPath_QMH7342";
 		features = 0x24;
 		break;
 	case BOARD_QME7342:
-		n = "InfiniPath_QME7342";
+		dd->boardname = "InfiniPath_QME7342";
 		break;
 	case 8:
-		n = "InfiniPath_QME7362";
+		dd->boardname = "InfiniPath_QME7362";
 		dd->flags |= QIB_HAS_QSFP;
 		break;
 	case BOARD_QMH7360:
-		n = "Intel IB QDR 1P FLR-QSFP Adptr";
+		dd->boardname = "Intel IB QDR 1P FLR-QSFP Adptr";
 		dd->flags |= QIB_HAS_QSFP;
 		break;
 	case 15:
-		n = "InfiniPath_QLE7342_TEST";
+		dd->boardname = "InfiniPath_QLE7342_TEST";
 		dd->flags |= QIB_HAS_QSFP;
 		break;
 	default:
-		n = "InfiniPath_QLE73xy_UNKNOWN";
+		dd->boardname = "InfiniPath_QLE73xy_UNKNOWN";
 		qib_dev_err(dd, "Unknown 7322 board type %u\n", boardid);
 		break;
 	}
 	dd->board_atten = 1; /* index into txdds_Xdr */
 
-	namelen = strlen(n) + 1;
-	dd->boardname = kmalloc(namelen, GFP_KERNEL);
-	if (dd->boardname)
-		snprintf(dd->boardname, namelen, "%s", n);
-
 	snprintf(dd->boardversion, sizeof(dd->boardversion),
 		 "ChipABI %u.%u, %s, InfiniPath%u %u.%u, SW Compat %u\n",
 		 QIB_CHIP_VERS_MAJ, QIB_CHIP_VERS_MIN, dd->boardname,
-		 (unsigned)SYM_FIELD(dd->revision, Revision_R, Arch),
+		 (unsigned int)SYM_FIELD(dd->revision, Revision_R, Arch),
 		 dd->majrev, dd->minrev,
-		 (unsigned)SYM_FIELD(dd->revision, Revision_R, SW));
+		 (unsigned int)SYM_FIELD(dd->revision, Revision_R, SW));
 
 	if (qib_singleport && (features >> PORT_SPD_CAP_SHIFT) & PORT_SPD_CAP) {
 		qib_devinfo(dd->pcidev,
-			"IB%u: Forced to single port mode by module parameter\n",
-			dd->unit);
+			    "IB%u: Forced to single port mode by module parameter\n",
+			    dd->unit);
 		features &= PORT_SPD_CAP;
 	}
 
