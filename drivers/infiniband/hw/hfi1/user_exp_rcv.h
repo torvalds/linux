@@ -51,6 +51,11 @@
 
 #include "exp_rcv.h"
 
+struct tid_pageset {
+	u16 idx;
+	u16 count;
+};
+
 struct tid_user_buf {
 	unsigned long vaddr;
 	unsigned long length;
@@ -58,6 +63,17 @@ struct tid_user_buf {
 	struct page **pages;
 	struct tid_pageset *psets;
 	unsigned int n_psets;
+};
+
+struct tid_rb_node {
+	struct mmu_rb_node mmu;
+	unsigned long phys;
+	struct tid_group *grp;
+	u32 rcventry;
+	dma_addr_t dma_addr;
+	bool freed;
+	unsigned int npages;
+	struct page *pages[0];
 };
 
 static inline int num_user_pages(unsigned long addr,

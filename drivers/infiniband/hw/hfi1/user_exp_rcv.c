@@ -47,25 +47,9 @@
 #include <asm/page.h>
 #include <linux/string.h>
 
+#include "mmu_rb.h"
 #include "user_exp_rcv.h"
 #include "trace.h"
-#include "mmu_rb.h"
-
-struct tid_rb_node {
-	struct mmu_rb_node mmu;
-	unsigned long phys;
-	struct tid_group *grp;
-	u32 rcventry;
-	dma_addr_t dma_addr;
-	bool freed;
-	unsigned npages;
-	struct page *pages[0];
-};
-
-struct tid_pageset {
-	u16 idx;
-	u16 count;
-};
 
 static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 			    struct exp_tid_set *set,

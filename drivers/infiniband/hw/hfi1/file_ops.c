@@ -58,10 +58,10 @@
 #include "device.h"
 #include "common.h"
 #include "trace.h"
+#include "mmu_rb.h"
 #include "user_sdma.h"
 #include "user_exp_rcv.h"
 #include "aspm.h"
-#include "mmu_rb.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
