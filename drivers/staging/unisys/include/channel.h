@@ -60,11 +60,10 @@ enum channel_clientstate {
 
 /*
  * Values for VISOR_CHANNEL_PROTOCOL.Features: This define exists so that
- * windows guest can look at the FeatureFlags in the io channel, and configure
- * the windows driver to use interrupts or not based on this setting.  This flag
- * is set in uislib after the VISOR_VHBA_init_channel is called.  All feature
- * bits for all channels should be defined here.  The io channel feature bits
- * are defined right here
+ * a guest can look at the FeatureFlags in the io channel, and configure the
+ * driver to use interrupts or not based on this setting. All feature bits for
+ * all channels should be defined here. The io channel feature bits are defined
+ * below.
  */
 #define VISOR_DRIVER_ENABLES_INTS (0x1ULL << 1)
 #define VISOR_CHANNEL_IS_POLLING (0x1ULL << 3)
