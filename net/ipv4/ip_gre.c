@@ -48,6 +48,7 @@
 #include <net/rtnetlink.h>
 #include <net/gre.h>
 #include <net/dst_metadata.h>
+#include <net/erspan.h>
 
 /*
    Problems & solutions
@@ -115,6 +116,7 @@ static int ipgre_tunnel_init(struct net_device *dev);
 
 static unsigned int ipgre_net_id __read_mostly;
 static unsigned int gre_tap_net_id __read_mostly;
+static unsigned int erspan_net_id __read_mostly;
 
 static void ipgre_err(struct sk_buff *skb, u32 info,
 		      const struct tnl_ptk_info *tpi)
@@ -246,6 +248,56 @@ static void gre_err(struct sk_buff *skb, u32 info)
 	ipgre_err(skb, info, &tpi);
 }
 
+static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
+		      int gre_hdr_len)
+{
+	struct net *net = dev_net(skb->dev);
+	struct metadata_dst *tun_dst = NULL;
+	struct ip_tunnel_net *itn;
+	struct ip_tunnel *tunnel;
+	struct erspanhdr *ershdr;
+	const struct iphdr *iph;
+	__be32 session_id;
+	__be32 index;
+	int len;
+
+	itn = net_generic(net, erspan_net_id);
+	iph = ip_hdr(skb);
+	len = gre_hdr_len + sizeof(*ershdr);
+
+	if (unlikely(!pskb_may_pull(skb, len)))
+		return -ENOMEM;
+
+	iph = ip_hdr(skb);
+	ershdr = (struct erspanhdr *)(skb->data + gre_hdr_len);
+
+	/* The original GRE header does not have key field,
+	 * Use ERSPAN 10-bit session ID as key.
+	 */
+	session_id = cpu_to_be32(ntohs(ershdr->session_id));
+	tpi->key = session_id;
+	index = ershdr->md.index;
+	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex,
+				  tpi->flags | TUNNEL_KEY,
+				  iph->saddr, iph->daddr, tpi->key);
+
+	if (tunnel) {
+		if (__iptunnel_pull_header(skb,
+					   gre_hdr_len + sizeof(*ershdr),
+					   htons(ETH_P_TEB),
+					   false, false) < 0)
+			goto drop;
+
+		tunnel->index = ntohl(index);
+		skb_reset_mac_header(skb);
+		ip_tunnel_rcv(tunnel, skb, tpi, tun_dst, log_ecn_error);
+		return PACKET_RCVD;
+	}
+drop:
+	kfree_skb(skb);
+	return PACKET_RCVD;
+}
+
 static int __ipgre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 		       struct ip_tunnel_net *itn, int hdr_len, bool raw_proto)
 {
@@ -327,6 +379,11 @@ static int gre_rcv(struct sk_buff *skb)
 	hdr_len = gre_parse_header(skb, &tpi, &csum_err, htons(ETH_P_IP), 0);
 	if (hdr_len < 0)
 		goto drop;
+
+	if (unlikely(tpi.proto == htons(ETH_P_ERSPAN))) {
+		if (erspan_rcv(skb, &tpi, hdr_len) == PACKET_RCVD)
+			return 0;
+	}
 
 	if (ipgre_rcv(skb, &tpi, hdr_len) == PACKET_RCVD)
 		return 0;
@@ -495,6 +552,81 @@ static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
 		goto free_skb;
 
 	__gre_xmit(skb, dev, tnl_params, skb->protocol);
+	return NETDEV_TX_OK;
+
+free_skb:
+	kfree_skb(skb);
+	dev->stats.tx_dropped++;
+	return NETDEV_TX_OK;
+}
+
+static inline u8 tos_to_cos(u8 tos)
+{
+	u8 dscp, cos;
+
+	dscp = tos >> 2;
+	cos = dscp >> 3;
+	return cos;
+}
+
+static void erspan_build_header(struct sk_buff *skb,
+				__be32 id, u32 index, bool truncate)
+{
+	struct iphdr *iphdr = ip_hdr(skb);
+	struct ethhdr *eth = eth_hdr(skb);
+	enum erspan_encap_type enc_type;
+	struct erspanhdr *ershdr;
+	struct qtag_prefix {
+		__be16 eth_type;
+		__be16 tci;
+	} *qp;
+	u16 vlan_tci = 0;
+
+	enc_type = ERSPAN_ENCAP_NOVLAN;
+
+	/* If mirrored packet has vlan tag, extract tci and
+	 *  perserve vlan header in the mirrored frame.
+	 */
+	if (eth->h_proto == htons(ETH_P_8021Q)) {
+		qp = (struct qtag_prefix *)(skb->data + 2 * ETH_ALEN);
+		vlan_tci = ntohs(qp->tci);
+		enc_type = ERSPAN_ENCAP_INFRAME;
+	}
+
+	skb_push(skb, sizeof(*ershdr));
+	ershdr = (struct erspanhdr *)skb->data;
+	memset(ershdr, 0, sizeof(*ershdr));
+
+	ershdr->ver_vlan = htons((vlan_tci & VLAN_MASK) |
+				 (ERSPAN_VERSION << VER_OFFSET));
+	ershdr->session_id = htons((u16)(ntohl(id) & ID_MASK) |
+			   ((tos_to_cos(iphdr->tos) << COS_OFFSET) & COS_MASK) |
+			   (enc_type << EN_OFFSET & EN_MASK) |
+			   ((truncate << T_OFFSET) & T_MASK));
+	ershdr->md.index = htonl(index & INDEX_MASK);
+}
+
+static netdev_tx_t erspan_xmit(struct sk_buff *skb,
+			       struct net_device *dev)
+{
+	struct ip_tunnel *tunnel = netdev_priv(dev);
+	bool truncate = false;
+
+	if (gre_handle_offloads(skb, false))
+		goto free_skb;
+
+	if (skb_cow_head(skb, dev->needed_headroom))
+		goto free_skb;
+
+	if (skb->len > dev->mtu) {
+		pskb_trim(skb, dev->mtu);
+		truncate = true;
+	}
+
+	/* Push ERSPAN header */
+	erspan_build_header(skb, tunnel->parms.o_key, tunnel->index, truncate);
+	tunnel->parms.o_flags &= ~TUNNEL_KEY;
+	__gre_xmit(skb, dev, &tunnel->parms.iph, htons(ETH_P_ERSPAN));
 	return NETDEV_TX_OK;
 
 free_skb:
@@ -828,6 +960,39 @@ out:
 	return ipgre_tunnel_validate(tb, data, extack);
 }
 
+static int erspan_validate(struct nlattr *tb[], struct nlattr *data[],
+			   struct netlink_ext_ack *extack)
+{
+	__be16 flags = 0;
+	int ret;
+
+	if (!data)
+		return 0;
+
+	ret = ipgre_tap_validate(tb, data, extack);
+	if (ret)
+		return ret;
+
+	/* ERSPAN should only have GRE sequence and key flag */
+	flags |= nla_get_be16(data[IFLA_GRE_OFLAGS]);
+	flags |= nla_get_be16(data[IFLA_GRE_IFLAGS]);
+	if (flags != (GRE_SEQ | GRE_KEY))
+		return -EINVAL;
+
+	/* ERSPAN Session ID only has 10-bit. Since we reuse
+	 * 32-bit key field as ID, check it's range.
+	 */
+	if (data[IFLA_GRE_IKEY] &&
+	    (ntohl(nla_get_be32(data[IFLA_GRE_IKEY])) & ~ID_MASK))
+		return -EINVAL;
+
+	if (data[IFLA_GRE_OKEY] &&
+	    (ntohl(nla_get_be32(data[IFLA_GRE_OKEY])) & ~ID_MASK))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int ipgre_netlink_parms(struct net_device *dev,
 				struct nlattr *data[],
 				struct nlattr *tb[],
@@ -892,6 +1057,13 @@ static int ipgre_netlink_parms(struct net_device *dev,
 	if (data[IFLA_GRE_FWMARK])
 		*fwmark = nla_get_u32(data[IFLA_GRE_FWMARK]);
 
+	if (data[IFLA_GRE_ERSPAN_INDEX]) {
+		t->index = nla_get_u32(data[IFLA_GRE_ERSPAN_INDEX]);
+
+		if (t->index & ~INDEX_MASK)
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -942,6 +1114,36 @@ static const struct net_device_ops gre_tap_netdev_ops = {
 	.ndo_uninit		= ip_tunnel_uninit,
 	.ndo_start_xmit		= gre_tap_xmit,
 	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= ip_tunnel_change_mtu,
+	.ndo_get_stats64	= ip_tunnel_get_stats64,
+	.ndo_get_iflink		= ip_tunnel_get_iflink,
+	.ndo_fill_metadata_dst	= gre_fill_metadata_dst,
+};
+
+static int erspan_tunnel_init(struct net_device *dev)
+{
+	struct ip_tunnel *tunnel = netdev_priv(dev);
+	int t_hlen;
+
+	tunnel->tun_hlen = 8;
+	tunnel->parms.iph.protocol = IPPROTO_GRE;
+	t_hlen = tunnel->hlen + sizeof(struct iphdr) + sizeof(struct erspanhdr);
+
+	dev->needed_headroom = LL_MAX_HEADER + t_hlen + 4;
+	dev->mtu = ETH_DATA_LEN - t_hlen - 4;
+	dev->features		|= GRE_FEATURES;
+	dev->hw_features	|= GRE_FEATURES;
+	dev->priv_flags		|= IFF_LIVE_ADDR_CHANGE;
+
+	return ip_tunnel_init(dev);
+}
+
+static const struct net_device_ops erspan_netdev_ops = {
+	.ndo_init		= erspan_tunnel_init,
+	.ndo_uninit		= ip_tunnel_uninit,
+	.ndo_start_xmit		= erspan_xmit,
+	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= ip_tunnel_change_mtu,
 	.ndo_get_stats64	= ip_tunnel_get_stats64,
@@ -1041,6 +1243,8 @@ static size_t ipgre_get_size(const struct net_device *dev)
 		nla_total_size(1) +
 		/* IFLA_GRE_FWMARK */
 		nla_total_size(4) +
+		/* IFLA_GRE_ERSPAN_INDEX */
+		nla_total_size(4) +
 		0;
 }
 
@@ -1083,10 +1287,23 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			goto nla_put_failure;
 	}
 
+	if (t->index)
+		if (nla_put_u32(skb, IFLA_GRE_ERSPAN_INDEX, t->index))
+			goto nla_put_failure;
+
 	return 0;
 
 nla_put_failure:
 	return -EMSGSIZE;
+}
+
+static void erspan_setup(struct net_device *dev)
+{
+	ether_setup(dev);
+	dev->netdev_ops = &erspan_netdev_ops;
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+	ip_tunnel_setup(dev, erspan_net_id);
 }
 
 static const struct nla_policy ipgre_policy[IFLA_GRE_MAX + 1] = {
@@ -1107,6 +1324,7 @@ static const struct nla_policy ipgre_policy[IFLA_GRE_MAX + 1] = {
 	[IFLA_GRE_COLLECT_METADATA]	= { .type = NLA_FLAG },
 	[IFLA_GRE_IGNORE_DF]	= { .type = NLA_U8 },
 	[IFLA_GRE_FWMARK]	= { .type = NLA_U32 },
+	[IFLA_GRE_ERSPAN_INDEX]	= { .type = NLA_U32 },
 };
 
 static struct rtnl_link_ops ipgre_link_ops __read_mostly = {
@@ -1131,6 +1349,21 @@ static struct rtnl_link_ops ipgre_tap_ops __read_mostly = {
 	.priv_size	= sizeof(struct ip_tunnel),
 	.setup		= ipgre_tap_setup,
 	.validate	= ipgre_tap_validate,
+	.newlink	= ipgre_newlink,
+	.changelink	= ipgre_changelink,
+	.dellink	= ip_tunnel_dellink,
+	.get_size	= ipgre_get_size,
+	.fill_info	= ipgre_fill_info,
+	.get_link_net	= ip_tunnel_get_link_net,
+};
+
+static struct rtnl_link_ops erspan_link_ops __read_mostly = {
+	.kind		= "erspan",
+	.maxtype	= IFLA_GRE_MAX,
+	.policy		= ipgre_policy,
+	.priv_size	= sizeof(struct ip_tunnel),
+	.setup		= erspan_setup,
+	.validate	= erspan_validate,
 	.newlink	= ipgre_newlink,
 	.changelink	= ipgre_changelink,
 	.dellink	= ip_tunnel_dellink,
@@ -1202,6 +1435,26 @@ static struct pernet_operations ipgre_tap_net_ops = {
 	.size = sizeof(struct ip_tunnel_net),
 };
 
+static int __net_init erspan_init_net(struct net *net)
+{
+	return ip_tunnel_init_net(net, erspan_net_id,
+				  &erspan_link_ops, "erspan0");
+}
+
+static void __net_exit erspan_exit_net(struct net *net)
+{
+	struct ip_tunnel_net *itn = net_generic(net, erspan_net_id);
+
+	ip_tunnel_delete_net(itn, &erspan_link_ops);
+}
+
+static struct pernet_operations erspan_net_ops = {
+	.init = erspan_init_net,
+	.exit = erspan_exit_net,
+	.id   = &erspan_net_id,
+	.size = sizeof(struct ip_tunnel_net),
+};
+
 static int __init ipgre_init(void)
 {
 	int err;
@@ -1215,6 +1468,10 @@ static int __init ipgre_init(void)
 	err = register_pernet_device(&ipgre_tap_net_ops);
 	if (err < 0)
 		goto pnet_tap_faied;
+
+	err = register_pernet_device(&erspan_net_ops);
+	if (err < 0)
+		goto pnet_erspan_failed;
 
 	err = gre_add_protocol(&ipgre_protocol, GREPROTO_CISCO);
 	if (err < 0) {
@@ -1230,13 +1487,21 @@ static int __init ipgre_init(void)
 	if (err < 0)
 		goto tap_ops_failed;
 
+	err = rtnl_link_register(&erspan_link_ops);
+	if (err < 0)
+		goto erspan_link_failed;
+
 	return 0;
 
+erspan_link_failed:
+	rtnl_link_unregister(&ipgre_tap_ops);
 tap_ops_failed:
 	rtnl_link_unregister(&ipgre_link_ops);
 rtnl_link_failed:
 	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
 add_proto_failed:
+	unregister_pernet_device(&erspan_net_ops);
+pnet_erspan_failed:
 	unregister_pernet_device(&ipgre_tap_net_ops);
 pnet_tap_faied:
 	unregister_pernet_device(&ipgre_net_ops);
@@ -1247,9 +1512,11 @@ static void __exit ipgre_fini(void)
 {
 	rtnl_link_unregister(&ipgre_tap_ops);
 	rtnl_link_unregister(&ipgre_link_ops);
+	rtnl_link_unregister(&erspan_link_ops);
 	gre_del_protocol(&ipgre_protocol, GREPROTO_CISCO);
 	unregister_pernet_device(&ipgre_tap_net_ops);
 	unregister_pernet_device(&ipgre_net_ops);
+	unregister_pernet_device(&erspan_net_ops);
 }
 
 module_init(ipgre_init);
@@ -1257,5 +1524,7 @@ module_exit(ipgre_fini);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_RTNL_LINK("gre");
 MODULE_ALIAS_RTNL_LINK("gretap");
+MODULE_ALIAS_RTNL_LINK("erspan");
 MODULE_ALIAS_NETDEV("gre0");
 MODULE_ALIAS_NETDEV("gretap0");
+MODULE_ALIAS_NETDEV("erspan0");

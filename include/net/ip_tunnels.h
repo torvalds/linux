@@ -115,6 +115,9 @@ struct ip_tunnel {
 	u32		o_seqno;	/* The last output seqno */
 	int		tun_hlen;	/* Precalculated header length */
 
+	/* This field used only by ERSPAN */
+	u32		index;		/* ERSPAN type II index */
+
 	struct dst_cache dst_cache;
 
 	struct ip_tunnel_parm parms;
