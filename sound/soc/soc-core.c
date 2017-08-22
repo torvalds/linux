@@ -1000,7 +1000,7 @@ static struct snd_soc_component *soc_find_component(
 /**
  * snd_soc_find_dai - Find a registered DAI
  *
- * @dlc: name of the DAI and optional component info to match
+ * @dlc: name of the DAI or the DAI driver and optional component info to match
  *
  * This function will search all registered components and their DAIs to
  * find the DAI of the same name. The component's of_node and name
@@ -1028,7 +1028,8 @@ struct snd_soc_dai *snd_soc_find_dai(
 		if (dlc->name && strcmp(component->name, dlc->name))
 			continue;
 		list_for_each_entry(dai, &component->dai_list, list) {
-			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name))
+			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name)
+			    && strcmp(dai->driver->name, dlc->dai_name))
 				continue;
 
 			return dai;
