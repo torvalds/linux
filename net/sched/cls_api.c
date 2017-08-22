@@ -219,8 +219,6 @@ static void tcf_chain_destroy(struct tcf_chain *chain)
 	if (!list_empty(&chain->list))
 		list_del_init(&chain->list);
 
-	tcf_chain_flush(chain);
-
 	/* There might still be a reference held when we got here from
 	 * tcf_block_put. Wait for the user to drop reference before free.
 	 */
@@ -296,8 +294,10 @@ void tcf_block_put(struct tcf_block *block)
 	if (!block)
 		return;
 
-	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
+	list_for_each_entry_safe(chain, tmp, &block->chain_list, list) {
+		tcf_chain_flush(chain);
 		tcf_chain_destroy(chain);
+	}
 	kfree(block);
 }
 EXPORT_SYMBOL(tcf_block_put);
