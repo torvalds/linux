@@ -440,13 +440,9 @@ static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 	if (clr_sends) {
 		while (qp->s_last != qp->s_head) {
 			struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, qp->s_last);
-			unsigned i;
 
-			for (i = 0; i < wqe->wr.num_sge; i++) {
-				struct rvt_sge *sge = &wqe->sg_list[i];
+			rvt_put_swqe(wqe);
 
-				rvt_put_mr(sge->mr);
-			}
 			if (qp->ibqp.qp_type == IB_QPT_UD ||
 			    qp->ibqp.qp_type == IB_QPT_SMI ||
 			    qp->ibqp.qp_type == IB_QPT_GSI)
