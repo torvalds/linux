@@ -58,23 +58,6 @@ enum channel_clientstate {
 	CHANNELCLI_OWNED = 5
 };
 
-/* Values for VISORA_CHANNEL_PROTOCOL.CliErrorBoot: */
-
-/*
- * Throttling invalid boot channel statetransition error due to client
- * disabled.
- */
-#define VISOR_CLIERRORBOOT_THROTTLEMSG_DISABLED 0x01
-
-/*
- * Throttling invalid boot channel statetransition error due to client
- * not attached.
- */
-#define VISOR_CLIERRORBOOT_THROTTLEMSG_NOTATTACHED 0x02
-
-/* Throttling invalid boot channel statetransition error due to busy channel */
-#define VISOR_CLIERRORBOOT_THROTTLEMSG_BUSY 0x04
-
 /*
  * Values for VISOR_CHANNEL_PROTOCOL.Features: This define exists so that
  * windows guest can look at the FeatureFlags in the io channel, and configure
