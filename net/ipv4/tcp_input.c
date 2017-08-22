@@ -6111,6 +6111,10 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	if (tmp_opt.tstamp_ok)
 		tcp_rsk(req)->ts_off = af_ops->init_ts_off(net, skb);
 
+	dst = af_ops->route_req(sk, &fl, req);
+	if (!dst)
+		goto drop_and_free;
+
 	if (!want_cookie && !isn) {
 		/* Kill the following clause, if you dislike this way. */
 		if (!net->ipv4.sysctl_tcp_syncookies &&
@@ -6130,11 +6134,6 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		}
 
 		isn = af_ops->init_seq(skb);
-	}
-	if (!dst) {
-		dst = af_ops->route_req(sk, &fl, req);
-		if (!dst)
-			goto drop_and_free;
 	}
 
 	tcp_ecn_create_request(req, skb, sk, dst);
