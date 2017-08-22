@@ -57,58 +57,6 @@
  */
 
 /**
- * amdgpu_gart_set_defaults - set the default gart_size
- *
- * @adev: amdgpu_device pointer
- *
- * Set the default gart_size based on parameters and available VRAM.
- */
-void amdgpu_gart_set_defaults(struct amdgpu_device *adev)
-{
-	u64 gart_size;
-
-	if (amdgpu_gart_size == -1) {
-		switch (adev->asic_type) {
-#ifdef CONFIG_DRM_AMDGPU_SI
-		case CHIP_HAINAN:    /* no MM engines */
-#endif
-		case CHIP_TOPAZ:     /* no MM engines */
-		case CHIP_POLARIS11: /* all engines support GPUVM */
-		case CHIP_POLARIS10: /* all engines support GPUVM */
-		case CHIP_POLARIS12: /* all engines support GPUVM */
-		case CHIP_VEGA10:    /* all engines support GPUVM */
-		default:
-			gart_size = 256;
-			break;
-#ifdef CONFIG_DRM_AMDGPU_SI
-		case CHIP_VERDE:    /* UVD, VCE do not support GPUVM */
-		case CHIP_TAHITI:   /* UVD, VCE do not support GPUVM */
-		case CHIP_PITCAIRN: /* UVD, VCE do not support GPUVM */
-		case CHIP_OLAND:    /* UVD, VCE do not support GPUVM */
-#endif
-#ifdef CONFIG_DRM_AMDGPU_CIK
-		case CHIP_BONAIRE: /* UVD, VCE do not support GPUVM */
-		case CHIP_HAWAII:  /* UVD, VCE do not support GPUVM */
-		case CHIP_KAVERI:  /* UVD, VCE do not support GPUVM */
-		case CHIP_KABINI:  /* UVD, VCE do not support GPUVM */
-		case CHIP_MULLINS: /* UVD, VCE do not support GPUVM */
-#endif
-		case CHIP_TONGA:   /* UVD, VCE do not support GPUVM */
-		case CHIP_FIJI:    /* UVD, VCE do not support GPUVM */
-		case CHIP_CARRIZO: /* UVD, VCE do not support GPUVM, DCE SG support */
-		case CHIP_STONEY:  /* UVD does not support GPUVM, DCE SG support */
-		case CHIP_RAVEN:   /* DCE SG support */
-			gart_size = 1024;
-			break;
-		}
-	} else {
-		gart_size = amdgpu_gart_size;
-	}
-
-	adev->mc.gart_size = gart_size << 20;
-}
-
-/**
  * amdgpu_gart_table_ram_alloc - allocate system ram for gart page table
  *
  * @adev: amdgpu_device pointer
