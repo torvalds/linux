@@ -1465,6 +1465,11 @@ struct i915_gem_mm {
 	struct llist_head free_list;
 	struct work_struct free_work;
 
+	/**
+	 * Small stash of WC pages
+	 */
+	struct pagevec wc_stash;
+
 	/** Usable portion of the GTT for GEM */
 	dma_addr_t stolen_base; /* limited to low memory (32-bit) */
 
