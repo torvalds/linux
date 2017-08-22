@@ -28,6 +28,7 @@
  */
 
 #include <linux/uuid.h>
+#include <linux/skbuff.h>
 
 #include "channel.h"
 

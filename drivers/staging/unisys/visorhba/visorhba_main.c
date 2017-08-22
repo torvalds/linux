@@ -14,7 +14,6 @@
  */
 
 #include <linux/debugfs.h>
-#include <linux/skbuff.h>
 #include <linux/kthread.h>
 #include <linux/idr.h>
 #include <linux/seq_file.h>
