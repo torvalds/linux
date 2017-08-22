@@ -430,12 +430,11 @@ i40evf_map_vector_to_txq(struct i40evf_adapter *adapter, int v_idx, int t_idx)
  * group the rings as "efficiently" as possible.  You would add new
  * mapping configurations in here.
  **/
-static int i40evf_map_rings_to_vectors(struct i40evf_adapter *adapter)
+static void i40evf_map_rings_to_vectors(struct i40evf_adapter *adapter)
 {
 	int rings_remaining = adapter->num_active_queues;
 	int ridx = 0, vidx = 0;
 	int q_vectors;
-	int err = 0;
 
 	q_vectors = adapter->num_msix_vectors - NONQ_VECS;
 
@@ -451,8 +450,6 @@ static int i40evf_map_rings_to_vectors(struct i40evf_adapter *adapter)
 	}
 
 	adapter->aq_required |= I40EVF_FLAG_AQ_MAP_VECTORS;
-
-	return err;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1578,9 +1575,7 @@ static int i40evf_reinit_interrupt_scheme(struct i40evf_adapter *adapter)
 
 	set_bit(__I40E_VSI_DOWN, adapter->vsi.state);
 
-	err = i40evf_map_rings_to_vectors(adapter);
-	if (err)
-		goto err;
+	i40evf_map_rings_to_vectors(adapter);
 
 	if (RSS_AQ(adapter))
 		adapter->aq_required |= I40EVF_FLAG_AQ_CONFIGURE_RSS;
