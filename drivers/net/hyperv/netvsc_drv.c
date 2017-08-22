@@ -190,10 +190,12 @@ static void *init_ppi_data(struct rndis_message *msg, u32 ppi_size,
 	return ppi;
 }
 
-/* Azure hosts don't support non-TCP port numbers in hashing yet. We compute
- * hash for non-TCP traffic with only IP numbers.
+/* Azure hosts don't support non-TCP port numbers in hashing for fragmented
+ * packets. We can use ethtool to change UDP hash level when necessary.
  */
-static inline u32 netvsc_get_hash(struct sk_buff *skb, struct sock *sk)
+static inline u32 netvsc_get_hash(
+	struct sk_buff *skb,
+	const struct net_device_context *ndc)
 {
 	struct flow_keys flow;
 	u32 hash;
@@ -204,7 +206,11 @@ static inline u32 netvsc_get_hash(struct sk_buff *skb, struct sock *sk)
 	if (!skb_flow_dissect_flow_keys(skb, &flow, 0))
 		return 0;
 
-	if (flow.basic.ip_proto == IPPROTO_TCP) {
+	if (flow.basic.ip_proto == IPPROTO_TCP ||
+	    (flow.basic.ip_proto == IPPROTO_UDP &&
+	     ((flow.basic.n_proto == htons(ETH_P_IP) && ndc->udp4_l4_hash) ||
+	      (flow.basic.n_proto == htons(ETH_P_IPV6) &&
+	       ndc->udp6_l4_hash)))) {
 		return skb_get_hash(skb);
 	} else {
 		if (flow.basic.n_proto == htons(ETH_P_IP))
@@ -227,7 +233,7 @@ static inline int netvsc_get_tx_queue(struct net_device *ndev,
 	struct sock *sk = skb->sk;
 	int q_idx;
 
-	q_idx = ndc->tx_send_table[netvsc_get_hash(skb, sk) &
+	q_idx = ndc->tx_send_table[netvsc_get_hash(skb, ndc) &
 				   (VRSS_SEND_TAB_SIZE - 1)];
 
 	/* If queue index changed record the new value */
@@ -891,6 +897,9 @@ static void netvsc_init_settings(struct net_device *dev)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
 
+	ndc->udp4_l4_hash = true;
+	ndc->udp6_l4_hash = true;
+
 	ndc->speed = SPEED_UNKNOWN;
 	ndc->duplex = DUPLEX_FULL;
 }
@@ -1228,7 +1237,7 @@ static void netvsc_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 }
 
 static int
-netvsc_get_rss_hash_opts(struct netvsc_device *nvdev,
+netvsc_get_rss_hash_opts(struct net_device_context *ndc,
 			 struct ethtool_rxnfc *info)
 {
 	info->data = RXH_IP_SRC | RXH_IP_DST;
@@ -1237,9 +1246,20 @@ netvsc_get_rss_hash_opts(struct netvsc_device *nvdev,
 	case TCP_V4_FLOW:
 	case TCP_V6_FLOW:
 		info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-		/* fallthrough */
+		break;
+
 	case UDP_V4_FLOW:
+		if (ndc->udp4_l4_hash)
+			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+
+		break;
+
 	case UDP_V6_FLOW:
+		if (ndc->udp6_l4_hash)
+			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+
+		break;
+
 	case IPV4_FLOW:
 	case IPV6_FLOW:
 		break;
@@ -1267,8 +1287,48 @@ netvsc_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		return 0;
 
 	case ETHTOOL_GRXFH:
-		return netvsc_get_rss_hash_opts(nvdev, info);
+		return netvsc_get_rss_hash_opts(ndc, info);
 	}
+	return -EOPNOTSUPP;
+}
+
+static int netvsc_set_rss_hash_opts(struct net_device_context *ndc,
+				    struct ethtool_rxnfc *info)
+{
+	if (info->data == (RXH_IP_SRC | RXH_IP_DST |
+			   RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+		if (info->flow_type == UDP_V4_FLOW)
+			ndc->udp4_l4_hash = true;
+		else if (info->flow_type == UDP_V6_FLOW)
+			ndc->udp6_l4_hash = true;
+		else
+			return -EOPNOTSUPP;
+
+		return 0;
+	}
+
+	if (info->data == (RXH_IP_SRC | RXH_IP_DST)) {
+		if (info->flow_type == UDP_V4_FLOW)
+			ndc->udp4_l4_hash = false;
+		else if (info->flow_type == UDP_V6_FLOW)
+			ndc->udp6_l4_hash = false;
+		else
+			return -EOPNOTSUPP;
+
+		return 0;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static int
+netvsc_set_rxnfc(struct net_device *ndev, struct ethtool_rxnfc *info)
+{
+	struct net_device_context *ndc = netdev_priv(ndev);
+
+	if (info->cmd == ETHTOOL_SRXFH)
+		return netvsc_set_rss_hash_opts(ndc, info);
+
 	return -EOPNOTSUPP;
 }
 
@@ -1470,6 +1530,7 @@ static const struct ethtool_ops ethtool_ops = {
 	.set_channels   = netvsc_set_channels,
 	.get_ts_info	= ethtool_op_get_ts_info,
 	.get_rxnfc	= netvsc_get_rxnfc,
+	.set_rxnfc	= netvsc_set_rxnfc,
 	.get_rxfh_key_size = netvsc_get_rxfh_key_size,
 	.get_rxfh_indir_size = netvsc_rss_indir_size,
 	.get_rxfh	= netvsc_get_rxfh,
