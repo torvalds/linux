@@ -847,6 +847,84 @@ static inline u32 get_lrh_len(struct hfi1_pkt_header hdr, u32 len)
 	return ((sizeof(hdr) - sizeof(hdr.pbc)) + 4 + len);
 }
 
+static int user_sdma_txadd_ahg(struct user_sdma_request *req,
+			       struct user_sdma_txreq *tx,
+			       u32 datalen)
+{
+	int ret;
+	u16 pbclen = le16_to_cpu(req->hdr.pbc[0]);
+	u32 lrhlen = get_lrh_len(req->hdr, pad_len(datalen));
+	struct hfi1_user_sdma_pkt_q *pq = req->pq;
+
+	/*
+	 * Copy the request header into the tx header
+	 * because the HW needs a cacheline-aligned
+	 * address.
+	 * This copy can be optimized out if the hdr
+	 * member of user_sdma_request were also
+	 * cacheline aligned.
+	 */
+	memcpy(&tx->hdr, &req->hdr, sizeof(tx->hdr));
+	if (PBC2LRH(pbclen) != lrhlen) {
+		pbclen = (pbclen & 0xf000) | LRH2PBC(lrhlen);
+		tx->hdr.pbc[0] = cpu_to_le16(pbclen);
+	}
+	ret = check_header_template(req, &tx->hdr, lrhlen, datalen);
+	if (ret)
+		return ret;
+	ret = sdma_txinit_ahg(&tx->txreq, SDMA_TXREQ_F_AHG_COPY,
+			      sizeof(tx->hdr) + datalen, req->ahg_idx,
+			      0, NULL, 0, user_sdma_txreq_cb);
+	if (ret)
+		return ret;
+	ret = sdma_txadd_kvaddr(pq->dd, &tx->txreq, &tx->hdr, sizeof(tx->hdr));
+	if (ret)
+		sdma_txclean(pq->dd, &tx->txreq);
+	return ret;
+}
+
+static int user_sdma_txadd(struct user_sdma_request *req,
+			   struct user_sdma_txreq *tx,
+			   struct user_sdma_iovec *iovec, u32 datalen,
+			   u32 *queued_ptr, u32 *data_sent_ptr,
+			   u64 *iov_offset_ptr)
+{
+	int ret;
+	unsigned int pageidx, len;
+	unsigned long base, offset;
+	u64 iov_offset = *iov_offset_ptr;
+	u32 queued = *queued_ptr, data_sent = *data_sent_ptr;
+	struct hfi1_user_sdma_pkt_q *pq = req->pq;
+
+	base = (unsigned long)iovec->iov.iov_base;
+	offset = offset_in_page(base + iovec->offset + iov_offset);
+	pageidx = (((iovec->offset + iov_offset + base) - (base & PAGE_MASK)) >>
+		   PAGE_SHIFT);
+	len = offset + req->info.fragsize > PAGE_SIZE ?
+		PAGE_SIZE - offset : req->info.fragsize;
+	len = min((datalen - queued), len);
+	ret = sdma_txadd_page(pq->dd, &tx->txreq, iovec->pages[pageidx],
+			      offset, len);
+	if (ret) {
+		SDMA_DBG(req, "SDMA txreq add page failed %d\n", ret);
+		return ret;
+	}
+	iov_offset += len;
+	queued += len;
+	data_sent += len;
+	if (unlikely(queued < datalen && pageidx == iovec->npages &&
+		     req->iov_idx < req->data_iovs - 1)) {
+		iovec->offset += iov_offset;
+		iovec = &req->iovs[++req->iov_idx];
+		iov_offset = 0;
+	}
+
+	*queued_ptr = queued;
+	*data_sent_ptr = data_sent;
+	*iov_offset_ptr = iov_offset;
+	return ret;
+}
+
 static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 {
 	int ret = 0, count;
@@ -943,39 +1021,9 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 
 		if (req->ahg_idx >= 0) {
 			if (!req->seqnum) {
-				u16 pbclen = le16_to_cpu(req->hdr.pbc[0]);
-				u32 lrhlen = get_lrh_len(req->hdr,
-							 pad_len(datalen));
-				/*
-				 * Copy the request header into the tx header
-				 * because the HW needs a cacheline-aligned
-				 * address.
-				 * This copy can be optimized out if the hdr
-				 * member of user_sdma_request were also
-				 * cacheline aligned.
-				 */
-				memcpy(&tx->hdr, &req->hdr, sizeof(tx->hdr));
-				if (PBC2LRH(pbclen) != lrhlen) {
-					pbclen = (pbclen & 0xf000) |
-						LRH2PBC(lrhlen);
-					tx->hdr.pbc[0] = cpu_to_le16(pbclen);
-				}
-				ret = check_header_template(req, &tx->hdr,
-							    lrhlen, datalen);
+				ret = user_sdma_txadd_ahg(req, tx, datalen);
 				if (ret)
 					goto free_tx;
-				ret = sdma_txinit_ahg(&tx->txreq,
-						      SDMA_TXREQ_F_AHG_COPY,
-						      sizeof(tx->hdr) + datalen,
-						      req->ahg_idx, 0, NULL, 0,
-						      user_sdma_txreq_cb);
-				if (ret)
-					goto free_tx;
-				ret = sdma_txadd_kvaddr(pq->dd, &tx->txreq,
-							&tx->hdr,
-							sizeof(tx->hdr));
-				if (ret)
-					goto free_txreq;
 			} else {
 				int changes;
 
@@ -1006,35 +1054,10 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 		 */
 		while (queued < datalen &&
 		       (req->sent + data_sent) < req->data_len) {
-			unsigned long base, offset;
-			unsigned pageidx, len;
-
-			base = (unsigned long)iovec->iov.iov_base;
-			offset = offset_in_page(base + iovec->offset +
-						iov_offset);
-			pageidx = (((iovec->offset + iov_offset +
-				     base) - (base & PAGE_MASK)) >> PAGE_SHIFT);
-			len = offset + req->info.fragsize > PAGE_SIZE ?
-				PAGE_SIZE - offset : req->info.fragsize;
-			len = min((datalen - queued), len);
-			ret = sdma_txadd_page(pq->dd, &tx->txreq,
-					      iovec->pages[pageidx],
-					      offset, len);
-			if (ret) {
-				SDMA_DBG(req, "SDMA txreq add page failed %d\n",
-					 ret);
+			ret = user_sdma_txadd(req, tx, iovec, datalen,
+					      &queued, &data_sent, &iov_offset);
+			if (ret)
 				goto free_txreq;
-			}
-			iov_offset += len;
-			queued += len;
-			data_sent += len;
-			if (unlikely(queued < datalen &&
-				     pageidx == iovec->npages &&
-				     req->iov_idx < req->data_iovs - 1)) {
-				iovec->offset += iov_offset;
-				iovec = &req->iovs[++req->iov_idx];
-				iov_offset = 0;
-			}
 		}
 		/*
 		 * The txreq was submitted successfully so we can update
