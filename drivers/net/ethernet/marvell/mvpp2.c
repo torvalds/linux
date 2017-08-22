@@ -363,7 +363,9 @@
 #define     MVPP22_XLG_CTRL0_MAC_RESET_DIS	BIT(1)
 #define     MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN	BIT(7)
 #define     MVPP22_XLG_CTRL0_MIB_CNT_DIS	BIT(14)
-
+#define MVPP22_XLG_CTRL1_REG			0x104
+#define     MVPP22_XLG_CTRL1_FRAMESIZELIMIT	BIT(0)
+#define     MVPP22_XLG_CTRL1_FRAMESIZELIMIT_MASK	0x1fff
 #define MVPP22_XLG_CTRL3_REG			0x11c
 #define     MVPP22_XLG_CTRL3_MACMODESELECT_MASK	(7 << 13)
 #define     MVPP22_XLG_CTRL3_MACMODESELECT_GMAC	(0 << 13)
@@ -4498,6 +4500,18 @@ static inline void mvpp2_gmac_max_rx_size_set(struct mvpp2_port *port)
 	writel(val, port->base + MVPP2_GMAC_CTRL_0_REG);
 }
 
+/* Change maximum receive size of the port */
+static inline void mvpp2_xlg_max_rx_size_set(struct mvpp2_port *port)
+{
+	u32 val;
+
+	val =  readl(port->base + MVPP22_XLG_CTRL1_REG);
+	val &= ~MVPP22_XLG_CTRL1_FRAMESIZELIMIT_MASK;
+	val |= ((port->pkt_size - MVPP2_MH_SIZE) / 2) <<
+	       MVPP22_XLG_CTRL1_FRAMESIZELIMIT;
+	writel(val, port->base + MVPP22_XLG_CTRL1_REG);
+}
+
 /* Set defaults to the MVPP2 port */
 static void mvpp2_defaults_set(struct mvpp2_port *port)
 {
@@ -6076,7 +6090,13 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 	struct net_device *ndev = port->dev;
 	int i;
 
-	mvpp2_gmac_max_rx_size_set(port);
+	if (port->gop_id == 0 &&
+	    (port->phy_interface == PHY_INTERFACE_MODE_XAUI ||
+	     port->phy_interface == PHY_INTERFACE_MODE_10GKR))
+		mvpp2_xlg_max_rx_size_set(port);
+	else
+		mvpp2_gmac_max_rx_size_set(port);
+
 	mvpp2_txp_max_tx_size_set(port);
 
 	for (i = 0; i < port->nqvecs; i++)
