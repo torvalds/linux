@@ -396,13 +396,17 @@ static int sba_send_mbox_request(struct sba_device *sba,
 		dev_err(sba->dev, "send message failed with error %d", ret);
 		return ret;
 	}
+
+	/* Check error returned by mailbox controller */
 	ret = req->msg.error;
 	if (ret < 0) {
 		dev_err(sba->dev, "message error %d", ret);
-		return ret;
 	}
 
-	return 0;
+	/* Signal txdone for mailbox channel */
+	mbox_client_txdone(sba->mchans[mchans_idx], ret);
+
+	return ret;
 }
 
 /* Note: Must be called with sba->reqs_lock held */
@@ -1724,7 +1728,7 @@ static int sba_probe(struct platform_device *pdev)
 	sba->client.dev			= &pdev->dev;
 	sba->client.rx_callback		= sba_receive_message;
 	sba->client.tx_block		= false;
-	sba->client.knows_txdone	= false;
+	sba->client.knows_txdone	= true;
 	sba->client.tx_tout		= 0;
 
 	/* Allocate mailbox channel array */
