@@ -237,6 +237,7 @@ static struct sba_request *sba_alloc_request(struct sba_device *sba)
 	atomic_set(&req->next_pending_count, 1);
 
 	dma_async_tx_descriptor_init(&req->tx, &sba->dma_chan);
+	async_tx_ack(&req->tx);
 
 	return req;
 }
