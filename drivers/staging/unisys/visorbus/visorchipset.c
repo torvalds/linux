@@ -644,9 +644,8 @@ static int visorbus_create(struct controlvm_message *inmsg)
 
 	bus_info->visorchannel = visorchannel;
 
-	/* Response will be handled by visorchipset_bus_create */
-	err = visorchipset_bus_create(bus_info);
-	/* If visorchipset_bus_create didn't respond, need to respond here */
+	/* Response will be handled by visorbus_create_instance on success */
+	err = visorbus_create_instance(bus_info);
 	if (err)
 		goto err_destroy_channel;
 

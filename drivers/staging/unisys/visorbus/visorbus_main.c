@@ -1032,7 +1032,7 @@ EXPORT_SYMBOL_GPL(visorbus_register_visor_driver);
  * Return: 0 for success, otherwise negative errno value indicating reason for
  *         failure
  */
-static int visorbus_create_instance(struct visor_device *dev)
+int visorbus_create_instance(struct visor_device *dev)
 {
 	int id = dev->chipset_bus_no;
 	int err;
@@ -1065,11 +1065,14 @@ static int visorbus_create_instance(struct visor_device *dev)
 
 	list_add_tail(&dev->list_all, &list_all_bus_instances);
 
+	dev->state.created = 1;
 	dev->vbus_hdr_info = (void *)hdr_info;
 	write_vbus_chp_info(dev->visorchannel, hdr_info,
 			    &chipset_driverinfo);
 	write_vbus_bus_info(dev->visorchannel, hdr_info,
 			    &clientbus_driverinfo);
+
+	visorbus_response(dev, err, CONTROLVM_BUS_CREATE);
 
 	return 0;
 
@@ -1113,20 +1116,6 @@ static void remove_all_visor_devices(void)
 						      list_all);
 		remove_visor_device(dev);
 	}
-}
-
-int visorchipset_bus_create(struct visor_device *dev)
-{
-	int err;
-
-	err = visorbus_create_instance(dev);
-	if (err < 0)
-		return err;
-
-	visorbus_response(dev, err, CONTROLVM_BUS_CREATE);
-	dev->state.created = 1;
-
-	return 0;
 }
 
 void visorchipset_bus_destroy(struct visor_device *dev)

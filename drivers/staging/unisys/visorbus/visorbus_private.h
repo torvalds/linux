@@ -23,7 +23,7 @@
 #include "vbuschannel.h"
 #include "visorbus.h"
 
-int visorchipset_bus_create(struct visor_device *bus_info);
+int visorbus_create_instance(struct visor_device *dev);
 void visorchipset_bus_destroy(struct visor_device *bus_info);
 int visorchipset_device_create(struct visor_device *dev_info);
 void visorchipset_device_destroy(struct visor_device *dev_info);
@@ -38,7 +38,6 @@ int visorbus_init(void);
 void visorbus_exit(void);
 
 /* visorchannel access functions */
-
 struct visorchannel *visorchannel_create(u64 physaddr,
 					 unsigned long channel_bytes,
 					 gfp_t gfp, const guid_t *guid);
