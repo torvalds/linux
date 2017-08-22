@@ -21,11 +21,23 @@ Features
   --------------------
   Hyper-V supports receive side scaling. For TCP, packets are
   distributed among available queues based on IP address and port
-  number. Current versions of Hyper-V host, only distribute UDP
-  packets based on the IP source and destination address.
-  The port number is not used as part of the hash value for UDP.
-  Fragmented IP packets are not distributed between queues;
-  all fragmented packets arrive on the first channel.
+  number.
+
+  For UDP, we can switch UDP hash level between L3 and L4 by ethtool
+  command. UDP over IPv4 and v6 can be set differently. The default
+  hash level is L4. We currently only allow switching TX hash level
+  from within the guests.
+
+  On Azure, fragmented UDP packets have high loss rate with L4
+  hashing. Using L3 hashing is recommended in this case.
+
+  For example, for UDP over IPv4 on eth0:
+  To include UDP port numbers in hasing:
+        ethtool -N eth0 rx-flow-hash udp4 sdfn
+  To exclude UDP port numbers in hasing:
+        ethtool -N eth0 rx-flow-hash udp4 sd
+  To show UDP hash level:
+        ethtool -n eth0 rx-flow-hash udp4
 
   Generic Receive Offload, aka GRO
   --------------------------------
