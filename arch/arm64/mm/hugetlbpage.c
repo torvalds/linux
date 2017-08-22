@@ -41,6 +41,16 @@ int pud_huge(pud_t pud)
 #endif
 }
 
+/*
+ * Select all bits except the pfn
+ */
+static inline pgprot_t pte_pgprot(pte_t pte)
+{
+	unsigned long pfn = pte_pfn(pte);
+
+	return __pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^ pte_val(pte));
+}
+
 static int find_num_contig(struct mm_struct *mm, unsigned long addr,
 			   pte_t *ptep, size_t *pgsize)
 {
@@ -80,7 +90,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 
 	ncontig = find_num_contig(mm, addr, ptep, &pgsize);
 	pfn = pte_pfn(pte);
-	hugeprot = __pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^ pte_val(pte));
+	hugeprot = pte_pgprot(pte);
 	for (i = 0; i < ncontig; i++) {
 		pr_debug("%s: set pte %p to 0x%llx\n", __func__, ptep,
 			 pte_val(pfn_pte(pfn, hugeprot)));
@@ -223,9 +233,7 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 		size_t pgsize = 0;
 		unsigned long pfn = pte_pfn(pte);
 		/* Select all bits except the pfn */
-		pgprot_t hugeprot =
-			__pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^
-				 pte_val(pte));
+		pgprot_t hugeprot = pte_pgprot(pte);
 
 		pfn = pte_pfn(pte);
 		ncontig = find_num_contig(vma->vm_mm, addr, ptep,
