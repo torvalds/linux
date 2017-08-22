@@ -532,7 +532,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	/* setting size of input image */
 	vp_reg_write(res, VP_IMG_SIZE_Y, VP_IMG_HSIZE(fb->pitches[0]) |
 		VP_IMG_VSIZE(fb->height));
-	/* chroma height has to reduced by 2 to avoid chroma distorions */
+	/* chroma plane for NV12/NV21 is half the height of the luma plane */
 	vp_reg_write(res, VP_IMG_SIZE_C, VP_IMG_HSIZE(fb->pitches[0]) |
 		VP_IMG_VSIZE(fb->height / 2));
 
