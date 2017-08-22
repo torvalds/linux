@@ -720,6 +720,8 @@ struct net_device_context {
 	u32 tx_send_table[VRSS_SEND_TAB_SIZE];
 
 	/* Ethtool settings */
+	bool udp4_l4_hash;
+	bool udp6_l4_hash;
 	u8 duplex;
 	u32 speed;
 	struct netvsc_ethtool_stats eth_stats;
