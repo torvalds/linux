@@ -1189,9 +1189,18 @@ static int i40evf_alloc_queues(struct i40evf_adapter *adapter)
 {
 	int i, num_active_queues;
 
-	num_active_queues = min_t(int,
-				  adapter->vsi_res->num_queue_pairs,
-				  (int)(num_online_cpus()));
+	/* If we're in reset reallocating queues we don't actually know yet for
+	 * certain the PF gave us the number of queues we asked for but we'll
+	 * assume it did.  Once basic reset is finished we'll confirm once we
+	 * start negotiating config with PF.
+	 */
+	if (adapter->num_req_queues)
+		num_active_queues = adapter->num_req_queues;
+	else
+		num_active_queues = min_t(int,
+					  adapter->vsi_res->num_queue_pairs,
+					  (int)(num_online_cpus()));
+
 
 	adapter->tx_rings = kcalloc(num_active_queues,
 				    sizeof(struct i40e_ring), GFP_KERNEL);
@@ -1540,6 +1549,48 @@ static void i40evf_free_rss(struct i40evf_adapter *adapter)
 }
 
 /**
+ * i40evf_reinit_interrupt_scheme - Reallocate queues and vectors
+ * @adapter: board private structure
+ *
+ * Returns 0 on success, negative on failure
+ **/
+static int i40evf_reinit_interrupt_scheme(struct i40evf_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	int err;
+
+	if (netif_running(netdev))
+		i40evf_free_traffic_irqs(adapter);
+	i40evf_free_misc_irq(adapter);
+	i40evf_reset_interrupt_capability(adapter);
+	i40evf_free_q_vectors(adapter);
+	i40evf_free_queues(adapter);
+
+	err =  i40evf_init_interrupt_scheme(adapter);
+	if (err)
+		goto err;
+
+	netif_tx_stop_all_queues(netdev);
+
+	err = i40evf_request_misc_irq(adapter);
+	if (err)
+		goto err;
+
+	set_bit(__I40E_VSI_DOWN, adapter->vsi.state);
+
+	err = i40evf_map_rings_to_vectors(adapter);
+	if (err)
+		goto err;
+
+	if (RSS_AQ(adapter))
+		adapter->aq_required |= I40EVF_FLAG_AQ_CONFIGURE_RSS;
+	else
+		err = i40evf_init_rss(adapter);
+err:
+	return err;
+}
+
+/**
  * i40evf_watchdog_timer - Periodic call-back timer
  * @data: pointer to adapter disguised as unsigned long
  **/
@@ -1885,8 +1936,15 @@ continue_reset:
 	if (err)
 		dev_info(&adapter->pdev->dev, "Failed to init adminq: %d\n",
 			 err);
+	adapter->aq_required = 0;
 
-	adapter->aq_required = I40EVF_FLAG_AQ_GET_CONFIG;
+	if (adapter->flags & I40EVF_FLAG_REINIT_ITR_NEEDED) {
+		err = i40evf_reinit_interrupt_scheme(adapter);
+		if (err)
+			goto reset_err;
+	}
+
+	adapter->aq_required |= I40EVF_FLAG_AQ_GET_CONFIG;
 	adapter->aq_required |= I40EVF_FLAG_AQ_MAP_VECTORS;
 
 	/* re-add all MAC filters */
@@ -1915,6 +1973,15 @@ continue_reset:
 		err = i40evf_setup_all_rx_resources(adapter);
 		if (err)
 			goto reset_err;
+
+		if (adapter->flags & I40EVF_FLAG_REINIT_ITR_NEEDED) {
+			err = i40evf_request_traffic_irqs(adapter,
+							  netdev->name);
+			if (err)
+				goto reset_err;
+
+			adapter->flags &= ~I40EVF_FLAG_REINIT_ITR_NEEDED;
+		}
 
 		i40evf_configure(adapter);
 
@@ -2431,9 +2498,9 @@ static int i40evf_check_reset_complete(struct i40e_hw *hw)
 int i40evf_process_config(struct i40evf_adapter *adapter)
 {
 	struct virtchnl_vf_resource *vfres = adapter->vf_res;
+	int i, num_req_queues = adapter->num_req_queues;
 	struct net_device *netdev = adapter->netdev;
 	struct i40e_vsi *vsi = &adapter->vsi;
-	int i;
 	netdev_features_t hw_enc_features;
 	netdev_features_t hw_features;
 
@@ -2446,6 +2513,23 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 		dev_err(&adapter->pdev->dev, "No LAN VSI found\n");
 		return -ENODEV;
 	}
+
+	if (num_req_queues &&
+	    num_req_queues != adapter->vsi_res->num_queue_pairs) {
+		/* Problem.  The PF gave us fewer queues than what we had
+		 * negotiated in our request.  Need a reset to see if we can't
+		 * get back to a working state.
+		 */
+		dev_err(&adapter->pdev->dev,
+			"Requested %d queues, but PF only gave us %d.\n",
+			num_req_queues,
+			adapter->vsi_res->num_queue_pairs);
+		adapter->flags |= I40EVF_FLAG_REINIT_ITR_NEEDED;
+		adapter->num_req_queues = adapter->vsi_res->num_queue_pairs;
+		i40evf_schedule_reset(adapter);
+		return -ENODEV;
+	}
+	adapter->num_req_queues = 0;
 
 	hw_enc_features = NETIF_F_SG			|
 			  NETIF_F_IP_CSUM		|

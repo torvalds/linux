@@ -160,7 +160,8 @@ int i40evf_send_vf_config_msg(struct i40evf_adapter *adapter)
 	       VIRTCHNL_VF_OFFLOAD_WB_ON_ITR |
 	       VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2 |
 	       VIRTCHNL_VF_OFFLOAD_ENCAP |
-	       VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM;
+	       VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM |
+	       VIRTCHNL_VF_OFFLOAD_REQ_QUEUES;
 
 	adapter->current_op = VIRTCHNL_OP_GET_VF_RESOURCES;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_GET_CONFIG;
@@ -382,6 +383,32 @@ void i40evf_map_queues(struct i40evf_adapter *adapter)
 	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_CONFIG_IRQ_MAP,
 			   (u8 *)vimi, len);
 	kfree(vimi);
+}
+
+/**
+ * i40evf_request_queues
+ * @adapter: adapter structure
+ * @num: number of requested queues
+ *
+ * We get a default number of queues from the PF.  This enables us to request a
+ * different number.  Returns 0 on success, negative on failure
+ **/
+int i40evf_request_queues(struct i40evf_adapter *adapter, int num)
+{
+	struct virtchnl_vf_res_request vfres;
+
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot request queues, command %d pending\n",
+			adapter->current_op);
+		return -EBUSY;
+	}
+
+	vfres.num_queue_pairs = num;
+
+	adapter->current_op = VIRTCHNL_OP_REQUEST_QUEUES;
+	return i40evf_send_pf_msg(adapter, VIRTCHNL_OP_REQUEST_QUEUES,
+				  (u8 *)&vfres, sizeof(vfres));
 }
 
 /**
@@ -1066,6 +1093,21 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		else
 			dev_warn(&adapter->pdev->dev,
 				 "Invalid message %d from PF\n", v_opcode);
+		}
+		break;
+	case VIRTCHNL_OP_REQUEST_QUEUES: {
+		struct virtchnl_vf_res_request *vfres =
+			(struct virtchnl_vf_res_request *)msg;
+		if (vfres->num_queue_pairs == adapter->num_req_queues) {
+			adapter->flags |= I40EVF_FLAG_REINIT_ITR_NEEDED;
+			i40evf_schedule_reset(adapter);
+		} else {
+			dev_info(&adapter->pdev->dev,
+				 "Requested %d queues, PF can support %d\n",
+				 adapter->num_req_queues,
+				 vfres->num_queue_pairs);
+			adapter->num_req_queues = 0;
+		}
 		}
 		break;
 	default:
