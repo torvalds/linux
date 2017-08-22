@@ -60,6 +60,15 @@ struct tid_user_buf {
 	unsigned int n_psets;
 };
 
+static inline int num_user_pages(unsigned long addr,
+				 unsigned long len)
+{
+	const unsigned long spage = addr & PAGE_MASK;
+	const unsigned long epage = (addr + len - 1) & PAGE_MASK;
+
+	return 1 + ((epage - spage) >> PAGE_SHIFT);
+}
+
 int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd,
 			   struct hfi1_ctxtdata *uctxt);
 void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd);

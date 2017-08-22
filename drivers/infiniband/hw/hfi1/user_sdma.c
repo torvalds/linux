@@ -246,7 +246,6 @@ struct user_sdma_txreq {
 
 static int user_sdma_send_pkts(struct user_sdma_request *req,
 			       unsigned maxpkts);
-static int num_user_pages(const struct iovec *iov);
 static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status);
 static inline void pq_update(struct hfi1_user_sdma_pkt_q *pq);
 static void user_sdma_free_request(struct user_sdma_request *req, bool unpin);
@@ -1101,19 +1100,6 @@ free_tx:
 	return ret;
 }
 
-/*
- * How many pages in this iovec element?
- */
-static inline int num_user_pages(const struct iovec *iov)
-{
-	const unsigned long addr  = (unsigned long)iov->iov_base;
-	const unsigned long len   = iov->iov_len;
-	const unsigned long spage = addr & PAGE_MASK;
-	const unsigned long epage = (addr + len - 1) & PAGE_MASK;
-
-	return 1 + ((epage - spage) >> PAGE_SHIFT);
-}
-
 static u32 sdma_cache_evict(struct hfi1_user_sdma_pkt_q *pq, u32 npages)
 {
 	struct evict_data evict_data;
@@ -1182,6 +1168,7 @@ static int pin_vector_pages(struct user_sdma_request *req,
 	struct hfi1_user_sdma_pkt_q *pq = req->pq;
 	struct sdma_mmu_node *node = NULL;
 	struct mmu_rb_node *rb_node;
+	struct iovec *iov;
 	bool extracted;
 
 	extracted =
@@ -1210,7 +1197,8 @@ static int pin_vector_pages(struct user_sdma_request *req,
 		atomic_set(&node->refcount, 0);
 	}
 
-	npages = num_user_pages(&iovec->iov);
+	iov = &iovec->iov;
+	npages = num_user_pages((unsigned long)iov->iov_base, iov->iov_len);
 	if (node->npages < npages) {
 		pinned = pin_sdma_pages(req, iovec, node, npages);
 		if (pinned < 0) {

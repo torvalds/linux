@@ -67,11 +67,6 @@ struct tid_pageset {
 	u16 count;
 };
 
-#define num_user_pages(vaddr, len)				       \
-	(1 + (((((unsigned long)(vaddr) +			       \
-		 (unsigned long)(len) - 1) & PAGE_MASK) -	       \
-	       ((unsigned long)vaddr & PAGE_MASK)) >> PAGE_SHIFT))
-
 static void unlock_exp_tids(struct hfi1_ctxtdata *uctxt,
 			    struct exp_tid_set *set,
 			    struct hfi1_filedata *fd);
