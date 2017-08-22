@@ -720,6 +720,7 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 			goto err_obj;
 		}
 
+		vma->open_count++;
 		list_add(&lut->obj_link, &obj->lut_list);
 		list_add(&lut->ctx_link, &eb->ctx->handles_list);
 		lut->ctx = eb->ctx;

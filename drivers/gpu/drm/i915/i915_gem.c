@@ -3262,7 +3262,13 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 
 		vma = radix_tree_delete(&ctx->handles_vma, lut->handle);
 
-		if (!i915_vma_is_ggtt(vma))
+		GEM_BUG_ON(vma->obj != obj);
+
+		/* We allow the process to have multiple handles to the same
+		 * vma, in the same fd namespace, by virtue of flink/open.
+		 */
+		GEM_BUG_ON(!vma->open_count);
+		if (!--vma->open_count && !i915_vma_is_ggtt(vma))
 			i915_vma_close(vma);
 
 		list_del(&lut->obj_link);
