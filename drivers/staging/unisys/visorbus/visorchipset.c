@@ -1446,48 +1446,13 @@ static void setup_crash_devices_work_queue(struct work_struct *work)
 	visorbus_device_create(&local_crash_dev_msg);
 }
 
-void visorbus_create_response(struct visor_device *bus_info, int response)
+void visorbus_response(struct visor_device *bus_info, int response,
+		       int controlvm_id)
 {
-	if (response >= 0)
-		bus_info->state.created = 1;
-
-	controlvm_responder(CONTROLVM_BUS_CREATE, bus_info->pending_msg_hdr,
-			    response);
+	controlvm_responder(controlvm_id, bus_info->pending_msg_hdr, response);
 
 	kfree(bus_info->pending_msg_hdr);
 	bus_info->pending_msg_hdr = NULL;
-}
-
-void visorbus_destroy_response(struct visor_device *bus_info, int response)
-{
-	controlvm_responder(CONTROLVM_BUS_DESTROY, bus_info->pending_msg_hdr,
-			    response);
-
-	kfree(bus_info->pending_msg_hdr);
-	bus_info->pending_msg_hdr = NULL;
-}
-
-void visorbus_device_create_response(struct visor_device *dev_info,
-				     int response)
-{
-	if (response >= 0)
-		dev_info->state.created = 1;
-
-	controlvm_responder(CONTROLVM_DEVICE_CREATE, dev_info->pending_msg_hdr,
-			    response);
-
-	kfree(dev_info->pending_msg_hdr);
-	dev_info->pending_msg_hdr = NULL;
-}
-
-void visorbus_device_destroy_response(struct visor_device *dev_info,
-				      int response)
-{
-	controlvm_responder(CONTROLVM_DEVICE_DESTROY, dev_info->pending_msg_hdr,
-			    response);
-
-	kfree(dev_info->pending_msg_hdr);
-	dev_info->pending_msg_hdr = NULL;
 }
 
 void visorbus_device_pause_response(struct visor_device *dev_info,

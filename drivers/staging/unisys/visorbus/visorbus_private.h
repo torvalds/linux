@@ -29,10 +29,7 @@ void visorchipset_device_destroy(struct visor_device *dev_info);
 int visorchipset_device_pause(struct visor_device *dev_info);
 int visorchipset_device_resume(struct visor_device *dev_info);
 
-void visorbus_create_response(struct visor_device *p, int response);
-void visorbus_destroy_response(struct visor_device *p, int response);
-void visorbus_device_create_response(struct visor_device *p, int response);
-void visorbus_device_destroy_response(struct visor_device *p, int response);
+void visorbus_response(struct visor_device *p, int response, int controlvm_id);
 void visorbus_device_resume_response(struct visor_device *p, int response);
 void visorbus_device_pause_response(struct visor_device *p, int response);
 
