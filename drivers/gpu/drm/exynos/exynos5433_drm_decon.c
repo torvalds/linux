@@ -288,7 +288,7 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 		return;
 	}
 
-	DRM_DEBUG_KMS("bpp = %u\n", fb->format->cpp[0] * 8);
+	DRM_DEBUG_KMS("cpp = %u\n", fb->format->cpp[0]);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -331,7 +331,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	struct decon_context *ctx = crtc->ctx;
 	struct drm_framebuffer *fb = state->base.fb;
 	unsigned int win = plane->index;
-	unsigned int bpp = fb->format->cpp[0];
+	unsigned int cpp = fb->format->cpp[0];
 	unsigned int pitch = fb->pitches[0];
 	dma_addr_t dma_addr = exynos_drm_fb_dma_addr(fb, 0);
 	u32 val;
@@ -367,11 +367,11 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	writel(val, ctx->addr + DECON_VIDW0xADD1B0(win));
 
 	if (!(ctx->out_type & IFTYPE_HDMI))
-		val = BIT_VAL(pitch - state->crtc.w * bpp, 27, 14)
-			| BIT_VAL(state->crtc.w * bpp, 13, 0);
+		val = BIT_VAL(pitch - state->crtc.w * cpp, 27, 14)
+			| BIT_VAL(state->crtc.w * cpp, 13, 0);
 	else
-		val = BIT_VAL(pitch - state->crtc.w * bpp, 29, 15)
-			| BIT_VAL(state->crtc.w * bpp, 14, 0);
+		val = BIT_VAL(pitch - state->crtc.w * cpp, 29, 15)
+			| BIT_VAL(state->crtc.w * cpp, 14, 0);
 	writel(val, ctx->addr + DECON_VIDW0xADD2(win));
 
 	decon_win_set_pixfmt(ctx, win, fb);

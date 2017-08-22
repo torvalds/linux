@@ -718,13 +718,13 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	unsigned long val, size, offset;
 	unsigned int last_x, last_y, buf_offsize, line_size;
 	unsigned int win = plane->index;
-	unsigned int bpp = fb->format->cpp[0];
+	unsigned int cpp = fb->format->cpp[0];
 	unsigned int pitch = fb->pitches[0];
 
 	if (ctx->suspended)
 		return;
 
-	offset = state->src.x * bpp;
+	offset = state->src.x * cpp;
 	offset += state->src.y * pitch;
 
 	/* buffer start address */
@@ -743,8 +743,8 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 			state->crtc.w, state->crtc.h);
 
 	/* buffer size */
-	buf_offsize = pitch - (state->crtc.w * bpp);
-	line_size = state->crtc.w * bpp;
+	buf_offsize = pitch - (state->crtc.w * cpp);
+	line_size = state->crtc.w * cpp;
 	val = VIDW_BUF_SIZE_OFFSET(buf_offsize) |
 		VIDW_BUF_SIZE_PAGEWIDTH(line_size) |
 		VIDW_BUF_SIZE_OFFSET_E(buf_offsize) |
