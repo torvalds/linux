@@ -91,9 +91,14 @@ int crypto_chacha20_crypt(struct skcipher_request *req)
 	crypto_chacha20_init(state, ctx, walk.iv);
 
 	while (walk.nbytes > 0) {
+		unsigned int nbytes = walk.nbytes;
+
+		if (nbytes < walk.total)
+			nbytes = round_down(nbytes, walk.stride);
+
 		chacha20_docrypt(state, walk.dst.virt.addr, walk.src.virt.addr,
-				 walk.nbytes);
-		err = skcipher_walk_done(&walk, 0);
+				 nbytes);
+		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
 	}
 
 	return err;
