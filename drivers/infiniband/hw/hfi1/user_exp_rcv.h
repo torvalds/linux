@@ -51,6 +51,15 @@
 
 #include "exp_rcv.h"
 
+struct tid_user_buf {
+	unsigned long vaddr;
+	unsigned long length;
+	unsigned int npages;
+	struct page **pages;
+	struct tid_pageset *psets;
+	unsigned int n_psets;
+};
+
 int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd,
 			   struct hfi1_ctxtdata *uctxt);
 void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd);
