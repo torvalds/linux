@@ -20,7 +20,6 @@
 
 #include "visorbus.h"
 #include "visorbus_private.h"
-#include "vmcallinterface.h"
 
 static const guid_t visor_vhba_channel_guid = VISOR_VHBA_CHANNEL_GUID;
 static const guid_t visor_siovm_guid = VISOR_SIOVM_GUID;
@@ -53,6 +52,47 @@ struct parser_context {
 	bool byte_stream;
 	char data[0];
 };
+
+/*
+ * VMCALL_CONTROLVM_ADDR: Used by all guests, not just IO.
+ *
+ * Note: When a new VMCALL is added:
+ * - The 1st 2 hex digits correspond to one of the VMCALL_MONITOR_INTERFACE
+ *   types.
+ * - The next 2 hex digits are the nth relative instance of within a type.
+ * E.G. for VMCALL_VIRTPART_RECYCLE_PART,
+ * - The 0x02 identifies it as a VMCALL_VIRTPART type.
+ * - The 0x01 identifies it as the 1st instance of a VMCALL_VIRTPART type of
+ *   VMCALL.
+ */
+#define VMCALL_CONTROLVM_ADDR 0x0501
+
+enum vmcall_result {
+	VMCALL_RESULT_SUCCESS = 0,
+	VMCALL_RESULT_INVALID_PARAM = 1,
+	VMCALL_RESULT_DATA_UNAVAILABLE = 2,
+	VMCALL_RESULT_FAILURE_UNAVAILABLE = 3,
+	VMCALL_RESULT_DEVICE_ERROR = 4,
+	VMCALL_RESULT_DEVICE_NOT_READY = 5
+};
+
+/*
+ * struct vmcall_io_controlvm_addr_params - Structure for IO VMCALLS. Has
+ *					    parameters to VMCALL_CONTROLVM_ADDR
+ *					    interface.
+ * @address:	   The Guest-relative physical address of the ControlVm channel.
+ *		   This VMCall fills this in with the appropriate address.
+ *		   Contents provided by this VMCALL (OUT).
+ * @channel_bytes: The size of the ControlVm channel in bytes This VMCall fills
+ *		   this in with the appropriate address. Contents provided by
+ *		   this VMCALL (OUT).
+ * @unused:	   Unused Bytes in the 64-Bit Aligned Struct.
+ */
+struct vmcall_io_controlvm_addr_params {
+	u64 address;
+	u32 channel_bytes;
+	u8 unused[4];
+} __packed;
 
 struct vmcall_controlvm_addr {
 	struct vmcall_io_controlvm_addr_params params;
