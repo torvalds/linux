@@ -98,7 +98,7 @@ static int _rtl8821ae_fw_free_to_go(struct ieee80211_hw *hw)
 
 	if (counter >= FW_8821AE_POLLING_TIMEOUT_COUNT) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "chksum report faill ! REG_MCUFWDL:0x%08x .\n",
+			 "chksum report fail! REG_MCUFWDL:0x%08x .\n",
 			  value32);
 		goto exit;
 	}
