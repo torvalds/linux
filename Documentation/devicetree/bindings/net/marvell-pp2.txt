@@ -45,6 +45,7 @@ Optional properties (port):
                    be the name associated to the interrupts listed. Valid
                    names are: "tx-cpu0", "tx-cpu1", "tx-cpu2", "tx-cpu3",
 		   "rx-shared".
+- marvell,system-controller: a phandle to the system controller.
 
 Example for marvell,armada-375-pp2:
 
