@@ -1573,8 +1573,8 @@ static int pma_get_portcounters_cong(struct ib_pma_mad *pmp,
 	cntrs.port_xmit_packets -= ibp->z_port_xmit_packets;
 	cntrs.port_rcv_packets -= ibp->z_port_rcv_packets;
 
-	memset(pmp->reserved, 0, sizeof(pmp->reserved) +
-	       sizeof(pmp->data));
+	memset(pmp->reserved, 0, sizeof(pmp->reserved));
+	memset(pmp->data, 0, sizeof(pmp->data));
 
 	/*
 	 * Set top 3 bits to indicate interval in picoseconds in
