@@ -21,11 +21,8 @@
  * standard way the Linux expects for input drivers.
  */
 
-#include <linux/buffer_head.h>
 #include <linux/fb.h>
-#include <linux/fs.h>
 #include <linux/input.h>
-#include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/uuid.h>
 
