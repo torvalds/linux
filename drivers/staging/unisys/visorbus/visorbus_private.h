@@ -30,8 +30,8 @@ int visorchipset_device_pause(struct visor_device *dev_info);
 int visorchipset_device_resume(struct visor_device *dev_info);
 
 void visorbus_response(struct visor_device *p, int response, int controlvm_id);
-void visorbus_device_resume_response(struct visor_device *p, int response);
-void visorbus_device_pause_response(struct visor_device *p, int response);
+void visorbus_device_changestate_response(struct visor_device *p, int response,
+					  struct visor_segment_state state);
 
 int visorbus_init(void);
 void visorbus_exit(void);

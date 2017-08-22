@@ -1455,23 +1455,12 @@ void visorbus_response(struct visor_device *bus_info, int response,
 	bus_info->pending_msg_hdr = NULL;
 }
 
-void visorbus_device_pause_response(struct visor_device *dev_info,
-				    int response)
+void visorbus_device_changestate_response(struct visor_device *dev_info,
+					  int response,
+					  struct visor_segment_state state)
 {
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
-				     dev_info, response,
-				     segment_state_standby);
-
-	kfree(dev_info->pending_msg_hdr);
-	dev_info->pending_msg_hdr = NULL;
-}
-
-void visorbus_device_resume_response(struct visor_device *dev_info,
-				     int response)
-{
-	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
-				     dev_info, response,
-				     segment_state_running);
+				     dev_info, response, state);
 
 	kfree(dev_info->pending_msg_hdr);
 	dev_info->pending_msg_hdr = NULL;
