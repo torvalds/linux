@@ -205,11 +205,6 @@ static int tegra_wm8903_remove(struct snd_soc_card *card)
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
 
-	if (gpio_is_valid(machine->gpio_hp_det)) {
-		snd_soc_jack_free_gpios(&tegra_wm8903_hp_jack, 1,
-					&tegra_wm8903_hp_jack_gpio);
-	}
-
 	wm8903_mic_detect(codec, NULL, 0, 0);
 
 	return 0;
