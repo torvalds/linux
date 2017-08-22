@@ -5987,6 +5987,7 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 	/* Enable interrupts on all CPUs */
 	mvpp2_interrupts_enable(port);
 
+	mvpp2_port_mii_set(port);
 	mvpp2_port_enable(port);
 	phy_start(ndev->phydev);
 	netif_tx_start_all_queues(port->dev);
@@ -6949,7 +6950,6 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		goto err_free_stats;
 	}
 
-	mvpp2_port_mii_set(port);
 	mvpp2_port_periodic_xon_disable(port);
 
 	if (priv->hw_version == MVPP21)
