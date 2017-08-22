@@ -1,4 +1,5 @@
-/* Copyright (c) 2012 - 2015 UNISYS CORPORATION
+/*
+ * Copyright (c) 2012 - 2015 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
