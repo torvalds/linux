@@ -401,6 +401,18 @@ struct i40e_nvm_access {
 	u8 data[1];
 };
 
+/* (Q)SFP module access definitions */
+#define I40E_I2C_EEPROM_DEV_ADDR	0xA0
+#define I40E_I2C_EEPROM_DEV_ADDR2	0xA2
+#define I40E_MODULE_TYPE_ADDR		0x00
+#define I40E_MODULE_REVISION_ADDR	0x01
+#define I40E_MODULE_SFF_8472_COMP	0x5E
+#define I40E_MODULE_SFF_8472_SWAP	0x5C
+#define I40E_MODULE_SFF_ADDR_MODE	0x04
+#define I40E_MODULE_TYPE_QSFP_PLUS	0x0D
+#define I40E_MODULE_TYPE_QSFP28		0x11
+#define I40E_MODULE_QSFP_MAX_LEN	640
+
 /* PCI bus types */
 enum i40e_bus_type {
 	i40e_bus_type_unknown = 0,

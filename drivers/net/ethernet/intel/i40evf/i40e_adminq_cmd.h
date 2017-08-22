@@ -244,6 +244,8 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_set_phy_debug		= 0x0622,
 	i40e_aqc_opc_upload_ext_phy_fm		= 0x0625,
 	i40e_aqc_opc_run_phy_activity		= 0x0626,
+	i40e_aqc_opc_set_phy_register		= 0x0628,
+	i40e_aqc_opc_get_phy_register		= 0x0629,
 
 	/* NVM commands */
 	i40e_aqc_opc_nvm_read			= 0x0701,
@@ -2045,6 +2047,22 @@ struct i40e_aqc_run_phy_activity {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_run_phy_activity);
+
+/* Set PHY Register command (0x0628) */
+/* Get PHY Register command (0x0629) */
+struct i40e_aqc_phy_register_access {
+	u8	phy_interface;
+#define I40E_AQ_PHY_REG_ACCESS_INTERNAL	0
+#define I40E_AQ_PHY_REG_ACCESS_EXTERNAL	1
+#define I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE	2
+	u8	dev_address;
+	u8	reserved1[2];
+	__le32	reg_address;
+	__le32	reg_value;
+	u8	reserved2[4];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_phy_register_access);
 
 /* NVM Read command (indirect 0x0701)
  * NVM Erase commands (direct 0x0702)
