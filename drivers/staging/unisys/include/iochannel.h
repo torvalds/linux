@@ -28,7 +28,7 @@
  */
 
 #include <linux/uuid.h>
-#include <linux/dma-direction.h>
+
 #include "channel.h"
 
 /*
@@ -60,6 +60,15 @@
 
 /* Size of cdb - i.e., SCSI cmnd */
 #define MAX_CMND_SIZE 16
+
+/* Unisys-specific DMA direction values */
+enum uis_dma_data_direction {
+	UIS_DMA_BIDIRECTIONAL = 0,
+	UIS_DMA_TO_DEVICE = 1,
+	UIS_DMA_FROM_DEVICE = 2,
+	UIS_DMA_NONE = 3
+};
+
 #define MAX_SENSE_SIZE 64
 #define MAX_PHYS_INFO 64
 
@@ -182,7 +191,7 @@ struct vhba_config_max {
  * @bufflen:		Length of data to be transferred out or in.
  * @guest_phys_entries:	Number of entries in scatter-gather list.
  * @struct gpi_list:	Physical address information for each fragment.
- * @enum data_dir:	Direction of the data, if any.
+ * @data_dir:		Direction of the data, if any.
  * @struct vdest:	Identifies the virtual hba, id, channel, lun to which
  *			cmd was sent.
  * @linuxstat:		Original Linux status used by Linux vdisk.
@@ -205,7 +214,7 @@ struct uiscmdrsp_scsi {
 	u32 bufflen;
 	u16 guest_phys_entries;
 	struct guest_phys_info gpi_list[MAX_PHYS_INFO];
-	enum dma_data_direction data_dir;
+	u32 data_dir;
 	struct uisscsi_dest vdest;
 	/* Needed to queue the rsp back to cmd originator. */
 	int linuxstat;

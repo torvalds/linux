@@ -478,6 +478,29 @@ static const char *visorhba_get_info(struct Scsi_Host *shp)
 }
 
 /*
+ * dma_data_dir_linux_to_spar - convert dma_data_direction value to
+ *				Unisys-specific equivalent
+ * @d: dma direction value to convert
+ *
+ * Returns the Unisys-specific dma direction value corresponding to @d
+ */
+static u32 dma_data_dir_linux_to_spar(enum dma_data_direction d)
+{
+	switch (d) {
+	case DMA_BIDIRECTIONAL:
+		return UIS_DMA_BIDIRECTIONAL;
+	case DMA_TO_DEVICE:
+		return UIS_DMA_TO_DEVICE;
+	case DMA_FROM_DEVICE:
+		return UIS_DMA_FROM_DEVICE;
+	case DMA_NONE:
+		return UIS_DMA_NONE;
+	default:
+		return UIS_DMA_NONE;
+	}
+}
+
+/*
  * visorhba_queue_command_lck - Queues command to the Service Partition
  * @scsicmd:		Command to be queued
  * @vsiorhba_cmnd_done: Done command to call when scsicmd is returned
@@ -525,7 +548,8 @@ static int visorhba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	cmdrsp->scsi.vdest.id = scsidev->id;
 	cmdrsp->scsi.vdest.lun = scsidev->lun;
 	/* save datadir */
-	cmdrsp->scsi.data_dir = scsicmd->sc_data_direction;
+	cmdrsp->scsi.data_dir =
+		dma_data_dir_linux_to_spar(scsicmd->sc_data_direction);
 	memcpy(cmdrsp->scsi.cmnd, cdb, MAX_CMND_SIZE);
 	cmdrsp->scsi.bufflen = scsi_bufflen(scsicmd);
 
