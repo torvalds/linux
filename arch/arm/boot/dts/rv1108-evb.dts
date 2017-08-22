@@ -103,6 +103,10 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vdd_core>;
+};
+
 &i2c0 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <275>;
