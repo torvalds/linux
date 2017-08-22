@@ -626,12 +626,15 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct sdma_engine *sde;
 	struct send_context *send_context;
+	struct rvt_ack_entry *e = NULL;
 
 	sde = qp_to_sdma_engine(qp, priv->s_sc);
 	wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 	send_context = qp_to_send_context(qp, priv->s_sc);
+	if (qp->s_ack_queue)
+		e = &qp->s_ack_queue[qp->s_tail_ack_queue];
 	seq_printf(s,
-		   "N %d %s QP %x R %u %s %u %u %u f=%x %u %u %u %u %u %u SPSN %x %x %x %x %x RPSN %x S(%u %u %u %u %u %u %u) R(%u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d\n",
+		   "N %d %s QP %x R %u %s %u %u %u f=%x %u %u %u %u %u %u SPSN %x %x %x %x %x RPSN %x S(%u %u %u %u %u %u %u) R(%u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d E %x %x %x\n",
 		   iter->n,
 		   qp_idle(qp) ? "I" : "B",
 		   qp->ibqp.qp_num,
@@ -672,7 +675,11 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   send_context ? send_context->sw_index : 0,
 		   ibcq_to_rvtcq(qp->ibqp.send_cq)->queue->head,
 		   ibcq_to_rvtcq(qp->ibqp.send_cq)->queue->tail,
-		   qp->pid);
+		   qp->pid,
+		   /* ack queue information */
+		   e ? e->opcode : 0,
+		   e ? e->psn : 0,
+		   e ? e->lpsn : 0);
 }
 
 void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
