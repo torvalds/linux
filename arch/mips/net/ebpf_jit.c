@@ -1892,6 +1892,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	case CPU_CAVIUM_OCTEON2:
 	case CPU_CAVIUM_OCTEON3:
 		ctx.use_bbit_insns = 1;
+		break;
 	default:
 		ctx.use_bbit_insns = 0;
 	}
