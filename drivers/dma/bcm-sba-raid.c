@@ -48,7 +48,8 @@
 
 #include "dmaengine.h"
 
-/* SBA command related defines */
+/* ====== Driver macros and defines ===== */
+
 #define SBA_TYPE_SHIFT					48
 #define SBA_TYPE_MASK					GENMASK(1, 0)
 #define SBA_TYPE_A					0x0
@@ -87,6 +88,8 @@
 	container_of(tx, struct sba_request, tx)
 #define to_sba_device(dchan)		\
 	container_of(dchan, struct sba_device, dma_chan)
+
+/* ===== Driver data structures ===== */
 
 enum sba_request_state {
 	SBA_REQUEST_STATE_FREE = 1,
@@ -164,7 +167,7 @@ struct sba_device {
 	int reqs_free_count;
 };
 
-/* ====== SBA command helper routines ===== */
+/* ====== Command helper routines ===== */
 
 static inline u64 __pure sba_cmd_enc(u64 cmd, u32 val, u32 shift, u32 mask)
 {
@@ -196,7 +199,7 @@ static inline u32 __pure sba_cmd_pq_c_mdata(u32 d, u32 b1, u32 b0)
 	       ((d & SBA_C_MDATA_DNUM_MASK) << SBA_C_MDATA_DNUM_SHIFT);
 }
 
-/* ====== Channel resource management routines ===== */
+/* ====== General helper routines ===== */
 
 static struct sba_request *sba_alloc_request(struct sba_device *sba)
 {
