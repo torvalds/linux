@@ -48,7 +48,6 @@
 
 /* Defines and enums. */
 #define MINNUM(a, b) (((a) < (b)) ? (a) : (b))
-#define MAXNUM(a, b) (((a) > (b)) ? (a) : (b))
 
 /* Define the two queues per data channel between iopart and ioguestparts. */
 
