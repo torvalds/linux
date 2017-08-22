@@ -215,9 +215,17 @@ static void tcf_chain_flush(struct tcf_chain *chain)
 
 static void tcf_chain_destroy(struct tcf_chain *chain)
 {
-	list_del(&chain->list);
+	/* May be already removed from the list by the previous call. */
+	if (!list_empty(&chain->list))
+		list_del_init(&chain->list);
+
 	tcf_chain_flush(chain);
-	kfree(chain);
+
+	/* There might still be a reference held when we got here from
+	 * tcf_block_put. Wait for the user to drop reference before free.
+	 */
+	if (!chain->refcnt)
+		kfree(chain);
 }
 
 struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
