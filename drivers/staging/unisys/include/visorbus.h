@@ -31,10 +31,6 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/poll.h>
-#include <linux/kernel.h>
-#include <linux/uuid.h>
-#include <linux/seq_file.h>
 #include <linux/slab.h>
 
 #include "channel.h"
