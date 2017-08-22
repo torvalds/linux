@@ -833,8 +833,8 @@ static int visorbus_device_create(struct controlvm_message *inmsg)
 		       sizeof(struct controlvm_message_header));
 		dev_info->pending_msg_hdr = pmsg_hdr;
 	}
-	/* visorchipset_device_create will send response */
-	err = visorchipset_device_create(dev_info);
+	/* create_visor_device will send response */
+	err = create_visor_device(dev_info);
 	if (err)
 		goto err_destroy_visorchannel;
 

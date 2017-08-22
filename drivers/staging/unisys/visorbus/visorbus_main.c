@@ -658,7 +658,7 @@ EXPORT_SYMBOL_GPL(visorbus_disable_channel_interrupts);
  * Return: 0 if successful, otherwise the negative value returned by
  *         device_add() indicating the reason for failure
  */
-static int create_visor_device(struct visor_device *dev)
+int create_visor_device(struct visor_device *dev)
 {
 	int err;
 	u32 chipset_bus_no = dev->chipset_bus_no;
@@ -705,6 +705,8 @@ static int create_visor_device(struct visor_device *dev)
 		goto err_put;
 
 	list_add_tail(&dev->list_all, &list_all_device_instances);
+	dev->state.created = 1;
+	visorbus_response(dev, err, CONTROLVM_DEVICE_CREATE);
 	/* success: reference kept via unmatched get_device() */
 	return 0;
 
@@ -1115,20 +1117,6 @@ static void remove_all_visor_devices(void)
 						      list_all);
 		remove_visor_device(dev);
 	}
-}
-
-int visorchipset_device_create(struct visor_device *dev_info)
-{
-	int err;
-
-	err = create_visor_device(dev_info);
-	if (err < 0)
-		return err;
-
-	visorbus_response(dev_info, err, CONTROLVM_DEVICE_CREATE);
-	dev_info->state.created = 1;
-
-	return 0;
 }
 
 void visorchipset_device_destroy(struct visor_device *dev_info)
