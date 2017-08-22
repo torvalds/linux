@@ -288,16 +288,16 @@ config VIDEO_SAA711X
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
 
-config VIDEO_TC358743
-	tristate "Toshiba TC358743 decoder"
+config VIDEO_TC35874X
+	tristate "Toshiba TC35874X decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
 	select V4L2_FWNODE
 	---help---
-	  Support for the Toshiba TC358743 HDMI to MIPI CSI-2 bridge.
+	  Support for the Toshiba TC35874X series HDMI to MIPI CSI-2 bridge.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called tc358743.
+	  module will be called tc35874x.
 
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"

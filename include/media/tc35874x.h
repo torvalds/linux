@@ -1,5 +1,5 @@
 /*
- * tc358743 - Toshiba HDMI to CSI-2 bridge
+ * tc35874x - Toshiba HDMI to CSI-2 bridge
  *
  * Copyright 2015 Cisco Systems, Inc. and/or its affiliates. All rights
  * reserved.
@@ -23,26 +23,27 @@
  * References (c = chapter, p = page):
  * REF_01 - Toshiba, TC358743XBG (H2C), Functional Specification, Rev 0.60
  * REF_02 - Toshiba, TC358743XBG_HDMI-CSI_Tv11p_nm.xls
+ * REF_03 - Toshiba, TC358749XBG (H2C+), Functional Specification, Rev 0.74
  */
 
-#ifndef _TC358743_
-#define _TC358743_
+#ifndef _TC35874X_
+#define _TC35874X_
 
-enum tc358743_ddc5v_delays {
+enum tc35874x_ddc5v_delays {
 	DDC5V_DELAY_0_MS,
 	DDC5V_DELAY_50_MS,
 	DDC5V_DELAY_100_MS,
 	DDC5V_DELAY_200_MS,
 };
 
-enum tc358743_hdmi_detection_delay {
+enum tc35874x_hdmi_detection_delay {
 	HDMI_MODE_DELAY_0_MS,
 	HDMI_MODE_DELAY_25_MS,
 	HDMI_MODE_DELAY_50_MS,
 	HDMI_MODE_DELAY_100_MS,
 };
 
-struct tc358743_platform_data {
+struct tc35874x_platform_data {
 	/* System clock connected to REFCLK (pin H5) */
 	u32 refclk_hz; /* 26 MHz, 27 MHz or 42 MHz */
 
@@ -51,7 +52,7 @@ struct tc358743_platform_data {
 	 * Sets DDC5V_MODE in register DDC_CTL.
 	 * Default: DDC5V_DELAY_0_MS
 	 */
-	enum tc358743_ddc5v_delays ddc5v_delay;
+	enum tc35874x_ddc5v_delays ddc5v_delay;
 
 	bool enable_hdcp;
 
@@ -89,7 +90,7 @@ struct tc358743_platform_data {
 	 * Sets HDMI_DET_V in register HDMI_DET.
 	 * Default: HDMI_MODE_DELAY_0_MS
 	 */
-	enum tc358743_hdmi_detection_delay hdmi_detection_delay;
+	enum tc35874x_hdmi_detection_delay hdmi_detection_delay;
 
 	/* Reset PHY automatically when TMDS clock goes from DC to AC.
 	 * Sets PHY_AUTO_RST2 in register PHY_CTL2.
@@ -124,8 +125,8 @@ struct tc358743_platform_data {
 
 /* custom controls */
 /* Audio sample rate in Hz */
-#define TC358743_CID_AUDIO_SAMPLING_RATE (V4L2_CID_USER_TC358743_BASE + 0)
+#define TC35874X_CID_AUDIO_SAMPLING_RATE (V4L2_CID_USER_TC35874X_BASE + 0)
 /* Audio present status */
-#define TC358743_CID_AUDIO_PRESENT       (V4L2_CID_USER_TC358743_BASE + 1)
+#define TC35874X_CID_AUDIO_PRESENT       (V4L2_CID_USER_TC35874X_BASE + 1)
 
 #endif
