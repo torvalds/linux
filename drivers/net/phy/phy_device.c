@@ -864,15 +864,17 @@ EXPORT_SYMBOL(phy_attached_info);
 #define ATTACHED_FMT "attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)"
 void phy_attached_print(struct phy_device *phydev, const char *fmt, ...)
 {
+	const char *drv_name = phydev->drv ? phydev->drv->name : "unbound";
+
 	if (!fmt) {
 		dev_info(&phydev->mdio.dev, ATTACHED_FMT "\n",
-			 phydev->drv->name, phydev_name(phydev),
+			 drv_name, phydev_name(phydev),
 			 phydev->irq);
 	} else {
 		va_list ap;
 
 		dev_info(&phydev->mdio.dev, ATTACHED_FMT,
-			 phydev->drv->name, phydev_name(phydev),
+			 drv_name, phydev_name(phydev),
 			 phydev->irq);
 
 		va_start(ap, fmt);
