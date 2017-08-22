@@ -14,8 +14,6 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/mm.h>
-#include <linux/uuid.h>
 #include <linux/crash_dump.h>
 
 #include "visorbus.h"
