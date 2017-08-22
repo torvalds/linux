@@ -120,7 +120,7 @@ int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 		       size_t insns_cnt, int strict_alignment,
 		       const char *license, __u32 kern_version,
-		       char *log_buf, size_t log_buf_sz)
+		       char *log_buf, size_t log_buf_sz, int log_level)
 {
 	union bpf_attr attr;
 
@@ -131,7 +131,7 @@ int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 	attr.license = ptr_to_u64(license);
 	attr.log_buf = ptr_to_u64(log_buf);
 	attr.log_size = log_buf_sz;
-	attr.log_level = 2;
+	attr.log_level = log_level;
 	log_buf[0] = 0;
 	attr.kern_version = kern_version;
 	attr.prog_flags = strict_alignment ? BPF_F_STRICT_ALIGNMENT : 0;
@@ -314,7 +314,6 @@ int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
 	int err;
 
 	bzero(&attr, sizeof(attr));
-	bzero(info, *info_len);
 	attr.info.bpf_fd = prog_fd;
 	attr.info.info_len = *info_len;
 	attr.info.info = ptr_to_u64(info);

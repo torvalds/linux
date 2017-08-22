@@ -1126,8 +1126,8 @@
 		};
 	};
 
-	gpu: mali@ffa30000 {
-		compatible = "rockchip,rk3288-mali", "arm,mali-t760", "arm,mali-midgard";
+	gpu: gpu@ffa30000 {
+		compatible = "rockchip,rk3288-mali", "arm,mali-t760";
 		reg = <0xffa30000 0x10000>;
 		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,

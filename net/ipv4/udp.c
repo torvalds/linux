@@ -1163,34 +1163,32 @@ out:
 	return ret;
 }
 
-#if BITS_PER_LONG == 64
+#define UDP_SKB_IS_STATELESS 0x80000000
+
 static void udp_set_dev_scratch(struct sk_buff *skb)
 {
-	struct udp_dev_scratch *scratch;
+	struct udp_dev_scratch *scratch = udp_skb_scratch(skb);
 
 	BUILD_BUG_ON(sizeof(struct udp_dev_scratch) > sizeof(long));
-	scratch = (struct udp_dev_scratch *)&skb->dev_scratch;
-	scratch->truesize = skb->truesize;
+	scratch->_tsize_state = skb->truesize;
+#if BITS_PER_LONG == 64
 	scratch->len = skb->len;
 	scratch->csum_unnecessary = !!skb_csum_unnecessary(skb);
 	scratch->is_linear = !skb_is_nonlinear(skb);
-}
-
-static int udp_skb_truesize(struct sk_buff *skb)
-{
-	return ((struct udp_dev_scratch *)&skb->dev_scratch)->truesize;
-}
-#else
-static void udp_set_dev_scratch(struct sk_buff *skb)
-{
-	skb->dev_scratch = skb->truesize;
-}
-
-static int udp_skb_truesize(struct sk_buff *skb)
-{
-	return skb->dev_scratch;
-}
 #endif
+	if (likely(!skb->_skb_refdst))
+		scratch->_tsize_state |= UDP_SKB_IS_STATELESS;
+}
+
+static int udp_skb_truesize(struct sk_buff *skb)
+{
+	return udp_skb_scratch(skb)->_tsize_state & ~UDP_SKB_IS_STATELESS;
+}
+
+static bool udp_skb_has_head_state(struct sk_buff *skb)
+{
+	return !(udp_skb_scratch(skb)->_tsize_state & UDP_SKB_IS_STATELESS);
+}
 
 /* fully reclaim rmem/fwd memory allocated for skb */
 static void udp_rmem_release(struct sock *sk, int size, int partial,
@@ -1388,6 +1386,11 @@ void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len)
 		unlock_sock_fast(sk, slow);
 	}
 
+	/* In the more common cases we cleared the head states previously,
+	 * see __udp_queue_rcv_skb().
+	 */
+	if (unlikely(udp_skb_has_head_state(skb)))
+		skb_release_head_state(skb);
 	consume_stateless_skb(skb);
 }
 EXPORT_SYMBOL_GPL(skb_consume_udp);
@@ -1779,8 +1782,12 @@ static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		sk_mark_napi_id_once(sk, skb);
 	}
 
-	/* clear all pending head states while they are hot in the cache */
-	skb_release_head_state(skb);
+	/* At recvmsg() time we may access skb->dst or skb->sp depending on
+	 * the IP options and the cmsg flags, elsewhere can we clear all
+	 * pending head states while they are hot in the cache
+	 */
+	if (likely(IPCB(skb)->opt.optlen == 0 && !skb_sec_path(skb)))
+		skb_release_head_state(skb);
 
 	rc = __udp_enqueue_schedule_skb(sk, skb);
 	if (rc < 0) {
@@ -1921,7 +1928,7 @@ drop:
 /* For TCP sockets, sk_rx_dst is protected by socket lock
  * For UDP, we use xchg() to guard against concurrent changes.
  */
-static void udp_sk_rx_dst_set(struct sock *sk, struct dst_entry *dst)
+void udp_sk_rx_dst_set(struct sock *sk, struct dst_entry *dst)
 {
 	struct dst_entry *old;
 
@@ -1930,6 +1937,7 @@ static void udp_sk_rx_dst_set(struct sock *sk, struct dst_entry *dst)
 		dst_release(old);
 	}
 }
+EXPORT_SYMBOL(udp_sk_rx_dst_set);
 
 /*
  *	Multicasts and broadcasts go to each listener.

@@ -1297,7 +1297,7 @@ static void bfq_update_vtime(struct bfq_service_tree *st, u64 new_value)
  *
  * This function searches the first schedulable entity, starting from the
  * root of the tree and going on the left every time on this side there is
- * a subtree with at least one eligible (start >= vtime) entity. The path on
+ * a subtree with at least one eligible (start <= vtime) entity. The path on
  * the right is followed only if a) the left subtree contains no eligible
  * entities and b) no eligible entity has been found yet.
  */

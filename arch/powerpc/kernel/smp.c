@@ -1003,21 +1003,13 @@ static struct sched_domain_topology_level powerpc_topology[] = {
 	{ NULL, },
 };
 
-static __init long smp_setup_cpu_workfn(void *data __always_unused)
-{
-	smp_ops->setup_cpu(boot_cpuid);
-	return 0;
-}
-
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	/*
-	 * We want the setup_cpu() here to be called on the boot CPU, but
-	 * init might run on any CPU, so make sure it's invoked on the boot
-	 * CPU.
+	 * We are running pinned to the boot CPU, see rest_init().
 	 */
 	if (smp_ops && smp_ops->setup_cpu)
-		work_on_cpu_safe(boot_cpuid, smp_setup_cpu_workfn, NULL);
+		smp_ops->setup_cpu(boot_cpuid);
 
 	if (smp_ops && smp_ops->bringup_done)
 		smp_ops->bringup_done();

@@ -770,7 +770,7 @@ int ipoib_ib_dev_stop_default(struct net_device *dev)
 
 		ipoib_drain_cq(dev);
 
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 
 	ipoib_dbg(priv, "All sends and receives done.\n");

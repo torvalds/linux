@@ -275,7 +275,7 @@ struct atomisp_device {
 	 */
 	struct mutex streamoff_mutex;
 
-	int input_cnt;
+	unsigned int input_cnt;
 	struct atomisp_input_subdev inputs[ATOM_ISP_MAX_INPUTS];
 	struct v4l2_subdev *flash;
 	struct v4l2_subdev *motor;
