@@ -83,6 +83,8 @@
 #define SBA_CMD_WRITE_BUFFER				0xc
 #define SBA_CMD_GALOIS					0xe
 
+#define SBA_MAX_REQ_PER_MBOX_CHANNEL			8192
+
 /* Driver helper macros */
 #define to_sba_request(tx)		\
 	container_of(tx, struct sba_request, tx)
@@ -1622,6 +1624,13 @@ static int sba_probe(struct platform_device *pdev)
 	sba->dev = &pdev->dev;
 	platform_set_drvdata(pdev, sba);
 
+	/* Number of channels equals number of mailbox channels */
+	ret = of_count_phandle_with_args(pdev->dev.of_node,
+					 "mboxes", "#mbox-cells");
+	if (ret <= 0)
+		return -ENODEV;
+	mchans_count = ret;
+
 	/* Determine SBA version from DT compatible string */
 	if (of_device_is_compatible(sba->dev->of_node, "brcm,iproc-sba"))
 		sba->ver = SBA_VER_1;
@@ -1634,14 +1643,12 @@ static int sba_probe(struct platform_device *pdev)
 	/* Derived Configuration parameters */
 	switch (sba->ver) {
 	case SBA_VER_1:
-		sba->max_req = 1024;
 		sba->hw_buf_size = 4096;
 		sba->hw_resp_size = 8;
 		sba->max_pq_coefs = 6;
 		sba->max_pq_srcs = 6;
 		break;
 	case SBA_VER_2:
-		sba->max_req = 1024;
 		sba->hw_buf_size = 4096;
 		sba->hw_resp_size = 8;
 		sba->max_pq_coefs = 30;
@@ -1655,6 +1662,7 @@ static int sba_probe(struct platform_device *pdev)
 	default:
 		return -EINVAL;
 	}
+	sba->max_req = SBA_MAX_REQ_PER_MBOX_CHANNEL * mchans_count;
 	sba->max_cmd_per_req = sba->max_pq_srcs + 3;
 	sba->max_xor_srcs = sba->max_cmd_per_req - 1;
 	sba->max_resp_pool_size = sba->max_req * sba->hw_resp_size;
@@ -1668,22 +1676,14 @@ static int sba_probe(struct platform_device *pdev)
 	sba->client.knows_txdone	= false;
 	sba->client.tx_tout		= 0;
 
-	/* Number of channels equals number of mailbox channels */
-	ret = of_count_phandle_with_args(pdev->dev.of_node,
-					 "mboxes", "#mbox-cells");
-	if (ret <= 0)
-		return -ENODEV;
-	mchans_count = ret;
-	sba->mchans_count = 0;
-	atomic_set(&sba->mchans_current, 0);
-
 	/* Allocate mailbox channel array */
-	sba->mchans = devm_kcalloc(&pdev->dev, sba->mchans_count,
+	sba->mchans = devm_kcalloc(&pdev->dev, mchans_count,
 				   sizeof(*sba->mchans), GFP_KERNEL);
 	if (!sba->mchans)
 		return -ENOMEM;
 
 	/* Request mailbox channels */
+	sba->mchans_count = 0;
 	for (i = 0; i < mchans_count; i++) {
 		sba->mchans[i] = mbox_request_channel(&sba->client, i);
 		if (IS_ERR(sba->mchans[i])) {
@@ -1692,6 +1692,7 @@ static int sba_probe(struct platform_device *pdev)
 		}
 		sba->mchans_count++;
 	}
+	atomic_set(&sba->mchans_current, 0);
 
 	/* Find-out underlying mailbox device */
 	ret = of_parse_phandle_with_args(pdev->dev.of_node,
