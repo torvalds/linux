@@ -29,6 +29,10 @@ struct f_rndis_opts {
 	struct usb_os_desc		rndis_os_desc;
 	char				rndis_ext_compat_id[16];
 
+	u8				class;
+	u8				subclass;
+	u8				protocol;
+
 	/*
 	 * Read/write access to configfs attributes is handled by configfs.
 	 *
