@@ -76,6 +76,12 @@ SunXi family
         + Datasheet
           http://dl.linux-sunxi.org/H3/Allwinner_H3_Datasheet_V1.0.pdf
 
+      - Allwinner R40 (sun8i)
+        + Datasheet
+          https://github.com/tinalinux/docs/raw/r40-v1.y/R40_Datasheet_V1.0.pdf
+        + User Manual
+          https://github.com/tinalinux/docs/raw/r40-v1.y/Allwinner_R40_User_Manual_V1.0.pdf
+
     * Quad ARM Cortex-A15, Quad ARM Cortex-A7 based SoCs
       - Allwinner A80
         + Datasheet
