@@ -100,9 +100,13 @@ acpi_evaluate_object_typed(acpi_handle handle,
 		free_buffer_on_error = TRUE;
 	}
 
-	status = acpi_get_handle(handle, pathname, &target_handle);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+	if (pathname) {
+		status = acpi_get_handle(handle, pathname, &target_handle);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+	} else {
+		target_handle = handle;
 	}
 
 	full_pathname = acpi_ns_get_external_pathname(target_handle);
