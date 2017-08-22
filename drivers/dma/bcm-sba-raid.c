@@ -207,24 +207,24 @@ static struct sba_request *sba_alloc_request(struct sba_device *sba)
 	struct sba_request *req = NULL;
 
 	spin_lock_irqsave(&sba->reqs_lock, flags);
-
 	req = list_first_entry_or_null(&sba->reqs_free_list,
 				       struct sba_request, node);
 	if (req) {
 		list_move_tail(&req->node, &sba->reqs_alloc_list);
-		req->state = SBA_REQUEST_STATE_ALLOCED;
-		req->fence = false;
-		req->first = req;
-		INIT_LIST_HEAD(&req->next);
-		req->next_count = 1;
-		atomic_set(&req->next_pending_count, 1);
-
 		sba->reqs_free_count--;
-
-		dma_async_tx_descriptor_init(&req->tx, &sba->dma_chan);
 	}
-
 	spin_unlock_irqrestore(&sba->reqs_lock, flags);
+	if (!req)
+		return NULL;
+
+	req->state = SBA_REQUEST_STATE_ALLOCED;
+	req->fence = false;
+	req->first = req;
+	INIT_LIST_HEAD(&req->next);
+	req->next_count = 1;
+	atomic_set(&req->next_pending_count, 1);
+
+	dma_async_tx_descriptor_init(&req->tx, &sba->dma_chan);
 
 	return req;
 }
