@@ -33,6 +33,11 @@ SunXi family
 
       - Next Thing Co GR8 (sun5i)
 
+    * Single ARM Cortex-A7 based SoCs
+      - Allwinner V3s (sun8i)
+        + Datasheet
+          http://linux-sunxi.org/File:Allwinner_V3s_Datasheet_V1.0.pdf
+
     * Dual ARM Cortex-A7 based SoCs
       - Allwinner A20 (sun7i)
         + User Manual
@@ -70,10 +75,6 @@ SunXi family
       - Allwinner H3 (sun8i)
         + Datasheet
           http://dl.linux-sunxi.org/H3/Allwinner_H3_Datasheet_V1.0.pdf
-
-      - Allwinner V3s (sun8i)
-        + Datasheet
-          http://linux-sunxi.org/File:Allwinner_V3s_Datasheet_V1.0.pdf
 
     * Quad ARM Cortex-A15, Quad ARM Cortex-A7 based SoCs
       - Allwinner A80
