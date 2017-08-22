@@ -158,7 +158,7 @@ static struct trap_node *check_and_add_trap(struct hfi1_ibport *ibp,
 	if (queue_id >= RVT_MAX_TRAP_LISTS) {
 		trap_count++;
 		pr_err_ratelimited("hfi1: Invalid trap 0x%0x dropped. Total dropped: %d\n",
-				  trap->data.generic_type, trap_count);
+				   trap->data.generic_type, trap_count);
 		kfree(trap);
 		return NULL;
 	}
