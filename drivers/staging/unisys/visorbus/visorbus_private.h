@@ -26,7 +26,7 @@
 int visorbus_create_instance(struct visor_device *dev);
 void visorbus_remove_instance(struct visor_device *bus_info);
 int create_visor_device(struct visor_device *dev_info);
-void visorchipset_device_destroy(struct visor_device *dev_info);
+void remove_visor_device(struct visor_device *dev_info);
 int visorchipset_device_pause(struct visor_device *dev_info);
 int visorchipset_device_resume(struct visor_device *dev_info);
 

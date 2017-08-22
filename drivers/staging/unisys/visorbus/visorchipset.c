@@ -948,7 +948,7 @@ static int visorbus_device_destroy(struct controlvm_message *inmsg)
 	}
 
 	kfree(dev_info->name);
-	visorchipset_device_destroy(dev_info);
+	remove_visor_device(dev_info);
 	return 0;
 
 err_respond:

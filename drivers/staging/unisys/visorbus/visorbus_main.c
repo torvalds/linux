@@ -716,11 +716,12 @@ err_put:
 	return err;
 }
 
-static void remove_visor_device(struct visor_device *dev)
+void remove_visor_device(struct visor_device *dev)
 {
 	list_del(&dev->list_all);
 	put_device(&dev->device);
 	device_unregister(&dev->device);
+	visorbus_response(dev, 0, CONTROLVM_DEVICE_DESTROY);
 }
 
 static int get_vbus_header_info(struct visorchannel *chan,
@@ -1117,12 +1118,6 @@ static void remove_all_visor_devices(void)
 						      list_all);
 		remove_visor_device(dev);
 	}
-}
-
-void visorchipset_device_destroy(struct visor_device *dev_info)
-{
-	remove_visor_device(dev_info);
-	visorbus_response(dev_info, 0, CONTROLVM_DEVICE_DESTROY);
 }
 
 /*
