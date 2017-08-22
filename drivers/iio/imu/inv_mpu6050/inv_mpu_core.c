@@ -542,7 +542,9 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 			break;
 		default:
 			result = -EINVAL;
+			break;
 		}
+		break;
 	default:
 		result = -EINVAL;
 		break;
