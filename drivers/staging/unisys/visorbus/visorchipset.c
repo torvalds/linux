@@ -571,8 +571,6 @@ static int device_changestate_responder(
 				struct visor_segment_state response_state)
 {
 	struct controlvm_message outmsg;
-	u32 bus_no = p->chipset_bus_no;
-	u32 dev_no = p->chipset_dev_no;
 
 	if (!p->pending_msg_hdr)
 		return -EIO;
@@ -581,8 +579,8 @@ static int device_changestate_responder(
 
 	controlvm_init_response(&outmsg, p->pending_msg_hdr, response);
 
-	outmsg.cmd.device_change_state.bus_no = bus_no;
-	outmsg.cmd.device_change_state.dev_no = dev_no;
+	outmsg.cmd.device_change_state.bus_no = p->chipset_bus_no;
+	outmsg.cmd.device_change_state.dev_no = p->chipset_dev_no;
 	outmsg.cmd.device_change_state.state = response_state;
 
 	return visorchannel_signalinsert(chipset_dev->controlvm_channel,
