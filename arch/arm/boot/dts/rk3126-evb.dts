@@ -91,6 +91,182 @@
 	chosen {
 		bootargs = "console=uart8250,mmio32,0x20068000";
 	};
+
+	vcc_sys: vcc-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-min-microvolt = <4000000>;
+		regulator-max-microvolt = <4000000>;
+		regulator-always-on;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	rk816: pmic@1a {
+		compatible = "rockchip,rk816";
+		reg = <0x1a>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_int_l>;
+		rockchip,system-power-controller;
+		wakeup-source;
+		gpio-controller;
+		#gpio-cells = <2>;
+		#clock-cells = <1>;
+		clock-output-names = "xin32k", "rk816-clkout2";
+		vcc1-supply = <&vcc_sys>;
+		vcc2-supply = <&vcc_sys>;
+		vcc3-supply = <&vcc_sys>;
+		vcc4-supply = <&vcc_sys>;
+		vcc5-supply = <&vcc_io>;
+		vcc6-supply = <&vcc_sys>;
+
+		gpio {
+			status = "okay";
+		};
+
+		pwrkey {
+			status = "okay";
+		};
+
+		rtc {
+			status = "okay";
+		};
+
+		regulators {
+
+			vdd_arm: DCDC_REG1{
+				regulator-name= "vdd_arm";
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+						regulator-state-disabled;
+						regulator-state-uv = <900000>;
+					};
+				};
+
+			vdd_log: DCDC_REG2 {
+				regulator-name= "vdd_logic";
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-state-enabled;
+					regulator-mode = <0x2>;
+					regulator-state-uv = <1000000>;
+				};
+			};
+
+			vcc_ddr: DCDC_REG3 {
+				regulator-name = "vcc_ddr";
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vcc_io: DCDC_REG4 {
+				regulator-name = "vcc_io";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-state-enabled;
+					regulator-mode = <0x2>;
+					regulator-state-uv = <3000000>;
+				};
+			};
+
+			vcc28_cif: LDO_REG1 {
+				regulator-name = "vcc28_cif";
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-state-disabled;
+					regulator-state-uv = <2800000>;
+				};
+			};
+
+			vcc18_cif: LDO_REG2 {
+				regulator-name = "vcc18_cif";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-state-disabled;
+					regulator-state-uv = <1800000>;
+				};
+			};
+
+			vdd_11: LDO_REG3 {
+				regulator-name = "vdd_11";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-state-enabled;
+					regulator-mode = <0x2>;
+					regulator-state-uv = <1100000>;
+				};
+			};
+
+			ldo4: LDO_REG4 {
+				regulator-name= "ldo4";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-state-disabled;
+					regulator-state-uv = <3300000>;
+				};
+			};
+
+			ldo5: LDO_REG5 {
+				regulator-name= "ldo5";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-state-disabled;
+					regulator-state-uv = <3000000>;
+				};
+			};
+
+			ldo6: LDO_REG6 {
+				regulator-name= "ldo6";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-state-mem {
+					regulator-state-enabled;
+					regulator-mode = <0x2>;
+					regulator-state-uv = <3300000>;
+				};
+			};
+		};
+	};
+};
+
+&pinctrl {
+	pmic {
+		pmic_int_l: pmic-int-l {
+			rockchip,pins =
+				<0 2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &pwm0 {
