@@ -194,7 +194,7 @@ static void motu_bus_update(struct fw_unit *unit)
 	snd_motu_transaction_reregister(motu);
 }
 
-static struct snd_motu_spec motu_828mk2 = {
+static const struct snd_motu_spec motu_828mk2 = {
 	.name = "828mk2",
 	.protocol = &snd_motu_protocol_v2,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
@@ -208,7 +208,7 @@ static struct snd_motu_spec motu_828mk2 = {
 	.analog_out_ports = 8,
 };
 
-static struct snd_motu_spec motu_828mk3 = {
+static const struct snd_motu_spec motu_828mk3 = {
 	.name = "828mk3",
 	.protocol = &snd_motu_protocol_v3,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
@@ -225,7 +225,7 @@ static struct snd_motu_spec motu_828mk3 = {
 	.analog_out_ports = 8,
 };
 
-static struct snd_motu_spec motu_audio_express = {
+static const struct snd_motu_spec motu_audio_express = {
 	.name = "AudioExpress",
 	.protocol = &snd_motu_protocol_v3,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
