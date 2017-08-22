@@ -725,16 +725,14 @@
  */
 #define PERCPU_INPUT(cacheline)						\
 	VMLINUX_SYMBOL(__per_cpu_start) = .;				\
-	\
-	VMLINUX_SYMBOL(__per_cpu_user_mapped_start) = .;        \
-	*(.data..percpu..first)           \
-	. = ALIGN(cacheline);           \
-	*(.data..percpu..user_mapped)            \
-	*(.data..percpu..user_mapped..shared_aligned)        \
-	. = ALIGN(PAGE_SIZE);           \
-	*(.data..percpu..user_mapped..page_aligned)          \
-	VMLINUX_SYMBOL(__per_cpu_user_mapped_end) = .;        \
-	\
+	VMLINUX_SYMBOL(__per_cpu_user_mapped_start) = .;		\
+	*(.data..percpu..first)						\
+	. = ALIGN(cacheline);						\
+	*(.data..percpu..user_mapped)					\
+	*(.data..percpu..user_mapped..shared_aligned)			\
+	. = ALIGN(PAGE_SIZE);						\
+	*(.data..percpu..user_mapped..page_aligned)			\
+	VMLINUX_SYMBOL(__per_cpu_user_mapped_end) = .;			\
 	. = ALIGN(PAGE_SIZE);						\
 	*(.data..percpu..page_aligned)					\
 	. = ALIGN(cacheline);						\

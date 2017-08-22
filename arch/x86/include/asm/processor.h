@@ -332,11 +332,6 @@ union irq_stack_union {
 		char gs_base[40];
 		unsigned long stack_canary;
 	};
-
-	struct {
-		char irq_stack_pointer[64];
-		char unused[IRQ_STACK_SIZE - 64];
-	};
 };
 
 DECLARE_PER_CPU_FIRST(union irq_stack_union, irq_stack_union) __visible;

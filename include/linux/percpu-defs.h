@@ -121,10 +121,10 @@
 #define DEFINE_PER_CPU(type, name)					\
 	DEFINE_PER_CPU_SECTION(type, name, "")
 
-#define DECLARE_PER_CPU_USER_MAPPED(type, name)         \
+#define DECLARE_PER_CPU_USER_MAPPED(type, name)				\
 	DECLARE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION)
 
-#define DEFINE_PER_CPU_USER_MAPPED(type, name)          \
+#define DEFINE_PER_CPU_USER_MAPPED(type, name)				\
 	DEFINE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION)
 
 /*
@@ -156,11 +156,11 @@
 	DEFINE_PER_CPU_SECTION(type, name, PER_CPU_SHARED_ALIGNED_SECTION) \
 	____cacheline_aligned_in_smp
 
-#define DECLARE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(type, name)			\
+#define DECLARE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(type, name)		\
 	DECLARE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION PER_CPU_SHARED_ALIGNED_SECTION) \
 	____cacheline_aligned_in_smp
 
-#define DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(type, name)			\
+#define DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(type, name)		\
 	DEFINE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION PER_CPU_SHARED_ALIGNED_SECTION) \
 	____cacheline_aligned_in_smp
 
@@ -185,18 +185,18 @@
 /*
  * Declaration/definition used for per-CPU variables that must be page aligned and need to be mapped in user mode.
  */
-#define DECLARE_PER_CPU_PAGE_ALIGNED_USER_MAPPED(type, name)      \
-  DECLARE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION"..page_aligned")   \
-  __aligned(PAGE_SIZE)
+#define DECLARE_PER_CPU_PAGE_ALIGNED_USER_MAPPED(type, name)		\
+	DECLARE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION"..page_aligned") \
+	__aligned(PAGE_SIZE)
 
-#define DEFINE_PER_CPU_PAGE_ALIGNED_USER_MAPPED(type, name)       \
-  DEFINE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION"..page_aligned")    \
-  __aligned(PAGE_SIZE)
+#define DEFINE_PER_CPU_PAGE_ALIGNED_USER_MAPPED(type, name)		\
+	DEFINE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION"..page_aligned") \
+	__aligned(PAGE_SIZE)
 
 /*
  * Declaration/definition used for per-CPU variables that must be read mostly.
  */
-#define DECLARE_PER_CPU_READ_MOSTLY(type, name)			\
+#define DECLARE_PER_CPU_READ_MOSTLY(type, name)				\
 	DECLARE_PER_CPU_SECTION(type, name, "..read_mostly")
 
 #define DEFINE_PER_CPU_READ_MOSTLY(type, name)				\
