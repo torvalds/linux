@@ -310,6 +310,7 @@ static int mcp320x_probe(struct spi_device *spi)
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mcp320x_info;
+	spi_set_drvdata(spi, indio_dev);
 
 	chip_info = &mcp320x_chip_infos[spi_get_device_id(spi)->driver_data];
 	indio_dev->channels = chip_info->channels;
