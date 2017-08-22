@@ -140,27 +140,28 @@ static int ct_pcm_playback_open(struct snd_pcm_substream *substream)
 
 	err = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
-	if (err < 0) {
-		kfree(apcm);
-		return err;
-	}
+	if (err < 0)
+		goto free_pcm;
+
 	err = snd_pcm_hw_constraint_minmax(runtime,
 					   SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 					   1024, UINT_MAX);
-	if (err < 0) {
-		kfree(apcm);
-		return err;
-	}
+	if (err < 0)
+		goto free_pcm;
 
 	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
 	if (!apcm->timer) {
-		kfree(apcm);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto free_pcm;
 	}
 	runtime->private_data = apcm;
 	runtime->private_free = ct_atc_pcm_free_substream;
 
 	return 0;
+
+free_pcm:
+	kfree(apcm);
+	return err;
 }
 
 static int ct_pcm_playback_close(struct snd_pcm_substream *substream)
@@ -286,27 +287,28 @@ static int ct_pcm_capture_open(struct snd_pcm_substream *substream)
 
 	err = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
-	if (err < 0) {
-		kfree(apcm);
-		return err;
-	}
+	if (err < 0)
+		goto free_pcm;
+
 	err = snd_pcm_hw_constraint_minmax(runtime,
 					   SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 					   1024, UINT_MAX);
-	if (err < 0) {
-		kfree(apcm);
-		return err;
-	}
+	if (err < 0)
+		goto free_pcm;
 
 	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
 	if (!apcm->timer) {
-		kfree(apcm);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto free_pcm;
 	}
 	runtime->private_data = apcm;
 	runtime->private_free = ct_atc_pcm_free_substream;
 
 	return 0;
+
+free_pcm:
+	kfree(apcm);
+	return err;
 }
 
 static int ct_pcm_capture_close(struct snd_pcm_substream *substream)
