@@ -1616,7 +1616,6 @@ error_free:
  *
  * @adev: amdgpu_device pointer
  * @exclusive: fence we need to sync to
- * @gtt_flags: flags as they are used for GTT
  * @pages_addr: DMA addresses to use for mapping
  * @vm: requested vm
  * @mapping: mapped range and flags to use for the update
@@ -1630,7 +1629,6 @@ error_free:
  */
 static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 				      struct dma_fence *exclusive,
-				      uint64_t gtt_flags,
 				      dma_addr_t *pages_addr,
 				      struct amdgpu_vm *vm,
 				      struct amdgpu_bo_va_mapping *mapping,
@@ -1685,11 +1683,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		}
 
 		if (pages_addr) {
-			if (flags == gtt_flags)
-				src = adev->gart.table_addr +
-					(addr >> AMDGPU_GPU_PAGE_SHIFT) * 8;
-			else
-				max_entries = min(max_entries, 16ull * 1024ull);
+			max_entries = min(max_entries, 16ull * 1024ull);
 			addr = 0;
 		} else if (flags & AMDGPU_PTE_VALID) {
 			addr += adev->vm_manager.vram_base_offset;
@@ -1734,10 +1728,10 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	struct amdgpu_vm *vm = bo_va->base.vm;
 	struct amdgpu_bo_va_mapping *mapping;
 	dma_addr_t *pages_addr = NULL;
-	uint64_t gtt_flags, flags;
 	struct ttm_mem_reg *mem;
 	struct drm_mm_node *nodes;
 	struct dma_fence *exclusive;
+	uint64_t flags;
 	int r;
 
 	if (clear || !bo_va->base.bo) {
@@ -1757,15 +1751,10 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 		exclusive = reservation_object_get_excl(bo->tbo.resv);
 	}
 
-	if (bo) {
+	if (bo)
 		flags = amdgpu_ttm_tt_pte_flags(adev, bo->tbo.ttm, mem);
-		gtt_flags = (amdgpu_ttm_is_bound(bo->tbo.ttm) &&
-			adev == amdgpu_ttm_adev(bo->tbo.bdev)) ?
-			flags : 0;
-	} else {
+	else
 		flags = 0x0;
-		gtt_flags = ~0x0;
-	}
 
 	spin_lock(&vm->status_lock);
 	if (!list_empty(&bo_va->base.vm_status))
@@ -1773,8 +1762,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	spin_unlock(&vm->status_lock);
 
 	list_for_each_entry(mapping, &bo_va->invalids, list) {
-		r = amdgpu_vm_bo_split_mapping(adev, exclusive,
-					       gtt_flags, pages_addr, vm,
+		r = amdgpu_vm_bo_split_mapping(adev, exclusive, pages_addr, vm,
 					       mapping, flags, nodes,
 					       &bo_va->last_pt_update);
 		if (r)
