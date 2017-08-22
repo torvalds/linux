@@ -53,6 +53,7 @@
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>
+#include <crypto/gcm.h>
 #include <crypto/sha.h>
 #include <crypto/authenc.h>
 #include <crypto/ctr.h>
@@ -2534,9 +2535,9 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 	if (get_aead_subtype(tfm) ==
 	    CRYPTO_ALG_SUB_TYPE_AEAD_RFC4106) {
 		memcpy(reqctx->iv, aeadctx->salt, 4);
-		memcpy(reqctx->iv + 4, req->iv, 8);
+		memcpy(reqctx->iv + 4, req->iv, GCM_RFC4106_IV_SIZE);
 	} else {
-		memcpy(reqctx->iv, req->iv, 12);
+		memcpy(reqctx->iv, req->iv, GCM_AES_IV_SIZE);
 	}
 	*((unsigned int *)(reqctx->iv + 12)) = htonl(0x01);
 
@@ -3385,7 +3386,7 @@ static struct chcr_alg_template driver_algs[] = {
 						sizeof(struct chcr_aead_ctx) +
 						sizeof(struct chcr_gcm_ctx),
 			},
-			.ivsize = 12,
+			.ivsize = GCM_AES_IV_SIZE,
 			.maxauthsize = GHASH_DIGEST_SIZE,
 			.setkey = chcr_gcm_setkey,
 			.setauthsize = chcr_gcm_setauthsize,
@@ -3405,7 +3406,7 @@ static struct chcr_alg_template driver_algs[] = {
 						sizeof(struct chcr_gcm_ctx),
 
 			},
-			.ivsize = 8,
+			.ivsize = GCM_RFC4106_IV_SIZE,
 			.maxauthsize	= GHASH_DIGEST_SIZE,
 			.setkey = chcr_gcm_setkey,
 			.setauthsize	= chcr_4106_4309_setauthsize,
