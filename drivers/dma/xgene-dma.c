@@ -391,11 +391,6 @@ static void xgene_dma_set_src_buffer(__le64 *ext8, size_t *len,
 	*paddr += nbytes;
 }
 
-static void xgene_dma_invalidate_buffer(__le64 *ext8)
-{
-	*ext8 |= cpu_to_le64(XGENE_DMA_INVALID_LEN_CODE);
-}
-
 static __le64 *xgene_dma_lookup_ext8(struct xgene_dma_desc_hw *desc, int idx)
 {
 	switch (idx) {
