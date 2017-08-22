@@ -1367,11 +1367,11 @@ static int handle_aead_req(struct iproc_reqctx_s *rctx)
 		 * expects AAD to include just SPI and seqno. So
 		 * subtract off the IV len.
 		 */
-		aead_parms.assoc_size -= GCM_ESP_IV_SIZE;
+		aead_parms.assoc_size -= GCM_RFC4106_IV_SIZE;
 
 		if (rctx->is_encrypt) {
 			aead_parms.return_iv = true;
-			aead_parms.ret_iv_len = GCM_ESP_IV_SIZE;
+			aead_parms.ret_iv_len = GCM_RFC4106_IV_SIZE;
 			aead_parms.ret_iv_off = GCM_ESP_SALT_SIZE;
 		}
 	} else {
@@ -3255,7 +3255,7 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_flags = CRYPTO_ALG_NEED_FALLBACK
 		 },
 		 .setkey = aead_gcm_esp_setkey,
-		 .ivsize = GCM_ESP_IV_SIZE,
+		 .ivsize = GCM_RFC4106_IV_SIZE,
 		 .maxauthsize = AES_BLOCK_SIZE,
 	 },
 	 .cipher_info = {
@@ -3301,7 +3301,7 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_flags = CRYPTO_ALG_NEED_FALLBACK
 		 },
 		 .setkey = rfc4543_gcm_esp_setkey,
-		 .ivsize = GCM_ESP_IV_SIZE,
+		 .ivsize = GCM_RFC4106_IV_SIZE,
 		 .maxauthsize = AES_BLOCK_SIZE,
 	 },
 	 .cipher_info = {
