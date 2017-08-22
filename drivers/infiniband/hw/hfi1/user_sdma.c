@@ -1167,6 +1167,14 @@ retry:
 	return pinned;
 }
 
+static void unpin_sdma_pages(struct sdma_mmu_node *node)
+{
+	if (node->npages) {
+		unpin_vector_pages(node->pq->mm, node->pages, 0, node->npages);
+		atomic_sub(node->npages, &node->pq->n_locked);
+	}
+}
+
 static int pin_vector_pages(struct user_sdma_request *req,
 			    struct user_sdma_iovec *iovec)
 {
@@ -1218,14 +1226,12 @@ static int pin_vector_pages(struct user_sdma_request *req,
 
 	ret = hfi1_mmu_rb_insert(req->pq->handler, &node->rb);
 	if (ret) {
-		atomic_sub(node->npages, &pq->n_locked);
 		iovec->node = NULL;
 		goto bail;
 	}
 	return 0;
 bail:
-	if (rb_node)
-		unpin_vector_pages(pq->mm, node->pages, 0, node->npages);
+	unpin_sdma_pages(node);
 	kfree(node);
 	return ret;
 }
@@ -1671,10 +1677,7 @@ static void sdma_rb_remove(void *arg, struct mmu_rb_node *mnode)
 	struct sdma_mmu_node *node =
 		container_of(mnode, struct sdma_mmu_node, rb);
 
-	atomic_sub(node->npages, &node->pq->n_locked);
-
-	unpin_vector_pages(node->pq->mm, node->pages, 0, node->npages);
-
+	unpin_sdma_pages(node);
 	kfree(node);
 }
 
