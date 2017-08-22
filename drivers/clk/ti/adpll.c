@@ -486,7 +486,7 @@ static u8 ti_adpll_get_parent(struct clk_hw *hw)
 	return 0;
 }
 
-static struct clk_ops ti_adpll_ops = {
+static const struct clk_ops ti_adpll_ops = {
 	.prepare = ti_adpll_prepare,
 	.unprepare = ti_adpll_unprepare,
 	.is_prepared = ti_adpll_is_prepared,
