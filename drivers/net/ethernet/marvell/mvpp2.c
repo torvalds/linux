@@ -346,7 +346,7 @@
 #define MVPP22_GMAC_CTRL_4_REG			0x90
 #define     MVPP22_CTRL4_EXT_PIN_GMII_SEL	BIT(0)
 #define     MVPP22_CTRL4_DP_CLK_SEL		BIT(5)
-#define     MVPP22_CTRL4_SYNC_BYPASS		BIT(6)
+#define     MVPP22_CTRL4_SYNC_BYPASS_DIS	BIT(6)
 #define     MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE	BIT(7)
 
 /* Per-port XGMAC registers. PPv2.2 only, only for GOP port 0,
@@ -4269,7 +4269,7 @@ static void mvpp22_port_mii_set(struct mvpp2_port *port)
 	else
 		val &= ~MVPP22_CTRL4_EXT_PIN_GMII_SEL;
 	val &= ~MVPP22_CTRL4_DP_CLK_SEL;
-	val |= MVPP22_CTRL4_SYNC_BYPASS;
+	val |= MVPP22_CTRL4_SYNC_BYPASS_DIS;
 	val |= MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE;
 	writel(val, port->base + MVPP22_GMAC_CTRL_4_REG);
 }
