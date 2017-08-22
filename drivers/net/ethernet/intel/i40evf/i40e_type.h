@@ -568,6 +568,8 @@ struct i40e_hw {
 	/* LLDP/DCBX Status */
 	u16 dcbx_status;
 
+#define I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE  BIT_ULL(2)
+
 	/* DCBX info */
 	struct i40e_dcbx_config local_dcbx_config; /* Oper/Local Cfg */
 	struct i40e_dcbx_config remote_dcbx_config; /* Peer Cfg */
