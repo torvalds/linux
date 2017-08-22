@@ -297,12 +297,6 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *stream, int up)
 	}
 }
 
-static const struct snd_rawmidi_ops midi_capture_ops = {
-	.open    = midi_capture_open,
-	.close   = midi_capture_close,
-	.trigger = midi_capture_trigger,
-};
-
 static int midi_playback_open(struct snd_rawmidi_substream *stream)
 {
 	return 0;
@@ -363,6 +357,11 @@ void snd_oxfw_scs1x_update(struct snd_oxfw *oxfw)
 
 int snd_oxfw_scs1x_add(struct snd_oxfw *oxfw)
 {
+	static const struct snd_rawmidi_ops midi_capture_ops = {
+		.open    = midi_capture_open,
+		.close   = midi_capture_close,
+		.trigger = midi_capture_trigger,
+	};
 	static const struct snd_rawmidi_ops midi_playback_ops = {
 		.open    = midi_playback_open,
 		.close   = midi_playback_close,
