@@ -303,22 +303,15 @@ void hfi1_vnic_sdma_init(struct hfi1_vnic_vport_info *vinfo)
 	}
 }
 
-static void hfi1_vnic_txreq_kmem_cache_ctor(void *obj)
-{
-	struct vnic_txreq *tx = (struct vnic_txreq *)obj;
-
-	memset(tx, 0, sizeof(*tx));
-}
-
 int hfi1_vnic_txreq_init(struct hfi1_devdata *dd)
 {
 	char buf[HFI1_VNIC_TXREQ_NAME_LEN];
 
 	snprintf(buf, sizeof(buf), "hfi1_%u_vnic_txreq_cache", dd->unit);
 	dd->vnic.txreq_cache = kmem_cache_create(buf,
-					  sizeof(struct vnic_txreq),
-					  0, SLAB_HWCACHE_ALIGN,
-					  hfi1_vnic_txreq_kmem_cache_ctor);
+						 sizeof(struct vnic_txreq),
+						 0, SLAB_HWCACHE_ALIGN,
+						 NULL);
 	if (!dd->vnic.txreq_cache)
 		return -ENOMEM;
 	return 0;

@@ -331,13 +331,6 @@ static void activate_packet_queue(struct iowait *wait, int reason)
 	wake_up(&wait->wait_dma);
 };
 
-static void sdma_kmem_cache_ctor(void *obj)
-{
-	struct user_sdma_txreq *tx = obj;
-
-	memset(tx, 0, sizeof(*tx));
-}
-
 int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 				struct hfi1_filedata *fd)
 {
@@ -391,7 +384,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 					    sizeof(struct user_sdma_txreq),
 					    L1_CACHE_BYTES,
 					    SLAB_HWCACHE_ALIGN,
-					    sdma_kmem_cache_ctor);
+					    NULL);
 	if (!pq->txreq_cache) {
 		dd_dev_err(dd, "[%u] Failed to allocate TxReq cache\n",
 			   uctxt->ctxt);
