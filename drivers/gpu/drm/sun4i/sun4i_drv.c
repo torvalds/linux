@@ -25,12 +25,20 @@
 #include "sun4i_framebuffer.h"
 #include "sun4i_tcon.h"
 
+static void sun4i_drv_lastclose(struct drm_device *dev)
+{
+	struct sun4i_drv *drv = dev->dev_private;
+
+	drm_fbdev_cma_restore_mode(drv->fbdev);
+}
+
 DEFINE_DRM_GEM_CMA_FOPS(sun4i_drv_fops);
 
 static struct drm_driver sun4i_drv_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_ATOMIC,
 
 	/* Generic Operations */
+	.lastclose		= sun4i_drv_lastclose,
 	.fops			= &sun4i_drv_fops,
 	.name			= "sun4i-drm",
 	.desc			= "Allwinner sun4i Display Engine",
