@@ -484,32 +484,18 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	unsigned int priority = state->base.normalized_zpos + 1;
 	unsigned long flags;
 	dma_addr_t luma_addr[2], chroma_addr[2];
-	bool tiled_mode = false;
-	bool crcb_mode = false;
+	bool is_tiled, is_nv21;
 	u32 val;
 
-	switch (fb->format->format) {
-	case DRM_FORMAT_NV12:
-		crcb_mode = false;
-		break;
-	case DRM_FORMAT_NV21:
-		crcb_mode = true;
-		break;
-	default:
-		DRM_ERROR("pixel format for vp is wrong [%d].\n",
-				fb->format->format);
-		return;
-	}
-
-	if (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_64_32_TILE)
-		tiled_mode = true;
+	is_nv21 = (fb->format->format == DRM_FORMAT_NV21);
+	is_tiled = (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_64_32_TILE);
 
 	luma_addr[0] = exynos_drm_fb_dma_addr(fb, 0);
 	chroma_addr[0] = exynos_drm_fb_dma_addr(fb, 1);
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		__set_bit(MXR_BIT_INTERLACE, &ctx->flags);
-		if (tiled_mode) {
+		if (is_tiled) {
 			luma_addr[1] = luma_addr[0] + 0x40;
 			chroma_addr[1] = chroma_addr[0] + 0x40;
 		} else {
@@ -529,8 +515,8 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	vp_reg_writemask(res, VP_MODE, val, VP_MODE_LINE_SKIP);
 
 	/* setup format */
-	val = (crcb_mode ? VP_MODE_NV21 : VP_MODE_NV12);
-	val |= (tiled_mode ? VP_MODE_MEM_TILED : VP_MODE_MEM_LINEAR);
+	val = (is_nv21 ? VP_MODE_NV21 : VP_MODE_NV12);
+	val |= (is_tiled ? VP_MODE_MEM_TILED : VP_MODE_MEM_LINEAR);
 	vp_reg_writemask(res, VP_MODE, val, VP_MODE_FMT_MASK);
 
 	/* setting size of input image */
