@@ -775,7 +775,22 @@ struct i40e_aqc_set_switch_config {
 #define I40E_AQ_SET_SWITCH_CFG_PROMISC		0x0001
 #define I40E_AQ_SET_SWITCH_CFG_L2_FILTER	0x0002
 	__le16	valid_flags;
-	u8	reserved[12];
+	/* The ethertype in switch_tag is dropped on ingress and used
+	 * internally by the switch. Set this to zero for the default
+	 * of 0x88a8 (802.1ad). Should be zero for firmware API
+	 * versions lower than 1.7.
+	 */
+	__le16	switch_tag;
+	/* The ethertypes in first_tag and second_tag are used to
+	 * match the outer and inner VLAN tags (respectively) when HW
+	 * double VLAN tagging is enabled via the set port parameters
+	 * AQ command. Otherwise these are both ignored. Set them to
+	 * zero for their defaults of 0x8100 (802.1Q). Should be zero
+	 * for firmware API versions lower than 1.7.
+	 */
+	__le16	first_tag;
+	__le16	second_tag;
+	u8	reserved[6];
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_set_switch_config);
