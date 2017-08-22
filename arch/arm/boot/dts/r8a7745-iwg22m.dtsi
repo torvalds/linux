@@ -37,6 +37,11 @@
 		groups = "mmc_data8", "mmc_ctrl";
 		function = "mmc";
 	};
+
+	i2c3_pins: i2c3 {
+		groups = "i2c3_b";
+		function = "i2c3";
+	};
 };
 
 &mmcif0 {
@@ -47,4 +52,17 @@
 	bus-width = <8>;
 	non-removable;
 	status = "okay";
+};
+
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	rtc@68 {
+		compatible = "ti,bq32000";
+		reg = <0x68>;
+	};
 };
