@@ -309,38 +309,36 @@ static void __init axs101_early_init(void)
 
 static void __init axs103_early_init(void)
 {
-	/*
-	 * TODO: use cpu node "cpu-freq" param instead of platform-specific
-	 * "/cpu_card/core_clk" as it works only if we use fixed-clock for cpu.
-	 */
-	int offset = fdt_path_offset(initial_boot_params, "/cpu_card/core_clk");
-	const struct fdt_property *prop = fdt_get_property(initial_boot_params,
-							   offset,
-							   "clock-frequency",
-							   NULL);
-	u32 freq = be32_to_cpu(*(u32*)(prop->data)) / 1000000, orig = freq;
-
+#ifdef CONFIG_ARC_MCIP
 	/*
 	 * AXS103 configurations for SMP/QUAD configurations share device tree
 	 * which defaults to 100 MHz. However recent failures of Quad config
 	 * revealed P&R timing violations so clamp it down to safe 50 MHz
 	 * Instead of duplicating defconfig/DT for SMP/QUAD, add a small hack
-	 *
-	 * This hack is really hacky as of now. Fix it properly by getting the
-	 * number of cores as return value of platform's early SMP callback
+	 * of fudging the freq in DT
 	 */
-#ifdef CONFIG_ARC_MCIP
 	unsigned int num_cores = (read_aux_reg(ARC_REG_MCIP_BCR) >> 16) & 0x3F;
-	if (num_cores > 2)
-		freq = 50;
-#endif
+	if (num_cores > 2) {
+		u32 freq = 50, orig;
+		/*
+		 * TODO: use cpu node "cpu-freq" param instead of platform-specific
+		 * "/cpu_card/core_clk" as it works only if we use fixed-clock for cpu.
+		 */
+		int off = fdt_path_offset(initial_boot_params, "/cpu_card/core_clk");
+		const struct fdt_property *prop;
 
-	/* Patching .dtb in-place with new core clock value */
-	if (freq != orig ) {
-		freq = cpu_to_be32(freq * 1000000);
-		fdt_setprop_inplace(initial_boot_params, offset,
-				    "clock-frequency", &freq, sizeof(freq));
+		prop = fdt_get_property(initial_boot_params, off,
+					"clock-frequency", NULL);
+		orig = be32_to_cpu(*(u32*)(prop->data)) / 1000000;
+
+		/* Patching .dtb in-place with new core clock value */
+		if (freq != orig ) {
+			freq = cpu_to_be32(freq * 1000000);
+			fdt_setprop_inplace(initial_boot_params, off,
+					    "clock-frequency", &freq, sizeof(freq));
+		}
 	}
+#endif
 
 	/* Memory maps already config in pre-bootloader */
 
