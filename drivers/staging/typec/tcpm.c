@@ -2131,7 +2131,7 @@ static void tcpm_swap_complete(struct tcpm_port *port, int result)
 	}
 }
 
-enum typec_pwr_opmode tcpm_get_pwr_opmode(enum typec_cc_status cc)
+static enum typec_pwr_opmode tcpm_get_pwr_opmode(enum typec_cc_status cc)
 {
 	switch (cc) {
 	case TYPEC_CC_RP_1_5:
