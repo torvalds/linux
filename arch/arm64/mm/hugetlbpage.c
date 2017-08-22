@@ -221,18 +221,27 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 		return NULL;
 
 	pud = pud_offset(pgd, addr);
-	if (pud_none(*pud))
+	if (sz != PUD_SIZE && pud_none(*pud))
 		return NULL;
-	/* swap or huge page */
-	if (!pud_present(*pud) || pud_huge(*pud))
+	/* hugepage or swap? */
+	if (pud_huge(*pud) || !pud_present(*pud))
 		return (pte_t *)pud;
 	/* table; check the next level */
 
+	if (sz == CONT_PMD_SIZE)
+		addr &= CONT_PMD_MASK;
+
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd))
+	if (!(sz == PMD_SIZE || sz == CONT_PMD_SIZE) &&
+	    pmd_none(*pmd))
 		return NULL;
-	if (!pmd_present(*pmd) || pmd_huge(*pmd))
+	if (pmd_huge(*pmd) || !pmd_present(*pmd))
 		return (pte_t *)pmd;
+
+	if (sz == CONT_PTE_SIZE) {
+		pte_t *pte = pte_offset_kernel(pmd, (addr & CONT_PTE_MASK));
+		return pte;
+	}
 
 	return NULL;
 }
