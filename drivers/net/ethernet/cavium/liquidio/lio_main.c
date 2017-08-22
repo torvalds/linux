@@ -4125,12 +4125,6 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 			dev_err(&octeon_dev->pci_dev->dev, "Could not load firmware to board\n");
 			return 1;
 		}
-		/* set bit 1 of SLI_SCRATCH_1 to indicate that firmware is
-		 * loaded
-		 */
-		if (OCTEON_CN23XX_PF(octeon_dev))
-			octeon_write_csr64(octeon_dev, CN23XX_SLI_SCRATCH1,
-					   2ULL);
 	}
 
 	handshake[octeon_dev->octeon_id].init_ok = 1;

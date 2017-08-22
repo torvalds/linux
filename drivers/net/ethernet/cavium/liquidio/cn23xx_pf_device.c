@@ -1442,8 +1442,19 @@ int cn23xx_fw_loaded(struct octeon_device *oct)
 {
 	u64 val;
 
-	val = octeon_read_csr64(oct, CN23XX_SLI_SCRATCH1);
-	return (val >> 1) & 1ULL;
+	/* If there's more than one active PF on this NIC, then that
+	 * implies that the NIC firmware is loaded and running.  This check
+	 * prevents a rare false negative that might occur if we only relied
+	 * on checking the SCR2_BIT_FW_LOADED flag.  The false negative would
+	 * happen if the PF driver sees SCR2_BIT_FW_LOADED as cleared even
+	 * though the firmware was already loaded but still booting and has yet
+	 * to set SCR2_BIT_FW_LOADED.
+	 */
+	if (atomic_read(oct->adapter_refcount) > 1)
+		return 1;
+
+	val = octeon_read_csr64(oct, CN23XX_SLI_SCRATCH2);
+	return (val >> SCR2_BIT_FW_LOADED) & 1ULL;
 }
 
 void cn23xx_tell_vf_its_macaddr_changed(struct octeon_device *oct, int vfidx,
