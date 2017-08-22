@@ -440,28 +440,6 @@ static int m41t80_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(m41t80_pm, m41t80_suspend, m41t80_resume);
 
-static ssize_t flags_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	int val;
-
-	val = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
-	if (val < 0)
-		return val;
-	return sprintf(buf, "%#x\n", val);
-}
-static DEVICE_ATTR_RO(flags);
-
-static struct attribute *attrs[] = {
-	&dev_attr_flags.attr,
-	NULL,
-};
-
-static struct attribute_group attr_group = {
-	.attrs = attrs,
-};
-
 #ifdef CONFIG_COMMON_CLK
 #define sqw_to_m41t80_data(_hw) container_of(_hw, struct m41t80_data, sqw)
 
@@ -912,13 +890,6 @@ static struct notifier_block wdt_notifier = {
  *****************************************************************************
  */
 
-static void m41t80_remove_sysfs_group(void *_dev)
-{
-	struct device *dev = _dev;
-
-	sysfs_remove_group(&dev->kobj, &attr_group);
-}
-
 static int m41t80_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -1012,21 +983,6 @@ static int m41t80_probe(struct i2c_client *client,
 					       rc & ~M41T80_SEC_ST);
 	if (rc < 0) {
 		dev_err(&client->dev, "Can't clear ST bit\n");
-		return rc;
-	}
-
-	/* Export sysfs entries */
-	rc = sysfs_create_group(&(&client->dev)->kobj, &attr_group);
-	if (rc) {
-		dev_err(&client->dev, "Failed to create sysfs group: %d\n", rc);
-		return rc;
-	}
-
-	rc = devm_add_action_or_reset(&client->dev, m41t80_remove_sysfs_group,
-				      &client->dev);
-	if (rc) {
-		dev_err(&client->dev,
-			"Failed to add sysfs cleanup action: %d\n", rc);
 		return rc;
 	}
 
