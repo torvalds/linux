@@ -558,6 +558,7 @@ struct x86_pmu {
 	int		attr_rdpmc;
 	struct attribute **format_attrs;
 	struct attribute **event_attrs;
+	struct attribute **caps_attrs;
 
 	ssize_t		(*events_sysfs_show)(char *page, u64 config);
 	struct attribute **cpu_events;
@@ -741,6 +742,8 @@ void x86_del_exclusive(unsigned int what);
 int x86_reserve_hardware(void);
 
 void x86_release_hardware(void);
+
+int x86_pmu_max_precise(void);
 
 void hw_perf_lbr_event_destroy(struct perf_event *event);
 

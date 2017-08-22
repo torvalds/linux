@@ -3795,6 +3795,46 @@ done:
 
 static DEVICE_ATTR_RW(freeze_on_smi);
 
+static ssize_t branches_show(struct device *cdev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", x86_pmu.lbr_nr);
+}
+
+static DEVICE_ATTR_RO(branches);
+
+static struct attribute *lbr_attrs[] = {
+	&dev_attr_branches.attr,
+	NULL
+};
+
+static char pmu_name_str[30];
+
+static ssize_t pmu_name_show(struct device *cdev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%s\n", pmu_name_str);
+}
+
+static DEVICE_ATTR_RO(pmu_name);
+
+static ssize_t max_precise_show(struct device *cdev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", x86_pmu_max_precise());
+}
+
+static DEVICE_ATTR_RO(max_precise);
+
+static struct attribute *intel_pmu_caps_attrs[] = {
+	&dev_attr_pmu_name.attr,
+	&dev_attr_max_precise.attr,
+	NULL
+};
+
 static struct attribute *intel_pmu_attrs[] = {
 	&dev_attr_freeze_on_smi.attr,
 	NULL,
@@ -3810,6 +3850,7 @@ __init int intel_pmu_init(void)
 	struct extra_reg *er;
 	int version, i;
 	struct attribute **extra_attr = NULL;
+	char *name;
 
 	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON)) {
 		switch (boot_cpu_data.x86) {
@@ -3877,6 +3918,7 @@ __init int intel_pmu_init(void)
 	switch (boot_cpu_data.x86_model) {
 	case INTEL_FAM6_CORE_YONAH:
 		pr_cont("Core events, ");
+		name = "core";
 		break;
 
 	case INTEL_FAM6_CORE2_MEROM:
@@ -3892,6 +3934,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.event_constraints = intel_core2_event_constraints;
 		x86_pmu.pebs_constraints = intel_core2_pebs_event_constraints;
 		pr_cont("Core2 events, ");
+		name = "core2";
 		break;
 
 	case INTEL_FAM6_NEHALEM:
@@ -3924,6 +3967,7 @@ __init int intel_pmu_init(void)
 		extra_attr = nhm_format_attr;
 
 		pr_cont("Nehalem events, ");
+		name = "nehalem";
 		break;
 
 	case INTEL_FAM6_ATOM_PINEVIEW:
@@ -3940,6 +3984,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.pebs_constraints = intel_atom_pebs_event_constraints;
 		x86_pmu.pebs_aliases = intel_pebs_aliases_core2;
 		pr_cont("Atom events, ");
+		name = "bonnell";
 		break;
 
 	case INTEL_FAM6_ATOM_SILVERMONT1:
@@ -3959,6 +4004,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.cpu_events = slm_events_attrs;
 		extra_attr = slm_format_attr;
 		pr_cont("Silvermont events, ");
+		name = "silvermont";
 		break;
 
 	case INTEL_FAM6_ATOM_GOLDMONT:
@@ -3985,6 +4031,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.cpu_events = glm_events_attrs;
 		extra_attr = slm_format_attr;
 		pr_cont("Goldmont events, ");
+		name = "goldmont";
 		break;
 
 	case INTEL_FAM6_ATOM_GEMINI_LAKE:
@@ -4012,6 +4059,7 @@ __init int intel_pmu_init(void)
 		event_attr_td_total_slots_scale_glm.event_str = "4";
 		extra_attr = slm_format_attr;
 		pr_cont("Goldmont plus events, ");
+		name = "goldmont_plus";
 		break;
 
 	case INTEL_FAM6_WESTMERE:
@@ -4042,6 +4090,7 @@ __init int intel_pmu_init(void)
 		intel_pmu_pebs_data_source_nhm();
 		extra_attr = nhm_format_attr;
 		pr_cont("Westmere events, ");
+		name = "westmere";
 		break;
 
 	case INTEL_FAM6_SANDYBRIDGE:
@@ -4080,6 +4129,7 @@ __init int intel_pmu_init(void)
 		extra_attr = nhm_format_attr;
 
 		pr_cont("SandyBridge events, ");
+		name = "sandybridge";
 		break;
 
 	case INTEL_FAM6_IVYBRIDGE:
@@ -4116,6 +4166,7 @@ __init int intel_pmu_init(void)
 		extra_attr = nhm_format_attr;
 
 		pr_cont("IvyBridge events, ");
+		name = "ivybridge";
 		break;
 
 
@@ -4146,6 +4197,7 @@ __init int intel_pmu_init(void)
 		extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
 			hsw_format_attr : nhm_format_attr;
 		pr_cont("Haswell events, ");
+		name = "haswell";
 		break;
 
 	case INTEL_FAM6_BROADWELL_CORE:
@@ -4184,6 +4236,7 @@ __init int intel_pmu_init(void)
 		extra_attr = boot_cpu_has(X86_FEATURE_RTM) ?
 			hsw_format_attr : nhm_format_attr;
 		pr_cont("Broadwell events, ");
+		name = "broadwell";
 		break;
 
 	case INTEL_FAM6_XEON_PHI_KNL:
@@ -4203,6 +4256,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.flags |= PMU_FL_NO_HT_SHARING;
 		extra_attr = slm_format_attr;
 		pr_cont("Knights Landing/Mill events, ");
+		name = "knights-landing";
 		break;
 
 	case INTEL_FAM6_SKYLAKE_MOBILE:
@@ -4239,6 +4293,7 @@ __init int intel_pmu_init(void)
 		intel_pmu_pebs_data_source_skl(
 			boot_cpu_data.x86_model == INTEL_FAM6_SKYLAKE_X);
 		pr_cont("Skylake events, ");
+		name = "skylake";
 		break;
 
 	default:
@@ -4246,6 +4301,7 @@ __init int intel_pmu_init(void)
 		case 1:
 			x86_pmu.event_constraints = intel_v1_event_constraints;
 			pr_cont("generic architected perfmon v1, ");
+			name = "generic_arch_v1";
 			break;
 		default:
 			/*
@@ -4253,9 +4309,12 @@ __init int intel_pmu_init(void)
 			 */
 			x86_pmu.event_constraints = intel_gen_event_constraints;
 			pr_cont("generic architected perfmon, ");
+			name = "generic_arch_v2+";
 			break;
 		}
 	}
+
+	snprintf(pmu_name_str, sizeof pmu_name_str, "%s", name);
 
 	if (version >= 2 && extra_attr) {
 		x86_pmu.format_attrs = merge_attr(intel_arch3_formats_attr,
@@ -4309,8 +4368,13 @@ __init int intel_pmu_init(void)
 			x86_pmu.lbr_nr = 0;
 	}
 
-	if (x86_pmu.lbr_nr)
+	x86_pmu.caps_attrs = intel_pmu_caps_attrs;
+
+	if (x86_pmu.lbr_nr) {
+		x86_pmu.caps_attrs = merge_attr(x86_pmu.caps_attrs, lbr_attrs);
 		pr_cont("%d-deep LBR, ", x86_pmu.lbr_nr);
+	}
+
 	/*
 	 * Access extra MSR may cause #GP under certain circumstances.
 	 * E.g. KVM doesn't support offcore event
