@@ -148,7 +148,8 @@ static const struct exynos_drm_plane_config plane_configs[MIXER_WIN_NR] = {
 		.pixel_formats = vp_formats,
 		.num_pixel_formats = ARRAY_SIZE(vp_formats),
 		.capabilities = EXYNOS_DRM_PLANE_CAP_SCALE |
-				EXYNOS_DRM_PLANE_CAP_ZPOS,
+				EXYNOS_DRM_PLANE_CAP_ZPOS |
+				EXYNOS_DRM_PLANE_CAP_TILE,
 	},
 };
 
@@ -499,6 +500,9 @@ static void vp_video_buffer(struct mixer_context *ctx,
 				fb->format->format);
 		return;
 	}
+
+	if (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_64_32_TILE)
+		tiled_mode = true;
 
 	luma_addr[0] = exynos_drm_fb_dma_addr(fb, 0);
 	chroma_addr[0] = exynos_drm_fb_dma_addr(fb, 1);

@@ -179,6 +179,29 @@ static struct drm_plane_funcs exynos_plane_funcs = {
 };
 
 static int
+exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
+			      struct exynos_drm_plane_state *state)
+{
+	struct drm_framebuffer *fb = state->base.fb;
+
+	switch (fb->modifier) {
+	case DRM_FORMAT_MOD_SAMSUNG_64_32_TILE:
+		if (!(config->capabilities & EXYNOS_DRM_PLANE_CAP_TILE))
+			return -ENOTSUPP;
+		break;
+
+	case DRM_FORMAT_MOD_LINEAR:
+		break;
+
+	default:
+		DRM_ERROR("unsupported pixel format modifier");
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
 exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
 			    struct exynos_drm_plane_state *state)
 {
@@ -221,6 +244,10 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 
 	/* translate state into exynos_state */
 	exynos_plane_mode_set(exynos_state);
+
+	ret = exynos_drm_plane_check_format(exynos_plane->config, exynos_state);
+	if (ret)
+		return ret;
 
 	ret = exynos_drm_plane_check_size(exynos_plane->config, exynos_state);
 	return ret;
