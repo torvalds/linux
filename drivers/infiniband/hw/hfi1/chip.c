@@ -8290,8 +8290,8 @@ static irqreturn_t sdma_interrupt(int irq, void *data)
 		/* handle the interrupt(s) */
 		sdma_engine_interrupt(sde, status);
 	} else {
-		dd_dev_err(dd, "SDMA engine %u interrupt, but no status bits set\n",
-			   sde->this_idx);
+		dd_dev_err_ratelimited(dd, "SDMA engine %u interrupt, but no status bits set\n",
+				       sde->this_idx);
 	}
 	return IRQ_HANDLED;
 }
