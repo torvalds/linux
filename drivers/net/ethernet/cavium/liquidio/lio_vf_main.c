@@ -1544,14 +1544,31 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
  */
 static int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
 {
-	struct lio *lio = GET_LIO(netdev);
+	struct octnic_ctrl_pkt nctrl;
+	struct octeon_device *oct;
+	struct lio *lio;
+	int ret = 0;
+
+	lio = GET_LIO(netdev);
+	oct = lio->oct_dev;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = OCTNET_CMD_CHANGE_MTU;
+	nctrl.ncmd.s.param1 = new_mtu;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.wait_time = LIO_CMD_WAIT_TM;
+	nctrl.netpndev = (u64)netdev;
+	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
+	if (ret < 0) {
+		dev_err(&oct->pci_dev->dev, "Failed to set MTU\n");
+		return -EIO;
+	}
 
 	lio->mtu = new_mtu;
-
-	netif_info(lio, probe, lio->netdev, "MTU Changed from %d to %d\n",
-		   netdev->mtu, new_mtu);
-
-	netdev->mtu = new_mtu;
 
 	return 0;
 }
