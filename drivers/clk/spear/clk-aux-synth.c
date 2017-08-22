@@ -128,7 +128,7 @@ static int clk_aux_set_rate(struct clk_hw *hw, unsigned long drate,
 	return 0;
 }
 
-static struct clk_ops clk_aux_ops = {
+static const struct clk_ops clk_aux_ops = {
 	.recalc_rate = clk_aux_recalc_rate,
 	.round_rate = clk_aux_round_rate,
 	.set_rate = clk_aux_set_rate,
