@@ -490,7 +490,7 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct stm32_dcmi *dcmi = vb2_get_drv_priv(vq);
 	struct dcmi_buf *buf, *node;
-	u32 val;
+	u32 val = 0;
 	int ret;
 
 	ret = clk_enable(dcmi->mclk);
@@ -510,22 +510,16 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	spin_lock_irq(&dcmi->irqlock);
 
-	val = reg_read(dcmi->regs, DCMI_CR);
-
-	val &= ~(CR_PCKPOL | CR_HSPOL | CR_VSPOL |
-		 CR_EDM_0 | CR_EDM_1 | CR_FCRC_0 |
-		 CR_FCRC_1 | CR_JPEG | CR_ESS);
-
 	/* Set bus width */
 	switch (dcmi->bus.bus_width) {
 	case 14:
-		val &= CR_EDM_0 + CR_EDM_1;
+		val |= CR_EDM_0 | CR_EDM_1;
 		break;
 	case 12:
-		val &= CR_EDM_1;
+		val |= CR_EDM_1;
 		break;
 	case 10:
-		val &= CR_EDM_0;
+		val |= CR_EDM_0;
 		break;
 	default:
 		/* Set bus width to 8 bits by default */
