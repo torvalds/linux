@@ -606,12 +606,9 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
+	default:
 		fmt = MXR_FORMAT_ARGB8888;
 		break;
-
-	default:
-		DRM_DEBUG_KMS("pixelformat unsupported by mixer\n");
-		return;
 	}
 
 	/* ratio is already checked by common plane code */
