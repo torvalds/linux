@@ -39,7 +39,6 @@
 
 #include "channel.h"
 
-struct visor_driver;
 struct visor_device;
 extern struct bus_type visorbus_type;
 
