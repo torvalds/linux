@@ -66,7 +66,6 @@ static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
 static int amdgpu_debugfs_test_ib_ring_init(struct amdgpu_device *adev);
 static int amdgpu_debugfs_vbios_dump_init(struct amdgpu_device *adev);
-static int amdgpu_debugfs_vbios_version_init(struct amdgpu_device *adev);
 
 static const char *amdgpu_asic_name[] = {
 	"TAHITI",
@@ -889,6 +888,20 @@ static uint32_t cail_ioreg_read(struct card_info *info, uint32_t reg)
 	return r;
 }
 
+static ssize_t amdgpu_atombios_get_vbios_version(struct device *dev,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = ddev->dev_private;
+	struct atom_context *ctx = adev->mode_info.atom_context;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", ctx->vbios_version);
+}
+
+static DEVICE_ATTR(vbios_version, 0444, amdgpu_atombios_get_vbios_version,
+		   NULL);
+
 /**
  * amdgpu_atombios_fini - free the driver info and callbacks for atombios
  *
@@ -908,6 +921,7 @@ static void amdgpu_atombios_fini(struct amdgpu_device *adev)
 	adev->mode_info.atom_context = NULL;
 	kfree(adev->mode_info.atom_card_info);
 	adev->mode_info.atom_card_info = NULL;
+	device_remove_file(adev->dev, &dev_attr_vbios_version);
 }
 
 /**
@@ -924,6 +938,7 @@ static int amdgpu_atombios_init(struct amdgpu_device *adev)
 {
 	struct card_info *atom_card_info =
 	    kzalloc(sizeof(struct card_info), GFP_KERNEL);
+	int ret;
 
 	if (!atom_card_info)
 		return -ENOMEM;
@@ -960,6 +975,13 @@ static int amdgpu_atombios_init(struct amdgpu_device *adev)
 		amdgpu_atombios_scratch_regs_init(adev);
 		amdgpu_atombios_allocate_fb_scratch(adev);
 	}
+
+	ret = device_create_file(adev->dev, &dev_attr_vbios_version);
+	if (ret) {
+		DRM_ERROR("Failed to create device file for VBIOS version\n");
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -2206,10 +2228,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_debugfs_vbios_dump_init(adev);
 	if (r)
 		DRM_ERROR("Creating vbios dump debugfs failed (%d).\n", r);
-
-	r = amdgpu_debugfs_vbios_version_init(adev);
-	if (r)
-		DRM_ERROR("Creating vbios version debugfs failed (%d).\n", r);
 
 	if ((amdgpu_testing & 1)) {
 		if (adev->accel_working)
@@ -3775,26 +3793,9 @@ static int amdgpu_debugfs_get_vbios_dump(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int amdgpu_debugfs_get_vbios_version(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = dev->dev_private;
-	struct atom_context *ctx = adev->mode_info.atom_context;
-
-	seq_printf(m, "%s\n", ctx->vbios_version);
-	return 0;
-}
-
 static const struct drm_info_list amdgpu_vbios_dump_list[] = {
 		{"amdgpu_vbios",
 		 amdgpu_debugfs_get_vbios_dump,
-		 0, NULL},
-};
-
-static const struct drm_info_list amdgpu_vbios_version_list[] = {
-		{"amdgpu_vbios_version",
-		 amdgpu_debugfs_get_vbios_version,
 		 0, NULL},
 };
 
@@ -3802,11 +3803,6 @@ static int amdgpu_debugfs_vbios_dump_init(struct amdgpu_device *adev)
 {
 	return amdgpu_debugfs_add_files(adev,
 					amdgpu_vbios_dump_list, 1);
-}
-static int amdgpu_debugfs_vbios_version_init(struct amdgpu_device *adev)
-{
-	return amdgpu_debugfs_add_files(adev,
-					amdgpu_vbios_version_list, 1);
 }
 #else
 static int amdgpu_debugfs_test_ib_ring_init(struct amdgpu_device *adev)
@@ -3818,10 +3814,6 @@ static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 	return 0;
 }
 static int amdgpu_debugfs_vbios_dump_init(struct amdgpu_device *adev)
-{
-	return 0;
-}
-static int amdgpu_debugfs_vbios_version_init(struct amdgpu_device *adev)
 {
 	return 0;
 }
