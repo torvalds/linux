@@ -433,6 +433,59 @@ static int rk808_set_suspend_disable(struct regulator_dev *rdev)
 				  rdev->desc->enable_mask);
 }
 
+static int rk8xx_set_suspend_mode(struct regulator_dev *rdev, unsigned int mode)
+{
+	unsigned int reg;
+
+	reg = rdev->desc->vsel_reg + RK808_SLP_REG_OFFSET;
+
+	switch (mode) {
+	case REGULATOR_MODE_FAST:
+		return regmap_update_bits(rdev->regmap, reg,
+					  PWM_MODE_MSK, FPWM_MODE);
+	case REGULATOR_MODE_NORMAL:
+		return regmap_update_bits(rdev->regmap, reg,
+					  PWM_MODE_MSK, AUTO_PWM_MODE);
+	default:
+		pr_err("do not support this mode\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int rk8xx_set_mode(struct regulator_dev *rdev, unsigned int mode)
+{
+	switch (mode) {
+	case REGULATOR_MODE_FAST:
+		return regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
+					  PWM_MODE_MSK, FPWM_MODE);
+	case REGULATOR_MODE_NORMAL:
+		return regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
+					  PWM_MODE_MSK, AUTO_PWM_MODE);
+	default:
+		pr_err("do not support this mode\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static unsigned int rk8xx_get_mode(struct regulator_dev *rdev)
+{
+	unsigned int val;
+	int err;
+
+	err = regmap_read(rdev->regmap, rdev->desc->vsel_reg, &val);
+	if (err)
+		return err;
+
+	if (val & FPWM_MODE)
+		return REGULATOR_MODE_FAST;
+	else
+		return REGULATOR_MODE_NORMAL;
+}
+
 static struct regulator_ops rk808_buck1_2_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
@@ -442,6 +495,9 @@ static struct regulator_ops rk808_buck1_2_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
+	.set_mode		= rk8xx_set_mode,
+	.get_mode		= rk8xx_get_mode,
+	.set_suspend_mode	= rk8xx_set_suspend_mode,
 	.set_ramp_delay		= rk808_set_ramp_delay,
 	.set_suspend_voltage	= rk808_set_suspend_voltage,
 	.set_suspend_enable	= rk808_set_suspend_enable,
@@ -457,6 +513,9 @@ static struct regulator_ops rk8xx_buck_ops_range = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
+	.set_mode		= rk8xx_set_mode,
+	.get_mode		= rk8xx_get_mode,
+	.set_suspend_mode	= rk8xx_set_suspend_mode,
 	.set_ramp_delay		= rk808_set_ramp_delay,
 	.set_suspend_voltage	= rk808_set_suspend_voltage_range,
 	.set_suspend_enable	= rk808_set_suspend_enable,
@@ -470,6 +529,9 @@ static struct regulator_ops rk808_reg_ops = {
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
+	.set_mode		= rk8xx_set_mode,
+	.get_mode		= rk8xx_get_mode,
+	.set_suspend_mode	= rk8xx_set_suspend_mode,
 	.is_enabled		= regulator_is_enabled_regmap,
 	.set_suspend_voltage	= rk808_set_suspend_voltage,
 	.set_suspend_enable	= rk808_set_suspend_enable,
@@ -483,6 +545,9 @@ static struct regulator_ops rk808_reg_ops_ranges = {
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
+	.set_mode		= rk8xx_set_mode,
+	.get_mode		= rk8xx_get_mode,
+	.set_suspend_mode	= rk8xx_set_suspend_mode,
 	.is_enabled		= regulator_is_enabled_regmap,
 	.set_suspend_voltage	= rk808_set_suspend_voltage_range,
 	.set_suspend_enable	= rk808_set_suspend_enable,
@@ -495,6 +560,9 @@ static struct regulator_ops rk808_switch_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.set_suspend_enable	= rk808_set_suspend_enable,
 	.set_suspend_disable	= rk808_set_suspend_disable,
+	.set_mode		= rk8xx_set_mode,
+	.get_mode		= rk8xx_get_mode,
+	.set_suspend_mode	= rk8xx_set_suspend_mode,
 };
 
 static const struct regulator_desc rk808_reg[] = {
