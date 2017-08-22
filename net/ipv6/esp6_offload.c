@@ -286,7 +286,7 @@ static int esp6_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features
 	esp.seqno = cpu_to_be64(xo->seq.low + ((u64)xo->seq.hi << 32));
 
 	err = esp6_output_tail(x, skb, &esp);
-	if (err < 0)
+	if (err)
 		return err;
 
 	secpath_reset(skb);
