@@ -584,7 +584,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	unsigned long flags;
 	unsigned int win = plane->index;
 	unsigned int x_ratio = 0, y_ratio = 0;
-	unsigned int src_x_offset, src_y_offset, dst_x_offset, dst_y_offset;
+	unsigned int dst_x_offset, dst_y_offset;
 	dma_addr_t dma_addr;
 	unsigned int fmt;
 	u32 val;
@@ -618,12 +618,10 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	dst_x_offset = state->crtc.x;
 	dst_y_offset = state->crtc.y;
 
-	/* converting dma address base and source offset */
+	/* translate dma address base s.t. the source image offset is zero */
 	dma_addr = exynos_drm_fb_dma_addr(fb, 0)
 		+ (state->src.x * fb->format->cpp[0])
 		+ (state->src.y * fb->pitches[0]);
-	src_x_offset = 0;
-	src_y_offset = 0;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		__set_bit(MXR_BIT_INTERLACE, &ctx->flags);
@@ -653,11 +651,6 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	val |= MXR_GRP_WH_H_SCALE(x_ratio);
 	val |= MXR_GRP_WH_V_SCALE(y_ratio);
 	mixer_reg_write(res, MXR_GRAPHIC_WH(win), val);
-
-	/* setup offsets in source image */
-	val  = MXR_GRP_SXY_SX(src_x_offset);
-	val |= MXR_GRP_SXY_SY(src_y_offset);
-	mixer_reg_write(res, MXR_GRAPHIC_SXY(win), val);
 
 	/* setup offsets in display image */
 	val  = MXR_GRP_DXY_DX(dst_x_offset);
@@ -734,6 +727,10 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	mixer_reg_writemask(res, MXR_CFG, 0, MXR_CFG_GRP1_ENABLE);
 	if (test_bit(MXR_BIT_VP_ENABLED, &ctx->flags))
 		mixer_reg_writemask(res, MXR_CFG, 0, MXR_CFG_VP_ENABLE);
+
+	/* set all source image offsets to zero */
+	mixer_reg_write(res, MXR_GRAPHIC_SXY(0), 0);
+	mixer_reg_write(res, MXR_GRAPHIC_SXY(1), 0);
 
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 }
