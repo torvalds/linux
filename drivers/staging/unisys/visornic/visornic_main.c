@@ -68,10 +68,68 @@ struct chanstat {
 	unsigned long extra_rcvbufs_sent;
 };
 
+/* struct visornic_devdata
+ *
+ * @enabled:                        0 disabled 1 enabled to receive.
+ * @enab_dis_acked:                 NET_RCV_ENABLE/DISABLE acked by IOPART.
+ * @struct *dev:
+ * @struct *netdev:
+ * @struct net_stats:
+ * @interrupt_rcvd:
+ * @rsp_queue:
+ * @struct **rcvbuf:
+ * @incarnation_id:                 incarnation_id lets IOPART know about
+ *                                  re-birth.
+ * @old_flags:                      flags as they were prior to
+ *                                  set_multicast_list.
+ * @usage:                          count of users.
+ * @num_rcv_bufs:                   number of rcv buffers the vnic will post.
+ * @num_rcv_bufs_could_not_alloc:
+ * @num_rcvbuf_in_iovm:
+ * @alloc_failed_in_if_needed_cnt:
+ * @alloc_failed_in_repost_rtn_cnt:
+ * @max_outstanding_net_xmits:      absolute max number of outstanding xmits
+ *                                  - should never hit this.
+ * @upper_threshold_net_xmits:      high water mark for calling
+ *                                  netif_stop_queue().
+ * @lower_threshold_net_xmits:      high water mark for calling
+ *                                  netif_wake_queue().
+ * @struct xmitbufhead:             xmitbufhead - head of the xmit buffer list
+ *                                  sent to the IOPART end.
+ * @server_down_complete_func:
+ * @struct timeout_reset:
+ * @struct *cmdrsp_rcv:             cmdrsp_rcv is used for posting/unposting rcv
+ *                                  buffers.
+ * @struct *xmit_cmdrsp:            xmit_cmdrsp - issues NET_XMIT - only one
+ *                                  active xmit at a time.
+ * @server_down:                    IOPART is down.
+ * @server_change_state:            Processing SERVER_CHANGESTATE msg.
+ * @going_away:                     device is being torn down.
+ * @struct *eth_debugfs_dir:
+ * @interrupts_rcvd:
+ * @interrupts_notme:
+ * @interrupts_disabled:
+ * @busy_cnt:
+ * @priv_lock:                      spinlock to access devdata structures.
+ * @flow_control_upper_hits:
+ * @flow_control_lower_hits:
+ * @n_rcv0:                         # rcvs of 0 buffers.
+ * @n_rcv1:                         # rcvs of 1 buffers.
+ * @n_rcv2:                         # rcvs of 2 buffers.
+ * @n_rcvx:                         # rcvs of >2 buffers.
+ * @found_repost_rcvbuf_cnt:        # repost_rcvbuf_cnt.
+ * @repost_found_skb_cnt:           # of found the skb.
+ * @n_repost_deficit:               # of lost rcv buffers.
+ * @bad_rcv_buf:                    # of unknown rcv skb not freed.
+ * @n_rcv_packets_not_accepted:     # bogs rcv packets.
+ * @queuefullmsg_logged:
+ * @struct chstat:
+ * @struct irq_poll_timer:
+ * @struct napi:
+ * @struct cmdrsp:
+ */
 struct visornic_devdata {
-	/* 0 disabled 1 enabled to receive */
 	unsigned short enabled;
-	/* NET_RCV_ENABLE/DISABLE acked by IOPART */
 	unsigned short enab_dis_acked;
 
 	struct visor_device *dev;
@@ -80,47 +138,34 @@ struct visornic_devdata {
 	atomic_t interrupt_rcvd;
 	wait_queue_head_t rsp_queue;
 	struct sk_buff **rcvbuf;
-	/* incarnation_id lets IOPART know about re-birth */
 	u64 incarnation_id;
-	/* flags as they were prior to set_multicast_list */
 	unsigned short old_flags;
-	/* count of users */
 	atomic_t usage;
 
-	/* number of rcv buffers the vnic will post */
 	int num_rcv_bufs;
 	int num_rcv_bufs_could_not_alloc;
 	atomic_t num_rcvbuf_in_iovm;
 	unsigned long alloc_failed_in_if_needed_cnt;
 	unsigned long alloc_failed_in_repost_rtn_cnt;
 
-	/* absolute max number of outstanding xmits - should never hit this */
 	unsigned long max_outstanding_net_xmits;
-	/* high water mark for calling netif_stop_queue() */
 	unsigned long upper_threshold_net_xmits;
-	/* high water mark for calling netif_wake_queue() */
 	unsigned long lower_threshold_net_xmits;
-	/* xmitbufhead - head of the xmit buffer list sent to the IOPART end */
 	struct sk_buff_head xmitbufhead;
 
 	visorbus_state_complete_func server_down_complete_func;
 	struct work_struct timeout_reset;
-	/* cmdrsp_rcv is used for posting/unposting rcv buffers  */
 	struct uiscmdrsp *cmdrsp_rcv;
-	/* xmit_cmdrsp - issues NET_XMIT - only one active xmit at a time */
 	struct uiscmdrsp *xmit_cmdrsp;
-	/* IOPART is down */
 	bool server_down;
-	/* Processing SERVER_CHANGESTATE msg */
 	bool server_change_state;
-	/* device is being torn down */
 	bool going_away;
 	struct dentry *eth_debugfs_dir;
 	u64 interrupts_rcvd;
 	u64 interrupts_notme;
 	u64 interrupts_disabled;
 	u64 busy_cnt;
-	/* spinlock to access devdata structures */
+	/* spinlock to access devdata structures. */
 	spinlock_t priv_lock;
 
 	/* flow control counter */
@@ -128,23 +173,14 @@ struct visornic_devdata {
 	u64 flow_control_lower_hits;
 
 	/* debug counters */
-	/* # rcvs of 0 buffers */
 	unsigned long n_rcv0;
-	/* # rcvs of 1 buffers */
 	unsigned long n_rcv1;
-	/* # rcvs of 2 buffers */
 	unsigned long n_rcv2;
-	/* # rcvs of >2 buffers */
 	unsigned long n_rcvx;
-	/* # repost_rcvbuf_cnt */
 	unsigned long found_repost_rcvbuf_cnt;
-	/* # of found the skb */
 	unsigned long repost_found_skb_cnt;
-	/* # of lost rcv buffers */
 	unsigned long n_repost_deficit;
-	/* # of unknown rcv skb  not freed */
 	unsigned long bad_rcv_buf;
-	/* # bogs rcv packets */
 	unsigned long n_rcv_packets_not_accepted;
 
 	int queuefullmsg_logged;
