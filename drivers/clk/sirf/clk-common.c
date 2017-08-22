@@ -184,7 +184,7 @@ static unsigned long cpu_clk_recalc_rate(struct clk_hw *hw,
 	return clk_hw_get_rate(parent_clk);
 }
 
-static struct clk_ops std_pll_ops = {
+static const struct clk_ops std_pll_ops = {
 	.recalc_rate = pll_clk_recalc_rate,
 	.round_rate = pll_clk_round_rate,
 	.set_rate = pll_clk_set_rate,
@@ -265,7 +265,7 @@ static unsigned long usb_pll_clk_recalc_rate(struct clk_hw *hw, unsigned long pa
 	return (reg & SIRFSOC_USBPHY_PLL_BYPASS) ? parent_rate : 48*MHZ;
 }
 
-static struct clk_ops usb_pll_ops = {
+static const struct clk_ops usb_pll_ops = {
 	.enable = usb_pll_clk_enable,
 	.disable = usb_pll_clk_disable,
 	.recalc_rate = usb_pll_clk_recalc_rate,
@@ -437,7 +437,7 @@ static int cpu_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	return ret2 ? ret2 : ret1;
 }
 
-static struct clk_ops msi_ops = {
+static const struct clk_ops msi_ops = {
 	.set_rate = dmn_clk_set_rate,
 	.round_rate = dmn_clk_round_rate,
 	.recalc_rate = dmn_clk_recalc_rate,
@@ -488,7 +488,7 @@ static struct clk_dmn clk_io = {
 	},
 };
 
-static struct clk_ops cpu_ops = {
+static const struct clk_ops cpu_ops = {
 	.set_parent = dmn_clk_set_parent,
 	.get_parent = dmn_clk_get_parent,
 	.set_rate = cpu_clk_set_rate,
@@ -511,7 +511,7 @@ static struct clk_dmn clk_cpu = {
 	},
 };
 
-static struct clk_ops dmn_ops = {
+static const struct clk_ops dmn_ops = {
 	.is_enabled = std_clk_is_enabled,
 	.enable = std_clk_enable,
 	.disable = std_clk_disable,
@@ -679,7 +679,7 @@ static const char * const std_clk_io_parents[] = {
 	"io",
 };
 
-static struct clk_ops ios_ops = {
+static const struct clk_ops ios_ops = {
 	.is_enabled = std_clk_is_enabled,
 	.enable = std_clk_enable,
 	.disable = std_clk_disable,
