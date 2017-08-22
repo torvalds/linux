@@ -37,6 +37,13 @@
 #define NAPI_WEIGHT 64
 
 /* GUIDS for director channel type supported by this driver.  */
+/* {8cd5994d-c58e-11da-95a9-00e08161165f} */
+#define VISOR_VNIC_CHANNEL_GUID \
+	GUID_INIT(0x8cd5994d, 0xc58e, 0x11da, \
+		0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+#define VISOR_VNIC_CHANNEL_GUID_STR \
+	"8cd5994d-c58e-11da-95a9-00e08161165f"
+
 static struct visor_channeltype_descriptor visornic_channel_types[] = {
 	/* Note that the only channel type we expect to be reported by the
 	 * bus driver is the VISOR_VNIC channel.
