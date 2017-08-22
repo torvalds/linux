@@ -441,24 +441,27 @@ struct rpcrdma_create_data_internal {
  * Statistics for RPCRDMA
  */
 struct rpcrdma_stats {
+	/* accessed when sending a call */
 	unsigned long		read_chunk_count;
 	unsigned long		write_chunk_count;
 	unsigned long		reply_chunk_count;
-
 	unsigned long long	total_rdma_request;
-	unsigned long long	total_rdma_reply;
 
+	/* rarely accessed error counters */
 	unsigned long long	pullup_copy_count;
-	unsigned long long	fixup_copy_count;
 	unsigned long		hardway_register_count;
 	unsigned long		failed_marshal_count;
 	unsigned long		bad_reply_count;
-	unsigned long		nomsg_call_count;
-	unsigned long		bcall_count;
 	unsigned long		mrs_recovered;
 	unsigned long		mrs_orphaned;
 	unsigned long		mrs_allocated;
+
+	/* accessed when receiving a reply */
+	unsigned long long	total_rdma_reply;
+	unsigned long long	fixup_copy_count;
 	unsigned long		local_inv_needed;
+	unsigned long		nomsg_call_count;
+	unsigned long		bcall_count;
 };
 
 /*
