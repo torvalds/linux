@@ -29,7 +29,6 @@
 
 #include "ObjectID.h"
 #include "atomfirmware.h"
-#include "atomfirmwareid.h"
 
 #include "dc_bios_types.h"
 #include "include/grph_object_ctrl_defs.h"
