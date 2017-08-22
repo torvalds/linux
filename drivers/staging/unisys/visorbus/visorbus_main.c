@@ -21,6 +21,8 @@
 #include "visorbus.h"
 #include "visorbus_private.h"
 
+static const guid_t visor_vbus_channel_guid = VISOR_VBUS_CHANNEL_GUID;
+
 /* Display string that is guaranteed to be no longer the 99 characters */
 #define LINESIZE 99
 #define POLLJIFFIES_NORMALCHANNEL 10
@@ -38,11 +40,11 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct visor_device *vdev;
-	uuid_le guid;
+	const guid_t *guid;
 
 	vdev = to_visor_device(dev);
-	guid = visorchannel_get_uuid(vdev->visorchannel);
-	return sprintf(buf, "visorbus:%pUl\n", &guid);
+	guid = visorchannel_get_guid(vdev->visorchannel);
+	return sprintf(buf, "visorbus:%pUl\n", guid);
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -78,18 +80,18 @@ static LIST_HEAD(list_all_device_instances);
  * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
  */
 int visor_check_channel(struct channel_header *ch,
-			uuid_le expected_uuid,
+			const guid_t *expected_guid,
 			char *chname,
 			u64 expected_min_bytes,
 			u32 expected_version,
 			u64 expected_signature)
 {
-	if (uuid_le_cmp(expected_uuid, NULL_UUID_LE) != 0) {
+	if (!guid_is_null(expected_guid)) {
 		/* caller wants us to verify type GUID */
-		if (uuid_le_cmp(ch->chtype, expected_uuid) != 0) {
+		if (!guid_equal(&ch->chtype, expected_guid)) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=type expected=%pUL actual=%pUL\n",
-			       chname, &expected_uuid,
-			       &expected_uuid, &ch->chtype);
+			       chname, expected_guid,
+			       expected_guid, &ch->chtype);
 			return 0;
 		}
 	}
@@ -97,7 +99,7 @@ int visor_check_channel(struct channel_header *ch,
 	if (expected_min_bytes > 0) {
 		if (ch->size < expected_min_bytes) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
-			       chname, &expected_uuid,
+			       chname, expected_guid,
 			       (unsigned long long)expected_min_bytes,
 			       ch->size);
 			return 0;
@@ -107,7 +109,7 @@ int visor_check_channel(struct channel_header *ch,
 	if (expected_version > 0) {
 		if (ch->version_id != expected_version) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=version expected=0x%-8.8lx actual=0x%-8.8x\n",
-			       chname, &expected_uuid,
+			       chname, expected_guid,
 			       (unsigned long)expected_version,
 			       ch->version_id);
 			return 0;
@@ -117,7 +119,7 @@ int visor_check_channel(struct channel_header *ch,
 	if (expected_signature > 0) {
 		if (ch->signature != expected_signature) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=signature expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
-			       chname, &expected_uuid,
+			       chname, expected_guid,
 			       expected_signature, ch->signature);
 			return 0;
 		}
@@ -129,12 +131,12 @@ EXPORT_SYMBOL_GPL(visor_check_channel);
 static int visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env)
 {
 	struct visor_device *dev;
-	uuid_le guid;
+	const guid_t *guid;
 
 	dev = to_visor_device(xdev);
-	guid = visorchannel_get_uuid(dev->visorchannel);
+	guid = visorchannel_get_guid(dev->visorchannel);
 
-	return add_uevent_var(env, "MODALIAS=visorbus:%pUl", &guid);
+	return add_uevent_var(env, "MODALIAS=visorbus:%pUl", guid);
 }
 
 /*
@@ -148,23 +150,21 @@ static int visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env)
  */
 static int visorbus_match(struct device *xdev, struct device_driver *xdrv)
 {
-	uuid_le channel_type;
+	const guid_t *channel_type;
 	int i;
 	struct visor_device *dev;
 	struct visor_driver *drv;
 
 	dev = to_visor_device(xdev);
-	channel_type = visorchannel_get_uuid(dev->visorchannel);
+	channel_type = visorchannel_get_guid(dev->visorchannel);
 	drv = to_visor_driver(xdrv);
 	if (!drv->channel_types)
 		return 0;
 
 	for (i = 0;
-	     (uuid_le_cmp(drv->channel_types[i].guid, NULL_UUID_LE) != 0) ||
-	     (drv->channel_types[i].name);
+	     !guid_is_null(&drv->channel_types[i].guid) || drv->channel_types[i].name;
 	     i++)
-		if (uuid_le_cmp(drv->channel_types[i].guid,
-				channel_type) == 0)
+		if (guid_equal(&drv->channel_types[i].guid, channel_type))
 			return i + 1;
 
 	return 0;
@@ -330,7 +330,7 @@ static ssize_t partition_guid_show(struct device *dev,
 {
 	struct visor_device *vdev = to_visor_device(dev);
 
-	return sprintf(buf, "{%pUb}\n", &vdev->partition_uuid);
+	return sprintf(buf, "{%pUb}\n", &vdev->partition_guid);
 }
 static DEVICE_ATTR_RO(partition_guid);
 
@@ -729,7 +729,7 @@ static int get_vbus_header_info(struct visorchannel *chan,
 	int err;
 
 	if (!visor_check_channel(visorchannel_get_header(chan),
-				 visor_vbus_channel_uuid,
+				 &visor_vbus_channel_guid,
 				 "vbus",
 				 sizeof(struct visor_vbus_channel),
 				 VISOR_VBUS_CHANNEL_VERSIONID,

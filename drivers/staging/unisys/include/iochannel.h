@@ -562,7 +562,7 @@ struct iochannel_vnic {
 	/* 4 bytes */
 	u32 mtu;
 	/* 16 bytes */
-	uuid_le zone_uuid;
+	guid_t zone_guid;
 } __packed;
 
 /*

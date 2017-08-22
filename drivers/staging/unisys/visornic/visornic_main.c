@@ -41,8 +41,8 @@ static struct visor_channeltype_descriptor visornic_channel_types[] = {
 	/* Note that the only channel type we expect to be reported by the
 	 * bus driver is the VISOR_VNIC channel.
 	 */
-	{ VISOR_VNIC_CHANNEL_UUID, "ultravnic" },
-	{ NULL_UUID_LE, NULL }
+	{ VISOR_VNIC_CHANNEL_GUID, "ultravnic" },
+	{}
 };
 MODULE_DEVICE_TABLE(visorbus, visornic_channel_types);
 /*
@@ -52,7 +52,7 @@ MODULE_DEVICE_TABLE(visorbus, visornic_channel_types);
  * must be added to scripts/mode/file2alias.c, etc., to get this working
  * properly.
  */
-MODULE_ALIAS("visorbus:" VISOR_VNIC_CHANNEL_UUID_STR);
+MODULE_ALIAS("visorbus:" VISOR_VNIC_CHANNEL_GUID_STR);
 
 struct chanstat {
 	unsigned long got_rcv;

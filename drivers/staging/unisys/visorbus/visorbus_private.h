@@ -44,10 +44,10 @@ void visorbus_exit(void);
 
 struct visorchannel *visorchannel_create(u64 physaddr,
 					 unsigned long channel_bytes,
-					 gfp_t gfp, uuid_le guid);
+					 gfp_t gfp, const guid_t *guid);
 struct visorchannel *visorchannel_create_with_lock(u64 physaddr,
 						   unsigned long channel_bytes,
-						   gfp_t gfp, uuid_le guid);
+						   gfp_t gfp, const guid_t *guid);
 void visorchannel_destroy(struct visorchannel *channel);
 int visorchannel_read(struct visorchannel *channel, ulong offset,
 		      void *dest, ulong nbytes);
@@ -60,6 +60,6 @@ char *visorchannel_zoneid(struct visorchannel *channel, char *s);
 u64 visorchannel_get_clientpartition(struct visorchannel *channel);
 int visorchannel_set_clientpartition(struct visorchannel *channel,
 				     u64 partition_handle);
-char *visorchannel_uuid_id(uuid_le *guid, char *s);
+char *visorchannel_guid_id(const guid_t *guid, char *s);
 void *visorchannel_get_header(struct visorchannel *channel);
 #endif

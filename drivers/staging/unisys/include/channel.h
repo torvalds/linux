@@ -128,13 +128,13 @@ struct channel_header {
 	u32 header_size;
 	u64 size;
 	u64 features;
-	uuid_le chtype;
+	guid_t chtype;
 	u64 partition_handle;
 	u64 handle;
 	u64 ch_space_offset;
 	u32 version_id;
 	u32 partition_index;
-	uuid_le zone_uuid;
+	guid_t zone_guid;
 	u32 cli_str_offset;
 	u32 cli_state_boot;
 	u32 cmd_state_cli;
@@ -204,23 +204,20 @@ struct signal_queue_header {
 
 /* CHANNEL Guids */
 /* {414815ed-c58c-11da-95a9-00e08161165f} */
-#define VISOR_VHBA_CHANNEL_UUID \
-	UUID_LE(0x414815ed, 0xc58c, 0x11da, \
-		0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
-static const uuid_le visor_vhba_channel_uuid = VISOR_VHBA_CHANNEL_UUID;
-#define VISOR_VHBA_CHANNEL_UUID_STR \
+#define VISOR_VHBA_CHANNEL_GUID \
+	GUID_INIT(0x414815ed, 0xc58c, 0x11da, \
+		  0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+#define VISOR_VHBA_CHANNEL_GUID_STR \
 	"414815ed-c58c-11da-95a9-00e08161165f"
 /* {8cd5994d-c58e-11da-95a9-00e08161165f} */
-#define VISOR_VNIC_CHANNEL_UUID \
-	UUID_LE(0x8cd5994d, 0xc58e, 0x11da, \
-		0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
-static const uuid_le visor_vnic_channel_uuid = VISOR_VNIC_CHANNEL_UUID;
-#define VISOR_VNIC_CHANNEL_UUID_STR \
+#define VISOR_VNIC_CHANNEL_GUID \
+	GUID_INIT(0x8cd5994d, 0xc58e, 0x11da, \
+		  0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
+#define VISOR_VNIC_CHANNEL_GUID_STR \
 	"8cd5994d-c58e-11da-95a9-00e08161165f"
 /* {72120008-4AAB-11DC-8530-444553544200} */
-#define VISOR_SIOVM_UUID \
-	UUID_LE(0x72120008, 0x4AAB, 0x11DC, \
-		0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
-static const uuid_le visor_siovm_uuid = VISOR_SIOVM_UUID;
+#define VISOR_SIOVM_GUID \
+	GUID_INIT(0x72120008, 0x4AAB, 0x11DC, \
+		  0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
 
 #endif

@@ -20,9 +20,9 @@
 #include "channel.h"
 
 /* {2B3C2D10-7EF5-4ad8-B966-3448B7386B3D} */
-#define VISOR_CONTROLVM_CHANNEL_UUID \
-	UUID_LE(0x2b3c2d10, 0x7ef5, 0x4ad8, \
-		0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
+#define VISOR_CONTROLVM_CHANNEL_GUID \
+	GUID_INIT(0x2b3c2d10, 0x7ef5, 0x4ad8, \
+		  0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
 
 #define CONTROLVM_MESSAGE_MAX 64
 
@@ -261,8 +261,8 @@ struct controlvm_packet_device_create  {
 	u32 dev_no;
 	u64 channel_addr;
 	u64 channel_bytes;
-	uuid_le data_type_uuid;
-	uuid_le dev_inst_uuid;
+	guid_t data_type_guid;
+	guid_t dev_inst_guid;
 	struct irq_info intr;
 } __packed;
 
@@ -372,8 +372,8 @@ struct controlvm_message_packet  {
 			u32 dev_count;
 			u64 channel_addr;
 			u64 channel_bytes;
-			uuid_le bus_data_type_uuid;
-			uuid_le bus_inst_uuid;
+			guid_t bus_data_type_guid;
+			guid_t bus_inst_guid;
 		} __packed create_bus;
 		struct  {
 			u32 bus_no;
@@ -591,7 +591,7 @@ struct visor_controlvm_parameters_header {
 	u32 client_length;
 	u32 name_offset;
 	u32 name_length;
-	uuid_le id;
+	guid_t id;
 	u32 revision;
 	/* Natural alignment */
 	u32 reserved;

@@ -22,6 +22,10 @@
 #include "visorbus_private.h"
 #include "vmcallinterface.h"
 
+static const guid_t visor_vhba_channel_guid = VISOR_VHBA_CHANNEL_GUID;
+static const guid_t visor_siovm_guid = VISOR_SIOVM_GUID;
+static const guid_t visor_controlvm_channel_guid = VISOR_CONTROLVM_CHANNEL_GUID;
+
 #define POLLJIFFIES_CONTROLVMCHANNEL_FAST 1
 #define POLLJIFFIES_CONTROLVMCHANNEL_SLOW 100
 
@@ -267,13 +271,12 @@ static ssize_t remaining_steps_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(remaining_steps);
 
-static uuid_le
-parser_id_get(struct parser_context *ctx)
+static const guid_t *parser_id_get(struct parser_context *ctx)
 {
 	struct visor_controlvm_parameters_header *phdr = NULL;
 
 	phdr = (struct visor_controlvm_parameters_header *)(ctx->data);
-	return phdr->id;
+	return &phdr->id;
 }
 
 static void parser_done(struct parser_context *ctx)
@@ -588,7 +591,7 @@ visorbus_create(struct controlvm_message *inmsg)
 	bus_info->chipset_bus_no = bus_no;
 	bus_info->chipset_dev_no = BUS_ROOT_DEVICE;
 
-	if (uuid_le_cmp(cmd->create_bus.bus_inst_uuid, visor_siovm_uuid) == 0) {
+	if (guid_equal(&cmd->create_bus.bus_inst_guid, &visor_siovm_guid)) {
 		err = save_crash_message(inmsg, CRASH_BUS);
 		if (err)
 			goto err_free_bus_info;
@@ -610,7 +613,7 @@ visorbus_create(struct controlvm_message *inmsg)
 	visorchannel = visorchannel_create(cmd->create_bus.channel_addr,
 					   cmd->create_bus.channel_bytes,
 					   GFP_KERNEL,
-					   cmd->create_bus.bus_data_type_uuid);
+					   &cmd->create_bus.bus_data_type_guid);
 	if (!visorchannel) {
 		err = -ENOMEM;
 		goto err_free_pending_msg;
@@ -715,7 +718,9 @@ visorbus_configure(struct controlvm_message *inmsg,
 		goto err_respond;
 
 	if (parser_ctx) {
-		bus_info->partition_uuid = parser_id_get(parser_ctx);
+		const guid_t *partition_guid = parser_id_get(parser_ctx);
+
+		guid_copy(&bus_info->partition_guid, partition_guid);
 		bus_info->name = parser_name_get(parser_ctx);
 	}
 
@@ -773,7 +778,7 @@ visorbus_device_create(struct controlvm_message *inmsg)
 
 	dev_info->chipset_bus_no = bus_no;
 	dev_info->chipset_dev_no = dev_no;
-	dev_info->inst = cmd->create_device.dev_inst_uuid;
+	guid_copy(&dev_info->inst, &cmd->create_device.dev_inst_guid);
 
 	/* not sure where the best place to set the 'parent' */
 	dev_info->device.parent = &bus_info->device;
@@ -782,7 +787,7 @@ visorbus_device_create(struct controlvm_message *inmsg)
 	       visorchannel_create_with_lock(cmd->create_device.channel_addr,
 					     cmd->create_device.channel_bytes,
 					     GFP_KERNEL,
-					     cmd->create_device.data_type_uuid);
+					     &cmd->create_device.data_type_guid);
 	if (!visorchannel) {
 		dev_err(&chipset_dev->acpi_device->dev,
 			"failed to create visorchannel: %d/%d\n",
@@ -791,9 +796,8 @@ visorbus_device_create(struct controlvm_message *inmsg)
 		goto err_free_dev_info;
 	}
 	dev_info->visorchannel = visorchannel;
-	dev_info->channel_type_guid = cmd->create_device.data_type_uuid;
-	if (uuid_le_cmp(cmd->create_device.data_type_uuid,
-			visor_vhba_channel_uuid) == 0) {
+	guid_copy(&dev_info->channel_type_guid, &cmd->create_device.data_type_guid);
+	if (guid_equal(&cmd->create_device.data_type_guid, &visor_vhba_channel_guid)) {
 		err = save_crash_message(inmsg, CRASH_DEV);
 		if (err)
 			goto err_destroy_visorchannel;
@@ -1787,7 +1791,6 @@ visorchipset_init(struct acpi_device *acpi_device)
 {
 	int err = -ENODEV;
 	u64 addr;
-	uuid_le uuid = VISOR_CONTROLVM_CHANNEL_UUID;
 	struct visorchannel *controlvm_channel;
 
 	chipset_dev = kzalloc(sizeof(*chipset_dev), GFP_KERNEL);
@@ -1801,8 +1804,8 @@ visorchipset_init(struct acpi_device *acpi_device)
 	acpi_device->driver_data = chipset_dev;
 	chipset_dev->acpi_device = acpi_device;
 	chipset_dev->poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-	controlvm_channel = visorchannel_create_with_lock(addr,
-							  0, GFP_KERNEL, uuid);
+	controlvm_channel = visorchannel_create_with_lock(addr, 0, GFP_KERNEL,
+						&visor_controlvm_channel_guid);
 	if (!controlvm_channel)
 		goto error_free_chipset_dev;
 
@@ -1814,7 +1817,7 @@ visorchipset_init(struct acpi_device *acpi_device)
 		goto error_destroy_channel;
 
 	if (!visor_check_channel(visorchannel_get_header(controlvm_channel),
-				 VISOR_CONTROLVM_CHANNEL_UUID,
+				 &visor_controlvm_channel_guid,
 				 "controlvm",
 				 sizeof(struct visor_controlvm_channel),
 				 VISOR_CONTROLVM_CHANNEL_VERSIONID,

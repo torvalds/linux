@@ -33,16 +33,16 @@
 #include "ultrainputreport.h"
 
 /* Keyboard channel {c73416d0-b0b8-44af-b304-9d2ae99f1b3d} */
-#define VISOR_KEYBOARD_CHANNEL_UUID \
-	UUID_LE(0xc73416d0, 0xb0b8, 0x44af, \
-		0xb3, 0x4, 0x9d, 0x2a, 0xe9, 0x9f, 0x1b, 0x3d)
-#define VISOR_KEYBOARD_CHANNEL_UUID_STR "c73416d0-b0b8-44af-b304-9d2ae99f1b3d"
+#define VISOR_KEYBOARD_CHANNEL_GUID \
+	GUID_INIT(0xc73416d0, 0xb0b8, 0x44af, \
+		  0xb3, 0x4, 0x9d, 0x2a, 0xe9, 0x9f, 0x1b, 0x3d)
+#define VISOR_KEYBOARD_CHANNEL_GUID_STR "c73416d0-b0b8-44af-b304-9d2ae99f1b3d"
 
 /* Mouse channel {addf07d4-94a9-46e2-81c3-61abcdbdbd87} */
-#define VISOR_MOUSE_CHANNEL_UUID \
-	UUID_LE(0xaddf07d4, 0x94a9, 0x46e2, \
-		0x81, 0xc3, 0x61, 0xab, 0xcd, 0xbd, 0xbd, 0x87)
-#define VISOR_MOUSE_CHANNEL_UUID_STR "addf07d4-94a9-46e2-81c3-61abcdbdbd87"
+#define VISOR_MOUSE_CHANNEL_GUID \
+	GUID_INIT(0xaddf07d4, 0x94a9, 0x46e2, \
+		  0x81, 0xc3, 0x61, 0xab, 0xcd, 0xbd, 0xbd, 0x87)
+#define VISOR_MOUSE_CHANNEL_GUID_STR "addf07d4-94a9-46e2-81c3-61abcdbdbd87"
 
 #define PIXELS_ACROSS_DEFAULT 800
 #define PIXELS_DOWN_DEFAULT   600
@@ -71,8 +71,8 @@ struct visorinput_devdata {
 	unsigned char keycode_table[0];
 };
 
-static const uuid_le visor_keyboard_channel_uuid = VISOR_KEYBOARD_CHANNEL_UUID;
-static const uuid_le visor_mouse_channel_uuid = VISOR_MOUSE_CHANNEL_UUID;
+static const guid_t visor_keyboard_channel_guid = VISOR_KEYBOARD_CHANNEL_GUID;
+static const guid_t visor_mouse_channel_guid = VISOR_MOUSE_CHANNEL_GUID;
 
 /*
  * Borrowed from drivers/input/keyboard/atakbd.c
@@ -448,13 +448,13 @@ err_kfree_devdata:
 
 static int visorinput_probe(struct visor_device *dev)
 {
-	uuid_le guid;
+	const guid_t *guid;
 	enum visorinput_device_type devtype;
 
-	guid = visorchannel_get_uuid(dev->visorchannel);
-	if (uuid_le_cmp(guid, visor_mouse_channel_uuid) == 0)
+	guid = visorchannel_get_guid(dev->visorchannel);
+	if (guid_equal(guid, &visor_mouse_channel_guid))
 		devtype = visorinput_mouse;
-	else if (uuid_le_cmp(guid, visor_keyboard_channel_uuid) == 0)
+	else if (guid_equal(guid, &visor_keyboard_channel_guid))
 		devtype = visorinput_keyboard;
 	else
 		return -ENODEV;
@@ -715,9 +715,9 @@ out:
 
 /* GUIDS for all channel types supported by this driver. */
 static struct visor_channeltype_descriptor visorinput_channel_types[] = {
-	{ VISOR_KEYBOARD_CHANNEL_UUID, "keyboard"},
-	{ VISOR_MOUSE_CHANNEL_UUID, "mouse"},
-	{ NULL_UUID_LE, NULL }
+	{ VISOR_KEYBOARD_CHANNEL_GUID, "keyboard"},
+	{ VISOR_MOUSE_CHANNEL_GUID, "mouse"},
+	{}
 };
 
 static struct visor_driver visorinput_driver = {
@@ -750,5 +750,5 @@ MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("s-Par human input driver for virtual keyboard/mouse");
 
-MODULE_ALIAS("visorbus:" VISOR_MOUSE_CHANNEL_UUID_STR);
-MODULE_ALIAS("visorbus:" VISOR_KEYBOARD_CHANNEL_UUID_STR);
+MODULE_ALIAS("visorbus:" VISOR_MOUSE_CHANNEL_GUID_STR);
+MODULE_ALIAS("visorbus:" VISOR_KEYBOARD_CHANNEL_GUID_STR);
