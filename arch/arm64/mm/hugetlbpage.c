@@ -67,6 +67,12 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 	unsigned long pfn;
 	pgprot_t hugeprot;
 
+	/*
+	 * Code needs to be expanded to handle huge swap and migration
+	 * entries. Needed for HUGETLB and MEMORY_FAILURE.
+	 */
+	WARN_ON(!pte_present(pte));
+
 	if (!pte_cont(pte)) {
 		set_pte_at(mm, addr, ptep, pte);
 		return;
