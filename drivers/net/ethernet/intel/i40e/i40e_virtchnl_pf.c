@@ -2926,6 +2926,34 @@ error_param:
 }
 
 /**
+ * i40e_vsi_has_vlans - True if VSI has configured VLANs
+ * @vsi: pointer to the vsi
+ *
+ * Check if a VSI has configured any VLANs. False if we have a port VLAN or if
+ * we have no configured VLANs. Do not call while holding the
+ * mac_filter_hash_lock.
+ */
+static bool i40e_vsi_has_vlans(struct i40e_vsi *vsi)
+{
+	bool have_vlans;
+
+	/* If we have a port VLAN, then the VSI cannot have any VLANs
+	 * configured, as all MAC/VLAN filters will be assigned to the PVID.
+	 */
+	if (vsi->info.pvid)
+		return false;
+
+	/* Since we don't have a PVID, we know that if the device is in VLAN
+	 * mode it must be because of a VLAN filter configured on this VSI.
+	 */
+	spin_lock_bh(&vsi->mac_filter_hash_lock);
+	have_vlans = i40e_is_vsi_in_vlan(vsi);
+	spin_unlock_bh(&vsi->mac_filter_hash_lock);
+
+	return have_vlans;
+}
+
+/**
  * i40e_ndo_set_vf_port_vlan
  * @netdev: network interface device structure
  * @vf_id: VF identifier
@@ -2977,10 +3005,7 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 		/* duplicate request, so just return success */
 		goto error_pvid;
 
-	/* Locked once because multiple functions below iterate list */
-	spin_lock_bh(&vsi->mac_filter_hash_lock);
-
-	if (le16_to_cpu(vsi->info.pvid) == 0 && i40e_is_vsi_in_vlan(vsi)) {
+	if (i40e_vsi_has_vlans(vsi)) {
 		dev_err(&pf->pdev->dev,
 			"VF %d has already configured VLAN filters and the administrator is requesting a port VLAN override.\nPlease unload and reload the VF driver for this change to take effect.\n",
 			vf_id);
@@ -2992,6 +3017,9 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 		/* During reset the VF got a new VSI, so refresh the pointer. */
 		vsi = pf->vsi[vf->lan_vsi_idx];
 	}
+
+	/* Locked once because multiple functions below iterate list */
+	spin_lock_bh(&vsi->mac_filter_hash_lock);
 
 	/* Check for condition where there was already a port VLAN ID
 	 * filter set and now it is being deleted by setting it to zero.
