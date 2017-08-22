@@ -385,6 +385,13 @@ struct vpu_service_info {
 	atomic_t power_off_cnt;
 	atomic_t service_on;
 	struct mutex shutdown_lock;
+	/*
+	 * FIXME: if someone call iommu translate function during vpu_reset,
+	 * it may cause system core dump without any message. we suggest
+	 * modify iommu driver to avoid this situation. before that,
+	 * this is a temporary solution.
+	 */
+	struct mutex reset_lock;
 	struct vpu_reg *reg_codec;
 	struct vpu_reg *reg_pproc;
 	struct vpu_reg *reg_resev;
@@ -723,7 +730,9 @@ static void vpu_reset(struct vpu_subdev_data *data)
 {
 	struct vpu_service_info *pservice = data->pservice;
 
+	mutex_lock(&pservice->reset_lock);
 	_vpu_reset(data);
+	mutex_unlock(&pservice->reset_lock);
 	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
 		clear_bit(MMU_ACTIVATED, &data->state);
 		if (atomic_read(&pservice->enabled)) {
@@ -1275,9 +1284,11 @@ static struct vpu_reg *reg_init(struct vpu_subdev_data *data,
 		return NULL;
 	}
 
+	mutex_lock(&pservice->reset_lock);
 	if (vcodec_reg_address_translate(data, session, reg, &extra_info) < 0) {
 		int i = 0;
 
+		mutex_unlock(&pservice->reset_lock);
 		vpu_err("error: translate reg address failed, dumping regs\n");
 		for (i = 0; i < size >> 2; i++)
 			dev_err(pservice->dev, "reg[%02d]: %08x\n",
@@ -1286,6 +1297,7 @@ static struct vpu_reg *reg_init(struct vpu_subdev_data *data,
 		kfree(reg);
 		return NULL;
 	}
+	mutex_unlock(&pservice->reset_lock);
 
 	mutex_lock(&pservice->lock);
 	list_add_tail(&reg->status_link, &pservice->waiting);
@@ -2605,6 +2617,7 @@ static void vcodec_init_drvdata(struct vpu_service_info *pservice)
 	INIT_LIST_HEAD(&pservice->running);
 	mutex_init(&pservice->lock);
 	mutex_init(&pservice->shutdown_lock);
+	mutex_init(&pservice->reset_lock);
 	atomic_set(&pservice->service_on, 1);
 
 	INIT_LIST_HEAD(&pservice->done);
