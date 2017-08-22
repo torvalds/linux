@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/aes.h>
+#include <crypto/gcm.h>
 #include <crypto/engine.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/internal/aead.h>
@@ -767,7 +768,7 @@ static struct aead_alg algs_aead_gcm[] = {
 	},
 	.init		= omap_aes_gcm_cra_init,
 	.exit		= omap_aes_gcm_cra_exit,
-	.ivsize		= 12,
+	.ivsize		= GCM_AES_IV_SIZE,
 	.maxauthsize	= AES_BLOCK_SIZE,
 	.setkey		= omap_aes_gcm_setkey,
 	.encrypt	= omap_aes_gcm_encrypt,
@@ -788,7 +789,7 @@ static struct aead_alg algs_aead_gcm[] = {
 	.init		= omap_aes_gcm_cra_init,
 	.exit		= omap_aes_gcm_cra_exit,
 	.maxauthsize	= AES_BLOCK_SIZE,
-	.ivsize		= 8,
+	.ivsize		= GCM_RFC4106_IV_SIZE,
 	.setkey		= omap_aes_4106gcm_setkey,
 	.encrypt	= omap_aes_4106gcm_encrypt,
 	.decrypt	= omap_aes_4106gcm_decrypt,
