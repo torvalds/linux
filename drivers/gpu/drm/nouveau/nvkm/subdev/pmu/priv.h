@@ -20,6 +20,7 @@ struct nvkm_pmu_func {
 		u32  size;
 	} data;
 
+	bool (*enabled)(struct nvkm_pmu *);
 	void (*reset)(struct nvkm_pmu *);
 	int (*init)(struct nvkm_pmu *);
 	void (*fini)(struct nvkm_pmu *);
@@ -30,12 +31,14 @@ struct nvkm_pmu_func {
 	void (*pgob)(struct nvkm_pmu *, bool);
 };
 
-void gt215_pmu_reset(struct nvkm_pmu *);
 int gt215_pmu_init(struct nvkm_pmu *);
 void gt215_pmu_fini(struct nvkm_pmu *);
 void gt215_pmu_intr(struct nvkm_pmu *);
 void gt215_pmu_recv(struct nvkm_pmu *);
 int gt215_pmu_send(struct nvkm_pmu *, u32[2], u32, u32, u32, u32);
+
+bool gf100_pmu_enabled(struct nvkm_pmu *);
+void gf100_pmu_reset(struct nvkm_pmu *);
 
 void gk110_pmu_pgob(struct nvkm_pmu *, bool);
 #endif
