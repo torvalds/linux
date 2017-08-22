@@ -43,7 +43,8 @@
  */
 #define VISOR_VBUS_CHANNEL_VERSIONID 1
 
-/* struct visor_vbus_deviceinfo
+/*
+ * struct visor_vbus_deviceinfo
  * @devtype:  Short string identifying the device type.
  * @drvname:  Driver .sys file name.
  * @infostrs: Kernel vversion.
