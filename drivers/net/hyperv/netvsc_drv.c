@@ -193,7 +193,7 @@ static void *init_ppi_data(struct rndis_message *msg, u32 ppi_size,
 /* Azure hosts don't support non-TCP port numbers in hashing yet. We compute
  * hash for non-TCP traffic with only IP numbers.
  */
-static inline u32 netvsc_get_hash(struct sk_buff *skb, struct sock *sk)
+static inline u32 netvsc_get_hash(struct sk_buff *skb)
 {
 	struct flow_keys flow;
 	u32 hash;
@@ -227,7 +227,7 @@ static inline int netvsc_get_tx_queue(struct net_device *ndev,
 	struct sock *sk = skb->sk;
 	int q_idx;
 
-	q_idx = ndc->tx_send_table[netvsc_get_hash(skb, sk) &
+	q_idx = ndc->tx_send_table[netvsc_get_hash(skb) &
 				   (VRSS_SEND_TAB_SIZE - 1)];
 
 	/* If queue index changed record the new value */
