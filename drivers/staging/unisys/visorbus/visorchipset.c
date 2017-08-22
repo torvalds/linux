@@ -700,8 +700,8 @@ static int visorbus_destroy(struct controlvm_message *inmsg)
 		bus_info->pending_msg_hdr = pmsg_hdr;
 	}
 
-	/* Response will be handled by visorchipset_bus_destroy */
-	visorchipset_bus_destroy(bus_info);
+	/* Response will be handled by visorbus_remove_instance */
+	visorbus_remove_instance(bus_info);
 	return 0;
 
 err_respond:
