@@ -1128,7 +1128,7 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 
 	change = ue->tlv_data_size != size;
 	if (!change)
-		change = memcmp(ue->tlv_data, container, size);
+		change = memcmp(ue->tlv_data, container, size) != 0;
 	if (!change) {
 		kfree(container);
 		return 0;
