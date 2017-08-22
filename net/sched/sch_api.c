@@ -621,30 +621,16 @@ EXPORT_SYMBOL(qdisc_watchdog_cancel);
 
 static struct hlist_head *qdisc_class_hash_alloc(unsigned int n)
 {
-	unsigned int size = n * sizeof(struct hlist_head), i;
 	struct hlist_head *h;
+	unsigned int i;
 
-	if (size <= PAGE_SIZE)
-		h = kmalloc(size, GFP_KERNEL);
-	else
-		h = (struct hlist_head *)
-			__get_free_pages(GFP_KERNEL, get_order(size));
+	h = kvmalloc_array(n, sizeof(struct hlist_head), GFP_KERNEL);
 
 	if (h != NULL) {
 		for (i = 0; i < n; i++)
 			INIT_HLIST_HEAD(&h[i]);
 	}
 	return h;
-}
-
-static void qdisc_class_hash_free(struct hlist_head *h, unsigned int n)
-{
-	unsigned int size = n * sizeof(struct hlist_head);
-
-	if (size <= PAGE_SIZE)
-		kfree(h);
-	else
-		free_pages((unsigned long)h, get_order(size));
 }
 
 void qdisc_class_hash_grow(struct Qdisc *sch, struct Qdisc_class_hash *clhash)
@@ -679,7 +665,7 @@ void qdisc_class_hash_grow(struct Qdisc *sch, struct Qdisc_class_hash *clhash)
 	clhash->hashmask = nmask;
 	sch_tree_unlock(sch);
 
-	qdisc_class_hash_free(ohash, osize);
+	kvfree(ohash);
 }
 EXPORT_SYMBOL(qdisc_class_hash_grow);
 
@@ -699,7 +685,7 @@ EXPORT_SYMBOL(qdisc_class_hash_init);
 
 void qdisc_class_hash_destroy(struct Qdisc_class_hash *clhash)
 {
-	qdisc_class_hash_free(clhash->hash, clhash->hashsize);
+	kvfree(clhash->hash);
 }
 EXPORT_SYMBOL(qdisc_class_hash_destroy);
 
