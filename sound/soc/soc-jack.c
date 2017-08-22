@@ -22,6 +22,12 @@
 #include <linux/suspend.h>
 #include <trace/events/asoc.h>
 
+struct jack_gpio_tbl {
+	int count;
+	struct snd_soc_jack *jack;
+	struct snd_soc_jack_gpio *gpios;
+};
+
 /**
  * snd_soc_codec_set_jack - configure codec jack.
  * @codec: CODEC
@@ -333,6 +339,28 @@ static int snd_soc_jack_pm_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+static void jack_free_gpios(struct snd_soc_jack *jack, int count,
+			    struct snd_soc_jack_gpio *gpios)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		gpiod_unexport(gpios[i].desc);
+		unregister_pm_notifier(&gpios[i].pm_notifier);
+		free_irq(gpiod_to_irq(gpios[i].desc), &gpios[i]);
+		cancel_delayed_work_sync(&gpios[i].work);
+		gpiod_put(gpios[i].desc);
+		gpios[i].jack = NULL;
+	}
+}
+
+static void jack_devres_free_gpios(struct device *dev, void *res)
+{
+	struct jack_gpio_tbl *tbl = res;
+
+	jack_free_gpios(tbl->jack, tbl->count, tbl->gpios);
+}
+
 /**
  * snd_soc_jack_add_gpios - Associate GPIO pins with an ASoC jack
  *
@@ -347,6 +375,14 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios)
 {
 	int i, ret;
+	struct jack_gpio_tbl *tbl;
+
+	tbl = devres_alloc(jack_devres_free_gpios, sizeof(*tbl), GFP_KERNEL);
+	if (!tbl)
+		return -ENOMEM;
+	tbl->jack = jack;
+	tbl->count = count;
+	tbl->gpios = gpios;
 
 	for (i = 0; i < count; i++) {
 		if (!gpios[i].name) {
@@ -424,12 +460,14 @@ got_gpio:
 				      msecs_to_jiffies(gpios[i].debounce_time));
 	}
 
+	devres_add(jack->card->dev, tbl);
 	return 0;
 
 err:
 	gpio_free(gpios[i].gpio);
 undo:
-	snd_soc_jack_free_gpios(jack, i, gpios);
+	jack_free_gpios(jack, i, gpios);
+	devres_free(tbl);
 
 	return ret;
 }
@@ -471,16 +509,8 @@ EXPORT_SYMBOL_GPL(snd_soc_jack_add_gpiods);
 void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios)
 {
-	int i;
-
-	for (i = 0; i < count; i++) {
-		gpiod_unexport(gpios[i].desc);
-		unregister_pm_notifier(&gpios[i].pm_notifier);
-		free_irq(gpiod_to_irq(gpios[i].desc), &gpios[i]);
-		cancel_delayed_work_sync(&gpios[i].work);
-		gpiod_put(gpios[i].desc);
-		gpios[i].jack = NULL;
-	}
+	jack_free_gpios(jack, count, gpios);
+	devres_destroy(jack->card->dev, jack_devres_free_gpios, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(snd_soc_jack_free_gpios);
 #endif	/* CONFIG_GPIOLIB */
