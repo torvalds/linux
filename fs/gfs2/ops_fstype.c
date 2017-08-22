@@ -1113,7 +1113,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 		return error;
 	}
 
-	snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s", sdp->sd_table_name);
+	snprintf(sdp->sd_fsname, sizeof(sdp->sd_fsname), "%s", sdp->sd_table_name);
 
 	error = gfs2_sys_fs_add(sdp);
 	/*
@@ -1159,10 +1159,10 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	}
 
 	if (sdp->sd_args.ar_spectator)
-		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.s",
+		snprintf(sdp->sd_fsname, sizeof(sdp->sd_fsname), "%s.s",
 			 sdp->sd_table_name);
 	else
-		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.%u",
+		snprintf(sdp->sd_fsname, sizeof(sdp->sd_fsname), "%s.%u",
 			 sdp->sd_table_name, sdp->sd_lockstruct.ls_jid);
 
 	error = init_inodes(sdp, DO);
