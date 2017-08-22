@@ -18,6 +18,7 @@
 #include <linux/inetdevice.h>
 #include <linux/mbus.h>
 #include <linux/module.h>
+#include <linux/mfd/syscon.h>
 #include <linux/interrupt.h>
 #include <linux/cpumask.h>
 #include <linux/of.h>
@@ -30,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
+#include <linux/regmap.h>
 #include <uapi/linux/ppp_defs.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -388,6 +390,38 @@
 #define MVPP2_QUEUE_NEXT_DESC(q, index) \
 	(((index) < (q)->last_desc) ? ((index) + 1) : 0)
 
+/* XPCS registers. PPv2.2 only */
+#define MVPP22_MPCS_BASE(port)			(0x7000 + (port) * 0x1000)
+#define MVPP22_MPCS_CTRL			0x14
+#define     MVPP22_MPCS_CTRL_FWD_ERR_CONN	BIT(10)
+#define MVPP22_MPCS_CLK_RESET			0x14c
+#define     MAC_CLK_RESET_SD_TX			BIT(0)
+#define     MAC_CLK_RESET_SD_RX			BIT(1)
+#define     MAC_CLK_RESET_MAC			BIT(2)
+#define     MVPP22_MPCS_CLK_RESET_DIV_RATIO(n)	((n) << 4)
+#define     MVPP22_MPCS_CLK_RESET_DIV_SET	BIT(11)
+
+/* XPCS registers. PPv2.2 only */
+#define MVPP22_XPCS_BASE(port)			(0x7400 + (port) * 0x1000)
+#define MVPP22_XPCS_CFG0			0x0
+#define     MVPP22_XPCS_CFG0_PCS_MODE(n)	((n) << 3)
+#define     MVPP22_XPCS_CFG0_ACTIVE_LANE(n)	((n) << 5)
+
+/* System controller registers. Accessed through a regmap. */
+#define GENCONF_SOFT_RESET1				0x1108
+#define     GENCONF_SOFT_RESET1_GOP			BIT(6)
+#define GENCONF_PORT_CTRL0				0x1110
+#define     GENCONF_PORT_CTRL0_BUS_WIDTH_SELECT		BIT(1)
+#define     GENCONF_PORT_CTRL0_RX_DATA_SAMPLE		BIT(29)
+#define     GENCONF_PORT_CTRL0_CLK_DIV_PHASE_CLR	BIT(31)
+#define GENCONF_PORT_CTRL1				0x1114
+#define     GENCONF_PORT_CTRL1_EN(p)			BIT(p)
+#define     GENCONF_PORT_CTRL1_RESET(p)			(BIT(p) << 28)
+#define GENCONF_CTRL0					0x1120
+#define     GENCONF_CTRL0_PORT0_RGMII			BIT(0)
+#define     GENCONF_CTRL0_PORT1_RGMII_MII		BIT(1)
+#define     GENCONF_CTRL0_PORT1_RGMII			BIT(2)
+
 /* Various constants */
 
 /* Coalescing */
@@ -730,6 +764,11 @@ struct mvpp2 {
 	 * used per CPU.
 	 */
 	void __iomem *swth_base[MVPP2_MAX_THREADS];
+
+	/* On PPv2.2, some port control registers are located into the system
+	 * controller space. These registers are accessible through a regmap.
+	 */
+	struct regmap *sysctrl_base;
 
 	/* Common clocks */
 	struct clk *pp_clk;
@@ -4259,6 +4298,123 @@ mvpp2_shared_interrupt_mask_unmask(struct mvpp2_port *port, bool mask)
 
 /* Port configuration routines */
 
+static void mvpp22_gop_init_rgmii(struct mvpp2_port *port)
+{
+	struct mvpp2 *priv = port->priv;
+	u32 val;
+
+	regmap_read(priv->sysctrl_base, GENCONF_PORT_CTRL0, &val);
+	val |= GENCONF_PORT_CTRL0_BUS_WIDTH_SELECT;
+	regmap_write(priv->sysctrl_base, GENCONF_PORT_CTRL0, val);
+
+	regmap_read(priv->sysctrl_base, GENCONF_CTRL0, &val);
+	if (port->gop_id == 2)
+		val |= GENCONF_CTRL0_PORT0_RGMII | GENCONF_CTRL0_PORT1_RGMII;
+	else if (port->gop_id == 3)
+		val |= GENCONF_CTRL0_PORT1_RGMII_MII;
+	regmap_write(priv->sysctrl_base, GENCONF_CTRL0, val);
+}
+
+static void mvpp22_gop_init_sgmii(struct mvpp2_port *port)
+{
+	struct mvpp2 *priv = port->priv;
+	u32 val;
+
+	regmap_read(priv->sysctrl_base, GENCONF_PORT_CTRL0, &val);
+	val |= GENCONF_PORT_CTRL0_BUS_WIDTH_SELECT |
+	       GENCONF_PORT_CTRL0_RX_DATA_SAMPLE;
+	regmap_write(priv->sysctrl_base, GENCONF_PORT_CTRL0, val);
+
+	if (port->gop_id > 1) {
+		regmap_read(priv->sysctrl_base, GENCONF_CTRL0, &val);
+		if (port->gop_id == 2)
+			val &= ~GENCONF_CTRL0_PORT0_RGMII;
+		else if (port->gop_id == 3)
+			val &= ~GENCONF_CTRL0_PORT1_RGMII_MII;
+		regmap_write(priv->sysctrl_base, GENCONF_CTRL0, val);
+	}
+}
+
+static void mvpp22_gop_init_10gkr(struct mvpp2_port *port)
+{
+	struct mvpp2 *priv = port->priv;
+	void __iomem *mpcs = priv->iface_base + MVPP22_MPCS_BASE(port->gop_id);
+	void __iomem *xpcs = priv->iface_base + MVPP22_XPCS_BASE(port->gop_id);
+	u32 val;
+
+	/* XPCS */
+	val = readl(xpcs + MVPP22_XPCS_CFG0);
+	val &= ~(MVPP22_XPCS_CFG0_PCS_MODE(0x3) |
+		 MVPP22_XPCS_CFG0_ACTIVE_LANE(0x3));
+	val |= MVPP22_XPCS_CFG0_ACTIVE_LANE(2);
+	writel(val, xpcs + MVPP22_XPCS_CFG0);
+
+	/* MPCS */
+	val = readl(mpcs + MVPP22_MPCS_CTRL);
+	val &= ~MVPP22_MPCS_CTRL_FWD_ERR_CONN;
+	writel(val, mpcs + MVPP22_MPCS_CTRL);
+
+	val = readl(mpcs + MVPP22_MPCS_CLK_RESET);
+	val &= ~(MVPP22_MPCS_CLK_RESET_DIV_RATIO(0x7) | MAC_CLK_RESET_MAC |
+		 MAC_CLK_RESET_SD_RX | MAC_CLK_RESET_SD_TX);
+	val |= MVPP22_MPCS_CLK_RESET_DIV_RATIO(1);
+	writel(val, mpcs + MVPP22_MPCS_CLK_RESET);
+
+	val &= ~MVPP22_MPCS_CLK_RESET_DIV_SET;
+	val |= MAC_CLK_RESET_MAC | MAC_CLK_RESET_SD_RX | MAC_CLK_RESET_SD_TX;
+	writel(val, mpcs + MVPP22_MPCS_CLK_RESET);
+}
+
+static int mvpp22_gop_init(struct mvpp2_port *port)
+{
+	struct mvpp2 *priv = port->priv;
+	u32 val;
+
+	if (!priv->sysctrl_base)
+		return 0;
+
+	switch (port->phy_interface) {
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		if (port->gop_id == 0)
+			goto invalid_conf;
+		mvpp22_gop_init_rgmii(port);
+		break;
+	case PHY_INTERFACE_MODE_SGMII:
+		mvpp22_gop_init_sgmii(port);
+		break;
+	case PHY_INTERFACE_MODE_10GKR:
+		if (port->gop_id != 0)
+			goto invalid_conf;
+		mvpp22_gop_init_10gkr(port);
+		break;
+	default:
+		goto unsupported_conf;
+	}
+
+	regmap_read(priv->sysctrl_base, GENCONF_PORT_CTRL1, &val);
+	val |= GENCONF_PORT_CTRL1_RESET(port->gop_id) |
+	       GENCONF_PORT_CTRL1_EN(port->gop_id);
+	regmap_write(priv->sysctrl_base, GENCONF_PORT_CTRL1, val);
+
+	regmap_read(priv->sysctrl_base, GENCONF_PORT_CTRL0, &val);
+	val |= GENCONF_PORT_CTRL0_CLK_DIV_PHASE_CLR;
+	regmap_write(priv->sysctrl_base, GENCONF_PORT_CTRL0, val);
+
+	regmap_read(priv->sysctrl_base, GENCONF_SOFT_RESET1, &val);
+	val |= GENCONF_SOFT_RESET1_GOP;
+	regmap_write(priv->sysctrl_base, GENCONF_SOFT_RESET1, val);
+
+unsupported_conf:
+	return 0;
+
+invalid_conf:
+	netdev_err(port->dev, "Invalid port configuration\n");
+	return -EINVAL;
+}
+
 static void mvpp2_port_mii_gmac_configure_mode(struct mvpp2_port *port)
 {
 	u32 val;
@@ -6105,6 +6261,9 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 	/* Enable interrupts on all CPUs */
 	mvpp2_interrupts_enable(port);
 
+	if (port->priv->hw_version == MVPP22)
+		mvpp22_gop_init(port);
+
 	mvpp2_port_mii_set(port);
 	mvpp2_port_enable(port);
 	phy_start(ndev->phydev);
@@ -7350,6 +7509,17 @@ static int mvpp2_probe(struct platform_device *pdev)
 		priv->iface_base = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(priv->iface_base))
 			return PTR_ERR(priv->iface_base);
+
+		priv->sysctrl_base =
+			syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+							"marvell,system-controller");
+		if (IS_ERR(priv->sysctrl_base))
+			/* The system controller regmap is optional for dt
+			 * compatibility reasons. When not provided, the
+			 * configuration of the GoP relies on the
+			 * firmware/bootloader.
+			 */
+			priv->sysctrl_base = NULL;
 	}
 
 	for (i = 0; i < MVPP2_MAX_THREADS; i++) {
