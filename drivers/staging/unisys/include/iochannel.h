@@ -50,12 +50,12 @@
 /* Defines and enums. */
 #define MINNUM(a, b) (((a) < (b)) ? (a) : (b))
 
-/* Define the two queues per data channel between iopart and ioguestparts. */
-
-/* Used by ioguestpart to 'insert' signals to iopart. */
+/*
+ * Define the two queues per data channel between iopart and ioguestparts.
+ *	IOCHAN_TO_IOPART -- used by guest to 'insert' signals to iopart.
+ *	IOCHAN_FROM_IOPART -- used by guest to 'remove' signals from IO part.
+ */
 #define IOCHAN_TO_IOPART 0
-
-/* Used by ioguestpart to 'remove' signals from iopart, same previous queue. */
 #define IOCHAN_FROM_IOPART 1
 
 /* Size of cdb - i.e., SCSI cmnd */
