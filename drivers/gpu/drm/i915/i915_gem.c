@@ -4416,6 +4416,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 	llist_for_each_entry_safe(obj, on, freed, freed) {
 		GEM_BUG_ON(obj->bind_count);
 		GEM_BUG_ON(atomic_read(&obj->frontbuffer_bits));
+		GEM_BUG_ON(!list_empty(&obj->lut_list));
 
 		if (obj->ops->release)
 			obj->ops->release(obj);
