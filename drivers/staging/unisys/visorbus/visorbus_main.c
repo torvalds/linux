@@ -1,6 +1,4 @@
 /*
- * visorbus_main.c
- *
  * Copyright � 2010 - 2015 UNISYS CORPORATION
  * All rights reserved.
  *
