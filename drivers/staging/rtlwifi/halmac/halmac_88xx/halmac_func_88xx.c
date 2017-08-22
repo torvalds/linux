@@ -2477,7 +2477,7 @@ halmac_parse_psd_data_88xx(struct halmac_adapter *halmac_adapter, u8 *c2h_buf,
 			"[TRACE]Seq num : h2c -> %d c2h -> %d\n",
 			psd_set->seq_num, h2c_seq);
 	if (h2c_seq != psd_set->seq_num) {
-		pr_err("[ERR]Seq num mismactch : h2c -> %d c2h -> %d\n",
+		pr_err("[ERR]Seq num mismatch : h2c -> %d c2h -> %d\n",
 		       psd_set->seq_num, h2c_seq);
 		return HALMAC_RET_SUCCESS;
 	}
@@ -2531,7 +2531,7 @@ halmac_parse_efuse_data_88xx(struct halmac_adapter *halmac_adapter, u8 *c2h_buf,
 			halmac_adapter->halmac_state.efuse_state_set.seq_num,
 			h2c_seq);
 	if (h2c_seq != halmac_adapter->halmac_state.efuse_state_set.seq_num) {
-		pr_err("[ERR]Seq num mismactch : h2c -> %d c2h -> %d\n",
+		pr_err("[ERR]Seq num mismatch : h2c -> %d c2h -> %d\n",
 		       halmac_adapter->halmac_state.efuse_state_set.seq_num,
 		       h2c_seq);
 		return HALMAC_RET_SUCCESS;
@@ -2728,7 +2728,7 @@ halmac_parse_h2c_ack_phy_efuse_88xx(struct halmac_adapter *halmac_adapter,
 			halmac_adapter->halmac_state.efuse_state_set.seq_num,
 			h2c_seq);
 	if (h2c_seq != halmac_adapter->halmac_state.efuse_state_set.seq_num) {
-		pr_err("[ERR]Seq num mismactch : h2c -> %d c2h -> %d\n",
+		pr_err("[ERR]Seq num mismatch : h2c -> %d c2h -> %d\n",
 		       halmac_adapter->halmac_state.efuse_state_set.seq_num,
 		       h2c_seq);
 		return HALMAC_RET_SUCCESS;
@@ -2765,7 +2765,7 @@ halmac_parse_h2c_ack_cfg_para_88xx(struct halmac_adapter *halmac_adapter,
 			h2c_seq);
 	if (h2c_seq !=
 	    halmac_adapter->halmac_state.cfg_para_state_set.seq_num) {
-		pr_err("Seq num mismactch : h2c -> %d c2h -> %d\n",
+		pr_err("Seq num mismatch : h2c -> %d c2h -> %d\n",
 		       halmac_adapter->halmac_state.cfg_para_state_set.seq_num,
 		       h2c_seq);
 		return HALMAC_RET_SUCCESS;
@@ -2833,7 +2833,7 @@ halmac_parse_h2c_ack_update_packet_88xx(struct halmac_adapter *halmac_adapter,
 			halmac_adapter->halmac_state.update_packet_set.seq_num,
 			h2c_seq);
 	if (h2c_seq != halmac_adapter->halmac_state.update_packet_set.seq_num) {
-		pr_err("[ERR]Seq num mismactch : h2c -> %d c2h -> %d\n",
+		pr_err("[ERR]Seq num mismatch : h2c -> %d c2h -> %d\n",
 		       halmac_adapter->halmac_state.update_packet_set.seq_num,
 		       h2c_seq);
 		return HALMAC_RET_SUCCESS;
@@ -2916,7 +2916,7 @@ halmac_parse_h2c_ack_channel_switch_88xx(struct halmac_adapter *halmac_adapter,
 			halmac_adapter->halmac_state.scan_state_set.seq_num,
 			h2c_seq);
 	if (h2c_seq != halmac_adapter->halmac_state.scan_state_set.seq_num) {
-		pr_err("[ERR]Seq num mismactch : h2c -> %d c2h -> %d\n",
+		pr_err("[ERR]Seq num misactch : h2c -> %d c2h -> %d\n",
 		       halmac_adapter->halmac_state.scan_state_set.seq_num,
 		       h2c_seq);
 		return HALMAC_RET_SUCCESS;
@@ -2968,7 +2968,7 @@ halmac_parse_h2c_ack_iqk_88xx(struct halmac_adapter *halmac_adapter,
 			"[TRACE]Seq num : h2c -> %d c2h -> %d\n",
 			halmac_adapter->halmac_state.iqk_set.seq_num, h2c_seq);
 	if (h2c_seq != halmac_adapter->halmac_state.iqk_set.seq_num) {
-		pr_err("[ERR]Seq num mismactch : h2c -> %d c2h -> %d\n",
+		pr_err("[ERR]Seq num misactch : h2c -> %d c2h -> %d\n",
 		       halmac_adapter->halmac_state.iqk_set.seq_num, h2c_seq);
 		return HALMAC_RET_SUCCESS;
 	}
@@ -3018,7 +3018,7 @@ halmac_parse_h2c_ack_power_tracking_88xx(struct halmac_adapter *halmac_adapter,
 			h2c_seq);
 	if (h2c_seq !=
 	    halmac_adapter->halmac_state.power_tracking_set.seq_num) {
-		pr_err("[ERR]Seq num mismactch : h2c -> %d c2h -> %d\n",
+		pr_err("[ERR]Seq num mismatch : h2c -> %d c2h -> %d\n",
 		       halmac_adapter->halmac_state.power_tracking_set.seq_num,
 		       h2c_seq);
 		return HALMAC_RET_SUCCESS;

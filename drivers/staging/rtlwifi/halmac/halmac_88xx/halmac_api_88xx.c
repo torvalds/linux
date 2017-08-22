@@ -1256,7 +1256,7 @@ halmac_init_mac_cfg_88xx(struct halmac_adapter *halmac_adapter,
 
 	status = halmac_api->halmac_init_trx_cfg(halmac_adapter, mode);
 	if (status != HALMAC_RET_SUCCESS) {
-		pr_err("halmac_init_trx_cfg errorr = %x\n", status);
+		pr_err("halmac_init_trx_cfg error = %x\n", status);
 		return status;
 	}
 	status = halmac_api->halmac_init_protocol_cfg(halmac_adapter);
