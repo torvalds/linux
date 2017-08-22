@@ -208,7 +208,7 @@ static inline int get_recursion_context(int *recursion)
 {
 	int rctx;
 
-	if (in_nmi())
+	if (unlikely(in_nmi()))
 		rctx = 3;
 	else if (in_irq())
 		rctx = 2;
