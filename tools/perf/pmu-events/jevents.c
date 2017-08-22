@@ -137,6 +137,8 @@ static struct field {
 	{ "AnyThread",	"any=" },
 	{ "EdgeDetect",	"edge=" },
 	{ "SampleAfterValue", "period=" },
+	{ "FCMask",	"fc_mask=" },
+	{ "PortMask",	"ch_mask=" },
 	{ NULL, NULL }
 };
 

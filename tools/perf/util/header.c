@@ -380,9 +380,6 @@ done:
 static int write_cpudesc(struct feat_fd *ff,
 		       struct perf_evlist *evlist __maybe_unused)
 {
-#ifndef CPUINFO_PROC
-#define CPUINFO_PROC {"model name", }
-#endif
 	const char *cpuinfo_procs[] = CPUINFO_PROC;
 	unsigned int i;
 
