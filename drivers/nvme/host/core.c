@@ -113,7 +113,16 @@ static blk_status_t nvme_error_status(struct request *req)
 	case NVME_SC_WRITE_FAULT:
 	case NVME_SC_READ_ERROR:
 	case NVME_SC_UNWRITTEN_BLOCK:
+	case NVME_SC_ACCESS_DENIED:
+	case NVME_SC_READ_ONLY:
 		return BLK_STS_MEDIUM;
+	case NVME_SC_GUARD_CHECK:
+	case NVME_SC_APPTAG_CHECK:
+	case NVME_SC_REFTAG_CHECK:
+	case NVME_SC_INVALID_PI:
+		return BLK_STS_PROTECTION;
+	case NVME_SC_RESERVATION_CONFLICT:
+		return BLK_STS_NEXUS;
 	default:
 		return BLK_STS_IOERR;
 	}
