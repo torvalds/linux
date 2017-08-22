@@ -562,8 +562,10 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 			SKL_ADSP_W0_UP_SZ, SKL_ADSP_SRAM1_BASE, SKL_ADSP_W1_SZ);
 
 	ret = skl_ipc_init(dev, skl);
-	if (ret)
+	if (ret) {
+		skl_dsp_free(sst);
 		return ret;
+	}
 
 	sst->fw_ops = skl_fw_ops;
 

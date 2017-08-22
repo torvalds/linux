@@ -450,8 +450,10 @@ int cnl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 			     CNL_ADSP_W1_SZ);
 
 	ret = cnl_ipc_init(dev, cnl);
-	if (ret)
+	if (ret) {
+		skl_dsp_free(sst);
 		return ret;
+	}
 
 	cnl->boot_complete = false;
 	init_waitqueue_head(&cnl->boot_wait);
