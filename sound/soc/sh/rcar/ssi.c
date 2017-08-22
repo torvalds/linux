@@ -99,7 +99,6 @@ struct rsnd_ssi {
 	     i++)
 
 #define rsnd_ssi_get(priv, id) ((struct rsnd_ssi *)(priv->ssi) + id)
-#define rsnd_ssi_to_dma(mod) ((ssi)->dma)
 #define rsnd_ssi_nr(priv) ((priv)->ssi_nr)
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
 #define rsnd_ssi_flags_has(p, f) ((p)->flags & f)
