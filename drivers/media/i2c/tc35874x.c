@@ -1868,7 +1868,7 @@ static int tc35874x_probe(struct i2c_client *client,
 	struct tc35874x_state *state;
 	struct tc35874x_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_subdev *sd;
-	int err;
+	int err, data;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
@@ -1899,7 +1899,12 @@ static int tc35874x_probe(struct i2c_client *client,
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	/* i2c access */
-	if ((i2c_rd16(sd, CHIPID) & MASK_CHIPID) != 0) {
+	data = i2c_rd16(sd, CHIPID) & MASK_CHIPID;
+	switch (data) {
+	case 0x0000:
+	case 0x4700:
+		break;
+	default:
 		v4l2_info(sd, "not a tc35874x on address 0x%x\n",
 			  client->addr << 1);
 		return -ENODEV;
