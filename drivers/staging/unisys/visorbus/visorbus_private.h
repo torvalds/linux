@@ -21,6 +21,7 @@
 
 #include "controlvmchannel.h"
 #include "vbuschannel.h"
+#include "visorbus.h"
 
 int visorchipset_bus_create(struct visor_device *bus_info);
 void visorchipset_bus_destroy(struct visor_device *bus_info);
