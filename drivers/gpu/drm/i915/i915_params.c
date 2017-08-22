@@ -63,9 +63,8 @@ struct i915_params i915 __read_mostly = {
 	.huc_firmware_path = NULL,
 	.enable_dp_mst = true,
 	.inject_load_failure = 0,
-	.enable_dpcd_backlight = -1,
+	.enable_dpcd_backlight = false,
 	.enable_gvt = false,
-	.enable_dbc = true,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -118,6 +117,10 @@ MODULE_PARM_DESC(vbt_sdvo_panel_type,
 
 module_param_named_unsafe(reset, i915.reset, int, 0600);
 MODULE_PARM_DESC(reset, "Attempt GPU resets (0=disabled, 1=full gpu reset, 2=engine reset [default])");
+
+module_param_named_unsafe(vbt_firmware, i915.vbt_firmware, charp, 0400);
+MODULE_PARM_DESC(vbt_firmware,
+		 "Load VBT from specified file under /lib/firmware");
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 module_param_named(error_capture, i915.error_capture, bool, 0600);
@@ -247,15 +250,10 @@ MODULE_PARM_DESC(enable_dp_mst,
 module_param_named_unsafe(inject_load_failure, i915.inject_load_failure, uint, 0400);
 MODULE_PARM_DESC(inject_load_failure,
 	"Force an error after a number of failure check points (0:disabled (default), N:force failure at the Nth failure check point)");
-module_param_named_unsafe(enable_dpcd_backlight, i915.enable_dpcd_backlight, int, 0600);
+module_param_named(enable_dpcd_backlight, i915.enable_dpcd_backlight, bool, 0600);
 MODULE_PARM_DESC(enable_dpcd_backlight,
-	"Enable support for DPCD backlight control "
-	"(-1:auto (default), 0:force disable, 1:force enabled if supported");
+	"Enable support for DPCD backlight control (default:false)");
 
 module_param_named(enable_gvt, i915.enable_gvt, bool, 0400);
 MODULE_PARM_DESC(enable_gvt,
 	"Enable support for Intel GVT-g graphics virtualization host support(default:false)");
-
-module_param_named_unsafe(enable_dbc, i915.enable_dbc, bool, 0600);
-MODULE_PARM_DESC(enable_dbc,
-	"Enable support for dynamic backlight control (default:true)");

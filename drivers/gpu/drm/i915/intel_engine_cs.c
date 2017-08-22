@@ -337,9 +337,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
-	GEM_BUG_ON(!intel_engine_is_idle(engine));
-	GEM_BUG_ON(i915_gem_active_isset(&engine->timeline->last_request));
-
 	/* Our semaphore implementation is strictly monotonic (i.e. we proceed
 	 * so long as the semaphore value in the register/page is greater
 	 * than the sync value), so whenever we reset the seqno,
@@ -1281,6 +1278,10 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 
 	/* Both ports drained, no more ELSP submission? */
 	if (port_request(&engine->execlist_port[0]))
+		return false;
+
+	/* ELSP is empty, but there are ready requests? */
+	if (READ_ONCE(engine->execlist_first))
 		return false;
 
 	/* Ring stopped? */

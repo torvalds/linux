@@ -112,13 +112,9 @@ struct i915_vma {
 	/**
 	 * Used for performing relocations during execbuffer insertion.
 	 */
-	struct drm_i915_gem_exec_object2 *exec_entry;
+	unsigned int *exec_flags;
 	struct hlist_node exec_node;
 	u32 exec_handle;
-
-	struct i915_gem_context *ctx;
-	struct hlist_node ctx_node;
-	u32 ctx_handle;
 };
 
 struct i915_vma *

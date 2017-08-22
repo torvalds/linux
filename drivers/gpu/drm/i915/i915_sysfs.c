@@ -220,7 +220,7 @@ out:
 	return ret;
 }
 
-static struct bin_attribute dpf_attrs = {
+static const struct bin_attribute dpf_attrs = {
 	.attr = {.name = "l3_parity", .mode = (S_IRUSR | S_IWUSR)},
 	.size = GEN7_L3LOG_SIZE,
 	.read = i915_l3_read,
@@ -229,7 +229,7 @@ static struct bin_attribute dpf_attrs = {
 	.private = (void *)0
 };
 
-static struct bin_attribute dpf_attrs_1 = {
+static const struct bin_attribute dpf_attrs_1 = {
 	.attr = {.name = "l3_parity_slice_1", .mode = (S_IRUSR | S_IWUSR)},
 	.size = GEN7_L3LOG_SIZE,
 	.read = i915_l3_read,
@@ -532,7 +532,7 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute error_state_attr = {
+static const struct bin_attribute error_state_attr = {
 	.attr.name = "error",
 	.attr.mode = S_IRUSR | S_IWUSR,
 	.size = 0,

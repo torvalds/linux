@@ -28,6 +28,7 @@
 #include <linux/cache.h> /* for __read_mostly */
 
 #define I915_PARAMS_FOR_EACH(func) \
+	func(char *, vbt_firmware); \
 	func(int, modeset); \
 	func(int, panel_ignore_lid); \
 	func(int, semaphores); \
@@ -53,7 +54,6 @@
 	func(int, edp_vswing); \
 	func(int, reset); \
 	func(unsigned int, inject_load_failure); \
-	func(int, enable_dpcd_backlight); \
 	/* leave bools at the end to not create holes */ \
 	func(bool, alpha_support); \
 	func(bool, enable_cmd_parser); \
@@ -67,8 +67,8 @@
 	func(bool, verbose_state_checks); \
 	func(bool, nuclear_pageflip); \
 	func(bool, enable_dp_mst); \
-	func(bool, enable_gvt); \
-	func(bool, enable_dbc)
+	func(bool, enable_dpcd_backlight); \
+	func(bool, enable_gvt)
 
 #define MEMBER(T, member) T member
 struct i915_params {

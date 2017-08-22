@@ -543,75 +543,6 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_gem_pageflip_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *crtc;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	for_each_intel_crtc(dev, crtc) {
-		const char pipe = pipe_name(crtc->pipe);
-		const char plane = plane_name(crtc->plane);
-		struct intel_flip_work *work;
-
-		spin_lock_irq(&dev->event_lock);
-		work = crtc->flip_work;
-		if (work == NULL) {
-			seq_printf(m, "No flip due on pipe %c (plane %c)\n",
-				   pipe, plane);
-		} else {
-			u32 pending;
-			u32 addr;
-
-			pending = atomic_read(&work->pending);
-			if (pending) {
-				seq_printf(m, "Flip ioctl preparing on pipe %c (plane %c)\n",
-					   pipe, plane);
-			} else {
-				seq_printf(m, "Flip pending (waiting for vsync) on pipe %c (plane %c)\n",
-					   pipe, plane);
-			}
-			if (work->flip_queued_req) {
-				struct intel_engine_cs *engine = work->flip_queued_req->engine;
-
-				seq_printf(m, "Flip queued on %s at seqno %x, last submitted seqno %x [current breadcrumb %x], completed? %d\n",
-					   engine->name,
-					   work->flip_queued_req->global_seqno,
-					   intel_engine_last_submit(engine),
-					   intel_engine_get_seqno(engine),
-					   i915_gem_request_completed(work->flip_queued_req));
-			} else
-				seq_printf(m, "Flip not associated with any ring\n");
-			seq_printf(m, "Flip queued on frame %d, (was ready on frame %d), now %d\n",
-				   work->flip_queued_vblank,
-				   work->flip_ready_vblank,
-				   intel_crtc_get_vblank_counter(crtc));
-			seq_printf(m, "%d prepares\n", atomic_read(&work->pending));
-
-			if (INTEL_GEN(dev_priv) >= 4)
-				addr = I915_HI_DISPBASE(I915_READ(DSPSURF(crtc->plane)));
-			else
-				addr = I915_READ(DSPADDR(crtc->plane));
-			seq_printf(m, "Current scanout address 0x%08x\n", addr);
-
-			if (work->pending_flip_obj) {
-				seq_printf(m, "New framebuffer address 0x%08lx\n", (long)work->gtt_offset);
-				seq_printf(m, "MMIO update completed? %d\n",  addr == work->gtt_offset);
-			}
-		}
-		spin_unlock_irq(&dev->event_lock);
-	}
-
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
 static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -2023,12 +1954,6 @@ static int i915_context_status(struct seq_file *m, void *unused)
 			seq_putc(m, '\n');
 		}
 
-		seq_printf(m,
-			   "\tvma hashtable size=%u (actual %lu), count=%u\n",
-			   ctx->vma_lut.ht_size,
-			   BIT(ctx->vma_lut.ht_bits),
-			   ctx->vma_lut.ht_count);
-
 		seq_putc(m, '\n');
 	}
 
@@ -2852,7 +2777,7 @@ out:
 static int i915_energy_uJ(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	u64 power;
+	unsigned long long power;
 	u32 units;
 
 	if (INTEL_GEN(dev_priv) < 6)
@@ -2860,15 +2785,18 @@ static int i915_energy_uJ(struct seq_file *m, void *data)
 
 	intel_runtime_pm_get(dev_priv);
 
-	rdmsrl(MSR_RAPL_POWER_UNIT, power);
-	power = (power & 0x1f00) >> 8;
-	units = 1000000 / (1 << power); /* convert to uJ */
+	if (rdmsrl_safe(MSR_RAPL_POWER_UNIT, &power)) {
+		intel_runtime_pm_put(dev_priv);
+		return -ENODEV;
+	}
+
+	units = (power & 0x1f00) >> 8;
 	power = I915_READ(MCH_SECP_NRG_STTS);
-	power *= units;
+	power = (1000000 * power) >> units; /* convert to uJ */
 
 	intel_runtime_pm_put(dev_priv);
 
-	seq_printf(m, "%llu", (long long unsigned)power);
+	seq_printf(m, "%llu", power);
 
 	return 0;
 }
@@ -3394,8 +3322,10 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 			ptr = I915_READ(RING_CONTEXT_STATUS_PTR(engine));
 			read = GEN8_CSB_READ_PTR(ptr);
 			write = GEN8_CSB_WRITE_PTR(ptr);
-			seq_printf(m, "\tExeclist CSB read %d, write %d\n",
-				   read, write);
+			seq_printf(m, "\tExeclist CSB read %d, write %d, interrupt posted? %s\n",
+				   read, write,
+				   yesno(test_bit(ENGINE_IRQ_EXECLIST,
+						  &engine->irq_posted)));
 			if (read >= GEN8_CSB_ENTRIES)
 				read = 0;
 			if (write >= GEN8_CSB_ENTRIES)
@@ -4624,7 +4554,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 
 		sseu->slice_mask |= BIT(s);
 
-		if (IS_GEN9_BC(dev_priv))
+		if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv))
 			sseu->subslice_mask =
 				INTEL_INFO(dev_priv)->sseu.subslice_mask;
 
@@ -4854,7 +4784,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
 	{"i915_gem_pin_display", i915_gem_gtt_info, 0, (void *)1},
 	{"i915_gem_stolen", i915_gem_stolen_list_info },
-	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},

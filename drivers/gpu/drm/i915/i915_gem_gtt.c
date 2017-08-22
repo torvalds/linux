@@ -144,9 +144,9 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 	has_full_48bit_ppgtt = dev_priv->info.has_full_48bit_ppgtt;
 
 	if (intel_vgpu_active(dev_priv)) {
-		/* emulation is too hard */
+		/* GVT-g has no support for 32bit ppgtt */
 		has_full_ppgtt = false;
-		has_full_48bit_ppgtt = false;
+		has_full_48bit_ppgtt = intel_vgpu_has_full_48bit_ppgtt(dev_priv);
 	}
 
 	if (!has_aliasing_ppgtt)
@@ -180,10 +180,15 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 		return 0;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 8 && i915.enable_execlists && has_full_ppgtt)
-		return has_full_48bit_ppgtt ? 3 : 2;
-	else
-		return has_aliasing_ppgtt ? 1 : 0;
+	if (INTEL_GEN(dev_priv) >= 8 && i915.enable_execlists) {
+		if (has_full_48bit_ppgtt)
+			return 3;
+
+		if (has_full_ppgtt)
+			return 2;
+	}
+
+	return has_aliasing_ppgtt ? 1 : 0;
 }
 
 static int ppgtt_bind_vma(struct i915_vma *vma,
@@ -2737,6 +2742,24 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	return 0;
 }
 
+static void cnl_setup_private_ppat(struct drm_i915_private *dev_priv)
+{
+	/* XXX: spec is unclear if this is still needed for CNL+ */
+	if (!USES_PPGTT(dev_priv)) {
+		I915_WRITE(GEN10_PAT_INDEX(0), GEN8_PPAT_UC);
+		return;
+	}
+
+	I915_WRITE(GEN10_PAT_INDEX(0), GEN8_PPAT_WB | GEN8_PPAT_LLC);
+	I915_WRITE(GEN10_PAT_INDEX(1), GEN8_PPAT_WC | GEN8_PPAT_LLCELLC);
+	I915_WRITE(GEN10_PAT_INDEX(2), GEN8_PPAT_WT | GEN8_PPAT_LLCELLC);
+	I915_WRITE(GEN10_PAT_INDEX(3), GEN8_PPAT_UC);
+	I915_WRITE(GEN10_PAT_INDEX(4), GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(0));
+	I915_WRITE(GEN10_PAT_INDEX(5), GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(1));
+	I915_WRITE(GEN10_PAT_INDEX(6), GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(2));
+	I915_WRITE(GEN10_PAT_INDEX(7), GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3));
+}
+
 /* The GGTT and PPGTT need a private PPAT setup in order to handle cacheability
  * bits. When using advanced contexts each context stores its own PAT, but
  * writing this data shouldn't be harmful even in those cases. */
@@ -2851,7 +2874,9 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	ggtt->base.total = (size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
 
-	if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 10)
+		cnl_setup_private_ppat(dev_priv);
+	else if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
 		chv_setup_private_ppat(dev_priv);
 	else
 		bdw_setup_private_ppat(dev_priv);
@@ -3133,7 +3158,9 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 	ggtt->base.closed = false;
 
 	if (INTEL_GEN(dev_priv) >= 8) {
-		if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 10)
+			cnl_setup_private_ppat(dev_priv);
+		else if (IS_CHERRYVIEW(dev_priv) || IS_GEN9_LP(dev_priv))
 			chv_setup_private_ppat(dev_priv);
 		else
 			bdw_setup_private_ppat(dev_priv);

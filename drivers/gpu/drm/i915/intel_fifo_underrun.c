@@ -313,11 +313,11 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
  * Returns the previous state of underrun reporting.
  */
 bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
-					   enum transcoder pch_transcoder,
+					   enum pipe pch_transcoder,
 					   bool enable)
 {
 	struct intel_crtc *crtc =
-		intel_get_crtc_for_pipe(dev_priv, (enum pipe) pch_transcoder);
+		intel_get_crtc_for_pipe(dev_priv, pch_transcoder);
 	unsigned long flags;
 	bool old;
 
@@ -390,7 +390,7 @@ void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
  * interrupt to avoid an irq storm.
  */
 void intel_pch_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
-					 enum transcoder pch_transcoder)
+					 enum pipe pch_transcoder)
 {
 	if (intel_set_pch_fifo_underrun_reporting(dev_priv, pch_transcoder,
 						  false)) {

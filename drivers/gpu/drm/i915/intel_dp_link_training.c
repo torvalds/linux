@@ -321,12 +321,16 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	if (!intel_dp_link_training_channel_equalization(intel_dp))
 		goto failure_handling;
 
-	DRM_DEBUG_KMS("Link Training Passed at Link Rate = %d, Lane count = %d",
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Link Training Passed at Link Rate = %d, Lane count = %d",
+		      intel_connector->base.base.id,
+		      intel_connector->base.name,
 		      intel_dp->link_rate, intel_dp->lane_count);
 	return;
 
  failure_handling:
-	DRM_DEBUG_KMS("Link Training failed at link rate = %d, lane count = %d",
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Link Training failed at link rate = %d, lane count = %d",
+		      intel_connector->base.base.id,
+		      intel_connector->base.name,
 		      intel_dp->link_rate, intel_dp->lane_count);
 	if (!intel_dp_get_link_train_fallback_values(intel_dp,
 						     intel_dp->link_rate,

@@ -264,6 +264,26 @@ extern "C" {
 #define I915_FORMAT_MOD_Yf_TILED fourcc_mod_code(INTEL, 3)
 
 /*
+ * Intel color control surface (CCS) for render compression
+ *
+ * The framebuffer format must be one of the 8:8:8:8 RGB formats.
+ * The main surface will be plane index 0 and must be Y/Yf-tiled,
+ * the CCS will be plane index 1.
+ *
+ * Each CCS tile matches a 1024x512 pixel area of the main surface.
+ * To match certain aspects of the 3D hardware the CCS is
+ * considered to be made up of normal 128Bx32 Y tiles, Thus
+ * the CCS pitch must be specified in multiples of 128 bytes.
+ *
+ * In reality the CCS tile appears to be a 64Bx64 Y tile, composed
+ * of QWORD (8 bytes) chunks instead of OWORD (16 bytes) chunks.
+ * But that fact is not relevant unless the memory is accessed
+ * directly.
+ */
+#define I915_FORMAT_MOD_Y_TILED_CCS	fourcc_mod_code(INTEL, 4)
+#define I915_FORMAT_MOD_Yf_TILED_CCS	fourcc_mod_code(INTEL, 5)
+
+/*
  * Tiled, NV12MT, grouped in 64 (pixels) x 32 (lines) -sized macroblocks
  *
  * Macroblocks are laid in a Z-shape, and each pixel data is following the
