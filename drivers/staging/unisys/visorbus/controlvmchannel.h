@@ -273,7 +273,6 @@ struct controlvm_packet_device_create  {
  */
 struct controlvm_packet_device_configure  {
 	u32 bus_no;
-	/* Control uses header SegmentIndex field to access bus number. */
 	u32 dev_no;
 } __packed;
 
