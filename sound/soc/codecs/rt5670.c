@@ -2851,6 +2851,17 @@ static const struct dmi_system_id dmi_platform_intel_bytcht_jdmode2[] = {
 	{}
 };
 
+static const struct dmi_system_id dmi_platform_intel_bytcht_jdmode3[] = {
+	{
+		.ident = "Dell Venue 8 Pro 5855",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Venue 8 Pro 5855"),
+		},
+	},
+	{}
+};
+
 static int rt5670_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
@@ -2880,6 +2891,11 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
 		rt5670->pdata.dev_gpio = true;
 		rt5670->pdata.jd_mode = 2;
+	} else if (dmi_check_system(dmi_platform_intel_bytcht_jdmode3)) {
+		rt5670->pdata.dmic_en = true;
+		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
+		rt5670->pdata.dev_gpio = true;
+		rt5670->pdata.jd_mode = 3;
 	}
 
 	rt5670->regmap = devm_regmap_init_i2c(i2c, &rt5670_regmap);
