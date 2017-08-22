@@ -133,8 +133,6 @@ struct guest_phys_info {
 	u64 length;
 } __packed;
 
-#define GPI_ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(struct guest_phys_info))
-
 /*
  * struct uisscsi_dest
  * @channel: Bus number.
