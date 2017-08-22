@@ -928,7 +928,12 @@ static int mtk_aes_gcm_start(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 static int mtk_aes_gcm_crypt(struct aead_request *req, u64 mode)
 {
 	struct mtk_aes_base_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
+	struct mtk_aes_gcm_ctx *gctx = mtk_aes_gcm_ctx_cast(ctx);
 	struct mtk_aes_reqctx *rctx = aead_request_ctx(req);
+
+	/* Empty messages are not supported yet */
+	if (!gctx->textlen && !req->assoclen)
+		return -EINVAL;
 
 	rctx->mode = AES_FLAGS_GCM | mode;
 
