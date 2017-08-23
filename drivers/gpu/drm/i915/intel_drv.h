@@ -1193,6 +1193,14 @@ hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 }
 
 static inline struct intel_crtc_state *
+intel_atomic_get_old_crtc_state(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
+{
+	return to_intel_crtc_state(drm_atomic_get_old_crtc_state(&state->base,
+								 &crtc->base));
+}
+
+static inline struct intel_crtc_state *
 intel_atomic_get_new_crtc_state(struct intel_atomic_state *state,
 				struct intel_crtc *crtc)
 {

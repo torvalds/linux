@@ -1322,21 +1322,21 @@ static int g4x_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	int num_active_planes = hweight32(crtc_state->active_planes &
 					  ~BIT(PLANE_CURSOR));
 	const struct g4x_pipe_wm *raw;
-	struct intel_plane_state *plane_state;
+	const struct intel_plane_state *old_plane_state;
+	const struct intel_plane_state *new_plane_state;
 	struct intel_plane *plane;
 	enum plane_id plane_id;
 	int i, level;
 	unsigned int dirty = 0;
 
-	for_each_intel_plane_in_state(state, plane, plane_state, i) {
-		const struct intel_plane_state *old_plane_state =
-			to_intel_plane_state(plane->base.state);
-
-		if (plane_state->base.crtc != &crtc->base &&
+	for_each_oldnew_intel_plane_in_state(state, plane,
+					     old_plane_state,
+					     new_plane_state, i) {
+		if (new_plane_state->base.crtc != &crtc->base &&
 		    old_plane_state->base.crtc != &crtc->base)
 			continue;
 
-		if (g4x_raw_plane_wm_compute(crtc_state, plane_state))
+		if (g4x_raw_plane_wm_compute(crtc_state, new_plane_state))
 			dirty |= BIT(plane->id);
 	}
 
@@ -1831,21 +1831,21 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	int num_active_planes = hweight32(crtc_state->active_planes &
 					  ~BIT(PLANE_CURSOR));
 	bool needs_modeset = drm_atomic_crtc_needs_modeset(&crtc_state->base);
-	struct intel_plane_state *plane_state;
+	const struct intel_plane_state *old_plane_state;
+	const struct intel_plane_state *new_plane_state;
 	struct intel_plane *plane;
 	enum plane_id plane_id;
 	int level, ret, i;
 	unsigned int dirty = 0;
 
-	for_each_intel_plane_in_state(state, plane, plane_state, i) {
-		const struct intel_plane_state *old_plane_state =
-			to_intel_plane_state(plane->base.state);
-
-		if (plane_state->base.crtc != &crtc->base &&
+	for_each_oldnew_intel_plane_in_state(state, plane,
+					     old_plane_state,
+					     new_plane_state, i) {
+		if (new_plane_state->base.crtc != &crtc->base &&
 		    old_plane_state->base.crtc != &crtc->base)
 			continue;
 
-		if (vlv_raw_plane_wm_compute(crtc_state, plane_state))
+		if (vlv_raw_plane_wm_compute(crtc_state, new_plane_state))
 			dirty |= BIT(plane->id);
 	}
 
@@ -1864,7 +1864,7 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	/* cursor changes don't warrant a FIFO recompute */
 	if (dirty & ~BIT(PLANE_CURSOR)) {
 		const struct intel_crtc_state *old_crtc_state =
-			to_intel_crtc_state(crtc->base.state);
+			intel_atomic_get_old_crtc_state(state, crtc);
 		const struct vlv_fifo_state *old_fifo_state =
 			&old_crtc_state->wm.vlv.fifo_state;
 
