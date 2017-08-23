@@ -2177,6 +2177,16 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	uint16_t cmdsize;
 	u32 local_nlp_type, elscmd;
 
+	/*
+	 * If we are in RSCN mode, the FC4 types supported from a
+	 * previous GFT_ID command may not be accurate. So, if we
+	 * are a NVME Initiator, always look for the possibility of
+	 * the remote NPort beng a NVME Target.
+	 */
+	if (phba->sli_rev == LPFC_SLI_REV4 &&
+	    vport->fc_flag & FC_RSCN_MODE &&
+	    vport->nvmei_support)
+		ndlp->nlp_fc4_type |= NLP_FC4_NVME;
 	local_nlp_type = ndlp->nlp_fc4_type;
 
  send_next_prli:
