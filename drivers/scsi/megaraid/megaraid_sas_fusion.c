@@ -3289,7 +3289,7 @@ build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 	mpi25_ieee_chain->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT |
 		MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR;
 
-	mpi25_ieee_chain->Length = cpu_to_le32(instance->max_chain_frame_sz);
+	mpi25_ieee_chain->Length = cpu_to_le32(instance->mfi_frame_size);
 }
 
 /**
