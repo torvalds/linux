@@ -3804,15 +3804,14 @@ unlock:
 	clear_bit(I915_RESET_MODESET, &dev_priv->gpu_error.flags);
 }
 
-static void intel_update_pipe_config(struct intel_crtc *crtc,
-				     struct intel_crtc_state *old_crtc_state)
+static void intel_update_pipe_config(const struct intel_crtc_state *old_crtc_state,
+				     const struct intel_crtc_state *new_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_crtc_state *pipe_config =
-		to_intel_crtc_state(crtc->base.state);
 
 	/* drm_atomic_helper_update_legacy_modeset_state might not be called. */
-	crtc->base.mode = crtc->base.state->mode;
+	crtc->base.mode = new_crtc_state->base.mode;
 
 	/*
 	 * Update pipe size and adjust fitter if needed: the reason for this is
@@ -3824,17 +3823,17 @@ static void intel_update_pipe_config(struct intel_crtc *crtc,
 	 */
 
 	I915_WRITE(PIPESRC(crtc->pipe),
-		   ((pipe_config->pipe_src_w - 1) << 16) |
-		   (pipe_config->pipe_src_h - 1));
+		   ((new_crtc_state->pipe_src_w - 1) << 16) |
+		   (new_crtc_state->pipe_src_h - 1));
 
 	/* on skylake this is done by detaching scalers */
 	if (INTEL_GEN(dev_priv) >= 9) {
 		skl_detach_scalers(crtc);
 
-		if (pipe_config->pch_pfit.enabled)
+		if (new_crtc_state->pch_pfit.enabled)
 			skylake_pfit_enable(crtc);
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		if (pipe_config->pch_pfit.enabled)
+		if (new_crtc_state->pch_pfit.enabled)
 			ironlake_pfit_enable(crtc);
 		else if (old_crtc_state->pch_pfit.enabled)
 			ironlake_pfit_disable(crtc, true);
@@ -12967,7 +12966,7 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 		goto out;
 
 	if (intel_cstate->update_pipe)
-		intel_update_pipe_config(intel_crtc, old_intel_cstate);
+		intel_update_pipe_config(old_intel_cstate, intel_cstate);
 	else if (INTEL_GEN(dev_priv) >= 9)
 		skl_detach_scalers(intel_crtc);
 
