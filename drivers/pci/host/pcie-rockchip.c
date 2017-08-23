@@ -756,6 +756,18 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	return 0;
 }
 
+static void rockchip_pcie_deinit_phys(struct rockchip_pcie *rockchip)
+{
+	int i;
+
+	for (i = 0; i < MAX_LANE_NUM; i++) {
+		/* inactive lanes are already powered off */
+		if (rockchip->lanes_map & BIT(i))
+			phy_power_off(rockchip->phys[i]);
+		phy_exit(rockchip->phys[i]);
+	}
+}
+
 static irqreturn_t rockchip_pcie_subsys_irq_handler(int irq, void *arg)
 {
 	struct rockchip_pcie *rockchip = arg;
@@ -1430,7 +1442,7 @@ static void rockchip_pcie_disable_clocks(void *data)
 static int __maybe_unused rockchip_pcie_suspend_noirq(struct device *dev)
 {
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
-	int ret, i;
+	int ret;
 
 	/* disable core and cli int since we don't need to ack PME_ACK */
 	rockchip_pcie_write(rockchip, (PCIE_CLIENT_INT_CLI << 16) |
@@ -1443,12 +1455,7 @@ static int __maybe_unused rockchip_pcie_suspend_noirq(struct device *dev)
 		return ret;
 	}
 
-	for (i = 0; i < MAX_LANE_NUM; i++) {
-		/* inactive lanes are already powered off */
-		if (rockchip->lanes_map & BIT(i))
-			phy_power_off(rockchip->phys[i]);
-		phy_exit(rockchip->phys[i]);
-	}
+	rockchip_pcie_deinit_phys(rockchip);
 
 	rockchip_pcie_disable_clocks(rockchip);
 
@@ -1637,19 +1644,13 @@ static int rockchip_pcie_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
-	int i;
 
 	pci_stop_root_bus(rockchip->root_bus);
 	pci_remove_root_bus(rockchip->root_bus);
 	pci_unmap_iospace(rockchip->io);
 	irq_domain_remove(rockchip->irq_domain);
 
-	for (i = 0; i < MAX_LANE_NUM; i++) {
-		/* inactive lanes are already powered off */
-		if (rockchip->lanes_map & BIT(i))
-			phy_power_off(rockchip->phys[i]);
-		phy_exit(rockchip->phys[i]);
-	}
+	rockchip_pcie_deinit_phys(rockchip);
 
 	rockchip_pcie_disable_clocks(rockchip);
 
