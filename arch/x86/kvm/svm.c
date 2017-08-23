@@ -280,6 +280,10 @@ module_param(avic, int, S_IRUGO);
 static int vls = true;
 module_param(vls, int, 0444);
 
+/* enable/disable Virtual GIF */
+static int vgif = true;
+module_param(vgif, int, 0444);
+
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
 static void svm_complete_interrupts(struct vcpu_svm *svm);
@@ -475,19 +479,33 @@ static inline void clr_intercept(struct vcpu_svm *svm, int bit)
 	recalc_intercepts(svm);
 }
 
+static inline bool vgif_enabled(struct vcpu_svm *svm)
+{
+	return !!(svm->vmcb->control.int_ctl & V_GIF_ENABLE_MASK);
+}
+
 static inline void enable_gif(struct vcpu_svm *svm)
 {
-	svm->vcpu.arch.hflags |= HF_GIF_MASK;
+	if (vgif_enabled(svm))
+		svm->vmcb->control.int_ctl |= V_GIF_MASK;
+	else
+		svm->vcpu.arch.hflags |= HF_GIF_MASK;
 }
 
 static inline void disable_gif(struct vcpu_svm *svm)
 {
-	svm->vcpu.arch.hflags &= ~HF_GIF_MASK;
+	if (vgif_enabled(svm))
+		svm->vmcb->control.int_ctl &= ~V_GIF_MASK;
+	else
+		svm->vcpu.arch.hflags &= ~HF_GIF_MASK;
 }
 
 static inline bool gif_set(struct vcpu_svm *svm)
 {
-	return !!(svm->vcpu.arch.hflags & HF_GIF_MASK);
+	if (vgif_enabled(svm))
+		return !!(svm->vmcb->control.int_ctl & V_GIF_MASK);
+	else
+		return !!(svm->vcpu.arch.hflags & HF_GIF_MASK);
 }
 
 static unsigned long iopm_base;
@@ -969,6 +987,7 @@ static void svm_disable_lbrv(struct vcpu_svm *svm)
 static void disable_nmi_singlestep(struct vcpu_svm *svm)
 {
 	svm->nmi_singlestep = false;
+
 	if (!(svm->vcpu.guest_debug & KVM_GUESTDBG_SINGLESTEP)) {
 		/* Clear our flags if they were not set by the guest */
 		if (!(svm->nmi_singlestep_guest_rflags & X86_EFLAGS_TF))
@@ -1104,6 +1123,13 @@ static __init int svm_hardware_setup(void)
 		} else {
 			pr_info("Virtual VMLOAD VMSAVE supported\n");
 		}
+	}
+
+	if (vgif) {
+		if (!boot_cpu_has(X86_FEATURE_VGIF))
+			vgif = false;
+		else
+			pr_info("Virtual GIF supported\n");
 	}
 
 	return 0;
@@ -1301,6 +1327,12 @@ static void init_vmcb(struct vcpu_svm *svm)
 		clr_intercept(svm, INTERCEPT_VMLOAD);
 		clr_intercept(svm, INTERCEPT_VMSAVE);
 		svm->vmcb->control.virt_ext |= VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK;
+	}
+
+	if (vgif) {
+		clr_intercept(svm, INTERCEPT_STGI);
+		clr_intercept(svm, INTERCEPT_CLGI);
+		svm->vmcb->control.int_ctl |= V_GIF_ENABLE_MASK;
 	}
 
 	mark_all_dirty(svm->vmcb);
@@ -3133,6 +3165,13 @@ static int stgi_interception(struct vcpu_svm *svm)
 	if (nested_svm_check_permissions(svm))
 		return 1;
 
+	/*
+	 * If VGIF is enabled, the STGI intercept is only added to
+	 * detect the opening of the NMI window; remove it now.
+	 */
+	if (vgif_enabled(svm))
+		clr_intercept(svm, INTERCEPT_STGI);
+
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
 	ret = kvm_skip_emulated_instruction(&svm->vcpu);
 	kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
@@ -4668,9 +4707,11 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 	 * In case GIF=0 we can't rely on the CPU to tell us when GIF becomes
 	 * 1, because that's a separate STGI/VMRUN intercept.  The next time we
 	 * get that intercept, this function will be called again though and
-	 * we'll get the vintr intercept.
+	 * we'll get the vintr intercept. However, if the vGIF feature is
+	 * enabled, the STGI interception will not occur. Enable the irq
+	 * window under the assumption that the hardware will set the GIF.
 	 */
-	if (gif_set(svm) && nested_svm_intr(svm)) {
+	if ((vgif_enabled(svm) || gif_set(svm)) && nested_svm_intr(svm)) {
 		svm_set_vintr(svm);
 		svm_inject_irq(svm, 0x0);
 	}
@@ -4684,8 +4725,11 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 	    == HF_NMI_MASK)
 		return; /* IRET will cause a vm exit */
 
-	if ((svm->vcpu.arch.hflags & HF_GIF_MASK) == 0)
+	if (!gif_set(svm)) {
+		if (vgif_enabled(svm))
+			set_intercept(svm, INTERCEPT_STGI);
 		return; /* STGI will cause a vm exit */
+	}
 
 	if (svm->nested.exit_required)
 		return; /* we're not going to run the guest yet */
