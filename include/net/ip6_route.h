@@ -115,6 +115,7 @@ static inline int ip6_route_get_saddr(struct net *net, struct rt6_info *rt,
 
 struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
 			    const struct in6_addr *saddr, int oif, int flags);
+u32 rt6_multipath_hash(const struct flowi6 *fl6, const struct sk_buff *skb);
 
 struct dst_entry *icmp6_dst_alloc(struct net_device *dev, struct flowi6 *fl6);
 
