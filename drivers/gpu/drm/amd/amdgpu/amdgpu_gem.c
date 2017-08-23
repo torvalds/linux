@@ -186,17 +186,17 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 {
 	struct amdgpu_device *adev = dev->dev_private;
 	union drm_amdgpu_gem_create *args = data;
+	uint64_t flags = args->in.domain_flags;
 	uint64_t size = args->in.bo_size;
 	struct drm_gem_object *gobj;
 	uint32_t handle;
-	bool kernel = false;
 	int r;
 
 	/* reject invalid gem flags */
-	if (args->in.domain_flags & ~(AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-				      AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
-				      AMDGPU_GEM_CREATE_CPU_GTT_USWC |
-				      AMDGPU_GEM_CREATE_VRAM_CLEARED))
+	if (flags & ~(AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+		      AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
+		      AMDGPU_GEM_CREATE_CPU_GTT_USWC |
+		      AMDGPU_GEM_CREATE_VRAM_CLEARED))
 		return -EINVAL;
 
 	/* reject invalid gem domains */
@@ -211,7 +211,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	/* create a gem object to contain this object in */
 	if (args->in.domains & (AMDGPU_GEM_DOMAIN_GDS |
 	    AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA)) {
-		kernel = true;
+		flags |= AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
 		if (args->in.domains == AMDGPU_GEM_DOMAIN_GDS)
 			size = size << AMDGPU_GDS_SHIFT;
 		else if (args->in.domains == AMDGPU_GEM_DOMAIN_GWS)
@@ -225,8 +225,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	r = amdgpu_gem_object_create(adev, size, args->in.alignment,
 				     (u32)(0xffffffff & args->in.domains),
-				     args->in.domain_flags,
-				     kernel, &gobj);
+				     flags, false, &gobj);
 	if (r)
 		return r;
 
