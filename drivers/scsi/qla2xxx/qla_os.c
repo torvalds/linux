@@ -262,6 +262,12 @@ MODULE_PARM_DESC(ql2xmvasynctoatio,
 		"0 (Default). Do not move IOCBs"
 		"1 - Move IOCBs.");
 
+int ql2xautodetectsfp = 1;
+module_param(ql2xautodetectsfp, int, 0444);
+MODULE_PARM_DESC(ql2xautodetectsfp,
+		 "Detect SFP range and set appropriate distance.\n"
+		 "1 (Default): Enable\n");
+
 /*
  * SCSI host template entry points
  */
@@ -3330,6 +3336,13 @@ skip_dpc:
 	if (test_bit(UNLOADING, &base_vha->dpc_flags))
 		return -ENODEV;
 
+	if (ha->flags.detected_lr_sfp) {
+		ql_log(ql_log_info, base_vha, 0xffff,
+		    "Reset chip to pick up LR SFP setting\n");
+		set_bit(ISP_ABORT_NEEDED, &base_vha->dpc_flags);
+		qla2xxx_wake_dpc(base_vha);
+	}
+
 	return 0;
 
 probe_init_failed:
@@ -4019,8 +4032,18 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 		    "loop_id_map=%p.\n", ha->loop_id_map);
 	}
 
+	ha->sfp_data = dma_alloc_coherent(&ha->pdev->dev,
+	    SFP_DEV_SIZE, &ha->sfp_data_dma, GFP_KERNEL);
+	if (!ha->sfp_data) {
+		ql_dbg_pci(ql_dbg_init, ha->pdev, 0x011b,
+		    "Unable to allocate memory for SFP read-data.\n");
+		goto fail_sfp_data;
+	}
+
 	return 0;
 
+fail_sfp_data:
+	kfree(ha->loop_id_map);
 fail_loop_id_map:
 	dma_pool_free(ha->s_dma_pool, ha->async_pd, ha->async_pd_dma);
 fail_async_pd:
@@ -4358,7 +4381,8 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 		ha->ct_sns, ha->ct_sns_dma);
 
 	if (ha->sfp_data)
-		dma_pool_free(ha->s_dma_pool, ha->sfp_data, ha->sfp_data_dma);
+		dma_free_coherent(&ha->pdev->dev, SFP_DEV_SIZE, ha->sfp_data,
+		    ha->sfp_data_dma);
 
 	if (ha->ms_iocb)
 		dma_pool_free(ha->s_dma_pool, ha->ms_iocb, ha->ms_iocb_dma);
@@ -5705,6 +5729,16 @@ qla2x00_do_dpc(void *data)
 				    &base_vha->hw->mr.fcport,
 				    FXDISC_REG_HOST_INFO);
 			}
+		}
+
+		if (test_and_clear_bit(DETECT_SFP_CHANGE,
+			&base_vha->dpc_flags) &&
+		    !test_bit(ISP_ABORT_NEEDED, &base_vha->dpc_flags)) {
+			qla24xx_detect_sfp(base_vha);
+
+			if (ha->flags.detected_lr_sfp !=
+			    ha->flags.using_lr_setting)
+				set_bit(ISP_ABORT_NEEDED, &base_vha->dpc_flags);
 		}
 
 		if (test_and_clear_bit(ISP_ABORT_NEEDED,

@@ -565,47 +565,17 @@ qla2x00_sysfs_read_sfp(struct file *filp, struct kobject *kobj,
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
-	struct qla_hw_data *ha = vha->hw;
-	uint16_t iter, addr, offset;
 	int rval;
 
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != SFP_DEV_SIZE * 2)
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count < SFP_DEV_SIZE)
 		return 0;
 
-	if (ha->sfp_data)
-		goto do_read;
-
-	ha->sfp_data = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
-	    &ha->sfp_data_dma);
-	if (!ha->sfp_data) {
-		ql_log(ql_log_warn, vha, 0x706c,
-		    "Unable to allocate memory for SFP read-data.\n");
+	if (qla2x00_reset_active(vha))
 		return 0;
-	}
 
-do_read:
-	memset(ha->sfp_data, 0, SFP_BLOCK_SIZE);
-	addr = 0xa0;
-	for (iter = 0, offset = 0; iter < (SFP_DEV_SIZE * 2) / SFP_BLOCK_SIZE;
-	    iter++, offset += SFP_BLOCK_SIZE) {
-		if (iter == 4) {
-			/* Skip to next device address. */
-			addr = 0xa2;
-			offset = 0;
-		}
-
-		rval = qla2x00_read_sfp(vha, ha->sfp_data_dma, ha->sfp_data,
-		    addr, offset, SFP_BLOCK_SIZE, BIT_1);
-		if (rval != QLA_SUCCESS) {
-			ql_log(ql_log_warn, vha, 0x706d,
-			    "Unable to read SFP data (%x/%x/%x).\n", rval,
-			    addr, offset);
-
-			return -EIO;
-		}
-		memcpy(buf, ha->sfp_data, SFP_BLOCK_SIZE);
-		buf += SFP_BLOCK_SIZE;
-	}
+	rval = qla2x00_read_sfp_dev(vha, buf, count);
+	if (rval)
+		return -EIO;
 
 	return count;
 }
@@ -615,7 +585,7 @@ static struct bin_attribute sysfs_sfp_attr = {
 		.name = "sfp",
 		.mode = S_IRUSR | S_IWUSR,
 	},
-	.size = SFP_DEV_SIZE * 2,
+	.size = SFP_DEV_SIZE,
 	.read = qla2x00_sysfs_read_sfp,
 };
 

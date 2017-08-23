@@ -57,6 +57,7 @@ static struct rom_cmd {
 	{ MBC_INITIALIZE_MULTIQ },
 	{ MBC_IOCB_COMMAND_A64 },
 	{ MBC_GET_ADAPTER_LOOP_ID },
+	{ MBC_READ_SFP },
 };
 
 static int is_rom_cmd(uint16_t cmd)
@@ -598,13 +599,29 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 		mcp->mb[1] = MSW(risc_addr);
 		mcp->mb[2] = LSW(risc_addr);
 		mcp->mb[3] = 0;
+		mcp->mb[4] = 0;
 		if (IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha) ||
 		    IS_QLA27XX(ha)) {
-			struct nvram_81xx *nv = ha->nvram;
-			mcp->mb[4] = (nv->enhanced_features &
-			    EXTENDED_BB_CREDITS);
-		} else
-			mcp->mb[4] = 0;
+			if (ql2xautodetectsfp) {
+				if (ha->flags.detected_lr_sfp) {
+					mcp->mb[4] |= EXTENDED_BB_CREDITS;
+					if (IS_QLA27XX(ha))
+						mcp->mb[4] |=
+					(u16)ha->long_range_distance << 12;
+					ha->flags.using_lr_setting = 1;
+				}
+			} else {
+				struct nvram_81xx *nv = ha->nvram;
+
+				if (nv->enhanced_features &
+				    EXTENDED_BB_CREDITS) {
+					mcp->mb[4] |= EXTENDED_BB_CREDITS;
+					ha->flags.using_lr_setting = 1;
+				}
+			}
+		} else {
+			ha->flags.using_lr_setting = 0;
+		}
 
 		if (ql2xnvmeenable && IS_QLA27XX(ha))
 			mcp->mb[4] |= NVME_ENABLE_FLAG;
@@ -4585,6 +4602,10 @@ qla2x00_read_sfp(scsi_qla_host_t *vha, dma_addr_t sfp_dma, uint8_t *sfp,
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x10e9,
 		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
+		if (mcp->mb[0] == MBS_COMMAND_ERROR &&
+		    mcp->mb[1] == 0x22)
+			/* sfp is not there */
+			rval = QLA_INTERFACE_ERROR;
 	} else {
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10ea,
 		    "Done %s.\n", __func__);
@@ -6130,6 +6151,58 @@ int qla27xx_get_zio_threshold(scsi_qla_host_t *vha, uint16_t *value)
 
 	ql_dbg(ql_dbg_mbx, vha, 0x1205, "%s %x\n",
 	    (rval != QLA_SUCCESS) ? "Failed" : "Done", rval);
+
+	return rval;
+}
+
+int
+qla2x00_read_sfp_dev(struct scsi_qla_host *vha, char *buf, int count)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t iter, addr, offset;
+	dma_addr_t phys_addr;
+	int rval, c;
+	u8 *sfp_data;
+
+	memset(ha->sfp_data, 0, SFP_DEV_SIZE);
+	addr = 0xa0;
+	phys_addr = ha->sfp_data_dma;
+	sfp_data = ha->sfp_data;
+	offset = c = 0;
+
+	for (iter = 0; iter < SFP_DEV_SIZE / SFP_BLOCK_SIZE; iter++) {
+		if (iter == 4) {
+			/* Skip to next device address. */
+			addr = 0xa2;
+			offset = 0;
+		}
+
+		rval = qla2x00_read_sfp(vha, phys_addr, sfp_data,
+		    addr, offset, SFP_BLOCK_SIZE, BIT_1);
+		if (rval != QLA_SUCCESS) {
+			ql_log(ql_log_warn, vha, 0x706d,
+			    "Unable to read SFP data (%x/%x/%x).\n", rval,
+			    addr, offset);
+
+			return rval;
+		}
+
+		if (buf && (c < count)) {
+			u16 sz;
+
+			if ((count - c) >= SFP_BLOCK_SIZE)
+				sz = SFP_BLOCK_SIZE;
+			else
+				sz = count - c;
+
+			memcpy(buf, sfp_data, sz);
+			buf += SFP_BLOCK_SIZE;
+			c += sz;
+		}
+		phys_addr += SFP_BLOCK_SIZE;
+		sfp_data  += SFP_BLOCK_SIZE;
+		offset += SFP_BLOCK_SIZE;
+	}
 
 	return rval;
 }
