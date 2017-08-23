@@ -452,7 +452,13 @@ static struct rt6_info *rt6_multipath_select(struct rt6_info *match,
 	struct rt6_info *sibling, *next_sibling;
 	int route_choosen;
 
-	route_choosen = get_hash_from_flowi6(fl6) % (match->rt6i_nsiblings + 1);
+	/* We might have already computed the hash for ICMPv6 errors. In such
+	 * case it will always be non-zero. Otherwise now is the time to do it.
+	 */
+	if (!fl6->mp_hash)
+		fl6->mp_hash = rt6_multipath_hash(fl6, NULL);
+
+	route_choosen = fl6->mp_hash % (match->rt6i_nsiblings + 1);
 	/* Don't change the route, if route_choosen == 0
 	 * (siblings does not include ourself)
 	 */
