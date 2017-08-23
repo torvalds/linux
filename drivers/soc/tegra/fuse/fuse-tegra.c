@@ -364,5 +364,5 @@ static int __init tegra_init_soc(void)
 
 	return 0;
 }
-device_initcall(tegra_init_soc)
+device_initcall(tegra_init_soc);
 #endif
