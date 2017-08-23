@@ -168,9 +168,9 @@ static const struct nft_expr_ops nft_limit_pkts_ops = {
 	.dump		= nft_limit_pkts_dump,
 };
 
-static void nft_limit_pkt_bytes_eval(const struct nft_expr *expr,
-				     struct nft_regs *regs,
-				     const struct nft_pktinfo *pkt)
+static void nft_limit_bytes_eval(const struct nft_expr *expr,
+				 struct nft_regs *regs,
+				 const struct nft_pktinfo *pkt)
 {
 	struct nft_limit *priv = nft_expr_priv(expr);
 	u64 cost = div64_u64(priv->nsecs * pkt->skb->len, priv->rate);
@@ -179,29 +179,29 @@ static void nft_limit_pkt_bytes_eval(const struct nft_expr *expr,
 		regs->verdict.code = NFT_BREAK;
 }
 
-static int nft_limit_pkt_bytes_init(const struct nft_ctx *ctx,
-				    const struct nft_expr *expr,
-				    const struct nlattr * const tb[])
+static int nft_limit_bytes_init(const struct nft_ctx *ctx,
+				const struct nft_expr *expr,
+				const struct nlattr * const tb[])
 {
 	struct nft_limit *priv = nft_expr_priv(expr);
 
 	return nft_limit_init(priv, tb);
 }
 
-static int nft_limit_pkt_bytes_dump(struct sk_buff *skb,
-				    const struct nft_expr *expr)
+static int nft_limit_bytes_dump(struct sk_buff *skb,
+				const struct nft_expr *expr)
 {
 	const struct nft_limit *priv = nft_expr_priv(expr);
 
 	return nft_limit_dump(skb, priv, NFT_LIMIT_PKT_BYTES);
 }
 
-static const struct nft_expr_ops nft_limit_pkt_bytes_ops = {
+static const struct nft_expr_ops nft_limit_bytes_ops = {
 	.type		= &nft_limit_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_limit)),
-	.eval		= nft_limit_pkt_bytes_eval,
-	.init		= nft_limit_pkt_bytes_init,
-	.dump		= nft_limit_pkt_bytes_dump,
+	.eval		= nft_limit_bytes_eval,
+	.init		= nft_limit_bytes_init,
+	.dump		= nft_limit_bytes_dump,
 };
 
 static const struct nft_expr_ops *
@@ -215,7 +215,7 @@ nft_limit_select_ops(const struct nft_ctx *ctx,
 	case NFT_LIMIT_PKTS:
 		return &nft_limit_pkts_ops;
 	case NFT_LIMIT_PKT_BYTES:
-		return &nft_limit_pkt_bytes_ops;
+		return &nft_limit_bytes_ops;
 	}
 	return ERR_PTR(-EOPNOTSUPP);
 }
