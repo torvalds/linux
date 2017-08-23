@@ -2091,7 +2091,7 @@ __acquires(&pool->lock)
 
 	spin_unlock_irq(&pool->lock);
 
-	lock_map_acquire_read(&pwq->wq->lockdep_map);
+	lock_map_acquire(&pwq->wq->lockdep_map);
 	lock_map_acquire(&lockdep_map);
 	crossrelease_hist_start(XHLOCK_PROC);
 	trace_workqueue_execute_start(work);
@@ -2826,16 +2826,18 @@ static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr)
 	spin_unlock_irq(&pool->lock);
 
 	/*
-	 * If @max_active is 1 or rescuer is in use, flushing another work
-	 * item on the same workqueue may lead to deadlock.  Make sure the
-	 * flusher is not running on the same workqueue by verifying write
-	 * access.
+	 * Force a lock recursion deadlock when using flush_work() inside a
+	 * single-threaded or rescuer equipped workqueue.
+	 *
+	 * For single threaded workqueues the deadlock happens when the work
+	 * is after the work issuing the flush_work(). For rescuer equipped
+	 * workqueues the deadlock happens when the rescuer stalls, blocking
+	 * forward progress.
 	 */
-	if (pwq->wq->saved_max_active == 1 || pwq->wq->rescuer)
+	if (pwq->wq->saved_max_active == 1 || pwq->wq->rescuer) {
 		lock_map_acquire(&pwq->wq->lockdep_map);
-	else
-		lock_map_acquire_read(&pwq->wq->lockdep_map);
-	lock_map_release(&pwq->wq->lockdep_map);
+		lock_map_release(&pwq->wq->lockdep_map);
+	}
 
 	return true;
 already_gone:
