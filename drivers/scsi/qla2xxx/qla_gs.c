@@ -3080,7 +3080,7 @@ int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
 		GPSC_RSP_SIZE);
 
 	/* GPSC req */
-	memcpy(ct_req->req.gpsc.port_name, fcport->port_name,
+	memcpy(ct_req->req.gpsc.port_name, fcport->fabric_port_name,
 		WWN_SIZE);
 
 	sp->u.iocb_cmd.u.ctarg.req = fcport->ct_desc.ct_sns;
