@@ -302,6 +302,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 	struct rt5514_priv *rt5514 = snd_soc_component_get_drvdata(component);
 	struct snd_soc_codec *codec = rt5514->codec;
 	const struct firmware *fw = NULL;
+	int ret = 0;
 
 	if (ucontrol->value.integer.value[0] == rt5514->dsp_enabled)
 		return 0;
@@ -338,6 +339,27 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 				fw = NULL;
 			}
 
+			if (rt5514->model_buf && rt5514->model_len) {
+				ret = rt5514_spi_burst_write(0x4ff80000,
+					rt5514->model_buf,
+					((rt5514->model_len / 8) + 1) * 8);
+				if (ret) {
+					dev_err(codec->dev,
+						"Model load failed %d\n", ret);
+					return ret;
+				}
+			} else {
+				request_firmware(&fw, RT5514_FIRMWARE3,
+						 codec->dev);
+				if (fw) {
+					rt5514_spi_burst_write(0x4ff80000,
+						fw->data,
+						((fw->size/8)+1)*8);
+					release_firmware(fw);
+					fw = NULL;
+				}
+			}
+
 			/* DSP run */
 			regmap_write(rt5514->i2c_regmap, 0x18002f00,
 				0x00055148);
@@ -352,6 +374,34 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int rt5514_hotword_model_put(struct snd_kcontrol *kcontrol,
+		const unsigned int __user *bytes, unsigned int size)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt5514_priv *rt5514 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_codec *codec = rt5514->codec;
+	int ret = 0;
+
+	if (rt5514->model_buf || rt5514->model_len < size) {
+		if (rt5514->model_buf)
+			devm_kfree(codec->dev, rt5514->model_buf);
+		rt5514->model_buf = devm_kmalloc(codec->dev, size, GFP_KERNEL);
+		if (!rt5514->model_buf) {
+			ret = -ENOMEM;
+			goto done;
+		}
+	}
+
+	/* Skips the TLV header. */
+	bytes += 2;
+
+	if (copy_from_user(rt5514->model_buf, bytes, size))
+		ret = -EFAULT;
+done:
+	rt5514->model_len = (ret ? 0 : size);
+	return ret;
+}
+
 static const struct snd_kcontrol_new rt5514_snd_controls[] = {
 	SOC_DOUBLE_TLV("MIC Boost Volume", RT5514_ANA_CTRL_MICBST,
 		RT5514_SEL_BSTL_SFT, RT5514_SEL_BSTR_SFT, 8, 0, bst_tlv),
@@ -363,6 +413,8 @@ static const struct snd_kcontrol_new rt5514_snd_controls[] = {
 		adc_vol_tlv),
 	SOC_SINGLE_EXT("DSP Voice Wake Up", SND_SOC_NOPM, 0, 1, 0,
 		rt5514_dsp_voice_wake_up_get, rt5514_dsp_voice_wake_up_put),
+	SND_SOC_BYTES_TLV("Hotword Model", 0x8504,
+		NULL, rt5514_hotword_model_put),
 };
 
 /* ADC Mixer*/
