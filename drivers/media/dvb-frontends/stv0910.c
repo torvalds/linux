@@ -1698,7 +1698,7 @@ static const struct dvb_frontend_ops stv0910_ops = {
 		.frequency_max		= 2150000,
 		.frequency_stepsize	= 0,
 		.frequency_tolerance	= 0,
-		.symbol_rate_min	= 1000000,
+		.symbol_rate_min	= 100000,
 		.symbol_rate_max	= 70000000,
 		.caps			= FE_CAN_INVERSION_AUTO |
 					  FE_CAN_FEC_AUTO       |
