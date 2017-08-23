@@ -5118,7 +5118,8 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	struct drm_atomic_state *old_state = old_crtc_state->base.state;
 	struct intel_crtc_state *pipe_config =
-		to_intel_crtc_state(crtc->base.state);
+		intel_atomic_get_new_crtc_state(to_intel_atomic_state(old_state),
+						crtc);
 	struct drm_plane *primary = crtc->base.primary;
 	struct drm_plane_state *old_pri_state =
 		drm_atomic_get_existing_plane_state(old_state, primary);
@@ -5130,7 +5131,8 @@ static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 
 	if (old_pri_state) {
 		struct intel_plane_state *primary_state =
-			to_intel_plane_state(primary->state);
+			intel_atomic_get_new_plane_state(to_intel_atomic_state(old_state),
+							 to_intel_plane(primary));
 		struct intel_plane_state *old_primary_state =
 			to_intel_plane_state(old_pri_state);
 
@@ -5159,7 +5161,8 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state,
 
 	if (old_pri_state) {
 		struct intel_plane_state *primary_state =
-			to_intel_plane_state(primary->state);
+			intel_atomic_get_new_plane_state(old_intel_state,
+							 to_intel_plane(primary));
 		struct intel_plane_state *old_primary_state =
 			to_intel_plane_state(old_pri_state);
 
