@@ -805,7 +805,14 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 	       struct resource *devres, unsigned int ndevres, int irq)
 {
 	struct intel_th *th;
-	int err;
+	int err, r;
+
+	if (irq == -1)
+		for (r = 0; r < ndevres; r++)
+			if (devres[r].flags & IORESOURCE_IRQ) {
+				irq = devres[r].start;
+				break;
+			}
 
 	th = kzalloc(sizeof(*th), GFP_KERNEL);
 	if (!th)
