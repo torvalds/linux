@@ -1192,6 +1192,14 @@ hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 	return container_of(intel_hdmi, struct intel_digital_port, hdmi);
 }
 
+static inline struct intel_crtc_state *
+intel_atomic_get_new_crtc_state(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
+{
+	return to_intel_crtc_state(drm_atomic_get_new_crtc_state(&state->base,
+								 &crtc->base));
+}
+
 /* intel_fifo_underrun.c */
 bool intel_set_cpu_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 					   enum pipe pipe, bool enable);
@@ -1889,8 +1897,8 @@ struct intel_plane *intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 					      enum pipe pipe, int plane);
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
-void intel_pipe_update_start(struct intel_crtc *crtc);
-void intel_pipe_update_end(struct intel_crtc *crtc);
+void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state);
+void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_i915_private *dev_priv);
