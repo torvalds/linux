@@ -1788,10 +1788,16 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	else
 		flags = 0x0;
 
-	spin_lock(&vm->status_lock);
-	if (!list_empty(&bo_va->base.vm_status))
+	if (!clear && bo_va->base.moved) {
+		bo_va->base.moved = false;
 		list_splice_init(&bo_va->valids, &bo_va->invalids);
-	spin_unlock(&vm->status_lock);
+
+	} else {
+		spin_lock(&vm->status_lock);
+		if (!list_empty(&bo_va->base.vm_status))
+			list_splice_init(&bo_va->valids, &bo_va->invalids);
+		spin_unlock(&vm->status_lock);
+	}
 
 	list_for_each_entry(mapping, &bo_va->invalids, list) {
 		r = amdgpu_vm_bo_split_mapping(adev, exclusive, pages_addr, vm,
@@ -2419,6 +2425,7 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 	struct amdgpu_vm_bo_base *bo_base;
 
 	list_for_each_entry(bo_base, &bo->va, bo_list) {
+		bo_base->moved = true;
 		spin_lock(&bo_base->vm->status_lock);
 		if (list_empty(&bo_base->vm_status))
 			list_add(&bo_base->vm_status,
