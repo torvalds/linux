@@ -2111,6 +2111,7 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 
 	if (flags & AMDGPU_PTE_PRT)
 		amdgpu_vm_prt_get(adev);
+	trace_amdgpu_vm_bo_map(bo_va, mapping);
 
 	return 0;
 }
@@ -2176,6 +2177,7 @@ int amdgpu_vm_bo_replace_map(struct amdgpu_device *adev,
 
 	if (flags & AMDGPU_PTE_PRT)
 		amdgpu_vm_prt_get(adev);
+	trace_amdgpu_vm_bo_map(bo_va, mapping);
 
 	return 0;
 }
