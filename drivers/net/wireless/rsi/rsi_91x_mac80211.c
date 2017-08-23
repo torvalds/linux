@@ -1503,7 +1503,7 @@ static void rsi_mac80211_rfkill_poll(struct ieee80211_hw *hw)
 	mutex_unlock(&common->mutex);
 }
 
-static struct ieee80211_ops mac80211_ops = {
+static const struct ieee80211_ops mac80211_ops = {
 	.tx = rsi_mac80211_tx,
 	.start = rsi_mac80211_start,
 	.stop = rsi_mac80211_stop,
