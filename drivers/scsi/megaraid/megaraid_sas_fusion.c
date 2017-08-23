@@ -3624,6 +3624,15 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 
 		if (!smid)
 			continue;
+
+		/* Do not refire shutdown command */
+		if (le32_to_cpu(cmd_mfi->frame->dcmd.opcode) ==
+			MR_DCMD_CTRL_SHUTDOWN) {
+			cmd_mfi->frame->dcmd.cmd_status = MFI_STAT_OK;
+			megasas_complete_cmd(instance, cmd_mfi, DID_OK);
+			continue;
+		}
+
 		req_desc = megasas_get_request_descriptor
 					(instance, smid - 1);
 		refire_cmd = req_desc && ((cmd_mfi->frame->dcmd.opcode !=
