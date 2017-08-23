@@ -3682,7 +3682,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 				if (qla_ini_mode_enabled(vha) &&
 				    ha->flags.fawwpn_enabled &&
 				    (rptid_entry->u.f1.flags &
-				     VP_FLAGS_NAME_VALID)) {
+				     BIT_6)) {
 					memcpy(vha->port_name,
 					    rptid_entry->u.f1.port_name,
 					    WWN_SIZE);
