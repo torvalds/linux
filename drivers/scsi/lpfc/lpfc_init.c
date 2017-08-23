@@ -7625,6 +7625,11 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 					"3082 Mailbox (x%x) returned ldv:x0\n",
 					bf_get(lpfc_mqe_command, &pmb->u.mqe));
+		if (bf_get(lpfc_mbx_rd_conf_bbscn_def, rd_config)) {
+			phba->bbcredit_support = 1;
+			phba->sli4_hba.bbscn_params.word0 = rd_config->word8;
+		}
+
 		phba->sli4_hba.extents_in_use =
 			bf_get(lpfc_mbx_rd_conf_extnts_inuse, rd_config);
 		phba->sli4_hba.max_cfg_param.max_xri =

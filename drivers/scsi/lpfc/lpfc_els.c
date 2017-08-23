@@ -2033,6 +2033,7 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 
 	sp->cmn.valid_vendor_ver_level = 0;
 	memset(sp->un.vendorVersion, 0, sizeof(sp->un.vendorVersion));
+	sp->cmn.bbRcvSizeMsb &= 0xF;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"Issue PLOGI:     did:x%x",
@@ -3456,8 +3457,18 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				maxretry = 3;
 				delay = 1000;
 				retry = 1;
-				break;
+			} else if (cmd == ELS_CMD_FLOGI &&
+				   stat.un.b.lsRjtRsnCodeExp ==
+						LSEXP_NOTHING_MORE) {
+				vport->fc_sparam.cmn.bbRcvSizeMsb &= 0xf;
+				retry = 1;
+				lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+						 "0820 FLOGI Failed (x%x). "
+						 "BBCredit Not Supported\n",
+						 stat.un.lsRjtError);
 			}
+			break;
+
 		case LSRJT_PROTOCOL_ERR:
 			if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
 			  (cmd == ELS_CMD_FDISC) &&
@@ -4201,6 +4212,7 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 			sp->cmn.valid_vendor_ver_level = 0;
 			memset(sp->un.vendorVersion, 0,
 			       sizeof(sp->un.vendorVersion));
+			sp->cmn.bbRcvSizeMsb &= 0xF;
 
 			/* If our firmware supports this feature, convey that
 			 * info to the target using the vendor specific field.

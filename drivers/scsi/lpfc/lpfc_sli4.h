@@ -420,6 +420,20 @@ struct lpfc_hba_eq_hdl {
 #define LPFC_MULTI_CPU_AFFINITY 0xffffffff
 };
 
+/*BB Credit recovery value*/
+struct lpfc_bbscn_params {
+	uint32_t word0;
+#define lpfc_bbscn_min_SHIFT		0
+#define lpfc_bbscn_min_MASK		0x0000000F
+#define lpfc_bbscn_min_WORD		word0
+#define lpfc_bbscn_max_SHIFT		4
+#define lpfc_bbscn_max_MASK		0x0000000F
+#define lpfc_bbscn_max_WORD		word0
+#define lpfc_bbscn_def_SHIFT		8
+#define lpfc_bbscn_def_MASK		0x0000000F
+#define lpfc_bbscn_def_WORD		word0
+};
+
 /* Port Capabilities for SLI4 Parameters */
 struct lpfc_pc_sli4_params {
 	uint32_t supported;
@@ -551,6 +565,7 @@ struct lpfc_sli4_hba {
 	uint32_t ue_to_rp;
 	struct lpfc_register sli_intf;
 	struct lpfc_pc_sli4_params pc_sli4_params;
+	struct lpfc_bbscn_params bbscn_params;
 	struct lpfc_hba_eq_hdl *hba_eq_hdl; /* HBA per-WQ handle */
 
 	/* Pointers to the constructed SLI4 queues */

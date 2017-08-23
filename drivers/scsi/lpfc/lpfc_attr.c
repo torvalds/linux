@@ -1889,6 +1889,36 @@ static inline bool lpfc_rangecheck(uint val, uint min, uint max)
 }
 
 /**
+ * lpfc_enable_bbcr_set: Sets an attribute value.
+ * @phba: pointer the the adapter structure.
+ * @val: integer attribute value.
+ *
+ * Description:
+ * Validates the min and max values then sets the
+ * adapter config field if in the valid range. prints error message
+ * and does not set the parameter if invalid.
+ *
+ * Returns:
+ * zero on success
+ * -EINVAL if val is invalid
+ */
+static ssize_t
+lpfc_enable_bbcr_set(struct lpfc_hba *phba, uint val)
+{
+	if (lpfc_rangecheck(val, 0, 1) && phba->sli_rev == LPFC_SLI_REV4) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3068 %s_enable_bbcr changed from %d to %d\n",
+				LPFC_DRIVER_NAME, phba->cfg_enable_bbcr, val);
+		phba->cfg_enable_bbcr = val;
+		return 0;
+	}
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"0451 %s_enable_bbcr cannot set to %d, range is 0, 1\n",
+			LPFC_DRIVER_NAME, val);
+	return -EINVAL;
+}
+
+/**
  * lpfc_param_show - Return a cfg attribute value in decimal
  *
  * Description:
@@ -5111,6 +5141,14 @@ LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_DEFAULT_SG_SEG_CNT,
  */
 LPFC_ATTR_R(enable_mds_diags, 0, 0, 1, "Enable MDS Diagnostics");
 
+/*
+ * lpfc_enable_bbcr: Enable BB Credit Recovery
+ *       0  = BB Credit Recovery disabled
+ *       1  = BB Credit Recovery enabled (default)
+ * Value range is [0,1]. Default value is 1.
+ */
+LPFC_BBCR_ATTR_RW(enable_bbcr, 1, 0, 1, "Enable BBC Recovery");
+
 struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_nvme_info,
 	&dev_attr_bg_info,
@@ -5218,6 +5256,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_protocol,
 	&dev_attr_lpfc_xlane_supported,
 	&dev_attr_lpfc_enable_mds_diags,
+	&dev_attr_lpfc_enable_bbcr,
 	NULL,
 };
 
@@ -6229,11 +6268,13 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_nvmet_fb_size_init(phba, lpfc_nvmet_fb_size);
 	lpfc_fcp_io_channel_init(phba, lpfc_fcp_io_channel);
 	lpfc_nvme_io_channel_init(phba, lpfc_nvme_io_channel);
+	lpfc_enable_bbcr_init(phba, lpfc_enable_bbcr);
 
 	if (phba->sli_rev != LPFC_SLI_REV4) {
 		/* NVME only supported on SLI4 */
 		phba->nvmet_support = 0;
 		phba->cfg_enable_fc4_type = LPFC_ENABLE_FCP;
+		phba->cfg_enable_bbcr = 0;
 	} else {
 		/* We MUST have FCP support */
 		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))

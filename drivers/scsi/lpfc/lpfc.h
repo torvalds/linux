@@ -733,7 +733,6 @@ struct lpfc_hba {
 	uint32_t fc_rttov;	/* R_T_TOV timer value */
 	uint32_t fc_altov;	/* AL_TOV timer value */
 	uint32_t fc_crtov;	/* C_R_TOV timer value */
-	uint32_t fc_citov;	/* C_I_TOV timer value */
 
 	struct serv_parm fc_fabparam;	/* fabric service parameters buffer */
 	uint8_t alpa_map[128];	/* AL_PA map from READ_LA */
@@ -757,6 +756,7 @@ struct lpfc_hba {
 #define LPFC_NVMET_MAX_PORTS	32
 	uint8_t  mds_diags_support;
 	uint32_t initial_imax;
+	uint8_t  bbcredit_support;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
@@ -836,6 +836,7 @@ struct lpfc_hba {
 	uint32_t cfg_enable_SmartSAN;
 	uint32_t cfg_enable_mds_diags;
 	uint32_t cfg_enable_fc4_type;
+	uint32_t cfg_enable_bbcr;	/*Enable BB Credit Recovery*/
 	uint32_t cfg_xri_split;
 #define LPFC_ENABLE_FCP  1
 #define LPFC_ENABLE_NVME 2
