@@ -1233,6 +1233,11 @@ global_port_update:
 			schedule_work(&ha->board_disable);
 		break;
 
+	case MBA_TRANS_INSERT:
+		ql_dbg(ql_dbg_async, vha, 0x5091,
+		    "Transceiver Insertion: %04x\n", mb[1]);
+		break;
+
 	default:
 		ql_dbg(ql_dbg_async, vha, 0x5057,
 		    "Unknown AEN:%04x %04x %04x %04x\n",

@@ -1481,6 +1481,38 @@ qla2x00_pep_version_show(struct device *dev, struct device_attribute *attr,
 	    ha->pep_version[0], ha->pep_version[1], ha->pep_version[2]);
 }
 
+static ssize_t
+qla2x00_min_link_speed_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA27XX(ha))
+		return scnprintf(buf, PAGE_SIZE, "\n");
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n",
+	    ha->min_link_speed == 5 ? "32Gps" :
+	    ha->min_link_speed == 4 ? "16Gps" :
+	    ha->min_link_speed == 3 ? "8Gps" :
+	    ha->min_link_speed == 2 ? "4Gps" :
+	    ha->min_link_speed != 0 ? "unknown" : "");
+}
+
+static ssize_t
+qla2x00_max_speed_sup_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA27XX(ha))
+		return scnprintf(buf, PAGE_SIZE, "\n");
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n",
+	    ha->max_speed_sup ? "32Gps" : "16Gps");
+}
+
 static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show, NULL);
 static DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
 static DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
@@ -1526,6 +1558,8 @@ static DEVICE_ATTR(allow_cna_fw_dump, S_IRUGO | S_IWUSR,
 		   qla2x00_allow_cna_fw_dump_show,
 		   qla2x00_allow_cna_fw_dump_store);
 static DEVICE_ATTR(pep_version, S_IRUGO, qla2x00_pep_version_show, NULL);
+static DEVICE_ATTR(min_link_speed, S_IRUGO, qla2x00_min_link_speed_show, NULL);
+static DEVICE_ATTR(max_speed_sup, S_IRUGO, qla2x00_max_speed_sup_show, NULL);
 
 struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version,
@@ -1560,6 +1594,8 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_fw_dump_size,
 	&dev_attr_allow_cna_fw_dump,
 	&dev_attr_pep_version,
+	&dev_attr_min_link_speed,
+	&dev_attr_max_speed_sup,
 	NULL,
 };
 

@@ -902,6 +902,7 @@ struct mbx_cmd_32 {
 #define MBA_SHUTDOWN_REQUESTED	0x8062	/* Shutdown Requested */
 #define MBA_TEMPERATURE_ALERT	0x8070	/* Temperature Alert */
 #define MBA_DPORT_DIAGNOSTICS	0x8080	/* D-port Diagnostics */
+#define MBA_TRANS_INSERT	0x8130	/* Transceiver Insertion */
 #define MBA_FW_INIT_FAILURE	0x8401	/* Firmware initialization failure */
 #define MBA_MIRROR_LUN_CHANGE	0x8402	/* Mirror LUN State Change
 					   Notification */
@@ -4026,6 +4027,8 @@ struct qla_hw_data {
 
 	struct qlt_hw_data tgt;
 	int	allow_cna_fw_dump;
+	uint16_t min_link_speed;
+	uint16_t max_speed_sup;
 
 	atomic_t        nvme_active_aen_cnt;
 	uint16_t        nvme_last_rptd_aen;             /* Last recorded aen count */
@@ -4212,6 +4215,7 @@ typedef struct scsi_qla_host {
 	int fcport_count;
 	wait_queue_head_t fcport_waitQ;
 	wait_queue_head_t vref_waitq;
+	uint8_t min_link_speed_feat;
 } scsi_qla_host_t;
 
 struct qla27xx_image_status {

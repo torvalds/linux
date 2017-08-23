@@ -628,6 +628,19 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 		if (ql2xnvmeenable && IS_QLA27XX(ha))
 			mcp->mb[4] |= NVME_ENABLE_FLAG;
 
+		if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+			struct nvram_81xx *nv = ha->nvram;
+			/* set minimum speed if specified in nvram */
+			if (nv->min_link_speed >= 2 &&
+			    nv->min_link_speed <= 5) {
+				mcp->mb[4] |= BIT_4;
+				mcp->mb[11] = nv->min_link_speed;
+				mcp->out_mb |= MBX_11;
+				mcp->in_mb |= BIT_5;
+				vha->min_link_speed_feat = nv->min_link_speed;
+			}
+		}
+
 		if (ha->flags.exlogins_enabled)
 			mcp->mb[4] |= ENABLE_EXTENDED_LOGIN;
 
@@ -654,8 +667,26 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
 	} else {
 		if (IS_FWI2_CAPABLE(ha)) {
+			ql_dbg(ql_dbg_mbx, vha, 0x1027,
+			    "exchanges=%x.\n", mcp->mb[1]);
+			if (IS_QLA27XX(ha)) {
+				ha->max_speed_sup = mcp->mb[2] & 1;
+				ql_dbg(ql_dbg_mbx, vha, 0x119b,
+				    "Maximum speed supported=%s.\n",
+				    ha->max_speed_sup ? "32Gps" : "16Gps");
+				if (vha->min_link_speed_feat) {
+					ha->min_link_speed = mcp->mb[5];
+					ql_dbg(ql_dbg_mbx, vha, 0x119c,
+					    "Minimum speed set=%s.\n",
+					    mcp->mb[5] == 5 ? "32Gps" :
+					    mcp->mb[5] == 4 ? "16Gps" :
+					    mcp->mb[5] == 3 ? "8Gps" :
+					    mcp->mb[5] == 2 ? "4Gps" :
+					    "unknown");
+				}
+			}
 			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1027,
-			    "Done exchanges=%x.\n", mcp->mb[1]);
+			    "Done.\n");
 		} else {
 			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1028,
 			    "Done %s.\n", __func__);
@@ -1687,7 +1718,11 @@ qla2x00_init_firmware(scsi_qla_host_t *vha, uint16_t size)
 		    "Failed=%x mb[0]=%x, mb[1]=%x, mb[2]=%x, mb[3]=%x,.\n",
 		    rval, mcp->mb[0], mcp->mb[1], mcp->mb[2], mcp->mb[3]);
 	} else {
-		/*EMPTY*/
+		if (IS_QLA27XX(ha)) {
+			if (mcp->mb[2] == 6 || mcp->mb[3] == 2)
+				ql_dbg(ql_dbg_mbx, vha, 0x119d,
+				    "Invalid SFP/Validation Failed\n");
+		}
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x104e,
 		    "Done %s.\n", __func__);
 	}
@@ -1892,6 +1927,7 @@ qla2x00_get_firmware_state(scsi_qla_host_t *vha, uint16_t *states)
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
+	struct qla_hw_data *ha = vha->hw;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1054,
 	    "Entered %s.\n", __func__);
@@ -1920,7 +1956,11 @@ qla2x00_get_firmware_state(scsi_qla_host_t *vha, uint16_t *states)
 		/*EMPTY*/
 		ql_dbg(ql_dbg_mbx, vha, 0x1055, "Failed=%x.\n", rval);
 	} else {
-		/*EMPTY*/
+		if (IS_QLA27XX(ha)) {
+			if (mcp->mb[2] == 6 || mcp->mb[3] == 2)
+				ql_dbg(ql_dbg_mbx, vha, 0x119e,
+				    "Invalid SFP/Validation Failed\n");
+		}
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1056,
 		    "Done %s.\n", __func__);
 	}
