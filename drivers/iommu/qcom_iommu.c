@@ -860,8 +860,7 @@ static int qcom_iommu_device_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int qcom_iommu_resume(struct device *dev)
+static int __maybe_unused qcom_iommu_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct qcom_iommu_dev *qcom_iommu = platform_get_drvdata(pdev);
@@ -869,7 +868,7 @@ static int qcom_iommu_resume(struct device *dev)
 	return qcom_iommu_enable_clocks(qcom_iommu);
 }
 
-static int qcom_iommu_suspend(struct device *dev)
+static int __maybe_unused qcom_iommu_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct qcom_iommu_dev *qcom_iommu = platform_get_drvdata(pdev);
@@ -878,7 +877,6 @@ static int qcom_iommu_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops qcom_iommu_pm_ops = {
 	SET_RUNTIME_PM_OPS(qcom_iommu_suspend, qcom_iommu_resume, NULL)
