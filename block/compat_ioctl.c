@@ -79,7 +79,7 @@ static int compat_hdio_getgeo(struct gendisk *disk, struct block_device *bdev,
 static int compat_hdio_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, unsigned long arg)
 {
-	unsigned long *__user p;
+	unsigned long __user *p;
 	int error;
 
 	p = compat_alloc_user_space(sizeof(unsigned long));
