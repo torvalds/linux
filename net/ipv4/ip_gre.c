@@ -1467,7 +1467,7 @@ static int __init ipgre_init(void)
 
 	err = register_pernet_device(&ipgre_tap_net_ops);
 	if (err < 0)
-		goto pnet_tap_faied;
+		goto pnet_tap_failed;
 
 	err = register_pernet_device(&erspan_net_ops);
 	if (err < 0)
@@ -1503,7 +1503,7 @@ add_proto_failed:
 	unregister_pernet_device(&erspan_net_ops);
 pnet_erspan_failed:
 	unregister_pernet_device(&ipgre_tap_net_ops);
-pnet_tap_faied:
+pnet_tap_failed:
 	unregister_pernet_device(&ipgre_net_ops);
 	return err;
 }
