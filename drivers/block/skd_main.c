@@ -2862,7 +2862,6 @@ static int skd_cons_disk(struct skd_device *skdev)
 	disk->fops = &skd_blockdev_ops;
 	disk->private_data = skdev;
 
-	q = NULL;
 	memset(&skdev->tag_set, 0, sizeof(skdev->tag_set));
 	skdev->tag_set.ops = &skd_mq_ops;
 	skdev->tag_set.nr_hw_queues = 1;
@@ -2874,13 +2873,13 @@ static int skd_cons_disk(struct skd_device *skdev)
 		BLK_MQ_F_SG_MERGE |
 		BLK_ALLOC_POLICY_TO_MQ_FLAG(BLK_TAG_ALLOC_FIFO);
 	skdev->tag_set.driver_data = skdev;
-	if (blk_mq_alloc_tag_set(&skdev->tag_set) >= 0) {
-		q = blk_mq_init_queue(&skdev->tag_set);
-		if (!q)
-			blk_mq_free_tag_set(&skdev->tag_set);
-	}
-	if (!q) {
-		rc = -ENOMEM;
+	rc = blk_mq_alloc_tag_set(&skdev->tag_set);
+	if (rc)
+		goto err_out;
+	q = blk_mq_init_queue(&skdev->tag_set);
+	if (IS_ERR(q)) {
+		blk_mq_free_tag_set(&skdev->tag_set);
+		rc = PTR_ERR(q);
 		goto err_out;
 	}
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
