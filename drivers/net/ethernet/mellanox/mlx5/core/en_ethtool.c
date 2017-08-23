@@ -31,7 +31,6 @@
  */
 
 #include "en.h"
-#include "en_accel/ipsec.h"
 
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
 			       struct ethtool_drvinfo *drvinfo)
@@ -150,8 +149,7 @@ int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 			num_stats += mlx5e_stats_grps[i].get_num_stats(priv);
 		return num_stats +
 		       MLX5E_NUM_RQ_STATS(priv) +
-		       MLX5E_NUM_SQ_STATS(priv) +
-		       mlx5e_ipsec_get_count(priv);
+		       MLX5E_NUM_SQ_STATS(priv);
 
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(mlx5e_priv_flags);
@@ -176,9 +174,6 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, u8 *data)
 
 	for (i = 0; i < mlx5e_num_stats_grps; i++)
 		idx = mlx5e_stats_grps[i].fill_strings(priv, data, idx);
-
-	/* IPSec counters */
-	idx += mlx5e_ipsec_get_strings(priv, data + idx * ETH_GSTRING_LEN);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return;
@@ -243,9 +238,6 @@ void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 
 	for (i = 0; i < mlx5e_num_stats_grps; i++)
 		idx = mlx5e_stats_grps[i].fill_stats(priv, data, idx);
-
-	/* IPSec counters */
-	idx += mlx5e_ipsec_get_stats(priv, data + idx);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return;
