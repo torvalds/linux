@@ -786,7 +786,7 @@ static SIMPLE_DEV_PM_OPS(aaci_dev_pm_ops, aaci_suspend, aaci_resume);
 #endif
 
 
-static struct ac97_pcm ac97_defs[] = {
+static const struct ac97_pcm ac97_defs[] = {
 	[0] = {	/* Front PCM */
 		.exclusive = 1,
 		.r = {
