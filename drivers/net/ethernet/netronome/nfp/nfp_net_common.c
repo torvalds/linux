@@ -1751,6 +1751,10 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			continue;
 		}
 
+		nfp_net_dma_unmap_rx(dp, rxbuf->dma_addr);
+
+		nfp_net_rx_give_one(dp, rx_ring, new_frag, new_dma_addr);
+
 		if (likely(!meta.portid)) {
 			netdev = dp->netdev;
 		} else {
@@ -1759,15 +1763,11 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			nn = netdev_priv(dp->netdev);
 			netdev = nfp_app_repr_get(nn->app, meta.portid);
 			if (unlikely(!netdev)) {
-				nfp_net_rx_drop(dp, r_vec, rx_ring, rxbuf, skb);
+				nfp_net_rx_drop(dp, r_vec, rx_ring, NULL, skb);
 				continue;
 			}
 			nfp_repr_inc_rx_stats(netdev, pkt_len);
 		}
-
-		nfp_net_dma_unmap_rx(dp, rxbuf->dma_addr);
-
-		nfp_net_rx_give_one(dp, rx_ring, new_frag, new_dma_addr);
 
 		skb_reserve(skb, pkt_off);
 		skb_put(skb, pkt_len);
