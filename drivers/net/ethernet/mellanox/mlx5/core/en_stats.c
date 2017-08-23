@@ -286,6 +286,53 @@ static int mlx5e_grp_2863_fill_stats(struct mlx5e_priv *priv, u64 *data,
 	return idx;
 }
 
+#define PPORT_2819_OFF(c) \
+	MLX5_BYTE_OFF(ppcnt_reg, \
+		      counter_set.eth_2819_cntrs_grp_data_layout.c##_high)
+static const struct counter_desc pport_2819_stats_desc[] = {
+	{ "rx_undersize_pkts_phy", PPORT_2819_OFF(ether_stats_undersize_pkts) },
+	{ "rx_fragments_phy", PPORT_2819_OFF(ether_stats_fragments) },
+	{ "rx_jabbers_phy", PPORT_2819_OFF(ether_stats_jabbers) },
+	{ "rx_64_bytes_phy", PPORT_2819_OFF(ether_stats_pkts64octets) },
+	{ "rx_65_to_127_bytes_phy", PPORT_2819_OFF(ether_stats_pkts65to127octets) },
+	{ "rx_128_to_255_bytes_phy", PPORT_2819_OFF(ether_stats_pkts128to255octets) },
+	{ "rx_256_to_511_bytes_phy", PPORT_2819_OFF(ether_stats_pkts256to511octets) },
+	{ "rx_512_to_1023_bytes_phy", PPORT_2819_OFF(ether_stats_pkts512to1023octets) },
+	{ "rx_1024_to_1518_bytes_phy", PPORT_2819_OFF(ether_stats_pkts1024to1518octets) },
+	{ "rx_1519_to_2047_bytes_phy", PPORT_2819_OFF(ether_stats_pkts1519to2047octets) },
+	{ "rx_2048_to_4095_bytes_phy", PPORT_2819_OFF(ether_stats_pkts2048to4095octets) },
+	{ "rx_4096_to_8191_bytes_phy", PPORT_2819_OFF(ether_stats_pkts4096to8191octets) },
+	{ "rx_8192_to_10239_bytes_phy", PPORT_2819_OFF(ether_stats_pkts8192to10239octets) },
+};
+
+#define NUM_PPORT_2819_COUNTERS		ARRAY_SIZE(pport_2819_stats_desc)
+
+static int mlx5e_grp_2819_get_num_stats(struct mlx5e_priv *priv)
+{
+	return NUM_PPORT_2819_COUNTERS;
+}
+
+static int mlx5e_grp_2819_fill_strings(struct mlx5e_priv *priv, u8 *data,
+				       int idx)
+{
+	int i;
+
+	for (i = 0; i < NUM_PPORT_2819_COUNTERS; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, pport_2819_stats_desc[i].format);
+	return idx;
+}
+
+static int mlx5e_grp_2819_fill_stats(struct mlx5e_priv *priv, u64 *data,
+				     int idx)
+{
+	int i;
+
+	for (i = 0; i < NUM_PPORT_2819_COUNTERS; i++)
+		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.RFC_2819_counters,
+						  pport_2819_stats_desc, i);
+	return idx;
+}
+
 const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 	{
 		.get_num_stats = mlx5e_grp_sw_get_num_stats,
@@ -311,6 +358,11 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.get_num_stats = mlx5e_grp_2863_get_num_stats,
 		.fill_strings = mlx5e_grp_2863_fill_strings,
 		.fill_stats = mlx5e_grp_2863_fill_stats,
+	},
+	{
+		.get_num_stats = mlx5e_grp_2819_get_num_stats,
+		.fill_strings = mlx5e_grp_2819_fill_strings,
+		.fill_stats = mlx5e_grp_2819_fill_stats,
 	},
 };
 
