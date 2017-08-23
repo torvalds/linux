@@ -875,6 +875,9 @@ next_step:
 					continue;
 				}
 				locked = true;
+
+				/* wait for all inflight aio data */
+				inode_dio_wait(inode);
 			}
 
 			start_bidx = start_bidx_of_node(nofs, inode)
