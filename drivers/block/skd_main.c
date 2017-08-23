@@ -1499,7 +1499,7 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 	u8 cmp_status;
 	u8 cmp_cycle;
 	u32 cmp_bytes;
-	int rc;
+	int rc = 0;
 	int processed = 0;
 
 	lockdep_assert_held(&skdev->lock);
