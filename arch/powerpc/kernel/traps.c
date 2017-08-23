@@ -203,17 +203,17 @@ static int __die(const char *str, struct pt_regs *regs, long err)
 {
 	printk("Oops: %s, sig: %ld [#%d]\n", str, err, ++die_counter);
 #ifdef CONFIG_PREEMPT
-	printk("PREEMPT ");
+	pr_cont("PREEMPT ");
 #endif
 #ifdef CONFIG_SMP
-	printk("SMP NR_CPUS=%d ", NR_CPUS);
+	pr_cont("SMP NR_CPUS=%d ", NR_CPUS);
 #endif
 	if (debug_pagealloc_enabled())
-		printk("DEBUG_PAGEALLOC ");
+		pr_cont("DEBUG_PAGEALLOC ");
 #ifdef CONFIG_NUMA
-	printk("NUMA ");
+	pr_cont("NUMA ");
 #endif
-	printk("%s\n", ppc_md.name ? ppc_md.name : "");
+	pr_cont("%s\n", ppc_md.name ? ppc_md.name : "");
 
 	if (notify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV) == NOTIFY_STOP)
 		return 1;
