@@ -2192,12 +2192,15 @@ lpfc_device_rm_logo_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			  void *arg, uint32_t evt)
 {
 	/*
-	 * Take no action.  If a LOGO is outstanding, then possibly DevLoss has
-	 * timed out and is calling for Device Remove.  In this case, the LOGO
-	 * must be allowed to complete in state LOGO_ISSUE so that the rpi
-	 * and other NLP flags are correctly cleaned up.
+	 * DevLoss has timed out and is calling for Device Remove.
+	 * In this case, abort the LOGO and cleanup the ndlp
 	 */
-	return ndlp->nlp_state;
+
+	lpfc_unreg_rpi(vport, ndlp);
+	/* software abort outstanding PLOGI */
+	lpfc_els_abort(vport->phba, ndlp);
+	lpfc_drop_node(vport, ndlp);
+	return NLP_STE_FREED_NODE;
 }
 
 static uint32_t
