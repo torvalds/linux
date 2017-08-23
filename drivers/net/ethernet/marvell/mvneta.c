@@ -281,9 +281,6 @@
  */
 #define MVNETA_RSS_LU_TABLE_SIZE	1
 
-/* TSO header size */
-#define TSO_HEADER_SIZE 128
-
 /* Max number of Rx descriptors */
 #define MVNETA_MAX_RXD 128
 
