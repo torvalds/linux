@@ -409,7 +409,8 @@ enum iwl_tx_status {
  * @AGG_TX_STATE_BT_PRIO:
  * @AGG_TX_STATE_FEW_BYTES:
  * @AGG_TX_STATE_ABORT:
- * @AGG_TX_STATE_LAST_SENT_TTL:
+ * @AGG_TX_STATE_TX_ON_AIR_DROP: TX_ON_AIR signal drop without underrun or
+ *	BT detection
  * @AGG_TX_STATE_LAST_SENT_TRY_CNT:
  * @AGG_TX_STATE_LAST_SENT_BT_KILL:
  * @AGG_TX_STATE_SCD_QUERY:
@@ -433,7 +434,7 @@ enum iwl_tx_agg_status {
 	AGG_TX_STATE_BT_PRIO = 0x002,
 	AGG_TX_STATE_FEW_BYTES = 0x004,
 	AGG_TX_STATE_ABORT = 0x008,
-	AGG_TX_STATE_LAST_SENT_TTL = 0x010,
+	AGG_TX_STATE_TX_ON_AIR_DROP = 0x010,
 	AGG_TX_STATE_LAST_SENT_TRY_CNT = 0x020,
 	AGG_TX_STATE_LAST_SENT_BT_KILL = 0x040,
 	AGG_TX_STATE_SCD_QUERY = 0x080,
@@ -444,10 +445,6 @@ enum iwl_tx_agg_status {
 	AGG_TX_STATE_TRY_CNT_POS = 12,
 	AGG_TX_STATE_TRY_CNT_MSK = 0xf << AGG_TX_STATE_TRY_CNT_POS,
 };
-
-#define AGG_TX_STATE_LAST_SENT_MSK  (AGG_TX_STATE_LAST_SENT_TTL| \
-				     AGG_TX_STATE_LAST_SENT_TRY_CNT| \
-				     AGG_TX_STATE_LAST_SENT_BT_KILL)
 
 /*
  * The mask below describes a status where we are absolutely sure that the MPDU

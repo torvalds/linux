@@ -2835,7 +2835,7 @@ static struct iwl_trans_dump_data
 	spin_lock_bh(&cmdq->lock);
 	ptr = cmdq->write_ptr;
 	for (i = 0; i < cmdq->n_window; i++) {
-		u8 idx = get_cmd_index(cmdq, ptr);
+		u8 idx = iwl_pcie_get_cmd_index(cmdq, ptr);
 		u32 caplen, cmdlen;
 
 		cmdlen = iwl_trans_pcie_get_cmdlen(trans, cmdq->tfds +
@@ -3145,7 +3145,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 		hw_status = iwl_read_prph(trans, UMAG_GEN_HW_STATUS);
 		if (hw_status & UMAG_GEN_HW_IS_FPGA)
-			trans->cfg = &iwla000_2ax_cfg_qnj_hr;
+			trans->cfg = &iwla000_2ax_cfg_qnj_hr_f0;
 		else
 			trans->cfg = &iwla000_2ac_cfg_hr;
 	}

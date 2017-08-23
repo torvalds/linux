@@ -469,20 +469,9 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 	return ret ?: count;
 }
 
-#define BT_MBOX_MSG(_notif, _num, _field)				     \
-	((le32_to_cpu((_notif)->mbox_msg[(_num)]) & BT_MBOX##_num##_##_field)\
-	>> BT_MBOX##_num##_##_field##_POS)
-
-
-#define BT_MBOX_PRINT(_num, _field, _end)				    \
-			pos += scnprintf(buf + pos, bufsz - pos,	    \
-					 "\t%s: %d%s",			    \
-					 #_field,			    \
-					 BT_MBOX_MSG(notif, _num, _field),  \
-					 true ? "\n" : ", ");
-
 static
-int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_notif *notif, char *buf,
+int iwl_mvm_coex_dump_mbox(struct iwl_mvm *mvm,
+			   struct iwl_bt_coex_profile_notif *notif, char *buf,
 			   int pos, int bufsz)
 {
 	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw0:\n");
@@ -526,6 +515,7 @@ int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_notif *notif, char *buf,
 	BT_MBOX_PRINT(3, SCO_STATE, false);
 	BT_MBOX_PRINT(3, SNIFF_STATE, false);
 	BT_MBOX_PRINT(3, A2DP_STATE, false);
+	BT_MBOX_PRINT(3, A2DP_SRC, false);
 	BT_MBOX_PRINT(3, ACL_STATE, false);
 	BT_MBOX_PRINT(3, MSTR_STATE, false);
 	BT_MBOX_PRINT(3, OBX_STATE, false);
@@ -535,7 +525,12 @@ int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_notif *notif, char *buf,
 	BT_MBOX_PRINT(3, INBAND_P, false);
 	BT_MBOX_PRINT(3, MSG_TYPE_2, false);
 	BT_MBOX_PRINT(3, SSN_2, false);
-	BT_MBOX_PRINT(3, UPDATE_REQUEST, true);
+	BT_MBOX_PRINT(3, UPDATE_REQUEST, !iwl_mvm_has_new_ats_coex_api(mvm));
+
+	if (iwl_mvm_has_new_ats_coex_api(mvm)) {
+		BT_MBOX_PRINT(4, ATS_BT_INTERVAL, false);
+		BT_MBOX_PRINT(4, ATS_BT_ACTIVE_MAX_TH, true);
+	}
 
 	return pos;
 }
@@ -554,7 +549,7 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 
 	mutex_lock(&mvm->mutex);
 
-	pos += iwl_mvm_coex_dump_mbox(notif, buf, pos, bufsz);
+	pos += iwl_mvm_coex_dump_mbox(mvm, notif, buf, pos, bufsz);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_ci_compliance = %d\n",
 			 notif->bt_ci_compliance);
@@ -565,9 +560,6 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 	pos += scnprintf(buf + pos,
 			 bufsz - pos, "bt_activity_grading = %d\n",
 			 le32_to_cpu(notif->bt_activity_grading));
-	pos += scnprintf(buf + pos, bufsz - pos,
-			 "antenna isolation = %d CORUN LUT index = %d\n",
-			 mvm->last_ant_isol, mvm->last_corun_lut);
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_rrc = %d\n",
 			 notif->rrc_status & 0xF);
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_ttc = %d\n",
@@ -577,8 +569,6 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 			 IWL_MVM_BT_COEX_SYNC2SCO);
 	pos += scnprintf(buf + pos, bufsz - pos, "mplut = %d\n",
 			 IWL_MVM_BT_COEX_MPLUT);
-	pos += scnprintf(buf + pos, bufsz - pos, "corunning = %d\n",
-			 IWL_MVM_BT_COEX_CORUNNING);
 
 	mutex_unlock(&mvm->mutex);
 
