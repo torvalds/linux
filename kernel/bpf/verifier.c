@@ -3417,6 +3417,12 @@ out_free:
 	return ret;
 }
 
+/* A write screens off any subsequent reads; but write marks come from the
+ * straight-line code between a state and its parent.  When we arrive at a
+ * jump target (in the first iteration of the propagate_liveness() loop),
+ * we didn't arrive by the straight-line code, so read marks in state must
+ * propagate to parent regardless of state's write marks.
+ */
 static bool do_propagate_liveness(const struct bpf_verifier_state *state,
 				  struct bpf_verifier_state *parent)
 {
@@ -3457,6 +3463,15 @@ static bool do_propagate_liveness(const struct bpf_verifier_state *state,
 	return touched;
 }
 
+/* "parent" is "a state from which we reach the current state", but initially
+ * it is not the state->parent (i.e. "the state whose straight-line code leads
+ * to the current state"), instead it is the state that happened to arrive at
+ * a (prunable) equivalent of the current state.  See comment above
+ * do_propagate_liveness() for consequences of this.
+ * This function is just a more efficient way of calling mark_reg_read() or
+ * mark_stack_slot_read() on each reg in "parent" that is read in "state",
+ * though it requires that parent != state->parent in the call arguments.
+ */
 static void propagate_liveness(const struct bpf_verifier_state *state,
 			       struct bpf_verifier_state *parent)
 {
@@ -3485,6 +3500,12 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 			/* reached equivalent register/stack state,
 			 * prune the search.
 			 * Registers read by the continuation are read by us.
+			 * If we have any write marks in env->cur_state, they
+			 * will prevent corresponding reads in the continuation
+			 * from reaching our parent (an explored_state).  Our
+			 * own state will get the read marks recorded, but
+			 * they'll be immediately forgotten as we're pruning
+			 * this state and will pop a new one.
 			 */
 			propagate_liveness(&sl->state, &env->cur_state);
 			return 1;
@@ -3508,7 +3529,12 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	env->explored_states[insn_idx] = new_sl;
 	/* connect new state to parentage chain */
 	env->cur_state.parent = &new_sl->state;
-	/* clear liveness marks in current state */
+	/* clear write marks in current state: the writes we did are not writes
+	 * our child did, so they don't screen off its reads from us.
+	 * (There are no read marks in current state, because reads always mark
+	 * their parent and current state never has children yet.  Only
+	 * explored_states can get read marks.)
+	 */
 	for (i = 0; i < BPF_REG_FP; i++)
 		env->cur_state.regs[i].live = REG_LIVE_NONE;
 	for (i = 0; i < MAX_BPF_STACK / BPF_REG_SIZE; i++)

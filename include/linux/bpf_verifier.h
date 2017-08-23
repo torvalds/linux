@@ -21,6 +21,19 @@
  */
 #define BPF_MAX_VAR_SIZ	INT_MAX
 
+/* Liveness marks, used for registers and spilled-regs (in stack slots).
+ * Read marks propagate upwards until they find a write mark; they record that
+ * "one of this state's descendants read this reg" (and therefore the reg is
+ * relevant for states_equal() checks).
+ * Write marks collect downwards and do not propagate; they record that "the
+ * straight-line code that reached this state (from its parent) wrote this reg"
+ * (and therefore that reads propagated from this state or its descendants
+ * should not propagate to its parent).
+ * A state with a write mark can receive read marks; it just won't propagate
+ * them to its parent, since the write mark is a property, not of the state,
+ * but of the link between it and its parent.  See mark_reg_read() and
+ * mark_stack_slot_read() in kernel/bpf/verifier.c.
+ */
 enum bpf_reg_liveness {
 	REG_LIVE_NONE = 0, /* reg hasn't been read or written this branch */
 	REG_LIVE_READ, /* reg was read, so we're sensitive to initial value */
