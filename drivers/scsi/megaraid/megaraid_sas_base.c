@@ -2795,7 +2795,7 @@ static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
 		cmd = (struct megasas_cmd_fusion *)scmd->SCp.ptr;
 		if (cmd)
 			megasas_dump_frame(cmd->io_request,
-				sizeof(struct MPI2_RAID_SCSI_IO_REQUEST));
+				MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE);
 		ret = megasas_reset_fusion(scmd->device->host,
 				SCSIIO_TIMEOUT_OCR);
 	} else
