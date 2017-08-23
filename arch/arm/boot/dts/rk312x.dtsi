@@ -44,6 +44,7 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/clock/rk3128-cru.h>
+#include <dt-bindings/display/media-bus-format.h>
 
 / {
 	interrupt-parent = <&gic>;
@@ -112,6 +113,12 @@
 			     <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	};
+
+	display_subsystem: display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
+		status = "disabled";
 	};
 
 	timer {
@@ -193,6 +200,40 @@
 		};
 	};
 
+	vop: vop@1010e000 {
+		compatible = "rockchip,rk3126-vop";
+		reg = <0x1010e000 0x100>, <0x1010ec00 0x400>;
+		reg-names = "regs", "gamma_lut";
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_LCDC0>, <&cru DCLK_VOP>, <&cru HCLK_LCDC0>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		resets = <&cru SRST_VOP_A>, <&cru SRST_VOP_D>, <&cru SRST_VOP_H>;
+		reset-names = "axi", "ahb", "dclk";
+		iommus = <&vop_mmu>;
+		status = "disabled";
+
+		vop_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vop_out_lvds: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&lvds_in_vop>;
+			};
+		};
+	};
+
+	vop_mmu: iommu@1010e300 {
+		compatible = "rockchip,iommu";
+		reg = <0x1010e300 0x100>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vop_mmu";
+		clocks = <&cru ACLK_LCDC0>, <&cru HCLK_LCDC0>;
+		clock-names = "aclk", "hclk";
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	gic: interrupt-controller@10139000 {
 		compatible = "arm,cortex-a7-gic";
 		interrupt-controller;
@@ -210,6 +251,28 @@
 	grf: syscon@20008000 {
 		compatible = "rockchip,rk3128-grf", "syscon", "simple-mfd";
 		reg = <0x20008000 0x1000>;
+	};
+
+	lvds: lvds@20038000 {
+		compatible = "rockchip,rk3126-lvds";
+		reg = <0x20038000 0x4000>, <0x10110000 0x100>;
+		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
+		clocks = <&cru PCLK_MIPIPHY>, <&cru PCLK_MIPI>, <&cru HCLK_VIO_H2P>;
+		clock-names = "pclk_lvds", "pclk_lvds_ctl", "hclk_vio_h2p";
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			lvds_in: port@0 {
+				reg = <0>;
+				lvds_in_vop: endpoint {
+					remote-endpoint = <&vop_out_lvds>;
+				};
+			};
+		};
 	};
 
 	timer@20044000 {
