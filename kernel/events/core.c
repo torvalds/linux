@@ -9611,6 +9611,8 @@ static int perf_copy_attr(struct perf_event_attr __user *uattr,
 	if (ret)
 		return -EFAULT;
 
+	attr->size = size;
+
 	if (attr->__reserved_1)
 		return -EINVAL;
 
