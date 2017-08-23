@@ -10009,7 +10009,7 @@ static iw_handler ipw_priv_handler[] = {
 #endif
 };
 
-static struct iw_handler_def ipw_wx_handler_def = {
+static const struct iw_handler_def ipw_wx_handler_def = {
 	.standard = ipw_wx_handlers,
 	.num_standard = ARRAY_SIZE(ipw_wx_handlers),
 	.num_private = ARRAY_SIZE(ipw_priv_handler),
