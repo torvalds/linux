@@ -2181,8 +2181,15 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 		vport->localport = localport;
 		lport->vport = vport;
 		vport->nvmei_support = 1;
-		len  = lpfc_new_nvme_buf(vport, phba->sli4_hba.nvme_xri_max);
-		vport->phba->total_nvme_bufs += len;
+
+		/* Don't post more new bufs if repost already recovered
+		 * the nvme sgls.
+		 */
+		if (phba->sli4_hba.nvme_xri_cnt == 0) {
+			len  = lpfc_new_nvme_buf(vport,
+						 phba->sli4_hba.nvme_xri_max);
+			vport->phba->total_nvme_bufs += len;
+		}
 	}
 
 	return ret;
