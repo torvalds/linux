@@ -415,6 +415,93 @@ static int mlx5e_grp_eth_ext_fill_stats(struct mlx5e_priv *priv, u64 *data,
 	return idx;
 }
 
+#define PCIE_PERF_OFF(c) \
+	MLX5_BYTE_OFF(mpcnt_reg, counter_set.pcie_perf_cntrs_grp_data_layout.c)
+static const struct counter_desc pcie_perf_stats_desc[] = {
+	{ "rx_pci_signal_integrity", PCIE_PERF_OFF(rx_errors) },
+	{ "tx_pci_signal_integrity", PCIE_PERF_OFF(tx_errors) },
+};
+
+#define PCIE_PERF_OFF64(c) \
+	MLX5_BYTE_OFF(mpcnt_reg, counter_set.pcie_perf_cntrs_grp_data_layout.c##_high)
+static const struct counter_desc pcie_perf_stats_desc64[] = {
+	{ "outbound_pci_buffer_overflow", PCIE_PERF_OFF64(tx_overflow_buffer_pkt) },
+};
+
+static const struct counter_desc pcie_perf_stall_stats_desc[] = {
+	{ "outbound_pci_stalled_rd", PCIE_PERF_OFF(outbound_stalled_reads) },
+	{ "outbound_pci_stalled_wr", PCIE_PERF_OFF(outbound_stalled_writes) },
+	{ "outbound_pci_stalled_rd_events", PCIE_PERF_OFF(outbound_stalled_reads_events) },
+	{ "outbound_pci_stalled_wr_events", PCIE_PERF_OFF(outbound_stalled_writes_events) },
+};
+
+#define NUM_PCIE_PERF_COUNTERS		ARRAY_SIZE(pcie_perf_stats_desc)
+#define NUM_PCIE_PERF_COUNTERS64	ARRAY_SIZE(pcie_perf_stats_desc64)
+#define NUM_PCIE_PERF_STALL_COUNTERS	ARRAY_SIZE(pcie_perf_stall_stats_desc)
+
+static int mlx5e_grp_pcie_get_num_stats(struct mlx5e_priv *priv)
+{
+	int num_stats = 0;
+
+	if (MLX5_CAP_MCAM_FEATURE((priv)->mdev, pcie_performance_group))
+		num_stats += NUM_PCIE_PERF_COUNTERS;
+
+	if (MLX5_CAP_MCAM_FEATURE((priv)->mdev, tx_overflow_buffer_pkt))
+		num_stats += NUM_PCIE_PERF_COUNTERS64;
+
+	if (MLX5_CAP_MCAM_FEATURE((priv)->mdev, pcie_outbound_stalled))
+		num_stats += NUM_PCIE_PERF_STALL_COUNTERS;
+
+	return num_stats;
+}
+
+static int mlx5e_grp_pcie_fill_strings(struct mlx5e_priv *priv, u8 *data,
+				       int idx)
+{
+	int i;
+
+	if (MLX5_CAP_MCAM_FEATURE((priv)->mdev, pcie_performance_group))
+		for (i = 0; i < NUM_PCIE_PERF_COUNTERS; i++)
+			strcpy(data + (idx++) * ETH_GSTRING_LEN,
+			       pcie_perf_stats_desc[i].format);
+
+	if (MLX5_CAP_MCAM_FEATURE((priv)->mdev, tx_overflow_buffer_pkt))
+		for (i = 0; i < NUM_PCIE_PERF_COUNTERS64; i++)
+			strcpy(data + (idx++) * ETH_GSTRING_LEN,
+			       pcie_perf_stats_desc64[i].format);
+
+	if (MLX5_CAP_MCAM_FEATURE((priv)->mdev, pcie_outbound_stalled))
+		for (i = 0; i < NUM_PCIE_PERF_STALL_COUNTERS; i++)
+			strcpy(data + (idx++) * ETH_GSTRING_LEN,
+			       pcie_perf_stall_stats_desc[i].format);
+	return idx;
+}
+
+static int mlx5e_grp_pcie_fill_stats(struct mlx5e_priv *priv, u64 *data,
+				     int idx)
+{
+	int i;
+
+	if (MLX5_CAP_MCAM_FEATURE((priv)->mdev, pcie_performance_group))
+		for (i = 0; i < NUM_PCIE_PERF_COUNTERS; i++)
+			data[idx++] =
+				MLX5E_READ_CTR32_BE(&priv->stats.pcie.pcie_perf_counters,
+						    pcie_perf_stats_desc, i);
+
+	if (MLX5_CAP_MCAM_FEATURE((priv)->mdev, tx_overflow_buffer_pkt))
+		for (i = 0; i < NUM_PCIE_PERF_COUNTERS64; i++)
+			data[idx++] =
+				MLX5E_READ_CTR64_BE(&priv->stats.pcie.pcie_perf_counters,
+						    pcie_perf_stats_desc64, i);
+
+	if (MLX5_CAP_MCAM_FEATURE((priv)->mdev, pcie_outbound_stalled))
+		for (i = 0; i < NUM_PCIE_PERF_STALL_COUNTERS; i++)
+			data[idx++] =
+				MLX5E_READ_CTR32_BE(&priv->stats.pcie.pcie_perf_counters,
+						    pcie_perf_stall_stats_desc, i);
+	return idx;
+}
+
 const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 	{
 		.get_num_stats = mlx5e_grp_sw_get_num_stats,
@@ -455,7 +542,12 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.get_num_stats = mlx5e_grp_eth_ext_get_num_stats,
 		.fill_strings = mlx5e_grp_eth_ext_fill_strings,
 		.fill_stats = mlx5e_grp_eth_ext_fill_stats,
-	}
+	},
+	{
+		.get_num_stats = mlx5e_grp_pcie_get_num_stats,
+		.fill_strings = mlx5e_grp_pcie_fill_strings,
+		.fill_stats = mlx5e_grp_pcie_fill_stats,
+	},
 };
 
 const int mlx5e_num_stats_grps = ARRAY_SIZE(mlx5e_stats_grps);
