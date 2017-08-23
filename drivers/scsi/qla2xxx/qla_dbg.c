@@ -2736,9 +2736,9 @@ ql_dump_regs(uint32_t level, scsi_qla_host_t *vha, int32_t id)
 		mbx_reg = MAILBOX_REG(ha, reg, 0);
 
 	ql_dbg(level, vha, id, "Mailbox registers:\n");
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < 6; i++, mbx_reg++)
 		ql_dbg(level, vha, id,
-		    "mbox[%d] 0x%04x\n", i, RD_REG_WORD(mbx_reg++));
+		    "mbox[%d] 0x%04x\n", i, RD_REG_WORD(mbx_reg));
 }
 
 
