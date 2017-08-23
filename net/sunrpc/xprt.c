@@ -855,6 +855,7 @@ void xprt_pin_rqst(struct rpc_rqst *req)
 {
 	set_bit(RPC_TASK_MSG_RECV, &req->rq_task->tk_runstate);
 }
+EXPORT_SYMBOL_GPL(xprt_pin_rqst);
 
 /**
  * xprt_unpin_rqst - Unpin a request on the transport receive list
@@ -870,6 +871,7 @@ void xprt_unpin_rqst(struct rpc_rqst *req)
 	if (test_bit(RPC_TASK_MSG_RECV_WAIT, &task->tk_runstate))
 		wake_up_bit(&task->tk_runstate, RPC_TASK_MSG_RECV);
 }
+EXPORT_SYMBOL_GPL(xprt_unpin_rqst);
 
 static void xprt_wait_on_pinned_rqst(struct rpc_rqst *req)
 __must_hold(&req->rq_xprt->recv_lock)

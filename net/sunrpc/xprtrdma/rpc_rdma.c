@@ -781,9 +781,6 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 		rtype = rpcrdma_areadch;
 	}
 
-	req->rl_xid = rqst->rq_xid;
-	rpcrdma_insert_req(&r_xprt->rx_buf, req);
-
 	/* This implementation supports the following combinations
 	 * of chunk lists in one RPC-over-RDMA Call message:
 	 *
@@ -1226,14 +1223,12 @@ rpcrdma_reply_handler(struct work_struct *work)
 	struct rpcrdma_rep *rep =
 			container_of(work, struct rpcrdma_rep, rr_work);
 	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
-	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	struct xdr_stream *xdr = &rep->rr_stream;
 	struct rpcrdma_req *req;
 	struct rpc_rqst *rqst;
 	__be32 *p, xid, vers, proc;
 	unsigned long cwnd;
-	struct list_head mws;
 	int status;
 
 	dprintk("RPC:       %s: incoming rep %p\n", __func__, rep);
@@ -1259,21 +1254,14 @@ rpcrdma_reply_handler(struct work_struct *work)
 	/* Match incoming rpcrdma_rep to an rpcrdma_req to
 	 * get context for handling any incoming chunks.
 	 */
-	spin_lock(&buf->rb_lock);
-	req = rpcrdma_lookup_req_locked(&r_xprt->rx_buf, xid);
-	if (!req)
-		goto out_nomatch;
-	if (req->rl_reply)
-		goto out_duplicate;
-
-	list_replace_init(&req->rl_registered, &mws);
-	rpcrdma_mark_remote_invalidation(&mws, rep);
-
-	/* Avoid races with signals and duplicate replies
-	 * by marking this req as matched.
-	 */
+	spin_lock(&xprt->recv_lock);
+	rqst = xprt_lookup_rqst(xprt, xid);
+	if (!rqst)
+		goto out_norqst;
+	xprt_pin_rqst(rqst);
+	spin_unlock(&xprt->recv_lock);
+	req = rpcr_to_rdmar(rqst);
 	req->rl_reply = rep;
-	spin_unlock(&buf->rb_lock);
 
 	dprintk("RPC:       %s: reply %p completes request %p (xid 0x%08x)\n",
 		__func__, rep, req, be32_to_cpu(xid));
@@ -1285,17 +1273,12 @@ rpcrdma_reply_handler(struct work_struct *work)
 	 * waking the next RPC waits until this RPC has relinquished
 	 * all its Send Queue entries.
 	 */
-	if (!list_empty(&mws))
-		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt, &mws);
+	if (!list_empty(&req->rl_registered)) {
+		rpcrdma_mark_remote_invalidation(&req->rl_registered, rep);
+		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt,
+						    &req->rl_registered);
+	}
 
-	/* Perform XID lookup, reconstruction of the RPC reply, and
-	 * RPC completion while holding the transport lock to ensure
-	 * the rep, rqst, and rq_task pointers remain stable.
-	 */
-	spin_lock(&xprt->recv_lock);
-	rqst = xprt_lookup_rqst(xprt, xid);
-	if (!rqst)
-		goto out_norqst;
 	xprt->reestablish_timeout = 0;
 	if (vers != rpcrdma_version)
 		goto out_badversion;
@@ -1317,12 +1300,14 @@ rpcrdma_reply_handler(struct work_struct *work)
 		goto out_badheader;
 
 out:
+	spin_lock(&xprt->recv_lock);
 	cwnd = xprt->cwnd;
 	xprt->cwnd = atomic_read(&r_xprt->rx_buf.rb_credits) << RPC_CWNDSHIFT;
 	if (xprt->cwnd > cwnd)
 		xprt_release_rqst_cong(rqst->rq_task);
 
 	xprt_complete_rqst(rqst->rq_task, status);
+	xprt_unpin_rqst(rqst);
 	spin_unlock(&xprt->recv_lock);
 	dprintk("RPC:       %s: xprt_complete_rqst(0x%p, 0x%p, %d)\n",
 		__func__, xprt, rqst, status);
@@ -1360,26 +1345,13 @@ out_badheader:
  */
 out_norqst:
 	spin_unlock(&xprt->recv_lock);
-	rpcrdma_buffer_put(req);
-	dprintk("RPC:       %s: race, no rqst left for req %p\n",
-		__func__, req);
-	return;
-
-out_shortreply:
-	dprintk("RPC:       %s: short/invalid reply\n", __func__);
-	goto repost;
-
-out_nomatch:
-	spin_unlock(&buf->rb_lock);
 	dprintk("RPC:       %s: no match for incoming xid 0x%08x\n",
 		__func__, be32_to_cpu(xid));
 	goto repost;
 
-out_duplicate:
-	spin_unlock(&buf->rb_lock);
-	dprintk("RPC:       %s: "
-		"duplicate reply %p to RPC request %p: xid 0x%08x\n",
-		__func__, rep, req, be32_to_cpu(xid));
+out_shortreply:
+	dprintk("RPC:       %s: short/invalid reply\n", __func__);
+	goto repost;
 
 /* If no pending RPC transaction was matched, post a replacement
  * receive buffer before returning.
