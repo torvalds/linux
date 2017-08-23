@@ -29,7 +29,7 @@ static bool fsl_mc_device_match(struct fsl_mc_device *mc_dev,
 				struct fsl_mc_obj_desc *obj_desc)
 {
 	return mc_dev->obj_desc.id == obj_desc->id &&
-	       !strcmp(mc_dev->obj_desc.type, obj_desc->type);
+	       strcmp(mc_dev->obj_desc.type, obj_desc->type) == 0;
 
 }
 
