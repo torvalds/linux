@@ -281,7 +281,9 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 static void spi_imx_buf_rx_swap_u32(struct spi_imx_data *spi_imx)
 {
 	unsigned int val = readl(spi_imx->base + MXC_CSPIRXDATA);
+#ifdef __LITTLE_ENDIAN
 	unsigned int bytes_per_word;
+#endif
 
 	if (spi_imx->rx_buf) {
 #ifdef __LITTLE_ENDIAN
@@ -316,7 +318,9 @@ static void spi_imx_buf_rx_swap(struct spi_imx_data *spi_imx)
 static void spi_imx_buf_tx_swap_u32(struct spi_imx_data *spi_imx)
 {
 	u32 val = 0;
+#ifdef __LITTLE_ENDIAN
 	unsigned int bytes_per_word;
+#endif
 
 	if (spi_imx->tx_buf) {
 		val = *(u32 *)spi_imx->tx_buf;
