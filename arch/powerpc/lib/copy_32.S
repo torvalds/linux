@@ -67,6 +67,20 @@ CACHELINE_BYTES = L1_CACHE_BYTES
 LG_CACHELINE_BYTES = L1_CACHE_SHIFT
 CACHELINE_MASK = (L1_CACHE_BYTES-1)
 
+_GLOBAL(memset16)
+	rlwinm.	r0 ,r5, 31, 1, 31
+	addi	r6, r3, -4
+	beq-	2f
+	rlwimi	r4 ,r4 ,16 ,0 ,15
+	mtctr	r0
+1:	stwu	r4, 4(r6)
+	bdnz	1b
+2:	andi.	r0, r5, 1
+	beqlr
+	sth	r4, 4(r6)
+	blr
+EXPORT_SYMBOL(memset16)
+
 /*
  * Use dcbz on the complete cache lines in the destination
  * to set them to zero.  This requires that the destination
