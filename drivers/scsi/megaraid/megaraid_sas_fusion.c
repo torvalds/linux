@@ -3832,8 +3832,6 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 		else {
 			instance->instancet->disable_intr(instance);
 			megasas_sync_irqs((unsigned long)instance);
-			megasas_complete_cmd_dpc_fusion
-					((unsigned long)instance);
 			instance->instancet->enable_intr(instance);
 			if (scsi_lookup->scmd == NULL)
 				break;
@@ -3845,9 +3843,7 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 		if ((channel == 0xFFFFFFFF) && (id == 0xFFFFFFFF))
 			break;
 		instance->instancet->disable_intr(instance);
-		msleep(1000);
-		megasas_complete_cmd_dpc_fusion
-				((unsigned long)instance);
+		megasas_sync_irqs((unsigned long)instance);
 		rc = megasas_track_scsiio(instance, id, channel);
 		instance->instancet->enable_intr(instance);
 
