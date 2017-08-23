@@ -18,6 +18,8 @@ extern int lock_stat;
 
 #define MAX_LOCKDEP_SUBCLASSES		8UL
 
+#include <linux/types.h>
+
 #ifdef CONFIG_LOCKDEP
 
 #include <linux/linkage.h>
@@ -578,11 +580,11 @@ extern void lock_commit_crosslock(struct lockdep_map *lock);
 #define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
 	{ .name = (_name), .key = (void *)(_key), .cross = 0, }
 
-extern void crossrelease_hist_start(enum xhlock_context_t c);
+extern void crossrelease_hist_start(enum xhlock_context_t c, bool force);
 extern void crossrelease_hist_end(enum xhlock_context_t c);
 extern void lockdep_init_task(struct task_struct *task);
 extern void lockdep_free_task(struct task_struct *task);
-#else
+#else /* !CROSSRELEASE */
 #define lockdep_init_map_crosslock(m, n, k, s) do {} while (0)
 /*
  * To initialize a lockdep_map statically use this macro.
@@ -591,11 +593,11 @@ extern void lockdep_free_task(struct task_struct *task);
 #define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
 	{ .name = (_name), .key = (void *)(_key), }
 
-static inline void crossrelease_hist_start(enum xhlock_context_t c) {}
+static inline void crossrelease_hist_start(enum xhlock_context_t c, bool force) {}
 static inline void crossrelease_hist_end(enum xhlock_context_t c) {}
 static inline void lockdep_init_task(struct task_struct *task) {}
 static inline void lockdep_free_task(struct task_struct *task) {}
-#endif
+#endif /* CROSSRELEASE */
 
 #ifdef CONFIG_LOCK_STAT
 

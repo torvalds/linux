@@ -4629,7 +4629,7 @@ asmlinkage __visible void lockdep_sys_exit(void)
 	 * the index to point to the last entry, which is already invalid.
 	 */
 	crossrelease_hist_end(XHLOCK_PROC);
-	crossrelease_hist_start(XHLOCK_PROC);
+	crossrelease_hist_start(XHLOCK_PROC, false);
 }
 
 void lockdep_rcu_suspicious(const char *file, const int line, const char *s)
@@ -4725,25 +4725,25 @@ static inline void invalidate_xhlock(struct hist_lock *xhlock)
 /*
  * Lock history stacks; we have 3 nested lock history stacks:
  *
- *   Hard IRQ
- *   Soft IRQ
- *   History / Task
+ *   HARD(IRQ)
+ *   SOFT(IRQ)
+ *   PROC(ess)
  *
- * The thing is that once we complete a (Hard/Soft) IRQ the future task locks
- * should not depend on any of the locks observed while running the IRQ.
+ * The thing is that once we complete a HARD/SOFT IRQ the future task locks
+ * should not depend on any of the locks observed while running the IRQ.  So
+ * what we do is rewind the history buffer and erase all our knowledge of that
+ * temporal event.
  *
- * So what we do is rewind the history buffer and erase all our knowledge of
- * that temporal event.
- */
-
-/*
- * We need this to annotate lock history boundaries. Take for instance
- * workqueues; each work is independent of the last. The completion of a future
- * work does not depend on the completion of a past work (in general).
- * Therefore we must not carry that (lock) dependency across works.
+ * The PROCess one is special though; it is used to annotate independence
+ * inside a task.
+ *
+ * Take for instance workqueues; each work is independent of the last. The
+ * completion of a future work does not depend on the completion of a past work
+ * (in general). Therefore we must not carry that (lock) dependency across
+ * works.
  *
  * This is true for many things; pretty much all kthreads fall into this
- * pattern, where they have an 'idle' state and future completions do not
+ * pattern, where they have an invariant state and future completions do not
  * depend on past completions. Its just that since they all have the 'same'
  * form -- the kthread does the same over and over -- it doesn't typically
  * matter.
@@ -4751,15 +4751,31 @@ static inline void invalidate_xhlock(struct hist_lock *xhlock)
  * The same is true for system-calls, once a system call is completed (we've
  * returned to userspace) the next system call does not depend on the lock
  * history of the previous system call.
+ *
+ * They key property for independence, this invariant state, is that it must be
+ * a point where we hold no locks and have no history. Because if we were to
+ * hold locks, the restore at _end() would not necessarily recover it's history
+ * entry. Similarly, independence per-definition means it does not depend on
+ * prior state.
  */
-void crossrelease_hist_start(enum xhlock_context_t c)
+void crossrelease_hist_start(enum xhlock_context_t c, bool force)
 {
 	struct task_struct *cur = current;
 
-	if (cur->xhlocks) {
-		cur->xhlock_idx_hist[c] = cur->xhlock_idx;
-		cur->hist_id_save[c] = cur->hist_id;
+	if (!cur->xhlocks)
+		return;
+
+	/*
+	 * We call this at an invariant point, no current state, no history.
+	 */
+	if (c == XHLOCK_PROC) {
+		/* verified the former, ensure the latter */
+		WARN_ON_ONCE(!force && cur->lockdep_depth);
+		invalidate_xhlock(&xhlock(cur->xhlock_idx));
 	}
+
+	cur->xhlock_idx_hist[c] = cur->xhlock_idx;
+	cur->hist_id_save[c]    = cur->hist_id;
 }
 
 void crossrelease_hist_end(enum xhlock_context_t c)

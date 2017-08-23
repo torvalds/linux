@@ -26,7 +26,7 @@
 # define trace_hardirq_enter()			\
 do {						\
 	current->hardirq_context++;		\
-	crossrelease_hist_start(XHLOCK_HARD);	\
+	crossrelease_hist_start(XHLOCK_HARD, 0);\
 } while (0)
 # define trace_hardirq_exit()			\
 do {						\
@@ -36,7 +36,7 @@ do {						\
 # define lockdep_softirq_enter()		\
 do {						\
 	current->softirq_context++;		\
-	crossrelease_hist_start(XHLOCK_SOFT);	\
+	crossrelease_hist_start(XHLOCK_SOFT, 0);\
 } while (0)
 # define lockdep_softirq_exit()			\
 do {						\
