@@ -54,6 +54,7 @@ static struct rom_cmd {
 	{ MBC_GET_MEM_OFFLOAD_CNTRL_STAT },
 	{ MBC_GET_RETRY_COUNT },
 	{ MBC_TRACE_CONTROL },
+	{ MBC_INITIALIZE_MULTIQ },
 };
 
 static int is_rom_cmd(uint16_t cmd)
