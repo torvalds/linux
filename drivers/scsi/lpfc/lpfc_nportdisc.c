@@ -1895,6 +1895,15 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			goto out;
 		}
 
+		/* When the rport rejected the FCP PRLI as unsupported.
+		 * This should only happen in Pt2Pt so an NVME PRLI
+		 * should be outstanding still.
+		 */
+		if (npr && ndlp->nlp_flag & NLP_FCP_PRLI_RJT) {
+			ndlp->nlp_fc4_type &= ~NLP_FC4_FCP;
+			goto out_err;
+		}
+
 		/* The LS Req had some error.  Don't let this be a
 		 * target.
 		 */

@@ -1966,6 +1966,7 @@ int
 lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 {
 	struct lpfc_hba  *phba = vport->phba;
+	struct Scsi_Host *shost;
 	struct serv_parm *sp;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_iocbq *elsiocb;
@@ -1983,6 +1984,11 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 				     ELS_CMD_PLOGI);
 	if (!elsiocb)
 		return 1;
+
+	shost = lpfc_shost_from_vport(vport);
+	spin_lock_irq(shost->host_lock);
+	ndlp->nlp_flag &= ~NLP_FCP_PRLI_RJT;
+	spin_unlock_irq(shost->host_lock);
 
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 
@@ -3439,6 +3445,21 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		case LSRJT_VENDOR_UNIQUE:
 			if ((stat.un.b.vendorUnique == 0x45) &&
 			    (cmd == ELS_CMD_FLOGI)) {
+				goto out_retry;
+			}
+			break;
+		case LSRJT_CMD_UNSUPPORTED:
+			/* lpfc nvmet returns this type of LS_RJT when it
+			 * receives an FCP PRLI because lpfc nvmet only
+			 * support NVME.  ELS request is terminated for FCP4
+			 * on this rport.
+			 */
+			if (stat.un.b.lsRjtRsnCodeExp ==
+			    LSEXP_REQ_UNSUPPORTED && cmd == ELS_CMD_PRLI) {
+				spin_lock_irq(shost->host_lock);
+				ndlp->nlp_flag |= NLP_FCP_PRLI_RJT;
+				spin_unlock_irq(shost->host_lock);
+				retry = 0;
 				goto out_retry;
 			}
 			break;
@@ -8005,6 +8026,13 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		    (vport->fc_flag & FC_FABRIC)) {
 			rjt_err = LSRJT_UNABLE_TPC;
 			rjt_exp = LSEXP_NOTHING_MORE;
+			break;
+		}
+
+		/* NVMET accepts NVME PRLI only.  Reject FCP PRLI */
+		if (cmd == ELS_CMD_PRLI && phba->nvmet_support) {
+			rjt_err = LSRJT_CMD_UNSUPPORTED;
+			rjt_exp = LSEXP_REQ_UNSUPPORTED;
 			break;
 		}
 		lpfc_disc_state_machine(vport, ndlp, elsiocb, NLP_EVT_RCV_PRLI);
