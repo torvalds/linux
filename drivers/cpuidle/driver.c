@@ -204,6 +204,7 @@ static void poll_idle_init(struct cpuidle_driver *drv)
 	state->power_usage = -1;
 	state->enter = poll_idle;
 	state->disabled = false;
+	state->flags = CPUIDLE_FLAG_POLLING;
 }
 #else
 static void poll_idle_init(struct cpuidle_driver *drv) {}
