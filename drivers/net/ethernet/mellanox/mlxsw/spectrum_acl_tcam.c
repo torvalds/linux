@@ -295,6 +295,12 @@ mlxsw_sp_acl_tcam_group_unbind(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ppbt), ppbt_pl);
 }
 
+static u16
+mlxsw_sp_acl_tcam_group_id(struct mlxsw_sp_acl_tcam_group *group)
+{
+	return group->id;
+}
+
 static unsigned int
 mlxsw_sp_acl_tcam_region_prio(struct mlxsw_sp_acl_tcam_region *region)
 {
@@ -1063,6 +1069,14 @@ mlxsw_sp_acl_tcam_flower_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_tcam_group_unbind(mlxsw_sp, &ruleset->group);
 }
 
+static u16
+mlxsw_sp_acl_tcam_flower_ruleset_group_id(void *ruleset_priv)
+{
+	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
+
+	return mlxsw_sp_acl_tcam_group_id(&ruleset->group);
+}
+
 static int
 mlxsw_sp_acl_tcam_flower_rule_add(struct mlxsw_sp *mlxsw_sp,
 				  void *ruleset_priv, void *rule_priv,
@@ -1099,6 +1113,7 @@ static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_flower_ops = {
 	.ruleset_del		= mlxsw_sp_acl_tcam_flower_ruleset_del,
 	.ruleset_bind		= mlxsw_sp_acl_tcam_flower_ruleset_bind,
 	.ruleset_unbind		= mlxsw_sp_acl_tcam_flower_ruleset_unbind,
+	.ruleset_group_id	= mlxsw_sp_acl_tcam_flower_ruleset_group_id,
 	.rule_priv_size		= sizeof(struct mlxsw_sp_acl_tcam_flower_rule),
 	.rule_add		= mlxsw_sp_acl_tcam_flower_rule_add,
 	.rule_del		= mlxsw_sp_acl_tcam_flower_rule_del,

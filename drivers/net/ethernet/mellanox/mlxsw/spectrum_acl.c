@@ -267,6 +267,13 @@ void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_ruleset_ref_dec(mlxsw_sp, ruleset);
 }
 
+u16 mlxsw_sp_acl_ruleset_group_id(struct mlxsw_sp_acl_ruleset *ruleset)
+{
+	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
+
+	return ops->ruleset_group_id(ruleset->priv);
+}
+
 static int
 mlxsw_sp_acl_rulei_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_rule_info *rulei)
