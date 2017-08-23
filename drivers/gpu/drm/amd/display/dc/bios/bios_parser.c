@@ -1853,6 +1853,7 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 
 	info->DP_HBR2_EN = record->usHBR2En;
 	info->DP_HBR3_EN = record->usHBR3En;
+	info->HDMI_6GB_EN = record->usHDMI6GEn;
 	return BP_RESULT_OK;
 }
 
