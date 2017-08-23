@@ -169,7 +169,7 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
  * fractional divider must set that denominator is 20 times larger than
  * numerator to generate precise clock frequency.
  */
-void rockchip_fractional_approximation(struct clk_hw *hw,
+static void rockchip_fractional_approximation(struct clk_hw *hw,
 		unsigned long rate, unsigned long *parent_rate,
 		unsigned long *m, unsigned long *n)
 {
