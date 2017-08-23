@@ -1724,6 +1724,9 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 				lpfc_nvme_update_localport(vport);
 			}
 
+		} else if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
+			ndlp->nlp_fc4_type |= NLP_FC4_FCP;
+
 		} else if (ndlp->nlp_fc4_type == 0) {
 			rc = lpfc_ns_cmd(vport, SLI_CTNS_GFT_ID,
 					 0, ndlp->nlp_DID);
