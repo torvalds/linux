@@ -2536,7 +2536,7 @@ enum dc_status resource_map_clock_resources(
 		pipe_ctx->clock_source = NULL;
 
 		if (!dc->config.disable_disp_pll_sharing)
-			resource_find_used_clk_src_for_sharing(
+			pipe_ctx->clock_source = resource_find_used_clk_src_for_sharing(
 				&context->res_ctx,
 				pipe_ctx);
 
