@@ -187,6 +187,11 @@ qla24xx_enable_vp(scsi_qla_host_t *vha)
 		!(ha->current_topology & ISP_CFG_F)) {
 		vha->vp_err_state =  VP_ERR_PORTDWN;
 		fc_vport_set_state(vha->fc_vport, FC_VPORT_LINKDOWN);
+		ql_dbg(ql_dbg_taskm, vha, 0x800b,
+		    "%s skip enable. loop_state %x topo %x\n",
+		    __func__, base_vha->loop_state.counter,
+		    ha->current_topology);
+
 		goto enable_failed;
 	}
 

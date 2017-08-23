@@ -5913,7 +5913,7 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 
 	if (!status) {
 		ql_dbg(ql_dbg_taskm, vha, 0x8022, "%s succeeded.\n", __func__);
-
+		qla2x00_configure_hba(vha);
 		spin_lock_irqsave(&ha->vport_slock, flags);
 		list_for_each_entry(vp, &ha->vp_list, list) {
 			if (vp->vp_idx) {
