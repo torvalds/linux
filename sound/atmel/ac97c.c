@@ -558,7 +558,7 @@ static irqreturn_t atmel_ac97c_interrupt(int irq, void *dev)
 	return retval;
 }
 
-static struct ac97_pcm at91_ac97_pcm_defs[] = {
+static const struct ac97_pcm at91_ac97_pcm_defs[] = {
 	/* Playback */
 	{
 		.exclusive = 1,
