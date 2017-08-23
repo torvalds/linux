@@ -104,7 +104,6 @@ _GLOBAL(memset)
 	subf	r6,r0,r6
 	cmplwi	0,r4,0
 	bne	2f	/* Use normal procedure if r4 is not zero */
-EXPORT_SYMBOL(memset)
 _GLOBAL(memset_nocache_branch)
 	b	2f	/* Skip optimised bloc until cache is enabled */
 
@@ -140,6 +139,7 @@ _GLOBAL(memset_nocache_branch)
 8:	stbu	r4,1(r6)
 	bdnz	8b
 	blr
+EXPORT_SYMBOL(memset)
 
 /*
  * This version uses dcbz on the complete cache lines in the
