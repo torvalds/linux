@@ -1141,7 +1141,7 @@ qla2x00_wait_for_sess_deletion(scsi_qla_host_t *vha)
 {
 	qla2x00_mark_all_devices_lost(vha, 0);
 
-	wait_event(vha->fcport_waitQ, test_fcport_count(vha));
+	wait_event_timeout(vha->fcport_waitQ, test_fcport_count(vha), 10*HZ);
 }
 
 /*
