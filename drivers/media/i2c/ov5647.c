@@ -28,6 +28,7 @@
 #include <linux/of_graph.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-image-sizes.h>
@@ -64,12 +65,17 @@
 #define OV5647_WINDOW_WIDTH_MAX		2752
 #define OV5647_WINDOW_WIDTH_DEF		2592
 
+#define OV5647_LINK_FREQ_150MHZ		150000000
+static const s64 link_freq_menu_items[] = {
+	OV5647_LINK_FREQ_150MHZ
+};
+
 struct regval_list {
 	u16 addr;
 	u8 data;
 };
 
-struct ov5647 {
+struct ov5647_state {
 	struct v4l2_subdev		sd;
 	struct media_pad		pad;
 	struct mutex			lock;
@@ -78,11 +84,14 @@ struct ov5647 {
 	unsigned int			height;
 	int				power_count;
 	struct clk			*xclk;
+
+	struct v4l2_ctrl_handler ctrl_handler;
+	struct v4l2_ctrl	*link_freq;
 };
 
-static inline struct ov5647 *to_state(struct v4l2_subdev *sd)
+static inline struct ov5647_state *to_state(struct v4l2_subdev *sd)
 {
-	return container_of(sd, struct ov5647, sd);
+	return container_of(sd, struct ov5647_state, sd);
 }
 
 static struct regval_list sensor_oe_disable_regs[] = {
@@ -335,7 +344,7 @@ static int __sensor_init(struct v4l2_subdev *sd)
 static int ov5647_sensor_power(struct v4l2_subdev *sd, int on)
 {
 	int ret = 0;
-	struct ov5647 *ov5647 = to_state(sd);
+	struct ov5647_state *ov5647 = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	mutex_lock(&ov5647->lock);
@@ -451,8 +460,25 @@ static int ov5647_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov5647_get_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_format *fmt)
+{
+	struct v4l2_mbus_framefmt *mf = &fmt->format;
+
+	mf->code = MEDIA_BUS_FMT_SBGGR8_1X8;
+
+	mf->width = 640;
+	mf->height = 480;
+	mf->field = V4L2_FIELD_NONE;
+	mf->colorspace = V4L2_COLORSPACE_SRGB;
+
+	return 0;
+}
+
 static const struct v4l2_subdev_pad_ops ov5647_subdev_pad_ops = {
 	.enum_mbus_code = ov5647_enum_mbus_code,
+	.get_fmt = ov5647_get_fmt,
 };
 
 static const struct v4l2_subdev_ops ov5647_subdev_ops = {
@@ -460,6 +486,33 @@ static const struct v4l2_subdev_ops ov5647_subdev_ops = {
 	.video		= &ov5647_subdev_video_ops,
 	.pad		= &ov5647_subdev_pad_ops,
 };
+
+static int ov5647_initialize_controls(struct v4l2_subdev *sd)
+{
+	struct v4l2_ctrl_handler *handler;
+	struct ov5647_state *ov5647 = to_state(sd);
+	int ret;
+
+	handler = &ov5647->ctrl_handler;
+	ret = v4l2_ctrl_handler_init(handler, 1);
+	if (ret)
+		return ret;
+
+	ov5647->link_freq = v4l2_ctrl_new_int_menu(handler, NULL,
+						 V4L2_CID_LINK_FREQ,
+						 0, 0, link_freq_menu_items);
+	if (ov5647->link_freq)
+		ov5647->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	if (handler->error) {
+		v4l2_ctrl_handler_free(handler);
+		return handler->error;
+	}
+
+	sd->ctrl_handler = handler;
+
+	return 0;
+}
 
 static int ov5647_detect(struct v4l2_subdev *sd)
 {
@@ -532,6 +585,7 @@ static int ov5647_parse_dt(struct device_node *np)
 	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &bus_cfg);
 
 	of_node_put(ep);
+
 	return ret;
 }
 
@@ -539,7 +593,7 @@ static int ov5647_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct ov5647 *sensor;
+	struct ov5647_state *sensor;
 	int ret;
 	struct v4l2_subdev *sd;
 	struct device_node *np = client->dev.of_node;
@@ -574,6 +628,11 @@ static int ov5647_probe(struct i2c_client *client,
 
 	sd = &sensor->sd;
 	v4l2_i2c_subdev_init(sd, client, &ov5647_subdev_ops);
+
+	ret = ov5647_initialize_controls(sd);
+	if (ret)
+		return ret;
+
 	sensor->sd.internal_ops = &ov5647_subdev_internal_ops;
 	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
@@ -604,7 +663,7 @@ mutex_remove:
 static int ov5647_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov5647 *ov5647 = to_state(sd);
+	struct ov5647_state *ov5647 = to_state(sd);
 
 	v4l2_async_unregister_subdev(&ov5647->sd);
 	media_entity_cleanup(&ov5647->sd.entity);
