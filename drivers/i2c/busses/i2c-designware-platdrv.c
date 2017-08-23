@@ -201,17 +201,6 @@ static void i2c_dw_configure_slave(struct dw_i2c_dev *dev)
 			 DW_IC_CON_RESTART_EN | DW_IC_CON_STOP_DET_IFADDRESSED;
 
 	dev->mode = DW_IC_SLAVE;
-
-	switch (dev->clk_freq) {
-	case 100000:
-		dev->slave_cfg |= DW_IC_CON_SPEED_STD;
-		break;
-	case 3400000:
-		dev->slave_cfg |= DW_IC_CON_SPEED_HIGH;
-		break;
-	default:
-		dev->slave_cfg |= DW_IC_CON_SPEED_FAST;
-	}
 }
 
 static int i2c_dw_plat_prepare_clk(struct dw_i2c_dev *i_dev, bool prepare)
