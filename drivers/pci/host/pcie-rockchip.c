@@ -1377,6 +1377,46 @@ static int rockchip_pcie_wait_l2(struct rockchip_pcie *rockchip)
 	return 0;
 }
 
+static int rockchip_pcie_enable_clocks(struct rockchip_pcie *rockchip)
+{
+	struct device *dev = rockchip->dev;
+	int err;
+
+	err = clk_prepare_enable(rockchip->aclk_pcie);
+	if (err) {
+		dev_err(dev, "unable to enable aclk_pcie clock\n");
+		return err;
+	}
+
+	err = clk_prepare_enable(rockchip->aclk_perf_pcie);
+	if (err) {
+		dev_err(dev, "unable to enable aclk_perf_pcie clock\n");
+		goto err_aclk_perf_pcie;
+	}
+
+	err = clk_prepare_enable(rockchip->hclk_pcie);
+	if (err) {
+		dev_err(dev, "unable to enable hclk_pcie clock\n");
+		goto err_hclk_pcie;
+	}
+
+	err = clk_prepare_enable(rockchip->clk_pcie_pm);
+	if (err) {
+		dev_err(dev, "unable to enable clk_pcie_pm clock\n");
+		goto err_clk_pcie_pm;
+	}
+
+	return 0;
+
+err_clk_pcie_pm:
+	clk_disable_unprepare(rockchip->hclk_pcie);
+err_hclk_pcie:
+	clk_disable_unprepare(rockchip->aclk_perf_pcie);
+err_aclk_perf_pcie:
+	clk_disable_unprepare(rockchip->aclk_pcie);
+	return err;
+}
+
 static int __maybe_unused rockchip_pcie_suspend_noirq(struct device *dev)
 {
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
@@ -1424,21 +1464,9 @@ static int __maybe_unused rockchip_pcie_resume_noirq(struct device *dev)
 		}
 	}
 
-	err = clk_prepare_enable(rockchip->clk_pcie_pm);
+	err = rockchip_pcie_enable_clocks(rockchip);
 	if (err)
-		goto err_pcie_pm;
-
-	err = clk_prepare_enable(rockchip->hclk_pcie);
-	if (err)
-		goto err_hclk_pcie;
-
-	err = clk_prepare_enable(rockchip->aclk_perf_pcie);
-	if (err)
-		goto err_aclk_perf_pcie;
-
-	err = clk_prepare_enable(rockchip->aclk_pcie);
-	if (err)
-		goto err_aclk_pcie;
+		return err;
 
 	err = rockchip_pcie_init_port(rockchip);
 	if (err)
@@ -1456,13 +1484,9 @@ static int __maybe_unused rockchip_pcie_resume_noirq(struct device *dev)
 
 err_pcie_resume:
 	clk_disable_unprepare(rockchip->aclk_pcie);
-err_aclk_pcie:
 	clk_disable_unprepare(rockchip->aclk_perf_pcie);
-err_aclk_perf_pcie:
 	clk_disable_unprepare(rockchip->hclk_pcie);
-err_hclk_pcie:
 	clk_disable_unprepare(rockchip->clk_pcie_pm);
-err_pcie_pm:
 	return err;
 }
 
@@ -1496,29 +1520,9 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = clk_prepare_enable(rockchip->aclk_pcie);
-	if (err) {
-		dev_err(dev, "unable to enable aclk_pcie clock\n");
-		goto err_aclk_pcie;
-	}
-
-	err = clk_prepare_enable(rockchip->aclk_perf_pcie);
-	if (err) {
-		dev_err(dev, "unable to enable aclk_perf_pcie clock\n");
-		goto err_aclk_perf_pcie;
-	}
-
-	err = clk_prepare_enable(rockchip->hclk_pcie);
-	if (err) {
-		dev_err(dev, "unable to enable hclk_pcie clock\n");
-		goto err_hclk_pcie;
-	}
-
-	err = clk_prepare_enable(rockchip->clk_pcie_pm);
-	if (err) {
-		dev_err(dev, "unable to enable hclk_pcie clock\n");
-		goto err_pcie_pm;
-	}
+	err = rockchip_pcie_enable_clocks(rockchip);
+	if (err)
+		return err;
 
 	err = rockchip_pcie_set_vpcie(rockchip);
 	if (err) {
@@ -1622,13 +1626,9 @@ err_vpcie:
 		regulator_disable(rockchip->vpcie0v9);
 err_set_vpcie:
 	clk_disable_unprepare(rockchip->clk_pcie_pm);
-err_pcie_pm:
 	clk_disable_unprepare(rockchip->hclk_pcie);
-err_hclk_pcie:
 	clk_disable_unprepare(rockchip->aclk_perf_pcie);
-err_aclk_perf_pcie:
 	clk_disable_unprepare(rockchip->aclk_pcie);
-err_aclk_pcie:
 	return err;
 }
 
