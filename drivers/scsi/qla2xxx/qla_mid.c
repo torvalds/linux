@@ -74,7 +74,7 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 	 * ensures no active vp_list traversal while the vport is removed
 	 * from the queue)
 	 */
-	wait_event_timeout(vha->vref_waitq, atomic_read(&vha->vref_count),
+	wait_event_timeout(vha->vref_waitq, !atomic_read(&vha->vref_count),
 	    10*HZ);
 
 	spin_lock_irqsave(&ha->vport_slock, flags);
