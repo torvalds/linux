@@ -248,12 +248,12 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 		}
 	}
 
-	if ((curr_gw) && (!next_gw)) {
+	if (curr_gw && !next_gw) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Removing selected gateway - no gateway in range\n");
 		batadv_throw_uevent(bat_priv, BATADV_UEV_GW, BATADV_UEV_DEL,
 				    NULL);
-	} else if ((!curr_gw) && (next_gw)) {
+	} else if (!curr_gw && next_gw) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Adding route to gateway %pM (bandwidth: %u.%u/%u.%u MBit, tq: %i)\n",
 			   next_gw->orig_node->orig,
@@ -411,8 +411,8 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 		goto out;
 	}
 
-	if ((gw_node->bandwidth_down == ntohl(gateway->bandwidth_down)) &&
-	    (gw_node->bandwidth_up == ntohl(gateway->bandwidth_up)))
+	if (gw_node->bandwidth_down == ntohl(gateway->bandwidth_down) &&
+	    gw_node->bandwidth_up == ntohl(gateway->bandwidth_up))
 		goto out;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
