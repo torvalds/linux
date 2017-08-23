@@ -3760,7 +3760,7 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 	struct megasas_cmd_fusion *cmd_fusion;
 	struct megasas_cmd *cmd_mfi;
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
-	struct fusion_context *fusion;
+	struct fusion_context *fusion = NULL;
 	struct megasas_cmd_fusion *scsi_lookup;
 	int rc;
 	struct MPI2_SCSI_TASK_MANAGE_REPLY *mpi_reply;
@@ -3786,8 +3786,6 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 
 	cmd_fusion->request_desc = req_desc;
 	req_desc->Words = 0;
-
-	scsi_lookup = fusion->cmd_list[smid_task - 1];
 
 	mr_request = (struct MR_TASK_MANAGE_REQUEST *) cmd_fusion->io_request;
 	memset(mr_request, 0, sizeof(struct MR_TASK_MANAGE_REQUEST));
@@ -3835,6 +3833,8 @@ megasas_issue_tm(struct megasas_instance *instance, u16 device_handle,
 	rc = SUCCESS;
 	switch (type) {
 	case MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK:
+		scsi_lookup = fusion->cmd_list[smid_task - 1];
+
 		if (scsi_lookup->scmd == NULL)
 			break;
 		else {
