@@ -379,6 +379,7 @@ static void qla_init_base_qpair(struct scsi_qla_host *vha, struct req_que *req,
 	ha->base_qpair->use_shadow_reg = IS_SHADOW_REG_CAPABLE(ha) ? 1 : 0;
 	ha->base_qpair->msix = &ha->msix_entries[QLA_MSIX_RSP_Q];
 	INIT_LIST_HEAD(&ha->base_qpair->hints_list);
+	INIT_LIST_HEAD(&ha->base_qpair->nvme_done_list);
 	ha->base_qpair->enable_class_2 = ql2xenableclass2;
 	/* init qpair to this cpu. Will adjust at run time. */
 	qla_cpu_update(rsp->qpair, smp_processor_id());
