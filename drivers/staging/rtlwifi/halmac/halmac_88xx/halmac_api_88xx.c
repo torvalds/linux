@@ -1950,8 +1950,10 @@ halmac_dump_logical_efuse_map_88xx(struct halmac_adapter *halmac_adapter,
 
 		if (halmac_eeprom_parser_88xx(halmac_adapter,
 					      halmac_adapter->hal_efuse_map,
-					      eeprom_map) != HALMAC_RET_SUCCESS)
+					      eeprom_map) != HALMAC_RET_SUCCESS) {
+			kfree(eeprom_map);
 			return HALMAC_RET_EEPROM_PARSING_FAIL;
+		}
 
 		PLATFORM_EVENT_INDICATION(
 			driver_adapter, HALMAC_FEATURE_DUMP_LOGICAL_EFUSE,
