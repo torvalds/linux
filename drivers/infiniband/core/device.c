@@ -1005,14 +1005,17 @@ int ib_modify_port(struct ib_device *device,
 		   u8 port_num, int port_modify_mask,
 		   struct ib_port_modify *port_modify)
 {
-	if (!device->modify_port)
-		return -ENOSYS;
+	int rc;
 
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
-	return device->modify_port(device, port_num, port_modify_mask,
-				   port_modify);
+	if (device->modify_port)
+		rc = device->modify_port(device, port_num, port_modify_mask,
+					   port_modify);
+	else
+		rc = rdma_protocol_roce(device, port_num) ? 0 : -ENOSYS;
+	return rc;
 }
 EXPORT_SYMBOL(ib_modify_port);
 
