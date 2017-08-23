@@ -230,43 +230,6 @@ err_clk_prepare:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int sdhci_sirf_suspend(struct device *dev)
-{
-	struct sdhci_host *host = dev_get_drvdata(dev);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	int ret;
-
-	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
-		mmc_retune_needed(host->mmc);
-
-	ret = sdhci_suspend_host(host);
-	if (ret)
-		return ret;
-
-	clk_disable(pltfm_host->clk);
-
-	return 0;
-}
-
-static int sdhci_sirf_resume(struct device *dev)
-{
-	struct sdhci_host *host = dev_get_drvdata(dev);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	int ret;
-
-	ret = clk_enable(pltfm_host->clk);
-	if (ret) {
-		dev_dbg(dev, "Resume: Error enabling clock\n");
-		return ret;
-	}
-
-	return sdhci_resume_host(host);
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(sdhci_sirf_pm_ops, sdhci_sirf_suspend, sdhci_sirf_resume);
-
 static const struct of_device_id sdhci_sirf_of_match[] = {
 	{ .compatible = "sirf,prima2-sdhc" },
 	{ }
@@ -277,7 +240,7 @@ static struct platform_driver sdhci_sirf_driver = {
 	.driver		= {
 		.name	= "sdhci-sirf",
 		.of_match_table = sdhci_sirf_of_match,
-		.pm	= &sdhci_sirf_pm_ops,
+		.pm	= &sdhci_pltfm_pmops,
 	},
 	.probe		= sdhci_sirf_probe,
 	.remove		= sdhci_pltfm_unregister,
