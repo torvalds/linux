@@ -983,15 +983,14 @@ bool dcn_validate_bandwidth(
 	if (v->voltage_level == 0 &&
 			(dc->debug.sr_exit_time_dpm0_ns
 				|| dc->debug.sr_enter_plus_exit_time_dpm0_ns)) {
-		struct dc *dc_core = dc;
 
 		if (dc->debug.sr_enter_plus_exit_time_dpm0_ns)
 			v->sr_enter_plus_exit_time =
 				dc->debug.sr_enter_plus_exit_time_dpm0_ns / 1000.0f;
 		if (dc->debug.sr_exit_time_dpm0_ns)
 			v->sr_exit_time =  dc->debug.sr_exit_time_dpm0_ns / 1000.0f;
-		dc_core->dml.soc.sr_enter_plus_exit_time_us = v->sr_enter_plus_exit_time;
-		dc_core->dml.soc.sr_exit_time_us = v->sr_exit_time;
+		dc->dml.soc.sr_enter_plus_exit_time_us = v->sr_enter_plus_exit_time;
+		dc->dml.soc.sr_exit_time_us = v->sr_exit_time;
 		mode_support_and_system_configuration(v);
 	}
 
@@ -1114,11 +1113,10 @@ bool dcn_validate_bandwidth(
 	}
 
 	if (v->voltage_level == 0) {
-		struct dc *dc_core = dc;
 
-		dc_core->dml.soc.sr_enter_plus_exit_time_us =
-				dc_core->dcn_soc->sr_enter_plus_exit_time;
-		dc_core->dml.soc.sr_exit_time_us = dc_core->dcn_soc->sr_exit_time;
+		dc->dml.soc.sr_enter_plus_exit_time_us =
+				dc->dcn_soc->sr_enter_plus_exit_time;
+		dc->dml.soc.sr_exit_time_us = dc->dcn_soc->sr_exit_time;
 	}
 
 	/*

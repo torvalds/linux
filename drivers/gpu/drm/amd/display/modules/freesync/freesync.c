@@ -145,7 +145,6 @@ struct mod_freesync *mod_freesync_create(struct dc *dc)
 	struct core_freesync *core_freesync =
 			dm_alloc(sizeof(struct core_freesync));
 
-	struct dc  *core_dc = dc;
 
 	struct persistent_data_flag flag;
 
@@ -176,19 +175,19 @@ struct mod_freesync *mod_freesync_create(struct dc *dc)
 	/* Create initial module folder in registry for freesync enable data */
 	flag.save_per_edid = true;
 	flag.save_per_link = false;
-	dm_write_persistent_data(core_dc->ctx, NULL, FREESYNC_REGISTRY_NAME,
+	dm_write_persistent_data(dc->ctx, NULL, FREESYNC_REGISTRY_NAME,
 			NULL, NULL, 0, &flag);
 	flag.save_per_edid = false;
 	flag.save_per_link = false;
 
-	if (dm_read_persistent_data(core_dc->ctx, NULL, NULL,
+	if (dm_read_persistent_data(dc->ctx, NULL, NULL,
 			FREESYNC_NO_STATIC_FOR_INTERNAL_REGKEY,
 			&data, sizeof(data), &flag)) {
 		core_freesync->opts.drr_internal_supported =
 			(data & 1) ? false : true;
 	}
 
-	if (dm_read_persistent_data(core_dc->ctx, NULL, NULL,
+	if (dm_read_persistent_data(dc->ctx, NULL, NULL,
 			FREESYNC_NO_STATIC_FOR_EXTERNAL_DP_REGKEY,
 			&data, sizeof(data), &flag)) {
 		core_freesync->opts.drr_external_supported =
@@ -245,7 +244,7 @@ static unsigned int map_index_from_stream(struct core_freesync *core_freesync,
 bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 		struct dc_stream_state *stream, struct mod_freesync_caps *caps)
 {
-	struct dc  *core_dc = NULL;
+	struct dc  *dc = NULL;
 	struct core_freesync *core_freesync = NULL;
 	int persistent_freesync_enable = 0;
 	struct persistent_data_flag flag;
@@ -256,7 +255,7 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 		return false;
 
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
-	core_dc = core_freesync->dc;
+	dc = core_freesync->dc;
 
 	flag.save_per_edid = true;
 	flag.save_per_link = false;
@@ -287,7 +286,7 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 			static_ramp.ramp_is_active = false;
 
 		/* get persistent data from registry */
-		if (dm_read_persistent_data(core_dc->ctx, stream->sink,
+		if (dm_read_persistent_data(dc->ctx, stream->sink,
 					FREESYNC_REGISTRY_NAME,
 					"userenable", &persistent_freesync_enable,
 					sizeof(int), &flag)) {
@@ -970,14 +969,14 @@ bool mod_freesync_set_user_enable(struct mod_freesync *mod_freesync,
 	unsigned int stream_index, map_index;
 	int persistent_data = 0;
 	struct persistent_data_flag flag;
-	struct dc  *core_dc = NULL;
+	struct dc  *dc = NULL;
 	struct core_freesync *core_freesync = NULL;
 
 	if (mod_freesync == NULL)
 		return false;
 
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
-	core_dc = core_freesync->dc;
+	dc = core_freesync->dc;
 
 	flag.save_per_edid = true;
 	flag.save_per_link = false;
@@ -1001,7 +1000,7 @@ bool mod_freesync_set_user_enable(struct mod_freesync *mod_freesync,
 				enable_for_video)
 			persistent_data = persistent_data | 4;
 
-		dm_write_persistent_data(core_dc->ctx,
+		dm_write_persistent_data(dc->ctx,
 					streams[stream_index]->sink,
 					FREESYNC_REGISTRY_NAME,
 					"userenable",
