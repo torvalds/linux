@@ -197,6 +197,58 @@ static int mlx5e_grp_vport_fill_stats(struct mlx5e_priv *priv, u64 *data,
 	return idx;
 }
 
+#define PPORT_802_3_OFF(c) \
+	MLX5_BYTE_OFF(ppcnt_reg, \
+		      counter_set.eth_802_3_cntrs_grp_data_layout.c##_high)
+static const struct counter_desc pport_802_3_stats_desc[] = {
+	{ "tx_packets_phy", PPORT_802_3_OFF(a_frames_transmitted_ok) },
+	{ "rx_packets_phy", PPORT_802_3_OFF(a_frames_received_ok) },
+	{ "rx_crc_errors_phy", PPORT_802_3_OFF(a_frame_check_sequence_errors) },
+	{ "tx_bytes_phy", PPORT_802_3_OFF(a_octets_transmitted_ok) },
+	{ "rx_bytes_phy", PPORT_802_3_OFF(a_octets_received_ok) },
+	{ "tx_multicast_phy", PPORT_802_3_OFF(a_multicast_frames_xmitted_ok) },
+	{ "tx_broadcast_phy", PPORT_802_3_OFF(a_broadcast_frames_xmitted_ok) },
+	{ "rx_multicast_phy", PPORT_802_3_OFF(a_multicast_frames_received_ok) },
+	{ "rx_broadcast_phy", PPORT_802_3_OFF(a_broadcast_frames_received_ok) },
+	{ "rx_in_range_len_errors_phy", PPORT_802_3_OFF(a_in_range_length_errors) },
+	{ "rx_out_of_range_len_phy", PPORT_802_3_OFF(a_out_of_range_length_field) },
+	{ "rx_oversize_pkts_phy", PPORT_802_3_OFF(a_frame_too_long_errors) },
+	{ "rx_symbol_err_phy", PPORT_802_3_OFF(a_symbol_error_during_carrier) },
+	{ "tx_mac_control_phy", PPORT_802_3_OFF(a_mac_control_frames_transmitted) },
+	{ "rx_mac_control_phy", PPORT_802_3_OFF(a_mac_control_frames_received) },
+	{ "rx_unsupported_op_phy", PPORT_802_3_OFF(a_unsupported_opcodes_received) },
+	{ "rx_pause_ctrl_phy", PPORT_802_3_OFF(a_pause_mac_ctrl_frames_received) },
+	{ "tx_pause_ctrl_phy", PPORT_802_3_OFF(a_pause_mac_ctrl_frames_transmitted) },
+};
+
+#define NUM_PPORT_802_3_COUNTERS	ARRAY_SIZE(pport_802_3_stats_desc)
+
+static int mlx5e_grp_802_3_get_num_stats(struct mlx5e_priv *priv)
+{
+	return NUM_PPORT_802_3_COUNTERS;
+}
+
+static int mlx5e_grp_802_3_fill_strings(struct mlx5e_priv *priv, u8 *data,
+					int idx)
+{
+	int i;
+
+	for (i = 0; i < NUM_PPORT_802_3_COUNTERS; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, pport_802_3_stats_desc[i].format);
+	return idx;
+}
+
+static int mlx5e_grp_802_3_fill_stats(struct mlx5e_priv *priv, u64 *data,
+				      int idx)
+{
+	int i;
+
+	for (i = 0; i < NUM_PPORT_802_3_COUNTERS; i++)
+		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.IEEE_802_3_counters,
+						  pport_802_3_stats_desc, i);
+	return idx;
+}
+
 const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 	{
 		.get_num_stats = mlx5e_grp_sw_get_num_stats,
@@ -212,6 +264,11 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.get_num_stats = mlx5e_grp_vport_get_num_stats,
 		.fill_strings = mlx5e_grp_vport_fill_strings,
 		.fill_stats = mlx5e_grp_vport_fill_stats,
+	},
+	{
+		.get_num_stats = mlx5e_grp_802_3_get_num_stats,
+		.fill_strings = mlx5e_grp_802_3_fill_strings,
+		.fill_stats = mlx5e_grp_802_3_fill_stats,
 	},
 };
 
