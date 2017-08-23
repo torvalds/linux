@@ -105,9 +105,6 @@ struct mlx5e_vport_stats {
 #define PPORT_802_3_GET(pstats, c) \
 	MLX5_GET64(ppcnt_reg, pstats->IEEE_802_3_counters, \
 		   counter_set.eth_802_3_cntrs_grp_data_layout.c##_high)
-#define PPORT_2863_OFF(c) \
-	MLX5_BYTE_OFF(ppcnt_reg, \
-		      counter_set.eth_2863_cntrs_grp_data_layout.c##_high)
 #define PPORT_2863_GET(pstats, c) \
 	MLX5_GET64(ppcnt_reg, pstats->RFC_2863_counters, \
 		   counter_set.eth_2863_cntrs_grp_data_layout.c##_high)
@@ -145,12 +142,6 @@ struct mlx5e_pport_stats {
 	__be64 phy_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 phy_statistical_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 eth_ext_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
-};
-
-static const struct counter_desc pport_2863_stats_desc[] = {
-	{ "rx_discards_phy", PPORT_2863_OFF(if_in_discards) },
-	{ "tx_discards_phy", PPORT_2863_OFF(if_out_discards) },
-	{ "tx_errors_phy", PPORT_2863_OFF(if_out_errors) },
 };
 
 static const struct counter_desc pport_2819_stats_desc[] = {
@@ -312,7 +303,6 @@ static const struct counter_desc sq_stats_desc[] = {
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, xmit_more) },
 };
 
-#define NUM_PPORT_2863_COUNTERS		ARRAY_SIZE(pport_2863_stats_desc)
 #define NUM_PPORT_2819_COUNTERS		ARRAY_SIZE(pport_2819_stats_desc)
 #define NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv) \
 	(ARRAY_SIZE(pport_phy_statistical_stats_desc) * \
@@ -333,8 +323,7 @@ static const struct counter_desc sq_stats_desc[] = {
 #define NUM_PPORT_ETH_EXT_COUNTERS(priv) \
 	(ARRAY_SIZE(pport_eth_ext_stats_desc) * \
 	 MLX5_CAP_PCAM_FEATURE((priv)->mdev, rx_buffer_fullness_counters))
-#define NUM_PPORT_COUNTERS(priv)	(NUM_PPORT_2863_COUNTERS  + \
-					 NUM_PPORT_2819_COUNTERS  + \
+#define NUM_PPORT_COUNTERS(priv)	(NUM_PPORT_2819_COUNTERS  + \
 					 NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv) + \
 					 NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS * \
 					 NUM_PPORT_PRIO + \

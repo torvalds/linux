@@ -249,6 +249,43 @@ static int mlx5e_grp_802_3_fill_stats(struct mlx5e_priv *priv, u64 *data,
 	return idx;
 }
 
+#define PPORT_2863_OFF(c) \
+	MLX5_BYTE_OFF(ppcnt_reg, \
+		      counter_set.eth_2863_cntrs_grp_data_layout.c##_high)
+static const struct counter_desc pport_2863_stats_desc[] = {
+	{ "rx_discards_phy", PPORT_2863_OFF(if_in_discards) },
+	{ "tx_discards_phy", PPORT_2863_OFF(if_out_discards) },
+	{ "tx_errors_phy", PPORT_2863_OFF(if_out_errors) },
+};
+
+#define NUM_PPORT_2863_COUNTERS		ARRAY_SIZE(pport_2863_stats_desc)
+
+static int mlx5e_grp_2863_get_num_stats(struct mlx5e_priv *priv)
+{
+	return NUM_PPORT_2863_COUNTERS;
+}
+
+static int mlx5e_grp_2863_fill_strings(struct mlx5e_priv *priv, u8 *data,
+				       int idx)
+{
+	int i;
+
+	for (i = 0; i < NUM_PPORT_2863_COUNTERS; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, pport_2863_stats_desc[i].format);
+	return idx;
+}
+
+static int mlx5e_grp_2863_fill_stats(struct mlx5e_priv *priv, u64 *data,
+				     int idx)
+{
+	int i;
+
+	for (i = 0; i < NUM_PPORT_2863_COUNTERS; i++)
+		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.RFC_2863_counters,
+						  pport_2863_stats_desc, i);
+	return idx;
+}
+
 const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 	{
 		.get_num_stats = mlx5e_grp_sw_get_num_stats,
@@ -269,6 +306,11 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.get_num_stats = mlx5e_grp_802_3_get_num_stats,
 		.fill_strings = mlx5e_grp_802_3_fill_strings,
 		.fill_stats = mlx5e_grp_802_3_fill_stats,
+	},
+	{
+		.get_num_stats = mlx5e_grp_2863_get_num_stats,
+		.fill_strings = mlx5e_grp_2863_fill_strings,
+		.fill_stats = mlx5e_grp_2863_fill_stats,
 	},
 };
 
