@@ -96,12 +96,46 @@ static int mlx5e_grp_sw_fill_stats(struct mlx5e_priv *priv, u64 *data, int idx)
 	return idx;
 }
 
+static const struct counter_desc q_stats_desc[] = {
+	{ MLX5E_DECLARE_STAT(struct mlx5e_qcounter_stats, rx_out_of_buffer) },
+};
+
+#define NUM_Q_COUNTERS			ARRAY_SIZE(q_stats_desc)
+
+static int mlx5e_grp_q_get_num_stats(struct mlx5e_priv *priv)
+{
+	return priv->q_counter ? NUM_Q_COUNTERS : 0;
+}
+
+static int mlx5e_grp_q_fill_strings(struct mlx5e_priv *priv, u8 *data, int idx)
+{
+	int i;
+
+	for (i = 0; i < NUM_Q_COUNTERS && priv->q_counter; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, q_stats_desc[i].format);
+	return idx;
+}
+
+static int mlx5e_grp_q_fill_stats(struct mlx5e_priv *priv, u64 *data, int idx)
+{
+	int i;
+
+	for (i = 0; i < NUM_Q_COUNTERS && priv->q_counter; i++)
+		data[idx++] = MLX5E_READ_CTR32_CPU(&priv->stats.qcnt, q_stats_desc, i);
+	return idx;
+}
+
 const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 	{
 		.get_num_stats = mlx5e_grp_sw_get_num_stats,
 		.fill_strings = mlx5e_grp_sw_fill_strings,
 		.fill_stats = mlx5e_grp_sw_fill_stats,
-	}
+	},
+	{
+		.get_num_stats = mlx5e_grp_q_get_num_stats,
+		.fill_strings = mlx5e_grp_q_fill_strings,
+		.fill_stats = mlx5e_grp_q_fill_stats,
+	},
 };
 
 const int mlx5e_num_stats_grps = ARRAY_SIZE(mlx5e_stats_grps);

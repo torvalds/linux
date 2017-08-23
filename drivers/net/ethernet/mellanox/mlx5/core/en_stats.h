@@ -95,10 +95,6 @@ struct mlx5e_qcounter_stats {
 	u32 rx_out_of_buffer;
 };
 
-static const struct counter_desc q_stats_desc[] = {
-	{ MLX5E_DECLARE_STAT(struct mlx5e_qcounter_stats, rx_out_of_buffer) },
-};
-
 #define VPORT_COUNTER_OFF(c) MLX5_BYTE_OFF(query_vport_counter_out, c)
 #define VPORT_COUNTER_GET(vstats, c) MLX5_GET64(query_vport_counter_out, \
 						vstats->query_vport_out, c)
@@ -384,7 +380,6 @@ static const struct counter_desc sq_stats_desc[] = {
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, xmit_more) },
 };
 
-#define NUM_Q_COUNTERS			ARRAY_SIZE(q_stats_desc)
 #define NUM_VPORT_COUNTERS		ARRAY_SIZE(vport_stats_desc)
 #define NUM_PPORT_802_3_COUNTERS	ARRAY_SIZE(pport_802_3_stats_desc)
 #define NUM_PPORT_2863_COUNTERS		ARRAY_SIZE(pport_2863_stats_desc)
