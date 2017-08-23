@@ -1528,6 +1528,7 @@ static void qlt_release(struct qla_tgt *tgt)
 	u64 key = 0;
 	u16 i;
 	struct qla_qpair_hint *h;
+	struct qla_hw_data *ha = vha->hw;
 
 	if ((vha->vha_tgt.qla_tgt != NULL) && !tgt->tgt_stop &&
 	    !tgt->tgt_stopped)
@@ -1548,11 +1549,17 @@ static void qlt_release(struct qla_tgt *tgt)
 		}
 	}
 	kfree(tgt->qphints);
+	mutex_lock(&qla_tgt_mutex);
+	list_del(&vha->vha_tgt.qla_tgt->tgt_list_entry);
+	mutex_unlock(&qla_tgt_mutex);
 
 	btree_for_each_safe64(&tgt->lun_qpair_map, key, node)
 		btree_remove64(&tgt->lun_qpair_map, key);
 
 	btree_destroy64(&tgt->lun_qpair_map);
+
+	if (ha->tgt.tgt_ops && ha->tgt.tgt_ops->remove_target)
+		ha->tgt.tgt_ops->remove_target(vha);
 
 	vha->vha_tgt.qla_tgt = NULL;
 
@@ -6174,10 +6181,6 @@ int qlt_remove_target(struct qla_hw_data *ha, struct scsi_qla_host *vha)
 
 	/* free left over qfull cmds */
 	qlt_init_term_exchange(vha);
-
-	mutex_lock(&qla_tgt_mutex);
-	list_del(&vha->vha_tgt.qla_tgt->tgt_list_entry);
-	mutex_unlock(&qla_tgt_mutex);
 
 	ql_dbg(ql_dbg_tgt, vha, 0xe03c, "Unregistering target for host %ld(%p)",
 	    vha->host_no, ha);
