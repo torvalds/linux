@@ -3047,7 +3047,7 @@ lpfc_online(struct lpfc_hba *phba)
 {
 	struct lpfc_vport *vport;
 	struct lpfc_vport **vports;
-	int i;
+	int i, error = 0;
 	bool vpis_cleared = false;
 
 	if (!phba)
@@ -3071,6 +3071,18 @@ lpfc_online(struct lpfc_hba *phba)
 		if (!phba->sli4_hba.max_cfg_param.vpi_used)
 			vpis_cleared = true;
 		spin_unlock_irq(&phba->hbalock);
+
+		/* Reestablish the local initiator port.
+		 * The offline process destroyed the previous lport.
+		 */
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME &&
+				!phba->nvmet_support) {
+			error = lpfc_nvme_create_localport(phba->pport);
+			if (error)
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"6132 NVME restore reg failed "
+					"on nvmei error x%x\n", error);
+		}
 	} else {
 		lpfc_sli_queue_init(phba);
 		if (lpfc_sli_hba_setup(phba)) {	/* Initialize SLI2/SLI3 HBA */
