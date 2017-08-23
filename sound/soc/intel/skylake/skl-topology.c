@@ -49,6 +49,9 @@ static const int mic_quatro_list[][SKL_CH_QUATRO] = {
 {0, 1, 2, 3},
 };
 
+#define CHECK_HW_PARAMS(ch, freq, bps, prm_ch, prm_freq, prm_bps) \
+	((ch == prm_ch) && (bps == prm_bps) && (freq == prm_freq))
+
 void skl_tplg_d0i3_get(struct skl *skl, enum d0i3_capability caps)
 {
 	struct skl_d0i3_data *d0i3 =  &skl->skl_sst->d0i3;
@@ -153,8 +156,10 @@ static bool skl_is_pipe_mcps_avail(struct skl *skl,
 				struct skl_module_cfg *mconfig)
 {
 	struct skl_sst *ctx = skl->skl_sst;
+	u8 res_idx = mconfig->res_idx;
+	struct skl_module_res *res = &mconfig->module->resources[res_idx];
 
-	if (skl->resource.mcps + mconfig->mcps > skl->resource.max_mcps) {
+	if (skl->resource.mcps + res->cps > skl->resource.max_mcps) {
 		dev_err(ctx->dev,
 			"%s: module_id %d instance %d\n", __func__,
 			mconfig->id.module_id, mconfig->id.instance_id);
@@ -170,7 +175,10 @@ static bool skl_is_pipe_mcps_avail(struct skl *skl,
 static void skl_tplg_alloc_pipe_mcps(struct skl *skl,
 				struct skl_module_cfg *mconfig)
 {
-	skl->resource.mcps += mconfig->mcps;
+	u8 res_idx = mconfig->res_idx;
+	struct skl_module_res *res = &mconfig->module->resources[res_idx];
+
+	skl->resource.mcps += res->cps;
 }
 
 /*
@@ -179,7 +187,11 @@ static void skl_tplg_alloc_pipe_mcps(struct skl *skl,
 static void
 skl_tplg_free_pipe_mcps(struct skl *skl, struct skl_module_cfg *mconfig)
 {
-	skl->resource.mcps -= mconfig->mcps;
+	u8 res_idx = mconfig->res_idx;
+	struct skl_module_res *res = &mconfig->module->resources[res_idx];
+
+	res = &mconfig->module->resources[res_idx];
+	skl->resource.mcps -= res->cps;
 }
 
 /*
@@ -195,17 +207,21 @@ skl_tplg_free_pipe_mem(struct skl *skl, struct skl_module_cfg *mconfig)
 static void skl_dump_mconfig(struct skl_sst *ctx,
 					struct skl_module_cfg *mcfg)
 {
+	struct skl_module_iface *iface = &mcfg->module->formats[0];
+
 	dev_dbg(ctx->dev, "Dumping config\n");
 	dev_dbg(ctx->dev, "Input Format:\n");
-	dev_dbg(ctx->dev, "channels = %d\n", mcfg->in_fmt[0].channels);
-	dev_dbg(ctx->dev, "s_freq = %d\n", mcfg->in_fmt[0].s_freq);
-	dev_dbg(ctx->dev, "ch_cfg = %d\n", mcfg->in_fmt[0].ch_cfg);
-	dev_dbg(ctx->dev, "valid bit depth = %d\n", mcfg->in_fmt[0].valid_bit_depth);
+	dev_dbg(ctx->dev, "channels = %d\n", iface->inputs[0].fmt.channels);
+	dev_dbg(ctx->dev, "s_freq = %d\n", iface->inputs[0].fmt.s_freq);
+	dev_dbg(ctx->dev, "ch_cfg = %d\n", iface->inputs[0].fmt.ch_cfg);
+	dev_dbg(ctx->dev, "valid bit depth = %d\n",
+				iface->inputs[0].fmt.valid_bit_depth);
 	dev_dbg(ctx->dev, "Output Format:\n");
-	dev_dbg(ctx->dev, "channels = %d\n", mcfg->out_fmt[0].channels);
-	dev_dbg(ctx->dev, "s_freq = %d\n", mcfg->out_fmt[0].s_freq);
-	dev_dbg(ctx->dev, "valid bit depth = %d\n", mcfg->out_fmt[0].valid_bit_depth);
-	dev_dbg(ctx->dev, "ch_cfg = %d\n", mcfg->out_fmt[0].ch_cfg);
+	dev_dbg(ctx->dev, "channels = %d\n", iface->outputs[0].fmt.channels);
+	dev_dbg(ctx->dev, "s_freq = %d\n", iface->outputs[0].fmt.s_freq);
+	dev_dbg(ctx->dev, "valid bit depth = %d\n",
+				iface->outputs[0].fmt.valid_bit_depth);
+	dev_dbg(ctx->dev, "ch_cfg = %d\n", iface->outputs[0].fmt.ch_cfg);
 }
 
 static void skl_tplg_update_chmap(struct skl_module_fmt *fmt, int chs)
@@ -273,8 +289,8 @@ static void skl_tplg_update_params_fixup(struct skl_module_cfg *m_cfg,
 	struct skl_module_fmt *in_fmt, *out_fmt;
 
 	/* Fixups will be applied to pin 0 only */
-	in_fmt = &m_cfg->in_fmt[0];
-	out_fmt = &m_cfg->out_fmt[0];
+	in_fmt = &m_cfg->module->formats[0].inputs[0].fmt;
+	out_fmt = &m_cfg->module->formats[0].outputs[0].fmt;
 
 	if (params->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (is_fe) {
@@ -312,21 +328,23 @@ static void skl_tplg_update_buffer_size(struct skl_sst *ctx,
 {
 	int multiplier = 1;
 	struct skl_module_fmt *in_fmt, *out_fmt;
+	struct skl_module_res *res;
 
 	/* Since fixups is applied to pin 0 only, ibs, obs needs
 	 * change for pin 0 only
 	 */
-	in_fmt = &mcfg->in_fmt[0];
-	out_fmt = &mcfg->out_fmt[0];
+	res = &mcfg->module->resources[0];
+	in_fmt = &mcfg->module->formats[0].inputs[0].fmt;
+	out_fmt = &mcfg->module->formats[0].outputs[0].fmt;
 
 	if (mcfg->m_type == SKL_MODULE_TYPE_SRCINT)
 		multiplier = 5;
 
-	mcfg->ibs = DIV_ROUND_UP(in_fmt->s_freq, 1000) *
+	res->ibs = DIV_ROUND_UP(in_fmt->s_freq, 1000) *
 			in_fmt->channels * (in_fmt->bit_depth >> 3) *
 			multiplier;
 
-	mcfg->obs = DIV_ROUND_UP(out_fmt->s_freq, 1000) *
+	res->obs = DIV_ROUND_UP(out_fmt->s_freq, 1000) *
 			out_fmt->channels * (out_fmt->bit_depth >> 3) *
 			multiplier;
 }
@@ -365,6 +383,8 @@ static int skl_tplg_update_be_blob(struct snd_soc_dapm_widget *w,
 	struct nhlt_specific_cfg *cfg;
 	struct skl *skl = get_skl_ctx(ctx->dev);
 	u8 dev_type = skl_tplg_be_dev_type(m_cfg->dev_type);
+	int fmt_idx = m_cfg->fmt_idx;
+	struct skl_module_iface *m_iface = &m_cfg->module->formats[fmt_idx];
 
 	/* check if we already have blob */
 	if (m_cfg->formats_config.caps_size > 0)
@@ -375,23 +395,23 @@ static int skl_tplg_update_be_blob(struct snd_soc_dapm_widget *w,
 	case SKL_DEVICE_DMIC:
 		link_type = NHLT_LINK_DMIC;
 		dir = SNDRV_PCM_STREAM_CAPTURE;
-		s_freq = m_cfg->in_fmt[0].s_freq;
-		s_fmt = m_cfg->in_fmt[0].bit_depth;
-		ch = m_cfg->in_fmt[0].channels;
+		s_freq = m_iface->inputs[0].fmt.s_freq;
+		s_fmt = m_iface->inputs[0].fmt.bit_depth;
+		ch = m_iface->inputs[0].fmt.channels;
 		break;
 
 	case SKL_DEVICE_I2S:
 		link_type = NHLT_LINK_SSP;
 		if (m_cfg->hw_conn_type == SKL_CONN_SOURCE) {
 			dir = SNDRV_PCM_STREAM_PLAYBACK;
-			s_freq = m_cfg->out_fmt[0].s_freq;
-			s_fmt = m_cfg->out_fmt[0].bit_depth;
-			ch = m_cfg->out_fmt[0].channels;
+			s_freq = m_iface->outputs[0].fmt.s_freq;
+			s_fmt = m_iface->outputs[0].fmt.bit_depth;
+			ch = m_iface->outputs[0].fmt.channels;
 		} else {
 			dir = SNDRV_PCM_STREAM_CAPTURE;
-			s_freq = m_cfg->in_fmt[0].s_freq;
-			s_fmt = m_cfg->in_fmt[0].bit_depth;
-			ch = m_cfg->in_fmt[0].channels;
+			s_freq = m_iface->inputs[0].fmt.s_freq;
+			s_fmt = m_iface->inputs[0].fmt.bit_depth;
+			ch = m_iface->inputs[0].fmt.channels;
 		}
 		break;
 
@@ -549,6 +569,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 	struct snd_soc_dapm_widget *w;
 	struct skl_module_cfg *mconfig;
 	struct skl_sst *ctx = skl->skl_sst;
+	u8 cfg_idx;
 	int ret = 0;
 
 	list_for_each_entry(w_module, &pipe->w_list, node) {
@@ -564,11 +585,15 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 			return -EIO;
 		}
 
+		cfg_idx = mconfig->pipe->cur_config_idx;
+		mconfig->fmt_idx = mconfig->mod_cfg[cfg_idx].fmt_idx;
+		mconfig->res_idx = mconfig->mod_cfg[cfg_idx].res_idx;
+
 		/* check resource available */
 		if (!skl_is_pipe_mcps_avail(skl, mconfig))
 			return -ENOMEM;
 
-		if (mconfig->is_loadable && ctx->dsp->fw_ops.load_mod) {
+		if (mconfig->module->loadable && ctx->dsp->fw_ops.load_mod) {
 			ret = ctx->dsp->fw_ops.load_mod(ctx->dsp,
 				mconfig->id.module_id, mconfig->guid);
 			if (ret < 0)
@@ -633,7 +658,7 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 		mconfig  = w_module->w->priv;
 		uuid_mod = (uuid_le *)mconfig->guid;
 
-		if (mconfig->is_loadable && ctx->dsp->fw_ops.unload_mod &&
+		if (mconfig->module->loadable && ctx->dsp->fw_ops.unload_mod &&
 			mconfig->m_state > SKL_MODULE_UNINIT) {
 			ret = ctx->dsp->fw_ops.unload_mod(ctx->dsp,
 						mconfig->id.module_id);
@@ -655,6 +680,65 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 }
 
 /*
+ * Here, we select pipe format based on the pipe type and pipe
+ * direction to determine the current config index for the pipeline.
+ * The config index is then used to select proper module resources.
+ * Intermediate pipes currently have a fixed format hence we select the
+ * 0th configuratation by default for such pipes.
+ */
+static int
+skl_tplg_get_pipe_config(struct skl *skl, struct skl_module_cfg *mconfig)
+{
+	struct skl_sst *ctx = skl->skl_sst;
+	struct skl_pipe *pipe = mconfig->pipe;
+	struct skl_pipe_params *params = pipe->p_params;
+	struct skl_path_config *pconfig = &pipe->configs[0];
+	struct skl_pipe_fmt *fmt = NULL;
+	bool in_fmt = false;
+	int i;
+
+	if (pipe->nr_cfgs == 0) {
+		pipe->cur_config_idx = 0;
+		return 0;
+	}
+
+	if (pipe->conn_type == SKL_PIPE_CONN_TYPE_NONE) {
+		dev_dbg(ctx->dev, "No conn_type detected, take 0th config\n");
+		pipe->cur_config_idx = 0;
+		pipe->memory_pages = pconfig->mem_pages;
+
+		return 0;
+	}
+
+	if ((pipe->conn_type == SKL_PIPE_CONN_TYPE_FE &&
+	     pipe->direction == SNDRV_PCM_STREAM_PLAYBACK) ||
+	     (pipe->conn_type == SKL_PIPE_CONN_TYPE_BE &&
+	     pipe->direction == SNDRV_PCM_STREAM_CAPTURE))
+		in_fmt = true;
+
+	for (i = 0; i < pipe->nr_cfgs; i++) {
+		pconfig = &pipe->configs[i];
+		if (in_fmt)
+			fmt = &pconfig->in_fmt;
+		else
+			fmt = &pconfig->out_fmt;
+
+		if (CHECK_HW_PARAMS(params->ch, params->s_freq, params->s_fmt,
+				    fmt->channels, fmt->freq, fmt->bps)) {
+			pipe->cur_config_idx = i;
+			pipe->memory_pages = pconfig->mem_pages;
+			dev_dbg(ctx->dev, "Using pipe config: %d\n", i);
+
+			return 0;
+		}
+	}
+
+	dev_err(ctx->dev, "Invalid pipe config: %d %d %d for pipe: %d\n",
+		params->ch, params->s_freq, params->s_fmt, pipe->ppl_id);
+	return -EINVAL;
+}
+
+/*
  * Mixer module represents a pipeline. So in the Pre-PMU event of mixer we
  * need create the pipeline. So we do following:
  *   - check the resources
@@ -672,6 +756,10 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	struct skl_module_cfg *src_module = NULL, *dst_module, *module;
 	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_module_deferred_bind *modules;
+
+	ret = skl_tplg_get_pipe_config(skl, mconfig);
+	if (ret < 0)
+		return ret;
 
 	/* check resource available */
 	if (!skl_is_pipe_mcps_avail(skl, mconfig))
@@ -776,12 +864,12 @@ static int skl_tplg_set_module_bind_params(struct snd_soc_dapm_widget *w,
 	 * check all out/in pins are in bind state.
 	 * if so set the module param
 	 */
-	for (i = 0; i < mcfg->max_out_queue; i++) {
+	for (i = 0; i < mcfg->module->max_output_pins; i++) {
 		if (mcfg->m_out_pin[i].pin_state != SKL_PIN_BIND_DONE)
 			return 0;
 	}
 
-	for (i = 0; i < mcfg->max_in_queue; i++) {
+	for (i = 0; i < mcfg->module->max_input_pins; i++) {
 		if (mcfg->m_in_pin[i].pin_state != SKL_PIN_BIND_DONE)
 			return 0;
 	}
@@ -832,7 +920,7 @@ static int skl_tplg_module_add_deferred_bind(struct skl *skl,
 	int i;
 
 	/* only supported for module with static pin connection */
-	for (i = 0; i < dst->max_in_queue; i++) {
+	for (i = 0; i < dst->module->max_input_pins; i++) {
 		struct skl_module_pin *pin = &dst->m_in_pin[i];
 
 		if (pin->is_dynamic)
@@ -1092,7 +1180,7 @@ static int skl_tplg_mixer_dapm_pre_pmd_event(struct snd_soc_dapm_widget *w,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < sink_mconfig->max_in_queue; i++) {
+	for (i = 0; i < sink_mconfig->module->max_input_pins; i++) {
 		if (sink_mconfig->m_in_pin[i].pin_state == SKL_PIN_BIND_DONE) {
 			src_mconfig = sink_mconfig->m_in_pin[i].tgt_mcfg;
 			if (!src_mconfig)
@@ -1203,7 +1291,7 @@ static int skl_tplg_pga_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < src_mconfig->max_out_queue; i++) {
+	for (i = 0; i < src_mconfig->module->max_output_pins; i++) {
 		if (src_mconfig->m_out_pin[i].pin_state == SKL_PIN_BIND_DONE) {
 			sink_mconfig = src_mconfig->m_out_pin[i].tgt_mcfg;
 			if (!sink_mconfig)
@@ -1497,14 +1585,22 @@ int skl_tplg_update_pipe_params(struct device *dev,
 			struct skl_module_cfg *mconfig,
 			struct skl_pipe_params *params)
 {
+	struct skl_module_res *res = &mconfig->module->resources[0];
+	struct skl *skl = get_skl_ctx(dev);
 	struct skl_module_fmt *format = NULL;
+	u8 cfg_idx = mconfig->pipe->cur_config_idx;
 
 	skl_tplg_fill_dma_id(mconfig, params);
+	mconfig->fmt_idx = mconfig->mod_cfg[cfg_idx].fmt_idx;
+	mconfig->res_idx = mconfig->mod_cfg[cfg_idx].res_idx;
+
+	if (skl->nr_modules)
+		return 0;
 
 	if (params->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		format = &mconfig->in_fmt[0];
+		format = &mconfig->module->formats[0].inputs[0].fmt;
 	else
-		format = &mconfig->out_fmt[0];
+		format = &mconfig->module->formats[0].outputs[0].fmt;
 
 	/* set the hw_params */
 	format->s_freq = params->s_freq;
@@ -1532,11 +1628,11 @@ int skl_tplg_update_pipe_params(struct device *dev,
 	}
 
 	if (params->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		mconfig->ibs = (format->s_freq / 1000) *
+		res->ibs = (format->s_freq / 1000) *
 				(format->channels) *
 				(format->bit_depth >> 3);
 	} else {
-		mconfig->obs = (format->s_freq / 1000) *
+		res->obs = (format->s_freq / 1000) *
 				(format->channels) *
 				(format->bit_depth >> 3);
 	}
@@ -1810,6 +1906,54 @@ static const struct snd_soc_tplg_kcontrol_ops skl_tplg_kcontrol_ops[] = {
 	},
 };
 
+static int skl_tplg_fill_pipe_cfg(struct device *dev,
+			struct skl_pipe *pipe, u32 tkn,
+			u32 tkn_val, int conf_idx, int dir)
+{
+	struct skl_pipe_fmt *fmt;
+	struct skl_path_config *config;
+
+	switch (dir) {
+	case SKL_DIR_IN:
+		fmt = &pipe->configs[conf_idx].in_fmt;
+		break;
+
+	case SKL_DIR_OUT:
+		fmt = &pipe->configs[conf_idx].out_fmt;
+		break;
+
+	default:
+		dev_err(dev, "Invalid direction: %d\n", dir);
+		return -EINVAL;
+	}
+
+	config = &pipe->configs[conf_idx];
+
+	switch (tkn) {
+	case SKL_TKN_U32_CFG_FREQ:
+		fmt->freq = tkn_val;
+		break;
+
+	case SKL_TKN_U8_CFG_CHAN:
+		fmt->channels = tkn_val;
+		break;
+
+	case SKL_TKN_U8_CFG_BPS:
+		fmt->bps = tkn_val;
+		break;
+
+	case SKL_TKN_U32_PATH_MEM_PGS:
+		config->mem_pages = tkn_val;
+		break;
+
+	default:
+		dev_err(dev, "Invalid token config: %d\n", tkn);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int skl_tplg_fill_pipe_tkn(struct device *dev,
 			struct skl_pipe *pipe, u32 tkn,
 			u32 tkn_val)
@@ -1830,6 +1974,14 @@ static int skl_tplg_fill_pipe_tkn(struct device *dev,
 
 	case SKL_TKN_U32_PMODE:
 		pipe->lp_mode = tkn_val;
+		break;
+
+	case SKL_TKN_U32_PIPE_DIRECTION:
+		pipe->direction = tkn_val;
+		break;
+
+	case SKL_TKN_U32_NUM_CONFIGS:
+		pipe->nr_cfgs = tkn_val;
 		break;
 
 	default:
@@ -1993,18 +2145,21 @@ static int skl_tplg_fill_fmt(struct device *dev,
 }
 
 static int skl_tplg_widget_fill_fmt(struct device *dev,
-		struct skl_module_cfg *mconfig,
+		struct skl_module_iface *fmt,
 		u32 tkn, u32 val, u32 dir, int fmt_idx)
 {
 	struct skl_module_fmt *dst_fmt;
 
+	if (!fmt)
+		return -EINVAL;
+
 	switch (dir) {
 	case SKL_DIR_IN:
-		dst_fmt = &mconfig->in_fmt[fmt_idx];
+		dst_fmt = &fmt->inputs[fmt_idx].fmt;
 		break;
 
 	case SKL_DIR_OUT:
-		dst_fmt = &mconfig->out_fmt[fmt_idx];
+		dst_fmt = &fmt->outputs[fmt_idx].fmt;
 		break;
 
 	default:
@@ -2117,6 +2272,10 @@ static int skl_tplg_fill_res_tkn(struct device *dev,
 		res->ibs = tkn_elem->value;
 		break;
 
+	case SKL_TKN_U32_MAX_MCPS:
+		res->cps = tkn_elem->value;
+		break;
+
 	case SKL_TKN_MM_U32_RES_PIN_ID:
 	case SKL_TKN_MM_U32_PIN_BUF:
 		ret = skl_tplg_manifest_pin_res_tkn(dev, tkn_elem, res,
@@ -2145,49 +2304,54 @@ static int skl_tplg_get_token(struct device *dev,
 	int tkn_count = 0;
 	int ret;
 	static int is_pipe_exists;
-	static int pin_index, dir;
+	static int pin_index, dir, conf_idx;
+	struct skl_module_iface *iface = NULL;
+	struct skl_module_res *res = NULL;
+	int res_idx = mconfig->res_idx;
+	int fmt_idx = mconfig->fmt_idx;
+
+	/*
+	 * If the manifest structure contains no modules, fill all
+	 * the module data to 0th index.
+	 * res_idx and fmt_idx are default set to 0.
+	 */
+	if (skl->nr_modules == 0) {
+		res = &mconfig->module->resources[res_idx];
+		iface = &mconfig->module->formats[fmt_idx];
+	}
 
 	if (tkn_elem->token > SKL_TKN_MAX)
 		return -EINVAL;
 
 	switch (tkn_elem->token) {
 	case SKL_TKN_U8_IN_QUEUE_COUNT:
-		mconfig->max_in_queue = tkn_elem->value;
-		mconfig->m_in_pin = devm_kzalloc(dev, mconfig->max_in_queue *
-					sizeof(*mconfig->m_in_pin),
-					GFP_KERNEL);
-		if (!mconfig->m_in_pin)
-			return -ENOMEM;
-
+		mconfig->module->max_input_pins = tkn_elem->value;
 		break;
 
 	case SKL_TKN_U8_OUT_QUEUE_COUNT:
-		mconfig->max_out_queue = tkn_elem->value;
-		mconfig->m_out_pin = devm_kzalloc(dev, mconfig->max_out_queue *
-					sizeof(*mconfig->m_out_pin),
-					GFP_KERNEL);
-
-		if (!mconfig->m_out_pin)
-			return -ENOMEM;
-
+		mconfig->module->max_output_pins = tkn_elem->value;
 		break;
 
 	case SKL_TKN_U8_DYN_IN_PIN:
 		if (!mconfig->m_in_pin)
+			mconfig->m_in_pin = devm_kzalloc(dev, MAX_IN_QUEUE *
+					sizeof(*mconfig->m_in_pin), GFP_KERNEL);
+		if (!mconfig->m_in_pin)
 			return -ENOMEM;
 
-		skl_tplg_fill_pin_dynamic_val(mconfig->m_in_pin,
-			mconfig->max_in_queue, tkn_elem->value);
-
+		skl_tplg_fill_pin_dynamic_val(mconfig->m_in_pin, MAX_IN_QUEUE,
+					      tkn_elem->value);
 		break;
 
 	case SKL_TKN_U8_DYN_OUT_PIN:
 		if (!mconfig->m_out_pin)
+			mconfig->m_out_pin = devm_kzalloc(dev, MAX_IN_QUEUE *
+					sizeof(*mconfig->m_in_pin), GFP_KERNEL);
+		if (!mconfig->m_out_pin)
 			return -ENOMEM;
 
-		skl_tplg_fill_pin_dynamic_val(mconfig->m_out_pin,
-			mconfig->max_out_queue, tkn_elem->value);
-
+		skl_tplg_fill_pin_dynamic_val(mconfig->m_out_pin, MAX_OUT_QUEUE,
+					      tkn_elem->value);
 		break;
 
 	case SKL_TKN_U8_TIME_SLOT:
@@ -2215,19 +2379,13 @@ static int skl_tplg_get_token(struct device *dev,
 		break;
 
 	case SKL_TKN_U32_MEM_PAGES:
-		mconfig->mem_pages = tkn_elem->value;
-		break;
-
 	case SKL_TKN_U32_MAX_MCPS:
-		mconfig->mcps = tkn_elem->value;
-		break;
-
 	case SKL_TKN_U32_OBS:
-		mconfig->obs = tkn_elem->value;
-		break;
-
 	case SKL_TKN_U32_IBS:
-		mconfig->ibs = tkn_elem->value;
+		ret = skl_tplg_fill_res_tkn(dev, tkn_elem, res, dir, pin_index);
+		if (ret < 0)
+			return ret;
+
 		break;
 
 	case SKL_TKN_U32_VBUS_ID:
@@ -2260,10 +2418,16 @@ static int skl_tplg_get_token(struct device *dev,
 
 		break;
 
+	case SKL_TKN_U32_PIPE_CONFIG_ID:
+		conf_idx = tkn_elem->value;
+		break;
+
 	case SKL_TKN_U32_PIPE_CONN_TYPE:
 	case SKL_TKN_U32_PIPE_PRIORITY:
 	case SKL_TKN_U32_PIPE_MEM_PGS:
 	case SKL_TKN_U32_PMODE:
+	case SKL_TKN_U32_PIPE_DIRECTION:
+	case SKL_TKN_U32_NUM_CONFIGS:
 		if (is_pipe_exists) {
 			ret = skl_tplg_fill_pipe_tkn(dev, mconfig->pipe,
 					tkn_elem->token, tkn_elem->value);
@@ -2271,6 +2435,27 @@ static int skl_tplg_get_token(struct device *dev,
 				return ret;
 		}
 
+		break;
+
+	case SKL_TKN_U32_PATH_MEM_PGS:
+	case SKL_TKN_U32_CFG_FREQ:
+	case SKL_TKN_U8_CFG_CHAN:
+	case SKL_TKN_U8_CFG_BPS:
+		if (mconfig->pipe->nr_cfgs) {
+			ret = skl_tplg_fill_pipe_cfg(dev, mconfig->pipe,
+					tkn_elem->token, tkn_elem->value,
+					conf_idx, dir);
+			if (ret < 0)
+				return ret;
+		}
+		break;
+
+	case SKL_TKN_CFG_MOD_RES_ID:
+		mconfig->mod_cfg[conf_idx].res_idx = tkn_elem->value;
+		break;
+
+	case SKL_TKN_CFG_MOD_FMT_ID:
+		mconfig->mod_cfg[conf_idx].fmt_idx = tkn_elem->value;
 		break;
 
 	/*
@@ -2293,7 +2478,7 @@ static int skl_tplg_get_token(struct device *dev,
 	case SKL_TKN_U32_FMT_INTERLEAVE:
 	case SKL_TKN_U32_FMT_SAMPLE_TYPE:
 	case SKL_TKN_U32_FMT_CH_MAP:
-		ret = skl_tplg_widget_fill_fmt(dev, mconfig, tkn_elem->token,
+		ret = skl_tplg_widget_fill_fmt(dev, iface, tkn_elem->token,
 				tkn_elem->value, dir, pin_index);
 
 		if (ret < 0)
@@ -2518,11 +2703,11 @@ static void skl_clear_pin_config(struct snd_soc_platform *platform,
 					strlen(platform->component.name))) {
 		mconfig = w->priv;
 		pipe = mconfig->pipe;
-		for (i = 0; i < mconfig->max_in_queue; i++) {
+		for (i = 0; i < mconfig->module->max_input_pins; i++) {
 			mconfig->m_in_pin[i].in_use = false;
 			mconfig->m_in_pin[i].pin_state = SKL_PIN_UNBIND;
 		}
-		for (i = 0; i < mconfig->max_out_queue; i++) {
+		for (i = 0; i < mconfig->module->max_output_pins; i++) {
 			mconfig->m_out_pin[i].in_use = false;
 			mconfig->m_out_pin[i].pin_state = SKL_PIN_UNBIND;
 		}
@@ -2580,6 +2765,13 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 
 	if (!mconfig)
 		return -ENOMEM;
+
+	if (skl->nr_modules == 0) {
+		mconfig->module = devm_kzalloc(bus->dev,
+				sizeof(*mconfig->module), GFP_KERNEL);
+		if (!mconfig->module)
+			return -ENOMEM;
+	}
 
 	w->priv = mconfig;
 

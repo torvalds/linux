@@ -1233,7 +1233,8 @@ static int skl_get_module_info(struct skl *skl, struct skl_module_cfg *mconfig)
 	list_for_each_entry(module, &ctx->uuid_list, list) {
 		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
 			mconfig->id.module_id = module->id;
-			mconfig->is_loadable = module->is_loadable;
+			if (mconfig->module)
+				mconfig->module->loadable = module->is_loadable;
 			return 0;
 		}
 	}
