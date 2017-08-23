@@ -2486,7 +2486,7 @@ static int ars_status_process_records(struct acpi_nfit_desc *acpi_desc,
 		if (ars_status->out_length
 				< 44 + sizeof(struct nd_ars_record) * (i + 1))
 			break;
-		rc = nvdimm_bus_add_poison(nvdimm_bus,
+		rc = nvdimm_bus_add_badrange(nvdimm_bus,
 				ars_status->records[i].err_address,
 				ars_status->records[i].length);
 		if (rc)
