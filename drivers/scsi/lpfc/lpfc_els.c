@@ -3930,7 +3930,25 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if (mbox) {
 		if ((rspiocb->iocb.ulpStatus == 0)
 		    && (ndlp->nlp_flag & NLP_ACC_REGLOGIN)) {
-			lpfc_unreg_rpi(vport, ndlp);
+			if (!lpfc_unreg_rpi(vport, ndlp) &&
+			    (ndlp->nlp_state ==  NLP_STE_PLOGI_ISSUE ||
+			     ndlp->nlp_state == NLP_STE_REG_LOGIN_ISSUE)) {
+				lpfc_printf_vlog(vport, KERN_INFO,
+					LOG_DISCOVERY,
+					"0314 PLOGI recov DID x%x "
+					"Data: x%x x%x x%x\n",
+					ndlp->nlp_DID, ndlp->nlp_state,
+					ndlp->nlp_rpi, ndlp->nlp_flag);
+				mp = mbox->context1;
+				if (mp) {
+					lpfc_mbuf_free(phba, mp->virt,
+						       mp->phys);
+					kfree(mp);
+				}
+				mempool_free(mbox, phba->mbox_mem_pool);
+				goto out;
+			}
+
 			/* Increment reference count to ndlp to hold the
 			 * reference to ndlp for the callback function.
 			 */
