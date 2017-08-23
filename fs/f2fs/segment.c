@@ -1574,8 +1574,7 @@ skip:
 		kmem_cache_free(discard_entry_slab, entry);
 	}
 
-	dcc->discard_wake = 1;
-	wake_up_interruptible_all(&dcc->discard_wait_queue);
+	wake_up_discard_thread(sbi, false);
 }
 
 static int create_discard_cmd_control(struct f2fs_sb_info *sbi)
