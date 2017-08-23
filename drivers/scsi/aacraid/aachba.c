@@ -549,7 +549,9 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 	if ((le32_to_cpu(get_name_reply->status) == CT_OK)
 	 && (get_name_reply->data[0] != '\0')) {
 		char *sp = get_name_reply->data;
-		sp[sizeof(((struct aac_get_name_resp *)NULL)->data)] = '\0';
+		int data_size = FIELD_SIZEOF(struct aac_get_name_resp, data);
+
+		sp[data_size - 1] = '\0';
 		while (*sp == ' ')
 			++sp;
 		if (*sp) {
@@ -579,11 +581,14 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 static int aac_get_container_name(struct scsi_cmnd * scsicmd)
 {
 	int status;
+	int data_size;
 	struct aac_get_name *dinfo;
 	struct fib * cmd_fibcontext;
 	struct aac_dev * dev;
 
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
+
+	data_size = FIELD_SIZEOF(struct aac_get_name_resp, data);
 
 	cmd_fibcontext = aac_fib_alloc_tag(dev, scsicmd);
 
@@ -593,7 +598,7 @@ static int aac_get_container_name(struct scsi_cmnd * scsicmd)
 	dinfo->command = cpu_to_le32(VM_ContainerConfig);
 	dinfo->type = cpu_to_le32(CT_READ_NAME);
 	dinfo->cid = cpu_to_le32(scmd_id(scsicmd));
-	dinfo->count = cpu_to_le32(sizeof(((struct aac_get_name_resp *)NULL)->data));
+	dinfo->count = cpu_to_le32(data_size - 1);
 
 	status = aac_fib_send(ContainerCommand,
 		  cmd_fibcontext,
