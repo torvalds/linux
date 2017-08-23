@@ -20,6 +20,7 @@
 #include <asm/processor.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/setup.h>
 
 /* Cache operations. */
 void (*flush_cache_all)(void);
