@@ -44,6 +44,13 @@
 #define SKL_DEFAULT_MIC_SEL_GAIN	0x3FF
 #define SKL_MIC_SEL_SWITCH	0x3
 
+#define SKL_OUTPUT_PIN		0
+#define SKL_INPUT_PIN		1
+#define SKL_MAX_PATH_CONFIGS	8
+#define SKL_MAX_MODULES_IN_PIPE	8
+#define SKL_MAX_MODULE_FORMATS		32
+#define SKL_MAX_MODULE_RESOURCES	32
+
 enum skl_channel_index {
 	SKL_CHANNEL_LEFT = 0,
 	SKL_CHANNEL_RIGHT = 1,
@@ -290,6 +297,51 @@ enum d0i3_capability {
 	SKL_D0I3_NONE = 0,
 	SKL_D0I3_STREAMING = 1,
 	SKL_D0I3_NON_STREAMING = 2,
+};
+
+struct skl_module_pin_fmt {
+	u8 id;
+	struct skl_module_fmt fmt;
+};
+
+struct skl_module_iface {
+	u8 fmt_idx;
+	u8 nr_in_fmt;
+	u8 nr_out_fmt;
+	struct skl_module_pin_fmt inputs[MAX_IN_QUEUE];
+	struct skl_module_pin_fmt outputs[MAX_OUT_QUEUE];
+};
+
+struct skl_module_pin_resources {
+	u8 pin_index;
+	u32 buf_size;
+};
+
+struct skl_module_res {
+	u8 id;
+	u32 is_pages;
+	u32 cps;
+	u32 ibs;
+	u32 obs;
+	u32 dma_buffer_size;
+	u32 cpc;
+	u8 nr_input_pins;
+	u8 nr_output_pins;
+	struct skl_module_pin_resources input[MAX_IN_QUEUE];
+	struct skl_module_pin_resources output[MAX_OUT_QUEUE];
+};
+
+struct skl_module {
+	uuid_le uuid;
+	u8 loadable;
+	u8 input_pin_type;
+	u8 output_pin_type;
+	u8 max_input_pins;
+	u8 max_output_pins;
+	u8 nr_resources;
+	u8 nr_interfaces;
+	struct skl_module_res resources[SKL_MAX_MODULE_RESOURCES];
+	struct skl_module_iface formats[SKL_MAX_MODULE_FORMATS];
 };
 
 struct skl_module_cfg {

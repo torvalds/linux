@@ -71,6 +71,8 @@ struct skl {
 	struct work_struct probe_work;
 
 	struct skl_debug *debugfs;
+	u8 nr_modules;
+	struct skl_module **modules;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
