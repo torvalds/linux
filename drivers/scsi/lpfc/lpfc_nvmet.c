@@ -559,7 +559,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		/* lpfc_nvmet_xmt_fcp_release() will recycle the context */
 	} else {
 		ctxp->entry_cnt++;
-		start_clean = offsetof(struct lpfc_iocbq, wqe);
+		start_clean = offsetof(struct lpfc_iocbq, iocb_flag);
 		memset(((char *)cmdwqe) + start_clean, 0,
 		       (sizeof(struct lpfc_iocbq) - start_clean));
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -1024,7 +1024,6 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 		/* Word 7 */
 		bf_set(wqe_ct, &wqe->generic.wqe_com, SLI4_CT_RPI);
 		bf_set(wqe_class, &wqe->generic.wqe_com, CLASS3);
-		bf_set(wqe_pu, &wqe->generic.wqe_com, 1);
 		/* Word 10 */
 		bf_set(wqe_nvme, &wqe->fcp_tsend.wqe_com, 1);
 		bf_set(wqe_ebde_cnt, &wqe->generic.wqe_com, 0);
@@ -1973,6 +1972,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		       nvmewqe->sli4_xritag);
 
 		/* Word 7 */
+		bf_set(wqe_pu, &wqe->fcp_tsend.wqe_com, 1);
 		bf_set(wqe_cmnd, &wqe->fcp_tsend.wqe_com, CMD_FCP_TSEND64_WQE);
 
 		/* Word 8 */
@@ -2081,6 +2081,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		       nvmewqe->sli4_xritag);
 
 		/* Word 7 */
+		bf_set(wqe_pu, &wqe->fcp_treceive.wqe_com, 1);
 		bf_set(wqe_ar, &wqe->fcp_treceive.wqe_com, 0);
 		bf_set(wqe_cmnd, &wqe->fcp_treceive.wqe_com,
 		       CMD_FCP_TRECEIVE64_WQE);
@@ -2164,6 +2165,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		       nvmewqe->sli4_xritag);
 
 		/* Word 7 */
+		bf_set(wqe_pu, &wqe->fcp_trsp.wqe_com, 0);
 		bf_set(wqe_ag, &wqe->fcp_trsp.wqe_com, 1);
 		bf_set(wqe_cmnd, &wqe->fcp_trsp.wqe_com, CMD_FCP_TRSP64_WQE);
 
