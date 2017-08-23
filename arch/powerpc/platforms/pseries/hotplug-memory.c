@@ -828,6 +828,9 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add, struct property *prop)
 		return -EINVAL;
 
 	for (i = 0; i < num_lmbs && lmbs_to_add != lmbs_added; i++) {
+		if (lmbs[i].flags & DRCONF_MEM_ASSIGNED)
+			continue;
+
 		rc = dlpar_acquire_drc(lmbs[i].drc_index);
 		if (rc)
 			continue;
@@ -870,6 +873,7 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add, struct property *prop)
 				lmbs[i].base_addr, lmbs[i].drc_index);
 			lmbs[i].reserved = 0;
 		}
+		rc = 0;
 	}
 
 	return rc;
