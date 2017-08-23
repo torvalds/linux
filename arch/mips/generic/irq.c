@@ -16,6 +16,7 @@
 #include <linux/types.h>
 
 #include <asm/irq.h>
+#include <asm/time.h>
 
 int get_c0_fdc_int(void)
 {
