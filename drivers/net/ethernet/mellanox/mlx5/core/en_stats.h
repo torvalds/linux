@@ -135,13 +135,6 @@ struct mlx5e_pport_stats {
 	__be64 eth_ext_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 };
 
-static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
-	{ "rx_prio%d_bytes", PPORT_PER_PRIO_OFF(rx_octets) },
-	{ "rx_prio%d_packets", PPORT_PER_PRIO_OFF(rx_frames) },
-	{ "tx_prio%d_bytes", PPORT_PER_PRIO_OFF(tx_octets) },
-	{ "tx_prio%d_packets", PPORT_PER_PRIO_OFF(tx_frames) },
-};
-
 static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
 	/* %s is "global" or "prio{i}" */
 	{ "rx_%s_pause", PPORT_PER_PRIO_OFF(rx_pause) },
@@ -249,12 +242,8 @@ static const struct counter_desc sq_stats_desc[] = {
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, xmit_more) },
 };
 
-#define NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS \
-	ARRAY_SIZE(pport_per_prio_traffic_stats_desc)
 #define NUM_PPORT_PER_PRIO_PFC_COUNTERS \
 	ARRAY_SIZE(pport_per_prio_pfc_stats_desc)
-#define NUM_PPORT_COUNTERS(priv)	(NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS * \
-					 NUM_PPORT_PRIO)
 #define NUM_RQ_STATS			ARRAY_SIZE(rq_stats_desc)
 #define NUM_SQ_STATS			ARRAY_SIZE(sq_stats_desc)
 

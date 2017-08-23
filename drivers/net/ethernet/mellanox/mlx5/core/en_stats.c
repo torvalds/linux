@@ -502,6 +502,51 @@ static int mlx5e_grp_pcie_fill_stats(struct mlx5e_priv *priv, u64 *data,
 	return idx;
 }
 
+static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
+	{ "rx_prio%d_bytes", PPORT_PER_PRIO_OFF(rx_octets) },
+	{ "rx_prio%d_packets", PPORT_PER_PRIO_OFF(rx_frames) },
+	{ "tx_prio%d_bytes", PPORT_PER_PRIO_OFF(tx_octets) },
+	{ "tx_prio%d_packets", PPORT_PER_PRIO_OFF(tx_frames) },
+};
+
+#define NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS	ARRAY_SIZE(pport_per_prio_traffic_stats_desc)
+
+static int mlx5e_grp_per_prio_traffic_get_num_stats(struct mlx5e_priv *priv)
+{
+	return NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS * NUM_PPORT_PRIO;
+}
+
+static int mlx5e_grp_per_prio_traffic_fill_strings(struct mlx5e_priv *priv,
+						   u8 *data,
+						   int idx)
+{
+	int i, prio;
+
+	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
+		for (i = 0; i < NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS; i++)
+			sprintf(data + (idx++) * ETH_GSTRING_LEN,
+				pport_per_prio_traffic_stats_desc[i].format, prio);
+	}
+
+	return idx;
+}
+
+static int mlx5e_grp_per_prio_traffic_fill_stats(struct mlx5e_priv *priv,
+						 u64 *data,
+						 int idx)
+{
+	int i, prio;
+
+	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
+		for (i = 0; i < NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS; i++)
+			data[idx++] =
+				MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[prio],
+						    pport_per_prio_traffic_stats_desc, i);
+	}
+
+	return idx;
+}
+
 const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 	{
 		.get_num_stats = mlx5e_grp_sw_get_num_stats,
@@ -547,6 +592,11 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.get_num_stats = mlx5e_grp_pcie_get_num_stats,
 		.fill_strings = mlx5e_grp_pcie_fill_strings,
 		.fill_stats = mlx5e_grp_pcie_fill_stats,
+	},
+	{
+		.get_num_stats = mlx5e_grp_per_prio_traffic_get_num_stats,
+		.fill_strings = mlx5e_grp_per_prio_traffic_fill_strings,
+		.fill_stats = mlx5e_grp_per_prio_traffic_fill_stats,
 	},
 };
 
