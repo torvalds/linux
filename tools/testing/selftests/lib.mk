@@ -12,7 +12,7 @@ TEST_GEN_FILES := $(patsubst %,$(OUTPUT)/%,$(TEST_GEN_FILES))
 all: $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES)
 
 define RUN_TESTS
-	@for TEST in $(TEST_GEN_PROGS) $(TEST_PROGS); do \
+	@for TEST in $(1); do \
 		BASENAME_TEST=`basename $$TEST`;	\
 		if [ ! -x $$BASENAME_TEST ]; then	\
 			echo "selftests: Warning: file $$BASENAME_TEST is not executable, correct this.";\
@@ -24,7 +24,7 @@ define RUN_TESTS
 endef
 
 run_tests: all
-	$(RUN_TESTS)
+	$(call RUN_TESTS, $(TEST_GEN_PROGS) $(TEST_PROGS))
 
 define INSTALL_RULE
 	@if [ "X$(TEST_PROGS)$(TEST_PROGS_EXTENDED)$(TEST_FILES)" != "X" ]; then					\
