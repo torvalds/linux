@@ -135,10 +135,6 @@ void mlx5e_build_ptys2ethtool_map(void)
 				       ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT);
 }
 
-#define MLX5E_NUM_RQ_STATS(priv) (NUM_RQ_STATS * (priv)->channels.num)
-#define MLX5E_NUM_SQ_STATS(priv) \
-	(NUM_SQ_STATS * (priv)->channels.num * (priv)->channels.params.num_tc)
-
 int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 {
 	int i, num_stats = 0;
@@ -147,10 +143,7 @@ int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 	case ETH_SS_STATS:
 		for (i = 0; i < mlx5e_num_stats_grps; i++)
 			num_stats += mlx5e_stats_grps[i].get_num_stats(priv);
-		return num_stats +
-		       MLX5E_NUM_RQ_STATS(priv) +
-		       MLX5E_NUM_SQ_STATS(priv);
-
+		return num_stats;
 	case ETH_SS_PRIV_FLAGS:
 		return ARRAY_SIZE(mlx5e_priv_flags);
 	case ETH_SS_TEST:
@@ -170,26 +163,10 @@ static int mlx5e_get_sset_count(struct net_device *dev, int sset)
 
 static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, u8 *data)
 {
-	int i, j, tc, idx = 0;
+	int i, idx = 0;
 
 	for (i = 0; i < mlx5e_num_stats_grps; i++)
 		idx = mlx5e_stats_grps[i].fill_strings(priv, data, idx);
-
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		return;
-
-	/* per channel counters */
-	for (i = 0; i < priv->channels.num; i++)
-		for (j = 0; j < NUM_RQ_STATS; j++)
-			sprintf(data + (idx++) * ETH_GSTRING_LEN,
-				rq_stats_desc[j].format, i);
-
-	for (tc = 0; tc < priv->channels.params.num_tc; tc++)
-		for (i = 0; i < priv->channels.num; i++)
-			for (j = 0; j < NUM_SQ_STATS; j++)
-				sprintf(data + (idx++) * ETH_GSTRING_LEN,
-					sq_stats_desc[j].format,
-					priv->channel_tc2txq[i][tc]);
 }
 
 void mlx5e_ethtool_get_strings(struct mlx5e_priv *priv, u32 stringset, u8 *data)
@@ -224,8 +201,7 @@ static void mlx5e_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 				     struct ethtool_stats *stats, u64 *data)
 {
-	struct mlx5e_channels *channels;
-	int i, j, tc, idx = 0;
+	int i, idx = 0;
 
 	if (!data)
 		return;
@@ -233,27 +209,10 @@ void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 	mutex_lock(&priv->state_lock);
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
 		mlx5e_update_stats(priv, true);
-	channels = &priv->channels;
 	mutex_unlock(&priv->state_lock);
 
 	for (i = 0; i < mlx5e_num_stats_grps; i++)
 		idx = mlx5e_stats_grps[i].fill_stats(priv, data, idx);
-
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		return;
-
-	/* per channel counters */
-	for (i = 0; i < channels->num; i++)
-		for (j = 0; j < NUM_RQ_STATS; j++)
-			data[idx++] =
-			       MLX5E_READ_CTR64_CPU(&channels->c[i]->rq.stats,
-						    rq_stats_desc, j);
-
-	for (tc = 0; tc < priv->channels.params.num_tc; tc++)
-		for (i = 0; i < channels->num; i++)
-			for (j = 0; j < NUM_SQ_STATS; j++)
-				data[idx++] = MLX5E_READ_CTR64_CPU(&channels->c[i]->sq[tc].stats,
-								   sq_stats_desc, j);
 }
 
 static void mlx5e_get_ethtool_stats(struct net_device *dev,
