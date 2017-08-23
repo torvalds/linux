@@ -109,9 +109,11 @@ static bool check_buffer_pages_allocated(struct binder_alloc *alloc,
 	page_addr = buffer->data;
 	for (; page_addr < end; page_addr += PAGE_SIZE) {
 		page_index = (page_addr - alloc->buffer) / PAGE_SIZE;
-		if (!alloc->pages[page_index]) {
-			pr_err("incorrect alloc state at page index %d\n",
-			       page_index);
+		if (!alloc->pages[page_index].page_ptr ||
+		    !list_empty(&alloc->pages[page_index].lru)) {
+			pr_err("expect alloc but is %s at page index %d\n",
+			       alloc->pages[page_index].page_ptr ?
+			       "lru" : "free", page_index);
 			return false;
 		}
 	}
@@ -137,28 +139,63 @@ static void binder_selftest_alloc_buf(struct binder_alloc *alloc,
 
 static void binder_selftest_free_buf(struct binder_alloc *alloc,
 				     struct binder_buffer *buffers[],
-				     size_t *sizes, int *seq)
+				     size_t *sizes, int *seq, size_t end)
 {
 	int i;
 
 	for (i = 0; i < BUFFER_NUM; i++)
 		binder_alloc_free_buf(alloc, buffers[seq[i]]);
 
+	for (i = 0; i < end / PAGE_SIZE; i++) {
+		/**
+		 * Error message on a free page can be false positive
+		 * if binder shrinker ran during binder_alloc_free_buf
+		 * calls above.
+		 */
+		if (list_empty(&alloc->pages[i].lru)) {
+			pr_err_size_seq(sizes, seq);
+			pr_err("expect lru but is %s at page index %d\n",
+			       alloc->pages[i].page_ptr ? "alloc" : "free", i);
+			binder_selftest_failures++;
+		}
+	}
+}
+
+static void binder_selftest_free_page(struct binder_alloc *alloc)
+{
+	int i;
+	unsigned long count;
+
+	while ((count = list_lru_count(&binder_alloc_lru))) {
+		list_lru_walk(&binder_alloc_lru, binder_alloc_free_page,
+			      NULL, count);
+	}
+
 	for (i = 0; i < (alloc->buffer_size / PAGE_SIZE); i++) {
-		if ((!alloc->pages[i]) == (i == 0)) {
-			pr_err("incorrect free state at page index %d\n", i);
+		if (alloc->pages[i].page_ptr) {
+			pr_err("expect free but is %s at page index %d\n",
+			       list_empty(&alloc->pages[i].lru) ?
+			       "alloc" : "lru", i);
 			binder_selftest_failures++;
 		}
 	}
 }
 
 static void binder_selftest_alloc_free(struct binder_alloc *alloc,
-				       size_t *sizes, int *seq)
+				       size_t *sizes, int *seq, size_t end)
 {
 	struct binder_buffer *buffers[BUFFER_NUM];
 
 	binder_selftest_alloc_buf(alloc, buffers, sizes, seq);
-	binder_selftest_free_buf(alloc, buffers, sizes, seq);
+	binder_selftest_free_buf(alloc, buffers, sizes, seq, end);
+
+	/* Allocate from lru. */
+	binder_selftest_alloc_buf(alloc, buffers, sizes, seq);
+	if (list_lru_count(&binder_alloc_lru))
+		pr_err("lru list should be empty but is not\n");
+
+	binder_selftest_free_buf(alloc, buffers, sizes, seq, end);
+	binder_selftest_free_page(alloc);
 }
 
 static bool is_dup(int *seq, int index, int val)
@@ -174,19 +211,20 @@ static bool is_dup(int *seq, int index, int val)
 
 /* Generate BUFFER_NUM factorial free orders. */
 static void binder_selftest_free_seq(struct binder_alloc *alloc,
-				     size_t *sizes, int *seq, int index)
+				     size_t *sizes, int *seq,
+				     int index, size_t end)
 {
 	int i;
 
 	if (index == BUFFER_NUM) {
-		binder_selftest_alloc_free(alloc, sizes, seq);
+		binder_selftest_alloc_free(alloc, sizes, seq, end);
 		return;
 	}
 	for (i = 0; i < BUFFER_NUM; i++) {
 		if (is_dup(seq, index, i))
 			continue;
 		seq[index] = i;
-		binder_selftest_free_seq(alloc, sizes, seq, index + 1);
+		binder_selftest_free_seq(alloc, sizes, seq, index + 1, end);
 	}
 }
 
@@ -211,8 +249,9 @@ static void binder_selftest_alloc_size(struct binder_alloc *alloc,
 	 * we need one giant buffer before getting to the last page.
 	 */
 	back_sizes[0] += alloc->buffer_size - end_offset[BUFFER_NUM - 1];
-	binder_selftest_free_seq(alloc, front_sizes, seq, 0);
-	binder_selftest_free_seq(alloc, back_sizes, seq, 0);
+	binder_selftest_free_seq(alloc, front_sizes, seq, 0,
+				 end_offset[BUFFER_NUM - 1]);
+	binder_selftest_free_seq(alloc, back_sizes, seq, 0, alloc->buffer_size);
 }
 
 static void binder_selftest_alloc_offset(struct binder_alloc *alloc,
@@ -246,7 +285,8 @@ static void binder_selftest_alloc_offset(struct binder_alloc *alloc,
  *
  * Allocate BUFFER_NUM buffers to cover all page alignment cases,
  * then free them in all orders possible. Check that pages are
- * allocated after buffer alloc and freed after freeing buffer.
+ * correctly allocated, put onto lru when buffers are freed, and
+ * are freed when binder_alloc_free_page is called.
  */
 void binder_selftest_alloc(struct binder_alloc *alloc)
 {
