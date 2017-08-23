@@ -182,7 +182,7 @@ int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 		for (i = 0; i < mlx5e_num_stats_grps; i++)
 			num_stats += mlx5e_stats_grps[i].get_num_stats(priv);
 		return num_stats +
-		       NUM_VPORT_COUNTERS + NUM_PPORT_COUNTERS(priv) +
+		       NUM_PPORT_COUNTERS(priv) +
 		       NUM_PCIE_COUNTERS(priv) +
 		       MLX5E_NUM_RQ_STATS(priv) +
 		       MLX5E_NUM_SQ_STATS(priv) +
@@ -215,11 +215,6 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, u8 *data)
 
 	for (i = 0; i < mlx5e_num_stats_grps; i++)
 		idx = mlx5e_stats_grps[i].fill_strings(priv, data, idx);
-
-	/* VPORT counters */
-	for (i = 0; i < NUM_VPORT_COUNTERS; i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		       vport_stats_desc[i].format);
 
 	/* PPORT counters */
 	for (i = 0; i < NUM_PPORT_802_3_COUNTERS; i++)
@@ -353,10 +348,6 @@ void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 
 	for (i = 0; i < mlx5e_num_stats_grps; i++)
 		idx = mlx5e_stats_grps[i].fill_stats(priv, data, idx);
-
-	for (i = 0; i < NUM_VPORT_COUNTERS; i++)
-		data[idx++] = MLX5E_READ_CTR64_BE(priv->stats.vport.query_vport_out,
-						  vport_stats_desc, i);
 
 	for (i = 0; i < NUM_PPORT_802_3_COUNTERS; i++)
 		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.IEEE_802_3_counters,

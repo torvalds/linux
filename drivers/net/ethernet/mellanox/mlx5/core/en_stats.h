@@ -95,55 +95,11 @@ struct mlx5e_qcounter_stats {
 	u32 rx_out_of_buffer;
 };
 
-#define VPORT_COUNTER_OFF(c) MLX5_BYTE_OFF(query_vport_counter_out, c)
 #define VPORT_COUNTER_GET(vstats, c) MLX5_GET64(query_vport_counter_out, \
 						vstats->query_vport_out, c)
 
 struct mlx5e_vport_stats {
 	__be64 query_vport_out[MLX5_ST_SZ_QW(query_vport_counter_out)];
-};
-
-static const struct counter_desc vport_stats_desc[] = {
-	{ "rx_vport_unicast_packets",
-		VPORT_COUNTER_OFF(received_eth_unicast.packets) },
-	{ "rx_vport_unicast_bytes",
-		VPORT_COUNTER_OFF(received_eth_unicast.octets) },
-	{ "tx_vport_unicast_packets",
-		VPORT_COUNTER_OFF(transmitted_eth_unicast.packets) },
-	{ "tx_vport_unicast_bytes",
-		VPORT_COUNTER_OFF(transmitted_eth_unicast.octets) },
-	{ "rx_vport_multicast_packets",
-		VPORT_COUNTER_OFF(received_eth_multicast.packets) },
-	{ "rx_vport_multicast_bytes",
-		VPORT_COUNTER_OFF(received_eth_multicast.octets) },
-	{ "tx_vport_multicast_packets",
-		VPORT_COUNTER_OFF(transmitted_eth_multicast.packets) },
-	{ "tx_vport_multicast_bytes",
-		VPORT_COUNTER_OFF(transmitted_eth_multicast.octets) },
-	{ "rx_vport_broadcast_packets",
-		VPORT_COUNTER_OFF(received_eth_broadcast.packets) },
-	{ "rx_vport_broadcast_bytes",
-		VPORT_COUNTER_OFF(received_eth_broadcast.octets) },
-	{ "tx_vport_broadcast_packets",
-		VPORT_COUNTER_OFF(transmitted_eth_broadcast.packets) },
-	{ "tx_vport_broadcast_bytes",
-		VPORT_COUNTER_OFF(transmitted_eth_broadcast.octets) },
-	{ "rx_vport_rdma_unicast_packets",
-		VPORT_COUNTER_OFF(received_ib_unicast.packets) },
-	{ "rx_vport_rdma_unicast_bytes",
-		VPORT_COUNTER_OFF(received_ib_unicast.octets) },
-	{ "tx_vport_rdma_unicast_packets",
-		VPORT_COUNTER_OFF(transmitted_ib_unicast.packets) },
-	{ "tx_vport_rdma_unicast_bytes",
-		VPORT_COUNTER_OFF(transmitted_ib_unicast.octets) },
-	{ "rx_vport_rdma_multicast_packets",
-		VPORT_COUNTER_OFF(received_ib_multicast.packets) },
-	{ "rx_vport_rdma_multicast_bytes",
-		VPORT_COUNTER_OFF(received_ib_multicast.octets) },
-	{ "tx_vport_rdma_multicast_packets",
-		VPORT_COUNTER_OFF(transmitted_ib_multicast.packets) },
-	{ "tx_vport_rdma_multicast_bytes",
-		VPORT_COUNTER_OFF(transmitted_ib_multicast.octets) },
 };
 
 #define PPORT_802_3_OFF(c) \
@@ -380,7 +336,6 @@ static const struct counter_desc sq_stats_desc[] = {
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, xmit_more) },
 };
 
-#define NUM_VPORT_COUNTERS		ARRAY_SIZE(vport_stats_desc)
 #define NUM_PPORT_802_3_COUNTERS	ARRAY_SIZE(pport_802_3_stats_desc)
 #define NUM_PPORT_2863_COUNTERS		ARRAY_SIZE(pport_2863_stats_desc)
 #define NUM_PPORT_2819_COUNTERS		ARRAY_SIZE(pport_2819_stats_desc)
