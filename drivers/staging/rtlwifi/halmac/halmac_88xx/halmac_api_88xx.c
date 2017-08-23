@@ -4447,7 +4447,7 @@ halmac_func_p2pps_88xx(struct halmac_adapter *halmac_adapter,
 {
 	u8 h2c_buff[HALMAC_H2C_CMD_SIZE_88XX] = {0};
 	u16 h2c_seq_mum = 0;
-	void *driver_adapter = NULL;
+	void *driver_adapter = halmac_adapter->driver_adapter;
 	struct halmac_api *halmac_api;
 	struct halmac_h2c_header_info h2c_header_info;
 	enum halmac_ret_status status = HALMAC_RET_SUCCESS;
@@ -4455,7 +4455,6 @@ halmac_func_p2pps_88xx(struct halmac_adapter *halmac_adapter,
 	HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_H2C, DBG_DMESG,
 			"[TRACE]halmac_p2pps !!\n");
 
-	driver_adapter = halmac_adapter->driver_adapter;
 	halmac_api = (struct halmac_api *)halmac_adapter->halmac_api;
 
 	P2PPS_SET_OFFLOAD_EN(h2c_buff, p2p_ps->offload_en);
