@@ -1564,17 +1564,11 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 		 * Make sure the request ID for the slot matches.
 		 */
 		if (skreq->id != req_id) {
-			dev_dbg(&skdev->pdev->dev,
-				"mismatch comp_id=0x%x req_id=0x%x\n", req_id,
-				skreq->id);
-			{
-				u16 new_id = cmp_cntxt;
-				dev_err(&skdev->pdev->dev,
-					"Completion mismatch comp_id=0x%04x skreq=0x%04x new=0x%04x\n",
-					req_id, skreq->id, new_id);
+			dev_err(&skdev->pdev->dev,
+				"Completion mismatch comp_id=0x%04x skreq=0x%04x new=0x%04x\n",
+				req_id, skreq->id, cmp_cntxt);
 
-				continue;
-			}
+			continue;
 		}
 
 		SKD_ASSERT(skreq->state == SKD_REQ_STATE_BUSY);
