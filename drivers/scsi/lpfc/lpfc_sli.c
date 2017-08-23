@@ -106,7 +106,7 @@ lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
  * -ENOMEM.
  * The caller is expected to hold the hbalock when calling this routine.
  **/
-static uint32_t
+static int
 lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 {
 	union lpfc_wqe *temp_wqe;
@@ -123,7 +123,7 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 	idx = ((q->host_index + 1) % q->entry_count);
 	if (idx == q->hba_index) {
 		q->WQ_overflow++;
-		return -ENOMEM;
+		return -EBUSY;
 	}
 	q->WQ_posted++;
 	/* set consumption flag every once in a while */
@@ -10741,7 +10741,7 @@ lpfc_sli4_abort_nvme_io(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	abtsiocbp->vport = vport;
 	abtsiocbp->wqe_cmpl = lpfc_nvme_abort_fcreq_cmpl;
 	retval = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, abtsiocbp);
-	if (retval == IOCB_ERROR) {
+	if (retval) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
 				 "6147 Failed abts issue_wqe with status x%x "
 				 "for oxid x%x\n",
@@ -18888,6 +18888,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 	struct lpfc_sglq *sglq;
 	struct lpfc_sli_ring *pring;
 	unsigned long iflags;
+	uint32_t ret = 0;
 
 	/* NVME_LS and NVME_LS ABTS requests. */
 	if (pwqe->iocb_flag & LPFC_IO_NVME_LS) {
@@ -18906,10 +18907,12 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 		}
 		bf_set(wqe_xri_tag, &pwqe->wqe.xmit_bls_rsp.wqe_com,
 		       pwqe->sli4_xritag);
-		if (lpfc_sli4_wq_put(phba->sli4_hba.nvmels_wq, wqe)) {
+		ret = lpfc_sli4_wq_put(phba->sli4_hba.nvmels_wq, wqe);
+		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
-			return WQE_ERROR;
+			return ret;
 		}
+
 		lpfc_sli_ringtxcmpl_put(phba, pring, pwqe);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
 		return 0;
@@ -18924,9 +18927,10 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 		wq = phba->sli4_hba.nvme_wq[pwqe->hba_wqidx];
 		bf_set(wqe_cqid, &wqe->generic.wqe_com,
 		      phba->sli4_hba.nvme_cq[pwqe->hba_wqidx]->queue_id);
-		if (lpfc_sli4_wq_put(wq, wqe)) {
+		ret = lpfc_sli4_wq_put(wq, wqe);
+		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
-			return WQE_ERROR;
+			return ret;
 		}
 		lpfc_sli_ringtxcmpl_put(phba, pring, pwqe);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
@@ -18950,9 +18954,10 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 		wq = phba->sli4_hba.nvme_wq[pwqe->hba_wqidx];
 		bf_set(wqe_cqid, &wqe->generic.wqe_com,
 		      phba->sli4_hba.nvme_cq[pwqe->hba_wqidx]->queue_id);
-		if (lpfc_sli4_wq_put(wq, wqe)) {
+		ret = lpfc_sli4_wq_put(wq, wqe);
+		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
-			return WQE_ERROR;
+			return ret;
 		}
 		lpfc_sli_ringtxcmpl_put(phba, pring, pwqe);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);

@@ -364,7 +364,7 @@ lpfc_nvme_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 			 genwqe->sli4_xritag, genwqe->iotag, ndlp->nlp_DID);
 
 	rc = lpfc_sli4_issue_wqe(phba, LPFC_ELS_RING, genwqe);
-	if (rc == WQE_ERROR) {
+	if (rc) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
 				 "6045 Issue GEN REQ WQE to NPORT x%x "
 				 "Data: x%x x%x\n",
@@ -1270,7 +1270,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	 * not exceed the programmed depth.
 	 */
 	if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) {
-		ret = -EAGAIN;
+		ret = -EBUSY;
 		goto out_fail;
 	}
 
@@ -1279,7 +1279,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 				 "6065 driver's buffer pool is empty, "
 				 "IO failed\n");
-		ret = -ENOMEM;
+		ret = -EBUSY;
 		goto out_fail;
 	}
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -1332,7 +1332,6 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 				 "sid: x%x did: x%x oxid: x%x\n",
 				 ret, vport->fc_myDID, ndlp->nlp_DID,
 				 lpfc_ncmd->cur_iocbq.sli4_xritag);
-		ret = -EBUSY;
 		goto out_free_nvme_buf;
 	}
 
@@ -1576,7 +1575,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	abts_buf->wqe_cmpl = lpfc_nvme_abort_fcreq_cmpl;
 	ret_val = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, abts_buf);
 	spin_unlock_irqrestore(&phba->hbalock, flags);
-	if (ret_val == IOCB_ERROR) {
+	if (ret_val) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_ABTS,
 				 "6137 Failed abts issue_wqe with status x%x "
 				 "for nvme_fcreq %p.\n",
