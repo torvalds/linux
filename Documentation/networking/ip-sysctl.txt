@@ -1350,6 +1350,15 @@ flowlabel_state_ranges - BOOLEAN
 	FALSE: disabled
 	Default: true
 
+flowlabel_reflect - BOOLEAN
+	Automatically reflect the flow label. Needed for Path MTU
+	Discovery to work with Equal Cost Multipath Routing in anycast
+	environments. See RFC 7690 and:
+	https://tools.ietf.org/html/draft-wang-6man-flow-label-reflection-01
+	TRUE: enabled
+	FALSE: disabled
+	Default: FALSE
+
 anycast_src_echo_reply - BOOLEAN
 	Controls the use of anycast addresses as source addresses for ICMPv6
 	echo reply
