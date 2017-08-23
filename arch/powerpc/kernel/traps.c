@@ -202,6 +202,12 @@ NOKPROBE_SYMBOL(oops_end);
 static int __die(const char *str, struct pt_regs *regs, long err)
 {
 	printk("Oops: %s, sig: %ld [#%d]\n", str, err, ++die_counter);
+
+	if (IS_ENABLED(CONFIG_CPU_LITTLE_ENDIAN))
+		printk("LE ");
+	else
+		printk("BE ");
+
 #ifdef CONFIG_PREEMPT
 	pr_cont("PREEMPT ");
 #endif
