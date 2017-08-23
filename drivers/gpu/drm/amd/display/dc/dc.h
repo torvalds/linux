@@ -200,7 +200,6 @@ struct dc_debug {
 	bool disable_hubp_power_gate;
 	bool disable_pplib_wm_range;
 	enum wm_report_mode pplib_wm_report_mode;
-	bool use_dml_wm;
 	unsigned int min_disp_clk_khz;
 	int sr_exit_time_dpm0_ns;
 	int sr_enter_plus_exit_time_dpm0_ns;

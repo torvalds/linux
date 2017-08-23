@@ -27,20 +27,36 @@
 
 float dcn_bw_mod(const float arg1, const float arg2)
 {
+	if (arg1 != arg1)
+		return arg2;
+	if (arg2 != arg2)
+		return arg1;
 	return arg1 - arg1 * ((int) (arg1 / arg2));
 }
 
 float dcn_bw_min2(const float arg1, const float arg2)
 {
+	if (arg1 != arg1)
+		return arg2;
+	if (arg2 != arg2)
+		return arg1;
 	return arg1 < arg2 ? arg1 : arg2;
 }
 
 unsigned int dcn_bw_max(const unsigned int arg1, const unsigned int arg2)
 {
+	if (arg1 != arg1)
+		return arg2;
+	if (arg2 != arg2)
+		return arg1;
 	return arg1 > arg2 ? arg1 : arg2;
 }
 float dcn_bw_max2(const float arg1, const float arg2)
 {
+	if (arg1 != arg1)
+		return arg2;
+	if (arg2 != arg2)
+		return arg1;
 	return arg1 > arg2 ? arg1 : arg2;
 }
 

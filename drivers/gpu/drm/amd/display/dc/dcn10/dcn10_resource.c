@@ -425,8 +425,6 @@ static const struct dc_debug debug_defaults_drv = {
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = false,
 		.pplib_wm_report_mode = WM_REPORT_DEFAULT,
-		.use_dml_wm = false,
-
 		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
 		.disable_dcc = DCC_ENABLE,
 		.voltage_align_fclk = true,
@@ -439,8 +437,7 @@ static const struct dc_debug debug_defaults_diags = {
 		.clock_trace = true,
 		.disable_stutter = true,
 		.disable_pplib_clock_request = true,
-		.disable_pplib_wm_range = true,
-		.use_dml_wm = false,
+		.disable_pplib_wm_range = true
 };
 
 static void dcn10_dpp_destroy(struct transform **xfm)

@@ -36,21 +36,21 @@ double dml_max(double a, double b)
 	return (double) dcn_bw_max2(a, b);
 }
 
-double dml_ceil(double a)
+double dml_ceil(double a, double granularity)
 {
-	return (double) dcn_bw_ceil2(a, 1);
+	return (double) dcn_bw_ceil2(a, granularity);
 }
 
-double dml_floor(double a)
+double dml_floor(double a, double granularity)
 {
-	return (double) dcn_bw_floor2(a, 1);
+	return (double) dcn_bw_floor2(a, granularity);
 }
 
 double dml_round(double a)
 {
 	double round_pt = 0.5;
-	double ceil = dml_ceil(a);
-	double floor = dml_floor(a);
+	double ceil = dml_ceil(a, 1);
+	double floor = dml_floor(a, 1);
 
 	if (a - floor >= round_pt)
 		return ceil;

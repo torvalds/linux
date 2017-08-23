@@ -24,49 +24,45 @@
  */
 #include "soc_bounding_box.h"
 #include "display_mode_lib.h"
+#include "dc_features.h"
 
-void dml_socbb_set_latencies(
-		struct display_mode_lib *mode_lib,
-		struct _vcs_dpi_soc_bounding_box_st *from_box)
+void dml_socbb_set_latencies(soc_bounding_box_st *to_box, soc_bounding_box_st *from_box)
 {
-	struct _vcs_dpi_soc_bounding_box_st *to_box = &mode_lib->soc;
-
 	to_box->dram_clock_change_latency_us = from_box->dram_clock_change_latency_us;
 	to_box->sr_exit_time_us = from_box->sr_exit_time_us;
 	to_box->sr_enter_plus_exit_time_us = from_box->sr_enter_plus_exit_time_us;
 	to_box->urgent_latency_us = from_box->urgent_latency_us;
 	to_box->writeback_latency_us = from_box->writeback_latency_us;
-	DTRACE("box.dram_clock_change_latency_us: %f", from_box->dram_clock_change_latency_us);
-	DTRACE("box.sr_exit_time_us: %f", from_box->sr_exit_time_us);
-	DTRACE("box.sr_enter_plus_exit_time_us: %f", from_box->sr_enter_plus_exit_time_us);
-	DTRACE("box.urgent_latency_us: %f", from_box->urgent_latency_us);
-	DTRACE("box.writeback_latency_us: %f", from_box->writeback_latency_us);
-
 }
 
-struct _vcs_dpi_voltage_scaling_st dml_socbb_voltage_scaling(
-		struct _vcs_dpi_soc_bounding_box_st *box,
+voltage_scaling_st dml_socbb_voltage_scaling(
+		const soc_bounding_box_st *soc,
 		enum voltage_state voltage)
 {
-	switch (voltage) {
-	case dm_vmin:
-		return box->vmin;
-	case dm_vnom:
-		return box->vnom;
-	case dm_vmax:
-	default:
-		return box->vmax;
+	const voltage_scaling_st *voltage_state;
+	const voltage_scaling_st * const voltage_end = soc->clock_limits + DC__VOLTAGE_STATES;
+
+	for (voltage_state = soc->clock_limits;
+			voltage_state < voltage_end && voltage_state->state != voltage;
+			voltage_state++) {
 	}
+
+	if (voltage_state < voltage_end)
+		return *voltage_state;
+	return soc->clock_limits[DC__VOLTAGE_STATES - 1];
 }
 
-double dml_socbb_return_bw_mhz(struct _vcs_dpi_soc_bounding_box_st *box, enum voltage_state voltage)
+double dml_socbb_return_bw_mhz(soc_bounding_box_st *box, enum voltage_state voltage)
 {
 	double return_bw;
 
-	struct _vcs_dpi_voltage_scaling_st state = dml_socbb_voltage_scaling(box, voltage);
+	voltage_scaling_st state = dml_socbb_voltage_scaling(box, voltage);
 
-	return_bw = dml_min(
-			((double) box->return_bus_width_bytes) * state.dcfclk_mhz,
-			state.dram_bw_per_chan_gbps * 1000.0 * box->ideal_dram_bw_after_urgent_percent / 100.0);
+	return_bw = dml_min((double) box->return_bus_width_bytes * state.dcfclk_mhz,
+			state.dram_bw_per_chan_gbps * 1000.0 * (double) box->num_chans
+					* box->ideal_dram_bw_after_urgent_percent / 100.0);
+
+	return_bw = dml_min((double) box->return_bus_width_bytes * state.fabricclk_mhz, return_bw);
+
 	return return_bw;
 }

@@ -24,6 +24,7 @@
  */
 
 #include "display_mode_lib.h"
+#include "dc_features.h"
 
 static void set_soc_bounding_box(struct _vcs_dpi_soc_bounding_box_st *soc, enum dml_project project)
 {
@@ -128,11 +129,7 @@ static void set_ip_params(struct _vcs_dpi_ip_params_st *ip, enum dml_project pro
 
 static void set_mode_evaluation(struct _vcs_dpi_mode_evaluation_st *me, enum dml_project project)
 {
-	if (project == DML_PROJECT_RAVEN1) {
-		me->voltage_override = dm_vmin;
-	} else {
-		BREAK_TO_DEBUGGER(); /* Invalid Project Specified */
-	}
+	me->voltage_override = dm_vmin;
 }
 
 void dml_init_instance(struct display_mode_lib *lib, enum dml_project project)

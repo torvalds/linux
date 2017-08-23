@@ -22,6 +22,7 @@
  * Authors: AMD
  *
  */
+
 #ifndef __DC_COMMON_DEFS_H__
 #define __DC_COMMON_DEFS_H__
 
@@ -30,7 +31,8 @@
 #include "display_mode_structs.h"
 #include "display_mode_enums.h"
 
-#define DTRACE(str, ...) dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__);
+#define dml_print(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
+#define DTRACE(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
 
 double dml_min(double a, double b);
 double dml_max(double a, double b);
@@ -38,8 +40,8 @@ bool dml_util_is_420(enum source_format_class sorce_format);
 double dml_ceil_ex(double x, double granularity);
 double dml_floor_ex(double x, double granularity);
 double dml_log(double x, double base);
-double dml_ceil(double a);
-double dml_floor(double a);
+double dml_ceil(double a, double granularity);
+double dml_floor(double a, double granularity);
 double dml_round(double a);
 int dml_log2(double x);
 double dml_pow(double a, int exp);

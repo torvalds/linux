@@ -29,13 +29,9 @@
 
 struct display_mode_lib;
 
-struct _vcs_dpi_display_pipe_clock_st dml_clks_get_pipe_clocks(
+display_pipe_clock_st dml_clks_get_pipe_clocks(
 		struct display_mode_lib *mode_lib,
-		struct _vcs_dpi_display_e2e_pipe_params_st *e2e,
+		display_e2e_pipe_params_st *e2e,
 		unsigned int num_pipes);
 
-bool dml_clks_pipe_clock_requirement_fit_power_constraint(
-		struct display_mode_lib *mode_lib,
-		struct _vcs_dpi_display_e2e_pipe_params_st *e2e,
-		unsigned int num_dpp_in_grp);
 #endif

@@ -386,10 +386,6 @@ static void pipe_ctx_to_e2e_pipe_params (
 			- pipe->stream->timing.v_addressable
 			- pipe->stream->timing.v_border_bottom
 			- pipe->stream->timing.v_border_top;
-
-	input->dest.vsync_plus_back_porch = pipe->stream->timing.v_total
-			- pipe->stream->timing.v_addressable
-			- pipe->stream->timing.v_front_porch;
 	input->dest.pixel_rate_mhz = pipe->stream->timing.pix_clk_khz/1000.0;
 	input->dest.vstartup_start = pipe->pipe_dlg_param.vstartup_start;
 	input->dest.vupdate_offset = pipe->pipe_dlg_param.vupdate_offset;
@@ -459,9 +455,9 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	/*todo: soc->sr_enter_plus_exit_time??*/
 	dlg_sys_param.t_srx_delay_us = dc->dcn_ip->dcfclk_cstate_latency / v->dcf_clk_deep_sleep;
 
-	dml_rq_dlg_get_rq_params(dml, &rq_param, input.pipe.src);
-	extract_rq_regs(dml, rq_regs, rq_param);
-	dml_rq_dlg_get_dlg_params(
+	dml1_rq_dlg_get_rq_params(dml, &rq_param, input.pipe.src);
+	dml1_extract_rq_regs(dml, rq_regs, rq_param);
+	dml1_rq_dlg_get_dlg_params(
 			dml,
 			dlg_regs,
 			ttu_regs,
@@ -472,96 +468,6 @@ static void dcn_bw_calc_rq_dlg_ttu(
 			true,
 			v->pte_enable == dcn_bw_yes,
 			pipe->plane_state->flip_immediate);
-}
-
-static void dcn_dml_wm_override(
-		const struct dcn_bw_internal_vars *v,
-		struct display_mode_lib *dml,
-		struct dc_state *context,
-		const struct resource_pool *pool)
-{
-	int i, in_idx, active_count;
-
-	struct _vcs_dpi_display_e2e_pipe_params_st *input = kzalloc(pool->pipe_count * sizeof(struct _vcs_dpi_display_e2e_pipe_params_st),
-								    GFP_KERNEL);
-	struct wm {
-		double urgent;
-		struct _vcs_dpi_cstate_pstate_watermarks_st cpstate;
-		double pte_meta_urgent;
-	} a;
-
-
-	for (i = 0, in_idx = 0; i < pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (!pipe->stream || !pipe->plane_state)
-			continue;
-
-		input[in_idx].clks_cfg.dcfclk_mhz = v->dcfclk;
-		input[in_idx].clks_cfg.dispclk_mhz = v->dispclk;
-		input[in_idx].clks_cfg.dppclk_mhz = v->dppclk;
-		input[in_idx].clks_cfg.refclk_mhz = pool->ref_clock_inKhz / 1000;
-		input[in_idx].clks_cfg.socclk_mhz = v->socclk;
-		input[in_idx].clks_cfg.voltage = v->voltage_level;
-		input[in_idx].dout.output_format = (v->output_format[in_idx] == dcn_bw_420) ? dm_420 : dm_444;
-		input[in_idx].dout.output_type  = (v->output[in_idx] == dcn_bw_hdmi) ? dm_hdmi : dm_dp;
-		//input[in_idx].dout.output_standard;
-		switch (v->output_deep_color[in_idx]) {
-		case dcn_bw_encoder_12bpc:
-			input[in_idx].dout.output_bpc = dm_out_12;
-		break;
-		case dcn_bw_encoder_10bpc:
-			input[in_idx].dout.output_bpc = dm_out_10;
-		break;
-		case dcn_bw_encoder_8bpc:
-		default:
-			input[in_idx].dout.output_bpc = dm_out_8;
-		break;
-		}
-		pipe_ctx_to_e2e_pipe_params(pipe, &input[in_idx].pipe);
-		dml_rq_dlg_get_rq_reg(
-			dml,
-			&pipe->rq_regs,
-			input[in_idx].pipe.src);
-		in_idx++;
-	}
-	active_count = in_idx;
-
-	a.urgent = dml_wm_urgent_e2e(dml, input, active_count);
-	a.cpstate = dml_wm_cstate_pstate_e2e(dml, input, active_count);
-	a.pte_meta_urgent = dml_wm_pte_meta_urgent(dml, a.urgent);
-
-	context->bw.dcn.watermarks.a.cstate_pstate.cstate_exit_ns =
-			a.cpstate.cstate_exit_us * 1000;
-	context->bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_ns =
-			a.cpstate.cstate_enter_plus_exit_us * 1000;
-	context->bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns =
-			a.cpstate.pstate_change_us * 1000;
-	context->bw.dcn.watermarks.a.pte_meta_urgent_ns = a.pte_meta_urgent * 1000;
-	context->bw.dcn.watermarks.a.urgent_ns = a.urgent * 1000;
-	context->bw.dcn.watermarks.b = context->bw.dcn.watermarks.a;
-	context->bw.dcn.watermarks.c = context->bw.dcn.watermarks.a;
-	context->bw.dcn.watermarks.d = context->bw.dcn.watermarks.a;
-
-
-	for (i = 0, in_idx = 0; i < pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (!pipe->stream || !pipe->plane_state)
-			continue;
-
-		dml_rq_dlg_get_dlg_reg(dml,
-			&pipe->dlg_regs,
-			&pipe->ttu_regs,
-			input, active_count,
-			in_idx,
-			true,
-			true,
-			v->pte_enable == dcn_bw_yes,
-			pipe->plane_state->flip_immediate);
-		in_idx++;
-	}
-	kfree(input);
 }
 
 static void split_stream_across_pipes(
@@ -1163,9 +1069,6 @@ bool dcn_validate_bandwidth(
 
 			input_idx++;
 		}
-		if (dc->debug.use_dml_wm)
-			dcn_dml_wm_override(v, (struct display_mode_lib *)
-					&dc->dml, context, pool);
 	}
 
 	if (v->voltage_level == 0) {

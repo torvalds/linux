@@ -25,12 +25,13 @@
 #ifndef __DISPLAY_MODE_LIB_H__
 #define __DISPLAY_MODE_LIB_H__
 
+
 #include "dml_common_defs.h"
 #include "soc_bounding_box.h"
-#include "display_watermark.h"
+#include "display_mode_vba.h"
 #include "display_pipe_clocks.h"
 #include "display_rq_dlg_calc.h"
-#include "display_mode_support.h"
+#include "dml1_display_rq_dlg_calc.h"
 
 enum dml_project {
 	DML_PROJECT_UNDEFINED,
@@ -42,8 +43,7 @@ struct display_mode_lib {
 	struct _vcs_dpi_soc_bounding_box_st soc;
 	struct _vcs_dpi_mode_evaluation_st me;
 	enum dml_project project;
-	struct dml_ms_internal_vars vars;
-	struct _vcs_dpi_wm_calc_pipe_params_st wm_param[DC__NUM_PIPES__MAX];
+	struct vba_vars_st vba;
 	struct dal_logger *logger;
 };
 
