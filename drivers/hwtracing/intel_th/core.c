@@ -630,7 +630,8 @@ intel_th_subdevice_alloc(struct intel_th *th,
 		thdev->output.port = -1;
 		thdev->output.scratchpad = subdev->scrpd;
 	} else if (subdev->type == INTEL_TH_SWITCH) {
-		thdev->host_mode = host_mode;
+		thdev->host_mode =
+			INTEL_TH_CAP(th, host_mode_only) ? true : host_mode;
 		th->hub = thdev;
 	}
 
@@ -729,7 +730,8 @@ static int intel_th_populate(struct intel_th *th)
 		struct intel_th_device *thdev;
 
 		/* only allow SOURCE and SWITCH devices in host mode */
-		if (host_mode && subdev->type == INTEL_TH_OUTPUT)
+		if ((INTEL_TH_CAP(th, host_mode_only) || host_mode) &&
+		    subdev->type == INTEL_TH_OUTPUT)
 			continue;
 
 		/*

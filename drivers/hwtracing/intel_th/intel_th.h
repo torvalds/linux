@@ -42,9 +42,11 @@ struct intel_th_output {
 /**
  * struct intel_th_drvdata - describes hardware capabilities and quirks
  * @tscu_enable:	device needs SW to enable time stamping unit
+ * @host_mode_only:	device can only operate in 'host debugger' mode
  */
 struct intel_th_drvdata {
-	unsigned int	tscu_enable        : 1;
+	unsigned int	tscu_enable        : 1,
+			host_mode_only     : 1;
 };
 
 #define INTEL_TH_CAP(_th, _cap) ((_th)->drvdata ? (_th)->drvdata->_cap : 0)
