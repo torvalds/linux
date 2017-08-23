@@ -3385,11 +3385,21 @@ qla2x00_shutdown(struct pci_dev *pdev)
 	scsi_qla_host_t *vha;
 	struct qla_hw_data  *ha;
 
-	if (!atomic_read(&pdev->enable_cnt))
-		return;
-
 	vha = pci_get_drvdata(pdev);
 	ha = vha->hw;
+
+	ql_log(ql_log_info, vha, 0xfffa,
+		"Adapter shutdown\n");
+
+	/*
+	 * Prevent future board_disable and wait
+	 * until any pending board_disable has completed.
+	 */
+	set_bit(PFLG_DRIVER_REMOVING, &vha->pci_flags);
+	cancel_work_sync(&ha->board_disable);
+
+	if (!atomic_read(&pdev->enable_cnt))
+		return;
 
 	/* Notify ISPFX00 firmware */
 	if (IS_QLAFX00(ha))
@@ -3421,8 +3431,9 @@ qla2x00_shutdown(struct pci_dev *pdev)
 
 	qla2x00_free_fw_dump(ha);
 
-	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
+	ql_log(ql_log_info, vha, 0xfffe,
+		"Adapter shutdown successfully.\n");
 }
 
 /* Deletes all the virtual ports for a given ha */
@@ -5495,6 +5506,13 @@ qla2x00_disable_board_on_pci_error(struct work_struct *work)
 	ql_log(ql_log_warn, base_vha, 0x015b,
 	    "Disabling adapter.\n");
 
+	if (!atomic_read(&pdev->enable_cnt)) {
+		ql_log(ql_log_info, base_vha, 0xfffc,
+		    "PCI device disabled, no action req for PCI error=%lx\n",
+		    base_vha->pci_flags);
+		return;
+	}
+
 	qla2x00_wait_for_sess_deletion(base_vha);
 
 	set_bit(UNLOADING, &base_vha->dpc_flags);
@@ -6196,6 +6214,12 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 
 	ql_dbg(ql_dbg_aer, vha, 0x9000,
 	    "PCI error detected, state %x.\n", state);
+
+	if (!atomic_read(&pdev->enable_cnt)) {
+		ql_log(ql_log_info, vha, 0xffff,
+			"PCI device is disabled,state %x\n", state);
+		return PCI_ERS_RESULT_NEED_RESET;
+	}
 
 	switch (state) {
 	case pci_channel_io_normal:
