@@ -4248,7 +4248,7 @@ struct nft_object *nf_tables_obj_lookup(const struct nft_table *table,
 
 	list_for_each_entry(obj, &table->objects, list) {
 		if (!nla_strcmp(nla, obj->name) &&
-		    objtype == obj->type->type &&
+		    objtype == obj->ops->type->type &&
 		    nft_active_genmask(obj, genmask))
 			return obj;
 	}
@@ -4270,6 +4270,7 @@ static struct nft_object *nft_obj_init(const struct nft_ctx *ctx,
 				       const struct nlattr *attr)
 {
 	struct nlattr *tb[type->maxattr + 1];
+	const struct nft_object_ops *ops;
 	struct nft_object *obj;
 	int err;
 
@@ -4282,16 +4283,27 @@ static struct nft_object *nft_obj_init(const struct nft_ctx *ctx,
 		memset(tb, 0, sizeof(tb[0]) * (type->maxattr + 1));
 	}
 
+	if (type->select_ops) {
+		ops = type->select_ops(ctx, (const struct nlattr * const *)tb);
+		if (IS_ERR(ops)) {
+			err = PTR_ERR(ops);
+			goto err1;
+		}
+	} else {
+		ops = type->ops;
+	}
+
 	err = -ENOMEM;
-	obj = kzalloc(sizeof(struct nft_object) + type->size, GFP_KERNEL);
+	obj = kzalloc(sizeof(*obj) + ops->size, GFP_KERNEL);
 	if (obj == NULL)
 		goto err1;
 
-	err = type->init(ctx, (const struct nlattr * const *)tb, obj);
+	err = ops->init(ctx, (const struct nlattr * const *)tb, obj);
 	if (err < 0)
 		goto err2;
 
-	obj->type = type;
+	obj->ops = ops;
+
 	return obj;
 err2:
 	kfree(obj);
@@ -4307,7 +4319,7 @@ static int nft_object_dump(struct sk_buff *skb, unsigned int attr,
 	nest = nla_nest_start(skb, attr);
 	if (!nest)
 		goto nla_put_failure;
-	if (obj->type->dump(skb, obj, reset) < 0)
+	if (obj->ops->dump(skb, obj, reset) < 0)
 		goto nla_put_failure;
 	nla_nest_end(skb, nest);
 	return 0;
@@ -4418,8 +4430,8 @@ static int nf_tables_newobj(struct net *net, struct sock *nlsk,
 err3:
 	kfree(obj->name);
 err2:
-	if (obj->type->destroy)
-		obj->type->destroy(obj);
+	if (obj->ops->destroy)
+		obj->ops->destroy(obj);
 	kfree(obj);
 err1:
 	module_put(type->owner);
@@ -4446,7 +4458,7 @@ static int nf_tables_fill_obj_info(struct sk_buff *skb, struct net *net,
 
 	if (nla_put_string(skb, NFTA_OBJ_TABLE, table->name) ||
 	    nla_put_string(skb, NFTA_OBJ_NAME, obj->name) ||
-	    nla_put_be32(skb, NFTA_OBJ_TYPE, htonl(obj->type->type)) ||
+	    nla_put_be32(skb, NFTA_OBJ_TYPE, htonl(obj->ops->type->type)) ||
 	    nla_put_be32(skb, NFTA_OBJ_USE, htonl(obj->use)) ||
 	    nft_object_dump(skb, NFTA_OBJ_DATA, obj, reset))
 		goto nla_put_failure;
@@ -4500,7 +4512,7 @@ static int nf_tables_dump_obj(struct sk_buff *skb, struct netlink_callback *cb)
 					goto cont;
 				if (filter &&
 				    filter->type != NFT_OBJECT_UNSPEC &&
-				    obj->type->type != filter->type)
+				    obj->ops->type->type != filter->type)
 					goto cont;
 
 				if (nf_tables_fill_obj_info(skb, net, NETLINK_CB(cb->skb).portid,
@@ -4628,10 +4640,10 @@ err:
 
 static void nft_obj_destroy(struct nft_object *obj)
 {
-	if (obj->type->destroy)
-		obj->type->destroy(obj);
+	if (obj->ops->destroy)
+		obj->ops->destroy(obj);
 
-	module_put(obj->type->owner);
+	module_put(obj->ops->type->owner);
 	kfree(obj->name);
 	kfree(obj);
 }

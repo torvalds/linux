@@ -22,7 +22,7 @@ static void nft_objref_eval(const struct nft_expr *expr,
 {
 	struct nft_object *obj = nft_objref_priv(expr);
 
-	obj->type->eval(obj, regs, pkt);
+	obj->ops->eval(obj, regs, pkt);
 }
 
 static int nft_objref_init(const struct nft_ctx *ctx,
@@ -54,7 +54,8 @@ static int nft_objref_dump(struct sk_buff *skb, const struct nft_expr *expr)
 	const struct nft_object *obj = nft_objref_priv(expr);
 
 	if (nla_put_string(skb, NFTA_OBJREF_IMM_NAME, obj->name) ||
-	    nla_put_be32(skb, NFTA_OBJREF_IMM_TYPE, htonl(obj->type->type)))
+	    nla_put_be32(skb, NFTA_OBJREF_IMM_TYPE,
+			 htonl(obj->ops->type->type)))
 		goto nla_put_failure;
 
 	return 0;
@@ -104,7 +105,7 @@ static void nft_objref_map_eval(const struct nft_expr *expr,
 		return;
 	}
 	obj = *nft_set_ext_obj(ext);
-	obj->type->eval(obj, regs, pkt);
+	obj->ops->eval(obj, regs, pkt);
 }
 
 static int nft_objref_map_init(const struct nft_ctx *ctx,
