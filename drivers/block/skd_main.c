@@ -184,6 +184,7 @@ struct skd_request_context {
 
 	struct fit_comp_error_info err_info;
 
+	blk_status_t status;
 };
 
 struct skd_special_context {
@@ -596,19 +597,22 @@ static blk_status_t skd_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_STS_OK;
 }
 
-static enum blk_eh_timer_return skd_timed_out(struct request *req)
+static enum blk_eh_timer_return skd_timed_out(struct request *req,
+					      bool reserved)
 {
 	struct skd_device *skdev = req->q->queuedata;
 
 	dev_err(&skdev->pdev->dev, "request with tag %#x timed out\n",
 		blk_mq_unique_tag(req));
 
-	return BLK_EH_HANDLED;
+	return BLK_EH_RESET_TIMER;
 }
 
 static void skd_end_request(struct skd_device *skdev, struct request *req,
 			    blk_status_t error)
 {
+	struct skd_request_context *skreq = blk_mq_rq_to_pdu(req);
+
 	if (unlikely(error)) {
 		char *cmd = (rq_data_dir(req) == READ) ? "read" : "write";
 		u32 lba = (u32)blk_rq_pos(req);
@@ -621,19 +625,15 @@ static void skd_end_request(struct skd_device *skdev, struct request *req,
 		dev_dbg(&skdev->pdev->dev, "id=0x%x error=%d\n", req->tag,
 			error);
 
-	blk_mq_end_request(req, error);
+	skreq->status = error;
+	blk_mq_complete_request(req);
 }
 
-/* Only called in case of a request timeout */
 static void skd_softirq_done(struct request *req)
 {
-	struct skd_device *skdev = req->q->queuedata;
 	struct skd_request_context *skreq = blk_mq_rq_to_pdu(req);
-	unsigned long flags;
 
-	spin_lock_irqsave(&skdev->lock, flags);
-	skd_end_request(skdev, blk_mq_rq_from_pdu(skreq), BLK_STS_TIMEOUT);
-	spin_unlock_irqrestore(&skdev->lock, flags);
+	blk_mq_end_request(req, skreq->status);
 }
 
 static bool skd_preop_sg_list(struct skd_device *skdev,
@@ -2821,6 +2821,8 @@ err_out:
 
 static const struct blk_mq_ops skd_mq_ops = {
 	.queue_rq	= skd_mq_queue_rq,
+	.complete	= skd_softirq_done,
+	.timeout	= skd_timed_out,
 	.init_request	= skd_init_request,
 	.exit_request	= skd_exit_request,
 };
@@ -2884,8 +2886,6 @@ static int skd_cons_disk(struct skd_device *skdev)
 	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
 
 	blk_queue_rq_timeout(q, 8 * HZ);
-	blk_queue_rq_timed_out(q, skd_timed_out);
-	blk_queue_softirq_done(q, skd_softirq_done);
 
 	spin_lock_irqsave(&skdev->lock, flags);
 	dev_dbg(&skdev->pdev->dev, "stopping queue\n");
