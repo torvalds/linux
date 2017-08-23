@@ -1563,7 +1563,8 @@ int fib_table_delete(struct net *net, struct fib_table *tb,
 		     fi->fib_prefsrc == cfg->fc_prefsrc) &&
 		    (!cfg->fc_protocol ||
 		     fi->fib_protocol == cfg->fc_protocol) &&
-		    fib_nh_match(cfg, fi, extack) == 0) {
+		    fib_nh_match(cfg, fi, extack) == 0 &&
+		    fib_metrics_match(cfg, fi)) {
 			fa_to_delete = fa;
 			break;
 		}

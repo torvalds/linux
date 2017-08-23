@@ -696,6 +696,40 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi,
 	return 0;
 }
 
+bool fib_metrics_match(struct fib_config *cfg, struct fib_info *fi)
+{
+	struct nlattr *nla;
+	int remaining;
+
+	if (!cfg->fc_mx)
+		return true;
+
+	nla_for_each_attr(nla, cfg->fc_mx, cfg->fc_mx_len, remaining) {
+		int type = nla_type(nla);
+		u32 val;
+
+		if (!type)
+			continue;
+		if (type > RTAX_MAX)
+			return false;
+
+		if (type == RTAX_CC_ALGO) {
+			char tmp[TCP_CA_NAME_MAX];
+			bool ecn_ca = false;
+
+			nla_strlcpy(tmp, nla, sizeof(tmp));
+			val = tcp_ca_get_key_by_name(tmp, &ecn_ca);
+		} else {
+			val = nla_get_u32(nla);
+		}
+
+		if (fi->fib_metrics->metrics[type - 1] != val)
+			return false;
+	}
+
+	return true;
+}
+
 
 /*
  * Picture
