@@ -92,12 +92,48 @@
 		bootargs = "console=uart8250,mmio32,0x20068000";
 	};
 
+	lvds_panel: lvds-panel {
+		status = "disabled";
+		ports {
+			panel_in_lvds: endpoint {
+				remote-endpoint = <&lvds_out_panel>;
+			};
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0>;
+		};
+	};
+
 	vcc_sys: vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-min-microvolt = <4000000>;
 		regulator-max-microvolt = <4000000>;
 		regulator-always-on;
+	};
+};
+
+&display_subsystem {
+	status = "okay";
+
+	memory-region = <&drm_logo>;
+	route {
+		route_lvds: route-lvds {
+			status = "okay";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vop_out_lvds>;
+		};
 	};
 };
 
@@ -260,7 +296,85 @@
 	};
 };
 
+&lvds {
+	status = "okay";
+	pinctrl-names = "lcdc";
+	pinctrl-0 = <&lcdc_lcdc>;
+	ports {
+		lvds_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			lvds_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_lvds>;
+			};
+		};
+	};
+};
+
+&lvds_panel {
+	status = "okay";
+	compatible ="simple-panel";
+	backlight = <&backlight>;
+	bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
+	/* enable-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+	 * delay,disable = <10>;
+	 * power-supply = <&vcc_lcd>;
+	 */
+	power-supply = <&ldo6>;
+	power-invert = <1>;
+	rockchip,data-mapping = "jeida";
+	rockchip,data-width = <18>;
+	rockchip,output = "rgb";
+
+	display-timings {
+		native-mode = <&timing0>;
+		timing0: timing0 {
+			clock-frequency = <60000000>;
+			hactive = <1024>;
+			vactive = <600>;
+			hback-porch = <100>;
+			hfront-porch = <120>;
+			vback-porch = <10>;
+			vfront-porch = <15>;
+			hsync-len = <100>;
+			vsync-len = <10>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+	};
+};
+
 &pinctrl {
+	lcdc {
+		lcdc_lcdc: lcdc-lcdc {
+			rockchip,pins =
+				/* depend on the hardware */
+				<2 RK_PB0 1 &pcfg_pull_none>, /* DCLK */
+				/* <2 RK_PB1 1 &pcfg_pull_none>, /* HSYNC */
+				/* <2 RK_PB2 1 &pcfg_pull_none>, /* VSYNC */
+				<2 RK_PB3 1 &pcfg_pull_none>, /* DEN */
+				<2 RK_PB4 1 &pcfg_pull_none>, /* DATA10 */
+				<2 RK_PB5 1 &pcfg_pull_none>, /* DATA11 */
+				<2 RK_PB6 1 &pcfg_pull_none>, /* DATA12 */
+				<2 RK_PB7 1 &pcfg_pull_none>, /* DATA13 */
+				<2 RK_PC0 1 &pcfg_pull_none>, /* DATA14 */
+				<2 RK_PC1 1 &pcfg_pull_none>, /* DATA15 */
+				<2 RK_PC2 1 &pcfg_pull_none>, /* DATA16 */
+				<2 RK_PC3 1 &pcfg_pull_none>; /* DATA17 */
+				/* <2 RK_PC4 1 &pcfg_pull_none>, /* DATA18 */
+				/* <2 RK_PC5 1 &pcfg_pull_none>, /* DATA19 */
+				/* <2 RK_PC6 1 &pcfg_pull_none>, /* DATA20 */
+				/* <2 RK_PC7 1 &pcfg_pull_none>, /* DATA21 */
+				/* <2 RK_PD0 1 &pcfg_pull_none>, /* DATA22 */
+				/* <2 RK_PD1 1 &pcfg_pull_none>; /* DATA23 */
+		};
+	};
+
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins =
@@ -274,5 +388,13 @@
 };
 
 &uart2 {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
 	status = "okay";
 };
