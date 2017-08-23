@@ -176,9 +176,13 @@ static bool mlx5e_query_global_pause_combined(struct mlx5e_priv *priv)
 
 int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 {
+	int i, num_stats = 0;
+
 	switch (sset) {
 	case ETH_SS_STATS:
-		return NUM_SW_COUNTERS +
+		for (i = 0; i < mlx5e_num_stats_grps; i++)
+			num_stats += mlx5e_stats_grps[i].get_num_stats(priv);
+		return num_stats +
 		       MLX5E_NUM_Q_CNTRS(priv) +
 		       NUM_VPORT_COUNTERS + NUM_PPORT_COUNTERS(priv) +
 		       NUM_PCIE_COUNTERS(priv) +
@@ -211,9 +215,8 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, u8 *data)
 	int i, j, tc, prio, idx = 0;
 	unsigned long pfc_combined;
 
-	/* SW counters */
-	for (i = 0; i < NUM_SW_COUNTERS; i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN, sw_stats_desc[i].format);
+	for (i = 0; i < mlx5e_num_stats_grps; i++)
+		idx = mlx5e_stats_grps[i].fill_strings(priv, data, idx);
 
 	/* Q counters */
 	for (i = 0; i < MLX5E_NUM_Q_CNTRS(priv); i++)
@@ -354,9 +357,8 @@ void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 	channels = &priv->channels;
 	mutex_unlock(&priv->state_lock);
 
-	for (i = 0; i < NUM_SW_COUNTERS; i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(&priv->stats.sw,
-						   sw_stats_desc, i);
+	for (i = 0; i < mlx5e_num_stats_grps; i++)
+		idx = mlx5e_stats_grps[i].fill_stats(priv, data, idx);
 
 	for (i = 0; i < MLX5E_NUM_Q_CNTRS(priv); i++)
 		data[idx++] = MLX5E_READ_CTR32_CPU(&priv->stats.qcnt,
