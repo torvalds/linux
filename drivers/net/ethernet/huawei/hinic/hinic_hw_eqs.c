@@ -423,7 +423,7 @@ static irqreturn_t ceq_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void set_ctrl0(struct hinic_eq *eq)
+static void set_ctrl0(struct hinic_eq *eq)
 {
 	struct msix_entry *msix_entry = &eq->msix_entry;
 	enum hinic_eq_type type = eq->type;
@@ -474,7 +474,7 @@ void set_ctrl0(struct hinic_eq *eq)
 	}
 }
 
-void set_ctrl1(struct hinic_eq *eq)
+static void set_ctrl1(struct hinic_eq *eq)
 {
 	enum hinic_eq_type type = eq->type;
 	u32 page_size_val, elem_size;
