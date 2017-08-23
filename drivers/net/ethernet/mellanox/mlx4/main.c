@@ -121,7 +121,7 @@ static char mlx4_version[] =
 	DRV_NAME ": Mellanox ConnectX core driver v"
 	DRV_VERSION "\n";
 
-static struct mlx4_profile default_profile = {
+static const struct mlx4_profile default_profile = {
 	.num_qp		= 1 << 18,
 	.num_srq	= 1 << 16,
 	.rdmarc_per_qp	= 1 << 4,
@@ -131,7 +131,7 @@ static struct mlx4_profile default_profile = {
 	.num_mtt	= 1 << 20, /* It is really num mtt segements */
 };
 
-static struct mlx4_profile low_mem_profile = {
+static const struct mlx4_profile low_mem_profile = {
 	.num_qp		= 1 << 17,
 	.num_srq	= 1 << 6,
 	.rdmarc_per_qp	= 1 << 4,
