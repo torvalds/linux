@@ -111,7 +111,7 @@ static void init_device_info(struct intel_gvt *gvt)
 	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)
 		|| IS_KABYLAKE(gvt->dev_priv)) {
 		info->max_support_vgpus = 8;
-		info->cfg_space_size = 256;
+		info->cfg_space_size = PCI_CFG_SPACE_EXP_SIZE;
 		info->mmio_size = 2 * 1024 * 1024;
 		info->mmio_bar = 0;
 		info->gtt_start_offset = 8 * 1024 * 1024;

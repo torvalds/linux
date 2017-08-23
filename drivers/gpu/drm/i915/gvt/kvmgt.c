@@ -978,7 +978,7 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 		switch (info.index) {
 		case VFIO_PCI_CONFIG_REGION_INDEX:
 			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-			info.size = INTEL_GVT_MAX_CFG_SPACE_SZ;
+			info.size = vgpu->gvt->device_info.cfg_space_size;
 			info.flags = VFIO_REGION_INFO_FLAG_READ |
 				     VFIO_REGION_INFO_FLAG_WRITE;
 			break;

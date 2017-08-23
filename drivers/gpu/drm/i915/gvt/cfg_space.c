@@ -101,7 +101,7 @@ int intel_vgpu_emulate_cfg_read(struct intel_vgpu *vgpu, unsigned int offset,
 	if (WARN_ON(bytes > 4))
 		return -EINVAL;
 
-	if (WARN_ON(offset + bytes > INTEL_GVT_MAX_CFG_SPACE_SZ))
+	if (WARN_ON(offset + bytes > vgpu->gvt->device_info.cfg_space_size))
 		return -EINVAL;
 
 	memcpy(p_data, vgpu_cfg_space(vgpu) + offset, bytes);
@@ -289,7 +289,7 @@ int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 	if (WARN_ON(bytes > 4))
 		return -EINVAL;
 
-	if (WARN_ON(offset + bytes > INTEL_GVT_MAX_CFG_SPACE_SZ))
+	if (WARN_ON(offset + bytes > vgpu->gvt->device_info.cfg_space_size))
 		return -EINVAL;
 
 	/* First check if it's PCI_COMMAND */
