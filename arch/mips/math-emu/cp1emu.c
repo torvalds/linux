@@ -58,7 +58,7 @@ static int fpu_emu(struct pt_regs *, struct mips_fpu_struct *,
 	mips_instruction);
 
 static int fpux_emu(struct pt_regs *,
-	struct mips_fpu_struct *, mips_instruction, void *__user *);
+	struct mips_fpu_struct *, mips_instruction, void __user **);
 
 /* Control registers */
 
@@ -973,7 +973,7 @@ static inline void cop1_ctc(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
  */
 
 static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
-		struct mm_decoded_insn dec_insn, void *__user *fault_addr)
+		struct mm_decoded_insn dec_insn, void __user **fault_addr)
 {
 	unsigned long contpc = xcp->cp0_epc + dec_insn.pc_inc;
 	unsigned int cond, cbit, bit0;
@@ -1460,7 +1460,7 @@ DEF3OP(nmadd, dp, ieee754dp_mul, ieee754dp_add, ieee754dp_neg);
 DEF3OP(nmsub, dp, ieee754dp_mul, ieee754dp_sub, ieee754dp_neg);
 
 static int fpux_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
-	mips_instruction ir, void *__user *fault_addr)
+	mips_instruction ir, void __user **fault_addr)
 {
 	unsigned rcsr = 0;	/* resulting csr */
 
@@ -2553,7 +2553,7 @@ dcopuop:
  * For simplicity we always terminate upon an ISA mode switch.
  */
 int fpu_emulator_cop1Handler(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
-	int has_fpu, void *__user *fault_addr)
+	int has_fpu, void __user **fault_addr)
 {
 	unsigned long oldepc, prevepc;
 	struct mm_decoded_insn dec_insn;
