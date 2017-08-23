@@ -2787,7 +2787,7 @@ static struct platform_driver arm_sbsa_uart_platform_driver = {
 	},
 };
 
-static struct amba_id pl011_ids[] = {
+static const struct amba_id pl011_ids[] = {
 	{
 		.id	= 0x00041011,
 		.mask	= 0x000fffff,
