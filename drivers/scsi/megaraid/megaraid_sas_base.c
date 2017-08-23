@@ -5094,6 +5094,14 @@ megasas_register_aen(struct megasas_instance *instance, u32 seq_num,
 		prev_aen.word =
 			le32_to_cpu(instance->aen_cmd->frame->dcmd.mbox.w[1]);
 
+		if ((curr_aen.members.class < MFI_EVT_CLASS_DEBUG) ||
+		    (curr_aen.members.class > MFI_EVT_CLASS_DEAD)) {
+			dev_info(&instance->pdev->dev,
+				 "%s %d out of range class %d send by application\n",
+				 __func__, __LINE__, curr_aen.members.class);
+			return 0;
+		}
+
 		/*
 		 * A class whose enum value is smaller is inclusive of all
 		 * higher values. If a PROGRESS (= -1) was previously
