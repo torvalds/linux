@@ -262,7 +262,6 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	int len;
 
 	itn = net_generic(net, erspan_net_id);
-	iph = ip_hdr(skb);
 	len = gre_hdr_len + sizeof(*ershdr);
 
 	if (unlikely(!pskb_may_pull(skb, len)))
