@@ -278,8 +278,8 @@ int skl_init_dsp(struct skl *skl)
 
 	ops = skl_get_dsp_ops(skl->pci->device);
 	if (!ops) {
-		goto unmap_mmio;
 		ret = -EIO;
+		goto unmap_mmio;
 	}
 
 	loader_ops = ops->loader_ops();
