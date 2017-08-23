@@ -197,4 +197,46 @@ Further, while something like:
 is a 'typical' RELEASE pattern, the barrier is strictly stronger than
 a RELEASE. Similarly for something like:
 
+  atomic_inc(&X);
+  smp_mb__after_atomic();
 
+is an ACQUIRE pattern (though very much not typical), but again the barrier is
+strictly stronger than ACQUIRE. As illustrated:
+
+  C strong-acquire
+
+  {
+  }
+
+  P1(int *x, atomic_t *y)
+  {
+    r0 = READ_ONCE(*x);
+    smp_rmb();
+    r1 = atomic_read(y);
+  }
+
+  P2(int *x, atomic_t *y)
+  {
+    atomic_inc(y);
+    smp_mb__after_atomic();
+    WRITE_ONCE(*x, 1);
+  }
+
+  exists
+  (r0=1 /\ r1=0)
+
+This should not happen; but a hypothetical atomic_inc_acquire() --
+(void)atomic_fetch_inc_acquire() for instance -- would allow the outcome,
+since then:
+
+  P1			P2
+
+			t = LL.acq *y (0)
+			t++;
+			*x = 1;
+  r0 = *x (1)
+  RMB
+  r1 = *y (0)
+			SC *y, t;
+
+is allowed.
