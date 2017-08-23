@@ -502,6 +502,9 @@ static int mlx5e_grp_pcie_fill_stats(struct mlx5e_priv *priv, u64 *data,
 	return idx;
 }
 
+#define PPORT_PER_PRIO_OFF(c) \
+	MLX5_BYTE_OFF(ppcnt_reg, \
+		      counter_set.eth_per_prio_grp_data_layout.c##_high)
 static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
 	{ "rx_prio%d_bytes", PPORT_PER_PRIO_OFF(rx_octets) },
 	{ "rx_prio%d_packets", PPORT_PER_PRIO_OFF(rx_frames) },
@@ -542,6 +545,109 @@ static int mlx5e_grp_per_prio_traffic_fill_stats(struct mlx5e_priv *priv,
 			data[idx++] =
 				MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[prio],
 						    pport_per_prio_traffic_stats_desc, i);
+	}
+
+	return idx;
+}
+
+static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
+	/* %s is "global" or "prio{i}" */
+	{ "rx_%s_pause", PPORT_PER_PRIO_OFF(rx_pause) },
+	{ "rx_%s_pause_duration", PPORT_PER_PRIO_OFF(rx_pause_duration) },
+	{ "tx_%s_pause", PPORT_PER_PRIO_OFF(tx_pause) },
+	{ "tx_%s_pause_duration", PPORT_PER_PRIO_OFF(tx_pause_duration) },
+	{ "rx_%s_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
+};
+
+#define NUM_PPORT_PER_PRIO_PFC_COUNTERS		ARRAY_SIZE(pport_per_prio_pfc_stats_desc)
+
+static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u8 pfc_en_tx;
+	u8 pfc_en_rx;
+	int err;
+
+	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return 0;
+
+	err = mlx5_query_port_pfc(mdev, &pfc_en_tx, &pfc_en_rx);
+
+	return err ? 0 : pfc_en_tx | pfc_en_rx;
+}
+
+static bool mlx5e_query_global_pause_combined(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 rx_pause;
+	u32 tx_pause;
+	int err;
+
+	if (MLX5_CAP_GEN(mdev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+		return false;
+
+	err = mlx5_query_port_pause(mdev, &rx_pause, &tx_pause);
+
+	return err ? false : rx_pause | tx_pause;
+}
+
+static int mlx5e_grp_per_prio_pfc_get_num_stats(struct mlx5e_priv *priv)
+{
+	return (mlx5e_query_global_pause_combined(priv) +
+		hweight8(mlx5e_query_pfc_combined(priv))) *
+		NUM_PPORT_PER_PRIO_PFC_COUNTERS;
+}
+
+static int mlx5e_grp_per_prio_pfc_fill_strings(struct mlx5e_priv *priv,
+					       u8 *data,
+					       int idx)
+{
+	unsigned long pfc_combined;
+	int i, prio;
+
+	pfc_combined = mlx5e_query_pfc_combined(priv);
+	for_each_set_bit(prio, &pfc_combined, NUM_PPORT_PRIO) {
+		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
+			char pfc_string[ETH_GSTRING_LEN];
+
+			snprintf(pfc_string, sizeof(pfc_string), "prio%d", prio);
+			sprintf(data + (idx++) * ETH_GSTRING_LEN,
+				pport_per_prio_pfc_stats_desc[i].format, pfc_string);
+		}
+	}
+
+	if (mlx5e_query_global_pause_combined(priv)) {
+		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
+			sprintf(data + (idx++) * ETH_GSTRING_LEN,
+				pport_per_prio_pfc_stats_desc[i].format, "global");
+		}
+	}
+
+	return idx;
+}
+
+static int mlx5e_grp_per_prio_pfc_fill_stats(struct mlx5e_priv *priv,
+					     u64 *data,
+					     int idx)
+{
+	unsigned long pfc_combined;
+	int i, prio;
+
+	pfc_combined = mlx5e_query_pfc_combined(priv);
+	for_each_set_bit(prio, &pfc_combined, NUM_PPORT_PRIO) {
+		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
+			data[idx++] =
+				MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[prio],
+						    pport_per_prio_pfc_stats_desc, i);
+		}
+	}
+
+	if (mlx5e_query_global_pause_combined(priv)) {
+		for (i = 0; i < NUM_PPORT_PER_PRIO_PFC_COUNTERS; i++) {
+			data[idx++] =
+				MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[0],
+						    pport_per_prio_pfc_stats_desc, i);
+		}
 	}
 
 	return idx;
@@ -597,6 +703,11 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.get_num_stats = mlx5e_grp_per_prio_traffic_get_num_stats,
 		.fill_strings = mlx5e_grp_per_prio_traffic_fill_strings,
 		.fill_stats = mlx5e_grp_per_prio_traffic_fill_stats,
+	},
+	{
+		.get_num_stats = mlx5e_grp_per_prio_pfc_get_num_stats,
+		.fill_strings = mlx5e_grp_per_prio_pfc_fill_strings,
+		.fill_stats = mlx5e_grp_per_prio_pfc_fill_stats,
 	},
 };
 

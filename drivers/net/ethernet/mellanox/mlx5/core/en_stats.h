@@ -114,9 +114,6 @@ struct mlx5e_vport_stats {
 #define PPORT_PHY_STATISTICAL_GET(pstats, c) \
 	MLX5_GET64(ppcnt_reg, (pstats)->phy_statistical_counters, \
 		   counter_set.phys_layer_statistical_cntrs.c##_high)
-#define PPORT_PER_PRIO_OFF(c) \
-	MLX5_BYTE_OFF(ppcnt_reg, \
-		      counter_set.eth_per_prio_grp_data_layout.c##_high)
 #define PPORT_PER_PRIO_GET(pstats, prio, c) \
 	MLX5_GET64(ppcnt_reg, pstats->per_prio_counters[prio], \
 		   counter_set.eth_per_prio_grp_data_layout.c##_high)
@@ -133,15 +130,6 @@ struct mlx5e_pport_stats {
 	__be64 phy_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 phy_statistical_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 eth_ext_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
-};
-
-static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
-	/* %s is "global" or "prio{i}" */
-	{ "rx_%s_pause", PPORT_PER_PRIO_OFF(rx_pause) },
-	{ "rx_%s_pause_duration", PPORT_PER_PRIO_OFF(rx_pause_duration) },
-	{ "tx_%s_pause", PPORT_PER_PRIO_OFF(tx_pause) },
-	{ "tx_%s_pause_duration", PPORT_PER_PRIO_OFF(tx_pause_duration) },
-	{ "rx_%s_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
 };
 
 #define PCIE_PERF_GET(pcie_stats, c) \
@@ -242,8 +230,6 @@ static const struct counter_desc sq_stats_desc[] = {
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, xmit_more) },
 };
 
-#define NUM_PPORT_PER_PRIO_PFC_COUNTERS \
-	ARRAY_SIZE(pport_per_prio_pfc_stats_desc)
 #define NUM_RQ_STATS			ARRAY_SIZE(rq_stats_desc)
 #define NUM_SQ_STATS			ARRAY_SIZE(sq_stats_desc)
 
