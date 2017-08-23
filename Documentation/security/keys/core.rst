@@ -16,17 +16,7 @@ The key service can be configured on by enabling:
 
 This document has the following sections:
 
-	- Key overview
-	- Key service overview
-	- Key access permissions
-	- SELinux support
-	- New procfs files
-	- Userspace system call interface
-	- Kernel services
-	- Notes on accessing payload contents
-	- Defining a key type
-	- Request-key callback service
-	- Garbage collection
+.. contents:: :local:
 
 
 Key Overview
