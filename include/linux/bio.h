@@ -494,6 +494,24 @@ extern struct bio_vec *bvec_alloc(gfp_t, int, unsigned long *, mempool_t *);
 extern void bvec_free(mempool_t *, struct bio_vec *, unsigned int);
 extern unsigned int bvec_nr_vecs(unsigned short idx);
 
+#define bio_set_dev(bio, bdev) 			\
+do {						\
+	(bio)->bi_disk = (bdev)->bd_disk;	\
+	(bio)->bi_partno = (bdev)->bd_partno;	\
+} while (0)
+
+#define bio_copy_dev(dst, src)			\
+do {						\
+	(dst)->bi_disk = (src)->bi_disk;	\
+	(dst)->bi_partno = (src)->bi_partno;	\
+} while (0)
+
+#define bio_dev(bio) \
+	disk_devt((bio)->bi_disk)
+
+#define bio_devname(bio, buf) \
+	__bdevname(bio_dev(bio), (buf))
+
 #ifdef CONFIG_BLK_CGROUP
 int bio_associate_blkcg(struct bio *bio, struct cgroup_subsys_state *blkcg_css);
 int bio_associate_current(struct bio *bio);

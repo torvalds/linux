@@ -616,7 +616,7 @@ static void use_inline_bio(struct dm_buffer *b, int rw, sector_t sector,
 
 	bio_init(&b->bio, b->bio_vec, DM_BUFIO_INLINE_VECS);
 	b->bio.bi_iter.bi_sector = sector;
-	b->bio.bi_bdev = b->c->bdev;
+	bio_set_dev(&b->bio, b->c->bdev);
 	b->bio.bi_end_io = inline_endio;
 	/*
 	 * Use of .bi_private isn't a problem here because

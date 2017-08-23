@@ -415,7 +415,7 @@ static void ppl_submit_iounit_bio(struct ppl_io_unit *io, struct bio *bio)
 	pr_debug("%s: seq: %llu size: %u sector: %llu dev: %s\n",
 		 __func__, io->seq, bio->bi_iter.bi_size,
 		 (unsigned long long)bio->bi_iter.bi_sector,
-		 bdevname(bio->bi_bdev, b));
+		 bio_devname(bio, b));
 
 	submit_bio(bio);
 }
@@ -453,7 +453,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 
 	bio->bi_end_io = ppl_log_endio;
 	bio->bi_opf = REQ_OP_WRITE | REQ_FUA;
-	bio->bi_bdev = log->rdev->bdev;
+	bio_set_dev(bio, log->rdev->bdev);
 	bio->bi_iter.bi_sector = log->rdev->ppl.sector;
 	bio_add_page(bio, io->header_page, PAGE_SIZE, 0);
 
@@ -468,7 +468,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 			bio = bio_alloc_bioset(GFP_NOIO, BIO_MAX_PAGES,
 					       ppl_conf->bs);
 			bio->bi_opf = prev->bi_opf;
-			bio->bi_bdev = prev->bi_bdev;
+			bio_copy_dev(bio, prev);
 			bio->bi_iter.bi_sector = bio_end_sector(prev);
 			bio_add_page(bio, sh->ppl_page, PAGE_SIZE, 0);
 

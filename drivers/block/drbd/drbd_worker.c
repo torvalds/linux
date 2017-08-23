@@ -1513,7 +1513,7 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
 		drbd_al_begin_io(device, &req->i);
 
 	drbd_req_make_private_bio(req, req->master_bio);
-	req->private_bio->bi_bdev = device->ldev->backing_bdev;
+	bio_set_dev(req->private_bio, device->ldev->backing_bdev);
 	generic_make_request(req->private_bio);
 
 	return 0;

@@ -1635,7 +1635,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 		unsigned int j;
 
 		bio = btrfs_io_bio_alloc(num_pages - i);
-		bio->bi_bdev = block_ctx->dev->bdev;
+		bio_set_dev(bio, block_ctx->dev->bdev);
 		bio->bi_iter.bi_sector = dev_bytenr >> 9;
 		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 
@@ -2803,7 +2803,7 @@ static void __btrfsic_submit_bio(struct bio *bio)
 	mutex_lock(&btrfsic_mutex);
 	/* since btrfsic_submit_bio() is also called before
 	 * btrfsic_mount(), this might return NULL */
-	dev_state = btrfsic_dev_state_lookup(bio->bi_bdev->bd_dev);
+	dev_state = btrfsic_dev_state_lookup(bio_dev(bio));
 	if (NULL != dev_state &&
 	    (bio_op(bio) == REQ_OP_WRITE) && bio_has_data(bio)) {
 		unsigned int i = 0;
@@ -2819,10 +2819,10 @@ static void __btrfsic_submit_bio(struct bio *bio)
 		bio_is_patched = 0;
 		if (dev_state->state->print_mask &
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
-			pr_info("submit_bio(rw=%d,0x%x, bi_vcnt=%u, bi_sector=%llu (bytenr %llu), bi_bdev=%p)\n",
+			pr_info("submit_bio(rw=%d,0x%x, bi_vcnt=%u, bi_sector=%llu (bytenr %llu), bi_disk=%p)\n",
 			       bio_op(bio), bio->bi_opf, segs,
 			       (unsigned long long)bio->bi_iter.bi_sector,
-			       dev_bytenr, bio->bi_bdev);
+			       dev_bytenr, bio->bi_disk);
 
 		mapped_datav = kmalloc_array(segs,
 					     sizeof(*mapped_datav), GFP_NOFS);
@@ -2851,8 +2851,8 @@ static void __btrfsic_submit_bio(struct bio *bio)
 	} else if (NULL != dev_state && (bio->bi_opf & REQ_PREFLUSH)) {
 		if (dev_state->state->print_mask &
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
-			pr_info("submit_bio(rw=%d,0x%x FLUSH, bdev=%p)\n",
-			       bio_op(bio), bio->bi_opf, bio->bi_bdev);
+			pr_info("submit_bio(rw=%d,0x%x FLUSH, disk=%p)\n",
+			       bio_op(bio), bio->bi_opf, bio->bi_disk);
 		if (!dev_state->dummy_block_for_bio_bh_flush.is_iodone) {
 			if ((dev_state->state->print_mask &
 			     (BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH |

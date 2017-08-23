@@ -643,17 +643,9 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 			vcmd->ph_rw.metadata = cpu_to_le64(metadata_dma);
 		}
 
-		if (!disk)
-			goto submit;
-
-		bio->bi_bdev = bdget_disk(disk, 0);
-		if (!bio->bi_bdev) {
-			ret = -ENODEV;
-			goto err_meta;
-		}
+		bio->bi_disk = disk;
 	}
 
-submit:
 	blk_execute_rq(q, NULL, rq, 0);
 
 	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
@@ -673,11 +665,8 @@ err_meta:
 	if (meta_buf && meta_len)
 		dma_pool_free(dev->dma_pool, metadata, metadata_dma);
 err_map:
-	if (bio) {
-		if (disk && bio->bi_bdev)
-			bdput(bio->bi_bdev);
+	if (bio)
 		blk_rq_unmap_user(bio);
-	}
 err_ppa:
 	if (ppa_buf && ppa_len)
 		dma_pool_free(dev->dma_pool, ppa_list, ppa_dma);

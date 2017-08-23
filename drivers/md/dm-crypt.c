@@ -1544,7 +1544,7 @@ static void clone_init(struct dm_crypt_io *io, struct bio *clone)
 
 	clone->bi_private = io;
 	clone->bi_end_io  = crypt_endio;
-	clone->bi_bdev    = cc->dev->bdev;
+	bio_set_dev(clone, cc->dev->bdev);
 	clone->bi_opf	  = io->base_bio->bi_opf;
 }
 
@@ -2793,7 +2793,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	 */
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH ||
 	    bio_op(bio) == REQ_OP_DISCARD)) {
-		bio->bi_bdev = cc->dev->bdev;
+		bio_set_dev(bio, cc->dev->bdev);
 		if (bio_sectors(bio))
 			bio->bi_iter.bi_sector = cc->start +
 				dm_target_offset(ti, bio->bi_iter.bi_sector);

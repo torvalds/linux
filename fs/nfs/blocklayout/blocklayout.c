@@ -130,7 +130,7 @@ bl_alloc_init_bio(int npg, struct block_device *bdev, sector_t disk_sector,
 
 	if (bio) {
 		bio->bi_iter.bi_sector = disk_sector;
-		bio->bi_bdev = bdev;
+		bio_set_dev(bio, bdev);
 		bio->bi_end_io = end_io;
 		bio->bi_private = par;
 	}
