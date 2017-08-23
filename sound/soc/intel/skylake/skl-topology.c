@@ -2721,14 +2721,12 @@ static int skl_tplg_get_manifest_tkn(struct device *dev,
 
 			tkn_count = tkn_count + ret;
 			tkn_elem++;
-			tuple_size += tkn_count *
-				sizeof(struct snd_soc_tplg_vendor_value_elem);
-			break;
 		}
+		tuple_size += (tkn_count * sizeof(*tkn_elem));
 		tkn_count = 0;
 	}
 
-	return 0;
+	return off;
 }
 
 /*
@@ -2751,11 +2749,10 @@ static int skl_tplg_get_manifest_data(struct snd_soc_tplg_manifest *manifest,
 	num_blocks = ret;
 
 	off += array->size;
-	array = (struct snd_soc_tplg_vendor_array *)
-			(manifest->priv.data + off);
-
 	/* Read the BLOCK_TYPE and BLOCK_SIZE descriptor */
 	while (num_blocks > 0) {
+		array = (struct snd_soc_tplg_vendor_array *)
+				(manifest->priv.data + off);
 		ret = skl_tplg_get_desc_blocks(dev, array);
 
 		if (ret < 0)
@@ -2789,6 +2786,7 @@ static int skl_tplg_get_manifest_data(struct snd_soc_tplg_manifest *manifest,
 		} else {
 			return -EINVAL;
 		}
+		off += ret;
 	}
 
 	return 0;
