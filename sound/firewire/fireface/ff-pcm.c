@@ -138,16 +138,12 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		return err;
 
 	err = pcm_init_hw_params(ff, substream);
-	if (err < 0) {
-		snd_ff_stream_lock_release(ff);
-		return err;
-	}
+	if (err < 0)
+		goto release_lock;
 
 	err = ff->spec->protocol->get_clock(ff, &rate, &src);
-	if (err < 0) {
-		snd_ff_stream_lock_release(ff);
-		return err;
-	}
+	if (err < 0)
+		goto release_lock;
 
 	if (src != SND_FF_CLOCK_SRC_INTERNAL) {
 		for (i = 0; i < CIP_SFC_COUNT; ++i) {
@@ -159,8 +155,8 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		 * streaming engine can't support.
 		 */
 		if (i >= CIP_SFC_COUNT) {
-			snd_ff_stream_lock_release(ff);
-			return -EIO;
+			err = -EIO;
+			goto release_lock;
 		}
 
 		substream->runtime->hw.rate_min = rate;
@@ -177,6 +173,10 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 
 	return 0;
+
+release_lock:
+	snd_ff_stream_lock_release(ff);
+	return err;
 }
 
 static int pcm_close(struct snd_pcm_substream *substream)
