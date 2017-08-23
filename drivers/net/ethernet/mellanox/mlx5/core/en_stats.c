@@ -653,6 +653,55 @@ static int mlx5e_grp_per_prio_pfc_fill_stats(struct mlx5e_priv *priv,
 	return idx;
 }
 
+static const struct counter_desc mlx5e_pme_status_desc[] = {
+	{ "module_unplug", 8 },
+};
+
+static const struct counter_desc mlx5e_pme_error_desc[] = {
+	{ "module_bus_stuck", 16 },       /* bus stuck (I2C or data shorted) */
+	{ "module_high_temp", 48 },       /* high temperature */
+	{ "module_bad_shorted", 56 },    /* bad or shorted cable/module */
+};
+
+#define NUM_PME_STATUS_STATS		ARRAY_SIZE(mlx5e_pme_status_desc)
+#define NUM_PME_ERR_STATS		ARRAY_SIZE(mlx5e_pme_error_desc)
+
+static int mlx5e_grp_pme_get_num_stats(struct mlx5e_priv *priv)
+{
+	return NUM_PME_STATUS_STATS + NUM_PME_ERR_STATS;
+}
+
+static int mlx5e_grp_pme_fill_strings(struct mlx5e_priv *priv, u8 *data,
+				      int idx)
+{
+	int i;
+
+	for (i = 0; i < NUM_PME_STATUS_STATS; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, mlx5e_pme_status_desc[i].format);
+
+	for (i = 0; i < NUM_PME_ERR_STATS; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN, mlx5e_pme_error_desc[i].format);
+
+	return idx;
+}
+
+static int mlx5e_grp_pme_fill_stats(struct mlx5e_priv *priv, u64 *data,
+				    int idx)
+{
+	struct mlx5_priv *mlx5_priv = &priv->mdev->priv;
+	int i;
+
+	for (i = 0; i < NUM_PME_STATUS_STATS; i++)
+		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.status_counters,
+						   mlx5e_pme_status_desc, i);
+
+	for (i = 0; i < NUM_PME_ERR_STATS; i++)
+		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.error_counters,
+						   mlx5e_pme_error_desc, i);
+
+	return idx;
+}
+
 const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 	{
 		.get_num_stats = mlx5e_grp_sw_get_num_stats,
@@ -708,6 +757,11 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.get_num_stats = mlx5e_grp_per_prio_pfc_get_num_stats,
 		.fill_strings = mlx5e_grp_per_prio_pfc_fill_strings,
 		.fill_stats = mlx5e_grp_per_prio_pfc_fill_stats,
+	},
+	{
+		.get_num_stats = mlx5e_grp_pme_get_num_stats,
+		.fill_strings = mlx5e_grp_pme_fill_strings,
+		.fill_stats = mlx5e_grp_pme_fill_stats,
 	},
 };
 

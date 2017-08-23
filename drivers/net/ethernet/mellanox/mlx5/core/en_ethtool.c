@@ -151,8 +151,6 @@ int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset)
 		return num_stats +
 		       MLX5E_NUM_RQ_STATS(priv) +
 		       MLX5E_NUM_SQ_STATS(priv) +
-		       ARRAY_SIZE(mlx5e_pme_status_desc) +
-		       ARRAY_SIZE(mlx5e_pme_error_desc) +
 		       mlx5e_ipsec_get_count(priv);
 
 	case ETH_SS_PRIV_FLAGS:
@@ -178,13 +176,6 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, u8 *data)
 
 	for (i = 0; i < mlx5e_num_stats_grps; i++)
 		idx = mlx5e_stats_grps[i].fill_strings(priv, data, idx);
-
-	/* port module event counters */
-	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_status_desc); i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN, mlx5e_pme_status_desc[i].format);
-
-	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_error_desc); i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN, mlx5e_pme_error_desc[i].format);
 
 	/* IPSec counters */
 	idx += mlx5e_ipsec_get_strings(priv, data + idx * ETH_GSTRING_LEN);
@@ -239,7 +230,6 @@ void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 				     struct ethtool_stats *stats, u64 *data)
 {
 	struct mlx5e_channels *channels;
-	struct mlx5_priv *mlx5_priv;
 	int i, j, tc, idx = 0;
 
 	if (!data)
@@ -253,16 +243,6 @@ void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 
 	for (i = 0; i < mlx5e_num_stats_grps; i++)
 		idx = mlx5e_stats_grps[i].fill_stats(priv, data, idx);
-
-	/* port module event counters */
-	mlx5_priv =  &priv->mdev->priv;
-	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_status_desc); i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.status_counters,
-						   mlx5e_pme_status_desc, i);
-
-	for (i = 0; i < ARRAY_SIZE(mlx5e_pme_error_desc); i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.error_counters,
-						   mlx5e_pme_error_desc, i);
 
 	/* IPSec counters */
 	idx += mlx5e_ipsec_get_stats(priv, data + idx);

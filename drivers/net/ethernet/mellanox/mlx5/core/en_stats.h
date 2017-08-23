@@ -252,14 +252,4 @@ struct mlx5e_stats_grp {
 extern const struct mlx5e_stats_grp mlx5e_stats_grps[];
 extern const int mlx5e_num_stats_grps;
 
-static const struct counter_desc mlx5e_pme_status_desc[] = {
-	{ "module_unplug", 8 },
-};
-
-static const struct counter_desc mlx5e_pme_error_desc[] = {
-	{ "module_bus_stuck", 16 },       /* bus stuck (I2C or data shorted) */
-	{ "module_high_temp", 48 },       /* high temperature */
-	{ "module_bad_shorted", 56 },    /* bad or shorted cable/module */
-};
-
 #endif /* __MLX5_EN_STATS_H__ */
