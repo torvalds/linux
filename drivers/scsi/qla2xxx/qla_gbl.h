@@ -106,7 +106,7 @@ int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *,
     void *);
 int qla24xx_fcport_handle_login(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_detect_sfp(scsi_qla_host_t *vha);
-
+int qla24xx_post_gpdb_work(struct scsi_qla_host *, fc_port_t *, u8);
 /*
  * Global Data in qla_os.c source file.
  */

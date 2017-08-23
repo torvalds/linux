@@ -36,7 +36,6 @@ static int qla2x00_restart_isp(scsi_qla_host_t *);
 static struct qla_chip_state_84xx *qla84xx_get_chip(struct scsi_qla_host *);
 static int qla84xx_init_chip(scsi_qla_host_t *);
 static int qla25xx_init_queues(struct qla_hw_data *);
-static int qla24xx_post_gpdb_work(struct scsi_qla_host *, fc_port_t *, u8);
 static int qla24xx_post_prli_work(struct scsi_qla_host*, fc_port_t *);
 static void qla24xx_handle_plogi_done_event(struct scsi_qla_host *,
     struct event_arg *);
@@ -774,8 +773,7 @@ done_free_sp:
 	return rval;
 }
 
-static int qla24xx_post_gpdb_work(struct scsi_qla_host *vha, fc_port_t *fcport,
-    u8 opt)
+int qla24xx_post_gpdb_work(struct scsi_qla_host *vha, fc_port_t *fcport, u8 opt)
 {
 	struct qla_work_evt *e;
 
