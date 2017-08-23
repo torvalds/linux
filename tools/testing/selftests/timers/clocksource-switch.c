@@ -50,7 +50,7 @@ int get_clocksources(char list[][30])
 
 	close(fd);
 
-	for (i = 0; i < 30; i++)
+	for (i = 0; i < 10; i++)
 		list[i][0] = '\0';
 
 	head = buf;
