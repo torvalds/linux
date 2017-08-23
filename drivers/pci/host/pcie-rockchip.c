@@ -1417,6 +1417,16 @@ err_aclk_perf_pcie:
 	return err;
 }
 
+static void rockchip_pcie_disable_clocks(void *data)
+{
+	struct rockchip_pcie *rockchip = data;
+
+	clk_disable_unprepare(rockchip->clk_pcie_pm);
+	clk_disable_unprepare(rockchip->hclk_pcie);
+	clk_disable_unprepare(rockchip->aclk_perf_pcie);
+	clk_disable_unprepare(rockchip->aclk_pcie);
+}
+
 static int __maybe_unused rockchip_pcie_suspend_noirq(struct device *dev)
 {
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
@@ -1440,10 +1450,7 @@ static int __maybe_unused rockchip_pcie_suspend_noirq(struct device *dev)
 		phy_exit(rockchip->phys[i]);
 	}
 
-	clk_disable_unprepare(rockchip->clk_pcie_pm);
-	clk_disable_unprepare(rockchip->hclk_pcie);
-	clk_disable_unprepare(rockchip->aclk_perf_pcie);
-	clk_disable_unprepare(rockchip->aclk_pcie);
+	rockchip_pcie_disable_clocks(rockchip);
 
 	if (!IS_ERR(rockchip->vpcie0v9))
 		regulator_disable(rockchip->vpcie0v9);
@@ -1483,10 +1490,7 @@ static int __maybe_unused rockchip_pcie_resume_noirq(struct device *dev)
 	return 0;
 
 err_pcie_resume:
-	clk_disable_unprepare(rockchip->aclk_pcie);
-	clk_disable_unprepare(rockchip->aclk_perf_pcie);
-	clk_disable_unprepare(rockchip->hclk_pcie);
-	clk_disable_unprepare(rockchip->clk_pcie_pm);
+	rockchip_pcie_disable_clocks(rockchip);
 	return err;
 }
 
@@ -1625,10 +1629,7 @@ err_vpcie:
 	if (!IS_ERR(rockchip->vpcie0v9))
 		regulator_disable(rockchip->vpcie0v9);
 err_set_vpcie:
-	clk_disable_unprepare(rockchip->clk_pcie_pm);
-	clk_disable_unprepare(rockchip->hclk_pcie);
-	clk_disable_unprepare(rockchip->aclk_perf_pcie);
-	clk_disable_unprepare(rockchip->aclk_pcie);
+	rockchip_pcie_disable_clocks(rockchip);
 	return err;
 }
 
@@ -1650,10 +1651,7 @@ static int rockchip_pcie_remove(struct platform_device *pdev)
 		phy_exit(rockchip->phys[i]);
 	}
 
-	clk_disable_unprepare(rockchip->clk_pcie_pm);
-	clk_disable_unprepare(rockchip->hclk_pcie);
-	clk_disable_unprepare(rockchip->aclk_perf_pcie);
-	clk_disable_unprepare(rockchip->aclk_pcie);
+	rockchip_pcie_disable_clocks(rockchip);
 
 	if (!IS_ERR(rockchip->vpcie12v))
 		regulator_disable(rockchip->vpcie12v);
