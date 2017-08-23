@@ -157,6 +157,27 @@ nf_hook_entries_grow(const struct nf_hook_entries *old,
 	return new;
 }
 
+static void hooks_validate(const struct nf_hook_entries *hooks)
+{
+#ifdef CONFIG_DEBUG_KERNEL
+	struct nf_hook_ops **orig_ops;
+	int prio = INT_MIN;
+	size_t i = 0;
+
+	orig_ops = nf_hook_entries_get_hook_ops(hooks);
+
+	for (i = 0; i < hooks->num_hook_entries; i++) {
+		if (orig_ops[i] == &dummy_ops)
+			continue;
+
+		WARN_ON(orig_ops[i]->priority < prio);
+
+		if (orig_ops[i]->priority > prio)
+			prio = orig_ops[i]->priority;
+	}
+#endif
+}
+
 /*
  * __nf_hook_entries_try_shrink - try to shrink hook array
  *
@@ -210,6 +231,7 @@ static void *__nf_hook_entries_try_shrink(struct nf_hook_entries __rcu **pp)
 		new_ops[j] = (void *)orig_ops[i];
 		j++;
 	}
+	hooks_validate(new);
 out_assign:
 	rcu_assign_pointer(*pp, new);
 	return old;
@@ -261,6 +283,7 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	if (IS_ERR(new_hooks))
 		return PTR_ERR(new_hooks);
 
+	hooks_validate(new_hooks);
 #ifdef CONFIG_NETFILTER_INGRESS
 	if (reg->pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
 		net_inc_ingress_queue();
