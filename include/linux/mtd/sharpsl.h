@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 

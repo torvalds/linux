@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/crc32.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>
 #include <linux/writeback.h>

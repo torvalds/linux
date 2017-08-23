@@ -9034,7 +9034,7 @@ T:	git git://git.infradead.org/linux-mtd.git nand/fixes
 T:	git git://git.infradead.org/l2-mtd.git nand/next
 S:	Maintained
 F:	drivers/mtd/nand/
-F:	include/linux/mtd/nand*.h
+F:	include/linux/mtd/*nand*.h
 
 NATSEMI ETHERNET DRIVER (DP8381x)
 S:	Orphan
