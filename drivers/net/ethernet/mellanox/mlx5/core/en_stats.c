@@ -373,6 +373,48 @@ static int mlx5e_grp_phy_fill_stats(struct mlx5e_priv *priv, u64 *data, int idx)
 	return idx;
 }
 
+#define PPORT_ETH_EXT_OFF(c) \
+	MLX5_BYTE_OFF(ppcnt_reg, \
+		      counter_set.eth_extended_cntrs_grp_data_layout.c##_high)
+static const struct counter_desc pport_eth_ext_stats_desc[] = {
+	{ "rx_buffer_passed_thres_phy", PPORT_ETH_EXT_OFF(rx_buffer_almost_full) },
+};
+
+#define NUM_PPORT_ETH_EXT_COUNTERS	ARRAY_SIZE(pport_eth_ext_stats_desc)
+
+static int mlx5e_grp_eth_ext_get_num_stats(struct mlx5e_priv *priv)
+{
+	if (MLX5_CAP_PCAM_FEATURE((priv)->mdev, rx_buffer_fullness_counters))
+		return NUM_PPORT_ETH_EXT_COUNTERS;
+
+	return 0;
+}
+
+static int mlx5e_grp_eth_ext_fill_strings(struct mlx5e_priv *priv, u8 *data,
+					  int idx)
+{
+	int i;
+
+	if (MLX5_CAP_PCAM_FEATURE((priv)->mdev, rx_buffer_fullness_counters))
+		for (i = 0; i < NUM_PPORT_ETH_EXT_COUNTERS; i++)
+			strcpy(data + (idx++) * ETH_GSTRING_LEN,
+			       pport_eth_ext_stats_desc[i].format);
+	return idx;
+}
+
+static int mlx5e_grp_eth_ext_fill_stats(struct mlx5e_priv *priv, u64 *data,
+					int idx)
+{
+	int i;
+
+	if (MLX5_CAP_PCAM_FEATURE((priv)->mdev, rx_buffer_fullness_counters))
+		for (i = 0; i < NUM_PPORT_ETH_EXT_COUNTERS; i++)
+			data[idx++] =
+				MLX5E_READ_CTR64_BE(&priv->stats.pport.eth_ext_counters,
+						    pport_eth_ext_stats_desc, i);
+	return idx;
+}
+
 const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 	{
 		.get_num_stats = mlx5e_grp_sw_get_num_stats,
@@ -409,6 +451,11 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.fill_strings = mlx5e_grp_phy_fill_strings,
 		.fill_stats = mlx5e_grp_phy_fill_stats,
 	},
+	{
+		.get_num_stats = mlx5e_grp_eth_ext_get_num_stats,
+		.fill_strings = mlx5e_grp_eth_ext_fill_strings,
+		.fill_stats = mlx5e_grp_eth_ext_fill_stats,
+	}
 };
 
 const int mlx5e_num_stats_grps = ARRAY_SIZE(mlx5e_stats_grps);
