@@ -69,7 +69,7 @@ MODULE_PARM_DESC(adapter_alloc,
 
 /****************************************************************************/
 
-DEFINE_MUTEX(redirect_lock);
+static DEFINE_MUTEX(redirect_lock);
 
 struct workqueue_struct *ddb_wq;
 
@@ -135,8 +135,8 @@ static void ddb_redirect_dma(struct ddb *dev,
 
 static int ddb_unredirect(struct ddb_port *port)
 {
-	struct ddb_input *oredi, *iredi = 0;
-	struct ddb_output *iredo = 0;
+	struct ddb_input *oredi, *iredi = NULL;
+	struct ddb_output *iredo = NULL;
 
 	/* dev_info(port->dev->dev,
 	 * "unredirect %d.%d\n", port->dev->nr, port->nr);
@@ -160,14 +160,14 @@ static int ddb_unredirect(struct ddb_port *port)
 				ddb_redirect_dma(oredi->port->dev,
 						 oredi->dma, iredo->dma);
 			}
-			port->input[0]->redo = 0;
+			port->input[0]->redo = NULL;
 			ddb_set_dma_table(port->input[0]);
 		}
 		oredi->redi = iredi;
-		port->input[0]->redi = 0;
+		port->input[0]->redi = NULL;
 	}
-	oredi->redo = 0;
-	port->output->redi = 0;
+	oredi->redo = NULL;
+	port->output->redi = NULL;
 
 	ddb_set_dma_table(oredi);
 done:
@@ -209,7 +209,7 @@ static int ddb_redirect(u32 i, u32 p)
 	if (input2) {
 		if (input->redi) {
 			input2->redi = input->redi;
-			input->redi = 0;
+			input->redi = NULL;
 		} else
 			input2->redi = input;
 	}
@@ -811,11 +811,11 @@ static const struct file_operations ci_fops = {
 	.open    = ts_open,
 	.release = ts_release,
 	.poll    = ts_poll,
-	.mmap    = 0,
+	.mmap    = NULL,
 };
 
 static struct dvb_device dvbdev_ci = {
-	.priv    = 0,
+	.priv    = NULL,
 	.readers = 1,
 	.writers = 1,
 	.users   = 2,
@@ -2053,7 +2053,7 @@ static struct dvb_ca_en50221 en_templ = {
 
 static void ci_attach(struct ddb_port *port)
 {
-	struct ddb_ci *ci = 0;
+	struct ddb_ci *ci = NULL;
 
 	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci)
@@ -2206,7 +2206,7 @@ static void ci_xo2_attach(struct ddb_port *port)
 /****************************************************************************/
 /****************************************************************************/
 
-struct cxd2099_cfg cxd_cfg = {
+static struct cxd2099_cfg cxd_cfg = {
 	.bitrate =  72000,
 	.adr     =  0x40,
 	.polarity = 1,
@@ -3445,7 +3445,7 @@ int ddb_device_create(struct ddb *dev)
 	if (res) {
 		ddb_device_attrs_del(dev);
 		device_destroy(&ddb_class, MKDEV(ddb_major, dev->nr));
-		ddbs[dev->nr] = 0;
+		ddbs[dev->nr] = NULL;
 		dev->ddb_dev = ERR_PTR(-ENODEV);
 	} else
 		ddb_num++;
