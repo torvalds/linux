@@ -33,6 +33,8 @@ static struct kmem_cache *fsl_pamu_domain_cache;
 static struct kmem_cache *iommu_devinfo_cache;
 static DEFINE_SPINLOCK(device_domain_lock);
 
+struct iommu_device pamu_iommu;	/* IOMMU core code handle */
+
 static struct fsl_dma_domain *to_fsl_dma_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct fsl_dma_domain, iommu_domain);
@@ -1050,7 +1052,7 @@ static u32 fsl_pamu_get_windows(struct iommu_domain *domain)
 	return dma_domain->win_cnt;
 }
 
-const struct iommu_ops fsl_pamu_ops = {
+static const struct iommu_ops fsl_pamu_ops = {
 	.capable	= fsl_pamu_capable,
 	.domain_alloc	= fsl_pamu_domain_alloc,
 	.domain_free    = fsl_pamu_domain_free,
@@ -1075,6 +1077,19 @@ int __init pamu_domain_init(void)
 	ret = iommu_init_mempool();
 	if (ret)
 		return ret;
+
+	ret = iommu_device_sysfs_add(&pamu_iommu, NULL, NULL, "iommu0");
+	if (ret)
+		return ret;
+
+	iommu_device_set_ops(&pamu_iommu, &fsl_pamu_ops);
+
+	ret = iommu_device_register(&pamu_iommu);
+	if (ret) {
+		iommu_device_sysfs_remove(&pamu_iommu);
+		pr_err("Can't register iommu device\n");
+		return ret;
+	}
 
 	bus_set_iommu(&platform_bus_type, &fsl_pamu_ops);
 	bus_set_iommu(&pci_bus_type, &fsl_pamu_ops);
