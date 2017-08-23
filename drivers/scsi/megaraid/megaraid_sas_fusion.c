@@ -1263,6 +1263,80 @@ megasas_display_intel_branding(struct megasas_instance *instance)
 }
 
 /**
+ * megasas_allocate_raid_maps -	Allocate memory for RAID maps
+ * @instance:				Adapter soft state
+ *
+ * return:				if success: return 0
+ *					failed:  return -ENOMEM
+ */
+static inline int megasas_allocate_raid_maps(struct megasas_instance *instance)
+{
+	struct fusion_context *fusion;
+	int i = 0;
+
+	fusion = instance->ctrl_context;
+
+	fusion->drv_map_pages = get_order(fusion->drv_map_sz);
+
+	for (i = 0; i < 2; i++) {
+		fusion->ld_map[i] = NULL;
+
+		fusion->ld_drv_map[i] = (void *)
+			__get_free_pages(__GFP_ZERO | GFP_KERNEL,
+					 fusion->drv_map_pages);
+
+		if (!fusion->ld_drv_map[i]) {
+			fusion->ld_drv_map[i] = vzalloc(fusion->drv_map_sz);
+
+			if (!fusion->ld_drv_map[i]) {
+				dev_err(&instance->pdev->dev,
+					"Could not allocate memory for local map"
+					" size requested: %d\n",
+					fusion->drv_map_sz);
+				goto ld_drv_map_alloc_fail;
+			}
+		}
+	}
+
+	for (i = 0; i < 2; i++) {
+		fusion->ld_map[i] = dma_alloc_coherent(&instance->pdev->dev,
+						       fusion->max_map_sz,
+						       &fusion->ld_map_phys[i],
+						       GFP_KERNEL);
+		if (!fusion->ld_map[i]) {
+			dev_err(&instance->pdev->dev,
+				"Could not allocate memory for map info %s:%d\n",
+				__func__, __LINE__);
+			goto ld_map_alloc_fail;
+		}
+	}
+
+	return 0;
+
+ld_map_alloc_fail:
+	for (i = 0; i < 2; i++) {
+		if (fusion->ld_map[i])
+			dma_free_coherent(&instance->pdev->dev,
+					  fusion->max_map_sz,
+					  fusion->ld_map[i],
+					  fusion->ld_map_phys[i]);
+	}
+
+ld_drv_map_alloc_fail:
+	for (i = 0; i < 2; i++) {
+		if (fusion->ld_drv_map[i]) {
+			if (is_vmalloc_addr(fusion->ld_drv_map[i]))
+				vfree(fusion->ld_drv_map[i]);
+			else
+				free_pages((ulong)fusion->ld_drv_map[i],
+					   fusion->drv_map_pages);
+		}
+	}
+
+	return -ENOMEM;
+}
+
+/**
  * megasas_init_adapter_fusion -	Initializes the FW
  * @instance:		Adapter soft state
  *
@@ -1381,45 +1455,14 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 	instance->r1_ldio_hint_default =  MR_R1_LDIO_PIGGYBACK_DEFAULT;
 	fusion->fast_path_io = 0;
 
-	fusion->drv_map_pages = get_order(fusion->drv_map_sz);
-	for (i = 0; i < 2; i++) {
-		fusion->ld_map[i] = NULL;
-		fusion->ld_drv_map[i] = (void *)__get_free_pages(GFP_KERNEL,
-			fusion->drv_map_pages);
-		if (!fusion->ld_drv_map[i]) {
-			dev_err(&instance->pdev->dev, "Could not allocate "
-				"memory for local map info for %d pages\n",
-				fusion->drv_map_pages);
-			if (i == 1)
-				free_pages((ulong)fusion->ld_drv_map[0],
-					fusion->drv_map_pages);
-			goto fail_ioc_init;
-		}
-		memset(fusion->ld_drv_map[i], 0,
-			((1 << PAGE_SHIFT) << fusion->drv_map_pages));
-	}
-
-	for (i = 0; i < 2; i++) {
-		fusion->ld_map[i] = dma_alloc_coherent(&instance->pdev->dev,
-						       fusion->max_map_sz,
-						       &fusion->ld_map_phys[i],
-						       GFP_KERNEL);
-		if (!fusion->ld_map[i]) {
-			dev_err(&instance->pdev->dev, "Could not allocate memory "
-			       "for map info\n");
-			goto fail_map_info;
-		}
-	}
+	if (megasas_allocate_raid_maps(instance))
+		goto fail_ioc_init;
 
 	if (!megasas_get_map_info(instance))
 		megasas_sync_map_info(instance);
 
 	return 0;
 
-fail_map_info:
-	if (i == 1)
-		dma_free_coherent(&instance->pdev->dev, fusion->max_map_sz,
-				  fusion->ld_map[0], fusion->ld_map_phys[0]);
 fail_ioc_init:
 	megasas_free_cmds_fusion(instance);
 fail_alloc_cmds:
@@ -3371,17 +3414,13 @@ megasas_alloc_host_crash_buffer(struct megasas_instance *instance)
 {
 	unsigned int i;
 
-	instance->crash_buf_pages = get_order(CRASH_DMA_BUF_SIZE);
 	for (i = 0; i < MAX_CRASH_DUMP_SIZE; i++) {
-		instance->crash_buf[i] = (void	*)__get_free_pages(GFP_KERNEL,
-				instance->crash_buf_pages);
+		instance->crash_buf[i] = vzalloc(CRASH_DMA_BUF_SIZE);
 		if (!instance->crash_buf[i]) {
 			dev_info(&instance->pdev->dev, "Firmware crash dump "
 				"memory allocation failed at index %d\n", i);
 			break;
 		}
-		memset(instance->crash_buf[i], 0,
-			((1 << PAGE_SHIFT) << instance->crash_buf_pages));
 	}
 	instance->drv_buf_alloc = i;
 }
@@ -3393,12 +3432,10 @@ megasas_alloc_host_crash_buffer(struct megasas_instance *instance)
 void
 megasas_free_host_crash_buffer(struct megasas_instance *instance)
 {
-	unsigned int i
-;
+	unsigned int i;
 	for (i = 0; i < instance->drv_buf_alloc; i++) {
 		if (instance->crash_buf[i])
-			free_pages((ulong)instance->crash_buf[i],
-					instance->crash_buf_pages);
+			vfree(instance->crash_buf[i]);
 	}
 	instance->drv_buf_index = 0;
 	instance->drv_buf_alloc = 0;

@@ -49,6 +49,7 @@
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
+#include <linux/vmalloc.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -6671,9 +6672,14 @@ skip_firing_dcmds:
 						  fusion->max_map_sz,
 						  fusion->ld_map[i],
 						  fusion->ld_map_phys[i]);
-			if (fusion->ld_drv_map[i])
-				free_pages((ulong)fusion->ld_drv_map[i],
-					fusion->drv_map_pages);
+			if (fusion->ld_drv_map[i]) {
+				if (is_vmalloc_addr(fusion->ld_drv_map[i]))
+					vfree(fusion->ld_drv_map[i]);
+				else
+					free_pages((ulong)fusion->ld_drv_map[i],
+						   fusion->drv_map_pages);
+			}
+
 			if (fusion->pd_seq_sync[i])
 				dma_free_coherent(&instance->pdev->dev,
 					pd_seq_map_sz,
