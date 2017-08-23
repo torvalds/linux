@@ -666,6 +666,24 @@ static int qpnpint_get_irqchip_state(struct irq_data *d,
 	return 0;
 }
 
+static int qpnpint_irq_request_resources(struct irq_data *d)
+{
+	struct spmi_pmic_arb *pmic_arb = irq_data_get_irq_chip_data(d);
+	u16 periph = hwirq_to_per(d->hwirq);
+	u16 apid = hwirq_to_apid(d->hwirq);
+	u16 sid = hwirq_to_sid(d->hwirq);
+	u16 irq = hwirq_to_irq(d->hwirq);
+
+	if (pmic_arb->apid_data[apid].irq_ee != pmic_arb->ee) {
+		dev_err(&pmic_arb->spmic->dev, "failed to xlate sid = %#x, periph = %#x, irq = %u: ee=%u but owner=%u\n",
+			sid, periph, irq, pmic_arb->ee,
+			pmic_arb->apid_data[apid].irq_ee);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static struct irq_chip pmic_arb_irqchip = {
 	.name		= "pmic_arb",
 	.irq_ack	= qpnpint_irq_ack,
@@ -674,6 +692,7 @@ static struct irq_chip pmic_arb_irqchip = {
 	.irq_set_type	= qpnpint_irq_set_type,
 	.irq_set_wake	= qpnpint_irq_set_wake,
 	.irq_get_irqchip_state	= qpnpint_get_irqchip_state,
+	.irq_request_resources = qpnpint_irq_request_resources,
 	.flags		= IRQCHIP_MASK_ON_SUSPEND,
 };
 
@@ -707,13 +726,6 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 	}
 
 	apid = rc;
-	if (pmic_arb->apid_data[apid].irq_ee != pmic_arb->ee) {
-		dev_err(&pmic_arb->spmic->dev, "failed to xlate sid = %#x, periph = %#x, irq = %u: ee=%u but owner=%u\n",
-			intspec[0], intspec[1], intspec[2], pmic_arb->ee,
-			pmic_arb->apid_data[apid].irq_ee);
-		return -ENODEV;
-	}
-
 	/* Keep track of {max,min}_apid for bounding search during interrupt */
 	if (apid > pmic_arb->max_apid)
 		pmic_arb->max_apid = apid;
