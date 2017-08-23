@@ -2068,8 +2068,10 @@ static void clean_tree(struct fs_node *node)
 		struct fs_node *iter;
 		struct fs_node *temp;
 
+		tree_get_node(node);
 		list_for_each_entry_safe(iter, temp, &node->children, list)
 			clean_tree(iter);
+		tree_put_node(node);
 		tree_remove_node(node);
 	}
 }
