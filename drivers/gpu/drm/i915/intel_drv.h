@@ -1192,6 +1192,14 @@ hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 	return container_of(intel_hdmi, struct intel_digital_port, hdmi);
 }
 
+static inline struct intel_plane_state *
+intel_atomic_get_new_plane_state(struct intel_atomic_state *state,
+				 struct intel_plane *plane)
+{
+	return to_intel_plane_state(drm_atomic_get_new_plane_state(&state->base,
+								   &plane->base));
+}
+
 static inline struct intel_crtc_state *
 intel_atomic_get_old_crtc_state(struct intel_atomic_state *state,
 				struct intel_crtc *crtc)
@@ -1419,7 +1427,9 @@ int intel_plane_atomic_set_property(struct drm_plane *plane,
 				    struct drm_plane_state *state,
 				    struct drm_property *property,
 				    uint64_t val);
-int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
+int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_state,
+				    struct drm_crtc_state *crtc_state,
+				    const struct intel_plane_state *old_plane_state,
 				    struct drm_plane_state *plane_state);
 
 void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
@@ -1978,7 +1988,9 @@ struct drm_plane_state *intel_plane_duplicate_state(struct drm_plane *plane);
 void intel_plane_destroy_state(struct drm_plane *plane,
 			       struct drm_plane_state *state);
 extern const struct drm_plane_helper_funcs intel_plane_helper_funcs;
-int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
+int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_state,
+					struct intel_crtc_state *crtc_state,
+					const struct intel_plane_state *old_plane_state,
 					struct intel_plane_state *intel_state);
 
 /* intel_color.c */

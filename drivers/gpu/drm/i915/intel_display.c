@@ -10340,7 +10340,7 @@ static bool intel_wm_need_update(struct drm_plane *plane,
 	return false;
 }
 
-static bool needs_scaling(struct intel_plane_state *state)
+static bool needs_scaling(const struct intel_plane_state *state)
 {
 	int src_w = drm_rect_width(&state->base.src) >> 16;
 	int src_h = drm_rect_height(&state->base.src) >> 16;
@@ -10350,7 +10350,9 @@ static bool needs_scaling(struct intel_plane_state *state)
 	return (src_w != dst_w || src_h != dst_h);
 }
 
-int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
+int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_state,
+				    struct drm_crtc_state *crtc_state,
+				    const struct intel_plane_state *old_plane_state,
 				    struct drm_plane_state *plane_state)
 {
 	struct intel_crtc_state *pipe_config = to_intel_crtc_state(crtc_state);
@@ -10359,10 +10361,8 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	struct intel_plane *plane = to_intel_plane(plane_state->plane);
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane_state *old_plane_state =
-		to_intel_plane_state(plane->base.state);
 	bool mode_changed = needs_modeset(crtc_state);
-	bool was_crtc_enabled = crtc->state->active;
+	bool was_crtc_enabled = old_crtc_state->base.active;
 	bool is_crtc_enabled = crtc_state->active;
 	bool turn_off, turn_on, visible, was_visible;
 	struct drm_framebuffer *fb = plane_state->fb;
@@ -13162,6 +13162,8 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	new_plane_state->crtc_h = crtc_h;
 
 	ret = intel_plane_atomic_check_with_state(to_intel_crtc_state(crtc->state),
+						  to_intel_crtc_state(crtc->state), /* FIXME need a new crtc state? */
+						  to_intel_plane_state(plane->state),
 						  to_intel_plane_state(new_plane_state));
 	if (ret)
 		goto out_free;
