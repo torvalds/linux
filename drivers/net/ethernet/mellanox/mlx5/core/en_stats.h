@@ -111,9 +111,6 @@ struct mlx5e_vport_stats {
 #define PPORT_2819_GET(pstats, c) \
 	MLX5_GET64(ppcnt_reg, pstats->RFC_2819_counters, \
 		   counter_set.eth_2819_cntrs_grp_data_layout.c##_high)
-#define PPORT_PHY_STATISTICAL_OFF(c) \
-	MLX5_BYTE_OFF(ppcnt_reg, \
-		      counter_set.phys_layer_statistical_cntrs.c##_high)
 #define PPORT_PHY_STATISTICAL_GET(pstats, c) \
 	MLX5_GET64(ppcnt_reg, (pstats)->phy_statistical_counters, \
 		   counter_set.phys_layer_statistical_cntrs.c##_high)
@@ -139,11 +136,6 @@ struct mlx5e_pport_stats {
 	__be64 phy_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 phy_statistical_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 eth_ext_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
-};
-
-static const struct counter_desc pport_phy_statistical_stats_desc[] = {
-	{ "rx_pcs_symbol_err_phy", PPORT_PHY_STATISTICAL_OFF(phy_symbol_errors) },
-	{ "rx_corrected_bits_phy", PPORT_PHY_STATISTICAL_OFF(phy_corrected_bits) },
 };
 
 static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
@@ -284,9 +276,6 @@ static const struct counter_desc sq_stats_desc[] = {
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, xmit_more) },
 };
 
-#define NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv) \
-	(ARRAY_SIZE(pport_phy_statistical_stats_desc) * \
-	 MLX5_CAP_PCAM_FEATURE((priv)->mdev, ppcnt_statistical_group))
 #define NUM_PCIE_PERF_COUNTERS(priv) \
 	(ARRAY_SIZE(pcie_perf_stats_desc) * \
 	 MLX5_CAP_MCAM_FEATURE((priv)->mdev, pcie_performance_group))
@@ -303,8 +292,7 @@ static const struct counter_desc sq_stats_desc[] = {
 #define NUM_PPORT_ETH_EXT_COUNTERS(priv) \
 	(ARRAY_SIZE(pport_eth_ext_stats_desc) * \
 	 MLX5_CAP_PCAM_FEATURE((priv)->mdev, rx_buffer_fullness_counters))
-#define NUM_PPORT_COUNTERS(priv)	(NUM_PPORT_PHY_STATISTICAL_COUNTERS(priv) + \
-					 NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS * \
+#define NUM_PPORT_COUNTERS(priv)	(NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS * \
 					 NUM_PPORT_PRIO + \
 					 NUM_PPORT_ETH_EXT_COUNTERS(priv))
 #define NUM_PCIE_COUNTERS(priv)		(NUM_PCIE_PERF_COUNTERS(priv) + \
