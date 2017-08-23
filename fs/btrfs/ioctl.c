@@ -2164,7 +2164,7 @@ static noinline int btrfs_ioctl_tree_search_v2(struct file *file,
 
 	inode = file_inode(file);
 	ret = search_ioctl(inode, &args.key, &buf_size,
-			   (char *)(&uarg->buf[0]));
+			   (char __user *)(&uarg->buf[0]));
 	if (ret == 0 && copy_to_user(&uarg->key, &args.key, sizeof(args.key)))
 		ret = -EFAULT;
 	else if (ret == -EOVERFLOW &&
@@ -4489,8 +4489,8 @@ static long btrfs_ioctl_ino_to_path(struct btrfs_root *root, void __user *arg)
 		ipath->fspath->val[i] = rel_ptr;
 	}
 
-	ret = copy_to_user((void *)(unsigned long)ipa->fspath,
-			   (void *)(unsigned long)ipath->fspath, size);
+	ret = copy_to_user((void __user *)(unsigned long)ipa->fspath,
+			   ipath->fspath, size);
 	if (ret) {
 		ret = -EFAULT;
 		goto out;
@@ -4561,8 +4561,8 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_fs_info *fs_info,
 	if (ret < 0)
 		goto out;
 
-	ret = copy_to_user((void *)(unsigned long)loi->inodes,
-			   (void *)(unsigned long)inodes, size);
+	ret = copy_to_user((void __user *)(unsigned long)loi->inodes, inodes,
+			   size);
 	if (ret)
 		ret = -EFAULT;
 
