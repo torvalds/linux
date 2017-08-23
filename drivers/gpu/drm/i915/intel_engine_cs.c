@@ -1083,6 +1083,9 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 	WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
 		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 
+	/* WaPushConstantDereferenceHoldDisable:cnl */
+	WA_SET_BIT(GEN7_ROW_CHICKEN2, PUSH_CONSTANT_DEREF_DISABLE);
+
 	/* WaEnablePreemptionGranularityControlByUMD:cnl */
 	ret= wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
 	if (ret)
