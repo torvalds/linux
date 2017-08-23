@@ -5479,7 +5479,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		instance->throttlequeuedepth =
 				MEGASAS_THROTTLE_QUEUE_DEPTH;
 
-	if (resetwaittime > MEGASAS_RESET_WAIT_TIME)
+	if ((resetwaittime < 1) ||
+	    (resetwaittime > MEGASAS_RESET_WAIT_TIME))
 		resetwaittime = MEGASAS_RESET_WAIT_TIME;
 
 	if ((scmd_timeout < 10) || (scmd_timeout > MEGASAS_DEFAULT_CMD_TIMEOUT))
