@@ -39,6 +39,11 @@ Optional properties when compatible is a dsi devices:
 	byte 2: packet payload length
 	byte 3 and beyond: number byte of payload
 
+Optional for some special hardwre:
+- power-invert:
+	if power-invert exist the panel power need to disable ldo when power on
+	and enable ldo when power off otherwise it's opposite.
+
 Example:
 
 	panel: panel {

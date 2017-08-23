@@ -101,6 +101,7 @@ struct panel_simple {
 	struct mipi_dsi_device *dsi;
 	bool prepared;
 	bool enabled;
+	bool power_invert;
 
 	struct device *dev;
 	const struct panel_desc *desc;
@@ -335,12 +336,32 @@ static int panel_simple_of_get_native_mode(struct panel_simple *panel)
 	return 1;
 }
 
-static int panel_simple_loader_protect(struct drm_panel *panel, bool on)
+static int panel_simple_regulator_enable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
-	int err;
+	int err = 0;
 
-	if (on) {
+	if (p->power_invert) {
+		if (regulator_is_enabled(p->supply) > 0)
+			regulator_disable(p->supply);
+	} else {
+		err = regulator_enable(p->supply);
+		if (err < 0) {
+			dev_err(panel->dev, "failed to enable supply: %d\n",
+				err);
+			return err;
+		}
+	}
+
+	return err;
+}
+
+static int panel_simple_regulator_disable(struct drm_panel *panel)
+{
+	struct panel_simple *p = to_panel_simple(panel);
+	int err = 0;
+
+	if (p->power_invert) {
 		err = regulator_enable(p->supply);
 		if (err < 0) {
 			dev_err(panel->dev, "failed to enable supply: %d\n",
@@ -349,6 +370,24 @@ static int panel_simple_loader_protect(struct drm_panel *panel, bool on)
 		}
 	} else {
 		regulator_disable(p->supply);
+	}
+
+	return err;
+}
+
+static int panel_simple_loader_protect(struct drm_panel *panel, bool on)
+{
+	int err;
+
+	if (on) {
+		err = panel_simple_regulator_enable(panel);
+		if (err < 0) {
+			dev_err(panel->dev, "failed to enable supply: %d\n",
+				err);
+			return err;
+		}
+	} else {
+		panel_simple_regulator_disable(panel);
 	}
 
 	return 0;
@@ -394,7 +433,7 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 	if (p->enable_gpio)
 		gpiod_direction_output(p->enable_gpio, 0);
 
-	regulator_disable(p->supply);
+	panel_simple_regulator_disable(panel);
 
 	if (p->desc && p->desc->delay.unprepare)
 		msleep(p->desc->delay.unprepare);
@@ -412,7 +451,7 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	if (p->prepared)
 		return 0;
 
-	err = regulator_enable(p->supply);
+	err = panel_simple_regulator_enable(panel);
 	if (err < 0) {
 		dev_err(panel->dev, "failed to enable supply: %d\n", err);
 		return err;
@@ -579,6 +618,9 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		dev_err(dev, "failed to request reset GPIO: %d\n", err);
 		return err;
 	}
+
+	panel->power_invert =
+			of_property_read_bool(dev->of_node, "power-invert");
 
 	backlight = of_parse_phandle(dev->of_node, "backlight", 0);
 	if (backlight) {
