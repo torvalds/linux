@@ -3559,7 +3559,7 @@ static const struct acpi_device_id rt5645_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
 #endif
 
-static struct rt5645_platform_data general_platform_data = {
+static const struct rt5645_platform_data general_platform_data = {
 	.dmic1_data_pin = RT5645_DMIC1_DISABLE,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
 	.jd_mode = 3,
@@ -3593,7 +3593,7 @@ static const struct dmi_system_id dmi_platform_intel_braswell[] = {
 	{ }
 };
 
-static struct rt5645_platform_data buddy_platform_data = {
+static const struct rt5645_platform_data buddy_platform_data = {
 	.dmic1_data_pin = RT5645_DMIC_DATA_GPIO5,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
 	.jd_mode = 3,
@@ -3610,7 +3610,7 @@ static struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{ }
 };
 
-static struct rt5645_platform_data gpd_win_platform_data = {
+static const struct rt5645_platform_data gpd_win_platform_data = {
 	.jd_mode = 3,
 	.inv_jd1_1 = true,
 };
