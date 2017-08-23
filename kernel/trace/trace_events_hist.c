@@ -1062,7 +1062,7 @@ static void hist_trigger_show(struct seq_file *m,
 			      struct event_trigger_data *data, int n)
 {
 	struct hist_trigger_data *hist_data;
-	int n_entries, ret = 0;
+	int n_entries;
 
 	if (n > 0)
 		seq_puts(m, "\n\n");
@@ -1073,10 +1073,8 @@ static void hist_trigger_show(struct seq_file *m,
 
 	hist_data = data->private_data;
 	n_entries = print_entries(m, hist_data);
-	if (n_entries < 0) {
-		ret = n_entries;
+	if (n_entries < 0)
 		n_entries = 0;
-	}
 
 	seq_printf(m, "\nTotals:\n    Hits: %llu\n    Entries: %u\n    Dropped: %llu\n",
 		   (u64)atomic64_read(&hist_data->map->hits),
