@@ -1488,7 +1488,7 @@ static int __maybe_unused rockchip_pcie_resume_noirq(struct device *dev)
 
 	err = rockchip_pcie_enable_clocks(rockchip);
 	if (err)
-		return err;
+		goto err_disable_0v9;
 
 	err = rockchip_pcie_init_port(rockchip);
 	if (err)
@@ -1508,6 +1508,9 @@ err_err_deinit_port:
 	rockchip_pcie_deinit_phys(rockchip);
 err_pcie_resume:
 	rockchip_pcie_disable_clocks(rockchip);
+err_disable_0v9:
+	if (!IS_ERR(rockchip->vpcie0v9))
+		regulator_disable(rockchip->vpcie0v9);
 	return err;
 }
 
