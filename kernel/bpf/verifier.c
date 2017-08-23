@@ -3436,6 +3436,7 @@ out_free:
 static bool do_propagate_liveness(const struct bpf_verifier_state *state,
 				  struct bpf_verifier_state *parent)
 {
+	bool writes = parent == state->parent; /* Observe write marks */
 	bool touched = false; /* any changes made? */
 	int i;
 
@@ -3447,7 +3448,9 @@ static bool do_propagate_liveness(const struct bpf_verifier_state *state,
 	for (i = 0; i < BPF_REG_FP; i++) {
 		if (parent->regs[i].live & REG_LIVE_READ)
 			continue;
-		if (state->regs[i].live == REG_LIVE_READ) {
+		if (writes && (state->regs[i].live & REG_LIVE_WRITTEN))
+			continue;
+		if (state->regs[i].live & REG_LIVE_READ) {
 			parent->regs[i].live |= REG_LIVE_READ;
 			touched = true;
 		}
@@ -3460,7 +3463,9 @@ static bool do_propagate_liveness(const struct bpf_verifier_state *state,
 			continue;
 		if (parent->spilled_regs[i].live & REG_LIVE_READ)
 			continue;
-		if (state->spilled_regs[i].live == REG_LIVE_READ) {
+		if (writes && (state->spilled_regs[i].live & REG_LIVE_WRITTEN))
+			continue;
+		if (state->spilled_regs[i].live & REG_LIVE_READ) {
 			parent->spilled_regs[i].live |= REG_LIVE_READ;
 			touched = true;
 		}
