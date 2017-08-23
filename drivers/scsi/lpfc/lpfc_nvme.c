@@ -2296,6 +2296,9 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			 ndlp->nlp_DID, ndlp->nlp_type);
 
 	localport = vport->localport;
+	if (!localport)
+		return 0;
+
 	lport = (struct lpfc_nvme_lport *)localport->private;
 
 	/* NVME rports are not preserved across devloss.
