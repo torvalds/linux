@@ -567,32 +567,32 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 		err = phy_init(rockchip->phys[i]);
 		if (err) {
 			dev_err(dev, "init phy%d err %d\n", i, err);
-			return err;
+			goto err_exit_phy;
 		}
 	}
 
 	err = reset_control_assert(rockchip->core_rst);
 	if (err) {
 		dev_err(dev, "assert core_rst err %d\n", err);
-		return err;
+		goto err_exit_phy;
 	}
 
 	err = reset_control_assert(rockchip->mgmt_rst);
 	if (err) {
 		dev_err(dev, "assert mgmt_rst err %d\n", err);
-		return err;
+		goto err_exit_phy;
 	}
 
 	err = reset_control_assert(rockchip->mgmt_sticky_rst);
 	if (err) {
 		dev_err(dev, "assert mgmt_sticky_rst err %d\n", err);
-		return err;
+		goto err_exit_phy;
 	}
 
 	err = reset_control_assert(rockchip->pipe_rst);
 	if (err) {
 		dev_err(dev, "assert pipe_rst err %d\n", err);
-		return err;
+		goto err_exit_phy;
 	}
 
 	udelay(10);
@@ -600,19 +600,19 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	err = reset_control_deassert(rockchip->pm_rst);
 	if (err) {
 		dev_err(dev, "deassert pm_rst err %d\n", err);
-		return err;
+		goto err_exit_phy;
 	}
 
 	err = reset_control_deassert(rockchip->aclk_rst);
 	if (err) {
 		dev_err(dev, "deassert aclk_rst err %d\n", err);
-		return err;
+		goto err_exit_phy;
 	}
 
 	err = reset_control_deassert(rockchip->pclk_rst);
 	if (err) {
 		dev_err(dev, "deassert pclk_rst err %d\n", err);
-		return err;
+		goto err_exit_phy;
 	}
 
 	if (rockchip->link_gen == 2)
@@ -634,7 +634,7 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 		err = phy_power_on(rockchip->phys[i]);
 		if (err) {
 			dev_err(dev, "power on phy%d err %d\n", i, err);
-			return err;
+			goto err_power_off_phy;
 		}
 	}
 
@@ -645,25 +645,25 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	err = reset_control_deassert(rockchip->mgmt_sticky_rst);
 	if (err) {
 		dev_err(dev, "deassert mgmt_sticky_rst err %d\n", err);
-		return err;
+		goto err_power_off_phy;
 	}
 
 	err = reset_control_deassert(rockchip->core_rst);
 	if (err) {
 		dev_err(dev, "deassert core_rst err %d\n", err);
-		return err;
+		goto err_power_off_phy;
 	}
 
 	err = reset_control_deassert(rockchip->mgmt_rst);
 	if (err) {
 		dev_err(dev, "deassert mgmt_rst err %d\n", err);
-		return err;
+		goto err_power_off_phy;
 	}
 
 	err = reset_control_deassert(rockchip->pipe_rst);
 	if (err) {
 		dev_err(dev, "deassert pipe_rst err %d\n", err);
-		return err;
+		goto err_power_off_phy;
 	}
 
 	/* Fix the transmitted FTS count desired to exit from L0s. */
@@ -696,7 +696,7 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 				 500 * USEC_PER_MSEC);
 	if (err) {
 		dev_err(dev, "PCIe link training gen1 timeout!\n");
-		return -ETIMEDOUT;
+		goto err_power_off_phy;
 	}
 
 	if (rockchip->link_gen == 2) {
@@ -754,6 +754,14 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_DCSR);
 
 	return 0;
+err_power_off_phy:
+	while (i--)
+		phy_power_off(rockchip->phys[i]);
+	i = MAX_LANE_NUM;
+err_exit_phy:
+	while (i--)
+		phy_exit(rockchip->phys[i]);
+	return err;
 }
 
 static void rockchip_pcie_deinit_phys(struct rockchip_pcie *rockchip)
@@ -1488,7 +1496,7 @@ static int __maybe_unused rockchip_pcie_resume_noirq(struct device *dev)
 
 	err = rockchip_pcie_cfg_atu(rockchip);
 	if (err)
-		goto err_pcie_resume;
+		goto err_err_deinit_port;
 
 	/* Need this to enter L1 again */
 	rockchip_pcie_update_txcredit_mui(rockchip);
@@ -1496,6 +1504,8 @@ static int __maybe_unused rockchip_pcie_resume_noirq(struct device *dev)
 
 	return 0;
 
+err_err_deinit_port:
+	rockchip_pcie_deinit_phys(rockchip);
 err_pcie_resume:
 	rockchip_pcie_disable_clocks(rockchip);
 	return err;
@@ -1549,12 +1559,12 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 
 	err = rockchip_pcie_init_irq_domain(rockchip);
 	if (err < 0)
-		goto err_vpcie;
+		goto err_deinit_port;
 
 	err = of_pci_get_host_bridge_resources(dev->of_node, 0, 0xff,
 					       &res, &io_base);
 	if (err)
-		goto err_vpcie;
+		goto err_deinit_port;
 
 	err = devm_request_pci_bus_resources(dev, &res);
 	if (err)
@@ -1626,6 +1636,8 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 
 err_free_res:
 	pci_free_resource_list(&res);
+err_deinit_port:
+	rockchip_pcie_deinit_phys(rockchip);
 err_vpcie:
 	if (!IS_ERR(rockchip->vpcie12v))
 		regulator_disable(rockchip->vpcie12v);
