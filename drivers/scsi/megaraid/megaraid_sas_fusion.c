@@ -916,7 +916,6 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		ret = 1;
 		goto fail_fw_init;
 	}
-	dev_info(&instance->pdev->dev, "Init cmd success\n");
 
 	ret = 0;
 
@@ -927,6 +926,10 @@ fail_fw_init:
 				  sizeof(struct MPI2_IOC_INIT_REQUEST),
 				  IOCInitMessage, ioc_init_handle);
 fail_get_cmd:
+	dev_err(&instance->pdev->dev,
+		"Init cmd return status %s for SCSI host %d\n",
+		ret ? "FAILED" : "SUCCESS", instance->host->host_no);
+
 	return ret;
 }
 
@@ -4314,9 +4317,6 @@ transition_to_ready:
 			megasas_fusion_update_can_queue(instance, OCR_CONTEXT);
 
 			if (megasas_ioc_init_fusion(instance)) {
-				dev_warn(&instance->pdev->dev,
-				       "megasas_ioc_init_fusion() failed! for "
-				       "scsi%d\n", instance->host->host_no);
 				if (instance->requestorId && !reason)
 					goto fail_kill_adapter;
 				else
@@ -4362,6 +4362,10 @@ transition_to_ready:
 			instance->instancet->enable_intr(instance);
 			atomic_set(&instance->adprecovery, MEGASAS_HBA_OPERATIONAL);
 
+			dev_info(&instance->pdev->dev, "Interrupts are enabled and"
+				" controller is OPERATIONAL for scsi:%d\n",
+				instance->host->host_no);
+
 			/* Restart SR-IOV heartbeat */
 			if (instance->requestorId) {
 				if (!megasas_sriov_start_heartbeat(instance, 0))
@@ -4373,11 +4377,6 @@ transition_to_ready:
 					instance->skip_heartbeat_timer_del = 1;
 			}
 
-			/* Adapter reset completed successfully */
-			dev_warn(&instance->pdev->dev, "Reset "
-			       "successful for scsi%d.\n",
-				instance->host->host_no);
-
 			if (instance->crash_dump_drv_support &&
 				instance->crash_dump_app_support)
 				megasas_set_crash_dump_params(instance,
@@ -4387,6 +4386,12 @@ transition_to_ready:
 					MR_CRASH_BUF_TURN_OFF);
 
 			retval = SUCCESS;
+
+			/* Adapter reset completed successfully */
+			dev_warn(&instance->pdev->dev,
+				 "Reset successful for scsi%d.\n",
+				 instance->host->host_no);
+
 			goto out;
 		}
 fail_kill_adapter:
