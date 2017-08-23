@@ -221,6 +221,7 @@ struct skl_kpb_params {
 };
 
 struct skl_module_inst_id {
+	uuid_le mod_uuid;
 	int module_id;
 	u32 instance_id;
 	int pvt_id;
