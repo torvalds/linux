@@ -2471,7 +2471,7 @@ bool rtl_check_beacon_key(struct ieee80211_hw *hw, void *data, unsigned int len)
 	struct ieee80211_hdr *hdr = data;
 	struct ieee80211_ht_cap *ht_cap_ie;
 	struct ieee80211_ht_operation *ht_oper_ie = NULL;
-	struct rtl_beacon_keys bcn_key;
+	struct rtl_beacon_keys bcn_key = {};
 	struct rtl_beacon_keys *cur_bcn_key;
 	u8 *ht_cap;
 	u8 ht_cap_len;
@@ -2509,10 +2509,12 @@ bool rtl_check_beacon_key(struct ieee80211_hw *hw, void *data, unsigned int len)
 	/***** Parsing DS Param IE ******/
 	ds_param = rtl_find_ie(data, len - FCS_LEN, WLAN_EID_DS_PARAMS);
 
-	if (ds_param && !(ds_param[1] < sizeof(*ds_param)))
+	if (ds_param && !(ds_param[1] < sizeof(*ds_param))) {
 		ds_param_len = ds_param[1];
-	else
+		bcn_key.bcn_channel = ds_param[2];
+	} else {
 		ds_param = NULL;
+	}
 
 	/***** Parsing HT Cap. IE ******/
 	ht_cap = rtl_find_ie(data, len - FCS_LEN, WLAN_EID_HT_CAPABILITY);
@@ -2520,6 +2522,7 @@ bool rtl_check_beacon_key(struct ieee80211_hw *hw, void *data, unsigned int len)
 	if (ht_cap && !(ht_cap[1] < sizeof(*ht_cap))) {
 		ht_cap_len = ht_cap[1];
 		ht_cap_ie = (struct ieee80211_ht_cap *)&ht_cap[2];
+		bcn_key.ht_cap_info = ht_cap_ie->cap_info;
 	} else  {
 		ht_cap = NULL;
 	}
@@ -2535,15 +2538,9 @@ bool rtl_check_beacon_key(struct ieee80211_hw *hw, void *data, unsigned int len)
 	}
 
 	/* update bcn_key */
-	memset(&bcn_key, 0, sizeof(bcn_key));
 
-	if (ds_param)
-		bcn_key.bcn_channel = ds_param[2];
-	else if (ht_oper && ht_oper_ie)
+	if (!ds_param && ht_oper && ht_oper_ie)
 		bcn_key.bcn_channel = ht_oper_ie->primary_chan;
-
-	if (ht_cap)
-		bcn_key.ht_cap_info = ht_cap_ie->cap_info;
 
 	if (ht_oper && ht_oper_ie)
 		bcn_key.ht_info_infos_0_sco = ht_oper_ie->ht_param & 0x03;
