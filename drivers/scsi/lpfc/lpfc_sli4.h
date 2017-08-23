@@ -158,6 +158,7 @@ struct lpfc_queue {
 #define LPFC_MQ_REPOST		8
 #define LPFC_CQ_REPOST		64
 #define LPFC_RQ_REPOST		64
+#define LPFC_MAX_ISR_CQE	64
 #define LPFC_RELEASE_NOTIFICATION_INTERVAL	32  /* For WQs */
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
 	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
