@@ -38,6 +38,10 @@ static struct ghes_edac_pvt *ghes_pvt;
  */
 static DEFINE_SPINLOCK(ghes_lock);
 
+/* "ghes_edac.force_load=1" skips the platform check */
+static bool __read_mostly force_load;
+module_param(force_load, bool, 0);
+
 /* Memory Device - Type 17 of SMBIOS spec */
 struct memdev_dmi_entry {
 	u8 type;
@@ -415,6 +419,14 @@ void ghes_edac_report_mem_error(struct ghes *ghes, int sev,
 	spin_unlock_irqrestore(&ghes_lock, flags);
 }
 
+/*
+ * Known systems that are safe to enable this module.
+ */
+static struct acpi_platform_list plat_list[] = {
+	{"HPE   ", "Server  ", 0, ACPI_SIG_FADT, all_versions},
+	{ } /* End */
+};
+
 int ghes_edac_register(struct ghes *ghes, struct device *dev)
 {
 	bool fake = false;
@@ -422,6 +434,12 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[1];
 	struct ghes_edac_dimm_fill dimm_fill;
+	int idx;
+
+	/* Check if safe to enable on this system */
+	idx = acpi_match_platform_list(plat_list);
+	if (!force_load && idx < 0)
+		return 0;
 
 	/*
 	 * We have only one logical memory controller to which all DIMMs belong.
@@ -460,17 +478,17 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 	mci->ctl_name = "ghes_edac";
 	mci->dev_name = "ghes";
 
-	if (!fake) {
+	if (fake) {
+		pr_info("This system has a very crappy BIOS: It doesn't even list the DIMMS.\n");
+		pr_info("Its SMBIOS info is wrong. It is doubtful that the error report would\n");
+		pr_info("work on such system. Use this driver with caution\n");
+	} else if (idx < 0) {
 		pr_info("This EDAC driver relies on BIOS to enumerate memory and get error reports.\n");
 		pr_info("Unfortunately, not all BIOSes reflect the memory layout correctly.\n");
 		pr_info("So, the end result of using this driver varies from vendor to vendor.\n");
 		pr_info("If you find incorrect reports, please contact your hardware vendor\n");
 		pr_info("to correct its BIOS.\n");
 		pr_info("This system has %d DIMM sockets.\n", num_dimm);
-	} else {
-		pr_info("This system has a very crappy BIOS: It doesn't even list the DIMMS.\n");
-		pr_info("Its SMBIOS info is wrong. It is doubtful that the error report would\n");
-		pr_info("work on such system. Use this driver with caution\n");
 	}
 
 	if (!fake) {
