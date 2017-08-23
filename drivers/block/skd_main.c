@@ -310,7 +310,7 @@ static inline void skd_reg_write64(struct skd_device *skdev, u64 val,
 }
 
 
-#define SKD_IRQ_DEFAULT SKD_IRQ_MSI
+#define SKD_IRQ_DEFAULT SKD_IRQ_MSIX
 static int skd_isr_type = SKD_IRQ_DEFAULT;
 
 module_param(skd_isr_type, int, 0444);
