@@ -233,10 +233,8 @@ static int wm8524_codec_probe(struct platform_device *pdev)
 
 	ret =  snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_wm8524, &wm8524_dai, 1);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
-		snd_soc_unregister_platform(&pdev->dev);
-	}
 
 	return ret;
 }
