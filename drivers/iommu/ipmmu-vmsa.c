@@ -324,6 +324,19 @@ static int ipmmu_domain_allocate_context(struct ipmmu_vmsa_device *mmu,
 	return ret;
 }
 
+static void ipmmu_domain_free_context(struct ipmmu_vmsa_device *mmu,
+				      unsigned int context_id)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&mmu->lock, flags);
+
+	clear_bit(context_id, mmu->ctx);
+	mmu->domains[context_id] = NULL;
+
+	spin_unlock_irqrestore(&mmu->lock, flags);
+}
+
 static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 {
 	u64 ttbr;
@@ -353,21 +366,21 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	 */
 	domain->cfg.iommu_dev = domain->mmu->dev;
 
-	domain->iop = alloc_io_pgtable_ops(ARM_32_LPAE_S1, &domain->cfg,
-					   domain);
-	if (!domain->iop)
-		return -EINVAL;
-
 	/*
 	 * Find an unused context.
 	 */
 	ret = ipmmu_domain_allocate_context(domain->mmu, domain);
-	if (ret == IPMMU_CTX_MAX) {
-		free_io_pgtable_ops(domain->iop);
+	if (ret == IPMMU_CTX_MAX)
 		return -EBUSY;
-	}
 
 	domain->context_id = ret;
+
+	domain->iop = alloc_io_pgtable_ops(ARM_32_LPAE_S1, &domain->cfg,
+					   domain);
+	if (!domain->iop) {
+		ipmmu_domain_free_context(domain->mmu, domain->context_id);
+		return -EINVAL;
+	}
 
 	/* TTBR0 */
 	ttbr = domain->cfg.arm_lpae_s1_cfg.ttbr[0];
@@ -407,19 +420,6 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	ipmmu_ctx_write(domain, IMCTR, IMCTR_INTEN | IMCTR_FLUSH | IMCTR_MMUEN);
 
 	return 0;
-}
-
-static void ipmmu_domain_free_context(struct ipmmu_vmsa_device *mmu,
-				      unsigned int context_id)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&mmu->lock, flags);
-
-	clear_bit(context_id, mmu->ctx);
-	mmu->domains[context_id] = NULL;
-
-	spin_unlock_irqrestore(&mmu->lock, flags);
 }
 
 static void ipmmu_domain_destroy_context(struct ipmmu_vmsa_domain *domain)
