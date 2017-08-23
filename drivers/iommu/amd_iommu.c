@@ -1122,7 +1122,7 @@ static int iommu_flush_dte(struct amd_iommu *iommu, u16 devid)
 	return iommu_queue_command(iommu, &cmd);
 }
 
-static void iommu_flush_dte_all(struct amd_iommu *iommu)
+static void amd_iommu_flush_dte_all(struct amd_iommu *iommu)
 {
 	u32 devid;
 
@@ -1136,7 +1136,7 @@ static void iommu_flush_dte_all(struct amd_iommu *iommu)
  * This function uses heavy locking and may disable irqs for some time. But
  * this is no issue because it is only called during resume.
  */
-static void iommu_flush_tlb_all(struct amd_iommu *iommu)
+static void amd_iommu_flush_tlb_all(struct amd_iommu *iommu)
 {
 	u32 dom_id;
 
@@ -1150,7 +1150,7 @@ static void iommu_flush_tlb_all(struct amd_iommu *iommu)
 	iommu_completion_wait(iommu);
 }
 
-static void iommu_flush_all(struct amd_iommu *iommu)
+static void amd_iommu_flush_all(struct amd_iommu *iommu)
 {
 	struct iommu_cmd cmd;
 
@@ -1169,7 +1169,7 @@ static void iommu_flush_irt(struct amd_iommu *iommu, u16 devid)
 	iommu_queue_command(iommu, &cmd);
 }
 
-static void iommu_flush_irt_all(struct amd_iommu *iommu)
+static void amd_iommu_flush_irt_all(struct amd_iommu *iommu)
 {
 	u32 devid;
 
@@ -1182,11 +1182,11 @@ static void iommu_flush_irt_all(struct amd_iommu *iommu)
 void iommu_flush_all_caches(struct amd_iommu *iommu)
 {
 	if (iommu_feature(iommu, FEATURE_IA)) {
-		iommu_flush_all(iommu);
+		amd_iommu_flush_all(iommu);
 	} else {
-		iommu_flush_dte_all(iommu);
-		iommu_flush_irt_all(iommu);
-		iommu_flush_tlb_all(iommu);
+		amd_iommu_flush_dte_all(iommu);
+		amd_iommu_flush_irt_all(iommu);
+		amd_iommu_flush_tlb_all(iommu);
 	}
 }
 
