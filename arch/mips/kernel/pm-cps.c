@@ -49,7 +49,7 @@ static DEFINE_PER_CPU_READ_MOSTLY(cps_nc_entry_fn[CPS_PM_STATE_COUNT],
 				  nc_asm_enter);
 
 /* Bitmap indicating which states are supported by the system */
-DECLARE_BITMAP(state_support, CPS_PM_STATE_COUNT);
+static DECLARE_BITMAP(state_support, CPS_PM_STATE_COUNT);
 
 /*
  * Indicates the number of coupled VPEs ready to operate in a non-coherent

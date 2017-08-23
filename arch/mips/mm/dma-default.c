@@ -373,12 +373,12 @@ static void mips_dma_sync_sg_for_device(struct device *dev,
 	}
 }
 
-int mips_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
+static int mips_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	return 0;
 }
 
-int mips_dma_supported(struct device *dev, u64 mask)
+static int mips_dma_supported(struct device *dev, u64 mask)
 {
 	return plat_dma_supported(dev, mask);
 }

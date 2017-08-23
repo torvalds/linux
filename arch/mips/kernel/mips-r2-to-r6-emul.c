@@ -46,9 +46,11 @@
 #define LL	"ll "
 #define SC	"sc "
 
-DEFINE_PER_CPU(struct mips_r2_emulator_stats, mipsr2emustats);
-DEFINE_PER_CPU(struct mips_r2_emulator_stats, mipsr2bdemustats);
-DEFINE_PER_CPU(struct mips_r2br_emulator_stats, mipsr2bremustats);
+#ifdef CONFIG_DEBUG_FS
+static DEFINE_PER_CPU(struct mips_r2_emulator_stats, mipsr2emustats);
+static DEFINE_PER_CPU(struct mips_r2_emulator_stats, mipsr2bdemustats);
+static DEFINE_PER_CPU(struct mips_r2br_emulator_stats, mipsr2bremustats);
+#endif
 
 extern const unsigned int fpucondbit[8];
 
