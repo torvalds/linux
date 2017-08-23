@@ -527,6 +527,8 @@ static int iommu_group_create_direct_mappings(struct iommu_group *group,
 
 	}
 
+	iommu_flush_tlb_all(domain);
+
 out:
 	iommu_put_resv_regions(dev, &mappings);
 
@@ -1547,13 +1549,16 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 }
 EXPORT_SYMBOL_GPL(iommu_map);
 
-size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
+static size_t __iommu_unmap(struct iommu_domain *domain,
+			    unsigned long iova, size_t size,
+			    bool sync)
 {
+	const struct iommu_ops *ops = domain->ops;
 	size_t unmapped_page, unmapped = 0;
-	unsigned int min_pagesz;
 	unsigned long orig_iova = iova;
+	unsigned int min_pagesz;
 
-	if (unlikely(domain->ops->unmap == NULL ||
+	if (unlikely(ops->unmap == NULL ||
 		     domain->pgsize_bitmap == 0UL))
 		return -ENODEV;
 
@@ -1583,9 +1588,12 @@ size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 	while (unmapped < size) {
 		size_t pgsize = iommu_pgsize(domain, iova, size - unmapped);
 
-		unmapped_page = domain->ops->unmap(domain, iova, pgsize);
+		unmapped_page = ops->unmap(domain, iova, pgsize);
 		if (!unmapped_page)
 			break;
+
+		if (sync && ops->iotlb_range_add)
+			ops->iotlb_range_add(domain, iova, pgsize);
 
 		pr_debug("unmapped: iova 0x%lx size 0x%zx\n",
 			 iova, unmapped_page);
@@ -1594,10 +1602,26 @@ size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 		unmapped += unmapped_page;
 	}
 
+	if (sync && ops->iotlb_sync)
+		ops->iotlb_sync(domain);
+
 	trace_unmap(orig_iova, size, unmapped);
 	return unmapped;
 }
+
+size_t iommu_unmap(struct iommu_domain *domain,
+		   unsigned long iova, size_t size)
+{
+	return __iommu_unmap(domain, iova, size, true);
+}
 EXPORT_SYMBOL_GPL(iommu_unmap);
+
+size_t iommu_unmap_fast(struct iommu_domain *domain,
+			unsigned long iova, size_t size)
+{
+	return __iommu_unmap(domain, iova, size, false);
+}
+EXPORT_SYMBOL_GPL(iommu_unmap_fast);
 
 size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 			 struct scatterlist *sg, unsigned int nents, int prot)
