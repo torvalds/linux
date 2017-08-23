@@ -4752,24 +4752,16 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 			qla2x00_fdmi_register(vha);
 
 		/* Ensure we are logged into the SNS. */
-		if (IS_FWI2_CAPABLE(ha))
-			loop_id = NPH_SNS;
-		else
-			loop_id = SIMPLE_NAME_SERVER;
+		loop_id = NPH_SNS_LID(ha);
 		rval = ha->isp_ops->fabric_login(vha, loop_id, 0xff, 0xff,
 		    0xfc, mb, BIT_1|BIT_0);
-		if (rval != QLA_SUCCESS) {
+		if (rval != QLA_SUCCESS || mb[0] != MBS_COMMAND_COMPLETE) {
+			ql_dbg(ql_dbg_disc, vha, 0x20a1,
+			    "Failed SNS login: loop_id=%x mb[0]=%x mb[1]=%x mb[2]=%x mb[6]=%x mb[7]=%x (%x).\n",
+			    loop_id, mb[0], mb[1], mb[2], mb[6], mb[7], rval);
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 			return rval;
 		}
-		if (mb[0] != MBS_COMMAND_COMPLETE) {
-			ql_dbg(ql_dbg_disc, vha, 0x20a1,
-			    "Failed SNS login: loop_id=%x mb[0]=%x mb[1]=%x mb[2]=%x "
-			    "mb[6]=%x mb[7]=%x.\n", loop_id, mb[0], mb[1],
-			    mb[2], mb[6], mb[7]);
-			return (QLA_SUCCESS);
-		}
-
 		if (test_and_clear_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags)) {
 			if (qla2x00_rft_id(vha)) {
 				/* EMPTY */
