@@ -1253,6 +1253,7 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	unsigned long time_elapsed;
 	uint32_t tick_cqe, max_cqe, val;
 	uint64_t tot, data1, data2, data3;
+	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_register reg_data;
 	void __iomem *eqdreg = phba->sli4_hba.u.if_type2.EQDregaddr;
 
@@ -1281,13 +1282,11 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		/* Check outstanding IO count */
 		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 			if (phba->nvmet_support) {
-				spin_lock(&phba->sli4_hba.nvmet_ctx_get_lock);
-				spin_lock(&phba->sli4_hba.nvmet_ctx_put_lock);
-				tot = phba->sli4_hba.nvmet_xri_cnt -
-					(phba->sli4_hba.nvmet_ctx_get_cnt +
-					phba->sli4_hba.nvmet_ctx_put_cnt);
-				spin_unlock(&phba->sli4_hba.nvmet_ctx_put_lock);
-				spin_unlock(&phba->sli4_hba.nvmet_ctx_get_lock);
+				tgtp = phba->targetport->private;
+				/* Calculate outstanding IOs */
+				tot = atomic_read(&tgtp->rcv_fcp_cmd_drop);
+				tot += atomic_read(&tgtp->xmt_fcp_release);
+				tot = atomic_read(&tgtp->rcv_fcp_cmd_in) - tot;
 			} else {
 				tot = atomic_read(&phba->fc4NvmeIoCmpls);
 				data1 = atomic_read(
@@ -5937,8 +5936,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		spin_lock_init(&phba->sli4_hba.abts_nvme_buf_list_lock);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvme_buf_list);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
-		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_ctx_get_list);
-		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_ctx_put_list);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_io_wait_list);
 
 		/* Fast-path XRI aborted CQ Event work queue list */
@@ -5947,8 +5944,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	/* This abort list used by worker thread */
 	spin_lock_init(&phba->sli4_hba.sgl_list_lock);
-	spin_lock_init(&phba->sli4_hba.nvmet_ctx_get_lock);
-	spin_lock_init(&phba->sli4_hba.nvmet_ctx_put_lock);
 	spin_lock_init(&phba->sli4_hba.nvmet_io_wait_lock);
 
 	/*

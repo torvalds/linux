@@ -245,13 +245,10 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				atomic_read(&tgtp->xmt_abort_rsp),
 				atomic_read(&tgtp->xmt_abort_rsp_error));
 
-		spin_lock(&phba->sli4_hba.nvmet_ctx_get_lock);
-		spin_lock(&phba->sli4_hba.nvmet_ctx_put_lock);
-		tot = phba->sli4_hba.nvmet_xri_cnt -
-			(phba->sli4_hba.nvmet_ctx_get_cnt +
-			phba->sli4_hba.nvmet_ctx_put_cnt);
-		spin_unlock(&phba->sli4_hba.nvmet_ctx_put_lock);
-		spin_unlock(&phba->sli4_hba.nvmet_ctx_get_lock);
+		/* Calculate outstanding IOs */
+		tot = atomic_read(&tgtp->rcv_fcp_cmd_drop);
+		tot += atomic_read(&tgtp->xmt_fcp_release);
+		tot = atomic_read(&tgtp->rcv_fcp_cmd_in) - tot;
 
 		len += snprintf(buf + len, PAGE_SIZE - len,
 				"IO_CTX: %08x  WAIT: cur %08x tot %08x\n"

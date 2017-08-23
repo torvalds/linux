@@ -13291,7 +13291,7 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		if (fc_hdr->fh_type == FC_TYPE_FCP) {
 			dma_buf->bytes_recv = bf_get(lpfc_rcqe_length,  rcqe);
 			lpfc_nvmet_unsol_fcp_event(
-				phba, phba->sli4_hba.els_wq->pring, dma_buf,
+				phba, idx, dma_buf,
 				cq->assoc_qp->isr_timestamp);
 			return false;
 		}
