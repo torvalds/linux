@@ -12953,8 +12953,8 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 	if (!modeset &&
 	    (intel_cstate->base.color_mgmt_changed ||
 	     intel_cstate->update_pipe)) {
-		intel_color_set_csc(crtc->state);
-		intel_color_load_luts(crtc->state);
+		intel_color_set_csc(&intel_cstate->base);
+		intel_color_load_luts(&intel_cstate->base);
 	}
 
 	/* Perform vblank evasion around commit operation */
