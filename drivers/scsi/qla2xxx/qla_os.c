@@ -1732,6 +1732,8 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 						    &ha->hardware_lock, flags);
 					} else if (GET_CMD_SP(sp) &&
 					    !ha->flags.eeh_busy &&
+					    (!test_bit(ABORT_ISP_ACTIVE,
+						&vha->dpc_flags)) &&
 					    (sp->type == SRB_SCSI_CMD)) {
 						/*
 						 * Don't abort commands in
