@@ -6866,6 +6866,7 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	void *sense = NULL;
 	dma_addr_t sense_handle;
 	unsigned long *sense_ptr;
+	u32 opcode;
 
 	memset(kbuff_arr, 0, sizeof(kbuff_arr));
 
@@ -6893,15 +6894,16 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	cmd->frame->hdr.flags &= cpu_to_le16(~(MFI_FRAME_IEEE |
 					       MFI_FRAME_SGL64 |
 					       MFI_FRAME_SENSE64));
+	opcode = le32_to_cpu(cmd->frame->dcmd.opcode);
 
-	if (cmd->frame->dcmd.opcode == MR_DCMD_CTRL_SHUTDOWN) {
+	if (opcode == MR_DCMD_CTRL_SHUTDOWN) {
 		if (megasas_get_ctrl_info(instance) != DCMD_SUCCESS) {
 			megasas_return_cmd(instance, cmd);
 			return -1;
 		}
 	}
 
-	if (cmd->frame->dcmd.opcode == MR_DRIVER_SET_APP_CRASHDUMP_MODE) {
+	if (opcode == MR_DRIVER_SET_APP_CRASHDUMP_MODE) {
 		error = megasas_set_crash_dump_params_ioctl(cmd);
 		megasas_return_cmd(instance, cmd);
 		return error;
@@ -6975,8 +6977,7 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 		cmd->sync_cmd = 0;
 		dev_err(&instance->pdev->dev,
 			"return -EBUSY from %s %d opcode 0x%x cmd->cmd_status_drv 0x%x\n",
-			__func__, __LINE__, cmd->frame->dcmd.opcode,
-			cmd->cmd_status_drv);
+			__func__, __LINE__, opcode,	cmd->cmd_status_drv);
 		return -EBUSY;
 	}
 
