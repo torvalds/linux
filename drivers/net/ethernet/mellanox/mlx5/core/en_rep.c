@@ -924,7 +924,7 @@ static int mlx5e_get_rep_max_num_channels(struct mlx5_core_dev *mdev)
 	return MLX5E_PORT_REPRESENTOR_NCH;
 }
 
-static struct mlx5e_profile mlx5e_rep_profile = {
+static const struct mlx5e_profile mlx5e_rep_profile = {
 	.init			= mlx5e_init_rep,
 	.init_rx		= mlx5e_init_rep_rx,
 	.cleanup_rx		= mlx5e_cleanup_rep_rx,
