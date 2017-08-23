@@ -2220,7 +2220,7 @@ static void hw_write_20kx(struct hw *hw, u32 reg, u32 data)
 	writel(data, hw->mem_base + reg);
 }
 
-static struct hw ct20k2_preset = {
+static const struct hw ct20k2_preset = {
 	.irq = -1,
 
 	.card_init = hw_card_init,
