@@ -391,24 +391,6 @@ disable_clk:
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int sdhci_cdns_suspend(struct device *dev)
-{
-	struct sdhci_host *host = dev_get_drvdata(dev);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	int ret;
-
-	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
-		mmc_retune_needed(host->mmc);
-
-	ret = sdhci_suspend_host(host);
-	if (ret)
-		return ret;
-
-	clk_disable_unprepare(pltfm_host->clk);
-
-	return 0;
-}
-
 static int sdhci_cdns_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -438,7 +420,7 @@ disable_clk:
 #endif
 
 static const struct dev_pm_ops sdhci_cdns_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(sdhci_cdns_suspend, sdhci_cdns_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(sdhci_pltfm_suspend, sdhci_cdns_resume)
 };
 
 static const struct of_device_id sdhci_cdns_match[] = {
