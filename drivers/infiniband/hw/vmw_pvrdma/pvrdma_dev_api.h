@@ -149,6 +149,13 @@
 	((_dev->dsr->caps.mode == PVRDMA_DEVICE_MODE_ROCE) &&		\
 	 (PVRDMA_IS_VERSION17(_dev) || PVRDMA_IS_VERSION18(_dev)))
 
+/*
+ * Get capability values based on device version.
+ */
+
+#define PVRDMA_GET_CAP(_dev, _old_val, _val) \
+	((PVRDMA_IS_VERSION18(_dev)) ? _val : _old_val)
+
 enum pvrdma_pci_resource {
 	PVRDMA_PCI_RESOURCE_MSIX,	/* BAR0: MSI-X, MMIO. */
 	PVRDMA_PCI_RESOURCE_REG,	/* BAR1: Registers, MMIO. */
@@ -251,7 +258,7 @@ struct pvrdma_device_caps {
 	u8  atomic_ops;				/* PVRDMA_ATOMIC_OP_* bits */
 	u8  bmme_flags;				/* FRWR Mem Mgmt Extensions */
 	u8  gid_types;				/* PVRDMA_GID_TYPE_FLAG_ */
-	u8  reserved[4];
+	u32 max_fast_reg_page_list_len;
 };
 
 struct pvrdma_ring_page_info {
