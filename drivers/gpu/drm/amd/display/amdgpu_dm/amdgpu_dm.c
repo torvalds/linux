@@ -3767,7 +3767,7 @@ static void amdgpu_dm_do_flip(
 	struct amdgpu_framebuffer *afb = to_amdgpu_framebuffer(fb);
 	struct amdgpu_bo *abo = gem_to_amdgpu_bo(afb->obj);
 	struct amdgpu_device *adev = crtc->dev->dev_private;
-	bool async_flip = (acrtc->flip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
+	bool async_flip = (crtc->state->pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
 	struct dc_flip_addrs addr = { {0} };
 	/* TODO eliminate or rename surface_update */
 	struct dc_surface_update surface_updates[1] = { {0} };
@@ -3899,7 +3899,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			 * TODO Check if it's correct
 			 */
 			*wait_for_vblank =
-				acrtc_attach->flip_flags & DRM_MODE_PAGE_FLIP_ASYNC ?
+					pcrtc->state->pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC ?
 				false : true;
 
 			/* TODO: Needs rework for multiplane flip */
@@ -3910,11 +3910,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				crtc,
 				fb,
 				drm_crtc_vblank_count(crtc) + *wait_for_vblank);
-
-			/*TODO BUG remove ASAP in 4.12 to avoid race between worker and flip IOCTL */
-
-			/*clean up the flags for next usage*/
-			acrtc_attach->flip_flags = 0;
 		}
 
 	}
