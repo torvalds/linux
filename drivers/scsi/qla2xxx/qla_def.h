@@ -3471,7 +3471,7 @@ struct qla_hw_data {
 		uint32_t	using_lr_setting:1;
 	} flags;
 
-	u8 long_range_distance;	/* 32G & above */
+	uint16_t long_range_distance;	/* 32G & above */
 #define LR_DISTANCE_5K  1
 #define LR_DISTANCE_10K 0
 
@@ -4027,12 +4027,19 @@ struct qla_hw_data {
 
 	struct qlt_hw_data tgt;
 	int	allow_cna_fw_dump;
+	uint32_t fw_ability_mask;
 	uint16_t min_link_speed;
 	uint16_t max_speed_sup;
 
 	atomic_t        nvme_active_aen_cnt;
 	uint16_t        nvme_last_rptd_aen;             /* Last recorded aen count */
 };
+
+#define FW_ABILITY_MAX_SPEED_MASK	0xFUL
+#define FW_ABILITY_MAX_SPEED_16G	0x0
+#define FW_ABILITY_MAX_SPEED_32G	0x1
+#define FW_ABILITY_MAX_SPEED(ha)	\
+	(ha->fw_ability_mask & FW_ABILITY_MAX_SPEED_MASK)
 
 /*
  * Qlogic scsi host structure

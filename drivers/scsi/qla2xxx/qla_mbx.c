@@ -567,6 +567,28 @@ qla2x00_load_ram(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t risc_addr,
 
 #define	EXTENDED_BB_CREDITS	BIT_0
 #define	NVME_ENABLE_FLAG	BIT_3
+static inline uint16_t qla25xx_set_sfp_lr_dist(struct qla_hw_data *ha)
+{
+	uint16_t mb4 = BIT_0;
+
+	if (IS_QLA83XX(ha) || IS_QLA27XX(ha))
+		mb4 |= ha->long_range_distance << LR_DIST_FW_POS;
+
+	return mb4;
+}
+
+static inline uint16_t qla25xx_set_nvr_lr_dist(struct qla_hw_data *ha)
+{
+	uint16_t mb4 = BIT_0;
+
+	if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+		struct nvram_81xx *nv = ha->nvram;
+
+		mb4 |= LR_DIST_FW_FIELD(nv->enhanced_features);
+	}
+
+	return mb4;
+}
 
 /*
  * qla2x00_execute_fw
@@ -602,27 +624,25 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 		mcp->mb[2] = LSW(risc_addr);
 		mcp->mb[3] = 0;
 		mcp->mb[4] = 0;
+		ha->flags.using_lr_setting = 0;
 		if (IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha) ||
 		    IS_QLA27XX(ha)) {
 			if (ql2xautodetectsfp) {
 				if (ha->flags.detected_lr_sfp) {
-					mcp->mb[4] |= EXTENDED_BB_CREDITS;
-					if (IS_QLA27XX(ha))
-						mcp->mb[4] |=
-					(u16)ha->long_range_distance << 12;
+					mcp->mb[4] |=
+					    qla25xx_set_sfp_lr_dist(ha);
 					ha->flags.using_lr_setting = 1;
 				}
 			} else {
 				struct nvram_81xx *nv = ha->nvram;
-
+				/* set LR distance if specified in nvram */
 				if (nv->enhanced_features &
-				    EXTENDED_BB_CREDITS) {
-					mcp->mb[4] |= EXTENDED_BB_CREDITS;
+				    NEF_LR_DIST_ENABLE) {
+					mcp->mb[4] |=
+					    qla25xx_set_nvr_lr_dist(ha);
 					ha->flags.using_lr_setting = 1;
 				}
 			}
-		} else {
-			ha->flags.using_lr_setting = 0;
 		}
 
 		if (ql2xnvmeenable && IS_QLA27XX(ha))
@@ -648,7 +668,7 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 			mcp->mb[4] |= ENABLE_EXCHANGE_OFFLD;
 
 		mcp->out_mb |= MBX_4|MBX_3|MBX_2|MBX_1;
-		mcp->in_mb |= MBX_1;
+		mcp->in_mb |= MBX_3 | MBX_2 | MBX_1;
 	} else {
 		mcp->mb[1] = LSW(risc_addr);
 		mcp->out_mb |= MBX_1;
@@ -667,10 +687,13 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
 	} else {
 		if (IS_FWI2_CAPABLE(ha)) {
+			ha->fw_ability_mask = mcp->mb[3] << 16 | mcp->mb[2];
+			ql_dbg(ql_dbg_mbx, vha, 0x119a,
+			    "fw_ability_mask=%x.\n", ha->fw_ability_mask);
 			ql_dbg(ql_dbg_mbx, vha, 0x1027,
 			    "exchanges=%x.\n", mcp->mb[1]);
-			if (IS_QLA27XX(ha)) {
-				ha->max_speed_sup = mcp->mb[2] & 1;
+			if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+				ha->max_speed_sup = mcp->mb[2] & BIT_0;
 				ql_dbg(ql_dbg_mbx, vha, 0x119b,
 				    "Maximum speed supported=%s.\n",
 				    ha->max_speed_sup ? "32Gps" : "16Gps");
@@ -682,15 +705,12 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 					    mcp->mb[5] == 4 ? "16Gps" :
 					    mcp->mb[5] == 3 ? "8Gps" :
 					    mcp->mb[5] == 2 ? "4Gps" :
-					    "unknown");
+						"unknown");
 				}
 			}
-			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1027,
-			    "Done.\n");
-		} else {
-			ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1028,
-			    "Done %s.\n", __func__);
 		}
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1028,
+		    "Done.\n");
 	}
 
 	return rval;
