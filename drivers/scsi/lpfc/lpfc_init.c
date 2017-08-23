@@ -3226,6 +3226,13 @@ lpfc_offline(struct lpfc_hba *phba)
 
 	/* stop port and all timers associated with this hba */
 	lpfc_stop_port(phba);
+
+	/* Tear down the local and target port registrations.  The
+	 * nvme transports need to cleanup.
+	 */
+	lpfc_nvmet_destroy_targetport(phba);
+	lpfc_nvme_destroy_localport(phba->pport);
+
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++)
@@ -6516,6 +6523,12 @@ lpfc_free_nvmet_sgl_list(struct lpfc_hba *phba)
 		lpfc_nvmet_buf_free(phba, sglq_entry->virt, sglq_entry->phys);
 		kfree(sglq_entry);
 	}
+
+	/* Update the nvmet_xri_cnt to reflect no current sgls.
+	 * The next initialization cycle sets the count and allocates
+	 * the sgls over again.
+	 */
+	phba->sli4_hba.nvmet_xri_cnt = 0;
 }
 
 /**
@@ -8300,6 +8313,9 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 						"Header RQBP\n");
 				goto out_error;
 			}
+
+			/* Put list in known state in case driver load fails. */
+			INIT_LIST_HEAD(&qdesc->rqbp->rqb_buffer_list);
 
 			/* Create NVMET Receive Queue for data */
 			qdesc = lpfc_sli4_queue_alloc(phba,
