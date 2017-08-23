@@ -5284,15 +5284,14 @@ static unsigned int mvpp2_tx_done(struct mvpp2_port *port, u32 cause,
 
 /* Allocate and initialize descriptors for aggr TXQ */
 static int mvpp2_aggr_txq_init(struct platform_device *pdev,
-			       struct mvpp2_tx_queue *aggr_txq,
-			       int desc_num, int cpu,
+			       struct mvpp2_tx_queue *aggr_txq, int cpu,
 			       struct mvpp2 *priv)
 {
 	u32 txq_dma;
 
 	/* Allocate memory for TX descriptors */
 	aggr_txq->descs = dma_alloc_coherent(&pdev->dev,
-				desc_num * MVPP2_DESC_ALIGNED_SIZE,
+				MVPP2_AGGR_TXQ_SIZE * MVPP2_DESC_ALIGNED_SIZE,
 				&aggr_txq->descs_dma, GFP_KERNEL);
 	if (!aggr_txq->descs)
 		return -ENOMEM;
@@ -5313,7 +5312,8 @@ static int mvpp2_aggr_txq_init(struct platform_device *pdev,
 			MVPP22_AGGR_TXQ_DESC_ADDR_OFFS;
 
 	mvpp2_write(priv, MVPP2_AGGR_TXQ_DESC_ADDR_REG(cpu), txq_dma);
-	mvpp2_write(priv, MVPP2_AGGR_TXQ_DESC_SIZE_REG(cpu), desc_num);
+	mvpp2_write(priv, MVPP2_AGGR_TXQ_DESC_SIZE_REG(cpu),
+		    MVPP2_AGGR_TXQ_SIZE);
 
 	return 0;
 }
@@ -7445,8 +7445,7 @@ static int mvpp2_init(struct platform_device *pdev, struct mvpp2 *priv)
 	for_each_present_cpu(i) {
 		priv->aggr_txqs[i].id = i;
 		priv->aggr_txqs[i].size = MVPP2_AGGR_TXQ_SIZE;
-		err = mvpp2_aggr_txq_init(pdev, &priv->aggr_txqs[i],
-					  MVPP2_AGGR_TXQ_SIZE, i, priv);
+		err = mvpp2_aggr_txq_init(pdev, &priv->aggr_txqs[i], i, priv);
 		if (err < 0)
 			return err;
 	}
