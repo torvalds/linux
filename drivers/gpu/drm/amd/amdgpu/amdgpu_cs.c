@@ -1079,6 +1079,9 @@ static int amdgpu_cs_process_syncobj_out_dep(struct amdgpu_cs_parser *p,
 					     GFP_KERNEL);
 	p->num_post_dep_syncobjs = 0;
 
+	if (!p->post_dep_syncobjs)
+		return -ENOMEM;
+
 	for (i = 0; i < num_deps; ++i) {
 		p->post_dep_syncobjs[i] = drm_syncobj_find(p->filp, deps[i].handle);
 		if (!p->post_dep_syncobjs[i])
