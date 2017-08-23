@@ -23,7 +23,9 @@ static const int sig_map[MAXMAPPED_SIG] = {
 	[SIGPIPE] = 13,
 	[SIGALRM] = 14,
 	[SIGTERM] = 15,
+#ifdef SIGSTKFLT
 	[SIGSTKFLT] = 16,	/* -, 16, - */
+#endif
 	[SIGCHLD] = 17,		/* 20, 17, 18.  SIGCHLD -, -, 18 */
 	[SIGCONT] = 18,		/* 19, 18, 25 */
 	[SIGSTOP] = 19,		/* 17, 19, 23 */
@@ -47,7 +49,8 @@ static const int sig_map[MAXMAPPED_SIG] = {
 #if defined(SIGLOST) && SIGPWR != SIGLOST		/* sparc */
 	[SIGLOST] = 33,		/* unused on Linux */
 #endif
-#if defined(SIGLOST) && defined(SIGSYS) && SIGLOST != SIGSYS
+#if defined(SIGUNUSED) && \
+    defined(SIGLOST) && defined(SIGSYS) && SIGLOST != SIGSYS
 	[SIGUNUSED] = 34,	/* -, 31, - */
 #endif
 };
