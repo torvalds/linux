@@ -9849,14 +9849,14 @@ static int ixgbe_xdp_xmit(struct net_device *dev, struct xdp_buff *xdp)
 	int err;
 
 	if (unlikely(test_bit(__IXGBE_DOWN, &adapter->state)))
-		return -EINVAL;
+		return -ENETDOWN;
 
 	/* During program transitions its possible adapter->xdp_prog is assigned
 	 * but ring has not been configured yet. In this case simply abort xmit.
 	 */
 	ring = adapter->xdp_prog ? adapter->xdp_ring[smp_processor_id()] : NULL;
 	if (unlikely(!ring))
-		return -EINVAL;
+		return -ENXIO;
 
 	err = ixgbe_xmit_xdp_ring(adapter, xdp);
 	if (err != IXGBE_XDP_TX)

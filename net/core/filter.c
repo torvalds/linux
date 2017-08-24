@@ -2476,7 +2476,6 @@ static int __bpf_tx_xdp(struct net_device *dev,
 	int err;
 
 	if (!dev->netdev_ops->ndo_xdp_xmit) {
-		bpf_warn_invalid_xdp_redirect(dev->ifindex);
 		return -EOPNOTSUPP;
 	}
 
@@ -2525,7 +2524,7 @@ static int xdp_do_redirect_map(struct net_device *dev, struct xdp_buff *xdp,
 	if (likely(!err))
 		ri->map_to_flush = map;
 out:
-	trace_xdp_redirect(dev, fwd, xdp_prog, XDP_REDIRECT, err);
+	trace_xdp_redirect(dev, xdp_prog, XDP_REDIRECT, index, err);
 	return err;
 }
 
@@ -2543,39 +2542,48 @@ int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp,
 	fwd = dev_get_by_index_rcu(dev_net(dev), index);
 	ri->ifindex = 0;
 	if (unlikely(!fwd)) {
-		bpf_warn_invalid_xdp_redirect(index);
 		err = -EINVAL;
 		goto out;
 	}
 
 	err = __bpf_tx_xdp(fwd, NULL, xdp, 0);
 out:
-	trace_xdp_redirect(dev, fwd, xdp_prog, XDP_REDIRECT, err);
+	trace_xdp_redirect(dev, xdp_prog, XDP_REDIRECT, index, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(xdp_do_redirect);
 
-int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb)
+int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
+			    struct bpf_prog *xdp_prog)
 {
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
-	unsigned int len;
 	u32 index = ri->ifindex;
+	struct net_device *fwd;
+	unsigned int len;
+	int err = 0;
 
-	dev = dev_get_by_index_rcu(dev_net(dev), index);
+	fwd = dev_get_by_index_rcu(dev_net(dev), index);
 	ri->ifindex = 0;
-	if (unlikely(!dev)) {
-		bpf_warn_invalid_xdp_redirect(index);
-		return -EINVAL;
+	if (unlikely(!fwd)) {
+		err = -EINVAL;
+		goto out;
 	}
 
-	if (unlikely(!(dev->flags & IFF_UP)))
-		return -ENETDOWN;
-	len = dev->mtu + dev->hard_header_len + VLAN_HLEN;
-	if (skb->len > len)
-		return -E2BIG;
+	if (unlikely(!(fwd->flags & IFF_UP))) {
+		err = -ENETDOWN;
+		goto out;
+	}
 
-	skb->dev = dev;
-	return 0;
+	len = fwd->mtu + fwd->hard_header_len + VLAN_HLEN;
+	if (skb->len > len) {
+		err = -EMSGSIZE;
+		goto out;
+	}
+
+	skb->dev = fwd;
+out:
+	trace_xdp_redirect(dev, xdp_prog, XDP_REDIRECT, index, err);
+	return err;
 }
 EXPORT_SYMBOL_GPL(xdp_do_generic_redirect);
 
@@ -3564,11 +3572,6 @@ void bpf_warn_invalid_xdp_action(u32 act)
 	WARN_ONCE(1, "Illegal XDP return value %u, expect packet loss\n", act);
 }
 EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
-
-void bpf_warn_invalid_xdp_redirect(u32 ifindex)
-{
-	WARN_ONCE(1, "Illegal XDP redirect to unsupported device ifindex(%i)\n", ifindex);
-}
 
 static bool __is_valid_sock_ops_access(int off, int size)
 {
