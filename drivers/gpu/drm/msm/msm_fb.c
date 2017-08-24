@@ -20,6 +20,7 @@
 
 #include "msm_drv.h"
 #include "msm_kms.h"
+#include "msm_gem.h"
 
 struct msm_framebuffer {
 	struct drm_framebuffer base;
@@ -28,6 +29,8 @@ struct msm_framebuffer {
 };
 #define to_msm_framebuffer(x) container_of(x, struct msm_framebuffer, base)
 
+static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
+		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 
 static int msm_framebuffer_create_handle(struct drm_framebuffer *fb,
 		struct drm_file *file_priv,
@@ -161,7 +164,7 @@ out_unref:
 	return ERR_PTR(ret);
 }
 
-struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
+static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -236,4 +239,44 @@ fail:
 	kfree(msm_fb);
 
 	return ERR_PTR(ret);
+}
+
+struct drm_framebuffer *
+msm_alloc_stolen_fb(struct drm_device *dev, int w, int h, int p, uint32_t format)
+{
+	struct drm_mode_fb_cmd2 mode_cmd = {
+		.pixel_format = format,
+		.width = w,
+		.height = h,
+		.pitches = { p },
+	};
+	struct drm_gem_object *bo;
+	struct drm_framebuffer *fb;
+	int size;
+
+	/* allocate backing bo */
+	size = mode_cmd.pitches[0] * mode_cmd.height;
+	DBG("allocating %d bytes for fb %d", size, dev->primary->index);
+	bo = msm_gem_new(dev, size, MSM_BO_SCANOUT | MSM_BO_WC | MSM_BO_STOLEN);
+	if (IS_ERR(bo)) {
+		dev_warn(dev->dev, "could not allocate stolen bo\n");
+		/* try regular bo: */
+		bo = msm_gem_new(dev, size, MSM_BO_SCANOUT | MSM_BO_WC);
+	}
+	if (IS_ERR(bo)) {
+		dev_err(dev->dev, "failed to allocate buffer object\n");
+		return ERR_CAST(bo);
+	}
+
+	fb = msm_framebuffer_init(dev, &mode_cmd, &bo);
+	if (IS_ERR(fb)) {
+		dev_err(dev->dev, "failed to allocate fb\n");
+		/* note: if fb creation failed, we can't rely on fb destroy
+		 * to unref the bo:
+		 */
+		drm_gem_object_unreference_unlocked(bo);
+		return ERR_CAST(fb);
+	}
+
+	return fb;
 }

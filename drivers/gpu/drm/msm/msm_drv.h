@@ -55,8 +55,6 @@ struct msm_fence_cb;
 struct msm_gem_address_space;
 struct msm_gem_vma;
 
-#define NUM_DOMAINS 2    /* one for KMS, then one per gpu core (?) */
-
 struct msm_file_private {
 	/* currently we don't do anything useful with this.. but when
 	 * per-context address spaces are supported we'd keep track of
@@ -237,6 +235,12 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 		uint32_t size, uint32_t flags);
 struct drm_gem_object *msm_gem_new_locked(struct drm_device *dev,
 		uint32_t size, uint32_t flags);
+void *msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova);
+void *msm_gem_kernel_new_locked(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova);
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		struct dma_buf *dmabuf, struct sg_table *sgt);
 
@@ -248,10 +252,10 @@ uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb,
 		struct msm_gem_address_space *aspace, int plane);
 struct drm_gem_object *msm_framebuffer_bo(struct drm_framebuffer *fb, int plane);
 const struct msm_format *msm_framebuffer_format(struct drm_framebuffer *fb);
-struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
-		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd);
+struct drm_framebuffer * msm_alloc_stolen_fb(struct drm_device *dev,
+		int w, int h, int p, uint32_t format);
 
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
 void msm_fbdev_free(struct drm_device *dev);
