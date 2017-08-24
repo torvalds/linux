@@ -559,7 +559,7 @@ static loff_t ext4_seek_data(struct file *file, loff_t offset, loff_t maxsize)
 	mutex_lock(&inode->i_mutex);
 
 	isize = i_size_read(inode);
-	if (offset >= isize) {
+	if (offset < 0 || offset >= isize) {
 		mutex_unlock(&inode->i_mutex);
 		return -ENXIO;
 	}
@@ -632,7 +632,7 @@ static loff_t ext4_seek_hole(struct file *file, loff_t offset, loff_t maxsize)
 	mutex_lock(&inode->i_mutex);
 
 	isize = i_size_read(inode);
-	if (offset >= isize) {
+	if (offset < 0 || offset >= isize) {
 		mutex_unlock(&inode->i_mutex);
 		return -ENXIO;
 	}
