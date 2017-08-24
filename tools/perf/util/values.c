@@ -131,7 +131,7 @@ static int perf_read_values__enlarge_counters(struct perf_read_values *values)
 	for (i = 0; i < values->threads; i++) {
 		u64 *value = realloc(values->value[i], counters_max * sizeof(**values->value));
 
-		if (value) {
+		if (!value) {
 			pr_debug("failed to enlarge read_values ->values array");
 			goto out_free_name;
 		}
