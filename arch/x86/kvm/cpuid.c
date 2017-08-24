@@ -853,16 +853,24 @@ static struct kvm_cpuid_entry2* check_cpuid_limit(struct kvm_vcpu *vcpu,
 	return kvm_find_cpuid_entry(vcpu, maxlevel->eax, index);
 }
 
-void kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
+bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
+	       u32 *ecx, u32 *edx, bool check_limit)
 {
 	u32 function = *eax, index = *ecx;
 	struct kvm_cpuid_entry2 *best;
+	bool entry_found = true;
 
 	best = kvm_find_cpuid_entry(vcpu, function, index);
 
-	if (!best)
-		best = check_cpuid_limit(vcpu, function, index);
+	if (!best) {
+		entry_found = false;
+		if (!check_limit)
+			goto out;
 
+		best = check_cpuid_limit(vcpu, function, index);
+	}
+
+out:
 	if (best) {
 		*eax = best->eax;
 		*ebx = best->ebx;
@@ -870,7 +878,8 @@ void kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 		*edx = best->edx;
 	} else
 		*eax = *ebx = *ecx = *edx = 0;
-	trace_kvm_cpuid(function, *eax, *ebx, *ecx, *edx);
+	trace_kvm_cpuid(function, *eax, *ebx, *ecx, *edx, entry_found);
+	return entry_found;
 }
 EXPORT_SYMBOL_GPL(kvm_cpuid);
 
@@ -883,7 +892,7 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 
 	eax = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	ecx = kvm_register_read(vcpu, VCPU_REGS_RCX);
-	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx);
+	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 	kvm_register_write(vcpu, VCPU_REGS_RAX, eax);
 	kvm_register_write(vcpu, VCPU_REGS_RBX, ebx);
 	kvm_register_write(vcpu, VCPU_REGS_RCX, ecx);

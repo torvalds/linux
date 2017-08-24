@@ -1593,7 +1593,7 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	}
 	init_vmcb(svm);
 
-	kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy);
+	kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy, true);
 	kvm_register_write(vcpu, VCPU_REGS_RDX, eax);
 
 	if (kvm_vcpu_apicv_active(vcpu) && !init_event)

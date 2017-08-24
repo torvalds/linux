@@ -5206,10 +5206,10 @@ static int emulator_intercept(struct x86_emulate_ctxt *ctxt,
 	return kvm_x86_ops->check_intercept(emul_to_vcpu(ctxt), info, stage);
 }
 
-static void emulator_get_cpuid(struct x86_emulate_ctxt *ctxt,
-			       u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
+static bool emulator_get_cpuid(struct x86_emulate_ctxt *ctxt,
+			u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, bool check_limit)
 {
-	kvm_cpuid(emul_to_vcpu(ctxt), eax, ebx, ecx, edx);
+	return kvm_cpuid(emul_to_vcpu(ctxt), eax, ebx, ecx, edx, check_limit);
 }
 
 static ulong emulator_read_gpr(struct x86_emulate_ctxt *ctxt, unsigned reg)
