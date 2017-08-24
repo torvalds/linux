@@ -62,6 +62,16 @@ static inline bool is_64_bit_mode(struct kvm_vcpu *vcpu)
 	return cs_l;
 }
 
+static inline bool is_la57_mode(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_X86_64
+	return (vcpu->arch.efer & EFER_LMA) &&
+		 kvm_read_cr4_bits(vcpu, X86_CR4_LA57);
+#else
+	return 0;
+#endif
+}
+
 static inline bool mmu_is_nested(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.walk_mmu == &vcpu->arch.nested_mmu;

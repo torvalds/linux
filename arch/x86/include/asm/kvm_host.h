@@ -315,7 +315,7 @@ struct kvm_pio_request {
 	int size;
 };
 
-#define PT64_ROOT_MAX_LEVEL 4
+#define PT64_ROOT_MAX_LEVEL 5
 
 struct rsvd_bits_validate {
 	u64 rsvd_bits_mask[2][PT64_ROOT_MAX_LEVEL];
@@ -323,9 +323,9 @@ struct rsvd_bits_validate {
 };
 
 /*
- * x86 supports 3 paging modes (4-level 64-bit, 3-level 64-bit, and 2-level
- * 32-bit).  The kvm_mmu structure abstracts the details of the current mmu
- * mode.
+ * x86 supports 4 paging modes (5-level 64-bit, 4-level 64-bit, 3-level 32-bit,
+ * and 2-level 32-bit).  The kvm_mmu structure abstracts the details of the
+ * current mmu mode.
  */
 struct kvm_mmu {
 	void (*set_cr3)(struct kvm_vcpu *vcpu, unsigned long root);
@@ -982,7 +982,7 @@ struct kvm_x86_ops {
 	void (*deliver_posted_interrupt)(struct kvm_vcpu *vcpu, int vector);
 	int (*sync_pir_to_irr)(struct kvm_vcpu *vcpu);
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
-	int (*get_tdp_level)(void);
+	int (*get_tdp_level)(struct kvm_vcpu *vcpu);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
 	int (*get_lpage_level)(void);
 	bool (*rdtscp_supported)(void);

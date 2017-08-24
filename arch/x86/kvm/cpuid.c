@@ -136,6 +136,7 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 
 	/* Update physical-address width */
 	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
+	kvm_mmu_reset_context(vcpu);
 
 	kvm_pmu_refresh(vcpu);
 	return 0;
