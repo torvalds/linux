@@ -834,8 +834,7 @@ void tcf_exts_destroy(struct tcf_exts *exts)
 #ifdef CONFIG_NET_CLS_ACT
 	LIST_HEAD(actions);
 
-	tcf_exts_to_list(exts, &actions);
-	tcf_action_destroy(&actions, TCA_ACT_UNBIND);
+	tcf_action_destroy(exts->actions, exts->nr_actions, TCA_ACT_UNBIND);
 	kfree(exts->actions);
 	exts->nr_actions = 0;
 #endif
@@ -860,17 +859,14 @@ int tcf_exts_validate(struct net *net, struct tcf_proto *tp, struct nlattr **tb,
 			exts->actions[0] = act;
 			exts->nr_actions = 1;
 		} else if (exts->action && tb[exts->action]) {
-			LIST_HEAD(actions);
-			int err, i = 0;
+			int err;
 
 			err = tcf_action_init(net, tp, tb[exts->action],
 					      rate_tlv, NULL, ovr, TCA_ACT_BIND,
-					      &actions);
+					      exts->actions,
+					      &exts->nr_actions);
 			if (err)
 				return err;
-			list_for_each_entry(act, &actions, list)
-				exts->actions[i++] = act;
-			exts->nr_actions = i;
 		}
 	}
 #else
@@ -922,14 +918,12 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts)
 		 * tc data even if iproute2  was newer - jhs
 		 */
 		if (exts->type != TCA_OLD_COMPAT) {
-			LIST_HEAD(actions);
-
 			nest = nla_nest_start(skb, exts->action);
 			if (nest == NULL)
 				goto nla_put_failure;
 
-			tcf_exts_to_list(exts, &actions);
-			if (tcf_action_dump(skb, &actions, 0, 0) < 0)
+			if (tcf_action_dump(skb, exts->actions,
+					    exts->nr_actions, 0, 0) < 0)
 				goto nla_put_failure;
 			nla_nest_end(skb, nest);
 		} else if (exts->police) {
