@@ -251,8 +251,17 @@ struct rga_fmt formats[] = {
 	},
 	{
 		.fourcc = V4L2_PIX_FMT_RGB24,
+		.color_swap = RGA_COLOR_NONE_SWAP,
+		.hw_format = RGA_COLOR_FMT_RGB888,
+		.depth = 24,
+		.uv_factor = 1,
+		.y_div = 1,
+		.x_div = 1,
+	},
+	{
+		.fourcc = V4L2_PIX_FMT_BGR24,
 		.color_swap = RGA_COLOR_RB_SWAP,
-		.hw_format = RGA_COLOR_FMT_BGR888,
+		.hw_format = RGA_COLOR_FMT_RGB888,
 		.depth = 24,
 		.uv_factor = 1,
 		.y_div = 1,
