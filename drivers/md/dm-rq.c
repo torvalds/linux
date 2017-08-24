@@ -117,9 +117,9 @@ static void end_clone_bio(struct bio *clone)
 	struct dm_rq_clone_bio_info *info =
 		container_of(clone, struct dm_rq_clone_bio_info, clone);
 	struct dm_rq_target_io *tio = info->tio;
-	struct bio *bio = info->orig;
 	unsigned int nr_bytes = info->orig->bi_iter.bi_size;
 	blk_status_t error = clone->bi_status;
+	bool is_last = !clone->bi_next;
 
 	bio_put(clone);
 
@@ -137,28 +137,23 @@ static void end_clone_bio(struct bio *clone)
 		 * when the request is completed.
 		 */
 		tio->error = error;
-		return;
+		goto exit;
 	}
 
 	/*
 	 * I/O for the bio successfully completed.
 	 * Notice the data completion to the upper layer.
 	 */
-
-	/*
-	 * bios are processed from the head of the list.
-	 * So the completing bio should always be rq->bio.
-	 * If it's not, something wrong is happening.
-	 */
-	if (tio->orig->bio != bio)
-		DMERR("bio completion is going in the middle of the request");
+	tio->completed += nr_bytes;
 
 	/*
 	 * Update the original request.
 	 * Do not use blk_end_request() here, because it may complete
 	 * the original request before the clone, and break the ordering.
 	 */
-	blk_update_request(tio->orig, BLK_STS_OK, nr_bytes);
+	if (is_last)
+ exit:
+		blk_update_request(tio->orig, BLK_STS_OK, tio->completed);
 }
 
 static struct dm_rq_target_io *tio_from_request(struct request *rq)
@@ -456,6 +451,7 @@ static void init_tio(struct dm_rq_target_io *tio, struct request *rq,
 	tio->clone = NULL;
 	tio->orig = rq;
 	tio->error = 0;
+	tio->completed = 0;
 	/*
 	 * Avoid initializing info for blk-mq; it passes
 	 * target-specific data through info.ptr
