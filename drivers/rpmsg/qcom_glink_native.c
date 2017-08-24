@@ -227,9 +227,6 @@ static int qcom_glink_tx(struct qcom_glink *glink,
 	if (tlen >= glink->tx_pipe->length)
 		return -EINVAL;
 
-	if (WARN(tlen % 8, "Unaligned TX request"))
-		return -EINVAL;
-
 	ret = mutex_lock_interruptible(&glink->tx_lock);
 	if (ret)
 		return ret;
@@ -694,9 +691,6 @@ static int __qcom_glink_send(struct glink_channel *channel,
 		__le32 chunk_size;
 		__le32 left_size;
 	} __packed req;
-
-	if (WARN(len % 8, "RPM GLINK expects 8 byte aligned messages\n"))
-		return -EINVAL;
 
 	req.msg.cmd = cpu_to_le16(RPM_CMD_TX_DATA);
 	req.msg.param1 = cpu_to_le16(channel->lcid);
