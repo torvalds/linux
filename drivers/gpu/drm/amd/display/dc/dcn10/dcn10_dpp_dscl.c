@@ -215,14 +215,18 @@ static void dpp_set_lb(
 {
 	uint32_t pixel_depth = get_pixel_depth_val(lb_params->depth);
 	uint32_t dyn_pix_depth = lb_params->dynamic_pixel_depth;
-	REG_SET_7(LB_DATA_FORMAT, 0,
-		PIXEL_DEPTH, pixel_depth, /* Pixel depth stored in LB */
-		PIXEL_EXPAN_MODE, lb_params->pixel_expan_mode, /* Pixel expansion mode */
-		PIXEL_REDUCE_MODE, 1, /* Pixel reduction mode: Rounding */
-		DYNAMIC_PIXEL_DEPTH, dyn_pix_depth, /* Dynamic expansion pixel depth */
-		DITHER_EN, 0, /* Dithering enable: Disabled */
-		INTERLEAVE_EN, lb_params->interleave_en, /* Interleave source enable */
-		ALPHA_EN, lb_params->alpha_en); /* Alpha enable */
+
+	/* LB */
+	if (xfm->tf_mask->PIXEL_DEPTH) {
+		REG_SET_7(LB_DATA_FORMAT, 0,
+			PIXEL_DEPTH, pixel_depth, /* Pixel depth stored in LB */
+			PIXEL_EXPAN_MODE, lb_params->pixel_expan_mode, /* Pixel expansion mode */
+			PIXEL_REDUCE_MODE, 1, /* Pixel reduction mode: Rounding */
+			DYNAMIC_PIXEL_DEPTH, dyn_pix_depth, /* Dynamic expansion pixel depth */
+			DITHER_EN, 0, /* Dithering enable: Disabled */
+			INTERLEAVE_EN, lb_params->interleave_en, /* Interleave source enable */
+			ALPHA_EN, lb_params->alpha_en); /* Alpha enable */
+	}
 
 	REG_SET_2(LB_MEMORY_CTRL, 0,
 		MEMORY_CONFIG, mem_size_config,
@@ -462,7 +466,8 @@ static bool is_lb_conf_valid(int ceil_vratio, int num_partitions, int vtaps)
 }
 
 /*find first match configuration which meets the min required lb size*/
-static enum lb_memory_config find_lb_memory_config(const struct scaler_data *scl_data)
+static enum lb_memory_config dpp10_find_lb_memory_config(
+		const struct scaler_data *scl_data)
 {
 	int num_part_y, num_part_c;
 	int vtaps = scl_data->taps.v_taps;
@@ -504,6 +509,18 @@ static enum lb_memory_config find_lb_memory_config(const struct scaler_data *scl
 	return LB_MEMORY_CONFIG_0;
 }
 
+/*find first match configuration which meets the min required lb size*/
+static enum lb_memory_config find_lb_memory_config(struct dcn10_dpp *xfm,
+		const struct scaler_data *scl_data)
+{
+	enum lb_memory_config mem_cfg = LB_MEMORY_CONFIG_0;
+
+	if (xfm->tf_mask->PIXEL_DEPTH) {
+		mem_cfg = dpp10_find_lb_memory_config(scl_data);
+	}
+	return mem_cfg;
+}
+
 void dpp_set_scaler_auto_scale(
 	struct transform *xfm_base,
 	const struct scaler_data *scl_data)
@@ -524,7 +541,7 @@ void dpp_set_scaler_auto_scale(
 	if (dscl_mode == DSCL_MODE_DSCL_BYPASS)
 		return;
 
-	lb_config =  find_lb_memory_config(scl_data);
+	lb_config =  find_lb_memory_config(xfm, scl_data);
 	dpp_set_lb(xfm, &scl_data->lb_params, lb_config);
 
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
@@ -662,8 +679,9 @@ void dcn10_dpp_dscl_set_scaler_manual_scale(
 
 	if (dscl_mode == DSCL_MODE_DSCL_BYPASS)
 		return;
+
 	/* LB */
-	lb_config =  find_lb_memory_config(scl_data);
+	lb_config =  find_lb_memory_config(xfm, scl_data);
 	dpp_set_lb(xfm, &scl_data->lb_params, lb_config);
 
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
@@ -698,65 +716,4 @@ void dcn10_dpp_dscl_set_scaler_manual_scale(
 
 	dpp_set_scl_filter(xfm, scl_data, ycbcr);
 }
-
-
-#if 0
-bool dpp_set_pixel_storage_depth(
-	struct dpp *xfm,
-	enum lb_pixel_depth depth,
-	const struct bit_depth_reduction_params *bit_depth_params)
-{
-	struct dcn10_dpp *xfm110 = TO_DCN10_DPP(xfm);
-	bool ret = true;
-	uint32_t value;
-	enum dc_color_depth color_depth;
-
-	value = dm_read_reg(xfm->ctx, LB_REG(mmLB_DATA_FORMAT));
-	switch (depth) {
-	case LB_PIXEL_DEPTH_18BPP:
-		color_depth = COLOR_DEPTH_666;
-		set_reg_field_value(value, 2, LB_DATA_FORMAT, PIXEL_DEPTH);
-		set_reg_field_value(value, 1, LB_DATA_FORMAT, PIXEL_EXPAN_MODE);
-		break;
-	case LB_PIXEL_DEPTH_24BPP:
-		color_depth = COLOR_DEPTH_888;
-		set_reg_field_value(value, 1, LB_DATA_FORMAT, PIXEL_DEPTH);
-		set_reg_field_value(value, 1, LB_DATA_FORMAT, PIXEL_EXPAN_MODE);
-		break;
-	case LB_PIXEL_DEPTH_30BPP:
-		color_depth = COLOR_DEPTH_101010;
-		set_reg_field_value(value, 0, LB_DATA_FORMAT, PIXEL_DEPTH);
-		set_reg_field_value(value, 1, LB_DATA_FORMAT, PIXEL_EXPAN_MODE);
-		break;
-	case LB_PIXEL_DEPTH_36BPP:
-		color_depth = COLOR_DEPTH_121212;
-		set_reg_field_value(value, 3, LB_DATA_FORMAT, PIXEL_DEPTH);
-		set_reg_field_value(value, 0, LB_DATA_FORMAT, PIXEL_EXPAN_MODE);
-		break;
-	default:
-		ret = false;
-		break;
-	}
-
-	if (ret == true) {
-		set_denormalization(xfm110, color_depth);
-		ret = program_bit_depth_reduction(xfm110, color_depth,
-				bit_depth_params);
-
-		set_reg_field_value(value, 0, LB_DATA_FORMAT, ALPHA_EN);
-		dm_write_reg(xfm->ctx, LB_REG(mmLB_DATA_FORMAT), value);
-		if (!(xfm110->lb_pixel_depth_supported & depth)) {
-			/* We should use unsupported capabilities
-			 * unless it is required by w/a
-			 */
-			dm_logger_write(xfm->ctx->logger, LOG_WARNING,
-				"%s: Capability not supported",
-				__func__);
-		}
-	}
-
-	return ret;
-}
-#endif
-
 
