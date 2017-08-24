@@ -275,7 +275,7 @@ struct old_child_dev_config {
  * a baseline for some of the VBT documentation. When adding new fields, please
  * include the BDB version when the field was added, if it's above that.
  */
-struct common_child_dev_config {
+struct child_device_config {
 	u16 handle;
 	u16 device_type;
 
@@ -345,17 +345,6 @@ struct common_child_dev_config {
 	u8 dp_gpio_index;					/* 195 */
 	u16 dp_gpio_pin_num;					/* 195 */
 	u8 iboost_level;
-} __packed;
-
-
-/* This field changes depending on the BDB version, so the most reliable way to
- * read it is by checking the BDB version and reading the raw pointer. */
-union child_device_config {
-	/* This one should only be kept for legacy code. */
-	struct old_child_dev_config old;
-	/* This one should also be safe to use anywhere, even without version
-	 * checks. */
-	struct common_child_dev_config common;
 } __packed;
 
 struct bdb_general_definitions {

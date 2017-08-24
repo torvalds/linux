@@ -1723,7 +1723,7 @@ struct intel_vbt_data {
 	int crt_ddc_pin;
 
 	int child_dev_num;
-	union child_device_config *child_dev;
+	struct child_device_config *child_dev;
 
 	struct ddi_vbt_port_info ddi_port_info[I915_MAX_PORTS];
 	struct sdvo_device_mapping sdvo_mappings[2];
