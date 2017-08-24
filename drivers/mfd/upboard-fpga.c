@@ -290,8 +290,9 @@ static int __init upboard_fpga_detect_firmware(struct upboard_fpga *fpga)
 }
 
 static const struct acpi_device_id upboard_fpga_acpi_match[] = {
-	{ "AANT0F00", (kernel_ulong_t) &upboard_up_fpga_data },
-	{ "AANT0F01", (kernel_ulong_t) &upboard_up2_fpga_data },
+	{ "AANT0F00", (kernel_ulong_t) &upboard_up_fpga_data }, /*UP1*/
+	{ "AANT0F01", (kernel_ulong_t) &upboard_up2_fpga_data },/*UP2*/
+	{ "AANT0F02", (kernel_ulong_t) &upboard_up_fpga_data }, /*UPCORE CREX*/
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, upboard_fpga_acpi_match);
