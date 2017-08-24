@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "r7s72100.dtsi"
+#include <dt-bindings/pinctrl/r7s72100-pinctrl.h>
 
 / {
 	model = "GR-Peach";
@@ -52,6 +53,13 @@
 	};
 };
 
+&pinctrl {
+	scif2_pins: serial2 {
+		/* P6_2 as RxD2; P6_3 as TxD2 */
+		pinmux = <RZA1_PINMUX(6, 2, 7)>, <RZA1_PINMUX(6, 3, 7)>;
+	};
+};
+
 &extal_clk {
 	clock-frequency = <13333000>;
 };
@@ -61,5 +69,8 @@
 };
 
 &scif2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&scif2_pins>;
+
 	status = "okay";
 };
