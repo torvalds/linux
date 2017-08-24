@@ -625,7 +625,8 @@ static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
 		}
 	}
 	substream->proc_sw_params_entry = entry;
-	entry = snd_info_create_module_entry(THIS_MODULE, "pcm", NULL);
+	entry = snd_info_create_card_entry(card, "status",
+					   substream->proc_root);
 	if (entry) {
 		snd_info_set_text_ops(entry, substream,
 				      snd_pcm_substream_proc_status_read);
