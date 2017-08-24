@@ -1271,7 +1271,7 @@ snd_nm256_ac97_write(struct snd_ac97 *ac97,
 }
 
 /* static resolution table */
-static struct snd_ac97_res_table nm256_res_table[] = {
+static const struct snd_ac97_res_table nm256_res_table[] = {
 	{ AC97_MASTER, 0x1f1f },
 	{ AC97_HEADPHONE, 0x1f1f },
 	{ AC97_MASTER_MONO, 0x001f },
