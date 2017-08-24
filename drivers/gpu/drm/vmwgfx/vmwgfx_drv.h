@@ -846,7 +846,7 @@ extern int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 				      struct ttm_buffer_object *bo,
 				      bool interruptible,
 				      bool validate_as_mob);
-
+bool vmw_cmd_describe(const void *buf, u32 *size, char const **cmd);
 
 /**
  * IRQs and wating - vmwgfx_irq.c

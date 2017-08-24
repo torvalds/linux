@@ -112,11 +112,12 @@ struct vmw_cmd_entry {
 	bool user_allow;
 	bool gb_disable;
 	bool gb_enable;
+	const char *cmd_name;
 };
 
 #define VMW_CMD_DEF(_cmd, _func, _user_allow, _gb_disable, _gb_enable)	\
 	[(_cmd) - SVGA_3D_CMD_BASE] = {(_func), (_user_allow),\
-				       (_gb_disable), (_gb_enable)}
+				       (_gb_disable), (_gb_enable), #_cmd}
 
 static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 					struct vmw_sw_context *sw_context,
@@ -3468,6 +3469,51 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    &vmw_cmd_dx_transfer_from_buffer,
 		    true, false, true),
 };
+
+bool vmw_cmd_describe(const void *buf, u32 *size, char const **cmd)
+{
+	u32 cmd_id = ((u32 *) buf)[0];
+
+	if (cmd_id >= SVGA_CMD_MAX) {
+		SVGA3dCmdHeader *header = (SVGA3dCmdHeader *) buf;
+		const struct vmw_cmd_entry *entry;
+
+		*size = header->size + sizeof(SVGA3dCmdHeader);
+		cmd_id = header->id;
+		if (cmd_id >= SVGA_3D_CMD_MAX)
+			return false;
+
+		cmd_id -= SVGA_3D_CMD_BASE;
+		entry = &vmw_cmd_entries[cmd_id];
+		*cmd = entry->cmd_name;
+		return true;
+	}
+
+	switch (cmd_id) {
+	case SVGA_CMD_UPDATE:
+		*cmd = "SVGA_CMD_UPDATE";
+		*size = sizeof(u32) + sizeof(SVGAFifoCmdUpdate);
+		break;
+	case SVGA_CMD_DEFINE_GMRFB:
+		*cmd = "SVGA_CMD_DEFINE_GMRFB";
+		*size = sizeof(u32) + sizeof(SVGAFifoCmdDefineGMRFB);
+		break;
+	case SVGA_CMD_BLIT_GMRFB_TO_SCREEN:
+		*cmd = "SVGA_CMD_BLIT_GMRFB_TO_SCREEN";
+		*size = sizeof(u32) + sizeof(SVGAFifoCmdBlitGMRFBToScreen);
+		break;
+	case SVGA_CMD_BLIT_SCREEN_TO_GMRFB:
+		*cmd = "SVGA_CMD_BLIT_SCREEN_TO_GMRFB";
+		*size = sizeof(u32) + sizeof(SVGAFifoCmdBlitGMRFBToScreen);
+		break;
+	default:
+		*cmd = "UNKNOWN";
+		*size = 0;
+		return false;
+	}
+
+	return true;
+}
 
 static int vmw_cmd_check(struct vmw_private *dev_priv,
 			 struct vmw_sw_context *sw_context,
