@@ -11012,9 +11012,7 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu, bool external_intr)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (vcpu->arch.exception.pending ||
-		vcpu->arch.nmi_injected ||
-		vcpu->arch.interrupt.pending)
+	if (kvm_event_needs_reinjection(vcpu))
 		return -EBUSY;
 
 	if (nested_cpu_has_preemption_timer(get_vmcs12(vcpu)) &&
