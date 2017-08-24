@@ -1156,8 +1156,8 @@ static struct musb_fifo_cfg mode_2_cfg[] = {
 { .hw_ep_num = 1, .style = FIFO_RX,   .maxpacket = 512, },
 { .hw_ep_num = 2, .style = FIFO_TX,   .maxpacket = 512, },
 { .hw_ep_num = 2, .style = FIFO_RX,   .maxpacket = 512, },
-{ .hw_ep_num = 3, .style = FIFO_RXTX, .maxpacket = 256, },
-{ .hw_ep_num = 4, .style = FIFO_RXTX, .maxpacket = 256, },
+{ .hw_ep_num = 3, .style = FIFO_RXTX, .maxpacket = 960, },
+{ .hw_ep_num = 4, .style = FIFO_RXTX, .maxpacket = 1024, },
 };
 
 /* mode 3 - fits in 4KB */
