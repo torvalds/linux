@@ -776,6 +776,50 @@ static void power_on_plane(
 			"Un-gated front end for pipe %d\n", plane_id);
 }
 
+static void undo_DEGVIDCN10_253_wa(struct dc *dc)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	struct mem_input *mi = dc->res_pool->mis[0];
+
+	mi->funcs->set_blank(mi, true);
+
+	REG_SET(DC_IP_REQUEST_CNTL, 0,
+			IP_REQUEST_EN, 1);
+
+	hubp_pg_control(hws, 0, false);
+	REG_SET(DC_IP_REQUEST_CNTL, 0,
+			IP_REQUEST_EN, 0);
+}
+
+static void ready_shared_resources(struct dc *dc)
+{
+	if (dc->current_context->stream_count == 0 &&
+			!dc->debug.disable_stutter)
+		undo_DEGVIDCN10_253_wa(dc);
+}
+
+static void apply_DEGVIDCN10_253_wa(struct dc *dc)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	struct mem_input *mi = dc->res_pool->mis[0];
+
+	REG_SET(DC_IP_REQUEST_CNTL, 0,
+			IP_REQUEST_EN, 1);
+
+	hubp_pg_control(hws, 0, true);
+	REG_SET(DC_IP_REQUEST_CNTL, 0,
+			IP_REQUEST_EN, 0);
+
+	mi->funcs->set_hubp_blank_en(mi, false);
+}
+
+static void optimize_shared_resources(struct dc *dc)
+{
+	if (dc->current_context->stream_count == 0 &&
+			!dc->debug.disable_stutter)
+		apply_DEGVIDCN10_253_wa(dc);
+}
+
 static void bios_golden_init(struct dc *dc)
 {
 	struct dc_bios *bp = dc->ctx->dc_bios;
@@ -2829,7 +2873,9 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.setup_stereo = dcn10_setup_stereo,
 	.set_avmute = dce110_set_avmute,
 	.log_hw_state = dcn10_log_hw_state,
-	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect
+	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect,
+	.ready_shared_resources = ready_shared_resources,
+	.optimize_shared_resources = optimize_shared_resources,
 };
 
 

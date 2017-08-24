@@ -439,6 +439,7 @@ static const struct dc_debug debug_defaults_diags = {
 		.force_abm_enable = false,
 		.timing_trace = true,
 		.clock_trace = true,
+		.disable_stutter = true,
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = true,

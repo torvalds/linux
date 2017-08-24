@@ -173,6 +173,9 @@ struct hw_sequencer_funcs {
 	void (*wait_for_mpcc_disconnect)(struct dc *dc,
 			struct resource_pool *res_pool,
 			struct pipe_ctx *pipe_ctx);
+
+	void (*ready_shared_resources)(struct dc *dc);
+	void (*optimize_shared_resources)(struct dc *dc);
 };
 
 void color_space_to_black_color(

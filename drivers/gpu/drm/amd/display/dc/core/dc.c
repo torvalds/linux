@@ -830,6 +830,8 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		dc->hwss.enable_accelerated_mode(dc);
 
+	dc->hwss.ready_shared_resources(dc);
+
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		pipe = &context->res_ctx.pipe_ctx[i];
 		dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe);
@@ -878,6 +880,8 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 	dc->current_context = context;
 
 	dc_retain_validate_context(dc->current_context);
+
+	dc->hwss.optimize_shared_resources(dc);
 
 	return (result == DC_OK);
 }

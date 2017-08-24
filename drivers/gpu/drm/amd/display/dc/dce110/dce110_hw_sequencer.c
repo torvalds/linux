@@ -2697,6 +2697,10 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 	}
 }
 
+static void ready_shared_resources(struct dc *dc) {}
+
+static void optimize_shared_resources(struct dc *dc) {}
+
 static const struct hw_sequencer_funcs dce110_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.program_csc_matrix = program_csc_matrix,
@@ -2727,7 +2731,10 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.prog_pixclk_crtc_otg = dce110_prog_pixclk_crtc_otg,
 	.setup_stereo = NULL,
 	.set_avmute = dce110_set_avmute,
-	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect
+	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,
+	.ready_shared_resources = ready_shared_resources,
+	.optimize_shared_resources = optimize_shared_resources,
+
 };
 
 bool dce110_hw_sequencer_construct(struct dc *dc)

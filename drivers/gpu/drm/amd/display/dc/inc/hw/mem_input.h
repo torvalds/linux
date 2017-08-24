@@ -161,6 +161,8 @@ struct mem_input_funcs {
 				struct dchub_init_data *dh_data);
 
 	void (*set_blank)(struct mem_input *mi, bool blank);
+	void (*set_hubp_blank_en)(struct mem_input *mi, bool blank);
+
 };
 
 #endif

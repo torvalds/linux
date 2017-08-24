@@ -56,6 +56,14 @@ static void min10_set_blank(struct mem_input *mem_input, bool blank)
 	}
 }
 
+static void min10_set_hubp_blank_en(struct mem_input *mem_input, bool blank)
+{
+	struct dcn10_mem_input *mi = TO_DCN10_MEM_INPUT(mem_input);
+	uint32_t blank_en = blank ? 1 : 0;
+
+	REG_UPDATE(DCHUBP_CNTL, HUBP_BLANK_EN, blank_en);
+}
+
 static void min10_vready_workaround(struct mem_input *mem_input,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
@@ -771,6 +779,7 @@ static struct mem_input_funcs dcn10_mem_input_funcs = {
 	.set_blank = min10_set_blank,
 	.dcc_control = min10_dcc_control,
 	.mem_program_viewport = min_set_viewport,
+	.set_hubp_blank_en = min10_set_hubp_blank_en,
 };
 
 /*****************************************/
