@@ -11,6 +11,7 @@
 
 /dts-v1/;
 #include "r7s72100.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/r7s72100-pinctrl.h>
 
 / {
@@ -49,6 +50,15 @@
 		rootfs@600000 {
 			label = "rootfs";
 			reg = <0x00600000 0x00200000>;
+		};
+	};
+
+leds {
+		status = "okay";
+		compatible = "gpio-leds";
+
+		led1 {
+			gpios = <&port6 12 GPIO_ACTIVE_HIGH>;
 		};
 	};
 };
