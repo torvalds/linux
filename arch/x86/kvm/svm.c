@@ -584,7 +584,7 @@ static inline void invlpga(unsigned long addr, u32 asid)
 static int get_npt_level(void)
 {
 #ifdef CONFIG_X86_64
-	return PT64_ROOT_LEVEL;
+	return PT64_ROOT_4LEVEL;
 #else
 	return PT32E_ROOT_LEVEL;
 #endif

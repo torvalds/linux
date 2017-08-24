@@ -315,8 +315,10 @@ struct kvm_pio_request {
 	int size;
 };
 
+#define PT64_ROOT_MAX_LEVEL 4
+
 struct rsvd_bits_validate {
-	u64 rsvd_bits_mask[2][4];
+	u64 rsvd_bits_mask[2][PT64_ROOT_MAX_LEVEL];
 	u64 bad_mt_xwr;
 };
 
