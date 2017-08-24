@@ -2679,11 +2679,9 @@ int snd_soc_dai_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	if (dai->driver && dai->driver->ops->set_pll)
 		return dai->driver->ops->set_pll(dai, pll_id, source,
 					 freq_in, freq_out);
-	else if (dai->codec && dai->codec->driver->set_pll)
-		return dai->codec->driver->set_pll(dai->codec, pll_id, source,
-						   freq_in, freq_out);
-	else
-		return -EINVAL;
+
+	return snd_soc_component_set_pll(dai->component, pll_id, source,
+					 freq_in, freq_out);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_pll);
 
@@ -2707,6 +2705,33 @@ int snd_soc_codec_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
 		return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(snd_soc_codec_set_pll);
+
+/*
+ * snd_soc_component_set_pll - configure component PLL.
+ * @component: COMPONENT
+ * @pll_id: DAI specific PLL ID
+ * @source: DAI specific source for the PLL
+ * @freq_in: PLL input clock frequency in Hz
+ * @freq_out: requested PLL output clock frequency in Hz
+ *
+ * Configures and enables PLL to generate output clock based on input clock.
+ */
+int snd_soc_component_set_pll(struct snd_soc_component *component, int pll_id,
+			      int source, unsigned int freq_in,
+			      unsigned int freq_out)
+{
+	/* will be removed */
+	if (component->set_pll)
+		return component->set_pll(component, pll_id, source,
+					      freq_in, freq_out);
+
+	if (component->driver->set_pll)
+		return component->driver->set_pll(component, pll_id, source,
+					      freq_in, freq_out);
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_set_pll);
 
 /**
  * snd_soc_dai_set_bclk_ratio - configure BCLK to sample rate ratio.
@@ -3199,6 +3224,7 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->suspend = component->driver->suspend;
 	component->resume = component->driver->resume;
 	component->set_sysclk = component->driver->set_sysclk;
+	component->set_pll = component->driver->set_pll;
 
 	dapm = &component->dapm;
 	dapm->dev = dev;
@@ -3590,6 +3616,15 @@ static int snd_soc_codec_set_sysclk_(struct snd_soc_component *component,
 	return snd_soc_codec_set_sysclk(codec, clk_id, source, freq, dir);
 }
 
+static int snd_soc_codec_set_pll_(struct snd_soc_component *component,
+				  int pll_id, int source, unsigned int freq_in,
+				  unsigned int freq_out)
+{
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+	return snd_soc_codec_set_pll(codec, pll_id, source, freq_in, freq_out);
+}
+
 static int snd_soc_codec_set_bias_level(struct snd_soc_dapm_context *dapm,
 	enum snd_soc_bias_level level)
 {
@@ -3643,6 +3678,8 @@ int snd_soc_register_codec(struct device *dev,
 		codec->component.read = snd_soc_codec_drv_read;
 	if (codec_drv->set_sysclk)
 		codec->component.set_sysclk = snd_soc_codec_set_sysclk_;
+	if (codec_drv->set_pll)
+		codec->component.set_pll = snd_soc_codec_set_pll_;
 	codec->component.ignore_pmdown_time = codec_drv->ignore_pmdown_time;
 
 	dapm = snd_soc_codec_get_dapm(codec);

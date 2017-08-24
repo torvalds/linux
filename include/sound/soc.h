@@ -798,6 +798,8 @@ struct snd_soc_component_driver {
 	/* component wide operations */
 	int (*set_sysclk)(struct snd_soc_component *component,
 			  int clk_id, int source, unsigned int freq, int dir);
+	int (*set_pll)(struct snd_soc_component *component, int pll_id,
+		       int source, unsigned int freq_in, unsigned int freq_out);
 
 	/* DT */
 	int (*of_xlate_dai_name)(struct snd_soc_component *component,
@@ -871,6 +873,8 @@ struct snd_soc_component {
 
 	int (*set_sysclk)(struct snd_soc_component *component,
 			  int clk_id, int source, unsigned int freq, int dir);
+	int (*set_pll)(struct snd_soc_component *component, int pll_id,
+		       int source, unsigned int freq_in, unsigned int freq_out);
 
 	/* machine specific init */
 	int (*init)(struct snd_soc_component *component);
@@ -1469,6 +1473,9 @@ int snd_soc_component_test_bits(struct snd_soc_component *component,
 /* component wide operations */
 int snd_soc_component_set_sysclk(struct snd_soc_component *component,
 			int clk_id, int source, unsigned int freq, int dir);
+int snd_soc_component_set_pll(struct snd_soc_component *component, int pll_id,
+			      int source, unsigned int freq_in,
+			      unsigned int freq_out);
 
 #ifdef CONFIG_REGMAP
 
