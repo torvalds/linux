@@ -342,6 +342,14 @@
 				bias-pull-up;
 			};
 
+			mmc1_pins: mmc1-pins {
+				pins = "PG0", "PG1", "PG2",
+				       "PG3", "PG4", "PG5";
+				function = "mmc1";
+				drive-strength = <30>;
+				bias-pull-up;
+			};
+
 			mmc2_8bit_emmc_pins: mmc2-8bit-emmc-pins {
 				pins = "PC5", "PC6", "PC8", "PC9",
 				       "PC10", "PC11", "PC12", "PC13",
