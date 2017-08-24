@@ -4647,7 +4647,6 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		pf->port_id = le16_to_cpu(resp->port_id);
 		bp->dev->dev_port = pf->port_id;
 		memcpy(pf->mac_addr, resp->mac_address, ETH_ALEN);
-		memcpy(bp->dev->dev_addr, pf->mac_addr, ETH_ALEN);
 		pf->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
 		pf->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
 		pf->max_tx_rings = le16_to_cpu(resp->max_tx_rings);
@@ -4687,16 +4686,6 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		vf->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
 
 		memcpy(vf->mac_addr, resp->mac_address, ETH_ALEN);
-		mutex_unlock(&bp->hwrm_cmd_lock);
-
-		if (is_valid_ether_addr(vf->mac_addr)) {
-			/* overwrite netdev dev_adr with admin VF MAC */
-			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
-		} else {
-			eth_hw_addr_random(bp->dev);
-			rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
-		}
-		return rc;
 #endif
 	}
 
@@ -7152,6 +7141,7 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 		bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
 		netdev_reset_tc(dev);
 	}
+	bp->tx_nr_rings += bp->tx_nr_rings_xdp;
 	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
 			       bp->tx_nr_rings + bp->rx_nr_rings;
 	bp->num_stat_ctxs = bp->cp_nr_rings;
@@ -7661,6 +7651,28 @@ void bnxt_restore_pf_fw_resources(struct bnxt *bp)
 	bnxt_subtract_ulp_resources(bp, BNXT_ROCE_ULP);
 }
 
+static int bnxt_init_mac_addr(struct bnxt *bp)
+{
+	int rc = 0;
+
+	if (BNXT_PF(bp)) {
+		memcpy(bp->dev->dev_addr, bp->pf.mac_addr, ETH_ALEN);
+	} else {
+#ifdef CONFIG_BNXT_SRIOV
+		struct bnxt_vf_info *vf = &bp->vf;
+
+		if (is_valid_ether_addr(vf->mac_addr)) {
+			/* overwrite netdev dev_adr with admin VF MAC */
+			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
+		} else {
+			eth_hw_addr_random(bp->dev);
+			rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
+		}
+#endif
+	}
+	return rc;
+}
+
 static void bnxt_parse_log_pcie_link(struct bnxt *bp)
 {
 	enum pcie_link_width width = PCIE_LNK_WIDTH_UNKNOWN;
@@ -7789,7 +7801,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = -1;
 		goto init_err_pci_clean;
 	}
-
+	rc = bnxt_init_mac_addr(bp);
+	if (rc) {
+		dev_err(&pdev->dev, "Unable to initialize mac address.\n");
+		rc = -EADDRNOTAVAIL;
+		goto init_err_pci_clean;
+	}
 	rc = bnxt_hwrm_queue_qportcfg(bp);
 	if (rc) {
 		netdev_err(bp->dev, "hwrm query qportcfg failure rc: %x\n",
