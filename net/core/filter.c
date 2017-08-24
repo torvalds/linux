@@ -2872,7 +2872,6 @@ BPF_CALL_5(bpf_setsockopt, struct bpf_sock_ops_kern *, bpf_sock,
 				ret = -EINVAL;
 			}
 		}
-		ret = -EINVAL;
 #endif
 	} else {
 		ret = -EINVAL;
