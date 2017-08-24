@@ -241,7 +241,7 @@ static int process_read_event(struct perf_tool *tool,
 		const char *name = evsel ? perf_evsel__name(evsel) : "unknown";
 		int err = perf_read_values_add_value(&rep->show_threads_values,
 					   event->read.pid, event->read.tid,
-					   event->read.id,
+					   evsel->idx,
 					   name,
 					   event->read.value);
 

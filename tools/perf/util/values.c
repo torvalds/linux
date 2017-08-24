@@ -192,7 +192,7 @@ int perf_read_values_add_value(struct perf_read_values *values,
 	if (cindex < 0)
 		return cindex;
 
-	values->value[tindex][cindex] = value;
+	values->value[tindex][cindex] += value;
 	return 0;
 }
 
