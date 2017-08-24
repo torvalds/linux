@@ -1996,28 +1996,26 @@ static int vme_bus_match(struct device *dev, struct device_driver *drv)
 
 static int vme_bus_probe(struct device *dev)
 {
-	int retval = -ENODEV;
 	struct vme_driver *driver;
 	struct vme_dev *vdev = dev_to_vme_dev(dev);
 
 	driver = dev->platform_data;
 	if (driver->probe)
-		retval = driver->probe(vdev);
+		return driver->probe(vdev);
 
-	return retval;
+	return -ENODEV;
 }
 
 static int vme_bus_remove(struct device *dev)
 {
-	int retval = -ENODEV;
 	struct vme_driver *driver;
 	struct vme_dev *vdev = dev_to_vme_dev(dev);
 
 	driver = dev->platform_data;
 	if (driver->remove)
-		retval = driver->remove(vdev);
+		return driver->remove(vdev);
 
-	return retval;
+	return -ENODEV;
 }
 
 struct bus_type vme_bus_type = {
