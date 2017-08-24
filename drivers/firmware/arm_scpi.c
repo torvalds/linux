@@ -357,7 +357,7 @@ struct sensor_value {
 } __packed;
 
 struct dev_pstate_set {
-	u16 dev_id;
+	__le16 dev_id;
 	u8 pstate;
 } __packed;
 
