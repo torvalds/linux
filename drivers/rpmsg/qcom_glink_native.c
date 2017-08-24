@@ -1110,19 +1110,50 @@ static int __qcom_glink_send(struct glink_channel *channel,
 			     void *data, int len, bool wait)
 {
 	struct qcom_glink *glink = channel->glink;
+	struct glink_core_rx_intent *intent = NULL;
+	struct glink_core_rx_intent *tmp;
+	int iid = 0;
 	struct {
 		struct glink_msg msg;
 		__le32 chunk_size;
 		__le32 left_size;
 	} __packed req;
+	int ret;
+	unsigned long flags;
+
+	if (!glink->intentless) {
+		if (!intent) {
+			spin_lock_irqsave(&channel->intent_lock, flags);
+			idr_for_each_entry(&channel->riids, tmp, iid) {
+				if (tmp->size >= len && !tmp->in_use) {
+					tmp->in_use = true;
+					intent = tmp;
+					break;
+				}
+			}
+			spin_unlock_irqrestore(&channel->intent_lock, flags);
+
+			/* We found an available intent */
+			if (!intent)
+				return -EBUSY;
+		}
+
+		iid = intent->id;
+	}
 
 	req.msg.cmd = cpu_to_le16(RPM_CMD_TX_DATA);
 	req.msg.param1 = cpu_to_le16(channel->lcid);
-	req.msg.param2 = cpu_to_le32(channel->rcid);
+	req.msg.param2 = cpu_to_le32(iid);
 	req.chunk_size = cpu_to_le32(len);
 	req.left_size = cpu_to_le32(0);
 
-	return qcom_glink_tx(glink, &req, sizeof(req), data, len, wait);
+	ret = qcom_glink_tx(glink, &req, sizeof(req), data, len, wait);
+
+	/* Mark intent available if we failed */
+	if (ret)
+		intent->in_use = false;
+
+	return ret;
 }
 
 static int qcom_glink_send(struct rpmsg_endpoint *ept, void *data, int len)
