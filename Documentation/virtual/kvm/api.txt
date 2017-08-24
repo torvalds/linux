@@ -1124,6 +1124,9 @@ guest physical address space and must not conflict with any memory slot
 or any mmio address.  The guest may malfunction if it accesses this memory
 region.
 
+Setting the address to 0 will result in resetting the address to its default
+(0xfffbc000).
+
 This ioctl is required on Intel-based hosts.  This is needed on Intel hardware
 because of a quirk in the virtualization implementation (see the internals
 documentation when it pops into existence).
