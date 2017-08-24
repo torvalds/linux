@@ -109,8 +109,7 @@ static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
 	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
-	init_new_context_ldt(tsk, mm);
-	return 0;
+	return init_new_context_ldt(tsk, mm);
 }
 static inline void destroy_context(struct mm_struct *mm)
 {
