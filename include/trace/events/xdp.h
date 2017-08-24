@@ -31,22 +31,22 @@ TRACE_EVENT(xdp_exception,
 	TP_ARGS(dev, xdp, act),
 
 	TP_STRUCT__entry(
-		__string(name, dev->name)
 		__array(u8, prog_tag, 8)
 		__field(u32, act)
+		__field(int, ifindex)
 	),
 
 	TP_fast_assign(
 		BUILD_BUG_ON(sizeof(__entry->prog_tag) != sizeof(xdp->tag));
 		memcpy(__entry->prog_tag, xdp->tag, sizeof(xdp->tag));
-		__assign_str(name, dev->name);
-		__entry->act = act;
+		__entry->act		= act;
+		__entry->ifindex	= dev->ifindex;
 	),
 
-	TP_printk("prog=%s device=%s action=%s",
+	TP_printk("prog=%s action=%s ifindex=%d",
 		  __print_hex_str(__entry->prog_tag, 8),
-		  __get_str(name),
-		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB))
+		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
+		  __entry->ifindex)
 );
 
 TRACE_EVENT(xdp_redirect,
