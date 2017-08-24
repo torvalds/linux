@@ -98,7 +98,7 @@ static int perf_read_values__findnew_thread(struct perf_read_values *values,
 			return i;
 	}
 
-	i = values->threads + 1;
+	i = values->threads;
 	values->value[i] = malloc(values->counters_max * sizeof(**values->value));
 	if (!values->value[i]) {
 		pr_debug("failed to allocate read_values counters array");
@@ -106,7 +106,7 @@ static int perf_read_values__findnew_thread(struct perf_read_values *values,
 	}
 	values->pid[i] = pid;
 	values->tid[i] = tid;
-	values->threads = i;
+	values->threads = i + 1;
 
 	return i;
 }
