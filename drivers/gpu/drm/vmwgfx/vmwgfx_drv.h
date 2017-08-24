@@ -41,6 +41,7 @@
 #include <drm/ttm/ttm_module.h>
 #include "vmwgfx_fence.h"
 
+#define VMWGFX_DRIVER_NAME "vmwgfx"
 #define VMWGFX_DRIVER_DATE "20170607"
 #define VMWGFX_DRIVER_MAJOR 2
 #define VMWGFX_DRIVER_MINOR 13
@@ -847,12 +848,10 @@ extern int vmw_validate_single_buffer(struct vmw_private *dev_priv,
  * IRQs and wating - vmwgfx_irq.c
  */
 
-extern irqreturn_t vmw_irq_handler(int irq, void *arg);
 extern int vmw_wait_seqno(struct vmw_private *dev_priv, bool lazy,
 			  uint32_t seqno, bool interruptible,
 			  unsigned long timeout);
-extern void vmw_irq_preinstall(struct drm_device *dev);
-extern int vmw_irq_postinstall(struct drm_device *dev);
+extern int vmw_irq_install(struct drm_device *dev, int irq);
 extern void vmw_irq_uninstall(struct drm_device *dev);
 extern bool vmw_seqno_passed(struct vmw_private *dev_priv,
 				uint32_t seqno);

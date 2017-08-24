@@ -30,7 +30,7 @@
 
 #define VMW_FENCE_WRAP (1 << 24)
 
-irqreturn_t vmw_irq_handler(int irq, void *arg)
+static irqreturn_t vmw_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *)arg;
 	struct vmw_private *dev_priv = vmw_priv(dev);
@@ -281,21 +281,13 @@ int vmw_wait_seqno(struct vmw_private *dev_priv,
 	return ret;
 }
 
-void vmw_irq_preinstall(struct drm_device *dev)
+static void vmw_irq_preinstall(struct drm_device *dev)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	uint32_t status;
 
-	if (!(dev_priv->capabilities & SVGA_CAP_IRQMASK))
-		return;
-
 	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 	outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
-}
-
-int vmw_irq_postinstall(struct drm_device *dev)
-{
-	return 0;
 }
 
 void vmw_irq_uninstall(struct drm_device *dev)
@@ -306,8 +298,41 @@ void vmw_irq_uninstall(struct drm_device *dev)
 	if (!(dev_priv->capabilities & SVGA_CAP_IRQMASK))
 		return;
 
+	if (!dev->irq_enabled)
+		return;
+
 	vmw_write(dev_priv, SVGA_REG_IRQMASK, 0);
 
 	status = inl(dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
 	outl(status, dev_priv->io_start + VMWGFX_IRQSTATUS_PORT);
+
+	dev->irq_enabled = false;
+	free_irq(dev->irq, dev);
+}
+
+/**
+ * vmw_irq_install - Install the irq handlers
+ *
+ * @dev:  Pointer to the drm device.
+ * @irq:  The irq number.
+ * Return:  Zero if successful. Negative number otherwise.
+ */
+int vmw_irq_install(struct drm_device *dev, int irq)
+{
+	int ret;
+
+	if (dev->irq_enabled)
+		return -EBUSY;
+
+	vmw_irq_preinstall(dev);
+
+	ret = request_threaded_irq(irq, vmw_irq_handler, NULL,
+				   IRQF_SHARED, VMWGFX_DRIVER_NAME, dev);
+	if (ret < 0)
+		return ret;
+
+	dev->irq_enabled = true;
+	dev->irq = irq;
+
+	return ret;
 }
