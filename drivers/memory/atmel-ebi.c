@@ -72,7 +72,7 @@ struct atmel_smc_timing_xlate {
 	{ .name = nm, .converter = atmel_smc_cs_conf_set_pulse, .shift = pos}
 
 #define ATMEL_SMC_CYCLE_XLATE(nm, pos)	\
-	{ .name = nm, .converter = atmel_smc_cs_conf_set_setup, .shift = pos}
+	{ .name = nm, .converter = atmel_smc_cs_conf_set_cycle, .shift = pos}
 
 static void at91sam9_ebi_get_config(struct atmel_ebi_dev *ebid,
 				    struct atmel_ebi_dev_config *conf)
@@ -120,11 +120,13 @@ static int atmel_ebi_xslate_smc_timings(struct atmel_ebi_dev *ebid,
 	if (!ret) {
 		required = true;
 		ncycles = DIV_ROUND_UP(val, clk_period_ns);
-		if (ncycles > ATMEL_SMC_MODE_TDF_MAX ||
-		    ncycles < ATMEL_SMC_MODE_TDF_MIN) {
+		if (ncycles > ATMEL_SMC_MODE_TDF_MAX) {
 			ret = -EINVAL;
 			goto out;
 		}
+
+		if (ncycles < ATMEL_SMC_MODE_TDF_MIN)
+			ncycles = ATMEL_SMC_MODE_TDF_MIN;
 
 		smcconf->mode |= ATMEL_SMC_MODE_TDF(ncycles);
 	}
@@ -263,7 +265,7 @@ static int atmel_ebi_xslate_smc_config(struct atmel_ebi_dev *ebid,
 	}
 
 	ret = atmel_ebi_xslate_smc_timings(ebid, np, &conf->smcconf);
-	if (ret)
+	if (ret < 0)
 		return -EINVAL;
 
 	if ((ret > 0 && !required) || (!ret && required)) {
