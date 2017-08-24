@@ -5426,7 +5426,7 @@ static void ept_set_mmio_spte_mask(void)
 /*
  * Sets up the vmcs for emulated real mode.
  */
-static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
+static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 {
 #ifdef CONFIG_X86_64
 	unsigned long a;
@@ -5539,8 +5539,6 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
 		vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
 	}
-
-	return 0;
 }
 
 static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
@@ -9564,11 +9562,9 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	cpu = get_cpu();
 	vmx_vcpu_load(&vmx->vcpu, cpu);
 	vmx->vcpu.cpu = cpu;
-	err = vmx_vcpu_setup(vmx);
+	vmx_vcpu_setup(vmx);
 	vmx_vcpu_put(&vmx->vcpu);
 	put_cpu();
-	if (err)
-		goto free_vmcs;
 	if (cpu_need_virtualize_apic_accesses(&vmx->vcpu)) {
 		err = alloc_apic_access_page(kvm);
 		if (err)
