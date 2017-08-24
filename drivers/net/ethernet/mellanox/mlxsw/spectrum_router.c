@@ -909,6 +909,42 @@ static const struct rhashtable_params mlxsw_sp_neigh_ht_params = {
 	.key_len = sizeof(struct mlxsw_sp_neigh_key),
 };
 
+struct mlxsw_sp_neigh_entry *
+mlxsw_sp_rif_neigh_next(struct mlxsw_sp_rif *rif,
+			struct mlxsw_sp_neigh_entry *neigh_entry)
+{
+	if (!neigh_entry) {
+		if (list_empty(&rif->neigh_list))
+			return NULL;
+		else
+			return list_first_entry(&rif->neigh_list,
+						typeof(*neigh_entry),
+						rif_list_node);
+	}
+	if (neigh_entry->rif_list_node.next == &rif->neigh_list)
+		return NULL;
+	return list_next_entry(neigh_entry, rif_list_node);
+}
+
+int mlxsw_sp_neigh_entry_type(struct mlxsw_sp_neigh_entry *neigh_entry)
+{
+	return neigh_entry->key.n->tbl->family;
+}
+
+unsigned char *
+mlxsw_sp_neigh_entry_ha(struct mlxsw_sp_neigh_entry *neigh_entry)
+{
+	return neigh_entry->ha;
+}
+
+u32 mlxsw_sp_neigh4_entry_dip(struct mlxsw_sp_neigh_entry *neigh_entry)
+{
+	struct neighbour *n;
+
+	n = neigh_entry->key.n;
+	return ntohl(*((__be32 *) n->primary_key));
+}
+
 static struct mlxsw_sp_neigh_entry *
 mlxsw_sp_neigh_entry_alloc(struct mlxsw_sp *mlxsw_sp, struct neighbour *n,
 			   u16 rif)
