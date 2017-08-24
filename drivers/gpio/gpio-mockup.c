@@ -153,7 +153,6 @@ static ssize_t gpio_mockup_event_write(struct file *file,
 	struct gpio_mockup_chip *chip;
 	struct seq_file *sfile;
 	struct gpio_desc *desc;
-	struct gpio_chip *gc;
 	int rv, val;
 
 	rv = kstrtoint_from_user(usr_buf, size, 0, &val);
@@ -166,7 +165,6 @@ static ssize_t gpio_mockup_event_write(struct file *file,
 	priv = sfile->private;
 	desc = priv->desc;
 	chip = priv->chip;
-	gc = &chip->gc;
 
 	gpiod_set_value_cansleep(desc, val);
 	irq_sim_fire(&chip->irqsim, priv->offset);
