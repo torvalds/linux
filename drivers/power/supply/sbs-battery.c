@@ -321,16 +321,6 @@ static int sbs_get_battery_presence_and_health(
 	union power_supply_propval *val)
 {
 	s32 ret;
-	struct sbs_info *chip = i2c_get_clientdata(client);
-
-	if (psp == POWER_SUPPLY_PROP_PRESENT && chip->gpio_detect) {
-		ret = gpiod_get_value_cansleep(chip->gpio_detect);
-		if (ret < 0)
-			return ret;
-		val->intval = ret;
-		chip->is_present = val->intval;
-		return ret;
-	}
 
 	/*
 	 * Write to ManufacturerAccess with ManufacturerAccess command
@@ -597,6 +587,19 @@ static int sbs_get_property(struct power_supply *psy,
 	int ret = 0;
 	struct sbs_info *chip = power_supply_get_drvdata(psy);
 	struct i2c_client *client = chip->client;
+
+	if (chip->gpio_detect) {
+		ret = gpiod_get_value_cansleep(chip->gpio_detect);
+		if (ret < 0)
+			return ret;
+		if (psp == POWER_SUPPLY_PROP_PRESENT) {
+			val->intval = ret;
+			chip->is_present = val->intval;
+			return 0;
+		}
+		if (ret == 0)
+			return -ENODATA;
+	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
