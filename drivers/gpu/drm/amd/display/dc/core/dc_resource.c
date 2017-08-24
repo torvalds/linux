@@ -1323,7 +1323,6 @@ bool dc_is_stream_unchanged(
 
 /* Maximum TMDS single link pixel clock 165MHz */
 #define TMDS_MAX_PIXEL_CLOCK_IN_KHZ 165000
-#define TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST 297000
 
 static void update_stream_engine_usage(
 		struct resource_context *res_ctx,
@@ -1432,28 +1431,6 @@ static struct audio *find_first_free_audio(
 	}
 
 	return 0;
-}
-
-static void update_stream_signal(struct dc_stream_state *stream)
-{
-	if (stream->output_signal == SIGNAL_TYPE_NONE) {
-		struct dc_sink *dc_sink = stream->sink;
-
-		if (dc_sink->sink_signal == SIGNAL_TYPE_NONE)
-			stream->signal = stream->sink->link->connector_signal;
-		else
-			stream->signal = dc_sink->sink_signal;
-	} else {
-		stream->signal = stream->output_signal;
-	}
-
-	if (dc_is_dvi_signal(stream->signal)) {
-		if (stream->timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST &&
-			stream->sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
-			stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
-		else
-			stream->signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
-	}
 }
 
 bool resource_is_stream_unchanged(
@@ -1627,8 +1604,6 @@ static int get_norm_pix_clk(const struct dc_crtc_timing *timing)
 
 static void calculate_phy_pix_clks(struct dc_stream_state *stream)
 {
-	update_stream_signal(stream);
-
 	/* update actual pixel clock on all streams */
 	if (dc_is_hdmi_signal(stream->signal))
 		stream->phy_pix_clk = get_norm_pix_clk(

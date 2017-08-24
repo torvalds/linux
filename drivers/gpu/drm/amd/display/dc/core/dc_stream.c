@@ -33,6 +33,28 @@
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
+#define TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST 297000
+static void update_stream_signal(struct dc_stream_state *stream)
+{
+	if (stream->output_signal == SIGNAL_TYPE_NONE) {
+		struct dc_sink *dc_sink = stream->sink;
+
+		if (dc_sink->sink_signal == SIGNAL_TYPE_NONE)
+			stream->signal = stream->sink->link->connector_signal;
+		else
+			stream->signal = dc_sink->sink_signal;
+	} else {
+		stream->signal = stream->output_signal;
+	}
+
+	if (dc_is_dvi_signal(stream->signal)) {
+		if (stream->timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST &&
+			stream->sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
+			stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+		else
+			stream->signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+	}
+}
 
 static bool construct(struct dc_stream_state *stream,
 	struct dc_sink *dc_sink_data)
@@ -80,6 +102,8 @@ static bool construct(struct dc_stream_state *stream,
 	stream->timing.flags.LTE_340MCSC_SCRAMBLE = dc_sink_data->edid_caps.lte_340mcsc_scramble;
 
 	stream->status.link = stream->sink->link;
+
+	update_stream_signal(stream);
 	return true;
 }
 
