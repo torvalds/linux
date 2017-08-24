@@ -4034,10 +4034,16 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	case KVM_SET_IDENTITY_MAP_ADDR: {
 		u64 ident_addr;
 
+		mutex_lock(&kvm->lock);
+		r = -EINVAL;
+		if (kvm->created_vcpus)
+			goto set_identity_unlock;
 		r = -EFAULT;
 		if (copy_from_user(&ident_addr, argp, sizeof ident_addr))
-			goto out;
+			goto set_identity_unlock;
 		r = kvm_vm_ioctl_set_identity_map_addr(kvm, ident_addr);
+set_identity_unlock:
+		mutex_unlock(&kvm->lock);
 		break;
 	}
 	case KVM_SET_NR_MMU_PAGES:
