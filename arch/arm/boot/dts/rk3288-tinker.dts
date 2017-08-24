@@ -50,7 +50,7 @@
 	compatible = "asus,rk3288-tinker", "rockchip,rk3288";
 
 	memory {
-		reg = <0x0 0x80000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 		device_type = "memory";
 	};
 

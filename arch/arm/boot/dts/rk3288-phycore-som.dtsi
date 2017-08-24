@@ -55,7 +55,7 @@
 	 */
 	memory {
 		device_type = "memory";
-		reg = <0 0x8000000>;
+		reg = <0x0 0x0 0x0 0x8000000>;
 	};
 
 	aliases {

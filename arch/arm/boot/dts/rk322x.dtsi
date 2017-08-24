@@ -55,6 +55,7 @@
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
+		spi0 = &spi0;
 	};
 
 	cpus {
@@ -405,6 +406,19 @@
 		status = "disabled";
 	};
 
+	spi0: spi@11090000 {
+		compatible = "rockchip,rk3228-spi";
+		reg = <0x11090000 0x1000>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&cru SCLK_SPI0>, <&cru PCLK_SPI0>;
+		clock-names = "spiclk", "apb_pclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi0_clk &spi0_tx &spi0_rx &spi0_cs0 &spi0_cs1>;
+		status = "disabled";
+	};
+
 	wdt: watchdog@110a0000 {
 		compatible = "snps,dw-wdt";
 		reg = <0x110a0000 0x100>;
@@ -541,6 +555,42 @@
 		pinctrl-2 = <&otp_gpio>;
 		#thermal-sensor-cells = <0>;
 		rockchip,hw-tshut-temp = <95000>;
+		status = "disabled";
+	};
+
+	vpu_mmu: iommu@20020800 {
+		compatible = "rockchip,iommu";
+		reg = <0x20020800 0x100>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpu_mmu";
+		iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	vdec_mmu: iommu@20030480 {
+		compatible = "rockchip,iommu";
+		reg = <0x20030480 0x40>, <0x200304c0 0x40>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vdec_mmu";
+		iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	vop_mmu: iommu@20053f00 {
+		compatible = "rockchip,iommu";
+		reg = <0x20053f00 0x100>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vop_mmu";
+		iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	iep_mmu: iommu@20070800 {
+		compatible = "rockchip,iommu";
+		reg = <0x20070800 0x100>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "iep_mmu";
+		iommu-cells = <0>;
 		status = "disabled";
 	};
 
@@ -897,6 +947,42 @@
 			i2c3_xfer: i2c3-xfer {
 				rockchip,pins = <0 6 RK_FUNC_1 &pcfg_pull_none>,
 						<0 7 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		spi-0 {
+			spi0_clk: spi0-clk {
+				rockchip,pins = <0 9 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi0_cs0: spi0-cs0 {
+				rockchip,pins = <0 14 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi0_tx: spi0-tx {
+				rockchip,pins = <0 11 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi0_rx: spi0-rx {
+				rockchip,pins = <0 13 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi0_cs1: spi0-cs1 {
+				rockchip,pins = <1 12 RK_FUNC_1 &pcfg_pull_up>;
+			};
+		};
+
+		spi-1 {
+			spi1_clk: spi1-clk {
+				rockchip,pins = <0 23 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi1_cs0: spi1-cs0 {
+				rockchip,pins = <2 2 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi1_rx: spi1-rx {
+				rockchip,pins = <2 0 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi1_tx: spi1-tx {
+				rockchip,pins = <2 1 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi1_cs1: spi1-cs1 {
+				rockchip,pins = <2 3 RK_FUNC_2 &pcfg_pull_up>;
 			};
 		};
 

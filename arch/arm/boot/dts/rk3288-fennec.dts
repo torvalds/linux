@@ -47,7 +47,7 @@
 	compatible = "rockchip,rk3288-fennec", "rockchip,rk3288";
 
 	memory@0 {
-		reg = <0x0 0x80000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 		device_type = "memory";
 	};
 
