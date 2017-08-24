@@ -341,8 +341,7 @@ ENTRY(entry_INT80_compat)
 	jmp	restore_regs_and_iret
 END(entry_INT80_compat)
 
-	ALIGN
-GLOBAL(stub32_clone)
+ENTRY(stub32_clone)
 	/*
 	 * The 32-bit clone ABI is: clone(..., int tls_val, int *child_tidptr).
 	 * The 64-bit clone ABI is: clone(..., int *child_tidptr, int tls_val).
@@ -352,3 +351,4 @@ GLOBAL(stub32_clone)
 	 */
 	xchg	%r8, %rcx
 	jmp	sys_clone
+ENDPROC(stub32_clone)
