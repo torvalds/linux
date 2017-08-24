@@ -226,9 +226,29 @@ struct bdb_general_features {
 #define DEVICE_WIRE_DVOB_MASTER 0x0d
 #define DEVICE_WIRE_DVOC_MASTER 0x0e
 
+/* dvo_port pre BDB 155 */
 #define DEVICE_PORT_DVOA	0x00 /* none on 845+ */
 #define DEVICE_PORT_DVOB	0x01
 #define DEVICE_PORT_DVOC	0x02
+
+/* dvo_port BDB 155+ */
+#define DVO_PORT_HDMIA		0
+#define DVO_PORT_HDMIB		1
+#define DVO_PORT_HDMIC		2
+#define DVO_PORT_HDMID		3
+#define DVO_PORT_LVDS		4
+#define DVO_PORT_TV		5
+#define DVO_PORT_CRT		6
+#define DVO_PORT_DPB		7
+#define DVO_PORT_DPC		8
+#define DVO_PORT_DPD		9
+#define DVO_PORT_DPA		10
+#define DVO_PORT_DPE		11				/* 193 */
+#define DVO_PORT_HDMIE		12				/* 193 */
+#define DVO_PORT_MIPIA		21				/* 171 */
+#define DVO_PORT_MIPIB		22				/* 171 */
+#define DVO_PORT_MIPIC		23				/* 171 */
+#define DVO_PORT_MIPID		24				/* 171 */
 
 #define LEGACY_CHILD_DEVICE_CONFIG_SIZE		33
 
@@ -276,7 +296,7 @@ struct child_device_config {
 	} __packed;
 
 	u16 addin_offset;
-	u8 dvo_port;
+	u8 dvo_port; /* See DEVICE_PORT_* and DVO_PORT_* above */
 	u8 i2c_pin;
 	u8 slave_addr;
 	u8 ddc_pin;
@@ -823,25 +843,6 @@ struct bdb_psr {
 #define		DVO_B		1
 #define		DVO_C		2
 #define		DVO_D		3
-
-/* Possible values for the "DVO Port" field for versions >= 155: */
-#define DVO_PORT_HDMIA	0
-#define DVO_PORT_HDMIB	1
-#define DVO_PORT_HDMIC	2
-#define DVO_PORT_HDMID	3
-#define DVO_PORT_LVDS	4
-#define DVO_PORT_TV	5
-#define DVO_PORT_CRT	6
-#define DVO_PORT_DPB	7
-#define DVO_PORT_DPC	8
-#define DVO_PORT_DPD	9
-#define DVO_PORT_DPA	10
-#define DVO_PORT_DPE	11
-#define DVO_PORT_HDMIE	12
-#define DVO_PORT_MIPIA	21
-#define DVO_PORT_MIPIB	22
-#define DVO_PORT_MIPIC	23
-#define DVO_PORT_MIPID	24
 
 /* Block 52 contains MIPI configuration block
  * 6 * bdb_mipi_config, followed by 6 pps data block
