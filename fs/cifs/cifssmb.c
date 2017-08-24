@@ -6264,7 +6264,7 @@ int
 CIFSSMBSetEA(const unsigned int xid, struct cifs_tcon *tcon,
 	     const char *fileName, const char *ea_name, const void *ea_value,
 	     const __u16 ea_value_len, const struct nls_table *nls_codepage,
-	     int remap)
+	     struct cifs_sb_info *cifs_sb)
 {
 	struct smb_com_transaction2_spi_req *pSMB = NULL;
 	struct smb_com_transaction2_spi_rsp *pSMBr = NULL;
@@ -6273,6 +6273,7 @@ CIFSSMBSetEA(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	int bytes_returned = 0;
 	__u16 params, param_offset, byte_count, offset, count;
+	int remap = cifs_remap(cifs_sb);
 
 	cifs_dbg(FYI, "In SetEA\n");
 SetEARetry:

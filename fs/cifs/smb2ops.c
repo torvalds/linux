@@ -558,6 +558,62 @@ smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+
+static int
+smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
+	    const char *path, const char *ea_name, const void *ea_value,
+	    const __u16 ea_value_len, const struct nls_table *nls_codepage,
+	    struct cifs_sb_info *cifs_sb)
+{
+	int rc;
+	__le16 *utf16_path;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	struct cifs_open_parms oparms;
+	struct cifs_fid fid;
+	struct smb2_file_full_ea_info *ea;
+	int ea_name_len = strlen(ea_name);
+	int len;
+
+	if (ea_name_len > 255)
+		return -EINVAL;
+
+	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
+	if (!utf16_path)
+		return -ENOMEM;
+
+	oparms.tcon = tcon;
+	oparms.desired_access = FILE_WRITE_EA;
+	oparms.disposition = FILE_OPEN;
+	oparms.create_options = 0;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	kfree(utf16_path);
+	if (rc) {
+		cifs_dbg(FYI, "open failed rc=%d\n", rc);
+		return rc;
+	}
+
+	len = sizeof(ea) + ea_name_len + ea_value_len + 1;
+	ea = kzalloc(len, GFP_KERNEL);
+	if (ea == NULL) {
+		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+		return -ENOMEM;
+	}
+
+	ea->ea_name_length = ea_name_len;
+	ea->ea_value_length = cpu_to_le16(ea_value_len);
+	memcpy(ea->ea_data, ea_name, ea_name_len + 1);
+	memcpy(ea->ea_data + ea_name_len + 1, ea_value, ea_value_len);
+
+	rc = SMB2_set_ea(xid, tcon, fid.persistent_fid, fid.volatile_fid, ea,
+			 len);
+	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+
+	return rc;
+}
+
 static bool
 smb2_can_echo(struct TCP_Server_Info *server)
 {
@@ -2706,6 +2762,7 @@ struct smb_version_operations smb20_operations = {
 	.select_sectype = smb2_select_sectype,
 #ifdef CONFIG_CIFS_XATTR
 	.query_all_EAs = smb2_query_eas,
+	.set_EA = smb2_set_ea,
 #endif /* CIFS_XATTR */
 #ifdef CONFIG_CIFS_ACL
 	.get_acl = get_smb2_acl,
@@ -2799,6 +2856,7 @@ struct smb_version_operations smb21_operations = {
 	.select_sectype = smb2_select_sectype,
 #ifdef CONFIG_CIFS_XATTR
 	.query_all_EAs = smb2_query_eas,
+	.set_EA = smb2_set_ea,
 #endif /* CIFS_XATTR */
 #ifdef CONFIG_CIFS_ACL
 	.get_acl = get_smb2_acl,
@@ -2902,6 +2960,7 @@ struct smb_version_operations smb30_operations = {
 	.select_sectype = smb2_select_sectype,
 #ifdef CONFIG_CIFS_XATTR
 	.query_all_EAs = smb2_query_eas,
+	.set_EA = smb2_set_ea,
 #endif /* CIFS_XATTR */
 #ifdef CONFIG_CIFS_ACL
 	.get_acl = get_smb2_acl,
@@ -3006,6 +3065,7 @@ struct smb_version_operations smb311_operations = {
 	.select_sectype = smb2_select_sectype,
 #ifdef CONFIG_CIFS_XATTR
 	.query_all_EAs = smb2_query_eas,
+	.set_EA = smb2_set_ea,
 #endif /* CIFS_XATTR */
 };
 #endif /* CIFS_SMB311 */

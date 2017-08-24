@@ -172,6 +172,9 @@ extern int SMB2_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 extern int SMB2_set_acl(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid,
 			struct cifs_ntsd *pnntsd, int pacllen, int aclflag);
+extern int SMB2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
+		       u64 persistent_fid, u64 volatile_fid,
+		       struct smb2_file_full_ea_info *buf, int len);
 extern int SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 				u64 persistent_fid, u64 volatile_fid);
 extern int SMB2_oplock_break(const unsigned int xid, struct cifs_tcon *tcon,
