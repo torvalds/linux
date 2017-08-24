@@ -907,7 +907,6 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 static bool guest_state_valid(struct kvm_vcpu *vcpu);
 static u32 vmx_segment_access_rights(struct kvm_segment *var);
 static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx);
-static int alloc_identity_pagetable(struct kvm *kvm);
 static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu);
 static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked);
 static bool nested_vmx_is_page_fault_vmexit(struct vmcs12 *vmcs12,
@@ -4775,18 +4774,18 @@ static int init_rmode_identity_map(struct kvm *kvm)
 	kvm_pfn_t identity_map_pfn;
 	u32 tmp;
 
-	if (!enable_ept)
-		return 0;
-
 	/* Protect kvm->arch.ept_identity_pagetable_done. */
 	mutex_lock(&kvm->slots_lock);
 
 	if (likely(kvm->arch.ept_identity_pagetable_done))
 		goto out2;
 
+	if (!kvm->arch.ept_identity_map_addr)
+		kvm->arch.ept_identity_map_addr = VMX_EPT_IDENTITY_PAGETABLE_ADDR;
 	identity_map_pfn = kvm->arch.ept_identity_map_addr >> PAGE_SHIFT;
 
-	r = alloc_identity_pagetable(kvm);
+	r = __x86_set_memory_region(kvm, IDENTITY_PAGETABLE_PRIVATE_MEMSLOT,
+				    kvm->arch.ept_identity_map_addr, PAGE_SIZE);
 	if (r < 0)
 		goto out2;
 
@@ -4855,20 +4854,6 @@ static int alloc_apic_access_page(struct kvm *kvm)
 	kvm->arch.apic_access_page_done = true;
 out:
 	mutex_unlock(&kvm->slots_lock);
-	return r;
-}
-
-static int alloc_identity_pagetable(struct kvm *kvm)
-{
-	/* Called with kvm->slots_lock held. */
-
-	int r = 0;
-
-	BUG_ON(kvm->arch.ept_identity_pagetable_done);
-
-	r = __x86_set_memory_region(kvm, IDENTITY_PAGETABLE_PRIVATE_MEMSLOT,
-				    kvm->arch.ept_identity_map_addr, PAGE_SIZE);
-
 	return r;
 }
 
@@ -9566,9 +9551,6 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	}
 
 	if (enable_ept) {
-		if (!kvm->arch.ept_identity_map_addr)
-			kvm->arch.ept_identity_map_addr =
-				VMX_EPT_IDENTITY_PAGETABLE_ADDR;
 		err = init_rmode_identity_map(kvm);
 		if (err)
 			goto free_vmcs;
