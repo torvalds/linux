@@ -14,7 +14,6 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/clk/bcm2835.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <dt-bindings/clock/bcm2835-aux.h>
