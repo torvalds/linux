@@ -1647,13 +1647,15 @@ static int devlink_dpipe_table_put(struct sk_buff *skb,
 				   struct devlink_dpipe_table *table)
 {
 	struct nlattr *table_attr;
+	u64 table_size;
 
+	table_size = table->table_ops->size_get(table->priv);
 	table_attr = nla_nest_start(skb, DEVLINK_ATTR_DPIPE_TABLE);
 	if (!table_attr)
 		return -EMSGSIZE;
 
 	if (nla_put_string(skb, DEVLINK_ATTR_DPIPE_TABLE_NAME, table->name) ||
-	    nla_put_u64_64bit(skb, DEVLINK_ATTR_DPIPE_TABLE_SIZE, table->size,
+	    nla_put_u64_64bit(skb, DEVLINK_ATTR_DPIPE_TABLE_SIZE, table_size,
 			      DEVLINK_ATTR_PAD))
 		goto nla_put_failure;
 	if (nla_put_u8(skb, DEVLINK_ATTR_DPIPE_TABLE_COUNTERS_ENABLED,
@@ -2718,19 +2720,20 @@ EXPORT_SYMBOL_GPL(devlink_dpipe_table_counter_enabled);
  *	@table_name: table name
  *	@table_ops: table ops
  *	@priv: priv
- *	@size: size
  *	@counter_control_extern: external control for counters
  */
 int devlink_dpipe_table_register(struct devlink *devlink,
 				 const char *table_name,
 				 struct devlink_dpipe_table_ops *table_ops,
-				 void *priv, u64 size,
-				 bool counter_control_extern)
+				 void *priv, bool counter_control_extern)
 {
 	struct devlink_dpipe_table *table;
 
 	if (devlink_dpipe_table_find(&devlink->dpipe_table_list, table_name))
 		return -EEXIST;
+
+	if (WARN_ON(!table_ops->size_get))
+		return -EINVAL;
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
@@ -2739,7 +2742,6 @@ int devlink_dpipe_table_register(struct devlink *devlink,
 	table->name = table_name;
 	table->table_ops = table_ops;
 	table->priv = priv;
-	table->size = size;
 	table->counter_control_extern = counter_control_extern;
 
 	mutex_lock(&devlink_mutex);

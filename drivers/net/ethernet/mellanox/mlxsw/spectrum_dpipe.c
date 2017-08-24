@@ -301,24 +301,29 @@ static int mlxsw_sp_dpipe_table_erif_counters_update(void *priv, bool enable)
 	return 0;
 }
 
+static u64 mlxsw_sp_dpipe_table_erif_size_get(void *priv)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	return MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS);
+}
+
 static struct devlink_dpipe_table_ops mlxsw_sp_erif_ops = {
 	.matches_dump = mlxsw_sp_dpipe_table_erif_matches_dump,
 	.actions_dump = mlxsw_sp_dpipe_table_erif_actions_dump,
 	.entries_dump = mlxsw_sp_dpipe_table_erif_entries_dump,
 	.counters_set_update = mlxsw_sp_dpipe_table_erif_counters_update,
+	.size_get = mlxsw_sp_dpipe_table_erif_size_get,
 };
 
 static int mlxsw_sp_dpipe_erif_table_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
-	u64 table_size;
 
-	table_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS);
 	return devlink_dpipe_table_register(devlink,
 					    MLXSW_SP_DPIPE_TABLE_NAME_ERIF,
 					    &mlxsw_sp_erif_ops,
-					    mlxsw_sp, table_size,
-					    false);
+					    mlxsw_sp, false);
 }
 
 static void mlxsw_sp_dpipe_erif_table_fini(struct mlxsw_sp *mlxsw_sp)
