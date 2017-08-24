@@ -762,22 +762,22 @@ static int intel_gpio_get(struct gpio_chip *chip, unsigned offset)
 static void intel_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
+	unsigned long flags;
 	void __iomem *reg;
+	u32 padcfg0;
 
 	reg = intel_get_padcfg(pctrl, offset, PADCFG0);
-	if (reg) {
-		unsigned long flags;
-		u32 padcfg0;
+	if (!reg)
+		return;
 
-		raw_spin_lock_irqsave(&pctrl->lock, flags);
-		padcfg0 = readl(reg);
-		if (value)
-			padcfg0 |= PADCFG0_GPIOTXSTATE;
-		else
-			padcfg0 &= ~PADCFG0_GPIOTXSTATE;
-		writel(padcfg0, reg);
-		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
-	}
+	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	padcfg0 = readl(reg);
+	if (value)
+		padcfg0 |= PADCFG0_GPIOTXSTATE;
+	else
+		padcfg0 &= ~PADCFG0_GPIOTXSTATE;
+	writel(padcfg0, reg);
+	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 }
 
 static int intel_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
