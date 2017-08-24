@@ -352,6 +352,12 @@ struct vmw_otable_batch {
 	struct ttm_buffer_object *otable_bo;
 };
 
+enum {
+	VMW_IRQTHREAD_FENCE,
+	VMW_IRQTHREAD_CMDBUF,
+	VMW_IRQTHREAD_MAX
+};
+
 struct vmw_private {
 	struct ttm_bo_device bdev;
 	struct ttm_bo_global_ref bo_global_ref;
@@ -530,6 +536,7 @@ struct vmw_private {
 	struct vmw_otable_batch otable_batch;
 
 	struct vmw_cmdbuf_man *cman;
+	DECLARE_BITMAP(irqthread_pending, VMW_IRQTHREAD_MAX);
 };
 
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
@@ -562,24 +569,21 @@ static inline struct vmw_master *vmw_master(struct drm_master *master)
 static inline void vmw_write(struct vmw_private *dev_priv,
 			     unsigned int offset, uint32_t value)
 {
-	unsigned long irq_flags;
-
-	spin_lock_irqsave(&dev_priv->hw_lock, irq_flags);
+	spin_lock(&dev_priv->hw_lock);
 	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
 	outl(value, dev_priv->io_start + VMWGFX_VALUE_PORT);
-	spin_unlock_irqrestore(&dev_priv->hw_lock, irq_flags);
+	spin_unlock(&dev_priv->hw_lock);
 }
 
 static inline uint32_t vmw_read(struct vmw_private *dev_priv,
 				unsigned int offset)
 {
-	unsigned long irq_flags;
 	u32 val;
 
-	spin_lock_irqsave(&dev_priv->hw_lock, irq_flags);
+	spin_lock(&dev_priv->hw_lock);
 	outl(offset, dev_priv->io_start + VMWGFX_INDEX_PORT);
 	val = inl(dev_priv->io_start + VMWGFX_VALUE_PORT);
-	spin_unlock_irqrestore(&dev_priv->hw_lock, irq_flags);
+	spin_unlock(&dev_priv->hw_lock);
 
 	return val;
 }
@@ -1149,13 +1153,13 @@ extern void *vmw_cmdbuf_reserve(struct vmw_cmdbuf_man *man, size_t size,
 extern void vmw_cmdbuf_commit(struct vmw_cmdbuf_man *man, size_t size,
 			      struct vmw_cmdbuf_header *header,
 			      bool flush);
-extern void vmw_cmdbuf_tasklet_schedule(struct vmw_cmdbuf_man *man);
 extern void *vmw_cmdbuf_alloc(struct vmw_cmdbuf_man *man,
 			      size_t size, bool interruptible,
 			      struct vmw_cmdbuf_header **p_header);
 extern void vmw_cmdbuf_header_free(struct vmw_cmdbuf_header *header);
 extern int vmw_cmdbuf_cur_flush(struct vmw_cmdbuf_man *man,
 				bool interruptible);
+extern void vmw_cmdbuf_irqthread(struct vmw_cmdbuf_man *man);
 
 
 /**
