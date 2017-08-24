@@ -58,6 +58,8 @@ struct decon_context {
 	struct regmap			*sysreg;
 	struct clk			*clks[ARRAY_SIZE(decon_clks_name)];
 	unsigned int			irq;
+	unsigned int			irq_vsync;
+	unsigned int			irq_lcd_sys;
 	unsigned int			te_irq;
 	unsigned long			out_type;
 	int				first_win;
@@ -670,19 +672,22 @@ static const struct of_device_id exynos5433_decon_driver_dt_match[] = {
 MODULE_DEVICE_TABLE(of, exynos5433_decon_driver_dt_match);
 
 static int decon_conf_irq(struct decon_context *ctx, const char *name,
-		irq_handler_t handler, unsigned long int flags, bool required)
+		irq_handler_t handler, unsigned long int flags)
 {
 	struct platform_device *pdev = to_platform_device(ctx->dev);
 	int ret, irq = platform_get_irq_byname(pdev, name);
 
 	if (irq < 0) {
-		if (irq == -EPROBE_DEFER)
+		switch (irq) {
+		case -EPROBE_DEFER:
 			return irq;
-		if (required)
-			dev_err(ctx->dev, "cannot get %s IRQ\n", name);
-		else
-			irq = 0;
-		return irq;
+		case -ENODATA:
+		case -ENXIO:
+			return 0;
+		default:
+			dev_err(ctx->dev, "IRQ %s get failed, %d\n", name, irq);
+			return irq;
+		}
 	}
 	irq_set_status_flags(irq, IRQ_NOAUTOEN);
 	ret = devm_request_irq(ctx->dev, irq, handler, flags, "drm_decon", ctx);
@@ -738,25 +743,26 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 		return PTR_ERR(ctx->addr);
 	}
 
-	if (ctx->out_type & IFTYPE_I80) {
-		ret = decon_conf_irq(ctx, "lcd_sys", decon_irq_handler, 0, true);
-		if (ret < 0)
-			return ret;
-		ctx->irq = ret;
+	ret = decon_conf_irq(ctx, "vsync", decon_irq_handler, 0);
+	if (ret < 0)
+		return ret;
+	ctx->irq_vsync = ret;
 
-		ret = decon_conf_irq(ctx, "te", decon_te_irq_handler,
-				     IRQF_TRIGGER_RISING, false);
-		if (ret < 0)
+	ret = decon_conf_irq(ctx, "lcd_sys", decon_irq_handler, 0);
+	if (ret < 0)
+		return ret;
+	ctx->irq_lcd_sys = ret;
+
+	ctx->irq = (ctx->out_type & IFTYPE_I80) ? ctx->irq_lcd_sys
+						: ctx->irq_vsync;
+
+	ret = decon_conf_irq(ctx, "te", decon_te_irq_handler,
+			IRQF_TRIGGER_RISING);
+	if (ret < 0)
 			return ret;
-		if (ret) {
-			ctx->te_irq = ret;
-			ctx->out_type &= ~I80_HW_TRG;
-		}
-	} else {
-		ret = decon_conf_irq(ctx, "vsync", decon_irq_handler, 0, true);
-		if (ret < 0)
-			return ret;
-		ctx->irq = ret;
+	if (ret) {
+		ctx->te_irq = ret;
+		ctx->out_type &= ~I80_HW_TRG;
 	}
 
 	if (ctx->out_type & I80_HW_TRG) {
