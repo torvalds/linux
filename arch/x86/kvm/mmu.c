@@ -2424,7 +2424,7 @@ static void __shadow_walk_next(struct kvm_shadow_walk_iterator *iterator,
 
 static void shadow_walk_next(struct kvm_shadow_walk_iterator *iterator)
 {
-	return __shadow_walk_next(iterator, *iterator->sptep);
+	__shadow_walk_next(iterator, *iterator->sptep);
 }
 
 static void link_shadow_page(struct kvm_vcpu *vcpu, u64 *sptep,
