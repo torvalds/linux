@@ -563,6 +563,7 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 		entry->cmd += new_start_offset;
 		cb_hdr->length -= new_start_offset;
 		cb_hdr->errorOffset = 0;
+		cb_hdr->offset = 0;
 		list_add_tail(&entry->list, &restart_head[entry->cb_context]);
 		man->ctx[entry->cb_context].block_submission = true;
 	}
