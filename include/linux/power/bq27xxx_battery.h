@@ -54,7 +54,6 @@ struct bq27xxx_device_info {
 	struct device *dev;
 	int id;
 	enum bq27xxx_chip chip;
-	bool ram_chip;
 	u32 opts;
 	const char *name;
 	struct bq27xxx_dm_reg *dm_regs;
