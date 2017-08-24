@@ -453,23 +453,23 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 }
 
 static const struct child_device_config *
-child_device_ptr(const struct bdb_general_definitions *p_defs, int i)
+child_device_ptr(const struct bdb_general_definitions *defs, int i)
 {
-	return (const void *) &p_defs->devices[i * p_defs->child_dev_size];
+	return (const void *) &defs->devices[i * defs->child_dev_size];
 }
 
 static void
 parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 			  const struct bdb_header *bdb)
 {
-	struct sdvo_device_mapping *p_mapping;
-	const struct bdb_general_definitions *p_defs;
+	struct sdvo_device_mapping *mapping;
+	const struct bdb_general_definitions *defs;
 	const struct child_device_config *child;
 	int i, child_device_num, count;
 	u16	block_size;
 
-	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
-	if (!p_defs) {
+	defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
+	if (!defs) {
 		DRM_DEBUG_KMS("No general definition block is found, unable to construct sdvo mapping.\n");
 		return;
 	}
@@ -479,18 +479,17 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 	 * device size matches that of the *legacy* child device config
 	 * struct. Thus, SDVO mapping will be skipped for newer VBT.
 	 */
-	if (p_defs->child_dev_size != LEGACY_CHILD_DEVICE_CONFIG_SIZE) {
+	if (defs->child_dev_size != LEGACY_CHILD_DEVICE_CONFIG_SIZE) {
 		DRM_DEBUG_KMS("Unsupported child device size for SDVO mapping.\n");
 		return;
 	}
 	/* get the block size of general definitions */
-	block_size = get_blocksize(p_defs);
+	block_size = get_blocksize(defs);
 	/* get the number of child device */
-	child_device_num = (block_size - sizeof(*p_defs)) /
-		p_defs->child_dev_size;
+	child_device_num = (block_size - sizeof(*defs)) / defs->child_dev_size;
 	count = 0;
 	for (i = 0; i < child_device_num; i++) {
-		child = child_device_ptr(p_defs, i);
+		child = child_device_ptr(defs, i);
 		if (!child->device_type) {
 			/* skip the device block if device type is invalid */
 			continue;
@@ -514,20 +513,20 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 			      child->slave_addr,
 			      (child->dvo_port == DEVICE_PORT_DVOB) ?
 			      "SDVOB" : "SDVOC");
-		p_mapping = &dev_priv->vbt.sdvo_mappings[child->dvo_port - 1];
-		if (!p_mapping->initialized) {
-			p_mapping->dvo_port = child->dvo_port;
-			p_mapping->slave_addr = child->slave_addr;
-			p_mapping->dvo_wiring = child->dvo_wiring;
-			p_mapping->ddc_pin = child->ddc_pin;
-			p_mapping->i2c_pin = child->i2c_pin;
-			p_mapping->initialized = 1;
+		mapping = &dev_priv->vbt.sdvo_mappings[child->dvo_port - 1];
+		if (!mapping->initialized) {
+			mapping->dvo_port = child->dvo_port;
+			mapping->slave_addr = child->slave_addr;
+			mapping->dvo_wiring = child->dvo_wiring;
+			mapping->ddc_pin = child->ddc_pin;
+			mapping->i2c_pin = child->i2c_pin;
+			mapping->initialized = 1;
 			DRM_DEBUG_KMS("SDVO device: dvo=%x, addr=%x, wiring=%d, ddc_pin=%d, i2c_pin=%d\n",
-				      p_mapping->dvo_port,
-				      p_mapping->slave_addr,
-				      p_mapping->dvo_wiring,
-				      p_mapping->ddc_pin,
-				      p_mapping->i2c_pin);
+				      mapping->dvo_port,
+				      mapping->slave_addr,
+				      mapping->dvo_wiring,
+				      mapping->ddc_pin,
+				      mapping->i2c_pin);
 		} else {
 			DRM_DEBUG_KMS("Maybe one SDVO port is shared by "
 					 "two SDVO device.\n");
@@ -1250,15 +1249,15 @@ static void
 parse_device_mapping(struct drm_i915_private *dev_priv,
 		     const struct bdb_header *bdb)
 {
-	const struct bdb_general_definitions *p_defs;
-	const struct child_device_config *p_child;
+	const struct bdb_general_definitions *defs;
+	const struct child_device_config *child;
 	struct child_device_config *child_dev_ptr;
 	int i, child_device_num, count;
 	u8 expected_size;
 	u16 block_size;
 
-	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
-	if (!p_defs) {
+	defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
+	if (!defs) {
 		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
 		return;
 	}
@@ -1274,33 +1273,32 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		expected_size = 38;
 	} else {
 		expected_size = 38;
-		BUILD_BUG_ON(sizeof(*p_child) < 38);
+		BUILD_BUG_ON(sizeof(*child) < 38);
 		DRM_DEBUG_DRIVER("Expected child device config size for VBT version %u not known; assuming %u\n",
 				 bdb->version, expected_size);
 	}
 
 	/* Flag an error for unexpected size, but continue anyway. */
-	if (p_defs->child_dev_size != expected_size)
+	if (defs->child_dev_size != expected_size)
 		DRM_ERROR("Unexpected child device config size %u (expected %u for VBT version %u)\n",
-			  p_defs->child_dev_size, expected_size, bdb->version);
+			  defs->child_dev_size, expected_size, bdb->version);
 
 	/* The legacy sized child device config is the minimum we need. */
-	if (p_defs->child_dev_size < LEGACY_CHILD_DEVICE_CONFIG_SIZE) {
+	if (defs->child_dev_size < LEGACY_CHILD_DEVICE_CONFIG_SIZE) {
 		DRM_DEBUG_KMS("Child device config size %u is too small.\n",
-			      p_defs->child_dev_size);
+			      defs->child_dev_size);
 		return;
 	}
 
 	/* get the block size of general definitions */
-	block_size = get_blocksize(p_defs);
+	block_size = get_blocksize(defs);
 	/* get the number of child device */
-	child_device_num = (block_size - sizeof(*p_defs)) /
-				p_defs->child_dev_size;
+	child_device_num = (block_size - sizeof(*defs)) / defs->child_dev_size;
 	count = 0;
 	/* get the number of child device that is present */
 	for (i = 0; i < child_device_num; i++) {
-		p_child = child_device_ptr(p_defs, i);
-		if (!p_child->device_type) {
+		child = child_device_ptr(defs, i);
+		if (!child->device_type) {
 			/* skip the device block if device type is invalid */
 			continue;
 		}
@@ -1310,7 +1308,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
 		return;
 	}
-	dev_priv->vbt.child_dev = kcalloc(count, sizeof(*p_child), GFP_KERNEL);
+	dev_priv->vbt.child_dev = kcalloc(count, sizeof(*child), GFP_KERNEL);
 	if (!dev_priv->vbt.child_dev) {
 		DRM_DEBUG_KMS("No memory space for child device\n");
 		return;
@@ -1319,8 +1317,8 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 	dev_priv->vbt.child_dev_num = count;
 	count = 0;
 	for (i = 0; i < child_device_num; i++) {
-		p_child = child_device_ptr(p_defs, i);
-		if (!p_child->device_type) {
+		child = child_device_ptr(defs, i);
+		if (!child->device_type) {
 			/* skip the device block if device type is invalid */
 			continue;
 		}
@@ -1333,8 +1331,8 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		 * (child_dev_size) of the child device. Accessing the data must
 		 * depend on VBT version.
 		 */
-		memcpy(child_dev_ptr, p_child,
-		       min_t(size_t, p_defs->child_dev_size, sizeof(*p_child)));
+		memcpy(child_dev_ptr, child,
+		       min_t(size_t, defs->child_dev_size, sizeof(*child)));
 
 		/*
 		 * copied full block, now init values when they are not
