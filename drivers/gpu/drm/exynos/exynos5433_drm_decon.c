@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/iopoll.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
@@ -407,24 +408,19 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 
 static void decon_swreset(struct decon_context *ctx)
 {
-	unsigned int tries;
 	unsigned long flags;
+	u32 val;
+	int ret;
 
 	writel(0, ctx->addr + DECON_VIDCON0);
-	for (tries = 2000; tries; --tries) {
-		if (~readl(ctx->addr + DECON_VIDCON0) & VIDCON0_STOP_STATUS)
-			break;
-		udelay(10);
-	}
+	readl_poll_timeout(ctx->addr + DECON_VIDCON0, val,
+			   ~val & VIDCON0_STOP_STATUS, 12, 20000);
 
 	writel(VIDCON0_SWRESET, ctx->addr + DECON_VIDCON0);
-	for (tries = 2000; tries; --tries) {
-		if (~readl(ctx->addr + DECON_VIDCON0) & VIDCON0_SWRESET)
-			break;
-		udelay(10);
-	}
+	ret = readl_poll_timeout(ctx->addr + DECON_VIDCON0, val,
+				 ~val & VIDCON0_SWRESET, 12, 20000);
 
-	WARN(tries == 0, "failed to software reset DECON\n");
+	WARN(ret < 0, "failed to software reset DECON\n");
 
 	spin_lock_irqsave(&ctx->vblank_lock, flags);
 	ctx->frame_id = 0;
