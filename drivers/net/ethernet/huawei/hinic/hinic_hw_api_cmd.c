@@ -941,6 +941,7 @@ int hinic_api_cmd_init(struct hinic_api_cmd_chain **chain,
 		if (IS_ERR(chain[chain_type])) {
 			dev_err(&pdev->dev, "Failed to create chain %d\n",
 				chain_type);
+			err = PTR_ERR(chain[chain_type]);
 			goto err_create_chain;
 		}
 	}
