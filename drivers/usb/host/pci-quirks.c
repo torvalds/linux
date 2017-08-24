@@ -142,29 +142,30 @@ static int amd_chipset_sb_type_init(struct amd_chipset_info *pinfo)
 			pinfo->sb_type.gen = AMD_CHIPSET_SB700;
 		else if (rev >= 0x40 && rev <= 0x4f)
 			pinfo->sb_type.gen = AMD_CHIPSET_SB800;
-	}
-	pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
-					  0x145c, NULL);
-	if (pinfo->smbus_dev) {
-		pinfo->sb_type.gen = AMD_CHIPSET_TAISHAN;
 	} else {
 		pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
 				PCI_DEVICE_ID_AMD_HUDSON2_SMBUS, NULL);
 
-		if (!pinfo->smbus_dev) {
-			pinfo->sb_type.gen = NOT_AMD_CHIPSET;
-			return 0;
+		if (pinfo->smbus_dev) {
+			rev = pinfo->smbus_dev->revision;
+			if (rev >= 0x11 && rev <= 0x14)
+				pinfo->sb_type.gen = AMD_CHIPSET_HUDSON2;
+			else if (rev >= 0x15 && rev <= 0x18)
+				pinfo->sb_type.gen = AMD_CHIPSET_BOLTON;
+			else if (rev >= 0x39 && rev <= 0x3a)
+				pinfo->sb_type.gen = AMD_CHIPSET_YANGTZE;
+		} else {
+			pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
+							  0x145c, NULL);
+			if (pinfo->smbus_dev) {
+				rev = pinfo->smbus_dev->revision;
+				pinfo->sb_type.gen = AMD_CHIPSET_TAISHAN;
+			} else {
+				pinfo->sb_type.gen = NOT_AMD_CHIPSET;
+				return 0;
+			}
 		}
-
-		rev = pinfo->smbus_dev->revision;
-		if (rev >= 0x11 && rev <= 0x14)
-			pinfo->sb_type.gen = AMD_CHIPSET_HUDSON2;
-		else if (rev >= 0x15 && rev <= 0x18)
-			pinfo->sb_type.gen = AMD_CHIPSET_BOLTON;
-		else if (rev >= 0x39 && rev <= 0x3a)
-			pinfo->sb_type.gen = AMD_CHIPSET_YANGTZE;
 	}
-
 	pinfo->sb_type.rev = rev;
 	return 1;
 }
