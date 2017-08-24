@@ -324,10 +324,10 @@ int mlxsw_sp_dpipe_init(struct mlxsw_sp *mlxsw_sp)
 		return err;
 	err = mlxsw_sp_dpipe_erif_table_init(mlxsw_sp);
 	if (err)
-		goto err_erif_register;
+		goto err_erif_table_init;
 	return 0;
 
-err_erif_register:
+err_erif_table_init:
 	devlink_dpipe_headers_unregister(priv_to_devlink(mlxsw_sp->core));
 	return err;
 }
