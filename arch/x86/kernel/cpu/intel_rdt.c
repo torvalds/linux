@@ -172,34 +172,28 @@ static unsigned int cbm_idx(struct rdt_resource *r, unsigned int closid)
  * is always 20 on hsw server parts. The minimum cache bitmask length
  * allowed for HSW server is always 2 bits. Hardcode all of them.
  */
-static inline bool cache_alloc_hsw_probe(void)
+static inline void cache_alloc_hsw_probe(void)
 {
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
-	    boot_cpu_data.x86 == 6 &&
-	    boot_cpu_data.x86_model == INTEL_FAM6_HASWELL_X) {
-		struct rdt_resource *r  = &rdt_resources_all[RDT_RESOURCE_L3];
-		u32 l, h, max_cbm = BIT_MASK(20) - 1;
+	struct rdt_resource *r  = &rdt_resources_all[RDT_RESOURCE_L3];
+	u32 l, h, max_cbm = BIT_MASK(20) - 1;
 
-		if (wrmsr_safe(IA32_L3_CBM_BASE, max_cbm, 0))
-			return false;
-		rdmsr(IA32_L3_CBM_BASE, l, h);
+	if (wrmsr_safe(IA32_L3_CBM_BASE, max_cbm, 0))
+		return;
+	rdmsr(IA32_L3_CBM_BASE, l, h);
 
-		/* If all the bits were set in MSR, return success */
-		if (l != max_cbm)
-			return false;
+	/* If all the bits were set in MSR, return success */
+	if (l != max_cbm)
+		return;
 
-		r->num_closid = 4;
-		r->default_ctrl = max_cbm;
-		r->cache.cbm_len = 20;
-		r->cache.shareable_bits = 0xc0000;
-		r->cache.min_cbm_bits = 2;
-		r->alloc_capable = true;
-		r->alloc_enabled = true;
+	r->num_closid = 4;
+	r->default_ctrl = max_cbm;
+	r->cache.cbm_len = 20;
+	r->cache.shareable_bits = 0xc0000;
+	r->cache.min_cbm_bits = 2;
+	r->alloc_capable = true;
+	r->alloc_enabled = true;
 
-		return true;
-	}
-
-	return false;
+	rdt_alloc_capable = true;
 }
 
 /*
@@ -647,7 +641,7 @@ static __init bool get_rdt_alloc_resources(void)
 {
 	bool ret = false;
 
-	if (cache_alloc_hsw_probe())
+	if (rdt_alloc_capable)
 		return true;
 
 	if (!boot_cpu_has(X86_FEATURE_RDT_A))
@@ -689,8 +683,18 @@ static __init bool get_rdt_mon_resources(void)
 	return !rdt_get_mon_l3_config(&rdt_resources_all[RDT_RESOURCE_L3]);
 }
 
+static __init void rdt_quirks(void)
+{
+	switch (boot_cpu_data.x86_model) {
+	case INTEL_FAM6_HASWELL_X:
+		cache_alloc_hsw_probe();
+		break;
+	}
+}
+
 static __init bool get_rdt_resources(void)
 {
+	rdt_quirks();
 	rdt_alloc_capable = get_rdt_alloc_resources();
 	rdt_mon_capable = get_rdt_mon_resources();
 
