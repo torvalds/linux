@@ -301,7 +301,7 @@ SECTIONS
 	}
 #endif
 
-	BSS_SECTION(0, 0, 0)
+	BSS_SECTION(0, 0, 8)
 	_end = .;
 
 	STABS_DEBUG
