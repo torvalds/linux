@@ -42,7 +42,6 @@
  * properly set.
  */
 struct i2c_smbus_alert_setup {
-	unsigned int		alert_edge_triggered:1;
 	int			irq;
 };
 
