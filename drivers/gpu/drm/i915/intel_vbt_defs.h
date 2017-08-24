@@ -285,15 +285,15 @@ struct common_child_dev_config {
 	u8 ddc_pin;
 	u16 edid_ptr;
 	u8 dvo_cfg; /* See DEVICE_CFG_* above */
-	u8 efp_routed:1;
-	u8 lane_reversal:1;
-	u8 lspcon:1;
-	u8 iboost:1;
-	u8 hpd_invert:1;
+	u8 efp_routed:1;					/* 158 */
+	u8 lane_reversal:1;					/* 184 */
+	u8 lspcon:1;						/* 192 */
+	u8 iboost:1;						/* 196 */
+	u8 hpd_invert:1;					/* 196 */
 	u8 flag_reserved:3;
-	u8 hdmi_support:1;
-	u8 dp_support:1;
-	u8 tmds_support:1;
+	u8 hdmi_support:1;					/* 158 */
+	u8 dp_support:1;					/* 158 */
+	u8 tmds_support:1;					/* 158 */
 	u8 support_reserved:5;
 	u8 aux_channel;
 	u8 dongle_detect;
