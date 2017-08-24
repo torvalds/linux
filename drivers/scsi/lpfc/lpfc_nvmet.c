@@ -1508,7 +1508,6 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 			    struct rqb_dmabuf *nvmebuf,
 			    uint64_t isr_timestamp)
 {
-#if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	struct lpfc_nvmet_rcv_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct fc_frame_header *fc_hdr;
@@ -1521,6 +1520,9 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint32_t id;
 #endif
+
+	if (!IS_ENABLED(CONFIG_NVME_TARGET_FC))
+		return;
 
 	ctx_buf = NULL;
 	if (!nvmebuf || !phba->targetport) {
@@ -1665,7 +1667,6 @@ dropit:
 
 	if (nvmebuf)
 		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
-#endif
 }
 
 /**
