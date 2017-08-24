@@ -162,6 +162,7 @@ struct exynos_drm_crtc {
 	const struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
 	struct exynos_drm_clk		*pipe_clk;
+	bool				i80_mode : 1;
 };
 
 static inline void exynos_drm_pipe_clk_enable(struct exynos_drm_crtc *crtc,

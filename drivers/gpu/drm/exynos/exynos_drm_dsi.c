@@ -1543,6 +1543,8 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 		drm_panel_attach(dsi->panel, &dsi->connector);
 		dsi->connector.status = connector_status_connected;
 	}
+	exynos_drm_crtc_get_by_type(drm, EXYNOS_DISPLAY_TYPE_LCD)->i80_mode =
+			!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO);
 
 	mutex_unlock(&drm->mode_config.mutex);
 
