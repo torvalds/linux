@@ -793,7 +793,6 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	struct tty_struct *tty;
 	struct path *pts_path;
 	struct dentry *dentry;
-	struct vfsmount *mnt;
 	int retval;
 	int index;
 
@@ -806,7 +805,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	if (retval)
 		return retval;
 
-	fsi = devpts_acquire(filp, &mnt);
+	fsi = devpts_acquire(filp);
 	if (IS_ERR(fsi)) {
 		retval = PTR_ERR(fsi);
 		goto out_free_file;
@@ -850,7 +849,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	pts_path = kmalloc(sizeof(struct path), GFP_KERNEL);
 	if (!pts_path)
 		goto err_release;
-	pts_path->mnt = mnt;
+	pts_path->mnt = filp->f_path.mnt;
 	pts_path->dentry = dentry;
 	path_get(pts_path);
 	tty->link->driver_data = pts_path;
@@ -867,7 +866,6 @@ err_path_put:
 	path_put(pts_path);
 	kfree(pts_path);
 err_release:
-	mntput(mnt);
 	tty_unlock(tty);
 	// This will also put-ref the fsi
 	tty_release(inode, filp);
@@ -876,7 +874,6 @@ out:
 	devpts_kill_index(fsi, index);
 out_put_fsi:
 	devpts_release(fsi);
-	mntput(mnt);
 out_free_file:
 	tty_free_file(filp);
 	return retval;
