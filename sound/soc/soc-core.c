@@ -1029,7 +1029,8 @@ struct snd_soc_dai *snd_soc_find_dai(
 			continue;
 		list_for_each_entry(dai, &component->dai_list, list) {
 			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name)
-			    && strcmp(dai->driver->name, dlc->dai_name))
+			    && (!dai->driver->name
+				|| strcmp(dai->driver->name, dlc->dai_name)))
 				continue;
 
 			return dai;
