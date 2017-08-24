@@ -14,6 +14,10 @@
 #ifndef __QCOM_GLINK_NATIVE_H__
 #define __QCOM_GLINK_NATIVE_H__
 
+#define GLINK_FEATURE_INTENT_REUSE	BIT(0)
+#define GLINK_FEATURE_MIGRATION		BIT(1)
+#define GLINK_FEATURE_TRACER_PKT	BIT(2)
+
 struct qcom_glink_pipe {
 	size_t length;
 
@@ -31,6 +35,7 @@ struct qcom_glink_pipe {
 struct qcom_glink;
 
 struct qcom_glink *qcom_glink_native_probe(struct device *dev,
+					   unsigned long features,
 					   struct qcom_glink_pipe *rx,
 					   struct qcom_glink_pipe *tx);
 void qcom_glink_native_remove(struct qcom_glink *glink);

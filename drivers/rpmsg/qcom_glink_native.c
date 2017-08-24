@@ -31,6 +31,7 @@
 #include "qcom_glink_native.h"
 
 #define GLINK_NAME_SIZE		32
+#define GLINK_VERSION_1		1
 
 #define RPM_GLINK_CID_MIN	1
 #define RPM_GLINK_CID_MAX	65536
@@ -94,6 +95,9 @@ struct qcom_glink {
 	struct mutex idr_lock;
 	struct idr lcids;
 	struct idr rcids;
+	unsigned long features;
+
+	bool intentless;
 };
 
 enum {
@@ -256,8 +260,8 @@ static int qcom_glink_send_version(struct qcom_glink *glink)
 	struct glink_msg msg;
 
 	msg.cmd = cpu_to_le16(RPM_CMD_VERSION);
-	msg.param1 = cpu_to_le16(1);
-	msg.param2 = cpu_to_le32(GLINK_FEATURE_INTENTLESS);
+	msg.param1 = cpu_to_le16(GLINK_VERSION_1);
+	msg.param2 = cpu_to_le32(glink->features);
 
 	return qcom_glink_tx(glink, &msg, sizeof(msg), NULL, 0, true);
 }
@@ -267,8 +271,8 @@ static void qcom_glink_send_version_ack(struct qcom_glink *glink)
 	struct glink_msg msg;
 
 	msg.cmd = cpu_to_le16(RPM_CMD_VERSION_ACK);
-	msg.param1 = cpu_to_le16(1);
-	msg.param2 = cpu_to_le32(0);
+	msg.param1 = cpu_to_le16(GLINK_VERSION_1);
+	msg.param2 = cpu_to_le32(glink->features);
 
 	qcom_glink_tx(glink, &msg, sizeof(msg), NULL, 0, true);
 }
@@ -360,6 +364,63 @@ static void qcom_glink_send_close_ack(struct qcom_glink *glink,
 	req.param2 = 0;
 
 	qcom_glink_tx(glink, &req, sizeof(req), NULL, 0, true);
+}
+
+/**
+ * qcom_glink_receive_version() - receive version/features from remote system
+ *
+ * @glink:	pointer to transport interface
+ * @r_version:	remote version
+ * @r_features:	remote features
+ *
+ * This function is called in response to a remote-initiated version/feature
+ * negotiation sequence.
+ */
+static void qcom_glink_receive_version(struct qcom_glink *glink,
+				       u32 version,
+				       u32 features)
+{
+	switch (version) {
+	case 0:
+		break;
+	case GLINK_VERSION_1:
+		glink->features &= features;
+		/* FALLTHROUGH */
+	default:
+		qcom_glink_send_version_ack(glink);
+		break;
+	}
+}
+
+/**
+ * qcom_glink_receive_version_ack() - receive negotiation ack from remote system
+ *
+ * @glink:	pointer to transport interface
+ * @r_version:	remote version response
+ * @r_features:	remote features response
+ *
+ * This function is called in response to a local-initiated version/feature
+ * negotiation sequence and is the counter-offer from the remote side based
+ * upon the initial version and feature set requested.
+ */
+static void qcom_glink_receive_version_ack(struct qcom_glink *glink,
+					   u32 version,
+					   u32 features)
+{
+	switch (version) {
+	case 0:
+		/* Version negotiation failed */
+		break;
+	case GLINK_VERSION_1:
+		if (features == glink->features)
+			break;
+
+		glink->features &= features;
+		/* FALLTHROUGH */
+	default:
+		qcom_glink_send_version(glink);
+		break;
+	}
 }
 
 static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
@@ -908,9 +969,10 @@ static void qcom_glink_work(struct work_struct *work)
 
 		switch (cmd) {
 		case RPM_CMD_VERSION:
-			qcom_glink_send_version_ack(glink);
+			qcom_glink_receive_version(glink, param1, param2);
 			break;
 		case RPM_CMD_VERSION_ACK:
+			qcom_glink_receive_version_ack(glink, param1, param2);
 			break;
 		case RPM_CMD_OPEN:
 			qcom_glink_rx_open(glink, param1, msg->data);
@@ -931,6 +993,7 @@ static void qcom_glink_work(struct work_struct *work)
 }
 
 struct qcom_glink *qcom_glink_native_probe(struct device *dev,
+					   unsigned long features,
 					   struct qcom_glink_pipe *rx,
 					   struct qcom_glink_pipe *tx)
 {
@@ -945,6 +1008,8 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	glink->dev = dev;
 	glink->tx_pipe = tx;
 	glink->rx_pipe = rx;
+
+	glink->features = features;
 
 	mutex_init(&glink->tx_lock);
 	spin_lock_init(&glink->rx_lock);

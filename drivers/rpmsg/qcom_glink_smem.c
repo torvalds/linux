@@ -284,6 +284,7 @@ struct qcom_glink *qcom_glink_smem_register(struct device *parent,
 	*tx_pipe->head = 0;
 
 	glink = qcom_glink_native_probe(dev,
+					0,
 					&rx_pipe->native, &tx_pipe->native);
 	if (IS_ERR(glink)) {
 		ret = PTR_ERR(glink);

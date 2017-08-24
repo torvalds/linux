@@ -302,7 +302,9 @@ static int glink_rpm_probe(struct platform_device *pdev)
 	writel(0, tx_pipe->head);
 	writel(0, rx_pipe->tail);
 
-	glink = qcom_glink_native_probe(&pdev->dev, &rx_pipe->native,
+	glink = qcom_glink_native_probe(&pdev->dev,
+					0,
+					&rx_pipe->native,
 					&tx_pipe->native);
 	if (IS_ERR(glink))
 		return PTR_ERR(glink);
