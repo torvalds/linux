@@ -637,6 +637,85 @@ static __init void rdt_init_padding(void)
 	}
 }
 
+enum {
+	RDT_FLAG_CMT,
+	RDT_FLAG_MBM_TOTAL,
+	RDT_FLAG_MBM_LOCAL,
+	RDT_FLAG_L3_CAT,
+	RDT_FLAG_L3_CDP,
+	RDT_FLAG_L2_CAT,
+	RDT_FLAG_MBA,
+};
+
+#define RDT_OPT(idx, n, f)	\
+[idx] = {			\
+	.name = n,		\
+	.flag = f		\
+}
+
+struct rdt_options {
+	char	*name;
+	int	flag;
+	bool	force_off, force_on;
+};
+
+static struct rdt_options rdt_options[]  __initdata = {
+	RDT_OPT(RDT_FLAG_CMT,	    "cmt",	X86_FEATURE_CQM_OCCUP_LLC),
+	RDT_OPT(RDT_FLAG_MBM_TOTAL, "mbmtotal", X86_FEATURE_CQM_MBM_TOTAL),
+	RDT_OPT(RDT_FLAG_MBM_LOCAL, "mbmlocal", X86_FEATURE_CQM_MBM_LOCAL),
+	RDT_OPT(RDT_FLAG_L3_CAT,    "l3cat",	X86_FEATURE_CAT_L3),
+	RDT_OPT(RDT_FLAG_L3_CDP,    "l3cdp",	X86_FEATURE_CDP_L3),
+	RDT_OPT(RDT_FLAG_L2_CAT,    "l2cat",	X86_FEATURE_CAT_L2),
+	RDT_OPT(RDT_FLAG_MBA,	    "mba",	X86_FEATURE_MBA),
+};
+#define NUM_RDT_OPTIONS ARRAY_SIZE(rdt_options)
+
+static int __init set_rdt_options(char *str)
+{
+	struct rdt_options *o;
+	bool force_off;
+	char *tok;
+
+	if (*str == '=')
+		str++;
+	while ((tok = strsep(&str, ",")) != NULL) {
+		force_off = *tok == '!';
+		if (force_off)
+			tok++;
+		for (o = rdt_options; o < &rdt_options[NUM_RDT_OPTIONS]; o++) {
+			if (strcmp(tok, o->name) == 0) {
+				if (force_off)
+					o->force_off = true;
+				else
+					o->force_on = true;
+				break;
+			}
+		}
+	}
+	return 1;
+}
+__setup("rdt", set_rdt_options);
+
+static bool __init rdt_cpu_has(int flag)
+{
+	bool ret = boot_cpu_has(flag);
+	struct rdt_options *o;
+
+	if (!ret)
+		return ret;
+
+	for (o = rdt_options; o < &rdt_options[NUM_RDT_OPTIONS]; o++) {
+		if (flag == o->flag) {
+			if (o->force_off)
+				ret = false;
+			if (o->force_on)
+				ret = true;
+			break;
+		}
+	}
+	return ret;
+}
+
 static __init bool get_rdt_alloc_resources(void)
 {
 	bool ret = false;
@@ -647,21 +726,21 @@ static __init bool get_rdt_alloc_resources(void)
 	if (!boot_cpu_has(X86_FEATURE_RDT_A))
 		return false;
 
-	if (boot_cpu_has(X86_FEATURE_CAT_L3)) {
+	if (rdt_cpu_has(X86_FEATURE_CAT_L3)) {
 		rdt_get_cache_alloc_cfg(1, &rdt_resources_all[RDT_RESOURCE_L3]);
-		if (boot_cpu_has(X86_FEATURE_CDP_L3)) {
+		if (rdt_cpu_has(X86_FEATURE_CDP_L3)) {
 			rdt_get_cdp_l3_config(RDT_RESOURCE_L3DATA);
 			rdt_get_cdp_l3_config(RDT_RESOURCE_L3CODE);
 		}
 		ret = true;
 	}
-	if (boot_cpu_has(X86_FEATURE_CAT_L2)) {
+	if (rdt_cpu_has(X86_FEATURE_CAT_L2)) {
 		/* CPUID 0x10.2 fields are same format at 0x10.1 */
 		rdt_get_cache_alloc_cfg(2, &rdt_resources_all[RDT_RESOURCE_L2]);
 		ret = true;
 	}
 
-	if (boot_cpu_has(X86_FEATURE_MBA)) {
+	if (rdt_cpu_has(X86_FEATURE_MBA)) {
 		if (rdt_get_mem_config(&rdt_resources_all[RDT_RESOURCE_MBA]))
 			ret = true;
 	}
@@ -670,11 +749,11 @@ static __init bool get_rdt_alloc_resources(void)
 
 static __init bool get_rdt_mon_resources(void)
 {
-	if (boot_cpu_has(X86_FEATURE_CQM_OCCUP_LLC))
+	if (rdt_cpu_has(X86_FEATURE_CQM_OCCUP_LLC))
 		rdt_mon_features |= (1 << QOS_L3_OCCUP_EVENT_ID);
-	if (boot_cpu_has(X86_FEATURE_CQM_MBM_TOTAL))
+	if (rdt_cpu_has(X86_FEATURE_CQM_MBM_TOTAL))
 		rdt_mon_features |= (1 << QOS_L3_MBM_TOTAL_EVENT_ID);
-	if (boot_cpu_has(X86_FEATURE_CQM_MBM_LOCAL))
+	if (rdt_cpu_has(X86_FEATURE_CQM_MBM_LOCAL))
 		rdt_mon_features |= (1 << QOS_L3_MBM_LOCAL_EVENT_ID);
 
 	if (!rdt_mon_features)
@@ -687,7 +766,8 @@ static __init void rdt_quirks(void)
 {
 	switch (boot_cpu_data.x86_model) {
 	case INTEL_FAM6_HASWELL_X:
-		cache_alloc_hsw_probe();
+		if (!rdt_options[RDT_FLAG_L3_CAT].force_off)
+			cache_alloc_hsw_probe();
 		break;
 	}
 }
