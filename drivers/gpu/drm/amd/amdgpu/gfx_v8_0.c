@@ -4622,12 +4622,10 @@ static int gfx_v8_0_mqd_init(struct amdgpu_ring *ring)
 	mqd->compute_static_thread_mgmt_se2 = 0xffffffff;
 	mqd->compute_static_thread_mgmt_se3 = 0xffffffff;
 	mqd->compute_misc_reserved = 0x00000003;
-	if (!(adev->flags & AMD_IS_APU)) {
-		mqd->dynamic_cu_mask_addr_lo = lower_32_bits(ring->mqd_gpu_addr
-					     + offsetof(struct vi_mqd_allocation, dynamic_cu_mask));
-		mqd->dynamic_cu_mask_addr_hi = upper_32_bits(ring->mqd_gpu_addr
-					     + offsetof(struct vi_mqd_allocation, dynamic_cu_mask));
-	}
+	mqd->dynamic_cu_mask_addr_lo = lower_32_bits(ring->mqd_gpu_addr
+						     + offsetof(struct vi_mqd_allocation, dynamic_cu_mask));
+	mqd->dynamic_cu_mask_addr_hi = upper_32_bits(ring->mqd_gpu_addr
+						     + offsetof(struct vi_mqd_allocation, dynamic_cu_mask));
 	eop_base_addr = ring->eop_gpu_addr >> 8;
 	mqd->cp_hqd_eop_base_addr_lo = eop_base_addr;
 	mqd->cp_hqd_eop_base_addr_hi = upper_32_bits(eop_base_addr);
