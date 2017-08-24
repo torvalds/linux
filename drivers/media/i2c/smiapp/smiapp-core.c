@@ -841,6 +841,8 @@ static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
 		&client->dev,
 		compressed_max_bpp - sensor->compressed_min_bpp + 1,
 		sizeof(*sensor->valid_link_freqs), GFP_KERNEL);
+	if (!sensor->valid_link_freqs)
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(smiapp_csi_data_formats); i++) {
 		const struct smiapp_csi_data_format *f =
