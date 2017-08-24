@@ -160,18 +160,18 @@ static struct phy_ops ralink_usb_phy_ops = {
 static const struct of_device_id ralink_usb_phy_of_match[] = {
 	{
 		.compatible = "ralink,rt3352-usbphy",
-		.data = (void *) (RT_CLKCFG1_UPHY1_CLK_EN |
-				  RT_CLKCFG1_UPHY0_CLK_EN)
+		.data = (void *)(uintptr_t)(RT_CLKCFG1_UPHY1_CLK_EN |
+					    RT_CLKCFG1_UPHY0_CLK_EN)
 	},
 	{
 		.compatible = "mediatek,mt7620-usbphy",
-		.data = (void *) (MT7620_CLKCFG1_UPHY1_CLK_EN |
-				  MT7620_CLKCFG1_UPHY0_CLK_EN)
+		.data = (void *)(uintptr_t)(MT7620_CLKCFG1_UPHY1_CLK_EN |
+					    MT7620_CLKCFG1_UPHY0_CLK_EN)
 	},
 	{
 		.compatible = "mediatek,mt7628-usbphy",
-		.data = (void *) (MT7620_CLKCFG1_UPHY1_CLK_EN |
-				  MT7620_CLKCFG1_UPHY0_CLK_EN) },
+		.data = (void *)(uintptr_t)(MT7620_CLKCFG1_UPHY1_CLK_EN |
+					    MT7620_CLKCFG1_UPHY0_CLK_EN) },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ralink_usb_phy_of_match);
@@ -192,7 +192,7 @@ static int ralink_usb_phy_probe(struct platform_device *pdev)
 	if (!phy)
 		return -ENOMEM;
 
-	phy->clk = (u32) match->data;
+	phy->clk = (uintptr_t)match->data;
 	phy->base = NULL;
 
 	phy->sysctl = syscon_regmap_lookup_by_phandle(dev->of_node, "ralink,sysctl");
