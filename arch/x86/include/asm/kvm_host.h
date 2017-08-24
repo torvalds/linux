@@ -85,8 +85,8 @@
 			  | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_MCE     \
 			  | X86_CR4_PGE | X86_CR4_PCE | X86_CR4_OSFXSR | X86_CR4_PCIDE \
 			  | X86_CR4_OSXSAVE | X86_CR4_SMEP | X86_CR4_FSGSBASE \
-			  | X86_CR4_OSXMMEXCPT | X86_CR4_VMXE | X86_CR4_SMAP \
-			  | X86_CR4_PKE))
+			  | X86_CR4_OSXMMEXCPT | X86_CR4_LA57 | X86_CR4_VMXE \
+			  | X86_CR4_SMAP | X86_CR4_PKE))
 
 #define CR8_RESERVED_BITS (~(unsigned long)X86_CR8_TPR)
 
@@ -1298,20 +1298,6 @@ static inline u32 get_rdx_init_val(void)
 static inline void kvm_inject_gp(struct kvm_vcpu *vcpu, u32 error_code)
 {
 	kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
-}
-
-static inline u64 get_canonical(u64 la)
-{
-	return ((int64_t)la << 16) >> 16;
-}
-
-static inline bool is_noncanonical_address(u64 la)
-{
-#ifdef CONFIG_X86_64
-	return get_canonical(la) != la;
-#else
-	return false;
-#endif
 }
 
 #define TSS_IOPB_BASE_OFFSET 0x66

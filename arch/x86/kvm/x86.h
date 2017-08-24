@@ -97,6 +97,40 @@ static inline u32 bit(int bitno)
 	return 1 << (bitno & 31);
 }
 
+static inline u8 vcpu_virt_addr_bits(struct kvm_vcpu *vcpu)
+{
+	return kvm_read_cr4_bits(vcpu, X86_CR4_LA57) ? 57 : 48;
+}
+
+static inline u8 ctxt_virt_addr_bits(struct x86_emulate_ctxt *ctxt)
+{
+	return (ctxt->ops->get_cr(ctxt, 4) & X86_CR4_LA57) ? 57 : 48;
+}
+
+static inline u64 get_canonical(u64 la, u8 vaddr_bits)
+{
+	return ((int64_t)la << (64 - vaddr_bits)) >> (64 - vaddr_bits);
+}
+
+static inline bool is_noncanonical_address(u64 la, struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_X86_64
+	return get_canonical(la, vcpu_virt_addr_bits(vcpu)) != la;
+#else
+	return false;
+#endif
+}
+
+static inline bool emul_is_noncanonical_address(u64 la,
+						struct x86_emulate_ctxt *ctxt)
+{
+#ifdef CONFIG_X86_64
+	return get_canonical(la, ctxt_virt_addr_bits(ctxt)) != la;
+#else
+	return false;
+#endif
+}
+
 static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
 					gva_t gva, gfn_t gfn, unsigned access)
 {
