@@ -581,8 +581,8 @@ static int tcf_csum_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 		.update_flags = p->update_flags,
 		.index   = p->tcf_index,
 		.action  = p->tcf_action,
-		.refcnt  = p->tcf_refcnt - ref,
-		.bindcnt = p->tcf_bindcnt - bind,
+		.refcnt  = atomic_read(&p->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&p->tcf_bindcnt) - bind,
 	};
 	struct tcf_t t;
 

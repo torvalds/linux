@@ -562,8 +562,8 @@ static int tcf_ife_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	struct tcf_ife_info *ife = to_ife(a);
 	struct tc_ife opt = {
 		.index = ife->tcf_index,
-		.refcnt = ife->tcf_refcnt - ref,
-		.bindcnt = ife->tcf_bindcnt - bind,
+		.refcnt = atomic_read(&ife->tcf_refcnt) - ref,
+		.bindcnt = atomic_read(&ife->tcf_bindcnt) - bind,
 		.action = ife->tcf_action,
 		.flags = ife->flags,
 	};

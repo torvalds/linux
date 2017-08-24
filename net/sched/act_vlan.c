@@ -208,8 +208,8 @@ static int tcf_vlan_dump(struct sk_buff *skb, struct tc_action *a,
 	struct tcf_vlan *v = to_vlan(a);
 	struct tc_vlan opt = {
 		.index    = v->tcf_index,
-		.refcnt   = v->tcf_refcnt - ref,
-		.bindcnt  = v->tcf_bindcnt - bind,
+		.refcnt   = atomic_read(&v->tcf_refcnt) - ref,
+		.bindcnt  = atomic_read(&v->tcf_bindcnt) - bind,
 		.action   = v->tcf_action,
 		.v_action = v->tcfv_action,
 	};
