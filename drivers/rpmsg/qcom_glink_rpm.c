@@ -77,13 +77,16 @@ static size_t glink_rpm_rx_avail(struct qcom_glink_pipe *glink_pipe)
 }
 
 static void glink_rpm_rx_peak(struct qcom_glink_pipe *glink_pipe,
-			      void *data, size_t count)
+			      void *data, unsigned int offset, size_t count)
 {
 	struct glink_rpm_pipe *pipe = to_rpm_pipe(glink_pipe);
 	unsigned int tail;
 	size_t len;
 
 	tail = readl(pipe->tail);
+	tail += offset;
+	if (tail >= pipe->native.length)
+		tail -= pipe->native.length;
 
 	len = min_t(size_t, count, pipe->native.length - tail);
 	if (len) {

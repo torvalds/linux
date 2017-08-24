@@ -87,13 +87,16 @@ static size_t glink_smem_rx_avail(struct qcom_glink_pipe *np)
 }
 
 static void glink_smem_rx_peak(struct qcom_glink_pipe *np,
-			       void *data, size_t count)
+			       void *data, unsigned int offset, size_t count)
 {
 	struct glink_smem_pipe *pipe = to_smem_pipe(np);
 	size_t len;
 	u32 tail;
 
 	tail = le32_to_cpu(*pipe->tail);
+	tail += offset;
+	if (tail >= pipe->native.length)
+		tail -= pipe->native.length;
 
 	len = min_t(size_t, count, pipe->native.length - tail);
 	if (len) {

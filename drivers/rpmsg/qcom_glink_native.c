@@ -233,9 +233,9 @@ static size_t qcom_glink_rx_avail(struct qcom_glink *glink)
 }
 
 static void qcom_glink_rx_peak(struct qcom_glink *glink,
-			       void *data, size_t count)
+			       void *data, unsigned int offset, size_t count)
 {
-	glink->rx_pipe->peak(glink->rx_pipe, data, count);
+	glink->rx_pipe->peak(glink->rx_pipe, data, offset, count);
 }
 
 static void qcom_glink_rx_advance(struct qcom_glink *glink, size_t count)
@@ -600,7 +600,7 @@ static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
 
 	INIT_LIST_HEAD(&dcmd->node);
 
-	qcom_glink_rx_peak(glink, &dcmd->msg, sizeof(dcmd->msg) + extra);
+	qcom_glink_rx_peak(glink, &dcmd->msg, 0, sizeof(dcmd->msg) + extra);
 
 	spin_lock(&glink->rx_lock);
 	list_add_tail(&dcmd->node, &glink->rx_queue);
@@ -633,7 +633,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 		return -EAGAIN;
 	}
 
-	qcom_glink_rx_peak(glink, &hdr, sizeof(hdr));
+	qcom_glink_rx_peak(glink, &hdr, 0, sizeof(hdr));
 	chunk_size = le32_to_cpu(hdr.chunk_size);
 	left_size = le32_to_cpu(hdr.left_size);
 
@@ -700,9 +700,8 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 		goto advance_rx;
 	}
 
-	qcom_glink_rx_advance(glink, ALIGN(sizeof(hdr), 8));
 	qcom_glink_rx_peak(glink, intent->data + intent->offset,
-			   chunk_size);
+			   sizeof(hdr), chunk_size);
 	intent->offset += chunk_size;
 
 	/* Handle message when no fragments remain to be received */
@@ -722,7 +721,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 	}
 
 advance_rx:
-	qcom_glink_rx_advance(glink, ALIGN(chunk_size, 8));
+	qcom_glink_rx_advance(glink, ALIGN(sizeof(hdr) + chunk_size, 8));
 
 	return ret;
 }
@@ -759,7 +758,7 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 		if (avail < sizeof(msg))
 			break;
 
-		qcom_glink_rx_peak(glink, &msg, sizeof(msg));
+		qcom_glink_rx_peak(glink, &msg, 0, sizeof(msg));
 
 		cmd = le16_to_cpu(msg.cmd);
 		param1 = le16_to_cpu(msg.param1);
