@@ -1598,8 +1598,7 @@ static inline void vpid_sync_context(int vpid)
 
 static inline void ept_sync_global(void)
 {
-	if (cpu_has_vmx_invept_global())
-		__invept(VMX_EPT_EXTENT_GLOBAL, 0, 0);
+	__invept(VMX_EPT_EXTENT_GLOBAL, 0, 0);
 }
 
 static inline void ept_sync_context(u64 eptp)
@@ -6747,7 +6746,8 @@ static __init int hardware_setup(void)
 
 	if (!cpu_has_vmx_ept() ||
 	    !cpu_has_vmx_ept_4levels() ||
-	    !cpu_has_vmx_ept_mt_wb()) {
+	    !cpu_has_vmx_ept_mt_wb() ||
+	    !cpu_has_vmx_invept_global()) {
 		enable_ept = 0;
 		enable_unrestricted_guest = 0;
 		enable_ept_ad_bits = 0;
