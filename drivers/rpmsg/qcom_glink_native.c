@@ -233,7 +233,7 @@ static int qcom_glink_tx(struct qcom_glink *glink,
 
 	while (qcom_glink_tx_avail(glink) < tlen) {
 		if (!wait) {
-			ret = -ENOMEM;
+			ret = -EAGAIN;
 			goto out;
 		}
 
