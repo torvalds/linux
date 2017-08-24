@@ -901,6 +901,8 @@ struct mlxsw_sp_neigh_entry {
 					* this neigh entry
 					*/
 	struct list_head nexthop_neighs_list_node;
+	unsigned int counter_index;
+	bool counter_valid;
 };
 
 static const struct rhashtable_params mlxsw_sp_neigh_ht_params = {
@@ -945,6 +947,17 @@ u32 mlxsw_sp_neigh4_entry_dip(struct mlxsw_sp_neigh_entry *neigh_entry)
 	return ntohl(*((__be32 *) n->primary_key));
 }
 
+int mlxsw_sp_neigh_counter_get(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_neigh_entry *neigh_entry,
+			       u64 *p_counter)
+{
+	if (!neigh_entry->counter_valid)
+		return -EINVAL;
+
+	return mlxsw_sp_flow_counter_get(mlxsw_sp, neigh_entry->counter_index,
+					 p_counter, NULL);
+}
+
 static struct mlxsw_sp_neigh_entry *
 mlxsw_sp_neigh_entry_alloc(struct mlxsw_sp *mlxsw_sp, struct neighbour *n,
 			   u16 rif)
@@ -985,6 +998,41 @@ mlxsw_sp_neigh_entry_remove(struct mlxsw_sp *mlxsw_sp,
 			       mlxsw_sp_neigh_ht_params);
 }
 
+static bool
+mlxsw_sp_neigh4_counter_should_alloc(struct mlxsw_sp *mlxsw_sp)
+{
+	struct devlink *devlink;
+
+	devlink = priv_to_devlink(mlxsw_sp->core);
+	return devlink_dpipe_table_counter_enabled(devlink,
+						   MLXSW_SP_DPIPE_TABLE_NAME_HOST4);
+}
+
+static void
+mlxsw_sp_neigh_counter_alloc(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_neigh_entry *neigh_entry)
+{
+	if (mlxsw_sp_neigh_entry_type(neigh_entry) != AF_INET ||
+	    !mlxsw_sp_neigh4_counter_should_alloc(mlxsw_sp))
+		return;
+
+	if (mlxsw_sp_flow_counter_alloc(mlxsw_sp, &neigh_entry->counter_index))
+		return;
+
+	neigh_entry->counter_valid = true;
+}
+
+static void
+mlxsw_sp_neigh_counter_free(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_neigh_entry *neigh_entry)
+{
+	if (!neigh_entry->counter_valid)
+		return;
+	mlxsw_sp_flow_counter_free(mlxsw_sp,
+				   neigh_entry->counter_index);
+	neigh_entry->counter_valid = false;
+}
+
 static struct mlxsw_sp_neigh_entry *
 mlxsw_sp_neigh_entry_create(struct mlxsw_sp *mlxsw_sp, struct neighbour *n)
 {
@@ -1004,6 +1052,7 @@ mlxsw_sp_neigh_entry_create(struct mlxsw_sp *mlxsw_sp, struct neighbour *n)
 	if (err)
 		goto err_neigh_entry_insert;
 
+	mlxsw_sp_neigh_counter_alloc(mlxsw_sp, neigh_entry);
 	list_add(&neigh_entry->rif_list_node, &rif->neigh_list);
 
 	return neigh_entry;
@@ -1018,6 +1067,7 @@ mlxsw_sp_neigh_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_neigh_entry *neigh_entry)
 {
 	list_del(&neigh_entry->rif_list_node);
+	mlxsw_sp_neigh_counter_free(mlxsw_sp, neigh_entry);
 	mlxsw_sp_neigh_entry_remove(mlxsw_sp, neigh_entry);
 	mlxsw_sp_neigh_entry_free(neigh_entry);
 }
@@ -1323,6 +1373,9 @@ mlxsw_sp_router_neigh_entry_op4(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_reg_rauht_pack4(rauht_pl, op, neigh_entry->rif, neigh_entry->ha,
 			      dip);
+	if (neigh_entry->counter_valid)
+		mlxsw_reg_rauht_pack_counter(rauht_pl,
+					     neigh_entry->counter_index);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
 }
 
@@ -1337,6 +1390,9 @@ mlxsw_sp_router_neigh_entry_op6(struct mlxsw_sp *mlxsw_sp,
 
 	mlxsw_reg_rauht_pack6(rauht_pl, op, neigh_entry->rif, neigh_entry->ha,
 			      dip);
+	if (neigh_entry->counter_valid)
+		mlxsw_reg_rauht_pack_counter(rauht_pl,
+					     neigh_entry->counter_index);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
 }
 

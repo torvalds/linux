@@ -69,5 +69,8 @@ u32 mlxsw_sp_neigh4_entry_dip(struct mlxsw_sp_neigh_entry *neigh_entry);
 #define mlxsw_sp_rif_neigh_for_each(neigh_entry, rif)				\
 	for (neigh_entry = mlxsw_sp_rif_neigh_next(rif, NULL); neigh_entry;	\
 	     neigh_entry = mlxsw_sp_rif_neigh_next(rif, neigh_entry))
+int mlxsw_sp_neigh_counter_get(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_neigh_entry *neigh_entry,
+			       u64 *p_counter);
 
 #endif /* _MLXSW_ROUTER_H_*/

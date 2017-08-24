@@ -5054,6 +5054,14 @@ static inline void mlxsw_reg_rauht_pack6(char *payload,
 	mlxsw_reg_rauht_dip6_memcpy_to(payload, dip);
 }
 
+static inline void mlxsw_reg_rauht_pack_counter(char *payload,
+						u64 counter_index)
+{
+	mlxsw_reg_rauht_counter_index_set(payload, counter_index);
+	mlxsw_reg_rauht_counter_set_type_set(payload,
+					     MLXSW_REG_FLOW_COUNTER_SET_TYPE_PACKETS_BYTES);
+}
+
 /* RALEU - Router Algorithmic LPM ECMP Update Register
  * ---------------------------------------------------
  * The register enables updating the ECMP section in the action for multiple
