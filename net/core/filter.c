@@ -2553,26 +2553,37 @@ out:
 }
 EXPORT_SYMBOL_GPL(xdp_do_redirect);
 
-int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb)
+int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
+			    struct bpf_prog *xdp_prog)
 {
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
-	unsigned int len;
 	u32 index = ri->ifindex;
+	struct net_device *fwd;
+	unsigned int len;
+	int err = 0;
 
-	dev = dev_get_by_index_rcu(dev_net(dev), index);
+	fwd = dev_get_by_index_rcu(dev_net(dev), index);
 	ri->ifindex = 0;
-	if (unlikely(!dev)) {
-		return -EINVAL;
+	if (unlikely(!fwd)) {
+		err = -EINVAL;
+		goto out;
 	}
 
-	if (unlikely(!(dev->flags & IFF_UP)))
-		return -ENETDOWN;
-	len = dev->mtu + dev->hard_header_len + VLAN_HLEN;
-	if (skb->len > len)
-		return -E2BIG;
+	if (unlikely(!(fwd->flags & IFF_UP))) {
+		err = -ENETDOWN;
+		goto out;
+	}
 
-	skb->dev = dev;
-	return 0;
+	len = fwd->mtu + fwd->hard_header_len + VLAN_HLEN;
+	if (skb->len > len) {
+		err = -EMSGSIZE;
+		goto out;
+	}
+
+	skb->dev = fwd;
+out:
+	trace_xdp_redirect(dev, fwd, xdp_prog, XDP_REDIRECT, err);
+	return err;
 }
 EXPORT_SYMBOL_GPL(xdp_do_generic_redirect);
 
