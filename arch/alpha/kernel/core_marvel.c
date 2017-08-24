@@ -351,7 +351,7 @@ marvel_init_io7(struct io7 *io7)
 	}
 }
 
-void
+void __init
 marvel_io7_present(gct6_node *node)
 {
 	int pe;
@@ -406,7 +406,7 @@ marvel_find_console_vga_hose(void)
 #endif
 }
 
-gct6_search_struct gct_wanted_node_list[] = {
+gct6_search_struct gct_wanted_node_list[] __initdata = {
 	{ GCT_TYPE_HOSE, GCT_SUBTYPE_IO_PORT_MODULE, marvel_io7_present },
 	{ 0, 0, NULL }
 };
