@@ -127,35 +127,6 @@ int amdgpu_gem_object_open(struct drm_gem_object *obj,
 	return 0;
 }
 
-static int amdgpu_gem_vm_check(void *param, struct amdgpu_bo *bo)
-{
-	/* if anything is swapped out don't swap it in here,
-	   just abort and wait for the next CS */
-	if (!amdgpu_bo_gpu_accessible(bo))
-		return -ERESTARTSYS;
-
-	if (bo->shadow && !amdgpu_bo_gpu_accessible(bo->shadow))
-		return -ERESTARTSYS;
-
-	return 0;
-}
-
-static bool amdgpu_gem_vm_ready(struct amdgpu_device *adev,
-				struct amdgpu_vm *vm,
-				struct list_head *list)
-{
-	struct ttm_validate_buffer *entry;
-
-	list_for_each_entry(entry, list, head) {
-		struct amdgpu_bo *bo =
-			container_of(entry->bo, struct amdgpu_bo, tbo);
-		if (amdgpu_gem_vm_check(NULL, bo))
-			return false;
-	}
-
-	return !amdgpu_vm_validate_pt_bos(adev, vm, amdgpu_gem_vm_check, NULL);
-}
-
 void amdgpu_gem_object_close(struct drm_gem_object *obj,
 			     struct drm_file *file_priv)
 {
@@ -189,7 +160,7 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	if (bo_va && --bo_va->ref_count == 0) {
 		amdgpu_vm_bo_rmv(adev, bo_va);
 
-		if (amdgpu_gem_vm_ready(adev, vm, &list)) {
+		if (amdgpu_vm_ready(adev, vm)) {
 			struct dma_fence *fence = NULL;
 
 			r = amdgpu_vm_clear_freed(adev, vm, &fence);
@@ -513,7 +484,7 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 {
 	int r = -ERESTARTSYS;
 
-	if (!amdgpu_gem_vm_ready(adev, vm, list))
+	if (!amdgpu_vm_ready(adev, vm))
 		goto error;
 
 	r = amdgpu_vm_update_directories(adev, vm);

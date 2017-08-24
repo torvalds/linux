@@ -232,6 +232,38 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 }
 
 /**
+ * amdgpu_vm_check - helper for amdgpu_vm_ready
+ */
+static int amdgpu_vm_check(void *param, struct amdgpu_bo *bo)
+{
+	/* if anything is swapped out don't swap it in here,
+	   just abort and wait for the next CS */
+	if (!amdgpu_bo_gpu_accessible(bo))
+		return -ERESTARTSYS;
+
+	if (bo->shadow && !amdgpu_bo_gpu_accessible(bo->shadow))
+		return -ERESTARTSYS;
+
+	return 0;
+}
+
+/**
+ * amdgpu_vm_ready - check VM is ready for updates
+ *
+ * @adev: amdgpu device
+ * @vm: VM to check
+ *
+ * Check if all VM PDs/PTs are ready for updates
+ */
+bool amdgpu_vm_ready(struct amdgpu_device *adev, struct amdgpu_vm *vm)
+{
+	if (amdgpu_vm_check(NULL, vm->root.bo))
+		return false;
+
+	return !amdgpu_vm_validate_pt_bos(adev, vm, amdgpu_vm_check, NULL);
+}
+
+/**
  * amdgpu_vm_alloc_levels - allocate the PD/PT levels
  *
  * @adev: amdgpu_device pointer
