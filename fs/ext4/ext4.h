@@ -1565,6 +1565,7 @@ enum {
 					   nolocking */
 	EXT4_STATE_MAY_INLINE_DATA,	/* may have in-inode data */
 	EXT4_STATE_EXT_PRECACHED,	/* extents have been precached */
+	EXT4_STATE_LUSTRE_EA_INODE,	/* Lustre-style ea_inode */
 };
 
 #define EXT4_INODE_BIT_FNS(name, field, offset)				\
