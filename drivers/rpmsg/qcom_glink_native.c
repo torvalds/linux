@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/rpmsg.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/mailbox_client.h>
@@ -1001,6 +1002,25 @@ static struct rpmsg_endpoint *qcom_glink_create_ept(struct rpmsg_device *rpdev,
 	return ept;
 }
 
+static int qcom_glink_announce_create(struct rpmsg_device *rpdev)
+{
+	struct glink_channel *channel = to_glink_channel(rpdev->ept);
+	struct glink_core_rx_intent *intent;
+	struct qcom_glink *glink = channel->glink;
+	int num_intents = glink->intentless ? 0 : 5;
+
+	/* Channel is now open, advertise base set of intents */
+	while (num_intents--) {
+		intent = qcom_glink_alloc_intent(glink, channel, SZ_1K, true);
+		if (!intent)
+			break;
+
+		qcom_glink_advertise_intent(glink, channel, intent);
+	}
+
+	return 0;
+}
+
 static void qcom_glink_destroy_ept(struct rpmsg_endpoint *ept)
 {
 	struct glink_channel *channel = to_glink_channel(ept);
@@ -1076,6 +1096,7 @@ static struct device_node *qcom_glink_match_channel(struct device_node *node,
 
 static const struct rpmsg_device_ops glink_device_ops = {
 	.create_ept = qcom_glink_create_ept,
+	.announce_create = qcom_glink_announce_create,
 };
 
 static const struct rpmsg_endpoint_ops glink_endpoint_ops = {
