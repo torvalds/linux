@@ -195,10 +195,11 @@ EXPORT_SYMBOL(of_device_get_match_data);
 
 static ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len)
 {
-	const char *compat, *start = str;
+	const char *compat;
 	char *c;
 	struct property *p;
 	ssize_t csize;
+	ssize_t tsize;
 
 	if ((!dev) || (!dev->of_node))
 		return -ENODEV;
@@ -206,12 +207,16 @@ static ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len
 	/* Name & Type */
 	csize = snprintf(str, len, "of:N%sT%s", dev->of_node->name,
 			 dev->of_node->type);
+	tsize = csize;
 	len -= csize;
-	str += csize;
+	if (str)
+		str += csize;
 
 	of_property_for_each_string(dev->of_node, "compatible", p, compat) {
-		if (strlen(compat) + 2 > len)
-			break;
+		csize = strlen(compat) + 1;
+		tsize += csize;
+		if (csize > len)
+			continue;
 
 		csize = snprintf(str, len, "C%s", compat);
 		for (c = str; c; ) {
@@ -223,7 +228,7 @@ static ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len
 		str += csize;
 	}
 
-	return str - start;
+	return tsize;
 }
 
 int of_device_request_module(struct device *dev)
