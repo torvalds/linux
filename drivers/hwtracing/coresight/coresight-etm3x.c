@@ -899,7 +899,7 @@ static const struct dev_pm_ops etm_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(etm_runtime_suspend, etm_runtime_resume, NULL)
 };
 
-static struct amba_id etm_ids[] = {
+static const struct amba_id etm_ids[] = {
 	{	/* ETM 3.3 */
 		.id	= 0x0003b921,
 		.mask	= 0x0003ffff,
