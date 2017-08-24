@@ -114,26 +114,6 @@ static int mlxsw_sp_dpipe_table_erif_matches_dump(void *priv,
 	return devlink_dpipe_match_put(skb, &match);
 }
 
-static void mlxsw_sp_erif_entry_clear(struct devlink_dpipe_entry *entry)
-{
-	unsigned int value_count, value_index;
-	struct devlink_dpipe_value *value;
-
-	value = entry->action_values;
-	value_count = entry->action_values_count;
-	for (value_index = 0; value_index < value_count; value_index++) {
-		kfree(value[value_index].value);
-		kfree(value[value_index].mask);
-	}
-
-	value = entry->match_values;
-	value_count = entry->match_values_count;
-	for (value_index = 0; value_index < value_count; value_index++) {
-		kfree(value[value_index].value);
-		kfree(value[value_index].mask);
-	}
-}
-
 static void
 mlxsw_sp_erif_match_action_prepare(struct devlink_dpipe_match *match,
 				   struct devlink_dpipe_action *action)
@@ -270,12 +250,12 @@ start_again:
 		goto start_again;
 	rtnl_unlock();
 
-	mlxsw_sp_erif_entry_clear(&entry);
+	devlink_dpipe_entry_clear(&entry);
 	return 0;
 err_entry_append:
 err_entry_get:
 	rtnl_unlock();
-	mlxsw_sp_erif_entry_clear(&entry);
+	devlink_dpipe_entry_clear(&entry);
 	return err;
 }
 

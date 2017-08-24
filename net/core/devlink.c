@@ -1996,6 +1996,28 @@ int devlink_dpipe_entry_ctx_close(struct devlink_dpipe_dump_ctx *dump_ctx)
 }
 EXPORT_SYMBOL_GPL(devlink_dpipe_entry_ctx_close);
 
+void devlink_dpipe_entry_clear(struct devlink_dpipe_entry *entry)
+
+{
+	unsigned int value_count, value_index;
+	struct devlink_dpipe_value *value;
+
+	value = entry->action_values;
+	value_count = entry->action_values_count;
+	for (value_index = 0; value_index < value_count; value_index++) {
+		kfree(value[value_index].value);
+		kfree(value[value_index].mask);
+	}
+
+	value = entry->match_values;
+	value_count = entry->match_values_count;
+	for (value_index = 0; value_index < value_count; value_index++) {
+		kfree(value[value_index].value);
+		kfree(value[value_index].mask);
+	}
+}
+EXPORT_SYMBOL(devlink_dpipe_entry_clear);
+
 static int devlink_dpipe_entries_fill(struct genl_info *info,
 				      enum devlink_command cmd, int flags,
 				      struct devlink_dpipe_table *table)

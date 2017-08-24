@@ -323,6 +323,7 @@ int devlink_dpipe_entry_ctx_prepare(struct devlink_dpipe_dump_ctx *dump_ctx);
 int devlink_dpipe_entry_ctx_append(struct devlink_dpipe_dump_ctx *dump_ctx,
 				   struct devlink_dpipe_entry *entry);
 int devlink_dpipe_entry_ctx_close(struct devlink_dpipe_dump_ctx *dump_ctx);
+void devlink_dpipe_entry_clear(struct devlink_dpipe_entry *entry);
 int devlink_dpipe_action_put(struct sk_buff *skb,
 			     struct devlink_dpipe_action *action);
 int devlink_dpipe_match_put(struct sk_buff *skb,
@@ -446,6 +447,11 @@ static inline int
 devlink_dpipe_entry_ctx_close(struct devlink_dpipe_dump_ctx *dump_ctx)
 {
 	return 0;
+}
+
+static inline void
+devlink_dpipe_entry_clear(struct devlink_dpipe_entry *entry)
+{
 }
 
 static inline int
