@@ -915,7 +915,7 @@ static const struct dev_pm_ops stm_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(stm_runtime_suspend, stm_runtime_resume, NULL)
 };
 
-static struct amba_id stm_ids[] = {
+static const struct amba_id stm_ids[] = {
 	{
 		.id     = 0x0003b962,
 		.mask   = 0x0003ffff,
