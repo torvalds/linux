@@ -1108,6 +1108,7 @@ EXPORT_SYMBOL(scsi_init_io);
 
 /**
  * scsi_initialize_rq - initialize struct scsi_cmnd.req
+ * @rq: Request associated with the SCSI command to be initialized.
  *
  * Called from inside blk_get_request().
  */
