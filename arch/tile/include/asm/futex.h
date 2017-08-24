@@ -106,24 +106,15 @@
 	lock = __atomic_hashed_lock((int __force *)uaddr)
 #endif
 
-static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
+static inline int arch_futex_atomic_op_inuser(int op, u32 oparg, int *oval,
+		u32 __user *uaddr)
 {
-	int op = (encoded_op >> 28) & 7;
-	int cmp = (encoded_op >> 24) & 15;
-	int oparg = (encoded_op << 8) >> 20;
-	int cmparg = (encoded_op << 20) >> 20;
 	int uninitialized_var(val), ret;
 
 	__futex_prolog();
 
 	/* The 32-bit futex code makes this assumption, so validate it here. */
 	BUILD_BUG_ON(sizeof(atomic_t) != sizeof(int));
-
-	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
-		oparg = 1 << oparg;
-
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
-		return -EFAULT;
 
 	pagefault_disable();
 	switch (op) {
@@ -148,30 +139,9 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	}
 	pagefault_enable();
 
-	if (!ret) {
-		switch (cmp) {
-		case FUTEX_OP_CMP_EQ:
-			ret = (val == cmparg);
-			break;
-		case FUTEX_OP_CMP_NE:
-			ret = (val != cmparg);
-			break;
-		case FUTEX_OP_CMP_LT:
-			ret = (val < cmparg);
-			break;
-		case FUTEX_OP_CMP_GE:
-			ret = (val >= cmparg);
-			break;
-		case FUTEX_OP_CMP_LE:
-			ret = (val <= cmparg);
-			break;
-		case FUTEX_OP_CMP_GT:
-			ret = (val > cmparg);
-			break;
-		default:
-			ret = -ENOSYS;
-		}
-	}
+	if (!ret)
+		*oval = val;
+
 	return ret;
 }
 
