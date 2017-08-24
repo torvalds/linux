@@ -394,7 +394,7 @@ nvmet_fc_free_ls_iodlist(struct nvmet_fc_tgtport *tgtport)
 static struct nvmet_fc_ls_iod *
 nvmet_fc_alloc_ls_iod(struct nvmet_fc_tgtport *tgtport)
 {
-	static struct nvmet_fc_ls_iod *iod;
+	struct nvmet_fc_ls_iod *iod;
 	unsigned long flags;
 
 	spin_lock_irqsave(&tgtport->lock, flags);
@@ -471,7 +471,7 @@ nvmet_fc_destroy_fcp_iodlist(struct nvmet_fc_tgtport *tgtport,
 static struct nvmet_fc_fcp_iod *
 nvmet_fc_alloc_fcp_iod(struct nvmet_fc_tgt_queue *queue)
 {
-	static struct nvmet_fc_fcp_iod *fod;
+	struct nvmet_fc_fcp_iod *fod;
 
 	lockdep_assert_held(&queue->qlock);
 
@@ -704,7 +704,7 @@ nvmet_fc_delete_target_queue(struct nvmet_fc_tgt_queue *queue)
 {
 	struct nvmet_fc_tgtport *tgtport = queue->assoc->tgtport;
 	struct nvmet_fc_fcp_iod *fod = queue->fod;
-	struct nvmet_fc_defer_fcp_req *deferfcp;
+	struct nvmet_fc_defer_fcp_req *deferfcp, *tempptr;
 	unsigned long flags;
 	int i, writedataactive;
 	bool disconnect;
@@ -735,7 +735,8 @@ nvmet_fc_delete_target_queue(struct nvmet_fc_tgt_queue *queue)
 	}
 
 	/* Cleanup defer'ed IOs in queue */
-	list_for_each_entry(deferfcp, &queue->avail_defer_list, req_list) {
+	list_for_each_entry_safe(deferfcp, tempptr, &queue->avail_defer_list,
+				req_list) {
 		list_del(&deferfcp->req_list);
 		kfree(deferfcp);
 	}

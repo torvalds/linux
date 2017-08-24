@@ -3485,6 +3485,13 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv)
 	    !gpu_reset_clobbers_display(dev_priv))
 		return;
 
+	/* We have a modeset vs reset deadlock, defensively unbreak it.
+	 *
+	 * FIXME: We can do a _lot_ better, this is just a first iteration.
+	 */
+	i915_gem_set_wedged(dev_priv);
+	DRM_DEBUG_DRIVER("Wedging GPU to avoid deadlocks with pending modeset updates\n");
+
 	/*
 	 * Need mode_config.mutex so that we don't
 	 * trample ongoing ->detect() and whatnot.

@@ -199,12 +199,6 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	copy_and_pad(id->mn, sizeof(id->mn), model, sizeof(model) - 1);
 	copy_and_pad(id->fr, sizeof(id->fr), UTS_RELEASE, strlen(UTS_RELEASE));
 
-	memset(id->mn, ' ', sizeof(id->mn));
-	strncpy((char *)id->mn, "Linux", sizeof(id->mn));
-
-	memset(id->fr, ' ', sizeof(id->fr));
-	strncpy((char *)id->fr, UTS_RELEASE, sizeof(id->fr));
-
 	id->rab = 6;
 
 	/*
