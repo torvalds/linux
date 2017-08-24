@@ -1096,8 +1096,8 @@ static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
 
 	*chip		= rza1_gpiochip_template;
 	chip->base	= -1;
-	chip->label	= devm_kasprintf(rza1_pctl->dev, GFP_KERNEL, "%s-%u",
-					 np->name, gpioport);
+	chip->label	= devm_kasprintf(rza1_pctl->dev, GFP_KERNEL, "%s",
+					 np->name);
 	chip->ngpio	= of_args.args[2];
 	chip->of_node	= np;
 	chip->parent	= rza1_pctl->dev;
