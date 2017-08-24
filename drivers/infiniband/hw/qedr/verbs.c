@@ -491,7 +491,7 @@ struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
 		 (udata && context) ? "User Lib" : "Kernel");
 
 	if (!dev->rdma_ctx) {
-		DP_ERR(dev, "invlaid RDMA context\n");
+		DP_ERR(dev, "invalid RDMA context\n");
 		return ERR_PTR(-EINVAL);
 	}
 
