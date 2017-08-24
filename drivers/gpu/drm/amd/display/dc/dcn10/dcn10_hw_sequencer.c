@@ -2358,7 +2358,7 @@ static void program_all_pipe_in_tree(
 		verify_allow_pstate_change_high(dc->hwseq);
 	}
 
-	if (pipe_ctx->bottom_pipe != NULL)
+	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx)
 		program_all_pipe_in_tree(dc, pipe_ctx->bottom_pipe, context);
 }
 

@@ -581,6 +581,7 @@ static void split_stream_across_pipes(
 	secondary_pipe->plane_res.ipp = pool->ipps[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.xfm = pool->transforms[secondary_pipe->pipe_idx];
 	if (primary_pipe->bottom_pipe) {
+		ASSERT(primary_pipe->bottom_pipe != secondary_pipe);
 		secondary_pipe->bottom_pipe = primary_pipe->bottom_pipe;
 		secondary_pipe->bottom_pipe->top_pipe = secondary_pipe;
 	}
