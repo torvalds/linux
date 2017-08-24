@@ -2472,15 +2472,14 @@ static void nested_vmx_inject_exception_vmexit(struct kvm_vcpu *vcpu,
  * KVM wants to inject page-faults which it got to the guest. This function
  * checks whether in a nested guest, we need to inject them to L1 or L2.
  */
-static int nested_vmx_check_exception(struct kvm_vcpu *vcpu)
+static int nested_vmx_check_exception(struct kvm_vcpu *vcpu, unsigned long *exit_qual)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	unsigned int nr = vcpu->arch.exception.nr;
 
 	if (nr == PF_VECTOR) {
 		if (vcpu->arch.exception.nested_apf) {
-			nested_vmx_inject_exception_vmexit(vcpu,
-							   vcpu->arch.apf.nested_apf_token);
+			*exit_qual = vcpu->arch.apf.nested_apf_token;
 			return 1;
 		}
 		/*
@@ -2494,16 +2493,15 @@ static int nested_vmx_check_exception(struct kvm_vcpu *vcpu)
 		 */
 		if (nested_vmx_is_page_fault_vmexit(vmcs12,
 						    vcpu->arch.exception.error_code)) {
-			nested_vmx_inject_exception_vmexit(vcpu, vcpu->arch.cr2);
+			*exit_qual = vcpu->arch.cr2;
 			return 1;
 		}
 	} else {
-		unsigned long exit_qual = 0;
-		if (nr == DB_VECTOR)
-			exit_qual = vcpu->arch.dr6;
-
 		if (vmcs12->exception_bitmap & (1u << nr)) {
-			nested_vmx_inject_exception_vmexit(vcpu, exit_qual);
+			if (nr == DB_VECTOR)
+				*exit_qual = vcpu->arch.dr6;
+			else
+				*exit_qual = 0;
 			return 1;
 		}
 	}
@@ -2516,13 +2514,8 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned nr = vcpu->arch.exception.nr;
 	bool has_error_code = vcpu->arch.exception.has_error_code;
-	bool reinject = vcpu->arch.exception.injected;
 	u32 error_code = vcpu->arch.exception.error_code;
 	u32 intr_info = nr | INTR_INFO_VALID_MASK;
-
-	if (!reinject && is_guest_mode(vcpu) &&
-	    nested_vmx_check_exception(vcpu))
-		return;
 
 	if (has_error_code) {
 		vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE, error_code);
@@ -11011,9 +11004,19 @@ static void vmcs12_save_pending_event(struct kvm_vcpu *vcpu,
 static int vmx_check_nested_events(struct kvm_vcpu *vcpu, bool external_intr)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	unsigned long exit_qual;
 
 	if (kvm_event_needs_reinjection(vcpu))
 		return -EBUSY;
+
+	if (vcpu->arch.exception.pending &&
+		nested_vmx_check_exception(vcpu, &exit_qual)) {
+		if (vmx->nested.nested_run_pending)
+			return -EBUSY;
+		nested_vmx_inject_exception_vmexit(vcpu, exit_qual);
+		vcpu->arch.exception.pending = false;
+		return 0;
+	}
 
 	if (nested_cpu_has_preemption_timer(get_vmcs12(vcpu)) &&
 	    vmx->nested.preemption_timer_expired) {
