@@ -7977,7 +7977,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	int r;
 
 	vcpu->arch.apicv_active = kvm_x86_ops->get_enable_apicv(vcpu);
-	vcpu->arch.pv.pv_unhalted = false;
 	vcpu->arch.emulate_ctxt.ops = &emulate_ops;
 	if (!irqchip_in_kernel(vcpu->kvm) || kvm_vcpu_is_reset_bsp(vcpu))
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
@@ -8019,10 +8018,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 	fx_init(vcpu);
 
-	vcpu->arch.ia32_tsc_adjust_msr = 0x0;
-	vcpu->arch.pv_time_enabled = false;
-
-	vcpu->arch.guest_supported_xcr0 = 0;
 	vcpu->arch.guest_xstate_size = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
 
 	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
