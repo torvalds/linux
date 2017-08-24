@@ -1117,6 +1117,8 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 {
 	struct user_element *ue = kctl->private_data;
 	unsigned int *container;
+	struct snd_ctl_elem_id id;
+	int i;
 	int change;
 
 	if (size > 1024 * 128)	/* sane value */
@@ -1138,7 +1140,10 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 	ue->tlv_data = container;
 	ue->tlv_data_size = size;
 
-	snd_ctl_notify(ue->card, SNDRV_CTL_EVENT_MASK_TLV, &kctl->id);
+	for (i = 0; i < kctl->count; ++i) {
+		snd_ctl_build_ioff(&id, kctl, i);
+		snd_ctl_notify(ue->card, SNDRV_CTL_EVENT_MASK_TLV, &id);
+	}
 
 	return change;
 }
