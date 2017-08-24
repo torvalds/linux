@@ -226,7 +226,6 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 
 #define COPYBREAK_DEFAULT	256
 
-#define TSO_HEADER_SIZE		128
 /* Max number of allowed TCP segments for software TSO */
 #define FEC_MAX_TSO_SEGS	100
 #define FEC_MAX_SKB_DESCS	(FEC_MAX_TSO_SEGS * 2 + MAX_SKB_FRAGS)
