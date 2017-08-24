@@ -48,6 +48,9 @@
 
 static inline u64 rsvd_bits(int s, int e)
 {
+	if (e < s)
+		return 0;
+
 	return ((1ULL << (e - s + 1)) - 1) << s;
 }
 

@@ -28,6 +28,7 @@
 
 #include "x86.h"
 #include "tss.h"
+#include "mmu.h"
 
 /*
  * Operand types
@@ -4097,8 +4098,17 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 		u64 rsvd = 0;
 
 		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
-		if (efer & EFER_LMA)
-			rsvd = CR3_L_MODE_RESERVED_BITS & ~CR3_PCID_INVD;
+		if (efer & EFER_LMA) {
+			u64 maxphyaddr;
+			u32 eax = 0x80000008;
+
+			if (ctxt->ops->get_cpuid(ctxt, &eax, NULL, NULL,
+						 NULL, false))
+				maxphyaddr = eax & 0xff;
+			else
+				maxphyaddr = 36;
+			rsvd = rsvd_bits(maxphyaddr, 62);
+		}
 
 		if (new_val & rsvd)
 			return emulate_gp(ctxt, 0);
