@@ -40,7 +40,7 @@ static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_set_network_header(nskb, skb_network_header(skb) - skb->head);
 	skb_set_transport_header(nskb, skb_transport_header(skb) - skb->head);
 	skb_copy_and_csum_dev(skb, skb_put(nskb, skb->len));
-	kfree_skb(skb);
+	consume_skb(skb);
 
 	if (padlen) {
 		skb_put_zero(nskb, padlen);

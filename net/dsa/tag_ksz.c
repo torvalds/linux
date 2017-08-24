@@ -67,7 +67,7 @@ static struct sk_buff *ksz_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (skb_put_padto(nskb, nskb->len + padlen))
 			return NULL;
 
-		kfree_skb(skb);
+		consume_skb(skb);
 	}
 
 	tag = skb_put(nskb, KSZ_INGRESS_TAG_LEN);
