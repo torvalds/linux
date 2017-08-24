@@ -11,7 +11,7 @@
 
 static inline void kvm_clear_exception_queue(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.exception.pending = false;
+	vcpu->arch.exception.injected = false;
 }
 
 static inline void kvm_queue_interrupt(struct kvm_vcpu *vcpu, u8 vector,
@@ -29,7 +29,7 @@ static inline void kvm_clear_interrupt_queue(struct kvm_vcpu *vcpu)
 
 static inline bool kvm_event_needs_reinjection(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.exception.pending || vcpu->arch.interrupt.pending ||
+	return vcpu->arch.exception.injected || vcpu->arch.interrupt.pending ||
 		vcpu->arch.nmi_injected;
 }
 

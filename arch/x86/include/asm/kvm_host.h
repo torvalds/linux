@@ -547,8 +547,8 @@ struct kvm_vcpu_arch {
 
 	struct kvm_queued_exception {
 		bool pending;
+		bool injected;
 		bool has_error_code;
-		bool reinject;
 		u8 nr;
 		u32 error_code;
 		u8 nested_apf;
