@@ -599,6 +599,38 @@ mlxsw_sp_dpipe_table_host4_entries_dump(void *priv, bool counters_enabled,
 						      dump_ctx, AF_INET);
 }
 
+static void
+mlxsw_sp_dpipe_table_host_counters_update(struct mlxsw_sp *mlxsw_sp,
+					  bool enable, int type)
+{
+	int i;
+
+	rtnl_lock();
+	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++) {
+		struct mlxsw_sp_rif *rif = mlxsw_sp_rif_by_index(mlxsw_sp, i);
+		struct mlxsw_sp_neigh_entry *neigh_entry;
+
+		if (!rif)
+			continue;
+		mlxsw_sp_rif_neigh_for_each(neigh_entry, rif) {
+			if (mlxsw_sp_neigh_entry_type(neigh_entry) != type)
+				continue;
+			mlxsw_sp_neigh_entry_counter_update(mlxsw_sp,
+							    neigh_entry,
+							    enable);
+		}
+	}
+	rtnl_unlock();
+}
+
+static int mlxsw_sp_dpipe_table_host4_counters_update(void *priv, bool enable)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	mlxsw_sp_dpipe_table_host_counters_update(mlxsw_sp, enable, AF_INET);
+	return 0;
+}
+
 static u64
 mlxsw_sp_dpipe_table_host_size_get(struct mlxsw_sp *mlxsw_sp, int type)
 {
@@ -634,6 +666,7 @@ static struct devlink_dpipe_table_ops mlxsw_sp_host4_ops = {
 	.matches_dump = mlxsw_sp_dpipe_table_host4_matches_dump,
 	.actions_dump = mlxsw_sp_dpipe_table_host4_actions_dump,
 	.entries_dump = mlxsw_sp_dpipe_table_host4_entries_dump,
+	.counters_set_update = mlxsw_sp_dpipe_table_host4_counters_update,
 	.size_get = mlxsw_sp_dpipe_table_host4_size_get,
 };
 

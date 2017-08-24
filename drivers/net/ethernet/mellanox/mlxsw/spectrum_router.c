@@ -1429,6 +1429,18 @@ mlxsw_sp_neigh_entry_update(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
+void
+mlxsw_sp_neigh_entry_counter_update(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_neigh_entry *neigh_entry,
+				    bool adding)
+{
+	if (adding)
+		mlxsw_sp_neigh_counter_alloc(mlxsw_sp, neigh_entry);
+	else
+		mlxsw_sp_neigh_counter_free(mlxsw_sp, neigh_entry);
+	mlxsw_sp_neigh_entry_update(mlxsw_sp, neigh_entry, true);
+}
+
 struct mlxsw_sp_neigh_event_work {
 	struct work_struct work;
 	struct mlxsw_sp *mlxsw_sp;
