@@ -1618,6 +1618,38 @@ static int tclass_notify(struct net *net, struct sk_buff *oskb,
 			      n->nlmsg_flags & NLM_F_ECHO);
 }
 
+static int tclass_del_notify(struct net *net,
+			     const struct Qdisc_class_ops *cops,
+			     struct sk_buff *oskb, struct nlmsghdr *n,
+			     struct Qdisc *q, unsigned long cl)
+{
+	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+	struct sk_buff *skb;
+	int err = 0;
+
+	if (!cops->delete)
+		return -EOPNOTSUPP;
+
+	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	if (tc_fill_tclass(skb, q, cl, portid, n->nlmsg_seq, 0,
+			   RTM_DELTCLASS) < 0) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	err = cops->delete(q, cl);
+	if (err) {
+		kfree_skb(skb);
+		return err;
+	}
+
+	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+			      n->nlmsg_flags & NLM_F_ECHO);
+}
+
 static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n,
 			 struct netlink_ext_ack *extack)
 {
@@ -1722,12 +1754,7 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n,
 				goto out;
 			break;
 		case RTM_DELTCLASS:
-			err = -EOPNOTSUPP;
-			if (cops->delete)
-				err = cops->delete(q, cl);
-			if (err == 0)
-				tclass_notify(net, skb, n, q, cl,
-					      RTM_DELTCLASS);
+			err = tclass_del_notify(net, cops, skb, n, q, cl);
 			goto out;
 		case RTM_GETTCLASS:
 			err = tclass_notify(net, skb, n, q, cl, RTM_NEWTCLASS);
