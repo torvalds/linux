@@ -1550,6 +1550,7 @@ static int create_qp(struct ib_uverbs_file *file,
 		qp->qp_type	  = attr.qp_type;
 		atomic_set(&qp->usecnt, 0);
 		atomic_inc(&pd->usecnt);
+		qp->port = 0;
 		if (attr.send_cq)
 			atomic_inc(&attr.send_cq->usecnt);
 		if (attr.recv_cq)
@@ -1991,8 +1992,9 @@ static int modify_qp(struct ib_uverbs_file *file,
 	attr->alt_timeout	  = cmd->base.alt_timeout;
 	attr->rate_limit	  = cmd->rate_limit;
 
-	attr->ah_attr.type = rdma_ah_find_type(qp->device,
-					       cmd->base.dest.port_num);
+	if (cmd->base.attr_mask & IB_QP_AV)
+		attr->ah_attr.type = rdma_ah_find_type(qp->device,
+						       cmd->base.dest.port_num);
 	if (cmd->base.dest.is_global) {
 		rdma_ah_set_grh(&attr->ah_attr, NULL,
 				cmd->base.dest.flow_label,
@@ -2011,8 +2013,9 @@ static int modify_qp(struct ib_uverbs_file *file,
 			     cmd->base.dest.port_num);
 	rdma_ah_set_make_grd(&attr->ah_attr, false);
 
-	attr->alt_ah_attr.type = rdma_ah_find_type(qp->device,
-						   cmd->base.dest.port_num);
+	if (cmd->base.attr_mask & IB_QP_ALT_PATH)
+		attr->alt_ah_attr.type =
+			rdma_ah_find_type(qp->device, cmd->base.dest.port_num);
 	if (cmd->base.alt_dest.is_global) {
 		rdma_ah_set_grh(&attr->alt_ah_attr, NULL,
 				cmd->base.alt_dest.flow_label,
