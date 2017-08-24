@@ -235,6 +235,28 @@ static int emulate_dcbz(struct pt_regs *regs, unsigned char __user *addr)
 
 #define SWIZ_PTR(p)		((unsigned char __user *)((p) ^ swiz))
 
+#define __get_user_or_set_dar(_regs, _dest, _addr)		\
+	({							\
+		int rc = 0;					\
+		typeof(_addr) __addr = (_addr);			\
+		if (__get_user_inatomic(_dest, __addr)) {	\
+			_regs->dar = (unsigned long)__addr;	\
+			rc = -EFAULT;				\
+		}						\
+		rc;						\
+	})
+
+#define __put_user_or_set_dar(_regs, _src, _addr)		\
+	({							\
+		int rc = 0;					\
+		typeof(_addr) __addr = (_addr);			\
+		if (__put_user_inatomic(_src, __addr)) {	\
+			_regs->dar = (unsigned long)__addr;	\
+			rc = -EFAULT;				\
+		}						\
+		rc;						\
+	})
+
 static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
 			    unsigned int reg, unsigned int nb,
 			    unsigned int flags, unsigned int instr,
@@ -263,9 +285,10 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
 		} else {
 			unsigned long pc = regs->nip ^ (swiz & 4);
 
-			if (__get_user_inatomic(instr,
-						(unsigned int __user *)pc))
+			if (__get_user_or_set_dar(regs, instr,
+						  (unsigned int __user *)pc))
 				return -EFAULT;
+
 			if (swiz == 0 && (flags & SW))
 				instr = cpu_to_le32(instr);
 			nb = (instr >> 11) & 0x1f;
@@ -309,31 +332,31 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
 			       ((nb0 + 3) / 4) * sizeof(unsigned long));
 
 		for (i = 0; i < nb; ++i, ++p)
-			if (__get_user_inatomic(REG_BYTE(rptr, i ^ bswiz),
-						SWIZ_PTR(p)))
+			if (__get_user_or_set_dar(regs, REG_BYTE(rptr, i ^ bswiz),
+						  SWIZ_PTR(p)))
 				return -EFAULT;
 		if (nb0 > 0) {
 			rptr = &regs->gpr[0];
 			addr += nb;
 			for (i = 0; i < nb0; ++i, ++p)
-				if (__get_user_inatomic(REG_BYTE(rptr,
-								 i ^ bswiz),
-							SWIZ_PTR(p)))
+				if (__get_user_or_set_dar(regs,
+							  REG_BYTE(rptr, i ^ bswiz),
+							  SWIZ_PTR(p)))
 					return -EFAULT;
 		}
 
 	} else {
 		for (i = 0; i < nb; ++i, ++p)
-			if (__put_user_inatomic(REG_BYTE(rptr, i ^ bswiz),
-						SWIZ_PTR(p)))
+			if (__put_user_or_set_dar(regs, REG_BYTE(rptr, i ^ bswiz),
+						  SWIZ_PTR(p)))
 				return -EFAULT;
 		if (nb0 > 0) {
 			rptr = &regs->gpr[0];
 			addr += nb;
 			for (i = 0; i < nb0; ++i, ++p)
-				if (__put_user_inatomic(REG_BYTE(rptr,
-								 i ^ bswiz),
-							SWIZ_PTR(p)))
+				if (__put_user_or_set_dar(regs,
+							  REG_BYTE(rptr, i ^ bswiz),
+							  SWIZ_PTR(p)))
 					return -EFAULT;
 		}
 	}
@@ -345,29 +368,32 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
  * Only POWER6 has these instructions, and it does true little-endian,
  * so we don't need the address swizzling.
  */
-static int emulate_fp_pair(unsigned char __user *addr, unsigned int reg,
-			   unsigned int flags)
+static int emulate_fp_pair(struct pt_regs *regs, unsigned char __user *addr,
+			   unsigned int reg, unsigned int flags)
 {
 	char *ptr0 = (char *) &current->thread.TS_FPR(reg);
 	char *ptr1 = (char *) &current->thread.TS_FPR(reg+1);
-	int i, ret, sw = 0;
+	int i, sw = 0;
 
 	if (reg & 1)
 		return 0;	/* invalid form: FRS/FRT must be even */
 	if (flags & SW)
 		sw = 7;
-	ret = 0;
+
 	for (i = 0; i < 8; ++i) {
 		if (!(flags & ST)) {
-			ret |= __get_user(ptr0[i^sw], addr + i);
-			ret |= __get_user(ptr1[i^sw], addr + i + 8);
+			if (__get_user_or_set_dar(regs, ptr0[i^sw], addr + i))
+				return -EFAULT;
+			if (__get_user_or_set_dar(regs, ptr1[i^sw], addr + i + 8))
+				return -EFAULT;
 		} else {
-			ret |= __put_user(ptr0[i^sw], addr + i);
-			ret |= __put_user(ptr1[i^sw], addr + i + 8);
+			if (__put_user_or_set_dar(regs, ptr0[i^sw], addr + i))
+				return -EFAULT;
+			if (__put_user_or_set_dar(regs, ptr1[i^sw], addr + i + 8))
+				return -EFAULT;
 		}
 	}
-	if (ret)
-		return -EFAULT;
+
 	return 1;	/* exception handled and fixed up */
 }
 
@@ -377,24 +403,27 @@ static int emulate_lq_stq(struct pt_regs *regs, unsigned char __user *addr,
 {
 	char *ptr0 = (char *)&regs->gpr[reg];
 	char *ptr1 = (char *)&regs->gpr[reg+1];
-	int i, ret, sw = 0;
+	int i, sw = 0;
 
 	if (reg & 1)
 		return 0;	/* invalid form: GPR must be even */
 	if (flags & SW)
 		sw = 7;
-	ret = 0;
+
 	for (i = 0; i < 8; ++i) {
 		if (!(flags & ST)) {
-			ret |= __get_user(ptr0[i^sw], addr + i);
-			ret |= __get_user(ptr1[i^sw], addr + i + 8);
+			if (__get_user_or_set_dar(regs, ptr0[i^sw], addr + i))
+				return -EFAULT;
+			if (__get_user_or_set_dar(regs, ptr1[i^sw], addr + i + 8))
+				return -EFAULT;
 		} else {
-			ret |= __put_user(ptr0[i^sw], addr + i);
-			ret |= __put_user(ptr1[i^sw], addr + i + 8);
+			if (__put_user_or_set_dar(regs, ptr0[i^sw], addr + i))
+				return -EFAULT;
+			if (__put_user_or_set_dar(regs, ptr1[i^sw], addr + i + 8))
+				return -EFAULT;
 		}
 	}
-	if (ret)
-		return -EFAULT;
+
 	return 1;	/* exception handled and fixed up */
 }
 #endif /* CONFIG_PPC64 */
@@ -687,9 +716,14 @@ static int emulate_vsx(unsigned char __user *addr, unsigned int reg,
 	for (j = 0; j < length; j += elsize) {
 		for (i = 0; i < elsize; ++i) {
 			if (flags & ST)
-				ret |= __put_user(ptr[i^sw], addr + i);
+				ret = __put_user_or_set_dar(regs, ptr[i^sw],
+							    addr + i);
 			else
-				ret |= __get_user(ptr[i^sw], addr + i);
+				ret = __get_user_or_set_dar(regs, ptr[i^sw],
+							    addr + i);
+
+			if (ret)
+				return ret;
 		}
 		ptr  += elsize;
 #ifdef __LITTLE_ENDIAN__
@@ -739,7 +773,7 @@ int fix_alignment(struct pt_regs *regs)
 	unsigned int dsisr;
 	unsigned char __user *addr;
 	unsigned long p, swiz;
-	int ret, i;
+	int i;
 	union data {
 		u64 ll;
 		double dd;
@@ -936,7 +970,7 @@ int fix_alignment(struct pt_regs *regs)
 		if (flags & F) {
 			/* Special case for 16-byte FP loads and stores */
 			PPC_WARN_ALIGNMENT(fp_pair, regs);
-			return emulate_fp_pair(addr, reg, flags);
+			return emulate_fp_pair(regs, addr, reg, flags);
 		} else {
 #ifdef CONFIG_PPC64
 			/* Special case for 16-byte loads and stores */
@@ -966,15 +1000,12 @@ int fix_alignment(struct pt_regs *regs)
 		}
 
 		data.ll = 0;
-		ret = 0;
 		p = (unsigned long)addr;
 
 		for (i = 0; i < nb; i++)
-			ret |= __get_user_inatomic(data.v[start + i],
-						   SWIZ_PTR(p++));
-
-		if (unlikely(ret))
-			return -EFAULT;
+			if (__get_user_or_set_dar(regs, data.v[start + i],
+						  SWIZ_PTR(p++)))
+				return -EFAULT;
 
 	} else if (flags & F) {
 		data.ll = current->thread.TS_FPR(reg);
@@ -1046,15 +1077,13 @@ int fix_alignment(struct pt_regs *regs)
 			break;
 		}
 
-		ret = 0;
 		p = (unsigned long)addr;
 
 		for (i = 0; i < nb; i++)
-			ret |= __put_user_inatomic(data.v[start + i],
-						   SWIZ_PTR(p++));
+			if (__put_user_or_set_dar(regs, data.v[start + i],
+						  SWIZ_PTR(p++)))
+				return -EFAULT;
 
-		if (unlikely(ret))
-			return -EFAULT;
 	} else if (flags & F)
 		current->thread.TS_FPR(reg) = data.ll;
 	else
