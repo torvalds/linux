@@ -96,7 +96,7 @@ static DEFINE_SEMAPHORE(constable_mutex);
  /* and the answer */
  static medusa_answer_t user_answer;
  static DECLARE_WAIT_QUEUE_HEAD(userspace);
- static DECLARE_COMPLETION(userspace_answer);
+ // static DECLARE_COMPLETION(userspace_answer);
 
 /* is the user-space currently sending us something? */
 static atomic_t currently_receiving = ATOMIC_INIT(0);
@@ -105,6 +105,13 @@ static atomic_t currently_receiving = ATOMIC_INIT(0);
  static int recv_phase;
 
 static DECLARE_WAIT_QUEUE_HEAD(close_wait);
+
+static struct semaphore teleport_transport = 
+    __SEMAPHORE_INITIALIZER(teleport_transport, 0);
+static DECLARE_WAIT_QUEUE_HEAD(userspace_answer);
+static uintptr_t recv_req_id;
+static DEFINE_SEMAPHORE(take_answer);
+static DEFINE_SEMAPHORE(decision_lock);
 
 #ifdef GDB_HACK
 static pid_t gdb_pid = -1;
@@ -206,6 +213,8 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 		struct medusa_kobject_s * o1, struct medusa_kobject_s * o2)
 {
 	int retval;
+	int local_req_id;
+
 	if (in_interrupt()) {
 		/* houston, we have a problem! */
 		MED_PRINTF("decide called from interrupt context :(\n");
@@ -221,8 +230,8 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 		return MED_OK;
 #endif
 
-	if (down_killable(&constable_mutex)) // Don't create kill resistent program if there is an error in constable...
-		return MED_NO;
+	// if (down_killable(&constable_mutex)) // Don't create kill resistent program if there is an error in constable...
+	// 	return MED_NO;
 
 	/* end before sleeping, if possible */
 	if (!atomic_read(&constable_present)) {
@@ -230,39 +239,42 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 		 * this path is pretty fast and won't affect SMP
 		 * much, when constable is off.
 		 */
-		up(&constable_mutex);
+		// up(&constable_mutex);
 		return MED_ERR;
 	}
-
+    // LOCK SEMAPHORE FOR DECISION
+    down(&decision_lock)
 	/* place the question and ask. */
 	decision_event = event;
 	decision_o1 = o1;
 	decision_o2 = o2;
 	/* wmb() */
 	barrier(); /* gcc optimalization causes segfault on multiprocessor machines */
-	atomic_set(&question_ready, 1); /* doesn't matter whether this is atomic or not */
+	atomic_inc(&question_ready); /* doesn't matter whether this is atomic or not */
 	barrier();
+    // GET REQ ID
+    local_req_id = atomic_read(&decision_request_id)
 	wake_up(&userspace);
 	barrier();
-	if (wait_for_completion_timeout(&userspace_answer, 5*HZ) == 0){
-		user_release(NULL, NULL);	
-	}
+    // WAIT UNTIL ANSWER IS READY
+	if (wait_event_timeout(&userspace_answer,
+                           local_req_id == recv_req_id, 5*HZ) == 0){
+        user_release(NULL, NULL);
+    }
 	barrier();
-	if (atomic_read(&question_ready)) {
-		atomic_set(&question_ready, 0);
-		printk("medusa: race conditions...\n");
-	}
+	// if (atomic_read(&question_ready)) {
+	// 	atomic_set(&question_ready, 0);
+	// 	printk("medusa: race conditions...\n");
+	// }
 
-	if (atomic_read(&constable_present))
+	if (atomic_read(&constable_present)) { 
 		retval = user_answer;
+        up(&take_answer);
+    }
 	else
 		retval = MED_ERR;
 	barrier();
-	decision_event = NULL;
-	decision_o1 = NULL;
-	decision_o2 = NULL;
-        atomic_inc(&decision_request_id);
-	up(&constable_mutex);
+	// up(&constable_mutex);
 	return retval;
 }
 
@@ -323,6 +335,8 @@ static ssize_t user_read(struct file * filp, char * buf,
 	userspace_buf = buf;
 feed_lions:
 	retval = teleport_cycle(&teleport, XFER_COUNT);
+    // WAKE UP OTHER PROCESS TO USE TELEPORT STRUCTURE
+    up(&teleport_transport)
 	if (retval < 0) /* unexpected error; data lost */
 		return retval;
 	if (retval > 0 || teleport.cycle != tpc_HALT)
@@ -339,11 +353,15 @@ feed_lions:
 	if (retval != 0) /* -ERESTARTSYS */
 		return retval;
 
-	if (atomic_read(&announce_ready))
+	if (atomic_read(&announce_ready)) {
+        // TODO DO WE HAVE TO UNLOCK DECISION SEMAPHORE HERE?
 		goto do_announce; /* the common case goes faster */
+    }
 
 
 	/* question_ready */
+    // JUST ONE PROCESS CAN PASS TO USE THE TELEPORT STRUCTURE
+    down(&teleport_transport)
 #define decision_evtype (decision_event->evtype_id)
 	tele_mem[0].opcode = tp_PUTPtr;
 	tele_mem[0].args.putPtr.what = (MCPptr_t)decision_evtype; // possibility to encryption JK march 2015
@@ -367,12 +385,20 @@ feed_lions:
 			decision_evtype->arg_kclass[1]->kobject_size;
 		tele_mem[5].opcode = tp_HALT;
 	}
+    // PREPARE FOR NEXT DECISION THEN UNLOCK DECISION LOCK
+    decision_event = NULL;
+    decision_o1 = NULL;
+    decision_o2 = NULL;
+    atomic_inc(&decision_request_id);
+    up(&decision_lock)
 #undef decision_evtype
 	teleport_reset(&teleport, &(tele_mem[0]), to_user);
-	atomic_set(&question_ready, 0);
+	atomic_dec(&question_ready);
 	goto feed_lions;
 
 do_fetch_update:
+    // JUST ONE PROCESS CAN PASS TO USE THE TELEPORT STRUCTURE
+    down(&teleport_transport)
 	tele_mem[0].opcode = tp_PUTPtr;
 	tele_mem[0].args.putPtr.what = 0;
 	tele_mem[1].opcode = tp_PUT32;
@@ -413,7 +439,8 @@ do_announce:
 
 		p->cinfo = (cinfo_t)kclasses_registered;
 		kclasses_registered = p;
-
+        // JUST ONE PROCESS CAN PASS TO USE THE TELEPORT STRUCTURE
+        down(&teleport_transport)
 		tele_mem[0].opcode = tp_PUTPtr;
 		tele_mem[0].args.putPtr.what = 0;
 		tele_mem[1].opcode = tp_PUT32;
@@ -432,7 +459,8 @@ do_announce:
 
 		p->cinfo = (cinfo_t)evtypes_registered;
 		evtypes_registered = p;
-
+        // JUST ONE PROCESS CAN PASS TO USE THE TELEPORT STRUCTURE
+        down(&teleport_transport)
 		tele_mem[0].opcode = tp_PUTPtr;
 		tele_mem[0].args.putPtr.what = 0;
 		tele_mem[1].opcode = tp_PUT32;
@@ -496,9 +524,14 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 			GET_UPTO(size); // TODO change !!!
 			if (recv_phase < size)
 				continue;
+            // TODO IS THIS A GOOD PLACE FOR SEMAPHORE?
+            down(&take_answer)
 			user_answer = *(int16_t *)(recv_buf+sizeof(MCPptr_t));
+            recv_req_id = *(uintptr_t *)(recv_buf)
 			barrier();
-			complete(&userspace_answer);
+            // WAKE UP CORRECT PROCESS
+			// complete(&userspace_answer);
+            wake_up(&userspace_answer);
 			atomic_set(&currently_receiving, 0);
 		} else if (recv_type == MEDUSA_COMM_FETCH_REQUEST ||
 				recv_type == MEDUSA_COMM_UPDATE_REQUEST) {
@@ -608,7 +641,8 @@ static int user_open(struct inode *inode, struct file *file)
 	evtypes_to_register = NULL;
 	kclasses_to_register = NULL;
 
-	init_completion(&userspace_answer);
+	// init_completion(&userspace_answer);
+    init_waitqueue_head(&userspace_answer);
 
 	MED_REGISTER_AUTHSERVER(chardev_medusa);
 	return 0; /* success */
@@ -678,7 +712,8 @@ static int user_release(struct inode *inode, struct file *file)
 	constable = NULL;
 
 	user_answer = MED_ERR; // XXXXX change to MED_ERR !!
-	complete(&userspace_answer);	/* the one which already might be in */
+	// complete(&userspace_answer);	/* the one which already might be in */
+    wake_up_all(&userspace_answer);
 
 	atomic_set(&question_ready, 0);
 	atomic_set(&announce_ready, 0);
