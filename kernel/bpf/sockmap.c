@@ -368,12 +368,12 @@ static int smap_read_sock_done(struct strparser *strp, int err)
 static int smap_init_sock(struct smap_psock *psock,
 			  struct sock *sk)
 {
-	struct strp_callbacks cb;
+	static const struct strp_callbacks cb = {
+		.rcv_msg = smap_read_sock_strparser,
+		.parse_msg = smap_parse_func_strparser,
+		.read_sock_done = smap_read_sock_done,
+	};
 
-	memset(&cb, 0, sizeof(cb));
-	cb.rcv_msg = smap_read_sock_strparser;
-	cb.parse_msg = smap_parse_func_strparser;
-	cb.read_sock_done = smap_read_sock_done;
 	return strp_init(&psock->strp, sk, &cb);
 }
 

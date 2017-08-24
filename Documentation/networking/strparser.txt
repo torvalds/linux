@@ -35,7 +35,7 @@ Functions
 =========
 
 strp_init(struct strparser *strp, struct sock *sk,
-	  struct strp_callbacks *cb)
+	  const struct strp_callbacks *cb)
 
      Called to initialize a stream parser. strp is a struct of type
      strparser that is allocated by the upper layer. sk is the TCP

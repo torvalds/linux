@@ -472,7 +472,7 @@ static void strp_sock_unlock(struct strparser *strp)
 }
 
 int strp_init(struct strparser *strp, struct sock *sk,
-	      struct strp_callbacks *cb)
+	      const struct strp_callbacks *cb)
 {
 
 	if (!cb || !cb->rcv_msg || !cb->parse_msg)
