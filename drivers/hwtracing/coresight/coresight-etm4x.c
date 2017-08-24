@@ -1052,7 +1052,7 @@ err_arch_supported:
 	return ret;
 }
 
-static struct amba_id etm4_ids[] = {
+static const struct amba_id etm4_ids[] = {
 	{       /* ETM 4.0 - Cortex-A53  */
 		.id	= 0x000bb95d,
 		.mask	= 0x000fffff,
