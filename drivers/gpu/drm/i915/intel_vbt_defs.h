@@ -230,32 +230,7 @@ struct bdb_general_features {
 #define DEVICE_PORT_DVOB	0x01
 #define DEVICE_PORT_DVOC	0x02
 
-/*
- * We used to keep this struct but without any version control. We should avoid
- * using it in the future, but it should be safe to keep using it in the old
- * code. Do not change; we rely on its size.
- */
-struct old_child_dev_config {
-	u16 handle;
-	u16 device_type;
-	u8  device_id[10]; /* ascii string */
-	u16 addin_offset;
-	u8  dvo_port; /* See Device_PORT_* above */
-	u8  i2c_pin;
-	u8  slave_addr;
-	u8  ddc_pin;
-	u16 edid_ptr;
-	u8  dvo_cfg; /* See DEVICE_CFG_* above */
-	u8  dvo2_port;
-	u8  i2c2_pin;
-	u8  slave2_addr;
-	u8  ddc2_pin;
-	u8  capabilities;
-	u8  dvo_wiring;/* See DEVICE_WIRE_* above */
-	u8  dvo2_wiring;
-	u16 extended_type;
-	u8  dvo_function;
-} __packed;
+#define LEGACY_CHILD_DEVICE_CONFIG_SIZE		33
 
 /*
  * The child device config, aka the display device data structure, provides a
