@@ -226,4 +226,17 @@ enum devlink_dpipe_action_type {
 	DEVLINK_DPIPE_ACTION_TYPE_FIELD_MODIFY,
 };
 
+enum devlink_dpipe_field_ethernet_id {
+	DEVLINK_DPIPE_FIELD_ETHERNET_DST_MAC,
+};
+
+enum devlink_dpipe_field_ipv4_id {
+	DEVLINK_DPIPE_FIELD_IPV4_DST_IP,
+};
+
+enum devlink_dpipe_header_id {
+	DEVLINK_DPIPE_HEADER_ETHERNET,
+	DEVLINK_DPIPE_HEADER_IPV4,
+};
+
 #endif /* _UAPI_LINUX_DEVLINK_H_ */

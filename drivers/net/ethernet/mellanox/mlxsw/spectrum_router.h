@@ -42,6 +42,8 @@ enum mlxsw_sp_rif_counter_dir {
 	MLXSW_SP_RIF_COUNTER_EGRESS,
 };
 
+struct mlxsw_sp_neigh_entry;
+
 struct mlxsw_sp_rif *mlxsw_sp_rif_by_index(const struct mlxsw_sp *mlxsw_sp,
 					   u16 rif_index);
 u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif);
@@ -56,5 +58,23 @@ void mlxsw_sp_rif_counter_free(struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_rif_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_rif *rif,
 			       enum mlxsw_sp_rif_counter_dir dir);
+struct mlxsw_sp_neigh_entry *
+mlxsw_sp_rif_neigh_next(struct mlxsw_sp_rif *rif,
+			struct mlxsw_sp_neigh_entry *neigh_entry);
+int mlxsw_sp_neigh_entry_type(struct mlxsw_sp_neigh_entry *neigh_entry);
+unsigned char *
+mlxsw_sp_neigh_entry_ha(struct mlxsw_sp_neigh_entry *neigh_entry);
+u32 mlxsw_sp_neigh4_entry_dip(struct mlxsw_sp_neigh_entry *neigh_entry);
+
+#define mlxsw_sp_rif_neigh_for_each(neigh_entry, rif)				\
+	for (neigh_entry = mlxsw_sp_rif_neigh_next(rif, NULL); neigh_entry;	\
+	     neigh_entry = mlxsw_sp_rif_neigh_next(rif, neigh_entry))
+int mlxsw_sp_neigh_counter_get(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_neigh_entry *neigh_entry,
+			       u64 *p_counter);
+void
+mlxsw_sp_neigh_entry_counter_update(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_neigh_entry *neigh_entry,
+				    bool adding);
 
 #endif /* _MLXSW_ROUTER_H_*/
