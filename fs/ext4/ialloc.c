@@ -892,19 +892,13 @@ got_group:
 		/*
 		 * Check free inodes count before loading bitmap.
 		 */
-		if (ext4_free_inodes_count(sb, gdp) == 0) {
-			if (++group == ngroups)
-				group = 0;
-			continue;
-		}
+		if (ext4_free_inodes_count(sb, gdp) == 0)
+			goto next_group;
 
 		grp = ext4_get_group_info(sb, group);
 		/* Skip groups with already-known suspicious inode tables */
-		if (EXT4_MB_GRP_IBITMAP_CORRUPT(grp)) {
-			if (++group == ngroups)
-				group = 0;
-			continue;
-		}
+		if (EXT4_MB_GRP_IBITMAP_CORRUPT(grp))
+			goto next_group;
 
 		brelse(inode_bitmap_bh);
 		inode_bitmap_bh = ext4_read_inode_bitmap(sb, group);
@@ -912,9 +906,7 @@ got_group:
 		if (EXT4_MB_GRP_IBITMAP_CORRUPT(grp) ||
 		    IS_ERR(inode_bitmap_bh)) {
 			inode_bitmap_bh = NULL;
-			if (++group == ngroups)
-				group = 0;
-			continue;
+			goto next_group;
 		}
 
 repeat_in_this_group:
@@ -926,7 +918,7 @@ repeat_in_this_group:
 		if (group == 0 && (ino+1) < EXT4_FIRST_INO(sb)) {
 			ext4_error(sb, "reserved inode found cleared - "
 				   "inode=%lu", ino + 1);
-			continue;
+			goto next_group;
 		}
 		if ((EXT4_SB(sb)->s_journal == NULL) &&
 		    recently_deleted(sb, group, ino)) {
