@@ -720,6 +720,11 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define TARGET_10_4_IPHDR_PAD_CONFIG		1
 #define TARGET_10_4_QWRAP_CONFIG		0
 
+/* TDLS config */
+#define TARGET_10_4_NUM_TDLS_VDEVS		1
+#define TARGET_10_4_NUM_TDLS_BUFFER_STA		1
+#define TARGET_10_4_NUM_TDLS_SLEEP_STA		1
+
 /* Maximum number of Copy Engine's supported */
 #define CE_COUNT_MAX 12
 
