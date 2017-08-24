@@ -3650,8 +3650,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 			SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 			SECONDARY_EXEC_SHADOW_VMCS |
 			SECONDARY_EXEC_XSAVES |
-			SECONDARY_EXEC_RDSEED |
-			SECONDARY_EXEC_RDRAND |
+			SECONDARY_EXEC_RDSEED_EXITING |
+			SECONDARY_EXEC_RDRAND_EXITING |
 			SECONDARY_EXEC_ENABLE_PML |
 			SECONDARY_EXEC_TSC_SCALING |
 			SECONDARY_EXEC_ENABLE_VMFUNC;
@@ -5261,13 +5261,13 @@ static u32 vmx_exec_control(struct vcpu_vmx *vmx)
 static bool vmx_rdrand_supported(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
-		SECONDARY_EXEC_RDRAND;
+		SECONDARY_EXEC_RDRAND_EXITING;
 }
 
 static bool vmx_rdseed_supported(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
-		SECONDARY_EXEC_RDSEED;
+		SECONDARY_EXEC_RDSEED_EXITING;
 }
 
 static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
@@ -5361,30 +5361,30 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 	if (vmx_rdrand_supported()) {
 		bool rdrand_enabled = guest_cpuid_has(vcpu, X86_FEATURE_RDRAND);
 		if (rdrand_enabled)
-			exec_control &= ~SECONDARY_EXEC_RDRAND;
+			exec_control &= ~SECONDARY_EXEC_RDRAND_EXITING;
 
 		if (nested) {
 			if (rdrand_enabled)
 				vmx->nested.nested_vmx_secondary_ctls_high |=
-					SECONDARY_EXEC_RDRAND;
+					SECONDARY_EXEC_RDRAND_EXITING;
 			else
 				vmx->nested.nested_vmx_secondary_ctls_high &=
-					~SECONDARY_EXEC_RDRAND;
+					~SECONDARY_EXEC_RDRAND_EXITING;
 		}
 	}
 
 	if (vmx_rdseed_supported()) {
 		bool rdseed_enabled = guest_cpuid_has(vcpu, X86_FEATURE_RDSEED);
 		if (rdseed_enabled)
-			exec_control &= ~SECONDARY_EXEC_RDSEED;
+			exec_control &= ~SECONDARY_EXEC_RDSEED_EXITING;
 
 		if (nested) {
 			if (rdseed_enabled)
 				vmx->nested.nested_vmx_secondary_ctls_high |=
-					SECONDARY_EXEC_RDSEED;
+					SECONDARY_EXEC_RDSEED_EXITING;
 			else
 				vmx->nested.nested_vmx_secondary_ctls_high &=
-					~SECONDARY_EXEC_RDSEED;
+					~SECONDARY_EXEC_RDSEED_EXITING;
 		}
 	}
 
@@ -8401,9 +8401,9 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 	case EXIT_REASON_RDPMC:
 		return nested_cpu_has(vmcs12, CPU_BASED_RDPMC_EXITING);
 	case EXIT_REASON_RDRAND:
-		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_RDRAND);
+		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_RDRAND_EXITING);
 	case EXIT_REASON_RDSEED:
-		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_RDSEED);
+		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_RDSEED_EXITING);
 	case EXIT_REASON_RDTSC: case EXIT_REASON_RDTSCP:
 		return nested_cpu_has(vmcs12, CPU_BASED_RDTSC_EXITING);
 	case EXIT_REASON_VMCALL: case EXIT_REASON_VMCLEAR:
