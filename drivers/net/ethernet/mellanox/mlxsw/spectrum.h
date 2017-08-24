@@ -417,6 +417,7 @@ struct mlxsw_sp_acl_profile_ops {
 	int (*ruleset_bind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
 			    struct net_device *dev, bool ingress);
 	void (*ruleset_unbind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv);
+	u16 (*ruleset_group_id)(void *ruleset_priv);
 	size_t rule_priv_size;
 	int (*rule_add)(struct mlxsw_sp *mlxsw_sp,
 			void *ruleset_priv, void *rule_priv,
@@ -440,11 +441,16 @@ struct mlxsw_sp_acl_ruleset;
 /* spectrum_acl.c */
 struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl);
 struct mlxsw_sp_acl_ruleset *
-mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp,
-			 struct net_device *dev, bool ingress,
+mlxsw_sp_acl_ruleset_lookup(struct mlxsw_sp *mlxsw_sp, struct net_device *dev,
+			    bool ingress, u32 chain_index,
+			    enum mlxsw_sp_acl_profile profile);
+struct mlxsw_sp_acl_ruleset *
+mlxsw_sp_acl_ruleset_get(struct mlxsw_sp *mlxsw_sp, struct net_device *dev,
+			 bool ingress, u32 chain_index,
 			 enum mlxsw_sp_acl_profile profile);
 void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_acl_ruleset *ruleset);
+u16 mlxsw_sp_acl_ruleset_group_id(struct mlxsw_sp_acl_ruleset *ruleset);
 
 struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl);

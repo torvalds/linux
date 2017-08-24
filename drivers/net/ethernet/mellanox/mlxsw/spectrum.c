@@ -1733,9 +1733,6 @@ mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_port *mlxsw_sp_port,
 	else
 		return -EOPNOTSUPP;
 
-	if (f->common.chain_index)
-		return -EOPNOTSUPP;
-
 	switch (f->command) {
 	case TC_CLSFLOWER_REPLACE:
 		return mlxsw_sp_flower_replace(mlxsw_sp_port, ingress, f);
