@@ -11,14 +11,20 @@ TEST_GEN_FILES := $(patsubst %,$(OUTPUT)/%,$(TEST_GEN_FILES))
 
 all: $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES)
 
+.ONESHELL:
 define RUN_TESTS
-	@for TEST in $(1); do \
+	@test_num=`echo 0`;
+	@echo "TAP version 13";
+	@for TEST in $(1); do				\
 		BASENAME_TEST=`basename $$TEST`;	\
+		test_num=`echo $$test_num+1 | bc`;	\
+		echo "selftests: $$BASENAME_TEST";	\
+		echo "========================================";	\
 		if [ ! -x $$BASENAME_TEST ]; then	\
 			echo "selftests: Warning: file $$BASENAME_TEST is not executable, correct this.";\
-			echo "selftests: $$BASENAME_TEST [FAIL]"; \
+			echo "not ok 1..$$test_num selftests: $$BASENAME_TEST [FAIL]"; \
 		else					\
-			cd `dirname $$TEST` > /dev/null; (./$$BASENAME_TEST && echo "selftests: $$BASENAME_TEST [PASS]") || echo "selftests:  $$BASENAME_TEST [FAIL]"; cd - > /dev/null;\
+			cd `dirname $$TEST` > /dev/null; (./$$BASENAME_TEST && echo "ok 1..$$test_num selftests: $$BASENAME_TEST [PASS]") || echo "not ok 1..$$test_num selftests:  $$BASENAME_TEST [FAIL]"; cd - > /dev/null;\
 		fi;					\
 	done;
 endef
