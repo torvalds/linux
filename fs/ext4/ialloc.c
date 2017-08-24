@@ -707,9 +707,9 @@ static int recently_deleted(struct super_block *sb, ext4_group_t group, int ino)
 	if (unlikely(!gdp))
 		return 0;
 
-	bh = sb_getblk(sb, ext4_inode_table(sb, gdp) +
+	bh = sb_find_get_block(sb, ext4_inode_table(sb, gdp) +
 		       (ino / inodes_per_block));
-	if (unlikely(!bh) || !buffer_uptodate(bh))
+	if (!bh || !buffer_uptodate(bh))
 		/*
 		 * If the block is not in the buffer cache, then it
 		 * must have been written out.
