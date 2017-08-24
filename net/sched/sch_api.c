@@ -153,7 +153,7 @@ int register_qdisc(struct Qdisc_ops *qops)
 	if (qops->cl_ops) {
 		const struct Qdisc_class_ops *cops = qops->cl_ops;
 
-		if (!(cops->get && cops->put && cops->walk && cops->leaf))
+		if (!(cops->find && cops->walk && cops->leaf))
 			goto out_einval;
 
 		if (cops->tcf_block && !(cops->bind_tcf && cops->unbind_tcf))
@@ -320,12 +320,11 @@ static struct Qdisc *qdisc_leaf(struct Qdisc *p, u32 classid)
 
 	if (cops == NULL)
 		return NULL;
-	cl = cops->get(p, classid);
+	cl = cops->find(p, classid);
 
 	if (cl == 0)
 		return NULL;
 	leaf = cops->leaf(p, cl);
-	cops->put(p, cl);
 	return leaf;
 }
 
@@ -756,9 +755,8 @@ void qdisc_tree_reduce_backlog(struct Qdisc *sch, unsigned int n,
 		}
 		cops = sch->ops->cl_ops;
 		if (notify && cops->qlen_notify) {
-			cl = cops->get(sch, parentid);
+			cl = cops->find(sch, parentid);
 			cops->qlen_notify(sch, cl);
-			cops->put(sch, cl);
 		}
 		sch->q.qlen -= n;
 		sch->qstats.backlog -= len;
@@ -955,11 +953,11 @@ skip:
 
 		err = -EOPNOTSUPP;
 		if (cops && cops->graft) {
-			unsigned long cl = cops->get(parent, classid);
-			if (cl) {
+			unsigned long cl = cops->find(parent, classid);
+
+			if (cl)
 				err = cops->graft(parent, cl, new, &old);
-				cops->put(parent, cl);
-			} else
+			else
 				err = -ENOENT;
 		}
 		if (!err)
@@ -1739,7 +1737,7 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n,
 		clid = TC_H_MAKE(qid, clid);
 
 	if (clid)
-		cl = cops->get(q, clid);
+		cl = cops->find(q, clid);
 
 	if (cl == 0) {
 		err = -ENOENT;
@@ -1773,9 +1771,6 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n,
 		tclass_notify(net, skb, n, q, new_cl, RTM_NEWTCLASS);
 
 out:
-	if (cl)
-		cops->put(q, cl);
-
 	return err;
 }
 

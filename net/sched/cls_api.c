@@ -586,7 +586,7 @@ replay:
 
 	/* Do we search for filter, attached to class? */
 	if (TC_H_MIN(parent)) {
-		cl = cops->get(q, parent);
+		cl = cops->find(q, parent);
 		if (cl == 0)
 			return -ENOENT;
 	}
@@ -716,8 +716,6 @@ replay:
 errout:
 	if (chain)
 		tcf_chain_put(chain);
-	if (cl)
-		cops->put(q, cl);
 	if (err == -EAGAIN)
 		/* Replay the request. */
 		goto replay;
@@ -822,17 +820,17 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 		goto out;
 	cops = q->ops->cl_ops;
 	if (!cops)
-		goto errout;
+		goto out;
 	if (!cops->tcf_block)
-		goto errout;
+		goto out;
 	if (TC_H_MIN(tcm->tcm_parent)) {
-		cl = cops->get(q, tcm->tcm_parent);
+		cl = cops->find(q, tcm->tcm_parent);
 		if (cl == 0)
-			goto errout;
+			goto out;
 	}
 	block = cops->tcf_block(q, cl);
 	if (!block)
-		goto errout;
+		goto out;
 
 	index_start = cb->args[0];
 	index = 0;
@@ -847,9 +845,6 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 
 	cb->args[0] = index;
 
-errout:
-	if (cl)
-		cops->put(q, cl);
 out:
 	return skb->len;
 }

@@ -808,7 +808,7 @@ static struct Qdisc *sfq_leaf(struct Qdisc *sch, unsigned long arg)
 	return NULL;
 }
 
-static unsigned long sfq_get(struct Qdisc *sch, u32 classid)
+static unsigned long sfq_find(struct Qdisc *sch, u32 classid)
 {
 	return 0;
 }
@@ -821,7 +821,7 @@ static unsigned long sfq_bind(struct Qdisc *sch, unsigned long parent,
 	return 0;
 }
 
-static void sfq_put(struct Qdisc *q, unsigned long cl)
+static void sfq_unbind(struct Qdisc *q, unsigned long cl)
 {
 }
 
@@ -885,11 +885,10 @@ static void sfq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 
 static const struct Qdisc_class_ops sfq_class_ops = {
 	.leaf		=	sfq_leaf,
-	.get		=	sfq_get,
-	.put		=	sfq_put,
+	.find		=	sfq_find,
 	.tcf_block	=	sfq_tcf_block,
 	.bind_tcf	=	sfq_bind,
-	.unbind_tcf	=	sfq_put,
+	.unbind_tcf	=	sfq_unbind,
 	.dump		=	sfq_dump_class,
 	.dump_stats	=	sfq_dump_class_stats,
 	.walk		=	sfq_walk,

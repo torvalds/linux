@@ -110,7 +110,6 @@ enum hfsc_class_flags {
 
 struct hfsc_class {
 	struct Qdisc_class_common cl_common;
-	unsigned int	refcnt;		/* usage count */
 
 	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue qstats;
@@ -1045,7 +1044,6 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		hfsc_change_usc(cl, usc, 0);
 
 	cl->cl_common.classid = classid;
-	cl->refcnt    = 1;
 	cl->sched     = q;
 	cl->cl_parent = parent;
 	cl->qdisc = qdisc_create_dflt(sch->dev_queue,
@@ -1101,13 +1099,9 @@ hfsc_delete_class(struct Qdisc *sch, unsigned long arg)
 	hfsc_purge_queue(sch, cl);
 	qdisc_class_hash_remove(&q->clhash, &cl->cl_common);
 
-	BUG_ON(--cl->refcnt == 0);
-	/*
-	 * This shouldn't happen: we "hold" one cops->get() when called
-	 * from tc_ctl_tclass; the destroy method is done from cops->put().
-	 */
-
 	sch_tree_unlock(sch);
+
+	hfsc_destroy_class(sch, cl);
 	return 0;
 }
 
@@ -1208,23 +1202,9 @@ hfsc_qlen_notify(struct Qdisc *sch, unsigned long arg)
 }
 
 static unsigned long
-hfsc_get_class(struct Qdisc *sch, u32 classid)
+hfsc_search_class(struct Qdisc *sch, u32 classid)
 {
-	struct hfsc_class *cl = hfsc_find_class(classid, sch);
-
-	if (cl != NULL)
-		cl->refcnt++;
-
-	return (unsigned long)cl;
-}
-
-static void
-hfsc_put_class(struct Qdisc *sch, unsigned long arg)
-{
-	struct hfsc_class *cl = (struct hfsc_class *)arg;
-
-	if (--cl->refcnt == 0)
-		hfsc_destroy_class(sch, cl);
+	return (unsigned long)hfsc_find_class(classid, sch);
 }
 
 static unsigned long
@@ -1413,7 +1393,6 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 		goto err_tcf;
 
 	q->root.cl_common.classid = sch->handle;
-	q->root.refcnt  = 1;
 	q->root.sched   = q;
 	q->root.qdisc = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 					  sch->handle);
@@ -1661,8 +1640,7 @@ static const struct Qdisc_class_ops hfsc_class_ops = {
 	.graft		= hfsc_graft_class,
 	.leaf		= hfsc_class_leaf,
 	.qlen_notify	= hfsc_qlen_notify,
-	.get		= hfsc_get_class,
-	.put		= hfsc_put_class,
+	.find		= hfsc_search_class,
 	.bind_tcf	= hfsc_bind_tcf,
 	.unbind_tcf	= hfsc_unbind_tcf,
 	.tcf_block	= hfsc_tcf_block,
