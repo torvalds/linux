@@ -949,7 +949,7 @@ static irqreturn_t mbhc_btn_release_irq_handler(int irq, void *arg)
 		u32 val = snd_soc_read(codec, CDC_A_MBHC_RESULT_1);
 
 		/* check if its BTN0 thats released */
-		if ((val >= 0) && !(val & CDC_A_MBHC_RESULT_1_BTN_RESULT_MASK))
+		if ((val != -1) && !(val & CDC_A_MBHC_RESULT_1_BTN_RESULT_MASK))
 			priv->mbhc_btn0_pressed = false;
 
 	} else {
