@@ -260,13 +260,28 @@ struct old_child_dev_config {
 /* This one contains field offsets that are known to be common for all BDB
  * versions. Notice that the meaning of the contents contents may still change,
  * but at least the offsets are consistent. */
-
 struct common_child_dev_config {
 	u16 handle;
 	u16 device_type;
-	u8 not_common1[12];
+	u8 i2c_speed;
+	u8 dp_onboard_redriver;					/* 158 */
+	u8 dp_ondock_redriver;					/* 158 */
+	u8 hdmi_level_shifter_value:4;				/* 169 */
+	u8 hdmi_max_data_rate:4;				/* 204 */
+	u16 dtd_buf_ptr;					/* 161 */
+	u8 edidless_efp:1;					/* 161 */
+	u8 compression_enable:1;				/* 198 */
+	u8 compression_method:1;				/* 198 */
+	u8 ganged_edp:1;					/* 202 */
+	u8 reserved0:4;
+	u8 compression_structure_index:4;			/* 198 */
+	u8 reserved1:4;
+	u8 slave_port;						/* 202 */
+	u8 reserved2;
+	u16 addin_offset;
 	u8 dvo_port;
-	u8 not_common2[2];
+	u8 i2c_pin;
+	u8 slave_addr;
 	u8 ddc_pin;
 	u16 edid_ptr;
 	u8 dvo_cfg; /* See DEVICE_CFG_* above */
@@ -281,7 +296,15 @@ struct common_child_dev_config {
 	u8 tmds_support:1;
 	u8 support_reserved:5;
 	u8 aux_channel;
-	u8 not_common3[11];
+	u8 dongle_detect;
+	u8 capabilities;
+	u8 dvo_wiring; /* See DEVICE_WIRE_* above */
+	u8 mipi_bridge_type;					/* 171 */
+	u16 extended_type;
+	u8 dvo_function;
+	u8 flags2;						/* 195 */
+	u8 dp_gpio_index;					/* 195 */
+	u16 dp_gpio_pin_num;					/* 195 */
 	u8 iboost_level;
 } __packed;
 
