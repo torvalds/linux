@@ -16,6 +16,7 @@
 #include <dt-bindings/display/rk_fb.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <drm/drmP.h>
+#include <drm/drm_modeset_lock.h>
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/cpu.h>
@@ -597,14 +598,14 @@ static int rk_drm_get_lcdc_type(void)
 	if (drm) {
 		struct drm_connector *conn;
 
-		mutex_lock(&drm->mode_config.mutex);
+		drm_modeset_lock(&drm->mode_config.connection_mutex, NULL);
 		drm_for_each_connector(conn, drm) {
 			if (conn->encoder) {
 				lcdc_type = conn->connector_type;
 				break;
 			}
 		}
-		mutex_unlock(&drm->mode_config.mutex);
+		drm_modeset_unlock(&drm->mode_config.connection_mutex);
 	}
 	switch (lcdc_type) {
 	case DRM_MODE_CONNECTOR_LVDS:
