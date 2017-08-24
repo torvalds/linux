@@ -1,4 +1,6 @@
-TEST_PROGS := hwtstamp_config timestamping txtimestamp
+CFLAGS += -I../../../../../usr/include
+
+TEST_PROGS := hwtstamp_config rxtimestamp timestamping txtimestamp
 
 all: $(TEST_PROGS)
 
