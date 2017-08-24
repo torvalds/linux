@@ -9478,7 +9478,6 @@ static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)
 	vmx->loaded_vmcs = vmcs;
 	vmx_vcpu_put(vcpu);
 	vmx_vcpu_load(vcpu, cpu);
-	vcpu->cpu = cpu;
 	put_cpu();
 }
 
