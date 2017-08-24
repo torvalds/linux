@@ -249,10 +249,6 @@ static int process_read_event(struct perf_tool *tool,
 			return err;
 	}
 
-	dump_printf(": %d %d %s %" PRIu64 "\n", event->read.pid, event->read.tid,
-		    evsel ? perf_evsel__name(evsel) : "FAIL",
-		    event->read.value);
-
 	return 0;
 }
 
