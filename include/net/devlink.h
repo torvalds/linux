@@ -329,6 +329,7 @@ int devlink_dpipe_action_put(struct sk_buff *skb,
 int devlink_dpipe_match_put(struct sk_buff *skb,
 			    struct devlink_dpipe_match *match);
 extern struct devlink_dpipe_header devlink_dpipe_header_ethernet;
+extern struct devlink_dpipe_header devlink_dpipe_header_ipv4;
 
 #else
 

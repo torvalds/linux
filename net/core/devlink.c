@@ -46,6 +46,23 @@ struct devlink_dpipe_header devlink_dpipe_header_ethernet = {
 };
 EXPORT_SYMBOL(devlink_dpipe_header_ethernet);
 
+static struct devlink_dpipe_field devlink_dpipe_fields_ipv4[] = {
+	{
+		.name = "destination ip",
+		.id = DEVLINK_DPIPE_FIELD_IPV4_DST_IP,
+		.bitwidth = 32,
+	},
+};
+
+struct devlink_dpipe_header devlink_dpipe_header_ipv4 = {
+	.name = "ipv4",
+	.id = DEVLINK_DPIPE_HEADER_IPV4,
+	.fields = devlink_dpipe_fields_ipv4,
+	.fields_count = ARRAY_SIZE(devlink_dpipe_fields_ipv4),
+	.global = true,
+};
+EXPORT_SYMBOL(devlink_dpipe_header_ipv4);
+
 EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwmsg);
 
 static LIST_HEAD(devlink_list);
