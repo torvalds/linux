@@ -2860,7 +2860,7 @@ void reweight_task(struct task_struct *p, int prio)
  * Now, in that special case (1) reduces to:
  *
  *                     tg->weight * grq->load.weight
- *   ge->load.weight = ----------------------------- = tg>weight   (4)
+ *   ge->load.weight = ----------------------------- = tg->weight   (4)
  *			    grp->load.weight
  *
  * That is, the sum collapses because all other CPUs are idle; the UP scenario.
@@ -2874,6 +2874,18 @@ void reweight_task(struct task_struct *p, int prio)
  *     ---------------------------------------------------         (5)
  *     tg->load_avg - grq->avg.load_avg + grq->load.weight
  *
+ * But because grq->load.weight can drop to 0, resulting in a divide by zero,
+ * we need to use grq->avg.load_avg as its lower bound, which then gives:
+ *
+ *
+ *                     tg->weight * grq->load.weight
+ *   ge->load.weight = -----------------------------		   (6)
+ *				tg_load_avg'
+ *
+ * Where:
+ *
+ *   tg_load_avg' = tg->load_avg - grq->avg.load_avg +
+ *                  max(grq->load.weight, grq->avg.load_avg)
  *
  * And that is shares_weight and is icky. In the (near) UP case it approaches
  * (4) while in the normal case it approaches (3). It consistently
@@ -2890,10 +2902,6 @@ static long calc_group_shares(struct cfs_rq *cfs_rq)
 
 	tg_shares = READ_ONCE(tg->shares);
 
-	/*
-	 * Because (5) drops to 0 when the cfs_rq is idle, we need to use (3)
-	 * as a lower bound.
-	 */
 	load = max(scale_load_down(cfs_rq->load.weight), cfs_rq->avg.load_avg);
 
 	tg_weight = atomic_long_read(&tg->load_avg);
@@ -2922,32 +2930,46 @@ static long calc_group_shares(struct cfs_rq *cfs_rq)
 }
 
 /*
- * The runnable shares of this group are calculated as such
+ * This calculates the effective runnable weight for a group entity based on
+ * the group entity weight calculated above.
  *
- *          max(cfs_rq->avg.runnable_load_avg, cfs_rq->runnable_weight)
- * shares * ------------------------------------------------------------
- *               max(cfs_rq->avg.load_avg, cfs_rq->load.weight)
+ * Because of the above approximation (2), our group entity weight is
+ * an load_avg based ratio (3). This means that it includes blocked load and
+ * does not represent the runnable weight.
  *
- * We do this to keep the shares in line with expected load on the cfs_rq.
- * Consider a cfs_rq that has several tasks wake up on this cfs_rq for the first
- * time, it's runnable_load_avg is not going to be representative of the actual
- * load this cfs_rq will now experience, which will bias us agaisnt this cfs_rq.
- * The weight on the cfs_rq is the immediate effect of having new tasks
- * enqueue'd onto it which should be used to calculate the new runnable shares.
- * At the same time we need the actual load_avg to be the lower bounds for the
- * calculation, to handle when our weight drops quickly from having entities
- * dequeued.
+ * Approximate the group entity's runnable weight per ratio from the group
+ * runqueue:
+ *
+ *					     grq->avg.runnable_load_avg
+ *   ge->runnable_weight = ge->load.weight * -------------------------- (7)
+ *						 grq->avg.load_avg
+ *
+ * However, analogous to above, since the avg numbers are slow, this leads to
+ * transients in the from-idle case. Instead we use:
+ *
+ *   ge->runnable_weight = ge->load.weight *
+ *
+ *		max(grq->avg.runnable_load_avg, grq->runnable_weight)
+ *		-----------------------------------------------------	(8)
+ *		      max(grq->avg.load_avg, grq->load.weight)
+ *
+ * Where these max() serve both to use the 'instant' values to fix the slow
+ * from-idle and avoid the /0 on to-idle, similar to (6).
  */
 static long calc_group_runnable(struct cfs_rq *cfs_rq, long shares)
 {
-	long load_avg = max(cfs_rq->avg.load_avg,
-			    scale_load_down(cfs_rq->load.weight));
-	long runnable = max(cfs_rq->avg.runnable_load_avg,
-			    scale_load_down(cfs_rq->runnable_weight));
+	long runnable, load_avg;
+
+	load_avg = max(cfs_rq->avg.load_avg,
+		       scale_load_down(cfs_rq->load.weight));
+
+	runnable = max(cfs_rq->avg.runnable_load_avg,
+		       scale_load_down(cfs_rq->runnable_weight));
 
 	runnable *= shares;
 	if (load_avg)
 		runnable /= load_avg;
+
 	return clamp_t(long, runnable, MIN_SHARES, shares);
 }
 # endif /* CONFIG_SMP */
