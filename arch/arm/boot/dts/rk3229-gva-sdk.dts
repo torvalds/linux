@@ -348,3 +348,13 @@
 	assigned-clocks = <&cru SCLK_SDIO_SRC>;
 	assigned-clock-parents = <&xin24m>;
 };
+
+&rockchip_suspend {
+	rockchip,sleep-mode-config = <
+		(0
+		|RKPM_CTR_GTCLKS
+		|RKPM_CTR_IDLESRAM_MD
+		|RKPM_CTR_PMIC
+		)
+	>;
+};
