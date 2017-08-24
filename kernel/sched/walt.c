@@ -20,7 +20,6 @@
  */
 
 #include <linux/syscore_ops.h>
-#include <linux/cpufreq.h>
 #include <trace/events/sched.h>
 #include "sched.h"
 #include "walt.h"
@@ -44,29 +43,6 @@ unsigned int sysctl_sched_walt_init_task_load_pct = 15;
 
 /* 1 -> use PELT based load stats, 0 -> use window-based load stats */
 unsigned int __read_mostly walt_disabled = 0;
-
-static unsigned int max_possible_efficiency = 1024;
-static unsigned int min_possible_efficiency = 1024;
-
-/*
- * Maximum possible frequency across all cpus. Task demand and cpu
- * capacity (cpu_power) metrics are scaled in reference to it.
- */
-static unsigned int max_possible_freq = 1;
-
-/*
- * Minimum possible max_freq across all cpus. This will be same as
- * max_possible_freq on homogeneous systems and could be different from
- * max_possible_freq on heterogenous systems. min_max_freq is used to derive
- * capacity (cpu_power) of cpus.
- */
-static unsigned int min_max_freq = 1;
-
-static unsigned int max_load_scale_factor = 1024;
-static unsigned int max_possible_capacity = 1024;
-
-/* Mask of all CPUs that have  max_possible_capacity */
-static cpumask_t mpc_mask = CPU_MASK_ALL;
 
 /* Window size (in ns) */
 __read_mostly unsigned int walt_ravg_window = 20000000;
@@ -206,24 +182,16 @@ update_window_start(struct rq *rq, u64 wallclock)
 	rq->window_start += (u64)nr_windows * (u64)walt_ravg_window;
 }
 
+/*
+ * Translate absolute delta time accounted on a CPU
+ * to a scale where 1024 is the capacity of the most
+ * capable CPU running at FMAX
+ */
 static u64 scale_exec_time(u64 delta, struct rq *rq)
 {
-	unsigned int cur_freq = rq->cur_freq;
-	int sf;
+	unsigned long capcurr = capacity_curr_of(cpu_of(rq));
 
-	if (unlikely(cur_freq > max_possible_freq))
-		cur_freq = rq->max_possible_freq;
-
-	/* round up div64 */
-	delta = div64_u64(delta * cur_freq + max_possible_freq - 1,
-			  max_possible_freq);
-
-	sf = DIV_ROUND_UP(rq->efficiency * 1024, max_possible_efficiency);
-
-	delta *= sf;
-	delta >>= 10;
-
-	return delta;
+	return (delta * capcurr) >> SCHED_CAPACITY_SHIFT;
 }
 
 static int cpu_is_waiting_on_io(struct rq *rq)
@@ -746,33 +714,6 @@ done:
 	p->ravg.mark_start = wallclock;
 }
 
-unsigned long __weak arch_get_cpu_efficiency(int cpu)
-{
-	return SCHED_LOAD_SCALE;
-}
-
-void walt_init_cpu_efficiency(void)
-{
-	int i, efficiency;
-	unsigned int max = 0, min = UINT_MAX;
-
-	for_each_possible_cpu(i) {
-		efficiency = arch_get_cpu_efficiency(i);
-		cpu_rq(i)->efficiency = efficiency;
-
-		if (efficiency > max)
-			max = efficiency;
-		if (efficiency < min)
-			min = efficiency;
-	}
-
-	if (max)
-		max_possible_efficiency = max;
-
-	if (min)
-		min_possible_efficiency = min;
-}
-
 static void reset_task_stats(struct task_struct *p)
 {
 	u32 sum = 0;
@@ -876,242 +817,6 @@ void walt_fixup_busy_time(struct task_struct *p, int new_cpu)
 	if (p->state == TASK_WAKING)
 		double_rq_unlock(src_rq, dest_rq);
 }
-
-/*
- * Return 'capacity' of a cpu in reference to "least" efficient cpu, such that
- * least efficient cpu gets capacity of 1024
- */
-static unsigned long capacity_scale_cpu_efficiency(int cpu)
-{
-	return (1024 * cpu_rq(cpu)->efficiency) / min_possible_efficiency;
-}
-
-/*
- * Return 'capacity' of a cpu in reference to cpu with lowest max_freq
- * (min_max_freq), such that one with lowest max_freq gets capacity of 1024.
- */
-static unsigned long capacity_scale_cpu_freq(int cpu)
-{
-	return (1024 * cpu_rq(cpu)->max_freq) / min_max_freq;
-}
-
-/*
- * Return load_scale_factor of a cpu in reference to "most" efficient cpu, so
- * that "most" efficient cpu gets a load_scale_factor of 1
- */
-static unsigned long load_scale_cpu_efficiency(int cpu)
-{
-	return DIV_ROUND_UP(1024 * max_possible_efficiency,
-			    cpu_rq(cpu)->efficiency);
-}
-
-/*
- * Return load_scale_factor of a cpu in reference to cpu with best max_freq
- * (max_possible_freq), so that one with best max_freq gets a load_scale_factor
- * of 1.
- */
-static unsigned long load_scale_cpu_freq(int cpu)
-{
-	return DIV_ROUND_UP(1024 * max_possible_freq, cpu_rq(cpu)->max_freq);
-}
-
-static int compute_capacity(int cpu)
-{
-	int capacity = 1024;
-
-	capacity *= capacity_scale_cpu_efficiency(cpu);
-	capacity >>= 10;
-
-	capacity *= capacity_scale_cpu_freq(cpu);
-	capacity >>= 10;
-
-	return capacity;
-}
-
-static int compute_load_scale_factor(int cpu)
-{
-	int load_scale = 1024;
-
-	/*
-	 * load_scale_factor accounts for the fact that task load
-	 * is in reference to "best" performing cpu. Task's load will need to be
-	 * scaled (up) by a factor to determine suitability to be placed on a
-	 * (little) cpu.
-	 */
-	load_scale *= load_scale_cpu_efficiency(cpu);
-	load_scale >>= 10;
-
-	load_scale *= load_scale_cpu_freq(cpu);
-	load_scale >>= 10;
-
-	return load_scale;
-}
-
-static int cpufreq_notifier_policy(struct notifier_block *nb,
-		unsigned long val, void *data)
-{
-	struct cpufreq_policy *policy = (struct cpufreq_policy *)data;
-	int i, update_max = 0;
-	u64 highest_mpc = 0, highest_mplsf = 0;
-	const struct cpumask *cpus = policy->related_cpus;
-	unsigned int orig_min_max_freq = min_max_freq;
-	unsigned int orig_max_possible_freq = max_possible_freq;
-	/* Initialized to policy->max in case policy->related_cpus is empty! */
-	unsigned int orig_max_freq = policy->max;
-
-	if (val != CPUFREQ_NOTIFY)
-		return 0;
-
-	for_each_cpu(i, policy->related_cpus) {
-		cpumask_copy(&cpu_rq(i)->freq_domain_cpumask,
-			     policy->related_cpus);
-		orig_max_freq = cpu_rq(i)->max_freq;
-		cpu_rq(i)->min_freq = policy->min;
-		cpu_rq(i)->max_freq = policy->max;
-		cpu_rq(i)->cur_freq = policy->cur;
-		cpu_rq(i)->max_possible_freq = policy->cpuinfo.max_freq;
-	}
-
-	max_possible_freq = max(max_possible_freq, policy->cpuinfo.max_freq);
-	if (min_max_freq == 1)
-		min_max_freq = UINT_MAX;
-	min_max_freq = min(min_max_freq, policy->cpuinfo.max_freq);
-	BUG_ON(!min_max_freq);
-	BUG_ON(!policy->max);
-
-	/* Changes to policy other than max_freq don't require any updates */
-	if (orig_max_freq == policy->max)
-		return 0;
-
-	/*
-	 * A changed min_max_freq or max_possible_freq (possible during bootup)
-	 * needs to trigger re-computation of load_scale_factor and capacity for
-	 * all possible cpus (even those offline). It also needs to trigger
-	 * re-computation of nr_big_task count on all online cpus.
-	 *
-	 * A changed rq->max_freq otoh needs to trigger re-computation of
-	 * load_scale_factor and capacity for just the cluster of cpus involved.
-	 * Since small task definition depends on max_load_scale_factor, a
-	 * changed load_scale_factor of one cluster could influence
-	 * classification of tasks in another cluster. Hence a changed
-	 * rq->max_freq will need to trigger re-computation of nr_big_task
-	 * count on all online cpus.
-	 *
-	 * While it should be sufficient for nr_big_tasks to be
-	 * re-computed for only online cpus, we have inadequate context
-	 * information here (in policy notifier) with regard to hotplug-safety
-	 * context in which notification is issued. As a result, we can't use
-	 * get_online_cpus() here, as it can lead to deadlock. Until cpufreq is
-	 * fixed up to issue notification always in hotplug-safe context,
-	 * re-compute nr_big_task for all possible cpus.
-	 */
-
-	if (orig_min_max_freq != min_max_freq ||
-		orig_max_possible_freq != max_possible_freq) {
-			cpus = cpu_possible_mask;
-			update_max = 1;
-	}
-
-	/*
-	 * Changed load_scale_factor can trigger reclassification of tasks as
-	 * big or small. Make this change "atomic" so that tasks are accounted
-	 * properly due to changed load_scale_factor
-	 */
-	for_each_cpu(i, cpus) {
-		struct rq *rq = cpu_rq(i);
-
-		rq->capacity = compute_capacity(i);
-		rq->load_scale_factor = compute_load_scale_factor(i);
-
-		if (update_max) {
-			u64 mpc, mplsf;
-
-			mpc = div_u64(((u64) rq->capacity) *
-				rq->max_possible_freq, rq->max_freq);
-			rq->max_possible_capacity = (int) mpc;
-
-			mplsf = div_u64(((u64) rq->load_scale_factor) *
-				rq->max_possible_freq, rq->max_freq);
-
-			if (mpc > highest_mpc) {
-				highest_mpc = mpc;
-				cpumask_clear(&mpc_mask);
-				cpumask_set_cpu(i, &mpc_mask);
-			} else if (mpc == highest_mpc) {
-				cpumask_set_cpu(i, &mpc_mask);
-			}
-
-			if (mplsf > highest_mplsf)
-				highest_mplsf = mplsf;
-		}
-	}
-
-	if (update_max) {
-		max_possible_capacity = highest_mpc;
-		max_load_scale_factor = highest_mplsf;
-	}
-
-	return 0;
-}
-
-static int cpufreq_notifier_trans(struct notifier_block *nb,
-		unsigned long val, void *data)
-{
-	struct cpufreq_freqs *freq = (struct cpufreq_freqs *)data;
-	unsigned int cpu = freq->cpu, new_freq = freq->new;
-	unsigned long flags;
-	int i;
-
-	if (val != CPUFREQ_POSTCHANGE)
-		return 0;
-
-	BUG_ON(!new_freq);
-
-	if (cpu_rq(cpu)->cur_freq == new_freq)
-		return 0;
-
-	for_each_cpu(i, &cpu_rq(cpu)->freq_domain_cpumask) {
-		struct rq *rq = cpu_rq(i);
-
-		raw_spin_lock_irqsave(&rq->lock, flags);
-		walt_update_task_ravg(rq->curr, rq, TASK_UPDATE,
-				      walt_ktime_clock(), 0);
-		rq->cur_freq = new_freq;
-		raw_spin_unlock_irqrestore(&rq->lock, flags);
-	}
-
-	return 0;
-}
-
-static struct notifier_block notifier_policy_block = {
-	.notifier_call = cpufreq_notifier_policy
-};
-
-static struct notifier_block notifier_trans_block = {
-	.notifier_call = cpufreq_notifier_trans
-};
-
-static int register_sched_callback(void)
-{
-	int ret;
-
-	ret = cpufreq_register_notifier(&notifier_policy_block,
-						CPUFREQ_POLICY_NOTIFIER);
-
-	if (!ret)
-		ret = cpufreq_register_notifier(&notifier_trans_block,
-						CPUFREQ_TRANSITION_NOTIFIER);
-
-	return 0;
-}
-
-/*
- * cpufreq callbacks can be registered at core_initcall or later time.
- * Any registration done prior to that is "forgotten" by cpufreq. See
- * initialization of variable init_cpufreq_transition_notifier_list_called
- * for further information.
- */
-core_initcall(register_sched_callback);
 
 void walt_init_new_task_load(struct task_struct *p)
 {
