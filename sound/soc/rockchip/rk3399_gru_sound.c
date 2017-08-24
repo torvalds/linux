@@ -267,6 +267,28 @@ static int rockchip_sound_cdndp_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int rockchip_sound_dmic_hw_params(struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	unsigned int mclk;
+	int ret;
+
+	mclk = params_rate(params) * SOUND_FS;
+
+	ret = snd_soc_dai_set_sysclk(rtd->cpu_dai, 0, mclk, 0);
+	if (ret) {
+		dev_err(rtd->card->dev, "%s() error setting sysclk to %u: %d\n",
+				__func__, mclk, ret);
+		return ret;
+	}
+
+	/* Wait for DMIC stable */
+	msleep(dmic_wakeup_delay);
+
+	return 0;
+}
+
 static const struct snd_soc_ops rockchip_sound_max98357a_ops = {
 	.hw_params = rockchip_sound_max98357a_hw_params,
 };
@@ -283,6 +305,10 @@ static struct snd_soc_ops rockchip_sound_cdndp_ops = {
 	.hw_params = rockchip_sound_cdndp_hw_params,
 };
 
+static struct snd_soc_ops rockchip_sound_dmic_ops = {
+	.hw_params = rockchip_sound_dmic_hw_params,
+};
+
 static struct snd_soc_card rockchip_sound_card = {
 	.name = "rk3399-gru-sound",
 	.owner = THIS_MODULE,
@@ -297,6 +323,7 @@ static struct snd_soc_card rockchip_sound_card = {
 enum {
 	DAILINK_CDNDP,
 	DAILINK_DA7219,
+	DAILINK_DMIC,
 	DAILINK_MAX98357A,
 	DAILINK_RT5514,
 	DAILINK_RT5514_DSP,
@@ -305,6 +332,7 @@ enum {
 static const char * const dailink_compat[] = {
 	[DAILINK_CDNDP] = "rockchip,rk3399-cdn-dp",
 	[DAILINK_DA7219] = "dlg,da7219",
+	[DAILINK_DMIC] = "dmic-codec",
 	[DAILINK_MAX98357A] = "maxim,max98357a",
 	[DAILINK_RT5514] = "realtek,rt5514-i2c",
 	[DAILINK_RT5514_DSP] = "realtek,rt5514-spi",
@@ -326,6 +354,14 @@ static const struct snd_soc_dai_link rockchip_dais[] = {
 		.init = rockchip_sound_da7219_init,
 		.ops = &rockchip_sound_da7219_ops,
 		/* set da7219 as slave */
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+	},
+	[DAILINK_DMIC] = {
+		.name = "DMIC",
+		.stream_name = "DMIC PCM",
+		.codec_dai_name = "dmic-hifi",
+		.ops = &rockchip_sound_dmic_ops,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 	},
