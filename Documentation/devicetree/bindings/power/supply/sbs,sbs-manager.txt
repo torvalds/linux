@@ -1,0 +1,66 @@
+Binding for sbs-manager
+
+Required properties:
+- compatible: "<vendor>,<part-number>", "sbs,sbs-charger" as fallback. The part
+  number compatible string might be used in order to take care of vendor
+  specific registers.
+- reg: integer, i2c address of the device. Should be <0xa>.
+Optional properties:
+- gpio-controller: Marks the port as GPIO controller.
+  See "gpio-specifier" in .../devicetree/bindings/gpio/gpio.txt.
+- #gpio-cells: Should be <2>. The first cell is the pin number, the second cell
+  is used to specify optional parameters:
+  See "gpio-specifier" in .../devicetree/bindings/gpio/gpio.txt.
+
+From OS view the device is basically an i2c-mux used to communicate with up to
+four smart battery devices at address 0xb. The driver actually implements this
+behaviour. So standard i2c-mux nodes can be used to register up to four slave
+batteries. Channels will be numerated starting from 1 to 4.
+
+Example:
+
+batman@a {
+    compatible = "lltc,ltc1760", "sbs,sbs-manager";
+    reg = <0x0a>;
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    gpio-controller;
+    #gpio-cells = <2>;
+
+    i2c@1 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <1>;
+
+        battery@b {
+            compatible = "ti,bq2060", "sbs,sbs-battery";
+            reg = <0x0b>;
+            sbs,battery-detect-gpios = <&batman 1 1>;
+        };
+    };
+
+    i2c@2 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <2>;
+
+        battery@b {
+            compatible = "ti,bq2060", "sbs,sbs-battery";
+            reg = <0x0b>;
+            sbs,battery-detect-gpios = <&batman 2 1>;
+        };
+    };
+
+    i2c@3 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <3>;
+
+        battery@b {
+            compatible = "ti,bq2060", "sbs,sbs-battery";
+            reg = <0x0b>;
+            sbs,battery-detect-gpios = <&batman 3 1>;
+        };
+    };
+};
