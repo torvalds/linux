@@ -404,7 +404,7 @@ static phys_addr_t mtk_iommu_iova_to_phys(struct iommu_domain *domain,
 	spin_unlock_irqrestore(&dom->pgtlock, flags);
 
 	if (data->enable_4GB)
-		pa |= BIT(32);
+		pa |= BIT_ULL(32);
 
 	return pa;
 }
@@ -586,7 +586,7 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 	data->protect_base = ALIGN(virt_to_phys(protect), MTK_PROTECT_PA_ALIGN);
 
 	/* Whether the current dram is over 4GB */
-	data->enable_4GB = !!(max_pfn > (BIT(32) >> PAGE_SHIFT));
+	data->enable_4GB = !!(max_pfn > (BIT_ULL(32) >> PAGE_SHIFT));
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->base = devm_ioremap_resource(dev, res);
