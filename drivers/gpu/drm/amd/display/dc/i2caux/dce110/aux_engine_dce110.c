@@ -93,15 +93,36 @@ static void destroy(
 }
 
 #define SW_CAN_ACCESS_AUX 1
+#define DMCU_CAN_ACCESS_AUX 2
 
+static bool is_engine_available(
+	struct aux_engine *engine)
+{
+	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(engine);
+
+	uint32_t value = REG_READ(AUX_ARB_CONTROL);
+	uint32_t field = get_reg_field_value(
+			value,
+			AUX_ARB_CONTROL,
+			AUX_REG_RW_CNTL_STATUS);
+
+	return (field != DMCU_CAN_ACCESS_AUX);
+}
 static bool acquire_engine(
 	struct aux_engine *engine)
 {
 	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(engine);
 
+	uint32_t value = REG_READ(AUX_ARB_CONTROL);
+	uint32_t field = get_reg_field_value(
+			value,
+			AUX_ARB_CONTROL,
+			AUX_REG_RW_CNTL_STATUS);
+	if (field == DMCU_CAN_ACCESS_AUX)
+	 return false;
 	/* enable AUX before request SW to access AUX */
-	uint32_t value = REG_READ(AUX_CONTROL);
-	uint32_t field = get_reg_field_value(value,
+	value = REG_READ(AUX_CONTROL);
+	field = get_reg_field_value(value,
 				AUX_CONTROL,
 				AUX_EN);
 
@@ -395,6 +416,7 @@ static const struct aux_engine_funcs aux_engine_funcs = {
 	.submit_channel_request = submit_channel_request,
 	.process_channel_reply = process_channel_reply,
 	.get_channel_status = get_channel_status,
+	.is_engine_available = is_engine_available,
 };
 
 static const struct engine_funcs engine_funcs = {
@@ -425,6 +447,10 @@ static bool construct(
 static void destruct(
 	struct aux_engine_dce110 *engine)
 {
+	struct aux_engine_dce110 *aux110 = engine;
+/*temp w/a, to do*/
+	REG_UPDATE(AUX_ARB_CONTROL, AUX_DMCU_DONE_USING_AUX_REG, 1);
+	REG_UPDATE(AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, 1);
 	dal_aux_engine_destruct(&engine->base);
 }
 

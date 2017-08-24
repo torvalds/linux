@@ -86,6 +86,8 @@ struct aux_engine_funcs {
 	enum aux_channel_operation_result (*get_channel_status)(
 		struct aux_engine *engine,
 		uint8_t *returned_bytes);
+	bool (*is_engine_available) (
+		struct aux_engine *engine);
 };
 
 struct aux_engine {

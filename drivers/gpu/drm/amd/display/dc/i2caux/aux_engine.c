@@ -69,6 +69,12 @@ bool dal_aux_engine_acquire(
 	struct aux_engine *aux_engine = FROM_ENGINE(engine);
 
 	enum gpio_result result;
+	if (aux_engine->funcs->is_engine_available) {
+		/*check whether SW could use the engine*/
+		if (!aux_engine->funcs->is_engine_available(aux_engine)) {
+			return false;
+		}
+	}
 
 	result = dal_ddc_open(ddc, GPIO_MODE_HARDWARE,
 		GPIO_DDC_CONFIG_TYPE_MODE_AUX);
