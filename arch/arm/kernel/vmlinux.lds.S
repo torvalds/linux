@@ -236,9 +236,8 @@ SECTIONS
 	. = ALIGN(THREAD_SIZE);
 #endif
 	__init_end = .;
-	__data_loc = .;
 
-	.data : AT(__data_loc) {
+	.data : {
 		_data = .;		/* address in memory */
 		_sdata = .;
 
@@ -260,7 +259,6 @@ SECTIONS
 
 		_edata = .;
 	}
-	_edata_loc = __data_loc + SIZEOF(.data);
 
 	BUG_TABLE
 

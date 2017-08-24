@@ -77,9 +77,7 @@ SECTIONS
 		*(.text.fixup)
 		*(__ex_table)
 #endif
-#ifndef CONFIG_SMP_ON_UP
 		*(.alt.smp.init)
-#endif
 		*(.discard)
 		*(.discard.*)
 	}
@@ -180,18 +178,6 @@ SECTIONS
 		__tagtable_begin = .;
 		*(.taglist.init)
 		__tagtable_end = .;
-	}
-#ifdef CONFIG_SMP_ON_UP
-	.init.smpalt : {
-		__smpalt_begin = .;
-		*(.alt.smp.init)
-		__smpalt_end = .;
-	}
-#endif
-	.init.pv_table : {
-		__pv_table_begin = .;
-		*(.pv_table)
-		__pv_table_end = .;
 	}
 	.init.data : {
 		INIT_SETUP(16)
