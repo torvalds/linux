@@ -312,9 +312,6 @@ struct common_child_dev_config {
 /* This field changes depending on the BDB version, so the most reliable way to
  * read it is by checking the BDB version and reading the raw pointer. */
 union child_device_config {
-	/* This one is safe to be used anywhere, but the code should still check
-	 * the BDB version. */
-	u8 raw[33];
 	/* This one should only be kept for legacy code. */
 	struct old_child_dev_config old;
 	/* This one should also be safe to use anywhere, even without version

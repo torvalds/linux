@@ -1210,7 +1210,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 
 	if (bdb->version >= 158) {
 		/* The VBT HDMI level shift values match the table we have. */
-		hdmi_level_shift = child->raw[7] & 0xF;
+		hdmi_level_shift = child->common.hdmi_level_shifter_value;
 		DRM_DEBUG_KMS("VBT HDMI level shift for port %c: %d\n",
 			      port_name(port),
 			      hdmi_level_shift);
