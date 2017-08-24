@@ -2145,6 +2145,18 @@ qinf_exit:
 	return rc;
 }
 
+int SMB2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
+	u64 persistent_fid, u64 volatile_fid,
+	struct smb2_file_full_ea_info *data)
+{
+	return query_info(xid, tcon, persistent_fid, volatile_fid,
+			  FILE_FULL_EA_INFORMATION, SMB2_O_INFO_FILE, 0,
+			  SMB2_MAX_EA_BUF,
+			  sizeof(struct smb2_file_full_ea_info),
+			  (void **)&data,
+			  NULL);
+}
+
 int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	u64 persistent_fid, u64 volatile_fid, struct smb2_file_all_info *data)
 {
