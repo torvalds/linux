@@ -5000,6 +5000,15 @@ enum mlxsw_reg_rauht_trap_id {
  */
 MLXSW_ITEM32(reg, rauht, trap_id, 0x60, 0, 9);
 
+enum mlxsw_reg_flow_counter_set_type {
+	/* No count */
+	MLXSW_REG_FLOW_COUNTER_SET_TYPE_NO_COUNT = 0x00,
+	/* Count packets and bytes */
+	MLXSW_REG_FLOW_COUNTER_SET_TYPE_PACKETS_BYTES = 0x03,
+	/* Count only packets */
+	MLXSW_REG_FLOW_COUNTER_SET_TYPE_PACKETS = 0x05,
+};
+
 /* reg_rauht_counter_set_type
  * Counter set type for flow counters
  * Access: RW
@@ -6041,15 +6050,6 @@ static inline void mlxsw_reg_mpsc_pack(char *payload, u8 local_port, bool e,
 
 MLXSW_REG_DEFINE(mgpc, MLXSW_REG_MGPC_ID, MLXSW_REG_MGPC_LEN);
 
-enum mlxsw_reg_mgpc_counter_set_type {
-	/* No count */
-	MLXSW_REG_MGPC_COUNTER_SET_TYPE_NO_COUT = 0x00,
-	/* Count packets and bytes */
-	MLXSW_REG_MGPC_COUNTER_SET_TYPE_PACKETS_BYTES = 0x03,
-	/* Count only packets */
-	MLXSW_REG_MGPC_COUNTER_SET_TYPE_PACKETS = 0x05,
-};
-
 /* reg_mgpc_counter_set_type
  * Counter set type.
  * Access: OP
@@ -6089,7 +6089,7 @@ MLXSW_ITEM64(reg, mgpc, packet_counter, 0x10, 0, 64);
 
 static inline void mlxsw_reg_mgpc_pack(char *payload, u32 counter_index,
 				       enum mlxsw_reg_mgpc_opcode opcode,
-				       enum mlxsw_reg_mgpc_counter_set_type set_type)
+				       enum mlxsw_reg_flow_counter_set_type set_type)
 {
 	MLXSW_REG_ZERO(mgpc, payload);
 	mlxsw_reg_mgpc_counter_index_set(payload, counter_index);
