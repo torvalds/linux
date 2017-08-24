@@ -29,6 +29,23 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/devlink.h>
 
+static struct devlink_dpipe_field devlink_dpipe_fields_ethernet[] = {
+	{
+		.name = "destination_mac",
+		.id = DEVLINK_DPIPE_FIELD_ETHERNET_DST_MAC,
+		.bitwidth = 48,
+	},
+};
+
+struct devlink_dpipe_header devlink_dpipe_header_ethernet = {
+	.name = "ethernet",
+	.id = DEVLINK_DPIPE_HEADER_ETHERNET,
+	.fields = devlink_dpipe_fields_ethernet,
+	.fields_count = ARRAY_SIZE(devlink_dpipe_fields_ethernet),
+	.global = true,
+};
+EXPORT_SYMBOL(devlink_dpipe_header_ethernet);
+
 EXPORT_TRACEPOINT_SYMBOL_GPL(devlink_hwmsg);
 
 static LIST_HEAD(devlink_list);
