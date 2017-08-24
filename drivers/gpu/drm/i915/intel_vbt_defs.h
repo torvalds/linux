@@ -838,11 +838,6 @@ struct bdb_psr {
 #define   SWF14_APM_STANDBY	0x1
 #define   SWF14_APM_RESTORE	0x0
 
-/* define the DVO port for HDMI output type */
-#define		DVO_B		1
-#define		DVO_C		2
-#define		DVO_D		3
-
 /* Block 52 contains MIPI configuration block
  * 6 * bdb_mipi_config, followed by 6 pps data block
  * block below
