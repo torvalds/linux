@@ -938,6 +938,19 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 		I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
 			   ECOCHK_DIS_TLB);
 
+	if (HAS_LLC(dev_priv)) {
+		/* WaCompressedResourceSamplerPbeMediaNewHashMode:skl,kbl
+		 *
+		 * Must match Display Engine. See
+		 * WaCompressedResourceDisplayNewHashMode.
+		 */
+		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
+				  GEN9_PBE_COMPRESSED_HASH_SELECTION);
+		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
+				  GEN9_SAMPLER_HASH_COMPRESSED_READ_ADDR);
+		WA_SET_BIT(MMCD_MISC_CTRL, MMCD_PCLA | MMCD_HOTSPOT_EN);
+	}
+
 	/* WaClearFlowControlGpgpuContextSave:skl,bxt,kbl,glk,cfl */
 	/* WaDisablePartialInstShootdown:skl,bxt,kbl,glk,cfl */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
