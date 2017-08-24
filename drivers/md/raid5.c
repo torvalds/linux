@@ -6235,6 +6235,10 @@ static void raid5_do_work(struct work_struct *work)
 
 	spin_unlock_irq(&conf->device_lock);
 
+	flush_deferred_bios(conf);
+
+	r5l_flush_stripe_to_raid(conf->log);
+
 	async_tx_issue_pending_all();
 	blk_finish_plug(&plug);
 
