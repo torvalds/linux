@@ -1604,12 +1604,10 @@ static inline void ept_sync_global(void)
 
 static inline void ept_sync_context(u64 eptp)
 {
-	if (enable_ept) {
-		if (cpu_has_vmx_invept_context())
-			__invept(VMX_EPT_EXTENT_CONTEXT, eptp, 0);
-		else
-			ept_sync_global();
-	}
+	if (cpu_has_vmx_invept_context())
+		__invept(VMX_EPT_EXTENT_CONTEXT, eptp, 0);
+	else
+		ept_sync_global();
 }
 
 static __always_inline void vmcs_check16(unsigned long field)
