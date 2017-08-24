@@ -6487,6 +6487,50 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 		.prog_type = BPF_PROG_TYPE_LWT_IN,
 	},
+	{
+		"liveness pruning and write screening",
+		.insns = {
+			/* Get an unknown value */
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
+			/* branch conditions teach us nothing about R2 */
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_2, 0, 1),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_2, 0, 1),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R0 !read_ok",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_LWT_IN,
+	},
+	{
+		"varlen_map_value_access pruning",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 8),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0, 0),
+			BPF_MOV32_IMM(BPF_REG_2, MAX_ENTRIES),
+			BPF_JMP_REG(BPF_JSGT, BPF_REG_2, BPF_REG_1, 1),
+			BPF_MOV32_IMM(BPF_REG_1, 0),
+			BPF_ALU32_IMM(BPF_LSH, BPF_REG_1, 2),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+			BPF_ST_MEM(BPF_DW, BPF_REG_0, 0,
+				   offsetof(struct test_val, foo)),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map2 = { 3 },
+		.errstr_unpriv = "R0 leaks addr",
+		.errstr = "R0 unbounded memory access",
+		.result_unpriv = REJECT,
+		.result = REJECT,
+		.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
+	},
 };
 
 static int probe_filter_length(const struct bpf_insn *fp)
