@@ -2107,6 +2107,26 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 }
 
 /**
+ * binder_cleanup_transaction() - cleans up undelivered transaction
+ * @t:		transaction that needs to be cleaned up
+ * @reason:	reason the transaction wasn't delivered
+ * @error_code:	error to return to caller (if synchronous call)
+ */
+static void binder_cleanup_transaction(struct binder_transaction *t,
+				       const char *reason,
+				       uint32_t error_code)
+{
+	if (t->buffer->target_node && !(t->flags & TF_ONE_WAY)) {
+		binder_send_failed_reply(t, error_code);
+	} else {
+		binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
+			"undelivered transaction %d, %s\n",
+			t->debug_id, reason);
+		binder_free_transaction(t);
+	}
+}
+
+/**
  * binder_validate_object() - checks for a valid metadata object in a buffer.
  * @buffer:	binder_buffer that we're parsing.
  * @offset:	offset in the buffer at which to validate an object.
@@ -4188,12 +4208,20 @@ retry:
 		if (put_user(cmd, (uint32_t __user *)ptr)) {
 			if (t_from)
 				binder_thread_dec_tmpref(t_from);
+
+			binder_cleanup_transaction(t, "put_user failed",
+						   BR_FAILED_REPLY);
+
 			return -EFAULT;
 		}
 		ptr += sizeof(uint32_t);
 		if (copy_to_user(ptr, &tr, sizeof(tr))) {
 			if (t_from)
 				binder_thread_dec_tmpref(t_from);
+
+			binder_cleanup_transaction(t, "copy_to_user failed",
+						   BR_FAILED_REPLY);
+
 			return -EFAULT;
 		}
 		ptr += sizeof(tr);
@@ -4263,15 +4291,9 @@ static void binder_release_work(struct binder_proc *proc,
 			struct binder_transaction *t;
 
 			t = container_of(w, struct binder_transaction, work);
-			if (t->buffer->target_node &&
-			    !(t->flags & TF_ONE_WAY)) {
-				binder_send_failed_reply(t, BR_DEAD_REPLY);
-			} else {
-				binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
-					"undelivered transaction %d\n",
-					t->debug_id);
-				binder_free_transaction(t);
-			}
+
+			binder_cleanup_transaction(t, "process died.",
+						   BR_DEAD_REPLY);
 		} break;
 		case BINDER_WORK_RETURN_ERROR: {
 			struct binder_error *e = container_of(
