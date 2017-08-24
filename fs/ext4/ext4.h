@@ -838,13 +838,11 @@ static inline void ext4_decode_extra_time(struct timespec *time, __le32 extra)
 {
 	if (unlikely(sizeof(time->tv_sec) > 4 &&
 			(extra & cpu_to_le32(EXT4_EPOCH_MASK)))) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,20,0)
+
+#if 1
 		/* Handle legacy encoding of pre-1970 dates with epoch
-		 * bits 1,1.  We assume that by kernel version 4.20,
-		 * everyone will have run fsck over the affected
-		 * filesystems to correct the problem.  (This
-		 * backwards compatibility may be removed before this
-		 * time, at the discretion of the ext4 developers.)
+		 * bits 1,1. (This backwards compatibility may be removed
+		 * at the discretion of the ext4 developers.)
 		 */
 		u64 extra_bits = le32_to_cpu(extra) & EXT4_EPOCH_MASK;
 		if (extra_bits == 3 && ((time->tv_sec) & 0x80000000) != 0)
