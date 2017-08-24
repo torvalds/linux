@@ -948,7 +948,6 @@ EXPORT_SYMBOL(vme_dma_request);
  */
 struct vme_dma_list *vme_new_dma_list(struct vme_resource *resource)
 {
-	struct vme_dma_resource *ctrlr;
 	struct vme_dma_list *dma_list;
 
 	if (resource->type != VME_DMA) {
@@ -956,14 +955,14 @@ struct vme_dma_list *vme_new_dma_list(struct vme_resource *resource)
 		return NULL;
 	}
 
-	ctrlr = list_entry(resource->entry, struct vme_dma_resource, list);
-
 	dma_list = kmalloc(sizeof(*dma_list), GFP_KERNEL);
 	if (!dma_list)
 		return NULL;
 
 	INIT_LIST_HEAD(&dma_list->entries);
-	dma_list->parent = ctrlr;
+	dma_list->parent = list_entry(resource->entry,
+				      struct vme_dma_resource,
+				      list);
 	mutex_init(&dma_list->mtx);
 
 	return dma_list;
