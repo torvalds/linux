@@ -658,6 +658,40 @@ qcom_glink_alloc_intent(struct qcom_glink *glink,
 	return intent;
 }
 
+static void qcom_glink_handle_rx_done(struct qcom_glink *glink,
+				      u32 cid, uint32_t iid,
+				      bool reuse)
+{
+	struct glink_core_rx_intent *intent;
+	struct glink_channel *channel;
+	unsigned long flags;
+
+	spin_lock_irqsave(&glink->idr_lock, flags);
+	channel = idr_find(&glink->rcids, cid);
+	spin_unlock_irqrestore(&glink->idr_lock, flags);
+	if (!channel) {
+		dev_err(glink->dev, "invalid channel id received\n");
+		return;
+	}
+
+	spin_lock_irqsave(&channel->intent_lock, flags);
+	intent = idr_find(&channel->riids, iid);
+
+	if (!intent) {
+		spin_unlock_irqrestore(&channel->intent_lock, flags);
+		dev_err(glink->dev, "invalid intent id received\n");
+		return;
+	}
+
+	intent->in_use = false;
+
+	if (!reuse) {
+		idr_remove(&channel->riids, intent->id);
+		kfree(intent);
+	}
+	spin_unlock_irqrestore(&channel->intent_lock, flags);
+}
+
 /**
  * qcom_glink_handle_intent_req() - Receive a request for rx_intent
  *					    from remote side
@@ -965,6 +999,14 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 			break;
 		case RPM_CMD_INTENT:
 			qcom_glink_handle_intent(glink, param1, param2, avail);
+			break;
+		case RPM_CMD_RX_DONE:
+			qcom_glink_handle_rx_done(glink, param1, param2, false);
+			qcom_glink_rx_advance(glink, ALIGN(sizeof(msg), 8));
+			break;
+		case RPM_CMD_RX_DONE_W_REUSE:
+			qcom_glink_handle_rx_done(glink, param1, param2, true);
+			qcom_glink_rx_advance(glink, ALIGN(sizeof(msg), 8));
 			break;
 		case RPM_CMD_RX_INTENT_REQ_ACK:
 			qcom_glink_handle_intent_req_ack(glink, param1, param2);
