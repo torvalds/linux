@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_irq.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
@@ -139,7 +140,14 @@ static int smbalert_probe(struct i2c_client *ara,
 	if (!alert)
 		return -ENOMEM;
 
-	irq = setup->irq;
+	if (setup) {
+		irq = setup->irq;
+	} else {
+		irq = of_irq_get_byname(adapter->dev.of_node, "smbus_alert");
+		if (irq <= 0)
+			return irq;
+	}
+
 	INIT_WORK(&alert->alert, smbalert_work);
 	alert->ara = ara;
 

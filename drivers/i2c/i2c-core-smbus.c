@@ -625,3 +625,25 @@ struct i2c_client *i2c_setup_smbus_alert(struct i2c_adapter *adapter,
 	return i2c_new_device(adapter, &ara_board_info);
 }
 EXPORT_SYMBOL_GPL(i2c_setup_smbus_alert);
+
+#if IS_ENABLED(CONFIG_I2C_SMBUS) && IS_ENABLED(CONFIG_OF)
+int of_i2c_setup_smbus_alert(struct i2c_adapter *adapter)
+{
+	struct i2c_client *client;
+	int irq;
+
+	irq = of_property_match_string(adapter->dev.of_node, "interrupt-names",
+				       "smbus_alert");
+	if (irq == -EINVAL || irq == -ENODATA)
+		return 0;
+	else if (irq < 0)
+		return irq;
+
+	client = i2c_setup_smbus_alert(adapter, NULL);
+	if (!client)
+		return -ENODEV;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_i2c_setup_smbus_alert);
+#endif
