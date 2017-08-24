@@ -48,7 +48,6 @@ struct loop_device {
 
 	struct file *	lo_backing_file;
 	struct block_device *lo_device;
-	unsigned	lo_blocksize;
 	void		*key_data; 
 
 	gfp_t		old_gfp_mask;
