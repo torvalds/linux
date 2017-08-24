@@ -1118,6 +1118,7 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 	struct user_element *ue = kctl->private_data;
 	unsigned int *container;
 	struct snd_ctl_elem_id id;
+	unsigned int mask = 0;
 	int i;
 	int change;
 
@@ -1136,13 +1137,21 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 		return 0;
 	}
 
+	if (ue->tlv_data == NULL) {
+		/* Now TLV data is available. */
+		for (i = 0; i < kctl->count; ++i)
+			kctl->vd[i].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+		mask = SNDRV_CTL_EVENT_MASK_INFO;
+	}
+
 	kfree(ue->tlv_data);
 	ue->tlv_data = container;
 	ue->tlv_data_size = size;
 
+	mask |= SNDRV_CTL_EVENT_MASK_TLV;
 	for (i = 0; i < kctl->count; ++i) {
 		snd_ctl_build_ioff(&id, kctl, i);
-		snd_ctl_notify(ue->card, SNDRV_CTL_EVENT_MASK_TLV, &id);
+		snd_ctl_notify(ue->card, mask, &id);
 	}
 
 	return change;
@@ -1277,8 +1286,10 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		access = SNDRV_CTL_ELEM_ACCESS_READWRITE;
 	access &= (SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		   SNDRV_CTL_ELEM_ACCESS_INACTIVE |
-		   SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE);
-	if (access & SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE)
+		   SNDRV_CTL_ELEM_ACCESS_TLV_WRITE);
+
+	/* In initial state, nothing is available as TLV container. */
+	if (access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE)
 		access |= SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
 	access |= SNDRV_CTL_ELEM_ACCESS_USER;
 
@@ -1341,7 +1352,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		kctl->get = snd_ctl_elem_user_get;
 	if (access & SNDRV_CTL_ELEM_ACCESS_WRITE)
 		kctl->put = snd_ctl_elem_user_put;
-	if (access & SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE)
+	if (access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE)
 		kctl->tlv.c = snd_ctl_elem_user_tlv;
 
 	/* This function manage to free the instance on failure. */
