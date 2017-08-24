@@ -27,6 +27,16 @@ config RPMSG_QCOM_GLINK_RPM
 	  which serves as a channel for communication with the RPM in GLINK
 	  enabled systems.
 
+config RPMSG_QCOM_GLINK_SMEM
+	tristate "Qualcomm SMEM Glink driver"
+	select RPMSG_QCOM_GLINK_NATIVE
+	depends on MAILBOX
+	depends on QCOM_SMEM
+	help
+	  Say y here to enable support for the GLINK SMEM communication driver,
+	  which provides support for using the GLINK communication protocol
+	  over SMEM.
+
 config RPMSG_QCOM_SMD
 	tristate "Qualcomm Shared Memory Driver (SMD)"
 	depends on QCOM_SMEM

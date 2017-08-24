@@ -1010,3 +1010,8 @@ void qcom_glink_native_remove(struct qcom_glink *glink)
 	idr_destroy(&glink->rcids);
 	mbox_free_channel(glink->mbox_chan);
 }
+
+void qcom_glink_native_unregister(struct qcom_glink *glink)
+{
+	device_unregister(glink->dev);
+}
