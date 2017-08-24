@@ -3225,6 +3225,7 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->resume = component->driver->resume;
 	component->set_sysclk = component->driver->set_sysclk;
 	component->set_pll = component->driver->set_pll;
+	component->set_jack = component->driver->set_jack;
 
 	dapm = &component->dapm;
 	dapm->dev = dev;
@@ -3625,6 +3626,14 @@ static int snd_soc_codec_set_pll_(struct snd_soc_component *component,
 	return snd_soc_codec_set_pll(codec, pll_id, source, freq_in, freq_out);
 }
 
+static int snd_soc_codec_set_jack_(struct snd_soc_component *component,
+			       struct snd_soc_jack *jack, void *data)
+{
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+	return snd_soc_codec_set_jack(codec, jack, data);
+}
+
 static int snd_soc_codec_set_bias_level(struct snd_soc_dapm_context *dapm,
 	enum snd_soc_bias_level level)
 {
@@ -3680,6 +3689,8 @@ int snd_soc_register_codec(struct device *dev,
 		codec->component.set_sysclk = snd_soc_codec_set_sysclk_;
 	if (codec_drv->set_pll)
 		codec->component.set_pll = snd_soc_codec_set_pll_;
+	if (codec_drv->set_jack)
+		codec->component.set_jack = snd_soc_codec_set_jack_;
 	codec->component.ignore_pmdown_time = codec_drv->ignore_pmdown_time;
 
 	dapm = snd_soc_codec_get_dapm(codec);
