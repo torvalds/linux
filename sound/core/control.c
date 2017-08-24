@@ -1117,6 +1117,9 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 {
 	struct user_element *ue = kctl->private_data;
 	unsigned int *container;
+	struct snd_ctl_elem_id id;
+	unsigned int mask = 0;
+	int i;
 	int change;
 
 	if (size > 1024 * 128)	/* sane value */
@@ -1134,9 +1137,22 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 		return 0;
 	}
 
+	if (ue->tlv_data == NULL) {
+		/* Now TLV data is available. */
+		for (i = 0; i < kctl->count; ++i)
+			kctl->vd[i].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+		mask = SNDRV_CTL_EVENT_MASK_INFO;
+	}
+
 	kfree(ue->tlv_data);
 	ue->tlv_data = container;
 	ue->tlv_data_size = size;
+
+	mask |= SNDRV_CTL_EVENT_MASK_TLV;
+	for (i = 0; i < kctl->count; ++i) {
+		snd_ctl_build_ioff(&id, kctl, i);
+		snd_ctl_notify(ue->card, mask, &id);
+	}
 
 	return change;
 }
@@ -1270,8 +1286,10 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		access = SNDRV_CTL_ELEM_ACCESS_READWRITE;
 	access &= (SNDRV_CTL_ELEM_ACCESS_READWRITE |
 		   SNDRV_CTL_ELEM_ACCESS_INACTIVE |
-		   SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE);
-	if (access & SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE)
+		   SNDRV_CTL_ELEM_ACCESS_TLV_WRITE);
+
+	/* In initial state, nothing is available as TLV container. */
+	if (access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE)
 		access |= SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
 	access |= SNDRV_CTL_ELEM_ACCESS_USER;
 
@@ -1334,7 +1352,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 		kctl->get = snd_ctl_elem_user_get;
 	if (access & SNDRV_CTL_ELEM_ACCESS_WRITE)
 		kctl->put = snd_ctl_elem_user_put;
-	if (access & SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE)
+	if (access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE)
 		kctl->tlv.c = snd_ctl_elem_user_tlv;
 
 	/* This function manage to free the instance on failure. */
@@ -1423,7 +1441,6 @@ static int call_tlv_handler(struct snd_ctl_file *file, int op_flag,
 	};
 	struct snd_kcontrol_volatile *vd = &kctl->vd[snd_ctl_get_ioff(kctl, id)];
 	int i;
-	int err;
 
 	/* Check support of the request for this element. */
 	for (i = 0; i < ARRAY_SIZE(pairs); ++i) {
@@ -1440,14 +1457,7 @@ static int call_tlv_handler(struct snd_ctl_file *file, int op_flag,
 	if (vd->owner != NULL && vd->owner != file)
 		return -EPERM;
 
-	err = kctl->tlv.c(kctl, op_flag, size, buf);
-	if (err < 0)
-		return err;
-
-	if (err > 0)
-		snd_ctl_notify(file->card, SNDRV_CTL_EVENT_MASK_TLV, id);
-
-	return 0;
+	return kctl->tlv.c(kctl, op_flag, size, buf);
 }
 
 static int read_tlv_buf(struct snd_kcontrol *kctl, struct snd_ctl_elem_id *id,
