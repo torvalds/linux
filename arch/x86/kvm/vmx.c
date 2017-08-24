@@ -2826,8 +2826,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 				SECONDARY_EXEC_ENABLE_PML;
 			vmx->nested.nested_vmx_ept_caps |= VMX_EPT_AD_BIT;
 		}
-	} else
-		vmx->nested.nested_vmx_ept_caps = 0;
+	}
 
 	if (cpu_has_vmx_vmfunc()) {
 		vmx->nested.nested_vmx_secondary_ctls_high |=
@@ -2851,8 +2850,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 			SECONDARY_EXEC_ENABLE_VPID;
 		vmx->nested.nested_vmx_vpid_caps = VMX_VPID_INVVPID_BIT |
 			VMX_VPID_EXTENT_SUPPORTED_MASK;
-	} else
-		vmx->nested.nested_vmx_vpid_caps = 0;
+	}
 
 	if (enable_unrestricted_guest)
 		vmx->nested.nested_vmx_secondary_ctls_high |=
