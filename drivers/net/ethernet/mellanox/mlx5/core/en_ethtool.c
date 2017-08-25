@@ -254,8 +254,8 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, u8 *data)
 		       pcie_perf_stats_desc64[i].format);
 
 	for (i = 0; i < NUM_PCIE_PERF_STALL_COUNTERS(priv); i++)
-	 strcpy(data + (idx++) * ETH_GSTRING_LEN,
-		pcie_perf_stall_stats_desc[i].format);
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       pcie_perf_stall_stats_desc[i].format);
 
 	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
 		for (i = 0; i < NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS; i++)
