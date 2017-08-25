@@ -1156,7 +1156,6 @@ static int __init fake_init(void)
 	INIT_LIST_HEAD(&fake_bridge->lm_resources);
 	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
 	if (lm == NULL) {
-		pr_err("Failed to allocate memory for location monitor resource structure\n");
 		retval = -ENOMEM;
 		goto err_lm;
 	}
