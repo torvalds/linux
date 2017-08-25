@@ -962,7 +962,7 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 
 	sa->sa_command_1.bf.hash_crypto_offset = 0;
 	pd->pd_ctl.w = ctx->pd_ctl;
-	pd->pd_ctl_len.w = 0x00400000 | (ctx->bypass << 24) | datalen;
+	pd->pd_ctl_len.w = 0x00400000 | datalen;
 	pd_uinfo->state = PD_ENTRY_INUSE;
 	wmb();
 	/* write any value to push engine to read a pd */

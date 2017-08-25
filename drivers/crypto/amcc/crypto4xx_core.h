@@ -72,7 +72,6 @@ struct pd_uinfo {
 struct crypto4xx_device {
 	struct crypto4xx_core_device *core_dev;
 	char *name;
-	u64  ce_phy_address;
 	void __iomem *ce_base;
 	void __iomem *trng_base;
 
@@ -127,21 +126,9 @@ struct crypto4xx_ctx {
 	u32 sa_len;
 	u32 offset_to_sr_ptr;           /* offset to state ptr, in dynamic sa */
 	u32 direction;
-	u32 next_hdr;
 	u32 save_iv;
-	u32 pd_ctl_len;
 	u32 pd_ctl;
-	u32 bypass;
 	u32 is_hash;
-	u32 hash_final;
-};
-
-struct crypto4xx_req_ctx {
-	struct crypto4xx_device *dev;	/* Device in which
-					operation to send to */
-	void *sa;
-	u32 sa_dma_addr;
-	u16 sa_len;
 };
 
 struct crypto4xx_alg_common {
@@ -172,9 +159,6 @@ static inline struct crypto4xx_alg *crypto_alg_to_crypto4xx_alg(
 
 extern int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size);
 extern void crypto4xx_free_sa(struct crypto4xx_ctx *ctx);
-extern u32 crypto4xx_alloc_sa_rctx(struct crypto4xx_ctx *ctx,
-				   struct crypto4xx_ctx *rctx);
-extern void crypto4xx_free_sa_rctx(struct crypto4xx_ctx *rctx);
 extern void crypto4xx_free_ctx(struct crypto4xx_ctx *ctx);
 extern u32 crypto4xx_alloc_state_record(struct crypto4xx_ctx *ctx);
 extern u32 get_dynamic_sa_offset_state_ptr_field(struct crypto4xx_ctx *ctx);

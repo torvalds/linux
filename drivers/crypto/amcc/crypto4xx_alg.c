@@ -75,7 +75,6 @@ int crypto4xx_encrypt(struct ablkcipher_request *req)
 	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 
 	ctx->direction = DIR_OUTBOUND;
-	ctx->hash_final = 0;
 	ctx->is_hash = 0;
 	ctx->pd_ctl = 0x1;
 
@@ -89,7 +88,6 @@ int crypto4xx_decrypt(struct ablkcipher_request *req)
 	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 
 	ctx->direction = DIR_INBOUND;
-	ctx->hash_final = 0;
 	ctx->is_hash = 0;
 	ctx->pd_ctl = 1;
 
@@ -136,7 +134,6 @@ static int crypto4xx_setkey_aes(struct crypto_ablkcipher *cipher,
 	}
 	/* Setup SA */
 	sa = (struct dynamic_sa_ctl *) ctx->sa_in;
-	ctx->hash_final = 0;
 
 	set_dynamic_sa_command_0(sa, SA_NOT_SAVE_HASH, SA_NOT_SAVE_IV,
 				 SA_LOAD_HASH_FROM_SA, SA_LOAD_IV_FROM_STATE,
@@ -191,7 +188,6 @@ static int crypto4xx_hash_alg_init(struct crypto_tfm *tfm,
 
 	ctx->dev   = my_alg->dev;
 	ctx->is_hash = 1;
-	ctx->hash_final = 0;
 
 	/* Create SA */
 	if (ctx->sa_in_dma_addr || ctx->sa_out_dma_addr)
@@ -256,7 +252,6 @@ int crypto4xx_hash_update(struct ahash_request *req)
 	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 
 	ctx->is_hash = 1;
-	ctx->hash_final = 0;
 	ctx->pd_ctl = 0x11;
 	ctx->direction = DIR_INBOUND;
 
@@ -274,7 +269,6 @@ int crypto4xx_hash_digest(struct ahash_request *req)
 {
 	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 
-	ctx->hash_final = 1;
 	ctx->pd_ctl = 0x11;
 	ctx->direction = DIR_INBOUND;
 
