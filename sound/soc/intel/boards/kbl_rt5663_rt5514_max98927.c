@@ -117,6 +117,11 @@ static const struct snd_soc_dapm_route kabylake_map[] = {
 	{ "codec1_in", NULL, "ssp0 Rx" },
 	{ "ssp0 Rx", NULL, "AIF1 Capture" },
 
+	/* IV feedback path */
+	{ "codec0_fb_in", NULL, "ssp0 Rx"},
+	{ "ssp0 Rx", NULL, "Left HiFi Capture" },
+	{ "ssp0 Rx", NULL, "Right HiFi Capture" },
+
 	/* DMIC */
 	{ "DMIC1L", NULL, "DMIC" },
 	{ "DMIC1R", NULL, "DMIC" },
