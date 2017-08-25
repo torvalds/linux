@@ -293,7 +293,9 @@ struct rv_hwmgr {
 	DpmClocks_t                       clock_table;
 
 	uint32_t active_process_mask;
-	bool need_min_deep_sleep_dcefclk; /* disabled by default */
+	bool need_min_deep_sleep_dcefclk;
+	uint32_t                             deep_sleep_dcefclk;
+	uint32_t                             num_active_display;
 };
 
 struct pp_hwmgr;

@@ -378,6 +378,8 @@ struct pp_hwmgr_func {
 			struct amd_pp_profile *request);
 	int (*avfs_control)(struct pp_hwmgr *hwmgr, bool enable);
 	int (*disable_smc_firmware_ctf)(struct pp_hwmgr *hwmgr);
+	int (*set_active_display_count)(struct pp_hwmgr *hwmgr, uint32_t count);
+	int (*set_deep_sleep_dcefclk)(struct pp_hwmgr *hwmgr, uint32_t clock);
 };
 
 struct pp_table_func {

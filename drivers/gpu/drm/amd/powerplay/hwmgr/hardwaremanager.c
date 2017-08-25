@@ -323,12 +323,26 @@ int phm_check_states_equal(struct pp_hwmgr *hwmgr,
 int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 		    const struct amd_pp_display_configuration *display_config)
 {
+	int index = 0;
+	int number_of_active_display = 0;
+
 	PHM_FUNC_CHECK(hwmgr);
 
 	if (display_config == NULL)
 		return -EINVAL;
 
 	hwmgr->display_config = *display_config;
+
+	if (NULL != hwmgr->hwmgr_func->set_deep_sleep_dcefclk)
+		hwmgr->hwmgr_func->set_deep_sleep_dcefclk(hwmgr, hwmgr->display_config.min_dcef_deep_sleep_set_clk);
+
+	for (index = 0; index < hwmgr->display_config.num_path_including_non_display; index++) {
+		if (hwmgr->display_config.displays[index].controller_id != 0)
+			number_of_active_display++;
+	}
+
+	if (NULL != hwmgr->hwmgr_func->set_active_display_count)
+		hwmgr->hwmgr_func->set_active_display_count(hwmgr, number_of_active_display);
 
 	if (hwmgr->hwmgr_func->store_cc6_data == NULL)
 		return -EINVAL;

@@ -76,6 +76,9 @@ static int rv_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	rv_hwmgr->is_nb_dpm_enabled = 1;
 	rv_hwmgr->dpm_flags = 1;
 	rv_hwmgr->gfx_off_controled_by_driver = false;
+	rv_hwmgr->need_min_deep_sleep_dcefclk = true;
+	rv_hwmgr->num_active_display = 0;
+	rv_hwmgr->deep_sleep_dcefclk = 0;
 
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SclkDeepSleep);
@@ -162,20 +165,11 @@ static int rv_tf_set_clock_limit(struct pp_hwmgr *hwmgr, void *input,
 	struct pp_display_clock_request clock_req;
 
 	clocks.dcefClock = hwmgr->display_config.min_dcef_set_clk;
-	clocks.dcefClockInSR = hwmgr->display_config.min_dcef_deep_sleep_set_clk;
 	clock_req.clock_type = amd_pp_dcf_clock;
 	clock_req.clock_freq_in_khz = clocks.dcefClock * 10;
 
-	if (clocks.dcefClock == 0 && clocks.dcefClockInSR == 0)
-		clock_req.clock_freq_in_khz = rv_data->dcf_actual_hard_min_freq;
-
 	PP_ASSERT_WITH_CODE(!rv_display_clock_voltage_request(hwmgr, &clock_req),
 				"Attempt to set DCF Clock Failed!", return -EINVAL);
-
-	if(rv_data->need_min_deep_sleep_dcefclk && 0 != clocks.dcefClockInSR)
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-					PPSMC_MSG_SetMinDeepSleepDcefclk,
-					clocks.dcefClockInSR / 100);
 
 	if (((hwmgr->uvd_arbiter.vclk_soft_min / 100) != rv_data->vclk_soft_min) ||
 	    ((hwmgr->uvd_arbiter.dclk_soft_min / 100) != rv_data->dclk_soft_min)) {
@@ -213,26 +207,35 @@ static int rv_tf_set_clock_limit(struct pp_hwmgr *hwmgr, void *input,
 	return 0;
 }
 
-
-static int rv_tf_set_num_active_display(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static int rv_set_deep_sleep_dcefclk(struct pp_hwmgr *hwmgr, uint32_t clock)
 {
-	uint32_t  num_of_active_displays = 0;
-	struct cgs_display_info info = {0};
+	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	num_of_active_displays = info.display_count;
+	if (rv_data->need_min_deep_sleep_dcefclk && rv_data->deep_sleep_dcefclk != clock/100) {
+		rv_data->deep_sleep_dcefclk = clock/100;
+		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_SetMinDeepSleepDcefclk,
+					rv_data->deep_sleep_dcefclk);
+	}
+	return 0;
+}
 
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+static int rv_set_active_display_count(struct pp_hwmgr *hwmgr, uint32_t count)
+{
+	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
+
+	if (rv_data->num_active_display != count) {
+		rv_data->num_active_display = count;
+		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
 				PPSMC_MSG_SetDisplayCount,
-				num_of_active_displays);
+				rv_data->num_active_display);
+	}
 
 	return 0;
 }
 
 static const struct phm_master_table_item rv_set_power_state_list[] = {
 	{ NULL, rv_tf_set_clock_limit },
-	{ NULL, rv_tf_set_num_active_display },
 	{ }
 };
 
@@ -955,6 +958,8 @@ static const struct pp_hwmgr_func rv_hwmgr_funcs = {
 	.get_clock_by_type_with_voltage = rv_get_clock_by_type_with_voltage,
 	.get_max_high_clocks = rv_get_max_high_clocks,
 	.read_sensor = rv_read_sensor,
+	.set_active_display_count = rv_set_active_display_count,
+	.set_deep_sleep_dcefclk = rv_set_deep_sleep_dcefclk,
 };
 
 int rv_init_function_pointers(struct pp_hwmgr *hwmgr)
