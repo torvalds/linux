@@ -183,14 +183,11 @@ ENDPROC(entry_SYSENTER_compat)
  */
 ENTRY(entry_SYSCALL_compat)
 	/* Interrupts are off on entry. */
-	SWAPGS_UNSAFE_STACK
+	swapgs
 
 	/* Stash user ESP and switch to the kernel stack. */
 	movl	%esp, %r8d
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
-
-	/* Zero-extending 32-bit regs, do not remove */
-	movl	%eax, %eax
 
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER32_DS		/* pt_regs->ss */
@@ -198,6 +195,8 @@ ENTRY(entry_SYSCALL_compat)
 	pushq	%r11			/* pt_regs->flags */
 	pushq	$__USER32_CS		/* pt_regs->cs */
 	pushq	%rcx			/* pt_regs->ip */
+GLOBAL(entry_SYSCALL_compat_after_hwframe)
+	movl	%eax, %eax		/* discard orig_ax high bits */
 	pushq	%rax			/* pt_regs->orig_ax */
 	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */

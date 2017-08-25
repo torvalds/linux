@@ -13,7 +13,7 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 	unsigned long addr, seg;
 
 	addr = regs->ip;
-	seg = regs->cs & 0xffff;
+	seg = regs->cs;
 	if (v8086_mode(regs)) {
 		addr = (addr & 0xffff) + (seg << 4);
 		return addr;

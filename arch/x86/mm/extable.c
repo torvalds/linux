@@ -142,7 +142,7 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	 * undefined.  I'm not sure which CPUs do this, but at least
 	 * the 486 DX works this way.
 	 */
-	if ((regs->cs & 0xFFFF) != __KERNEL_CS)
+	if (regs->cs != __KERNEL_CS)
 		goto fail;
 
 	/*

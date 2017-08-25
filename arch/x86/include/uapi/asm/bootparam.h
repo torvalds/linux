@@ -201,7 +201,7 @@ struct boot_params {
  *
  * @X86_SUBARCH_PC: Should be used if the hardware is enumerable using standard
  *	PC mechanisms (PCI, ACPI) and doesn't need a special boot flow.
- * @X86_SUBARCH_LGUEST: Used for x86 hypervisor demo, lguest
+ * @X86_SUBARCH_LGUEST: Used for x86 hypervisor demo, lguest, deprecated
  * @X86_SUBARCH_XEN: Used for Xen guest types which follow the PV boot path,
  * 	which start at asm startup_xen() entry point and later jump to the C
  * 	xen_start_kernel() entry point. Both domU and dom0 type of guests are

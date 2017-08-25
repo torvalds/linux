@@ -271,13 +271,37 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 	case 0x8d:
 		if (rex == 0x48 && modrm == 0x65) {
 
-			/* lea -disp(%rbp), %rsp */
+			/* lea disp(%rbp), %rsp */
 			*type = INSN_STACK;
 			op->src.type = OP_SRC_ADD;
 			op->src.reg = CFI_BP;
 			op->src.offset = insn.displacement.value;
 			op->dest.type = OP_DEST_REG;
 			op->dest.reg = CFI_SP;
+			break;
+		}
+
+		if (rex == 0x48 && (modrm == 0xa4 || modrm == 0x64) &&
+		    sib == 0x24) {
+
+			/* lea disp(%rsp), %rsp */
+			*type = INSN_STACK;
+			op->src.type = OP_SRC_ADD;
+			op->src.reg = CFI_SP;
+			op->src.offset = insn.displacement.value;
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = CFI_SP;
+			break;
+		}
+
+		if (rex == 0x48 && modrm == 0x2c && sib == 0x24) {
+
+			/* lea (%rsp), %rbp */
+			*type = INSN_STACK;
+			op->src.type = OP_SRC_REG;
+			op->src.reg = CFI_SP;
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = CFI_BP;
 			break;
 		}
 
@@ -382,20 +406,27 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 
 	case 0x0f:
 
-		if (op2 >= 0x80 && op2 <= 0x8f)
+		if (op2 >= 0x80 && op2 <= 0x8f) {
+
 			*type = INSN_JUMP_CONDITIONAL;
-		else if (op2 == 0x05 || op2 == 0x07 || op2 == 0x34 ||
-			 op2 == 0x35)
+
+		} else if (op2 == 0x05 || op2 == 0x07 || op2 == 0x34 ||
+			   op2 == 0x35) {
 
 			/* sysenter, sysret */
 			*type = INSN_CONTEXT_SWITCH;
 
-		else if (op2 == 0x0d || op2 == 0x1f)
+		} else if (op2 == 0x0b || op2 == 0xb9) {
+
+			/* ud2 */
+			*type = INSN_BUG;
+
+		} else if (op2 == 0x0d || op2 == 0x1f) {
 
 			/* nopl/nopw */
 			*type = INSN_NOP;
 
-		else if (op2 == 0xa0 || op2 == 0xa8) {
+		} else if (op2 == 0xa0 || op2 == 0xa8) {
 
 			/* push fs/gs */
 			*type = INSN_STACK;

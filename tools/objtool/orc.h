@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Josh Poimboeuf <jpoimboe@redhat.com>
+ * Copyright (C) 2017 Josh Poimboeuf <jpoimboe@redhat.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,10 +14,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _BUILTIN_H
-#define _BUILTIN_H
 
-extern int cmd_check(int argc, const char **argv);
-extern int cmd_orc(int argc, const char **argv);
+#ifndef _ORC_H
+#define _ORC_H
 
-#endif /* _BUILTIN_H */
+#include "orc_types.h"
+
+struct objtool_file;
+
+int create_orc(struct objtool_file *file);
+int create_orc_sections(struct objtool_file *file);
+
+int orc_dump(const char *objname);
+
+#endif /* _ORC_H */
