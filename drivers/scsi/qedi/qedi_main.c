@@ -1575,7 +1575,7 @@ struct qedi_cmd *qedi_get_cmd_from_tid(struct qedi_ctx *qedi, u32 tid)
 {
 	struct qedi_cmd *cmd = NULL;
 
-	if (tid > MAX_ISCSI_TASK_ENTRIES)
+	if (tid >= MAX_ISCSI_TASK_ENTRIES)
 		return NULL;
 
 	cmd = qedi->itt_map[tid].p_cmd;
