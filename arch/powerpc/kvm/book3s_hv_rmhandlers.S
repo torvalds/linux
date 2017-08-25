@@ -1280,7 +1280,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	cmpwi	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
 	bne	2f
 	mfspr	r3,SPRN_HDEC
-	cmpwi	r3,0
+	EXTEND_HDEC(r3)
+	cmpdi	r3,0
 	mr	r4,r9
 	bge	fast_guest_return
 2:
