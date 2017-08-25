@@ -166,8 +166,6 @@ static int power_model_simple_init(struct platform_device *pdev)
 				tz_name,
 				PTR_ERR(gpu_tz));
 		gpu_tz = NULL;
-
-		return -EPROBE_DEFER;
 	}
 
 	if (of_property_read_u32(power_model_node, "static-power",
