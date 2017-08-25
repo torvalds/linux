@@ -1500,9 +1500,10 @@ static int soc_probe_component(struct snd_soc_card *card,
 		snd_soc_add_component_controls(component,
 					       component->driver->controls,
 					       component->driver->num_controls);
-	if (component->dapm_routes)
-		snd_soc_dapm_add_routes(dapm, component->dapm_routes,
-					component->num_dapm_routes);
+	if (component->driver->dapm_routes)
+		snd_soc_dapm_add_routes(dapm,
+					component->driver->dapm_routes,
+					component->driver->num_dapm_routes);
 
 	list_add(&dapm->list, &card->dapm_list);
 	list_add(&component->card_list, &card->component_dev_list);
@@ -3185,9 +3186,6 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 		dapm->seq_notifier = snd_soc_component_seq_notifier;
 	if (driver->stream_event)
 		dapm->stream_event = snd_soc_component_stream_event;
-
-	component->dapm_routes = driver->dapm_routes;
-	component->num_dapm_routes = driver->num_dapm_routes;
 
 	INIT_LIST_HEAD(&component->dai_list);
 	mutex_init(&component->io_mutex);
