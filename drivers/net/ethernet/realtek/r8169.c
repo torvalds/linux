@@ -6863,7 +6863,6 @@ static void rtl8169_tx_clear_range(struct rtl8169_private *tp, u32 start,
 			rtl8169_unmap_tx_skb(&tp->pci_dev->dev, tx_skb,
 					     tp->TxDescArray + entry);
 			if (skb) {
-				tp->dev->stats.tx_dropped++;
 				dev_kfree_skb_any(skb);
 				tx_skb->skb = NULL;
 			}
