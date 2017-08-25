@@ -159,6 +159,9 @@ static struct proc_dir_entry *proc_ipmi_root;
  */
 #define IPMI_REQUEST_EV_TIME	(1000 / (IPMI_TIMEOUT_TIME))
 
+/* How long should we cache dynamic device IDs? */
+#define IPMI_DYN_DEV_ID_EXPIRY	(10 * HZ)
+
 /*
  * The main "user" data structure.
  */
@@ -264,8 +267,12 @@ struct ipmi_proc_entry {
 
 struct bmc_device {
 	struct platform_device pdev;
-	struct ipmi_device_id  id;
 	struct list_head       intfs;
+	struct ipmi_device_id  id;
+	struct ipmi_device_id  fetch_id;
+	int                    dyn_id_set;
+	unsigned long          dyn_id_expiry;
+	struct mutex           dyn_mutex; /* protects id & dyn* fields */
 	unsigned char          guid[16];
 	int                    guid_set;
 	struct kref	       usecount;
@@ -402,6 +409,13 @@ struct ipmi_smi {
 	/* Used for wake ups at startup. */
 	wait_queue_head_t waitq;
 
+	/*
+	 * Prevents the interface from being unregistered when the
+	 * interface is used by being looked up through the BMC
+	 * structure.
+	 */
+	struct mutex bmc_reg_mutex;
+
 	struct bmc_device *bmc;
 	bool bmc_registered;
 	struct list_head bmc_link;
@@ -491,6 +505,11 @@ struct ipmi_smi {
 	 * interface comes in with a NULL user, call this routine with
 	 * it.  Note that the message will still be freed by the
 	 * caller.  This only works on the system interface.
+	 *
+	 * The only user outside of initialization an panic handling is
+	 * the dynamic device id fetching, so no mutex is currently
+	 * required on this.  If more users come along, some sort of
+	 * mutex will be required.
 	 */
 	void (*null_user_handler)(ipmi_smi_t intf, struct ipmi_recv_msg *msg);
 
@@ -2081,14 +2100,158 @@ int ipmi_request_supply_msgs(ipmi_user_t          user,
 }
 EXPORT_SYMBOL(ipmi_request_supply_msgs);
 
+static void bmc_device_id_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
+{
+	int rv;
+
+	if ((msg->addr.addr_type != IPMI_SYSTEM_INTERFACE_ADDR_TYPE)
+			|| (msg->msg.netfn != IPMI_NETFN_APP_RESPONSE)
+			|| (msg->msg.cmd != IPMI_GET_DEVICE_ID_CMD)) {
+		pr_warn(PFX "invalid device_id msg: addr_type=%d netfn=%x cmd=%x\n",
+			msg->addr.addr_type, msg->msg.netfn, msg->msg.cmd);
+		return;
+	}
+
+	rv = ipmi_demangle_device_id(msg->msg.netfn, msg->msg.cmd,
+			msg->msg.data, msg->msg.data_len, &intf->bmc->fetch_id);
+	if (rv) {
+		pr_warn(PFX "device id demangle failed: %d\n", rv);
+		intf->bmc->dyn_id_set = 0;
+	} else {
+		/*
+		 * Make sure the id data is available before setting
+		 * dyn_id_set.
+		 */
+		smp_wmb();
+		intf->bmc->dyn_id_set = 1;
+	}
+
+	wake_up(&intf->waitq);
+}
+
+static int
+send_get_device_id_cmd(ipmi_smi_t intf)
+{
+	struct ipmi_system_interface_addr si;
+	struct kernel_ipmi_msg msg;
+
+	si.addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
+	si.channel = IPMI_BMC_CHANNEL;
+	si.lun = 0;
+
+	msg.netfn = IPMI_NETFN_APP_REQUEST;
+	msg.cmd = IPMI_GET_DEVICE_ID_CMD;
+	msg.data = NULL;
+	msg.data_len = 0;
+
+	return i_ipmi_request(NULL,
+			      intf,
+			      (struct ipmi_addr *) &si,
+			      0,
+			      &msg,
+			      intf,
+			      NULL,
+			      NULL,
+			      0,
+			      intf->channels[0].address,
+			      intf->channels[0].lun,
+			      -1, 0);
+}
+
+static int __get_device_id(ipmi_smi_t intf, struct bmc_device *bmc)
+{
+	int rv;
+
+	bmc->dyn_id_set = 2;
+
+	intf->null_user_handler = bmc_device_id_handler;
+
+	rv = send_get_device_id_cmd(intf);
+	if (rv)
+		return rv;
+
+	wait_event(intf->waitq, bmc->dyn_id_set != 2);
+
+	if (!bmc->dyn_id_set)
+		rv = -EIO; /* Something went wrong in the fetch. */
+
+	/* dyn_id_set makes the id data available. */
+	smp_rmb();
+
+	intf->null_user_handler = NULL;
+
+	return rv;
+}
+
+/*
+ * Fetch the device id for the bmc/interface.  You must pass in either
+ * bmc or intf, this code will get the other one.  If the data has
+ * been recently fetched, this will just use the cached data.  Otherwise
+ * it will run a new fetch.
+ *
+ * Except for the first time this is called (in ipmi_register_smi()),
+ * this will always return good data;
+ */
 static int bmc_get_device_id(ipmi_smi_t intf, struct bmc_device *bmc,
 			     struct ipmi_device_id *id)
 {
-	if (!bmc)
-		bmc = intf->bmc;
+	int rv = 0;
+	int prev_dyn_id_set;
 
-	*id = bmc->id;
-	return 0;
+	if (!intf) {
+		mutex_lock(&bmc->dyn_mutex);
+retry_bmc_lock:
+		if (list_empty(&bmc->intfs)) {
+			mutex_unlock(&bmc->dyn_mutex);
+			return -ENOENT;
+		}
+		intf = list_first_entry(&bmc->intfs, struct ipmi_smi,
+					bmc_link);
+		kref_get(&intf->refcount);
+		mutex_unlock(&bmc->dyn_mutex);
+		mutex_lock(&intf->bmc_reg_mutex);
+		mutex_lock(&bmc->dyn_mutex);
+		if (intf != list_first_entry(&bmc->intfs, struct ipmi_smi,
+					     bmc_link)) {
+			mutex_unlock(&intf->bmc_reg_mutex);
+			kref_put(&intf->refcount, intf_free);
+			goto retry_bmc_lock;
+		}
+	} else {
+		mutex_lock(&intf->bmc_reg_mutex);
+		bmc = intf->bmc;
+		mutex_lock(&bmc->dyn_mutex);
+		kref_get(&intf->refcount);
+	}
+
+	/* If we have a valid and current ID, just return that. */
+	if (bmc->dyn_id_set && time_is_after_jiffies(bmc->dyn_id_expiry))
+		goto out;
+
+	prev_dyn_id_set = bmc->dyn_id_set;
+
+	rv = __get_device_id(intf, bmc);
+	if (rv)
+		goto out;
+
+	memcpy(&bmc->id, &bmc->fetch_id, sizeof(bmc->id));
+
+	bmc->dyn_id_expiry = jiffies + IPMI_DYN_DEV_ID_EXPIRY;
+
+out:
+	if (rv && prev_dyn_id_set) {
+		rv = 0; /* Ignore failures if we have previous data. */
+		bmc->dyn_id_set = prev_dyn_id_set;
+	}
+
+	if (id)
+		*id = bmc->id;
+
+	mutex_unlock(&bmc->dyn_mutex);
+	mutex_unlock(&intf->bmc_reg_mutex);
+
+	kref_put(&intf->refcount, intf_free);
+	return rv;
 }
 
 #ifdef CONFIG_PROC_FS
@@ -2615,17 +2778,23 @@ static void ipmi_bmc_unregister(ipmi_smi_t intf)
 	if (!intf->bmc_registered)
 		return;
 
+	mutex_lock(&intf->bmc_reg_mutex);
+
 	sysfs_remove_link(&intf->si_dev->kobj, "bmc");
 	sysfs_remove_link(&bmc->pdev.dev.kobj, intf->my_dev_name);
 	kfree(intf->my_dev_name);
 	intf->my_dev_name = NULL;
 
-	mutex_lock(&ipmidriver_mutex);
+	mutex_lock(&bmc->dyn_mutex);
 	list_del(&intf->bmc_link);
+	mutex_unlock(&bmc->dyn_mutex);
 	intf->bmc = NULL;
+	mutex_lock(&ipmidriver_mutex);
 	kref_put(&bmc->usecount, cleanup_bmc_device);
 	mutex_unlock(&ipmidriver_mutex);
 	intf->bmc_registered = false;
+
+	mutex_unlock(&intf->bmc_reg_mutex);
 }
 
 static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
@@ -2653,11 +2822,11 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
 	 */
 	if (old_bmc) {
 		kfree(bmc);
-		mutex_lock(&ipmidriver_mutex);
-		intf->bmc = old_bmc;
-		list_add_tail(&intf->bmc_link, &bmc->intfs);
-		mutex_unlock(&ipmidriver_mutex);
 		bmc = old_bmc;
+		intf->bmc = old_bmc;
+		mutex_lock(&bmc->dyn_mutex);
+		list_add_tail(&intf->bmc_link, &bmc->intfs);
+		mutex_unlock(&bmc->dyn_mutex);
 
 		printk(KERN_INFO
 		       "ipmi: interfacing existing BMC (man_id: 0x%6.6x,"
@@ -2677,10 +2846,12 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
 		bmc->pdev.dev.type = &bmc_device_type;
 		kref_init(&bmc->usecount);
 
-		rv = platform_device_register(&bmc->pdev);
-		mutex_lock(&ipmidriver_mutex);
+		intf->bmc = bmc;
+		mutex_lock(&bmc->dyn_mutex);
 		list_add_tail(&intf->bmc_link, &bmc->intfs);
-		mutex_unlock(&ipmidriver_mutex);
+		mutex_unlock(&bmc->dyn_mutex);
+
+		rv = platform_device_register(&bmc->pdev);
 		if (rv) {
 			printk(KERN_ERR
 			       "ipmi_msghandler:"
@@ -2743,18 +2914,20 @@ out_unlink1:
 	sysfs_remove_link(&intf->si_dev->kobj, "bmc");
 
 out_put_bmc:
-	mutex_lock(&ipmidriver_mutex);
+	mutex_lock(&bmc->dyn_mutex);
 	list_del(&intf->bmc_link);
+	mutex_unlock(&bmc->dyn_mutex);
 	intf->bmc = NULL;
+	mutex_lock(&ipmidriver_mutex);
 	kref_put(&bmc->usecount, cleanup_bmc_device);
 	mutex_unlock(&ipmidriver_mutex);
 	goto out;
 
 out_list_del:
-	mutex_lock(&ipmidriver_mutex);
+	mutex_lock(&bmc->dyn_mutex);
 	list_del(&intf->bmc_link);
+	mutex_unlock(&bmc->dyn_mutex);
 	intf->bmc = NULL;
-	mutex_unlock(&ipmidriver_mutex);
 	put_device(&bmc->pdev.dev);
 	goto out;
 }
@@ -2976,9 +3149,11 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&intf->bmc->intfs);
+	mutex_init(&intf->bmc->dyn_mutex);
+	INIT_LIST_HEAD(&intf->bmc_link);
+	mutex_init(&intf->bmc_reg_mutex);
 	intf->intf_num = -1; /* Mark it invalid for now. */
 	kref_init(&intf->refcount);
-	intf->bmc->id = *device_id;
 	intf->si_dev = si_dev;
 	for (j = 0; j < IPMI_MAX_CHANNELS; j++) {
 		intf->channels[j].address = IPMI_BMC_SLAVE_ADDR;
