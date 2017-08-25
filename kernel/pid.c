@@ -177,13 +177,10 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	tmp = ns;
 	pid->level = ns->level;
 	for (i = ns->level; i >= 0; i--) {
-		idr_preload(GFP_KERNEL);
-
 		mutex_lock(&ns->idr_mutex_lock);
 		nr = idr_alloc_cyclic(&tmp->idr, ns, RESERVED_PIDS,
 				      pid_max, GFP_KERNEL);
 		mutex_unlock(&ns->idr_mutex_lock);
-		idr_preload_end();
 
 		if (nr < 0) {
 			retval = nr;
