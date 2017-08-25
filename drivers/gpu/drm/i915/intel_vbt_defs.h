@@ -149,16 +149,19 @@ struct bdb_general_features {
 	u8 ssc_freq:1;
 	u8 enable_lfp_on_override:1;
 	u8 disable_ssc_ddt:1;
-	u8 rsvd7:1;
+	u8 underscan_vga_timings:1;
 	u8 display_clock_mode:1;
-	u8 rsvd8:1; /* finish byte */
+	u8 vbios_hotplug_support:1;
 
         /* bits 3 */
 	u8 disable_smooth_vision:1;
 	u8 single_dvi:1;
-	u8 rsvd9:1;
+	u8 rotate_180:1;					/* 181 */
 	u8 fdi_rx_polarity_inverted:1;
-	u8 rsvd10:4; /* finish byte */
+	u8 vbios_extended_mode:1;				/* 160 */
+	u8 copy_ilfp_dtd_to_sdvo_lvds_dtd:1;			/* 160 */
+	u8 panel_best_fit_timing:1;				/* 160 */
+	u8 ignore_strap_state:1;				/* 160 */
 
         /* bits 4 */
 	u8 legacy_monitor_detect;
@@ -167,9 +170,10 @@ struct bdb_general_features {
 	u8 int_crt_support:1;
 	u8 int_tv_support:1;
 	u8 int_efp_support:1;
-	u8 dp_ssc_enb:1;	/* PCH attached eDP supports SSC */
+	u8 dp_ssc_enable:1;	/* PCH attached eDP supports SSC */
 	u8 dp_ssc_freq:1;	/* SSC freq for PCH attached eDP */
-	u8 rsvd11:3; /* finish byte */
+	u8 dp_ssc_dongle_supported:1;
+	u8 rsvd11:2; /* finish byte */
 } __packed;
 
 /* pre-915 */
