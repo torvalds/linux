@@ -535,8 +535,6 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 	if (image->bus_resource.name == NULL) {
 		image->bus_resource.name = kmalloc(VMENAMSIZ+3, GFP_ATOMIC);
 		if (image->bus_resource.name == NULL) {
-			dev_err(ca91cx42_bridge->parent, "Unable to allocate "
-				"memory for resource name\n");
 			retval = -ENOMEM;
 			goto err_name;
 		}
@@ -1038,8 +1036,6 @@ static int ca91cx42_dma_list_add(struct vme_dma_list *list,
 	/* XXX descriptor must be aligned on 64-bit boundaries */
 	entry = kmalloc(sizeof(struct ca91cx42_dma_entry), GFP_KERNEL);
 	if (entry == NULL) {
-		dev_err(dev, "Failed to allocate memory for dma resource "
-			"structure\n");
 		retval = -ENOMEM;
 		goto err_mem;
 	}
@@ -1621,8 +1617,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ca91cx42_bridge = kzalloc(sizeof(struct vme_bridge), GFP_KERNEL);
 
 	if (ca91cx42_bridge == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate memory for device "
-			"structure\n");
 		retval = -ENOMEM;
 		goto err_struct;
 	}
@@ -1631,8 +1625,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ca91cx42_device = kzalloc(sizeof(struct ca91cx42_driver), GFP_KERNEL);
 
 	if (ca91cx42_device == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate memory for device "
-			"structure\n");
 		retval = -ENOMEM;
 		goto err_driver;
 	}
@@ -1691,8 +1683,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		master_image = kmalloc(sizeof(struct vme_master_resource),
 			GFP_KERNEL);
 		if (master_image == NULL) {
-			dev_err(&pdev->dev, "Failed to allocate memory for "
-			"master resource structure\n");
 			retval = -ENOMEM;
 			goto err_master;
 		}
@@ -1717,8 +1707,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		slave_image = kmalloc(sizeof(struct vme_slave_resource),
 			GFP_KERNEL);
 		if (slave_image == NULL) {
-			dev_err(&pdev->dev, "Failed to allocate memory for "
-			"slave resource structure\n");
 			retval = -ENOMEM;
 			goto err_slave;
 		}
@@ -1744,8 +1732,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dma_ctrlr = kmalloc(sizeof(struct vme_dma_resource),
 			GFP_KERNEL);
 		if (dma_ctrlr == NULL) {
-			dev_err(&pdev->dev, "Failed to allocate memory for "
-			"dma resource structure\n");
 			retval = -ENOMEM;
 			goto err_dma;
 		}
@@ -1764,8 +1750,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Add location monitor to list */
 	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
 	if (lm == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate memory for "
-		"location monitor resource structure\n");
 		retval = -ENOMEM;
 		goto err_lm;
 	}
