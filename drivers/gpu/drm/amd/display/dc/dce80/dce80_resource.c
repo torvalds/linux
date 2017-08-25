@@ -791,6 +791,7 @@ static const struct resource_funcs dce80_res_pool_funcs = {
 	.validate_guaranteed = dce80_validate_guaranteed,
 	.validate_bandwidth = dce80_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
+	.add_stream_to_ctx = dce100_add_stream_to_ctx,
 	.validate_global = dce80_validate_global
 };
 

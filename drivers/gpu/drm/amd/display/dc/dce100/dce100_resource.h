@@ -18,4 +18,9 @@ struct resource_pool *dce100_create_resource_pool(
 
 enum dc_status dce100_validate_plane(const struct dc_plane_state *plane_state);
 
+enum dc_status dce100_add_stream_to_ctx(
+		struct dc *dc,
+		struct dc_state *new_ctx,
+		struct dc_stream_state *dc_stream);
+
 #endif /* DCE100_RESOURCE_H_ */

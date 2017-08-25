@@ -713,6 +713,24 @@ enum dc_status dce100_validate_global(
 	return DC_OK;
 }
 
+enum dc_status dce100_add_stream_to_ctx(
+		struct dc *dc,
+		struct dc_state *new_ctx,
+		struct dc_stream_state *dc_stream)
+{
+	enum dc_status result = DC_ERROR_UNEXPECTED;
+
+	result = resource_map_pool_resources(dc, new_ctx, dc_stream);
+
+	if (result == DC_OK)
+		result = resource_map_clock_resources(dc, new_ctx, dc_stream);
+
+	if (result == DC_OK)
+		result = build_mapped_resource(dc, new_ctx, dc_stream);
+
+	return result;
+}
+
 enum dc_status dce100_validate_guaranteed(
 		struct dc  *dc,
 		struct dc_stream_state *dc_stream,
@@ -769,6 +787,7 @@ static const struct resource_funcs dce100_res_pool_funcs = {
 	.validate_guaranteed = dce100_validate_guaranteed,
 	.validate_bandwidth = dce100_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
+	.add_stream_to_ctx = dce100_add_stream_to_ctx,
 	.validate_global = dce100_validate_global
 };
 
