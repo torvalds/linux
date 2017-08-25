@@ -911,7 +911,6 @@ static struct bnxt_re_ah *bnxt_re_create_shadow_qp_ah
 	if (!ah)
 		return NULL;
 
-	memset(ah, 0, sizeof(*ah));
 	ah->rdev = rdev;
 	ah->qplib_ah.pd = &pd->qplib_pd;
 
@@ -958,7 +957,6 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp
 	if (!qp)
 		return NULL;
 
-	memset(qp, 0, sizeof(*qp));
 	qp->rdev = rdev;
 
 	/* Initialize the shadow QP structure from the QP1 values */
