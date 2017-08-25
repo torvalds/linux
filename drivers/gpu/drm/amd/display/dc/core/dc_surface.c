@@ -104,12 +104,12 @@ const struct dc_plane_status *dc_plane_get_status(
 	plane_status = &plane_state->status;
 	core_dc = plane_state->ctx->dc;
 
-	if (core_dc->current_context == NULL)
+	if (core_dc->current_state == NULL)
 		return NULL;
 
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx =
-				&core_dc->current_context->res_ctx.pipe_ctx[i];
+				&core_dc->current_state->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->plane_state != plane_state)
 			continue;

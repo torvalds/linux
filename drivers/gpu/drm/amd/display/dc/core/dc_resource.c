@@ -893,7 +893,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 enum dc_status resource_build_scaling_params_for_context(
 	const struct dc  *dc,
-	struct validate_context *context)
+	struct dc_state *context)
 {
 	int i;
 
@@ -971,7 +971,7 @@ static struct pipe_ctx *resource_get_tail_pipe_for_stream(
  * that has no surface attached yet
  */
 static struct pipe_ctx *acquire_free_pipe_for_stream(
-		struct validate_context *context,
+		struct dc_state *context,
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream)
 {
@@ -1048,7 +1048,7 @@ bool dc_add_plane_to_context(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_plane_state *plane_state,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i;
 	struct resource_pool *pool = dc->res_pool;
@@ -1124,7 +1124,7 @@ bool dc_remove_plane_from_context(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_plane_state *plane_state,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i;
 	struct dc_stream_status *stream_status = NULL;
@@ -1199,7 +1199,7 @@ bool dc_remove_plane_from_context(
 bool dc_rem_all_planes_for_stream(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i, old_plane_count;
 	struct dc_stream_status *stream_status = NULL;
@@ -1233,7 +1233,7 @@ static bool add_all_planes_for_stream(
 		struct dc_stream_state *stream,
 		const struct dc_validation_set set[],
 		int set_count,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i, j;
 
@@ -1258,7 +1258,7 @@ bool dc_add_all_planes_for_stream(
 		struct dc_stream_state *stream,
 		struct dc_plane_state * const *plane_states,
 		int plane_count,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	struct dc_validation_set set;
 	int i;
@@ -1434,7 +1434,7 @@ static struct audio *find_first_free_audio(
 }
 
 bool resource_is_stream_unchanged(
-	struct validate_context *old_context, struct dc_stream_state *stream)
+	struct dc_state *old_context, struct dc_stream_state *stream)
 {
 	int i;
 
@@ -1450,7 +1450,7 @@ bool resource_is_stream_unchanged(
 
 bool dc_add_stream_to_ctx(
 		struct dc *dc,
-		struct validate_context *new_ctx,
+		struct dc_state *new_ctx,
 		struct dc_stream_state *stream)
 {
 	struct dc_context *dc_ctx = dc->ctx;
@@ -1474,7 +1474,7 @@ bool dc_add_stream_to_ctx(
 
 bool dc_remove_stream_from_ctx(
 			struct dc *dc,
-			struct validate_context *new_ctx,
+			struct dc_state *new_ctx,
 			struct dc_stream_state *stream)
 {
 	int i;
@@ -1553,7 +1553,7 @@ static void copy_pipe_ctx(
 
 static struct dc_stream_state *find_pll_sharable_stream(
 		struct dc_stream_state *stream_needs_pll,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i;
 
@@ -1615,7 +1615,7 @@ static void calculate_phy_pix_clks(struct dc_stream_state *stream)
 
 enum dc_status resource_map_pool_resources(
 		const struct dc  *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
 	const struct resource_pool *pool = dc->res_pool;
@@ -1689,7 +1689,7 @@ enum dc_status resource_map_pool_resources(
 
 /* first stream in the context is used to populate the rest */
 void validate_guaranteed_copy_streams(
-		struct validate_context *context,
+		struct dc_state *context,
 		int max_streams)
 {
 	int i;
@@ -1709,14 +1709,14 @@ void validate_guaranteed_copy_streams(
 
 void dc_resource_validate_ctx_copy_construct_current(
 		const struct dc *dc,
-		struct validate_context *dst_ctx)
+		struct dc_state *dst_ctx)
 {
-	dc_resource_validate_ctx_copy_construct(dc->current_context, dst_ctx);
+	dc_resource_validate_ctx_copy_construct(dc->current_state, dst_ctx);
 }
 
 bool dc_validate_global_state(
 		struct dc *dc,
-		struct validate_context *new_ctx)
+		struct dc_state *new_ctx)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i, j;
@@ -2413,7 +2413,7 @@ static void set_vsc_info_packet(
 	/*TODO: stereo 3D support and extend pixel encoding colorimetry*/
 }
 
-void dc_resource_validate_ctx_destruct(struct validate_context *context)
+void dc_resource_validate_ctx_destruct(struct dc_state *context)
 {
 	int i, j;
 
@@ -2433,8 +2433,8 @@ void dc_resource_validate_ctx_destruct(struct validate_context *context)
  * by the src_ctx
  */
 void dc_resource_validate_ctx_copy_construct(
-		const struct validate_context *src_ctx,
-		struct validate_context *dst_ctx)
+		const struct dc_state *src_ctx,
+		struct dc_state *dst_ctx)
 {
 	int i, j;
 	atomic_t ref_count = dst_ctx->ref_count;
@@ -2518,7 +2518,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 
 enum dc_status resource_map_clock_resources(
 		const struct dc  *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
 	/* acquire new resources */

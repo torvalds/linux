@@ -169,10 +169,9 @@ struct dc_stream_status *dc_stream_get_status(
 	uint8_t i;
 	struct dc  *dc = stream->ctx->dc;
 
-	for (i = 0; i < dc->current_context->stream_count; i++) {
-		if (stream == dc->current_context->streams[i]) {
-			return &dc->current_context->stream_status[i];
-		}
+	for (i = 0; i < dc->current_state->stream_count; i++) {
+		if (stream == dc->current_state->streams[i])
+			return &dc->current_state->stream_status[i];
 	}
 
 	return NULL;
@@ -199,7 +198,7 @@ bool dc_stream_set_cursor_attributes(
 	}
 
 	core_dc = stream->ctx->dc;
-	res_ctx = &core_dc->current_context->res_ctx;
+	res_ctx = &core_dc->current_state->res_ctx;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
@@ -235,7 +234,7 @@ bool dc_stream_set_cursor_position(
 	}
 
 	core_dc = stream->ctx->dc;
-	res_ctx = &core_dc->current_context->res_ctx;
+	res_ctx = &core_dc->current_state->res_ctx;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
@@ -271,7 +270,7 @@ uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream)
 	uint8_t i;
 	struct dc  *core_dc = stream->ctx->dc;
 	struct resource_context *res_ctx =
-		&core_dc->current_context->res_ctx;
+		&core_dc->current_state->res_ctx;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct timing_generator *tg = res_ctx->pipe_ctx[i].stream_res.tg;
@@ -295,7 +294,7 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 	bool ret = false;
 	struct dc  *core_dc = stream->ctx->dc;
 	struct resource_context *res_ctx =
-		&core_dc->current_context->res_ctx;
+		&core_dc->current_state->res_ctx;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct timing_generator *tg = res_ctx->pipe_ctx[i].stream_res.tg;

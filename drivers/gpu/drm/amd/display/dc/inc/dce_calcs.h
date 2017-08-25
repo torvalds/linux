@@ -34,7 +34,7 @@
 
 struct pipe_ctx;
 struct dc;
-struct validate_context;
+struct dc_state;
 struct dce_bw_output;
 
 enum bw_calcs_version {

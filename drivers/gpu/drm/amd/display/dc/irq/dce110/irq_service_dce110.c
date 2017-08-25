@@ -214,7 +214,7 @@ bool dce110_vblank_set(
 	uint8_t pipe_offset = dal_irq_src - IRQ_TYPE_VBLANK;
 
 	struct timing_generator *tg =
-			core_dc->current_context->res_ctx.pipe_ctx[pipe_offset].stream_res.tg;
+			core_dc->current_state->res_ctx.pipe_ctx[pipe_offset].stream_res.tg;
 
 	if (enable) {
 		if (!tg->funcs->arm_vert_intr(tg, 2)) {

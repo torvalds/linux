@@ -49,7 +49,7 @@ struct dce_hwseq {
 };
 
 struct pipe_ctx;
-struct validate_context;
+struct dc_state;
 struct dchub_init_data;
 struct dc_static_screen_events;
 struct resource_pool;
@@ -60,16 +60,16 @@ struct hw_sequencer_funcs {
 	void (*init_hw)(struct dc *dc);
 
 	enum dc_status (*apply_ctx_to_hw)(
-			struct dc *dc, struct validate_context *context);
+			struct dc *dc, struct dc_state *context);
 
 	void (*reset_hw_ctx_wrap)(
-			struct dc *dc, struct validate_context *context);
+			struct dc *dc, struct dc_state *context);
 
 	void (*apply_ctx_for_surface)(
 			struct dc *dc,
 			const struct dc_stream_state *stream,
 			int num_planes,
-			struct validate_context *context);
+			struct dc_state *context);
 
 	void (*set_plane_config)(
 			const struct dc *dc,
@@ -127,7 +127,7 @@ struct hw_sequencer_funcs {
 
 	void (*power_on_front_end)(struct dc *dc,
 			struct pipe_ctx *pipe,
-			struct validate_context *context);
+			struct dc_state *context);
 
 	void (*update_info_frame)(struct pipe_ctx *pipe_ctx);
 
@@ -145,7 +145,7 @@ struct hw_sequencer_funcs {
 
 	void (*set_bandwidth)(
 			struct dc *dc,
-			struct validate_context *context,
+			struct dc_state *context,
 			bool decrease_allowed);
 
 	void (*set_drr)(struct pipe_ctx **pipe_ctx, int num_pipes,
@@ -159,7 +159,7 @@ struct hw_sequencer_funcs {
 
 	enum dc_status (*prog_pixclk_crtc_otg)(
 			struct pipe_ctx *pipe_ctx,
-			struct validate_context *context,
+			struct dc_state *context,
 			struct dc *dc);
 
 	void (*setup_stereo)(

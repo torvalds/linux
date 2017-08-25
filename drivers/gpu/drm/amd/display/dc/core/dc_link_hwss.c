@@ -62,7 +62,7 @@ void dp_enable_link_phy(
 	struct link_encoder *link_enc = link->link_enc;
 
 	struct pipe_ctx *pipes =
-			link->dc->current_context->res_ctx.pipe_ctx;
+			link->dc->current_state->res_ctx.pipe_ctx;
 	struct clock_source *dp_cs =
 			link->dc->res_pool->dp_clock_source;
 	unsigned int i;
@@ -262,7 +262,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			bool skip_video_pattern)
 {
 	struct pipe_ctx *pipes =
-			&link->dc->current_context->res_ctx.pipe_ctx[0];
+			&link->dc->current_state->res_ctx.pipe_ctx[0];
 	unsigned int i;
 
 	for (i = 0; i < MAX_PIPES; i++) {

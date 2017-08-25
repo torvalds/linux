@@ -35,7 +35,7 @@
 #include "../dml/display_mode_lib.h"
 
 struct dc;
-struct validate_context;
+struct dc_state;
 
 /*******************************************************************************
  * DCN data structures.
@@ -621,7 +621,7 @@ extern const struct dcn_ip_params dcn10_ip_defaults;
 
 bool dcn_validate_bandwidth(
 		struct dc *dc,
-		struct validate_context *context);
+		struct dc_state *context);
 
 unsigned int dcn_find_dcfclk_suits_all(
 	const struct dc *dc,

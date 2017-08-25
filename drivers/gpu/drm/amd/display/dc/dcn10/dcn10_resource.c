@@ -850,7 +850,7 @@ static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 
 static enum dc_status build_mapped_resource(
 		const struct dc *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
 	enum dc_status status = DC_OK;
@@ -887,7 +887,7 @@ static enum dc_status build_mapped_resource(
 
 enum dc_status dcn10_add_stream_to_ctx(
 		struct dc *dc,
-		struct validate_context *new_ctx,
+		struct dc_state *new_ctx,
 		struct dc_stream_state *dc_stream)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
@@ -907,7 +907,7 @@ enum dc_status dcn10_add_stream_to_ctx(
 enum dc_status dcn10_validate_guaranteed(
 		struct dc *dc,
 		struct dc_stream_state *dc_stream,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 
@@ -935,7 +935,7 @@ enum dc_status dcn10_validate_guaranteed(
 }
 
 static struct pipe_ctx *dcn10_acquire_idle_pipe_for_layer(
-		struct validate_context *context,
+		struct dc_state *context,
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream)
 {

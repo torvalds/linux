@@ -32,7 +32,7 @@ struct dc;
 
 void dcn10_hw_sequencer_construct(struct dc *dc);
 extern void fill_display_configs(
-	const struct validate_context *context,
+	const struct dc_state *context,
 	struct dm_pp_display_configuration *pp_display_cfg);
 
 #endif /* __DC_HWSS_DCN10_H__ */

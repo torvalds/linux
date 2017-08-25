@@ -476,7 +476,7 @@ static void dcn_bw_calc_rq_dlg_ttu(
 static void dcn_dml_wm_override(
 		const struct dcn_bw_internal_vars *v,
 		struct display_mode_lib *dml,
-		struct validate_context *context,
+		struct dc_state *context,
 		const struct resource_pool *pool)
 {
 	int i, in_idx, active_count;
@@ -593,7 +593,7 @@ static void split_stream_across_pipes(
 }
 
 static void calc_wm_sets_and_perf_params(
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dcn_bw_internal_vars *v)
 {
 	/* Calculate set A last to keep internal var state consistent for required config */
@@ -721,7 +721,7 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 
 bool dcn_validate_bandwidth(
 		struct dc *dc,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	const struct resource_pool *pool = dc->res_pool;
 	struct dcn_bw_internal_vars *v = &context->dcn_bw_vars;

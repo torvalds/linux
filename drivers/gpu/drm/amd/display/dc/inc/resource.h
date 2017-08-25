@@ -81,14 +81,14 @@ void dc_destroy_resource_pool(struct dc *dc);
 
 enum dc_status resource_map_pool_resources(
 		const struct dc *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc_stream_state *stream);
 
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx);
 
 enum dc_status resource_build_scaling_params_for_context(
 		const struct dc *dc,
-		struct validate_context *context);
+		struct dc_state *context);
 
 void resource_build_info_frame(struct pipe_ctx *pipe_ctx);
 
@@ -122,7 +122,7 @@ bool resource_attach_surfaces_to_context(
 		struct dc_plane_state *const *plane_state,
 		int surface_count,
 		struct dc_stream_state *dc_stream,
-		struct validate_context *context,
+		struct dc_state *context,
 		const struct resource_pool *pool);
 
 struct pipe_ctx *find_idle_secondary_pipe(
@@ -130,31 +130,31 @@ struct pipe_ctx *find_idle_secondary_pipe(
 		const struct resource_pool *pool);
 
 bool resource_is_stream_unchanged(
-	struct validate_context *old_context, struct dc_stream_state *stream);
+	struct dc_state *old_context, struct dc_stream_state *stream);
 
 bool resource_validate_attach_surfaces(
 		const struct dc_validation_set set[],
 		int set_count,
-		const struct validate_context *old_context,
-		struct validate_context *context,
+		const struct dc_state *old_context,
+		struct dc_state *context,
 		const struct resource_pool *pool);
 
 void validate_guaranteed_copy_streams(
-		struct validate_context *context,
+		struct dc_state *context,
 		int max_streams);
 
 void resource_validate_ctx_update_pointer_after_copy(
-		const struct validate_context *src_ctx,
-		struct validate_context *dst_ctx);
+		const struct dc_state *src_ctx,
+		struct dc_state *dst_ctx);
 
 enum dc_status resource_map_clock_resources(
 		const struct dc *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc_stream_state *stream);
 
 enum dc_status resource_map_phy_clock_resources(
 		const struct dc *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc_stream_state *stream);
 
 bool pipe_need_reprogram(

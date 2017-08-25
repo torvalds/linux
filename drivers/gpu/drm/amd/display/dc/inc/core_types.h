@@ -80,7 +80,7 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 #include "transform.h"
 
 struct resource_pool;
-struct validate_context;
+struct dc_state;
 struct resource_context;
 
 struct resource_funcs {
@@ -91,18 +91,18 @@ struct resource_funcs {
 	enum dc_status (*validate_guaranteed)(
 					struct dc *dc,
 					struct dc_stream_state *stream,
-					struct validate_context *context);
+					struct dc_state *context);
 
 	bool (*validate_bandwidth)(
 					struct dc *dc,
-					struct validate_context *context);
+					struct dc_state *context);
 
 	enum dc_status (*validate_global)(
 		struct dc *dc,
-		struct validate_context *context);
+		struct dc_state *context);
 
 	struct pipe_ctx *(*acquire_idle_pipe_for_layer)(
-			struct validate_context *context,
+			struct dc_state *context,
 			const struct resource_pool *pool,
 			struct dc_stream_state *stream);
 
@@ -110,7 +110,7 @@ struct resource_funcs {
 
 	enum dc_status (*add_stream_to_ctx)(
 			struct dc *dc,
-			struct validate_context *new_ctx,
+			struct dc_state *new_ctx,
 			struct dc_stream_state *dc_stream);
 };
 
@@ -252,7 +252,7 @@ union bw_context {
 	struct dce_bw_output dce;
 };
 
-struct validate_context {
+struct dc_state {
 	struct dc_stream_state *streams[MAX_PIPES];
 	struct dc_stream_status stream_status[MAX_PIPES];
 	uint8_t stream_count;

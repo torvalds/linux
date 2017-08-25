@@ -976,11 +976,11 @@ static void program_scaler(const struct dc *dc,
 
 static enum dc_status dce110_prog_pixclk_crtc_otg(
 		struct pipe_ctx *pipe_ctx,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct pipe_ctx *pipe_ctx_old = &dc->current_context->res_ctx.
+	struct pipe_ctx *pipe_ctx_old = &dc->current_state->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
 	struct tg_color black_color = {0};
 
@@ -1032,11 +1032,11 @@ static enum dc_status dce110_prog_pixclk_crtc_otg(
 
 static enum dc_status apply_single_controller_ctx_to_hw(
 		struct pipe_ctx *pipe_ctx,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct pipe_ctx *pipe_ctx_old = &dc->current_context->res_ctx.
+	struct pipe_ctx *pipe_ctx_old = &dc->current_state->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
 
 	/*  */
@@ -1257,7 +1257,7 @@ static uint32_t compute_pstate_blackout_duration(
 
 void dce110_set_displaymarks(
 	const struct dc *dc,
-	struct validate_context *context)
+	struct dc_state *context)
 {
 	uint8_t i, num_pipes;
 	unsigned int underlay_idx = dc->res_pool->underlay_pipe_index;
@@ -1415,7 +1415,7 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
  */
 static uint32_t get_max_pixel_clock_for_all_paths(
 	struct dc *dc,
-	struct validate_context *context,
+	struct dc_state *context,
 	bool pre_mode_set)
 {
 	uint32_t max_pix_clk = 0;
@@ -1456,7 +1456,7 @@ static uint32_t get_max_pixel_clock_for_all_paths(
  */
 static void apply_min_clocks(
 	struct dc *dc,
-	struct validate_context *context,
+	struct dc_state *context,
 	enum dm_pp_clocks_state *clocks_state,
 	bool pre_mode_set)
 {
@@ -1545,7 +1545,7 @@ static void apply_min_clocks(
  *  Check if FBC can be enabled
  */
 static enum dc_status validate_fbc(struct dc *dc,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	struct pipe_ctx *pipe_ctx =
 			      &context->res_ctx.pipe_ctx[0];
@@ -1575,7 +1575,7 @@ static enum dc_status validate_fbc(struct dc *dc,
  *  Enable FBC
  */
 static enum dc_status enable_fbc(struct dc *dc,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	enum dc_status status = validate_fbc(dc, context);
 
@@ -1604,14 +1604,14 @@ static enum dc_status enable_fbc(struct dc *dc,
 
 static enum dc_status apply_ctx_to_hw_fpga(
 		struct dc *dc,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	int i;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx_old =
-				&dc->current_context->res_ctx.pipe_ctx[i];
+				&dc->current_state->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->stream == NULL)
@@ -1634,7 +1634,7 @@ static enum dc_status apply_ctx_to_hw_fpga(
 
 static void dce110_reset_hw_ctx_wrap(
 		struct dc *dc,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i;
 
@@ -1642,7 +1642,7 @@ static void dce110_reset_hw_ctx_wrap(
 	/* look up the targets that have been removed since last commit */
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx_old =
-			&dc->current_context->res_ctx.pipe_ctx[i];
+			&dc->current_state->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		/* Note: We need to disable output if clock sources change,
@@ -1664,9 +1664,9 @@ static void dce110_reset_hw_ctx_wrap(
 			}
 			pipe_ctx_old->stream_res.tg->funcs->disable_crtc(pipe_ctx_old->stream_res.tg);
 			pipe_ctx_old->plane_res.mi->funcs->free_mem_input(
-					pipe_ctx_old->plane_res.mi, dc->current_context->stream_count);
+					pipe_ctx_old->plane_res.mi, dc->current_state->stream_count);
 			resource_unreference_clock_source(
-					&dc->current_context->res_ctx, dc->res_pool,
+					&dc->current_state->res_ctx, dc->res_pool,
 					&pipe_ctx_old->clock_source);
 
 			dc->hwss.power_down_front_end(dc, pipe_ctx_old->pipe_idx);
@@ -1679,7 +1679,7 @@ static void dce110_reset_hw_ctx_wrap(
 
 enum dc_status dce110_apply_ctx_to_hw(
 		struct dc *dc,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	enum dc_status status;
@@ -1705,7 +1705,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 	/* below is for real asic only */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx_old =
-					&dc->current_context->res_ctx.pipe_ctx[i];
+					&dc->current_state->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->stream == NULL || pipe_ctx->top_pipe)
@@ -1735,31 +1735,31 @@ enum dc_status dce110_apply_ctx_to_hw(
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	if (dc->ctx->dce_version >= DCN_VERSION_1_0) {
 		if (context->bw.dcn.calc_clk.fclk_khz
-				> dc->current_context->bw.dcn.cur_clk.fclk_khz) {
+				> dc->current_state->bw.dcn.cur_clk.fclk_khz) {
 			struct dm_pp_clock_for_voltage_req clock;
 
 			clock.clk_type = DM_PP_CLOCK_TYPE_FCLK;
 			clock.clocks_in_khz = context->bw.dcn.calc_clk.fclk_khz;
 			dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
-			dc->current_context->bw.dcn.cur_clk.fclk_khz = clock.clocks_in_khz;
+			dc->current_state->bw.dcn.cur_clk.fclk_khz = clock.clocks_in_khz;
 			context->bw.dcn.cur_clk.fclk_khz = clock.clocks_in_khz;
 		}
 		if (context->bw.dcn.calc_clk.dcfclk_khz
-				> dc->current_context->bw.dcn.cur_clk.dcfclk_khz) {
+				> dc->current_state->bw.dcn.cur_clk.dcfclk_khz) {
 			struct dm_pp_clock_for_voltage_req clock;
 
 			clock.clk_type = DM_PP_CLOCK_TYPE_DCFCLK;
 			clock.clocks_in_khz = context->bw.dcn.calc_clk.dcfclk_khz;
 			dm_pp_apply_clock_for_voltage_request(dc->ctx, &clock);
-			dc->current_context->bw.dcn.cur_clk.dcfclk_khz = clock.clocks_in_khz;
+			dc->current_state->bw.dcn.cur_clk.dcfclk_khz = clock.clocks_in_khz;
 			context->bw.dcn.cur_clk.dcfclk_khz = clock.clocks_in_khz;
 		}
 		if (context->bw.dcn.calc_clk.dispclk_khz
-				> dc->current_context->bw.dcn.cur_clk.dispclk_khz) {
+				> dc->current_state->bw.dcn.cur_clk.dispclk_khz) {
 			dc->res_pool->display_clock->funcs->set_clock(
 					dc->res_pool->display_clock,
 					context->bw.dcn.calc_clk.dispclk_khz);
-			dc->current_context->bw.dcn.cur_clk.dispclk_khz =
+			dc->current_state->bw.dcn.cur_clk.dispclk_khz =
 					context->bw.dcn.calc_clk.dispclk_khz;
 			context->bw.dcn.cur_clk.dispclk_khz =
 					context->bw.dcn.calc_clk.dispclk_khz;
@@ -1767,7 +1767,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 	} else
 #endif
 	if (context->bw.dce.dispclk_khz
-			> dc->current_context->bw.dce.dispclk_khz) {
+			> dc->current_state->bw.dce.dispclk_khz) {
 		dc->res_pool->display_clock->funcs->set_clock(
 				dc->res_pool->display_clock,
 				context->bw.dce.dispclk_khz * 115 / 100);
@@ -1848,7 +1848,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx_old =
-					&dc->current_context->res_ctx.pipe_ctx[i];
+					&dc->current_state->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->stream == NULL)
@@ -2327,7 +2327,7 @@ static void init_hw(struct dc *dc)
 }
 
 void dce110_fill_display_configs(
-	const struct validate_context *context,
+	const struct dc_state *context,
 	struct dm_pp_display_configuration *pp_display_cfg)
 {
 	int j;
@@ -2375,7 +2375,7 @@ void dce110_fill_display_configs(
 	pp_display_cfg->display_count = num_cfgs;
 }
 
-uint32_t dce110_get_min_vblank_time_us(const struct validate_context *context)
+uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context)
 {
 	uint8_t j;
 	uint32_t min_vertical_blank_time = -1;
@@ -2427,7 +2427,7 @@ static int determine_sclk_from_bounding_box(
 
 static void pplib_apply_display_requirements(
 	struct dc *dc,
-	struct validate_context *context)
+	struct dc_state *context)
 {
 	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
 
@@ -2481,16 +2481,16 @@ static void pplib_apply_display_requirements(
 
 static void dce110_set_bandwidth(
 		struct dc *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		bool decrease_allowed)
 {
 	dce110_set_displaymarks(dc, context);
 
-	if (decrease_allowed || context->bw.dce.dispclk_khz > dc->current_context->bw.dce.dispclk_khz) {
+	if (decrease_allowed || context->bw.dce.dispclk_khz > dc->current_state->bw.dce.dispclk_khz) {
 		dc->res_pool->display_clock->funcs->set_clock(
 				dc->res_pool->display_clock,
 				context->bw.dce.dispclk_khz * 115 / 100);
-		dc->current_context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz;
+		dc->current_state->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz;
 	}
 
 	pplib_apply_display_requirements(dc, context);
@@ -2508,8 +2508,8 @@ static void dce110_program_front_end_for_pipe(
 
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
 
-	if (dc->current_context)
-		old_pipe = &dc->current_context->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
+	if (dc->current_state)
+		old_pipe = &dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 
 	memset(&adjust, 0, sizeof(adjust));
 	adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
@@ -2627,7 +2627,7 @@ static void dce110_apply_ctx_for_surface(
 		struct dc *dc,
 		const struct dc_stream_state *stream,
 		int num_planes,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i, be_idx;
 
@@ -2657,7 +2657,7 @@ static void dce110_apply_ctx_for_surface(
 static void dce110_power_down_fe(struct dc *dc, int fe_idx)
 {
 	/* Do not power down fe when stream is active on dce*/
-	if (dc->current_context->res_ctx.pipe_ctx[fe_idx].stream)
+	if (dc->current_state->res_ctx.pipe_ctx[fe_idx].stream)
 		return;
 
 	dc->hwss.enable_display_power_gating(

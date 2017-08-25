@@ -653,7 +653,7 @@ static void destruct(struct dce110_resource_pool *pool)
 
 static enum dc_status build_mapped_resource(
 		const struct dc  *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
 	enum dc_status status = DC_OK;
@@ -674,7 +674,7 @@ static enum dc_status build_mapped_resource(
 
 bool dce100_validate_bandwidth(
 	struct dc  *dc,
-	struct validate_context *context)
+	struct dc_state *context)
 {
 	/* TODO implement when needed but for now hardcode max value*/
 	context->bw.dce.dispclk_khz = 681000;
@@ -684,7 +684,7 @@ bool dce100_validate_bandwidth(
 }
 
 static bool dce100_validate_surface_sets(
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i;
 
@@ -705,7 +705,7 @@ static bool dce100_validate_surface_sets(
 
 enum dc_status dce100_validate_global(
 		struct dc  *dc,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	if (!dce100_validate_surface_sets(context))
 		return DC_FAIL_SURFACE_VALIDATE;
@@ -716,7 +716,7 @@ enum dc_status dce100_validate_global(
 enum dc_status dce100_validate_guaranteed(
 		struct dc  *dc,
 		struct dc_stream_state *dc_stream,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 

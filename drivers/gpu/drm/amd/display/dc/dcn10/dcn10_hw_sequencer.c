@@ -793,7 +793,7 @@ static void undo_DEGVIDCN10_253_wa(struct dc *dc)
 
 static void ready_shared_resources(struct dc *dc)
 {
-	if (dc->current_context->stream_count == 0 &&
+	if (dc->current_state->stream_count == 0 &&
 			!dc->debug.disable_stutter)
 		undo_DEGVIDCN10_253_wa(dc);
 }
@@ -815,7 +815,7 @@ static void apply_DEGVIDCN10_253_wa(struct dc *dc)
 
 static void optimize_shared_resources(struct dc *dc)
 {
-	if (dc->current_context->stream_count == 0 &&
+	if (dc->current_state->stream_count == 0 &&
 			!dc->debug.disable_stutter)
 		apply_DEGVIDCN10_253_wa(dc);
 }
@@ -918,7 +918,7 @@ static void dcn10_init_hw(struct dc *dc)
 
 static enum dc_status dcn10_prog_pixclk_crtc_otg(
 		struct pipe_ctx *pipe_ctx,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -1008,7 +1008,7 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 static void reset_back_end_for_pipe(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i;
 
@@ -1040,7 +1040,7 @@ static void reset_back_end_for_pipe(
 			&pipe_ctx->clock_source);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		if (&dc->current_context->res_ctx.pipe_ctx[i] == pipe_ctx)
+		if (&dc->current_state->res_ctx.pipe_ctx[i] == pipe_ctx)
 			break;
 
 	if (i == dc->res_pool->pipe_count)
@@ -1206,14 +1206,14 @@ static void dcn10_power_down_fe(struct dc *dc, int fe_idx)
 
 static void reset_hw_ctx_wrap(
 		struct dc *dc,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i;
 
 	/* Reset Front End*/
 	/* Lock*/
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *cur_pipe_ctx = &dc->current_context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *cur_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 		struct timing_generator *tg = cur_pipe_ctx->stream_res.tg;
 
 		if (cur_pipe_ctx->stream)
@@ -1222,7 +1222,7 @@ static void reset_hw_ctx_wrap(
 	/* Disconnect*/
 	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
 		struct pipe_ctx *pipe_ctx_old =
-			&dc->current_context->res_ctx.pipe_ctx[i];
+			&dc->current_state->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		if (!pipe_ctx->stream ||
@@ -1234,7 +1234,7 @@ static void reset_hw_ctx_wrap(
 	}
 	/* Unlock*/
 	for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
-		struct pipe_ctx *cur_pipe_ctx = &dc->current_context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *cur_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 		struct timing_generator *tg = cur_pipe_ctx->stream_res.tg;
 
 		if (cur_pipe_ctx->stream)
@@ -1244,7 +1244,7 @@ static void reset_hw_ctx_wrap(
 	/* Disable and Powerdown*/
 	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
 		struct pipe_ctx *pipe_ctx_old =
-			&dc->current_context->res_ctx.pipe_ctx[i];
+			&dc->current_state->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		/*if (!pipe_ctx_old->stream)
@@ -1263,7 +1263,7 @@ static void reset_hw_ctx_wrap(
 	/* Reset Back End*/
 	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
 		struct pipe_ctx *pipe_ctx_old =
-			&dc->current_context->res_ctx.pipe_ctx[i];
+			&dc->current_state->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		if (!pipe_ctx_old->stream)
@@ -1271,7 +1271,7 @@ static void reset_hw_ctx_wrap(
 
 		if (!pipe_ctx->stream ||
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
-			reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_context);
+			reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
 	}
 }
 
@@ -1943,7 +1943,7 @@ static void print_rq_dlg_ttu(
 static void dcn10_power_on_fe(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
-	struct validate_context *context)
+	struct dc_state *context)
 {
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dce_hwseq *hws = dc->hwseq;
@@ -2244,7 +2244,7 @@ static void dcn10_program_pte_vm(struct mem_input *mem_input,
 static void update_dchubp_dpp(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
-	struct validate_context *context)
+	struct dc_state *context)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct mem_input *mi = pipe_ctx->plane_res.mi;
@@ -2263,7 +2263,7 @@ static void update_dchubp_dpp(
 		pipe_ctx->pipe_idx,
 		pipe_ctx->stream_res.pix_clk_params.requested_pix_clk,
 		context->bw.dcn.calc_clk.dppclk_div);
-	dc->current_context->bw.dcn.cur_clk.dppclk_div =
+	dc->current_state->bw.dcn.cur_clk.dppclk_div =
 			context->bw.dcn.calc_clk.dppclk_div;
 	context->bw.dcn.cur_clk.dppclk_div = context->bw.dcn.calc_clk.dppclk_div;
 
@@ -2350,7 +2350,7 @@ static void update_dchubp_dpp(
 static void program_all_pipe_in_tree(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
 
@@ -2408,7 +2408,7 @@ static void program_all_pipe_in_tree(
 
 static void dcn10_pplib_apply_display_requirements(
 	struct dc *dc,
-	struct validate_context *context)
+	struct dc_state *context)
 {
 	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
 
@@ -2437,7 +2437,7 @@ static void dcn10_apply_ctx_for_surface(
 		struct dc *dc,
 		const struct dc_stream_state *stream,
 		int num_planes,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i, be_idx;
 
@@ -2457,7 +2457,7 @@ static void dcn10_apply_ctx_for_surface(
 	if (num_planes == 0) {
 		for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
 			struct pipe_ctx *old_pipe_ctx =
-							&dc->current_context->res_ctx.pipe_ctx[i];
+							&dc->current_state->res_ctx.pipe_ctx[i];
 
 			if (old_pipe_ctx->stream_res.tg && old_pipe_ctx->stream_res.tg->inst == be_idx) {
 				old_pipe_ctx->stream_res.tg->funcs->set_blank(old_pipe_ctx->stream_res.tg, true);
@@ -2471,7 +2471,7 @@ static void dcn10_apply_ctx_for_surface(
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *old_pipe_ctx =
-				&dc->current_context->res_ctx.pipe_ctx[i];
+				&dc->current_state->res_ctx.pipe_ctx[i];
 
 		if (!pipe_ctx->plane_state && !old_pipe_ctx->plane_state)
 			continue;
@@ -2591,7 +2591,7 @@ static void dcn10_apply_ctx_for_surface(
 
 static void dcn10_set_bandwidth(
 		struct dc *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		bool decrease_allowed)
 {
 	struct pp_smu_display_requirement_rv *smu_req_cur =
@@ -2607,25 +2607,25 @@ static void dcn10_set_bandwidth(
 		return;
 
 	if (decrease_allowed || context->bw.dcn.calc_clk.dispclk_khz
-			> dc->current_context->bw.dcn.cur_clk.dispclk_khz) {
+			> dc->current_state->bw.dcn.cur_clk.dispclk_khz) {
 		dc->res_pool->display_clock->funcs->set_clock(
 				dc->res_pool->display_clock,
 				context->bw.dcn.calc_clk.dispclk_khz);
-		dc->current_context->bw.dcn.cur_clk.dispclk_khz =
+		dc->current_state->bw.dcn.cur_clk.dispclk_khz =
 				context->bw.dcn.calc_clk.dispclk_khz;
 	}
 	if (decrease_allowed || context->bw.dcn.calc_clk.dcfclk_khz
-			> dc->current_context->bw.dcn.cur_clk.dcfclk_khz) {
+			> dc->current_state->bw.dcn.cur_clk.dcfclk_khz) {
 		smu_req.hard_min_dcefclk_khz =
 				context->bw.dcn.calc_clk.dcfclk_khz;
 	}
 	if (decrease_allowed || context->bw.dcn.calc_clk.fclk_khz
-			> dc->current_context->bw.dcn.cur_clk.fclk_khz) {
+			> dc->current_state->bw.dcn.cur_clk.fclk_khz) {
 		smu_req.hard_min_fclk_khz = context->bw.dcn.calc_clk.fclk_khz;
 	}
 	if (decrease_allowed || context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz
-			> dc->current_context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz) {
-		dc->current_context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz =
+			> dc->current_state->bw.dcn.cur_clk.dcfclk_deep_sleep_khz) {
+		dc->current_state->bw.dcn.calc_clk.dcfclk_deep_sleep_khz =
 				context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz;
 		context->bw.dcn.cur_clk.dcfclk_deep_sleep_khz =
 				context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz;
@@ -2640,15 +2640,15 @@ static void dcn10_set_bandwidth(
 
 	/* Decrease in freq is increase in period so opposite comparison for dram_ccm */
 	if (decrease_allowed || context->bw.dcn.calc_clk.dram_ccm_us
-			< dc->current_context->bw.dcn.cur_clk.dram_ccm_us) {
-		dc->current_context->bw.dcn.calc_clk.dram_ccm_us =
+			< dc->current_state->bw.dcn.cur_clk.dram_ccm_us) {
+		dc->current_state->bw.dcn.calc_clk.dram_ccm_us =
 				context->bw.dcn.calc_clk.dram_ccm_us;
 		context->bw.dcn.cur_clk.dram_ccm_us =
 				context->bw.dcn.calc_clk.dram_ccm_us;
 	}
 	if (decrease_allowed || context->bw.dcn.calc_clk.min_active_dram_ccm_us
-			< dc->current_context->bw.dcn.cur_clk.min_active_dram_ccm_us) {
-		dc->current_context->bw.dcn.calc_clk.min_active_dram_ccm_us =
+			< dc->current_state->bw.dcn.cur_clk.min_active_dram_ccm_us) {
+		dc->current_state->bw.dcn.calc_clk.min_active_dram_ccm_us =
 				context->bw.dcn.calc_clk.min_active_dram_ccm_us;
 		context->bw.dcn.cur_clk.min_active_dram_ccm_us =
 				context->bw.dcn.calc_clk.min_active_dram_ccm_us;

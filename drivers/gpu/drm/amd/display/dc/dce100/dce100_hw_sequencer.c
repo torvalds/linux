@@ -107,7 +107,7 @@ static bool dce100_enable_display_power_gating(
 
 static void dce100_pplib_apply_display_requirements(
 	struct dc *dc,
-	struct validate_context *context)
+	struct dc_state *context)
 {
 	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
 
@@ -127,14 +127,14 @@ static void dce100_pplib_apply_display_requirements(
 
 void dce100_set_bandwidth(
 		struct dc *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		bool decrease_allowed)
 {
-	if (decrease_allowed || context->bw.dce.dispclk_khz > dc->current_context->bw.dce.dispclk_khz) {
+	if (decrease_allowed || context->bw.dce.dispclk_khz > dc->current_state->bw.dce.dispclk_khz) {
 		dc->res_pool->display_clock->funcs->set_clock(
 				dc->res_pool->display_clock,
 				context->bw.dce.dispclk_khz * 115 / 100);
-		dc->current_context->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz;
+		dc->current_state->bw.dce.dispclk_khz = context->bw.dce.dispclk_khz;
 	}
 	dce100_pplib_apply_display_requirements(dc, context);
 }

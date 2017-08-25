@@ -99,7 +99,7 @@ struct dc_static_screen_events {
 /* Forward declaration*/
 struct dc;
 struct dc_plane_state;
-struct validate_context;
+struct dc_state;
 
 struct dc_cap_funcs {
 	bool (*get_dcc_compression_cap)(const struct dc *dc,
@@ -192,7 +192,7 @@ struct dc_debug {
 	bool disable_psr;
 	bool force_abm_enable;
 };
-struct validate_context;
+struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
 struct dc {
@@ -208,7 +208,7 @@ struct dc {
 	uint8_t link_count;
 	struct dc_link *links[MAX_PIPES * 2];
 
-	struct validate_context *current_context;
+	struct dc_state *current_state;
 	struct resource_pool *res_pool;
 
 	/* Display Engine Clock levels */
@@ -621,12 +621,12 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 
 bool dc_add_stream_to_ctx(
 			struct dc *dc,
-		struct validate_context *new_ctx,
+		struct dc_state *new_ctx,
 		struct dc_stream_state *stream);
 
 bool dc_remove_stream_from_ctx(
 		struct dc *dc,
-			struct validate_context *new_ctx,
+			struct dc_state *new_ctx,
 			struct dc_stream_state *stream);
 
 
@@ -634,25 +634,25 @@ bool dc_add_plane_to_context(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_plane_state *plane_state,
-		struct validate_context *context);
+		struct dc_state *context);
 
 bool dc_remove_plane_from_context(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_plane_state *plane_state,
-		struct validate_context *context);
+		struct dc_state *context);
 
 bool dc_rem_all_planes_for_stream(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
-		struct validate_context *context);
+		struct dc_state *context);
 
 bool dc_add_all_planes_for_stream(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_plane_state * const *plane_states,
 		int plane_count,
-		struct validate_context *context);
+		struct dc_state *context);
 
 /*
  * Structure to store surface/stream associations for validation
@@ -669,7 +669,7 @@ bool dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
 bool dc_validate_global_state(
 		struct dc *dc,
-		struct validate_context *new_ctx);
+		struct dc_state *new_ctx);
 
 /*
  * This function takes a stream and checks if it is guaranteed to be supported.
@@ -680,14 +680,14 @@ bool dc_validate_global_state(
  */
 
 void dc_resource_validate_ctx_copy_construct(
-		const struct validate_context *src_ctx,
-		struct validate_context *dst_ctx);
+		const struct dc_state *src_ctx,
+		struct dc_state *dst_ctx);
 
 void dc_resource_validate_ctx_copy_construct_current(
 		const struct dc *dc,
-		struct validate_context *dst_ctx);
+		struct dc_state *dst_ctx);
 
-void dc_resource_validate_ctx_destruct(struct validate_context *context);
+void dc_resource_validate_ctx_destruct(struct dc_state *context);
 
 /*
  * TODO update to make it about validation sets
@@ -698,7 +698,7 @@ void dc_resource_validate_ctx_destruct(struct validate_context *context);
  *   Phy, Encoder, Timing Generator are programmed and enabled.
  *   New streams are enabled with blank stream; no memory read.
  */
-bool dc_commit_context(struct dc *dc, struct validate_context *context);
+bool dc_commit_state(struct dc *dc, struct dc_state *context);
 
 /*
  * Set up streams and links associated to drive sinks
@@ -714,7 +714,7 @@ bool dc_commit_context(struct dc *dc, struct validate_context *context);
  */
 bool dc_enable_stereo(
 	struct dc *dc,
-	struct validate_context *context,
+	struct dc_state *context,
 	struct dc_stream_state *streams[],
 	uint8_t stream_count);
 
@@ -737,9 +737,9 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		const struct dc_stream_status *stream_status);
 
 
-struct validate_context *dc_create_state(void);
-void dc_retain_validate_context(struct validate_context *context);
-void dc_release_validate_context(struct validate_context *context);
+struct dc_state *dc_create_state(void);
+void dc_retain_state(struct dc_state *context);
+void dc_release_state(struct dc_state *context);
 
 /*******************************************************************************
  * Link Interfaces

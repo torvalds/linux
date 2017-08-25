@@ -609,7 +609,7 @@ static uint32_t dce110_get_pll_pixel_rate_in_hz(
 {
 	uint32_t inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
 	struct dc *dc_core = cs->ctx->dc;
-	struct validate_context *context = dc_core->current_context;
+	struct dc_state *context = dc_core->current_state;
 	struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[inst];
 
 	/* This function need separate to different DCE version, before separate, just use pixel clock */
@@ -624,7 +624,7 @@ static uint32_t dce110_get_dp_pixel_rate_from_combo_phy_pll(
 {
 	uint32_t inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
 	struct dc *dc_core = cs->ctx->dc;
-	struct validate_context *context = dc_core->current_context;
+	struct dc_state *context = dc_core->current_state;
 	struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[inst];
 
 	/* This function need separate to different DCE version, before separate, just use pixel clock */

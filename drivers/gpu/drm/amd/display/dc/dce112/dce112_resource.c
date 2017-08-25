@@ -724,7 +724,7 @@ static struct clock_source *find_matching_pll(
 
 static enum dc_status build_mapped_resource(
 		const struct dc *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
 	enum dc_status status = DC_OK;
@@ -745,7 +745,7 @@ static enum dc_status build_mapped_resource(
 
 bool dce112_validate_bandwidth(
 	struct dc *dc,
-	struct validate_context *context)
+	struct dc_state *context)
 {
 	bool result = false;
 
@@ -768,7 +768,7 @@ bool dce112_validate_bandwidth(
 			"%s: Bandwidth validation failed!",
 			__func__);
 
-	if (memcmp(&dc->current_context->bw.dce,
+	if (memcmp(&dc->current_state->bw.dce,
 			&context->bw.dce, sizeof(context->bw.dce))) {
 		struct log_entry log_entry;
 		dm_logger_open(
@@ -823,7 +823,7 @@ bool dce112_validate_bandwidth(
 
 enum dc_status resource_map_phy_clock_resources(
 		const struct dc *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
 
@@ -855,7 +855,7 @@ enum dc_status resource_map_phy_clock_resources(
 }
 
 static bool dce112_validate_surface_sets(
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i;
 
@@ -876,7 +876,7 @@ static bool dce112_validate_surface_sets(
 
 enum dc_status dce112_add_stream_to_ctx(
 		struct dc *dc,
-		struct validate_context *new_ctx,
+		struct dc_state *new_ctx,
 		struct dc_stream_state *dc_stream)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
@@ -896,7 +896,7 @@ enum dc_status dce112_add_stream_to_ctx(
 enum dc_status dce112_validate_guaranteed(
 		struct dc *dc,
 		struct dc_stream_state *stream,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 
@@ -927,7 +927,7 @@ enum dc_status dce112_validate_guaranteed(
 
 enum dc_status dce112_validate_global(
 		struct dc *dc,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	if (!dce112_validate_surface_sets(context))
 		return DC_FAIL_SURFACE_VALIDATE;

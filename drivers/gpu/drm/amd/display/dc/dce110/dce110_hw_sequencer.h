@@ -30,20 +30,20 @@
 
 #define GAMMA_HW_POINTS_NUM 256
 struct dc;
-struct validate_context;
+struct dc_state;
 struct dm_pp_display_configuration;
 
 bool dce110_hw_sequencer_construct(struct dc *dc);
 
 enum dc_status dce110_apply_ctx_to_hw(
 		struct dc *dc,
-		struct validate_context *context);
+		struct dc_state *context);
 
-void dce110_set_display_clock(struct validate_context *context);
+void dce110_set_display_clock(struct dc_state *context);
 
 void dce110_set_displaymarks(
 	const struct dc *dc,
-	struct validate_context *context);
+	struct dc_state *context);
 
 void dce110_enable_stream(struct pipe_ctx *pipe_ctx);
 
@@ -62,10 +62,10 @@ void dce110_power_down(struct dc *dc);
 void dce110_update_pending_status(struct pipe_ctx *pipe_ctx);
 
 void dce110_fill_display_configs(
-	const struct validate_context *context,
+	const struct dc_state *context,
 	struct dm_pp_display_configuration *pp_display_cfg);
 
-uint32_t dce110_get_min_vblank_time_us(const struct validate_context *context);
+uint32_t dce110_get_min_vblank_time_us(const struct dc_state *context);
 
 void dp_receiver_power_ctrl(struct dc_link *link, bool on);
 #endif /* __DC_HWSS_DCE110_H__ */

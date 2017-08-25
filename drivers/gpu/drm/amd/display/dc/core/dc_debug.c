@@ -329,7 +329,7 @@ void context_timing_trace(
 
 void context_clock_trace(
 		struct dc *dc,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	struct dc  *core_dc = dc;

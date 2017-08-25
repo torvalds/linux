@@ -29,13 +29,13 @@
 #include "core_types.h"
 
 struct dc;
-struct validate_context;
+struct dc_state;
 
 bool dce100_hw_sequencer_construct(struct dc *dc);
 
 void dce100_set_bandwidth(
 		struct dc *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		bool decrease_allowed);
 
 #endif /* __DC_HWSS_DCE100_H__ */

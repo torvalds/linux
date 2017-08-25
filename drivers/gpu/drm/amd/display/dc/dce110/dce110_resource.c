@@ -773,7 +773,7 @@ static bool is_surface_pixel_format_supported(struct pipe_ctx *pipe_ctx, unsigne
 
 static enum dc_status build_mapped_resource(
 		const struct dc *dc,
-		struct validate_context *context,
+		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
 	enum dc_status status = DC_OK;
@@ -800,7 +800,7 @@ static enum dc_status build_mapped_resource(
 
 static bool dce110_validate_bandwidth(
 	struct dc *dc,
-	struct validate_context *context)
+	struct dc_state *context)
 {
 	bool result = false;
 
@@ -826,7 +826,7 @@ static bool dce110_validate_bandwidth(
 			context->streams[0]->timing.v_addressable,
 			context->streams[0]->timing.pix_clk_khz);
 
-	if (memcmp(&dc->current_context->bw.dce,
+	if (memcmp(&dc->current_state->bw.dce,
 			&context->bw.dce, sizeof(context->bw.dce))) {
 		struct log_entry log_entry;
 		dm_logger_open(
@@ -880,7 +880,7 @@ static bool dce110_validate_bandwidth(
 }
 
 static bool dce110_validate_surface_sets(
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	int i;
 
@@ -913,7 +913,7 @@ static bool dce110_validate_surface_sets(
 
 enum dc_status dce110_validate_global(
 		struct dc *dc,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	if (!dce110_validate_surface_sets(context))
 		return DC_FAIL_SURFACE_VALIDATE;
@@ -924,7 +924,7 @@ enum dc_status dce110_validate_global(
 static enum dc_status dce110_validate_guaranteed(
 		struct dc *dc,
 		struct dc_stream_state *dc_stream,
-		struct validate_context *context)
+		struct dc_state *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 
@@ -954,7 +954,7 @@ static enum dc_status dce110_validate_guaranteed(
 }
 
 static struct pipe_ctx *dce110_acquire_underlay(
-		struct validate_context *context,
+		struct dc_state *context,
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream)
 {
@@ -976,7 +976,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 
 	pipe_ctx->stream = stream;
 
-	if (!dc->current_context->res_ctx.pipe_ctx[underlay_idx].stream) {
+	if (!dc->current_state->res_ctx.pipe_ctx[underlay_idx].stream) {
 		struct tg_color black_color = {0};
 		struct dc_bios *dcb = dc->ctx->dc_bios;
 
