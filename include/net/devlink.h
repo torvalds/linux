@@ -402,8 +402,7 @@ static inline int
 devlink_dpipe_table_register(struct devlink *devlink,
 			     const char *table_name,
 			     struct devlink_dpipe_table_ops *table_ops,
-			     void *priv, u64 size,
-			     bool counter_control_extern)
+			     void *priv, bool counter_control_extern)
 {
 	return 0;
 }
