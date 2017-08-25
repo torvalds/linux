@@ -376,6 +376,7 @@ static bool tcpm_log_full(struct tcpm_port *port)
 		(port->logbuffer_head + 1) % LOG_BUFFER_ENTRIES;
 }
 
+__printf(2, 0)
 static void _tcpm_log(struct tcpm_port *port, const char *fmt, va_list args)
 {
 	char tmpbuffer[LOG_BUFFER_ENTRY_SIZE];
@@ -422,6 +423,7 @@ abort:
 	mutex_unlock(&port->logbuffer_lock);
 }
 
+__printf(2, 3)
 static void tcpm_log(struct tcpm_port *port, const char *fmt, ...)
 {
 	va_list args;
@@ -437,6 +439,7 @@ static void tcpm_log(struct tcpm_port *port, const char *fmt, ...)
 	va_end(args);
 }
 
+__printf(2, 3)
 static void tcpm_log_force(struct tcpm_port *port, const char *fmt, ...)
 {
 	va_list args;
@@ -553,7 +556,9 @@ static void tcpm_debugfs_exit(struct tcpm_port *port)
 
 #else
 
+__printf(2, 3)
 static void tcpm_log(const struct tcpm_port *port, const char *fmt, ...) { }
+__printf(2, 3)
 static void tcpm_log_force(struct tcpm_port *port, const char *fmt, ...) { }
 static void tcpm_log_source_caps(struct tcpm_port *port) { }
 static int tcpm_debugfs_init(const struct tcpm_port *port) { return 0; }
