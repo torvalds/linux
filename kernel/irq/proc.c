@@ -63,9 +63,9 @@ static int show_irq_affinity(int type, struct seq_file *m)
 #ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
 		mask = irq_data_get_effective_affinity_mask(&desc->irq_data);
 		break;
-#else
-		return -EINVAL;
 #endif
+	default:
+		return -EINVAL;
 	}
 
 	switch (type) {
