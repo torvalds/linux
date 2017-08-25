@@ -37,40 +37,6 @@
 #define CTX \
 	ippn10->base.ctx
 
-
-struct dcn10_input_csc_matrix {
-	enum dc_color_space color_space;
-	uint32_t regval[12];
-};
-
-static const struct dcn10_input_csc_matrix dcn10_input_csc_matrix[] = {
-	{COLOR_SPACE_SRGB,
-		{0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
-	{COLOR_SPACE_SRGB_LIMITED,
-		{0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
-	{COLOR_SPACE_YCBCR601,
-		{0x2cdd, 0x2000, 0, 0xe991, 0xe926, 0x2000, 0xf4fd, 0x10ef,
-						0, 0x2000, 0x38b4, 0xe3a6} },
-	{COLOR_SPACE_YCBCR601_LIMITED,
-		{0x3353, 0x2568, 0, 0xe400, 0xe5dc, 0x2568, 0xf367, 0x1108,
-						0, 0x2568, 0x40de, 0xdd3a} },
-	{COLOR_SPACE_YCBCR709,
-		{0x3265, 0x2000, 0, 0xe6ce, 0xf105, 0x2000, 0xfa01, 0xa7d, 0,
-						0x2000, 0x3b61, 0xe24f} },
-
-	{COLOR_SPACE_YCBCR709_LIMITED,
-		{0x39a6, 0x2568, 0, 0xe0d6, 0xeedd, 0x2568, 0xf925, 0x9a8, 0,
-						0x2568, 0x43ee, 0xdbb2} }
-};
-
-enum dcn10_input_csc_select {
-	INPUT_CSC_SELECT_BYPASS = 0,
-	INPUT_CSC_SELECT_ICSC,
-	INPUT_CSC_SELECT_COMA
-};
-
-
-
 static bool ippn10_cursor_program_control(
 		struct dcn10_ipp *ippn10,
 		bool pixel_data_invert,
@@ -254,13 +220,6 @@ static void ippn10_cursor_set_position(
 			CURSOR_DST_X_OFFSET, dst_x_offset);
 	/* TODO Handle surface pixel formats other than 4:4:4 */
 }
-
-enum pixel_format_description {
-	PIXEL_FORMAT_FIXED = 0,
-	PIXEL_FORMAT_FIXED16,
-	PIXEL_FORMAT_FLOAT
-
-};
 
 /*****************************************/
 /* Constructor, Destructor               */

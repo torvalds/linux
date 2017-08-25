@@ -27,10 +27,6 @@
 
 #include "core_types.h"
 
-#include "include/grph_object_id.h"
-#include "include/fixed31_32.h"
-#include "include/logger_interface.h"
-
 #include "reg_helper.h"
 #include "dcn10_dpp.h"
 #include "basics/conversion.h"
@@ -66,22 +62,6 @@ enum dcn10_coef_filter_type_sel {
 	SCL_COEF_CHROMA_HORZ_FILTER = 3,
 	SCL_COEF_ALPHA_VERT_FILTER = 4,
 	SCL_COEF_ALPHA_HORZ_FILTER = 5
-};
-
-enum lb_memory_config {
-	/* Enable all 3 pieces of memory */
-	LB_MEMORY_CONFIG_0 = 0,
-
-	/* Enable only the first piece of memory */
-	LB_MEMORY_CONFIG_1 = 1,
-
-	/* Enable only the second piece of memory */
-	LB_MEMORY_CONFIG_2 = 2,
-
-	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
-	 * last piece of chroma memory used for the luma storage
-	 */
-	LB_MEMORY_CONFIG_3 = 3
 };
 
 enum dscl_autocal_mode {
