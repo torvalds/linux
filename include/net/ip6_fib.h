@@ -103,7 +103,7 @@ struct rt6_info {
 	 * the same cache line.
 	 */
 	struct fib6_table		*rt6i_table;
-	struct fib6_node		*rt6i_node;
+	struct fib6_node __rcu		*rt6i_node;
 
 	struct in6_addr			rt6i_gateway;
 

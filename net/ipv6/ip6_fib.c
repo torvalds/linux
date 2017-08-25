@@ -869,7 +869,7 @@ add:
 
 		rt->dst.rt6_next = iter;
 		*ins = rt;
-		rt->rt6i_node = fn;
+		rcu_assign_pointer(rt->rt6i_node, fn);
 		atomic_inc(&rt->rt6i_ref);
 		inet6_rt_notify(RTM_NEWROUTE, rt, info, 0);
 		info->nl_net->ipv6.rt6_stats->fib_rt_entries++;
@@ -894,7 +894,7 @@ add:
 			return err;
 
 		*ins = rt;
-		rt->rt6i_node = fn;
+		rcu_assign_pointer(rt->rt6i_node, fn);
 		rt->dst.rt6_next = iter->dst.rt6_next;
 		atomic_inc(&rt->rt6i_ref);
 		inet6_rt_notify(RTM_NEWROUTE, rt, info, NLM_F_REPLACE);
@@ -1454,8 +1454,9 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 
 int fib6_del(struct rt6_info *rt, struct nl_info *info)
 {
+	struct fib6_node *fn = rcu_dereference_protected(rt->rt6i_node,
+				    lockdep_is_held(&rt->rt6i_table->tb6_lock));
 	struct net *net = info->nl_net;
-	struct fib6_node *fn = rt->rt6i_node;
 	struct rt6_info **rtp;
 
 #if RT6_DEBUG >= 2
@@ -1644,7 +1645,9 @@ static int fib6_clean_node(struct fib6_walker *w)
 			if (res) {
 #if RT6_DEBUG >= 2
 				pr_debug("%s: del failed: rt=%p@%p err=%d\n",
-					 __func__, rt, rt->rt6i_node, res);
+					 __func__, rt,
+					 rcu_access_pointer(rt->rt6i_node),
+					 res);
 #endif
 				continue;
 			}
