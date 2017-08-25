@@ -3220,7 +3220,7 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->pcm_new = component->driver->pcm_new;
 	component->pcm_free = component->driver->pcm_free;
 
-	dapm = &component->dapm;
+	dapm = snd_soc_component_get_dapm(component);
 	dapm->dev = dev;
 	dapm->component = component;
 	dapm->bias_level = SND_SOC_BIAS_OFF;
