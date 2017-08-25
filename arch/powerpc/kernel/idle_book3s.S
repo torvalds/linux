@@ -195,7 +195,16 @@ pnv_powersave_common:
 	std	r5,_CCR(r1)
 	std	r1,PACAR1(r13)
 
+BEGIN_FTR_SECTION
 	/*
+	 * POWER9 does not require real mode to stop, and presently does not
+	 * set hwthread_state for KVM (threads don't share MMU context), so
+	 * we can remain in virtual mode for this.
+	 */
+	bctr
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+	/*
+	 * POWER8
 	 * Go to real mode to do the nap, as required by the architecture.
 	 * Also, we need to be in real mode before setting hwthread_state,
 	 * because as soon as we do that, another thread can switch
