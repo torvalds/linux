@@ -226,8 +226,9 @@ static void bsg_request_fn(struct request_queue *q)
  * @job_fn: bsg job handler
  * @dd_job_size: size of LLD data needed for each job
  */
-struct request_queue *bsg_setup_queue(struct device *dev, char *name,
-		bsg_job_fn *job_fn, int dd_job_size)
+struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
+		bsg_job_fn *job_fn, int dd_job_size,
+		void (*release)(struct device *))
 {
 	struct request_queue *q;
 	int ret;
@@ -250,7 +251,7 @@ struct request_queue *bsg_setup_queue(struct device *dev, char *name,
 	blk_queue_softirq_done(q, bsg_softirq_done);
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
 
-	ret = bsg_register_queue(q, dev, name, NULL);
+	ret = bsg_register_queue(q, dev, name, release);
 	if (ret) {
 		printk(KERN_ERR "%s: bsg interface failed to "
 		       "initialize - register queue\n", dev->kobj.name);
