@@ -2001,8 +2001,8 @@ static enum blk_eh_timer_return scsi_timeout(struct request *req,
 	return scsi_times_out(req);
 }
 
-static int scsi_init_request(struct blk_mq_tag_set *set, struct request *rq,
-		unsigned int hctx_idx, unsigned int numa_node)
+static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
+				unsigned int hctx_idx, unsigned int numa_node)
 {
 	struct Scsi_Host *shost = set->driver_data;
 	const bool unchecked_isa_dma = shost->unchecked_isa_dma;
@@ -2026,8 +2026,8 @@ static int scsi_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	return 0;
 }
 
-static void scsi_exit_request(struct blk_mq_tag_set *set, struct request *rq,
-		unsigned int hctx_idx)
+static void scsi_mq_exit_request(struct blk_mq_tag_set *set, struct request *rq,
+				 unsigned int hctx_idx)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 
@@ -2104,7 +2104,8 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 }
 EXPORT_SYMBOL_GPL(__scsi_init_queue);
 
-static int scsi_init_rq(struct request_queue *q, struct request *rq, gfp_t gfp)
+static int scsi_old_init_rq(struct request_queue *q, struct request *rq,
+			    gfp_t gfp)
 {
 	struct Scsi_Host *shost = q->rq_alloc_data;
 	const bool unchecked_isa_dma = shost->unchecked_isa_dma;
@@ -2134,7 +2135,7 @@ fail:
 	return -ENOMEM;
 }
 
-static void scsi_exit_rq(struct request_queue *q, struct request *rq)
+static void scsi_old_exit_rq(struct request_queue *q, struct request *rq)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 
@@ -2144,7 +2145,7 @@ static void scsi_exit_rq(struct request_queue *q, struct request *rq)
 			       cmd->sense_buffer);
 }
 
-struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
+struct request_queue *scsi_old_alloc_queue(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
 	struct request_queue *q;
@@ -2155,8 +2156,8 @@ struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 	q->cmd_size = sizeof(struct scsi_cmnd) + shost->hostt->cmd_size;
 	q->rq_alloc_data = shost;
 	q->request_fn = scsi_request_fn;
-	q->init_rq_fn = scsi_init_rq;
-	q->exit_rq_fn = scsi_exit_rq;
+	q->init_rq_fn = scsi_old_init_rq;
+	q->exit_rq_fn = scsi_old_exit_rq;
 	q->initialize_rq_fn = scsi_initialize_rq;
 
 	if (blk_init_allocated_queue(q) < 0) {
@@ -2180,8 +2181,8 @@ static const struct blk_mq_ops scsi_mq_ops = {
 #ifdef CONFIG_BLK_DEBUG_FS
 	.show_rq	= scsi_show_rq,
 #endif
-	.init_request	= scsi_init_request,
-	.exit_request	= scsi_exit_request,
+	.init_request	= scsi_mq_init_request,
+	.exit_request	= scsi_mq_exit_request,
 	.initialize_rq_fn = scsi_initialize_rq,
 	.map_queues	= scsi_map_queues,
 };
