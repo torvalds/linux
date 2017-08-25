@@ -360,8 +360,6 @@ static void skd_send_fitmsg(struct skd_device *skdev,
 			    struct skd_fitmsg_context *skmsg);
 static void skd_send_special_fitmsg(struct skd_device *skdev,
 				    struct skd_special_context *skspcl);
-static void skd_end_request(struct skd_device *skdev, struct request *req,
-			    blk_status_t status);
 static bool skd_preop_sg_list(struct skd_device *skdev,
 			     struct skd_request_context *skreq);
 static void skd_postop_sg_list(struct skd_device *skdev,
@@ -520,8 +518,8 @@ static blk_status_t skd_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	if (req->bio && !skd_preop_sg_list(skdev, skreq)) {
 		dev_dbg(&skdev->pdev->dev, "error Out\n");
-		skd_end_request(skdev, blk_mq_rq_from_pdu(skreq),
-				BLK_STS_RESOURCE);
+		skreq->status = BLK_STS_RESOURCE;
+		blk_mq_complete_request(req);
 		return BLK_STS_OK;
 	}
 
@@ -606,27 +604,6 @@ static enum blk_eh_timer_return skd_timed_out(struct request *req,
 		blk_mq_unique_tag(req));
 
 	return BLK_EH_RESET_TIMER;
-}
-
-static void skd_end_request(struct skd_device *skdev, struct request *req,
-			    blk_status_t error)
-{
-	struct skd_request_context *skreq = blk_mq_rq_to_pdu(req);
-
-	if (unlikely(error)) {
-		char *cmd = (rq_data_dir(req) == READ) ? "read" : "write";
-		u32 lba = (u32)blk_rq_pos(req);
-		u32 count = blk_rq_sectors(req);
-
-		dev_err(&skdev->pdev->dev,
-			"Error cmd=%s sect=%u count=%u id=0x%x\n", cmd, lba,
-			count, req->tag);
-	} else
-		dev_dbg(&skdev->pdev->dev, "id=0x%x error=%d\n", req->tag,
-			error);
-
-	skreq->status = error;
-	blk_mq_complete_request(req);
 }
 
 static void skd_complete_rq(struct request *req)
@@ -1438,7 +1415,8 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 	switch (skd_check_status(skdev, cmp_status, &skreq->err_info)) {
 	case SKD_CHECK_STATUS_REPORT_GOOD:
 	case SKD_CHECK_STATUS_REPORT_SMART_ALERT:
-		skd_end_request(skdev, req, BLK_STS_OK);
+		skreq->status = BLK_STS_OK;
+		blk_mq_complete_request(req);
 		break;
 
 	case SKD_CHECK_STATUS_BUSY_IMMINENT:
@@ -1460,7 +1438,8 @@ static void skd_resolve_req_exception(struct skd_device *skdev,
 
 	case SKD_CHECK_STATUS_REPORT_ERROR:
 	default:
-		skd_end_request(skdev, req, BLK_STS_IOERR);
+		skreq->status = BLK_STS_IOERR;
+		blk_mq_complete_request(req);
 		break;
 	}
 }
@@ -1579,10 +1558,12 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 		/*
 		 * Capture the outcome and post it back to the native request.
 		 */
-		if (likely(cmp_status == SAM_STAT_GOOD))
-			skd_end_request(skdev, rq, BLK_STS_OK);
-		else
+		if (likely(cmp_status == SAM_STAT_GOOD)) {
+			skreq->status = BLK_STS_OK;
+			blk_mq_complete_request(rq);
+		} else {
 			skd_resolve_req_exception(skdev, skreq, rq);
+		}
 
 		/* skd_isr_comp_limit equal zero means no limit */
 		if (limit) {
@@ -1926,8 +1907,8 @@ static void skd_recover_request(struct request *req, void *data, bool reserved)
 		skd_postop_sg_list(skdev, skreq);
 
 	skreq->state = SKD_REQ_STATE_IDLE;
-
-	skd_end_request(skdev, req, BLK_STS_IOERR);
+	skreq->status = BLK_STS_IOERR;
+	blk_mq_complete_request(req);
 }
 
 static void skd_recover_requests(struct skd_device *skdev)
