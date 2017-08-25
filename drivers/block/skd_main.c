@@ -3041,7 +3041,8 @@ static void skd_free_disk(struct skd_device *skdev)
 	if (skdev->queue) {
 		blk_cleanup_queue(skdev->queue);
 		skdev->queue = NULL;
-		disk->queue = NULL;
+		if (disk)
+			disk->queue = NULL;
 	}
 
 	if (skdev->tag_set.tags)
