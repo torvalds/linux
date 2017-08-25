@@ -129,8 +129,7 @@ struct pi433_instance {
 /*-------------------------------------------------------------------------*/
 
 /* GPIO interrupt handlers */
-static irq_handler_t
-DIO0_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t DIO0_irq_handler(int irq, void *dev_id)
 {
 	struct pi433_device *device = dev_id;
 
@@ -152,11 +151,10 @@ DIO0_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs)
 		wake_up_interruptible(&device->fifo_wait_queue);
 	}
 
-	return (irq_handler_t) IRQ_HANDLED;
+	return IRQ_HANDLED;
 }
 
-static irq_handler_t
-DIO1_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t DIO1_irq_handler(int irq, void *dev_id)
 {
 	struct pi433_device *device = dev_id;
 
@@ -172,13 +170,8 @@ DIO1_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs)
 	printk("DIO1 irq: %d bytes free in fifo\n", device->free_in_fifo); // TODO: printk() should include KERN_ facility level
 	wake_up_interruptible(&device->fifo_wait_queue);
 
-	return (irq_handler_t) IRQ_HANDLED;
+	return IRQ_HANDLED;
 }
-
-static void *DIO_irq_handler[NUM_DIO] = {
-	DIO0_irq_handler,
-	DIO1_irq_handler
-};
 
 /*-------------------------------------------------------------------------*/
 
@@ -982,6 +975,10 @@ static int setup_GPIOs(struct pi433_device *device)
 	char 	name[5];
 	int	retval;
 	int	i;
+	const irq_handler_t DIO_irq_handler[NUM_DIO] = {
+		DIO0_irq_handler,
+		DIO1_irq_handler
+	};
 
 	for (i=0; i<NUM_DIO; i++)
 	{
