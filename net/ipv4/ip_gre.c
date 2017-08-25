@@ -432,38 +432,32 @@ static struct rtable *gre_get_rt(struct sk_buff *skb,
 	return ip_route_output_key(net, fl);
 }
 
-static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
-			__be16 proto)
+static struct rtable *prepare_fb_xmit(struct sk_buff *skb,
+				      struct net_device *dev,
+				      struct flowi4 *fl,
+				      int tunnel_hlen)
 {
 	struct ip_tunnel_info *tun_info;
 	const struct ip_tunnel_key *key;
 	struct rtable *rt = NULL;
-	struct flowi4 fl;
 	int min_headroom;
-	int tunnel_hlen;
-	__be16 df, flags;
 	bool use_cache;
 	int err;
 
 	tun_info = skb_tunnel_info(skb);
-	if (unlikely(!tun_info || !(tun_info->mode & IP_TUNNEL_INFO_TX) ||
-		     ip_tunnel_info_af(tun_info) != AF_INET))
-		goto err_free_skb;
-
 	key = &tun_info->key;
 	use_cache = ip_tunnel_dst_cache_usable(skb, tun_info);
+
 	if (use_cache)
-		rt = dst_cache_get_ip4(&tun_info->dst_cache, &fl.saddr);
+		rt = dst_cache_get_ip4(&tun_info->dst_cache, &fl->saddr);
 	if (!rt) {
-		rt = gre_get_rt(skb, dev, &fl, key);
+		rt = gre_get_rt(skb, dev, fl, key);
 		if (IS_ERR(rt))
-				goto err_free_skb;
+			goto err_free_skb;
 		if (use_cache)
 			dst_cache_set_ip4(&tun_info->dst_cache, &rt->dst,
-					  fl.saddr);
+					  fl->saddr);
 	}
-
-	tunnel_hlen = gre_calc_hlen(key->tun_flags);
 
 	min_headroom = LL_RESERVED_SPACE(rt->dst.dev) + rt->dst.header_len
 			+ tunnel_hlen + sizeof(struct iphdr);
@@ -476,6 +470,37 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 		if (unlikely(err))
 			goto err_free_rt;
 	}
+	return rt;
+
+err_free_rt:
+	ip_rt_put(rt);
+err_free_skb:
+	kfree_skb(skb);
+	dev->stats.tx_dropped++;
+	return NULL;
+}
+
+static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
+			__be16 proto)
+{
+	struct ip_tunnel_info *tun_info;
+	const struct ip_tunnel_key *key;
+	struct rtable *rt = NULL;
+	struct flowi4 fl;
+	int tunnel_hlen;
+	__be16 df, flags;
+
+	tun_info = skb_tunnel_info(skb);
+	if (unlikely(!tun_info || !(tun_info->mode & IP_TUNNEL_INFO_TX) ||
+		     ip_tunnel_info_af(tun_info) != AF_INET))
+		goto err_free_skb;
+
+	key = &tun_info->key;
+	tunnel_hlen = gre_calc_hlen(key->tun_flags);
+
+	rt = prepare_fb_xmit(skb, dev, &fl, tunnel_hlen);
+	if (!rt)
+		return;
 
 	/* Push Tunnel header. */
 	if (gre_handle_offloads(skb, !!(tun_info->key.tun_flags & TUNNEL_CSUM)))
