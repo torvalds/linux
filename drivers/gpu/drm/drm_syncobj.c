@@ -105,7 +105,7 @@ int drm_syncobj_find_fence(struct drm_file *file_private,
 	if (!syncobj)
 		return -ENOENT;
 
-	*fence = dma_fence_get(syncobj->fence);
+	*fence = drm_syncobj_fence_get(syncobj);
 	if (!*fence) {
 		ret = -EINVAL;
 	}
