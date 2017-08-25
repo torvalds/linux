@@ -2359,11 +2359,24 @@ retry:
 			 * already marked stale. If we can't lock it, back off
 			 * and retry.
 			 */
-			if (ip != free_ip &&
-			    !xfs_ilock_nowait(ip, XFS_ILOCK_EXCL)) {
-				rcu_read_unlock();
-				delay(1);
-				goto retry;
+			if (ip != free_ip) {
+				if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL)) {
+					rcu_read_unlock();
+					delay(1);
+					goto retry;
+				}
+
+				/*
+				 * Check the inode number again in case we're
+				 * racing with freeing in xfs_reclaim_inode().
+				 * See the comments in that function for more
+				 * information as to why the initial check is
+				 * not sufficient.
+				 */
+				if (ip->i_ino != inum + i) {
+					xfs_iunlock(ip, XFS_ILOCK_EXCL);
+					continue;
+				}
 			}
 			rcu_read_unlock();
 
