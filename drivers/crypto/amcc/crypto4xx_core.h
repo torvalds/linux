@@ -157,28 +157,28 @@ static inline struct crypto4xx_alg *crypto_alg_to_crypto4xx_alg(
 	return container_of(x, struct crypto4xx_alg, alg.u.cipher);
 }
 
-extern int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size);
-extern void crypto4xx_free_sa(struct crypto4xx_ctx *ctx);
-extern void crypto4xx_free_ctx(struct crypto4xx_ctx *ctx);
-extern u32 crypto4xx_alloc_state_record(struct crypto4xx_ctx *ctx);
-extern u32 get_dynamic_sa_offset_state_ptr_field(struct crypto4xx_ctx *ctx);
-extern u32 get_dynamic_sa_offset_key_field(struct crypto4xx_ctx *ctx);
-extern u32 get_dynamic_sa_iv_size(struct crypto4xx_ctx *ctx);
-extern void crypto4xx_memcpy_le(unsigned int *dst,
-				const unsigned char *buf, int len);
-extern u32 crypto4xx_build_pd(struct crypto_async_request *req,
-			      struct crypto4xx_ctx *ctx,
-			      struct scatterlist *src,
-			      struct scatterlist *dst,
-			      unsigned int datalen,
-			      void *iv, u32 iv_len);
-extern int crypto4xx_setkey_aes_cbc(struct crypto_ablkcipher *cipher,
-				    const u8 *key, unsigned int keylen);
-extern int crypto4xx_encrypt(struct ablkcipher_request *req);
-extern int crypto4xx_decrypt(struct ablkcipher_request *req);
-extern int crypto4xx_sha1_alg_init(struct crypto_tfm *tfm);
-extern int crypto4xx_hash_digest(struct ahash_request *req);
-extern int crypto4xx_hash_final(struct ahash_request *req);
-extern int crypto4xx_hash_update(struct ahash_request *req);
-extern int crypto4xx_hash_init(struct ahash_request *req);
+int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size);
+void crypto4xx_free_sa(struct crypto4xx_ctx *ctx);
+void crypto4xx_free_ctx(struct crypto4xx_ctx *ctx);
+u32 crypto4xx_alloc_state_record(struct crypto4xx_ctx *ctx);
+u32 get_dynamic_sa_offset_state_ptr_field(struct crypto4xx_ctx *ctx);
+u32 get_dynamic_sa_offset_key_field(struct crypto4xx_ctx *ctx);
+u32 get_dynamic_sa_iv_size(struct crypto4xx_ctx *ctx);
+void crypto4xx_memcpy_le(unsigned int *dst,
+			 const unsigned char *buf, int len);
+u32 crypto4xx_build_pd(struct crypto_async_request *req,
+		       struct crypto4xx_ctx *ctx,
+		       struct scatterlist *src,
+		       struct scatterlist *dst,
+		       unsigned int datalen,
+		       void *iv, u32 iv_len);
+int crypto4xx_setkey_aes_cbc(struct crypto_ablkcipher *cipher,
+			     const u8 *key, unsigned int keylen);
+int crypto4xx_encrypt(struct ablkcipher_request *req);
+int crypto4xx_decrypt(struct ablkcipher_request *req);
+int crypto4xx_sha1_alg_init(struct crypto_tfm *tfm);
+int crypto4xx_hash_digest(struct ahash_request *req);
+int crypto4xx_hash_final(struct ahash_request *req);
+int crypto4xx_hash_update(struct ahash_request *req);
+int crypto4xx_hash_init(struct ahash_request *req);
 #endif
