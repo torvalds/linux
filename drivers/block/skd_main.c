@@ -89,7 +89,6 @@ MODULE_DESCRIPTION("STEC s1120 PCIe SSD block driver");
 	  sizeof(struct fit_comp_error_info)) * SKD_N_COMPLETION_ENTRY)
 
 /* 5 bits of uniqifier, 0xF800 */
-#define SKD_ID_INCR             (0x400)
 #define SKD_ID_TABLE_MASK       (3u << 8u)
 #define  SKD_ID_RW_REQUEST      (0u << 8u)
 #define  SKD_ID_INTERNAL        (1u << 8u)
@@ -921,9 +920,7 @@ static void skd_send_internal_skspcl(struct skd_device *skdev,
 		 */
 		return;
 
-	SKD_ASSERT((skspcl->req.id & SKD_ID_INCR) == 0);
 	skspcl->req.state = SKD_REQ_STATE_BUSY;
-	skspcl->req.id += SKD_ID_INCR;
 
 	scsi = &skspcl->msg_buf->scsi[0];
 	scsi->hdr.tag = skspcl->req.id;
@@ -1044,7 +1041,6 @@ static void skd_complete_internal(struct skd_device *skdev,
 
 	skspcl->req.completion = *skcomp;
 	skspcl->req.state = SKD_REQ_STATE_IDLE;
-	skspcl->req.id += SKD_ID_INCR;
 
 	status = skspcl->req.completion.status;
 
@@ -1451,7 +1447,6 @@ static void skd_release_skreq(struct skd_device *skdev,
 	 * Reclaim the skd_request_context
 	 */
 	skreq->state = SKD_REQ_STATE_IDLE;
-	skreq->id += SKD_ID_INCR;
 }
 
 static int skd_isr_completion_posted(struct skd_device *skdev,
