@@ -38,6 +38,7 @@
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
 #include <crypto/sha.h>
+#include <crypto/scatterwalk.h>
 #include "crypto4xx_reg_def.h"
 #include "crypto4xx_core.h"
 #include "crypto4xx_sa.h"
@@ -481,111 +482,44 @@ static inline struct ce_sd *crypto4xx_get_sdp(struct crypto4xx_device *dev,
 	return  (struct ce_sd *)(dev->sdr + sizeof(struct ce_sd) * idx);
 }
 
-static u32 crypto4xx_fill_one_page(struct crypto4xx_device *dev,
-				   dma_addr_t *addr, u32 *length,
-				   u32 *idx, u32 *offset, u32 *nbytes)
-{
-	u32 len;
-
-	if (*length > dev->scatter_buffer_size) {
-		memcpy(phys_to_virt(*addr),
-			dev->scatter_buffer_va +
-			*idx * dev->scatter_buffer_size + *offset,
-			dev->scatter_buffer_size);
-		*offset = 0;
-		*length -= dev->scatter_buffer_size;
-		*nbytes -= dev->scatter_buffer_size;
-		if (*idx == PPC4XX_LAST_SD)
-			*idx = 0;
-		else
-			(*idx)++;
-		*addr = *addr +  dev->scatter_buffer_size;
-		return 1;
-	} else if (*length < dev->scatter_buffer_size) {
-		memcpy(phys_to_virt(*addr),
-			dev->scatter_buffer_va +
-			*idx * dev->scatter_buffer_size + *offset, *length);
-		if ((*offset + *length) == dev->scatter_buffer_size) {
-			if (*idx == PPC4XX_LAST_SD)
-				*idx = 0;
-			else
-				(*idx)++;
-			*nbytes -= *length;
-			*offset = 0;
-		} else {
-			*nbytes -= *length;
-			*offset += *length;
-		}
-
-		return 0;
-	} else {
-		len = (*nbytes <= dev->scatter_buffer_size) ?
-				(*nbytes) : dev->scatter_buffer_size;
-		memcpy(phys_to_virt(*addr),
-			dev->scatter_buffer_va +
-			*idx * dev->scatter_buffer_size + *offset,
-			len);
-		*offset = 0;
-		*nbytes -= len;
-
-		if (*idx == PPC4XX_LAST_SD)
-			*idx = 0;
-		else
-			(*idx)++;
-
-		return 0;
-    }
-}
-
 static void crypto4xx_copy_pkt_to_dst(struct crypto4xx_device *dev,
 				      struct ce_pd *pd,
 				      struct pd_uinfo *pd_uinfo,
 				      u32 nbytes,
 				      struct scatterlist *dst)
 {
-	dma_addr_t addr;
-	u32 this_sd;
-	u32 offset;
-	u32 len;
-	u32 i;
-	u32 sg_len;
-	struct scatterlist *sg;
+	unsigned int first_sd = pd_uinfo->first_sd;
+	unsigned int last_sd;
+	unsigned int overflow = 0;
+	unsigned int to_copy;
+	unsigned int dst_start = 0;
 
-	this_sd = pd_uinfo->first_sd;
-	offset = 0;
-	i = 0;
+	/*
+	 * Because the scatter buffers are all neatly organized in one
+	 * big continuous ringbuffer; scatterwalk_map_and_copy() can
+	 * be instructed to copy a range of buffers in one go.
+	 */
+
+	last_sd = (first_sd + pd_uinfo->num_sd);
+	if (last_sd > PPC4XX_LAST_SD) {
+		last_sd = PPC4XX_LAST_SD;
+		overflow = last_sd % PPC4XX_NUM_SD;
+	}
 
 	while (nbytes) {
-		sg = &dst[i];
-		sg_len = sg->length;
-		addr = dma_map_page(dev->core_dev->device, sg_page(sg),
-				sg->offset, sg->length, DMA_TO_DEVICE);
+		void *buf = dev->scatter_buffer_va +
+			first_sd * PPC4XX_SD_BUFFER_SIZE;
 
-		if (offset == 0) {
-			len = (nbytes <= sg->length) ? nbytes : sg->length;
-			while (crypto4xx_fill_one_page(dev, &addr, &len,
-				&this_sd, &offset, &nbytes))
-				;
-			if (!nbytes)
-				return;
-			i++;
-		} else {
-			len = (nbytes <= (dev->scatter_buffer_size - offset)) ?
-				nbytes : (dev->scatter_buffer_size - offset);
-			len = (sg->length < len) ? sg->length : len;
-			while (crypto4xx_fill_one_page(dev, &addr, &len,
-					       &this_sd, &offset, &nbytes))
-				;
-			if (!nbytes)
-				return;
-			sg_len -= len;
-			if (sg_len) {
-				addr += len;
-				while (crypto4xx_fill_one_page(dev, &addr,
-					&sg_len, &this_sd, &offset, &nbytes))
-					;
-			}
-			i++;
+		to_copy = min(nbytes, PPC4XX_SD_BUFFER_SIZE *
+				      (1 + last_sd - first_sd));
+		scatterwalk_map_and_copy(buf, dst, dst_start, to_copy, 1);
+		nbytes -= to_copy;
+
+		if (overflow) {
+			first_sd = 0;
+			last_sd = overflow;
+			dst_start += to_copy;
+			overflow = 0;
 		}
 	}
 }
