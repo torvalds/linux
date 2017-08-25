@@ -1491,7 +1491,8 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (rv)
 		goto out;
 
-	rv = ipmi_demangle_device_id(resp, len, &ssif_info->device_id);
+	rv = ipmi_demangle_device_id(resp[0] >> 2, resp[1],
+			resp + 2, len - 2, &ssif_info->device_id);
 	if (rv)
 		goto out;
 

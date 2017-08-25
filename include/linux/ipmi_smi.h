@@ -162,27 +162,27 @@ struct ipmi_device_id {
 #define ipmi_version_major(v) ((v)->ipmi_version & 0xf)
 #define ipmi_version_minor(v) ((v)->ipmi_version >> 4)
 
-/* Take a pointer to a raw data buffer and a length and extract device
-   id information from it.  The first byte of data must point to the
-   netfn << 2, the data should be of the format:
-      netfn << 2, cmd, completion code, data
-   as normally comes from a device interface. */
-static inline int ipmi_demangle_device_id(const unsigned char *data,
+/* Take a pointer to an IPMI response and extract device id information from
+ * it. @netfn is in the IPMI_NETFN_ format, so may need to be shifted from
+ * a SI response.
+ */
+static inline int ipmi_demangle_device_id(uint8_t netfn, uint8_t cmd,
+					  const unsigned char *data,
 					  unsigned int data_len,
 					  struct ipmi_device_id *id)
 {
-	if (data_len < 9)
+	if (data_len < 7)
 		return -EINVAL;
-	if (data[0] != IPMI_NETFN_APP_RESPONSE << 2 ||
-	    data[1] != IPMI_GET_DEVICE_ID_CMD)
+	if (netfn != IPMI_NETFN_APP_RESPONSE || cmd != IPMI_GET_DEVICE_ID_CMD)
 		/* Strange, didn't get the response we expected. */
 		return -EINVAL;
-	if (data[2] != 0)
+	if (data[0] != 0)
 		/* That's odd, it shouldn't be able to fail. */
 		return -EINVAL;
 
-	data += 3;
-	data_len -= 3;
+	data++;
+	data_len--;
+
 	id->device_id = data[0];
 	id->device_revision = data[1];
 	id->firmware_revision_1 = data[2];

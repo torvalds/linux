@@ -2926,7 +2926,8 @@ static int try_get_dev_id(struct smi_info *smi_info)
 						  resp, IPMI_MAX_MSG_LENGTH);
 
 	/* Check and record info from the get device id, in case we need it. */
-	rv = ipmi_demangle_device_id(resp, resp_len, &smi_info->device_id);
+	rv = ipmi_demangle_device_id(resp[0] >> 2, resp[1],
+			resp + 2, resp_len - 2, &smi_info->device_id);
 
 out:
 	kfree(resp);
