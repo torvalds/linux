@@ -263,6 +263,8 @@ struct intel_th {
 	struct intel_th_drvdata	*drvdata;
 
 	struct resource		*resource;
+	int			(*activate)(struct intel_th *);
+	void			(*deactivate)(struct intel_th *);
 	unsigned int		num_thdevs;
 	unsigned int		num_resources;
 	int			irq;
