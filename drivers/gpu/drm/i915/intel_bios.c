@@ -576,7 +576,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 {
 	const struct bdb_edp *edp;
 	const struct edp_power_seq *edp_pps;
-	const struct edp_link_params *edp_link_params;
+	const struct edp_fast_link_params *edp_link_params;
 	int panel_type = dev_priv->vbt.panel_type;
 
 	edp = find_section(bdb, BDB_EDP);
@@ -600,7 +600,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 
 	/* Get the eDP sequencing and link info */
 	edp_pps = &edp->power_seqs[panel_type];
-	edp_link_params = &edp->link_params[panel_type];
+	edp_link_params = &edp->fast_link_params[panel_type];
 
 	dev_priv->vbt.edp.pps = *edp_pps;
 
