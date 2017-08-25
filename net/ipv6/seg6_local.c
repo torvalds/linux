@@ -357,6 +357,11 @@ static int seg6_local_input(struct sk_buff *skb)
 	struct seg6_action_desc *desc;
 	struct seg6_local_lwt *slwt;
 
+	if (skb->protocol != htons(ETH_P_IPV6)) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
 	slwt = seg6_local_lwtunnel(orig_dst->lwtstate);
 	desc = slwt->desc;
 
@@ -622,6 +627,9 @@ static int seg6_local_build_state(struct nlattr *nla, unsigned int family,
 	struct lwtunnel_state *newts;
 	struct seg6_local_lwt *slwt;
 	int err;
+
+	if (family != AF_INET6)
+		return -EINVAL;
 
 	err = nla_parse_nested(tb, SEG6_LOCAL_MAX, nla, seg6_local_policy,
 			       extack);
