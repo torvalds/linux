@@ -862,8 +862,6 @@ struct snd_soc_component {
 	/* Don't use these, use snd_soc_component_get_dapm() */
 	struct snd_soc_dapm_context dapm;
 
-	const struct snd_soc_dapm_widget *dapm_widgets;
-	unsigned int num_dapm_widgets;
 	const struct snd_soc_dapm_route *dapm_routes;
 	unsigned int num_dapm_routes;
 	struct snd_soc_codec *codec;
