@@ -156,6 +156,12 @@ struct mmc_request {
 	struct completion	completion;
 	struct completion	cmd_completion;
 	void			(*done)(struct mmc_request *);/* completion function */
+	/*
+	 * Notify uppers layers (e.g. mmc block driver) that recovery is needed
+	 * due to an error associated with the mmc_request. Currently used only
+	 * by CQE.
+	 */
+	void			(*recovery_notifier)(struct mmc_request *);
 	struct mmc_host		*host;
 
 	/* Allow other commands during this ongoing data transfer or busy wait */
