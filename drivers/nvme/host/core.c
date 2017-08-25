@@ -1458,7 +1458,7 @@ EXPORT_SYMBOL_GPL(nvme_enable_ctrl);
 
 int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl)
 {
-	unsigned long timeout = jiffies + (shutdown_timeout * HZ);
+	unsigned long timeout = jiffies + (ctrl->shutdown_timeout * HZ);
 	u32 csts;
 	int ret;
 
@@ -1825,6 +1825,20 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 	nvme_set_queue_limits(ctrl, ctrl->admin_q);
 	ctrl->sgls = le32_to_cpu(id->sgls);
 	ctrl->kas = le16_to_cpu(id->kas);
+
+	if (id->rtd3e) {
+		/* us -> s */
+		u32 transition_time = le32_to_cpu(id->rtd3e) / 1000000;
+
+		ctrl->shutdown_timeout = clamp_t(unsigned int, transition_time,
+						 shutdown_timeout, 60);
+
+		if (ctrl->shutdown_timeout != shutdown_timeout)
+			dev_warn(ctrl->device,
+				 "Shutdown timeout set to %u seconds\n",
+				 ctrl->shutdown_timeout);
+	} else
+		ctrl->shutdown_timeout = shutdown_timeout;
 
 	ctrl->npss = id->npss;
 	ctrl->apsta = id->apsta;
