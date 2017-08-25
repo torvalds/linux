@@ -529,7 +529,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 		image->kern_base = NULL;
 		kfree(image->bus_resource.name);
 		release_resource(&image->bus_resource);
-		memset(&image->bus_resource, 0, sizeof(struct resource));
+		memset(&image->bus_resource, 0, sizeof(image->bus_resource));
 	}
 
 	if (image->bus_resource.name == NULL) {
@@ -572,7 +572,7 @@ err_remap:
 	release_resource(&image->bus_resource);
 err_resource:
 	kfree(image->bus_resource.name);
-	memset(&image->bus_resource, 0, sizeof(struct resource));
+	memset(&image->bus_resource, 0, sizeof(image->bus_resource));
 err_name:
 	return retval;
 }
@@ -586,7 +586,7 @@ static void ca91cx42_free_resource(struct vme_master_resource *image)
 	image->kern_base = NULL;
 	release_resource(&image->bus_resource);
 	kfree(image->bus_resource.name);
-	memset(&image->bus_resource, 0, sizeof(struct resource));
+	memset(&image->bus_resource, 0, sizeof(image->bus_resource));
 }
 
 
@@ -1034,7 +1034,7 @@ static int ca91cx42_dma_list_add(struct vme_dma_list *list,
 	dev = list->parent->parent->parent;
 
 	/* XXX descriptor must be aligned on 64-bit boundaries */
-	entry = kmalloc(sizeof(struct ca91cx42_dma_entry), GFP_KERNEL);
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL) {
 		retval = -ENOMEM;
 		goto err_mem;
@@ -1048,7 +1048,7 @@ static int ca91cx42_dma_list_add(struct vme_dma_list *list,
 		goto err_align;
 	}
 
-	memset(&entry->descriptor, 0, sizeof(struct ca91cx42_dma_descriptor));
+	memset(&entry->descriptor, 0, sizeof(entry->descriptor));
 
 	if (dest->type == VME_DMA_VME) {
 		entry->descriptor.dctl |= CA91CX42_DCTL_L2V;
@@ -1614,16 +1614,14 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* We want to support more than one of each bridge so we need to
 	 * dynamically allocate the bridge structure
 	 */
-	ca91cx42_bridge = kzalloc(sizeof(struct vme_bridge), GFP_KERNEL);
-
+	ca91cx42_bridge = kzalloc(sizeof(*ca91cx42_bridge), GFP_KERNEL);
 	if (ca91cx42_bridge == NULL) {
 		retval = -ENOMEM;
 		goto err_struct;
 	}
 	vme_init_bridge(ca91cx42_bridge);
 
-	ca91cx42_device = kzalloc(sizeof(struct ca91cx42_driver), GFP_KERNEL);
-
+	ca91cx42_device = kzalloc(sizeof(*ca91cx42_device), GFP_KERNEL);
 	if (ca91cx42_device == NULL) {
 		retval = -ENOMEM;
 		goto err_driver;
@@ -1680,8 +1678,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Add master windows to list */
 	for (i = 0; i < CA91C142_MAX_MASTER; i++) {
-		master_image = kmalloc(sizeof(struct vme_master_resource),
-			GFP_KERNEL);
+		master_image = kmalloc(sizeof(*master_image), GFP_KERNEL);
 		if (master_image == NULL) {
 			retval = -ENOMEM;
 			goto err_master;
@@ -1696,7 +1693,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			VME_SUPER | VME_USER | VME_PROG | VME_DATA;
 		master_image->width_attr = VME_D8 | VME_D16 | VME_D32 | VME_D64;
 		memset(&master_image->bus_resource, 0,
-			sizeof(struct resource));
+		       sizeof(master_image->bus_resource));
 		master_image->kern_base  = NULL;
 		list_add_tail(&master_image->list,
 			&ca91cx42_bridge->master_resources);
@@ -1704,8 +1701,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Add slave windows to list */
 	for (i = 0; i < CA91C142_MAX_SLAVE; i++) {
-		slave_image = kmalloc(sizeof(struct vme_slave_resource),
-			GFP_KERNEL);
+		slave_image = kmalloc(sizeof(*slave_image), GFP_KERNEL);
 		if (slave_image == NULL) {
 			retval = -ENOMEM;
 			goto err_slave;
@@ -1729,8 +1725,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Add dma engines to list */
 	for (i = 0; i < CA91C142_MAX_DMA; i++) {
-		dma_ctrlr = kmalloc(sizeof(struct vme_dma_resource),
-			GFP_KERNEL);
+		dma_ctrlr = kmalloc(sizeof(*dma_ctrlr), GFP_KERNEL);
 		if (dma_ctrlr == NULL) {
 			retval = -ENOMEM;
 			goto err_dma;
@@ -1748,7 +1743,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add location monitor to list */
-	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
+	lm = kmalloc(sizeof(*lm), GFP_KERNEL);
 	if (lm == NULL) {
 		retval = -ENOMEM;
 		goto err_lm;
