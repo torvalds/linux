@@ -171,11 +171,7 @@ struct mmc_request {
 };
 
 struct mmc_card;
-struct mmc_async_req;
 
-struct mmc_async_req *mmc_start_areq(struct mmc_host *host,
-				struct mmc_async_req *areq,
-				enum mmc_blk_status *ret_stat);
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq);
 int mmc_wait_for_cmd(struct mmc_host *host, struct mmc_command *cmd,
 		int retries);
