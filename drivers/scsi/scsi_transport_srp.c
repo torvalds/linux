@@ -78,7 +78,7 @@ static inline struct srp_rport *shost_to_rport(struct Scsi_Host *shost)
  * parameters must be such that multipath can detect failed paths timely.
  * Hence do not allow all three parameters to be disabled simultaneously.
  */
-int srp_tmo_valid(int reconnect_delay, int fast_io_fail_tmo, int dev_loss_tmo)
+int srp_tmo_valid(int reconnect_delay, int fast_io_fail_tmo, long dev_loss_tmo)
 {
 	if (reconnect_delay < 0 && fast_io_fail_tmo < 0 && dev_loss_tmo < 0)
 		return -EINVAL;
