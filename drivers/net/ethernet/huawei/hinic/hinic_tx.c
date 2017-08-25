@@ -192,7 +192,7 @@ netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (skb->len < MIN_SKB_LEN) {
 		if (skb_pad(skb, MIN_SKB_LEN - skb->len)) {
 			netdev_err(netdev, "Failed to pad skb\n");
-			goto skb_error;
+			goto update_error_stats;
 		}
 
 		skb->len = MIN_SKB_LEN;
@@ -237,6 +237,7 @@ flush_skbs:
 skb_error:
 	dev_kfree_skb_any(skb);
 
+update_error_stats:
 	u64_stats_update_begin(&txq->txq_stats.syncp);
 	txq->txq_stats.tx_dropped++;
 	u64_stats_update_end(&txq->txq_stats.syncp);
