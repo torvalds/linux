@@ -106,7 +106,7 @@ int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 		return -EINVAL;
 
 	now = ktime_get();
-	ev.duration = ktime_sub(now, dev->raw->last_event);
+	ev.duration = ktime_to_ns(ktime_sub(now, dev->raw->last_event));
 	ev.pulse = !pulse;
 
 	rc = ir_raw_event_store(dev, &ev);
@@ -474,18 +474,19 @@ EXPORT_SYMBOL(ir_raw_encode_scancode);
 static void edge_handle(unsigned long arg)
 {
 	struct rc_dev *dev = (struct rc_dev *)arg;
-	ktime_t interval = ktime_get() - dev->raw->last_event;
+	ktime_t interval = ktime_sub(ktime_get(), dev->raw->last_event);
 
-	if (interval >= dev->timeout) {
+	if (ktime_to_ns(interval) >= dev->timeout) {
 		DEFINE_IR_RAW_EVENT(ev);
 
 		ev.timeout = true;
-		ev.duration = interval;
+		ev.duration = ktime_to_ns(interval);
 
 		ir_raw_event_store(dev, &ev);
 	} else {
 		mod_timer(&dev->raw->edge_handle,
-			  jiffies + nsecs_to_jiffies(dev->timeout - interval));
+			  jiffies + nsecs_to_jiffies(dev->timeout -
+						     ktime_to_ns(interval)));
 	}
 
 	ir_raw_event_handle(dev);
