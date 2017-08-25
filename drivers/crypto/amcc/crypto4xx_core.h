@@ -23,6 +23,8 @@
 #define __CRYPTO4XX_CORE_H__
 
 #include <crypto/internal/hash.h>
+#include "crypto4xx_reg_def.h"
+#include "crypto4xx_sa.h"
 
 #define MODULE_NAME "crypto4xx"
 
@@ -48,6 +50,13 @@
 
 struct crypto4xx_device;
 
+union shadow_sa_buf {
+	struct dynamic_sa_ctl sa;
+
+	/* alloc 256 bytes which is enough for any kind of dynamic sa */
+	u8 buf[256];
+} __packed;
+
 struct pd_uinfo {
 	struct crypto4xx_device *dev;
 	u32   state;
@@ -60,9 +69,9 @@ struct pd_uinfo {
 				used by this packet */
 	u32 num_sd;		/* number of scatter discriptors
 				used by this packet */
-	void *sa_va;		/* shadow sa, when using cp from ctx->sa */
+	struct dynamic_sa_ctl *sa_va;	/* shadow sa */
 	u32 sa_pa;
-	void *sr_va;		/* state record for shadow sa */
+	struct sa_state_record *sr_va;	/* state record for shadow sa */
 	u32 sr_pa;
 	struct scatterlist *dest_va;
 	struct crypto_async_request *async_req; 	/* base crypto request
@@ -75,22 +84,18 @@ struct crypto4xx_device {
 	void __iomem *ce_base;
 	void __iomem *trng_base;
 
-	void *pdr;			/* base address of packet
-					descriptor ring */
-	dma_addr_t pdr_pa;		/* physical address used to
-					program ce pdr_base_register */
-	void *gdr;                      /* gather descriptor ring */
-	dma_addr_t gdr_pa;		/* physical address used to
-					program ce gdr_base_register */
-	void *sdr;			/* scatter descriptor ring */
-	dma_addr_t sdr_pa;		/* physical address used to
-					program ce sdr_base_register */
+	struct ce_pd *pdr;	/* base address of packet descriptor ring */
+	dma_addr_t pdr_pa;	/* physical address of pdr_base_register */
+	struct ce_gd *gdr;	/* gather descriptor ring */
+	dma_addr_t gdr_pa;	/* physical address of gdr_base_register */
+	struct ce_sd *sdr;	/* scatter descriptor ring */
+	dma_addr_t sdr_pa;	/* physical address of sdr_base_register */
 	void *scatter_buffer_va;
 	dma_addr_t scatter_buffer_pa;
 
-	void *shadow_sa_pool;		/* pool of memory for sa in pd_uinfo */
+	union shadow_sa_buf *shadow_sa_pool;
 	dma_addr_t shadow_sa_pool_pa;
-	void *shadow_sr_pool;		/* pool of memory for sr in pd_uinfo */
+	struct sa_state_record *shadow_sr_pool;
 	dma_addr_t shadow_sr_pool_pa;
 	u32 pdr_tail;
 	u32 pdr_head;
@@ -98,7 +103,7 @@ struct crypto4xx_device {
 	u32 gdr_head;
 	u32 sdr_tail;
 	u32 sdr_head;
-	void *pdr_uinfo;
+	struct pd_uinfo *pdr_uinfo;
 	struct list_head alg_list;	/* List of algorithm supported
 					by this device */
 };
@@ -116,11 +121,11 @@ struct crypto4xx_core_device {
 
 struct crypto4xx_ctx {
 	struct crypto4xx_device *dev;
-	void *sa_in;
+	struct dynamic_sa_ctl *sa_in;
 	dma_addr_t sa_in_dma_addr;
-	void *sa_out;
+	struct dynamic_sa_ctl *sa_out;
 	dma_addr_t sa_out_dma_addr;
-	void *state_record;
+	struct sa_state_record *state_record;
 	dma_addr_t state_record_dma_addr;
 	u32 sa_len;
 	u32 offset_to_sr_ptr;           /* offset to state ptr, in dynamic sa */
