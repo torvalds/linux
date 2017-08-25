@@ -95,9 +95,9 @@ void drm_syncobj_replace_fence(struct drm_syncobj *syncobj,
 }
 EXPORT_SYMBOL(drm_syncobj_replace_fence);
 
-int drm_syncobj_fence_get(struct drm_file *file_private,
-			  u32 handle,
-			  struct dma_fence **fence)
+int drm_syncobj_find_fence(struct drm_file *file_private,
+			   u32 handle,
+			   struct dma_fence **fence)
 {
 	struct drm_syncobj *syncobj = drm_syncobj_find(file_private, handle);
 	int ret = 0;
@@ -112,7 +112,7 @@ int drm_syncobj_fence_get(struct drm_file *file_private,
 	drm_syncobj_put(syncobj);
 	return ret;
 }
-EXPORT_SYMBOL(drm_syncobj_fence_get);
+EXPORT_SYMBOL(drm_syncobj_find_fence);
 
 /**
  * drm_syncobj_free - free a sync object.
@@ -307,7 +307,7 @@ int drm_syncobj_export_sync_file(struct drm_file *file_private,
 	if (fd < 0)
 		return fd;
 
-	ret = drm_syncobj_fence_get(file_private, handle, &fence);
+	ret = drm_syncobj_find_fence(file_private, handle, &fence);
 	if (ret)
 		goto err_put_fd;
 
