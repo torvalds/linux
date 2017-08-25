@@ -149,7 +149,7 @@ static int crypto4xx_setkey_aes(struct crypto_ablkcipher *cipher,
 				 SA_NOT_COPY_HDR);
 	crypto4xx_memcpy_le(ctx->sa_in + get_dynamic_sa_offset_key_field(ctx),
 			    key, keylen);
-	sa->sa_contents = SA_AES_CONTENTS | (keylen << 2);
+	sa->sa_contents.w = SA_AES_CONTENTS | (keylen << 2);
 	sa->sa_command_1.bf.key_len = keylen >> 3;
 	ctx->is_hash = 0;
 	ctx->direction = DIR_INBOUND;
@@ -219,7 +219,7 @@ static int crypto4xx_hash_alg_init(struct crypto_tfm *tfm,
 				 SA_NOT_COPY_PAD, SA_NOT_COPY_PAYLOAD,
 				 SA_NOT_COPY_HDR);
 	ctx->direction = DIR_INBOUND;
-	sa->sa_contents = SA_HASH160_CONTENTS;
+	sa->sa_contents.w = SA_HASH160_CONTENTS;
 	sa_in = (struct dynamic_sa_hash160 *) ctx->sa_in;
 	/* Need to zero hash digest in SA */
 	memset(sa_in->inner_digest, 0, sizeof(sa_in->inner_digest));

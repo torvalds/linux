@@ -169,7 +169,7 @@ union sa_command_1 {
 } __attribute__((packed));
 
 struct dynamic_sa_ctl {
-	u32 sa_contents;
+	union dynamic_sa_contents sa_contents;
 	union sa_command_0 sa_command_0;
 	union sa_command_1 sa_command_1;
 } __attribute__((packed));

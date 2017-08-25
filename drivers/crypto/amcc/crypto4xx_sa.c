@@ -40,9 +40,9 @@ u32 get_dynamic_sa_offset_state_ptr_field(struct crypto4xx_ctx *ctx)
 	union dynamic_sa_contents cts;
 
 	if (ctx->direction == DIR_INBOUND)
-		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_in)->sa_contents;
+		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_in)->sa_contents.w;
 	else
-		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_out)->sa_contents;
+		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_out)->sa_contents.w;
 	offset = cts.bf.key_size
 		+ cts.bf.inner_size
 		+ cts.bf.outer_size
@@ -66,9 +66,9 @@ u32 get_dynamic_sa_iv_size(struct crypto4xx_ctx *ctx)
 	union dynamic_sa_contents cts;
 
 	if (ctx->direction == DIR_INBOUND)
-		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_in)->sa_contents;
+		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_in)->sa_contents.w;
 	else
-		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_out)->sa_contents;
+		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_out)->sa_contents.w;
 	return (cts.bf.iv0 + cts.bf.iv1 + cts.bf.iv2 + cts.bf.iv3) * 4;
 }
 
@@ -77,9 +77,9 @@ u32 get_dynamic_sa_offset_key_field(struct crypto4xx_ctx *ctx)
 	union dynamic_sa_contents cts;
 
 	if (ctx->direction == DIR_INBOUND)
-		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_in)->sa_contents;
+		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_in)->sa_contents.w;
 	else
-		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_out)->sa_contents;
+		cts.w = ((struct dynamic_sa_ctl *) ctx->sa_out)->sa_contents.w;
 
 	return sizeof(struct dynamic_sa_ctl);
 }
