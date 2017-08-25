@@ -1495,9 +1495,10 @@ static int soc_probe_component(struct snd_soc_card *card,
 		}
 	}
 
-	if (component->controls)
-		snd_soc_add_component_controls(component, component->controls,
-				     component->num_controls);
+	if (component->driver->controls)
+		snd_soc_add_component_controls(component,
+					       component->driver->controls,
+					       component->driver->num_controls);
 	if (component->dapm_routes)
 		snd_soc_dapm_add_routes(dapm, component->dapm_routes,
 					component->num_dapm_routes);
@@ -3184,8 +3185,6 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	if (driver->stream_event)
 		dapm->stream_event = snd_soc_component_stream_event;
 
-	component->controls = driver->controls;
-	component->num_controls = driver->num_controls;
 	component->dapm_widgets = driver->dapm_widgets;
 	component->num_dapm_widgets = driver->num_dapm_widgets;
 	component->dapm_routes = driver->dapm_routes;
