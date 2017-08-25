@@ -30,6 +30,7 @@
 #ifdef CONFIG_IPV6_SEG6_HMAC
 #include <net/seg6_hmac.h>
 #endif
+#include <linux/etherdevice.h>
 
 struct seg6_local_lwt;
 
@@ -226,6 +227,82 @@ drop:
 	return -EINVAL;
 }
 
+static int input_action_end_t(struct sk_buff *skb, struct seg6_local_lwt *slwt)
+{
+	struct ipv6_sr_hdr *srh;
+
+	srh = get_and_validate_srh(skb);
+	if (!srh)
+		goto drop;
+
+	advance_nextseg(srh, &ipv6_hdr(skb)->daddr);
+
+	lookup_nexthop(skb, NULL, slwt->table);
+
+	return dst_input(skb);
+
+drop:
+	kfree_skb(skb);
+	return -EINVAL;
+}
+
+/* decapsulate and forward inner L2 frame on specified interface */
+static int input_action_end_dx2(struct sk_buff *skb,
+				struct seg6_local_lwt *slwt)
+{
+	struct net *net = dev_net(skb->dev);
+	struct net_device *odev;
+	struct ethhdr *eth;
+
+	if (!decap_and_validate(skb, NEXTHDR_NONE))
+		goto drop;
+
+	if (!pskb_may_pull(skb, ETH_HLEN))
+		goto drop;
+
+	skb_reset_mac_header(skb);
+	eth = (struct ethhdr *)skb->data;
+
+	/* To determine the frame's protocol, we assume it is 802.3. This avoids
+	 * a call to eth_type_trans(), which is not really relevant for our
+	 * use case.
+	 */
+	if (!eth_proto_is_802_3(eth->h_proto))
+		goto drop;
+
+	odev = dev_get_by_index_rcu(net, slwt->oif);
+	if (!odev)
+		goto drop;
+
+	/* As we accept Ethernet frames, make sure the egress device is of
+	 * the correct type.
+	 */
+	if (odev->type != ARPHRD_ETHER)
+		goto drop;
+
+	if (!(odev->flags & IFF_UP) || !netif_carrier_ok(odev))
+		goto drop;
+
+	skb_orphan(skb);
+
+	if (skb_warn_if_lro(skb))
+		goto drop;
+
+	skb_forward_csum(skb);
+
+	if (skb->len - ETH_HLEN > odev->mtu)
+		goto drop;
+
+	skb->dev = odev;
+	skb->protocol = eth->h_proto;
+
+	return dev_queue_xmit(skb);
+
+drop:
+	kfree_skb(skb);
+	return -EINVAL;
+}
+
 /* decapsulate and forward to specified nexthop */
 static int input_action_end_dx6(struct sk_buff *skb,
 				struct seg6_local_lwt *slwt)
@@ -255,6 +332,56 @@ static int input_action_end_dx6(struct sk_buff *skb,
 	lookup_nexthop(skb, nhaddr, 0);
 
 	return dst_input(skb);
+drop:
+	kfree_skb(skb);
+	return -EINVAL;
+}
+
+static int input_action_end_dx4(struct sk_buff *skb,
+				struct seg6_local_lwt *slwt)
+{
+	struct iphdr *iph;
+	__be32 nhaddr;
+	int err;
+
+	if (!decap_and_validate(skb, IPPROTO_IPIP))
+		goto drop;
+
+	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+		goto drop;
+
+	skb->protocol = htons(ETH_P_IP);
+
+	iph = ip_hdr(skb);
+
+	nhaddr = slwt->nh4.s_addr ?: iph->daddr;
+
+	skb_dst_drop(skb);
+
+	err = ip_route_input(skb, nhaddr, iph->saddr, 0, skb->dev);
+	if (err)
+		goto drop;
+
+	return dst_input(skb);
+
+drop:
+	kfree_skb(skb);
+	return -EINVAL;
+}
+
+static int input_action_end_dt6(struct sk_buff *skb,
+				struct seg6_local_lwt *slwt)
+{
+	if (!decap_and_validate(skb, IPPROTO_IPV6))
+		goto drop;
+
+	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+		goto drop;
+
+	lookup_nexthop(skb, NULL, slwt->table);
+
+	return dst_input(skb);
+
 drop:
 	kfree_skb(skb);
 	return -EINVAL;
@@ -330,9 +457,29 @@ static struct seg6_action_desc seg6_action_table[] = {
 		.input		= input_action_end_x,
 	},
 	{
+		.action		= SEG6_LOCAL_ACTION_END_T,
+		.attrs		= (1 << SEG6_LOCAL_TABLE),
+		.input		= input_action_end_t,
+	},
+	{
+		.action		= SEG6_LOCAL_ACTION_END_DX2,
+		.attrs		= (1 << SEG6_LOCAL_OIF),
+		.input		= input_action_end_dx2,
+	},
+	{
 		.action		= SEG6_LOCAL_ACTION_END_DX6,
 		.attrs		= (1 << SEG6_LOCAL_NH6),
 		.input		= input_action_end_dx6,
+	},
+	{
+		.action		= SEG6_LOCAL_ACTION_END_DX4,
+		.attrs		= (1 << SEG6_LOCAL_NH4),
+		.input		= input_action_end_dx4,
+	},
+	{
+		.action		= SEG6_LOCAL_ACTION_END_DT6,
+		.attrs		= (1 << SEG6_LOCAL_TABLE),
+		.input		= input_action_end_dt6,
 	},
 	{
 		.action		= SEG6_LOCAL_ACTION_END_B6,
