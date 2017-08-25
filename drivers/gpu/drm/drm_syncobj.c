@@ -1,5 +1,7 @@
 /*
  * Copyright 2017 Red Hat
+ * Parts ported from amdgpu (fence wait code).
+ * Copyright 2016 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,6 +32,9 @@
  * DRM synchronisation objects (syncobj) are a persistent objects,
  * that contain an optional fence. The fence can be updated with a new
  * fence, or be NULL.
+ *
+ * syncobj's can be waited upon, where it will wait for the underlying
+ * fence.
  *
  * syncobj's can be export to fd's and back, these fd's are opaque and
  * have no other use case, except passing the syncobj between processes.
@@ -446,4 +451,141 @@ drm_syncobj_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 
 	return drm_syncobj_fd_to_handle(file_private, args->fd,
 					&args->handle);
+}
+
+/**
+ * drm_timeout_abs_to_jiffies - calculate jiffies timeout from absolute value
+ *
+ * @timeout_nsec: timeout nsec component in ns, 0 for poll
+ *
+ * Calculate the timeout in jiffies from an absolute time in sec/nsec.
+ */
+static signed long drm_timeout_abs_to_jiffies(int64_t timeout_nsec)
+{
+	ktime_t abs_timeout, now;
+	u64 timeout_ns, timeout_jiffies64;
+
+	/* make 0 timeout means poll - absolute 0 doesn't seem valid */
+	if (timeout_nsec == 0)
+		return 0;
+
+	abs_timeout = ns_to_ktime(timeout_nsec);
+	now = ktime_get();
+
+	if (!ktime_after(abs_timeout, now))
+		return 0;
+
+	timeout_ns = ktime_to_ns(ktime_sub(abs_timeout, now));
+
+	timeout_jiffies64 = nsecs_to_jiffies64(timeout_ns);
+	/*  clamp timeout to avoid infinite timeout */
+	if (timeout_jiffies64 >= MAX_SCHEDULE_TIMEOUT - 1)
+		return MAX_SCHEDULE_TIMEOUT - 1;
+
+	return timeout_jiffies64 + 1;
+}
+
+static int drm_syncobj_wait_fences(struct drm_device *dev,
+				   struct drm_file *file_private,
+				   struct drm_syncobj_wait *wait,
+				   struct dma_fence **fences)
+{
+	signed long timeout = drm_timeout_abs_to_jiffies(wait->timeout_nsec);
+	signed long ret = 0;
+	uint32_t first = ~0;
+
+	if (wait->flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL) {
+		uint32_t i;
+		for (i = 0; i < wait->count_handles; i++) {
+			ret = dma_fence_wait_timeout(fences[i], true, timeout);
+
+			/* Various dma_fence wait callbacks will return
+			 * ENOENT to indicate that the fence has already
+			 * been signaled.  We need to sanitize this to 0 so
+			 * we don't return early and the client doesn't see
+			 * an unexpected error.
+			 */
+			if (ret == -ENOENT)
+				ret = 0;
+
+			if (ret < 0)
+				return ret;
+			if (ret == 0)
+				break;
+			timeout = ret;
+		}
+		first = 0;
+	} else {
+		ret = dma_fence_wait_any_timeout(fences,
+						 wait->count_handles,
+						 true, timeout,
+						 &first);
+	}
+
+	if (ret < 0)
+		return ret;
+
+	wait->first_signaled = first;
+	if (ret == 0)
+		return -ETIME;
+	return 0;
+}
+
+int
+drm_syncobj_wait_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_private)
+{
+	struct drm_syncobj_wait *args = data;
+	uint32_t *handles;
+	struct dma_fence **fences;
+	int ret = 0;
+	uint32_t i;
+
+	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
+		return -ENODEV;
+
+	if (args->flags != 0 && args->flags != DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL)
+		return -EINVAL;
+
+	if (args->count_handles == 0)
+		return -EINVAL;
+
+	/* Get the handles from userspace */
+	handles = kmalloc_array(args->count_handles, sizeof(uint32_t),
+				GFP_KERNEL);
+	if (handles == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(handles,
+			   u64_to_user_ptr(args->handles),
+			   sizeof(uint32_t) * args->count_handles)) {
+		ret = -EFAULT;
+		goto err_free_handles;
+	}
+
+	fences = kcalloc(args->count_handles,
+			 sizeof(struct dma_fence *), GFP_KERNEL);
+	if (!fences) {
+		ret = -ENOMEM;
+		goto err_free_handles;
+	}
+
+	for (i = 0; i < args->count_handles; i++) {
+		ret = drm_syncobj_find_fence(file_private, handles[i],
+					     &fences[i]);
+		if (ret)
+			goto err_free_fence_array;
+	}
+
+	ret = drm_syncobj_wait_fences(dev, file_private,
+				      args, fences);
+
+err_free_fence_array:
+	for (i = 0; i < args->count_handles; i++)
+		dma_fence_put(fences[i]);
+	kfree(fences);
+err_free_handles:
+	kfree(handles);
+
+	return ret;
 }

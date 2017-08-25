@@ -167,3 +167,5 @@ int drm_syncobj_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_private);
 int drm_syncobj_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_private);
+int drm_syncobj_wait_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_private);
