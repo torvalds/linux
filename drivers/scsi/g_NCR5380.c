@@ -56,7 +56,7 @@
 #define NCR5380_intr                    generic_NCR5380_intr
 #define NCR5380_queue_command           generic_NCR5380_queue_command
 #define NCR5380_abort                   generic_NCR5380_abort
-#define NCR5380_bus_reset               generic_NCR5380_bus_reset
+#define NCR5380_host_reset              generic_NCR5380_host_reset
 #define NCR5380_info                    generic_NCR5380_info
 
 #define NCR5380_io_delay(x)             udelay(x)
@@ -695,7 +695,7 @@ static struct scsi_host_template driver_template = {
 	.info			= generic_NCR5380_info,
 	.queuecommand		= generic_NCR5380_queue_command,
 	.eh_abort_handler	= generic_NCR5380_abort,
-	.eh_bus_reset_handler	= generic_NCR5380_bus_reset,
+	.eh_host_reset_handler	= generic_NCR5380_host_reset,
 	.can_queue		= 16,
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
