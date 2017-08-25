@@ -258,7 +258,7 @@ int esp_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info *
 		esp_output_udp_encap(x, skb, esp);
 
 	if (!skb_cloned(skb)) {
-		if (tailen <= skb_availroom(skb)) {
+		if (tailen <= skb_tailroom(skb)) {
 			nfrags = 1;
 			trailer = skb;
 			tail = skb_tail_pointer(trailer);
