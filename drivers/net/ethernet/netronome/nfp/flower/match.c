@@ -42,6 +42,7 @@ nfp_flower_compile_meta_tci(struct nfp_flower_meta_two *frame,
 			    struct tc_cls_flower_offload *flow, u8 key_type,
 			    bool mask_version)
 {
+	struct fl_flow_key *target = mask_version ? flow->mask : flow->key;
 	struct flow_dissector_key_vlan *flow_vlan;
 	u16 tmp_tci;
 
@@ -50,15 +51,10 @@ nfp_flower_compile_meta_tci(struct nfp_flower_meta_two *frame,
 	frame->nfp_flow_key_layer = key_type;
 	frame->mask_id = ~0;
 
-	if (mask_version) {
-		frame->tci = cpu_to_be16(~0);
-		return;
-	}
-
 	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
 		flow_vlan = skb_flow_dissector_target(flow->dissector,
 						      FLOW_DISSECTOR_KEY_VLAN,
-						      flow->key);
+						      target);
 		/* Populate the tci field. */
 		if (flow_vlan->vlan_id) {
 			tmp_tci = FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
