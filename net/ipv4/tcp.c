@@ -1052,8 +1052,7 @@ int tcp_sendpage_locked(struct sock *sk, struct page *page, int offset,
 {
 	if (!(sk->sk_route_caps & NETIF_F_SG) ||
 	    !sk_check_csum_caps(sk))
-		return sock_no_sendpage(sk->sk_socket, page, offset, size,
-					flags);
+		return sock_no_sendpage_locked(sk, page, offset, size, flags);
 
 	tcp_rate_check_app_limited(sk);  /* is sending application-limited? */
 
