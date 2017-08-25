@@ -121,11 +121,6 @@ static bool icmpv6_new(struct nf_conn *ct, const struct sk_buff *skb,
 		pr_debug("icmpv6: can't create new conn with type %u\n",
 			 type + 128);
 		nf_ct_dump_tuple_ipv6(&ct->tuplehash[0].tuple);
-		if (LOG_INVALID(nf_ct_net(ct), IPPROTO_ICMPV6))
-			nf_log_packet(nf_ct_net(ct), PF_INET6, 0, skb, NULL,
-				      NULL, NULL,
-				      "nf_ct_icmpv6: invalid new with type %d ",
-				      type + 128);
 		return false;
 	}
 	return true;
