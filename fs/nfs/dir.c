@@ -118,13 +118,6 @@ nfs_opendir(struct inode *inode, struct file *filp)
 		goto out;
 	}
 	filp->private_data = ctx;
-	if (filp->f_path.dentry == filp->f_path.mnt->mnt_root) {
-		/* This is a mountpoint, so d_revalidate will never
-		 * have been called, so we need to refresh the
-		 * inode (for close-open consistency) ourselves.
-		 */
-		__nfs_revalidate_inode(NFS_SERVER(inode), inode);
-	}
 out:
 	put_rpccred(cred);
 	return res;
