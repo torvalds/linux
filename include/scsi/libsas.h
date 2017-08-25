@@ -721,9 +721,6 @@ extern int sas_slave_alloc(struct scsi_device *);
 extern int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
 extern int sas_drain_work(struct sas_ha_struct *ha);
 
-extern int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
-			   struct request *req);
-
 extern void sas_ssp_task_response(struct device *dev, struct sas_task *task,
 				  struct ssp_response_iu *iu);
 struct sas_phy *sas_get_local_phy(struct domain_device *dev);
