@@ -2798,6 +2798,35 @@ static int init_resync(struct r10conf *conf)
 	return 0;
 }
 
+static struct r10bio *raid10_alloc_init_r10buf(struct r10conf *conf)
+{
+	struct r10bio *r10bio = mempool_alloc(conf->r10buf_pool, GFP_NOIO);
+	struct rsync_pages *rp;
+	struct bio *bio;
+	int nalloc;
+	int i;
+
+	if (test_bit(MD_RECOVERY_SYNC, &conf->mddev->recovery) ||
+	    test_bit(MD_RECOVERY_RESHAPE, &conf->mddev->recovery))
+		nalloc = conf->copies; /* resync */
+	else
+		nalloc = 2; /* recovery */
+
+	for (i = 0; i < nalloc; i++) {
+		bio = r10bio->devs[i].bio;
+		rp = bio->bi_private;
+		bio_reset(bio);
+		bio->bi_private = rp;
+		bio = r10bio->devs[i].repl_bio;
+		if (bio) {
+			rp = bio->bi_private;
+			bio_reset(bio);
+			bio->bi_private = rp;
+		}
+	}
+	return r10bio;
+}
+
 /*
  * perform a "sync" on one "block"
  *
@@ -3027,7 +3056,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 				atomic_inc(&mreplace->nr_pending);
 			rcu_read_unlock();
 
-			r10_bio = mempool_alloc(conf->r10buf_pool, GFP_NOIO);
+			r10_bio = raid10_alloc_init_r10buf(conf);
 			r10_bio->state = 0;
 			raise_barrier(conf, rb2 != NULL);
 			atomic_set(&r10_bio->remaining, 0);
@@ -3236,7 +3265,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		}
 		if (sync_blocks < max_sync)
 			max_sync = sync_blocks;
-		r10_bio = mempool_alloc(conf->r10buf_pool, GFP_NOIO);
+		r10_bio = raid10_alloc_init_r10buf(conf);
 		r10_bio->state = 0;
 
 		r10_bio->mddev = mddev;
@@ -4360,7 +4389,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
 
 read_more:
 	/* Now schedule reads for blocks from sector_nr to last */
-	r10_bio = mempool_alloc(conf->r10buf_pool, GFP_NOIO);
+	r10_bio = raid10_alloc_init_r10buf(conf);
 	r10_bio->state = 0;
 	raise_barrier(conf, sectors_done != 0);
 	atomic_set(&r10_bio->remaining, 0);
