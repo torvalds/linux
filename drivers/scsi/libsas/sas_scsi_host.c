@@ -855,7 +855,6 @@ int sas_target_alloc(struct scsi_target *starget)
 int sas_slave_configure(struct scsi_device *scsi_dev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
-	struct sas_ha_struct *sas_ha;
 
 	BUG_ON(dev->rphy->identify.device_type != SAS_END_DEVICE);
 
@@ -863,8 +862,6 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 		ata_sas_slave_configure(scsi_dev, dev->sata_dev.ap);
 		return 0;
 	}
-
-	sas_ha = dev->port->ha;
 
 	sas_read_port_mode_page(scsi_dev);
 
