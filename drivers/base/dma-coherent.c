@@ -46,15 +46,10 @@ static bool dma_init_coherent_memory(
 	int pages = size >> PAGE_SHIFT;
 	int bitmap_size = BITS_TO_LONGS(pages) * sizeof(long);
 
-	if ((flags & (DMA_MEMORY_MAP | DMA_MEMORY_IO)) == 0)
-		goto out;
 	if (!size)
 		goto out;
 
-	if (flags & DMA_MEMORY_MAP)
-		mem_base = memremap(phys_addr, size, MEMREMAP_WC);
-	else
-		mem_base = ioremap(phys_addr, size);
+	mem_base = memremap(phys_addr, size, MEMREMAP_WC);
 	if (!mem_base)
 		goto out;
 
@@ -77,12 +72,8 @@ static bool dma_init_coherent_memory(
 
 out:
 	kfree(dma_mem);
-	if (mem_base) {
-		if (flags & DMA_MEMORY_MAP)
-			memunmap(mem_base);
-		else
-			iounmap(mem_base);
-	}
+	if (mem_base)
+		memunmap(mem_base);
 	return false;
 }
 
@@ -91,10 +82,7 @@ static void dma_release_coherent_memory(struct dma_coherent_mem *mem)
 	if (!mem)
 		return;
 
-	if (mem->flags & DMA_MEMORY_MAP)
-		memunmap(mem->virt_base);
-	else
-		iounmap(mem->virt_base);
+	memunmap(mem->virt_base);
 	kfree(mem->bitmap);
 	kfree(mem);
 }
@@ -116,16 +104,16 @@ int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 				dma_addr_t device_addr, size_t size, int flags)
 {
 	struct dma_coherent_mem *mem;
+	int ret;
 
-	if (!dma_init_coherent_memory(phys_addr, device_addr, size, flags,
-				      &mem))
-		return 0;
+	ret = dma_init_coherent_memory(phys_addr, device_addr, size, flags, &mem);
+	if (ret)
+		return ret;
 
-	if (dma_assign_coherent_memory(dev, mem) == 0)
-		return flags & DMA_MEMORY_MAP ? DMA_MEMORY_MAP : DMA_MEMORY_IO;
-
-	dma_release_coherent_memory(mem);
-	return 0;
+	ret = dma_assign_coherent_memory(dev, mem);
+	if (ret)
+		dma_release_coherent_memory(mem);
+	return ret;
 }
 EXPORT_SYMBOL(dma_declare_coherent_memory);
 
@@ -186,15 +174,9 @@ static void *__dma_alloc_from_coherent(struct dma_coherent_mem *mem,
 	 */
 	*dma_handle = mem->device_base + (pageno << PAGE_SHIFT);
 	ret = mem->virt_base + (pageno << PAGE_SHIFT);
-	dma_memory_map = (mem->flags & DMA_MEMORY_MAP);
 	spin_unlock_irqrestore(&mem->spinlock, flags);
-	if (dma_memory_map)
-		memset(ret, 0, size);
-	else
-		memset_io(ret, 0, size);
-
+	memset(ret, 0, size);
 	return ret;
-
 err:
 	spin_unlock_irqrestore(&mem->spinlock, flags);
 	return NULL;
@@ -360,7 +342,7 @@ static int rmem_dma_device_init(struct reserved_mem *rmem, struct device *dev)
 
 	if (!mem &&
 	    !dma_init_coherent_memory(rmem->base, rmem->base, rmem->size,
-				      DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE,
+				      DMA_MEMORY_EXCLUSIVE,
 				      &mem)) {
 		pr_err("Reserved memory: failed to init DMA memory pool at %pa, size %ld MiB\n",
 			&rmem->base, (unsigned long)rmem->size / SZ_1M);

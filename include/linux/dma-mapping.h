@@ -694,9 +694,7 @@ static inline int dma_get_cache_alignment(void)
 #endif
 
 /* flags for the coherent memory api */
-#define	DMA_MEMORY_MAP			0x01
-#define DMA_MEMORY_IO			0x02
-#define DMA_MEMORY_EXCLUSIVE		0x04
+#define DMA_MEMORY_EXCLUSIVE		0x01
 
 #ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
 int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
@@ -709,7 +707,7 @@ static inline int
 dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 			    dma_addr_t device_addr, size_t size, int flags)
 {
-	return 0;
+	return -ENOSYS;
 }
 
 static inline void

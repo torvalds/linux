@@ -592,30 +592,11 @@ size is the size of the area (must be multiples of PAGE_SIZE).
 
 flags can be ORed together and are:
 
-- DMA_MEMORY_MAP - request that the memory returned from
-  dma_alloc_coherent() be directly writable.
-
-- DMA_MEMORY_IO - request that the memory returned from
-  dma_alloc_coherent() be addressable using read()/write()/memcpy_toio() etc.
-
-One or both of these flags must be present.
-
 - DMA_MEMORY_EXCLUSIVE - only allocate memory from the declared regions.
   Do not allow dma_alloc_coherent() to fall back to system memory when
   it's out of memory in the declared region.
 
-The return value will be either DMA_MEMORY_MAP or DMA_MEMORY_IO and
-must correspond to a passed in flag (i.e. no returning DMA_MEMORY_IO
-if only DMA_MEMORY_MAP were passed in) for success or zero for
-failure.
-
-Note, for DMA_MEMORY_IO returns, all subsequent memory returned by
-dma_alloc_coherent() may no longer be accessed directly, but instead
-must be accessed using the correct bus functions.  If your driver
-isn't prepared to handle this contingency, it should not specify
-DMA_MEMORY_IO in the input flags.
-
-As a simplification for the platforms, only **one** such region of
+As a simplification for the platforms, only *one* such region of
 memory may be declared per device.
 
 For reasons of efficiency, most platforms choose to track the declared
