@@ -798,15 +798,68 @@ static int drm_syncobj_array_wait(struct drm_device *dev,
 	return 0;
 }
 
+static int drm_syncobj_array_find(struct drm_file *file_private,
+				  void *user_handles, uint32_t count_handles,
+				  struct drm_syncobj ***syncobjs_out)
+{
+	uint32_t i, *handles;
+	struct drm_syncobj **syncobjs;
+	int ret;
+
+	handles = kmalloc_array(count_handles, sizeof(*handles), GFP_KERNEL);
+	if (handles == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(handles, user_handles,
+			   sizeof(uint32_t) * count_handles)) {
+		ret = -EFAULT;
+		goto err_free_handles;
+	}
+
+	syncobjs = kmalloc_array(count_handles, sizeof(*syncobjs), GFP_KERNEL);
+	if (syncobjs == NULL) {
+		ret = -ENOMEM;
+		goto err_free_handles;
+	}
+
+	for (i = 0; i < count_handles; i++) {
+		syncobjs[i] = drm_syncobj_find(file_private, handles[i]);
+		if (!syncobjs[i]) {
+			ret = -ENOENT;
+			goto err_put_syncobjs;
+		}
+	}
+
+	kfree(handles);
+	*syncobjs_out = syncobjs;
+	return 0;
+
+err_put_syncobjs:
+	while (i-- > 0)
+		drm_syncobj_put(syncobjs[i]);
+	kfree(syncobjs);
+err_free_handles:
+	kfree(handles);
+
+	return ret;
+}
+
+static void drm_syncobj_array_free(struct drm_syncobj **syncobjs,
+				   uint32_t count)
+{
+	uint32_t i;
+	for (i = 0; i < count; i++)
+		drm_syncobj_put(syncobjs[i]);
+	kfree(syncobjs);
+}
+
 int
 drm_syncobj_wait_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_private)
 {
 	struct drm_syncobj_wait *args = data;
-	uint32_t *handles;
 	struct drm_syncobj **syncobjs;
 	int ret = 0;
-	uint32_t i;
 
 	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
 		return -ENODEV;
@@ -818,43 +871,17 @@ drm_syncobj_wait_ioctl(struct drm_device *dev, void *data,
 	if (args->count_handles == 0)
 		return -EINVAL;
 
-	/* Get the handles from userspace */
-	handles = kmalloc_array(args->count_handles, sizeof(uint32_t),
-				GFP_KERNEL);
-	if (handles == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(handles,
-			   u64_to_user_ptr(args->handles),
-			   sizeof(uint32_t) * args->count_handles)) {
-		ret = -EFAULT;
-		goto err_free_handles;
-	}
-
-	syncobjs = kcalloc(args->count_handles,
-			   sizeof(struct drm_syncobj *), GFP_KERNEL);
-	if (!syncobjs) {
-		ret = -ENOMEM;
-		goto err_free_handles;
-	}
-
-	for (i = 0; i < args->count_handles; i++) {
-		syncobjs[i] = drm_syncobj_find(file_private, handles[i]);
-		if (!syncobjs[i]) {
-			ret = -ENOENT;
-			goto err_free_fence_array;
-		}
-	}
+	ret = drm_syncobj_array_find(file_private,
+				     u64_to_user_ptr(args->handles),
+				     args->count_handles,
+				     &syncobjs);
+	if (ret < 0)
+		return ret;
 
 	ret = drm_syncobj_array_wait(dev, file_private,
 				     args, syncobjs);
 
-err_free_fence_array:
-	while (i-- > 0)
-		drm_syncobj_put(syncobjs[i]);
-	kfree(syncobjs);
-err_free_handles:
-	kfree(handles);
+	drm_syncobj_array_free(syncobjs, args->count_handles);
 
 	return ret;
 }
