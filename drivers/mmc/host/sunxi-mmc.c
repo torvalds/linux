@@ -1242,7 +1242,7 @@ static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 	}
 
 	if (!IS_ERR(host->reset)) {
-		ret = reset_control_deassert(host->reset);
+		ret = reset_control_reset(host->reset);
 		if (ret) {
 			dev_err(&pdev->dev, "reset err %d\n", ret);
 			goto error_disable_clk_sample;
