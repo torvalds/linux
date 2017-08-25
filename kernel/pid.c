@@ -222,9 +222,10 @@ out_unlock:
 	put_pid_ns(ns);
 
 out_free:
-	while (++i <= ns->level) {
+	mutex_lock(&ns->idr_mutex_lock);
+	while (++i <= ns->level)
 		idr_remove(&ns->idr, (pid->numbers + i)->nr);
-	}
+	mutex_unlock(&ns->idr_mutex_lock);
 
 	kmem_cache_free(ns->pid_cachep, pid);
 	return ERR_PTR(retval);
