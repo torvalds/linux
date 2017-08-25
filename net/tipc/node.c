@@ -1126,8 +1126,8 @@ int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 addr,
 		strncpy(linkname, tipc_link_name(link), len);
 		err = 0;
 	}
-exit:
 	tipc_node_read_unlock(node);
+exit:
 	tipc_node_put(node);
 	return err;
 }
@@ -1557,6 +1557,8 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b)
 
 	/* Check/update node state before receiving */
 	if (unlikely(skb)) {
+		if (unlikely(skb_linearize(skb)))
+			goto discard;
 		tipc_node_write_lock(n);
 		if (tipc_node_check_state(n, skb, bearer_id, &xmitq)) {
 			if (le->link) {
