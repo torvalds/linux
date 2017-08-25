@@ -1110,8 +1110,7 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 		return blk_trace_setup(sdp->device->request_queue,
 				       sdp->disk->disk_name,
 				       MKDEV(SCSI_GENERIC_MAJOR, sdp->index),
-				       NULL,
-				       (char *)arg);
+				       NULL, p);
 	case BLKTRACESTART:
 		return blk_trace_startstop(sdp->device->request_queue, 1);
 	case BLKTRACESTOP:
