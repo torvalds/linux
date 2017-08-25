@@ -161,9 +161,6 @@ int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size);
 void crypto4xx_free_sa(struct crypto4xx_ctx *ctx);
 void crypto4xx_free_ctx(struct crypto4xx_ctx *ctx);
 u32 crypto4xx_alloc_state_record(struct crypto4xx_ctx *ctx);
-u32 get_dynamic_sa_offset_state_ptr_field(struct crypto4xx_ctx *ctx);
-u32 get_dynamic_sa_offset_key_field(struct crypto4xx_ctx *ctx);
-u32 get_dynamic_sa_iv_size(struct crypto4xx_ctx *ctx);
 void crypto4xx_memcpy_le(unsigned int *dst,
 			 const unsigned char *buf, int len);
 u32 crypto4xx_build_pd(struct crypto_async_request *req,

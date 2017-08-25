@@ -29,8 +29,8 @@
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 #include "crypto4xx_reg_def.h"
-#include "crypto4xx_sa.h"
 #include "crypto4xx_core.h"
+#include "crypto4xx_sa.h"
 
 static void set_dynamic_sa_command_0(struct dynamic_sa_ctl *sa, u32 save_h,
 				     u32 save_iv, u32 ld_h, u32 ld_iv,
@@ -79,8 +79,8 @@ int crypto4xx_encrypt(struct ablkcipher_request *req)
 	ctx->pd_ctl = 0x1;
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
-				  req->nbytes, req->info,
-				  get_dynamic_sa_iv_size(ctx));
+		req->nbytes, req->info,
+		crypto_ablkcipher_ivsize(crypto_ablkcipher_reqtfm(req)));
 }
 
 int crypto4xx_decrypt(struct ablkcipher_request *req)
@@ -92,8 +92,8 @@ int crypto4xx_decrypt(struct ablkcipher_request *req)
 	ctx->pd_ctl = 1;
 
 	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
-				  req->nbytes, req->info,
-				  get_dynamic_sa_iv_size(ctx));
+		req->nbytes, req->info,
+		crypto_ablkcipher_ivsize(crypto_ablkcipher_reqtfm(req)));
 }
 
 /**
@@ -147,15 +147,15 @@ static int crypto4xx_setkey_aes(struct crypto_ablkcipher *cipher,
 				 SA_SEQ_MASK_OFF, SA_MC_ENABLE,
 				 SA_NOT_COPY_PAD, SA_NOT_COPY_PAYLOAD,
 				 SA_NOT_COPY_HDR);
-	crypto4xx_memcpy_le(ctx->sa_in + get_dynamic_sa_offset_key_field(ctx),
+	crypto4xx_memcpy_le(get_dynamic_sa_key_field(sa),
 			    key, keylen);
 	sa->sa_contents.w = SA_AES_CONTENTS | (keylen << 2);
 	sa->sa_command_1.bf.key_len = keylen >> 3;
 	ctx->is_hash = 0;
 	ctx->direction = DIR_INBOUND;
-	memcpy(ctx->sa_in + get_dynamic_sa_offset_state_ptr_field(ctx),
-			(void *)&ctx->state_record_dma_addr, 4);
-	ctx->offset_to_sr_ptr = get_dynamic_sa_offset_state_ptr_field(ctx);
+	memcpy(sa + get_dynamic_sa_offset_state_ptr_field(sa),
+	       (void *)&ctx->state_record_dma_addr, 4);
+	ctx->offset_to_sr_ptr = get_dynamic_sa_offset_state_ptr_field(sa);
 
 	memcpy(ctx->sa_out, ctx->sa_in, ctx->sa_len * 4);
 	sa = (struct dynamic_sa_ctl *) ctx->sa_out;
@@ -225,7 +225,7 @@ static int crypto4xx_hash_alg_init(struct crypto_tfm *tfm,
 	memset(sa_in->inner_digest, 0, sizeof(sa_in->inner_digest));
 	memset(sa_in->outer_digest, 0, sizeof(sa_in->outer_digest));
 	sa_in->state_ptr = ctx->state_record_dma_addr;
-	ctx->offset_to_sr_ptr = get_dynamic_sa_offset_state_ptr_field(ctx);
+	ctx->offset_to_sr_ptr = get_dynamic_sa_offset_state_ptr_field(sa);
 
 	return 0;
 }
