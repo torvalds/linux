@@ -91,7 +91,7 @@ static void set_tun_src(struct net *net, struct net_device *dev,
 }
 
 /* encapsulate an IPv6 packet within an outer IPv6 header with a given SRH */
-int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
+int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh, int proto)
 {
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	struct ipv6hdr *hdr, *inner_hdr;
@@ -116,15 +116,22 @@ int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 	 * hlim will be decremented in ip6_forward() afterwards and
 	 * decapsulation will overwrite inner hlim with outer hlim
 	 */
-	ip6_flow_hdr(hdr, ip6_tclass(ip6_flowinfo(inner_hdr)),
-		     ip6_flowlabel(inner_hdr));
-	hdr->hop_limit = inner_hdr->hop_limit;
+
+	if (skb->protocol == htons(ETH_P_IPV6)) {
+		ip6_flow_hdr(hdr, ip6_tclass(ip6_flowinfo(inner_hdr)),
+			     ip6_flowlabel(inner_hdr));
+		hdr->hop_limit = inner_hdr->hop_limit;
+	} else {
+		ip6_flow_hdr(hdr, 0, 0);
+		hdr->hop_limit = ip6_dst_hoplimit(skb_dst(skb));
+	}
+
 	hdr->nexthdr = NEXTHDR_ROUTING;
 
 	isrh = (void *)hdr + sizeof(*hdr);
 	memcpy(isrh, osrh, hdrlen);
 
-	isrh->nexthdr = NEXTHDR_IPV6;
+	isrh->nexthdr = proto;
 
 	hdr->daddr = isrh->segments[isrh->first_segment];
 	set_tun_src(net, skb->dev, &hdr->daddr, &hdr->saddr);
@@ -199,7 +206,7 @@ static int seg6_do_srh(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct seg6_iptunnel_encap *tinfo;
-	int err = 0;
+	int proto, err = 0;
 
 	tinfo = seg6_encap_lwtunnel(dst->lwtstate);
 
@@ -210,16 +217,30 @@ static int seg6_do_srh(struct sk_buff *skb)
 
 	switch (tinfo->mode) {
 	case SEG6_IPTUN_MODE_INLINE:
+		if (skb->protocol != htons(ETH_P_IPV6))
+			return -EINVAL;
+
 		err = seg6_do_srh_inline(skb, tinfo->srh);
+		if (err)
+			return err;
+
 		skb_reset_inner_headers(skb);
 		break;
 	case SEG6_IPTUN_MODE_ENCAP:
-		err = seg6_do_srh_encap(skb, tinfo->srh);
+		if (skb->protocol == htons(ETH_P_IPV6))
+			proto = IPPROTO_IPV6;
+		else if (skb->protocol == htons(ETH_P_IP))
+			proto = IPPROTO_IPIP;
+		else
+			return -EINVAL;
+
+		err = seg6_do_srh_encap(skb, tinfo->srh, proto);
+		if (err)
+			return err;
+
+		skb->protocol = htons(ETH_P_IPV6);
 		break;
 	}
-
-	if (err)
-		return err;
 
 	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
@@ -334,6 +355,9 @@ static int seg6_build_state(struct nlattr *nla,
 	struct seg6_lwt *slwt;
 	int err;
 
+	if (family != AF_INET && family != AF_INET6)
+		return -EINVAL;
+
 	err = nla_parse_nested(tb, SEG6_IPTUNNEL_MAX, nla,
 			       seg6_iptunnel_policy, extack);
 
@@ -356,6 +380,9 @@ static int seg6_build_state(struct nlattr *nla,
 
 	switch (tuninfo->mode) {
 	case SEG6_IPTUN_MODE_INLINE:
+		if (family != AF_INET6)
+			return -EINVAL;
+
 		break;
 	case SEG6_IPTUN_MODE_ENCAP:
 		break;

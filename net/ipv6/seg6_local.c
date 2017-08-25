@@ -290,7 +290,7 @@ static int input_action_end_b6_encap(struct sk_buff *skb,
 	skb_reset_inner_headers(skb);
 	skb->encapsulation = 1;
 
-	err = seg6_do_srh_encap(skb, slwt->srh);
+	err = seg6_do_srh_encap(skb, slwt->srh, IPPROTO_IPV6);
 	if (err)
 		goto drop;
 
