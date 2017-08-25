@@ -367,7 +367,7 @@
 #define     MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN	BIT(7)
 #define     MVPP22_XLG_CTRL0_MIB_CNT_DIS	BIT(14)
 #define MVPP22_XLG_CTRL1_REG			0x104
-#define     MVPP22_XLG_CTRL1_FRAMESIZELIMIT	BIT(0)
+#define     MVPP22_XLG_CTRL1_FRAMESIZELIMIT_OFFS	0
 #define     MVPP22_XLG_CTRL1_FRAMESIZELIMIT_MASK	0x1fff
 #define MVPP22_XLG_CTRL3_REG			0x11c
 #define     MVPP22_XLG_CTRL3_MACMODESELECT_MASK	(7 << 13)
@@ -4669,7 +4669,7 @@ static inline void mvpp2_xlg_max_rx_size_set(struct mvpp2_port *port)
 	val =  readl(port->base + MVPP22_XLG_CTRL1_REG);
 	val &= ~MVPP22_XLG_CTRL1_FRAMESIZELIMIT_MASK;
 	val |= ((port->pkt_size - MVPP2_MH_SIZE) / 2) <<
-	       MVPP22_XLG_CTRL1_FRAMESIZELIMIT;
+	       MVPP22_XLG_CTRL1_FRAMESIZELIMIT_OFFS;
 	writel(val, port->base + MVPP22_XLG_CTRL1_REG);
 }
 
