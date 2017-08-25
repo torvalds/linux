@@ -2111,6 +2111,15 @@ static int kvmppc_grab_hwthread(int cpu)
 	struct paca_struct *tpaca;
 	long timeout = 10000;
 
+	/*
+	 * ISA v3.0 idle routines do not set hwthread_state or test
+	 * hwthread_req, so they can not grab idle threads.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		WARN(1, "KVM: can not control sibling threads\n");
+		return -EBUSY;
+	}
+
 	tpaca = &paca[cpu];
 
 	/* Ensure the thread won't go into the kernel if it wakes */
@@ -2145,10 +2154,12 @@ static void kvmppc_release_hwthread(int cpu)
 	struct paca_struct *tpaca;
 
 	tpaca = &paca[cpu];
-	tpaca->kvm_hstate.hwthread_req = 0;
 	tpaca->kvm_hstate.kvm_vcpu = NULL;
 	tpaca->kvm_hstate.kvm_vcore = NULL;
 	tpaca->kvm_hstate.kvm_split_mode = NULL;
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		tpaca->kvm_hstate.hwthread_req = 0;
+
 }
 
 static void radix_flush_cpu(struct kvm *kvm, int cpu, struct kvm_vcpu *vcpu)
