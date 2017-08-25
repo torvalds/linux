@@ -394,10 +394,9 @@ static u32 crypto4xx_build_sdr(struct crypto4xx_device *dev)
 	if (!dev->sdr)
 		return -ENOMEM;
 
-	dev->scatter_buffer_size = PPC4XX_SD_BUFFER_SIZE;
 	dev->scatter_buffer_va =
 		dma_alloc_coherent(dev->core_dev->device,
-			dev->scatter_buffer_size * PPC4XX_NUM_SD,
+			PPC4XX_SD_BUFFER_SIZE * PPC4XX_NUM_SD,
 			&dev->scatter_buffer_pa, GFP_ATOMIC);
 	if (!dev->scatter_buffer_va) {
 		dma_free_coherent(dev->core_dev->device,
@@ -410,7 +409,7 @@ static u32 crypto4xx_build_sdr(struct crypto4xx_device *dev)
 
 	for (i = 0; i < PPC4XX_NUM_SD; i++) {
 		sd_array[i].ptr = dev->scatter_buffer_pa +
-				  dev->scatter_buffer_size * i;
+				  PPC4XX_SD_BUFFER_SIZE * i;
 	}
 
 	return 0;
@@ -425,7 +424,7 @@ static void crypto4xx_destroy_sdr(struct crypto4xx_device *dev)
 
 	if (dev->scatter_buffer_va != NULL)
 		dma_free_coherent(dev->core_dev->device,
-				  dev->scatter_buffer_size * PPC4XX_NUM_SD,
+				  PPC4XX_SD_BUFFER_SIZE * PPC4XX_NUM_SD,
 				  dev->scatter_buffer_va,
 				  dev->scatter_buffer_pa);
 }

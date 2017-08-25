@@ -87,7 +87,6 @@ struct crypto4xx_device {
 					program ce sdr_base_register */
 	void *scatter_buffer_va;
 	dma_addr_t scatter_buffer_pa;
-	u32 scatter_buffer_size;
 
 	void *shadow_sa_pool;		/* pool of memory for sa in pd_uinfo */
 	dma_addr_t shadow_sa_pool_pa;
