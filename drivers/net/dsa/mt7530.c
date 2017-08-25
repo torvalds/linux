@@ -625,6 +625,44 @@ static void mt7530_adjust_link(struct dsa_switch *ds, int port,
 		 * all finished.
 		 */
 		mt7623_pad_clk_setup(ds);
+	} else {
+		u16 lcl_adv = 0, rmt_adv = 0;
+		u8 flowctrl;
+		u32 mcr = PMCR_USERP_LINK | PMCR_FORCE_MODE;
+
+		switch (phydev->speed) {
+		case SPEED_1000:
+			mcr |= PMCR_FORCE_SPEED_1000;
+			break;
+		case SPEED_100:
+			mcr |= PMCR_FORCE_SPEED_100;
+			break;
+		};
+
+		if (phydev->link)
+			mcr |= PMCR_FORCE_LNK;
+
+		if (phydev->duplex) {
+			mcr |= PMCR_FORCE_FDX;
+
+			if (phydev->pause)
+				rmt_adv = LPA_PAUSE_CAP;
+			if (phydev->asym_pause)
+				rmt_adv |= LPA_PAUSE_ASYM;
+
+			if (phydev->advertising & ADVERTISED_Pause)
+				lcl_adv |= ADVERTISE_PAUSE_CAP;
+			if (phydev->advertising & ADVERTISED_Asym_Pause)
+				lcl_adv |= ADVERTISE_PAUSE_ASYM;
+
+			flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
+
+			if (flowctrl & FLOW_CTRL_TX)
+				mcr |= PMCR_TX_FC_EN;
+			if (flowctrl & FLOW_CTRL_RX)
+				mcr |= PMCR_RX_FC_EN;
+		}
+		mt7530_write(priv, MT7530_PMCR_P(port), mcr);
 	}
 }
 

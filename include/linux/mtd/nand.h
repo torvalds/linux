@@ -681,10 +681,10 @@ struct nand_buffers {
  * @tWW_min: WP# transition to WE# low
  */
 struct nand_sdr_timings {
-	u32 tBERS_max;
+	u64 tBERS_max;
 	u32 tCCS_min;
-	u32 tPROG_max;
-	u32 tR_max;
+	u64 tPROG_max;
+	u64 tR_max;
 	u32 tALH_min;
 	u32 tADL_min;
 	u32 tALS_min;

@@ -25,6 +25,9 @@
 
 #include <trace/events/thp.h>
 
+unsigned int mmu_pid_bits;
+unsigned int mmu_base_pid;
+
 static int native_register_process_table(unsigned long base, unsigned long pg_sz,
 					 unsigned long table_size)
 {
@@ -261,11 +264,34 @@ static void __init radix_init_pgtable(void)
 	for_each_memblock(memory, reg)
 		WARN_ON(create_physical_mapping(reg->base,
 						reg->base + reg->size));
+
+	/* Find out how many PID bits are supported */
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		if (!mmu_pid_bits)
+			mmu_pid_bits = 20;
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+		/*
+		 * When KVM is possible, we only use the top half of the
+		 * PID space to avoid collisions between host and guest PIDs
+		 * which can cause problems due to prefetch when exiting the
+		 * guest with AIL=3
+		 */
+		mmu_base_pid = 1 << (mmu_pid_bits - 1);
+#else
+		mmu_base_pid = 1;
+#endif
+	} else {
+		/* The guest uses the bottom half of the PID space */
+		if (!mmu_pid_bits)
+			mmu_pid_bits = 19;
+		mmu_base_pid = 1;
+	}
+
 	/*
 	 * Allocate Partition table and process table for the
 	 * host.
 	 */
-	BUILD_BUG_ON_MSG((PRTB_SIZE_SHIFT > 36), "Process table size too large.");
+	BUG_ON(PRTB_SIZE_SHIFT > 36);
 	process_tb = early_alloc_pgtable(1UL << PRTB_SIZE_SHIFT);
 	/*
 	 * Fill in the process table.
@@ -339,6 +365,12 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
+	/* Find MMU PID size */
+	prop = of_get_flat_dt_prop(node, "ibm,mmu-pid-bits", &size);
+	if (prop && size == 4)
+		mmu_pid_bits = be32_to_cpup(prop);
+
+	/* Grab page size encodings */
 	prop = of_get_flat_dt_prop(node, "ibm,processor-radix-AP-encodings", &size);
 	if (!prop)
 		return 0;

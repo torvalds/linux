@@ -480,7 +480,7 @@ struct imx_device {
 	struct imx_vcm *vcm_driver;
 	struct imx_otp *otp_driver;
 	const struct imx_resolution *curr_res_table;
-	int entries_curr_table;
+	unsigned long entries_curr_table;
 	const struct firmware *fw;
 	struct imx_reg_addr *reg_addr;
 	const struct imx_reg *param_hold;

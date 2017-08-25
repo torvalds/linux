@@ -240,6 +240,7 @@ static void set_sample_period(void)
 	 * hardlockup detector generates a warning
 	 */
 	sample_period = get_softlockup_thresh() * ((u64)NSEC_PER_SEC / 5);
+	watchdog_update_hrtimer_threshold(sample_period);
 }
 
 /* Commands for resetting the watchdog */

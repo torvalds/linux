@@ -879,7 +879,8 @@ bpf_object__create_maps(struct bpf_object *obj)
 			size_t j;
 			int err = *pfd;
 
-			pr_warning("failed to create map: %s\n",
+			pr_warning("failed to create map (name: '%s'): %s\n",
+				   obj->maps[i].name,
 				   strerror(errno));
 			for (j = 0; j < i; j++)
 				zclose(obj->maps[j].fd);

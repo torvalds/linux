@@ -388,7 +388,12 @@ static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
  * @irq_mask_ack:	ack and mask an interrupt source
  * @irq_unmask:		unmask an interrupt source
  * @irq_eoi:		end of interrupt
- * @irq_set_affinity:	set the CPU affinity on SMP machines
+ * @irq_set_affinity:	Set the CPU affinity on SMP machines. If the force
+ *			argument is true, it tells the driver to
+ *			unconditionally apply the affinity setting. Sanity
+ *			checks against the supplied affinity mask are not
+ *			required. This is used for CPU hotplug where the
+ *			target CPU is not yet set in the cpu_online_mask.
  * @irq_retrigger:	resend an IRQ to the CPU
  * @irq_set_type:	set the flow type (IRQ_TYPE_LEVEL/etc.) of an IRQ
  * @irq_set_wake:	enable/disable power-management wake-on of an IRQ

@@ -2857,31 +2857,15 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	return 0;
 }
 
-/* Special MMIO blocks. */
-static struct gvt_mmio_block {
-	unsigned int device;
-	i915_reg_t   offset;
-	unsigned int size;
-	gvt_mmio_func read;
-	gvt_mmio_func write;
-} gvt_mmio_blocks[] = {
-	{D_SKL_PLUS, _MMIO(CSR_MMIO_START_RANGE), 0x3000, NULL, NULL},
-	{D_ALL, _MMIO(MCHBAR_MIRROR_BASE_SNB), 0x40000, NULL, NULL},
-	{D_ALL, _MMIO(VGT_PVINFO_PAGE), VGT_PVINFO_SIZE,
-		pvinfo_mmio_read, pvinfo_mmio_write},
-	{D_ALL, LGC_PALETTE(PIPE_A, 0), 1024, NULL, NULL},
-	{D_ALL, LGC_PALETTE(PIPE_B, 0), 1024, NULL, NULL},
-	{D_ALL, LGC_PALETTE(PIPE_C, 0), 1024, NULL, NULL},
-};
-
 static struct gvt_mmio_block *find_mmio_block(struct intel_gvt *gvt,
 					      unsigned int offset)
 {
 	unsigned long device = intel_gvt_get_device_type(gvt);
-	struct gvt_mmio_block *block = gvt_mmio_blocks;
+	struct gvt_mmio_block *block = gvt->mmio.mmio_block;
+	int num = gvt->mmio.num_mmio_block;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(gvt_mmio_blocks); i++, block++) {
+	for (i = 0; i < num; i++, block++) {
 		if (!(device & block->device))
 			continue;
 		if (offset >= INTEL_GVT_MMIO_OFFSET(block->offset) &&
@@ -2911,6 +2895,17 @@ void intel_gvt_clean_mmio_info(struct intel_gvt *gvt)
 	vfree(gvt->mmio.mmio_attribute);
 	gvt->mmio.mmio_attribute = NULL;
 }
+
+/* Special MMIO blocks. */
+static struct gvt_mmio_block mmio_blocks[] = {
+	{D_SKL_PLUS, _MMIO(CSR_MMIO_START_RANGE), 0x3000, NULL, NULL},
+	{D_ALL, _MMIO(MCHBAR_MIRROR_BASE_SNB), 0x40000, NULL, NULL},
+	{D_ALL, _MMIO(VGT_PVINFO_PAGE), VGT_PVINFO_SIZE,
+		pvinfo_mmio_read, pvinfo_mmio_write},
+	{D_ALL, LGC_PALETTE(PIPE_A, 0), 1024, NULL, NULL},
+	{D_ALL, LGC_PALETTE(PIPE_B, 0), 1024, NULL, NULL},
+	{D_ALL, LGC_PALETTE(PIPE_C, 0), 1024, NULL, NULL},
+};
 
 /**
  * intel_gvt_setup_mmio_info - setup MMIO information table for GVT device
@@ -2950,6 +2945,9 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 		if (ret)
 			goto err;
 	}
+
+	gvt->mmio.mmio_block = mmio_blocks;
+	gvt->mmio.num_mmio_block = ARRAY_SIZE(mmio_blocks);
 
 	gvt_dbg_mmio("traced %u virtual mmio registers\n",
 		     gvt->mmio.num_tracked_mmio);
@@ -3030,7 +3028,7 @@ int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
 	gvt_mmio_func func;
 	int ret;
 
-	if (WARN_ON(bytes > 4))
+	if (WARN_ON(bytes > 8))
 		return -EINVAL;
 
 	/*
