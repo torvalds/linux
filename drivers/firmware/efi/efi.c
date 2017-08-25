@@ -541,6 +541,7 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
 			if (seed != NULL) {
 				add_device_randomness(seed->bits, seed->size);
 				early_memunmap(seed, sizeof(*seed) + size);
+				pr_notice("seeding entropy pool\n");
 			} else {
 				pr_err("Could not map UEFI random seed!\n");
 			}
@@ -900,7 +901,7 @@ static int update_efi_random_seed(struct notifier_block *nb,
 
 	seed = memremap(efi.rng_seed, sizeof(*seed), MEMREMAP_WB);
 	if (seed != NULL) {
-		size = min(seed->size, 32U);
+		size = min(seed->size, EFI_RANDOM_SEED_SIZE);
 		memunmap(seed);
 	} else {
 		pr_err("Could not map UEFI random seed!\n");
