@@ -1079,7 +1079,6 @@ static void crypto4xx_bh_tasklet_cb(unsigned long data)
 			pd->pd_ctl.bf.pe_done = 0;
 			crypto4xx_pd_done(core_dev->dev, tail);
 			crypto4xx_put_pd_to_pdr(core_dev->dev, tail);
-			pd_uinfo->state = PD_ENTRY_FREE;
 		} else {
 			/* if tail not done, break */
 			break;
