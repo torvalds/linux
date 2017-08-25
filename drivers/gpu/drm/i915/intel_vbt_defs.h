@@ -389,7 +389,8 @@ struct child_device_config {
 	u8 flags2;						/* 195 */
 	u8 dp_gpio_index;					/* 195 */
 	u16 dp_gpio_pin_num;					/* 195 */
-	u8 iboost_level;
+	u8 dp_iboost_level:4;					/* 196 */
+	u8 hdmi_iboost_level:4;					/* 196 */
 } __packed;
 
 struct bdb_general_definitions {

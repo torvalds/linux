@@ -1218,10 +1218,10 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 
 	/* Parse the I_boost config for SKL and above */
 	if (bdb->version >= 196 && child->iboost) {
-		info->dp_boost_level = translate_iboost(child->iboost_level & 0xF);
+		info->dp_boost_level = translate_iboost(child->dp_iboost_level);
 		DRM_DEBUG_KMS("VBT (e)DP boost level for port %c: %d\n",
 			      port_name(port), info->dp_boost_level);
-		info->hdmi_boost_level = translate_iboost(child->iboost_level >> 4);
+		info->hdmi_boost_level = translate_iboost(child->hdmi_iboost_level);
 		DRM_DEBUG_KMS("VBT HDMI boost level for port %c: %d\n",
 			      port_name(port), info->hdmi_boost_level);
 	}
