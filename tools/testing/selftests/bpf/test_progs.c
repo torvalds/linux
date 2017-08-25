@@ -279,7 +279,7 @@ static void test_bpf_obj_id(void)
 	/* +1 to test for the info_len returned by kernel */
 	struct bpf_prog_info prog_infos[nr_iters + 1];
 	struct bpf_map_info map_infos[nr_iters + 1];
-	char jited_insns[128], xlated_insns[128];
+	char jited_insns[128], xlated_insns[128], zeros[128];
 	__u32 i, next_id, info_len, nr_id_found, duration = 0;
 	int sysctl_fd, jit_enabled = 0, err = 0;
 	__u64 array_value;
@@ -305,6 +305,7 @@ static void test_bpf_obj_id(void)
 		objs[i] = NULL;
 
 	/* Check bpf_obj_get_info_by_fd() */
+	bzero(zeros, sizeof(zeros));
 	for (i = 0; i < nr_iters; i++) {
 		err = bpf_prog_load(file, BPF_PROG_TYPE_SOCKET_FILTER,
 				    &objs[i], &prog_fds[i]);
@@ -318,6 +319,8 @@ static void test_bpf_obj_id(void)
 		/* Check getting prog info */
 		info_len = sizeof(struct bpf_prog_info) * 2;
 		bzero(&prog_infos[i], info_len);
+		bzero(jited_insns, sizeof(jited_insns));
+		bzero(xlated_insns, sizeof(xlated_insns));
 		prog_infos[i].jited_prog_insns = ptr_to_u64(jited_insns);
 		prog_infos[i].jited_prog_len = sizeof(jited_insns);
 		prog_infos[i].xlated_prog_insns = ptr_to_u64(xlated_insns);
@@ -328,15 +331,20 @@ static void test_bpf_obj_id(void)
 			  prog_infos[i].type != BPF_PROG_TYPE_SOCKET_FILTER ||
 			  info_len != sizeof(struct bpf_prog_info) ||
 			  (jit_enabled && !prog_infos[i].jited_prog_len) ||
-			  !prog_infos[i].xlated_prog_len,
+			  (jit_enabled &&
+			   !memcmp(jited_insns, zeros, sizeof(zeros))) ||
+			  !prog_infos[i].xlated_prog_len ||
+			  !memcmp(xlated_insns, zeros, sizeof(zeros)),
 			  "get-prog-info(fd)",
-			  "err %d errno %d i %d type %d(%d) info_len %u(%lu) jit_enabled %d jited_prog_len %u xlated_prog_len %u\n",
+			  "err %d errno %d i %d type %d(%d) info_len %u(%lu) jit_enabled %d jited_prog_len %u xlated_prog_len %u jited_prog %d xlated_prog %d\n",
 			  err, errno, i,
 			  prog_infos[i].type, BPF_PROG_TYPE_SOCKET_FILTER,
 			  info_len, sizeof(struct bpf_prog_info),
 			  jit_enabled,
 			  prog_infos[i].jited_prog_len,
-			  prog_infos[i].xlated_prog_len))
+			  prog_infos[i].xlated_prog_len,
+			  !!memcmp(jited_insns, zeros, sizeof(zeros)),
+			  !!memcmp(xlated_insns, zeros, sizeof(zeros))))
 			goto done;
 
 		map_fds[i] = bpf_find_map(__func__, objs[i], "test_map_id");
