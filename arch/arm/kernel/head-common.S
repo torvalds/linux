@@ -87,7 +87,14 @@ __mmap_switched:
 	adr	r4, __mmap_switched_data
 	mov	fp, #0
 
-#ifdef CONFIG_XIP_KERNEL
+#if defined(CONFIG_XIP_DEFLATED_DATA)
+   ARM(	ldr	sp, [r4], #4 )
+ THUMB(	ldr	sp, [r4] )
+ THUMB(	add	r4, #4 )
+	bl	__inflate_kernel_data		@ decompress .data to RAM
+	teq	r0, #0
+	bne	__error
+#elif defined(CONFIG_XIP_KERNEL)
    ARM(	ldmia	r4!, {r0, r1, r2, sp} )
  THUMB(	ldmia	r4!, {r0, r1, r2, r3} )
  THUMB(	mov	sp, r3 )
@@ -114,9 +121,11 @@ ENDPROC(__mmap_switched)
 	.type	__mmap_switched_data, %object
 __mmap_switched_data:
 #ifdef CONFIG_XIP_KERNEL
+#ifndef CONFIG_XIP_DEFLATED_DATA
 	.long	_sdata				@ r0
 	.long	__data_loc			@ r1
 	.long	_edata_loc			@ r2
+#endif
 	.long	__bss_stop			@ sp (temporary stack in .bss)
 #endif
 

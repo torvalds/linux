@@ -306,3 +306,11 @@ ASSERT((__arch_info_end - __arch_info_begin), "no machine record defined")
  */
 ASSERT(__hyp_idmap_text_end - (__hyp_idmap_text_start & PAGE_MASK) <= PAGE_SIZE,
 	"HYP init code too big or misaligned")
+
+#ifdef CONFIG_XIP_DEFLATED_DATA
+/*
+ * The .bss is used as a stack area for __inflate_kernel_data() whose stack
+ * frame is 9568 bytes. Make sure it has extra room left.
+ */
+ASSERT((_end - __bss_start) >= 12288, ".bss too small for CONFIG_XIP_DEFLATED_DATA")
+#endif
