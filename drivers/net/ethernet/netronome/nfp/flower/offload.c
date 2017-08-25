@@ -107,6 +107,7 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 {
 	struct flow_dissector_key_basic *mask_basic = NULL;
 	struct flow_dissector_key_basic *key_basic = NULL;
+	struct flow_dissector_key_ip *mask_ip = NULL;
 	u32 key_layer_two;
 	u8 key_layer;
 	int key_size;
@@ -132,6 +133,11 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 						      flow->key);
 	}
 
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_IP))
+		mask_ip = skb_flow_dissector_target(flow->dissector,
+						    FLOW_DISSECTOR_KEY_IP,
+						    flow->mask);
+
 	key_layer_two = 0;
 	key_layer = NFP_FLOWER_LAYER_PORT | NFP_FLOWER_LAYER_MAC;
 	key_size = sizeof(struct nfp_flower_meta_one) +
@@ -142,11 +148,19 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 		/* Ethernet type is present in the key. */
 		switch (key_basic->n_proto) {
 		case cpu_to_be16(ETH_P_IP):
+			if (mask_ip && mask_ip->tos)
+				return -EOPNOTSUPP;
+			if (mask_ip && mask_ip->ttl)
+				return -EOPNOTSUPP;
 			key_layer |= NFP_FLOWER_LAYER_IPV4;
 			key_size += sizeof(struct nfp_flower_ipv4);
 			break;
 
 		case cpu_to_be16(ETH_P_IPV6):
+			if (mask_ip && mask_ip->tos)
+				return -EOPNOTSUPP;
+			if (mask_ip && mask_ip->ttl)
+				return -EOPNOTSUPP;
 			key_layer |= NFP_FLOWER_LAYER_IPV6;
 			key_size += sizeof(struct nfp_flower_ipv6);
 			break;
@@ -155,6 +169,11 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 		 * because we rely on it to get to the host.
 		 */
 		case cpu_to_be16(ETH_P_ARP):
+			return -EOPNOTSUPP;
+
+		/* Currently we do not offload MPLS. */
+		case cpu_to_be16(ETH_P_MPLS_UC):
+		case cpu_to_be16(ETH_P_MPLS_MC):
 			return -EOPNOTSUPP;
 
 		/* Will be included in layer 2. */
