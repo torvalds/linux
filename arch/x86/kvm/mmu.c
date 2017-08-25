@@ -4109,16 +4109,28 @@ void
 reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
 {
 	bool uses_nx = context->nx || context->base_role.smep_andnot_wp;
+	struct rsvd_bits_validate *shadow_zero_check;
+	int i;
 
 	/*
 	 * Passing "true" to the last argument is okay; it adds a check
 	 * on bit 8 of the SPTEs which KVM doesn't use anyway.
 	 */
-	__reset_rsvds_bits_mask(vcpu, &context->shadow_zero_check,
+	shadow_zero_check = &context->shadow_zero_check;
+	__reset_rsvds_bits_mask(vcpu, shadow_zero_check,
 				boot_cpu_data.x86_phys_bits,
 				context->shadow_root_level, uses_nx,
 				guest_cpuid_has_gbpages(vcpu), is_pse(vcpu),
 				true);
+
+	if (!shadow_me_mask)
+		return;
+
+	for (i = context->shadow_root_level; --i >= 0;) {
+		shadow_zero_check->rsvd_bits_mask[0][i] &= ~shadow_me_mask;
+		shadow_zero_check->rsvd_bits_mask[1][i] &= ~shadow_me_mask;
+	}
+
 }
 EXPORT_SYMBOL_GPL(reset_shadow_zero_bits_mask);
 
@@ -4136,17 +4148,29 @@ static void
 reset_tdp_shadow_zero_bits_mask(struct kvm_vcpu *vcpu,
 				struct kvm_mmu *context)
 {
+	struct rsvd_bits_validate *shadow_zero_check;
+	int i;
+
+	shadow_zero_check = &context->shadow_zero_check;
+
 	if (boot_cpu_is_amd())
-		__reset_rsvds_bits_mask(vcpu, &context->shadow_zero_check,
+		__reset_rsvds_bits_mask(vcpu, shadow_zero_check,
 					boot_cpu_data.x86_phys_bits,
 					context->shadow_root_level, false,
 					boot_cpu_has(X86_FEATURE_GBPAGES),
 					true, true);
 	else
-		__reset_rsvds_bits_mask_ept(&context->shadow_zero_check,
+		__reset_rsvds_bits_mask_ept(shadow_zero_check,
 					    boot_cpu_data.x86_phys_bits,
 					    false);
 
+	if (!shadow_me_mask)
+		return;
+
+	for (i = context->shadow_root_level; --i >= 0;) {
+		shadow_zero_check->rsvd_bits_mask[0][i] &= ~shadow_me_mask;
+		shadow_zero_check->rsvd_bits_mask[1][i] &= ~shadow_me_mask;
+	}
 }
 
 /*
