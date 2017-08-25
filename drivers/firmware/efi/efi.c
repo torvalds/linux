@@ -811,19 +811,19 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
 }
 
 /*
+ * IA64 has a funky EFI memory map that doesn't work the same way as
+ * other architectures.
+ */
+#ifndef CONFIG_IA64
+/*
  * efi_mem_attributes - lookup memmap attributes for physical address
  * @phys_addr: the physical address to lookup
  *
  * Search in the EFI memory map for the region covering
  * @phys_addr. Returns the EFI memory attributes if the region
  * was found in the memory map, 0 otherwise.
- *
- * Despite being marked __weak, most architectures should *not*
- * override this function. It is __weak solely for the benefit
- * of ia64 which has a funky EFI memory map that doesn't work
- * the same way as other architectures.
  */
-u64 __weak efi_mem_attributes(unsigned long phys_addr)
+u64 efi_mem_attributes(unsigned long phys_addr)
 {
 	efi_memory_desc_t *md;
 
@@ -838,6 +838,31 @@ u64 __weak efi_mem_attributes(unsigned long phys_addr)
 	}
 	return 0;
 }
+
+/*
+ * efi_mem_type - lookup memmap type for physical address
+ * @phys_addr: the physical address to lookup
+ *
+ * Search in the EFI memory map for the region covering @phys_addr.
+ * Returns the EFI memory type if the region was found in the memory
+ * map, EFI_RESERVED_TYPE (zero) otherwise.
+ */
+int efi_mem_type(unsigned long phys_addr)
+{
+	const efi_memory_desc_t *md;
+
+	if (!efi_enabled(EFI_MEMMAP))
+		return -ENOTSUPP;
+
+	for_each_efi_memory_desc(md) {
+		if ((md->phys_addr <= phys_addr) &&
+		    (phys_addr < (md->phys_addr +
+				  (md->num_pages << EFI_PAGE_SHIFT))))
+			return md->type;
+	}
+	return -EINVAL;
+}
+#endif
 
 int efi_status_to_err(efi_status_t status)
 {
