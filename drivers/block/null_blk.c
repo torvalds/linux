@@ -1756,7 +1756,7 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 	set->flags = BLK_MQ_F_SHOULD_MERGE;
 	set->driver_data = NULL;
 
-	if (nullb->dev->blocking)
+	if ((nullb && nullb->dev->blocking) || g_blocking)
 		set->flags |= BLK_MQ_F_BLOCKING;
 
 	return blk_mq_alloc_tag_set(set);
