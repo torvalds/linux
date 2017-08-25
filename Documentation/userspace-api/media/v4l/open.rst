@@ -6,6 +6,53 @@
 Opening and Closing Devices
 ***************************
 
+.. _v4l2_hardware_control:
+
+Controlling a hardware peripheral via V4L2
+==========================================
+
+Hardware that is supported using the V4L2 uAPI often consists of multiple
+devices or peripherals, each of which have their own driver.
+
+The bridge driver exposes one or more V4L2 device nodes
+(see :ref:`v4l2_device_naming`).
+
+There are other drivers providing support for other components of
+the hardware, which may also expose device nodes, called V4L2 sub-devices.
+
+When such V4L2 sub-devices are exposed, they allow controlling those
+other hardware components - usually connected via a serial bus (like
+I²C, SMBus or SPI). Depending on the bridge driver, those sub-devices
+can be controlled indirectly via the bridge driver or explicitly via
+the :ref:`Media Controller <media_controller>` and via the
+:ref:`V4L2 sub-devices <subdev>`.
+
+The devices that require the use of the
+:ref:`Media Controller <media_controller>` are called **MC-centric**
+devices. The devices that are fully controlled via V4L2 device nodes
+are called **video-node-centric**.
+
+Userspace can check if a V4L2 hardware peripheral is MC-centric by
+calling :ref:`VIDIOC_QUERYCAP` and checking the
+:ref:`device_caps field <device-capabilities>`.
+
+If the device returns ``V4L2_CAP_IO_MC`` flag at ``device_caps``,
+then it is MC-centric, otherwise, it is video-node-centric.
+
+It is required for MC-centric drivers to identify the V4L2
+sub-devices and to configure the pipelines via the
+:ref:`media controller API <media_controller>` before using the peripheral.
+Also, the sub-devices' configuration shall be controlled via the
+:ref:`sub-device API <subdev>`.
+
+.. note::
+
+   A video-node-centric may still provide media-controller and
+   sub-device interfaces as well.
+
+  However, in that case the media-controller and the sub-device
+  interfaces are read-only and just provide information about the
+  device. The actual configuration is done via the video nodes.
 
 .. _v4l2_device_naming:
 
@@ -102,7 +149,7 @@ Related Devices
 Devices can support several functions. For example video capturing, VBI
 capturing and radio support.
 
-The V4L2 API creates different nodes for each of these functions.
+The V4L2 API creates different V4L2 device nodes for each of these functions.
 
 The V4L2 API was designed with the idea that one device node could
 support all functions. However, in practice this never worked: this
@@ -112,17 +159,17 @@ switching a device node between different functions only works when
 using the streaming I/O API, not with the
 :ref:`read() <func-read>`/\ :ref:`write() <func-write>` API.
 
-Today each device node supports just one function.
+Today each V4L2 device node supports just one function.
 
 Besides video input or output the hardware may also support audio
 sampling or playback. If so, these functions are implemented as ALSA PCM
 devices with optional ALSA audio mixer devices.
 
 One problem with all these devices is that the V4L2 API makes no
-provisions to find these related devices. Some really complex devices
-use the Media Controller (see :ref:`media_controller`) which can be
-used for this purpose. But most drivers do not use it, and while some
-code exists that uses sysfs to discover related devices (see
+provisions to find these related V4L2 device nodes. Some really complex
+hardware use the Media Controller (see :ref:`media_controller`) which can
+be used for this purpose. But several drivers do not use it, and while some
+code exists that uses sysfs to discover related V4L2 device nodes (see
 libmedia_dev in the
 `v4l-utils <http://git.linuxtv.org/cgit.cgi/v4l-utils.git/>`__ git
 repository), there is no library yet that can provide a single API
