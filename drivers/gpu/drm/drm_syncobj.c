@@ -51,6 +51,7 @@
 #include <linux/fs.h>
 #include <linux/anon_inodes.h>
 #include <linux/sync_file.h>
+#include <linux/sched/signal.h>
 
 #include "drm_internal.h"
 #include <drm/drm_syncobj.h>
@@ -86,6 +87,35 @@ static void drm_syncobj_add_callback_locked(struct drm_syncobj *syncobj,
 {
 	cb->func = func;
 	list_add_tail(&cb->node, &syncobj->cb_list);
+}
+
+static int drm_syncobj_fence_get_or_add_callback(struct drm_syncobj *syncobj,
+						 struct dma_fence **fence,
+						 struct drm_syncobj_cb *cb,
+						 drm_syncobj_func_t func)
+{
+	int ret;
+
+	*fence = drm_syncobj_fence_get(syncobj);
+	if (*fence)
+		return 1;
+
+	spin_lock(&syncobj->lock);
+	/* We've already tried once to get a fence and failed.  Now that we
+	 * have the lock, try one more time just to be sure we don't add a
+	 * callback when a fence has already been set.
+	 */
+	if (syncobj->fence) {
+		*fence = dma_fence_get(syncobj->fence);
+		ret = 1;
+	} else {
+		*fence = NULL;
+		drm_syncobj_add_callback_locked(syncobj, cb, func);
+		ret = 0;
+	}
+	spin_unlock(&syncobj->lock);
+
+	return ret;
 }
 
 /**
@@ -560,6 +590,160 @@ drm_syncobj_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 					&args->handle);
 }
 
+struct syncobj_wait_entry {
+	struct task_struct *task;
+	struct dma_fence *fence;
+	struct dma_fence_cb fence_cb;
+	struct drm_syncobj_cb syncobj_cb;
+};
+
+static void syncobj_wait_fence_func(struct dma_fence *fence,
+				    struct dma_fence_cb *cb)
+{
+	struct syncobj_wait_entry *wait =
+		container_of(cb, struct syncobj_wait_entry, fence_cb);
+
+	wake_up_process(wait->task);
+}
+
+static void syncobj_wait_syncobj_func(struct drm_syncobj *syncobj,
+				      struct drm_syncobj_cb *cb)
+{
+	struct syncobj_wait_entry *wait =
+		container_of(cb, struct syncobj_wait_entry, syncobj_cb);
+
+	/* This happens inside the syncobj lock */
+	wait->fence = dma_fence_get(syncobj->fence);
+	wake_up_process(wait->task);
+}
+
+static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
+						  uint32_t count,
+						  uint32_t flags,
+						  signed long timeout,
+						  uint32_t *idx)
+{
+	struct syncobj_wait_entry *entries;
+	struct dma_fence *fence;
+	signed long ret;
+	uint32_t signaled_count, i;
+
+	entries = kcalloc(count, sizeof(*entries), GFP_KERNEL);
+	if (!entries)
+		return -ENOMEM;
+
+	/* Walk the list of sync objects and initialize entries.  We do
+	 * this up-front so that we can properly return -EINVAL if there is
+	 * a syncobj with a missing fence and then never have the chance of
+	 * returning -EINVAL again.
+	 */
+	signaled_count = 0;
+	for (i = 0; i < count; ++i) {
+		entries[i].task = current;
+		entries[i].fence = drm_syncobj_fence_get(syncobjs[i]);
+		if (!entries[i].fence) {
+			if (flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT) {
+				continue;
+			} else {
+				ret = -EINVAL;
+				goto cleanup_entries;
+			}
+		}
+
+		if (dma_fence_is_signaled(entries[i].fence)) {
+			if (signaled_count == 0 && idx)
+				*idx = i;
+			signaled_count++;
+		}
+	}
+
+	/* Initialize ret to the max of timeout and 1.  That way, the
+	 * default return value indicates a successful wait and not a
+	 * timeout.
+	 */
+	ret = max_t(signed long, timeout, 1);
+
+	if (signaled_count == count ||
+	    (signaled_count > 0 &&
+	     !(flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL)))
+		goto cleanup_entries;
+
+	/* There's a very annoying laxness in the dma_fence API here, in
+	 * that backends are not required to automatically report when a
+	 * fence is signaled prior to fence->ops->enable_signaling() being
+	 * called.  So here if we fail to match signaled_count, we need to
+	 * fallthough and try a 0 timeout wait!
+	 */
+
+	if (flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT) {
+		for (i = 0; i < count; ++i) {
+			drm_syncobj_fence_get_or_add_callback(syncobjs[i],
+							      &entries[i].fence,
+							      &entries[i].syncobj_cb,
+							      syncobj_wait_syncobj_func);
+		}
+	}
+
+	do {
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		signaled_count = 0;
+		for (i = 0; i < count; ++i) {
+			fence = entries[i].fence;
+			if (!fence)
+				continue;
+
+			if (dma_fence_is_signaled(fence) ||
+			    (!entries[i].fence_cb.func &&
+			     dma_fence_add_callback(fence,
+						    &entries[i].fence_cb,
+						    syncobj_wait_fence_func))) {
+				/* The fence has been signaled */
+				if (flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL) {
+					signaled_count++;
+				} else {
+					if (idx)
+						*idx = i;
+					goto done_waiting;
+				}
+			}
+		}
+
+		if (signaled_count == count)
+			goto done_waiting;
+
+		if (timeout == 0) {
+			/* If we are doing a 0 timeout wait and we got
+			 * here, then we just timed out.
+			 */
+			ret = 0;
+			goto done_waiting;
+		}
+
+		ret = schedule_timeout(ret);
+
+		if (ret > 0 && signal_pending(current))
+			ret = -ERESTARTSYS;
+	} while (ret > 0);
+
+done_waiting:
+	__set_current_state(TASK_RUNNING);
+
+cleanup_entries:
+	for (i = 0; i < count; ++i) {
+		if (entries[i].syncobj_cb.func)
+			drm_syncobj_remove_callback(syncobjs[i],
+						    &entries[i].syncobj_cb);
+		if (entries[i].fence_cb.func)
+			dma_fence_remove_callback(entries[i].fence,
+						  &entries[i].fence_cb);
+		dma_fence_put(entries[i].fence);
+	}
+	kfree(entries);
+
+	return ret;
+}
+
 /**
  * drm_timeout_abs_to_jiffies - calculate jiffies timeout from absolute value
  *
@@ -592,43 +776,19 @@ static signed long drm_timeout_abs_to_jiffies(int64_t timeout_nsec)
 	return timeout_jiffies64 + 1;
 }
 
-static int drm_syncobj_wait_fences(struct drm_device *dev,
-				   struct drm_file *file_private,
-				   struct drm_syncobj_wait *wait,
-				   struct dma_fence **fences)
+static int drm_syncobj_array_wait(struct drm_device *dev,
+				  struct drm_file *file_private,
+				  struct drm_syncobj_wait *wait,
+				  struct drm_syncobj **syncobjs)
 {
 	signed long timeout = drm_timeout_abs_to_jiffies(wait->timeout_nsec);
 	signed long ret = 0;
 	uint32_t first = ~0;
 
-	if (wait->flags & DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL) {
-		uint32_t i;
-		for (i = 0; i < wait->count_handles; i++) {
-			ret = dma_fence_wait_timeout(fences[i], true, timeout);
-
-			/* Various dma_fence wait callbacks will return
-			 * ENOENT to indicate that the fence has already
-			 * been signaled.  We need to sanitize this to 0 so
-			 * we don't return early and the client doesn't see
-			 * an unexpected error.
-			 */
-			if (ret == -ENOENT)
-				ret = 0;
-
-			if (ret < 0)
-				return ret;
-			if (ret == 0)
-				break;
-			timeout = ret;
-		}
-		first = 0;
-	} else {
-		ret = dma_fence_wait_any_timeout(fences,
-						 wait->count_handles,
-						 true, timeout,
-						 &first);
-	}
-
+	ret = drm_syncobj_array_wait_timeout(syncobjs,
+					     wait->count_handles,
+					     wait->flags,
+					     timeout, &first);
 	if (ret < 0)
 		return ret;
 
@@ -644,14 +804,15 @@ drm_syncobj_wait_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_syncobj_wait *args = data;
 	uint32_t *handles;
-	struct dma_fence **fences;
+	struct drm_syncobj **syncobjs;
 	int ret = 0;
 	uint32_t i;
 
 	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
 		return -ENODEV;
 
-	if (args->flags != 0 && args->flags != DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL)
+	if (args->flags & ~(DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL |
+			    DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT))
 		return -EINVAL;
 
 	if (args->count_handles == 0)
@@ -670,27 +831,28 @@ drm_syncobj_wait_ioctl(struct drm_device *dev, void *data,
 		goto err_free_handles;
 	}
 
-	fences = kcalloc(args->count_handles,
-			 sizeof(struct dma_fence *), GFP_KERNEL);
-	if (!fences) {
+	syncobjs = kcalloc(args->count_handles,
+			   sizeof(struct drm_syncobj *), GFP_KERNEL);
+	if (!syncobjs) {
 		ret = -ENOMEM;
 		goto err_free_handles;
 	}
 
 	for (i = 0; i < args->count_handles; i++) {
-		ret = drm_syncobj_find_fence(file_private, handles[i],
-					     &fences[i]);
-		if (ret)
+		syncobjs[i] = drm_syncobj_find(file_private, handles[i]);
+		if (!syncobjs[i]) {
+			ret = -ENOENT;
 			goto err_free_fence_array;
+		}
 	}
 
-	ret = drm_syncobj_wait_fences(dev, file_private,
-				      args, fences);
+	ret = drm_syncobj_array_wait(dev, file_private,
+				     args, syncobjs);
 
 err_free_fence_array:
-	for (i = 0; i < args->count_handles; i++)
-		dma_fence_put(fences[i]);
-	kfree(fences);
+	while (i-- > 0)
+		drm_syncobj_put(syncobjs[i]);
+	kfree(syncobjs);
 err_free_handles:
 	kfree(handles);
 

@@ -720,6 +720,7 @@ struct drm_syncobj_handle {
 };
 
 #define DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL (1 << 0)
+#define DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT (1 << 1)
 struct drm_syncobj_wait {
 	__u64 handles;
 	/* absolute timeout */
