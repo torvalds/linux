@@ -1075,13 +1075,13 @@ static int __init fake_init(void)
 	/* If we want to support more than one bridge at some point, we need to
 	 * dynamically allocate this so we get one per device.
 	 */
-	fake_bridge = kzalloc(sizeof(struct vme_bridge), GFP_KERNEL);
+	fake_bridge = kzalloc(sizeof(*fake_bridge), GFP_KERNEL);
 	if (fake_bridge == NULL) {
 		retval = -ENOMEM;
 		goto err_struct;
 	}
 
-	fake_device = kzalloc(sizeof(struct fake_driver), GFP_KERNEL);
+	fake_device = kzalloc(sizeof(*fake_device), GFP_KERNEL);
 	if (fake_device == NULL) {
 		retval = -ENOMEM;
 		goto err_driver;
@@ -1104,8 +1104,7 @@ static int __init fake_init(void)
 	/* Add master windows to list */
 	INIT_LIST_HEAD(&fake_bridge->master_resources);
 	for (i = 0; i < FAKE_MAX_MASTER; i++) {
-		master_image = kmalloc(sizeof(struct vme_master_resource),
-				GFP_KERNEL);
+		master_image = kmalloc(sizeof(*master_image), GFP_KERNEL);
 		if (master_image == NULL) {
 			retval = -ENOMEM;
 			goto err_master;
@@ -1131,8 +1130,7 @@ static int __init fake_init(void)
 	/* Add slave windows to list */
 	INIT_LIST_HEAD(&fake_bridge->slave_resources);
 	for (i = 0; i < FAKE_MAX_SLAVE; i++) {
-		slave_image = kmalloc(sizeof(struct vme_slave_resource),
-				GFP_KERNEL);
+		slave_image = kmalloc(sizeof(*slave_image), GFP_KERNEL);
 		if (slave_image == NULL) {
 			retval = -ENOMEM;
 			goto err_slave;
@@ -1154,7 +1152,7 @@ static int __init fake_init(void)
 
 	/* Add location monitor to list */
 	INIT_LIST_HEAD(&fake_bridge->lm_resources);
-	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
+	lm = kmalloc(sizeof(*lm), GFP_KERNEL);
 	if (lm == NULL) {
 		retval = -ENOMEM;
 		goto err_lm;
