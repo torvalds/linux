@@ -139,10 +139,9 @@ struct mlx5_esw_sq {
 };
 
 struct mlx5_eswitch_rep {
-	int		       (*load)(struct mlx5_eswitch *esw,
+	int		       (*load)(struct mlx5_core_dev *dev,
 				       struct mlx5_eswitch_rep *rep);
-	void		       (*unload)(struct mlx5_eswitch *esw,
-					 struct mlx5_eswitch_rep *rep);
+	void		       (*unload)(struct mlx5_eswitch_rep *rep);
 	u16		       vport;
 	u8		       hw_id[ETH_ALEN];
 	struct net_device      *netdev;

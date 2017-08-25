@@ -777,7 +777,7 @@ static void esw_offloads_unload_reps(struct mlx5_eswitch *esw, int nvports)
 		if (!rep->valid)
 			continue;
 
-		rep->unload(esw, rep);
+		rep->unload(rep);
 	}
 }
 
@@ -792,7 +792,7 @@ static int esw_offloads_load_reps(struct mlx5_eswitch *esw, int nvports)
 		if (!rep->valid)
 			continue;
 
-		err = rep->load(esw, rep);
+		err = rep->load(esw->dev, rep);
 		if (err)
 			goto err_reps;
 	}
@@ -1193,7 +1193,7 @@ void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 	rep = &offloads->vport_reps[vport_index];
 
 	if (esw->mode == SRIOV_OFFLOADS && esw->vports[vport_index].enabled)
-		rep->unload(esw, rep);
+		rep->unload(rep);
 
 	rep->valid = false;
 }
