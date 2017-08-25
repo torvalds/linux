@@ -154,6 +154,49 @@ void drm_syncobj_replace_fence(struct drm_syncobj *syncobj,
 }
 EXPORT_SYMBOL(drm_syncobj_replace_fence);
 
+struct drm_syncobj_null_fence {
+	struct dma_fence base;
+	spinlock_t lock;
+};
+
+static const char *drm_syncobj_null_fence_get_name(struct dma_fence *fence)
+{
+        return "syncobjnull";
+}
+
+static bool drm_syncobj_null_fence_enable_signaling(struct dma_fence *fence)
+{
+    dma_fence_enable_sw_signaling(fence);
+    return !dma_fence_is_signaled(fence);
+}
+
+static const struct dma_fence_ops drm_syncobj_null_fence_ops = {
+	.get_driver_name = drm_syncobj_null_fence_get_name,
+	.get_timeline_name = drm_syncobj_null_fence_get_name,
+	.enable_signaling = drm_syncobj_null_fence_enable_signaling,
+	.wait = dma_fence_default_wait,
+	.release = NULL,
+};
+
+static int drm_syncobj_assign_null_handle(struct drm_syncobj *syncobj)
+{
+	struct drm_syncobj_null_fence *fence;
+	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	if (fence == NULL)
+		return -ENOMEM;
+
+	spin_lock_init(&fence->lock);
+	dma_fence_init(&fence->base, &drm_syncobj_null_fence_ops,
+		       &fence->lock, 0, 0);
+	dma_fence_signal(&fence->base);
+
+	drm_syncobj_replace_fence(syncobj, &fence->base);
+
+	dma_fence_put(&fence->base);
+
+	return 0;
+}
+
 int drm_syncobj_find_fence(struct drm_file *file_private,
 			   u32 handle,
 			   struct dma_fence **fence)
@@ -190,7 +233,7 @@ void drm_syncobj_free(struct kref *kref)
 EXPORT_SYMBOL(drm_syncobj_free);
 
 static int drm_syncobj_create(struct drm_file *file_private,
-			      u32 *handle)
+			      u32 *handle, uint32_t flags)
 {
 	int ret;
 	struct drm_syncobj *syncobj;
@@ -202,6 +245,14 @@ static int drm_syncobj_create(struct drm_file *file_private,
 	kref_init(&syncobj->refcount);
 	INIT_LIST_HEAD(&syncobj->cb_list);
 	spin_lock_init(&syncobj->lock);
+
+	if (flags & DRM_SYNCOBJ_CREATE_SIGNALED) {
+		ret = drm_syncobj_assign_null_handle(syncobj);
+		if (ret < 0) {
+			drm_syncobj_put(syncobj);
+			return ret;
+		}
+	}
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&file_private->syncobj_table_lock);
@@ -438,11 +489,11 @@ drm_syncobj_create_ioctl(struct drm_device *dev, void *data,
 		return -ENODEV;
 
 	/* no valid flags yet */
-	if (args->flags)
+	if (args->flags & ~DRM_SYNCOBJ_CREATE_SIGNALED)
 		return -EINVAL;
 
 	return drm_syncobj_create(file_private,
-				  &args->handle);
+				  &args->handle, args->flags);
 }
 
 int
