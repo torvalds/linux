@@ -2044,5 +2044,5 @@ static void __exit null_exit(void)
 module_init(null_init);
 module_exit(null_exit);
 
-MODULE_AUTHOR("Jens Axboe <jaxboe@fusionio.com>");
+MODULE_AUTHOR("Jens Axboe <axboe@kernel.dk>");
 MODULE_LICENSE("GPL");
