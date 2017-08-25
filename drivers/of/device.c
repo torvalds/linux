@@ -58,7 +58,7 @@ int of_device_add(struct platform_device *ofdev)
 	/* name and id have to be set so that the platform bus doesn't get
 	 * confused on matching */
 	ofdev->name = dev_name(&ofdev->dev);
-	ofdev->id = -1;
+	ofdev->id = PLATFORM_DEVID_NONE;
 
 	/*
 	 * If this device has not binding numa node in devicetree, that is
