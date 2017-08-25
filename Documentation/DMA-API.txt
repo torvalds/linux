@@ -600,10 +600,6 @@ flags can be ORed together and are:
 
 One or both of these flags must be present.
 
-- DMA_MEMORY_INCLUDES_CHILDREN - make the declared memory be allocated by
-  dma_alloc_coherent of any child devices of this one (for memory residing
-  on a bridge).
-
 - DMA_MEMORY_EXCLUSIVE - only allocate memory from the declared regions.
   Do not allow dma_alloc_coherent() to fall back to system memory when
   it's out of memory in the declared region.

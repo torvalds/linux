@@ -109,8 +109,6 @@ static int dma_assign_coherent_memory(struct device *dev,
 		return -EBUSY;
 
 	dev->dma_mem = mem;
-	/* FIXME: this routine just ignores DMA_MEMORY_INCLUDES_CHILDREN */
-
 	return 0;
 }
 
