@@ -906,7 +906,8 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 		rsta = rsi_find_sta(common, sta->addr);
 		if (!rsta) {
 			rsi_dbg(ERR_ZONE, "No station mapped\n");
-			return 0;
+			status = 0;
+			goto unlock;
 		}
 		sta_id = rsta->sta_id;
 	}
@@ -974,6 +975,7 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	}
 
+unlock:
 	mutex_unlock(&common->mutex);
 	return status;
 }
@@ -1202,6 +1204,7 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 	struct rsi_common *common = adapter->priv;
 	bool sta_exist = false;
 	struct rsi_sta *rsta;
+	int status = 0;
 
 	rsi_dbg(INFO_ZONE, "Station Add: %pM\n", sta->addr);
 
@@ -1215,8 +1218,8 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 		/* Check if max stations reached */
 		if (common->num_stations >= common->max_stations) {
 			rsi_dbg(ERR_ZONE, "Reject: Max Stations exists\n");
-			mutex_unlock(&common->mutex);
-			return -EOPNOTSUPP;
+			status = -EOPNOTSUPP;
+			goto unlock;
 		}
 		for (cnt = 0; cnt < common->max_stations; cnt++) {
 			rsta = &common->stations[cnt];
@@ -1241,7 +1244,8 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 			rsi_dbg(ERR_ZONE,
 				"%s: Some problem reaching here...\n",
 				__func__);
-			return -EINVAL;
+			status = -EINVAL;
+			goto unlock;
 		}
 		rsta = &common->stations[sta_idx];
 		rsta->sta = sta;
@@ -1289,9 +1293,10 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 		}
 	}
 
+unlock:
 	mutex_unlock(&common->mutex);
 
-	return 0;
+	return status;
 }
 
 /**
