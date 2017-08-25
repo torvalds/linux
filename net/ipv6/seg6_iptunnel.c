@@ -240,6 +240,22 @@ static int seg6_do_srh(struct sk_buff *skb)
 
 		skb->protocol = htons(ETH_P_IPV6);
 		break;
+	case SEG6_IPTUN_MODE_L2ENCAP:
+		if (!skb_mac_header_was_set(skb))
+			return -EINVAL;
+
+		if (pskb_expand_head(skb, skb->mac_len, 0, GFP_ATOMIC) < 0)
+			return -ENOMEM;
+
+		skb_mac_header_rebuild(skb);
+		skb_push(skb, skb->mac_len);
+
+		err = seg6_do_srh_encap(skb, tinfo->srh, NEXTHDR_NONE);
+		if (err)
+			return err;
+
+		skb->protocol = htons(ETH_P_IPV6);
+		break;
 	}
 
 	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
@@ -386,6 +402,8 @@ static int seg6_build_state(struct nlattr *nla,
 		break;
 	case SEG6_IPTUN_MODE_ENCAP:
 		break;
+	case SEG6_IPTUN_MODE_L2ENCAP:
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -409,8 +427,11 @@ static int seg6_build_state(struct nlattr *nla,
 	memcpy(&slwt->tuninfo, tuninfo, tuninfo_len);
 
 	newts->type = LWTUNNEL_ENCAP_SEG6;
-	newts->flags |= LWTUNNEL_STATE_OUTPUT_REDIRECT |
-			LWTUNNEL_STATE_INPUT_REDIRECT;
+	newts->flags |= LWTUNNEL_STATE_INPUT_REDIRECT;
+
+	if (tuninfo->mode != SEG6_IPTUN_MODE_L2ENCAP)
+		newts->flags |= LWTUNNEL_STATE_OUTPUT_REDIRECT;
+
 	newts->headroom = seg6_lwt_headroom(tuninfo);
 
 	*ts = newts;
