@@ -802,14 +802,41 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 
 	if (field_avail(typeof(resp), mlx5_ib_support_multi_pkt_send_wqes,
 			uhw->outlen)) {
-		resp.mlx5_ib_support_multi_pkt_send_wqes =
-			MLX5_CAP_ETH(mdev, multi_pkt_send_wqe);
+		if (MLX5_CAP_ETH(mdev, multi_pkt_send_wqe))
+			resp.mlx5_ib_support_multi_pkt_send_wqes =
+				MLX5_IB_ALLOW_MPW;
+
+		if (MLX5_CAP_ETH(mdev, enhanced_multi_pkt_send_wqe))
+			resp.mlx5_ib_support_multi_pkt_send_wqes |=
+				MLX5_IB_SUPPORT_EMPW;
+
 		resp.response_length +=
 			sizeof(resp.mlx5_ib_support_multi_pkt_send_wqes);
 	}
 
 	if (field_avail(typeof(resp), reserved, uhw->outlen))
 		resp.response_length += sizeof(resp.reserved);
+
+	if (field_avail(typeof(resp), sw_parsing_caps,
+			uhw->outlen)) {
+		resp.response_length += sizeof(resp.sw_parsing_caps);
+		if (MLX5_CAP_ETH(mdev, swp)) {
+			resp.sw_parsing_caps.sw_parsing_offloads |=
+				MLX5_IB_SW_PARSING;
+
+			if (MLX5_CAP_ETH(mdev, swp_csum))
+				resp.sw_parsing_caps.sw_parsing_offloads |=
+					MLX5_IB_SW_PARSING_CSUM;
+
+			if (MLX5_CAP_ETH(mdev, swp_lso))
+				resp.sw_parsing_caps.sw_parsing_offloads |=
+					MLX5_IB_SW_PARSING_LSO;
+
+			if (resp.sw_parsing_caps.sw_parsing_offloads)
+				resp.sw_parsing_caps.supported_qpts =
+					BIT(IB_QPT_RAW_PACKET);
+		}
+	}
 
 	if (uhw->outlen) {
 		err = ib_copy_to_udata(uhw, &resp, resp.response_length);
@@ -2104,7 +2131,7 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
  * it won't fall into the multicast flow steering table and this rule
  * could steal other multicast packets.
  */
-static bool flow_is_multicast_only(struct ib_flow_attr *ib_attr)
+static bool flow_is_multicast_only(const struct ib_flow_attr *ib_attr)
 {
 	union ib_flow_spec *flow_spec;
 
@@ -2316,10 +2343,31 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 	return err ? ERR_PTR(err) : prio;
 }
 
-static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
-						     struct mlx5_ib_flow_prio *ft_prio,
-						     const struct ib_flow_attr *flow_attr,
-						     struct mlx5_flow_destination *dst)
+static void set_underlay_qp(struct mlx5_ib_dev *dev,
+			    struct mlx5_flow_spec *spec,
+			    u32 underlay_qpn)
+{
+	void *misc_params_c = MLX5_ADDR_OF(fte_match_param,
+					   spec->match_criteria,
+					   misc_parameters);
+	void *misc_params_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+					   misc_parameters);
+
+	if (underlay_qpn &&
+	    MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
+				      ft_field_support.bth_dst_qp)) {
+		MLX5_SET(fte_match_set_misc,
+			 misc_params_v, bth_dst_qp, underlay_qpn);
+		MLX5_SET(fte_match_set_misc,
+			 misc_params_c, bth_dst_qp, 0xffffff);
+	}
+}
+
+static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
+						      struct mlx5_ib_flow_prio *ft_prio,
+						      const struct ib_flow_attr *flow_attr,
+						      struct mlx5_flow_destination *dst,
+						      u32 underlay_qpn)
 {
 	struct mlx5_flow_table	*ft = ft_prio->flow_table;
 	struct mlx5_ib_flow_handler *handler;
@@ -2354,6 +2402,9 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 
 		ib_flow += ((union ib_flow_spec *)ib_flow)->size;
 	}
+
+	if (!flow_is_multicast_only(flow_attr))
+		set_underlay_qp(dev, spec, underlay_qpn);
 
 	spec->match_criteria_enable = get_match_criteria_enable(spec->match_criteria);
 	if (is_drop) {
@@ -2392,6 +2443,14 @@ free:
 		kfree(handler);
 	kvfree(spec);
 	return err ? ERR_PTR(err) : handler;
+}
+
+static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
+						     struct mlx5_ib_flow_prio *ft_prio,
+						     const struct ib_flow_attr *flow_attr,
+						     struct mlx5_flow_destination *dst)
+{
+	return _create_flow_rule(dev, ft_prio, flow_attr, dst, 0);
 }
 
 static struct mlx5_ib_flow_handler *create_dont_trap_rule(struct mlx5_ib_dev *dev,
@@ -2530,6 +2589,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 	struct mlx5_ib_flow_prio *ft_prio_tx = NULL;
 	struct mlx5_ib_flow_prio *ft_prio;
 	int err;
+	int underlay_qpn;
 
 	if (flow_attr->priority > MLX5_IB_FLOW_LAST_PRIO)
 		return ERR_PTR(-ENOMEM);
@@ -2570,8 +2630,10 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 			handler = create_dont_trap_rule(dev, ft_prio,
 							flow_attr, dst);
 		} else {
-			handler = create_flow_rule(dev, ft_prio, flow_attr,
-						   dst);
+			underlay_qpn = (mqp->flags & MLX5_IB_QP_UNDERLAY) ?
+					mqp->underlay_qpn : 0;
+			handler = _create_flow_rule(dev, ft_prio, flow_attr,
+						    dst, underlay_qpn);
 		}
 	} else if (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
 		   flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT) {
@@ -3793,6 +3855,8 @@ static int delay_drop_debugfs_init(struct mlx5_ib_dev *dev)
 	if (!dbg->timeout_debugfs)
 		goto out_debugfs;
 
+	dev->delay_drop.dbg = dbg;
+
 	return 0;
 
 out_debugfs:
@@ -3817,8 +3881,8 @@ static void init_delay_drop(struct mlx5_ib_dev *dev)
 		mlx5_ib_warn(dev, "Failed to init delay drop debugfs\n");
 }
 
-const struct cpumask *mlx5_ib_get_vector_affinity(struct ib_device *ibdev,
-		int comp_vector)
+static const struct cpumask *
+mlx5_ib_get_vector_affinity(struct ib_device *ibdev, int comp_vector)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 

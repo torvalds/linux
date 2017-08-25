@@ -1893,6 +1893,7 @@ static void ipoib_build_priv(struct net_device *dev)
 	spin_lock_init(&priv->lock);
 	init_rwsem(&priv->vlan_rwsem);
 	mutex_init(&priv->mcast_mutex);
+	mutex_init(&priv->sysfs_mutex);
 
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);
@@ -2242,13 +2243,7 @@ static struct net_device *ipoib_add_port(const char *format,
 
 	INIT_IB_EVENT_HANDLER(&priv->event_handler,
 			      priv->ca, ipoib_event);
-	result = ib_register_event_handler(&priv->event_handler);
-	if (result < 0) {
-		printk(KERN_WARNING "%s: ib_register_event_handler failed for "
-		       "port %d (ret = %d)\n",
-		       hca->name, port, result);
-		goto event_failed;
-	}
+	ib_register_event_handler(&priv->event_handler);
 
 	result = register_netdev(priv->dev);
 	if (result) {
@@ -2281,8 +2276,6 @@ register_failed:
 	set_bit(IPOIB_STOP_NEIGH_GC, &priv->flags);
 	cancel_delayed_work(&priv->neigh_reap_task);
 	flush_workqueue(priv->wq);
-
-event_failed:
 	ipoib_dev_cleanup(priv->dev);
 
 device_init_failed:
@@ -2352,7 +2345,11 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 		cancel_delayed_work(&priv->neigh_reap_task);
 		flush_workqueue(priv->wq);
 
+		/* Wrap rtnl_lock/unlock with mutex to protect sysfs calls */
+		mutex_lock(&priv->sysfs_mutex);
 		unregister_netdev(priv->dev);
+		mutex_unlock(&priv->sysfs_mutex);
+
 		rn->free_rdma_netdev(priv->dev);
 
 		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list)

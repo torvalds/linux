@@ -133,12 +133,20 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	snprintf(intf_name, sizeof intf_name, "%s.%04x",
 		 ppriv->dev->name, pkey);
 
-	if (!rtnl_trylock())
+	if (!mutex_trylock(&ppriv->sysfs_mutex))
 		return restart_syscall();
 
+	if (!rtnl_trylock()) {
+		mutex_unlock(&ppriv->sysfs_mutex);
+		return restart_syscall();
+	}
+
 	priv = ipoib_intf_alloc(ppriv->ca, ppriv->port, intf_name);
-	if (!priv)
+	if (!priv) {
+		rtnl_unlock();
+		mutex_unlock(&ppriv->sysfs_mutex);
 		return -ENOMEM;
+	}
 
 	down_write(&ppriv->vlan_rwsem);
 
@@ -164,8 +172,8 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 
 out:
 	up_write(&ppriv->vlan_rwsem);
-
 	rtnl_unlock();
+	mutex_unlock(&ppriv->sysfs_mutex);
 
 	if (result) {
 		free_netdev(priv->dev);
@@ -188,8 +196,13 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 	if (test_bit(IPOIB_FLAG_GOING_DOWN, &ppriv->flags))
 		return -EPERM;
 
-	if (!rtnl_trylock())
+	if (!mutex_trylock(&ppriv->sysfs_mutex))
 		return restart_syscall();
+
+	if (!rtnl_trylock()) {
+		mutex_unlock(&ppriv->sysfs_mutex);
+		return restart_syscall();
+	}
 
 	down_write(&ppriv->vlan_rwsem);
 	list_for_each_entry_safe(priv, tpriv, &ppriv->child_intfs, list) {
@@ -208,6 +221,7 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 	}
 
 	rtnl_unlock();
+	mutex_unlock(&ppriv->sysfs_mutex);
 
 	if (dev) {
 		free_netdev(dev);

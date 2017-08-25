@@ -204,7 +204,7 @@ static int process_pma_cmd(struct ib_device *ibdev, u8 port_num,
 	int err;
 	void *out_cnt;
 
-	/* Decalring support of extended counters */
+	/* Declaring support of extended counters */
 	if (in_mad->mad_hdr.attr_id == IB_PMA_CLASS_PORT_INFO) {
 		struct ib_class_port_info cpi = {};
 

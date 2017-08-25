@@ -295,8 +295,10 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 	u8         inner_tcp_dport[0x1];
 	u8         inner_tcp_flags[0x1];
 	u8         reserved_at_37[0x9];
+	u8         reserved_at_40[0x1a];
+	u8         bth_dst_qp[0x1];
 
-	u8         reserved_at_40[0x40];
+	u8         reserved_at_5b[0x25];
 };
 
 struct mlx5_ifc_flow_table_prop_layout_bits {
@@ -432,7 +434,9 @@ struct mlx5_ifc_fte_match_set_misc_bits {
 	u8         reserved_at_100[0xc];
 	u8         inner_ipv6_flow_label[0x14];
 
-	u8         reserved_at_120[0xe0];
+	u8         reserved_at_120[0x28];
+	u8         bth_dst_qp[0x18];
+	u8         reserved_at_160[0xa0];
 };
 
 struct mlx5_ifc_cmd_pas_bits {
@@ -600,7 +604,7 @@ struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         rss_ind_tbl_cap[0x4];
 	u8         reg_umr_sq[0x1];
 	u8         scatter_fcs[0x1];
-	u8         reserved_at_1a[0x1];
+	u8         enhanced_multi_pkt_send_wqe[0x1];
 	u8         tunnel_lso_const_out_ip_id[0x1];
 	u8         reserved_at_1c[0x2];
 	u8         tunnel_statless_gre[0x1];
@@ -2441,7 +2445,7 @@ struct mlx5_ifc_sqc_bits {
 	u8         cd_master[0x1];
 	u8         fre[0x1];
 	u8         flush_in_error_en[0x1];
-	u8         reserved_at_4[0x1];
+	u8         allow_multi_pkt_send_wqe[0x1];
 	u8	   min_wqe_inline_mode[0x3];
 	u8         state[0x4];
 	u8         reg_umr[0x1];

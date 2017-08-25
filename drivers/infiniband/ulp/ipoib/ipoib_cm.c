@@ -1506,8 +1506,13 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 	if (test_bit(IPOIB_FLAG_GOING_DOWN, &priv->flags))
 		return -EPERM;
 
-	if (!rtnl_trylock())
+	if (!mutex_trylock(&priv->sysfs_mutex))
 		return restart_syscall();
+
+	if (!rtnl_trylock()) {
+		mutex_unlock(&priv->sysfs_mutex);
+		return restart_syscall();
+	}
 
 	ret = ipoib_set_mode(dev, buf);
 
@@ -1517,6 +1522,7 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 	 */
 	if (ret != -EBUSY)
 		rtnl_unlock();
+	mutex_unlock(&priv->sysfs_mutex);
 
 	return (!ret || ret == -EBUSY) ? count : ret;
 }

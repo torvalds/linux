@@ -954,12 +954,7 @@ static int vema_register(struct opa_vnic_ctrl_port *cport)
 
 		INIT_IB_EVENT_HANDLER(&port->event_handler,
 				      cport->ibdev, opa_vnic_event);
-		ret = ib_register_event_handler(&port->event_handler);
-		if (ret) {
-			c_err("port %d: event handler register failed\n", i);
-			vema_unregister(cport);
-			return ret;
-		}
+		ib_register_event_handler(&port->event_handler);
 
 		idr_init(&port->vport_idr);
 		mutex_init(&port->lock);

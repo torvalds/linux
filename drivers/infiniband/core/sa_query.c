@@ -2417,8 +2417,7 @@ static void ib_sa_add_one(struct ib_device *device)
 	 */
 
 	INIT_IB_EVENT_HANDLER(&sa_dev->event_handler, device, ib_sa_event);
-	if (ib_register_event_handler(&sa_dev->event_handler))
-		goto err;
+	ib_register_event_handler(&sa_dev->event_handler);
 
 	for (i = 0; i <= e - s; ++i) {
 		if (rdma_cap_ib_sa(device, i + 1))

@@ -748,7 +748,7 @@ static int create_qp_rss(struct mlx4_ib_dev *dev, struct ib_pd *ibpd,
 	INIT_LIST_HEAD(&qp->gid_list);
 	INIT_LIST_HEAD(&qp->steering_rules);
 
-	qp->mlx4_ib_qp_type = MLX4_IB_QPT_RAW_ETHERTYPE;
+	qp->mlx4_ib_qp_type = MLX4_IB_QPT_RAW_PACKET;
 	qp->state = IB_QPS_RESET;
 
 	/* Set dummy send resources to be compatible with HV and PRM */
@@ -811,6 +811,9 @@ static struct ib_qp *_mlx4_ib_create_qp_rss(struct ib_pd *pd,
 		pr_debug("copy failed\n");
 		return ERR_PTR(-EFAULT);
 	}
+
+	if (memchr_inv(ucmd.reserved, 0, sizeof(ucmd.reserved)))
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (ucmd.comp_mask || ucmd.reserved1)
 		return ERR_PTR(-EOPNOTSUPP);
@@ -1046,9 +1049,8 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		}
 
 		if (src == MLX4_IB_RWQ_SRC) {
-			if (ucmd.wq.comp_mask || ucmd.wq.reserved1 ||
-			    ucmd.wq.reserved[0] || ucmd.wq.reserved[1] ||
-			    ucmd.wq.reserved[2]) {
+			if (ucmd.wq.comp_mask || ucmd.wq.reserved[0] ||
+			    ucmd.wq.reserved[1] || ucmd.wq.reserved[2]) {
 				pr_debug("user command isn't supported\n");
 				err = -EOPNOTSUPP;
 				goto err;
@@ -2027,8 +2029,8 @@ static u8 gid_type_to_qpc(enum ib_gid_type gid_type)
  */
 static int bringup_rss_rwqs(struct ib_rwq_ind_table *ind_tbl, u8 port_num)
 {
+	int err = 0;
 	int i;
-	int err;
 
 	for (i = 0; i < (1 << ind_tbl->log_ind_tbl_size); i++) {
 		struct ib_wq *ibwq = ind_tbl->ind_tbl[i];
@@ -2723,19 +2725,17 @@ enum {
 static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			      int attr_mask, struct ib_udata *udata)
 {
+	enum rdma_link_layer ll = IB_LINK_LAYER_UNSPECIFIED;
 	struct mlx4_ib_dev *dev = to_mdev(ibqp->device);
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	enum ib_qp_state cur_state, new_state;
 	int err = -EINVAL;
-	int ll;
 	mutex_lock(&qp->mutex);
 
 	cur_state = attr_mask & IB_QP_CUR_STATE ? attr->cur_qp_state : qp->state;
 	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
 
-	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
-		ll = IB_LINK_LAYER_UNSPECIFIED;
-	} else {
+	if (cur_state != new_state || cur_state != IB_QPS_RESET) {
 		int port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
 		ll = rdma_port_get_link_layer(&dev->ib_dev, port);
 	}
@@ -4146,8 +4146,8 @@ struct ib_wq *mlx4_ib_create_wq(struct ib_pd *pd,
 	if (!(udata && pd->uobject))
 		return ERR_PTR(-EINVAL);
 
-	required_cmd_sz = offsetof(typeof(ucmd), reserved) +
-			  sizeof(ucmd.reserved);
+	required_cmd_sz = offsetof(typeof(ucmd), comp_mask) +
+			  sizeof(ucmd.comp_mask);
 	if (udata->inlen < required_cmd_sz) {
 		pr_debug("invalid inlen\n");
 		return ERR_PTR(-EINVAL);
