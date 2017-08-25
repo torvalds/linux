@@ -165,6 +165,13 @@ void __wake_up_locked_key(struct wait_queue_head *wq_head, unsigned int mode, vo
 }
 EXPORT_SYMBOL_GPL(__wake_up_locked_key);
 
+void __wake_up_locked_key_bookmark(struct wait_queue_head *wq_head,
+		unsigned int mode, void *key, wait_queue_entry_t *bookmark)
+{
+	__wake_up_common(wq_head, mode, 1, 0, key, bookmark);
+}
+EXPORT_SYMBOL_GPL(__wake_up_locked_key_bookmark);
+
 /**
  * __wake_up_sync_key - wake up threads blocked on a waitqueue.
  * @wq_head: the waitqueue
