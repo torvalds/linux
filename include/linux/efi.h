@@ -1504,6 +1504,13 @@ enum efi_secureboot_mode {
 };
 enum efi_secureboot_mode efi_get_secureboot(efi_system_table_t *sys_table);
 
+#ifdef CONFIG_RESET_ATTACK_MITIGATION
+void efi_enable_reset_attack_mitigation(efi_system_table_t *sys_table_arg);
+#else
+static inline void
+efi_enable_reset_attack_mitigation(efi_system_table_t *sys_table_arg) { }
+#endif
+
 /*
  * Arch code can implement the following three template macros, avoiding
  * reptition for the void/non-void return cases of {__,}efi_call_virt():

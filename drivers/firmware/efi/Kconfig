@@ -151,6 +151,16 @@ config APPLE_PROPERTIES
 
 	  If unsure, say Y if you have a Mac.  Otherwise N.
 
+config RESET_ATTACK_MITIGATION
+	bool "Reset memory attack mitigation"
+	depends on EFI_STUB
+	help
+	  Request that the firmware clear the contents of RAM after a reboot
+	  using the TCG Platform Reset Attack Mitigation specification. This
+	  protects against an attacker forcibly rebooting the system while it
+	  still contains secrets in RAM, booting another OS and extracting the
+	  secrets.
+
 endmenu
 
 config UEFI_CPER
