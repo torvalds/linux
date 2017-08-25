@@ -523,6 +523,7 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 	if (err)
 		goto free_stab;
 
+	err = -ENOMEM;
 	stab->sock_map = bpf_map_area_alloc(stab->map.max_entries *
 					    sizeof(struct sock *),
 					    stab->map.numa_node);
