@@ -71,6 +71,7 @@
 #include "nfp_app.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
+#include "nfp_net_sriov.h"
 #include "nfp_port.h"
 
 /**
@@ -3421,6 +3422,11 @@ const struct net_device_ops nfp_net_netdev_ops = {
 	.ndo_get_stats64	= nfp_net_stat64,
 	.ndo_vlan_rx_add_vid	= nfp_net_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= nfp_net_vlan_rx_kill_vid,
+	.ndo_set_vf_mac         = nfp_app_set_vf_mac,
+	.ndo_set_vf_vlan        = nfp_app_set_vf_vlan,
+	.ndo_set_vf_spoofchk    = nfp_app_set_vf_spoofchk,
+	.ndo_get_vf_config	= nfp_app_get_vf_config,
+	.ndo_set_vf_link_state  = nfp_app_set_vf_link_state,
 	.ndo_setup_tc		= nfp_port_setup_tc,
 	.ndo_tx_timeout		= nfp_net_tx_timeout,
 	.ndo_set_rx_mode	= nfp_net_set_rx_mode,
