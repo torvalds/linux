@@ -5,7 +5,7 @@
 #include <linux/efi.h>
 #include <linux/reboot.h>
 
-void (*orig_pm_power_off)(void);
+static void (*orig_pm_power_off)(void);
 
 int efi_reboot_quirk_mode = -1;
 
