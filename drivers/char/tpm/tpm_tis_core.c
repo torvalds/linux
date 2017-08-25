@@ -445,7 +445,7 @@ static int probe_itpm(struct tpm_chip *chip)
 {
 	struct tpm_tis_data *priv = dev_get_drvdata(&chip->dev);
 	int rc = 0;
-	u8 cmd_getticks[] = {
+	static const u8 cmd_getticks[] = {
 		0x00, 0xc1, 0x00, 0x00, 0x00, 0x0a,
 		0x00, 0x00, 0x00, 0xf1
 	};
