@@ -136,7 +136,8 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(gobj);
 
-	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm))
+	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm) ||
+	    bo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID)
 		return ERR_PTR(-EPERM);
 
 	return drm_gem_prime_export(dev, gobj, flags);
