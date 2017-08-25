@@ -2031,7 +2031,8 @@ static int do_setlink(const struct sk_buff *skb,
 		struct sockaddr *sa;
 		int len;
 
-		len = sizeof(sa_family_t) + dev->addr_len;
+		len = sizeof(sa_family_t) + max_t(size_t, dev->addr_len,
+						  sizeof(*sa));
 		sa = kmalloc(len, GFP_KERNEL);
 		if (!sa) {
 			err = -ENOMEM;
@@ -4241,6 +4242,7 @@ static int rtnetlink_event(struct notifier_block *this, unsigned long event, voi
 
 	switch (event) {
 	case NETDEV_REBOOT:
+	case NETDEV_CHANGEADDR:
 	case NETDEV_CHANGENAME:
 	case NETDEV_FEAT_CHANGE:
 	case NETDEV_BONDING_FAILOVER:

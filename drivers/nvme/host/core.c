@@ -336,7 +336,7 @@ static int nvme_get_stream_params(struct nvme_ctrl *ctrl,
 
 	c.directive.opcode = nvme_admin_directive_recv;
 	c.directive.nsid = cpu_to_le32(nsid);
-	c.directive.numd = sizeof(*s);
+	c.directive.numd = cpu_to_le32(sizeof(*s));
 	c.directive.doper = NVME_DIR_RCV_ST_OP_PARAM;
 	c.directive.dtype = NVME_DIR_STREAMS;
 
@@ -1995,6 +1995,9 @@ static ssize_t wwid_show(struct device *dev, struct device_attribute *attr,
 	int serial_len = sizeof(ctrl->serial);
 	int model_len = sizeof(ctrl->model);
 
+	if (!uuid_is_null(&ns->uuid))
+		return sprintf(buf, "uuid.%pU\n", &ns->uuid);
+
 	if (memchr_inv(ns->nguid, 0, sizeof(ns->nguid)))
 		return sprintf(buf, "eui.%16phN\n", ns->nguid);
 
@@ -2709,7 +2712,8 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 	mutex_lock(&ctrl->namespaces_mutex);
 
 	/* Forcibly unquiesce queues to avoid blocking dispatch */
-	blk_mq_unquiesce_queue(ctrl->admin_q);
+	if (ctrl->admin_q)
+		blk_mq_unquiesce_queue(ctrl->admin_q);
 
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
 		/*

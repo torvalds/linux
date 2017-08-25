@@ -2743,9 +2743,9 @@ module_init(virtio_net_driver_init);
 
 static __exit void virtio_net_driver_exit(void)
 {
+	unregister_virtio_driver(&virtio_net_driver);
 	cpuhp_remove_multi_state(CPUHP_VIRT_NET_DEAD);
 	cpuhp_remove_multi_state(virtionet_online);
-	unregister_virtio_driver(&virtio_net_driver);
 }
 module_exit(virtio_net_driver_exit);
 

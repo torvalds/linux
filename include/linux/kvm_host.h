@@ -445,6 +445,7 @@ struct kvm {
 	struct kvm_stat_data **debugfs_stat_data;
 	struct srcu_struct srcu;
 	struct srcu_struct irq_srcu;
+	pid_t userspace_pid;
 };
 
 #define kvm_err(fmt, ...) \

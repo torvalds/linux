@@ -334,5 +334,24 @@ struct fcnvme_ls_disconnect_acc {
 #define NVME_FC_LS_TIMEOUT_SEC		2		/* 2 seconds */
 #define NVME_FC_TGTOP_TIMEOUT_SEC	2		/* 2 seconds */
 
+/*
+ * TRADDR string must be of form "nn-<16hexdigits>:pn-<16hexdigits>"
+ * the string is allowed to be specified with or without a "0x" prefix
+ * infront of the <16hexdigits>.  Without is considered the "min" string
+ * and with is considered the "max" string. The hexdigits may be upper
+ * or lower case.
+ */
+#define NVME_FC_TRADDR_NNLEN		3	/* "?n-" */
+#define NVME_FC_TRADDR_OXNNLEN		5	/* "?n-0x" */
+#define NVME_FC_TRADDR_HEXNAMELEN	16
+#define NVME_FC_TRADDR_MINLENGTH	\
+		(2 * (NVME_FC_TRADDR_NNLEN + NVME_FC_TRADDR_HEXNAMELEN) + 1)
+#define NVME_FC_TRADDR_MAXLENGTH	\
+		(2 * (NVME_FC_TRADDR_OXNNLEN + NVME_FC_TRADDR_HEXNAMELEN) + 1)
+#define NVME_FC_TRADDR_MIN_PN_OFFSET	\
+		(NVME_FC_TRADDR_NNLEN + NVME_FC_TRADDR_HEXNAMELEN + 1)
+#define NVME_FC_TRADDR_MAX_PN_OFFSET	\
+		(NVME_FC_TRADDR_OXNNLEN + NVME_FC_TRADDR_HEXNAMELEN + 1)
+
 
 #endif /* _NVME_FC_H */

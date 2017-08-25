@@ -11,6 +11,7 @@ Required properties:
  - reg-names:	Names of the registers.
 		"amac_base":	Address and length of the GMAC registers
 		"idm_base":	Address and length of the GMAC IDM registers
+				(required for NSP and Northstar2)
 		"nicpm_base":	Address and length of the NIC Port Manager
 				registers (required for Northstar2)
  - interrupts:	Interrupt number

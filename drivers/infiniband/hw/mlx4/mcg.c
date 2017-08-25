@@ -1091,7 +1091,7 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 		if (!count)
 			break;
 
-		msleep(1);
+		usleep_range(1000, 2000);
 	} while (time_after(end, jiffies));
 
 	flush_workqueue(ctx->mcg_wq);

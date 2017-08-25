@@ -492,7 +492,7 @@ asm(
  * the "%x0" template means XZR.
  */
 #define write_sysreg(v, r) do {					\
-	u64 __val = (u64)v;					\
+	u64 __val = (u64)(v);					\
 	asm volatile("msr " __stringify(r) ", %x0"		\
 		     : : "rZ" (__val));				\
 } while (0)
@@ -508,7 +508,7 @@ asm(
 })
 
 #define write_sysreg_s(v, r) do {					\
-	u64 __val = (u64)v;						\
+	u64 __val = (u64)(v);						\
 	asm volatile("msr_s " __stringify(r) ", %x0" : : "rZ" (__val));	\
 } while (0)
 

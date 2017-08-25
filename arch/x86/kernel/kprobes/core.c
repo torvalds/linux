@@ -457,6 +457,8 @@ static int arch_copy_kprobe(struct kprobe *p)
 
 int arch_prepare_kprobe(struct kprobe *p)
 {
+	int ret;
+
 	if (alternatives_text_reserved(p->addr, p->addr))
 		return -EINVAL;
 
@@ -467,7 +469,13 @@ int arch_prepare_kprobe(struct kprobe *p)
 	if (!p->ainsn.insn)
 		return -ENOMEM;
 
-	return arch_copy_kprobe(p);
+	ret = arch_copy_kprobe(p);
+	if (ret) {
+		free_insn_slot(p->ainsn.insn, 0);
+		p->ainsn.insn = NULL;
+	}
+
+	return ret;
 }
 
 void arch_arm_kprobe(struct kprobe *p)

@@ -1481,12 +1481,44 @@ int pdc_pat_mem_read_pd_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
 		unsigned long offset)
 {
 	int retval;
-	unsigned long flags;
+	unsigned long flags, entries;
 
 	spin_lock_irqsave(&pdc_lock, flags);
 	retval = mem_pdc_call(PDC_PAT_MEM, PDC_PAT_MEM_PD_READ,
-		__pa(&pret), __pa(pdt_entries_ptr),
+		__pa(&pdc_result), __pa(pdt_entries_ptr),
 		count, offset);
+
+	if (retval == PDC_OK) {
+		entries = min(pdc_result[0], count);
+		pret->actual_count_bytes = entries;
+		pret->pdt_entries = entries / sizeof(unsigned long);
+	}
+
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
+}
+
+/**
+ * pdc_pat_mem_get_dimm_phys_location - Get physical DIMM slot via PAT firmware
+ * @pret: ptr to hold returned information
+ * @phys_addr: physical address to examine
+ *
+ */
+int pdc_pat_mem_get_dimm_phys_location(
+		struct pdc_pat_mem_phys_mem_location *pret,
+		unsigned long phys_addr)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_PAT_MEM, PDC_PAT_MEM_ADDRESS,
+		__pa(&pdc_result), phys_addr);
+
+	if (retval == PDC_OK)
+		memcpy(pret, &pdc_result, sizeof(*pret));
+
 	spin_unlock_irqrestore(&pdc_lock, flags);
 
 	return retval;

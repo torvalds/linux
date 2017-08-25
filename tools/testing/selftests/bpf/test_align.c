@@ -380,7 +380,7 @@ static int do_test_single(struct bpf_align_test *test)
 	prog_len = probe_filter_length(prog);
 	fd_prog = bpf_verify_program(prog_type ? : BPF_PROG_TYPE_SOCKET_FILTER,
 				     prog, prog_len, 1, "GPL", 0,
-				     bpf_vlog, sizeof(bpf_vlog));
+				     bpf_vlog, sizeof(bpf_vlog), 2);
 	if (fd_prog < 0) {
 		printf("Failed to load program.\n");
 		printf("%s", bpf_vlog);

@@ -453,7 +453,6 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 	struct component_match *match;
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	exynos_drm_driver.num_ioctls = ARRAY_SIZE(exynos_ioctls);
 
 	match = exynos_drm_match_add(&pdev->dev);
 	if (IS_ERR(match))

@@ -963,6 +963,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 		goto err3;
 
 	if (ucontext) {
+		ret = -ENOMEM;
 		mm = kmalloc(sizeof *mm, GFP_KERNEL);
 		if (!mm)
 			goto err4;

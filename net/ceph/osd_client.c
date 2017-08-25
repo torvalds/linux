@@ -5310,7 +5310,10 @@ static int invalidate_authorizer(struct ceph_connection *con)
 
 static void osd_reencode_message(struct ceph_msg *msg)
 {
-	encode_request_finish(msg);
+	int type = le16_to_cpu(msg->hdr.type);
+
+	if (type == CEPH_MSG_OSD_OP)
+		encode_request_finish(msg);
 }
 
 static int osd_sign_message(struct ceph_msg *msg)

@@ -78,7 +78,7 @@ void opal_configure_cores(void)
 	 *  ie. Host hash  supports  hash guests
 	 *      Host radix supports  hash/radix guests
 	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+	if (early_cpu_has_feature(CPU_FTR_ARCH_300)) {
 		reinit_flags |= OPAL_REINIT_CPUS_MMU_HASH;
 		if (early_radix_enabled())
 			reinit_flags |= OPAL_REINIT_CPUS_MMU_RADIX;
