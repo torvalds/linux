@@ -98,15 +98,17 @@ static int gpio_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
 			// pulse
 			ktime_t last = ktime_add_us(edge, txbuf[i]);
 
-			while (ktime_get() < last) {
+			while (ktime_before(ktime_get(), last)) {
 				gpiod_set_value(gpio_ir->gpio, 1);
-				edge += pulse;
-				delta = edge - ktime_get();
+				edge = ktime_add_ns(edge, pulse);
+				delta = ktime_to_ns(ktime_sub(edge,
+							      ktime_get()));
 				if (delta > 0)
 					ndelay(delta);
 				gpiod_set_value(gpio_ir->gpio, 0);
-				edge += space;
-				delta = edge - ktime_get();
+				edge = ktime_add_ns(edge, space);
+				delta = ktime_to_ns(ktime_sub(edge,
+							      ktime_get()));
 				if (delta > 0)
 					ndelay(delta);
 			}
