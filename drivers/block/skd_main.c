@@ -629,7 +629,7 @@ static void skd_end_request(struct skd_device *skdev, struct request *req,
 	blk_mq_complete_request(req);
 }
 
-static void skd_softirq_done(struct request *req)
+static void skd_complete_rq(struct request *req)
 {
 	struct skd_request_context *skreq = blk_mq_rq_to_pdu(req);
 
@@ -2821,7 +2821,7 @@ err_out:
 
 static const struct blk_mq_ops skd_mq_ops = {
 	.queue_rq	= skd_mq_queue_rq,
-	.complete	= skd_softirq_done,
+	.complete	= skd_complete_rq,
 	.timeout	= skd_timed_out,
 	.init_request	= skd_init_request,
 	.exit_request	= skd_exit_request,
