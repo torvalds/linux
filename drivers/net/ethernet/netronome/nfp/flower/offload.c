@@ -105,35 +105,40 @@ static int
 nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 				struct tc_cls_flower_offload *flow)
 {
-	struct flow_dissector_key_control *mask_enc_ctl;
-	struct flow_dissector_key_basic *mask_basic;
-	struct flow_dissector_key_basic *key_basic;
+	struct flow_dissector_key_basic *mask_basic = NULL;
+	struct flow_dissector_key_basic *key_basic = NULL;
 	u32 key_layer_two;
 	u8 key_layer;
 	int key_size;
 
-	mask_enc_ctl = skb_flow_dissector_target(flow->dissector,
-						 FLOW_DISSECTOR_KEY_ENC_CONTROL,
-						 flow->mask);
+	if (dissector_uses_key(flow->dissector,
+			       FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
+		struct flow_dissector_key_control *mask_enc_ctl =
+			skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_CONTROL,
+						  flow->mask);
+		/* We are expecting a tunnel. For now we ignore offloading. */
+		if (mask_enc_ctl->addr_type)
+			return -EOPNOTSUPP;
+	}
 
-	mask_basic = skb_flow_dissector_target(flow->dissector,
-					       FLOW_DISSECTOR_KEY_BASIC,
-					       flow->mask);
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
+		mask_basic = skb_flow_dissector_target(flow->dissector,
+						       FLOW_DISSECTOR_KEY_BASIC,
+						       flow->mask);
 
-	key_basic = skb_flow_dissector_target(flow->dissector,
-					      FLOW_DISSECTOR_KEY_BASIC,
-					      flow->key);
+		key_basic = skb_flow_dissector_target(flow->dissector,
+						      FLOW_DISSECTOR_KEY_BASIC,
+						      flow->key);
+	}
+
 	key_layer_two = 0;
 	key_layer = NFP_FLOWER_LAYER_PORT | NFP_FLOWER_LAYER_MAC;
 	key_size = sizeof(struct nfp_flower_meta_one) +
 		   sizeof(struct nfp_flower_in_port) +
 		   sizeof(struct nfp_flower_mac_mpls);
 
-	/* We are expecting a tunnel. For now we ignore offloading. */
-	if (mask_enc_ctl->addr_type)
-		return -EOPNOTSUPP;
-
-	if (mask_basic->n_proto) {
+	if (mask_basic && mask_basic->n_proto) {
 		/* Ethernet type is present in the key. */
 		switch (key_basic->n_proto) {
 		case cpu_to_be16(ETH_P_IP):
@@ -166,7 +171,7 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 		}
 	}
 
-	if (mask_basic->ip_proto) {
+	if (mask_basic && mask_basic->ip_proto) {
 		/* Ethernet type is present in the key. */
 		switch (key_basic->ip_proto) {
 		case IPPROTO_TCP:
