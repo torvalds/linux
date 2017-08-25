@@ -380,7 +380,11 @@ struct child_device_config {
 		} __packed;
 	} __packed;
 
-	u8 capabilities;
+	u8 pipe_cap:2;
+	u8 sdvo_stall:1;					/* 158 */
+	u8 hpd_status:2;
+	u8 integrated_encoder:1;
+	u8 capabilities_reserved:2;
 	u8 dvo_wiring; /* See DEVICE_WIRE_* above */
 
 	union {
@@ -390,7 +394,8 @@ struct child_device_config {
 
 	u16 extended_type;
 	u8 dvo_function;
-	u8 flags2;						/* 195 */
+	u8 dp_usb_type_c:1;					/* 195 */
+	u8 flags2_reserved:7;					/* 195 */
 	u8 dp_gpio_index;					/* 195 */
 	u16 dp_gpio_pin_num;					/* 195 */
 	u8 dp_iboost_level:4;					/* 196 */
