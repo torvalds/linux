@@ -1504,10 +1504,10 @@ int irq_domain_push_irq(struct irq_domain *domain, int virq, void *arg)
 	if (WARN_ON(!irq_domain_is_hierarchy(domain)))
 		return -EINVAL;
 
-	if (domain->parent != root_irq_data->domain)
+	if (!root_irq_data)
 		return -EINVAL;
 
-	if (!root_irq_data)
+	if (domain->parent != root_irq_data->domain)
 		return -EINVAL;
 
 	child_irq_data = kzalloc_node(sizeof(*child_irq_data), GFP_KERNEL,
