@@ -31,6 +31,13 @@ config COMMON_CLK_WM831X
 
 source "drivers/clk/versatile/Kconfig"
 
+config CLK_HSDK
+	bool "PLL Driver for HSDK platform"
+	depends on OF || COMPILE_TEST
+	---help---
+	  This driver supports the HSDK core, system, ddr, tunnel and hdmi PLLs
+	  control.
+
 config COMMON_CLK_MAX77686
 	tristate "Clock driver for Maxim 77620/77686/77802 MFD"
 	depends on MFD_MAX77686 || MFD_MAX77620 || COMPILE_TEST

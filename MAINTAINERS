@@ -12738,6 +12738,12 @@ F:	drivers/clocksource/arc_timer.c
 F:	drivers/tty/serial/arc_uart.c
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vgupta/arc.git
 
+SYNOPSYS ARC HSDK SDP pll clock driver
+M:	Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+S:	Supported
+F:	drivers/clk/clk-hsdk-pll.c
+F:	Documentation/devicetree/bindings/clock/snps,hsdk-pll-clock.txt
+
 SYNOPSYS ARC SDP platform support
 M:	Alexey Brodkin <abrodkin@synopsys.com>
 S:	Supported
