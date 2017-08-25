@@ -369,6 +369,7 @@ int ads1015_get_adc_result(struct ads1015_data *data, int chan, int *val)
 
 		conv_time = DIV_ROUND_UP(USEC_PER_SEC, data->data_rate[dr_old]);
 		conv_time += DIV_ROUND_UP(USEC_PER_SEC, data->data_rate[dr]);
+		conv_time += conv_time / 10; /* 10% internal clock inaccuracy */
 		usleep_range(conv_time, conv_time + 1);
 		data->conv_invalid = false;
 	}
