@@ -312,7 +312,7 @@ protection_type_store(struct device *dev, struct device_attribute *attr,
 	if (err)
 		return err;
 
-	if (val >= 0 && val <= T10_PI_TYPE3_PROTECTION)
+	if (val <= T10_PI_TYPE3_PROTECTION)
 		sdkp->protection_type = val;
 
 	return count;
