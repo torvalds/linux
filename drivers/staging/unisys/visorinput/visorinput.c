@@ -727,18 +727,8 @@ static struct visor_driver visorinput_driver = {
 	.resume = visorinput_resume,
 };
 
-static int visorinput_init(void)
-{
-	return visorbus_register_visor_driver(&visorinput_driver);
-}
-
-static void visorinput_cleanup(void)
-{
-	visorbus_unregister_visor_driver(&visorinput_driver);
-}
-
-module_init(visorinput_init);
-module_exit(visorinput_cleanup);
+module_driver(visorinput_driver, visorbus_register_visor_driver,
+	      visorbus_unregister_visor_driver);
 
 MODULE_DEVICE_TABLE(visorbus, visorinput_channel_types);
 
