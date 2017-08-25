@@ -818,8 +818,10 @@ static inline int qedr_init_user_queue(struct ib_ucontext *ib_ctx,
 				   FW_PAGE_SHIFT);
 	} else {
 		q->pbl_tbl = kzalloc(sizeof(*q->pbl_tbl), GFP_KERNEL);
-		if (!q->pbl_tbl)
+		if (!q->pbl_tbl) {
+			rc = -ENOMEM;
 			goto err0;
+		}
 	}
 
 	return 0;
