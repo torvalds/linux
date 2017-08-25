@@ -42,6 +42,9 @@ static struct sk_buff *ksz_xmit(struct sk_buff *skb, struct net_device *dev)
 	padlen = (skb->len >= ETH_ZLEN) ? 0 : ETH_ZLEN - skb->len;
 
 	if (skb_tailroom(skb) >= padlen + KSZ_INGRESS_TAG_LEN) {
+		if (skb_put_padto(skb, skb->len + padlen))
+			return NULL;
+
 		nskb = skb;
 	} else {
 		nskb = alloc_skb(NET_IP_ALIGN + skb->len +
@@ -56,12 +59,14 @@ static struct sk_buff *ksz_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_set_transport_header(nskb,
 					 skb_transport_header(skb) - skb->head);
 		skb_copy_and_csum_dev(skb, skb_put(nskb, skb->len));
+
+		if (skb_put_padto(nskb, nskb->len + padlen)) {
+			kfree_skb(nskb);
+			return NULL;
+		}
+
 		kfree_skb(skb);
 	}
-
-	/* skb is freed when it fails */
-	if (skb_put_padto(nskb, nskb->len + padlen))
-		return NULL;
 
 	tag = skb_put(nskb, KSZ_INGRESS_TAG_LEN);
 	tag[0] = 0;

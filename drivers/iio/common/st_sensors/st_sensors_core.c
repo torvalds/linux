@@ -550,6 +550,31 @@ out:
 }
 EXPORT_SYMBOL(st_sensors_read_info_raw);
 
+static int st_sensors_init_interface_mode(struct iio_dev *indio_dev,
+			const struct st_sensor_settings *sensor_settings)
+{
+	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	struct device_node *np = sdata->dev->of_node;
+	struct st_sensors_platform_data *pdata;
+
+	pdata = (struct st_sensors_platform_data *)sdata->dev->platform_data;
+	if (((np && of_property_read_bool(np, "spi-3wire")) ||
+	     (pdata && pdata->spi_3wire)) && sensor_settings->sim.addr) {
+		int err;
+
+		err = sdata->tf->write_byte(&sdata->tb, sdata->dev,
+					    sensor_settings->sim.addr,
+					    sensor_settings->sim.value);
+		if (err < 0) {
+			dev_err(&indio_dev->dev,
+				"failed to init interface mode\n");
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 int st_sensors_check_device_support(struct iio_dev *indio_dev,
 			int num_sensors_list,
 			const struct st_sensor_settings *sensor_settings)
@@ -573,6 +598,10 @@ int st_sensors_check_device_support(struct iio_dev *indio_dev,
 							indio_dev->name);
 		return -ENODEV;
 	}
+
+	err = st_sensors_init_interface_mode(indio_dev, &sensor_settings[i]);
+	if (err < 0)
+		return err;
 
 	if (sensor_settings[i].wai_addr) {
 		err = sdata->tf->read_byte(&sdata->tb, sdata->dev,

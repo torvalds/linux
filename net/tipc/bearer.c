@@ -596,7 +596,7 @@ static int tipc_l2_rcv_msg(struct sk_buff *skb, struct net_device *dev,
 	rcu_read_lock();
 	b = rcu_dereference_rtnl(dev->tipc_ptr);
 	if (likely(b && test_bit(0, &b->up) &&
-		   (skb->pkt_type <= PACKET_BROADCAST))) {
+		   (skb->pkt_type <= PACKET_MULTICAST))) {
 		skb->next = NULL;
 		tipc_rcv(dev_net(dev), skb, b);
 		rcu_read_unlock();

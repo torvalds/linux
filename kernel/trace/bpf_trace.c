@@ -204,10 +204,36 @@ BPF_CALL_5(bpf_trace_printk, char *, fmt, u32, fmt_size, u64, arg1,
 		fmt_cnt++;
 	}
 
-	return __trace_printk(1/* fake ip will not be printed */, fmt,
-			      mod[0] == 2 ? arg1 : mod[0] == 1 ? (long) arg1 : (u32) arg1,
-			      mod[1] == 2 ? arg2 : mod[1] == 1 ? (long) arg2 : (u32) arg2,
-			      mod[2] == 2 ? arg3 : mod[2] == 1 ? (long) arg3 : (u32) arg3);
+/* Horrid workaround for getting va_list handling working with different
+ * argument type combinations generically for 32 and 64 bit archs.
+ */
+#define __BPF_TP_EMIT()	__BPF_ARG3_TP()
+#define __BPF_TP(...)							\
+	__trace_printk(1 /* Fake ip will not be printed. */,		\
+		       fmt, ##__VA_ARGS__)
+
+#define __BPF_ARG1_TP(...)						\
+	((mod[0] == 2 || (mod[0] == 1 && __BITS_PER_LONG == 64))	\
+	  ? __BPF_TP(arg1, ##__VA_ARGS__)				\
+	  : ((mod[0] == 1 || (mod[0] == 0 && __BITS_PER_LONG == 32))	\
+	      ? __BPF_TP((long)arg1, ##__VA_ARGS__)			\
+	      : __BPF_TP((u32)arg1, ##__VA_ARGS__)))
+
+#define __BPF_ARG2_TP(...)						\
+	((mod[1] == 2 || (mod[1] == 1 && __BITS_PER_LONG == 64))	\
+	  ? __BPF_ARG1_TP(arg2, ##__VA_ARGS__)				\
+	  : ((mod[1] == 1 || (mod[1] == 0 && __BITS_PER_LONG == 32))	\
+	      ? __BPF_ARG1_TP((long)arg2, ##__VA_ARGS__)		\
+	      : __BPF_ARG1_TP((u32)arg2, ##__VA_ARGS__)))
+
+#define __BPF_ARG3_TP(...)						\
+	((mod[2] == 2 || (mod[2] == 1 && __BITS_PER_LONG == 64))	\
+	  ? __BPF_ARG2_TP(arg3, ##__VA_ARGS__)				\
+	  : ((mod[2] == 1 || (mod[2] == 0 && __BITS_PER_LONG == 32))	\
+	      ? __BPF_ARG2_TP((long)arg3, ##__VA_ARGS__)		\
+	      : __BPF_ARG2_TP((u32)arg3, ##__VA_ARGS__)))
+
+	return __BPF_TP_EMIT();
 }
 
 static const struct bpf_func_proto bpf_trace_printk_proto = {

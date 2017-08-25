@@ -2553,9 +2553,8 @@ static int nfs41_check_open_stateid(struct nfs4_state *state)
 		clear_bit(NFS_O_RDWR_STATE, &state->flags);
 		clear_bit(NFS_OPEN_STATE, &state->flags);
 		stateid->type = NFS4_INVALID_STATEID_TYPE;
-	}
-	if (status != NFS_OK)
 		return status;
+	}
 	if (nfs_open_stateid_recover_openmode(state))
 		return -NFS4ERR_OPENMODE;
 	return NFS_OK;

@@ -266,6 +266,7 @@
 
 &hdmicec {
 	status = "okay";
+	needs-hpd;
 };
 
 &hsi2c_4 {
