@@ -28,6 +28,7 @@
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
 #include <crypto/sha.h>
+#include <crypto/ctr.h>
 #include "crypto4xx_reg_def.h"
 #include "crypto4xx_core.h"
 #include "crypto4xx_sa.h"
@@ -169,6 +170,71 @@ int crypto4xx_setkey_aes_cbc(struct crypto_ablkcipher *cipher,
 {
 	return crypto4xx_setkey_aes(cipher, key, keylen, CRYPTO_MODE_CBC,
 				    CRYPTO_FEEDBACK_MODE_NO_FB);
+}
+
+int crypto4xx_setkey_aes_cfb(struct crypto_ablkcipher *cipher,
+			     const u8 *key, unsigned int keylen)
+{
+	return crypto4xx_setkey_aes(cipher, key, keylen, CRYPTO_MODE_CFB,
+				    CRYPTO_FEEDBACK_MODE_128BIT_CFB);
+}
+
+int crypto4xx_setkey_aes_ecb(struct crypto_ablkcipher *cipher,
+			     const u8 *key, unsigned int keylen)
+{
+	return crypto4xx_setkey_aes(cipher, key, keylen, CRYPTO_MODE_ECB,
+				    CRYPTO_FEEDBACK_MODE_NO_FB);
+}
+
+int crypto4xx_setkey_aes_ofb(struct crypto_ablkcipher *cipher,
+			     const u8 *key, unsigned int keylen)
+{
+	return crypto4xx_setkey_aes(cipher, key, keylen, CRYPTO_MODE_OFB,
+				    CRYPTO_FEEDBACK_MODE_64BIT_OFB);
+}
+
+int crypto4xx_setkey_rfc3686(struct crypto_ablkcipher *cipher,
+			     const u8 *key, unsigned int keylen)
+{
+	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
+	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(tfm);
+	int rc;
+
+	rc = crypto4xx_setkey_aes(cipher, key, keylen - CTR_RFC3686_NONCE_SIZE,
+		CRYPTO_MODE_CTR, CRYPTO_FEEDBACK_MODE_NO_FB);
+	if (rc)
+		return rc;
+
+	memcpy(ctx->state_record,
+		key + keylen - CTR_RFC3686_NONCE_SIZE, CTR_RFC3686_NONCE_SIZE);
+
+	return 0;
+}
+
+int crypto4xx_rfc3686_encrypt(struct ablkcipher_request *req)
+{
+	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
+	__be32 iv[AES_IV_SIZE / 4] = { *(u32 *)ctx->state_record,
+		*(u32 *) req->info, *(u32 *) (req->info + 4), cpu_to_be32(1) };
+
+	ctx->direction = DIR_OUTBOUND;
+	ctx->pd_ctl = 1;
+
+	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
+				  req->nbytes, iv, AES_IV_SIZE);
+}
+
+int crypto4xx_rfc3686_decrypt(struct ablkcipher_request *req)
+{
+	struct crypto4xx_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
+	__be32 iv[AES_IV_SIZE / 4] = { *(u32 *)ctx->state_record,
+		*(u32 *) req->info, *(u32 *) (req->info + 4), cpu_to_be32(1) };
+
+	ctx->direction = DIR_INBOUND;
+	ctx->pd_ctl = 1;
+
+	return crypto4xx_build_pd(&req->base, ctx, req->src, req->dst,
+				  req->nbytes, iv, AES_IV_SIZE);
 }
 
 /**

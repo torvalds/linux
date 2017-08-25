@@ -112,6 +112,9 @@ union sa_command_0 {
 
 #define CRYPTO_MODE_ECB				0
 #define CRYPTO_MODE_CBC				1
+#define CRYPTO_MODE_OFB				2
+#define CRYPTO_MODE_CFB				3
+#define CRYPTO_MODE_CTR				4
 
 #define CRYPTO_FEEDBACK_MODE_NO_FB		0
 #define CRYPTO_FEEDBACK_MODE_64BIT_OFB		0

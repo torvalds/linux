@@ -171,8 +171,18 @@ u32 crypto4xx_build_pd(struct crypto_async_request *req,
 		       void *iv, u32 iv_len);
 int crypto4xx_setkey_aes_cbc(struct crypto_ablkcipher *cipher,
 			     const u8 *key, unsigned int keylen);
+int crypto4xx_setkey_aes_cfb(struct crypto_ablkcipher *cipher,
+			     const u8 *key, unsigned int keylen);
+int crypto4xx_setkey_aes_ecb(struct crypto_ablkcipher *cipher,
+			     const u8 *key, unsigned int keylen);
+int crypto4xx_setkey_aes_ofb(struct crypto_ablkcipher *cipher,
+			     const u8 *key, unsigned int keylen);
+int crypto4xx_setkey_rfc3686(struct crypto_ablkcipher *cipher,
+			     const u8 *key, unsigned int keylen);
 int crypto4xx_encrypt(struct ablkcipher_request *req);
 int crypto4xx_decrypt(struct ablkcipher_request *req);
+int crypto4xx_rfc3686_encrypt(struct ablkcipher_request *req);
+int crypto4xx_rfc3686_decrypt(struct ablkcipher_request *req);
 int crypto4xx_sha1_alg_init(struct crypto_tfm *tfm);
 int crypto4xx_hash_digest(struct ahash_request *req);
 int crypto4xx_hash_final(struct ahash_request *req);
