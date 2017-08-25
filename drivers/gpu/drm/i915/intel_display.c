@@ -9022,7 +9022,7 @@ static void cannonlake_get_ddi_pll(struct drm_i915_private *dev_priv,
 	u32 temp;
 
 	temp = I915_READ(DPCLKA_CFGCR0) & DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
-	id = temp >> (port * 2);
+	id = temp >> DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port);
 
 	if (WARN_ON(id < SKL_DPLL0 || id > SKL_DPLL2))
 		return;
