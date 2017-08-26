@@ -73,6 +73,9 @@ static inline void mpx_mm_init(struct mm_struct *mm)
 }
 void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
 		      unsigned long start, unsigned long end);
+
+unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
+		unsigned long flags);
 #else
 static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs)
 {
@@ -93,6 +96,12 @@ static inline void mpx_notify_unmap(struct mm_struct *mm,
 				    struct vm_area_struct *vma,
 				    unsigned long start, unsigned long end)
 {
+}
+
+static inline unsigned long mpx_unmapped_area_check(unsigned long addr,
+		unsigned long len, unsigned long flags)
+{
+	return addr;
 }
 #endif /* CONFIG_X86_INTEL_MPX */
 
