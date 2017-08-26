@@ -268,6 +268,11 @@ static inline u64 gen8_noncanonical_addr(u64 address)
 	return address & GENMASK_ULL(GEN8_HIGH_ADDRESS_BIT, 0);
 }
 
+static inline bool eb_use_cmdparser(const struct i915_execbuffer *eb)
+{
+	return eb->engine->needs_cmd_parser && eb->batch_len;
+}
+
 static int eb_create(struct i915_execbuffer *eb)
 {
 	if (!(eb->args->flags & I915_EXEC_HANDLE_LUT)) {
@@ -1158,6 +1163,10 @@ static u32 *reloc_gpu(struct i915_execbuffer *eb,
 
 	if (unlikely(!cache->rq)) {
 		int err;
+
+		/* If we need to copy for the cmdparser, we will stall anyway */
+		if (eb_use_cmdparser(eb))
+			return ERR_PTR(-EWOULDBLOCK);
 
 		err = __reloc_gpu_alloc(eb, vma, len);
 		if (unlikely(err))
@@ -2293,7 +2302,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		goto err_vma;
 	}
 
-	if (eb.engine->needs_cmd_parser && eb.batch_len) {
+	if (eb_use_cmdparser(&eb)) {
 		struct i915_vma *vma;
 
 		vma = eb_parse(&eb, drm_is_current_master(file));
