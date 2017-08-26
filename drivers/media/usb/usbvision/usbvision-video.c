@@ -1319,7 +1319,7 @@ static struct usb_usbvision *usbvision_alloc(struct usb_device *dev,
 {
 	struct usb_usbvision *usbvision;
 
-	usbvision = kzalloc(sizeof(struct usb_usbvision), GFP_KERNEL);
+	usbvision = kzalloc(sizeof(*usbvision), GFP_KERNEL);
 	if (!usbvision)
 		return NULL;
 
