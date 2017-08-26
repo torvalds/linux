@@ -227,6 +227,19 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev)
 }
 
 /**
+ * vega10_ih_prescreen_iv - prescreen an interrupt vector
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns true if the interrupt vector should be further processed.
+ */
+static bool vega10_ih_prescreen_iv(struct amdgpu_device *adev)
+{
+	/* TODO: Filter known pending page faults */
+	return true;
+}
+
+/**
  * vega10_ih_decode_iv - decode an interrupt vector
  *
  * @adev: amdgpu_device pointer
@@ -410,6 +423,7 @@ const struct amd_ip_funcs vega10_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs vega10_ih_funcs = {
 	.get_wptr = vega10_ih_get_wptr,
+	.prescreen_iv = vega10_ih_prescreen_iv,
 	.decode_iv = vega10_ih_decode_iv,
 	.set_rptr = vega10_ih_set_rptr
 };

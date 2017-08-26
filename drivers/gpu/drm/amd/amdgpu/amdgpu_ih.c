@@ -169,6 +169,12 @@ restart_ih:
 	while (adev->irq.ih.rptr != wptr) {
 		u32 ring_index = adev->irq.ih.rptr >> 2;
 
+		/* Prescreening of high-frequency interrupts */
+		if (!amdgpu_ih_prescreen_iv(adev)) {
+			adev->irq.ih.rptr &= adev->irq.ih.ptr_mask;
+			continue;
+		}
+
 		/* Before dispatching irq to IP blocks, send it to amdkfd */
 		amdgpu_amdkfd_interrupt(adev,
 				(const void *) &adev->irq.ih.ring[ring_index]);
