@@ -1263,7 +1263,7 @@ static const struct v4l2_file_operations hackrf_fops = {
 	.unlocked_ioctl           = video_ioctl2,
 };
 
-static struct video_device hackrf_template = {
+static const struct video_device hackrf_template = {
 	.name                     = "HackRF One",
 	.release                  = video_device_release_empty,
 	.fops                     = &hackrf_fops,

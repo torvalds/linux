@@ -1143,7 +1143,7 @@ static const struct v4l2_file_operations msi2500_fops = {
 	.unlocked_ioctl           = video_ioctl2,
 };
 
-static struct video_device msi2500_template = {
+static const struct video_device msi2500_template = {
 	.name                     = "Mirics MSi3101 SDR Dongle",
 	.release                  = video_device_release_empty,
 	.fops                     = &msi2500_fops,

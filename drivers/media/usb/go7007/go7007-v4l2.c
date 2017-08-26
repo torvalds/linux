@@ -901,7 +901,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-static struct video_device go7007_template = {
+static const struct video_device go7007_template = {
 	.name		= "go7007",
 	.fops		= &go7007_fops,
 	.release	= video_device_release_empty,

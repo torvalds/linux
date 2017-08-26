@@ -1244,7 +1244,7 @@ static void stk_v4l_dev_release(struct video_device *vd)
 	kfree(dev);
 }
 
-static struct video_device stk_v4l_data = {
+static const struct video_device stk_v4l_data = {
 	.name = "stkwebcam",
 	.fops = &v4l_stk_fops,
 	.ioctl_ops = &v4l_stk_ioctl_ops,

@@ -1590,7 +1590,7 @@ static void s2255_video_device_release(struct video_device *vdev)
 	return;
 }
 
-static struct video_device template = {
+static const struct video_device template = {
 	.name = "s2255v",
 	.fops = &s2255_fops_v4l,
 	.ioctl_ops = &s2255_ioctl_ops,

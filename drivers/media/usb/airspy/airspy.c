@@ -859,7 +859,7 @@ static const struct v4l2_file_operations airspy_fops = {
 	.unlocked_ioctl           = video_ioctl2,
 };
 
-static struct video_device airspy_template = {
+static const struct video_device airspy_template = {
 	.name                     = "AirSpy SDR",
 	.release                  = video_device_release_empty,
 	.fops                     = &airspy_fops,
