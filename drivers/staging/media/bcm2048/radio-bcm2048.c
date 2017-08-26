@@ -2564,7 +2564,7 @@ static const struct v4l2_ioctl_ops bcm2048_ioctl_ops = {
 /*
  * bcm2048_viddev_template - video device interface
  */
-static struct video_device bcm2048_viddev_template = {
+static const struct video_device bcm2048_viddev_template = {
 	.fops			= &bcm2048_fops,
 	.name			= BCM2048_DRIVER_NAME,
 	.release		= video_device_release_empty,
