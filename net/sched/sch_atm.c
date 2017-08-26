@@ -108,23 +108,29 @@ static struct Qdisc *atm_tc_leaf(struct Qdisc *sch, unsigned long cl)
 	return flow ? flow->q : NULL;
 }
 
-static unsigned long atm_tc_get(struct Qdisc *sch, u32 classid)
+static unsigned long atm_tc_find(struct Qdisc *sch, u32 classid)
 {
 	struct atm_qdisc_data *p __maybe_unused = qdisc_priv(sch);
 	struct atm_flow_data *flow;
 
-	pr_debug("atm_tc_get(sch %p,[qdisc %p],classid %x)\n", sch, p, classid);
+	pr_debug("%s(sch %p,[qdisc %p],classid %x)\n", __func__, sch, p, classid);
 	flow = lookup_flow(sch, classid);
-	if (flow)
-		flow->ref++;
-	pr_debug("atm_tc_get: flow %p\n", flow);
+	pr_debug("%s: flow %p\n", __func__, flow);
 	return (unsigned long)flow;
 }
 
 static unsigned long atm_tc_bind_filter(struct Qdisc *sch,
 					unsigned long parent, u32 classid)
 {
-	return atm_tc_get(sch, classid);
+	struct atm_qdisc_data *p __maybe_unused = qdisc_priv(sch);
+	struct atm_flow_data *flow;
+
+	pr_debug("%s(sch %p,[qdisc %p],classid %x)\n", __func__, sch, p, classid);
+	flow = lookup_flow(sch, classid);
+	if (flow)
+		flow->ref++;
+	pr_debug("%s: flow %p\n", __func__, flow);
+	return (unsigned long)flow;
 }
 
 /*
@@ -234,7 +240,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		excess = NULL;
 	else {
 		excess = (struct atm_flow_data *)
-			atm_tc_get(sch, nla_get_u32(tb[TCA_ATM_EXCESS]));
+			atm_tc_find(sch, nla_get_u32(tb[TCA_ATM_EXCESS]));
 		if (!excess)
 			return -ENOENT;
 	}
@@ -262,10 +268,9 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 
 		for (i = 1; i < 0x8000; i++) {
 			classid = TC_H_MAKE(sch->handle, 0x8000 | i);
-			cl = atm_tc_get(sch, classid);
+			cl = atm_tc_find(sch, classid);
 			if (!cl)
 				break;
-			atm_tc_put(sch, cl);
 		}
 	}
 	pr_debug("atm_tc_change: new id %x\n", classid);
@@ -305,8 +310,6 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	*arg = (unsigned long)flow;
 	return 0;
 err_out:
-	if (excess)
-		atm_tc_put(sch, (unsigned long)excess);
 	sockfd_put(sock);
 	return error;
 }
@@ -377,7 +380,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	result = TC_ACT_OK;	/* be nice to gcc */
 	flow = NULL;
 	if (TC_H_MAJ(skb->priority) != sch->handle ||
-	    !(flow = (struct atm_flow_data *)atm_tc_get(sch, skb->priority))) {
+	    !(flow = (struct atm_flow_data *)atm_tc_find(sch, skb->priority))) {
 		struct tcf_proto *fl;
 
 		list_for_each_entry(flow, &p->flows, list) {
@@ -655,8 +658,7 @@ static int atm_tc_dump(struct Qdisc *sch, struct sk_buff *skb)
 static const struct Qdisc_class_ops atm_class_ops = {
 	.graft		= atm_tc_graft,
 	.leaf		= atm_tc_leaf,
-	.get		= atm_tc_get,
-	.put		= atm_tc_put,
+	.find		= atm_tc_find,
 	.change		= atm_tc_change,
 	.delete		= atm_tc_delete,
 	.walk		= atm_tc_walk,

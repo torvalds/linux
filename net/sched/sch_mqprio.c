@@ -277,7 +277,7 @@ static struct Qdisc *mqprio_leaf(struct Qdisc *sch, unsigned long cl)
 	return dev_queue->qdisc_sleeping;
 }
 
-static unsigned long mqprio_get(struct Qdisc *sch, u32 classid)
+static unsigned long mqprio_find(struct Qdisc *sch, u32 classid)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	unsigned int ntx = TC_H_MIN(classid);
@@ -285,10 +285,6 @@ static unsigned long mqprio_get(struct Qdisc *sch, u32 classid)
 	if (ntx > dev->num_tx_queues + netdev_get_num_tc(dev))
 		return 0;
 	return ntx;
-}
-
-static void mqprio_put(struct Qdisc *sch, unsigned long cl)
-{
 }
 
 static int mqprio_dump_class(struct Qdisc *sch, unsigned long cl,
@@ -403,8 +399,7 @@ static void mqprio_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 static const struct Qdisc_class_ops mqprio_class_ops = {
 	.graft		= mqprio_graft,
 	.leaf		= mqprio_leaf,
-	.get		= mqprio_get,
-	.put		= mqprio_put,
+	.find		= mqprio_find,
 	.walk		= mqprio_walk,
 	.dump		= mqprio_dump_class,
 	.dump_stats	= mqprio_dump_class_stats,
