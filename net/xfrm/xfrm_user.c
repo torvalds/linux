@@ -796,7 +796,7 @@ static int copy_user_offload(struct xfrm_state_offload *xso, struct sk_buff *skb
 		return -EMSGSIZE;
 
 	xuo = nla_data(attr);
-
+	memset(xuo, 0, sizeof(*xuo));
 	xuo->ifindex = xso->dev->ifindex;
 	xuo->flags = xso->flags;
 
