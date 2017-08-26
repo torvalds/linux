@@ -83,7 +83,6 @@ static int dt_remember_or_free_map(struct pinctrl *p, const char *statename,
 	/* Remember the converted mapping table entries */
 	dt_map = kzalloc(sizeof(*dt_map), GFP_KERNEL);
 	if (!dt_map) {
-		dev_err(p->dev, "failed to alloc struct pinctrl_dt_map\n");
 		dt_free_map(pctldev, map, num_maps);
 		return -ENOMEM;
 	}
@@ -158,10 +157,8 @@ static int dt_remember_dummy_state(struct pinctrl *p, const char *statename)
 	struct pinctrl_map *map;
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
-	if (!map) {
-		dev_err(p->dev, "failed to alloc struct pinctrl_map\n");
+	if (!map)
 		return -ENOMEM;
-	}
 
 	/* There is no pctldev for PIN_MAP_TYPE_DUMMY_STATE */
 	map->type = PIN_MAP_TYPE_DUMMY_STATE;
