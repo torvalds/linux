@@ -1869,6 +1869,7 @@ static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, const struct 
 		return -EMSGSIZE;
 
 	id = nlmsg_data(nlh);
+	memset(&id->sa_id, 0, sizeof(id->sa_id));
 	memcpy(&id->sa_id.daddr, &x->id.daddr, sizeof(x->id.daddr));
 	id->sa_id.spi = x->id.spi;
 	id->sa_id.family = x->props.family;
