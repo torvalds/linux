@@ -308,6 +308,7 @@ config IPV6_SEG6_LWTUNNEL
 	depends on IPV6
 	select LWTUNNEL
 	select DST_CACHE
+	select IPV6_MULTIPLE_TABLES
 	---help---
 	  Support for encapsulation of packets within an outer IPv6
 	  header and a Segment Routing Header using the lightweight
