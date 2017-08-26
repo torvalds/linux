@@ -25,7 +25,7 @@ The DVB frontend controls several sub-devices including:
 
 -  Low noise amplifier (LNA)
 
--  Satellite Equipment Control (SEC) hardware (only for Satellite).
+-  Satellite Equipment Control (SEC) [#f1]_.
 
 The frontend can be accessed through ``/dev/dvb/adapter?/frontend?``.
 Data types and ioctl definitions can be accessed by including
@@ -36,13 +36,16 @@ Data types and ioctl definitions can be accessed by including
    Transmission via the internet (DVB-IP) is not yet handled by this
    API but a future extension is possible.
 
-On Satellite systems, the API support for the Satellite Equipment
-Control (SEC) allows to power control and to send/receive signals to
-control the antenna subsystem, selecting the polarization and choosing
-the Intermediate Frequency IF) of the Low Noise Block Converter Feed
-Horn (LNBf). It supports the DiSEqC and V-SEC protocols. The DiSEqC
-(digital SEC) specification is available at
-`Eutelsat <http://www.eutelsat.com/satellites/4_5_5.html>`__.
+
+.. [#f1]
+
+   On Satellite systems, the API support for the Satellite Equipment
+   Control (SEC) allows to power control and to send/receive signals to
+   control the antenna subsystem, selecting the polarization and choosing
+   the Intermediate Frequency IF) of the Low Noise Block Converter Feed
+   Horn (LNBf). It supports the DiSEqC and V-SEC protocols. The DiSEqC
+   (digital SEC) specification is available at
+   `Eutelsat <http://www.eutelsat.com/satellites/4_5_5.html>`__.
 
 
 .. toctree::
