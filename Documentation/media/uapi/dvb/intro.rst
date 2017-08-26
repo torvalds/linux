@@ -137,9 +137,9 @@ individual devices are called:
 
 -  ``/dev/dvb/adapterN/caM``,
 
-where N enumerates the DVB PCI cards in a system starting from 0, and M
+where ``N`` enumerates the DVB PCI cards in a system starting from 0, and ``M``
 enumerates the devices of each type within each adapter, starting
-from 0, too. We will omit the “ ``/dev/dvb/adapterN/``\ ” in the further
+from 0, too. We will omit the “``/dev/dvb/adapterN/``\ ” in the further
 discussion of these devices.
 
 More details about the data structures and function calls of all the
