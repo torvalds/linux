@@ -104,25 +104,14 @@ struct msgdma_extended_desc {
 #define MSGDMA_DESC_STRIDE_WR		0x00010000
 #define MSGDMA_DESC_STRIDE_RW		0x00010001
 
-/**
- * struct msgdma_csr - mSGDMA dispatcher control and status register map
- * @status: Read/Clear
- * @control: Read/Write
- * @rw_fill_level: bit 31:16 - write fill level
- *		   bit 15:00 - read fill level
- * @resp_fill_level: bit 15:00 - response FIFO fill level
- * @rw_seq_num: bit 31:16 - write sequence number
- *		bit 15:00 - read sequence number
- * @pad: reserved
- */
-struct msgdma_csr {
-	u32 status;
-	u32 control;
-	u32 rw_fill_level;
-	u32 resp_fill_level;
-	u32 rw_seq_num;
-	u32 pad[3];
-};
+/* mSGDMA dispatcher control and status register map */
+#define MSGDMA_CSR_STATUS		0x00	/* Read / Clear */
+#define MSGDMA_CSR_CONTROL		0x04	/* Read / Write */
+#define MSGDMA_CSR_RW_FILL_LEVEL	0x08	/* 31:16 - write fill level */
+						/* 15:00 - read fill level */
+#define MSGDMA_CSR_RESP_FILL_LEVEL	0x0c	/* response FIFO fill level */
+#define MSGDMA_CSR_RW_SEQ_NUM		0x10	/* 31:16 - write seq number */
+						/* 15:00 - read seq number */
 
 /* mSGDMA CSR status register bit definitions */
 #define MSGDMA_CSR_STAT_BUSY			BIT(0)
@@ -157,10 +146,8 @@ struct msgdma_csr {
 #define MSGDMA_CSR_SEQ_NUM_GET(v)		(((v) & 0xffff0000) >> 16)
 
 /* mSGDMA response register map */
-struct msgdma_response {
-	u32 bytes_transferred;
-	u32 status;
-};
+#define MSGDMA_RESP_BYTES_TRANSFERRED	0x00
+#define MSGDMA_RESP_STATUS		0x04
 
 /* mSGDMA response register bit definitions */
 #define MSGDMA_RESP_EARLY_TERM	BIT(8)
@@ -204,13 +191,13 @@ struct msgdma_device {
 	int irq;
 
 	/* mSGDMA controller */
-	struct msgdma_csr *csr;
+	void __iomem *csr;
 
 	/* mSGDMA descriptors */
-	struct msgdma_extended_desc *desc;
+	void __iomem *desc;
 
 	/* mSGDMA response */
-	struct msgdma_response *resp;
+	void __iomem *resp;
 };
 
 #define to_mdev(chan)	container_of(chan, struct msgdma_device, dmachan)
@@ -484,21 +471,21 @@ static void msgdma_reset(struct msgdma_device *mdev)
 	int ret;
 
 	/* Reset mSGDMA */
-	iowrite32(MSGDMA_CSR_STAT_MASK, &mdev->csr->status);
-	iowrite32(MSGDMA_CSR_CTL_RESET, &mdev->csr->control);
+	iowrite32(MSGDMA_CSR_STAT_MASK, mdev->csr + MSGDMA_CSR_STATUS);
+	iowrite32(MSGDMA_CSR_CTL_RESET, mdev->csr + MSGDMA_CSR_CONTROL);
 
-	ret = readl_poll_timeout(&mdev->csr->status, val,
+	ret = readl_poll_timeout(mdev->csr + MSGDMA_CSR_STATUS, val,
 				 (val & MSGDMA_CSR_STAT_RESETTING) == 0,
 				 1, 10000);
 	if (ret)
 		dev_err(mdev->dev, "DMA channel did not reset\n");
 
 	/* Clear all status bits */
-	iowrite32(MSGDMA_CSR_STAT_MASK, &mdev->csr->status);
+	iowrite32(MSGDMA_CSR_STAT_MASK, mdev->csr + MSGDMA_CSR_STATUS);
 
 	/* Enable the DMA controller including interrupts */
 	iowrite32(MSGDMA_CSR_CTL_STOP_ON_ERR | MSGDMA_CSR_CTL_STOP_ON_EARLY |
-		  MSGDMA_CSR_CTL_GLOBAL_INTR, &mdev->csr->control);
+		  MSGDMA_CSR_CTL_GLOBAL_INTR, mdev->csr + MSGDMA_CSR_CONTROL);
 
 	mdev->idle = true;
 };
@@ -506,13 +493,14 @@ static void msgdma_reset(struct msgdma_device *mdev)
 static void msgdma_copy_one(struct msgdma_device *mdev,
 			    struct msgdma_sw_desc *desc)
 {
-	struct msgdma_extended_desc *hw_desc = mdev->desc;
+	void __iomem *hw_desc = mdev->desc;
 
 	/*
 	 * Check if the DESC FIFO it not full. If its full, we need to wait
 	 * for at least one entry to become free again
 	 */
-	while (ioread32(&mdev->csr->status) & MSGDMA_CSR_STAT_DESC_BUF_FULL)
+	while (ioread32(mdev->csr + MSGDMA_CSR_STATUS) &
+	       MSGDMA_CSR_STAT_DESC_BUF_FULL)
 		mdelay(1);
 
 	/*
@@ -524,12 +512,14 @@ static void msgdma_copy_one(struct msgdma_device *mdev,
 	 * sure this control word is written last by single coding it and
 	 * adding some write-barriers here.
 	 */
-	memcpy(hw_desc, &desc->hw_desc, sizeof(desc->hw_desc) - sizeof(u32));
+	memcpy((void __force *)hw_desc, &desc->hw_desc,
+	       sizeof(desc->hw_desc) - sizeof(u32));
 
 	/* Write control word last to flush this descriptor into the FIFO */
 	mdev->idle = false;
 	wmb();
-	iowrite32(desc->hw_desc.control, &hw_desc->control);
+	iowrite32(desc->hw_desc.control, hw_desc +
+		  offsetof(struct msgdma_extended_desc, control));
 	wmb();
 }
 
@@ -690,13 +680,13 @@ static void msgdma_tasklet(unsigned long data)
 {
 	struct msgdma_device *mdev = (struct msgdma_device *)data;
 	u32 count;
-	u32 size;
-	u32 status;
+	u32 __maybe_unused size;
+	u32 __maybe_unused status;
 
 	spin_lock(&mdev->lock);
 
 	/* Read number of responses that are available */
-	count = ioread32(&mdev->csr->resp_fill_level);
+	count = ioread32(mdev->csr + MSGDMA_CSR_RESP_FILL_LEVEL);
 	dev_dbg(mdev->dev, "%s (%d): response count=%d\n",
 		__func__, __LINE__, count);
 
@@ -707,8 +697,8 @@ static void msgdma_tasklet(unsigned long data)
 		 * have any real values, like transferred bytes or error
 		 * bits. So we need to just drop these values.
 		 */
-		size = ioread32(&mdev->resp->bytes_transferred);
-		status = ioread32(&mdev->resp->status);
+		size = ioread32(mdev->resp + MSGDMA_RESP_BYTES_TRANSFERRED);
+		status = ioread32(mdev->resp - MSGDMA_RESP_STATUS);
 
 		msgdma_complete_descriptor(mdev);
 		msgdma_chan_desc_cleanup(mdev);
@@ -729,7 +719,7 @@ static irqreturn_t msgdma_irq_handler(int irq, void *data)
 	struct msgdma_device *mdev = data;
 	u32 status;
 
-	status = ioread32(&mdev->csr->status);
+	status = ioread32(mdev->csr + MSGDMA_CSR_STATUS);
 	if ((status & MSGDMA_CSR_STAT_BUSY) == 0) {
 		/* Start next transfer if the DMA controller is idle */
 		spin_lock(&mdev->lock);
@@ -741,7 +731,7 @@ static irqreturn_t msgdma_irq_handler(int irq, void *data)
 	tasklet_schedule(&mdev->irq_tasklet);
 
 	/* Clear interrupt in mSGDMA controller */
-	iowrite32(MSGDMA_CSR_STAT_IRQ, &mdev->csr->status);
+	iowrite32(MSGDMA_CSR_STAT_IRQ, mdev->csr + MSGDMA_CSR_STATUS);
 
 	return IRQ_HANDLED;
 }
@@ -809,17 +799,17 @@ static int msgdma_probe(struct platform_device *pdev)
 	mdev->dev = &pdev->dev;
 
 	/* Map CSR space */
-	ret = request_and_map(pdev, "csr", &dma_res, (void **)&mdev->csr);
+	ret = request_and_map(pdev, "csr", &dma_res, &mdev->csr);
 	if (ret)
 		return ret;
 
 	/* Map (extended) descriptor space */
-	ret = request_and_map(pdev, "desc", &dma_res, (void **)&mdev->desc);
+	ret = request_and_map(pdev, "desc", &dma_res, &mdev->desc);
 	if (ret)
 		return ret;
 
 	/* Map response space */
-	ret = request_and_map(pdev, "resp", &dma_res, (void **)&mdev->resp);
+	ret = request_and_map(pdev, "resp", &dma_res, &mdev->resp);
 	if (ret)
 		return ret;
 
