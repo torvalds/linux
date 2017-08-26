@@ -1130,7 +1130,7 @@ static int vfe_reserve_wm(struct vfe_device *vfe, enum vfe_line_id line_id)
 
 static int vfe_release_wm(struct vfe_device *vfe, u8 wm)
 {
-	if (wm > ARRAY_SIZE(vfe->wm_output_map))
+	if (wm >= ARRAY_SIZE(vfe->wm_output_map))
 		return -EINVAL;
 
 	vfe->wm_output_map[wm] = VFE_LINE_NONE;
