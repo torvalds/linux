@@ -1086,9 +1086,9 @@ static int vcc_tty_init(void)
 	pr_info("VCC: %s\n", version);
 
 	vcc_tty_driver = tty_alloc_driver(VCC_MAX_PORTS, VCC_TTY_FLAGS);
-	if (!vcc_tty_driver) {
+	if (IS_ERR(vcc_tty_driver)) {
 		pr_err("VCC: TTY driver alloc failed\n");
-		return -ENOMEM;
+		return PTR_ERR(vcc_tty_driver);
 	}
 
 	vcc_tty_driver->driver_name = vcc_driver_name;
