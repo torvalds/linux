@@ -330,13 +330,13 @@ static u8 csiphy_settle_cnt_calc(struct csiphy_device *csiphy)
 	}
 
 	mipi_clock = pixel_clock * bpp / (2 * num_lanes);
-	ui = div_u64(1000000000000, mipi_clock);
+	ui = div_u64(1000000000000LL, mipi_clock);
 	ui /= 2;
 	t_hs_prepare_max = 85000 + 6 * ui;
 	t_hs_prepare_zero_min = 145000 + 10 * ui;
 	t_hs_settle = (t_hs_prepare_max + t_hs_prepare_zero_min) / 2;
 
-	timer_period = div_u64(1000000000000, csiphy->timer_clk_rate);
+	timer_period = div_u64(1000000000000LL, csiphy->timer_clk_rate);
 	settle_cnt = t_hs_settle / timer_period;
 
 	return settle_cnt;
