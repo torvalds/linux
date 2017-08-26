@@ -4523,6 +4523,12 @@ static void assert_kernel_context_is_current(struct drm_i915_private *dev_priv)
 
 void i915_gem_sanitize(struct drm_i915_private *i915)
 {
+	if (i915_terminally_wedged(&i915->gpu_error)) {
+		mutex_lock(&i915->drm.struct_mutex);
+		i915_gem_unset_wedged(i915);
+		mutex_unlock(&i915->drm.struct_mutex);
+	}
+
 	/*
 	 * If we inherit context state from the BIOS or earlier occupants
 	 * of the GPU, the GPU may be in an inconsistent state when we
