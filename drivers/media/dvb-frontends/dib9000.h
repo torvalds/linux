@@ -37,7 +37,6 @@ extern int dib9000_fw_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff);
 extern int dib9000_fw_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff);
 extern int dib9000_firmware_post_pll_init(struct dvb_frontend *fe);
 extern int dib9000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_slave);
-extern int dib9000_remove_slave_frontend(struct dvb_frontend *fe);
 extern struct dvb_frontend *dib9000_get_slave_frontend(struct dvb_frontend *fe, int slave_index);
 extern struct i2c_adapter *dib9000_get_component_bus_interface(struct dvb_frontend *fe);
 extern int dib9000_set_i2c_adapter(struct dvb_frontend *fe, struct i2c_adapter *i2c);
@@ -92,12 +91,6 @@ static inline int dib9000_firmware_post_pll_init(struct dvb_frontend *fe)
 }
 
 static inline int dib9000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_slave)
-{
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-	return -ENODEV;
-}
-
-static inline int dib9000_remove_slave_frontend(struct dvb_frontend *fe)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;
