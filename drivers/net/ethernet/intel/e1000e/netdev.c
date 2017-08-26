@@ -1071,7 +1071,8 @@ next_desc:
 }
 
 static void e1000_put_txbuf(struct e1000_ring *tx_ring,
-			    struct e1000_buffer *buffer_info)
+			    struct e1000_buffer *buffer_info,
+			    bool drop)
 {
 	struct e1000_adapter *adapter = tx_ring->adapter;
 
@@ -1085,7 +1086,10 @@ static void e1000_put_txbuf(struct e1000_ring *tx_ring,
 		buffer_info->dma = 0;
 	}
 	if (buffer_info->skb) {
-		dev_kfree_skb_any(buffer_info->skb);
+		if (drop)
+			dev_kfree_skb_any(buffer_info->skb);
+		else
+			dev_consume_skb_any(buffer_info->skb);
 		buffer_info->skb = NULL;
 	}
 	buffer_info->time_stamp = 0;
@@ -1199,7 +1203,7 @@ static void e1000e_tx_hwtstamp_work(struct work_struct *work)
 		wmb(); /* force write prior to skb_tstamp_tx */
 
 		skb_tstamp_tx(skb, &shhwtstamps);
-		dev_kfree_skb_any(skb);
+		dev_consume_skb_any(skb);
 	} else if (time_after(jiffies, adapter->tx_hwtstamp_start
 			      + adapter->tx_timeout_factor * HZ)) {
 		dev_kfree_skb_any(adapter->tx_hwtstamp_skb);
@@ -1254,7 +1258,7 @@ static bool e1000_clean_tx_irq(struct e1000_ring *tx_ring)
 				}
 			}
 
-			e1000_put_txbuf(tx_ring, buffer_info);
+			e1000_put_txbuf(tx_ring, buffer_info, false);
 			tx_desc->upper.data = 0;
 
 			i++;
@@ -2437,7 +2441,7 @@ static void e1000_clean_tx_ring(struct e1000_ring *tx_ring)
 
 	for (i = 0; i < tx_ring->count; i++) {
 		buffer_info = &tx_ring->buffer_info[i];
-		e1000_put_txbuf(tx_ring, buffer_info);
+		e1000_put_txbuf(tx_ring, buffer_info, false);
 	}
 
 	netdev_reset_queue(adapter->netdev);
@@ -5625,7 +5629,7 @@ dma_error:
 			i += tx_ring->count;
 		i--;
 		buffer_info = &tx_ring->buffer_info[i];
-		e1000_put_txbuf(tx_ring, buffer_info);
+		e1000_put_txbuf(tx_ring, buffer_info, true);
 	}
 
 	return 0;
@@ -7419,7 +7423,7 @@ static void e1000_remove(struct pci_dev *pdev)
 	if (adapter->flags & FLAG_HAS_HW_TIMESTAMP) {
 		cancel_work_sync(&adapter->tx_hwtstamp_work);
 		if (adapter->tx_hwtstamp_skb) {
-			dev_kfree_skb_any(adapter->tx_hwtstamp_skb);
+			dev_consume_skb_any(adapter->tx_hwtstamp_skb);
 			adapter->tx_hwtstamp_skb = NULL;
 		}
 	}
