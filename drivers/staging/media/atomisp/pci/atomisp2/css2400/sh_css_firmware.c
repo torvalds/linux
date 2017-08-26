@@ -295,10 +295,8 @@ void sh_css_unload_firmware(void)
 	}
 
 	memset(&sh_css_sp_fw, 0, sizeof(sh_css_sp_fw));
-	if (sh_css_blob_info) {
-		kfree(sh_css_blob_info);
-		sh_css_blob_info = NULL;
-	}
+	kfree(sh_css_blob_info);
+	sh_css_blob_info = NULL;
 	sh_css_num_binaries = 0;
 }
 
