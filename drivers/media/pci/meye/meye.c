@@ -1533,7 +1533,7 @@ static const struct v4l2_ioctl_ops meye_ioctl_ops = {
 	.vidioc_default		= vidioc_default,
 };
 
-static struct video_device meye_template = {
+static const struct video_device meye_template = {
 	.name		= "meye",
 	.fops		= &meye_fops,
 	.ioctl_ops 	= &meye_ioctl_ops,
