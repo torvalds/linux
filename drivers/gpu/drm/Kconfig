@@ -184,6 +184,7 @@ config DRM_AMDGPU
 	select BACKLIGHT_CLASS_DEVICE
 	select BACKLIGHT_LCD_SUPPORT
 	select INTERVAL_TREE
+	select CHASH
 	help
 	  Choose this option if you have a recent AMD Radeon graphics card.
 

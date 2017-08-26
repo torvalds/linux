@@ -120,6 +120,10 @@ struct amdgpu_vm_pt {
 	unsigned			last_entry_used;
 };
 
+#define AMDGPU_VM_FAULT(pasid, addr) (((u64)(pasid) << 48) | (addr))
+#define AMDGPU_VM_FAULT_PASID(fault) ((u64)(fault) >> 48)
+#define AMDGPU_VM_FAULT_ADDR(fault)  ((u64)(fault) & 0xfffffffff000ULL)
+
 struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
 	struct rb_root		va;
@@ -160,6 +164,9 @@ struct amdgpu_vm {
 
 	/* Flag to indicate ATS support from PTE for GFX9 */
 	bool			pte_support_ats;
+
+	/* Up to 128 pending page faults */
+	DECLARE_KFIFO(faults, u64, 128);
 };
 
 struct amdgpu_vm_id {
