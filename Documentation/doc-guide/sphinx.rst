@@ -80,9 +80,7 @@ output.
 PDF and LaTeX builds
 --------------------
 
-Such builds are currently supported only with Sphinx versions 1.4 and 1.5.
-
-Currently, it is not possible to do pdf builds with Sphinx version 1.6.
+Such builds are currently supported only with Sphinx versions 1.4 and upper.
 
 For PDF and LaTeX output, you'll also need ``XeLaTeX`` version 3.14159265.
 
