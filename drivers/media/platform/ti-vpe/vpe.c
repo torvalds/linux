@@ -2421,7 +2421,7 @@ static const struct v4l2_file_operations vpe_fops = {
 	.mmap		= v4l2_m2m_fop_mmap,
 };
 
-static struct video_device vpe_videodev = {
+static const struct video_device vpe_videodev = {
 	.name		= VPE_MODULE_NAME,
 	.fops		= &vpe_fops,
 	.ioctl_ops	= &vpe_ioctl_ops,

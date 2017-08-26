@@ -602,7 +602,7 @@ static const struct v4l2_ioctl_ops g2d_ioctl_ops = {
 	.vidioc_cropcap			= vidioc_cropcap,
 };
 
-static struct video_device g2d_videodev = {
+static const struct video_device g2d_videodev = {
 	.name		= G2D_NAME,
 	.fops		= &g2d_fops,
 	.ioctl_ops	= &g2d_ioctl_ops,

@@ -979,7 +979,7 @@ static const struct v4l2_file_operations deinterlace_fops = {
 	.mmap		= deinterlace_mmap,
 };
 
-static struct video_device deinterlace_videodev = {
+static const struct video_device deinterlace_videodev = {
 	.name		= MEM2MEM_NAME,
 	.fops		= &deinterlace_fops,
 	.ioctl_ops	= &deinterlace_ioctl_ops,

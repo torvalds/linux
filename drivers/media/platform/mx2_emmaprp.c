@@ -873,7 +873,7 @@ static const struct v4l2_file_operations emmaprp_fops = {
 	.mmap		= emmaprp_mmap,
 };
 
-static struct video_device emmaprp_videodev = {
+static const struct video_device emmaprp_videodev = {
 	.name		= MEM2MEM_NAME,
 	.fops		= &emmaprp_fops,
 	.ioctl_ops	= &emmaprp_ioctl_ops,

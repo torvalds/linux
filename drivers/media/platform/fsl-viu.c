@@ -1380,7 +1380,7 @@ static const struct v4l2_ioctl_ops viu_ioctl_ops = {
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-static struct video_device viu_template = {
+static const struct video_device viu_template = {
 	.name		= "FSL viu",
 	.fops		= &viu_fops,
 	.minor		= -1,
