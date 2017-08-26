@@ -25,6 +25,7 @@
 #define __AMDGPU_VM_H__
 
 #include <linux/rbtree.h>
+#include <linux/idr.h>
 
 #include "gpu_scheduler.h"
 #include "amdgpu_sync.h"
@@ -148,8 +149,9 @@ struct amdgpu_vm {
 	/* Scheduler entity for page table updates */
 	struct amd_sched_entity	entity;
 
-	/* client id */
+	/* client id and PASID (TODO: replace client_id with PASID) */
 	u64                     client_id;
+	unsigned int		pasid;
 	/* dedicated to vm */
 	struct amdgpu_vm_id	*reserved_vmid[AMDGPU_MAX_VMHUBS];
 
@@ -220,12 +222,20 @@ struct amdgpu_vm_manager {
 	 * BIT1[= 0] Compute updated by SDMA [= 1] by CPU
 	 */
 	int					vm_update_mode;
+
+	/* PASID to VM mapping, will be used in interrupt context to
+	 * look up VM of a page fault
+	 */
+	struct idr				pasid_idr;
+	spinlock_t				pasid_lock;
 };
 
+int amdgpu_vm_alloc_pasid(unsigned int bits);
+void amdgpu_vm_free_pasid(unsigned int pasid);
 void amdgpu_vm_manager_init(struct amdgpu_device *adev);
 void amdgpu_vm_manager_fini(struct amdgpu_device *adev);
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-		   int vm_context);
+		   int vm_context, unsigned int pasid);
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 			 struct list_head *validated,

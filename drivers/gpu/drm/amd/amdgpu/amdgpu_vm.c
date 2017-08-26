@@ -27,10 +27,57 @@
  */
 #include <linux/dma-fence-array.h>
 #include <linux/interval_tree_generic.h>
+#include <linux/idr.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
+
+/*
+ * PASID manager
+ *
+ * PASIDs are global address space identifiers that can be shared
+ * between the GPU, an IOMMU and the driver. VMs on different devices
+ * may use the same PASID if they share the same address
+ * space. Therefore PASIDs are allocated using a global IDA. VMs are
+ * looked up from the PASID per amdgpu_device.
+ */
+static DEFINE_IDA(amdgpu_vm_pasid_ida);
+
+/**
+ * amdgpu_vm_alloc_pasid - Allocate a PASID
+ * @bits: Maximum width of the PASID in bits, must be at least 1
+ *
+ * Allocates a PASID of the given width while keeping smaller PASIDs
+ * available if possible.
+ *
+ * Returns a positive integer on success. Returns %-EINVAL if bits==0.
+ * Returns %-ENOSPC if no PASID was available. Returns %-ENOMEM on
+ * memory allocation failure.
+ */
+int amdgpu_vm_alloc_pasid(unsigned int bits)
+{
+	int pasid = -EINVAL;
+
+	for (bits = min(bits, 31U); bits > 0; bits--) {
+		pasid = ida_simple_get(&amdgpu_vm_pasid_ida,
+				       1U << (bits - 1), 1U << bits,
+				       GFP_KERNEL);
+		if (pasid != -ENOSPC)
+			break;
+	}
+
+	return pasid;
+}
+
+/**
+ * amdgpu_vm_free_pasid - Free a PASID
+ * @pasid: PASID to free
+ */
+void amdgpu_vm_free_pasid(unsigned int pasid)
+{
+	ida_simple_remove(&amdgpu_vm_pasid_ida, pasid);
+}
 
 /*
  * GPUVM
@@ -2539,7 +2586,7 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint64_t vm_size, uint32_
  * Init @vm fields.
  */
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-		   int vm_context)
+		   int vm_context, unsigned int pasid)
 {
 	const unsigned align = min(AMDGPU_VM_PTB_ALIGN_SIZE,
 		AMDGPU_VM_PTE_COUNT(adev) * 8);
@@ -2620,6 +2667,19 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			goto error_free_root;
 	}
 
+	if (pasid) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&adev->vm_manager.pasid_lock, flags);
+		r = idr_alloc(&adev->vm_manager.pasid_idr, vm, pasid, pasid + 1,
+			      GFP_ATOMIC);
+		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
+		if (r < 0)
+			goto error_free_root;
+
+		vm->pasid = pasid;
+	}
+
 	return 0;
 
 error_free_root:
@@ -2672,6 +2732,14 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	struct amdgpu_bo_va_mapping *mapping, *tmp;
 	bool prt_fini_needed = !!adev->gart.gart_funcs->set_prt;
 	int i;
+
+	if (vm->pasid) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&adev->vm_manager.pasid_lock, flags);
+		idr_remove(&adev->vm_manager.pasid_idr, vm->pasid);
+		spin_unlock_irqrestore(&adev->vm_manager.pasid_lock, flags);
+	}
 
 	amd_sched_entity_fini(vm->entity.sched, &vm->entity);
 
@@ -2752,6 +2820,8 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 	adev->vm_manager.vm_update_mode = 0;
 #endif
 
+	idr_init(&adev->vm_manager.pasid_idr);
+	spin_lock_init(&adev->vm_manager.pasid_lock);
 }
 
 /**
@@ -2764,6 +2834,9 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 void amdgpu_vm_manager_fini(struct amdgpu_device *adev)
 {
 	unsigned i, j;
+
+	WARN_ON(!idr_is_empty(&adev->vm_manager.pasid_idr));
+	idr_destroy(&adev->vm_manager.pasid_idr);
 
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; ++i) {
 		struct amdgpu_vm_id_manager *id_mgr =
