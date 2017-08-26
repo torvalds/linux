@@ -1456,7 +1456,7 @@ static const struct v4l2_file_operations camera0_fops = {
 	.mmap = vb2_fop_mmap,
 };
 
-static struct video_device vdev_template = {
+static const struct video_device vdev_template = {
 	.name = "camera0",
 	.fops = &camera0_fops,
 	.ioctl_ops = &camera0_ioctl_ops,
