@@ -157,9 +157,6 @@ struct kfd_dev {
 					 * to HW doorbell, GFX reserved some
 					 * at the start)
 					 */
-	size_t doorbell_process_limit;	/* Number of processes we have doorbell
-					 * space for.
-					 */
 	u32 __iomem *doorbell_kernel_ptr; /* This is a pointer for a doorbells
 					   * page used by kernel queue
 					   */
@@ -495,6 +492,7 @@ struct kfd_process {
 	struct rcu_head	rcu;
 
 	unsigned int pasid;
+	unsigned int doorbell_index;
 
 	/*
 	 * List of kfd_process_device structures,
@@ -583,6 +581,10 @@ void write_kernel_doorbell(u32 __iomem *db, u32 value);
 unsigned int kfd_queue_id_to_doorbell(struct kfd_dev *kfd,
 					struct kfd_process *process,
 					unsigned int queue_id);
+phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
+					struct kfd_process *process);
+int kfd_alloc_process_doorbells(struct kfd_process *process);
+void kfd_free_process_doorbells(struct kfd_process *process);
 
 /* GTT Sub-Allocator */
 
@@ -694,8 +696,6 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 void pm_release_ib(struct packet_manager *pm);
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
-phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
-					struct kfd_process *process);
 
 /* Events */
 extern const struct kfd_event_interrupt_class event_interrupt_class_cik;
