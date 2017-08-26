@@ -448,7 +448,7 @@ static int __init obdclass_init(void)
 	obd_zombie_impexp_init();
 
 	err = obd_init_checks();
-	if (err == -EOVERFLOW)
+	if (err)
 		return err;
 
 	class_init_uuidlist();
