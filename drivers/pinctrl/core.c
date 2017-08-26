@@ -1380,7 +1380,6 @@ int pinctrl_register_map(const struct pinctrl_map *maps, unsigned num_maps,
 		maps_node->maps = kmemdup(maps, sizeof(*maps) * num_maps,
 					  GFP_KERNEL);
 		if (!maps_node->maps) {
-			pr_err("failed to duplicate mapping table\n");
 			kfree(maps_node);
 			return -ENOMEM;
 		}
