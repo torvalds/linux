@@ -187,7 +187,7 @@ static const struct dce_ipp_mask ipp_mask = {
 
 #define transform_regs(id)\
 [id] = {\
-		XFM_COMMON_REG_LIST_DCE_BASE(id)\
+		XFM_COMMON_REG_LIST_DCE80(id)\
 }
 
 static const struct dce_transform_registers xfm_regs[] = {
@@ -200,11 +200,11 @@ static const struct dce_transform_registers xfm_regs[] = {
 };
 
 static const struct dce_transform_shift xfm_shift = {
-		XFM_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(__SHIFT)
+		XFM_COMMON_MASK_SH_LIST_DCE80(__SHIFT)
 };
 
 static const struct dce_transform_mask xfm_mask = {
-		XFM_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
+		XFM_COMMON_MASK_SH_LIST_DCE80(_MASK)
 };
 
 #define aux_regs(id)\
