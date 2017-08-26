@@ -440,7 +440,8 @@ static bool rt6_check_expired(const struct rt6_info *rt)
 		if (time_after(jiffies, rt->dst.expires))
 			return true;
 	} else if (rt->dst.from) {
-		return rt6_check_expired((struct rt6_info *) rt->dst.from);
+		return rt->dst.obsolete != DST_OBSOLETE_FORCE_CHK ||
+		       rt6_check_expired((struct rt6_info *)rt->dst.from);
 	}
 	return false;
 }
