@@ -43,6 +43,7 @@
 #include "nfp_main.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net_repr.h"
+#include "nfp_net_sriov.h"
 #include "nfp_port.h"
 
 static void
@@ -247,6 +248,11 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_get_offload_stats	= nfp_repr_get_offload_stats,
 	.ndo_get_phys_port_name	= nfp_port_get_phys_port_name,
 	.ndo_setup_tc		= nfp_port_setup_tc,
+	.ndo_set_vf_mac		= nfp_app_set_vf_mac,
+	.ndo_set_vf_vlan	= nfp_app_set_vf_vlan,
+	.ndo_set_vf_spoofchk	= nfp_app_set_vf_spoofchk,
+	.ndo_get_vf_config	= nfp_app_get_vf_config,
+	.ndo_set_vf_link_state	= nfp_app_set_vf_link_state,
 };
 
 static void nfp_repr_clean(struct nfp_repr *repr)

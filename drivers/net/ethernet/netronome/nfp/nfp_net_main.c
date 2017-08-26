@@ -57,6 +57,7 @@
 #include "nfpcore/nfp6000_pcie.h"
 #include "nfp_app.h"
 #include "nfp_net_ctrl.h"
+#include "nfp_net_sriov.h"
 #include "nfp_net.h"
 #include "nfp_main.h"
 #include "nfp_port.h"
@@ -489,6 +490,8 @@ static void nfp_net_pf_app_stop(struct nfp_pf *pf)
 
 static void nfp_net_pci_unmap_mem(struct nfp_pf *pf)
 {
+	if (pf->vfcfg_tbl2_area)
+		nfp_cpp_area_release_free(pf->vfcfg_tbl2_area);
 	if (pf->vf_cfg_bar)
 		nfp_cpp_area_release_free(pf->vf_cfg_bar);
 	if (pf->mac_stats_bar)
@@ -535,17 +538,32 @@ static int nfp_net_pci_map_mem(struct nfp_pf *pf)
 		pf->vf_cfg_mem = NULL;
 	}
 
+	min_size = NFP_NET_VF_CFG_SZ * pf->limit_vfs + NFP_NET_VF_CFG_MB_SZ;
+	pf->vfcfg_tbl2 = nfp_net_pf_map_rtsym(pf, "net.vfcfg_tbl2",
+					      "_pf%d_net_vf_cfg2",
+					      min_size, &pf->vfcfg_tbl2_area);
+	if (IS_ERR(pf->vfcfg_tbl2)) {
+		if (PTR_ERR(pf->vfcfg_tbl2) != -ENOENT) {
+			err = PTR_ERR(pf->vfcfg_tbl2);
+			goto err_unmap_vf_cfg;
+		}
+		pf->vfcfg_tbl2 = NULL;
+	}
+
 	mem = nfp_cpp_map_area(pf->cpp, "net.qc", 0, 0,
 			       NFP_PCIE_QUEUE(0), NFP_QCP_QUEUE_AREA_SZ,
 			       &pf->qc_area);
 	if (IS_ERR(mem)) {
 		nfp_err(pf->cpp, "Failed to map Queue Controller area.\n");
 		err = PTR_ERR(mem);
-		goto err_unmap_vf_cfg;
+		goto err_unmap_vfcfg_tbl2;
 	}
 
 	return 0;
 
+err_unmap_vfcfg_tbl2:
+	if (pf->vfcfg_tbl2_area)
+		nfp_cpp_area_release_free(pf->vfcfg_tbl2_area);
 err_unmap_vf_cfg:
 	if (pf->vf_cfg_bar)
 		nfp_cpp_area_release_free(pf->vf_cfg_bar);
