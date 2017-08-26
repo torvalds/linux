@@ -597,7 +597,7 @@ static void iwl_pcie_rx_allocator_get(struct iwl_trans *trans,
 	rxq->free_count += RX_CLAIM_REQ_ALLOC;
 }
 
-static void iwl_pcie_rx_allocator_work(struct work_struct *data)
+void iwl_pcie_rx_allocator_work(struct work_struct *data)
 {
 	struct iwl_rb_allocator *rba_p =
 		container_of(data, struct iwl_rb_allocator, rx_alloc);
@@ -900,10 +900,6 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 			return err;
 	}
 	def_rxq = trans_pcie->rxq;
-	if (!rba->alloc_wq)
-		rba->alloc_wq = alloc_workqueue("rb_allocator",
-						WQ_HIGHPRI | WQ_UNBOUND, 1);
-	INIT_WORK(&rba->rx_alloc, iwl_pcie_rx_allocator_work);
 
 	spin_lock(&rba->lock);
 	atomic_set(&rba->req_pending, 0);
@@ -1017,10 +1013,6 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 	}
 
 	cancel_work_sync(&rba->rx_alloc);
-	if (rba->alloc_wq) {
-		destroy_workqueue(rba->alloc_wq);
-		rba->alloc_wq = NULL;
-	}
 
 	iwl_pcie_free_rbs_pool(trans);
 
