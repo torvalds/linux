@@ -33,9 +33,8 @@ Data types and ioctl definitions can be accessed by including
 
 .. note::
 
-   Transmission via the internet (DVB-IP) is not yet handled by this
-   API but a future extension is possible.
-
+   Transmission via the internet (DVB-IP) and MMT (MPEG Media Transport)
+   is not yet handled by this API but a future extension is possible.
 
 .. [#f1]
 
