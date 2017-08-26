@@ -5,13 +5,15 @@
 ################
 DVB Frontend API
 ################
-The DVB frontend API was designed to support three types of delivery
-systems:
+
+The DVB frontend API was designed to support three groups of delivery
+systems: Terrestrial, cable and Satellite. Currently, the following
+delivery systems are supported:
 
 -  Terrestrial systems: DVB-T, DVB-T2, ATSC, ATSC M/H, ISDB-T, DVB-H,
    DTMB, CMMB
 
--  Cable systems: DVB-C Annex A/C, ClearQAM (DVB-C Annex B), ISDB-C
+-  Cable systems: DVB-C Annex A/C, ClearQAM (DVB-C Annex B)
 
 -  Satellite systems: DVB-S, DVB-S2, DVB Turbo, ISDB-S, DSS
 
