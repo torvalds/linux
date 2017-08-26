@@ -1495,7 +1495,6 @@ static int usbvision_probe(struct usb_interface *intf,
 	PDEBUG(DBG_PROBE, "Alternate settings: %i", usbvision->num_alt);
 	usbvision->alt_max_pkt_size = kmalloc(32 * usbvision->num_alt, GFP_KERNEL);
 	if (usbvision->alt_max_pkt_size == NULL) {
-		dev_err(&intf->dev, "usbvision: out of memory!\n");
 		ret = -ENOMEM;
 		goto err_pkt;
 	}
