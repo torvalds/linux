@@ -262,7 +262,6 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 		       dev);
 
 		if (copy_to_user((void __user *)arg, data, sizeof(*data)))
-		if (err)
 			err = -EFAULT;
 		goto out;
 	}
