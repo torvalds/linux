@@ -392,7 +392,7 @@ To change the radio frequency the
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \scriptsize
 
 .. _tuner-matrix:
 
@@ -441,7 +441,7 @@ To change the radio frequency the
 
 .. raw:: latex
 
-    \end{adjustbox}\newline\newline
+    \normalsize
 
 Return Value
 ============

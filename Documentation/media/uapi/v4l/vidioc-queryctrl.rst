@@ -274,7 +274,7 @@ See also the examples in :ref:`control`.
 
 
 
-.. tabularcolumns:: |p{1.2cm}|p{0.6cm}|p{1.6cm}|p{13.5cm}|
+.. tabularcolumns:: |p{1.2cm}|p{1.0cm}|p{1.7cm}|p{13.0cm}|
 
 .. _v4l2-querymenu:
 

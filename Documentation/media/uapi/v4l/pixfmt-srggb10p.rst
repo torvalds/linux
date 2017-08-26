@@ -33,11 +33,12 @@ of a small V4L2_PIX_FMT_SBGGR10P image:
 **Byte Order.**
 Each cell is one byte.
 
+
 .. raw:: latex
 
-    \newline\newline\begin{adjustbox}{width=\columnwidth}
+    \small
 
-.. tabularcolumns:: |p{2.0cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{10.9cm}|
+.. tabularcolumns:: |p{2.0cm}|p{1.0cm}|p{1.0cm}|p{1.0cm}|p{1.0cm}|p{10.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -75,4 +76,4 @@ Each cell is one byte.
 
 .. raw:: latex
 
-    \end{adjustbox}\newline\newline
+    \normalsize

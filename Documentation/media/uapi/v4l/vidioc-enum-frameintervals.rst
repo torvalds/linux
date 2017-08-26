@@ -124,6 +124,8 @@ application should zero out all members except for the *IN* fields.
 
 .. c:type:: v4l2_frmivalenum
 
+.. tabularcolumns:: |p{1.8cm}|p{4.4cm}|p{2.4cm}|p{8.9cm}|
+
 .. flat-table:: struct v4l2_frmivalenum
     :header-rows:  0
     :stub-columns: 0
