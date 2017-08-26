@@ -55,6 +55,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
 	pudval_t *pud;
 	pmdval_t *pmd, pmd_entry;
 	int i;
+	unsigned int *next_pgt_ptr;
 
 	/* Is the address too large? */
 	if (physaddr >> MAX_PHYSMEM_BITS)
@@ -100,8 +101,10 @@ unsigned long __head __startup_64(unsigned long physaddr,
 	 * it avoids problems around wraparound.
 	 */
 
-	pud = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
-	pmd = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
+	next_pgt_ptr = fixup_pointer(&next_early_pgt, physaddr);
+	pud = fixup_pointer(early_dynamic_pgts[(*next_pgt_ptr)++], physaddr);
+	pmd = fixup_pointer(early_dynamic_pgts[(*next_pgt_ptr)++], physaddr);
+
 	pgtable_flags = _KERNPG_TABLE_NOENC + sme_get_me_mask();
 
 	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {

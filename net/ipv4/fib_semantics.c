@@ -1083,15 +1083,17 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	fi = kzalloc(sizeof(*fi)+nhs*sizeof(struct fib_nh), GFP_KERNEL);
 	if (!fi)
 		goto failure;
-	fib_info_cnt++;
 	if (cfg->fc_mx) {
 		fi->fib_metrics = kzalloc(sizeof(*fi->fib_metrics), GFP_KERNEL);
-		if (!fi->fib_metrics)
-			goto failure;
+		if (unlikely(!fi->fib_metrics)) {
+			kfree(fi);
+			return ERR_PTR(err);
+		}
 		atomic_set(&fi->fib_metrics->refcnt, 1);
-	} else
+	} else {
 		fi->fib_metrics = (struct dst_metrics *)&dst_default_metrics;
-
+	}
+	fib_info_cnt++;
 	fi->fib_net = net;
 	fi->fib_protocol = cfg->fc_protocol;
 	fi->fib_scope = cfg->fc_scope;
@@ -1452,7 +1454,7 @@ static int call_fib_nh_notifiers(struct fib_nh *fib_nh,
 		return call_fib_notifiers(dev_net(fib_nh->nh_dev), event_type,
 					  &info.info);
 	case FIB_EVENT_NH_DEL:
-		if ((IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
+		if ((in_dev && IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
 		     fib_nh->nh_flags & RTNH_F_LINKDOWN) ||
 		    (fib_nh->nh_flags & RTNH_F_DEAD))
 			return call_fib_notifiers(dev_net(fib_nh->nh_dev),

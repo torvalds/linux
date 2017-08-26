@@ -66,7 +66,7 @@ struct user_namespace {
 #endif
 	struct ucounts		*ucounts;
 	int ucount_max[UCOUNT_COUNTS];
-};
+} __randomize_layout;
 
 struct ucounts {
 	struct hlist_node node;

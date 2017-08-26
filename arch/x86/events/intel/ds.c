@@ -606,12 +606,6 @@ static inline void intel_pmu_drain_pebs_buffer(void)
 	x86_pmu.drain_pebs(&regs);
 }
 
-void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in)
-{
-	if (!sched_in)
-		intel_pmu_drain_pebs_buffer();
-}
-
 /*
  * PEBS
  */
@@ -648,6 +642,12 @@ struct event_constraint intel_slm_pebs_event_constraints[] = {
 struct event_constraint intel_glm_pebs_event_constraints[] = {
 	/* Allow all events as PEBS with no flags */
 	INTEL_ALL_EVENT_CONSTRAINT(0, 0x1),
+	EVENT_CONSTRAINT_END
+};
+
+struct event_constraint intel_glp_pebs_event_constraints[] = {
+	/* Allow all events as PEBS with no flags */
+	INTEL_ALL_EVENT_CONSTRAINT(0, 0xf),
 	EVENT_CONSTRAINT_END
 };
 
@@ -816,6 +816,14 @@ static inline bool pebs_needs_sched_cb(struct cpu_hw_events *cpuc)
 	return cpuc->n_pebs && (cpuc->n_pebs == cpuc->n_large_pebs);
 }
 
+void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	if (!sched_in && pebs_needs_sched_cb(cpuc))
+		intel_pmu_drain_pebs_buffer();
+}
+
 static inline void pebs_update_threshold(struct cpu_hw_events *cpuc)
 {
 	struct debug_store *ds = cpuc->ds;
@@ -889,6 +897,8 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 	if (hwc->flags & PERF_X86_EVENT_AUTO_RELOAD) {
 		ds->pebs_event_reset[hwc->idx] =
 			(u64)(-hwc->sample_period) & x86_pmu.cntval_mask;
+	} else {
+		ds->pebs_event_reset[hwc->idx] = 0;
 	}
 }
 

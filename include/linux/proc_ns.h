@@ -21,7 +21,7 @@ struct proc_ns_operations {
 	int (*install)(struct nsproxy *nsproxy, struct ns_common *ns);
 	struct user_namespace *(*owner)(struct ns_common *ns);
 	struct ns_common *(*get_parent)(struct ns_common *ns);
-};
+} __randomize_layout;
 
 extern const struct proc_ns_operations netns_operations;
 extern const struct proc_ns_operations utsns_operations;

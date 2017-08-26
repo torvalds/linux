@@ -1150,7 +1150,7 @@ int ppl_init_log(struct r5conf *conf)
 		goto err;
 	}
 
-	ppl_conf->bs = bioset_create(conf->raid_disks, 0, 0);
+	ppl_conf->bs = bioset_create(conf->raid_disks, 0, BIOSET_NEED_BVECS);
 	if (!ppl_conf->bs) {
 		ret = -ENOMEM;
 		goto err;

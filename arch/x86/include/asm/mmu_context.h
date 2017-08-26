@@ -304,7 +304,7 @@ static inline unsigned long __get_current_cr3_fast(void)
 		cr3 |= this_cpu_read(cpu_tlbstate.loaded_mm_asid);
 
 	/* For now, be very restrictive about when this can be called. */
-	VM_WARN_ON(in_nmi() || !in_atomic());
+	VM_WARN_ON(in_nmi() || preemptible());
 
 	VM_BUG_ON(cr3 != __read_cr3());
 	return cr3;

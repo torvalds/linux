@@ -665,6 +665,7 @@ noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
 	static DEFINE_SPINLOCK(lock);
 	unsigned long flags;
 	unsigned int ctrl;
+	phys_addr_t end;
 
 	spin_lock_irqsave(&lock, flags);
 
@@ -694,8 +695,19 @@ noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
 	 * END needs to be setup before START (latter triggers the operation)
 	 * END can't be same as START, so add (l2_line_sz - 1) to sz
 	 */
-	write_aux_reg(ARC_REG_SLC_RGN_END, (paddr + sz + l2_line_sz - 1));
-	write_aux_reg(ARC_REG_SLC_RGN_START, paddr);
+	end = paddr + sz + l2_line_sz - 1;
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_SLC_RGN_END1, upper_32_bits(end));
+
+	write_aux_reg(ARC_REG_SLC_RGN_END, lower_32_bits(end));
+
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_SLC_RGN_START1, upper_32_bits(paddr));
+
+	write_aux_reg(ARC_REG_SLC_RGN_START, lower_32_bits(paddr));
+
+	/* Make sure "busy" bit reports correct stataus, see STAR 9001165532 */
+	read_aux_reg(ARC_REG_SLC_CTRL);
 
 	while (read_aux_reg(ARC_REG_SLC_CTRL) & SLC_CTRL_BUSY);
 
@@ -1111,6 +1123,13 @@ noinline void __init arc_ioc_setup(void)
 	__dc_enable();
 }
 
+/*
+ * Cache related boot time checks/setups only needed on master CPU:
+ *  - Geometry checks (kernel build and hardware agree: e.g. L1_CACHE_BYTES)
+ *    Assume SMP only, so all cores will have same cache config. A check on
+ *    one core suffices for all
+ *  - IOC setup / dma callbacks only need to be done once
+ */
 void __init arc_cache_init_master(void)
 {
 	unsigned int __maybe_unused cpu = smp_processor_id();
@@ -1190,12 +1209,27 @@ void __ref arc_cache_init(void)
 
 	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
 
-	/*
-	 * Only master CPU needs to execute rest of function:
-	 *  - Assume SMP so all cores will have same cache config so
-	 *    any geomtry checks will be same for all
-	 *  - IOC setup / dma callbacks only need to be setup once
-	 */
 	if (!cpu)
 		arc_cache_init_master();
+
+	/*
+	 * In PAE regime, TLB and cache maintenance ops take wider addresses
+	 * And even if PAE is not enabled in kernel, the upper 32-bits still need
+	 * to be zeroed to keep the ops sane.
+	 * As an optimization for more common !PAE enabled case, zero them out
+	 * once at init, rather than checking/setting to 0 for every runtime op
+	 */
+	if (is_isa_arcv2() && pae40_exist_but_not_enab()) {
+
+		if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE))
+			write_aux_reg(ARC_REG_IC_PTAG_HI, 0);
+
+		if (IS_ENABLED(CONFIG_ARC_HAS_DCACHE))
+			write_aux_reg(ARC_REG_DC_PTAG_HI, 0);
+
+		if (l2_line_sz) {
+			write_aux_reg(ARC_REG_SLC_RGN_END1, 0);
+			write_aux_reg(ARC_REG_SLC_RGN_START1, 0);
+		}
+	}
 }

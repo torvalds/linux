@@ -1015,7 +1015,7 @@ static struct ib_ucq_object *create_cq(struct ib_uverbs_file *file,
 	cq->uobject       = &obj->uobject;
 	cq->comp_handler  = ib_uverbs_comp_handler;
 	cq->event_handler = ib_uverbs_cq_event_handler;
-	cq->cq_context    = &ev_file->ev_queue;
+	cq->cq_context    = ev_file ? &ev_file->ev_queue : NULL;
 	atomic_set(&cq->usecnt, 0);
 
 	obj->uobject.object = cq;
@@ -1153,7 +1153,7 @@ ssize_t ib_uverbs_resize_cq(struct ib_uverbs_file *file,
 			    int out_len)
 {
 	struct ib_uverbs_resize_cq	cmd;
-	struct ib_uverbs_resize_cq_resp	resp;
+	struct ib_uverbs_resize_cq_resp	resp = {};
 	struct ib_udata                 udata;
 	struct ib_cq			*cq;
 	int				ret = -EINVAL;
@@ -1296,7 +1296,6 @@ ssize_t ib_uverbs_destroy_cq(struct ib_uverbs_file *file,
 	struct ib_uobject		*uobj;
 	struct ib_cq               	*cq;
 	struct ib_ucq_object        	*obj;
-	struct ib_uverbs_event_queue	*ev_queue;
 	int                        	 ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
@@ -1313,7 +1312,6 @@ ssize_t ib_uverbs_destroy_cq(struct ib_uverbs_file *file,
 	 */
 	uverbs_uobject_get(uobj);
 	cq      = uobj->object;
-	ev_queue = cq->cq_context;
 	obj     = container_of(cq->uobject, struct ib_ucq_object, uobject);
 
 	memset(&resp, 0, sizeof(resp));
@@ -1524,6 +1522,7 @@ static int create_qp(struct ib_uverbs_file *file,
 		qp->qp_type	  = attr.qp_type;
 		atomic_set(&qp->usecnt, 0);
 		atomic_inc(&pd->usecnt);
+		qp->port = 0;
 		if (attr.send_cq)
 			atomic_inc(&attr.send_cq->usecnt);
 		if (attr.recv_cq)
@@ -1935,7 +1934,8 @@ static int modify_qp(struct ib_uverbs_file *file,
 		goto out;
 	}
 
-	if (!rdma_is_port_valid(qp->device, cmd->base.port_num)) {
+	if ((cmd->base.attr_mask & IB_QP_PORT) &&
+	    !rdma_is_port_valid(qp->device, cmd->base.port_num)) {
 		ret = -EINVAL;
 		goto release_qp;
 	}
@@ -1963,8 +1963,9 @@ static int modify_qp(struct ib_uverbs_file *file,
 	attr->alt_timeout	  = cmd->base.alt_timeout;
 	attr->rate_limit	  = cmd->rate_limit;
 
-	attr->ah_attr.type = rdma_ah_find_type(qp->device,
-					       cmd->base.dest.port_num);
+	if (cmd->base.attr_mask & IB_QP_AV)
+		attr->ah_attr.type = rdma_ah_find_type(qp->device,
+						       cmd->base.dest.port_num);
 	if (cmd->base.dest.is_global) {
 		rdma_ah_set_grh(&attr->ah_attr, NULL,
 				cmd->base.dest.flow_label,
@@ -1982,8 +1983,9 @@ static int modify_qp(struct ib_uverbs_file *file,
 	rdma_ah_set_port_num(&attr->ah_attr,
 			     cmd->base.dest.port_num);
 
-	attr->alt_ah_attr.type = rdma_ah_find_type(qp->device,
-						   cmd->base.dest.port_num);
+	if (cmd->base.attr_mask & IB_QP_ALT_PATH)
+		attr->alt_ah_attr.type =
+			rdma_ah_find_type(qp->device, cmd->base.dest.port_num);
 	if (cmd->base.alt_dest.is_global) {
 		rdma_ah_set_grh(&attr->alt_ah_attr, NULL,
 				cmd->base.alt_dest.flow_label,
@@ -2005,28 +2007,13 @@ static int modify_qp(struct ib_uverbs_file *file,
 	rdma_ah_set_port_num(&attr->alt_ah_attr,
 			     cmd->base.alt_dest.port_num);
 
-	if (qp->real_qp == qp) {
-		if (cmd->base.attr_mask & IB_QP_AV) {
-			ret = ib_resolve_eth_dmac(qp->device, &attr->ah_attr);
-			if (ret)
-				goto release_qp;
-		}
-		ret = ib_security_modify_qp(qp,
-					    attr,
-					    modify_qp_mask(qp->qp_type,
-							   cmd->base.attr_mask),
-					    udata);
-	} else {
-		ret = ib_security_modify_qp(qp,
-					    attr,
-					    modify_qp_mask(qp->qp_type,
-							   cmd->base.attr_mask),
-					    NULL);
-	}
+	ret = ib_modify_qp_with_udata(qp, attr,
+				      modify_qp_mask(qp->qp_type,
+						     cmd->base.attr_mask),
+				      udata);
 
 release_qp:
 	uobj_put_obj_read(qp);
-
 out:
 	kfree(attr);
 
@@ -2103,7 +2090,6 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 	struct ib_uverbs_destroy_qp      cmd;
 	struct ib_uverbs_destroy_qp_resp resp;
 	struct ib_uobject		*uobj;
-	struct ib_qp               	*qp;
 	struct ib_uqp_object        	*obj;
 	int                        	 ret = -EINVAL;
 
@@ -2117,7 +2103,6 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	qp  = uobj->object;
 	obj = container_of(uobj, struct ib_uqp_object, uevent.uobject);
 	/*
 	 * Make sure we don't free the memory in remove_commit as we still
@@ -3019,7 +3004,6 @@ int ib_uverbs_ex_destroy_wq(struct ib_uverbs_file *file,
 {
 	struct ib_uverbs_ex_destroy_wq	cmd = {};
 	struct ib_uverbs_ex_destroy_wq_resp	resp = {};
-	struct ib_wq			*wq;
 	struct ib_uobject		*uobj;
 	struct ib_uwq_object		*obj;
 	size_t required_cmd_sz;
@@ -3053,7 +3037,6 @@ int ib_uverbs_ex_destroy_wq(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	wq = uobj->object;
 	obj = container_of(uobj, struct ib_uwq_object, uevent.uobject);
 	/*
 	 * Make sure we don't free the memory in remove_commit as we still
@@ -3743,10 +3726,8 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 	struct ib_uverbs_destroy_srq      cmd;
 	struct ib_uverbs_destroy_srq_resp resp;
 	struct ib_uobject		 *uobj;
-	struct ib_srq               	 *srq;
 	struct ib_uevent_object        	 *obj;
 	int                         	  ret = -EINVAL;
-	enum ib_srq_type		  srq_type;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
@@ -3756,9 +3737,7 @@ ssize_t ib_uverbs_destroy_srq(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	srq = uobj->object;
 	obj = container_of(uobj, struct ib_uevent_object, uobject);
-	srq_type = srq->srq_type;
 	/*
 	 * Make sure we don't free the memory in remove_commit as we still
 	 * needs the uobject memory to create the response.

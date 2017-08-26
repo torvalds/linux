@@ -1085,6 +1085,12 @@ static int mlx5_ib_modify_port(struct ib_device *ibdev, u8 port, int mask,
 	bool is_ib = (mlx5_ib_port_link_layer(ibdev, port) ==
 		      IB_LINK_LAYER_INFINIBAND);
 
+	/* CM layer calls ib_modify_port() regardless of the link layer. For
+	 * Ethernet ports, qkey violation and Port capabilities are meaningless.
+	 */
+	if (!is_ib)
+		return 0;
+
 	if (MLX5_CAP_GEN(dev->mdev, ib_virt) && is_ib) {
 		change_mask = props->clr_port_cap_mask | props->set_port_cap_mask;
 		value = ~props->clr_port_cap_mask | props->set_port_cap_mask;

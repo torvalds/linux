@@ -780,6 +780,9 @@ static int __init balloon_init(void)
 	}
 #endif
 
+	/* Init the xen-balloon driver. */
+	xen_balloon_init();
+
 	return 0;
 }
 subsys_initcall(balloon_init);

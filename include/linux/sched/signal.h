@@ -222,7 +222,7 @@ struct signal_struct {
 	struct mutex cred_guard_mutex;	/* guard against foreign influences on
 					 * credential calculations
 					 * (notably. ptrace) */
-};
+} __randomize_layout;
 
 /*
  * Bits in flags field of signal_struct.

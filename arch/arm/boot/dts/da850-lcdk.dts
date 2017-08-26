@@ -318,11 +318,4 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&vpif_capture_pins>;
 	status = "okay";
-
-	/* VPIF capture port */
-	port {
-		vpif_ch0: endpoint {
-			  bus-width = <8>;
-		};
-	};
 };

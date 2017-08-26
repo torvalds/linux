@@ -59,6 +59,8 @@ static void watch_target(struct xenbus_watch *watch,
 {
 	unsigned long long new_target;
 	int err;
+	static bool watch_fired;
+	static long target_diff;
 
 	err = xenbus_scanf(XBT_NIL, "memory", "target", "%llu", &new_target);
 	if (err != 1) {
@@ -69,7 +71,14 @@ static void watch_target(struct xenbus_watch *watch,
 	/* The given memory/target value is in KiB, so it needs converting to
 	 * pages. PAGE_SHIFT converts bytes to pages, hence PAGE_SHIFT - 10.
 	 */
-	balloon_set_new_target(new_target >> (PAGE_SHIFT - 10));
+	new_target >>= PAGE_SHIFT - 10;
+	if (watch_fired) {
+		balloon_set_new_target(new_target - target_diff);
+		return;
+	}
+
+	watch_fired = true;
+	target_diff = new_target - balloon_stats.target_pages;
 }
 static struct xenbus_watch target_watch = {
 	.node = "memory/target",
@@ -94,22 +103,15 @@ static struct notifier_block xenstore_notifier = {
 	.notifier_call = balloon_init_watcher,
 };
 
-static int __init balloon_init(void)
+void xen_balloon_init(void)
 {
-	if (!xen_domain())
-		return -ENODEV;
-
-	pr_info("Initialising balloon driver\n");
-
 	register_balloon(&balloon_dev);
 
 	register_xen_selfballooning(&balloon_dev);
 
 	register_xenstore_notifier(&xenstore_notifier);
-
-	return 0;
 }
-subsys_initcall(balloon_init);
+EXPORT_SYMBOL_GPL(xen_balloon_init);
 
 #define BALLOON_SHOW(name, format, args...)				\
 	static ssize_t show_##name(struct device *dev,			\
