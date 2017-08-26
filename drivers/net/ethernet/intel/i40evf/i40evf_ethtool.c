@@ -258,29 +258,50 @@ static u32 i40evf_get_priv_flags(struct net_device *netdev)
 static int i40evf_set_priv_flags(struct net_device *netdev, u32 flags)
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
-	u64 changed_flags;
+	u32 orig_flags, new_flags, changed_flags;
 	u32 i;
 
-	changed_flags = adapter->flags;
+	orig_flags = READ_ONCE(adapter->flags);
+	new_flags = orig_flags;
 
 	for (i = 0; i < I40EVF_PRIV_FLAGS_STR_LEN; i++) {
 		const struct i40evf_priv_flags *priv_flags;
 
 		priv_flags = &i40evf_gstrings_priv_flags[i];
 
-		if (priv_flags->read_only)
-			continue;
-
 		if (flags & BIT(i))
-			adapter->flags |= priv_flags->flag;
+			new_flags |= priv_flags->flag;
 		else
-			adapter->flags &= ~(priv_flags->flag);
+			new_flags &= ~(priv_flags->flag);
+
+		if (priv_flags->read_only &&
+		    ((orig_flags ^ new_flags) & ~BIT(i)))
+			return -EOPNOTSUPP;
 	}
 
-	/* check for flags that changed */
-	changed_flags ^= adapter->flags;
+	/* Before we finalize any flag changes, any checks which we need to
+	 * perform to determine if the new flags will be supported should go
+	 * here...
+	 */
 
-	/* Process any additional changes needed as a result of flag changes. */
+	/* Compare and exchange the new flags into place. If we failed, that
+	 * is if cmpxchg returns anything but the old value, this means
+	 * something else must have modified the flags variable since we
+	 * copied it. We'll just punt with an error and log something in the
+	 * message buffer.
+	 */
+	if (cmpxchg(&adapter->flags, orig_flags, new_flags) != orig_flags) {
+		dev_warn(&adapter->pdev->dev,
+			 "Unable to update adapter->flags as it was modified by another thread...\n");
+		return -EAGAIN;
+	}
+
+	changed_flags = orig_flags ^ new_flags;
+
+	/* Process any additional changes needed as a result of flag changes.
+	 * The changed_flags value reflects the list of bits that were changed
+	 * in the code above.
+	 */
 
 	/* issue a reset to force legacy-rx change to take effect */
 	if (changed_flags & I40EVF_FLAG_LEGACY_RX) {
