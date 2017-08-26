@@ -2615,9 +2615,9 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			goto error_free_root;
 
 		r = amdgpu_bo_kmap(vm->root.base.bo, NULL);
+		amdgpu_bo_unreserve(vm->root.base.bo);
 		if (r)
 			goto error_free_root;
-		amdgpu_bo_unreserve(vm->root.base.bo);
 	}
 
 	return 0;
