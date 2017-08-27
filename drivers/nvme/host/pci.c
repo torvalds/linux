@@ -555,8 +555,10 @@ static blk_status_t nvme_setup_prps(struct nvme_dev *dev, struct request *req)
 	int nprps, i;
 
 	length -= (page_size - offset);
-	if (length <= 0)
+	if (length <= 0) {
+		iod->first_dma = 0;
 		return BLK_STS_OK;
+	}
 
 	dma_len -= (page_size - offset);
 	if (dma_len) {
