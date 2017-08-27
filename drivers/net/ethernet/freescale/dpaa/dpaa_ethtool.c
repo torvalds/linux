@@ -402,6 +402,8 @@ static void dpaa_get_strings(struct net_device *net_dev, u32 stringset,
 static int dpaa_get_hash_opts(struct net_device *dev,
 			      struct ethtool_rxnfc *cmd)
 {
+	struct dpaa_priv *priv = netdev_priv(dev);
+
 	cmd->data = 0;
 
 	switch (cmd->flow_type) {
@@ -409,7 +411,8 @@ static int dpaa_get_hash_opts(struct net_device *dev,
 	case TCP_V6_FLOW:
 	case UDP_V4_FLOW:
 	case UDP_V6_FLOW:
-		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		if (priv->keygen_in_use)
+			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		/* Fall through */
 	case IPV4_FLOW:
 	case IPV6_FLOW:
@@ -421,7 +424,8 @@ static int dpaa_get_hash_opts(struct net_device *dev,
 	case AH_V6_FLOW:
 	case ESP_V4_FLOW:
 	case ESP_V6_FLOW:
-		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		if (priv->keygen_in_use)
+			cmd->data |= RXH_IP_SRC | RXH_IP_DST;
 		break;
 	default:
 		cmd->data = 0;
@@ -458,6 +462,7 @@ static void dpaa_set_hash(struct net_device *net_dev, bool enable)
 	rxport = mac_dev->port[0];
 
 	fman_port_use_kg_hash(rxport, enable);
+	priv->keygen_in_use = enable;
 }
 
 static int dpaa_set_hash_opts(struct net_device *dev,

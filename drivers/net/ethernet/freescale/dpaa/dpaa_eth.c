@@ -236,7 +236,7 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 	net_dev->max_mtu = dpaa_get_max_mtu();
 
 	net_dev->hw_features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				 NETIF_F_LLTX);
+				 NETIF_F_LLTX | NETIF_F_RXHASH);
 
 	net_dev->hw_features |= NETIF_F_SG | NETIF_F_HIGHDMA;
 	/* The kernels enables GSO automatically, if we declare NETIF_F_SG.
@@ -2237,12 +2237,13 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	dma_addr_t addr = qm_fd_addr(fd);
 	enum qm_fd_format fd_format;
 	struct net_device *net_dev;
-	u32 fd_status;
+	u32 fd_status, hash_offset;
 	struct dpaa_bp *dpaa_bp;
 	struct dpaa_priv *priv;
 	unsigned int skb_len;
 	struct sk_buff *skb;
 	int *count_ptr;
+	void *vaddr;
 
 	fd_status = be32_to_cpu(fd->status);
 	fd_format = qm_fd_get_format(fd);
@@ -2288,7 +2289,8 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	dma_unmap_single(dpaa_bp->dev, addr, dpaa_bp->size, DMA_FROM_DEVICE);
 
 	/* prefetch the first 64 bytes of the frame or the SGT start */
-	prefetch(phys_to_virt(addr) + qm_fd_get_offset(fd));
+	vaddr = phys_to_virt(addr);
+	prefetch(vaddr + qm_fd_get_offset(fd));
 
 	fd_format = qm_fd_get_format(fd);
 	/* The only FD types that we may receive are contig and S/G */
@@ -2308,6 +2310,18 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 		return qman_cb_dqrr_consume;
 
 	skb->protocol = eth_type_trans(skb, net_dev);
+
+	if (net_dev->features & NETIF_F_RXHASH && priv->keygen_in_use &&
+	    !fman_port_get_hash_result_offset(priv->mac_dev->port[RX],
+					      &hash_offset)) {
+		enum pkt_hash_types type;
+
+		/* if L4 exists, it was used in the hash generation */
+		type = be32_to_cpu(fd->status) & FM_FD_STAT_L4CV ?
+			PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3;
+		skb_set_hash(skb, be32_to_cpu(*(u32 *)(vaddr + hash_offset)),
+			     type);
+	}
 
 	skb_len = skb->len;
 
@@ -2773,6 +2787,9 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 				  &priv->buf_layout[0], dev);
 	if (err)
 		goto init_ports_failed;
+
+	/* Rx traffic distribution based on keygen hashing defaults to on */
+	priv->keygen_in_use = true;
 
 	priv->percpu_priv = devm_alloc_percpu(dev, *priv->percpu_priv);
 	if (!priv->percpu_priv) {

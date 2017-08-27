@@ -159,6 +159,7 @@ struct dpaa_priv {
 	struct list_head dpaa_fq_list;
 
 	u8 num_tc;
+	bool keygen_in_use;
 	u32 msg_enable;	/* net_device message level */
 
 	struct {

@@ -1720,6 +1720,17 @@ u32 fman_port_get_qman_channel_id(struct fman_port *port)
 }
 EXPORT_SYMBOL(fman_port_get_qman_channel_id);
 
+int fman_port_get_hash_result_offset(struct fman_port *port, u32 *offset)
+{
+	if (port->buffer_offsets.hash_result_offset == ILLEGAL_BASE)
+		return -EINVAL;
+
+	*offset = port->buffer_offsets.hash_result_offset;
+
+	return 0;
+}
+EXPORT_SYMBOL(fman_port_get_hash_result_offset);
+
 static int fman_port_probe(struct platform_device *of_dev)
 {
 	struct fman_port *port;

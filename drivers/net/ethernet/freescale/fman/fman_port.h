@@ -151,6 +151,8 @@ int fman_port_enable(struct fman_port *port);
 
 u32 fman_port_get_qman_channel_id(struct fman_port *port);
 
+int fman_port_get_hash_result_offset(struct fman_port *port, u32 *offset);
+
 struct fman_port *fman_port_bind(struct device *dev);
 
 #endif /* __FMAN_PORT_H */
