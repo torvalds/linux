@@ -1108,7 +1108,9 @@ static int ov2640_probe(struct i2c_client *client,
 		priv->clk = devm_clk_get(&client->dev, "xvclk");
 		if (IS_ERR(priv->clk))
 			return PTR_ERR(priv->clk);
-		clk_prepare_enable(priv->clk);
+		ret = clk_prepare_enable(priv->clk);
+		if (ret)
+			return ret;
 	}
 
 	ret = ov2640_probe_dt(client, priv);
