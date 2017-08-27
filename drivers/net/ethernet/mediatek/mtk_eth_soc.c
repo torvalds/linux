@@ -22,6 +22,7 @@
 #include <linux/if_vlan.h>
 #include <linux/reset.h>
 #include <linux/tcp.h>
+#include <linux/interrupt.h>
 
 #include "mtk_eth_soc.h"
 
@@ -946,6 +947,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		mac = (trxd.rxd4 >> RX_DMA_FPORT_SHIFT) &
 		      RX_DMA_FPORT_MASK;
 		mac--;
+
+		if (unlikely(mac < 0 || mac >= MTK_MAC_COUNT ||
+			     !eth->netdev[mac]))
+			goto release_desc;
 
 		netdev = eth->netdev[mac];
 

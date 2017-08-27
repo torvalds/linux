@@ -523,7 +523,7 @@ static void cntfrq_read_handler(unsigned int esr, struct pt_regs *regs)
 {
 	int rt = (esr & ESR_ELx_SYS64_ISS_RT_MASK) >> ESR_ELx_SYS64_ISS_RT_SHIFT;
 
-	pt_regs_write_reg(regs, rt, read_sysreg(cntfrq_el0));
+	pt_regs_write_reg(regs, rt, arch_timer_get_rate());
 	regs->pc += 4;
 }
 

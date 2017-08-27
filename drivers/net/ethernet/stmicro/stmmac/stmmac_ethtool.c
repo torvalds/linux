@@ -33,6 +33,8 @@
 #define MAC100_ETHTOOL_NAME	"st_mac100"
 #define GMAC_ETHTOOL_NAME	"st_gmac"
 
+#define ETHTOOL_DMA_OFFSET	55
+
 struct stmmac_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
@@ -442,6 +444,9 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 
 	priv->hw->mac->dump_regs(priv->hw, reg_space);
 	priv->hw->dma->dump_regs(priv->ioaddr, reg_space);
+	/* Copy DMA registers to where ethtool expects them */
+	memcpy(&reg_space[ETHTOOL_DMA_OFFSET], &reg_space[DMA_BUS_MODE / 4],
+	       NUM_DWMAC1000_DMA_REGS * 4);
 }
 
 static void
