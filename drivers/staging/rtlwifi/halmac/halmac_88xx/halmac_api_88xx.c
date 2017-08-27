@@ -5308,7 +5308,6 @@ halmac_write_cam_88xx(struct halmac_adapter *halmac_adapter, u32 entry_index,
 	cam_entry_format = kzalloc(sizeof(*cam_entry_format), GFP_KERNEL);
 	if (!cam_entry_format)
 		return HALMAC_RET_NULL_POINTER;
-	memset(cam_entry_format, 0x00, sizeof(*cam_entry_format));
 
 	cam_entry_format->key_id = cam_entry_info->key_id;
 	cam_entry_format->valid = cam_entry_info->valid;
@@ -5461,7 +5460,6 @@ halmac_clear_cam_entry_88xx(struct halmac_adapter *halmac_adapter,
 	cam_entry_format = kzalloc(sizeof(*cam_entry_format), GFP_KERNEL);
 	if (!cam_entry_format)
 		return HALMAC_RET_NULL_POINTER;
-	memset(cam_entry_format, 0x00, sizeof(*cam_entry_format));
 
 	for (i = 0; i < 8; i++) {
 		HALMAC_REG_WRITE_32(halmac_adapter, REG_CAMWRITE,

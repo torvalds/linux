@@ -691,7 +691,6 @@ halmac_func_pg_efuse_by_map_88xx(struct halmac_adapter *halmac_adapter,
 		/* out of memory */
 		return HALMAC_RET_MALLOC_FAIL;
 	}
-	memset(eeprom_mask_updated, 0x00, eeprom_mask_size);
 
 	status = halmac_update_eeprom_mask_88xx(halmac_adapter, pg_efuse_info,
 						eeprom_mask_updated);
@@ -3603,10 +3602,6 @@ halmac_verify_send_rsvd_page_88xx(struct halmac_adapter *halmac_adapter)
 		kfree(rsvd_buf);
 		return HALMAC_RET_MALLOC_FAIL;
 	}
-
-	memset(rsvd_page, 0x00,
-	       h2c_pkt_verify_size +
-		       halmac_adapter->hw_config_info.txdesc_size);
 
 	ret_status = halmac_dump_fifo_88xx(
 		halmac_adapter, HAL_FIFO_SEL_RSVD_PAGE, 0,
