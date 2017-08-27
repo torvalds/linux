@@ -32,10 +32,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include "fman_port.h"
-#include "fman.h"
-#include "fman_sp.h"
-
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -44,6 +40,10 @@
 #include <linux/of_address.h>
 #include <linux/delay.h>
 #include <linux/libfdt_env.h>
+
+#include "fman.h"
+#include "fman_port.h"
+#include "fman_sp.h"
 
 /* Queue ID */
 #define DFLT_FQ_ID		0x00FFFFFF
