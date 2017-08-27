@@ -1429,6 +1429,8 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 	}
 
 	btt_sb = devm_kzalloc(&nd_btt->dev, sizeof(*btt_sb), GFP_KERNEL);
+	if (!btt_sb)
+		return -ENOMEM;
 
 	/*
 	 * If this returns < 0, that is ok as it just means there wasn't
