@@ -1271,6 +1271,10 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 		int len = snprintf(NULL, 0, "ccn_%d", ccn->dt.id);
 
 		name = devm_kzalloc(ccn->dev, len + 1, GFP_KERNEL);
+		if (!name) {
+			err = -ENOMEM;
+			goto error_choose_name;
+		}
 		snprintf(name, len + 1, "ccn_%d", ccn->dt.id);
 	}
 
@@ -1319,6 +1323,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 
 error_pmu_register:
 error_set_affinity:
+error_choose_name:
 	ida_simple_remove(&arm_ccn_pmu_ida, ccn->dt.id);
 	for (i = 0; i < ccn->num_xps; i++)
 		writel(0, ccn->xp[i].base + CCN_XP_DT_CONTROL);
