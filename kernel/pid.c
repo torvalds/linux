@@ -147,16 +147,14 @@ void free_pid(struct pid *pid)
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&pidmap_lock, flags);
 
 	for (i = 0; i <= pid->level; i++) {
 		struct upid *upid = pid->numbers + i;
 		struct pid_namespace *ns = upid->ns;
 
-		mutex_lock(&ns->idr_mutex_lock);
 		idr_remove(&ns->idr, upid->nr);
-		mutex_unlock(&ns->idr_mutex_lock);
 	}
+	spin_unlock_irqrestore(&pidmap_lock, flags);
 
 	call_rcu(&pid->rcu, delayed_put_pid);
 }
@@ -177,10 +175,12 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	tmp = ns;
 	pid->level = ns->level;
 	for (i = ns->level; i >= 0; i--) {
-		mutex_lock(&ns->idr_mutex_lock);
+		idr_preload(GFP_KERNEL);
+		spin_lock_irq(&pidmap_lock);
 		nr = idr_alloc_cyclic(&tmp->idr, ns, RESERVED_PIDS,
 				      pid_max, GFP_KERNEL);
-		mutex_unlock(&ns->idr_mutex_lock);
+		spin_unlock_irq(&pidmap_lock);
+		idr_preload_end();
 
 		if (nr < 0) {
 			retval = nr;
@@ -218,14 +218,14 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	return pid;
 
 out_unlock:
-	spin_unlock_irq(&pidmap_lock);
 	put_pid_ns(ns);
+	spin_unlock_irq(&pidmap_lock);
 
 out_free:
-	mutex_lock(&ns->idr_mutex_lock);
+	spin_lock_irq(&pidmap_lock);
 	while (++i <= ns->level)
 		idr_remove(&ns->idr, (pid->numbers + i)->nr);
-	mutex_unlock(&ns->idr_mutex_lock);
+	spin_unlock_irq(&pidmap_lock);
 
 	kmem_cache_free(ns->pid_cachep, pid);
 	return ERR_PTR(retval);
