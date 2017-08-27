@@ -1301,25 +1301,7 @@ static struct usb_driver hdm_usb = {
 	.disconnect = hdm_disconnect,
 };
 
-static int __init hdm_usb_init(void)
-{
-	pr_info("hdm_usb_init()\n");
-	if (usb_register(&hdm_usb)) {
-		pr_err("could not register hdm_usb driver\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static void __exit hdm_usb_exit(void)
-{
-	pr_info("hdm_usb_exit()\n");
-	usb_deregister(&hdm_usb);
-}
-
-module_init(hdm_usb_init);
-module_exit(hdm_usb_exit);
+module_usb_driver(hdm_usb);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Gromm <christian.gromm@microchip.com>");
 MODULE_DESCRIPTION("HDM_4_USB");
