@@ -15,7 +15,6 @@
 #include <asm/page.h>
 #include <asm/processor-flags.h>
 #include <asm/msr-index.h>
-#include <asm/frame.h>
 
 	.text
 	.code64
@@ -33,7 +32,8 @@ ENTRY(sme_encrypt_execute)
 	 *    R8 - physcial address of the pagetables to use for encryption
 	 */
 
-	FRAME_BEGIN			/* RBP now has original stack pointer */
+	push	%rbp
+	movq	%rsp, %rbp		/* RBP now has original stack pointer */
 
 	/* Set up a one page stack in the non-encrypted memory area */
 	movq	%rcx, %rax		/* Workarea stack page */
@@ -64,7 +64,7 @@ ENTRY(sme_encrypt_execute)
 	pop	%r12
 
 	movq	%rbp, %rsp		/* Restore original stack pointer */
-	FRAME_END
+	pop	%rbp
 
 	ret
 ENDPROC(sme_encrypt_execute)
