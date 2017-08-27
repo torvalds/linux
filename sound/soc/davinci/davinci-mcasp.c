@@ -1851,6 +1851,10 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	mcasp->context.xrsr_regs = devm_kzalloc(&pdev->dev,
 					sizeof(u32) * mcasp->num_serializer,
 					GFP_KERNEL);
+	if (!mcasp->context.xrsr_regs) {
+		ret = -ENOMEM;
+		goto err;
+	}
 #endif
 	mcasp->serial_dir = pdata->serial_dir;
 	mcasp->version = pdata->version;
