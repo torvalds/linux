@@ -355,6 +355,13 @@
 			};
 		};
 
+		aidet: aidet@5fc20000 {
+			compatible = "socionext,uniphier-ld11-aidet";
+			reg = <0x5fc20000 0x200>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
 		gic: interrupt-controller@5fe00000 {
 			compatible = "arm,gic-v3";
 			reg = <0x5fe00000 0x10000>,	/* GICD */
