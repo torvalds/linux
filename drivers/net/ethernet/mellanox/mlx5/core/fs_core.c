@@ -145,10 +145,10 @@ static struct init_tree_node {
 	}
 };
 
-enum fs_i_mutex_lock_class {
-	FS_MUTEX_GRANDPARENT,
-	FS_MUTEX_PARENT,
-	FS_MUTEX_CHILD
+enum fs_i_lock_class {
+	FS_LOCK_GRANDPARENT,
+	FS_LOCK_PARENT,
+	FS_LOCK_CHILD
 };
 
 static const struct rhashtable_params rhash_fte = {
@@ -184,7 +184,7 @@ static void tree_init_node(struct fs_node *node,
 	atomic_set(&node->refcount, 1);
 	INIT_LIST_HEAD(&node->list);
 	INIT_LIST_HEAD(&node->children);
-	mutex_init(&node->lock);
+	init_rwsem(&node->lock);
 	node->remove_func = remove_func;
 	node->active = false;
 }
@@ -208,10 +208,10 @@ static void tree_get_node(struct fs_node *node)
 }
 
 static void nested_lock_ref_node(struct fs_node *node,
-				 enum fs_i_mutex_lock_class class)
+				 enum fs_i_lock_class class)
 {
 	if (node) {
-		mutex_lock_nested(&node->lock, class);
+		down_write_nested(&node->lock, class);
 		atomic_inc(&node->refcount);
 	}
 }
@@ -219,7 +219,7 @@ static void nested_lock_ref_node(struct fs_node *node,
 static void lock_ref_node(struct fs_node *node)
 {
 	if (node) {
-		mutex_lock(&node->lock);
+		down_write(&node->lock);
 		atomic_inc(&node->refcount);
 	}
 }
@@ -228,7 +228,7 @@ static void unlock_ref_node(struct fs_node *node)
 {
 	if (node) {
 		atomic_dec(&node->refcount);
-		mutex_unlock(&node->lock);
+		up_write(&node->lock);
 	}
 }
 
@@ -1376,7 +1376,7 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 		int old_action;
 		int ret;
 
-		nested_lock_ref_node(&fte->node, FS_MUTEX_CHILD);
+		nested_lock_ref_node(&fte->node, FS_LOCK_CHILD);
 		ret = check_conflicting_ftes(fte, flow_act);
 		if (ret) {
 			handle = ERR_PTR(ret);
@@ -1400,7 +1400,7 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	fte = alloc_insert_fte(fg, match_value, flow_act);
 	if (IS_ERR(fte))
 		return (void *)fte;
-	nested_lock_ref_node(&fte->node, FS_MUTEX_CHILD);
+	nested_lock_ref_node(&fte->node, FS_LOCK_CHILD);
 	handle = add_rule_fte(fte, fg, dest, dest_num, false);
 	if (IS_ERR(handle)) {
 		unlock_ref_node(&fte->node);
@@ -1548,7 +1548,7 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 		struct fs_fte *fte;
 
 		g = iter->g;
-		nested_lock_ref_node(&g->node, FS_MUTEX_PARENT);
+		nested_lock_ref_node(&g->node, FS_LOCK_PARENT);
 		fte = rhashtable_lookup_fast(&g->ftes_hash, spec->match_value,
 					     rhash_fte);
 		if (fte) {
@@ -1566,7 +1566,7 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 	list_for_each_entry(iter, &match_head.list, list) {
 		g = iter->g;
 
-		nested_lock_ref_node(&g->node, FS_MUTEX_PARENT);
+		nested_lock_ref_node(&g->node, FS_LOCK_PARENT);
 		rule = add_rule_fg(g, spec->match_value,
 				   flow_act, dest, dest_num, NULL);
 		if (!IS_ERR(rule) || PTR_ERR(rule) != -ENOSPC) {
@@ -1605,7 +1605,7 @@ _mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 			return ERR_PTR(-EINVAL);
 	}
 
-	nested_lock_ref_node(&ft->node, FS_MUTEX_GRANDPARENT);
+	nested_lock_ref_node(&ft->node, FS_LOCK_GRANDPARENT);
 	rule = try_add_to_existing_fg(ft, spec, flow_act, dest, dest_num);
 	if (!IS_ERR(rule) || PTR_ERR(rule) != -ENOENT)
 		goto unlock;

@@ -80,7 +80,7 @@ struct fs_node {
 	struct fs_node		*parent;
 	struct fs_node		*root;
 	/* lock the node for writing and traversing */
-	struct mutex		lock;
+	struct rw_semaphore	lock;
 	atomic_t		refcount;
 	bool			active;
 	void			(*remove_func)(struct fs_node *);
