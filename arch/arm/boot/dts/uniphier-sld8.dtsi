@@ -270,6 +270,13 @@
 			interrupt-controller;
 		};
 
+		aidet: aidet@61830000 {
+			compatible = "socionext,uniphier-sld8-aidet";
+			reg = <0x61830000 0x200>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
 		sysctrl@61840000 {
 			compatible = "socionext,uniphier-sld8-sysctrl",
 				     "simple-mfd", "syscon";
