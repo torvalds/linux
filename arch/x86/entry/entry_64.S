@@ -1290,11 +1290,11 @@ ENTRY(nmi)
 	/* Unconditionally use kernel CR3 for do_nmi() */
 	/* %rax is saved above, so OK to clobber here */
 	movq	%cr3, %rax
+	/* If PCID enabled, NOFLUSH now and NOFLUSH on return */
+	orq	x86_cr3_pcid_noflush, %rax
 	pushq	%rax
 	/* mask off "user" bit of pgd address and 12 PCID bits: */
 	andq	$(~(X86_CR3_PCID_ASID_MASK | KAISER_SHADOW_PGD_OFFSET)), %rax
-	/* Add back kernel PCID and "no flush" bit */
-	orq	X86_CR3_PCID_KERN_VAR, %rax
 	movq	%rax, %cr3
 #endif
 	call	do_nmi
@@ -1534,11 +1534,11 @@ end_repeat_nmi:
 	/* Unconditionally use kernel CR3 for do_nmi() */
 	/* %rax is saved above, so OK to clobber here */
 	movq	%cr3, %rax
+	/* If PCID enabled, NOFLUSH now and NOFLUSH on return */
+	orq	x86_cr3_pcid_noflush, %rax
 	pushq	%rax
 	/* mask off "user" bit of pgd address and 12 PCID bits: */
 	andq	$(~(X86_CR3_PCID_ASID_MASK | KAISER_SHADOW_PGD_OFFSET)), %rax
-	/* Add back kernel PCID and "no flush" bit */
-	orq	X86_CR3_PCID_KERN_VAR, %rax
 	movq	%rax, %cr3
 #endif
 

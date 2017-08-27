@@ -25,7 +25,7 @@
 .macro _SWITCH_TO_KERNEL_CR3 reg
 movq %cr3, \reg
 andq $(~(X86_CR3_PCID_ASID_MASK | KAISER_SHADOW_PGD_OFFSET)), \reg
-orq  X86_CR3_PCID_KERN_VAR, \reg
+orq  x86_cr3_pcid_noflush, \reg
 movq \reg, %cr3
 .endm
 
@@ -37,11 +37,10 @@ movq \reg, %cr3
  * not enabled): so that the one register can update both memory and cr3.
  */
 movq %cr3, \reg
-andq $(~(X86_CR3_PCID_ASID_MASK | KAISER_SHADOW_PGD_OFFSET)), \reg
-orq  PER_CPU_VAR(X86_CR3_PCID_USER_VAR), \reg
+orq  PER_CPU_VAR(x86_cr3_pcid_user), \reg
 js   9f
 /* FLUSH this time, reset to NOFLUSH for next time (if PCID enabled) */
-movb \regb, PER_CPU_VAR(X86_CR3_PCID_USER_VAR+7)
+movb \regb, PER_CPU_VAR(x86_cr3_pcid_user+7)
 9:
 movq \reg, %cr3
 .endm
@@ -94,8 +93,8 @@ movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
 */
 DECLARE_PER_CPU_USER_MAPPED(unsigned long, unsafe_stack_register_backup);
 
-extern unsigned long X86_CR3_PCID_KERN_VAR;
-DECLARE_PER_CPU(unsigned long, X86_CR3_PCID_USER_VAR);
+extern unsigned long x86_cr3_pcid_noflush;
+DECLARE_PER_CPU(unsigned long, x86_cr3_pcid_user);
 
 extern char __per_cpu_user_mapped_start[], __per_cpu_user_mapped_end[];
 
