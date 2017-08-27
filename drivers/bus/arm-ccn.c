@@ -1268,14 +1268,12 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	if (ccn->dt.id == 0) {
 		name = "ccn";
 	} else {
-		int len = snprintf(NULL, 0, "ccn_%d", ccn->dt.id);
-
-		name = devm_kzalloc(ccn->dev, len + 1, GFP_KERNEL);
+		name = devm_kasprintf(ccn->dev, GFP_KERNEL, "ccn_%d",
+				      ccn->dt.id);
 		if (!name) {
 			err = -ENOMEM;
 			goto error_choose_name;
 		}
-		snprintf(name, len + 1, "ccn_%d", ccn->dt.id);
 	}
 
 	/* Perf driver registration */
