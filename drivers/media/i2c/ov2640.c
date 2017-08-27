@@ -1107,7 +1107,7 @@ static int ov2640_probe(struct i2c_client *client,
 	if (client->dev.of_node) {
 		priv->clk = devm_clk_get(&client->dev, "xvclk");
 		if (IS_ERR(priv->clk))
-			return -EPROBE_DEFER;
+			return PTR_ERR(priv->clk);
 		clk_prepare_enable(priv->clk);
 	}
 
