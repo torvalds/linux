@@ -240,7 +240,7 @@ endif
 ifeq ($(FEATURES_DUMP),)
 FEATURE_DUMP_EXPORT := $(realpath $(OUTPUT)FEATURE-DUMP)
 else
-FEATURE_DUMP_EXPORT := $(FEATURES_DUMP)
+FEATURE_DUMP_EXPORT := $(realpath $(FEATURES_DUMP))
 endif
 
 export prefix bindir sharedir sysconfdir DESTDIR
