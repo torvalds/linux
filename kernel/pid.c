@@ -178,7 +178,7 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 		idr_preload(GFP_KERNEL);
 		spin_lock_irq(&pidmap_lock);
 		nr = idr_alloc_cyclic(&tmp->idr, ns, RESERVED_PIDS,
-				      pid_max, GFP_KERNEL);
+				      pid_max, GFP_ATOMIC);
 		spin_unlock_irq(&pidmap_lock);
 		idr_preload_end();
 
