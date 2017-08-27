@@ -644,8 +644,6 @@ either the corresponding ARGB or XRGB format, depending on the driver.
 
 .. raw:: latex
 
-.. raw:: latex
-
     \begingroup
     \tiny
     \setlength{\tabcolsep}{2pt}

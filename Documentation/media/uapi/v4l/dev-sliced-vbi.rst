@@ -206,6 +206,7 @@ struct v4l2_sliced_vbi_format
 	Applications and drivers must set it to zero.
 
 .. raw:: latex
+
     \endgroup
 
 .. _vbi-services2:
@@ -214,6 +215,7 @@ Sliced VBI services
 -------------------
 
 .. raw:: latex
+
     \footnotesize
 
 .. tabularcolumns:: |p{4.1cm}|p{1.1cm}|p{2.4cm}|p{2.0cm}|p{7.3cm}|
