@@ -328,6 +328,7 @@ struct fman {
 	struct fman_qmi_regs __iomem *qmi_regs;
 	struct fman_dma_regs __iomem *dma_regs;
 	struct fman_hwp_regs __iomem *hwp_regs;
+	struct fman_kg_regs __iomem *kg_regs;
 	fman_exceptions_cb *exception_cb;
 	fman_bus_error_cb *bus_error_cb;
 	/* Spinlock for FMan use */
@@ -336,6 +337,7 @@ struct fman {
 
 	struct fman_cfg *cfg;
 	struct muram_info *muram;
+	struct fman_keygen *keygen;
 	/* cam section in muram */
 	unsigned long cam_offset;
 	size_t cam_size;

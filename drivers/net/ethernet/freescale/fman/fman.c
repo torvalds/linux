@@ -45,6 +45,7 @@
 
 #include "fman.h"
 #include "fman_muram.h"
+#include "fman_keygen.h"
 
 /* General defines */
 #define FMAN_LIODN_TBL			64	/* size of LIODN table */
@@ -56,6 +57,7 @@
 /* Modules registers offsets */
 #define BMI_OFFSET		0x00080000
 #define QMI_OFFSET		0x00080400
+#define KG_OFFSET		0x000C1000
 #define DMA_OFFSET		0x000C2000
 #define FPM_OFFSET		0x000C3000
 #define IMEM_OFFSET		0x000C4000
@@ -1737,6 +1739,7 @@ static int fman_config(struct fman *fman)
 	fman->qmi_regs = base_addr + QMI_OFFSET;
 	fman->dma_regs = base_addr + DMA_OFFSET;
 	fman->hwp_regs = base_addr + HWP_OFFSET;
+	fman->kg_regs = base_addr + KG_OFFSET;
 	fman->base_addr = base_addr;
 
 	spin_lock_init(&fman->spinlock);
@@ -2008,6 +2011,11 @@ static int fman_init(struct fman *fman)
 
 	/* Init HW Parser */
 	hwp_init(fman->hwp_regs);
+
+	/* Init KeyGen */
+	fman->keygen = keygen_init(fman->kg_regs);
+	if (!fman->keygen)
+		return -EINVAL;
 
 	err = enable(fman, cfg);
 	if (err != 0)

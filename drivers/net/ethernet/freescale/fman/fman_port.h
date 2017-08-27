@@ -100,6 +100,9 @@ struct fman_port;
 struct fman_port_rx_params {
 	u32 err_fqid;			/* Error Queue Id. */
 	u32 dflt_fqid;			/* Default Queue Id. */
+	u32 pcd_base_fqid;		/* PCD base Queue Id. */
+	u32 pcd_fqs_count;		/* Number of PCD FQs. */
+
 	/* Which external buffer pools are used
 	 * (up to FMAN_PORT_MAX_EXT_POOLS_NUM), and their sizes.
 	 */
@@ -133,6 +136,8 @@ struct fman_port_params {
 };
 
 int fman_port_config(struct fman_port *port, struct fman_port_params *params);
+
+void fman_port_use_kg_hash(struct fman_port *port, bool enable);
 
 int fman_port_init(struct fman_port *port);
 
