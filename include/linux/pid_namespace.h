@@ -31,7 +31,6 @@ enum { /* definitions for pid_namespace's hide_pid field */
 struct pid_namespace {
 	struct kref kref;
 	struct idr idr;
-	struct mutex idr_mutex_lock;
 	struct rcu_head rcu;
 	int last_pid;
 	unsigned int nr_hashed;
