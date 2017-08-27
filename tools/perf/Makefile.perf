@@ -164,8 +164,8 @@ LN      = ln -f
 MKDIR   = mkdir
 FIND    = find
 INSTALL = install
-FLEX    = flex
-BISON   = bison
+FLEX    ?= flex
+BISON   ?= bison
 STRIP   = strip
 AWK     = awk
 
