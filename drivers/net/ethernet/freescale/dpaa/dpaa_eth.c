@@ -158,7 +158,7 @@ MODULE_PARM_DESC(tx_timeout, "The Tx timeout in ms");
 #define DPAA_RX_PRIV_DATA_SIZE	(u16)(DPAA_TX_PRIV_DATA_SIZE + \
 					dpaa_rx_extra_headroom)
 
-#define DPAA_ETH_RX_QUEUES	128
+#define DPAA_ETH_PCD_RXQ_NUM	128
 
 #define DPAA_ENQUEUE_RETRIES	100000
 
@@ -169,6 +169,7 @@ struct fm_port_fqs {
 	struct dpaa_fq *tx_errq;
 	struct dpaa_fq *rx_defq;
 	struct dpaa_fq *rx_errq;
+	struct dpaa_fq *rx_pcdq;
 };
 
 /* All the dpa bps in use at any moment */
@@ -628,6 +629,7 @@ static inline void dpaa_assign_wq(struct dpaa_fq *fq, int idx)
 		fq->wq = 5;
 		break;
 	case FQ_TYPE_RX_DEFAULT:
+	case FQ_TYPE_RX_PCD:
 		fq->wq = 6;
 		break;
 	case FQ_TYPE_TX:
@@ -688,6 +690,7 @@ static int dpaa_alloc_all_fqs(struct device *dev, struct list_head *list,
 			      struct fm_port_fqs *port_fqs)
 {
 	struct dpaa_fq *dpaa_fq;
+	u32 fq_base, fq_base_aligned, i;
 
 	dpaa_fq = dpaa_fq_alloc(dev, 0, 1, list, FQ_TYPE_RX_ERROR);
 	if (!dpaa_fq)
@@ -700,6 +703,26 @@ static int dpaa_alloc_all_fqs(struct device *dev, struct list_head *list,
 		goto fq_alloc_failed;
 
 	port_fqs->rx_defq = &dpaa_fq[0];
+
+	/* the PCD FQIDs range needs to be aligned for correct operation */
+	if (qman_alloc_fqid_range(&fq_base, 2 * DPAA_ETH_PCD_RXQ_NUM))
+		goto fq_alloc_failed;
+
+	fq_base_aligned = ALIGN(fq_base, DPAA_ETH_PCD_RXQ_NUM);
+
+	for (i = fq_base; i < fq_base_aligned; i++)
+		qman_release_fqid(i);
+
+	for (i = fq_base_aligned + DPAA_ETH_PCD_RXQ_NUM;
+	     i < (fq_base + 2 * DPAA_ETH_PCD_RXQ_NUM); i++)
+		qman_release_fqid(i);
+
+	dpaa_fq = dpaa_fq_alloc(dev, fq_base_aligned, DPAA_ETH_PCD_RXQ_NUM,
+				list, FQ_TYPE_RX_PCD);
+	if (!dpaa_fq)
+		goto fq_alloc_failed;
+
+	port_fqs->rx_pcdq = &dpaa_fq[0];
 
 	if (!dpaa_fq_alloc(dev, 0, DPAA_ETH_TXQ_NUM, list, FQ_TYPE_TX_CONF_MQ))
 		goto fq_alloc_failed;
@@ -870,13 +893,14 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 			  const struct dpaa_fq_cbs *fq_cbs,
 			  struct fman_port *tx_port)
 {
-	int egress_cnt = 0, conf_cnt = 0, num_portals = 0, cpu;
+	int egress_cnt = 0, conf_cnt = 0, num_portals = 0, portal_cnt = 0, cpu;
 	const cpumask_t *affine_cpus = qman_affine_cpus();
-	u16 portals[NR_CPUS];
+	u16 channels[NR_CPUS];
 	struct dpaa_fq *fq;
 
 	for_each_cpu(cpu, affine_cpus)
-		portals[num_portals++] = qman_affine_channel(cpu);
+		channels[num_portals++] = qman_affine_channel(cpu);
+
 	if (num_portals == 0)
 		dev_err(priv->net_dev->dev.parent,
 			"No Qman software (affine) channels found");
@@ -889,6 +913,12 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 			break;
 		case FQ_TYPE_RX_ERROR:
 			dpaa_setup_ingress(priv, fq, &fq_cbs->rx_errq);
+			break;
+		case FQ_TYPE_RX_PCD:
+			if (!num_portals)
+				continue;
+			dpaa_setup_ingress(priv, fq, &fq_cbs->rx_defq);
+			fq->channel = channels[portal_cnt++ % num_portals];
 			break;
 		case FQ_TYPE_TX:
 			dpaa_setup_egress(priv, fq, tx_port,
@@ -1039,7 +1069,8 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 		/* Put all the ingress queues in our "ingress CGR". */
 		if (priv->use_ingress_cgr &&
 		    (dpaa_fq->fq_type == FQ_TYPE_RX_DEFAULT ||
-		     dpaa_fq->fq_type == FQ_TYPE_RX_ERROR)) {
+		     dpaa_fq->fq_type == FQ_TYPE_RX_ERROR ||
+		     dpaa_fq->fq_type == FQ_TYPE_RX_PCD)) {
 			initfq.we_mask |= cpu_to_be16(QM_INITFQ_WE_CGID);
 			initfq.fqd.fq_ctrl |= cpu_to_be16(QM_FQCTRL_CGE);
 			initfq.fqd.cgid = (u8)priv->ingress_cgr.cgrid;
@@ -1170,7 +1201,7 @@ static int dpaa_eth_init_tx_port(struct fman_port *port, struct dpaa_fq *errq,
 
 static int dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp **bps,
 				 size_t count, struct dpaa_fq *errq,
-				 struct dpaa_fq *defq,
+				 struct dpaa_fq *defq, struct dpaa_fq *pcdq,
 				 struct dpaa_buffer_layout *buf_layout)
 {
 	struct fman_buffer_prefix_content buf_prefix_content;
@@ -1190,6 +1221,10 @@ static int dpaa_eth_init_rx_port(struct fman_port *port, struct dpaa_bp **bps,
 	rx_p = &params.specific_params.rx_params;
 	rx_p->err_fqid = errq->fqid;
 	rx_p->dflt_fqid = defq->fqid;
+	if (pcdq) {
+		rx_p->pcd_base_fqid = pcdq->fqid;
+		rx_p->pcd_fqs_count = DPAA_ETH_PCD_RXQ_NUM;
+	}
 
 	count = min(ARRAY_SIZE(rx_p->ext_buf_pools.ext_buf_pool), count);
 	rx_p->ext_buf_pools.num_of_pools_used = (u8)count;
@@ -1234,7 +1269,8 @@ static int dpaa_eth_init_ports(struct mac_device *mac_dev,
 		return err;
 
 	err = dpaa_eth_init_rx_port(rxport, bps, count, port_fqs->rx_errq,
-				    port_fqs->rx_defq, &buf_layout[RX]);
+				    port_fqs->rx_defq, port_fqs->rx_pcdq,
+				    &buf_layout[RX]);
 
 	return err;
 }
