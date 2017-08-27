@@ -44,10 +44,4 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 	return daddr;
 }
 
-static inline void
-dma_cache_sync (struct device *dev, void *vaddr, size_t size,
-	enum dma_data_direction dir)
-{
-}
-
 #endif /* _ASM_IA64_DMA_MAPPING_H */

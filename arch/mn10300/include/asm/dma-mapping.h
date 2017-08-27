@@ -18,10 +18,4 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 	return &mn10300_dma_ops;
 }
 
-static inline
-void dma_cache_sync(void *vaddr, size_t size,
-		    enum dma_data_direction direction)
-{
-}
-
 #endif
