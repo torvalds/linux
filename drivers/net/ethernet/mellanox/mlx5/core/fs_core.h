@@ -83,7 +83,9 @@ struct fs_node {
 	struct rw_semaphore	lock;
 	atomic_t		refcount;
 	bool			active;
-	void			(*remove_func)(struct fs_node *);
+	void			(*del_hw_func)(struct fs_node *);
+	void			(*del_sw_func)(struct fs_node *);
+	atomic_t		version;
 };
 
 struct mlx5_flow_rule {
