@@ -71,7 +71,6 @@ static inline void
 dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	enum dma_data_direction dir)
 {
-	flush_write_buffers();
 }
 
 static inline unsigned long dma_alloc_coherent_mask(struct device *dev,
