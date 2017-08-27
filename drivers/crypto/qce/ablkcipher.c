@@ -248,10 +248,7 @@ static int qce_ablkcipher_init(struct crypto_tfm *tfm)
 	ctx->fallback = crypto_alloc_skcipher(crypto_tfm_alg_name(tfm), 0,
 					      CRYPTO_ALG_ASYNC |
 					      CRYPTO_ALG_NEED_FALLBACK);
-	if (IS_ERR(ctx->fallback))
-		return PTR_ERR(ctx->fallback);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(ctx->fallback);
 }
 
 static void qce_ablkcipher_exit(struct crypto_tfm *tfm)

@@ -1052,10 +1052,7 @@ static int mv_cesa_get_sram(struct platform_device *pdev,
 		return -EINVAL;
 
 	cp->sram = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(cp->sram))
-		return PTR_ERR(cp->sram);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(cp->sram);
 }
 
 static int mv_probe(struct platform_device *pdev)
