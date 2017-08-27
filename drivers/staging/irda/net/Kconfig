@@ -92,5 +92,5 @@ config IRDA_DEBUG
 
 	  If unsure, say Y (since it makes it easier to find the bugs).
 
-source "drivers/net/irda/Kconfig"
+source "drivers/staging/irda/drivers/Kconfig"
 
