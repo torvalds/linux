@@ -53,13 +53,34 @@
 #define HINIC_SQ_DEPTH                          SZ_4K
 #define HINIC_RQ_DEPTH                          SZ_4K
 
+/* In any change to HINIC_RX_BUF_SZ, HINIC_RX_BUF_SZ_IDX must be changed */
 #define HINIC_RX_BUF_SZ                         2048
+#define HINIC_RX_BUF_SZ_IDX			HINIC_RX_BUF_SZ_2048_IDX
 
 #define HINIC_MIN_TX_WQE_SIZE(wq)               \
 		ALIGN(HINIC_SQ_WQE_SIZE(1), (wq)->wqebb_size)
 
 #define HINIC_MIN_TX_NUM_WQEBBS(sq)             \
 		(HINIC_MIN_TX_WQE_SIZE((sq)->wq) / (sq)->wq->wqebb_size)
+
+enum hinic_rx_buf_sz_idx {
+	HINIC_RX_BUF_SZ_32_IDX,
+	HINIC_RX_BUF_SZ_64_IDX,
+	HINIC_RX_BUF_SZ_96_IDX,
+	HINIC_RX_BUF_SZ_128_IDX,
+	HINIC_RX_BUF_SZ_192_IDX,
+	HINIC_RX_BUF_SZ_256_IDX,
+	HINIC_RX_BUF_SZ_384_IDX,
+	HINIC_RX_BUF_SZ_512_IDX,
+	HINIC_RX_BUF_SZ_768_IDX,
+	HINIC_RX_BUF_SZ_1024_IDX,
+	HINIC_RX_BUF_SZ_1536_IDX,
+	HINIC_RX_BUF_SZ_2048_IDX,
+	HINIC_RX_BUF_SZ_3072_IDX,
+	HINIC_RX_BUF_SZ_4096_IDX,
+	HINIC_RX_BUF_SZ_8192_IDX,
+	HINIC_RX_BUF_SZ_16384_IDX,
+};
 
 struct hinic_sq {
 	struct hinic_hwif       *hwif;

@@ -69,31 +69,6 @@ struct hinic_dev_cap {
 	u8      rsvd3[208];
 };
 
-struct rx_buf_sz {
-	int     idx;
-	size_t  sz;
-};
-
-static struct rx_buf_sz rx_buf_sz_table[] = {
-	{0, 32},
-	{1, 64},
-	{2, 96},
-	{3, 128},
-	{4, 192},
-	{5, 256},
-	{6, 384},
-	{7, 512},
-	{8, 768},
-	{9, 1024},
-	{10, 1536},
-	{11, 2048},
-	{12, 3072},
-	{13, 4096},
-	{14, 8192},
-	{15, 16384},
-	{-1, -1},
-};
-
 /**
  * get_capability - convert device capabilities to NIC capabilities
  * @hwdev: the HW device to set and convert device capabilities for
@@ -330,7 +305,6 @@ static int set_hw_ioctxt(struct hinic_hwdev *hwdev, unsigned int rq_depth,
 	struct hinic_cmd_hw_ioctxt hw_ioctxt;
 	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_pfhwdev *pfhwdev;
-	int i;
 
 	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
 		dev_err(&pdev->dev, "Unsupported PCI Function type\n");
@@ -344,16 +318,7 @@ static int set_hw_ioctxt(struct hinic_hwdev *hwdev, unsigned int rq_depth,
 
 	hw_ioctxt.rq_depth  = ilog2(rq_depth);
 
-	for (i = 0; ; i++) {
-		if ((rx_buf_sz_table[i].sz == HINIC_RX_BUF_SZ) ||
-		    (rx_buf_sz_table[i].sz == -1)) {
-			hw_ioctxt.rx_buf_sz_idx = rx_buf_sz_table[i].idx;
-			break;
-		}
-	}
-
-	if (hw_ioctxt.rx_buf_sz_idx == -1)
-		return -EINVAL;
+	hw_ioctxt.rx_buf_sz_idx = HINIC_RX_BUF_SZ_IDX;
 
 	hw_ioctxt.sq_depth  = ilog2(sq_depth);
 
