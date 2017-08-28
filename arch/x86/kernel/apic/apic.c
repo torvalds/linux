@@ -177,8 +177,6 @@ static int disable_apic_timer __initdata;
 int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
 
-int first_system_vector = FIRST_SYSTEM_VECTOR;
-
 /*
  * Debug level, exported for io_apic.c
  */

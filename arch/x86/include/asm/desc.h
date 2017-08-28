@@ -5,6 +5,7 @@
 #include <asm/ldt.h>
 #include <asm/mmu.h>
 #include <asm/fixmap.h>
+#include <asm/irq_vectors.h>
 
 #include <linux/smp.h>
 #include <linux/percpu.h>
@@ -482,16 +483,14 @@ static inline void _set_gate(int gate, unsigned type, void *addr,
 				0, 0, __KERNEL_CS);			\
 	} while (0)
 
-extern int first_system_vector;
 /* used_vectors is BITMAP for irq is not managed by percpu vector_irq */
 extern unsigned long used_vectors[];
 
 static inline void alloc_system_vector(int vector)
 {
+	BUG_ON(vector < FIRST_SYSTEM_VECTOR);
 	if (!test_bit(vector, used_vectors)) {
 		set_bit(vector, used_vectors);
-		if (first_system_vector > vector)
-			first_system_vector = vector;
 	} else {
 		BUG();
 	}

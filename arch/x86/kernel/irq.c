@@ -429,7 +429,7 @@ int check_irq_vectors_for_cpu_disable(void)
 		 * this w/o holding vector_lock.
 		 */
 		for (vector = FIRST_EXTERNAL_VECTOR;
-		     vector < first_system_vector; vector++) {
+		     vector < FIRST_SYSTEM_VECTOR; vector++) {
 			if (!test_bit(vector, used_vectors) &&
 			    IS_ERR_OR_NULL(per_cpu(vector_irq, cpu)[vector])) {
 				if (++count == this_count)
