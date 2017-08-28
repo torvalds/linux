@@ -1312,8 +1312,9 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 {
 	struct pp_smu_funcs_rv *pp = dc->res_pool->pp_smu;
 	struct pp_smu_wm_range_sets ranges = {0};
-	int max_fclk_khz, nom_fclk_khz, min_fclk_khz, max_dcfclk_khz,
-		nom_dcfclk_khz, mid_fclk_khz, min_dcfclk_khz, socclk_khz;
+	int max_fclk_khz, nom_fclk_khz, mid_fclk_khz, min_fclk_khz;
+	int max_dcfclk_khz, min_dcfclk_khz;
+	int socclk_khz;
 	const int overdrive = 5000000; /* 5 GHz to cover Overdrive */
 	unsigned factor = (ddr4_dram_factor_single_Channel * dc->dcn_soc->number_of_channels);
 
@@ -1326,7 +1327,6 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 	mid_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 * 1000000 / factor;
 	min_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 * 1000000 / 32;
 	max_dcfclk_khz = dc->dcn_soc->dcfclkv_max0p9 * 1000;
-	nom_dcfclk_khz = dc->dcn_soc->dcfclkv_nom0p8 * 1000;
 	min_dcfclk_khz = dc->dcn_soc->dcfclkv_min0p65 * 1000;
 	socclk_khz = dc->dcn_soc->socclk * 1000;
 	kernel_fpu_end();
