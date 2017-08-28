@@ -1850,6 +1850,13 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 							   &event);
 			if (likely(rc >= 0))
 				rx_pkts += rc;
+			/* Increment rx_pkts when rc is -ENOMEM to count towards
+			 * the NAPI budget.  Otherwise, we may potentially loop
+			 * here forever if we consistently cannot allocate
+			 * buffers.
+			 */
+			else if (rc == -ENOMEM)
+				rx_pkts++;
 			else if (rc == -EBUSY)	/* partial completion */
 				break;
 		} else if (unlikely((TX_CMP_TYPE(txcmp) ==
