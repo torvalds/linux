@@ -281,57 +281,28 @@ __visible void __irq_entry smp_trace_reschedule_interrupt(struct pt_regs *regs)
 	 */
 	ipi_entering_ack_irq();
 	trace_reschedule_entry(RESCHEDULE_VECTOR);
-	__smp_reschedule_interrupt();
+	inc_irq_stat(irq_resched_count);
+	scheduler_ipi();
 	trace_reschedule_exit(RESCHEDULE_VECTOR);
 	exiting_irq();
-	/*
-	 * KVM uses this interrupt to force a cpu out of guest mode
-	 */
-}
-
-static inline void __smp_call_function_interrupt(void)
-{
-	generic_smp_call_function_interrupt();
-	inc_irq_stat(irq_call_count);
 }
 
 __visible void __irq_entry smp_call_function_interrupt(struct pt_regs *regs)
 {
 	ipi_entering_ack_irq();
-	__smp_call_function_interrupt();
-	exiting_irq();
-}
-
-__visible void __irq_entry
-smp_trace_call_function_interrupt(struct pt_regs *regs)
-{
-	ipi_entering_ack_irq();
 	trace_call_function_entry(CALL_FUNCTION_VECTOR);
-	__smp_call_function_interrupt();
+	inc_irq_stat(irq_call_count);
+	generic_smp_call_function_interrupt();
 	trace_call_function_exit(CALL_FUNCTION_VECTOR);
 	exiting_irq();
 }
 
-static inline void __smp_call_function_single_interrupt(void)
-{
-	generic_smp_call_function_single_interrupt();
-	inc_irq_stat(irq_call_count);
-}
-
-__visible void __irq_entry
-smp_call_function_single_interrupt(struct pt_regs *regs)
-{
-	ipi_entering_ack_irq();
-	__smp_call_function_single_interrupt();
-	exiting_irq();
-}
-
-__visible void __irq_entry
-smp_trace_call_function_single_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_call_function_single_interrupt(struct pt_regs *r)
 {
 	ipi_entering_ack_irq();
 	trace_call_function_single_entry(CALL_FUNCTION_SINGLE_VECTOR);
-	__smp_call_function_single_interrupt();
+	inc_irq_stat(irq_call_count);
+	generic_smp_call_function_single_interrupt();
 	trace_call_function_single_exit(CALL_FUNCTION_SINGLE_VECTOR);
 	exiting_irq();
 }
