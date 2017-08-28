@@ -468,11 +468,11 @@ int bnxt_dl_register(struct bnxt *bp)
 		return -ENOMEM;
 	}
 
-	bnxt_link_bp_to_dl(dl, bp);
+	bnxt_link_bp_to_dl(bp, dl);
 	bp->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 	rc = devlink_register(dl, &bp->pdev->dev);
 	if (rc) {
-		bnxt_link_bp_to_dl(dl, NULL);
+		bnxt_link_bp_to_dl(bp, NULL);
 		devlink_free(dl);
 		netdev_warn(bp->dev, "devlink_register failed. rc=%d", rc);
 		return rc;
