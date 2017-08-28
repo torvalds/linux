@@ -919,7 +919,6 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
 {
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum intel_display_power_domain power_domain;
 	enum intel_pipe_crc_source source;
 	u32 val = 0; /* shut up gcc */
@@ -951,8 +950,6 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
 		else if ((IS_HASWELL(dev_priv) ||
 			  IS_BROADWELL(dev_priv)) && crtc->index == PIPE_A)
 			hsw_pipe_A_crc_wa(dev_priv, false);
-
-		hsw_enable_ips(intel_crtc);
 	}
 
 	pipe_crc->skipped = 0;
