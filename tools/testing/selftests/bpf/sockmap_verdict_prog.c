@@ -12,7 +12,14 @@ int _version SEC("version") = 1;
 				##__VA_ARGS__);			\
 })
 
-struct bpf_map_def SEC("maps") sock_map = {
+struct bpf_map_def SEC("maps") sock_map_rx = {
+	.type = BPF_MAP_TYPE_SOCKMAP,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 20,
+};
+
+struct bpf_map_def SEC("maps") sock_map_tx = {
 	.type = BPF_MAP_TYPE_SOCKMAP,
 	.key_size = sizeof(int),
 	.value_size = sizeof(int),
@@ -26,10 +33,14 @@ int bpf_prog2(struct __sk_buff *skb)
 	void *data = (void *)(long) skb->data;
 	__u32 lport = skb->local_port;
 	__u32 rport = skb->remote_port;
-	char *d = data;
+	__u8 *d = data;
+	__u8 sk, map;
 
 	if (data + 8 > data_end)
 		return SK_DROP;
+
+	map = d[0];
+	sk = d[1];
 
 	d[0] = 0xd;
 	d[1] = 0xe;
@@ -40,9 +51,11 @@ int bpf_prog2(struct __sk_buff *skb)
 	d[6] = 0xe;
 	d[7] = 0xf;
 
-	bpf_printk("verdict: data[0] = (%u): local_port %i remote %i redirect 5\n",
-		   d[0], lport, bpf_ntohl(rport));
-	return bpf_sk_redirect_map(&sock_map, 5, 0);
+	bpf_printk("verdict: data[0] = redir(%u:%u)\n", map, sk);
+
+	if (!map)
+		return bpf_sk_redirect_map(&sock_map_rx, sk, 0);
+	return bpf_sk_redirect_map(&sock_map_tx, sk, 0);
 }
 
 char _license[] SEC("license") = "GPL";

@@ -19,16 +19,16 @@ int bpf_prog1(struct __sk_buff *skb)
 	void *data = (void *)(long) skb->data;
 	__u32 lport = skb->local_port;
 	__u32 rport = skb->remote_port;
-	char *d = data;
+	__u8 *d = data;
 
-	if (data + 8 > data_end)
+	if (data + 10 > data_end)
 		return skb->len;
 
 	/* This write/read is a bit pointless but tests the verifier and
 	 * strparser handler for read/write pkt data and access into sk
 	 * fields.
 	 */
-	d[0] = 1;
+	d[7] = 1;
 
 	bpf_printk("parse: data[0] = (%u): local_port %i remote %i\n",
 		   d[0], lport, bpf_ntohl(rport));
