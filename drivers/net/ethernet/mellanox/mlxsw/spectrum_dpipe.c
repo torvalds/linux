@@ -516,6 +516,9 @@ start_again:
 
 		rif_neigh_count = 0;
 		mlxsw_sp_rif_neigh_for_each(neigh_entry, rif) {
+			if (mlxsw_sp_neigh_entry_type(neigh_entry) != type)
+				continue;
+
 			if (rif_neigh_count < rif_neigh_skip)
 				goto skip;
 
