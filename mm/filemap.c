@@ -1041,7 +1041,7 @@ void add_page_wait_queue(struct page *page, wait_queue_entry_t *waiter)
 	unsigned long flags;
 
 	spin_lock_irqsave(&q->lock, flags);
-	__add_wait_queue(q, waiter);
+	__add_wait_queue_entry_tail(q, waiter);
 	SetPageWaiters(page);
 	spin_unlock_irqrestore(&q->lock, flags);
 }
