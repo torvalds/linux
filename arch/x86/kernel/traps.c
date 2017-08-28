@@ -923,33 +923,6 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 }
 #endif
 
-/* Set of traps needed for early debugging. */
-void __init early_trap_init(void)
-{
-	/*
-	 * Don't use IST to set DEBUG_STACK as it doesn't work until TSS
-	 * is ready in cpu_init() <-- trap_init(). Before trap_init(),
-	 * CPU runs at ring 0 so it is impossible to hit an invalid
-	 * stack.  Using the original stack works well enough at this
-	 * early stage. DEBUG_STACK will be equipped after cpu_init() in
-	 * trap_init().
-	 */
-	set_intr_gate(X86_TRAP_DB, debug);
-	/* int3 can be called from all */
-	set_system_intr_gate(X86_TRAP_BP, &int3);
-#ifdef CONFIG_X86_32
-	set_intr_gate(X86_TRAP_PF, page_fault);
-#endif
-	load_idt(&idt_descr);
-}
-
-void __init early_trap_pf_init(void)
-{
-#ifdef CONFIG_X86_64
-	set_intr_gate(X86_TRAP_PF, page_fault);
-#endif
-}
-
 void __init trap_init(void)
 {
 	int i;

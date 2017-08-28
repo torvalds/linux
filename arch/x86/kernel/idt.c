@@ -48,6 +48,28 @@ struct idt_data {
 #define TSKG(_vector, _gdt)				\
 	G(_vector, NULL, DEFAULT_STACK, GATE_TASK, DPL0, _gdt << 3)
 
+/*
+ * Early traps running on the DEFAULT_STACK because the other interrupt
+ * stacks work only after cpu_init().
+ */
+static const __initdata struct idt_data early_idts[] = {
+	INTG(X86_TRAP_DB,		debug),
+	SYSG(X86_TRAP_BP,		int3),
+#ifdef CONFIG_X86_32
+	INTG(X86_TRAP_PF,		page_fault),
+#endif
+};
+
+#ifdef CONFIG_X86_64
+/*
+ * Early traps running on the DEFAULT_STACK because the other interrupt
+ * stacks work only after cpu_init().
+ */
+static const __initdata struct idt_data early_pf_idts[] = {
+	INTG(X86_TRAP_PF,		page_fault),
+};
+#endif
+
 /* Must be page-aligned because the real IDT is used in a fixmap. */
 gate_desc idt_table[IDT_ENTRIES] __page_aligned_bss;
 
@@ -91,6 +113,37 @@ idt_setup_from_table(gate_desc *idt, const struct idt_data *t, int size)
 		write_idt_entry(idt, t->vector, &desc);
 	}
 }
+
+/**
+ * idt_setup_early_traps - Initialize the idt table with early traps
+ *
+ * On X8664 these traps do not use interrupt stacks as they can't work
+ * before cpu_init() is invoked and sets up TSS. The IST variants are
+ * installed after that.
+ */
+void __init idt_setup_early_traps(void)
+{
+	idt_setup_from_table(idt_table, early_idts, ARRAY_SIZE(early_idts));
+	load_idt(&idt_descr);
+}
+
+#ifdef CONFIG_X86_64
+/**
+ * idt_setup_early_pf - Initialize the idt table with early pagefault handler
+ *
+ * On X8664 this does not use interrupt stacks as they can't work before
+ * cpu_init() is invoked and sets up TSS. The IST variant is installed
+ * after that.
+ *
+ * FIXME: Why is 32bit and 64bit installing the PF handler at different
+ * places in the early setup code?
+ */
+void __init idt_setup_early_pf(void)
+{
+	idt_setup_from_table(idt_table, early_pf_idts,
+			     ARRAY_SIZE(early_pf_idts));
+}
+#endif
 
 /**
  * idt_setup_early_handler - Initializes the idt table with early handlers
