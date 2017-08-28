@@ -1507,10 +1507,8 @@ static int isc_formats_init(struct isc_device *isc)
 	isc->user_formats = devm_kcalloc(isc->dev,
 					 num_fmts, sizeof(struct isc_format *),
 					 GFP_KERNEL);
-	if (!isc->user_formats) {
-		v4l2_err(&isc->v4l2_dev, "could not allocate memory\n");
+	if (!isc->user_formats)
 		return -ENOMEM;
-	}
 
 	fmt = &isc_formats[0];
 	for (i = 0, j = 0; i < ARRAY_SIZE(isc_formats); i++) {

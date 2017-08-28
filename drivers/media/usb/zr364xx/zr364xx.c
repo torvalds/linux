@@ -209,10 +209,8 @@ static int send_control_msg(struct usb_device *udev, u8 request, u16 value,
 	int status;
 
 	unsigned char *transfer_buffer = kmalloc(size, GFP_KERNEL);
-	if (!transfer_buffer) {
-		dev_err(&udev->dev, "kmalloc(%d) failed\n", size);
+	if (!transfer_buffer)
 		return -ENOMEM;
-	}
 
 	memcpy(transfer_buffer, cp, size);
 
@@ -1424,10 +1422,8 @@ static int zr364xx_probe(struct usb_interface *intf,
 		 le16_to_cpu(udev->descriptor.idProduct));
 
 	cam = kzalloc(sizeof(struct zr364xx_camera), GFP_KERNEL);
-	if (cam == NULL) {
-		dev_err(&udev->dev, "cam: out of memory !\n");
+	if (!cam)
 		return -ENOMEM;
-	}
 
 	cam->v4l2_dev.release = zr364xx_release;
 	err = v4l2_device_register(&intf->dev, &cam->v4l2_dev);

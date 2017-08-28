@@ -165,7 +165,6 @@ static int hopper_pci_probe(struct pci_dev *pdev,
 
 	mantis = kzalloc(sizeof(struct mantis_pci), GFP_KERNEL);
 	if (mantis == NULL) {
-		printk(KERN_ERR "%s ERROR: Out of memory\n", __func__);
 		err = -ENOMEM;
 		goto fail0;
 	}

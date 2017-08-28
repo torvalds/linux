@@ -227,7 +227,6 @@ static int cx24116_writeregN(struct cx24116_state *state, int reg,
 
 	buf = kmalloc(len + 1, GFP_KERNEL);
 	if (buf == NULL) {
-		printk("Unable to kmalloc\n");
 		ret = -ENOMEM;
 		goto error;
 	}

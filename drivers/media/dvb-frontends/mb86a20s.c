@@ -2072,11 +2072,8 @@ struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
 
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct mb86a20s_state), GFP_KERNEL);
-	if (state == NULL) {
-		dev_err(&i2c->dev,
-			"%s: unable to allocate memory for state\n", __func__);
+	if (!state)
 		goto error;
-	}
 
 	/* setup the state */
 	state->config = config;

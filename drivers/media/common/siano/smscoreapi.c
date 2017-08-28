@@ -1301,10 +1301,8 @@ static int smscore_init_device(struct smscore_device_t *coredev, int mode)
 
 	buffer = kmalloc(sizeof(struct sms_msg_data) +
 			SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
-	if (!buffer) {
-		pr_err("Could not allocate buffer for init device message.\n");
+	if (!buffer)
 		return -ENOMEM;
-	}
 
 	msg = (struct sms_msg_data *)SMS_ALIGN_ADDRESS(buffer);
 	SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_INIT_DEVICE_REQ,
@@ -1687,10 +1685,9 @@ static int smscore_validate_client(struct smscore_device_t *coredev,
 		return -EEXIST;
 	}
 	listentry = kzalloc(sizeof(struct smscore_idlist_t), GFP_KERNEL);
-	if (!listentry) {
-		pr_err("Can't allocate memory for client id.\n");
+	if (!listentry)
 		return -ENOMEM;
-	}
+
 	listentry->id = id;
 	listentry->data_type = data_type;
 	list_add_locked(&listentry->entry, &client->idlist,
@@ -1725,10 +1722,8 @@ int smscore_register_client(struct smscore_device_t *coredev,
 	}
 
 	newclient = kzalloc(sizeof(struct smscore_client_t), GFP_KERNEL);
-	if (!newclient) {
-		pr_err("Failed to allocate memory for client.\n");
+	if (!newclient)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&newclient->idlist);
 	newclient->coredev = coredev;

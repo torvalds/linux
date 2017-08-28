@@ -3316,10 +3316,8 @@ static int adv76xx_probe(struct i2c_client *client,
 			client->addr << 1);
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
-	if (!state) {
-		v4l_err(client, "Could not allocate adv76xx_state memory!\n");
+	if (!state)
 		return -ENOMEM;
-	}
 
 	state->i2c_clients[ADV76XX_PAGE_IO] = client;
 

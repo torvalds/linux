@@ -910,11 +910,9 @@ static int cx18_probe(struct pci_dev *pci_dev,
 	}
 
 	cx = kzalloc(sizeof(struct cx18), GFP_ATOMIC);
-	if (cx == NULL) {
-		printk(KERN_ERR "cx18: cannot manage card %d, out of memory\n",
-		       i);
+	if (!cx)
 		return -ENOMEM;
-	}
+
 	cx->pci_dev = pci_dev;
 	cx->instance = i;
 

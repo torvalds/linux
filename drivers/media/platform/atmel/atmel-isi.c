@@ -1038,10 +1038,8 @@ static int isi_formats_init(struct atmel_isi *isi)
 	isi->user_formats = devm_kcalloc(isi->dev,
 					 num_fmts, sizeof(struct isi_format *),
 					 GFP_KERNEL);
-	if (!isi->user_formats) {
-		dev_err(isi->dev, "could not allocate memory\n");
+	if (!isi->user_formats)
 		return -ENOMEM;
-	}
 
 	memcpy(isi->user_formats, isi_fmts,
 	       num_fmts * sizeof(struct isi_format *));
@@ -1176,10 +1174,8 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	int ret, i;
 
 	isi = devm_kzalloc(&pdev->dev, sizeof(struct atmel_isi), GFP_KERNEL);
-	if (!isi) {
-		dev_err(&pdev->dev, "Can't allocate interface!\n");
+	if (!isi)
 		return -ENOMEM;
-	}
 
 	isi->pclk = devm_clk_get(&pdev->dev, "isi_clk");
 	if (IS_ERR(isi->pclk))

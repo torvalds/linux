@@ -220,10 +220,8 @@ static int hexium_probe(struct saa7146_dev *dev)
 	}
 
 	hexium = kzalloc(sizeof(struct hexium), GFP_KERNEL);
-	if (NULL == hexium) {
-		pr_err("hexium_probe: not enough kernel memory\n");
+	if (!hexium)
 		return -ENOMEM;
-	}
 
 	/* enable i2c-port pins */
 	saa7146_write(dev, MC1, (MASK_08 | MASK_24 | MASK_10 | MASK_26));

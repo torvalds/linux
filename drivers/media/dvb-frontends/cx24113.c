@@ -555,10 +555,9 @@ struct dvb_frontend *cx24113_attach(struct dvb_frontend *fe,
 	struct cx24113_state *state =
 		kzalloc(sizeof(struct cx24113_state), GFP_KERNEL);
 	int rc;
-	if (state == NULL) {
-		cx_err("Unable to kzalloc\n");
+
+	if (!state)
 		goto error;
-	}
 
 	/* setup the state */
 	state->config = config;

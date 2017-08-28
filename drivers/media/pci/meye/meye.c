@@ -1626,23 +1626,18 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	meye.mchip_dev = pcidev;
 
 	meye.grab_temp = vmalloc(MCHIP_NB_PAGES_MJPEG * PAGE_SIZE);
-	if (!meye.grab_temp) {
-		v4l2_err(v4l2_dev, "grab buffer allocation failed\n");
+	if (!meye.grab_temp)
 		goto outvmalloc;
-	}
 
 	spin_lock_init(&meye.grabq_lock);
 	if (kfifo_alloc(&meye.grabq, sizeof(int) * MEYE_MAX_BUFNBRS,
-				GFP_KERNEL)) {
-		v4l2_err(v4l2_dev, "fifo allocation failed\n");
+			GFP_KERNEL))
 		goto outkfifoalloc1;
-	}
+
 	spin_lock_init(&meye.doneq_lock);
 	if (kfifo_alloc(&meye.doneq, sizeof(int) * MEYE_MAX_BUFNBRS,
-				GFP_KERNEL)) {
-		v4l2_err(v4l2_dev, "fifo allocation failed\n");
+			GFP_KERNEL))
 		goto outkfifoalloc2;
-	}
 
 	meye.vdev = meye_template;
 	meye.vdev.v4l2_dev = &meye.v4l2_dev;
