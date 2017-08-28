@@ -794,6 +794,9 @@ int sock_map_attach_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type)
 	struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
 	struct bpf_prog *orig;
 
+	if (unlikely(map->map_type != BPF_MAP_TYPE_SOCKMAP))
+		return -EINVAL;
+
 	switch (type) {
 	case BPF_SK_SKB_STREAM_PARSER:
 		orig = xchg(&stab->bpf_parse, prog);

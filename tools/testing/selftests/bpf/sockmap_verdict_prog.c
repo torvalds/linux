@@ -26,6 +26,13 @@ struct bpf_map_def SEC("maps") sock_map_tx = {
 	.max_entries = 20,
 };
 
+struct bpf_map_def SEC("maps") sock_map_break = {
+	.type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 20,
+};
+
 SEC("sk_skb2")
 int bpf_prog2(struct __sk_buff *skb)
 {

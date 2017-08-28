@@ -463,12 +463,12 @@ static void test_devmap(int task, void *data)
 #define SOCKMAP_VERDICT_PROG "./sockmap_verdict_prog.o"
 static void test_sockmap(int task, void *data)
 {
+	int one = 1, map_fd_rx, map_fd_tx, map_fd_break, s, sc, rc;
+	struct bpf_map *bpf_map_rx, *bpf_map_tx, *bpf_map_break;
 	int ports[] = {50200, 50201, 50202, 50204};
 	int err, i, fd, sfd[6] = {0xdeadbeef};
 	u8 buf[20] = {0x0, 0x5, 0x3, 0x2, 0x1, 0x0};
-	int one = 1, map_fd_rx, map_fd_tx, s, sc, rc;
 	int parse_prog, verdict_prog;
-	struct bpf_map *bpf_map_rx, *bpf_map_tx;
 	struct sockaddr_in addr;
 	struct bpf_object *obj;
 	struct timeval to;
@@ -609,17 +609,36 @@ static void test_sockmap(int task, void *data)
 		goto out_sockmap;
 	}
 
+	bpf_map_break = bpf_object__find_map_by_name(obj, "sock_map_break");
+	if (IS_ERR(bpf_map_break)) {
+		printf("Failed to load map tx from verdict prog\n");
+		goto out_sockmap;
+	}
+
+	map_fd_break = bpf_map__fd(bpf_map_break);
+	if (map_fd_break < 0) {
+		printf("Failed to get map tx fd\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_attach(parse_prog, map_fd_break,
+			      BPF_SK_SKB_STREAM_PARSER, 0);
+	if (!err) {
+		printf("Allowed attaching SK_SKB program to invalid map\n");
+		goto out_sockmap;
+	}
+
 	err = bpf_prog_attach(parse_prog, map_fd_rx,
 		      BPF_SK_SKB_STREAM_PARSER, 0);
 	if (err) {
-		printf("Failed bpf prog attach\n");
+		printf("Failed stream parser bpf prog attach\n");
 		goto out_sockmap;
 	}
 
 	err = bpf_prog_attach(verdict_prog, map_fd_rx,
 			      BPF_SK_SKB_STREAM_VERDICT, 0);
 	if (err) {
-		printf("Failed bpf prog attach\n");
+		printf("Failed stream verdict bpf prog attach\n");
 		goto out_sockmap;
 	}
 
