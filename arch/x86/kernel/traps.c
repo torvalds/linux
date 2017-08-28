@@ -939,12 +939,8 @@ void __init early_trap_init(void)
 	 * stack.  Using the original stack works well enough at this
 	 * early stage. DEBUG_STACK will be equipped after cpu_init() in
 	 * trap_init().
-	 *
-	 * We don't need to set trace_idt_table like set_intr_gate(),
-	 * since we don't have trace_debug and it will be reset to
-	 * 'debug' in trap_init() by set_intr_gate_ist().
 	 */
-	set_intr_gate_notrace(X86_TRAP_DB, debug);
+	set_intr_gate(X86_TRAP_DB, debug);
 	/* int3 can be called from all */
 	set_system_intr_gate(X86_TRAP_BP, &int3);
 #ifdef CONFIG_X86_32

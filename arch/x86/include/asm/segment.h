@@ -238,9 +238,6 @@
 #ifndef __ASSEMBLY__
 
 extern const char early_idt_handler_array[NUM_EXCEPTION_VECTORS][EARLY_IDT_HANDLER_SIZE];
-#ifdef CONFIG_TRACING
-# define trace_early_idt_handler_array early_idt_handler_array
-#endif
 
 /*
  * Load a segment. Fall back on loading the zero segment if something goes

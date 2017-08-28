@@ -421,35 +421,7 @@ static inline void set_nmi_gate(int gate, void *addr)
 }
 #endif
 
-#ifdef CONFIG_TRACING
-extern struct desc_ptr trace_idt_descr;
-extern gate_desc trace_idt_table[];
-static inline void write_trace_idt_entry(int entry, const gate_desc *gate)
-{
-	write_idt_entry(trace_idt_table, entry, gate);
-}
-
-static inline void _trace_set_gate(int gate, unsigned type, void *addr,
-				   unsigned dpl, unsigned ist, unsigned seg)
-{
-	gate_desc s;
-
-	pack_gate(&s, type, (unsigned long)addr, dpl, ist, seg);
-	/*
-	 * does not need to be atomic because it is only done once at
-	 * setup time
-	 */
-	write_trace_idt_entry(gate, &s);
-}
-#else
-static inline void write_trace_idt_entry(int entry, const gate_desc *gate)
-{
-}
-
-#define _trace_set_gate(gate, type, addr, dpl, ist, seg)
-#endif
-
-static inline void _set_gate(int gate, unsigned type, void *addr,
+static inline void _set_gate(int gate, unsigned type, const void *addr,
 			     unsigned dpl, unsigned ist, unsigned seg)
 {
 	gate_desc s;
@@ -460,28 +432,13 @@ static inline void _set_gate(int gate, unsigned type, void *addr,
 	 * setup time
 	 */
 	write_idt_entry(idt_table, gate, &s);
-	write_trace_idt_entry(gate, &s);
 }
 
-/*
- * This needs to use 'idt_table' rather than 'idt', and
- * thus use the _nonmapped_ version of the IDT, as the
- * Pentium F0 0F bugfix can have resulted in the mapped
- * IDT being write-protected.
- */
-#define set_intr_gate_notrace(n, addr)					\
-	do {								\
-		BUG_ON((unsigned)n > 0xFF);				\
-		_set_gate(n, GATE_INTERRUPT, (void *)addr, 0, 0,	\
-			  __KERNEL_CS);					\
-	} while (0)
-
-#define set_intr_gate(n, addr)						\
-	do {								\
-		set_intr_gate_notrace(n, addr);				\
-		_trace_set_gate(n, GATE_INTERRUPT, (void *)trace_##addr,\
-				0, 0, __KERNEL_CS);			\
-	} while (0)
+static inline void set_intr_gate(unsigned int n, const void *addr)
+{
+	BUG_ON(n > 0xFF);
+	_set_gate(n, GATE_INTERRUPT, addr, 0, 0, __KERNEL_CS);
+}
 
 extern unsigned long used_vectors[];
 
@@ -565,31 +522,6 @@ static inline void load_debug_idt(void)
 }
 #endif
 
-#ifdef CONFIG_TRACING
-extern atomic_t trace_idt_ctr;
-static inline bool is_trace_idt_enabled(void)
-{
-	if (atomic_read(&trace_idt_ctr))
-		return true;
-
-	return false;
-}
-
-static inline void load_trace_idt(void)
-{
-	load_idt((const struct desc_ptr *)&trace_idt_descr);
-}
-#else
-static inline bool is_trace_idt_enabled(void)
-{
-	return false;
-}
-
-static inline void load_trace_idt(void)
-{
-}
-#endif
-
 /*
  * The load_current_idt() must be called with interrupts disabled
  * to avoid races. That way the IDT will always be set back to the expected
@@ -601,8 +533,6 @@ static inline void load_current_idt(void)
 {
 	if (is_debug_idt_enabled())
 		load_debug_idt();
-	else if (is_trace_idt_enabled())
-		load_trace_idt();
 	else
 		load_idt((const struct desc_ptr *)&idt_descr);
 }

@@ -748,18 +748,6 @@ ENTRY(\sym)
 END(\sym)
 .endm
 
-#ifdef CONFIG_TRACING
-#define trace(sym) trace_##sym
-#define smp_trace(sym) smp_trace_##sym
-
-.macro trace_apicinterrupt num sym
-apicinterrupt3 \num trace(\sym) smp_trace(\sym)
-.endm
-#else
-.macro trace_apicinterrupt num sym do_sym
-.endm
-#endif
-
 /* Make sure APIC interrupt handlers end up in the irqentry section: */
 #if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
 # define PUSH_SECTION_IRQENTRY	.pushsection .irqentry.text, "ax"
@@ -772,7 +760,6 @@ apicinterrupt3 \num trace(\sym) smp_trace(\sym)
 .macro apicinterrupt num sym do_sym
 PUSH_SECTION_IRQENTRY
 apicinterrupt3 \num \sym \do_sym
-trace_apicinterrupt \num \sym
 POP_SECTION_IRQENTRY
 .endm
 

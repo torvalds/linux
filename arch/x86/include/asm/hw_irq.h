@@ -46,26 +46,6 @@ extern asmlinkage void deferred_error_interrupt(void);
 extern asmlinkage void call_function_interrupt(void);
 extern asmlinkage void call_function_single_interrupt(void);
 
-#ifdef CONFIG_TRACING
-/* Interrupt handlers registered during init_IRQ */
-#define trace_reschedule_interrupt	reschedule_interrupt
-#define trace_call_function_interrupt	call_function_interrupt
-#define trace_call_function_single_interrupt	call_function_single_interrupt
-#define trace_thermal_interrupt	thermal_interrupt
-#define trace_threshold_interrupt	threshold_interrupt
-#define trace_deferred_error_interrupt	deferred_error_interrupt
-#define trace_irq_work_interrupt irq_work_interrupt
-#define trace_error_interrupt error_interrupt
-#define trace_spurious_interrupt spurious_interrupt
-#define trace_x86_platform_ipi	x86_platform_ipi
-#define trace_apic_timer_interrupt	apic_timer_interrupt
-#define trace_irq_move_cleanup_interrupt  irq_move_cleanup_interrupt
-#define trace_reboot_interrupt  reboot_interrupt
-#define trace_kvm_posted_intr_ipi kvm_posted_intr_ipi
-#define trace_kvm_posted_intr_wakeup_ipi kvm_posted_intr_wakeup_ipi
-#define trace_kvm_posted_intr_nested_ipi kvm_posted_intr_nested_ipi
-#endif /* CONFIG_TRACING */
-
 #ifdef	CONFIG_X86_LOCAL_APIC
 struct irq_data;
 struct pci_dev;
