@@ -633,7 +633,8 @@ static void aer_recover_work_func(struct work_struct *work)
 			continue;
 		}
 		cper_print_aer(pdev, entry.severity, entry.regs);
-		do_recovery(pdev, entry.severity);
+		if (entry.severity != AER_CORRECTABLE)
+			do_recovery(pdev, entry.severity);
 		pci_dev_put(pdev);
 	}
 }
