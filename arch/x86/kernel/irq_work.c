@@ -11,6 +11,7 @@
 #include <asm/trace/irq_vectors.h>
 #include <linux/interrupt.h>
 
+#ifdef CONFIG_X86_LOCAL_APIC
 __visible void __irq_entry smp_irq_work_interrupt(struct pt_regs *regs)
 {
 	ipi_entering_ack_irq();
@@ -23,11 +24,10 @@ __visible void __irq_entry smp_irq_work_interrupt(struct pt_regs *regs)
 
 void arch_irq_work_raise(void)
 {
-#ifdef CONFIG_X86_LOCAL_APIC
 	if (!arch_irq_work_has_interrupt())
 		return;
 
 	apic->send_IPI_self(IRQ_WORK_VECTOR);
 	apic_wait_icr_idle();
-#endif
 }
+#endif
