@@ -91,6 +91,7 @@ config QCOM_ADSP_PIL
 	depends on QCOM_SMEM
 	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
+	depends on QCOM_SYSMON || QCOM_SYSMON=n
 	select MFD_SYSCON
 	select QCOM_MDT_LOADER
 	select QCOM_RPROC_COMMON
@@ -108,6 +109,7 @@ config QCOM_Q6V5_PIL
 	depends on QCOM_SMEM
 	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
+	depends on QCOM_SYSMON || QCOM_SYSMON=n
 	select MFD_SYSCON
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM
@@ -115,12 +117,27 @@ config QCOM_Q6V5_PIL
 	  Say y here to support the Qualcomm Peripherial Image Loader for the
 	  Hexagon V5 based remote processors.
 
+config QCOM_SYSMON
+	tristate "Qualcomm sysmon driver"
+	depends on RPMSG
+	depends on ARCH_QCOM
+	select QCOM_QMI_HELPERS
+	help
+	  The sysmon driver implements a sysmon QMI client and a handler for
+	  the sys_mon SMD and GLINK channel, which are used for graceful
+	  shutdown, retrieving failure information and propagating information
+	  about other subsystems being shut down.
+
+	  Say y here if your system runs firmware on any other subsystems, e.g.
+	  modem or DSP.
+
 config QCOM_WCNSS_PIL
 	tristate "Qualcomm WCNSS Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
 	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
 	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SMEM
+	depends on QCOM_SYSMON || QCOM_SYSMON=n
 	select QCOM_MDT_LOADER
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM

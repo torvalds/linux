@@ -40,6 +40,7 @@
 #define WCNSS_CRASH_REASON_SMEM		422
 #define WCNSS_FIRMWARE_NAME		"wcnss.mdt"
 #define WCNSS_PAS_ID			6
+#define WCNSS_SSCTL_ID			0x13
 
 #define WCNSS_SPARE_NVBIN_DLND		BIT(25)
 
@@ -98,6 +99,7 @@ struct qcom_wcnss {
 	size_t mem_size;
 
 	struct qcom_rproc_subdev smd_subdev;
+	struct qcom_sysmon *sysmon;
 };
 
 static const struct wcnss_data riva_data = {
@@ -550,6 +552,7 @@ static int wcnss_probe(struct platform_device *pdev)
 	}
 
 	qcom_add_smd_subdev(rproc, &wcnss->smd_subdev);
+	wcnss->sysmon = qcom_add_sysmon_subdev(rproc, "wcnss", WCNSS_SSCTL_ID);
 
 	ret = rproc_add(rproc);
 	if (ret)
@@ -572,6 +575,7 @@ static int wcnss_remove(struct platform_device *pdev)
 	qcom_smem_state_put(wcnss->state);
 	rproc_del(wcnss->rproc);
 
+	qcom_remove_sysmon_subdev(wcnss->sysmon);
 	qcom_remove_smd_subdev(wcnss->rproc, &wcnss->smd_subdev);
 	rproc_free(wcnss->rproc);
 
