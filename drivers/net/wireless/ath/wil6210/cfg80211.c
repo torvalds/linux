@@ -382,6 +382,34 @@ static int wil_cfg80211_dump_station(struct wiphy *wiphy,
 	return rc;
 }
 
+static int wil_cfg80211_start_p2p_device(struct wiphy *wiphy,
+					 struct wireless_dev *wdev)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	wil_dbg_misc(wil, "start_p2p_device: entered\n");
+	wil->p2p.p2p_dev_started = 1;
+	return 0;
+}
+
+static void wil_cfg80211_stop_p2p_device(struct wiphy *wiphy,
+					 struct wireless_dev *wdev)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	struct wil_p2p_info *p2p = &wil->p2p;
+
+	if (!p2p->p2p_dev_started)
+		return;
+
+	wil_dbg_misc(wil, "stop_p2p_device: entered\n");
+	mutex_lock(&wil->mutex);
+	mutex_lock(&wil->p2p_wdev_mutex);
+	wil_p2p_stop_radio_operations(wil);
+	p2p->p2p_dev_started = 0;
+	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->mutex);
+}
+
 static struct wireless_dev *
 wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 		       unsigned char name_assign_type,
@@ -430,6 +458,7 @@ static int wil_cfg80211_del_iface(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	wil_cfg80211_stop_p2p_device(wiphy, wdev);
 	wil_p2p_wdev_free(wil);
 
 	return 0;
@@ -1659,34 +1688,6 @@ static int wil_cfg80211_change_bss(struct wiphy *wiphy,
 	}
 
 	return 0;
-}
-
-static int wil_cfg80211_start_p2p_device(struct wiphy *wiphy,
-					 struct wireless_dev *wdev)
-{
-	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
-
-	wil_dbg_misc(wil, "start_p2p_device: entered\n");
-	wil->p2p.p2p_dev_started = 1;
-	return 0;
-}
-
-static void wil_cfg80211_stop_p2p_device(struct wiphy *wiphy,
-					 struct wireless_dev *wdev)
-{
-	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
-	struct wil_p2p_info *p2p = &wil->p2p;
-
-	if (!p2p->p2p_dev_started)
-		return;
-
-	wil_dbg_misc(wil, "stop_p2p_device: entered\n");
-	mutex_lock(&wil->mutex);
-	mutex_lock(&wil->p2p_wdev_mutex);
-	wil_p2p_stop_radio_operations(wil);
-	p2p->p2p_dev_started = 0;
-	mutex_unlock(&wil->p2p_wdev_mutex);
-	mutex_unlock(&wil->mutex);
 }
 
 static int wil_cfg80211_set_power_mgmt(struct wiphy *wiphy,
