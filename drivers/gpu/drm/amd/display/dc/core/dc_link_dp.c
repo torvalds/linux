@@ -1653,8 +1653,8 @@ static bool handle_hpd_irq_psr_sink(const struct dc_link *link)
 				sizeof(psr_error_status.raw));
 
 			/* PSR error, disable and re-enable PSR */
-			dc_link_set_psr_enable(link, false);
-			dc_link_set_psr_enable(link, true);
+			dc_link_set_psr_enable(link, false, true);
+			dc_link_set_psr_enable(link, true, true);
 
 			return true;
 		} else if (psr_sink_psr_status.bits.SINK_SELF_REFRESH_STATUS ==

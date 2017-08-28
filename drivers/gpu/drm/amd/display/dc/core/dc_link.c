@@ -1862,13 +1862,13 @@ bool dc_link_set_abm_disable(const struct dc_link *link)
 }
 
 
-bool dc_link_set_psr_enable(const struct dc_link *link, bool enable)
+bool dc_link_set_psr_enable(const struct dc_link *link, bool enable, bool wait)
 {
 	struct dc  *core_dc = link->ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
 	if (dmcu != NULL && link->psr_enabled)
-		dmcu->funcs->set_psr_enable(dmcu, enable);
+		dmcu->funcs->set_psr_enable(dmcu, enable, wait);
 
 	return true;
 }

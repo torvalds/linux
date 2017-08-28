@@ -103,7 +103,7 @@ static void dce_get_dmcu_psr_state(struct dmcu *dmcu, uint32_t *psr_state)
 	REG_UPDATE(DMCU_RAM_ACCESS_CTRL, IRAM_HOST_ACCESS_EN, 0);
 }
 
-static void dce_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable)
+static void dce_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 	unsigned int dmcu_max_retry_on_wait_reg_ready = 801;
@@ -127,17 +127,18 @@ static void dce_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable)
 
 	/* notifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
-
-	for (retryCount = 0; retryCount <= 100; retryCount++) {
-		dce_get_dmcu_psr_state(dmcu, &psr_state);
-		if (enable) {
-			if (psr_state != 0)
-				break;
-		} else {
-			if (psr_state == 0)
-				break;
+	if (wait == true) {
+		for (retryCount = 0; retryCount <= 100; retryCount++) {
+			dce_get_dmcu_psr_state(dmcu, &psr_state);
+				if (enable) {
+					if (psr_state != 0)
+						break;
+				} else {
+					if (psr_state == 0)
+						break;
+				}
+				dm_delay_in_microseconds(dmcu->ctx, 10);
 		}
-		dm_delay_in_microseconds(dmcu->ctx, 10);
 	}
 }
 
@@ -338,7 +339,7 @@ static void dcn10_get_dmcu_psr_state(struct dmcu *dmcu, uint32_t *psr_state)
 	REG_UPDATE(DMCU_RAM_ACCESS_CTRL, IRAM_HOST_ACCESS_EN, 0);
 }
 
-static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable)
+static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 	unsigned int dmcu_max_retry_on_wait_reg_ready = 801;
@@ -367,6 +368,7 @@ static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable)
 	 *  Exit PSR may need to wait 1-2 frames to power up. Timeout after at
 	 *  least a few frames. Should never hit the max retry assert below.
 	 */
+	if (wait == true) {
 	for (retryCount = 0; retryCount <= 1000; retryCount++) {
 		dcn10_get_dmcu_psr_state(dmcu, &psr_state);
 		if (enable) {
@@ -381,6 +383,7 @@ static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable)
 
 	/* assert if max retry hit */
 	ASSERT(retryCount <= 1000);
+	}
 }
 
 static void dcn10_dmcu_setup_psr(struct dmcu *dmcu,
