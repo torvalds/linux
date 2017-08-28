@@ -461,7 +461,7 @@ static void test_devmap(int task, void *data)
 #include <linux/err.h>
 #define SOCKMAP_PARSE_PROG "./sockmap_parse_prog.o"
 #define SOCKMAP_VERDICT_PROG "./sockmap_verdict_prog.o"
-static void test_sockmap(int task, void *data)
+static void test_sockmap(int tasks, void *data)
 {
 	int one = 1, map_fd_rx, map_fd_tx, map_fd_break, s, sc, rc;
 	struct bpf_map *bpf_map_rx, *bpf_map_tx, *bpf_map_break;
@@ -473,6 +473,7 @@ static void test_sockmap(int task, void *data)
 	struct bpf_object *obj;
 	struct timeval to;
 	__u32 key, value;
+	pid_t pid[tasks];
 	fd_set w;
 
 	/* Create some sockets to use with sockmap */
@@ -780,6 +781,32 @@ static void test_sockmap(int task, void *data)
 			       err, i, sfd[i]);
 			goto out_sockmap;
 		}
+	}
+
+	/* Test tasks number of forked operations */
+	for (i = 0; i < tasks; i++) {
+		pid[i] = fork();
+		if (pid[i] == 0) {
+			for (i = 0; i < 6; i++) {
+				bpf_map_delete_elem(map_fd_tx, &i);
+				bpf_map_delete_elem(map_fd_rx, &i);
+				bpf_map_update_elem(map_fd_tx, &i,
+						    &sfd[i], BPF_ANY);
+				bpf_map_update_elem(map_fd_rx, &i,
+						    &sfd[i], BPF_ANY);
+			}
+			exit(0);
+		} else if (pid[i] == -1) {
+			printf("Couldn't spawn #%d process!\n", i);
+			exit(1);
+		}
+	}
+
+	for (i = 0; i < tasks; i++) {
+		int status;
+
+		assert(waitpid(pid[i], &status, 0) == pid[i]);
+		assert(status == 0);
 	}
 
 	/* Test map close sockets */
