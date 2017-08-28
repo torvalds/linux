@@ -228,8 +228,6 @@ static void rmd256_transform(u32 *state, const __le32 *in)
 	state[5] += bbb;
 	state[6] += ccc;
 	state[7] += ddd;
-
-	return;
 }
 
 static int rmd256_init(struct shash_desc *desc)

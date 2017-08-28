@@ -76,8 +76,6 @@ static void mv_cesa_rearm_engine(struct mv_cesa_engine *engine)
 
 	ctx = crypto_tfm_ctx(req->tfm);
 	ctx->ops->step(req);
-
-	return;
 }
 
 static int mv_cesa_std_process(struct mv_cesa_engine *engine, u32 status)
