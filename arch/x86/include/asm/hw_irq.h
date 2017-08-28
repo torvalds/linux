@@ -48,12 +48,12 @@ extern asmlinkage void call_function_single_interrupt(void);
 
 #ifdef CONFIG_TRACING
 /* Interrupt handlers registered during init_IRQ */
-extern void trace_thermal_interrupt(void);
 extern void trace_reschedule_interrupt(void);
-extern void trace_threshold_interrupt(void);
-extern void trace_deferred_error_interrupt(void);
 extern void trace_call_function_interrupt(void);
 extern void trace_call_function_single_interrupt(void);
+#define trace_thermal_interrupt	thermal_interrupt
+#define trace_threshold_interrupt	threshold_interrupt
+#define trace_deferred_error_interrupt	deferred_error_interrupt
 #define trace_irq_work_interrupt irq_work_interrupt
 #define trace_error_interrupt error_interrupt
 #define trace_spurious_interrupt spurious_interrupt
