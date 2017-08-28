@@ -47,20 +47,6 @@ enum {
 	GATE_TASK = 0x5,
 };
 
-/* 16byte gate */
-struct gate_struct64 {
-	u16 offset_low;
-	u16 segment;
-	unsigned ist : 3, zero0 : 5, type : 5, dpl : 2, p : 1;
-	u16 offset_middle;
-	u32 offset_high;
-	u32 zero1;
-} __attribute__((packed));
-
-#define PTR_LOW(x) ((unsigned long long)(x) & 0xFFFF)
-#define PTR_MIDDLE(x) (((unsigned long long)(x) >> 16) & 0xFFFF)
-#define PTR_HIGH(x) ((unsigned long long)(x) >> 32)
-
 enum {
 	DESC_TSS = 0x9,
 	DESC_LDT = 0x2,
@@ -77,19 +63,50 @@ struct ldttss_desc64 {
 	u32 zero1;
 } __attribute__((packed));
 
+
 #ifdef CONFIG_X86_64
-typedef struct gate_struct64 gate_desc;
 typedef struct ldttss_desc64 ldt_desc;
 typedef struct ldttss_desc64 tss_desc;
-#define gate_offset(g) ((g).offset_low | ((unsigned long)(g).offset_middle << 16) | ((unsigned long)(g).offset_high << 32))
-#define gate_segment(g) ((g).segment)
 #else
-typedef struct desc_struct gate_desc;
 typedef struct desc_struct ldt_desc;
 typedef struct desc_struct tss_desc;
-#define gate_offset(g)		(((g).b & 0xffff0000) | ((g).a & 0x0000ffff))
-#define gate_segment(g)		((g).a >> 16)
 #endif
+
+struct idt_bits {
+	u16		ist	: 3,
+			zero	: 5,
+			type	: 5,
+			dpl	: 2,
+			p	: 1;
+} __attribute__((packed));
+
+struct gate_struct {
+	u16		offset_low;
+	u16		segment;
+	struct idt_bits	bits;
+	u16		offset_middle;
+#ifdef CONFIG_X86_64
+	u32		offset_high;
+	u32		reserved;
+#endif
+} __attribute__((packed));
+
+typedef struct gate_struct gate_desc;
+
+static inline unsigned long gate_offset(const gate_desc *g)
+{
+#ifdef CONFIG_X86_64
+	return g->offset_low | ((unsigned long)g->offset_middle << 16) |
+		((unsigned long) g->offset_high << 32);
+#else
+	return g->offset_low | ((unsigned long)g->offset_middle << 16);
+#endif
+}
+
+static inline unsigned long gate_segment(const gate_desc *g)
+{
+	return g->segment;
+}
 
 struct desc_ptr {
 	unsigned short size;

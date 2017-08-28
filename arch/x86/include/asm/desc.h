@@ -84,33 +84,25 @@ static inline phys_addr_t get_cpu_gdt_paddr(unsigned int cpu)
 	return per_cpu_ptr_to_phys(get_cpu_gdt_rw(cpu));
 }
 
-#ifdef CONFIG_X86_64
-
 static inline void pack_gate(gate_desc *gate, unsigned type, unsigned long func,
 			     unsigned dpl, unsigned ist, unsigned seg)
 {
-	gate->offset_low	= PTR_LOW(func);
+	gate->offset_low	= (u16) func;
+	gate->bits.p		= 1;
+	gate->bits.dpl		= dpl;
+	gate->bits.zero		= 0;
+	gate->bits.type		= type;
+	gate->offset_middle	= (u16) (func >> 16);
+#ifdef CONFIG_X86_64
 	gate->segment		= __KERNEL_CS;
-	gate->ist		= ist;
-	gate->p			= 1;
-	gate->dpl		= dpl;
-	gate->zero0		= 0;
-	gate->zero1		= 0;
-	gate->type		= type;
-	gate->offset_middle	= PTR_MIDDLE(func);
-	gate->offset_high	= PTR_HIGH(func);
-}
-
+	gate->bits.ist		= ist;
+	gate->reserved		= 0;
+	gate->offset_high	= (u32) (func >> 32);
 #else
-static inline void pack_gate(gate_desc *gate, unsigned char type,
-			     unsigned long base, unsigned dpl, unsigned flags,
-			     unsigned short seg)
-{
-	gate->a = (seg << 16) | (base & 0xffff);
-	gate->b = (base & 0xffff0000) | (((0x80 | type | (dpl << 5)) & 0xff) << 8);
-}
-
+	gate->segment		= seg;
+	gate->bits.ist		= 0;
 #endif
+}
 
 static inline int desc_empty(const void *ptr)
 {
@@ -186,7 +178,8 @@ static inline void pack_descriptor(struct desc_struct *desc, unsigned long base,
 }
 
 
-static inline void set_tssldt_descriptor(void *d, unsigned long addr, unsigned type, unsigned size)
+static inline void set_tssldt_descriptor(void *d, unsigned long addr,
+					 unsigned type, unsigned size)
 {
 #ifdef CONFIG_X86_64
 	struct ldttss_desc64 *desc = d;
@@ -194,13 +187,13 @@ static inline void set_tssldt_descriptor(void *d, unsigned long addr, unsigned t
 	memset(desc, 0, sizeof(*desc));
 
 	desc->limit0		= size & 0xFFFF;
-	desc->base0		= PTR_LOW(addr);
-	desc->base1		= PTR_MIDDLE(addr) & 0xFF;
+	desc->base0		= (u16) addr;
+	desc->base1		= (addr >> 16) & 0xFF;
 	desc->type		= type;
 	desc->p			= 1;
 	desc->limit1		= (size >> 16) & 0xF;
-	desc->base2		= (PTR_MIDDLE(addr) >> 8) & 0xFF;
-	desc->base3		= PTR_HIGH(addr);
+	desc->base2		= (addr >> 24) & 0xFF;
+	desc->base3		= (u32) (addr >> 32);
 #else
 	pack_descriptor((struct desc_struct *)d, addr, size, 0x80 | type, 0);
 #endif

@@ -584,12 +584,12 @@ static int cvt_gate_to_trap(int vector, const gate_desc *val,
 {
 	unsigned long addr;
 
-	if (val->type != GATE_TRAP && val->type != GATE_INTERRUPT)
+	if (val->bits.type != GATE_TRAP && val->bits.type != GATE_INTERRUPT)
 		return 0;
 
 	info->vector = vector;
 
-	addr = gate_offset(*val);
+	addr = gate_offset(val);
 #ifdef CONFIG_X86_64
 	/*
 	 * Look for known traps using IST, and substitute them
@@ -622,16 +622,16 @@ static int cvt_gate_to_trap(int vector, const gate_desc *val,
 		;
 	else {
 		/* Some other trap using IST? */
-		if (WARN_ON(val->ist != 0))
+		if (WARN_ON(val->bits.ist != 0))
 			return 0;
 	}
 #endif	/* CONFIG_X86_64 */
 	info->address = addr;
 
-	info->cs = gate_segment(*val);
-	info->flags = val->dpl;
+	info->cs = gate_segment(val);
+	info->flags = val->bits.dpl;
 	/* interrupt gates clear IF */
-	if (val->type == GATE_INTERRUPT)
+	if (val->bits.type == GATE_INTERRUPT)
 		info->flags |= 1 << 2;
 
 	return 1;
