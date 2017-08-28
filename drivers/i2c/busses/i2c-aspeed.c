@@ -410,10 +410,11 @@ static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
 	}
 
 	/* We are in an invalid state; reset bus to a known state. */
-	if (!bus->msgs && bus->master_state != ASPEED_I2C_MASTER_STOP) {
+	if (!bus->msgs) {
 		dev_err(bus->dev, "bus in unknown state");
 		bus->cmd_err = -EIO;
-		aspeed_i2c_do_stop(bus);
+		if (bus->master_state != ASPEED_I2C_MASTER_STOP)
+			aspeed_i2c_do_stop(bus);
 		goto out_no_complete;
 	}
 	msg = &bus->msgs[bus->msgs_index];

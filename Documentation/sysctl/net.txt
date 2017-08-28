@@ -35,9 +35,34 @@ Table : Subdirectories in /proc/sys/net
 bpf_jit_enable
 --------------
 
-This enables Berkeley Packet Filter Just in Time compiler.
-Currently supported on x86_64 architecture, bpf_jit provides a framework
-to speed packet filtering, the one used by tcpdump/libpcap for example.
+This enables the BPF Just in Time (JIT) compiler. BPF is a flexible
+and efficient infrastructure allowing to execute bytecode at various
+hook points. It is used in a number of Linux kernel subsystems such
+as networking (e.g. XDP, tc), tracing (e.g. kprobes, uprobes, tracepoints)
+and security (e.g. seccomp). LLVM has a BPF back end that can compile
+restricted C into a sequence of BPF instructions. After program load
+through bpf(2) and passing a verifier in the kernel, a JIT will then
+translate these BPF proglets into native CPU instructions. There are
+two flavors of JITs, the newer eBPF JIT currently supported on:
+  - x86_64
+  - arm64
+  - ppc64
+  - sparc64
+  - mips64
+  - s390x
+
+And the older cBPF JIT supported on the following archs:
+  - arm
+  - mips
+  - ppc
+  - sparc
+
+eBPF JITs are a superset of cBPF JITs, meaning the kernel will
+migrate cBPF instructions into eBPF instructions and then JIT
+compile them transparently. Older cBPF JITs can only translate
+tcpdump filters, seccomp rules, etc, but not mentioned eBPF
+programs loaded through bpf(2).
+
 Values :
 	0 - disable the JIT (default value)
 	1 - enable the JIT
@@ -46,9 +71,9 @@ Values :
 bpf_jit_harden
 --------------
 
-This enables hardening for the Berkeley Packet Filter Just in Time compiler.
-Supported are eBPF JIT backends. Enabling hardening trades off performance,
-but can mitigate JIT spraying.
+This enables hardening for the BPF JIT compiler. Supported are eBPF
+JIT backends. Enabling hardening trades off performance, but can
+mitigate JIT spraying.
 Values :
 	0 - disable JIT hardening (default value)
 	1 - enable JIT hardening for unprivileged users only
@@ -57,11 +82,11 @@ Values :
 bpf_jit_kallsyms
 ----------------
 
-When Berkeley Packet Filter Just in Time compiler is enabled, then compiled
-images are unknown addresses to the kernel, meaning they neither show up in
-traces nor in /proc/kallsyms. This enables export of these addresses, which
-can be used for debugging/tracing. If bpf_jit_harden is enabled, this feature
-is disabled.
+When BPF JIT compiler is enabled, then compiled images are unknown
+addresses to the kernel, meaning they neither show up in traces nor
+in /proc/kallsyms. This enables export of these addresses, which can
+be used for debugging/tracing. If bpf_jit_harden is enabled, this
+feature is disabled.
 Values :
 	0 - disable JIT kallsyms export (default value)
 	1 - enable JIT kallsyms export for privileged users only
