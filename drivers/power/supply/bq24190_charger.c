@@ -43,6 +43,8 @@
 #define BQ24190_REG_POC_CHG_CONFIG_OTG			0x2
 #define BQ24190_REG_POC_SYS_MIN_MASK		(BIT(3) | BIT(2) | BIT(1))
 #define BQ24190_REG_POC_SYS_MIN_SHIFT		1
+#define BQ24190_REG_POC_SYS_MIN_MIN			3000
+#define BQ24190_REG_POC_SYS_MIN_MAX			3700
 #define BQ24190_REG_POC_BOOST_LIM_MASK		BIT(0)
 #define BQ24190_REG_POC_BOOST_LIM_SHIFT		0
 
@@ -159,6 +161,7 @@ struct bq24190_dev_info {
 	char				model_name[I2C_NAME_SIZE];
 	bool				initialized;
 	bool				irq_event;
+	u16				sys_min;
 	struct mutex			f_reg_lock;
 	u8				f_reg;
 	u8				ss_reg;
@@ -529,6 +532,16 @@ static int bq24190_set_config(struct bq24190_dev_info *bdi)
 	ret = bq24190_write(bdi, BQ24190_REG_CTTC, v);
 	if (ret < 0)
 		return ret;
+
+	if (bdi->sys_min) {
+		v = bdi->sys_min / 100 - 30; // manual section 9.5.1.2, table 9
+		ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
+					 BQ24190_REG_POC_SYS_MIN_MASK,
+					 BQ24190_REG_POC_SYS_MIN_SHIFT,
+					 v);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
@@ -1509,6 +1522,18 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
 
 static int bq24190_get_config(struct bq24190_dev_info *bdi)
 {
+	const char * const s = "ti,system-minimum-microvolt";
+	int v;
+
+	if (device_property_read_u32(bdi->dev, s, &v) == 0) {
+		v /= 1000;
+		if (v >= BQ24190_REG_POC_SYS_MIN_MIN
+		 && v <= BQ24190_REG_POC_SYS_MIN_MAX)
+			bdi->sys_min = v;
+		else
+			dev_warn(bdi->dev, "invalid value for %s: %u\n", s, v);
+	}
+
 	return 0;
 }
 
