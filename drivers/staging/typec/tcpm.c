@@ -112,6 +112,7 @@
 	S(SRC_TRYWAIT_UNATTACHED),		\
 						\
 	S(SRC_TRY),				\
+	S(SRC_TRY_WAIT),                        \
 	S(SRC_TRY_DEBOUNCE),			\
 	S(SNK_TRYWAIT),				\
 	S(SNK_TRYWAIT_DEBOUNCE),		\
@@ -2163,6 +2164,7 @@ static void run_state_machine(struct tcpm_port *port)
 {
 	int ret;
 	enum typec_pwr_opmode opmode;
+	unsigned int msecs;
 
 	port->enter_state = port->state;
 	switch (port->state) {
@@ -2384,7 +2386,22 @@ static void run_state_machine(struct tcpm_port *port)
 	case SRC_TRY:
 		port->try_src_count++;
 		tcpm_set_cc(port, tcpm_rp_cc(port));
-		tcpm_set_state(port, SNK_TRYWAIT, PD_T_DRP_TRY);
+		port->max_wait = 0;
+		tcpm_set_state(port, SRC_TRY_WAIT, 0);
+		break;
+	case SRC_TRY_WAIT:
+		if (port->max_wait == 0) {
+			port->max_wait = jiffies +
+					 msecs_to_jiffies(PD_T_DRP_TRY);
+			msecs = PD_T_DRP_TRY;
+		} else {
+			if (time_is_after_jiffies(port->max_wait))
+				msecs = jiffies_to_msecs(port->max_wait -
+							 jiffies);
+			else
+				msecs = 0;
+		}
+		tcpm_set_state(port, SNK_TRYWAIT, msecs);
 		break;
 	case SRC_TRY_DEBOUNCE:
 		tcpm_set_state(port, SRC_ATTACHED, PD_T_PD_DEBOUNCE);
@@ -2940,12 +2957,12 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 			tcpm_set_state(port, SRC_TRYWAIT, 0);
 		}
 		break;
-	case SRC_TRY:
+	case SRC_TRY_WAIT:
 		if (tcpm_port_is_source(port))
 			tcpm_set_state(port, SRC_TRY_DEBOUNCE, 0);
 		break;
 	case SRC_TRY_DEBOUNCE:
-		tcpm_set_state(port, SRC_TRY, 0);
+		tcpm_set_state(port, SRC_TRY_WAIT, 0);
 		break;
 	case SNK_TRYWAIT_DEBOUNCE:
 		if (port->vbus_present) {
@@ -3020,7 +3037,10 @@ static void _tcpm_pd_vbus_on(struct tcpm_port *port)
 	case SNK_TRYWAIT:
 		tcpm_set_state(port, SNK_TRYWAIT_VBUS, 0);
 		break;
-
+	case SRC_TRY_WAIT:
+	case SRC_TRY_DEBOUNCE:
+		/* Do nothing, waiting for sink detection */
+		break;
 	default:
 		break;
 	}
@@ -3074,7 +3094,10 @@ static void _tcpm_pd_vbus_off(struct tcpm_port *port)
 	case PORT_RESET_WAIT_OFF:
 		tcpm_set_state(port, tcpm_default_state(port), 0);
 		break;
-
+	case SRC_TRY_WAIT:
+	case SRC_TRY_DEBOUNCE:
+		/* Do nothing, waiting for sink detection */
+		break;
 	default:
 		if (port->pwr_role == TYPEC_SINK &&
 		    port->attached)
