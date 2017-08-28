@@ -2079,6 +2079,8 @@ unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 	 */
 	if (ap_flags & ATA_FLAG_NO_LOG_PAGE)
 		return AC_ERR_DEV;
+	if (dev->horkage & ATA_HORKAGE_NO_LOG_PAGE)
+		return AC_ERR_DEV;
 
 retry:
 	ata_tf_init(dev, &tf);
@@ -4578,6 +4580,8 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "WDC WD3000JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
 	{ "WDC WD3200JD-*",		NULL,	ATA_HORKAGE_WD_BROKEN_LPM },
 
+
+	{ "M.2 (S42) 3ME3",		NULL,	ATA_HORKAGE_NO_LOG_PAGE },
 	/* End Marker */
 	{ }
 };
