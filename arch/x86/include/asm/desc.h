@@ -166,42 +166,22 @@ native_write_gdt_entry(struct desc_struct *gdt, int entry, const void *desc, int
 	memcpy(&gdt[entry], desc, size);
 }
 
-static inline void pack_descriptor(struct desc_struct *desc, unsigned long base,
-				   unsigned long limit, unsigned char type,
-				   unsigned char flags)
-{
-	desc->limit0		= (u16) limit;
-	desc->base0		= (u16) base;
-	desc->base1		= (base >> 16) & 0xFF;
-	desc->type		= type & 0x0F;
-	desc->s			= 0;
-	desc->dpl		= 0;
-	desc->p			= 1;
-	desc->limit1		= (limit >> 16) & 0xF;
-	desc->avl		= (flags >> 0) & 0x01;
-	desc->l			= (flags >> 1) & 0x01;
-	desc->d			= (flags >> 2) & 0x01;
-	desc->g			= (flags >> 3) & 0x01;
-}
-
 static inline void set_tssldt_descriptor(void *d, unsigned long addr,
 					 unsigned type, unsigned size)
 {
-#ifdef CONFIG_X86_64
-	struct ldttss_desc64 *desc = d;
+	struct ldttss_desc *desc = d;
 
 	memset(desc, 0, sizeof(*desc));
 
-	desc->limit0		= size & 0xFFFF;
+	desc->limit0		= (u16) size;
 	desc->base0		= (u16) addr;
 	desc->base1		= (addr >> 16) & 0xFF;
 	desc->type		= type;
 	desc->p			= 1;
 	desc->limit1		= (size >> 16) & 0xF;
 	desc->base2		= (addr >> 24) & 0xFF;
+#ifdef CONFIG_X86_64
 	desc->base3		= (u32) (addr >> 32);
-#else
-	pack_descriptor((struct desc_struct *)d, addr, size, type, 0);
 #endif
 }
 

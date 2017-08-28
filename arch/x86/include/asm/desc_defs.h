@@ -49,24 +49,21 @@ enum {
 	DESCTYPE_S = 0x10,	/* !system */
 };
 
-/* LDT or TSS descriptor in the GDT. 16 bytes. */
-struct ldttss_desc64 {
-	u16 limit0;
-	u16 base0;
-	unsigned base1 : 8, type : 5, dpl : 2, p : 1;
-	unsigned limit1 : 4, zero0 : 3, g : 1, base2 : 8;
-	u32 base3;
-	u32 zero1;
+/* LDT or TSS descriptor in the GDT. */
+struct ldttss_desc {
+	u16	limit0;
+	u16	base0;
+
+	u16	base1 : 8, type : 5, dpl : 2, p : 1;
+	u16	limit1 : 4, zero0 : 3, g : 1, base2 : 8;
+#ifdef CONFIG_X86_64
+	u32	base3;
+	u32	zero1;
+#endif
 } __attribute__((packed));
 
-
-#ifdef CONFIG_X86_64
-typedef struct ldttss_desc64 ldt_desc;
-typedef struct ldttss_desc64 tss_desc;
-#else
-typedef struct desc_struct ldt_desc;
-typedef struct desc_struct tss_desc;
-#endif
+typedef struct ldttss_desc ldt_desc;
+typedef struct ldttss_desc tss_desc;
 
 struct idt_bits {
 	u16		ist	: 3,
