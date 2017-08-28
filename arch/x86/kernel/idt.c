@@ -92,6 +92,20 @@ struct desc_ptr idt_descr __ro_after_init = {
 gate_desc debug_idt_table[IDT_ENTRIES] __page_aligned_bss;
 
 /*
+ * The exceptions which use Interrupt stacks. They are setup after
+ * cpu_init() when the TSS has been initialized.
+ */
+static const __initdata struct idt_data ist_idts[] = {
+	ISTG(X86_TRAP_DB,	debug,		DEBUG_STACK),
+	ISTG(X86_TRAP_NMI,	nmi,		NMI_STACK),
+	ISTG(X86_TRAP_BP,	int3,		DEBUG_STACK),
+	ISTG(X86_TRAP_DF,	double_fault,	DOUBLEFAULT_STACK),
+#ifdef CONFIG_X86_MCE
+	ISTG(X86_TRAP_MC,	&machine_check,	MCE_STACK),
+#endif
+};
+
+/*
  * Override for the debug_idt. Same as the default, but with interrupt
  * stack set to DEFAULT_STACK (0). Required for NMI trap handling.
  */
@@ -155,6 +169,14 @@ void __init idt_setup_early_pf(void)
 {
 	idt_setup_from_table(idt_table, early_pf_idts,
 			     ARRAY_SIZE(early_pf_idts));
+}
+
+/**
+ * idt_setup_ist_traps - Initialize the idt table with traps using IST
+ */
+void __init idt_setup_ist_traps(void)
+{
+	idt_setup_from_table(idt_table, ist_idts, ARRAY_SIZE(ist_idts));
 }
 
 /**

@@ -509,9 +509,11 @@ extern void idt_setup_early_traps(void);
 
 #ifdef CONFIG_X86_64
 extern void idt_setup_early_pf(void);
+extern void idt_setup_ist_traps(void);
 extern void idt_setup_debugidt_traps(void);
 #else
 static inline void idt_setup_early_pf(void) { }
+static inline void idt_setup_ist_traps(void) { }
 static inline void idt_setup_debugidt_traps(void) { }
 #endif
 
