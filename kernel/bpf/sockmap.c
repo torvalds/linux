@@ -227,11 +227,14 @@ static void smap_data_ready(struct sock *sk)
 {
 	struct smap_psock *psock;
 
-	write_lock_bh(&sk->sk_callback_lock);
+	rcu_read_lock();
 	psock = smap_psock_sk(sk);
-	if (likely(psock))
+	if (likely(psock)) {
+		write_lock_bh(&sk->sk_callback_lock);
 		strp_data_ready(&psock->strp);
-	write_unlock_bh(&sk->sk_callback_lock);
+		write_unlock_bh(&sk->sk_callback_lock);
+	}
+	rcu_read_unlock();
 }
 
 static void smap_tx_work(struct work_struct *w)
