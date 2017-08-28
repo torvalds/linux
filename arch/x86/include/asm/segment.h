@@ -238,6 +238,7 @@
 #ifndef __ASSEMBLY__
 
 extern const char early_idt_handler_array[NUM_EXCEPTION_VECTORS][EARLY_IDT_HANDLER_SIZE];
+extern void early_ignore_irq(void);
 
 /*
  * Load a segment. Fall back on loading the zero segment if something goes
