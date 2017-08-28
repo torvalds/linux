@@ -597,19 +597,41 @@ process_efi_entries(unsigned long minimum, unsigned long image_size)
 	for (i = 0; i < nr_desc; i++) {
 		md = efi_early_memdesc_ptr(pmap, e->efi_memdesc_size, i);
 		if (md->attribute & EFI_MEMORY_MORE_RELIABLE) {
-			region.start = md->phys_addr;
-			region.size = md->num_pages << EFI_PAGE_SHIFT;
-			process_mem_region(&region, minimum, image_size);
 			efi_mirror_found = true;
-
-			if (slot_area_index == MAX_SLOT_AREA) {
-				debug_putstr("Aborted EFI scan (slot_areas full)!\n");
-				break;
-			}
+			break;
 		}
 	}
 
-	return efi_mirror_found;
+	for (i = 0; i < nr_desc; i++) {
+		md = efi_early_memdesc_ptr(pmap, e->efi_memdesc_size, i);
+
+		/*
+		 * Here we are more conservative in picking free memory than
+		 * the EFI spec allows:
+		 *
+		 * According to the spec, EFI_BOOT_SERVICES_{CODE|DATA} are also
+		 * free memory and thus available to place the kernel image into,
+		 * but in practice there's firmware where using that memory leads
+		 * to crashes.
+		 *
+		 * Only EFI_CONVENTIONAL_MEMORY is guaranteed to be free.
+		 */
+		if (md->type != EFI_CONVENTIONAL_MEMORY)
+			continue;
+
+		if (efi_mirror_found &&
+		    !(md->attribute & EFI_MEMORY_MORE_RELIABLE))
+			continue;
+
+		region.start = md->phys_addr;
+		region.size = md->num_pages << EFI_PAGE_SHIFT;
+		process_mem_region(&region, minimum, image_size);
+		if (slot_area_index == MAX_SLOT_AREA) {
+			debug_putstr("Aborted EFI scan (slot_areas full)!\n");
+			break;
+		}
+	}
+	return true;
 }
 #else
 static inline bool
