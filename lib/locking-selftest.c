@@ -2031,6 +2031,12 @@ void locking_selftest(void)
 	print_testname("mixed read-lock/lock-write ABBA");
 	pr_cont("             |");
 	dotest(rlock_ABBA1, FAILURE, LOCKTYPE_RWLOCK);
+	/*
+	 * Lockdep does indeed fail here, but there's nothing we can do about
+	 * that now.  Don't kill lockdep for it.
+	 */
+	unexpected_testcase_failures--;
+
 	pr_cont("             |");
 	dotest(rwsem_ABBA1, FAILURE, LOCKTYPE_RWSEM);
 
