@@ -2122,10 +2122,16 @@ static inline enum tcpm_state ready_state(struct tcpm_port *port)
 
 static inline enum tcpm_state unattached_state(struct tcpm_port *port)
 {
-	if (port->pwr_role == TYPEC_SOURCE)
+	if (port->port_type == TYPEC_PORT_DRP) {
+		if (port->pwr_role == TYPEC_SOURCE)
+			return SRC_UNATTACHED;
+		else
+			return SNK_UNATTACHED;
+	} else if (port->port_type == TYPEC_PORT_DFP) {
 		return SRC_UNATTACHED;
-	else
-		return SNK_UNATTACHED;
+	}
+
+	return SNK_UNATTACHED;
 }
 
 static void tcpm_check_send_discover(struct tcpm_port *port)
