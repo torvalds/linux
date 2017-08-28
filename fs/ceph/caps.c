@@ -1469,7 +1469,7 @@ out:
 
 	if (psession) {
 		*psession = session;
-	} else {
+	} else if (session) {
 		mutex_unlock(&session->s_mutex);
 		ceph_put_mds_session(session);
 	}
