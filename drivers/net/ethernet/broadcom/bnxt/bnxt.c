@@ -4461,7 +4461,31 @@ static int bnxt_hwrm_reserve_tx_rings(struct bnxt *bp, int *tx_rings)
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = __bnxt_hwrm_get_tx_rings(bp, 0xffff, tx_rings);
 	mutex_unlock(&bp->hwrm_cmd_lock);
+	if (!rc)
+		bp->tx_reserved_rings = *tx_rings;
 	return rc;
+}
+
+static int bnxt_hwrm_check_tx_rings(struct bnxt *bp, int tx_rings)
+{
+	struct hwrm_func_cfg_input req = {0};
+	int rc;
+
+	if (bp->hwrm_spec_code < 0x10801)
+		return 0;
+
+	if (BNXT_VF(bp))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
+	req.fid = cpu_to_le16(0xffff);
+	req.flags = cpu_to_le32(FUNC_CFG_REQ_FLAGS_TX_ASSETS_TEST);
+	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_NUM_TX_RINGS);
+	req.num_tx_rings = cpu_to_le16(tx_rings);
+	rc = hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		return -ENOMEM;
+	return 0;
 }
 
 static void bnxt_hwrm_set_coal_params(struct bnxt *bp, u32 max_bufs,
@@ -5114,6 +5138,15 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 			netdev_err(bp->dev, "hwrm stat ctx alloc failure rc: %x\n",
 				   rc);
 			goto err_out;
+		}
+		if (bp->tx_reserved_rings != bp->tx_nr_rings) {
+			int tx = bp->tx_nr_rings;
+
+			if (bnxt_hwrm_reserve_tx_rings(bp, &tx) ||
+			    tx < bp->tx_nr_rings) {
+				rc = -ENOMEM;
+				goto err_out;
+			}
 		}
 	}
 
@@ -6998,8 +7031,8 @@ static void bnxt_sp_task(struct work_struct *work)
 }
 
 /* Under rtnl_lock */
-int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
-		       int tx_xdp)
+int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
+		     int tx_xdp)
 {
 	int max_rx, max_tx, tx_sets = 1;
 	int tx_rings_needed;
@@ -7019,10 +7052,7 @@ int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 	if (max_tx < tx_rings_needed)
 		return -ENOMEM;
 
-	if (bnxt_hwrm_reserve_tx_rings(bp, &tx_rings_needed) ||
-	    tx_rings_needed < (tx * tx_sets + tx_xdp))
-		return -ENOMEM;
-	return 0;
+	return bnxt_hwrm_check_tx_rings(bp, tx_rings_needed);
 }
 
 static void bnxt_unmap_bars(struct bnxt *bp, struct pci_dev *pdev)
@@ -7211,8 +7241,8 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
 		sh = true;
 
-	rc = bnxt_reserve_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,
-				sh, tc, bp->tx_nr_rings_xdp);
+	rc = bnxt_check_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,
+			      sh, tc, bp->tx_nr_rings_xdp);
 	if (rc)
 		return rc;
 
