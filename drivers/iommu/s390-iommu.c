@@ -18,7 +18,7 @@
  */
 #define S390_IOMMU_PGSIZES	(~0xFFFUL)
 
-static struct iommu_ops s390_iommu_ops;
+static const struct iommu_ops s390_iommu_ops;
 
 struct s390_domain {
 	struct iommu_domain	domain;
@@ -362,7 +362,7 @@ void zpci_destroy_iommu(struct zpci_dev *zdev)
 	iommu_device_sysfs_remove(&zdev->iommu_dev);
 }
 
-static struct iommu_ops s390_iommu_ops = {
+static const struct iommu_ops s390_iommu_ops = {
 	.capable = s390_iommu_capable,
 	.domain_alloc = s390_domain_alloc,
 	.domain_free = s390_domain_free,
