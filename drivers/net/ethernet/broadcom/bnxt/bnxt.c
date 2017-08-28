@@ -50,6 +50,7 @@
 #include <linux/bitmap.h>
 #include <linux/cpu_rmap.h>
 #include <linux/cpumask.h>
+#include <net/pkt_cls.h>
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
@@ -59,6 +60,7 @@
 #include "bnxt_dcb.h"
 #include "bnxt_xdp.h"
 #include "bnxt_vfr.h"
+#include "bnxt_tc.h"
 
 #define BNXT_TX_TIMEOUT		(5 * HZ)
 
@@ -7305,17 +7307,33 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 	return 0;
 }
 
+static int bnxt_setup_flower(struct net_device *dev,
+			     struct tc_cls_flower_offload *cls_flower)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	if (BNXT_VF(bp))
+		return -EOPNOTSUPP;
+
+	return bnxt_tc_setup_flower(bp, bp->pf.fw_fid, cls_flower);
+}
+
 static int bnxt_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			 void *type_data)
 {
-	struct tc_mqprio_qopt *mqprio = type_data;
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return bnxt_setup_flower(dev, type_data);
+	case TC_SETUP_MQPRIO: {
+		struct tc_mqprio_qopt *mqprio = type_data;
 
-	if (type != TC_SETUP_MQPRIO)
+		mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+
+		return bnxt_setup_mq_tc(dev, mqprio->num_tc);
+	}
+	default:
 		return -EOPNOTSUPP;
-
-	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
-
-	return bnxt_setup_mq_tc(dev, mqprio->num_tc);
+	}
 }
 
 #ifdef CONFIG_RFS_ACCEL
@@ -7711,6 +7729,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 
 	pci_disable_pcie_error_reporting(pdev);
 	unregister_netdev(dev);
+	bnxt_shutdown_tc(bp);
 	cancel_work_sync(&bp->sp_task);
 	bp->sp_event = 0;
 
@@ -8102,9 +8121,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	else
 		device_set_wakeup_capable(&pdev->dev, false);
 
+	if (BNXT_PF(bp))
+		bnxt_init_tc(bp);
+
 	rc = register_netdev(dev);
 	if (rc)
-		goto init_err_clr_int;
+		goto init_err_cleanup_tc;
 
 	if (BNXT_PF(bp))
 		bnxt_dl_register(bp);
@@ -8117,7 +8139,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
-init_err_clr_int:
+init_err_cleanup_tc:
+	bnxt_shutdown_tc(bp);
 	bnxt_clear_int_mode(bp);
 
 init_err_pci_clean:

@@ -45,6 +45,14 @@ void bnxt_vf_reps_open(struct bnxt *bp);
 void bnxt_vf_rep_rx(struct bnxt *bp, struct sk_buff *skb);
 struct net_device *bnxt_get_vf_rep(struct bnxt *bp, u16 cfa_code);
 
+static inline u16 bnxt_vf_rep_get_fid(struct net_device *dev)
+{
+	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+	struct bnxt *bp = vf_rep->bp;
+
+	return bp->pf.vf[vf_rep->vf_idx].fw_fid;
+}
+
 #else
 
 static inline int bnxt_dl_register(struct bnxt *bp)

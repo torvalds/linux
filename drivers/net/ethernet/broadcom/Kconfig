@@ -212,6 +212,15 @@ config BNXT_SRIOV
 	  Virtualization support in the NetXtreme-C/E products. This
 	  allows for virtual function acceleration in virtual environments.
 
+config BNXT_FLOWER_OFFLOAD
+	bool "TC Flower offload support for NetXtreme-C/E"
+	depends on BNXT
+	default y
+	---help---
+	  This configuration parameter enables TC Flower packet classifier
+	  offload for eswitch.  This option enables SR-IOV switchdev eswitch
+	  offload.
+
 config BNXT_DCB
 	bool "Data Center Bridging (DCB) Support"
 	default n

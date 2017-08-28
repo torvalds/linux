@@ -19,6 +19,7 @@
 #define DRV_VER_UPD	0
 
 #include <linux/interrupt.h>
+#include <linux/rhashtable.h>
 #include <net/devlink.h>
 #include <net/dst_metadata.h>
 #include <net/switchdev.h>
@@ -943,6 +944,27 @@ struct bnxt_test_info {
 #define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
 #define BNXT_CAG_REG_BASE		0x300000
 
+struct bnxt_tc_info {
+	bool				enabled;
+
+	/* hash table to store TC offloaded flows */
+	struct rhashtable		flow_table;
+	struct rhashtable_params	flow_ht_params;
+
+	/* hash table to store L2 keys of TC flows */
+	struct rhashtable		l2_table;
+	struct rhashtable_params	l2_ht_params;
+
+	/* lock to atomically add/del an l2 node when a flow is
+	 * added or deleted.
+	 */
+	struct mutex			lock;
+
+	/* Stat counter mask (width) */
+	u64				bytes_mask;
+	u64				packets_mask;
+};
+
 struct bnxt_vf_rep_stats {
 	u64			packets;
 	u64			bytes;
@@ -1289,6 +1311,7 @@ struct bnxt {
 	enum devlink_eswitch_mode eswitch_mode;
 	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
 	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
+	struct bnxt_tc_info	tc_info;
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\
