@@ -2340,14 +2340,11 @@ static void run_state_machine(struct tcpm_port *port)
 		 * - The system is not operating in PD mode
 		 * or
 		 * - Both partners are connected using a Type-C connector
-		 *   XXX How do we know that ?
+		 *
+		 * There is no actual need to send PD messages since the local
+		 * port type-c and the spec does not clearly say whether PD is
+		 * possible when type-c is connected to Type-A/B
 		 */
-		if (port->pwr_opmode == TYPEC_PWR_MODE_PD &&
-		    !port->op_vsafe5v) {
-			tcpm_pd_send_control(port, PD_CTRL_PING);
-			tcpm_set_state_cond(port, SRC_READY,
-					    PD_T_SOURCE_ACTIVITY);
-		}
 		break;
 	case SRC_WAIT_NEW_CAPABILITIES:
 		/* Nothing to do... */
