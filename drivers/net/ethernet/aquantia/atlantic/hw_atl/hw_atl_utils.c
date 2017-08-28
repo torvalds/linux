@@ -141,6 +141,12 @@ static int hw_atl_utils_init_ucp(struct aq_hw_s *self,
 
 	err = hw_atl_utils_ver_match(aq_hw_caps->fw_ver_expected,
 				     aq_hw_read_reg(self, 0x18U));
+
+	if (err < 0)
+		pr_err("%s: Bad FW version detected: expected=%x, actual=%x\n",
+		       AQ_CFG_DRV_NAME,
+		       aq_hw_caps->fw_ver_expected,
+		       aq_hw_read_reg(self, 0x18U));
 	return err;
 }
 
