@@ -821,6 +821,46 @@ void i40evf_set_rss_lut(struct i40evf_adapter *adapter)
 }
 
 /**
+ * i40evf_enable_vlan_stripping
+ * @adapter: adapter structure
+ *
+ * Request VLAN header stripping to be enabled
+ **/
+void i40evf_enable_vlan_stripping(struct i40evf_adapter *adapter)
+{
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot enable stripping, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+	adapter->current_op = VIRTCHNL_OP_ENABLE_VLAN_STRIPPING;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_ENABLE_VLAN_STRIPPING;
+	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_ENABLE_VLAN_STRIPPING,
+			   NULL, 0);
+}
+
+/**
+ * i40evf_disable_vlan_stripping
+ * @adapter: adapter structure
+ *
+ * Request VLAN header stripping to be disabled
+ **/
+void i40evf_disable_vlan_stripping(struct i40evf_adapter *adapter)
+{
+	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
+		/* bail because we already have a command pending */
+		dev_err(&adapter->pdev->dev, "Cannot disable stripping, command %d pending\n",
+			adapter->current_op);
+		return;
+	}
+	adapter->current_op = VIRTCHNL_OP_DISABLE_VLAN_STRIPPING;
+	adapter->aq_required &= ~I40EVF_FLAG_AQ_DISABLE_VLAN_STRIPPING;
+	i40evf_send_pf_msg(adapter, VIRTCHNL_OP_DISABLE_VLAN_STRIPPING,
+			   NULL, 0);
+}
+
+/**
  * i40evf_print_link_message - print link up or down
  * @adapter: adapter structure
  *

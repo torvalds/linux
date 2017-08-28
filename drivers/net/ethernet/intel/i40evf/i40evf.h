@@ -121,7 +121,7 @@ struct i40e_q_vector {
 #define ITR_COUNTDOWN_START 100
 	u8 itr_countdown;	/* when 0 or 1 update ITR */
 	int v_idx;	/* vector index in list */
-	char name[IFNAMSIZ + 9];
+	char name[IFNAMSIZ + 15];
 	bool arm_wb_state;
 	cpumask_t affinity_mask;
 	struct irq_affinity_notify affinity_notify;
@@ -261,6 +261,8 @@ struct i40evf_adapter {
 #define I40EVF_FLAG_AQ_RELEASE_PROMISC		BIT(16)
 #define I40EVF_FLAG_AQ_REQUEST_ALLMULTI		BIT(17)
 #define I40EVF_FLAG_AQ_RELEASE_ALLMULTI		BIT(18)
+#define I40EVF_FLAG_AQ_ENABLE_VLAN_STRIPPING	BIT(19)
+#define I40EVF_FLAG_AQ_DISABLE_VLAN_STRIPPING	BIT(20)
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -358,6 +360,8 @@ void i40evf_get_hena(struct i40evf_adapter *adapter);
 void i40evf_set_hena(struct i40evf_adapter *adapter);
 void i40evf_set_rss_key(struct i40evf_adapter *adapter);
 void i40evf_set_rss_lut(struct i40evf_adapter *adapter);
+void i40evf_enable_vlan_stripping(struct i40evf_adapter *adapter);
+void i40evf_disable_vlan_stripping(struct i40evf_adapter *adapter);
 void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 				enum virtchnl_ops v_opcode,
 				i40e_status v_retval, u8 *msg, u16 msglen);

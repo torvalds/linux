@@ -755,7 +755,11 @@ i40e_status i40e_nvmupd_command(struct i40e_hw *hw,
 
 	/* Acquire lock to prevent race condition where adminq_task
 	 * can execute after i40e_nvmupd_nvm_read/write but before state
-	 * variables (nvm_wait_opcode, nvm_release_on_done) are updated
+	 * variables (nvm_wait_opcode, nvm_release_on_done) are updated.
+	 *
+	 * During NVMUpdate, it is observed that lock could be held for
+	 * ~5ms for most commands. However lock is held for ~60ms for
+	 * NVMUPD_CSUM_LCB command.
 	 */
 	mutex_lock(&hw->aq.arq_mutex);
 	switch (hw->nvmupd_state) {
@@ -778,7 +782,8 @@ i40e_status i40e_nvmupd_command(struct i40e_hw *hw,
 		 */
 		if (cmd->offset == 0xffff) {
 			i40e_nvmupd_check_wait_event(hw, hw->nvm_wait_opcode);
-			return 0;
+			status = 0;
+			goto exit;
 		}
 
 		status = I40E_ERR_NOT_READY;
@@ -793,6 +798,7 @@ i40e_status i40e_nvmupd_command(struct i40e_hw *hw,
 		*perrno = -ESRCH;
 		break;
 	}
+exit:
 	mutex_unlock(&hw->aq.arq_mutex);
 	return status;
 }
