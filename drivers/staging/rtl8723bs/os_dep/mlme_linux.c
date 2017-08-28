@@ -21,7 +21,7 @@
 
 static void _dynamic_check_timer_handlder (void *FunctionContext)
 {
-	struct adapter *adapter = (struct adapter *)FunctionContext;
+	struct adapter *adapter = FunctionContext;
 
 	rtw_dynamic_check_timer_handlder(adapter);
 
@@ -30,7 +30,7 @@ static void _dynamic_check_timer_handlder (void *FunctionContext)
 
 static void _rtw_set_scan_deny_timer_hdl(void *FunctionContext)
 {
-	struct adapter *adapter = (struct adapter *)FunctionContext;
+	struct adapter *adapter = FunctionContext;
 	rtw_set_scan_deny_timer_hdl(adapter);
 }
 
