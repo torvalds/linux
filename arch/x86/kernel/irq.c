@@ -262,20 +262,16 @@ __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 /*
  * Handler for X86_PLATFORM_IPI_VECTOR.
  */
-void __smp_x86_platform_ipi(void)
-{
-	inc_irq_stat(x86_platform_ipis);
-
-	if (x86_platform_ipi_callback)
-		x86_platform_ipi_callback();
-}
-
 __visible void __irq_entry smp_x86_platform_ipi(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	entering_ack_irq();
-	__smp_x86_platform_ipi();
+	trace_x86_platform_ipi_entry(X86_PLATFORM_IPI_VECTOR);
+	inc_irq_stat(x86_platform_ipis);
+	if (x86_platform_ipi_callback)
+		x86_platform_ipi_callback();
+	trace_x86_platform_ipi_exit(X86_PLATFORM_IPI_VECTOR);
 	exiting_irq();
 	set_irq_regs(old_regs);
 }
@@ -334,17 +330,6 @@ __visible void smp_kvm_posted_intr_nested_ipi(struct pt_regs *regs)
 }
 #endif
 
-__visible void __irq_entry smp_trace_x86_platform_ipi(struct pt_regs *regs)
-{
-	struct pt_regs *old_regs = set_irq_regs(regs);
-
-	entering_ack_irq();
-	trace_x86_platform_ipi_entry(X86_PLATFORM_IPI_VECTOR);
-	__smp_x86_platform_ipi();
-	trace_x86_platform_ipi_exit(X86_PLATFORM_IPI_VECTOR);
-	exiting_irq();
-	set_irq_regs(old_regs);
-}
 
 #ifdef CONFIG_HOTPLUG_CPU
 
