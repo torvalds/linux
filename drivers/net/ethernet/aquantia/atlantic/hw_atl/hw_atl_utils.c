@@ -313,11 +313,11 @@ void hw_atl_utils_mpi_set(struct aq_hw_s *self,
 err_exit:;
 }
 
-int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self,
-				     struct aq_hw_link_status_s *link_status)
+int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self)
 {
 	u32 cp0x036C = aq_hw_read_reg(self, HW_ATL_MPI_STATE_ADR);
 	u32 link_speed_mask = cp0x036C >> HW_ATL_MPI_SPEED_SHIFT;
+	struct aq_hw_link_status_s *link_status = &self->aq_link_status;
 
 	if (!link_speed_mask) {
 		link_status->mbps = 0U;

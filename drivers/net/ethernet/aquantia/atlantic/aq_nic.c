@@ -125,33 +125,30 @@ static void aq_nic_service_timer_cb(unsigned long param)
 	struct net_device *ndev = aq_nic_get_ndev(self);
 	int err = 0;
 	unsigned int i = 0U;
-	struct aq_hw_link_status_s link_status;
 	struct aq_ring_stats_rx_s stats_rx;
 	struct aq_ring_stats_tx_s stats_tx;
 
 	if (aq_utils_obj_test(&self->header.flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		goto err_exit;
 
-	err = self->aq_hw_ops.hw_get_link_status(self->aq_hw, &link_status);
+	err = self->aq_hw_ops.hw_get_link_status(self->aq_hw);
 	if (err < 0)
 		goto err_exit;
 
+	self->link_status = self->aq_hw->aq_link_status;
+
 	self->aq_hw_ops.hw_interrupt_moderation_set(self->aq_hw,
-			    self->aq_nic_cfg.is_interrupt_moderation);
+		    self->aq_nic_cfg.is_interrupt_moderation);
 
-	if (memcmp(&link_status, &self->link_status, sizeof(link_status))) {
-		if (link_status.mbps) {
-			aq_utils_obj_set(&self->header.flags,
-					 AQ_NIC_FLAG_STARTED);
-			aq_utils_obj_clear(&self->header.flags,
-					   AQ_NIC_LINK_DOWN);
-			netif_carrier_on(self->ndev);
-		} else {
-			netif_carrier_off(self->ndev);
-			aq_utils_obj_set(&self->header.flags, AQ_NIC_LINK_DOWN);
-		}
-
-		self->link_status = link_status;
+	if (self->link_status.mbps) {
+		aq_utils_obj_set(&self->header.flags,
+				 AQ_NIC_FLAG_STARTED);
+		aq_utils_obj_clear(&self->header.flags,
+				   AQ_NIC_LINK_DOWN);
+		netif_carrier_on(self->ndev);
+	} else {
+		netif_carrier_off(self->ndev);
+		aq_utils_obj_set(&self->header.flags, AQ_NIC_LINK_DOWN);
 	}
 
 	memset(&stats_rx, 0U, sizeof(struct aq_ring_stats_rx_s));
