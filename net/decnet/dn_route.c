@@ -125,7 +125,7 @@ static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst,
 					     struct sk_buff *skb,
 					     const void *daddr);
 static int dn_route_input(struct sk_buff *);
-static void dn_run_flush(unsigned long dummy);
+static void dn_run_flush(struct timer_list *unused);
 
 static struct dn_rt_hash_bucket *dn_rt_hash_table;
 static unsigned int dn_rt_hash_mask;
@@ -357,7 +357,7 @@ static int dn_insert_route(struct dn_route *rt, unsigned int hash, struct dn_rou
 	return 0;
 }
 
-static void dn_run_flush(unsigned long dummy)
+static void dn_run_flush(struct timer_list *unused)
 {
 	int i;
 	struct dn_route *rt, *next;

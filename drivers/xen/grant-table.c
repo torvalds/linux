@@ -358,10 +358,10 @@ struct deferred_entry {
 	struct page *page;
 };
 static LIST_HEAD(deferred_list);
-static void gnttab_handle_deferred(unsigned long);
+static void gnttab_handle_deferred(struct timer_list *);
 static DEFINE_TIMER(deferred_timer, gnttab_handle_deferred);
 
-static void gnttab_handle_deferred(unsigned long unused)
+static void gnttab_handle_deferred(struct timer_list *unused)
 {
 	unsigned int nr = 10;
 	struct deferred_entry *first = NULL;

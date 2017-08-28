@@ -179,10 +179,10 @@ static int power_button_countdown;
 /* Must hold the button down for at least this many counts to be processed */
 #define PBUTTON_HOLDDOWN_COUNT 4 /* 2 secs */
 
-static void dsmg600_power_handler(unsigned long data);
+static void dsmg600_power_handler(struct timer_list *unused);
 static DEFINE_TIMER(dsmg600_power_timer, dsmg600_power_handler);
 
-static void dsmg600_power_handler(unsigned long data)
+static void dsmg600_power_handler(struct timer_list *unused)
 {
 	/* This routine is called twice per second to check the
 	 * state of the power button.

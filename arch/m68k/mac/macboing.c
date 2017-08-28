@@ -48,7 +48,7 @@ static unsigned long mac_bell_phasepersample;
  * some function protos
  */
 static void mac_init_asc( void );
-static void mac_nosound( unsigned long );
+static void mac_nosound(struct timer_list *);
 static void mac_quadra_start_bell( unsigned int, unsigned int, unsigned int );
 static void mac_quadra_ring_bell( unsigned long );
 static void mac_av_start_bell( unsigned int, unsigned int, unsigned int );
@@ -216,7 +216,7 @@ void mac_mksound( unsigned int freq, unsigned int length )
 /*
  * regular ASC: stop whining ..
  */
-static void mac_nosound( unsigned long ignored )
+static void mac_nosound(struct timer_list *unused)
 {
 	mac_asc_regs[ ASC_ENABLE ] = 0;
 }
