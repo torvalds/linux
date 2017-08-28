@@ -390,43 +390,10 @@ static inline void set_desc_limit(struct desc_struct *desc, unsigned long limit)
 	desc->limit1 = (limit >> 16) & 0xf;
 }
 
-static inline void _set_gate(int gate, unsigned type, const void *addr,
-			     unsigned dpl, unsigned ist, unsigned seg)
-{
-	gate_desc s;
-
-	pack_gate(&s, type, (unsigned long)addr, dpl, ist, seg);
-	/*
-	 * does not need to be atomic because it is only done once at
-	 * setup time
-	 */
-	write_idt_entry(idt_table, gate, &s);
-}
-
-static inline void set_intr_gate(unsigned int n, const void *addr)
-{
-	BUG_ON(n > 0xFF);
-	_set_gate(n, GATE_INTERRUPT, addr, 0, 0, __KERNEL_CS);
-}
+void set_intr_gate(unsigned int n, const void *addr);
+void alloc_intr_gate(unsigned int n, const void *addr);
 
 extern unsigned long used_vectors[];
-
-static inline void alloc_system_vector(int vector)
-{
-	BUG_ON(vector < FIRST_SYSTEM_VECTOR);
-	if (!test_bit(vector, used_vectors)) {
-		set_bit(vector, used_vectors);
-	} else {
-		BUG();
-	}
-}
-
-#define alloc_intr_gate(n, addr)				\
-	do {							\
-		alloc_system_vector(n);				\
-		set_intr_gate(n, addr);				\
-	} while (0)
-
 
 #ifdef CONFIG_X86_64
 DECLARE_PER_CPU(u32, debug_idt_ctr);
