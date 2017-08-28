@@ -2553,6 +2553,9 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(i != n_pages);
 
 	switch (type) {
+	default:
+		MISSING_CASE(type);
+		/* fallthrough to use PAGE_KERNEL anyway */
 	case I915_MAP_WB:
 		pgprot = PAGE_KERNEL;
 		break;
@@ -2583,7 +2586,9 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ERR_PTR(ret);
 
-	pinned = true;
+	pinned = !(type & I915_MAP_OVERRIDE);
+	type &= ~I915_MAP_OVERRIDE;
+
 	if (!atomic_inc_not_zero(&obj->mm.pages_pin_count)) {
 		if (unlikely(IS_ERR_OR_NULL(obj->mm.pages))) {
 			ret = ____i915_gem_object_get_pages(obj);
