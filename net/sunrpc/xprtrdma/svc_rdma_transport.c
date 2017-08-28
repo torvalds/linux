@@ -167,8 +167,8 @@ static bool svc_rdma_prealloc_ctxts(struct svcxprt_rdma *xprt)
 {
 	unsigned int i;
 
-	/* Each RPC/RDMA credit can consume a number of send
-	 * and receive WQEs. One ctxt is allocated for each.
+	/* Each RPC/RDMA credit can consume one Receive and
+	 * one Send WQE at the same time.
 	 */
 	i = xprt->sc_sq_depth + xprt->sc_rq_depth;
 
@@ -742,13 +742,18 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	newxprt->sc_max_sge = min((size_t)dev->attrs.max_sge,
 				  (size_t)RPCSVC_MAXPAGES);
 	newxprt->sc_max_req_size = svcrdma_max_req_size;
-	newxprt->sc_max_requests = min_t(u32, dev->attrs.max_qp_wr,
-					 svcrdma_max_requests);
-	newxprt->sc_fc_credits = cpu_to_be32(newxprt->sc_max_requests);
-	newxprt->sc_max_bc_requests = min_t(u32, dev->attrs.max_qp_wr,
-					    svcrdma_max_bc_requests);
+	newxprt->sc_max_requests = svcrdma_max_requests;
+	newxprt->sc_max_bc_requests = svcrdma_max_bc_requests;
 	newxprt->sc_rq_depth = newxprt->sc_max_requests +
 			       newxprt->sc_max_bc_requests;
+	if (newxprt->sc_rq_depth > dev->attrs.max_qp_wr) {
+		pr_warn("svcrdma: reducing receive depth to %d\n",
+			dev->attrs.max_qp_wr);
+		newxprt->sc_rq_depth = dev->attrs.max_qp_wr;
+		newxprt->sc_max_requests = newxprt->sc_rq_depth - 2;
+		newxprt->sc_max_bc_requests = 2;
+	}
+	newxprt->sc_fc_credits = cpu_to_be32(newxprt->sc_max_requests);
 	newxprt->sc_sq_depth = newxprt->sc_rq_depth;
 	atomic_set(&newxprt->sc_sq_avail, newxprt->sc_sq_depth);
 
