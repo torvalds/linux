@@ -1207,13 +1207,23 @@ static struct resource_funcs dcn10_res_pool_funcs = {
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx
 };
 
+static uint32_t read_pipe_fuses(struct dc_context *ctx)
+{
+	uint32_t value = dm_read_reg_soc15(ctx, mmCC_DC_PIPE_DIS, 0);
+	/* RV1 support max 4 pipes */
+	value = value & 0xf;
+	return value;
+}
+
 static bool construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
 	struct dcn10_resource_pool *pool)
 {
 	int i;
+	int j;
 	struct dc_context *ctx = dc->ctx;
+	uint32_t pipe_fuses = read_pipe_fuses(ctx);
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -1230,8 +1240,9 @@ static bool construct(
 	 *************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 
-	/* TODO: Hardcode to correct number of functional controllers */
-	pool->base.pipe_count = 4;
+	/* max pipe num for ASIC before check pipe fuses */
+	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
+
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 256;
@@ -1355,48 +1366,68 @@ static bool construct(
 	#endif
 	}
 
+	/* index to valid pipe resource  */
+	j = 0;
 	/* mem input -> ipp -> dpp -> opp -> TG */
 	for (i = 0; i < pool->base.pipe_count; i++) {
-		pool->base.mis[i] = dcn10_mem_input_create(ctx, i);
-		if (pool->base.mis[i] == NULL) {
+		/* if pipe is disabled, skip instance of HW pipe,
+		 * i.e, skip ASIC register instance
+		 */
+		if ((pipe_fuses & (1 << i)) != 0)
+			continue;
+
+		pool->base.mis[j] = dcn10_mem_input_create(ctx, i);
+		if (pool->base.mis[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create memory input!\n");
 			goto mi_create_fail;
 		}
 
-		pool->base.ipps[i] = dcn10_ipp_create(ctx, i);
-		if (pool->base.ipps[i] == NULL) {
+		pool->base.ipps[j] = dcn10_ipp_create(ctx, i);
+		if (pool->base.ipps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create input pixel processor!\n");
 			goto ipp_create_fail;
 		}
 
-		pool->base.transforms[i] = dcn10_dpp_create(ctx, i);
-		if (pool->base.transforms[i] == NULL) {
+		pool->base.transforms[j] = dcn10_dpp_create(ctx, i);
+		if (pool->base.transforms[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create dpp!\n");
 			goto dpp_create_fail;
 		}
 
-		pool->base.opps[i] = dcn10_opp_create(ctx, i);
-		if (pool->base.opps[i] == NULL) {
+		pool->base.opps[j] = dcn10_opp_create(ctx, i);
+		if (pool->base.opps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create output pixel processor!\n");
 			goto opp_create_fail;
 		}
 
-		pool->base.timing_generators[i] = dcn10_timing_generator_create(
+		pool->base.timing_generators[j] = dcn10_timing_generator_create(
 				ctx, i);
-		if (pool->base.timing_generators[i] == NULL) {
+		if (pool->base.timing_generators[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error("DC: failed to create tg!\n");
 			goto otg_create_fail;
 		}
+		/* check next valid pipe */
+		j++;
 	}
+
+	/* valid pipe num */
+	pool->base.pipe_count = j;
+
+	/* within dml lib, it is hard code to 4. If ASIC pipe is fused,
+	 * the value may be changed
+	 */
+	dc->dml.ip.max_num_dpp = pool->base.pipe_count;
+	dc->dcn_ip->max_num_dpp = pool->base.pipe_count;
+
 	pool->base.mpc = dcn10_mpc_create(ctx);
 	if (pool->base.mpc == NULL) {
 		BREAK_TO_DEBUGGER();
