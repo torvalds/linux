@@ -919,6 +919,8 @@ static int rxe_destroy_cq(struct ib_cq *ibcq)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
 
+	rxe_cq_disable(cq);
+
 	rxe_drop_ref(cq);
 	return 0;
 }
