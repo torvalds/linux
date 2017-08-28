@@ -49,8 +49,10 @@ struct amdgpu_bo_va {
 	struct amdgpu_vm_bo_base	base;
 
 	/* protected by bo being reserved */
-	struct dma_fence	        *last_pt_update;
 	unsigned			ref_count;
+
+	/* all other members protected by the VM PD being reserved */
+	struct dma_fence	        *last_pt_update;
 
 	/* mappings for this bo_va */
 	struct list_head		invalids;
