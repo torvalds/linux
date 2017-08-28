@@ -322,9 +322,12 @@ static inline void usb_phy_set_charger_state(struct usb_phy *usb_phy,
 static inline int
 usb_phy_set_power(struct usb_phy *x, unsigned mA)
 {
+	if (!x)
+		return 0;
+
 	usb_phy_set_charger_current(x, mA);
 
-	if (x && x->set_power)
+	if (x->set_power)
 		return x->set_power(x, mA);
 	return 0;
 }
