@@ -33,7 +33,6 @@
 
 /* PEX Internal Configuration Registers */
 #define PCIE_STRFMR1		0x71c /* Symbol Timer & Filter Mask Register1 */
-#define PCIE_DBI_RO_WR_EN	0x8bc /* DBI Read-Only Write Enable Register */
 
 #define PCIE_IATU_NUM		6
 
@@ -145,10 +144,10 @@ static int ls_pcie_host_init(struct pcie_port *pp)
 	 */
 	ls_pcie_disable_outbound_atus(pcie);
 
-	iowrite32(1, pci->dbi_base + PCIE_DBI_RO_WR_EN);
+	dw_pcie_dbi_ro_wr_en(pci);
 	ls_pcie_fix_class(pcie);
 	ls_pcie_clear_multifunction(pcie);
-	iowrite32(0, pci->dbi_base + PCIE_DBI_RO_WR_EN);
+	dw_pcie_dbi_ro_wr_dis(pci);
 
 	ls_pcie_drop_msg_tlp(pcie);
 
