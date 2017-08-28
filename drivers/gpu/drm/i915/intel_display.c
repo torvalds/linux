@@ -3750,8 +3750,8 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 	if (!gpu_reset_clobbers_display(dev_priv)) {
 		/* for testing only restore the display */
 		ret = __intel_display_resume(dev, state, ctx);
-			if (ret)
-				DRM_ERROR("Restoring old state failed with %i\n", ret);
+		if (ret)
+			DRM_ERROR("Restoring old state failed with %i\n", ret);
 	} else {
 		/*
 		 * The display has been reset as well,
