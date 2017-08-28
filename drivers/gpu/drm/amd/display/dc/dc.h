@@ -679,15 +679,15 @@ bool dc_validate_global_state(
  *   No hardware is programmed for call.  Only validation is done.
  */
 
-void dc_resource_validate_ctx_copy_construct(
+void dc_resource_state_copy_construct(
 		const struct dc_state *src_ctx,
 		struct dc_state *dst_ctx);
 
-void dc_resource_validate_ctx_copy_construct_current(
+void dc_resource_state_copy_construct_current(
 		const struct dc *dc,
 		struct dc_state *dst_ctx);
 
-void dc_resource_validate_ctx_destruct(struct dc_state *context);
+void dc_resource_state_destruct(struct dc_state *context);
 
 /*
  * TODO update to make it about validation sets

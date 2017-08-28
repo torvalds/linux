@@ -4651,7 +4651,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 	dm_state->context = dc_create_state();
 	ASSERT(dm_state->context);
-	dc_resource_validate_ctx_copy_construct_current(dc, dm_state->context);
+	dc_resource_state_copy_construct_current(dc, dm_state->context);
 
 	/* Remove exiting planes if they are modified */
 	ret = dm_update_planes_state(dc, state, false, &lock_and_validation_needed);

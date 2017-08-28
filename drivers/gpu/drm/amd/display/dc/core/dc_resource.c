@@ -1707,11 +1707,11 @@ void validate_guaranteed_copy_streams(
 	}
 }
 
-void dc_resource_validate_ctx_copy_construct_current(
+void dc_resource_state_copy_construct_current(
 		const struct dc *dc,
 		struct dc_state *dst_ctx)
 {
-	dc_resource_validate_ctx_copy_construct(dc->current_state, dst_ctx);
+	dc_resource_state_copy_construct(dc->current_state, dst_ctx);
 }
 
 bool dc_validate_global_state(
@@ -2413,7 +2413,7 @@ static void set_vsc_info_packet(
 	/*TODO: stereo 3D support and extend pixel encoding colorimetry*/
 }
 
-void dc_resource_validate_ctx_destruct(struct dc_state *context)
+void dc_resource_state_destruct(struct dc_state *context)
 {
 	int i, j;
 
@@ -2432,7 +2432,7 @@ void dc_resource_validate_ctx_destruct(struct dc_state *context)
  * Copy src_ctx into dst_ctx and retain all surfaces and streams referenced
  * by the src_ctx
  */
-void dc_resource_validate_ctx_copy_construct(
+void dc_resource_state_copy_construct(
 		const struct dc_state *src_ctx,
 		struct dc_state *dst_ctx)
 {
