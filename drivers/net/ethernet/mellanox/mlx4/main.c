@@ -1029,6 +1029,9 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_TS;
 	mlx4_warn(dev, "Timestamping is not supported in slave mode\n");
 
+	dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_USER_MAC_EN;
+	mlx4_dbg(dev, "User MAC FW update is not supported in slave mode\n");
+
 	slave_adjust_steering_mode(dev, dev_cap, hca_param);
 	mlx4_dbg(dev, "RSS support for IP fragments is %s\n",
 		 hca_param->rss_ip_frags ? "on" : "off");
