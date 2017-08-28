@@ -780,6 +780,12 @@ static void undo_DEGVIDCN10_253_wa(struct dc *dc)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct mem_input *mi = dc->res_pool->mis[0];
+	int pwr_status = 0;
+
+	REG_GET(DOMAIN0_PG_STATUS, DOMAIN0_PGFSM_PWR_STATUS, &pwr_status);
+	/* Don't need to blank if hubp is power gated*/
+	if (pwr_status == 2)
+		return;
 
 	mi->funcs->set_blank(mi, true);
 
