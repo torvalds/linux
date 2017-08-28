@@ -254,37 +254,27 @@ finish:
 }
 
 /*
- * Reschedule call back.
+ * Reschedule call back. KVM uses this interrupt to force a cpu out of
+ * guest mode
  */
-static inline void __smp_reschedule_interrupt(void)
-{
-	inc_irq_stat(irq_resched_count);
-	scheduler_ipi();
-}
-
 __visible void __irq_entry smp_reschedule_interrupt(struct pt_regs *regs)
 {
 	ack_APIC_irq();
-	__smp_reschedule_interrupt();
-	/*
-	 * KVM uses this interrupt to force a cpu out of guest mode
-	 */
-}
-
-__visible void __irq_entry smp_trace_reschedule_interrupt(struct pt_regs *regs)
-{
-	/*
-	 * Need to call irq_enter() before calling the trace point.
-	 * __smp_reschedule_interrupt() calls irq_enter/exit() too (in
-	 * scheduler_ipi(). This is OK, since those functions are allowed
-	 * to nest.
-	 */
-	ipi_entering_ack_irq();
-	trace_reschedule_entry(RESCHEDULE_VECTOR);
 	inc_irq_stat(irq_resched_count);
+
+	if (trace_irqvectors_enabled()) {
+		/*
+		 * scheduler_ipi() might call irq_enter() as well, but
+		 * nested calls are fine.
+		 */
+		irq_enter();
+		trace_reschedule_entry(RESCHEDULE_VECTOR);
+		scheduler_ipi();
+		trace_reschedule_exit(RESCHEDULE_VECTOR);
+		irq_exit();
+		return;
+	}
 	scheduler_ipi();
-	trace_reschedule_exit(RESCHEDULE_VECTOR);
-	exiting_irq();
 }
 
 __visible void __irq_entry smp_call_function_interrupt(struct pt_regs *regs)
