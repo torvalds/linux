@@ -32,9 +32,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include "fman.h"
-#include "fman_muram.h"
-
 #include <linux/fsl/guts.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -46,6 +43,10 @@
 #include <linux/interrupt.h>
 #include <linux/libfdt_env.h>
 
+#include "fman.h"
+#include "fman_muram.h"
+#include "fman_keygen.h"
+
 /* General defines */
 #define FMAN_LIODN_TBL			64	/* size of LIODN table */
 #define MAX_NUM_OF_MACS			10
@@ -56,6 +57,7 @@
 /* Modules registers offsets */
 #define BMI_OFFSET		0x00080000
 #define QMI_OFFSET		0x00080400
+#define KG_OFFSET		0x000C1000
 #define DMA_OFFSET		0x000C2000
 #define FPM_OFFSET		0x000C3000
 #define IMEM_OFFSET		0x000C4000
@@ -562,80 +564,6 @@ struct fman_cfg {
 	u32 total_fifo_size;
 	u32 total_num_of_tasks;
 	u32 qmi_def_tnums_thresh;
-};
-
-/* Structure that holds information received from device tree */
-struct fman_dts_params {
-	void __iomem *base_addr;		/* FMan virtual address */
-	struct resource *res;			/* FMan memory resource */
-	u8 id;					/* FMan ID */
-
-	int err_irq;				/* FMan Error IRQ */
-
-	u16 clk_freq;				/* FMan clock freq (In Mhz) */
-
-	u32 qman_channel_base;			/* QMan channels base */
-	u32 num_of_qman_channels;		/* Number of QMan channels */
-
-	struct resource muram_res;		/* MURAM resource */
-};
-
-/** fman_exceptions_cb
- * fman		- Pointer to FMan
- * exception	- The exception.
- *
- * Exceptions user callback routine, will be called upon an exception
- * passing the exception identification.
- *
- * Return: irq status
- */
-typedef irqreturn_t (fman_exceptions_cb)(struct fman *fman,
-					 enum fman_exceptions exception);
-
-/** fman_bus_error_cb
- * fman		- Pointer to FMan
- * port_id	- Port id
- * addr		- Address that caused the error
- * tnum		- Owner of error
- * liodn	- Logical IO device number
- *
- * Bus error user callback routine, will be called upon bus error,
- * passing parameters describing the errors and the owner.
- *
- * Return: IRQ status
- */
-typedef irqreturn_t (fman_bus_error_cb)(struct fman *fman, u8 port_id,
-					u64 addr, u8 tnum, u16 liodn);
-
-struct fman {
-	struct device *dev;
-	void __iomem *base_addr;
-	struct fman_intr_src intr_mng[FMAN_EV_CNT];
-
-	struct fman_fpm_regs __iomem *fpm_regs;
-	struct fman_bmi_regs __iomem *bmi_regs;
-	struct fman_qmi_regs __iomem *qmi_regs;
-	struct fman_dma_regs __iomem *dma_regs;
-	struct fman_hwp_regs __iomem *hwp_regs;
-	fman_exceptions_cb *exception_cb;
-	fman_bus_error_cb *bus_error_cb;
-	/* Spinlock for FMan use */
-	spinlock_t spinlock;
-	struct fman_state_struct *state;
-
-	struct fman_cfg *cfg;
-	struct muram_info *muram;
-	/* cam section in muram */
-	unsigned long cam_offset;
-	size_t cam_size;
-	/* Fifo in MURAM */
-	unsigned long fifo_offset;
-	size_t fifo_size;
-
-	u32 liodn_base[64];
-	u32 liodn_offset[64];
-
-	struct fman_dts_params dts_params;
 };
 
 static irqreturn_t fman_exceptions(struct fman *fman,
@@ -1811,6 +1739,7 @@ static int fman_config(struct fman *fman)
 	fman->qmi_regs = base_addr + QMI_OFFSET;
 	fman->dma_regs = base_addr + DMA_OFFSET;
 	fman->hwp_regs = base_addr + HWP_OFFSET;
+	fman->kg_regs = base_addr + KG_OFFSET;
 	fman->base_addr = base_addr;
 
 	spin_lock_init(&fman->spinlock);
@@ -2082,6 +2011,11 @@ static int fman_init(struct fman *fman)
 
 	/* Init HW Parser */
 	hwp_init(fman->hwp_regs);
+
+	/* Init KeyGen */
+	fman->keygen = keygen_init(fman->kg_regs);
+	if (!fman->keygen)
+		return -EINVAL;
 
 	err = enable(fman, cfg);
 	if (err != 0)
