@@ -651,8 +651,13 @@ static int rxe_notify(struct notifier_block *not_blk,
 		pr_info("%s changed mtu to %d\n", ndev->name, ndev->mtu);
 		rxe_set_mtu(rxe, ndev->mtu);
 		break;
-	case NETDEV_REBOOT:
 	case NETDEV_CHANGE:
+		if (netif_running(ndev) && netif_carrier_ok(ndev))
+			rxe_port_up(rxe);
+		else
+			rxe_port_down(rxe);
+		break;
+	case NETDEV_REBOOT:
 	case NETDEV_GOING_DOWN:
 	case NETDEV_CHANGEADDR:
 	case NETDEV_CHANGENAME:
