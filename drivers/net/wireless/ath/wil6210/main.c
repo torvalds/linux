@@ -943,6 +943,8 @@ static void wil_pre_fw_config(struct wil6210_priv *wil)
 	/* it is W1C, clear by writing back same value */
 	wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
 	wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
+	/* clear PAL_UNIT_ICR (potential D0->D3 leftover) */
+	wil_s(wil, RGF_PAL_UNIT_ICR + offsetof(struct RGF_ICR, ICR), 0);
 
 	if (wil->fw_calib_result > 0) {
 		__le32 val = cpu_to_le32(wil->fw_calib_result |
