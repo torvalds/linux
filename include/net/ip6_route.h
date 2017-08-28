@@ -164,6 +164,16 @@ void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
 void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
 
+static inline const struct rt6_info *skb_rt6_info(const struct sk_buff *skb)
+{
+	const struct dst_entry *dst = skb_dst(skb);
+	const struct rt6_info *rt6 = NULL;
+
+	if (dst)
+		rt6 = container_of(dst, struct rt6_info, dst);
+
+	return rt6;
+}
 
 /*
  *	Store a destination cache entry in a socket
