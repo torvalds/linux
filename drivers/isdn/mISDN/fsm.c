@@ -26,7 +26,7 @@
 
 #define FSM_TIMER_DEBUG 0
 
-void
+int
 mISDN_FsmNew(struct Fsm *fsm,
 	     struct FsmNode *fnlist, int fncount)
 {
@@ -34,6 +34,8 @@ mISDN_FsmNew(struct Fsm *fsm,
 
 	fsm->jumpmatrix = kzalloc(sizeof(FSMFNPTR) * fsm->state_count *
 				  fsm->event_count, GFP_KERNEL);
+	if (fsm->jumpmatrix == NULL)
+		return -ENOMEM;
 
 	for (i = 0; i < fncount; i++)
 		if ((fnlist[i].state >= fsm->state_count) ||
@@ -45,6 +47,7 @@ mISDN_FsmNew(struct Fsm *fsm,
 		} else
 			fsm->jumpmatrix[fsm->state_count * fnlist[i].event +
 					fnlist[i].state] = (FSMFNPTR) fnlist[i].routine;
+	return 0;
 }
 EXPORT_SYMBOL(mISDN_FsmNew);
 

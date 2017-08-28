@@ -360,12 +360,12 @@ struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
 		return ERR_PTR(ret);
 
 	rq = blk_mq_get_request(q, NULL, op, &alloc_data);
+	blk_queue_exit(q);
 
 	if (!rq)
 		return ERR_PTR(-EWOULDBLOCK);
 
 	blk_mq_put_ctx(alloc_data.ctx);
-	blk_queue_exit(q);
 
 	rq->__data_len = 0;
 	rq->__sector = (sector_t) -1;
@@ -411,11 +411,10 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 	alloc_data.ctx = __blk_mq_get_ctx(q, cpu);
 
 	rq = blk_mq_get_request(q, NULL, op, &alloc_data);
+	blk_queue_exit(q);
 
 	if (!rq)
 		return ERR_PTR(-EWOULDBLOCK);
-
-	blk_queue_exit(q);
 
 	return rq;
 }
