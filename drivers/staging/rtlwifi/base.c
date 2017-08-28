@@ -2558,7 +2558,6 @@ bool rtl_check_beacon_key(struct ieee80211_hw *hw, void *data, unsigned int len)
 
 	if (!cur_bcn_key->valid) {
 		/* update cur_beacon_keys */
-		memset(cur_bcn_key, 0, sizeof(bcn_key));
 		memcpy(cur_bcn_key, &bcn_key, sizeof(bcn_key));
 		cur_bcn_key->valid = true;
 
