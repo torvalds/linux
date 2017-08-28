@@ -339,6 +339,15 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	const char *clk_div_parents[1];
 	u32 clk_reg, cfg;
 
+	/* init SD_EMMC_CLOCK to sane defaults w/min clock rate */
+	clk_reg = 0;
+	clk_reg |= CLK_ALWAYS_ON;
+	clk_reg |= CLK_DIV_MASK;
+	clk_reg |= FIELD_PREP(CLK_CORE_PHASE_MASK, host->tp.core_phase);
+	clk_reg |= FIELD_PREP(CLK_TX_PHASE_MASK, host->tp.tx_phase);
+	clk_reg |= FIELD_PREP(CLK_RX_PHASE_MASK, host->tp.rx_phase);
+	writel(clk_reg, host->regs + SD_EMMC_CLOCK);
+
 	/* get the mux parents */
 	for (i = 0; i < MUX_CLK_NUM_PARENTS; i++) {
 		struct clk *clk;
@@ -392,16 +401,6 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	host->cfg_div_clk = devm_clk_register(host->dev, &host->cfg_div.hw);
 	if (WARN_ON(PTR_ERR_OR_ZERO(host->cfg_div_clk)))
 		return PTR_ERR(host->cfg_div_clk);
-
-	/* init SD_EMMC_CLOCK to sane defaults w/min clock rate */
-	clk_reg = 0;
-	clk_reg |= FIELD_PREP(CLK_CORE_PHASE_MASK, host->tp.core_phase);
-	clk_reg |= FIELD_PREP(CLK_TX_PHASE_MASK, host->tp.tx_phase);
-	clk_reg |= FIELD_PREP(CLK_RX_PHASE_MASK, host->tp.rx_phase);
-	clk_reg |= FIELD_PREP(CLK_SRC_MASK, CLK_SRC_XTAL);
-	clk_reg |= FIELD_PREP(CLK_DIV_MASK, CLK_DIV_MAX);
-	clk_reg &= ~CLK_ALWAYS_ON;
-	writel(clk_reg, host->regs + SD_EMMC_CLOCK);
 
 	/* Ensure clock starts in "auto" mode, not "always on" */
 	cfg = readl(host->regs + SD_EMMC_CFG);
