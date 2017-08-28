@@ -1228,7 +1228,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	}
 
 	pstat = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
-	if (pstat == (struct sta_info *)NULL) {
+	if (pstat == NULL) {
 		status = _RSON_CLS2_;
 		goto asoc_class2_error;
 	}

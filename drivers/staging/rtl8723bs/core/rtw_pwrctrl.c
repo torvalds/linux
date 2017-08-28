@@ -829,7 +829,7 @@ static void pwr_rpwm_timeout_handler(void *FunctionContext)
 	struct pwrctrl_priv *pwrpriv;
 
 
-	padapter = (struct adapter *)FunctionContext;
+	padapter = FunctionContext;
 	pwrpriv = adapter_to_pwrctl(padapter);
 	DBG_871X("+%s: rpwm = 0x%02X cpwm = 0x%02X\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm);
 

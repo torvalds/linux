@@ -3002,7 +3002,7 @@ int rtw_xmit_thread(void *context)
 
 
 	err = _SUCCESS;
-	padapter = (struct adapter *)context;
+	padapter = context;
 
 	thread_enter("RTW_XMIT_THREAD");
 
