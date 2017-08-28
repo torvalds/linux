@@ -483,7 +483,6 @@ static inline void _set_gate(int gate, unsigned type, void *addr,
 				0, 0, __KERNEL_CS);			\
 	} while (0)
 
-/* used_vectors is BITMAP for irq is not managed by percpu vector_irq */
 extern unsigned long used_vectors[];
 
 static inline void alloc_system_vector(int vector)

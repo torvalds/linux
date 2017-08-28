@@ -42,9 +42,6 @@ extern bool handle_irq(struct irq_desc *desc, struct pt_regs *regs);
 
 extern __visible unsigned int do_IRQ(struct pt_regs *regs);
 
-/* Interrupt vector management */
-extern DECLARE_BITMAP(used_vectors, NR_VECTORS);
-
 extern void init_ISA_irqs(void);
 
 #ifdef CONFIG_X86_LOCAL_APIC
