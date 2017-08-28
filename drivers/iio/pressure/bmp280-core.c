@@ -558,7 +558,7 @@ static int bmp280_chip_config(struct bmp280_data *data)
 	u8 osrs = BMP280_OSRS_TEMP_X(data->oversampling_temp + 1) |
 		  BMP280_OSRS_PRESS_X(data->oversampling_press + 1);
 
-	ret = regmap_update_bits(data->regmap, BMP280_REG_CTRL_MEAS,
+	ret = regmap_write_bits(data->regmap, BMP280_REG_CTRL_MEAS,
 				 BMP280_OSRS_TEMP_MASK |
 				 BMP280_OSRS_PRESS_MASK |
 				 BMP280_MODE_MASK,
