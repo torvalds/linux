@@ -1250,9 +1250,10 @@ static int qlogicpti_abort(struct scsi_cmnd *Cmnd)
 	return return_status;
 }
 
-static int qlogicpti_reset(struct Scsi_Host *host)
+static int qlogicpti_reset(struct scsi_cmnd *Cmnd)
 {
 	u_short param[6];
+	struct Scsi_Host *host = Cmnd->device->host;
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;
 	int return_status = SUCCESS;
 
