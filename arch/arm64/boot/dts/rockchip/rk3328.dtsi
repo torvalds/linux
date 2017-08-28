@@ -27,6 +27,8 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
+		mmc0 = &emmc;
+		mmc1 = &sdmmc;
 		ethernet0 = &gmac2io;
 		ethernet1 = &gmac2phy;
 	};
