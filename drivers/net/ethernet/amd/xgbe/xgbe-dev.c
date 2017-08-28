@@ -649,12 +649,14 @@ static void xgbe_config_flow_control(struct xgbe_prv_data *pdata)
 static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_channel *channel;
-	unsigned int i;
+	unsigned int i, ver;
 
 	/* Set the interrupt mode if supported */
 	if (pdata->channel_irq_mode)
 		XGMAC_IOWRITE_BITS(pdata, DMA_MR, INTM,
 				   pdata->channel_irq_mode);
+
+	ver = XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER);
 
 	for (i = 0; i < pdata->channel_count; i++) {
 		channel = pdata->channel[i];
@@ -671,8 +673,13 @@ static void xgbe_enable_dma_interrupts(struct xgbe_prv_data *pdata)
 		 *   AIE  - Abnormal Interrupt Summary Enable
 		 *   FBEE - Fatal Bus Error Enable
 		 */
-		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, NIE, 1);
-		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, AIE, 1);
+		if (ver < 0x21) {
+			XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, NIE20, 1);
+			XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, AIE20, 1);
+		} else {
+			XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, NIE, 1);
+			XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, AIE, 1);
+		}
 		XGMAC_SET_BITS(channel->curr_ier, DMA_CH_IER, FBEE, 1);
 
 		if (channel->tx_ring) {
