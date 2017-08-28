@@ -59,9 +59,13 @@
 #define BQ24190_REG_PCTCC_IPRECHG_MASK		(BIT(7) | BIT(6) | BIT(5) | \
 						 BIT(4))
 #define BQ24190_REG_PCTCC_IPRECHG_SHIFT		4
+#define BQ24190_REG_PCTCC_IPRECHG_MIN			128
+#define BQ24190_REG_PCTCC_IPRECHG_MAX			2048
 #define BQ24190_REG_PCTCC_ITERM_MASK		(BIT(3) | BIT(2) | BIT(1) | \
 						 BIT(0))
 #define BQ24190_REG_PCTCC_ITERM_SHIFT		0
+#define BQ24190_REG_PCTCC_ITERM_MIN			128
+#define BQ24190_REG_PCTCC_ITERM_MAX			2048
 
 #define BQ24190_REG_CVC		0x04 /* Charge Voltage Control */
 #define BQ24190_REG_CVC_VREG_MASK		(BIT(7) | BIT(6) | BIT(5) | \
@@ -162,6 +166,8 @@ struct bq24190_dev_info {
 	bool				initialized;
 	bool				irq_event;
 	u16				sys_min;
+	u16				iprechg;
+	u16				iterm;
 	struct mutex			f_reg_lock;
 	u8				f_reg;
 	u8				ss_reg;
@@ -543,6 +549,26 @@ static int bq24190_set_config(struct bq24190_dev_info *bdi)
 			return ret;
 	}
 
+	if (bdi->iprechg) {
+		v = bdi->iprechg / 128 - 1; // manual section 9.5.1.4, table 11
+		ret = bq24190_write_mask(bdi, BQ24190_REG_PCTCC,
+					 BQ24190_REG_PCTCC_IPRECHG_MASK,
+					 BQ24190_REG_PCTCC_IPRECHG_SHIFT,
+					 v);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (bdi->iterm) {
+		v = bdi->iterm / 128 - 1; // manual section 9.5.1.4, table 11
+		ret = bq24190_write_mask(bdi, BQ24190_REG_PCTCC,
+					 BQ24190_REG_PCTCC_ITERM_MASK,
+					 BQ24190_REG_PCTCC_ITERM_SHIFT,
+					 v);
+		if (ret < 0)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -791,6 +817,38 @@ static int bq24190_charger_set_temp_alert_max(struct bq24190_dev_info *bdi,
 	return bq24190_battery_set_temp_alert_max(bdi, val);
 }
 
+static int bq24190_charger_get_precharge(struct bq24190_dev_info *bdi,
+		union power_supply_propval *val)
+{
+	u8 v;
+	int ret;
+
+	ret = bq24190_read_mask(bdi, BQ24190_REG_PCTCC,
+			BQ24190_REG_PCTCC_IPRECHG_MASK,
+			BQ24190_REG_PCTCC_IPRECHG_SHIFT, &v);
+	if (ret < 0)
+		return ret;
+
+	val->intval = ++v * 128 * 1000;
+	return 0;
+}
+
+static int bq24190_charger_get_charge_term(struct bq24190_dev_info *bdi,
+		union power_supply_propval *val)
+{
+	u8 v;
+	int ret;
+
+	ret = bq24190_read_mask(bdi, BQ24190_REG_PCTCC,
+			BQ24190_REG_PCTCC_ITERM_MASK,
+			BQ24190_REG_PCTCC_ITERM_SHIFT, &v);
+	if (ret < 0)
+		return ret;
+
+	val->intval = ++v * 128 * 1000;
+	return 0;
+}
+
 static int bq24190_charger_get_current(struct bq24190_dev_info *bdi,
 		union power_supply_propval *val)
 {
@@ -938,6 +996,12 @@ static int bq24190_charger_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP_ALERT_MAX:
 		ret =  bq24190_charger_get_temp_alert_max(bdi, val);
 		break;
+	case POWER_SUPPLY_PROP_PRECHARGE_CURRENT:
+		ret = bq24190_charger_get_precharge(bdi, val);
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
+		ret = bq24190_charger_get_charge_term(bdi, val);
+		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 		ret = bq24190_charger_get_current(bdi, val);
 		break;
@@ -1044,6 +1108,8 @@ static enum power_supply_property bq24190_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_TEMP_ALERT_MAX,
+	POWER_SUPPLY_PROP_PRECHARGE_CURRENT,
+	POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
@@ -1523,6 +1589,7 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
 static int bq24190_get_config(struct bq24190_dev_info *bdi)
 {
 	const char * const s = "ti,system-minimum-microvolt";
+	struct power_supply_battery_info info = {};
 	int v;
 
 	if (device_property_read_u32(bdi->dev, s, &v) == 0) {
@@ -1532,6 +1599,25 @@ static int bq24190_get_config(struct bq24190_dev_info *bdi)
 			bdi->sys_min = v;
 		else
 			dev_warn(bdi->dev, "invalid value for %s: %u\n", s, v);
+	}
+
+	if (bdi->dev->of_node &&
+	    !power_supply_get_battery_info(bdi->charger, &info)) {
+		v = info.precharge_current_ua / 1000;
+		if (v >= BQ24190_REG_PCTCC_IPRECHG_MIN
+		 && v <= BQ24190_REG_PCTCC_IPRECHG_MAX)
+			bdi->iprechg = v;
+		else
+			dev_warn(bdi->dev, "invalid value for battery:precharge-current-microamp: %d\n",
+				 v);
+
+		v = info.charge_term_current_ua / 1000;
+		if (v >= BQ24190_REG_PCTCC_ITERM_MIN
+		 && v <= BQ24190_REG_PCTCC_ITERM_MAX)
+			bdi->iterm = v;
+		else
+			dev_warn(bdi->dev, "invalid value for battery:charge-term-current-microamp: %d\n",
+				 v);
 	}
 
 	return 0;
@@ -1601,6 +1687,7 @@ static int bq24190_probe(struct i2c_client *client,
 	}
 
 	charger_cfg.drv_data = bdi;
+	charger_cfg.of_node = dev->of_node;
 	charger_cfg.supplied_to = bq24190_charger_supplied_to;
 	charger_cfg.num_supplicants = ARRAY_SIZE(bq24190_charger_supplied_to),
 	bdi->charger = power_supply_register(dev, &bq24190_charger_desc,
