@@ -1344,40 +1344,6 @@ static void set_safe_displaymarks(
 	}
 }
 
-static void switch_dp_clock_sources(
-	const struct dc *dc,
-	struct resource_context *res_ctx)
-{
-	uint8_t i;
-	for (i = 0; i < MAX_PIPES; i++) {
-		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
-
-		if (pipe_ctx->stream == NULL || pipe_ctx->top_pipe)
-			continue;
-
-		if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
-			struct clock_source *clk_src =
-				resource_find_used_clk_src_for_sharing(
-						res_ctx, pipe_ctx);
-
-			if (clk_src &&
-				clk_src != pipe_ctx->clock_source) {
-				if (resource_unreference_clock_source(res_ctx,
-				    dc->res_pool, pipe_ctx->clock_source)) {
-					pipe_ctx->clock_source->funcs->cs_power_down(pipe_ctx->clock_source);
-					pipe_ctx->clock_source = NULL;
-				}
-
-				pipe_ctx->clock_source = clk_src;
-				resource_reference_clock_source(
-						res_ctx, dc->res_pool, clk_src);
-
-				dce_crtc_switch_to_clk_src(dc->hwseq, clk_src, i);
-			}
-		}
-	}
-}
-
 /*******************************************************************************
  * Public functions
  ******************************************************************************/
@@ -1938,8 +1904,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 	apply_min_clocks(dc, context, &clocks_state, false);
 
 	dcb->funcs->set_scratch_critical_state(dcb, false);
-
-	switch_dp_clock_sources(dc, &context->res_ctx);
 
 #ifdef ENABLE_FBC
 	if (dc->fbc_compressor)
