@@ -49,6 +49,7 @@
 #include <linux/aer.h>
 #include <linux/bitmap.h>
 #include <linux/cpu_rmap.h>
+#include <linux/cpumask.h>
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
@@ -5554,8 +5555,15 @@ static void bnxt_free_irq(struct bnxt *bp)
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		irq = &bp->irq_tbl[i];
-		if (irq->requested)
+		if (irq->requested) {
+			if (irq->have_cpumask) {
+				irq_set_affinity_hint(irq->vector, NULL);
+				free_cpumask_var(irq->cpu_mask);
+				irq->have_cpumask = 0;
+			}
 			free_irq(irq->vector, bp->bnapi[i]);
+		}
+
 		irq->requested = 0;
 	}
 }
@@ -5588,6 +5596,21 @@ static int bnxt_request_irq(struct bnxt *bp)
 			break;
 
 		irq->requested = 1;
+
+		if (zalloc_cpumask_var(&irq->cpu_mask, GFP_KERNEL)) {
+			int numa_node = dev_to_node(&bp->pdev->dev);
+
+			irq->have_cpumask = 1;
+			cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+					irq->cpu_mask);
+			rc = irq_set_affinity_hint(irq->vector, irq->cpu_mask);
+			if (rc) {
+				netdev_warn(bp->dev,
+					    "Set affinity failed, IRQ = %d\n",
+					    irq->vector);
+				break;
+			}
+		}
 	}
 	return rc;
 }
