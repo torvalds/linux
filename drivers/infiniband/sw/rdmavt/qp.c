@@ -2069,3 +2069,147 @@ enum hrtimer_restart rvt_rc_rnr_retry(struct hrtimer *t)
 	return HRTIMER_NORESTART;
 }
 EXPORT_SYMBOL(rvt_rc_rnr_retry);
+
+/**
+ * rvt_qp_iter_init - initial for QP iteration
+ * @rdi - rvt devinfo
+ * @v - u64 value
+ *
+ * This returns an iterator suitable for iterating QPs
+ * in the system.
+ *
+ * The @cb is a user defined callback and @v is a 64
+ * bit value passed to and relevant for processing in the
+ * @cb.  An example use case would be to alter QP processing
+ * based on criteria not part of the rvt_qp.
+ *
+ * Use cases that require memory allocation to succeed
+ * must preallocate appropriately.
+ *
+ * Return: a pointer to an rvt_qp_iter or NULL
+ */
+struct rvt_qp_iter *rvt_qp_iter_init(struct rvt_dev_info *rdi,
+				     u64 v,
+				     void (*cb)(struct rvt_qp *qp, u64 v))
+{
+	struct rvt_qp_iter *i;
+
+	i = kzalloc(sizeof(*i), GFP_KERNEL);
+	if (!i)
+		return NULL;
+
+	i->rdi = rdi;
+	/* number of special QPs (SMI/GSI) for device */
+	i->specials = rdi->ibdev.phys_port_cnt * 2;
+	i->v = v;
+	i->cb = cb;
+
+	return i;
+}
+EXPORT_SYMBOL(rvt_qp_iter_init);
+
+/**
+ * rvt_qp_iter_next - return the next QP in iter
+ * @iter - the iterator
+ *
+ * Fine grained QP iterator suitable for use
+ * with debugfs seq_file mechanisms.
+ *
+ * Updates iter->qp with the current QP when the return
+ * value is 0.
+ *
+ * Return: 0 - iter->qp is valid 1 - no more QPs
+ */
+int rvt_qp_iter_next(struct rvt_qp_iter *iter)
+	__must_hold(RCU)
+{
+	int n = iter->n;
+	int ret = 1;
+	struct rvt_qp *pqp = iter->qp;
+	struct rvt_qp *qp;
+	struct rvt_dev_info *rdi = iter->rdi;
+
+	/*
+	 * The approach is to consider the special qps
+	 * as additional table entries before the
+	 * real hash table.  Since the qp code sets
+	 * the qp->next hash link to NULL, this works just fine.
+	 *
+	 * iter->specials is 2 * # ports
+	 *
+	 * n = 0..iter->specials is the special qp indices
+	 *
+	 * n = iter->specials..rdi->qp_dev->qp_table_size+iter->specials are
+	 * the potential hash bucket entries
+	 *
+	 */
+	for (; n <  rdi->qp_dev->qp_table_size + iter->specials; n++) {
+		if (pqp) {
+			qp = rcu_dereference(pqp->next);
+		} else {
+			if (n < iter->specials) {
+				struct rvt_ibport *rvp;
+				int pidx;
+
+				pidx = n % rdi->ibdev.phys_port_cnt;
+				rvp = rdi->ports[pidx];
+				qp = rcu_dereference(rvp->qp[n & 1]);
+			} else {
+				qp = rcu_dereference(
+					rdi->qp_dev->qp_table[
+						(n - iter->specials)]);
+			}
+		}
+		pqp = qp;
+		if (qp) {
+			iter->qp = qp;
+			iter->n = n;
+			return 0;
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(rvt_qp_iter_next);
+
+/**
+ * rvt_qp_iter - iterate all QPs
+ * @rdi - rvt devinfo
+ * @v - a 64 bit value
+ * @cb - a callback
+ *
+ * This provides a way for iterating all QPs.
+ *
+ * The @cb is a user defined callback and @v is a 64
+ * bit value passed to and relevant for processing in the
+ * cb.  An example use case would be to alter QP processing
+ * based on criteria not part of the rvt_qp.
+ *
+ * The code has an internal iterator to simplify
+ * non seq_file use cases.
+ */
+void rvt_qp_iter(struct rvt_dev_info *rdi,
+		 u64 v,
+		 void (*cb)(struct rvt_qp *qp, u64 v))
+{
+	int ret;
+	struct rvt_qp_iter i = {
+		.rdi = rdi,
+		.specials = rdi->ibdev.phys_port_cnt * 2,
+		.v = v,
+		.cb = cb
+	};
+
+	rcu_read_lock();
+	do {
+		ret = rvt_qp_iter_next(&i);
+		if (!ret) {
+			rvt_get_qp(i.qp);
+			rcu_read_unlock();
+			i.cb(i.qp, i.v);
+			rcu_read_lock();
+			rvt_put_qp(i.qp);
+		}
+	} while (!ret);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(rvt_qp_iter);

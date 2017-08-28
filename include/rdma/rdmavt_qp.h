@@ -673,4 +673,33 @@ void rvt_del_timers_sync(struct rvt_qp *qp);
 void rvt_stop_rc_timers(struct rvt_qp *qp);
 void rvt_add_retry_timer(struct rvt_qp *qp);
 
+/**
+ * struct rvt_qp_iter - the iterator for QPs
+ * @qp - the current QP
+ *
+ * This structure defines the current iterator
+ * state for sequenced access to all QPs relative
+ * to an rvt_dev_info.
+ */
+struct rvt_qp_iter {
+	struct rvt_qp *qp;
+	/* private: backpointer */
+	struct rvt_dev_info *rdi;
+	/* private: callback routine */
+	void (*cb)(struct rvt_qp *qp, u64 v);
+	/* private: for arg to callback routine */
+	u64 v;
+	/* private: number of SMI,GSI QPs for device */
+	int specials;
+	/* private: current iterator index */
+	int n;
+};
+
+struct rvt_qp_iter *rvt_qp_iter_init(struct rvt_dev_info *rdi,
+				     u64 v,
+				     void (*cb)(struct rvt_qp *qp, u64 v));
+int rvt_qp_iter_next(struct rvt_qp_iter *iter);
+void rvt_qp_iter(struct rvt_dev_info *rdi,
+		 u64 v,
+		 void (*cb)(struct rvt_qp *qp, u64 v));
 #endif          /* DEF_RDMAVT_INCQP_H */
