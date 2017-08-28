@@ -1723,6 +1723,20 @@ config MFD_STW481X
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
 
+config MFD_STM32_LPTIMER
+	tristate "Support for STM32 Low-Power Timer"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_MMIO
+	help
+	  Select this option to enable STM32 Low-Power Timer driver
+	  used for PWM, IIO Trigger, IIO Encoder and Counter. Shared
+	  resources are also dealt with here.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stm32-lptimer.
+
 config MFD_STM32_TIMERS
 	tristate "Support for STM32 Timers"
 	depends on (ARCH_STM32 && OF) || COMPILE_TEST
