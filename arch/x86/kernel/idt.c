@@ -26,6 +26,18 @@ const struct desc_ptr debug_idt_descr = {
 #endif
 
 /**
+ * idt_setup_early_handler - Initializes the idt table with early handlers
+ */
+void __init idt_setup_early_handler(void)
+{
+	int i;
+
+	for (i = 0; i < NUM_EXCEPTION_VECTORS; i++)
+		set_intr_gate(i, early_idt_handler_array[i]);
+	load_idt(&idt_descr);
+}
+
+/**
  * idt_invalidate - Invalidate interrupt descriptor table
  * @addr:	The virtual address of the 'invalid' IDT
  */
