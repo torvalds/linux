@@ -83,7 +83,6 @@ gate_desc debug_idt_table[NR_VECTORS] __page_aligned_bss;
 gate_desc idt_table[NR_VECTORS] __page_aligned_bss;
 
 DECLARE_BITMAP(used_vectors, NR_VECTORS);
-EXPORT_SYMBOL_GPL(used_vectors);
 
 static inline void cond_local_irq_enable(struct pt_regs *regs)
 {
