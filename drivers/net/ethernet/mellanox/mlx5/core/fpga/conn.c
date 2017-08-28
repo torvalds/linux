@@ -256,8 +256,6 @@ static void mlx5_fpga_conn_rq_cqe(struct mlx5_fpga_conn *conn,
 	ix = be16_to_cpu(cqe->wqe_counter) & (conn->qp.rq.size - 1);
 	buf = conn->qp.rq.bufs[ix];
 	conn->qp.rq.bufs[ix] = NULL;
-	if (!status)
-		buf->sg[0].size = be32_to_cpu(cqe->byte_cnt);
 	conn->qp.rq.cc++;
 
 	if (unlikely(status && (status != MLX5_CQE_SYNDROME_WR_FLUSH_ERR)))
@@ -275,6 +273,7 @@ static void mlx5_fpga_conn_rq_cqe(struct mlx5_fpga_conn *conn,
 		return;
 	}
 
+	buf->sg[0].size = be32_to_cpu(cqe->byte_cnt);
 	mlx5_fpga_dbg(conn->fdev, "Message with %u bytes received successfully\n",
 		      buf->sg[0].size);
 	conn->recv_cb(conn->cb_arg, buf);
