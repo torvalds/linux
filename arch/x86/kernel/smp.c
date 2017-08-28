@@ -262,7 +262,7 @@ __visible void __irq_entry smp_reschedule_interrupt(struct pt_regs *regs)
 	ack_APIC_irq();
 	inc_irq_stat(irq_resched_count);
 
-	if (trace_irqvectors_enabled()) {
+	if (trace_resched_ipi_enabled()) {
 		/*
 		 * scheduler_ipi() might call irq_enter() as well, but
 		 * nested calls are fine.

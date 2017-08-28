@@ -7,6 +7,9 @@
 #include <linux/tracepoint.h>
 #include <asm/trace/common.h>
 
+extern int trace_resched_ipi_reg(void);
+extern void trace_resched_ipi_unreg(void);
+
 DECLARE_EVENT_CLASS(x86_irq_vector,
 
 	TP_PROTO(int vector),
@@ -26,15 +29,22 @@ DECLARE_EVENT_CLASS(x86_irq_vector,
 #define DEFINE_IRQ_VECTOR_EVENT(name)		\
 DEFINE_EVENT_FN(x86_irq_vector, name##_entry,	\
 	TP_PROTO(int vector),			\
+	TP_ARGS(vector), NULL, NULL);		\
+DEFINE_EVENT_FN(x86_irq_vector, name##_exit,	\
+	TP_PROTO(int vector),			\
+	TP_ARGS(vector), NULL, NULL);
+
+#define DEFINE_RESCHED_IPI_EVENT(name)		\
+DEFINE_EVENT_FN(x86_irq_vector, name##_entry,	\
+	TP_PROTO(int vector),			\
 	TP_ARGS(vector),			\
-	trace_irq_vector_regfunc,		\
-	trace_irq_vector_unregfunc);		\
+	trace_resched_ipi_reg,			\
+	trace_resched_ipi_unreg);		\
 DEFINE_EVENT_FN(x86_irq_vector, name##_exit,	\
 	TP_PROTO(int vector),			\
 	TP_ARGS(vector),			\
-	trace_irq_vector_regfunc,		\
-	trace_irq_vector_unregfunc);
-
+	trace_resched_ipi_reg,			\
+	trace_resched_ipi_unreg);
 
 /*
  * local_timer - called when entering/exiting a local timer interrupt
@@ -43,9 +53,16 @@ DEFINE_EVENT_FN(x86_irq_vector, name##_exit,	\
 DEFINE_IRQ_VECTOR_EVENT(local_timer);
 
 /*
+ * The ifdef is required because that tracepoint macro hell emits tracepoint
+ * code in files which include this header even if the tracepoint is not
+ * enabled. Brilliant stuff that.
+ */
+#ifdef CONFIG_SMP
+/*
  * reschedule - called when entering/exiting a reschedule vector handler
  */
-DEFINE_IRQ_VECTOR_EVENT(reschedule);
+DEFINE_RESCHED_IPI_EVENT(reschedule);
+#endif
 
 /*
  * spurious_apic - called when entering/exiting a spurious apic vector handler

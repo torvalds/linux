@@ -1510,7 +1510,7 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
-	if (trace_irqvectors_enabled())
+	if (trace_pagefault_enabled())
 		trace_page_fault_entries(address, regs, error_code);
 
 	__do_page_fault(regs, error_code, address);
