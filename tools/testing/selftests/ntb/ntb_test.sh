@@ -333,6 +333,10 @@ function ntb_tool_tests()
 	link_test $LOCAL_TOOL $REMOTE_TOOL
 	link_test $REMOTE_TOOL $LOCAL_TOOL
 
+	#Ensure the link is up on both sides before continuing
+	write_file Y $LOCAL_TOOL/link_event
+	write_file Y $REMOTE_TOOL/link_event
+
 	for PEER_TRANS in $(ls $LOCAL_TOOL/peer_trans*); do
 		PT=$(basename $PEER_TRANS)
 		write_file $MW_SIZE $LOCAL_TOOL/$PT

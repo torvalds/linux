@@ -6212,8 +6212,8 @@ static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
 	}
 }
 
-int btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
-		  int mirror_num, int async_submit)
+blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
+			   int mirror_num, int async_submit)
 {
 	struct btrfs_device *dev;
 	struct bio *first_bio = bio;
@@ -6233,7 +6233,7 @@ int btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 				&map_length, &bbio, mirror_num, 1);
 	if (ret) {
 		btrfs_bio_counter_dec(fs_info);
-		return ret;
+		return errno_to_blk_status(ret);
 	}
 
 	total_devs = bbio->num_stripes;
@@ -6256,7 +6256,7 @@ int btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 		}
 
 		btrfs_bio_counter_dec(fs_info);
-		return ret;
+		return errno_to_blk_status(ret);
 	}
 
 	if (map_length < length) {
@@ -6283,7 +6283,7 @@ int btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 				  dev_nr, async_submit);
 	}
 	btrfs_bio_counter_dec(fs_info);
-	return 0;
+	return BLK_STS_OK;
 }
 
 struct btrfs_device *btrfs_find_device(struct btrfs_fs_info *fs_info, u64 devid,

@@ -17,13 +17,9 @@
  * This module is for configuring CCD controller of DM6446 VPFE to capture
  * Raw yuv or Bayer RGB data from a decoder. CCDC has several modules
  * such as Defect Pixel Correction, Color Space Conversion etc to
- * pre-process the Raw Bayer RGB data, before writing it to SDRAM. This
- * module also allows application to configure individual
- * module parameters through VPFE_CMD_S_CCDC_RAW_PARAMS IOCTL.
- * To do so, application includes dm644x_ccdc.h and vpfe_capture.h header
- * files.  The setparams() API is called by vpfe_capture driver
- * to configure module parameters. This file is named DM644x so that other
- * variants such DM6443 may be supported using the same module.
+ * pre-process the Raw Bayer RGB data, before writing it to SDRAM.
+ * This file is named DM644x so that other variants such DM6443
+ * may be supported using the same module.
  *
  * TODO: Test Raw bayer parameter settings and bayer capture
  * 	 Split module parameter structure to module specific ioctl structs
@@ -216,96 +212,8 @@ static void ccdc_readregs(void)
 	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to VERT_LINES...\n", val);
 }
 
-static int validate_ccdc_param(struct ccdc_config_params_raw *ccdcparam)
-{
-	if (ccdcparam->alaw.enable) {
-		u8 max_gamma = ccdc_gamma_width_max_bit(ccdcparam->alaw.gamma_wd);
-		u8 max_data = ccdc_data_size_max_bit(ccdcparam->data_sz);
-
-		if ((ccdcparam->alaw.gamma_wd > CCDC_GAMMA_BITS_09_0) ||
-		    (ccdcparam->alaw.gamma_wd < CCDC_GAMMA_BITS_15_6) ||
-		    (max_gamma > max_data)) {
-			dev_dbg(ccdc_cfg.dev, "\nInvalid data line select");
-			return -1;
-		}
-	}
-	return 0;
-}
-
-static int ccdc_update_raw_params(struct ccdc_config_params_raw *raw_params)
-{
-	struct ccdc_config_params_raw *config_params =
-				&ccdc_cfg.bayer.config_params;
-	unsigned int *fpc_virtaddr = NULL;
-	unsigned int *fpc_physaddr = NULL;
-
-	memcpy(config_params, raw_params, sizeof(*raw_params));
-	/*
-	 * allocate memory for fault pixel table and copy the user
-	 * values to the table
-	 */
-	if (!config_params->fault_pxl.enable)
-		return 0;
-
-	fpc_physaddr = (unsigned int *)config_params->fault_pxl.fpc_table_addr;
-	fpc_virtaddr = (unsigned int *)phys_to_virt(
-				(unsigned long)fpc_physaddr);
-	/*
-	 * Allocate memory for FPC table if current
-	 * FPC table buffer is not big enough to
-	 * accommodate FPC Number requested
-	 */
-	if (raw_params->fault_pxl.fp_num != config_params->fault_pxl.fp_num) {
-		if (fpc_physaddr != NULL) {
-			free_pages((unsigned long)fpc_virtaddr,
-				   get_order
-				   (config_params->fault_pxl.fp_num *
-				   FP_NUM_BYTES));
-		}
-
-		/* Allocate memory for FPC table */
-		fpc_virtaddr =
-			(unsigned int *)__get_free_pages(GFP_KERNEL | GFP_DMA,
-							 get_order(raw_params->
-							 fault_pxl.fp_num *
-							 FP_NUM_BYTES));
-
-		if (fpc_virtaddr == NULL) {
-			dev_dbg(ccdc_cfg.dev,
-				"\nUnable to allocate memory for FPC");
-			return -EFAULT;
-		}
-		fpc_physaddr =
-		    (unsigned int *)virt_to_phys((void *)fpc_virtaddr);
-	}
-
-	/* Copy number of fault pixels and FPC table */
-	config_params->fault_pxl.fp_num = raw_params->fault_pxl.fp_num;
-	if (copy_from_user(fpc_virtaddr,
-			(void __user *)raw_params->fault_pxl.fpc_table_addr,
-			config_params->fault_pxl.fp_num * FP_NUM_BYTES)) {
-		dev_dbg(ccdc_cfg.dev, "\n copy_from_user failed");
-		return -EFAULT;
-	}
-	config_params->fault_pxl.fpc_table_addr = (unsigned long)fpc_physaddr;
-	return 0;
-}
-
 static int ccdc_close(struct device *dev)
 {
-	struct ccdc_config_params_raw *config_params =
-				&ccdc_cfg.bayer.config_params;
-	unsigned int *fpc_physaddr = NULL, *fpc_virtaddr = NULL;
-
-	fpc_physaddr = (unsigned int *)config_params->fault_pxl.fpc_table_addr;
-
-	if (fpc_physaddr != NULL) {
-		fpc_virtaddr = (unsigned int *)
-		    phys_to_virt((unsigned long)fpc_physaddr);
-		free_pages((unsigned long)fpc_virtaddr,
-			   get_order(config_params->fault_pxl.fp_num *
-			   FP_NUM_BYTES));
-	}
 	return 0;
 }
 
@@ -337,29 +245,6 @@ static int ccdc_open(struct device *device)
 static void ccdc_sbl_reset(void)
 {
 	vpss_clear_wbl_overflow(VPSS_PCR_CCDC_WBL_O);
-}
-
-/* Parameter operations */
-static int ccdc_set_params(void __user *params)
-{
-	struct ccdc_config_params_raw ccdc_raw_params;
-	int x;
-
-	if (ccdc_cfg.if_type != VPFE_RAW_BAYER)
-		return -EINVAL;
-
-	x = copy_from_user(&ccdc_raw_params, params, sizeof(ccdc_raw_params));
-	if (x) {
-		dev_dbg(ccdc_cfg.dev, "ccdc_set_params: error in copyingccdc params, %d\n",
-			x);
-		return -EFAULT;
-	}
-
-	if (!validate_ccdc_param(&ccdc_raw_params)) {
-		if (!ccdc_update_raw_params(&ccdc_raw_params))
-			return 0;
-	}
-	return -EINVAL;
 }
 
 /*
@@ -489,32 +374,6 @@ static void ccdc_config_black_compense(struct ccdc_black_compensation *bcomp)
 	regw(val, CCDC_BLKCMP);
 }
 
-static void ccdc_config_fpc(struct ccdc_fault_pixel *fpc)
-{
-	u32 val;
-
-	/* Initially disable FPC */
-	val = CCDC_FPC_DISABLE;
-	regw(val, CCDC_FPC);
-
-	if (!fpc->enable)
-		return;
-
-	/* Configure Fault pixel if needed */
-	regw(fpc->fpc_table_addr, CCDC_FPC_ADDR);
-	dev_dbg(ccdc_cfg.dev, "\nWriting 0x%lx to FPC_ADDR...\n",
-		       (fpc->fpc_table_addr));
-	/* Write the FPC params with FPC disable */
-	val = fpc->fp_num & CCDC_FPC_FPC_NUM_MASK;
-	regw(val, CCDC_FPC);
-
-	dev_dbg(ccdc_cfg.dev, "\nWriting 0x%x to FPC...\n", val);
-	/* read the FPC register */
-	val = regr(CCDC_FPC) | CCDC_FPC_ENABLE;
-	regw(val, CCDC_FPC);
-	dev_dbg(ccdc_cfg.dev, "\nWriting 0x%x to FPC...\n", val);
-}
-
 /*
  * ccdc_config_raw()
  * This function will configure CCDC for Raw capture mode
@@ -568,9 +427,6 @@ static void ccdc_config_raw(void)
 
 	/* Configure Black level compensation */
 	ccdc_config_black_compense(&config_params->blk_comp);
-
-	/* Configure Fault Pixel Correction */
-	ccdc_config_fpc(&config_params->fault_pxl);
 
 	/* If data size is 8 bit then pack the data */
 	if ((config_params->data_sz == CCDC_DATA_8BITS) ||
@@ -929,7 +785,6 @@ static struct ccdc_hw_device ccdc_hw_dev = {
 		.reset = ccdc_sbl_reset,
 		.enable = ccdc_enable,
 		.set_hw_if_params = ccdc_set_hw_if_params,
-		.set_params = ccdc_set_params,
 		.configure = ccdc_configure,
 		.set_buftype = ccdc_set_buftype,
 		.get_buftype = ccdc_get_buftype,

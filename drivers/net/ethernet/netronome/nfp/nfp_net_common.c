@@ -513,6 +513,7 @@ nfp_net_tx_ring_init(struct nfp_net_tx_ring *tx_ring,
 	tx_ring->idx = idx;
 	tx_ring->r_vec = r_vec;
 	tx_ring->is_xdp = is_xdp;
+	u64_stats_init(&tx_ring->r_vec->tx_sync);
 
 	tx_ring->qcidx = tx_ring->idx * nn->stride_tx;
 	tx_ring->qcp_q = nn->tx_bar + NFP_QCP_QUEUE_OFF(tx_ring->qcidx);
@@ -532,6 +533,7 @@ nfp_net_rx_ring_init(struct nfp_net_rx_ring *rx_ring,
 
 	rx_ring->idx = idx;
 	rx_ring->r_vec = r_vec;
+	u64_stats_init(&rx_ring->r_vec->rx_sync);
 
 	rx_ring->fl_qcidx = rx_ring->idx * nn->stride_rx;
 	rx_ring->qcp_fl = nn->rx_bar + NFP_QCP_QUEUE_OFF(rx_ring->fl_qcidx);
@@ -906,8 +908,7 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 	return NETDEV_TX_OK;
 
 err_unmap:
-	--f;
-	while (f >= 0) {
+	while (--f >= 0) {
 		frag = &skb_shinfo(skb)->frags[f];
 		dma_unmap_page(dp->dev, tx_ring->txbufs[wr_idx].dma_addr,
 			       skb_frag_size(frag), DMA_TO_DEVICE);

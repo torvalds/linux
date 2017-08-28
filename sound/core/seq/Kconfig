@@ -47,10 +47,10 @@ config SND_SEQ_HRTIMER_DEFAULT
 	  timer.
 
 config SND_SEQ_MIDI_EVENT
-	def_tristate SND_RAWMIDI
+	tristate
 
 config SND_SEQ_MIDI
-	tristate
+	def_tristate SND_RAWMIDI
 	select SND_SEQ_MIDI_EVENT
 
 config SND_SEQ_MIDI_EMUL

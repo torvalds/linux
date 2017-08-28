@@ -122,7 +122,7 @@ static struct attribute *thermal_throttle_attrs[] = {
 	NULL
 };
 
-static struct attribute_group thermal_attr_group = {
+static const struct attribute_group thermal_attr_group = {
 	.attrs	= thermal_throttle_attrs,
 	.name	= "thermal_throttle"
 };

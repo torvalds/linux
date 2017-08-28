@@ -1084,7 +1084,13 @@ int __iwl_mvm_mac_start(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+	if (test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status)) {
+		/*
+		 * Now convert the HW_RESTART_REQUESTED flag to IN_HW_RESTART
+		 * so later code will - from now on - see that we're doing it.
+		 */
+		set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
+		clear_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);
 		/* Clean up some internal and mac80211 state on restart */
 		iwl_mvm_restart_cleanup(mvm);
 	} else {
@@ -2591,8 +2597,18 @@ static void iwl_mvm_purge_deferred_tx_frames(struct iwl_mvm *mvm,
 	spin_lock_bh(&mvm_sta->lock);
 	for (i = 0; i <= IWL_MAX_TID_COUNT; i++) {
 		tid_data = &mvm_sta->tid_data[i];
-		while ((skb = __skb_dequeue(&tid_data->deferred_tx_frames)))
+
+		while ((skb = __skb_dequeue(&tid_data->deferred_tx_frames))) {
+			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+			/*
+			 * The first deferred frame should've stopped the MAC
+			 * queues, so we should never get a second deferred
+			 * frame for the RA/TID.
+			 */
+			iwl_mvm_start_mac_queues(mvm, info->hw_queue);
 			ieee80211_free_txskb(mvm->hw, skb);
+		}
 	}
 	spin_unlock_bh(&mvm_sta->lock);
 }
