@@ -2385,7 +2385,7 @@ static void run_state_machine(struct tcpm_port *port)
 				       0);
 		else
 			/* Wait for VBUS, but not forever */
-			tcpm_set_state(port, SNK_UNATTACHED, PD_T_PS_SOURCE_ON);
+			tcpm_set_state(port, PORT_RESET, PD_T_PS_SOURCE_ON);
 		break;
 
 	case SRC_TRY:
