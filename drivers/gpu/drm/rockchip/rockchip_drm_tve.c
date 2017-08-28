@@ -274,7 +274,8 @@ rockchip_tve_encoder_atomic_check(struct drm_encoder *encoder,
 	s->output_type = DRM_MODE_CONNECTOR_TV;
 	if (info->num_bus_formats)
 		s->bus_format = info->bus_formats[0];
-	s->bus_format = MEDIA_BUS_FMT_YUV8_1X24;
+	else
+		s->bus_format = MEDIA_BUS_FMT_YUV8_1X24;
 
 	return 0;
 }
