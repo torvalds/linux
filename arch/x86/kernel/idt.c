@@ -225,6 +225,22 @@ idt_setup_from_table(gate_desc *idt, const struct idt_data *t, int size, bool sy
 	}
 }
 
+static void set_intr_gate(unsigned int n, const void *addr)
+{
+	struct idt_data data;
+
+	BUG_ON(n > 0xFF);
+
+	memset(&data, 0, sizeof(data));
+	data.vector	= n;
+	data.addr	= addr;
+	data.segment	= __KERNEL_CS;
+	data.bits.type	= GATE_INTERRUPT;
+	data.bits.p	= 1;
+
+	idt_setup_from_table(idt_table, &data, 1, false);
+}
+
 /**
  * idt_setup_early_traps - Initialize the idt table with early traps
  *
@@ -336,20 +352,11 @@ void idt_invalidate(void *addr)
 	load_idt(&idt);
 }
 
-void set_intr_gate(unsigned int n, const void *addr)
+void __init update_intr_gate(unsigned int n, const void *addr)
 {
-	struct idt_data data;
-
-	BUG_ON(n > 0xFF);
-
-	memset(&data, 0, sizeof(data));
-	data.vector	= n;
-	data.addr	= addr;
-	data.segment	= __KERNEL_CS;
-	data.bits.type	= GATE_INTERRUPT;
-	data.bits.p	= 1;
-
-	idt_setup_from_table(idt_table, &data, 1, false);
+	if (WARN_ON_ONCE(!test_bit(n, used_vectors)))
+		return;
+	set_intr_gate(n, addr);
 }
 
 void alloc_intr_gate(unsigned int n, const void *addr)

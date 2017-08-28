@@ -455,7 +455,7 @@ static int kvm_cpu_down_prepare(unsigned int cpu)
 
 static void __init kvm_apf_trap_init(void)
 {
-	set_intr_gate(14, async_page_fault);
+	update_intr_gate(X86_TRAP_PF, async_page_fault);
 }
 
 void __init kvm_guest_init(void)
