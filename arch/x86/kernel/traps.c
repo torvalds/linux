@@ -38,11 +38,6 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 
-#ifdef CONFIG_EISA
-#include <linux/ioport.h>
-#include <linux/eisa.h>
-#endif
-
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
 #endif
@@ -968,14 +963,6 @@ void __init early_trap_pf_init(void)
 void __init trap_init(void)
 {
 	int i;
-
-#ifdef CONFIG_EISA
-	void __iomem *p = early_ioremap(0x0FFFD9, 4);
-
-	if (readl(p) == 'E' + ('I'<<8) + ('S'<<16) + ('A'<<24))
-		EISA_bus = 1;
-	early_iounmap(p, 4);
-#endif
 
 	set_intr_gate(X86_TRAP_DE, divide_error);
 	set_intr_gate_ist(X86_TRAP_NMI, &nmi, NMI_STACK);
