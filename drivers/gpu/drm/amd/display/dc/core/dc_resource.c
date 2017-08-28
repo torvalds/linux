@@ -1033,7 +1033,6 @@ static int acquire_first_split_pipe(
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
 			pipe_ctx->stream_res.opp = pool->opps[i];
-			pipe_ctx->dis_clk = pool->display_clock;
 			pipe_ctx->pipe_idx = i;
 
 			pipe_ctx->stream = stream;
@@ -1368,7 +1367,6 @@ static int acquire_first_free_pipe(
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
 			pipe_ctx->stream_res.opp = pool->opps[i];
-			pipe_ctx->dis_clk = pool->display_clock;
 			pipe_ctx->pipe_idx = i;
 
 
@@ -1712,6 +1710,14 @@ void dc_resource_state_copy_construct_current(
 		struct dc_state *dst_ctx)
 {
 	dc_resource_state_copy_construct(dc->current_state, dst_ctx);
+}
+
+
+void dc_resource_state_construct(
+		const struct dc *dc,
+		struct dc_state *dst_ctx)
+{
+	dst_ctx->dis_clk = dc->res_pool->display_clock;
 }
 
 bool dc_validate_global_state(

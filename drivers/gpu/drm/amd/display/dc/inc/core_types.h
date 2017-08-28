@@ -70,7 +70,9 @@ enum dc_status dc_link_validate_mode_timing(
 
 void core_link_resume(struct dc_link *link);
 
-void core_link_enable_stream(struct pipe_ctx *pipe_ctx);
+void core_link_enable_stream(
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx);
 
 void core_link_disable_stream(struct pipe_ctx *pipe_ctx);
 
@@ -188,7 +190,6 @@ struct pipe_ctx {
 	struct plane_resource plane_res;
 	struct stream_resource stream_res;
 
-	struct display_clock *dis_clk;
 	struct clock_source *clock_source;
 
 	struct pll_settings pll_settings;
@@ -267,6 +268,8 @@ struct dc_state {
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
+
+	struct display_clock *dis_clk;
 
 	atomic_t ref_count;
 };

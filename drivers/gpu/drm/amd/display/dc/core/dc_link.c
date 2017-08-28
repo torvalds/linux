@@ -1181,7 +1181,9 @@ static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 			&downspread.raw, sizeof(downspread));
 }
 
-static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
+static enum dc_status enable_link_dp(
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_status status;
@@ -1201,14 +1203,14 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 		max_link_rate = LINK_RATE_HIGH3;
 
 	if (link_settings.link_rate == max_link_rate) {
-		if (pipe_ctx->dis_clk->funcs->set_min_clocks_state) {
-			if (pipe_ctx->dis_clk->cur_min_clks_state < DM_PP_CLOCKS_STATE_NOMINAL)
-				pipe_ctx->dis_clk->funcs->set_min_clocks_state(
-					pipe_ctx->dis_clk, DM_PP_CLOCKS_STATE_NOMINAL);
+		if (state->dis_clk->funcs->set_min_clocks_state) {
+			if (state->dis_clk->cur_min_clks_state < DM_PP_CLOCKS_STATE_NOMINAL)
+				state->dis_clk->funcs->set_min_clocks_state(
+					state->dis_clk, DM_PP_CLOCKS_STATE_NOMINAL);
 		} else {
 			uint32_t dp_phyclk_in_khz;
 			const struct clocks_value clocks_value =
-					pipe_ctx->dis_clk->cur_clocks_value;
+					state->dis_clk->cur_clocks_value;
 
 			/* 27mhz = 27000000hz= 27000khz */
 			dp_phyclk_in_khz = link_settings.link_rate * 27000;
@@ -1216,8 +1218,8 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 			if (((clocks_value.max_non_dp_phyclk_in_khz != 0) &&
 				(dp_phyclk_in_khz > clocks_value.max_non_dp_phyclk_in_khz)) ||
 				(dp_phyclk_in_khz > clocks_value.max_dp_phyclk_in_khz)) {
-				pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
-						pipe_ctx->dis_clk,
+				state->dis_clk->funcs->apply_clock_voltage_request(
+						state->dis_clk,
 						DM_PP_CLOCK_TYPE_DISPLAYPHYCLK,
 						dp_phyclk_in_khz,
 						false,
@@ -1256,7 +1258,9 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 	return status;
 }
 
-static enum dc_status enable_link_dp_mst(struct pipe_ctx *pipe_ctx)
+static enum dc_status enable_link_dp_mst(
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx)
 {
 	struct dc_link *link = pipe_ctx->stream->sink->link;
 
@@ -1269,7 +1273,7 @@ static enum dc_status enable_link_dp_mst(struct pipe_ctx *pipe_ctx)
 	/* set the sink to MST mode before enabling the link */
 	dp_enable_mst_on_sink(link, true);
 
-	return enable_link_dp(pipe_ctx);
+	return enable_link_dp(state, pipe_ctx);
 }
 
 static bool get_ext_hdmi_settings(struct pipe_ctx *pipe_ctx,
@@ -1709,16 +1713,18 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 }
 
 /****************************enable_link***********************************/
-static enum dc_status enable_link(struct pipe_ctx *pipe_ctx)
+static enum dc_status enable_link(
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx)
 {
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	switch (pipe_ctx->stream->signal) {
 	case SIGNAL_TYPE_DISPLAY_PORT:
 	case SIGNAL_TYPE_EDP:
-		status = enable_link_dp(pipe_ctx);
+		status = enable_link_dp(state, pipe_ctx);
 		break;
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
-		status = enable_link_dp_mst(pipe_ctx);
+		status = enable_link_dp_mst(state, pipe_ctx);
 		msleep(200);
 		break;
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
@@ -2285,11 +2291,13 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	return DC_OK;
 }
 
-void core_link_enable_stream(struct pipe_ctx *pipe_ctx)
+void core_link_enable_stream(
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
-	enum dc_status status = enable_link(pipe_ctx);
+	enum dc_status status = enable_link(state, pipe_ctx);
 
 	if (status != DC_OK) {
 			dm_logger_write(pipe_ctx->stream->ctx->logger,

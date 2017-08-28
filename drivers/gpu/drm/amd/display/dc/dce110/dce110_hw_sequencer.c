@@ -828,6 +828,7 @@ static enum audio_dto_source translate_to_dto_source(enum controller_id crtc_id)
 }
 
 static void build_audio_output(
+	struct dc_state *state,
 	const struct pipe_ctx *pipe_ctx,
 	struct audio_output *audio_output)
 {
@@ -889,8 +890,8 @@ static void build_audio_output(
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT ||
 			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		audio_output->pll_info.dp_dto_source_clock_in_khz =
-				pipe_ctx->dis_clk->funcs->get_dp_ref_clk_frequency(
-						pipe_ctx->dis_clk);
+				state->dis_clk->funcs->get_dp_ref_clk_frequency(
+						state->dis_clk);
 	}
 
 	audio_output->pll_info.feed_back_divider =
@@ -1109,7 +1110,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	resource_build_info_frame(pipe_ctx);
 	dce110_update_info_frame(pipe_ctx);
 	if (!pipe_ctx_old->stream) {
-		core_link_enable_stream(pipe_ctx);
+		core_link_enable_stream(context, pipe_ctx);
 
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
@@ -1461,42 +1462,34 @@ static void apply_min_clocks(
 	bool pre_mode_set)
 {
 	struct state_dependent_clocks req_clocks = {0};
-	struct pipe_ctx *pipe_ctx;
-	int i;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		if (pipe_ctx->dis_clk != NULL)
-			break;
-	}
 
 	if (!pre_mode_set) {
 		/* set clock_state without verification */
-		if (pipe_ctx->dis_clk->funcs->set_min_clocks_state) {
-			pipe_ctx->dis_clk->funcs->set_min_clocks_state(
-						pipe_ctx->dis_clk, *clocks_state);
+		if (context->dis_clk->funcs->set_min_clocks_state) {
+			context->dis_clk->funcs->set_min_clocks_state(
+						context->dis_clk, *clocks_state);
 			return;
 		}
 
 		/* TODO: This is incorrect. Figure out how to fix. */
-		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
-				pipe_ctx->dis_clk,
+		context->dis_clk->funcs->apply_clock_voltage_request(
+				context->dis_clk,
 				DM_PP_CLOCK_TYPE_DISPLAY_CLK,
-				pipe_ctx->dis_clk->cur_clocks_value.dispclk_in_khz,
+				context->dis_clk->cur_clocks_value.dispclk_in_khz,
 				pre_mode_set,
 				false);
 
-		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
-				pipe_ctx->dis_clk,
+		context->dis_clk->funcs->apply_clock_voltage_request(
+				context->dis_clk,
 				DM_PP_CLOCK_TYPE_PIXELCLK,
-				pipe_ctx->dis_clk->cur_clocks_value.max_pixelclk_in_khz,
+				context->dis_clk->cur_clocks_value.max_pixelclk_in_khz,
 				pre_mode_set,
 				false);
 
-		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
-				pipe_ctx->dis_clk,
+		context->dis_clk->funcs->apply_clock_voltage_request(
+				context->dis_clk,
 				DM_PP_CLOCK_TYPE_DISPLAYPHYCLK,
-				pipe_ctx->dis_clk->cur_clocks_value.max_non_dp_phyclk_in_khz,
+				context->dis_clk->cur_clocks_value.max_non_dp_phyclk_in_khz,
 				pre_mode_set,
 				false);
 		return;
@@ -1510,28 +1503,28 @@ static void apply_min_clocks(
 	req_clocks.pixel_clk_khz = get_max_pixel_clock_for_all_paths(
 			dc, context, true);
 
-	if (pipe_ctx->dis_clk->funcs->get_required_clocks_state) {
-		*clocks_state = pipe_ctx->dis_clk->funcs->get_required_clocks_state(
-				pipe_ctx->dis_clk, &req_clocks);
-		pipe_ctx->dis_clk->funcs->set_min_clocks_state(
-			pipe_ctx->dis_clk, *clocks_state);
+	if (context->dis_clk->funcs->get_required_clocks_state) {
+		*clocks_state = context->dis_clk->funcs->get_required_clocks_state(
+				context->dis_clk, &req_clocks);
+		context->dis_clk->funcs->set_min_clocks_state(
+			context->dis_clk, *clocks_state);
 	} else {
-		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
-				pipe_ctx->dis_clk,
+		context->dis_clk->funcs->apply_clock_voltage_request(
+				context->dis_clk,
 				DM_PP_CLOCK_TYPE_DISPLAY_CLK,
 				req_clocks.display_clk_khz,
 				pre_mode_set,
 				false);
 
-		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
-				pipe_ctx->dis_clk,
+		context->dis_clk->funcs->apply_clock_voltage_request(
+				context->dis_clk,
 				DM_PP_CLOCK_TYPE_PIXELCLK,
 				req_clocks.pixel_clk_khz,
 				pre_mode_set,
 				false);
 
-		pipe_ctx->dis_clk->funcs->apply_clock_voltage_request(
-				pipe_ctx->dis_clk,
+		context->dis_clk->funcs->apply_clock_voltage_request(
+				context->dis_clk,
 				DM_PP_CLOCK_TYPE_DISPLAYPHYCLK,
 				req_clocks.pixel_clk_khz,
 				pre_mode_set,
@@ -1806,7 +1799,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (pipe_ctx->stream_res.audio != NULL) {
 			struct audio_output audio_output;
 
-			build_audio_output(pipe_ctx, &audio_output);
+			build_audio_output(context, pipe_ctx, &audio_output);
 
 			pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
 				pipe_ctx->stream_res.audio,
@@ -1834,7 +1827,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 			if (pipe_ctx->stream_res.audio != NULL) {
 				struct audio_output audio_output;
 
-				build_audio_output(pipe_ctx, &audio_output);
+				build_audio_output(context, pipe_ctx, &audio_output);
 
 				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
 					pipe_ctx->stream_res.audio,
@@ -1868,7 +1861,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 
 			struct audio_output audio_output;
 
-			build_audio_output(pipe_ctx, &audio_output);
+			build_audio_output(context, pipe_ctx, &audio_output);
 
 			if (dc_is_dp_signal(pipe_ctx->stream->signal))
 				pipe_ctx->stream_res.stream_enc->funcs->dp_audio_setup(

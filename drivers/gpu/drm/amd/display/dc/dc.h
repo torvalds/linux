@@ -679,6 +679,11 @@ bool dc_validate_global_state(
  *   No hardware is programmed for call.  Only validation is done.
  */
 
+
+void dc_resource_state_construct(
+		const struct dc *dc,
+		struct dc_state *dst_ctx);
+
 void dc_resource_state_copy_construct(
 		const struct dc_state *src_ctx,
 		struct dc_state *dst_ctx);

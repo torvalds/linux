@@ -573,6 +573,8 @@ static bool construct(struct dc *dc,
 	if (!dc->res_pool)
 		goto fail;
 
+	dc_resource_state_construct(dc, dc->current_state);
+
 	if (!create_links(dc, init_params->num_virtual_links))
 		goto fail;
 
@@ -676,6 +678,8 @@ bool dc_validate_guaranteed(
 	context = dm_alloc(sizeof(struct dc_state));
 	if (context == NULL)
 		goto context_alloc_fail;
+
+	dc_resource_state_construct(dc, dc->current_state);
 
 	atomic_inc(&context->ref_count);
 
@@ -1622,6 +1626,8 @@ void dc_set_power_state(
 
 	switch (power_state) {
 	case DC_ACPI_CM_POWER_STATE_D0:
+		dc_resource_state_construct(dc, dc->current_state);
+
 		dc->hwss.init_hw(dc);
 		break;
 	default:
@@ -1638,6 +1644,7 @@ void dc_set_power_state(
 		dc_resource_state_destruct(dc->current_state);
 		memset(dc->current_state, 0,
 				sizeof(*dc->current_state));
+
 		dc->current_state->ref_count = ref_count;
 
 		break;
