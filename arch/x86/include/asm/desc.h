@@ -390,16 +390,6 @@ static inline void set_desc_limit(struct desc_struct *desc, unsigned long limit)
 	desc->limit1 = (limit >> 16) & 0xf;
 }
 
-#ifdef CONFIG_X86_64
-static inline void set_nmi_gate(int gate, void *addr)
-{
-	gate_desc s;
-
-	pack_gate(&s, GATE_INTERRUPT, (unsigned long)addr, 0, 0, __KERNEL_CS);
-	write_idt_entry(debug_idt_table, gate, &s);
-}
-#endif
-
 static inline void _set_gate(int gate, unsigned type, const void *addr,
 			     unsigned dpl, unsigned ist, unsigned seg)
 {
@@ -437,32 +427,6 @@ static inline void alloc_system_vector(int vector)
 		set_intr_gate(n, addr);				\
 	} while (0)
 
-/*
- * This routine sets up an interrupt gate at directory privilege level 3.
- */
-static inline void set_system_intr_gate(unsigned int n, void *addr)
-{
-	BUG_ON((unsigned)n > 0xFF);
-	_set_gate(n, GATE_INTERRUPT, addr, 0x3, 0, __KERNEL_CS);
-}
-
-static inline void set_task_gate(unsigned int n, unsigned int gdt_entry)
-{
-	BUG_ON((unsigned)n > 0xFF);
-	_set_gate(n, GATE_TASK, (void *)0, 0, 0, (gdt_entry<<3));
-}
-
-static inline void set_intr_gate_ist(int n, void *addr, unsigned ist)
-{
-	BUG_ON((unsigned)n > 0xFF);
-	_set_gate(n, GATE_INTERRUPT, addr, 0, ist, __KERNEL_CS);
-}
-
-static inline void set_system_intr_gate_ist(int n, void *addr, unsigned ist)
-{
-	BUG_ON((unsigned)n > 0xFF);
-	_set_gate(n, GATE_INTERRUPT, addr, 0x3, ist, __KERNEL_CS);
-}
 
 #ifdef CONFIG_X86_64
 DECLARE_PER_CPU(u32, debug_idt_ctr);
