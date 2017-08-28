@@ -17,6 +17,7 @@
 #include <linux/completion.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -105,6 +106,7 @@
 	S(SNK_TRY),				\
 	S(SNK_TRY_WAIT),			\
 	S(SRC_TRYWAIT),				\
+	S(SRC_TRYWAIT_DEBOUNCE),		\
 	S(SRC_TRYWAIT_UNATTACHED),		\
 						\
 	S(SRC_TRY),				\
@@ -283,6 +285,9 @@ struct tcpm_port {
 	struct pd_mode_data mode_data;
 	struct typec_altmode *partner_altmode[SVID_DISCOVERY_MAX];
 	struct typec_altmode *port_altmode[SVID_DISCOVERY_MAX];
+
+	/* Deadline in jiffies to exit src_try_wait state */
+	unsigned long max_wait;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
@@ -2209,6 +2214,7 @@ static void run_state_machine(struct tcpm_port *port)
 		if (!tcpm_port_is_sink(port)) {
 			tcpm_set_state(port, SRC_TRYWAIT,
 				       PD_T_PD_DEBOUNCE);
+			port->max_wait = 0;
 			break;
 		}
 		/* No vbus, cc state is sink or open */
@@ -2216,11 +2222,22 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SRC_TRYWAIT:
 		tcpm_set_cc(port, tcpm_rp_cc(port));
-		if (!port->vbus_present && tcpm_port_is_source(port))
-			tcpm_set_state(port, SRC_ATTACHED, PD_T_CC_DEBOUNCE);
-		else
+		if (port->max_wait == 0) {
+			port->max_wait = jiffies +
+					 msecs_to_jiffies(PD_T_DRP_TRY);
 			tcpm_set_state(port, SRC_TRYWAIT_UNATTACHED,
 				       PD_T_DRP_TRY);
+		} else {
+			if (time_is_after_jiffies(port->max_wait))
+				tcpm_set_state(port, SRC_TRYWAIT_UNATTACHED,
+					       jiffies_to_msecs(port->max_wait -
+								jiffies));
+			else
+				tcpm_set_state(port, SNK_UNATTACHED, 0);
+		}
+		break;
+	case SRC_TRYWAIT_DEBOUNCE:
+		tcpm_set_state(port, SRC_ATTACHED, PD_T_CC_DEBOUNCE);
 		break;
 	case SRC_TRYWAIT_UNATTACHED:
 		tcpm_set_state(port, SNK_UNATTACHED, 0);
@@ -2903,11 +2920,10 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 	case SRC_TRYWAIT:
 		/* Hand over to state machine if needed */
 		if (!port->vbus_present && tcpm_port_is_source(port))
-			new_state = SRC_ATTACHED;
-		else
-			new_state = SRC_TRYWAIT_UNATTACHED;
-
-		if (new_state != port->delayed_state)
+			tcpm_set_state(port, SRC_TRYWAIT_DEBOUNCE, 0);
+		break;
+	case SRC_TRYWAIT_DEBOUNCE:
+		if (port->vbus_present || !tcpm_port_is_source(port))
 			tcpm_set_state(port, SRC_TRYWAIT, 0);
 		break;
 	case SNK_TRY_WAIT:
@@ -2995,9 +3011,10 @@ static void _tcpm_pd_vbus_on(struct tcpm_port *port)
 		/* Do nothing, waiting for timeout */
 		break;
 	case SRC_TRYWAIT:
-		/* Hand over to state machine if needed */
-		if (port->delayed_state != SRC_TRYWAIT_UNATTACHED)
-			tcpm_set_state(port, SRC_TRYWAIT, 0);
+		/* Do nothing, Waiting for Rd to be detected */
+		break;
+	case SRC_TRYWAIT_DEBOUNCE:
+		tcpm_set_state(port, SRC_TRYWAIT, 0);
 		break;
 	case SNK_TRY_WAIT:
 		if (tcpm_port_is_sink(port)) {
@@ -3044,11 +3061,7 @@ static void _tcpm_pd_vbus_off(struct tcpm_port *port)
 	case SRC_TRYWAIT:
 		/* Hand over to state machine if needed */
 		if (tcpm_port_is_source(port))
-			new_state = SRC_ATTACHED;
-		else
-			new_state = SRC_TRYWAIT_UNATTACHED;
-		if (new_state != port->delayed_state)
-			tcpm_set_state(port, SRC_TRYWAIT, 0);
+			tcpm_set_state(port, SRC_TRYWAIT_DEBOUNCE, 0);
 		break;
 	case SNK_TRY_WAIT:
 		if (!tcpm_port_is_sink(port))
