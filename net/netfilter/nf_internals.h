@@ -5,12 +5,6 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 
-#ifdef CONFIG_NETFILTER_DEBUG
-#define NFDEBUG(format, args...)  printk(KERN_DEBUG format , ## args)
-#else
-#define NFDEBUG(format, args...)
-#endif
-
 /* nf_queue.c */
 int nf_queue(struct sk_buff *skb, struct nf_hook_state *state,
 	     const struct nf_hook_entries *entries, unsigned int index,
