@@ -494,7 +494,7 @@ static void __init xen_load_gdt_boot(const struct desc_ptr *dtr)
 static inline bool desc_equal(const struct desc_struct *d1,
 			      const struct desc_struct *d2)
 {
-	return d1->a == d2->a && d1->b == d2->b;
+	return !memcmp(d1, d2, sizeof(*d1));
 }
 
 static void load_TLS_descriptor(struct thread_struct *t,
