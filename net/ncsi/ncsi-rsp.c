@@ -694,7 +694,14 @@ static int ncsi_rsp_handler_gc(struct ncsi_request *nr)
 
 		ncf->index = i;
 		ncf->total = cnt;
-		ncf->bitmap = 0x0ul;
+		if (i == NCSI_FILTER_VLAN) {
+			/* Set VLAN filters active so they are cleared in
+			 * first configuration state
+			 */
+			ncf->bitmap = U64_MAX;
+		} else {
+			ncf->bitmap = 0x0ul;
+		}
 		nc->filters[i] = ncf;
 	}
 
