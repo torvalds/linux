@@ -266,8 +266,8 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd,
 {
 	struct hfi1_user_sdma_pkt_q *pq;
 
-	hfi1_cdbg(SDMA, "[%u:%u:%u] Freeing user SDMA queues", uctxt->dd->unit,
-		  uctxt->ctxt, fd->subctxt);
+	trace_hfi1_sdma_user_free_queues(uctxt->dd, uctxt->ctxt, fd->subctxt);
+
 	pq = fd->pq;
 	if (pq) {
 		if (pq->handler)
@@ -349,7 +349,6 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 
 	trace_hfi1_sdma_user_reqinfo(dd, uctxt->ctxt, fd->subctxt,
 				     (u16 *)&info);
-
 	if (info.comp_idx >= hfi1_sdma_comp_ring_size) {
 		hfi1_cdbg(SDMA,
 			  "[%u:%u:%u:%u] Invalid comp index",
@@ -386,8 +385,8 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 	/*
 	 * All safety checks have been done and this request has been claimed.
 	 */
-	hfi1_cdbg(SDMA, "[%u:%u:%u] Using req/comp entry %u\n", dd->unit,
-		  uctxt->ctxt, fd->subctxt, info.comp_idx);
+	trace_hfi1_sdma_user_process_request(dd, uctxt->ctxt, fd->subctxt,
+					     info.comp_idx);
 	req = pq->reqs + info.comp_idx;
 	req->data_iovs = req_iovcnt(info.ctrl) - 1; /* subtract header vector */
 	req->data_len  = 0;
@@ -487,7 +486,8 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 	req->tidoffset = KDETH_GET(req->hdr.kdeth.ver_tid_offset, OFFSET) *
 		(KDETH_GET(req->hdr.kdeth.ver_tid_offset, OM) ?
 		 KDETH_OM_LARGE : KDETH_OM_SMALL);
-	SDMA_DBG(req, "Initial TID offset %u", req->tidoffset);
+	trace_hfi1_sdma_user_initial_tidoffset(dd, uctxt->ctxt, fd->subctxt,
+					       info.comp_idx, req->tidoffset);
 	idx++;
 
 	/* Save all the IO vector structures */
@@ -505,8 +505,8 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 		}
 		req->data_len += req->iovs[i].iov.iov_len;
 	}
-	SDMA_DBG(req, "total data length %u", req->data_len);
-
+	trace_hfi1_sdma_user_data_length(dd, uctxt->ctxt, fd->subctxt,
+					 info.comp_idx, req->data_len);
 	if (pcount > req->info.npkts)
 		pcount = req->info.npkts;
 	/*
@@ -661,7 +661,11 @@ static inline u32 compute_data_length(struct user_sdma_request *req,
 	} else {
 		len = min(req->data_len - req->sent, (u32)req->info.fragsize);
 	}
-	SDMA_DBG(req, "Data Length = %u", len);
+	trace_hfi1_sdma_user_compute_length(req->pq->dd,
+					    req->pq->ctxt,
+					    req->pq->subctxt,
+					    req->info.comp_idx,
+					    len);
 	return len;
 }
 
@@ -1231,9 +1235,10 @@ static int set_txreq_header(struct user_sdma_request *req,
 		 * Set the KDETH.OFFSET and KDETH.OM based on size of
 		 * transfer.
 		 */
-		SDMA_DBG(req, "TID offset %ubytes %uunits om%u",
-			 req->tidoffset, req->tidoffset >> omfactor,
-			 omfactor != KDETH_OM_SMALL_SHIFT);
+		trace_hfi1_sdma_user_tid_info(
+			pq->dd, pq->ctxt, pq->subctxt, req->info.comp_idx,
+			req->tidoffset, req->tidoffset >> omfactor,
+			omfactor != KDETH_OM_SMALL_SHIFT);
 		KDETH_SET(hdr->kdeth.ver_tid_offset, OFFSET,
 			  req->tidoffset >> omfactor);
 		KDETH_SET(hdr->kdeth.ver_tid_offset, OM,
@@ -1441,8 +1446,6 @@ static inline void set_comp_state(struct hfi1_user_sdma_pkt_q *pq,
 				  u16 idx, enum hfi1_sdma_comp_state state,
 				  int ret)
 {
-	hfi1_cdbg(SDMA, "[%u:%u:%u:%u] Setting completion status %u %d",
-		  pq->dd->unit, pq->ctxt, pq->subctxt, idx, state, ret);
 	if (state == ERROR)
 		cq->comps[idx].errcode = -ret;
 	smp_wmb(); /* make sure errcode is visible first */

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -172,9 +172,8 @@ int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
 	unsigned long flags;
 	int ret = 0;
 
+	trace_hfi1_mmu_rb_insert(mnode->addr, mnode->len);
 	spin_lock_irqsave(&handler->lock, flags);
-	hfi1_cdbg(MMU, "Inserting node addr 0x%llx, len %u", mnode->addr,
-		  mnode->len);
 	node = __mmu_rb_search(handler, mnode->addr, mnode->len);
 	if (node) {
 		ret = -EINVAL;
@@ -200,7 +199,7 @@ static struct mmu_rb_node *__mmu_rb_search(struct mmu_rb_handler *handler,
 {
 	struct mmu_rb_node *node = NULL;
 
-	hfi1_cdbg(MMU, "Searching for addr 0x%llx, len %u", addr, len);
+	trace_hfi1_mmu_rb_search(addr, len);
 	if (!handler->ops->filter) {
 		node = __mmu_int_rb_iter_first(&handler->root, addr,
 					       (addr + len) - 1);
@@ -281,8 +280,7 @@ void hfi1_mmu_rb_remove(struct mmu_rb_handler *handler,
 	unsigned long flags;
 
 	/* Validity of handler and node pointers has been checked by caller. */
-	hfi1_cdbg(MMU, "Removing node addr 0x%llx, len %u", node->addr,
-		  node->len);
+	trace_hfi1_mmu_rb_remove(node->addr, node->len);
 	spin_lock_irqsave(&handler->lock, flags);
 	__mmu_int_rb_remove(node, &handler->root);
 	list_del(&node->list); /* remove from LRU list */
@@ -321,8 +319,7 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 	     node; node = ptr) {
 		/* Guard against node removal. */
 		ptr = __mmu_int_rb_iter_next(node, start, end - 1);
-		hfi1_cdbg(MMU, "Invalidating node addr 0x%llx, len %u",
-			  node->addr, node->len);
+		trace_hfi1_mmu_mem_invalidate(node->addr, node->len);
 		if (handler->ops->invalidate(handler->ops_arg, node)) {
 			__mmu_int_rb_remove(node, root);
 			/* move from LRU list to delete list */

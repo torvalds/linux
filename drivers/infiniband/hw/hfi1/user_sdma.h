@@ -110,9 +110,6 @@
 	hfi1_cdbg(SDMA, "[%u:%u:%u:%u] " fmt, (req)->pq->dd->unit, \
 		 (req)->pq->ctxt, (req)->pq->subctxt, (req)->info.comp_idx, \
 		 ##__VA_ARGS__)
-#define SDMA_Q_DBG(pq, fmt, ...)			 \
-	hfi1_cdbg(SDMA, "[%u:%u:%u] " fmt, (pq)->dd->unit, (pq)->ctxt, \
-		 (pq)->subctxt, ##__VA_ARGS__)
 
 extern uint extended_psn;
 

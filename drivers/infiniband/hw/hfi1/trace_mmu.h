@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -44,11 +44,52 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include "trace_dbg.h"
-#include "trace_misc.h"
-#include "trace_ctxts.h"
-#include "trace_ibhdrs.h"
-#include "trace_rc.h"
-#include "trace_rx.h"
-#include "trace_tx.h"
-#include "trace_mmu.h"
+#if !defined(__HFI1_TRACE_MMU_H) || defined(TRACE_HEADER_MULTI_READ)
+#define __HFI1_TRACE_MMU_H
+
+#include <linux/tracepoint.h>
+#include <linux/trace_seq.h>
+
+#include "hfi.h"
+
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM hfi1_mmu
+
+DECLARE_EVENT_CLASS(hfi1_mmu_rb_template,
+		    TP_PROTO(unsigned long addr, unsigned long len),
+		    TP_ARGS(addr, len),
+		    TP_STRUCT__entry(__field(unsigned long, addr)
+				     __field(unsigned long, len)
+			    ),
+		    TP_fast_assign(__entry->addr = addr;
+				   __entry->len = len;
+			    ),
+		    TP_printk("MMU node addr 0x%lx, len %lu",
+			      __entry->addr,
+			      __entry->len
+			    )
+);
+
+DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_rb_insert,
+	     TP_PROTO(unsigned long addr, unsigned long len),
+	     TP_ARGS(addr, len));
+
+DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_rb_search,
+	     TP_PROTO(unsigned long addr, unsigned long len),
+	     TP_ARGS(addr, len));
+
+DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_rb_remove,
+	     TP_PROTO(unsigned long addr, unsigned long len),
+	     TP_ARGS(addr, len));
+
+DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_mem_invalidate,
+	     TP_PROTO(unsigned long addr, unsigned long len),
+	     TP_ARGS(addr, len));
+
+#endif /* __HFI1_TRACE_RC_H */
+
+#undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE trace_mmu
+#include <trace/define_trace.h>
