@@ -341,7 +341,7 @@ xfs_attr_set(
 		 * transaction to add the new attribute to the leaf.
 		 */
 
-		error = xfs_trans_roll(&args.trans, dp);
+		error = xfs_trans_roll_inode(&args.trans, dp);
 		if (error)
 			goto out;
 
@@ -605,7 +605,7 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 		 * Commit the current trans (including the inode) and start
 		 * a new one.
 		 */
-		error = xfs_trans_roll(&args->trans, dp);
+		error = xfs_trans_roll_inode(&args->trans, dp);
 		if (error)
 			return error;
 
@@ -620,7 +620,7 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 	 * Commit the transaction that added the attr name so that
 	 * later routines can manage their own transactions.
 	 */
-	error = xfs_trans_roll(&args->trans, dp);
+	error = xfs_trans_roll_inode(&args->trans, dp);
 	if (error)
 		return error;
 
@@ -697,7 +697,7 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 		/*
 		 * Commit the remove and start the next trans in series.
 		 */
-		error = xfs_trans_roll(&args->trans, dp);
+		error = xfs_trans_roll_inode(&args->trans, dp);
 
 	} else if (args->rmtblkno > 0) {
 		/*
@@ -885,7 +885,7 @@ restart:
 			 * Commit the node conversion and start the next
 			 * trans in the chain.
 			 */
-			error = xfs_trans_roll(&args->trans, dp);
+			error = xfs_trans_roll_inode(&args->trans, dp);
 			if (error)
 				goto out;
 
@@ -925,7 +925,7 @@ restart:
 	 * Commit the leaf addition or btree split and start the next
 	 * trans in the chain.
 	 */
-	error = xfs_trans_roll(&args->trans, dp);
+	error = xfs_trans_roll_inode(&args->trans, dp);
 	if (error)
 		goto out;
 
@@ -1012,7 +1012,7 @@ restart:
 		/*
 		 * Commit and start the next trans in the chain.
 		 */
-		error = xfs_trans_roll(&args->trans, dp);
+		error = xfs_trans_roll_inode(&args->trans, dp);
 		if (error)
 			goto out;
 
@@ -1132,7 +1132,7 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 		/*
 		 * Commit the Btree join operation and start a new trans.
 		 */
-		error = xfs_trans_roll(&args->trans, dp);
+		error = xfs_trans_roll_inode(&args->trans, dp);
 		if (error)
 			goto out;
 	}

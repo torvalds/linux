@@ -240,23 +240,19 @@ xfs_defer_trans_abort(
 STATIC int
 xfs_defer_trans_roll(
 	struct xfs_trans		**tp,
-	struct xfs_defer_ops		*dop,
-	struct xfs_inode		*ip)
+	struct xfs_defer_ops		*dop)
 {
 	int				i;
 	int				error;
 
-	/* Log all the joined inodes except the one we passed in. */
-	for (i = 0; i < XFS_DEFER_OPS_NR_INODES && dop->dop_inodes[i]; i++) {
-		if (dop->dop_inodes[i] == ip)
-			continue;
+	/* Log all the joined inodes. */
+	for (i = 0; i < XFS_DEFER_OPS_NR_INODES && dop->dop_inodes[i]; i++)
 		xfs_trans_log_inode(*tp, dop->dop_inodes[i], XFS_ILOG_CORE);
-	}
 
 	trace_xfs_defer_trans_roll((*tp)->t_mountp, dop);
 
 	/* Roll the transaction. */
-	error = xfs_trans_roll(tp, ip);
+	error = xfs_trans_roll(tp);
 	if (error) {
 		trace_xfs_defer_trans_roll_error((*tp)->t_mountp, dop, error);
 		xfs_defer_trans_abort(*tp, dop, error);
@@ -264,12 +260,9 @@ xfs_defer_trans_roll(
 	}
 	dop->dop_committed = true;
 
-	/* Rejoin the joined inodes except the one we passed in. */
-	for (i = 0; i < XFS_DEFER_OPS_NR_INODES && dop->dop_inodes[i]; i++) {
-		if (dop->dop_inodes[i] == ip)
-			continue;
+	/* Rejoin the joined inodes. */
+	for (i = 0; i < XFS_DEFER_OPS_NR_INODES && dop->dop_inodes[i]; i++)
 		xfs_trans_ijoin(*tp, dop->dop_inodes[i], 0);
-	}
 
 	return error;
 }
@@ -331,13 +324,15 @@ xfs_defer_finish(
 
 	trace_xfs_defer_finish((*tp)->t_mountp, dop);
 
+	xfs_defer_join(dop, ip);
+
 	/* Until we run out of pending work to finish... */
 	while (xfs_defer_has_unfinished_work(dop)) {
 		/* Log intents for work items sitting in the intake. */
 		xfs_defer_intake_work(*tp, dop);
 
 		/* Roll the transaction. */
-		error = xfs_defer_trans_roll(tp, dop, ip);
+		error = xfs_defer_trans_roll(tp, dop);
 		if (error)
 			goto out;
 
