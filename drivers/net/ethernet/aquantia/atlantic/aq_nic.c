@@ -103,6 +103,8 @@ int aq_nic_cfg_start(struct aq_nic_s *self)
 	else
 		cfg->vecs = 1U;
 
+	cfg->num_rss_queues = min(cfg->vecs, AQ_CFG_NUM_RSS_QUEUES_DEF);
+
 	cfg->irq_type = aq_pci_func_get_irq_type(self->aq_pci_func);
 
 	if ((cfg->irq_type == AQ_HW_IRQ_LEGACY) ||
