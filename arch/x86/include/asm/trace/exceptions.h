@@ -5,9 +5,7 @@
 #define _TRACE_PAGE_FAULT_H
 
 #include <linux/tracepoint.h>
-
-extern int trace_irq_vector_regfunc(void);
-extern void trace_irq_vector_unregfunc(void);
+#include <asm/trace/common.h>
 
 DECLARE_EVENT_CLASS(x86_exceptions,
 

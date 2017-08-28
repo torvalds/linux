@@ -4,9 +4,11 @@
  * Copyright (C) 2013 Seiji Aguchi <seiji.aguchi@hds.com>
  *
  */
+#include <linux/jump_label.h>
+#include <linux/atomic.h>
+
 #include <asm/hw_irq.h>
 #include <asm/desc.h>
-#include <linux/atomic.h>
 
 atomic_t trace_idt_ctr = ATOMIC_INIT(0);
 struct desc_ptr trace_idt_descr = { NR_VECTORS * 16 - 1,
@@ -15,6 +17,7 @@ struct desc_ptr trace_idt_descr = { NR_VECTORS * 16 - 1,
 /* No need to be aligned, but done to keep all IDTs defined the same way. */
 gate_desc trace_idt_table[NR_VECTORS] __page_aligned_bss;
 
+DEFINE_STATIC_KEY_FALSE(trace_irqvectors_key);
 static int trace_irq_vector_refcount;
 static DEFINE_MUTEX(irq_vector_mutex);
 
@@ -36,6 +39,8 @@ static void switch_idt(void *arg)
 
 int trace_irq_vector_regfunc(void)
 {
+	static_branch_inc(&trace_irqvectors_key);
+
 	mutex_lock(&irq_vector_mutex);
 	if (!trace_irq_vector_refcount) {
 		set_trace_idt_ctr(1);
@@ -49,6 +54,8 @@ int trace_irq_vector_regfunc(void)
 
 void trace_irq_vector_unregfunc(void)
 {
+	static_branch_dec(&trace_irqvectors_key);
+
 	mutex_lock(&irq_vector_mutex);
 	trace_irq_vector_refcount--;
 	if (!trace_irq_vector_refcount) {
