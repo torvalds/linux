@@ -120,7 +120,7 @@ static const struct file_operations hfi1_file_ops = {
 	.llseek = noop_llseek,
 };
 
-static struct vm_operations_struct vm_ops = {
+static const struct vm_operations_struct vm_ops = {
 	.fault = vma_fault,
 };
 
