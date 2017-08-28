@@ -35,10 +35,11 @@ static u16 get_tcpmss(const struct nft_pktinfo *pkt, const struct dst_entry *skb
 	switch (nft_pf(pkt)) {
 	case NFPROTO_IPV4:
 		fl.u.ip4.daddr = ip_hdr(skb)->saddr;
-		minlen = sizeof(struct iphdr);
+		minlen = sizeof(struct iphdr) + sizeof(struct tcphdr);
 		break;
 	case NFPROTO_IPV6:
 		fl.u.ip6.daddr = ipv6_hdr(skb)->saddr;
+		minlen = sizeof(struct ipv6hdr) + sizeof(struct tcphdr);
 		break;
 	}
 
