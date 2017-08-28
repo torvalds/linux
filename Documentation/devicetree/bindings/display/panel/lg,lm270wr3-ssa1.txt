@@ -1,0 +1,9 @@
+LG Corporation 27" UHD TFT LCD panel
+
+It has been designed to apply eDP(HBR2, 5.4Gbps) interface.
+
+Required properties:
+- compatible: should be "lg,lm270wr3-ssa1"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.
