@@ -1082,11 +1082,14 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 
 /*vbios crtc_source_selection and encoder_setup will override fmt_C*/
-	pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
+	if (pipe_ctx->stream->signal != SIGNAL_TYPE_EDP &&
+		pipe_ctx->stream->signal != SIGNAL_TYPE_LVDS) {
+	/*for embedded panel, don't override VBIOS's setting*/
+		pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
 			pipe_ctx->stream_res.opp,
 			&stream->bit_depth_params,
 			&stream->clamping);
-
+	}
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(
 			pipe_ctx->stream_res.stream_enc,
