@@ -778,9 +778,11 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 
 
 	/* blank at encoder level */
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+		if (pipe_ctx->stream->sink->link->connector_signal == SIGNAL_TYPE_EDP)
+			link->link_enc->funcs->backlight_control(link->link_enc, false);
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
-
+	}
 	link->link_enc->funcs->connect_dig_be_to_fe(
 			link->link_enc,
 			pipe_ctx->stream_res.stream_enc->id,
@@ -792,12 +794,15 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings)
 {
 	struct encoder_unblank_param params = { { 0 } };
+	struct dc_link *link = pipe_ctx->stream->sink->link;
 
 	/* only 3 items below are used by unblank */
 	params.pixel_clk_khz =
 		pipe_ctx->stream->timing.pix_clk_khz;
 	params.link_settings.link_rate = link_settings->link_rate;
 	pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
+	if (link->connector_signal == SIGNAL_TYPE_EDP)
+			link->link_enc->funcs->backlight_control(link->link_enc, true);
 }
 
 
