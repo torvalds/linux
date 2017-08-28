@@ -25,6 +25,7 @@
 #include <linux/dmaengine.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/timer/stm32-lptim-trigger.h>
 #include <linux/iio/timer/stm32-timer-trigger.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
@@ -182,6 +183,11 @@ enum stm32_adc_extsel {
 	STM32_EXT13,
 	STM32_EXT14,
 	STM32_EXT15,
+	STM32_EXT16,
+	STM32_EXT17,
+	STM32_EXT18,
+	STM32_EXT19,
+	STM32_EXT20,
 };
 
 /**
@@ -480,6 +486,9 @@ static struct stm32_adc_trig_info stm32h7_adc_trigs[] = {
 	{ TIM4_TRGO, STM32_EXT12 },
 	{ TIM6_TRGO, STM32_EXT13 },
 	{ TIM3_CH4, STM32_EXT15 },
+	{ LPTIM1_OUT, STM32_EXT18 },
+	{ LPTIM2_OUT, STM32_EXT19 },
+	{ LPTIM3_OUT, STM32_EXT20 },
 	{},
 };
 
@@ -995,7 +1004,8 @@ static int stm32_adc_get_trig_extsel(struct iio_dev *indio_dev,
 		 * Checking both stm32 timer trigger type and trig name
 		 * should be safe against arbitrary trigger names.
 		 */
-		if (is_stm32_timer_trigger(trig) &&
+		if ((is_stm32_timer_trigger(trig) ||
+		     is_stm32_lptim_trigger(trig)) &&
 		    !strcmp(adc->cfg->trigs[i].name, trig->name)) {
 			return adc->cfg->trigs[i].extsel;
 		}
@@ -1634,7 +1644,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &stm32_adc_iio_info;
-	indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_HARDWARE_TRIGGERED;
 
 	platform_set_drvdata(pdev, adc);
 
