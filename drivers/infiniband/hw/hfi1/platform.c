@@ -944,6 +944,21 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 	if (loopback != LOOPBACK_NONE ||
 	    ppd->dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
 		ppd->driver_link_ready = 1;
+
+		if (qsfp_mod_present(ppd)) {
+			ret = acquire_chip_resource(ppd->dd,
+						    qsfp_resource(ppd->dd),
+						    QSFP_WAIT);
+			if (ret) {
+				dd_dev_err(ppd->dd, "%s: hfi%d: cannot lock i2c chain\n",
+					   __func__, (int)ppd->dd->hfi1_id);
+				goto bail;
+			}
+
+			refresh_qsfp_cache(ppd, &ppd->qsfp_info);
+			release_chip_resource(ppd->dd, qsfp_resource(ppd->dd));
+		}
+
 		return;
 	}
 
