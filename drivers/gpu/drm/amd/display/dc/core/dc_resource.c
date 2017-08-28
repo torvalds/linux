@@ -2711,7 +2711,6 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 {
 	struct dc  *core_dc = dc;
-	struct dc_context *dc_ctx = core_dc->ctx;
 	struct dc_link *link = stream->sink->link;
 	struct timing_generator *tg = core_dc->res_pool->timing_generators[0];
 	enum dc_status res = DC_OK;
@@ -2732,10 +2731,6 @@ bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 		res = dc_link_validate_mode_timing(stream,
 		      link,
 		      &stream->timing);
-
-	if (res != DC_OK)
-		DC_ERROR("Failed validation for stream %p, err:%d, !\n",
-				stream, res);
 
 	return res == DC_OK;
 }
