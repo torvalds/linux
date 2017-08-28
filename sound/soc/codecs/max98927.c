@@ -701,6 +701,31 @@ static int max98927_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int max98927_suspend(struct device *dev)
+{
+	struct max98927_priv *max98927 = dev_get_drvdata(dev);
+
+	regcache_cache_only(max98927->regmap, true);
+	regcache_mark_dirty(max98927->regmap);
+	return 0;
+}
+static int max98927_resume(struct device *dev)
+{
+	struct max98927_priv *max98927 = dev_get_drvdata(dev);
+
+	regmap_write(max98927->regmap,
+		MAX98927_R0100_SOFT_RESET, MAX98927_SOFT_RESET);
+	regcache_cache_only(max98927->regmap, false);
+	regcache_sync(max98927->regmap);
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops max98927_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(max98927_suspend, max98927_resume)
+};
+
 static const struct snd_soc_codec_driver soc_codec_dev_max98927 = {
 	.probe = max98927_probe,
 	.component_driver = {
@@ -834,7 +859,7 @@ static struct i2c_driver max98927_i2c_driver = {
 		.name = "max98927",
 		.of_match_table = of_match_ptr(max98927_of_match),
 		.acpi_match_table = ACPI_PTR(max98927_acpi_match),
-		.pm = NULL,
+		.pm = &max98927_pm,
 	},
 	.probe  = max98927_i2c_probe,
 	.remove = max98927_i2c_remove,
