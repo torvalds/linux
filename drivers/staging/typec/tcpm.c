@@ -328,10 +328,12 @@ struct pd_rx_event {
 	 (tcpm_cc_is_audio((port)->cc2) && tcpm_cc_is_open((port)->cc1)))
 
 #define tcpm_try_snk(port) \
-	((port)->try_snk_count == 0 && (port)->try_role == TYPEC_SINK)
+	((port)->try_snk_count == 0 && (port)->try_role == TYPEC_SINK && \
+	(port)->port_type == TYPEC_PORT_DRP)
 
 #define tcpm_try_src(port) \
-	((port)->try_src_count == 0 && (port)->try_role == TYPEC_SOURCE)
+	((port)->try_src_count == 0 && (port)->try_role == TYPEC_SOURCE && \
+	(port)->port_type == TYPEC_PORT_DRP)
 
 static enum tcpm_state tcpm_default_state(struct tcpm_port *port)
 {
