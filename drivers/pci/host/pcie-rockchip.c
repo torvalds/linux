@@ -543,7 +543,7 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	int err, i;
 	u32 status;
 
-	gpiod_set_value(rockchip->ep_gpio, 0);
+	gpiod_set_value_cansleep(rockchip->ep_gpio, 0);
 
 	err = reset_control_assert(rockchip->aclk_rst);
 	if (err) {
@@ -688,7 +688,7 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	rockchip_pcie_write(rockchip, PCIE_CLIENT_LINK_TRAIN_ENABLE,
 			    PCIE_CLIENT_CONFIG);
 
-	gpiod_set_value(rockchip->ep_gpio, 1);
+	gpiod_set_value_cansleep(rockchip->ep_gpio, 1);
 
 	/* 500ms timeout value should be enough for Gen1/2 training */
 	err = readl_poll_timeout(rockchip->apb_base + PCIE_CLIENT_BASIC_STATUS1,
