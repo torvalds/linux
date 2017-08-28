@@ -354,7 +354,7 @@ void set_intr_gate(unsigned int n, const void *addr)
 
 void alloc_intr_gate(unsigned int n, const void *addr)
 {
-	BUG_ON(test_bit(n, used_vectors) || n < FIRST_SYSTEM_VECTOR);
-	set_bit(n, used_vectors);
-	set_intr_gate(n, addr);
+	BUG_ON(n < FIRST_SYSTEM_VECTOR);
+	if (!test_and_set_bit(n, used_vectors))
+		set_intr_gate(n, addr);
 }
