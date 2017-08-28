@@ -597,14 +597,11 @@ exit:
 }
 
 int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
-__releases(&ring->lock)
-__acquires(&ring->lock)
 {
 	struct aq_ring_s *ring = NULL;
 	unsigned int frags = 0U;
 	unsigned int vec = skb->queue_mapping % self->aq_nic_cfg.vecs;
 	unsigned int tc = 0U;
-	unsigned int trys = AQ_CFG_LOCK_TRYS;
 	int err = NETDEV_TX_OK;
 	bool is_nic_in_bad_state;
 
@@ -628,36 +625,21 @@ __acquires(&ring->lock)
 		goto err_exit;
 	}
 
-	do {
-		if (spin_trylock(&ring->header.lock)) {
-			frags = aq_nic_map_skb(self, skb, ring);
+	frags = aq_nic_map_skb(self, skb, ring);
 
-			if (likely(frags)) {
-				err = self->aq_hw_ops.hw_ring_tx_xmit(
-								self->aq_hw,
-								ring, frags);
-				if (err >= 0) {
-					if (aq_ring_avail_dx(ring) <
-					    AQ_CFG_SKB_FRAGS_MAX + 1)
-						aq_nic_ndev_queue_stop(
-								self,
-								ring->idx);
+	if (likely(frags)) {
+		err = self->aq_hw_ops.hw_ring_tx_xmit(self->aq_hw,
+						      ring,
+						      frags);
+		if (err >= 0) {
+			if (aq_ring_avail_dx(ring) < AQ_CFG_SKB_FRAGS_MAX + 1)
+				aq_nic_ndev_queue_stop(self, ring->idx);
 
-					++ring->stats.tx.packets;
-					ring->stats.tx.bytes += skb->len;
-				}
-			} else {
-				err = NETDEV_TX_BUSY;
-			}
-
-			spin_unlock(&ring->header.lock);
-			break;
+			++ring->stats.tx.packets;
+			ring->stats.tx.bytes += skb->len;
 		}
-	} while (--trys);
-
-	if (!trys) {
+	} else {
 		err = NETDEV_TX_BUSY;
-		goto err_exit;
 	}
 
 err_exit:
