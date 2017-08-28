@@ -6175,7 +6175,7 @@ static int setup_txselect(const char *str, struct kernel_param *kp)
 	unsigned long val;
 	char *n;
 
-	if (strlen(str) >= MAX_ATTEN_LEN) {
+	if (strlen(str) >= ARRAY_SIZE(txselect_list)) {
 		pr_info("txselect_values string too long\n");
 		return -ENOSPC;
 	}
@@ -6186,7 +6186,7 @@ static int setup_txselect(const char *str, struct kernel_param *kp)
 			TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ + TXDDS_MFG_SZ);
 		return -EINVAL;
 	}
-	strcpy(txselect_list, str);
+	strncpy(txselect_list, str, ARRAY_SIZE(txselect_list) - 1);
 
 	list_for_each_entry(dd, &qib_dev_list, list)
 		if (dd->deviceid == PCI_DEVICE_ID_QLOGIC_IB_7322)
