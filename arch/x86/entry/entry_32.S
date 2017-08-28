@@ -891,14 +891,6 @@ BUILD_INTERRUPT3(hyperv_callback_vector, HYPERVISOR_CALLBACK_VECTOR,
 
 #endif /* CONFIG_HYPERV */
 
-#ifdef CONFIG_TRACING
-ENTRY(trace_page_fault)
-	ASM_CLAC
-	pushl	$trace_do_page_fault
-	jmp	common_exception
-END(trace_page_fault)
-#endif
-
 ENTRY(page_fault)
 	ASM_CLAC
 	pushl	$do_page_fault

@@ -39,7 +39,6 @@ asmlinkage void machine_check(void);
 asmlinkage void simd_coprocessor_error(void);
 
 #ifdef CONFIG_TRACING
-asmlinkage void trace_page_fault(void);
 #define trace_stack_segment stack_segment
 #define trace_divide_error divide_error
 #define trace_bounds bounds
@@ -54,6 +53,7 @@ asmlinkage void trace_page_fault(void);
 #define trace_alignment_check alignment_check
 #define trace_simd_coprocessor_error simd_coprocessor_error
 #define trace_async_page_fault async_page_fault
+#define trace_page_fault page_fault
 #endif
 
 dotraplinkage void do_divide_error(struct pt_regs *, long);
@@ -74,14 +74,6 @@ asmlinkage struct pt_regs *sync_regs(struct pt_regs *);
 #endif
 dotraplinkage void do_general_protection(struct pt_regs *, long);
 dotraplinkage void do_page_fault(struct pt_regs *, unsigned long);
-#ifdef CONFIG_TRACING
-dotraplinkage void trace_do_page_fault(struct pt_regs *, unsigned long);
-#else
-static inline void trace_do_page_fault(struct pt_regs *regs, unsigned long error)
-{
-	do_page_fault(regs, error);
-}
-#endif
 dotraplinkage void do_spurious_interrupt_bug(struct pt_regs *, long);
 dotraplinkage void do_coprocessor_error(struct pt_regs *, long);
 dotraplinkage void do_alignment_check(struct pt_regs *, long);
