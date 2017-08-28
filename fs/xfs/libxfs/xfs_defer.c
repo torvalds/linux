@@ -281,7 +281,7 @@ xfs_defer_has_unfinished_work(
  * to xfs_defer_finish().
  */
 int
-xfs_defer_join(
+xfs_defer_ijoin(
 	struct xfs_defer_ops		*dop,
 	struct xfs_inode		*ip)
 {
@@ -324,7 +324,7 @@ xfs_defer_finish(
 
 	trace_xfs_defer_finish((*tp)->t_mountp, dop);
 
-	xfs_defer_join(dop, ip);
+	xfs_defer_ijoin(dop, ip);
 
 	/* Until we run out of pending work to finish... */
 	while (xfs_defer_has_unfinished_work(dop)) {

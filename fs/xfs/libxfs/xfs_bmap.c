@@ -6452,7 +6452,7 @@ __xfs_bmap_add(
 	bi->bi_whichfork = whichfork;
 	bi->bi_bmap = *bmap;
 
-	error = xfs_defer_join(dfops, bi->bi_owner);
+	error = xfs_defer_ijoin(dfops, bi->bi_owner);
 	if (error) {
 		kmem_free(bi);
 		return error;
