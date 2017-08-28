@@ -930,6 +930,27 @@ int wil_ps_update(struct wil6210_priv *wil, enum wmi_ps_profile_type ps_profile)
 	return rc;
 }
 
+static void wil_pre_fw_config(struct wil6210_priv *wil)
+{
+	/* Mark FW as loaded from host */
+	wil_s(wil, RGF_USER_USAGE_6, 1);
+
+	/* clear any interrupts which on-card-firmware
+	 * may have set
+	 */
+	wil6210_clear_irq(wil);
+	/* CAF_ICR - clear and mask */
+	/* it is W1C, clear by writing back same value */
+	wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
+	wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
+
+	if (wil->fw_calib_result > 0) {
+		__le32 val = cpu_to_le32(wil->fw_calib_result |
+						(CALIB_RESULT_SIGNATURE << 8));
+		wil_w(wil, RGF_USER_FW_CALIB_RESULT, (u32 __force)val);
+	}
+}
+
 /*
  * We reset all the structures, and we reset the UMAC.
  * After calling this routine, you're expected to reload
@@ -1023,24 +1044,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		if (rc)
 			return rc;
 
-		/* Mark FW as loaded from host */
-		wil_s(wil, RGF_USER_USAGE_6, 1);
-
-		/* clear any interrupts which on-card-firmware
-		 * may have set
-		 */
-		wil6210_clear_irq(wil);
-		/* CAF_ICR - clear and mask */
-		/* it is W1C, clear by writing back same value */
-		wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
-		wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
-
-		if (wil->fw_calib_result > 0) {
-			__le32 val = cpu_to_le32(wil->fw_calib_result |
-						 (CALIB_RESULT_SIGNATURE << 8));
-			wil_w(wil, RGF_USER_FW_CALIB_RESULT, (u32 __force)val);
-		}
-
+		wil_pre_fw_config(wil);
 		wil_release_cpu(wil);
 	}
 
