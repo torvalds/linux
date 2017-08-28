@@ -103,6 +103,46 @@ static const __initdata struct idt_data def_idts[] = {
 #endif
 };
 
+/*
+ * The APIC and SMP idt entries
+ */
+static const __initdata struct idt_data apic_idts[] = {
+#ifdef CONFIG_SMP
+	INTG(RESCHEDULE_VECTOR,		reschedule_interrupt),
+	INTG(CALL_FUNCTION_VECTOR,	call_function_interrupt),
+	INTG(CALL_FUNCTION_SINGLE_VECTOR, call_function_single_interrupt),
+	INTG(IRQ_MOVE_CLEANUP_VECTOR,	irq_move_cleanup_interrupt),
+	INTG(REBOOT_VECTOR,		reboot_interrupt),
+#endif
+
+#ifdef CONFIG_X86_THERMAL_VECTOR
+	INTG(THERMAL_APIC_VECTOR,	thermal_interrupt),
+#endif
+
+#ifdef CONFIG_X86_MCE_THRESHOLD
+	INTG(THRESHOLD_APIC_VECTOR,	threshold_interrupt),
+#endif
+
+#ifdef CONFIG_X86_MCE_AMD
+	INTG(DEFERRED_ERROR_VECTOR,	deferred_error_interrupt),
+#endif
+
+#ifdef CONFIG_X86_LOCAL_APIC
+	INTG(LOCAL_TIMER_VECTOR,	apic_timer_interrupt),
+	INTG(X86_PLATFORM_IPI_VECTOR,	x86_platform_ipi),
+# ifdef CONFIG_HAVE_KVM
+	INTG(POSTED_INTR_VECTOR,	kvm_posted_intr_ipi),
+	INTG(POSTED_INTR_WAKEUP_VECTOR, kvm_posted_intr_wakeup_ipi),
+	INTG(POSTED_INTR_NESTED_VECTOR, kvm_posted_intr_nested_ipi),
+# endif
+# ifdef CONFIG_IRQ_WORK
+	INTG(IRQ_WORK_VECTOR,		irq_work_interrupt),
+# endif
+	INTG(SPURIOUS_APIC_VECTOR,	spurious_interrupt),
+	INTG(ERROR_APIC_VECTOR,		error_interrupt),
+#endif
+};
+
 #ifdef CONFIG_X86_64
 /*
  * Early traps running on the DEFAULT_STACK because the other interrupt
@@ -240,6 +280,14 @@ void __init idt_setup_debugidt_traps(void)
 	idt_setup_from_table(debug_idt_table, dbg_idts, ARRAY_SIZE(dbg_idts));
 }
 #endif
+
+/**
+ * idt_setup_apic_and_irq_gates - Setup APIC/SMP and normal interrupt gates
+ */
+void __init idt_setup_apic_and_irq_gates(void)
+{
+	idt_setup_from_table(idt_table, apic_idts, ARRAY_SIZE(apic_idts));
+}
 
 /**
  * idt_setup_early_handler - Initializes the idt table with early handlers

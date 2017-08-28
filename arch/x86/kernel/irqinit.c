@@ -87,73 +87,6 @@ void __init init_IRQ(void)
 	x86_init.irqs.intr_init();
 }
 
-static void __init smp_intr_init(void)
-{
-#ifdef CONFIG_SMP
-	/*
-	 * The reschedule interrupt is a CPU-to-CPU reschedule-helper
-	 * IPI, driven by wakeup.
-	 */
-	alloc_intr_gate(RESCHEDULE_VECTOR, reschedule_interrupt);
-
-	/* IPI for generic function call */
-	alloc_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
-
-	/* IPI for generic single function call */
-	alloc_intr_gate(CALL_FUNCTION_SINGLE_VECTOR,
-			call_function_single_interrupt);
-
-	/* Low priority IPI to cleanup after moving an irq */
-	set_intr_gate(IRQ_MOVE_CLEANUP_VECTOR, irq_move_cleanup_interrupt);
-	set_bit(IRQ_MOVE_CLEANUP_VECTOR, used_vectors);
-
-	/* IPI used for rebooting/stopping */
-	alloc_intr_gate(REBOOT_VECTOR, reboot_interrupt);
-#endif /* CONFIG_SMP */
-}
-
-static void __init apic_intr_init(void)
-{
-	smp_intr_init();
-
-#ifdef CONFIG_X86_THERMAL_VECTOR
-	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
-#endif
-#ifdef CONFIG_X86_MCE_THRESHOLD
-	alloc_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
-#endif
-
-#ifdef CONFIG_X86_MCE_AMD
-	alloc_intr_gate(DEFERRED_ERROR_VECTOR, deferred_error_interrupt);
-#endif
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	/* self generated IPI for local APIC timer */
-	alloc_intr_gate(LOCAL_TIMER_VECTOR, apic_timer_interrupt);
-
-	/* IPI for X86 platform specific use */
-	alloc_intr_gate(X86_PLATFORM_IPI_VECTOR, x86_platform_ipi);
-#ifdef CONFIG_HAVE_KVM
-	/* IPI for KVM to deliver posted interrupt */
-	alloc_intr_gate(POSTED_INTR_VECTOR, kvm_posted_intr_ipi);
-	/* IPI for KVM to deliver interrupt to wake up tasks */
-	alloc_intr_gate(POSTED_INTR_WAKEUP_VECTOR, kvm_posted_intr_wakeup_ipi);
-	/* IPI for KVM to deliver nested posted interrupt */
-	alloc_intr_gate(POSTED_INTR_NESTED_VECTOR, kvm_posted_intr_nested_ipi);
-#endif
-
-	/* IPI vectors for APIC spurious and error interrupts */
-	alloc_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);
-	alloc_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
-
-	/* IRQ work interrupts: */
-# ifdef CONFIG_IRQ_WORK
-	alloc_intr_gate(IRQ_WORK_VECTOR, irq_work_interrupt);
-# endif
-
-#endif
-}
-
 void __init native_init_IRQ(void)
 {
 	int i;
@@ -161,7 +94,7 @@ void __init native_init_IRQ(void)
 	/* Execute any quirks before the call gates are initialised: */
 	x86_init.irqs.pre_vector_init();
 
-	apic_intr_init();
+	idt_setup_apic_and_irq_gates();
 
 	/*
 	 * Cover the whole vector space, no vector can escape
