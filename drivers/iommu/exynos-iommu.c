@@ -565,7 +565,7 @@ static void sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
 	spin_unlock_irqrestore(&data->lock, flags);
 }
 
-static struct iommu_ops exynos_iommu_ops;
+static const struct iommu_ops exynos_iommu_ops;
 
 static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 {
@@ -1326,7 +1326,7 @@ static int exynos_iommu_of_xlate(struct device *dev,
 	return 0;
 }
 
-static struct iommu_ops exynos_iommu_ops = {
+static const struct iommu_ops exynos_iommu_ops = {
 	.domain_alloc = exynos_iommu_domain_alloc,
 	.domain_free = exynos_iommu_domain_free,
 	.attach_dev = exynos_iommu_attach_device,
