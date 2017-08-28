@@ -1156,8 +1156,14 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_host;
 
+	/*
+	 * Set phases : These values are mostly the datasheet recommended ones
+	 * except for the Tx phase. Datasheet recommends 180 but some cards
+	 * fail at initialisation with it. 270 works just fine, it fixes these
+	 * initialisation issues and enable eMMC DDR52 mode.
+	 */
 	host->tp.core_phase = 180;
-	host->tp.tx_phase = 0;
+	host->tp.tx_phase = 270;
 	host->tp.rx_phase = 0;
 
 	ret = meson_mmc_clk_init(host);
