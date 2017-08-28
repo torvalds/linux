@@ -39,8 +39,6 @@ struct bpf_map_ops {
 	void (*map_fd_put_ptr)(void *ptr);
 	u32 (*map_gen_lookup)(struct bpf_map *map, struct bpf_insn *insn_buf);
 	u32 (*map_fd_sys_lookup_elem)(void *ptr);
-	int (*map_attach)(struct bpf_map *map,
-			  struct bpf_prog *p1, struct bpf_prog *p2);
 };
 
 struct bpf_map {
@@ -387,10 +385,18 @@ static inline void __dev_map_flush(struct bpf_map *map)
 
 #if defined(CONFIG_STREAM_PARSER) && defined(CONFIG_BPF_SYSCALL)
 struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key);
+int sock_map_attach_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type);
 #else
 static inline struct sock  *__sock_map_lookup_elem(struct bpf_map *map, u32 key)
 {
 	return NULL;
+}
+
+static inline int sock_map_attach_prog(struct bpf_map *map,
+				       struct bpf_prog *prog,
+				       u32 type)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 

@@ -256,8 +256,16 @@ int main(int argc, char **argv)
 	}
 
 	/* Attach programs to sockmap */
-	err = __bpf_prog_attach(prog_fd[0], prog_fd[1], map_fd[0],
-				BPF_CGROUP_SMAP_INGRESS, 0);
+	err = bpf_prog_attach(prog_fd[0], map_fd[0],
+				BPF_SK_SKB_STREAM_PARSER, 0);
+	if (err) {
+		fprintf(stderr, "ERROR: bpf_prog_attach (sockmap): %d (%s)\n",
+			err, strerror(errno));
+		return err;
+	}
+
+	err = bpf_prog_attach(prog_fd[1], map_fd[0],
+				BPF_SK_SKB_STREAM_VERDICT, 0);
 	if (err) {
 		fprintf(stderr, "ERROR: bpf_prog_attach (sockmap): %d (%s)\n",
 			err, strerror(errno));
