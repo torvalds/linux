@@ -137,6 +137,10 @@ struct meson_host {
 	struct clk *mmc_clk;
 	unsigned long req_rate;
 
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *pins_default;
+	struct pinctrl_state *pins_clk_gate;
+
 	unsigned int bounce_buf_size;
 	void *bounce_buf;
 	dma_addr_t bounce_dma_addr;
@@ -272,6 +276,42 @@ static bool meson_mmc_timing_is_ddr(struct mmc_ios *ios)
 	return false;
 }
 
+/*
+ * Gating the clock on this controller is tricky.  It seems the mmc clock
+ * is also used by the controller.  It may crash during some operation if the
+ * clock is stopped.  The safest thing to do, whenever possible, is to keep
+ * clock running at stop it at the pad using the pinmux.
+ */
+static void meson_mmc_clk_gate(struct meson_host *host)
+{
+	u32 cfg;
+
+	if (host->pins_clk_gate) {
+		pinctrl_select_state(host->pinctrl, host->pins_clk_gate);
+	} else {
+		/*
+		 * If the pinmux is not provided - default to the classic and
+		 * unsafe method
+		 */
+		cfg = readl(host->regs + SD_EMMC_CFG);
+		cfg |= CFG_STOP_CLOCK;
+		writel(cfg, host->regs + SD_EMMC_CFG);
+	}
+}
+
+static void meson_mmc_clk_ungate(struct meson_host *host)
+{
+	u32 cfg;
+
+	if (host->pins_clk_gate)
+		pinctrl_select_state(host->pinctrl, host->pins_default);
+
+	/* Make sure the clock is not stopped in the controller */
+	cfg = readl(host->regs + SD_EMMC_CFG);
+	cfg &= ~CFG_STOP_CLOCK;
+	writel(cfg, host->regs + SD_EMMC_CFG);
+}
+
 static int meson_mmc_clk_set(struct meson_host *host, struct mmc_ios *ios)
 {
 	struct mmc_host *mmc = host->mmc;
@@ -288,9 +328,7 @@ static int meson_mmc_clk_set(struct meson_host *host, struct mmc_ios *ios)
 		return 0;
 
 	/* stop clock */
-	cfg = readl(host->regs + SD_EMMC_CFG);
-	cfg |= CFG_STOP_CLOCK;
-	writel(cfg, host->regs + SD_EMMC_CFG);
+	meson_mmc_clk_gate(host);
 	host->req_rate = 0;
 
 	if (!rate) {
@@ -298,6 +336,11 @@ static int meson_mmc_clk_set(struct meson_host *host, struct mmc_ios *ios)
 		/* return with clock being stopped */
 		return 0;
 	}
+
+	/* Stop the clock during rate change to avoid glitches */
+	cfg = readl(host->regs + SD_EMMC_CFG);
+	cfg |= CFG_STOP_CLOCK;
+	writel(cfg, host->regs + SD_EMMC_CFG);
 
 	ret = clk_set_rate(host->mmc_clk, rate);
 	if (ret) {
@@ -318,9 +361,7 @@ static int meson_mmc_clk_set(struct meson_host *host, struct mmc_ios *ios)
 		dev_dbg(host->dev, "requested rate was %u\n", ios->clock);
 
 	/* (re)start clock */
-	cfg = readl(host->regs + SD_EMMC_CFG);
-	cfg &= ~CFG_STOP_CLOCK;
-	writel(cfg, host->regs + SD_EMMC_CFG);
+	meson_mmc_clk_ungate(host);
 
 	return 0;
 }
@@ -929,6 +970,27 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get interrupt resource.\n");
 		ret = -EINVAL;
 		goto free_host;
+	}
+
+	host->pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR(host->pinctrl)) {
+		ret = PTR_ERR(host->pinctrl);
+		goto free_host;
+	}
+
+	host->pins_default = pinctrl_lookup_state(host->pinctrl,
+						  PINCTRL_STATE_DEFAULT);
+	if (IS_ERR(host->pins_default)) {
+		ret = PTR_ERR(host->pins_default);
+		goto free_host;
+	}
+
+	host->pins_clk_gate = pinctrl_lookup_state(host->pinctrl,
+						   "clk-gate");
+	if (IS_ERR(host->pins_clk_gate)) {
+		dev_warn(&pdev->dev,
+			 "can't get clk-gate pinctrl, using clk_stop bit\n");
+		host->pins_clk_gate = NULL;
 	}
 
 	host->core_clk = devm_clk_get(&pdev->dev, "core");
