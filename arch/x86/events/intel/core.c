@@ -3820,19 +3820,9 @@ static ssize_t pmu_name_show(struct device *cdev,
 
 static DEVICE_ATTR_RO(pmu_name);
 
-static ssize_t max_precise_show(struct device *cdev,
-				  struct device_attribute *attr,
-				  char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", x86_pmu_max_precise());
-}
-
-static DEVICE_ATTR_RO(max_precise);
-
 static struct attribute *intel_pmu_caps_attrs[] = {
-	&dev_attr_pmu_name.attr,
-	&dev_attr_max_precise.attr,
-	NULL
+       &dev_attr_pmu_name.attr,
+       NULL
 };
 
 static struct attribute *intel_pmu_attrs[] = {
