@@ -766,6 +766,9 @@ static int wacom_led_control(struct wacom *wacom)
 	if (!wacom->led.groups)
 		return -ENOTSUPP;
 
+	if (wacom->wacom_wac.features.type == REMOTE)
+		return -ENOTSUPP;
+
 	if (wacom->wacom_wac.pid) { /* wireless connected */
 		report_id = WAC_CMD_WL_LED_CONTROL;
 		buf_size = 13;
