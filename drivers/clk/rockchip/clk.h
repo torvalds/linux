@@ -320,8 +320,7 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 					 u8 num_parents, int mux_offset,
 					 int mux_shift, int mux_width,
 					 int div_shift, int div_width,
-					 int ddr_flags, void __iomem *reg_base,
-					 spinlock_t *lock);
+					 int ddr_flags, void __iomem *reg_base);
 
 #define ROCKCHIP_INVERTER_HIWORD_MASK	BIT(0)
 

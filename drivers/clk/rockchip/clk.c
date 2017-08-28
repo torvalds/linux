@@ -542,7 +542,7 @@ void __init rockchip_clk_register_branches(
 				list->muxdiv_offset, list->mux_shift,
 				list->mux_width, list->div_shift,
 				list->div_width, list->div_flags,
-				ctx->reg_base, &ctx->lock);
+				ctx->reg_base);
 			break;
 		}
 
