@@ -205,6 +205,7 @@ static int usbport_trig_add_port(struct usbport_trig_data *usbport_data,
 	}
 	snprintf(port->port_name, len, "%s-port%d", hub_name, portnum);
 
+	sysfs_attr_init(&port->attr.attr);
 	port->attr.attr.name = port->port_name;
 	port->attr.attr.mode = S_IRUSR | S_IWUSR;
 	port->attr.show = usbport_trig_port_show;
