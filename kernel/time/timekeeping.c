@@ -60,8 +60,27 @@ struct tk_fast {
 	struct tk_read_base	base[2];
 };
 
-static struct tk_fast tk_fast_mono ____cacheline_aligned;
-static struct tk_fast tk_fast_raw  ____cacheline_aligned;
+/* Suspend-time cycles value for halted fast timekeeper. */
+static u64 cycles_at_suspend;
+
+static u64 dummy_clock_read(struct clocksource *cs)
+{
+	return cycles_at_suspend;
+}
+
+static struct clocksource dummy_clock = {
+	.read = dummy_clock_read,
+};
+
+static struct tk_fast tk_fast_mono ____cacheline_aligned = {
+	.base[0] = { .clock = &dummy_clock, },
+	.base[1] = { .clock = &dummy_clock, },
+};
+
+static struct tk_fast tk_fast_raw  ____cacheline_aligned = {
+	.base[0] = { .clock = &dummy_clock, },
+	.base[1] = { .clock = &dummy_clock, },
+};
 
 /* flag for if timekeeping is suspended */
 int __read_mostly timekeeping_suspended;
@@ -476,18 +495,6 @@ u64 notrace ktime_get_boot_fast_ns(void)
 	return (ktime_get_mono_fast_ns() + ktime_to_ns(tk->offs_boot));
 }
 EXPORT_SYMBOL_GPL(ktime_get_boot_fast_ns);
-
-/* Suspend-time cycles value for halted fast timekeeper. */
-static u64 cycles_at_suspend;
-
-static u64 dummy_clock_read(struct clocksource *cs)
-{
-	return cycles_at_suspend;
-}
-
-static struct clocksource dummy_clock = {
-	.read = dummy_clock_read,
-};
 
 /**
  * halt_fast_timekeeper - Prevent fast timekeeper from accessing clocksource.
