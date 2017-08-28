@@ -18,6 +18,21 @@
 		function = "emmc";
 	};
 
+	pinctrl_ether_mii: ether_mii_grp {
+		groups = "ether_mii";
+		function = "ether_mii";
+	};
+
+	pinctrl_ether_rgmii: ether_rgmii_grp {
+		groups = "ether_rgmii";
+		function = "ether_rgmii";
+	};
+
+	pinctrl_ether_rmii: ether_rmii_grp {
+		groups = "ether_rmii";
+		function = "ether_rmii";
+	};
+
 	pinctrl_i2c0: i2c0_grp {
 		groups = "i2c0";
 		function = "i2c0";
