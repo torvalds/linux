@@ -261,31 +261,34 @@ bool resource_construct(
 }
 
 
-void resource_unreference_clock_source(
+bool resource_unreference_clock_source(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		struct clock_source **clock_source)
+		struct clock_source *clock_source)
 {
 	int i;
+	bool need_reset = false;
+
 	for (i = 0; i < pool->clk_src_count; i++) {
-		if (pool->clock_sources[i] != *clock_source)
+		if (pool->clock_sources[i] != clock_source)
 			continue;
 
 		res_ctx->clock_source_ref_count[i]--;
 
 		if (res_ctx->clock_source_ref_count[i] == 0)
-			(*clock_source)->funcs->cs_power_down(*clock_source);
+			need_reset = true;
 
 		break;
 	}
 
-	if (pool->dp_clock_source == *clock_source) {
+	if (pool->dp_clock_source == clock_source) {
 		res_ctx->dp_clock_source_ref_count--;
 
 		if (res_ctx->dp_clock_source_ref_count == 0)
-			(*clock_source)->funcs->cs_power_down(*clock_source);
+			need_reset = true;
 	}
-	*clock_source = NULL;
+
+	return need_reset;
 }
 
 void resource_reference_clock_source(
@@ -1756,10 +1759,14 @@ bool dc_validate_global_state(
 			if (dc_is_dp_signal(pipe_ctx->stream->signal) &&
 				!find_pll_sharable_stream(stream, new_ctx)) {
 
-				resource_unreference_clock_source(
+				if (resource_unreference_clock_source(
 						&new_ctx->res_ctx,
 						dc->res_pool,
-						&pipe_ctx->clock_source);
+						pipe_ctx->clock_source)) {
+					pipe_ctx->clock_source->funcs->cs_power_down(pipe_ctx->clock_source);
+					pipe_ctx->clock_source = NULL;
+				}
+
 				pipe_ctx->clock_source = dc->res_pool->dp_clock_source;
 				resource_reference_clock_source(
 						&new_ctx->res_ctx,

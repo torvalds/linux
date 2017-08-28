@@ -1045,9 +1045,12 @@ static void reset_back_end_for_pipe(
 	}
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		resource_unreference_clock_source(
-			&context->res_ctx, dc->res_pool,
-			&pipe_ctx->clock_source);
+		if (resource_unreference_clock_source(&context->res_ctx,
+		    dc->res_pool, pipe_ctx->clock_source)) {
+			pipe_ctx->clock_source->funcs->cs_power_down(pipe_ctx->clock_source);
+			pipe_ctx->clock_source = NULL;
+		}
+
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (&dc->current_state->res_ctx.pipe_ctx[i] == pipe_ctx)

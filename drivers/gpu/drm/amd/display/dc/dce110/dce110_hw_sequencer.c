@@ -1362,9 +1362,12 @@ static void switch_dp_clock_sources(
 
 			if (clk_src &&
 				clk_src != pipe_ctx->clock_source) {
-				resource_unreference_clock_source(
-					res_ctx, dc->res_pool,
-					&pipe_ctx->clock_source);
+				if (resource_unreference_clock_source(res_ctx,
+				    dc->res_pool, pipe_ctx->clock_source)) {
+					pipe_ctx->clock_source->funcs->cs_power_down(pipe_ctx->clock_source);
+					pipe_ctx->clock_source = NULL;
+				}
+
 				pipe_ctx->clock_source = clk_src;
 				resource_reference_clock_source(
 						res_ctx, dc->res_pool, clk_src);
@@ -1680,9 +1683,12 @@ static void dce110_reset_hw_ctx_wrap(
 			pipe_ctx_old->stream_res.tg->funcs->disable_crtc(pipe_ctx_old->stream_res.tg);
 			pipe_ctx_old->plane_res.mi->funcs->free_mem_input(
 					pipe_ctx_old->plane_res.mi, dc->current_state->stream_count);
-			resource_unreference_clock_source(
+			if (resource_unreference_clock_source(
 					&dc->current_state->res_ctx, dc->res_pool,
-					&pipe_ctx_old->clock_source);
+					pipe_ctx_old->clock_source)) {
+				pipe_ctx_old->clock_source->funcs->cs_power_down(pipe_ctx_old->clock_source);
+				pipe_ctx_old->clock_source = NULL;
+			}
 
 			dc->hwss.power_down_front_end(dc, pipe_ctx_old->pipe_idx);
 
