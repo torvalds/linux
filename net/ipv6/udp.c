@@ -1472,6 +1472,9 @@ int compat_udpv6_getsockopt(struct sock *sk, int level, int optname,
 }
 #endif
 
+/* thinking of making this const? Don't.
+ * early_demux can change based on sysctl.
+ */
 static struct inet6_protocol udpv6_protocol = {
 	.early_demux	=	udp_v6_early_demux,
 	.early_demux_handler =  udp_v6_early_demux,
