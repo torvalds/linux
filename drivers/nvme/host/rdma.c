@@ -857,24 +857,8 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 			goto requeue;
 	}
 
-	nvme_rdma_stop_and_free_queue(&ctrl->queues[0]);
-
-	ret = blk_mq_reinit_tagset(&ctrl->admin_tag_set,
-				   nvme_rdma_reinit_request);
-	if (ret)
-		goto requeue;
-
-	ret = nvme_rdma_init_queue(ctrl, 0, NVME_AQ_DEPTH);
-	if (ret)
-		goto requeue;
-
-	ret = nvmf_connect_admin_queue(&ctrl->ctrl);
-	if (ret)
-		goto requeue;
-
-	set_bit(NVME_RDMA_Q_LIVE, &ctrl->queues[0].flags);
-
-	ret = nvme_enable_ctrl(&ctrl->ctrl, ctrl->ctrl.cap);
+	nvme_rdma_destroy_admin_queue(ctrl, false);
+	ret = nvme_rdma_configure_admin_queue(ctrl, false);
 	if (ret)
 		goto requeue;
 
