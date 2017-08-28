@@ -749,7 +749,7 @@ static int smscore_sendrequest_and_wait(struct smscore_device_t *coredev,
 		void *buffer, size_t size, struct completion *completion) {
 	int rc;
 
-	if (completion == NULL)
+	if (!completion)
 		return -EINVAL;
 	init_completion(completion);
 
@@ -1151,8 +1151,8 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 	}
 	pr_debug("Firmware name: %s\n", fw_filename);
 
-	if (loadfirmware_handler == NULL && !(coredev->device_flags
-			& SMS_DEVICE_FAMILY2))
+	if (!loadfirmware_handler &&
+	    !(coredev->device_flags & SMS_DEVICE_FAMILY2))
 		return -EINVAL;
 
 	rc = request_firmware(&fw, fw_filename, coredev->device);
@@ -1789,7 +1789,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 	struct sms_msg_hdr *phdr = (struct sms_msg_hdr *) buffer;
 	int rc;
 
-	if (client == NULL) {
+	if (!client) {
 		pr_err("Got NULL client\n");
 		return -EINVAL;
 	}
@@ -1797,7 +1797,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 	coredev = client->coredev;
 
 	/* check that no other channel with same id exists */
-	if (coredev == NULL) {
+	if (!coredev) {
 		pr_err("Got NULL coredev\n");
 		return -EINVAL;
 	}
@@ -1954,7 +1954,7 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 pin_num,
 	if (pin_num > MAX_GPIO_PIN_NUMBER)
 		return -EINVAL;
 
-	if (p_gpio_config == NULL)
+	if (!p_gpio_config)
 		return -EINVAL;
 
 	total_len = sizeof(struct sms_msg_hdr) + (sizeof(u32) * 6);

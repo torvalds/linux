@@ -357,14 +357,14 @@ static int sp2_exit(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
-	if (client == NULL)
+	if (!client)
 		return 0;
 
 	s = i2c_get_clientdata(client);
-	if (s == NULL)
+	if (!s)
 		return 0;
 
-	if (s->ca.data == NULL)
+	if (!s->ca.data)
 		return 0;
 
 	dvb_ca_en50221_release(&s->ca);

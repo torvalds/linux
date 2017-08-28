@@ -1590,7 +1590,7 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	spin_lock_init(&isc->dma_queue_lock);
 
 	sd_entity->config = v4l2_subdev_alloc_pad_config(sd_entity->sd);
-	if (sd_entity->config == NULL)
+	if (!sd_entity->config)
 		return -ENOMEM;
 
 	ret = isc_formats_init(isc);
@@ -1714,7 +1714,7 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 
 		subdev_entity = devm_kzalloc(dev,
 					  sizeof(*subdev_entity), GFP_KERNEL);
-		if (subdev_entity == NULL) {
+		if (!subdev_entity) {
 			of_node_put(rem);
 			ret = -ENOMEM;
 			break;
@@ -1722,7 +1722,7 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 
 		subdev_entity->asd = devm_kzalloc(dev,
 				     sizeof(*subdev_entity->asd), GFP_KERNEL);
-		if (subdev_entity->asd == NULL) {
+		if (!subdev_entity->asd) {
 			of_node_put(rem);
 			ret = -ENOMEM;
 			break;

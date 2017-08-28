@@ -328,7 +328,7 @@ static int WriteTable(struct drxd_state *state, u8 * pTable)
 {
 	int status = 0;
 
-	if (pTable == NULL)
+	if (!pTable)
 		return 0;
 
 	while (!status) {
@@ -909,7 +909,7 @@ static int load_firmware(struct drxd_state *state, const char *fw_name)
 	}
 
 	state->microcode = kmemdup(fw->data, fw->size, GFP_KERNEL);
-	if (state->microcode == NULL) {
+	if (!state->microcode) {
 		release_firmware(fw);
 		return -ENOMEM;
 	}
@@ -2629,7 +2629,7 @@ static int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 			break;
 
 		/* Apply I2c address patch to B1 */
-		if (!state->type_A && state->m_HiI2cPatch != NULL) {
+		if (!state->type_A && state->m_HiI2cPatch) {
 			status = WriteTable(state, state->m_HiI2cPatch);
 			if (status < 0)
 				break;
