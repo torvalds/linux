@@ -885,3 +885,36 @@ drm_syncobj_wait_ioctl(struct drm_device *dev, void *data,
 
 	return ret;
 }
+
+int
+drm_syncobj_reset_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_private)
+{
+	struct drm_syncobj_array *args = data;
+	struct drm_syncobj **syncobjs;
+	uint32_t i;
+	int ret;
+
+	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
+		return -ENODEV;
+
+	if (args->pad != 0)
+		return -EINVAL;
+
+	if (args->count_handles == 0)
+		return -EINVAL;
+
+	ret = drm_syncobj_array_find(file_private,
+				     u64_to_user_ptr(args->handles),
+				     args->count_handles,
+				     &syncobjs);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < args->count_handles; i++)
+		drm_syncobj_replace_fence(syncobjs[i], NULL);
+
+	drm_syncobj_array_free(syncobjs, args->count_handles);
+
+	return 0;
+}
