@@ -659,7 +659,7 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   qp->s_avail,
 		   /* ack_queue ring pointers, size */
 		   qp->s_tail_ack_queue, qp->r_head_ack_queue,
-		   HFI1_MAX_RDMA_ATOMIC,
+		   rvt_max_atomic(&to_idev(qp->ibqp.device)->rdi),
 		   /* remote QP info  */
 		   qp->remote_qpn,
 		   rdma_ah_get_dlid(&qp->remote_ah_attr),
