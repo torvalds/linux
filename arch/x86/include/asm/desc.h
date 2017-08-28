@@ -503,4 +503,7 @@ static inline void load_current_idt(void)
 	else
 		load_idt((const struct desc_ptr *)&idt_descr);
 }
+
+extern void idt_invalidate(void *addr);
+
 #endif /* _ASM_X86_DESC_H */

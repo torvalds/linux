@@ -24,3 +24,14 @@ const struct desc_ptr debug_idt_descr = {
 	.address	= (unsigned long) debug_idt_table,
 };
 #endif
+
+/**
+ * idt_invalidate - Invalidate interrupt descriptor table
+ * @addr:	The virtual address of the 'invalid' IDT
+ */
+void idt_invalidate(void *addr)
+{
+	struct desc_ptr idt = { .address = (unsigned long) addr, .size = 0 };
+
+	load_idt(&idt);
+}
