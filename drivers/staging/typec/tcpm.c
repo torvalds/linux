@@ -90,9 +90,11 @@
 	S(PR_SWAP_START),			\
 	S(PR_SWAP_SRC_SNK_TRANSITION_OFF),	\
 	S(PR_SWAP_SRC_SNK_SOURCE_OFF),		\
+	S(PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED), \
 	S(PR_SWAP_SRC_SNK_SINK_ON),		\
 	S(PR_SWAP_SNK_SRC_SINK_OFF),		\
 	S(PR_SWAP_SNK_SRC_SOURCE_ON),		\
+	S(PR_SWAP_SNK_SRC_SOURCE_ON_VBUS_RAMPED_UP),    \
 						\
 	S(VCONN_SWAP_ACCEPT),			\
 	S(VCONN_SWAP_SEND),			\
@@ -1400,7 +1402,7 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 					       SNK_TRANSITION_SINK_VBUS, 0);
 			}
 			break;
-		case PR_SWAP_SRC_SNK_SOURCE_OFF:
+		case PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED:
 			tcpm_set_state(port, PR_SWAP_SRC_SNK_SINK_ON, 0);
 			break;
 		case PR_SWAP_SNK_SRC_SINK_OFF:
@@ -2684,11 +2686,17 @@ static void run_state_machine(struct tcpm_port *port)
 	case PR_SWAP_SRC_SNK_TRANSITION_OFF:
 		tcpm_set_vbus(port, false);
 		port->explicit_contract = false;
+		/* allow time for Vbus discharge, must be < tSrcSwapStdby */
 		tcpm_set_state(port, PR_SWAP_SRC_SNK_SOURCE_OFF,
-			       PD_T_PS_SOURCE_OFF);
+			       PD_T_SRCSWAPSTDBY);
 		break;
 	case PR_SWAP_SRC_SNK_SOURCE_OFF:
 		tcpm_set_cc(port, TYPEC_CC_RD);
+		/* allow CC debounce */
+		tcpm_set_state(port, PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED,
+			       PD_T_CC_DEBOUNCE);
+		break;
+	case PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED:
 		/*
 		 * USB-PD standard, 6.2.1.4, Port Power Role:
 		 * "During the Power Role Swap Sequence, for the initial Source
@@ -2714,6 +2722,15 @@ static void run_state_machine(struct tcpm_port *port)
 	case PR_SWAP_SNK_SRC_SOURCE_ON:
 		tcpm_set_cc(port, tcpm_rp_cc(port));
 		tcpm_set_vbus(port, true);
+		/*
+		 * allow time VBUS ramp-up, must be < tNewSrc
+		 * Also, this window overlaps with CC debounce as well.
+		 * So, Wait for the max of two which is PD_T_NEWSRC
+		 */
+		tcpm_set_state(port, PR_SWAP_SNK_SRC_SOURCE_ON_VBUS_RAMPED_UP,
+			       PD_T_NEWSRC);
+		break;
+	case PR_SWAP_SNK_SRC_SOURCE_ON_VBUS_RAMPED_UP:
 		/*
 		 * USB PD standard, 6.2.1.4:
 		 * "Subsequent Messages initiated by the Policy Engine,
@@ -2984,8 +3001,10 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 	case PR_SWAP_SNK_SRC_SINK_OFF:
 	case PR_SWAP_SRC_SNK_TRANSITION_OFF:
 	case PR_SWAP_SRC_SNK_SOURCE_OFF:
+	case PR_SWAP_SRC_SNK_SOURCE_OFF_CC_DEBOUNCED:
+	case PR_SWAP_SNK_SRC_SOURCE_ON:
 		/*
-		 * CC state change is expected here; we just turned off power.
+		 * CC state change is expected in PR_SWAP
 		 * Ignore it.
 		 */
 		break;
