@@ -277,8 +277,7 @@ xfs_defer_has_unfinished_work(
 
 /*
  * Add this inode to the deferred op.  Each joined inode is relogged
- * each time we roll the transaction, in addition to any inode passed
- * to xfs_defer_finish().
+ * each time we roll the transaction.
  */
 int
 xfs_defer_ijoin(
@@ -310,8 +309,7 @@ xfs_defer_ijoin(
 int
 xfs_defer_finish(
 	struct xfs_trans		**tp,
-	struct xfs_defer_ops		*dop,
-	struct xfs_inode		*ip)
+	struct xfs_defer_ops		*dop)
 {
 	struct xfs_defer_pending	*dfp;
 	struct list_head		*li;
@@ -323,8 +321,6 @@ xfs_defer_finish(
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
 
 	trace_xfs_defer_finish((*tp)->t_mountp, dop);
-
-	xfs_defer_ijoin(dop, ip);
 
 	/* Until we run out of pending work to finish... */
 	while (xfs_defer_has_unfinished_work(dop)) {

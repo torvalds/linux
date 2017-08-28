@@ -1196,7 +1196,7 @@ xfs_bmap_add_attrfork(
 			xfs_log_sb(tp);
 	}
 
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
 		goto bmap_cancel;
 	error = xfs_trans_commit(tp);
@@ -6402,7 +6402,7 @@ xfs_bmap_split_extent(
 	if (error)
 		goto out;
 
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
 		goto out;
 
