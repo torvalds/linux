@@ -1431,6 +1431,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	rproc->dev.parent = dev;
 	rproc->dev.type = &rproc_type;
 	rproc->dev.class = &rproc_class;
+	rproc->dev.driver_data = rproc;
 
 	/* Assign a unique device index and name */
 	rproc->index = ida_simple_get(&rproc_dev_index, 0, 0, GFP_KERNEL);
@@ -1568,6 +1569,23 @@ void rproc_remove_subdev(struct rproc *rproc, struct rproc_subdev *subdev)
 	list_del(&subdev->node);
 }
 EXPORT_SYMBOL(rproc_remove_subdev);
+
+/**
+ * rproc_get_by_child() - acquire rproc handle of @dev's ancestor
+ * @dev:	child device to find ancestor of
+ *
+ * Returns the ancestor rproc instance, or NULL if not found.
+ */
+struct rproc *rproc_get_by_child(struct device *dev)
+{
+	for (dev = dev->parent; dev; dev = dev->parent) {
+		if (dev->type == &rproc_type)
+			return dev->driver_data;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(rproc_get_by_child);
 
 /**
  * rproc_report_crash() - rproc crash reporter function
