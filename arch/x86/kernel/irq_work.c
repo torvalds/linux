@@ -11,24 +11,12 @@
 #include <asm/trace/irq_vectors.h>
 #include <linux/interrupt.h>
 
-static inline void __smp_irq_work_interrupt(void)
-{
-	inc_irq_stat(apic_irq_work_irqs);
-	irq_work_run();
-}
-
 __visible void __irq_entry smp_irq_work_interrupt(struct pt_regs *regs)
 {
 	ipi_entering_ack_irq();
-	__smp_irq_work_interrupt();
-	exiting_irq();
-}
-
-__visible void __irq_entry smp_trace_irq_work_interrupt(struct pt_regs *regs)
-{
-	ipi_entering_ack_irq();
 	trace_irq_work_entry(IRQ_WORK_VECTOR);
-	__smp_irq_work_interrupt();
+	inc_irq_stat(apic_irq_work_irqs);
+	irq_work_run();
 	trace_irq_work_exit(IRQ_WORK_VECTOR);
 	exiting_irq();
 }
