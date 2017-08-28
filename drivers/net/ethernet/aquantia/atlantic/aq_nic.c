@@ -669,11 +669,26 @@ int aq_nic_set_multicast_list(struct aq_nic_s *self, struct net_device *ndev)
 	netdev_for_each_mc_addr(ha, ndev) {
 		ether_addr_copy(self->mc_list.ar[i++], ha->addr);
 		++self->mc_list.count;
+
+		if (i >= AQ_CFG_MULTICAST_ADDRESS_MAX)
+			break;
 	}
 
-	return self->aq_hw_ops.hw_multicast_list_set(self->aq_hw,
+	if (i >= AQ_CFG_MULTICAST_ADDRESS_MAX) {
+		/* Number of filters is too big: atlantic does not support this.
+		 * Force all multi filter to support this.
+		 * With this we disable all UC filters and setup "all pass"
+		 * multicast mask
+		 */
+		self->packet_filter |= IFF_ALLMULTI;
+		self->aq_hw->aq_nic_cfg->mc_list_count = 0;
+		return self->aq_hw_ops.hw_packet_filter_set(self->aq_hw,
+							self->packet_filter);
+	} else {
+		return self->aq_hw_ops.hw_multicast_list_set(self->aq_hw,
 						    self->mc_list.ar,
 						    self->mc_list.count);
+	}
 }
 
 int aq_nic_set_mtu(struct aq_nic_s *self, int new_mtu)
