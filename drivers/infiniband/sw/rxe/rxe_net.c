@@ -191,7 +191,7 @@ static struct dst_entry *rxe_find_route(struct rxe_dev *rxe,
 	if (qp_type(qp) == IB_QPT_RC)
 		dst = sk_dst_get(qp->sk->sk);
 
-	if (!dst || !(dst->obsolete && dst->ops->check(dst, 0))) {
+	if (!dst || !dst_check(dst, qp->dst_cookie)) {
 		if (dst)
 			dst_release(dst);
 
@@ -209,6 +209,11 @@ static struct dst_entry *rxe_find_route(struct rxe_dev *rxe,
 			saddr6 = &av->sgid_addr._sockaddr_in6.sin6_addr;
 			daddr6 = &av->dgid_addr._sockaddr_in6.sin6_addr;
 			dst = rxe_find_route6(rxe->ndev, saddr6, daddr6);
+#if IS_ENABLED(CONFIG_IPV6)
+			if (dst)
+				qp->dst_cookie =
+					rt6_get_cookie((struct rt6_info *)dst);
+#endif
 		}
 	}
 

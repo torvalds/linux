@@ -248,6 +248,7 @@ struct rxe_qp {
 	struct rxe_rq		rq;
 
 	struct socket		*sk;
+	u32			dst_cookie;
 
 	struct rxe_av		pri_av;
 	struct rxe_av		alt_av;
