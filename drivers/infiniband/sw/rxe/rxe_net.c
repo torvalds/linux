@@ -342,7 +342,7 @@ static void prepare_ipv6_hdr(struct dst_entry *dst, struct sk_buff *skb,
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED
 			    | IPSKB_REROUTED);
-	skb_dst_set(skb, dst);
+	skb_dst_set(skb, dst_clone(dst));
 
 	__skb_push(skb, sizeof(*ip6h));
 	skb_reset_network_header(skb);
