@@ -213,7 +213,9 @@ struct resource_context {
 	bool is_stream_enc_acquired[MAX_PIPES * 2];
 	bool is_audio_acquired[MAX_PIPES];
 	uint8_t clock_source_ref_count[MAX_CLOCK_SOURCES];
+	bool clock_source_changed[MAX_CLOCK_SOURCES];
 	uint8_t dp_clock_source_ref_count;
+	bool dp_clock_source_changed;
 };
 
 struct dce_bw_output {

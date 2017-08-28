@@ -1683,17 +1683,27 @@ static void dce110_reset_hw_ctx_wrap(
 			pipe_ctx_old->stream_res.tg->funcs->disable_crtc(pipe_ctx_old->stream_res.tg);
 			pipe_ctx_old->plane_res.mi->funcs->free_mem_input(
 					pipe_ctx_old->plane_res.mi, dc->current_state->stream_count);
-			if (resource_unreference_clock_source(
-					&dc->current_state->res_ctx, dc->res_pool,
-					pipe_ctx_old->clock_source)) {
-				pipe_ctx_old->clock_source->funcs->cs_power_down(pipe_ctx_old->clock_source);
-				pipe_ctx_old->clock_source = NULL;
-			}
 
 			dc->hwss.power_down_front_end(dc, pipe_ctx_old->pipe_idx);
 
 			pipe_ctx_old->stream = NULL;
 		}
+	}
+
+	/* power down changed clock sources */
+	for (i = 0; i < dc->res_pool->clk_src_count; i++)
+		if (context->res_ctx.clock_source_changed[i]) {
+			struct clock_source *clk = dc->res_pool->clock_sources[i];
+
+			clk->funcs->cs_power_down(clk);
+			context->res_ctx.clock_source_changed[i] = false;
+		}
+
+	if (context->res_ctx.dp_clock_source_changed) {
+		struct clock_source *clk = dc->res_pool->dp_clock_source;
+
+		clk->funcs->cs_power_down(clk);
+		context->res_ctx.clock_source_changed[i] = false;
 	}
 }
 

@@ -275,8 +275,10 @@ bool resource_unreference_clock_source(
 
 		res_ctx->clock_source_ref_count[i]--;
 
-		if (res_ctx->clock_source_ref_count[i] == 0)
+		if (res_ctx->clock_source_ref_count[i] == 0) {
+			res_ctx->clock_source_changed[i] = true;
 			need_reset = true;
+		}
 
 		break;
 	}
@@ -284,8 +286,10 @@ bool resource_unreference_clock_source(
 	if (pool->dp_clock_source == clock_source) {
 		res_ctx->dp_clock_source_ref_count--;
 
-		if (res_ctx->dp_clock_source_ref_count == 0)
+		if (res_ctx->dp_clock_source_ref_count == 0) {
+			res_ctx->dp_clock_source_changed = true;
 			need_reset = true;
+		}
 	}
 
 	return need_reset;
@@ -1502,6 +1506,10 @@ bool dc_remove_stream_from_ctx(
 					del_pipe->stream_res.audio,
 					false);
 
+			resource_unreference_clock_source(&new_ctx->res_ctx,
+							  dc->res_pool,
+							  del_pipe->clock_source);
+
 			memset(del_pipe, 0, sizeof(*del_pipe));
 
 			break;
@@ -1759,13 +1767,10 @@ bool dc_validate_global_state(
 			if (dc_is_dp_signal(pipe_ctx->stream->signal) &&
 				!find_pll_sharable_stream(stream, new_ctx)) {
 
-				if (resource_unreference_clock_source(
+				resource_unreference_clock_source(
 						&new_ctx->res_ctx,
 						dc->res_pool,
-						pipe_ctx->clock_source)) {
-					pipe_ctx->clock_source->funcs->cs_power_down(pipe_ctx->clock_source);
-					pipe_ctx->clock_source = NULL;
-				}
+						pipe_ctx->clock_source);
 
 				pipe_ctx->clock_source = dc->res_pool->dp_clock_source;
 				resource_reference_clock_source(

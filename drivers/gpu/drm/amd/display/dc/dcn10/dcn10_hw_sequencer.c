@@ -1044,14 +1044,6 @@ static void reset_back_end_for_pipe(
 		pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
 	}
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		if (resource_unreference_clock_source(&context->res_ctx,
-		    dc->res_pool, pipe_ctx->clock_source)) {
-			pipe_ctx->clock_source->funcs->cs_power_down(pipe_ctx->clock_source);
-			pipe_ctx->clock_source = NULL;
-		}
-
-
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (&dc->current_state->res_ctx.pipe_ctx[i] == pipe_ctx)
 			break;
@@ -1271,6 +1263,22 @@ static void reset_hw_ctx_wrap(
 
 		if (!pipe_ctx->stream || !pipe_ctx->plane_state)
 			plane_atomic_power_down(dc, i);
+	}
+
+	/* power down changed clock sources */
+	for (i = 0; i < dc->res_pool->clk_src_count; i++)
+		if (context->res_ctx.clock_source_changed[i]) {
+			struct clock_source *clk = dc->res_pool->clock_sources[i];
+
+			clk->funcs->cs_power_down(clk);
+			context->res_ctx.clock_source_changed[i] = false;
+		}
+
+	if (context->res_ctx.dp_clock_source_changed) {
+		struct clock_source *clk = dc->res_pool->dp_clock_source;
+
+		clk->funcs->cs_power_down(clk);
+		context->res_ctx.dp_clock_source_changed = false;
 	}
 
 	/* Reset Back End*/
