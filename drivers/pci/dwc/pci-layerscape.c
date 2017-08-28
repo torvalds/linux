@@ -164,16 +164,7 @@ static int ls1021_pcie_host_init(struct pcie_port *pp)
 	}
 	pcie->index = index[1];
 
-	dw_pcie_setup_rc(pp);
-
-	iowrite32(1, pci->dbi_base + PCIE_DBI_RO_WR_EN);
-	ls_pcie_fix_class(pcie);
-	ls_pcie_clear_multifunction(pcie);
-	iowrite32(0, pci->dbi_base + PCIE_DBI_RO_WR_EN);
-
-	ls_pcie_drop_msg_tlp(pcie);
-
-	return 0;
+	return ls_pcie_host_init(pp);
 }
 
 static int ls_pcie_msi_host_init(struct pcie_port *pp,
