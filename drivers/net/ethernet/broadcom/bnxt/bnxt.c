@@ -5795,6 +5795,8 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 		link_info->support_auto_speeds =
 			le16_to_cpu(resp->supported_speeds_auto_mode);
 
+	bp->port_count = resp->port_cnt;
+
 hwrm_phy_qcaps_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
@@ -7877,6 +7879,9 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 	if (sh)
 		bp->flags |= BNXT_FLAG_SHARED_RINGS;
 	dflt_rings = netif_get_num_default_rss_queues();
+	/* Reduce default rings to reduce memory usage on multi-port cards */
+	if (bp->port_count > 1)
+		dflt_rings = min_t(int, dflt_rings, 4);
 	rc = bnxt_get_dflt_rings(bp, &max_rx_rings, &max_tx_rings, sh);
 	if (rc)
 		return rc;
@@ -8049,6 +8054,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bnxt_ethtool_init(bp);
 	bnxt_dcb_init(bp);
 
+	rc = bnxt_probe_phy(bp);
+	if (rc)
+		goto init_err_pci_clean;
+
 	bnxt_set_rx_skb_mode(bp, false);
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
@@ -8082,10 +8091,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (dev->hw_features & NETIF_F_HW_VLAN_CTAG_RX)
 		bp->flags |= BNXT_FLAG_STRIP_VLAN;
-
-	rc = bnxt_probe_phy(bp);
-	if (rc)
-		goto init_err_pci_clean;
 
 	rc = bnxt_init_int_mode(bp);
 	if (rc)
