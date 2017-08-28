@@ -19,6 +19,7 @@
 #define DRV_VER_UPD	0
 
 #include <linux/interrupt.h>
+#include <linux/rhashtable.h>
 #include <net/devlink.h>
 #include <net/dst_metadata.h>
 #include <net/switchdev.h>
@@ -701,8 +702,10 @@ struct bnxt_napi {
 struct bnxt_irq {
 	irq_handler_t	handler;
 	unsigned int	vector;
-	u8		requested;
+	u8		requested:1;
+	u8		have_cpumask:1;
 	char		name[IFNAMSIZ + 2];
+	cpumask_var_t	cpu_mask;
 };
 
 #define HWRM_RING_ALLOC_TX	0x1
@@ -941,6 +944,27 @@ struct bnxt_test_info {
 #define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
 #define BNXT_CAG_REG_BASE		0x300000
 
+struct bnxt_tc_info {
+	bool				enabled;
+
+	/* hash table to store TC offloaded flows */
+	struct rhashtable		flow_table;
+	struct rhashtable_params	flow_ht_params;
+
+	/* hash table to store L2 keys of TC flows */
+	struct rhashtable		l2_table;
+	struct rhashtable_params	l2_ht_params;
+
+	/* lock to atomically add/del an l2 node when a flow is
+	 * added or deleted.
+	 */
+	struct mutex			lock;
+
+	/* Stat counter mask (width) */
+	u64				bytes_mask;
+	u64				packets_mask;
+};
+
 struct bnxt_vf_rep_stats {
 	u64			packets;
 	u64			bytes;
@@ -988,6 +1012,9 @@ struct bnxt {
 
 #define CHIP_NUM_5745X		0xd730
 
+#define CHIP_NUM_58802		0xd802
+#define CHIP_NUM_58808		0xd808
+
 #define BNXT_CHIP_NUM_5730X(chip_num)		\
 	((chip_num) >= CHIP_NUM_57301 &&	\
 	 (chip_num) <= CHIP_NUM_57304)
@@ -1018,6 +1045,10 @@ struct bnxt {
 
 #define BNXT_CHIP_NUM_57X1X(chip_num)		\
 	(BNXT_CHIP_NUM_5731X(chip_num) || BNXT_CHIP_NUM_5741X(chip_num))
+
+#define BNXT_CHIP_NUM_588XX(chip_num)		\
+	((chip_num) == CHIP_NUM_58802 ||	\
+	 (chip_num) == CHIP_NUM_58808)
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
@@ -1077,6 +1108,7 @@ struct bnxt {
 #define BNXT_CHIP_P4_PLUS(bp)			\
 	(BNXT_CHIP_NUM_57X1X((bp)->chip_num) ||	\
 	 BNXT_CHIP_NUM_5745X((bp)->chip_num) ||	\
+	 BNXT_CHIP_NUM_588XX((bp)->chip_num) ||	\
 	 (BNXT_CHIP_NUM_58700((bp)->chip_num) &&	\
 	  !BNXT_CHIP_TYPE_NITRO_A0(bp)))
 
@@ -1118,6 +1150,7 @@ struct bnxt {
 	int			tx_nr_rings;
 	int			tx_nr_rings_per_tc;
 	int			tx_nr_rings_xdp;
+	int			tx_reserved_rings;
 
 	int			tx_wake_thresh;
 	int			tx_push_thresh;
@@ -1196,6 +1229,7 @@ struct bnxt {
 	u8			nge_port_cnt;
 	__le16			nge_fw_dst_port_id;
 	u8			port_partition_type;
+	u8			port_count;
 	u16			br_mode;
 
 	u16			rx_coal_ticks;
@@ -1277,6 +1311,7 @@ struct bnxt {
 	enum devlink_eswitch_mode eswitch_mode;
 	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
 	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
+	struct bnxt_tc_info	tc_info;
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\
@@ -1346,8 +1381,8 @@ int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_half_open_nic(struct bnxt *bp);
 void bnxt_half_close_nic(struct bnxt *bp);
 int bnxt_close_nic(struct bnxt *, bool, bool);
-int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
-		       int tx_xdp);
+int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
+		     int tx_xdp);
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);
 int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
 void bnxt_restore_pf_fw_resources(struct bnxt *bp);

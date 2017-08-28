@@ -11,10 +11,12 @@
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/jhash.h>
+#include <net/pkt_cls.h>
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
 #include "bnxt_vfr.h"
+#include "bnxt_tc.h"
 
 #ifdef CONFIG_BNXT_SRIOV
 
@@ -113,6 +115,21 @@ bnxt_vf_rep_get_stats64(struct net_device *dev,
 	stats->tx_bytes = vf_rep->tx_stats.bytes;
 }
 
+static int bnxt_vf_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
+				void *type_data)
+{
+	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+	struct bnxt *bp = vf_rep->bp;
+	int vf_fid = bp->pf.vf[vf_rep->vf_idx].fw_fid;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return bnxt_tc_setup_flower(bp, vf_fid, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 struct net_device *bnxt_get_vf_rep(struct bnxt *bp, u16 cfa_code)
 {
 	u16 vf_idx;
@@ -182,6 +199,7 @@ static const struct net_device_ops bnxt_vf_rep_netdev_ops = {
 	.ndo_stop		= bnxt_vf_rep_close,
 	.ndo_start_xmit		= bnxt_vf_rep_xmit,
 	.ndo_get_stats64	= bnxt_vf_rep_get_stats64,
+	.ndo_setup_tc		= bnxt_vf_rep_setup_tc,
 	.ndo_get_phys_port_name = bnxt_vf_rep_get_phys_port_name
 };
 
@@ -468,11 +486,11 @@ int bnxt_dl_register(struct bnxt *bp)
 		return -ENOMEM;
 	}
 
-	bnxt_link_bp_to_dl(dl, bp);
+	bnxt_link_bp_to_dl(bp, dl);
 	bp->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 	rc = devlink_register(dl, &bp->pdev->dev);
 	if (rc) {
-		bnxt_link_bp_to_dl(dl, NULL);
+		bnxt_link_bp_to_dl(bp, NULL);
 		devlink_free(dl);
 		netdev_warn(bp->dev, "devlink_register failed. rc=%d", rc);
 		return rc;
