@@ -11,34 +11,30 @@
 
 #include <linux/types.h>
 
-/*
- * FIXME: Accessing the desc_struct through its fields is more elegant,
- * and should be the one valid thing to do. However, a lot of open code
- * still touches the a and b accessors, and doing this allow us to do it
- * incrementally. We keep the signature as a struct, rather than a union,
- * so we can get rid of it transparently in the future -- glommer
- */
 /* 8 byte segment descriptor */
 struct desc_struct {
-	union {
-		struct {
-			unsigned int a;
-			unsigned int b;
-		};
-		struct {
-			u16 limit0;
-			u16 base0;
-			unsigned base1: 8, type: 4, s: 1, dpl: 2, p: 1;
-			unsigned limit: 4, avl: 1, l: 1, d: 1, g: 1, base2: 8;
-		};
-	};
+	u16	limit0;
+	u16	base0;
+	u16	base1: 8, type: 4, s: 1, dpl: 2, p: 1;
+	u16	limit1: 4, avl: 1, l: 1, d: 1, g: 1, base2: 8;
 } __attribute__((packed));
 
-#define GDT_ENTRY_INIT(flags, base, limit) { { { \
-		.a = ((limit) & 0xffff) | (((base) & 0xffff) << 16), \
-		.b = (((base) & 0xff0000) >> 16) | (((flags) & 0xf0ff) << 8) | \
-			((limit) & 0xf0000) | ((base) & 0xff000000), \
-	} } }
+#define GDT_ENTRY_INIT(flags, base, limit)			\
+	{							\
+		.limit0		= (u16) (limit),		\
+		.limit1		= ((limit) >> 16) & 0x0F,	\
+		.base0		= (u16) (base),			\
+		.base1		= ((base) >> 16) & 0xFF,	\
+		.base2		= ((base) >> 24) & 0xFF,	\
+		.type		= (flags & 0x0f),		\
+		.s		= (flags >> 4) & 0x01,		\
+		.dpl		= (flags >> 5) & 0x03,		\
+		.p		= (flags >> 7) & 0x01,		\
+		.avl		= (flags >> 12) & 0x01,		\
+		.l		= (flags >> 13) & 0x01,		\
+		.d		= (flags >> 14) & 0x01,		\
+		.g		= (flags >> 15) & 0x01,		\
+	}
 
 enum {
 	GATE_INTERRUPT = 0xE,

@@ -49,7 +49,7 @@ static inline unsigned long seg_get_base(struct desc_struct *d)
 
 static inline unsigned long seg_get_limit(struct desc_struct *d)
 {
-	return ((unsigned long)d->limit << 16) | d->limit0;
+	return ((unsigned long)d->limit1 << 16) | d->limit0;
 }
 
 static inline unsigned long seg_get_granularity(struct desc_struct *d)

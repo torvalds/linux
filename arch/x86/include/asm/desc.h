@@ -23,7 +23,7 @@ static inline void fill_ldt(struct desc_struct *desc, const struct user_desc *in
 	desc->s			= 1;
 	desc->dpl		= 0x3;
 	desc->p			= info->seg_not_present ^ 1;
-	desc->limit		= (info->limit & 0xf0000) >> 16;
+	desc->limit1		= (info->limit & 0xf0000) >> 16;
 	desc->avl		= info->useable;
 	desc->d			= info->seg_32bit;
 	desc->g			= info->limit_in_pages;
@@ -170,13 +170,19 @@ static inline void pack_descriptor(struct desc_struct *desc, unsigned long base,
 				   unsigned long limit, unsigned char type,
 				   unsigned char flags)
 {
-	desc->a = ((base & 0xffff) << 16) | (limit & 0xffff);
-	desc->b = (base & 0xff000000) | ((base & 0xff0000) >> 16) |
-		(limit & 0x000f0000) | ((type & 0xff) << 8) |
-		((flags & 0xf) << 20);
-	desc->p = 1;
+	desc->limit0		= (u16) limit;
+	desc->base0		= (u16) base;
+	desc->base1		= (base >> 16) & 0xFF;
+	desc->type		= type & 0x0F;
+	desc->s			= 0;
+	desc->dpl		= 0;
+	desc->p			= 1;
+	desc->limit1		= (limit >> 16) & 0xF;
+	desc->avl		= (flags >> 0) & 0x01;
+	desc->l			= (flags >> 1) & 0x01;
+	desc->d			= (flags >> 2) & 0x01;
+	desc->g			= (flags >> 3) & 0x01;
 }
-
 
 static inline void set_tssldt_descriptor(void *d, unsigned long addr,
 					 unsigned type, unsigned size)
@@ -195,7 +201,7 @@ static inline void set_tssldt_descriptor(void *d, unsigned long addr,
 	desc->base2		= (addr >> 24) & 0xFF;
 	desc->base3		= (u32) (addr >> 32);
 #else
-	pack_descriptor((struct desc_struct *)d, addr, size, 0x80 | type, 0);
+	pack_descriptor((struct desc_struct *)d, addr, size, type, 0);
 #endif
 }
 
@@ -395,13 +401,13 @@ static inline void set_desc_base(struct desc_struct *desc, unsigned long base)
 
 static inline unsigned long get_desc_limit(const struct desc_struct *desc)
 {
-	return desc->limit0 | (desc->limit << 16);
+	return desc->limit0 | (desc->limit1 << 16);
 }
 
 static inline void set_desc_limit(struct desc_struct *desc, unsigned long limit)
 {
 	desc->limit0 = limit & 0xffff;
-	desc->limit = (limit >> 16) & 0xf;
+	desc->limit1 = (limit >> 16) & 0xf;
 }
 
 #ifdef CONFIG_X86_64
