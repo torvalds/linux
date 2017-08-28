@@ -439,7 +439,16 @@ EXPORT_SYMBOL_GPL(task_active_pid_ns);
  */
 struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 {
-	return idr_get_next(&ns->idr, &nr);
+	struct pid *pid;
+
+	do {
+		pid = find_pid_ns(nr, ns);
+		if (pid)
+			break;
+		idr_get_next(&ns->idr, &nr);
+	} while (nr > 0);
+
+	return pid;
 }
 
 /*
