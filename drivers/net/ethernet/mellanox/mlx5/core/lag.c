@@ -162,22 +162,17 @@ static bool mlx5_lag_is_bonded(struct mlx5_lag *ldev)
 static void mlx5_infer_tx_affinity_mapping(struct lag_tracker *tracker,
 					   u8 *port1, u8 *port2)
 {
-	if (tracker->tx_type == NETDEV_LAG_TX_TYPE_ACTIVEBACKUP) {
-		if (tracker->netdev_state[0].tx_enabled) {
-			*port1 = 1;
-			*port2 = 1;
-		} else {
-			*port1 = 2;
-			*port2 = 2;
-		}
-	} else {
-		*port1 = 1;
-		*port2 = 2;
-		if (!tracker->netdev_state[0].link_up)
-			*port1 = 2;
-		else if (!tracker->netdev_state[1].link_up)
-			*port2 = 1;
+	*port1 = 1;
+	*port2 = 2;
+	if (!tracker->netdev_state[0].tx_enabled ||
+	    !tracker->netdev_state[0].link_up) {
+		*port1 = 2;
+		return;
 	}
+
+	if (!tracker->netdev_state[1].tx_enabled ||
+	    !tracker->netdev_state[1].link_up)
+		*port2 = 1;
 }
 
 static void mlx5_activate_lag(struct mlx5_lag *ldev,

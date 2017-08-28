@@ -48,6 +48,8 @@ void spk_stop_serial_interrupt(void);
 int spk_wait_for_xmitr(struct spk_synth *in_synth);
 void spk_serial_release(void);
 void spk_ttyio_release(void);
+void spk_ttyio_register_ldisc(void);
+void spk_ttyio_unregister_ldisc(void);
 
 void synth_buffer_skip_nonlatin1(void);
 u16 synth_buffer_getc(void);

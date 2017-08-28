@@ -1452,6 +1452,13 @@ static enum event_type_t get_event_type(struct perf_event *event)
 
 	lockdep_assert_held(&ctx->lock);
 
+	/*
+	 * It's 'group type', really, because if our group leader is
+	 * pinned, so are we.
+	 */
+	if (event->group_leader != event)
+		event = event->group_leader;
+
 	event_type = event->attr.pinned ? EVENT_PINNED : EVENT_FLEXIBLE;
 	if (!ctx->task)
 		event_type |= EVENT_CPU;
@@ -2210,6 +2217,33 @@ static int group_can_go_on(struct perf_event *event,
 	return can_add_hw;
 }
 
+/*
+ * Complement to update_event_times(). This computes the tstamp_* values to
+ * continue 'enabled' state from @now, and effectively discards the time
+ * between the prior tstamp_stopped and now (as we were in the OFF state, or
+ * just switched (context) time base).
+ *
+ * This further assumes '@event->state == INACTIVE' (we just came from OFF) and
+ * cannot have been scheduled in yet. And going into INACTIVE state means
+ * '@event->tstamp_stopped = @now'.
+ *
+ * Thus given the rules of update_event_times():
+ *
+ *   total_time_enabled = tstamp_stopped - tstamp_enabled
+ *   total_time_running = tstamp_stopped - tstamp_running
+ *
+ * We can insert 'tstamp_stopped == now' and reverse them to compute new
+ * tstamp_* values.
+ */
+static void __perf_event_enable_time(struct perf_event *event, u64 now)
+{
+	WARN_ON_ONCE(event->state != PERF_EVENT_STATE_INACTIVE);
+
+	event->tstamp_stopped = now;
+	event->tstamp_enabled = now - event->total_time_enabled;
+	event->tstamp_running = now - event->total_time_running;
+}
+
 static void add_event_to_ctx(struct perf_event *event,
 			       struct perf_event_context *ctx)
 {
@@ -2217,9 +2251,12 @@ static void add_event_to_ctx(struct perf_event *event,
 
 	list_add_event(event, ctx);
 	perf_group_attach(event);
-	event->tstamp_enabled = tstamp;
-	event->tstamp_running = tstamp;
-	event->tstamp_stopped = tstamp;
+	/*
+	 * We can be called with event->state == STATE_OFF when we create with
+	 * .disabled = 1. In that case the IOC_ENABLE will call this function.
+	 */
+	if (event->state == PERF_EVENT_STATE_INACTIVE)
+		__perf_event_enable_time(event, tstamp);
 }
 
 static void ctx_sched_out(struct perf_event_context *ctx,
@@ -2464,10 +2501,11 @@ static void __perf_event_mark_enabled(struct perf_event *event)
 	u64 tstamp = perf_event_time(event);
 
 	event->state = PERF_EVENT_STATE_INACTIVE;
-	event->tstamp_enabled = tstamp - event->total_time_enabled;
+	__perf_event_enable_time(event, tstamp);
 	list_for_each_entry(sub, &event->sibling_list, group_entry) {
+		/* XXX should not be > INACTIVE if event isn't */
 		if (sub->state >= PERF_EVENT_STATE_INACTIVE)
-			sub->tstamp_enabled = tstamp - sub->total_time_enabled;
+			__perf_event_enable_time(sub, tstamp);
 	}
 }
 
@@ -4378,7 +4416,9 @@ EXPORT_SYMBOL_GPL(perf_event_read_value);
 static int __perf_read_group_add(struct perf_event *leader,
 					u64 read_format, u64 *values)
 {
+	struct perf_event_context *ctx = leader->ctx;
 	struct perf_event *sub;
+	unsigned long flags;
 	int n = 1; /* skip @nr */
 	int ret;
 
@@ -4408,12 +4448,15 @@ static int __perf_read_group_add(struct perf_event *leader,
 	if (read_format & PERF_FORMAT_ID)
 		values[n++] = primary_event_id(leader);
 
+	raw_spin_lock_irqsave(&ctx->lock, flags);
+
 	list_for_each_entry(sub, &leader->sibling_list, group_entry) {
 		values[n++] += perf_event_count(sub);
 		if (read_format & PERF_FORMAT_ID)
 			values[n++] = primary_event_id(sub);
 	}
 
+	raw_spin_unlock_irqrestore(&ctx->lock, flags);
 	return 0;
 }
 
@@ -5078,7 +5121,7 @@ static void perf_mmap_open(struct vm_area_struct *vma)
 		atomic_inc(&event->rb->aux_mmap_count);
 
 	if (event->pmu->event_mapped)
-		event->pmu->event_mapped(event);
+		event->pmu->event_mapped(event, vma->vm_mm);
 }
 
 static void perf_pmu_output_stop(struct perf_event *event);
@@ -5101,7 +5144,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 	unsigned long size = perf_data_size(rb);
 
 	if (event->pmu->event_unmapped)
-		event->pmu->event_unmapped(event);
+		event->pmu->event_unmapped(event, vma->vm_mm);
 
 	/*
 	 * rb->aux_mmap_count will always drop before rb->mmap_count and
@@ -5399,7 +5442,7 @@ aux_unlock:
 	vma->vm_ops = &perf_mmap_vmops;
 
 	if (event->pmu->event_mapped)
-		event->pmu->event_mapped(event);
+		event->pmu->event_mapped(event, vma->vm_mm);
 
 	return ret;
 }
@@ -7321,21 +7364,6 @@ int perf_event_account_interrupt(struct perf_event *event)
 	return __perf_event_account_interrupt(event, 1);
 }
 
-static bool sample_is_allowed(struct perf_event *event, struct pt_regs *regs)
-{
-	/*
-	 * Due to interrupt latency (AKA "skid"), we may enter the
-	 * kernel before taking an overflow, even if the PMU is only
-	 * counting user events.
-	 * To avoid leaking information to userspace, we must always
-	 * reject kernel samples when exclude_kernel is set.
-	 */
-	if (event->attr.exclude_kernel && !user_mode(regs))
-		return false;
-
-	return true;
-}
-
 /*
  * Generic event overflow handling, sampling.
  */
@@ -7355,12 +7383,6 @@ static int __perf_event_overflow(struct perf_event *event,
 		return 0;
 
 	ret = __perf_event_account_interrupt(event, throttle);
-
-	/*
-	 * For security, drop the skid kernel samples if necessary.
-	 */
-	if (!sample_is_allowed(event, regs))
-		return ret;
 
 	/*
 	 * XXX event_limit might not quite work as expected on inherited
@@ -10010,28 +10032,27 @@ SYSCALL_DEFINE5(perf_event_open,
 			goto err_context;
 
 		/*
-		 * Do not allow to attach to a group in a different
-		 * task or CPU context:
+		 * Make sure we're both events for the same CPU;
+		 * grouping events for different CPUs is broken; since
+		 * you can never concurrently schedule them anyhow.
 		 */
-		if (move_group) {
-			/*
-			 * Make sure we're both on the same task, or both
-			 * per-cpu events.
-			 */
-			if (group_leader->ctx->task != ctx->task)
-				goto err_context;
+		if (group_leader->cpu != event->cpu)
+			goto err_context;
 
-			/*
-			 * Make sure we're both events for the same CPU;
-			 * grouping events for different CPUs is broken; since
-			 * you can never concurrently schedule them anyhow.
-			 */
-			if (group_leader->cpu != event->cpu)
-				goto err_context;
-		} else {
-			if (group_leader->ctx != ctx)
-				goto err_context;
-		}
+		/*
+		 * Make sure we're both on the same task, or both
+		 * per-CPU events.
+		 */
+		if (group_leader->ctx->task != ctx->task)
+			goto err_context;
+
+		/*
+		 * Do not allow to attach to a group in a different task
+		 * or CPU context. If we're moving SW events, we'll fix
+		 * this up later, so allow that.
+		 */
+		if (!move_group && group_leader->ctx != ctx)
+			goto err_context;
 
 		/*
 		 * Only a group leader can be exclusive or pinned

@@ -24,14 +24,14 @@
  */
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 #define _EMIT_BUG_ENTRY				\
-	"\t.pushsection __bug_table,\"a\"\n"	\
+	"\t.pushsection __bug_table,\"aw\"\n"	\
 	"2:\t.long 1b, %O1\n"			\
 	"\t.short %O2, %O3\n"			\
 	"\t.org 2b+%O4\n"			\
 	"\t.popsection\n"
 #else
 #define _EMIT_BUG_ENTRY				\
-	"\t.pushsection __bug_table,\"a\"\n"	\
+	"\t.pushsection __bug_table,\"aw\"\n"	\
 	"2:\t.long 1b\n"			\
 	"\t.short %O3\n"			\
 	"\t.org 2b+%O4\n"			\

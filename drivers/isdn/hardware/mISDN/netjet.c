@@ -1137,7 +1137,7 @@ static void nj_remove(struct pci_dev *pdev)
 /* We cannot select cards with PCI_SUB... IDs, since here are cards with
  * SUB IDs set to PCI_ANY_ID, so we need to match all and reject
  * known other cards which not work with this driver - see probe function */
-static struct pci_device_id nj_pci_ids[] = {
+static const struct pci_device_id nj_pci_ids[] = {
 	{ PCI_VENDOR_ID_TIGERJET, PCI_DEVICE_ID_TIGERJET_300,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ }

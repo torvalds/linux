@@ -215,7 +215,6 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 		codec_ep = of_graph_get_remote_endpoint(cpu_ep);
 		rcpu_ep  = of_graph_get_remote_endpoint(codec_ep);
 
-		of_node_put(cpu_port);
 		of_node_put(cpu_ep);
 		of_node_put(codec_ep);
 		of_node_put(rcpu_ep);
@@ -232,8 +231,10 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 
 		ret = asoc_simple_card_parse_daifmt(dev, cpu_ep, codec_ep,
 							    NULL, &daifmt);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(cpu_port);
 			goto parse_of_err;
+		}
 	}
 
 	dai_idx = 0;
@@ -250,7 +251,6 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 			codec_ep = of_graph_get_remote_endpoint(cpu_ep);
 			codec_port = of_graph_get_port_parent(codec_ep);
 
-			of_node_put(cpu_port);
 			of_node_put(cpu_ep);
 			of_node_put(codec_ep);
 			of_node_put(codec_port);
@@ -266,13 +266,17 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 
 				/* Back-End (= Codec) */
 				ret = asoc_graph_card_dai_link_of(codec_ep, priv, daifmt, dai_idx++, 0);
-				if (ret < 0)
+				if (ret < 0) {
+					of_node_put(cpu_port);
 					goto parse_of_err;
+				}
 			} else {
 				/* Front-End (= CPU) */
 				ret = asoc_graph_card_dai_link_of(cpu_ep, priv, daifmt, dai_idx++, 1);
-				if (ret < 0)
+				if (ret < 0) {
+					of_node_put(cpu_port);
 					goto parse_of_err;
+				}
 			}
 		}
 	}
@@ -306,7 +310,6 @@ static int asoc_graph_get_dais_count(struct device *dev)
 		codec_ep = of_graph_get_remote_endpoint(cpu_ep);
 		codec_port = of_graph_get_port_parent(codec_ep);
 
-		of_node_put(cpu_port);
 		of_node_put(cpu_ep);
 		of_node_put(codec_ep);
 		of_node_put(codec_port);

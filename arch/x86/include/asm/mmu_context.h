@@ -140,9 +140,7 @@ static inline int init_new_context(struct task_struct *tsk,
 		mm->context.execute_only_pkey = -1;
 	}
 	#endif
-	init_new_context_ldt(tsk, mm);
-
-	return 0;
+	return init_new_context_ldt(tsk, mm);
 }
 static inline void destroy_context(struct mm_struct *mm)
 {
@@ -293,7 +291,7 @@ static inline unsigned long __get_current_cr3_fast(void)
 	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
 
 	/* For now, be very restrictive about when this can be called. */
-	VM_WARN_ON(in_nmi() || !in_atomic());
+	VM_WARN_ON(in_nmi() || preemptible());
 
 	VM_BUG_ON(cr3 != __read_cr3());
 	return cr3;
