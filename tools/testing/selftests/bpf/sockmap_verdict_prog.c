@@ -40,7 +40,7 @@ int bpf_prog2(struct __sk_buff *skb)
 	d[6] = 0xe;
 	d[7] = 0xf;
 
-	bpf_printk("data[0] = (%u): local_port %i remote %i\n",
+	bpf_printk("verdict: data[0] = (%u): local_port %i remote %i redirect 5\n",
 		   d[0], lport, bpf_ntohl(rport));
 	return bpf_sk_redirect_map(&sock_map, 5, 0);
 }

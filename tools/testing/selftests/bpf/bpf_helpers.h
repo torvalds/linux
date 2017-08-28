@@ -68,8 +68,7 @@ static int (*bpf_setsockopt)(void *ctx, int level, int optname, void *optval,
 static int (*bpf_sk_redirect_map)(void *map, int key, int flags) =
 	(void *) BPF_FUNC_sk_redirect_map;
 static int (*bpf_sock_map_update)(void *map, void *key, void *value,
-				  unsigned long long flags,
-				  unsigned long long map_lags) =
+				  unsigned long long flags) =
 	(void *) BPF_FUNC_sock_map_update;
 
 

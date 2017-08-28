@@ -30,7 +30,7 @@ int bpf_prog1(struct __sk_buff *skb)
 	 */
 	d[0] = 1;
 
-	bpf_printk("data[0] = (%u): local_port %i remote %i\n",
+	bpf_printk("parse: data[0] = (%u): local_port %i remote %i\n",
 		   d[0], lport, bpf_ntohl(rport));
 	return skb->len;
 }

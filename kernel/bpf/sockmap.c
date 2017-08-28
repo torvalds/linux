@@ -723,20 +723,24 @@ out:
 	return err;
 }
 
-static int sock_map_attach_prog(struct bpf_map *map,
-				struct bpf_prog *parse,
-				struct bpf_prog *verdict)
+int sock_map_attach_prog(struct bpf_map *map, struct bpf_prog *prog, u32 type)
 {
 	struct bpf_stab *stab = container_of(map, struct bpf_stab, map);
-	struct bpf_prog *_parse, *_verdict;
+	struct bpf_prog *orig;
 
-	_parse = xchg(&stab->bpf_parse, parse);
-	_verdict = xchg(&stab->bpf_verdict, verdict);
+	switch (type) {
+	case BPF_SK_SKB_STREAM_PARSER:
+		orig = xchg(&stab->bpf_parse, prog);
+		break;
+	case BPF_SK_SKB_STREAM_VERDICT:
+		orig = xchg(&stab->bpf_verdict, prog);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
-	if (_parse)
-		bpf_prog_put(_parse);
-	if (_verdict)
-		bpf_prog_put(_verdict);
+	if (orig)
+		bpf_prog_put(orig);
 
 	return 0;
 }
@@ -777,7 +781,6 @@ const struct bpf_map_ops sock_map_ops = {
 	.map_get_next_key = sock_map_get_next_key,
 	.map_update_elem = sock_map_update_elem,
 	.map_delete_elem = sock_map_delete_elem,
-	.map_attach = sock_map_attach_prog,
 };
 
 BPF_CALL_5(bpf_sock_map_update, struct bpf_sock_ops_kern *, bpf_sock,

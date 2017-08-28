@@ -547,20 +547,26 @@ static void test_sockmap(int task, void *data)
 		goto out_sockmap;
 	}
 
-	/* Nothing attached so these should fail */
+	/* Test update without programs */
 	for (i = 0; i < 6; i++) {
 		err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_ANY);
-		if (!err) {
-			printf("Failed invalid update sockmap '%i:%i'\n",
+		if (err) {
+			printf("Failed noprog update sockmap '%i:%i'\n",
 			       i, sfd[i]);
 			goto out_sockmap;
 		}
 	}
 
 	/* Test attaching bad fds */
-	err = __bpf_prog_attach(-1, -2, fd, BPF_CGROUP_SMAP_INGRESS, 0);
+	err = bpf_prog_attach(-1, fd, BPF_SK_SKB_STREAM_PARSER, 0);
 	if (!err) {
-		printf("Failed invalid prog attach\n");
+		printf("Failed invalid parser prog attach\n");
+		goto out_sockmap;
+	}
+
+	err = bpf_prog_attach(-1, fd, BPF_SK_SKB_STREAM_VERDICT, 0);
+	if (!err) {
+		printf("Failed invalid verdict prog attach\n");
 		goto out_sockmap;
 	}
 
@@ -591,14 +597,21 @@ static void test_sockmap(int task, void *data)
 		goto out_sockmap;
 	}
 
-	err = __bpf_prog_attach(parse_prog, verdict_prog, map_fd,
-				BPF_CGROUP_SMAP_INGRESS, 0);
+	err = bpf_prog_attach(parse_prog, map_fd,
+		      BPF_SK_SKB_STREAM_PARSER, 0);
 	if (err) {
 		printf("Failed bpf prog attach\n");
 		goto out_sockmap;
 	}
 
-	/* Test map update elem */
+	err = bpf_prog_attach(verdict_prog, map_fd,
+			      BPF_SK_SKB_STREAM_VERDICT, 0);
+	if (err) {
+		printf("Failed bpf prog attach\n");
+		goto out_sockmap;
+	}
+
+	/* Test map update elem afterwards fd lives in fd and map_fd */
 	for (i = 0; i < 6; i++) {
 		err = bpf_map_update_elem(map_fd, &i, &sfd[i], BPF_ANY);
 		if (err) {
@@ -649,96 +662,68 @@ static void test_sockmap(int task, void *data)
 		goto out_sockmap;
 	}
 
-	/* Delete the reset of the elems include some NULL elems */
-	for (i = 0; i < 6; i++) {
-		err = bpf_map_delete_elem(map_fd, &i);
-		if (err && (i == 0 || i == 1 || i >= 4)) {
-			printf("Failed delete  sockmap %i '%i:%i'\n",
-			       err, i, sfd[i]);
-			goto out_sockmap;
-		} else if (!err && (i == 2 || i == 3)) {
-			printf("Failed null delete sockmap %i '%i:%i'\n",
-			       err, i, sfd[i]);
-			goto out_sockmap;
-		}
-	}
-
-	/* Test having multiple SMAPs open and active on same fds */
-	err = __bpf_prog_attach(parse_prog, verdict_prog, fd,
-				BPF_CGROUP_SMAP_INGRESS, 0);
-	if (err) {
-		printf("Failed fd bpf prog attach\n");
-		goto out_sockmap;
-	}
-
-	for (i = 0; i < 6; i++) {
-		err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_ANY);
-		if (err) {
-			printf("Failed fd update sockmap %i '%i:%i'\n",
-			       err, i, sfd[i]);
-			goto out_sockmap;
-		}
-	}
-
-	/* Test duplicate socket add of NOEXIST, ANY and EXIST */
-	i = 0;
-	err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_NOEXIST);
-	if (!err) {
-		printf("Failed BPF_NOEXIST create\n");
-		goto out_sockmap;
-	}
-
-	err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_ANY);
-	if (err) {
-		printf("Failed sockmap update BPF_ANY\n");
-		goto out_sockmap;
-	}
-
-	err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_EXIST);
-	if (err) {
-		printf("Failed sockmap update BPF_EXIST\n");
-		goto out_sockmap;
-	}
-
-	/* The above were pushing fd into same slot try different slot now */
+	/* Push fd into same slot */
 	i = 2;
 	err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_NOEXIST);
 	if (!err) {
-		printf("Failed BPF_NOEXIST create\n");
+		printf("Failed allowed sockmap dup slot BPF_NOEXIST\n");
 		goto out_sockmap;
 	}
 
 	err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_ANY);
 	if (err) {
-		printf("Failed sockmap update BPF_ANY\n");
+		printf("Failed sockmap update new slot BPF_ANY\n");
 		goto out_sockmap;
 	}
 
 	err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_EXIST);
 	if (err) {
-		printf("Failed sockmap update BPF_EXIST\n");
+		printf("Failed sockmap update new slot BPF_EXIST\n");
 		goto out_sockmap;
 	}
 
-	/* Try pushing fd into different map, this is not allowed at the
-	 * moment. Which programs would we use?
-	 */
-	err = bpf_map_update_elem(map_fd, &i, &sfd[i], BPF_NOEXIST);
-	if (!err) {
-		printf("Failed BPF_NOEXIST create\n");
+	/* Delete the elems without programs */
+	for (i = 0; i < 6; i++) {
+		err = bpf_map_delete_elem(fd, &i);
+		if (err) {
+			printf("Failed delete sockmap %i '%i:%i'\n",
+			       err, i, sfd[i]);
+		}
+	}
+
+	/* Test having multiple maps open and set with programs on same fds */
+	err = bpf_prog_attach(parse_prog, fd,
+			      BPF_SK_SKB_STREAM_PARSER, 0);
+	if (err) {
+		printf("Failed fd bpf parse prog attach\n");
+		goto out_sockmap;
+	}
+	err = bpf_prog_attach(verdict_prog, fd,
+			      BPF_SK_SKB_STREAM_VERDICT, 0);
+	if (err) {
+		printf("Failed fd bpf verdict prog attach\n");
 		goto out_sockmap;
 	}
 
-	err = bpf_map_update_elem(map_fd, &i, &sfd[i], BPF_ANY);
-	if (!err) {
-		printf("Failed sockmap update BPF_ANY\n");
-		goto out_sockmap;
-	}
-
-	err = bpf_map_update_elem(map_fd, &i, &sfd[i], BPF_EXIST);
-	if (!err) {
-		printf("Failed sockmap update BPF_EXIST\n");
-		goto out_sockmap;
+	for (i = 4; i < 6; i++) {
+		err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_ANY);
+		if (!err) {
+			printf("Failed allowed duplicate programs in update ANY sockmap %i '%i:%i'\n",
+			       err, i, sfd[i]);
+			goto out_sockmap;
+		}
+		err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_NOEXIST);
+		if (!err) {
+			printf("Failed allowed duplicate program in update NOEXIST sockmap  %i '%i:%i'\n",
+			       err, i, sfd[i]);
+			goto out_sockmap;
+		}
+		err = bpf_map_update_elem(fd, &i, &sfd[i], BPF_EXIST);
+		if (!err) {
+			printf("Failed allowed duplicate program in update EXIST sockmap  %i '%i:%i'\n",
+			       err, i, sfd[i]);
+			goto out_sockmap;
+		}
 	}
 
 	/* Test map close sockets */
