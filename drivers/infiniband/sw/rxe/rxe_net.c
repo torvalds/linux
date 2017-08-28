@@ -393,7 +393,7 @@ static int prepare6(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		    struct sk_buff *skb, struct rxe_av *av)
 {
 	struct rxe_qp *qp = pkt->qp;
-	struct dst_entry *dst = NULL;
+	struct dst_entry *dst;
 	struct in6_addr *saddr = &av->sgid_addr._sockaddr_in6.sin6_addr;
 	struct in6_addr *daddr = &av->dgid_addr._sockaddr_in6.sin6_addr;
 
