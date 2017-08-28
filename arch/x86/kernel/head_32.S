@@ -622,7 +622,6 @@ int_msg:
 
 	.data
 .globl boot_gdt_descr
-.globl idt_descr
 
 	ALIGN
 # early boot GDT descriptor (must use 1:1 address mapping)
@@ -630,11 +629,6 @@ int_msg:
 boot_gdt_descr:
 	.word __BOOT_DS+7
 	.long boot_gdt - __PAGE_OFFSET
-
-	.word 0				# 32-bit align idt_desc.address
-idt_descr:
-	.word IDT_ENTRIES*8-1		# idt contains 256 entries
-	.long idt_table
 
 # boot GDT descriptor (later on used by CPU#0):
 	.word 0				# 32 bit align gdt_desc.address
