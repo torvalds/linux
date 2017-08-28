@@ -794,7 +794,7 @@ static void rproc_remove_subdevices(struct rproc *rproc)
 {
 	struct rproc_subdev *subdev;
 
-	list_for_each_entry(subdev, &rproc->subdevs, node)
+	list_for_each_entry_reverse(subdev, &rproc->subdevs, node)
 		subdev->remove(subdev);
 }
 
