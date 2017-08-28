@@ -2,6 +2,8 @@
 # Makefile for the Linux IrDA protocol layer.
 #
 
+subdir-ccflags-y += -I$(srctree)/drivers/staging/irda/include
+
 obj-$(CONFIG_IRDA) += irda.o
 obj-$(CONFIG_IRLAN) += irlan/
 obj-$(CONFIG_IRNET) += irnet/

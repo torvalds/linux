@@ -27,11 +27,11 @@ menuconfig IRDA
 comment "IrDA protocols"
 	depends on IRDA
 
-source "net/irda/irlan/Kconfig"
+source "drivers/staging/irda/net/irlan/Kconfig"
 
-source "net/irda/irnet/Kconfig"
+source "drivers/staging/irda/net/irnet/Kconfig"
 
-source "net/irda/ircomm/Kconfig"
+source "drivers/staging/irda/net/ircomm/Kconfig"
 
 config IRDA_ULTRA
 	bool "Ultra (connectionless) protocol"
@@ -92,5 +92,5 @@ config IRDA_DEBUG
 
 	  If unsure, say Y (since it makes it easier to find the bugs).
 
-source "drivers/net/irda/Kconfig"
+source "drivers/staging/irda/drivers/Kconfig"
 

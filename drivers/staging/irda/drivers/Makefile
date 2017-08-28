@@ -5,6 +5,8 @@
 # Rewritten to use lists instead of if-statements.
 #
 
+subdir-ccflags-y += -I$(srctree)/drivers/staging/irda/include
+
 # FIR drivers
 obj-$(CONFIG_USB_IRDA)		+= irda-usb.o
 obj-$(CONFIG_SIGMATEL_FIR)	+= stir4200.o
