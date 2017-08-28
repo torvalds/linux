@@ -3467,7 +3467,7 @@ static int adv7842_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	state = devm_kzalloc(&client->dev, sizeof(struct adv7842_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 

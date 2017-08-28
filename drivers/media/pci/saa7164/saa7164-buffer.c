@@ -98,7 +98,7 @@ struct saa7164_buffer *saa7164_buffer_alloc(struct saa7164_port *port,
 		goto ret;
 	}
 
-	buf = kzalloc(sizeof(struct saa7164_buffer), GFP_KERNEL);
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
 		goto ret;
 
@@ -281,7 +281,7 @@ struct saa7164_user_buffer *saa7164_buffer_alloc_user(struct saa7164_dev *dev,
 {
 	struct saa7164_user_buffer *buf;
 
-	buf = kzalloc(sizeof(struct saa7164_user_buffer), GFP_KERNEL);
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
 		return NULL;
 

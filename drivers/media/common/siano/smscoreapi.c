@@ -447,7 +447,7 @@ static struct smscore_registry_entry_t *smscore_find_registry(char *devpath)
 			return entry;
 		}
 	}
-	entry = kmalloc(sizeof(struct smscore_registry_entry_t), GFP_KERNEL);
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry) {
 		entry->mode = default_mode;
 		strcpy(entry->devpath, devpath);
@@ -536,9 +536,7 @@ int smscore_register_hotplug(hotplug_t hotplug)
 	int rc = 0;
 
 	kmutex_lock(&g_smscore_deviceslock);
-
-	notifyee = kmalloc(sizeof(struct smscore_device_notifyee_t),
-			   GFP_KERNEL);
+	notifyee = kmalloc(sizeof(*notifyee), GFP_KERNEL);
 	if (notifyee) {
 		/* now notify callback about existing devices */
 		first = &g_smscore_devices;
@@ -627,7 +625,7 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 {
 	struct smscore_buffer_t *cb;
 
-	cb = kzalloc(sizeof(struct smscore_buffer_t), GFP_KERNEL);
+	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
 	if (!cb)
 		return NULL;
 
@@ -655,7 +653,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	struct smscore_device_t *dev;
 	u8 *buffer;
 
-	dev = kzalloc(sizeof(struct smscore_device_t), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
@@ -1684,7 +1682,7 @@ static int smscore_validate_client(struct smscore_device_t *coredev,
 		pr_err("The msg ID already registered to another client.\n");
 		return -EEXIST;
 	}
-	listentry = kzalloc(sizeof(struct smscore_idlist_t), GFP_KERNEL);
+	listentry = kzalloc(sizeof(*listentry), GFP_KERNEL);
 	if (!listentry)
 		return -ENOMEM;
 
@@ -1721,7 +1719,7 @@ int smscore_register_client(struct smscore_device_t *coredev,
 		return -EEXIST;
 	}
 
-	newclient = kzalloc(sizeof(struct smscore_client_t), GFP_KERNEL);
+	newclient = kzalloc(sizeof(*newclient), GFP_KERNEL);
 	if (!newclient)
 		return -ENOMEM;
 

@@ -909,7 +909,7 @@ static int cx18_probe(struct pci_dev *pci_dev,
 		return -ENOMEM;
 	}
 
-	cx = kzalloc(sizeof(struct cx18), GFP_ATOMIC);
+	cx = kzalloc(sizeof(*cx), GFP_ATOMIC);
 	if (!cx)
 		return -ENOMEM;
 

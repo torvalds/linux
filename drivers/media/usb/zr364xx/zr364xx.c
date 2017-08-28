@@ -1421,7 +1421,7 @@ static int zr364xx_probe(struct usb_interface *intf,
 		 le16_to_cpu(udev->descriptor.idVendor),
 		 le16_to_cpu(udev->descriptor.idProduct));
 
-	cam = kzalloc(sizeof(struct zr364xx_camera), GFP_KERNEL);
+	cam = kzalloc(sizeof(*cam), GFP_KERNEL);
 	if (!cam)
 		return -ENOMEM;
 

@@ -839,7 +839,7 @@ struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 	dprintk("%s\n", __func__);
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct ds3000_state), GFP_KERNEL);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
 		goto error2;
 

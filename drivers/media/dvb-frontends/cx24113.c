@@ -552,8 +552,7 @@ struct dvb_frontend *cx24113_attach(struct dvb_frontend *fe,
 		const struct cx24113_config *config, struct i2c_adapter *i2c)
 {
 	/* allocate memory for the internal state */
-	struct cx24113_state *state =
-		kzalloc(sizeof(struct cx24113_state), GFP_KERNEL);
+	struct cx24113_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
 	int rc;
 
 	if (!state)

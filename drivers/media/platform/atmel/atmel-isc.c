@@ -1505,7 +1505,7 @@ static int isc_formats_init(struct isc_device *isc)
 
 	isc->num_user_formats = num_fmts;
 	isc->user_formats = devm_kcalloc(isc->dev,
-					 num_fmts, sizeof(struct isc_format *),
+					 num_fmts, sizeof(*isc->user_formats),
 					 GFP_KERNEL);
 	if (!isc->user_formats)
 		return -ENOMEM;

@@ -455,7 +455,7 @@ struct dvb_frontend *as102_attach(const char *name,
 	struct as102_state *state;
 	struct dvb_frontend *fe;
 
-	state = kzalloc(sizeof(struct as102_state), GFP_KERNEL);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return NULL;
 
