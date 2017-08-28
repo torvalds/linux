@@ -162,8 +162,9 @@ static int ls_pcie_host_init(struct pcie_port *pp)
 	iowrite32(1, pci->dbi_base + PCIE_DBI_RO_WR_EN);
 	ls_pcie_fix_class(pcie);
 	ls_pcie_clear_multifunction(pcie);
-	ls_pcie_drop_msg_tlp(pcie);
 	iowrite32(0, pci->dbi_base + PCIE_DBI_RO_WR_EN);
+
+	ls_pcie_drop_msg_tlp(pcie);
 
 	dw_pcie_setup_rc(pp);
 
