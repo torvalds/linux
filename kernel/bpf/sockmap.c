@@ -162,6 +162,7 @@ static void smap_state_change(struct sock *sk)
 {
 	struct smap_psock_map_entry *e, *tmp;
 	struct smap_psock *psock;
+	struct socket_wq *wq;
 	struct sock *osk;
 
 	rcu_read_lock();
@@ -171,6 +172,7 @@ static void smap_state_change(struct sock *sk)
 	 * is established.
 	 */
 	switch (sk->sk_state) {
+	case TCP_SYN_SENT:
 	case TCP_SYN_RECV:
 	case TCP_ESTABLISHED:
 		break;
@@ -208,6 +210,10 @@ static void smap_state_change(struct sock *sk)
 		smap_report_sk_error(psock, EPIPE);
 		break;
 	}
+
+	wq = rcu_dereference(sk->sk_wq);
+	if (skwq_has_sleeper(wq))
+		wake_up_interruptible_all(&wq->wait);
 	rcu_read_unlock();
 }
 
