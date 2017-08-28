@@ -55,18 +55,6 @@ DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
 	[0 ... NR_VECTORS - 1] = VECTOR_UNUSED,
 };
 
-int vector_used_by_percpu_irq(unsigned int vector)
-{
-	int cpu;
-
-	for_each_online_cpu(cpu) {
-		if (!IS_ERR_OR_NULL(per_cpu(vector_irq, cpu)[vector]))
-			return 1;
-	}
-
-	return 0;
-}
-
 void __init init_ISA_irqs(void)
 {
 	struct irq_chip *chip = legacy_pic->chip;

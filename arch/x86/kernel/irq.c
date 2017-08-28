@@ -346,8 +346,6 @@ __visible void __irq_entry smp_trace_x86_platform_ipi(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-EXPORT_SYMBOL_GPL(vector_used_by_percpu_irq);
-
 #ifdef CONFIG_HOTPLUG_CPU
 
 /* These two declarations are only used in check_irq_vectors_for_cpu_disable()
