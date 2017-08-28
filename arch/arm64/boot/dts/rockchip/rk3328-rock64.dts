@@ -150,19 +150,19 @@
 };
 
 &emmc {
+	max-frequency = <200000000>;
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	disable-wp;
-	max-frequency = <200000000>;
 	mmc-hs200-1_8v;
 	non-removable;
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
-	supports-emmc;
-	vmmc-supply = <&vcc_io>;
-	vqmmc-supply = <&vcc18_emmc>;
 	status = "okay";
+	supports-emmc;
+	clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
+	         <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
+	clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
 };
 
 &gmac2io {
