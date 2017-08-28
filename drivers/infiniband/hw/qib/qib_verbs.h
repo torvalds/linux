@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012 - 2017 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -282,13 +282,7 @@ int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 void qib_restart_rc(struct rvt_qp *qp, u32 psn, int wait);
 #ifdef CONFIG_DEBUG_FS
 
-struct qib_qp_iter;
-
-struct qib_qp_iter *qib_qp_iter_init(struct qib_ibdev *dev);
-
-int qib_qp_iter_next(struct qib_qp_iter *iter);
-
-void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter);
+void qib_qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter);
 
 #endif
 
