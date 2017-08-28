@@ -405,6 +405,81 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 	return rc;
 }
 
+/* Add val to accum while handling a possible wraparound
+ * of val. Eventhough val is of type u64, its actual width
+ * is denoted by mask and will wrap-around beyond that width.
+ */
+static void accumulate_val(u64 *accum, u64 val, u64 mask)
+{
+#define low_bits(x, mask)		((x) & (mask))
+#define high_bits(x, mask)		((x) & ~(mask))
+	bool wrapped = val < low_bits(*accum, mask);
+
+	*accum = high_bits(*accum, mask) + val;
+	if (wrapped)
+		*accum += (mask + 1);
+}
+
+/* The HW counters' width is much less than 64bits.
+ * Handle possible wrap-around while updating the stat counters
+ */
+static void bnxt_flow_stats_fix_wraparound(struct bnxt_tc_info *tc_info,
+					   struct bnxt_tc_flow_stats *stats,
+					   struct bnxt_tc_flow_stats *hw_stats)
+{
+	accumulate_val(&stats->bytes, hw_stats->bytes, tc_info->bytes_mask);
+	accumulate_val(&stats->packets, hw_stats->packets,
+		       tc_info->packets_mask);
+}
+
+/* Fix possible wraparound of the stats queried from HW, calculate
+ * the delta from prev_stats, and also update the prev_stats.
+ * The HW flow stats are fetched under the hwrm_cmd_lock mutex.
+ * This routine is best called while under the mutex so that the
+ * stats processing happens atomically.
+ */
+static void bnxt_flow_stats_calc(struct bnxt_tc_info *tc_info,
+				 struct bnxt_tc_flow *flow,
+				 struct bnxt_tc_flow_stats *stats)
+{
+	struct bnxt_tc_flow_stats *acc_stats, *prev_stats;
+
+	acc_stats = &flow->stats;
+	bnxt_flow_stats_fix_wraparound(tc_info, acc_stats, stats);
+
+	prev_stats = &flow->prev_stats;
+	stats->bytes = acc_stats->bytes - prev_stats->bytes;
+	stats->packets = acc_stats->packets - prev_stats->packets;
+	*prev_stats = *acc_stats;
+}
+
+static int bnxt_hwrm_cfa_flow_stats_get(struct bnxt *bp,
+					__le16 flow_handle,
+					struct bnxt_tc_flow *flow,
+					struct bnxt_tc_flow_stats *stats)
+{
+	struct hwrm_cfa_flow_stats_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_cfa_flow_stats_input req = { 0 };
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_FLOW_STATS, -1, -1);
+	req.num_flows = cpu_to_le16(1);
+	req.flow_handle_0 = flow_handle;
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		stats->packets = le64_to_cpu(resp->packet_0);
+		stats->bytes = le64_to_cpu(resp->byte_0);
+		bnxt_flow_stats_calc(&bp->tc_info, flow, stats);
+	} else {
+		netdev_info(bp->dev, "error rc=%d", rc);
+	}
+
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
 static int bnxt_tc_put_l2_node(struct bnxt *bp,
 			       struct bnxt_tc_flow_node *flow_node)
 {
@@ -647,6 +722,26 @@ static int bnxt_tc_del_flow(struct bnxt *bp,
 static int bnxt_tc_get_flow_stats(struct bnxt *bp,
 				  struct tc_cls_flower_offload *tc_flow_cmd)
 {
+	struct bnxt_tc_info *tc_info = &bp->tc_info;
+	struct bnxt_tc_flow_node *flow_node;
+	struct bnxt_tc_flow_stats stats;
+	int rc;
+
+	flow_node = rhashtable_lookup_fast(&tc_info->flow_table,
+					   &tc_flow_cmd->cookie,
+					   tc_info->flow_ht_params);
+	if (!flow_node) {
+		netdev_info(bp->dev, "Error: no flow_node for cookie %lx",
+			    tc_flow_cmd->cookie);
+		return -1;
+	}
+
+	rc = bnxt_hwrm_cfa_flow_stats_get(bp, flow_node->flow_handle,
+					  &flow_node->flow, &stats);
+	if (rc)
+		return rc;
+
+	tcf_exts_stats_update(tc_flow_cmd->exts, stats.bytes, stats.packets, 0);
 	return 0;
 }
 
