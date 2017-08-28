@@ -15,6 +15,17 @@
 		stdout-path = "serial2:1500000n8";
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		usb-switch {
+			linux,default-trigger = "none";
+			gpios = <&gpio0 2 1>;
+			mode = <0x23>;
+			default-state = "on";
+		};
+	};
+
 	gmac_clkin: external-gmac-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
