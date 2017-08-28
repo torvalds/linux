@@ -102,7 +102,7 @@ static const char *ftm_ext_sels[]	= {"sirc_128k", "sxosc", "fxosc_half", "audio_
 static const char *ftm_fix_sels[]	= { "sxosc", "ipg_bus", };
 
 
-static struct clk_div_table pll4_audio_div_table[] = {
+static const struct clk_div_table pll4_audio_div_table[] = {
 	{ .val = 0, .div = 1 },
 	{ .val = 1, .div = 2 },
 	{ .val = 2, .div = 6 },
