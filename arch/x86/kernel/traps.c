@@ -925,46 +925,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 
 void __init trap_init(void)
 {
-	int i;
-
-	set_intr_gate(X86_TRAP_DE, divide_error);
-	set_intr_gate_ist(X86_TRAP_NMI, &nmi, NMI_STACK);
-	/* int4 can be called from all */
-	set_system_intr_gate(X86_TRAP_OF, &overflow);
-	set_intr_gate(X86_TRAP_BR, bounds);
-	set_intr_gate(X86_TRAP_UD, invalid_op);
-	set_intr_gate(X86_TRAP_NM, device_not_available);
-#ifdef CONFIG_X86_32
-	set_task_gate(X86_TRAP_DF, GDT_ENTRY_DOUBLEFAULT_TSS);
-#else
-	set_intr_gate_ist(X86_TRAP_DF, &double_fault, DOUBLEFAULT_STACK);
-#endif
-	set_intr_gate(X86_TRAP_OLD_MF, coprocessor_segment_overrun);
-	set_intr_gate(X86_TRAP_TS, invalid_TSS);
-	set_intr_gate(X86_TRAP_NP, segment_not_present);
-	set_intr_gate(X86_TRAP_SS, stack_segment);
-	set_intr_gate(X86_TRAP_GP, general_protection);
-	set_intr_gate(X86_TRAP_SPURIOUS, spurious_interrupt_bug);
-	set_intr_gate(X86_TRAP_MF, coprocessor_error);
-	set_intr_gate(X86_TRAP_AC, alignment_check);
-#ifdef CONFIG_X86_MCE
-	set_intr_gate_ist(X86_TRAP_MC, &machine_check, MCE_STACK);
-#endif
-	set_intr_gate(X86_TRAP_XF, simd_coprocessor_error);
-
-	/* Reserve all the builtin and the syscall vector: */
-	for (i = 0; i < FIRST_EXTERNAL_VECTOR; i++)
-		set_bit(i, used_vectors);
-
-#ifdef CONFIG_IA32_EMULATION
-	set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_compat);
-	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
-#endif
-
-#ifdef CONFIG_X86_32
-	set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
-	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
-#endif
+	idt_setup_traps();
 
 	/*
 	 * Set the IDT descriptor to a fixed read-only location, so that the

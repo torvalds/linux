@@ -60,6 +60,49 @@ static const __initdata struct idt_data early_idts[] = {
 #endif
 };
 
+/*
+ * The default IDT entries which are set up in trap_init() before
+ * cpu_init() is invoked. Interrupt stacks cannot be used at that point and
+ * the traps which use them are reinitialized with IST after cpu_init() has
+ * set up TSS.
+ */
+static const __initdata struct idt_data def_idts[] = {
+	INTG(X86_TRAP_DE,		divide_error),
+	INTG(X86_TRAP_NMI,		nmi),
+	INTG(X86_TRAP_BR,		bounds),
+	INTG(X86_TRAP_UD,		invalid_op),
+	INTG(X86_TRAP_NM,		device_not_available),
+	INTG(X86_TRAP_OLD_MF,		coprocessor_segment_overrun),
+	INTG(X86_TRAP_TS,		invalid_TSS),
+	INTG(X86_TRAP_NP,		segment_not_present),
+	INTG(X86_TRAP_SS,		stack_segment),
+	INTG(X86_TRAP_GP,		general_protection),
+	INTG(X86_TRAP_SPURIOUS,		spurious_interrupt_bug),
+	INTG(X86_TRAP_MF,		coprocessor_error),
+	INTG(X86_TRAP_AC,		alignment_check),
+	INTG(X86_TRAP_XF,		simd_coprocessor_error),
+
+#ifdef CONFIG_X86_32
+	TSKG(X86_TRAP_DF,		GDT_ENTRY_DOUBLEFAULT_TSS),
+#else
+	INTG(X86_TRAP_DF,		double_fault),
+#endif
+	INTG(X86_TRAP_DB,		debug),
+	INTG(X86_TRAP_NMI,		nmi),
+	INTG(X86_TRAP_BP,		int3),
+
+#ifdef CONFIG_X86_MCE
+	INTG(X86_TRAP_MC,		&machine_check),
+#endif
+
+	SYSG(X86_TRAP_OF,		overflow),
+#if defined(CONFIG_IA32_EMULATION)
+	SYSG(IA32_SYSCALL_VECTOR,	entry_INT80_compat),
+#elif defined(CONFIG_X86_32)
+	SYSG(IA32_SYSCALL_VECTOR,	entry_INT80_32),
+#endif
+};
+
 #ifdef CONFIG_X86_64
 /*
  * Early traps running on the DEFAULT_STACK because the other interrupt
@@ -152,6 +195,14 @@ void __init idt_setup_early_traps(void)
 {
 	idt_setup_from_table(idt_table, early_idts, ARRAY_SIZE(early_idts));
 	load_idt(&idt_descr);
+}
+
+/**
+ * idt_setup_traps - Initialize the idt table with default traps
+ */
+void __init idt_setup_traps(void)
+{
+	idt_setup_from_table(idt_table, def_idts, ARRAY_SIZE(def_idts));
 }
 
 #ifdef CONFIG_X86_64

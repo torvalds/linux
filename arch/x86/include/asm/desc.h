@@ -506,6 +506,7 @@ static inline void load_current_idt(void)
 
 extern void idt_setup_early_handler(void);
 extern void idt_setup_early_traps(void);
+extern void idt_setup_traps(void);
 
 #ifdef CONFIG_X86_64
 extern void idt_setup_early_pf(void);
