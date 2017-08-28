@@ -302,7 +302,6 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 	struct rt5514_priv *rt5514 = snd_soc_component_get_drvdata(component);
 	struct snd_soc_codec *codec = rt5514->codec;
 	const struct firmware *fw = NULL;
-	int ret = 0;
 
 	if (ucontrol->value.integer.value[0] == rt5514->dsp_enabled)
 		return 0;
@@ -340,6 +339,9 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 			}
 
 			if (rt5514->model_buf && rt5514->model_len) {
+#if IS_ENABLED(CONFIG_SND_SOC_RT5514_SPI)
+				int ret;
+
 				ret = rt5514_spi_burst_write(0x4ff80000,
 					rt5514->model_buf,
 					((rt5514->model_len / 8) + 1) * 8);
@@ -348,13 +350,22 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 						"Model load failed %d\n", ret);
 					return ret;
 				}
+#else
+				dev_err(codec->dev,
+					"No SPI driver for loading firmware\n");
+#endif
 			} else {
 				request_firmware(&fw, RT5514_FIRMWARE3,
 						 codec->dev);
 				if (fw) {
+#if IS_ENABLED(CONFIG_SND_SOC_RT5514_SPI)
 					rt5514_spi_burst_write(0x4ff80000,
 						fw->data,
 						((fw->size/8)+1)*8);
+#else
+					dev_err(codec->dev,
+						"No SPI driver to load fw\n");
+#endif
 					release_firmware(fw);
 					fw = NULL;
 				}
