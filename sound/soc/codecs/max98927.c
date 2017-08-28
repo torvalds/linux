@@ -418,11 +418,6 @@ static int max98927_dac_event(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R003A_AMP_EN,
 			MAX98927_AMP_EN_MASK, 1);
-		/* enable VMON and IMON */
-		regmap_update_bits(max98927->regmap,
-			MAX98927_R003E_MEAS_EN,
-			MAX98927_MEAS_V_EN | MAX98927_MEAS_I_EN,
-			MAX98927_MEAS_V_EN | MAX98927_MEAS_I_EN);
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R00FF_GLOBAL_SHDN,
 			MAX98927_GLOBAL_EN_MASK, 1);
@@ -434,10 +429,6 @@ static int max98927_dac_event(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R003A_AMP_EN,
 			MAX98927_AMP_EN_MASK, 0);
-		/* disable VMON and IMON */
-		regmap_update_bits(max98927->regmap,
-			MAX98927_R003E_MEAS_EN,
-			MAX98927_MEAS_V_EN | MAX98927_MEAS_I_EN, 0);
 		break;
 	default:
 		return 0;
@@ -456,14 +447,24 @@ static const struct soc_enum dai_sel_enum =
 static const struct snd_kcontrol_new max98927_dai_controls =
 	SOC_DAPM_ENUM("DAI Sel", dai_sel_enum);
 
+static const struct snd_kcontrol_new max98927_vi_control =
+	SOC_DAPM_SINGLE("Switch", MAX98927_R003F_MEAS_DSP_CFG, 2, 1, 0);
+
 static const struct snd_soc_dapm_widget max98927_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("DAI_OUT", "HiFi Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC_E("Amp Enable", "HiFi Playback", MAX98927_R003A_AMP_EN,
 		0, 0, max98927_dac_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_NOPM, 0, 0,
 		&max98927_dai_controls),
 	SND_SOC_DAPM_OUTPUT("BE_OUT"),
+	SND_SOC_DAPM_AIF_OUT("Voltage Sense", "HiFi Capture",  0,
+		MAX98927_R003E_MEAS_EN, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Current Sense", "HiFi Capture",  0,
+		MAX98927_R003E_MEAS_EN, 1, 0),
+	SND_SOC_DAPM_SWITCH("VI Sense", SND_SOC_NOPM, 0, 0,
+		&max98927_vi_control),
+	SND_SOC_DAPM_SIGGEN("VMON"),
+	SND_SOC_DAPM_SIGGEN("IMON"),
 };
 
 static DECLARE_TLV_DB_SCALE(max98927_spk_tlv, 300, 300, 0);
@@ -550,11 +551,16 @@ static const struct snd_kcontrol_new max98927_snd_controls[] = {
 };
 
 static const struct snd_soc_dapm_route max98927_audio_map[] = {
-	{"Amp Enable", NULL, "DAI_OUT"},
+	/* Plabyack */
 	{"DAI Sel Mux", "Left", "Amp Enable"},
 	{"DAI Sel Mux", "Right", "Amp Enable"},
 	{"DAI Sel Mux", "LeftRight", "Amp Enable"},
 	{"BE_OUT", NULL, "DAI Sel Mux"},
+	/* Capture */
+	{ "VI Sense", "Switch", "VMON" },
+	{ "VI Sense", "Switch", "IMON" },
+	{ "Voltage Sense", NULL, "VI Sense" },
+	{ "Current Sense", NULL, "VI Sense" },
 };
 
 static struct snd_soc_dai_driver max98927_dai[] = {
