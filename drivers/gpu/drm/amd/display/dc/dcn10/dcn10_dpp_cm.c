@@ -453,167 +453,119 @@ void dcn10_dpp_cm_configure_regamma_lut(
 	REG_SET(CM_RGAM_LUT_INDEX, 0, CM_RGAM_LUT_INDEX, 0);
 }
 
+struct cm_gam_ram_reg {
+	uint32_t start_cntl_b;
+	uint32_t start_cntl_g;
+	uint32_t start_cntl_r;
+	uint32_t start_slope_cntl_b;
+	uint32_t start_slope_cntl_g;
+	uint32_t start_slope_cntl_r;
+	uint32_t start_end_cntl1_b;
+	uint32_t start_end_cntl2_b;
+	uint32_t start_end_cntl1_g;
+	uint32_t start_end_cntl2_g;
+	uint32_t start_end_cntl1_r;
+	uint32_t start_end_cntl2_r;
+	uint32_t region_start;
+	uint32_t region_end;
+};
+
+static void dpp_cm_program_region_lut(
+		struct transform *xfm_base,
+		const struct pwl_params *params,
+		const struct cm_gam_ram_reg *reg)
+{
+	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	uint32_t reg_region_cur;
+	unsigned int i = 0;
+
+#undef REG
+#define REG(reg) reg
+
+	REG_SET_2(reg->start_cntl_b, 0,
+		CM_RGAM_RAMA_EXP_REGION_START_B, params->arr_points[0].custom_float_x,
+		CM_RGAM_RAMA_EXP_REGION_START_SEGMENT_B, 0);
+	REG_SET_2(reg->start_cntl_g, 0,
+		CM_RGAM_RAMA_EXP_REGION_START_G, params->arr_points[0].custom_float_x,
+		CM_RGAM_RAMA_EXP_REGION_START_SEGMENT_G, 0);
+	REG_SET_2(reg->start_cntl_r, 0,
+		CM_RGAM_RAMA_EXP_REGION_START_R, params->arr_points[0].custom_float_x,
+		CM_RGAM_RAMA_EXP_REGION_START_SEGMENT_R, 0);
+
+	REG_SET(reg->start_slope_cntl_b, 0,
+		CM_RGAM_RAMA_EXP_REGION_LINEAR_SLOPE_B, params->arr_points[0].custom_float_slope);
+	REG_SET(reg->start_slope_cntl_g, 0,
+		CM_RGAM_RAMA_EXP_REGION_LINEAR_SLOPE_G, params->arr_points[0].custom_float_slope);
+	REG_SET(reg->start_slope_cntl_r, 0,
+		CM_RGAM_RAMA_EXP_REGION_LINEAR_SLOPE_R, params->arr_points[0].custom_float_slope);
+
+	REG_SET(reg->start_end_cntl1_b, 0,
+		CM_RGAM_RAMA_EXP_REGION_END_B, params->arr_points[1].custom_float_x);
+	REG_SET_2(reg->start_end_cntl2_b, 0,
+		CM_RGAM_RAMA_EXP_REGION_END_SLOPE_B, params->arr_points[1].custom_float_slope,
+		CM_RGAM_RAMA_EXP_REGION_END_BASE_B, params->arr_points[1].custom_float_y);
+
+	REG_SET(reg->start_end_cntl1_g, 0,
+		CM_RGAM_RAMA_EXP_REGION_END_G, params->arr_points[1].custom_float_x);
+	REG_SET_2(reg->start_end_cntl2_g, 0,
+		CM_RGAM_RAMA_EXP_REGION_END_SLOPE_G, params->arr_points[1].custom_float_slope,
+		CM_RGAM_RAMA_EXP_REGION_END_BASE_G, params->arr_points[1].custom_float_y);
+
+	REG_SET(reg->start_end_cntl1_r, 0,
+		CM_RGAM_RAMA_EXP_REGION_END_R, params->arr_points[1].custom_float_x);
+	REG_SET_2(reg->start_end_cntl2_r, 0,
+		CM_RGAM_RAMA_EXP_REGION_END_SLOPE_R, params->arr_points[1].custom_float_slope,
+		CM_RGAM_RAMA_EXP_REGION_END_BASE_R, params->arr_points[1].custom_float_y);
+
+	for (reg_region_cur = reg->region_start;
+			reg_region_cur <= reg->region_end;
+			reg_region_cur++) {
+
+		const struct gamma_curve *curve0 = &(params->arr_curve_points[2 * i]);
+		const struct gamma_curve *curve1 = &(params->arr_curve_points[(2 * i) + 1]);
+
+		REG_SET_4(reg_region_cur, 0,
+			CM_RGAM_RAMA_EXP_REGION0_LUT_OFFSET, curve0->offset,
+			CM_RGAM_RAMA_EXP_REGION0_NUM_SEGMENTS, curve0->segments_num,
+			CM_RGAM_RAMA_EXP_REGION1_LUT_OFFSET, curve1->offset,
+			CM_RGAM_RAMA_EXP_REGION1_NUM_SEGMENTS, curve1->segments_num);
+
+		i++;
+	}
+
+#undef REG
+#define REG(reg)\
+	xfm->tf_regs->reg
+
+}
+
+
+
 /*program re gamma RAM A*/
 void dcn10_dpp_cm_program_regamma_luta_settings(
 		struct transform *xfm_base,
 		const struct pwl_params *params)
 {
-	const struct gamma_curve *curve;
 	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct cm_gam_ram_reg gam_regs;
 
-	REG_SET_2(CM_RGAM_RAMA_START_CNTL_B, 0,
-		CM_RGAM_RAMA_EXP_REGION_START_B, params->arr_points[0].custom_float_x,
-		CM_RGAM_RAMA_EXP_REGION_START_SEGMENT_B, 0);
-	REG_SET_2(CM_RGAM_RAMA_START_CNTL_G, 0,
-		CM_RGAM_RAMA_EXP_REGION_START_G, params->arr_points[0].custom_float_x,
-		CM_RGAM_RAMA_EXP_REGION_START_SEGMENT_G, 0);
-	REG_SET_2(CM_RGAM_RAMA_START_CNTL_R, 0,
-		CM_RGAM_RAMA_EXP_REGION_START_R, params->arr_points[0].custom_float_x,
-		CM_RGAM_RAMA_EXP_REGION_START_SEGMENT_R, 0);
+	gam_regs.start_cntl_b = REG(CM_RGAM_RAMA_START_CNTL_B);
+	gam_regs.start_cntl_g = REG(CM_RGAM_RAMA_START_CNTL_G);
+	gam_regs.start_cntl_r = REG(CM_RGAM_RAMA_START_CNTL_R);
+	gam_regs.start_slope_cntl_b = REG(CM_RGAM_RAMA_SLOPE_CNTL_B);
+	gam_regs.start_slope_cntl_g = REG(CM_RGAM_RAMA_SLOPE_CNTL_G);
+	gam_regs.start_slope_cntl_r = REG(CM_RGAM_RAMA_SLOPE_CNTL_R);
+	gam_regs.start_end_cntl1_b = REG(CM_RGAM_RAMA_END_CNTL1_B);
+	gam_regs.start_end_cntl2_b = REG(CM_RGAM_RAMA_END_CNTL2_B);
+	gam_regs.start_end_cntl1_g = REG(CM_RGAM_RAMA_END_CNTL1_G);
+	gam_regs.start_end_cntl2_g = REG(CM_RGAM_RAMA_END_CNTL2_G);
+	gam_regs.start_end_cntl1_r = REG(CM_RGAM_RAMA_END_CNTL1_R);
+	gam_regs.start_end_cntl2_r = REG(CM_RGAM_RAMA_END_CNTL2_R);
+	gam_regs.region_start = REG(CM_RGAM_RAMA_REGION_0_1);
+	gam_regs.region_end = REG(CM_RGAM_RAMA_REGION_32_33);
 
-	REG_SET(CM_RGAM_RAMA_SLOPE_CNTL_B, 0,
-		CM_RGAM_RAMA_EXP_REGION_LINEAR_SLOPE_B, params->arr_points[0].custom_float_slope);
-	REG_SET(CM_RGAM_RAMA_SLOPE_CNTL_G, 0,
-		CM_RGAM_RAMA_EXP_REGION_LINEAR_SLOPE_G, params->arr_points[0].custom_float_slope);
-	REG_SET(CM_RGAM_RAMA_SLOPE_CNTL_R, 0,
-		CM_RGAM_RAMA_EXP_REGION_LINEAR_SLOPE_R, params->arr_points[0].custom_float_slope);
+	dpp_cm_program_region_lut(xfm_base, params, &gam_regs);
 
-	REG_SET(CM_RGAM_RAMA_END_CNTL1_B, 0,
-		CM_RGAM_RAMA_EXP_REGION_END_B, params->arr_points[1].custom_float_x);
-	REG_SET_2(CM_RGAM_RAMA_END_CNTL2_B, 0,
-		CM_RGAM_RAMA_EXP_REGION_END_SLOPE_B, params->arr_points[1].custom_float_slope,
-		CM_RGAM_RAMA_EXP_REGION_END_BASE_B, params->arr_points[1].custom_float_y);
-
-	REG_SET(CM_RGAM_RAMA_END_CNTL1_G, 0,
-		CM_RGAM_RAMA_EXP_REGION_END_G, params->arr_points[1].custom_float_x);
-	REG_SET_2(CM_RGAM_RAMA_END_CNTL2_G, 0,
-		CM_RGAM_RAMA_EXP_REGION_END_SLOPE_G, params->arr_points[1].custom_float_slope,
-		CM_RGAM_RAMA_EXP_REGION_END_BASE_G, params->arr_points[1].custom_float_y);
-
-	REG_SET(CM_RGAM_RAMA_END_CNTL1_R, 0,
-		CM_RGAM_RAMA_EXP_REGION_END_R, params->arr_points[1].custom_float_x);
-	REG_SET_2(CM_RGAM_RAMA_END_CNTL2_R, 0,
-		CM_RGAM_RAMA_EXP_REGION_END_SLOPE_R, params->arr_points[1].custom_float_slope,
-		CM_RGAM_RAMA_EXP_REGION_END_BASE_R, params->arr_points[1].custom_float_y);
-
-	curve = params->arr_curve_points;
-	REG_SET_4(CM_RGAM_RAMA_REGION_0_1, 0,
-		CM_RGAM_RAMA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_2_3, 0,
-		CM_RGAM_RAMA_EXP_REGION2_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION2_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION3_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION3_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_4_5, 0,
-		CM_RGAM_RAMA_EXP_REGION4_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION4_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION5_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION5_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_6_7, 0,
-		CM_RGAM_RAMA_EXP_REGION6_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION6_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION7_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION7_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_8_9, 0,
-		CM_RGAM_RAMA_EXP_REGION8_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION8_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION9_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION9_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_10_11, 0,
-		CM_RGAM_RAMA_EXP_REGION10_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION10_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION11_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION11_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_12_13, 0,
-		CM_RGAM_RAMA_EXP_REGION12_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION12_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION13_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION13_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_14_15, 0,
-		CM_RGAM_RAMA_EXP_REGION14_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION14_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION15_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION15_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_16_17, 0,
-		CM_RGAM_RAMA_EXP_REGION16_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION16_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION17_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION17_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_18_19, 0,
-		CM_RGAM_RAMA_EXP_REGION18_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION18_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION19_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION19_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_20_21, 0,
-		CM_RGAM_RAMA_EXP_REGION20_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION20_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION21_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION21_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_22_23, 0,
-		CM_RGAM_RAMA_EXP_REGION22_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION22_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION23_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION23_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_24_25, 0,
-		CM_RGAM_RAMA_EXP_REGION24_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION24_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION25_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION25_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_26_27, 0,
-		CM_RGAM_RAMA_EXP_REGION26_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION26_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION27_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION27_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_28_29, 0,
-		CM_RGAM_RAMA_EXP_REGION28_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION28_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION29_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION29_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_30_31, 0,
-		CM_RGAM_RAMA_EXP_REGION30_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION30_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION31_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION31_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMA_REGION_32_33, 0,
-		CM_RGAM_RAMA_EXP_REGION32_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMA_EXP_REGION32_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMA_EXP_REGION33_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMA_EXP_REGION33_NUM_SEGMENTS, curve[1].segments_num);
 }
 
 /*program re gamma RAM B*/
@@ -621,163 +573,25 @@ void dcn10_dpp_cm_program_regamma_lutb_settings(
 		struct transform *xfm_base,
 		const struct pwl_params *params)
 {
-	const struct gamma_curve *curve;
 	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct cm_gam_ram_reg gam_regs;
 
-	REG_SET_2(CM_RGAM_RAMB_START_CNTL_B, 0,
-		CM_RGAM_RAMB_EXP_REGION_START_B, params->arr_points[0].custom_float_x,
-		CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_B, 0);
-	REG_SET_2(CM_RGAM_RAMB_START_CNTL_G, 0,
-		CM_RGAM_RAMB_EXP_REGION_START_G, params->arr_points[0].custom_float_x,
-		CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_G, 0);
-	REG_SET_2(CM_RGAM_RAMB_START_CNTL_R, 0,
-		CM_RGAM_RAMB_EXP_REGION_START_R, params->arr_points[0].custom_float_x,
-		CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_R, 0);
+	gam_regs.start_cntl_b = REG(CM_RGAM_RAMB_START_CNTL_B);
+	gam_regs.start_cntl_g = REG(CM_RGAM_RAMB_START_CNTL_G);
+	gam_regs.start_cntl_r = REG(CM_RGAM_RAMB_START_CNTL_R);
+	gam_regs.start_slope_cntl_b = REG(CM_RGAM_RAMB_SLOPE_CNTL_B);
+	gam_regs.start_slope_cntl_g = REG(CM_RGAM_RAMB_SLOPE_CNTL_G);
+	gam_regs.start_slope_cntl_r = REG(CM_RGAM_RAMB_SLOPE_CNTL_R);
+	gam_regs.start_end_cntl1_b = REG(CM_RGAM_RAMB_END_CNTL1_B);
+	gam_regs.start_end_cntl2_b = REG(CM_RGAM_RAMB_END_CNTL2_B);
+	gam_regs.start_end_cntl1_g = REG(CM_RGAM_RAMB_END_CNTL1_G);
+	gam_regs.start_end_cntl2_g = REG(CM_RGAM_RAMB_END_CNTL2_G);
+	gam_regs.start_end_cntl1_r = REG(CM_RGAM_RAMB_END_CNTL1_R);
+	gam_regs.start_end_cntl2_r = REG(CM_RGAM_RAMB_END_CNTL2_R);
+	gam_regs.region_start = REG(CM_RGAM_RAMB_REGION_0_1);
+	gam_regs.region_end = REG(CM_RGAM_RAMB_REGION_32_33);
 
-	REG_SET(CM_RGAM_RAMB_SLOPE_CNTL_B, 0,
-		CM_RGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B, params->arr_points[0].custom_float_slope);
-	REG_SET(CM_RGAM_RAMB_SLOPE_CNTL_G, 0,
-		CM_RGAM_RAMB_EXP_REGION_LINEAR_SLOPE_G, params->arr_points[0].custom_float_slope);
-	REG_SET(CM_RGAM_RAMB_SLOPE_CNTL_R, 0,
-		CM_RGAM_RAMB_EXP_REGION_LINEAR_SLOPE_R, params->arr_points[0].custom_float_slope);
-
-	REG_SET(CM_RGAM_RAMB_END_CNTL1_B, 0,
-		CM_RGAM_RAMB_EXP_REGION_END_B, params->arr_points[1].custom_float_x);
-	REG_SET_2(CM_RGAM_RAMB_END_CNTL2_B, 0,
-		CM_RGAM_RAMB_EXP_REGION_END_SLOPE_B, params->arr_points[1].custom_float_slope,
-		CM_RGAM_RAMB_EXP_REGION_END_BASE_B, params->arr_points[1].custom_float_y);
-
-	REG_SET(CM_RGAM_RAMB_END_CNTL1_G, 0,
-		CM_RGAM_RAMB_EXP_REGION_END_G, params->arr_points[1].custom_float_x);
-	REG_SET_2(CM_RGAM_RAMB_END_CNTL2_G, 0,
-		CM_RGAM_RAMB_EXP_REGION_END_SLOPE_G, params->arr_points[1].custom_float_slope,
-		CM_RGAM_RAMB_EXP_REGION_END_BASE_G, params->arr_points[1].custom_float_y);
-
-	REG_SET(CM_RGAM_RAMB_END_CNTL1_R, 0,
-		CM_RGAM_RAMB_EXP_REGION_END_R, params->arr_points[1].custom_float_x);
-	REG_SET_2(CM_RGAM_RAMB_END_CNTL2_R, 0,
-		CM_RGAM_RAMB_EXP_REGION_END_SLOPE_R, params->arr_points[1].custom_float_slope,
-		CM_RGAM_RAMB_EXP_REGION_END_BASE_R, params->arr_points[1].custom_float_y);
-
-	curve = params->arr_curve_points;
-	REG_SET_4(CM_RGAM_RAMB_REGION_0_1, 0,
-		CM_RGAM_RAMB_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_2_3, 0,
-		CM_RGAM_RAMB_EXP_REGION2_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION2_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION3_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION3_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_4_5, 0,
-		CM_RGAM_RAMB_EXP_REGION4_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION4_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION5_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION5_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_6_7, 0,
-		CM_RGAM_RAMB_EXP_REGION6_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION6_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION7_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION7_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_8_9, 0,
-		CM_RGAM_RAMB_EXP_REGION8_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION8_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION9_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION9_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_10_11, 0,
-		CM_RGAM_RAMB_EXP_REGION10_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION10_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION11_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION11_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_12_13, 0,
-		CM_RGAM_RAMB_EXP_REGION12_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION12_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION13_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION13_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_14_15, 0,
-		CM_RGAM_RAMB_EXP_REGION14_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION14_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION15_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION15_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_16_17, 0,
-		CM_RGAM_RAMB_EXP_REGION16_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION16_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION17_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION17_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_18_19, 0,
-		CM_RGAM_RAMB_EXP_REGION18_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION18_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION19_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION19_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_20_21, 0,
-		CM_RGAM_RAMB_EXP_REGION20_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION20_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION21_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION21_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_22_23, 0,
-		CM_RGAM_RAMB_EXP_REGION22_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION22_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION23_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION23_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_24_25, 0,
-		CM_RGAM_RAMB_EXP_REGION24_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION24_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION25_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION25_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_26_27, 0,
-		CM_RGAM_RAMB_EXP_REGION26_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION26_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION27_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION27_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_28_29, 0,
-		CM_RGAM_RAMB_EXP_REGION28_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION28_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION29_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION29_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_30_31, 0,
-		CM_RGAM_RAMB_EXP_REGION30_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION30_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION31_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION31_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_RGAM_RAMB_REGION_32_33, 0,
-		CM_RGAM_RAMB_EXP_REGION32_LUT_OFFSET, curve[0].offset,
-		CM_RGAM_RAMB_EXP_REGION32_NUM_SEGMENTS, curve[0].segments_num,
-		CM_RGAM_RAMB_EXP_REGION33_LUT_OFFSET, curve[1].offset,
-		CM_RGAM_RAMB_EXP_REGION33_NUM_SEGMENTS, curve[1].segments_num);
-
+	dpp_cm_program_region_lut(xfm_base, params, &gam_regs);
 }
 
 void ippn10_program_input_csc(
@@ -874,106 +688,25 @@ void ippn10_program_degamma_lutb_settings(
 		struct transform *xfm_base,
 		const struct pwl_params *params)
 {
-	const struct gamma_curve *curve;
 	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct cm_gam_ram_reg gam_regs;
 
-	REG_SET_2(CM_DGAM_RAMB_START_CNTL_B, 0,
-		CM_DGAM_RAMB_EXP_REGION_START_B, params->arr_points[0].custom_float_x,
-		CM_DGAM_RAMB_EXP_REGION_START_SEGMENT_B, 0);
+	gam_regs.start_cntl_b = REG(CM_DGAM_RAMB_START_CNTL_B);
+	gam_regs.start_cntl_g = REG(CM_DGAM_RAMB_START_CNTL_G);
+	gam_regs.start_cntl_r = REG(CM_DGAM_RAMB_START_CNTL_R);
+	gam_regs.start_slope_cntl_b = REG(CM_DGAM_RAMB_SLOPE_CNTL_B);
+	gam_regs.start_slope_cntl_g = REG(CM_DGAM_RAMB_SLOPE_CNTL_G);
+	gam_regs.start_slope_cntl_r = REG(CM_DGAM_RAMB_SLOPE_CNTL_R);
+	gam_regs.start_end_cntl1_b = REG(CM_DGAM_RAMB_END_CNTL1_B);
+	gam_regs.start_end_cntl2_b = REG(CM_DGAM_RAMB_END_CNTL2_B);
+	gam_regs.start_end_cntl1_g = REG(CM_DGAM_RAMB_END_CNTL1_G);
+	gam_regs.start_end_cntl2_g = REG(CM_DGAM_RAMB_END_CNTL2_G);
+	gam_regs.start_end_cntl1_r = REG(CM_DGAM_RAMB_END_CNTL1_R);
+	gam_regs.start_end_cntl2_r = REG(CM_DGAM_RAMB_END_CNTL2_R);
+	gam_regs.region_start = REG(CM_DGAM_RAMB_REGION_0_1);
+	gam_regs.region_end = REG(CM_DGAM_RAMB_REGION_14_15);
 
-	REG_SET_2(CM_DGAM_RAMB_START_CNTL_G, 0,
-		CM_DGAM_RAMB_EXP_REGION_START_G, params->arr_points[0].custom_float_x,
-		CM_DGAM_RAMB_EXP_REGION_START_SEGMENT_G, 0);
-
-	REG_SET_2(CM_DGAM_RAMB_START_CNTL_R, 0,
-		CM_DGAM_RAMB_EXP_REGION_START_R, params->arr_points[0].custom_float_x,
-		CM_DGAM_RAMB_EXP_REGION_START_SEGMENT_R, 0);
-
-	REG_SET(CM_DGAM_RAMB_SLOPE_CNTL_B, 0,
-		CM_DGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B, params->arr_points[0].custom_float_slope);
-
-	REG_SET(CM_DGAM_RAMB_SLOPE_CNTL_G, 0,
-		CM_DGAM_RAMB_EXP_REGION_LINEAR_SLOPE_G, params->arr_points[0].custom_float_slope);
-
-	REG_SET(CM_DGAM_RAMB_SLOPE_CNTL_R, 0,
-		CM_DGAM_RAMB_EXP_REGION_LINEAR_SLOPE_R, params->arr_points[0].custom_float_slope);
-
-	REG_SET(CM_DGAM_RAMB_END_CNTL1_B, 0,
-		CM_DGAM_RAMB_EXP_REGION_END_B, params->arr_points[1].custom_float_x);
-
-	REG_SET_2(CM_DGAM_RAMB_END_CNTL2_B, 0,
-		CM_DGAM_RAMB_EXP_REGION_END_SLOPE_B, params->arr_points[1].custom_float_y,
-		CM_DGAM_RAMB_EXP_REGION_END_BASE_B, params->arr_points[2].custom_float_slope);
-
-	REG_SET(CM_DGAM_RAMB_END_CNTL1_G, 0,
-		CM_DGAM_RAMB_EXP_REGION_END_G, params->arr_points[1].custom_float_x);
-
-	REG_SET_2(CM_DGAM_RAMB_END_CNTL2_G, 0,
-		CM_DGAM_RAMB_EXP_REGION_END_SLOPE_G, params->arr_points[1].custom_float_y,
-		CM_DGAM_RAMB_EXP_REGION_END_BASE_G, params->arr_points[2].custom_float_slope);
-
-	REG_SET(CM_DGAM_RAMB_END_CNTL1_R, 0,
-		CM_DGAM_RAMB_EXP_REGION_END_R, params->arr_points[1].custom_float_x);
-
-	REG_SET_2(CM_DGAM_RAMB_END_CNTL2_R, 0,
-		CM_DGAM_RAMB_EXP_REGION_END_SLOPE_R, params->arr_points[1].custom_float_y,
-		CM_DGAM_RAMB_EXP_REGION_END_BASE_R, params->arr_points[2].custom_float_slope);
-
-	curve = params->arr_curve_points;
-	REG_SET_4(CM_DGAM_RAMB_REGION_0_1, 0,
-		CM_DGAM_RAMB_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMB_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMB_EXP_REGION1_LUT_OFFSET, 	curve[1].offset,
-		CM_DGAM_RAMB_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMB_REGION_2_3, 0,
-		CM_DGAM_RAMB_EXP_REGION2_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMB_EXP_REGION2_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMB_EXP_REGION3_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMB_EXP_REGION3_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMB_REGION_4_5, 0,
-		CM_DGAM_RAMB_EXP_REGION4_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMB_EXP_REGION4_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMB_EXP_REGION5_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMB_EXP_REGION5_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMB_REGION_6_7, 0,
-		CM_DGAM_RAMB_EXP_REGION6_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMB_EXP_REGION6_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMB_EXP_REGION7_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMB_EXP_REGION7_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMB_REGION_8_9, 0,
-		CM_DGAM_RAMB_EXP_REGION8_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMB_EXP_REGION8_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMB_EXP_REGION9_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMB_EXP_REGION9_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMB_REGION_10_11, 0,
-		CM_DGAM_RAMB_EXP_REGION10_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMB_EXP_REGION10_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMB_EXP_REGION11_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMB_EXP_REGION11_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMB_REGION_12_13, 0,
-		CM_DGAM_RAMB_EXP_REGION12_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMB_EXP_REGION12_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMB_EXP_REGION13_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMB_EXP_REGION13_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMB_REGION_14_15, 0,
-		CM_DGAM_RAMB_EXP_REGION14_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMB_EXP_REGION14_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMB_EXP_REGION15_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMB_EXP_REGION15_NUM_SEGMENTS, curve[1].segments_num);
+	dpp_cm_program_region_lut(xfm_base, params, &gam_regs);
 }
 
 /*program de gamma RAM A*/
@@ -981,106 +714,25 @@ void ippn10_program_degamma_luta_settings(
 		struct transform *xfm_base,
 		const struct pwl_params *params)
 {
-	const struct gamma_curve *curve;
 	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
+	struct cm_gam_ram_reg gam_regs;
 
-	REG_SET_2(CM_DGAM_RAMA_START_CNTL_B, 0,
-		CM_DGAM_RAMA_EXP_REGION_START_B, params->arr_points[0].custom_float_x,
-		CM_DGAM_RAMA_EXP_REGION_START_SEGMENT_B, 0);
+	gam_regs.start_cntl_b = REG(CM_DGAM_RAMA_START_CNTL_B);
+	gam_regs.start_cntl_g = REG(CM_DGAM_RAMA_START_CNTL_G);
+	gam_regs.start_cntl_r = REG(CM_DGAM_RAMA_START_CNTL_R);
+	gam_regs.start_slope_cntl_b = REG(CM_DGAM_RAMA_SLOPE_CNTL_B);
+	gam_regs.start_slope_cntl_g = REG(CM_DGAM_RAMA_SLOPE_CNTL_G);
+	gam_regs.start_slope_cntl_r = REG(CM_DGAM_RAMA_SLOPE_CNTL_R);
+	gam_regs.start_end_cntl1_b = REG(CM_DGAM_RAMA_END_CNTL1_B);
+	gam_regs.start_end_cntl2_b = REG(CM_DGAM_RAMA_END_CNTL2_B);
+	gam_regs.start_end_cntl1_g = REG(CM_DGAM_RAMA_END_CNTL1_G);
+	gam_regs.start_end_cntl2_g = REG(CM_DGAM_RAMA_END_CNTL2_G);
+	gam_regs.start_end_cntl1_r = REG(CM_DGAM_RAMA_END_CNTL1_R);
+	gam_regs.start_end_cntl2_r = REG(CM_DGAM_RAMA_END_CNTL2_R);
+	gam_regs.region_start = REG(CM_DGAM_RAMA_REGION_0_1);
+	gam_regs.region_end = REG(CM_DGAM_RAMA_REGION_14_15);
 
-	REG_SET_2(CM_DGAM_RAMA_START_CNTL_G, 0,
-		CM_DGAM_RAMA_EXP_REGION_START_G, params->arr_points[0].custom_float_x,
-		CM_DGAM_RAMA_EXP_REGION_START_SEGMENT_G, 0);
-
-	REG_SET_2(CM_DGAM_RAMA_START_CNTL_R, 0,
-		CM_DGAM_RAMA_EXP_REGION_START_R, params->arr_points[0].custom_float_x,
-		CM_DGAM_RAMA_EXP_REGION_START_SEGMENT_R, 0);
-
-	REG_SET(CM_DGAM_RAMA_SLOPE_CNTL_B, 0,
-		CM_DGAM_RAMA_EXP_REGION_LINEAR_SLOPE_B, params->arr_points[0].custom_float_slope);
-
-	REG_SET(CM_DGAM_RAMA_SLOPE_CNTL_G, 0,
-		CM_DGAM_RAMA_EXP_REGION_LINEAR_SLOPE_G, params->arr_points[0].custom_float_slope);
-
-	REG_SET(CM_DGAM_RAMA_SLOPE_CNTL_R, 0,
-		CM_DGAM_RAMA_EXP_REGION_LINEAR_SLOPE_R, params->arr_points[0].custom_float_slope);
-
-	REG_SET(CM_DGAM_RAMA_END_CNTL1_B, 0,
-		CM_DGAM_RAMA_EXP_REGION_END_B, params->arr_points[1].custom_float_x);
-
-	REG_SET_2(CM_DGAM_RAMA_END_CNTL2_B, 0,
-		CM_DGAM_RAMA_EXP_REGION_END_SLOPE_B, params->arr_points[1].custom_float_y,
-		CM_DGAM_RAMA_EXP_REGION_END_BASE_B, params->arr_points[2].custom_float_slope);
-
-	REG_SET(CM_DGAM_RAMA_END_CNTL1_G, 0,
-		CM_DGAM_RAMA_EXP_REGION_END_G, params->arr_points[1].custom_float_x);
-
-	REG_SET_2(CM_DGAM_RAMA_END_CNTL2_G, 0,
-		CM_DGAM_RAMA_EXP_REGION_END_SLOPE_G, params->arr_points[1].custom_float_y,
-		CM_DGAM_RAMA_EXP_REGION_END_BASE_G, params->arr_points[2].custom_float_slope);
-
-	REG_SET(CM_DGAM_RAMA_END_CNTL1_R, 0,
-		CM_DGAM_RAMA_EXP_REGION_END_R, params->arr_points[1].custom_float_x);
-
-	REG_SET_2(CM_DGAM_RAMA_END_CNTL2_R, 0,
-		CM_DGAM_RAMA_EXP_REGION_END_SLOPE_R, params->arr_points[1].custom_float_y,
-		CM_DGAM_RAMA_EXP_REGION_END_BASE_R, params->arr_points[2].custom_float_slope);
-
-	curve = params->arr_curve_points;
-	REG_SET_4(CM_DGAM_RAMA_REGION_0_1, 0,
-		CM_DGAM_RAMA_EXP_REGION0_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMA_EXP_REGION0_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMA_EXP_REGION1_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMA_EXP_REGION1_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMA_REGION_2_3, 0,
-		CM_DGAM_RAMA_EXP_REGION2_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMA_EXP_REGION2_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMA_EXP_REGION3_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMA_EXP_REGION3_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMA_REGION_4_5, 0,
-		CM_DGAM_RAMA_EXP_REGION4_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMA_EXP_REGION4_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMA_EXP_REGION5_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMA_EXP_REGION5_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMA_REGION_6_7, 0,
-		CM_DGAM_RAMA_EXP_REGION6_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMA_EXP_REGION6_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMA_EXP_REGION7_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMA_EXP_REGION7_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMA_REGION_8_9, 0,
-		CM_DGAM_RAMA_EXP_REGION8_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMA_EXP_REGION8_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMA_EXP_REGION9_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMA_EXP_REGION9_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMA_REGION_10_11, 0,
-		CM_DGAM_RAMA_EXP_REGION10_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMA_EXP_REGION10_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMA_EXP_REGION11_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMA_EXP_REGION11_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMA_REGION_12_13, 0,
-		CM_DGAM_RAMA_EXP_REGION12_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMA_EXP_REGION12_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMA_EXP_REGION13_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMA_EXP_REGION13_NUM_SEGMENTS, curve[1].segments_num);
-
-	curve += 2;
-	REG_SET_4(CM_DGAM_RAMA_REGION_14_15, 0,
-		CM_DGAM_RAMA_EXP_REGION14_LUT_OFFSET, curve[0].offset,
-		CM_DGAM_RAMA_EXP_REGION14_NUM_SEGMENTS, curve[0].segments_num,
-		CM_DGAM_RAMA_EXP_REGION15_LUT_OFFSET, curve[1].offset,
-		CM_DGAM_RAMA_EXP_REGION15_NUM_SEGMENTS, curve[1].segments_num);
+	dpp_cm_program_region_lut(xfm_base, params, &gam_regs);
 }
 
 void ippn10_power_on_degamma_lut(
