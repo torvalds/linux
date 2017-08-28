@@ -108,6 +108,38 @@ static int ls1021_pcie_link_up(struct dw_pcie *pci)
 	return 1;
 }
 
+static int ls_pcie_link_up(struct dw_pcie *pci)
+{
+	struct ls_pcie *pcie = to_ls_pcie(pci);
+	u32 state;
+
+	state = (ioread32(pcie->lut + pcie->drvdata->lut_dbg) >>
+		 pcie->drvdata->ltssm_shift) &
+		 LTSSM_STATE_MASK;
+
+	if (state < LTSSM_PCIE_L0)
+		return 0;
+
+	return 1;
+}
+
+static int ls_pcie_host_init(struct pcie_port *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct ls_pcie *pcie = to_ls_pcie(pci);
+
+	iowrite32(1, pci->dbi_base + PCIE_DBI_RO_WR_EN);
+	ls_pcie_fix_class(pcie);
+	ls_pcie_clear_multifunction(pcie);
+	iowrite32(0, pci->dbi_base + PCIE_DBI_RO_WR_EN);
+
+	ls_pcie_drop_msg_tlp(pcie);
+
+	dw_pcie_setup_rc(pp);
+
+	return 0;
+}
+
 static int ls1021_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -140,38 +172,6 @@ static int ls1021_pcie_host_init(struct pcie_port *pp)
 	iowrite32(0, pci->dbi_base + PCIE_DBI_RO_WR_EN);
 
 	ls_pcie_drop_msg_tlp(pcie);
-
-	return 0;
-}
-
-static int ls_pcie_link_up(struct dw_pcie *pci)
-{
-	struct ls_pcie *pcie = to_ls_pcie(pci);
-	u32 state;
-
-	state = (ioread32(pcie->lut + pcie->drvdata->lut_dbg) >>
-		 pcie->drvdata->ltssm_shift) &
-		 LTSSM_STATE_MASK;
-
-	if (state < LTSSM_PCIE_L0)
-		return 0;
-
-	return 1;
-}
-
-static int ls_pcie_host_init(struct pcie_port *pp)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct ls_pcie *pcie = to_ls_pcie(pci);
-
-	iowrite32(1, pci->dbi_base + PCIE_DBI_RO_WR_EN);
-	ls_pcie_fix_class(pcie);
-	ls_pcie_clear_multifunction(pcie);
-	iowrite32(0, pci->dbi_base + PCIE_DBI_RO_WR_EN);
-
-	ls_pcie_drop_msg_tlp(pcie);
-
-	dw_pcie_setup_rc(pp);
 
 	return 0;
 }
