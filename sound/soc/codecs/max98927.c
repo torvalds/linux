@@ -759,14 +759,14 @@ static void max98927_slot_config(struct i2c_client *i2c,
 	struct max98927_priv *max98927)
 {
 	int value;
+	struct device *dev = &i2c->dev;
 
-	if (!of_property_read_u32(i2c->dev.of_node,
-		"vmon-slot-no", &value))
+	if (!device_property_read_u32(dev, "vmon-slot-no", &value))
 		max98927->v_l_slot = value & 0xF;
 	else
 		max98927->v_l_slot = 0;
-	if (!of_property_read_u32(i2c->dev.of_node,
-		"imon-slot-no", &value))
+
+	if (!device_property_read_u32(dev, "imon-slot-no", &value))
 		max98927->i_l_slot = value & 0xF;
 	else
 		max98927->i_l_slot = 1;
