@@ -458,16 +458,120 @@ static void rvt_clear_mr_refs(struct rvt_qp *qp, int clr_sends)
 		}
 	}
 
-	if (qp->ibqp.qp_type != IB_QPT_RC)
-		return;
-
-	for (n = 0; n < rvt_max_atomic(rdi); n++) {
+	for (n = 0; qp->s_ack_queue && n < rvt_max_atomic(rdi); n++) {
 		struct rvt_ack_entry *e = &qp->s_ack_queue[n];
 
 		if (e->rdma_sge.mr) {
 			rvt_put_mr(e->rdma_sge.mr);
 			e->rdma_sge.mr = NULL;
 		}
+	}
+}
+
+/**
+ * rvt_swqe_has_lkey - return true if lkey is used by swqe
+ * @wqe - the send wqe
+ * @lkey - the lkey
+ *
+ * Test the swqe for using lkey
+ */
+static bool rvt_swqe_has_lkey(struct rvt_swqe *wqe, u32 lkey)
+{
+	int i;
+
+	for (i = 0; i < wqe->wr.num_sge; i++) {
+		struct rvt_sge *sge = &wqe->sg_list[i];
+
+		if (rvt_mr_has_lkey(sge->mr, lkey))
+			return true;
+	}
+	return false;
+}
+
+/**
+ * rvt_qp_sends_has_lkey - return true is qp sends use lkey
+ * @qp - the rvt_qp
+ * @lkey - the lkey
+ */
+static bool rvt_qp_sends_has_lkey(struct rvt_qp *qp, u32 lkey)
+{
+	u32 s_last = qp->s_last;
+
+	while (s_last != qp->s_head) {
+		struct rvt_swqe *wqe = rvt_get_swqe_ptr(qp, s_last);
+
+		if (rvt_swqe_has_lkey(wqe, lkey))
+			return true;
+
+		if (++s_last >= qp->s_size)
+			s_last = 0;
+	}
+	if (qp->s_rdma_mr)
+		if (rvt_mr_has_lkey(qp->s_rdma_mr, lkey))
+			return true;
+	return false;
+}
+
+/**
+ * rvt_qp_acks_has_lkey - return true if acks have lkey
+ * @qp - the qp
+ * @lkey - the lkey
+ */
+static bool rvt_qp_acks_has_lkey(struct rvt_qp *qp, u32 lkey)
+{
+	int i;
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+
+	for (i = 0; qp->s_ack_queue && i < rvt_max_atomic(rdi); i++) {
+		struct rvt_ack_entry *e = &qp->s_ack_queue[i];
+
+		if (rvt_mr_has_lkey(e->rdma_sge.mr, lkey))
+			return true;
+	}
+	return false;
+}
+
+/*
+ * rvt_qp_mr_clean - clean up remote ops for lkey
+ * @qp - the qp
+ * @lkey - the lkey that is being de-registered
+ *
+ * This routine checks if the lkey is being used by
+ * the qp.
+ *
+ * If so, the qp is put into an error state to elminate
+ * any references from the qp.
+ */
+void rvt_qp_mr_clean(struct rvt_qp *qp, u32 lkey)
+{
+	bool lastwqe = false;
+
+	if (qp->ibqp.qp_type == IB_QPT_SMI ||
+	    qp->ibqp.qp_type == IB_QPT_GSI)
+		/* avoid special QPs */
+		return;
+	spin_lock_irq(&qp->r_lock);
+	spin_lock(&qp->s_hlock);
+	spin_lock(&qp->s_lock);
+
+	if (qp->state == IB_QPS_ERR || qp->state == IB_QPS_RESET)
+		goto check_lwqe;
+
+	if (rvt_ss_has_lkey(&qp->r_sge, lkey) ||
+	    rvt_qp_sends_has_lkey(qp, lkey) ||
+	    rvt_qp_acks_has_lkey(qp, lkey))
+		lastwqe = rvt_error_qp(qp, IB_WC_LOC_PROT_ERR);
+check_lwqe:
+	spin_unlock(&qp->s_lock);
+	spin_unlock(&qp->s_hlock);
+	spin_unlock_irq(&qp->r_lock);
+	if (lastwqe) {
+		struct ib_event ev;
+
+		ev.device = qp->ibqp.device;
+		ev.element.qp = &qp->ibqp;
+		ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
 	}
 }
 

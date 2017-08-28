@@ -702,4 +702,5 @@ int rvt_qp_iter_next(struct rvt_qp_iter *iter);
 void rvt_qp_iter(struct rvt_dev_info *rdi,
 		 u64 v,
 		 void (*cb)(struct rvt_qp *qp, u64 v));
+void rvt_qp_mr_clean(struct rvt_qp *qp, u32 lkey);
 #endif          /* DEF_RDMAVT_INCQP_H */
