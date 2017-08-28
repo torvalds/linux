@@ -915,8 +915,7 @@ void analogix_dp_set_link_bandwidth(struct analogix_dp_device *dp, u32 bwtype)
 	u32 reg;
 
 	reg = bwtype;
-	if ((bwtype == DP_LINK_BW_2_7) || (bwtype == DP_LINK_BW_1_62))
-		writel(reg, dp->reg_base + ANALOGIX_DP_LINK_BW_SET);
+	writel(reg, dp->reg_base + ANALOGIX_DP_LINK_BW_SET);
 }
 
 void analogix_dp_get_link_bandwidth(struct analogix_dp_device *dp, u32 *bwtype)
@@ -979,6 +978,10 @@ void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
 		break;
 	case TRAINING_PTN2:
 		reg = SCRAMBLING_DISABLE | SW_TRAINING_PATTERN_SET_PTN2;
+		writel(reg, dp->reg_base + ANALOGIX_DP_TRAINING_PTN_SET);
+		break;
+	case TRAINING_PTN3:
+		reg = SCRAMBLING_DISABLE | SW_TRAINING_PATTERN_SET_PTN3;
 		writel(reg, dp->reg_base + ANALOGIX_DP_TRAINING_PTN_SET);
 		break;
 	case DP_NONE:

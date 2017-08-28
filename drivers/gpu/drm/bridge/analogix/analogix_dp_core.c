@@ -498,6 +498,8 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 	int lane, lane_count, retval;
 	u8 voltage_swing, pre_emphasis, training_lane;
 	u8 link_status[2], adjust_request[2];
+	u8 dpcd;
+	bool tps3_supported;
 
 	usleep_range(100, 101);
 
@@ -514,13 +516,25 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 		return retval;
 
 	if (analogix_dp_clock_recovery_ok(link_status, lane_count) == 0) {
-		/* set training pattern 2 for EQ */
-		analogix_dp_set_training_pattern(dp, TRAINING_PTN2);
+		retval = analogix_dp_read_byte_from_dpcd(dp, DP_MAX_LANE_COUNT,
+							 &dpcd);
+		if (retval)
+			return retval;
+
+		tps3_supported = !!(dpcd & DP_TPS3_SUPPORTED);
+
+		dev_dbg(dp->dev, "Training pattern sequence 3 is%s supported\n",
+			tps3_supported ? "" : " not");
+
+		/* set training pattern for EQ */
+		analogix_dp_set_training_pattern(dp, tps3_supported ?
+						 TRAINING_PTN3 : TRAINING_PTN2);
 
 		retval = analogix_dp_write_byte_to_dpcd(dp,
 				DP_TRAINING_PATTERN_SET,
 				DP_LINK_SCRAMBLING_DISABLE |
-				DP_TRAINING_PATTERN_2);
+				(tps3_supported ? DP_TRAINING_PATTERN_3 :
+				 DP_TRAINING_PATTERN_2));
 		if (retval)
 			return retval;
 
@@ -1235,12 +1249,13 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 
 	switch (dp->plat_data->dev_type) {
 	case ROCKCHIP_DP:
-		/*
-		 * Like Rockchip DisplayPort TRM indicate that "Main link
-		 * containing 4 physical lanes of 2.7/1.62 Gbps/lane".
-		 */
-		video_info->max_link_rate = 0x0A;
-		video_info->max_lane_count = 0x04;
+		if (dp->plat_data->subdev_type == RK3399_EDP) {
+			video_info->max_link_rate = DP_LINK_BW_5_4;
+			video_info->max_lane_count = 4;
+		} else {
+			video_info->max_link_rate = DP_LINK_BW_2_7;
+			video_info->max_lane_count = 4;
+		}
 		break;
 	case EXYNOS_DP:
 		/*
