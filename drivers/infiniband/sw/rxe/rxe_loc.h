@@ -221,8 +221,6 @@ static inline void rxe_advance_resp_resource(struct rxe_qp *qp)
 void retransmit_timer(unsigned long data);
 void rnr_nak_timer(unsigned long data);
 
-void dump_qp(struct rxe_qp *qp);
-
 /* rxe_srq.c */
 #define IB_SRQ_INIT_MASK (~IB_SRQ_LIMIT)
 
