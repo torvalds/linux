@@ -560,16 +560,12 @@ xfs_trans_log_buf(
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 
 	ASSERT(first <= last && last < BBTOB(bp->b_length));
+	ASSERT(!(bip->bli_flags & XFS_BLI_ORDERED));
 
 	xfs_trans_dirty_buf(tp, bp);
 
-	/*
-	 * If we have an ordered buffer we are not logging any dirty range but
-	 * it still needs to be marked dirty and that it has been logged.
-	 */
 	trace_xfs_trans_log_buf(bip);
-	if (!(bip->bli_flags & XFS_BLI_ORDERED))
-		xfs_buf_item_log(bip, first, last);
+	xfs_buf_item_log(bip, first, last);
 }
 
 
@@ -722,12 +718,11 @@ xfs_trans_inode_alloc_buf(
 }
 
 /*
- * Mark the buffer as ordered for this transaction. This means
- * that the contents of the buffer are not recorded in the transaction
- * but it is tracked in the AIL as though it was. This allows us
- * to record logical changes in transactions rather than the physical
- * changes we make to the buffer without changing writeback ordering
- * constraints of metadata buffers.
+ * Mark the buffer as ordered for this transaction. This means that the contents
+ * of the buffer are not recorded in the transaction but it is tracked in the
+ * AIL as though it was. This allows us to record logical changes in
+ * transactions rather than the physical changes we make to the buffer without
+ * changing writeback ordering constraints of metadata buffers.
  */
 void
 xfs_trans_ordered_buf(
@@ -739,9 +734,16 @@ xfs_trans_ordered_buf(
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+	ASSERT(!xfs_buf_item_dirty_format(bip));
 
 	bip->bli_flags |= XFS_BLI_ORDERED;
 	trace_xfs_buf_item_ordered(bip);
+
+	/*
+	 * We don't log a dirty range of an ordered buffer but it still needs
+	 * to be marked dirty and that it has been logged.
+	 */
+	xfs_trans_dirty_buf(tp, bp);
 }
 
 /*

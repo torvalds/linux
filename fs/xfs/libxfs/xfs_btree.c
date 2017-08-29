@@ -4464,12 +4464,10 @@ xfs_btree_block_change_owner(
 	 * though, so everything is consistent in memory.
 	 */
 	if (bp) {
-		if (cur->bc_tp) {
+		if (cur->bc_tp)
 			xfs_trans_ordered_buf(cur->bc_tp, bp);
-			xfs_btree_log_block(cur, bp, XFS_BB_OWNER);
-		} else {
+		else
 			xfs_buf_delwri_queue(bp, bbcoi->buffer_list);
-		}
 	} else {
 		ASSERT(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE);
 		ASSERT(level == cur->bc_nlevels - 1);
