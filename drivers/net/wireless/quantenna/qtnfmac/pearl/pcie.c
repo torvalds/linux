@@ -26,6 +26,7 @@
 #include <linux/crc32.h>
 #include <linux/spinlock.h>
 #include <linux/circ_buf.h>
+#include <linux/log2.h>
 
 #include "qtn_hw_ids.h"
 #include "pcie_bus_priv.h"
@@ -39,11 +40,11 @@ MODULE_PARM_DESC(use_msi, "set 0 to use legacy interrupt");
 
 static unsigned int tx_bd_size_param = 32;
 module_param(tx_bd_size_param, uint, 0644);
-MODULE_PARM_DESC(tx_bd_size_param, "Tx descriptors queue size");
+MODULE_PARM_DESC(tx_bd_size_param, "Tx descriptors queue size, power of two");
 
 static unsigned int rx_bd_size_param = 256;
 module_param(rx_bd_size_param, uint, 0644);
-MODULE_PARM_DESC(rx_bd_size_param, "Rx descriptors queue size");
+MODULE_PARM_DESC(rx_bd_size_param, "Rx descriptors queue size, power of two");
 
 static u8 flashboot = 1;
 module_param(flashboot, byte, 0644);
@@ -508,6 +509,18 @@ static int qtnf_pcie_init_xfer(struct qtnf_pcie_bus_priv *priv)
 	priv->rx_bd_num = rx_bd_size_param;
 	priv->rx_bd_w_index = 0;
 	priv->rx_bd_r_index = 0;
+
+	if (!priv->tx_bd_num || !is_power_of_2(priv->tx_bd_num)) {
+		pr_err("tx_bd_size_param %u is not power of two\n",
+		       priv->tx_bd_num);
+		return -EINVAL;
+	}
+
+	if (!priv->rx_bd_num || !is_power_of_2(priv->rx_bd_num)) {
+		pr_err("rx_bd_size_param %u is not power of two\n",
+		       priv->rx_bd_num);
+		return -EINVAL;
+	}
 
 	ret = alloc_skb_array(priv);
 	if (ret) {
