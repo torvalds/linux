@@ -2136,6 +2136,7 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = intel_ddi_get_encoder_port(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	uint32_t level = intel_ddi_dp_level(intel_dp);
 
 	WARN_ON(link_mst && (port == PORT_A || port == PORT_E));
 
@@ -2148,7 +2149,11 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
-	if (!IS_GEN9_LP(dev_priv) && !IS_CANNONLAKE(dev_priv))
+	if (IS_CANNONLAKE(dev_priv))
+		cnl_ddi_vswing_sequence(encoder, level);
+	else if (IS_GEN9_LP(dev_priv))
+		bxt_ddi_vswing_sequence(dev_priv, level, port, encoder->type);
+	else
 		intel_prepare_dp_ddi_buffers(encoder);
 
 	intel_ddi_init_dp_buf_reg(encoder);
