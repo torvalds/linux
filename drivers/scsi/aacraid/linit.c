@@ -1603,7 +1603,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/*
 	 * Only series 7 needs freset.
 	 */
-	 if (pdev->device == PMC_DEVICE_S7)
+	if (pdev->device == PMC_DEVICE_S7)
 		pdev->needs_freset = 1;
 
 	list_for_each_entry(aac, &aac_devices, entry) {
