@@ -30,7 +30,6 @@
 #include "pp_instance.h"
 #include "power_state.h"
 
-
 static inline int pp_check(struct pp_instance *handle)
 {
 	if (handle == NULL || handle->pp_valid != PP_VALID)
@@ -287,6 +286,42 @@ static int pp_dpm_fw_loading_complete(void *handle)
 	return 0;
 }
 
+static void pp_dpm_en_umd_pstate(struct pp_hwmgr  *hwmgr,
+						enum amd_dpm_forced_level *level)
+{
+	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
+					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
+					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK |
+					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
+
+	if (!(hwmgr->dpm_level & profile_mode_mask)) {
+		/* enter umd pstate, save current level, disable gfx cg*/
+		if (*level & profile_mode_mask) {
+			hwmgr->saved_dpm_level = hwmgr->dpm_level;
+			hwmgr->en_umd_pstate = true;
+			cgs_set_clockgating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_GFX,
+						AMD_CG_STATE_UNGATE);
+			cgs_set_powergating_state(hwmgr->device,
+					AMD_IP_BLOCK_TYPE_GFX,
+					AMD_PG_STATE_UNGATE);
+		}
+	} else {
+		/* exit umd pstate, restore level, enable gfx cg*/
+		if (!(*level & profile_mode_mask)) {
+			if (*level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)
+				*level = hwmgr->saved_dpm_level;
+			hwmgr->en_umd_pstate = false;
+			cgs_set_clockgating_state(hwmgr->device,
+					AMD_IP_BLOCK_TYPE_GFX,
+					AMD_CG_STATE_GATE);
+			cgs_set_powergating_state(hwmgr->device,
+					AMD_IP_BLOCK_TYPE_GFX,
+					AMD_PG_STATE_GATE);
+		}
+	}
+}
+
 static int pp_dpm_force_performance_level(void *handle,
 					enum amd_dpm_forced_level level)
 {
@@ -301,14 +336,22 @@ static int pp_dpm_force_performance_level(void *handle,
 
 	hwmgr = pp_handle->hwmgr;
 
+	if (level == hwmgr->dpm_level)
+		return 0;
+
 	if (hwmgr->hwmgr_func->force_dpm_level == NULL) {
 		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
 	mutex_lock(&pp_handle->pp_lock);
+	pp_dpm_en_umd_pstate(hwmgr, &level);
+	hwmgr->request_dpm_level = level;
 	hwmgr_handle_task(pp_handle, AMD_PP_TASK_READJUST_POWER_STATE, NULL, NULL);
-	hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
+	ret = hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
+	if (!ret)
+		hwmgr->dpm_level = hwmgr->request_dpm_level;
+
 	mutex_unlock(&pp_handle->pp_lock);
 	return 0;
 }

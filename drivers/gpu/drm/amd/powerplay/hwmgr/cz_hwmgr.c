@@ -1314,57 +1314,21 @@ static int cz_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 				enum amd_dpm_forced_level level)
 {
 	int ret = 0;
-	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
-					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
-					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
-
-	if (level == hwmgr->dpm_level)
-		return ret;
-
-	if (!(hwmgr->dpm_level & profile_mode_mask)) {
-		/* enter profile mode, save current level, disable gfx cg*/
-		if (level & profile_mode_mask) {
-			hwmgr->saved_dpm_level = hwmgr->dpm_level;
-			cgs_set_clockgating_state(hwmgr->device,
-						AMD_IP_BLOCK_TYPE_GFX,
-						AMD_CG_STATE_UNGATE);
-		}
-	} else {
-		/* exit profile mode, restore level, enable gfx cg*/
-		if (!(level & profile_mode_mask)) {
-			if (level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)
-				level = hwmgr->saved_dpm_level;
-			cgs_set_clockgating_state(hwmgr->device,
-					AMD_IP_BLOCK_TYPE_GFX,
-					AMD_CG_STATE_GATE);
-		}
-	}
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
 		ret = cz_phm_force_dpm_highest(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 		ret = cz_phm_force_dpm_lowest(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		ret = cz_phm_unforce_dpm_levels(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
-		hwmgr->dpm_level = level;
-		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
 	default:
 		break;

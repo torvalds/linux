@@ -2568,51 +2568,16 @@ static int smu7_force_dpm_level(struct pp_hwmgr *hwmgr,
 	uint32_t sclk_mask = 0;
 	uint32_t mclk_mask = 0;
 	uint32_t pcie_mask = 0;
-	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
-					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
-					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK |
-					AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
-
-	if (level == hwmgr->dpm_level)
-		return ret;
-
-	if (!(hwmgr->dpm_level & profile_mode_mask)) {
-		/* enter profile mode, save current level, disable gfx cg*/
-		if (level & profile_mode_mask) {
-			hwmgr->saved_dpm_level = hwmgr->dpm_level;
-			cgs_set_clockgating_state(hwmgr->device,
-						AMD_IP_BLOCK_TYPE_GFX,
-						AMD_CG_STATE_UNGATE);
-		}
-	} else {
-		/* exit profile mode, restore level, enable gfx cg*/
-		if (!(level & profile_mode_mask)) {
-			if (level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)
-				level = hwmgr->saved_dpm_level;
-			cgs_set_clockgating_state(hwmgr->device,
-					AMD_IP_BLOCK_TYPE_GFX,
-					AMD_CG_STATE_GATE);
-		}
-	}
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
 		ret = smu7_force_dpm_highest(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
 		ret = smu7_force_dpm_lowest(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		ret = smu7_unforce_dpm_levels(hwmgr);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
@@ -2621,26 +2586,23 @@ static int smu7_force_dpm_level(struct pp_hwmgr *hwmgr,
 		ret = smu7_get_profiling_clk(hwmgr, level, &sclk_mask, &mclk_mask, &pcie_mask);
 		if (ret)
 			return ret;
-		hwmgr->dpm_level = level;
 		smu7_force_clock_level(hwmgr, PP_SCLK, 1<<sclk_mask);
 		smu7_force_clock_level(hwmgr, PP_MCLK, 1<<mclk_mask);
 		smu7_force_clock_level(hwmgr, PP_PCIE, 1<<pcie_mask);
-
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
-		hwmgr->dpm_level = level;
-		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
 	default:
 		break;
 	}
 
-	if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->saved_dpm_level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
-		smu7_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
-	else if (level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->saved_dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
-		smu7_fan_ctrl_reset_fan_speed_to_default(hwmgr);
-
-	return 0;
+	if (!ret) {
+		if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
+			smu7_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
+		else if (level != AMD_DPM_FORCED_LEVEL_PROFILE_PEAK && hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
+			smu7_fan_ctrl_reset_fan_speed_to_default(hwmgr);
+	}
+	return ret;
 }
 
 static int smu7_get_power_state_size(struct pp_hwmgr *hwmgr)
@@ -4245,9 +4207,9 @@ static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
-	if (hwmgr->dpm_level & (AMD_DPM_FORCED_LEVEL_AUTO |
-				AMD_DPM_FORCED_LEVEL_LOW |
-				AMD_DPM_FORCED_LEVEL_HIGH))
+	if (hwmgr->request_dpm_level & (AMD_DPM_FORCED_LEVEL_AUTO |
+					AMD_DPM_FORCED_LEVEL_LOW |
+					AMD_DPM_FORCED_LEVEL_HIGH))
 		return -EINVAL;
 
 	switch (type) {
