@@ -254,7 +254,6 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 	ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
 	if (!ret) {
 		/* Retrieve PE address */
-		edev->config_addr = (pdn->busno << 16) | (pdn->devfn << 8);
 		edev->pe_config_addr = eeh_ops->get_pe_addr(&pe);
 		pe.addr = edev->pe_config_addr;
 
@@ -279,7 +278,6 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 			/* This device doesn't support EEH, but it may have an
 			 * EEH parent, in which case we mark it as supported.
 			 */
-			edev->config_addr = pdn_to_eeh_dev(pdn->parent)->config_addr;
 			edev->pe_config_addr = pdn_to_eeh_dev(pdn->parent)->pe_config_addr;
 			eeh_add_to_parent_pe(edev);
 		}

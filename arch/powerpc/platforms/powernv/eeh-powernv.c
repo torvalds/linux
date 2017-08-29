@@ -352,6 +352,7 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 	uint32_t pcie_flags;
 	int ret;
+	int config_addr = (pdn->busno << 8) | (pdn->devfn);
 
 	/*
 	 * When probing the root bridge, which doesn't have any
@@ -386,8 +387,7 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 		}
 	}
 
-	edev->config_addr    = (pdn->busno << 8) | (pdn->devfn);
-	edev->pe_config_addr = phb->ioda.pe_rmap[edev->config_addr];
+	edev->pe_config_addr = phb->ioda.pe_rmap[config_addr];
 
 	/* Create PE */
 	ret = eeh_add_to_parent_pe(edev);
@@ -1699,6 +1699,7 @@ static int pnv_eeh_restore_config(struct pci_dn *pdn)
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 	struct pnv_phb *phb;
 	s64 ret;
+	int config_addr = (pdn->busno << 8) | (pdn->devfn);
 
 	if (!edev)
 		return -EEXIST;
@@ -1715,12 +1716,12 @@ static int pnv_eeh_restore_config(struct pci_dn *pdn)
 	} else {
 		phb = pdn->phb->private_data;
 		ret = opal_pci_reinit(phb->opal_id,
-				      OPAL_REINIT_PCI_DEV, edev->config_addr);
+				      OPAL_REINIT_PCI_DEV, config_addr);
 	}
 
 	if (ret) {
 		pr_warn("%s: Can't reinit PCI dev 0x%x (%lld)\n",
-			__func__, edev->config_addr, ret);
+			__func__, config_addr, ret);
 		return -EIO;
 	}
 
