@@ -726,7 +726,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			}
 			memcpy(&priv->mfunc.master.comm_arm_bit_vector,
 			       eqe->event.comm_channel_arm.bit_vec,
-			       sizeof(eqe)->event.comm_channel_arm.bit_vec);
+			       sizeof(eqe->event.comm_channel_arm.bit_vec));
 			queue_work(priv->mfunc.master.comm_wq,
 				   &priv->mfunc.master.comm_work);
 			break;

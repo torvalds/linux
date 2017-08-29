@@ -844,24 +844,20 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 
 		/* In mfunc, calculate proxy and tunnel qp offsets for the PF here,
 		 * since the PF does not call mlx4_slave_caps */
-		dev->caps.qp0_tunnel = kcalloc(dev->caps.num_ports, sizeof(u32), GFP_KERNEL);
-		dev->caps.qp0_proxy = kcalloc(dev->caps.num_ports, sizeof(u32), GFP_KERNEL);
-		dev->caps.qp1_tunnel = kcalloc(dev->caps.num_ports, sizeof(u32), GFP_KERNEL);
-		dev->caps.qp1_proxy = kcalloc(dev->caps.num_ports, sizeof(u32), GFP_KERNEL);
+		dev->caps.spec_qps = kcalloc(dev->caps.num_ports, sizeof(dev->caps.spec_qps), GFP_KERNEL);
 
-		if (!dev->caps.qp0_tunnel || !dev->caps.qp0_proxy ||
-		    !dev->caps.qp1_tunnel || !dev->caps.qp1_proxy) {
+		if (!dev->caps.spec_qps) {
 			err = -ENOMEM;
 			goto err_mem;
 		}
 
 		for (k = 0; k < dev->caps.num_ports; k++) {
-			dev->caps.qp0_proxy[k] = dev->phys_caps.base_proxy_sqpn +
+			dev->caps.spec_qps[k].qp0_proxy = dev->phys_caps.base_proxy_sqpn +
 				8 * mlx4_master_func_num(dev) + k;
-			dev->caps.qp0_tunnel[k] = dev->caps.qp0_proxy[k] + 8 * MLX4_MFUNC_MAX;
-			dev->caps.qp1_proxy[k] = dev->phys_caps.base_proxy_sqpn +
+			dev->caps.spec_qps[k].qp0_tunnel = dev->caps.spec_qps[k].qp0_proxy + 8 * MLX4_MFUNC_MAX;
+			dev->caps.spec_qps[k].qp1_proxy = dev->phys_caps.base_proxy_sqpn +
 				8 * mlx4_master_func_num(dev) + MLX4_MAX_PORTS + k;
-			dev->caps.qp1_tunnel[k] = dev->caps.qp1_proxy[k] + 8 * MLX4_MFUNC_MAX;
+			dev->caps.spec_qps[k].qp1_tunnel = dev->caps.spec_qps[k].qp1_proxy + 8 * MLX4_MFUNC_MAX;
 		}
 	}
 
@@ -873,12 +869,8 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	return err;
 
 err_mem:
-	kfree(dev->caps.qp0_tunnel);
-	kfree(dev->caps.qp0_proxy);
-	kfree(dev->caps.qp1_tunnel);
-	kfree(dev->caps.qp1_proxy);
-	dev->caps.qp0_tunnel = dev->caps.qp0_proxy =
-		dev->caps.qp1_tunnel = dev->caps.qp1_proxy = NULL;
+	kfree(dev->caps.spec_qps);
+	dev->caps.spec_qps = NULL;
 	mlx4_cleanup_qp_zones(dev);
 	return err;
 }

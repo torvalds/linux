@@ -162,6 +162,7 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[35] = "Diag counters per port",
 		[36] = "QinQ VST mode support",
 		[37] = "sl to vl mapping table change event support",
+		[38] = "user MAC support",
 	};
 	int i;
 
@@ -679,22 +680,22 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u8 gen_or_port,
 
 	if (func_cap->flags1 & QUERY_FUNC_CAP_VF_ENABLE_QP0) {
 		MLX4_GET(qkey, outbox, QUERY_FUNC_CAP_PRIV_VF_QKEY_OFFSET);
-		func_cap->qp0_qkey = qkey;
+		func_cap->spec_qps.qp0_qkey = qkey;
 	} else {
-		func_cap->qp0_qkey = 0;
+		func_cap->spec_qps.qp0_qkey = 0;
 	}
 
 	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP0_TUNNEL);
-	func_cap->qp0_tunnel_qpn = size & 0xFFFFFF;
+	func_cap->spec_qps.qp0_tunnel = size & 0xFFFFFF;
 
 	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP0_PROXY);
-	func_cap->qp0_proxy_qpn = size & 0xFFFFFF;
+	func_cap->spec_qps.qp0_proxy = size & 0xFFFFFF;
 
 	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP1_TUNNEL);
-	func_cap->qp1_tunnel_qpn = size & 0xFFFFFF;
+	func_cap->spec_qps.qp1_tunnel = size & 0xFFFFFF;
 
 	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP1_PROXY);
-	func_cap->qp1_proxy_qpn = size & 0xFFFFFF;
+	func_cap->spec_qps.qp1_proxy = size & 0xFFFFFF;
 
 	if (func_cap->flags1 & QUERY_FUNC_CAP_FLAGS1_NIC_INFO)
 		MLX4_GET(func_cap->phys_port_id, outbox,
@@ -778,6 +779,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_DESC_SZ_SQ_OFFSET	0x52
 #define QUERY_DEV_CAP_MAX_SG_RQ_OFFSET		0x55
 #define QUERY_DEV_CAP_MAX_DESC_SZ_RQ_OFFSET	0x56
+#define QUERY_DEV_CAP_USER_MAC_EN_OFFSET	0x5C
 #define QUERY_DEV_CAP_SVLAN_BY_QP_OFFSET	0x5D
 #define QUERY_DEV_CAP_MAX_QP_MCG_OFFSET		0x61
 #define QUERY_DEV_CAP_RSVD_MCG_OFFSET		0x62
@@ -949,6 +951,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(size, outbox, QUERY_DEV_CAP_MAX_DESC_SZ_SQ_OFFSET);
 	dev_cap->max_sq_desc_sz = size;
 
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_USER_MAC_EN_OFFSET);
+	if (field & (1 << 2))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_USER_MAC_EN;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_SVLAN_BY_QP_OFFSET);
 	if (field & 0x1)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_SVLAN_BY_QP;
@@ -1534,7 +1539,7 @@ int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt)
 		for (i = 0; i < mlx4_icm_size(&iter) >> lg; ++i) {
 			if (virt != -1) {
 				pages[nent * 2] = cpu_to_be64(virt);
-				virt += 1 << lg;
+				virt += 1ULL << lg;
 			}
 
 			pages[nent * 2 + 1] =
