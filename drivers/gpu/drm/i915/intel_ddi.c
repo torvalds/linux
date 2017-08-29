@@ -2063,23 +2063,32 @@ static uint32_t intel_ddi_dp_level(struct intel_dp *intel_dp)
 	return translate_signal_level(signal_levels);
 }
 
-uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
+u32 bxt_signal_levels(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
 	struct intel_encoder *encoder = &dport->base;
 	enum port port = dport->port;
+	u32 level = intel_ddi_dp_level(intel_dp);
+
+	if (IS_CANNONLAKE(dev_priv))
+		cnl_ddi_vswing_sequence(encoder, level);
+	else
+		bxt_ddi_vswing_sequence(dev_priv, level, port, encoder->type);
+
+	return 0;
+}
+
+uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
+	struct intel_encoder *encoder = &dport->base;
 	uint32_t level = intel_ddi_dp_level(intel_dp);
 
 	if (IS_GEN9_BC(dev_priv))
-		skl_ddi_set_iboost(encoder, level);
-	else if (IS_GEN9_LP(dev_priv))
-		bxt_ddi_vswing_sequence(dev_priv, level, port, encoder->type);
-	else if (IS_CANNONLAKE(dev_priv)) {
-		cnl_ddi_vswing_sequence(encoder, level);
-		/* DDI_BUF_CTL bits 27:24 are reserved on CNL */
-		return 0;
-	}
+	    skl_ddi_set_iboost(encoder, level);
+
 	return DDI_BUF_TRANS_SELECT(level);
 }
 
