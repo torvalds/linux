@@ -75,7 +75,7 @@ extern int fault_rate;
 extern int fault_devs;
 #endif
 
-extern char usermode_helper[];
+extern char drbd_usermode_helper[];
 
 
 /* This is used to stop/restart our threads.

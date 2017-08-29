@@ -109,9 +109,9 @@ int proc_details;       /* Detail level in proc drbd*/
 
 /* Module parameter for setting the user mode helper program
  * to run. Default is /sbin/drbdadm */
-char usermode_helper[80] = "/sbin/drbdadm";
+char drbd_usermode_helper[80] = "/sbin/drbdadm";
 
-module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0644);
+module_param_string(usermode_helper, drbd_usermode_helper, sizeof(drbd_usermode_helper), 0644);
 
 /* in 2.6.x, our device mapping and config info contains our virtual gendisks
  * as member "struct gendisk *vdisk;"
