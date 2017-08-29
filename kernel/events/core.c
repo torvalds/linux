@@ -9394,6 +9394,11 @@ static void account_event(struct perf_event *event)
 		inc = true;
 
 	if (inc) {
+		/*
+		 * We need the mutex here because static_branch_enable()
+		 * must complete *before* the perf_sched_count increment
+		 * becomes visible.
+		 */
 		if (atomic_inc_not_zero(&perf_sched_count))
 			goto enabled;
 
