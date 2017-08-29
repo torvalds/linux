@@ -323,6 +323,8 @@ xfs_buf_item_format(
 	ASSERT((bip->bli_flags & XFS_BLI_STALE) ||
 	       (xfs_blft_from_flags(&bip->__bli_format) > XFS_BLFT_UNKNOWN_BUF
 	        && xfs_blft_from_flags(&bip->__bli_format) < XFS_BLFT_MAX_BUF));
+	ASSERT(!(bip->bli_flags & XFS_BLI_ORDERED) ||
+	       (bip->bli_flags & XFS_BLI_STALE));
 
 
 	/*
@@ -345,16 +347,6 @@ xfs_buf_item_format(
 		      xfs_log_item_in_current_chkpt(lip)))
 			bip->__bli_format.blf_flags |= XFS_BLF_INODE_BUF;
 		bip->bli_flags &= ~XFS_BLI_INODE_BUF;
-	}
-
-	if ((bip->bli_flags & (XFS_BLI_ORDERED|XFS_BLI_STALE)) ==
-							XFS_BLI_ORDERED) {
-		/*
-		 * The buffer has been logged just to order it.  It is not being
-		 * included in the transaction commit, so don't format it.
-		 */
-		trace_xfs_buf_item_format_ordered(bip);
-		return;
 	}
 
 	for (i = 0; i < bip->bli_format_count; i++) {
