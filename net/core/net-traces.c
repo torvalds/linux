@@ -37,6 +37,12 @@
 #include <trace/events/fib6.h>
 EXPORT_TRACEPOINT_SYMBOL_GPL(fib6_table_lookup);
 #endif
+#if IS_ENABLED(CONFIG_BRIDGE)
+#include <trace/events/bridge.h>
+EXPORT_TRACEPOINT_SYMBOL_GPL(br_fdb_add);
+EXPORT_TRACEPOINT_SYMBOL_GPL(br_fdb_external_learn_add);
+EXPORT_TRACEPOINT_SYMBOL_GPL(fdb_delete);
+#endif
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(kfree_skb);
 
