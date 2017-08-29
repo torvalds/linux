@@ -332,7 +332,7 @@ static void drbd_free_pages(struct drbd_device *device, struct page *page, int i
 	if (page == NULL)
 		return;
 
-	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * minor_count)
+	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * drbd_minor_count)
 		i = page_chain_free(page);
 	else {
 		struct page *tmp;
