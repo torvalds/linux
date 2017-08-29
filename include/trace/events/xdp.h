@@ -77,13 +77,11 @@ DECLARE_EVENT_CLASS(xdp_redirect_template,
 		__entry->map_index	= map_index;
 	),
 
-	TP_printk("prog_id=%d action=%s ifindex=%d to_ifindex=%d err=%d"
-		  " map_id=%d map_index=%d",
+	TP_printk("prog_id=%d action=%s ifindex=%d to_ifindex=%d err=%d",
 		  __entry->prog_id,
 		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
 		  __entry->ifindex, __entry->to_ifindex,
-		  __entry->err,
-		  __entry->map_id, __entry->map_index)
+		  __entry->err)
 );
 
 DEFINE_EVENT(xdp_redirect_template, xdp_redirect,
@@ -108,11 +106,43 @@ DEFINE_EVENT(xdp_redirect_template, xdp_redirect_err,
 #define _trace_xdp_redirect_err(dev, xdp, to, err)	\
 	 trace_xdp_redirect_err(dev, xdp, to, err, NULL, 0);
 
-#define trace_xdp_redirect_map(dev, xdp, fwd, map, idx)	\
-	trace_xdp_redirect(dev, xdp, fwd ? fwd->ifindex : 0, 0, map, idx);
+DEFINE_EVENT_PRINT(xdp_redirect_template, xdp_redirect_map,
+	TP_PROTO(const struct net_device *dev,
+		 const struct bpf_prog *xdp,
+		 int to_ifindex, int err,
+		 const struct bpf_map *map, u32 map_index),
+	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index),
+	TP_printk("prog_id=%d action=%s ifindex=%d to_ifindex=%d err=%d"
+		  " map_id=%d map_index=%d",
+		  __entry->prog_id,
+		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
+		  __entry->ifindex, __entry->to_ifindex,
+		  __entry->err,
+		  __entry->map_id, __entry->map_index)
+);
 
-#define trace_xdp_redirect_map_err(dev, xdp, fwd, map, idx, err)	\
-	trace_xdp_redirect_err(dev, xdp, fwd ? fwd->ifindex : 0, err, map, idx);
+DEFINE_EVENT_PRINT(xdp_redirect_template, xdp_redirect_map_err,
+	TP_PROTO(const struct net_device *dev,
+		 const struct bpf_prog *xdp,
+		 int to_ifindex, int err,
+		 const struct bpf_map *map, u32 map_index),
+	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index),
+	TP_printk("prog_id=%d action=%s ifindex=%d to_ifindex=%d err=%d"
+		  " map_id=%d map_index=%d",
+		  __entry->prog_id,
+		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
+		  __entry->ifindex, __entry->to_ifindex,
+		  __entry->err,
+		  __entry->map_id, __entry->map_index)
+);
+
+#define _trace_xdp_redirect_map(dev, xdp, fwd, map, idx)		\
+	 trace_xdp_redirect_map(dev, xdp, fwd ? fwd->ifindex : 0,	\
+				0, map, idx);
+
+#define _trace_xdp_redirect_map_err(dev, xdp, fwd, map, idx, err)	\
+	 trace_xdp_redirect_map_err(dev, xdp, fwd ? fwd->ifindex : 0,	\
+				    err, map, idx);
 
 #endif /* _TRACE_XDP_H */
 
