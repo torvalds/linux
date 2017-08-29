@@ -59,6 +59,10 @@ OPTIONS
 --ldload::
 	Specify desired latency for loads event.
 
+-p::
+--phys-data::
+	Record/Report sample physical addresses
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1]
