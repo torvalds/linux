@@ -22,7 +22,6 @@ enum {
 	LO_FLAGS_AUTOCLEAR	= 4,
 	LO_FLAGS_PARTSCAN	= 8,
 	LO_FLAGS_DIRECT_IO	= 16,
-	LO_FLAGS_BLOCKSIZE	= 32,
 };
 
 #include <asm/posix_types.h>	/* for __kernel_old_dev_t */
@@ -59,8 +58,6 @@ struct loop_info64 {
 	__u8		   lo_encrypt_key[LO_KEY_SIZE]; /* ioctl w/o */
 	__u64		   lo_init[2];
 };
-
-#define LO_INFO_BLOCKSIZE(l) (l)->lo_init[0]
 
 /*
  * Loop filter types

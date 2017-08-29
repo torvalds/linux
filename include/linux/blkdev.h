@@ -568,7 +568,6 @@ struct request_queue {
 
 #if defined(CONFIG_BLK_DEV_BSG)
 	bsg_job_fn		*bsg_job_fn;
-	int			bsg_job_size;
 	struct bsg_class_device bsg_dev;
 #endif
 

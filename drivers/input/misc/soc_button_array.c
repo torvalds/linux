@@ -331,7 +331,7 @@ static int soc_button_probe(struct platform_device *pdev)
 	error = gpiod_count(dev, NULL);
 	if (error < 0) {
 		dev_dbg(dev, "no GPIO attached, ignoring...\n");
-		return error;
+		return -ENODEV;
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);

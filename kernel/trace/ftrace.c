@@ -889,6 +889,10 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace)
 
 	function_profile_call(trace->func, 0, NULL, NULL);
 
+	/* If function graph is shutting down, ret_stack can be NULL */
+	if (!current->ret_stack)
+		return 0;
+
 	if (index >= 0 && index < FTRACE_RETFUNC_DEPTH)
 		current->ret_stack[index].subtime = 0;
 
