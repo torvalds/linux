@@ -1026,6 +1026,8 @@ struct tcp_congestion_ops {
 	void (*pacing_timer_expired)(struct sock *sk);
 	/* get the # segs to send out when the timer expires (optional) */
 	u32 (*get_segs_per_round)(struct sock *sk);
+	/* the TCP has sent some segments (optional) */
+	void (*segments_sent)(struct sock *sk, u32 sent);
 
 	char 		name[TCP_CA_NAME_MAX];
 	struct module 	*owner;
