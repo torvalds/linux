@@ -1120,6 +1120,9 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 	if (sample_type & PERF_SAMPLE_DATA_SRC)
 		printf(" . data_src: 0x%"PRIx64"\n", sample->data_src);
 
+	if (sample_type & PERF_SAMPLE_PHYS_ADDR)
+		printf(" .. phys_addr: 0x%"PRIx64"\n", sample->phys_addr);
+
 	if (sample_type & PERF_SAMPLE_TRANSACTION)
 		printf("... transaction: %" PRIx64 "\n", sample->transaction);
 

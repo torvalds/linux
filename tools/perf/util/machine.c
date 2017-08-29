@@ -1635,10 +1635,12 @@ static void ip__resolve_ams(struct thread *thread,
 	ams->al_addr = al.addr;
 	ams->sym = al.sym;
 	ams->map = al.map;
+	ams->phys_addr = 0;
 }
 
 static void ip__resolve_data(struct thread *thread,
-			     u8 m, struct addr_map_symbol *ams, u64 addr)
+			     u8 m, struct addr_map_symbol *ams,
+			     u64 addr, u64 phys_addr)
 {
 	struct addr_location al;
 
@@ -1658,6 +1660,7 @@ static void ip__resolve_data(struct thread *thread,
 	ams->al_addr = al.addr;
 	ams->sym = al.sym;
 	ams->map = al.map;
+	ams->phys_addr = phys_addr;
 }
 
 struct mem_info *sample__resolve_mem(struct perf_sample *sample,
@@ -1669,7 +1672,8 @@ struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 		return NULL;
 
 	ip__resolve_ams(al->thread, &mi->iaddr, sample->ip);
-	ip__resolve_data(al->thread, al->cpumode, &mi->daddr, sample->addr);
+	ip__resolve_data(al->thread, al->cpumode, &mi->daddr,
+			 sample->addr, sample->phys_addr);
 	mi->data_src.val = sample->data_src;
 
 	return mi;
