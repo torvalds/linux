@@ -47,18 +47,38 @@ struct unimac_mdio_priv {
 	void			*wait_func_data;
 };
 
+static inline u32 unimac_mdio_readl(struct unimac_mdio_priv *priv, u32 offset)
+{
+	/* MIPS chips strapped for BE will automagically configure the
+	 * peripheral registers for CPU-native byte order.
+	 */
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		return __raw_readl(priv->base + offset);
+	else
+		return readl_relaxed(priv->base + offset);
+}
+
+static inline void unimac_mdio_writel(struct unimac_mdio_priv *priv, u32 val,
+				      u32 offset)
+{
+	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		__raw_writel(val, priv->base + offset);
+	else
+		writel_relaxed(val, priv->base + offset);
+}
+
 static inline void unimac_mdio_start(struct unimac_mdio_priv *priv)
 {
 	u32 reg;
 
-	reg = __raw_readl(priv->base + MDIO_CMD);
+	reg = unimac_mdio_readl(priv, MDIO_CMD);
 	reg |= MDIO_START_BUSY;
-	__raw_writel(reg, priv->base + MDIO_CMD);
+	unimac_mdio_writel(priv, reg, MDIO_CMD);
 }
 
 static inline unsigned int unimac_mdio_busy(struct unimac_mdio_priv *priv)
 {
-	return __raw_readl(priv->base + MDIO_CMD) & MDIO_START_BUSY;
+	return unimac_mdio_readl(priv, MDIO_CMD) & MDIO_START_BUSY;
 }
 
 static int unimac_mdio_poll(void *wait_func_data)
@@ -87,7 +107,7 @@ static int unimac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 
 	/* Prepare the read operation */
 	cmd = MDIO_RD | (phy_id << MDIO_PMD_SHIFT) | (reg << MDIO_REG_SHIFT);
-	__raw_writel(cmd, priv->base + MDIO_CMD);
+	unimac_mdio_writel(priv, cmd, MDIO_CMD);
 
 	/* Start MDIO transaction */
 	unimac_mdio_start(priv);
@@ -96,7 +116,7 @@ static int unimac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 	if (ret)
 		return ret;
 
-	cmd = __raw_readl(priv->base + MDIO_CMD);
+	cmd = unimac_mdio_readl(priv, MDIO_CMD);
 
 	/* Some broken devices are known not to release the line during
 	 * turn-around, e.g: Broadcom BCM53125 external switches, so check for
@@ -118,7 +138,7 @@ static int unimac_mdio_write(struct mii_bus *bus, int phy_id,
 	/* Prepare the write operation */
 	cmd = MDIO_WR | (phy_id << MDIO_PMD_SHIFT) |
 		(reg << MDIO_REG_SHIFT) | (0xffff & val);
-	__raw_writel(cmd, priv->base + MDIO_CMD);
+	unimac_mdio_writel(priv, cmd, MDIO_CMD);
 
 	unimac_mdio_start(priv);
 
