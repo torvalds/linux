@@ -575,26 +575,18 @@ xfs_buf_item_unlock(
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	struct xfs_buf		*bp = bip->bli_buf;
-	bool			clean;
-	bool			aborted;
-	int			flags;
+	bool			aborted = !!(lip->li_flags & XFS_LI_ABORTED);
+	bool			hold = !!(bip->bli_flags & XFS_BLI_HOLD);
+	bool			dirty = !!(bip->bli_flags & XFS_BLI_DIRTY);
+	bool			ordered = !!(bip->bli_flags & XFS_BLI_ORDERED);
 
 	/* Clear the buffer's association with this transaction. */
 	bp->b_transp = NULL;
 
 	/*
-	 * If this is a transaction abort, don't return early.  Instead, allow
-	 * the brelse to happen.  Normally it would be done for stale
-	 * (cancelled) buffers at unpin time, but we'll never go through the
-	 * pin/unpin cycle if we abort inside commit.
+	 * The per-transaction state has been copied above so clear it from the
+	 * bli.
 	 */
-	aborted = (lip->li_flags & XFS_LI_ABORTED) ? true : false;
-	/*
-	 * Before possibly freeing the buf item, copy the per-transaction state
-	 * so we can reference it safely later after clearing it from the
-	 * buffer log item.
-	 */
-	flags = bip->bli_flags;
 	bip->bli_flags &= ~(XFS_BLI_LOGGED | XFS_BLI_HOLD | XFS_BLI_ORDERED);
 
 	/*
@@ -602,7 +594,7 @@ xfs_buf_item_unlock(
 	 * unlock the buffer and free the buf item when the buffer is unpinned
 	 * for the last time.
 	 */
-	if (flags & XFS_BLI_STALE) {
+	if (bip->bli_flags & XFS_BLI_STALE) {
 		trace_xfs_buf_item_unlock_stale(bip);
 		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
 		if (!aborted) {
@@ -620,20 +612,11 @@ xfs_buf_item_unlock(
 	 * regardless of whether it is dirty or not. A dirty abort implies a
 	 * shutdown, anyway.
 	 *
-	 * Ordered buffers are dirty but may have no recorded changes, so ensure
-	 * we only release clean items here.
+	 * The bli dirty state should match whether the blf has logged segments
+	 * except for ordered buffers, where only the bli should be dirty.
 	 */
-	clean = (flags & XFS_BLI_DIRTY) ? false : true;
-	if (clean) {
-		int i;
-		for (i = 0; i < bip->bli_format_count; i++) {
-			if (!xfs_bitmap_empty(bip->bli_formats[i].blf_data_map,
-				     bip->bli_formats[i].blf_map_size)) {
-				clean = false;
-				break;
-			}
-		}
-	}
+	ASSERT((!ordered && dirty == xfs_buf_item_dirty_format(bip)) ||
+	       (ordered && dirty && !xfs_buf_item_dirty_format(bip)));
 
 	/*
 	 * Clean buffers, by definition, cannot be in the AIL. However, aborted
@@ -652,11 +635,11 @@ xfs_buf_item_unlock(
 			ASSERT(XFS_FORCED_SHUTDOWN(lip->li_mountp));
 			xfs_trans_ail_remove(lip, SHUTDOWN_LOG_IO_ERROR);
 			xfs_buf_item_relse(bp);
-		} else if (clean)
+		} else if (!dirty)
 			xfs_buf_item_relse(bp);
 	}
 
-	if (!(flags & XFS_BLI_HOLD))
+	if (!hold)
 		xfs_buf_relse(bp);
 }
 
@@ -944,6 +927,25 @@ xfs_buf_item_log(
 	}
 }
 
+
+/*
+ * Return true if the buffer has any ranges logged/dirtied by a transaction,
+ * false otherwise.
+ */
+bool
+xfs_buf_item_dirty_format(
+	struct xfs_buf_log_item	*bip)
+{
+	int			i;
+
+	for (i = 0; i < bip->bli_format_count; i++) {
+		if (!xfs_bitmap_empty(bip->bli_formats[i].blf_data_map,
+			     bip->bli_formats[i].blf_map_size))
+			return true;
+	}
+
+	return false;
+}
 
 STATIC void
 xfs_buf_item_free(
