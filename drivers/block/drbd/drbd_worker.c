@@ -203,7 +203,8 @@ void drbd_peer_request_endio(struct bio *bio)
 	}
 }
 
-void drbd_panic_after_delayed_completion_of_aborted_request(struct drbd_device *device)
+static void
+drbd_panic_after_delayed_completion_of_aborted_request(struct drbd_device *device)
 {
 	panic("drbd%u %s/%u potential random memory corruption caused by delayed completion of aborted local request\n",
 		device->minor, device->resource->name, device->vnr);

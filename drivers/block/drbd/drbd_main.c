@@ -923,7 +923,9 @@ void drbd_gen_and_send_sync_uuid(struct drbd_peer_device *peer_device)
 }
 
 /* communicated if (agreed_features & DRBD_FF_WSAME) */
-void assign_p_sizes_qlim(struct drbd_device *device, struct p_sizes *p, struct request_queue *q)
+static void
+assign_p_sizes_qlim(struct drbd_device *device, struct p_sizes *p,
+					struct request_queue *q)
 {
 	if (q) {
 		p->qlim->physical_block_size = cpu_to_be32(queue_physical_block_size(q));

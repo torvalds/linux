@@ -1261,7 +1261,7 @@ struct one_flush_context {
 	struct issue_flush_context *ctx;
 };
 
-void one_flush_endio(struct bio *bio)
+static void one_flush_endio(struct bio *bio)
 {
 	struct one_flush_context *octx = bio->bi_private;
 	struct drbd_device *device = octx->device;
