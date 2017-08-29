@@ -278,8 +278,8 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 rx_ring->netdev,
 			 rx_ring->rx_bi);
 		dev_info(&pf->pdev->dev,
-			 "    rx_rings[%i]: state = %li, queue_index = %d, reg_idx = %d\n",
-			 i, rx_ring->state,
+			 "    rx_rings[%i]: state = %lu, queue_index = %d, reg_idx = %d\n",
+			 i, *rx_ring->state,
 			 rx_ring->queue_index,
 			 rx_ring->reg_idx);
 		dev_info(&pf->pdev->dev,
@@ -334,8 +334,8 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 tx_ring->netdev,
 			 tx_ring->tx_bi);
 		dev_info(&pf->pdev->dev,
-			 "    tx_rings[%i]: state = %li, queue_index = %d, reg_idx = %d\n",
-			 i, tx_ring->state,
+			 "    tx_rings[%i]: state = %lu, queue_index = %d, reg_idx = %d\n",
+			 i, *tx_ring->state,
 			 tx_ring->queue_index,
 			 tx_ring->reg_idx);
 		dev_info(&pf->pdev->dev,

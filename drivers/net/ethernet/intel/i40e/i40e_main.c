@@ -2891,7 +2891,7 @@ static void i40e_config_xps_tx_ring(struct i40e_ring *ring)
 		return;
 
 	if ((vsi->tc_config.numtc <= 1) &&
-	    !test_and_set_bit(__I40E_TX_XPS_INIT_DONE, &ring->state)) {
+	    !test_and_set_bit(__I40E_TX_XPS_INIT_DONE, ring->state)) {
 		cpu = cpumask_local_spread(ring->q_vector->v_idx, -1);
 		netif_set_xps_queue(ring->netdev, get_cpu_mask(cpu),
 				    ring->queue_index);
@@ -3010,7 +3010,7 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	struct i40e_hmc_obj_rxq rx_ctx;
 	i40e_status err = 0;
 
-	ring->state = 0;
+	bitmap_zero(ring->state, __I40E_RING_STATE_NBITS);
 
 	/* clear the context structure first */
 	memset(&rx_ctx, 0, sizeof(rx_ctx));

@@ -325,6 +325,7 @@ struct i40e_rx_queue_stats {
 enum i40e_ring_state_t {
 	__I40E_TX_FDIR_INIT_DONE,
 	__I40E_TX_XPS_INIT_DONE,
+	__I40E_RING_STATE_NBITS /* must be last */
 };
 
 /* some useful defines for virtchannel interface, which
@@ -348,7 +349,7 @@ struct i40e_ring {
 		struct i40e_tx_buffer *tx_bi;
 		struct i40e_rx_buffer *rx_bi;
 	};
-	unsigned long state;
+	DECLARE_BITMAP(state, __I40E_RING_STATE_NBITS);
 	u16 queue_index;		/* Queue number of ring */
 	u8 dcb_tc;			/* Traffic class of ring */
 	u8 __iomem *tail;
