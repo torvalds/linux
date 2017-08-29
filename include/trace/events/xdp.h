@@ -31,20 +31,19 @@ TRACE_EVENT(xdp_exception,
 	TP_ARGS(dev, xdp, act),
 
 	TP_STRUCT__entry(
-		__array(u8, prog_tag, 8)
+		__field(int, prog_id)
 		__field(u32, act)
 		__field(int, ifindex)
 	),
 
 	TP_fast_assign(
-		BUILD_BUG_ON(sizeof(__entry->prog_tag) != sizeof(xdp->tag));
-		memcpy(__entry->prog_tag, xdp->tag, sizeof(xdp->tag));
+		__entry->prog_id	= xdp->aux->id;
 		__entry->act		= act;
 		__entry->ifindex	= dev->ifindex;
 	),
 
-	TP_printk("prog=%s action=%s ifindex=%d",
-		  __print_hex_str(__entry->prog_tag, 8),
+	TP_printk("prog_id=%d action=%s ifindex=%d",
+		  __entry->prog_id,
 		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
 		  __entry->ifindex)
 );
@@ -59,7 +58,7 @@ DECLARE_EVENT_CLASS(xdp_redirect_template,
 	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index),
 
 	TP_STRUCT__entry(
-		__array(u8, prog_tag, 8)
+		__field(int, prog_id)
 		__field(u32, act)
 		__field(int, ifindex)
 		__field(int, err)
@@ -69,8 +68,7 @@ DECLARE_EVENT_CLASS(xdp_redirect_template,
 	),
 
 	TP_fast_assign(
-		BUILD_BUG_ON(sizeof(__entry->prog_tag) != sizeof(xdp->tag));
-		memcpy(__entry->prog_tag, xdp->tag, sizeof(xdp->tag));
+		__entry->prog_id	= xdp->aux->id;
 		__entry->act		= XDP_REDIRECT;
 		__entry->ifindex	= dev->ifindex;
 		__entry->err		= err;
@@ -79,9 +77,9 @@ DECLARE_EVENT_CLASS(xdp_redirect_template,
 		__entry->map_index	= map_index;
 	),
 
-	TP_printk("prog=%s action=%s ifindex=%d to_ifindex=%d err=%d"
+	TP_printk("prog_id=%d action=%s ifindex=%d to_ifindex=%d err=%d"
 		  " map_id=%d map_index=%d",
-		  __print_hex_str(__entry->prog_tag, 8),
+		  __entry->prog_id,
 		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
 		  __entry->ifindex, __entry->to_ifindex,
 		  __entry->err,
