@@ -223,6 +223,8 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (IS_DAX(inode))
 		return ext4_dax_write_iter(iocb, from);
 #endif
+	if (!o_direct && (iocb->ki_flags & IOCB_NOWAIT))
+		return -EOPNOTSUPP;
 
 	if (!inode_trylock(inode)) {
 		if (iocb->ki_flags & IOCB_NOWAIT)
@@ -448,9 +450,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			return ret;
 	}
 
-	/* Set the flags to support nowait AIO */
-	filp->f_mode |= FMODE_AIO_NOWAIT;
-
+	filp->f_mode |= FMODE_NOWAIT;
 	return dquot_file_open(inode, filp);
 }
 
