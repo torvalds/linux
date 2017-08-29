@@ -468,6 +468,8 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 	union ib_gid dgid;
 	union ib_gid sgid;
 
+	might_sleep();
+
 	memset(ah_attr, 0, sizeof *ah_attr);
 	ah_attr->type = rdma_ah_find_type(device, port_num);
 	if (rdma_cap_eth_ah(device, port_num)) {
