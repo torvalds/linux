@@ -32,13 +32,13 @@
 #define BCM_SYSPORT_IO_MACRO(name, offset) \
 static inline u32 name##_readl(struct bcm_sysport_priv *priv, u32 off)	\
 {									\
-	u32 reg = __raw_readl(priv->base + offset + off);		\
+	u32 reg = readl_relaxed(priv->base + offset + off);		\
 	return reg;							\
 }									\
 static inline void name##_writel(struct bcm_sysport_priv *priv,		\
 				  u32 val, u32 off)			\
 {									\
-	__raw_writel(val, priv->base + offset + off);			\
+	writel_relaxed(val, priv->base + offset + off);			\
 }									\
 
 BCM_SYSPORT_IO_MACRO(intrl2_0, SYS_PORT_INTRL2_0_OFFSET);
@@ -59,14 +59,14 @@ static inline u32 rdma_readl(struct bcm_sysport_priv *priv, u32 off)
 {
 	if (priv->is_lite && off >= RDMA_STATUS)
 		off += 4;
-	return __raw_readl(priv->base + SYS_PORT_RDMA_OFFSET + off);
+	return readl_relaxed(priv->base + SYS_PORT_RDMA_OFFSET + off);
 }
 
 static inline void rdma_writel(struct bcm_sysport_priv *priv, u32 val, u32 off)
 {
 	if (priv->is_lite && off >= RDMA_STATUS)
 		off += 4;
-	__raw_writel(val, priv->base + SYS_PORT_RDMA_OFFSET + off);
+	writel_relaxed(val, priv->base + SYS_PORT_RDMA_OFFSET + off);
 }
 
 static inline u32 tdma_control_bit(struct bcm_sysport_priv *priv, u32 bit)
@@ -110,10 +110,10 @@ static inline void dma_desc_set_addr(struct bcm_sysport_priv *priv,
 				     dma_addr_t addr)
 {
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
-	__raw_writel(upper_32_bits(addr) & DESC_ADDR_HI_MASK,
+	writel_relaxed(upper_32_bits(addr) & DESC_ADDR_HI_MASK,
 		     d + DESC_ADDR_HI_STATUS_LEN);
 #endif
-	__raw_writel(lower_32_bits(addr), d + DESC_ADDR_LO);
+	writel_relaxed(lower_32_bits(addr), d + DESC_ADDR_LO);
 }
 
 static inline void tdma_port_write_desc_addr(struct bcm_sysport_priv *priv,
