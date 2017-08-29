@@ -346,7 +346,7 @@ static enum drbd_role min_role(enum drbd_role role1, enum drbd_role role2)
 
 enum drbd_role conn_highest_role(struct drbd_connection *connection)
 {
-	enum drbd_role role = R_UNKNOWN;
+	enum drbd_role role = R_SECONDARY;
 	struct drbd_peer_device *peer_device;
 	int vnr;
 
