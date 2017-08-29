@@ -552,35 +552,21 @@ static int rv_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 	phm_destroy_table(hwmgr, &(hwmgr->power_down_asic));
 	phm_destroy_table(hwmgr, &(hwmgr->setup_asic));
 
-	if (pinfo->vdd_dep_on_dcefclk) {
-		kfree(pinfo->vdd_dep_on_dcefclk);
-		pinfo->vdd_dep_on_dcefclk = NULL;
-	}
-	if (pinfo->vdd_dep_on_socclk) {
-		kfree(pinfo->vdd_dep_on_socclk);
-		pinfo->vdd_dep_on_socclk = NULL;
-	}
-	if (pinfo->vdd_dep_on_fclk) {
-		kfree(pinfo->vdd_dep_on_fclk);
-		pinfo->vdd_dep_on_fclk = NULL;
-	}
-	if (pinfo->vdd_dep_on_dispclk) {
-		kfree(pinfo->vdd_dep_on_dispclk);
-		pinfo->vdd_dep_on_dispclk = NULL;
-	}
-	if (pinfo->vdd_dep_on_dppclk) {
-		kfree(pinfo->vdd_dep_on_dppclk);
-		pinfo->vdd_dep_on_dppclk = NULL;
-	}
-	if (pinfo->vdd_dep_on_phyclk) {
-		kfree(pinfo->vdd_dep_on_phyclk);
-		pinfo->vdd_dep_on_phyclk = NULL;
-	}
+	kfree(pinfo->vdd_dep_on_dcefclk);
+	pinfo->vdd_dep_on_dcefclk = NULL;
+	kfree(pinfo->vdd_dep_on_socclk);
+	pinfo->vdd_dep_on_socclk = NULL;
+	kfree(pinfo->vdd_dep_on_fclk);
+	pinfo->vdd_dep_on_fclk = NULL;
+	kfree(pinfo->vdd_dep_on_dispclk);
+	pinfo->vdd_dep_on_dispclk = NULL;
+	kfree(pinfo->vdd_dep_on_dppclk);
+	pinfo->vdd_dep_on_dppclk = NULL;
+	kfree(pinfo->vdd_dep_on_phyclk);
+	pinfo->vdd_dep_on_phyclk = NULL;
 
-	if (NULL != hwmgr->dyn_state.vddc_dep_on_dal_pwrl) {
-		kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
-		hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
-	}
+	kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
+	hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
 
 	kfree(hwmgr->backend);
 	hwmgr->backend = NULL;

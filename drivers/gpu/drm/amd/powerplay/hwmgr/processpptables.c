@@ -1652,85 +1652,53 @@ static int pp_tables_uninitialize(struct pp_hwmgr *hwmgr)
 	if (hwmgr->chip_id == CHIP_RAVEN)
 		return 0;
 
-	if (NULL != hwmgr->dyn_state.vddc_dependency_on_sclk) {
-		kfree(hwmgr->dyn_state.vddc_dependency_on_sclk);
-		hwmgr->dyn_state.vddc_dependency_on_sclk = NULL;
-	}
+	kfree(hwmgr->dyn_state.vddc_dependency_on_sclk);
+	hwmgr->dyn_state.vddc_dependency_on_sclk = NULL;
 
-	if (NULL != hwmgr->dyn_state.vddci_dependency_on_mclk) {
-		kfree(hwmgr->dyn_state.vddci_dependency_on_mclk);
-		hwmgr->dyn_state.vddci_dependency_on_mclk = NULL;
-	}
+	kfree(hwmgr->dyn_state.vddci_dependency_on_mclk);
+	hwmgr->dyn_state.vddci_dependency_on_mclk = NULL;
 
-	if (NULL != hwmgr->dyn_state.vddc_dependency_on_mclk) {
-		kfree(hwmgr->dyn_state.vddc_dependency_on_mclk);
-		hwmgr->dyn_state.vddc_dependency_on_mclk = NULL;
-	}
+	kfree(hwmgr->dyn_state.vddc_dependency_on_mclk);
+	hwmgr->dyn_state.vddc_dependency_on_mclk = NULL;
 
-	if (NULL != hwmgr->dyn_state.mvdd_dependency_on_mclk) {
-		kfree(hwmgr->dyn_state.mvdd_dependency_on_mclk);
-		hwmgr->dyn_state.mvdd_dependency_on_mclk = NULL;
-	}
+	kfree(hwmgr->dyn_state.mvdd_dependency_on_mclk);
+	hwmgr->dyn_state.mvdd_dependency_on_mclk = NULL;
 
-	if (NULL != hwmgr->dyn_state.valid_mclk_values) {
-		kfree(hwmgr->dyn_state.valid_mclk_values);
-		hwmgr->dyn_state.valid_mclk_values = NULL;
-	}
+	kfree(hwmgr->dyn_state.valid_mclk_values);
+	hwmgr->dyn_state.valid_mclk_values = NULL;
 
-	if (NULL != hwmgr->dyn_state.valid_sclk_values) {
-		kfree(hwmgr->dyn_state.valid_sclk_values);
-		hwmgr->dyn_state.valid_sclk_values = NULL;
-	}
+	kfree(hwmgr->dyn_state.valid_sclk_values);
+	hwmgr->dyn_state.valid_sclk_values = NULL;
 
-	if (NULL != hwmgr->dyn_state.cac_leakage_table) {
-		kfree(hwmgr->dyn_state.cac_leakage_table);
-		hwmgr->dyn_state.cac_leakage_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.cac_leakage_table);
+	hwmgr->dyn_state.cac_leakage_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.vddc_phase_shed_limits_table) {
-		kfree(hwmgr->dyn_state.vddc_phase_shed_limits_table);
-		hwmgr->dyn_state.vddc_phase_shed_limits_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.vddc_phase_shed_limits_table);
+	hwmgr->dyn_state.vddc_phase_shed_limits_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.vce_clock_voltage_dependency_table) {
-		kfree(hwmgr->dyn_state.vce_clock_voltage_dependency_table);
-		hwmgr->dyn_state.vce_clock_voltage_dependency_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.vce_clock_voltage_dependency_table);
+	hwmgr->dyn_state.vce_clock_voltage_dependency_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.uvd_clock_voltage_dependency_table) {
-		kfree(hwmgr->dyn_state.uvd_clock_voltage_dependency_table);
-		hwmgr->dyn_state.uvd_clock_voltage_dependency_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.uvd_clock_voltage_dependency_table);
+	hwmgr->dyn_state.uvd_clock_voltage_dependency_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.samu_clock_voltage_dependency_table) {
-		kfree(hwmgr->dyn_state.samu_clock_voltage_dependency_table);
-		hwmgr->dyn_state.samu_clock_voltage_dependency_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.samu_clock_voltage_dependency_table);
+	hwmgr->dyn_state.samu_clock_voltage_dependency_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.acp_clock_voltage_dependency_table) {
-		kfree(hwmgr->dyn_state.acp_clock_voltage_dependency_table);
-		hwmgr->dyn_state.acp_clock_voltage_dependency_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.acp_clock_voltage_dependency_table);
+	hwmgr->dyn_state.acp_clock_voltage_dependency_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.cac_dtp_table) {
-		kfree(hwmgr->dyn_state.cac_dtp_table);
-		hwmgr->dyn_state.cac_dtp_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.cac_dtp_table);
+	hwmgr->dyn_state.cac_dtp_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.ppm_parameter_table) {
-		kfree(hwmgr->dyn_state.ppm_parameter_table);
-		hwmgr->dyn_state.ppm_parameter_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.ppm_parameter_table);
+	hwmgr->dyn_state.ppm_parameter_table = NULL;
 
-	if (NULL != hwmgr->dyn_state.vdd_gfx_dependency_on_sclk) {
-		kfree(hwmgr->dyn_state.vdd_gfx_dependency_on_sclk);
-		hwmgr->dyn_state.vdd_gfx_dependency_on_sclk = NULL;
-	}
+	kfree(hwmgr->dyn_state.vdd_gfx_dependency_on_sclk);
+	hwmgr->dyn_state.vdd_gfx_dependency_on_sclk = NULL;
 
-	if (NULL != hwmgr->dyn_state.vq_budgeting_table) {
-		kfree(hwmgr->dyn_state.vq_budgeting_table);
-		hwmgr->dyn_state.vq_budgeting_table = NULL;
-	}
+	kfree(hwmgr->dyn_state.vq_budgeting_table);
+	hwmgr->dyn_state.vq_budgeting_table = NULL;
 
 	return 0;
 }

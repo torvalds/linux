@@ -2282,15 +2282,11 @@ static int smu7_set_private_data_based_on_pptable_v0(struct pp_hwmgr *hwmgr)
 
 static int smu7_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	if (NULL != hwmgr->dyn_state.vddc_dep_on_dal_pwrl) {
-		kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
-		hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
-	}
+	kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
+	hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
 	pp_smu7_thermal_fini(hwmgr);
-	if (NULL != hwmgr->backend) {
-		kfree(hwmgr->backend);
-		hwmgr->backend = NULL;
-	}
+	kfree(hwmgr->backend);
+	hwmgr->backend = NULL;
 
 	return 0;
 }
