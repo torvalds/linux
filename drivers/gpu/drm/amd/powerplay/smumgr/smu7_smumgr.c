@@ -607,10 +607,8 @@ int smu7_init(struct pp_smumgr *smumgr)
 
 int smu7_smu_fini(struct pp_smumgr *smumgr)
 {
-	if (smumgr->backend) {
-		kfree(smumgr->backend);
-		smumgr->backend = NULL;
-	}
+	kfree(smumgr->backend);
+	smumgr->backend = NULL;
 	cgs_rel_firmware(smumgr->device, CGS_UCODE_ID_SMU);
 	return 0;
 }
