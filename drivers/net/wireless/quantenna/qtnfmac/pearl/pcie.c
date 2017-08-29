@@ -403,10 +403,12 @@ static int alloc_bd_table(struct qtnf_pcie_bus_priv *priv)
 	priv->rx_bd_vbase = vaddr;
 	priv->rx_bd_pbase = paddr;
 
-	writel(QTN_HOST_LO32(paddr),
-	       PCIE_HDP_TX_HOST_Q_BASE_L(priv->pcie_reg_base));
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	writel(QTN_HOST_HI32(paddr),
 	       PCIE_HDP_TX_HOST_Q_BASE_H(priv->pcie_reg_base));
+#endif
+	writel(QTN_HOST_LO32(paddr),
+	       PCIE_HDP_TX_HOST_Q_BASE_L(priv->pcie_reg_base));
 	writel(priv->rx_bd_num | (sizeof(struct qtnf_rx_bd)) << 16,
 	       PCIE_HDP_TX_HOST_Q_SZ_CTRL(priv->pcie_reg_base));
 
@@ -447,8 +449,10 @@ static int skb2rbd_attach(struct qtnf_pcie_bus_priv *priv, u16 index)
 	/* sync up all descriptor updates */
 	wmb();
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	writel(QTN_HOST_HI32(paddr),
 	       PCIE_HDP_HHBM_BUF_PTR_H(priv->pcie_reg_base));
+#endif
 	writel(QTN_HOST_LO32(paddr),
 	       PCIE_HDP_HHBM_BUF_PTR(priv->pcie_reg_base));
 
@@ -503,9 +507,28 @@ static void free_xfer_buffers(void *data)
 	}
 }
 
+static int qtnf_hhbm_init(struct qtnf_pcie_bus_priv *priv)
+{
+	u32 val;
+
+	val = readl(PCIE_HHBM_CONFIG(priv->pcie_reg_base));
+	val |= HHBM_CONFIG_SOFT_RESET;
+	writel(val, PCIE_HHBM_CONFIG(priv->pcie_reg_base));
+	usleep_range(50, 100);
+	val &= ~HHBM_CONFIG_SOFT_RESET;
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	val |= HHBM_64BIT;
+#endif
+	writel(val, PCIE_HHBM_CONFIG(priv->pcie_reg_base));
+	writel(priv->rx_bd_num, PCIE_HHBM_Q_LIMIT_REG(priv->pcie_reg_base));
+
+	return 0;
+}
+
 static int qtnf_pcie_init_xfer(struct qtnf_pcie_bus_priv *priv)
 {
 	int ret;
+	u32 val;
 
 	priv->tx_bd_num = tx_bd_size_param;
 	priv->rx_bd_num = rx_bd_size_param;
@@ -518,10 +541,30 @@ static int qtnf_pcie_init_xfer(struct qtnf_pcie_bus_priv *priv)
 		return -EINVAL;
 	}
 
+	val = priv->tx_bd_num * sizeof(struct qtnf_tx_bd);
+	if (val > PCIE_HHBM_MAX_SIZE) {
+		pr_err("tx_bd_size_param %u is too large\n",
+		       priv->tx_bd_num);
+		return -EINVAL;
+	}
+
 	if (!priv->rx_bd_num || !is_power_of_2(priv->rx_bd_num)) {
 		pr_err("rx_bd_size_param %u is not power of two\n",
 		       priv->rx_bd_num);
 		return -EINVAL;
+	}
+
+	val = priv->rx_bd_num * sizeof(dma_addr_t);
+	if (val > PCIE_HHBM_MAX_SIZE) {
+		pr_err("rx_bd_size_param %u is too large\n",
+		       priv->rx_bd_num);
+		return -EINVAL;
+	}
+
+	ret = qtnf_hhbm_init(priv);
+	if (ret) {
+		pr_err("failed to init h/w queues\n");
+		return ret;
 	}
 
 	ret = alloc_skb_array(priv);
@@ -653,10 +696,13 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 
 	/* write new TX descriptor to PCIE_RX_FIFO on EP */
 	txbd_paddr = priv->tx_bd_pbase + i * sizeof(struct qtnf_tx_bd);
-	writel(QTN_HOST_LO32(txbd_paddr),
-	       PCIE_HDP_HOST_WR_DESC0(priv->pcie_reg_base));
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	writel(QTN_HOST_HI32(txbd_paddr),
 	       PCIE_HDP_HOST_WR_DESC0_H(priv->pcie_reg_base));
+#endif
+	writel(QTN_HOST_LO32(txbd_paddr),
+	       PCIE_HDP_HOST_WR_DESC0(priv->pcie_reg_base));
 
 	if (++i >= priv->tx_bd_num)
 		i = 0;
@@ -1237,6 +1283,16 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pr_debug("successful init of PCI device %x\n", pdev->device);
 	}
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+#else
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+#endif
+	if (ret) {
+		pr_err("PCIE DMA coherent mask init failed\n");
+		goto err_base;
+	}
+
 	pcim_pin_device(pdev);
 	pci_set_master(pdev);
 
@@ -1255,12 +1311,6 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = qtnf_pcie_init_shm_ipc(pcie_priv);
 	if (ret < 0) {
 		pr_err("PCIE SHM IPC init failed\n");
-		goto err_base;
-	}
-
-	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	if (ret) {
-		pr_err("PCIE DMA mask init failed\n");
 		goto err_base;
 	}
 

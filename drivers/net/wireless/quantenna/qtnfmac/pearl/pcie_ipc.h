@@ -57,16 +57,14 @@
 	| PCIE_HDP_INT_EP_RXDMA		\
 	)
 
-#if BITS_PER_LONG == 64
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 #define QTN_HOST_HI32(a)	((u32)(((u64)a) >> 32))
 #define QTN_HOST_LO32(a)	((u32)(((u64)a) & 0xffffffffUL))
 #define QTN_HOST_ADDR(h, l)	((((u64)h) << 32) | ((u64)l))
-#elif BITS_PER_LONG == 32
+#else
 #define QTN_HOST_HI32(a)	0
 #define QTN_HOST_LO32(a)	((u32)(((u32)a) & 0xffffffffUL))
 #define QTN_HOST_ADDR(h, l)	((u32)l)
-#else
-#error Unexpected BITS_PER_LONG value
 #endif
 
 #define QTN_SYSCTL_BAR	0
@@ -76,7 +74,7 @@
 #define QTN_PCIE_BDA_VERSION		0x1002
 
 #define PCIE_BDA_NAMELEN		32
-#define PCIE_HHBM_MAX_SIZE		512
+#define PCIE_HHBM_MAX_SIZE		2048
 
 #define SKB_BUF_SIZE		2048
 
@@ -113,7 +111,7 @@ struct qtnf_pcie_bda {
 	__le32 bda_flashsz;
 	u8 bda_boardname[PCIE_BDA_NAMELEN];
 	__le32 bda_rc_msi_enabled;
-	__le32 bda_hhbm_list[PCIE_HHBM_MAX_SIZE];
+	u8 bda_hhbm_list[PCIE_HHBM_MAX_SIZE];
 	__le32 bda_dsbw_start_index;
 	__le32 bda_dsbw_end_index;
 	__le32 bda_dsbw_total_bytes;

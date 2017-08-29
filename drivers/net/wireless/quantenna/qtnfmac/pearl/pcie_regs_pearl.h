@@ -109,6 +109,7 @@
 #define HHBM_WR_REQ				(BIT(0))
 #define HHBM_RD_REQ				(BIT(1))
 #define HHBM_DONE				(BIT(31))
+#define HHBM_64BIT				(BIT(10))
 
 /* offsets for dual PCIE */
 #define PCIE_PORT_LINK_CTL(base)		((base) + 0x0710)
