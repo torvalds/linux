@@ -130,7 +130,7 @@ static void unmap_region(void *addr, u64 start, int len)
 /*
  * Unmap the paste address region for a window.
  */
-void unmap_paste_region(struct vas_window *window)
+static void unmap_paste_region(struct vas_window *window)
 {
 	int len;
 	u64 busaddr_start;
@@ -522,7 +522,7 @@ static int vas_assign_window_id(struct ida *ida)
 	return winid;
 }
 
-void vas_window_free(struct vas_window *window)
+static void vas_window_free(struct vas_window *window)
 {
 	int winid = window->winid;
 	struct vas_instance *vinst = window->vinst;
@@ -558,6 +558,14 @@ out_free:
 	kfree(window);
 	vas_release_window_id(&vinst->ida, winid);
 	return ERR_PTR(-ENOMEM);
+}
+
+static void put_rx_win(struct vas_window *rxwin)
+{
+	/* Better not be a send window! */
+	WARN_ON_ONCE(rxwin->tx_win);
+
+	atomic_dec(&rxwin->num_txwins);
 }
 
 /*
@@ -627,7 +635,7 @@ static void set_vinst_win(struct vas_instance *vinst,
  * Clear this window from the table(s) of windows for this VAS instance.
  * See also function header of set_vinst_win().
  */
-void clear_vinst_win(struct vas_window *window)
+static void clear_vinst_win(struct vas_window *window)
 {
 	int id = window->winid;
 	struct vas_instance *vinst = window->vinst;
@@ -839,8 +847,91 @@ struct vas_window *vas_rx_win_open(int vasid, enum vas_cop_type cop,
 }
 EXPORT_SYMBOL_GPL(vas_rx_win_open);
 
-/* stub for now */
+static void poll_window_busy_state(struct vas_window *window)
+{
+	int busy;
+	u64 val;
+
+retry:
+	/*
+	 * Poll Window Busy flag
+	 */
+	val = read_hvwc_reg(window, VREG(WIN_STATUS));
+	busy = GET_FIELD(VAS_WIN_BUSY, val);
+	if (busy) {
+		val = 0;
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(HZ);
+		goto retry;
+	}
+}
+
+static void poll_window_castout(struct vas_window *window)
+{
+	int cached;
+	u64 val;
+
+	/* Cast window context out of the cache */
+retry:
+	val = read_hvwc_reg(window, VREG(WIN_CTX_CACHING_CTL));
+	cached = GET_FIELD(VAS_WIN_CACHE_STATUS, val);
+	if (cached) {
+		val = 0ULL;
+		val = SET_FIELD(VAS_CASTOUT_REQ, val, 1);
+		val = SET_FIELD(VAS_PUSH_TO_MEM, val, 0);
+		write_hvwc_reg(window, VREG(WIN_CTX_CACHING_CTL), val);
+
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(HZ);
+		goto retry;
+	}
+}
+
+/*
+ * Close a window.
+ *
+ * See Section 1.12.1 of VAS workbook v1.05 for details on closing window:
+ *	- Disable new paste operations (unmap paste address)
+ *	- Poll for the "Window Busy" bit to be cleared
+ *	- Clear the Open/Enable bit for the Window.
+ *	- Poll for return of window Credits (implies FIFO empty for Rx win?)
+ *	- Unpin and cast window context out of cache
+ *
+ * Besides the hardware, kernel has some bookkeeping of course.
+ */
 int vas_win_close(struct vas_window *window)
 {
-	return -1;
+	u64 val;
+
+	if (!window)
+		return 0;
+
+	if (!window->tx_win && atomic_read(&window->num_txwins) != 0) {
+		pr_devel("Attempting to close an active Rx window!\n");
+		WARN_ON_ONCE(1);
+		return -EBUSY;
+	}
+
+	unmap_paste_region(window);
+
+	clear_vinst_win(window);
+
+	poll_window_busy_state(window);
+
+	/* Unpin window from cache and close it */
+	val = read_hvwc_reg(window, VREG(WINCTL));
+	val = SET_FIELD(VAS_WINCTL_PIN, val, 0);
+	val = SET_FIELD(VAS_WINCTL_OPEN, val, 0);
+	write_hvwc_reg(window, VREG(WINCTL), val);
+
+	poll_window_castout(window);
+
+	/* if send window, drop reference to matching receive window */
+	if (window->tx_win)
+		put_rx_win(window->rxwin);
+
+	vas_window_free(window);
+
+	return 0;
 }
+EXPORT_SYMBOL_GPL(vas_win_close);
