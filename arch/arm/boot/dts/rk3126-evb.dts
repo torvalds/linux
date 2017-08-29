@@ -284,8 +284,6 @@
 				regulator-name= "ldo6";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-				regulator-boot-on;
 				regulator-state-mem {
 					regulator-state-enabled;
 					regulator-mode = <0x2>;
