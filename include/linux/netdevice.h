@@ -35,7 +35,6 @@
 
 #include <linux/percpu.h>
 #include <linux/rculist.h>
-#include <linux/dmaengine.h>
 #include <linux/workqueue.h>
 #include <linux/dynamic_queue_limits.h>
 
