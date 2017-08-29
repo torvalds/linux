@@ -1262,6 +1262,8 @@ struct dcn10_dpp {
 	bool is_write_to_ram_a_safe;
 };
 
+
+
 enum dcn10_input_csc_select {
 	INPUT_CSC_SELECT_BYPASS = 0,
 	INPUT_CSC_SELECT_ICSC,
