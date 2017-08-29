@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include <libgen.h>
@@ -26,17 +27,18 @@
 
 static int ifindex_in;
 static int ifindex_out;
+static bool ifindex_out_xdp_dummy_attached = true;
 
 static __u32 xdp_flags;
 
 static void int_exit(int sig)
 {
 	set_link_xdp_fd(ifindex_in, -1, xdp_flags);
+	if (ifindex_out_xdp_dummy_attached)
+		set_link_xdp_fd(ifindex_out, -1, xdp_flags);
 	exit(0);
 }
 
-/* simple per-protocol drop counter
- */
 static void poll_stats(int interval, int ifindex)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
@@ -69,7 +71,6 @@ static void usage(const char *prog)
 		"    -N    enforce native mode\n",
 		prog);
 }
-
 
 int main(int argc, char **argv)
 {
@@ -112,13 +113,20 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	signal(SIGINT, int_exit);
-	signal(SIGTERM, int_exit);
-
 	if (set_link_xdp_fd(ifindex_in, prog_fd[0], xdp_flags) < 0) {
-		printf("link set xdp fd failed\n");
+		printf("ERROR: link set xdp fd failed on %d\n", ifindex_in);
 		return 1;
 	}
+
+	/* Loading dummy XDP prog on out-device */
+	if (set_link_xdp_fd(ifindex_out, prog_fd[1],
+			    (xdp_flags | XDP_FLAGS_UPDATE_IF_NOEXIST)) < 0) {
+		printf("WARN: link set xdp fd failed on %d\n", ifindex_out);
+		ifindex_out_xdp_dummy_attached = false;
+	}
+
+	signal(SIGINT, int_exit);
+	signal(SIGTERM, int_exit);
 
 	printf("map[0] (vports) = %i, map[1] (map) = %i, map[2] (count) = %i\n",
 		map_fd[0], map_fd[1], map_fd[2]);
