@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2007 Google, Inc.
  * Copyright (C) 2012 Intel, Inc.
+ * Copyright (C) 2017 Imagination Technologies Ltd.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -24,6 +25,7 @@
 #include <linux/goldfish.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
+#include <linux/serial_core.h>
 
 /* Goldfish tty register's offsets */
 #define	GOLDFISH_TTY_REG_BYTES_READY	0x04
@@ -439,6 +441,30 @@ static int goldfish_tty_remove(struct platform_device *pdev)
 	mutex_unlock(&goldfish_tty_lock);
 	return 0;
 }
+
+static void gf_early_console_putchar(struct uart_port *port, int ch)
+{
+	__raw_writel(ch, port->membase);
+}
+
+static void gf_early_write(struct console *con, const char *s, unsigned int n)
+{
+	struct earlycon_device *dev = con->data;
+
+	uart_console_write(&dev->port, s, n, gf_early_console_putchar);
+}
+
+static int __init gf_earlycon_setup(struct earlycon_device *device,
+				    const char *opt)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = gf_early_write;
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(early_gf_tty, "google,goldfish-tty", gf_earlycon_setup);
 
 static const struct of_device_id goldfish_tty_of_match[] = {
 	{ .compatible = "google,goldfish-tty", },
