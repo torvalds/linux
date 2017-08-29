@@ -2054,18 +2054,22 @@ static uint32_t translate_signal_level(int signal_levels)
 	return 0;
 }
 
+static uint32_t intel_ddi_dp_level(struct intel_dp *intel_dp)
+{
+	uint8_t train_set = intel_dp->train_set[0];
+	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
+					 DP_TRAIN_PRE_EMPHASIS_MASK);
+
+	return translate_signal_level(signal_levels);
+}
+
 uint32_t ddi_signal_levels(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dport->base.base.dev);
 	struct intel_encoder *encoder = &dport->base;
-	uint8_t train_set = intel_dp->train_set[0];
-	int signal_levels = train_set & (DP_TRAIN_VOLTAGE_SWING_MASK |
-					 DP_TRAIN_PRE_EMPHASIS_MASK);
 	enum port port = dport->port;
-	uint32_t level;
-
-	level = translate_signal_level(signal_levels);
+	uint32_t level = intel_ddi_dp_level(intel_dp);
 
 	if (IS_GEN9_BC(dev_priv))
 		skl_ddi_set_iboost(encoder, level);
