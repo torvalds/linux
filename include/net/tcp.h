@@ -1022,6 +1022,8 @@ struct tcp_congestion_ops {
 			   union tcp_cc_info *info);
 	/* get the expiration time for the pacing timer (optional) */
 	u64 (*get_pacing_time)(struct sock *sk);
+	/* the pacing timer is expired (optional) */
+	void (*pacing_timer_expired)(struct sock *sk);
 
 	char 		name[TCP_CA_NAME_MAX];
 	struct module 	*owner;
