@@ -688,9 +688,6 @@ static void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder)
 	enum port port = intel_ddi_get_encoder_port(encoder);
 	const struct ddi_buf_trans *ddi_translations;
 
-	if (IS_GEN9_LP(dev_priv))
-		return;
-
 	switch (encoder->type) {
 	case INTEL_OUTPUT_EDP:
 		ddi_translations = intel_ddi_get_buf_trans_edp(dev_priv,
@@ -740,9 +737,6 @@ static void intel_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder)
 	int n_hdmi_entries, hdmi_level;
 	enum port port = intel_ddi_get_encoder_port(encoder);
 	const struct ddi_buf_trans *ddi_translations_hdmi;
-
-	if (IS_GEN9_LP(dev_priv))
-		return;
 
 	hdmi_level = intel_ddi_hdmi_level(dev_priv, port);
 
@@ -2154,7 +2148,9 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
-	intel_prepare_dp_ddi_buffers(encoder);
+	if (!IS_GEN9_LP(dev_priv) && !IS_CANNONLAKE(dev_priv))
+		intel_prepare_dp_ddi_buffers(encoder);
+
 	intel_ddi_init_dp_buf_reg(encoder);
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
@@ -2180,14 +2176,16 @@ static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
 
 	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
 
-	intel_prepare_hdmi_ddi_buffers(encoder);
-	if (IS_GEN9_BC(dev_priv))
-		skl_ddi_set_iboost(encoder, level);
+	if (IS_CANNONLAKE(dev_priv))
+		cnl_ddi_vswing_sequence(encoder, level);
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_ddi_vswing_sequence(dev_priv, level, port,
 					INTEL_OUTPUT_HDMI);
-	else if (IS_CANNONLAKE(dev_priv))
-		cnl_ddi_vswing_sequence(encoder, level);
+	else
+		intel_prepare_hdmi_ddi_buffers(encoder);
+
+	if (IS_GEN9_BC(dev_priv))
+		skl_ddi_set_iboost(encoder, level);
 
 	intel_dig_port->set_infoframes(&encoder->base,
 				       has_infoframe,
