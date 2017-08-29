@@ -21,7 +21,6 @@
  *
  * To do:
  * - add interconnect error log structures
- * - add pinmuxing
  * - init_conn_id_bit (CONNID_BIT_VECTOR)
  * - implement default hwmod SMS/SDRC flags?
  * - move Linux-specific data ("non-ROM data") out
@@ -149,22 +148,6 @@ extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type3;
 #undef DEBUG_AM33XXUART1_FLAGS
 #define DEBUG_AM33XXUART1_FLAGS DEBUG_OMAPUART_FLAGS
 #endif
-
-/**
- * struct omap_hwmod_mux_info - hwmod specific mux configuration
- * @pads:              array of omap_device_pad entries
- * @nr_pads:           number of omap_device_pad entries
- *
- * Note that this is currently built during init as needed.
- */
-struct omap_hwmod_mux_info {
-	int				nr_pads;
-	struct omap_device_pad		*pads;
-	int				nr_pads_dynamic;
-	struct omap_device_pad		**pads_dynamic;
-	int				*irqs;
-	bool				enabled;
-};
 
 /**
  * struct omap_hwmod_irq_info - MPU IRQs used by the hwmod
@@ -673,7 +656,6 @@ struct omap_hwmod {
 	const char			*name;
 	struct omap_hwmod_class		*class;
 	struct omap_device		*od;
-	struct omap_hwmod_mux_info	*mux;
 	struct omap_hwmod_irq_info	*mpu_irqs;
 	struct omap_hwmod_dma_info	*sdma_reqs;
 	struct omap_hwmod_rst_info	*rst_lines;
