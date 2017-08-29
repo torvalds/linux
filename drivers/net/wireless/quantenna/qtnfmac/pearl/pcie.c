@@ -483,7 +483,7 @@ static void free_xfer_buffers(void *data)
 
 	/* free rx buffers */
 	for (i = 0; i < priv->rx_bd_num; i++) {
-		if (priv->rx_skb[i]) {
+		if (priv->rx_skb && priv->rx_skb[i]) {
 			rxbd = &priv->rx_bd_vbase[i];
 			paddr = QTN_HOST_ADDR(le32_to_cpu(rxbd->addr_h),
 					      le32_to_cpu(rxbd->addr));
@@ -496,7 +496,7 @@ static void free_xfer_buffers(void *data)
 
 	/* free tx buffers */
 	for (i = 0; i < priv->tx_bd_num; i++) {
-		if (priv->tx_skb[i]) {
+		if (priv->tx_skb && priv->tx_skb[i]) {
 			dev_kfree_skb_any(priv->tx_skb[i]);
 			priv->tx_skb[i] = NULL;
 		}
