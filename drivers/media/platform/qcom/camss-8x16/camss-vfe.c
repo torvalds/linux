@@ -2660,7 +2660,7 @@ static int vfe_get_selection(struct v4l2_subdev *sd,
  *
  * Return -EINVAL or zero on success
  */
-int vfe_set_selection(struct v4l2_subdev *sd,
+static int vfe_set_selection(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_selection *sel)
 {
