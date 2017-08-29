@@ -2515,16 +2515,20 @@ static int xdp_do_redirect_map(struct net_device *dev, struct xdp_buff *xdp,
 	fwd = __dev_map_lookup_elem(map, index);
 	if (!fwd) {
 		err = -EINVAL;
-		goto out;
+		goto err;
 	}
 	if (ri->map_to_flush && ri->map_to_flush != map)
 		xdp_do_flush_map();
 
 	err = __bpf_tx_xdp(fwd, map, xdp, index);
-	if (likely(!err))
-		ri->map_to_flush = map;
-out:
-	trace_xdp_redirect_map(dev, xdp_prog, fwd, err, map, index);
+	if (unlikely(err))
+		goto err;
+
+	ri->map_to_flush = map;
+	trace_xdp_redirect_map(dev, xdp_prog, fwd, map, index);
+	return 0;
+err:
+	trace_xdp_redirect_map_err(dev, xdp_prog, fwd, map, index, err);
 	return err;
 }
 
@@ -2543,12 +2547,17 @@ int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp,
 	ri->ifindex = 0;
 	if (unlikely(!fwd)) {
 		err = -EINVAL;
-		goto out;
+		goto err;
 	}
 
 	err = __bpf_tx_xdp(fwd, NULL, xdp, 0);
-out:
-	_trace_xdp_redirect(dev, xdp_prog, index, err);
+	if (unlikely(err))
+		goto err;
+
+	_trace_xdp_redirect(dev, xdp_prog, index);
+	return 0;
+err:
+	_trace_xdp_redirect_err(dev, xdp_prog, index, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(xdp_do_redirect);
@@ -2566,23 +2575,25 @@ int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
 	ri->ifindex = 0;
 	if (unlikely(!fwd)) {
 		err = -EINVAL;
-		goto out;
+		goto err;
 	}
 
 	if (unlikely(!(fwd->flags & IFF_UP))) {
 		err = -ENETDOWN;
-		goto out;
+		goto err;
 	}
 
 	len = fwd->mtu + fwd->hard_header_len + VLAN_HLEN;
 	if (skb->len > len) {
 		err = -EMSGSIZE;
-		goto out;
+		goto err;
 	}
 
 	skb->dev = fwd;
-out:
-	_trace_xdp_redirect(dev, xdp_prog, index, err);
+	_trace_xdp_redirect(dev, xdp_prog, index);
+	return 0;
+err:
+	_trace_xdp_redirect_err(dev, xdp_prog, index, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(xdp_do_generic_redirect);

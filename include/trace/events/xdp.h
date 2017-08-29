@@ -94,11 +94,25 @@ DEFINE_EVENT(xdp_redirect_template, xdp_redirect,
 	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index)
 );
 
-#define _trace_xdp_redirect(dev, xdp, to, err)	\
-	 trace_xdp_redirect(dev, xdp, to, err, NULL, 0);
+DEFINE_EVENT(xdp_redirect_template, xdp_redirect_err,
+	TP_PROTO(const struct net_device *dev,
+		 const struct bpf_prog *xdp,
+		 int to_ifindex, int err,
+		 const struct bpf_map *map, u32 map_index),
+	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index)
+);
 
-#define trace_xdp_redirect_map(dev, xdp, fwd, err, map, idx)	\
-	trace_xdp_redirect(dev, xdp, fwd ? fwd->ifindex : 0, err, map, idx);
+#define _trace_xdp_redirect(dev, xdp, to)		\
+	 trace_xdp_redirect(dev, xdp, to, 0, NULL, 0);
+
+#define _trace_xdp_redirect_err(dev, xdp, to, err)	\
+	 trace_xdp_redirect_err(dev, xdp, to, err, NULL, 0);
+
+#define trace_xdp_redirect_map(dev, xdp, fwd, map, idx)	\
+	trace_xdp_redirect(dev, xdp, fwd ? fwd->ifindex : 0, 0, map, idx);
+
+#define trace_xdp_redirect_map_err(dev, xdp, fwd, map, idx, err)	\
+	trace_xdp_redirect_err(dev, xdp, fwd ? fwd->ifindex : 0, err, map, idx);
 
 #endif /* _TRACE_XDP_H */
 
