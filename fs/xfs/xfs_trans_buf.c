@@ -435,7 +435,7 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 	if (XFS_FORCED_SHUTDOWN(tp->t_mountp) && freed) {
 		xfs_trans_ail_remove(&bip->bli_item, SHUTDOWN_LOG_IO_ERROR);
 		xfs_buf_item_relse(bp);
-	} else if (!xfs_buf_item_dirty(bip)) {
+	} else if (!(bip->bli_flags & XFS_BLI_DIRTY)) {
 /***
 		ASSERT(bp->b_pincount == 0);
 ***/

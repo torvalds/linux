@@ -945,17 +945,6 @@ xfs_buf_item_log(
 }
 
 
-/*
- * Return 1 if the buffer has been logged or ordered in a transaction (at any
- * point, not just the current transaction) and 0 if not.
- */
-uint
-xfs_buf_item_dirty(
-	xfs_buf_log_item_t	*bip)
-{
-	return (bip->bli_flags & XFS_BLI_DIRTY);
-}
-
 STATIC void
 xfs_buf_item_free(
 	xfs_buf_log_item_t	*bip)
