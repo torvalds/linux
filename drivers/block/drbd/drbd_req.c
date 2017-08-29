@@ -1291,6 +1291,7 @@ static void drbd_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	struct drbd_resource *resource = plug->cb.data;
 	struct drbd_request *req = plug->most_recent_req;
 
+	kfree(cb);
 	if (!req)
 		return;
 
@@ -1300,8 +1301,8 @@ static void drbd_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	req->rq_state |= RQ_UNPLUG;
 	/* but also queue a generic unplug */
 	drbd_queue_unplug(req->device);
-	spin_unlock_irq(&resource->req_lock);
 	kref_put(&req->kref, drbd_req_destroy);
+	spin_unlock_irq(&resource->req_lock);
 }
 
 static struct drbd_plug_cb* drbd_check_plugged(struct drbd_resource *resource)
@@ -1336,8 +1337,6 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 	struct bio_and_error m = { NULL, };
 	bool no_remote = false;
 	bool submit_private_bio = false;
-
-	struct drbd_plug_cb *plug = drbd_check_plugged(resource);
 
 	spin_lock_irq(&resource->req_lock);
 	if (rw == WRITE) {
@@ -1403,8 +1402,11 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 			no_remote = true;
 	}
 
-	if (plug != NULL && no_remote == false)
-		drbd_update_plug(plug, req);
+	if (no_remote == false) {
+		struct drbd_plug_cb *plug = drbd_check_plugged(resource);
+		if (plug)
+			drbd_update_plug(plug, req);
+	}
 
 	/* If it took the fast path in drbd_request_prepare, add it here.
 	 * The slow path has added it already. */
@@ -1454,7 +1456,10 @@ void __drbd_make_request(struct drbd_device *device, struct bio *bio, unsigned l
 
 static void submit_fast_path(struct drbd_device *device, struct list_head *incoming)
 {
+	struct blk_plug plug;
 	struct drbd_request *req, *tmp;
+
+	blk_start_plug(&plug);
 	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
 		const int rw = bio_data_dir(req->master_bio);
 
@@ -1472,6 +1477,7 @@ static void submit_fast_path(struct drbd_device *device, struct list_head *incom
 		list_del_init(&req->tl_requests);
 		drbd_send_and_submit(device, req);
 	}
+	blk_finish_plug(&plug);
 }
 
 static bool prepare_al_transaction_nonblock(struct drbd_device *device,
@@ -1501,10 +1507,12 @@ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
 	return !list_empty(pending);
 }
 
-void send_and_submit_pending(struct drbd_device *device, struct list_head *pending)
+static void send_and_submit_pending(struct drbd_device *device, struct list_head *pending)
 {
+	struct blk_plug plug;
 	struct drbd_request *req;
 
+	blk_start_plug(&plug);
 	while ((req = list_first_entry_or_null(pending, struct drbd_request, tl_requests))) {
 		req->rq_state |= RQ_IN_ACT_LOG;
 		req->in_actlog_jif = jiffies;
@@ -1512,6 +1520,7 @@ void send_and_submit_pending(struct drbd_device *device, struct list_head *pendi
 		list_del_init(&req->tl_requests);
 		drbd_send_and_submit(device, req);
 	}
+	blk_finish_plug(&plug);
 }
 
 void do_submit(struct work_struct *ws)
