@@ -485,6 +485,79 @@ int init_winctx_regs(struct vas_window *window, struct vas_winctx *winctx)
 	return 0;
 }
 
+static DEFINE_SPINLOCK(vas_ida_lock);
+
+static void vas_release_window_id(struct ida *ida, int winid)
+{
+	spin_lock(&vas_ida_lock);
+	ida_remove(ida, winid);
+	spin_unlock(&vas_ida_lock);
+}
+
+static int vas_assign_window_id(struct ida *ida)
+{
+	int rc, winid;
+
+	do {
+		rc = ida_pre_get(ida, GFP_KERNEL);
+		if (!rc)
+			return -EAGAIN;
+
+		spin_lock(&vas_ida_lock);
+		rc = ida_get_new(ida, &winid);
+		spin_unlock(&vas_ida_lock);
+	} while (rc == -EAGAIN);
+
+	if (rc)
+		return rc;
+
+	if (winid > VAS_WINDOWS_PER_CHIP) {
+		pr_err("Too many (%d) open windows\n", winid);
+		vas_release_window_id(ida, winid);
+		return -EAGAIN;
+	}
+
+	return winid;
+}
+
+void vas_window_free(struct vas_window *window)
+{
+	int winid = window->winid;
+	struct vas_instance *vinst = window->vinst;
+
+	unmap_winctx_mmio_bars(window);
+	kfree(window);
+
+	vas_release_window_id(&vinst->ida, winid);
+}
+
+struct vas_window *vas_window_alloc(struct vas_instance *vinst)
+{
+	int winid;
+	struct vas_window *window;
+
+	winid = vas_assign_window_id(&vinst->ida);
+	if (winid < 0)
+		return ERR_PTR(winid);
+
+	window = kzalloc(sizeof(*window), GFP_KERNEL);
+	if (!window)
+		goto out_free;
+
+	window->vinst = vinst;
+	window->winid = winid;
+
+	if (map_winctx_mmio_bars(window))
+		goto out_free;
+
+	return window;
+
+out_free:
+	kfree(window);
+	vas_release_window_id(&vinst->ida, winid);
+	return ERR_PTR(-ENOMEM);
+}
+
 /* stub for now */
 int vas_win_close(struct vas_window *window)
 {
