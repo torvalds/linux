@@ -1830,9 +1830,10 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 }
 
 static const struct cnl_ddi_buf_trans *
-cnl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv,
-		       u32 voltage, int *n_entries)
+cnl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
 {
+	u32 voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
+
 	if (voltage == VOLTAGE_INFO_0_85V) {
 		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_0_85V);
 		return cnl_ddi_translations_hdmi_0_85V;
@@ -1842,14 +1843,16 @@ cnl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv,
 	} else if (voltage == VOLTAGE_INFO_1_05V) {
 		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_1_05V);
 		return cnl_ddi_translations_hdmi_1_05V;
-	}
+	} else
+		MISSING_CASE(voltage);
 	return NULL;
 }
 
 static const struct cnl_ddi_buf_trans *
-cnl_get_buf_trans_dp(struct drm_i915_private *dev_priv,
-		     u32 voltage, int *n_entries)
+cnl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
 {
+	u32 voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
+
 	if (voltage == VOLTAGE_INFO_0_85V) {
 		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_0_85V);
 		return cnl_ddi_translations_dp_0_85V;
@@ -1859,14 +1862,16 @@ cnl_get_buf_trans_dp(struct drm_i915_private *dev_priv,
 	} else if (voltage == VOLTAGE_INFO_1_05V) {
 		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_1_05V);
 		return cnl_ddi_translations_dp_1_05V;
-	}
+	} else
+		MISSING_CASE(voltage);
 	return NULL;
 }
 
 static const struct cnl_ddi_buf_trans *
-cnl_get_buf_trans_edp(struct drm_i915_private *dev_priv,
-		      u32 voltage, int *n_entries)
+cnl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 {
+	u32 voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
+
 	if (dev_priv->vbt.edp.low_vswing) {
 		if (voltage == VOLTAGE_INFO_0_85V) {
 			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_0_85V);
@@ -1877,10 +1882,11 @@ cnl_get_buf_trans_edp(struct drm_i915_private *dev_priv,
 		} else if (voltage == VOLTAGE_INFO_1_05V) {
 			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_1_05V);
 			return cnl_ddi_translations_edp_1_05V;
-		}
+		} else
+			MISSING_CASE(voltage);
 		return NULL;
 	} else {
-		return cnl_get_buf_trans_dp(dev_priv, voltage, n_entries);
+		return cnl_get_buf_trans_dp(dev_priv, n_entries);
 	}
 }
 
@@ -1888,31 +1894,19 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
 				    u32 level, enum port port, int type)
 {
 	const struct cnl_ddi_buf_trans *ddi_translations = NULL;
-	u32 n_entries, val, voltage;
+	u32 n_entries, val;
 	int ln;
 
-	/*
-	 * Values for each port type are listed in
-	 * voltage swing programming tables.
-	 * Vccio voltage found in PORT_COMP_DW3.
-	 */
-	voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
-
 	if (type == INTEL_OUTPUT_HDMI) {
-		ddi_translations = cnl_get_buf_trans_hdmi(dev_priv,
-							  voltage, &n_entries);
+		ddi_translations = cnl_get_buf_trans_hdmi(dev_priv, &n_entries);
 	} else if (type == INTEL_OUTPUT_DP) {
-		ddi_translations = cnl_get_buf_trans_dp(dev_priv,
-							voltage, &n_entries);
+		ddi_translations = cnl_get_buf_trans_dp(dev_priv, &n_entries);
 	} else if (type == INTEL_OUTPUT_EDP) {
-		ddi_translations = cnl_get_buf_trans_edp(dev_priv,
-							 voltage, &n_entries);
+		ddi_translations = cnl_get_buf_trans_edp(dev_priv, &n_entries);
 	}
 
-	if (ddi_translations == NULL) {
-		MISSING_CASE(voltage);
+	if (WARN_ON(ddi_translations == NULL))
 		return;
-	}
 
 	if (level >= n_entries) {
 		DRM_DEBUG_KMS("DDI translation not found for level %d. Using %d instead.", level, n_entries - 1);
