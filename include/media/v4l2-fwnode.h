@@ -115,13 +115,92 @@ struct v4l2_fwnode_link {
 	unsigned int remote_port;
 };
 
+/**
+ * v4l2_fwnode_endpoint_parse() - parse all fwnode node properties
+ * @fwnode: pointer to the endpoint's fwnode handle
+ * @vep: pointer to the V4L2 fwnode data structure
+ *
+ * All properties are optional. If none are found, we don't set any flags. This
+ * means the port has a static configuration and no properties have to be
+ * specified explicitly. If any properties that identify the bus as parallel
+ * are found and slave-mode isn't set, we set V4L2_MBUS_MASTER. Similarly, if
+ * we recognise the bus as serial CSI-2 and clock-noncontinuous isn't set, we
+ * set the V4L2_MBUS_CSI2_CONTINUOUS_CLOCK flag. The caller should hold a
+ * reference to @fwnode.
+ *
+ * NOTE: This function does not parse properties the size of which is variable
+ * without a low fixed limit. Please use v4l2_fwnode_endpoint_alloc_parse() in
+ * new drivers instead.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
 int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 			       struct v4l2_fwnode_endpoint *vep);
+
+/**
+ * v4l2_fwnode_endpoint_free() - free the V4L2 fwnode acquired by
+ * v4l2_fwnode_endpoint_alloc_parse()
+ * @vep: the V4L2 fwnode the resources of which are to be released
+ *
+ * It is safe to call this function with NULL argument or on a V4L2 fwnode the
+ * parsing of which failed.
+ */
+void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
+
+/**
+ * v4l2_fwnode_endpoint_alloc_parse() - parse all fwnode node properties
+ * @fwnode: pointer to the endpoint's fwnode handle
+ *
+ * All properties are optional. If none are found, we don't set any flags. This
+ * means the port has a static configuration and no properties have to be
+ * specified explicitly. If any properties that identify the bus as parallel
+ * are found and slave-mode isn't set, we set V4L2_MBUS_MASTER. Similarly, if
+ * we recognise the bus as serial CSI-2 and clock-noncontinuous isn't set, we
+ * set the V4L2_MBUS_CSI2_CONTINUOUS_CLOCK flag. The caller should hold a
+ * reference to @fwnode.
+ *
+ * v4l2_fwnode_endpoint_alloc_parse() has two important differences to
+ * v4l2_fwnode_endpoint_parse():
+ *
+ * 1. It also parses variable size data.
+ *
+ * 2. The memory it has allocated to store the variable size data must be freed
+ *    using v4l2_fwnode_endpoint_free() when no longer needed.
+ *
+ * Return: Pointer to v4l2_fwnode_endpoint if successful, on an error pointer
+ * on error.
+ */
 struct v4l2_fwnode_endpoint *v4l2_fwnode_endpoint_alloc_parse(
 	struct fwnode_handle *fwnode);
-void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
+
+/**
+ * v4l2_fwnode_parse_link() - parse a link between two endpoints
+ * @fwnode: pointer to the endpoint's fwnode at the local end of the link
+ * @link: pointer to the V4L2 fwnode link data structure
+ *
+ * Fill the link structure with the local and remote nodes and port numbers.
+ * The local_node and remote_node fields are set to point to the local and
+ * remote port's parent nodes respectively (the port parent node being the
+ * parent node of the port node if that node isn't a 'ports' node, or the
+ * grand-parent node of the port node otherwise).
+ *
+ * A reference is taken to both the local and remote nodes, the caller must use
+ * v4l2_fwnode_put_link() to drop the references when done with the
+ * link.
+ *
+ * Return: 0 on success, or -ENOLINK if the remote endpoint fwnode can't be
+ * found.
+ */
 int v4l2_fwnode_parse_link(struct fwnode_handle *fwnode,
 			   struct v4l2_fwnode_link *link);
+
+/**
+ * v4l2_fwnode_put_link() - drop references to nodes in a link
+ * @link: pointer to the V4L2 fwnode link data structure
+ *
+ * Drop references to the local and remote nodes in the link. This function
+ * must be called on every link parsed with v4l2_fwnode_parse_link().
+ */
 void v4l2_fwnode_put_link(struct v4l2_fwnode_link *link);
 
 /**
