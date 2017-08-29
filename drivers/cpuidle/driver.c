@@ -216,8 +216,6 @@ static int __cpuidle_register_driver(struct cpuidle_driver *drv)
 		on_each_cpu_mask(drv->cpumask, cpuidle_setup_broadcast_timer,
 				 (void *)1, 1);
 
-	poll_idle_init(drv);
-
 	return 0;
 }
 

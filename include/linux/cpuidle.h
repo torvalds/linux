@@ -226,9 +226,9 @@ static inline void cpuidle_coupled_parallel_barrier(struct cpuidle_device *dev, 
 #endif
 
 #ifdef CONFIG_ARCH_HAS_CPU_RELAX
-void poll_idle_init(struct cpuidle_driver *drv);
+void cpuidle_poll_state_init(struct cpuidle_driver *drv);
 #else
-static void poll_idle_init(struct cpuidle_driver *drv) {}
+static inline void cpuidle_poll_state_init(struct cpuidle_driver *drv) {}
 #endif
 
 /******************************

@@ -842,13 +842,20 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
 
 static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 {
-	int i, count = ACPI_IDLE_STATE_START;
+	int i, count;
 	struct acpi_processor_cx *cx;
 	struct cpuidle_state *state;
 	struct cpuidle_driver *drv = &acpi_idle_driver;
 
 	if (max_cstate == 0)
 		max_cstate = 1;
+
+	if (IS_ENABLED(CONFIG_ARCH_HAS_CPU_RELAX)) {
+		cpuidle_poll_state_init(drv);
+		count = 1;
+	} else {
+		count = 0;
+	}
 
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER && i <= max_cstate; i++) {
 		cx = &pr->power.states[i];
