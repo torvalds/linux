@@ -415,22 +415,20 @@ EXPORT_SYMBOL_GPL(scsi_get_vpd_page);
  * scsi_get_vpd_buf - Get Vital Product Data from a SCSI device
  * @sdev: The device to ask
  * @page: Which Vital Product Data to return
- * @len: Upon success, the VPD length will be stored in *@len.
  *
  * Returns %NULL upon failure.
  */
-static unsigned char *scsi_get_vpd_buf(struct scsi_device *sdev, u8 page,
-				       int *len)
+static struct scsi_vpd *scsi_get_vpd_buf(struct scsi_device *sdev, u8 page)
 {
-	unsigned char *vpd_buf;
+	struct scsi_vpd *vpd_buf;
 	int vpd_len = SCSI_VPD_PG_LEN, result;
 
 retry_pg:
-	vpd_buf = kmalloc(vpd_len, GFP_KERNEL);
+	vpd_buf = kmalloc(sizeof(*vpd_buf) + vpd_len, GFP_KERNEL);
 	if (!vpd_buf)
 		return NULL;
 
-	result = scsi_vpd_inquiry(sdev, vpd_buf, page, vpd_len);
+	result = scsi_vpd_inquiry(sdev, vpd_buf->data, page, vpd_len);
 	if (result < 0) {
 		kfree(vpd_buf);
 		return NULL;
@@ -441,31 +439,27 @@ retry_pg:
 		goto retry_pg;
 	}
 
-	*len = result;
+	vpd_buf->len = result;
 
 	return vpd_buf;
 }
 
 static void scsi_update_vpd_page(struct scsi_device *sdev, u8 page,
-				 unsigned char __rcu **sdev_vpd_buf,
-				 int *sdev_vpd_len)
+				 struct scsi_vpd __rcu **sdev_vpd_buf)
 {
-	unsigned char *vpd_buf;
-	int len;
+	struct scsi_vpd *vpd_buf;
 
-	vpd_buf = scsi_get_vpd_buf(sdev, page, &len);
+	vpd_buf = scsi_get_vpd_buf(sdev, page);
 	if (!vpd_buf)
 		return;
 
 	mutex_lock(&sdev->inquiry_mutex);
 	rcu_swap_protected(*sdev_vpd_buf, vpd_buf,
 			   lockdep_is_held(&sdev->inquiry_mutex));
-	*sdev_vpd_len = len;
 	mutex_unlock(&sdev->inquiry_mutex);
 
-	synchronize_rcu();
-
-	kfree(vpd_buf);
+	if (vpd_buf)
+		kfree_rcu(vpd_buf, rcu);
 }
 
 /**
@@ -479,24 +473,22 @@ static void scsi_update_vpd_page(struct scsi_device *sdev, u8 page,
  */
 void scsi_attach_vpd(struct scsi_device *sdev)
 {
-	int i, vpd_len;
-	unsigned char *vpd_buf;
+	int i;
+	struct scsi_vpd *vpd_buf;
 
 	if (!scsi_device_supports_vpd(sdev))
 		return;
 
 	/* Ask for all the pages supported by this device */
-	vpd_buf = scsi_get_vpd_buf(sdev, 0, &vpd_len);
+	vpd_buf = scsi_get_vpd_buf(sdev, 0);
 	if (!vpd_buf)
 		return;
 
-	for (i = 4; i < vpd_len; i++) {
-		if (vpd_buf[i] == 0x80)
-			scsi_update_vpd_page(sdev, 0x80, &sdev->vpd_pg80,
-					     &sdev->vpd_pg80_len);
-		if (vpd_buf[i] == 0x83)
-			scsi_update_vpd_page(sdev, 0x83, &sdev->vpd_pg83,
-					     &sdev->vpd_pg83_len);
+	for (i = 4; i < vpd_buf->len; i++) {
+		if (vpd_buf->data[i] == 0x80)
+			scsi_update_vpd_page(sdev, 0x80, &sdev->vpd_pg80);
+		if (vpd_buf->data[i] == 0x83)
+			scsi_update_vpd_page(sdev, 0x83, &sdev->vpd_pg83);
 	}
 	kfree(vpd_buf);
 }
