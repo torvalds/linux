@@ -1853,6 +1853,11 @@ struct pci_dev *pci_alloc_dev(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_alloc_dev);
 
+static bool pci_bus_crs_vendor_id(u32 l)
+{
+	return (l & 0xffff) == 0x0001;
+}
+
 bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *l,
 				int crs_timeout)
 {
@@ -1872,7 +1877,7 @@ bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *l,
 	 * by the PCIe spec.  Ignore the device ID and only check for
 	 * (vendor id == 1).
 	 */
-	while ((*l & 0xffff) == 0x0001) {
+	while (pci_bus_crs_vendor_id(*l)) {
 		if (!crs_timeout)
 			return false;
 
