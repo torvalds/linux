@@ -16,6 +16,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_encoder.h>
 
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
@@ -83,7 +84,19 @@ static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
 		exynos_crtc->ops->atomic_flush(exynos_crtc);
 }
 
+static enum drm_mode_status exynos_crtc_mode_valid(struct drm_crtc *crtc,
+	const struct drm_display_mode *mode)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+
+	if (exynos_crtc->ops->mode_valid)
+		return exynos_crtc->ops->mode_valid(exynos_crtc, mode);
+
+	return MODE_OK;
+}
+
 static const struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
+	.mode_valid	= exynos_crtc_mode_valid,
 	.atomic_check	= exynos_crtc_atomic_check,
 	.atomic_begin	= exynos_crtc_atomic_begin,
 	.atomic_flush	= exynos_crtc_atomic_flush,
@@ -191,16 +204,30 @@ err_crtc:
 	return ERR_PTR(ret);
 }
 
-int exynos_drm_crtc_get_pipe_from_type(struct drm_device *drm_dev,
+struct exynos_drm_crtc *exynos_drm_crtc_get_by_type(struct drm_device *drm_dev,
 				       enum exynos_drm_output_type out_type)
 {
 	struct drm_crtc *crtc;
 
 	drm_for_each_crtc(crtc, drm_dev)
 		if (to_exynos_crtc(crtc)->type == out_type)
-			return drm_crtc_index(crtc);
+			return to_exynos_crtc(crtc);
 
-	return -EPERM;
+	return ERR_PTR(-EPERM);
+}
+
+int exynos_drm_set_possible_crtcs(struct drm_encoder *encoder,
+		enum exynos_drm_output_type out_type)
+{
+	struct exynos_drm_crtc *crtc = exynos_drm_crtc_get_by_type(encoder->dev,
+						out_type);
+
+	if (IS_ERR(crtc))
+		return PTR_ERR(crtc);
+
+	encoder->possible_crtcs = drm_crtc_mask(&crtc->base);
+
+	return 0;
 }
 
 void exynos_drm_crtc_te_handler(struct drm_crtc *crtc)

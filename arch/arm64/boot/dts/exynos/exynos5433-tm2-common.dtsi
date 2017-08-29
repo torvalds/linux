@@ -280,9 +280,6 @@
 
 &decon {
 	status = "okay";
-
-	i80-if-timings {
-	};
 };
 
 &decon_tv {
@@ -1116,9 +1113,6 @@
 
 &mic {
 	status = "okay";
-
-	i80-if-timings {
-	};
 };
 
 &pmu_system_controller {
