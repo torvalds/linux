@@ -1479,12 +1479,12 @@ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
 					    struct list_head *pending,
 					    struct list_head *later)
 {
-	struct drbd_request *req, *tmp;
+	struct drbd_request *req;
 	int wake = 0;
 	int err;
 
 	spin_lock_irq(&device->al_lock);
-	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
+	while ((req = list_first_entry_or_null(incoming, struct drbd_request, tl_requests))) {
 		err = drbd_al_begin_io_nonblock(device, &req->i);
 		if (err == -ENOBUFS)
 			break;
@@ -1503,9 +1503,9 @@ static bool prepare_al_transaction_nonblock(struct drbd_device *device,
 
 void send_and_submit_pending(struct drbd_device *device, struct list_head *pending)
 {
-	struct drbd_request *req, *tmp;
+	struct drbd_request *req;
 
-	list_for_each_entry_safe(req, tmp, pending, tl_requests) {
+	while ((req = list_first_entry_or_null(pending, struct drbd_request, tl_requests))) {
 		req->rq_state |= RQ_IN_ACT_LOG;
 		req->in_actlog_jif = jiffies;
 		atomic_dec(&device->ap_actlog_cnt);
