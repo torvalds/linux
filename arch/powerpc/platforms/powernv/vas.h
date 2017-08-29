@@ -12,6 +12,7 @@
 #include <linux/atomic.h>
 #include <linux/idr.h>
 #include <asm/vas.h>
+#include <linux/io.h>
 
 /*
  * Overview of Virtual Accelerator Switchboard (VAS).
@@ -380,5 +381,59 @@ struct vas_winctx {
 };
 
 extern struct vas_instance *find_vas_instance(int vasid);
+
+/*
+ * VREG(x):
+ * Expand a register's short name (eg: LPID) into two parameters:
+ *	- the register's short name in string form ("LPID"), and
+ *	- the name of the macro (eg: VAS_LPID_OFFSET), defining the
+ *	  register's offset in the window context
+ */
+#define VREG_SFX(n, s)	__stringify(n), VAS_##n##s
+#define VREG(r)		VREG_SFX(r, _OFFSET)
+
+#ifdef vas_debug
+static inline void vas_log_write(struct vas_window *win, char *name,
+			void *regptr, u64 val)
+{
+	if (val)
+		pr_err("%swin #%d: %s reg %p, val 0x%016llx\n",
+				win->tx_win ? "Tx" : "Rx", win->winid, name,
+				regptr, val);
+}
+
+#else	/* vas_debug */
+
+#define vas_log_write(win, name, reg, val)
+
+#endif	/* vas_debug */
+
+static inline void write_uwc_reg(struct vas_window *win, char *name,
+			s32 reg, u64 val)
+{
+	void *regptr;
+
+	regptr = win->uwc_map + reg;
+	vas_log_write(win, name, regptr, val);
+
+	out_be64(regptr, val);
+}
+
+static inline void write_hvwc_reg(struct vas_window *win, char *name,
+			s32 reg, u64 val)
+{
+	void *regptr;
+
+	regptr = win->hvwc_map + reg;
+	vas_log_write(win, name, regptr, val);
+
+	out_be64(regptr, val);
+}
+
+static inline u64 read_hvwc_reg(struct vas_window *win,
+			char *name __maybe_unused, s32 reg)
+{
+	return in_be64(win->hvwc_map+reg);
+}
 
 #endif /* _VAS_H */
