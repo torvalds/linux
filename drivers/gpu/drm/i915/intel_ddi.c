@@ -660,7 +660,10 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 	if (IS_GEN9_LP(dev_priv))
 		return hdmi_level;
 
-	if (IS_GEN9_BC(dev_priv)) {
+	if (IS_CANNONLAKE(dev_priv)) {
+		cnl_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
+		hdmi_default_entry = n_hdmi_entries - 1;
+	} else if (IS_GEN9_BC(dev_priv)) {
 		skl_get_buf_trans_hdmi(dev_priv, &n_hdmi_entries);
 		hdmi_default_entry = 8;
 	} else if (IS_BROADWELL(dev_priv)) {
