@@ -435,8 +435,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	struct nlattr *tb[TCA_IFE_MAX + 1];
 	struct nlattr *tb2[IFE_META_MAX + 1];
 	struct tcf_ife_info *ife;
+	u16 ife_type = ETH_P_IFE;
 	struct tc_ife *parm;
-	u16 ife_type = 0;
 	u8 *daddr = NULL;
 	u8 *saddr = NULL;
 	bool exists = false;
@@ -456,18 +456,6 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	if (exists && bind)
 		return 0;
 
-	if (parm->flags & IFE_ENCODE) {
-		/* Until we get issued the ethertype, we cant have
-		 * a default..
-		**/
-		if (!tb[TCA_IFE_TYPE]) {
-			if (exists)
-				tcf_hash_release(*a, bind);
-			pr_info("You MUST pass etherype for encoding\n");
-			return -EINVAL;
-		}
-	}
-
 	if (!exists) {
 		ret = tcf_hash_create(tn, parm->index, est, a, &act_ife_ops,
 				      bind, false);
@@ -484,7 +472,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	ife->flags = parm->flags;
 
 	if (parm->flags & IFE_ENCODE) {
-		ife_type = nla_get_u16(tb[TCA_IFE_TYPE]);
+		if (tb[TCA_IFE_TYPE])
+			ife_type = nla_get_u16(tb[TCA_IFE_TYPE]);
 		if (tb[TCA_IFE_DMAC])
 			daddr = nla_data(tb[TCA_IFE_DMAC]);
 		if (tb[TCA_IFE_SMAC])
