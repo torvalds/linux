@@ -458,7 +458,7 @@ static int nfp_net_pf_app_start(struct nfp_pf *pf)
 
 	err = nfp_app_start(pf->app, pf->ctrl_vnic);
 	if (err)
-		goto err_ctrl_stop;
+		return err;
 
 	if (pf->num_vfs) {
 		err = nfp_app_sriov_enable(pf->app, pf->num_vfs);
@@ -470,8 +470,6 @@ static int nfp_net_pf_app_start(struct nfp_pf *pf)
 
 err_app_stop:
 	nfp_app_stop(pf->app);
-err_ctrl_stop:
-	nfp_net_pf_app_stop_ctrl(pf);
 	return err;
 }
 
