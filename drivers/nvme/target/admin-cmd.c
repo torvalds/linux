@@ -100,7 +100,7 @@ static u16 nvmet_get_smart_log(struct nvmet_req *req,
 	u16 status;
 
 	WARN_ON(req == NULL || slog == NULL);
-	if (req->cmd->get_log_page.nsid == cpu_to_le32(0xFFFFFFFF))
+	if (req->cmd->get_log_page.nsid == cpu_to_le32(NVME_NSID_ALL))
 		status = nvmet_get_smart_log_all(req, slog);
 	else
 		status = nvmet_get_smart_log_nsid(req, slog);
@@ -168,15 +168,6 @@ out:
 	nvmet_req_complete(req, status);
 }
 
-static void copy_and_pad(char *dst, int dst_len, const char *src, int src_len)
-{
-	int len = min(src_len, dst_len);
-
-	memcpy(dst, src, len);
-	if (dst_len > len)
-		memset(dst + len, ' ', dst_len - len);
-}
-
 static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
@@ -196,8 +187,9 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 
 	bin2hex(id->sn, &ctrl->subsys->serial,
 		min(sizeof(ctrl->subsys->serial), sizeof(id->sn) / 2));
-	copy_and_pad(id->mn, sizeof(id->mn), model, sizeof(model) - 1);
-	copy_and_pad(id->fr, sizeof(id->fr), UTS_RELEASE, strlen(UTS_RELEASE));
+	memcpy_and_pad(id->mn, sizeof(id->mn), model, sizeof(model) - 1, ' ');
+	memcpy_and_pad(id->fr, sizeof(id->fr),
+		       UTS_RELEASE, strlen(UTS_RELEASE), ' ');
 
 	id->rab = 6;
 

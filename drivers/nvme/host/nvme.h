@@ -125,6 +125,7 @@ struct nvme_ctrl {
 	struct kref kref;
 	int instance;
 	struct blk_mq_tag_set *tagset;
+	struct blk_mq_tag_set *admin_tagset;
 	struct list_head namespaces;
 	struct mutex namespaces_mutex;
 	struct device *device;	/* char device */
@@ -142,6 +143,7 @@ struct nvme_ctrl {
 	u16 cntlid;
 
 	u32 ctrl_config;
+	u16 mtfa;
 	u32 queue_count;
 
 	u64 cap;
@@ -160,6 +162,7 @@ struct nvme_ctrl {
 	u16 kas;
 	u8 npss;
 	u8 apsta;
+	unsigned int shutdown_timeout;
 	unsigned int kato;
 	bool subsystem;
 	unsigned long quirks;
@@ -167,6 +170,7 @@ struct nvme_ctrl {
 	struct work_struct scan_work;
 	struct work_struct async_event_work;
 	struct delayed_work ka_work;
+	struct work_struct fw_act_work;
 
 	/* Power saving configuration */
 	u64 ps_max_latency_us;
@@ -207,13 +211,9 @@ struct nvme_ns {
 	bool ext;
 	u8 pi_type;
 	unsigned long flags;
-	u16 noiob;
-
 #define NVME_NS_REMOVING 0
 #define NVME_NS_DEAD     1
-
-	u64 mode_select_num_blocks;
-	u32 mode_select_block_len;
+	u16 noiob;
 };
 
 struct nvme_ctrl_ops {
