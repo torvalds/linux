@@ -2311,10 +2311,9 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf,
 	int ret = -ENOMEM;
 
 	ictx = kzalloc(sizeof(struct imon_context), GFP_KERNEL);
-	if (!ictx) {
-		dev_err(dev, "%s: kzalloc failed for context", __func__);
+	if (!ictx)
 		goto exit;
-	}
+
 	rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!rx_urb)
 		goto rx_urb_alloc_failed;
