@@ -316,6 +316,11 @@ int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 	u64 lvl    = data_src->mem_lvl;
 	u64 snoop  = data_src->mem_snoop;
 	u64 lock   = data_src->mem_lock;
+	/*
+	 * Skylake might report unknown remote level via this
+	 * bit, consider it when evaluating remote HITMs.
+	 */
+	bool mrem  = data_src->mem_remote;
 	int err = 0;
 
 #define HITM_INC(__f)		\
@@ -361,7 +366,8 @@ do {				\
 			}
 
 			if ((lvl & P(LVL, REM_RAM1)) ||
-			    (lvl & P(LVL, REM_RAM2))) {
+			    (lvl & P(LVL, REM_RAM2)) ||
+			     mrem) {
 				stats->rmt_dram++;
 				if (snoop & P(SNOOP, HIT))
 					stats->ld_shared++;
@@ -371,7 +377,8 @@ do {				\
 		}
 
 		if ((lvl & P(LVL, REM_CCE1)) ||
-		    (lvl & P(LVL, REM_CCE2))) {
+		    (lvl & P(LVL, REM_CCE2)) ||
+		     mrem) {
 			if (snoop & P(SNOOP, HIT))
 				stats->rmt_hit++;
 			else if (snoop & P(SNOOP, HITM))

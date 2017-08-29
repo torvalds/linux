@@ -902,8 +902,13 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	if (opts->no_samples)
 		attr->sample_freq = 0;
 
-	if (opts->inherit_stat)
+	if (opts->inherit_stat) {
+		evsel->attr.read_format |=
+			PERF_FORMAT_TOTAL_TIME_ENABLED |
+			PERF_FORMAT_TOTAL_TIME_RUNNING |
+			PERF_FORMAT_ID;
 		attr->inherit_stat = 1;
+	}
 
 	if (opts->sample_address) {
 		perf_evsel__set_sample_bit(evsel, ADDR);

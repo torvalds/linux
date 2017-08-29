@@ -241,17 +241,13 @@ static int process_read_event(struct perf_tool *tool,
 		const char *name = evsel ? perf_evsel__name(evsel) : "unknown";
 		int err = perf_read_values_add_value(&rep->show_threads_values,
 					   event->read.pid, event->read.tid,
-					   event->read.id,
+					   evsel->idx,
 					   name,
 					   event->read.value);
 
 		if (err)
 			return err;
 	}
-
-	dump_printf(": %d %d %s %" PRIu64 "\n", event->read.pid, event->read.tid,
-		    evsel ? perf_evsel__name(evsel) : "FAIL",
-		    event->read.value);
 
 	return 0;
 }

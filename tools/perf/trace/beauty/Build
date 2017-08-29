@@ -3,4 +3,5 @@ libperf-y += fcntl.o
 ifeq ($(SRCARCH),$(filter $(SRCARCH),x86))
 libperf-y += ioctl.o
 endif
+libperf-y += pkey_alloc.o
 libperf-y += statx.o

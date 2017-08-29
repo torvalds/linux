@@ -164,8 +164,8 @@ LN      = ln -f
 MKDIR   = mkdir
 FIND    = find
 INSTALL = install
-FLEX    = flex
-BISON   = bison
+FLEX    ?= flex
+BISON   ?= bison
 STRIP   = strip
 AWK     = awk
 
@@ -240,7 +240,7 @@ endif
 ifeq ($(FEATURES_DUMP),)
 FEATURE_DUMP_EXPORT := $(realpath $(OUTPUT)FEATURE-DUMP)
 else
-FEATURE_DUMP_EXPORT := $(FEATURES_DUMP)
+FEATURE_DUMP_EXPORT := $(realpath $(FEATURES_DUMP))
 endif
 
 export prefix bindir sharedir sysconfdir DESTDIR
@@ -279,7 +279,13 @@ LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
 export LIBTRACEEVENT
 
 LIBTRACEEVENT_DYNAMIC_LIST = $(TE_PATH)libtraceevent-dynamic-list
-LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS = -Xlinker --dynamic-list=$(LIBTRACEEVENT_DYNAMIC_LIST)
+
+#
+# The static build has no dynsym table, so this does not work for
+# static build. Looks like linker starts to scream about that now
+# (in Fedora 26) so we need to switch it off for static build.
+DYNAMIC_LIST_LDFLAGS               = -Xlinker --dynamic-list=$(LIBTRACEEVENT_DYNAMIC_LIST)
+LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS = $(if $(findstring -static,$(LDFLAGS)),,$(DYNAMIC_LIST_LDFLAGS))
 
 LIBAPI = $(API_PATH)libapi.a
 export LIBAPI
@@ -381,7 +387,8 @@ export INSTALL SHELL_PATH
 
 SHELL = $(SHELL_PATH)
 
-beauty_ioctl_outdir := $(OUTPUT)trace/beauty/generated/ioctl
+beauty_outdir := $(OUTPUT)trace/beauty/generated
+beauty_ioctl_outdir := $(beauty_outdir)/ioctl
 drm_ioctl_array := $(beauty_ioctl_outdir)/drm_ioctl_array.c
 drm_hdr_dir := $(srctree)/tools/include/uapi/drm
 drm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/drm_ioctl.sh
@@ -391,6 +398,13 @@ _dummy := $(shell [ -d '$(beauty_ioctl_outdir)' ] || mkdir -p '$(beauty_ioctl_ou
 
 $(drm_ioctl_array): $(drm_hdr_dir)/drm.h $(drm_hdr_dir)/i915_drm.h $(drm_ioctl_tbl)
 	$(Q)$(SHELL) '$(drm_ioctl_tbl)' $(drm_hdr_dir) > $@
+
+pkey_alloc_access_rights_array := $(beauty_outdir)/pkey_alloc_access_rights_array.c
+asm_generic_hdr_dir := $(srctree)/tools/include/uapi/asm-generic/
+pkey_alloc_access_rights_tbl := $(srctree)/tools/perf/trace/beauty/pkey_alloc_access_rights.sh
+
+$(pkey_alloc_access_rights_array): $(asm_generic_hdr_dir)/mman-common.h $(pkey_alloc_access_rights_tbl)
+	$(Q)$(SHELL) '$(pkey_alloc_access_rights_tbl)' $(asm_generic_hdr_dir) > $@
 
 sndrv_ctl_ioctl_array := $(beauty_ioctl_outdir)/sndrv_ctl_ioctl_array.c
 sndrv_ctl_hdr_dir := $(srctree)/tools/include/uapi/sound
@@ -522,6 +536,7 @@ __build-dir = $(subst $(OUTPUT),,$(dir $@))
 build-dir   = $(if $(__build-dir),$(__build-dir),.)
 
 prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioctl_array) \
+	$(pkey_alloc_access_rights_array) \
 	$(sndrv_pcm_ioctl_array) \
 	$(sndrv_ctl_ioctl_array) \
 	$(kvm_ioctl_array) \
@@ -797,6 +812,7 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 		$(OUTPUT)tests/llvm-src-{base,kbuild,prologue,relocation}.c \
 		$(OUTPUT)pmu-events/pmu-events.c \
 		$(OUTPUT)$(drm_ioctl_array) \
+		$(OUTPUT)$(pkey_alloc_access_rights_array) \
 		$(OUTPUT)$(sndrv_ctl_ioctl_array) \
 		$(OUTPUT)$(sndrv_pcm_ioctl_array) \
 		$(OUTPUT)$(kvm_ioctl_array) \
