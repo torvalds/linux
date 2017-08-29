@@ -127,7 +127,7 @@ static void drbd_syncer_progress(struct drbd_device *device, struct seq_file *se
 		seq_putc(seq, '=');
 	seq_putc(seq, '>');
 	for (i = 0; i < y; i++)
-		seq_printf(seq, ".");
+		seq_putc(seq, '.');
 	seq_puts(seq, "] ");
 
 	if (state.conn == C_VERIFY_S || state.conn == C_VERIFY_T)
