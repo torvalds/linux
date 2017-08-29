@@ -6253,7 +6253,6 @@ xfs_bmap_split_extent_at(
 {
 	int				whichfork = XFS_DATA_FORK;
 	struct xfs_btree_cur		*cur = NULL;
-	struct xfs_bmbt_rec_host	*gotp;
 	struct xfs_bmbt_irec		got;
 	struct xfs_bmbt_irec		new; /* split extent */
 	struct xfs_mount		*mp = ip->i_mount;
@@ -6285,21 +6284,10 @@ xfs_bmap_split_extent_at(
 	}
 
 	/*
-	 * gotp can be null in 2 cases: 1) if there are no extents
-	 * or 2) split_fsb lies in a hole beyond which there are
-	 * no extents. Either way, we are done.
+	 * If there are not extents, or split_fsb lies in a hole we are done.
 	 */
-	gotp = xfs_iext_bno_to_ext(ifp, split_fsb, &current_ext);
-	if (!gotp)
-		return 0;
-
-	xfs_bmbt_get_all(gotp, &got);
-
-	/*
-	 * Check split_fsb lies in a hole or the start boundary offset
-	 * of the extent.
-	 */
-	if (got.br_startoff >= split_fsb)
+	if (!xfs_iext_lookup_extent(ip, ifp, split_fsb, &current_ext, &got) ||
+	    got.br_startoff >= split_fsb)
 		return 0;
 
 	gotblkcnt = split_fsb - got.br_startoff;
@@ -6322,8 +6310,8 @@ xfs_bmap_split_extent_at(
 		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, del_cursor);
 	}
 
-	xfs_bmbt_set_blockcount(gotp, gotblkcnt);
 	got.br_blockcount = gotblkcnt;
+	xfs_iext_update_extent(ifp, current_ext, &got);
 
 	logflags = XFS_ILOG_CORE;
 	if (cur) {
