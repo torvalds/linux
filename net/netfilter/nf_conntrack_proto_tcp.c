@@ -803,7 +803,6 @@ static int tcp_packet(struct nf_conn *ct,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
 		      u_int8_t pf,
-		      unsigned int hooknum,
 		      unsigned int *timeouts)
 {
 	struct net *net = nf_ct_net(ct);

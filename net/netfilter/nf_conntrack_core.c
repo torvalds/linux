@@ -1414,7 +1414,7 @@ repeat:
 	/* Decide what timeout policy we want to apply to this flow. */
 	timeouts = nf_ct_timeout_lookup(net, ct, l4proto);
 
-	ret = l4proto->packet(ct, skb, dataoff, ctinfo, pf, hooknum, timeouts);
+	ret = l4proto->packet(ct, skb, dataoff, ctinfo, pf, timeouts);
 	if (ret <= 0) {
 		/* Invalid: inverse of the return code tells
 		 * the netfilter core what to do */
