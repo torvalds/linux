@@ -588,6 +588,67 @@ skl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
 	}
 }
 
+static const struct cnl_ddi_buf_trans *
+cnl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
+{
+	u32 voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
+
+	if (voltage == VOLTAGE_INFO_0_85V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_0_85V);
+		return cnl_ddi_translations_hdmi_0_85V;
+	} else if (voltage == VOLTAGE_INFO_0_95V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_0_95V);
+		return cnl_ddi_translations_hdmi_0_95V;
+	} else if (voltage == VOLTAGE_INFO_1_05V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_1_05V);
+		return cnl_ddi_translations_hdmi_1_05V;
+	} else
+		MISSING_CASE(voltage);
+	return NULL;
+}
+
+static const struct cnl_ddi_buf_trans *
+cnl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
+{
+	u32 voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
+
+	if (voltage == VOLTAGE_INFO_0_85V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_0_85V);
+		return cnl_ddi_translations_dp_0_85V;
+	} else if (voltage == VOLTAGE_INFO_0_95V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_0_95V);
+		return cnl_ddi_translations_dp_0_95V;
+	} else if (voltage == VOLTAGE_INFO_1_05V) {
+		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_1_05V);
+		return cnl_ddi_translations_dp_1_05V;
+	} else
+		MISSING_CASE(voltage);
+	return NULL;
+}
+
+static const struct cnl_ddi_buf_trans *
+cnl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
+{
+	u32 voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
+
+	if (dev_priv->vbt.edp.low_vswing) {
+		if (voltage == VOLTAGE_INFO_0_85V) {
+			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_0_85V);
+			return cnl_ddi_translations_edp_0_85V;
+		} else if (voltage == VOLTAGE_INFO_0_95V) {
+			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_0_95V);
+			return cnl_ddi_translations_edp_0_95V;
+		} else if (voltage == VOLTAGE_INFO_1_05V) {
+			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_1_05V);
+			return cnl_ddi_translations_edp_1_05V;
+		} else
+			MISSING_CASE(voltage);
+		return NULL;
+	} else {
+		return cnl_get_buf_trans_dp(dev_priv, n_entries);
+	}
+}
+
 static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port port)
 {
 	int n_hdmi_entries;
@@ -1827,67 +1888,6 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 
 	return index_to_dp_signal_levels[n_entries - 1] &
 		DP_TRAIN_VOLTAGE_SWING_MASK;
-}
-
-static const struct cnl_ddi_buf_trans *
-cnl_get_buf_trans_hdmi(struct drm_i915_private *dev_priv, int *n_entries)
-{
-	u32 voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
-
-	if (voltage == VOLTAGE_INFO_0_85V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_0_85V);
-		return cnl_ddi_translations_hdmi_0_85V;
-	} else if (voltage == VOLTAGE_INFO_0_95V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_0_95V);
-		return cnl_ddi_translations_hdmi_0_95V;
-	} else if (voltage == VOLTAGE_INFO_1_05V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_hdmi_1_05V);
-		return cnl_ddi_translations_hdmi_1_05V;
-	} else
-		MISSING_CASE(voltage);
-	return NULL;
-}
-
-static const struct cnl_ddi_buf_trans *
-cnl_get_buf_trans_dp(struct drm_i915_private *dev_priv, int *n_entries)
-{
-	u32 voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
-
-	if (voltage == VOLTAGE_INFO_0_85V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_0_85V);
-		return cnl_ddi_translations_dp_0_85V;
-	} else if (voltage == VOLTAGE_INFO_0_95V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_0_95V);
-		return cnl_ddi_translations_dp_0_95V;
-	} else if (voltage == VOLTAGE_INFO_1_05V) {
-		*n_entries = ARRAY_SIZE(cnl_ddi_translations_dp_1_05V);
-		return cnl_ddi_translations_dp_1_05V;
-	} else
-		MISSING_CASE(voltage);
-	return NULL;
-}
-
-static const struct cnl_ddi_buf_trans *
-cnl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
-{
-	u32 voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
-
-	if (dev_priv->vbt.edp.low_vswing) {
-		if (voltage == VOLTAGE_INFO_0_85V) {
-			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_0_85V);
-			return cnl_ddi_translations_edp_0_85V;
-		} else if (voltage == VOLTAGE_INFO_0_95V) {
-			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_0_95V);
-			return cnl_ddi_translations_edp_0_95V;
-		} else if (voltage == VOLTAGE_INFO_1_05V) {
-			*n_entries = ARRAY_SIZE(cnl_ddi_translations_edp_1_05V);
-			return cnl_ddi_translations_edp_1_05V;
-		} else
-			MISSING_CASE(voltage);
-		return NULL;
-	} else {
-		return cnl_get_buf_trans_dp(dev_priv, n_entries);
-	}
 }
 
 static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
