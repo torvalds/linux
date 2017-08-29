@@ -591,13 +591,13 @@ static int rxrpc_getsockopt(struct socket *sock, int level, int optname,
 			    char __user *optval, int __user *_optlen)
 {
 	int optlen;
-	
+
 	if (level != SOL_RXRPC)
 		return -EOPNOTSUPP;
 
 	if (get_user(optlen, _optlen))
 		return -EFAULT;
-	
+
 	switch (optname) {
 	case RXRPC_SUPPORTED_CMSG:
 		if (optlen < sizeof(int))
@@ -606,7 +606,7 @@ static int rxrpc_getsockopt(struct socket *sock, int level, int optname,
 		    put_user(sizeof(int), _optlen))
 			return -EFAULT;
 		return 0;
-		
+
 	default:
 		return -EOPNOTSUPP;
 	}
