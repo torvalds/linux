@@ -1756,6 +1756,11 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 		return;
 	}
 
+	if (!connection) {
+		drbd_err(device, "No connection to peer, aborting!\n");
+		return;
+	}
+
 	if (!test_bit(B_RS_H_DONE, &device->flags)) {
 		if (side == C_SYNC_TARGET) {
 			/* Since application IO was locked out during C_WF_BITMAP_T and
