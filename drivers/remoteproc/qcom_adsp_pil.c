@@ -268,10 +268,7 @@ static int adsp_init_regulator(struct qcom_adsp *adsp)
 	regulator_set_load(adsp->cx_supply, 100000);
 
 	adsp->px_supply = devm_regulator_get(adsp->dev, "px");
-	if (IS_ERR(adsp->px_supply))
-		return PTR_ERR(adsp->px_supply);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(adsp->px_supply);
 }
 
 static int adsp_request_irq(struct qcom_adsp *adsp,

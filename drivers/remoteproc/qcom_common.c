@@ -55,7 +55,7 @@ static int smd_subdev_probe(struct rproc_subdev *subdev)
 
 	smd->edge = qcom_smd_register_edge(smd->dev, smd->node);
 
-	return IS_ERR(smd->edge) ? PTR_ERR(smd->edge) : 0;
+	return PTR_ERR_OR_ZERO(smd->edge);
 }
 
 static void smd_subdev_remove(struct rproc_subdev *subdev)
