@@ -488,16 +488,18 @@ static int lm25066_probe(struct i2c_client *client,
 	info->m[PSC_VOLTAGE_OUT] = coeff[PSC_VOLTAGE_OUT].m;
 	info->b[PSC_VOLTAGE_OUT] = coeff[PSC_VOLTAGE_OUT].b;
 	info->R[PSC_VOLTAGE_OUT] = coeff[PSC_VOLTAGE_OUT].R;
-	info->b[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN].b;
 	info->R[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN].R;
-	info->b[PSC_POWER] = coeff[PSC_POWER].b;
 	info->R[PSC_POWER] = coeff[PSC_POWER].R;
 	if (config & LM25066_DEV_SETUP_CL) {
 		info->m[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN_L].m;
+		info->b[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN_L].b;
 		info->m[PSC_POWER] = coeff[PSC_POWER_L].m;
+		info->b[PSC_POWER] = coeff[PSC_POWER_L].b;
 	} else {
 		info->m[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN].m;
+		info->b[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN].b;
 		info->m[PSC_POWER] = coeff[PSC_POWER].m;
+		info->b[PSC_POWER] = coeff[PSC_POWER].b;
 	}
 
 	return pmbus_do_probe(client, id, info);
