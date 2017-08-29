@@ -61,7 +61,7 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 			  call->cong_cwnd + call->cong_extra))
 			break;
 		if (call->state >= RXRPC_CALL_COMPLETE) {
-			ret = -call->error;
+			ret = call->error;
 			break;
 		}
 		if (signal_pending(current)) {
@@ -364,8 +364,8 @@ out:
 
 call_terminated:
 	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
-	_leave(" = %d", -call->error);
-	return -call->error;
+	_leave(" = %d", call->error);
+	return call->error;
 
 maybe_error:
 	if (copied)
@@ -660,7 +660,7 @@ int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 		break;
 	case RXRPC_CALL_COMPLETE:
 		read_lock_bh(&call->state_lock);
-		ret = -call->error;
+		ret = call->error;
 		read_unlock_bh(&call->state_lock);
 		break;
 	default:
