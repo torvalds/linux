@@ -983,7 +983,7 @@ static int bcm_sf2_core_write64(struct b53_device *dev, u8 page, u8 reg,
 	return 0;
 }
 
-static struct b53_io_ops bcm_sf2_io_ops = {
+static const struct b53_io_ops bcm_sf2_io_ops = {
 	.read8	= bcm_sf2_core_read8,
 	.read16	= bcm_sf2_core_read16,
 	.read32	= bcm_sf2_core_read32,

@@ -250,7 +250,7 @@ static const struct regmap_range qca8k_readable_ranges[] = {
 
 };
 
-static struct regmap_access_table qca8k_readable_table = {
+static const struct regmap_access_table qca8k_readable_table = {
 	.yes_ranges = qca8k_readable_ranges,
 	.n_yes_ranges = ARRAY_SIZE(qca8k_readable_ranges),
 };
