@@ -9074,6 +9074,11 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	    (pf->hw.aq.fw_maj_ver >= 5)))
 		pf->hw_features |= I40E_HW_USE_SET_LLDP_MIB;
 
+	/* Enable PTP L4 if FW > v6.0 */
+	if (pf->hw.mac.type == I40E_MAC_XL710 &&
+	    pf->hw.aq.fw_maj_ver >= 6)
+		pf->hw_features |= I40E_HW_PTP_L4_CAPABLE;
+
 	if (pf->hw.func_caps.vmdq) {
 		pf->num_vmdq_vsis = I40E_DEFAULT_NUM_VMDQ_VSI;
 		pf->flags |= I40E_FLAG_VMDQ_ENABLED;
