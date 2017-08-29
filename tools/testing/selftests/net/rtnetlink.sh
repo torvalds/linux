@@ -195,6 +195,46 @@ kci_test_route_get()
 	echo "PASS: route get"
 }
 
+kci_test_addrlabel()
+{
+	ret=0
+
+	ip addrlabel add prefix dead::/64 dev lo label 1
+	check_err $?
+
+	ip addrlabel list |grep -q "prefix dead::/64 dev lo label 1"
+	check_err $?
+
+	ip addrlabel del prefix dead::/64 dev lo label 1 2> /dev/null
+	check_err $?
+
+	ip addrlabel add prefix dead::/64 label 1 2> /dev/null
+	check_err $?
+
+	ip addrlabel del prefix dead::/64 label 1 2> /dev/null
+	check_err $?
+
+	# concurrent add/delete
+	for i in $(seq 1 1000); do
+		ip addrlabel add prefix 1c3::/64 label 12345 2>/dev/null
+	done &
+
+	for i in $(seq 1 1000); do
+		ip addrlabel del prefix 1c3::/64 label 12345 2>/dev/null
+	done
+
+	wait
+
+	ip addrlabel del prefix 1c3::/64 label 12345 2>/dev/null
+
+	if [ $ret -ne 0 ];then
+		echo "FAIL: ipv6 addrlabel"
+		return 1
+	fi
+
+	echo "PASS: ipv6 addrlabel"
+}
+
 kci_test_rtnl()
 {
 	kci_add_dummy
@@ -208,6 +248,7 @@ kci_test_rtnl()
 	kci_test_tc
 	kci_test_gre
 	kci_test_bridge
+	kci_test_addrlabel
 
 	kci_del_dummy
 }
