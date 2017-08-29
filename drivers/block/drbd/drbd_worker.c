@@ -128,6 +128,14 @@ void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(l
 	block_id = peer_req->block_id;
 	peer_req->flags &= ~EE_CALL_AL_COMPLETE_IO;
 
+	if (peer_req->flags & EE_WAS_ERROR) {
+		/* In protocol != C, we usually do not send write acks.
+		 * In case of a write error, send the neg ack anyways. */
+		if (!__test_and_set_bit(__EE_SEND_WRITE_ACK, &peer_req->flags))
+			inc_unacked(device);
+		drbd_set_out_of_sync(device, peer_req->i.sector, peer_req->i.size);
+	}
+
 	spin_lock_irqsave(&device->resource->req_lock, flags);
 	device->writ_cnt += peer_req->i.size >> 9;
 	list_move_tail(&peer_req->w.list, &device->done_ee);
