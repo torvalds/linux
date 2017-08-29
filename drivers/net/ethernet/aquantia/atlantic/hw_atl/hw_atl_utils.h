@@ -180,8 +180,7 @@ void hw_atl_utils_mpi_set(struct aq_hw_s *self,
 int hw_atl_utils_mpi_set_speed(struct aq_hw_s *self, u32 speed,
 			       enum hal_atl_utils_fw_state_e state);
 
-int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self,
-				     struct aq_hw_link_status_s *link_status);
+int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self);
 
 int hw_atl_utils_get_mac_permanent(struct aq_hw_s *self,
 				   struct aq_hw_caps_s *aq_hw_caps,
