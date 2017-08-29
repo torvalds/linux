@@ -132,15 +132,10 @@ static void rtas_teardown_msi_irqs(struct pci_dev *pdev)
 static int check_req(struct pci_dev *pdev, int nvec, char *prop_name)
 {
 	struct device_node *dn;
-	struct pci_dn *pdn;
 	const __be32 *p;
 	u32 req_msi;
 
-	pdn = pci_get_pdn(pdev);
-	if (!pdn)
-		return -ENODEV;
-
-	dn = pdn->node;
+	dn = pci_device_to_OF_node(pdev);
 
 	p = of_get_property(dn, prop_name, NULL);
 	if (!p) {
@@ -197,7 +192,6 @@ static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
 static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 {
 	struct device_node *dn;
-	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 
 	/* Found our PE and assume 8 at that point. */
@@ -210,8 +204,7 @@ static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 	edev = pdn_to_eeh_dev(PCI_DN(dn));
 	if (edev->pe)
 		edev = list_first_entry(&edev->pe->edevs, struct eeh_dev, list);
-	pdn = eeh_dev_to_pdn(edev);
-	dn = pdn ? pdn->node : NULL;
+	dn = pci_device_to_OF_node(edev->pdev);
 	if (!dn)
 		return NULL;
 

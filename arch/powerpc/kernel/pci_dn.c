@@ -293,7 +293,6 @@ struct pci_dn *pci_add_device_node_info(struct pci_controller *hose,
 	if (pdn == NULL)
 		return NULL;
 	dn->data = pdn;
-	pdn->node = dn;
 	pdn->phb = hose;
 #ifdef CONFIG_PPC_POWERNV
 	pdn->pe_number = IODA_INVALID_PE;
