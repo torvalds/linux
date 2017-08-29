@@ -536,7 +536,7 @@ static int rxrpc_preparse_xdr_rxk5(struct key_preparsed_payload *prep,
 	     pptoken = &(*pptoken)->next)
 		continue;
 	*pptoken = token;
-	expiry = rxrpc_u32_to_time64(token->kad->expiry);
+	expiry = rxrpc_u32_to_time64(token->k5->endtime);
 	if (expiry < prep->expiry)
 		prep->expiry = expiry;
 
