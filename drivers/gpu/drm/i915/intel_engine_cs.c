@@ -1090,6 +1090,9 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 	/* WaPushConstantDereferenceHoldDisable:cnl */
 	WA_SET_BIT(GEN7_ROW_CHICKEN2, PUSH_CONSTANT_DEREF_DISABLE);
 
+	/* FtrEnableFastAnisoL1BankingFix: cnl */
+	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3, CNL_FAST_ANISO_L1_BANKING_FIX);
+
 	/* WaEnablePreemptionGranularityControlByUMD:cnl */
 	ret= wa_ring_whitelist_reg(engine, GEN8_CS_CHICKEN1);
 	if (ret)
