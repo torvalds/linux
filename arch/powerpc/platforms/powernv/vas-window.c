@@ -14,6 +14,8 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/log2.h>
+#include <linux/rcupdate.h>
+#include <linux/cred.h>
 
 #include "vas.h"
 
@@ -531,7 +533,7 @@ void vas_window_free(struct vas_window *window)
 	vas_release_window_id(&vinst->ida, winid);
 }
 
-struct vas_window *vas_window_alloc(struct vas_instance *vinst)
+static struct vas_window *vas_window_alloc(struct vas_instance *vinst)
 {
 	int winid;
 	struct vas_window *window;
@@ -557,6 +559,285 @@ out_free:
 	vas_release_window_id(&vinst->ida, winid);
 	return ERR_PTR(-ENOMEM);
 }
+
+/*
+ * Get the VAS receive window associated with NX engine identified
+ * by @cop and if applicable, @pswid.
+ *
+ * See also function header of set_vinst_win().
+ */
+struct vas_window *get_vinst_rxwin(struct vas_instance *vinst,
+			enum vas_cop_type cop, u32 pswid)
+{
+	struct vas_window *rxwin;
+
+	mutex_lock(&vinst->mutex);
+
+	if (cop == VAS_COP_TYPE_842 || cop == VAS_COP_TYPE_842_HIPRI)
+		rxwin = vinst->rxwin[cop] ?: ERR_PTR(-EINVAL);
+	else
+		rxwin = ERR_PTR(-EINVAL);
+
+	if (!IS_ERR(rxwin))
+		atomic_inc(&rxwin->num_txwins);
+
+	mutex_unlock(&vinst->mutex);
+
+	return rxwin;
+}
+
+/*
+ * We have two tables of windows in a VAS instance. The first one,
+ * ->windows[], contains all the windows in the instance and allows
+ * looking up a window by its id. It is used to look up send windows
+ * during fault handling and receive windows when pairing user space
+ * send/receive windows.
+ *
+ * The second table, ->rxwin[], contains receive windows that are
+ * associated with NX engines. This table has VAS_COP_TYPE_MAX
+ * entries and is used to look up a receive window by its
+ * coprocessor type.
+ *
+ * Here, we save @window in the ->windows[] table. If it is a receive
+ * window, we also save the window in the ->rxwin[] table.
+ */
+static void set_vinst_win(struct vas_instance *vinst,
+			struct vas_window *window)
+{
+	int id = window->winid;
+
+	mutex_lock(&vinst->mutex);
+
+	/*
+	 * There should only be one receive window for a coprocessor type
+	 * unless its a user (FTW) window.
+	 */
+	if (!window->user_win && !window->tx_win) {
+		WARN_ON_ONCE(vinst->rxwin[window->cop]);
+		vinst->rxwin[window->cop] = window;
+	}
+
+	WARN_ON_ONCE(vinst->windows[id] != NULL);
+	vinst->windows[id] = window;
+
+	mutex_unlock(&vinst->mutex);
+}
+
+/*
+ * Clear this window from the table(s) of windows for this VAS instance.
+ * See also function header of set_vinst_win().
+ */
+void clear_vinst_win(struct vas_window *window)
+{
+	int id = window->winid;
+	struct vas_instance *vinst = window->vinst;
+
+	mutex_lock(&vinst->mutex);
+
+	if (!window->user_win && !window->tx_win) {
+		WARN_ON_ONCE(!vinst->rxwin[window->cop]);
+		vinst->rxwin[window->cop] = NULL;
+	}
+
+	WARN_ON_ONCE(vinst->windows[id] != window);
+	vinst->windows[id] = NULL;
+
+	mutex_unlock(&vinst->mutex);
+}
+
+static void init_winctx_for_rxwin(struct vas_window *rxwin,
+			struct vas_rx_win_attr *rxattr,
+			struct vas_winctx *winctx)
+{
+	/*
+	 * We first zero (memset()) all fields and only set non-zero fields.
+	 * Following fields are 0/false but maybe deserve a comment:
+	 *
+	 *	->notify_os_intr_reg	In powerNV, send intrs to HV
+	 *	->notify_disable	False for NX windows
+	 *	->intr_disable		False for Fault Windows
+	 *	->xtra_write		False for NX windows
+	 *	->notify_early		NA for NX windows
+	 *	->rsvd_txbuf_count	NA for Rx windows
+	 *	->lpid, ->pid, ->tid	NA for Rx windows
+	 */
+
+	memset(winctx, 0, sizeof(struct vas_winctx));
+
+	winctx->rx_fifo = rxattr->rx_fifo;
+	winctx->rx_fifo_size = rxattr->rx_fifo_size;
+	winctx->wcreds_max = rxattr->wcreds_max ?: VAS_WCREDS_DEFAULT;
+	winctx->pin_win = rxattr->pin_win;
+
+	winctx->nx_win = rxattr->nx_win;
+	winctx->fault_win = rxattr->fault_win;
+	winctx->rx_word_mode = rxattr->rx_win_ord_mode;
+	winctx->tx_word_mode = rxattr->tx_win_ord_mode;
+	winctx->rx_wcred_mode = rxattr->rx_wcred_mode;
+	winctx->tx_wcred_mode = rxattr->tx_wcred_mode;
+
+	if (winctx->nx_win) {
+		winctx->data_stamp = true;
+		winctx->intr_disable = true;
+		winctx->pin_win = true;
+
+		WARN_ON_ONCE(winctx->fault_win);
+		WARN_ON_ONCE(!winctx->rx_word_mode);
+		WARN_ON_ONCE(!winctx->tx_word_mode);
+		WARN_ON_ONCE(winctx->notify_after_count);
+	} else if (winctx->fault_win) {
+		winctx->notify_disable = true;
+	} else if (winctx->user_win) {
+		/*
+		 * Section 1.8.1 Low Latency Core-Core Wake up of
+		 * the VAS workbook:
+		 *
+		 *      - disable credit checks ([tr]x_wcred_mode = false)
+		 *      - disable FIFO writes
+		 *      - enable ASB_Notify, disable interrupt
+		 */
+		winctx->fifo_disable = true;
+		winctx->intr_disable = true;
+		winctx->rx_fifo = NULL;
+	}
+
+	winctx->lnotify_lpid = rxattr->lnotify_lpid;
+	winctx->lnotify_pid = rxattr->lnotify_pid;
+	winctx->lnotify_tid = rxattr->lnotify_tid;
+	winctx->pswid = rxattr->pswid;
+	winctx->dma_type = VAS_DMA_TYPE_INJECT;
+	winctx->tc_mode = rxattr->tc_mode;
+
+	winctx->min_scope = VAS_SCOPE_LOCAL;
+	winctx->max_scope = VAS_SCOPE_VECTORED_GROUP;
+}
+
+static bool rx_win_args_valid(enum vas_cop_type cop,
+			struct vas_rx_win_attr *attr)
+{
+	dump_rx_win_attr(attr);
+
+	if (cop >= VAS_COP_TYPE_MAX)
+		return false;
+
+	if (cop != VAS_COP_TYPE_FTW &&
+				attr->rx_fifo_size < VAS_RX_FIFO_SIZE_MIN)
+		return false;
+
+	if (attr->rx_fifo_size > VAS_RX_FIFO_SIZE_MAX)
+		return false;
+
+	if (attr->nx_win) {
+		/* cannot be fault or user window if it is nx */
+		if (attr->fault_win || attr->user_win)
+			return false;
+		/*
+		 * Section 3.1.4.32: NX Windows must not disable notification,
+		 *	and must not enable interrupts or early notification.
+		 */
+		if (attr->notify_disable || !attr->intr_disable ||
+				attr->notify_early)
+			return false;
+	} else if (attr->fault_win) {
+		/* cannot be both fault and user window */
+		if (attr->user_win)
+			return false;
+
+		/*
+		 * Section 3.1.4.32: Fault windows must disable notification
+		 *	but not interrupts.
+		 */
+		if (!attr->notify_disable || attr->intr_disable)
+			return false;
+
+	} else if (attr->user_win) {
+		/*
+		 * User receive windows are only for fast-thread-wakeup
+		 * (FTW). They don't need a FIFO and must disable interrupts
+		 */
+		if (attr->rx_fifo || attr->rx_fifo_size || !attr->intr_disable)
+			return false;
+	} else {
+		/* Rx window must be one of NX or Fault or User window. */
+		return false;
+	}
+
+	return true;
+}
+
+void vas_init_rx_win_attr(struct vas_rx_win_attr *rxattr, enum vas_cop_type cop)
+{
+	memset(rxattr, 0, sizeof(*rxattr));
+
+	if (cop == VAS_COP_TYPE_842 || cop == VAS_COP_TYPE_842_HIPRI) {
+		rxattr->pin_win = true;
+		rxattr->nx_win = true;
+		rxattr->fault_win = false;
+		rxattr->intr_disable = true;
+		rxattr->rx_wcred_mode = true;
+		rxattr->tx_wcred_mode = true;
+		rxattr->rx_win_ord_mode = true;
+		rxattr->tx_win_ord_mode = true;
+	} else if (cop == VAS_COP_TYPE_FAULT) {
+		rxattr->pin_win = true;
+		rxattr->fault_win = true;
+		rxattr->notify_disable = true;
+		rxattr->rx_wcred_mode = true;
+		rxattr->tx_wcred_mode = true;
+		rxattr->rx_win_ord_mode = true;
+		rxattr->tx_win_ord_mode = true;
+	} else if (cop == VAS_COP_TYPE_FTW) {
+		rxattr->user_win = true;
+		rxattr->intr_disable = true;
+
+		/*
+		 * As noted in the VAS Workbook we disable credit checks.
+		 * If we enable credit checks in the future, we must also
+		 * implement a mechanism to return the user credits or new
+		 * paste operations will fail.
+		 */
+	}
+}
+EXPORT_SYMBOL_GPL(vas_init_rx_win_attr);
+
+struct vas_window *vas_rx_win_open(int vasid, enum vas_cop_type cop,
+			struct vas_rx_win_attr *rxattr)
+{
+	struct vas_window *rxwin;
+	struct vas_winctx winctx;
+	struct vas_instance *vinst;
+
+	if (!rx_win_args_valid(cop, rxattr))
+		return ERR_PTR(-EINVAL);
+
+	vinst = find_vas_instance(vasid);
+	if (!vinst) {
+		pr_devel("vasid %d not found!\n", vasid);
+		return ERR_PTR(-EINVAL);
+	}
+	pr_devel("Found instance %d\n", vasid);
+
+	rxwin = vas_window_alloc(vinst);
+	if (IS_ERR(rxwin)) {
+		pr_devel("Unable to allocate memory for Rx window\n");
+		return rxwin;
+	}
+
+	rxwin->tx_win = false;
+	rxwin->nx_win = rxattr->nx_win;
+	rxwin->user_win = rxattr->user_win;
+	rxwin->cop = cop;
+	if (rxattr->user_win)
+		rxwin->pid = task_pid_vnr(current);
+
+	init_winctx_for_rxwin(rxwin, rxattr, &winctx);
+	init_winctx_regs(rxwin, &winctx);
+
+	set_vinst_win(vinst, rxwin);
+
+	return rxwin;
+}
+EXPORT_SYMBOL_GPL(vas_rx_win_open);
 
 /* stub for now */
 int vas_win_close(struct vas_window *window)
