@@ -2423,10 +2423,6 @@ out_err:
 	return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 }
 
-#define I40EVF_VLAN_FEATURES (NETIF_F_HW_VLAN_CTAG_TX |\
-			      NETIF_F_HW_VLAN_CTAG_RX |\
-			      NETIF_F_HW_VLAN_CTAG_FILTER)
-
 /**
  * i40evf_fix_features - fix up the netdev feature bits
  * @netdev: our net device
@@ -2439,9 +2435,11 @@ static netdev_features_t i40evf_fix_features(struct net_device *netdev,
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
-	features &= ~I40EVF_VLAN_FEATURES;
-	if (adapter->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN)
-		features |= I40EVF_VLAN_FEATURES;
+	if (!(adapter->vf_res->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN))
+		features &= ~(NETIF_F_HW_VLAN_CTAG_TX |
+			      NETIF_F_HW_VLAN_CTAG_RX |
+			      NETIF_F_HW_VLAN_CTAG_FILTER);
+
 	return features;
 }
 
@@ -2572,9 +2570,17 @@ int i40evf_process_config(struct i40evf_adapter *adapter)
 	 */
 	hw_features = hw_enc_features;
 
+	/* Enable VLAN features if supported */
+	if (vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN)
+		hw_features |= (NETIF_F_HW_VLAN_CTAG_TX |
+				NETIF_F_HW_VLAN_CTAG_RX);
+
 	netdev->hw_features |= hw_features;
 
-	netdev->features |= hw_features | I40EVF_VLAN_FEATURES;
+	netdev->features |= hw_features;
+
+	if (vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN)
+		netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	adapter->vsi.id = adapter->vsi_res->vsi_id;
 
