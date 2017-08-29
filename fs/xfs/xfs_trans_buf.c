@@ -493,25 +493,17 @@ xfs_trans_bhold_release(xfs_trans_t	*tp,
 }
 
 /*
- * This is called to mark bytes first through last inclusive of the given
- * buffer as needing to be logged when the transaction is committed.
- * The buffer must already be associated with the given transaction.
- *
- * First and last are numbers relative to the beginning of this buffer,
- * so the first byte in the buffer is numbered 0 regardless of the
- * value of b_blkno.
+ * Mark a buffer dirty in the transaction.
  */
 void
-xfs_trans_log_buf(xfs_trans_t	*tp,
-		  xfs_buf_t	*bp,
-		  uint		first,
-		  uint		last)
+xfs_trans_dirty_buf(
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp)
 {
-	xfs_buf_log_item_t	*bip = bp->b_fspriv;
+	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
-	ASSERT(first <= last && last < BBTOB(bp->b_length));
 	ASSERT(bp->b_iodone == NULL ||
 	       bp->b_iodone == xfs_buf_iodone_callbacks);
 
@@ -531,8 +523,6 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 	bp->b_iodone = xfs_buf_iodone_callbacks;
 	bip->bli_item.li_cb = xfs_buf_iodone;
 
-	trace_xfs_trans_log_buf(bip);
-
 	/*
 	 * If we invalidated the buffer within this transaction, then
 	 * cancel the invalidation now that we're dirtying the buffer
@@ -545,15 +535,39 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 		bp->b_flags &= ~XBF_STALE;
 		bip->__bli_format.blf_flags &= ~XFS_BLF_CANCEL;
 	}
+	bip->bli_flags |= XFS_BLI_DIRTY | XFS_BLI_LOGGED;
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	bip->bli_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+}
+
+/*
+ * This is called to mark bytes first through last inclusive of the given
+ * buffer as needing to be logged when the transaction is committed.
+ * The buffer must already be associated with the given transaction.
+ *
+ * First and last are numbers relative to the beginning of this buffer,
+ * so the first byte in the buffer is numbered 0 regardless of the
+ * value of b_blkno.
+ */
+void
+xfs_trans_log_buf(
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp,
+	uint			first,
+	uint			last)
+{
+	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+
+	ASSERT(first <= last && last < BBTOB(bp->b_length));
+
+	xfs_trans_dirty_buf(tp, bp);
 
 	/*
 	 * If we have an ordered buffer we are not logging any dirty range but
 	 * it still needs to be marked dirty and that it has been logged.
 	 */
-	bip->bli_flags |= XFS_BLI_DIRTY | XFS_BLI_LOGGED;
+	trace_xfs_trans_log_buf(bip);
 	if (!(bip->bli_flags & XFS_BLI_ORDERED))
 		xfs_buf_item_log(bip, first, last);
 }
