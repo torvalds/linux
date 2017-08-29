@@ -2524,7 +2524,7 @@ static int xdp_do_redirect_map(struct net_device *dev, struct xdp_buff *xdp,
 	if (likely(!err))
 		ri->map_to_flush = map;
 out:
-	trace_xdp_redirect(dev, xdp_prog, XDP_REDIRECT, index, err);
+	trace_xdp_redirect(dev, xdp_prog, index, err);
 	return err;
 }
 
@@ -2548,7 +2548,7 @@ int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp,
 
 	err = __bpf_tx_xdp(fwd, NULL, xdp, 0);
 out:
-	trace_xdp_redirect(dev, xdp_prog, XDP_REDIRECT, index, err);
+	trace_xdp_redirect(dev, xdp_prog, index, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(xdp_do_redirect);
@@ -2582,7 +2582,7 @@ int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb,
 
 	skb->dev = fwd;
 out:
-	trace_xdp_redirect(dev, xdp_prog, XDP_REDIRECT, index, err);
+	trace_xdp_redirect(dev, xdp_prog, index, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(xdp_do_generic_redirect);

@@ -52,10 +52,10 @@ TRACE_EVENT(xdp_exception,
 TRACE_EVENT(xdp_redirect,
 
 	TP_PROTO(const struct net_device *dev,
-		 const struct bpf_prog *xdp, u32 act,
+		 const struct bpf_prog *xdp,
 		 int to_index, int err),
 
-	TP_ARGS(dev, xdp, act, to_index, err),
+	TP_ARGS(dev, xdp, to_index, err),
 
 	TP_STRUCT__entry(
 		__array(u8, prog_tag, 8)
@@ -68,7 +68,7 @@ TRACE_EVENT(xdp_redirect,
 	TP_fast_assign(
 		BUILD_BUG_ON(sizeof(__entry->prog_tag) != sizeof(xdp->tag));
 		memcpy(__entry->prog_tag, xdp->tag, sizeof(xdp->tag));
-		__entry->act		= act;
+		__entry->act		= XDP_REDIRECT;
 		__entry->ifindex	= dev->ifindex;
 		__entry->to_index	= to_index;
 		__entry->err		= err;
