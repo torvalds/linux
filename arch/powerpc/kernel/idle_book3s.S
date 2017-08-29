@@ -209,7 +209,7 @@ pnv_powersave_common:
  * This is the sequence required to execute idle instructions, as
  * specified in ISA v2.07 (and earlier). MSR[IR] and MSR[DR] must be 0.
  */
-#define IDLE_STATE_ENTER_SEQ(IDLE_INST)				\
+#define IDLE_STATE_ENTER_SEQ_NORET(IDLE_INST)			\
 	/* Magic NAP/SLEEP/WINKLE mode enter sequence */	\
 	std	r0,0(r1);					\
 	ptesync;						\
@@ -218,9 +218,6 @@ pnv_powersave_common:
 	bne	236b;						\
 	IDLE_INST;
 
-#define IDLE_STATE_ENTER_SEQ_NORET(IDLE_INST)			\
-	IDLE_STATE_ENTER_SEQ(IDLE_INST)				\
-	b	.
 
 	.globl pnv_enter_arch207_idle_mode
 pnv_enter_arch207_idle_mode:
