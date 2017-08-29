@@ -50,7 +50,7 @@
 
 struct dcn10_input_csc_matrix {
 	enum dc_color_space color_space;
-	uint32_t regval[12];
+	uint16_t regval[12];
 };
 
 enum dcn10_coef_filter_type_sel {
@@ -116,6 +116,38 @@ static const struct dcn10_input_csc_matrix dcn10_input_csc_matrix[] = {
 						0x2568, 0x43ee, 0xdbb2} }
 };
 
+static void dpp_cm_program_color_registers(
+		struct dcn10_dpp *xfm,
+		const uint16_t *regval,
+		uint32_t cm_reg_start,
+		uint32_t cm_reg_end)
+{
+	uint32_t reg_region_cur;
+	unsigned int i = 0;
+
+#undef REG
+#define REG(reg) reg
+
+	for (reg_region_cur = cm_reg_start;
+			reg_region_cur <= cm_reg_end;
+			reg_region_cur++) {
+
+		const uint16_t *regval0 = &(regval[2 * i]);
+		const uint16_t *regval1 = &(regval[(2 * i) + 1]);
+
+		REG_SET_2(reg_region_cur, 0,
+				CM_GAMUT_REMAP_C11, *regval0,
+				CM_GAMUT_REMAP_C12, *regval1);
+
+		i++;
+	}
+
+#undef REG
+#define REG(reg)\
+	xfm->tf_regs->reg
+
+}
+
 static void program_gamut_remap(
 		struct dcn10_dpp *xfm,
 		const uint16_t *regval,
@@ -145,79 +177,27 @@ static void program_gamut_remap(
 
 	if (select == GAMUT_REMAP_COEFF) {
 
-		REG_SET_2(CM_GAMUT_REMAP_C11_C12, 0,
-				CM_GAMUT_REMAP_C11, regval[0],
-				CM_GAMUT_REMAP_C12, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_GAMUT_REMAP_C13_C14, 0,
-				CM_GAMUT_REMAP_C13, regval[0],
-				CM_GAMUT_REMAP_C14, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_GAMUT_REMAP_C21_C22, 0,
-				CM_GAMUT_REMAP_C21, regval[0],
-				CM_GAMUT_REMAP_C22, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_GAMUT_REMAP_C23_C24, 0,
-				CM_GAMUT_REMAP_C23, regval[0],
-				CM_GAMUT_REMAP_C24, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_GAMUT_REMAP_C31_C32, 0,
-				CM_GAMUT_REMAP_C31, regval[0],
-				CM_GAMUT_REMAP_C32, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_GAMUT_REMAP_C33_C34, 0,
-				CM_GAMUT_REMAP_C33, regval[0],
-				CM_GAMUT_REMAP_C34, regval[1]);
+		dpp_cm_program_color_registers(
+				xfm,
+				regval,
+				REG(CM_GAMUT_REMAP_C11_C12),
+				REG(CM_GAMUT_REMAP_C33_C34));
 
 	} else  if (select == GAMUT_REMAP_COMA_COEFF) {
-		REG_SET_2(CM_COMA_C11_C12, 0,
-				CM_COMA_C11, regval[0],
-				CM_COMA_C12, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMA_C13_C14, 0,
-				CM_COMA_C13, regval[0],
-				CM_COMA_C14, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMA_C21_C22, 0,
-				CM_COMA_C21, regval[0],
-				CM_COMA_C22, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMA_C23_C24, 0,
-				CM_COMA_C23, regval[0],
-				CM_COMA_C24, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMA_C31_C32, 0,
-				CM_COMA_C31, regval[0],
-				CM_COMA_C32, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMA_C33_C34, 0,
-				CM_COMA_C33, regval[0],
-				CM_COMA_C34, regval[1]);
+
+		dpp_cm_program_color_registers(
+				xfm,
+				regval,
+				REG(CM_COMA_C11_C12),
+				REG(CM_COMA_C33_C34));
 
 	} else {
-		REG_SET_2(CM_COMB_C11_C12, 0,
-				CM_COMB_C11, regval[0],
-				CM_COMB_C12, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMB_C13_C14, 0,
-				CM_COMB_C13, regval[0],
-				CM_COMB_C14, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMB_C21_C22, 0,
-				CM_COMB_C21, regval[0],
-				CM_COMB_C22, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMB_C23_C24, 0,
-				CM_COMB_C23, regval[0],
-				CM_COMB_C24, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMB_C31_C32, 0,
-				CM_COMB_C31, regval[0],
-				CM_COMB_C32, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMB_C33_C34, 0,
-				CM_COMB_C33, regval[0],
-				CM_COMB_C34, regval[1]);
+
+		dpp_cm_program_color_registers(
+				xfm,
+				regval,
+				REG(CM_COMB_C11_C12),
+				REG(CM_COMB_C33_C34));
 	}
 
 	REG_SET(
@@ -312,59 +292,20 @@ static void dcn10_dpp_cm_program_color_matrix(
 	}
 
 	if (mode == 4) {
-		/*R*/
-		REG_SET_2(CM_OCSC_C11_C12, 0,
-			CM_OCSC_C11, tbl_entry->regval[0],
-			CM_OCSC_C12, tbl_entry->regval[1]);
 
-		REG_SET_2(CM_OCSC_C13_C14, 0,
-			CM_OCSC_C13, tbl_entry->regval[2],
-			CM_OCSC_C14, tbl_entry->regval[3]);
+		dpp_cm_program_color_registers(
+				xfm,
+				tbl_entry->regval,
+				REG(CM_OCSC_C11_C12),
+				REG(CM_OCSC_C33_C34));
 
-		/*G*/
-		REG_SET_2(CM_OCSC_C21_C22, 0,
-			CM_OCSC_C21, tbl_entry->regval[4],
-			CM_OCSC_C22, tbl_entry->regval[5]);
-
-		REG_SET_2(CM_OCSC_C23_C24, 0,
-			CM_OCSC_C23, tbl_entry->regval[6],
-			CM_OCSC_C24, tbl_entry->regval[7]);
-
-		/*B*/
-		REG_SET_2(CM_OCSC_C31_C32, 0,
-			CM_OCSC_C31, tbl_entry->regval[8],
-			CM_OCSC_C32, tbl_entry->regval[9]);
-
-		REG_SET_2(CM_OCSC_C33_C34, 0,
-			CM_OCSC_C33, tbl_entry->regval[10],
-			CM_OCSC_C34, tbl_entry->regval[11]);
 	} else {
-		/*R*/
-		REG_SET_2(CM_COMB_C11_C12, 0,
-			CM_COMB_C11, tbl_entry->regval[0],
-			CM_COMB_C12, tbl_entry->regval[1]);
 
-		REG_SET_2(CM_COMB_C13_C14, 0,
-			CM_COMB_C13, tbl_entry->regval[2],
-			CM_COMB_C14, tbl_entry->regval[3]);
-
-		/*G*/
-		REG_SET_2(CM_COMB_C21_C22, 0,
-			CM_COMB_C21, tbl_entry->regval[4],
-			CM_COMB_C22, tbl_entry->regval[5]);
-
-		REG_SET_2(CM_COMB_C23_C24, 0,
-			CM_COMB_C23, tbl_entry->regval[6],
-			CM_COMB_C24, tbl_entry->regval[7]);
-
-		/*B*/
-		REG_SET_2(CM_COMB_C31_C32, 0,
-			CM_COMB_C31, tbl_entry->regval[8],
-			CM_COMB_C32, tbl_entry->regval[9]);
-
-		REG_SET_2(CM_COMB_C33_C34, 0,
-			CM_COMB_C33, tbl_entry->regval[10],
-			CM_COMB_C34, tbl_entry->regval[11]);
+		dpp_cm_program_color_registers(
+				xfm,
+				tbl_entry->regval,
+				REG(CM_COMB_C11_C12),
+				REG(CM_COMB_C33_C34));
 	}
 }
 
@@ -602,7 +543,7 @@ void ippn10_program_input_csc(
 	struct dcn10_dpp *xfm = TO_DCN10_DPP(xfm_base);
 	int i;
 	int arr_size = sizeof(dcn10_input_csc_matrix)/sizeof(struct dcn10_input_csc_matrix);
-	const uint32_t *regval = NULL;
+	const uint16_t *regval = NULL;
 	uint32_t selection = 1;
 
 	if (select == INPUT_CSC_SELECT_BYPASS) {
@@ -627,59 +568,19 @@ void ippn10_program_input_csc(
 			CM_ICSC_MODE, selection);
 
 	if (select == INPUT_CSC_SELECT_ICSC) {
-		/*R*/
-		REG_SET_2(CM_ICSC_C11_C12, 0,
-			CM_ICSC_C11, regval[0],
-			CM_ICSC_C12, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_ICSC_C13_C14, 0,
-			CM_ICSC_C13, regval[0],
-			CM_ICSC_C14, regval[1]);
-		/*G*/
-		regval += 2;
-		REG_SET_2(CM_ICSC_C21_C22, 0,
-			CM_ICSC_C21, regval[0],
-			CM_ICSC_C22, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_ICSC_C23_C24, 0,
-			CM_ICSC_C23, regval[0],
-			CM_ICSC_C24, regval[1]);
-		/*B*/
-		regval += 2;
-		REG_SET_2(CM_ICSC_C31_C32, 0,
-			CM_ICSC_C31, regval[0],
-			CM_ICSC_C32, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_ICSC_C33_C34, 0,
-			CM_ICSC_C33, regval[0],
-			CM_ICSC_C34, regval[1]);
+
+		dpp_cm_program_color_registers(
+				xfm,
+				regval,
+				REG(CM_ICSC_C11_C12),
+				REG(CM_ICSC_C33_C34));
 	} else {
-		/*R*/
-		REG_SET_2(CM_COMA_C11_C12, 0,
-			CM_COMA_C11, regval[0],
-			CM_COMA_C12, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMA_C13_C14, 0,
-			CM_COMA_C13, regval[0],
-			CM_COMA_C14, regval[1]);
-		/*G*/
-		regval += 2;
-		REG_SET_2(CM_COMA_C21_C22, 0,
-			CM_COMA_C21, regval[0],
-			CM_COMA_C22, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMA_C23_C24, 0,
-			CM_COMA_C23, regval[0],
-			CM_COMA_C24, regval[1]);
-		/*B*/
-		regval += 2;
-		REG_SET_2(CM_COMA_C31_C32, 0,
-			CM_COMA_C31, regval[0],
-			CM_COMA_C32, regval[1]);
-		regval += 2;
-		REG_SET_2(CM_COMA_C33_C34, 0,
-			CM_COMA_C33, regval[0],
-			CM_COMA_C34, regval[1]);
+
+		dpp_cm_program_color_registers(
+				xfm,
+				regval,
+				REG(CM_COMA_C11_C12),
+				REG(CM_COMA_C33_C34));
 	}
 }
 
