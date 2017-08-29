@@ -129,6 +129,10 @@
 		};
 	};
 
+	backlight: backlight {
+		pwms = <&pwm1 0 1000000 0>;
+	};
+
 	display-subsystem {
 		status = "okay";
 		route {
