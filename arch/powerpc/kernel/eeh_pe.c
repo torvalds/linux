@@ -230,10 +230,15 @@ void *eeh_pe_dev_traverse(struct eeh_pe *root,
  * Bus/Device/Function number. The extra data referred by flag
  * indicates which type of address should be used.
  */
+struct eeh_pe_get_flag {
+	int pe_no;
+	int config_addr;
+};
+
 static void *__eeh_pe_get(void *data, void *flag)
 {
 	struct eeh_pe *pe = (struct eeh_pe *)data;
-	struct eeh_dev *edev = (struct eeh_dev *)flag;
+	struct eeh_pe_get_flag *tmp = (struct eeh_pe_get_flag *) flag;
 
 	/* Unexpected PHB PE */
 	if (pe->type & EEH_PE_PHB)
@@ -244,17 +249,17 @@ static void *__eeh_pe_get(void *data, void *flag)
 	 * have non-zero PE address
 	 */
 	if (eeh_has_flag(EEH_VALID_PE_ZERO)) {
-		if (edev->pe_config_addr == pe->addr)
+		if (tmp->pe_no == pe->addr)
 			return pe;
 	} else {
-		if (edev->pe_config_addr &&
-		    (edev->pe_config_addr == pe->addr))
+		if (tmp->pe_no &&
+		    (tmp->pe_no == pe->addr))
 			return pe;
 	}
 
 	/* Try BDF address */
-	if (edev->config_addr &&
-	   (edev->config_addr == pe->config_addr))
+	if (tmp->config_addr &&
+	   (tmp->config_addr == pe->config_addr))
 		return pe;
 
 	return NULL;
@@ -262,7 +267,9 @@ static void *__eeh_pe_get(void *data, void *flag)
 
 /**
  * eeh_pe_get - Search PE based on the given address
- * @edev: EEH device
+ * @phb: PCI controller
+ * @pe_no: PE number
+ * @config_addr: Config address
  *
  * Search the corresponding PE based on the specified address which
  * is included in the eeh device. The function is used to check if
@@ -271,12 +278,14 @@ static void *__eeh_pe_get(void *data, void *flag)
  * which is composed of PCI bus/device/function number, or unified
  * PE address.
  */
-struct eeh_pe *eeh_pe_get(struct eeh_dev *edev)
+struct eeh_pe *eeh_pe_get(struct pci_controller *phb,
+		int pe_no, int config_addr)
 {
-	struct eeh_pe *root = eeh_phb_pe_get(edev->phb);
+	struct eeh_pe *root = eeh_phb_pe_get(phb);
+	struct eeh_pe_get_flag tmp = { pe_no, config_addr };
 	struct eeh_pe *pe;
 
-	pe = eeh_pe_traverse(root, __eeh_pe_get, edev);
+	pe = eeh_pe_traverse(root, __eeh_pe_get, &tmp);
 
 	return pe;
 }
@@ -344,7 +353,8 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	 * PE should be composed of PCI bus and its subordinate
 	 * components.
 	 */
-	pe = eeh_pe_get(edev);
+	pe = eeh_pe_get(edev->pdn->phb, edev->pe_config_addr,
+			edev->config_addr);
 	if (pe && !(pe->type & EEH_PE_INVALID)) {
 		/* Mark the PE as type of PCI bus */
 		pe->type = EEH_PE_BUS;

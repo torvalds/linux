@@ -262,7 +262,8 @@ typedef void *(*eeh_traverse_func)(void *data, void *flag);
 void eeh_set_pe_aux_size(int size);
 int eeh_phb_pe_create(struct pci_controller *phb);
 struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb);
-struct eeh_pe *eeh_pe_get(struct eeh_dev *edev);
+struct eeh_pe *eeh_pe_get(struct pci_controller *phb,
+			  int pe_no, int config_addr);
 int eeh_add_to_parent_pe(struct eeh_dev *edev);
 int eeh_rmv_from_parent_pe(struct eeh_dev *edev);
 void eeh_pe_update_time_stamp(struct eeh_pe *pe);
