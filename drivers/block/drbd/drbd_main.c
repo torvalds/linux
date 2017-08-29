@@ -2023,18 +2023,14 @@ void drbd_init_set_defaults(struct drbd_device *device)
 	device->unplug_work.cb  = w_send_write_hint;
 	device->bm_io_work.w.cb = w_bitmap_io;
 
-	init_timer(&device->resync_timer);
-	init_timer(&device->md_sync_timer);
-	init_timer(&device->start_resync_timer);
-	init_timer(&device->request_timer);
-	device->resync_timer.function = resync_timer_fn;
-	device->resync_timer.data = (unsigned long) device;
-	device->md_sync_timer.function = md_sync_timer_fn;
-	device->md_sync_timer.data = (unsigned long) device;
-	device->start_resync_timer.function = start_resync_timer_fn;
-	device->start_resync_timer.data = (unsigned long) device;
-	device->request_timer.function = request_timer_fn;
-	device->request_timer.data = (unsigned long) device;
+	setup_timer(&device->resync_timer, resync_timer_fn,
+			(unsigned long)device);
+	setup_timer(&device->md_sync_timer, md_sync_timer_fn,
+			(unsigned long)device);
+	setup_timer(&device->start_resync_timer, start_resync_timer_fn,
+			(unsigned long)device);
+	setup_timer(&device->request_timer, request_timer_fn,
+			(unsigned long)device);
 
 	init_waitqueue_head(&device->misc_wait);
 	init_waitqueue_head(&device->state_wait);
