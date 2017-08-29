@@ -1070,6 +1070,11 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
 
+	/* WaDisableI2mCycleOnWRPort: cnl (pre-prod) */
+	if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0))
+		WA_SET_BIT(GAMT_CHKN_BIT_REG,
+			   GAMT_CHKN_DISABLE_I2M_CYCLE_ON_WR_PORT);
+
 	/* WaForceContextSaveRestoreNonCoherent:cnl */
 	WA_SET_BIT_MASKED(CNL_HDC_CHICKEN0,
 			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT);
