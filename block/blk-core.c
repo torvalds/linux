@@ -2615,7 +2615,7 @@ struct request *blk_peek_request(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_peek_request);
 
-void blk_dequeue_request(struct request *rq)
+static void blk_dequeue_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
@@ -2642,9 +2642,6 @@ void blk_dequeue_request(struct request *rq)
  * Description:
  *     Dequeue @req and start timeout timer on it.  This hands off the
  *     request to the driver.
- *
- *     Block internal functions which don't want to start timer should
- *     call blk_dequeue_request().
  */
 void blk_start_request(struct request *req)
 {
