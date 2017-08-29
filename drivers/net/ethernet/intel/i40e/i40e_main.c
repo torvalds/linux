@@ -2874,14 +2874,15 @@ static void i40e_vsi_free_rx_resources(struct i40e_vsi *vsi)
 static void i40e_config_xps_tx_ring(struct i40e_ring *ring)
 {
 	struct i40e_vsi *vsi = ring->vsi;
+	int cpu;
 
 	if (!ring->q_vector || !ring->netdev)
 		return;
 
 	if ((vsi->tc_config.numtc <= 1) &&
 	    !test_and_set_bit(__I40E_TX_XPS_INIT_DONE, &ring->state)) {
-		netif_set_xps_queue(ring->netdev,
-				    get_cpu_mask(ring->q_vector->v_idx),
+		cpu = cpumask_local_spread(ring->q_vector->v_idx, -1);
+		netif_set_xps_queue(ring->netdev, get_cpu_mask(cpu),
 				    ring->queue_index);
 	}
 
@@ -3471,6 +3472,7 @@ static int i40e_vsi_request_irq_msix(struct i40e_vsi *vsi, char *basename)
 	int tx_int_idx = 0;
 	int vector, err;
 	int irq_num;
+	int cpu;
 
 	for (vector = 0; vector < q_vectors; vector++) {
 		struct i40e_q_vector *q_vector = vsi->q_vectors[vector];
@@ -3506,10 +3508,14 @@ static int i40e_vsi_request_irq_msix(struct i40e_vsi *vsi, char *basename)
 		q_vector->affinity_notify.notify = i40e_irq_affinity_notify;
 		q_vector->affinity_notify.release = i40e_irq_affinity_release;
 		irq_set_affinity_notifier(irq_num, &q_vector->affinity_notify);
-		/* get_cpu_mask returns a static constant mask with
-		 * a permanent lifetime so it's ok to use here.
+		/* Spread affinity hints out across online CPUs.
+		 *
+		 * get_cpu_mask returns a static constant mask with
+		 * a permanent lifetime so it's ok to pass to
+		 * irq_set_affinity_hint without making a copy.
 		 */
-		irq_set_affinity_hint(irq_num, get_cpu_mask(q_vector->v_idx));
+		cpu = cpumask_local_spread(q_vector->v_idx, -1);
+		irq_set_affinity_hint(irq_num, get_cpu_mask(cpu));
 	}
 
 	vsi->irqs_ready = true;
