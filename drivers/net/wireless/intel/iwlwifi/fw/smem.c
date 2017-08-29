@@ -113,6 +113,9 @@ static void iwl_parse_shared_mem(struct iwl_fw_runtime *fwrt,
 		BUILD_BUG_ON(sizeof(fwrt->smem_cfg.internal_txfifo_size) !=
 			     sizeof(mem_cfg->internal_txfifo_size));
 
+		fwrt->smem_cfg.internal_txfifo_addr =
+			le32_to_cpu(mem_cfg->internal_txfifo_addr);
+
 		for (i = 0;
 		     i < ARRAY_SIZE(fwrt->smem_cfg.internal_txfifo_size);
 		     i++)

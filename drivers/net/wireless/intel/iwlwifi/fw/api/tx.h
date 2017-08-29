@@ -409,7 +409,8 @@ enum iwl_tx_status {
  * @AGG_TX_STATE_BT_PRIO:
  * @AGG_TX_STATE_FEW_BYTES:
  * @AGG_TX_STATE_ABORT:
- * @AGG_TX_STATE_LAST_SENT_TTL:
+ * @AGG_TX_STATE_TX_ON_AIR_DROP: TX_ON_AIR signal drop without underrun or
+ *	BT detection
  * @AGG_TX_STATE_LAST_SENT_TRY_CNT:
  * @AGG_TX_STATE_LAST_SENT_BT_KILL:
  * @AGG_TX_STATE_SCD_QUERY:
@@ -421,7 +422,7 @@ enum iwl_tx_status {
  *	occur if tx failed for this frame when it was a member of a previous
  *	aggregation block). If rate scaling is used, retry count indicates the
  *	rate table entry used for all frames in the new agg.
- *@ AGG_TX_STATE_SEQ_NUM_MSK: Command ID and sequence number of Tx command for
+ * @AGG_TX_STATE_SEQ_NUM_MSK: Command ID and sequence number of Tx command for
  *	this frame
  *
  * TODO: complete documentation
@@ -433,7 +434,7 @@ enum iwl_tx_agg_status {
 	AGG_TX_STATE_BT_PRIO = 0x002,
 	AGG_TX_STATE_FEW_BYTES = 0x004,
 	AGG_TX_STATE_ABORT = 0x008,
-	AGG_TX_STATE_LAST_SENT_TTL = 0x010,
+	AGG_TX_STATE_TX_ON_AIR_DROP = 0x010,
 	AGG_TX_STATE_LAST_SENT_TRY_CNT = 0x020,
 	AGG_TX_STATE_LAST_SENT_BT_KILL = 0x040,
 	AGG_TX_STATE_SCD_QUERY = 0x080,
@@ -444,10 +445,6 @@ enum iwl_tx_agg_status {
 	AGG_TX_STATE_TRY_CNT_POS = 12,
 	AGG_TX_STATE_TRY_CNT_MSK = 0xf << AGG_TX_STATE_TRY_CNT_POS,
 };
-
-#define AGG_TX_STATE_LAST_SENT_MSK  (AGG_TX_STATE_LAST_SENT_TTL| \
-				     AGG_TX_STATE_LAST_SENT_TRY_CNT| \
-				     AGG_TX_STATE_LAST_SENT_BT_KILL)
 
 /*
  * The mask below describes a status where we are absolutely sure that the MPDU
@@ -786,13 +783,20 @@ struct iwl_mac_beacon_cmd_v7 {
 	struct ieee80211_hdr frame[0];
 } __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_7 */
 
+enum iwl_mac_beacon_flags {
+	IWL_MAC_BEACON_CCK	= BIT(8),
+	IWL_MAC_BEACON_ANT_A	= BIT(9),
+	IWL_MAC_BEACON_ANT_B	= BIT(10),
+	IWL_MAC_BEACON_ANT_C	= BIT(11),
+};
+
 /**
  * struct iwl_mac_beacon_cmd - beacon template command with offloaded CSA
- * @byte_cnt: byte count of the beacon frame
- * @flags: for future use
+ * @byte_cnt: byte count of the beacon frame.
+ * @flags: least significant byte for rate code. The most significant byte
+ *	is &enum iwl_mac_beacon_flags.
  * @reserved: reserved
- * @template_id: currently equal to the mac context id of the coresponding
- *  mac.
+ * @template_id: currently equal to the mac context id of the coresponding mac.
  * @tim_idx: the offset of the tim IE in the beacon
  * @tim_size: the length of the tim IE
  * @ecsa_offset: offset to the ECSA IE if present
@@ -809,7 +813,7 @@ struct iwl_mac_beacon_cmd {
 	__le32 ecsa_offset;
 	__le32 csa_offset;
 	struct ieee80211_hdr frame[0];
-} __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_8 */
+} __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_9 */
 
 struct iwl_beacon_notif {
 	struct iwl_mvm_tx_resp beacon_notify_hdr;

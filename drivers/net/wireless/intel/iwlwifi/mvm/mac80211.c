@@ -2023,8 +2023,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		 * We received a beacon from the associated AP so
 		 * remove the session protection.
 		 */
-		iwl_mvm_remove_time_event(mvm, mvmvif,
-					  &mvmvif->time_event_data);
+		iwl_mvm_stop_session_protection(mvm, vif);
 
 		iwl_mvm_sf_update(mvm, vif, false);
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
@@ -3886,11 +3885,16 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 
 		/* Schedule the time event to a bit before beacon 1,
 		 * to make sure we're in the new channel when the
-		 * GO/AP arrives.
+		 * GO/AP arrives. In case count <= 1 immediately schedule the
+		 * TE (this might result with some packet loss or connection
+		 * loss).
 		 */
-		apply_time = chsw->device_timestamp +
-			((vif->bss_conf.beacon_int * (chsw->count - 1) -
-			  IWL_MVM_CHANNEL_SWITCH_TIME_CLIENT) * 1024);
+		if (chsw->count <= 1)
+			apply_time = 0;
+		else
+			apply_time = chsw->device_timestamp +
+				((vif->bss_conf.beacon_int * (chsw->count - 1) -
+				  IWL_MVM_CHANNEL_SWITCH_TIME_CLIENT) * 1024);
 
 		if (chsw->block_tx)
 			iwl_mvm_csa_client_absent(mvm, vif);

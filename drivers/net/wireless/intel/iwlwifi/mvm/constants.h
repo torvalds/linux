@@ -95,7 +95,6 @@
 #define IWL_MVM_BT_COEX_EN_RED_TXP_THRESH	62
 #define IWL_MVM_BT_COEX_DIS_RED_TXP_THRESH	65
 #define IWL_MVM_BT_COEX_SYNC2SCO		1
-#define IWL_MVM_BT_COEX_CORUNNING		0
 #define IWL_MVM_BT_COEX_MPLUT			1
 #define IWL_MVM_BT_COEX_RRC			1
 #define IWL_MVM_BT_COEX_TTC			1
@@ -137,6 +136,7 @@
 #define IWL_MVM_RS_SR_NO_DECREASE		85	/* percent */
 #define IWL_MVM_RS_AGG_TIME_LIMIT	        4000    /* 4 msecs. valid 100-8000 */
 #define IWL_MVM_RS_AGG_DISABLE_START	        3
+#define IWL_MVM_RS_AGG_START_THRESHOLD	        10	/* num frames per second */
 #define IWL_MVM_RS_TPC_SR_FORCE_INCREASE	75	/* percent */
 #define IWL_MVM_RS_TPC_SR_NO_INCREASE		85	/* percent */
 #define IWL_MVM_RS_TPC_TX_POWER_STEP		3

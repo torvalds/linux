@@ -256,8 +256,6 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics,
 		   RX_HANDLER_ASYNC_LOCKED),
-	RX_HANDLER(ANTENNA_COUPLING_NOTIFICATION,
-		   iwl_mvm_rx_ant_coupling_notif, RX_HANDLER_ASYNC_LOCKED),
 
 	RX_HANDLER(BA_WINDOW_STATUS_NOTIFICATION_ID,
 		   iwl_mvm_window_status_notif, RX_HANDLER_SYNC),
@@ -325,7 +323,6 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(INIT_COMPLETE_NOTIF),
 	HCMD_NAME(PHY_CONTEXT_CMD),
 	HCMD_NAME(DBG_CFG),
-	HCMD_NAME(ANTENNA_COUPLING_NOTIFICATION),
 	HCMD_NAME(SCAN_CFG_CMD),
 	HCMD_NAME(SCAN_REQ_UMAC),
 	HCMD_NAME(SCAN_ABORT_UMAC),
@@ -350,13 +347,13 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(BINDING_CONTEXT_CMD),
 	HCMD_NAME(TIME_QUOTA_CMD),
 	HCMD_NAME(NON_QOS_TX_COUNTER_CMD),
+	HCMD_NAME(LEDS_CMD),
 	HCMD_NAME(LQ_CMD),
 	HCMD_NAME(FW_PAGING_BLOCK_CMD),
 	HCMD_NAME(SCAN_OFFLOAD_REQUEST_CMD),
 	HCMD_NAME(SCAN_OFFLOAD_ABORT_CMD),
 	HCMD_NAME(HOT_SPOT_CMD),
 	HCMD_NAME(SCAN_OFFLOAD_PROFILES_QUERY_CMD),
-	HCMD_NAME(BT_COEX_UPDATE_CORUN_LUT),
 	HCMD_NAME(BT_COEX_UPDATE_REDUCED_TXP),
 	HCMD_NAME(BT_COEX_CI),
 	HCMD_NAME(PHY_CONFIGURATION_CMD),
@@ -387,6 +384,7 @@ static const struct iwl_hcmd_names iwl_mvm_legacy_names[] = {
 	HCMD_NAME(SCAN_ITERATION_COMPLETE_UMAC),
 	HCMD_NAME(REPLY_RX_PHY_CMD),
 	HCMD_NAME(REPLY_RX_MPDU_CMD),
+	HCMD_NAME(FRAME_RELEASE),
 	HCMD_NAME(BA_NOTIF),
 	HCMD_NAME(MCC_UPDATE_CMD),
 	HCMD_NAME(MCC_CHUB_UPDATE_CMD),
@@ -754,7 +752,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		iwl_mvm_stop_device(mvm);
 	iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
 	mutex_unlock(&mvm->mutex);
-	/* returns 0 if successful, 1 if success but in rfkill */
 	if (err < 0) {
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
 		goto out_free;

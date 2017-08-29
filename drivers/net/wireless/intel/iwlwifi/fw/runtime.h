@@ -63,6 +63,7 @@
 #include "img.h"
 #include "fw/api/debug.h"
 #include "fw/api/paging.h"
+#include "iwl-eeprom-parse.h"
 
 struct iwl_fw_runtime_ops {
 	int (*dump_start)(void *ctx);
@@ -152,5 +153,6 @@ void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt);
 
 void iwl_fwrt_handle_notification(struct iwl_fw_runtime *fwrt,
 				  struct iwl_rx_cmd_buffer *rxb);
+struct iwl_nvm_data *iwl_fw_get_nvm(struct iwl_fw_runtime *fwrt);
 
 #endif /* __iwl_fw_runtime_h__ */

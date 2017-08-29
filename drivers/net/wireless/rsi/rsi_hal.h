@@ -126,7 +126,7 @@ struct rsi_mgmt_desc {
 	__le16 bbp_info;
 	__le16 seq_ctrl;
 	u8 reserved2;
-	u8 vap_info;
+	u8 sta_id;
 } __packed;
 
 struct rsi_data_desc {
@@ -144,5 +144,7 @@ struct rsi_data_desc {
 } __packed;
 
 int rsi_hal_device_init(struct rsi_hw *adapter);
+int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb);
+int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb);
 
 #endif

@@ -17,6 +17,8 @@
 #include <linux/etherdevice.h>
 #include "rsi_mgmt.h"
 #include "rsi_common.h"
+#include "rsi_ps.h"
+#include "rsi_hal.h"
 
 static struct bootup_params boot_params_20 = {
 	.magic_number = cpu_to_le16(0x5aa5),
@@ -274,6 +276,7 @@ static int rsi_send_internal_mgmt_frame(struct rsi_common *common,
 		rsi_dbg(ERR_ZONE, "%s: Unable to allocate skb\n", __func__);
 		return -ENOMEM;
 	}
+	desc = (struct rsi_cmd_desc *)skb->data;
 	desc->desc_dword0.len_qno |= cpu_to_le16(DESC_IMMEDIATE_WAKEUP);
 	skb->priority = MGMT_SOFT_Q;
 	tx_params = (struct skb_info *)&IEEE80211_SKB_CB(skb)->driver_data;
@@ -452,12 +455,14 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
  * Return: status: 0 on success, corresponding negative error code on failure.
  */
 static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
-					 u8 opmode,
+					 enum opmode opmode,
 					 u8 notify_event,
 					 const unsigned char *bssid,
 					 u8 qos_enable,
-					 u16 aid)
+					 u16 aid,
+					 u16 sta_id)
 {
+	struct ieee80211_vif *vif = common->priv->vifs[0];
 	struct sk_buff *skb = NULL;
 	struct rsi_peer_notify *peer_notify;
 	u16 vap_id = 0;
@@ -477,7 +482,10 @@ static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
 	memset(skb->data, 0, frame_len);
 	peer_notify = (struct rsi_peer_notify *)skb->data;
 
-	peer_notify->command = cpu_to_le16(opmode << 1);
+	if (opmode == STA_OPMODE)
+		peer_notify->command = cpu_to_le16(PEER_TYPE_AP << 1);
+	else if (opmode == AP_OPMODE)
+		peer_notify->command = cpu_to_le16(PEER_TYPE_STA << 1);
 
 	switch (notify_event) {
 	case STA_CONNECTED:
@@ -499,13 +507,15 @@ static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
 			(frame_len - FRAME_DESC_SZ),
 			RSI_WIFI_MGMT_Q);
 	peer_notify->desc.desc_dword0.frame_type = PEER_NOTIFY;
+	peer_notify->desc.desc_dword3.qid_tid = sta_id;
 	peer_notify->desc.desc_dword3.sta_id = vap_id;
 
 	skb_put(skb, frame_len);
 
 	status = rsi_send_internal_mgmt_frame(common, skb);
 
-	if (!status && qos_enable) {
+	if ((vif->type == NL80211_IFTYPE_STATION) &&
+	    (!status && qos_enable)) {
 		rsi_set_contention_vals(common);
 		status = rsi_load_radio_caps(common);
 	}
@@ -527,11 +537,11 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common,
 				      u16 tid,
 				      u16 ssn,
 				      u8 buf_size,
-				      u8 event)
+				      u8 event,
+				      u8 sta_id)
 {
 	struct sk_buff *skb = NULL;
 	struct rsi_aggr_params *aggr_params;
-	u8 peer_id = 0;
 	u16 frame_len = sizeof(struct rsi_aggr_params);
 
 	skb = dev_alloc_skb(frame_len);
@@ -551,7 +561,7 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common,
 	aggr_params->desc_dword0.frame_type = AMPDU_IND;
 
 	aggr_params->aggr_params = tid & RSI_AGGR_PARAMS_TID_MASK;
-	aggr_params->peer_id = peer_id;
+	aggr_params->peer_id = sta_id;
 	if (event == STA_TX_ADDBA_DONE) {
 		aggr_params->seq_start = cpu_to_le16(ssn);
 		aggr_params->baw_size = cpu_to_le16(buf_size);
@@ -622,6 +632,8 @@ static int rsi_program_bb_rf(struct rsi_common *common)
  */
 int rsi_set_vap_capabilities(struct rsi_common *common,
 			     enum opmode mode,
+			     u8 *mac_addr,
+			     u8 vap_id,
 			     u8 vap_status)
 {
 	struct sk_buff *skb = NULL;
@@ -630,7 +642,6 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
 	struct ieee80211_hw *hw = adapter->hw;
 	struct ieee80211_conf *conf = &hw->conf;
 	u16 frame_len = sizeof(struct rsi_vap_caps);
-	u16 vap_id = 0;
 
 	rsi_dbg(MGMT_TX_ZONE, "%s: Sending VAP capabilities frame\n", __func__);
 
@@ -654,7 +665,7 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
 	vap_caps->radioid_macid = ((common->mac_id & 0xf) << 4) |
 				   (common->radio_id & 0xf);
 
-	memcpy(vap_caps->mac_addr, common->mac_addr, IEEE80211_ADDR_LEN);
+	memcpy(vap_caps->mac_addr, mac_addr, IEEE80211_ADDR_LEN);
 	vap_caps->keep_alive_period = cpu_to_le16(90);
 	vap_caps->frag_threshold = cpu_to_le16(IEEE80211_MAX_FRAG_THRESHOLD);
 
@@ -704,8 +715,10 @@ int rsi_hal_load_key(struct rsi_common *common,
 		     u16 key_len,
 		     u8 key_type,
 		     u8 key_id,
-		     u32 cipher)
+		     u32 cipher,
+		     s16 sta_id)
 {
+	struct ieee80211_vif *vif = common->priv->vifs[0];
 	struct sk_buff *skb = NULL;
 	struct rsi_set_key *set_key;
 	u16 key_descriptor = 0;
@@ -723,8 +736,11 @@ int rsi_hal_load_key(struct rsi_common *common,
 	memset(skb->data, 0, frame_len);
 	set_key = (struct rsi_set_key *)skb->data;
 
-	if (key_type == RSI_GROUP_KEY)
+	if (key_type == RSI_GROUP_KEY) {
 		key_descriptor = RSI_KEY_TYPE_BROADCAST;
+		if (vif->type == NL80211_IFTYPE_AP)
+			key_descriptor |= RSI_KEY_MODE_AP;
+	}
 	if ((cipher == WLAN_CIPHER_SUITE_WEP40) ||
 	    (cipher == WLAN_CIPHER_SUITE_WEP104)) {
 		key_id = 0;
@@ -743,6 +759,7 @@ int rsi_hal_load_key(struct rsi_common *common,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 	set_key->desc_dword0.frame_type = SET_KEY_REQ;
 	set_key->key_desc = cpu_to_le16(key_descriptor);
+	set_key->sta_id = sta_id;
 
 	if (data) {
 		if ((cipher == WLAN_CIPHER_SUITE_WEP40) ||
@@ -1056,6 +1073,37 @@ int rsi_send_radio_params_update(struct rsi_common *common)
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
 
+/* This function programs the threshold. */
+int rsi_send_vap_dynamic_update(struct rsi_common *common)
+{
+	struct sk_buff *skb;
+	struct rsi_dynamic_s *dynamic_frame;
+
+	rsi_dbg(MGMT_TX_ZONE,
+		"%s: Sending vap update indication frame\n", __func__);
+
+	skb = dev_alloc_skb(sizeof(struct rsi_dynamic_s));
+	if (!skb)
+		return -ENOMEM;
+
+	memset(skb->data, 0, sizeof(struct rsi_dynamic_s));
+	dynamic_frame = (struct rsi_dynamic_s *)skb->data;
+	rsi_set_len_qno(&dynamic_frame->desc_dword0.len_qno,
+			sizeof(dynamic_frame->frame_body), RSI_WIFI_MGMT_Q);
+
+	dynamic_frame->desc_dword0.frame_type = VAP_DYNAMIC_UPDATE;
+	dynamic_frame->desc_dword2.pkt_info =
+					cpu_to_le32(common->rts_threshold);
+	/* Beacon miss threshold */
+	dynamic_frame->frame_body.keep_alive_period =
+					cpu_to_le16(RSI_DEF_KEEPALIVE);
+	dynamic_frame->desc_dword3.sta_id = 0; /* vap id */
+
+	skb_put(skb, sizeof(struct rsi_dynamic_s));
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
 /**
  * rsi_compare() - This function is used to compare two integers
  * @a: pointer to the first integer
@@ -1110,8 +1158,11 @@ static bool rsi_map_rates(u16 rate, int *offset)
  *
  * Return: 0 on success, corresponding error code on failure.
  */
-static int rsi_send_auto_rate_request(struct rsi_common *common)
+static int rsi_send_auto_rate_request(struct rsi_common *common,
+				      struct ieee80211_sta *sta,
+				      u16 sta_id)
 {
+	struct ieee80211_vif *vif = common->priv->vifs[0];
 	struct sk_buff *skb;
 	struct rsi_auto_rate *auto_rate;
 	int ii = 0, jj = 0, kk = 0;
@@ -1119,11 +1170,15 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	u8 band = hw->conf.chandef.chan->band;
 	u8 num_supported_rates = 0;
 	u8 rate_table_offset, rate_offset = 0;
-	u32 rate_bitmap = common->bitrate_mask[band];
-
+	u32 rate_bitmap;
 	u16 *selected_rates, min_rate;
+	bool is_ht = false, is_sgi = false;
+	u16 frame_len = sizeof(struct rsi_auto_rate);
 
-	skb = dev_alloc_skb(sizeof(struct rsi_auto_rate));
+	rsi_dbg(MGMT_TX_ZONE,
+		"%s: Sending auto rate request frame\n", __func__);
+
+	skb = dev_alloc_skb(frame_len);
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
 			__func__);
@@ -1138,8 +1193,6 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 		return -ENOMEM;
 	}
 
-	memset(skb->data, 0, sizeof(struct rsi_auto_rate));
-
 	auto_rate = (struct rsi_auto_rate *)skb->data;
 
 	auto_rate->aarf_rssi = cpu_to_le16(((u16)3 << 6) | (u16)(18 & 0x3f));
@@ -1148,16 +1201,35 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	auto_rate->initial_boundary = cpu_to_le16(3);
 	auto_rate->max_threshold_limt = cpu_to_le16(27);
 
-	auto_rate->desc_word[1] = cpu_to_le16(AUTO_RATE_IND);
+	auto_rate->desc.desc_dword0.frame_type = AUTO_RATE_IND;
 
 	if (common->channel_width == BW_40MHZ)
-		auto_rate->desc_word[7] |= cpu_to_le16(1);
+		auto_rate->desc.desc_dword3.qid_tid = BW_40MHZ;
+	auto_rate->desc.desc_dword3.sta_id = sta_id;
+
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		rate_bitmap = common->bitrate_mask[band];
+		is_ht = common->vif_info[0].is_ht;
+		is_sgi = common->vif_info[0].sgi;
+	} else {
+		rate_bitmap = sta->supp_rates[band];
+		is_ht = sta->ht_cap.ht_supported;
+		if ((sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
+		    (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
+			is_sgi = true;
+	}
 
 	if (band == NL80211_BAND_2GHZ) {
-		min_rate = RSI_RATE_1;
+		if ((rate_bitmap == 0) && (is_ht))
+			min_rate = RSI_RATE_MCS0;
+		else
+			min_rate = RSI_RATE_1;
 		rate_table_offset = 0;
 	} else {
-		min_rate = RSI_RATE_6;
+		if ((rate_bitmap == 0) && (is_ht))
+			min_rate = RSI_RATE_MCS0;
+		else
+			min_rate = RSI_RATE_6;
 		rate_table_offset = 4;
 	}
 
@@ -1171,7 +1243,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	}
 	num_supported_rates = jj;
 
-	if (common->vif_info[0].is_ht) {
+	if (is_ht) {
 		for (ii = 0; ii < ARRAY_SIZE(mcs); ii++)
 			selected_rates[jj++] = mcs[ii];
 		num_supported_rates += ARRAY_SIZE(mcs);
@@ -1192,11 +1264,10 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	}
 
 	/* loading HT rates in the bottom half of the auto rate table */
-	if (common->vif_info[0].is_ht) {
+	if (is_ht) {
 		for (ii = rate_offset, kk = ARRAY_SIZE(rsi_mcsrates) - 1;
 		     ii < rate_offset + 2 * ARRAY_SIZE(rsi_mcsrates); ii++) {
-			if (common->vif_info[0].sgi ||
-			    conf_is_ht40(&common->priv->hw->conf))
+			if (is_sgi || conf_is_ht40(&common->priv->hw->conf))
 				auto_rate->supported_rates[ii++] =
 					cpu_to_le16(rsi_mcsrates[kk] | BIT(9));
 			else
@@ -1217,15 +1288,12 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 
 	auto_rate->num_supported_rates = cpu_to_le16(num_supported_rates * 2);
 	auto_rate->moderate_rate_inx = cpu_to_le16(num_supported_rates / 2);
-	auto_rate->desc_word[7] |= cpu_to_le16(0 << 8);
 	num_supported_rates *= 2;
 
-	auto_rate->desc_word[0] = cpu_to_le16((sizeof(*auto_rate) -
-					       FRAME_DESC_SZ) |
-					       (RSI_WIFI_MGMT_Q << 12));
+	rsi_set_len_qno(&auto_rate->desc.desc_dword0.len_qno,
+			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 
-	skb_put(skb,
-		sizeof(struct rsi_auto_rate));
+	skb_put(skb, frame_len);
 	kfree(selected_rates);
 
 	return rsi_send_internal_mgmt_frame(common, skb);
@@ -1244,32 +1312,40 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
  * Return: None.
  */
 void rsi_inform_bss_status(struct rsi_common *common,
+			   enum opmode opmode,
 			   u8 status,
-			   const unsigned char *bssid,
+			   const u8 *addr,
 			   u8 qos_enable,
-			   u16 aid)
+			   u16 aid,
+			   struct ieee80211_sta *sta,
+			   u16 sta_id)
 {
 	if (status) {
-		common->hw_data_qs_blocked = true;
+		if (opmode == STA_OPMODE)
+			common->hw_data_qs_blocked = true;
 		rsi_hal_send_sta_notify_frame(common,
-					      RSI_IFTYPE_STATION,
+					      opmode,
 					      STA_CONNECTED,
-					      bssid,
+					      addr,
 					      qos_enable,
-					      aid);
+					      aid, sta_id);
 		if (common->min_rate == 0xffff)
-			rsi_send_auto_rate_request(common);
-		if (!rsi_send_block_unblock_frame(common, false))
-			common->hw_data_qs_blocked = false;
+			rsi_send_auto_rate_request(common, sta, sta_id);
+		if (opmode == STA_OPMODE) {
+			if (!rsi_send_block_unblock_frame(common, false))
+				common->hw_data_qs_blocked = false;
+		}
 	} else {
-		common->hw_data_qs_blocked = true;
+		if (opmode == STA_OPMODE)
+			common->hw_data_qs_blocked = true;
 		rsi_hal_send_sta_notify_frame(common,
-					      RSI_IFTYPE_STATION,
+					      opmode,
 					      STA_DISCONNECTED,
-					      bssid,
+					      addr,
 					      qos_enable,
-					      aid);
-		rsi_send_block_unblock_frame(common, true);
+					      aid, sta_id);
+		if (opmode == STA_OPMODE)
+			rsi_send_block_unblock_frame(common, true);
 	}
 }
 
@@ -1395,6 +1471,61 @@ int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word)
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
 
+int rsi_send_ps_request(struct rsi_hw *adapter, bool enable)
+{
+	struct rsi_common *common = adapter->priv;
+	struct ieee80211_bss_conf *bss = &adapter->vifs[0]->bss_conf;
+	struct rsi_request_ps *ps;
+	struct rsi_ps_info *ps_info;
+	struct sk_buff *skb;
+	int frame_len = sizeof(*ps);
+
+	skb = dev_alloc_skb(frame_len);
+	if (!skb)
+		return -ENOMEM;
+	memset(skb->data, 0, frame_len);
+
+	ps = (struct rsi_request_ps *)skb->data;
+	ps_info = &adapter->ps_info;
+
+	rsi_set_len_qno(&ps->desc.desc_dword0.len_qno,
+			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
+	ps->desc.desc_dword0.frame_type = WAKEUP_SLEEP_REQUEST;
+	if (enable) {
+		ps->ps_sleep.enable = RSI_PS_ENABLE;
+		ps->desc.desc_dword3.token = cpu_to_le16(RSI_SLEEP_REQUEST);
+	} else {
+		ps->ps_sleep.enable = RSI_PS_DISABLE;
+		ps->desc.desc_dword0.len_qno |= cpu_to_le16(RSI_PS_DISABLE_IND);
+		ps->desc.desc_dword3.token = cpu_to_le16(RSI_WAKEUP_REQUEST);
+	}
+
+	ps->ps_uapsd_acs = common->uapsd_bitmap;
+
+	ps->ps_sleep.sleep_type = ps_info->sleep_type;
+	ps->ps_sleep.num_bcns_per_lis_int =
+		cpu_to_le16(ps_info->num_bcns_per_lis_int);
+	ps->ps_sleep.sleep_duration =
+		cpu_to_le32(ps_info->deep_sleep_wakeup_period);
+
+	if (bss->assoc)
+		ps->ps_sleep.connected_sleep = RSI_CONNECTED_SLEEP;
+	else
+		ps->ps_sleep.connected_sleep = RSI_DEEP_SLEEP;
+
+	ps->ps_listen_interval = cpu_to_le32(ps_info->listen_interval);
+	ps->ps_dtim_interval_duration =
+		cpu_to_le32(ps_info->dtim_interval_duration);
+
+	if (ps_info->listen_interval > ps_info->dtim_interval_duration)
+		ps->ps_listen_interval = cpu_to_le32(RSI_PS_DISABLE);
+
+	ps->ps_num_dtim_intervals = cpu_to_le16(ps_info->num_dtims_per_sleep);
+	skb_put(skb, frame_len);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
 /**
  * rsi_set_antenna() - This fuction send antenna configuration request
  *		       to device
@@ -1406,7 +1537,7 @@ int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word)
  */
 int rsi_set_antenna(struct rsi_common *common, u8 antenna)
 {
-	struct rsi_mac_frame *cmd_frame;
+	struct rsi_ant_sel_frame *ant_sel_frame;
 	struct sk_buff *skb;
 
 	skb = dev_alloc_skb(FRAME_DESC_SZ);
@@ -1417,15 +1548,41 @@ int rsi_set_antenna(struct rsi_common *common, u8 antenna)
 	}
 
 	memset(skb->data, 0, FRAME_DESC_SZ);
-	cmd_frame = (struct rsi_mac_frame *)skb->data;
 
-	cmd_frame->desc_word[1] = cpu_to_le16(ANT_SEL_FRAME);
-	cmd_frame->desc_word[3] = cpu_to_le16(antenna & 0x00ff);
-	cmd_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
-
+	ant_sel_frame = (struct rsi_ant_sel_frame *)skb->data;
+	ant_sel_frame->desc_dword0.frame_type = ANT_SEL_FRAME;
+	ant_sel_frame->sub_frame_type = ANTENNA_SEL_TYPE;
+	ant_sel_frame->ant_value = cpu_to_le16(antenna & ANTENNA_MASK_VALUE);
+	rsi_set_len_qno(&ant_sel_frame->desc_dword0.len_qno,
+			0, RSI_WIFI_MGMT_Q);
 	skb_put(skb, FRAME_DESC_SZ);
 
 	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
+static int rsi_send_beacon(struct rsi_common *common)
+{
+	struct sk_buff *skb = NULL;
+	u8 dword_align_bytes = 0;
+
+	skb = dev_alloc_skb(MAX_MGMT_PKT_SIZE);
+	if (!skb)
+		return -ENOMEM;
+
+	memset(skb->data, 0, MAX_MGMT_PKT_SIZE);
+
+	dword_align_bytes = ((unsigned long)skb->data & 0x3f);
+	if (dword_align_bytes)
+		skb_pull(skb, (64 - dword_align_bytes));
+	if (rsi_prepare_beacon(common, skb)) {
+		rsi_dbg(ERR_ZONE, "Failed to prepare beacon\n");
+		return -EINVAL;
+	}
+	skb_queue_tail(&common->tx_queue[MGMT_BEACON_Q], skb);
+	rsi_set_event(&common->tx_thread.event);
+	rsi_dbg(DATA_TX_ZONE, "%s: Added to beacon queue\n", __func__);
+
+	return 0;
 }
 
 /**
@@ -1567,7 +1724,9 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 			return 0;
 		}
 		break;
-
+	case WAKEUP_SLEEP_REQUEST:
+		rsi_dbg(INFO_ZONE, "Wakeup/Sleep confirmation.\n");
+		return rsi_handle_ps_confirm(adapter, msg);
 	default:
 		rsi_dbg(INFO_ZONE, "%s: Invalid TA confirm pkt received\n",
 			__func__);
@@ -1630,21 +1789,33 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 	rsi_dbg(FSM_ZONE, "%s: Msg Len: %d, Msg Type: %4x\n",
 		__func__, msg_len, msg_type);
 
-	if (msg_type == TA_CONFIRM_TYPE) {
+	switch (msg_type) {
+	case TA_CONFIRM_TYPE:
 		return rsi_handle_ta_confirm_type(common, msg);
-	} else if (msg_type == CARD_READY_IND) {
+	case CARD_READY_IND:
 		rsi_dbg(FSM_ZONE, "%s: Card ready indication received\n",
 			__func__);
 		return rsi_handle_card_ready(common, msg);
-	} else if (msg_type == TX_STATUS_IND) {
+	case TX_STATUS_IND:
 		if (msg[15] == PROBEREQ_CONFIRM) {
 			common->mgmt_q_block = false;
 			rsi_dbg(FSM_ZONE, "%s: Probe confirm received\n",
 				__func__);
 		}
-	} else if (msg_type == RX_DOT11_MGMT) {
+		break;
+	case BEACON_EVENT_IND:
+		rsi_dbg(INFO_ZONE, "Beacon event\n");
+		if (common->fsm_state != FSM_MAC_INIT_DONE)
+			return -1;
+		if (common->iface_down)
+			return -1;
+		if (!common->beacon_enabled)
+			return -1;
+		rsi_send_beacon(common);
+		break;
+	case RX_DOT11_MGMT:
 		return rsi_mgmt_pkt_to_core(common, msg, msg_len);
-	} else {
+	default:
 		rsi_dbg(INFO_ZONE, "Received packet type: 0x%x\n", msg_type);
 	}
 	return 0;

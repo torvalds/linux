@@ -12,7 +12,7 @@ iwlwifi-$(CONFIG_IWLMVM) += cfg/7000.o cfg/8000.o cfg/9000.o cfg/a000.o
 iwlwifi-objs		+= iwl-trans.o
 iwlwifi-objs		+= fw/notif-wait.o
 iwlwifi-$(CONFIG_IWLMVM) += fw/paging.o fw/smem.o fw/init.o fw/dbg.o
-iwlwifi-$(CONFIG_IWLMVM) += fw/common_rx.o
+iwlwifi-$(CONFIG_IWLMVM) += fw/common_rx.o fw/nvm.o
 
 iwlwifi-objs += $(iwlwifi-m)
 

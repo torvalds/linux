@@ -311,11 +311,6 @@ enum {
 
 /**
  * rate_n_flags Tx antenna masks
- * 4965 has 2 transmitters
- * 5100 has 1 transmitter B
- * 5150 has 1 transmitter A
- * 5300 has 3 transmitters
- * 5350 has 3 transmitters
  * bit14:16
  */
 #define RATE_MCS_ANT_POS	14
@@ -1230,7 +1225,6 @@ struct iwl_rx_mpdu_res_start {
  */
 
 /*
- * 4965 uCode updates these Tx attempt count values in host DRAM.
  * Used for managing Tx retries when expecting block-acks.
  * Driver should set these fields to 0.
  */
@@ -1540,7 +1534,7 @@ struct iwl_link_qual_general_params {
 	/* Best single antenna to use for single stream (legacy, SISO). */
 	u8 single_stream_ant_msk;	/* LINK_QUAL_ANT_* */
 
-	/* Best antennas to use for MIMO (unused for 4965, assumes both). */
+	/* Best antennas to use for MIMO */
 	u8 dual_stream_ant_msk;		/* LINK_QUAL_ANT_* */
 
 	/*

@@ -49,6 +49,7 @@
 #define TA_CONFIRM_TYPE                 0x01
 #define RX_DOT11_MGMT                   0x02
 #define TX_STATUS_IND                   0x04
+#define BEACON_EVENT_IND		0x08
 #define PROBEREQ_CONFIRM                2
 #define CARD_READY_IND                  0x00
 
@@ -62,6 +63,7 @@
 #define BBP_REG_WRITE                   0
 #define RF_RESET_ENABLE                 BIT(3)
 #define RATE_INFO_ENABLE                BIT(0)
+#define MORE_DATA_PRESENT		BIT(1)
 #define RSI_BROADCAST_PKT               BIT(9)
 #define RSI_DESC_REQUIRE_CFM_TO_HOST	BIT(2)
 #define RSI_ADD_DELTA_TSF_VAP_ID	BIT(3)
@@ -69,6 +71,7 @@
 #define RSI_QOS_ENABLE			BIT(12)
 #define RSI_REKEY_PURPOSE		BIT(13)
 #define RSI_ENCRYPT_PKT			BIT(15)
+#define RSI_SET_PS_ENABLE		BIT(12)
 
 #define RSI_CMDDESC_40MHZ		BIT(4)
 #define RSI_CMDDESC_UPPER_20_ENABLE	BIT(5)
@@ -155,6 +158,8 @@
 
 #define ANTENNA_SEL_INT			0x02 /* RF_OUT_2 / Integerated */
 #define ANTENNA_SEL_UFL			0x03 /* RF_OUT_1 / U.FL */
+#define ANTENNA_MASK_VALUE		0x00ff
+#define ANTENNA_SEL_TYPE		1
 
 /* Rx filter word definitions */
 #define PROMISCOUS_MODE			BIT(0)
@@ -170,9 +175,33 @@
 #define RSI_BEACON_INTERVAL		200
 #define RSI_DTIM_COUNT			2
 
+#define RSI_PS_DISABLE_IND		BIT(15)
+#define RSI_PS_ENABLE			1
+#define RSI_PS_DISABLE			0
+#define RSI_DEEP_SLEEP			1
+#define RSI_CONNECTED_SLEEP		2
+#define RSI_SLEEP_REQUEST		1
+#define RSI_WAKEUP_REQUEST		2
+
+#define RSI_IEEE80211_UAPSD_QUEUES \
+	(IEEE80211_WMM_IE_STA_QOSINFO_AC_VO | \
+	 IEEE80211_WMM_IE_STA_QOSINFO_AC_VI | \
+	 IEEE80211_WMM_IE_STA_QOSINFO_AC_BE | \
+	 IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
+
+#define RSI_DATA_DESC_MAC_BBP_INFO	BIT(0)
+#define RSI_DATA_DESC_NO_ACK_IND	BIT(9)
+#define RSI_DATA_DESC_QOS_EN		BIT(12)
+#define RSI_DATA_DESC_NORMAL_FRAME	0x00
+#define RSI_DATA_DESC_DTIM_BEACON_GATED_FRAME	BIT(10)
+#define RSI_DATA_DESC_BEACON_FRAME	BIT(11)
+#define RSI_DATA_DESC_DTIM_BEACON	(BIT(10) | BIT(11))
+#define RSI_DATA_DESC_INSERT_TSF	BIT(15)
+#define RSI_DATA_DESC_INSERT_SEQ_NO	BIT(2)
+
 enum opmode {
-	STA_OPMODE = 1,
-	AP_OPMODE = 2
+	AP_OPMODE = 0,
+	STA_OPMODE,
 };
 
 enum vap_status {
@@ -181,6 +210,10 @@ enum vap_status {
 	VAP_UPDATE = 3
 };
 
+enum peer_type {
+	PEER_TYPE_AP,
+	PEER_TYPE_STA,
+};
 extern struct ieee80211_rate rsi_rates[12];
 extern const u16 rsi_mcsrates[8];
 
@@ -222,6 +255,7 @@ enum cmd_frame_type {
 	CW_MODE_REQ,
 	PER_CMD_PKT,
 	ANT_SEL_FRAME = 0x20,
+	VAP_DYNAMIC_UPDATE = 0x27,
 	COMMON_DEV_CONFIG = 0x28,
 	RADIO_PARAMS_UPDATE = 0x29
 };
@@ -348,12 +382,34 @@ struct rsi_vap_caps {
 	__le16 beacon_miss_threshold;
 } __packed;
 
+struct rsi_ant_sel_frame {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	u8 reserved;
+	u8 sub_frame_type;
+	__le16 ant_value;
+	__le32 reserved1;
+	__le32 reserved2;
+} __packed;
+
+struct rsi_dynamic_s {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	struct rsi_cmd_desc_dword2 desc_dword2;
+	struct rsi_cmd_desc_dword3 desc_dword3;
+	struct framebody {
+		__le16 data_rate;
+		__le16 mgmt_rate;
+		__le16 keep_alive_period;
+	} frame_body;
+} __packed;
+
 /* Key descriptor flags */
 #define RSI_KEY_TYPE_BROADCAST	BIT(1)
 #define RSI_WEP_KEY		BIT(2)
 #define RSI_WEP_KEY_104		BIT(3)
 #define RSI_CIPHER_WPA		BIT(4)
 #define RSI_CIPHER_TKIP		BIT(5)
+#define RSI_KEY_MODE_AP		BIT(7)
 #define RSI_PROTECT_DATA_FRAMES	BIT(13)
 #define RSI_KEY_ID_MASK		0xC0
 #define RSI_KEY_ID_OFFSET	14
@@ -370,7 +426,7 @@ struct rsi_set_key {
 } __packed;
 
 struct rsi_auto_rate {
-	__le16 desc_word[8];
+	struct rsi_cmd_desc desc;
 	__le16 failure_limit;
 	__le16 initial_boundary;
 	__le16 max_threshold_limt;
@@ -508,6 +564,18 @@ struct rsi_eeprom_read_frame {
 	__le16 reserved3;
 } __packed;
 
+struct rsi_request_ps {
+	struct rsi_cmd_desc desc;
+	struct ps_sleep_params ps_sleep;
+	u8 ps_mimic_support;
+	u8 ps_uapsd_acs;
+	u8 ps_uapsd_wakeup_period;
+	u8 reserved;
+	__le32 ps_listen_interval;
+	__le32 ps_dtim_interval_duration;
+	__le16 ps_num_dtim_intervals;
+} __packed;
+
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)
 {
 	return (le16_to_cpu(*(__le16 *)&addr[offset]) & 0x7000) >> 12;
@@ -540,16 +608,19 @@ static inline void rsi_set_len_qno(__le16 *addr, u16 len, u8 qno)
 
 int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg);
 int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode,
-			     u8 vap_status);
+			     u8 *mac_addr, u8 vap_id, u8 vap_status);
 int rsi_send_aggregation_params_frame(struct rsi_common *common, u16 tid,
-				      u16 ssn, u8 buf_size, u8 event);
+				      u16 ssn, u8 buf_size, u8 event,
+				      u8 sta_id);
 int rsi_hal_load_key(struct rsi_common *common, u8 *data, u16 key_len,
-		     u8 key_type, u8 key_id, u32 cipher);
+		     u8 key_type, u8 key_id, u32 cipher, s16 sta_id);
 int rsi_set_channel(struct rsi_common *common,
 		    struct ieee80211_channel *channel);
+int rsi_send_vap_dynamic_update(struct rsi_common *common);
 int rsi_send_block_unblock_frame(struct rsi_common *common, bool event);
-void rsi_inform_bss_status(struct rsi_common *common, u8 status,
-			   const u8 *bssid, u8 qos_enable, u16 aid);
+void rsi_inform_bss_status(struct rsi_common *common, enum opmode opmode,
+			   u8 status, const u8 *addr, u8 qos_enable, u16 aid,
+			   struct ieee80211_sta *sta, u16 sta_id);
 void rsi_indicate_pkt_to_os(struct rsi_common *common, struct sk_buff *skb);
 int rsi_mac80211_attach(struct rsi_common *common);
 void rsi_indicate_tx_status(struct rsi_hw *common, struct sk_buff *skb,

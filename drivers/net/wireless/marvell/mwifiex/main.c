@@ -940,31 +940,44 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-/*
- * CFG802.11 network device handler for setting MAC address.
- */
-static int
-mwifiex_set_mac_address(struct net_device *dev, void *addr)
+int mwifiex_set_mac_address(struct mwifiex_private *priv,
+			    struct net_device *dev)
 {
-	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	struct sockaddr *hw_addr = addr;
 	int ret;
+	u64 mac_addr;
 
-	memcpy(priv->curr_addr, hw_addr->sa_data, ETH_ALEN);
+	if (priv->bss_type != MWIFIEX_BSS_TYPE_P2P)
+		goto done;
+
+	mac_addr = ether_addr_to_u64(priv->curr_addr);
+	mac_addr |= BIT_ULL(MWIFIEX_MAC_LOCAL_ADMIN_BIT);
+	u64_to_ether_addr(mac_addr, priv->curr_addr);
 
 	/* Send request to firmware */
 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_MAC_ADDRESS,
 			       HostCmd_ACT_GEN_SET, 0, NULL, true);
 
-	if (!ret)
-		memcpy(priv->netdev->dev_addr, priv->curr_addr, ETH_ALEN);
-	else
+	if (ret) {
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "set mac address failed: ret=%d\n", ret);
+		return ret;
+	}
 
+done:
 	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
+	return 0;
+}
 
-	return ret;
+/* CFG802.11 network device handler for setting MAC address.
+ */
+static int
+mwifiex_ndo_set_mac_address(struct net_device *dev, void *addr)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct sockaddr *hw_addr = addr;
+
+	memcpy(priv->curr_addr, hw_addr->sa_data, ETH_ALEN);
+	return mwifiex_set_mac_address(priv, dev);
 }
 
 /*
@@ -1257,7 +1270,7 @@ static const struct net_device_ops mwifiex_netdev_ops = {
 	.ndo_open = mwifiex_open,
 	.ndo_stop = mwifiex_close,
 	.ndo_start_xmit = mwifiex_hard_start_xmit,
-	.ndo_set_mac_address = mwifiex_set_mac_address,
+	.ndo_set_mac_address = mwifiex_ndo_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_tx_timeout = mwifiex_tx_timeout,
 	.ndo_get_stats = mwifiex_get_stats,
@@ -1301,7 +1314,6 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
 	priv->gen_idx = MWIFIEX_AUTO_IDX_MASK;
 	priv->num_tx_timeout = 0;
 	ether_addr_copy(priv->curr_addr, priv->adapter->perm_addr);
-	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
 
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
 	    GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {

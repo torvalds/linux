@@ -259,10 +259,12 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 
 			switch (isr_type) {
 			case BUFFER_AVAILABLE:
-				dev->rx_info.watch_bufferfull_count = 0;
-				dev->rx_info.buffer_full = false;
-				dev->rx_info.semi_buffer_full = false;
-				dev->rx_info.mgmt_buffer_full = false;
+				status = rsi_sdio_check_buffer_status(adapter,
+								      0);
+				if (status < 0)
+					rsi_dbg(ERR_ZONE,
+						"%s: Failed to check buffer status\n",
+						__func__);
 				rsi_sdio_ack_intr(common->priv,
 						  (1 << PKT_BUFF_AVAILABLE));
 				rsi_set_event(&common->tx_thread.event);
@@ -270,7 +272,7 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 				rsi_dbg(ISR_ZONE,
 					"%s: ==> BUFFER_AVAILABLE <==\n",
 					__func__);
-				dev->rx_info.buf_available_counter++;
+				dev->buff_status_updated = true;
 				break;
 
 			case FIRMWARE_ASSERT_IND:
@@ -323,24 +325,24 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 	} while (1);
 }
 
-/**
- * rsi_sdio_read_buffer_status_register() - This function is used to the read
- *					    buffer status register and set
- *					    relevant fields in
- *					    rsi_91x_sdiodev struct.
- * @adapter: Pointer to the driver hw structure.
- * @q_num: The Q number whose status is to be found.
- *
- * Return: status: -1 on failure or else queue full/stop is indicated.
+/* This function is used to read buffer status register and
+ * set relevant fields in rsi_91x_sdiodev struct.
  */
-int rsi_sdio_read_buffer_status_register(struct rsi_hw *adapter, u8 q_num)
+int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 {
 	struct rsi_common *common = adapter->priv;
 	struct rsi_91x_sdiodev *dev =
 		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u8 buf_status = 0;
 	int status = 0;
+	static int counter = 4;
 
+	if (!dev->buff_status_updated && counter) {
+		counter--;
+		goto out;
+	}
+
+	dev->buff_status_updated = false;
 	status = rsi_sdio_read_register(common->priv,
 					RSI_DEVICE_BUFFER_STATUS_REGISTER,
 					&buf_status);
@@ -375,10 +377,16 @@ int rsi_sdio_read_buffer_status_register(struct rsi_hw *adapter, u8 q_num)
 		dev->rx_info.semi_buffer_full = false;
 	}
 
+	if (dev->rx_info.mgmt_buffer_full || dev->rx_info.buf_full_counter)
+		counter = 1;
+	else
+		counter = 4;
+
+out:
 	if ((q_num == MGMT_SOFT_Q) && (dev->rx_info.mgmt_buffer_full))
 		return QUEUE_FULL;
 
-	if (dev->rx_info.buffer_full)
+	if ((q_num < MGMT_SOFT_Q) && (dev->rx_info.buffer_full))
 		return QUEUE_FULL;
 
 	return QUEUE_NOT_FULL;

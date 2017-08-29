@@ -231,6 +231,8 @@ struct rsi_hw *rsi_91x_init(void)
 		goto err;
 	}
 
+	rsi_default_ps_params(adapter);
+	spin_lock_init(&adapter->ps_lock);
 	common->init_done = true;
 	return adapter;
 

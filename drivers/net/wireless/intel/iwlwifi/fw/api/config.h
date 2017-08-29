@@ -181,12 +181,4 @@ struct iwl_dc2dc_config_resp {
 	__le32 dc2dc_freq_tune1;
 } __packed; /* DC2DC_CONFIG_RESP_API_S_VER_1 */
 
-/**
- * struct iwl_mvm_antenna_coupling_notif - antenna coupling notification
- * @isolation: antenna isolation value
- */
-struct iwl_mvm_antenna_coupling_notif {
-	__le32 isolation;
-} __packed;
-
 #endif /* __iwl_fw_api_config_h__ */

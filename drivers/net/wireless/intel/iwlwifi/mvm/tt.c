@@ -71,7 +71,7 @@
 
 #define IWL_MVM_TEMP_NOTIF_WAIT_TIMEOUT	HZ
 
-static void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
+void iwl_mvm_enter_ctkill(struct iwl_mvm *mvm)
 {
 	struct iwl_mvm_tt_mgmt *tt = &mvm->thermal_throttle;
 	u32 duration = tt->params.ct_kill_duration;
@@ -813,7 +813,7 @@ unlock:
 	return ret;
 }
 
-static struct thermal_cooling_device_ops tcooling_ops = {
+static const struct thermal_cooling_device_ops tcooling_ops = {
 	.get_max_state = iwl_mvm_tcool_get_max_state,
 	.get_cur_state = iwl_mvm_tcool_get_cur_state,
 	.set_cur_state = iwl_mvm_tcool_set_cur_state,

@@ -76,7 +76,6 @@ enum iwl_bt_coex_lut_type {
 	BT_COEX_INVALID_LUT = 0xff,
 }; /* BT_COEX_DECISION_LUT_INDEX_API_E_VER_1 */
 
-#define BT_COEX_CORUN_LUT_SIZE (32)
 #define BT_REDUCED_TX_POWER_BIT BIT(7)
 
 enum iwl_bt_coex_mode {
@@ -105,18 +104,6 @@ struct iwl_bt_coex_cmd {
 	__le32 mode;
 	__le32 enabled_modules;
 } __packed; /* BT_COEX_CMD_API_S_VER_6 */
-
-/**
- * struct iwl_bt_coex_corun_lut_update - bt coex update the corun lut
- * @corun_lut20: co-running 20 MHz LUT configuration
- * @corun_lut40: co-running 40 MHz LUT configuration
- *
- * The structure is used for the BT_COEX_UPDATE_CORUN_LUT command.
- */
-struct iwl_bt_coex_corun_lut_update_cmd {
-	__le32 corun_lut20[BT_COEX_CORUN_LUT_SIZE];
-	__le32 corun_lut40[BT_COEX_CORUN_LUT_SIZE];
-} __packed; /* BT_COEX_UPDATE_CORUN_LUT_API_S_VER_1 */
 
 /**
  * struct iwl_bt_coex_reduced_txp_update_cmd
@@ -191,6 +178,7 @@ enum iwl_bt_mxbox_dw3 {
 	BT_MBOX(3, ACL_STATE, 3, 1),
 	BT_MBOX(3, MSTR_STATE, 4, 1),
 	BT_MBOX(3, OBX_STATE, 5, 1),
+	BT_MBOX(3, A2DP_SRC, 6, 1),
 	BT_MBOX(3, OPEN_CON_2, 8, 2),
 	BT_MBOX(3, TRAFFIC_LOAD, 10, 2),
 	BT_MBOX(3, CHL_SEQN_LSB, 12, 1),
@@ -200,10 +188,21 @@ enum iwl_bt_mxbox_dw3 {
 	BT_MBOX(3, UPDATE_REQUEST, 21, 1),
 };
 
+enum iwl_bt_mxbox_dw4 {
+	BT_MBOX(4, ATS_BT_INTERVAL, 0, 7),
+	BT_MBOX(4, ATS_BT_ACTIVE_MAX_TH, 7, 7),
+};
+
 #define BT_MBOX_MSG(_notif, _num, _field)				     \
 	((le32_to_cpu((_notif)->mbox_msg[(_num)]) & BT_MBOX##_num##_##_field)\
 	>> BT_MBOX##_num##_##_field##_POS)
 
+#define BT_MBOX_PRINT(_num, _field, _end)				    \
+			pos += scnprintf(buf + pos, bufsz - pos,	    \
+					 "\t%s: %d%s",			    \
+					 #_field,			    \
+					 BT_MBOX_MSG(notif, _num, _field),  \
+					 true ? "\n" : ", ");
 enum iwl_bt_activity_grading {
 	BT_OFF			= 0,
 	BT_ON_NO_CONNECTION	= 1,
@@ -220,11 +219,30 @@ enum iwl_bt_ci_compliance {
 	BT_CI_COMPLIANCE_BOTH		= 3,
 }; /* BT_COEX_CI_COMPLIENCE_E_VER_1 */
 
-#define IWL_COEX_IS_TTC_ON(_ttc_rrc_status, _phy_id)	\
-		(_ttc_rrc_status & BIT(_phy_id))
+/**
+ * struct iwl_bt_coex_profile_notif - notification about BT coex
+ * @mbox_msg: message from BT to WiFi
+ * @msg_idx: the index of the message
+ * @bt_ci_compliance: enum %iwl_bt_ci_compliance
+ * @primary_ch_lut: LUT used for primary channel &enum iwl_bt_coex_lut_type
+ * @secondary_ch_lut: LUT used for secondary channel &enum iwl_bt_coex_lut_type
+ * @bt_activity_grading: the activity of BT &enum iwl_bt_activity_grading
+ * @ttc_status: is TTC enabled - one bit per PHY
+ * @rrc_status: is RRC enabled - one bit per PHY
+ * @reserved: reserved
+ */
+struct iwl_bt_coex_profile_notif {
+	__le32 mbox_msg[8];
+	__le32 msg_idx;
+	__le32 bt_ci_compliance;
 
-#define IWL_COEX_IS_RRC_ON(_ttc_rrc_status, _phy_id)	\
-		((_ttc_rrc_status >> 4) & BIT(_phy_id))
+	__le32 primary_ch_lut;
+	__le32 secondary_ch_lut;
+	__le32 bt_activity_grading;
+	u8 ttc_status;
+	u8 rrc_status;
+	__le16 reserved;
+} __packed; /* BT_COEX_PROFILE_NTFY_API_S_VER_5 */
 
 /**
  * struct iwl_bt_coex_profile_notif - notification about BT coex
@@ -234,10 +252,11 @@ enum iwl_bt_ci_compliance {
  * @primary_ch_lut: LUT used for primary channel &enum iwl_bt_coex_lut_type
  * @secondary_ch_lut: LUT used for secondary channel &enum iwl_bt_coex_lut_type
  * @bt_activity_grading: the activity of BT &enum iwl_bt_activity_grading
- * @ttc_rrc_status: is TTC or RRC enabled - one bit per PHY
+ * @ttc_status: is TTC enabled - one bit per PHY
+ * @rrc_status: is RRC enabled - one bit per PHY
  * @reserved: reserved
  */
-struct iwl_bt_coex_profile_notif {
+struct iwl_bt_coex_profile_notif_v4 {
 	__le32 mbox_msg[4];
 	__le32 msg_idx;
 	__le32 bt_ci_compliance;
@@ -245,8 +264,9 @@ struct iwl_bt_coex_profile_notif {
 	__le32 primary_ch_lut;
 	__le32 secondary_ch_lut;
 	__le32 bt_activity_grading;
-	u8 ttc_rrc_status;
-	u8 reserved[3];
+	u8 ttc_status;
+	u8 rrc_status;
+	__le16 reserved;
 } __packed; /* BT_COEX_PROFILE_NTFY_API_S_VER_4 */
 
 #endif /* __iwl_fw_api_coex_h__ */

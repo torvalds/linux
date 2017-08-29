@@ -92,6 +92,7 @@ enum ath10k_bus {
 	ATH10K_BUS_PCI,
 	ATH10K_BUS_AHB,
 	ATH10K_BUS_SDIO,
+	ATH10K_BUS_USB,
 };
 
 static inline const char *ath10k_bus_str(enum ath10k_bus bus)
@@ -103,6 +104,8 @@ static inline const char *ath10k_bus_str(enum ath10k_bus bus)
 		return "ahb";
 	case ATH10K_BUS_SDIO:
 		return "sdio";
+	case ATH10K_BUS_USB:
+		return "usb";
 	}
 
 	return "unknown";
@@ -992,6 +995,8 @@ struct ath10k {
 		u32 reg_ack_cts_timeout_conf;
 		u32 reg_ack_cts_timeout_orig;
 	} fw_coverage;
+
+	u32 ampdu_reference;
 
 	void *ce_priv;
 

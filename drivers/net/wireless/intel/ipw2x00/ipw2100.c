@@ -340,7 +340,7 @@ static int ipw2100_ucode_download(struct ipw2100_priv *priv,
 				  struct ipw2100_fw *fw);
 static void ipw2100_wx_event_work(struct work_struct *work);
 static struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device *dev);
-static struct iw_handler_def ipw2100_wx_handler_def;
+static const struct iw_handler_def ipw2100_wx_handler_def;
 
 static inline void read_register(struct net_device *dev, u32 reg, u32 * val)
 {
@@ -8273,7 +8273,7 @@ static struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device *dev)
 	return (struct iw_statistics *)NULL;
 }
 
-static struct iw_handler_def ipw2100_wx_handler_def = {
+static const struct iw_handler_def ipw2100_wx_handler_def = {
 	.standard = ipw2100_wx_handlers,
 	.num_standard = ARRAY_SIZE(ipw2100_wx_handlers),
 	.num_private = ARRAY_SIZE(ipw2100_private_handler),
