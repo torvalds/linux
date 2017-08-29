@@ -226,7 +226,7 @@ int esp6_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info 
 	int tailen = esp->tailen;
 
 	if (!skb_cloned(skb)) {
-		if (tailen <= skb_availroom(skb)) {
+		if (tailen <= skb_tailroom(skb)) {
 			nfrags = 1;
 			trailer = skb;
 			tail = skb_tail_pointer(trailer);
@@ -260,8 +260,6 @@ int esp6_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info 
 
 			kunmap_atomic(vaddr);
 
-			spin_unlock_bh(&x->lock);
-
 			nfrags = skb_shinfo(skb)->nr_frags;
 
 			__skb_fill_page_desc(skb, nfrags, page, pfrag->offset,
@@ -269,6 +267,9 @@ int esp6_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info 
 			skb_shinfo(skb)->nr_frags = ++nfrags;
 
 			pfrag->offset = pfrag->offset + allocsize;
+
+			spin_unlock_bh(&x->lock);
+
 			nfrags++;
 
 			skb->len += tailen;
