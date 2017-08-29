@@ -103,7 +103,7 @@ int do_misaligned_access(unsigned long address, struct pt_regs *regs,
  */
 void do_machine_check_fault(unsigned long address, struct pt_regs *regs)
 {
-	die("Machine Check Exception", regs, address);
+	die("Unhandled Machine Check Exception", regs, address);
 }
 
 
