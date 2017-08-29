@@ -299,7 +299,7 @@ static inline struct pvrdma_cqe *get_cqe(struct pvrdma_cq *cq, int i)
 
 void _pvrdma_flush_cqe(struct pvrdma_qp *qp, struct pvrdma_cq *cq)
 {
-	int head;
+	unsigned int head;
 	int has_data;
 
 	if (!cq->is_kernel)
