@@ -175,9 +175,18 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	tmp = ns;
 	pid->level = ns->level;
 	for (i = ns->level; i >= 0; i--) {
+		int pid_min = 1;
 		idr_preload(GFP_KERNEL);
 		spin_lock_irq(&pidmap_lock);
-		nr = idr_alloc_cyclic(&tmp->idr, ns, RESERVED_PIDS,
+
+		/*
+		 * init really needs pid 1, but after reaching the maximum
+		 * wrap back to RESERVED_PIDS
+		 */
+		if (tmp->idr.idr_next > RESERVED_PIDS)
+			pid_min = RESERVED_PIDS;
+
+		nr = idr_alloc_cyclic(&tmp->idr, ns, pid_min,
 				      pid_max, GFP_ATOMIC);
 		spin_unlock_irq(&pidmap_lock);
 		idr_preload_end();
@@ -430,7 +439,16 @@ EXPORT_SYMBOL_GPL(task_active_pid_ns);
  */
 struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 {
-	return idr_get_next(&ns->idr, &nr);
+	struct pid *pid;
+
+	do {
+		pid = find_pid_ns(nr, ns);
+		if (pid)
+			break;
+		idr_get_next(&ns->idr, &nr);
+	} while (nr > 0);
+
+	return pid;
 }
 
 /*
