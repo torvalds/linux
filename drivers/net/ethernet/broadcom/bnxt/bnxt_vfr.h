@@ -80,5 +80,10 @@ static inline struct net_device *bnxt_get_vf_rep(struct bnxt *bp, u16 cfa_code)
 {
 	return NULL;
 }
+
+static inline u16 bnxt_vf_rep_get_fid(struct net_device *dev)
+{
+	return 0;
+}
 #endif /* CONFIG_BNXT_SRIOV */
 #endif /* BNXT_VFR_H */
