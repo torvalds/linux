@@ -196,6 +196,7 @@ mediatek	MediaTek Inc.
 megachips	MegaChips
 melexis	Melexis N.V.
 melfas	MELFAS Inc.
+mellanox	Mellanox Technologies
 memsic	MEMSIC Inc.
 merrii	Merrii Technology Co., Ltd.
 micrel	Micrel Inc.
