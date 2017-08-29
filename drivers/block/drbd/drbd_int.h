@@ -745,6 +745,8 @@ struct drbd_connection {
 	unsigned current_tle_writes;	/* writes seen within this tl epoch */
 
 	unsigned long last_reconnect_jif;
+	/* empty member on older kernels without blk_start_plug() */
+	struct blk_plug receiver_plug;
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
 	struct drbd_thread ack_receiver;
@@ -1131,7 +1133,8 @@ extern void conn_send_sr_reply(struct drbd_connection *connection, enum drbd_sta
 extern int drbd_send_rs_deallocated(struct drbd_peer_device *, struct drbd_peer_request *);
 extern void drbd_backing_dev_free(struct drbd_device *device, struct drbd_backing_dev *ldev);
 extern void drbd_device_cleanup(struct drbd_device *device);
-void drbd_print_uuids(struct drbd_device *device, const char *text);
+extern void drbd_print_uuids(struct drbd_device *device, const char *text);
+extern void drbd_queue_unplug(struct drbd_device *device);
 
 extern void conn_md_sync(struct drbd_connection *connection);
 extern void drbd_md_write(struct drbd_device *device, void *buffer);

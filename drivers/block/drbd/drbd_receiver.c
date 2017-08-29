@@ -1194,6 +1194,14 @@ static int decode_header(struct drbd_connection *connection, void *header, struc
 	return 0;
 }
 
+static void drbd_unplug_all_devices(struct drbd_connection *connection)
+{
+	if (current->plug == &connection->receiver_plug) {
+		blk_finish_plug(&connection->receiver_plug);
+		blk_start_plug(&connection->receiver_plug);
+	} /* else: maybe just schedule() ?? */
+}
+
 static int drbd_recv_header(struct drbd_connection *connection, struct packet_info *pi)
 {
 	void *buffer = connection->data.rbuf;
@@ -1209,6 +1217,36 @@ static int drbd_recv_header(struct drbd_connection *connection, struct packet_in
 	return err;
 }
 
+static int drbd_recv_header_maybe_unplug(struct drbd_connection *connection, struct packet_info *pi)
+{
+	void *buffer = connection->data.rbuf;
+	unsigned int size = drbd_header_size(connection);
+	int err;
+
+	err = drbd_recv_short(connection->data.socket, buffer, size, MSG_NOSIGNAL|MSG_DONTWAIT);
+	if (err != size) {
+		/* If we have nothing in the receive buffer now, to reduce
+		 * application latency, try to drain the backend queues as
+		 * quickly as possible, and let remote TCP know what we have
+		 * received so far. */
+		if (err == -EAGAIN) {
+			drbd_tcp_quickack(connection->data.socket);
+			drbd_unplug_all_devices(connection);
+		}
+		if (err > 0) {
+			buffer += err;
+			size -= err;
+		}
+		err = drbd_recv_all_warn(connection, buffer, size);
+		if (err)
+			return err;
+	}
+
+	err = decode_header(connection, connection->data.rbuf, pi);
+	connection->last_received = jiffies;
+
+	return err;
+}
 /* This is blkdev_issue_flush, but asynchronous.
  * We want to submit to all component volumes in parallel,
  * then wait for all completions.
@@ -4882,8 +4920,8 @@ static void drbdd(struct drbd_connection *connection)
 		struct data_cmd const *cmd;
 
 		drbd_thread_current_set_cpu(&connection->receiver);
-		update_receiver_timing_details(connection, drbd_recv_header);
-		if (drbd_recv_header(connection, &pi))
+		update_receiver_timing_details(connection, drbd_recv_header_maybe_unplug);
+		if (drbd_recv_header_maybe_unplug(connection, &pi))
 			goto err_out;
 
 		cmd = &drbd_cmd_handler[pi.cmd];
@@ -5375,8 +5413,11 @@ int drbd_receiver(struct drbd_thread *thi)
 		}
 	} while (h == 0);
 
-	if (h > 0)
+	if (h > 0) {
+		blk_start_plug(&connection->receiver_plug);
 		drbdd(connection);
+		blk_finish_plug(&connection->receiver_plug);
+	}
 
 	conn_disconnect(connection);
 

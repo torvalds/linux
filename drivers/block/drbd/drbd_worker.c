@@ -1382,18 +1382,22 @@ static int drbd_send_barrier(struct drbd_connection *connection)
 	return conn_send_command(connection, sock, P_BARRIER, sizeof(*p), NULL, 0);
 }
 
+static int pd_send_unplug_remote(struct drbd_peer_device *pd)
+{
+	struct drbd_socket *sock = &pd->connection->data;
+	if (!drbd_prepare_command(pd, sock))
+		return -EIO;
+	return drbd_send_command(pd, sock, P_UNPLUG_REMOTE, 0, NULL, 0);
+}
+
 int w_send_write_hint(struct drbd_work *w, int cancel)
 {
 	struct drbd_device *device =
 		container_of(w, struct drbd_device, unplug_work);
-	struct drbd_socket *sock;
 
 	if (cancel)
 		return 0;
-	sock = &first_peer_device(device)->connection->data;
-	if (!drbd_prepare_command(first_peer_device(device), sock))
-		return -EIO;
-	return drbd_send_command(first_peer_device(device), sock, P_UNPLUG_REMOTE, 0, NULL, 0);
+	return pd_send_unplug_remote(first_peer_device(device));
 }
 
 static void re_init_if_first_write(struct drbd_connection *connection, unsigned int epoch)
@@ -1455,6 +1459,7 @@ int w_send_dblock(struct drbd_work *w, int cancel)
 	struct drbd_device *device = req->device;
 	struct drbd_peer_device *const peer_device = first_peer_device(device);
 	struct drbd_connection *connection = peer_device->connection;
+	bool do_send_unplug = req->rq_state & RQ_UNPLUG;
 	int err;
 
 	if (unlikely(cancel)) {
@@ -1470,6 +1475,9 @@ int w_send_dblock(struct drbd_work *w, int cancel)
 	err = drbd_send_dblock(peer_device, req);
 	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
 
+	if (do_send_unplug && !err)
+		pd_send_unplug_remote(peer_device);
+
 	return err;
 }
 
@@ -1484,6 +1492,7 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 	struct drbd_device *device = req->device;
 	struct drbd_peer_device *const peer_device = first_peer_device(device);
 	struct drbd_connection *connection = peer_device->connection;
+	bool do_send_unplug = req->rq_state & RQ_UNPLUG;
 	int err;
 
 	if (unlikely(cancel)) {
@@ -1500,6 +1509,9 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 				 (unsigned long)req);
 
 	req_mod(req, err ? SEND_FAILED : HANDED_OVER_TO_NETWORK);
+
+	if (do_send_unplug && !err)
+		pd_send_unplug_remote(peer_device);
 
 	return err;
 }

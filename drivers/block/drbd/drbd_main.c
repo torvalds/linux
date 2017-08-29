@@ -1952,6 +1952,19 @@ static void drbd_release(struct gendisk *gd, fmode_t mode)
 	mutex_unlock(&drbd_main_mutex);
 }
 
+/* need to hold resource->req_lock */
+void drbd_queue_unplug(struct drbd_device *device)
+{
+	if (device->state.pdsk >= D_INCONSISTENT && device->state.conn >= C_CONNECTED) {
+		D_ASSERT(device, device->state.role == R_PRIMARY);
+		if (test_and_clear_bit(UNPLUG_REMOTE, &device->flags)) {
+			drbd_queue_work_if_unqueued(
+				&first_peer_device(device)->connection->sender_work,
+				&device->unplug_work);
+		}
+	}
+}
+
 static void drbd_set_defaults(struct drbd_device *device)
 {
 	/* Beware! The actual layout differs
