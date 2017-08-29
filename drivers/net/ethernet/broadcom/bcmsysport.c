@@ -1762,10 +1762,14 @@ static void rbuf_init(struct bcm_sysport_priv *priv)
 	reg = rbuf_readl(priv, RBUF_CONTROL);
 	reg |= RBUF_4B_ALGN | RBUF_RSB_EN;
 	/* Set a correct RSB format on SYSTEMPORT Lite */
-	if (priv->is_lite) {
+	if (priv->is_lite)
 		reg &= ~RBUF_RSB_SWAP1;
+
+	/* Set a correct RSB format based on host endian */
+	if (!IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
 		reg |= RBUF_RSB_SWAP0;
-	}
+	else
+		reg &= ~RBUF_RSB_SWAP0;
 	rbuf_writel(priv, reg, RBUF_CONTROL);
 }
 
