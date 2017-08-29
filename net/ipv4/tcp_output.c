@@ -952,22 +952,36 @@ static bool tcp_needs_internal_pacing(const struct sock *sk)
 	return smp_load_acquire(&sk->sk_pacing_status) == SK_PACING_NEEDED;
 }
 
+static bool tcp_pacing_timer_check(const struct sock *sk)
+{
+	return hrtimer_active(&tcp_sk(sk)->pacing_timer);
+}
+
 static void tcp_internal_pacing(struct sock *sk, const struct sk_buff *skb)
 {
+	const struct tcp_congestion_ops *ca_ops = inet_csk(sk)->icsk_ca_ops;
 	u64 len_ns;
-	u32 rate;
 
 	if (!tcp_needs_internal_pacing(sk))
 		return;
-	rate = sk->sk_pacing_rate;
-	if (!rate || rate == ~0U)
-		return;
 
-	/* Should account for header sizes as sch_fq does,
-	 * but lets make things simple.
-	 */
-	len_ns = (u64)skb->len * NSEC_PER_SEC;
-	do_div(len_ns, rate);
+	if (ca_ops->get_pacing_time) {
+		if (tcp_pacing_timer_check(sk))
+			return;
+
+		len_ns = ca_ops->get_pacing_time(sk);
+	} else {
+		u32 rate = sk->sk_pacing_rate;
+
+		if (!rate || rate == ~0U)
+			return;
+
+		/* Should account for header sizes as sch_fq does,
+		 * but lets make things simple.
+		 */
+		len_ns = (u64)skb->len * NSEC_PER_SEC;
+		do_div(len_ns, rate);
+	}
 	hrtimer_start(&tcp_sk(sk)->pacing_timer,
 		      ktime_add_ns(ktime_get(), len_ns),
 		      HRTIMER_MODE_ABS_PINNED);
@@ -2153,7 +2167,7 @@ static int tcp_mtu_probe(struct sock *sk)
 static bool tcp_pacing_check(const struct sock *sk)
 {
 	return tcp_needs_internal_pacing(sk) &&
-	       hrtimer_active(&tcp_sk(sk)->pacing_timer);
+		tcp_pacing_timer_check(sk);
 }
 
 /* TCP Small Queues :
