@@ -1663,7 +1663,7 @@ int ldlm_cli_cancel_list(struct list_head *cancels, int count,
 
 		if (res < 0) {
 			CDEBUG_LIMIT(res == -ESHUTDOWN ? D_DLMTRACE : D_ERROR,
-				     "ldlm_cli_cancel_list: %d\n", res);
+				     "%s: %d\n", __func__, res);
 			res = count;
 		}
 

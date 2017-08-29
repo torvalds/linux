@@ -1138,7 +1138,7 @@ int ldlm_init(void)
 void ldlm_exit(void)
 {
 	if (ldlm_refcount)
-		CERROR("ldlm_refcount is %d in ldlm_exit!\n", ldlm_refcount);
+		CERROR("ldlm_refcount is %d in %s!\n", ldlm_refcount, __func__);
 	kmem_cache_destroy(ldlm_resource_slab);
 	/* ldlm_lock_put() use RCU to call ldlm_lock_free, so need call
 	 * synchronize_rcu() to wait a grace period elapsed, so that

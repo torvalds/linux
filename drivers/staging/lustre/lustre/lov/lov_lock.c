@@ -264,8 +264,8 @@ static void lov_lock_cancel(const struct lu_env *env,
 			cl_lock_cancel(subenv->lse_env, sublock);
 		} else {
 			CL_LOCK_DEBUG(D_ERROR, env, slice->cls_lock,
-				      "lov_lock_cancel fails with %ld.\n",
-				      PTR_ERR(subenv));
+				      "%s fails with %ld.\n",
+				      __func__, PTR_ERR(subenv));
 		}
 	}
 }
