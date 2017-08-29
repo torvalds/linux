@@ -463,8 +463,17 @@ int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 	u8 drdy_mask;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	if (!sdata->sensor_settings->drdy_irq.addr)
+	if (!sdata->sensor_settings->drdy_irq.addr) {
+		/*
+		 * there are some devices (e.g. LIS3MDL) where drdy line is
+		 * routed to a given pin and it is not possible to select a
+		 * different one. Take into account irq status register
+		 * to understand if irq trigger can be properly supported
+		 */
+		if (sdata->sensor_settings->drdy_irq.addr_stat_drdy)
+			sdata->hw_irq_trigger = enable;
 		return 0;
+	}
 
 	/* Enable/Disable the interrupt generator 1. */
 	if (sdata->sensor_settings->drdy_irq.ig1.en_addr > 0) {
