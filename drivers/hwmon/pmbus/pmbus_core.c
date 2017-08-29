@@ -557,6 +557,10 @@ static long pmbus_reg2data_vid(struct pmbus_data *data,
 		if (val >= 0x01)
 			rv = 250 + (val - 1) * 5;
 		break;
+	case vr13:
+		if (val >= 0x01)
+			rv = 500 + (val - 1) * 10;
+		break;
 	}
 	return rv;
 }
