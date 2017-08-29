@@ -434,8 +434,10 @@ static void vb2_dc_put_userptr(void *buf_priv)
 		pages = frame_vector_pages(buf->vec);
 		/* sgt should exist only if vector contains pages... */
 		BUG_ON(IS_ERR(pages));
-		for (i = 0; i < frame_vector_count(buf->vec); i++)
-			set_page_dirty_lock(pages[i]);
+		if (buf->dma_dir == DMA_FROM_DEVICE ||
+		    buf->dma_dir == DMA_BIDIRECTIONAL)
+			for (i = 0; i < frame_vector_count(buf->vec); i++)
+				set_page_dirty_lock(pages[i]);
 		sg_free_table(sgt);
 		kfree(sgt);
 	}
