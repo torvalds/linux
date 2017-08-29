@@ -1888,9 +1888,8 @@ static void shrink_readahead_size_eio(struct file *filp,
 }
 
 /**
- * do_generic_file_read - generic file read routine
- * @filp:	the file to read
- * @ppos:	current file position
+ * generic_file_buffered_read - generic file read routine
+ * @iocb:	the iocb to read
  * @iter:	data destination
  * @written:	already copied
  *
@@ -1900,12 +1899,14 @@ static void shrink_readahead_size_eio(struct file *filp,
  * This is really ugly. But the goto's actually try to clarify some
  * of the logic when it comes to error handling etc.
  */
-static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
+static ssize_t generic_file_buffered_read(struct kiocb *iocb,
 		struct iov_iter *iter, ssize_t written)
 {
+	struct file *filp = iocb->ki_filp;
 	struct address_space *mapping = filp->f_mapping;
 	struct inode *inode = mapping->host;
 	struct file_ra_state *ra = &filp->f_ra;
+	loff_t *ppos = &iocb->ki_pos;
 	pgoff_t index;
 	pgoff_t last_index;
 	pgoff_t prev_index;
@@ -2153,14 +2154,14 @@ out:
 ssize_t
 generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct file *file = iocb->ki_filp;
-	ssize_t retval = 0;
 	size_t count = iov_iter_count(iter);
+	ssize_t retval = 0;
 
 	if (!count)
 		goto out; /* skip atime */
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
+		struct file *file = iocb->ki_filp;
 		struct address_space *mapping = file->f_mapping;
 		struct inode *inode = mapping->host;
 		loff_t size;
@@ -2201,7 +2202,7 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 			goto out;
 	}
 
-	retval = do_generic_file_read(file, &iocb->ki_pos, iter, retval);
+	retval = generic_file_buffered_read(iocb, iter, retval);
 out:
 	return retval;
 }
