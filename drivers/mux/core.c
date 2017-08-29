@@ -58,7 +58,7 @@ static void mux_chip_release(struct device *dev)
 	kfree(mux_chip);
 }
 
-static struct device_type mux_type = {
+static const struct device_type mux_type = {
 	.name = "mux-chip",
 	.release = mux_chip_release,
 };
