@@ -49,20 +49,23 @@ TRACE_EVENT(xdp_exception,
 		  __entry->ifindex)
 );
 
-TRACE_EVENT(xdp_redirect,
+DECLARE_EVENT_CLASS(xdp_redirect_template,
 
 	TP_PROTO(const struct net_device *dev,
 		 const struct bpf_prog *xdp,
-		 int to_index, int err),
+		 int to_ifindex, int err,
+		 const struct bpf_map *map, u32 map_index),
 
-	TP_ARGS(dev, xdp, to_index, err),
+	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index),
 
 	TP_STRUCT__entry(
 		__array(u8, prog_tag, 8)
 		__field(u32, act)
 		__field(int, ifindex)
-		__field(int, to_index)
 		__field(int, err)
+		__field(int, to_ifindex)
+		__field(u32, map_id)
+		__field(int, map_index)
 	),
 
 	TP_fast_assign(
@@ -70,16 +73,35 @@ TRACE_EVENT(xdp_redirect,
 		memcpy(__entry->prog_tag, xdp->tag, sizeof(xdp->tag));
 		__entry->act		= XDP_REDIRECT;
 		__entry->ifindex	= dev->ifindex;
-		__entry->to_index	= to_index;
 		__entry->err		= err;
+		__entry->to_ifindex	= to_ifindex;
+		__entry->map_id		= map ? map->id : 0;
+		__entry->map_index	= map_index;
 	),
 
-	TP_printk("prog=%s action=%s ifindex=%d to_index=%d err=%d",
+	TP_printk("prog=%s action=%s ifindex=%d to_ifindex=%d err=%d"
+		  " map_id=%d map_index=%d",
 		  __print_hex_str(__entry->prog_tag, 8),
 		  __print_symbolic(__entry->act, __XDP_ACT_SYM_TAB),
-		  __entry->ifindex, __entry->to_index,
-		  __entry->err)
+		  __entry->ifindex, __entry->to_ifindex,
+		  __entry->err,
+		  __entry->map_id, __entry->map_index)
 );
+
+DEFINE_EVENT(xdp_redirect_template, xdp_redirect,
+	TP_PROTO(const struct net_device *dev,
+		 const struct bpf_prog *xdp,
+		 int to_ifindex, int err,
+		 const struct bpf_map *map, u32 map_index),
+	TP_ARGS(dev, xdp, to_ifindex, err, map, map_index)
+);
+
+#define _trace_xdp_redirect(dev, xdp, to, err)	\
+	 trace_xdp_redirect(dev, xdp, to, err, NULL, 0);
+
+#define trace_xdp_redirect_map(dev, xdp, fwd, err, map, idx)	\
+	trace_xdp_redirect(dev, xdp, fwd ? fwd->ifindex : 0, err, map, idx);
+
 #endif /* _TRACE_XDP_H */
 
 #include <trace/define_trace.h>
