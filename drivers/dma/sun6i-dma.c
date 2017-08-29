@@ -101,6 +101,17 @@ struct sun6i_dma_config {
 	u32 nr_max_channels;
 	u32 nr_max_requests;
 	u32 nr_max_vchans;
+	/*
+	 * In the datasheets/user manuals of newer Allwinner SoCs, a special
+	 * bit (bit 2 at register 0x20) is present.
+	 * It's named "DMA MCLK interface circuit auto gating bit" in the
+	 * documents, and the footnote of this register says that this bit
+	 * should be set up when initializing the DMA controller.
+	 * Allwinner A23/A33 user manuals do not have this bit documented,
+	 * however these SoCs really have and need this bit, as seen in the
+	 * BSP kernel source code.
+	 */
+	bool gate_needed;
 };
 
 /*
@@ -1009,6 +1020,7 @@ static struct sun6i_dma_config sun8i_a23_dma_cfg = {
 	.nr_max_channels = 8,
 	.nr_max_requests = 24,
 	.nr_max_vchans   = 37,
+	.gate_needed	 = true,
 };
 
 static struct sun6i_dma_config sun8i_a83t_dma_cfg = {
@@ -1174,13 +1186,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 		goto err_dma_unregister;
 	}
 
-	/*
-	 * sun8i variant requires us to toggle a dma gating register,
-	 * as seen in Allwinner's SDK. This register is not documented
-	 * in the A23 user manual.
-	 */
-	if (of_device_is_compatible(pdev->dev.of_node,
-				    "allwinner,sun8i-a23-dma"))
+	if (sdc->cfg->gate_needed)
 		writel(SUN8I_DMA_GATE_ENABLE, sdc->base + SUN8I_DMA_GATE);
 
 	return 0;
