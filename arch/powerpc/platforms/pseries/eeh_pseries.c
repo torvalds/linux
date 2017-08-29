@@ -247,7 +247,7 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 
 	/* Initialize the fake PE */
 	memset(&pe, 0, sizeof(struct eeh_pe));
-	pe.phb = edev->phb;
+	pe.phb = pdn->phb;
 	pe.config_addr = (pdn->busno << 16) | (pdn->devfn << 8);
 
 	/* Enable EEH on the device */

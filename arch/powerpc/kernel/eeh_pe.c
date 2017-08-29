@@ -339,11 +339,12 @@ static struct eeh_pe *eeh_pe_get_parent(struct eeh_dev *edev)
 int eeh_add_to_parent_pe(struct eeh_dev *edev)
 {
 	struct eeh_pe *pe, *parent;
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
 	/* Check if the PE number is valid */
 	if (!eeh_has_flag(EEH_VALID_PE_ZERO) && !edev->pe_config_addr) {
 		pr_err("%s: Invalid PE#0 for edev 0x%x on PHB#%x\n",
-		       __func__, edev->config_addr, edev->phb->global_number);
+		       __func__, edev->config_addr, pdn->phb->global_number);
 		return -EINVAL;
 	}
 
@@ -353,7 +354,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	 * PE should be composed of PCI bus and its subordinate
 	 * components.
 	 */
-	pe = eeh_pe_get(edev->pdn->phb, edev->pe_config_addr,
+	pe = eeh_pe_get(pdn->phb, edev->pe_config_addr,
 			edev->config_addr);
 	if (pe && !(pe->type & EEH_PE_INVALID)) {
 		/* Mark the PE as type of PCI bus */
@@ -363,7 +364,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 		/* Put the edev to PE */
 		list_add_tail(&edev->list, &pe->edevs);
 		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Bus PE#%x\n",
-			edev->phb->global_number,
+			 pdn->phb->global_number,
 			edev->config_addr >> 8,
 			PCI_SLOT(edev->config_addr & 0xFF),
 			PCI_FUNC(edev->config_addr & 0xFF),
@@ -386,7 +387,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 
 		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Device "
 			 "PE#%x, Parent PE#%x\n",
-			edev->phb->global_number,
+			 pdn->phb->global_number,
 			edev->config_addr >> 8,
                         PCI_SLOT(edev->config_addr & 0xFF),
                         PCI_FUNC(edev->config_addr & 0xFF),
@@ -396,9 +397,9 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 
 	/* Create a new EEH PE */
 	if (edev->physfn)
-		pe = eeh_pe_alloc(edev->phb, EEH_PE_VF);
+		pe = eeh_pe_alloc(pdn->phb, EEH_PE_VF);
 	else
-		pe = eeh_pe_alloc(edev->phb, EEH_PE_DEVICE);
+		pe = eeh_pe_alloc(pdn->phb, EEH_PE_DEVICE);
 	if (!pe) {
 		pr_err("%s: out of memory!\n", __func__);
 		return -ENOMEM;
@@ -414,10 +415,10 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	 */
 	parent = eeh_pe_get_parent(edev);
 	if (!parent) {
-		parent = eeh_phb_pe_get(edev->phb);
+		parent = eeh_phb_pe_get(pdn->phb);
 		if (!parent) {
 			pr_err("%s: No PHB PE is found (PHB Domain=%d)\n",
-				__func__, edev->phb->global_number);
+				__func__, pdn->phb->global_number);
 			edev->pe = NULL;
 			kfree(pe);
 			return -EEXIST;
@@ -434,7 +435,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	edev->pe = pe;
 	pr_debug("EEH: Add %04x:%02x:%02x.%01x to "
 		 "Device PE#%x, Parent PE#%x\n",
-		 edev->phb->global_number,
+		 pdn->phb->global_number,
 		 edev->config_addr >> 8,
 		 PCI_SLOT(edev->config_addr & 0xFF),
 		 PCI_FUNC(edev->config_addr & 0xFF),
@@ -456,10 +457,11 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 {
 	struct eeh_pe *pe, *parent, *child;
 	int cnt;
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
 	if (!edev->pe) {
 		pr_debug("%s: No PE found for device %04x:%02x:%02x.%01x\n",
-			 __func__,  edev->phb->global_number,
+			 __func__,  pdn->phb->global_number,
 			 edev->config_addr >> 8,
 			 PCI_SLOT(edev->config_addr & 0xFF),
 			 PCI_FUNC(edev->config_addr & 0xFF));
@@ -722,7 +724,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 		return;
 
 	pr_debug("%s: Check PCIe link for %04x:%02x:%02x.%01x ...\n",
-		 __func__, edev->phb->global_number,
+		 __func__, pdn->phb->global_number,
 		 edev->config_addr >> 8,
 		 PCI_SLOT(edev->config_addr & 0xFF),
 		 PCI_FUNC(edev->config_addr & 0xFF));

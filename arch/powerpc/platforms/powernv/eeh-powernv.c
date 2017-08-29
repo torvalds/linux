@@ -926,7 +926,6 @@ void pnv_pci_reset_secondary_bus(struct pci_dev *dev)
 static void pnv_eeh_wait_for_pending(struct pci_dn *pdn, const char *type,
 				     int pos, u16 mask)
 {
-	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 	int i, status = 0;
 
 	/* Wait for Transaction Pending bit to be cleared */
@@ -940,7 +939,7 @@ static void pnv_eeh_wait_for_pending(struct pci_dn *pdn, const char *type,
 
 	pr_warn("%s: Pending transaction while issuing %sFLR to %04x:%02x:%02x.%01x\n",
 		__func__, type,
-		edev->phb->global_number, pdn->busno,
+		pdn->phb->global_number, pdn->busno,
 		PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
 }
 
@@ -1714,7 +1713,7 @@ static int pnv_eeh_restore_config(struct pci_dn *pdn)
 	if (edev->physfn) {
 		ret = pnv_eeh_restore_vf_config(pdn);
 	} else {
-		phb = edev->phb->private_data;
+		phb = pdn->phb->private_data;
 		ret = opal_pci_reinit(phb->opal_id,
 				      OPAL_REINIT_PCI_DEV, edev->config_addr);
 	}
