@@ -18,6 +18,7 @@
 #include <linux/cred.h>
 
 #include "vas.h"
+#include "copy-paste.h"
 
 /*
  * Compute the paste address region for the window @window using the
@@ -996,6 +997,52 @@ put_rxwin:
 
 }
 EXPORT_SYMBOL_GPL(vas_tx_win_open);
+
+int vas_copy_crb(void *crb, int offset)
+{
+	return vas_copy(crb, offset);
+}
+EXPORT_SYMBOL_GPL(vas_copy_crb);
+
+#define RMA_LSMP_REPORT_ENABLE PPC_BIT(53)
+int vas_paste_crb(struct vas_window *txwin, int offset, bool re)
+{
+	int rc;
+	void *addr;
+	uint64_t val;
+
+	/*
+	 * Only NX windows are supported for now and hardware assumes
+	 * report-enable flag is set for NX windows. Ensure software
+	 * complies too.
+	 */
+	WARN_ON_ONCE(txwin->nx_win && !re);
+
+	addr = txwin->paste_kaddr;
+	if (re) {
+		/*
+		 * Set the REPORT_ENABLE bit (equivalent to writing
+		 * to 1K offset of the paste address)
+		 */
+		val = SET_FIELD(RMA_LSMP_REPORT_ENABLE, 0ULL, 1);
+		addr += val;
+	}
+
+	/*
+	 * Map the raw CR value from vas_paste() to an error code (there
+	 * is just pass or fail for now though).
+	 */
+	rc = vas_paste(addr, offset);
+	if (rc == 2)
+		rc = 0;
+	else
+		rc = -EINVAL;
+
+	print_fifo_msg_count(txwin);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(vas_paste_crb);
 
 static void poll_window_busy_state(struct vas_window *window)
 {

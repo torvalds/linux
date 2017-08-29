@@ -418,6 +418,8 @@
 					___PPC_RB(b))
 #define PPC_MSGCLRP(b)		stringify_in_c(.long PPC_INST_MSGCLRP | \
 					___PPC_RB(b))
+#define PPC_PASTE(a, b)		stringify_in_c(.long PPC_INST_PASTE | \
+					___PPC_RA(a) | ___PPC_RB(b))
 #define PPC_POPCNTB(a, s)	stringify_in_c(.long PPC_INST_POPCNTB | \
 					__PPC_RA(a) | __PPC_RS(s))
 #define PPC_POPCNTD(a, s)	stringify_in_c(.long PPC_INST_POPCNTD | \

@@ -398,11 +398,11 @@ extern struct vas_instance *find_vas_instance(int vasid);
 #ifdef vas_debug
 static inline void dump_rx_win_attr(struct vas_rx_win_attr *attr)
 {
-	pr_err("VAS: fault %d, notify %d, intr %d early %d\n",
+	pr_err("fault %d, notify %d, intr %d early %d\n",
 			attr->fault_win, attr->notify_disable,
 			attr->intr_disable, attr->notify_early);
 
-	pr_err("VAS: rx_fifo_size %d, max value %d\n",
+	pr_err("rx_fifo_size %d, max value %d\n",
 				attr->rx_fifo_size, VAS_RX_FIFO_SIZE_MAX);
 }
 
@@ -449,5 +449,19 @@ static inline u64 read_hvwc_reg(struct vas_window *win,
 {
 	return in_be64(win->hvwc_map+reg);
 }
+
+#ifdef vas_debug
+
+static void print_fifo_msg_count(struct vas_window *txwin)
+{
+	uint64_t read_hvwc_reg(struct vas_window *w, char *n, uint64_t o);
+	pr_devel("Winid %d, Msg count %llu\n", txwin->winid,
+			(uint64_t)read_hvwc_reg(txwin, VREG(LRFIFO_PUSH)));
+}
+#else	/* vas_debug */
+
+#define print_fifo_msg_count(window)
+
+#endif	/* vas_debug */
 
 #endif /* _VAS_H */
