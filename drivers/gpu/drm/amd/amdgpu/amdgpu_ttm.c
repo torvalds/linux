@@ -1671,10 +1671,50 @@ static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 	return result;
 }
 
+static ssize_t amdgpu_ttm_vram_write(struct file *f, const char __user *buf,
+				    size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = file_inode(f)->i_private;
+	ssize_t result = 0;
+	int r;
+
+	if (size & 0x3 || *pos & 0x3)
+		return -EINVAL;
+
+	if (*pos >= adev->mc.mc_vram_size)
+		return -ENXIO;
+
+	while (size) {
+		unsigned long flags;
+		uint32_t value;
+
+		if (*pos >= adev->mc.mc_vram_size)
+			return result;
+
+		r = get_user(value, (uint32_t *)buf);
+		if (r)
+			return r;
+
+		spin_lock_irqsave(&adev->mmio_idx_lock, flags);
+		WREG32(mmMM_INDEX, ((uint32_t)*pos) | 0x80000000);
+		WREG32(mmMM_INDEX_HI, *pos >> 31);
+		WREG32(mmMM_DATA, value);
+		spin_unlock_irqrestore(&adev->mmio_idx_lock, flags);
+
+		result += 4;
+		buf += 4;
+		*pos += 4;
+		size -= 4;
+	}
+
+	return result;
+}
+
 static const struct file_operations amdgpu_ttm_vram_fops = {
 	.owner = THIS_MODULE,
 	.read = amdgpu_ttm_vram_read,
-	.llseek = default_llseek
+	.write = amdgpu_ttm_vram_write,
+	.llseek = default_llseek,
 };
 
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
