@@ -1927,6 +1927,10 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	memcpy(kvm->arch.model.fac_list, kvm->arch.model.fac_mask,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 
+	/* we are always in czam mode - even on pre z14 machines */
+	set_kvm_facility(kvm->arch.model.fac_mask, 138);
+	set_kvm_facility(kvm->arch.model.fac_list, 138);
+	/* we emulate STHYI in kvm */
 	set_kvm_facility(kvm->arch.model.fac_mask, 74);
 	set_kvm_facility(kvm->arch.model.fac_list, 74);
 	if (MACHINE_HAS_TLB_GUEST) {
