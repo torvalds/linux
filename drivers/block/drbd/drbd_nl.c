@@ -1236,11 +1236,17 @@ static void fixup_discard_if_not_supported(struct request_queue *q)
 
 static void decide_on_write_same_support(struct drbd_device *device,
 			struct request_queue *q,
-			struct request_queue *b, struct o_qlim *o)
+			struct request_queue *b, struct o_qlim *o,
+			bool disable_write_same)
 {
 	struct drbd_peer_device *peer_device = first_peer_device(device);
 	struct drbd_connection *connection = peer_device->connection;
 	bool can_do = b ? b->limits.max_write_same_sectors : true;
+
+	if (can_do && disable_write_same) {
+		can_do = false;
+		drbd_info(peer_device, "WRITE_SAME disabled by config\n");
+	}
 
 	if (can_do && connection->cstate >= C_CONNECTED && !(connection->agreed_features & DRBD_FF_WSAME)) {
 		can_do = false;
@@ -1302,6 +1308,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 	struct request_queue *b = NULL;
 	struct disk_conf *dc;
 	bool discard_zeroes_if_aligned = true;
+	bool disable_write_same = false;
 
 	if (bdev) {
 		b = bdev->backing_bdev->bd_disk->queue;
@@ -1311,6 +1318,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 		dc = rcu_dereference(device->ldev->disk_conf);
 		max_segments = dc->max_bio_bvecs;
 		discard_zeroes_if_aligned = dc->discard_zeroes_if_aligned;
+		disable_write_same = dc->disable_write_same;
 		rcu_read_unlock();
 
 		blk_set_stacking_limits(&q->limits);
@@ -1321,7 +1329,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 	blk_queue_max_segments(q, max_segments ? max_segments : BLK_MAX_SEGMENTS);
 	blk_queue_segment_boundary(q, PAGE_SIZE-1);
 	decide_on_discard_support(device, q, b, discard_zeroes_if_aligned);
-	decide_on_write_same_support(device, q, b, o);
+	decide_on_write_same_support(device, q, b, o, disable_write_same);
 
 	if (b) {
 		blk_queue_stack_limits(q, b);
@@ -1612,7 +1620,8 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	if (write_ordering_changed(old_disk_conf, new_disk_conf))
 		drbd_bump_write_ordering(device->resource, NULL, WO_BDEV_FLUSH);
 
-	if (old_disk_conf->discard_zeroes_if_aligned != new_disk_conf->discard_zeroes_if_aligned)
+	if (old_disk_conf->discard_zeroes_if_aligned != new_disk_conf->discard_zeroes_if_aligned
+	||  old_disk_conf->disable_write_same != new_disk_conf->disable_write_same)
 		drbd_reconsider_queue_parameters(device, device->ldev, NULL);
 
 	drbd_md_sync(device);
