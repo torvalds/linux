@@ -3950,8 +3950,12 @@ static long aac_build_sgraw2(struct scsi_cmnd *scsicmd,
 			if (!err_found)
 				break;
 		}
-		if (i > 0 && nseg_new <= sg_max)
-			aac_convert_sgraw2(rio2, i, nseg, nseg_new);
+		if (i > 0 && nseg_new <= sg_max) {
+			int ret = aac_convert_sgraw2(rio2, i, nseg, nseg_new);
+
+			if (ret < 0)
+				return ret;
+		}
 	} else
 		rio2->flags |= cpu_to_le16(RIO2_SGL_CONFORMANT);
 
@@ -3975,7 +3979,7 @@ static int aac_convert_sgraw2(struct aac_raw_io2 *rio2, int pages, int nseg, int
 
 	sge = kmalloc(nseg_new * sizeof(struct sge_ieee1212), GFP_ATOMIC);
 	if (sge == NULL)
-		return -1;
+		return -ENOMEM;
 
 	for (i = 1, pos = 1; i < nseg-1; ++i) {
 		for (j = 0; j < rio2->sge[i].length / (pages * PAGE_SIZE); ++j) {
