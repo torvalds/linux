@@ -26,13 +26,15 @@ struct bpf_map_def SEC("maps") tx_port = {
 	.max_entries = 1,
 };
 
+/* Count RX packets, as XDP bpf_prog doesn't get direct TX-success
+ * feedback.  Redirect TX errors can be caught via a tracepoint.
+ */
 struct bpf_map_def SEC("maps") rxcnt = {
 	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
 	.key_size = sizeof(u32),
 	.value_size = sizeof(long),
 	.max_entries = 1,
 };
-
 
 static void swap_src_dst_mac(void *data)
 {
@@ -76,6 +78,13 @@ int xdp_redirect_prog(struct xdp_md *ctx)
 
 	swap_src_dst_mac(data);
 	return bpf_redirect(*ifindex, 0);
+}
+
+/* Redirect require an XDP bpf_prog loaded on the TX device */
+SEC("xdp_redirect_dummy")
+int xdp_redirect_dummy(struct xdp_md *ctx)
+{
+	return XDP_PASS;
 }
 
 char _license[] SEC("license") = "GPL";
