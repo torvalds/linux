@@ -1313,7 +1313,7 @@ static int smiapp_power_on(struct device *dev)
 	rval = smiapp_write(sensor, SMIAPP_REG_U8_DPHY_CTRL,
 			    SMIAPP_DPHY_CTRL_UI);
 	if (rval < 0)
-		return rval;
+		goto out_cci_addr_fail;
 
 	rval = smiapp_call_quirk(sensor, post_poweron);
 	if (rval) {
