@@ -1138,7 +1138,11 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 	cz_ps->action = cz_current_ps->action;
 
-	if (!force_high && (cz_ps->action == FORCE_HIGH))
+	if (hwmgr->request_dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
+		cz_nbdpm_pstate_enable_disable(hwmgr, false, false);
+	else if (hwmgr->request_dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD)
+		cz_nbdpm_pstate_enable_disable(hwmgr, false, true);
+	else if (!force_high && (cz_ps->action == FORCE_HIGH))
 		cz_ps->action = CANCEL_FORCE_HIGH;
 	else if (force_high && (cz_ps->action != FORCE_HIGH))
 		cz_ps->action = FORCE_HIGH;
@@ -1374,7 +1378,8 @@ int cz_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 	if (!bgate) {
 		/* Stable Pstate is enabled and we need to set the UVD DPM to highest level */
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_StablePState)) {
+					 PHM_PlatformCaps_StablePState)
+			|| hwmgr->en_umd_pstate) {
 			cz_hwmgr->uvd_dpm.hard_min_clk =
 				   ptable->entries[ptable->count - 1].vclk;
 
@@ -1403,7 +1408,8 @@ int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr)
 
 	/* Stable Pstate is enabled and we need to set the VCE DPM to highest level */
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					 PHM_PlatformCaps_StablePState)) {
+					PHM_PlatformCaps_StablePState)
+					|| hwmgr->en_umd_pstate) {
 		cz_hwmgr->vce_dpm.hard_min_clk =
 				  ptable->entries[ptable->count - 1].ecclk;
 
