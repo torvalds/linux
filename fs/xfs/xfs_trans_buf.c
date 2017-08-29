@@ -724,7 +724,7 @@ xfs_trans_inode_alloc_buf(
  * transactions rather than the physical changes we make to the buffer without
  * changing writeback ordering constraints of metadata buffers.
  */
-void
+bool
 xfs_trans_ordered_buf(
 	struct xfs_trans	*tp,
 	struct xfs_buf		*bp)
@@ -734,7 +734,9 @@ xfs_trans_ordered_buf(
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
-	ASSERT(!xfs_buf_item_dirty_format(bip));
+
+	if (xfs_buf_item_dirty_format(bip))
+		return false;
 
 	bip->bli_flags |= XFS_BLI_ORDERED;
 	trace_xfs_buf_item_ordered(bip);
@@ -744,6 +746,7 @@ xfs_trans_ordered_buf(
 	 * to be marked dirty and that it has been logged.
 	 */
 	xfs_trans_dirty_buf(tp, bp);
+	return true;
 }
 
 /*
