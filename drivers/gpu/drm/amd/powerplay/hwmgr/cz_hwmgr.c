@@ -1310,48 +1310,9 @@ static int cz_phm_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int cz_phm_force_dpm_sclk(struct pp_hwmgr *hwmgr, uint32_t sclk)
-{
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-				PPSMC_MSG_SetSclkSoftMin,
-				cz_get_sclk_level(hwmgr,
-				sclk,
-				PPSMC_MSG_SetSclkSoftMin));
-
-	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-				PPSMC_MSG_SetSclkSoftMax,
-				cz_get_sclk_level(hwmgr,
-				sclk,
-				PPSMC_MSG_SetSclkSoftMax));
-	return 0;
-}
-
-static int cz_get_profiling_clk(struct pp_hwmgr *hwmgr, uint32_t *sclk)
-{
-	struct phm_clock_voltage_dependency_table *table =
-		hwmgr->dyn_state.vddc_dependency_on_sclk;
-	int32_t tmp_sclk;
-	int32_t count;
-
-	tmp_sclk = table->entries[table->count-1].clk * 70 / 100;
-
-	for (count = table->count-1; count >= 0; count--) {
-		if (tmp_sclk >= table->entries[count].clk) {
-			tmp_sclk = table->entries[count].clk;
-			*sclk = tmp_sclk;
-			break;
-		}
-	}
-	if (count < 0)
-		*sclk = table->entries[0].clk;
-
-	return 0;
-}
-
 static int cz_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 				enum amd_dpm_forced_level level)
 {
-	uint32_t sclk = 0;
 	int ret = 0;
 	uint32_t profile_mode_mask = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
 					AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
@@ -1389,6 +1350,7 @@ static int cz_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 		ret = cz_phm_force_dpm_lowest(hwmgr);
 		if (ret)
 			return ret;
@@ -1399,13 +1361,6 @@ static int cz_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 		if (ret)
 			return ret;
 		hwmgr->dpm_level = level;
-		break;
-	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
-		ret = cz_get_profiling_clk(hwmgr, &sclk);
-		if (ret)
-			return ret;
-		hwmgr->dpm_level = level;
-		cz_phm_force_dpm_sclk(hwmgr, sclk);
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
 		hwmgr->dpm_level = level;
