@@ -722,6 +722,7 @@
 		reg = <0x0 0xff330200 0 0x100>;
 		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "h265e_mmu";
+		power-domains = <&power RK3328_PD_HEVC>;
 		#iommu-cells = <0>;
 	};
 
@@ -752,6 +753,7 @@
 		interrupt-names = "vepu_mmu";
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3328_PD_HEVC>;
 		#iommu-cells = <0>;
 	};
 
