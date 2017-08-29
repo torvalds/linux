@@ -551,7 +551,6 @@ struct pin_cookie { };
 enum xhlock_context_t {
 	XHLOCK_HARD,
 	XHLOCK_SOFT,
-	XHLOCK_PROC,
 	XHLOCK_CTX_NR,
 };
 
@@ -580,8 +579,9 @@ extern void lock_commit_crosslock(struct lockdep_map *lock);
 #define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
 	{ .name = (_name), .key = (void *)(_key), .cross = 0, }
 
-extern void crossrelease_hist_start(enum xhlock_context_t c, bool force);
+extern void crossrelease_hist_start(enum xhlock_context_t c);
 extern void crossrelease_hist_end(enum xhlock_context_t c);
+extern void lockdep_invariant_state(bool force);
 extern void lockdep_init_task(struct task_struct *task);
 extern void lockdep_free_task(struct task_struct *task);
 #else /* !CROSSRELEASE */
@@ -593,8 +593,9 @@ extern void lockdep_free_task(struct task_struct *task);
 #define STATIC_LOCKDEP_MAP_INIT(_name, _key) \
 	{ .name = (_name), .key = (void *)(_key), }
 
-static inline void crossrelease_hist_start(enum xhlock_context_t c, bool force) {}
+static inline void crossrelease_hist_start(enum xhlock_context_t c) {}
 static inline void crossrelease_hist_end(enum xhlock_context_t c) {}
+static inline void lockdep_invariant_state(bool force) {}
 static inline void lockdep_init_task(struct task_struct *task) {}
 static inline void lockdep_free_task(struct task_struct *task) {}
 #endif /* CROSSRELEASE */

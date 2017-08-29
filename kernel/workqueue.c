@@ -2094,8 +2094,8 @@ __acquires(&pool->lock)
 	lock_map_acquire(&pwq->wq->lockdep_map);
 	lock_map_acquire(&lockdep_map);
 	/*
-	 * Strictly speaking we should do start(PROC) without holding any
-	 * locks, that is, before these two lock_map_acquire()'s.
+	 * Strictly speaking we should mark the invariant state without holding
+	 * any locks, that is, before these two lock_map_acquire()'s.
 	 *
 	 * However, that would result in:
 	 *
@@ -2107,14 +2107,14 @@ __acquires(&pool->lock)
 	 * Which would create W1->C->W1 dependencies, even though there is no
 	 * actual deadlock possible. There are two solutions, using a
 	 * read-recursive acquire on the work(queue) 'locks', but this will then
-	 * hit the lockdep limitation on recursive locks, or simly discard
+	 * hit the lockdep limitation on recursive locks, or simply discard
 	 * these locks.
 	 *
 	 * AFAICT there is no possible deadlock scenario between the
 	 * flush_work() and complete() primitives (except for single-threaded
 	 * workqueues), so hiding them isn't a problem.
 	 */
-	crossrelease_hist_start(XHLOCK_PROC, true);
+	lockdep_invariant_state(true);
 	trace_workqueue_execute_start(work);
 	worker->current_func(work);
 	/*
@@ -2122,7 +2122,6 @@ __acquires(&pool->lock)
 	 * point will only record its address.
 	 */
 	trace_workqueue_execute_end(work);
-	crossrelease_hist_end(XHLOCK_PROC);
 	lock_map_release(&lockdep_map);
 	lock_map_release(&pwq->wq->lockdep_map);
 

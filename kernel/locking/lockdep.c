@@ -4623,13 +4623,8 @@ asmlinkage __visible void lockdep_sys_exit(void)
 	/*
 	 * The lock history for each syscall should be independent. So wipe the
 	 * slate clean on return to userspace.
-	 *
-	 * crossrelease_hist_end() works well here even when getting here
-	 * without starting (i.e. just after forking), because it rolls back
-	 * the index to point to the last entry, which is already invalid.
 	 */
-	crossrelease_hist_end(XHLOCK_PROC);
-	crossrelease_hist_start(XHLOCK_PROC, false);
+	lockdep_invariant_state(false);
 }
 
 void lockdep_rcu_suspicious(const char *file, const int line, const char *s)
@@ -4723,19 +4718,47 @@ static inline void invalidate_xhlock(struct hist_lock *xhlock)
 }
 
 /*
- * Lock history stacks; we have 3 nested lock history stacks:
+ * Lock history stacks; we have 2 nested lock history stacks:
  *
  *   HARD(IRQ)
  *   SOFT(IRQ)
- *   PROC(ess)
  *
  * The thing is that once we complete a HARD/SOFT IRQ the future task locks
  * should not depend on any of the locks observed while running the IRQ.  So
  * what we do is rewind the history buffer and erase all our knowledge of that
  * temporal event.
- *
- * The PROCess one is special though; it is used to annotate independence
- * inside a task.
+ */
+
+void crossrelease_hist_start(enum xhlock_context_t c)
+{
+	struct task_struct *cur = current;
+
+	if (!cur->xhlocks)
+		return;
+
+	cur->xhlock_idx_hist[c] = cur->xhlock_idx;
+	cur->hist_id_save[c]    = cur->hist_id;
+}
+
+void crossrelease_hist_end(enum xhlock_context_t c)
+{
+	struct task_struct *cur = current;
+
+	if (cur->xhlocks) {
+		unsigned int idx = cur->xhlock_idx_hist[c];
+		struct hist_lock *h = &xhlock(idx);
+
+		cur->xhlock_idx = idx;
+
+		/* Check if the ring was overwritten. */
+		if (h->hist_id != cur->hist_id_save[c])
+			invalidate_xhlock(h);
+	}
+}
+
+/*
+ * lockdep_invariant_state() is used to annotate independence inside a task, to
+ * make one task look like multiple independent 'tasks'.
  *
  * Take for instance workqueues; each work is independent of the last. The
  * completion of a future work does not depend on the completion of a past work
@@ -4758,40 +4781,14 @@ static inline void invalidate_xhlock(struct hist_lock *xhlock)
  * entry. Similarly, independence per-definition means it does not depend on
  * prior state.
  */
-void crossrelease_hist_start(enum xhlock_context_t c, bool force)
+void lockdep_invariant_state(bool force)
 {
-	struct task_struct *cur = current;
-
-	if (!cur->xhlocks)
-		return;
-
 	/*
 	 * We call this at an invariant point, no current state, no history.
+	 * Verify the former, enforce the latter.
 	 */
-	if (c == XHLOCK_PROC) {
-		/* verified the former, ensure the latter */
-		WARN_ON_ONCE(!force && cur->lockdep_depth);
-		invalidate_xhlock(&xhlock(cur->xhlock_idx));
-	}
-
-	cur->xhlock_idx_hist[c] = cur->xhlock_idx;
-	cur->hist_id_save[c]    = cur->hist_id;
-}
-
-void crossrelease_hist_end(enum xhlock_context_t c)
-{
-	struct task_struct *cur = current;
-
-	if (cur->xhlocks) {
-		unsigned int idx = cur->xhlock_idx_hist[c];
-		struct hist_lock *h = &xhlock(idx);
-
-		cur->xhlock_idx = idx;
-
-		/* Check if the ring was overwritten. */
-		if (h->hist_id != cur->hist_id_save[c])
-			invalidate_xhlock(h);
-	}
+	WARN_ON_ONCE(!force && current->lockdep_depth);
+	invalidate_xhlock(&xhlock(current->xhlock_idx));
 }
 
 static int cross_lock(struct lockdep_map *lock)
