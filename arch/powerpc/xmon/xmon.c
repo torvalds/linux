@@ -1739,23 +1739,23 @@ static void dump_206_sprs(void)
 
 	/* Actually some of these pre-date 2.06, but whatevs */
 
-	printf("srr0   = %.16x  srr1  = %.16x dsisr  = %.8x\n",
+	printf("srr0   = %.16lx  srr1  = %.16lx dsisr  = %.8x\n",
 		mfspr(SPRN_SRR0), mfspr(SPRN_SRR1), mfspr(SPRN_DSISR));
-	printf("dscr   = %.16x  ppr   = %.16x pir    = %.8x\n",
+	printf("dscr   = %.16lx  ppr   = %.16lx pir    = %.8x\n",
 		mfspr(SPRN_DSCR), mfspr(SPRN_PPR), mfspr(SPRN_PIR));
 
 	if (!(mfmsr() & MSR_HV))
 		return;
 
-	printf("sdr1   = %.16x  hdar  = %.16x hdsisr = %.8x\n",
+	printf("sdr1   = %.16lx  hdar  = %.16lx hdsisr = %.8x\n",
 		mfspr(SPRN_SDR1), mfspr(SPRN_HDAR), mfspr(SPRN_HDSISR));
-	printf("hsrr0  = %.16x hsrr1  = %.16x hdec = %.8x\n",
+	printf("hsrr0  = %.16lx hsrr1  = %.16lx hdec = %.8x\n",
 		mfspr(SPRN_HSRR0), mfspr(SPRN_HSRR1), mfspr(SPRN_HDEC));
-	printf("lpcr   = %.16x  pcr   = %.16x lpidr = %.8x\n",
+	printf("lpcr   = %.16lx  pcr   = %.16lx lpidr = %.8x\n",
 		mfspr(SPRN_LPCR), mfspr(SPRN_PCR), mfspr(SPRN_LPID));
-	printf("hsprg0 = %.16x hsprg1 = %.16x\n",
+	printf("hsprg0 = %.16lx hsprg1 = %.16lx\n",
 		mfspr(SPRN_HSPRG0), mfspr(SPRN_HSPRG1));
-	printf("dabr   = %.16x dabrx  = %.16x\n",
+	printf("dabr   = %.16lx dabrx  = %.16lx\n",
 		mfspr(SPRN_DABR), mfspr(SPRN_DABRX));
 #endif
 }
@@ -1768,38 +1768,38 @@ static void dump_207_sprs(void)
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
 		return;
 
-	printf("dpdes  = %.16x  tir   = %.16x cir    = %.8x\n",
+	printf("dpdes  = %.16lx  tir   = %.16lx cir    = %.8x\n",
 		mfspr(SPRN_DPDES), mfspr(SPRN_TIR), mfspr(SPRN_CIR));
 
-	printf("fscr   = %.16x  tar   = %.16x pspb   = %.8x\n",
+	printf("fscr   = %.16lx  tar   = %.16lx pspb   = %.8x\n",
 		mfspr(SPRN_FSCR), mfspr(SPRN_TAR), mfspr(SPRN_PSPB));
 
 	msr = mfmsr();
 	if (msr & MSR_TM) {
 		/* Only if TM has been enabled in the kernel */
-		printf("tfhar  = %.16x  tfiar = %.16x texasr = %.16x\n",
+		printf("tfhar  = %.16lx  tfiar = %.16lx texasr = %.16lx\n",
 			mfspr(SPRN_TFHAR), mfspr(SPRN_TFIAR),
 			mfspr(SPRN_TEXASR));
 	}
 
-	printf("mmcr0  = %.16x  mmcr1 = %.16x mmcr2  = %.16x\n",
+	printf("mmcr0  = %.16lx  mmcr1 = %.16lx mmcr2  = %.16lx\n",
 		mfspr(SPRN_MMCR0), mfspr(SPRN_MMCR1), mfspr(SPRN_MMCR2));
 	printf("pmc1   = %.8x pmc2 = %.8x  pmc3 = %.8x  pmc4   = %.8x\n",
 		mfspr(SPRN_PMC1), mfspr(SPRN_PMC2),
 		mfspr(SPRN_PMC3), mfspr(SPRN_PMC4));
-	printf("mmcra  = %.16x   siar = %.16x pmc5   = %.8x\n",
+	printf("mmcra  = %.16lx   siar = %.16lx pmc5   = %.8x\n",
 		mfspr(SPRN_MMCRA), mfspr(SPRN_SIAR), mfspr(SPRN_PMC5));
-	printf("sdar   = %.16x   sier = %.16x pmc6   = %.8x\n",
+	printf("sdar   = %.16lx   sier = %.16lx pmc6   = %.8x\n",
 		mfspr(SPRN_SDAR), mfspr(SPRN_SIER), mfspr(SPRN_PMC6));
-	printf("ebbhr  = %.16x  ebbrr = %.16x bescr  = %.16x\n",
+	printf("ebbhr  = %.16lx  ebbrr = %.16lx bescr  = %.16lx\n",
 		mfspr(SPRN_EBBHR), mfspr(SPRN_EBBRR), mfspr(SPRN_BESCR));
 
 	if (!(msr & MSR_HV))
 		return;
 
-	printf("hfscr  = %.16x  dhdes = %.16x rpr    = %.16x\n",
+	printf("hfscr  = %.16lx  dhdes = %.16lx rpr    = %.16lx\n",
 		mfspr(SPRN_HFSCR), mfspr(SPRN_DHDES), mfspr(SPRN_RPR));
-	printf("dawr   = %.16x  dawrx = %.16x ciabr  = %.16x\n",
+	printf("dawr   = %.16lx  dawrx = %.16lx ciabr  = %.16lx\n",
 		mfspr(SPRN_DAWR), mfspr(SPRN_DAWRX), mfspr(SPRN_CIABR));
 #endif
 }
