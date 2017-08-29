@@ -69,6 +69,9 @@
 
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-boot-vector.h>
+#include <asm/octeon/cvmx-ciu2-defs.h>
+
+static int divisor;
 
 /* The count needed to achieve timeout_sec. */
 static unsigned int timeout_cnt;
@@ -227,10 +230,10 @@ void octeon_wdt_nmi_stage3(u64 reg[32])
 	u64 cp0_epc = read_c0_epc();
 
 	/* Delay so output from all cores output is not jumbled together. */
-	__delay(100000000ull * coreid);
+	udelay(85000 * coreid);
 
 	octeon_wdt_write_string("\r\n*** NMI Watchdog interrupt on Core 0x");
-	octeon_wdt_write_hex(coreid, 1);
+	octeon_wdt_write_hex(coreid, 2);
 	octeon_wdt_write_string(" ***\r\n");
 	for (i = 0; i < 32; i++) {
 		octeon_wdt_write_string("\t");
@@ -253,11 +256,28 @@ void octeon_wdt_nmi_stage3(u64 reg[32])
 	octeon_wdt_write_hex(cp0_cause, 16);
 	octeon_wdt_write_string("\r\n");
 
-	octeon_wdt_write_string("\tsum0\t0x");
-	octeon_wdt_write_hex(cvmx_read_csr(CVMX_CIU_INTX_SUM0(coreid * 2)), 16);
-	octeon_wdt_write_string("\ten0\t0x");
-	octeon_wdt_write_hex(cvmx_read_csr(CVMX_CIU_INTX_EN0(coreid * 2)), 16);
-	octeon_wdt_write_string("\r\n");
+	/* The CIU register is different for each Octeon model. */
+	if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
+		octeon_wdt_write_string("\tsrc_wd\t0x");
+		octeon_wdt_write_hex(cvmx_read_csr(CVMX_CIU2_SRC_PPX_IP2_WDOG(coreid)), 16);
+		octeon_wdt_write_string("\ten_wd\t0x");
+		octeon_wdt_write_hex(cvmx_read_csr(CVMX_CIU2_EN_PPX_IP2_WDOG(coreid)), 16);
+		octeon_wdt_write_string("\r\n");
+		octeon_wdt_write_string("\tsrc_rml\t0x");
+		octeon_wdt_write_hex(cvmx_read_csr(CVMX_CIU2_SRC_PPX_IP2_RML(coreid)), 16);
+		octeon_wdt_write_string("\ten_rml\t0x");
+		octeon_wdt_write_hex(cvmx_read_csr(CVMX_CIU2_EN_PPX_IP2_RML(coreid)), 16);
+		octeon_wdt_write_string("\r\n");
+		octeon_wdt_write_string("\tsum\t0x");
+		octeon_wdt_write_hex(cvmx_read_csr(CVMX_CIU2_SUM_PPX_IP2(coreid)), 16);
+		octeon_wdt_write_string("\r\n");
+	} else if (!octeon_has_feature(OCTEON_FEATURE_CIU3)) {
+		octeon_wdt_write_string("\tsum0\t0x");
+		octeon_wdt_write_hex(cvmx_read_csr(CVMX_CIU_INTX_SUM0(coreid * 2)), 16);
+		octeon_wdt_write_string("\ten0\t0x");
+		octeon_wdt_write_hex(cvmx_read_csr(CVMX_CIU_INTX_EN0(coreid * 2)), 16);
+		octeon_wdt_write_string("\r\n");
+	}
 
 	octeon_wdt_write_string("*** Chip soft reset soon ***\r\n");
 }
@@ -366,7 +386,7 @@ static void octeon_wdt_calc_parameters(int t)
 
 	countdown_reset = periods > 2 ? periods - 2 : 0;
 	heartbeat = t;
-	timeout_cnt = ((octeon_get_io_clock_rate() >> 8) * timeout_sec) >> 8;
+	timeout_cnt = ((octeon_get_io_clock_rate() / divisor) * timeout_sec) >> 8;
 }
 
 static int octeon_wdt_set_timeout(struct watchdog_device *wdog,
@@ -437,9 +457,7 @@ static enum cpuhp_state octeon_wdt_online;
  */
 static int __init octeon_wdt_init(void)
 {
-	int i;
 	int ret;
-	u64 *ptr;
 
 	octeon_wdt_bootvector = cvmx_boot_vector_get();
 	if (!octeon_wdt_bootvector) {
@@ -447,10 +465,15 @@ static int __init octeon_wdt_init(void)
 		return -ENOMEM;
 	}
 
+	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+		divisor = 0x200;
+	else
+		divisor = 0x100;
+
 	/*
 	 * Watchdog time expiration length = The 16 bits of LEN
 	 * represent the most significant bits of a 24 bit decrementer
-	 * that decrements every 256 cycles.
+	 * that decrements every divisor cycle.
 	 *
 	 * Try for a timeout of 5 sec, if that fails a smaller number
 	 * of even seconds,
@@ -458,8 +481,7 @@ static int __init octeon_wdt_init(void)
 	max_timeout_sec = 6;
 	do {
 		max_timeout_sec--;
-		timeout_cnt = ((octeon_get_io_clock_rate() >> 8) *
-			      max_timeout_sec) >> 8;
+		timeout_cnt = ((octeon_get_io_clock_rate() / divisor) * max_timeout_sec) >> 8;
 	} while (timeout_cnt > 65535);
 
 	BUG_ON(timeout_cnt == 0);
