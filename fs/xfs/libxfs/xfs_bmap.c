@@ -1359,7 +1359,6 @@ xfs_bmap_first_unused(
 	xfs_fileoff_t	lastaddr;		/* last block number seen */
 	xfs_fileoff_t	lowest;			/* lowest useful block */
 	xfs_fileoff_t	max;			/* starting useful block */
-	xfs_fileoff_t	off;			/* offset for this block */
 	xfs_extnum_t	nextents;		/* number of extent entries */
 
 	ASSERT(XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_BTREE ||
@@ -1376,16 +1375,19 @@ xfs_bmap_first_unused(
 	lowest = *first_unused;
 	nextents = xfs_iext_count(ifp);
 	for (idx = 0, lastaddr = 0, max = lowest; idx < nextents; idx++) {
-		xfs_bmbt_rec_host_t *ep = xfs_iext_get_ext(ifp, idx);
-		off = xfs_bmbt_get_startoff(ep);
+		struct xfs_bmbt_irec got;
+
+		xfs_iext_get_extent(ifp, idx, &got);
+
 		/*
 		 * See if the hole before this extent will work.
 		 */
-		if (off >= lowest + len && off - max >= len) {
+		if (got.br_startoff >= lowest + len &&
+		    got.br_startoff - max >= len) {
 			*first_unused = max;
 			return 0;
 		}
-		lastaddr = off + xfs_bmbt_get_blockcount(ep);
+		lastaddr = got.br_startoff + got.br_blockcount;
 		max = XFS_FILEOFF_MAX(lastaddr, lowest);
 	}
 	*first_unused = max;
