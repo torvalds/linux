@@ -2845,7 +2845,6 @@ static int skd_cons_disk(struct skd_device *skdev)
 		goto err_out;
 	}
 	q->queuedata = skdev;
-	q->nr_requests = skd_max_queue_depth / 2;
 
 	skdev->queue = q;
 	disk->queue = q;
