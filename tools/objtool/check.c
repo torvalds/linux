@@ -218,8 +218,10 @@ static void clear_insn_state(struct insn_state *state)
 
 	memset(state, 0, sizeof(*state));
 	state->cfa.base = CFI_UNDEFINED;
-	for (i = 0; i < CFI_NUM_REGS; i++)
+	for (i = 0; i < CFI_NUM_REGS; i++) {
 		state->regs[i].base = CFI_UNDEFINED;
+		state->vals[i].base = CFI_UNDEFINED;
+	}
 	state->drap_reg = CFI_UNDEFINED;
 	state->drap_offset = -1;
 }
@@ -1201,24 +1203,47 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 		switch (op->src.type) {
 
 		case OP_SRC_REG:
-			if (cfa->base == op->src.reg && cfa->base == CFI_SP &&
-			    op->dest.reg == CFI_BP && regs[CFI_BP].base == CFI_CFA &&
-			    regs[CFI_BP].offset == -cfa->offset) {
+			if (op->src.reg == CFI_SP && op->dest.reg == CFI_BP) {
 
-				/* mov %rsp, %rbp */
-				cfa->base = op->dest.reg;
-				state->bp_scratch = false;
-			} else if (state->drap) {
+				if (cfa->base == CFI_SP &&
+				    regs[CFI_BP].base == CFI_CFA &&
+				    regs[CFI_BP].offset == -cfa->offset) {
 
-				/* drap: mov %rsp, %rbp */
-				regs[CFI_BP].base = CFI_BP;
-				regs[CFI_BP].offset = -state->stack_size;
-				state->bp_scratch = false;
-			} else if (!no_fp) {
+					/* mov %rsp, %rbp */
+					cfa->base = op->dest.reg;
+					state->bp_scratch = false;
+				}
 
-				WARN_FUNC("unknown stack-related register move",
-					  insn->sec, insn->offset);
-				return -1;
+				else if (state->drap) {
+
+					/* drap: mov %rsp, %rbp */
+					regs[CFI_BP].base = CFI_BP;
+					regs[CFI_BP].offset = -state->stack_size;
+					state->bp_scratch = false;
+				}
+			}
+
+			else if (op->dest.reg == cfa->base) {
+
+				/* mov %reg, %rsp */
+				if (cfa->base == CFI_SP &&
+				    state->vals[op->src.reg].base == CFI_CFA) {
+
+					/*
+					 * This is needed for the rare case
+					 * where GCC does something dumb like:
+					 *
+					 *   lea    0x8(%rsp), %rcx
+					 *   ...
+					 *   mov    %rcx, %rsp
+					 */
+					cfa->offset = -state->vals[op->src.reg].offset;
+					state->stack_size = cfa->offset;
+
+				} else {
+					cfa->base = CFI_UNDEFINED;
+					cfa->offset = 0;
+				}
 			}
 
 			break;
@@ -1240,11 +1265,25 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 				break;
 			}
 
-			if (op->dest.reg != CFI_BP && op->src.reg == CFI_SP &&
-			    cfa->base == CFI_SP) {
+			if (op->src.reg == CFI_SP && cfa->base == CFI_SP) {
 
 				/* drap: lea disp(%rsp), %drap */
 				state->drap_reg = op->dest.reg;
+
+				/*
+				 * lea disp(%rsp), %reg
+				 *
+				 * This is needed for the rare case where GCC
+				 * does something dumb like:
+				 *
+				 *   lea    0x8(%rsp), %rcx
+				 *   ...
+				 *   mov    %rcx, %rsp
+				 */
+				state->vals[op->dest.reg].base = CFI_CFA;
+				state->vals[op->dest.reg].offset = \
+					-state->stack_size + op->src.offset;
+
 				break;
 			}
 

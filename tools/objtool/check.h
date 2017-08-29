@@ -33,6 +33,7 @@ struct insn_state {
 	bool bp_scratch;
 	bool drap;
 	int drap_reg, drap_offset;
+	struct cfi_reg vals[CFI_NUM_REGS];
 };
 
 struct instruction {
