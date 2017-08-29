@@ -6127,7 +6127,6 @@ xfs_bmap_shift_extents(
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT(direction == SHIFT_LEFT || direction == SHIFT_RIGHT);
-	ASSERT(*next_fsb != NULLFSBLOCK || direction == SHIFT_RIGHT);
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
@@ -6159,10 +6158,28 @@ xfs_bmap_shift_extents(
 	 * In case of first right shift, we need to initialize next_fsb
 	 */
 	if (*next_fsb == NULLFSBLOCK) {
-		gotp = xfs_iext_get_ext(ifp, total_extents - 1);
+		ASSERT(direction == SHIFT_RIGHT);
+
+		current_ext = total_extents - 1;
+		gotp = xfs_iext_get_ext(ifp, current_ext);
 		xfs_bmbt_get_all(gotp, &got);
 		*next_fsb = got.br_startoff;
 		if (stop_fsb > *next_fsb) {
+			*done = 1;
+			goto del_cursor;
+		}
+	} else {
+		/*
+		 * Look up the extent index for the fsb where we start shifting. We can
+		 * henceforth iterate with current_ext as extent list changes are locked
+		 * out via ilock.
+		 *
+		 * gotp can be null in 2 cases: 1) if there are no extents or 2)
+		 * *next_fsb lies in a hole beyond which there are no extents. Either
+		 * way, we are done.
+		 */
+		gotp = xfs_iext_bno_to_ext(ifp, *next_fsb, &current_ext);
+		if (!gotp) {
 			*done = 1;
 			goto del_cursor;
 		}
@@ -6170,32 +6187,19 @@ xfs_bmap_shift_extents(
 
 	/* Lookup the extent index at which we have to stop */
 	if (direction == SHIFT_RIGHT) {
-		gotp = xfs_iext_bno_to_ext(ifp, stop_fsb, &stop_extent);
+		xfs_iext_bno_to_ext(ifp, stop_fsb, &stop_extent);
 		/* Make stop_extent exclusive of shift range */
 		stop_extent--;
-	} else
+		if (current_ext <= stop_extent) {
+			error = -EIO;
+			goto del_cursor;
+		}
+	} else {
 		stop_extent = total_extents;
-
-	/*
-	 * Look up the extent index for the fsb where we start shifting. We can
-	 * henceforth iterate with current_ext as extent list changes are locked
-	 * out via ilock.
-	 *
-	 * gotp can be null in 2 cases: 1) if there are no extents or 2)
-	 * *next_fsb lies in a hole beyond which there are no extents. Either
-	 * way, we are done.
-	 */
-	gotp = xfs_iext_bno_to_ext(ifp, *next_fsb, &current_ext);
-	if (!gotp) {
-		*done = 1;
-		goto del_cursor;
-	}
-
-	/* some sanity checking before we finally start shifting extents */
-	if ((direction == SHIFT_LEFT && current_ext >= stop_extent) ||
-	     (direction == SHIFT_RIGHT && current_ext <= stop_extent)) {
-		error = -EIO;
-		goto del_cursor;
+		if (current_ext >= stop_extent) {
+			error = -EIO;
+			goto del_cursor;
+		}
 	}
 
 	while (nexts++ < num_exts) {
