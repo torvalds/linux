@@ -1266,9 +1266,14 @@ static int __init ghes_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	if (hest_disable) {
+	switch (hest_disable) {
+	case HEST_NOT_FOUND:
+		return -ENODEV;
+	case HEST_DISABLED:
 		pr_info(GHES_PFX "HEST is not enabled!\n");
 		return -EINVAL;
+	default:
+		break;
 	}
 
 	if (ghes_disable) {
