@@ -2870,6 +2870,7 @@ static int smiapp_probe(struct i2c_client *client,
 {
 	struct smiapp_sensor *sensor;
 	struct smiapp_hwconfig *hwcfg = smiapp_get_hwconfig(&client->dev);
+	unsigned long rate;
 	unsigned int i;
 	int rval;
 
@@ -2905,6 +2906,14 @@ static int smiapp_probe(struct i2c_client *client,
 		dev_err(&client->dev,
 			"unable to set clock freq to %u\n",
 			sensor->hwcfg->ext_clk);
+		return rval;
+	}
+
+	rate = clk_get_rate(sensor->ext_clk);
+	if (rate != sensor->hwcfg->ext_clk) {
+		dev_err(&client->dev,
+			"can't set clock freq, asked for %u but got %lu\n",
+			sensor->hwcfg->ext_clk, rate);
 		return rval;
 	}
 
