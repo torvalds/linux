@@ -132,7 +132,7 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 
 	/* Parse the card name from DT */
 	ret = snd_soc_of_parse_card_name(card, "label");
-	if (ret < 0) {
+	if (ret < 0 || !card->name) {
 		char prop[128];
 
 		snprintf(prop, sizeof(prop), "%sname", prefix);
