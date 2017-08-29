@@ -6086,9 +6086,9 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct net *net = sock_net(sk);
 	struct sock *fastopen_sk = NULL;
-	struct dst_entry *dst = NULL;
 	struct request_sock *req;
 	bool want_cookie = false;
+	struct dst_entry *dst;
 	struct flowi fl;
 
 	/* TW buckets are converted to open requests without

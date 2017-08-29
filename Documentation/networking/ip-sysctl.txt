@@ -109,7 +109,10 @@ neigh/default/unres_qlen_bytes - INTEGER
 	queued for each	unresolved address by other network layers.
 	(added in linux 3.3)
 	Setting negative value is meaningless and will return error.
-	Default: 65536 Bytes(64KB)
+	Default: SK_WMEM_MAX, (same as net.core.wmem_default).
+		Exact value depends on architecture and kernel options,
+		but should be enough to allow queuing 256 packets
+		of medium size.
 
 neigh/default/unres_qlen - INTEGER
 	The maximum number of packets which may be queued for each
@@ -119,7 +122,7 @@ neigh/default/unres_qlen - INTEGER
 	unexpected packet loss. The current default value is calculated
 	according to default value of unres_qlen_bytes and true size of
 	packet.
-	Default: 31
+	Default: 101
 
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
