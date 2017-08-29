@@ -2023,3 +2023,15 @@ xfs_iext_get_extent(
 	xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx), gotp);
 	return true;
 }
+
+void
+xfs_iext_update_extent(
+	struct xfs_ifork	*ifp,
+	xfs_extnum_t		idx,
+	struct xfs_bmbt_irec	*gotp)
+{
+	ASSERT(idx >= 0);
+	ASSERT(idx < xfs_iext_count(ifp));
+
+	xfs_bmbt_set_all(xfs_iext_get_ext(ifp, idx), gotp);
+}

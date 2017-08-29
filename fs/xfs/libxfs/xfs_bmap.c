@@ -4918,7 +4918,7 @@ xfs_bmap_del_extent_delay(
 		da_new = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip,
 				got->br_blockcount), da_old);
 		got->br_startblock = nullstartblock((int)da_new);
-		xfs_bmbt_set_all(xfs_iext_get_ext(ifp, *idx), got);
+		xfs_iext_update_extent(ifp, *idx, got);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 		break;
 	case BMAP_RIGHT_CONTIG:
@@ -4930,7 +4930,7 @@ xfs_bmap_del_extent_delay(
 		da_new = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip,
 				got->br_blockcount), da_old);
 		got->br_startblock = nullstartblock((int)da_new);
-		xfs_bmbt_set_all(xfs_iext_get_ext(ifp, *idx), got);
+		xfs_iext_update_extent(ifp, *idx, got);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 		break;
 	case 0:
@@ -4956,7 +4956,7 @@ xfs_bmap_del_extent_delay(
 						       del->br_blockcount);
 
 		got->br_startblock = nullstartblock((int)got_indlen);
-		xfs_bmbt_set_all(xfs_iext_get_ext(ifp, *idx), got);
+		xfs_iext_update_extent(ifp, *idx, got);
 		trace_xfs_bmap_post_update(ip, *idx, 0, _THIS_IP_);
 
 		new.br_startoff = del_endoff;
@@ -5026,7 +5026,7 @@ xfs_bmap_del_extent_cow(
 		got->br_startoff = del_endoff;
 		got->br_blockcount -= del->br_blockcount;
 		got->br_startblock = del->br_startblock + del->br_blockcount;
-		xfs_bmbt_set_all(xfs_iext_get_ext(ifp, *idx), got);
+		xfs_iext_update_extent(ifp, *idx, got);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 		break;
 	case BMAP_RIGHT_CONTIG:
@@ -5035,7 +5035,7 @@ xfs_bmap_del_extent_cow(
 		 */
 		trace_xfs_bmap_pre_update(ip, *idx, state, _THIS_IP_);
 		got->br_blockcount -= del->br_blockcount;
-		xfs_bmbt_set_all(xfs_iext_get_ext(ifp, *idx), got);
+		xfs_iext_update_extent(ifp, *idx, got);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 		break;
 	case 0:
@@ -5044,7 +5044,7 @@ xfs_bmap_del_extent_cow(
 		 */
 		trace_xfs_bmap_pre_update(ip, *idx, state, _THIS_IP_);
 		got->br_blockcount = del->br_startoff - got->br_startoff;
-		xfs_bmbt_set_all(xfs_iext_get_ext(ifp, *idx), got);
+		xfs_iext_update_extent(ifp, *idx, got);
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 
 		new.br_startoff = del_endoff;
