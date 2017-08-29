@@ -880,7 +880,7 @@ xfs_bmap_local_to_extents(
 	xfs_ifork_t	*ifp;		/* inode fork pointer */
 	xfs_alloc_arg_t	args;		/* allocation arguments */
 	xfs_buf_t	*bp;		/* buffer for extent block */
-	xfs_bmbt_rec_host_t *ep;	/* extent record pointer */
+	struct xfs_bmbt_irec rec;
 
 	/*
 	 * We don't want to deal with the case of keeping inode data inline yet.
@@ -943,9 +943,12 @@ xfs_bmap_local_to_extents(
 	xfs_bmap_local_to_extents_empty(ip, whichfork);
 	flags |= XFS_ILOG_CORE;
 
-	xfs_iext_add(ifp, 0, 1);
-	ep = xfs_iext_get_ext(ifp, 0);
-	xfs_bmbt_set_allf(ep, 0, args.fsbno, 1, XFS_EXT_NORM);
+	rec.br_startoff = 0;
+	rec.br_startblock = args.fsbno;
+	rec.br_blockcount = 1;
+	rec.br_state = XFS_EXT_NORM;
+	xfs_iext_insert(ip, 0, 1, &rec, 0);
+
 	trace_xfs_bmap_post_update(ip, 0,
 			whichfork == XFS_ATTR_FORK ? BMAP_ATTRFORK : 0,
 			_THIS_IP_);
