@@ -179,7 +179,7 @@ SECTIONS
 		*(.taglist.init)
 		__tagtable_end = .;
 	}
-	.init.data : {
+	.init.rodata : {
 		INIT_SETUP(16)
 		INIT_CALLS
 		CON_INITCALL
@@ -187,48 +187,46 @@ SECTIONS
 		INIT_RAM_FS
 	}
 
+	_exiprom = .;			/* End of XIP ROM area */
+
+/*
+ * From this point, stuff is considered writable and will be copied to RAM
+ */
+	__data_loc = ALIGN(4);		/* location in file */
+	. = PAGE_OFFSET + TEXT_OFFSET;	/* location in memory */
+#undef LOAD_OFFSET
+#define LOAD_OFFSET (PAGE_OFFSET + TEXT_OFFSET - __data_loc)
+
+	. = ALIGN(THREAD_SIZE);
+	_sdata = .;
+	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
+	.data.ro_after_init : AT(ADDR(.data.ro_after_init) - LOAD_OFFSET) {
+		*(.data..ro_after_init)
+	}
+	_edata = .;
+
+	. = ALIGN(PAGE_SIZE);
+	__init_begin = .;
+	.init.data : AT(ADDR(.init.data) - LOAD_OFFSET) {
+		INIT_DATA
+	}
+	.exit.data : AT(ADDR(.exit.data) - LOAD_OFFSET) {
+		ARM_EXIT_KEEP(EXIT_DATA)
+	}
 #ifdef CONFIG_SMP
 	PERCPU_SECTION(L1_CACHE_BYTES)
 #endif
 
-	_exiprom = .;			/* End of XIP ROM area */
-	__data_loc = ALIGN(4);		/* location in binary */
-	. = PAGE_OFFSET + TEXT_OFFSET;
+	/*
+	 * End of copied data. We need a dummy section to get its LMA.
+	 * Also located before final ALIGN() as trailing padding is not stored
+	 * in the resulting binary file and useless to copy.
+	 */
+	.data.endmark : AT(ADDR(.data.endmark) - LOAD_OFFSET) { }
+	_edata_loc = LOADADDR(.data.endmark);
 
-	.data : AT(__data_loc) {
-		_data = .;		/* address in memory */
-		_sdata = .;
-
-		/*
-		 * first, the init task union, aligned
-		 * to an 8192 byte boundary.
-		 */
-		INIT_TASK_DATA(THREAD_SIZE)
-
-		. = ALIGN(PAGE_SIZE);
-		__init_begin = .;
-		INIT_DATA
-		ARM_EXIT_KEEP(EXIT_DATA)
-		. = ALIGN(PAGE_SIZE);
-		__init_end = .;
-
-		*(.data..ro_after_init)
-
-		NOSAVE_DATA
-		CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)
-		READ_MOSTLY_DATA(L1_CACHE_BYTES)
-
-		/*
-		 * and the usual data section
-		 */
-		DATA_DATA
-		CONSTRUCTORS
-
-		_edata = .;
-	}
-	_edata_loc = __data_loc + SIZEOF(.data);
-
-	BUG_TABLE
+	. = ALIGN(PAGE_SIZE);
+	__init_end = .;
 
 #ifdef CONFIG_HAVE_TCM
         /*
