@@ -7981,7 +7981,7 @@ static void ilk_init_lp_watermarks(struct drm_i915_private *dev_priv)
 	 */
 }
 
-static void ironlake_init_clock_gating(struct drm_i915_private *dev_priv)
+static void ilk_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	uint32_t dspclk_gate = ILK_VRHUNIT_CLOCK_GATE_DISABLE;
 
@@ -8264,7 +8264,7 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *dev_priv,
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 }
 
-static void cannonlake_init_clock_gating(struct drm_i915_private *dev_priv)
+static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	/* This is not an Wa. Enable for better image quality */
 	I915_WRITE(_3D_CHICKEN3,
@@ -8285,7 +8285,7 @@ static void cannonlake_init_clock_gating(struct drm_i915_private *dev_priv)
 			   SARBUNIT_CLKGATE_DIS);
 }
 
-static void kabylake_init_clock_gating(struct drm_i915_private *dev_priv)
+static void kbl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	gen9_init_clock_gating(dev_priv);
 
@@ -8304,7 +8304,7 @@ static void kabylake_init_clock_gating(struct drm_i915_private *dev_priv)
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
 }
 
-static void skylake_init_clock_gating(struct drm_i915_private *dev_priv)
+static void skl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	gen9_init_clock_gating(dev_priv);
 
@@ -8317,7 +8317,7 @@ static void skylake_init_clock_gating(struct drm_i915_private *dev_priv)
 		   ILK_DPFC_NUKE_ON_ANY_MODIFICATION);
 }
 
-static void broadwell_init_clock_gating(struct drm_i915_private *dev_priv)
+static void bdw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	enum pipe pipe;
 
@@ -8375,7 +8375,7 @@ static void broadwell_init_clock_gating(struct drm_i915_private *dev_priv)
 		   I915_READ(GEN6_UCGCTL1) | GEN6_EU_TCUNIT_CLOCK_GATE_DISABLE);
 }
 
-static void haswell_init_clock_gating(struct drm_i915_private *dev_priv)
+static void hsw_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	ilk_init_lp_watermarks(dev_priv);
 
@@ -8429,7 +8429,7 @@ static void haswell_init_clock_gating(struct drm_i915_private *dev_priv)
 	lpt_init_clock_gating(dev_priv);
 }
 
-static void ivybridge_init_clock_gating(struct drm_i915_private *dev_priv)
+static void ivb_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	uint32_t snpcr;
 
@@ -8526,7 +8526,7 @@ static void ivybridge_init_clock_gating(struct drm_i915_private *dev_priv)
 	gen6_check_mch_setup(dev_priv);
 }
 
-static void valleyview_init_clock_gating(struct drm_i915_private *dev_priv)
+static void vlv_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	/* WaDisableEarlyCull:vlv */
 	I915_WRITE(_3D_CHICKEN3,
@@ -8606,7 +8606,7 @@ static void valleyview_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(VLV_GUNIT_CLOCK_GATE, GCFG_DIS);
 }
 
-static void cherryview_init_clock_gating(struct drm_i915_private *dev_priv)
+static void chv_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	/* WaVSRefCountFullforceMissDisable:chv */
 	/* WaDSRefCountFullforceMissDisable:chv */
@@ -8666,7 +8666,7 @@ static void g4x_init_clock_gating(struct drm_i915_private *dev_priv)
 	g4x_disable_trickle_feed(dev_priv);
 }
 
-static void crestline_init_clock_gating(struct drm_i915_private *dev_priv)
+static void i965gm_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
 	I915_WRITE(RENCLK_GATE_D2, 0);
@@ -8680,7 +8680,7 @@ static void crestline_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(CACHE_MODE_0, _MASKED_BIT_DISABLE(RC_OP_FLUSH_ENABLE));
 }
 
-static void broadwater_init_clock_gating(struct drm_i915_private *dev_priv)
+static void i965g_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE(RENCLK_GATE_D1, I965_RCZ_CLOCK_GATE_DISABLE |
 		   I965_RCC_CLOCK_GATE_DISABLE |
@@ -8766,35 +8766,35 @@ static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
 void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 {
 	if (IS_CANNONLAKE(dev_priv))
-		dev_priv->display.init_clock_gating = cannonlake_init_clock_gating;
+		dev_priv->display.init_clock_gating = cnl_init_clock_gating;
 	else if (IS_SKYLAKE(dev_priv))
-		dev_priv->display.init_clock_gating = skylake_init_clock_gating;
+		dev_priv->display.init_clock_gating = skl_init_clock_gating;
 	else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
-		dev_priv->display.init_clock_gating = kabylake_init_clock_gating;
+		dev_priv->display.init_clock_gating = kbl_init_clock_gating;
 	else if (IS_BROXTON(dev_priv))
 		dev_priv->display.init_clock_gating = bxt_init_clock_gating;
 	else if (IS_GEMINILAKE(dev_priv))
 		dev_priv->display.init_clock_gating = glk_init_clock_gating;
 	else if (IS_BROADWELL(dev_priv))
-		dev_priv->display.init_clock_gating = broadwell_init_clock_gating;
+		dev_priv->display.init_clock_gating = bdw_init_clock_gating;
 	else if (IS_CHERRYVIEW(dev_priv))
-		dev_priv->display.init_clock_gating = cherryview_init_clock_gating;
+		dev_priv->display.init_clock_gating = chv_init_clock_gating;
 	else if (IS_HASWELL(dev_priv))
-		dev_priv->display.init_clock_gating = haswell_init_clock_gating;
+		dev_priv->display.init_clock_gating = hsw_init_clock_gating;
 	else if (IS_IVYBRIDGE(dev_priv))
-		dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
+		dev_priv->display.init_clock_gating = ivb_init_clock_gating;
 	else if (IS_VALLEYVIEW(dev_priv))
-		dev_priv->display.init_clock_gating = valleyview_init_clock_gating;
+		dev_priv->display.init_clock_gating = vlv_init_clock_gating;
 	else if (IS_GEN6(dev_priv))
 		dev_priv->display.init_clock_gating = gen6_init_clock_gating;
 	else if (IS_GEN5(dev_priv))
-		dev_priv->display.init_clock_gating = ironlake_init_clock_gating;
+		dev_priv->display.init_clock_gating = ilk_init_clock_gating;
 	else if (IS_G4X(dev_priv))
 		dev_priv->display.init_clock_gating = g4x_init_clock_gating;
 	else if (IS_I965GM(dev_priv))
-		dev_priv->display.init_clock_gating = crestline_init_clock_gating;
+		dev_priv->display.init_clock_gating = i965gm_init_clock_gating;
 	else if (IS_I965G(dev_priv))
-		dev_priv->display.init_clock_gating = broadwater_init_clock_gating;
+		dev_priv->display.init_clock_gating = i965g_init_clock_gating;
 	else if (IS_GEN3(dev_priv))
 		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
 	else if (IS_I85X(dev_priv) || IS_I865G(dev_priv))
