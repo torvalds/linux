@@ -546,9 +546,33 @@ static void del_sw_flow_group(struct fs_node *node)
 	WARN_ON(err);
 }
 
-static struct fs_fte *alloc_fte(struct mlx5_flow_act *flow_act,
-				u32 *match_value,
-				unsigned int index)
+static int insert_fte(struct mlx5_flow_group *fg, struct fs_fte *fte)
+{
+	int index;
+	int ret;
+
+	index = ida_simple_get(&fg->fte_allocator, 0, fg->max_ftes, GFP_KERNEL);
+	if (index < 0)
+		return index;
+
+	fte->index = index + fg->start_index;
+	ret = rhashtable_insert_fast(&fg->ftes_hash,
+				     &fte->hash,
+				     rhash_fte);
+	if (ret)
+		goto err_ida_remove;
+
+	tree_add_node(&fte->node, &fg->node);
+	list_add_tail(&fte->node.list, &fg->node.children);
+	return 0;
+
+err_ida_remove:
+	ida_simple_remove(&fg->fte_allocator, index);
+	return ret;
+}
+
+static struct fs_fte *alloc_fte(u32 *match_value,
+				struct mlx5_flow_act *flow_act)
 {
 	struct fs_fte *fte;
 
@@ -559,51 +583,13 @@ static struct fs_fte *alloc_fte(struct mlx5_flow_act *flow_act,
 	memcpy(fte->val, match_value, sizeof(fte->val));
 	fte->node.type =  FS_TYPE_FLOW_ENTRY;
 	fte->flow_tag = flow_act->flow_tag;
-	fte->index = index;
 	fte->action = flow_act->action;
 	fte->encap_id = flow_act->encap_id;
 	fte->modify_id = flow_act->modify_id;
 
-	return fte;
-}
-
-static struct fs_fte *alloc_insert_fte(struct mlx5_flow_group *fg,
-				       u32 *match_value,
-				       struct mlx5_flow_act *flow_act)
-{
-	struct fs_fte *fte;
-	int index;
-	int ret;
-
-	index = ida_simple_get(&fg->fte_allocator, 0,
-			       fg->max_ftes,
-			       GFP_KERNEL);
-	if (index < 0)
-		return ERR_PTR(index);
-
-	fte = alloc_fte(flow_act, match_value, index + fg->start_index);
-	if (IS_ERR(fte)) {
-		ret = PTR_ERR(fte);
-		goto err_ida_remove;
-	}
-
-	ret = rhashtable_insert_fast(&fg->ftes_hash,
-				     &fte->hash,
-				     rhash_fte);
-	if (ret)
-		goto err_free;
-
 	tree_init_node(&fte->node, del_hw_fte, del_sw_fte);
-	tree_add_node(&fte->node, &fg->node);
-	list_add_tail(&fte->node.list, &fg->node.children);
 
 	return fte;
-
-err_free:
-	kfree(fte);
-err_ida_remove:
-	ida_simple_remove(&fg->fte_allocator, index);
-	return ERR_PTR(ret);
 }
 
 static void dealloc_flow_group(struct mlx5_flow_group *fg)
@@ -1589,6 +1575,11 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 	bool take_write = false;
 	struct fs_fte *fte;
 	u64  version;
+	int err;
+
+	fte = alloc_fte(spec->match_value, flow_act);
+	if (IS_ERR(fte))
+		return  ERR_PTR(-ENOMEM);
 
 	list_for_each_entry(iter, match_head, list) {
 		nested_down_read_ref_node(&iter->g->node, FS_LOCK_PARENT);
@@ -1620,6 +1611,7 @@ search_again_locked:
 				   flow_act, dest, dest_num, fte_tmp);
 		up_write_ref_node(&fte_tmp->node);
 		tree_put_node(&fte_tmp->node);
+		kfree(fte);
 		return rule;
 	}
 
@@ -1655,13 +1647,14 @@ search_again_locked:
 
 		if (!g->node.active)
 			continue;
-		fte = alloc_insert_fte(g, spec->match_value, flow_act);
-		if (IS_ERR(fte)) {
-			if (PTR_ERR(fte) == -ENOSPC)
+		err = insert_fte(g, fte);
+		if (err) {
+			if (err == -ENOSPC)
 				continue;
 			list_for_each_entry(iter, match_head, list)
 				up_write_ref_node(&iter->g->node);
-			return (void *)fte;
+			kfree(fte);
+			return ERR_PTR(err);
 		}
 
 		nested_down_write_ref_node(&fte->node, FS_LOCK_CHILD);
@@ -1677,6 +1670,7 @@ search_again_locked:
 out:
 	list_for_each_entry(iter, match_head, list)
 		up_write_ref_node(&iter->g->node);
+	kfree(fte);
 	return rule;
 }
 
@@ -1746,9 +1740,15 @@ search_again_locked:
 	if (err)
 		goto err_release_fg;
 
-	fte = alloc_insert_fte(g, spec->match_value, flow_act);
+	fte = alloc_fte(spec->match_value, flow_act);
 	if (IS_ERR(fte)) {
 		err = PTR_ERR(fte);
+		goto err_release_fg;
+	}
+
+	err = insert_fte(g, fte);
+	if (err) {
+		kfree(fte);
 		goto err_release_fg;
 	}
 
