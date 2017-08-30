@@ -1005,7 +1005,8 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 	if (ssn != NULL)
 		seq_no = *ssn;
 
-	if (vif->type == NL80211_IFTYPE_AP) {
+	if ((vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_P2P_GO)) {
 		rsta = rsi_find_sta(common, sta->addr);
 		if (!rsta) {
 			rsi_dbg(ERR_ZONE, "No station mapped\n");
@@ -1039,9 +1040,11 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 		break;
 
 	case IEEE80211_AMPDU_TX_START:
-		if (vif->type == NL80211_IFTYPE_STATION)
+		if ((vif->type == NL80211_IFTYPE_STATION) ||
+		    (vif->type == NL80211_IFTYPE_P2P_CLIENT))
 			common->vif_info[ii].seq_start = seq_no;
-		else if (vif->type == NL80211_IFTYPE_AP)
+		else if ((vif->type == NL80211_IFTYPE_AP) ||
+			 (vif->type == NL80211_IFTYPE_P2P_GO))
 			rsta->seq_start[tid] = seq_no;
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		status = 0;
@@ -1061,9 +1064,11 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 		break;
 
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		if (vif->type == NL80211_IFTYPE_STATION)
+		if ((vif->type == NL80211_IFTYPE_STATION) ||
+		    (vif->type == NL80211_IFTYPE_P2P_CLIENT))
 			seq_start = common->vif_info[ii].seq_start;
-		else if (vif->type == NL80211_IFTYPE_AP)
+		else if ((vif->type == NL80211_IFTYPE_AP) ||
+			 (vif->type == NL80211_IFTYPE_P2P_GO))
 			seq_start = rsta->seq_start[tid];
 		status = rsi_send_aggregation_params_frame(common,
 							   tid,
