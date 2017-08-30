@@ -2137,13 +2137,13 @@ int ida_pre_get(struct ida *ida, gfp_t gfp)
 }
 EXPORT_SYMBOL(ida_pre_get);
 
-void __rcu **idr_get_free(struct radix_tree_root *root,
-			struct radix_tree_iter *iter, gfp_t gfp, int end)
+void __rcu **idr_get_free_cmn(struct radix_tree_root *root,
+			      struct radix_tree_iter *iter, gfp_t gfp,
+			      unsigned long max)
 {
 	struct radix_tree_node *node = NULL, *child;
 	void __rcu **slot = (void __rcu **)&root->rnode;
 	unsigned long maxindex, start = iter->next_index;
-	unsigned long max = end > 0 ? end - 1 : INT_MAX;
 	unsigned int shift, offset = 0;
 
  grow:
