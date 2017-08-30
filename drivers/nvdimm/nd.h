@@ -42,7 +42,7 @@ struct nd_poison {
 
 struct nvdimm_drvdata {
 	struct device *dev;
-	int nsindex_size, nslabel_size;
+	int nslabel_size;
 	struct nd_cmd_get_config_size nsarea;
 	void *data;
 	int ns_current, ns_next;
