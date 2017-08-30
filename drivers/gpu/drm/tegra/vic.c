@@ -167,7 +167,7 @@ static int vic_init(struct host1x_client *client)
 		goto detach_device;
 	}
 
-	client->syncpts[0] = host1x_syncpt_request(client->dev, 0);
+	client->syncpts[0] = host1x_syncpt_request(client, 0);
 	if (!client->syncpts[0]) {
 		err = -ENOMEM;
 		goto free_channel;
