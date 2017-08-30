@@ -1274,7 +1274,7 @@ static int vhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	return 0;
 }
 
-static struct hc_driver vhci_hc_driver = {
+static const struct hc_driver vhci_hc_driver = {
 	.description	= driver_name,
 	.product_desc	= driver_desc,
 	.hcd_priv_size	= sizeof(struct vhci_hcd),
