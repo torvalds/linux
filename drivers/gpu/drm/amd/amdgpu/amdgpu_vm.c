@@ -1476,7 +1476,6 @@ static int amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
  *
  * @adev: amdgpu_device pointer
  * @exclusive: fence we need to sync to
- * @src: address where to copy page table entries from
  * @pages_addr: DMA addresses to use for mapping
  * @vm: requested vm
  * @start: start of mapped range
@@ -1490,7 +1489,6 @@ static int amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
  */
 static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 				       struct dma_fence *exclusive,
-				       uint64_t src,
 				       dma_addr_t *pages_addr,
 				       struct amdgpu_vm *vm,
 				       uint64_t start, uint64_t last,
@@ -1508,7 +1506,6 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
 	params.vm = vm;
-	params.src = src;
 
 	/* sync to everything on unmapping */
 	if (!(flags & AMDGPU_PTE_VALID))
@@ -1548,13 +1545,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	/* one PDE write for each huge page */
 	ndw += ((nptes >> adev->vm_manager.block_size) + 1) * 6;
 
-	if (src) {
-		/* only copy commands needed */
-		ndw += ncmds * 7;
-
-		params.func = amdgpu_vm_do_copy_ptes;
-
-	} else if (pages_addr) {
+	if (pages_addr) {
 		/* copy commands needed */
 		ndw += ncmds * 7;
 
@@ -1579,7 +1570,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 	params.ib = &job->ibs[0];
 
-	if (!src && pages_addr) {
+	if (pages_addr) {
 		uint64_t *pte;
 		unsigned i;
 
@@ -1656,7 +1647,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 				      struct drm_mm_node *nodes,
 				      struct dma_fence **fence)
 {
-	uint64_t pfn, src = 0, start = mapping->start;
+	uint64_t pfn, start = mapping->start;
 	int r;
 
 	/* normally,bo_va->flags only contians READABLE and WIRTEABLE bit go here
@@ -1711,8 +1702,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		addr += pfn << PAGE_SHIFT;
 
 		last = min((uint64_t)mapping->last, start + max_entries - 1);
-		r = amdgpu_vm_bo_update_mapping(adev, exclusive,
-						src, pages_addr, vm,
+		r = amdgpu_vm_bo_update_mapping(adev, exclusive, pages_addr, vm,
 						start, last, flags, addr,
 						fence);
 		if (r)
@@ -1973,7 +1963,7 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 		if (vm->pte_support_ats)
 			init_pte_value = AMDGPU_PTE_SYSTEM;
 
-		r = amdgpu_vm_bo_update_mapping(adev, NULL, 0, NULL, vm,
+		r = amdgpu_vm_bo_update_mapping(adev, NULL, NULL, vm,
 						mapping->start, mapping->last,
 						init_pte_value, 0, &f);
 		amdgpu_vm_free_mapping(adev, vm, mapping, f);
