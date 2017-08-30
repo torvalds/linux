@@ -32,9 +32,9 @@ Features
   hashing. Using L3 hashing is recommended in this case.
 
   For example, for UDP over IPv4 on eth0:
-  To include UDP port numbers in hasing:
+  To include UDP port numbers in hashing:
         ethtool -N eth0 rx-flow-hash udp4 sdfn
-  To exclude UDP port numbers in hasing:
+  To exclude UDP port numbers in hashing:
         ethtool -N eth0 rx-flow-hash udp4 sd
   To show UDP hash level:
         ethtool -n eth0 rx-flow-hash udp4
