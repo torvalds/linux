@@ -624,6 +624,40 @@
 			dma-names = "tx", "rx";
 		};
 
+		hsi: hsi@4a058000 {
+			compatible = "ti,omap4-hsi";
+			reg = <0x4a058000 0x4000>,
+			      <0x4a05c000 0x1000>;
+			reg-names = "sys", "gdd";
+			ti,hwmods = "hsi";
+
+			clocks = <&hsi_fck>;
+			clock-names = "hsi_fck";
+
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "gdd_mpu";
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a058000 0x4000>;
+
+			hsi_port1: hsi-port@2000 {
+				compatible = "ti,omap4-hsi-port";
+				reg = <0x2000 0x800>,
+				      <0x2800 0x800>;
+				reg-names = "tx", "rx";
+				interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			hsi_port2: hsi-port@3000 {
+				compatible = "ti,omap4-hsi-port";
+				reg = <0x3000 0x800>,
+				      <0x3800 0x800>;
+				reg-names = "tx", "rx";
+				interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
 		mmu_dsp: mmu@4a066000 {
 			compatible = "ti,omap4-iommu";
 			reg = <0x4a066000 0x100>;
