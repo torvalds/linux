@@ -367,7 +367,6 @@ struct hns_roce_cmd_context {
 
 struct hns_roce_cmdq {
 	struct dma_pool		*pool;
-	u8 __iomem		*hcr;
 	struct mutex		hcr_mutex;
 	struct semaphore	poll_sem;
 	/*
@@ -517,6 +516,10 @@ struct hns_roce_hw {
 	int (*hw_profile)(struct hns_roce_dev *hr_dev);
 	int (*hw_init)(struct hns_roce_dev *hr_dev);
 	void (*hw_exit)(struct hns_roce_dev *hr_dev);
+	int (*post_mbox)(struct hns_roce_dev *hr_dev, u64 in_param,
+			 u64 out_param, u32 in_modifier, u8 op_modifier, u16 op,
+			 u16 token, int event);
+	int (*chk_mbox)(struct hns_roce_dev *hr_dev, unsigned long timeout);
 	void (*set_gid)(struct hns_roce_dev *hr_dev, u8 port, int gid_index,
 			union ib_gid *gid);
 	void (*set_mac)(struct hns_roce_dev *hr_dev, u8 phy_port, u8 *addr);

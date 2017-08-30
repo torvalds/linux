@@ -341,6 +341,7 @@
 #define ROCEE_BT_CMD_L_REG			0x200
 
 #define ROCEE_MB1_REG				0x210
+#define ROCEE_MB6_REG				0x224
 #define ROCEE_DB_SQ_L_0_REG			0x230
 #define ROCEE_DB_OTHERS_L_0_REG			0x238
 #define ROCEE_QP1C_CFG0_0_REG			0x270

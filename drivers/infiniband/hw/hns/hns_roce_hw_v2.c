@@ -553,10 +553,94 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
+static int hns_roce_v2_cmd_pending(struct hns_roce_dev *hr_dev)
+{
+	u32 status = readl(hr_dev->reg_base + ROCEE_VF_MB_STATUS_REG);
+
+	return status >> HNS_ROCE_HW_RUN_BIT_SHIFT;
+}
+
+static int hns_roce_v2_cmd_complete(struct hns_roce_dev *hr_dev)
+{
+	u32 status = readl(hr_dev->reg_base + ROCEE_VF_MB_STATUS_REG);
+
+	return status & HNS_ROCE_HW_MB_STATUS_MASK;
+}
+
+static int hns_roce_v2_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
+				 u64 out_param, u32 in_modifier, u8 op_modifier,
+				 u16 op, u16 token, int event)
+{
+	struct device *dev = hr_dev->dev;
+	u32 *hcr = (u32 *)(hr_dev->reg_base + ROCEE_VF_MB_CFG0_REG);
+	unsigned long end;
+	u32 val0 = 0;
+	u32 val1 = 0;
+
+	end = msecs_to_jiffies(HNS_ROCE_V2_GO_BIT_TIMEOUT_MSECS) + jiffies;
+	while (hns_roce_v2_cmd_pending(hr_dev)) {
+		if (time_after(jiffies, end)) {
+			dev_dbg(dev, "jiffies=%d end=%d\n", (int)jiffies,
+				(int)end);
+			return -EAGAIN;
+		}
+		cond_resched();
+	}
+
+	roce_set_field(val0, HNS_ROCE_VF_MB4_TAG_MASK,
+		       HNS_ROCE_VF_MB4_TAG_SHIFT, in_modifier);
+	roce_set_field(val0, HNS_ROCE_VF_MB4_CMD_MASK,
+		       HNS_ROCE_VF_MB4_CMD_SHIFT, op);
+	roce_set_field(val1, HNS_ROCE_VF_MB5_EVENT_MASK,
+		       HNS_ROCE_VF_MB5_EVENT_SHIFT, event);
+	roce_set_field(val1, HNS_ROCE_VF_MB5_TOKEN_MASK,
+		       HNS_ROCE_VF_MB5_TOKEN_SHIFT, token);
+
+	__raw_writeq(cpu_to_le64(in_param), hcr + 0);
+	__raw_writeq(cpu_to_le64(out_param), hcr + 2);
+
+	/* Memory barrier */
+	wmb();
+
+	__raw_writel(cpu_to_le32(val0), hcr + 4);
+	__raw_writel(cpu_to_le32(val1), hcr + 5);
+
+	mmiowb();
+
+	return 0;
+}
+
+static int hns_roce_v2_chk_mbox(struct hns_roce_dev *hr_dev,
+				unsigned long timeout)
+{
+	struct device *dev = hr_dev->dev;
+	unsigned long end = 0;
+	u32 status;
+
+	end = msecs_to_jiffies(timeout) + jiffies;
+	while (hns_roce_v2_cmd_pending(hr_dev) && time_before(jiffies, end))
+		cond_resched();
+
+	if (hns_roce_v2_cmd_pending(hr_dev)) {
+		dev_err(dev, "[cmd_poll]hw run cmd TIMEDOUT!\n");
+		return -ETIMEDOUT;
+	}
+
+	status = hns_roce_v2_cmd_complete(hr_dev);
+	if (status != 0x1) {
+		dev_err(dev, "mailbox status 0x%x!\n", status);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
 static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.cmq_init = hns_roce_v2_cmq_init,
 	.cmq_exit = hns_roce_v2_cmq_exit,
 	.hw_profile = hns_roce_v2_profile,
+	.post_mbox = hns_roce_v2_post_mbox,
+	.chk_mbox = hns_roce_v2_chk_mbox,
 };
 
 static const struct pci_device_id hns_roce_hw_v2_pci_tbl[] = {
