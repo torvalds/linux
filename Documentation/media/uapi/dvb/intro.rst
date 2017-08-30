@@ -71,8 +71,7 @@ Overview
 A Digital TV card or set-top-box (STB) usually consists of the
 following main hardware components:
 
--  Frontend consisting of tuner and digital TV demodulator
-
+Frontend consisting of tuner and digital TV demodulator
    Here the raw signal reaches the digital TV hardware from a satellite dish or
    antenna or directly from cable. The frontend down-converts and
    demodulates this signal into an MPEG transport stream (TS). In case
@@ -80,34 +79,40 @@ following main hardware components:
    equipment control (SEC), which allows control of LNB polarization,
    multi feed switches or dish rotors.
 
--  Conditional Access (CA) hardware like CI adapters and smartcard slots
-
+Conditional Access (CA) hardware like CI adapters and smartcard slots
    The complete TS is passed through the CA hardware. Programs to which
    the user has access (controlled by the smart card) are decoded in
    real time and re-inserted into the TS.
 
--  Demultiplexer which filters the incoming DVB stream
+   .. note::
 
+      Not every digital TV hardware provides conditional access hardware.
+
+Demultiplexer which filters the incoming DVB stream
    The demultiplexer splits the TS into its components like audio and
    video streams. Besides usually several of such audio and video
    streams it also contains data streams with information about the
    programs offered in this or other streams of the same provider.
 
--  MPEG2 audio and video decoder
-
+MPEG2 audio and video decoder
    The main targets of the demultiplexer are the MPEG2 audio and video
    decoders. After decoding they pass on the uncompressed audio and
    video to the computer screen or (through a PAL/NTSC encoder) to a TV
    set.
 
+   .. note::
+
+      Modern hardware usually doesn't have a separate decoder hardware, as
+      such functionality can be provided by the main CPU, by the graphics
+      adapter of the system or by a signal processing hardware embedded on
+      a Systems on a Chip (SoC) integrated circuit.
+
+      It may also not be needed for certain usages (e.g. for data-only
+      uses like “internet over satellite”).
+
 :ref:`stb_components` shows a crude schematic of the control and data
 flow between those components.
 
-On a DVB PCI card not all of these have to be present since some
-functionality can be provided by the main CPU of the PC (e.g. MPEG
-picture and sound decoding) or is not needed (e.g. for data-only uses
-like “internet over satellite”). Also not every card or STB provides
-conditional access hardware.
 
 
 .. _dvb_devices:
