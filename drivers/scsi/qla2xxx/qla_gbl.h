@@ -113,6 +113,7 @@ int qla24xx_post_gpdb_work(struct scsi_qla_host *, fc_port_t *, u8);
 extern char qla2x00_version_str[];
 
 extern struct kmem_cache *srb_cachep;
+extern struct kmem_cache *qla_tgt_plogi_cachep;
 
 extern int ql2xlogintimeout;
 extern int qlport_down_retry;
