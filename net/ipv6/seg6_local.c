@@ -62,17 +62,23 @@ static struct seg6_local_lwt *seg6_local_lwtunnel(struct lwtunnel_state *lwt)
 static struct ipv6_sr_hdr *get_srh(struct sk_buff *skb)
 {
 	struct ipv6_sr_hdr *srh;
-	struct ipv6hdr *hdr;
-	int len;
+	int len, srhoff = 0;
 
-	hdr = ipv6_hdr(skb);
-	if (hdr->nexthdr != IPPROTO_ROUTING)
+	if (ipv6_find_hdr(skb, &srhoff, IPPROTO_ROUTING, NULL, NULL) < 0)
 		return NULL;
 
-	srh = (struct ipv6_sr_hdr *)(hdr + 1);
+	if (!pskb_may_pull(skb, srhoff + sizeof(*srh)))
+		return NULL;
+
+	srh = (struct ipv6_sr_hdr *)(skb->data + srhoff);
+
+	/* make sure it's a Segment Routing header (Routing Type 4) */
+	if (srh->type != IPV6_SRCRT_TYPE_4)
+		return NULL;
+
 	len = (srh->hdrlen + 1) << 3;
 
-	if (!pskb_may_pull(skb, sizeof(*hdr) + len))
+	if (!pskb_may_pull(skb, srhoff + len))
 		return NULL;
 
 	if (!seg6_validate_srh(srh, len))
