@@ -75,8 +75,8 @@ config VIDEO_GC0310
 	tristate "GC0310 sensor support"
         depends on I2C && VIDEO_V4L2
         ---help---
-         This is a Video4Linux2 sensor-level driver for the Galaxycore
-         GC0310 0.3MP sensor.
+          This is a Video4Linux2 sensor-level driver for the Galaxycore
+          GC0310 0.3MP sensor.
 	 
 config VIDEO_OV2680
        tristate "Omnivision OV2680 sensor support"
