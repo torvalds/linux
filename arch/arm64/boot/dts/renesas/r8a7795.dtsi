@@ -2014,7 +2014,7 @@
 			renesas,fcp = <&fcpf1>;
 		};
 
-		hdmi0: hdmi0@fead0000 {
+		hdmi0: hdmi@fead0000 {
 			compatible = "renesas,r8a7795-hdmi", "renesas,rcar-gen3-hdmi";
 			reg = <0 0xfead0000 0 0x10000>;
 			interrupts = <GIC_SPI 389 IRQ_TYPE_LEVEL_HIGH>;
@@ -2039,7 +2039,7 @@
 			};
 		};
 
-		hdmi1: hdmi1@feae0000 {
+		hdmi1: hdmi@feae0000 {
 			compatible = "renesas,r8a7795-hdmi", "renesas,rcar-gen3-hdmi";
 			reg = <0 0xfeae0000 0 0x10000>;
 			interrupts = <GIC_SPI 436 IRQ_TYPE_LEVEL_HIGH>;
