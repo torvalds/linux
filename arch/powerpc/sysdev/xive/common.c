@@ -40,7 +40,8 @@
 #undef DEBUG_ALL
 
 #ifdef DEBUG_ALL
-#define DBG_VERBOSE(fmt...)	pr_devel(fmt)
+#define DBG_VERBOSE(fmt, ...)	pr_devel("cpu %d - " fmt, \
+					 smp_processor_id(), ## __VA_ARGS__)
 #else
 #define DBG_VERBOSE(fmt...)	do { } while(0)
 #endif
@@ -344,7 +345,7 @@ void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
 			xive_esb_read(xd, XIVE_ESB_LOAD_EOI);
 		else {
 			eoi_val = xive_esb_read(xd, XIVE_ESB_SET_PQ_00);
-			DBG_VERBOSE("eoi_val=%x\n", offset, eoi_val);
+			DBG_VERBOSE("eoi_val=%x\n", eoi_val);
 
 			/* Re-trigger if needed */
 			if ((eoi_val & XIVE_ESB_VAL_Q) && xd->trig_mmio)
@@ -1007,6 +1008,9 @@ static irqreturn_t xive_muxed_ipi_action(int irq, void *dev_id)
 static void xive_ipi_eoi(struct irq_data *d)
 {
 	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
+
+	DBG_VERBOSE("IPI eoi: irq=%d [0x%lx] (HW IRQ 0x%x) pending=%02x\n",
+		    d->irq, irqd_to_hwirq(d), xc->hw_ipi, xc->pending_prio);
 
 	/* Handle possible race with unplug and drop stale IPIs */
 	if (!xc)
