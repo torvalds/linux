@@ -203,6 +203,15 @@ static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 	return (u8)val;
 }
 
+static void xive_esb_write(struct xive_irq_data *xd, u32 offset, u64 data)
+{
+	/* Handle HW errata */
+	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
+		offset |= offset << 4;
+
+	out_be64(xd->eoi_mmio + offset, data);
+}
+
 #ifdef CONFIG_XMON
 static notrace void xive_dump_eq(const char *name, struct xive_q *q)
 {
@@ -297,7 +306,7 @@ void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
 {
 	/* If the XIVE supports the new "store EOI facility, use it */
 	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
-		out_be64(xd->eoi_mmio + XIVE_ESB_STORE_EOI, 0);
+		xive_esb_write(xd, XIVE_ESB_STORE_EOI, 0);
 	else if (hw_irq && xd->flags & XIVE_IRQ_FLAG_EOI_FW) {
 		/*
 		 * The FW told us to call it. This happens for some
