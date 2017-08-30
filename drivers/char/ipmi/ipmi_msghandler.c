@@ -272,6 +272,9 @@ struct bmc_device {
 };
 #define to_bmc_device(x) container_of((x), struct bmc_device, pdev.dev)
 
+static int bmc_get_device_id(ipmi_smi_t intf, struct bmc_device *bmc,
+			     struct ipmi_device_id *id);
+
 /*
  * Various statistics for IPMI, these index stats[] in the ipmi_smi
  * structure.
@@ -395,10 +398,6 @@ struct ipmi_smi {
 	 * protects this.
 	 */
 	struct list_head users;
-
-	/* Information to supply to users. */
-	unsigned char ipmi_version_major;
-	unsigned char ipmi_version_minor;
 
 	/* Used for wake ups at startup. */
 	wait_queue_head_t waitq;
@@ -1194,12 +1193,21 @@ int ipmi_destroy_user(ipmi_user_t user)
 }
 EXPORT_SYMBOL(ipmi_destroy_user);
 
-void ipmi_get_version(ipmi_user_t   user,
-		      unsigned char *major,
-		      unsigned char *minor)
+int ipmi_get_version(ipmi_user_t   user,
+		     unsigned char *major,
+		     unsigned char *minor)
 {
-	*major = user->intf->ipmi_version_major;
-	*minor = user->intf->ipmi_version_minor;
+	struct ipmi_device_id id;
+	int rv;
+
+	rv = bmc_get_device_id(user->intf, NULL, &id);
+	if (rv)
+		return rv;
+
+	*major = ipmi_version_major(&id);
+	*minor = ipmi_version_minor(&id);
+
+	return 0;
 }
 EXPORT_SYMBOL(ipmi_get_version);
 
@@ -2072,6 +2080,16 @@ int ipmi_request_supply_msgs(ipmi_user_t          user,
 }
 EXPORT_SYMBOL(ipmi_request_supply_msgs);
 
+static int bmc_get_device_id(ipmi_smi_t intf, struct bmc_device *bmc,
+			     struct ipmi_device_id *id)
+{
+	if (!bmc)
+		bmc = intf->bmc;
+
+	*id = bmc->id;
+	return 0;
+}
+
 #ifdef CONFIG_PROC_FS
 static int smi_ipmb_proc_show(struct seq_file *m, void *v)
 {
@@ -2101,10 +2119,16 @@ static const struct file_operations smi_ipmb_proc_ops = {
 static int smi_version_proc_show(struct seq_file *m, void *v)
 {
 	ipmi_smi_t intf = m->private;
+	struct ipmi_device_id id;
+	int rv;
+
+	rv = bmc_get_device_id(intf, NULL, &id);
+	if (rv)
+		return rv;
 
 	seq_printf(m, "%u.%u\n",
-		   ipmi_version_major(&intf->bmc->id),
-		   ipmi_version_minor(&intf->bmc->id));
+		   ipmi_version_major(&id),
+		   ipmi_version_minor(&id));
 
 	return 0;
 }
@@ -2287,8 +2311,14 @@ static ssize_t device_id_show(struct device *dev,
 			      char *buf)
 {
 	struct bmc_device *bmc = to_bmc_device(dev);
+	struct ipmi_device_id id;
+	int rv;
 
-	return snprintf(buf, 10, "%u\n", bmc->id.device_id);
+	rv = bmc_get_device_id(NULL, bmc, &id);
+	if (rv)
+		return rv;
+
+	return snprintf(buf, 10, "%u\n", id.device_id);
 }
 static DEVICE_ATTR(device_id, S_IRUGO, device_id_show, NULL);
 
@@ -2297,9 +2327,14 @@ static ssize_t provides_device_sdrs_show(struct device *dev,
 					 char *buf)
 {
 	struct bmc_device *bmc = to_bmc_device(dev);
+	struct ipmi_device_id id;
+	int rv;
 
-	return snprintf(buf, 10, "%u\n",
-			(bmc->id.device_revision & 0x80) >> 7);
+	rv = bmc_get_device_id(NULL, bmc, &id);
+	if (rv)
+		return rv;
+
+	return snprintf(buf, 10, "%u\n", (id.device_revision & 0x80) >> 7);
 }
 static DEVICE_ATTR(provides_device_sdrs, S_IRUGO, provides_device_sdrs_show,
 		   NULL);
@@ -2308,9 +2343,14 @@ static ssize_t revision_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct bmc_device *bmc = to_bmc_device(dev);
+	struct ipmi_device_id id;
+	int rv;
 
-	return snprintf(buf, 20, "%u\n",
-			bmc->id.device_revision & 0x0F);
+	rv = bmc_get_device_id(NULL, bmc, &id);
+	if (rv)
+		return rv;
+
+	return snprintf(buf, 20, "%u\n", id.device_revision & 0x0F);
 }
 static DEVICE_ATTR(revision, S_IRUGO, revision_show, NULL);
 
@@ -2319,9 +2359,15 @@ static ssize_t firmware_revision_show(struct device *dev,
 				      char *buf)
 {
 	struct bmc_device *bmc = to_bmc_device(dev);
+	struct ipmi_device_id id;
+	int rv;
 
-	return snprintf(buf, 20, "%u.%x\n", bmc->id.firmware_revision_1,
-			bmc->id.firmware_revision_2);
+	rv = bmc_get_device_id(NULL, bmc, &id);
+	if (rv)
+		return rv;
+
+	return snprintf(buf, 20, "%u.%x\n", id.firmware_revision_1,
+			id.firmware_revision_2);
 }
 static DEVICE_ATTR(firmware_revision, S_IRUGO, firmware_revision_show, NULL);
 
@@ -2330,10 +2376,16 @@ static ssize_t ipmi_version_show(struct device *dev,
 				 char *buf)
 {
 	struct bmc_device *bmc = to_bmc_device(dev);
+	struct ipmi_device_id id;
+	int rv;
+
+	rv = bmc_get_device_id(NULL, bmc, &id);
+	if (rv)
+		return rv;
 
 	return snprintf(buf, 20, "%u.%u\n",
-			ipmi_version_major(&bmc->id),
-			ipmi_version_minor(&bmc->id));
+			ipmi_version_major(&id),
+			ipmi_version_minor(&id));
 }
 static DEVICE_ATTR(ipmi_version, S_IRUGO, ipmi_version_show, NULL);
 
@@ -2342,9 +2394,14 @@ static ssize_t add_dev_support_show(struct device *dev,
 				    char *buf)
 {
 	struct bmc_device *bmc = to_bmc_device(dev);
+	struct ipmi_device_id id;
+	int rv;
 
-	return snprintf(buf, 10, "0x%02x\n",
-			bmc->id.additional_device_support);
+	rv = bmc_get_device_id(NULL, bmc, &id);
+	if (rv)
+		return rv;
+
+	return snprintf(buf, 10, "0x%02x\n", id.additional_device_support);
 }
 static DEVICE_ATTR(additional_device_support, S_IRUGO, add_dev_support_show,
 		   NULL);
@@ -2354,8 +2411,14 @@ static ssize_t manufacturer_id_show(struct device *dev,
 				    char *buf)
 {
 	struct bmc_device *bmc = to_bmc_device(dev);
+	struct ipmi_device_id id;
+	int rv;
 
-	return snprintf(buf, 20, "0x%6.6x\n", bmc->id.manufacturer_id);
+	rv = bmc_get_device_id(NULL, bmc, &id);
+	if (rv)
+		return rv;
+
+	return snprintf(buf, 20, "0x%6.6x\n", id.manufacturer_id);
 }
 static DEVICE_ATTR(manufacturer_id, S_IRUGO, manufacturer_id_show, NULL);
 
@@ -2364,8 +2427,14 @@ static ssize_t product_id_show(struct device *dev,
 			       char *buf)
 {
 	struct bmc_device *bmc = to_bmc_device(dev);
+	struct ipmi_device_id id;
+	int rv;
 
-	return snprintf(buf, 10, "0x%4.4x\n", bmc->id.product_id);
+	rv = bmc_get_device_id(NULL, bmc, &id);
+	if (rv)
+		return rv;
+
+	return snprintf(buf, 10, "0x%4.4x\n", id.product_id);
 }
 static DEVICE_ATTR(product_id, S_IRUGO, product_id_show, NULL);
 
@@ -2374,12 +2443,18 @@ static ssize_t aux_firmware_rev_show(struct device *dev,
 				     char *buf)
 {
 	struct bmc_device *bmc = to_bmc_device(dev);
+	struct ipmi_device_id id;
+	int rv;
+
+	rv = bmc_get_device_id(NULL, bmc, &id);
+	if (rv)
+		return rv;
 
 	return snprintf(buf, 21, "0x%02x 0x%02x 0x%02x 0x%02x\n",
-			bmc->id.aux_firmware_revision[3],
-			bmc->id.aux_firmware_revision[2],
-			bmc->id.aux_firmware_revision[1],
-			bmc->id.aux_firmware_revision[0]);
+			id.aux_firmware_revision[3],
+			id.aux_firmware_revision[2],
+			id.aux_firmware_revision[1],
+			id.aux_firmware_revision[0]);
 }
 static DEVICE_ATTR(aux_firmware_revision, S_IRUGO, aux_firmware_rev_show, NULL);
 
@@ -2417,9 +2492,13 @@ static umode_t bmc_dev_attr_is_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct bmc_device *bmc = to_bmc_device(dev);
 	umode_t mode = attr->mode;
+	struct ipmi_device_id id;
+	int rv;
 
-	if (attr == &dev_attr_aux_firmware_revision.attr)
-		return bmc->id.aux_firmware_revision_set ? mode : 0;
+	if (attr == &dev_attr_aux_firmware_revision.attr) {
+		rv = bmc_get_device_id(NULL, bmc, &id);
+		return (!rv && id.aux_firmware_revision_set) ? mode : 0;
+	}
 	if (attr == &dev_attr_guid.attr)
 		return bmc->guid_set ? mode : 0;
 	return mode;
@@ -2884,6 +2963,7 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 	ipmi_smi_t       intf;
 	ipmi_smi_t       tintf;
 	struct list_head *link;
+	struct ipmi_device_id id;
 
 	/*
 	 * Make sure the driver is actually initialized, this handles
@@ -2904,9 +2984,6 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 	intf = kzalloc(sizeof(*intf), GFP_KERNEL);
 	if (!intf)
 		return -ENOMEM;
-
-	intf->ipmi_version_major = ipmi_version_major(device_id);
-	intf->ipmi_version_minor = ipmi_version_minor(device_id);
 
 	intf->bmc = kzalloc(sizeof(*intf->bmc), GFP_KERNEL);
 	if (!intf->bmc) {
@@ -2982,13 +3059,19 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 
 	get_guid(intf);
 
+	rv = bmc_get_device_id(intf, NULL, &id);
+	if (rv) {
+		dev_err(si_dev, "Unable to get the device id: %d\n", rv);
+		goto out;
+	}
+
 	rv = ipmi_bmc_register(intf, i);
 	if (rv)
 		goto out;
 
-	if ((intf->ipmi_version_major > 1)
-			|| ((intf->ipmi_version_major == 1)
-			    && (intf->ipmi_version_minor >= 5))) {
+	if (ipmi_version_major(&id) > 1
+			|| (ipmi_version_major(&id) == 1
+			    && ipmi_version_minor(&id) >= 5)) {
 		/*
 		 * Start scanning the channels to see what is
 		 * available.

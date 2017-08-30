@@ -113,9 +113,9 @@ int ipmi_create_user(unsigned int          if_num,
 int ipmi_destroy_user(ipmi_user_t user);
 
 /* Get the IPMI version of the BMC we are talking to. */
-void ipmi_get_version(ipmi_user_t   user,
-		      unsigned char *major,
-		      unsigned char *minor);
+int ipmi_get_version(ipmi_user_t   user,
+		     unsigned char *major,
+		     unsigned char *minor);
 
 /* Set and get the slave address and LUN that we will use for our
    source messages.  Note that this affects the interface, not just
