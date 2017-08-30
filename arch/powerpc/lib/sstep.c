@@ -103,11 +103,19 @@ static nokprobe_inline int branch_taken(unsigned int instr,
 	return 1;
 }
 
-static nokprobe_inline long address_ok(struct pt_regs *regs, unsigned long ea, int nb)
+static nokprobe_inline long address_ok(struct pt_regs *regs,
+				       unsigned long ea, int nb)
 {
 	if (!user_mode(regs))
 		return 1;
-	return __access_ok(ea, nb, USER_DS);
+	if (__access_ok(ea, nb, USER_DS))
+		return 1;
+	if (__access_ok(ea, 1, USER_DS))
+		/* Access overlaps the end of the user region */
+		regs->dar = USER_DS.seg;
+	else
+		regs->dar = ea;
+	return 0;
 }
 
 /*
@@ -210,7 +218,8 @@ static nokprobe_inline unsigned long byterev_8(unsigned long x)
 #endif
 
 static nokprobe_inline int read_mem_aligned(unsigned long *dest,
-					unsigned long ea, int nb)
+					    unsigned long ea, int nb,
+					    struct pt_regs *regs)
 {
 	int err = 0;
 	unsigned long x = 0;
@@ -233,6 +242,8 @@ static nokprobe_inline int read_mem_aligned(unsigned long *dest,
 	}
 	if (!err)
 		*dest = x;
+	else
+		regs->dar = ea;
 	return err;
 }
 
@@ -240,7 +251,8 @@ static nokprobe_inline int read_mem_aligned(unsigned long *dest,
  * Copy from userspace to a buffer, using the largest possible
  * aligned accesses, up to sizeof(long).
  */
-static int nokprobe_inline copy_mem_in(u8 *dest, unsigned long ea, int nb)
+static int nokprobe_inline copy_mem_in(u8 *dest, unsigned long ea, int nb,
+				       struct pt_regs *regs)
 {
 	int err = 0;
 	int c;
@@ -268,8 +280,10 @@ static int nokprobe_inline copy_mem_in(u8 *dest, unsigned long ea, int nb)
 			break;
 #endif
 		}
-		if (err)
+		if (err) {
+			regs->dar = ea;
 			return err;
+		}
 		dest += c;
 		ea += c;
 	}
@@ -289,7 +303,7 @@ static nokprobe_inline int read_mem_unaligned(unsigned long *dest,
 
 	u.ul = 0;
 	i = IS_BE ? sizeof(unsigned long) - nb : 0;
-	err = copy_mem_in(&u.b[i], ea, nb);
+	err = copy_mem_in(&u.b[i], ea, nb, regs);
 	if (!err)
 		*dest = u.ul;
 	return err;
@@ -306,13 +320,14 @@ static int read_mem(unsigned long *dest, unsigned long ea, int nb,
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
 	if ((ea & (nb - 1)) == 0)
-		return read_mem_aligned(dest, ea, nb);
+		return read_mem_aligned(dest, ea, nb, regs);
 	return read_mem_unaligned(dest, ea, nb, regs);
 }
 NOKPROBE_SYMBOL(read_mem);
 
 static nokprobe_inline int write_mem_aligned(unsigned long val,
-					unsigned long ea, int nb)
+					     unsigned long ea, int nb,
+					     struct pt_regs *regs)
 {
 	int err = 0;
 
@@ -332,6 +347,8 @@ static nokprobe_inline int write_mem_aligned(unsigned long val,
 		break;
 #endif
 	}
+	if (err)
+		regs->dar = ea;
 	return err;
 }
 
@@ -339,7 +356,8 @@ static nokprobe_inline int write_mem_aligned(unsigned long val,
  * Copy from a buffer to userspace, using the largest possible
  * aligned accesses, up to sizeof(long).
  */
-static int nokprobe_inline copy_mem_out(u8 *dest, unsigned long ea, int nb)
+static int nokprobe_inline copy_mem_out(u8 *dest, unsigned long ea, int nb,
+					struct pt_regs *regs)
 {
 	int err = 0;
 	int c;
@@ -367,8 +385,10 @@ static int nokprobe_inline copy_mem_out(u8 *dest, unsigned long ea, int nb)
 			break;
 #endif
 		}
-		if (err)
+		if (err) {
+			regs->dar = ea;
 			return err;
+		}
 		dest += c;
 		ea += c;
 	}
@@ -387,7 +407,7 @@ static nokprobe_inline int write_mem_unaligned(unsigned long val,
 
 	u.ul = val;
 	i = IS_BE ? sizeof(unsigned long) - nb : 0;
-	return copy_mem_out(&u.b[i], ea, nb);
+	return copy_mem_out(&u.b[i], ea, nb, regs);
 }
 
 /*
@@ -400,7 +420,7 @@ static int write_mem(unsigned long val, unsigned long ea, int nb,
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
 	if ((ea & (nb - 1)) == 0)
-		return write_mem_aligned(val, ea, nb);
+		return write_mem_aligned(val, ea, nb, regs);
 	return write_mem_unaligned(val, ea, nb, regs);
 }
 NOKPROBE_SYMBOL(write_mem);
@@ -422,7 +442,7 @@ static int do_fp_load(int rn, unsigned long ea, int nb, struct pt_regs *regs)
 
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
-	err = copy_mem_in(u.b, ea, nb);
+	err = copy_mem_in(u.b, ea, nb, regs);
 	if (err)
 		return err;
 	preempt_disable();
@@ -471,7 +491,7 @@ static int do_fp_store(int rn, unsigned long ea, int nb, struct pt_regs *regs)
 			u.l[1] = current->thread.TS_FPR(rn);
 	}
 	preempt_enable();
-	return copy_mem_out(u.b, ea, nb);
+	return copy_mem_out(u.b, ea, nb, regs);
 }
 NOKPROBE_SYMBOL(do_fp_store);
 #endif
@@ -491,7 +511,7 @@ static nokprobe_inline int do_vec_load(int rn, unsigned long ea,
 		return -EFAULT;
 	/* align to multiple of size */
 	ea &= ~(size - 1);
-	err = copy_mem_in(&u.b[ea & 0xf], ea, size);
+	err = copy_mem_in(&u.b[ea & 0xf], ea, size, regs);
 	if (err)
 		return err;
 
@@ -523,7 +543,7 @@ static nokprobe_inline int do_vec_store(int rn, unsigned long ea,
 	else
 		u.v = current->thread.vr_state.vr[rn];
 	preempt_enable();
-	return copy_mem_out(&u.b[ea & 0xf], ea, size);
+	return copy_mem_out(&u.b[ea & 0xf], ea, size, regs);
 }
 #endif /* CONFIG_ALTIVEC */
 
@@ -725,7 +745,7 @@ static nokprobe_inline int do_vsx_load(struct instruction_op *op,
 	union vsx_reg buf;
 	int size = GETSIZE(op->type);
 
-	if (!address_ok(regs, ea, size) || copy_mem_in(mem, ea, size))
+	if (!address_ok(regs, ea, size) || copy_mem_in(mem, ea, size, regs))
 		return -EFAULT;
 
 	emulate_vsx_load(op, &buf, mem);
@@ -776,7 +796,7 @@ static nokprobe_inline int do_vsx_store(struct instruction_op *op,
 	}
 	preempt_enable();
 	emulate_vsx_store(op, &buf, mem);
-	return  copy_mem_out(mem, ea, size);
+	return  copy_mem_out(mem, ea, size, regs);
 }
 #endif /* CONFIG_VSX */
 
@@ -797,8 +817,10 @@ int emulate_dcbz(unsigned long ea, struct pt_regs *regs)
 		return -EFAULT;
 	for (i = 0; i < size; i += sizeof(long)) {
 		err = __put_user(0, (unsigned long __user *) (ea + i));
-		if (err)
+		if (err) {
+			regs->dar = ea;
 			return err;
+		}
 	}
 	return 0;
 }
@@ -2640,8 +2662,10 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 			err = emulate_dcbz(ea, regs);
 			break;
 		}
-		if (err)
+		if (err) {
+			regs->dar = ea;
 			return 0;
+		}
 		goto instr_done;
 
 	case LARX:
@@ -2668,12 +2692,16 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 			break;
 		case 16:
 			err = do_lqarx(ea, &regs->gpr[op.reg]);
-			goto ldst_done;
+			break;
 #endif
 		default:
 			return 0;
 		}
-		if (!err)
+		if (err) {
+			regs->dar = ea;
+			return 0;
+		}
+		if (size < 16)
 			regs->gpr[op.reg] = val;
 		goto ldst_done;
 
@@ -2711,6 +2739,8 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 			regs->ccr = (regs->ccr & 0x0fffffff) |
 				(cr & 0xe0000000) |
 				((regs->xer >> 3) & 0x10000000);
+		else
+			regs->dar = ea;
 		goto ldst_done;
 
 	case LOAD:
