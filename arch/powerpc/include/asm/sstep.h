@@ -152,6 +152,15 @@ void emulate_update_regs(struct pt_regs *reg, struct instruction_op *op);
  */
 extern int emulate_step(struct pt_regs *regs, unsigned int instr);
 
+/*
+ * Emulate a load or store instruction by reading/writing the
+ * memory of the current process.  FP/VMX/VSX registers are assumed
+ * to hold live values if the appropriate enable bit in regs->msr is
+ * set; otherwise this will use the saved values in the thread struct
+ * for user-mode accesses.
+ */
+extern int emulate_loadstore(struct pt_regs *regs, struct instruction_op *op);
+
 extern void emulate_vsx_load(struct instruction_op *op, union vsx_reg *reg,
 			     const void *mem, bool cross_endian);
 extern void emulate_vsx_store(struct instruction_op *op,

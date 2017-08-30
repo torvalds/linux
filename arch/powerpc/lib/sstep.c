@@ -2667,6 +2667,262 @@ void emulate_update_regs(struct pt_regs *regs, struct instruction_op *op)
 }
 
 /*
+ * Emulate a previously-analysed load or store instruction.
+ * Return values are:
+ * 0 = instruction emulated successfully
+ * -EFAULT = address out of range or access faulted (regs->dar
+ *	     contains the faulting address)
+ * -EACCES = misaligned access, instruction requires alignment
+ * -EINVAL = unknown operation in *op
+ */
+int emulate_loadstore(struct pt_regs *regs, struct instruction_op *op)
+{
+	int err, size, type;
+	int i, rd, nb;
+	unsigned int cr;
+	unsigned long val;
+	unsigned long ea;
+	bool cross_endian;
+
+	err = 0;
+	size = GETSIZE(op->type);
+	type = op->type & INSTR_TYPE_MASK;
+	cross_endian = (regs->msr & MSR_LE) != (MSR_KERNEL & MSR_LE);
+	ea = truncate_if_32bit(regs->msr, op->ea);
+
+	switch (type) {
+	case LARX:
+		if (ea & (size - 1))
+			return -EACCES;		/* can't handle misaligned */
+		if (!address_ok(regs, ea, size))
+			return -EFAULT;
+		err = 0;
+		switch (size) {
+#ifdef __powerpc64__
+		case 1:
+			__get_user_asmx(val, ea, err, "lbarx");
+			break;
+		case 2:
+			__get_user_asmx(val, ea, err, "lharx");
+			break;
+#endif
+		case 4:
+			__get_user_asmx(val, ea, err, "lwarx");
+			break;
+#ifdef __powerpc64__
+		case 8:
+			__get_user_asmx(val, ea, err, "ldarx");
+			break;
+		case 16:
+			err = do_lqarx(ea, &regs->gpr[op->reg]);
+			break;
+#endif
+		default:
+			return -EINVAL;
+		}
+		if (err) {
+			regs->dar = ea;
+			break;
+		}
+		if (size < 16)
+			regs->gpr[op->reg] = val;
+		break;
+
+	case STCX:
+		if (ea & (size - 1))
+			return -EACCES;		/* can't handle misaligned */
+		if (!address_ok(regs, ea, size))
+			return -EFAULT;
+		err = 0;
+		switch (size) {
+#ifdef __powerpc64__
+		case 1:
+			__put_user_asmx(op->val, ea, err, "stbcx.", cr);
+			break;
+		case 2:
+			__put_user_asmx(op->val, ea, err, "stbcx.", cr);
+			break;
+#endif
+		case 4:
+			__put_user_asmx(op->val, ea, err, "stwcx.", cr);
+			break;
+#ifdef __powerpc64__
+		case 8:
+			__put_user_asmx(op->val, ea, err, "stdcx.", cr);
+			break;
+		case 16:
+			err = do_stqcx(ea, regs->gpr[op->reg],
+				       regs->gpr[op->reg + 1], &cr);
+			break;
+#endif
+		default:
+			return -EINVAL;
+		}
+		if (!err)
+			regs->ccr = (regs->ccr & 0x0fffffff) |
+				(cr & 0xe0000000) |
+				((regs->xer >> 3) & 0x10000000);
+		else
+			regs->dar = ea;
+		break;
+
+	case LOAD:
+#ifdef __powerpc64__
+		if (size == 16) {
+			err = emulate_lq(regs, ea, op->reg, cross_endian);
+			break;
+		}
+#endif
+		err = read_mem(&regs->gpr[op->reg], ea, size, regs);
+		if (!err) {
+			if (op->type & SIGNEXT)
+				do_signext(&regs->gpr[op->reg], size);
+			if ((op->type & BYTEREV) == (cross_endian ? 0 : BYTEREV))
+				do_byterev(&regs->gpr[op->reg], size);
+		}
+		break;
+
+#ifdef CONFIG_PPC_FPU
+	case LOAD_FP:
+		/*
+		 * If the instruction is in userspace, we can emulate it even
+		 * if the VMX state is not live, because we have the state
+		 * stored in the thread_struct.  If the instruction is in
+		 * the kernel, we must not touch the state in the thread_struct.
+		 */
+		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_FP))
+			return 0;
+		err = do_fp_load(op->reg, ea, size, regs, cross_endian);
+		break;
+#endif
+#ifdef CONFIG_ALTIVEC
+	case LOAD_VMX:
+		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_VEC))
+			return 0;
+		err = do_vec_load(op->reg, ea, size, regs, cross_endian);
+		break;
+#endif
+#ifdef CONFIG_VSX
+	case LOAD_VSX: {
+		unsigned long msrbit = MSR_VSX;
+
+		/*
+		 * Some VSX instructions check the MSR_VEC bit rather than MSR_VSX
+		 * when the target of the instruction is a vector register.
+		 */
+		if (op->reg >= 32 && (op->vsx_flags & VSX_CHECK_VEC))
+			msrbit = MSR_VEC;
+		if (!(regs->msr & MSR_PR) && !(regs->msr & msrbit))
+			return 0;
+		err = do_vsx_load(op, ea, regs, cross_endian);
+		break;
+	}
+#endif
+	case LOAD_MULTI:
+		if (!address_ok(regs, ea, size))
+			return -EFAULT;
+		rd = op->reg;
+		for (i = 0; i < size; i += 4) {
+			unsigned int v32 = 0;
+
+			nb = size - i;
+			if (nb > 4)
+				nb = 4;
+			err = copy_mem_in((u8 *) &v32, ea, nb, regs);
+			if (err)
+				break;
+			if (unlikely(cross_endian))
+				v32 = byterev_4(v32);
+			regs->gpr[rd] = v32;
+			ea += 4;
+			++rd;
+		}
+		break;
+
+	case STORE:
+#ifdef __powerpc64__
+		if (size == 16) {
+			err = emulate_stq(regs, ea, op->reg, cross_endian);
+			break;
+		}
+#endif
+		if ((op->type & UPDATE) && size == sizeof(long) &&
+		    op->reg == 1 && op->update_reg == 1 &&
+		    !(regs->msr & MSR_PR) &&
+		    ea >= regs->gpr[1] - STACK_INT_FRAME_SIZE) {
+			err = handle_stack_update(ea, regs);
+			break;
+		}
+		if (unlikely(cross_endian))
+			do_byterev(&op->val, size);
+		err = write_mem(op->val, ea, size, regs);
+		break;
+
+#ifdef CONFIG_PPC_FPU
+	case STORE_FP:
+		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_FP))
+			return 0;
+		err = do_fp_store(op->reg, ea, size, regs, cross_endian);
+		break;
+#endif
+#ifdef CONFIG_ALTIVEC
+	case STORE_VMX:
+		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_VEC))
+			return 0;
+		err = do_vec_store(op->reg, ea, size, regs, cross_endian);
+		break;
+#endif
+#ifdef CONFIG_VSX
+	case STORE_VSX: {
+		unsigned long msrbit = MSR_VSX;
+
+		/*
+		 * Some VSX instructions check the MSR_VEC bit rather than MSR_VSX
+		 * when the target of the instruction is a vector register.
+		 */
+		if (op->reg >= 32 && (op->vsx_flags & VSX_CHECK_VEC))
+			msrbit = MSR_VEC;
+		if (!(regs->msr & MSR_PR) && !(regs->msr & msrbit))
+			return 0;
+		err = do_vsx_store(op, ea, regs, cross_endian);
+		break;
+	}
+#endif
+	case STORE_MULTI:
+		if (!address_ok(regs, ea, size))
+			return -EFAULT;
+		rd = op->reg;
+		for (i = 0; i < size; i += 4) {
+			unsigned int v32 = regs->gpr[rd];
+
+			nb = size - i;
+			if (nb > 4)
+				nb = 4;
+			if (unlikely(cross_endian))
+				v32 = byterev_4(v32);
+			err = copy_mem_out((u8 *) &v32, ea, nb, regs);
+			if (err)
+				break;
+			ea += 4;
+			++rd;
+		}
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	if (err)
+		return err;
+
+	if (op->type & UPDATE)
+		regs->gpr[op->update_reg] = op->ea;
+
+	return 0;
+}
+NOKPROBE_SYMBOL(emulate_loadstore);
+
+/*
  * Emulate instructions that cause a transfer of control,
  * loads and stores, and a few other instructions.
  * Returns 1 if the step was emulated, 0 if not,
@@ -2676,12 +2932,9 @@ void emulate_update_regs(struct pt_regs *regs, struct instruction_op *op)
 int emulate_step(struct pt_regs *regs, unsigned int instr)
 {
 	struct instruction_op op;
-	int r, err, size, type;
+	int r, err, type;
 	unsigned long val;
-	unsigned int cr;
-	int i, rd, nb;
 	unsigned long ea;
-	bool cross_endian;
 
 	r = analyse_instr(&op, regs, instr);
 	if (r < 0)
@@ -2692,16 +2945,18 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 	}
 
 	err = 0;
-	size = GETSIZE(op.type);
 	type = op.type & INSTR_TYPE_MASK;
-	cross_endian = (regs->msr & MSR_LE) != (MSR_KERNEL & MSR_LE);
 
-	ea = op.ea;
-	if (OP_IS_LOAD_STORE(type) || type == CACHEOP)
-		ea = truncate_if_32bit(regs->msr, op.ea);
+	if (OP_IS_LOAD_STORE(type)) {
+		err = emulate_loadstore(regs, &op);
+		if (err)
+			return 0;
+		goto instr_done;
+	}
 
 	switch (type) {
 	case CACHEOP:
+		ea = truncate_if_32bit(regs->msr, op.ea);
 		if (!address_ok(regs, ea, 8))
 			return 0;
 		switch (op.type & CACHEOP_MASK) {
@@ -2729,223 +2984,6 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		if (err) {
 			regs->dar = ea;
 			return 0;
-		}
-		goto instr_done;
-
-	case LARX:
-		if (ea & (size - 1))
-			break;		/* can't handle misaligned */
-		if (!address_ok(regs, ea, size))
-			return 0;
-		err = 0;
-		switch (size) {
-#ifdef __powerpc64__
-		case 1:
-			__get_user_asmx(val, ea, err, "lbarx");
-			break;
-		case 2:
-			__get_user_asmx(val, ea, err, "lharx");
-			break;
-#endif
-		case 4:
-			__get_user_asmx(val, ea, err, "lwarx");
-			break;
-#ifdef __powerpc64__
-		case 8:
-			__get_user_asmx(val, ea, err, "ldarx");
-			break;
-		case 16:
-			err = do_lqarx(ea, &regs->gpr[op.reg]);
-			break;
-#endif
-		default:
-			return 0;
-		}
-		if (err) {
-			regs->dar = ea;
-			return 0;
-		}
-		if (size < 16)
-			regs->gpr[op.reg] = val;
-		goto ldst_done;
-
-	case STCX:
-		if (ea & (size - 1))
-			break;		/* can't handle misaligned */
-		if (!address_ok(regs, ea, size))
-			return 0;
-		err = 0;
-		switch (size) {
-#ifdef __powerpc64__
-		case 1:
-			__put_user_asmx(op.val, ea, err, "stbcx.", cr);
-			break;
-		case 2:
-			__put_user_asmx(op.val, ea, err, "stbcx.", cr);
-			break;
-#endif
-		case 4:
-			__put_user_asmx(op.val, ea, err, "stwcx.", cr);
-			break;
-#ifdef __powerpc64__
-		case 8:
-			__put_user_asmx(op.val, ea, err, "stdcx.", cr);
-			break;
-		case 16:
-			err = do_stqcx(ea, regs->gpr[op.reg],
-				       regs->gpr[op.reg + 1], &cr);
-			break;
-#endif
-		default:
-			return 0;
-		}
-		if (!err)
-			regs->ccr = (regs->ccr & 0x0fffffff) |
-				(cr & 0xe0000000) |
-				((regs->xer >> 3) & 0x10000000);
-		else
-			regs->dar = ea;
-		goto ldst_done;
-
-	case LOAD:
-#ifdef __powerpc64__
-		if (size == 16) {
-			err = emulate_lq(regs, ea, op.reg, cross_endian);
-			goto ldst_done;
-		}
-#endif
-		err = read_mem(&regs->gpr[op.reg], ea, size, regs);
-		if (!err) {
-			if (op.type & SIGNEXT)
-				do_signext(&regs->gpr[op.reg], size);
-			if ((op.type & BYTEREV) == (cross_endian ? 0 : BYTEREV))
-				do_byterev(&regs->gpr[op.reg], size);
-		}
-		goto ldst_done;
-
-#ifdef CONFIG_PPC_FPU
-	case LOAD_FP:
-		/*
-		 * If the instruction is in userspace, we can emulate it even
-		 * if the VMX state is not live, because we have the state
-		 * stored in the thread_struct.  If the instruction is in
-		 * the kernel, we must not touch the state in the thread_struct.
-		 */
-		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_FP))
-			return 0;
-		err = do_fp_load(op.reg, ea, size, regs, cross_endian);
-		goto ldst_done;
-#endif
-#ifdef CONFIG_ALTIVEC
-	case LOAD_VMX:
-		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_VEC))
-			return 0;
-		err = do_vec_load(op.reg, ea, size, regs, cross_endian);
-		goto ldst_done;
-#endif
-#ifdef CONFIG_VSX
-	case LOAD_VSX: {
-		unsigned long msrbit = MSR_VSX;
-
-		/*
-		 * Some VSX instructions check the MSR_VEC bit rather than MSR_VSX
-		 * when the target of the instruction is a vector register.
-		 */
-		if (op.reg >= 32 && (op.vsx_flags & VSX_CHECK_VEC))
-			msrbit = MSR_VEC;
-		if (!(regs->msr & MSR_PR) && !(regs->msr & msrbit))
-			return 0;
-		err = do_vsx_load(&op, ea, regs, cross_endian);
-		goto ldst_done;
-	}
-#endif
-	case LOAD_MULTI:
-		if (!address_ok(regs, ea, size))
-			return -EFAULT;
-		rd = op.reg;
-		for (i = 0; i < size; i += 4) {
-			unsigned int v32 = 0;
-
-			nb = size - i;
-			if (nb > 4)
-				nb = 4;
-			err = copy_mem_in((u8 *) &v32, ea, nb, regs);
-			if (err)
-				return 0;
-			if (unlikely(cross_endian))
-				v32 = byterev_4(v32);
-			regs->gpr[rd] = v32;
-			ea += 4;
-			++rd;
-		}
-		goto instr_done;
-
-	case STORE:
-#ifdef __powerpc64__
-		if (size == 16) {
-			err = emulate_stq(regs, ea, op.reg, cross_endian);
-			goto ldst_done;
-		}
-#endif
-		if ((op.type & UPDATE) && size == sizeof(long) &&
-		    op.reg == 1 && op.update_reg == 1 &&
-		    !(regs->msr & MSR_PR) &&
-		    ea >= regs->gpr[1] - STACK_INT_FRAME_SIZE) {
-			err = handle_stack_update(ea, regs);
-			goto ldst_done;
-		}
-		if (unlikely(cross_endian))
-			do_byterev(&op.val, size);
-		err = write_mem(op.val, ea, size, regs);
-		goto ldst_done;
-
-#ifdef CONFIG_PPC_FPU
-	case STORE_FP:
-		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_FP))
-			return 0;
-		err = do_fp_store(op.reg, ea, size, regs, cross_endian);
-		goto ldst_done;
-#endif
-#ifdef CONFIG_ALTIVEC
-	case STORE_VMX:
-		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_VEC))
-			return 0;
-		err = do_vec_store(op.reg, ea, size, regs, cross_endian);
-		goto ldst_done;
-#endif
-#ifdef CONFIG_VSX
-	case STORE_VSX: {
-		unsigned long msrbit = MSR_VSX;
-
-		/*
-		 * Some VSX instructions check the MSR_VEC bit rather than MSR_VSX
-		 * when the target of the instruction is a vector register.
-		 */
-		if (op.reg >= 32 && (op.vsx_flags & VSX_CHECK_VEC))
-			msrbit = MSR_VEC;
-		if (!(regs->msr & MSR_PR) && !(regs->msr & msrbit))
-			return 0;
-		err = do_vsx_store(&op, ea, regs, cross_endian);
-		goto ldst_done;
-	}
-#endif
-	case STORE_MULTI:
-		if (!address_ok(regs, ea, size))
-			return -EFAULT;
-		rd = op.reg;
-		for (i = 0; i < size; i += 4) {
-			unsigned int v32 = regs->gpr[rd];
-
-			nb = size - i;
-			if (nb > 4)
-				nb = 4;
-			if (unlikely(cross_endian))
-				v32 = byterev_4(v32);
-			err = copy_mem_out((u8 *) &v32, ea, nb, regs);
-			if (err)
-				return 0;
-			ea += 4;
-			++rd;
 		}
 		goto instr_done;
 
@@ -2988,12 +3026,6 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 #endif
 	}
 	return 0;
-
- ldst_done:
-	if (err)
-		return 0;
-	if (op.type & UPDATE)
-		regs->gpr[op.update_reg] = op.ea;
 
  instr_done:
 	regs->nip = truncate_if_32bit(regs->msr, regs->nip + 4);
