@@ -221,11 +221,14 @@ EXPORT_SYMBOL(st_sensors_set_enable);
 int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable)
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	int err = 0;
 
-	return st_sensors_write_data_with_mask(indio_dev,
+	if (sdata->sensor_settings->enable_axis.addr)
+		err = st_sensors_write_data_with_mask(indio_dev,
 				sdata->sensor_settings->enable_axis.addr,
 				sdata->sensor_settings->enable_axis.mask,
 				axis_enable);
+	return err;
 }
 EXPORT_SYMBOL(st_sensors_set_axis_enable);
 
