@@ -13,7 +13,7 @@ What you need to know
 =====================
 
 The reader of this document is required to have some knowledge in the
-area of digital video broadcasting (DVB) and should be familiar with
+area of digital video broadcasting (Digital TV) and should be familiar with
 part I of the MPEG2 specification ISO/IEC 13818 (aka ITU-T H.222), i.e
 you should know what a program/transport stream (PS/TS) is and what is
 meant by a packetized elementary stream (PES) or an I-frame.
@@ -59,14 +59,14 @@ Overview
     :alt:   dvbstb.svg
     :align: center
 
-    Components of a DVB card/STB
+    Components of a Digital TV card/STB
 
-A DVB PCI card or DVB set-top-box (STB) usually consists of the
+A Digital TV card or set-top-box (STB) usually consists of the
 following main hardware components:
 
--  Frontend consisting of tuner and DVB demodulator
+-  Frontend consisting of tuner and digital TV demodulator
 
-   Here the raw signal reaches the DVB hardware from a satellite dish or
+   Here the raw signal reaches the digital TV hardware from a satellite dish or
    antenna or directly from cable. The frontend down-converts and
    demodulates this signal into an MPEG transport stream (TS). In case
    of a satellite frontend, this includes a facility for satellite
@@ -105,10 +105,10 @@ conditional access hardware.
 
 .. _dvb_devices:
 
-Linux DVB Devices
-=================
+Linux Digital TV Devices
+========================
 
-The Linux DVB API lets you control these hardware components through
+The Linux Digital TV API lets you control these hardware components through
 currently six Unix-style character devices for video, audio, frontend,
 demux, CA and IP-over-DVB networking. The video and audio devices
 control the MPEG2 decoder hardware, the frontend device the tuner and
@@ -137,8 +137,8 @@ individual devices are called:
 
 -  ``/dev/dvb/adapterN/caM``,
 
-where ``N`` enumerates the DVB PCI cards in a system starting from 0, and ``M``
-enumerates the devices of each type within each adapter, starting
+where ``N`` enumerates the Digital TV cards in a system starting from 0, and
+``M`` enumerates the devices of each type within each adapter, starting
 from 0, too. We will omit the “``/dev/dvb/adapterN/``\ ” in the further
 discussion of these devices.
 
@@ -151,8 +151,8 @@ devices are described in the following chapters.
 API include files
 =================
 
-For each of the DVB devices a corresponding include file exists. The DVB
-API include files should be included in application sources with a
+For each of the Digital TV devices a corresponding include file exists. The
+Digital TV API include files should be included in application sources with a
 partial path like:
 
 
