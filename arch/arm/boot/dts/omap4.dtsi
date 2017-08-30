@@ -51,6 +51,17 @@
 		};
 	};
 
+	/*
+	 * Note that 4430 needs cross trigger interface (CTI) supported
+	 * before we can configure the interrupts. This means sampling
+	 * events are not supported for pmu. Note that 4460 does not use
+	 * CTI, see also 4460.dtsi.
+	 */
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		ti,hwmods = "debugss";
+	};
+
 	gic: interrupt-controller@48241000 {
 		compatible = "arm,cortex-a9-gic";
 		interrupt-controller;
