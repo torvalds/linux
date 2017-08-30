@@ -139,6 +139,32 @@ static const u32 rsi_max_ap_stas[16] = {
 	4,	/* 14 - AP + BT Dual */
 };
 
+static const struct ieee80211_iface_limit rsi_iface_limits[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP) |
+			BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			BIT(NL80211_IFTYPE_P2P_GO),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),
+	},
+};
+
+static const struct ieee80211_iface_combination rsi_iface_combinations[] = {
+	{
+		.num_different_channels = 1,
+		.max_interfaces = 3,
+		.limits = rsi_iface_limits,
+		.n_limits = ARRAY_SIZE(rsi_iface_limits),
+	},
+};
+
 /**
  * rsi_is_cipher_wep() -  This function determines if the cipher is WEP or not.
  * @common: Pointer to the driver private structure.
@@ -1581,7 +1607,11 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	ether_addr_copy(hw->wiphy->addr_mask, addr_mask);
 
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-				 BIT(NL80211_IFTYPE_AP);
+				 BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_P2P_DEVICE) |
+				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				 BIT(NL80211_IFTYPE_P2P_GO);
+
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	wiphy->retry_short = RETRY_SHORT;
 	wiphy->retry_long  = RETRY_LONG;
@@ -1607,6 +1637,11 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	wiphy->reg_notifier = rsi_reg_notify;
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
+	/* Wi-Fi direct parameters */
+	hw->max_listen_interval = 10;
+	wiphy->iface_combinations = rsi_iface_combinations;
+	wiphy->n_iface_combinations = ARRAY_SIZE(rsi_iface_combinations);
 
 	status = ieee80211_register_hw(hw);
 	if (status)
