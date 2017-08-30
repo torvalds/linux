@@ -5771,9 +5771,28 @@ static void mvpp2_link_event(struct net_device *dev)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
+	bool link_reconfigured = false;
 	u32 val;
 
 	if (phydev->link) {
+		if (port->phy_interface != phydev->interface && port->comphy) {
+	                /* disable current port for reconfiguration */
+	                mvpp2_interrupts_disable(port);
+	                netif_carrier_off(port->dev);
+	                mvpp2_port_disable(port);
+			phy_power_off(port->comphy);
+
+	                /* comphy reconfiguration */
+	                port->phy_interface = phydev->interface;
+	                mvpp22_comphy_init(port);
+
+	                /* gop/mac reconfiguration */
+	                mvpp22_gop_init(port);
+	                mvpp2_port_mii_set(port);
+
+	                link_reconfigured = true;
+		}
+
 		if ((port->speed != phydev->speed) ||
 		    (port->duplex != phydev->duplex)) {
 			mvpp2_gmac_set_autoneg(port, phydev);
@@ -5783,7 +5802,7 @@ static void mvpp2_link_event(struct net_device *dev)
 		}
 	}
 
-	if (phydev->link != port->link) {
+	if (phydev->link != port->link || link_reconfigured) {
 		port->link = phydev->link;
 
 		if (phydev->link) {
