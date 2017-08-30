@@ -74,6 +74,8 @@ static struct sk_buff *rsi_prepare_skb(struct rsi_common *common,
 	struct skb_info *rx_params;
 	struct sk_buff *skb = NULL;
 	u8 payload_offset;
+	struct ieee80211_vif *vif;
+	struct ieee80211_hdr *wh;
 
 	if (WARN(!pkt_len, "%s: Dummy pkt received", __func__))
 		return NULL;
@@ -92,11 +94,13 @@ static struct sk_buff *rsi_prepare_skb(struct rsi_common *common,
 	payload_offset = (extended_desc + FRAME_DESC_SZ);
 	skb_put(skb, pkt_len);
 	memcpy((skb->data), (buffer + payload_offset), skb->len);
+	wh = (struct ieee80211_hdr *)skb->data;
+	vif = rsi_get_vif(common->priv, wh->addr1);
 
 	info = IEEE80211_SKB_CB(skb);
 	rx_params = (struct skb_info *)info->driver_data;
 	rx_params->rssi = rsi_get_rssi(buffer);
-	rx_params->channel = rsi_get_connected_channel(common->priv);
+	rx_params->channel = rsi_get_connected_channel(vif);
 
 	return skb;
 }
@@ -233,6 +237,9 @@ struct rsi_hw *rsi_91x_init(void)
 
 	rsi_default_ps_params(adapter);
 	spin_lock_init(&adapter->ps_lock);
+	common->roc_timer.data = (unsigned long)common;
+	common->roc_timer.function = (void *)&rsi_roc_timeout;
+	init_timer(&common->roc_timer);
 	common->init_done = true;
 	return adapter;
 

@@ -503,35 +503,44 @@ static int rsi_channel_change(struct ieee80211_hw *hw)
 	int status = -EOPNOTSUPP;
 	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
 	u16 channel = curchan->hw_value;
-	struct ieee80211_bss_conf *bss = &adapter->vifs[0]->bss_conf;
+	struct ieee80211_vif *vif;
+	struct ieee80211_bss_conf *bss;
+	bool assoc = false;
+	int i;
 
 	rsi_dbg(INFO_ZONE,
 		"%s: Set channel: %d MHz type: %d channel_no %d\n",
 		__func__, curchan->center_freq,
 		curchan->flags, channel);
 
-	if (bss->assoc) {
+	for (i = 0; i < RSI_MAX_VIFS; i++) {
+		vif = adapter->vifs[i];
+		if (!vif)
+			continue;
+		if (vif->type == NL80211_IFTYPE_STATION) {
+			bss = &vif->bss_conf;
+			if (bss->assoc) {
+				assoc = true;
+				break;
+			}
+		}
+	}
+	if (assoc) {
 		if (!common->hw_data_qs_blocked &&
-		    (rsi_get_connected_channel(adapter) != channel)) {
+		    (rsi_get_connected_channel(vif) != channel)) {
 			rsi_dbg(INFO_ZONE, "blk data q %d\n", channel);
 			if (!rsi_send_block_unblock_frame(common, true))
 				common->hw_data_qs_blocked = true;
 		}
 	}
 
-	status = rsi_band_check(common);
+	status = rsi_band_check(common, curchan);
 	if (!status)
 		status = rsi_set_channel(adapter->priv, curchan);
 
-	if (bss->assoc) {
+	if (assoc) {
 		if (common->hw_data_qs_blocked &&
-		    (rsi_get_connected_channel(adapter) == channel)) {
-			rsi_dbg(INFO_ZONE, "unblk data q %d\n", channel);
-			if (!rsi_send_block_unblock_frame(common, false))
-				common->hw_data_qs_blocked = false;
-		}
-	} else {
-		if (common->hw_data_qs_blocked) {
+		    (rsi_get_connected_channel(vif) == channel)) {
 			rsi_dbg(INFO_ZONE, "unblk data q %d\n", channel);
 			if (!rsi_send_block_unblock_frame(common, false))
 				common->hw_data_qs_blocked = false;
@@ -632,16 +641,42 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
  *
  * Return: Current connected AP's channel number is returned.
  */
-u16 rsi_get_connected_channel(struct rsi_hw *adapter)
+u16 rsi_get_connected_channel(struct ieee80211_vif *vif)
 {
-	struct ieee80211_vif *vif = adapter->vifs[0];
-	if (vif) {
-		struct ieee80211_bss_conf *bss = &vif->bss_conf;
-		struct ieee80211_channel *channel = bss->chandef.chan;
-		return channel->hw_value;
-	}
+	struct ieee80211_bss_conf *bss;
+	struct ieee80211_channel *channel;
 
-	return 0;
+	if (!vif)
+		return 0;
+
+	bss = &vif->bss_conf;
+	channel = bss->chandef.chan;
+
+	if (!channel)
+		return 0;
+
+	return channel->hw_value;
+}
+
+static void rsi_switch_channel(struct rsi_hw *adapter,
+			       struct ieee80211_vif *vif)
+{
+	struct rsi_common *common = adapter->priv;
+	struct ieee80211_channel *channel;
+
+	if (common->iface_down)
+		return;
+	if (!vif)
+		return;
+
+	channel = vif->bss_conf.chandef.chan;
+
+	if (!channel)
+		return;
+
+	rsi_band_check(common, channel);
+	rsi_set_channel(common, channel);
+	rsi_dbg(INFO_ZONE, "Switched to channel - %d\n", channel->hw_value);
 }
 
 /**
@@ -1561,6 +1596,114 @@ static void rsi_mac80211_rfkill_poll(struct ieee80211_hw *hw)
 	mutex_unlock(&common->mutex);
 }
 
+static void rsi_resume_conn_channel(struct rsi_common *common)
+{
+	struct rsi_hw *adapter = common->priv;
+	struct ieee80211_vif *vif;
+	int cnt;
+
+	for (cnt = 0; cnt < RSI_MAX_VIFS; cnt++) {
+		vif = adapter->vifs[cnt];
+		if (!vif)
+			continue;
+
+		if ((vif->type == NL80211_IFTYPE_AP) ||
+		    (vif->type == NL80211_IFTYPE_P2P_GO)) {
+			rsi_switch_channel(adapter, vif);
+			break;
+		}
+		if (((vif->type == NL80211_IFTYPE_STATION) ||
+		     (vif->type == NL80211_IFTYPE_P2P_CLIENT)) &&
+		    vif->bss_conf.assoc) {
+			rsi_switch_channel(adapter, vif);
+			break;
+		}
+	}
+}
+
+void rsi_roc_timeout(unsigned long data)
+{
+	struct rsi_common *common = (struct rsi_common *)data;
+
+	rsi_dbg(INFO_ZONE, "Remain on channel expired\n");
+
+	mutex_lock(&common->mutex);
+	ieee80211_remain_on_channel_expired(common->priv->hw);
+
+	if (timer_pending(&common->roc_timer))
+		del_timer(&common->roc_timer);
+
+	rsi_resume_conn_channel(common);
+	mutex_unlock(&common->mutex);
+}
+
+static int rsi_mac80211_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			    struct ieee80211_channel *chan, int duration,
+			    enum ieee80211_roc_type type)
+{
+	struct rsi_hw *adapter = (struct rsi_hw *)hw->priv;
+	struct rsi_common *common = (struct rsi_common *)adapter->priv;
+	int status = 0;
+
+	rsi_dbg(INFO_ZONE, "***** Remain on channel *****\n");
+
+	mutex_lock(&common->mutex);
+	rsi_dbg(INFO_ZONE, "%s: channel: %d duration: %dms\n",
+		__func__, chan->hw_value, duration);
+
+	if (timer_pending(&common->roc_timer)) {
+		rsi_dbg(INFO_ZONE, "Stop on-going ROC\n");
+		del_timer(&common->roc_timer);
+	}
+	common->roc_timer.expires = msecs_to_jiffies(duration) + jiffies;
+	add_timer(&common->roc_timer);
+
+	/* Configure band */
+	if (rsi_band_check(common, chan)) {
+		rsi_dbg(ERR_ZONE, "Failed to set band\n");
+		status = -EINVAL;
+		goto out;
+	}
+
+	/* Configure channel */
+	if (rsi_set_channel(common, chan)) {
+		rsi_dbg(ERR_ZONE, "Failed to set the channel\n");
+		status = -EINVAL;
+		goto out;
+	}
+
+	common->roc_vif = vif;
+	ieee80211_ready_on_channel(hw);
+	rsi_dbg(INFO_ZONE, "%s: Ready on channel :%d\n",
+		__func__, chan->hw_value);
+
+out:
+	mutex_unlock(&common->mutex);
+
+	return status;
+}
+
+static int rsi_mac80211_cancel_roc(struct ieee80211_hw *hw)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+
+	rsi_dbg(INFO_ZONE, "Cancel remain on channel\n");
+
+	mutex_lock(&common->mutex);
+	if (!timer_pending(&common->roc_timer)) {
+		mutex_unlock(&common->mutex);
+		return 0;
+	}
+
+	del_timer(&common->roc_timer);
+
+	rsi_resume_conn_channel(common);
+	mutex_unlock(&common->mutex);
+
+	return 0;
+}
+
 static const struct ieee80211_ops mac80211_ops = {
 	.tx = rsi_mac80211_tx,
 	.start = rsi_mac80211_start,
@@ -1580,6 +1723,8 @@ static const struct ieee80211_ops mac80211_ops = {
 	.set_antenna = rsi_mac80211_set_antenna,
 	.get_antenna = rsi_mac80211_get_antenna,
 	.rfkill_poll = rsi_mac80211_rfkill_poll,
+	.remain_on_channel = rsi_mac80211_roc,
+	.cancel_remain_on_channel = rsi_mac80211_cancel_roc,
 };
 
 /**
@@ -1666,6 +1811,9 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	/* Wi-Fi direct parameters */
+	wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+	wiphy->flags |= WIPHY_FLAG_OFFCHAN_TX;
+	wiphy->max_remain_on_channel_duration = 10000;
 	hw->max_listen_interval = 10;
 	wiphy->iface_combinations = rsi_iface_combinations;
 	wiphy->n_iface_combinations = ARRAY_SIZE(rsi_iface_combinations);

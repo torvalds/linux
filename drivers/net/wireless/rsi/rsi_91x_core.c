@@ -334,6 +334,21 @@ struct rsi_sta *rsi_find_sta(struct rsi_common *common, u8 *mac_addr)
 	return NULL;
 }
 
+struct ieee80211_vif *rsi_get_vif(struct rsi_hw *adapter, u8 *mac)
+{
+	struct ieee80211_vif *vif;
+	int i;
+
+	for (i = 0; i < RSI_MAX_VIFS; i++) {
+		vif = adapter->vifs[i];
+		if (!vif)
+			continue;
+		if (!memcmp(vif->addr, mac, ETH_ALEN))
+			return vif;
+	}
+	return NULL;
+}
+
 /**
  * rsi_core_xmit() - This function transmits the packets received from mac80211
  * @common: Pointer to the driver private structure.

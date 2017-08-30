@@ -633,7 +633,7 @@ void rsi_core_qos_processor(struct rsi_common *common);
 void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_mgmt_pkt(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb);
-int rsi_band_check(struct rsi_common *common);
+int rsi_band_check(struct rsi_common *common, struct ieee80211_channel *chan);
 int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word);
 int rsi_send_radio_params_update(struct rsi_common *common);
 int rsi_set_antenna(struct rsi_common *common, u8 antenna);

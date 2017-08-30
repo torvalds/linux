@@ -274,6 +274,8 @@ struct rsi_common {
 
 	/* Wi-Fi direct mode related */
 	bool p2p_enabled;
+	struct timer_list roc_timer;
+	struct ieee80211_vif *roc_vif;
 };
 
 enum host_intf {

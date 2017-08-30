@@ -926,13 +926,13 @@ static int rsi_send_reset_mac(struct rsi_common *common)
  *
  * Return: 0 on success, corresponding error code on failure.
  */
-int rsi_band_check(struct rsi_common *common)
+int rsi_band_check(struct rsi_common *common,
+		   struct ieee80211_channel *curchan)
 {
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_hw *hw = adapter->hw;
 	u8 prev_bw = common->channel_width;
 	u8 prev_ep = common->endpoint;
-	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
 	int status = 0;
 
 	if (common->band != curchan->band) {
