@@ -499,19 +499,59 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	return esp_output_tail(x, skb, &esp);
 }
 
+static inline int esp_remove_trailer(struct sk_buff *skb)
+{
+	struct xfrm_state *x = xfrm_input_state(skb);
+	struct xfrm_offload *xo = xfrm_offload(skb);
+	struct crypto_aead *aead = x->data;
+	int alen, hlen, elen;
+	int padlen, trimlen;
+	__wsum csumdiff;
+	u8 nexthdr[2];
+	int ret;
+
+	alen = crypto_aead_authsize(aead);
+	hlen = sizeof(struct ip_esp_hdr) + crypto_aead_ivsize(aead);
+	elen = skb->len - hlen;
+
+	if (xo && (xo->flags & XFRM_ESP_NO_TRAILER)) {
+		ret = xo->proto;
+		goto out;
+	}
+
+	if (skb_copy_bits(skb, skb->len - alen - 2, nexthdr, 2))
+		BUG();
+
+	ret = -EINVAL;
+	padlen = nexthdr[0];
+	if (padlen + 2 + alen >= elen) {
+		net_dbg_ratelimited("ipsec esp packet is garbage padlen=%d, elen=%d\n",
+				    padlen + 2, elen - alen);
+		goto out;
+	}
+
+	trimlen = alen + padlen + 2;
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+		csumdiff = skb_checksum(skb, skb->len - trimlen, trimlen, 0);
+		skb->csum = csum_block_sub(skb->csum, csumdiff,
+					   skb->len - trimlen);
+	}
+	pskb_trim(skb, skb->len - trimlen);
+
+	ret = nexthdr[1];
+
+out:
+	return ret;
+}
+
 int esp_input_done2(struct sk_buff *skb, int err)
 {
 	const struct iphdr *iph;
 	struct xfrm_state *x = xfrm_input_state(skb);
 	struct xfrm_offload *xo = xfrm_offload(skb);
 	struct crypto_aead *aead = x->data;
-	int alen = crypto_aead_authsize(aead);
 	int hlen = sizeof(struct ip_esp_hdr) + crypto_aead_ivsize(aead);
-	int elen = skb->len - hlen;
 	int ihl;
-	u8 nexthdr[2];
-	int padlen, trimlen;
-	__wsum csumdiff;
 
 	if (!xo || (xo && !(xo->flags & CRYPTO_DONE)))
 		kfree(ESP_SKB_CB(skb)->tmp);
@@ -519,15 +559,9 @@ int esp_input_done2(struct sk_buff *skb, int err)
 	if (unlikely(err))
 		goto out;
 
-	if (skb_copy_bits(skb, skb->len-alen-2, nexthdr, 2))
-		BUG();
-
-	err = -EINVAL;
-	padlen = nexthdr[0];
-	if (padlen + 2 + alen >= elen)
+	err = esp_remove_trailer(skb);
+	if (unlikely(err < 0))
 		goto out;
-
-	/* ... check padding bits here. Silly. :-) */
 
 	iph = ip_hdr(skb);
 	ihl = iph->ihl * 4;
@@ -569,21 +603,11 @@ int esp_input_done2(struct sk_buff *skb, int err)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
-	trimlen = alen + padlen + 2;
-	if (skb->ip_summed == CHECKSUM_COMPLETE) {
-		csumdiff = skb_checksum(skb, skb->len - trimlen, trimlen, 0);
-		skb->csum = csum_block_sub(skb->csum, csumdiff,
-					   skb->len - trimlen);
-	}
-	pskb_trim(skb, skb->len - trimlen);
-
 	skb_pull_rcsum(skb, hlen);
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		skb_reset_transport_header(skb);
 	else
 		skb_set_transport_header(skb, -ihl);
-
-	err = nexthdr[1];
 
 	/* RFC4303: Drop dummy packets without any error */
 	if (err == IPPROTO_NONE)
