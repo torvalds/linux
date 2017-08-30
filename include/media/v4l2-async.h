@@ -18,6 +18,7 @@ struct device;
 struct device_node;
 struct v4l2_device;
 struct v4l2_subdev;
+struct v4l2_async_notifier;
 
 /* A random max subdevice number, used to allocate an array on stack */
 #define V4L2_MAX_SUBDEVS 128U
@@ -79,27 +80,12 @@ struct v4l2_async_subdev {
 };
 
 /**
- * struct v4l2_async_notifier - v4l2_device notifier data
- *
- * @num_subdevs: number of subdevices used in the subdevs array
- * @max_subdevs: number of subdevices allocated in the subdevs array
- * @subdevs:	array of pointers to subdevice descriptors
- * @v4l2_dev:	pointer to struct v4l2_device
- * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers
- * @done:	list of struct v4l2_subdev, already probed
- * @list:	member in a global list of notifiers
- * @bound:	a subdevice driver has successfully probed one of subdevices
+ * struct v4l2_async_notifier_operations - Asynchronous V4L2 notifier operations
+ * @bound:	a subdevice driver has successfully probed one of the subdevices
  * @complete:	all subdevices have been probed successfully
  * @unbind:	a subdevice is leaving
  */
-struct v4l2_async_notifier {
-	unsigned int num_subdevs;
-	unsigned int max_subdevs;
-	struct v4l2_async_subdev **subdevs;
-	struct v4l2_device *v4l2_dev;
-	struct list_head waiting;
-	struct list_head done;
-	struct list_head list;
+struct v4l2_async_notifier_operations {
 	int (*bound)(struct v4l2_async_notifier *notifier,
 		     struct v4l2_subdev *subdev,
 		     struct v4l2_async_subdev *asd);
@@ -107,6 +93,29 @@ struct v4l2_async_notifier {
 	void (*unbind)(struct v4l2_async_notifier *notifier,
 		       struct v4l2_subdev *subdev,
 		       struct v4l2_async_subdev *asd);
+};
+
+/**
+ * struct v4l2_async_notifier - v4l2_device notifier data
+ *
+ * @ops:	notifier operations
+ * @num_subdevs: number of subdevices used in the subdevs array
+ * @max_subdevs: number of subdevices allocated in the subdevs array
+ * @subdevs:	array of pointers to subdevice descriptors
+ * @v4l2_dev:	pointer to struct v4l2_device
+ * @waiting:	list of struct v4l2_async_subdev, waiting for their drivers
+ * @done:	list of struct v4l2_subdev, already probed
+ * @list:	member in a global list of notifiers
+ */
+struct v4l2_async_notifier {
+	const struct v4l2_async_notifier_operations *ops;
+	unsigned int num_subdevs;
+	unsigned int max_subdevs;
+	struct v4l2_async_subdev **subdevs;
+	struct v4l2_device *v4l2_dev;
+	struct list_head waiting;
+	struct list_head done;
+	struct list_head list;
 };
 
 /**
