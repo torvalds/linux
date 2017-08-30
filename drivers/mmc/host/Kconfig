@@ -24,7 +24,7 @@ config MMC_ARMMMCI
 	  If unsure, say N.
 
 config MMC_QCOM_DML
-	tristate "Qualcomm Data Mover for SD Card Controller"
+	bool "Qualcomm Data Mover for SD Card Controller"
 	depends on MMC_ARMMMCI && QCOM_BAM_DMA
 	default y
 	help
