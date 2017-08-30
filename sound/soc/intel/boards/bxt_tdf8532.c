@@ -240,6 +240,7 @@ static struct platform_driver broxton_tdf8532_audio = {
 	.remove = broxton_tdf8532_audio_remove,
 	.driver = {
 		.name = "bxt_tdf8532",
+		.pm = &snd_soc_pm_ops,
 	},
 };
 
