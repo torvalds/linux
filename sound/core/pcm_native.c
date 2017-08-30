@@ -3064,6 +3064,7 @@ int snd_pcm_kernel_ioctl(struct snd_pcm_substream *substream,
 {
 	snd_pcm_uframes_t *frames = arg;
 	snd_pcm_sframes_t result;
+	int err;
 	
 	switch (cmd) {
 	case SNDRV_PCM_IOCTL_FORWARD:
@@ -3083,7 +3084,10 @@ int snd_pcm_kernel_ioctl(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_IOCTL_START:
 		return snd_pcm_start_lock_irq(substream);
 	case SNDRV_PCM_IOCTL_DRAIN:
-		return snd_pcm_drain(substream, NULL);
+		snd_power_lock(substream->pcm->card);
+		err = snd_pcm_drain(substream, NULL);
+		snd_power_unlock(substream->pcm->card);
+		return err;
 	case SNDRV_PCM_IOCTL_DROP:
 		return snd_pcm_drop(substream);
 	case SNDRV_PCM_IOCTL_DELAY:
