@@ -402,17 +402,18 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
 	 */
 	if (IS_GEN7(dev_priv)) {
 		switch (engine->id) {
+		/*
+		 * No more rings exist on Gen7. Default case is only to shut up
+		 * gcc switch check warning.
+		 */
+		default:
+			GEM_BUG_ON(engine->id);
 		case RCS:
 			mmio = RENDER_HWS_PGA_GEN7;
 			break;
 		case BCS:
 			mmio = BLT_HWS_PGA_GEN7;
 			break;
-		/*
-		 * VCS2 actually doesn't exist on Gen7. Only shut up
-		 * gcc switch check warning
-		 */
-		case VCS2:
 		case VCS:
 			mmio = BSD_HWS_PGA_GEN7;
 			break;
