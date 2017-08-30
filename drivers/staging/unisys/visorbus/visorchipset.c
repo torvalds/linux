@@ -86,12 +86,6 @@ struct vmcall_io_controlvm_addr_params {
 	u8 unused[4];
 } __packed;
 
-struct vmcall_controlvm_addr {
-	struct vmcall_io_controlvm_addr_params params;
-	int err;
-	u64 physaddr;
-};
-
 struct visorchipset_device {
 	struct acpi_device *acpi_device;
 	unsigned long poll_jiffies;
@@ -109,7 +103,7 @@ struct visorchipset_device {
 	 */
 	struct controlvm_message controlvm_pending_msg;
 	bool controlvm_pending_msg_valid;
-	struct vmcall_controlvm_addr controlvm_addr;
+	struct vmcall_io_controlvm_addr_params controlvm_params;
 };
 
 static struct visorchipset_device *chipset_dev;
@@ -1341,15 +1335,16 @@ error:
 static unsigned int issue_vmcall_io_controlvm_addr(u64 *control_addr,
 						   u32 *control_bytes)
 {
-	chipset_dev->controlvm_addr.physaddr = virt_to_phys(
-					   &chipset_dev->controlvm_addr.params);
-	chipset_dev->controlvm_addr.err = unisys_vmcall(VMCALL_CONTROLVM_ADDR,
-					  chipset_dev->controlvm_addr.physaddr);
-	if (chipset_dev->controlvm_addr.err)
-		return chipset_dev->controlvm_addr.err;
+	u64 physaddr;
+	int err;
 
-	*control_addr = chipset_dev->controlvm_addr.params.address;
-	*control_bytes = chipset_dev->controlvm_addr.params.channel_bytes;
+	physaddr = virt_to_phys(&chipset_dev->controlvm_params);
+	err = unisys_vmcall(VMCALL_CONTROLVM_ADDR, physaddr);
+	if (err)
+		return err;
+
+	*control_addr = chipset_dev->controlvm_params.address;
+	*control_bytes = chipset_dev->controlvm_params.channel_bytes;
 
 	return 0;
 }
