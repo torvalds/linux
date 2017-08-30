@@ -535,7 +535,6 @@ struct hns_roce_hw {
 	int (*poll_cq)(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 	int (*dereg_mr)(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr);
 	int (*destroy_cq)(struct ib_cq *ibcq);
-	void	*priv;
 };
 
 struct hns_roce_dev {
@@ -572,6 +571,7 @@ struct hns_roce_dev {
 	dma_addr_t		tptr_dma_addr; /*only for hw v1*/
 	u32			tptr_size; /*only for hw v1*/
 	const struct hns_roce_hw *hw;
+	void			*priv;
 };
 
 static inline struct hns_roce_dev *to_hr_dev(struct ib_device *ib_dev)
