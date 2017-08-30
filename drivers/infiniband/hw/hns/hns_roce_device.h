@@ -267,6 +267,19 @@ struct hns_roce_mr {
 	int			type;	/* MR's register type */
 	u64			*pbl_buf;/* MR's PBL space */
 	dma_addr_t		pbl_dma_addr;	/* MR's PBL space PA */
+	u32			pbl_size;/* PA number in the PBL */
+	u64			pbl_ba;/* page table address */
+	u32			l0_chunk_last_num;/* L0 last number */
+	u32			l1_chunk_last_num;/* L1 last number */
+	u64			**pbl_bt_l2;/* PBL BT L2 */
+	u64			**pbl_bt_l1;/* PBL BT L1 */
+	u64			*pbl_bt_l0;/* PBL BT L0 */
+	dma_addr_t		*pbl_l2_dma_addr;/* PBL BT L2 dma addr */
+	dma_addr_t		*pbl_l1_dma_addr;/* PBL BT L1 dma addr */
+	dma_addr_t		pbl_l0_dma_addr;/* PBL BT L0 dma addr */
+	u32			pbl_ba_pg_sz;/* BT chunk page size */
+	u32			pbl_buf_pg_sz;/* buf chunk page size */
+	u32			pbl_hop_num;/* multi-hop number */
 };
 
 struct hns_roce_mr_table {
@@ -514,6 +527,9 @@ struct hns_roce_caps {
 	int		qpc_entry_sz;
 	int		irrl_entry_sz;
 	int		cqc_entry_sz;
+	u32		pbl_ba_pg_sz;
+	u32		pbl_buf_pg_sz;
+	u32		pbl_hop_num;
 	int		aeqe_depth;
 	int		ceqe_depth[HNS_ROCE_COMP_VEC_NUM];
 	enum ib_mtu	max_mtu;
