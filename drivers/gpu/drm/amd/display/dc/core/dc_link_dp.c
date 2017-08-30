@@ -1756,7 +1756,7 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 		test_pattern = DP_TEST_PATTERN_CP2520_2;
 		break;
 	case PHY_TEST_PATTERN_CP2520_3:
-		test_pattern = DP_TEST_PATTERN_CP2520_3;
+		test_pattern = DP_TEST_PATTERN_TRAINING_PATTERN4;
 		break;
 	default:
 		test_pattern = DP_TEST_PATTERN_VIDEO_MODE;
