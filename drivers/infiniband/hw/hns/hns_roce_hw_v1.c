@@ -2356,7 +2356,7 @@ int hns_roce_v1_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 }
 
 int hns_roce_v1_clear_hem(struct hns_roce_dev *hr_dev,
-		struct hns_roce_hem_table *table, int obj)
+		struct hns_roce_hem_table *table, int obj, int step_idx)
 {
 	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_v1_priv *priv;

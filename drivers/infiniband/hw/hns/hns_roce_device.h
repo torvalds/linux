@@ -78,6 +78,8 @@
 #define HNS_ROCE_MAX_GID_NUM			16
 #define HNS_ROCE_GID_SIZE			16
 
+#define HNS_ROCE_HOP_NUM_0			0xff
+
 #define BITMAP_NO_RR				0
 #define BITMAP_RR				1
 
@@ -232,6 +234,10 @@ struct hns_roce_hem_table {
 	int		lowmem;
 	struct mutex	mutex;
 	struct hns_roce_hem **hem;
+	u64		**bt_l1;
+	dma_addr_t	*bt_l1_dma_addr;
+	u64		**bt_l0;
+	dma_addr_t	*bt_l0_dma_addr;
 };
 
 struct hns_roce_mtt {
@@ -507,6 +513,18 @@ struct hns_roce_caps {
 	u32		srqc_bt_num;
 	u32		cqc_bt_num;
 	u32		mpt_bt_num;
+	u32		qpc_ba_pg_sz;
+	u32		qpc_buf_pg_sz;
+	u32		qpc_hop_num;
+	u32		srqc_ba_pg_sz;
+	u32		srqc_buf_pg_sz;
+	u32		srqc_hop_num;
+	u32		cqc_ba_pg_sz;
+	u32		cqc_buf_pg_sz;
+	u32		cqc_hop_num;
+	u32		mpt_ba_pg_sz;
+	u32		mpt_buf_pg_sz;
+	u32		mpt_hop_num;
 };
 
 struct hns_roce_hw {
@@ -530,8 +548,11 @@ struct hns_roce_hw {
 	void (*write_cqc)(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,
 			  dma_addr_t dma_handle, int nent, u32 vector);
+	int (*set_hem)(struct hns_roce_dev *hr_dev,
+		       struct hns_roce_hem_table *table, int obj, int step_idx);
 	int (*clear_hem)(struct hns_roce_dev *hr_dev,
-			 struct hns_roce_hem_table *table, int obj);
+			 struct hns_roce_hem_table *table, int obj,
+			 int step_idx);
 	int (*query_qp)(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 			int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
 	int (*modify_qp)(struct ib_qp *ibqp, const struct ib_qp_attr *attr,

@@ -54,6 +54,15 @@ enum {
 	 ((256 - sizeof(struct list_head) - 2 * sizeof(int)) /	 \
 	 (sizeof(struct scatterlist)))
 
+#define check_whether_bt_num_3(type, hop_num) \
+	(type < HEM_TYPE_MTT && hop_num == 2)
+
+#define check_whether_bt_num_2(type, hop_num) \
+	(type < HEM_TYPE_MTT && hop_num == 1)
+
+#define check_whether_bt_num_1(type, hop_num) \
+	(type < HEM_TYPE_MTT && hop_num == HNS_ROCE_HOP_NUM_0)
+
 enum {
 	 HNS_ROCE_HEM_PAGE_SHIFT = 12,
 	 HNS_ROCE_HEM_PAGE_SIZE  = 1 << HNS_ROCE_HEM_PAGE_SHIFT,
@@ -77,6 +86,16 @@ struct hns_roce_hem_iter {
 	int				 page_idx;
 };
 
+struct hns_roce_hem_mhop {
+	u32	hop_num;
+	u32	buf_chunk_size;
+	u32	bt_chunk_size;
+	u32	ba_l0_num;
+	u32	l0_idx;/* level 0 base address table index */
+	u32	l1_idx;/* level 1 base address table index */
+	u32	l2_idx;/* level 2 base address table index */
+};
+
 void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct hns_roce_hem *hem);
 int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 		       struct hns_roce_hem_table *table, unsigned long obj);
@@ -97,6 +116,10 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 void hns_roce_cleanup_hem_table(struct hns_roce_dev *hr_dev,
 				struct hns_roce_hem_table *table);
 void hns_roce_cleanup_hem(struct hns_roce_dev *hr_dev);
+int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
+			   struct hns_roce_hem_table *table, unsigned long *obj,
+			   struct hns_roce_hem_mhop *mhop);
+bool hns_roce_check_whether_mhop(struct hns_roce_dev *hr_dev, u32 type);
 
 static inline void hns_roce_hem_first(struct hns_roce_hem *hem,
 				      struct hns_roce_hem_iter *iter)

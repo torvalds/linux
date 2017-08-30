@@ -545,6 +545,19 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->reserved_uars	= 0;
 	caps->reserved_cqs	= 0;
 
+	caps->qpc_ba_pg_sz	= 0;
+	caps->qpc_buf_pg_sz	= 0;
+	caps->qpc_hop_num	= HNS_ROCE_CONTEXT_HOP_NUM;
+	caps->srqc_ba_pg_sz	= 0;
+	caps->srqc_buf_pg_sz	= 0;
+	caps->srqc_hop_num	= HNS_ROCE_HOP_NUM_0;
+	caps->cqc_ba_pg_sz	= 0;
+	caps->cqc_buf_pg_sz	= 0;
+	caps->cqc_hop_num	= HNS_ROCE_CONTEXT_HOP_NUM;
+	caps->mpt_ba_pg_sz	= 0;
+	caps->mpt_buf_pg_sz	= 0;
+	caps->mpt_hop_num	= HNS_ROCE_CONTEXT_HOP_NUM;
+
 	caps->pkey_table_len[0] = 1;
 	caps->gid_table_len[0] = 2;
 	caps->local_ca_ack_delay = 0;
