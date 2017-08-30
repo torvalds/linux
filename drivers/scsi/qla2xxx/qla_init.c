@@ -4937,6 +4937,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha)
 				new_fcport->fc4_type = swl[swl_idx].fc4_type;
 
 				new_fcport->nvme_flag = 0;
+				new_fcport->fc4f_nvme = 0;
 				if (vha->flags.nvme_enabled &&
 				    swl[swl_idx].fc4f_nvme) {
 					new_fcport->fc4f_nvme =
