@@ -240,7 +240,7 @@ static int cpm_suspend_enter(suspend_state_t state)
 	return 0;
 }
 
-static struct platform_suspend_ops cpm_suspend_ops = {
+static const struct platform_suspend_ops cpm_suspend_ops = {
 	.valid		= cpm_suspend_valid,
 	.enter		= cpm_suspend_enter,
 };
