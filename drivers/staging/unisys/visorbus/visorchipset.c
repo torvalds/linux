@@ -1830,9 +1830,8 @@ static __init int visorutil_spar_detect(void)
 		return  (ebx == UNISYS_VISOR_ID_EBX) &&
 			(ecx == UNISYS_VISOR_ID_ECX) &&
 			(edx == UNISYS_VISOR_ID_EDX);
-	} else {
-		return 0;
 	}
+	return 0;
 }
 
 static int init_unisys(void)
