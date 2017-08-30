@@ -718,6 +718,53 @@ static int hns_roce_v2_chk_mbox(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
+static void hns_roce_v2_set_gid(struct hns_roce_dev *hr_dev, u8 port,
+				int gid_index, union ib_gid *gid)
+{
+	u32 *p;
+	u32 val;
+
+	p = (u32 *)&gid->raw[0];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG0_REG +
+		       0x20 * gid_index);
+
+	p = (u32 *)&gid->raw[4];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG1_REG +
+		       0x20 * gid_index);
+
+	p = (u32 *)&gid->raw[8];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG2_REG +
+		       0x20 * gid_index);
+
+	p = (u32 *)&gid->raw[0xc];
+	roce_raw_write(*p, hr_dev->reg_base + ROCEE_VF_SGID_CFG3_REG +
+		       0x20 * gid_index);
+
+	val = roce_read(hr_dev, ROCEE_VF_SGID_CFG4_REG + 0x20 * gid_index);
+	roce_set_field(val, ROCEE_VF_SGID_CFG4_SGID_TYPE_M,
+		       ROCEE_VF_SGID_CFG4_SGID_TYPE_S, 0);
+
+	roce_write(hr_dev, ROCEE_VF_SGID_CFG4_REG + 0x20 * gid_index, val);
+}
+
+static void hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
+				u8 *addr)
+{
+	u16 reg_smac_h;
+	u32 reg_smac_l;
+	u32 val;
+
+	reg_smac_l = *(u32 *)(&addr[0]);
+	roce_raw_write(reg_smac_l, hr_dev->reg_base + ROCEE_VF_SMAC_CFG0_REG +
+		       0x08 * phy_port);
+	val = roce_read(hr_dev, ROCEE_VF_SMAC_CFG1_REG + 0x08 * phy_port);
+
+	reg_smac_h  = *(u16 *)(&addr[4]);
+	roce_set_field(val, ROCEE_VF_SMAC_CFG1_VF_SMAC_H_M,
+		       ROCEE_VF_SMAC_CFG1_VF_SMAC_H_S, reg_smac_h);
+	roce_write(hr_dev, ROCEE_VF_SMAC_CFG1_REG + 0x08 * phy_port, val);
+}
+
 static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_hem_table *table, int obj,
 			       int step_idx)
@@ -857,6 +904,8 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.hw_profile = hns_roce_v2_profile,
 	.post_mbox = hns_roce_v2_post_mbox,
 	.chk_mbox = hns_roce_v2_chk_mbox,
+	.set_gid = hns_roce_v2_set_gid,
+	.set_mac = hns_roce_v2_set_mac,
 	.set_hem = hns_roce_v2_set_hem,
 	.clear_hem = hns_roce_v2_clear_hem,
 };

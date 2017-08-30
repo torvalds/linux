@@ -246,6 +246,13 @@ struct hns_roce_vf_res_b {
 #define VF_RES_B_DATA_3_VF_SL_NUM_S 16
 #define VF_RES_B_DATA_3_VF_SL_NUM_M GENMASK(19, 16)
 
+/* Reg field definition */
+#define ROCEE_VF_SMAC_CFG1_VF_SMAC_H_S 0
+#define ROCEE_VF_SMAC_CFG1_VF_SMAC_H_M GENMASK(15, 0)
+
+#define ROCEE_VF_SGID_CFG4_SGID_TYPE_S 0
+#define ROCEE_VF_SGID_CFG4_SGID_TYPE_M GENMASK(1, 0)
+
 struct hns_roce_cfg_bt_attr {
 	u32 vf_qpc_cfg;
 	u32 vf_srqc_cfg;
