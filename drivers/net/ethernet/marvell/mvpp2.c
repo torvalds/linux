@@ -5777,14 +5777,25 @@ static void mvpp2_link_event(struct net_device *dev)
 			val |= (MVPP2_GMAC_FORCE_LINK_PASS |
 				MVPP2_GMAC_FORCE_LINK_DOWN);
 			writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+
+			mvpp2_interrupts_enable(port);
+			mvpp2_port_enable(port);
+
 			mvpp2_egress_enable(port);
 			mvpp2_ingress_enable(port);
+			netif_carrier_on(dev);
+			netif_tx_wake_all_queues(dev);
 		} else {
 			port->duplex = -1;
 			port->speed = 0;
 
+			netif_tx_stop_all_queues(dev);
+			netif_carrier_off(dev);
 			mvpp2_ingress_disable(port);
 			mvpp2_egress_disable(port);
+
+			mvpp2_port_disable(port);
+			mvpp2_interrupts_disable(port);
 		}
 
 		phy_print_status(phydev);
