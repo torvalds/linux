@@ -2828,12 +2828,6 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 
-	if (plane_state->ctx->dc->debug.sanity_checks) {
-		struct dc *dc = plane_state->ctx->dc;
-
-		verify_allow_pstate_change_high(dc->hwseq);
-	}
-
 	if (plane_state == NULL)
 		return;
 
