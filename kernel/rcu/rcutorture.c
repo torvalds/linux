@@ -51,6 +51,7 @@
 #include <asm/byteorder.h>
 #include <linux/torture.h>
 #include <linux/vmalloc.h>
+#include <linux/sched/debug.h>
 
 #include "rcu.h"
 
@@ -1240,6 +1241,7 @@ rcu_torture_stats_print(void)
 	long pipesummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	long batchsummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	static unsigned long rtcv_snap = ULONG_MAX;
+	static bool splatted;
 	struct task_struct *wtp;
 
 	for_each_possible_cpu(cpu) {
@@ -1325,6 +1327,10 @@ rcu_torture_stats_print(void)
 			 gpnum, completed, flags,
 			 wtp == NULL ? ~0UL : wtp->state,
 			 wtp == NULL ? -1 : (int)task_cpu(wtp));
+		if (!splatted && wtp) {
+			sched_show_task(wtp);
+			splatted = true;
+		}
 		show_rcu_gp_kthreads();
 		rcu_ftrace_dump(DUMP_ALL);
 	}
