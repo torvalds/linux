@@ -1749,7 +1749,7 @@ static void dump_206_sprs(void)
 
 	printf("sdr1   = %.16lx  hdar  = %.16lx hdsisr = %.8x\n",
 		mfspr(SPRN_SDR1), mfspr(SPRN_HDAR), mfspr(SPRN_HDSISR));
-	printf("hsrr0  = %.16lx hsrr1  = %.16lx hdec = %.8x\n",
+	printf("hsrr0  = %.16lx hsrr1  = %.16lx hdec = %.16lx\n",
 		mfspr(SPRN_HSRR0), mfspr(SPRN_HSRR1), mfspr(SPRN_HDEC));
 	printf("lpcr   = %.16lx  pcr   = %.16lx lpidr = %.8x\n",
 		mfspr(SPRN_LPCR), mfspr(SPRN_PCR), mfspr(SPRN_LPID));
