@@ -1338,7 +1338,7 @@ config MFD_TPS65090
 
 config MFD_TPS65217
 	tristate "TI TPS65217 Power Management / White LED chips"
-	depends on I2C
+	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select IRQ_DOMAIN
