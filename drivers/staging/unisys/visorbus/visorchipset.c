@@ -53,7 +53,7 @@ struct parser_context {
 	u8 *curr;
 	unsigned long bytes_remaining;
 	bool byte_stream;
-	char data[0];
+	struct visor_controlvm_parameters_header data;
 };
 
 /* VMCALL_CONTROLVM_ADDR: Used by all guests, not just IO. */
@@ -299,10 +299,7 @@ static DEVICE_ATTR_RW(remaining_steps);
 
 static const guid_t *parser_id_get(struct parser_context *ctx)
 {
-	struct visor_controlvm_parameters_header *phdr = NULL;
-
-	phdr = (struct visor_controlvm_parameters_header *)(ctx->data);
-	return &phdr->id;
+	return &ctx->data.id;
 }
 
 static void parser_done(struct parser_context *ctx)
@@ -348,12 +345,12 @@ static void *parser_name_get(struct parser_context *ctx)
 {
 	struct visor_controlvm_parameters_header *phdr = NULL;
 
-	phdr = (struct visor_controlvm_parameters_header *)(ctx->data);
+	phdr = &ctx->data;
 
 	if (phdr->name_offset + phdr->name_length > ctx->param_bytes)
 		return NULL;
 
-	ctx->curr = ctx->data + phdr->name_offset;
+	ctx->curr = (char *)&phdr + phdr->name_offset;
 	ctx->bytes_remaining = phdr->name_length;
 	return parser_string_get(ctx);
 }
@@ -1455,17 +1452,15 @@ void visorbus_device_changestate_response(struct visor_device *dev_info,
 static struct parser_context *parser_init_byte_stream(u64 addr, u32 bytes,
 						      bool *retry)
 {
-	int allocbytes = sizeof(struct parser_context) + bytes;
+	int allocbytes;
 	struct parser_context *ctx;
 	void *mapping;
 
 	*retry = false;
 
-	/*
-	 * alloc an 0 extra byte to ensure payload is
-	 * '\0'-terminated
-	 */
-	allocbytes++;
+	/* alloc an extra byte to ensure payload is \0 terminated */
+	allocbytes = bytes + 1 + (sizeof(struct parser_context) -
+		     sizeof(struct visor_controlvm_parameters_header));
 	if ((chipset_dev->controlvm_payload_bytes_buffered + bytes)
 	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
 		*retry = true;
@@ -1482,7 +1477,7 @@ static struct parser_context *parser_init_byte_stream(u64 addr, u32 bytes,
 	mapping = memremap(addr, bytes, MEMREMAP_WB);
 	if (!mapping)
 		goto err_finish_ctx;
-	memcpy(ctx->data, mapping, bytes);
+	memcpy(&ctx->data, mapping, bytes);
 	memunmap(mapping);
 	ctx->byte_stream = true;
 	chipset_dev->controlvm_payload_bytes_buffered += ctx->param_bytes;
