@@ -682,6 +682,14 @@
 			ti,hwmods = "wd_timer2";
 		};
 
+		wdt3: wdt@40130000 {
+			compatible = "ti,omap4-wdt", "ti,omap3-wdt";
+			reg = <0x40130000 0x80>, /* MPU private access */
+			      <0x49030000 0x80>; /* L3 Interconnect */
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "wd_timer3";
+		};
+
 		mcpdm: mcpdm@40132000 {
 			compatible = "ti,omap4-mcpdm";
 			reg = <0x40132000 0x7f>, /* MPU private access */
