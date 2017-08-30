@@ -28,6 +28,7 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/phy.h>
+#include <linux/phy/phy.h>
 #include <linux/clk.h>
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
@@ -861,6 +862,7 @@ struct mvpp2_port {
 
 	phy_interface_t phy_interface;
 	struct device_node *phy_node;
+	struct phy *comphy;
 	unsigned int link;
 	unsigned int duplex;
 	unsigned int speed;
@@ -4420,6 +4422,32 @@ invalid_conf:
 	return -EINVAL;
 }
 
+static int mvpp22_comphy_init(struct mvpp2_port *port)
+{
+	enum phy_mode mode;
+	int ret;
+
+	if (!port->comphy)
+		return 0;
+
+	switch (port->phy_interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+		mode = PHY_MODE_SGMII;
+		break;
+	case PHY_INTERFACE_MODE_10GKR:
+		mode = PHY_MODE_10GKR;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = phy_set_mode(port->comphy, mode);
+	if (ret)
+		return ret;
+
+	return phy_power_on(port->comphy);
+}
+
 static void mvpp2_port_mii_gmac_configure_mode(struct mvpp2_port *port)
 {
 	u32 val;
@@ -5707,63 +5735,108 @@ static irqreturn_t mvpp2_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void mvpp2_gmac_set_autoneg(struct mvpp2_port *port,
+				   struct phy_device *phydev)
+{
+	u32 val;
+
+	if (port->phy_interface != PHY_INTERFACE_MODE_RGMII &&
+	    port->phy_interface != PHY_INTERFACE_MODE_RGMII_ID &&
+	    port->phy_interface != PHY_INTERFACE_MODE_RGMII_RXID &&
+	    port->phy_interface != PHY_INTERFACE_MODE_RGMII_TXID &&
+	    port->phy_interface != PHY_INTERFACE_MODE_SGMII)
+		return;
+
+	val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	val &= ~(MVPP2_GMAC_CONFIG_MII_SPEED |
+		 MVPP2_GMAC_CONFIG_GMII_SPEED |
+		 MVPP2_GMAC_CONFIG_FULL_DUPLEX |
+		 MVPP2_GMAC_AN_SPEED_EN |
+		 MVPP2_GMAC_AN_DUPLEX_EN);
+
+	if (phydev->duplex)
+		val |= MVPP2_GMAC_CONFIG_FULL_DUPLEX;
+
+	if (phydev->speed == SPEED_1000)
+		val |= MVPP2_GMAC_CONFIG_GMII_SPEED;
+	else if (phydev->speed == SPEED_100)
+		val |= MVPP2_GMAC_CONFIG_MII_SPEED;
+
+	writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+
+}
+
 /* Adjust link */
 static void mvpp2_link_event(struct net_device *dev)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
-	int status_change = 0;
+	bool link_reconfigured = false;
 	u32 val;
 
 	if (phydev->link) {
+		if (port->phy_interface != phydev->interface && port->comphy) {
+	                /* disable current port for reconfiguration */
+	                mvpp2_interrupts_disable(port);
+	                netif_carrier_off(port->dev);
+	                mvpp2_port_disable(port);
+			phy_power_off(port->comphy);
+
+	                /* comphy reconfiguration */
+	                port->phy_interface = phydev->interface;
+	                mvpp22_comphy_init(port);
+
+	                /* gop/mac reconfiguration */
+	                mvpp22_gop_init(port);
+	                mvpp2_port_mii_set(port);
+
+	                link_reconfigured = true;
+		}
+
 		if ((port->speed != phydev->speed) ||
 		    (port->duplex != phydev->duplex)) {
-			u32 val;
-
-			val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-			val &= ~(MVPP2_GMAC_CONFIG_MII_SPEED |
-				 MVPP2_GMAC_CONFIG_GMII_SPEED |
-				 MVPP2_GMAC_CONFIG_FULL_DUPLEX |
-				 MVPP2_GMAC_AN_SPEED_EN |
-				 MVPP2_GMAC_AN_DUPLEX_EN);
-
-			if (phydev->duplex)
-				val |= MVPP2_GMAC_CONFIG_FULL_DUPLEX;
-
-			if (phydev->speed == SPEED_1000)
-				val |= MVPP2_GMAC_CONFIG_GMII_SPEED;
-			else if (phydev->speed == SPEED_100)
-				val |= MVPP2_GMAC_CONFIG_MII_SPEED;
-
-			writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+			mvpp2_gmac_set_autoneg(port, phydev);
 
 			port->duplex = phydev->duplex;
 			port->speed  = phydev->speed;
 		}
 	}
 
-	if (phydev->link != port->link) {
-		if (!phydev->link) {
-			port->duplex = -1;
-			port->speed = 0;
-		}
-
+	if (phydev->link != port->link || link_reconfigured) {
 		port->link = phydev->link;
-		status_change = 1;
-	}
 
-	if (status_change) {
 		if (phydev->link) {
-			val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-			val |= (MVPP2_GMAC_FORCE_LINK_PASS |
-				MVPP2_GMAC_FORCE_LINK_DOWN);
-			writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+			if (port->phy_interface == PHY_INTERFACE_MODE_RGMII ||
+			    port->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
+			    port->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID ||
+			    port->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID ||
+			    port->phy_interface == PHY_INTERFACE_MODE_SGMII) {
+				val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+				val |= (MVPP2_GMAC_FORCE_LINK_PASS |
+					MVPP2_GMAC_FORCE_LINK_DOWN);
+				writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+			}
+
+			mvpp2_interrupts_enable(port);
+			mvpp2_port_enable(port);
+
 			mvpp2_egress_enable(port);
 			mvpp2_ingress_enable(port);
+			netif_carrier_on(dev);
+			netif_tx_wake_all_queues(dev);
 		} else {
+			port->duplex = -1;
+			port->speed = 0;
+
+			netif_tx_stop_all_queues(dev);
+			netif_carrier_off(dev);
 			mvpp2_ingress_disable(port);
 			mvpp2_egress_disable(port);
+
+			mvpp2_port_disable(port);
+			mvpp2_interrupts_disable(port);
 		}
+
 		phy_print_status(phydev);
 	}
 }
@@ -6404,8 +6477,10 @@ static void mvpp2_start_dev(struct mvpp2_port *port)
 	/* Enable interrupts on all CPUs */
 	mvpp2_interrupts_enable(port);
 
-	if (port->priv->hw_version == MVPP22)
+	if (port->priv->hw_version == MVPP22) {
+		mvpp22_comphy_init(port);
 		mvpp22_gop_init(port);
+	}
 
 	mvpp2_port_mii_set(port);
 	mvpp2_port_enable(port);
@@ -6436,6 +6511,7 @@ static void mvpp2_stop_dev(struct mvpp2_port *port)
 	mvpp2_egress_disable(port);
 	mvpp2_port_disable(port);
 	phy_stop(ndev->phydev);
+	phy_power_off(port->comphy);
 }
 
 static int mvpp2_check_ringparam_valid(struct net_device *dev,
@@ -7242,6 +7318,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 			    struct mvpp2 *priv)
 {
 	struct device_node *phy_node;
+	struct phy *comphy;
 	struct mvpp2_port *port;
 	struct mvpp2_port_pcpu *port_pcpu;
 	struct net_device *dev;
@@ -7285,6 +7362,15 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		goto err_free_netdev;
 	}
 
+	comphy = devm_of_phy_get(&pdev->dev, port_node, NULL);
+	if (IS_ERR(comphy)) {
+		if (PTR_ERR(comphy) == -EPROBE_DEFER) {
+			err = -EPROBE_DEFER;
+			goto err_free_netdev;
+		}
+		comphy = NULL;
+	}
+
 	if (of_property_read_u32(port_node, "port-id", &id)) {
 		err = -EINVAL;
 		dev_err(&pdev->dev, "missing port-id value\n");
@@ -7318,6 +7404,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 
 	port->phy_node = phy_node;
 	port->phy_interface = phy_mode;
+	port->comphy = comphy;
 
 	if (priv->hw_version == MVPP21) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 2 + id);
