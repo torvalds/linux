@@ -161,7 +161,7 @@ void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
 		       struct hns_roce_buf *buf)
 {
 	int i;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	u32 bits_per_long = BITS_PER_LONG;
 
 	if (buf->nbufs == 1) {
@@ -172,7 +172,7 @@ void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
 
 		for (i = 0; i < buf->nbufs; ++i)
 			if (buf->page_list[i].buf)
-				dma_free_coherent(&hr_dev->pdev->dev, PAGE_SIZE,
+				dma_free_coherent(dev, PAGE_SIZE,
 						  buf->page_list[i].buf,
 						  buf->page_list[i].map);
 		kfree(buf->page_list);
@@ -186,7 +186,7 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 	int i = 0;
 	dma_addr_t t;
 	struct page **pages;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	u32 bits_per_long = BITS_PER_LONG;
 
 	/* SQ/RQ buf lease than one page, SQ + RQ = 8K */

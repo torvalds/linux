@@ -58,7 +58,7 @@ static void hns_roce_ib_cq_event(struct hns_roce_cq *hr_cq,
 	if (event_type != HNS_ROCE_EVENT_TYPE_CQ_ID_INVALID &&
 	    event_type != HNS_ROCE_EVENT_TYPE_CQ_ACCESS_ERROR &&
 	    event_type != HNS_ROCE_EVENT_TYPE_CQ_OVERFLOW) {
-		dev_err(&hr_dev->pdev->dev,
+		dev_err(hr_dev->dev,
 			"hns_roce_ib: Unexpected event type 0x%x on CQ %06lx\n",
 			event_type, hr_cq->cqn);
 		return;
@@ -87,7 +87,7 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 {
 	struct hns_roce_cmd_mailbox *mailbox = NULL;
 	struct hns_roce_cq_table *cq_table = NULL;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	dma_addr_t dma_handle;
 	u64 *mtts = NULL;
 	int ret = 0;
@@ -182,7 +182,7 @@ static int hns_roce_hw2sw_cq(struct hns_roce_dev *dev,
 void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 {
 	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	int ret;
 
 	ret = hns_roce_hw2sw_cq(hr_dev, NULL, hr_cq->cqn);
@@ -282,7 +282,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 				    struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_cq ucmd;
 	struct hns_roce_cq *hr_cq = NULL;
 	struct hns_roce_uar *uar = NULL;
@@ -416,7 +416,7 @@ EXPORT_SYMBOL_GPL(hns_roce_ib_destroy_cq);
 
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn)
 {
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct hns_roce_cq *cq;
 
 	cq = radix_tree_lookup(&hr_dev->cq_table.tree,
@@ -432,7 +432,7 @@ void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn)
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 {
 	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct hns_roce_cq *cq;
 
 	cq = radix_tree_lookup(&cq_table->tree,

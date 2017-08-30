@@ -84,7 +84,7 @@ struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev, int npages,
 		 * memory, directly return fail.
 		 */
 		mem = &chunk->mem[chunk->npages];
-		buf = dma_alloc_coherent(&hr_dev->pdev->dev, PAGE_SIZE << order,
+		buf = dma_alloc_coherent(hr_dev->dev, PAGE_SIZE << order,
 				&sg_dma_address(mem), gfp_mask);
 		if (!buf)
 			goto fail;
@@ -115,7 +115,7 @@ void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct hns_roce_hem *hem)
 
 	list_for_each_entry_safe(chunk, tmp, &hem->chunk_list, list) {
 		for (i = 0; i < chunk->npages; ++i)
-			dma_free_coherent(&hr_dev->pdev->dev,
+			dma_free_coherent(hr_dev->dev,
 				   chunk->mem[i].length,
 				   lowmem_page_address(sg_page(&chunk->mem[i])),
 				   sg_dma_address(&chunk->mem[i]));
@@ -128,8 +128,8 @@ void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct hns_roce_hem *hem)
 static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_hem_table *table, unsigned long obj)
 {
-	struct device *dev = &hr_dev->pdev->dev;
 	spinlock_t *lock = &hr_dev->bt_cmd_lock;
+	struct device *dev = hr_dev->dev;
 	unsigned long end = 0;
 	unsigned long flags;
 	struct hns_roce_hem_iter iter;
@@ -212,7 +212,7 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 		       struct hns_roce_hem_table *table, unsigned long obj)
 {
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	int ret = 0;
 	unsigned long i;
 
@@ -251,7 +251,7 @@ out:
 void hns_roce_table_put(struct hns_roce_dev *hr_dev,
 			struct hns_roce_hem_table *table, unsigned long obj)
 {
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	unsigned long i;
 
 	i = (obj & (table->num_obj - 1)) /
@@ -380,7 +380,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 void hns_roce_cleanup_hem_table(struct hns_roce_dev *hr_dev,
 				struct hns_roce_hem_table *table)
 {
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	unsigned long i;
 
 	for (i = 0; i < table->num_hem; ++i)

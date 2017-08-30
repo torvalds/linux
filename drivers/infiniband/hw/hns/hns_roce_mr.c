@@ -241,9 +241,9 @@ static int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova,
 			     u64 size, u32 access, int npages,
 			     struct hns_roce_mr *mr)
 {
+	struct device *dev = hr_dev->dev;
 	unsigned long index = 0;
 	int ret = 0;
-	struct device *dev = &hr_dev->pdev->dev;
 
 	/* Allocate a key for mr from mr_table */
 	ret = hns_roce_bitmap_alloc(&hr_dev->mr_table.mtpt_bitmap, &index);
@@ -276,7 +276,7 @@ static int hns_roce_mr_alloc(struct hns_roce_dev *hr_dev, u32 pd, u64 iova,
 static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
 			     struct hns_roce_mr *mr)
 {
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	int npages = 0;
 	int ret;
 
@@ -302,7 +302,7 @@ static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
 {
 	int ret;
 	unsigned long mtpt_idx = key_to_hw_index(mr->key);
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct hns_roce_cmd_mailbox *mailbox;
 	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
 
@@ -552,7 +552,7 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				   struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct hns_roce_mr *mr = NULL;
 	int ret = 0;
 	int n = 0;

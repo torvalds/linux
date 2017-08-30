@@ -4050,6 +4050,7 @@ static int hns_roce_probe(struct platform_device *pdev)
 	}
 
 	hr_dev->pdev = pdev;
+	hr_dev->dev = dev;
 	platform_set_drvdata(pdev, hr_dev);
 
 	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64ULL)) &&

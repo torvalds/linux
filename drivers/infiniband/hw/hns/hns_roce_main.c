@@ -117,7 +117,7 @@ static int hns_roce_del_gid(struct ib_device *device, u8 port_num,
 static int handle_en_event(struct hns_roce_dev *hr_dev, u8 port,
 			   unsigned long event)
 {
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct net_device *netdev;
 
 	netdev = hr_dev->iboe.netdevs[port];
@@ -240,7 +240,7 @@ static int hns_roce_query_port(struct ib_device *ib_dev, u8 port_num,
 			       struct ib_port_attr *props)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct net_device *net_dev;
 	unsigned long flags;
 	enum ib_mtu mtu;
@@ -428,7 +428,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	int ret;
 	struct hns_roce_ib_iboe *iboe = NULL;
 	struct ib_device *ib_dev = NULL;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 
 	iboe = &hr_dev->iboe;
 	spin_lock_init(&iboe->lock);
@@ -536,7 +536,7 @@ error_failed_setup_mtu_mac:
 static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 {
 	int ret;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 
 	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->mr_table.mtt_table,
 				      HEM_TYPE_MTT, hr_dev->caps.mtt_entry_sz,
@@ -605,7 +605,7 @@ err_unmap_mtt:
 static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 {
 	int ret;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 
 	spin_lock_init(&hr_dev->sm_lock);
 	spin_lock_init(&hr_dev->bt_cmd_lock);
@@ -668,7 +668,7 @@ err_uar_table_free:
 int hns_roce_init(struct hns_roce_dev *hr_dev)
 {
 	int ret;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 
 	if (hr_dev->hw->reset) {
 		ret = hr_dev->hw->reset(hr_dev, true);

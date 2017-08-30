@@ -44,7 +44,7 @@
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct hns_roce_qp *qp;
 
 	spin_lock(&qp_table->lock);
@@ -154,7 +154,7 @@ static int hns_roce_gsi_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
 				hr_qp->qpn & (hr_dev->caps.num_qps - 1), hr_qp);
 	spin_unlock_irq(&qp_table->lock);
 	if (ret) {
-		dev_err(&hr_dev->pdev->dev, "QPC radix_tree_insert failed\n");
+		dev_err(hr_dev->dev, "QPC radix_tree_insert failed\n");
 		goto err_put_irrl;
 	}
 
@@ -172,7 +172,7 @@ static int hns_roce_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
 			     struct hns_roce_qp *hr_qp)
 {
 	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	int ret;
 
 	if (!qpn)
@@ -261,8 +261,8 @@ static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,
 				struct ib_qp_cap *cap, int is_user, int has_srq,
 				struct hns_roce_qp *hr_qp)
 {
+	struct device *dev = hr_dev->dev;
 	u32 max_cnt;
-	struct device *dev = &hr_dev->pdev->dev;
 
 	/* Check the validity of QP support capacity */
 	if (cap->max_recv_wr > hr_dev->caps.max_wqes ||
@@ -319,7 +319,7 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 	if ((u32)(1 << ucmd->log_sq_bb_count) > hr_dev->caps.max_wqes ||
 	     ucmd->log_sq_stride > max_sq_stride ||
 	     ucmd->log_sq_stride < HNS_ROCE_IB_MIN_SQ_STRIDE) {
-		dev_err(&hr_dev->pdev->dev, "check SQ size error!\n");
+		dev_err(hr_dev->dev, "check SQ size error!\n");
 		return -EINVAL;
 	}
 
@@ -343,7 +343,7 @@ static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 				       struct ib_qp_cap *cap,
 				       struct hns_roce_qp *hr_qp)
 {
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	u32 max_cnt;
 
 	if (cap->max_send_wr  > hr_dev->caps.max_wqes  ||
@@ -395,7 +395,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				     struct ib_udata *udata, unsigned long sqpn,
 				     struct hns_roce_qp *hr_qp)
 {
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_qp ucmd;
 	unsigned long qpn = 0;
 	int ret = 0;
@@ -575,7 +575,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 				 struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	struct hns_roce_sqp *hr_sqp;
 	struct hns_roce_qp *hr_qp;
 	int ret;
@@ -660,7 +660,7 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
 	enum ib_qp_state cur_state, new_state;
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	int ret = -EINVAL;
 	int p;
 	enum ib_mtu active_mtu;
@@ -835,7 +835,7 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 				   hr_dev->caps.num_qps - 1, SQP_NUM,
 				   reserved_from_top);
 	if (ret) {
-		dev_err(&hr_dev->pdev->dev, "qp bitmap init failed!error=%d\n",
+		dev_err(hr_dev->dev, "qp bitmap init failed!error=%d\n",
 			ret);
 		return ret;
 	}

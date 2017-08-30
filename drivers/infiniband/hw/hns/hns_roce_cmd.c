@@ -125,7 +125,7 @@ static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev, u64 in_param,
 				    u8 op_modifier, u16 op,
 				    unsigned long timeout)
 {
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 	u8 __iomem *hcr = hr_dev->cmd.hcr;
 	unsigned long end = 0;
 	u32 status = 0;
@@ -196,8 +196,8 @@ static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 				    unsigned long timeout)
 {
 	struct hns_roce_cmdq *cmd = &hr_dev->cmd;
-	struct device *dev = &hr_dev->pdev->dev;
 	struct hns_roce_cmd_context *context;
+	struct device *dev = hr_dev->dev;
 	int ret = 0;
 
 	spin_lock(&cmd->context_lock);
@@ -273,7 +273,7 @@ EXPORT_SYMBOL_GPL(hns_roce_cmd_mbox);
 
 int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)
 {
-	struct device *dev = &hr_dev->pdev->dev;
+	struct device *dev = hr_dev->dev;
 
 	mutex_init(&hr_dev->cmd.hcr_mutex);
 	sema_init(&hr_dev->cmd.poll_sem, 1);
