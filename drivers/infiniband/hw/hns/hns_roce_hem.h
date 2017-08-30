@@ -133,7 +133,7 @@ static inline void hns_roce_hem_first(struct hns_roce_hem *hem,
 	iter->chunk = list_empty(&hem->chunk_list) ? NULL :
 				 list_entry(hem->chunk_list.next,
 					    struct hns_roce_hem_chunk, list);
-	 iter->page_idx = 0;
+	iter->page_idx = 0;
 }
 
 static inline int hns_roce_hem_last(struct hns_roce_hem_iter *iter)
