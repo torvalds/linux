@@ -269,6 +269,7 @@ int hns_roce_cmd_mbox(struct hns_roce_dev *hr_dev, u64 in_param, u64 out_param,
 					      in_modifier, op_modifier, op,
 					      timeout);
 }
+EXPORT_SYMBOL_GPL(hns_roce_cmd_mbox);
 
 int hns_roce_cmd_init(struct hns_roce_dev *hr_dev)
 {
@@ -356,6 +357,7 @@ struct hns_roce_cmd_mailbox
 
 	return mailbox;
 }
+EXPORT_SYMBOL_GPL(hns_roce_alloc_cmd_mailbox);
 
 void hns_roce_free_cmd_mailbox(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_cmd_mailbox *mailbox)
@@ -366,3 +368,4 @@ void hns_roce_free_cmd_mailbox(struct hns_roce_dev *hr_dev,
 	dma_pool_free(hr_dev->cmd.pool, mailbox->buf, mailbox->dma);
 	kfree(mailbox);
 }
+EXPORT_SYMBOL_GPL(hns_roce_free_cmd_mailbox);

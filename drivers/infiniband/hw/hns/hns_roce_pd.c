@@ -86,6 +86,7 @@ struct ib_pd *hns_roce_alloc_pd(struct ib_device *ib_dev,
 
 	return &pd->ibpd;
 }
+EXPORT_SYMBOL_GPL(hns_roce_alloc_pd);
 
 int hns_roce_dealloc_pd(struct ib_pd *pd)
 {
@@ -94,6 +95,7 @@ int hns_roce_dealloc_pd(struct ib_pd *pd)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hns_roce_dealloc_pd);
 
 int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 {

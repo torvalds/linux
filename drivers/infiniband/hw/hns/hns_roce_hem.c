@@ -314,6 +314,7 @@ out:
 	mutex_unlock(&table->mutex);
 	return page ? lowmem_page_address(page) + offset : NULL;
 }
+EXPORT_SYMBOL_GPL(hns_roce_table_find);
 
 int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
 			     struct hns_roce_hem_table *table,
