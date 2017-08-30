@@ -969,16 +969,16 @@ int visorbus_register_visor_driver(struct visor_driver *drv)
 		return -ENODEV;
 
 	if (!drv->probe)
-		return -ENODEV;
+		return -EINVAL;
 
 	if (!drv->remove)
-		return -ENODEV;
+		return -EINVAL;
 
 	if (!drv->pause)
-		return -ENODEV;
+		return -EINVAL;
 
 	if (!drv->resume)
-		return -ENODEV;
+		return -EINVAL;
 
 	drv->driver.name = drv->name;
 	drv->driver.bus = &visorbus_type;
