@@ -28,6 +28,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/power_supply.h>
 #include <linux/proc_fs.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sched/clock.h>
@@ -107,6 +108,11 @@ struct fusb302_chip {
 
 	/* lock for sharing chip states */
 	struct mutex lock;
+
+	/* psy + psy status */
+	struct power_supply *psy;
+	u32 current_limit;
+	u32 supply_voltage;
 
 	/* chip status */
 	enum toggling_mode toggling_mode;
@@ -876,11 +882,13 @@ static int tcpm_set_vbus(struct tcpc_dev *dev, bool on, bool charge)
 		chip->vbus_on = on;
 		fusb302_log(chip, "vbus := %s", on ? "On" : "Off");
 	}
-	if (chip->charge_on == charge)
+	if (chip->charge_on == charge) {
 		fusb302_log(chip, "charge is already %s",
 			    charge ? "On" : "Off");
-	else
+	} else {
 		chip->charge_on = charge;
+		power_supply_changed(chip->psy);
+	}
 
 done:
 	mutex_unlock(&chip->lock);
@@ -895,6 +903,11 @@ static int tcpm_set_current_limit(struct tcpc_dev *dev, u32 max_ma, u32 mv)
 
 	fusb302_log(chip, "current limit: %d ma, %d mv (not implemented)",
 		    max_ma, mv);
+
+	chip->supply_voltage = mv;
+	chip->current_limit = max_ma;
+
+	power_supply_changed(chip->psy);
 
 	return 0;
 }
@@ -1681,6 +1694,43 @@ done:
 	return IRQ_HANDLED;
 }
 
+static int fusb302_psy_get_property(struct power_supply *psy,
+				    enum power_supply_property psp,
+				    union power_supply_propval *val)
+{
+	struct fusb302_chip *chip = power_supply_get_drvdata(psy);
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = chip->charge_on;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		val->intval = chip->supply_voltage * 1000; /* mV -> µV */
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		val->intval = chip->current_limit * 1000; /* mA -> µA */
+		break;
+	default:
+		return -ENODATA;
+	}
+
+	return 0;
+}
+
+static enum power_supply_property fusb302_psy_properties[] = {
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
+};
+
+const struct power_supply_desc fusb302_psy_desc = {
+	.name		= "fusb302-typec-source",
+	.type		= POWER_SUPPLY_TYPE_USB_TYPE_C,
+	.properties	= fusb302_psy_properties,
+	.num_properties	= ARRAY_SIZE(fusb302_psy_properties),
+	.get_property	= fusb302_psy_get_property,
+};
+
 static int init_gpio(struct fusb302_chip *chip)
 {
 	struct device_node *node;
@@ -1720,6 +1770,7 @@ static int fusb302_probe(struct i2c_client *client,
 	struct fusb302_chip *chip;
 	struct i2c_adapter *adapter;
 	struct device *dev = &client->dev;
+	struct power_supply_config cfg = {};
 	const char *name;
 	int ret = 0;
 	u32 v;
@@ -1764,6 +1815,14 @@ static int fusb302_probe(struct i2c_client *client,
 		chip->extcon = extcon_get_extcon_dev(name);
 		if (!chip->extcon)
 			return -EPROBE_DEFER;
+	}
+
+	cfg.drv_data = chip;
+	chip->psy = devm_power_supply_register(dev, &fusb302_psy_desc, &cfg);
+	if (IS_ERR(chip->psy)) {
+		ret = PTR_ERR(chip->psy);
+		dev_err(chip->dev, "Error registering power-supply: %d\n", ret);
+		return ret;
 	}
 
 	ret = fusb302_debugfs_init(chip);
