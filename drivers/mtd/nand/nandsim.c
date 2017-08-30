@@ -2373,6 +2373,7 @@ static int __init ns_init_module(void)
         return 0;
 
 err_exit:
+	nandsim_debugfs_remove(nand);
 	free_nandsim(nand);
 	nand_release(nsmtd);
 	for (i = 0;i < ARRAY_SIZE(nand->partitions); ++i)

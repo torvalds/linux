@@ -1371,12 +1371,46 @@ static inline void mmc_apply_rel_rw(struct mmc_blk_request *brq,
 	 R1_CC_ERROR |		/* Card controller error */		\
 	 R1_ERROR)		/* General/unknown error */
 
-static bool mmc_blk_has_cmd_err(struct mmc_command *cmd)
+static void mmc_blk_eval_resp_error(struct mmc_blk_request *brq)
 {
-	if (!cmd->error && cmd->resp[0] & CMD_ERRORS)
-		cmd->error = -EIO;
+	u32 val;
 
-	return cmd->error;
+	/*
+	 * Per the SD specification(physical layer version 4.10)[1],
+	 * section 4.3.3, it explicitly states that "When the last
+	 * block of user area is read using CMD18, the host should
+	 * ignore OUT_OF_RANGE error that may occur even the sequence
+	 * is correct". And JESD84-B51 for eMMC also has a similar
+	 * statement on section 6.8.3.
+	 *
+	 * Multiple block read/write could be done by either predefined
+	 * method, namely CMD23, or open-ending mode. For open-ending mode,
+	 * we should ignore the OUT_OF_RANGE error as it's normal behaviour.
+	 *
+	 * However the spec[1] doesn't tell us whether we should also
+	 * ignore that for predefined method. But per the spec[1], section
+	 * 4.15 Set Block Count Command, it says"If illegal block count
+	 * is set, out of range error will be indicated during read/write
+	 * operation (For example, data transfer is stopped at user area
+	 * boundary)." In another word, we could expect a out of range error
+	 * in the response for the following CMD18/25. And if argument of
+	 * CMD23 + the argument of CMD18/25 exceed the max number of blocks,
+	 * we could also expect to get a -ETIMEDOUT or any error number from
+	 * the host drivers due to missing data response(for write)/data(for
+	 * read), as the cards will stop the data transfer by itself per the
+	 * spec. So we only need to check R1_OUT_OF_RANGE for open-ending mode.
+	 */
+
+	if (!brq->stop.error) {
+		bool oor_with_open_end;
+		/* If there is no error yet, check R1 response */
+
+		val = brq->stop.resp[0] & CMD_ERRORS;
+		oor_with_open_end = val & R1_OUT_OF_RANGE && !brq->mrq.sbc;
+
+		if (val && !oor_with_open_end)
+			brq->stop.error = -EIO;
+	}
 }
 
 static enum mmc_blk_status mmc_blk_err_check(struct mmc_card *card,
@@ -1400,8 +1434,11 @@ static enum mmc_blk_status mmc_blk_err_check(struct mmc_card *card,
 	 * stop.error indicates a problem with the stop command.  Data
 	 * may have been transferred, or may still be transferring.
 	 */
-	if (brq->sbc.error || brq->cmd.error || mmc_blk_has_cmd_err(&brq->stop) ||
-	    brq->data.error) {
+
+	mmc_blk_eval_resp_error(brq);
+
+	if (brq->sbc.error || brq->cmd.error ||
+	    brq->stop.error || brq->data.error) {
 		switch (mmc_blk_cmd_recovery(card, req, brq, &ecc_err, &gen_err)) {
 		case ERR_RETRY:
 			return MMC_BLK_RETRY;

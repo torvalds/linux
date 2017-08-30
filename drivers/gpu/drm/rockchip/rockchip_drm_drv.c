@@ -275,11 +275,15 @@ static void rockchip_drm_fb_resume(struct drm_device *drm)
 static int rockchip_drm_sys_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct rockchip_drm_private *priv = drm->dev_private;
+	struct rockchip_drm_private *priv;
+
+	if (!drm)
+		return 0;
 
 	drm_kms_helper_poll_disable(drm);
 	rockchip_drm_fb_suspend(drm);
 
+	priv = drm->dev_private;
 	priv->state = drm_atomic_helper_suspend(drm);
 	if (IS_ERR(priv->state)) {
 		rockchip_drm_fb_resume(drm);
@@ -293,8 +297,12 @@ static int rockchip_drm_sys_suspend(struct device *dev)
 static int rockchip_drm_sys_resume(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct rockchip_drm_private *priv = drm->dev_private;
+	struct rockchip_drm_private *priv;
 
+	if (!drm)
+		return 0;
+
+	priv = drm->dev_private;
 	drm_atomic_helper_resume(drm, priv->state);
 	rockchip_drm_fb_resume(drm);
 	drm_kms_helper_poll_enable(drm);

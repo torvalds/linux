@@ -69,13 +69,8 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 #ifdef CONFIG_UNIX98_PTYS
 		if (tty->driver == ptm_driver) {
 			mutex_lock(&devpts_mutex);
-			if (tty->link->driver_data) {
-				struct path *path = tty->link->driver_data;
-
-				devpts_pty_kill(path->dentry);
-				path_put(path);
-				kfree(path);
-			}
+			if (tty->link->driver_data)
+				devpts_pty_kill(tty->link->driver_data);
 			mutex_unlock(&devpts_mutex);
 		}
 #endif
@@ -607,25 +602,24 @@ static inline void legacy_pty_init(void) { }
 static struct cdev ptmx_cdev;
 
 /**
- *	pty_open_peer - open the peer of a pty
- *	@tty: the peer of the pty being opened
+ *	ptm_open_peer - open the peer of a pty
+ *	@master: the open struct file of the ptmx device node
+ *	@tty: the master of the pty being opened
+ *	@flags: the flags for open
  *
- *	Open the cached dentry in tty->link, providing a safe way for userspace
- *	to get the slave end of a pty (where they have the master fd and cannot
- *	access or trust the mount namespace /dev/pts was mounted inside).
+ *	Provide a race free way for userspace to open the slave end of a pty
+ *	(where they have the master fd and cannot access or trust the mount
+ *	namespace /dev/pts was mounted inside).
  */
-static struct file *pty_open_peer(struct tty_struct *tty, int flags)
-{
-	if (tty->driver->subtype != PTY_TYPE_MASTER)
-		return ERR_PTR(-EIO);
-	return dentry_open(tty->link->driver_data, flags, current_cred());
-}
-
-static int pty_get_peer(struct tty_struct *tty, int flags)
+int ptm_open_peer(struct file *master, struct tty_struct *tty, int flags)
 {
 	int fd = -1;
-	struct file *filp = NULL;
+	struct file *filp;
 	int retval = -EINVAL;
+	struct path path;
+
+	if (tty->driver != ptm_driver)
+		return -EIO;
 
 	fd = get_unused_fd_flags(0);
 	if (fd < 0) {
@@ -633,7 +627,16 @@ static int pty_get_peer(struct tty_struct *tty, int flags)
 		goto err;
 	}
 
-	filp = pty_open_peer(tty, flags);
+	/* Compute the slave's path */
+	path.mnt = devpts_mntget(master, tty->driver_data);
+	if (IS_ERR(path.mnt)) {
+		retval = PTR_ERR(path.mnt);
+		goto err_put;
+	}
+	path.dentry = tty->link->driver_data;
+
+	filp = dentry_open(&path, flags, current_cred());
+	mntput(path.mnt);
 	if (IS_ERR(filp)) {
 		retval = PTR_ERR(filp);
 		goto err_put;
@@ -662,8 +665,6 @@ static int pty_unix98_ioctl(struct tty_struct *tty,
 		return pty_get_pktmode(tty, (int __user *)arg);
 	case TIOCGPTN: /* Get PT Number */
 		return put_user(tty->index, (unsigned int __user *)arg);
-	case TIOCGPTPEER: /* Open the other end */
-		return pty_get_peer(tty, (int) arg);
 	case TIOCSIG:    /* Send signal to other side of pty */
 		return pty_signal(tty, (int) arg);
 	}
@@ -791,9 +792,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 {
 	struct pts_fs_info *fsi;
 	struct tty_struct *tty;
-	struct path *pts_path;
 	struct dentry *dentry;
-	struct vfsmount *mnt;
 	int retval;
 	int index;
 
@@ -806,7 +805,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	if (retval)
 		return retval;
 
-	fsi = devpts_acquire(filp, &mnt);
+	fsi = devpts_acquire(filp);
 	if (IS_ERR(fsi)) {
 		retval = PTR_ERR(fsi);
 		goto out_free_file;
@@ -846,28 +845,17 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 		retval = PTR_ERR(dentry);
 		goto err_release;
 	}
-	/* We need to cache a fake path for TIOCGPTPEER. */
-	pts_path = kmalloc(sizeof(struct path), GFP_KERNEL);
-	if (!pts_path)
-		goto err_release;
-	pts_path->mnt = mnt;
-	pts_path->dentry = dentry;
-	path_get(pts_path);
-	tty->link->driver_data = pts_path;
+	tty->link->driver_data = dentry;
 
 	retval = ptm_driver->ops->open(tty, filp);
 	if (retval)
-		goto err_path_put;
+		goto err_release;
 
 	tty_debug_hangup(tty, "opening (count=%d)\n", tty->count);
 
 	tty_unlock(tty);
 	return 0;
-err_path_put:
-	path_put(pts_path);
-	kfree(pts_path);
 err_release:
-	mntput(mnt);
 	tty_unlock(tty);
 	// This will also put-ref the fsi
 	tty_release(inode, filp);
@@ -876,7 +864,6 @@ out:
 	devpts_kill_index(fsi, index);
 out_put_fsi:
 	devpts_release(fsi);
-	mntput(mnt);
 out_free_file:
 	tty_free_file(filp);
 	return retval;
