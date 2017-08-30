@@ -12,8 +12,83 @@
 #include <asm/setup.h>
 
 const struct kexec_file_ops * const kexec_file_loaders[] = {
+	&s390_kexec_image_ops,
 	NULL,
 };
+
+int *kexec_file_update_kernel(struct kimage *image,
+			      struct s390_load_data *data)
+{
+	unsigned long *loc;
+
+	if (image->cmdline_buf_len >= ARCH_COMMAND_LINE_SIZE)
+		return ERR_PTR(-EINVAL);
+
+	if (image->cmdline_buf_len)
+		memcpy(data->kernel_buf + COMMAND_LINE_OFFSET,
+		       image->cmdline_buf, image->cmdline_buf_len);
+
+	if (image->initrd_buf) {
+		loc = (unsigned long *)(data->kernel_buf + INITRD_START_OFFSET);
+		*loc = data->initrd_load_addr;
+
+		loc = (unsigned long *)(data->kernel_buf + INITRD_SIZE_OFFSET);
+		*loc = image->initrd_buf_len;
+	}
+
+	return NULL;
+}
+
+static int kexec_file_update_purgatory(struct kimage *image)
+{
+	u64 entry, type;
+	int ret;
+
+	entry = STARTUP_NORMAL_OFFSET;
+	ret = kexec_purgatory_get_set_symbol(image, "kernel_entry", &entry,
+					     sizeof(entry), false);
+	return ret;
+}
+
+int kexec_file_add_purgatory(struct kimage *image, struct s390_load_data *data)
+{
+	struct kexec_buf buf;
+	int ret;
+
+	buf.image = image;
+
+	data->memsz = ALIGN(data->memsz, PAGE_SIZE);
+	buf.mem = data->memsz;
+
+	ret = kexec_load_purgatory(image, &buf);
+	if (ret)
+		return ret;
+
+	ret = kexec_file_update_purgatory(image);
+	return ret;
+}
+
+int kexec_file_add_initrd(struct kimage *image, struct s390_load_data *data,
+			  char *initrd, unsigned long initrd_len)
+{
+	struct kexec_buf buf;
+	int ret;
+
+	buf.image = image;
+
+	buf.buffer = initrd;
+	buf.bufsz = initrd_len;
+
+	data->memsz = ALIGN(data->memsz, PAGE_SIZE);
+	buf.mem = data->memsz;
+	buf.memsz = buf.bufsz;
+
+	data->initrd_load_addr = buf.mem;
+	data->memsz += buf.memsz;
+
+	ret = kexec_add_buffer(&buf);
+	return ret;
+}
 
 /*
  * The kernel is loaded to a fixed location. Turn off kexec_locate_mem_hole
