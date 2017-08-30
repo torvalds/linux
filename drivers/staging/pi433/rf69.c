@@ -678,7 +678,7 @@ int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength)
 	u8 msb, lsb;
 
 	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: preample length");
+		dev_dbg(&spi->dev, "set: preamble length");
 	#endif
 
 	/* no value check needed - u16 exactly matches register size */
