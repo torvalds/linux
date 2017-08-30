@@ -1585,10 +1585,8 @@ static const struct file_operations debugfs_info_fops = {
 
 /* send_rcv_posts_if_needed - send receive buffers to the IO Partition.
  * @devdata: Visornic device.
- *
- * Return: 0.
  */
-static int send_rcv_posts_if_needed(struct visornic_devdata *devdata)
+static void send_rcv_posts_if_needed(struct visornic_devdata *devdata)
 {
 	int i;
 	struct net_device *netdev;
@@ -1598,7 +1596,7 @@ static int send_rcv_posts_if_needed(struct visornic_devdata *devdata)
 
 	/* don't do this until vnic is marked ready */
 	if (!(devdata->enabled && devdata->enab_dis_acked))
-		return 0;
+		return;
 
 	netdev = devdata->netdev;
 	rcv_bufs_allocated = 0;
@@ -1627,7 +1625,6 @@ static int send_rcv_posts_if_needed(struct visornic_devdata *devdata)
 		}
 	}
 	devdata->num_rcv_bufs_could_not_alloc -= rcv_bufs_allocated;
-	return 0;
 }
 
 /* drain_resp_queue - drains and ignores all messages from the resp queue
@@ -1750,12 +1747,8 @@ static int visornic_poll(struct napi_struct *napi, int budget)
 							struct visornic_devdata,
 							napi);
 	int rx_count = 0;
-	int err;
 
-	err = send_rcv_posts_if_needed(devdata);
-	if (err)
-		return err;
-
+	send_rcv_posts_if_needed(devdata);
 	service_resp_queue(devdata->cmdrsp, devdata, &rx_count, budget);
 
 	/* If there aren't any more packets to receive stop the poll */
