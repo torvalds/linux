@@ -1997,8 +1997,22 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return PTR_ERR(dc->rst);
 	}
 
-	if (!dc->soc->broken_reset)
-		reset_control_assert(dc->rst);
+	/* assert reset and disable clock */
+	if (!dc->soc->broken_reset) {
+		err = clk_prepare_enable(dc->clk);
+		if (err < 0)
+			return err;
+
+		usleep_range(2000, 4000);
+
+		err = reset_control_assert(dc->rst);
+		if (err < 0)
+			return err;
+
+		usleep_range(2000, 4000);
+
+		clk_disable_unprepare(dc->clk);
+	}
 
 	if (dc->soc->has_powergate) {
 		if (dc->pipe == 0)
