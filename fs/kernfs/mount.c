@@ -99,8 +99,8 @@ static struct inode *kernfs_fh_get_inode(struct super_block *sb,
 		return ERR_PTR(-ESTALE);
 	inode = kernfs_get_inode(sb, kn);
 	kernfs_put(kn);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
+	if (!inode)
+		return ERR_PTR(-ESTALE);
 
 	if (generation && inode->i_generation != generation) {
 		/* we didn't find the right inode.. */
