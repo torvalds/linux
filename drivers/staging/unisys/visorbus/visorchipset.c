@@ -717,10 +717,12 @@ static int visorbus_configure(struct controlvm_message *inmsg,
 	if (!bus_info) {
 		err = -EINVAL;
 		goto err_respond;
-	} else if (bus_info->state.created == 0) {
+	}
+	if (bus_info->state.created == 0) {
 		err = -EINVAL;
 		goto err_respond;
-	} else if (bus_info->pending_msg_hdr) {
+	}
+	if (bus_info->pending_msg_hdr) {
 		err = -EIO;
 		goto err_respond;
 	}
