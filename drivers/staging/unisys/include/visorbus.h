@@ -119,8 +119,8 @@ struct visor_driver {
  *				activity.
  * @being_removed:		Indicates that the device is being removed from
  *				the bus. Private bus driver use only.
- * @visordriver_callback_lock:	Used by the bus driver to lock when handling
- *				channel events.
+ * @visordriver_callback_lock:	Used by the bus driver to lock when adding and
+ *				removing devices.
  * @pausing:			Indicates that a change towards a paused state.
  *				is in progress. Only modified by the bus driver.
  * @resuming:			Indicates that a change towards a running state
@@ -149,7 +149,7 @@ struct visor_device {
 	struct timer_list timer;
 	bool timer_active;
 	bool being_removed;
-	struct mutex visordriver_callback_lock;
+	struct mutex visordriver_callback_lock; /* synchronize probe/remove */
 	bool pausing;
 	bool resuming;
 	u32 chipset_bus_no;
