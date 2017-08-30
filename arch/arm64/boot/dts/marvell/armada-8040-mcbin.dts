@@ -101,6 +101,8 @@
 
 &uart0 {
 	status = "okay";
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
 };
 
 &ap_sdhci0 {

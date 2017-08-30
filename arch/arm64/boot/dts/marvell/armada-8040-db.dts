@@ -139,6 +139,8 @@
 /* Accessible over the mini-USB CON9 connector on the main board */
 &uart0 {
 	status = "okay";
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
 };
 
 
