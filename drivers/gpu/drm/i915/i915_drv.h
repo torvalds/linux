@@ -569,6 +569,15 @@ struct i915_hotplug {
 	     (__i)++) \
 		for_each_if (plane_state)
 
+#define for_each_new_intel_crtc_in_state(__state, crtc, new_crtc_state, __i) \
+	for ((__i) = 0; \
+	     (__i) < (__state)->base.dev->mode_config.num_crtc && \
+		     ((crtc) = to_intel_crtc((__state)->base.crtcs[__i].ptr), \
+		      (new_crtc_state) = to_intel_crtc_state((__state)->base.crtcs[__i].new_state), 1); \
+	     (__i)++) \
+		for_each_if (crtc)
+
+
 struct drm_i915_private;
 struct i915_mm_struct;
 struct i915_mmu_object;
@@ -2335,7 +2344,8 @@ struct drm_i915_private {
 	struct mutex dpll_lock;
 
 	unsigned int active_crtcs;
-	unsigned int min_pixclk[I915_MAX_PIPES];
+	/* minimum acceptable cdclk for each pipe */
+	int min_cdclk[I915_MAX_PIPES];
 
 	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
 

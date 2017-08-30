@@ -384,7 +384,8 @@ struct intel_atomic_state {
 	unsigned int active_pipe_changes;
 
 	unsigned int active_crtcs;
-	unsigned int min_pixclk[I915_MAX_PIPES];
+	/* minimum acceptable cdclk for each pipe */
+	int min_cdclk[I915_MAX_PIPES];
 
 	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];
 
@@ -1290,6 +1291,7 @@ void intel_audio_init(struct drm_i915_private *dev_priv);
 void intel_audio_deinit(struct drm_i915_private *dev_priv);
 
 /* intel_cdclk.c */
+int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state);
 void skl_init_cdclk(struct drm_i915_private *dev_priv);
 void skl_uninit_cdclk(struct drm_i915_private *dev_priv);
 void cnl_init_cdclk(struct drm_i915_private *dev_priv);

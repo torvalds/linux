@@ -6038,7 +6038,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 	intel_crtc->enabled_power_domains = 0;
 
 	dev_priv->active_crtcs &= ~(1 << intel_crtc->pipe);
-	dev_priv->min_pixclk[intel_crtc->pipe] = 0;
+	dev_priv->min_cdclk[intel_crtc->pipe] = 0;
 }
 
 /*
@@ -12631,8 +12631,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 	intel_atomic_track_fbs(state);
 
 	if (intel_state->modeset) {
-		memcpy(dev_priv->min_pixclk, intel_state->min_pixclk,
-		       sizeof(intel_state->min_pixclk));
+		memcpy(dev_priv->min_cdclk, intel_state->min_cdclk,
+		       sizeof(intel_state->min_cdclk));
 		dev_priv->active_crtcs = intel_state->active_crtcs;
 		dev_priv->cdclk.logical = intel_state->cdclk.logical;
 		dev_priv->cdclk.actual = intel_state->cdclk.actual;
@@ -15097,7 +15097,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
-		int pixclk = 0;
+		int min_cdclk = 0;
 
 		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
 		if (crtc_state->base.active) {
@@ -15118,22 +15118,15 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 			intel_crtc_compute_pixel_rate(crtc_state);
 
-			if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv) ||
-			    IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-				pixclk = crtc_state->pixel_rate;
-			else
-				WARN_ON(dev_priv->display.modeset_calc_cdclk);
-
-			/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-			if (IS_BROADWELL(dev_priv) && crtc_state->ips_enabled)
-				pixclk = DIV_ROUND_UP(pixclk * 100, 95);
+			if (dev_priv->display.modeset_calc_cdclk)
+				min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
 
 			drm_calc_timestamping_constants(&crtc->base,
 							&crtc_state->base.adjusted_mode);
 			update_scanline_offset(crtc);
 		}
 
-		dev_priv->min_pixclk[crtc->pipe] = pixclk;
+		dev_priv->min_cdclk[crtc->pipe] = min_cdclk;
 
 		intel_pipe_config_sanity_check(dev_priv, crtc_state);
 	}
