@@ -57,6 +57,7 @@ static inline void fs_put_dax(struct dax_device *dax_dev)
 	put_dax(dax_dev);
 }
 
+struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev);
 #else
 static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
 {
@@ -70,6 +71,11 @@ static inline struct dax_device *fs_dax_get_by_host(const char *host)
 
 static inline void fs_put_dax(struct dax_device *dax_dev)
 {
+}
+
+static inline struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
+{
+	return NULL;
 }
 #endif
 
