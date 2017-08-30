@@ -910,7 +910,7 @@ config I2C_SIRF
 
 config I2C_SPRD
 	bool "Spreadtrum I2C interface"
-	depends on ARCH_SPRD
+	depends on I2C=y && ARCH_SPRD
 	help
 	  If you say yes to this option, support will be included for the
 	  Spreadtrum I2C interface.
