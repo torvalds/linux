@@ -1523,7 +1523,7 @@ static int handle_command(struct controlvm_message inmsg, u64 channel_addr)
 	 * within our OS-controlled memory. We need to know that, because it
 	 * makes a difference in how we compute the virtual address.
 	 */
-	if (parm_addr && parm_bytes) {
+	if (parm_bytes) {
 		bool retry = false;
 
 		parser_ctx =
