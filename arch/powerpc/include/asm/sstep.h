@@ -84,6 +84,7 @@ enum instruction_type {
 #define DCBTST		0x200
 #define DCBT		0x300
 #define ICBI		0x400
+#define DCBZ		0x500
 
 /* VSX flags values */
 #define VSX_FPCONV	1	/* do floating point SP/DP conversion */
@@ -155,3 +156,4 @@ extern void emulate_vsx_load(struct instruction_op *op, union vsx_reg *reg,
 			     const void *mem);
 extern void emulate_vsx_store(struct instruction_op *op, const union vsx_reg *reg,
 			      void *mem);
+extern int emulate_dcbz(unsigned long ea, struct pt_regs *regs);

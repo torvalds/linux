@@ -780,6 +780,30 @@ static nokprobe_inline int do_vsx_store(struct instruction_op *op,
 }
 #endif /* CONFIG_VSX */
 
+int emulate_dcbz(unsigned long ea, struct pt_regs *regs)
+{
+	int err;
+	unsigned long i, size;
+
+#ifdef __powerpc64__
+	size = ppc64_caches.l1d.block_size;
+	if (!(regs->msr & MSR_64BIT))
+		ea &= 0xffffffffUL;
+#else
+	size = L1_CACHE_BYTES;
+#endif
+	ea &= ~(size - 1);
+	if (!address_ok(regs, ea, size))
+		return -EFAULT;
+	for (i = 0; i < size; i += sizeof(long)) {
+		err = __put_user(0, (unsigned long __user *) (ea + i));
+		if (err)
+			return err;
+	}
+	return 0;
+}
+NOKPROBE_SYMBOL(emulate_dcbz);
+
 #define __put_user_asmx(x, addr, err, op, cr)		\
 	__asm__ __volatile__(				\
 		"1:	" op " %2,0,%3\n"		\
@@ -1748,6 +1772,11 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			op->type = MKOP(CACHEOP, ICBI, 0);
 			op->ea = xform_ea(instr, regs);
 			return 0;
+
+		case 1014:	/* dcbz */
+			op->type = MKOP(CACHEOP, DCBZ, 0);
+			op->ea = xform_ea(instr, regs);
+			return 0;
 		}
 		break;
 	}
@@ -2606,6 +2635,9 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 			break;
 		case ICBI:
 			__cacheop_user_asmx(ea, err, "icbi");
+			break;
+		case DCBZ:
+			err = emulate_dcbz(ea, regs);
 			break;
 		}
 		if (err)
