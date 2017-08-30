@@ -126,7 +126,7 @@ static nokprobe_inline unsigned long dform_ea(unsigned int instr,
 	if (ra)
 		ea += regs->gpr[ra];
 
-	return truncate_if_32bit(regs->msr, ea);
+	return ea;
 }
 
 #ifdef __powerpc64__
@@ -144,7 +144,7 @@ static nokprobe_inline unsigned long dsform_ea(unsigned int instr,
 	if (ra)
 		ea += regs->gpr[ra];
 
-	return truncate_if_32bit(regs->msr, ea);
+	return ea;
 }
 
 /*
@@ -161,7 +161,7 @@ static nokprobe_inline unsigned long dqform_ea(unsigned int instr,
 	if (ra)
 		ea += regs->gpr[ra];
 
-	return truncate_if_32bit(regs->msr, ea);
+	return ea;
 }
 #endif /* __powerpc64 */
 
@@ -180,7 +180,7 @@ static nokprobe_inline unsigned long xform_ea(unsigned int instr,
 	if (ra)
 		ea += regs->gpr[ra];
 
-	return truncate_if_32bit(regs->msr, ea);
+	return ea;
 }
 
 /*
@@ -1789,10 +1789,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			if (rb == 0)
 				rb = 32;	/* # bytes to load */
 			op->type = MKOP(LOAD_MULTI, 0, rb);
-			op->ea = 0;
-			if (ra)
-				op->ea = truncate_if_32bit(regs->msr,
-							   regs->gpr[ra]);
+			op->ea = ra ? regs->gpr[ra] : 0;
 			break;
 
 #ifdef CONFIG_PPC_FPU
@@ -1837,10 +1834,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			if (rb == 0)
 				rb = 32;	/* # bytes to store */
 			op->type = MKOP(STORE_MULTI, 0, rb);
-			op->ea = 0;
-			if (ra)
-				op->ea = truncate_if_32bit(regs->msr,
-							   regs->gpr[ra]);
+			op->ea = ra ? regs->gpr[ra] : 0;
 			break;
 
 		case 790:	/* lhbrx */
@@ -2407,10 +2401,11 @@ void emulate_update_regs(struct pt_regs *regs, struct instruction_op *op)
 int emulate_step(struct pt_regs *regs, unsigned int instr)
 {
 	struct instruction_op op;
-	int r, err, size;
+	int r, err, size, type;
 	unsigned long val;
 	unsigned int cr;
 	int i, rd, nb;
+	unsigned long ea;
 
 	r = analyse_instr(&op, regs, instr);
 	if (r < 0)
@@ -2422,27 +2417,33 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 
 	err = 0;
 	size = GETSIZE(op.type);
-	switch (op.type & INSTR_TYPE_MASK) {
+	type = op.type & INSTR_TYPE_MASK;
+
+	ea = op.ea;
+	if (OP_IS_LOAD_STORE(type) || type == CACHEOP)
+		ea = truncate_if_32bit(regs->msr, op.ea);
+
+	switch (type) {
 	case CACHEOP:
-		if (!address_ok(regs, op.ea, 8))
+		if (!address_ok(regs, ea, 8))
 			return 0;
 		switch (op.type & CACHEOP_MASK) {
 		case DCBST:
-			__cacheop_user_asmx(op.ea, err, "dcbst");
+			__cacheop_user_asmx(ea, err, "dcbst");
 			break;
 		case DCBF:
-			__cacheop_user_asmx(op.ea, err, "dcbf");
+			__cacheop_user_asmx(ea, err, "dcbf");
 			break;
 		case DCBTST:
 			if (op.reg == 0)
-				prefetchw((void *) op.ea);
+				prefetchw((void *) ea);
 			break;
 		case DCBT:
 			if (op.reg == 0)
-				prefetch((void *) op.ea);
+				prefetch((void *) ea);
 			break;
 		case ICBI:
-			__cacheop_user_asmx(op.ea, err, "icbi");
+			__cacheop_user_asmx(ea, err, "icbi");
 			break;
 		}
 		if (err)
@@ -2450,29 +2451,29 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		goto instr_done;
 
 	case LARX:
-		if (op.ea & (size - 1))
+		if (ea & (size - 1))
 			break;		/* can't handle misaligned */
-		if (!address_ok(regs, op.ea, size))
+		if (!address_ok(regs, ea, size))
 			return 0;
 		err = 0;
 		switch (size) {
 #ifdef __powerpc64__
 		case 1:
-			__get_user_asmx(val, op.ea, err, "lbarx");
+			__get_user_asmx(val, ea, err, "lbarx");
 			break;
 		case 2:
-			__get_user_asmx(val, op.ea, err, "lharx");
+			__get_user_asmx(val, ea, err, "lharx");
 			break;
 #endif
 		case 4:
-			__get_user_asmx(val, op.ea, err, "lwarx");
+			__get_user_asmx(val, ea, err, "lwarx");
 			break;
 #ifdef __powerpc64__
 		case 8:
-			__get_user_asmx(val, op.ea, err, "ldarx");
+			__get_user_asmx(val, ea, err, "ldarx");
 			break;
 		case 16:
-			err = do_lqarx(op.ea, &regs->gpr[op.reg]);
+			err = do_lqarx(ea, &regs->gpr[op.reg]);
 			goto ldst_done;
 #endif
 		default:
@@ -2483,29 +2484,29 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		goto ldst_done;
 
 	case STCX:
-		if (op.ea & (size - 1))
+		if (ea & (size - 1))
 			break;		/* can't handle misaligned */
-		if (!address_ok(regs, op.ea, size))
+		if (!address_ok(regs, ea, size))
 			return 0;
 		err = 0;
 		switch (size) {
 #ifdef __powerpc64__
 		case 1:
-			__put_user_asmx(op.val, op.ea, err, "stbcx.", cr);
+			__put_user_asmx(op.val, ea, err, "stbcx.", cr);
 			break;
 		case 2:
-			__put_user_asmx(op.val, op.ea, err, "stbcx.", cr);
+			__put_user_asmx(op.val, ea, err, "stbcx.", cr);
 			break;
 #endif
 		case 4:
-			__put_user_asmx(op.val, op.ea, err, "stwcx.", cr);
+			__put_user_asmx(op.val, ea, err, "stwcx.", cr);
 			break;
 #ifdef __powerpc64__
 		case 8:
-			__put_user_asmx(op.val, op.ea, err, "stdcx.", cr);
+			__put_user_asmx(op.val, ea, err, "stdcx.", cr);
 			break;
 		case 16:
-			err = do_stqcx(op.ea, regs->gpr[op.reg],
+			err = do_stqcx(ea, regs->gpr[op.reg],
 				       regs->gpr[op.reg + 1], &cr);
 			break;
 #endif
@@ -2521,11 +2522,11 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 	case LOAD:
 #ifdef __powerpc64__
 		if (size == 16) {
-			err = emulate_lq(regs, op.ea, op.reg);
+			err = emulate_lq(regs, ea, op.reg);
 			goto ldst_done;
 		}
 #endif
-		err = read_mem(&regs->gpr[op.reg], op.ea, size, regs);
+		err = read_mem(&regs->gpr[op.reg], ea, size, regs);
 		if (!err) {
 			if (op.type & SIGNEXT)
 				do_signext(&regs->gpr[op.reg], size);
@@ -2539,16 +2540,16 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		if (!(regs->msr & MSR_FP))
 			return 0;
 		if (size == 4)
-			err = do_fp_load(op.reg, do_lfs, op.ea, size, regs);
+			err = do_fp_load(op.reg, do_lfs, ea, size, regs);
 		else
-			err = do_fp_load(op.reg, do_lfd, op.ea, size, regs);
+			err = do_fp_load(op.reg, do_lfd, ea, size, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_ALTIVEC
 	case LOAD_VMX:
 		if (!(regs->msr & MSR_VEC))
 			return 0;
-		err = do_vec_load(op.reg, do_lvx, op.ea, regs);
+		err = do_vec_load(op.reg, do_lvx, ea, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_VSX
@@ -2565,8 +2566,8 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 			msrbit = MSR_VEC;
 		if (!(regs->msr & msrbit))
 			return 0;
-		if (!address_ok(regs, op.ea, size) ||
-		    __copy_from_user(mem, (void __user *)op.ea, size))
+		if (!address_ok(regs, ea, size) ||
+		    __copy_from_user(mem, (void __user *)ea, size))
 			return 0;
 
 		emulate_vsx_load(&op, &buf, mem);
@@ -2582,12 +2583,12 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 			nb = size - i;
 			if (nb > 4)
 				nb = 4;
-			err = read_mem(&regs->gpr[rd], op.ea, nb, regs);
+			err = read_mem(&regs->gpr[rd], ea, nb, regs);
 			if (err)
 				return 0;
 			if (nb < 4)	/* left-justify last bytes */
 				regs->gpr[rd] <<= 32 - 8 * nb;
-			op.ea += 4;
+			ea += 4;
 			++rd;
 		}
 		goto instr_done;
@@ -2595,18 +2596,18 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 	case STORE:
 #ifdef __powerpc64__
 		if (size == 16) {
-			err = emulate_stq(regs, op.ea, op.reg);
+			err = emulate_stq(regs, ea, op.reg);
 			goto ldst_done;
 		}
 #endif
 		if ((op.type & UPDATE) && size == sizeof(long) &&
 		    op.reg == 1 && op.update_reg == 1 &&
 		    !(regs->msr & MSR_PR) &&
-		    op.ea >= regs->gpr[1] - STACK_INT_FRAME_SIZE) {
-			err = handle_stack_update(op.ea, regs);
+		    ea >= regs->gpr[1] - STACK_INT_FRAME_SIZE) {
+			err = handle_stack_update(ea, regs);
 			goto ldst_done;
 		}
-		err = write_mem(op.val, op.ea, size, regs);
+		err = write_mem(op.val, ea, size, regs);
 		goto ldst_done;
 
 #ifdef CONFIG_PPC_FPU
@@ -2614,16 +2615,16 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		if (!(regs->msr & MSR_FP))
 			return 0;
 		if (size == 4)
-			err = do_fp_store(op.reg, do_stfs, op.ea, size, regs);
+			err = do_fp_store(op.reg, do_stfs, ea, size, regs);
 		else
-			err = do_fp_store(op.reg, do_stfd, op.ea, size, regs);
+			err = do_fp_store(op.reg, do_stfd, ea, size, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_ALTIVEC
 	case STORE_VMX:
 		if (!(regs->msr & MSR_VEC))
 			return 0;
-		err = do_vec_store(op.reg, do_stvx, op.ea, regs);
+		err = do_vec_store(op.reg, do_stvx, ea, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_VSX
@@ -2640,12 +2641,12 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 			msrbit = MSR_VEC;
 		if (!(regs->msr & msrbit))
 			return 0;
-		if (!address_ok(regs, op.ea, size))
+		if (!address_ok(regs, ea, size))
 			return 0;
 
 		store_vsrn(op.reg, &buf);
 		emulate_vsx_store(&op, &buf, mem);
-		if (__copy_to_user((void __user *)op.ea, mem, size))
+		if (__copy_to_user((void __user *)ea, mem, size))
 			return 0;
 		goto ldst_done;
 	}
@@ -2661,10 +2662,10 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 				nb = 4;
 			else
 				val >>= 32 - 8 * nb;
-			err = write_mem(val, op.ea, nb, regs);
+			err = write_mem(val, ea, nb, regs);
 			if (err)
 				return 0;
-			op.ea += 4;
+			ea += 4;
 			++rd;
 		}
 		goto instr_done;

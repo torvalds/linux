@@ -25,7 +25,7 @@ struct pt_regs;
 
 enum instruction_type {
 	COMPUTE,		/* arith/logical/CR op, etc. */
-	LOAD,
+	LOAD,			/* load and store types need to be contiguous */
 	LOAD_MULTI,
 	LOAD_FP,
 	LOAD_VMX,
@@ -51,6 +51,8 @@ enum instruction_type {
 };
 
 #define INSTR_TYPE_MASK	0x1f
+
+#define OP_IS_LOAD_STORE(type)	(LOAD <= (type) && (type) <= STCX)
 
 /* Compute flags, ORed in with type */
 #define SETREG		0x20
