@@ -1450,13 +1450,13 @@ static enum hrtimer_restart serial8250_em485_handle_stop_tx(struct hrtimer *t)
 	struct uart_8250_em485 *em485;
 	struct uart_8250_port *p;
 	unsigned long flags;
+
 	em485 = container_of(t, struct uart_8250_em485, stop_tx_timer);
 	p = em485->port;
 
 	serial8250_rpm_get(p);
 	spin_lock_irqsave(&p->port.lock, flags);
-	if (em485 &&
-	    em485->active_timer == &em485->stop_tx_timer) {
+	if (em485->active_timer == &em485->stop_tx_timer) {
 		__do_stop_tx_rs485(p);
 		em485->active_timer = NULL;
 	}
@@ -1608,12 +1608,12 @@ static enum hrtimer_restart serial8250_em485_handle_start_tx(struct hrtimer *t)
 	struct uart_8250_em485 *em485;
 	struct uart_8250_port *p;
 	unsigned long flags;
+
 	em485 = container_of(t, struct uart_8250_em485, start_tx_timer);
 	p = em485->port;
 
 	spin_lock_irqsave(&p->port.lock, flags);
-	if (em485 &&
-	    em485->active_timer == &em485->start_tx_timer) {
+	if (em485->active_timer == &em485->start_tx_timer) {
 		__start_tx(&p->port);
 		em485->active_timer = NULL;
 	}
