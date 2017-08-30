@@ -643,6 +643,8 @@ struct hns_roce_dev {
 
 	int			cmd_mod;
 	int			loop_idc;
+	u32			sdb_offset;
+	u32			odb_offset;
 	dma_addr_t		tptr_dma_addr; /*only for hw v1*/
 	u32			tptr_size; /*only for hw v1*/
 	const struct hns_roce_hw *hw;

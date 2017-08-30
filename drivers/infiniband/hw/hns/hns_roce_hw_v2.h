@@ -70,6 +70,7 @@
 #define HNS_ROCE_V2_CQE_ENTRY_SIZE		32
 #define HNS_ROCE_V2_PAGE_SIZE_SUPPORTED		0xFFFFF000
 #define HNS_ROCE_V2_MAX_INNER_MTPT_NUM		2
+#define HNS_ROCE_INVALID_LKEY			0x100
 #define HNS_ROCE_CMQ_TX_TIMEOUT			200
 
 #define HNS_ROCE_CONTEXT_HOP_NUM		1
@@ -111,6 +112,23 @@
 #define HNS_ROCE_V2_CQE_QPN_MASK		0x3ffff
 
 enum {
+	HNS_ROCE_V2_WQE_OP_SEND				= 0x0,
+	HNS_ROCE_V2_WQE_OP_SEND_WITH_INV		= 0x1,
+	HNS_ROCE_V2_WQE_OP_SEND_WITH_IMM		= 0x2,
+	HNS_ROCE_V2_WQE_OP_RDMA_WRITE			= 0x3,
+	HNS_ROCE_V2_WQE_OP_RDMA_WRITE_WITH_IMM		= 0x4,
+	HNS_ROCE_V2_WQE_OP_RDMA_READ			= 0x5,
+	HNS_ROCE_V2_WQE_OP_ATOM_CMP_AND_SWAP		= 0x6,
+	HNS_ROCE_V2_WQE_OP_ATOM_FETCH_AND_ADD		= 0x7,
+	HNS_ROCE_V2_WQE_OP_ATOM_MSK_CMP_AND_SWAP	= 0x8,
+	HNS_ROCE_V2_WQE_OP_ATOM_MSK_FETCH_AND_ADD	= 0x9,
+	HNS_ROCE_V2_WQE_OP_FAST_REG_PMR			= 0xa,
+	HNS_ROCE_V2_WQE_OP_LOCAL_INV			= 0xb,
+	HNS_ROCE_V2_WQE_OP_BIND_MW_TYPE			= 0xc,
+	HNS_ROCE_V2_WQE_OP_MASK				= 0x1f,
+};
+
+enum {
 	HNS_ROCE_SQ_OPCODE_SEND = 0x0,
 	HNS_ROCE_SQ_OPCODE_SEND_WITH_INV = 0x1,
 	HNS_ROCE_SQ_OPCODE_SEND_WITH_IMM = 0x2,
@@ -135,6 +153,9 @@ enum {
 };
 
 enum {
+	HNS_ROCE_V2_SQ_DB	= 0x0,
+	HNS_ROCE_V2_RQ_DB	= 0x1,
+	HNS_ROCE_V2_SRQ_DB	= 0x2,
 	HNS_ROCE_V2_CQ_DB_PTR	= 0x3,
 	HNS_ROCE_V2_CQ_DB_NTR	= 0x4,
 };
@@ -775,6 +796,12 @@ struct hns_roce_v2_cqe {
 #define	V2_DB_BYTE_4_CMD_S 24
 #define V2_DB_BYTE_4_CMD_M GENMASK(27, 24)
 
+#define V2_DB_PARAMETER_CONS_IDX_S 0
+#define V2_DB_PARAMETER_CONS_IDX_M GENMASK(15, 0)
+
+#define V2_DB_PARAMETER_SL_S 16
+#define V2_DB_PARAMETER_SL_M GENMASK(18, 16)
+
 struct hns_roce_v2_cq_db {
 	u32	byte_4;
 	u32	parameter;
@@ -793,6 +820,51 @@ struct hns_roce_v2_cq_db {
 #define V2_CQ_DB_PARAMETER_CMD_SN_M GENMASK(26, 25)
 
 #define V2_CQ_DB_PARAMETER_NOTIFY_S 24
+
+struct hns_roce_v2_rc_send_wqe {
+	u32		byte_4;
+	u32		msg_len;
+	u32		inv_key_immtdata;
+	u32		byte_16;
+	u32		byte_20;
+	u32		rkey;
+	u64		va;
+};
+
+#define	V2_RC_SEND_WQE_BYTE_4_OPCODE_S 0
+#define V2_RC_SEND_WQE_BYTE_4_OPCODE_M GENMASK(4, 0)
+
+#define V2_RC_SEND_WQE_BYTE_4_OWNER_S 7
+
+#define V2_RC_SEND_WQE_BYTE_4_CQE_S 8
+
+#define V2_RC_SEND_WQE_BYTE_4_FENCE_S 9
+
+#define V2_RC_SEND_WQE_BYTE_4_SO_S 10
+
+#define V2_RC_SEND_WQE_BYTE_4_SE_S 11
+
+#define V2_RC_SEND_WQE_BYTE_4_INLINE_S 12
+
+#define	V2_RC_SEND_WQE_BYTE_16_XRC_SRQN_S 0
+#define V2_RC_SEND_WQE_BYTE_16_XRC_SRQN_M GENMASK(23, 0)
+
+#define	V2_RC_SEND_WQE_BYTE_16_SGE_NUM_S 24
+#define V2_RC_SEND_WQE_BYTE_16_SGE_NUM_M GENMASK(31, 24)
+
+#define V2_RC_SEND_WQE_BYTE_20_MSG_START_SGE_IDX_S 0
+#define V2_RC_SEND_WQE_BYTE_20_MSG_START_SGE_IDX_M GENMASK(23, 0)
+
+struct hns_roce_v2_wqe_data_seg {
+	__be32    len;
+	__be32    lkey;
+	__be64    addr;
+};
+
+struct hns_roce_v2_db {
+	u32	byte_4;
+	u32	parameter;
+};
 
 struct hns_roce_query_version {
 	__le16 rocee_vendor_id;

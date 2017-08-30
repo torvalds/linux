@@ -549,10 +549,9 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		}
 
 		/* QP doorbell register address */
-		hr_qp->sq.db_reg_l = hr_dev->reg_base + ROCEE_DB_SQ_L_0_REG +
+		hr_qp->sq.db_reg_l = hr_dev->reg_base + hr_dev->sdb_offset +
 				     DB_REG_OFFSET * hr_dev->priv_uar.index;
-		hr_qp->rq.db_reg_l = hr_dev->reg_base +
-				     ROCEE_DB_OTHERS_L_0_REG +
+		hr_qp->rq.db_reg_l = hr_dev->reg_base + hr_dev->odb_offset +
 				     DB_REG_OFFSET * hr_dev->priv_uar.index;
 
 		/* Allocate QP buf */

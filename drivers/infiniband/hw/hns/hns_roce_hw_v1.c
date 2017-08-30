@@ -3221,7 +3221,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 
 		if (ibqp->uobject) {
 			hr_qp->rq.db_reg_l = hr_dev->reg_base +
-				     ROCEE_DB_OTHERS_L_0_REG +
+				     hr_dev->odb_offset +
 				     DB_REG_OFFSET * hr_dev->priv_uar.index;
 		}
 
@@ -4084,6 +4084,8 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 	/* cmd issue mode: 0 is poll, 1 is event */
 	hr_dev->cmd_mod = 1;
 	hr_dev->loop_idc = 0;
+	hr_dev->sdb_offset = ROCEE_DB_SQ_L_0_REG;
+	hr_dev->odb_offset = ROCEE_DB_OTHERS_L_0_REG;
 
 	/* read the interrupt names from the DT or ACPI */
 	ret = device_property_read_string_array(dev, "interrupt-names",

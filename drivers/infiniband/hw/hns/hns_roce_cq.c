@@ -351,8 +351,8 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 		}
 
 		uar = &hr_dev->priv_uar;
-		hr_cq->cq_db_l = hr_dev->reg_base + ROCEE_DB_OTHERS_L_0_REG +
-				 0x1000 * uar->index;
+		hr_cq->cq_db_l = hr_dev->reg_base + hr_dev->odb_offset +
+				DB_REG_OFFSET * uar->index;
 	}
 
 	/* Allocate cq index, fill cq_context */
