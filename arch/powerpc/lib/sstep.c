@@ -1021,9 +1021,6 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			op->ccval = (regs->ccr & ~(1UL << (31 - rd))) |
 				(val << (31 - rd));
 			return 1;
-		default:
-			op->type = UNKNOWN;
-			return 0;
 		}
 		break;
 	case 31:
@@ -1122,6 +1119,17 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			imm += regs->gpr[ra];
 		op->val = imm;
 		goto compute_done;
+
+	case 19:
+		if (((instr >> 1) & 0x1f) == 2) {
+			/* addpcis */
+			imm = (short) (instr & 0xffc1);	/* d0 + d2 fields */
+			imm |= (instr >> 15) & 0x3e;	/* d1 field */
+			op->val = regs->nip + (imm << 16) + 4;
+			goto compute_done;
+		}
+		op->type = UNKNOWN;
+		return 0;
 
 	case 20:	/* rlwimi */
 		mb = (instr >> 6) & 0x1f;
