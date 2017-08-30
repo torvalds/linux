@@ -744,7 +744,7 @@ static int visorbus_configure(struct controlvm_message *inmsg,
 
 err_respond:
 	dev_err(&chipset_dev->acpi_device->dev,
-		"visorbus_configure exited with err: %d\n", err);
+		"%s exited with err: %d\n", __func__, err);
 	if (inmsg->hdr.flags.response_expected == 1)
 		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
