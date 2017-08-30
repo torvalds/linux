@@ -240,7 +240,7 @@ struct iommu_device {
 	struct list_head list;
 	const struct iommu_ops *ops;
 	struct fwnode_handle *fwnode;
-	struct device dev;
+	struct device *dev;
 };
 
 int  iommu_device_register(struct iommu_device *iommu);
@@ -263,6 +263,11 @@ static inline void iommu_device_set_fwnode(struct iommu_device *iommu,
 					   struct fwnode_handle *fwnode)
 {
 	iommu->fwnode = fwnode;
+}
+
+static inline struct iommu_device *dev_to_iommu_device(struct device *dev)
+{
+	return (struct iommu_device *)dev_get_drvdata(dev);
 }
 
 #define IOMMU_GROUP_NOTIFY_ADD_DEVICE		1 /* Device added */
@@ -587,6 +592,11 @@ static inline void iommu_device_set_ops(struct iommu_device *iommu,
 static inline void iommu_device_set_fwnode(struct iommu_device *iommu,
 					   struct fwnode_handle *fwnode)
 {
+}
+
+static inline struct iommu_device *dev_to_iommu_device(struct device *dev)
+{
+	return NULL;
 }
 
 static inline void iommu_device_unregister(struct iommu_device *iommu)

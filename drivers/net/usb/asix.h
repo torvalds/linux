@@ -209,6 +209,7 @@ void asix_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value,
 int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			   struct asix_rx_fixup_info *rx);
 int asix_rx_fixup_common(struct usbnet *dev, struct sk_buff *skb);
+void asix_rx_fixup_common_free(struct asix_common_private *dp);
 
 struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 			      gfp_t flags);

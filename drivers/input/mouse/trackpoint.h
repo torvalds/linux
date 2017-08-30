@@ -21,8 +21,9 @@
 #define TP_COMMAND		0xE2	/* Commands start with this */
 
 #define TP_READ_ID		0xE1	/* Sent for device identification */
-#define TP_MAGIC_IDENT		0x01	/* Sent after a TP_READ_ID followed */
+#define TP_MAGIC_IDENT		0x03	/* Sent after a TP_READ_ID followed */
 					/* by the firmware ID */
+					/* Firmware ID includes 0x1, 0x2, 0x3 */
 
 
 /*

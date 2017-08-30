@@ -2304,10 +2304,7 @@ static int unix_stream_read_generic(struct unix_stream_read_state *state,
 	 */
 	mutex_lock(&u->iolock);
 
-	if (flags & MSG_PEEK)
-		skip = sk_peek_offset(sk, flags);
-	else
-		skip = 0;
+	skip = max(sk_peek_offset(sk, flags), 0);
 
 	do {
 		int chunk;

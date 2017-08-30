@@ -28,16 +28,15 @@ EXPORT_SYMBOL(PCIBIOS_MIN_MEM);
 
 static int __init pcibios_set_cache_line_size(void)
 {
-	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int lsize;
 
 	/*
 	 * Set PCI cacheline size to that of the highest level in the
 	 * cache hierarchy.
 	 */
-	lsize = c->dcache.linesz;
-	lsize = c->scache.linesz ? : lsize;
-	lsize = c->tcache.linesz ? : lsize;
+	lsize = cpu_dcache_line_size();
+	lsize = cpu_scache_line_size() ? : lsize;
+	lsize = cpu_tcache_line_size() ? : lsize;
 
 	BUG_ON(!lsize);
 

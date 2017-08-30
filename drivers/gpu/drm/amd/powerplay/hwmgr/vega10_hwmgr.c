@@ -2128,15 +2128,9 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 			pp_table->AvfsGbCksOff.m2_shift = 12;
 			pp_table->AvfsGbCksOff.b_shift = 0;
 
-			for (i = 0; i < dep_table->count; i++) {
-				if (dep_table->entries[i].sclk_offset == 0)
-					pp_table->StaticVoltageOffsetVid[i] = 248;
-				else
-					pp_table->StaticVoltageOffsetVid[i] =
-						(uint8_t)(dep_table->entries[i].sclk_offset *
-								VOLTAGE_VID_OFFSET_SCALE2 /
-								VOLTAGE_VID_OFFSET_SCALE1);
-			}
+			for (i = 0; i < dep_table->count; i++)
+				pp_table->StaticVoltageOffsetVid[i] =
+						convert_to_vid((uint8_t)(dep_table->entries[i].sclk_offset));
 
 			if ((PPREGKEY_VEGA10QUADRATICEQUATION_DFLT !=
 					data->disp_clk_quad_eqn_a) &&

@@ -1221,6 +1221,14 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	return ret;
 }
 
+static u8 gtiir[] = {
+	[RCS] = 0,
+	[BCS] = 0,
+	[VCS] = 1,
+	[VCS2] = 1,
+	[VECS] = 3,
+};
+
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
@@ -1245,9 +1253,22 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 
 	DRM_DEBUG_DRIVER("Execlists enabled for %s\n", engine->name);
 
-	/* After a GPU reset, we may have requests to replay */
+	GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
+
+	/*
+	 * Clear any pending interrupt state.
+	 *
+	 * We do it twice out of paranoia that some of the IIR are double
+	 * buffered, and if we only reset it once there may still be
+	 * an interrupt pending.
+	 */
+	I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
+		   GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift);
+	I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
+		   GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift);
 	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 
+	/* After a GPU reset, we may have requests to replay */
 	submit = false;
 	for (n = 0; n < ARRAY_SIZE(engine->execlist_port); n++) {
 		if (!port_isset(&port[n]))

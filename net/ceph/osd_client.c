@@ -1337,6 +1337,8 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	bool legacy_change;
 	bool split = false;
 	bool sort_bitwise = ceph_osdmap_flag(osdc, CEPH_OSDMAP_SORTBITWISE);
+	bool recovery_deletes = ceph_osdmap_flag(osdc,
+						 CEPH_OSDMAP_RECOVERY_DELETES);
 	enum calc_target_result ct_res;
 	int ret;
 
@@ -1399,6 +1401,8 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 				 pi->pg_num,
 				 t->sort_bitwise,
 				 sort_bitwise,
+				 t->recovery_deletes,
+				 recovery_deletes,
 				 &last_pgid))
 		force_resend = true;
 
@@ -1421,6 +1425,7 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 		t->pg_num = pi->pg_num;
 		t->pg_num_mask = pi->pg_num_mask;
 		t->sort_bitwise = sort_bitwise;
+		t->recovery_deletes = recovery_deletes;
 
 		t->osd = acting.primary;
 	}
@@ -1918,10 +1923,12 @@ static void encode_request_partial(struct ceph_osd_request *req,
 	}
 
 	ceph_encode_32(&p, req->r_attempts); /* retry_attempt */
-	BUG_ON(p != end - 8); /* space for features */
+	BUG_ON(p > end - 8); /* space for features */
 
 	msg->hdr.version = cpu_to_le16(8); /* MOSDOp v8 */
 	/* front_len is finalized in encode_request_finish() */
+	msg->front.iov_len = p - msg->front.iov_base;
+	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 	msg->hdr.data_len = cpu_to_le32(data_len);
 	/*
 	 * The header "data_off" is a hint to the receiver allowing it
@@ -1937,11 +1944,12 @@ static void encode_request_partial(struct ceph_osd_request *req,
 static void encode_request_finish(struct ceph_msg *msg)
 {
 	void *p = msg->front.iov_base;
+	void *const partial_end = p + msg->front.iov_len;
 	void *const end = p + msg->front_alloc_len;
 
 	if (CEPH_HAVE_FEATURE(msg->con->peer_features, RESEND_ON_SPLIT)) {
 		/* luminous OSD -- encode features and be done */
-		p = end - 8;
+		p = partial_end;
 		ceph_encode_64(&p, msg->con->peer_features);
 	} else {
 		struct {
@@ -1984,7 +1992,7 @@ static void encode_request_finish(struct ceph_msg *msg)
 		oid_len = p - oid;
 
 		tail = p;
-		tail_len = (end - p) - 8;
+		tail_len = partial_end - p;
 
 		p = msg->front.iov_base;
 		ceph_encode_copy(&p, &head.client_inc, sizeof(head.client_inc));
@@ -5310,7 +5318,10 @@ static int invalidate_authorizer(struct ceph_connection *con)
 
 static void osd_reencode_message(struct ceph_msg *msg)
 {
-	encode_request_finish(msg);
+	int type = le16_to_cpu(msg->hdr.type);
+
+	if (type == CEPH_MSG_OSD_OP)
+		encode_request_finish(msg);
 }
 
 static int osd_sign_message(struct ceph_msg *msg)

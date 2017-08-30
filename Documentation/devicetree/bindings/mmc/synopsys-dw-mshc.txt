@@ -12,12 +12,12 @@ Required Properties:
 * #address-cells: should be 1.
 * #size-cells: should be 0.
 
-# Slots: The slot specific information are contained within child-nodes with
-  each child-node representing a supported slot. There should be atleast one
-  child node representing a card slot. The name of the child node representing
-  the slot is recommended to be slot@n where n is the unique number of the slot
-  connected to the controller. The following are optional properties which
-  can be included in the slot child node.
+# Slots (DEPRECATED): The slot specific information are contained within
+  child-nodes with each child-node representing a supported slot. There should
+  be atleast one child node representing a card slot. The name of the child node
+  representing the slot is recommended to be slot@n where n is the unique number
+  of the slot connected to the controller. The following are optional properties
+  which can be included in the slot child node.
 
 	* reg: specifies the physical slot number. The valid values of this
 	  property is 0 to (num-slots -1), where num-slots is the value
@@ -63,7 +63,7 @@ Optional properties:
   clock(cclk_out). If it's not specified, max is 200MHZ and min is 400KHz by default.
 	  (Use the "max-frequency" instead of "clock-freq-min-max".)
 
-* num-slots: specifies the number of slots supported by the controller.
+* num-slots (DEPRECATED): specifies the number of slots supported by the controller.
   The number of physical slots actually used could be equal or less than the
   value specified by num-slots. If this property is not specified, the value
   of num-slot property is assumed to be 1.
@@ -124,7 +124,6 @@ board specific portions as listed below.
 	dwmmc0@12200000 {
 		clock-frequency = <400000000>;
 		clock-freq-min-max = <400000 200000000>;
-		num-slots = <1>;
 		broken-cd;
 		fifo-depth = <0x80>;
 		card-detect-delay = <200>;
@@ -139,7 +138,6 @@ board specific portions as listed below.
 	dwmmc0@12200000 {
 		clock-frequency = <400000000>;
 		clock-freq-min-max = <400000 200000000>;
-		num-slots = <1>;
 		broken-cd;
 		fifo-depth = <0x80>;
 		card-detect-delay = <200>;

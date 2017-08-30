@@ -606,6 +606,8 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 		get_order(channel->ringbuffer_pagecount * PAGE_SIZE));
 
 out:
+	/* re-enable tasklet for use on re-open */
+	tasklet_enable(&channel->callback_event);
 	return ret;
 }
 

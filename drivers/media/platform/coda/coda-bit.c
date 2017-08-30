@@ -393,8 +393,8 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 	int ret;
 	int i;
 
-	if (ctx->codec && (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
-	     ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264)) {
+	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
+	    ctx->codec->dst_fourcc == V4L2_PIX_FMT_H264) {
 		width = round_up(q_data->width, 16);
 		height = round_up(q_data->height, 16);
 	} else {
@@ -2198,7 +2198,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	ctx->display_idx = display_idx;
 }
 
-static void coda_error_decode(struct coda_ctx *ctx)
+static void coda_decode_timeout(struct coda_ctx *ctx)
 {
 	struct vb2_v4l2_buffer *dst_buf;
 
@@ -2223,7 +2223,7 @@ const struct coda_context_ops coda_bit_decode_ops = {
 	.start_streaming = coda_start_decoding,
 	.prepare_run = coda_prepare_decode,
 	.finish_run = coda_finish_decode,
-	.error_run = coda_error_decode,
+	.run_timeout = coda_decode_timeout,
 	.seq_end_work = coda_seq_end_work,
 	.release = coda_bit_release,
 };

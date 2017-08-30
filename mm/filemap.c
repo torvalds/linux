@@ -885,6 +885,7 @@ void __init pagecache_init(void)
 	page_writeback_init();
 }
 
+/* This has the same layout as wait_bit_key - see fs/cachefiles/rdwr.c */
 struct wait_page_key {
 	struct page *page;
 	int bit_nr;
@@ -909,8 +910,10 @@ static int wake_page_function(wait_queue_entry_t *wait, unsigned mode, int sync,
 
 	if (wait_page->bit_nr != key->bit_nr)
 		return 0;
+
+	/* Stop walking if it's locked */
 	if (test_bit(key->bit_nr, &key->page->flags))
-		return 0;
+		return -1;
 
 	return autoremove_wake_function(wait, mode, sync, key);
 }
@@ -964,6 +967,7 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 	int ret = 0;
 
 	init_wait(wait);
+	wait->flags = lock ? WQ_FLAG_EXCLUSIVE : 0;
 	wait->func = wake_page_function;
 	wait_page.page = page;
 	wait_page.bit_nr = bit_nr;
@@ -972,10 +976,7 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 		spin_lock_irq(&q->lock);
 
 		if (likely(list_empty(&wait->entry))) {
-			if (lock)
-				__add_wait_queue_entry_tail_exclusive(q, wait);
-			else
-				__add_wait_queue(q, wait);
+			__add_wait_queue_entry_tail(q, wait);
 			SetPageWaiters(page);
 		}
 
@@ -985,10 +986,6 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 
 		if (likely(test_bit(bit_nr, &page->flags))) {
 			io_schedule();
-			if (unlikely(signal_pending_state(state, current))) {
-				ret = -EINTR;
-				break;
-			}
 		}
 
 		if (lock) {
@@ -997,6 +994,11 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 		} else {
 			if (!test_bit(bit_nr, &page->flags))
 				break;
+		}
+
+		if (unlikely(signal_pending_state(state, current))) {
+			ret = -EINTR;
+			break;
 		}
 	}
 

@@ -1094,28 +1094,28 @@ static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
 	.atomic_check		= mixer_atomic_check,
 };
 
-static struct mixer_drv_data exynos5420_mxr_drv_data = {
+static const struct mixer_drv_data exynos5420_mxr_drv_data = {
 	.version = MXR_VER_128_0_0_184,
 	.is_vp_enabled = 0,
 };
 
-static struct mixer_drv_data exynos5250_mxr_drv_data = {
+static const struct mixer_drv_data exynos5250_mxr_drv_data = {
 	.version = MXR_VER_16_0_33_0,
 	.is_vp_enabled = 0,
 };
 
-static struct mixer_drv_data exynos4212_mxr_drv_data = {
+static const struct mixer_drv_data exynos4212_mxr_drv_data = {
 	.version = MXR_VER_0_0_0_16,
 	.is_vp_enabled = 1,
 };
 
-static struct mixer_drv_data exynos4210_mxr_drv_data = {
+static const struct mixer_drv_data exynos4210_mxr_drv_data = {
 	.version = MXR_VER_0_0_0_16,
 	.is_vp_enabled = 1,
 	.has_sclk = 1,
 };
 
-static struct of_device_id mixer_match_types[] = {
+static const struct of_device_id mixer_match_types[] = {
 	{
 		.compatible = "samsung,exynos4210-mixer",
 		.data	= &exynos4210_mxr_drv_data,

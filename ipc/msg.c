@@ -1034,7 +1034,8 @@ void msg_exit_ns(struct ipc_namespace *ns)
 static int sysvipc_msg_proc_show(struct seq_file *s, void *it)
 {
 	struct user_namespace *user_ns = seq_user_ns(s);
-	struct msg_queue *msq = it;
+	struct kern_ipc_perm *ipcp = it;
+	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
 
 	seq_printf(s,
 		   "%10d %10d  %4o  %10lu %10lu %5u %5u %5u %5u %5u %5u %10lu %10lu %10lu\n",

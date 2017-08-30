@@ -2153,8 +2153,7 @@ process_leaf:
 			u32 this_len = sizeof(*di) + name_len + data_len;
 			char *name;
 
-			ret = verify_dir_item(fs_info, path->nodes[0],
-					      path->slots[0], di);
+			ret = verify_dir_item(fs_info, path->nodes[0], i, di);
 			if (ret) {
 				ret = -EIO;
 				goto out;

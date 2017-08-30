@@ -698,7 +698,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	else
 		mlx5_core_dbg(dev, "port_module_event is not set\n");
 
-	if (MLX5_CAP_GEN(dev, pps))
+	if (MLX5_PPS_CAP(dev))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PPS_EVENT);
 
 	if (MLX5_CAP_GEN(dev, fpga))

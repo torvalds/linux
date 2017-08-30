@@ -513,6 +513,7 @@ bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 
 	/* Now reverse the concerned fields */
 	msg_set_errcode(hdr, err);
+	msg_set_non_seq(hdr, 0);
 	msg_set_origport(hdr, msg_destport(&ohdr));
 	msg_set_destport(hdr, msg_origport(&ohdr));
 	msg_set_destnode(hdr, msg_prevnode(&ohdr));

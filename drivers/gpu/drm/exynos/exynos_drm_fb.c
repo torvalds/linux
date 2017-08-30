@@ -145,13 +145,19 @@ static struct drm_framebuffer *
 exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		      const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	const struct drm_format_info *info = drm_get_format_info(dev, mode_cmd);
 	struct exynos_drm_gem *exynos_gem[MAX_FB_BUFFER];
 	struct drm_gem_object *obj;
 	struct drm_framebuffer *fb;
 	int i;
 	int ret;
 
-	for (i = 0; i < drm_format_num_planes(mode_cmd->pixel_format); i++) {
+	for (i = 0; i < info->num_planes; i++) {
+		unsigned int height = (i == 0) ? mode_cmd->height :
+				     DIV_ROUND_UP(mode_cmd->height, info->vsub);
+		unsigned long size = height * mode_cmd->pitches[i] +
+				     mode_cmd->offsets[i];
+
 		obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[i]);
 		if (!obj) {
 			DRM_ERROR("failed to lookup gem object\n");
@@ -160,6 +166,12 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		}
 
 		exynos_gem[i] = to_exynos_gem(obj);
+
+		if (size > exynos_gem[i]->size) {
+			i++;
+			ret = -EINVAL;
+			goto err;
+		}
 	}
 
 	fb = exynos_drm_framebuffer_init(dev, mode_cmd, exynos_gem, i);

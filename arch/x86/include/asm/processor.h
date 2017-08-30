@@ -129,7 +129,7 @@ struct cpuinfo_x86 {
 	/* Index into per_cpu list: */
 	u16			cpu_index;
 	u32			microcode;
-};
+} __randomize_layout;
 
 struct cpuid_regs {
 	u32 eax, ebx, ecx, edx;

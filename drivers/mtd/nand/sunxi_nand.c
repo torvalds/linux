@@ -1728,6 +1728,10 @@ static int sunxi_nfc_setup_data_interface(struct mtd_info *mtd, int csline,
 	 */
 	chip->clk_rate = NSEC_PER_SEC / min_clk_period;
 	real_clk_rate = clk_round_rate(nfc->mod_clk, chip->clk_rate);
+	if (real_clk_rate <= 0) {
+		dev_err(nfc->dev, "Unable to round clk %lu\n", chip->clk_rate);
+		return -EINVAL;
+	}
 
 	/*
 	 * ONFI specification 3.1, paragraph 4.15.2 dictates that EDO data
