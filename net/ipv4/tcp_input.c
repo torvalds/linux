@@ -3552,7 +3552,6 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	u32 lost = tp->lost;
 	int acked = 0; /* Number of packets newly acked */
 	int rexmit = REXMIT_NONE; /* Flag to (re)transmit to recover losses */
-	u32 ack_ev_flags = 0;
 
 	sack_state.first_sackt = 0;
 	sack_state.rate = &rs;
@@ -3593,26 +3592,30 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	if (flag & FLAG_UPDATE_TS_RECENT)
 		tcp_replace_ts_recent(tp, TCP_SKB_CB(skb)->seq);
 
-	if (ack_seq != TCP_SKB_CB(skb)->end_seq)
-		flag |= FLAG_DATA;
-	else
-		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPPUREACKS);
+	{
+		u32 ack_ev_flags = CA_ACK_SLOWPATH;
 
-	flag |= tcp_ack_update_window(sk, skb, ack, ack_seq);
+		if (ack_seq != TCP_SKB_CB(skb)->end_seq)
+			flag |= FLAG_DATA;
+		else
+			NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPPUREACKS);
 
-	if (TCP_SKB_CB(skb)->sacked)
-		flag |= tcp_sacktag_write_queue(sk, skb, prior_snd_una,
-						&sack_state);
+		flag |= tcp_ack_update_window(sk, skb, ack, ack_seq);
 
-	if (tcp_ecn_rcv_ecn_echo(tp, tcp_hdr(skb))) {
-		flag |= FLAG_ECE;
-		ack_ev_flags = CA_ACK_ECE;
+		if (TCP_SKB_CB(skb)->sacked)
+			flag |= tcp_sacktag_write_queue(sk, skb, prior_snd_una,
+							&sack_state);
+
+		if (tcp_ecn_rcv_ecn_echo(tp, tcp_hdr(skb))) {
+			flag |= FLAG_ECE;
+			ack_ev_flags |= CA_ACK_ECE;
+		}
+
+		if (flag & FLAG_WIN_UPDATE)
+			ack_ev_flags |= CA_ACK_WIN_UPDATE;
+
+		tcp_in_ack_event(sk, ack_ev_flags);
 	}
-
-	if (flag & FLAG_WIN_UPDATE)
-		ack_ev_flags |= CA_ACK_WIN_UPDATE;
-
-	tcp_in_ack_event(sk, ack_ev_flags);
 
 	/* We passed data and got it acked, remove any soft error
 	 * log. Something worked...
