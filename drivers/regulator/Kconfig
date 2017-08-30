@@ -746,6 +746,18 @@ config REGULATOR_SKY81452
 	  This driver can also be built as a module. If so, the module
 	  will be called sky81452-regulator.
 
+config REGULATOR_STM32_VREFBUF
+	tristate "STMicroelectronics STM32 VREFBUF"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  This driver supports STMicroelectronics STM32 VREFBUF (voltage
+	  reference buffer) which can be used as voltage reference for
+	  internal ADCs, DACs and also for external components through
+	  dedicated Vref+ pin.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called stm32-vrefbuf.
+
 config REGULATOR_TI_ABB
 	tristate "TI Adaptive Body Bias on-chip LDO"
 	depends on ARCH_OMAP
