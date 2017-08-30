@@ -39,15 +39,19 @@ grabber cards. As such it was not really well suited to be used for DVB
 cards and their new features like recording MPEG streams and filtering
 several section and PES data streams at the same time.
 
-In early 2000, we were approached by Nokia with a proposal for a new
+In early 2000, Convergence was approached by Nokia with a proposal for a new
 standard Linux DVB API. As a commitment to the development of terminals
 based on open standards, Nokia and Convergence made it available to all
 Linux developers and published it on https://linuxtv.org in September
-2000. Convergence is the maintainer of the Linux DVB API. Together with
-the LinuxTV community (i.e. you, the reader of this document), the Linux
-DVB API will be constantly reviewed and improved. With the Linux driver
-for the Siemens/Hauppauge DVB PCI card Convergence provides a first
-implementation of the Linux DVB API.
+2000. With the Linux driver for the Siemens/Hauppauge DVB PCI card,
+Convergence provided a first implementation of the Linux DVB API.
+Convergence was the maintainer of the Linux DVB API in the early
+days.
+
+Now, the API is maintained by the LinuxTV community (i.e. you, the reader
+of this document). The Linux  Digital TV API is constantly reviewed and
+improved together with the improvements at the subsystem's core at the
+Kernel.
 
 
 .. _overview:
