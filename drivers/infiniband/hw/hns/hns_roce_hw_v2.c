@@ -475,6 +475,62 @@ static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
 	return hns_roce_cmq_send(hr_dev, desc, 2);
 }
 
+static int hns_roce_v2_set_bt(struct hns_roce_dev *hr_dev)
+{
+	u8 srqc_hop_num = hr_dev->caps.srqc_hop_num;
+	u8 qpc_hop_num = hr_dev->caps.qpc_hop_num;
+	u8 cqc_hop_num = hr_dev->caps.cqc_hop_num;
+	u8 mpt_hop_num = hr_dev->caps.mpt_hop_num;
+	struct hns_roce_cfg_bt_attr *req;
+	struct hns_roce_cmq_desc desc;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_BT_ATTR, false);
+	req = (struct hns_roce_cfg_bt_attr *)desc.data;
+	memset(req, 0, sizeof(*req));
+
+	roce_set_field(req->vf_qpc_cfg, CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_M,
+		       CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_S,
+		       hr_dev->caps.qpc_ba_pg_sz);
+	roce_set_field(req->vf_qpc_cfg, CFG_BT_ATTR_DATA_0_VF_QPC_BUF_PGSZ_M,
+		       CFG_BT_ATTR_DATA_0_VF_QPC_BUF_PGSZ_S,
+		       hr_dev->caps.qpc_buf_pg_sz);
+	roce_set_field(req->vf_qpc_cfg, CFG_BT_ATTR_DATA_0_VF_QPC_HOPNUM_M,
+		       CFG_BT_ATTR_DATA_0_VF_QPC_HOPNUM_S,
+		       qpc_hop_num == HNS_ROCE_HOP_NUM_0 ? 0 : qpc_hop_num);
+
+	roce_set_field(req->vf_srqc_cfg, CFG_BT_ATTR_DATA_1_VF_SRQC_BA_PGSZ_M,
+		       CFG_BT_ATTR_DATA_1_VF_SRQC_BA_PGSZ_S,
+		       hr_dev->caps.srqc_ba_pg_sz);
+	roce_set_field(req->vf_srqc_cfg, CFG_BT_ATTR_DATA_1_VF_SRQC_BUF_PGSZ_M,
+		       CFG_BT_ATTR_DATA_1_VF_SRQC_BUF_PGSZ_S,
+		       hr_dev->caps.srqc_buf_pg_sz);
+	roce_set_field(req->vf_srqc_cfg, CFG_BT_ATTR_DATA_1_VF_SRQC_HOPNUM_M,
+		       CFG_BT_ATTR_DATA_1_VF_SRQC_HOPNUM_S,
+		       srqc_hop_num == HNS_ROCE_HOP_NUM_0 ? 0 : srqc_hop_num);
+
+	roce_set_field(req->vf_cqc_cfg, CFG_BT_ATTR_DATA_2_VF_CQC_BA_PGSZ_M,
+		       CFG_BT_ATTR_DATA_2_VF_CQC_BA_PGSZ_S,
+		       hr_dev->caps.cqc_ba_pg_sz);
+	roce_set_field(req->vf_cqc_cfg, CFG_BT_ATTR_DATA_2_VF_CQC_BUF_PGSZ_M,
+		       CFG_BT_ATTR_DATA_2_VF_CQC_BUF_PGSZ_S,
+		       hr_dev->caps.cqc_buf_pg_sz);
+	roce_set_field(req->vf_cqc_cfg, CFG_BT_ATTR_DATA_2_VF_CQC_HOPNUM_M,
+		       CFG_BT_ATTR_DATA_2_VF_CQC_HOPNUM_S,
+		       cqc_hop_num == HNS_ROCE_HOP_NUM_0 ? 0 : cqc_hop_num);
+
+	roce_set_field(req->vf_mpt_cfg, CFG_BT_ATTR_DATA_3_VF_MPT_BA_PGSZ_M,
+		       CFG_BT_ATTR_DATA_3_VF_MPT_BA_PGSZ_S,
+		       hr_dev->caps.mpt_ba_pg_sz);
+	roce_set_field(req->vf_mpt_cfg, CFG_BT_ATTR_DATA_3_VF_MPT_BUF_PGSZ_M,
+		       CFG_BT_ATTR_DATA_3_VF_MPT_BUF_PGSZ_S,
+		       hr_dev->caps.mpt_buf_pg_sz);
+	roce_set_field(req->vf_mpt_cfg, CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_M,
+		       CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_S,
+		       mpt_hop_num == HNS_ROCE_HOP_NUM_0 ? 0 : mpt_hop_num);
+
+	return hns_roce_cmq_send(hr_dev, &desc, 1);
+}
+
 static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_caps *caps = &hr_dev->caps;
@@ -563,7 +619,12 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->local_ca_ack_delay = 0;
 	caps->max_mtu = IB_MTU_4096;
 
-	return 0;
+	ret = hns_roce_v2_set_bt(hr_dev);
+	if (ret)
+		dev_err(hr_dev->dev, "Configure bt attribute fail, ret = %d.\n",
+			ret);
+
+	return ret;
 }
 
 static int hns_roce_v2_cmd_pending(struct hns_roce_dev *hr_dev)
@@ -648,12 +709,147 @@ static int hns_roce_v2_chk_mbox(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
+static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
+			       struct hns_roce_hem_table *table, int obj,
+			       int step_idx)
+{
+	struct device *dev = hr_dev->dev;
+	struct hns_roce_cmd_mailbox *mailbox;
+	struct hns_roce_hem_iter iter;
+	struct hns_roce_hem_mhop mhop;
+	struct hns_roce_hem *hem;
+	unsigned long mhop_obj = obj;
+	int i, j, k;
+	int ret = 0;
+	u64 hem_idx = 0;
+	u64 l1_idx = 0;
+	u64 bt_ba = 0;
+	u32 chunk_ba_num;
+	u32 hop_num;
+	u16 op = 0xff;
+
+	if (!hns_roce_check_whether_mhop(hr_dev, table->type))
+		return 0;
+
+	hns_roce_calc_hem_mhop(hr_dev, table, &mhop_obj, &mhop);
+	i = mhop.l0_idx;
+	j = mhop.l1_idx;
+	k = mhop.l2_idx;
+	hop_num = mhop.hop_num;
+	chunk_ba_num = mhop.bt_chunk_size / 8;
+
+	if (hop_num == 2) {
+		hem_idx = i * chunk_ba_num * chunk_ba_num + j * chunk_ba_num +
+			  k;
+		l1_idx = i * chunk_ba_num + j;
+	} else if (hop_num == 1) {
+		hem_idx = i * chunk_ba_num + j;
+	} else if (hop_num == HNS_ROCE_HOP_NUM_0) {
+		hem_idx = i;
+	}
+
+	switch (table->type) {
+	case HEM_TYPE_QPC:
+		op = HNS_ROCE_CMD_WRITE_QPC_BT0;
+		break;
+	case HEM_TYPE_MTPT:
+		op = HNS_ROCE_CMD_WRITE_MPT_BT0;
+		break;
+	case HEM_TYPE_CQC:
+		op = HNS_ROCE_CMD_WRITE_CQC_BT0;
+		break;
+	case HEM_TYPE_SRQC:
+		op = HNS_ROCE_CMD_WRITE_SRQC_BT0;
+		break;
+	default:
+		dev_warn(dev, "Table %d not to be written by mailbox!\n",
+			 table->type);
+		return 0;
+	}
+	op += step_idx;
+
+	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	if (check_whether_last_step(hop_num, step_idx)) {
+		hem = table->hem[hem_idx];
+		for (hns_roce_hem_first(hem, &iter);
+		     !hns_roce_hem_last(&iter); hns_roce_hem_next(&iter)) {
+			bt_ba = hns_roce_hem_addr(&iter);
+
+			/* configure the ba, tag, and op */
+			ret = hns_roce_cmd_mbox(hr_dev, bt_ba, mailbox->dma,
+						obj, 0, op,
+						HNS_ROCE_CMD_TIMEOUT_MSECS);
+		}
+	} else {
+		if (step_idx == 0)
+			bt_ba = table->bt_l0_dma_addr[i];
+		else if (step_idx == 1 && hop_num == 2)
+			bt_ba = table->bt_l1_dma_addr[l1_idx];
+
+		/* configure the ba, tag, and op */
+		ret = hns_roce_cmd_mbox(hr_dev, bt_ba, mailbox->dma, obj,
+					0, op, HNS_ROCE_CMD_TIMEOUT_MSECS);
+	}
+
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+	return ret;
+}
+
+static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
+				 struct hns_roce_hem_table *table, int obj,
+				 int step_idx)
+{
+	struct device *dev = hr_dev->dev;
+	struct hns_roce_cmd_mailbox *mailbox;
+	int ret = 0;
+	u16 op = 0xff;
+
+	if (!hns_roce_check_whether_mhop(hr_dev, table->type))
+		return 0;
+
+	switch (table->type) {
+	case HEM_TYPE_QPC:
+		op = HNS_ROCE_CMD_DESTROY_QPC_BT0;
+		break;
+	case HEM_TYPE_MTPT:
+		op = HNS_ROCE_CMD_DESTROY_MPT_BT0;
+		break;
+	case HEM_TYPE_CQC:
+		op = HNS_ROCE_CMD_DESTROY_CQC_BT0;
+		break;
+	case HEM_TYPE_SRQC:
+		op = HNS_ROCE_CMD_DESTROY_SRQC_BT0;
+		break;
+	default:
+		dev_warn(dev, "Table %d not to be destroyed by mailbox!\n",
+			 table->type);
+		return 0;
+	}
+	op += step_idx;
+
+	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	/* configure the tag and op */
+	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, obj, 0, op,
+				HNS_ROCE_CMD_TIMEOUT_MSECS);
+
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+	return ret;
+}
+
 static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.cmq_init = hns_roce_v2_cmq_init,
 	.cmq_exit = hns_roce_v2_cmq_exit,
 	.hw_profile = hns_roce_v2_profile,
 	.post_mbox = hns_roce_v2_post_mbox,
 	.chk_mbox = hns_roce_v2_chk_mbox,
+	.set_hem = hns_roce_v2_set_hem,
+	.clear_hem = hns_roce_v2_clear_hem,
 };
 
 static const struct pci_device_id hns_roce_hw_v2_pci_tbl[] = {

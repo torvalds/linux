@@ -93,6 +93,11 @@
 #define HNS_ROCE_CMQ_EN_B		16
 #define HNS_ROCE_CMQ_ENABLE		BIT(HNS_ROCE_CMQ_EN_B)
 
+#define check_whether_last_step(hop_num, step_idx) \
+	((step_idx == 0 && hop_num == HNS_ROCE_HOP_NUM_0) || \
+	(step_idx == 1 && hop_num == 1) || \
+	(step_idx == 2 && hop_num == 2))
+
 /* CMQ command */
 enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_QUERY_HW_VER			= 0x8000,
@@ -238,6 +243,50 @@ struct hns_roce_vf_res_b {
 
 #define VF_RES_B_DATA_3_VF_SL_NUM_S 16
 #define VF_RES_B_DATA_3_VF_SL_NUM_M GENMASK(19, 16)
+
+struct hns_roce_cfg_bt_attr {
+	u32 vf_qpc_cfg;
+	u32 vf_srqc_cfg;
+	u32 vf_cqc_cfg;
+	u32 vf_mpt_cfg;
+	u32 rsv[2];
+};
+
+#define CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_S 0
+#define CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_M GENMASK(3, 0)
+
+#define CFG_BT_ATTR_DATA_0_VF_QPC_BUF_PGSZ_S 4
+#define CFG_BT_ATTR_DATA_0_VF_QPC_BUF_PGSZ_M GENMASK(7, 4)
+
+#define CFG_BT_ATTR_DATA_0_VF_QPC_HOPNUM_S 8
+#define CFG_BT_ATTR_DATA_0_VF_QPC_HOPNUM_M GENMASK(9, 8)
+
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_BA_PGSZ_S 0
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_BA_PGSZ_M GENMASK(3, 0)
+
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_BUF_PGSZ_S 4
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_BUF_PGSZ_M GENMASK(7, 4)
+
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_HOPNUM_S 8
+#define CFG_BT_ATTR_DATA_1_VF_SRQC_HOPNUM_M GENMASK(9, 8)
+
+#define CFG_BT_ATTR_DATA_2_VF_CQC_BA_PGSZ_S 0
+#define CFG_BT_ATTR_DATA_2_VF_CQC_BA_PGSZ_M GENMASK(3, 0)
+
+#define CFG_BT_ATTR_DATA_2_VF_CQC_BUF_PGSZ_S 4
+#define CFG_BT_ATTR_DATA_2_VF_CQC_BUF_PGSZ_M GENMASK(7, 4)
+
+#define CFG_BT_ATTR_DATA_2_VF_CQC_HOPNUM_S 8
+#define CFG_BT_ATTR_DATA_2_VF_CQC_HOPNUM_M GENMASK(9, 8)
+
+#define CFG_BT_ATTR_DATA_3_VF_MPT_BA_PGSZ_S 0
+#define CFG_BT_ATTR_DATA_3_VF_MPT_BA_PGSZ_M GENMASK(3, 0)
+
+#define CFG_BT_ATTR_DATA_3_VF_MPT_BUF_PGSZ_S 4
+#define CFG_BT_ATTR_DATA_3_VF_MPT_BUF_PGSZ_M GENMASK(7, 4)
+
+#define CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_S 8
+#define CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_M GENMASK(9, 8)
 
 struct hns_roce_cmq_desc {
 	u16 opcode;
