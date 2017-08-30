@@ -790,6 +790,74 @@ struct hns_roce_v2_cqe {
 
 #define	V2_CQE_BYTE_32_LPK_S 31
 
+struct hns_roce_v2_mpt_entry {
+	__le32	byte_4_pd_hop_st;
+	__le32	byte_8_mw_cnt_en;
+	__le32	byte_12_mw_pa;
+	__le32	bound_lkey;
+	__le32	len_l;
+	__le32	len_h;
+	__le32	lkey;
+	__le32	va_l;
+	__le32	va_h;
+	__le32	pbl_size;
+	__le32	pbl_ba_l;
+	__le32	byte_48_mode_ba;
+	__le32	pa0_l;
+	__le32	byte_56_pa0_h;
+	__le32	pa1_l;
+	__le32	byte_64_buf_pa1;
+};
+
+#define V2_MPT_BYTE_4_MPT_ST_S 0
+#define V2_MPT_BYTE_4_MPT_ST_M GENMASK(1, 0)
+
+#define V2_MPT_BYTE_4_PBL_HOP_NUM_S 2
+#define V2_MPT_BYTE_4_PBL_HOP_NUM_M GENMASK(3, 2)
+
+#define V2_MPT_BYTE_4_PBL_BA_PG_SZ_S 4
+#define V2_MPT_BYTE_4_PBL_BA_PG_SZ_M GENMASK(7, 4)
+
+#define V2_MPT_BYTE_4_PD_S 8
+#define V2_MPT_BYTE_4_PD_M GENMASK(31, 8)
+
+#define V2_MPT_BYTE_8_RA_EN_S 0
+
+#define V2_MPT_BYTE_8_R_INV_EN_S 1
+
+#define V2_MPT_BYTE_8_L_INV_EN_S 2
+
+#define V2_MPT_BYTE_8_BIND_EN_S 3
+
+#define V2_MPT_BYTE_8_ATOMIC_EN_S 4
+
+#define V2_MPT_BYTE_8_RR_EN_S 5
+
+#define V2_MPT_BYTE_8_RW_EN_S 6
+
+#define V2_MPT_BYTE_8_LW_EN_S 7
+
+#define V2_MPT_BYTE_12_PA_S 1
+
+#define V2_MPT_BYTE_12_INNER_PA_VLD_S 7
+
+#define V2_MPT_BYTE_12_MW_BIND_QPN_S 8
+#define V2_MPT_BYTE_12_MW_BIND_QPN_M GENMASK(31, 8)
+
+#define V2_MPT_BYTE_48_PBL_BA_H_S 0
+#define V2_MPT_BYTE_48_PBL_BA_H_M GENMASK(28, 0)
+
+#define V2_MPT_BYTE_48_BLK_MODE_S 29
+
+#define V2_MPT_BYTE_56_PA0_H_S 0
+#define V2_MPT_BYTE_56_PA0_H_M GENMASK(25, 0)
+
+#define V2_MPT_BYTE_64_PA1_H_S 0
+#define V2_MPT_BYTE_64_PA1_H_M GENMASK(25, 0)
+
+#define V2_MPT_BYTE_64_PBL_BUF_PG_SZ_S 28
+#define V2_MPT_BYTE_64_PBL_BUF_PG_SZ_M GENMASK(31, 28)
+
 #define	V2_DB_BYTE_4_TAG_S 0
 #define V2_DB_BYTE_4_TAG_M GENMASK(23, 0)
 
