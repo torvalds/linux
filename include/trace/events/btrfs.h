@@ -28,6 +28,13 @@ struct btrfs_qgroup_extent_record;
 struct btrfs_qgroup;
 struct prelim_ref;
 
+TRACE_DEFINE_ENUM(FLUSH_DELAYED_ITEMS_NR);
+TRACE_DEFINE_ENUM(FLUSH_DELAYED_ITEMS);
+TRACE_DEFINE_ENUM(FLUSH_DELALLOC);
+TRACE_DEFINE_ENUM(FLUSH_DELALLOC_WAIT);
+TRACE_DEFINE_ENUM(ALLOC_CHUNK);
+TRACE_DEFINE_ENUM(COMMIT_TRANS);
+
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
 		{ BTRFS_TREE_BLOCK_REF_KEY, 	"TREE_BLOCK_REF" },	\
