@@ -150,7 +150,7 @@ int hclge_mac_mdio_config(struct hclge_dev *hdev)
 	}
 
 	phydev = mdiobus_get_phy(mdio_bus, mac->phy_addr);
-	if (!phydev || IS_ERR(phydev)) {
+	if (!phydev) {
 		dev_err(mdio_bus->parent, "Failed to get phy device\n");
 		mdiobus_unregister(mdio_bus);
 		return -EIO;
