@@ -825,15 +825,10 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 	return &plane->base;
 }
 
-static void tegra_overlay_plane_destroy(struct drm_plane *plane)
-{
-	tegra_plane_destroy(plane);
-}
-
 static const struct drm_plane_funcs tegra_overlay_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = tegra_overlay_plane_destroy,
+	.destroy = tegra_plane_destroy,
 	.reset = tegra_plane_reset,
 	.atomic_duplicate_state = tegra_plane_atomic_duplicate_state,
 	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
