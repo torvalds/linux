@@ -16,6 +16,7 @@
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
 #include <linux/mm.h>
+#include <linux/string_helpers.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -187,10 +188,14 @@ static inline void __meminit print_mapping(unsigned long start,
 					   unsigned long end,
 					   unsigned long size)
 {
+	char buf[10];
+
 	if (end <= start)
 		return;
 
-	pr_info("Mapped range 0x%lx - 0x%lx with 0x%lx\n", start, end, size);
+	string_get_size(size, 1, STRING_UNITS_2, buf, sizeof(buf));
+
+	pr_info("Mapped 0x%016lx-0x%016lx with %s pages\n", start, end, buf);
 }
 
 static int __meminit create_physical_mapping(unsigned long start,
