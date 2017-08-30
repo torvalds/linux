@@ -470,7 +470,7 @@ int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 		 * different one. Take into account irq status register
 		 * to understand if irq trigger can be properly supported
 		 */
-		if (sdata->sensor_settings->drdy_irq.addr_stat_drdy)
+		if (sdata->sensor_settings->drdy_irq.stat_drdy.addr)
 			sdata->hw_irq_trigger = enable;
 		return 0;
 	}
