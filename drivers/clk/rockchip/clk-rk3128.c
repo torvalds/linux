@@ -578,6 +578,7 @@ static const char *const rk3128_critical_clocks[] __initconst = {
 	"hclk_peri",
 	"pclk_peri",
 	"pclk_pmu",
+	"sclk_timer5",
 };
 
 static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device_node *np)
