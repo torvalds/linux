@@ -5735,6 +5735,37 @@ static irqreturn_t mvpp2_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void mvpp2_gmac_set_autoneg(struct mvpp2_port *port,
+				   struct phy_device *phydev)
+{
+	u32 val;
+
+	if (port->phy_interface != PHY_INTERFACE_MODE_RGMII &&
+	    port->phy_interface != PHY_INTERFACE_MODE_RGMII_ID &&
+	    port->phy_interface != PHY_INTERFACE_MODE_RGMII_RXID &&
+	    port->phy_interface != PHY_INTERFACE_MODE_RGMII_TXID &&
+	    port->phy_interface != PHY_INTERFACE_MODE_SGMII)
+		return;
+
+	val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+	val &= ~(MVPP2_GMAC_CONFIG_MII_SPEED |
+		 MVPP2_GMAC_CONFIG_GMII_SPEED |
+		 MVPP2_GMAC_CONFIG_FULL_DUPLEX |
+		 MVPP2_GMAC_AN_SPEED_EN |
+		 MVPP2_GMAC_AN_DUPLEX_EN);
+
+	if (phydev->duplex)
+		val |= MVPP2_GMAC_CONFIG_FULL_DUPLEX;
+
+	if (phydev->speed == SPEED_1000)
+		val |= MVPP2_GMAC_CONFIG_GMII_SPEED;
+	else if (phydev->speed == SPEED_100)
+		val |= MVPP2_GMAC_CONFIG_MII_SPEED;
+
+	writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+
+}
+
 /* Adjust link */
 static void mvpp2_link_event(struct net_device *dev)
 {
@@ -5745,24 +5776,7 @@ static void mvpp2_link_event(struct net_device *dev)
 	if (phydev->link) {
 		if ((port->speed != phydev->speed) ||
 		    (port->duplex != phydev->duplex)) {
-			u32 val;
-
-			val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-			val &= ~(MVPP2_GMAC_CONFIG_MII_SPEED |
-				 MVPP2_GMAC_CONFIG_GMII_SPEED |
-				 MVPP2_GMAC_CONFIG_FULL_DUPLEX |
-				 MVPP2_GMAC_AN_SPEED_EN |
-				 MVPP2_GMAC_AN_DUPLEX_EN);
-
-			if (phydev->duplex)
-				val |= MVPP2_GMAC_CONFIG_FULL_DUPLEX;
-
-			if (phydev->speed == SPEED_1000)
-				val |= MVPP2_GMAC_CONFIG_GMII_SPEED;
-			else if (phydev->speed == SPEED_100)
-				val |= MVPP2_GMAC_CONFIG_MII_SPEED;
-
-			writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+			mvpp2_gmac_set_autoneg(port, phydev);
 
 			port->duplex = phydev->duplex;
 			port->speed  = phydev->speed;
@@ -5773,10 +5787,16 @@ static void mvpp2_link_event(struct net_device *dev)
 		port->link = phydev->link;
 
 		if (phydev->link) {
-			val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-			val |= (MVPP2_GMAC_FORCE_LINK_PASS |
-				MVPP2_GMAC_FORCE_LINK_DOWN);
-			writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+			if (port->phy_interface == PHY_INTERFACE_MODE_RGMII ||
+			    port->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
+			    port->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID ||
+			    port->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID ||
+			    port->phy_interface == PHY_INTERFACE_MODE_SGMII) {
+				val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+				val |= (MVPP2_GMAC_FORCE_LINK_PASS |
+					MVPP2_GMAC_FORCE_LINK_DOWN);
+				writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+			}
 
 			mvpp2_interrupts_enable(port);
 			mvpp2_port_enable(port);
