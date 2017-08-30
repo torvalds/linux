@@ -613,6 +613,12 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->mpt_ba_pg_sz	= 0;
 	caps->mpt_buf_pg_sz	= 0;
 	caps->mpt_hop_num	= HNS_ROCE_CONTEXT_HOP_NUM;
+	caps->mtt_ba_pg_sz	= 0;
+	caps->mtt_buf_pg_sz	= 0;
+	caps->mtt_hop_num	= HNS_ROCE_MTT_HOP_NUM;
+	caps->cqe_ba_pg_sz	= 0;
+	caps->cqe_buf_pg_sz	= 0;
+	caps->cqe_hop_num	= HNS_ROCE_CQE_HOP_NUM;
 
 	caps->pkey_table_len[0] = 1;
 	caps->gid_table_len[0] = 2;

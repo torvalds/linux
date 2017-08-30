@@ -2524,7 +2524,7 @@ static int hns_roce_v1_m_sqp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 		return -ENOMEM;
 
 	/* Search QP buf's MTTs */
-	mtts = hns_roce_table_find(&hr_dev->mr_table.mtt_table,
+	mtts = hns_roce_table_find(hr_dev, &hr_dev->mr_table.mtt_table,
 				   hr_qp->mtt.first_seg, &dma_handle);
 	if (!mtts) {
 		dev_err(dev, "qp buf pa find failed\n");
@@ -2671,7 +2671,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 		return -ENOMEM;
 
 	/* Search qp buf's mtts */
-	mtts = hns_roce_table_find(&hr_dev->mr_table.mtt_table,
+	mtts = hns_roce_table_find(hr_dev, &hr_dev->mr_table.mtt_table,
 				   hr_qp->mtt.first_seg, &dma_handle);
 	if (mtts == NULL) {
 		dev_err(dev, "qp buf pa find failed\n");
@@ -2679,8 +2679,8 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	}
 
 	/* Search IRRL's mtts */
-	mtts_2 = hns_roce_table_find(&hr_dev->qp_table.irrl_table, hr_qp->qpn,
-				     &dma_handle_2);
+	mtts_2 = hns_roce_table_find(hr_dev, &hr_dev->qp_table.irrl_table,
+				     hr_qp->qpn, &dma_handle_2);
 	if (mtts_2 == NULL) {
 		dev_err(dev, "qp irrl_table find failed\n");
 		goto out;

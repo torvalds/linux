@@ -348,10 +348,11 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 				    struct hns_roce_mtt *mtt, u32 start_index,
 				    u32 npages, u64 *page_list)
 {
-	u32 i = 0;
-	__le64 *mtts = NULL;
+	struct hns_roce_hem_table *table;
 	dma_addr_t dma_handle;
+	__le64 *mtts;
 	u32 s = start_index * sizeof(u64);
+	u32 i;
 
 	/* All MTTs must fit in the same page */
 	if (start_index / (PAGE_SIZE / sizeof(u64)) !=
@@ -361,15 +362,20 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 	if (start_index & (HNS_ROCE_MTT_ENTRY_PER_SEG - 1))
 		return -EINVAL;
 
-	mtts = hns_roce_table_find(&hr_dev->mr_table.mtt_table,
+	table = &hr_dev->mr_table.mtt_table;
+	mtts = hns_roce_table_find(hr_dev, table,
 				mtt->first_seg + s / hr_dev->caps.mtt_entry_sz,
 				&dma_handle);
 	if (!mtts)
 		return -ENOMEM;
 
 	/* Save page addr, low 12 bits : 0 */
-	for (i = 0; i < npages; ++i)
-		mtts[i] = (cpu_to_le64(page_list[i])) >> PAGE_ADDR_SHIFT;
+	for (i = 0; i < npages; ++i) {
+		if (!hr_dev->caps.mtt_hop_num)
+			mtts[i] = cpu_to_le64(page_list[i] >> PAGE_ADDR_SHIFT);
+		else
+			mtts[i] = cpu_to_le64(page_list[i]);
+	}
 
 	return 0;
 }

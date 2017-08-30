@@ -47,6 +47,7 @@ enum {
 
 	 /* UNMAP HEM */
 	HEM_TYPE_MTT,
+	HEM_TYPE_CQE,
 	HEM_TYPE_IRRL,
 };
 
@@ -58,10 +59,13 @@ enum {
 	(type < HEM_TYPE_MTT && hop_num == 2)
 
 #define check_whether_bt_num_2(type, hop_num) \
-	(type < HEM_TYPE_MTT && hop_num == 1)
+	((type < HEM_TYPE_MTT && hop_num == 1) || \
+	(type >= HEM_TYPE_MTT && hop_num == 2))
 
 #define check_whether_bt_num_1(type, hop_num) \
-	(type < HEM_TYPE_MTT && hop_num == HNS_ROCE_HOP_NUM_0)
+	((type < HEM_TYPE_MTT && hop_num == HNS_ROCE_HOP_NUM_0) || \
+	(type >= HEM_TYPE_MTT && hop_num == 1) || \
+	(type >= HEM_TYPE_MTT && hop_num == HNS_ROCE_HOP_NUM_0))
 
 enum {
 	 HNS_ROCE_HEM_PAGE_SHIFT = 12,
@@ -101,7 +105,8 @@ int hns_roce_table_get(struct hns_roce_dev *hr_dev,
 		       struct hns_roce_hem_table *table, unsigned long obj);
 void hns_roce_table_put(struct hns_roce_dev *hr_dev,
 			struct hns_roce_hem_table *table, unsigned long obj);
-void *hns_roce_table_find(struct hns_roce_hem_table *table, unsigned long obj,
+void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
+			  struct hns_roce_hem_table *table, unsigned long obj,
 			  dma_addr_t *dma_handle);
 int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
 			     struct hns_roce_hem_table *table,
