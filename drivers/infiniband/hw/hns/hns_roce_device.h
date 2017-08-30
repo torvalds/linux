@@ -540,6 +540,8 @@ struct hns_roce_hw {
 struct hns_roce_dev {
 	struct ib_device	ib_dev;
 	struct platform_device  *pdev;
+	struct pci_dev		*pci_dev;
+	struct device		*dev;
 	struct hns_roce_uar     priv_uar;
 	const char		*irq_names[HNS_ROCE_MAX_IRQ_NUM];
 	spinlock_t		sm_lock;
