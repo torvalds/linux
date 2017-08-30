@@ -1449,8 +1449,8 @@ static void parser_done(struct parser_context *ctx)
 	kfree(ctx);
 }
 
-static struct parser_context *parser_init_byte_stream(u64 addr, u32 bytes,
-						      bool *retry)
+static struct parser_context *parser_init_stream(u64 addr, u32 bytes,
+						 bool *retry)
 {
 	int allocbytes;
 	struct parser_context *ctx;
@@ -1523,8 +1523,7 @@ static int handle_command(struct controlvm_message inmsg, u64 channel_addr)
 	if (parm_bytes) {
 		bool retry = false;
 
-		parser_ctx =
-		    parser_init_byte_stream(parm_addr, parm_bytes, &retry);
+		parser_ctx = parser_init_stream(parm_addr, parm_bytes, &retry);
 		if (!parser_ctx && retry)
 			return -EAGAIN;
 	}
