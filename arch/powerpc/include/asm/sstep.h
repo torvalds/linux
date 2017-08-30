@@ -153,7 +153,8 @@ void emulate_update_regs(struct pt_regs *reg, struct instruction_op *op);
 extern int emulate_step(struct pt_regs *regs, unsigned int instr);
 
 extern void emulate_vsx_load(struct instruction_op *op, union vsx_reg *reg,
-			     const void *mem);
-extern void emulate_vsx_store(struct instruction_op *op, const union vsx_reg *reg,
-			      void *mem);
+			     const void *mem, bool cross_endian);
+extern void emulate_vsx_store(struct instruction_op *op,
+			      const union vsx_reg *reg, void *mem,
+			      bool cross_endian);
 extern int emulate_dcbz(unsigned long ea, struct pt_regs *regs);
