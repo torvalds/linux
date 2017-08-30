@@ -381,6 +381,11 @@
 				pins = "PA13", "PA14";
 				function = "uart3";
 			};
+
+			uart3_rts_cts_pins: uart3_rts_cts {
+				pins = "PA15", "PA16";
+				function = "uart3";
+			};
 		};
 
 		timer@01c20c00 {
