@@ -810,10 +810,11 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	    !test_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status))
 		goto drop;
 
-	/* treat non-bufferable MMPDUs as broadcast if sta is sleeping */
-	if (unlikely(info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER &&
-		     ieee80211_is_mgmt(hdr->frame_control) &&
-		     !ieee80211_is_bufferable_mmpdu(hdr->frame_control)))
+	/* treat non-bufferable MMPDUs on AP interfaces as broadcast */
+	if ((info->control.vif->type == NL80211_IFTYPE_AP ||
+	     info->control.vif->type == NL80211_IFTYPE_ADHOC) &&
+	    ieee80211_is_mgmt(hdr->frame_control) &&
+	    !ieee80211_is_bufferable_mmpdu(hdr->frame_control))
 		sta = NULL;
 
 	if (sta) {
