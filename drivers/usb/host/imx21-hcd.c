@@ -1779,7 +1779,7 @@ static void imx21_hc_stop(struct usb_hcd *hcd)
 /* Driver glue		 			*/
 /* =========================================== */
 
-static struct hc_driver imx21_hc_driver = {
+static const struct hc_driver imx21_hc_driver = {
 	.description = hcd_name,
 	.product_desc = "IMX21 USB Host Controller",
 	.hcd_priv_size = sizeof(struct imx21),
