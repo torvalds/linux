@@ -477,6 +477,7 @@ struct hns_roce_caps {
 	u32		max_wqes;	/* 16k */
 	u32		max_sq_desc_sz;	/* 64 */
 	u32		max_rq_desc_sz;	/* 64 */
+	u32		max_srq_desc_sz;
 	int		max_qp_init_rdma;
 	int		max_qp_dest_rdma;
 	int		num_cqs;
@@ -487,6 +488,7 @@ struct hns_roce_caps {
 	int		num_other_vectors;
 	int		num_mtpts;
 	u32		num_mtt_segs;
+	u32		num_cqe_segs;
 	int		reserved_mrws;
 	int		reserved_uars;
 	int		num_pds;
@@ -502,13 +504,17 @@ struct hns_roce_caps {
 	int		aeqe_depth;
 	int		ceqe_depth[HNS_ROCE_COMP_VEC_NUM];
 	enum ib_mtu	max_mtu;
+	u32		qpc_bt_num;
+	u32		srqc_bt_num;
+	u32		cqc_bt_num;
+	u32		mpt_bt_num;
 };
 
 struct hns_roce_hw {
 	int (*reset)(struct hns_roce_dev *hr_dev, bool enable);
 	int (*cmq_init)(struct hns_roce_dev *hr_dev);
 	void (*cmq_exit)(struct hns_roce_dev *hr_dev);
-	void (*hw_profile)(struct hns_roce_dev *hr_dev);
+	int (*hw_profile)(struct hns_roce_dev *hr_dev);
 	int (*hw_init)(struct hns_roce_dev *hr_dev);
 	void (*hw_exit)(struct hns_roce_dev *hr_dev);
 	void (*set_gid)(struct hns_roce_dev *hr_dev, u8 port, int gid_index,

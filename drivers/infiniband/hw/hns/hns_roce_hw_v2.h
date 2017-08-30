@@ -33,6 +33,43 @@
 #ifndef _HNS_ROCE_HW_V2_H
 #define _HNS_ROCE_HW_V2_H
 
+#include <linux/bitops.h>
+
+#define HNS_ROCE_VF_QPC_BT_NUM			256
+#define HNS_ROCE_VF_SRQC_BT_NUM			64
+#define HNS_ROCE_VF_CQC_BT_NUM			64
+#define HNS_ROCE_VF_MPT_BT_NUM			64
+#define HNS_ROCE_VF_EQC_NUM			64
+#define HNS_ROCE_VF_SMAC_NUM			32
+#define HNS_ROCE_VF_SGID_NUM			32
+#define HNS_ROCE_VF_SL_NUM			8
+
+#define HNS_ROCE_V2_MAX_QP_NUM			0x2000
+#define HNS_ROCE_V2_MAX_WQE_NUM			0x8000
+#define HNS_ROCE_V2_MAX_CQ_NUM			0x8000
+#define HNS_ROCE_V2_MAX_CQE_NUM			0x400000
+#define HNS_ROCE_V2_MAX_RQ_SGE_NUM		0x100
+#define HNS_ROCE_V2_MAX_SQ_SGE_NUM		0xff
+#define HNS_ROCE_V2_MAX_SQ_INLINE		0x20
+#define HNS_ROCE_V2_UAR_NUM			256
+#define HNS_ROCE_V2_PHY_UAR_NUM			1
+#define HNS_ROCE_V2_MAX_MTPT_NUM		0x8000
+#define HNS_ROCE_V2_MAX_MTT_SEGS		0x100000
+#define HNS_ROCE_V2_MAX_CQE_SEGS		0x10000
+#define HNS_ROCE_V2_MAX_PD_NUM			0x400000
+#define HNS_ROCE_V2_MAX_QP_INIT_RDMA		128
+#define HNS_ROCE_V2_MAX_QP_DEST_RDMA		128
+#define HNS_ROCE_V2_MAX_SQ_DESC_SZ		64
+#define HNS_ROCE_V2_MAX_RQ_DESC_SZ		16
+#define HNS_ROCE_V2_MAX_SRQ_DESC_SZ		64
+#define HNS_ROCE_V2_QPC_ENTRY_SZ		256
+#define HNS_ROCE_V2_IRRL_ENTRY_SZ		64
+#define HNS_ROCE_V2_CQC_ENTRY_SZ		64
+#define HNS_ROCE_V2_MTPT_ENTRY_SZ		64
+#define HNS_ROCE_V2_MTT_ENTRY_SZ		64
+#define HNS_ROCE_V2_CQE_ENTRY_SIZE		32
+#define HNS_ROCE_V2_PAGE_SIZE_SUPPORTED		0xFFFFF000
+#define HNS_ROCE_V2_MAX_INNER_MTPT_NUM		2
 #define HNS_ROCE_CMQ_TX_TIMEOUT			200
 
 #define HNS_ROCE_CMD_FLAG_IN_VALID_SHIFT	0
@@ -74,6 +111,130 @@ enum hns_roce_cmd_return_status {
 	CMD_NOT_EXEC		= 2,
 	CMD_QUEUE_FULL		= 3,
 };
+
+struct hns_roce_query_version {
+	__le16 rocee_vendor_id;
+	__le16 rocee_hw_version;
+	__le32 rsv[5];
+};
+
+struct hns_roce_cfg_global_param {
+	__le32 time_cfg_udp_port;
+	__le32 rsv[5];
+};
+
+#define CFG_GLOBAL_PARAM_DATA_0_ROCEE_TIME_1US_CFG_S 0
+#define CFG_GLOBAL_PARAM_DATA_0_ROCEE_TIME_1US_CFG_M GENMASK(9, 0)
+
+#define CFG_GLOBAL_PARAM_DATA_0_ROCEE_UDP_PORT_S 16
+#define CFG_GLOBAL_PARAM_DATA_0_ROCEE_UDP_PORT_M GENMASK(31, 16)
+
+struct hns_roce_pf_res {
+	__le32	rsv;
+	__le32	qpc_bt_idx_num;
+	__le32	srqc_bt_idx_num;
+	__le32	cqc_bt_idx_num;
+	__le32	mpt_bt_idx_num;
+	__le32	eqc_bt_idx_num;
+};
+
+#define PF_RES_DATA_1_PF_QPC_BT_IDX_S 0
+#define PF_RES_DATA_1_PF_QPC_BT_IDX_M GENMASK(10, 0)
+
+#define PF_RES_DATA_1_PF_QPC_BT_NUM_S 16
+#define PF_RES_DATA_1_PF_QPC_BT_NUM_M GENMASK(27, 16)
+
+#define PF_RES_DATA_2_PF_SRQC_BT_IDX_S 0
+#define PF_RES_DATA_2_PF_SRQC_BT_IDX_M GENMASK(8, 0)
+
+#define PF_RES_DATA_2_PF_SRQC_BT_NUM_S 16
+#define PF_RES_DATA_2_PF_SRQC_BT_NUM_M GENMASK(25, 16)
+
+#define PF_RES_DATA_3_PF_CQC_BT_IDX_S 0
+#define PF_RES_DATA_3_PF_CQC_BT_IDX_M GENMASK(8, 0)
+
+#define PF_RES_DATA_3_PF_CQC_BT_NUM_S 16
+#define PF_RES_DATA_3_PF_CQC_BT_NUM_M GENMASK(25, 16)
+
+#define PF_RES_DATA_4_PF_MPT_BT_IDX_S 0
+#define PF_RES_DATA_4_PF_MPT_BT_IDX_M GENMASK(8, 0)
+
+#define PF_RES_DATA_4_PF_MPT_BT_NUM_S 16
+#define PF_RES_DATA_4_PF_MPT_BT_NUM_M GENMASK(25, 16)
+
+#define PF_RES_DATA_5_PF_EQC_BT_IDX_S 0
+#define PF_RES_DATA_5_PF_EQC_BT_IDX_M GENMASK(8, 0)
+
+#define PF_RES_DATA_5_PF_EQC_BT_NUM_S 16
+#define PF_RES_DATA_5_PF_EQC_BT_NUM_M GENMASK(25, 16)
+
+struct hns_roce_vf_res_a {
+	u32 vf_id;
+	u32 vf_qpc_bt_idx_num;
+	u32 vf_srqc_bt_idx_num;
+	u32 vf_cqc_bt_idx_num;
+	u32 vf_mpt_bt_idx_num;
+	u32 vf_eqc_bt_idx_num;
+};
+
+#define VF_RES_A_DATA_1_VF_QPC_BT_IDX_S 0
+#define VF_RES_A_DATA_1_VF_QPC_BT_IDX_M GENMASK(10, 0)
+
+#define VF_RES_A_DATA_1_VF_QPC_BT_NUM_S 16
+#define VF_RES_A_DATA_1_VF_QPC_BT_NUM_M GENMASK(27, 16)
+
+#define VF_RES_A_DATA_2_VF_SRQC_BT_IDX_S 0
+#define VF_RES_A_DATA_2_VF_SRQC_BT_IDX_M GENMASK(8, 0)
+
+#define VF_RES_A_DATA_2_VF_SRQC_BT_NUM_S 16
+#define VF_RES_A_DATA_2_VF_SRQC_BT_NUM_M GENMASK(25, 16)
+
+#define VF_RES_A_DATA_3_VF_CQC_BT_IDX_S 0
+#define VF_RES_A_DATA_3_VF_CQC_BT_IDX_M GENMASK(8, 0)
+
+#define VF_RES_A_DATA_3_VF_CQC_BT_NUM_S 16
+#define VF_RES_A_DATA_3_VF_CQC_BT_NUM_M GENMASK(25, 16)
+
+#define VF_RES_A_DATA_4_VF_MPT_BT_IDX_S 0
+#define VF_RES_A_DATA_4_VF_MPT_BT_IDX_M GENMASK(8, 0)
+
+#define VF_RES_A_DATA_4_VF_MPT_BT_NUM_S 16
+#define VF_RES_A_DATA_4_VF_MPT_BT_NUM_M GENMASK(25, 16)
+
+#define VF_RES_A_DATA_5_VF_EQC_IDX_S 0
+#define VF_RES_A_DATA_5_VF_EQC_IDX_M GENMASK(8, 0)
+
+#define VF_RES_A_DATA_5_VF_EQC_NUM_S 16
+#define VF_RES_A_DATA_5_VF_EQC_NUM_M GENMASK(25, 16)
+
+struct hns_roce_vf_res_b {
+	u32 rsv0;
+	u32 vf_smac_idx_num;
+	u32 vf_sgid_idx_num;
+	u32 vf_qid_idx_sl_num;
+	u32 rsv[2];
+};
+
+#define VF_RES_B_DATA_0_VF_ID_S 0
+#define VF_RES_B_DATA_0_VF_ID_M GENMASK(7, 0)
+
+#define VF_RES_B_DATA_1_VF_SMAC_IDX_S 0
+#define VF_RES_B_DATA_1_VF_SMAC_IDX_M GENMASK(7, 0)
+
+#define VF_RES_B_DATA_1_VF_SMAC_NUM_S 8
+#define VF_RES_B_DATA_1_VF_SMAC_NUM_M GENMASK(16, 8)
+
+#define VF_RES_B_DATA_2_VF_SGID_IDX_S 0
+#define VF_RES_B_DATA_2_VF_SGID_IDX_M GENMASK(7, 0)
+
+#define VF_RES_B_DATA_2_VF_SGID_NUM_S 8
+#define VF_RES_B_DATA_2_VF_SGID_NUM_M GENMASK(16, 8)
+
+#define VF_RES_B_DATA_3_VF_QID_IDX_S 0
+#define VF_RES_B_DATA_3_VF_QID_IDX_M GENMASK(9, 0)
+
+#define VF_RES_B_DATA_3_VF_SL_NUM_S 16
+#define VF_RES_B_DATA_3_VF_SL_NUM_M GENMASK(19, 16)
 
 struct hns_roce_cmq_desc {
 	u16 opcode;

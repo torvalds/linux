@@ -1459,7 +1459,7 @@ static void hns_roce_des_qp_free(struct hns_roce_dev *hr_dev)
 	destroy_workqueue(des_qp->qp_wq);
 }
 
-void hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
+int hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
 {
 	int i = 0;
 	struct hns_roce_caps *caps = &hr_dev->caps;
@@ -1525,6 +1525,8 @@ void hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
 	caps->local_ca_ack_delay = le32_to_cpu(roce_read(hr_dev,
 							 ROCEE_ACK_DELAY_REG));
 	caps->max_mtu = IB_MTU_2048;
+
+	return 0;
 }
 
 int hns_roce_v1_init(struct hns_roce_dev *hr_dev)
