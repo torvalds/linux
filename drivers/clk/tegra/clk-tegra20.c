@@ -850,9 +850,7 @@ static void __init tegra20_periph_clk_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(tegra_periph_clk_list); i++) {
 		data = &tegra_periph_clk_list[i];
-		clk = tegra_clk_register_periph(data->name, data->p.parent_names,
-				data->num_parents, &data->periph,
-				clk_base, data->offset, data->flags);
+		clk = tegra_clk_register_periph_data(clk_base, data);
 		clks[data->clk_id] = clk;
 	}
 

@@ -927,10 +927,7 @@ static void __init periph_clk_init(void __iomem *clk_base,
 			continue;
 
 		data->periph.gate.regs = bank;
-		clk = tegra_clk_register_periph(data->name,
-			data->p.parent_names, data->num_parents,
-			&data->periph, clk_base, data->offset,
-			data->flags);
+		clk = tegra_clk_register_periph_data(clk_base, data);
 		*dt_clk = clk;
 	}
 }
