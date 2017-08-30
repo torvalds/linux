@@ -29,6 +29,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/hwmon.h>
 
 #include <linux/w1.h>
 
@@ -113,19 +114,72 @@ static struct attribute *w1_ds28ea00_attrs[] = {
 	&dev_attr_w1_seq.attr,
 	NULL,
 };
+
 ATTRIBUTE_GROUPS(w1_therm);
 ATTRIBUTE_GROUPS(w1_ds28ea00);
+
+#if IS_REACHABLE(CONFIG_HWMON)
+static int w1_read_temp(struct device *dev, u32 attr, int channel,
+			long *val);
+
+static umode_t w1_is_visible(const void *_data, enum hwmon_sensor_types type,
+			     u32 attr, int channel)
+{
+	return attr == hwmon_temp_input ? 0444 : 0;
+}
+
+static int w1_read(struct device *dev, enum hwmon_sensor_types type,
+		   u32 attr, int channel, long *val)
+{
+	switch (type) {
+	case hwmon_temp:
+		return w1_read_temp(dev, attr, channel, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static const u32 w1_temp_config[] = {
+	HWMON_T_INPUT,
+	0
+};
+
+static const struct hwmon_channel_info w1_temp = {
+	.type = hwmon_temp,
+	.config = w1_temp_config,
+};
+
+static const struct hwmon_channel_info *w1_info[] = {
+	&w1_temp,
+	NULL
+};
+
+static const struct hwmon_ops w1_hwmon_ops = {
+	.is_visible = w1_is_visible,
+	.read = w1_read,
+};
+
+static const struct hwmon_chip_info w1_chip_info = {
+	.ops = &w1_hwmon_ops,
+	.info = w1_info,
+};
+#define W1_CHIPINFO	(&w1_chip_info)
+#else
+#define W1_CHIPINFO	NULL
+#endif
 
 static struct w1_family_ops w1_therm_fops = {
 	.add_slave	= w1_therm_add_slave,
 	.remove_slave	= w1_therm_remove_slave,
 	.groups		= w1_therm_groups,
+	.chip_info	= W1_CHIPINFO,
 };
 
 static struct w1_family_ops w1_ds28ea00_fops = {
 	.add_slave	= w1_therm_add_slave,
 	.remove_slave	= w1_therm_remove_slave,
 	.groups		= w1_ds28ea00_groups,
+	.chip_info	= W1_CHIPINFO,
 };
 
 static struct w1_family w1_therm_family_DS18S20 = {
@@ -553,6 +607,38 @@ static ssize_t w1_slave_show(struct device *device,
 	ret = PAGE_SIZE - c;
 	return ret;
 }
+
+#if IS_REACHABLE(CONFIG_HWMON)
+static int w1_read_temp(struct device *device, u32 attr, int channel,
+			long *val)
+{
+	struct w1_slave *sl = dev_get_drvdata(device);
+	struct therm_info info;
+	u8 fid = sl->family->fid;
+	int ret;
+
+	switch (attr) {
+	case hwmon_temp_input:
+		ret = read_therm(device, sl, &info);
+		if (ret)
+			return ret;
+
+		if (!info.verdict) {
+			ret = -EIO;
+			return ret;
+		}
+
+		*val = w1_convert_temp(info.rom, fid);
+		ret = 0;
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}
+#endif
 
 #define W1_42_CHAIN	0x99
 #define W1_42_CHAIN_OFF	0x3C
