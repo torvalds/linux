@@ -95,6 +95,8 @@ static u32 rsi_get_num_pkts_dequeue(struct rsi_common *common, u8 q_num)
 	s16 txop = common->tx_qinfo[q_num].txop * 32;
 	__le16 r_txop;
 	struct ieee80211_rate rate;
+	struct ieee80211_hdr *wh;
+	struct ieee80211_vif *vif;
 
 	rate.bitrate = RSI_RATE_MCS0 * 5 * 10; /* Convert to Kbps */
 	if (q_num == VI_Q)
@@ -106,8 +108,10 @@ static u32 rsi_get_num_pkts_dequeue(struct rsi_common *common, u8 q_num)
 		return 0;
 
 	do {
+		wh = (struct ieee80211_hdr *)skb->data;
+		vif = rsi_get_vif(adapter, wh->addr2);
 		r_txop = ieee80211_generic_frame_duration(adapter->hw,
-							  adapter->vifs[0],
+							  vif,
 							  common->band,
 							  skb->len, &rate);
 		txop -= le16_to_cpu(r_txop);
@@ -403,7 +407,8 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 		q_num = skb->priority;
 		tx_params->tid = tid;
 
-		if ((vif->type == NL80211_IFTYPE_AP) &&
+		if (((vif->type == NL80211_IFTYPE_AP) ||
+		     (vif->type == NL80211_IFTYPE_P2P_GO)) &&
 		    (!is_broadcast_ether_addr(wh->addr1)) &&
 		    (!is_multicast_ether_addr(wh->addr1))) {
 			rsta = rsi_find_sta(common, wh->addr1);

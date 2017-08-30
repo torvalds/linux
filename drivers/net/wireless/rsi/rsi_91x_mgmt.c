@@ -716,9 +716,9 @@ int rsi_hal_load_key(struct rsi_common *common,
 		     u8 key_type,
 		     u8 key_id,
 		     u32 cipher,
-		     s16 sta_id)
+		     s16 sta_id,
+		     struct ieee80211_vif *vif)
 {
-	struct ieee80211_vif *vif = common->priv->vifs[0];
 	struct sk_buff *skb = NULL;
 	struct rsi_set_key *set_key;
 	u16 key_descriptor = 0;

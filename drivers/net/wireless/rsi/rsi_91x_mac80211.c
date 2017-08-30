@@ -879,7 +879,8 @@ static int rsi_hal_key_config(struct ieee80211_hw *hw,
 						  RSI_PAIRWISE_KEY,
 						  key->keyidx,
 						  key->cipher,
-						  sta_id);
+						  sta_id,
+						  vif);
 			if (status)
 				return status;
 		}
@@ -891,7 +892,8 @@ static int rsi_hal_key_config(struct ieee80211_hw *hw,
 				key_type,
 				key->keyidx,
 				key->cipher,
-				sta_id);
+				sta_id,
+				vif);
 }
 
 /**
@@ -1165,7 +1167,9 @@ static void rsi_fill_rx_status(struct ieee80211_hw *hw,
 			       struct rsi_common *common,
 			       struct ieee80211_rx_status *rxs)
 {
-	struct ieee80211_bss_conf *bss = &common->priv->vifs[0]->bss_conf;
+	struct rsi_hw *adapter = common->priv;
+	struct ieee80211_vif *vif;
+	struct ieee80211_bss_conf *bss = NULL;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct skb_info *rx_params = (struct skb_info *)info->driver_data;
 	struct ieee80211_hdr *hdr;
@@ -1173,6 +1177,7 @@ static void rsi_fill_rx_status(struct ieee80211_hw *hw,
 	u8 hdrlen = 0;
 	u8 channel = rx_params->channel;
 	s32 freq;
+	int i;
 
 	hdr = ((struct ieee80211_hdr *)(skb->data));
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
@@ -1201,6 +1206,15 @@ static void rsi_fill_rx_status(struct ieee80211_hw *hw,
 		rxs->flag |= RX_FLAG_IV_STRIPPED;
 	}
 
+	for (i = 0; i < RSI_MAX_VIFS; i++) {
+		vif = adapter->vifs[i];
+		if (!vif)
+			continue;
+		if (vif->type == NL80211_IFTYPE_STATION)
+			bss = &vif->bss_conf;
+	}
+	if (!bss)
+		return;
 	/* CQM only for connected AP beacons, the RSSI is a weighted avg */
 	if (bss->assoc && !(memcmp(bss->bssid, hdr->addr2, ETH_ALEN))) {
 		if (ieee80211_is_beacon(hdr->frame_control))
@@ -1363,7 +1377,8 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 							 RSI_PAIRWISE_KEY,
 							 key->keyidx,
 							 key->cipher,
-							 sta_idx);
+							 sta_idx,
+							 vif);
 			}
 
 			common->num_stations++;

@@ -157,7 +157,8 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	u16 seq_num;
 
 	info = IEEE80211_SKB_CB(skb);
-	bss = &info->control.vif->bss_conf;
+	vif = info->control.vif;
+	bss = &vif->bss_conf;
 	tx_params = (struct skb_info *)info->driver_data;
 
 	header_size = FRAME_DESC_SZ + sizeof(struct xtended_desc);
@@ -181,7 +182,6 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	xtend_desc = (struct xtended_desc *)&skb->data[FRAME_DESC_SZ];
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 	seq_num = IEEE80211_SEQ_TO_SN(le16_to_cpu(wh->seq_ctrl));
-	vif = adapter->vifs[0];
 
 	data_desc->xtend_desc_size = header_size - FRAME_DESC_SZ;
 
@@ -190,7 +190,8 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		data_desc->mac_flags |= cpu_to_le16(RSI_QOS_ENABLE);
 	}
 
-	if ((vif->type == NL80211_IFTYPE_STATION) &&
+	if (((vif->type == NL80211_IFTYPE_STATION) ||
+	     (vif->type == NL80211_IFTYPE_P2P_CLIENT)) &&
 	    (adapter->ps_state == PS_ENABLED))
 		wh->frame_control |= cpu_to_le16(RSI_SET_PS_ENABLE);
 
@@ -246,16 +247,22 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		data_desc->frame_info |= cpu_to_le16(RSI_BROADCAST_PKT);
 		data_desc->sta_id = vap_id;
 
-		if (vif->type == NL80211_IFTYPE_AP) {
+		if ((vif->type == NL80211_IFTYPE_AP) ||
+		    (vif->type == NL80211_IFTYPE_P2P_GO)) {
 			if (common->band == NL80211_BAND_5GHZ)
 				data_desc->rate_info = cpu_to_le16(RSI_RATE_6);
 			else
 				data_desc->rate_info = cpu_to_le16(RSI_RATE_1);
 		}
 	}
-	if ((vif->type == NL80211_IFTYPE_AP) &&
+	if (((vif->type == NL80211_IFTYPE_AP) ||
+	     (vif->type == NL80211_IFTYPE_P2P_GO)) &&
 	    (ieee80211_has_moredata(wh->frame_control)))
 		data_desc->frame_info |= cpu_to_le16(MORE_DATA_PRESENT);
+
+	data_desc->rate_info |=
+		cpu_to_le16((tx_params->vap_id << RSI_DESC_VAP_ID_OFST) &
+			    RSI_DESC_VAP_ID_MASK);
 
 	return 0;
 }
@@ -264,7 +271,7 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 {
 	struct rsi_hw *adapter = common->priv;
-	struct ieee80211_vif *vif = adapter->vifs[0];
+	struct ieee80211_vif *vif;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_bss_conf *bss;
 	int status = -EINVAL;
@@ -277,9 +284,12 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	info = IEEE80211_SKB_CB(skb);
 	if (!info->control.vif)
 		goto err;
-	bss = &info->control.vif->bss_conf;
+	vif = info->control.vif;
+	bss = &vif->bss_conf;
 
-	if ((vif->type == NL80211_IFTYPE_STATION) && (!bss->assoc))
+	if (((vif->type == NL80211_IFTYPE_STATION) ||
+	     (vif->type == NL80211_IFTYPE_P2P_CLIENT)) &&
+	    (!bss->assoc))
 		goto err;
 
 	status = rsi_prepare_data_desc(common, skb);
