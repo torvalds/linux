@@ -5740,7 +5740,6 @@ static void mvpp2_link_event(struct net_device *dev)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
-	int status_change = 0;
 	u32 val;
 
 	if (phydev->link) {
@@ -5771,16 +5770,8 @@ static void mvpp2_link_event(struct net_device *dev)
 	}
 
 	if (phydev->link != port->link) {
-		if (!phydev->link) {
-			port->duplex = -1;
-			port->speed = 0;
-		}
-
 		port->link = phydev->link;
-		status_change = 1;
-	}
 
-	if (status_change) {
 		if (phydev->link) {
 			val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
 			val |= (MVPP2_GMAC_FORCE_LINK_PASS |
@@ -5789,9 +5780,13 @@ static void mvpp2_link_event(struct net_device *dev)
 			mvpp2_egress_enable(port);
 			mvpp2_ingress_enable(port);
 		} else {
+			port->duplex = -1;
+			port->speed = 0;
+
 			mvpp2_ingress_disable(port);
 			mvpp2_egress_disable(port);
 		}
+
 		phy_print_status(phydev);
 	}
 }
