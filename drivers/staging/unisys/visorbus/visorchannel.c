@@ -440,7 +440,7 @@ static struct visorchannel *visorchannel_create_guts(
 		goto err_destroy_channel;
 
 	channel->mapped = memremap(channel->physaddr, channel_bytes,
-			MEMREMAP_WB);
+				   MEMREMAP_WB);
 	if (!channel->mapped) {
 		release_mem_region(channel->physaddr, channel_bytes);
 		goto err_destroy_channel;
