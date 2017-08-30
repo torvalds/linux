@@ -653,7 +653,17 @@ static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
 
 static inline int pgd_bad(pgd_t pgd)
 {
-	return (pgd_flags(pgd) & ~_PAGE_USER) != _KERNPG_TABLE;
+	pgdval_t ignore_flags = _PAGE_USER;
+	/*
+	 * We set NX on KAISER pgds that map userspace memory so
+	 * that userspace can not meaningfully use the kernel
+	 * page table by accident; it will fault on the first
+	 * instruction it tries to run.  See native_set_pgd().
+	 */
+	if (IS_ENABLED(CONFIG_KAISER))
+		ignore_flags |= _PAGE_NX;
+
+	return (pgd_flags(pgd) & ~ignore_flags) != _KERNPG_TABLE;
 }
 
 static inline int pgd_none(pgd_t pgd)
@@ -857,8 +867,10 @@ static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 {
        memcpy(dst, src, count * sizeof(pgd_t));
 #ifdef CONFIG_KAISER
-	// clone the shadow pgd part as well
-	memcpy(native_get_shadow_pgd(dst), native_get_shadow_pgd(src), count * sizeof(pgd_t));
+	/* Clone the shadow pgd part as well */
+	memcpy(native_get_shadow_pgd(dst),
+	       native_get_shadow_pgd(src),
+	       count * sizeof(pgd_t));
 #endif
 }
 

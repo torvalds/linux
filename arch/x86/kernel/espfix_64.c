@@ -127,11 +127,14 @@ void __init init_espfix_bsp(void)
 	/* Install the espfix pud into the kernel page directory */
 	pgd_p = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
 	pgd_populate(&init_mm, pgd_p, (pud_t *)espfix_pud_page);
-#ifdef CONFIG_KAISER
-	// add the esp stack pud to the shadow mapping here.
-	// This can be done directly, because the fixup stack has its own pud
-	set_pgd(native_get_shadow_pgd(pgd_p), __pgd(_PAGE_TABLE | __pa((pud_t *)espfix_pud_page)));
-#endif
+	/*
+	 * Just copy the top-level PGD that is mapping the espfix
+	 * area to ensure it is mapped into the shadow user page
+	 * tables.
+	 */
+	if (IS_ENABLED(CONFIG_KAISER))
+		set_pgd(native_get_shadow_pgd(pgd_p),
+			__pgd(_KERNPG_TABLE | __pa((pud_t *)espfix_pud_page)));
 
 	/* Randomize the locations */
 	init_espfix_random();

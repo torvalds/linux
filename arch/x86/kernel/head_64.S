@@ -442,11 +442,24 @@ early_idt_ripmsg:
 GLOBAL(name)
 
 #ifdef CONFIG_KAISER
+/*
+ * Each PGD needs to be 8k long and 8k aligned.  We do not
+ * ever go out to userspace with these, so we do not
+ * strictly *need* the second page, but this allows us to
+ * have a single set_pgd() implementation that does not
+ * need to worry about whether it has 4k or 8k to work
+ * with.
+ *
+ * This ensures PGDs are 8k long:
+ */
+#define KAISER_USER_PGD_FILL	512
+/* This ensures they are 8k-aligned: */
 #define NEXT_PGD_PAGE(name) \
 	.balign 2 * PAGE_SIZE; \
 GLOBAL(name)
 #else
 #define NEXT_PGD_PAGE(name) NEXT_PAGE(name)
+#define KAISER_USER_PGD_FILL	0
 #endif
 
 /* Automate the creation of 1 to 1 mapping pmd entries */
@@ -461,6 +474,7 @@ GLOBAL(name)
 NEXT_PGD_PAGE(early_level4_pgt)
 	.fill	511,8,0
 	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
+	.fill	KAISER_USER_PGD_FILL,8,0
 
 NEXT_PAGE(early_dynamic_pgts)
 	.fill	512*EARLY_DYNAMIC_PAGE_TABLES,8,0
@@ -469,7 +483,8 @@ NEXT_PAGE(early_dynamic_pgts)
 
 #ifndef CONFIG_XEN
 NEXT_PGD_PAGE(init_level4_pgt)
-	.fill	2*512,8,0
+	.fill	512,8,0
+	.fill	KAISER_USER_PGD_FILL,8,0
 #else
 NEXT_PGD_PAGE(init_level4_pgt)
 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
@@ -478,6 +493,7 @@ NEXT_PGD_PAGE(init_level4_pgt)
 	.org    init_level4_pgt + L4_START_KERNEL*8, 0
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
 	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
+	.fill	KAISER_USER_PGD_FILL,8,0
 
 NEXT_PAGE(level3_ident_pgt)
 	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
@@ -488,6 +504,7 @@ NEXT_PAGE(level2_ident_pgt)
 	 */
 	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
 #endif
+	.fill	KAISER_USER_PGD_FILL,8,0
 
 NEXT_PAGE(level3_kernel_pgt)
 	.fill	L3_START_KERNEL,8,0

@@ -212,6 +212,13 @@ entry_SYSCALL_64_fastpath:
 	movq	RIP(%rsp), %rcx
 	movq	EFLAGS(%rsp), %r11
 	RESTORE_C_REGS_EXCEPT_RCX_R11
+	/*
+	 * This opens a window where we have a user CR3, but are
+	 * running in the kernel.  This makes using the CS
+	 * register useless for telling whether or not we need to
+	 * switch CR3 in NMIs.  Normal interrupts are OK because
+	 * they are off here.
+	 */
 	SWITCH_USER_CR3
 	movq	RSP(%rsp), %rsp
 	/*
@@ -350,11 +357,25 @@ GLOBAL(int_ret_from_sys_call)
 syscall_return_via_sysret:
 	/* rcx and r11 are already restored (see code above) */
 	RESTORE_C_REGS_EXCEPT_RCX_R11
+	/*
+	 * This opens a window where we have a user CR3, but are
+	 * running in the kernel.  This makes using the CS
+	 * register useless for telling whether or not we need to
+	 * switch CR3 in NMIs.  Normal interrupts are OK because
+	 * they are off here.
+	 */
 	SWITCH_USER_CR3
 	movq	RSP(%rsp), %rsp
 	USERGS_SYSRET64
 
 opportunistic_sysret_failed:
+	/*
+	 * This opens a window where we have a user CR3, but are
+	 * running in the kernel.  This makes using the CS
+	 * register useless for telling whether or not we need to
+	 * switch CR3 in NMIs.  Normal interrupts are OK because
+	 * they are off here.
+	 */
 	SWITCH_USER_CR3
 	SWAPGS
 	jmp	restore_c_regs_and_iret
@@ -1059,6 +1080,13 @@ ENTRY(error_entry)
 	cld
 	SAVE_C_REGS 8
 	SAVE_EXTRA_REGS 8
+	/*
+	 * error_entry() always returns with a kernel gsbase and
+	 * CR3.  We must also have a kernel CR3/gsbase before
+	 * calling TRACE_IRQS_*.  Just unconditionally switch to
+	 * the kernel CR3 here.
+	 */
+	SWITCH_KERNEL_CR3
 	xorl	%ebx, %ebx
 	testb	$3, CS+8(%rsp)
 	jz	.Lerror_kernelspace
@@ -1069,7 +1097,6 @@ ENTRY(error_entry)
 	 * from user mode due to an IRET fault.
 	 */
 	SWAPGS
-	SWITCH_KERNEL_CR3
 
 .Lerror_entry_from_usermode_after_swapgs:
 	/*
@@ -1122,7 +1149,7 @@ ENTRY(error_entry)
 	 * Switch to kernel gsbase:
 	 */
 	SWAPGS
-	SWITCH_KERNEL_CR3
+
 	/*
 	 * Pretend that the exception came from user mode: set up pt_regs
 	 * as if we faulted immediately after IRET and clear EBX so that
@@ -1222,7 +1249,10 @@ ENTRY(nmi)
 	 */
 
 	SWAPGS_UNSAFE_STACK
-	SWITCH_KERNEL_CR3_NO_STACK
+	/*
+	 * percpu variables are mapped with user CR3, so no need
+	 * to switch CR3 here.
+	 */
 	cld
 	movq	%rsp, %rdx
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
@@ -1256,14 +1286,33 @@ ENTRY(nmi)
 
 	movq	%rsp, %rdi
 	movq	$-1, %rsi
+#ifdef CONFIG_KAISER
+	/* Unconditionally use kernel CR3 for do_nmi() */
+	/* %rax is saved above, so OK to clobber here */
+	movq	%cr3, %rax
+	pushq	%rax
+#ifdef CONFIG_KAISER_REAL_SWITCH
+	andq	$(~0x1000), %rax
+#endif
+	movq	%rax, %cr3
+#endif
 	call	do_nmi
+	/*
+	 * Unconditionally restore CR3.  I know we return to
+	 * kernel code that needs user CR3, but do we ever return
+	 * to "user mode" where we need the kernel CR3?
+	 */
+#ifdef CONFIG_KAISER
+	popq	%rax
+	mov	%rax, %cr3
+#endif
 
 	/*
 	 * Return back to user mode.  We must *not* do the normal exit
-	 * work, because we don't want to enable interrupts.  Fortunately,
-	 * do_nmi doesn't modify pt_regs.
+	 * work, because we don't want to enable interrupts.  Do not
+	 * switch to user CR3: we might be going back to kernel code
+	 * that had a user CR3 set.
 	 */
-	SWITCH_USER_CR3
 	SWAPGS
 	jmp	restore_c_regs_and_iret
 
@@ -1459,23 +1508,54 @@ end_repeat_nmi:
 	ALLOC_PT_GPREGS_ON_STACK
 
 	/*
-	 * Use paranoid_entry to handle SWAPGS, but no need to use paranoid_exit
-	 * as we should not be calling schedule in NMI context.
-	 * Even with normal interrupts enabled. An NMI should not be
-	 * setting NEED_RESCHED or anything that normal interrupts and
-	 * exceptions might do.
+	 * Use the same approach as paranoid_entry to handle SWAPGS, but
+	 * without CR3 handling since we do that differently in NMIs.  No
+	 * need to use paranoid_exit as we should not be calling schedule
+	 * in NMI context.  Even with normal interrupts enabled. An NMI
+	 * should not be setting NEED_RESCHED or anything that normal
+	 * interrupts and exceptions might do.
 	 */
-	call	paranoid_entry
+	cld
+	SAVE_C_REGS
+	SAVE_EXTRA_REGS
+	movl	$1, %ebx
+	movl	$MSR_GS_BASE, %ecx
+	rdmsr
+	testl	%edx, %edx
+	js	1f				/* negative -> in kernel */
+	SWAPGS
+	xorl	%ebx, %ebx
+1:
+#ifdef CONFIG_KAISER
+	/* Unconditionally use kernel CR3 for do_nmi() */
+	/* %rax is saved above, so OK to clobber here */
+	movq	%cr3, %rax
+	pushq	%rax
+#ifdef CONFIG_KAISER_REAL_SWITCH
+	andq	$(~0x1000), %rax
+#endif
+	movq	%rax, %cr3
+#endif
 
 	/* paranoidentry do_nmi, 0; without TRACE_IRQS_OFF */
 	movq	%rsp, %rdi
+	addq	$8, %rdi /* point %rdi at ptregs, fixed up for CR3 */
 	movq	$-1, %rsi
 	call	do_nmi
+	/*
+	 * Unconditionally restore CR3.  We might be returning to
+	 * kernel code that needs user CR3, like just just before
+	 * a sysret.
+	 */
+#ifdef CONFIG_KAISER
+	popq	%rax
+	mov	%rax, %cr3
+#endif
 
 	testl	%ebx, %ebx			/* swapgs needed? */
 	jnz	nmi_restore
 nmi_swapgs:
-	SWITCH_USER_CR3_NO_STACK
+	/* We fixed up CR3 above, so no need to switch it here */
 	SWAPGS_UNSAFE_STACK
 nmi_restore:
 	RESTORE_EXTRA_REGS
