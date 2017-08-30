@@ -1807,6 +1807,28 @@ static void dump_207_sprs(void)
 #endif
 }
 
+static void dump_300_sprs(void)
+{
+#ifdef CONFIG_PPC64
+	bool hv = mfmsr() & MSR_HV;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		return;
+
+	printf("pidr   = %.16lx  tidr  = %.16lx\n",
+		mfspr(SPRN_PID), mfspr(SPRN_TIDR));
+	printf("asdr   = %.16lx  psscr = %.16lx\n",
+		mfspr(SPRN_ASDR), hv ? mfspr(SPRN_PSSCR)
+					: mfspr(SPRN_PSSCR_PR));
+
+	if (!hv)
+		return;
+
+	printf("ptcr   = %.16lx\n",
+		mfspr(SPRN_PTCR));
+#endif
+}
+
 static void dump_one_spr(int spr, bool show_unimplemented)
 {
 	unsigned long val;
@@ -1860,6 +1882,7 @@ static void super_regs(void)
 
 		dump_206_sprs();
 		dump_207_sprs();
+		dump_300_sprs();
 
 		return;
 	}
