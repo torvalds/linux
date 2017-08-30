@@ -1505,15 +1505,11 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #ifdef CONFIG_ALTIVEC
 		case 103:	/* lvx */
 		case 359:	/* lvxl */
-			if (!(regs->msr & MSR_VEC))
-				goto vecunavail;
 			op->type = MKOP(LOAD_VMX, 0, 16);
 			break;
 
 		case 231:	/* stvx */
 		case 487:	/* stvxl */
-			if (!(regs->msr & MSR_VEC))
-				goto vecunavail;
 			op->type = MKOP(STORE_VMX, 0, 16);
 			break;
 #endif /* CONFIG_ALTIVEC */
@@ -1584,29 +1580,21 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #ifdef CONFIG_PPC_FPU
 		case 535:	/* lfsx */
 		case 567:	/* lfsux */
-			if (!(regs->msr & MSR_FP))
-				goto fpunavail;
 			op->type = MKOP(LOAD_FP, u, 4);
 			break;
 
 		case 599:	/* lfdx */
 		case 631:	/* lfdux */
-			if (!(regs->msr & MSR_FP))
-				goto fpunavail;
 			op->type = MKOP(LOAD_FP, u, 8);
 			break;
 
 		case 663:	/* stfsx */
 		case 695:	/* stfsux */
-			if (!(regs->msr & MSR_FP))
-				goto fpunavail;
 			op->type = MKOP(STORE_FP, u, 4);
 			break;
 
 		case 727:	/* stfdx */
 		case 759:	/* stfdux */
-			if (!(regs->msr & MSR_FP))
-				goto fpunavail;
 			op->type = MKOP(STORE_FP, u, 8);
 			break;
 #endif
@@ -1649,16 +1637,12 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #ifdef CONFIG_VSX
 		case 844:	/* lxvd2x */
 		case 876:	/* lxvd2ux */
-			if (!(regs->msr & MSR_VSX))
-				goto vsxunavail;
 			op->reg = rd | ((instr & 1) << 5);
 			op->type = MKOP(LOAD_VSX, u, 16);
 			break;
 
 		case 972:	/* stxvd2x */
 		case 1004:	/* stxvd2ux */
-			if (!(regs->msr & MSR_VSX))
-				goto vsxunavail;
 			op->reg = rd | ((instr & 1) << 5);
 			op->type = MKOP(STORE_VSX, u, 16);
 			break;
@@ -1724,32 +1708,24 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #ifdef CONFIG_PPC_FPU
 	case 48:	/* lfs */
 	case 49:	/* lfsu */
-		if (!(regs->msr & MSR_FP))
-			goto fpunavail;
 		op->type = MKOP(LOAD_FP, u, 4);
 		op->ea = dform_ea(instr, regs);
 		break;
 
 	case 50:	/* lfd */
 	case 51:	/* lfdu */
-		if (!(regs->msr & MSR_FP))
-			goto fpunavail;
 		op->type = MKOP(LOAD_FP, u, 8);
 		op->ea = dform_ea(instr, regs);
 		break;
 
 	case 52:	/* stfs */
 	case 53:	/* stfsu */
-		if (!(regs->msr & MSR_FP))
-			goto fpunavail;
 		op->type = MKOP(STORE_FP, u, 4);
 		op->ea = dform_ea(instr, regs);
 		break;
 
 	case 54:	/* stfd */
 	case 55:	/* stfdu */
-		if (!(regs->msr & MSR_FP))
-			goto fpunavail;
 		op->type = MKOP(STORE_FP, u, 8);
 		op->ea = dform_ea(instr, regs);
 		break;
@@ -1812,24 +1788,6 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	op->type = INTERRUPT | 0x700;
 	op->val = SRR1_PROGTRAP;
 	return 0;
-
-#ifdef CONFIG_PPC_FPU
- fpunavail:
-	op->type = INTERRUPT | 0x800;
-	return 0;
-#endif
-
-#ifdef CONFIG_ALTIVEC
- vecunavail:
-	op->type = INTERRUPT | 0xf20;
-	return 0;
-#endif
-
-#ifdef CONFIG_VSX
- vsxunavail:
-	op->type = INTERRUPT | 0xf40;
-	return 0;
-#endif
 }
 EXPORT_SYMBOL_GPL(analyse_instr);
 NOKPROBE_SYMBOL(analyse_instr);
@@ -2087,6 +2045,8 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 
 #ifdef CONFIG_PPC_FPU
 	case LOAD_FP:
+		if (!(regs->msr & MSR_FP))
+			return 0;
 		if (size == 4)
 			err = do_fp_load(op.reg, do_lfs, op.ea, size, regs);
 		else
@@ -2095,11 +2055,15 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 #endif
 #ifdef CONFIG_ALTIVEC
 	case LOAD_VMX:
+		if (!(regs->msr & MSR_VEC))
+			return 0;
 		err = do_vec_load(op.reg, do_lvx, op.ea & ~0xfUL, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_VSX
 	case LOAD_VSX:
+		if (!(regs->msr & MSR_VSX))
+			return 0;
 		err = do_vsx_load(op.reg, do_lxvd2x, op.ea, regs);
 		goto ldst_done;
 #endif
@@ -2134,6 +2098,8 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 
 #ifdef CONFIG_PPC_FPU
 	case STORE_FP:
+		if (!(regs->msr & MSR_FP))
+			return 0;
 		if (size == 4)
 			err = do_fp_store(op.reg, do_stfs, op.ea, size, regs);
 		else
@@ -2142,11 +2108,15 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 #endif
 #ifdef CONFIG_ALTIVEC
 	case STORE_VMX:
+		if (!(regs->msr & MSR_VEC))
+			return 0;
 		err = do_vec_store(op.reg, do_stvx, op.ea & ~0xfUL, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_VSX
 	case STORE_VSX:
+		if (!(regs->msr & MSR_VSX))
+			return 0;
 		err = do_vsx_store(op.reg, do_stxvd2x, op.ea, regs);
 		goto ldst_done;
 #endif
