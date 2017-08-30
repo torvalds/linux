@@ -458,7 +458,7 @@ static void tegra_plane_atomic_destroy_state(struct drm_plane *plane,
 	kfree(state);
 }
 
-static const struct drm_plane_funcs tegra_primary_plane_funcs = {
+static const struct drm_plane_funcs tegra_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = tegra_plane_destroy,
@@ -655,7 +655,7 @@ static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
 	formats = tegra_primary_plane_formats;
 
 	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
-				       &tegra_primary_plane_funcs, formats,
+				       &tegra_plane_funcs, formats,
 				       num_formats, NULL,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (err < 0) {
@@ -781,15 +781,6 @@ static void tegra_cursor_atomic_disable(struct drm_plane *plane,
 	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 }
 
-static const struct drm_plane_funcs tegra_cursor_plane_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
-	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = tegra_plane_destroy,
-	.reset = tegra_plane_reset,
-	.atomic_duplicate_state = tegra_plane_atomic_duplicate_state,
-	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
-};
-
 static const struct drm_plane_helper_funcs tegra_cursor_plane_helper_funcs = {
 	.atomic_check = tegra_cursor_atomic_check,
 	.atomic_update = tegra_cursor_atomic_update,
@@ -821,7 +812,7 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 	formats = tegra_cursor_plane_formats;
 
 	err = drm_universal_plane_init(drm, &plane->base, 1 << dc->pipe,
-				       &tegra_cursor_plane_funcs, formats,
+				       &tegra_plane_funcs, formats,
 				       num_formats, NULL,
 				       DRM_PLANE_TYPE_CURSOR, NULL);
 	if (err < 0) {
