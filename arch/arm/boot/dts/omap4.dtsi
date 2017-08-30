@@ -442,6 +442,27 @@
 			clock-frequency = <48000000>;
 		};
 
+		smartreflex_iva: smartreflex@4a0db000 {
+			compatible = "ti,omap4-smartreflex-iva";
+			reg = <0x4a0db000 0x80>;
+			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "smartreflex_iva";
+		};
+
+		smartreflex_core: smartreflex@4a0dd000 {
+			compatible = "ti,omap4-smartreflex-core";
+			reg = <0x4a0dd000 0x80>;
+			interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "smartreflex_core";
+		};
+
+		smartreflex_mpu: smartreflex@4a0d9000 {
+			compatible = "ti,omap4-smartreflex-mpu";
+			reg = <0x4a0d9000 0x80>;
+			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "smartreflex_mpu";
+		};
+
 		hwspinlock: spinlock@4a0f6000 {
 			compatible = "ti,omap4-hwspinlock";
 			reg = <0x4a0f6000 0x1000>;
