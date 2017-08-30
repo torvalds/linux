@@ -425,12 +425,13 @@ static int tbf_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
+	qdisc_watchdog_init(&q->watchdog, sch);
+	q->qdisc = &noop_qdisc;
+
 	if (opt == NULL)
 		return -EINVAL;
 
 	q->t_c = ktime_get_ns();
-	qdisc_watchdog_init(&q->watchdog, sch);
-	q->qdisc = &noop_qdisc;
 
 	return tbf_change(sch, opt);
 }
