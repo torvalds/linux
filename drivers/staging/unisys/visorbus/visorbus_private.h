@@ -38,12 +38,10 @@ int visorbus_init(void);
 void visorbus_exit(void);
 
 /* visorchannel access functions */
-struct visorchannel *visorchannel_create(u64 physaddr,
-					 unsigned long channel_bytes,
-					 gfp_t gfp, const guid_t *guid);
-struct visorchannel *visorchannel_create_with_lock(u64 physaddr,
-						   unsigned long channel_bytes,
-						   gfp_t gfp, const guid_t *guid);
+struct visorchannel *visorchannel_create(u64 physaddr, gfp_t gfp,
+					 const guid_t *guid);
+struct visorchannel *visorchannel_create_with_lock(u64 physaddr, gfp_t gfp,
+						   const guid_t *guid);
 void visorchannel_destroy(struct visorchannel *channel);
 int visorchannel_read(struct visorchannel *channel, ulong offset,
 		      void *dest, ulong nbytes);

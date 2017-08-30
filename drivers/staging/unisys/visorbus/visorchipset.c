@@ -567,7 +567,6 @@ static int visorbus_create(struct controlvm_message *inmsg)
 	}
 
 	visorchannel = visorchannel_create(cmd->create_bus.channel_addr,
-					   cmd->create_bus.channel_bytes,
 					   GFP_KERNEL,
 					   &cmd->create_bus.bus_data_type_guid);
 	if (!visorchannel) {
@@ -789,7 +788,6 @@ static int visorbus_device_create(struct controlvm_message *inmsg)
 
 	visorchannel =
 	       visorchannel_create_with_lock(cmd->create_device.channel_addr,
-					     cmd->create_device.channel_bytes,
 					     GFP_KERNEL,
 					     &cmd->create_device.data_type_guid);
 	if (!visorchannel) {
@@ -1326,7 +1324,6 @@ static int controlvm_channel_create(struct visorchipset_device *dev)
 {
 	struct visorchannel *chan;
 	u64 addr;
-	u32 size;
 	int err;
 
 	err = unisys_vmcall(VMCALL_CONTROLVM_ADDR,
@@ -1334,8 +1331,7 @@ static int controlvm_channel_create(struct visorchipset_device *dev)
 	if (err)
 		return err;
 	addr = dev->controlvm_params.address;
-	size = dev->controlvm_params.channel_bytes;
-	chan = visorchannel_create_with_lock(addr, size, GFP_KERNEL,
+	chan = visorchannel_create_with_lock(addr, GFP_KERNEL,
 					     &visor_controlvm_channel_guid);
 	if (!chan)
 		return -ENOMEM;
