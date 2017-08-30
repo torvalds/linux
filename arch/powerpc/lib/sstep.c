@@ -457,19 +457,23 @@ NOKPROBE_SYMBOL(write_mem);
  * These access either the real FP register or the image in the
  * thread_struct, depending on regs->msr & MSR_FP.
  */
-static int do_fp_load(int rn, unsigned long ea, int nb, struct pt_regs *regs,
-		      bool cross_endian)
+static int do_fp_load(struct instruction_op *op, unsigned long ea,
+		      struct pt_regs *regs, bool cross_endian)
 {
-	int err;
+	int err, rn, nb;
 	union {
+		int i;
+		unsigned int u;
 		float f;
 		double d[2];
 		unsigned long l[2];
 		u8 b[2 * sizeof(double)];
 	} u;
 
+	nb = GETSIZE(op->type);
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
+	rn = op->reg;
 	err = copy_mem_in(u.b, ea, nb, regs);
 	if (err)
 		return err;
@@ -479,8 +483,14 @@ static int do_fp_load(int rn, unsigned long ea, int nb, struct pt_regs *regs,
 			do_byte_reverse(&u.b[8], 8);
 	}
 	preempt_disable();
-	if (nb == 4)
-		conv_sp_to_dp(&u.f, &u.d[0]);
+	if (nb == 4) {
+		if (op->type & FPCONV)
+			conv_sp_to_dp(&u.f, &u.d[0]);
+		else if (op->type & SIGNEXT)
+			u.l[0] = u.i;
+		else
+			u.l[0] = u.u;
+	}
 	if (regs->msr & MSR_FP)
 		put_fpr(rn, &u.d[0]);
 	else
@@ -498,25 +508,33 @@ static int do_fp_load(int rn, unsigned long ea, int nb, struct pt_regs *regs,
 }
 NOKPROBE_SYMBOL(do_fp_load);
 
-static int do_fp_store(int rn, unsigned long ea, int nb, struct pt_regs *regs,
-		       bool cross_endian)
+static int do_fp_store(struct instruction_op *op, unsigned long ea,
+		       struct pt_regs *regs, bool cross_endian)
 {
+	int rn, nb;
 	union {
+		unsigned int u;
 		float f;
 		double d[2];
 		unsigned long l[2];
 		u8 b[2 * sizeof(double)];
 	} u;
 
+	nb = GETSIZE(op->type);
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
+	rn = op->reg;
 	preempt_disable();
 	if (regs->msr & MSR_FP)
 		get_fpr(rn, &u.d[0]);
 	else
 		u.l[0] = current->thread.TS_FPR(rn);
-	if (nb == 4)
-		conv_dp_to_sp(&u.d[0], &u.f);
+	if (nb == 4) {
+		if (op->type & FPCONV)
+			conv_dp_to_sp(&u.d[0], &u.f);
+		else
+			u.u = u.l[0];
+	}
 	if (nb == 16) {
 		rn |= 1;
 		if (regs->msr & MSR_FP)
@@ -2049,7 +2067,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #ifdef CONFIG_PPC_FPU
 		case 535:	/* lfsx */
 		case 567:	/* lfsux */
-			op->type = MKOP(LOAD_FP, u, 4);
+			op->type = MKOP(LOAD_FP, u | FPCONV, 4);
 			break;
 
 		case 599:	/* lfdx */
@@ -2059,7 +2077,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 		case 663:	/* stfsx */
 		case 695:	/* stfsux */
-			op->type = MKOP(STORE_FP, u, 4);
+			op->type = MKOP(STORE_FP, u | FPCONV, 4);
 			break;
 
 		case 727:	/* stfdx */
@@ -2072,8 +2090,20 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			op->type = MKOP(LOAD_FP, 0, 16);
 			break;
 
+		case 855:	/* lfiwax */
+			op->type = MKOP(LOAD_FP, SIGNEXT, 4);
+			break;
+
+		case 887:	/* lfiwzx */
+			op->type = MKOP(LOAD_FP, 0, 4);
+			break;
+
 		case 919:	/* stfdpx */
 			op->type = MKOP(STORE_FP, 0, 16);
+			break;
+
+		case 983:	/* stfiwx */
+			op->type = MKOP(STORE_FP, 0, 4);
 			break;
 #endif /* __powerpc64 */
 #endif /* CONFIG_PPC_FPU */
@@ -2352,7 +2382,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #ifdef CONFIG_PPC_FPU
 	case 48:	/* lfs */
 	case 49:	/* lfsu */
-		op->type = MKOP(LOAD_FP, u, 4);
+		op->type = MKOP(LOAD_FP, u | FPCONV, 4);
 		op->ea = dform_ea(instr, regs);
 		break;
 
@@ -2364,7 +2394,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 	case 52:	/* stfs */
 	case 53:	/* stfsu */
-		op->type = MKOP(STORE_FP, u, 4);
+		op->type = MKOP(STORE_FP, u | FPCONV, 4);
 		op->ea = dform_ea(instr, regs);
 		break;
 
@@ -2792,7 +2822,7 @@ int emulate_loadstore(struct pt_regs *regs, struct instruction_op *op)
 		 */
 		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_FP))
 			return 0;
-		err = do_fp_load(op->reg, ea, size, regs, cross_endian);
+		err = do_fp_load(op, ea, regs, cross_endian);
 		break;
 #endif
 #ifdef CONFIG_ALTIVEC
@@ -2862,7 +2892,7 @@ int emulate_loadstore(struct pt_regs *regs, struct instruction_op *op)
 	case STORE_FP:
 		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_FP))
 			return 0;
-		err = do_fp_store(op->reg, ea, size, regs, cross_endian);
+		err = do_fp_store(op, ea, regs, cross_endian);
 		break;
 #endif
 #ifdef CONFIG_ALTIVEC

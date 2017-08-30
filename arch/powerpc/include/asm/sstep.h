@@ -68,6 +68,7 @@ enum instruction_type {
 #define SIGNEXT		0x20
 #define UPDATE		0x40	/* matches bit in opcode 31 instructions */
 #define BYTEREV		0x80
+#define FPCONV		0x100
 
 /* Barrier type field, ORed in with type */
 #define BARRIER_MASK	0xe0
@@ -93,8 +94,8 @@ enum instruction_type {
 #define VSX_CHECK_VEC	8	/* check MSR_VEC not MSR_VSX for reg >= 32 */
 
 /* Size field in type word */
-#define SIZE(n)		((n) << 8)
-#define GETSIZE(w)	((w) >> 8)
+#define SIZE(n)		((n) << 12)
+#define GETSIZE(w)	((w) >> 12)
 
 #define MKOP(t, f, s)	((t) | (f) | SIZE(s))
 
