@@ -678,6 +678,14 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 		}
 	}
 
+	if (hr_dev->hw->cmq_init) {
+		ret = hr_dev->hw->cmq_init(hr_dev);
+		if (ret) {
+			dev_err(dev, "Init RoCE Command Queue failed!\n");
+			goto error_failed_cmq_init;
+		}
+	}
+
 	hr_dev->hw->hw_profile(hr_dev);
 
 	ret = hns_roce_cmd_init(hr_dev);
@@ -750,6 +758,10 @@ error_failed_eq_table:
 	hns_roce_cmd_cleanup(hr_dev);
 
 error_failed_cmd_init:
+	if (hr_dev->hw->cmq_exit)
+		hr_dev->hw->cmq_exit(hr_dev);
+
+error_failed_cmq_init:
 	if (hr_dev->hw->reset) {
 		ret = hr_dev->hw->reset(hr_dev, false);
 		if (ret)
@@ -774,6 +786,8 @@ void hns_roce_exit(struct hns_roce_dev *hr_dev)
 	if (hr_dev->cmd_mod)
 		hns_roce_cleanup_eq_table(hr_dev);
 	hns_roce_cmd_cleanup(hr_dev);
+	if (hr_dev->hw->cmq_exit)
+		hr_dev->hw->cmq_exit(hr_dev);
 	if (hr_dev->hw->reset)
 		hr_dev->hw->reset(hr_dev, false);
 }

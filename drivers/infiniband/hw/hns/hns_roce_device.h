@@ -506,6 +506,8 @@ struct hns_roce_caps {
 
 struct hns_roce_hw {
 	int (*reset)(struct hns_roce_dev *hr_dev, bool enable);
+	int (*cmq_init)(struct hns_roce_dev *hr_dev);
+	void (*cmq_exit)(struct hns_roce_dev *hr_dev);
 	void (*hw_profile)(struct hns_roce_dev *hr_dev);
 	int (*hw_init)(struct hns_roce_dev *hr_dev);
 	void (*hw_exit)(struct hns_roce_dev *hr_dev);
