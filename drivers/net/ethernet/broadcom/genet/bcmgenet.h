@@ -684,7 +684,7 @@ static inline void bcmgenet_##name##_writel(struct bcmgenet_priv *priv,	\
 					u32 val, u32 off)		\
 {									\
 	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) \
-		return __raw_writel(val, priv->base + offset + off);	\
+		__raw_writel(val, priv->base + offset + off);		\
 	else								\
 		writel_relaxed(val, priv->base + offset + off);		\
 }
