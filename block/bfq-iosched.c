@@ -3780,6 +3780,7 @@ bfq_set_next_ioprio_data(struct bfq_queue *bfqq, struct bfq_io_cq *bic)
 	default:
 		dev_err(bfqq->bfqd->queue->backing_dev_info->dev,
 			"bfq: bad prio class %d\n", ioprio_class);
+		/* fall through */
 	case IOPRIO_CLASS_NONE:
 		/*
 		 * No prio set, inherit CPU scheduling settings.
