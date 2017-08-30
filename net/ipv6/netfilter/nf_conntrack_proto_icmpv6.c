@@ -136,7 +136,7 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_zone tmp;
 
-	NF_CT_ASSERT(!skb_nfct(skb));
+	WARN_ON(skb_nfct(skb));
 
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuplepr(skb,

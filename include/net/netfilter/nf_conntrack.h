@@ -159,7 +159,7 @@ nf_ct_get(const struct sk_buff *skb, enum ip_conntrack_info *ctinfo)
 /* decrement reference count on a conntrack */
 static inline void nf_ct_put(struct nf_conn *ct)
 {
-	NF_CT_ASSERT(ct);
+	WARN_ON(!ct);
 	nf_conntrack_put(&ct->ct_general);
 }
 
