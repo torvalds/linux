@@ -642,6 +642,11 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	if (blk_queue_add_random(q))
 		add_disk_randomness(req->rq_disk);
 
+	if (!blk_rq_is_scsi(req)) {
+		WARN_ON_ONCE(!(cmd->flags & SCMD_INITIALIZED));
+		cmd->flags &= ~SCMD_INITIALIZED;
+	}
+
 	if (req->mq_ctx) {
 		/*
 		 * In the MQ case the command gets freed by __blk_mq_end_request,
@@ -1110,7 +1115,8 @@ EXPORT_SYMBOL(scsi_init_io);
  * scsi_initialize_rq - initialize struct scsi_cmnd.req
  * @rq: Request associated with the SCSI command to be initialized.
  *
- * Called from inside blk_get_request().
+ * Called from inside blk_get_request() for pass-through requests and from
+ * inside scsi_init_command() for filesystem requests.
  */
 void scsi_initialize_rq(struct request *rq)
 {
@@ -1154,7 +1160,13 @@ void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd)
 {
 	void *buf = cmd->sense_buffer;
 	void *prot = cmd->prot_sdb;
-	unsigned int unchecked_isa_dma = cmd->flags & SCMD_UNCHECKED_ISA_DMA;
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	unsigned int flags = cmd->flags & SCMD_PRESERVED_FLAGS;
+
+	if (!blk_rq_is_scsi(rq) && !(flags & SCMD_INITIALIZED)) {
+		flags |= SCMD_INITIALIZED;
+		scsi_initialize_rq(rq);
+	}
 
 	/* zero out the cmd, except for the embedded scsi_request */
 	memset((char *)cmd + sizeof(cmd->req), 0,
@@ -1163,7 +1175,7 @@ void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd)
 	cmd->device = dev;
 	cmd->sense_buffer = buf;
 	cmd->prot_sdb = prot;
-	cmd->flags = unchecked_isa_dma;
+	cmd->flags = flags;
 	INIT_DELAYED_WORK(&cmd->abort_work, scmd_eh_abort_handler);
 	cmd->jiffies_at_alloc = jiffies;
 
@@ -1350,6 +1362,8 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 
 	ret = scsi_setup_cmnd(sdev, req);
 out:
+	if (ret != BLKPREP_OK)
+		cmd->flags &= ~SCMD_INITIALIZED;
 	return scsi_prep_return(q, req, ret);
 }
 
@@ -1869,6 +1883,7 @@ static int scsi_mq_prep_fn(struct request *req)
 	struct scsi_device *sdev = req->q->queuedata;
 	struct Scsi_Host *shost = sdev->host;
 	struct scatterlist *sg;
+	int ret;
 
 	scsi_init_command(sdev, cmd);
 
@@ -1902,7 +1917,10 @@ static int scsi_mq_prep_fn(struct request *req)
 
 	blk_mq_start_request(req);
 
-	return scsi_setup_cmnd(sdev, req);
+	ret = scsi_setup_cmnd(sdev, req);
+	if (ret != BLK_STS_OK)
+		cmd->flags &= ~SCMD_INITIALIZED;
+	return ret;
 }
 
 static void scsi_mq_done(struct scsi_cmnd *cmd)
