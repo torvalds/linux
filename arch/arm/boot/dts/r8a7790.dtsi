@@ -56,6 +56,7 @@
 			clock-latency = <300000>; /* 300 us */
 			power-domains = <&sysc R8A7790_PD_CA15_CPU0>;
 			next-level-cache = <&L2_CA15>;
+			capacity-dmips-mhz = <1024>;
 
 			/* kHz - uV - OPPs unknown yet */
 			operating-points = <1400000 1000000>,
@@ -73,6 +74,7 @@
 			clock-frequency = <1300000000>;
 			power-domains = <&sysc R8A7790_PD_CA15_CPU1>;
 			next-level-cache = <&L2_CA15>;
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu2: cpu@2 {
@@ -82,6 +84,7 @@
 			clock-frequency = <1300000000>;
 			power-domains = <&sysc R8A7790_PD_CA15_CPU2>;
 			next-level-cache = <&L2_CA15>;
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu3: cpu@3 {
@@ -91,6 +94,7 @@
 			clock-frequency = <1300000000>;
 			power-domains = <&sysc R8A7790_PD_CA15_CPU3>;
 			next-level-cache = <&L2_CA15>;
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu4: cpu@100 {
@@ -100,6 +104,7 @@
 			clock-frequency = <780000000>;
 			power-domains = <&sysc R8A7790_PD_CA7_CPU0>;
 			next-level-cache = <&L2_CA7>;
+			capacity-dmips-mhz = <539>;
 		};
 
 		cpu5: cpu@101 {
@@ -109,6 +114,7 @@
 			clock-frequency = <780000000>;
 			power-domains = <&sysc R8A7790_PD_CA7_CPU1>;
 			next-level-cache = <&L2_CA7>;
+			capacity-dmips-mhz = <539>;
 		};
 
 		cpu6: cpu@102 {
@@ -118,6 +124,7 @@
 			clock-frequency = <780000000>;
 			power-domains = <&sysc R8A7790_PD_CA7_CPU2>;
 			next-level-cache = <&L2_CA7>;
+			capacity-dmips-mhz = <539>;
 		};
 
 		cpu7: cpu@103 {
@@ -127,6 +134,7 @@
 			clock-frequency = <780000000>;
 			power-domains = <&sysc R8A7790_PD_CA7_CPU3>;
 			next-level-cache = <&L2_CA7>;
+			capacity-dmips-mhz = <539>;
 		};
 
 		L2_CA15: cache-controller-0 {
