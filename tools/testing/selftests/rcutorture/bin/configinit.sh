@@ -32,7 +32,7 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-T=/tmp/configinit.sh.$$
+T=${TMPDIR-/tmp}/configinit.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
