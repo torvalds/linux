@@ -41,9 +41,9 @@ static const guid_t visor_controlvm_channel_guid = VISOR_CONTROLVM_CHANNEL_GUID;
 #define UNISYS_VISOR_ID_EDX 0x34367261
 
 /*
- * When the controlvm channel is idle for at least MIN_IDLE_SECONDS,
- * we switch to slow polling mode. As soon as we get a controlvm
- * message, we switch back to fast polling mode.
+ * When the controlvm channel is idle for at least MIN_IDLE_SECONDS, we switch
+ * to slow polling mode. As soon as we get a controlvm message, we switch back
+ * to fast polling mode.
  */
 #define MIN_IDLE_SECONDS 10
 
@@ -377,15 +377,15 @@ static int chipset_init(struct controlvm_message *inmsg)
 	chipset_inited = 1;
 
 	/*
-	 * Set features to indicate we support parahotplug (if Command
-	 * also supports it).
+	 * Set features to indicate we support parahotplug (if Command also
+	 * supports it).
 	 */
 	features = inmsg->cmd.init_chipset.features &
 		   VISOR_CHIPSET_FEATURE_PARA_HOTPLUG;
 
 	/*
-	 * Set the "reply" bit so Command knows this is a
-	 * features-aware driver.
+	 * Set the "reply" bit so Command knows this is a features-aware
+	 * driver.
 	 */
 	features |= VISOR_CHIPSET_FEATURE_REPLY;
 
@@ -1210,10 +1210,9 @@ static int parahotplug_process_message(struct controlvm_message *inmsg)
 	}
 
 	/*
-	 * For disable messages, add the request to the
-	 * request list before kicking off the udev script. It
-	 * won't get responded to until the script has
-	 * indicated it's done.
+	 * For disable messages, add the request to the request list before
+	 * kicking off the udev script. It won't get responded to until the
+	 * script has indicated it's done.
 	 */
 	spin_lock(&parahotplug_request_list_lock);
 	list_add_tail(&req->list, &parahotplug_request_list);
@@ -1554,8 +1553,8 @@ static int handle_command(struct controlvm_message inmsg, u64 channel_addr)
 			err = parahotplug_process_message(&inmsg);
 		} else {
 			/*
-			 * save the hdr and cmd structures for later use
-			 * when sending back the response to Command
+			 * save the hdr and cmd structures for later use when
+			 * sending back the response to Command
 			 */
 			err = visorbus_device_changestate(&inmsg);
 			break;
@@ -1664,9 +1663,8 @@ static void controlvm_periodic_work(struct work_struct *work)
 
 	if (chipset_dev->controlvm_pending_msg_valid) {
 		/*
-		 * we throttled processing of a prior
-		 * msg, so try to process it again
-		 * rather than reading a new one
+		 * we throttled processing of a prior msg, so try to process
+		 * it again rather than reading a new one
 		 */
 		inmsg = chipset_dev->controlvm_pending_msg;
 		chipset_dev->controlvm_pending_msg_valid = false;
@@ -1701,9 +1699,8 @@ schedule_out:
 	if (time_after(jiffies, chipset_dev->most_recent_message_jiffies +
 				(HZ * MIN_IDLE_SECONDS))) {
 		/*
-		 * it's been longer than MIN_IDLE_SECONDS since we
-		 * processed our last controlvm message; slow down the
-		 * polling
+		 * it's been longer than MIN_IDLE_SECONDS since we processed
+		 * our last controlvm message; slow down the polling
 		 */
 		if (chipset_dev->poll_jiffies !=
 					      POLLJIFFIES_CONTROLVMCHANNEL_SLOW)
