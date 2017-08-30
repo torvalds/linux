@@ -56,6 +56,12 @@ struct xive_ops {
 
 bool xive_core_init(const struct xive_ops *ops, void __iomem *area, u32 offset,
 		    u8 max_prio);
+__be32 *xive_queue_page_alloc(unsigned int cpu, u32 queue_shift);
+
+static inline u32 xive_alloc_order(u32 queue_shift)
+{
+	return (queue_shift > PAGE_SHIFT) ? (queue_shift - PAGE_SHIFT) : 0;
+}
 
 extern bool xive_cmdline_disabled;
 

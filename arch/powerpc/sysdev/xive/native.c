@@ -202,17 +202,12 @@ EXPORT_SYMBOL_GPL(xive_native_disable_queue);
 static int xive_native_setup_queue(unsigned int cpu, struct xive_cpu *xc, u8 prio)
 {
 	struct xive_q *q = &xc->queue[prio];
-	unsigned int alloc_order;
-	struct page *pages;
 	__be32 *qpage;
 
-	alloc_order = (xive_queue_shift > PAGE_SHIFT) ?
-		(xive_queue_shift - PAGE_SHIFT) : 0;
-	pages = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL, alloc_order);
-	if (!pages)
-		return -ENOMEM;
-	qpage = (__be32 *)page_address(pages);
-	memset(qpage, 0, 1 << xive_queue_shift);
+	qpage = xive_queue_page_alloc(cpu, xive_queue_shift);
+	if (IS_ERR(qpage))
+		return PTR_ERR(qpage);
+
 	return xive_native_configure_queue(get_hard_smp_processor_id(cpu),
 					   q, prio, qpage, xive_queue_shift, false);
 }
@@ -227,8 +222,7 @@ static void xive_native_cleanup_queue(unsigned int cpu, struct xive_cpu *xc, u8 
 	 * from an IPI and iounmap isn't safe
 	 */
 	__xive_native_disable_queue(get_hard_smp_processor_id(cpu), q, prio);
-	alloc_order = (xive_queue_shift > PAGE_SHIFT) ?
-		(xive_queue_shift - PAGE_SHIFT) : 0;
+	alloc_order = xive_alloc_order(xive_queue_shift);
 	free_pages((unsigned long)q->qpage, alloc_order);
 	q->qpage = NULL;
 }

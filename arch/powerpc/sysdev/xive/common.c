@@ -1428,6 +1428,22 @@ bool __init xive_core_init(const struct xive_ops *ops, void __iomem *area, u32 o
 	return true;
 }
 
+__be32 *xive_queue_page_alloc(unsigned int cpu, u32 queue_shift)
+{
+	unsigned int alloc_order;
+	struct page *pages;
+	__be32 *qpage;
+
+	alloc_order = xive_alloc_order(queue_shift);
+	pages = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL, alloc_order);
+	if (!pages)
+		return ERR_PTR(-ENOMEM);
+	qpage = (__be32 *)page_address(pages);
+	memset(qpage, 0, 1 << queue_shift);
+
+	return qpage;
+}
+
 static int __init xive_off(char *arg)
 {
 	xive_cmdline_disabled = true;
