@@ -825,15 +825,6 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 	return &plane->base;
 }
 
-static const struct drm_plane_funcs tegra_overlay_plane_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
-	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = tegra_plane_destroy,
-	.reset = tegra_plane_reset,
-	.atomic_duplicate_state = tegra_plane_atomic_duplicate_state,
-	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
-};
-
 static const uint32_t tegra_overlay_plane_formats[] = {
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
@@ -863,7 +854,7 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 	formats = tegra_overlay_plane_formats;
 
 	err = drm_universal_plane_init(drm, &plane->base, 1 << dc->pipe,
-				       &tegra_overlay_plane_funcs, formats,
+				       &tegra_plane_funcs, formats,
 				       num_formats, NULL,
 				       DRM_PLANE_TYPE_OVERLAY, NULL);
 	if (err < 0) {
