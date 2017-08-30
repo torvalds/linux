@@ -1736,6 +1736,7 @@ static int visorchipset_init(struct acpi_device *acpi_device)
 
 	controlvm_channel = chipset_dev->controlvm_channel;
 	if (!visor_check_channel(visorchannel_get_header(controlvm_channel),
+				 &chipset_dev->acpi_device->dev,
 				 &visor_controlvm_channel_guid,
 				 "controlvm",
 				 sizeof(struct visor_controlvm_channel),

@@ -166,9 +166,10 @@ struct visor_device {
 
 #define to_visor_device(x) container_of(x, struct visor_device, device)
 
-int visor_check_channel(struct channel_header *ch, const guid_t *expected_guid,
-			char *chname, u64 expected_min_bytes,
-			u32 expected_version, u64 expected_signature);
+int visor_check_channel(struct channel_header *ch, struct device *dev,
+			const guid_t *expected_uuid, char *chname,
+			u64 expected_min_bytes,	u32 expected_version,
+			u64 expected_signature);
 
 int visorbus_register_visor_driver(struct visor_driver *drv);
 void visorbus_unregister_visor_driver(struct visor_driver *drv);

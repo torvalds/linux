@@ -70,6 +70,7 @@ static LIST_HEAD(list_all_device_instances);
  * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
  */
 int visor_check_channel(struct channel_header *ch,
+			struct device *dev,
 			const guid_t *expected_guid,
 			char *chname,
 			u64 expected_min_bytes,
@@ -79,38 +80,38 @@ int visor_check_channel(struct channel_header *ch,
 	if (!guid_is_null(expected_guid)) {
 		/* caller wants us to verify type GUID */
 		if (!guid_equal(&ch->chtype, expected_guid)) {
-			pr_err("Channel mismatch on channel=%s(%pUL) field=type expected=%pUL actual=%pUL\n",
-			       chname, expected_guid,
-			       expected_guid, &ch->chtype);
+			dev_err(dev, "Channel mismatch on channel=%s(%pUL) field=type expected=%pUL actual=%pUL\n",
+				chname, expected_guid, expected_guid,
+				&ch->chtype);
 			return 0;
 		}
 	}
 	/* verify channel size */
 	if (expected_min_bytes > 0) {
 		if (ch->size < expected_min_bytes) {
-			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
-			       chname, expected_guid,
-			       (unsigned long long)expected_min_bytes,
-			       ch->size);
+			dev_err(dev, "Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
+				chname, expected_guid,
+				(unsigned long long)expected_min_bytes,
+				ch->size);
 			return 0;
 		}
 	}
 	/* verify channel version */
 	if (expected_version > 0) {
 		if (ch->version_id != expected_version) {
-			pr_err("Channel mismatch on channel=%s(%pUL) field=version expected=0x%-8.8lx actual=0x%-8.8x\n",
-			       chname, expected_guid,
-			       (unsigned long)expected_version,
-			       ch->version_id);
+			dev_err(dev, "Channel mismatch on channel=%s(%pUL) field=version expected=0x%-8.8lx actual=0x%-8.8x\n",
+				chname, expected_guid,
+				(unsigned long)expected_version,
+				ch->version_id);
 			return 0;
 		}
 	}
 	/* verify channel signature */
 	if (expected_signature > 0) {
 		if (ch->signature != expected_signature) {
-			pr_err("Channel mismatch on channel=%s(%pUL) field=signature expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
-			       chname, expected_guid,
-			       expected_signature, ch->signature);
+			dev_err(dev, "Channel mismatch on channel=%s(%pUL) field=signature expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
+				chname, expected_guid,	expected_signature,
+				ch->signature);
 			return 0;
 		}
 	}
@@ -699,11 +700,13 @@ void remove_visor_device(struct visor_device *dev)
 }
 
 static int get_vbus_header_info(struct visorchannel *chan,
+				struct device *dev,
 				struct visor_vbus_headerinfo *hdr_info)
 {
 	int err;
 
 	if (!visor_check_channel(visorchannel_get_header(chan),
+				 dev,
 				 &visor_vbus_channel_guid,
 				 "vbus",
 				 sizeof(struct visor_vbus_channel),
@@ -1030,7 +1033,7 @@ int visorbus_create_instance(struct visor_device *dev)
 				    &client_bus_info_debugfs_fops);
 
 	dev_set_drvdata(&dev->device, dev);
-	err = get_vbus_header_info(dev->visorchannel, hdr_info);
+	err = get_vbus_header_info(dev->visorchannel, &dev->device, hdr_info);
 	if (err < 0)
 		goto err_debugfs_dir;
 
