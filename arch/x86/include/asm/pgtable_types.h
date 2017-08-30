@@ -106,6 +106,32 @@
 			 _PAGE_SOFT_DIRTY)
 #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
 
+/* The ASID is the lower 12 bits of CR3 */
+#define X86_CR3_PCID_ASID_MASK  (_AC((1<<12)-1,UL))
+
+/* Mask for all the PCID-related bits in CR3: */
+#define X86_CR3_PCID_MASK       (X86_CR3_PCID_NOFLUSH | X86_CR3_PCID_ASID_MASK)
+#if defined(CONFIG_KAISER) && defined(CONFIG_X86_64)
+#define X86_CR3_PCID_ASID_KERN  (_AC(0x4,UL))
+#define X86_CR3_PCID_ASID_USER  (_AC(0x6,UL))
+
+#define X86_CR3_PCID_KERN_FLUSH		(X86_CR3_PCID_ASID_KERN)
+#define X86_CR3_PCID_USER_FLUSH		(X86_CR3_PCID_ASID_USER)
+#define X86_CR3_PCID_KERN_NOFLUSH	(X86_CR3_PCID_NOFLUSH | X86_CR3_PCID_ASID_KERN)
+#define X86_CR3_PCID_USER_NOFLUSH	(X86_CR3_PCID_NOFLUSH | X86_CR3_PCID_ASID_USER)
+#else
+#define X86_CR3_PCID_ASID_KERN  (_AC(0x0,UL))
+#define X86_CR3_PCID_ASID_USER  (_AC(0x0,UL))
+/*
+ * PCIDs are unsupported on 32-bit and none of these bits can be
+ * set in CR3:
+ */
+#define X86_CR3_PCID_KERN_FLUSH		(0)
+#define X86_CR3_PCID_USER_FLUSH		(0)
+#define X86_CR3_PCID_KERN_NOFLUSH	(0)
+#define X86_CR3_PCID_USER_NOFLUSH	(0)
+#endif
+
 /*
  * The cache modes defined here are used to translate between pure SW usage
  * and the HW defined cache mode bits and/or PAT entries.

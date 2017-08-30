@@ -34,6 +34,46 @@ struct flush_tlb_info {
 	unsigned long flush_end;
 };
 
+static void load_new_mm_cr3(pgd_t *pgdir)
+{
+	unsigned long new_mm_cr3 = __pa(pgdir);
+
+	/*
+	 * KAISER, plus PCIDs needs some extra work here.  But,
+	 * if either of features is not present, we need no
+	 * PCIDs here and just do a normal, full TLB flush with
+	 * the write_cr3()
+	 */
+	if (!IS_ENABLED(CONFIG_KAISER) ||
+	    !cpu_feature_enabled(X86_FEATURE_PCID))
+		goto out_set_cr3;
+	/*
+	 * We reuse the same PCID for different tasks, so we must
+	 * flush all the entires for the PCID out when we change
+	 * tasks.
+	 */
+	new_mm_cr3 = X86_CR3_PCID_KERN_FLUSH | __pa(pgdir);
+
+	/*
+	 * The flush from load_cr3() may leave old TLB entries
+	 * for userspace in place.  We must flush that context
+	 * separately.  We can theoretically delay doing this
+	 * until we actually load up the userspace CR3, but
+	 * that's a bit tricky.  We have to have the "need to
+	 * flush userspace PCID" bit per-cpu and check it in the
+	 * exit-to-userspace paths.
+	 */
+	invpcid_flush_single_context(X86_CR3_PCID_ASID_USER);
+
+out_set_cr3:
+	/*
+	 * Caution: many callers of this function expect
+	 * that load_cr3() is serializing and orders TLB
+	 * fills with respect to the mm_cpumask writes.
+	 */
+	write_cr3(new_mm_cr3);
+}
+
 /*
  * We cannot call mmdrop() because we are in interrupt context,
  * instead update mm->cpu_vm_mask.
@@ -45,7 +85,7 @@ void leave_mm(int cpu)
 		BUG();
 	if (cpumask_test_cpu(cpu, mm_cpumask(active_mm))) {
 		cpumask_clear_cpu(cpu, mm_cpumask(active_mm));
-		load_cr3(swapper_pg_dir);
+		load_new_mm_cr3(swapper_pg_dir);
 		/*
 		 * This gets called in the idle path where RCU
 		 * functions differently.  Tracing normally
@@ -105,7 +145,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		 * ordering guarantee we need.
 		 *
 		 */
-		load_cr3(next->pgd);
+		load_new_mm_cr3(next->pgd);
 
 		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
 
@@ -152,7 +192,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			 * As above, load_cr3() is serializing and orders TLB
 			 * fills with respect to the mm_cpumask write.
 			 */
-			load_cr3(next->pgd);
+			load_new_mm_cr3(next->pgd);
 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
 			load_mm_cr4(next);
 			load_mm_ldt(next);

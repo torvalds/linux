@@ -1,5 +1,8 @@
 #ifndef _ASM_X86_KAISER_H
 #define _ASM_X86_KAISER_H
+
+#include <uapi/asm/processor-flags.h> /* For PCID constants */
+
 /*
  * This file includes the definitions for the KAISER feature.
  * KAISER is a counter measure against x86_64 side channel attacks on
@@ -21,13 +24,21 @@
 
 .macro _SWITCH_TO_KERNEL_CR3 reg
 movq %cr3, \reg
-andq $(~KAISER_SHADOW_PGD_OFFSET), \reg
+andq $(~(X86_CR3_PCID_ASID_MASK | KAISER_SHADOW_PGD_OFFSET)), \reg
+orq  X86_CR3_PCID_KERN_VAR, \reg
 movq \reg, %cr3
 .endm
 
 .macro _SWITCH_TO_USER_CR3 reg
 movq %cr3, \reg
-orq $(KAISER_SHADOW_PGD_OFFSET), \reg
+andq $(~(X86_CR3_PCID_ASID_MASK | KAISER_SHADOW_PGD_OFFSET)), \reg
+/*
+ * This can obviously be one instruction by putting the
+ * KAISER_SHADOW_PGD_OFFSET bit in the X86_CR3_PCID_USER_VAR.
+ * But, just leave it now for simplicity.
+ */
+orq  X86_CR3_PCID_USER_VAR, \reg
+orq  $(KAISER_SHADOW_PGD_OFFSET), \reg
 movq \reg, %cr3
 .endm
 

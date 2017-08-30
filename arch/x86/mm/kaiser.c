@@ -240,6 +240,8 @@ static void __init kaiser_init_all_pgds(void)
 } while (0)
 
 extern char __per_cpu_user_mapped_start[], __per_cpu_user_mapped_end[];
+extern unsigned long X86_CR3_PCID_KERN_VAR;
+extern unsigned long X86_CR3_PCID_USER_VAR;
 /*
  * If anything in here fails, we will likely die on one of the
  * first kernel->user transitions and init will die.  But, we
@@ -289,6 +291,11 @@ void __init kaiser_init(void)
 				  __PAGE_KERNEL);
 	kaiser_add_user_map_early(&debug_idt_table,
 				  sizeof(gate_desc) * NR_VECTORS,
+				  __PAGE_KERNEL);
+
+	kaiser_add_user_map_early(&X86_CR3_PCID_KERN_VAR, PAGE_SIZE,
+				  __PAGE_KERNEL);
+	kaiser_add_user_map_early(&X86_CR3_PCID_USER_VAR, PAGE_SIZE,
 				  __PAGE_KERNEL);
 }
 

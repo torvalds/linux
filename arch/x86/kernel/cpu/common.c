@@ -321,11 +321,45 @@ static __always_inline void setup_smap(struct cpuinfo_x86 *c)
 	}
 }
 
+/*
+ * These can have bit 63 set, so we can not just use a plain "or"
+ * instruction to get their value or'd into CR3.  It would take
+ * another register.  So, we use a memory reference to these
+ * instead.
+ *
+ * This is also handy because systems that do not support
+ * PCIDs just end up or'ing a 0 into their CR3, which does
+ * no harm.
+ */
+__aligned(PAGE_SIZE) unsigned long X86_CR3_PCID_KERN_VAR = 0;
+__aligned(PAGE_SIZE) unsigned long X86_CR3_PCID_USER_VAR = 0;
+
 static void setup_pcid(struct cpuinfo_x86 *c)
 {
 	if (cpu_has(c, X86_FEATURE_PCID)) {
 		if (cpu_has(c, X86_FEATURE_PGE)) {
 			cr4_set_bits(X86_CR4_PCIDE);
+			/*
+			 * These variables are used by the entry/exit
+			 * code to change PCIDs.
+			 */
+#ifdef CONFIG_KAISER
+			X86_CR3_PCID_KERN_VAR = X86_CR3_PCID_KERN_NOFLUSH;
+			X86_CR3_PCID_USER_VAR = X86_CR3_PCID_USER_NOFLUSH;
+#endif
+			/*
+			 * INVPCID has two "groups" of types:
+			 * 1/2: Invalidate an individual address
+			 * 3/4: Invalidate all contexts
+			 *
+			 * 1/2 take a PCID, but 3/4 do not.  So, 3/4
+			 * ignore the PCID argument in the descriptor.
+			 * But, we have to be careful not to call 1/2
+			 * with an actual non-zero PCID in them before
+			 * we do the above cr4_set_bits().
+			 */
+			if (cpu_has(c, X86_FEATURE_INVPCID))
+				set_cpu_cap(c, X86_FEATURE_INVPCID_SINGLE);
 		} else {
 			/*
 			 * flush_tlb_all(), as currently implemented, won't

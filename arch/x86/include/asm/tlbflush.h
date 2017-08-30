@@ -12,7 +12,6 @@ static inline void __invpcid(unsigned long pcid, unsigned long addr,
 			     unsigned long type)
 {
 	struct { u64 d[2]; } desc = { { pcid, addr } };
-
 	/*
 	 * The memory clobber is because the whole point is to invalidate
 	 * stale TLB entries and, especially if we're flushing global
@@ -133,14 +132,25 @@ static inline void cr4_set_bits_and_update_boot(unsigned long mask)
 
 static inline void __native_flush_tlb(void)
 {
+	if (!cpu_feature_enabled(X86_FEATURE_INVPCID)) {
+	 	/*
+		 * If current->mm == NULL then we borrow a mm which may change during a
+		 * task switch and therefore we must not be preempted while we write CR3
+		 * back:
+		 */
+		preempt_disable();
+		native_write_cr3(native_read_cr3());
+		preempt_enable();
+		return;
+	}
 	/*
-	 * If current->mm == NULL then we borrow a mm which may change during a
-	 * task switch and therefore we must not be preempted while we write CR3
-	 * back:
+	 * We are no longer using globals with KAISER, so a
+	 * "nonglobals" flush would work too. But, this is more
+	 * conservative.
+	 *
+	 * Note, this works with CR4.PCIDE=0 or 1.
 	 */
-	preempt_disable();
-	native_write_cr3(native_read_cr3());
-	preempt_enable();
+	invpcid_flush_all();
 }
 
 static inline void __native_flush_tlb_global_irq_disabled(void)
@@ -162,6 +172,8 @@ static inline void __native_flush_tlb_global(void)
 		/*
 		 * Using INVPCID is considerably faster than a pair of writes
 		 * to CR4 sandwiched inside an IRQ flag save/restore.
+		 *
+	 	 * Note, this works with CR4.PCIDE=0 or 1.
 		 */
 		invpcid_flush_all();
 		return;
@@ -181,7 +193,31 @@ static inline void __native_flush_tlb_global(void)
 
 static inline void __native_flush_tlb_single(unsigned long addr)
 {
-	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
+	/*
+	 * SIMICS #GP's if you run INVPCID with type 2/3
+	 * and X86_CR4_PCIDE clear.  Shame!
+	 *
+	 * The ASIDs used below are hard-coded.  But, we must not
+	 * call invpcid(type=1/2) before CR4.PCIDE=1.  Just call
+	 * invpcid in the case we are called early.
+	 */
+	if (!this_cpu_has(X86_FEATURE_INVPCID_SINGLE)) {
+		asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
+		return;
+	}
+	/* Flush the address out of both PCIDs. */
+	/*
+	 * An optimization here might be to determine addresses
+	 * that are only kernel-mapped and only flush the kernel
+	 * ASID.  But, userspace flushes are probably much more
+	 * important performance-wise.
+	 *
+	 * Make sure to do only a single invpcid when KAISER is
+	 * disabled and we have only a single ASID.
+	 */
+	if (X86_CR3_PCID_ASID_KERN != X86_CR3_PCID_ASID_USER)
+		invpcid_flush_one(X86_CR3_PCID_ASID_KERN, addr);
+	invpcid_flush_one(X86_CR3_PCID_ASID_USER, addr);
 }
 
 static inline void __flush_tlb_all(void)
