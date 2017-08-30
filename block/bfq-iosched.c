@@ -4802,13 +4802,15 @@ static ssize_t bfq_var_show(unsigned int var, char *page)
 	return sprintf(page, "%u\n", var);
 }
 
-static void bfq_var_store(unsigned long *var, const char *page)
+static int bfq_var_store(unsigned long *var, const char *page)
 {
 	unsigned long new_val;
 	int ret = kstrtoul(page, 10, &new_val);
 
-	if (ret == 0)
-		*var = new_val;
+	if (ret)
+		return ret;
+	*var = new_val;
+	return 0;
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR, __CONV)				\
@@ -4849,8 +4851,12 @@ static ssize_t								\
 __FUNC(struct elevator_queue *e, const char *page, size_t count)	\
 {									\
 	struct bfq_data *bfqd = e->elevator_data;			\
-	unsigned long uninitialized_var(__data);			\
-	bfq_var_store(&__data, (page));					\
+	unsigned long __data;						\
+	int ret;							\
+									\
+	ret = bfq_var_store(&__data, (page));				\
+	if (ret)							\
+		return ret;						\
 	if (__data < (MIN))						\
 		__data = (MIN);						\
 	else if (__data > (MAX))					\
@@ -4877,8 +4883,12 @@ STORE_FUNCTION(bfq_slice_idle_store, &bfqd->bfq_slice_idle, 0, INT_MAX, 2);
 static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)\
 {									\
 	struct bfq_data *bfqd = e->elevator_data;			\
-	unsigned long uninitialized_var(__data);			\
-	bfq_var_store(&__data, (page));					\
+	unsigned long __data;						\
+	int ret;							\
+									\
+	ret = bfq_var_store(&__data, (page));				\
+	if (ret)							\
+		return ret;						\
 	if (__data < (MIN))						\
 		__data = (MIN);						\
 	else if (__data > (MAX))					\
@@ -4894,9 +4904,12 @@ static ssize_t bfq_max_budget_store(struct elevator_queue *e,
 				    const char *page, size_t count)
 {
 	struct bfq_data *bfqd = e->elevator_data;
-	unsigned long uninitialized_var(__data);
+	unsigned long __data;
+	int ret;
 
-	bfq_var_store(&__data, (page));
+	ret = bfq_var_store(&__data, (page));
+	if (ret)
+		return ret;
 
 	if (__data == 0)
 		bfqd->bfq_max_budget = bfq_calc_max_budget(bfqd);
@@ -4919,9 +4932,12 @@ static ssize_t bfq_timeout_sync_store(struct elevator_queue *e,
 				      const char *page, size_t count)
 {
 	struct bfq_data *bfqd = e->elevator_data;
-	unsigned long uninitialized_var(__data);
+	unsigned long __data;
+	int ret;
 
-	bfq_var_store(&__data, (page));
+	ret = bfq_var_store(&__data, (page));
+	if (ret)
+		return ret;
 
 	if (__data < 1)
 		__data = 1;
@@ -4939,9 +4955,12 @@ static ssize_t bfq_strict_guarantees_store(struct elevator_queue *e,
 				     const char *page, size_t count)
 {
 	struct bfq_data *bfqd = e->elevator_data;
-	unsigned long uninitialized_var(__data);
+	unsigned long __data;
+	int ret;
 
-	bfq_var_store(&__data, (page));
+	ret = bfq_var_store(&__data, (page));
+	if (ret)
+		return ret;
 
 	if (__data > 1)
 		__data = 1;
@@ -4958,9 +4977,12 @@ static ssize_t bfq_low_latency_store(struct elevator_queue *e,
 				     const char *page, size_t count)
 {
 	struct bfq_data *bfqd = e->elevator_data;
-	unsigned long uninitialized_var(__data);
+	unsigned long __data;
+	int ret;
 
-	bfq_var_store(&__data, (page));
+	ret = bfq_var_store(&__data, (page));
+	if (ret)
+		return ret;
 
 	if (__data > 1)
 		__data = 1;
