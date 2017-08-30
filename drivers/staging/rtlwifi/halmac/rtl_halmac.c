@@ -382,13 +382,7 @@ static void deinit_priv(struct rtl_halmac *halmac)
 
 	indicator = halmac->indicator;
 	halmac->indicator = NULL;
-	if (indicator) {
-		u32 count, size;
-
-		count = HALMAC_FEATURE_ALL + 1;
-		size = sizeof(*indicator) * count;
-		kfree((u8 *)indicator);
-	}
+	kfree(indicator);
 }
 
 int rtl_halmac_init_adapter(struct rtl_priv *rtlpriv)
