@@ -938,11 +938,11 @@ static int qcom_glink_rx_open_ack(struct qcom_glink *glink, unsigned int lcid)
 
 	spin_lock(&glink->idr_lock);
 	channel = idr_find(&glink->lcids, lcid);
+	spin_unlock(&glink->idr_lock);
 	if (!channel) {
 		dev_err(glink->dev, "Invalid open ack packet\n");
 		return -EINVAL;
 	}
-	spin_unlock(&glink->idr_lock);
 
 	complete(&channel->open_ack);
 
