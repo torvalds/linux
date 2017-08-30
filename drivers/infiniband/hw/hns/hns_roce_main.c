@@ -381,7 +381,8 @@ static int hns_roce_mmap(struct ib_ucontext *context,
 				       to_hr_ucontext(context)->uar.pfn,
 				       PAGE_SIZE, vma->vm_page_prot))
 			return -EAGAIN;
-	} else if (vma->vm_pgoff == 1 && hr_dev->hw_rev == HNS_ROCE_HW_VER1) {
+	} else if (vma->vm_pgoff == 1 && hr_dev->tptr_dma_addr &&
+		   hr_dev->tptr_size) {
 		/* vm_pgoff: 1 -- TPTR */
 		if (io_remap_pfn_range(vma, vma->vm_start,
 				       hr_dev->tptr_dma_addr >> PAGE_SHIFT,
