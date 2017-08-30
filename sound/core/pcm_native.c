@@ -1830,7 +1830,6 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 		add_wait_queue(&to_check->sleep, &wait);
 		snd_pcm_stream_unlock_irq(substream);
 		up_read(&snd_pcm_link_rwsem);
-		snd_power_unlock(card);
 		if (runtime->no_period_wakeup)
 			tout = MAX_SCHEDULE_TIMEOUT;
 		else {
@@ -1842,7 +1841,6 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 			tout = msecs_to_jiffies(tout * 1000);
 		}
 		tout = schedule_timeout_interruptible(tout);
-		snd_power_lock(card);
 		down_read(&snd_pcm_link_rwsem);
 		snd_pcm_stream_lock_irq(substream);
 		remove_wait_queue(&to_check->sleep, &wait);
@@ -2764,11 +2762,16 @@ static int snd_pcm_tstamp(struct snd_pcm_substream *substream, int __user *_arg)
 	return 0;
 }
 		
-static int snd_pcm_common_ioctl(struct file *file,
+static int snd_pcm_common_ioctl1(struct file *file,
 				 struct snd_pcm_substream *substream,
 				 unsigned int cmd, void __user *arg)
 {
 	struct snd_pcm_file *pcm_file = file->private_data;
+	int res;
+
+	res = snd_power_wait(substream->pcm->card, SNDRV_CTL_POWER_D0);
+	if (res < 0)
+		return res;
 
 	switch (cmd) {
 	case SNDRV_PCM_IOCTL_PVERSION:
@@ -2844,21 +2847,6 @@ static int snd_pcm_common_ioctl(struct file *file,
 	}
 	pcm_dbg(substream->pcm, "unknown ioctl = 0x%x\n", cmd);
 	return -ENOTTY;
-}
-
-static int snd_pcm_common_ioctl1(struct file *file,
-				 struct snd_pcm_substream *substream,
-				 unsigned int cmd, void __user *arg)
-{
-	struct snd_card *card = substream->pcm->card;
-	int res;
-
-	snd_power_lock(card);
-	res = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-	if (res >= 0)
-		res = snd_pcm_common_ioctl(file, substream, cmd, arg);
-	snd_power_unlock(card);
-	return res;
 }
 
 static int snd_pcm_playback_ioctl1(struct file *file,
@@ -3064,7 +3052,6 @@ int snd_pcm_kernel_ioctl(struct snd_pcm_substream *substream,
 {
 	snd_pcm_uframes_t *frames = arg;
 	snd_pcm_sframes_t result;
-	int err;
 	
 	switch (cmd) {
 	case SNDRV_PCM_IOCTL_FORWARD:
@@ -3084,10 +3071,7 @@ int snd_pcm_kernel_ioctl(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_IOCTL_START:
 		return snd_pcm_start_lock_irq(substream);
 	case SNDRV_PCM_IOCTL_DRAIN:
-		snd_power_lock(substream->pcm->card);
-		err = snd_pcm_drain(substream, NULL);
-		snd_power_unlock(substream->pcm->card);
-		return err;
+		return snd_pcm_drain(substream, NULL);
 	case SNDRV_PCM_IOCTL_DROP:
 		return snd_pcm_drop(substream);
 	case SNDRV_PCM_IOCTL_DELAY:

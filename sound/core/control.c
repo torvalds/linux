@@ -864,14 +864,14 @@ static int snd_ctl_elem_info_user(struct snd_ctl_file *ctl,
 
 	if (copy_from_user(&info, _info, sizeof(info)))
 		return -EFAULT;
-	snd_power_lock(ctl->card);
 	result = snd_power_wait(ctl->card, SNDRV_CTL_POWER_D0);
-	if (result >= 0)
-		result = snd_ctl_elem_info(ctl, &info);
-	snd_power_unlock(ctl->card);
-	if (result >= 0)
-		if (copy_to_user(_info, &info, sizeof(info)))
-			return -EFAULT;
+	if (result < 0)
+		return result;
+	result = snd_ctl_elem_info(ctl, &info);
+	if (result < 0)
+		return result;
+	if (copy_to_user(_info, &info, sizeof(info)))
+		return -EFAULT;
 	return result;
 }
 
@@ -905,17 +905,19 @@ static int snd_ctl_elem_read_user(struct snd_card *card,
 	if (IS_ERR(control))
 		return PTR_ERR(control);
 
-	snd_power_lock(card);
 	result = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-	if (result >= 0) {
-		down_read(&card->controls_rwsem);
-		result = snd_ctl_elem_read(card, control);
-		up_read(&card->controls_rwsem);
-	}
-	snd_power_unlock(card);
-	if (result >= 0)
-		if (copy_to_user(_control, control, sizeof(*control)))
-			result = -EFAULT;
+	if (result < 0)
+		goto error;
+
+	down_read(&card->controls_rwsem);
+	result = snd_ctl_elem_read(card, control);
+	up_read(&card->controls_rwsem);
+	if (result < 0)
+		goto error;
+
+	if (copy_to_user(_control, control, sizeof(*control)))
+		result = -EFAULT;
+ error:
 	kfree(control);
 	return result;
 }
@@ -964,17 +966,19 @@ static int snd_ctl_elem_write_user(struct snd_ctl_file *file,
 		return PTR_ERR(control);
 
 	card = file->card;
-	snd_power_lock(card);
 	result = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-	if (result >= 0) {
-		down_write(&card->controls_rwsem);
-		result = snd_ctl_elem_write(card, file, control);
-		up_write(&card->controls_rwsem);
-	}
-	snd_power_unlock(card);
-	if (result >= 0)
-		if (copy_to_user(_control, control, sizeof(*control)))
-			result = -EFAULT;
+	if (result < 0)
+		goto error;
+
+	down_write(&card->controls_rwsem);
+	result = snd_ctl_elem_write(card, file, control);
+	up_write(&card->controls_rwsem);
+	if (result < 0)
+		goto error;
+
+	if (copy_to_user(_control, control, sizeof(*control)))
+		result = -EFAULT;
+ error:
 	kfree(control);
 	return result;
 }

@@ -136,7 +136,6 @@ struct snd_card {
 
 #ifdef CONFIG_PM
 	unsigned int power_state;	/* power state */
-	struct mutex power_lock;	/* power lock */
 	wait_queue_head_t power_sleep;
 #endif
 
@@ -149,16 +148,6 @@ struct snd_card {
 #define dev_to_snd_card(p)	container_of(p, struct snd_card, card_dev)
 
 #ifdef CONFIG_PM
-static inline void snd_power_lock(struct snd_card *card)
-{
-	mutex_lock(&card->power_lock);
-}
-
-static inline void snd_power_unlock(struct snd_card *card)
-{
-	mutex_unlock(&card->power_lock);
-}
-
 static inline unsigned int snd_power_get_state(struct snd_card *card)
 {
 	return card->power_state;
@@ -175,8 +164,6 @@ int snd_power_wait(struct snd_card *card, unsigned int power_state);
 
 #else /* ! CONFIG_PM */
 
-#define snd_power_lock(card)		do { (void)(card); } while (0)
-#define snd_power_unlock(card)		do { (void)(card); } while (0)
 static inline int snd_power_wait(struct snd_card *card, unsigned int state) { return 0; }
 #define snd_power_get_state(card)	({ (void)(card); SNDRV_CTL_POWER_D0; })
 #define snd_power_change_state(card, state)	do { (void)(card); } while (0)
