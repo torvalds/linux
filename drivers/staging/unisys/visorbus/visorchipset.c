@@ -312,8 +312,8 @@ static void *parser_string_get(struct parser_context *ctx)
 {
 	u8 *pscan;
 	unsigned long nscan;
-	int value_length = -1;
-	void *value = NULL;
+	int value_length;
+	void *value;
 	int i;
 
 	pscan = ctx->curr;
