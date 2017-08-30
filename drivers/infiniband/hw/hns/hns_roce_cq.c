@@ -195,14 +195,15 @@ void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	if (ret)
 		dev_err(dev, "HW2SW_CQ failed (%d) for CQN %06lx\n", ret,
 			hr_cq->cqn);
+	if (hr_dev->eq_table.eq) {
+		/* Waiting interrupt process procedure carried out */
+		synchronize_irq(hr_dev->eq_table.eq[hr_cq->vector].irq);
 
-	/* Waiting interrupt process procedure carried out */
-	synchronize_irq(hr_dev->eq_table.eq[hr_cq->vector].irq);
-
-	/* wait for all interrupt processed */
-	if (atomic_dec_and_test(&hr_cq->refcount))
-		complete(&hr_cq->free);
-	wait_for_completion(&hr_cq->free);
+		/* wait for all interrupt processed */
+		if (atomic_dec_and_test(&hr_cq->refcount))
+			complete(&hr_cq->free);
+		wait_for_completion(&hr_cq->free);
+	}
 
 	spin_lock_irq(&cq_table->lock);
 	radix_tree_delete(&cq_table->tree, hr_cq->cqn);
@@ -303,7 +304,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	struct hns_roce_uar *uar = NULL;
 	int vector = attr->comp_vector;
 	int cq_entries = attr->cqe;
-	int ret = 0;
+	int ret;
 
 	if (cq_entries < 1 || cq_entries > hr_dev->caps.max_cqes) {
 		dev_err(dev, "Creat CQ failed. entries=%d, max=%d\n",
@@ -311,13 +312,12 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	hr_cq = kmalloc(sizeof(*hr_cq), GFP_KERNEL);
+	hr_cq = kzalloc(sizeof(*hr_cq), GFP_KERNEL);
 	if (!hr_cq)
 		return ERR_PTR(-ENOMEM);
 
-	/* In v1 engine, parameter verification */
-	if (cq_entries < HNS_ROCE_MIN_CQE_NUM)
-		cq_entries = HNS_ROCE_MIN_CQE_NUM;
+	if (hr_dev->caps.min_cqes)
+		cq_entries = max(cq_entries, hr_dev->caps.min_cqes);
 
 	cq_entries = roundup_pow_of_two((unsigned int)cq_entries);
 	hr_cq->ib_cq.cqe = cq_entries - 1;
@@ -369,7 +369,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	 * problems if tptr is set to zero here, so we initialze it in user
 	 * space.
 	 */
-	if (!context)
+	if (!context && hr_cq->tptr_addr)
 		*hr_cq->tptr_addr = 0;
 
 	/* Get created cq handler and carry out event */

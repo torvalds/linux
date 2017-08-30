@@ -100,6 +100,61 @@
 	(step_idx == 1 && hop_num == 1) || \
 	(step_idx == 2 && hop_num == 2))
 
+#define V2_CQ_DB_REQ_NOT_SOL			0
+#define V2_CQ_DB_REQ_NOT			1
+
+#define V2_CQ_STATE_VALID			1
+
+#define HNS_ROCE_V2_CQE_QPN_MASK		0x3ffff
+
+enum {
+	HNS_ROCE_SQ_OPCODE_SEND = 0x0,
+	HNS_ROCE_SQ_OPCODE_SEND_WITH_INV = 0x1,
+	HNS_ROCE_SQ_OPCODE_SEND_WITH_IMM = 0x2,
+	HNS_ROCE_SQ_OPCODE_RDMA_WRITE = 0x3,
+	HNS_ROCE_SQ_OPCODE_RDMA_WRITE_WITH_IMM = 0x4,
+	HNS_ROCE_SQ_OPCODE_RDMA_READ = 0x5,
+	HNS_ROCE_SQ_OPCODE_ATOMIC_COMP_AND_SWAP = 0x6,
+	HNS_ROCE_SQ_OPCODE_ATOMIC_FETCH_AND_ADD = 0x7,
+	HNS_ROCE_SQ_OPCODE_ATOMIC_MASK_COMP_AND_SWAP = 0x8,
+	HNS_ROCE_SQ_OPCODE_ATOMIC_MASK_FETCH_AND_ADD = 0x9,
+	HNS_ROCE_SQ_OPCODE_FAST_REG_WR = 0xa,
+	HNS_ROCE_SQ_OPCODE_LOCAL_INV = 0xb,
+	HNS_ROCE_SQ_OPCODE_BIND_MW = 0xc,
+};
+
+enum {
+	/* rq operations */
+	HNS_ROCE_V2_OPCODE_RDMA_WRITE_IMM = 0x0,
+	HNS_ROCE_V2_OPCODE_SEND = 0x1,
+	HNS_ROCE_V2_OPCODE_SEND_WITH_IMM = 0x2,
+	HNS_ROCE_V2_OPCODE_SEND_WITH_INV = 0x3,
+};
+
+enum {
+	HNS_ROCE_V2_CQ_DB_PTR	= 0x3,
+	HNS_ROCE_V2_CQ_DB_NTR	= 0x4,
+};
+
+enum {
+	HNS_ROCE_CQE_V2_SUCCESS				= 0x00,
+	HNS_ROCE_CQE_V2_LOCAL_LENGTH_ERR		= 0x01,
+	HNS_ROCE_CQE_V2_LOCAL_QP_OP_ERR			= 0x02,
+	HNS_ROCE_CQE_V2_LOCAL_PROT_ERR			= 0x04,
+	HNS_ROCE_CQE_V2_WR_FLUSH_ERR			= 0x05,
+	HNS_ROCE_CQE_V2_MW_BIND_ERR			= 0x06,
+	HNS_ROCE_CQE_V2_BAD_RESP_ERR			= 0x10,
+	HNS_ROCE_CQE_V2_LOCAL_ACCESS_ERR		= 0x11,
+	HNS_ROCE_CQE_V2_REMOTE_INVAL_REQ_ERR		= 0x12,
+	HNS_ROCE_CQE_V2_REMOTE_ACCESS_ERR		= 0x13,
+	HNS_ROCE_CQE_V2_REMOTE_OP_ERR			= 0x14,
+	HNS_ROCE_CQE_V2_TRANSPORT_RETRY_EXC_ERR		= 0x15,
+	HNS_ROCE_CQE_V2_RNR_RETRY_EXC_ERR		= 0x16,
+	HNS_ROCE_CQE_V2_REMOTE_ABORT_ERR		= 0x22,
+
+	HNS_ROCE_V2_CQE_STATUS_MASK			= 0xff,
+};
+
 /* CMQ command */
 enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_QUERY_HW_VER			= 0x8000,
@@ -121,6 +176,173 @@ enum hns_roce_cmd_return_status {
 	CMD_NOT_EXEC		= 2,
 	CMD_QUEUE_FULL		= 3,
 };
+
+struct hns_roce_v2_cq_context {
+	u32	byte_4_pg_ceqn;
+	u32	byte_8_cqn;
+	u32	cqe_cur_blk_addr;
+	u32	byte_16_hop_addr;
+	u32	cqe_nxt_blk_addr;
+	u32	byte_24_pgsz_addr;
+	u32	byte_28_cq_pi;
+	u32	byte_32_cq_ci;
+	u32	cqe_ba;
+	u32	byte_40_cqe_ba;
+	u32	byte_44_db_record;
+	u32	db_record_addr;
+	u32	byte_52_cqe_cnt;
+	u32	byte_56_cqe_period_maxcnt;
+	u32	cqe_report_timer;
+	u32	byte_64_se_cqe_idx;
+};
+#define	V2_CQC_BYTE_4_CQ_ST_S 0
+#define V2_CQC_BYTE_4_CQ_ST_M GENMASK(1, 0)
+
+#define	V2_CQC_BYTE_4_POLL_S 2
+
+#define	V2_CQC_BYTE_4_SE_S 3
+
+#define	V2_CQC_BYTE_4_OVER_IGNORE_S 4
+
+#define	V2_CQC_BYTE_4_COALESCE_S 5
+
+#define	V2_CQC_BYTE_4_ARM_ST_S 6
+#define V2_CQC_BYTE_4_ARM_ST_M GENMASK(7, 6)
+
+#define	V2_CQC_BYTE_4_SHIFT_S 8
+#define V2_CQC_BYTE_4_SHIFT_M GENMASK(12, 8)
+
+#define	V2_CQC_BYTE_4_CMD_SN_S 13
+#define V2_CQC_BYTE_4_CMD_SN_M GENMASK(14, 13)
+
+#define	V2_CQC_BYTE_4_CEQN_S 15
+#define V2_CQC_BYTE_4_CEQN_M GENMASK(23, 15)
+
+#define	V2_CQC_BYTE_4_PAGE_OFFSET_S 24
+#define V2_CQC_BYTE_4_PAGE_OFFSET_M GENMASK(31, 24)
+
+#define	V2_CQC_BYTE_8_CQN_S 0
+#define V2_CQC_BYTE_8_CQN_M GENMASK(23, 0)
+
+#define	V2_CQC_BYTE_16_CQE_CUR_BLK_ADDR_S 0
+#define V2_CQC_BYTE_16_CQE_CUR_BLK_ADDR_M GENMASK(19, 0)
+
+#define	V2_CQC_BYTE_16_CQE_HOP_NUM_S 30
+#define V2_CQC_BYTE_16_CQE_HOP_NUM_M GENMASK(31, 30)
+
+#define	V2_CQC_BYTE_24_CQE_NXT_BLK_ADDR_S 0
+#define V2_CQC_BYTE_24_CQE_NXT_BLK_ADDR_M GENMASK(19, 0)
+
+#define	V2_CQC_BYTE_24_CQE_BA_PG_SZ_S 24
+#define V2_CQC_BYTE_24_CQE_BA_PG_SZ_M GENMASK(27, 24)
+
+#define	V2_CQC_BYTE_24_CQE_BUF_PG_SZ_S 28
+#define V2_CQC_BYTE_24_CQE_BUF_PG_SZ_M GENMASK(31, 28)
+
+#define	V2_CQC_BYTE_28_CQ_PRODUCER_IDX_S 0
+#define V2_CQC_BYTE_28_CQ_PRODUCER_IDX_M GENMASK(23, 0)
+
+#define	V2_CQC_BYTE_32_CQ_CONSUMER_IDX_S 0
+#define V2_CQC_BYTE_32_CQ_CONSUMER_IDX_M GENMASK(23, 0)
+
+#define	V2_CQC_BYTE_40_CQE_BA_S 0
+#define V2_CQC_BYTE_40_CQE_BA_M GENMASK(28, 0)
+
+#define	V2_CQC_BYTE_44_DB_RECORD_EN_S 0
+
+#define	V2_CQC_BYTE_52_CQE_CNT_S 0
+#define	V2_CQC_BYTE_52_CQE_CNT_M GENMASK(23, 0)
+
+#define	V2_CQC_BYTE_56_CQ_MAX_CNT_S 0
+#define V2_CQC_BYTE_56_CQ_MAX_CNT_M GENMASK(15, 0)
+
+#define	V2_CQC_BYTE_56_CQ_PERIOD_S 16
+#define V2_CQC_BYTE_56_CQ_PERIOD_M GENMASK(31, 16)
+
+#define	V2_CQC_BYTE_64_SE_CQE_IDX_S 0
+#define	V2_CQC_BYTE_64_SE_CQE_IDX_M GENMASK(23, 0)
+
+struct hns_roce_v2_cqe {
+	u32	byte_4;
+	u32	rkey_immtdata;
+	u32	byte_12;
+	u32	byte_16;
+	u32	byte_cnt;
+	u32	smac;
+	u32	byte_28;
+	u32	byte_32;
+};
+
+#define	V2_CQE_BYTE_4_OPCODE_S 0
+#define V2_CQE_BYTE_4_OPCODE_M GENMASK(4, 0)
+
+#define	V2_CQE_BYTE_4_RQ_INLINE_S 5
+
+#define	V2_CQE_BYTE_4_S_R_S 6
+
+#define	V2_CQE_BYTE_4_OWNER_S 7
+
+#define	V2_CQE_BYTE_4_STATUS_S 8
+#define V2_CQE_BYTE_4_STATUS_M GENMASK(15, 8)
+
+#define	V2_CQE_BYTE_4_WQE_INDX_S 16
+#define V2_CQE_BYTE_4_WQE_INDX_M GENMASK(31, 16)
+
+#define	V2_CQE_BYTE_12_XRC_SRQN_S 0
+#define V2_CQE_BYTE_12_XRC_SRQN_M GENMASK(23, 0)
+
+#define	V2_CQE_BYTE_16_LCL_QPN_S 0
+#define V2_CQE_BYTE_16_LCL_QPN_M GENMASK(23, 0)
+
+#define	V2_CQE_BYTE_16_SUB_STATUS_S 24
+#define V2_CQE_BYTE_16_SUB_STATUS_M GENMASK(31, 24)
+
+#define	V2_CQE_BYTE_28_SMAC_4_S 0
+#define V2_CQE_BYTE_28_SMAC_4_M	GENMASK(7, 0)
+
+#define	V2_CQE_BYTE_28_SMAC_5_S 8
+#define V2_CQE_BYTE_28_SMAC_5_M	GENMASK(15, 8)
+
+#define	V2_CQE_BYTE_28_PORT_TYPE_S 16
+#define V2_CQE_BYTE_28_PORT_TYPE_M GENMASK(17, 16)
+
+#define	V2_CQE_BYTE_32_RMT_QPN_S 0
+#define V2_CQE_BYTE_32_RMT_QPN_M GENMASK(23, 0)
+
+#define	V2_CQE_BYTE_32_SL_S 24
+#define V2_CQE_BYTE_32_SL_M GENMASK(26, 24)
+
+#define	V2_CQE_BYTE_32_PORTN_S 27
+#define V2_CQE_BYTE_32_PORTN_M GENMASK(29, 27)
+
+#define	V2_CQE_BYTE_32_GRH_S 30
+
+#define	V2_CQE_BYTE_32_LPK_S 31
+
+#define	V2_DB_BYTE_4_TAG_S 0
+#define V2_DB_BYTE_4_TAG_M GENMASK(23, 0)
+
+#define	V2_DB_BYTE_4_CMD_S 24
+#define V2_DB_BYTE_4_CMD_M GENMASK(27, 24)
+
+struct hns_roce_v2_cq_db {
+	u32	byte_4;
+	u32	parameter;
+};
+
+#define	V2_CQ_DB_BYTE_4_TAG_S 0
+#define V2_CQ_DB_BYTE_4_TAG_M GENMASK(23, 0)
+
+#define	V2_CQ_DB_BYTE_4_CMD_S 24
+#define V2_CQ_DB_BYTE_4_CMD_M GENMASK(27, 24)
+
+#define V2_CQ_DB_PARAMETER_CONS_IDX_S 0
+#define V2_CQ_DB_PARAMETER_CONS_IDX_M GENMASK(23, 0)
+
+#define V2_CQ_DB_PARAMETER_CMD_SN_S 25
+#define V2_CQ_DB_PARAMETER_CMD_SN_M GENMASK(26, 25)
+
+#define V2_CQ_DB_PARAMETER_NOTIFY_S 24
 
 struct hns_roce_query_version {
 	__le16 rocee_vendor_id;

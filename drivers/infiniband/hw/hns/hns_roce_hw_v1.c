@@ -1476,6 +1476,7 @@ int hns_roce_v1_profile(struct hns_roce_dev *hr_dev)
 	caps->num_qps		= HNS_ROCE_V1_MAX_QP_NUM;
 	caps->max_wqes		= HNS_ROCE_V1_MAX_WQE_NUM;
 	caps->num_cqs		= HNS_ROCE_V1_MAX_CQ_NUM;
+	caps->min_cqes		= HNS_ROCE_MIN_CQE_NUM;
 	caps->max_cqes		= HNS_ROCE_V1_MAX_CQE_NUM;
 	caps->max_sq_sg		= HNS_ROCE_V1_SG_NUM;
 	caps->max_rq_sg		= HNS_ROCE_V1_SG_NUM;

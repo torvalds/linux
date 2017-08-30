@@ -508,6 +508,7 @@ struct hns_roce_caps {
 	int		max_qp_dest_rdma;
 	int		num_cqs;
 	int		max_cqes;
+	int		min_cqes;
 	int		reserved_cqs;
 	int		num_aeq_vectors;	/* 1 */
 	int		num_comp_vectors;	/* 32 ceq */
