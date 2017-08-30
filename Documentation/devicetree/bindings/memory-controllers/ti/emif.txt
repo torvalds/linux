@@ -7,8 +7,10 @@ of the EMIF IP and memory parts attached to it.
 
 Required properties:
 - compatible	: Should be of the form "ti,emif-<ip-rev>" where <ip-rev>
-  is the IP revision of the specific EMIF instance.
-		  For am437x should be ti,emif-am4372.
+  is the IP revision of the specific EMIF instance. For newer controllers,
+  compatible should be one of the following:
+  	     "ti,emif-am3352"
+	     "ti,emif-am4372"
 
 - phy-type	: <u32> indicating the DDR phy type. Following are the
   allowed values
