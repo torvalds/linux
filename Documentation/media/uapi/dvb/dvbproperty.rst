@@ -2,8 +2,9 @@
 
 .. _frontend-properties:
 
-DVB Frontend properties
-=======================
+**************
+Property types
+**************
 
 Tuning into a Digital TV physical channel and starting decoding it
 requires changing a set of parameters, in order to control the tuner,
@@ -20,10 +21,15 @@ enough to group the structs that would be required for those new
 standards. Also, extending it would break userspace.
 
 So, the legacy union/struct based approach was deprecated, in favor
-of a properties set approach.
+of a properties set approach. On such approach,
+:ref:`FE_GET_PROPERTY and FE_SET_PROPERTY <FE_GET_PROPERTY>` are used
+to setup the frontend and read its status.
+
+The actual action is determined by a set of dtv_property cmd/data pairs.
+With one single ioctl, is possible to get/set up to 64 properties.
 
 This section describes the new and recommended way to set the frontend,
-with suppports all digital TV delivery systems.
+with supports all digital TV delivery systems.
 
 .. note::
 
@@ -63,12 +69,9 @@ Mbauds, those properties should be sent to
 The code that would that would do the above is show in
 :ref:`dtv-prop-example`.
 
-.. _dtv-prop-example:
-
-Example: Setting digital TV frontend properties
-===============================================
-
 .. code-block:: c
+    :caption: Example: Setting digital TV frontend properties
+    :name: dtv-prop-example
 
     #include <stdio.h>
     #include <fcntl.h>
@@ -112,17 +115,12 @@ Example: Setting digital TV frontend properties
    provides methods for usual operations like program scanning and to
    read/write channel descriptor files.
 
-
 .. toctree::
     :maxdepth: 1
 
-    dtv-stats
-    dtv-fe-stats
-    dtv-property
-    dtv-properties
-    dvbproperty-006
     fe_property_parameters
     frontend-stat-properties
     frontend-property-terrestrial-systems
     frontend-property-cable-systems
     frontend-property-satellite-systems
+    frontend-header

@@ -26,7 +26,7 @@ Arguments
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
 ``tone``
-    an integer enumered value described at :c:type:`fe_sec_mini_cmd`
+    An integer enumered value described at :c:type:`fe_sec_mini_cmd`.
 
 
 Description
@@ -38,35 +38,6 @@ read/write permissions.
 
 It provides support for what's specified at
 `Digital Satellite Equipment Control (DiSEqC) - Simple "ToneBurst" Detection Circuit specification. <http://www.eutelsat.com/files/contributed/satellites/pdf/Diseqc/associated%20docs/simple_tone_burst_detec.pdf>`__
-
-.. c:type:: fe_sec_mini_cmd
-
-.. flat-table:: enum fe_sec_mini_cmd
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _SEC-MINI-A:
-
-	  ``SEC_MINI_A``
-
-       -  Sends a mini-DiSEqC 22kHz '0' Tone Burst to select satellite-A
-
-    -  .. row 3
-
-       -  .. _SEC-MINI-B:
-
-	  ``SEC_MINI_B``
-
-       -  Sends a mini-DiSEqC 22kHz '1' Data Burst to select satellite-B
 
 
 Return Value

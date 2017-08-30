@@ -33,34 +33,7 @@ Arguments
 Description
 ===========
 
-Sends a DiSEqC command to the antenna subsystem.
-
-
-.. c:type:: dvb_diseqc_master_cmd
-
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
-
-.. flat-table:: struct dvb_diseqc_master_cmd
-    :header-rows:  0
-    :stub-columns: 0
-    :widths:       1 1 2
-
-
-    -  .. row 1
-
-       -  uint8_t
-
-       -  msg[6]
-
-       -  DiSEqC message (framing, address, command, data[3])
-
-    -  .. row 2
-
-       -  uint8_t
-
-       -  msg_len
-
-       -  Length of the DiSEqC message. Valid values are 3 to 6
+Sends the DiSEqC command pointed by ``argp`` to the antenna subsystem.
 
 Return Value
 ============

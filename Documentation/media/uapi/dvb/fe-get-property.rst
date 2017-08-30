@@ -29,7 +29,7 @@ Arguments
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
 ``argp``
-    pointer to struct :c:type:`dtv_properties`
+    Pointer to struct :c:type:`dtv_properties`.
 
 
 Description
