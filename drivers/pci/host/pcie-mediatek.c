@@ -77,7 +77,6 @@
 #define PCIE_INT_MASK		0x420
 #define INTX_MASK		GENMASK(19, 16)
 #define INTX_SHIFT		16
-#define INTX_NUM		4
 #define PCIE_INT_STATUS		0x424
 #define MSI_STATUS		BIT(23)
 #define PCIE_IMSI_STATUS	0x42c
@@ -576,7 +575,7 @@ static int mtk_pcie_init_irq_domain(struct mtk_pcie_port *port,
 		return -ENODEV;
 	}
 
-	port->irq_domain = irq_domain_add_linear(pcie_intc_node, INTX_NUM,
+	port->irq_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
 						 &intx_domain_ops, port);
 	if (!port->irq_domain) {
 		dev_err(dev, "failed to get INTx IRQ domain\n");
@@ -605,7 +604,7 @@ static irqreturn_t mtk_pcie_intr_handler(int irq, void *data)
 	u32 bit = INTX_SHIFT;
 
 	while ((status = readl(port->base + PCIE_INT_STATUS)) & INTX_MASK) {
-		for_each_set_bit_from(bit, &status, INTX_NUM + INTX_SHIFT) {
+		for_each_set_bit_from(bit, &status, PCI_NUM_INTX + INTX_SHIFT) {
 			/* Clear the INTx */
 			writel(1 << bit, port->base + PCIE_INT_STATUS);
 			virq = irq_find_mapping(port->irq_domain,
