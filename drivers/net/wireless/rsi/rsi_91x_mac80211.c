@@ -592,7 +592,6 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
-	struct ieee80211_vif *vif = adapter->vifs[0];
 	struct ieee80211_conf *conf = &hw->conf;
 	int status = -EOPNOTSUPP;
 
@@ -608,16 +607,30 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 	}
 
 	/* Power save parameters */
-	if ((changed & IEEE80211_CONF_CHANGE_PS) &&
-	    (vif->type == NL80211_IFTYPE_STATION)) {
+	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		struct ieee80211_vif *vif;
 		unsigned long flags;
+		int i, set_ps = 1;
 
-		spin_lock_irqsave(&adapter->ps_lock, flags);
-		if (conf->flags & IEEE80211_CONF_PS)
-			rsi_enable_ps(adapter);
-		else
-			rsi_disable_ps(adapter);
-		spin_unlock_irqrestore(&adapter->ps_lock, flags);
+		for (i = 0; i < RSI_MAX_VIFS; i++) {
+			vif = adapter->vifs[i];
+			if (!vif)
+				continue;
+			/* Don't go to power save if AP vap exists */
+			if ((vif->type == NL80211_IFTYPE_AP) ||
+			    (vif->type == NL80211_IFTYPE_P2P_GO)) {
+				set_ps = 0;
+				break;
+			}
+		}
+		if (set_ps) {
+			spin_lock_irqsave(&adapter->ps_lock, flags);
+			if (conf->flags & IEEE80211_CONF_PS)
+				rsi_enable_ps(adapter, vif);
+			else
+				rsi_disable_ps(adapter, vif);
+			spin_unlock_irqrestore(&adapter->ps_lock, flags);
+		}
 	}
 
 	/* RTS threshold */
@@ -726,7 +739,7 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 	if (bss->assoc) {
 		if (common->uapsd_bitmap) {
 			rsi_dbg(INFO_ZONE, "Configuring UAPSD\n");
-			rsi_conf_uapsd(adapter);
+			rsi_conf_uapsd(adapter, vif);
 		}
 	} else {
 		common->uapsd_bitmap = 0;

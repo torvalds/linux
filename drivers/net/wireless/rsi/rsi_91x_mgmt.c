@@ -1474,10 +1474,11 @@ int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word)
 	return rsi_send_internal_mgmt_frame(common, skb);
 }
 
-int rsi_send_ps_request(struct rsi_hw *adapter, bool enable)
+int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
+			struct ieee80211_vif *vif)
 {
 	struct rsi_common *common = adapter->priv;
-	struct ieee80211_bss_conf *bss = &adapter->vifs[0]->bss_conf;
+	struct ieee80211_bss_conf *bss = &vif->bss_conf;
 	struct rsi_request_ps *ps;
 	struct rsi_ps_info *ps_info;
 	struct sk_buff *skb;

@@ -641,4 +641,6 @@ int rsi_band_check(struct rsi_common *common, struct ieee80211_channel *chan);
 int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word);
 int rsi_send_radio_params_update(struct rsi_common *common);
 int rsi_set_antenna(struct rsi_common *common, u8 antenna);
+int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
+			struct ieee80211_vif *vif);
 #endif
