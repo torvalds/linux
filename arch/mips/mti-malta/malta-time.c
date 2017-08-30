@@ -86,7 +86,7 @@ static void __init estimate_frequencies(void)
 	local_irq_save(flags);
 
 	if (gic_present)
-		gic_start_count();
+		clear_gic_config(GIC_CONFIG_COUNTSTOP);
 
 	/*
 	 * Read counters exactly on rising edge of update flag.
@@ -96,7 +96,7 @@ static void __init estimate_frequencies(void)
 	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
 	start = read_c0_count();
 	if (gic_present)
-		gicstart = gic_read_count();
+		gicstart = read_gic_counter();
 
 	/* Wait for falling edge before reading RTC. */
 	while (CMOS_READ(RTC_REG_A) & RTC_UIP);
@@ -106,7 +106,7 @@ static void __init estimate_frequencies(void)
 	while (!(CMOS_READ(RTC_REG_A) & RTC_UIP));
 	count = read_c0_count();
 	if (gic_present)
-		giccount = gic_read_count();
+		giccount = read_gic_counter();
 
 	/* Wait for falling edge before reading RTC again. */
 	while (CMOS_READ(RTC_REG_A) & RTC_UIP);
