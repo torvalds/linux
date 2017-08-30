@@ -20,9 +20,8 @@
 #include "visorbus_private.h"
 
 /* {72120008-4AAB-11DC-8530-444553544200} */
-#define VISOR_SIOVM_GUID \
-        GUID_INIT(0x72120008, 0x4AAB, 0x11DC, \
-                  0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
+#define VISOR_SIOVM_GUID GUID_INIT(0x72120008, 0x4AAB, 0x11DC, 0x85, 0x30, \
+				   0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
 
 static const guid_t visor_vhba_channel_guid = VISOR_VHBA_CHANNEL_GUID;
 static const guid_t visor_siovm_guid = VISOR_SIOVM_GUID;
