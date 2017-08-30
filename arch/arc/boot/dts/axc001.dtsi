@@ -15,15 +15,15 @@
 
 / {
 	compatible = "snps,arc";
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	cpu_card {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		ranges = <0x00000000 0xf0000000 0x10000000>;
+		ranges = <0x00000000 0x0 0xf0000000 0x10000000>;
 
 		core_clk: core_clk {
 			#clock-cells = <0>;
@@ -91,23 +91,21 @@
 	mb_intc: dw-apb-ictl@0xe0012000 {
 		#interrupt-cells = <1>;
 		compatible = "snps,dw-apb-ictl";
-		reg = < 0xe0012000 0x200 >;
+		reg = < 0x0 0xe0012000 0x0 0x200 >;
 		interrupt-controller;
 		interrupt-parent = <&core_intc>;
 		interrupts = < 7 >;
 	};
 
 	memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0x00000000 0x80000000 0x20000000>;
 		device_type = "memory";
-		reg = <0x80000000 0x1b000000>;	/* (512 - 32) MiB */
+		/* CONFIG_KERNEL_RAM_BASE_ADDRESS needs to match low mem start */
+		reg = <0x0 0x80000000 0x0 0x1b000000>;	/* (512 - 32) MiB */
 	};
 
 	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		ranges;
 		/*
 		 * We just move frame buffer area to the very end of
@@ -118,7 +116,7 @@
 		 */
 		frame_buffer: frame_buffer@9e000000 {
 			compatible = "shared-dma-pool";
-			reg = <0x9e000000 0x2000000>;
+			reg = <0x0 0x9e000000 0x0 0x2000000>;
 			no-map;
 		};
 	};

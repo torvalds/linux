@@ -205,7 +205,7 @@ static void tcf_chain_flush(struct tcf_chain *chain)
 {
 	struct tcf_proto *tp;
 
-	if (*chain->p_filter_chain)
+	if (chain->p_filter_chain)
 		RCU_INIT_POINTER(*chain->p_filter_chain, NULL);
 	while ((tp = rtnl_dereference(chain->filter_chain)) != NULL) {
 		RCU_INIT_POINTER(chain->filter_chain, tp->next);

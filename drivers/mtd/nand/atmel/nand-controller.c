@@ -1364,7 +1364,18 @@ static int atmel_smc_nand_prepare_smcconf(struct atmel_nand *nand,
 	ret = atmel_smc_cs_conf_set_timing(smcconf,
 					   ATMEL_HSMC_TIMINGS_TADL_SHIFT,
 					   ncycles);
-	if (ret)
+	/*
+	 * Version 4 of the ONFI spec mandates that tADL be at least 400
+	 * nanoseconds, but, depending on the master clock rate, 400 ns may not
+	 * fit in the tADL field of the SMC reg. We need to relax the check and
+	 * accept the -ERANGE return code.
+	 *
+	 * Note that previous versions of the ONFI spec had a lower tADL_min
+	 * (100 or 200 ns). It's not clear why this timing constraint got
+	 * increased but it seems most NANDs are fine with values lower than
+	 * 400ns, so we should be safe.
+	 */
+	if (ret && ret != -ERANGE)
 		return ret;
 
 	ncycles = DIV_ROUND_UP(conf->timings.sdr.tAR_min, mckperiodps);

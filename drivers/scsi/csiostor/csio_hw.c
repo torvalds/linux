@@ -3845,8 +3845,10 @@ csio_hw_start(struct csio_hw *hw)
 
 	if (csio_is_hw_ready(hw))
 		return 0;
-	else
+	else if (csio_match_state(hw, csio_hws_uninit))
 		return -EINVAL;
+	else
+		return -ENODEV;
 }
 
 int

@@ -70,9 +70,10 @@ static void __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
 
 	list_for_each_entry_safe(curr, next, &wq_head->head, entry) {
 		unsigned flags = curr->flags;
-
-		if (curr->func(curr, mode, wake_flags, key) &&
-				(flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
+		int ret = curr->func(curr, mode, wake_flags, key);
+		if (ret < 0)
+			break;
+		if (ret && (flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
 			break;
 	}
 }

@@ -169,14 +169,20 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
 					  int *peeked, int *off, int *err,
 					  struct sk_buff **last)
 {
+	bool peek_at_off = false;
 	struct sk_buff *skb;
-	int _off = *off;
+	int _off = 0;
+
+	if (unlikely(flags & MSG_PEEK && *off >= 0)) {
+		peek_at_off = true;
+		_off = *off;
+	}
 
 	*last = queue->prev;
 	skb_queue_walk(queue, skb) {
 		if (flags & MSG_PEEK) {
-			if (_off >= skb->len && (skb->len || _off ||
-						 skb->peeked)) {
+			if (peek_at_off && _off >= skb->len &&
+			    (_off || skb->peeked)) {
 				_off -= skb->len;
 				continue;
 			}

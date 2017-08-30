@@ -1137,7 +1137,7 @@ static int snd_ctl_elem_user_tlv(struct snd_kcontrol *kcontrol,
 		mutex_lock(&ue->card->user_ctl_lock);
 		change = ue->tlv_data_size != size;
 		if (!change)
-			change = memcmp(ue->tlv_data, new_data, size);
+			change = memcmp(ue->tlv_data, new_data, size) != 0;
 		kfree(ue->tlv_data);
 		ue->tlv_data = new_data;
 		ue->tlv_data_size = size;

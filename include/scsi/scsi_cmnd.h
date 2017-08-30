@@ -57,6 +57,7 @@ struct scsi_pointer {
 /* for scmd->flags */
 #define SCMD_TAGGED		(1 << 0)
 #define SCMD_UNCHECKED_ISA_DMA	(1 << 1)
+#define SCMD_ZONE_WRITE_LOCK	(1 << 2)
 
 struct scsi_cmnd {
 	struct scsi_request req;

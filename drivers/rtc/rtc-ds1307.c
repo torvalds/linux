@@ -1301,7 +1301,6 @@ static void ds1307_clks_register(struct ds1307 *ds1307)
 static const struct regmap_config regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.max_register = 0x12,
 };
 
 static int ds1307_probe(struct i2c_client *client,

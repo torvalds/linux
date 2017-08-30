@@ -436,9 +436,9 @@ static inline int ptr_ring_consume_batched_bh(struct ptr_ring *r,
 	__PTR_RING_PEEK_CALL_v; \
 })
 
-static inline void **__ptr_ring_init_queue_alloc(int size, gfp_t gfp)
+static inline void **__ptr_ring_init_queue_alloc(unsigned int size, gfp_t gfp)
 {
-	return kzalloc(ALIGN(size * sizeof(void *), SMP_CACHE_BYTES), gfp);
+	return kcalloc(size, sizeof(void *), gfp);
 }
 
 static inline void __ptr_ring_set_size(struct ptr_ring *r, int size)
@@ -582,7 +582,8 @@ static inline int ptr_ring_resize(struct ptr_ring *r, int size, gfp_t gfp,
  * In particular if you consume ring in interrupt or BH context, you must
  * disable interrupts/BH when doing so.
  */
-static inline int ptr_ring_resize_multiple(struct ptr_ring **rings, int nrings,
+static inline int ptr_ring_resize_multiple(struct ptr_ring **rings,
+					   unsigned int nrings,
 					   int size,
 					   gfp_t gfp, void (*destroy)(void *))
 {
@@ -590,7 +591,7 @@ static inline int ptr_ring_resize_multiple(struct ptr_ring **rings, int nrings,
 	void ***queues;
 	int i;
 
-	queues = kmalloc(nrings * sizeof *queues, gfp);
+	queues = kmalloc_array(nrings, sizeof(*queues), gfp);
 	if (!queues)
 		goto noqueues;
 
