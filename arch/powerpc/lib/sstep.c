@@ -1469,7 +1469,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 		case 122:	/* popcntb */
 			do_popcnt(regs, op, regs->gpr[rd], 8);
-			goto logical_done;
+			goto logical_done_nocc;
 
 		case 124:	/* nor */
 			op->val = ~(regs->gpr[rd] | regs->gpr[rb]);
@@ -1477,15 +1477,15 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 		case 154:	/* prtyw */
 			do_prty(regs, op, regs->gpr[rd], 32);
-			goto logical_done;
+			goto logical_done_nocc;
 
 		case 186:	/* prtyd */
 			do_prty(regs, op, regs->gpr[rd], 64);
-			goto logical_done;
+			goto logical_done_nocc;
 #ifdef CONFIG_PPC64
 		case 252:	/* bpermd */
 			do_bpermd(regs, op, regs->gpr[rd], regs->gpr[rb]);
-			goto logical_done;
+			goto logical_done_nocc;
 #endif
 		case 284:	/* xor */
 			op->val = ~(regs->gpr[rd] ^ regs->gpr[rb]);
@@ -1497,7 +1497,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 		case 378:	/* popcntw */
 			do_popcnt(regs, op, regs->gpr[rd], 32);
-			goto logical_done;
+			goto logical_done_nocc;
 
 		case 412:	/* orc */
 			op->val = regs->gpr[rd] | ~regs->gpr[rb];
@@ -1513,7 +1513,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #ifdef CONFIG_PPC64
 		case 506:	/* popcntd */
 			do_popcnt(regs, op, regs->gpr[rd], 64);
-			goto logical_done;
+			goto logical_done_nocc;
 #endif
 		case 922:	/* extsh */
 			op->val = (signed short) regs->gpr[rd];
