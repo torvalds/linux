@@ -151,9 +151,7 @@ static int visorbus_match(struct device *xdev, struct device_driver *xdrv)
 	if (!drv->channel_types)
 		return 0;
 
-	for (i = 0;
-	     !guid_is_null(&drv->channel_types[i].guid) || drv->channel_types[i].name;
-	     i++)
+	for (i = 0; !guid_is_null(&drv->channel_types[i].guid); i++)
 		if (guid_equal(&drv->channel_types[i].guid, channel_type))
 			return i + 1;
 
