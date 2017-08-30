@@ -624,6 +624,14 @@ nla_put_failure:
 	return -1;
 }
 
+static void route4_bind_class(void *fh, u32 classid, unsigned long cl)
+{
+	struct route4_filter *f = fh;
+
+	if (f && f->res.classid == classid)
+		f->res.class = cl;
+}
+
 static struct tcf_proto_ops cls_route4_ops __read_mostly = {
 	.kind		=	"route",
 	.classify	=	route4_classify,
@@ -634,6 +642,7 @@ static struct tcf_proto_ops cls_route4_ops __read_mostly = {
 	.delete		=	route4_delete,
 	.walk		=	route4_walk,
 	.dump		=	route4_dump,
+	.bind_class	=	route4_bind_class,
 	.owner		=	THIS_MODULE,
 };
 

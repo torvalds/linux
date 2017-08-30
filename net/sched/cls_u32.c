@@ -1112,6 +1112,14 @@ static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	}
 }
 
+static void u32_bind_class(void *fh, u32 classid, unsigned long cl)
+{
+	struct tc_u_knode *n = fh;
+
+	if (n && n->res.classid == classid)
+		n->res.class = cl;
+}
+
 static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		    struct sk_buff *skb, struct tcmsg *t)
 {
@@ -1242,6 +1250,7 @@ static struct tcf_proto_ops cls_u32_ops __read_mostly = {
 	.delete		=	u32_delete,
 	.walk		=	u32_walk,
 	.dump		=	u32_dump,
+	.bind_class	=	u32_bind_class,
 	.owner		=	THIS_MODULE,
 };
 

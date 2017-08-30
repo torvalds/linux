@@ -235,6 +235,14 @@ skip:
 	}
 }
 
+static void basic_bind_class(void *fh, u32 classid, unsigned long cl)
+{
+	struct basic_filter *f = fh;
+
+	if (f && f->res.classid == classid)
+		f->res.class = cl;
+}
+
 static int basic_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		      struct sk_buff *skb, struct tcmsg *t)
 {
@@ -280,6 +288,7 @@ static struct tcf_proto_ops cls_basic_ops __read_mostly = {
 	.delete		=	basic_delete,
 	.walk		=	basic_walk,
 	.dump		=	basic_dump,
+	.bind_class	=	basic_bind_class,
 	.owner		=	THIS_MODULE,
 };
 

@@ -412,6 +412,14 @@ nla_put_failure:
 	return -1;
 }
 
+static void fw_bind_class(void *fh, u32 classid, unsigned long cl)
+{
+	struct fw_filter *f = fh;
+
+	if (f && f->res.classid == classid)
+		f->res.class = cl;
+}
+
 static struct tcf_proto_ops cls_fw_ops __read_mostly = {
 	.kind		=	"fw",
 	.classify	=	fw_classify,
@@ -422,6 +430,7 @@ static struct tcf_proto_ops cls_fw_ops __read_mostly = {
 	.delete		=	fw_delete,
 	.walk		=	fw_walk,
 	.dump		=	fw_dump,
+	.bind_class	=	fw_bind_class,
 	.owner		=	THIS_MODULE,
 };
 

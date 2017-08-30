@@ -35,6 +35,7 @@
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 /*
 
@@ -1648,6 +1649,64 @@ static int tclass_del_notify(struct net *net,
 			      n->nlmsg_flags & NLM_F_ECHO);
 }
 
+#ifdef CONFIG_NET_CLS
+
+struct tcf_bind_args {
+	struct tcf_walker w;
+	u32 classid;
+	unsigned long cl;
+};
+
+static int tcf_node_bind(struct tcf_proto *tp, void *n, struct tcf_walker *arg)
+{
+	struct tcf_bind_args *a = (void *)arg;
+
+	if (tp->ops->bind_class) {
+		tcf_tree_lock(tp);
+		tp->ops->bind_class(n, a->classid, a->cl);
+		tcf_tree_unlock(tp);
+	}
+	return 0;
+}
+
+static void tc_bind_tclass(struct Qdisc *q, u32 portid, u32 clid,
+			   unsigned long new_cl)
+{
+	const struct Qdisc_class_ops *cops = q->ops->cl_ops;
+	struct tcf_block *block;
+	struct tcf_chain *chain;
+	unsigned long cl;
+
+	cl = cops->find(q, portid);
+	if (!cl)
+		return;
+	block = cops->tcf_block(q, cl);
+	if (!block)
+		return;
+	list_for_each_entry(chain, &block->chain_list, list) {
+		struct tcf_proto *tp;
+
+		for (tp = rtnl_dereference(chain->filter_chain);
+		     tp; tp = rtnl_dereference(tp->next)) {
+			struct tcf_bind_args arg = {};
+
+			arg.w.fn = tcf_node_bind;
+			arg.classid = clid;
+			arg.cl = new_cl;
+			tp->ops->walk(tp, &arg.w);
+		}
+	}
+}
+
+#else
+
+static void tc_bind_tclass(struct Qdisc *q, u32 portid, u32 clid,
+			   unsigned long new_cl)
+{
+}
+
+#endif
+
 static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n,
 			 struct netlink_ext_ack *extack)
 {
@@ -1753,6 +1812,8 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n,
 			break;
 		case RTM_DELTCLASS:
 			err = tclass_del_notify(net, cops, skb, n, q, cl);
+			/* Unbind the class with flilters with 0 */
+			tc_bind_tclass(q, portid, clid, 0);
 			goto out;
 		case RTM_GETTCLASS:
 			err = tclass_notify(net, skb, n, q, cl, RTM_NEWTCLASS);
@@ -1767,9 +1828,12 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n,
 	err = -EOPNOTSUPP;
 	if (cops->change)
 		err = cops->change(q, clid, portid, tca, &new_cl);
-	if (err == 0)
+	if (err == 0) {
 		tclass_notify(net, skb, n, q, new_cl, RTM_NEWTCLASS);
-
+		/* We just create a new class, need to do reverse binding. */
+		if (cl != new_cl)
+			tc_bind_tclass(q, portid, clid, new_cl);
+	}
 out:
 	return err;
 }

@@ -606,6 +606,14 @@ nla_put_failure:
 	return -1;
 }
 
+static void tcindex_bind_class(void *fh, u32 classid, unsigned long cl)
+{
+	struct tcindex_filter_result *r = fh;
+
+	if (r && r->res.classid == classid)
+		r->res.class = cl;
+}
+
 static struct tcf_proto_ops cls_tcindex_ops __read_mostly = {
 	.kind		=	"tcindex",
 	.classify	=	tcindex_classify,
@@ -616,6 +624,7 @@ static struct tcf_proto_ops cls_tcindex_ops __read_mostly = {
 	.delete		=	tcindex_delete,
 	.walk		=	tcindex_walk,
 	.dump		=	tcindex_dump,
+	.bind_class	=	tcindex_bind_class,
 	.owner		=	THIS_MODULE,
 };
 

@@ -723,6 +723,14 @@ nla_put_failure:
 	return -1;
 }
 
+static void rsvp_bind_class(void *fh, u32 classid, unsigned long cl)
+{
+	struct rsvp_filter *f = fh;
+
+	if (f && f->res.classid == classid)
+		f->res.class = cl;
+}
+
 static struct tcf_proto_ops RSVP_OPS __read_mostly = {
 	.kind		=	RSVP_ID,
 	.classify	=	rsvp_classify,
@@ -733,6 +741,7 @@ static struct tcf_proto_ops RSVP_OPS __read_mostly = {
 	.delete		=	rsvp_delete,
 	.walk		=	rsvp_walk,
 	.dump		=	rsvp_dump,
+	.bind_class	=	rsvp_bind_class,
 	.owner		=	THIS_MODULE,
 };
 

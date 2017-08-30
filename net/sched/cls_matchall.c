@@ -251,6 +251,14 @@ nla_put_failure:
 	return -1;
 }
 
+static void mall_bind_class(void *fh, u32 classid, unsigned long cl)
+{
+	struct cls_mall_head *head = fh;
+
+	if (head && head->res.classid == classid)
+		head->res.class = cl;
+}
+
 static struct tcf_proto_ops cls_mall_ops __read_mostly = {
 	.kind		= "matchall",
 	.classify	= mall_classify,
@@ -261,6 +269,7 @@ static struct tcf_proto_ops cls_mall_ops __read_mostly = {
 	.delete		= mall_delete,
 	.walk		= mall_walk,
 	.dump		= mall_dump,
+	.bind_class	= mall_bind_class,
 	.owner		= THIS_MODULE,
 };
 

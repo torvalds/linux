@@ -607,6 +607,14 @@ nla_put_failure:
 	return -1;
 }
 
+static void cls_bpf_bind_class(void *fh, u32 classid, unsigned long cl)
+{
+	struct cls_bpf_prog *prog = fh;
+
+	if (prog && prog->res.classid == classid)
+		prog->res.class = cl;
+}
+
 static void cls_bpf_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 {
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
@@ -635,6 +643,7 @@ static struct tcf_proto_ops cls_bpf_ops __read_mostly = {
 	.delete		=	cls_bpf_delete,
 	.walk		=	cls_bpf_walk,
 	.dump		=	cls_bpf_dump,
+	.bind_class	=	cls_bpf_bind_class,
 };
 
 static int __init cls_bpf_init_mod(void)

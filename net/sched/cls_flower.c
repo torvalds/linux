@@ -1351,6 +1351,14 @@ nla_put_failure:
 	return -1;
 }
 
+static void fl_bind_class(void *fh, u32 classid, unsigned long cl)
+{
+	struct cls_fl_filter *f = fh;
+
+	if (f && f->res.classid == classid)
+		f->res.class = cl;
+}
+
 static struct tcf_proto_ops cls_fl_ops __read_mostly = {
 	.kind		= "flower",
 	.classify	= fl_classify,
@@ -1361,6 +1369,7 @@ static struct tcf_proto_ops cls_fl_ops __read_mostly = {
 	.delete		= fl_delete,
 	.walk		= fl_walk,
 	.dump		= fl_dump,
+	.bind_class	= fl_bind_class,
 	.owner		= THIS_MODULE,
 };
 
