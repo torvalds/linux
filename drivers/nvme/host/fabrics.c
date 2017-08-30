@@ -75,7 +75,7 @@ static struct nvmf_host *nvmf_host_default(void)
 
 	kref_init(&host->ref);
 	snprintf(host->nqn, NVMF_NQN_SIZE,
-		"nqn.2014-08.org.nvmexpress:NVMf:uuid:%pUb", &host->id);
+		"nqn.2014-08.org.nvmexpress:uuid:%pUb", &host->id);
 
 	mutex_lock(&nvmf_hosts_mutex);
 	list_add_tail(&host->list, &nvmf_hosts);
