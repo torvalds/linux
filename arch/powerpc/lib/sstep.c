@@ -476,7 +476,7 @@ static nokprobe_inline int do_vec_load(int rn, unsigned long ea,
 		return -EFAULT;
 	/* align to multiple of size */
 	ea &= ~(size - 1);
-	err = copy_mem_in(u.b, ea, size);
+	err = copy_mem_in(&u.b[ea & 0xf], ea, size);
 	if (err)
 		return err;
 
@@ -508,7 +508,7 @@ static nokprobe_inline int do_vec_store(int rn, unsigned long ea,
 	else
 		u.v = current->thread.vr_state.vr[rn];
 	preempt_enable();
-	return copy_mem_out(u.b, ea, size);
+	return copy_mem_out(&u.b[ea & 0xf], ea, size);
 }
 #endif /* CONFIG_ALTIVEC */
 
@@ -1807,10 +1807,44 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			break;
 
 #ifdef CONFIG_ALTIVEC
+		/*
+		 * Note: for the load/store vector element instructions,
+		 * bits of the EA say which field of the VMX register to use.
+		 */
+		case 7:		/* lvebx */
+			op->type = MKOP(LOAD_VMX, 0, 1);
+			op->element_size = 1;
+			break;
+
+		case 39:	/* lvehx */
+			op->type = MKOP(LOAD_VMX, 0, 2);
+			op->element_size = 2;
+			break;
+
+		case 71:	/* lvewx */
+			op->type = MKOP(LOAD_VMX, 0, 4);
+			op->element_size = 4;
+			break;
+
 		case 103:	/* lvx */
 		case 359:	/* lvxl */
 			op->type = MKOP(LOAD_VMX, 0, 16);
 			op->element_size = 16;
+			break;
+
+		case 135:	/* stvebx */
+			op->type = MKOP(STORE_VMX, 0, 1);
+			op->element_size = 1;
+			break;
+
+		case 167:	/* stvehx */
+			op->type = MKOP(STORE_VMX, 0, 2);
+			op->element_size = 2;
+			break;
+
+		case 199:	/* stvewx */
+			op->type = MKOP(STORE_VMX, 0, 4);
+			op->element_size = 4;
 			break;
 
 		case 231:	/* stvx */
