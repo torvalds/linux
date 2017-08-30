@@ -45,6 +45,7 @@ struct xive_irq_data {
 	void __iomem *trig_mmio;
 	u32 esb_shift;
 	int src_chip;
+	u32 hw_irq;
 
 	/* Setup/used by frontend */
 	int target;

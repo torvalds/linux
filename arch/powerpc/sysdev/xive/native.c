@@ -82,6 +82,8 @@ int xive_native_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 		return -ENOMEM;
 	}
 
+	data->hw_irq = hw_irq;
+
 	if (!data->trig_page)
 		return 0;
 	if (data->trig_page == data->eoi_page) {

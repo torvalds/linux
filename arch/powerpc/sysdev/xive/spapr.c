@@ -264,6 +264,8 @@ static int xive_spapr_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 		return -ENOMEM;
 	}
 
+	data->hw_irq = hw_irq;
+
 	/* Full function page supports trigger */
 	if (flags & XIVE_SRC_TRIGGER) {
 		data->trig_mmio = data->eoi_mmio;
