@@ -556,7 +556,7 @@ struct dvb_frontend *cx24113_attach(struct dvb_frontend *fe,
 	int rc;
 
 	if (!state)
-		goto error;
+		return NULL;
 
 	/* setup the state */
 	state->config = config;

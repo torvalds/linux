@@ -841,7 +841,7 @@ struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
-		goto error2;
+		return NULL;
 
 	state->config = config;
 	state->i2c = i2c;
@@ -850,8 +850,9 @@ struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 	/* check if the demod is present */
 	ret = ds3000_readreg(state, 0x00) & 0xfe;
 	if (ret != 0xe0) {
+		kfree(state);
 		printk(KERN_ERR "Invalid probe, probably not a DS3000\n");
-		goto error3;
+		return NULL;
 	}
 
 	printk(KERN_INFO "DS3000 chip version: %d.%d attached.\n",
@@ -869,11 +870,6 @@ struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 	 */
 	ds3000_set_voltage(&state->frontend, SEC_VOLTAGE_OFF);
 	return &state->frontend;
-
-error3:
-	kfree(state);
-error2:
-	return NULL;
 }
 EXPORT_SYMBOL(ds3000_attach);
 
