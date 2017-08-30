@@ -153,7 +153,7 @@ static int goldfish_nand_read_oob(struct mtd_info *mtd, loff_t ofs,
 	ofs += mtd->writesize + ops->ooboffs;
 	if (ops->oobbuf)
 		ops->oobretlen = goldfish_nand_cmd(mtd, NAND_CMD_READ, ofs,
-						ops->ooblen, ops->oobbuf);
+						   ops->ooblen, ops->oobbuf);
 	return 0;
 
 invalid_arg:
@@ -185,7 +185,7 @@ static int goldfish_nand_write_oob(struct mtd_info *mtd, loff_t ofs,
 	ofs += mtd->writesize + ops->ooboffs;
 	if (ops->oobbuf)
 		ops->oobretlen = goldfish_nand_cmd(mtd, NAND_CMD_WRITE, ofs,
-						ops->ooblen, ops->oobbuf);
+						   ops->ooblen, ops->oobbuf);
 	return 0;
 
 invalid_arg:
