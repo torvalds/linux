@@ -18,10 +18,13 @@ part I of the MPEG2 specification ISO/IEC 13818 (aka ITU-T H.222), i.e
 you should know what a program/transport stream (PS/TS) is and what is
 meant by a packetized elementary stream (PES) or an I-frame.
 
-Various DVB standards documents are available from http://www.dvb.org
-and/or http://www.etsi.org.
+Various Digital TV standards documents are available for download at:
 
-It is also necessary to know how to access unix/linux devices and how to
+- European standards (DVB): http://www.dvb.org and/or http://www.etsi.org.
+- American standards (ATSC): https://www.atsc.org/standards/
+- Japanese standards (ISDB): http://www.dibeg.org/
+
+It is also necessary to know how to access Linux devices and how to
 use ioctl calls. This also includes the knowledge of C or C++.
 
 
