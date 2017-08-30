@@ -193,7 +193,6 @@ static nokprobe_inline unsigned long max_align(unsigned long x)
 	return x & -x;		/* isolates rightmost bit */
 }
 
-
 static nokprobe_inline unsigned long byterev_2(unsigned long x)
 {
 	return ((x >> 8) & 0xff) | ((x & 0xff) << 8);
@@ -239,56 +238,69 @@ static nokprobe_inline int read_mem_aligned(unsigned long *dest,
 	return err;
 }
 
-static nokprobe_inline int read_mem_unaligned(unsigned long *dest,
-				unsigned long ea, int nb, struct pt_regs *regs)
+/*
+ * Copy from userspace to a buffer, using the largest possible
+ * aligned accesses, up to sizeof(long).
+ */
+static int nokprobe_inline copy_mem_in(u8 *dest, unsigned long ea, int nb)
 {
-	int err;
-	unsigned long x, b, c;
-#ifdef __LITTLE_ENDIAN__
-	int len = nb; /* save a copy of the length for byte reversal */
-#endif
+	int err = 0;
+	int c;
 
-	/* unaligned, do this in pieces */
-	x = 0;
 	for (; nb > 0; nb -= c) {
-#ifdef __LITTLE_ENDIAN__
-		c = 1;
-#endif
-#ifdef __BIG_ENDIAN__
 		c = max_align(ea);
-#endif
 		if (c > nb)
 			c = max_align(nb);
-		err = read_mem_aligned(&b, ea, c);
+		switch (c) {
+		case 1:
+			err = __get_user(*dest, (unsigned char __user *) ea);
+			break;
+		case 2:
+			err = __get_user(*(u16 *)dest,
+					 (unsigned short __user *) ea);
+			break;
+		case 4:
+			err = __get_user(*(u32 *)dest,
+					 (unsigned int __user *) ea);
+			break;
+#ifdef __powerpc64__
+		case 8:
+			err = __get_user(*(unsigned long *)dest,
+					 (unsigned long __user *) ea);
+			break;
+#endif
+		}
 		if (err)
 			return err;
-		x = (x << (8 * c)) + b;
+		dest += c;
 		ea += c;
 	}
-#ifdef __LITTLE_ENDIAN__
-	switch (len) {
-	case 2:
-		*dest = byterev_2(x);
-		break;
-	case 4:
-		*dest = byterev_4(x);
-		break;
-#ifdef __powerpc64__
-	case 8:
-		*dest = byterev_8(x);
-		break;
-#endif
-	}
-#endif
-#ifdef __BIG_ENDIAN__
-	*dest = x;
-#endif
 	return 0;
+}
+
+static nokprobe_inline int read_mem_unaligned(unsigned long *dest,
+					      unsigned long ea, int nb,
+					      struct pt_regs *regs)
+{
+	union {
+		unsigned long ul;
+		u8 b[sizeof(unsigned long)];
+	} u;
+	int i;
+	int err;
+
+	u.ul = 0;
+	i = IS_BE ? sizeof(unsigned long) - nb : 0;
+	err = copy_mem_in(&u.b[i], ea, nb);
+	if (!err)
+		*dest = u.ul;
+	return err;
 }
 
 /*
  * Read memory at address ea for nb bytes, return 0 for success
- * or -EFAULT if an error occurred.
+ * or -EFAULT if an error occurred.  N.B. nb must be 1, 2, 4 or 8.
+ * If nb < sizeof(long), the result is right-justified on BE systems.
  */
 static int read_mem(unsigned long *dest, unsigned long ea, int nb,
 			      struct pt_regs *regs)
@@ -325,48 +337,64 @@ static nokprobe_inline int write_mem_aligned(unsigned long val,
 	return err;
 }
 
-static nokprobe_inline int write_mem_unaligned(unsigned long val,
-				unsigned long ea, int nb, struct pt_regs *regs)
+/*
+ * Copy from a buffer to userspace, using the largest possible
+ * aligned accesses, up to sizeof(long).
+ */
+static int nokprobe_inline copy_mem_out(u8 *dest, unsigned long ea, int nb)
 {
-	int err;
-	unsigned long c;
+	int err = 0;
+	int c;
 
-#ifdef __LITTLE_ENDIAN__
-	switch (nb) {
-	case 2:
-		val = byterev_2(val);
-		break;
-	case 4:
-		val = byterev_4(val);
-		break;
-#ifdef __powerpc64__
-	case 8:
-		val = byterev_8(val);
-		break;
-#endif
-	}
-#endif
-	/* unaligned or little-endian, do this in pieces */
 	for (; nb > 0; nb -= c) {
-#ifdef __LITTLE_ENDIAN__
-		c = 1;
-#endif
-#ifdef __BIG_ENDIAN__
 		c = max_align(ea);
-#endif
 		if (c > nb)
 			c = max_align(nb);
-		err = write_mem_aligned(val >> (nb - c) * 8, ea, c);
+		switch (c) {
+		case 1:
+			err = __put_user(*dest, (unsigned char __user *) ea);
+			break;
+		case 2:
+			err = __put_user(*(u16 *)dest,
+					 (unsigned short __user *) ea);
+			break;
+		case 4:
+			err = __put_user(*(u32 *)dest,
+					 (unsigned int __user *) ea);
+			break;
+#ifdef __powerpc64__
+		case 8:
+			err = __put_user(*(unsigned long *)dest,
+					 (unsigned long __user *) ea);
+			break;
+#endif
+		}
 		if (err)
 			return err;
+		dest += c;
 		ea += c;
 	}
 	return 0;
 }
 
+static nokprobe_inline int write_mem_unaligned(unsigned long val,
+					       unsigned long ea, int nb,
+					       struct pt_regs *regs)
+{
+	union {
+		unsigned long ul;
+		u8 b[sizeof(unsigned long)];
+	} u;
+	int i;
+
+	u.ul = val;
+	i = IS_BE ? sizeof(unsigned long) - nb : 0;
+	return copy_mem_out(&u.b[i], ea, nb);
+}
+
 /*
  * Write memory at address ea for nb bytes, return 0 for success
- * or -EFAULT if an error occurred.
+ * or -EFAULT if an error occurred.  N.B. nb must be 1, 2, 4 or 8.
  */
 static int write_mem(unsigned long val, unsigned long ea, int nb,
 			       struct pt_regs *regs)
@@ -389,40 +417,17 @@ static int do_fp_load(int rn, int (*func)(int, unsigned long),
 				struct pt_regs *regs)
 {
 	int err;
-	union {
-		double dbl;
-		unsigned long ul[2];
-		struct {
-#ifdef __BIG_ENDIAN__
-			unsigned _pad_;
-			unsigned word;
-#endif
-#ifdef __LITTLE_ENDIAN__
-			unsigned word;
-			unsigned _pad_;
-#endif
-		} single;
-	} data;
-	unsigned long ptr;
+	u8 buf[sizeof(double)] __attribute__((aligned(sizeof(double))));
 
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
-	if ((ea & 3) == 0)
-		return (*func)(rn, ea);
-	ptr = (unsigned long) &data.ul;
-	if (sizeof(unsigned long) == 8 || nb == 4) {
-		err = read_mem_unaligned(&data.ul[0], ea, nb, regs);
-		if (nb == 4)
-			ptr = (unsigned long)&(data.single.word);
-	} else {
-		/* reading a double on 32-bit */
-		err = read_mem_unaligned(&data.ul[0], ea, 4, regs);
-		if (!err)
-			err = read_mem_unaligned(&data.ul[1], ea + 4, 4, regs);
+	if (ea & 3) {
+		err = copy_mem_in(buf, ea, nb);
+		if (err)
+			return err;
+		ea = (unsigned long) buf;
 	}
-	if (err)
-		return err;
-	return (*func)(rn, ptr);
+	return (*func)(rn, ea);
 }
 NOKPROBE_SYMBOL(do_fp_load);
 
@@ -431,43 +436,15 @@ static int do_fp_store(int rn, int (*func)(int, unsigned long),
 				 struct pt_regs *regs)
 {
 	int err;
-	union {
-		double dbl;
-		unsigned long ul[2];
-		struct {
-#ifdef __BIG_ENDIAN__
-			unsigned _pad_;
-			unsigned word;
-#endif
-#ifdef __LITTLE_ENDIAN__
-			unsigned word;
-			unsigned _pad_;
-#endif
-		} single;
-	} data;
-	unsigned long ptr;
+	u8 buf[sizeof(double)] __attribute__((aligned(sizeof(double))));
 
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
 	if ((ea & 3) == 0)
 		return (*func)(rn, ea);
-	ptr = (unsigned long) &data.ul[0];
-	if (sizeof(unsigned long) == 8 || nb == 4) {
-		if (nb == 4)
-			ptr = (unsigned long)&(data.single.word);
-		err = (*func)(rn, ptr);
-		if (err)
-			return err;
-		err = write_mem_unaligned(data.ul[0], ea, nb, regs);
-	} else {
-		/* writing a double on 32-bit */
-		err = (*func)(rn, ptr);
-		if (err)
-			return err;
-		err = write_mem_unaligned(data.ul[0], ea, 4, regs);
-		if (!err)
-			err = write_mem_unaligned(data.ul[1], ea + 4, 4, regs);
-	}
+	err = (*func)(rn, (unsigned long) buf);
+	if (!err)
+		err = copy_mem_out(buf, ea, nb);
 	return err;
 }
 NOKPROBE_SYMBOL(do_fp_store);
@@ -2564,7 +2541,7 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 #endif
 #ifdef CONFIG_VSX
 	case LOAD_VSX: {
-		char mem[16];
+		u8 mem[16];
 		union vsx_reg buf;
 		unsigned long msrbit = MSR_VSX;
 
@@ -2577,7 +2554,7 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		if (!(regs->msr & msrbit))
 			return 0;
 		if (!address_ok(regs, ea, size) ||
-		    __copy_from_user(mem, (void __user *)ea, size))
+		    copy_mem_in(mem, ea, size))
 			return 0;
 
 		emulate_vsx_load(&op, &buf, mem);
@@ -2639,7 +2616,7 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 #endif
 #ifdef CONFIG_VSX
 	case STORE_VSX: {
-		char mem[16];
+		u8 mem[16];
 		union vsx_reg buf;
 		unsigned long msrbit = MSR_VSX;
 
@@ -2656,7 +2633,7 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 
 		store_vsrn(op.reg, &buf);
 		emulate_vsx_store(&op, &buf, mem);
-		if (__copy_to_user((void __user *)ea, mem, size))
+		if (copy_mem_out(mem, ea, size))
 			return 0;
 		goto ldst_done;
 	}
