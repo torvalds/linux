@@ -3655,6 +3655,21 @@ static struct dmi_system_id dmi_platform_asus_t100ha[] = {
 	{ }
 };
 
+static struct rt5645_platform_data minix_z83_4_platform_data = {
+	.jd_mode = 3,
+};
+
+static struct dmi_system_id dmi_platform_minix_z83_4[] = {
+	{
+		.ident = "MINIX Z83-4",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "MINIX"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
+		},
+	},
+	{ }
+};
+
 static bool rt5645_check_dp(struct device *dev)
 {
 	if (device_property_present(dev, "realtek,in2-differential") ||
@@ -3709,6 +3724,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		rt5645->pdata = gpd_win_platform_data;
 	else if (dmi_check_system(dmi_platform_asus_t100ha))
 		rt5645->pdata = general_platform_data2;
+	else if (dmi_check_system(dmi_platform_minix_z83_4))
+		rt5645->pdata = minix_z83_4_platform_data;
 
 	if (quirk != -1) {
 		rt5645->pdata.in2_diff = QUIRK_IN2_DIFF(quirk);
