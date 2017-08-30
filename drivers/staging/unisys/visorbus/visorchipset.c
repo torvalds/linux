@@ -1332,32 +1332,25 @@ error:
 	}
 }
 
-static unsigned int issue_vmcall_io_controlvm_addr(u64 *control_addr,
-						   u32 *control_bytes)
+static int controlvm_channel_create(struct visorchipset_device *dev)
 {
-	u64 physaddr;
+	struct visorchannel *chan;
+	u64 addr;
+	u32 size;
 	int err;
 
-	physaddr = virt_to_phys(&chipset_dev->controlvm_params);
-	err = unisys_vmcall(VMCALL_CONTROLVM_ADDR, physaddr);
+	err = unisys_vmcall(VMCALL_CONTROLVM_ADDR,
+			    virt_to_phys(&dev->controlvm_params));
 	if (err)
 		return err;
-
-	*control_addr = chipset_dev->controlvm_params.address;
-	*control_bytes = chipset_dev->controlvm_params.channel_bytes;
-
+	addr = dev->controlvm_params.address;
+	size = dev->controlvm_params.channel_bytes;
+	chan = visorchannel_create_with_lock(addr, size, GFP_KERNEL,
+					     &visor_controlvm_channel_guid);
+	if (!chan)
+		return -ENOMEM;
+	dev->controlvm_channel = chan;
 	return 0;
-}
-
-static u64 controlvm_get_channel_address(void)
-{
-	u64 addr = 0;
-	u32 size = 0;
-
-	if (issue_vmcall_io_controlvm_addr(&addr, &size))
-		return 0;
-
-	return addr;
 }
 
 static void setup_crash_devices_work_queue(struct work_struct *work)
@@ -1739,32 +1732,26 @@ schedule_out:
 static int visorchipset_init(struct acpi_device *acpi_device)
 {
 	int err = -ENODEV;
-	u64 addr;
 	struct visorchannel *controlvm_channel;
 
 	chipset_dev = kzalloc(sizeof(*chipset_dev), GFP_KERNEL);
 	if (!chipset_dev)
 		goto error;
 
-	addr = controlvm_get_channel_address();
-	if (!addr)
-		goto error;
+	err = controlvm_channel_create(chipset_dev);
+	if (err)
+		goto error_free_chipset_dev;
 
 	acpi_device->driver_data = chipset_dev;
 	chipset_dev->acpi_device = acpi_device;
 	chipset_dev->poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-	controlvm_channel = visorchannel_create_with_lock(addr, 0, GFP_KERNEL,
-						&visor_controlvm_channel_guid);
-	if (!controlvm_channel)
-		goto error_free_chipset_dev;
-
-	chipset_dev->controlvm_channel = controlvm_channel;
 
 	err = sysfs_create_groups(&chipset_dev->acpi_device->dev.kobj,
 				  visorchipset_dev_groups);
 	if (err < 0)
 		goto error_destroy_channel;
 
+	controlvm_channel = chipset_dev->controlvm_channel;
 	if (!visor_check_channel(visorchannel_get_header(controlvm_channel),
 				 &visor_controlvm_channel_guid,
 				 "controlvm",
