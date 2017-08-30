@@ -1248,6 +1248,12 @@ static inline bool iwl_mvm_has_new_ats_coex_api(struct iwl_mvm *mvm)
 			  IWL_UCODE_TLV_API_COEX_ATS_EXTERNAL);
 }
 
+static inline bool iwl_mvm_has_quota_low_latency(struct iwl_mvm *mvm)
+{
+	return fw_has_api(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_API_QUOTA_LOW_LATENCY);
+}
+
 static inline struct agg_tx_status *
 iwl_mvm_get_agg_status(struct iwl_mvm *mvm, void *tx_resp)
 {
@@ -1486,6 +1492,27 @@ int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
 /* Quota management */
+static inline size_t iwl_mvm_quota_cmd_size(struct iwl_mvm *mvm)
+{
+	return iwl_mvm_has_quota_low_latency(mvm) ?
+		sizeof(struct iwl_time_quota_cmd) :
+		sizeof(struct iwl_time_quota_cmd_v1);
+}
+
+static inline struct iwl_time_quota_data
+*iwl_mvm_quota_cmd_get_quota(struct iwl_mvm *mvm,
+			     struct iwl_time_quota_cmd *cmd,
+			     int i)
+{
+	struct iwl_time_quota_data_v1 *quotas;
+
+	if (iwl_mvm_has_quota_low_latency(mvm))
+		return &cmd->quotas[i];
+
+	quotas = (struct iwl_time_quota_data_v1 *)cmd->quotas;
+	return (struct iwl_time_quota_data *)&quotas[i];
+}
+
 int iwl_mvm_update_quotas(struct iwl_mvm *mvm, bool force_upload,
 			  struct ieee80211_vif *disabled_vif);
 
