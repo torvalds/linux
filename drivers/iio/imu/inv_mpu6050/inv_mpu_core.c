@@ -572,10 +572,12 @@ error_write_raw_unlock:
  */
 static int inv_mpu6050_set_lpf(struct inv_mpu6050_state *st, int rate)
 {
-	const int hz[] = {188, 98, 42, 20, 10, 5};
-	const int d[] = {INV_MPU6050_FILTER_188HZ, INV_MPU6050_FILTER_98HZ,
-			INV_MPU6050_FILTER_42HZ, INV_MPU6050_FILTER_20HZ,
-			INV_MPU6050_FILTER_10HZ, INV_MPU6050_FILTER_5HZ};
+	static const int hz[] = {188, 98, 42, 20, 10, 5};
+	static const int d[] = {
+		INV_MPU6050_FILTER_188HZ, INV_MPU6050_FILTER_98HZ,
+		INV_MPU6050_FILTER_42HZ, INV_MPU6050_FILTER_20HZ,
+		INV_MPU6050_FILTER_10HZ, INV_MPU6050_FILTER_5HZ
+	};
 	int i, h, result;
 	u8 data;
 
