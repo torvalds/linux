@@ -440,6 +440,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			goto err_out;
 		}
 
+		hr_qp->mtt.mtt_type = MTT_TYPE_WQE;
 		ret = hns_roce_mtt_init(hr_dev, ib_umem_page_count(hr_qp->umem),
 					hr_qp->umem->page_shift, &hr_qp->mtt);
 		if (ret) {
@@ -490,6 +491,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			goto err_out;
 		}
 
+		hr_qp->mtt.mtt_type = MTT_TYPE_WQE;
 		/* Write MTT */
 		ret = hns_roce_mtt_init(hr_dev, hr_qp->hr_buf.npages,
 					hr_qp->hr_buf.page_shift, &hr_qp->mtt);

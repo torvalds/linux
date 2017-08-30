@@ -546,6 +546,17 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		return ret;
 	}
 
+	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE)) {
+		ret = hns_roce_init_hem_table(hr_dev,
+				      &hr_dev->mr_table.mtt_cqe_table,
+				      HEM_TYPE_CQE, hr_dev->caps.mtt_entry_sz,
+				      hr_dev->caps.num_cqe_segs, 1);
+		if (ret) {
+			dev_err(dev, "Failed to init MTT CQE context memory, aborting.\n");
+			goto err_unmap_cqe;
+		}
+	}
+
 	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->mr_table.mtpt_table,
 				      HEM_TYPE_MTPT, hr_dev->caps.mtpt_entry_sz,
 				      hr_dev->caps.num_mtpts, 1);
@@ -592,6 +603,12 @@ err_unmap_dmpt:
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtpt_table);
 
 err_unmap_mtt:
+	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtt_table);
+	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->mr_table.mtt_cqe_table);
+
+err_unmap_cqe:
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtt_table);
 
 	return ret;

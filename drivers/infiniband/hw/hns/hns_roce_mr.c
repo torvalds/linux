@@ -177,18 +177,28 @@ static void hns_roce_buddy_cleanup(struct hns_roce_buddy *buddy)
 }
 
 static int hns_roce_alloc_mtt_range(struct hns_roce_dev *hr_dev, int order,
-				    unsigned long *seg)
+				    unsigned long *seg, u32 mtt_type)
 {
 	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
-	int ret = 0;
+	struct hns_roce_hem_table *table;
+	struct hns_roce_buddy *buddy;
+	int ret;
 
-	ret = hns_roce_buddy_alloc(&mr_table->mtt_buddy, order, seg);
+	if (mtt_type == MTT_TYPE_WQE) {
+		buddy = &mr_table->mtt_buddy;
+		table = &mr_table->mtt_table;
+	} else {
+		buddy = &mr_table->mtt_cqe_buddy;
+		table = &mr_table->mtt_cqe_table;
+	}
+
+	ret = hns_roce_buddy_alloc(buddy, order, seg);
 	if (ret == -1)
 		return -1;
 
-	if (hns_roce_table_get_range(hr_dev, &mr_table->mtt_table, *seg,
+	if (hns_roce_table_get_range(hr_dev, table, *seg,
 				     *seg + (1 << order) - 1)) {
-		hns_roce_buddy_free(&mr_table->mtt_buddy, *seg, order);
+		hns_roce_buddy_free(buddy, *seg, order);
 		return -1;
 	}
 
@@ -198,7 +208,7 @@ static int hns_roce_alloc_mtt_range(struct hns_roce_dev *hr_dev, int order,
 int hns_roce_mtt_init(struct hns_roce_dev *hr_dev, int npages, int page_shift,
 		      struct hns_roce_mtt *mtt)
 {
-	int ret = 0;
+	int ret;
 	int i;
 
 	/* Page num is zero, correspond to DMA memory register */
@@ -217,7 +227,8 @@ int hns_roce_mtt_init(struct hns_roce_dev *hr_dev, int npages, int page_shift,
 		++mtt->order;
 
 	/* Allocate MTT entry */
-	ret = hns_roce_alloc_mtt_range(hr_dev, mtt->order, &mtt->first_seg);
+	ret = hns_roce_alloc_mtt_range(hr_dev, mtt->order, &mtt->first_seg,
+				       mtt->mtt_type);
 	if (ret == -1)
 		return -ENOMEM;
 
@@ -231,9 +242,19 @@ void hns_roce_mtt_cleanup(struct hns_roce_dev *hr_dev, struct hns_roce_mtt *mtt)
 	if (mtt->order < 0)
 		return;
 
-	hns_roce_buddy_free(&mr_table->mtt_buddy, mtt->first_seg, mtt->order);
-	hns_roce_table_put_range(hr_dev, &mr_table->mtt_table, mtt->first_seg,
-				 mtt->first_seg + (1 << mtt->order) - 1);
+	if (mtt->mtt_type == MTT_TYPE_WQE) {
+		hns_roce_buddy_free(&mr_table->mtt_buddy, mtt->first_seg,
+				    mtt->order);
+		hns_roce_table_put_range(hr_dev, &mr_table->mtt_table,
+					mtt->first_seg,
+					mtt->first_seg + (1 << mtt->order) - 1);
+	} else {
+		hns_roce_buddy_free(&mr_table->mtt_cqe_buddy, mtt->first_seg,
+				    mtt->order);
+		hns_roce_table_put_range(hr_dev, &mr_table->mtt_cqe_table,
+					mtt->first_seg,
+					mtt->first_seg + (1 << mtt->order) - 1);
+	}
 }
 EXPORT_SYMBOL_GPL(hns_roce_mtt_cleanup);
 
@@ -362,7 +383,11 @@ static int hns_roce_write_mtt_chunk(struct hns_roce_dev *hr_dev,
 	if (start_index & (HNS_ROCE_MTT_ENTRY_PER_SEG - 1))
 		return -EINVAL;
 
-	table = &hr_dev->mr_table.mtt_table;
+	if (mtt->mtt_type == MTT_TYPE_WQE)
+		table = &hr_dev->mr_table.mtt_table;
+	else
+		table = &hr_dev->mr_table.mtt_cqe_table;
+
 	mtts = hns_roce_table_find(hr_dev, table,
 				mtt->first_seg + s / hr_dev->caps.mtt_entry_sz,
 				&dma_handle);
@@ -409,9 +434,9 @@ static int hns_roce_write_mtt(struct hns_roce_dev *hr_dev,
 int hns_roce_buf_write_mtt(struct hns_roce_dev *hr_dev,
 			   struct hns_roce_mtt *mtt, struct hns_roce_buf *buf)
 {
-	u32 i = 0;
-	int ret = 0;
-	u64 *page_list = NULL;
+	u64 *page_list;
+	int ret;
+	u32 i;
 
 	page_list = kmalloc_array(buf->npages, sizeof(*page_list), GFP_KERNEL);
 	if (!page_list)
@@ -434,7 +459,7 @@ int hns_roce_buf_write_mtt(struct hns_roce_dev *hr_dev,
 int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
-	int ret = 0;
+	int ret;
 
 	ret = hns_roce_bitmap_init(&mr_table->mtpt_bitmap,
 				   hr_dev->caps.num_mtpts,
@@ -448,7 +473,16 @@ int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev)
 	if (ret)
 		goto err_buddy;
 
+	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE)) {
+		ret = hns_roce_buddy_init(&mr_table->mtt_cqe_buddy,
+					  ilog2(hr_dev->caps.num_cqe_segs));
+		if (ret)
+			goto err_buddy_cqe;
+	}
 	return 0;
+
+err_buddy_cqe:
+	hns_roce_buddy_cleanup(&mr_table->mtt_buddy);
 
 err_buddy:
 	hns_roce_bitmap_cleanup(&mr_table->mtpt_bitmap);
@@ -460,6 +494,8 @@ void hns_roce_cleanup_mr_table(struct hns_roce_dev *hr_dev)
 	struct hns_roce_mr_table *mr_table = &hr_dev->mr_table;
 
 	hns_roce_buddy_cleanup(&mr_table->mtt_buddy);
+	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
+		hns_roce_buddy_cleanup(&mr_table->mtt_cqe_buddy);
 	hns_roce_bitmap_cleanup(&mr_table->mtpt_bitmap);
 }
 

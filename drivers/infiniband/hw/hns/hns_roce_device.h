@@ -170,6 +170,11 @@ enum {
 	HNS_ROCE_OPCODE_RDMA_WITH_IMM_RECEIVE	= 0x07,
 };
 
+enum hns_roce_mtt_type {
+	MTT_TYPE_WQE = 0,
+	MTT_TYPE_CQE,
+};
+
 #define HNS_ROCE_CMD_SUCCESS			1
 
 #define HNS_ROCE_PORT_DOWN			0
@@ -241,9 +246,10 @@ struct hns_roce_hem_table {
 };
 
 struct hns_roce_mtt {
-	unsigned long	first_seg;
-	int		order;
-	int		page_shift;
+	unsigned long		first_seg;
+	int			order;
+	int			page_shift;
+	enum hns_roce_mtt_type	mtt_type;
 };
 
 /* Only support 4K page size for mr register */
@@ -268,6 +274,8 @@ struct hns_roce_mr_table {
 	struct hns_roce_buddy		mtt_buddy;
 	struct hns_roce_hem_table	mtt_table;
 	struct hns_roce_hem_table	mtpt_table;
+	struct hns_roce_buddy		mtt_cqe_buddy;
+	struct hns_roce_hem_table	mtt_cqe_table;
 };
 
 struct hns_roce_wq {

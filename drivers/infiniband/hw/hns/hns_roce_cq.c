@@ -96,7 +96,11 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 	cq_table = &hr_dev->cq_table;
 
 	/* Get the physical address of cq buf */
-	mtt_table = &hr_dev->mr_table.mtt_table;
+	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
+		mtt_table = &hr_dev->mr_table.mtt_cqe_table;
+	else
+		mtt_table = &hr_dev->mr_table.mtt_table;
+
 	mtts = hns_roce_table_find(hr_dev, mtt_table,
 				   hr_mtt->first_seg, &dma_handle);
 	if (!mtts) {
@@ -221,6 +225,10 @@ static int hns_roce_ib_get_cq_umem(struct hns_roce_dev *hr_dev,
 	if (IS_ERR(*umem))
 		return PTR_ERR(*umem);
 
+	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
+		buf->hr_mtt.mtt_type = MTT_TYPE_CQE;
+	else
+		buf->hr_mtt.mtt_type = MTT_TYPE_WQE;
 	ret = hns_roce_mtt_init(hr_dev, ib_umem_page_count(*umem),
 				(*umem)->page_shift, &buf->hr_mtt);
 	if (ret)
@@ -249,6 +257,11 @@ static int hns_roce_ib_alloc_cq_buf(struct hns_roce_dev *hr_dev,
 				 PAGE_SIZE * 2, &buf->hr_buf);
 	if (ret)
 		goto out;
+
+	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
+		buf->hr_mtt.mtt_type = MTT_TYPE_CQE;
+	else
+		buf->hr_mtt.mtt_type = MTT_TYPE_WQE;
 
 	ret = hns_roce_mtt_init(hr_dev, buf->hr_buf.npages,
 				buf->hr_buf.page_shift, &buf->hr_mtt);
