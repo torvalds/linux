@@ -297,64 +297,6 @@ static ssize_t remaining_steps_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(remaining_steps);
 
-static const guid_t *parser_id_get(struct parser_context *ctx)
-{
-	return &ctx->data.id;
-}
-
-static void parser_done(struct parser_context *ctx)
-{
-	chipset_dev->controlvm_payload_bytes_buffered -= ctx->param_bytes;
-	kfree(ctx);
-}
-
-static void *parser_string_get(struct parser_context *ctx)
-{
-	u8 *pscan;
-	unsigned long nscan;
-	int value_length;
-	void *value;
-	int i;
-
-	pscan = ctx->curr;
-	if (!pscan)
-		return NULL;
-	nscan = ctx->bytes_remaining;
-	if (nscan == 0)
-		return NULL;
-
-	for (i = 0, value_length = -1; i < nscan; i++)
-		if (pscan[i] == '\0') {
-			value_length = i;
-			break;
-		}
-	/* '\0' was not included in the length */
-	if (value_length < 0)
-		value_length = nscan;
-
-	value = kmalloc(value_length + 1, GFP_KERNEL);
-	if (!value)
-		return NULL;
-	if (value_length > 0)
-		memcpy(value, pscan, value_length);
-	((u8 *)(value))[value_length] = '\0';
-	return value;
-}
-
-static void *parser_name_get(struct parser_context *ctx)
-{
-	struct visor_controlvm_parameters_header *phdr = NULL;
-
-	phdr = &ctx->data;
-
-	if (phdr->name_offset + phdr->name_length > ctx->param_bytes)
-		return NULL;
-
-	ctx->curr = (char *)&phdr + phdr->name_offset;
-	ctx->bytes_remaining = phdr->name_length;
-	return parser_string_get(ctx);
-}
-
 struct visor_busdev {
 	u32 bus_no;
 	u32 dev_no;
@@ -699,6 +641,58 @@ err_respond:
 	if (inmsg->hdr.flags.response_expected == 1)
 		controlvm_responder(inmsg->hdr.id, &inmsg->hdr, err);
 	return err;
+}
+
+static const guid_t *parser_id_get(struct parser_context *ctx)
+{
+	return &ctx->data.id;
+}
+
+static void *parser_string_get(struct parser_context *ctx)
+{
+	u8 *pscan;
+	unsigned long nscan;
+	int value_length;
+	void *value;
+	int i;
+
+	pscan = ctx->curr;
+	if (!pscan)
+		return NULL;
+	nscan = ctx->bytes_remaining;
+	if (nscan == 0)
+		return NULL;
+
+	for (i = 0, value_length = -1; i < nscan; i++)
+		if (pscan[i] == '\0') {
+			value_length = i;
+			break;
+		}
+	/* '\0' was not included in the length */
+	if (value_length < 0)
+		value_length = nscan;
+
+	value = kmalloc(value_length + 1, GFP_KERNEL);
+	if (!value)
+		return NULL;
+	if (value_length > 0)
+		memcpy(value, pscan, value_length);
+	((u8 *)(value))[value_length] = '\0';
+	return value;
+}
+
+static void *parser_name_get(struct parser_context *ctx)
+{
+	struct visor_controlvm_parameters_header *phdr = NULL;
+
+	phdr = &ctx->data;
+
+	if (phdr->name_offset + phdr->name_length > ctx->param_bytes)
+		return NULL;
+
+	ctx->curr = (char *)&phdr + phdr->name_offset;
+	ctx->bytes_remaining = phdr->name_length;
+	return parser_string_get(ctx);
 }
 
 static int visorbus_configure(struct controlvm_message *inmsg,
@@ -1447,6 +1441,12 @@ void visorbus_device_changestate_response(struct visor_device *dev_info,
 
 	kfree(dev_info->pending_msg_hdr);
 	dev_info->pending_msg_hdr = NULL;
+}
+
+static void parser_done(struct parser_context *ctx)
+{
+	chipset_dev->controlvm_payload_bytes_buffered -= ctx->param_bytes;
+	kfree(ctx);
 }
 
 static struct parser_context *parser_init_byte_stream(u64 addr, u32 bytes,
