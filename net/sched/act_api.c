@@ -70,11 +70,11 @@ static void free_tcf(struct rcu_head *head)
 	kfree(p);
 }
 
-static void tcf_hash_destroy(struct tcf_hashinfo *hinfo, struct tc_action *p)
+static void tcf_idr_remove(struct tcf_idrinfo *idrinfo, struct tc_action *p)
 {
-	spin_lock_bh(&hinfo->lock);
-	hlist_del(&p->tcfa_head);
-	spin_unlock_bh(&hinfo->lock);
+	spin_lock_bh(&idrinfo->lock);
+	idr_remove_ext(&idrinfo->action_idr, p->tcfa_index);
+	spin_unlock_bh(&idrinfo->lock);
 	gen_kill_estimator(&p->tcfa_rate_est);
 	/*
 	 * gen_estimator est_timer() might access p->tcfa_lock
@@ -83,7 +83,7 @@ static void tcf_hash_destroy(struct tcf_hashinfo *hinfo, struct tc_action *p)
 	call_rcu(&p->tcfa_rcu, free_tcf);
 }
 
-int __tcf_hash_release(struct tc_action *p, bool bind, bool strict)
+int __tcf_idr_release(struct tc_action *p, bool bind, bool strict)
 {
 	int ret = 0;
 
@@ -97,64 +97,60 @@ int __tcf_hash_release(struct tc_action *p, bool bind, bool strict)
 		if (p->tcfa_bindcnt <= 0 && p->tcfa_refcnt <= 0) {
 			if (p->ops->cleanup)
 				p->ops->cleanup(p, bind);
-			tcf_hash_destroy(p->hinfo, p);
+			tcf_idr_remove(p->idrinfo, p);
 			ret = ACT_P_DELETED;
 		}
 	}
 
 	return ret;
 }
-EXPORT_SYMBOL(__tcf_hash_release);
+EXPORT_SYMBOL(__tcf_idr_release);
 
-static int tcf_dump_walker(struct tcf_hashinfo *hinfo, struct sk_buff *skb,
+static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 			   struct netlink_callback *cb)
 {
-	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
+	int err = 0, index = -1, s_i = 0, n_i = 0;
 	u32 act_flags = cb->args[2];
 	unsigned long jiffy_since = cb->args[3];
 	struct nlattr *nest;
+	struct idr *idr = &idrinfo->action_idr;
+	struct tc_action *p;
+	unsigned long id = 1;
 
-	spin_lock_bh(&hinfo->lock);
+	spin_lock_bh(&idrinfo->lock);
 
 	s_i = cb->args[0];
 
-	for (i = 0; i < (hinfo->hmask + 1); i++) {
-		struct hlist_head *head;
-		struct tc_action *p;
+	idr_for_each_entry_ext(idr, p, id) {
+		index++;
+		if (index < s_i)
+			continue;
 
-		head = &hinfo->htab[tcf_hash(i, hinfo->hmask)];
+		if (jiffy_since &&
+		    time_after(jiffy_since,
+			       (unsigned long)p->tcfa_tm.lastuse))
+			continue;
 
-		hlist_for_each_entry_rcu(p, head, tcfa_head) {
-			index++;
-			if (index < s_i)
-				continue;
-
-			if (jiffy_since &&
-			    time_after(jiffy_since,
-				       (unsigned long)p->tcfa_tm.lastuse))
-				continue;
-
-			nest = nla_nest_start(skb, n_i);
-			if (nest == NULL)
-				goto nla_put_failure;
-			err = tcf_action_dump_1(skb, p, 0, 0);
-			if (err < 0) {
-				index--;
-				nlmsg_trim(skb, nest);
-				goto done;
-			}
-			nla_nest_end(skb, nest);
-			n_i++;
-			if (!(act_flags & TCA_FLAG_LARGE_DUMP_ON) &&
-			    n_i >= TCA_ACT_MAX_PRIO)
-				goto done;
+		nest = nla_nest_start(skb, n_i);
+		if (!nest)
+			goto nla_put_failure;
+		err = tcf_action_dump_1(skb, p, 0, 0);
+		if (err < 0) {
+			index--;
+			nlmsg_trim(skb, nest);
+			goto done;
 		}
+		nla_nest_end(skb, nest);
+		n_i++;
+		if (!(act_flags & TCA_FLAG_LARGE_DUMP_ON) &&
+		    n_i >= TCA_ACT_MAX_PRIO)
+			goto done;
 	}
 done:
 	if (index >= 0)
 		cb->args[0] = index + 1;
 
-	spin_unlock_bh(&hinfo->lock);
+	spin_unlock_bh(&idrinfo->lock);
 	if (n_i) {
 		if (act_flags & TCA_FLAG_LARGE_DUMP_ON)
 			cb->args[1] = n_i;
@@ -166,31 +162,29 @@ nla_put_failure:
 	goto done;
 }
 
-static int tcf_del_walker(struct tcf_hashinfo *hinfo, struct sk_buff *skb,
+static int tcf_del_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 			  const struct tc_action_ops *ops)
 {
 	struct nlattr *nest;
-	int i = 0, n_i = 0;
+	int n_i = 0;
 	int ret = -EINVAL;
+	struct idr *idr = &idrinfo->action_idr;
+	struct tc_action *p;
+	unsigned long id = 1;
 
 	nest = nla_nest_start(skb, 0);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put_string(skb, TCA_KIND, ops->kind))
 		goto nla_put_failure;
-	for (i = 0; i < (hinfo->hmask + 1); i++) {
-		struct hlist_head *head;
-		struct hlist_node *n;
-		struct tc_action *p;
 
-		head = &hinfo->htab[tcf_hash(i, hinfo->hmask)];
-		hlist_for_each_entry_safe(p, n, head, tcfa_head) {
-			ret = __tcf_hash_release(p, false, true);
-			if (ret == ACT_P_DELETED) {
-				module_put(p->ops->owner);
-				n_i++;
-			} else if (ret < 0)
-				goto nla_put_failure;
+	idr_for_each_entry_ext(idr, p, id) {
+		ret = __tcf_idr_release(p, false, true);
+		if (ret == ACT_P_DELETED) {
+			module_put(p->ops->owner);
+			n_i++;
+		} else if (ret < 0) {
+			goto nla_put_failure;
 		}
 	}
 	if (nla_put_u32(skb, TCA_FCNT, n_i))
@@ -207,12 +201,12 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 		       struct netlink_callback *cb, int type,
 		       const struct tc_action_ops *ops)
 {
-	struct tcf_hashinfo *hinfo = tn->hinfo;
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 
 	if (type == RTM_DELACTION) {
-		return tcf_del_walker(hinfo, skb, ops);
+		return tcf_del_walker(idrinfo, skb, ops);
 	} else if (type == RTM_GETACTION) {
-		return tcf_dump_walker(hinfo, skb, cb);
+		return tcf_dump_walker(idrinfo, skb, cb);
 	} else {
 		WARN(1, "tcf_generic_walker: unknown action %d\n", type);
 		return -EINVAL;
@@ -220,40 +214,21 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(tcf_generic_walker);
 
-static struct tc_action *tcf_hash_lookup(u32 index, struct tcf_hashinfo *hinfo)
+static struct tc_action *tcf_idr_lookup(u32 index, struct tcf_idrinfo *idrinfo)
 {
 	struct tc_action *p = NULL;
-	struct hlist_head *head;
 
-	spin_lock_bh(&hinfo->lock);
-	head = &hinfo->htab[tcf_hash(index, hinfo->hmask)];
-	hlist_for_each_entry_rcu(p, head, tcfa_head)
-		if (p->tcfa_index == index)
-			break;
-	spin_unlock_bh(&hinfo->lock);
+	spin_lock_bh(&idrinfo->lock);
+	p = idr_find_ext(&idrinfo->action_idr, index);
+	spin_unlock_bh(&idrinfo->lock);
 
 	return p;
 }
 
-u32 tcf_hash_new_index(struct tc_action_net *tn)
+int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index)
 {
-	struct tcf_hashinfo *hinfo = tn->hinfo;
-	u32 val = hinfo->index;
-
-	do {
-		if (++val == 0)
-			val = 1;
-	} while (tcf_hash_lookup(val, hinfo));
-
-	hinfo->index = val;
-	return val;
-}
-EXPORT_SYMBOL(tcf_hash_new_index);
-
-int tcf_hash_search(struct tc_action_net *tn, struct tc_action **a, u32 index)
-{
-	struct tcf_hashinfo *hinfo = tn->hinfo;
-	struct tc_action *p = tcf_hash_lookup(index, hinfo);
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
+	struct tc_action *p = tcf_idr_lookup(index, idrinfo);
 
 	if (p) {
 		*a = p;
@@ -261,15 +236,15 @@ int tcf_hash_search(struct tc_action_net *tn, struct tc_action **a, u32 index)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(tcf_hash_search);
+EXPORT_SYMBOL(tcf_idr_search);
 
-bool tcf_hash_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
-		    int bind)
+bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
+		   int bind)
 {
-	struct tcf_hashinfo *hinfo = tn->hinfo;
-	struct tc_action *p = NULL;
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
+	struct tc_action *p = tcf_idr_lookup(index, idrinfo);
 
-	if (index && (p = tcf_hash_lookup(index, hinfo)) != NULL) {
+	if (index && p) {
 		if (bind)
 			p->tcfa_bindcnt++;
 		p->tcfa_refcnt++;
@@ -278,23 +253,25 @@ bool tcf_hash_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
 	}
 	return false;
 }
-EXPORT_SYMBOL(tcf_hash_check);
+EXPORT_SYMBOL(tcf_idr_check);
 
-void tcf_hash_cleanup(struct tc_action *a, struct nlattr *est)
+void tcf_idr_cleanup(struct tc_action *a, struct nlattr *est)
 {
 	if (est)
 		gen_kill_estimator(&a->tcfa_rate_est);
 	call_rcu(&a->tcfa_rcu, free_tcf);
 }
-EXPORT_SYMBOL(tcf_hash_cleanup);
+EXPORT_SYMBOL(tcf_idr_cleanup);
 
-int tcf_hash_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
-		    struct tc_action **a, const struct tc_action_ops *ops,
-		    int bind, bool cpustats)
+int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
+		   struct tc_action **a, const struct tc_action_ops *ops,
+		   int bind, bool cpustats)
 {
 	struct tc_action *p = kzalloc(ops->size, GFP_KERNEL);
-	struct tcf_hashinfo *hinfo = tn->hinfo;
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
+	struct idr *idr = &idrinfo->action_idr;
 	int err = -ENOMEM;
+	unsigned long idr_index;
 
 	if (unlikely(!p))
 		return -ENOMEM;
@@ -317,8 +294,28 @@ err2:
 		}
 	}
 	spin_lock_init(&p->tcfa_lock);
-	INIT_HLIST_NODE(&p->tcfa_head);
-	p->tcfa_index = index ? index : tcf_hash_new_index(tn);
+	/* user doesn't specify an index */
+	if (!index) {
+		spin_lock_bh(&idrinfo->lock);
+		err = idr_alloc_ext(idr, NULL, &idr_index, 1, 0,
+				    GFP_KERNEL);
+		spin_unlock_bh(&idrinfo->lock);
+		if (err) {
+err3:
+			free_percpu(p->cpu_qstats);
+			goto err2;
+		}
+		p->tcfa_index = idr_index;
+	} else {
+		spin_lock_bh(&idrinfo->lock);
+		err = idr_alloc_ext(idr, NULL, NULL, index, index + 1,
+				    GFP_KERNEL);
+		spin_unlock_bh(&idrinfo->lock);
+		if (err)
+			goto err3;
+		p->tcfa_index = index;
+	}
+
 	p->tcfa_tm.install = jiffies;
 	p->tcfa_tm.lastuse = jiffies;
 	p->tcfa_tm.firstuse = 0;
@@ -327,52 +324,46 @@ err2:
 					&p->tcfa_rate_est,
 					&p->tcfa_lock, NULL, est);
 		if (err) {
-			free_percpu(p->cpu_qstats);
-			goto err2;
+			goto err3;
 		}
 	}
 
-	p->hinfo = hinfo;
+	p->idrinfo = idrinfo;
 	p->ops = ops;
 	INIT_LIST_HEAD(&p->list);
 	*a = p;
 	return 0;
 }
-EXPORT_SYMBOL(tcf_hash_create);
+EXPORT_SYMBOL(tcf_idr_create);
 
-void tcf_hash_insert(struct tc_action_net *tn, struct tc_action *a)
+void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a)
 {
-	struct tcf_hashinfo *hinfo = tn->hinfo;
-	unsigned int h = tcf_hash(a->tcfa_index, hinfo->hmask);
+	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 
-	spin_lock_bh(&hinfo->lock);
-	hlist_add_head(&a->tcfa_head, &hinfo->htab[h]);
-	spin_unlock_bh(&hinfo->lock);
+	spin_lock_bh(&idrinfo->lock);
+	idr_replace_ext(&idrinfo->action_idr, a, a->tcfa_index);
+	spin_unlock_bh(&idrinfo->lock);
 }
-EXPORT_SYMBOL(tcf_hash_insert);
+EXPORT_SYMBOL(tcf_idr_insert);
 
-void tcf_hashinfo_destroy(const struct tc_action_ops *ops,
-			  struct tcf_hashinfo *hinfo)
+void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
+			 struct tcf_idrinfo *idrinfo)
 {
-	int i;
+	struct idr *idr = &idrinfo->action_idr;
+	struct tc_action *p;
+	int ret;
+	unsigned long id = 1;
 
-	for (i = 0; i < hinfo->hmask + 1; i++) {
-		struct tc_action *p;
-		struct hlist_node *n;
-
-		hlist_for_each_entry_safe(p, n, &hinfo->htab[i], tcfa_head) {
-			int ret;
-
-			ret = __tcf_hash_release(p, false, true);
-			if (ret == ACT_P_DELETED)
-				module_put(ops->owner);
-			else if (ret < 0)
-				return;
-		}
+	idr_for_each_entry_ext(idr, p, id) {
+		ret = __tcf_idr_release(p, false, true);
+		if (ret == ACT_P_DELETED)
+			module_put(ops->owner);
+		else if (ret < 0)
+			return;
 	}
-	kfree(hinfo->htab);
+	idr_destroy(&idrinfo->action_idr);
 }
-EXPORT_SYMBOL(tcf_hashinfo_destroy);
+EXPORT_SYMBOL(tcf_idrinfo_destroy);
 
 static LIST_HEAD(act_base);
 static DEFINE_RWLOCK(act_mod_lock);
@@ -524,7 +515,7 @@ int tcf_action_destroy(struct list_head *actions, int bind)
 	int ret = 0;
 
 	list_for_each_entry_safe(a, tmp, actions, list) {
-		ret = __tcf_hash_release(a, bind, true);
+		ret = __tcf_idr_release(a, bind, true);
 		if (ret == ACT_P_DELETED)
 			module_put(a->ops->owner);
 		else if (ret < 0)
