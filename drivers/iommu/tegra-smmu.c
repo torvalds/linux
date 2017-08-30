@@ -949,10 +949,6 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 
 	tegra_smmu_ahb_enable();
 
-	err = bus_set_iommu(&platform_bus_type, &tegra_smmu_ops);
-	if (err < 0)
-		return ERR_PTR(err);
-
 	err = iommu_device_sysfs_add(&smmu->iommu, dev, NULL, dev_name(dev));
 	if (err)
 		return ERR_PTR(err);
@@ -961,6 +957,13 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 
 	err = iommu_device_register(&smmu->iommu);
 	if (err) {
+		iommu_device_sysfs_remove(&smmu->iommu);
+		return ERR_PTR(err);
+	}
+
+	err = bus_set_iommu(&platform_bus_type, &tegra_smmu_ops);
+	if (err < 0) {
+		iommu_device_unregister(&smmu->iommu);
 		iommu_device_sysfs_remove(&smmu->iommu);
 		return ERR_PTR(err);
 	}
