@@ -1464,6 +1464,7 @@ qla24xx_handle_plogi_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 				__func__, __LINE__, ea->fcport->port_name);
 			ea->fcport->chip_reset = vha->hw->base_qpair->chip_reset;
 			ea->fcport->logout_on_delete = 1;
+			ea->fcport->send_els_logo = 0;
 			qla24xx_post_gpdb_work(vha, ea->fcport, 0);
 		}
 		break;
