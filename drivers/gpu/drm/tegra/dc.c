@@ -417,11 +417,6 @@ static const u32 tegra_primary_plane_formats[] = {
 	DRM_FORMAT_RGB565,
 };
 
-static void tegra_primary_plane_destroy(struct drm_plane *plane)
-{
-	tegra_plane_destroy(plane);
-}
-
 static void tegra_plane_reset(struct drm_plane *plane)
 {
 	struct tegra_plane_state *state;
@@ -466,7 +461,7 @@ static void tegra_plane_atomic_destroy_state(struct drm_plane *plane,
 static const struct drm_plane_funcs tegra_primary_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = tegra_primary_plane_destroy,
+	.destroy = tegra_plane_destroy,
 	.reset = tegra_plane_reset,
 	.atomic_duplicate_state = tegra_plane_atomic_duplicate_state,
 	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
