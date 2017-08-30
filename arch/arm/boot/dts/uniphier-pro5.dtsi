@@ -292,7 +292,7 @@
 		sdctrl@59810000 {
 			compatible = "socionext,uniphier-pro5-sdctrl",
 				     "simple-mfd", "syscon";
-			reg = <0x59810000 0x800>;
+			reg = <0x59810000 0x400>;
 
 			sd_clk: clock {
 				compatible = "socionext,uniphier-pro5-sd-clock";
@@ -329,6 +329,13 @@
 			pinctrl: pinctrl {
 				compatible = "socionext,uniphier-pro5-pinctrl";
 			};
+		};
+
+		aidet: aidet@5fc20000 {
+			compatible = "socionext,uniphier-pro5-aidet";
+			reg = <0x5fc20000 0x200>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		timer@60000200 {
