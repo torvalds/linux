@@ -1477,9 +1477,6 @@ static struct parser_context *parser_init_byte_stream(u64 addr, u32 bytes,
 
 	ctx->allocbytes = allocbytes;
 	ctx->param_bytes = bytes;
-	ctx->curr = NULL;
-	ctx->bytes_remaining = 0;
-	ctx->byte_stream = false;
 	mapping = memremap(addr, bytes, MEMREMAP_WB);
 	if (!mapping)
 		goto err_finish_ctx;
