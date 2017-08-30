@@ -135,7 +135,7 @@ static int debug_port_init(struct platform_device *pdev)
 	 * because of the uart irq is served when CPU is at IRQ exception, but it is
 	 * found unregistered, so it is disable.
 	 */
-	rk_fiq_write(t, 0xc1, UART_FCR);
+	rk_fiq_write(t, 0x01, UART_FCR);
 
 	/* disbale loop back mode */
 	rk_fiq_write(t, 0x0, UART_MCR);
