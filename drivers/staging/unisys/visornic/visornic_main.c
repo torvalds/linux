@@ -52,8 +52,7 @@ static struct visor_channeltype_descriptor visornic_channel_types[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(visorbus, visornic_channel_types);
-/*
- * FIXME XXX: This next line of code must be fixed and removed before
+/* FIXME XXX: This next line of code must be fixed and removed before
  * acceptance into the 'normal' part of the kernel.  It is only here as a place
  * holder to get module autoloading functionality working for visorbus.  Code
  * must be added to scripts/mode/file2alias.c, etc., to get this working
@@ -76,7 +75,6 @@ struct chanstat {
 };
 
 /* struct visornic_devdata
- *
  * @enabled:                        0 disabled 1 enabled to receive.
  * @enab_dis_acked:                 NET_RCV_ENABLE/DISABLE acked by IOPART.
  * @struct *dev:
@@ -1387,8 +1385,7 @@ static int visornic_rx(struct uiscmdrsp *cmdrsp)
 	 */
 
 	skb = NULL;
-	/*
-	 * whether the packet got dropped or handled, the skb is freed by
+	/* whether the packet got dropped or handled, the skb is freed by
 	 * kernel code, so we shouldn't free it. but we should repost a
 	 * new rcv buffer.
 	 */
@@ -1863,9 +1860,10 @@ static int visornic_probe(struct visor_device *dev)
 		goto cleanup_netdev;
 	}
 
-	/* set the net_xmit outstanding threshold */
-	/* always leave two slots open but you should have 3 at a minimum */
-	/* note that max_outstanding_net_xmits must be > 0 */
+	/* set the net_xmit outstanding threshold
+	 * always leave two slots open but you should have 3 at a minimum
+	 * note that max_outstanding_net_xmits must be > 0
+	 */
 	devdata->max_outstanding_net_xmits =
 		max_t(unsigned long, 3, ((devdata->num_rcv_bufs / 3) - 2));
 	devdata->upper_threshold_net_xmits =
