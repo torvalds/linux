@@ -165,6 +165,7 @@ struct bq24190_dev_info {
 	struct extcon_dev		*extcon;
 	struct notifier_block		extcon_nb;
 	struct delayed_work		extcon_work;
+	struct delayed_work		input_current_limit_work;
 	char				model_name[I2C_NAME_SIZE];
 	bool				initialized;
 	bool				irq_event;
@@ -1210,6 +1211,32 @@ static int bq24190_charger_property_is_writeable(struct power_supply *psy,
 	return ret;
 }
 
+static void bq24190_input_current_limit_work(struct work_struct *work)
+{
+	struct bq24190_dev_info *bdi =
+		container_of(work, struct bq24190_dev_info,
+			     input_current_limit_work.work);
+
+	power_supply_set_input_current_limit_from_supplier(bdi->charger);
+}
+
+/* Sync the input-current-limit with our parent supply (if we have one) */
+static void bq24190_charger_external_power_changed(struct power_supply *psy)
+{
+	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
+
+	/*
+	 * The Power-Good detection may take up to 220ms, sometimes
+	 * the external charger detection is quicker, and the bq24190 will
+	 * reset to iinlim based on its own charger detection (which is not
+	 * hooked up when using external charger detection) resulting in a
+	 * too low default 500mA iinlim. Delay setting the input-current-limit
+	 * for 300ms to avoid this.
+	 */
+	queue_delayed_work(system_wq, &bdi->input_current_limit_work,
+			   msecs_to_jiffies(300));
+}
+
 static enum power_supply_property bq24190_charger_properties[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -1240,6 +1267,7 @@ static const struct power_supply_desc bq24190_charger_desc = {
 	.get_property		= bq24190_charger_get_property,
 	.set_property		= bq24190_charger_set_property,
 	.property_is_writeable	= bq24190_charger_property_is_writeable,
+	.external_power_changed	= bq24190_charger_external_power_changed,
 };
 
 /* Battery power supply property routines */
@@ -1758,6 +1786,8 @@ static int bq24190_probe(struct i2c_client *client,
 	mutex_init(&bdi->f_reg_lock);
 	bdi->f_reg = 0;
 	bdi->ss_reg = BQ24190_REG_SS_VBUS_STAT_MASK; /* impossible state */
+	INIT_DELAYED_WORK(&bdi->input_current_limit_work,
+			  bq24190_input_current_limit_work);
 
 	i2c_set_clientdata(client, bdi);
 
