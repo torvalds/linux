@@ -5942,13 +5942,12 @@ done:
 	xfs_iext_update_extent(ifp, current_ext - 1, &new);
 	xfs_iext_remove(ip, current_ext, 1, 0);
 
-	/* update reverse mapping */
+	/* update reverse mapping. rmap functions merge the rmaps for us */
 	error = xfs_rmap_unmap_extent(mp, dfops, ip, whichfork, got);
 	if (error)
 		return error;
-	error = xfs_rmap_unmap_extent(mp, dfops, ip, whichfork, left);
-	if (error)
-		return error;
+	memcpy(&new, got, sizeof(new));
+	new.br_startoff = left->br_startoff + left->br_blockcount;
 	return xfs_rmap_map_extent(mp, dfops, ip, whichfork, &new);
 }
 
