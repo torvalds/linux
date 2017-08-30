@@ -792,8 +792,6 @@ static int visorbus_device_create(struct controlvm_message *inmsg)
 	dev_info->chipset_bus_no = bus_no;
 	dev_info->chipset_dev_no = dev_no;
 	guid_copy(&dev_info->inst, &cmd->create_device.dev_inst_guid);
-
-	/* not sure where the best place to set the 'parent' */
 	dev_info->device.parent = &bus_info->device;
 
 	visorchannel =
