@@ -190,7 +190,7 @@ static void __exit irda_cleanup(void)
  *
  * Jean II
  */
-subsys_initcall(irda_init);
+device_initcall(irda_init);
 module_exit(irda_cleanup);
 
 MODULE_AUTHOR("Dag Brattli <dagb@cs.uit.no> & Jean Tourrilhes <jt@hpl.hp.com>");
