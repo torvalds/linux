@@ -1160,9 +1160,9 @@ static bool rsi_map_rates(u16 rate, int *offset)
  */
 static int rsi_send_auto_rate_request(struct rsi_common *common,
 				      struct ieee80211_sta *sta,
-				      u16 sta_id)
+				      u16 sta_id,
+				      struct ieee80211_vif *vif)
 {
-	struct ieee80211_vif *vif = common->priv->vifs[0];
 	struct sk_buff *skb;
 	struct rsi_auto_rate *auto_rate;
 	int ii = 0, jj = 0, kk = 0;
@@ -1332,7 +1332,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 					      aid, sta_id,
 					      vif);
 		if (common->min_rate == 0xffff)
-			rsi_send_auto_rate_request(common, sta, sta_id);
+			rsi_send_auto_rate_request(common, sta, sta_id, vif);
 		if (opmode == RSI_OPMODE_STA) {
 			if (!rsi_send_block_unblock_frame(common, false))
 				common->hw_data_qs_blocked = false;

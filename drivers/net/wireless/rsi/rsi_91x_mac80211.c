@@ -756,7 +756,8 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
-	    (vif->type == NL80211_IFTYPE_AP)) {
+	    ((vif->type == NL80211_IFTYPE_AP) ||
+	     (vif->type == NL80211_IFTYPE_P2P_GO))) {
 		if (bss->enable_beacon) {
 			rsi_dbg(INFO_ZONE, "===> BEACON ENABLED <===\n");
 			common->beacon_enabled = 1;
@@ -1147,9 +1148,9 @@ static int rsi_mac80211_set_rate_mask(struct ieee80211_hw *hw,
  */
 static void rsi_perform_cqm(struct rsi_common *common,
 			    u8 *bssid,
-			    s8 rssi)
+			    s8 rssi,
+			    struct ieee80211_vif *vif)
 {
-	struct rsi_hw *adapter = common->priv;
 	s8 last_event = common->cqm_info.last_cqm_event_rssi;
 	int thold = common->cqm_info.rssi_thold;
 	u32 hyst = common->cqm_info.rssi_hyst;
@@ -1165,7 +1166,7 @@ static void rsi_perform_cqm(struct rsi_common *common,
 
 	common->cqm_info.last_cqm_event_rssi = rssi;
 	rsi_dbg(INFO_ZONE, "CQM: Notifying event: %d\n", event);
-	ieee80211_cqm_rssi_notify(adapter->vifs[0], event, rssi, GFP_KERNEL);
+	ieee80211_cqm_rssi_notify(vif, event, rssi, GFP_KERNEL);
 
 	return;
 }
@@ -1228,15 +1229,17 @@ static void rsi_fill_rx_status(struct ieee80211_hw *hw,
 		vif = adapter->vifs[i];
 		if (!vif)
 			continue;
-		if (vif->type == NL80211_IFTYPE_STATION)
+		if (vif->type == NL80211_IFTYPE_STATION) {
 			bss = &vif->bss_conf;
+			break;
+		}
 	}
 	if (!bss)
 		return;
 	/* CQM only for connected AP beacons, the RSSI is a weighted avg */
 	if (bss->assoc && !(memcmp(bss->bssid, hdr->addr2, ETH_ALEN))) {
 		if (ieee80211_is_beacon(hdr->frame_control))
-			rsi_perform_cqm(common, hdr->addr2, rxs->signal);
+			rsi_perform_cqm(common, hdr->addr2, rxs->signal, vif);
 	}
 
 	return;
