@@ -355,6 +355,24 @@ static void rsi_mac80211_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&common->mutex);
 }
 
+static int rsi_map_intf_mode(enum nl80211_iftype vif_type)
+{
+	switch (vif_type) {
+	case NL80211_IFTYPE_STATION:
+		return RSI_OPMODE_STA;
+	case NL80211_IFTYPE_AP:
+		return RSI_OPMODE_AP;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		return RSI_OPMODE_P2P_CLIENT;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		return RSI_OPMODE_P2P_CLIENT;
+	case NL80211_IFTYPE_P2P_GO:
+		return RSI_OPMODE_P2P_GO;
+	default:
+		return RSI_OPMODE_UNSUPPORTED;
+	}
+}
+
 /**
  * rsi_mac80211_add_interface() - This function is called when a netdevice
  *				  attached to the hardware is enabled.
@@ -368,54 +386,62 @@ static int rsi_mac80211_add_interface(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	struct vif_priv *vif_info = (struct vif_priv *)vif->drv_priv;
 	enum opmode intf_mode;
-	int ret = -EOPNOTSUPP;
+	enum vap_status vap_status;
+	int vap_idx = -1, i;
 
 	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
 	mutex_lock(&common->mutex);
 
-	if (adapter->sc_nvifs > 1) {
-		mutex_unlock(&common->mutex);
-		return -EOPNOTSUPP;
-	}
-
-	switch (vif->type) {
-	case NL80211_IFTYPE_STATION:
-		rsi_dbg(INFO_ZONE, "Station Mode");
-		intf_mode = STA_OPMODE;
-		break;
-	case NL80211_IFTYPE_AP:
-		rsi_dbg(INFO_ZONE, "AP Mode");
-		intf_mode = AP_OPMODE;
-		break;
-	default:
+	intf_mode = rsi_map_intf_mode(vif->type);
+	if (intf_mode == RSI_OPMODE_UNSUPPORTED) {
 		rsi_dbg(ERR_ZONE,
 			"%s: Interface type %d not supported\n", __func__,
 			vif->type);
-		goto out;
+		mutex_unlock(&common->mutex);
+		return -EOPNOTSUPP;
 	}
+	if ((vif->type == NL80211_IFTYPE_P2P_DEVICE) ||
+	    (vif->type == NL80211_IFTYPE_P2P_CLIENT) ||
+	    (vif->type == NL80211_IFTYPE_P2P_GO))
+		common->p2p_enabled = true;
 
-	adapter->vifs[adapter->sc_nvifs++] = vif;
-	ret = rsi_set_vap_capabilities(common, intf_mode, common->mac_addr,
-				       0, VAP_ADD);
-	if (ret) {
+	/* Get free vap index */
+	for (i = 0; i < RSI_MAX_VIFS; i++) {
+		if (!adapter->vifs[i]) {
+			vap_idx = i;
+			break;
+		}
+	}
+	if (vap_idx < 0) {
+		rsi_dbg(ERR_ZONE, "Reject: Max VAPs reached\n");
+		mutex_unlock(&common->mutex);
+		return -EOPNOTSUPP;
+	}
+	vif_info->vap_id = vap_idx;
+	adapter->vifs[vap_idx] = vif;
+	adapter->sc_nvifs++;
+	vap_status = VAP_ADD;
+
+	if (rsi_set_vap_capabilities(common, intf_mode, vif->addr,
+				     vif_info->vap_id, vap_status)) {
 		rsi_dbg(ERR_ZONE, "Failed to set VAP capabilities\n");
-		goto out;
+		mutex_unlock(&common->mutex);
+		return -EINVAL;
 	}
 
-	if (vif->type == NL80211_IFTYPE_AP) {
-		int i;
-
+	if ((vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_P2P_GO)) {
 		rsi_send_rx_filter_frame(common, DISALLOW_BEACONS);
 		common->min_rate = RSI_RATE_AUTO;
 		for (i = 0; i < common->max_stations; i++)
 			common->stations[i].sta = NULL;
 	}
 
-out:
 	mutex_unlock(&common->mutex);
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -432,6 +458,7 @@ static void rsi_mac80211_remove_interface(struct ieee80211_hw *hw,
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
 	enum opmode opmode;
+	int i;
 
 	rsi_dbg(INFO_ZONE, "Remove Interface Called\n");
 
@@ -442,23 +469,22 @@ static void rsi_mac80211_remove_interface(struct ieee80211_hw *hw,
 		return;
 	}
 
-	switch (vif->type) {
-	case NL80211_IFTYPE_STATION:
-		opmode = STA_OPMODE;
-		break;
-	case NL80211_IFTYPE_AP:
-		opmode = AP_OPMODE;
-		break;
-	default:
+	opmode = rsi_map_intf_mode(vif->type);
+	if (opmode == RSI_OPMODE_UNSUPPORTED) {
+		rsi_dbg(ERR_ZONE, "Opmode error : %d\n", opmode);
 		mutex_unlock(&common->mutex);
 		return;
 	}
-	rsi_set_vap_capabilities(common, opmode, vif->addr,
-				 0, VAP_DELETE);
-	adapter->sc_nvifs--;
-
-	if (!memcmp(adapter->vifs[0], vif, sizeof(struct ieee80211_vif)))
-		adapter->vifs[0] = NULL;
+	for (i = 0; i < RSI_MAX_VIFS; i++) {
+		if (!adapter->vifs[i])
+			continue;
+		if (vif == adapter->vifs[i]) {
+			rsi_set_vap_capabilities(common, opmode, vif->addr,
+						 i, VAP_DELETE);
+			adapter->sc_nvifs--;
+			adapter->vifs[i] = NULL;
+		}
+	}
 	mutex_unlock(&common->mutex);
 }
 
@@ -652,7 +678,7 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 			rsi_send_rx_filter_frame(common, rx_filter_word);
 		}
 		rsi_inform_bss_status(common,
-				      STA_OPMODE,
+				      RSI_OPMODE_STA,
 				      bss_conf->assoc,
 				      bss_conf->bssid,
 				      bss_conf->qos,
@@ -1285,8 +1311,9 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 
 			/* Send peer notify to device */
 			rsi_dbg(INFO_ZONE, "Indicate bss status to device\n");
-			rsi_inform_bss_status(common, AP_OPMODE, 1, sta->addr,
-					      sta->wme, sta->aid, sta, sta_idx);
+			rsi_inform_bss_status(common, RSI_OPMODE_AP, 1,
+					      sta->addr, sta->wme, sta->aid,
+					      sta, sta_idx);
 
 			if (common->key) {
 				struct ieee80211_key_conf *key = common->key;
@@ -1358,7 +1385,7 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 			if (!rsta->sta)
 				continue;
 			if (!memcmp(rsta->sta->addr, sta->addr, ETH_ALEN)) {
-				rsi_inform_bss_status(common, AP_OPMODE, 0,
+				rsi_inform_bss_status(common, RSI_OPMODE_AP, 0,
 						      sta->addr, sta->wme,
 						      sta->aid, sta, sta_idx);
 				rsta->sta = NULL;

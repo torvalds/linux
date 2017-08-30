@@ -200,8 +200,11 @@
 #define RSI_DATA_DESC_INSERT_SEQ_NO	BIT(2)
 
 enum opmode {
-	AP_OPMODE = 0,
-	STA_OPMODE,
+	RSI_OPMODE_UNSUPPORTED = -1,
+	RSI_OPMODE_AP = 0,
+	RSI_OPMODE_STA,
+	RSI_OPMODE_P2P_GO,
+	RSI_OPMODE_P2P_CLIENT
 };
 
 enum vap_status {
@@ -363,9 +366,9 @@ struct rsi_vap_caps {
 	u8 vif_type;
 	u8 channel_bw;
 	__le16 antenna_info;
+	__le16 token;
 	u8 radioid_macid;
 	u8 vap_id;
-	__le16 reserved3;
 	u8 mac_addr[6];
 	__le16 keep_alive_period;
 	u8 bssid[6];

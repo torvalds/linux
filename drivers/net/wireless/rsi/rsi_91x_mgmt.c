@@ -482,9 +482,9 @@ static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
 	memset(skb->data, 0, frame_len);
 	peer_notify = (struct rsi_peer_notify *)skb->data;
 
-	if (opmode == STA_OPMODE)
+	if (opmode == RSI_OPMODE_STA)
 		peer_notify->command = cpu_to_le16(PEER_TYPE_AP << 1);
-	else if (opmode == AP_OPMODE)
+	else if (opmode == RSI_OPMODE_AP)
 		peer_notify->command = cpu_to_le16(PEER_TYPE_STA << 1);
 
 	switch (notify_event) {
@@ -1321,7 +1321,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 			   u16 sta_id)
 {
 	if (status) {
-		if (opmode == STA_OPMODE)
+		if (opmode == RSI_OPMODE_STA)
 			common->hw_data_qs_blocked = true;
 		rsi_hal_send_sta_notify_frame(common,
 					      opmode,
@@ -1331,12 +1331,12 @@ void rsi_inform_bss_status(struct rsi_common *common,
 					      aid, sta_id);
 		if (common->min_rate == 0xffff)
 			rsi_send_auto_rate_request(common, sta, sta_id);
-		if (opmode == STA_OPMODE) {
+		if (opmode == RSI_OPMODE_STA) {
 			if (!rsi_send_block_unblock_frame(common, false))
 				common->hw_data_qs_blocked = false;
 		}
 	} else {
-		if (opmode == STA_OPMODE)
+		if (opmode == RSI_OPMODE_STA)
 			common->hw_data_qs_blocked = true;
 		rsi_hal_send_sta_notify_frame(common,
 					      opmode,
@@ -1344,7 +1344,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 					      addr,
 					      qos_enable,
 					      aid, sta_id);
-		if (opmode == STA_OPMODE)
+		if (opmode == RSI_OPMODE_STA)
 			rsi_send_block_unblock_frame(common, true);
 	}
 }
