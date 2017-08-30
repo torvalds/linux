@@ -1158,13 +1158,13 @@ static int visorchipset_initiate_device_pause_resume(struct visor_device *dev,
 	int err;
 	struct visor_driver *drv = NULL;
 
-	drv = to_visor_driver(dev->device.driver);
-	if (!drv)
-		return -ENODEV;
-
+	/* If no driver associated with the device nothing to pause/resume */
+	if (!dev->device.driver)
+		return 0;
 	if (dev->pausing || dev->resuming)
 		return -EBUSY;
 
+	drv = to_visor_driver(dev->device.driver);
 	if (is_pause) {
 		dev->pausing = true;
 		err = drv->pause(dev, pause_state_change_complete);

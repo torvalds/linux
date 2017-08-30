@@ -104,8 +104,7 @@ struct visor_driver {
 	struct device_driver driver;
 };
 
-#define to_visor_driver(x) ((x) ? \
-	(container_of(x, struct visor_driver, driver)) : (NULL))
+#define to_visor_driver(x) (container_of(x, struct visor_driver, driver))
 
 /**
  * struct visor_device - A device type for things "plugged" into the visorbus
