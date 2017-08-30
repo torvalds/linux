@@ -190,7 +190,7 @@ static u32 xive_scan_interrupts(struct xive_cpu *xc, bool just_peek)
  * This is used to perform the magic loads from an ESB
  * described in xive.h
  */
-static notrace u8 xive_poke_esb(struct xive_irq_data *xd, u32 offset)
+static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 {
 	u64 val;
 
@@ -227,7 +227,7 @@ notrace void xmon_xive_do_dump(int cpu)
 	xive_dump_eq("IRQ", &xc->queue[xive_irq_priority]);
 #ifdef CONFIG_SMP
 	{
-		u64 val = xive_poke_esb(&xc->ipi_data, XIVE_ESB_GET);
+		u64 val = xive_esb_read(&xc->ipi_data, XIVE_ESB_GET);
 		xmon_printf("  IPI state: %x:%c%c\n", xc->hw_ipi,
 			val & XIVE_ESB_VAL_P ? 'P' : 'p',
 			val & XIVE_ESB_VAL_P ? 'Q' : 'q');
@@ -326,9 +326,9 @@ void xive_do_source_eoi(u32 hw_irq, struct xive_irq_data *xd)
 		 * properly.
 		 */
 		if (xd->flags & XIVE_IRQ_FLAG_LSI)
-			in_be64(xd->eoi_mmio);
+			xive_esb_read(xd, XIVE_ESB_LOAD_EOI);
 		else {
-			eoi_val = xive_poke_esb(xd, XIVE_ESB_SET_PQ_00);
+			eoi_val = xive_esb_read(xd, XIVE_ESB_SET_PQ_00);
 			DBG_VERBOSE("eoi_val=%x\n", offset, eoi_val);
 
 			/* Re-trigger if needed */
@@ -383,12 +383,12 @@ static void xive_do_source_set_mask(struct xive_irq_data *xd,
 	 * ESB accordingly on unmask.
 	 */
 	if (mask) {
-		val = xive_poke_esb(xd, XIVE_ESB_SET_PQ_01);
+		val = xive_esb_read(xd, XIVE_ESB_SET_PQ_01);
 		xd->saved_p = !!(val & XIVE_ESB_VAL_P);
 	} else if (xd->saved_p)
-		xive_poke_esb(xd, XIVE_ESB_SET_PQ_10);
+		xive_esb_read(xd, XIVE_ESB_SET_PQ_10);
 	else
-		xive_poke_esb(xd, XIVE_ESB_SET_PQ_00);
+		xive_esb_read(xd, XIVE_ESB_SET_PQ_00);
 }
 
 /*
@@ -772,7 +772,7 @@ static int xive_irq_retrigger(struct irq_data *d)
 	 * To perform a retrigger, we first set the PQ bits to
 	 * 11, then perform an EOI.
 	 */
-	xive_poke_esb(xd, XIVE_ESB_SET_PQ_11);
+	xive_esb_read(xd, XIVE_ESB_SET_PQ_11);
 
 	/*
 	 * Note: We pass "0" to the hw_irq argument in order to
@@ -807,7 +807,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 		irqd_set_forwarded_to_vcpu(d);
 
 		/* Set it to PQ=10 state to prevent further sends */
-		pq = xive_poke_esb(xd, XIVE_ESB_SET_PQ_10);
+		pq = xive_esb_read(xd, XIVE_ESB_SET_PQ_10);
 
 		/* No target ? nothing to do */
 		if (xd->target == XIVE_INVALID_TARGET) {
@@ -836,7 +836,7 @@ static int xive_irq_set_vcpu_affinity(struct irq_data *d, void *state)
 		 * for sure the queue slot is no longer in use.
 		 */
 		if (pq & 2) {
-			pq = xive_poke_esb(xd, XIVE_ESB_SET_PQ_11);
+			pq = xive_esb_read(xd, XIVE_ESB_SET_PQ_11);
 			xd->saved_p = true;
 
 			/*
