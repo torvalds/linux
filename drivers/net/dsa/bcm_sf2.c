@@ -1048,6 +1048,7 @@ struct bcm_sf2_of_data {
 	u32 type;
 	const u16 *reg_offsets;
 	unsigned int core_reg_align;
+	unsigned int num_cfp_rules;
 };
 
 /* Register offsets for the SWITCH_REG_* block */
@@ -1071,6 +1072,7 @@ static const struct bcm_sf2_of_data bcm_sf2_7445_data = {
 	.type		= BCM7445_DEVICE_ID,
 	.core_reg_align	= 0,
 	.reg_offsets	= bcm_sf2_7445_reg_offsets,
+	.num_cfp_rules	= 256,
 };
 
 static const u16 bcm_sf2_7278_reg_offsets[] = {
@@ -1093,6 +1095,7 @@ static const struct bcm_sf2_of_data bcm_sf2_7278_data = {
 	.type		= BCM7278_DEVICE_ID,
 	.core_reg_align	= 1,
 	.reg_offsets	= bcm_sf2_7278_reg_offsets,
+	.num_cfp_rules	= 128,
 };
 
 static const struct of_device_id bcm_sf2_of_match[] = {
@@ -1149,6 +1152,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	priv->type = data->type;
 	priv->reg_offsets = data->reg_offsets;
 	priv->core_reg_align = data->core_reg_align;
+	priv->num_cfp_rules = data->num_cfp_rules;
 
 	/* Auto-detection using standard registers will not work, so
 	 * provide an indication of what kind of device we are for
