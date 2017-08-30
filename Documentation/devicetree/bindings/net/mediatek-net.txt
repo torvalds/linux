@@ -15,8 +15,10 @@ Required properties:
 - clock-names: the names of the clock listed in the clocks property. These are
 	"ethif", "esw", "gp2", "gp1"
 - power-domains: phandle to the power domain that the ethernet is part of
-- resets: Should contain a phandle to the ethsys reset signal
-- reset-names: Should contain the reset signal name "eth"
+- resets: Should contain phandles to the ethsys reset signals
+- reset-names: Should contain the names of reset signal listed in the resets
+		property
+		These are "fe", "gmac" and "ppe"
 - mediatek,ethsys: phandle to the syscon node that handles the port setup
 - mediatek,pctl: phandle to the syscon node that handles the ports slew rate
 	and driver current
