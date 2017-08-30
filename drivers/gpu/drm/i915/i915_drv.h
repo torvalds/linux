@@ -842,6 +842,7 @@ struct intel_device_info {
 	u8 gen;
 	u16 gen_mask;
 	enum intel_platform platform;
+	u8 gt; /* GT number, 0 if undefined */
 	u8 ring_mask; /* Rings supported by the HW */
 	u8 num_rings;
 #define DEFINE_FLAG(name) u8 name:1
