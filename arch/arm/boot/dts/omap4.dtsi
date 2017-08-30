@@ -174,6 +174,7 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0 0x2000 0x1000>;
+				ti,hwmods = "ctrl_module_core";
 
 				scm_conf: scm_conf@0 {
 					compatible = "syscon";
@@ -186,9 +187,11 @@
 			omap4_padconf_core: scm@100000 {
 				compatible = "ti,omap4-scm-padconf-core",
 					     "simple-bus";
+				reg = <0x100000 0x1000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0 0x100000 0x1000>;
+				ti,hwmods = "ctrl_module_pad_core";
 
 				omap4_pmx_core: pinmux@40 {
 					compatible = "ti,omap4-padconf",
@@ -263,17 +266,33 @@
 					};
 				};
 
-				omap4_pmx_wkup: pinmux@1e040 {
-					compatible = "ti,omap4-padconf",
-						     "pinctrl-single";
-					reg = <0x1e040 0x0038>;
+				omap4_scm_wkup: scm@c000 {
+					compatible = "ti,omap4-scm-wkup";
+					reg = <0xc000 0x1000>;
+					ti,hwmods = "ctrl_module_wkup";
+				};
+
+				omap4_padconf_wkup: padconf@1e000 {
+					compatible = "ti,omap4-scm-padconf-wkup",
+						     "simple-bus";
+					reg = <0x1e000 0x1000>;
 					#address-cells = <1>;
-					#size-cells = <0>;
-					#pinctrl-cells = <1>;
-					#interrupt-cells = <1>;
-					interrupt-controller;
-					pinctrl-single,register-width = <16>;
-					pinctrl-single,function-mask = <0x7fff>;
+					#size-cells = <1>;
+					ranges = <0 0x1e000 0x1000>;
+					ti,hwmods = "ctrl_module_pad_wkup";
+
+					omap4_pmx_wkup: pinmux@40 {
+						compatible = "ti,omap4-padconf",
+							     "pinctrl-single";
+						reg = <0x40 0x0038>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+						#pinctrl-cells = <1>;
+						#interrupt-cells = <1>;
+						interrupt-controller;
+						pinctrl-single,register-width = <16>;
+						pinctrl-single,function-mask = <0x7fff>;
+					};
 				};
 			};
 		};
