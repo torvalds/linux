@@ -550,14 +550,21 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-static void tegra_dc_disable_window(struct tegra_dc *dc, int index)
+static void tegra_plane_atomic_disable(struct drm_plane *plane,
+				       struct drm_plane_state *old_state)
 {
+	struct tegra_dc *dc = to_tegra_dc(old_state->crtc);
+	struct tegra_plane *p = to_tegra_plane(plane);
 	unsigned long flags;
 	u32 value;
 
+	/* rien ne va plus */
+	if (!old_state || !old_state->crtc)
+		return;
+
 	spin_lock_irqsave(&dc->lock, flags);
 
-	value = WINDOW_A_SELECT << index;
+	value = WINDOW_A_SELECT << p->index;
 	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
 
 	value = tegra_dc_readl(dc, DC_WIN_WIN_OPTIONS);
@@ -582,7 +589,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 		return;
 
 	if (!plane->state->visible)
-		return tegra_dc_disable_window(dc, p->index);
+		return tegra_plane_atomic_disable(plane, old_state);
 
 	memset(&window, 0, sizeof(window));
 	window.src.x = plane->state->src.x1 >> 16;
@@ -618,25 +625,10 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	tegra_dc_setup_window(dc, p->index, &window);
 }
 
-static void tegra_plane_atomic_disable(struct drm_plane *plane,
-				       struct drm_plane_state *old_state)
-{
-	struct tegra_plane *p = to_tegra_plane(plane);
-	struct tegra_dc *dc;
-
-	/* rien ne va plus */
-	if (!old_state || !old_state->crtc)
-		return;
-
-	dc = to_tegra_dc(old_state->crtc);
-
-	tegra_dc_disable_window(dc, p->index);
-}
-
-static const struct drm_plane_helper_funcs tegra_primary_plane_helper_funcs = {
+static const struct drm_plane_helper_funcs tegra_plane_helper_funcs = {
 	.atomic_check = tegra_plane_atomic_check,
-	.atomic_update = tegra_plane_atomic_update,
 	.atomic_disable = tegra_plane_atomic_disable,
+	.atomic_update = tegra_plane_atomic_update,
 };
 
 static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
@@ -676,7 +668,7 @@ static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
 		return ERR_PTR(err);
 	}
 
-	drm_plane_helper_add(&plane->base, &tegra_primary_plane_helper_funcs);
+	drm_plane_helper_add(&plane->base, &tegra_plane_helper_funcs);
 
 	return &plane->base;
 }
@@ -871,12 +863,6 @@ static const uint32_t tegra_overlay_plane_formats[] = {
 	DRM_FORMAT_YUV422,
 };
 
-static const struct drm_plane_helper_funcs tegra_overlay_plane_helper_funcs = {
-	.atomic_check = tegra_plane_atomic_check,
-	.atomic_update = tegra_plane_atomic_update,
-	.atomic_disable = tegra_plane_atomic_disable,
-};
-
 static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 						       struct tegra_dc *dc,
 						       unsigned int index)
@@ -904,7 +890,7 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 		return ERR_PTR(err);
 	}
 
-	drm_plane_helper_add(&plane->base, &tegra_overlay_plane_helper_funcs);
+	drm_plane_helper_add(&plane->base, &tegra_plane_helper_funcs);
 
 	return &plane->base;
 }
