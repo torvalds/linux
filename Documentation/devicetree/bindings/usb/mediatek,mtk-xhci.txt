@@ -11,7 +11,11 @@ into two parts.
 ------------------------------------------------------------------------
 
 Required properties:
- - compatible : should contain "mediatek,mt8173-xhci"
+ - compatible : should be "mediatek,<soc-model>-xhci", "mediatek,mtk-xhci",
+	soc-model is the name of SoC, such as mt8173, mt2712 etc, when using
+	"mediatek,mtk-xhci" compatible string, you need SoC specific ones in
+	addition, one of:
+	- "mediatek,mt8173-xhci"
  - reg : specifies physical base address and size of the registers
  - reg-names: should be "mac" for xHCI MAC and "ippc" for IP port control
  - interrupts : interrupt used by the controller
@@ -68,10 +72,14 @@ usb30: usb@11270000 {
 
 In the case, xhci is added as subnode to mtu3. An example and the DT binding
 details of mtu3 can be found in:
-Documentation/devicetree/bindings/usb/mt8173-mtu3.txt
+Documentation/devicetree/bindings/usb/mediatek,mtu3.txt
 
 Required properties:
- - compatible : should contain "mediatek,mt8173-xhci"
+ - compatible : should be "mediatek,<soc-model>-xhci", "mediatek,mtk-xhci",
+	soc-model is the name of SoC, such as mt8173, mt2712 etc, when using
+	"mediatek,mtk-xhci" compatible string, you need SoC specific ones in
+	addition, one of:
+	- "mediatek,mt8173-xhci"
  - reg : specifies physical base address and size of the registers
  - reg-names: should be "mac" for xHCI MAC
  - interrupts : interrupt used by the host controller

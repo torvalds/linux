@@ -44,7 +44,7 @@ Optional properties:
 Sub-nodes:
 The xhci should be added as subnode to mtu3 as shown in the following example
 if host mode is enabled. The DT binding details of xhci can be found in:
-Documentation/devicetree/bindings/usb/mt8173-xhci.txt
+Documentation/devicetree/bindings/usb/mediatek,mtk-xhci.txt
 
 Example:
 ssusb: usb@11271000 {
