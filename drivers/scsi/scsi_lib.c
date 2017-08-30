@@ -1112,8 +1112,12 @@ err_exit:
 EXPORT_SYMBOL(scsi_init_io);
 
 /**
- * scsi_initialize_rq - initialize struct scsi_cmnd.req
+ * scsi_initialize_rq - initialize struct scsi_cmnd partially
  * @rq: Request associated with the SCSI command to be initialized.
+ *
+ * This function initializes the members of struct scsi_cmnd that must be
+ * initialized before request processing starts and that won't be
+ * reinitialized if a SCSI command is requeued.
  *
  * Called from inside blk_get_request() for pass-through requests and from
  * inside scsi_init_command() for filesystem requests.
@@ -1123,6 +1127,8 @@ void scsi_initialize_rq(struct request *rq)
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 
 	scsi_req_init(&cmd->req);
+	cmd->jiffies_at_alloc = jiffies;
+	cmd->retries = 0;
 }
 EXPORT_SYMBOL(scsi_initialize_rq);
 
@@ -1162,12 +1168,16 @@ void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd)
 	void *prot = cmd->prot_sdb;
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
 	unsigned int flags = cmd->flags & SCMD_PRESERVED_FLAGS;
+	unsigned long jiffies_at_alloc;
+	int retries;
 
 	if (!blk_rq_is_scsi(rq) && !(flags & SCMD_INITIALIZED)) {
 		flags |= SCMD_INITIALIZED;
 		scsi_initialize_rq(rq);
 	}
 
+	jiffies_at_alloc = cmd->jiffies_at_alloc;
+	retries = cmd->retries;
 	/* zero out the cmd, except for the embedded scsi_request */
 	memset((char *)cmd + sizeof(cmd->req), 0,
 		sizeof(*cmd) - sizeof(cmd->req) + dev->host->hostt->cmd_size);
@@ -1177,7 +1187,8 @@ void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd)
 	cmd->prot_sdb = prot;
 	cmd->flags = flags;
 	INIT_DELAYED_WORK(&cmd->abort_work, scmd_eh_abort_handler);
-	cmd->jiffies_at_alloc = jiffies;
+	cmd->jiffies_at_alloc = jiffies_at_alloc;
+	cmd->retries = retries;
 
 	scsi_add_cmd_to_list(cmd);
 }
