@@ -83,6 +83,12 @@ enum instruction_type {
 #define DCBT		0x300
 #define ICBI		0x400
 
+/* VSX flags values */
+#define VSX_FPCONV	1	/* do floating point SP/DP conversion */
+#define VSX_SPLAT	2	/* store loaded value into all elements */
+#define VSX_LDLEFT	4	/* load VSX register from left */
+#define VSX_CHECK_VEC	8	/* check MSR_VEC not MSR_VSX for reg >= 32 */
+
 /* Size field in type word */
 #define SIZE(n)		((n) << 8)
 #define GETSIZE(w)	((w) >> 8)
@@ -100,6 +106,17 @@ struct instruction_op {
 	int spr;
 	u32 ccval;
 	u32 xerval;
+	u8 element_size;	/* for VSX/VMX loads/stores */
+	u8 vsx_flags;
+};
+
+union vsx_reg {
+	u8	b[16];
+	u16	h[8];
+	u32	w[4];
+	unsigned long d[2];
+	float	fp[4];
+	double	dp[2];
 };
 
 /*
@@ -131,3 +148,7 @@ void emulate_update_regs(struct pt_regs *reg, struct instruction_op *op);
  */
 extern int emulate_step(struct pt_regs *regs, unsigned int instr);
 
+extern void emulate_vsx_load(struct instruction_op *op, union vsx_reg *reg,
+			     const void *mem);
+extern void emulate_vsx_store(struct instruction_op *op, const union vsx_reg *reg,
+			      void *mem);

@@ -32,6 +32,7 @@ obj64-$(CONFIG_KPROBES_SANITY_TEST) += test_emulate_step.o
 obj-y			+= checksum_$(BITS).o checksum_wrappers.o
 
 obj-$(CONFIG_PPC_EMULATE_SSTEP)	+= sstep.o ldstfp.o
+obj64-$(CONFIG_PPC_EMULATE_SSTEP) += quad.o
 
 obj-$(CONFIG_PPC_LIB_RHEAP) += rheap.o
 

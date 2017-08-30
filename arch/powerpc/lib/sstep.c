@@ -42,8 +42,29 @@ extern int do_stfs(int rn, unsigned long ea);
 extern int do_stfd(int rn, unsigned long ea);
 extern int do_lvx(int rn, unsigned long ea);
 extern int do_stvx(int rn, unsigned long ea);
-extern int do_lxvd2x(int rn, unsigned long ea);
-extern int do_stxvd2x(int rn, unsigned long ea);
+extern void load_vsrn(int vsr, const void *p);
+extern void store_vsrn(int vsr, void *p);
+extern void conv_sp_to_dp(const float *sp, double *dp);
+extern void conv_dp_to_sp(const double *dp, float *sp);
+#endif
+
+#ifdef __powerpc64__
+/*
+ * Functions in quad.S
+ */
+extern int do_lq(unsigned long ea, unsigned long *regs);
+extern int do_stq(unsigned long ea, unsigned long val0, unsigned long val1);
+extern int do_lqarx(unsigned long ea, unsigned long *regs);
+extern int do_stqcx(unsigned long ea, unsigned long val0, unsigned long val1,
+		    unsigned int *crp);
+#endif
+
+#ifdef __LITTLE_ENDIAN__
+#define IS_LE	1
+#define IS_BE	0
+#else
+#define IS_LE	0
+#define IS_BE	1
 #endif
 
 /*
@@ -120,6 +141,23 @@ static nokprobe_inline unsigned long dsform_ea(unsigned int instr,
 
 	ra = (instr >> 16) & 0x1f;
 	ea = (signed short) (instr & ~3);	/* sign-extend */
+	if (ra)
+		ea += regs->gpr[ra];
+
+	return truncate_if_32bit(regs->msr, ea);
+}
+
+/*
+ * Calculate effective address for a DQ-form instruction
+ */
+static nokprobe_inline unsigned long dqform_ea(unsigned int instr,
+					       const struct pt_regs *regs)
+{
+	int ra;
+	unsigned long ea;
+
+	ra = (instr >> 16) & 0x1f;
+	ea = (signed short) (instr & ~0xf);	/* sign-extend */
 	if (ra)
 		ea += regs->gpr[ra];
 
@@ -454,43 +492,195 @@ static nokprobe_inline int do_vec_store(int rn, int (*func)(int, unsigned long),
 }
 #endif /* CONFIG_ALTIVEC */
 
+#ifdef __powerpc64__
+static nokprobe_inline int emulate_lq(struct pt_regs *regs, unsigned long ea,
+				      int reg)
+{
+	int err;
+
+	if (!address_ok(regs, ea, 16))
+		return -EFAULT;
+	/* if aligned, should be atomic */
+	if ((ea & 0xf) == 0)
+		return do_lq(ea, &regs->gpr[reg]);
+
+	err = read_mem(&regs->gpr[reg + IS_LE], ea, 8, regs);
+	if (!err)
+		err = read_mem(&regs->gpr[reg + IS_BE], ea + 8, 8, regs);
+	return err;
+}
+
+static nokprobe_inline int emulate_stq(struct pt_regs *regs, unsigned long ea,
+				       int reg)
+{
+	int err;
+
+	if (!address_ok(regs, ea, 16))
+		return -EFAULT;
+	/* if aligned, should be atomic */
+	if ((ea & 0xf) == 0)
+		return do_stq(ea, regs->gpr[reg], regs->gpr[reg + 1]);
+
+	err = write_mem(regs->gpr[reg + IS_LE], ea, 8, regs);
+	if (!err)
+		err = write_mem(regs->gpr[reg + IS_BE], ea + 8, 8, regs);
+	return err;
+}
+#endif /* __powerpc64 */
+
 #ifdef CONFIG_VSX
-static nokprobe_inline int do_vsx_load(int rn, int (*func)(int, unsigned long),
-				 unsigned long ea, struct pt_regs *regs)
+void emulate_vsx_load(struct instruction_op *op, union vsx_reg *reg,
+		      const void *mem)
 {
-	int err;
-	unsigned long val[2];
+	int size, read_size;
+	int i, j;
+	const unsigned int *wp;
+	const unsigned short *hp;
+	const unsigned char *bp;
 
-	if (!address_ok(regs, ea, 16))
-		return -EFAULT;
-	if ((ea & 3) == 0)
-		return (*func)(rn, ea);
-	err = read_mem_unaligned(&val[0], ea, 8, regs);
-	if (!err)
-		err = read_mem_unaligned(&val[1], ea + 8, 8, regs);
-	if (!err)
-		err = (*func)(rn, (unsigned long) &val[0]);
-	return err;
+	size = GETSIZE(op->type);
+	reg->d[0] = reg->d[1] = 0;
+
+	switch (op->element_size) {
+	case 16:
+		/* whole vector; lxv[x] or lxvl[l] */
+		if (size == 0)
+			break;
+		memcpy(reg, mem, size);
+		if (IS_LE && (op->vsx_flags & VSX_LDLEFT)) {
+			/* reverse 16 bytes */
+			unsigned long tmp;
+			tmp = byterev_8(reg->d[0]);
+			reg->d[0] = byterev_8(reg->d[1]);
+			reg->d[1] = tmp;
+		}
+		break;
+	case 8:
+		/* scalar loads, lxvd2x, lxvdsx */
+		read_size = (size >= 8) ? 8 : size;
+		i = IS_LE ? 8 : 8 - read_size;
+		memcpy(&reg->b[i], mem, read_size);
+		if (size < 8) {
+			if (op->type & SIGNEXT) {
+				/* size == 4 is the only case here */
+				reg->d[IS_LE] = (signed int) reg->d[IS_LE];
+			} else if (op->vsx_flags & VSX_FPCONV) {
+				preempt_disable();
+				conv_sp_to_dp(&reg->fp[1 + IS_LE],
+					      &reg->dp[IS_LE]);
+				preempt_enable();
+			}
+		} else {
+			if (size == 16)
+				reg->d[IS_BE] = *(unsigned long *)(mem + 8);
+			else if (op->vsx_flags & VSX_SPLAT)
+				reg->d[IS_BE] = reg->d[IS_LE];
+		}
+		break;
+	case 4:
+		/* lxvw4x, lxvwsx */
+		wp = mem;
+		for (j = 0; j < size / 4; ++j) {
+			i = IS_LE ? 3 - j : j;
+			reg->w[i] = *wp++;
+		}
+		if (op->vsx_flags & VSX_SPLAT) {
+			u32 val = reg->w[IS_LE ? 3 : 0];
+			for (; j < 4; ++j) {
+				i = IS_LE ? 3 - j : j;
+				reg->w[i] = val;
+			}
+		}
+		break;
+	case 2:
+		/* lxvh8x */
+		hp = mem;
+		for (j = 0; j < size / 2; ++j) {
+			i = IS_LE ? 7 - j : j;
+			reg->h[i] = *hp++;
+		}
+		break;
+	case 1:
+		/* lxvb16x */
+		bp = mem;
+		for (j = 0; j < size; ++j) {
+			i = IS_LE ? 15 - j : j;
+			reg->b[i] = *bp++;
+		}
+		break;
+	}
 }
+EXPORT_SYMBOL_GPL(emulate_vsx_load);
+NOKPROBE_SYMBOL(emulate_vsx_load);
 
-static nokprobe_inline int do_vsx_store(int rn, int (*func)(int, unsigned long),
-				 unsigned long ea, struct pt_regs *regs)
+void emulate_vsx_store(struct instruction_op *op, const union vsx_reg *reg,
+		       void *mem)
 {
-	int err;
-	unsigned long val[2];
+	int size, write_size;
+	int i, j;
+	union vsx_reg buf;
+	unsigned int *wp;
+	unsigned short *hp;
+	unsigned char *bp;
 
-	if (!address_ok(regs, ea, 16))
-		return -EFAULT;
-	if ((ea & 3) == 0)
-		return (*func)(rn, ea);
-	err = (*func)(rn, (unsigned long) &val[0]);
-	if (err)
-		return err;
-	err = write_mem_unaligned(val[0], ea, 8, regs);
-	if (!err)
-		err = write_mem_unaligned(val[1], ea + 8, 8, regs);
-	return err;
+	size = GETSIZE(op->type);
+
+	switch (op->element_size) {
+	case 16:
+		/* stxv, stxvx, stxvl, stxvll */
+		if (size == 0)
+			break;
+		if (IS_LE && (op->vsx_flags & VSX_LDLEFT)) {
+			/* reverse 16 bytes */
+			buf.d[0] = byterev_8(reg->d[1]);
+			buf.d[1] = byterev_8(reg->d[0]);
+			reg = &buf;
+		}
+		memcpy(mem, reg, size);
+		break;
+	case 8:
+		/* scalar stores, stxvd2x */
+		write_size = (size >= 8) ? 8 : size;
+		i = IS_LE ? 8 : 8 - write_size;
+		if (size < 8 && op->vsx_flags & VSX_FPCONV) {
+			buf.d[0] = buf.d[1] = 0;
+			preempt_disable();
+			conv_dp_to_sp(&reg->dp[IS_LE], &buf.fp[1 + IS_LE]);
+			preempt_enable();
+			reg = &buf;
+		}
+		memcpy(mem, &reg->b[i], write_size);
+		if (size == 16)
+			memcpy(mem + 8, &reg->d[IS_BE], 8);
+		break;
+	case 4:
+		/* stxvw4x */
+		wp = mem;
+		for (j = 0; j < size / 4; ++j) {
+			i = IS_LE ? 3 - j : j;
+			*wp++ = reg->w[i];
+		}
+		break;
+	case 2:
+		/* stxvh8x */
+		hp = mem;
+		for (j = 0; j < size / 2; ++j) {
+			i = IS_LE ? 7 - j : j;
+			*hp++ = reg->h[i];
+		}
+		break;
+	case 1:
+		/* stvxb16x */
+		bp = mem;
+		for (j = 0; j < size; ++j) {
+			i = IS_LE ? 15 - j : j;
+			*bp++ = reg->b[i];
+		}
+		break;
+	}
 }
+EXPORT_SYMBOL_GPL(emulate_vsx_store);
+NOKPROBE_SYMBOL(emulate_vsx_store);
 #endif /* CONFIG_VSX */
 
 #define __put_user_asmx(x, addr, err, op, cr)		\
@@ -1455,14 +1645,15 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		break;
 	}
 
-	/*
-	 * Loads and stores.
-	 */
+/*
+ * Loads and stores.
+ */
 	op->type = UNKNOWN;
 	op->update_reg = ra;
 	op->reg = rd;
 	op->val = regs->gpr[rd];
 	u = (instr >> 20) & UPDATE;
+	op->vsx_flags = 0;
 
 	switch (opcode) {
 	case 31:
@@ -1486,9 +1677,30 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			op->type = MKOP(STCX, 0, 8);
 			break;
 
-		case 21:	/* ldx */
-		case 53:	/* ldux */
-			op->type = MKOP(LOAD, u, 8);
+		case 52:	/* lbarx */
+			op->type = MKOP(LARX, 0, 1);
+			break;
+
+		case 694:	/* stbcx. */
+			op->type = MKOP(STCX, 0, 1);
+			break;
+
+		case 116:	/* lharx */
+			op->type = MKOP(LARX, 0, 2);
+			break;
+
+		case 726:	/* sthcx. */
+			op->type = MKOP(STCX, 0, 2);
+			break;
+
+		case 276:	/* lqarx */
+			if (!((rd & 1) || rd == ra || rd == rb))
+				op->type = MKOP(LARX, 0, 16);
+			break;
+
+		case 182:	/* stqcx. */
+			if (!(rd & 1))
+				op->type = MKOP(STCX, 0, 16);
 			break;
 #endif
 
@@ -1506,6 +1718,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		case 103:	/* lvx */
 		case 359:	/* lvxl */
 			op->type = MKOP(LOAD_VMX, 0, 16);
+			op->element_size = 16;
 			break;
 
 		case 231:	/* stvx */
@@ -1515,6 +1728,11 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef __powerpc64__
+		case 21:	/* ldx */
+		case 53:	/* ldux */
+			op->type = MKOP(LOAD, u, 8);
+			break;
+
 		case 149:	/* stdx */
 		case 181:	/* stdux */
 			op->type = MKOP(STORE, u, 8);
@@ -1635,16 +1853,184 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			break;
 
 #ifdef CONFIG_VSX
-		case 844:	/* lxvd2x */
-		case 876:	/* lxvd2ux */
+		case 12:	/* lxsiwzx */
 			op->reg = rd | ((instr & 1) << 5);
-			op->type = MKOP(LOAD_VSX, u, 16);
+			op->type = MKOP(LOAD_VSX, 0, 4);
+			op->element_size = 8;
+			break;
+
+		case 76:	/* lxsiwax */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, SIGNEXT, 4);
+			op->element_size = 8;
+			break;
+
+		case 140:	/* stxsiwx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(STORE_VSX, 0, 4);
+			op->element_size = 8;
+			break;
+
+		case 268:	/* lxvx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, 0, 16);
+			op->element_size = 16;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+
+		case 269:	/* lxvl */
+		case 301: {	/* lxvll */
+			int nb;
+			op->reg = rd | ((instr & 1) << 5);
+			op->ea = ra ? regs->gpr[ra] : 0;
+			nb = regs->gpr[rb] & 0xff;
+			if (nb > 16)
+				nb = 16;
+			op->type = MKOP(LOAD_VSX, 0, nb);
+			op->element_size = 16;
+			op->vsx_flags = ((instr & 0x20) ? VSX_LDLEFT : 0) |
+				VSX_CHECK_VEC;
+			break;
+		}
+		case 332:	/* lxvdsx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, 0, 8);
+			op->element_size = 8;
+			op->vsx_flags = VSX_SPLAT;
+			break;
+
+		case 364:	/* lxvwsx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, 0, 4);
+			op->element_size = 4;
+			op->vsx_flags = VSX_SPLAT | VSX_CHECK_VEC;
+			break;
+
+		case 396:	/* stxvx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(STORE_VSX, 0, 16);
+			op->element_size = 16;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+
+		case 397:	/* stxvl */
+		case 429: {	/* stxvll */
+			int nb;
+			op->reg = rd | ((instr & 1) << 5);
+			op->ea = ra ? regs->gpr[ra] : 0;
+			nb = regs->gpr[rb] & 0xff;
+			if (nb > 16)
+				nb = 16;
+			op->type = MKOP(STORE_VSX, 0, nb);
+			op->element_size = 16;
+			op->vsx_flags = ((instr & 0x20) ? VSX_LDLEFT : 0) |
+				VSX_CHECK_VEC;
+			break;
+		}
+		case 524:	/* lxsspx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, 0, 4);
+			op->element_size = 8;
+			op->vsx_flags = VSX_FPCONV;
+			break;
+
+		case 588:	/* lxsdx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, 0, 8);
+			op->element_size = 8;
+			break;
+
+		case 652:	/* stxsspx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(STORE_VSX, 0, 4);
+			op->element_size = 8;
+			op->vsx_flags = VSX_FPCONV;
+			break;
+
+		case 716:	/* stxsdx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(STORE_VSX, 0, 8);
+			op->element_size = 8;
+			break;
+
+		case 780:	/* lxvw4x */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, 0, 16);
+			op->element_size = 4;
+			break;
+
+		case 781:	/* lxsibzx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, 0, 1);
+			op->element_size = 8;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+
+		case 812:	/* lxvh8x */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, 0, 16);
+			op->element_size = 2;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+
+		case 813:	/* lxsihzx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, 0, 2);
+			op->element_size = 8;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+
+		case 844:	/* lxvd2x */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, 0, 16);
+			op->element_size = 8;
+			break;
+
+		case 876:	/* lxvb16x */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(LOAD_VSX, 0, 16);
+			op->element_size = 1;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+
+		case 908:	/* stxvw4x */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(STORE_VSX, 0, 16);
+			op->element_size = 4;
+			break;
+
+		case 909:	/* stxsibx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(STORE_VSX, 0, 1);
+			op->element_size = 8;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+
+		case 940:	/* stxvh8x */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(STORE_VSX, 0, 16);
+			op->element_size = 2;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+
+		case 941:	/* stxsihx */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(STORE_VSX, 0, 2);
+			op->element_size = 8;
+			op->vsx_flags = VSX_CHECK_VEC;
 			break;
 
 		case 972:	/* stxvd2x */
-		case 1004:	/* stxvd2ux */
 			op->reg = rd | ((instr & 1) << 5);
-			op->type = MKOP(STORE_VSX, u, 16);
+			op->type = MKOP(STORE_VSX, 0, 16);
+			op->element_size = 8;
+			break;
+
+		case 1004:	/* stxvb16x */
+			op->reg = rd | ((instr & 1) << 5);
+			op->type = MKOP(STORE_VSX, 0, 16);
+			op->element_size = 1;
+			op->vsx_flags = VSX_CHECK_VEC;
 			break;
 
 #endif /* CONFIG_VSX */
@@ -1732,6 +2118,34 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #endif
 
 #ifdef __powerpc64__
+	case 56:	/* lq */
+		if (!((rd & 1) || (rd == ra)))
+			op->type = MKOP(LOAD, 0, 16);
+		op->ea = dqform_ea(instr, regs);
+		break;
+#endif
+
+#ifdef CONFIG_VSX
+	case 57:	/* lxsd, lxssp */
+		op->ea = dsform_ea(instr, regs);
+		switch (instr & 3) {
+		case 2:		/* lxsd */
+			op->reg = rd + 32;
+			op->type = MKOP(LOAD_VSX, 0, 8);
+			op->element_size = 8;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+		case 3:		/* lxssp */
+			op->reg = rd + 32;
+			op->type = MKOP(LOAD_VSX, 0, 4);
+			op->element_size = 8;
+			op->vsx_flags = VSX_FPCONV | VSX_CHECK_VEC;
+			break;
+		}
+		break;
+#endif /* CONFIG_VSX */
+
+#ifdef __powerpc64__
 	case 58:	/* ld[u], lwa */
 		op->ea = dsform_ea(instr, regs);
 		switch (instr & 3) {
@@ -1746,7 +2160,51 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			break;
 		}
 		break;
+#endif
 
+#ifdef CONFIG_VSX
+	case 61:	/* lxv, stxsd, stxssp, stxv */
+		switch (instr & 7) {
+		case 1:		/* lxv */
+			op->ea = dqform_ea(instr, regs);
+			if (instr & 8)
+				op->reg = rd + 32;
+			op->type = MKOP(LOAD_VSX, 0, 16);
+			op->element_size = 16;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+
+		case 2:		/* stxsd with LSB of DS field = 0 */
+		case 6:		/* stxsd with LSB of DS field = 1 */
+			op->ea = dsform_ea(instr, regs);
+			op->reg = rd + 32;
+			op->type = MKOP(STORE_VSX, 0, 8);
+			op->element_size = 8;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+
+		case 3:		/* stxssp with LSB of DS field = 0 */
+		case 7:		/* stxssp with LSB of DS field = 1 */
+			op->ea = dsform_ea(instr, regs);
+			op->reg = rd + 32;
+			op->type = MKOP(STORE_VSX, 0, 4);
+			op->element_size = 8;
+			op->vsx_flags = VSX_FPCONV | VSX_CHECK_VEC;
+			break;
+
+		case 5:		/* stxv */
+			op->ea = dqform_ea(instr, regs);
+			if (instr & 8)
+				op->reg = rd + 32;
+			op->type = MKOP(STORE_VSX, 0, 16);
+			op->element_size = 16;
+			op->vsx_flags = VSX_CHECK_VEC;
+			break;
+		}
+		break;
+#endif /* CONFIG_VSX */
+
+#ifdef __powerpc64__
 	case 62:	/* std[u] */
 		op->ea = dsform_ea(instr, regs);
 		switch (instr & 3) {
@@ -1755,6 +2213,10 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			break;
 		case 1:		/* stdu */
 			op->type = MKOP(STORE, UPDATE, 8);
+			break;
+		case 2:		/* stq */
+			if (!(rd & 1))
+				op->type = MKOP(STORE, 0, 16);
 			break;
 		}
 		break;
@@ -1994,6 +2456,14 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 			return 0;
 		err = 0;
 		switch (size) {
+#ifdef __powerpc64__
+		case 1:
+			__get_user_asmx(val, op.ea, err, "lbarx");
+			break;
+		case 2:
+			__get_user_asmx(val, op.ea, err, "lharx");
+			break;
+#endif
 		case 4:
 			__get_user_asmx(val, op.ea, err, "lwarx");
 			break;
@@ -2001,6 +2471,9 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		case 8:
 			__get_user_asmx(val, op.ea, err, "ldarx");
 			break;
+		case 16:
+			err = do_lqarx(op.ea, &regs->gpr[op.reg]);
+			goto ldst_done;
 #endif
 		default:
 			return 0;
@@ -2016,12 +2489,24 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 			return 0;
 		err = 0;
 		switch (size) {
+#ifdef __powerpc64__
+		case 1:
+			__put_user_asmx(op.val, op.ea, err, "stbcx.", cr);
+			break;
+		case 2:
+			__put_user_asmx(op.val, op.ea, err, "stbcx.", cr);
+			break;
+#endif
 		case 4:
 			__put_user_asmx(op.val, op.ea, err, "stwcx.", cr);
 			break;
 #ifdef __powerpc64__
 		case 8:
 			__put_user_asmx(op.val, op.ea, err, "stdcx.", cr);
+			break;
+		case 16:
+			err = do_stqcx(op.ea, regs->gpr[op.reg],
+				       regs->gpr[op.reg + 1], &cr);
 			break;
 #endif
 		default:
@@ -2034,6 +2519,12 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		goto ldst_done;
 
 	case LOAD:
+#ifdef __powerpc64__
+		if (size == 16) {
+			err = emulate_lq(regs, op.ea, op.reg);
+			goto ldst_done;
+		}
+#endif
 		err = read_mem(&regs->gpr[op.reg], op.ea, size, regs);
 		if (!err) {
 			if (op.type & SIGNEXT)
@@ -2057,15 +2548,31 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 	case LOAD_VMX:
 		if (!(regs->msr & MSR_VEC))
 			return 0;
-		err = do_vec_load(op.reg, do_lvx, op.ea & ~0xfUL, regs);
+		err = do_vec_load(op.reg, do_lvx, op.ea, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_VSX
-	case LOAD_VSX:
-		if (!(regs->msr & MSR_VSX))
+	case LOAD_VSX: {
+		char mem[16];
+		union vsx_reg buf;
+		unsigned long msrbit = MSR_VSX;
+
+		/*
+		 * Some VSX instructions check the MSR_VEC bit rather than MSR_VSX
+		 * when the target of the instruction is a vector register.
+		 */
+		if (op.reg >= 32 && (op.vsx_flags & VSX_CHECK_VEC))
+			msrbit = MSR_VEC;
+		if (!(regs->msr & msrbit))
 			return 0;
-		err = do_vsx_load(op.reg, do_lxvd2x, op.ea, regs);
+		if (!address_ok(regs, op.ea, size) ||
+		    __copy_from_user(mem, (void __user *)op.ea, size))
+			return 0;
+
+		emulate_vsx_load(&op, &buf, mem);
+		load_vsrn(op.reg, &buf);
 		goto ldst_done;
+	}
 #endif
 	case LOAD_MULTI:
 		if (regs->msr & MSR_LE)
@@ -2086,6 +2593,12 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		goto instr_done;
 
 	case STORE:
+#ifdef __powerpc64__
+		if (size == 16) {
+			err = emulate_stq(regs, op.ea, op.reg);
+			goto ldst_done;
+		}
+#endif
 		if ((op.type & UPDATE) && size == sizeof(long) &&
 		    op.reg == 1 && op.update_reg == 1 &&
 		    !(regs->msr & MSR_PR) &&
@@ -2110,15 +2623,32 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 	case STORE_VMX:
 		if (!(regs->msr & MSR_VEC))
 			return 0;
-		err = do_vec_store(op.reg, do_stvx, op.ea & ~0xfUL, regs);
+		err = do_vec_store(op.reg, do_stvx, op.ea, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_VSX
-	case STORE_VSX:
-		if (!(regs->msr & MSR_VSX))
+	case STORE_VSX: {
+		char mem[16];
+		union vsx_reg buf;
+		unsigned long msrbit = MSR_VSX;
+
+		/*
+		 * Some VSX instructions check the MSR_VEC bit rather than MSR_VSX
+		 * when the target of the instruction is a vector register.
+		 */
+		if (op.reg >= 32 && (op.vsx_flags & VSX_CHECK_VEC))
+			msrbit = MSR_VEC;
+		if (!(regs->msr & msrbit))
 			return 0;
-		err = do_vsx_store(op.reg, do_stxvd2x, op.ea, regs);
+		if (!address_ok(regs, op.ea, size))
+			return 0;
+
+		store_vsrn(op.reg, &buf);
+		emulate_vsx_store(&op, &buf, mem);
+		if (__copy_to_user((void __user *)op.ea, mem, size))
+			return 0;
 		goto ldst_done;
+	}
 #endif
 	case STORE_MULTI:
 		if (regs->msr & MSR_LE)
