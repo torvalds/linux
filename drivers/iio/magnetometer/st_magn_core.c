@@ -362,8 +362,10 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 			.mask = 0x10,
 		},
 		.drdy_irq = {
-			.addr = 0x62,
-			.mask_int1 = 0x01,
+			.int1 = {
+				.addr = 0x62,
+				.mask = 0x01,
+			},
 			.stat_drdy = {
 				.addr = 0x67,
 				.mask = 0x07,

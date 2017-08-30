@@ -132,9 +132,8 @@ struct st_sensor_das {
 
 /**
  * struct st_sensor_data_ready_irq - ST sensor device data-ready interrupt
- * @addr: address of the register.
- * @mask_int1: mask to enable/disable IRQ on INT1 pin.
- * @mask_int2: mask to enable/disable IRQ on INT2 pin.
+ * struct int1 - data-ready configuration register for INT1 pin.
+ * struct int2 - data-ready configuration register for INT2 pin.
  * @addr_ihl: address to enable/disable active low on the INT lines.
  * @mask_ihl: mask to enable/disable active low on the INT lines.
  * @addr_od: address to enable/disable Open Drain on the INT lines.
@@ -145,9 +144,14 @@ struct st_sensor_das {
  * @en_mask: mask to write the on/off value for enable.
  */
 struct st_sensor_data_ready_irq {
-	u8 addr;
-	u8 mask_int1;
-	u8 mask_int2;
+	struct {
+		u8 addr;
+		u8 mask;
+	} int1;
+	struct {
+		u8 addr;
+		u8 mask;
+	} int2;
 	u8 addr_ihl;
 	u8 mask_ihl;
 	u8 addr_od;
