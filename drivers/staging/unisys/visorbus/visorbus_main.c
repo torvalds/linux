@@ -116,7 +116,6 @@ int visor_check_channel(struct channel_header *ch,
 	}
 	return 1;
 }
-EXPORT_SYMBOL_GPL(visor_check_channel);
 
 static int visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env)
 {
