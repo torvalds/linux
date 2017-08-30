@@ -44,12 +44,6 @@ union nf_conntrack_expect_proto {
 #include <linux/types.h>
 #include <linux/skbuff.h>
 
-#ifdef CONFIG_NETFILTER_DEBUG
-#define NF_CT_ASSERT(x)		WARN_ON(!(x))
-#else
-#define NF_CT_ASSERT(x)
-#endif
-
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 
