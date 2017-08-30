@@ -1216,6 +1216,16 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		return 0;
 
 	case 31:
+		/* isel occupies 32 minor opcodes */
+		if (((instr >> 1) & 0x1f) == 15) {
+			mb = (instr >> 6) & 0x1f; /* bc field */
+			val = (regs->ccr >> (31 - mb)) & 1;
+			val2 = (ra) ? regs->gpr[ra] : 0;
+
+			op->val = (val) ? val2 : regs->gpr[rb];
+			goto compute_done;
+		}
+
 		switch ((instr >> 1) & 0x3ff) {
 		case 4:		/* tw */
 			if (rd == 0x1f ||
@@ -1441,14 +1451,6 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 /*
  * Logical instructions
  */
-		case 15:	/* isel */
-			mb = (instr >> 6) & 0x1f; /* bc */
-			val = (regs->ccr >> (31 - mb)) & 1;
-			val2 = (ra) ? regs->gpr[ra] : 0;
-
-			op->val = (val) ? val2 : regs->gpr[rb];
-			goto compute_done;
-
 		case 26:	/* cntlzw */
 			op->val = __builtin_clz((unsigned int) regs->gpr[rd]);
 			goto logical_done;
