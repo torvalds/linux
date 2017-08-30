@@ -1705,6 +1705,9 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 			default:
 				dev_err(codec->dev, "Unknown CODEC Version\n");
 			}
+
+			/* Delay the jack insert report to avoid pop noise */
+			msleep(30);
 		} else {
 			/* jack is already in, report button event */
 			report = SND_JACK_HEADSET;
