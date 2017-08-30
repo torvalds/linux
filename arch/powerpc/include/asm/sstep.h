@@ -119,6 +119,7 @@ union vsx_reg {
 	unsigned long d[2];
 	float	fp[4];
 	double	dp[2];
+	__vector128 v;
 };
 
 /*

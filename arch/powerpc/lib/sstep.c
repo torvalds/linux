@@ -36,12 +36,10 @@ extern char system_call_common[];
 /*
  * Functions in ldstfp.S
  */
-extern int do_lfs(int rn, unsigned long ea);
-extern int do_lfd(int rn, unsigned long ea);
-extern int do_stfs(int rn, unsigned long ea);
-extern int do_stfd(int rn, unsigned long ea);
-extern int do_lvx(int rn, unsigned long ea);
-extern int do_stvx(int rn, unsigned long ea);
+extern void get_fpr(int rn, double *p);
+extern void put_fpr(int rn, const double *p);
+extern void get_vr(int rn, __vector128 *p);
+extern void put_vr(int rn, __vector128 *p);
 extern void load_vsrn(int vsr, const void *p);
 extern void store_vsrn(int vsr, void *p);
 extern void conv_sp_to_dp(const float *sp, double *dp);
@@ -409,63 +407,108 @@ NOKPROBE_SYMBOL(write_mem);
 
 #ifdef CONFIG_PPC_FPU
 /*
- * Check the address and alignment, and call func to do the actual
- * load or store.
+ * These access either the real FP register or the image in the
+ * thread_struct, depending on regs->msr & MSR_FP.
  */
-static int do_fp_load(int rn, int (*func)(int, unsigned long),
-				unsigned long ea, int nb,
-				struct pt_regs *regs)
+static int do_fp_load(int rn, unsigned long ea, int nb, struct pt_regs *regs)
 {
 	int err;
-	u8 buf[sizeof(double)] __attribute__((aligned(sizeof(double))));
+	union {
+		float f;
+		double d;
+		unsigned long l;
+		u8 b[sizeof(double)];
+	} u;
 
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
-	if (ea & 3) {
-		err = copy_mem_in(buf, ea, nb);
-		if (err)
-			return err;
-		ea = (unsigned long) buf;
-	}
-	return (*func)(rn, ea);
+	err = copy_mem_in(u.b, ea, nb);
+	if (err)
+		return err;
+	preempt_disable();
+	if (nb == 4)
+		conv_sp_to_dp(&u.f, &u.d);
+	if (regs->msr & MSR_FP)
+		put_fpr(rn, &u.d);
+	else
+		current->thread.TS_FPR(rn) = u.l;
+	preempt_enable();
+	return 0;
 }
 NOKPROBE_SYMBOL(do_fp_load);
 
-static int do_fp_store(int rn, int (*func)(int, unsigned long),
-				 unsigned long ea, int nb,
-				 struct pt_regs *regs)
+static int do_fp_store(int rn, unsigned long ea, int nb, struct pt_regs *regs)
 {
-	int err;
-	u8 buf[sizeof(double)] __attribute__((aligned(sizeof(double))));
+	union {
+		float f;
+		double d;
+		unsigned long l;
+		u8 b[sizeof(double)];
+	} u;
 
 	if (!address_ok(regs, ea, nb))
 		return -EFAULT;
-	if ((ea & 3) == 0)
-		return (*func)(rn, ea);
-	err = (*func)(rn, (unsigned long) buf);
-	if (!err)
-		err = copy_mem_out(buf, ea, nb);
-	return err;
+	preempt_disable();
+	if (regs->msr & MSR_FP)
+		get_fpr(rn, &u.d);
+	else
+		u.l = current->thread.TS_FPR(rn);
+	if (nb == 4)
+		conv_dp_to_sp(&u.d, &u.f);
+	preempt_enable();
+	return copy_mem_out(u.b, ea, nb);
 }
 NOKPROBE_SYMBOL(do_fp_store);
 #endif
 
 #ifdef CONFIG_ALTIVEC
 /* For Altivec/VMX, no need to worry about alignment */
-static nokprobe_inline int do_vec_load(int rn, int (*func)(int, unsigned long),
-				 unsigned long ea, struct pt_regs *regs)
+static nokprobe_inline int do_vec_load(int rn, unsigned long ea,
+				       int size, struct pt_regs *regs)
 {
+	int err;
+	union {
+		__vector128 v;
+		u8 b[sizeof(__vector128)];
+	} u = {};
+
 	if (!address_ok(regs, ea & ~0xfUL, 16))
 		return -EFAULT;
-	return (*func)(rn, ea);
+	/* align to multiple of size */
+	ea &= ~(size - 1);
+	err = copy_mem_in(u.b, ea, size);
+	if (err)
+		return err;
+
+	preempt_disable();
+	if (regs->msr & MSR_VEC)
+		put_vr(rn, &u.v);
+	else
+		current->thread.vr_state.vr[rn] = u.v;
+	preempt_enable();
+	return 0;
 }
 
-static nokprobe_inline int do_vec_store(int rn, int (*func)(int, unsigned long),
-				  unsigned long ea, struct pt_regs *regs)
+static nokprobe_inline int do_vec_store(int rn, unsigned long ea,
+					int size, struct pt_regs *regs)
 {
+	union {
+		__vector128 v;
+		u8 b[sizeof(__vector128)];
+	} u;
+
 	if (!address_ok(regs, ea & ~0xfUL, 16))
 		return -EFAULT;
-	return (*func)(rn, ea);
+	/* align to multiple of size */
+	ea &= ~(size - 1);
+
+	preempt_disable();
+	if (regs->msr & MSR_VEC)
+		get_vr(rn, &u.v);
+	else
+		u.v = current->thread.vr_state.vr[rn];
+	preempt_enable();
+	return copy_mem_out(u.b, ea, size);
 }
 #endif /* CONFIG_ALTIVEC */
 
@@ -658,6 +701,68 @@ void emulate_vsx_store(struct instruction_op *op, const union vsx_reg *reg,
 }
 EXPORT_SYMBOL_GPL(emulate_vsx_store);
 NOKPROBE_SYMBOL(emulate_vsx_store);
+
+static nokprobe_inline int do_vsx_load(struct instruction_op *op,
+				       unsigned long ea, struct pt_regs *regs)
+{
+	int reg = op->reg;
+	u8 mem[16];
+	union vsx_reg buf;
+	int size = GETSIZE(op->type);
+
+	if (!address_ok(regs, ea, size) || copy_mem_in(mem, ea, size))
+		return -EFAULT;
+
+	emulate_vsx_load(op, &buf, mem);
+	preempt_disable();
+	if (reg < 32) {
+		/* FP regs + extensions */
+		if (regs->msr & MSR_FP) {
+			load_vsrn(reg, &buf);
+		} else {
+			current->thread.fp_state.fpr[reg][0] = buf.d[0];
+			current->thread.fp_state.fpr[reg][1] = buf.d[1];
+		}
+	} else {
+		if (regs->msr & MSR_VEC)
+			load_vsrn(reg, &buf);
+		else
+			current->thread.vr_state.vr[reg - 32] = buf.v;
+	}
+	preempt_enable();
+	return 0;
+}
+
+static nokprobe_inline int do_vsx_store(struct instruction_op *op,
+					unsigned long ea, struct pt_regs *regs)
+{
+	int reg = op->reg;
+	u8 mem[16];
+	union vsx_reg buf;
+	int size = GETSIZE(op->type);
+
+	if (!address_ok(regs, ea, size))
+		return -EFAULT;
+
+	preempt_disable();
+	if (reg < 32) {
+		/* FP regs + extensions */
+		if (regs->msr & MSR_FP) {
+			store_vsrn(reg, &buf);
+		} else {
+			buf.d[0] = current->thread.fp_state.fpr[reg][0];
+			buf.d[1] = current->thread.fp_state.fpr[reg][1];
+		}
+	} else {
+		if (regs->msr & MSR_VEC)
+			store_vsrn(reg, &buf);
+		else
+			buf.v = current->thread.vr_state.vr[reg - 32];
+	}
+	preempt_enable();
+	emulate_vsx_store(op, &buf, mem);
+	return  copy_mem_out(mem, ea, size);
+}
 #endif /* CONFIG_VSX */
 
 #define __put_user_asmx(x, addr, err, op, cr)		\
@@ -2524,25 +2629,26 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 
 #ifdef CONFIG_PPC_FPU
 	case LOAD_FP:
-		if (!(regs->msr & MSR_FP))
+		/*
+		 * If the instruction is in userspace, we can emulate it even
+		 * if the VMX state is not live, because we have the state
+		 * stored in the thread_struct.  If the instruction is in
+		 * the kernel, we must not touch the state in the thread_struct.
+		 */
+		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_FP))
 			return 0;
-		if (size == 4)
-			err = do_fp_load(op.reg, do_lfs, ea, size, regs);
-		else
-			err = do_fp_load(op.reg, do_lfd, ea, size, regs);
+		err = do_fp_load(op.reg, ea, size, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_ALTIVEC
 	case LOAD_VMX:
-		if (!(regs->msr & MSR_VEC))
+		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_VEC))
 			return 0;
-		err = do_vec_load(op.reg, do_lvx, ea, regs);
+		err = do_vec_load(op.reg, ea, size, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_VSX
 	case LOAD_VSX: {
-		u8 mem[16];
-		union vsx_reg buf;
 		unsigned long msrbit = MSR_VSX;
 
 		/*
@@ -2551,14 +2657,9 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		 */
 		if (op.reg >= 32 && (op.vsx_flags & VSX_CHECK_VEC))
 			msrbit = MSR_VEC;
-		if (!(regs->msr & msrbit))
+		if (!(regs->msr & MSR_PR) && !(regs->msr & msrbit))
 			return 0;
-		if (!address_ok(regs, ea, size) ||
-		    copy_mem_in(mem, ea, size))
-			return 0;
-
-		emulate_vsx_load(&op, &buf, mem);
-		load_vsrn(op.reg, &buf);
+		err = do_vsx_load(&op, ea, regs);
 		goto ldst_done;
 	}
 #endif
@@ -2599,25 +2700,20 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 
 #ifdef CONFIG_PPC_FPU
 	case STORE_FP:
-		if (!(regs->msr & MSR_FP))
+		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_FP))
 			return 0;
-		if (size == 4)
-			err = do_fp_store(op.reg, do_stfs, ea, size, regs);
-		else
-			err = do_fp_store(op.reg, do_stfd, ea, size, regs);
+		err = do_fp_store(op.reg, ea, size, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_ALTIVEC
 	case STORE_VMX:
-		if (!(regs->msr & MSR_VEC))
+		if (!(regs->msr & MSR_PR) && !(regs->msr & MSR_VEC))
 			return 0;
-		err = do_vec_store(op.reg, do_stvx, ea, regs);
+		err = do_vec_store(op.reg, ea, size, regs);
 		goto ldst_done;
 #endif
 #ifdef CONFIG_VSX
 	case STORE_VSX: {
-		u8 mem[16];
-		union vsx_reg buf;
 		unsigned long msrbit = MSR_VSX;
 
 		/*
@@ -2626,15 +2722,9 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 		 */
 		if (op.reg >= 32 && (op.vsx_flags & VSX_CHECK_VEC))
 			msrbit = MSR_VEC;
-		if (!(regs->msr & msrbit))
+		if (!(regs->msr & MSR_PR) && !(regs->msr & msrbit))
 			return 0;
-		if (!address_ok(regs, ea, size))
-			return 0;
-
-		store_vsrn(op.reg, &buf);
-		emulate_vsx_store(&op, &buf, mem);
-		if (copy_mem_out(mem, ea, size))
-			return 0;
+		err = do_vsx_store(&op, ea, regs);
 		goto ldst_done;
 	}
 #endif
