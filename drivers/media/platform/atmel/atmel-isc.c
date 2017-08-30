@@ -1979,6 +1979,12 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	return 0;
 }
 
+static const struct v4l2_async_notifier_operations isc_async_ops = {
+	.bound = isc_async_bound,
+	.unbind = isc_async_unbind,
+	.complete = isc_async_complete,
+};
+
 static void isc_subdev_cleanup(struct isc_device *isc)
 {
 	struct isc_subdev_entity *subdev_entity;
@@ -2203,9 +2209,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	list_for_each_entry(subdev_entity, &isc->subdev_entities, list) {
 		subdev_entity->notifier.subdevs = &subdev_entity->asd;
 		subdev_entity->notifier.num_subdevs = 1;
-		subdev_entity->notifier.bound = isc_async_bound;
-		subdev_entity->notifier.unbind = isc_async_unbind;
-		subdev_entity->notifier.complete = isc_async_complete;
+		subdev_entity->notifier.ops = &isc_async_ops;
 
 		ret = v4l2_async_notifier_register(&isc->v4l2_dev,
 						   &subdev_entity->notifier);

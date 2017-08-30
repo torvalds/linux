@@ -2171,6 +2171,10 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 	return media_device_register(&isp->media_dev);
 }
 
+static const struct v4l2_async_notifier_operations isp_subdev_notifier_ops = {
+	.complete = isp_subdev_notifier_complete,
+};
+
 /*
  * isp_probe - Probe ISP platform device
  * @pdev: Pointer to ISP platform device
@@ -2341,7 +2345,7 @@ static int isp_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_register_entities;
 
-	isp->notifier.complete = isp_subdev_notifier_complete;
+	isp->notifier.ops = &isp_subdev_notifier_ops;
 
 	ret = v4l2_async_notifier_register(&isp->v4l2_dev, &isp->notifier);
 	if (ret)

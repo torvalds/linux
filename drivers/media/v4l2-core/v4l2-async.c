@@ -102,16 +102,16 @@ static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
 {
 	int ret;
 
-	if (notifier->bound) {
-		ret = notifier->bound(notifier, sd, asd);
+	if (notifier->ops->bound) {
+		ret = notifier->ops->bound(notifier, sd, asd);
 		if (ret < 0)
 			return ret;
 	}
 
 	ret = v4l2_device_register_subdev(notifier->v4l2_dev, sd);
 	if (ret < 0) {
-		if (notifier->unbind)
-			notifier->unbind(notifier, sd, asd);
+		if (notifier->ops->unbind)
+			notifier->ops->unbind(notifier, sd, asd);
 		return ret;
 	}
 
@@ -140,9 +140,8 @@ static void v4l2_async_notifier_unbind_all_subdevs(
 	struct v4l2_subdev *sd, *tmp;
 
 	list_for_each_entry_safe(sd, tmp, &notifier->done, async_list) {
-		if (notifier->unbind)
-			notifier->unbind(notifier, sd, sd->asd);
-
+		if (notifier->ops->unbind)
+			notifier->ops->unbind(notifier, sd, sd->asd);
 		v4l2_async_cleanup(sd);
 
 		list_move(&sd->async_list, &subdev_list);
@@ -199,8 +198,8 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 		}
 	}
 
-	if (list_empty(&notifier->waiting) && notifier->complete) {
-		ret = notifier->complete(notifier);
+	if (list_empty(&notifier->waiting) && notifier->ops->complete) {
+		ret = notifier->ops->complete(notifier);
 		if (ret)
 			goto err_complete;
 	}
@@ -297,10 +296,10 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 		if (ret)
 			goto err_unlock;
 
-		if (!list_empty(&notifier->waiting) || !notifier->complete)
+		if (!list_empty(&notifier->waiting) || !notifier->ops->complete)
 			goto out_unlock;
 
-		ret = notifier->complete(notifier);
+		ret = notifier->ops->complete(notifier);
 		if (ret)
 			goto err_cleanup;
 
@@ -316,9 +315,8 @@ out_unlock:
 	return 0;
 
 err_cleanup:
-	if (notifier->unbind)
-		notifier->unbind(notifier, sd, sd->asd);
-
+	if (notifier->ops->unbind)
+		notifier->ops->unbind(notifier, sd, sd->asd);
 	v4l2_async_cleanup(sd);
 
 err_unlock:
@@ -337,8 +335,8 @@ void v4l2_async_unregister_subdev(struct v4l2_subdev *sd)
 
 		list_add(&sd->asd->list, &notifier->waiting);
 
-		if (notifier->unbind)
-			notifier->unbind(notifier, sd, sd->asd);
+		if (notifier->ops->unbind)
+			notifier->ops->unbind(notifier, sd, sd->asd);
 	}
 
 	v4l2_async_cleanup(sd);

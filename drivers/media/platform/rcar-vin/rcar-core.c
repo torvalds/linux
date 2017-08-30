@@ -134,6 +134,12 @@ static int rvin_digital_notify_bound(struct v4l2_async_notifier *notifier,
 
 	return 0;
 }
+static const struct v4l2_async_notifier_operations rvin_digital_notify_ops = {
+	.bound = rvin_digital_notify_bound,
+	.unbind = rvin_digital_notify_unbind,
+	.complete = rvin_digital_notify_complete,
+};
+
 
 static int rvin_digital_parse_v4l2(struct device *dev,
 				   struct v4l2_fwnode_endpoint *vep,
@@ -183,9 +189,7 @@ static int rvin_digital_graph_init(struct rvin_dev *vin)
 	vin_dbg(vin, "Found digital subdevice %pOF\n",
 		to_of_node(vin->digital->asd.match.fwnode.fwnode));
 
-	vin->notifier.bound = rvin_digital_notify_bound;
-	vin->notifier.unbind = rvin_digital_notify_unbind;
-	vin->notifier.complete = rvin_digital_notify_complete;
+	vin->notifier.ops = &rvin_digital_notify_ops;
 	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
