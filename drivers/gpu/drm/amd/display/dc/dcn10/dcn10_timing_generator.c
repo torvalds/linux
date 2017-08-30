@@ -118,7 +118,7 @@ static void tgn10_program_timing(
 	uint32_t start_point = 0;
 	uint32_t field_num = 0;
 	uint32_t h_div_2;
-	uint32_t vertial_line_start;
+	int32_t vertical_line_start;
 
 	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
 
@@ -216,9 +216,13 @@ static void tgn10_program_timing(
 	/* Use OTG_VERTICAL_INTERRUPT2 replace VUPDATE interrupt,
 	 * program the reg for interrupt postition.
 	 */
-	vertial_line_start = asic_blank_end - tg->dlg_otg_param.vstartup_start + 1;
+	vertical_line_start = asic_blank_end - tg->dlg_otg_param.vstartup_start + 1;
+	if (vertical_line_start < 0) {
+		ASSERT(0);
+		vertical_line_start = 0;
+	}
 	REG_SET(OTG_VERTICAL_INTERRUPT2_POSITION, 0,
-			OTG_VERTICAL_INTERRUPT2_LINE_START, vertial_line_start);
+			OTG_VERTICAL_INTERRUPT2_LINE_START, vertical_line_start);
 
 	/* v_sync polarity */
 	v_sync_polarity = patched_crtc_timing.flags.VSYNC_POSITIVE_POLARITY ?
