@@ -57,6 +57,7 @@
 #include <asm/nvram.h>
 #include <asm/pmc.h>
 #include <asm/xics.h>
+#include <asm/xive.h>
 #include <asm/ppc-pci.h>
 #include <asm/i8259.h>
 #include <asm/udbg.h>
@@ -176,8 +177,11 @@ static void __init pseries_setup_i8259_cascade(void)
 
 static void __init pseries_init_irq(void)
 {
-	xics_init();
-	pseries_setup_i8259_cascade();
+	/* Try using a XIVE if available, otherwise use a XICS */
+	if (!xive_spapr_init()) {
+		xics_init();
+		pseries_setup_i8259_cascade();
+	}
 }
 
 static void pseries_lpar_enable_pmcs(void)

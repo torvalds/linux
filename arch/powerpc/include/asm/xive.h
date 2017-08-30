@@ -110,11 +110,13 @@ extern bool __xive_enabled;
 
 static inline bool xive_enabled(void) { return __xive_enabled; }
 
+extern bool xive_spapr_init(void);
 extern bool xive_native_init(void);
 extern void xive_smp_probe(void);
 extern int  xive_smp_prepare_cpu(unsigned int cpu);
 extern void xive_smp_setup_cpu(void);
 extern void xive_smp_disable_cpu(void);
+extern void xive_teardown_cpu(void);
 extern void xive_kexec_teardown_cpu(int secondary);
 extern void xive_shutdown(void);
 extern void xive_flush_interrupt(void);
@@ -147,6 +149,7 @@ extern int xive_native_get_vp_info(u32 vp_id, u32 *out_cam_id, u32 *out_chip_id)
 
 static inline bool xive_enabled(void) { return false; }
 
+static inline bool xive_spapr_init(void) { return false; }
 static inline bool xive_native_init(void) { return false; }
 static inline void xive_smp_probe(void) { }
 extern inline int  xive_smp_prepare_cpu(unsigned int cpu) { return -EINVAL; }

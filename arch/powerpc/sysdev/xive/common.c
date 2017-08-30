@@ -1372,6 +1372,19 @@ void xive_flush_interrupt(void)
 
 #endif /* CONFIG_SMP */
 
+void xive_teardown_cpu(void)
+{
+	struct xive_cpu *xc = __this_cpu_read(xive_cpu);
+	unsigned int cpu = smp_processor_id();
+
+	/* Set CPPR to 0 to disable flow of interrupts */
+	xc->cppr = 0;
+	out_8(xive_tima + xive_tima_offset + TM_CPPR, 0);
+
+	if (xive_ops->teardown_cpu)
+		xive_ops->teardown_cpu(cpu, xc);
+}
+
 void xive_kexec_teardown_cpu(int secondary)
 {
 	struct xive_cpu *xc = __this_cpu_read(xive_cpu);

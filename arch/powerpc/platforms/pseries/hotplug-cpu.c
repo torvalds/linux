@@ -34,6 +34,7 @@
 #include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
 #include <asm/xics.h>
+#include <asm/xive.h>
 #include <asm/plpar_wrappers.h>
 
 #include "pseries.h"
@@ -109,7 +110,10 @@ static void pseries_mach_cpu_die(void)
 
 	local_irq_disable();
 	idle_task_exit();
-	xics_teardown_cpu();
+	if (xive_enabled())
+		xive_teardown_cpu();
+	else
+		xics_teardown_cpu();
 
 	if (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
 		set_cpu_current_state(cpu, CPU_STATE_INACTIVE);
@@ -174,7 +178,10 @@ static int pseries_cpu_disable(void)
 		boot_cpuid = cpumask_any(cpu_online_mask);
 
 	/* FIXME: abstract this to not be platform specific later on */
-	xics_migrate_irqs_away();
+	if (xive_enabled())
+		xive_smp_disable_cpu();
+	else
+		xics_migrate_irqs_away();
 	return 0;
 }
 
