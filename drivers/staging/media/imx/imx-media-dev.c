@@ -400,10 +400,10 @@ static int imx_media_create_pad_vdev_lists(struct imx_media_dev *imxmd)
 					struct media_link, list);
 		ret = imx_media_add_vdev_to_pad(imxmd, vdev, link->source);
 		if (ret)
-			break;
+			return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 /* async subdev complete notifier */
