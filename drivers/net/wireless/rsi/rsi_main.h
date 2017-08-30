@@ -124,6 +124,8 @@ struct skb_info {
 	s8 tid;
 	s8 sta_id;
 	u8 internal_hdr_size;
+	struct ieee80211_vif *vif;
+	u8 vap_id;
 };
 
 enum edca_queue {

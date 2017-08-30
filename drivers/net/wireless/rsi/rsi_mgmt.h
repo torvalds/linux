@@ -189,6 +189,8 @@
 	 IEEE80211_WMM_IE_STA_QOSINFO_AC_BE | \
 	 IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
 
+#define RSI_DESC_VAP_ID_MASK		0xC000
+#define RSI_DESC_VAP_ID_OFST		14
 #define RSI_DATA_DESC_MAC_BBP_INFO	BIT(0)
 #define RSI_DATA_DESC_NO_ACK_IND	BIT(9)
 #define RSI_DATA_DESC_QOS_EN		BIT(12)
@@ -623,7 +625,8 @@ int rsi_send_vap_dynamic_update(struct rsi_common *common);
 int rsi_send_block_unblock_frame(struct rsi_common *common, bool event);
 void rsi_inform_bss_status(struct rsi_common *common, enum opmode opmode,
 			   u8 status, const u8 *addr, u8 qos_enable, u16 aid,
-			   struct ieee80211_sta *sta, u16 sta_id);
+			   struct ieee80211_sta *sta, u16 sta_id,
+			   struct ieee80211_vif *vif);
 void rsi_indicate_pkt_to_os(struct rsi_common *common, struct sk_buff *skb);
 int rsi_mac80211_attach(struct rsi_common *common);
 void rsi_indicate_tx_status(struct rsi_hw *common, struct sk_buff *skb,

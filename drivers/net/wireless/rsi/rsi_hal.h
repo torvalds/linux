@@ -121,8 +121,7 @@ struct rsi_mgmt_desc {
 	u8 xtend_desc_size;
 	u8 header_len;
 	__le16 frame_info;
-	u8 rate_info;
-	u8 reserved1;
+	__le16 rate_info;
 	__le16 bbp_info;
 	__le16 seq_ctrl;
 	u8 reserved2;

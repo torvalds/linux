@@ -460,12 +460,12 @@ static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
 					 const unsigned char *bssid,
 					 u8 qos_enable,
 					 u16 aid,
-					 u16 sta_id)
+					 u16 sta_id,
+					 struct ieee80211_vif *vif)
 {
-	struct ieee80211_vif *vif = common->priv->vifs[0];
 	struct sk_buff *skb = NULL;
 	struct rsi_peer_notify *peer_notify;
-	u16 vap_id = 0;
+	u16 vap_id = ((struct vif_priv *)vif->drv_priv)->vap_id;
 	int status;
 	u16 frame_len = sizeof(struct rsi_peer_notify);
 
@@ -1318,7 +1318,8 @@ void rsi_inform_bss_status(struct rsi_common *common,
 			   u8 qos_enable,
 			   u16 aid,
 			   struct ieee80211_sta *sta,
-			   u16 sta_id)
+			   u16 sta_id,
+			   struct ieee80211_vif *vif)
 {
 	if (status) {
 		if (opmode == RSI_OPMODE_STA)
@@ -1328,7 +1329,8 @@ void rsi_inform_bss_status(struct rsi_common *common,
 					      STA_CONNECTED,
 					      addr,
 					      qos_enable,
-					      aid, sta_id);
+					      aid, sta_id,
+					      vif);
 		if (common->min_rate == 0xffff)
 			rsi_send_auto_rate_request(common, sta, sta_id);
 		if (opmode == RSI_OPMODE_STA) {
@@ -1343,7 +1345,8 @@ void rsi_inform_bss_status(struct rsi_common *common,
 					      STA_DISCONNECTED,
 					      addr,
 					      qos_enable,
-					      aid, sta_id);
+					      aid, sta_id,
+					      vif);
 		if (opmode == RSI_OPMODE_STA)
 			rsi_send_block_unblock_frame(common, true);
 	}

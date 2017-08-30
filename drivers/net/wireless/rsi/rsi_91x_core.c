@@ -361,8 +361,8 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_tx_info *info;
 	struct skb_info *tx_params;
-	struct ieee80211_hdr *wh;
-	struct ieee80211_vif *vif = adapter->vifs[0];
+	struct ieee80211_hdr *wh = NULL;
+	struct ieee80211_vif *vif;
 	u8 q_num, tid = 0;
 	struct rsi_sta *rsta = NULL;
 
@@ -381,6 +381,11 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 	wh = (struct ieee80211_hdr *)&skb->data[0];
 	tx_params->sta_id = 0;
 
+	vif = rsi_get_vif(adapter, wh->addr2);
+	if (!vif)
+		goto xmit_fail;
+	tx_params->vif = vif;
+	tx_params->vap_id = ((struct vif_priv *)vif->drv_priv)->vap_id;
 	if ((ieee80211_is_mgmt(wh->frame_control)) ||
 	    (ieee80211_is_ctl(wh->frame_control)) ||
 	    (ieee80211_is_qos_nullfunc(wh->frame_control))) {

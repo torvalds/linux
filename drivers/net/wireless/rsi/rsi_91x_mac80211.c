@@ -718,7 +718,7 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 				      bss_conf->bssid,
 				      bss_conf->qos,
 				      bss_conf->aid,
-				      NULL, 0);
+				      NULL, 0, vif);
 		adapter->ps_info.dtim_interval_duration = bss->dtim_period;
 		adapter->ps_info.listen_interval = conf->listen_interval;
 
@@ -862,7 +862,8 @@ static int rsi_hal_key_config(struct ieee80211_hw *hw,
 	rsi_dbg(ERR_ZONE, "%s: Cipher 0x%x key_type: %d key_len: %d\n",
 		__func__, key->cipher, key_type, key->keylen);
 
-	if (vif->type == NL80211_IFTYPE_AP) {
+	if ((vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_P2P_GO)) {
 		if (sta) {
 			rsta = rsi_find_sta(adapter->priv, sta->addr);
 			if (rsta)
@@ -1297,7 +1298,8 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 
 	mutex_lock(&common->mutex);
 
-	if (vif->type == NL80211_IFTYPE_AP) {
+	if ((vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_P2P_GO)) {
 		u8 cnt;
 		int sta_idx = -1;
 		int free_index = -1;
@@ -1348,7 +1350,7 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 			rsi_dbg(INFO_ZONE, "Indicate bss status to device\n");
 			rsi_inform_bss_status(common, RSI_OPMODE_AP, 1,
 					      sta->addr, sta->wme, sta->aid,
-					      sta, sta_idx);
+					      sta, sta_idx, vif);
 
 			if (common->key) {
 				struct ieee80211_key_conf *key = common->key;
@@ -1368,7 +1370,8 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (vif->type == NL80211_IFTYPE_STATION) {
+	if ((vif->type == NL80211_IFTYPE_STATION) ||
+	    (vif->type == NL80211_IFTYPE_P2P_CLIENT)) {
 		rsi_set_min_rate(hw, sta, common);
 		if (sta->ht_cap.ht_supported) {
 			common->vif_info[0].is_ht = true;
@@ -1409,7 +1412,8 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 
 	mutex_lock(&common->mutex);
 
-	if (vif->type == NL80211_IFTYPE_AP) {
+	if ((vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_P2P_GO)) {
 		u8 sta_idx, cnt;
 
 		/* Send peer notify to device */
@@ -1422,7 +1426,8 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 			if (!memcmp(rsta->sta->addr, sta->addr, ETH_ALEN)) {
 				rsi_inform_bss_status(common, RSI_OPMODE_AP, 0,
 						      sta->addr, sta->wme,
-						      sta->aid, sta, sta_idx);
+						      sta->aid, sta, sta_idx,
+						      vif);
 				rsta->sta = NULL;
 				rsta->sta_id = -1;
 				for (cnt = 0; cnt < IEEE80211_NUM_TIDS; cnt++)
@@ -1436,7 +1441,8 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 			rsi_dbg(ERR_ZONE, "%s: No station found\n", __func__);
 	}
 
-	if (vif->type == NL80211_IFTYPE_STATION) {
+	if ((vif->type == NL80211_IFTYPE_STATION) ||
+	    (vif->type == NL80211_IFTYPE_P2P_CLIENT)) {
 		/* Resetting all the fields to default values */
 		memcpy((u8 *)bss->bssid, (u8 *)sta->addr, ETH_ALEN);
 		bss->qos = sta->wme;
