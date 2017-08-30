@@ -2178,13 +2178,12 @@ static int drbd_create_mempools(void)
 		goto Enomem;
 
 	/* mempools */
-	drbd_io_bio_set = bioset_create(BIO_POOL_SIZE, 0, BIOSET_NEED_RESCUER);
+	drbd_io_bio_set = bioset_create(BIO_POOL_SIZE, 0, 0);
 	if (drbd_io_bio_set == NULL)
 		goto Enomem;
 
 	drbd_md_io_bio_set = bioset_create(DRBD_MIN_POOL_PAGES, 0,
-					   BIOSET_NEED_BVECS |
-					   BIOSET_NEED_RESCUER);
+					   BIOSET_NEED_BVECS);
 	if (drbd_md_io_bio_set == NULL)
 		goto Enomem;
 
