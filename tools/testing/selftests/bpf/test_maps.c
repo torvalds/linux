@@ -504,7 +504,7 @@ static void test_sockmap(int tasks, void *data)
 		}
 		err = listen(sfd[i], 32);
 		if (err < 0) {
-			printf("failed to listeen\n");
+			printf("failed to listen\n");
 			goto out;
 		}
 	}
@@ -525,7 +525,7 @@ static void test_sockmap(int tasks, void *data)
 		addr.sin_port = htons(ports[i - 2]);
 		err = connect(sfd[i], (struct sockaddr *)&addr, sizeof(addr));
 		if (err) {
-			printf("failed to conenct\n");
+			printf("failed to connect\n");
 			goto out;
 		}
 	}
