@@ -1305,6 +1305,26 @@ static int cn23xx_sriov_config(struct octeon_device *oct)
 
 int setup_cn23xx_octeon_pf_device(struct octeon_device *oct)
 {
+	u32 data32;
+	u64 BAR0, BAR1;
+
+	pci_read_config_dword(oct->pci_dev, PCI_BASE_ADDRESS_0, &data32);
+	BAR0 = (u64)(data32 & ~0xf);
+	pci_read_config_dword(oct->pci_dev, PCI_BASE_ADDRESS_1, &data32);
+	BAR0 |= ((u64)data32 << 32);
+	pci_read_config_dword(oct->pci_dev, PCI_BASE_ADDRESS_2, &data32);
+	BAR1 = (u64)(data32 & ~0xf);
+	pci_read_config_dword(oct->pci_dev, PCI_BASE_ADDRESS_3, &data32);
+	BAR1 |= ((u64)data32 << 32);
+
+	if (!BAR0 || !BAR1) {
+		if (!BAR0)
+			dev_err(&oct->pci_dev->dev, "device BAR0 unassigned\n");
+		if (!BAR1)
+			dev_err(&oct->pci_dev->dev, "device BAR1 unassigned\n");
+		return 1;
+	}
+
 	if (octeon_map_pci_barx(oct, 0, 0))
 		return 1;
 
