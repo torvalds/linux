@@ -833,7 +833,7 @@ static const struct dvb_frontend_ops ds3000_ops;
 struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 				    struct i2c_adapter *i2c)
 {
-	struct ds3000_state *state = NULL;
+	struct ds3000_state *state;
 	int ret;
 
 	dprintk("%s\n", __func__);

@@ -221,7 +221,7 @@ static int cx24116_writereg(struct cx24116_state *state, int reg, int data)
 static int cx24116_writeregN(struct cx24116_state *state, int reg,
 			     const u8 *data, u16 len)
 {
-	int ret = -EREMOTEIO;
+	int ret;
 	struct i2c_msg msg;
 	u8 *buf;
 
@@ -1120,7 +1120,7 @@ static const struct dvb_frontend_ops cx24116_ops;
 struct dvb_frontend *cx24116_attach(const struct cx24116_config *config,
 	struct i2c_adapter *i2c)
 {
-	struct cx24116_state *state = NULL;
+	struct cx24116_state *state;
 	int ret;
 
 	dprintk("%s\n", __func__);
