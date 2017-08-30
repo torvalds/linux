@@ -155,17 +155,22 @@ void *visorchannel_get_header(struct visorchannel *channel)
  * Return offset of a specific SIGNAL_QUEUE_HEADER from the beginning of a
  * channel header
  */
-#define SIG_QUEUE_OFFSET(chan_hdr, q) \
-	((chan_hdr)->ch_space_offset + \
-	 ((q) * sizeof(struct signal_queue_header)))
+int sig_queue_offset(struct channel_header *chan_hdr, int q)
+{
+	return ((chan_hdr)->ch_space_offset +
+	       ((q) * sizeof(struct signal_queue_header)));
+}
 
 /*
  * Return offset of a specific queue entry (data) from the beginning of a
  * channel header
  */
-#define SIG_DATA_OFFSET(chan_hdr, q, sig_hdr, slot) \
-	(SIG_QUEUE_OFFSET(chan_hdr, q) + (sig_hdr)->sig_base_offset + \
-	 ((slot) * (sig_hdr)->signal_size))
+int sig_data_offset(struct channel_header *chan_hdr, int q,
+		    struct signal_queue_header *sig_hdr, int slot)
+{
+	return (sig_queue_offset(chan_hdr, q) + sig_hdr->sig_base_offset +
+	       (slot * sig_hdr->signal_size));
+}
 
 /*
  * Write the contents of a specific field within a SIGNAL_QUEUE_HEADER back
@@ -173,7 +178,7 @@ void *visorchannel_get_header(struct visorchannel *channel)
  */
 #define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD) \
 	visorchannel_write(channel, \
-			   SIG_QUEUE_OFFSET(&channel->chan_hdr, queue) + \
+			   sig_queue_offset(&channel->chan_hdr, queue) + \
 			   offsetof(struct signal_queue_header, FIELD), \
 			   &((sig_hdr)->FIELD), \
 			   sizeof((sig_hdr)->FIELD))
@@ -186,7 +191,7 @@ static int sig_read_header(struct visorchannel *channel, u32 queue,
 
 	/* Read the appropriate SIGNAL_QUEUE_HEADER into local memory. */
 	return visorchannel_read(channel,
-				 SIG_QUEUE_OFFSET(&channel->chan_hdr, queue),
+				 sig_queue_offset(&channel->chan_hdr, queue),
 				 sig_hdr, sizeof(struct signal_queue_header));
 }
 
@@ -194,7 +199,7 @@ static int sig_read_data(struct visorchannel *channel, u32 queue,
 			 struct signal_queue_header *sig_hdr, u32 slot,
 			 void *data)
 {
-	int signal_data_offset = SIG_DATA_OFFSET(&channel->chan_hdr, queue,
+	int signal_data_offset = sig_data_offset(&channel->chan_hdr, queue,
 						 sig_hdr, slot);
 
 	return visorchannel_read(channel, signal_data_offset,
@@ -205,7 +210,7 @@ static int sig_write_data(struct visorchannel *channel, u32 queue,
 			  struct signal_queue_header *sig_hdr, u32 slot,
 			  void *data)
 {
-	int signal_data_offset = SIG_DATA_OFFSET(&channel->chan_hdr, queue,
+	int signal_data_offset = sig_data_offset(&channel->chan_hdr, queue,
 						 sig_hdr, slot);
 
 	return visorchannel_write(channel, signal_data_offset,
