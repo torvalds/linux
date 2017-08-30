@@ -90,6 +90,7 @@ struct fusb302_chip {
 	struct i2c_client *i2c_client;
 	struct tcpm_port *tcpm_port;
 	struct tcpc_dev tcpc_dev;
+	struct tcpc_config tcpc_config;
 
 	struct regulator *vbus;
 
@@ -1198,7 +1199,6 @@ static const struct tcpc_config fusb302_tcpc_config = {
 
 static void init_tcpc_dev(struct tcpc_dev *fusb302_tcpc_dev)
 {
-	fusb302_tcpc_dev->config = &fusb302_tcpc_config;
 	fusb302_tcpc_dev->init = tcpm_init;
 	fusb302_tcpc_dev->get_vbus = tcpm_get_vbus;
 	fusb302_tcpc_dev->set_cc = tcpm_set_cc;
@@ -1684,7 +1684,9 @@ static int fusb302_probe(struct i2c_client *client,
 {
 	struct fusb302_chip *chip;
 	struct i2c_adapter *adapter;
+	struct device *dev = &client->dev;
 	int ret = 0;
+	u32 v;
 
 	adapter = to_i2c_adapter(client->dev.parent);
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
@@ -1699,7 +1701,21 @@ static int fusb302_probe(struct i2c_client *client,
 	chip->i2c_client = client;
 	i2c_set_clientdata(client, chip);
 	chip->dev = &client->dev;
+	chip->tcpc_config = fusb302_tcpc_config;
+	chip->tcpc_dev.config = &chip->tcpc_config;
 	mutex_init(&chip->lock);
+
+	if (!device_property_read_u32(dev, "fcs,max-sink-microvolt", &v))
+		chip->tcpc_config.max_snk_mv = v / 1000;
+
+	if (!device_property_read_u32(dev, "fcs,max-sink-microamp", &v))
+		chip->tcpc_config.max_snk_ma = v / 1000;
+
+	if (!device_property_read_u32(dev, "fcs,max-sink-microwatt", &v))
+		chip->tcpc_config.max_snk_mw = v / 1000;
+
+	if (!device_property_read_u32(dev, "fcs,operating-sink-microwatt", &v))
+		chip->tcpc_config.operating_snk_mw = v / 1000;
 
 	ret = fusb302_debugfs_init(chip);
 	if (ret < 0)
