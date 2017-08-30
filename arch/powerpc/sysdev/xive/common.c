@@ -198,7 +198,10 @@ static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
 		offset |= offset << 4;
 
-	val = in_be64(xd->eoi_mmio + offset);
+	if ((xd->flags & XIVE_IRQ_FLAG_H_INT_ESB) && xive_ops->esb_rw)
+		val = xive_ops->esb_rw(xd->hw_irq, offset, 0, 0);
+	else
+		val = in_be64(xd->eoi_mmio + offset);
 
 	return (u8)val;
 }
@@ -209,7 +212,10 @@ static void xive_esb_write(struct xive_irq_data *xd, u32 offset, u64 data)
 	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
 		offset |= offset << 4;
 
-	out_be64(xd->eoi_mmio + offset, data);
+	if ((xd->flags & XIVE_IRQ_FLAG_H_INT_ESB) && xive_ops->esb_rw)
+		xive_ops->esb_rw(xd->hw_irq, offset, data, 1);
+	else
+		out_be64(xd->eoi_mmio + offset, data);
 }
 
 #ifdef CONFIG_XMON

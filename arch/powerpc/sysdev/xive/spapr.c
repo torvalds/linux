@@ -224,7 +224,46 @@ static long plpar_int_sync(unsigned long flags, unsigned long lisn)
 	return 0;
 }
 
-#define XIVE_SRC_H_INT_ESB     (1ull << (63 - 60)) /* TODO */
+#define XIVE_ESB_FLAG_STORE (1ull << (63 - 63))
+
+static long plpar_int_esb(unsigned long flags,
+			  unsigned long lisn,
+			  unsigned long offset,
+			  unsigned long in_data,
+			  unsigned long *out_data)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	long rc;
+
+	pr_devel("H_INT_ESB flags=%lx lisn=%lx offset=%lx in=%lx\n",
+		flags,  lisn, offset, in_data);
+
+	rc = plpar_hcall(H_INT_ESB, retbuf, flags, lisn, offset, in_data);
+	if (rc) {
+		pr_err("H_INT_ESB lisn=%ld offset=%ld returned %ld\n",
+		       lisn, offset, rc);
+		return  rc;
+	}
+
+	*out_data = retbuf[0];
+
+	return 0;
+}
+
+static u64 xive_spapr_esb_rw(u32 lisn, u32 offset, u64 data, bool write)
+{
+	unsigned long read_data;
+	long rc;
+
+	rc = plpar_int_esb(write ? XIVE_ESB_FLAG_STORE : 0,
+			   lisn, offset, data, &read_data);
+	if (rc)
+		return -1;
+
+	return write ? 0 : read_data;
+}
+
+#define XIVE_SRC_H_INT_ESB     (1ull << (63 - 60))
 #define XIVE_SRC_LSI           (1ull << (63 - 61))
 #define XIVE_SRC_TRIGGER       (1ull << (63 - 62))
 #define XIVE_SRC_STORE_EOI     (1ull << (63 - 63))
@@ -244,6 +283,8 @@ static int xive_spapr_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 	if (rc)
 		return  -EINVAL;
 
+	if (flags & XIVE_SRC_H_INT_ESB)
+		data->flags  |= XIVE_IRQ_FLAG_H_INT_ESB;
 	if (flags & XIVE_SRC_STORE_EOI)
 		data->flags  |= XIVE_IRQ_FLAG_STORE_EOI;
 	if (flags & XIVE_SRC_LSI)
@@ -487,6 +528,7 @@ static const struct xive_ops xive_spapr_ops = {
 	.setup_cpu		= xive_spapr_setup_cpu,
 	.teardown_cpu		= xive_spapr_teardown_cpu,
 	.sync_source		= xive_spapr_sync_source,
+	.esb_rw			= xive_spapr_esb_rw,
 #ifdef CONFIG_SMP
 	.get_ipi		= xive_spapr_get_ipi,
 	.put_ipi		= xive_spapr_put_ipi,

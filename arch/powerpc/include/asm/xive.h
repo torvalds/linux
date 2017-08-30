@@ -56,6 +56,7 @@ struct xive_irq_data {
 #define XIVE_IRQ_FLAG_SHIFT_BUG	0x04
 #define XIVE_IRQ_FLAG_MASK_FW	0x08
 #define XIVE_IRQ_FLAG_EOI_FW	0x10
+#define XIVE_IRQ_FLAG_H_INT_ESB	0x20
 
 #define XIVE_INVALID_CHIP_ID	-1
 
