@@ -109,6 +109,13 @@ struct tcpc_dev {
 
 	int (*init)(struct tcpc_dev *dev);
 	int (*get_vbus)(struct tcpc_dev *dev);
+	/*
+	 * This optional callback gets called by the tcpm core when configured
+	 * as a snk and cc=Rp-def. This allows the tcpm to provide a fallback
+	 * current-limit detection method for the cc=Rp-def case. E.g. some
+	 * tcpcs may include BC1.2 charger detection and use that in this case.
+	 */
+	int (*get_current_limit)(struct tcpc_dev *dev);
 	int (*set_cc)(struct tcpc_dev *dev, enum typec_cc_status cc);
 	int (*get_cc)(struct tcpc_dev *dev, enum typec_cc_status *cc1,
 		      enum typec_cc_status *cc2);
