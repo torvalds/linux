@@ -304,6 +304,12 @@ struct hns_roce_wq {
 	void __iomem	*db_reg_l;
 };
 
+struct hns_roce_sge {
+	int		sge_cnt;  /* SGE num */
+	int		offset;
+	int		sge_shift;/* SGE size */
+};
+
 struct hns_roce_buf_list {
 	void		*buf;
 	dma_addr_t	map;
@@ -455,6 +461,9 @@ struct hns_roce_qp {
 
 	atomic_t		refcount;
 	struct completion	free;
+
+	struct hns_roce_sge	sge;
+	u32			next_sge;
 };
 
 struct hns_roce_sqp {
@@ -509,6 +518,7 @@ struct hns_roce_caps {
 	int		num_cqs;
 	int		max_cqes;
 	int		min_cqes;
+	u32		min_wqes;
 	int		reserved_cqs;
 	int		num_aeq_vectors;	/* 1 */
 	int		num_comp_vectors;	/* 32 ceq */
@@ -788,6 +798,7 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		       int attr_mask, struct ib_udata *udata);
 void *get_recv_wqe(struct hns_roce_qp *hr_qp, int n);
 void *get_send_wqe(struct hns_roce_qp *hr_qp, int n);
+void *get_send_extend_sge(struct hns_roce_qp *hr_qp, int n);
 bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, int nreq,
 			  struct ib_cq *ib_cq);
 enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state);
