@@ -1420,8 +1420,6 @@ static int amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 				uint64_t start, uint64_t end,
 				uint64_t dst, uint64_t flags)
 {
-	int r;
-
 	/**
 	 * The MC L1 TLB supports variable sized pages, based on a fragment
 	 * field in the PTE. When this field is set to a non-zero value, page
@@ -1440,39 +1438,38 @@ static int amdgpu_vm_frag_ptes(struct amdgpu_pte_update_params	*params,
 	 * Userspace can support this by aligning virtual base address and
 	 * allocation size to the fragment size.
 	 */
-	unsigned pages_per_frag = params->adev->vm_manager.fragment_size;
-	uint64_t frag_flags = AMDGPU_PTE_FRAG(pages_per_frag);
-	uint64_t frag_align = 1 << pages_per_frag;
-
-	uint64_t frag_start = ALIGN(start, frag_align);
-	uint64_t frag_end = end & ~(frag_align - 1);
+	unsigned max_frag = params->adev->vm_manager.fragment_size;
+	int r;
 
 	/* system pages are non continuously */
-	if (params->src || !(flags & AMDGPU_PTE_VALID) ||
-	    (frag_start >= frag_end))
+	if (params->src || !(flags & AMDGPU_PTE_VALID))
 		return amdgpu_vm_update_ptes(params, start, end, dst, flags);
 
-	/* handle the 4K area at the beginning */
-	if (start != frag_start) {
-		r = amdgpu_vm_update_ptes(params, start, frag_start,
-					  dst, flags);
+	while (start != end) {
+		uint64_t frag_flags, frag_end;
+		unsigned frag;
+
+		/* This intentionally wraps around if no bit is set */
+		frag = min((unsigned)ffs(start) - 1,
+			   (unsigned)fls64(end - start) - 1);
+		if (frag >= max_frag) {
+			frag_flags = AMDGPU_PTE_FRAG(max_frag);
+			frag_end = end & ~((1ULL << max_frag) - 1);
+		} else {
+			frag_flags = AMDGPU_PTE_FRAG(frag);
+			frag_end = start + (1 << frag);
+		}
+
+		r = amdgpu_vm_update_ptes(params, start, frag_end, dst,
+					  flags | frag_flags);
 		if (r)
 			return r;
-		dst += (frag_start - start) * AMDGPU_GPU_PAGE_SIZE;
+
+		dst += (frag_end - start) * AMDGPU_GPU_PAGE_SIZE;
+		start = frag_end;
 	}
 
-	/* handle the area in the middle */
-	r = amdgpu_vm_update_ptes(params, frag_start, frag_end, dst,
-				  flags | frag_flags);
-	if (r)
-		return r;
-
-	/* handle the 4K area at the end */
-	if (frag_end != end) {
-		dst += (frag_end - frag_start) * AMDGPU_GPU_PAGE_SIZE;
-		r = amdgpu_vm_update_ptes(params, frag_end, end, dst, flags);
-	}
-	return r;
+	return 0;
 }
 
 /**
@@ -1562,8 +1559,8 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		/* set page commands needed */
 		ndw += ncmds * 10;
 
-		/* two extra commands for begin/end of fragment */
-		ndw += 2 * 10;
+		/* extra commands for begin/end fragments */
+		ndw += 2 * 10 * adev->vm_manager.fragment_size;
 
 		params.func = amdgpu_vm_do_set_ptes;
 	}
