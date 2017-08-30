@@ -198,12 +198,11 @@ struct visornic_devdata {
 };
 
 /* Returns next non-zero index on success or 0 on failure (i.e. out of room). */
-static u16 add_physinfo_entries(u64 inp_pfn, u16 inp_off, u32 inp_len,
+static u16 add_physinfo_entries(u64 inp_pfn, u16 inp_off, u16 inp_len,
 				u16 index, u16 max_pi_arr_entries,
 				struct phys_info pi_arr[])
 {
-	u32 len;
-	u16 i, firstlen;
+	u16 i, len, firstlen;
 
 	firstlen = PI_PAGE_SIZE - inp_off;
 	if (inp_len <= firstlen) {
@@ -227,8 +226,8 @@ static u16 add_physinfo_entries(u64 inp_pfn, u16 inp_off, u32 inp_len,
 			pi_arr[index].pi_len = firstlen;
 		} else {
 			pi_arr[index + i].pi_off = 0;
-			pi_arr[index + i].pi_len =
-			    (u16)MINNUM(len, (u32)PI_PAGE_SIZE);
+			pi_arr[index + i].pi_len = min_t(u16, len,
+							 PI_PAGE_SIZE);
 		}
 	}
 	return index + i;

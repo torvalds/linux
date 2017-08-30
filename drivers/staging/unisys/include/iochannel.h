@@ -61,9 +61,6 @@
  * IO Partition is defined below.
  */
 
-/* Defines and enums. */
-#define MINNUM(a, b) (((a) < (b)) ? (a) : (b))
-
 /*
  * Define the two queues per data channel between iopart and ioguestparts.
  *	IOCHAN_TO_IOPART -- used by guest to 'insert' signals to iopart.
