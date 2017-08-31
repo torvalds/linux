@@ -28,7 +28,7 @@
 #include <asm/errno.h>
 #include <asm/esr.h>
 #include <asm/irq.h>
-#include <asm/memory.h>
+#include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/asm-uaccess.h>
