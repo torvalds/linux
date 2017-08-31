@@ -865,7 +865,7 @@ static int tpm2_start_selftest(struct tpm_chip *chip, bool full)
 }
 
 /**
- * tpm2_do_selftest() - run a full self test
+ * tpm2_do_selftest() - ensure that all self tests have passed
  *
  * @chip: TPM chip to use
  *
@@ -886,7 +886,7 @@ static int tpm2_do_selftest(struct tpm_chip *chip)
 
 	loops = jiffies_to_msecs(duration) / delay_msec;
 
-	rc = tpm2_start_selftest(chip, true);
+	rc = tpm2_start_selftest(chip, false);
 	if (rc)
 		return rc;
 
