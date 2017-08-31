@@ -1299,12 +1299,6 @@ static irqreturn_t arm_smmu_priq_thread(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t arm_smmu_cmdq_sync_handler(int irq, void *dev)
-{
-	/* We don't actually use CMD_SYNC interrupts for anything */
-	return IRQ_HANDLED;
-}
-
 static int arm_smmu_device_disable(struct arm_smmu_device *smmu);
 
 static irqreturn_t arm_smmu_gerror_handler(int irq, void *dev)
@@ -1337,10 +1331,8 @@ static irqreturn_t arm_smmu_gerror_handler(int irq, void *dev)
 	if (active & GERROR_MSI_EVTQ_ABT_ERR)
 		dev_warn(smmu->dev, "EVTQ MSI write aborted\n");
 
-	if (active & GERROR_MSI_CMDQ_ABT_ERR) {
+	if (active & GERROR_MSI_CMDQ_ABT_ERR)
 		dev_warn(smmu->dev, "CMDQ MSI write aborted\n");
-		arm_smmu_cmdq_sync_handler(irq, smmu->dev);
-	}
 
 	if (active & GERROR_PRIQ_ABT_ERR)
 		dev_err(smmu->dev, "PRIQ write aborted -- events may have been lost\n");
@@ -1369,7 +1361,6 @@ static irqreturn_t arm_smmu_combined_irq_thread(int irq, void *dev)
 static irqreturn_t arm_smmu_combined_irq_handler(int irq, void *dev)
 {
 	arm_smmu_gerror_handler(irq, dev);
-	arm_smmu_cmdq_sync_handler(irq, dev);
 	return IRQ_WAKE_THREAD;
 }
 
@@ -2286,15 +2277,6 @@ static void arm_smmu_setup_unique_irqs(struct arm_smmu_device *smmu)
 			dev_warn(smmu->dev, "failed to enable evtq irq\n");
 	}
 
-	irq = smmu->cmdq.q.irq;
-	if (irq) {
-		ret = devm_request_irq(smmu->dev, irq,
-				       arm_smmu_cmdq_sync_handler, 0,
-				       "arm-smmu-v3-cmdq-sync", smmu);
-		if (ret < 0)
-			dev_warn(smmu->dev, "failed to enable cmdq-sync irq\n");
-	}
-
 	irq = smmu->gerr_irq;
 	if (irq) {
 		ret = devm_request_irq(smmu->dev, irq, arm_smmu_gerror_handler,
@@ -2802,10 +2784,6 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		irq = platform_get_irq_byname(pdev, "priq");
 		if (irq > 0)
 			smmu->priq.q.irq = irq;
-
-		irq = platform_get_irq_byname(pdev, "cmdq-sync");
-		if (irq > 0)
-			smmu->cmdq.q.irq = irq;
 
 		irq = platform_get_irq_byname(pdev, "gerror");
 		if (irq > 0)
