@@ -1764,11 +1764,7 @@ static int gfx_v9_0_init_rlc_save_restore_list(struct amdgpu_device *adev)
 
 static void gfx_v9_0_enable_save_restore_machine(struct amdgpu_device *adev)
 {
-	u32 tmp = 0;
-
-	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_CNTL));
-	tmp |= RLC_SRM_CNTL__SRM_ENABLE_MASK;
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_CNTL), tmp);
+	WREG32_FIELD15(GC, 0, RLC_SRM_CNTL, SRM_ENABLE, 1);
 }
 
 static void pwr_10_0_gfxip_control_over_cgpg(struct amdgpu_device *adev,
