@@ -309,7 +309,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 			/* Keep a reference to the root directory to avoid
 			* freeing them up in the wrong order.
 			*/
-			pt->parent = amdgpu_bo_ref(vm->root.base.bo);
+			pt->parent = amdgpu_bo_ref(parent->base.bo);
 
 			entry->base.vm = vm;
 			entry->base.bo = pt;
@@ -317,7 +317,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 			spin_lock(&vm->status_lock);
 			list_add(&entry->base.vm_status, &vm->relocated);
 			spin_unlock(&vm->status_lock);
-			entry->addr = ~0ULL;
+			entry->addr = 0;
 		}
 
 		if (level < adev->vm_manager.num_level) {
