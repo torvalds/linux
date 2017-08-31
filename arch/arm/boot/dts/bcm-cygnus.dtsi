@@ -585,6 +585,14 @@
 			status = "disabled";
 		};
 
+		pwm: pwm@180aa500 {
+			compatible = "brcm,kona-pwm";
+			reg = <0x180aa500 0xc4>;
+			#pwm-cells = <3>;
+			clocks = <&asiu_clks BCM_CYGNUS_ASIU_PWM_CLK>;
+			status = "disabled";
+		};
+
 		keypad: keypad@180ac000 {
 			compatible = "brcm,bcm-keypad";
 			reg = <0x180ac000 0x14c>;
