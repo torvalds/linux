@@ -214,7 +214,6 @@ static inline int ipmi_demangle_device_id(uint8_t netfn, uint8_t cmd,
    call. */
 int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 		      void                     *send_info,
-		      struct ipmi_device_id    *device_id,
 		      struct device            *dev,
 		      unsigned char            slave_addr);
 

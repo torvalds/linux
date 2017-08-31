@@ -3631,7 +3631,6 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	rv = ipmi_register_smi(&handlers,
 			       new_smi,
-			       &new_smi->device_id,
 			       new_smi->dev,
 			       new_smi->slave_addr);
 	if (rv) {
