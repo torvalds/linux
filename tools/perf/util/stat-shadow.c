@@ -6,6 +6,7 @@
 #include "rblist.h"
 #include "evlist.h"
 #include "expr.h"
+#include "metricgroup.h"
 
 enum {
 	CTX_BIT_USER	= 1 << 0,
@@ -671,13 +672,16 @@ static void generic_metric(const char *metric_expr,
 
 void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 				   double avg, int cpu,
-				   struct perf_stat_output_ctx *out)
+				   struct perf_stat_output_ctx *out,
+				   struct rblist *metric_events)
 {
 	void *ctxp = out->ctx;
 	print_metric_t print_metric = out->print_metric;
 	double total, ratio = 0.0, total2;
 	const char *color = NULL;
 	int ctx = evsel_context(evsel);
+	struct metric_event *me;
+	int num = 1;
 
 	if (perf_evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS)) {
 		total = avg_stats(&runtime_cycles_stats[ctx][cpu]);
@@ -880,6 +884,20 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 	} else if (perf_stat_evsel__is(evsel, SMI_NUM)) {
 		print_smi_cost(cpu, evsel, out);
 	} else {
-		print_metric(ctxp, NULL, NULL, NULL, 0);
+		num = 0;
 	}
+
+	if ((me = metricgroup__lookup(metric_events, evsel, false)) != NULL) {
+		struct metric_expr *mexp;
+
+		list_for_each_entry (mexp, &me->head, nd) {
+			if (num++ > 0)
+				out->new_line(ctxp);
+			generic_metric(mexp->metric_expr, mexp->metric_events,
+					evsel->name, mexp->metric_name,
+					avg, cpu, ctx, out);
+		}
+	}
+	if (num == 0)
+		print_metric(ctxp, NULL, NULL, NULL, 0);
 }

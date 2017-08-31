@@ -580,8 +580,11 @@ static void pmu_add_cpu_aliases(struct list_head *head, const char *name)
 		const char *pname;
 
 		pe = &map->table[i++];
-		if (!pe->name)
+		if (!pe->name) {
+			if (pe->metric_group || pe->metric_name)
+				continue;
 			break;
+		}
 
 		pname = pe->pmu ? pe->pmu : "cpu";
 		if (strncmp(pname, name, strlen(pname)))

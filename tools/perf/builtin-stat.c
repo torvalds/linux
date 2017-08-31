@@ -65,6 +65,7 @@
 #include "util/tool.h"
 #include "util/group.h"
 #include "util/string2.h"
+#include "util/metricgroup.h"
 #include "asm/bug.h"
 
 #include <linux/time64.h>
@@ -132,6 +133,8 @@ static const char *smi_cost_attrs = {
 };
 
 static struct perf_evlist	*evsel_list;
+
+static struct rblist		 metric_events;
 
 static struct target target = {
 	.uid	= UINT_MAX,
@@ -1234,7 +1237,7 @@ static void printout(int id, int nr, struct perf_evsel *counter, double uval,
 
 	perf_stat__print_shadow_stats(counter, uval,
 				first_shadow_cpu(counter, id),
-				&out);
+				&out, &metric_events);
 	if (!csv_output && !metric_only) {
 		print_noise(counter, noise);
 		print_running(run, ena);
@@ -1565,7 +1568,8 @@ static void print_metric_headers(const char *prefix, bool no_indent)
 		os.evsel = counter;
 		perf_stat__print_shadow_stats(counter, 0,
 					      0,
-					      &out);
+					      &out,
+					      &metric_events);
 	}
 	fputc('\n', stat_config.output);
 }
@@ -1789,6 +1793,13 @@ static int enable_metric_only(const struct option *opt __maybe_unused,
 	return 0;
 }
 
+static int parse_metric_groups(const struct option *opt,
+			       const char *str,
+			       int unset __maybe_unused)
+{
+	return metricgroup__parse_groups(opt, str, &metric_events);
+}
+
 static const struct option stat_options[] = {
 	OPT_BOOLEAN('T', "transaction", &transaction_run,
 		    "hardware transaction statistics"),
@@ -1854,6 +1865,9 @@ static const struct option stat_options[] = {
 			"measure topdown level 1 statistics"),
 	OPT_BOOLEAN(0, "smi-cost", &smi_cost,
 			"measure SMI cost"),
+	OPT_CALLBACK('M', "metrics", &evsel_list, "metric/metric group list",
+		     "monitor specified metrics or metric groups (separated by ,)",
+		     parse_metric_groups),
 	OPT_END()
 };
 
