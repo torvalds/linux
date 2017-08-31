@@ -196,13 +196,13 @@ static int meson_mmc_clk_get_phase(struct clk_hw *hw)
 	u32 val;
 
 	val = readl(mmc->reg);
-	p = (val & mmc->phase_mask) >> __bf_shf(mmc->phase_mask);
+	p = (val & mmc->phase_mask) >> __ffs(mmc->phase_mask);
 	degrees = p * 360 / phase_num;
 
 	if (mmc->delay_mask) {
 		period_ps = DIV_ROUND_UP((unsigned long)NSEC_PER_SEC * 1000,
 					 clk_get_rate(hw->clk));
-		d = (val & mmc->delay_mask) >> __bf_shf(mmc->delay_mask);
+		d = (val & mmc->delay_mask) >> __ffs(mmc->delay_mask);
 		degrees += d * mmc->delay_step_ps * 360 / period_ps;
 		degrees %= 360;
 	}
@@ -218,11 +218,11 @@ static void meson_mmc_apply_phase_delay(struct meson_mmc_phase *mmc,
 
 	val = readl(mmc->reg);
 	val &= ~mmc->phase_mask;
-	val |= phase << __bf_shf(mmc->phase_mask);
+	val |= phase << __ffs(mmc->phase_mask);
 
 	if (mmc->delay_mask) {
 		val &= ~mmc->delay_mask;
-		val |= delay << __bf_shf(mmc->delay_mask);
+		val |= delay << __ffs(mmc->delay_mask);
 	}
 
 	writel(val, mmc->reg);
@@ -249,7 +249,7 @@ static int meson_mmc_clk_set_phase(struct clk_hw *hw, int degrees)
 		r = do_div(p, 360 / phase_num);
 		d = DIV_ROUND_CLOSEST(r * period_ps,
 				      360 * mmc->delay_step_ps);
-		d = min(d, mmc->delay_mask >> __bf_shf(mmc->delay_mask));
+		d = min(d, mmc->delay_mask >> __ffs(mmc->delay_mask));
 	}
 
 	meson_mmc_apply_phase_delay(mmc, p, d);
@@ -506,7 +506,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	init.num_parents = MUX_CLK_NUM_PARENTS;
 
 	mux->reg = host->regs + SD_EMMC_CLOCK;
-	mux->shift = __bf_shf(CLK_SRC_MASK);
+	mux->shift = __ffs(CLK_SRC_MASK);
 	mux->mask = CLK_SRC_MASK >> mux->shift;
 	mux->hw.init = &init;
 
@@ -528,7 +528,7 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	init.num_parents = 1;
 
 	div->reg = host->regs + SD_EMMC_CLOCK;
-	div->shift = __bf_shf(CLK_DIV_MASK);
+	div->shift = __ffs(CLK_DIV_MASK);
 	div->width = __builtin_popcountl(CLK_DIV_MASK);
 	div->hw.init = &init;
 	div->flags = (CLK_DIVIDER_ONE_BASED |
