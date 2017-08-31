@@ -38,24 +38,6 @@ asmlinkage void machine_check(void);
 #endif /* CONFIG_X86_MCE */
 asmlinkage void simd_coprocessor_error(void);
 
-#ifdef CONFIG_TRACING
-#define trace_stack_segment stack_segment
-#define trace_divide_error divide_error
-#define trace_bounds bounds
-#define trace_invalid_op invalid_op
-#define trace_device_not_available device_not_available
-#define trace_coprocessor_segment_overrun coprocessor_segment_overrun
-#define trace_invalid_TSS invalid_TSS
-#define trace_segment_not_present segment_not_present
-#define trace_general_protection general_protection
-#define trace_spurious_interrupt_bug spurious_interrupt_bug
-#define trace_coprocessor_error coprocessor_error
-#define trace_alignment_check alignment_check
-#define trace_simd_coprocessor_error simd_coprocessor_error
-#define trace_async_page_fault async_page_fault
-#define trace_page_fault page_fault
-#endif
-
 dotraplinkage void do_divide_error(struct pt_regs *, long);
 dotraplinkage void do_debug(struct pt_regs *, long);
 dotraplinkage void do_nmi(struct pt_regs *, long);
