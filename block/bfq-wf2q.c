@@ -80,6 +80,7 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 {
 	struct bfq_entity *next_in_service = sd->next_in_service;
 	bool parent_sched_may_change = false;
+	bool change_without_lookup = false;
 
 	/*
 	 * If this update is triggered by the activation, requeueing
@@ -99,7 +100,7 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 		 * set to true, and left as true if
 		 * sd->next_in_service is NULL.
 		 */
-		bool replace_next = true;
+		change_without_lookup = true;
 
 		/*
 		 * If there is already a next_in_service candidate
@@ -112,7 +113,7 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 			struct bfq_service_tree *st =
 				sd->service_tree + new_entity_class_idx;
 
-			replace_next =
+			change_without_lookup =
 				(new_entity_class_idx ==
 				 bfq_class_idx(next_in_service)
 				 &&
@@ -122,15 +123,16 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 					new_entity->finish));
 		}
 
-		if (replace_next)
+		if (change_without_lookup)
 			next_in_service = new_entity;
-	} else /* invoked because of a deactivation: lookup needed */
+	}
+
+	if (!change_without_lookup) /* lookup needed */
 		next_in_service = bfq_lookup_next_entity(sd, expiration);
 
-	if (next_in_service) {
+	if (next_in_service)
 		parent_sched_may_change = !sd->next_in_service ||
 			bfq_update_parent_budget(next_in_service);
-	}
 
 	sd->next_in_service = next_in_service;
 
