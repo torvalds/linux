@@ -947,6 +947,15 @@ u32 mlxsw_sp_neigh4_entry_dip(struct mlxsw_sp_neigh_entry *neigh_entry)
 	return ntohl(*((__be32 *) n->primary_key));
 }
 
+struct in6_addr *
+mlxsw_sp_neigh6_entry_dip(struct mlxsw_sp_neigh_entry *neigh_entry)
+{
+	struct neighbour *n;
+
+	n = neigh_entry->key.n;
+	return (struct in6_addr *) &n->primary_key;
+}
+
 int mlxsw_sp_neigh_counter_get(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_neigh_entry *neigh_entry,
 			       u64 *p_counter)
@@ -999,21 +1008,33 @@ mlxsw_sp_neigh_entry_remove(struct mlxsw_sp *mlxsw_sp,
 }
 
 static bool
-mlxsw_sp_neigh4_counter_should_alloc(struct mlxsw_sp *mlxsw_sp)
+mlxsw_sp_neigh_counter_should_alloc(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_neigh_entry *neigh_entry)
 {
 	struct devlink *devlink;
+	const char *table_name;
+
+	switch (mlxsw_sp_neigh_entry_type(neigh_entry)) {
+	case AF_INET:
+		table_name = MLXSW_SP_DPIPE_TABLE_NAME_HOST4;
+		break;
+	case AF_INET6:
+		table_name = MLXSW_SP_DPIPE_TABLE_NAME_HOST6;
+		break;
+	default:
+		WARN_ON(1);
+		return false;
+	}
 
 	devlink = priv_to_devlink(mlxsw_sp->core);
-	return devlink_dpipe_table_counter_enabled(devlink,
-						   MLXSW_SP_DPIPE_TABLE_NAME_HOST4);
+	return devlink_dpipe_table_counter_enabled(devlink, table_name);
 }
 
 static void
 mlxsw_sp_neigh_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_neigh_entry *neigh_entry)
 {
-	if (mlxsw_sp_neigh_entry_type(neigh_entry) != AF_INET ||
-	    !mlxsw_sp_neigh4_counter_should_alloc(mlxsw_sp))
+	if (!mlxsw_sp_neigh_counter_should_alloc(mlxsw_sp, neigh_entry))
 		return;
 
 	if (mlxsw_sp_flow_counter_alloc(mlxsw_sp, &neigh_entry->counter_index))
@@ -1396,8 +1417,10 @@ mlxsw_sp_router_neigh_entry_op6(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
 }
 
-static bool mlxsw_sp_neigh_ipv6_ignore(struct neighbour *n)
+bool mlxsw_sp_neigh_ipv6_ignore(struct mlxsw_sp_neigh_entry *neigh_entry)
 {
+	struct neighbour *n = neigh_entry->key.n;
+
 	/* Packets with a link-local destination address are trapped
 	 * after LPM lookup and never reach the neighbour table, so
 	 * there is no need to program such neighbours to the device.
@@ -1420,7 +1443,7 @@ mlxsw_sp_neigh_entry_update(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_router_neigh_entry_op4(mlxsw_sp, neigh_entry,
 						mlxsw_sp_rauht_op(adding));
 	} else if (neigh_entry->key.n->tbl->family == AF_INET6) {
-		if (mlxsw_sp_neigh_ipv6_ignore(neigh_entry->key.n))
+		if (mlxsw_sp_neigh_ipv6_ignore(neigh_entry))
 			return;
 		mlxsw_sp_router_neigh_entry_op6(mlxsw_sp, neigh_entry,
 						mlxsw_sp_rauht_op(adding));
