@@ -35,7 +35,7 @@ CONTENTS
  1-1 Personal systems
  1-2 Server systems
 2. How does BFQ work?
-3. What are BFQ's tunable?
+3. What are BFQ's tunables and how to properly configure BFQ?
 4. BFQ group scheduling
  4-1 Service guarantees provided
  4-2 Interface
@@ -147,12 +147,12 @@ plus a lot of code, are borrowed from CFQ.
       contrast, BFQ may idle the device for a short time interval,
       giving the process the chance to go on being served if it issues
       a new request in time. Device idling typically boosts the
-      throughput on rotational devices, if processes do synchronous
-      and sequential I/O. In addition, under BFQ, device idling is
-      also instrumental in guaranteeing the desired throughput
-      fraction to processes issuing sync requests (see the description
-      of the slice_idle tunable in this document, or [1, 2], for more
-      details).
+      throughput on rotational devices and on non-queueing flash-based
+      devices, if processes do synchronous and sequential I/O. In
+      addition, under BFQ, device idling is also instrumental in
+      guaranteeing the desired throughput fraction to processes
+      issuing sync requests (see the description of the slice_idle
+      tunable in this document, or [1, 2], for more details).
 
       - With respect to idling for service guarantees, if several
 	processes are competing for the device at the same time, but
@@ -160,6 +160,15 @@ plus a lot of code, are borrowed from CFQ.
 	guarantees the expected throughput distribution without ever
 	idling the device. Throughput is thus as high as possible in
 	this common scenario.
+
+     - On flash-based storage with internal queueing of commands
+       (typically NCQ), device idling happens to be always detrimental
+       for throughput. So, with these devices, BFQ performs idling
+       only when strictly needed for service guarantees, i.e., for
+       guaranteeing low latency or fairness. In these cases, overall
+       throughput may be sub-optimal. No solution currently exists to
+       provide both strong service guarantees and optimal throughput
+       on devices with internal queueing.
 
   - If low-latency mode is enabled (default configuration), BFQ
     executes some special heuristics to detect interactive and soft
@@ -248,13 +257,24 @@ plus a lot of code, are borrowed from CFQ.
   the Idle class, to prevent it from starving.
 
 
-3. What are BFQ's tunable?
-==========================
+3. What are BFQ's tunables and how to properly configure BFQ?
+=============================================================
 
-The tunables back_seek-max, back_seek_penalty, fifo_expire_async and
-fifo_expire_sync below are the same as in CFQ. Their description is
-just copied from that for CFQ. Some considerations in the description
-of slice_idle are copied from CFQ too.
+Most BFQ tunables affect service guarantees (basically latency and
+fairness) and throughput. For full details on how to choose the
+desired tradeoff between service guarantees and throughput, see the
+parameters slice_idle, strict_guarantees and low_latency. For details
+on how to maximise throughput, see slice_idle, timeout_sync and
+max_budget. The other performance-related parameters have been
+inherited from, and have been preserved mostly for compatibility with
+CFQ. So far, no performance improvement has been reported after
+changing the latter parameters in BFQ.
+
+In particular, the tunables back_seek-max, back_seek_penalty,
+fifo_expire_async and fifo_expire_sync below are the same as in
+CFQ. Their description is just copied from that for CFQ. Some
+considerations in the description of slice_idle are copied from CFQ
+too.
 
 per-process ioprio and weight
 -----------------------------
@@ -284,15 +304,17 @@ number of seeks and see improved throughput.
 
 Setting slice_idle to 0 will remove all the idling on queues and one
 should see an overall improved throughput on faster storage devices
-like multiple SATA/SAS disks in hardware RAID configuration.
+like multiple SATA/SAS disks in hardware RAID configuration, as well
+as flash-based storage with internal command queueing (and
+parallelism).
 
 So depending on storage and workload, it might be useful to set
 slice_idle=0.  In general for SATA/SAS disks and software RAID of
 SATA/SAS disks keeping slice_idle enabled should be useful. For any
 configurations where there are multiple spindles behind single LUN
-(Host based hardware RAID controller or for storage arrays), setting
-slice_idle=0 might end up in better throughput and acceptable
-latencies.
+(Host based hardware RAID controller or for storage arrays), or with
+flash-based fast storage, setting slice_idle=0 might end up in better
+throughput and acceptable latencies.
 
 Idling is however necessary to have service guarantees enforced in
 case of differentiated weights or differentiated I/O-request lengths.
@@ -311,13 +333,14 @@ There is an important flipside for idling: apart from the above cases
 where it is beneficial also for throughput, idling can severely impact
 throughput. One important case is random workload. Because of this
 issue, BFQ tends to avoid idling as much as possible, when it is not
-beneficial also for throughput. As a consequence of this behavior, and
-of further issues described for the strict_guarantees tunable,
-short-term service guarantees may be occasionally violated. And, in
-some cases, these guarantees may be more important than guaranteeing
-maximum throughput. For example, in video playing/streaming, a very
-low drop rate may be more important than maximum throughput. In these
-cases, consider setting the strict_guarantees parameter.
+beneficial also for throughput (as detailed in Section 2). As a
+consequence of this behavior, and of further issues described for the
+strict_guarantees tunable, short-term service guarantees may be
+occasionally violated. And, in some cases, these guarantees may be
+more important than guaranteeing maximum throughput. For example, in
+video playing/streaming, a very low drop rate may be more important
+than maximum throughput. In these cases, consider setting the
+strict_guarantees parameter.
 
 strict_guarantees
 -----------------
@@ -418,6 +441,13 @@ and latency guarantees.
 The default value is 0, which enables auto-tuning: BFQ sets max_budget
 to the maximum number of sectors that can be served during
 timeout_sync, according to the estimated peak rate.
+
+For specific devices, some users have occasionally reported to have
+reached a higher throughput by setting max_budget explicitly, i.e., by
+setting max_budget to a higher value than 0. In particular, they have
+set max_budget to higher values than those to which BFQ would have set
+it with auto-tuning. An alternative way to achieve this goal is to
+just increase the value of timeout_sync, leaving max_budget equal to 0.
 
 weights
 -------
