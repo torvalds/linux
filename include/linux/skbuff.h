@@ -22,6 +22,7 @@
 #include <linux/cache.h>
 #include <linux/rbtree.h>
 #include <linux/socket.h>
+#include <linux/refcount.h>
 
 #include <linux/atomic.h>
 #include <asm/types.h>
@@ -456,7 +457,7 @@ struct ubuf_info {
 			u32 bytelen;
 		};
 	};
-	atomic_t refcnt;
+	refcount_t refcnt;
 
 	struct mmpin {
 		struct user_struct *user;
@@ -472,7 +473,7 @@ struct ubuf_info *sock_zerocopy_realloc(struct sock *sk, size_t size,
 
 static inline void sock_zerocopy_get(struct ubuf_info *uarg)
 {
-	atomic_inc(&uarg->refcnt);
+	refcount_inc(&uarg->refcnt);
 }
 
 void sock_zerocopy_put(struct ubuf_info *uarg);

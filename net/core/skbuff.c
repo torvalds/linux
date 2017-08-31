@@ -963,7 +963,7 @@ struct ubuf_info *sock_zerocopy_alloc(struct sock *sk, size_t size)
 	uarg->len = 1;
 	uarg->bytelen = size;
 	uarg->zerocopy = 1;
-	atomic_set(&uarg->refcnt, 1);
+	refcount_set(&uarg->refcnt, 1);
 	sock_hold(sk);
 
 	return uarg;
@@ -1086,7 +1086,7 @@ EXPORT_SYMBOL_GPL(sock_zerocopy_callback);
 
 void sock_zerocopy_put(struct ubuf_info *uarg)
 {
-	if (uarg && atomic_dec_and_test(&uarg->refcnt)) {
+	if (uarg && refcount_dec_and_test(&uarg->refcnt)) {
 		if (uarg->callback)
 			uarg->callback(uarg, uarg->zerocopy);
 		else
@@ -1483,7 +1483,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		if (skb_orphan_frags(skb, gfp_mask))
 			goto nofrags;
 		if (skb_zcopy(skb))
-			atomic_inc(&skb_uarg(skb)->refcnt);
+			refcount_inc(&skb_uarg(skb)->refcnt);
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
 			skb_frag_ref(skb, i);
 
