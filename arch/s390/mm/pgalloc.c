@@ -83,7 +83,7 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 	int rc, notify;
 
 	/* upgrade should only happen from 3 to 4, 3 to 5, or 4 to 5 levels */
-	BUG_ON(mm->context.asce_limit < _REGION2_SIZE);
+	VM_BUG_ON(mm->context.asce_limit < _REGION2_SIZE);
 	if (end >= TASK_SIZE_MAX)
 		return -ENOMEM;
 	rc = 0;
@@ -124,7 +124,7 @@ void crst_table_downgrade(struct mm_struct *mm)
 	pgd_t *pgd;
 
 	/* downgrade should only happen from 3 to 2 levels (compat only) */
-	BUG_ON(mm->context.asce_limit != _REGION2_SIZE);
+	VM_BUG_ON(mm->context.asce_limit != _REGION2_SIZE);
 
 	if (current->active_mm == mm) {
 		clear_user_asce();
