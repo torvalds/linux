@@ -40,13 +40,16 @@ static void aperfmperf_snapshot_khz(void *dummy)
 	struct aperfmperf_sample *s = this_cpu_ptr(&samples);
 	ktime_t now = ktime_get();
 	s64 time_delta = ktime_ms_delta(now, s->time);
+	unsigned long flags;
 
 	/* Don't bother re-computing within the cache threshold time. */
 	if (time_delta < APERFMPERF_CACHE_THRESHOLD_MS)
 		return;
 
+	local_irq_save(flags);
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
+	local_irq_restore(flags);
 
 	aperf_delta = aperf - s->aperf;
 	mperf_delta = mperf - s->mperf;

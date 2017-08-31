@@ -3009,8 +3009,7 @@ void tcp_rearm_rto(struct sock *sk)
 			/* delta_us may not be positive if the socket is locked
 			 * when the retrans timer fires and is rescheduled.
 			 */
-			if (delta_us > 0)
-				rto = usecs_to_jiffies(delta_us);
+			rto = usecs_to_jiffies(max_t(int, delta_us, 1));
 		}
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, rto,
 					  TCP_RTO_MAX);

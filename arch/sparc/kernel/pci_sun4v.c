@@ -1266,8 +1266,6 @@ static int pci_sun4v_probe(struct platform_device *op)
 			 * ATU group, but ATU hcalls won't be available.
 			 */
 			hv_atu = false;
-			pr_err(PFX "Could not register hvapi ATU err=%d\n",
-			       err);
 		} else {
 			pr_info(PFX "Registered hvapi ATU major[%lu] minor[%lu]\n",
 				vatu_major, vatu_minor);

@@ -51,6 +51,7 @@
 	compatible = "pine64,pine64", "allwinner,sun50i-a64";
 
 	aliases {
+		ethernet0 = &emac;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;

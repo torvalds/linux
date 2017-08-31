@@ -396,14 +396,18 @@ static void dump_pagetable(unsigned long address)
 	pte_t *pte;
 
 #ifdef CONFIG_X86_PAE
-	printk("*pdpt = %016Lx ", pgd_val(*pgd));
+	pr_info("*pdpt = %016Lx ", pgd_val(*pgd));
 	if (!low_pfn(pgd_val(*pgd) >> PAGE_SHIFT) || !pgd_present(*pgd))
 		goto out;
+#define pr_pde pr_cont
+#else
+#define pr_pde pr_info
 #endif
 	p4d = p4d_offset(pgd, address);
 	pud = pud_offset(p4d, address);
 	pmd = pmd_offset(pud, address);
-	printk(KERN_CONT "*pde = %0*Lx ", sizeof(*pmd) * 2, (u64)pmd_val(*pmd));
+	pr_pde("*pde = %0*Lx ", sizeof(*pmd) * 2, (u64)pmd_val(*pmd));
+#undef pr_pde
 
 	/*
 	 * We must not directly access the pte in the highpte
@@ -415,9 +419,9 @@ static void dump_pagetable(unsigned long address)
 		goto out;
 
 	pte = pte_offset_kernel(pmd, address);
-	printk("*pte = %0*Lx ", sizeof(*pte) * 2, (u64)pte_val(*pte));
+	pr_cont("*pte = %0*Lx ", sizeof(*pte) * 2, (u64)pte_val(*pte));
 out:
-	printk("\n");
+	pr_cont("\n");
 }
 
 #else /* CONFIG_X86_64: */
@@ -565,7 +569,7 @@ static void dump_pagetable(unsigned long address)
 	if (bad_address(pgd))
 		goto bad;
 
-	printk("PGD %lx ", pgd_val(*pgd));
+	pr_info("PGD %lx ", pgd_val(*pgd));
 
 	if (!pgd_present(*pgd))
 		goto out;
@@ -574,7 +578,7 @@ static void dump_pagetable(unsigned long address)
 	if (bad_address(p4d))
 		goto bad;
 
-	printk("P4D %lx ", p4d_val(*p4d));
+	pr_cont("P4D %lx ", p4d_val(*p4d));
 	if (!p4d_present(*p4d) || p4d_large(*p4d))
 		goto out;
 
@@ -582,7 +586,7 @@ static void dump_pagetable(unsigned long address)
 	if (bad_address(pud))
 		goto bad;
 
-	printk("PUD %lx ", pud_val(*pud));
+	pr_cont("PUD %lx ", pud_val(*pud));
 	if (!pud_present(*pud) || pud_large(*pud))
 		goto out;
 
@@ -590,7 +594,7 @@ static void dump_pagetable(unsigned long address)
 	if (bad_address(pmd))
 		goto bad;
 
-	printk("PMD %lx ", pmd_val(*pmd));
+	pr_cont("PMD %lx ", pmd_val(*pmd));
 	if (!pmd_present(*pmd) || pmd_large(*pmd))
 		goto out;
 
@@ -598,12 +602,12 @@ static void dump_pagetable(unsigned long address)
 	if (bad_address(pte))
 		goto bad;
 
-	printk("PTE %lx", pte_val(*pte));
+	pr_cont("PTE %lx", pte_val(*pte));
 out:
-	printk("\n");
+	pr_cont("\n");
 	return;
 bad:
-	printk("BAD\n");
+	pr_info("BAD\n");
 }
 
 #endif /* CONFIG_X86_64 */

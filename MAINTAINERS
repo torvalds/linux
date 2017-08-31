@@ -7111,7 +7111,6 @@ M:	Marc Zyngier <marc.zyngier@arm.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
-T:	git git://git.infradead.org/users/jcooper/linux.git irqchip/core
 F:	Documentation/devicetree/bindings/interrupt-controller/
 F:	drivers/irqchip/
 
@@ -14005,6 +14004,7 @@ F:	drivers/block/virtio_blk.c
 F:	include/linux/virtio*.h
 F:	include/uapi/linux/virtio_*.h
 F:	drivers/crypto/virtio/
+F:	mm/balloon_compaction.c
 
 VIRTIO CRYPTO DRIVER
 M:	Gonglei <arei.gonglei@huawei.com>

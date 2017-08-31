@@ -351,7 +351,7 @@ static void nmi_ipi_lock_start(unsigned long *flags)
 	hard_irq_disable();
 	while (atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1) {
 		raw_local_irq_restore(*flags);
-		cpu_relax();
+		spin_until_cond(atomic_read(&__nmi_ipi_lock) == 0);
 		raw_local_irq_save(*flags);
 		hard_irq_disable();
 	}
@@ -360,7 +360,7 @@ static void nmi_ipi_lock_start(unsigned long *flags)
 static void nmi_ipi_lock(void)
 {
 	while (atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1)
-		cpu_relax();
+		spin_until_cond(atomic_read(&__nmi_ipi_lock) == 0);
 }
 
 static void nmi_ipi_unlock(void)
@@ -475,7 +475,7 @@ int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
 	nmi_ipi_lock_start(&flags);
 	while (nmi_ipi_busy_count) {
 		nmi_ipi_unlock_end(&flags);
-		cpu_relax();
+		spin_until_cond(nmi_ipi_busy_count == 0);
 		nmi_ipi_lock_start(&flags);
 	}
 

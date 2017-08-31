@@ -414,8 +414,7 @@ l1_init(u_int *deb)
 	l1fsm_s.event_count = L1_EVENT_COUNT;
 	l1fsm_s.strEvent = strL1Event;
 	l1fsm_s.strState = strL1SState;
-	mISDN_FsmNew(&l1fsm_s, L1SFnList, ARRAY_SIZE(L1SFnList));
-	return 0;
+	return mISDN_FsmNew(&l1fsm_s, L1SFnList, ARRAY_SIZE(L1SFnList));
 }
 
 void

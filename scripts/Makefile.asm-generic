@@ -1,9 +1,9 @@
 # include/asm-generic contains a lot of files that are used
 # verbatim by several architectures.
 #
-# This Makefile reads the file arch/$(SRCARCH)/include/asm/Kbuild
+# This Makefile reads the file arch/$(SRCARCH)/include/$(src)/Kbuild
 # and for each file listed in this file with generic-y creates
-# a small wrapper file in $(obj) (arch/$(SRCARCH)/include/generated/asm)
+# a small wrapper file in $(obj) (arch/$(SRCARCH)/include/generated/$(src))
 
 kbuild-file := $(srctree)/arch/$(SRCARCH)/include/$(src)/Kbuild
 -include $(kbuild-file)

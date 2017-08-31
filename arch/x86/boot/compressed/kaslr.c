@@ -479,35 +479,31 @@ static unsigned long slots_fetch_random(void)
 	return 0;
 }
 
-static void process_e820_entry(struct boot_e820_entry *entry,
+static void process_mem_region(struct mem_vector *entry,
 			       unsigned long minimum,
 			       unsigned long image_size)
 {
 	struct mem_vector region, overlap;
 	struct slot_area slot_area;
 	unsigned long start_orig, end;
-	struct boot_e820_entry cur_entry;
-
-	/* Skip non-RAM entries. */
-	if (entry->type != E820_TYPE_RAM)
-		return;
+	struct mem_vector cur_entry;
 
 	/* On 32-bit, ignore entries entirely above our maximum. */
-	if (IS_ENABLED(CONFIG_X86_32) && entry->addr >= KERNEL_IMAGE_SIZE)
+	if (IS_ENABLED(CONFIG_X86_32) && entry->start >= KERNEL_IMAGE_SIZE)
 		return;
 
 	/* Ignore entries entirely below our minimum. */
-	if (entry->addr + entry->size < minimum)
+	if (entry->start + entry->size < minimum)
 		return;
 
 	/* Ignore entries above memory limit */
-	end = min(entry->size + entry->addr, mem_limit);
-	if (entry->addr >= end)
+	end = min(entry->size + entry->start, mem_limit);
+	if (entry->start >= end)
 		return;
-	cur_entry.addr = entry->addr;
-	cur_entry.size = end - entry->addr;
+	cur_entry.start = entry->start;
+	cur_entry.size = end - entry->start;
 
-	region.start = cur_entry.addr;
+	region.start = cur_entry.start;
 	region.size = cur_entry.size;
 
 	/* Give up if slot area array is full. */
@@ -521,8 +517,8 @@ static void process_e820_entry(struct boot_e820_entry *entry,
 		/* Potentially raise address to meet alignment needs. */
 		region.start = ALIGN(region.start, CONFIG_PHYSICAL_ALIGN);
 
-		/* Did we raise the address above this e820 region? */
-		if (region.start > cur_entry.addr + cur_entry.size)
+		/* Did we raise the address above the passed in memory entry? */
+		if (region.start > cur_entry.start + cur_entry.size)
 			return;
 
 		/* Reduce size by any delta from the original address. */
@@ -562,12 +558,32 @@ static void process_e820_entry(struct boot_e820_entry *entry,
 	}
 }
 
+static void process_e820_entries(unsigned long minimum,
+				 unsigned long image_size)
+{
+	int i;
+	struct mem_vector region;
+	struct boot_e820_entry *entry;
+
+	/* Verify potential e820 positions, appending to slots list. */
+	for (i = 0; i < boot_params->e820_entries; i++) {
+		entry = &boot_params->e820_table[i];
+		/* Skip non-RAM entries. */
+		if (entry->type != E820_TYPE_RAM)
+			continue;
+		region.start = entry->addr;
+		region.size = entry->size;
+		process_mem_region(&region, minimum, image_size);
+		if (slot_area_index == MAX_SLOT_AREA) {
+			debug_putstr("Aborted e820 scan (slot_areas full)!\n");
+			break;
+		}
+	}
+}
+
 static unsigned long find_random_phys_addr(unsigned long minimum,
 					   unsigned long image_size)
 {
-	int i;
-	unsigned long addr;
-
 	/* Check if we had too many memmaps. */
 	if (memmap_too_large) {
 		debug_putstr("Aborted e820 scan (more than 4 memmap= args)!\n");
@@ -577,16 +593,7 @@ static unsigned long find_random_phys_addr(unsigned long minimum,
 	/* Make sure minimum is aligned. */
 	minimum = ALIGN(minimum, CONFIG_PHYSICAL_ALIGN);
 
-	/* Verify potential e820 positions, appending to slots list. */
-	for (i = 0; i < boot_params->e820_entries; i++) {
-		process_e820_entry(&boot_params->e820_table[i], minimum,
-				   image_size);
-		if (slot_area_index == MAX_SLOT_AREA) {
-			debug_putstr("Aborted e820 scan (slot_areas full)!\n");
-			break;
-		}
-	}
-
+	process_e820_entries(minimum, image_size);
 	return slots_fetch_random();
 }
 

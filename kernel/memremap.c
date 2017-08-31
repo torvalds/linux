@@ -34,13 +34,24 @@ static void *arch_memremap_wb(resource_size_t offset, unsigned long size)
 }
 #endif
 
-static void *try_ram_remap(resource_size_t offset, size_t size)
+#ifndef arch_memremap_can_ram_remap
+static bool arch_memremap_can_ram_remap(resource_size_t offset, size_t size,
+					unsigned long flags)
+{
+	return true;
+}
+#endif
+
+static void *try_ram_remap(resource_size_t offset, size_t size,
+			   unsigned long flags)
 {
 	unsigned long pfn = PHYS_PFN(offset);
 
 	/* In the simple case just return the existing linear address */
-	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)))
+	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)) &&
+	    arch_memremap_can_ram_remap(offset, size, flags))
 		return __va(offset);
+
 	return NULL; /* fallback to arch_memremap_wb */
 }
 
@@ -48,7 +59,8 @@ static void *try_ram_remap(resource_size_t offset, size_t size)
  * memremap() - remap an iomem_resource as cacheable memory
  * @offset: iomem resource start address
  * @size: size of remap
- * @flags: any of MEMREMAP_WB, MEMREMAP_WT and MEMREMAP_WC
+ * @flags: any of MEMREMAP_WB, MEMREMAP_WT, MEMREMAP_WC,
+ *		  MEMREMAP_ENC, MEMREMAP_DEC
  *
  * memremap() is "ioremap" for cases where it is known that the resource
  * being mapped does not have i/o side effects and the __iomem
@@ -95,7 +107,7 @@ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
 		 * the requested range is potentially in System RAM.
 		 */
 		if (is_ram == REGION_INTERSECTS)
-			addr = try_ram_remap(offset, size);
+			addr = try_ram_remap(offset, size, flags);
 		if (!addr)
 			addr = arch_memremap_wb(offset, size);
 	}

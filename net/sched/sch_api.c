@@ -286,9 +286,6 @@ static struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
 void qdisc_hash_add(struct Qdisc *q, bool invisible)
 {
 	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS)) {
-		struct Qdisc *root = qdisc_dev(q)->qdisc;
-
-		WARN_ON_ONCE(root == &noop_qdisc);
 		ASSERT_RTNL();
 		hash_add_rcu(qdisc_dev(q)->qdisc_hash, &q->hash, q->handle);
 		if (invisible)

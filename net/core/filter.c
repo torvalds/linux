@@ -3505,6 +3505,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 					      bpf_target_off(struct sk_buff, tc_index, 2,
 							     target_size));
 #else
+		*target_size = 2;
 		if (type == BPF_WRITE)
 			*insn++ = BPF_MOV64_REG(si->dst_reg, si->dst_reg);
 		else
@@ -3520,6 +3521,7 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 		*insn++ = BPF_JMP_IMM(BPF_JGE, si->dst_reg, MIN_NAPI_ID, 1);
 		*insn++ = BPF_MOV64_IMM(si->dst_reg, 0);
 #else
+		*target_size = 4;
 		*insn++ = BPF_MOV64_IMM(si->dst_reg, 0);
 #endif
 		break;

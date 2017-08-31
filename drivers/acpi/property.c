@@ -1047,7 +1047,7 @@ static struct fwnode_handle *acpi_graph_get_child_prop_value(
 	fwnode_for_each_child_node(fwnode, child) {
 		u32 nr;
 
-		if (!fwnode_property_read_u32(fwnode, prop_name, &nr))
+		if (fwnode_property_read_u32(child, prop_name, &nr))
 			continue;
 
 		if (val == nr)

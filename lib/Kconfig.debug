@@ -798,6 +798,13 @@ config HARDLOCKUP_DETECTOR_PERF
 	select SOFTLOCKUP_DETECTOR
 
 #
+# Enables a timestamp based low pass filter to compensate for perf based
+# hard lockup detection which runs too fast due to turbo modes.
+#
+config HARDLOCKUP_CHECK_TIMESTAMP
+	bool
+
+#
 # arch/ can define HAVE_HARDLOCKUP_DETECTOR_ARCH to provide their own hard
 # lockup detector rather than the perf based detector.
 #

@@ -228,7 +228,7 @@ Learning on the device port should be enabled, as well as learning_sync:
 	bridge link set dev DEV learning on self
 	bridge link set dev DEV learning_sync on self
 
-Learning_sync attribute enables syncing of the learned/forgotton FDB entry to
+Learning_sync attribute enables syncing of the learned/forgotten FDB entry to
 the bridge's FDB.  It's possible, but not optimal, to enable learning on the
 device port and on the bridge port, and disable learning_sync.
 
@@ -245,7 +245,7 @@ the responsibility of the port driver/device to age out these entries.  If the
 port device supports ageing, when the FDB entry expires, it will notify the
 driver which in turn will notify the bridge with SWITCHDEV_FDB_DEL.  If the
 device does not support ageing, the driver can simulate ageing using a
-garbage collection timer to monitor FBD entries.  Expired entries will be
+garbage collection timer to monitor FDB entries.  Expired entries will be
 notified to the bridge using SWITCHDEV_FDB_DEL.  See rocker driver for
 example of driver running ageing timer.
 
