@@ -28,7 +28,6 @@ header.
 
 .. _net_fcalls:
 
-######################
 DVB net Function Calls
 ######################
 
