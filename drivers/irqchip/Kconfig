@@ -313,3 +313,11 @@ config QCOM_IRQ_COMBINER
 	help
 	  Say yes here to add support for the IRQ combiner devices embedded
 	  in Qualcomm Technologies chips.
+
+config IRQ_UNIPHIER_AIDET
+	bool "UniPhier AIDET support" if COMPILE_TEST
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	default ARCH_UNIPHIER
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Support for the UniPhier AIDET (ARM Interrupt Detector).
