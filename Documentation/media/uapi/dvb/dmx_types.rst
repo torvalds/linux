@@ -166,25 +166,6 @@ struct dmx_pes_filter_params
 	__u32          flags;
     };
 
-
-struct dmx_event
-================
-
-.. c:type:: dmx_event
-
-.. code-block:: c
-
-     struct dmx_event
-     {
-	 dmx_event_t          event;
-	 time_t               timeStamp;
-	 union
-	 {
-	     dmx_scrambling_status_t scrambling;
-	 } u;
-     };
-
-
 struct dmx_stc
 ==============
 
