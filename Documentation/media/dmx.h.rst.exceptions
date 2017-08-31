@@ -49,3 +49,8 @@ replace define DMX_IMMEDIATE_START :c:type:`dmx_sct_filter_params`
 replace typedef dmx_filter_t :c:type:`dmx_filter`
 replace typedef dmx_pes_type_t :c:type:`dmx_pes_type`
 replace typedef dmx_input_t :c:type:`dmx_input`
+
+ignore symbol DMX_OUT_DECODER
+ignore symbol DMX_OUT_TAP
+ignore symbol DMX_OUT_TS_TAP
+ignore symbol DMX_OUT_TSDEMUX_TAP
