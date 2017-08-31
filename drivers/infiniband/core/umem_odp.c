@@ -166,24 +166,6 @@ static int invalidate_page_trampoline(struct ib_umem *item, u64 start,
 	return 0;
 }
 
-static void ib_umem_notifier_invalidate_page(struct mmu_notifier *mn,
-					     struct mm_struct *mm,
-					     unsigned long address)
-{
-	struct ib_ucontext *context = container_of(mn, struct ib_ucontext, mn);
-
-	if (!context->invalidate_range)
-		return;
-
-	ib_ucontext_notifier_start_account(context);
-	down_read(&context->umem_rwsem);
-	rbt_ib_umem_for_each_in_range(&context->umem_tree, address,
-				      address + PAGE_SIZE,
-				      invalidate_page_trampoline, NULL);
-	up_read(&context->umem_rwsem);
-	ib_ucontext_notifier_end_account(context);
-}
-
 static int invalidate_range_start_trampoline(struct ib_umem *item, u64 start,
 					     u64 end, void *cookie)
 {
@@ -237,7 +219,6 @@ static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,
 
 static const struct mmu_notifier_ops ib_umem_notifiers = {
 	.release                    = ib_umem_notifier_release,
-	.invalidate_page            = ib_umem_notifier_invalidate_page,
 	.invalidate_range_start     = ib_umem_notifier_invalidate_range_start,
 	.invalidate_range_end       = ib_umem_notifier_invalidate_range_end,
 };
