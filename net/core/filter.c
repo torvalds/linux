@@ -3455,6 +3455,10 @@ static bool sock_filter_is_valid_access(int off, int size,
 		switch (off) {
 		case offsetof(struct bpf_sock, bound_dev_if):
 			break;
+		case offsetof(struct bpf_sock, mark):
+			break;
+		case offsetof(struct bpf_sock, priority):
+			break;
 		default:
 			return false;
 		}
@@ -3956,6 +3960,28 @@ static u32 sock_filter_convert_ctx_access(enum bpf_access_type type,
 		else
 			*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
 				      offsetof(struct sock, sk_bound_dev_if));
+		break;
+
+	case offsetof(struct bpf_sock, mark):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock, sk_mark) != 4);
+
+		if (type == BPF_WRITE)
+			*insn++ = BPF_STX_MEM(BPF_W, si->dst_reg, si->src_reg,
+					offsetof(struct sock, sk_mark));
+		else
+			*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
+				      offsetof(struct sock, sk_mark));
+		break;
+
+	case offsetof(struct bpf_sock, priority):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock, sk_priority) != 4);
+
+		if (type == BPF_WRITE)
+			*insn++ = BPF_STX_MEM(BPF_W, si->dst_reg, si->src_reg,
+					offsetof(struct sock, sk_priority));
+		else
+			*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
+				      offsetof(struct sock, sk_priority));
 		break;
 
 	case offsetof(struct bpf_sock, family):
