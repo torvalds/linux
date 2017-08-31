@@ -692,16 +692,17 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
  * somewhat arbitrary...)
  */
 #define RECENTCY_MIN	5
-#define RECENTCY_DIRTY	30
+#define RECENTCY_DIRTY	300
 
 static int recently_deleted(struct super_block *sb, ext4_group_t group, int ino)
 {
 	struct ext4_group_desc	*gdp;
 	struct ext4_inode	*raw_inode;
 	struct buffer_head	*bh;
-	unsigned long		dtime, now;
-	int	inodes_per_block = EXT4_SB(sb)->s_inodes_per_block;
-	int	offset, ret = 0, recentcy = RECENTCY_MIN;
+	int inodes_per_block = EXT4_SB(sb)->s_inodes_per_block;
+	int offset, ret = 0;
+	int recentcy = RECENTCY_MIN;
+	u32 dtime, now;
 
 	gdp = ext4_get_group_desc(sb, group, NULL);
 	if (unlikely(!gdp))
@@ -718,12 +719,18 @@ static int recently_deleted(struct super_block *sb, ext4_group_t group, int ino)
 
 	offset = (ino % inodes_per_block) * EXT4_INODE_SIZE(sb);
 	raw_inode = (struct ext4_inode *) (bh->b_data + offset);
+
+	/* i_dtime is only 32 bits on disk, but we only care about relative
+	 * times in the range of a few minutes (i.e. long enough to sync a
+	 * recently-deleted inode to disk), so using the low 32 bits of the
+	 * clock (a 68 year range) is enough, see time_before32() */
 	dtime = le32_to_cpu(raw_inode->i_dtime);
-	now = get_seconds();
+	now = ktime_get_real_seconds();
 	if (buffer_dirty(bh))
 		recentcy += RECENTCY_DIRTY;
 
-	if (dtime && (dtime < now) && (now < dtime + recentcy))
+	if (dtime && time_before32(dtime, now) &&
+	    time_before32(now, dtime + recentcy))
 		ret = 1;
 out:
 	brelse(bh);
