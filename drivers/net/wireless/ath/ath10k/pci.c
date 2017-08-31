@@ -1463,7 +1463,7 @@ static void ath10k_pci_dump_registers(struct ath10k *ar,
 static void ath10k_pci_fw_crashed_dump(struct ath10k *ar)
 {
 	struct ath10k_fw_crash_data *crash_data;
-	char uuid[50];
+	char guid[UUID_STRING_LEN + 1];
 
 	spin_lock_bh(&ar->data_lock);
 
@@ -1472,11 +1472,11 @@ static void ath10k_pci_fw_crashed_dump(struct ath10k *ar)
 	crash_data = ath10k_debug_get_new_fw_crash_data(ar);
 
 	if (crash_data)
-		scnprintf(uuid, sizeof(uuid), "%pUl", &crash_data->uuid);
+		scnprintf(guid, sizeof(guid), "%pUl", &crash_data->guid);
 	else
-		scnprintf(uuid, sizeof(uuid), "n/a");
+		scnprintf(guid, sizeof(guid), "n/a");
 
-	ath10k_err(ar, "firmware crashed! (uuid %s)\n", uuid);
+	ath10k_err(ar, "firmware crashed! (guid %s)\n", guid);
 	ath10k_print_driver_info(ar);
 	ath10k_pci_dump_registers(ar, crash_data);
 	ath10k_ce_dump_registers(ar, crash_data);
@@ -3396,11 +3396,53 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 
 MODULE_DEVICE_TABLE(pci, ath10k_pci_id_table);
 
+#ifdef CONFIG_PM
+
+static int ath10k_pci_pm_suspend(struct device *dev)
+{
+	struct ath10k *ar = dev_get_drvdata(dev);
+	int ret;
+
+	if (test_bit(ATH10K_FW_FEATURE_WOWLAN_SUPPORT,
+		     ar->running_fw->fw_file.fw_features))
+		return 0;
+
+	ret = ath10k_hif_suspend(ar);
+	if (ret)
+		ath10k_warn(ar, "failed to suspend hif: %d\n", ret);
+
+	return ret;
+}
+
+static int ath10k_pci_pm_resume(struct device *dev)
+{
+	struct ath10k *ar = dev_get_drvdata(dev);
+	int ret;
+
+	if (test_bit(ATH10K_FW_FEATURE_WOWLAN_SUPPORT,
+		     ar->running_fw->fw_file.fw_features))
+		return 0;
+
+	ret = ath10k_hif_resume(ar);
+	if (ret)
+		ath10k_warn(ar, "failed to resume hif: %d\n", ret);
+
+	return ret;
+}
+
+static SIMPLE_DEV_PM_OPS(ath10k_pci_pm_ops,
+			 ath10k_pci_pm_suspend,
+			 ath10k_pci_pm_resume);
+#endif
+
 static struct pci_driver ath10k_pci_driver = {
 	.name = "ath10k_pci",
 	.id_table = ath10k_pci_id_table,
 	.probe = ath10k_pci_probe,
 	.remove = ath10k_pci_remove,
+#ifdef CONFIG_PM
+	.driver.pm = &ath10k_pci_pm_ops,
+#endif
 };
 
 static int __init ath10k_pci_init(void)
