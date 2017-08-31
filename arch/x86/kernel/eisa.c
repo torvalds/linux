@@ -5,6 +5,7 @@
  */
 #include <linux/ioport.h>
 #include <linux/eisa.h>
+#include <linux/io.h>
 
 static __init int eisa_bus_probe(void)
 {
