@@ -834,64 +834,34 @@ static const struct tpm_input_header tpm2_selftest_header = {
 };
 
 /**
- * tpm2_continue_selftest() - start a self test
- *
- * @chip: TPM chip to use
- * @full: test all commands instead of testing only those that were not
- *        previously tested.
- *
- * Return: Same as with tpm_transmit_cmd with exception of RC_TESTING.
- */
-static int tpm2_start_selftest(struct tpm_chip *chip, bool full)
-{
-	int rc;
-	struct tpm2_cmd cmd;
-
-	cmd.header.in = tpm2_selftest_header;
-	cmd.params.selftest_in.full_test = full;
-
-	rc = tpm_transmit_cmd(chip, NULL, &cmd, TPM2_SELF_TEST_IN_SIZE, 0, 0,
-			      "continue selftest");
-
-	/* At least some prototype chips seem to give RC_TESTING error
-	 * immediately. This is a workaround for that.
-	 */
-	if (rc == TPM2_RC_TESTING) {
-		dev_warn(&chip->dev, "Got RC_TESTING, ignoring\n");
-		rc = 0;
-	}
-
-	return rc;
-}
-
-/**
  * tpm2_do_selftest() - ensure that all self tests have passed
  *
  * @chip: TPM chip to use
  *
  * Return: Same as with tpm_transmit_cmd.
  *
- * During the self test TPM2 commands return with the error code RC_TESTING.
- * Waiting is done by issuing PCR read until it executes successfully.
+ * The TPM can either run all self tests synchronously and then return
+ * RC_SUCCESS once all tests were successful. Or it can choose to run the tests
+ * asynchronously and return RC_TESTING immediately while the self tests still
+ * execute in the background. This function handles both cases and waits until
+ * all tests have completed.
  */
 static int tpm2_do_selftest(struct tpm_chip *chip)
 {
 	int rc;
 	unsigned int delay_msec = 20;
 	long duration;
+	struct tpm2_cmd cmd;
 
 	duration = jiffies_to_msecs(
 		tpm2_calc_ordinal_duration(chip, TPM2_CC_SELF_TEST));
 
-	rc = tpm2_start_selftest(chip, false);
-	if (rc)
-		return rc;
-
 	while (duration > 0) {
-		/* Attempt to read a PCR value */
-		rc = tpm2_pcr_read(chip, 0, NULL);
-		if (rc < 0)
-			break;
+		cmd.header.in = tpm2_selftest_header;
+		cmd.params.selftest_in.full_test = 0;
+
+		rc = tpm_transmit_cmd(chip, NULL, &cmd, TPM2_SELF_TEST_IN_SIZE,
+				      0, 0, "continue selftest");
 
 		if (rc != TPM2_RC_TESTING)
 			break;
