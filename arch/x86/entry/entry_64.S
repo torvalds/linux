@@ -821,7 +821,6 @@ ENTRY(\sym)
 	.endif
 
 	ASM_CLAC
-	PARAVIRT_ADJUST_EXCEPTION_FRAME
 
 	.ifeq \has_error_code
 	pushq	$-1				/* ORIG_RAX: no syscall to restart */
@@ -967,7 +966,7 @@ ENTRY(do_softirq_own_stack)
 ENDPROC(do_softirq_own_stack)
 
 #ifdef CONFIG_XEN
-idtentry xen_hypervisor_callback xen_do_hypervisor_callback has_error_code=0
+idtentry hypervisor_callback xen_do_hypervisor_callback has_error_code=0
 
 /*
  * A note on the "critical region" in our callback handler.
@@ -1034,8 +1033,6 @@ ENTRY(xen_failsafe_callback)
 	movq	8(%rsp), %r11
 	addq	$0x30, %rsp
 	pushq	$0				/* RIP */
-	pushq	%r11
-	pushq	%rcx
 	UNWIND_HINT_IRET_REGS offset=8
 	jmp	general_protection
 1:	/* Segment mismatch => Category 1 (Bad segment). Retry the IRET. */
@@ -1066,9 +1063,8 @@ idtentry int3			do_int3			has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK
 idtentry stack_segment		do_stack_segment	has_error_code=1
 
 #ifdef CONFIG_XEN
-idtentry xen_debug		do_debug		has_error_code=0
-idtentry xen_int3		do_int3			has_error_code=0
-idtentry xen_stack_segment	do_stack_segment	has_error_code=1
+idtentry xendebug		do_debug		has_error_code=0
+idtentry xenint3		do_int3			has_error_code=0
 #endif
 
 idtentry general_protection	do_general_protection	has_error_code=1
@@ -1232,20 +1228,9 @@ ENTRY(error_exit)
 END(error_exit)
 
 /* Runs on exception stack */
+/* XXX: broken on Xen PV */
 ENTRY(nmi)
 	UNWIND_HINT_IRET_REGS
-	/*
-	 * Fix up the exception frame if we're on Xen.
-	 * PARAVIRT_ADJUST_EXCEPTION_FRAME is guaranteed to push at most
-	 * one value to the stack on native, so it may clobber the rdx
-	 * scratch slot, but it won't clobber any of the important
-	 * slots past it.
-	 *
-	 * Xen is a different story, because the Xen frame itself overlaps
-	 * the "NMI executing" variable.
-	 */
-	PARAVIRT_ADJUST_EXCEPTION_FRAME
-
 	/*
 	 * We allow breakpoints in NMIs. If a breakpoint occurs, then
 	 * the iretq it performs will take us out of NMI context.

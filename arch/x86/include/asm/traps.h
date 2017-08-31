@@ -13,9 +13,6 @@ asmlinkage void divide_error(void);
 asmlinkage void debug(void);
 asmlinkage void nmi(void);
 asmlinkage void int3(void);
-asmlinkage void xen_debug(void);
-asmlinkage void xen_int3(void);
-asmlinkage void xen_stack_segment(void);
 asmlinkage void overflow(void);
 asmlinkage void bounds(void);
 asmlinkage void invalid_op(void);
@@ -37,6 +34,31 @@ asmlinkage void alignment_check(void);
 asmlinkage void machine_check(void);
 #endif /* CONFIG_X86_MCE */
 asmlinkage void simd_coprocessor_error(void);
+
+#if defined(CONFIG_X86_64) && defined(CONFIG_XEN_PV)
+asmlinkage void xen_divide_error(void);
+asmlinkage void xen_xendebug(void);
+asmlinkage void xen_xenint3(void);
+asmlinkage void xen_nmi(void);
+asmlinkage void xen_overflow(void);
+asmlinkage void xen_bounds(void);
+asmlinkage void xen_invalid_op(void);
+asmlinkage void xen_device_not_available(void);
+asmlinkage void xen_double_fault(void);
+asmlinkage void xen_coprocessor_segment_overrun(void);
+asmlinkage void xen_invalid_TSS(void);
+asmlinkage void xen_segment_not_present(void);
+asmlinkage void xen_stack_segment(void);
+asmlinkage void xen_general_protection(void);
+asmlinkage void xen_page_fault(void);
+asmlinkage void xen_spurious_interrupt_bug(void);
+asmlinkage void xen_coprocessor_error(void);
+asmlinkage void xen_alignment_check(void);
+#ifdef CONFIG_X86_MCE
+asmlinkage void xen_machine_check(void);
+#endif /* CONFIG_X86_MCE */
+asmlinkage void xen_simd_coprocessor_error(void);
+#endif
 
 dotraplinkage void do_divide_error(struct pt_regs *, long);
 dotraplinkage void do_debug(struct pt_regs *, long);

@@ -319,9 +319,6 @@ __visible struct pv_irq_ops pv_irq_ops = {
 	.irq_enable = __PV_IS_CALLEE_SAVE(native_irq_enable),
 	.safe_halt = native_safe_halt,
 	.halt = native_halt,
-#ifdef CONFIG_X86_64
-	.adjust_exception_frame = paravirt_nop,
-#endif
 };
 
 __visible struct pv_cpu_ops pv_cpu_ops = {

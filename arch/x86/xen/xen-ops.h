@@ -138,7 +138,6 @@ __visible void xen_restore_fl_direct(unsigned long);
 __visible void xen_iret(void);
 __visible void xen_sysret32(void);
 __visible void xen_sysret64(void);
-__visible void xen_adjust_exception_frame(void);
 
 extern int xen_panic_handler_init(void);
 
