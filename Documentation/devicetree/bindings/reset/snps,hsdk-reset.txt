@@ -1,11 +1,11 @@
-Binding for the HSDK v1 reset controller
+Binding for the Synopsys HSDK reset controller
 
 This binding uses the common reset binding[1].
 
 [1] Documentation/devicetree/bindings/reset/reset.txt
 
 Required properties:
-- compatible: should be "snps,hsdk-v1.0-reset".
+- compatible: should be "snps,hsdk-reset".
 - reg: should always contain 2 pairs address - length: first for reset
   configuration register and second for corresponding SW reset and status bits
   register.
@@ -13,7 +13,7 @@ Required properties:
 
 Example:
 	reset: reset@880 {
-		compatible = "snps,hsdk-v1.0-reset";
+		compatible = "snps,hsdk-reset";
 		#reset-cells = <1>;
 		reg = <0x8A0 0x4>, <0xFF0 0x4>;
 	};
@@ -25,4 +25,4 @@ Specifying reset lines connected to IP modules:
 		....
 	};
 
-The index could be found in <dt-bindings/reset/snps,hsdk-v1-reset.h>
+The index could be found in <dt-bindings/reset/snps,hsdk-reset.h>
