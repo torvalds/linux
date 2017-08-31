@@ -641,11 +641,20 @@ static void generic_metric(const char *metric_expr,
 	expr__add_id(&pctx, name, avg);
 	for (i = 0; metric_events[i]; i++) {
 		struct saved_value *v;
+		struct stats *stats;
+		double scale;
 
-		v = saved_value_lookup(metric_events[i], cpu, false);
-		if (!v)
-			break;
-		expr__add_id(&pctx, metric_events[i]->name, avg_stats(&v->stats));
+		if (!strcmp(metric_events[i]->name, "duration_time")) {
+			stats = &walltime_nsecs_stats;
+			scale = 1e-9;
+		} else {
+			v = saved_value_lookup(metric_events[i], cpu, false);
+			if (!v)
+				break;
+			stats = &v->stats;
+			scale = 1.0;
+		}
+		expr__add_id(&pctx, metric_events[i]->name, avg_stats(stats)*scale);
 	}
 	if (!metric_events[i]) {
 		const char *p = metric_expr;
