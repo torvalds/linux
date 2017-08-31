@@ -713,7 +713,6 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 	}
 
 	buffer->data = alloc->buffer;
-	INIT_LIST_HEAD(&alloc->buffers);
 	list_add(&buffer->entry, &alloc->buffers);
 	buffer->free = 1;
 	binder_insert_free_buffer(alloc, buffer);
@@ -972,6 +971,7 @@ void binder_alloc_init(struct binder_alloc *alloc)
 	alloc->tsk = current->group_leader;
 	alloc->pid = current->group_leader->pid;
 	mutex_init(&alloc->mutex);
+	INIT_LIST_HEAD(&alloc->buffers);
 }
 
 void binder_alloc_shrinker_init(void)
