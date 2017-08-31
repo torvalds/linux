@@ -108,6 +108,7 @@ struct aligned_lock {
  *			handle incoming writes.
  * @version_major:	Metadata layout version major.
  * @version_minor:	Metadata layout version minor.
+ * @sector_size:	The Linux sector size - 512 or 4096
  * @nextoff:		Offset in bytes to the start of the next arena.
  * @infooff:		Offset in bytes to the info block of this arena.
  * @dataoff:		Offset in bytes to the data area of this arena.
@@ -135,6 +136,7 @@ struct arena_info {
 	u32 nfree;
 	u16 version_major;
 	u16 version_minor;
+	u32 sector_size;
 	/* Byte offsets to the different on-media structures */
 	u64 nextoff;
 	u64 infooff;
