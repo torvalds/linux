@@ -199,18 +199,6 @@ struct dmx_stc
     };
 
 
-struct dmx_caps
-===============
-
-.. c:type:: dmx_caps
-
-.. code-block:: c
-
-     typedef struct dmx_caps {
-	__u32 caps;
-	int num_decoders;
-    } dmx_caps_t;
-
 
 enum dmx_source
 ===============
