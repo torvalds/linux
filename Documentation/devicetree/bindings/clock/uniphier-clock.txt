@@ -13,6 +13,7 @@ Required properties:
     "socionext,uniphier-pxs2-clock" - for PXs2/LD6b SoC.
     "socionext,uniphier-ld11-clock" - for LD11 SoC.
     "socionext,uniphier-ld20-clock" - for LD20 SoC.
+    "socionext,uniphier-pxs3-clock" - for PXs3 SoC
 - #clock-cells: should be 1.
 
 Example:
@@ -54,6 +55,7 @@ Required properties:
     "socionext,uniphier-pxs2-sd-clock"  - for PXs2/LD6b SoC.
     "socionext,uniphier-ld11-mio-clock" - for LD11 SoC.
     "socionext,uniphier-ld20-sd-clock"  - for LD20 SoC.
+    "socionext,uniphier-pxs3-sd-clock"  - for PXs3 SoC
 - #clock-cells: should be 1.
 
 Example:
@@ -97,6 +99,7 @@ Required properties:
     "socionext,uniphier-pxs2-peri-clock" - for PXs2/LD6b SoC.
     "socionext,uniphier-ld11-peri-clock" - for LD11 SoC.
     "socionext,uniphier-ld20-peri-clock" - for LD20 SoC.
+    "socionext,uniphier-pxs3-peri-clock" - for PXs3 SoC
 - #clock-cells: should be 1.
 
 Example:

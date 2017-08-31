@@ -205,3 +205,33 @@ const struct uniphier_clk_data uniphier_ld20_sys_clk_data[] = {
 			     "spll/4", "spll/8", "s2pll/4", "s2pll/8"),
 	{ /* sentinel */ }
 };
+
+const struct uniphier_clk_data uniphier_pxs3_sys_clk_data[] = {
+	UNIPHIER_CLK_FACTOR("cpll", -1, "ref", 104, 1),		/* ARM: 2600 MHz */
+	UNIPHIER_CLK_FACTOR("spll", -1, "ref", 80, 1),		/* 2000 MHz */
+	UNIPHIER_CLK_FACTOR("s2pll", -1, "ref", 88, 1),		/* IPP: 2400 MHz */
+	UNIPHIER_CLK_FACTOR("uart", 0, "spll", 1, 34),
+	UNIPHIER_CLK_FACTOR("i2c", 1, "spll", 1, 40),
+	UNIPHIER_LD20_SYS_CLK_SD,
+	UNIPHIER_LD11_SYS_CLK_NAND(2),
+	UNIPHIER_LD11_SYS_CLK_EMMC(4),
+	UNIPHIER_CLK_GATE("usb30", 12, NULL, 0x2104, 4),	/* =GIO0 */
+	UNIPHIER_CLK_GATE("usb31-0", 13, NULL, 0x2104, 5),	/* =GIO1 */
+	UNIPHIER_CLK_GATE("usb31-1", 14, NULL, 0x2104, 6),	/* =GIO1-1 */
+	UNIPHIER_CLK_GATE("usb30-phy0", 16, NULL, 0x210c, 16),
+	UNIPHIER_CLK_GATE("usb30-phy1", 17, NULL, 0x210c, 18),
+	UNIPHIER_CLK_GATE("usb30-phy2", 18, NULL, 0x210c, 20),
+	UNIPHIER_CLK_GATE("usb31-phy0", 20, NULL, 0x210c, 17),
+	UNIPHIER_CLK_GATE("usb31-phy1", 21, NULL, 0x210c, 19),
+	/* CPU gears */
+	UNIPHIER_CLK_DIV4("cpll", 2, 3, 4, 8),
+	UNIPHIER_CLK_DIV4("spll", 2, 3, 4, 8),
+	UNIPHIER_CLK_DIV4("s2pll", 2, 3, 4, 8),
+	UNIPHIER_CLK_CPUGEAR("cpu-ca53", 33, 0x8080, 0xf, 8,
+			     "cpll/2", "spll/2", "cpll/3", "spll/3",
+			     "spll/4", "spll/8", "cpll/4", "cpll/8"),
+	UNIPHIER_CLK_CPUGEAR("cpu-ipp", 34, 0x8100, 0xf, 8,
+			     "s2pll/2", "spll/2", "s2pll/3", "spll/3",
+			     "spll/4", "spll/8", "s2pll/4", "s2pll/8"),
+	{ /* sentinel */ }
+};
