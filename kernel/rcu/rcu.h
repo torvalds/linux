@@ -220,8 +220,10 @@ do { \
 	static atomic_t ___rfd_beenhere = ATOMIC_INIT(0); \
 	\
 	if (!atomic_read(&___rfd_beenhere) && \
-	    !atomic_xchg(&___rfd_beenhere, 1)) \
+	    !atomic_xchg(&___rfd_beenhere, 1)) { \
+		tracing_off(); \
 		ftrace_dump(oops_dump_mode); \
+	} \
 } while (0)
 
 void rcu_early_boot_tests(void);
