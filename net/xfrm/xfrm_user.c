@@ -868,13 +868,13 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 			      &x->replay);
 	if (ret)
 		goto out;
-	if (x->security)
-		ret = copy_sec_ctx(x->security, skb);
 	if (x->props.output_mark) {
 		ret = nla_put_u32(skb, XFRMA_OUTPUT_MARK, x->props.output_mark);
 		if (ret)
 			goto out;
 	}
+	if (x->security)
+		ret = copy_sec_ctx(x->security, skb);
 out:
 	return ret;
 }
