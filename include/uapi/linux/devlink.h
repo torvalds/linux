@@ -234,9 +234,14 @@ enum devlink_dpipe_field_ipv4_id {
 	DEVLINK_DPIPE_FIELD_IPV4_DST_IP,
 };
 
+enum devlink_dpipe_field_ipv6_id {
+	DEVLINK_DPIPE_FIELD_IPV6_DST_IP,
+};
+
 enum devlink_dpipe_header_id {
 	DEVLINK_DPIPE_HEADER_ETHERNET,
 	DEVLINK_DPIPE_HEADER_IPV4,
+	DEVLINK_DPIPE_HEADER_IPV6,
 };
 
 #endif /* _UAPI_LINUX_DEVLINK_H_ */
