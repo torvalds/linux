@@ -200,16 +200,6 @@ static void scif_mmu_notifier_release(struct mmu_notifier *mn,
 	schedule_work(&scif_info.misc_work);
 }
 
-static void scif_mmu_notifier_invalidate_page(struct mmu_notifier *mn,
-					      struct mm_struct *mm,
-					      unsigned long address)
-{
-	struct scif_mmu_notif	*mmn;
-
-	mmn = container_of(mn, struct scif_mmu_notif, ep_mmu_notifier);
-	scif_rma_destroy_tcw(mmn, address, PAGE_SIZE);
-}
-
 static void scif_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 						     struct mm_struct *mm,
 						     unsigned long start,
@@ -235,7 +225,6 @@ static void scif_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
 static const struct mmu_notifier_ops scif_mmu_notifier_ops = {
 	.release = scif_mmu_notifier_release,
 	.clear_flush_young = NULL,
-	.invalidate_page = scif_mmu_notifier_invalidate_page,
 	.invalidate_range_start = scif_mmu_notifier_invalidate_range_start,
 	.invalidate_range_end = scif_mmu_notifier_invalidate_range_end};
 
