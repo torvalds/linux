@@ -234,8 +234,7 @@ struct transform_funcs {
 	void (*ipp_setup)(
 			struct transform *xfm_base,
 			enum surface_pixel_format input_format,
-			enum expansion_mode mode,
-			enum ipp_output_format cnv_out_format);
+			enum expansion_mode mode);
 
 	void (*ipp_full_bypass)(struct transform *xfm_base);
 

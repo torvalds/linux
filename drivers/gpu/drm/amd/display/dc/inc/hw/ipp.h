@@ -86,8 +86,7 @@ struct ipp_funcs {
 	void (*ipp_setup)(
 		struct input_pixel_processor *ipp,
 		enum surface_pixel_format input_format,
-		enum expansion_mode mode,
-		enum ipp_output_format output_format);
+		enum expansion_mode mode);
 
 	/* DCE function to setup IPP.  TODO: see if we can consolidate to setup */
 	void (*ipp_program_prescale)(

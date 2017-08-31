@@ -266,8 +266,7 @@ static void ippn10_set_degamma_format_float(
 void ippn10_cnv_setup (
 		struct transform *xfm_base,
 		enum surface_pixel_format input_format,
-		enum expansion_mode mode,
-		enum ipp_output_format cnv_out_format)
+		enum expansion_mode mode)
 {
 	uint32_t pixel_format;
 	uint32_t alpha_en;

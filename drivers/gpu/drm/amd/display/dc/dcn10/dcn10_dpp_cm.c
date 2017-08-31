@@ -727,11 +727,11 @@ void ippn10_full_bypass(struct transform *xfm_base)
 			FORMAT_EXPANSION_MODE, 0);
 
 	/* COLOR_KEYER_CONTROL.COLOR_KEYER_EN = 0 this should be default */
-	REG_SET(CM_CONTROL, 0, CM_BYPASS_EN, 1);
+	if (xfm->tf_mask->CM_BYPASS_EN)
+		REG_SET(CM_CONTROL, 0, CM_BYPASS_EN, 1);
 
 	/* Setting degamma bypass for now */
 	REG_SET(CM_DGAM_CONTROL, 0, CM_DGAM_LUT_MODE, 0);
-	REG_SET(CM_IGAM_CONTROL, 0, CM_IGAM_LUT_MODE, 0);
 }
 
 static bool ippn10_ingamma_ram_inuse(struct transform *xfm_base,

@@ -2316,8 +2316,7 @@ static void update_dchubp_dpp(
 
 	xfm->funcs->ipp_setup(xfm,
 			plane_state->format,
-			1,
-			IPP_OUTPUT_FORMAT_12_BIT_FIX);
+			EXPANSION_MODE_ZERO);
 
 	mpcc_cfg.mi = mi;
 	mpcc_cfg.opp = pipe_ctx->stream_res.opp;
