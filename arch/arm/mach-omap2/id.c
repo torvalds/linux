@@ -693,8 +693,11 @@ void __init dra7xxx_check_revision(void)
 			omap_revision = DRA722_REV_ES1_0;
 			break;
 		case 1:
-		default:
 			omap_revision = DRA722_REV_ES2_0;
+			break;
+		case 2:
+		default:
+			omap_revision = DRA722_REV_ES2_1;
 			break;
 		}
 		break;
