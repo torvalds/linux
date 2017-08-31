@@ -662,7 +662,9 @@ static void generic_metric(const char *metric_expr,
 				out->force_header ?  name : "",
 				ratio);
 		else
-			print_metric(ctxp, NULL, NULL, "", 0);
+			print_metric(ctxp, NULL, NULL,
+				     out->force_header ?
+				     (metric_name ? metric_name : name) : "", 0);
 	} else
 		print_metric(ctxp, NULL, NULL, "", 0);
 }
