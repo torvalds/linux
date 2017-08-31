@@ -465,7 +465,6 @@ early_idt_handler_common:
 ENDPROC(early_idt_handler_common)
 
 /* This is the default interrupt "handler" :-) */
-	ALIGN
 ENTRY(early_ignore_irq)
 	cld
 #ifdef CONFIG_PRINTK
@@ -502,6 +501,7 @@ hlt_loop:
 	hlt
 	jmp hlt_loop
 ENDPROC(early_ignore_irq)
+
 __INITDATA
 	.align 4
 GLOBAL(early_recursion_flag)
