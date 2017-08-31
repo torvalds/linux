@@ -423,8 +423,6 @@ static const struct iwl_hcmd_names iwl_mvm_system_names[] = {
  * Access is done through binary search
  */
 static const struct iwl_hcmd_names iwl_mvm_mac_conf_names[] = {
-	HCMD_NAME(LINK_QUALITY_MEASUREMENT_CMD),
-	HCMD_NAME(LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF),
 	HCMD_NAME(CHANNEL_SWITCH_NOA_NOTIF),
 };
 
