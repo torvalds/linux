@@ -20,7 +20,7 @@ function attach_bpf {
 	mkdir -p /tmp/cgroupv2
 	mount -t cgroup2 none /tmp/cgroupv2
 	mkdir -p /tmp/cgroupv2/foo
-	test_cgrp2_sock /tmp/cgroupv2/foo foo
+	test_cgrp2_sock -b foo /tmp/cgroupv2/foo
 	echo $$ >> /tmp/cgroupv2/foo/cgroup.procs
 }
 
