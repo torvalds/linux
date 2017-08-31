@@ -259,14 +259,9 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 	port_attr->sm_sl = 0;
 	port_attr->subnet_timeout = 0;
 	port_attr->init_type_reply = 0;
-	/* call the underlying netdev's ethtool hooks to query speed settings
-	 * for which we acquire rtnl_lock _only_ if it's registered with
-	 * IB stack to avoid race in the NETDEV_UNREG path
-	 */
-	if (test_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags))
-		if (ib_get_eth_speed(ibdev, port_num, &port_attr->active_speed,
-				     &port_attr->active_width))
-			return -EINVAL;
+	port_attr->active_speed = rdev->active_speed;
+	port_attr->active_width = rdev->active_width;
+
 	return 0;
 }
 

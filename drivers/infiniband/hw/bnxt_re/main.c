@@ -1161,6 +1161,8 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		}
 	}
 	set_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags);
+	ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
+			 &rdev->active_width);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_PORT_ACTIVE);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_GID_CHANGE);
 
@@ -1255,6 +1257,8 @@ static void bnxt_re_task(struct work_struct *work)
 		else if (netif_carrier_ok(rdev->netdev))
 			bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
 					       IB_EVENT_PORT_ACTIVE);
+		ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
+				 &rdev->active_width);
 		break;
 	default:
 		break;
