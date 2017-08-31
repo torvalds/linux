@@ -6129,7 +6129,7 @@ find_idlest_group_cpu(struct sched_group *group, struct task_struct *p, int this
 static inline int find_idlest_cpu(struct sched_domain *sd, struct task_struct *p,
 				  int cpu, int prev_cpu, int sd_flag)
 {
-	int new_cpu = prev_cpu;
+	int new_cpu = cpu;
 	int wu = sd_flag & SD_BALANCE_WAKE;
 	int cas_cpu = -1;
 
