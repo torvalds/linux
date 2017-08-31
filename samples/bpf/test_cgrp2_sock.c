@@ -46,8 +46,18 @@ static int prog_load(__u32 idx, __u32 mark, __u32 prio)
 
 	/* set mark on socket */
 	struct bpf_insn prog_mark[] = {
-		BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
+		/* get uid of process */
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+			     BPF_FUNC_get_current_uid_gid),
+		BPF_ALU64_IMM(BPF_AND, BPF_REG_0, 0xffffffff),
+
+		/* if uid is 0, use given mark, else use the uid as the mark */
+		BPF_MOV64_REG(BPF_REG_3, BPF_REG_0),
+		BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
 		BPF_MOV64_IMM(BPF_REG_3, mark),
+
+		/* set the mark on the new socket */
+		BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
 		BPF_MOV64_IMM(BPF_REG_2, offsetof(struct bpf_sock, mark)),
 		BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_3, offsetof(struct bpf_sock, mark)),
 	};
