@@ -785,7 +785,7 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 	}
 	retval = clk_prepare_enable(pclk);
 	if (retval)
-		return retval;
+		goto err_prepare_enable;
 
 	retval = snd_card_new(&pdev->dev, SNDRV_DEFAULT_IDX1,
 			      SNDRV_DEFAULT_STR1, THIS_MODULE,
@@ -881,6 +881,7 @@ err_request_irq:
 	snd_card_free(card);
 err_snd_card_new:
 	clk_disable_unprepare(pclk);
+err_prepare_enable:
 	clk_put(pclk);
 	return retval;
 }
