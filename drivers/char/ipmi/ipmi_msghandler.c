@@ -47,6 +47,7 @@
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
+#include <linux/workqueue.h>
 
 #define PFX "IPMI message handler: "
 
@@ -430,6 +431,7 @@ struct ipmi_smi {
 	struct list_head bmc_link;
 	char *my_dev_name;
 	bool in_bmc_register;  /* Handle recursive situations.  Yuck. */
+	struct work_struct bmc_reg_work;
 
 	/*
 	 * This is the lower-layer's sender routine.  Note that you
@@ -2275,7 +2277,8 @@ retry_bmc_lock:
 		intf->bmc->id = id;
 		intf->bmc->dyn_guid_set = guid_set;
 		memcpy(intf->bmc->guid, guid, 16);
-		rv = __ipmi_bmc_register(intf, &id, guid_set, guid, intf_num);
+		if (__ipmi_bmc_register(intf, &id, guid_set, guid, intf_num))
+			need_waiter(intf); /* Retry later on an error. */
 
 		if (!intf_set) {
 			/*
@@ -3276,6 +3279,16 @@ void ipmi_poll_interface(ipmi_user_t user)
 }
 EXPORT_SYMBOL(ipmi_poll_interface);
 
+static void redo_bmc_reg(struct work_struct *work)
+{
+	ipmi_smi_t intf = container_of(work, struct ipmi_smi, bmc_reg_work);
+
+	if (!intf->in_shutdown)
+		bmc_get_device_id(intf, NULL, NULL, NULL, NULL);
+
+	kref_put(&intf->refcount, intf_free);
+}
+
 int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 		      void		       *send_info,
 		      struct device            *si_dev,
@@ -3315,6 +3328,7 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 	mutex_init(&intf->bmc_reg_mutex);
 	intf->intf_num = -1; /* Mark it invalid for now. */
 	kref_init(&intf->refcount);
+	INIT_WORK(&intf->bmc_reg_work, redo_bmc_reg);
 	intf->si_dev = si_dev;
 	for (j = 0; j < IPMI_MAX_CHANNELS; j++) {
 		intf->channels[j].address = IPMI_BMC_SLAVE_ADDR;
@@ -4640,6 +4654,14 @@ static unsigned int ipmi_timeout_handler(ipmi_smi_t intf,
 	unsigned long        flags;
 	int                  i;
 	unsigned int         waiting_msgs = 0;
+
+	if (!intf->bmc_registered) {
+		kref_get(&intf->refcount);
+		if (!schedule_work(&intf->bmc_reg_work)) {
+			kref_put(&intf->refcount, intf_free);
+			waiting_msgs++;
+		}
+	}
 
 	/*
 	 * Go through the seq table and find any messages that
