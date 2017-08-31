@@ -2937,15 +2937,10 @@ static bool gfx_v9_0_is_idle(void *handle)
 static int gfx_v9_0_wait_for_idle(void *handle)
 {
 	unsigned i;
-	u32 tmp;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		/* read MC_STATUS */
-		tmp = RREG32_SOC15(GC, 0, mmGRBM_STATUS) &
-			GRBM_STATUS__GUI_ACTIVE_MASK;
-
-		if (!REG_GET_FIELD(tmp, GRBM_STATUS, GUI_ACTIVE))
+		if (gfx_v9_0_is_idle(handle))
 			return 0;
 		udelay(1);
 	}
