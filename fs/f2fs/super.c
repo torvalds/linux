@@ -1546,7 +1546,7 @@ void f2fs_quota_off_umount(struct super_block *sb)
 }
 #endif
 
-static struct super_operations f2fs_sops = {
+static const struct super_operations f2fs_sops = {
 	.alloc_inode	= f2fs_alloc_inode,
 	.drop_inode	= f2fs_drop_inode,
 	.destroy_inode	= f2fs_destroy_inode,
