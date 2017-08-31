@@ -297,7 +297,6 @@
 	pinctrl-names = "default";
 
 	bus-width = <8>;
-	cap-sd-highspeed;
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
