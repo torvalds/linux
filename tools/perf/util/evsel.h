@@ -137,6 +137,7 @@ struct perf_evsel {
 	const char *		metric_name;
 	struct perf_evsel	**metric_events;
 	bool			collect_stat;
+	bool			weak_group;
 };
 
 union u64_swap {

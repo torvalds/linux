@@ -582,6 +582,32 @@ static bool perf_evsel__should_store_id(struct perf_evsel *counter)
 	return STAT_RECORD || counter->attr.read_format & PERF_FORMAT_ID;
 }
 
+static struct perf_evsel *perf_evsel__reset_weak_group(struct perf_evsel *evsel)
+{
+	struct perf_evsel *c2, *leader;
+	bool is_open = true;
+
+	leader = evsel->leader;
+	pr_debug("Weak group for %s/%d failed\n",
+			leader->name, leader->nr_members);
+
+	/*
+	 * for_each_group_member doesn't work here because it doesn't
+	 * include the first entry.
+	 */
+	evlist__for_each_entry(evsel_list, c2) {
+		if (c2 == evsel)
+			is_open = false;
+		if (c2->leader == leader) {
+			if (is_open)
+				perf_evsel__close(c2);
+			c2->leader = c2;
+			c2->nr_members = 0;
+		}
+	}
+	return leader;
+}
+
 static int __run_perf_stat(int argc, const char **argv)
 {
 	int interval = stat_config.interval;
@@ -618,6 +644,15 @@ static int __run_perf_stat(int argc, const char **argv)
 	evlist__for_each_entry(evsel_list, counter) {
 try_again:
 		if (create_perf_stat_counter(counter) < 0) {
+
+			/* Weak group failed. Reset the group. */
+			if (errno == EINVAL &&
+			    counter->leader != counter &&
+			    counter->weak_group) {
+				counter = perf_evsel__reset_weak_group(counter);
+				goto try_again;
+			}
+
 			/*
 			 * PPC returns ENXIO for HW counters until 2.6.37
 			 * (behavior changed with commit b0a873e).
