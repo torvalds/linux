@@ -1896,10 +1896,9 @@ static void gfx_v9_0_enable_gfx_pipeline_powergating(struct amdgpu_device *adev,
 	uint32_t data, default_data;
 
 	default_data = data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL));
-	if (enable == true)
-		data |= RLC_PG_CNTL__GFX_PIPELINE_PG_ENABLE_MASK;
-	else
-		data &= ~RLC_PG_CNTL__GFX_PIPELINE_PG_ENABLE_MASK;
+	data = REG_SET_FIELD(data, RLC_PG_CNTL,
+			     GFX_PIPELINE_PG_ENABLE,
+			     enable ? 1 : 0);
 	if(default_data != data)
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL), data);
 
