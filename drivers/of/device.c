@@ -9,6 +9,9 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
+#include <linux/pci.h>
+#include <linux/platform_device.h>
+#include <linux/amba/bus.h>
 
 #include <asm/errno.h>
 #include "of_private.h"
@@ -84,31 +87,28 @@ int of_device_add(struct platform_device *ofdev)
  */
 int of_dma_configure(struct device *dev, struct device_node *np)
 {
-	u64 dma_addr, paddr, size;
+	u64 dma_addr, paddr, size = 0;
 	int ret;
 	bool coherent;
 	unsigned long offset;
 	const struct iommu_ops *iommu;
 	u64 mask;
 
-	/*
-	 * Set default coherent_dma_mask to 32 bit.  Drivers are expected to
-	 * setup the correct supported mask.
-	 */
-	if (!dev->coherent_dma_mask)
-		dev->coherent_dma_mask = DMA_BIT_MASK(32);
-
-	/*
-	 * Set it to coherent_dma_mask by default if the architecture
-	 * code has not set it.
-	 */
-	if (!dev->dma_mask)
-		dev->dma_mask = &dev->coherent_dma_mask;
-
 	ret = of_dma_get_range(np, &dma_addr, &paddr, &size);
 	if (ret < 0) {
+		/*
+		 * For legacy reasons, we have to assume some devices need
+		 * DMA configuration regardless of whether "dma-ranges" is
+		 * correctly specified or not.
+		 */
+		if (!dev_is_pci(dev) &&
+#ifdef CONFIG_ARM_AMBA
+		    dev->bus != &amba_bustype &&
+#endif
+		    dev->bus != &platform_bus_type)
+			return ret == -ENODEV ? 0 : ret;
+
 		dma_addr = offset = 0;
-		size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
 	} else {
 		offset = PFN_DOWN(paddr - dma_addr);
 
@@ -128,6 +128,22 @@ int of_dma_configure(struct device *dev, struct device_node *np)
 		}
 		dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", offset);
 	}
+
+	/*
+	 * Set default coherent_dma_mask to 32 bit.  Drivers are expected to
+	 * setup the correct supported mask.
+	 */
+	if (!dev->coherent_dma_mask)
+		dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	/*
+	 * Set it to coherent_dma_mask by default if the architecture
+	 * code has not set it.
+	 */
+	if (!dev->dma_mask)
+		dev->dma_mask = &dev->coherent_dma_mask;
+
+	if (!size)
+		size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
 
 	dev->dma_pfn_offset = offset;
 
