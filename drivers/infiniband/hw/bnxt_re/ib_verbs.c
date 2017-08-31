@@ -3066,7 +3066,7 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
 		return rc;
 	}
 
-	if (mr->npages && mr->pages) {
+	if (mr->pages) {
 		rc = bnxt_qplib_free_fast_reg_page_list(&rdev->qplib_res,
 							&mr->qplib_frpl);
 		kfree(mr->pages);
