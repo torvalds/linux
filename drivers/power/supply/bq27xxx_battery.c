@@ -688,15 +688,11 @@ static struct bq27xxx_dm_reg bq27545_dm_regs[] = {
 #define bq27545_dm_regs 0
 #endif
 
-#if 0 /* not yet tested */
 static struct bq27xxx_dm_reg bq27421_dm_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 10, 2,    0,  8000 },
 	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 12, 2,    0, 32767 },
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 16, 2, 2500,  3700 },
 };
-#else
-#define bq27421_dm_regs 0
-#endif
 
 static struct bq27xxx_dm_reg bq27425_dm_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 12, 2,    0, 32767 },
