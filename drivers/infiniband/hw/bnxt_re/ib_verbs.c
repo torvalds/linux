@@ -314,6 +314,7 @@ int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
 	struct bnxt_re_gid_ctx *ctx, **ctx_tbl;
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
+	struct bnxt_qplib_gid *gid_to_del;
 
 	/* Delete the entry from the hardware */
 	ctx = *context;
@@ -323,11 +324,25 @@ int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
 	if (sgid_tbl && sgid_tbl->active) {
 		if (ctx->idx >= sgid_tbl->max)
 			return -EINVAL;
+		gid_to_del = &sgid_tbl->tbl[ctx->idx];
+		/* DEL_GID is called in WQ context(netdevice_event_work_handler)
+		 * or via the ib_unregister_device path. In the former case QP1
+		 * may not be destroyed yet, in which case just return as FW
+		 * needs that entry to be present and will fail it's deletion.
+		 * We could get invoked again after QP1 is destroyed OR get an
+		 * ADD_GID call with a different GID value for the same index
+		 * where we issue MODIFY_GID cmd to update the GID entry -- TBD
+		 */
+		if (ctx->idx == 0 &&
+		    rdma_link_local_addr((struct in6_addr *)gid_to_del) &&
+		    ctx->refcnt == 1 && rdev->qp1_sqp) {
+			dev_dbg(rdev_to_dev(rdev),
+				"Trying to delete GID0 while QP1 is alive\n");
+			return -EFAULT;
+		}
 		ctx->refcnt--;
 		if (!ctx->refcnt) {
-			rc = bnxt_qplib_del_sgid(sgid_tbl,
-						 &sgid_tbl->tbl[ctx->idx],
-						 true);
+			rc = bnxt_qplib_del_sgid(sgid_tbl, gid_to_del, true);
 			if (rc) {
 				dev_err(rdev_to_dev(rdev),
 					"Failed to remove GID: %#x", rc);
@@ -811,6 +826,8 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 
 		kfree(rdev->sqp_ah);
 		kfree(rdev->qp1_sqp);
+		rdev->qp1_sqp = NULL;
+		rdev->sqp_ah = NULL;
 	}
 
 	if (!IS_ERR_OR_NULL(qp->rumem))
