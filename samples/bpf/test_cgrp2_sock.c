@@ -114,7 +114,12 @@ static int prog_load(__u32 idx, __u32 mark, __u32 prio)
 
 static int usage(const char *argv0)
 {
-	printf("Usage: %s -b bind-to-dev -m mark -p prio cg-path\n", argv0);
+	printf("Usage:\n");
+	printf("  Attach a program\n");
+	printf("  %s -b bind-to-dev -m mark -p prio cg-path\n", argv0);
+	printf("\n");
+	printf("  Detach a program\n");
+	printf("  %s -d cg-path\n", argv0);
 	return EXIT_FAILURE;
 }
 
@@ -123,10 +128,14 @@ int main(int argc, char **argv)
 	__u32 idx = 0, mark = 0, prio = 0;
 	const char *cgrp_path = NULL;
 	int cg_fd, prog_fd, ret;
+	int do_attach = 1;
 	int rc;
 
-	while ((rc = getopt(argc, argv, "b:m:p:")) != -1) {
+	while ((rc = getopt(argc, argv, "db:m:p:")) != -1) {
 		switch (rc) {
+		case 'd':
+			do_attach = 0;
+			break;
 		case 'b':
 			idx = if_nametoindex(optarg);
 			if (!idx) {
@@ -157,7 +166,7 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	if (!idx && !mark && !prio) {
+	if (do_attach && !idx && !mark && !prio) {
 		fprintf(stderr,
 			"One of device, mark or priority must be given\n");
 		return EXIT_FAILURE;
@@ -169,20 +178,31 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	prog_fd = prog_load(idx, mark, prio);
-	if (prog_fd < 0) {
-		printf("Failed to load prog: '%s'\n", strerror(errno));
-		printf("Output from kernel verifier:\n%s\n-------\n",
-		       bpf_log_buf);
-		return EXIT_FAILURE;
+	if (do_attach) {
+		prog_fd = prog_load(idx, mark, prio);
+		if (prog_fd < 0) {
+			printf("Failed to load prog: '%s'\n", strerror(errno));
+			printf("Output from kernel verifier:\n%s\n-------\n",
+			       bpf_log_buf);
+			return EXIT_FAILURE;
+		}
+
+		ret = bpf_prog_attach(prog_fd, cg_fd,
+				      BPF_CGROUP_INET_SOCK_CREATE, 0);
+		if (ret < 0) {
+			printf("Failed to attach prog to cgroup: '%s'\n",
+			       strerror(errno));
+			return EXIT_FAILURE;
+		}
+	} else {
+		ret = bpf_prog_detach(cg_fd, BPF_CGROUP_INET_SOCK_CREATE);
+		if (ret < 0) {
+			printf("Failed to detach prog from cgroup: '%s'\n",
+			       strerror(errno));
+			return EXIT_FAILURE;
+		}
 	}
 
-	ret = bpf_prog_attach(prog_fd, cg_fd, BPF_CGROUP_INET_SOCK_CREATE, 0);
-	if (ret < 0) {
-		printf("Failed to attach prog to cgroup: '%s'\n",
-		       strerror(errno));
-		return EXIT_FAILURE;
-	}
-
+	close(cg_fd);
 	return EXIT_SUCCESS;
 }
