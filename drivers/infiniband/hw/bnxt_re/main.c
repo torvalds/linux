@@ -1375,6 +1375,22 @@ err_netdev:
 
 static void __exit bnxt_re_mod_exit(void)
 {
+	struct bnxt_re_dev *rdev;
+	LIST_HEAD(to_be_deleted);
+
+	mutex_lock(&bnxt_re_dev_lock);
+	/* Free all adapter allocated resources */
+	if (!list_empty(&bnxt_re_dev_list))
+		list_splice_init(&bnxt_re_dev_list, &to_be_deleted);
+	mutex_unlock(&bnxt_re_dev_lock);
+
+	list_for_each_entry(rdev, &to_be_deleted, list) {
+		dev_info(rdev_to_dev(rdev), "Unregistering Device");
+		bnxt_re_dev_stop(rdev);
+		bnxt_re_ib_unreg(rdev, true);
+		bnxt_re_remove_one(rdev);
+		bnxt_re_dev_unreg(rdev);
+	}
 	unregister_netdevice_notifier(&bnxt_re_netdev_notifier);
 	if (bnxt_re_wq)
 		destroy_workqueue(bnxt_re_wq);
