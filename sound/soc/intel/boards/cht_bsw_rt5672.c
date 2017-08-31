@@ -184,12 +184,22 @@ static int cht_aif1_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static const struct acpi_gpio_params headset_gpios = { 0, 0, false };
+
+static const struct acpi_gpio_mapping cht_rt5672_gpios[] = {
+	{ "headset-gpios", &headset_gpios, 1 },
+	{},
+};
+
 static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
 	int ret;
 	struct snd_soc_dai *codec_dai = runtime->codec_dai;
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(runtime->card);
+
+	if (devm_acpi_dev_add_driver_gpios(codec->dev, cht_rt5672_gpios))
+		dev_warn(runtime->dev, "Unable to add GPIO mapping table\n");
 
 	/* TDM 4 slots 24 bit, set Rx & Tx bitmask to 4 active slots */
 	ret = snd_soc_dai_set_tdm_slot(codec_dai, 0xF, 0xF, 4, 24);
