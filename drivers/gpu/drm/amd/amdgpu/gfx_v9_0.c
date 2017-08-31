@@ -2489,10 +2489,10 @@ static int gfx_v9_0_mqd_init(struct amdgpu_ring *ring)
 				    DOORBELL_SOURCE, 0);
 		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL,
 				    DOORBELL_HIT, 0);
-	}
-	else
+	} else {
 		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL,
 					 DOORBELL_EN, 0);
+	}
 
 	mqd->cp_hqd_pq_doorbell_control = tmp;
 
