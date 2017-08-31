@@ -77,6 +77,9 @@ static void malidp_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct malidp_hw_device *hwdev = malidp->dev;
 	int err;
 
+	/* always disable planes on the CRTC that is being turned off */
+	drm_atomic_helper_disable_planes_on_crtc(old_state, false);
+
 	drm_crtc_vblank_off(crtc);
 	hwdev->hw->enter_config_mode(hwdev);
 
