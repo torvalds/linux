@@ -1396,8 +1396,10 @@ mlxsw_sp_router_neigh_entry_op6(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
 }
 
-static bool mlxsw_sp_neigh_ipv6_ignore(struct neighbour *n)
+bool mlxsw_sp_neigh_ipv6_ignore(struct mlxsw_sp_neigh_entry *neigh_entry)
 {
+	struct neighbour *n = neigh_entry->key.n;
+
 	/* Packets with a link-local destination address are trapped
 	 * after LPM lookup and never reach the neighbour table, so
 	 * there is no need to program such neighbours to the device.
@@ -1420,7 +1422,7 @@ mlxsw_sp_neigh_entry_update(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_router_neigh_entry_op4(mlxsw_sp, neigh_entry,
 						mlxsw_sp_rauht_op(adding));
 	} else if (neigh_entry->key.n->tbl->family == AF_INET6) {
-		if (mlxsw_sp_neigh_ipv6_ignore(neigh_entry->key.n))
+		if (mlxsw_sp_neigh_ipv6_ignore(neigh_entry))
 			return;
 		mlxsw_sp_router_neigh_entry_op6(mlxsw_sp, neigh_entry,
 						mlxsw_sp_rauht_op(adding));

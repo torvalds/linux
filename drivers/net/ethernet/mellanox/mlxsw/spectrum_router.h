@@ -76,5 +76,6 @@ void
 mlxsw_sp_neigh_entry_counter_update(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_neigh_entry *neigh_entry,
 				    bool adding);
+bool mlxsw_sp_neigh_ipv6_ignore(struct mlxsw_sp_neigh_entry *neigh_entry);
 
 #endif /* _MLXSW_ROUTER_H_*/
