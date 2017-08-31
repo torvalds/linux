@@ -496,6 +496,39 @@ u64 notrace ktime_get_boot_fast_ns(void)
 }
 EXPORT_SYMBOL_GPL(ktime_get_boot_fast_ns);
 
+
+/*
+ * See comment for __ktime_get_fast_ns() vs. timestamp ordering
+ */
+static __always_inline u64 __ktime_get_real_fast_ns(struct tk_fast *tkf)
+{
+	struct tk_read_base *tkr;
+	unsigned int seq;
+	u64 now;
+
+	do {
+		seq = raw_read_seqcount_latch(&tkf->seq);
+		tkr = tkf->base + (seq & 0x01);
+		now = ktime_to_ns(tkr->base_real);
+
+		now += timekeeping_delta_to_ns(tkr,
+				clocksource_delta(
+					tk_clock_read(tkr),
+					tkr->cycle_last,
+					tkr->mask));
+	} while (read_seqcount_retry(&tkf->seq, seq));
+
+	return now;
+}
+
+/**
+ * ktime_get_real_fast_ns: - NMI safe and fast access to clock realtime.
+ */
+u64 ktime_get_real_fast_ns(void)
+{
+	return __ktime_get_real_fast_ns(&tk_fast_mono);
+}
+
 /**
  * halt_fast_timekeeper - Prevent fast timekeeper from accessing clocksource.
  * @tk: Timekeeper to snapshot.
@@ -514,6 +547,7 @@ static void halt_fast_timekeeper(struct timekeeper *tk)
 	memcpy(&tkr_dummy, tkr, sizeof(tkr_dummy));
 	cycles_at_suspend = tk_clock_read(tkr);
 	tkr_dummy.clock = &dummy_clock;
+	tkr_dummy.base_real = tkr->base + tk->offs_real;
 	update_fast_timekeeper(&tkr_dummy, &tk_fast_mono);
 
 	tkr = &tk->tkr_raw;
@@ -661,6 +695,7 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
 	update_vsyscall(tk);
 	update_pvclock_gtod(tk, action & TK_CLOCK_WAS_SET);
 
+	tk->tkr_mono.base_real = tk->tkr_mono.base + tk->offs_real;
 	update_fast_timekeeper(&tk->tkr_mono, &tk_fast_mono);
 	update_fast_timekeeper(&tk->tkr_raw,  &tk_fast_raw);
 
