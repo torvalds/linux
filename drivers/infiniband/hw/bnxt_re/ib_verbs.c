@@ -1916,6 +1916,7 @@ static int bnxt_re_build_atomic_wqe(struct ib_send_wr *wr,
 	switch (wr->opcode) {
 	case IB_WR_ATOMIC_CMP_AND_SWP:
 		wqe->type = BNXT_QPLIB_SWQE_TYPE_ATOMIC_CMP_AND_SWP;
+		wqe->atomic.cmp_data = atomic_wr(wr)->compare_add;
 		wqe->atomic.swap_data = atomic_wr(wr)->swap;
 		break;
 	case IB_WR_ATOMIC_FETCH_AND_ADD:
