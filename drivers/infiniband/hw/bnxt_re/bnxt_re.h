@@ -93,11 +93,13 @@ struct bnxt_re_dev {
 	struct ib_device		ibdev;
 	struct list_head		list;
 	unsigned long			flags;
-#define BNXT_RE_FLAG_NETDEV_REGISTERED	0
-#define BNXT_RE_FLAG_IBDEV_REGISTERED	1
-#define BNXT_RE_FLAG_GOT_MSIX		2
-#define BNXT_RE_FLAG_RCFW_CHANNEL_EN	8
-#define BNXT_RE_FLAG_QOS_WORK_REG	16
+#define BNXT_RE_FLAG_NETDEV_REGISTERED		0
+#define BNXT_RE_FLAG_IBDEV_REGISTERED		1
+#define BNXT_RE_FLAG_GOT_MSIX			2
+#define BNXT_RE_FLAG_HAVE_L2_REF		3
+#define BNXT_RE_FLAG_RCFW_CHANNEL_EN		4
+#define BNXT_RE_FLAG_QOS_WORK_REG		5
+#define BNXT_RE_FLAG_TASK_IN_PROG		6
 	struct net_device		*netdev;
 	unsigned int			version, major, minor;
 	struct bnxt_en_dev		*en_dev;

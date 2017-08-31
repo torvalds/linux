@@ -1259,6 +1259,8 @@ static void bnxt_re_task(struct work_struct *work)
 	default:
 		break;
 	}
+	smp_mb__before_atomic();
+	clear_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags);
 	kfree(re_work);
 }
 
@@ -1317,6 +1319,11 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 		break;
 
 	case NETDEV_UNREGISTER:
+		/* netdev notifier will call NETDEV_UNREGISTER again later since
+		 * we are still holding the reference to the netdev
+		 */
+		if (test_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags))
+			goto exit;
 		bnxt_re_ib_unreg(rdev, false);
 		bnxt_re_remove_one(rdev);
 		bnxt_re_dev_unreg(rdev);
@@ -1335,6 +1342,7 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 			re_work->vlan_dev = (real_dev == netdev ?
 					     NULL : netdev);
 			INIT_WORK(&re_work->work, bnxt_re_task);
+			set_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags);
 			queue_work(bnxt_re_wq, &re_work->work);
 		}
 	}
