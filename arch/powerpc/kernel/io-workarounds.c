@@ -19,6 +19,8 @@
 #include <asm/pgtable.h>
 #include <asm/ppc-pci.h>
 #include <asm/io-workarounds.h>
+#include <asm/pte-walk.h>
+
 
 #define IOWA_MAX_BUS	8
 
@@ -75,8 +77,7 @@ struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
 		 * We won't find huge pages here (iomem). Also can't hit
 		 * a page table free due to init_mm
 		 */
-		ptep = __find_linux_pte_or_hugepte(init_mm.pgd, vaddr,
-						   NULL, &hugepage_shift);
+		ptep = find_init_mm_pte(vaddr, &hugepage_shift);
 		if (ptep == NULL)
 			paddr = 0;
 		else {
