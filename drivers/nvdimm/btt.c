@@ -106,7 +106,7 @@ static int btt_map_write(struct arena_info *arena, u32 lba, u32 mapping,
 	 * This 'mapping' is supposed to be just the LBA mapping, without
 	 * any flags set, so strip the flag bits.
 	 */
-	mapping &= MAP_LBA_MASK;
+	mapping = ent_lba(mapping);
 
 	ze = (z_flag << 1) + e_flag;
 	switch (ze) {
@@ -155,10 +155,10 @@ static int btt_map_read(struct arena_info *arena, u32 lba, u32 *mapping,
 
 	raw_mapping = le32_to_cpu(in);
 
-	z_flag = (raw_mapping & MAP_TRIM_MASK) >> MAP_TRIM_SHIFT;
-	e_flag = (raw_mapping & MAP_ERR_MASK) >> MAP_ERR_SHIFT;
+	z_flag = ent_z_flag(raw_mapping);
+	e_flag = ent_e_flag(raw_mapping);
 	ze = (z_flag << 1) + e_flag;
-	postmap = raw_mapping & MAP_LBA_MASK;
+	postmap = ent_lba(raw_mapping);
 
 	/* Reuse the {z,e}_flag variables for *trim and *error */
 	z_flag = 0;

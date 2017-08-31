@@ -38,6 +38,10 @@
 #define IB_FLAG_ERROR 0x00000001
 #define IB_FLAG_ERROR_MASK 0x00000001
 
+#define ent_lba(ent) (ent & MAP_LBA_MASK)
+#define ent_e_flag(ent) (!!(ent & MAP_ERR_MASK))
+#define ent_z_flag(ent) (!!(ent & MAP_TRIM_MASK))
+
 enum btt_init_state {
 	INIT_UNCHECKED = 0,
 	INIT_NOTFOUND,
