@@ -439,13 +439,12 @@ mlxsw_sp_dpipe_table_host_entry_prepare(struct devlink_dpipe_entry *entry,
 }
 
 static void
-__mlxsw_sp_dpipe_table_host4_entry_fill(struct devlink_dpipe_entry *entry,
-					struct mlxsw_sp_rif *rif,
-					unsigned char *ha, u32 dip)
+__mlxsw_sp_dpipe_table_host_entry_fill(struct devlink_dpipe_entry *entry,
+				       struct mlxsw_sp_rif *rif,
+				       unsigned char *ha, void *dip)
 {
 	struct devlink_dpipe_value *value;
 	u32 *rif_value;
-	u32 *dip_value;
 	u8 *ha_value;
 
 	/* Set Match RIF index */
@@ -458,9 +457,7 @@ __mlxsw_sp_dpipe_table_host4_entry_fill(struct devlink_dpipe_entry *entry,
 
 	/* Set Match DIP */
 	value = &entry->match_values[MLXSW_SP_DPIPE_TABLE_HOST_MATCH_DIP];
-
-	dip_value = value->value;
-	*dip_value = dip;
+	memcpy(value->value, dip, value->value_size);
 
 	/* Set Action DMAC */
 	value = entry->action_values;
@@ -478,7 +475,7 @@ mlxsw_sp_dpipe_table_host4_entry_fill(struct devlink_dpipe_entry *entry,
 
 	ha = mlxsw_sp_neigh_entry_ha(neigh_entry);
 	dip = mlxsw_sp_neigh4_entry_dip(neigh_entry);
-	__mlxsw_sp_dpipe_table_host4_entry_fill(entry, rif, ha, dip);
+	__mlxsw_sp_dpipe_table_host_entry_fill(entry, rif, ha, &dip);
 }
 
 static void
