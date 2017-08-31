@@ -45,7 +45,7 @@
 #include "vbox_drv.h"
 #include "vboxvideo.h"
 
-#ifdef CONFIG_FB_DEFERRED_IO
+#ifdef CONFIG_DRM_KMS_FB_HELPER
 static struct fb_deferred_io vbox_defio = {
 	.delay = HZ / 30,
 	.deferred_io = drm_fb_helper_deferred_io,
@@ -173,7 +173,7 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	info->screen_base = bo->kmap.virtual;
 	info->screen_size = size;
 
-#ifdef CONFIG_FB_DEFERRED_IO
+#ifdef CONFIG_DRM_KMS_FB_HELPER
 	info->fbdefio = &vbox_defio;
 	fb_deferred_io_init(info);
 #endif
@@ -195,7 +195,7 @@ void vbox_fbdev_fini(struct drm_device *dev)
 	struct vbox_fbdev *fbdev = vbox->fbdev;
 	struct vbox_framebuffer *afb = &fbdev->afb;
 
-#ifdef CONFIG_FB_DEFERRED_IO
+#ifdef CONFIG_DRM_KMS_FB_HELPER
 	if (fbdev->helper.fbdev && fbdev->helper.fbdev->fbdefio)
 		fb_deferred_io_cleanup(fbdev->helper.fbdev);
 #endif
