@@ -65,8 +65,8 @@ static void malidp_crtc_atomic_enable(struct drm_crtc *crtc,
 	/* We rely on firmware to set mclk to a sensible level. */
 	clk_set_rate(hwdev->pxlclk, crtc->state->adjusted_mode.crtc_clock * 1000);
 
-	hwdev->modeset(hwdev, &vm);
-	hwdev->leave_config_mode(hwdev);
+	hwdev->hw->modeset(hwdev, &vm);
+	hwdev->hw->leave_config_mode(hwdev);
 	drm_crtc_vblank_on(crtc);
 }
 
@@ -78,7 +78,8 @@ static void malidp_crtc_atomic_disable(struct drm_crtc *crtc,
 	int err;
 
 	drm_crtc_vblank_off(crtc);
-	hwdev->enter_config_mode(hwdev);
+	hwdev->hw->enter_config_mode(hwdev);
+
 	clk_disable_unprepare(hwdev->pxlclk);
 
 	err = pm_runtime_put(crtc->dev->dev);
@@ -319,7 +320,7 @@ static int malidp_crtc_atomic_check_scaling(struct drm_crtc *crtc,
 
 mclk_calc:
 	drm_display_mode_to_videomode(&state->adjusted_mode, &vm);
-	ret = hwdev->se_calc_mclk(hwdev, s, &vm);
+	ret = hwdev->hw->se_calc_mclk(hwdev, s, &vm);
 	if (ret < 0)
 		return -EINVAL;
 	return 0;
@@ -475,7 +476,7 @@ static int malidp_crtc_enable_vblank(struct drm_crtc *crtc)
 	struct malidp_hw_device *hwdev = malidp->dev;
 
 	malidp_hw_enable_irq(hwdev, MALIDP_DE_BLOCK,
-			     hwdev->map.de_irq_map.vsync_irq);
+			     hwdev->hw->map.de_irq_map.vsync_irq);
 	return 0;
 }
 
@@ -485,7 +486,7 @@ static void malidp_crtc_disable_vblank(struct drm_crtc *crtc)
 	struct malidp_hw_device *hwdev = malidp->dev;
 
 	malidp_hw_disable_irq(hwdev, MALIDP_DE_BLOCK,
-			      hwdev->map.de_irq_map.vsync_irq);
+			      hwdev->hw->map.de_irq_map.vsync_irq);
 }
 
 static const struct drm_crtc_funcs malidp_crtc_funcs = {
