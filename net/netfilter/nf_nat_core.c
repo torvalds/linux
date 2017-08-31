@@ -416,7 +416,9 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 	WARN_ON(maniptype != NF_NAT_MANIP_SRC &&
 		maniptype != NF_NAT_MANIP_DST);
-	BUG_ON(nf_nat_initialized(ct, maniptype));
+
+	if (WARN_ON(nf_nat_initialized(ct, maniptype)))
+		return NF_DROP;
 
 	/* What we've got will look like inverse of reply. Normally
 	 * this is what is in the conntrack, except for prior
