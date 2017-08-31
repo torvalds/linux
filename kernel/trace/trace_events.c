@@ -466,7 +466,7 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 			set_bit(EVENT_FILE_FL_ENABLED_BIT, &file->flags);
 
 			/* WAS_ENABLED gets set but never cleared. */
-			call->flags |= TRACE_EVENT_FL_WAS_ENABLED;
+			set_bit(EVENT_FILE_FL_WAS_ENABLED_BIT, &file->flags);
 		}
 		break;
 	}
@@ -2058,6 +2058,10 @@ static void event_remove(struct trace_event_call *call)
 	do_for_each_event_file(tr, file) {
 		if (file->event_call != call)
 			continue;
+
+		if (file->flags & EVENT_FILE_FL_WAS_ENABLED)
+			tr->clear_trace = true;
+
 		ftrace_event_enable_disable(file, 0);
 		/*
 		 * The do_for_each_event_file() is
@@ -2396,15 +2400,11 @@ static void trace_module_add_events(struct module *mod)
 static void trace_module_remove_events(struct module *mod)
 {
 	struct trace_event_call *call, *p;
-	bool clear_trace = false;
 
 	down_write(&trace_event_sem);
 	list_for_each_entry_safe(call, p, &ftrace_events, list) {
-		if (call->mod == mod) {
-			if (call->flags & TRACE_EVENT_FL_WAS_ENABLED)
-				clear_trace = true;
+		if (call->mod == mod)
 			__trace_remove_event_call(call);
-		}
 	}
 	up_write(&trace_event_sem);
 
@@ -2416,8 +2416,7 @@ static void trace_module_remove_events(struct module *mod)
 	 * over from this module may be passed to the new module events and
 	 * unexpected results may occur.
 	 */
-	if (clear_trace)
-		tracing_reset_all_online_cpus();
+	tracing_reset_all_online_cpus();
 }
 
 static int trace_module_notify(struct notifier_block *self,
