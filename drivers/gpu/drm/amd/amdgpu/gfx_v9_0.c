@@ -1968,13 +1968,8 @@ static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 
 void gfx_v9_0_rlc_stop(struct amdgpu_device *adev)
 {
-	u32 tmp = RREG32_SOC15(GC, 0, mmRLC_CNTL);
-
-	tmp = REG_SET_FIELD(tmp, RLC_CNTL, RLC_ENABLE_F32, 0);
-	WREG32_SOC15(GC, 0, mmRLC_CNTL, tmp);
-
+	WREG32_FIELD15(GC, 0, RLC_CNTL, RLC_ENABLE_F32, 0);
 	gfx_v9_0_enable_gui_idle_interrupt(adev, false);
-
 	gfx_v9_0_wait_for_rlc_serdes(adev);
 }
 
