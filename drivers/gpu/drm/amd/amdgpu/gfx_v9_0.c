@@ -1870,16 +1870,11 @@ static void gfx_v9_0_enable_cp_power_gating(struct amdgpu_device *adev,
 	uint32_t default_data = 0;
 
 	default_data = data = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL));
-
-	if (enable == true) {
-		data &= ~RLC_PG_CNTL__CP_PG_DISABLE_MASK;
-		if(default_data != data)
-			WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL), data);
-	} else {
-		data |= RLC_PG_CNTL__CP_PG_DISABLE_MASK;
-		if(default_data != data)
-			WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL), data);
-	}
+	data = REG_SET_FIELD(data, RLC_PG_CNTL,
+			     CP_PG_DISABLE,
+			     enable ? 0 : 1);
+	if(default_data != data)
+		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_PG_CNTL), data);
 }
 
 static void gfx_v9_0_enable_gfx_cg_power_gating(struct amdgpu_device *adev,
