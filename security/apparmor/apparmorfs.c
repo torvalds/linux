@@ -2215,12 +2215,12 @@ static struct aa_sfs_entry aa_sfs_entry_features[] = {
 };
 
 static struct aa_sfs_entry aa_sfs_entry_apparmor[] = {
-	AA_SFS_FILE_FOPS(".access", 0640, &aa_sfs_access),
+	AA_SFS_FILE_FOPS(".access", 0666, &aa_sfs_access),
 	AA_SFS_FILE_FOPS(".stacked", 0444, &seq_ns_stacked_fops),
 	AA_SFS_FILE_FOPS(".ns_stacked", 0444, &seq_ns_nsstacked_fops),
-	AA_SFS_FILE_FOPS(".ns_level", 0666, &seq_ns_level_fops),
-	AA_SFS_FILE_FOPS(".ns_name", 0640, &seq_ns_name_fops),
-	AA_SFS_FILE_FOPS("profiles", 0440, &aa_sfs_profiles_fops),
+	AA_SFS_FILE_FOPS(".ns_level", 0444, &seq_ns_level_fops),
+	AA_SFS_FILE_FOPS(".ns_name", 0444, &seq_ns_name_fops),
+	AA_SFS_FILE_FOPS("profiles", 0444, &aa_sfs_profiles_fops),
 	AA_SFS_DIR("features", aa_sfs_entry_features),
 	{ }
 };
