@@ -1212,8 +1212,17 @@ static void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in, int inlen)
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
 		memset(tirc, 0, ctxlen);
-		mlx5e_build_indir_tir_ctx_hash(&priv->channels.params, tt, tirc);
+		mlx5e_build_indir_tir_ctx_hash(&priv->channels.params, tt, tirc, false);
 		mlx5_core_modify_tir(mdev, priv->indir_tir[tt].tirn, in, inlen);
+	}
+
+	if (!mlx5e_tunnel_inner_ft_supported(priv->mdev))
+		return;
+
+	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
+		memset(tirc, 0, ctxlen);
+		mlx5e_build_indir_tir_ctx_hash(&priv->channels.params, tt, tirc, true);
+		mlx5_core_modify_tir(mdev, priv->inner_indir_tir[tt].tirn, in, inlen);
 	}
 }
 
