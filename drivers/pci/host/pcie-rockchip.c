@@ -962,7 +962,7 @@ static int rockchip_pcie_setup_irq(struct rockchip_pcie *rockchip)
 	irq = platform_get_irq_byname(pdev, "sys");
 	if (irq < 0) {
 		dev_err(dev, "missing sys IRQ resource\n");
-		return -EINVAL;
+		return irq;
 	}
 
 	err = devm_request_irq(dev, irq, rockchip_pcie_subsys_irq_handler,
@@ -975,7 +975,7 @@ static int rockchip_pcie_setup_irq(struct rockchip_pcie *rockchip)
 	irq = platform_get_irq_byname(pdev, "legacy");
 	if (irq < 0) {
 		dev_err(dev, "missing legacy IRQ resource\n");
-		return -EINVAL;
+		return irq;
 	}
 
 	irq_set_chained_handler_and_data(irq,
@@ -985,7 +985,7 @@ static int rockchip_pcie_setup_irq(struct rockchip_pcie *rockchip)
 	irq = platform_get_irq_byname(pdev, "client");
 	if (irq < 0) {
 		dev_err(dev, "missing client IRQ resource\n");
-		return -EINVAL;
+		return irq;
 	}
 
 	err = devm_request_irq(dev, irq, rockchip_pcie_client_irq_handler,
