@@ -84,7 +84,7 @@ int xdp_redirect_map_prog(struct xdp_md *ctx)
 
 /* Redirect require an XDP bpf_prog loaded on the TX device */
 SEC("xdp_redirect_dummy")
-int xdp_redirect_dummy(struct xdp_md *ctx)
+int xdp_redirect_dummy_prog(struct xdp_md *ctx)
 {
 	return XDP_PASS;
 }
