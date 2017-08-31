@@ -197,23 +197,3 @@ struct dmx_stc
 	unsigned int base;  /* output: divisor for stc to get 90 kHz clock */
 	__u64 stc;      /* output: stc in 'base'*90 kHz units */
     };
-
-
-
-enum dmx_source
-===============
-
-.. c:type:: dmx_source
-
-.. code-block:: c
-
-    typedef enum dmx_source {
-	DMX_SOURCE_FRONT0 = 0,
-	DMX_SOURCE_FRONT1,
-	DMX_SOURCE_FRONT2,
-	DMX_SOURCE_FRONT3,
-	DMX_SOURCE_DVR0   = 16,
-	DMX_SOURCE_DVR1,
-	DMX_SOURCE_DVR2,
-	DMX_SOURCE_DVR3
-    } dmx_source_t;

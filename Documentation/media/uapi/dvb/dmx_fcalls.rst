@@ -21,6 +21,5 @@ Demux Function Calls
     dmx-get-event
     dmx-get-stc
     dmx-get-pes-pids
-    dmx-set-source
     dmx-add-pid
     dmx-remove-pid
