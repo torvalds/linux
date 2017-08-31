@@ -1572,6 +1572,7 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 
 	return glink;
 }
+EXPORT_SYMBOL_GPL(qcom_glink_native_probe);
 
 static int qcom_glink_remove_device(struct device *dev, void *data)
 {
@@ -1604,8 +1605,10 @@ void qcom_glink_native_remove(struct qcom_glink *glink)
 	spin_unlock_irqrestore(&glink->idr_lock, flags);
 	mbox_free_channel(glink->mbox_chan);
 }
+EXPORT_SYMBOL_GPL(qcom_glink_native_remove);
 
 void qcom_glink_native_unregister(struct qcom_glink *glink)
 {
 	device_unregister(glink->dev);
 }
+EXPORT_SYMBOL_GPL(qcom_glink_native_unregister);
