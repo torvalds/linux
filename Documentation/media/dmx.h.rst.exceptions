@@ -56,7 +56,6 @@ replace symbol DMX_SOURCE_DVR3 :c:type:`dmx_source`
 replace define DMX_CHECK_CRC :c:type:`dmx_sct_filter_params`
 replace define DMX_ONESHOT :c:type:`dmx_sct_filter_params`
 replace define DMX_IMMEDIATE_START :c:type:`dmx_sct_filter_params`
-replace define DMX_KERNEL_CLIENT :c:type:`dmx_sct_filter_params`
 
 # some typedefs should point to struct/enums
 replace typedef dmx_caps_t :c:type:`dmx_caps`
