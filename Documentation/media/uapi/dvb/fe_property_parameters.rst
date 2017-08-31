@@ -116,29 +116,37 @@ Should be set only for terrestrial delivery systems.
 Possible values: ``1712000``, ``5000000``, ``6000000``, ``7000000``,
 ``8000000``, ``10000000``.
 
+======================= =======================================================
+Terrestrial Standard	Possible values for bandwidth
+======================= =======================================================
+ATSC (version 1)	No need to set. It is always 6MHz.
+DMTB			No need to set. It is always 8MHz.
+DVB-T			6MHz, 7MHz and 8MHz.
+DVB-T2			1.172 MHz, 5MHz, 6MHz, 7MHz, 8MHz and 10MHz
+ISDB-T			5MHz, 6MHz, 7MHz and 8MHz, although most places
+			use 6MHz.
+======================= =======================================================
+
+
 .. note::
 
-  #. DVB-T supports 6, 7 and 8MHz.
 
-  #. DVB-T2 supports 1.172, 5, 6, 7, 8 and 10MHz.
+  #. For ISDB-Tsb, the bandwidth can vary depending on the number of
+     connected segments.
 
-  #. ISDB-T supports 5MHz, 6MHz, 7MHz and 8MHz, although most
-     places use 6MHz.
-
-  #. On DVB-C and DVB-S/S2, the bandwidth depends on the symbol rate.
-     So, the Kernel will silently ignore setting :ref:`DTV-BANDWIDTH-HZ`.
-
-  #. For DVB-C and DVB-S/S2, the Kernel will return an estimation of the
-     bandwidth, calculated from :ref:`DTV-SYMBOL-RATE` and from
-     the rolloff, with is fixed for DVB-C and DVB-S.
-
-  #. For DVB-S2, the bandwidth estimation will use :ref:`DTV-ROLLOFF`.
-
-  #. For ISDB-Tsb, it can vary depending on the number of connected
-     segments.
-
-  #. Bandwidth in ISDB-Tsb can be easily derived from other parameters
+     It can be easily derived from other parameters
      (DTV_ISDBT_SB_SEGMENT_IDX, DTV_ISDBT_SB_SEGMENT_COUNT).
+
+  #. On Satellite and Cable delivery systems, the bandwidth depends on
+     the symbol rate. So, the Kernel will silently ignore any setting
+     :ref:`DTV-BANDWIDTH-HZ`. I will however fill it back with a
+     bandwidth estimation.
+
+     Such bandwidth estimation takes into account the symbol rate set with
+     :ref:`DTV-SYMBOL-RATE`, and the rolloff factor, with is fixed for
+     DVB-C and DVB-S.
+
+     For DVB-S2, the rolloff should also be set via :ref:`DTV-ROLLOFF`.
 
 
 .. _DTV-INVERSION:
