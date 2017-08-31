@@ -947,6 +947,15 @@ u32 mlxsw_sp_neigh4_entry_dip(struct mlxsw_sp_neigh_entry *neigh_entry)
 	return ntohl(*((__be32 *) n->primary_key));
 }
 
+struct in6_addr *
+mlxsw_sp_neigh6_entry_dip(struct mlxsw_sp_neigh_entry *neigh_entry)
+{
+	struct neighbour *n;
+
+	n = neigh_entry->key.n;
+	return (struct in6_addr *) &n->primary_key;
+}
+
 int mlxsw_sp_neigh_counter_get(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_neigh_entry *neigh_entry,
 			       u64 *p_counter)
