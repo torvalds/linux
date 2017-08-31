@@ -20,10 +20,10 @@
 #include "rf69_enum.h"
 #include "rf69_registers.h"
 
-#define F_OSC 		32000000  /* in Hz */
+#define F_OSC		32000000  /* in Hz */
 #define FREQUENCY	433920000 /* in Hz, modifying this value impacts CE certification */
-#define FIFO_SIZE 	66        /* in byte */
-#define FIFO_THRESHOLD	15 	  /* in byte */
+#define FIFO_SIZE	66		/* in byte */
+#define FIFO_THRESHOLD	15		/* in byte */
 
 int rf69_set_mode(struct spi_device *spi, enum mode mode);
 int rf69_set_data_mode(struct spi_device *spi, enum dataMode dataMode);
