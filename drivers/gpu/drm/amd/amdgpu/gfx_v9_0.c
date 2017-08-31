@@ -1152,30 +1152,22 @@ static int gfx_v9_0_ngg_en(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = &adev->gfx.gfx_ring[0];
 	int r;
-	u32 data;
-	u32 size;
-	u32 base;
+	u32 data, base;
 
 	if (!amdgpu_ngg)
 		return 0;
 
 	/* Program buffer size */
-	data = 0;
-	size = adev->gfx.ngg.buf[NGG_PRIM].size / 256;
-	data = REG_SET_FIELD(data, WD_BUF_RESOURCE_1, INDEX_BUF_SIZE, size);
-
-	size = adev->gfx.ngg.buf[NGG_POS].size / 256;
-	data = REG_SET_FIELD(data, WD_BUF_RESOURCE_1, POS_BUF_SIZE, size);
-
+	data = REG_SET_FIELD(0, WD_BUF_RESOURCE_1, INDEX_BUF_SIZE,
+			     adev->gfx.ngg.buf[NGG_PRIM].size >> 8);
+	data = REG_SET_FIELD(data, WD_BUF_RESOURCE_1, POS_BUF_SIZE,
+			     adev->gfx.ngg.buf[NGG_POS].size >> 8);
 	WREG32_SOC15(GC, 0, mmWD_BUF_RESOURCE_1, data);
 
-	data = 0;
-	size = adev->gfx.ngg.buf[NGG_CNTL].size / 256;
-	data = REG_SET_FIELD(data, WD_BUF_RESOURCE_2, CNTL_SB_BUF_SIZE, size);
-
-	size = adev->gfx.ngg.buf[NGG_PARAM].size / 1024;
-	data = REG_SET_FIELD(data, WD_BUF_RESOURCE_2, PARAM_BUF_SIZE, size);
-
+	data = REG_SET_FIELD(0, WD_BUF_RESOURCE_2, CNTL_SB_BUF_SIZE,
+			     adev->gfx.ngg.buf[NGG_CNTL].size >> 8);
+	data = REG_SET_FIELD(data, WD_BUF_RESOURCE_2, PARAM_BUF_SIZE,
+			     adev->gfx.ngg.buf[NGG_PARAM].size >> 10);
 	WREG32_SOC15(GC, 0, mmWD_BUF_RESOURCE_2, data);
 
 	/* Program buffer base address */
