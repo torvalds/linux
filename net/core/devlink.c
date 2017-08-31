@@ -31,7 +31,7 @@
 
 static struct devlink_dpipe_field devlink_dpipe_fields_ethernet[] = {
 	{
-		.name = "destination_mac",
+		.name = "destination mac",
 		.id = DEVLINK_DPIPE_FIELD_ETHERNET_DST_MAC,
 		.bitwidth = 48,
 	},
