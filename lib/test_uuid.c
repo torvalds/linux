@@ -82,7 +82,7 @@ static void __init test_uuid_test(const struct test_uuid_data *data)
 		test_uuid_failed("conversion", false, true, data->uuid, NULL);
 
 	total_tests++;
-	if (uuid_equal(&data->be, &be)) {
+	if (!uuid_equal(&data->be, &be)) {
 		sprintf(buf, "%pUb", &be);
 		test_uuid_failed("cmp", false, true, data->uuid, buf);
 	}

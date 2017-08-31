@@ -19,7 +19,7 @@
 
 struct pts_fs_info;
 
-struct pts_fs_info *devpts_acquire(struct file *);
+struct pts_fs_info *devpts_acquire(struct file *, struct vfsmount **ptsmnt);
 void devpts_release(struct pts_fs_info *);
 
 int devpts_new_index(struct pts_fs_info *);

@@ -69,6 +69,7 @@ xfs_bmbt_to_iomap(
 	iomap->offset = XFS_FSB_TO_B(mp, imap->br_startoff);
 	iomap->length = XFS_FSB_TO_B(mp, imap->br_blockcount);
 	iomap->bdev = xfs_find_bdev_for_inode(VFS_I(ip));
+	iomap->dax_dev = xfs_find_daxdev_for_inode(VFS_I(ip));
 }
 
 xfs_extlen_t
@@ -976,7 +977,6 @@ xfs_file_iomap_begin(
 	int			nimaps = 1, error = 0;
 	bool			shared = false, trimmed = false;
 	unsigned		lockmode;
-	struct block_device	*bdev;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
@@ -1087,13 +1087,6 @@ xfs_file_iomap_begin(
 
 	xfs_bmbt_to_iomap(ip, iomap, &imap);
 
-	/* optionally associate a dax device with the iomap bdev */
-	bdev = iomap->bdev;
-	if (blk_queue_dax(bdev->bd_queue))
-		iomap->dax_dev = fs_dax_get_by_host(bdev->bd_disk->disk_name);
-	else
-		iomap->dax_dev = NULL;
-
 	if (shared)
 		iomap->flags |= IOMAP_F_SHARED;
 	return 0;
@@ -1171,7 +1164,6 @@ xfs_file_iomap_end(
 	unsigned		flags,
 	struct iomap		*iomap)
 {
-	fs_put_dax(iomap->dax_dev);
 	if ((flags & IOMAP_WRITE) && iomap->type == IOMAP_DELALLOC)
 		return xfs_file_iomap_end_delalloc(XFS_I(inode), offset,
 				length, written, iomap);

@@ -356,18 +356,12 @@ static int omap_hsmmc_set_power(struct omap_hsmmc_host *host, int power_on,
 	struct mmc_host *mmc = host->mmc;
 	int ret = 0;
 
-	if (mmc_pdata(host)->set_power)
-		return mmc_pdata(host)->set_power(host->dev, power_on, vdd);
-
 	/*
 	 * If we don't see a Vcc regulator, assume it's a fixed
 	 * voltage always-on regulator.
 	 */
 	if (IS_ERR(mmc->supply.vmmc))
 		return 0;
-
-	if (mmc_pdata(host)->before_set_reg)
-		mmc_pdata(host)->before_set_reg(host->dev, power_on, vdd);
 
 	ret = omap_hsmmc_set_pbias(host, false, 0);
 	if (ret)
@@ -399,9 +393,6 @@ static int omap_hsmmc_set_power(struct omap_hsmmc_host *host, int power_on,
 		if (ret)
 			return ret;
 	}
-
-	if (mmc_pdata(host)->after_set_reg)
-		mmc_pdata(host)->after_set_reg(host->dev, power_on, vdd);
 
 	return 0;
 
@@ -469,8 +460,6 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 	int ret;
 	struct mmc_host *mmc = host->mmc;
 
-	if (mmc_pdata(host)->set_power)
-		return 0;
 
 	ret = mmc_regulator_get_supply(mmc);
 	if (ret == -EPROBE_DEFER)
@@ -2097,7 +2086,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	mmc->max_seg_size = mmc->max_req_size;
 
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
-		     MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_ERASE;
+		     MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_ERASE | MMC_CAP_CMD23;
 
 	mmc->caps |= mmc_pdata(host)->caps;
 	if (mmc->caps & MMC_CAP_8_BIT_DATA)

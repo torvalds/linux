@@ -193,6 +193,10 @@ int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 			      void *data);
 void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit);
 
+#ifdef CONFIG_PM_SLEEP
+void acpi_ec_flush_work(void);
+#endif
+
 
 /*--------------------------------------------------------------------------
                                   Suspend/Resume

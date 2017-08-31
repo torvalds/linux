@@ -502,7 +502,7 @@ static int get_clk(struct platform_device *pdev, struct clk **clkp,
 		const char *name, bool mandatory)
 {
 	struct device *dev = &pdev->dev;
-	struct clk *clk = devm_clk_get(dev, name);
+	struct clk *clk = msm_clk_get(pdev, name);
 	if (IS_ERR(clk) && mandatory) {
 		dev_err(dev, "failed to get %s (%ld)\n", name, PTR_ERR(clk));
 		return PTR_ERR(clk);
@@ -887,21 +887,21 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	}
 
 	/* mandatory clocks: */
-	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus_clk", true);
+	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus", true);
 	if (ret)
 		goto fail;
-	ret = get_clk(pdev, &mdp5_kms->ahb_clk, "iface_clk", true);
+	ret = get_clk(pdev, &mdp5_kms->ahb_clk, "iface", true);
 	if (ret)
 		goto fail;
-	ret = get_clk(pdev, &mdp5_kms->core_clk, "core_clk", true);
+	ret = get_clk(pdev, &mdp5_kms->core_clk, "core", true);
 	if (ret)
 		goto fail;
-	ret = get_clk(pdev, &mdp5_kms->vsync_clk, "vsync_clk", true);
+	ret = get_clk(pdev, &mdp5_kms->vsync_clk, "vsync", true);
 	if (ret)
 		goto fail;
 
 	/* optional clocks: */
-	get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk", false);
+	get_clk(pdev, &mdp5_kms->lut_clk, "lut", false);
 
 	/* we need to set a default rate before enabling.  Set a safe
 	 * rate first, then figure out hw revision, and then set a

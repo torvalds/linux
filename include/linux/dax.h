@@ -57,6 +57,7 @@ static inline void fs_put_dax(struct dax_device *dax_dev)
 	put_dax(dax_dev);
 }
 
+struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev);
 #else
 static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
 {
@@ -70,6 +71,11 @@ static inline struct dax_device *fs_dax_get_by_host(const char *host)
 
 static inline void fs_put_dax(struct dax_device *dax_dev)
 {
+}
+
+static inline struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
+{
+	return NULL;
 }
 #endif
 
@@ -87,6 +93,7 @@ size_t dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
 void dax_flush(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
 		size_t size);
 void dax_write_cache(struct dax_device *dax_dev, bool wc);
+bool dax_write_cache_enabled(struct dax_device *dax_dev);
 
 /*
  * We use lowest available bit in exceptional entry for locking, one bit for

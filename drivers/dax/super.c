@@ -46,6 +46,8 @@ void dax_read_unlock(int id)
 EXPORT_SYMBOL_GPL(dax_read_unlock);
 
 #ifdef CONFIG_BLOCK
+#include <linux/blkdev.h>
+
 int bdev_dax_pgoff(struct block_device *bdev, sector_t sector, size_t size,
 		pgoff_t *pgoff)
 {
@@ -58,6 +60,14 @@ int bdev_dax_pgoff(struct block_device *bdev, sector_t sector, size_t size,
 	return 0;
 }
 EXPORT_SYMBOL(bdev_dax_pgoff);
+
+struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
+{
+	if (!blk_queue_dax(bdev->bd_queue))
+		return NULL;
+	return fs_dax_get_by_host(bdev->bd_disk->disk_name);
+}
+EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
 
 /**
  * __bdev_dax_supported() - Check if the device supports dax for filesystem
@@ -277,6 +287,12 @@ void dax_write_cache(struct dax_device *dax_dev, bool wc)
 		clear_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
 }
 EXPORT_SYMBOL_GPL(dax_write_cache);
+
+bool dax_write_cache_enabled(struct dax_device *dax_dev)
+{
+	return test_bit(DAXDEV_WRITE_CACHE, &dax_dev->flags);
+}
+EXPORT_SYMBOL_GPL(dax_write_cache_enabled);
 
 bool dax_alive(struct dax_device *dax_dev)
 {

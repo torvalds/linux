@@ -398,6 +398,7 @@ static void bdw_load_gamma_lut(struct drm_crtc_state *state, u32 offset)
 		}
 
 		/* Program the max register to clamp values > 1.0. */
+		i = lut_size - 1;
 		I915_WRITE(PREC_PAL_GC_MAX(pipe, 0),
 			   drm_color_lut_extract(lut[i].red, 16));
 		I915_WRITE(PREC_PAL_GC_MAX(pipe, 1),

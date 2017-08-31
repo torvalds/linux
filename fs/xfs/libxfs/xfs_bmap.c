@@ -5435,6 +5435,7 @@ __xfs_bunmapi(
 	xfs_fsblock_t		sum;
 	xfs_filblks_t		len = *rlen;	/* length to unmap in file */
 	xfs_fileoff_t		max_len;
+	xfs_agnumber_t		prev_agno = NULLAGNUMBER, agno;
 
 	trace_xfs_bunmap(ip, bno, len, flags, _RET_IP_);
 
@@ -5534,6 +5535,17 @@ __xfs_bunmapi(
 		 */
 		del = got;
 		wasdel = isnullstartblock(del.br_startblock);
+
+		/*
+		 * Make sure we don't touch multiple AGF headers out of order
+		 * in a single transaction, as that could cause AB-BA deadlocks.
+		 */
+		if (!wasdel) {
+			agno = XFS_FSB_TO_AGNO(mp, del.br_startblock);
+			if (prev_agno != NULLAGNUMBER && prev_agno > agno)
+				break;
+			prev_agno = agno;
+		}
 		if (got.br_startoff < start) {
 			del.br_startoff = start;
 			del.br_blockcount -= start - got.br_startoff;
@@ -6498,6 +6510,15 @@ xfs_bmap_finish_one(
 {
 	xfs_fsblock_t			firstfsb;
 	int				error = 0;
+
+	/*
+	 * firstfsb is tied to the transaction lifetime and is used to
+	 * ensure correct AG locking order and schedule work item
+	 * continuations.  XFS_BUI_MAX_FAST_EXTENTS (== 1) restricts us
+	 * to only making one bmap call per transaction, so it should
+	 * be safe to have it as a local variable here.
+	 */
+	firstfsb = NULLFSBLOCK;
 
 	trace_xfs_bmap_deferred(tp->t_mountp,
 			XFS_FSB_TO_AGNO(tp->t_mountp, startblock), type,

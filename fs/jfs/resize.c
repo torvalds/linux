@@ -98,7 +98,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 		goto out;
 	}
 
-	VolumeSize = sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits;
+	VolumeSize = i_size_read(sb->s_bdev->bd_inode) >> sb->s_blocksize_bits;
 
 	if (VolumeSize) {
 		if (newLVSize > VolumeSize) {
@@ -211,7 +211,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	txQuiesce(sb);
 
 	/* Reset size of direct inode */
-	sbi->direct_inode->i_size =  sb->s_bdev->bd_inode->i_size;
+	sbi->direct_inode->i_size =  i_size_read(sb->s_bdev->bd_inode);
 
 	if (sbi->mntflag & JFS_INLINELOG) {
 		/*

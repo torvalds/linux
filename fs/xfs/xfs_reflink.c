@@ -170,6 +170,8 @@ xfs_reflink_find_shared(
 	error = xfs_alloc_read_agf(mp, tp, agno, 0, &agbp);
 	if (error)
 		return error;
+	if (!agbp)
+		return -ENOMEM;
 
 	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agno, NULL);
 
@@ -329,7 +331,7 @@ xfs_reflink_convert_cow_extent(
 	xfs_filblks_t			count_fsb,
 	struct xfs_defer_ops		*dfops)
 {
-	xfs_fsblock_t			first_block;
+	xfs_fsblock_t			first_block = NULLFSBLOCK;
 	int				nimaps = 1;
 
 	if (imap->br_state == XFS_EXT_NORM)

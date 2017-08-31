@@ -998,7 +998,7 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	psw_bits(regs.psw).ia	= sfr->basic.ia;
 	psw_bits(regs.psw).dat	= sfr->basic.T;
 	psw_bits(regs.psw).wait = sfr->basic.W;
-	psw_bits(regs.psw).per	= sfr->basic.P;
+	psw_bits(regs.psw).pstate = sfr->basic.P;
 	psw_bits(regs.psw).as	= sfr->basic.AS;
 
 	/*

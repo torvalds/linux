@@ -425,7 +425,7 @@ static int megasas_create_sg_sense_fusion(struct megasas_instance *instance)
 int
 megasas_alloc_cmdlist_fusion(struct megasas_instance *instance)
 {
-	u32 max_mpt_cmd, i;
+	u32 max_mpt_cmd, i, j;
 	struct fusion_context *fusion;
 
 	fusion = instance->ctrl_context;
@@ -450,11 +450,15 @@ megasas_alloc_cmdlist_fusion(struct megasas_instance *instance)
 		fusion->cmd_list[i] = kzalloc(sizeof(struct megasas_cmd_fusion),
 					      GFP_KERNEL);
 		if (!fusion->cmd_list[i]) {
+			for (j = 0; j < i; j++)
+				kfree(fusion->cmd_list[j]);
+			kfree(fusion->cmd_list);
 			dev_err(&instance->pdev->dev,
 				"Failed from %s %d\n",  __func__, __LINE__);
 			return -ENOMEM;
 		}
 	}
+
 	return 0;
 }
 int

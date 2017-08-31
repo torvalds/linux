@@ -1158,8 +1158,6 @@ nouveau_connector_aux_xfer(struct drm_dp_aux *obj, struct drm_dp_aux_msg *msg)
 		return -ENODEV;
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
-	if (msg->size == 0)
-		return msg->size;
 
 	ret = nvkm_i2c_aux_acquire(aux);
 	if (ret)

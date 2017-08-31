@@ -13,9 +13,9 @@
 /* Happy Meal global registers. */
 #define GREG_SWRESET	0x000UL	/* Software Reset  */
 #define GREG_CFG	0x004UL	/* Config Register */
-#define GREG_STAT	0x108UL	/* Status          */
-#define GREG_IMASK	0x10cUL	/* Interrupt Mask  */
-#define GREG_REG_SIZE	0x110UL
+#define GREG_STAT	0x100UL	/* Status          */
+#define GREG_IMASK	0x104UL	/* Interrupt Mask  */
+#define GREG_REG_SIZE	0x108UL
 
 /* Global reset register. */
 #define GREG_RESET_ETX         0x01

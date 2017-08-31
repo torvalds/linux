@@ -270,8 +270,8 @@ static int submit_reloc(struct etnaviv_gem_submit *submit, void *stream,
 		if (ret)
 			return ret;
 
-		if (r->reloc_offset >= bo->obj->base.size - sizeof(*ptr)) {
-			DRM_ERROR("relocation %u outside object", i);
+		if (r->reloc_offset > bo->obj->base.size - sizeof(*ptr)) {
+			DRM_ERROR("relocation %u outside object\n", i);
 			return -EINVAL;
 		}
 

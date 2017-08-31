@@ -692,7 +692,6 @@ static int omap3xxx_prm_late_init(void)
 {
 	struct device_node *np;
 	int irq_num;
-	int ret;
 
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
 		return 0;
@@ -712,12 +711,8 @@ static int omap3xxx_prm_late_init(void)
 	}
 
 	omap3xxx_prm_enable_io_wakeup();
-	ret = omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
-	if (!ret)
-		irq_set_status_flags(omap_prcm_event_to_irq("io"),
-				     IRQ_NOAUTOEN);
 
-	return ret;
+	return omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
 }
 
 static void __exit omap3xxx_prm_exit(void)

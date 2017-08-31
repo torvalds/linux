@@ -1194,7 +1194,11 @@ force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 			recalc_sigpending_and_wake(t);
 		}
 	}
-	if (action->sa.sa_handler == SIG_DFL)
+	/*
+	 * Don't clear SIGNAL_UNKILLABLE for traced tasks, users won't expect
+	 * debugging to leave init killable.
+	 */
+	if (action->sa.sa_handler == SIG_DFL && !t->ptrace)
 		t->signal->flags &= ~SIGNAL_UNKILLABLE;
 	ret = specific_send_sig_info(sig, info, t);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
@@ -3303,12 +3307,15 @@ SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
 #ifdef CONFIG_COMPAT
 COMPAT_SYSCALL_DEFINE1(sigpending, compat_old_sigset_t __user *, set32)
 {
+#ifdef __BIG_ENDIAN
 	sigset_t set;
-	int err = do_sigpending(&set, sizeof(old_sigset_t)); 
-	if (err == 0)
-		if (copy_to_user(set32, &set, sizeof(old_sigset_t)))
-			err = -EFAULT;
+	int err = do_sigpending(&set, sizeof(set.sig[0]));
+	if (!err)
+		err = put_user(set.sig[0], set32);
 	return err;
+#else
+	return sys_rt_sigpending((sigset_t __user *)set32, sizeof(*set32));
+#endif
 }
 #endif
 

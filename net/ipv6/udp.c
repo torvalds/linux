@@ -291,11 +291,7 @@ static struct sock *__udp6_lib_lookup_skb(struct sk_buff *skb,
 					  struct udp_table *udptable)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
-	struct sock *sk;
 
-	sk = skb_steal_sock(skb);
-	if (unlikely(sk))
-		return sk;
 	return __udp6_lib_lookup(dev_net(skb->dev), &iph->saddr, sport,
 				 &iph->daddr, dport, inet6_iif(skb),
 				 udptable, skb);
@@ -332,6 +328,15 @@ struct sock *udp6_lib_lookup(struct net *net, const struct in6_addr *saddr, __be
 EXPORT_SYMBOL_GPL(udp6_lib_lookup);
 #endif
 
+/* do not use the scratch area len for jumbogram: their length execeeds the
+ * scratch area space; note that the IP6CB flags is still in the first
+ * cacheline, so checking for jumbograms is cheap
+ */
+static int udp6_skb_len(struct sk_buff *skb)
+{
+	return unlikely(inet6_is_jumbogram(skb)) ? skb->len : udp_skb_len(skb);
+}
+
 /*
  *	This should be easy, if there is something there we
  *	return it, otherwise we block.
@@ -362,7 +367,7 @@ try_again:
 	if (!skb)
 		return err;
 
-	ulen = udp_skb_len(skb);
+	ulen = udp6_skb_len(skb);
 	copied = len;
 	if (copied > ulen - off)
 		copied = ulen - off;
@@ -804,6 +809,24 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	if (udp6_csum_init(skb, uh, proto))
 		goto csum_error;
 
+	/* Check if the socket is already available, e.g. due to early demux */
+	sk = skb_steal_sock(skb);
+	if (sk) {
+		struct dst_entry *dst = skb_dst(skb);
+		int ret;
+
+		if (unlikely(sk->sk_rx_dst != dst))
+			udp_sk_rx_dst_set(sk, dst);
+
+		ret = udpv6_queue_rcv_skb(sk, skb);
+		sock_put(sk);
+
+		/* a return value > 0 means to resubmit the input */
+		if (ret > 0)
+			return ret;
+		return 0;
+	}
+
 	/*
 	 *	Multicast receive code
 	 */
@@ -812,11 +835,6 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 				saddr, daddr, udptable, proto);
 
 	/* Unicast */
-
-	/*
-	 * check socket cache ... must talk to Alan about his plans
-	 * for sock caches... i'll skip this for now.
-	 */
 	sk = __udp6_lib_lookup_skb(skb, uh->source, uh->dest, udptable);
 	if (sk) {
 		int ret;

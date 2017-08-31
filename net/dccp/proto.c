@@ -201,10 +201,7 @@ void dccp_destroy_sock(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
-	/*
-	 * DCCP doesn't use sk_write_queue, just sk_send_head
-	 * for retransmissions
-	 */
+	__skb_queue_purge(&sk->sk_write_queue);
 	if (sk->sk_send_head != NULL) {
 		kfree_skb(sk->sk_send_head);
 		sk->sk_send_head = NULL;

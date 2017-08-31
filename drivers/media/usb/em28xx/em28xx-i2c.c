@@ -982,8 +982,6 @@ int em28xx_i2c_register(struct em28xx *dev, unsigned bus,
 			dev_err(&dev->intf->dev,
 				"%s: em28xx_i2_eeprom failed! retval [%d]\n",
 				__func__, retval);
-
-			return retval;
 		}
 	}
 

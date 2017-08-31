@@ -351,7 +351,7 @@ static void nmi_ipi_lock_start(unsigned long *flags)
 	hard_irq_disable();
 	while (atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1) {
 		raw_local_irq_restore(*flags);
-		cpu_relax();
+		spin_until_cond(atomic_read(&__nmi_ipi_lock) == 0);
 		raw_local_irq_save(*flags);
 		hard_irq_disable();
 	}
@@ -360,7 +360,7 @@ static void nmi_ipi_lock_start(unsigned long *flags)
 static void nmi_ipi_lock(void)
 {
 	while (atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1)
-		cpu_relax();
+		spin_until_cond(atomic_read(&__nmi_ipi_lock) == 0);
 }
 
 static void nmi_ipi_unlock(void)
@@ -475,7 +475,7 @@ int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
 	nmi_ipi_lock_start(&flags);
 	while (nmi_ipi_busy_count) {
 		nmi_ipi_unlock_end(&flags);
-		cpu_relax();
+		spin_until_cond(nmi_ipi_busy_count == 0);
 		nmi_ipi_lock_start(&flags);
 	}
 
@@ -1003,21 +1003,13 @@ static struct sched_domain_topology_level powerpc_topology[] = {
 	{ NULL, },
 };
 
-static __init long smp_setup_cpu_workfn(void *data __always_unused)
-{
-	smp_ops->setup_cpu(boot_cpuid);
-	return 0;
-}
-
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	/*
-	 * We want the setup_cpu() here to be called on the boot CPU, but
-	 * init might run on any CPU, so make sure it's invoked on the boot
-	 * CPU.
+	 * We are running pinned to the boot CPU, see rest_init().
 	 */
 	if (smp_ops && smp_ops->setup_cpu)
-		work_on_cpu_safe(boot_cpuid, smp_setup_cpu_workfn, NULL);
+		smp_ops->setup_cpu(boot_cpuid);
 
 	if (smp_ops && smp_ops->bringup_done)
 		smp_ops->bringup_done();

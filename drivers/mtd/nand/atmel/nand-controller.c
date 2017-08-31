@@ -1201,7 +1201,7 @@ static int atmel_smc_nand_prepare_smcconf(struct atmel_nand *nand,
 	 * tRC < 30ns implies EDO mode. This controller does not support this
 	 * mode.
 	 */
-	if (conf->timings.sdr.tRC_min < 30)
+	if (conf->timings.sdr.tRC_min < 30000)
 		return -ENOTSUPP;
 
 	atmel_smc_cs_conf_init(smcconf);
