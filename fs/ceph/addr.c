@@ -784,7 +784,6 @@ static int ceph_writepages_start(struct address_space *mapping,
 	pgoff_t index, start, end;
 	int range_whole = 0;
 	int should_loop = 1;
-	pgoff_t max_pages = 0, max_pages_ever = 0;
 	struct ceph_snap_context *snapc = NULL, *last_snapc = NULL, *pgsnapc;
 	struct pagevec pvec;
 	int done = 0;
@@ -808,7 +807,6 @@ static int ceph_writepages_start(struct address_space *mapping,
 	}
 	if (fsc->mount_options->wsize < wsize)
 		wsize = fsc->mount_options->wsize;
-	max_pages_ever = wsize >> PAGE_SHIFT;
 
 	pagevec_init(&pvec, 0);
 
@@ -850,26 +848,25 @@ retry:
 	last_snapc = snapc;
 
 	while (!done && index <= end) {
-		unsigned i;
-		pgoff_t strip_unit_end = 0;
 		int num_ops = 0, op_idx;
-		int pvec_pages, locked_pages = 0;
+		unsigned i, pvec_pages, max_pages, locked_pages = 0;
 		struct page **pages = NULL, **data_pages;
 		mempool_t *pool = NULL;	/* Becomes non-null if mempool used */
 		struct page *page;
-		int want;
+		pgoff_t strip_unit_end = 0;
 		u64 offset = 0, len = 0;
 
-		max_pages = max_pages_ever;
+		max_pages = wsize >> PAGE_SHIFT;
 
 get_more_pages:
-		want = min(end - index,
-			   min((pgoff_t)PAGEVEC_SIZE,
-			       max_pages - (pgoff_t)locked_pages) - 1)
-			+ 1;
+		pvec_pages = min_t(unsigned, PAGEVEC_SIZE,
+				   max_pages - locked_pages);
+		if (end - index < (u64)(pvec_pages - 1))
+			pvec_pages = (unsigned)(end - index) + 1;
+
 		pvec_pages = pagevec_lookup_tag(&pvec, mapping, &index,
 						PAGECACHE_TAG_DIRTY,
-						want);
+						pvec_pages);
 		dout("pagevec_lookup_tag got %d\n", pvec_pages);
 		if (!pvec_pages && !locked_pages)
 			break;
