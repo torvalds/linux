@@ -4827,12 +4827,16 @@ xlog_recover_process_intents(
 	int			error = 0;
 	struct xfs_ail_cursor	cur;
 	struct xfs_ail		*ailp;
+#if defined(DEBUG) || defined(XFS_WARN)
 	xfs_lsn_t		last_lsn;
+#endif
 
 	ailp = log->l_ailp;
 	spin_lock(&ailp->xa_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
+#if defined(DEBUG) || defined(XFS_WARN)
 	last_lsn = xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block);
+#endif
 	while (lip != NULL) {
 		/*
 		 * We're done when we see something other than an intent.

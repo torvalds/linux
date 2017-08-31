@@ -570,7 +570,9 @@ xfs_buf_item_unlock(
 	bool			aborted = !!(lip->li_flags & XFS_LI_ABORTED);
 	bool			hold = !!(bip->bli_flags & XFS_BLI_HOLD);
 	bool			dirty = !!(bip->bli_flags & XFS_BLI_DIRTY);
+#if defined(DEBUG) || defined(XFS_WARN)
 	bool			ordered = !!(bip->bli_flags & XFS_BLI_ORDERED);
+#endif
 
 	/* Clear the buffer's association with this transaction. */
 	bp->b_transp = NULL;

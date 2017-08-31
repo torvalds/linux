@@ -1499,14 +1499,11 @@ xfs_iext_realloc_indirect(
 	xfs_ifork_t	*ifp,		/* inode fork pointer */
 	int		new_size)	/* new indirection array size */
 {
-	int		nlists;		/* number of irec's (ex lists) */
-	int		size;		/* current indirection array size */
-
 	ASSERT(ifp->if_flags & XFS_IFEXTIREC);
-	nlists = ifp->if_real_bytes / XFS_IEXT_BUFSZ;
-	size = nlists * sizeof(xfs_ext_irec_t);
 	ASSERT(ifp->if_real_bytes);
-	ASSERT((new_size >= 0) && (new_size != size));
+	ASSERT((new_size >= 0) &&
+	       (new_size != ((ifp->if_real_bytes / XFS_IEXT_BUFSZ) *
+			     sizeof(xfs_ext_irec_t))));
 	if (new_size == 0) {
 		xfs_iext_destroy(ifp);
 	} else {
