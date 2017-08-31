@@ -1975,7 +1975,7 @@ static void dcn10_power_on_fe(
 	/*TODO: REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, 0x1f);*/
 
 	if (plane_state) {
-		dm_logger_write(dc->ctx->logger, LOG_DEBUG,
+		dm_logger_write(dc->ctx->logger, LOG_DC,
 				"Pipe:%d 0x%x: addr hi:0x%x, "
 				"addr low:0x%x, "
 				"src: %d, %d, %d,"
@@ -1993,7 +1993,7 @@ static void dcn10_power_on_fe(
 				plane_state->dst_rect.width,
 				plane_state->dst_rect.height);
 
-		dm_logger_write(dc->ctx->logger, LOG_DEBUG,
+		dm_logger_write(dc->ctx->logger, LOG_DC,
 				"Pipe %d: width, height, x, y\n"
 				"viewport:%d, %d, %d, %d\n"
 				"recout:  %d, %d, %d, %d\n",
