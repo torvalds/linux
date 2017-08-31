@@ -86,9 +86,8 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 	 * or repositiong of an entity that does not coincide with
 	 * sd->next_in_service, then a full lookup in the active tree
 	 * can be avoided. In fact, it is enough to check whether the
-	 * just-modified entity has a higher priority than
-	 * sd->next_in_service, or, even if it has the same priority
-	 * as sd->next_in_service, is eligible and has a lower virtual
+	 * just-modified entity has the same priority as
+	 * sd->next_in_service, is eligible and has a lower virtual
 	 * finish time than sd->next_in_service. If this compound
 	 * condition holds, then the new entity becomes the new
 	 * next_in_service. Otherwise no change is needed.
@@ -104,9 +103,8 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 
 		/*
 		 * If there is already a next_in_service candidate
-		 * entity, then compare class priorities or timestamps
-		 * to decide whether to replace sd->service_tree with
-		 * new_entity.
+		 * entity, then compare timestamps to decide whether
+		 * to replace sd->service_tree with new_entity.
 		 */
 		if (next_in_service) {
 			unsigned int new_entity_class_idx =
@@ -114,10 +112,6 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 			struct bfq_service_tree *st =
 				sd->service_tree + new_entity_class_idx;
 
-			/*
-			 * For efficiency, evaluate the most likely
-			 * sub-condition first.
-			 */
 			replace_next =
 				(new_entity_class_idx ==
 				 bfq_class_idx(next_in_service)
@@ -125,10 +119,7 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 				 !bfq_gt(new_entity->start, st->vtime)
 				 &&
 				 bfq_gt(next_in_service->finish,
-					new_entity->finish))
-				||
-				new_entity_class_idx <
-				bfq_class_idx(next_in_service);
+					new_entity->finish));
 		}
 
 		if (replace_next)
