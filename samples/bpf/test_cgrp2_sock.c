@@ -112,6 +112,70 @@ static int prog_load(__u32 idx, __u32 mark, __u32 prio)
 	return ret;
 }
 
+static int get_bind_to_device(int sd, char *name, size_t len)
+{
+	socklen_t optlen = len;
+	int rc;
+
+	name[0] = '\0';
+	rc = getsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, name, &optlen);
+	if (rc < 0)
+		perror("setsockopt(SO_BINDTODEVICE)");
+
+	return rc;
+}
+
+static unsigned int get_somark(int sd)
+{
+	unsigned int mark = 0;
+	socklen_t optlen = sizeof(mark);
+	int rc;
+
+	rc = getsockopt(sd, SOL_SOCKET, SO_MARK, &mark, &optlen);
+	if (rc < 0)
+		perror("getsockopt(SO_MARK)");
+
+	return mark;
+}
+
+static unsigned int get_priority(int sd)
+{
+	unsigned int prio = 0;
+	socklen_t optlen = sizeof(prio);
+	int rc;
+
+	rc = getsockopt(sd, SOL_SOCKET, SO_PRIORITY, &prio, &optlen);
+	if (rc < 0)
+		perror("getsockopt(SO_PRIORITY)");
+
+	return prio;
+}
+
+static int show_sockopts(int family)
+{
+	unsigned int mark, prio;
+	char name[16];
+	int sd;
+
+	sd = socket(family, SOCK_DGRAM, 17);
+	if (sd < 0) {
+		perror("socket");
+		return 1;
+	}
+
+	if (get_bind_to_device(sd, name, sizeof(name)) < 0)
+		return 1;
+
+	mark = get_somark(sd);
+	prio = get_priority(sd);
+
+	close(sd);
+
+	printf("sd %d: dev %s, mark %u, priority %u\n", sd, name, mark, prio);
+
+	return 0;
+}
+
 static int usage(const char *argv0)
 {
 	printf("Usage:\n");
@@ -120,6 +184,9 @@ static int usage(const char *argv0)
 	printf("\n");
 	printf("  Detach a program\n");
 	printf("  %s -d cg-path\n", argv0);
+	printf("\n");
+	printf("  Show inherited socket settings (mark, priority, and device)\n");
+	printf("  %s [-6]\n", argv0);
 	return EXIT_FAILURE;
 }
 
@@ -128,10 +195,11 @@ int main(int argc, char **argv)
 	__u32 idx = 0, mark = 0, prio = 0;
 	const char *cgrp_path = NULL;
 	int cg_fd, prog_fd, ret;
+	int family = PF_INET;
 	int do_attach = 1;
 	int rc;
 
-	while ((rc = getopt(argc, argv, "db:m:p:")) != -1) {
+	while ((rc = getopt(argc, argv, "db:m:p:6")) != -1) {
 		switch (rc) {
 		case 'd':
 			do_attach = 0;
@@ -152,13 +220,16 @@ int main(int argc, char **argv)
 		case 'p':
 			prio = strtoumax(optarg, NULL, 0);
 			break;
+		case '6':
+			family = PF_INET6;
+			break;
 		default:
 			return usage(argv[0]);
 		}
 	}
 
 	if (optind == argc)
-		return usage(argv[0]);
+		return show_sockopts(family);
 
 	cgrp_path = argv[optind];
 	if (!cgrp_path) {
