@@ -15,13 +15,13 @@
 
 #include <lantiq_soc.h>
 
-/* boot mode mask */
-#define BM_MASK			0x0005
-
-/* allow platform code to find out what surce we booted from */
+/*
+ * Dummy implementation.  Used to allow platform code to find out what
+ * source was booted from
+ */
 unsigned char ltq_boot_select(void)
 {
-	return ltq_sys1_r32(SYS1_BM) & BM_MASK;
+	return BS_SPI;
 }
 
 #define BOOT_REG_BASE	(KSEG1 | 0x1F200000)
