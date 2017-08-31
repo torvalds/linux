@@ -536,8 +536,7 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 		return ret;
 	}
 
-	if (!atomic_read(&fcc->issing_flush)) {
-		atomic_inc(&fcc->issing_flush);
+	if (atomic_inc_return(&fcc->issing_flush) == 1) {
 		ret = submit_flush_wait(sbi);
 		atomic_dec(&fcc->issing_flush);
 
@@ -547,7 +546,6 @@ int f2fs_issue_flush(struct f2fs_sb_info *sbi)
 
 	init_completion(&cmd.wait);
 
-	atomic_inc(&fcc->issing_flush);
 	llist_add(&cmd.llnode, &fcc->issue_list);
 
 	/* update issue_list before we wake up issue_flush thread */
