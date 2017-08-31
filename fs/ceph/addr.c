@@ -851,7 +851,6 @@ retry:
 
 	while (!done && index <= end) {
 		unsigned i;
-		int first;
 		pgoff_t strip_unit_end = 0;
 		int num_ops = 0, op_idx;
 		int pvec_pages, locked_pages = 0;
@@ -864,7 +863,6 @@ retry:
 		max_pages = max_pages_ever;
 
 get_more_pages:
-		first = -1;
 		want = min(end - index,
 			   min((pgoff_t)PAGEVEC_SIZE,
 			       max_pages - (pgoff_t)locked_pages) - 1)
@@ -888,7 +886,7 @@ get_more_pages:
 			    unlikely(page->mapping != mapping)) {
 				dout("!dirty or !mapping %p\n", page);
 				unlock_page(page);
-				break;
+				continue;
 			}
 			if (!wbc->range_cyclic && page->index > end) {
 				dout("end of range %p\n", page);
@@ -901,10 +899,6 @@ get_more_pages:
 				unlock_page(page);
 				break;
 			}
-			if (wbc->sync_mode != WB_SYNC_NONE) {
-				dout("waiting on writeback %p\n", page);
-				wait_on_page_writeback(page);
-			}
 			if (page_offset(page) >= ceph_wbc.i_size) {
 				dout("%p page eof %llu\n",
 				     page, ceph_wbc.i_size);
@@ -913,9 +907,13 @@ get_more_pages:
 				break;
 			}
 			if (PageWriteback(page)) {
-				dout("%p under writeback\n", page);
-				unlock_page(page);
-				break;
+				if (wbc->sync_mode == WB_SYNC_NONE) {
+					dout("%p under writeback\n", page);
+					unlock_page(page);
+					continue;
+				}
+				dout("waiting on writeback %p\n", page);
+				wait_on_page_writeback(page);
 			}
 
 			/* only if matching snap context */
@@ -924,15 +922,13 @@ get_more_pages:
 				dout("page snapc %p %lld > oldest %p %lld\n",
 				     pgsnapc, pgsnapc->seq, snapc, snapc->seq);
 				unlock_page(page);
-				if (!locked_pages)
-					continue; /* keep looking for snap */
-				break;
+				continue;
 			}
 
 			if (!clear_page_dirty_for_io(page)) {
 				dout("%p !clear_page_dirty_for_io\n", page);
 				unlock_page(page);
-				break;
+				continue;
 			}
 
 			/*
@@ -988,8 +984,6 @@ get_more_pages:
 			}
 
 			/* note position of first page in pvec */
-			if (first < 0)
-				first = i;
 			dout("%p will write page %p idx %lu\n",
 			     inode, page, page->index);
 
@@ -1000,8 +994,10 @@ get_more_pages:
 						  BLK_RW_ASYNC);
 			}
 
-			pages[locked_pages] = page;
-			locked_pages++;
+
+			pages[locked_pages++] = page;
+			pvec.pages[i] = NULL;
+
 			len += PAGE_SIZE;
 		}
 
@@ -1009,23 +1005,23 @@ get_more_pages:
 		if (!locked_pages)
 			goto release_pvec_pages;
 		if (i) {
-			int j;
-			BUG_ON(!locked_pages || first < 0);
+			unsigned j, n = 0;
+			/* shift unused page to beginning of pvec */
+			for (j = 0; j < pvec_pages; j++) {
+				if (!pvec.pages[j])
+					continue;
+				if (n < j)
+					pvec.pages[n] = pvec.pages[j];
+				n++;
+			}
+			pvec.nr = n;
 
 			if (pvec_pages && i == pvec_pages &&
 			    locked_pages < max_pages) {
 				dout("reached end pvec, trying for more\n");
-				pagevec_reinit(&pvec);
+				pagevec_release(&pvec);
 				goto get_more_pages;
 			}
-
-			/* shift unused pages over in the pvec...  we
-			 * will need to release them below. */
-			for (j = i; j < pvec_pages; j++) {
-				dout(" pvec leftover page %p\n", pvec.pages[j]);
-				pvec.pages[j-i+first] = pvec.pages[j];
-			}
-			pvec.nr -= i-first;
 		}
 
 new_request:
