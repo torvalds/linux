@@ -583,8 +583,10 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 				fdb->updated = now;
 			if (unlikely(added_by_user))
 				fdb->added_by_user = 1;
-			if (unlikely(fdb_modified))
+			if (unlikely(fdb_modified)) {
+				trace_br_fdb_update(br, source, addr, vid, added_by_user);
 				fdb_notify(br, fdb, RTM_NEWNEIGH);
+			}
 		}
 	} else {
 		spin_lock(&br->hash_lock);
@@ -593,6 +595,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 			if (fdb) {
 				if (unlikely(added_by_user))
 					fdb->added_by_user = 1;
+				trace_br_fdb_update(br, source, addr, vid, added_by_user);
 				fdb_notify(br, fdb, RTM_NEWNEIGH);
 			}
 		}

@@ -92,6 +92,37 @@ TRACE_EVENT(fdb_delete,
 		  __entry->addr[4], __entry->addr[5], __entry->vid)
 );
 
+TRACE_EVENT(br_fdb_update,
+
+	TP_PROTO(struct net_bridge *br, struct net_bridge_port *source,
+		 const unsigned char *addr, u16 vid, bool added_by_user),
+
+	TP_ARGS(br, source, addr, vid, added_by_user),
+
+	TP_STRUCT__entry(
+		__string(br_dev, br->dev->name)
+		__string(dev, source->dev->name)
+		__array(unsigned char, addr, ETH_ALEN)
+		__field(u16, vid)
+		__field(bool, added_by_user)
+	),
+
+	TP_fast_assign(
+		__assign_str(br_dev, br->dev->name);
+		__assign_str(dev, source->dev->name);
+		memcpy(__entry->addr, addr, ETH_ALEN);
+		__entry->vid = vid;
+		__entry->added_by_user = added_by_user;
+	),
+
+	TP_printk("br_dev %s source %s addr %02x:%02x:%02x:%02x:%02x:%02x vid %u added_by_user %d",
+		  __get_str(br_dev), __get_str(dev), __entry->addr[0],
+		  __entry->addr[1], __entry->addr[2], __entry->addr[3],
+		  __entry->addr[4], __entry->addr[5], __entry->vid,
+		  __entry->added_by_user)
+);
+
+
 #endif /* _TRACE_BRIDGE_H */
 
 /* This part must be outside protection */
