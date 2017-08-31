@@ -1008,21 +1008,33 @@ mlxsw_sp_neigh_entry_remove(struct mlxsw_sp *mlxsw_sp,
 }
 
 static bool
-mlxsw_sp_neigh4_counter_should_alloc(struct mlxsw_sp *mlxsw_sp)
+mlxsw_sp_neigh_counter_should_alloc(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_neigh_entry *neigh_entry)
 {
 	struct devlink *devlink;
+	const char *table_name;
+
+	switch (mlxsw_sp_neigh_entry_type(neigh_entry)) {
+	case AF_INET:
+		table_name = MLXSW_SP_DPIPE_TABLE_NAME_HOST4;
+		break;
+	case AF_INET6:
+		table_name = MLXSW_SP_DPIPE_TABLE_NAME_HOST6;
+		break;
+	default:
+		WARN_ON(1);
+		return false;
+	}
 
 	devlink = priv_to_devlink(mlxsw_sp->core);
-	return devlink_dpipe_table_counter_enabled(devlink,
-						   MLXSW_SP_DPIPE_TABLE_NAME_HOST4);
+	return devlink_dpipe_table_counter_enabled(devlink, table_name);
 }
 
 static void
 mlxsw_sp_neigh_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_neigh_entry *neigh_entry)
 {
-	if (mlxsw_sp_neigh_entry_type(neigh_entry) != AF_INET ||
-	    !mlxsw_sp_neigh4_counter_should_alloc(mlxsw_sp))
+	if (!mlxsw_sp_neigh_counter_should_alloc(mlxsw_sp, neigh_entry))
 		return;
 
 	if (mlxsw_sp_flow_counter_alloc(mlxsw_sp, &neigh_entry->counter_index))
