@@ -977,7 +977,8 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	if (dev->caps.num_ports > MLX4_MAX_PORTS) {
 		mlx4_err(dev, "HCA has %d ports, but we only support %d, aborting\n",
 			 dev->caps.num_ports, MLX4_MAX_PORTS);
-		return -ENODEV;
+		err = -ENODEV;
+		goto free_mem;
 	}
 
 	mlx4_replace_zero_macs(dev);
