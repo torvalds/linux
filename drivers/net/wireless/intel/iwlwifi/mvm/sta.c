@@ -2158,6 +2158,7 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 		reorder_buf->mvm = mvm;
 		reorder_buf->queue = i;
 		reorder_buf->sta_id = sta_id;
+		reorder_buf->tid = data->tid;
 		reorder_buf->valid = false;
 		for (j = 0; j < reorder_buf->buf_size; j++)
 			__skb_queue_head_init(&reorder_buf->entries[j]);

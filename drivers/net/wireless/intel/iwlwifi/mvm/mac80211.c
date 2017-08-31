@@ -4186,31 +4186,6 @@ static void iwl_mvm_event_bar_rx_callback(struct iwl_mvm *mvm,
 				event->u.ba.ssn);
 }
 
-static void
-iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
-				     const struct ieee80211_event *event)
-{
-	struct iwl_fw_dbg_trigger_tlv *trig;
-	struct iwl_fw_dbg_trigger_ba *ba_trig;
-
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_BA))
-		return;
-
-	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_BA);
-	ba_trig = (void *)trig->data;
-	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt,
-					   ieee80211_vif_to_wdev(vif), trig))
-		return;
-
-	if (!(le16_to_cpu(ba_trig->frame_timeout) & BIT(event->u.ba.tid)))
-		return;
-
-	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
-				"Frame from %pM timed out, tid %d",
-				event->u.ba.sta->addr, event->u.ba.tid);
-}
-
 static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       const struct ieee80211_event *event)
@@ -4225,7 +4200,8 @@ static void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 		iwl_mvm_event_bar_rx_callback(mvm, vif, event);
 		break;
 	case BA_FRAME_TIMEOUT:
-		iwl_mvm_event_frame_timeout_callback(mvm, vif, event);
+		iwl_mvm_event_frame_timeout_callback(mvm, vif, event->u.ba.sta,
+						     event->u.ba.tid);
 		break;
 	default:
 		break;
