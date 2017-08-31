@@ -625,9 +625,9 @@ static void i_capture_start(struct urb *urb)
 		       urb->iso_frame_desc[0].actual_length);
 		for (pack = 1; pack < urb->number_of_packets; ++pack) {
 			int l = urb->iso_frame_desc[pack].actual_length;
-			printk(" %i", l);
+			printk(KERN_CONT " %i", l);
 		}
-		printk("\n");
+		printk(KERN_CONT "\n");
 	}
 #endif
 	if (!empty && s->state < usb_stream_sync1)
