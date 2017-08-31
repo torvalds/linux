@@ -427,6 +427,10 @@ static inline u16 cec_phys_addr_for_input(u16 phys_addr, u8 input)
 
 static inline int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
 {
+	if (parent)
+		*parent = phys_addr;
+	if (port)
+		*port = 0;
 	return 0;
 }
 
