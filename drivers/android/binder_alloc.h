@@ -142,6 +142,8 @@ extern void binder_alloc_deferred_release(struct binder_alloc *alloc);
 extern int binder_alloc_get_allocated_count(struct binder_alloc *alloc);
 extern void binder_alloc_print_allocated(struct seq_file *m,
 					 struct binder_alloc *alloc);
+void binder_alloc_print_pages(struct seq_file *m,
+			      struct binder_alloc *alloc);
 
 /**
  * binder_alloc_get_free_async_space() - get free space available for async
