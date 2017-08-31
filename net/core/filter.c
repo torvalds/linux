@@ -3150,6 +3150,20 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 }
 
 static const struct bpf_func_proto *
+sock_filter_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	/* inet and inet6 sockets are created in a process
+	 * context so there is always a valid uid/gid
+	 */
+	case BPF_FUNC_get_current_uid_gid:
+		return &bpf_get_current_uid_gid_proto;
+	default:
+		return bpf_base_func_proto(func_id);
+	}
+}
+
+static const struct bpf_func_proto *
 sk_filter_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
@@ -4233,7 +4247,7 @@ const struct bpf_verifier_ops lwt_xmit_prog_ops = {
 };
 
 const struct bpf_verifier_ops cg_sock_prog_ops = {
-	.get_func_proto		= bpf_base_func_proto,
+	.get_func_proto		= sock_filter_func_proto,
 	.is_valid_access	= sock_filter_is_valid_access,
 	.convert_ctx_access	= sock_filter_convert_ctx_access,
 };
