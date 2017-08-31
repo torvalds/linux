@@ -567,8 +567,8 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 				keys = data[9] & 0x07;
 			}
 		} else {
-			buttons = ((data[6] & 0x10) << 10) |
-			          ((data[5] & 0x10) << 9)  |
+			buttons = ((data[6] & 0x10) << 5)  |
+			          ((data[5] & 0x10) << 4)  |
 			          ((data[6] & 0x0F) << 4)  |
 			          (data[5] & 0x0F);
 		}
