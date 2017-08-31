@@ -73,9 +73,6 @@ static const struct net_device_ops rmnet_vnd_ops = {
  */
 void rmnet_vnd_setup(struct net_device *rmnet_dev)
 {
-	struct rmnet_priv *priv;
-
-	priv = netdev_priv(rmnet_dev);
 	netdev_dbg(rmnet_dev, "Setting up device %s\n", rmnet_dev->name);
 
 	rmnet_dev->netdev_ops = &rmnet_vnd_ops;
