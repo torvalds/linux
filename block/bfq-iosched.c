@@ -720,7 +720,7 @@ static void bfq_updated_next_req(struct bfq_data *bfqd,
 		entity->budget = new_budget;
 		bfq_log_bfqq(bfqd, bfqq, "updated next rq: new budget %lu",
 					 new_budget);
-		bfq_requeue_bfqq(bfqd, bfqq);
+		bfq_requeue_bfqq(bfqd, bfqq, false);
 	}
 }
 
@@ -2563,7 +2563,7 @@ static void __bfq_bfqq_expire(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 
 		bfq_del_bfqq_busy(bfqd, bfqq, true);
 	} else {
-		bfq_requeue_bfqq(bfqd, bfqq);
+		bfq_requeue_bfqq(bfqd, bfqq, true);
 		/*
 		 * Resort priority tree of potential close cooperators.
 		 */
