@@ -1187,9 +1187,9 @@ page_hit:
 			nid, nid_of_node(page), ino_of_node(page),
 			ofs_of_node(page), cpver_of_node(page),
 			next_blkaddr_of_node(page));
-		ClearPageUptodate(page);
 		err = -EINVAL;
 out_err:
+		ClearPageUptodate(page);
 		f2fs_put_page(page, 1);
 		return ERR_PTR(err);
 	}
