@@ -844,8 +844,9 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 
 		/* In mfunc, calculate proxy and tunnel qp offsets for the PF here,
 		 * since the PF does not call mlx4_slave_caps */
-		dev->caps.spec_qps = kcalloc(dev->caps.num_ports, sizeof(dev->caps.spec_qps), GFP_KERNEL);
-
+		dev->caps.spec_qps = kcalloc(dev->caps.num_ports,
+					     sizeof(*dev->caps.spec_qps),
+					     GFP_KERNEL);
 		if (!dev->caps.spec_qps) {
 			err = -ENOMEM;
 			goto err_mem;
