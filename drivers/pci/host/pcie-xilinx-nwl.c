@@ -812,7 +812,7 @@ static int nwl_pcie_parse_dt(struct nwl_pcie *pcie,
 	pcie->irq_intx = platform_get_irq_byname(pdev, "intx");
 	if (pcie->irq_intx < 0) {
 		dev_err(dev, "failed to get intx IRQ %d\n", pcie->irq_intx);
-		return -EINVAL;
+		return pcie->irq_intx;
 	}
 
 	irq_set_chained_handler_and_data(pcie->irq_intx,
