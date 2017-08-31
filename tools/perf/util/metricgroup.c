@@ -189,6 +189,182 @@ static bool match_metric(const char *n, const char *list)
 	return false;
 }
 
+struct mep {
+	struct rb_node nd;
+	const char *name;
+	struct strlist *metrics;
+};
+
+static int mep_cmp(struct rb_node *rb_node, const void *entry)
+{
+	struct mep *a = container_of(rb_node, struct mep, nd);
+	struct mep *b = (struct mep *)entry;
+
+	return strcmp(a->name, b->name);
+}
+
+static struct rb_node *mep_new(struct rblist *rl __maybe_unused,
+					const void *entry)
+{
+	struct mep *me = malloc(sizeof(struct mep));
+
+	if (!me)
+		return NULL;
+	memcpy(me, entry, sizeof(struct mep));
+	me->name = strdup(me->name);
+	if (!me->name)
+		goto out_me;
+	me->metrics = strlist__new(NULL, NULL);
+	if (!me->metrics)
+		goto out_name;
+	return &me->nd;
+out_name:
+	free((char *)me->name);
+out_me:
+	free(me);
+	return NULL;
+}
+
+static struct mep *mep_lookup(struct rblist *groups, const char *name)
+{
+	struct rb_node *nd;
+	struct mep me = {
+		.name = name
+	};
+	nd = rblist__find(groups, &me);
+	if (nd)
+		return container_of(nd, struct mep, nd);
+	rblist__add_node(groups, &me);
+	nd = rblist__find(groups, &me);
+	if (nd)
+		return container_of(nd, struct mep, nd);
+	return NULL;
+}
+
+static void mep_delete(struct rblist *rl __maybe_unused,
+		       struct rb_node *nd)
+{
+	struct mep *me = container_of(nd, struct mep, nd);
+
+	strlist__delete(me->metrics);
+	free((void *)me->name);
+	free(me);
+}
+
+static void metricgroup__print_strlist(struct strlist *metrics, bool raw)
+{
+	struct str_node *sn;
+	int n = 0;
+
+	strlist__for_each_entry (sn, metrics) {
+		if (raw)
+			printf("%s%s", n > 0 ? " " : "", sn->s);
+		else
+			printf("  %s\n", sn->s);
+		n++;
+	}
+	if (raw)
+		putchar('\n');
+}
+
+void metricgroup__print(bool metrics, bool metricgroups, char *filter,
+			bool raw)
+{
+	struct pmu_events_map *map = perf_pmu__find_map();
+	struct pmu_event *pe;
+	int i;
+	struct rblist groups;
+	struct rb_node *node, *next;
+	struct strlist *metriclist = NULL;
+
+	if (!map)
+		return;
+
+	if (!metricgroups) {
+		metriclist = strlist__new(NULL, NULL);
+		if (!metriclist)
+			return;
+	}
+
+	rblist__init(&groups);
+	groups.node_new = mep_new;
+	groups.node_cmp = mep_cmp;
+	groups.node_delete = mep_delete;
+	for (i = 0; ; i++) {
+		const char *g;
+		pe = &map->table[i];
+
+		if (!pe->name && !pe->metric_group && !pe->metric_name)
+			break;
+		if (!pe->metric_expr)
+			continue;
+		g = pe->metric_group;
+		if (!g && pe->metric_name) {
+			if (pe->name)
+				continue;
+			g = "No_group";
+		}
+		if (g) {
+			char *omg;
+			char *mg = strdup(g);
+
+			if (!mg)
+				return;
+			omg = mg;
+			while ((g = strsep(&mg, ";")) != NULL) {
+				struct mep *me;
+				char *s;
+
+				if (*g == 0)
+					g = "No_group";
+				while (isspace(*g))
+					g++;
+				if (filter && !strstr(g, filter))
+					continue;
+				if (raw)
+					s = (char *)pe->metric_name;
+				else {
+					if (asprintf(&s, "%s\n\t[%s]",
+						     pe->metric_name, pe->desc) < 0)
+						return;
+				}
+
+				if (!s)
+					continue;
+
+				if (!metricgroups) {
+					strlist__add(metriclist, s);
+				} else {
+					me = mep_lookup(&groups, g);
+					if (!me)
+						continue;
+					strlist__add(me->metrics, s);
+				}
+			}
+			free(omg);
+		}
+	}
+
+	if (metricgroups && !raw)
+		printf("\nMetric Groups:\n\n");
+	else if (metrics && !raw)
+		printf("\nMetrics:\n\n");
+
+	for (node = rb_first(&groups.entries); node; node = next) {
+		struct mep *me = container_of(node, struct mep, nd);
+
+		if (metricgroups)
+			printf("%s%s%s", me->name, metrics ? ":" : "", raw ? " " : "\n");
+		if (metrics)
+			metricgroup__print_strlist(me->metrics, raw);
+		next = rb_next(node);
+		rblist__remove_node(&groups, node);
+	}
+	if (!metricgroups)
+		metricgroup__print_strlist(metriclist, raw);
+	strlist__delete(metriclist);
+}
+
 static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 				   struct list_head *group_list)
 {

@@ -28,6 +28,7 @@
 #include "probe-file.h"
 #include "asm/bug.h"
 #include "util/parse-branch-options.h"
+#include "metricgroup.h"
 
 #define MAX_NAME_LEN 100
 
@@ -2380,6 +2381,8 @@ void print_events(const char *event_glob, bool name_only, bool quiet_flag,
 	print_tracepoint_events(NULL, NULL, name_only);
 
 	print_sdt_events(NULL, NULL, name_only);
+
+	metricgroup__print(true, true, NULL, name_only);
 }
 
 int parse_events__is_hardcoded_term(struct parse_events_term *term)
