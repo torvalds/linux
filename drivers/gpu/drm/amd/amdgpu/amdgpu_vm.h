@@ -73,6 +73,16 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_PTE_MTYPE(a)    ((uint64_t)a << 57)
 #define AMDGPU_PTE_MTYPE_MASK	AMDGPU_PTE_MTYPE(3ULL)
 
+/* For Raven */
+#define AMDGPU_MTYPE_CC 2
+
+#define AMDGPU_PTE_DEFAULT_ATC  (AMDGPU_PTE_SYSTEM      \
+                                | AMDGPU_PTE_SNOOPED    \
+                                | AMDGPU_PTE_EXECUTABLE \
+                                | AMDGPU_PTE_READABLE   \
+                                | AMDGPU_PTE_WRITEABLE  \
+                                | AMDGPU_PTE_MTYPE(AMDGPU_MTYPE_CC))
+
 /* How to programm VM fault handling */
 #define AMDGPU_VM_FAULT_STOP_NEVER	0
 #define AMDGPU_VM_FAULT_STOP_FIRST	1

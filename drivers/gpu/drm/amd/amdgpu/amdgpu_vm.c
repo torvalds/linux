@@ -328,9 +328,10 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 				AMDGPU_GEM_CREATE_SHADOW);
 
 	if (vm->pte_support_ats) {
-		init_value = AMDGPU_PTE_SYSTEM;
+		init_value = AMDGPU_PTE_DEFAULT_ATC;
 		if (level != adev->vm_manager.num_level - 1)
 			init_value |= AMDGPU_PDE_PTE;
+
 	}
 
 	/* walk over the address space and allocate the page tables */
@@ -2017,7 +2018,7 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 		list_del(&mapping->list);
 
 		if (vm->pte_support_ats)
-			init_pte_value = AMDGPU_PTE_SYSTEM;
+			init_pte_value = AMDGPU_PTE_DEFAULT_ATC;
 
 		r = amdgpu_vm_bo_update_mapping(adev, NULL, NULL, vm,
 						mapping->start, mapping->last,
@@ -2629,7 +2630,9 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 		if (adev->asic_type == CHIP_RAVEN) {
 			vm->pte_support_ats = true;
-			init_pde_value = AMDGPU_PTE_SYSTEM | AMDGPU_PDE_PTE;
+			init_pde_value = AMDGPU_PTE_DEFAULT_ATC
+					| AMDGPU_PDE_PTE;
+
 		}
 	} else
 		vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
