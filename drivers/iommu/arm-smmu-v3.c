@@ -929,13 +929,22 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 	queue_write(Q_ENT(q, cons), cmd, q->ent_dwords);
 }
 
+static void arm_smmu_cmdq_insert_cmd(struct arm_smmu_device *smmu, u64 *cmd)
+{
+	struct arm_smmu_queue *q = &smmu->cmdq.q;
+	bool wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
+
+	while (queue_insert_raw(q, cmd) == -ENOSPC) {
+		if (queue_poll_cons(q, false, wfe))
+			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+	}
+}
+
 static void arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
 				    struct arm_smmu_cmdq_ent *ent)
 {
 	u64 cmd[CMDQ_ENT_DWORDS];
 	unsigned long flags;
-	bool wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
-	struct arm_smmu_queue *q = &smmu->cmdq.q;
 
 	if (arm_smmu_cmdq_build_cmd(cmd, ent)) {
 		dev_warn(smmu->dev, "ignoring unknown CMDQ opcode 0x%x\n",
@@ -944,14 +953,27 @@ static void arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
 	}
 
 	spin_lock_irqsave(&smmu->cmdq.lock, flags);
-	while (queue_insert_raw(q, cmd) == -ENOSPC) {
-		if (queue_poll_cons(q, false, wfe))
-			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
-	}
-
-	if (ent->opcode == CMDQ_OP_CMD_SYNC && queue_poll_cons(q, true, wfe))
-		dev_err_ratelimited(smmu->dev, "CMD_SYNC timeout\n");
+	arm_smmu_cmdq_insert_cmd(smmu, cmd);
 	spin_unlock_irqrestore(&smmu->cmdq.lock, flags);
+}
+
+static void arm_smmu_cmdq_issue_sync(struct arm_smmu_device *smmu)
+{
+	u64 cmd[CMDQ_ENT_DWORDS];
+	unsigned long flags;
+	bool wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
+	struct arm_smmu_cmdq_ent ent = { .opcode = CMDQ_OP_CMD_SYNC };
+	int ret;
+
+	arm_smmu_cmdq_build_cmd(cmd, &ent);
+
+	spin_lock_irqsave(&smmu->cmdq.lock, flags);
+	arm_smmu_cmdq_insert_cmd(smmu, cmd);
+	ret = queue_poll_cons(&smmu->cmdq.q, true, wfe);
+	spin_unlock_irqrestore(&smmu->cmdq.lock, flags);
+
+	if (ret)
+		dev_err_ratelimited(smmu->dev, "CMD_SYNC timeout\n");
 }
 
 /* Context descriptor manipulation functions */
@@ -1027,8 +1049,7 @@ static void arm_smmu_sync_ste_for_sid(struct arm_smmu_device *smmu, u32 sid)
 	};
 
 	arm_smmu_cmdq_issue_cmd(smmu, &cmd);
-	cmd.opcode = CMDQ_OP_CMD_SYNC;
-	arm_smmu_cmdq_issue_cmd(smmu, &cmd);
+	arm_smmu_cmdq_issue_sync(smmu);
 }
 
 static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
@@ -1355,10 +1376,7 @@ static irqreturn_t arm_smmu_combined_irq_handler(int irq, void *dev)
 /* IO_PGTABLE API */
 static void __arm_smmu_tlb_sync(struct arm_smmu_device *smmu)
 {
-	struct arm_smmu_cmdq_ent cmd;
-
-	cmd.opcode = CMDQ_OP_CMD_SYNC;
-	arm_smmu_cmdq_issue_cmd(smmu, &cmd);
+	arm_smmu_cmdq_issue_sync(smmu);
 }
 
 static void arm_smmu_tlb_sync(void *cookie)
@@ -2402,8 +2420,7 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool bypass)
 	/* Invalidate any cached configuration */
 	cmd.opcode = CMDQ_OP_CFGI_ALL;
 	arm_smmu_cmdq_issue_cmd(smmu, &cmd);
-	cmd.opcode = CMDQ_OP_CMD_SYNC;
-	arm_smmu_cmdq_issue_cmd(smmu, &cmd);
+	arm_smmu_cmdq_issue_sync(smmu);
 
 	/* Invalidate any stale TLB entries */
 	if (smmu->features & ARM_SMMU_FEAT_HYP) {
@@ -2413,8 +2430,7 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool bypass)
 
 	cmd.opcode = CMDQ_OP_TLBI_NSNH_ALL;
 	arm_smmu_cmdq_issue_cmd(smmu, &cmd);
-	cmd.opcode = CMDQ_OP_CMD_SYNC;
-	arm_smmu_cmdq_issue_cmd(smmu, &cmd);
+	arm_smmu_cmdq_issue_sync(smmu);
 
 	/* Event queue */
 	writeq_relaxed(smmu->evtq.q.q_base, smmu->base + ARM_SMMU_EVTQ_BASE);
