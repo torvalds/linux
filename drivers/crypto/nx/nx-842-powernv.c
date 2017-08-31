@@ -243,6 +243,13 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	case CSB_CC_TEMPL_OVERFLOW:
 		CSB_ERR(csb, "Compressed data template shows data past end");
 		return -EINVAL;
+	case CSB_CC_EXCEED_BYTE_COUNT:	/* P9 or later */
+		/*
+		 * DDE byte count exceeds the limit specified in Maximum
+		 * byte count register.
+		 */
+		CSB_ERR(csb, "DDE byte count exceeds the limit");
+		return -EINVAL;
 
 	/* these should not happen */
 	case CSB_CC_INVALID_ALIGN:
@@ -284,8 +291,16 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		CSB_ERR(csb, "Too many DDEs in DDL");
 		return -EINVAL;
 	case CSB_CC_TRANSPORT:
+	case CSB_CC_INVALID_CRB:	/* P9 or later */
 		/* shouldn't happen, we setup CRB correctly */
 		CSB_ERR(csb, "Invalid CRB");
+		return -EINVAL;
+	case CSB_CC_INVALID_DDE:	/* P9 or later */
+		/*
+		 * shouldn't happen, setup_direct/indirect_dde creates
+		 * DDE right
+		 */
+		CSB_ERR(csb, "Invalid DDE");
 		return -EINVAL;
 	case CSB_CC_SEGMENTED_DDL:
 		/* shouldn't happen, setup_ddl creates DDL right */
@@ -329,6 +344,9 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		return -EPROTO;
 	case CSB_CC_HW:
 		CSB_ERR(csb, "Correctable hardware error");
+		return -EPROTO;
+	case CSB_CC_HW_EXPIRED_TIMER:	/* P9 or later */
+		CSB_ERR(csb, "Job did not finish within allowed time");
 		return -EPROTO;
 
 	default:
