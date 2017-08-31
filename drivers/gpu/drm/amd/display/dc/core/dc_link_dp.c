@@ -1750,7 +1750,7 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 		test_pattern = DP_TEST_PATTERN_80BIT_CUSTOM;
 		break;
 	case PHY_TEST_PATTERN_CP2520_1:
-		test_pattern = DP_TEST_PATTERN_CP2520_1;
+		test_pattern = DP_TEST_PATTERN_HBR2_COMPLIANCE_EYE;
 		break;
 	case PHY_TEST_PATTERN_CP2520_2:
 		test_pattern = DP_TEST_PATTERN_CP2520_2;
