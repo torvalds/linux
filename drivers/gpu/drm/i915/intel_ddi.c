@@ -1879,10 +1879,17 @@ u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int n_entries;
 
-	if (encoder->type == INTEL_OUTPUT_EDP)
-		intel_ddi_get_buf_trans_edp(dev_priv, &n_entries);
-	else
-		intel_ddi_get_buf_trans_dp(dev_priv, &n_entries);
+	if (IS_CANNONLAKE(dev_priv)) {
+		if (encoder->type == INTEL_OUTPUT_EDP)
+			cnl_get_buf_trans_edp(dev_priv, &n_entries);
+		else
+			cnl_get_buf_trans_dp(dev_priv, &n_entries);
+	} else {
+		if (encoder->type == INTEL_OUTPUT_EDP)
+			intel_ddi_get_buf_trans_edp(dev_priv, &n_entries);
+		else
+			intel_ddi_get_buf_trans_dp(dev_priv, &n_entries);
+	}
 
 	if (WARN_ON(n_entries < 1))
 		n_entries = 1;
