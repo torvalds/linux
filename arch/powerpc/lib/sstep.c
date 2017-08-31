@@ -2865,7 +2865,8 @@ int emulate_loadstore(struct pt_regs *regs, struct instruction_op *op)
 				v32 = byterev_4(v32);
 			regs->gpr[rd] = v32;
 			ea += 4;
-			++rd;
+			/* reg number wraps from 31 to 0 for lsw[ix] */
+			rd = (rd + 1) & 0x1f;
 		}
 		break;
 
@@ -2934,7 +2935,8 @@ int emulate_loadstore(struct pt_regs *regs, struct instruction_op *op)
 			if (err)
 				break;
 			ea += 4;
-			++rd;
+			/* reg number wraps from 31 to 0 for stsw[ix] */
+			rd = (rd + 1) & 0x1f;
 		}
 		break;
 
