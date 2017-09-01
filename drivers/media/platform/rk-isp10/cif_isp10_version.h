@@ -62,8 +62,11 @@
  *The running of isp0 or isp1 is ok,
  *but running of isp0 and isp1 at the same time has not been tested.
  *
+ *v0.1.8:
+ *Fix oops error when soc_clk_disable is called in rk3399.
+ *
  */
 
-#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 7)
+#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 8)
 
 #endif

@@ -478,7 +478,9 @@ static int soc_clk_disable(void)
 		clk_disable_unprepare(clk_rst->aclk_isp0_wrapper);
 		clk_disable_unprepare(clk_rst->clk_isp0);
 		clk_disable_unprepare(clk_rst->pclk_dphyrx);
-		clk_set_parent(clk_rst->cif_clk_out, clk_rst->cif_clk_pll);
+		if (!IS_ERR_OR_NULL(clk_rst->cif_clk_pll))
+			clk_set_parent(clk_rst->cif_clk_out,
+				clk_rst->cif_clk_pll);
 		clk_disable_unprepare(clk_rst->cif_clk_out);
 		clk_disable_unprepare(clk_rst->pclk_dphy_ref);
 	} else {
@@ -491,7 +493,9 @@ static int soc_clk_disable(void)
 		clk_disable_unprepare(clk_rst->pclk_dphytxrx);
 		clk_disable_unprepare(clk_rst->cif_clk_mipi_dsi);
 		clk_disable_unprepare(clk_rst->cif_clk_mipi_dphy_cfg);
-		clk_set_parent(clk_rst->cif_clk_out, clk_rst->cif_clk_pll);
+		if (!IS_ERR_OR_NULL(clk_rst->cif_clk_pll))
+			clk_set_parent(clk_rst->cif_clk_out,
+				clk_rst->cif_clk_pll);
 		clk_disable_unprepare(clk_rst->cif_clk_out);
 		clk_disable_unprepare(clk_rst->pclk_dphy_ref);
 	}
