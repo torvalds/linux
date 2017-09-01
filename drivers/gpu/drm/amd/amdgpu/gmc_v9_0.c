@@ -719,13 +719,10 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	tmp = RREG32_SOC15(HDP, 0, mmHDP_MISC_CNTL);
-	tmp |= HDP_MISC_CNTL__FLUSH_INVALIDATE_CACHE_MASK;
-	WREG32_SOC15(HDP, 0, mmHDP_MISC_CNTL, tmp);
+	WREG32_FIELD15(HDP, 0, HDP_MISC_CNTL, FLUSH_INVALIDATE_CACHE, 1);
 
 	tmp = RREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL);
 	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
-
 
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
 		value = false;
@@ -734,7 +731,6 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 
 	gfxhub_v1_0_set_fault_enable_default(adev, value);
 	mmhub_v1_0_set_fault_enable_default(adev, value);
-
 	gmc_v9_0_gart_flush_gpu_tlb(adev, 0);
 
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
