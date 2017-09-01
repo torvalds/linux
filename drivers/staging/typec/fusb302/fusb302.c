@@ -1723,7 +1723,7 @@ static enum power_supply_property fusb302_psy_properties[] = {
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 };
 
-const struct power_supply_desc fusb302_psy_desc = {
+static const struct power_supply_desc fusb302_psy_desc = {
 	.name		= "fusb302-typec-source",
 	.type		= POWER_SUPPLY_TYPE_USB_TYPE_C,
 	.properties	= fusb302_psy_properties,
