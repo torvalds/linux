@@ -691,11 +691,25 @@ static int _rsnd_src_stop_gen2(struct rsnd_mod *mod)
 {
 	rsnd_src_irq_disable_gen2(mod);
 
-	rsnd_mod_write(mod, SRC_CTRL, 0);
+	/*
+	 * stop SRC output only
+	 * see rsnd_src_quit_gen2
+	 */
+	rsnd_mod_write(mod, SRC_CTRL, 0x01);
 
 	rsnd_src_error_record_gen2(mod);
 
 	return rsnd_src_stop(mod);
+}
+
+static int rsnd_src_quit_gen2(struct rsnd_mod *mod,
+			      struct rsnd_dai_stream *io,
+			      struct rsnd_priv *priv)
+{
+	/* stop both out/in */
+	rsnd_mod_write(mod, SRC_CTRL, 0);
+
+	return 0;
 }
 
 static void __rsnd_src_interrupt_gen2(struct rsnd_mod *mod,
@@ -971,7 +985,7 @@ static struct rsnd_mod_ops rsnd_src_gen2_ops = {
 	.probe	= rsnd_src_probe_gen2,
 	.remove	= rsnd_src_remove_gen2,
 	.init	= rsnd_src_init_gen2,
-	.quit	= rsnd_src_quit,
+	.quit	= rsnd_src_quit_gen2,
 	.start	= rsnd_src_start_gen2,
 	.stop	= rsnd_src_stop_gen2,
 	.hw_params = rsnd_src_hw_params,
