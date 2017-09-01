@@ -526,6 +526,11 @@ static struct platform_driver ipmidriver = {
 		.bus = &platform_bus_type
 	}
 };
+/*
+ * This mutex protects adding/removing BMCs on the ipmidriver's device
+ * list.  This way we can pull items out of the driver's list and reuse
+ * them.
+ */
 static DEFINE_MUTEX(ipmidriver_mutex);
 
 static LIST_HEAD(ipmi_interfaces);
@@ -2440,16 +2445,23 @@ static int __find_bmc_guid(struct device *dev, void *data)
 	return memcmp(to_bmc_device(dev)->guid, id, 16) == 0;
 }
 
+/*
+ * Must be called with ipmidriver_mutex held.  Returns with the
+ * bmc's usecount incremented, if it is non-NULL.
+ */
 static struct bmc_device *ipmi_find_bmc_guid(struct device_driver *drv,
 					     unsigned char *guid)
 {
 	struct device *dev;
+	struct bmc_device *bmc = NULL;
 
 	dev = driver_find_device(drv, NULL, guid, __find_bmc_guid);
-	if (dev)
-		return to_bmc_device(dev);
-	else
-		return NULL;
+	if (dev) {
+		bmc = to_bmc_device(dev);
+		kref_get(&bmc->usecount);
+		put_device(dev);
+	}
+	return bmc;
 }
 
 struct prod_dev_id {
@@ -2470,6 +2482,10 @@ static int __find_bmc_prod_dev_id(struct device *dev, void *data)
 		&& bmc->id.device_id == id->device_id);
 }
 
+/*
+ * Must be called with ipmidriver_mutex held.  Returns with the
+ * bmc's usecount incremented, if it is non-NULL.
+ */
 static struct bmc_device *ipmi_find_bmc_prod_dev_id(
 	struct device_driver *drv,
 	unsigned int product_id, unsigned char device_id)
@@ -2479,12 +2495,15 @@ static struct bmc_device *ipmi_find_bmc_prod_dev_id(
 		.device_id = device_id,
 	};
 	struct device *dev;
+	struct bmc_device *bmc = NULL;
 
 	dev = driver_find_device(drv, NULL, &id, __find_bmc_prod_dev_id);
-	if (dev)
-		return to_bmc_device(dev);
-	else
-		return NULL;
+	if (dev) {
+		bmc = to_bmc_device(dev);
+		kref_get(&bmc->usecount);
+		put_device(dev);
+	}
+	return bmc;
 }
 
 static void
@@ -2514,8 +2533,8 @@ static void ipmi_bmc_unregister(ipmi_smi_t intf)
 
 	mutex_lock(&ipmidriver_mutex);
 	kref_put(&bmc->usecount, cleanup_bmc_device);
-	intf->bmc = NULL;
 	mutex_unlock(&ipmidriver_mutex);
+	intf->bmc = NULL;
 }
 
 static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
@@ -2524,18 +2543,18 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
 	struct bmc_device *bmc = intf->bmc;
 	struct bmc_device *old_bmc;
 
-	mutex_lock(&ipmidriver_mutex);
-
 	/*
 	 * Try to find if there is an bmc_device struct
 	 * representing the interfaced BMC already
 	 */
+	mutex_lock(&ipmidriver_mutex);
 	if (bmc->guid_set)
 		old_bmc = ipmi_find_bmc_guid(&ipmidriver.driver, bmc->guid);
 	else
 		old_bmc = ipmi_find_bmc_prod_dev_id(&ipmidriver.driver,
 						    bmc->id.product_id,
 						    bmc->id.device_id);
+	mutex_unlock(&ipmidriver_mutex);
 
 	/*
 	 * If there is already an bmc_device, free the new one,
@@ -2546,9 +2565,6 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
 		intf->bmc = old_bmc;
 		bmc = old_bmc;
 
-		kref_get(&bmc->usecount);
-		mutex_unlock(&ipmidriver_mutex);
-
 		printk(KERN_INFO
 		       "ipmi: interfacing existing BMC (man_id: 0x%6.6x,"
 		       " prod_id: 0x%4.4x, dev_id: 0x%2.2x)\n",
@@ -2558,14 +2574,17 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
 	} else {
 		unsigned char orig_dev_id = bmc->id.device_id;
 		int warn_printed = 0;
+		struct bmc_device *tmp_bmc;
 
 		snprintf(bmc->name, sizeof(bmc->name),
 			 "ipmi_bmc.%4.4x", bmc->id.product_id);
 		bmc->pdev.name = bmc->name;
 
-		while (ipmi_find_bmc_prod_dev_id(&ipmidriver.driver,
+		mutex_lock(&ipmidriver_mutex);
+		while ((tmp_bmc = ipmi_find_bmc_prod_dev_id(&ipmidriver.driver,
 						 bmc->id.product_id,
-						 bmc->id.device_id)) {
+						 bmc->id.device_id))) {
+			kref_put(&tmp_bmc->usecount, cleanup_bmc_device);
 			if (!warn_printed) {
 				printk(KERN_WARNING PFX
 				       "This machine has two different BMCs"
