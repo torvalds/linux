@@ -1697,17 +1697,30 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 	spin_lock(&vm->status_lock);
 	while (!list_empty(&vm->moved)) {
 		struct amdgpu_bo_va *bo_va;
+		struct reservation_object *resv;
 
 		bo_va = list_first_entry(&vm->moved,
 			struct amdgpu_bo_va, base.vm_status);
 		spin_unlock(&vm->status_lock);
 
+		resv = bo_va->base.bo->tbo.resv;
+
 		/* Per VM BOs never need to bo cleared in the page tables */
-		clear = bo_va->base.bo->tbo.resv != vm->root.base.bo->tbo.resv;
+		if (resv == vm->root.base.bo->tbo.resv)
+			clear = false;
+		/* Try to reserve the BO to avoid clearing its ptes */
+		else if (reservation_object_trylock(resv))
+			clear = false;
+		/* Somebody else is using the BO right now */
+		else
+			clear = true;
 
 		r = amdgpu_vm_bo_update(adev, bo_va, clear);
 		if (r)
 			return r;
+
+		if (!clear && resv != vm->root.base.bo->tbo.resv)
+			reservation_object_unlock(resv);
 
 		spin_lock(&vm->status_lock);
 	}
