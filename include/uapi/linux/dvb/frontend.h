@@ -239,11 +239,11 @@ enum fe_sec_mini_cmd {
  * @FE_NONE:		The frontend doesn't have any kind of lock.
  *			That's the initial frontend status
  * @FE_HAS_SIGNAL:	Has found something above the noise level.
- * @FE_HAS_CARRIER:	Has found a DVB signal.
+ * @FE_HAS_CARRIER:	Has found a signal.
  * @FE_HAS_VITERBI:	FEC inner coding (Viterbi, LDPC or other inner code).
  *			is stable.
  * @FE_HAS_SYNC:	Synchronization bytes was found.
- * @FE_HAS_LOCK:	DVB were locked and everything is working.
+ * @FE_HAS_LOCK:	Digital TV were locked and everything is working.
  * @FE_TIMEDOUT:	Fo lock within the last about 2 seconds.
  * @FE_REINIT:		Frontend was reinitialized, application is recommended
  *			to reset DiSEqC, tone and parameters.
@@ -269,7 +269,7 @@ enum fe_status {
  * This parameter indicates if spectral inversion should be presumed or
  * not. In the automatic setting (``INVERSION_AUTO``) the hardware will try
  * to figure out the correct setting by itself. If the hardware doesn't
- * support, the DVB core will try to lock at the carrier first with
+ * support, the %dvb_frontend will try to lock at the carrier first with
  * inversion off. If it fails, it will try to enable inversion.
  */
 enum fe_spectral_inversion {
