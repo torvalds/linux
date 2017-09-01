@@ -584,7 +584,6 @@ static int rsi_sdio_load_data_master_write(struct rsi_hw *adapter,
 	}
 
 	for (offset = 0, i = 0; i < num_blocks; i++, offset += block_size) {
-		memset(temp_buf, 0, block_size);
 		memcpy(temp_buf, ta_firmware + offset, block_size);
 		lsb_address = (u16)base_address;
 		status = rsi_sdio_write_register_multiple

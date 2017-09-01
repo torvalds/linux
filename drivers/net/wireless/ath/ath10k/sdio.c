@@ -1344,8 +1344,6 @@ static void ath10k_sdio_irq_handler(struct sdio_func *func)
 
 	sdio_claim_host(ar_sdio->func);
 
-	wake_up(&ar_sdio->irq_wq);
-
 	if (ret && ret != -ECANCELED)
 		ath10k_warn(ar, "failed to process pending SDIO interrupts: %d\n",
 			    ret);
@@ -1999,8 +1997,6 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 		ret = -ENOMEM;
 		goto err_free_bmi_buf;
 	}
-
-	init_waitqueue_head(&ar_sdio->irq_wq);
 
 	for (i = 0; i < ATH10K_SDIO_BUS_REQUEST_MAX_NUM; i++)
 		ath10k_sdio_free_bus_req(ar, &ar_sdio->bus_req[i]);

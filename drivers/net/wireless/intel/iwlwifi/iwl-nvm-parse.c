@@ -915,7 +915,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		prev_reg_rule_flags = reg_rule_flags;
 
 		IWL_DEBUG_DEV(dev, IWL_DL_LAR,
-			      "Ch. %d [%sGHz] %s%s%s%s%s%s%s%s%s%s%s%s(0x%02x) reg_flags 0x%x: %s\n",
+			      "Ch. %d [%sGHz] %s%s%s%s%s%s%s%s%s%s%s%s(0x%02x)\n",
 			      center_freq,
 			      band == NL80211_BAND_5GHZ ? "5.2" : "2.4",
 			      CHECK_AND_PRINT_I(VALID),
@@ -930,7 +930,12 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 			      CHECK_AND_PRINT_I(80MHZ),
 			      CHECK_AND_PRINT_I(160MHZ),
 			      CHECK_AND_PRINT_I(DC_HIGH),
-			      ch_flags, reg_rule_flags,
+			      ch_flags);
+		IWL_DEBUG_DEV(dev, IWL_DL_LAR,
+			      "Ch. %d [%sGHz] reg_flags 0x%x: %s\n",
+			      center_freq,
+			      band == NL80211_BAND_5GHZ ? "5.2" : "2.4",
+			      reg_rule_flags,
 			      ((ch_flags & NVM_CHANNEL_ACTIVE) &&
 			       !(ch_flags & NVM_CHANNEL_RADAR))
 					 ? "Ad-Hoc" : "");

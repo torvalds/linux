@@ -26,6 +26,7 @@
 #include <linux/crc32.h>
 #include <linux/spinlock.h>
 #include <linux/circ_buf.h>
+#include <linux/log2.h>
 
 #include "qtn_hw_ids.h"
 #include "pcie_bus_priv.h"
@@ -39,11 +40,11 @@ MODULE_PARM_DESC(use_msi, "set 0 to use legacy interrupt");
 
 static unsigned int tx_bd_size_param = 32;
 module_param(tx_bd_size_param, uint, 0644);
-MODULE_PARM_DESC(tx_bd_size_param, "Tx descriptors queue size");
+MODULE_PARM_DESC(tx_bd_size_param, "Tx descriptors queue size, power of two");
 
 static unsigned int rx_bd_size_param = 256;
 module_param(rx_bd_size_param, uint, 0644);
-MODULE_PARM_DESC(rx_bd_size_param, "Rx descriptors queue size");
+MODULE_PARM_DESC(rx_bd_size_param, "Rx descriptors queue size, power of two");
 
 static u8 flashboot = 1;
 module_param(flashboot, byte, 0644);
@@ -183,8 +184,10 @@ static void __iomem *qtnf_map_bar(struct qtnf_pcie_bus_priv *priv, u8 index)
 		return IOMEM_ERR_PTR(ret);
 
 	busaddr = pci_resource_start(priv->pdev, index);
-	vaddr = pcim_iomap_table(priv->pdev)[index];
 	len = pci_resource_len(priv->pdev, index);
+	vaddr = pcim_iomap_table(priv->pdev)[index];
+	if (!vaddr)
+		return IOMEM_ERR_PTR(-ENOMEM);
 
 	pr_debug("BAR%u vaddr=0x%p busaddr=%pad len=%u\n",
 		 index, vaddr, &busaddr, (int)len);
@@ -247,19 +250,19 @@ static int qtnf_pcie_init_memory(struct qtnf_pcie_bus_priv *priv)
 	int ret = -ENOMEM;
 
 	priv->sysctl_bar = qtnf_map_bar(priv, QTN_SYSCTL_BAR);
-	if (IS_ERR_OR_NULL(priv->sysctl_bar)) {
+	if (IS_ERR(priv->sysctl_bar)) {
 		pr_err("failed to map BAR%u\n", QTN_SYSCTL_BAR);
 		return ret;
 	}
 
 	priv->dmareg_bar = qtnf_map_bar(priv, QTN_DMA_BAR);
-	if (IS_ERR_OR_NULL(priv->dmareg_bar)) {
+	if (IS_ERR(priv->dmareg_bar)) {
 		pr_err("failed to map BAR%u\n", QTN_DMA_BAR);
 		return ret;
 	}
 
 	priv->epmem_bar = qtnf_map_bar(priv, QTN_SHMEM_BAR);
-	if (IS_ERR_OR_NULL(priv->epmem_bar)) {
+	if (IS_ERR(priv->epmem_bar)) {
 		pr_err("failed to map BAR%u\n", QTN_SHMEM_BAR);
 		return ret;
 	}
@@ -400,10 +403,12 @@ static int alloc_bd_table(struct qtnf_pcie_bus_priv *priv)
 	priv->rx_bd_vbase = vaddr;
 	priv->rx_bd_pbase = paddr;
 
-	writel(QTN_HOST_LO32(paddr),
-	       PCIE_HDP_TX_HOST_Q_BASE_L(priv->pcie_reg_base));
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	writel(QTN_HOST_HI32(paddr),
 	       PCIE_HDP_TX_HOST_Q_BASE_H(priv->pcie_reg_base));
+#endif
+	writel(QTN_HOST_LO32(paddr),
+	       PCIE_HDP_TX_HOST_Q_BASE_L(priv->pcie_reg_base));
 	writel(priv->rx_bd_num | (sizeof(struct qtnf_rx_bd)) << 16,
 	       PCIE_HDP_TX_HOST_Q_SZ_CTRL(priv->pcie_reg_base));
 
@@ -444,8 +449,10 @@ static int skb2rbd_attach(struct qtnf_pcie_bus_priv *priv, u16 index)
 	/* sync up all descriptor updates */
 	wmb();
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	writel(QTN_HOST_HI32(paddr),
 	       PCIE_HDP_HHBM_BUF_PTR_H(priv->pcie_reg_base));
+#endif
 	writel(QTN_HOST_LO32(paddr),
 	       PCIE_HDP_HHBM_BUF_PTR(priv->pcie_reg_base));
 
@@ -480,7 +487,7 @@ static void free_xfer_buffers(void *data)
 
 	/* free rx buffers */
 	for (i = 0; i < priv->rx_bd_num; i++) {
-		if (priv->rx_skb[i]) {
+		if (priv->rx_skb && priv->rx_skb[i]) {
 			rxbd = &priv->rx_bd_vbase[i];
 			paddr = QTN_HOST_ADDR(le32_to_cpu(rxbd->addr_h),
 					      le32_to_cpu(rxbd->addr));
@@ -493,21 +500,72 @@ static void free_xfer_buffers(void *data)
 
 	/* free tx buffers */
 	for (i = 0; i < priv->tx_bd_num; i++) {
-		if (priv->tx_skb[i]) {
+		if (priv->tx_skb && priv->tx_skb[i]) {
 			dev_kfree_skb_any(priv->tx_skb[i]);
 			priv->tx_skb[i] = NULL;
 		}
 	}
 }
 
+static int qtnf_hhbm_init(struct qtnf_pcie_bus_priv *priv)
+{
+	u32 val;
+
+	val = readl(PCIE_HHBM_CONFIG(priv->pcie_reg_base));
+	val |= HHBM_CONFIG_SOFT_RESET;
+	writel(val, PCIE_HHBM_CONFIG(priv->pcie_reg_base));
+	usleep_range(50, 100);
+	val &= ~HHBM_CONFIG_SOFT_RESET;
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	val |= HHBM_64BIT;
+#endif
+	writel(val, PCIE_HHBM_CONFIG(priv->pcie_reg_base));
+	writel(priv->rx_bd_num, PCIE_HHBM_Q_LIMIT_REG(priv->pcie_reg_base));
+
+	return 0;
+}
+
 static int qtnf_pcie_init_xfer(struct qtnf_pcie_bus_priv *priv)
 {
 	int ret;
+	u32 val;
 
 	priv->tx_bd_num = tx_bd_size_param;
 	priv->rx_bd_num = rx_bd_size_param;
 	priv->rx_bd_w_index = 0;
 	priv->rx_bd_r_index = 0;
+
+	if (!priv->tx_bd_num || !is_power_of_2(priv->tx_bd_num)) {
+		pr_err("tx_bd_size_param %u is not power of two\n",
+		       priv->tx_bd_num);
+		return -EINVAL;
+	}
+
+	val = priv->tx_bd_num * sizeof(struct qtnf_tx_bd);
+	if (val > PCIE_HHBM_MAX_SIZE) {
+		pr_err("tx_bd_size_param %u is too large\n",
+		       priv->tx_bd_num);
+		return -EINVAL;
+	}
+
+	if (!priv->rx_bd_num || !is_power_of_2(priv->rx_bd_num)) {
+		pr_err("rx_bd_size_param %u is not power of two\n",
+		       priv->rx_bd_num);
+		return -EINVAL;
+	}
+
+	val = priv->rx_bd_num * sizeof(dma_addr_t);
+	if (val > PCIE_HHBM_MAX_SIZE) {
+		pr_err("rx_bd_size_param %u is too large\n",
+		       priv->rx_bd_num);
+		return -EINVAL;
+	}
+
+	ret = qtnf_hhbm_init(priv);
+	if (ret) {
+		pr_err("failed to init h/w queues\n");
+		return ret;
+	}
 
 	ret = alloc_skb_array(priv);
 	if (ret) {
@@ -638,10 +696,13 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 
 	/* write new TX descriptor to PCIE_RX_FIFO on EP */
 	txbd_paddr = priv->tx_bd_pbase + i * sizeof(struct qtnf_tx_bd);
-	writel(QTN_HOST_LO32(txbd_paddr),
-	       PCIE_HDP_HOST_WR_DESC0(priv->pcie_reg_base));
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	writel(QTN_HOST_HI32(txbd_paddr),
 	       PCIE_HDP_HOST_WR_DESC0_H(priv->pcie_reg_base));
+#endif
+	writel(QTN_HOST_LO32(txbd_paddr),
+	       PCIE_HDP_HOST_WR_DESC0(priv->pcie_reg_base));
 
 	if (++i >= priv->tx_bd_num)
 		i = 0;
@@ -1222,6 +1283,16 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pr_debug("successful init of PCI device %x\n", pdev->device);
 	}
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+#else
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+#endif
+	if (ret) {
+		pr_err("PCIE DMA coherent mask init failed\n");
+		goto err_base;
+	}
+
 	pcim_pin_device(pdev);
 	pci_set_master(pdev);
 
@@ -1240,12 +1311,6 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = qtnf_pcie_init_shm_ipc(pcie_priv);
 	if (ret < 0) {
 		pr_err("PCIE SHM IPC init failed\n");
-		goto err_base;
-	}
-
-	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	if (ret) {
-		pr_err("PCIE DMA mask init failed\n");
 		goto err_base;
 	}
 

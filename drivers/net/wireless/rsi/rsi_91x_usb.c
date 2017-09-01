@@ -439,7 +439,6 @@ static int rsi_usb_load_data_master_write(struct rsi_hw *adapter,
 	rsi_dbg(INFO_ZONE, "num_blocks: %d\n", num_blocks);
 
 	for (cur_indx = 0, i = 0; i < num_blocks; i++, cur_indx += block_size) {
-		memset(temp_buf, 0, block_size);
 		memcpy(temp_buf, ta_firmware + cur_indx, block_size);
 		status = rsi_usb_write_register_multiple(adapter, base_address,
 							 (u8 *)(temp_buf),

@@ -754,7 +754,7 @@ static int rsi_mac80211_conf_tx(struct ieee80211_hw *hw,
  * @vif: Pointer to the ieee80211_vif structure.
  * @key: Pointer to the ieee80211_key_conf structure.
  *
- * Return: status: 0 on success, -1 on failure.
+ * Return: status: 0 on success, negative error codes on failure.
  */
 static int rsi_hal_key_config(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
@@ -906,7 +906,8 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 		rsta = rsi_find_sta(common, sta->addr);
 		if (!rsta) {
 			rsi_dbg(ERR_ZONE, "No station mapped\n");
-			return 0;
+			status = 0;
+			goto unlock;
 		}
 		sta_id = rsta->sta_id;
 	}
@@ -974,6 +975,7 @@ static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	}
 
+unlock:
 	mutex_unlock(&common->mutex);
 	return status;
 }
@@ -1192,7 +1194,7 @@ static void rsi_set_min_rate(struct ieee80211_hw *hw,
  * @vif: Pointer to the ieee80211_vif structure.
  * @sta: Pointer to the ieee80211_sta structure.
  *
- * Return: 0 on success, -1 on failure.
+ * Return: 0 on success, negative error codes on failure.
  */
 static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
@@ -1202,6 +1204,7 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 	struct rsi_common *common = adapter->priv;
 	bool sta_exist = false;
 	struct rsi_sta *rsta;
+	int status = 0;
 
 	rsi_dbg(INFO_ZONE, "Station Add: %pM\n", sta->addr);
 
@@ -1215,8 +1218,8 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 		/* Check if max stations reached */
 		if (common->num_stations >= common->max_stations) {
 			rsi_dbg(ERR_ZONE, "Reject: Max Stations exists\n");
-			mutex_unlock(&common->mutex);
-			return -EOPNOTSUPP;
+			status = -EOPNOTSUPP;
+			goto unlock;
 		}
 		for (cnt = 0; cnt < common->max_stations; cnt++) {
 			rsta = &common->stations[cnt];
@@ -1241,7 +1244,8 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 			rsi_dbg(ERR_ZONE,
 				"%s: Some problem reaching here...\n",
 				__func__);
-			return -EINVAL;
+			status = -EINVAL;
+			goto unlock;
 		}
 		rsta = &common->stations[sta_idx];
 		rsta->sta = sta;
@@ -1289,9 +1293,10 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
 		}
 	}
 
+unlock:
 	mutex_unlock(&common->mutex);
 
-	return 0;
+	return status;
 }
 
 /**
@@ -1301,7 +1306,7 @@ static int rsi_mac80211_sta_add(struct ieee80211_hw *hw,
  * @vif: Pointer to the ieee80211_vif structure.
  * @sta: Pointer to the ieee80211_sta structure.
  *
- * Return: 0 on success, -1 on failure.
+ * Return: 0 on success, negative error codes on failure.
  */
 static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
@@ -1421,7 +1426,7 @@ fail_set_antenna:
  * @tx_ant: Bitmap for tx antenna
  * @rx_ant: Bitmap for rx antenna
  * 
- * Return: 0 on success, -1 on failure.
+ * Return: 0 on success, negative error codes on failure.
  */
 static int rsi_mac80211_get_antenna(struct ieee80211_hw *hw,
 				    u32 *tx_ant, u32 *rx_ant)
@@ -1528,7 +1533,7 @@ static const struct ieee80211_ops mac80211_ops = {
  * rsi_mac80211_attach() - This function is used to initialize Mac80211 stack.
  * @common: Pointer to the driver private structure.
  *
- * Return: 0 on success, -1 on failure.
+ * Return: 0 on success, negative error codes on failure.
  */
 int rsi_mac80211_attach(struct rsi_common *common)
 {
