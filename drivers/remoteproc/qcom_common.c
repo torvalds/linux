@@ -28,7 +28,7 @@
 #define to_smd_subdev(d) container_of(d, struct qcom_rproc_subdev, subdev)
 #define to_ssr_subdev(d) container_of(d, struct qcom_rproc_ssr, subdev)
 
-BLOCKING_NOTIFIER_HEAD(ssr_notifiers);
+static BLOCKING_NOTIFIER_HEAD(ssr_notifiers);
 
 /**
  * qcom_mdt_find_rsc_table() - provide dummy resource table for remoteproc
