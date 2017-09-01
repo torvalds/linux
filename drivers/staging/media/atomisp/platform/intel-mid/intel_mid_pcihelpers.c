@@ -46,64 +46,6 @@ static int intel_mid_msgbus_init(void)
 }
 fs_initcall(intel_mid_msgbus_init);
 
-u32 intel_mid_msgbus_read32_raw(u32 cmd)
-{
-	unsigned long irq_flags;
-	u32 data;
-
-	spin_lock_irqsave(&msgbus_lock, irq_flags);
-	pci_write_config_dword(pci_root, PCI_ROOT_MSGBUS_CTRL_REG, cmd);
-	pci_read_config_dword(pci_root, PCI_ROOT_MSGBUS_DATA_REG, &data);
-	spin_unlock_irqrestore(&msgbus_lock, irq_flags);
-
-	return data;
-}
-EXPORT_SYMBOL(intel_mid_msgbus_read32_raw);
-
-/*
- * GU: this function is only used by the VISA and 'VXD' drivers.
- */
-u32 intel_mid_msgbus_read32_raw_ext(u32 cmd, u32 cmd_ext)
-{
-	unsigned long irq_flags;
-	u32 data;
-
-	spin_lock_irqsave(&msgbus_lock, irq_flags);
-	pci_write_config_dword(pci_root, PCI_ROOT_MSGBUS_CTRL_EXT_REG, cmd_ext);
-	pci_write_config_dword(pci_root, PCI_ROOT_MSGBUS_CTRL_REG, cmd);
-	pci_read_config_dword(pci_root, PCI_ROOT_MSGBUS_DATA_REG, &data);
-	spin_unlock_irqrestore(&msgbus_lock, irq_flags);
-
-	return data;
-}
-EXPORT_SYMBOL(intel_mid_msgbus_read32_raw_ext);
-
-void intel_mid_msgbus_write32_raw(u32 cmd, u32 data)
-{
-	unsigned long irq_flags;
-
-	spin_lock_irqsave(&msgbus_lock, irq_flags);
-	pci_write_config_dword(pci_root, PCI_ROOT_MSGBUS_DATA_REG, data);
-	pci_write_config_dword(pci_root, PCI_ROOT_MSGBUS_CTRL_REG, cmd);
-	spin_unlock_irqrestore(&msgbus_lock, irq_flags);
-}
-EXPORT_SYMBOL(intel_mid_msgbus_write32_raw);
-
-/*
- * GU: this function is only used by the VISA and 'VXD' drivers.
- */
-void intel_mid_msgbus_write32_raw_ext(u32 cmd, u32 cmd_ext, u32 data)
-{
-	unsigned long irq_flags;
-
-	spin_lock_irqsave(&msgbus_lock, irq_flags);
-	pci_write_config_dword(pci_root, PCI_ROOT_MSGBUS_DATA_REG, data);
-	pci_write_config_dword(pci_root, PCI_ROOT_MSGBUS_CTRL_EXT_REG, cmd_ext);
-	pci_write_config_dword(pci_root, PCI_ROOT_MSGBUS_CTRL_REG, cmd);
-	spin_unlock_irqrestore(&msgbus_lock, irq_flags);
-}
-EXPORT_SYMBOL(intel_mid_msgbus_write32_raw_ext);
-
 u32 intel_mid_msgbus_read32(u8 port, u32 addr)
 {
 	unsigned long irq_flags;
