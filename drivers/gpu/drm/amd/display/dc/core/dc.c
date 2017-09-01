@@ -1279,8 +1279,10 @@ void dc_update_planes_and_stream(struct dc *dc,
 
 		/* initialize scratch memory for building context */
 		context = dc_create_state();
-		if (context == NULL)
-				goto context_alloc_fail;
+		if (context == NULL) {
+			DC_ERROR("Failed to allocate new validate context!\n");
+			return;
+		}
 
 		dc_resource_state_copy_construct(
 				dc->current_state, context);
@@ -1534,9 +1536,6 @@ void dc_update_planes_and_stream(struct dc *dc,
 
 fail:
 	dc_release_state(context);
-
-context_alloc_fail:
-	DC_ERROR("Failed to allocate new validate context!\n");
 }
 
 uint8_t dc_get_current_stream_count(struct dc *dc)
