@@ -3468,9 +3468,7 @@ static bool sock_filter_is_valid_access(int off, int size,
 	if (type == BPF_WRITE) {
 		switch (off) {
 		case offsetof(struct bpf_sock, bound_dev_if):
-			break;
 		case offsetof(struct bpf_sock, mark):
-			break;
 		case offsetof(struct bpf_sock, priority):
 			break;
 		default:
