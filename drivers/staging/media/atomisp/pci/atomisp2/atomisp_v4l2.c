@@ -28,6 +28,9 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
+#include <asm/intel-mid.h>
+#include <asm/iosf_mbi.h>
+
 #include "../../include/linux/atomisp_gmin_platform.h"
 
 #include "atomisp_cmd.h"
@@ -46,7 +49,6 @@
 #include "hrt/hive_isp_css_mm_hrt.h"
 
 #include "device_access.h"
-#include <asm/intel-mid.h>
 
 /* G-Min addition: pull this in from intel_mid_pm.h */
 #define CSTATE_EXIT_LATENCY_C1  1
@@ -386,28 +388,23 @@ done:
  */
 static void punit_ddr_dvfs_enable(bool enable)
 {
-	int reg = intel_mid_msgbus_read32(PUNIT_PORT, MRFLD_ISPSSDVFS);
 	int door_bell = 1 << 8;
 	int max_wait = 30;
+	int reg;
 
+	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSDVFS, &reg);
 	if (enable) {
 		reg &= ~(MRFLD_BIT0 | MRFLD_BIT1);
 	} else {
 		reg |= (MRFLD_BIT1 | door_bell);
 		reg &= ~(MRFLD_BIT0);
 	}
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, MRFLD_ISPSSDVFS, reg);
 
-	intel_mid_msgbus_write32(PUNIT_PORT, MRFLD_ISPSSDVFS, reg);
-
-	/*Check Req_ACK to see freq status, wait until door_bell is cleared*/
-	if (reg & door_bell) {
-		while (max_wait--) {
-			if (0 == (intel_mid_msgbus_read32(PUNIT_PORT,
-				MRFLD_ISPSSDVFS) & door_bell))
-					break;
-
-			usleep_range(100, 500);
-		}
+	/* Check Req_ACK to see freq status, wait until door_bell is cleared */
+	while ((reg & door_bell) && max_wait--) {
+		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSDVFS, &reg);
+		usleep_range(100, 500);
 	}
 
 	if (max_wait == -1)
@@ -421,10 +418,10 @@ int atomisp_mrfld_power_down(struct atomisp_device *isp)
 	u32 reg_value;
 
 	/* writing 0x3 to ISPSSPM0 bit[1:0] to power off the IUNIT */
-	reg_value = intel_mid_msgbus_read32(PUNIT_PORT, MRFLD_ISPSSPM0);
+	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
 	reg_value &= ~MRFLD_ISPSSPM0_ISPSSC_MASK;
 	reg_value |= MRFLD_ISPSSPM0_IUNIT_POWER_OFF;
-	intel_mid_msgbus_write32(PUNIT_PORT, MRFLD_ISPSSPM0, reg_value);
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, MRFLD_ISPSSPM0, reg_value);
 
 	/*WA:Enable DVFS*/
 	if (IS_CHT)
@@ -437,8 +434,7 @@ int atomisp_mrfld_power_down(struct atomisp_device *isp)
 	 */
 	timeout = jiffies + msecs_to_jiffies(50);
 	while (1) {
-		reg_value = intel_mid_msgbus_read32(PUNIT_PORT,
-							MRFLD_ISPSSPM0);
+		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
 		dev_dbg(isp->dev, "power-off in progress, ISPSSPM0: 0x%x\n",
 				reg_value);
 		/* wait until ISPSSPM0 bit[25:24] shows 0x3 */
@@ -477,14 +473,14 @@ int atomisp_mrfld_power_up(struct atomisp_device *isp)
 		msleep(10);
 
 	/* writing 0x0 to ISPSSPM0 bit[1:0] to power off the IUNIT */
-	reg_value = intel_mid_msgbus_read32(PUNIT_PORT, MRFLD_ISPSSPM0);
+	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
 	reg_value &= ~MRFLD_ISPSSPM0_ISPSSC_MASK;
-	intel_mid_msgbus_write32(PUNIT_PORT, MRFLD_ISPSSPM0, reg_value);
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, MRFLD_ISPSSPM0, reg_value);
 
 	/* FIXME: experienced value for delay */
 	timeout = jiffies + msecs_to_jiffies(50);
 	while (1) {
-		reg_value = intel_mid_msgbus_read32(PUNIT_PORT, MRFLD_ISPSSPM0);
+		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, MRFLD_ISPSSPM0, &reg_value);
 		dev_dbg(isp->dev, "power-on in progress, ISPSSPM0: 0x%x\n",
 				reg_value);
 		/* wait until ISPSSPM0 bit[25:24] shows 0x0 */
@@ -1323,7 +1319,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		isp->dfs = &dfs_config_cht;
 		isp->pdev->d3cold_delay = 0;
 
-		val = intel_mid_msgbus_read32(CCK_PORT, CCK_FUSE_REG_0);
+		iosf_mbi_read(CCK_PORT, MBI_REG_READ, CCK_FUSE_REG_0, &val);
 		switch (val & CCK_FUSE_HPLL_FREQ_MASK) {
 		case 0x00:
 			isp->hpll_freq = HPLL_FREQ_800MHZ;
