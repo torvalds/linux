@@ -94,17 +94,3 @@ ca_descr_t
 	unsigned int parity;
 	unsigned char cw[8];
     } ca_descr_t;
-
-
-.. c:type:: ca_pid
-
-ca-pid
-======
-
-
-.. code-block:: c
-
-    typedef struct ca_pid {
-	unsigned int pid;
-	int index;      /* -1 == disable*/
-    } ca_pid_t;

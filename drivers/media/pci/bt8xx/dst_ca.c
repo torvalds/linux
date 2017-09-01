@@ -64,13 +64,6 @@ static int ca_set_slot_descr(void)
 	return -EOPNOTSUPP;
 }
 
-/*	Need some more work	*/
-static int ca_set_pid(void)
-{
-	/*	We could make this more graceful ?	*/
-	return -EOPNOTSUPP;
-}
-
 static void put_command_and_length(u8 *data, int command, int length)
 {
 	data[0] = (command >> 16) & 0xff;
@@ -628,15 +621,6 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_SET_DESCR Success !");
-		break;
-	case CA_SET_PID:
-		dprintk(verbose, DST_CA_INFO, 1, " Setting PID");
-		if ((ca_set_pid()) < 0) {
-			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_SET_PID Failed !");
-			result = -1;
-			goto free_mem_and_exit;
-		}
-		dprintk(verbose, DST_CA_INFO, 1, " -->CA_SET_PID Success !");
 		break;
 	default:
 		result = -EOPNOTSUPP;
