@@ -19,8 +19,8 @@ struct odroid_priv {
 	struct snd_soc_card card;
 	struct snd_soc_dai_link dai_link;
 
-	struct clk *pll;
-	struct clk *rclk;
+	struct clk *clk_i2s_bus;
+	struct clk *sclk_i2s;
 };
 
 static int odroid_card_startup(struct snd_pcm_substream *substream)
@@ -58,13 +58,18 @@ static int odroid_card_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	ret = clk_set_rate(priv->pll, pll_freq + 1);
+	ret = clk_set_rate(priv->clk_i2s_bus, pll_freq / 2 + 1);
 	if (ret < 0)
 		return ret;
 
-	rclk_freq = params_rate(params) * 256 * 4;
+	/*
+	 *  We add 1 to the rclk_freq value in order to avoid too low clock
+	 *  frequency values due to the EPLL output frequency not being exact
+	 *  multiple of the audio sampling rate.
+	 */
+	rclk_freq = params_rate(params) * 256 + 1;
 
-	ret = clk_set_rate(priv->rclk, rclk_freq);
+	ret = clk_set_rate(priv->sclk_i2s, rclk_freq);
 	if (ret < 0)
 		return ret;
 
@@ -118,14 +123,6 @@ static int odroid_audio_probe(struct platform_device *pdev)
 
 	snd_soc_card_set_drvdata(card, priv);
 
-	priv->pll = devm_clk_get(dev, "epll");
-	if (IS_ERR(priv->pll))
-		return PTR_ERR(priv->pll);
-
-	priv->rclk = devm_clk_get(dev, "i2s_rclk");
-	if (IS_ERR(priv->rclk))
-		return PTR_ERR(priv->rclk);
-
 	ret = snd_soc_of_parse_card_name(card, "model");
 	if (ret < 0)
 		return ret;
@@ -171,14 +168,31 @@ static int odroid_audio_probe(struct platform_device *pdev)
 	link->name = "Primary";
 	link->stream_name = link->name;
 
+
+	priv->sclk_i2s = of_clk_get_by_name(link->cpu_of_node, "i2s_opclk1");
+	if (IS_ERR(priv->sclk_i2s)) {
+		ret = PTR_ERR(priv->sclk_i2s);
+		goto err_put_i2s_n;
+	}
+
+	priv->clk_i2s_bus = of_clk_get_by_name(link->cpu_of_node, "iis");
+	if (IS_ERR(priv->clk_i2s_bus)) {
+		ret = PTR_ERR(priv->clk_i2s_bus);
+		goto err_put_sclk;
+	}
+
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret < 0) {
 		dev_err(dev, "snd_soc_register_card() failed: %d\n", ret);
-		goto err_put_i2s_n;
+		goto err_put_clk_i2s;
 	}
 
 	return 0;
 
+err_put_clk_i2s:
+	clk_put(priv->clk_i2s_bus);
+err_put_sclk:
+	clk_put(priv->sclk_i2s);
 err_put_i2s_n:
 	of_node_put(link->cpu_of_node);
 err_put_codec_n:
@@ -192,6 +206,8 @@ static int odroid_audio_remove(struct platform_device *pdev)
 
 	of_node_put(priv->dai_link.cpu_of_node);
 	odroid_put_codec_of_nodes(&priv->dai_link);
+	clk_put(priv->sclk_i2s);
+	clk_put(priv->clk_i2s_bus);
 
 	return 0;
 }
