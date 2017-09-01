@@ -667,7 +667,25 @@ static enum dc_status bios_parser_crtc_source_select(
 	crtc_source_select.signal = pipe_ctx->stream->signal;
 	crtc_source_select.enable_dp_audio = false;
 	crtc_source_select.sink_signal = pipe_ctx->stream->signal;
-	crtc_source_select.display_output_bit_depth = PANEL_8BIT_COLOR;
+
+	switch (pipe_ctx->stream->timing.display_color_depth) {
+	case COLOR_DEPTH_666:
+		crtc_source_select.display_output_bit_depth = PANEL_6BIT_COLOR;
+		break;
+	case COLOR_DEPTH_888:
+		crtc_source_select.display_output_bit_depth = PANEL_8BIT_COLOR;
+		break;
+	case COLOR_DEPTH_101010:
+		crtc_source_select.display_output_bit_depth = PANEL_10BIT_COLOR;
+		break;
+	case COLOR_DEPTH_121212:
+		crtc_source_select.display_output_bit_depth = PANEL_12BIT_COLOR;
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		crtc_source_select.display_output_bit_depth = PANEL_8BIT_COLOR;
+		break;
+	}
 
 	dcb = sink->ctx->dc_bios;
 
