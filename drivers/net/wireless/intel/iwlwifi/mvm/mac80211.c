@@ -1546,6 +1546,11 @@ static void iwl_mvm_mc_iface_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_mc_iter_data *data = _data;
 	struct iwl_mvm *mvm = data->mvm;
 	struct iwl_mcast_filter_cmd *cmd = mvm->mcast_filter_cmd;
+	struct iwl_host_cmd hcmd = {
+		.id = MCAST_FILTER_CMD,
+		.flags = CMD_ASYNC,
+		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+	};
 	int ret, len;
 
 	/* if we don't have free ports, mcast frames will be dropped */
@@ -1560,7 +1565,10 @@ static void iwl_mvm_mc_iface_iterator(void *_data, u8 *mac,
 	memcpy(cmd->bssid, vif->bss_conf.bssid, ETH_ALEN);
 	len = roundup(sizeof(*cmd) + cmd->count * ETH_ALEN, 4);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, MCAST_FILTER_CMD, CMD_ASYNC, len, cmd);
+	hcmd.len[0] = len;
+	hcmd.data[0] = cmd;
+
+	ret = iwl_mvm_send_cmd(mvm, &hcmd);
 	if (ret)
 		IWL_ERR(mvm, "mcast filter cmd error. ret=%d\n", ret);
 }
