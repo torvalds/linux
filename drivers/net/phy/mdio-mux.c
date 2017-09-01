@@ -120,7 +120,7 @@ int mdio_mux_init(struct device *dev,
 	}
 
 	pb = devm_kzalloc(dev, sizeof(*pb), GFP_KERNEL);
-	if (pb == NULL) {
+	if (!pb) {
 		ret_val = -ENOMEM;
 		goto err_pb_kz;
 	}
@@ -144,7 +144,7 @@ int mdio_mux_init(struct device *dev,
 		}
 
 		cb = devm_kzalloc(dev, sizeof(*cb), GFP_KERNEL);
-		if (cb == NULL) {
+		if (!cb) {
 			dev_err(dev,
 				"Error: Failed to allocate memory for child %pOF\n",
 				child_bus_node);
