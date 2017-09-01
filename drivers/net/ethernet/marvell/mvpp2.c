@@ -4463,10 +4463,7 @@ static void mvpp2_port_mii_gmac_configure_mode(struct mvpp2_port *port)
 		val |= MVPP2_GMAC_DISABLE_PADDING;
 		val &= ~MVPP2_GMAC_FLOW_CTRL_MASK;
 		writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
-	} else if (port->phy_interface == PHY_INTERFACE_MODE_RGMII ||
-		   port->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
-		   port->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID ||
-		   port->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) {
+	} else if (phy_interface_mode_is_rgmii(port->phy_interface)) {
 		val = readl(port->base + MVPP22_GMAC_CTRL_4_REG);
 		val |= MVPP22_CTRL4_EXT_PIN_GMII_SEL |
 		       MVPP22_CTRL4_SYNC_BYPASS_DIS |
@@ -4512,10 +4509,7 @@ static void mvpp2_port_mii_gmac_configure(struct mvpp2_port *port)
 	val = readl(port->base + MVPP2_GMAC_CTRL_2_REG);
 	if (port->phy_interface == PHY_INTERFACE_MODE_SGMII) {
 	        val |= MVPP2_GMAC_INBAND_AN_MASK | MVPP2_GMAC_PCS_ENABLE_MASK;
-	} else if (port->phy_interface == PHY_INTERFACE_MODE_RGMII ||
-		   port->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
-		   port->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID ||
-		   port->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) {
+	} else if (phy_interface_mode_is_rgmii(port->phy_interface)) {
 		val &= ~MVPP2_GMAC_PCS_ENABLE_MASK;
 		val |= MVPP2_GMAC_PORT_RGMII_MASK;
 	}
@@ -4575,10 +4569,7 @@ static void mvpp2_port_mii_set(struct mvpp2_port *port)
 	if (port->priv->hw_version == MVPP22)
 		mvpp22_port_mii_set(port);
 
-	if (port->phy_interface == PHY_INTERFACE_MODE_RGMII ||
-	    port->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	    port->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID ||
-	    port->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID ||
+	if (phy_interface_mode_is_rgmii(port->phy_interface) ||
 	    port->phy_interface == PHY_INTERFACE_MODE_SGMII)
 		mvpp2_port_mii_gmac_configure(port);
 	else if (port->phy_interface == PHY_INTERFACE_MODE_10GKR)
