@@ -19,6 +19,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_plane_helper.h>
+#include <dt-bindings/clock/rk_system_status.h>
 
 #include <linux/debugfs.h>
 #include <linux/devfreq.h>
@@ -37,6 +38,7 @@
 #include <linux/reset.h>
 #include <linux/delay.h>
 #include <linux/sort.h>
+#include <soc/rockchip/rockchip-system-status.h>
 #include <uapi/drm/rockchip_drm.h>
 
 #include "rockchip_drm_drv.h"
@@ -988,6 +990,8 @@ static void vop_initial(struct drm_crtc *crtc)
 static void vop_crtc_disable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
+	int sys_status = drm_crtc_index(crtc) ?
+				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 
 	mutex_lock(&vop->vop_lock);
 	drm_crtc_vblank_off(crtc);
@@ -1029,6 +1033,8 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 	clk_disable_unprepare(vop->aclk);
 	clk_disable_unprepare(vop->hclk);
 	mutex_unlock(&vop->vop_lock);
+
+	rockchip_clear_system_status(sys_status);
 }
 
 static void vop_plane_destroy(struct drm_plane *plane)
@@ -1483,6 +1489,8 @@ static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 {
 	struct rockchip_drm_private *private = crtc->dev->dev_private;
 	struct vop *vop = to_vop(crtc);
+	int sys_status = drm_crtc_index(crtc) ?
+				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 
 	if (on == vop->loader_protect)
 		return 0;
@@ -1502,6 +1510,7 @@ static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 			}
 		}
 
+		rockchip_set_system_status(sys_status);
 		vop_power_enable(crtc);
 		enable_irq(vop->irq);
 		drm_crtc_vblank_on(crtc);
@@ -1764,8 +1773,11 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	u16 vsync_len = adjusted_mode->crtc_vsync_end - adjusted_mode->crtc_vsync_start;
 	u16 vact_st = adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vsync_start;
 	u16 vact_end = vact_st + vdisplay;
+	int sys_status = drm_crtc_index(crtc) ?
+				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 	uint32_t val;
 
+	rockchip_set_system_status(sys_status);
 	mutex_lock(&vop->vop_lock);
 	vop_initial(crtc);
 
