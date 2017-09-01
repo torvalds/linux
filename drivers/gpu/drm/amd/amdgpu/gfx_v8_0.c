@@ -125,24 +125,39 @@ MODULE_FIRMWARE("amdgpu/fiji_mec2.bin");
 MODULE_FIRMWARE("amdgpu/fiji_rlc.bin");
 
 MODULE_FIRMWARE("amdgpu/polaris11_ce.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_ce_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_pfp.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_pfp_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_me.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_me_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_mec.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_mec_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_mec2.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_mec2_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_rlc.bin");
 
 MODULE_FIRMWARE("amdgpu/polaris10_ce.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_ce_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_pfp.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_pfp_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_me.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_me_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_mec.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_mec_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_mec2.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_mec2_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_rlc.bin");
 
 MODULE_FIRMWARE("amdgpu/polaris12_ce.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_ce_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_pfp.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_pfp_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_me.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_me_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_mec.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_mec_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_mec2.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_mec2_2.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_rlc.bin");
 
 static const struct amdgpu_gds_reg_offset amdgpu_gds_reg_offset[] =
