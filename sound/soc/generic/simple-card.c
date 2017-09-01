@@ -100,7 +100,7 @@ static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 		if (ret && ret != -ENOTSUPP)
 			goto err;
 	}
-
+	return 0;
 err:
 	return ret;
 }
