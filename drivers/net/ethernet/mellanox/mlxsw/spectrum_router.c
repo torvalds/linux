@@ -3993,9 +3993,6 @@ static int __mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp,
 		char raltb_pl[MLXSW_REG_RALTB_LEN];
 		char ralue_pl[MLXSW_REG_RALUE_LEN];
 
-		if (!mlxsw_sp_vr_is_used(vr))
-			continue;
-
 		mlxsw_reg_raltb_pack(raltb_pl, vr->id, proto, tree_id);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb),
 				      raltb_pl);
