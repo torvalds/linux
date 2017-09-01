@@ -1193,7 +1193,7 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 
 static void ath9k_tpc_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 {
-	int *power = (int *)data;
+	int *power = data;
 
 	if (*power < vif->bss_conf.txpower)
 		*power = vif->bss_conf.txpower;
