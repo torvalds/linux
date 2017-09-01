@@ -238,6 +238,7 @@ struct rockchip_dmcfreq {
 	unsigned int auto_freq_en;
 	unsigned int refresh;
 	unsigned int last_refresh;
+	bool is_dualview;
 
 	int (*set_auto_self_refresh)(u32 en);
 };
@@ -1003,7 +1004,7 @@ static int rockchip_get_system_status_rate(struct device_node *np,
 		case SYS_STATUS_PERFORMANCE:
 			dmcfreq->performance_rate = freq * 1000;
 			break;
-		case SYS_STATUS_LCDC0 & SYS_STATUS_LCDC1:
+		case SYS_STATUS_LCDC0 | SYS_STATUS_LCDC1:
 			dmcfreq->dualview_rate = freq * 1000;
 			break;
 		case SYS_STATUS_HDMI:
@@ -1045,7 +1046,7 @@ static void rockchip_dmcfreq_update_target(struct rockchip_dmcfreq *dmcfreq)
 		dmcfreq->last_refresh = dmcfreq->refresh;
 	}
 
-	if (dmcfreq->auto_freq_en) {
+	if (dmcfreq->auto_freq_en && !dmcfreq->is_dualview) {
 		if (dmcfreq->status_rate)
 			min_freq = dmcfreq->status_rate;
 		else if (dmcfreq->auto_min_rate)
@@ -1087,6 +1088,16 @@ static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
 	struct devfreq *df = dmcfreq->devfreq;
 	unsigned long target_rate = 0;
 	unsigned int refresh = false;
+	bool is_dualview = false;
+
+	if (dmcfreq->dualview_rate && (status & SYS_STATUS_LCDC0) &&
+	    (status & SYS_STATUS_LCDC1)) {
+		if (dmcfreq->dualview_rate > target_rate) {
+			target_rate = dmcfreq->dualview_rate;
+			is_dualview = true;
+			goto next;
+		}
+	}
 
 	if (dmcfreq->reboot_rate && (status & SYS_STATUS_REBOOT)) {
 		target_rate = dmcfreq->reboot_rate;
@@ -1109,12 +1120,6 @@ static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
 	if (dmcfreq->performance_rate && (status & SYS_STATUS_PERFORMANCE)) {
 		if (dmcfreq->performance_rate > target_rate)
 			target_rate = dmcfreq->performance_rate;
-	}
-
-	if (dmcfreq->dualview_rate && (status & SYS_STATUS_LCDC0) &&
-	    (status & SYS_STATUS_LCDC1)) {
-		if (dmcfreq->dualview_rate > target_rate)
-			target_rate = dmcfreq->dualview_rate;
 	}
 
 	if (dmcfreq->hdmi_rate && (status & SYS_STATUS_HDMI)) {
@@ -1146,6 +1151,7 @@ next:
 
 	dev_dbg(&df->dev, "status=0x%x\n", (unsigned int)status);
 	dmcfreq->refresh = refresh;
+	dmcfreq->is_dualview = is_dualview;
 	dmcfreq->status_rate = target_rate;
 	rockchip_dmcfreq_update_target(dmcfreq);
 
