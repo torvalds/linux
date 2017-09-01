@@ -323,6 +323,13 @@ static int dp83867_config_init(struct phy_device *phydev)
 		phy_write(phydev, MII_DP83867_PHYCTRL, val);
 	}
 
+	/* Enable Interrupt output INT_OE in CFG3 register */
+	if (phy_interrupt_is_valid(phydev)) {
+		val = phy_read(phydev, DP83867_CFG3);
+		val |= BIT(7);
+		phy_write(phydev, DP83867_CFG3, val);
+	}
+
 	return 0;
 }
 

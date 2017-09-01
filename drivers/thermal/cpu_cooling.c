@@ -191,8 +191,10 @@ unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq)
 	mutex_lock(&cooling_list_lock);
 	list_for_each_entry(cpufreq_dev, &cpufreq_dev_list, node) {
 		if (cpumask_test_cpu(cpu, &cpufreq_dev->allowed_cpus)) {
+			unsigned long level = get_level(cpufreq_dev, freq);
+
 			mutex_unlock(&cooling_list_lock);
-			return get_level(cpufreq_dev, freq);
+			return level;
 		}
 	}
 	mutex_unlock(&cooling_list_lock);

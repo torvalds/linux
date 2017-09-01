@@ -93,9 +93,14 @@
 
 	.if	\el == 0
 	mrs	x21, sp_el0
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	ldr_this_cpu	tsk, __entry_task, x20	// Ensure MDSCR_EL1.SS is clear,
+	ldr	x19, [tsk, #TSK_TI_FLAGS]	// since we can unmask debug
+#else
 	mov	tsk, sp
 	and	tsk, tsk, #~(THREAD_SIZE - 1)	// Ensure MDSCR_EL1.SS is clear,
 	ldr	x19, [tsk, #TI_FLAGS]		// since we can unmask debug
+#endif
 	disable_step_tsk x19, x20		// exceptions when scheduling.
 
 	mov	x29, xzr			// fp pointed to user-space
@@ -103,10 +108,18 @@
 	add	x21, sp, #S_FRAME_SIZE
 	get_thread_info tsk
 	/* Save the task's original addr_limit and set USER_DS (TASK_SIZE_64) */
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	ldr	x20, [tsk, #TSK_TI_ADDR_LIMIT]
+#else
 	ldr	x20, [tsk, #TI_ADDR_LIMIT]
+#endif
 	str	x20, [sp, #S_ORIG_ADDR_LIMIT]
 	mov	x20, #TASK_SIZE_64
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	str	x20, [tsk, #TSK_TI_ADDR_LIMIT]
+#else
 	str	x20, [tsk, #TI_ADDR_LIMIT]
+#endif
 	.endif /* \el == 0 */
 	mrs	x22, elr_el1
 	mrs	x23, spsr_el1
@@ -167,7 +180,11 @@ alternative_else_nop_endif
 	.if	\el != 0
 	/* Restore the task's original addr_limit. */
 	ldr	x20, [sp, #S_ORIG_ADDR_LIMIT]
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	str	x20, [tsk, #TSK_TI_ADDR_LIMIT]
+#else
 	str	x20, [tsk, #TI_ADDR_LIMIT]
+#endif
 	.endif
 
 	ldp	x21, x22, [sp, #S_PC]		// load ELR, SPSR
@@ -255,15 +272,22 @@ alternative_endif
 	mov	x19, sp			// preserve the original sp
 
 	/*
-	 * Compare sp with the current thread_info, if the top
-	 * ~(THREAD_SIZE - 1) bits match, we are on a task stack, and
-	 * should switch to the irq stack.
+	 * Compare sp with the base of the task stack.
+	 * If the top ~(THREAD_SIZE - 1) bits match, we are on a task stack,
+	 * and should switch to the irq stack.
 	 */
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	ldr	x25, [tsk, TSK_STACK]
+	eor	x25, x25, x19
+	and	x25, x25, #~(THREAD_SIZE - 1)
+	cbnz	x25, 9998f
+#else
 	and	x25, x19, #~(THREAD_SIZE - 1)
 	cmp	x25, tsk
 	b.ne	9998f
+#endif
 
-	this_cpu_ptr irq_stack, x25, x26
+	adr_this_cpu x25, irq_stack, x26
 	mov	x26, #IRQ_STACK_START_SP
 	add	x26, x25, x26
 
@@ -492,9 +516,17 @@ el1_irq:
 	irq_handler
 
 #ifdef CONFIG_PREEMPT
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	ldr	w24, [tsk, #TSK_TI_PREEMPT]	// get preempt count
+#else
 	ldr	w24, [tsk, #TI_PREEMPT]		// get preempt count
+#endif
 	cbnz	w24, 1f				// preempt count != 0
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	ldr	x0, [tsk, #TSK_TI_FLAGS]	// get flags
+#else
 	ldr	x0, [tsk, #TI_FLAGS]		// get flags
+#endif
 	tbz	x0, #TIF_NEED_RESCHED, 1f	// needs rescheduling?
 	bl	el1_preempt
 1:
@@ -509,7 +541,11 @@ ENDPROC(el1_irq)
 el1_preempt:
 	mov	x24, lr
 1:	bl	preempt_schedule_irq		// irq en/disable is done inside
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	ldr	x0, [tsk, #TSK_TI_FLAGS]	// get new tasks TI_FLAGS
+#else
 	ldr	x0, [tsk, #TI_FLAGS]		// get new tasks TI_FLAGS
+#endif
 	tbnz	x0, #TIF_NEED_RESCHED, 1b	// needs rescheduling?
 	ret	x24
 #endif
@@ -729,8 +765,12 @@ ENTRY(cpu_switch_to)
 	ldp	x29, x9, [x8], #16
 	ldr	lr, [x8]
 	mov	sp, x9
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	msr	sp_el0, x1
+#else
 	and	x9, x9, #~(THREAD_SIZE - 1)
 	msr	sp_el0, x9
+#endif
 	ret
 ENDPROC(cpu_switch_to)
 
@@ -741,7 +781,11 @@ ENDPROC(cpu_switch_to)
 ret_fast_syscall:
 	disable_irq				// disable interrupts
 	str	x0, [sp, #S_X0]			// returned x0
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	ldr	x1, [tsk, #TSK_TI_FLAGS]	// re-check for syscall tracing
+#else
 	ldr	x1, [tsk, #TI_FLAGS]		// re-check for syscall tracing
+#endif
 	and	x2, x1, #_TIF_SYSCALL_WORK
 	cbnz	x2, ret_fast_syscall_trace
 	and	x2, x1, #_TIF_WORK_MASK
@@ -773,7 +817,11 @@ work_resched:
  */
 ret_to_user:
 	disable_irq				// disable interrupts
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	ldr	x1, [tsk, #TSK_TI_FLAGS]
+#else
 	ldr	x1, [tsk, #TI_FLAGS]
+#endif
 	and	x2, x1, #_TIF_WORK_MASK
 	cbnz	x2, work_pending
 	enable_step_tsk x1, x2
@@ -805,7 +853,11 @@ el0_svc_naked:					// compat entry point
 	enable_dbg_and_irq
 	ct_user_exit 1
 
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	ldr	x16, [tsk, #TSK_TI_FLAGS]	// check for syscall hooks
+#else
 	ldr	x16, [tsk, #TI_FLAGS]		// check for syscall hooks
+#endif
 	tst	x16, #_TIF_SYSCALL_WORK
 	b.ne	__sys_trace
 	cmp     scno, sc_nr                     // check upper syscall limit

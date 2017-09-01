@@ -42,8 +42,8 @@ static int ipt_init_target(struct xt_entry_target *t, char *table, unsigned int 
 		return PTR_ERR(target);
 
 	t->u.kernel.target = target;
+	memset(&par, 0, sizeof(par));
 	par.table     = table;
-	par.entryinfo = NULL;
 	par.target    = target;
 	par.targinfo  = t->data;
 	par.hook_mask = hook;

@@ -194,7 +194,6 @@ struct bmc150_accel_data {
 	struct device *dev;
 	int irq;
 	struct bmc150_accel_interrupt interrupts[BMC150_ACCEL_INTERRUPTS];
-	atomic_t active_intr;
 	struct bmc150_accel_trigger triggers[BMC150_ACCEL_TRIGGERS];
 	struct mutex mutex;
 	u8 fifo_mode, watermark;
@@ -488,11 +487,6 @@ static int bmc150_accel_set_interrupt(struct bmc150_accel_data *data, int i,
 		dev_err(data->dev, "Error updating reg_int_en\n");
 		goto out_fix_power_state;
 	}
-
-	if (state)
-		atomic_inc(&data->active_intr);
-	else
-		atomic_dec(&data->active_intr);
 
 	return 0;
 
@@ -1704,8 +1698,7 @@ static int bmc150_accel_resume(struct device *dev)
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 
 	mutex_lock(&data->mutex);
-	if (atomic_read(&data->active_intr))
-		bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
+	bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
 	bmc150_accel_fifo_set_mode(data);
 	mutex_unlock(&data->mutex);
 

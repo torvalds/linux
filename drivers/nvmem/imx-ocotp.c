@@ -88,7 +88,7 @@ static struct nvmem_config imx_ocotp_nvmem_config = {
 
 static const struct of_device_id imx_ocotp_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-ocotp",  (void *)128 },
-	{ .compatible = "fsl,imx6sl-ocotp", (void *)32 },
+	{ .compatible = "fsl,imx6sl-ocotp", (void *)64 },
 	{ .compatible = "fsl,imx6sx-ocotp", (void *)128 },
 	{ },
 };

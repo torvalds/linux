@@ -30,6 +30,7 @@
 #include "radeon_audio.h"
 #include "atom.h"
 #include <linux/backlight.h>
+#include <linux/dmi.h>
 
 extern int atom_debug;
 
@@ -2183,9 +2184,17 @@ int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder, int fe_idx)
 		goto assigned;
 	}
 
-	/* on DCE32 and encoder can driver any block so just crtc id */
+	/*
+	 * On DCE32 any encoder can drive any block so usually just use crtc id,
+	 * but Apple thinks different at least on iMac10,1, so there use linkb,
+	 * otherwise the internal eDP panel will stay dark.
+	 */
 	if (ASIC_IS_DCE32(rdev)) {
-		enc_idx = radeon_crtc->crtc_id;
+		if (dmi_match(DMI_PRODUCT_NAME, "iMac10,1"))
+			enc_idx = (dig->linkb) ? 1 : 0;
+		else
+			enc_idx = radeon_crtc->crtc_id;
+
 		goto assigned;
 	}
 

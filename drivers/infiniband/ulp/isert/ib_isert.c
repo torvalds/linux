@@ -1581,7 +1581,7 @@ isert_rcv_completion(struct iser_rx_desc *desc,
 		     struct isert_conn *isert_conn,
 		     u32 xfer_len)
 {
-	struct ib_device *ib_dev = isert_conn->cm_id->device;
+	struct ib_device *ib_dev = isert_conn->device->ib_device;
 	struct iscsi_hdr *hdr;
 	u64 rx_dma;
 	int rx_buflen;

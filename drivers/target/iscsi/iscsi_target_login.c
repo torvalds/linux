@@ -1219,9 +1219,11 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	flush_signals(current);
 
 	spin_lock_bh(&np->np_thread_lock);
-	if (np->np_thread_state == ISCSI_NP_THREAD_RESET) {
+	if (atomic_dec_if_positive(&np->np_reset_count) >= 0) {
 		np->np_thread_state = ISCSI_NP_THREAD_ACTIVE;
+		spin_unlock_bh(&np->np_thread_lock);
 		complete(&np->np_restart_comp);
+		return 1;
 	} else if (np->np_thread_state == ISCSI_NP_THREAD_SHUTDOWN) {
 		spin_unlock_bh(&np->np_thread_lock);
 		goto exit;
@@ -1254,7 +1256,8 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		goto exit;
 	} else if (rc < 0) {
 		spin_lock_bh(&np->np_thread_lock);
-		if (np->np_thread_state == ISCSI_NP_THREAD_RESET) {
+		if (atomic_dec_if_positive(&np->np_reset_count) >= 0) {
+			np->np_thread_state = ISCSI_NP_THREAD_ACTIVE;
 			spin_unlock_bh(&np->np_thread_lock);
 			complete(&np->np_restart_comp);
 			iscsit_put_transport(conn->conn_transport);
@@ -1434,6 +1437,10 @@ int iscsi_target_login_thread(void *arg)
 		 */
 		if (ret != 1)
 			break;
+	}
+
+	while (!kthread_should_stop()) {
+		msleep(100);
 	}
 
 	return 0;

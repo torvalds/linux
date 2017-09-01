@@ -878,6 +878,48 @@ TRACE_EVENT(sched_boost_task,
 );
 
 /*
+ * Tracepoint for find_best_target
+ */
+TRACE_EVENT(sched_find_best_target,
+
+	TP_PROTO(struct task_struct *tsk, bool prefer_idle,
+		unsigned long min_util, int start_cpu,
+		int best_idle, int best_active, int target),
+
+	TP_ARGS(tsk, prefer_idle, min_util, start_cpu,
+		best_idle, best_active, target),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN	)
+		__field( pid_t,	pid			)
+		__field( unsigned long,	min_util	)
+		__field( bool,	prefer_idle		)
+		__field( int,	start_cpu		)
+		__field( int,	best_idle		)
+		__field( int,	best_active		)
+		__field( int,	target			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid		= tsk->pid;
+		__entry->min_util	= min_util;
+		__entry->prefer_idle	= prefer_idle;
+		__entry->start_cpu 	= start_cpu;
+		__entry->best_idle	= best_idle;
+		__entry->best_active	= best_active;
+		__entry->target		= target;
+	),
+
+	TP_printk("pid=%d comm=%s prefer_idle=%d start_cpu=%d "
+		  "best_idle=%d best_active=%d target=%d",
+		__entry->pid, __entry->comm,
+		__entry->prefer_idle, __entry->start_cpu,
+		__entry->best_idle, __entry->best_active,
+		__entry->target)
+);
+
+/*
  * Tracepoint for accounting sched group energy
  */
 TRACE_EVENT(sched_energy_diff,

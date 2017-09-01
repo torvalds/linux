@@ -289,10 +289,10 @@ struct qtaguid_event_counts {
 	 */
 	atomic64_t match_no_sk;
 	/*
-	 * The file ptr in the sk_socket wasn't there.
+	 * The file ptr in the sk_socket wasn't there and we couldn't get GID.
 	 * This might happen for traffic while the socket is being closed.
 	 */
-	atomic64_t match_no_sk_file;
+	atomic64_t match_no_sk_gid;
 };
 
 /* Track the set active_set for the given tag. */

@@ -330,18 +330,19 @@ static void wil_fw_error_worker(struct work_struct *work)
 
 	wil->last_fw_recovery = jiffies;
 
+	wil_info(wil, "fw error recovery requested (try %d)...\n",
+		 wil->recovery_count);
+	if (!no_fw_recovery)
+		wil->recovery_state = fw_recovery_running;
+	if (wil_wait_for_recovery(wil) != 0)
+		return;
+
 	mutex_lock(&wil->mutex);
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_MONITOR:
-		wil_info(wil, "fw error recovery requested (try %d)...\n",
-			 wil->recovery_count);
-		if (!no_fw_recovery)
-			wil->recovery_state = fw_recovery_running;
-		if (0 != wil_wait_for_recovery(wil))
-			break;
-
+		/* silent recovery, upper layers will see disconnect */
 		__wil_down(wil);
 		__wil_up(wil);
 		break;

@@ -965,7 +965,6 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 	}
 
 	dev->power.subsys_data->domain_data = &gpd_data->base;
-	dev->pm_domain = &genpd->domain;
 
 	spin_unlock_irq(&dev->power.lock);
 
@@ -984,7 +983,6 @@ static void genpd_free_dev_data(struct device *dev,
 {
 	spin_lock_irq(&dev->power.lock);
 
-	dev->pm_domain = NULL;
 	dev->power.subsys_data->domain_data = NULL;
 
 	spin_unlock_irq(&dev->power.lock);
@@ -1024,6 +1022,8 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	ret = genpd->attach_dev ? genpd->attach_dev(genpd, dev) : 0;
 	if (ret)
 		goto out;
+
+	dev->pm_domain = &genpd->domain;
 
 	genpd->device_count++;
 	genpd->max_off_time_changed = true;
@@ -1075,6 +1075,8 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 
 	if (genpd->detach_dev)
 		genpd->detach_dev(genpd, dev);
+
+	dev->pm_domain = NULL;
 
 	list_del_init(&pdd->list_node);
 
@@ -1150,7 +1152,7 @@ EXPORT_SYMBOL_GPL(pm_genpd_add_subdomain);
 int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 			      struct generic_pm_domain *subdomain)
 {
-	struct gpd_link *link;
+	struct gpd_link *l, *link;
 	int ret = -EINVAL;
 
 	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(subdomain))
@@ -1166,7 +1168,7 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 		goto out;
 	}
 
-	list_for_each_entry(link, &genpd->master_links, master_node) {
+	list_for_each_entry_safe(link, l, &genpd->master_links, master_node) {
 		if (link->slave != subdomain)
 			continue;
 
@@ -1417,10 +1419,10 @@ EXPORT_SYMBOL_GPL(__of_genpd_add_provider);
  */
 void of_genpd_del_provider(struct device_node *np)
 {
-	struct of_genpd_provider *cp;
+	struct of_genpd_provider *cp, *tmp;
 
 	mutex_lock(&of_genpd_mutex);
-	list_for_each_entry(cp, &of_genpd_providers, link) {
+	list_for_each_entry_safe(cp, tmp, &of_genpd_providers, link) {
 		if (cp->node == np) {
 			list_del(&cp->link);
 			of_node_put(cp->node);

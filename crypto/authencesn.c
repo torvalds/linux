@@ -245,6 +245,9 @@ static int crypto_authenc_esn_decrypt_tail(struct aead_request *req,
 	u8 *ihash = ohash + crypto_ahash_digestsize(auth);
 	u32 tmp[2];
 
+	if (!authsize)
+		goto decrypt;
+
 	/* Move high-order bits of sequence number back. */
 	scatterwalk_map_and_copy(tmp, dst, 4, 4, 0);
 	scatterwalk_map_and_copy(tmp + 1, dst, assoclen + cryptlen, 4, 0);
@@ -252,6 +255,8 @@ static int crypto_authenc_esn_decrypt_tail(struct aead_request *req,
 
 	if (crypto_memneq(ihash, ohash, authsize))
 		return -EBADMSG;
+
+decrypt:
 
 	sg_init_table(areq_ctx->dst, 2);
 	dst = scatterwalk_ffwd(areq_ctx->dst, dst, assoclen);

@@ -55,6 +55,8 @@ static inline void walt_migrate_sync_cpu(int cpu) { }
 static inline void walt_init_cpu_efficiency(void) { }
 static inline u64 walt_ktime_clock(void) { return 0; }
 
+#define walt_cpu_high_irqload(cpu) false
+
 #endif /* CONFIG_SCHED_WALT */
 
 extern unsigned int walt_disabled;

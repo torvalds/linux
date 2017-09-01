@@ -1088,7 +1088,7 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 		 */
 		DEFINE_WAIT(w);
 		for (;;) {
-			flush_signals(current);
+			sigset_t full, old;
 			prepare_to_wait(&conf->wait_barrier,
 					&w, TASK_INTERRUPTIBLE);
 			if (bio_end_sector(bio) <= mddev->suspend_lo ||
@@ -1097,7 +1097,10 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 			     !md_cluster_ops->area_resyncing(mddev, WRITE,
 				     bio->bi_iter.bi_sector, bio_end_sector(bio))))
 				break;
+			sigfillset(&full);
+			sigprocmask(SIG_BLOCK, &full, &old);
 			schedule();
+			sigprocmask(SIG_SETMASK, &old, NULL);
 		}
 		finish_wait(&conf->wait_barrier, &w);
 	}

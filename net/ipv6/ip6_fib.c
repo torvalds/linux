@@ -767,10 +767,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 				goto next_iter;
 			}
 
-			if (iter->dst.dev == rt->dst.dev &&
-			    iter->rt6i_idev == rt->rt6i_idev &&
-			    ipv6_addr_equal(&iter->rt6i_gateway,
-					    &rt->rt6i_gateway)) {
+			if (rt6_duplicate_nexthop(iter, rt)) {
 				if (rt->rt6i_nsiblings)
 					rt->rt6i_nsiblings = 0;
 				if (!(iter->rt6i_flags & RTF_EXPIRES))

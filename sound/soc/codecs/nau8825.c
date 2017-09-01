@@ -936,7 +936,8 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 			NAU8825_FLL_INTEGER_MASK, fll_param->fll_int);
 	/* FLL pre-scaler */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL4,
-			NAU8825_FLL_REF_DIV_MASK, fll_param->clk_ref_div);
+			NAU8825_FLL_REF_DIV_MASK,
+			fll_param->clk_ref_div << NAU8825_FLL_REF_DIV_SFT);
 	/* select divided VCO input */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL5,
 			NAU8825_FLL_FILTER_SW_MASK, 0x0000);

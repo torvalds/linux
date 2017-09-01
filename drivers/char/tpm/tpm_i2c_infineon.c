@@ -446,7 +446,7 @@ static int tpm_tis_i2c_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	/* read first 10 bytes, including tag, paramsize, and result */
 	size = recv_data(chip, buf, TPM_HEADER_SIZE);
 	if (size < TPM_HEADER_SIZE) {
-		dev_err(chip->pdev, "Unable to read header\n");
+		dev_err(&chip->dev, "Unable to read header\n");
 		goto out;
 	}
 
@@ -459,14 +459,14 @@ static int tpm_tis_i2c_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	size += recv_data(chip, &buf[TPM_HEADER_SIZE],
 			  expected - TPM_HEADER_SIZE);
 	if (size < expected) {
-		dev_err(chip->pdev, "Unable to read remainder of result\n");
+		dev_err(&chip->dev, "Unable to read remainder of result\n");
 		size = -ETIME;
 		goto out;
 	}
 
 	wait_for_stat(chip, TPM_STS_VALID, chip->vendor.timeout_c, &status);
 	if (status & TPM_STS_DATA_AVAIL) {	/* retry? */
-		dev_err(chip->pdev, "Error left over data\n");
+		dev_err(&chip->dev, "Error left over data\n");
 		size = -EIO;
 		goto out;
 	}

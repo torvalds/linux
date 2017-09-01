@@ -34,7 +34,7 @@
 enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
 	TPM_BUFSIZE = 4096,
-	TPM_NUM_DEVICES = 256,
+	TPM_NUM_DEVICES = 65536,
 	TPM_RETRY = 50,		/* 5 seconds */
 };
 
@@ -171,11 +171,16 @@ enum tpm_chip_flags {
 };
 
 struct tpm_chip {
-	struct device *pdev;	/* Device stuff */
 	struct device dev;
 	struct cdev cdev;
 
+	/* A driver callback under ops cannot be run unless ops_sem is held
+	 * (sometimes implicitly, eg for the sysfs code). ops becomes null
+	 * when the driver is unregistered, see tpm_try_get_ops.
+	 */
+	struct rw_semaphore ops_sem;
 	const struct tpm_class_ops *ops;
+
 	unsigned int flags;
 
 	int dev_num;		/* /dev/tpm# */
@@ -195,16 +200,9 @@ struct tpm_chip {
 	acpi_handle acpi_dev_handle;
 	char ppi_version[TPM_PPI_VERSION_LEN + 1];
 #endif /* CONFIG_ACPI */
-
-	struct list_head list;
 };
 
 #define to_tpm_chip(d) container_of(d, struct tpm_chip, dev)
-
-static inline void tpm_chip_put(struct tpm_chip *chip)
-{
-	module_put(chip->pdev->driver->owner);
-}
 
 static inline int tpm_read_index(int base, int index)
 {
@@ -497,6 +495,7 @@ static inline void tpm_buf_append_u32(struct tpm_buf *buf, const u32 value)
 extern struct class *tpm_class;
 extern dev_t tpm_devt;
 extern const struct file_operations tpm_fops;
+extern struct idr dev_nums_idr;
 
 enum tpm_transmit_flags {
 	TPM_TRANSMIT_UNLOCKED	= BIT(0),
@@ -517,6 +516,9 @@ extern int wait_for_tpm_stat(struct tpm_chip *, u8, unsigned long,
 			     wait_queue_head_t *, bool);
 
 struct tpm_chip *tpm_chip_find_get(int chip_num);
+__must_check int tpm_try_get_ops(struct tpm_chip *chip);
+void tpm_put_ops(struct tpm_chip *chip);
+
 extern struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 				       const struct tpm_class_ops *ops);
 extern int tpm_chip_register(struct tpm_chip *chip);

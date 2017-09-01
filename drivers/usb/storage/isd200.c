@@ -1520,8 +1520,11 @@ static void isd200_ata_command(struct scsi_cmnd *srb, struct us_data *us)
 
 	/* Make sure driver was initialized */
 
-	if (us->extra == NULL)
+	if (us->extra == NULL) {
 		usb_stor_dbg(us, "ERROR Driver not initialized\n");
+		srb->result = DID_ERROR << 16;
+		return;
+	}
 
 	scsi_set_resid(srb, 0);
 	/* scsi_bufflen might change in protocol translation to ata */

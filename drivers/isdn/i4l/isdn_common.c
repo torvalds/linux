@@ -1379,6 +1379,7 @@ isdn_ioctl(struct file *file, uint cmd, ulong arg)
 			if (arg) {
 				if (copy_from_user(bname, argp, sizeof(bname) - 1))
 					return -EFAULT;
+				bname[sizeof(bname)-1] = 0;
 			} else
 				return -EINVAL;
 			ret = mutex_lock_interruptible(&dev->mtx);

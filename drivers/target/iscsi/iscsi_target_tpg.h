@@ -39,5 +39,6 @@ extern int iscsit_ta_default_erl(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_t10_pi(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_fabric_prot_type(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_tpg_enabled_sendtargets(struct iscsi_portal_group *, u32);
+extern int iscsit_ta_login_keys_workaround(struct iscsi_portal_group *, u32);
 
 #endif /* ISCSI_TARGET_TPG_H */

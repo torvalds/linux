@@ -71,7 +71,7 @@
  * only support SPI for 12xx - this code should be reworked when 18xx
  * support is introduced
  */
-#define SPI_AGGR_BUFFER_SIZE (4 * PAGE_SIZE)
+#define SPI_AGGR_BUFFER_SIZE (4 * SZ_4K)
 
 /* Maximum number of SPI write chunks */
 #define WSPI_MAX_NUM_OF_CHUNKS \

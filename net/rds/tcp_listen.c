@@ -78,7 +78,7 @@ int rds_tcp_accept_one(struct socket *sock)
 	struct inet_sock *inet;
 	struct rds_tcp_connection *rs_tcp;
 
-	ret = sock_create_kern(sock_net(sock->sk), sock->sk->sk_family,
+	ret = sock_create_lite(sock->sk->sk_family,
 			       sock->sk->sk_type, sock->sk->sk_protocol,
 			       &new_sock);
 	if (ret)

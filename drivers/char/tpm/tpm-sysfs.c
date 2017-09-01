@@ -38,6 +38,8 @@ static ssize_t pubek_show(struct device *dev, struct device_attribute *attr,
 
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
+	memset(&tpm_cmd, 0, sizeof(tpm_cmd));
+
 	tpm_cmd.header.in = tpm_readpubek_header;
 	err = tpm_transmit_cmd(chip, &tpm_cmd, READ_PUBEK_RESULT_SIZE, 0,
 			       "attempting to read the PUBEK");
@@ -284,16 +286,28 @@ static const struct attribute_group tpm_dev_group = {
 int tpm_sysfs_add_device(struct tpm_chip *chip)
 {
 	int err;
-	err = sysfs_create_group(&chip->pdev->kobj,
+
+	/* XXX: If you wish to remove this restriction, you must first update
+	 * tpm_sysfs to explicitly lock chip->ops.
+	 */
+	if (chip->flags & TPM_CHIP_FLAG_TPM2)
+		return 0;
+
+	err = sysfs_create_group(&chip->dev.parent->kobj,
 				 &tpm_dev_group);
 
 	if (err)
-		dev_err(chip->pdev,
+		dev_err(&chip->dev,
 			"failed to create sysfs attributes, %d\n", err);
 	return err;
 }
 
 void tpm_sysfs_del_device(struct tpm_chip *chip)
 {
-	sysfs_remove_group(&chip->pdev->kobj, &tpm_dev_group);
+	/* The sysfs routines rely on an implicit tpm_try_get_ops, this
+	 * function is called before ops is null'd and the sysfs core
+	 * synchronizes this removal so that no callbacks are running or can
+	 * run again
+	 */
+	sysfs_remove_group(&chip->dev.parent->kobj, &tpm_dev_group);
 }
