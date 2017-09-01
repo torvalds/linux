@@ -154,10 +154,3 @@ void intel_mid_msgbus_write32(u8 port, u32 addr, u32 data)
 	spin_unlock_irqrestore(&msgbus_lock, irq_flags);
 }
 EXPORT_SYMBOL(intel_mid_msgbus_write32);
-
-/* called only from where is later then fs_initcall */
-u32 intel_mid_soc_stepping(void)
-{
-	return pci_root->revision;
-}
-EXPORT_SYMBOL(intel_mid_soc_stepping);
