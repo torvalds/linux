@@ -35,5 +35,4 @@ pdm: pdm@ff040000 {
 		     &pdmm0_sdi2
 		     &pdmm0_sdi3>;
 	pinctrl-1 = <&pdmm0_sleep>;
-	status = "disabled";
 };

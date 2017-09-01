@@ -172,5 +172,4 @@ Example 4: KZM-A9-GT (SH-Mobile AG5) default pin state for the MMCIF device
 
 		bus-width = <8>;
 		vmmc-supply = <&reg_1p8v>;
-		status = "okay";
 	};

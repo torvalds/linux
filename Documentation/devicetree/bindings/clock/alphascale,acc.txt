@@ -102,7 +102,6 @@ uart4: serial@80010000 {
 	reg = <0x80010000 0x4000>;
 	clocks = <&acc CLKID_SYS_UART4>, <&acc CLKID_AHB_UART4>;
 	interrupts = <19>;
-	status = "disabled";
 };
 
 Clock consumer with only one, _AHB_ sink.

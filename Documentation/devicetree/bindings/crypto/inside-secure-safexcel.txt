@@ -25,5 +25,4 @@ Example:
 				  "eip";
 		clocks = <&cpm_syscon0 1 26>;
 		dma-mask = <0xff 0xffffffff>;
-		status = "disabled";
 	};

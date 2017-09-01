@@ -52,12 +52,10 @@ ethernet@f0000 {
 	      <0xc5000 0x100>;
 	clocks = <&gateclk 3>, <&gateclk 19>;
 	clock-names = "pp_clk", "gop_clk";
-	status = "okay";
 
 	eth0: eth0@c4000 {
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		port-id = <0>;
-		status = "okay";
 		phy = <&phy0>;
 		phy-mode = "gmii";
 	};
@@ -65,7 +63,6 @@ ethernet@f0000 {
 	eth1: eth1@c5000 {
 		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 		port-id = <1>;
-		status = "okay";
 		phy = <&phy3>;
 		phy-mode = "gmii";
 	};

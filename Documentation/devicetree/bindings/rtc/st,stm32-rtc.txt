@@ -45,5 +45,4 @@ Example:
 		interrupts = <17 1>;
 		interrupt-names = "alarm";
 		st,syscfg = <&pwrcfg>;
-		status = "disabled";
 	};

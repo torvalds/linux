@@ -16,7 +16,6 @@ Required properties:
 Example:
 
 &usb1 {
-	status = "okay";
 
 	#address-cells = <1>;
 	#size-cells = <0>;

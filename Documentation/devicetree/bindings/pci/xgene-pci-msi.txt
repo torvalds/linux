@@ -44,7 +44,6 @@ SoC DTSI:
 
 	+ PCIe controller node with msi-parent property pointing to MSI node:
 	pcie0: pcie@1f2b0000 {
-		status = "disabled";
 		device_type = "pci";
 		compatible = "apm,xgene-storm-pcie", "apm,xgene-pcie";
 		#interrupt-cells = <1>;

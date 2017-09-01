@@ -102,7 +102,6 @@ mcasp0: mcasp@48038000 {
 	reg-names = "mpu", "dat";
 	interrupts = <80>, <81>;
 	interrupt-names = "tx", "rx";
-	status = "disabled";
 	/* DMA channels 8 and 9 executed on eDMA TC2 - high priority queue */
 	dmas = <&edma 8 2>,
 	       <&edma 9 2>;

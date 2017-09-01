@@ -78,5 +78,4 @@ Example:
 		dma-names = "tx", "rx";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disabled";
 	};

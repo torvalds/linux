@@ -27,7 +27,6 @@ Example:
 		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 		dmas = <&dma 5>, <&dma 6>;
 		dma-names = "tx", "rx";
-		status = "okay";
 	};
 
 	sound {

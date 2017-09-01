@@ -42,7 +42,6 @@ Example:
 	usb_phy: usb-phy {
 		compatible = "ti,da830-usb-phy";
 		#phy-cells = <0>;
-		status = "okay";
 	};
 	usb0: usb@200000 {
 		compatible = "ti,da830-musb";
@@ -66,7 +65,6 @@ Example:
 			"rx1", "rx2", "rx3", "rx4",
 			"tx1", "tx2", "tx3", "tx4";
 
-		status = "okay";
 
 		cppi41dma: dma-controller@201000 {
 			compatible = "ti,da830-cppi41";

@@ -70,5 +70,4 @@ gmac: ethernet@ff290000 {
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
 
-	status = "ok";
 };

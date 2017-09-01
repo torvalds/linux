@@ -29,7 +29,6 @@ Sub-nodes:
 Examples:
 
 i2c@63fc8000 { /* I2C1 */
-	status = "okay";
 
 	pmic: dialog@48 {
 		compatible = "dlg,da9053-aa";

@@ -9,5 +9,4 @@ Example:
 ptp_dte: ptp_dte@180af650 {
 	compatible = "brcm,ptp-dte";
 	reg = <0x180af650 0x10>;
-	status = "okay";
 };
