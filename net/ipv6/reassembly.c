@@ -708,19 +708,13 @@ static void ip6_frags_sysctl_unregister(void)
 
 static int __net_init ipv6_frags_init_net(struct net *net)
 {
-	int res;
-
 	net->ipv6.frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
 	net->ipv6.frags.low_thresh = IPV6_FRAG_LOW_THRESH;
 	net->ipv6.frags.timeout = IPV6_FRAG_TIMEOUT;
 
-	res = inet_frags_init_net(&net->ipv6.frags);
-	if (res)
-		return res;
-	res = ip6_frags_ns_sysctl_register(net);
-	if (res)
-		inet_frags_uninit_net(&net->ipv6.frags);
-	return res;
+	inet_frags_init_net(&net->ipv6.frags);
+
+	return ip6_frags_ns_sysctl_register(net);
 }
 
 static void __net_exit ipv6_frags_exit_net(struct net *net)
