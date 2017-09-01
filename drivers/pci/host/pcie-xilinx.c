@@ -5,7 +5,7 @@
  *
  * Based on the Tegra PCIe driver
  *
- * Bits taken from Synopsys Designware Host controller driver and
+ * Bits taken from Synopsys DesignWare Host controller driver and
  * ARM PCI Host generic driver.
  *
  * This program is free software: you can redistribute it and/or modify

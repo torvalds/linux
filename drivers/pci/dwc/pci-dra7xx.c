@@ -275,7 +275,6 @@ static irqreturn_t dra7xx_pcie_msi_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-
 static irqreturn_t dra7xx_pcie_irq_handler(int irq, void *arg)
 {
 	struct dra7xx_pcie *dra7xx = arg;

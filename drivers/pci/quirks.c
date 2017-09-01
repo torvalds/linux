@@ -2061,7 +2061,7 @@ DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
 
 /*
  * The 82575 and 82598 may experience data corruption issues when transitioning
- * out of L0S.  To prevent this we need to disable L0S on the pci-e link
+ * out of L0S.  To prevent this we need to disable L0S on the PCIe link.
  */
 static void quirk_disable_aspm_l0s(struct pci_dev *dev)
 {

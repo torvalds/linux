@@ -2090,7 +2090,7 @@ S: Kuala Lumpur, Malaysia
 
 N: Mohit Kumar
 D: ST Microelectronics SPEAr13xx PCI host bridge driver
-D: Synopsys Designware PCI host bridge driver
+D: Synopsys DesignWare PCI host bridge driver
 
 N: Gabor Kuti
 E: seasons@falcon.sch.bme.hu
