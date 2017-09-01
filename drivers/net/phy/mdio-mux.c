@@ -116,6 +116,7 @@ int mdio_mux_init(struct device *dev,
 	} else {
 		parent_bus_node = NULL;
 		parent_bus = mux_bus;
+		get_device(&parent_bus->dev);
 	}
 
 	pb = devm_kzalloc(dev, sizeof(*pb), GFP_KERNEL);
@@ -184,9 +185,7 @@ int mdio_mux_init(struct device *dev,
 	dev_err(dev, "Error: No acceptable child buses found\n");
 	devm_kfree(dev, pb);
 err_pb_kz:
-	/* balance the reference of_mdio_find_bus() took */
-	if (!mux_bus)
-		put_device(&parent_bus->dev);
+	put_device(&parent_bus->dev);
 err_parent_bus:
 	of_node_put(parent_bus_node);
 	return ret_val;
@@ -204,7 +203,6 @@ void mdio_mux_uninit(void *mux_handle)
 		cb = cb->next;
 	}
 
-	/* balance the reference of_mdio_find_bus() in mdio_mux_init() took */
 	put_device(&pb->mii_bus->dev);
 }
 EXPORT_SYMBOL_GPL(mdio_mux_uninit);
