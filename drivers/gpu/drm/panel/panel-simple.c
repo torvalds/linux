@@ -552,6 +552,10 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		of_desc->delay.reset = val;
 	if (!of_property_read_u32(dev->of_node, "init-delay-ms", &val))
 		of_desc->delay.init = val;
+	if (!of_property_read_u32(dev->of_node, "width-mm", &val))
+		of_desc->size.width = val;
+	if (!of_property_read_u32(dev->of_node, "height-mm", &val))
+		of_desc->size.height = val;
 
 	panel->enabled = false;
 	panel->prepared = false;

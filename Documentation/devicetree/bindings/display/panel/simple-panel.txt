@@ -17,6 +17,8 @@ Optional properties:
 - prepare-delay-ms: take for the panel to receive video data
 - disable-delay-ms: takes for the panel to power off
 - unprepare-delay-ms: take for the panel to display off
+- width-mm: physical panel width [mm]
+- height-mm: physical panel height [mm]
 
 Required properties when compatible is "simple-panel" or "simple-panel-dsi":
 - display-timings: see display-timing.txt for information
