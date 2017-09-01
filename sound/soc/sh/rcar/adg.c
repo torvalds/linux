@@ -586,10 +586,8 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 	int ret;
 
 	adg = devm_kzalloc(dev, sizeof(*adg), GFP_KERNEL);
-	if (!adg) {
-		dev_err(dev, "ADG allocate failed\n");
+	if (!adg)
 		return -ENOMEM;
-	}
 
 	ret = rsnd_mod_init(priv, &adg->mod, &adg_ops,
 		      NULL, NULL, 0, 0);
