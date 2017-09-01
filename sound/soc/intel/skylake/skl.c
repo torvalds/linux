@@ -879,12 +879,12 @@ static void skl_remove(struct pci_dev *pci)
 
 static struct sst_codecs skl_codecs = {
 	.num_codecs = 1,
-	.codecs = {"NAU88L25"}
+	.codecs = {"10508825"}
 };
 
 static struct sst_codecs kbl_codecs = {
 	.num_codecs = 1,
-	.codecs = {"NAU88L25"}
+	.codecs = {"10508825"}
 };
 
 static struct sst_codecs bxt_codecs = {
