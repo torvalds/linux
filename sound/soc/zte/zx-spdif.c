@@ -264,7 +264,7 @@ static void zx_spdif_shutdown(struct snd_pcm_substream *substream,
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S18_3LE \
 	| SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops zx_spdif_dai_ops = {
+static const struct snd_soc_dai_ops zx_spdif_dai_ops = {
 	.trigger	= zx_spdif_trigger,
 	.startup	= zx_spdif_startup,
 	.shutdown	= zx_spdif_shutdown,
