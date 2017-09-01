@@ -3150,6 +3150,20 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 }
 
 static const struct bpf_func_proto *
+sock_filter_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	/* inet and inet6 sockets are created in a process
+	 * context so there is always a valid uid/gid
+	 */
+	case BPF_FUNC_get_current_uid_gid:
+		return &bpf_get_current_uid_gid_proto;
+	default:
+		return bpf_base_func_proto(func_id);
+	}
+}
+
+static const struct bpf_func_proto *
 sk_filter_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
@@ -3454,6 +3468,10 @@ static bool sock_filter_is_valid_access(int off, int size,
 	if (type == BPF_WRITE) {
 		switch (off) {
 		case offsetof(struct bpf_sock, bound_dev_if):
+			break;
+		case offsetof(struct bpf_sock, mark):
+			break;
+		case offsetof(struct bpf_sock, priority):
 			break;
 		default:
 			return false;
@@ -3958,6 +3976,28 @@ static u32 sock_filter_convert_ctx_access(enum bpf_access_type type,
 				      offsetof(struct sock, sk_bound_dev_if));
 		break;
 
+	case offsetof(struct bpf_sock, mark):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock, sk_mark) != 4);
+
+		if (type == BPF_WRITE)
+			*insn++ = BPF_STX_MEM(BPF_W, si->dst_reg, si->src_reg,
+					offsetof(struct sock, sk_mark));
+		else
+			*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
+				      offsetof(struct sock, sk_mark));
+		break;
+
+	case offsetof(struct bpf_sock, priority):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sock, sk_priority) != 4);
+
+		if (type == BPF_WRITE)
+			*insn++ = BPF_STX_MEM(BPF_W, si->dst_reg, si->src_reg,
+					offsetof(struct sock, sk_priority));
+		else
+			*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->src_reg,
+				      offsetof(struct sock, sk_priority));
+		break;
+
 	case offsetof(struct bpf_sock, family):
 		BUILD_BUG_ON(FIELD_SIZEOF(struct sock, sk_family) != 2);
 
@@ -4207,7 +4247,7 @@ const struct bpf_verifier_ops lwt_xmit_prog_ops = {
 };
 
 const struct bpf_verifier_ops cg_sock_prog_ops = {
-	.get_func_proto		= bpf_base_func_proto,
+	.get_func_proto		= sock_filter_func_proto,
 	.is_valid_access	= sock_filter_is_valid_access,
 	.convert_ctx_access	= sock_filter_convert_ctx_access,
 };
