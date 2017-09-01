@@ -2276,56 +2276,6 @@ static void remove_proc_entries(ipmi_smi_t smi)
 #endif /* CONFIG_PROC_FS */
 }
 
-static int __find_bmc_guid(struct device *dev, void *data)
-{
-	unsigned char *id = data;
-	struct bmc_device *bmc = to_bmc_device(dev);
-	return memcmp(bmc->guid, id, 16) == 0;
-}
-
-static struct bmc_device *ipmi_find_bmc_guid(struct device_driver *drv,
-					     unsigned char *guid)
-{
-	struct device *dev;
-
-	dev = driver_find_device(drv, NULL, guid, __find_bmc_guid);
-	if (dev)
-		return to_bmc_device(dev);
-	else
-		return NULL;
-}
-
-struct prod_dev_id {
-	unsigned int  product_id;
-	unsigned char device_id;
-};
-
-static int __find_bmc_prod_dev_id(struct device *dev, void *data)
-{
-	struct prod_dev_id *id = data;
-	struct bmc_device *bmc = to_bmc_device(dev);
-
-	return (bmc->id.product_id == id->product_id
-		&& bmc->id.device_id == id->device_id);
-}
-
-static struct bmc_device *ipmi_find_bmc_prod_dev_id(
-	struct device_driver *drv,
-	unsigned int product_id, unsigned char device_id)
-{
-	struct prod_dev_id id = {
-		.product_id = product_id,
-		.device_id = device_id,
-	};
-	struct device *dev;
-
-	dev = driver_find_device(drv, NULL, &id, __find_bmc_prod_dev_id);
-	if (dev)
-		return to_bmc_device(dev);
-	else
-		return NULL;
-}
-
 static ssize_t device_id_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
@@ -2479,6 +2429,57 @@ static const struct attribute_group *bmc_dev_attr_groups[] = {
 static const struct device_type bmc_device_type = {
 	.groups		= bmc_dev_attr_groups,
 };
+
+static int __find_bmc_guid(struct device *dev, void *data)
+{
+	unsigned char *id = data;
+	struct bmc_device *bmc = to_bmc_device(dev);
+
+	return memcmp(bmc->guid, id, 16) == 0;
+}
+
+static struct bmc_device *ipmi_find_bmc_guid(struct device_driver *drv,
+					     unsigned char *guid)
+{
+	struct device *dev;
+
+	dev = driver_find_device(drv, NULL, guid, __find_bmc_guid);
+	if (dev)
+		return to_bmc_device(dev);
+	else
+		return NULL;
+}
+
+struct prod_dev_id {
+	unsigned int  product_id;
+	unsigned char device_id;
+};
+
+static int __find_bmc_prod_dev_id(struct device *dev, void *data)
+{
+	struct prod_dev_id *id = data;
+	struct bmc_device *bmc = to_bmc_device(dev);
+
+	return (bmc->id.product_id == id->product_id
+		&& bmc->id.device_id == id->device_id);
+}
+
+static struct bmc_device *ipmi_find_bmc_prod_dev_id(
+	struct device_driver *drv,
+	unsigned int product_id, unsigned char device_id)
+{
+	struct prod_dev_id id = {
+		.product_id = product_id,
+		.device_id = device_id,
+	};
+	struct device *dev;
+
+	dev = driver_find_device(drv, NULL, &id, __find_bmc_prod_dev_id);
+	if (dev)
+		return to_bmc_device(dev);
+	else
+		return NULL;
+}
 
 static void
 release_bmc_device(struct device *dev)
