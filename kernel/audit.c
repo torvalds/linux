@@ -1562,7 +1562,7 @@ static int __init audit_init(void)
 
 	return 0;
 }
-__initcall(audit_init);
+postcore_initcall(audit_init);
 
 /* Process kernel command-line parameter at boot time.  audit=0 or audit=1. */
 static int __init audit_enable(char *str)
