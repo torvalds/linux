@@ -82,6 +82,6 @@ TRACE_EVENT(ttm_dma_unmap,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/ttm/
 #include <trace/define_trace.h>
 
