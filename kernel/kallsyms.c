@@ -24,6 +24,7 @@
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/filter.h>
+#include <linux/ftrace.h>
 #include <linux/compiler.h>
 
 #include <asm/sections.h>
@@ -337,6 +338,10 @@ const char *kallsyms_lookup(unsigned long addr,
 	if (!ret)
 		ret = bpf_address_lookup(addr, symbolsize,
 					 offset, modname, namebuf);
+
+	if (!ret)
+		ret = ftrace_mod_address_lookup(addr, symbolsize,
+						offset, modname, namebuf);
 	return ret;
 }
 

@@ -5675,6 +5675,21 @@ static int ftrace_process_locs(struct module *mod,
 	return ret;
 }
 
+struct ftrace_mod_func {
+	struct list_head	list;
+	char			*name;
+	unsigned long		ip;
+	unsigned int		size;
+};
+
+struct ftrace_mod_map {
+	struct list_head	list;
+	struct module		*mod;
+	unsigned long		start_addr;
+	unsigned long		end_addr;
+	struct list_head	funcs;
+};
+
 #ifdef CONFIG_MODULES
 
 #define next_to_ftrace_page(p) container_of(p, struct ftrace_page, next)
@@ -5868,9 +5883,123 @@ void ftrace_module_init(struct module *mod)
 	ftrace_process_locs(mod, mod->ftrace_callsites,
 			    mod->ftrace_callsites + mod->num_ftrace_callsites);
 }
+
+static void save_ftrace_mod_rec(struct ftrace_mod_map *mod_map,
+				struct dyn_ftrace *rec)
+{
+	struct ftrace_mod_func *mod_func;
+	unsigned long symsize;
+	unsigned long offset;
+	char str[KSYM_SYMBOL_LEN];
+	char *modname;
+	const char *ret;
+
+	ret = kallsyms_lookup(rec->ip, &symsize, &offset, &modname, str);
+	if (!ret)
+		return;
+
+	mod_func = kmalloc(sizeof(*mod_func), GFP_KERNEL);
+	if (!mod_func)
+		return;
+
+	mod_func->name = kstrdup(str, GFP_KERNEL);
+	if (!mod_func->name) {
+		kfree(mod_func);
+		return;
+	}
+
+	mod_func->ip = rec->ip - offset;
+	mod_func->size = symsize;
+
+	list_add_rcu(&mod_func->list, &mod_map->funcs);
+}
+
+static LIST_HEAD(ftrace_mod_maps);
+
+static struct ftrace_mod_map *
+allocate_ftrace_mod_map(struct module *mod,
+			unsigned long start, unsigned long end)
+{
+	struct ftrace_mod_map *mod_map;
+
+	mod_map = kmalloc(sizeof(*mod_map), GFP_KERNEL);
+	if (!mod_map)
+		return NULL;
+
+	mod_map->mod = mod;
+	mod_map->start_addr = start;
+	mod_map->end_addr = end;
+
+	INIT_LIST_HEAD_RCU(&mod_map->funcs);
+
+	list_add_rcu(&mod_map->list, &ftrace_mod_maps);
+
+	return mod_map;
+}
+
+static const char *
+ftrace_func_address_lookup(struct ftrace_mod_map *mod_map,
+			   unsigned long addr, unsigned long *size,
+			   unsigned long *off, char *sym)
+{
+	struct ftrace_mod_func *found_func =  NULL;
+	struct ftrace_mod_func *mod_func;
+
+	list_for_each_entry_rcu(mod_func, &mod_map->funcs, list) {
+		if (addr >= mod_func->ip &&
+		    addr < mod_func->ip + mod_func->size) {
+			found_func = mod_func;
+			break;
+		}
+	}
+
+	if (found_func) {
+		if (size)
+			*size = found_func->size;
+		if (off)
+			*off = addr - found_func->ip;
+		if (sym)
+			strlcpy(sym, found_func->name, KSYM_NAME_LEN);
+
+		return found_func->name;
+	}
+
+	return NULL;
+}
+
+const char *
+ftrace_mod_address_lookup(unsigned long addr, unsigned long *size,
+		   unsigned long *off, char **modname, char *sym)
+{
+	struct ftrace_mod_map *mod_map;
+	const char *ret = NULL;
+
+	preempt_disable();
+	list_for_each_entry_rcu(mod_map, &ftrace_mod_maps, list) {
+		ret = ftrace_func_address_lookup(mod_map, addr, size, off, sym);
+		if (ret) {
+			if (modname)
+				*modname = mod_map->mod->name;
+			break;
+		}
+	}
+	preempt_enable();
+
+	return ret;
+}
+
+#else
+static void save_ftrace_mod_rec(struct ftrace_mod_map *mod_map,
+				struct dyn_ftrace *rec) { }
+static inline struct ftrace_mod_map *
+allocate_ftrace_mod_map(struct module *mod,
+			unsigned long start, unsigned long end)
+{
+	return NULL;
+}
 #endif /* CONFIG_MODULES */
 
-void ftrace_free_mem(void *start_ptr, void *end_ptr)
+void ftrace_free_mem(struct module *mod, void *start_ptr, void *end_ptr)
 {
 	unsigned long start = (unsigned long)(start_ptr);
 	unsigned long end = (unsigned long)(end_ptr);
@@ -5878,12 +6007,21 @@ void ftrace_free_mem(void *start_ptr, void *end_ptr)
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
 	struct dyn_ftrace key;
+	struct ftrace_mod_map *mod_map = NULL;
 	int order;
 
 	key.ip = start;
 	key.flags = end;	/* overload flags, as it is unsigned long */
 
 	mutex_lock(&ftrace_lock);
+
+	/*
+	 * If we are freeing module init memory, then check if
+	 * any tracer is active. If so, we need to save a mapping of
+	 * the module functions being freed with the address.
+	 */
+	if (mod && ftrace_ops_list != &ftrace_list_end)
+		mod_map = allocate_ftrace_mod_map(mod, start, end);
 
 	for (pg = ftrace_pages_start; pg; last_pg = &pg->next, pg = *last_pg) {
 		if (end < pg->records[0].ip ||
@@ -5895,6 +6033,10 @@ void ftrace_free_mem(void *start_ptr, void *end_ptr)
 			      ftrace_cmp_recs);
 		if (!rec)
 			continue;
+
+		if (mod_map)
+			save_ftrace_mod_rec(mod_map, rec);
+
 		pg->index--;
 		ftrace_update_tot_cnt--;
 		if (!pg->index) {
@@ -5920,7 +6062,7 @@ void __init ftrace_free_init_mem(void)
 	void *start = (void *)(&__init_begin);
 	void *end = (void *)(&__init_end);
 
-	ftrace_free_mem(start, end);
+	ftrace_free_mem(NULL, start, end);
 }
 
 void __init ftrace_init(void)

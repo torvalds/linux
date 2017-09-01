@@ -3473,7 +3473,7 @@ static noinline int do_init_module(struct module *mod)
 	if (!mod->async_probe_requested && (current->flags & PF_USED_ASYNC))
 		async_synchronize_full();
 
-	ftrace_free_mem(mod->init_layout.base, mod->init_layout.base +
+	ftrace_free_mem(mod, mod->init_layout.base, mod->init_layout.base +
 			mod->init_layout.size);
 	mutex_lock(&module_mutex);
 	/* Drop initial reference. */
