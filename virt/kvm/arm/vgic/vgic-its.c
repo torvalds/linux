@@ -144,7 +144,6 @@ struct its_ite {
 
 	struct vgic_irq *irq;
 	struct its_collection *collection;
-	u32 lpi;
 	u32 event_id;
 };
 
@@ -813,7 +812,7 @@ static void vgic_its_free_collection(struct vgic_its *its, u32 coll_id)
 /* Must be called with its_lock mutex held */
 static struct its_ite *vgic_its_alloc_ite(struct its_device *device,
 					  struct its_collection *collection,
-					  u32 lpi_id, u32 event_id)
+					  u32 event_id)
 {
 	struct its_ite *ite;
 
@@ -823,7 +822,6 @@ static struct its_ite *vgic_its_alloc_ite(struct its_device *device,
 
 	ite->event_id	= event_id;
 	ite->collection = collection;
-	ite->lpi = lpi_id;
 
 	list_add_tail(&ite->ite_list, &device->itt_head);
 	return ite;
@@ -873,7 +871,7 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 		new_coll = collection;
 	}
 
-	ite = vgic_its_alloc_ite(device, collection, lpi_nr, event_id);
+	ite = vgic_its_alloc_ite(device, collection, event_id);
 	if (IS_ERR(ite)) {
 		if (new_coll)
 			vgic_its_free_collection(its, coll_id);
@@ -1848,7 +1846,7 @@ static int vgic_its_save_ite(struct vgic_its *its, struct its_device *dev,
 
 	next_offset = compute_next_eventid_offset(&dev->itt_head, ite);
 	val = ((u64)next_offset << KVM_ITS_ITE_NEXT_SHIFT) |
-	       ((u64)ite->lpi << KVM_ITS_ITE_PINTID_SHIFT) |
+	       ((u64)ite->irq->intid << KVM_ITS_ITE_PINTID_SHIFT) |
 		ite->collection->collection_id;
 	val = cpu_to_le64(val);
 	return kvm_write_guest(kvm, gpa, &val, ite_esz);
@@ -1895,7 +1893,7 @@ static int vgic_its_restore_ite(struct vgic_its *its, u32 event_id,
 	if (!collection)
 		return -EINVAL;
 
-	ite = vgic_its_alloc_ite(dev, collection, lpi_id, event_id);
+	ite = vgic_its_alloc_ite(dev, collection, event_id);
 	if (IS_ERR(ite))
 		return PTR_ERR(ite);
 
