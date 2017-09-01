@@ -16,7 +16,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <media/v4l2-device.h>
-#include <asm/intel-mid.h>
 
 #include "dw9714.h"
 

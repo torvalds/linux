@@ -20,7 +20,6 @@
 #define _PLATFORM_VLV2_PLAT_CLK_H_
 
 #include <linux/sfi.h>
-#include <asm/intel-mid.h>
 
 extern void __init *vlv2_plat_clk_device_platform_data(
 				void *info) __attribute__((weak));

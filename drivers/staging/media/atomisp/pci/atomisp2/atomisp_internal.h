@@ -29,8 +29,6 @@
 #include <linux/pm_qos.h>
 #include <linux/idr.h>
 
-#include <asm/intel-mid.h>
-
 #include <media/media-device.h>
 #include <media/v4l2-subdev.h>
 

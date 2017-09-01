@@ -28,7 +28,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/timer.h>
 
-#include <asm/intel-mid.h>
 #include <asm/iosf_mbi.h>
 
 #include <media/v4l2-event.h>

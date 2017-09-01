@@ -18,7 +18,6 @@
  * 02110-1301, USA.
  *
  */
-#include <asm/intel-mid.h>
 #include "../../include/linux/atomisp_platform.h"
 #include <linux/bitops.h>
 #include <linux/device.h>

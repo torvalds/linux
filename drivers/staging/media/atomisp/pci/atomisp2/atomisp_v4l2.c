@@ -28,7 +28,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include <asm/intel-mid.h>
 #include <asm/iosf_mbi.h>
 
 #include "../../include/linux/atomisp_gmin_platform.h"

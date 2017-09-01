@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <media/v4l2-device.h>
-#include <asm/intel-mid.h>
 #include "common.h"
 
 /* Defines for OTP Data Registers */

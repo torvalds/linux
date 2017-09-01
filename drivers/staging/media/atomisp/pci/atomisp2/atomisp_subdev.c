@@ -25,7 +25,6 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <asm/intel-mid.h>
 
 #include <media/v4l2-event.h>
 #include <media/v4l2-mediabus.h>
