@@ -98,7 +98,7 @@ static inline void bcm_sf2_cfp_rule_addr_set(struct bcm_sf2_priv *priv,
 {
 	u32 reg;
 
-	WARN_ON(addr >= CFP_NUM_RULES);
+	WARN_ON(addr >= priv->num_cfp_rules);
 
 	reg = core_readl(priv, CORE_CFP_ACC);
 	reg &= ~(XCESS_ADDR_MASK << XCESS_ADDR_SHIFT);
@@ -109,7 +109,7 @@ static inline void bcm_sf2_cfp_rule_addr_set(struct bcm_sf2_priv *priv,
 static inline unsigned int bcm_sf2_cfp_rule_size(struct bcm_sf2_priv *priv)
 {
 	/* Entry #0 is reserved */
-	return CFP_NUM_RULES - 1;
+	return priv->num_cfp_rules - 1;
 }
 
 static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
@@ -523,7 +523,7 @@ static int bcm_sf2_cfp_rule_get_all(struct bcm_sf2_priv *priv,
 		if (!(reg & OP_STR_DONE))
 			break;
 
-	} while (index < CFP_NUM_RULES);
+	} while (index < priv->num_cfp_rules);
 
 	/* Put the TCAM size here */
 	nfc->data = bcm_sf2_cfp_rule_size(priv);
@@ -544,7 +544,7 @@ int bcm_sf2_get_rxnfc(struct dsa_switch *ds, int port,
 	case ETHTOOL_GRXCLSRLCNT:
 		/* Subtract the default, unusable rule */
 		nfc->rule_cnt = bitmap_weight(priv->cfp.used,
-					      CFP_NUM_RULES) - 1;
+					      priv->num_cfp_rules) - 1;
 		/* We support specifying rule locations */
 		nfc->data |= RX_CLS_LOC_SPECIAL;
 		break;

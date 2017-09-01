@@ -1360,7 +1360,7 @@ static unsigned int __bcmgenet_tx_reclaim(struct net_device *dev,
 		if (skb) {
 			pkts_compl++;
 			bytes_compl += GENET_CB(skb)->bytes_sent;
-			dev_kfree_skb_any(skb);
+			dev_consume_skb_any(skb);
 		}
 
 		txbds_processed++;
@@ -1875,7 +1875,7 @@ static int bcmgenet_alloc_rx_buffers(struct bcmgenet_priv *priv,
 		cb = ring->cbs + i;
 		skb = bcmgenet_rx_refill(priv, cb);
 		if (skb)
-			dev_kfree_skb_any(skb);
+			dev_consume_skb_any(skb);
 		if (!cb->skb)
 			return -ENOMEM;
 	}
@@ -1894,7 +1894,7 @@ static void bcmgenet_free_rx_buffers(struct bcmgenet_priv *priv)
 
 		skb = bcmgenet_free_rx_cb(&priv->pdev->dev, cb);
 		if (skb)
-			dev_kfree_skb_any(skb);
+			dev_consume_skb_any(skb);
 	}
 }
 

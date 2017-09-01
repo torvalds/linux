@@ -1443,12 +1443,10 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	int ret;
 
-	dst = ip6_route_output(dev_net(mirred_dev), NULL, fl6);
-	ret = dst->error;
-	if (ret) {
-		dst_release(dst);
+	ret = ipv6_stub->ipv6_dst_lookup(dev_net(mirred_dev), NULL, &dst,
+					 fl6);
+	if (ret < 0)
 		return ret;
-	}
 
 	*out_ttl = ip6_dst_hoplimit(dst);
 
