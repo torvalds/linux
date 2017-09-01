@@ -1330,7 +1330,10 @@ static int gfx_v9_0_sw_init(void *handle)
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
 		ring = &adev->gfx.gfx_ring[i];
 		ring->ring_obj = NULL;
-		sprintf(ring->name, "gfx");
+		if (!i)
+			sprintf(ring->name, "gfx");
+		else
+			sprintf(ring->name, "gfx_%d", i);
 		ring->use_doorbell = true;
 		ring->doorbell_index = AMDGPU_DOORBELL64_GFX_RING0 << 1;
 		r = amdgpu_ring_init(adev, ring, 1024,
