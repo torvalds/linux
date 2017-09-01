@@ -1451,9 +1451,10 @@ static int soc_probe_component(struct snd_soc_card *card,
 
 	soc_init_component_debugfs(component);
 
-	if (component->dapm_widgets) {
-		ret = snd_soc_dapm_new_controls(dapm, component->dapm_widgets,
-			component->num_dapm_widgets);
+	if (component->driver->dapm_widgets) {
+		ret = snd_soc_dapm_new_controls(dapm,
+					component->driver->dapm_widgets,
+					component->driver->num_dapm_widgets);
 
 		if (ret != 0) {
 			dev_err(component->dev,
@@ -1495,12 +1496,14 @@ static int soc_probe_component(struct snd_soc_card *card,
 		}
 	}
 
-	if (component->controls)
-		snd_soc_add_component_controls(component, component->controls,
-				     component->num_controls);
-	if (component->dapm_routes)
-		snd_soc_dapm_add_routes(dapm, component->dapm_routes,
-					component->num_dapm_routes);
+	if (component->driver->controls)
+		snd_soc_add_component_controls(component,
+					       component->driver->controls,
+					       component->driver->num_controls);
+	if (component->driver->dapm_routes)
+		snd_soc_dapm_add_routes(dapm,
+					component->driver->dapm_routes,
+					component->driver->num_dapm_routes);
 
 	list_add(&dapm->list, &card->dapm_list);
 	list_add(&component->card_list, &card->component_dev_list);
@@ -2587,11 +2590,9 @@ int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 {
 	if (dai->driver && dai->driver->ops->set_sysclk)
 		return dai->driver->ops->set_sysclk(dai, clk_id, freq, dir);
-	else if (dai->codec && dai->codec->driver->set_sysclk)
-		return dai->codec->driver->set_sysclk(dai->codec, clk_id, 0,
-						      freq, dir);
-	else
-		return -ENOTSUPP;
+
+	return snd_soc_component_set_sysclk(dai->component, clk_id, 0,
+					    freq, dir);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_sysclk);
 
@@ -2615,6 +2616,32 @@ int snd_soc_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 		return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(snd_soc_codec_set_sysclk);
+
+/**
+ * snd_soc_component_set_sysclk - configure COMPONENT system or master clock.
+ * @component: COMPONENT
+ * @clk_id: DAI specific clock ID
+ * @source: Source for the clock
+ * @freq: new clock frequency in Hz
+ * @dir: new clock direction - input/output.
+ *
+ * Configures the CODEC master (MCLK) or system (SYSCLK) clocking.
+ */
+int snd_soc_component_set_sysclk(struct snd_soc_component *component, int clk_id,
+			     int source, unsigned int freq, int dir)
+{
+	/* will be removed */
+	if (component->set_sysclk)
+		return component->set_sysclk(component, clk_id, source,
+					     freq, dir);
+
+	if (component->driver->set_sysclk)
+		return component->driver->set_sysclk(component, clk_id, source,
+						 freq, dir);
+
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_set_sysclk);
 
 /**
  * snd_soc_dai_set_clkdiv - configure DAI clock dividers.
@@ -2652,11 +2679,9 @@ int snd_soc_dai_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
 	if (dai->driver && dai->driver->ops->set_pll)
 		return dai->driver->ops->set_pll(dai, pll_id, source,
 					 freq_in, freq_out);
-	else if (dai->codec && dai->codec->driver->set_pll)
-		return dai->codec->driver->set_pll(dai->codec, pll_id, source,
-						   freq_in, freq_out);
-	else
-		return -EINVAL;
+
+	return snd_soc_component_set_pll(dai->component, pll_id, source,
+					 freq_in, freq_out);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_pll);
 
@@ -2680,6 +2705,33 @@ int snd_soc_codec_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
 		return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(snd_soc_codec_set_pll);
+
+/*
+ * snd_soc_component_set_pll - configure component PLL.
+ * @component: COMPONENT
+ * @pll_id: DAI specific PLL ID
+ * @source: DAI specific source for the PLL
+ * @freq_in: PLL input clock frequency in Hz
+ * @freq_out: requested PLL output clock frequency in Hz
+ *
+ * Configures and enables PLL to generate output clock based on input clock.
+ */
+int snd_soc_component_set_pll(struct snd_soc_component *component, int pll_id,
+			      int source, unsigned int freq_in,
+			      unsigned int freq_out)
+{
+	/* will be removed */
+	if (component->set_pll)
+		return component->set_pll(component, pll_id, source,
+					      freq_in, freq_out);
+
+	if (component->driver->set_pll)
+		return component->driver->set_pll(component, pll_id, source,
+					      freq_in, freq_out);
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_set_pll);
 
 /**
  * snd_soc_dai_set_bclk_ratio - configure BCLK to sample rate ratio.
@@ -3171,6 +3223,9 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->remove = component->driver->remove;
 	component->suspend = component->driver->suspend;
 	component->resume = component->driver->resume;
+	component->set_sysclk = component->driver->set_sysclk;
+	component->set_pll = component->driver->set_pll;
+	component->set_jack = component->driver->set_jack;
 
 	dapm = &component->dapm;
 	dapm->dev = dev;
@@ -3181,13 +3236,6 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 		dapm->seq_notifier = snd_soc_component_seq_notifier;
 	if (driver->stream_event)
 		dapm->stream_event = snd_soc_component_stream_event;
-
-	component->controls = driver->controls;
-	component->num_controls = driver->num_controls;
-	component->dapm_widgets = driver->dapm_widgets;
-	component->num_dapm_widgets = driver->num_dapm_widgets;
-	component->dapm_routes = driver->dapm_routes;
-	component->num_dapm_routes = driver->num_dapm_routes;
 
 	INIT_LIST_HEAD(&component->dai_list);
 	mutex_init(&component->io_mutex);
@@ -3280,40 +3328,40 @@ static void snd_soc_component_del_unlocked(struct snd_soc_component *component)
 }
 
 int snd_soc_register_component(struct device *dev,
-			       const struct snd_soc_component_driver *cmpnt_drv,
+			       const struct snd_soc_component_driver *component_driver,
 			       struct snd_soc_dai_driver *dai_drv,
 			       int num_dai)
 {
-	struct snd_soc_component *cmpnt;
+	struct snd_soc_component *component;
 	int ret;
 
-	cmpnt = kzalloc(sizeof(*cmpnt), GFP_KERNEL);
-	if (!cmpnt) {
+	component = kzalloc(sizeof(*component), GFP_KERNEL);
+	if (!component) {
 		dev_err(dev, "ASoC: Failed to allocate memory\n");
 		return -ENOMEM;
 	}
 
-	ret = snd_soc_component_initialize(cmpnt, cmpnt_drv, dev);
+	ret = snd_soc_component_initialize(component, component_driver, dev);
 	if (ret)
 		goto err_free;
 
-	cmpnt->ignore_pmdown_time = true;
-	cmpnt->registered_as_component = true;
+	component->ignore_pmdown_time = true;
+	component->registered_as_component = true;
 
-	ret = snd_soc_register_dais(cmpnt, dai_drv, num_dai, true);
+	ret = snd_soc_register_dais(component, dai_drv, num_dai, true);
 	if (ret < 0) {
 		dev_err(dev, "ASoC: Failed to register DAIs: %d\n", ret);
 		goto err_cleanup;
 	}
 
-	snd_soc_component_add(cmpnt);
+	snd_soc_component_add(component);
 
 	return 0;
 
 err_cleanup:
-	snd_soc_component_cleanup(cmpnt);
+	snd_soc_component_cleanup(component);
 err_free:
-	kfree(cmpnt);
+	kfree(component);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_component);
@@ -3325,22 +3373,26 @@ EXPORT_SYMBOL_GPL(snd_soc_register_component);
  */
 void snd_soc_unregister_component(struct device *dev)
 {
-	struct snd_soc_component *cmpnt;
+	struct snd_soc_component *component;
+	int found = 0;
 
 	mutex_lock(&client_mutex);
-	list_for_each_entry(cmpnt, &component_list, list) {
-		if (dev == cmpnt->dev && cmpnt->registered_as_component)
-			goto found;
+	list_for_each_entry(component, &component_list, list) {
+		if (dev != component->dev ||
+		    !component->registered_as_component)
+			continue;
+
+		snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
+		snd_soc_component_del_unlocked(component);
+		found = 1;
+		break;
 	}
 	mutex_unlock(&client_mutex);
-	return;
 
-found:
-	snd_soc_tplg_component_remove(cmpnt, SND_SOC_TPLG_INDEX_ALL);
-	snd_soc_component_del_unlocked(cmpnt);
-	mutex_unlock(&client_mutex);
-	snd_soc_component_cleanup(cmpnt);
-	kfree(cmpnt);
+	if (found) {
+		snd_soc_component_cleanup(component);
+		kfree(component);
+	}
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_component);
 
@@ -3557,6 +3609,31 @@ static int snd_soc_codec_drv_read(struct snd_soc_component *component,
 	return 0;
 }
 
+static int snd_soc_codec_set_sysclk_(struct snd_soc_component *component,
+			  int clk_id, int source, unsigned int freq, int dir)
+{
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+	return snd_soc_codec_set_sysclk(codec, clk_id, source, freq, dir);
+}
+
+static int snd_soc_codec_set_pll_(struct snd_soc_component *component,
+				  int pll_id, int source, unsigned int freq_in,
+				  unsigned int freq_out)
+{
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+	return snd_soc_codec_set_pll(codec, pll_id, source, freq_in, freq_out);
+}
+
+static int snd_soc_codec_set_jack_(struct snd_soc_component *component,
+			       struct snd_soc_jack *jack, void *data)
+{
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+	return snd_soc_codec_set_jack(codec, jack, data);
+}
+
 static int snd_soc_codec_set_bias_level(struct snd_soc_dapm_context *dapm,
 	enum snd_soc_bias_level level)
 {
@@ -3608,6 +3685,12 @@ int snd_soc_register_codec(struct device *dev,
 		codec->component.write = snd_soc_codec_drv_write;
 	if (codec_drv->read)
 		codec->component.read = snd_soc_codec_drv_read;
+	if (codec_drv->set_sysclk)
+		codec->component.set_sysclk = snd_soc_codec_set_sysclk_;
+	if (codec_drv->set_pll)
+		codec->component.set_pll = snd_soc_codec_set_pll_;
+	if (codec_drv->set_jack)
+		codec->component.set_jack = snd_soc_codec_set_jack_;
 	codec->component.ignore_pmdown_time = codec_drv->ignore_pmdown_time;
 
 	dapm = snd_soc_codec_get_dapm(codec);
