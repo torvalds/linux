@@ -2727,6 +2727,7 @@ int emulate_loadstore(struct pt_regs *regs, struct instruction_op *op)
 		if (!address_ok(regs, ea, size))
 			return -EFAULT;
 		err = 0;
+		val = 0;
 		switch (size) {
 #ifdef __powerpc64__
 		case 1:
