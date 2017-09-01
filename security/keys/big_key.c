@@ -147,6 +147,7 @@ int big_key_preparse(struct key_preparsed_payload *prep)
 		 * File content is stored encrypted with randomly generated key.
 		 */
 		size_t enclen = ALIGN(datalen, crypto_skcipher_blocksize(big_key_skcipher));
+		loff_t pos = 0;
 
 		/* prepare aligned data to encrypt */
 		data = kmalloc(enclen, GFP_KERNEL);
@@ -179,7 +180,7 @@ int big_key_preparse(struct key_preparsed_payload *prep)
 			goto err_enckey;
 		}
 
-		written = kernel_write(file, data, enclen, 0);
+		written = kernel_write(file, data, enclen, &pos);
 		if (written != enclen) {
 			ret = written;
 			if (written >= 0)
