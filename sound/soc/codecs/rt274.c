@@ -1102,6 +1102,7 @@ MODULE_DEVICE_TABLE(i2c, rt274_i2c_id);
 
 static const struct acpi_device_id rt274_acpi_match[] = {
 	{ "10EC0274", 0 },
+	{ "INT34C2", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, rt274_acpi_match);
