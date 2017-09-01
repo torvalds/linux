@@ -749,17 +749,11 @@ static int gmc_v9_0_hw_init(void *handle)
 	gmc_v9_0_init_golden_registers(adev);
 
 	if (adev->mode_info.num_crtc) {
-		u32 tmp;
-
 		/* Lockout access through VGA aperture*/
-		tmp = RREG32_SOC15(DCE, 0, mmVGA_HDP_CONTROL);
-		tmp = REG_SET_FIELD(tmp, VGA_HDP_CONTROL, VGA_MEMORY_DISABLE, 1);
-		WREG32_SOC15(DCE, 0, mmVGA_HDP_CONTROL, tmp);
+		WREG32_FIELD15(DCE, 0, VGA_HDP_CONTROL, VGA_MEMORY_DISABLE, 1);
 
 		/* disable VGA render */
-		tmp = RREG32_SOC15(DCE, 0, mmVGA_RENDER_CONTROL);
-		tmp = REG_SET_FIELD(tmp, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
-		WREG32_SOC15(DCE, 0, mmVGA_RENDER_CONTROL, tmp);
+		WREG32_FIELD15(DCE, 0, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
 	}
 
 	r = gmc_v9_0_gart_enable(adev);
