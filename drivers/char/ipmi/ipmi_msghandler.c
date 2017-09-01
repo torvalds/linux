@@ -2433,9 +2433,11 @@ static const struct device_type bmc_device_type = {
 static int __find_bmc_guid(struct device *dev, void *data)
 {
 	unsigned char *id = data;
-	struct bmc_device *bmc = to_bmc_device(dev);
 
-	return memcmp(bmc->guid, id, 16) == 0;
+	if (dev->type != &bmc_device_type)
+		return 0;
+
+	return memcmp(to_bmc_device(dev)->guid, id, 16) == 0;
 }
 
 static struct bmc_device *ipmi_find_bmc_guid(struct device_driver *drv,
@@ -2458,8 +2460,12 @@ struct prod_dev_id {
 static int __find_bmc_prod_dev_id(struct device *dev, void *data)
 {
 	struct prod_dev_id *id = data;
-	struct bmc_device *bmc = to_bmc_device(dev);
+	struct bmc_device *bmc;
 
+	if (dev->type != &bmc_device_type)
+		return 0;
+
+	bmc = to_bmc_device(dev);
 	return (bmc->id.product_id == id->product_id
 		&& bmc->id.device_id == id->device_id);
 }
