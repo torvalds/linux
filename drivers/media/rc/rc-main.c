@@ -1638,6 +1638,9 @@ static int rc_prepare_rx_device(struct rc_dev *dev)
 
 	rc_proto = BIT_ULL(rc_map->rc_proto);
 
+	if (dev->driver_type == RC_DRIVER_SCANCODE && !dev->change_protocol)
+		dev->enabled_protocols = dev->allowed_protocols;
+
 	if (dev->change_protocol) {
 		rc = dev->change_protocol(dev, &rc_proto);
 		if (rc < 0)
