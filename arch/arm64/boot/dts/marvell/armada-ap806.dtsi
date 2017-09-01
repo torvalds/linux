@@ -268,10 +268,10 @@
 				ap_gpio: gpio {
 					compatible = "marvell,armada-8k-gpio";
 					offset = <0x1040>;
-					ngpios = <19>;
+					ngpios = <20>;
 					gpio-controller;
 					#gpio-cells = <2>;
-					gpio-ranges = <&ap_pinctrl 0 0 19>;
+					gpio-ranges = <&ap_pinctrl 0 0 20>;
 				};
 			};
 		};
