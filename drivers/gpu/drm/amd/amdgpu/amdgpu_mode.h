@@ -436,7 +436,6 @@ struct amdgpu_crtc {
 	enum amdgpu_interrupt_state vsync_timer_enabled;
 
 	int otg_inst;
-	uint32_t flip_flags;
 	/* After Set Mode stream will be non-NULL */
 	const struct dc_stream *stream;
 	struct drm_pending_vblank_event *event;
