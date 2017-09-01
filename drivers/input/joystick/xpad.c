@@ -476,10 +476,21 @@ static const u8 xboxone_hori_init[] = {
 };
 
 /*
- * A rumble packet is required for some PowerA pads to start
+ * A specific rumble packet is required for some PowerA pads to start
  * sending input reports. One of those pads is (0x24c6:0x543a).
  */
-static const u8 xboxone_zerorumble_init[] = {
+static const u8 xboxone_rumblebegin_init[] = {
+	0x09, 0x00, 0x00, 0x09, 0x00, 0x0F, 0x00, 0x00,
+	0x1D, 0x1D, 0xFF, 0x00, 0x00
+};
+
+/*
+ * A rumble packet with zero FF intensity will immediately
+ * terminate the rumbling required to init PowerA pads.
+ * This should happen fast enough that the motors don't
+ * spin up to enough speed to actually vibrate the gamepad.
+ */
+static const u8 xboxone_rumbleend_init[] = {
 	0x09, 0x00, 0x00, 0x09, 0x00, 0x0F, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00
 };
@@ -494,9 +505,12 @@ static const struct xboxone_init_packet xboxone_init_packets[] = {
 	XBOXONE_INIT_PKT(0x0e6f, 0x0165, xboxone_hori_init),
 	XBOXONE_INIT_PKT(0x0f0d, 0x0067, xboxone_hori_init),
 	XBOXONE_INIT_PKT(0x0000, 0x0000, xboxone_fw2015_init),
-	XBOXONE_INIT_PKT(0x24c6, 0x541a, xboxone_zerorumble_init),
-	XBOXONE_INIT_PKT(0x24c6, 0x542a, xboxone_zerorumble_init),
-	XBOXONE_INIT_PKT(0x24c6, 0x543a, xboxone_zerorumble_init),
+	XBOXONE_INIT_PKT(0x24c6, 0x541a, xboxone_rumblebegin_init),
+	XBOXONE_INIT_PKT(0x24c6, 0x542a, xboxone_rumblebegin_init),
+	XBOXONE_INIT_PKT(0x24c6, 0x543a, xboxone_rumblebegin_init),
+	XBOXONE_INIT_PKT(0x24c6, 0x541a, xboxone_rumbleend_init),
+	XBOXONE_INIT_PKT(0x24c6, 0x542a, xboxone_rumbleend_init),
+	XBOXONE_INIT_PKT(0x24c6, 0x543a, xboxone_rumbleend_init),
 };
 
 struct xpad_output_packet {
