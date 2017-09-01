@@ -49,8 +49,8 @@ Arguments
 Description
 -----------
 
-This system call opens a named ca device (e.g. /dev/ost/ca) for
-subsequent use.
+This system call opens a named ca device (e.g. ``/dev/dvb/adapter?/ca?``)
+for subsequent use.
 
 When an open() call has succeeded, the device will be ready for use. The
 significance of blocking or non-blocking mode is described in the
