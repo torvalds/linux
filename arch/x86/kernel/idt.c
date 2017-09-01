@@ -44,6 +44,10 @@ struct idt_data {
 #define ISTG(_vector, _addr, _ist)			\
 	G(_vector, _addr, _ist, GATE_INTERRUPT, DPL0, __KERNEL_CS)
 
+/* System interrupt gate with interrupt stack */
+#define SISTG(_vector, _addr, _ist)			\
+	G(_vector, _addr, _ist, GATE_INTERRUPT, DPL3, __KERNEL_CS)
+
 /* Task gate */
 #define TSKG(_vector, _gdt)				\
 	G(_vector, NULL, DEFAULT_STACK, GATE_TASK, DPL0, _gdt << 3)
@@ -181,7 +185,7 @@ gate_desc debug_idt_table[IDT_ENTRIES] __page_aligned_bss;
 static const __initdata struct idt_data ist_idts[] = {
 	ISTG(X86_TRAP_DB,	debug,		DEBUG_STACK),
 	ISTG(X86_TRAP_NMI,	nmi,		NMI_STACK),
-	ISTG(X86_TRAP_BP,	int3,		DEBUG_STACK),
+	SISTG(X86_TRAP_BP,	int3,		DEBUG_STACK),
 	ISTG(X86_TRAP_DF,	double_fault,	DOUBLEFAULT_STACK),
 #ifdef CONFIG_X86_MCE
 	ISTG(X86_TRAP_MC,	&machine_check,	MCE_STACK),
