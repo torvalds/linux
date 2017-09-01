@@ -44,7 +44,7 @@
  */
 #define CPER_REC_LEN					256
 /*
- * Severity difinition for error_severity in struct cper_record_header
+ * Severity definition for error_severity in struct cper_record_header
  * and section_severity in struct cper_section_descriptor
  */
 enum {
@@ -55,24 +55,21 @@ enum {
 };
 
 /*
- * Validation bits difinition for validation_bits in struct
+ * Validation bits definition for validation_bits in struct
  * cper_record_header. If set, corresponding fields in struct
  * cper_record_header contain valid information.
- *
- * corresponds platform_id
  */
 #define CPER_VALID_PLATFORM_ID			0x0001
-/* corresponds timestamp */
 #define CPER_VALID_TIMESTAMP			0x0002
-/* corresponds partition_id */
 #define CPER_VALID_PARTITION_ID			0x0004
 
 /*
  * Notification type used to generate error record, used in
- * notification_type in struct cper_record_header
- *
- * Corrected Machine Check
+ * notification_type in struct cper_record_header.  These UUIDs are defined
+ * in the UEFI spec v2.7, sec N.2.1.
  */
+
+/* Corrected Machine Check */
 #define CPER_NOTIFY_CMC							\
 	GUID_INIT(0x2DCE8BB1, 0xBDD7, 0x450e, 0xB9, 0xAD, 0x9C, 0xF4,	\
 		  0xEB, 0xD4, 0xF8, 0x90)
@@ -122,14 +119,11 @@ enum {
 #define CPER_SEC_REV				0x0100
 
 /*
- * Validation bits difinition for validation_bits in struct
+ * Validation bits definition for validation_bits in struct
  * cper_section_descriptor. If set, corresponding fields in struct
  * cper_section_descriptor contain valid information.
- *
- * corresponds fru_id
  */
 #define CPER_SEC_VALID_FRU_ID			0x1
-/* corresponds fru_text */
 #define CPER_SEC_VALID_FRU_TEXT			0x2
 
 /*
@@ -165,10 +159,11 @@ enum {
 
 /*
  * Section type definitions, used in section_type field in struct
- * cper_section_descriptor
- *
- * Processor Generic
+ * cper_section_descriptor.  These UUIDs are defined in the UEFI spec
+ * v2.7, sec N.2.2.
  */
+
+/* Processor Generic */
 #define CPER_SEC_PROC_GENERIC						\
 	GUID_INIT(0x9876CCAD, 0x47B4, 0x4bdb, 0xB6, 0x5E, 0x16, 0xF1,	\
 		  0x93, 0xC4, 0xF3, 0xDB)
@@ -325,6 +320,7 @@ enum {
  */
 #pragma pack(1)
 
+/* Record Header, UEFI v2.7 sec N.2.1 */
 struct cper_record_header {
 	char	signature[CPER_SIG_SIZE];	/* must be CPER_SIG_RECORD */
 	__u16	revision;			/* must be CPER_RECORD_REV */
@@ -344,6 +340,7 @@ struct cper_record_header {
 	__u8	reserved[12];			/* must be zero */
 };
 
+/* Section Descriptor, UEFI v2.7 sec N.2.2 */
 struct cper_section_descriptor {
 	__u32	section_offset;		/* Offset in bytes of the
 					 *  section body from the base
@@ -359,7 +356,7 @@ struct cper_section_descriptor {
 	__u8	fru_text[20];
 };
 
-/* Generic Processor Error Section */
+/* Generic Processor Error Section, UEFI v2.7 sec N.2.4.1 */
 struct cper_sec_proc_generic {
 	__u64	validation_bits;
 	__u8	proc_type;
@@ -378,14 +375,14 @@ struct cper_sec_proc_generic {
 	__u64	ip;
 };
 
-/* IA32/X64 Processor Error Section */
+/* IA32/X64 Processor Error Section, UEFI v2.7 sec N.2.4.2 */
 struct cper_sec_proc_ia {
 	__u64	validation_bits;
 	__u64	lapic_id;
 	__u8	cpuid[48];
 };
 
-/* IA32/X64 Processor Error Information Structure */
+/* IA32/X64 Processor Error Information Structure, UEFI v2.7 sec N.2.4.2.1 */
 struct cper_ia_err_info {
 	guid_t	err_type;
 	__u64	validation_bits;
@@ -396,7 +393,7 @@ struct cper_ia_err_info {
 	__u64	ip;
 };
 
-/* IA32/X64 Processor Context Information Structure */
+/* IA32/X64 Processor Context Information Structure, UEFI v2.7 sec N.2.4.2.2 */
 struct cper_ia_proc_ctx {
 	__u16	reg_ctx_type;
 	__u16	reg_arr_size;
@@ -404,7 +401,7 @@ struct cper_ia_proc_ctx {
 	__u64	mm_reg_addr;
 };
 
-/* ARM Processor Error Section */
+/* ARM Processor Error Section, UEFI v2.7 sec N.2.4.4 */
 struct cper_sec_proc_arm {
 	__u32	validation_bits;
 	__u16	err_info_num;		/* Number of Processor Error Info */
@@ -418,7 +415,7 @@ struct cper_sec_proc_arm {
 	__u32	psci_state;
 };
 
-/* ARM Processor Error Information Structure */
+/* ARM Processor Error Information Structure, UEFI v2.7 sec N.2.4.4.1 */
 struct cper_arm_err_info {
 	__u8	version;
 	__u8	length;
@@ -431,14 +428,14 @@ struct cper_arm_err_info {
 	__u64	physical_fault_addr;
 };
 
-/* ARM Processor Context Information Structure */
+/* ARM Processor Context Information Structure, UEFI v2.7 sec N.2.4.4.2 */
 struct cper_arm_ctx_info {
 	__u16	version;
 	__u16	type;
 	__u32	size;
 };
 
-/* Old Memory Error Section UEFI 2.1, 2.2 */
+/* Old Memory Error Section, UEFI v2.1, v2.2 */
 struct cper_sec_mem_err_old {
 	__u64	validation_bits;
 	__u64	error_status;
@@ -458,7 +455,7 @@ struct cper_sec_mem_err_old {
 	__u8	error_type;
 };
 
-/* Memory Error Section UEFI >= 2.3 */
+/* Memory Error Section (UEFI >= v2.3), UEFI v2.7 sec N.2.5 */
 struct cper_sec_mem_err {
 	__u64	validation_bits;
 	__u64	error_status;
@@ -478,8 +475,8 @@ struct cper_sec_mem_err {
 	__u8	error_type;
 	__u8	reserved;
 	__u16	rank;
-	__u16	mem_array_handle;	/* card handle in UEFI 2.4 */
-	__u16	mem_dev_handle;		/* module handle in UEFI 2.4 */
+	__u16	mem_array_handle;	/* "card handle" in UEFI 2.4 */
+	__u16	mem_dev_handle;		/* "module handle" in UEFI 2.4 */
 };
 
 struct cper_mem_err_compact {
@@ -500,6 +497,7 @@ struct cper_mem_err_compact {
 	__u16	mem_dev_handle;
 };
 
+/* PCI Express Error Section, UEFI v2.7 sec N.2.7 */
 struct cper_sec_pcie {
 	__u64		validation_bits;
 	__u32		port_type;
@@ -538,7 +536,7 @@ struct cper_sec_pcie {
 /* Reset to default packing */
 #pragma pack()
 
-extern const char * const cper_proc_error_type_strs[4];
+extern const char *const cper_proc_error_type_strs[4];
 
 u64 cper_next_record_id(void);
 const char *cper_severity_str(unsigned int);
