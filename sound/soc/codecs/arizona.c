@@ -710,7 +710,7 @@ const struct soc_enum arizona_anc_input_src[] = {
 			ARRAY_SIZE(arizona_anc_input_src_text),
 			arizona_anc_input_src_text),
 	SOC_ENUM_SINGLE(ARIZONA_FCL_ADC_REFORMATTER_CONTROL,
-			ARIZONA_FCL_MIC_MODE_SEL,
+			ARIZONA_FCL_MIC_MODE_SEL_SHIFT,
 			ARRAY_SIZE(arizona_anc_channel_src_text),
 			arizona_anc_channel_src_text),
 	SOC_ENUM_SINGLE(ARIZONA_ANC_SRC,
@@ -718,7 +718,7 @@ const struct soc_enum arizona_anc_input_src[] = {
 			ARRAY_SIZE(arizona_anc_input_src_text),
 			arizona_anc_input_src_text),
 	SOC_ENUM_SINGLE(ARIZONA_FCR_ADC_REFORMATTER_CONTROL,
-			ARIZONA_FCR_MIC_MODE_SEL,
+			ARIZONA_FCR_MIC_MODE_SEL_SHIFT,
 			ARRAY_SIZE(arizona_anc_channel_src_text),
 			arizona_anc_channel_src_text),
 };
