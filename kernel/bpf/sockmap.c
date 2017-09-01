@@ -111,7 +111,7 @@ static int smap_verdict_func(struct smap_psock *psock, struct sk_buff *skb)
 
 static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
 {
-	struct sock *sock;
+	struct sock *sk;
 	int rc;
 
 	/* Because we use per cpu values to feed input from sock redirect
@@ -123,16 +123,16 @@ static void smap_do_verdict(struct smap_psock *psock, struct sk_buff *skb)
 	rc = smap_verdict_func(psock, skb);
 	switch (rc) {
 	case SK_REDIRECT:
-		sock = do_sk_redirect_map();
+		sk = do_sk_redirect_map();
 		preempt_enable();
-		if (likely(sock)) {
-			struct smap_psock *peer = smap_psock_sk(sock);
+		if (likely(sk)) {
+			struct smap_psock *peer = smap_psock_sk(sk);
 
 			if (likely(peer &&
 				   test_bit(SMAP_TX_RUNNING, &peer->state) &&
-				   sk_stream_memory_free(peer->sock))) {
-				peer->sock->sk_wmem_queued += skb->truesize;
-				sk_mem_charge(peer->sock, skb->truesize);
+				   !sock_flag(sk, SOCK_DEAD) &&
+				   sock_writeable(sk))) {
+				skb_set_owner_w(skb, sk);
 				skb_queue_tail(&peer->rxqueue, skb);
 				schedule_work(&peer->tx_work);
 				break;
@@ -282,16 +282,12 @@ start:
 				/* Hard errors break pipe and stop xmit */
 				smap_report_sk_error(psock, n ? -n : EPIPE);
 				clear_bit(SMAP_TX_RUNNING, &psock->state);
-				sk_mem_uncharge(psock->sock, skb->truesize);
-				psock->sock->sk_wmem_queued -= skb->truesize;
 				kfree_skb(skb);
 				goto out;
 			}
 			rem -= n;
 			off += n;
 		} while (rem);
-		sk_mem_uncharge(psock->sock, skb->truesize);
-		psock->sock->sk_wmem_queued -= skb->truesize;
 		kfree_skb(skb);
 	}
 out:
