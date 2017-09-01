@@ -830,9 +830,6 @@ static int netvsc_set_channels(struct net_device *net,
 	    channels->rx_count || channels->tx_count || channels->other_count)
 		return -EINVAL;
 
-	if (count > net->num_tx_queues || count > VRSS_CHANNEL_MAX)
-		return -EINVAL;
-
 	if (!nvdev || nvdev->destroy)
 		return -ENODEV;
 
