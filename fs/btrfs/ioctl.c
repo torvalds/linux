@@ -609,23 +609,6 @@ fail_free:
 	return ret;
 }
 
-static void btrfs_wait_for_no_snapshotting_writes(struct btrfs_root *root)
-{
-	s64 writers;
-	DEFINE_WAIT(wait);
-
-	do {
-		prepare_to_wait(&root->subv_writers->wait, &wait,
-				TASK_UNINTERRUPTIBLE);
-
-		writers = percpu_counter_sum(&root->subv_writers->counter);
-		if (writers)
-			schedule();
-
-	} while (writers);
-	finish_wait(&root->subv_writers->wait, &wait);
-}
-
 static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 			   struct dentry *dentry,
 			   u64 *async_transid, bool readonly,
@@ -654,7 +637,9 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 
 	atomic_inc(&root->will_be_snapshotted);
 	smp_mb__after_atomic();
-	btrfs_wait_for_no_snapshotting_writes(root);
+	/* wait for no snapshot writes */
+	wait_event(root->subv_writers->wait,
+		   percpu_counter_sum(&root->subv_writers->counter) == 0);
 
 	ret = btrfs_start_delalloc_inodes(root, 0);
 	if (ret)
