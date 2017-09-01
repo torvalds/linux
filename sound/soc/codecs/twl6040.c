@@ -1123,8 +1123,8 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 
 	priv->plug_irq = platform_get_irq(pdev, 0);
 	if (priv->plug_irq < 0) {
-		dev_err(codec->dev, "invalid irq\n");
-		return -EINVAL;
+		dev_err(codec->dev, "invalid irq: %d\n", priv->plug_irq);
+		return priv->plug_irq;
 	}
 
 	INIT_DELAYED_WORK(&priv->hs_jack.work, twl6040_accessory_work);
