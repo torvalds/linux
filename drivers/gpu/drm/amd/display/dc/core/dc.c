@@ -341,23 +341,9 @@ void set_dither_option(struct dc_stream_state *stream,
 		return;
 	if (option > DITHER_OPTION_MAX)
 		return;
-	if (option == DITHER_OPTION_DEFAULT) {
-		switch (stream->timing.display_color_depth) {
-		case COLOR_DEPTH_666:
-			stream->dither_option = DITHER_OPTION_SPATIAL6;
-			break;
-		case COLOR_DEPTH_888:
-			stream->dither_option = DITHER_OPTION_SPATIAL8;
-			break;
-		case COLOR_DEPTH_101010:
-			stream->dither_option = DITHER_OPTION_SPATIAL10;
-			break;
-		default:
-			option = DITHER_OPTION_DISABLE;
-		}
-	} else {
-		stream->dither_option = option;
-	}
+
+	stream->dither_option = option;
+
 	resource_build_bit_depth_reduction_params(stream,
 				&params);
 	stream->bit_depth_params = params;
