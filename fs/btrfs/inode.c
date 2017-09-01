@@ -8396,6 +8396,7 @@ static void __endio_write_update_ordered(struct inode *inode,
 	btrfs_work_func_t func;
 	u64 ordered_offset = offset;
 	u64 ordered_bytes = bytes;
+	u64 last_offset;
 	int ret;
 
 	if (btrfs_is_free_space_inode(BTRFS_I(inode))) {
@@ -8407,6 +8408,7 @@ static void __endio_write_update_ordered(struct inode *inode,
 	}
 
 again:
+	last_offset = ordered_offset;
 	ret = btrfs_dec_test_first_ordered_pending(inode, &ordered,
 						   &ordered_offset,
 						   ordered_bytes,
@@ -8417,6 +8419,12 @@ again:
 	btrfs_init_work(&ordered->work, func, finish_ordered_fn, NULL, NULL);
 	btrfs_queue_work(wq, &ordered->work);
 out_test:
+	/*
+	 * If btrfs_dec_test_ordered_pending does not find any ordered extent
+	 * in the range, we can exit.
+	 */
+	if (ordered_offset == last_offset)
+		return;
 	/*
 	 * our bio might span multiple ordered extents.  If we haven't
 	 * completed the accounting for the whole dio, go back and try again
