@@ -33,5 +33,3 @@ void intel_mid_msgbus_write32(u8 port, u32 addr, u32 data);
 u32 intel_mid_msgbus_read32_raw_ext(u32 cmd, u32 cmd_ext);
 void intel_mid_msgbus_write32_raw_ext(u32 cmd, u32 cmd_ext, u32 data);
 u32 intel_mid_soc_stepping(void);
-int intel_mid_dw_i2c_acquire_ownership(void);
-int intel_mid_dw_i2c_release_ownership(void);
