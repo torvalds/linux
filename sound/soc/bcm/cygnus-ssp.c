@@ -1288,7 +1288,7 @@ static const struct snd_soc_dai_driver cygnus_ssp_dai_info[] = {
 	INIT_CPU_DAI(2),
 };
 
-static struct snd_soc_dai_driver cygnus_spdif_dai_info = {
+static const struct snd_soc_dai_driver cygnus_spdif_dai_info = {
 	.name = "cygnus-spdif",
 	.playback = {
 		.channels_min = 2,
