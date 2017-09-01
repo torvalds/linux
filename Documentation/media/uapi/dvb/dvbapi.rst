@@ -66,11 +66,16 @@ Authors:
 
 **Copyright** |copy| 2002-2003 : Convergence GmbH
 
-**Copyright** |copy| 2009-2016 : Mauro Carvalho Chehab
+**Copyright** |copy| 2009-2017 : Mauro Carvalho Chehab
 
 ****************
 Revision History
 ****************
+
+:revision: 2.2.0 / 2017-09-01 (*mcc*)
+
+Most gaps between the uAPI document and the Kernel implementation
+got fixed for the non-legacy API.
 
 :revision: 2.1.0 / 2015-05-29 (*mcc*)
 
