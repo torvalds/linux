@@ -23,13 +23,14 @@ Arguments
 ---------
 
 ``fd``
-  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
+  File descriptor returned by a previous call to
+  :c:func:`open() <dvb-dmx-open>`.
 
 Description
 -----------
 
 This system call deactivates and deallocates a filter that was
-previously allocated via the open() call.
+previously allocated via the :c:func:`open() <dvb-dmx-open>` call.
 
 
 Return Value

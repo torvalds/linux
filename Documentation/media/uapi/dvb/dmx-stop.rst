@@ -29,8 +29,8 @@ Description
 -----------
 
 This ioctl call is used to stop the actual filtering operation defined
-via the ioctl calls DMX_SET_FILTER or DMX_SET_PES_FILTER and
-started via the DMX_START command.
+via the ioctl calls :ref:`DMX_SET_FILTER` or :ref:`DMX_SET_PES_FILTER` and
+started via the :ref:`DMX_START` command.
 
 
 Return Value

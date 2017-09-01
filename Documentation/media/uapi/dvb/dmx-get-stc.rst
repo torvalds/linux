@@ -25,18 +25,19 @@ Arguments
     File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
 ``stc``
-    Pointer to the location where the stc is to be stored.
+    Pointer to :c:type:`dmx_stc` where the stc data is to be stored.
 
 
 Description
 -----------
 
 This ioctl call returns the current value of the system time counter
-(which is driven by a PES filter of type DMX_PES_PCR). Some hardware
-supports more than one STC, so you must specify which one by setting the
-num field of stc before the ioctl (range 0...n). The result is returned
-in form of a ratio with a 64 bit numerator and a 32 bit denominator, so
-the real 90kHz STC value is stc->stc / stc->base .
+(which is driven by a PES filter of type :c:type:`DMX_PES_PCR <dmx_ts_pes>`).
+Some hardware supports more than one STC, so you must specify which one by
+setting the :c:type:`num <dmx_stc>` field of stc before the ioctl (range 0...n).
+The result is returned in form of a ratio with a 64 bit numerator
+and a 32 bit denominator, so the real 90kHz STC value is
+``stc->stc / stc->base``.
 
 
 Return Value

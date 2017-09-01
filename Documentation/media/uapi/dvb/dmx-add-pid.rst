@@ -33,8 +33,8 @@ Description
 -----------
 
 This ioctl call allows to add multiple PIDs to a transport stream filter
-previously set up with DMX_SET_PES_FILTER and output equal to
-DMX_OUT_TSDEMUX_TAP.
+previously set up with :ref:`DMX_SET_PES_FILTER` and output equal to
+:c:type:`DMX_OUT_TSDEMUX_TAP <dmx_output>`.
 
 
 Return Value

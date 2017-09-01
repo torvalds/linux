@@ -34,8 +34,8 @@ Arguments
 Description
 ===========
 
-All Digital TV frontend devices support the ``FE_GET_INFO`` ioctl. It is used
-to identify kernel devices compatible with this specification and to
+All Digital TV frontend devices support the :ref:`FE_GET_INFO` ioctl. It is
+used to identify kernel devices compatible with this specification and to
 obtain information about driver and hardware capabilities. The ioctl
 takes a pointer to dvb_frontend_info which is filled by the driver.
 When the driver is not compatible with this specification the ioctl

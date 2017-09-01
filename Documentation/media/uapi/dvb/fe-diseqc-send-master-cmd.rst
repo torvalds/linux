@@ -33,7 +33,8 @@ Arguments
 Description
 ===========
 
-Sends the DiSEqC command pointed by ``argp`` to the antenna subsystem.
+Sends the DiSEqC command pointed by :c:type:`dvb_diseqc_master_cmd`
+to the antenna subsystem.
 
 Return Value
 ============

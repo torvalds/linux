@@ -34,10 +34,10 @@ Description
 -----------
 
 This system call is only provided by the logical device
-/dev/dvb/adapter0/dvr0, associated with the physical demux device that
+``/dev/dvb/adapter?/dvr?``, associated with the physical demux device that
 provides the actual DVR functionality. It is used for replay of a
 digitally recorded Transport Stream. Matching filters have to be defined
-in the corresponding physical demux device, /dev/dvb/adapter0/demux0.
+in the corresponding physical demux device, ``/dev/dvb/adapter?/demux?``.
 The amount of data to be transferred is implied by count.
 
 

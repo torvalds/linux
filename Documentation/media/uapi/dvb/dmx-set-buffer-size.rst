@@ -33,7 +33,7 @@ Description
 
 This ioctl call is used to set the size of the circular buffer used for
 filtered data. The default size is two maximum sized sections, i.e. if
-this function is not called a buffer size of 2 \* 4096 bytes will be
+this function is not called a buffer size of ``2 * 4096`` bytes will be
 used.
 
 
