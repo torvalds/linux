@@ -26,6 +26,11 @@ Optional properties:
 	3 - MICBIAS output is connected to AVDD,
 	If this node is not mentioned or if the value is incorrect, then MicBias
 	is powered down.
+- ai3x-ocmv - Output Common-Mode Voltage selection:
+	0 - 1.35V,
+	1 - 1.5V,
+	2 - 1.65V,
+	3 - 1.8V
 - AVDD-supply, IOVDD-supply, DRVDD-supply, DVDD-supply : power supplies for the
   device as covered in Documentation/devicetree/bindings/regulator/regulator.txt
 

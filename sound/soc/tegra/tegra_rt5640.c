@@ -161,7 +161,6 @@ static int tegra_rt5640_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
 	machine->gpio_hp_det = of_get_named_gpio_flags(

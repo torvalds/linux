@@ -246,7 +246,6 @@ static int tegra_wm8903_driver_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
 	machine->gpio_spkr_en = of_get_named_gpio(np, "nvidia,spkr-en-gpios",
