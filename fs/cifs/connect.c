@@ -1223,6 +1223,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	char *tmp_end, *value;
 	char delim;
 	bool got_ip = false;
+	bool got_version = false;
 	unsigned short port = 0;
 	struct sockaddr *dstaddr = (struct sockaddr *)&vol->dstaddr;
 
@@ -1874,24 +1875,35 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				pr_warn("CIFS: server netbiosname longer than 15 truncated.\n");
 			break;
 		case Opt_ver:
+			/* version of mount userspace tools, not dialect */
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
 
+			/* If interface changes in mount.cifs bump to new ver */
 			if (strncasecmp(string, "1", 1) == 0) {
+				if (strlen(string) > 1) {
+					pr_warn("Bad mount helper ver=%s. Did "
+						"you want SMB1 (CIFS) dialect "
+						"and mean to type vers=1.0 "
+						"instead?\n", string);
+					goto cifs_parse_mount_err;
+				}
 				/* This is the default */
 				break;
 			}
 			/* For all other value, error */
-			pr_warn("CIFS: Invalid version specified\n");
+			pr_warn("CIFS: Invalid mount helper version specified\n");
 			goto cifs_parse_mount_err;
 		case Opt_vers:
+			/* protocol version (dialect) */
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
 
 			if (cifs_parse_smb_version(string, vol) != 0)
 				goto cifs_parse_mount_err;
+			got_version = true;
 			break;
 		case Opt_sec:
 			string = match_strdup(args);
@@ -1972,6 +1984,14 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		vol->override_gid = override_gid;
 	else if (override_gid == 1)
 		pr_notice("CIFS: ignoring forcegid mount option specified with no gid= option.\n");
+
+	if (got_version == false)
+		pr_warn("No dialect specified on mount. Default has changed to "
+			"a more secure dialect, SMB3 (vers=3.0), from CIFS "
+			"(SMB1). To use the less secure SMB1 dialect to access "
+			"old servers which do not support SMB3 specify vers=1.0"
+			" on mount. For somewhat newer servers such as Windows "
+			"7 try vers=2.1.\n");
 
 	kfree(mountdata_copy);
 	return 0;
