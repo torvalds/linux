@@ -111,16 +111,6 @@ qcom_pll_set_fsm_mode(struct regmap *map, u32 reg, u8 bias_count, u8 lock_count)
 }
 EXPORT_SYMBOL_GPL(qcom_pll_set_fsm_mode);
 
-static void qcom_cc_del_clk_provider(void *data)
-{
-	of_clk_del_provider(data);
-}
-
-static void qcom_cc_reset_unregister(void *data)
-{
-	reset_controller_unregister(data);
-}
-
 static void qcom_cc_gdsc_unregister(void *data)
 {
 	gdsc_unregister(data);
@@ -248,13 +238,7 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 			return ret;
 	}
 
-	ret = of_clk_add_hw_provider(dev->of_node, qcom_cc_clk_hw_get, cc);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(dev, qcom_cc_del_clk_provider,
-				       pdev->dev.of_node);
-
+	ret = devm_of_clk_add_hw_provider(dev, qcom_cc_clk_hw_get, cc);
 	if (ret)
 		return ret;
 
@@ -266,13 +250,7 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 	reset->regmap = regmap;
 	reset->reset_map = desc->resets;
 
-	ret = reset_controller_register(&reset->rcdev);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(dev, qcom_cc_reset_unregister,
-				       &reset->rcdev);
-
+	ret = devm_reset_controller_register(dev, &reset->rcdev);
 	if (ret)
 		return ret;
 
