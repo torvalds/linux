@@ -2,14 +2,14 @@
 
 .. _dmx_fopen:
 
-================
-DVB demux open()
-================
+=======================
+Digital TV demux open()
+=======================
 
 Name
 ----
 
-DVB demux open()
+Digital TV demux open()
 
 
 Synopsis
@@ -22,7 +22,7 @@ Arguments
 ---------
 
 ``name``
-  Name of specific DVB demux device.
+  Name of specific Digital TV demux device.
 
 ``flags``
   A bit-wise OR of the following flags:

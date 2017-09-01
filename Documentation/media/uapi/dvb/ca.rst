@@ -2,11 +2,12 @@
 
 .. _dvb_ca:
 
-#############
-DVB CA Device
-#############
-The DVB CA device controls the conditional access hardware. It can be
-accessed through ``/dev/dvb/adapter?/ca?``. Data types and and ioctl
+####################
+Digital TV CA Device
+####################
+
+The Digital TV CA device controls the conditional access hardware. It
+can be accessed through ``/dev/dvb/adapter?/ca?``. Data types and and ioctl
 definitions can be accessed by including ``linux/dvb/ca.h`` in your
 application.
 

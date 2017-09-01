@@ -9,7 +9,8 @@ ioctl FE_GET_INFO
 Name
 ====
 
-FE_GET_INFO - Query DVB frontend capabilities and returns information about the - front-end. This call only requires read-only access to the device
+FE_GET_INFO - Query Digital TV frontend capabilities and returns information
+about the - front-end. This call only requires read-only access to the device.
 
 
 Synopsis
@@ -33,7 +34,7 @@ Arguments
 Description
 ===========
 
-All DVB frontend devices support the ``FE_GET_INFO`` ioctl. It is used
+All Digital TV frontend devices support the ``FE_GET_INFO`` ioctl. It is used
 to identify kernel devices compatible with this specification and to
 obtain information about driver and hardware capabilities. The ioctl
 takes a pointer to dvb_frontend_info which is filled by the driver.

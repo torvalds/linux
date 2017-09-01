@@ -819,7 +819,7 @@ Possible values are the same as documented on enum
 DTV_API_VERSION
 ===============
 
-Returns the major/minor version of the DVB API
+Returns the major/minor version of the Digital TV API
 
 
 .. _DTV-CODE-RATE-HP:
@@ -919,7 +919,7 @@ DTV_STREAM_ID
 Used on DVB-S2, DVB-T2 and ISDB-S.
 
 DVB-S2, DVB-T2 and ISDB-S support the transmission of several streams on
-a single transport stream. This property enables the DVB driver to
+a single transport stream. This property enables the digital TV driver to
 handle substream filtering, when supported by the hardware. By default,
 substream filtering is disabled.
 

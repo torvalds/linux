@@ -2,9 +2,9 @@
 
 .. _legacy_dvb_apis:
 
-*******************
-DVB Deprecated APIs
-*******************
+***************************
+Digital TV Deprecated APIs
+***************************
 
 The APIs described here are kept only for historical reasons. There's
 just one driver for a very legacy hardware that uses this API. No modern

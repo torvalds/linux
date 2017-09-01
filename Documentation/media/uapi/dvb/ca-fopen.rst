@@ -2,14 +2,14 @@
 
 .. _ca_fopen:
 
-=============
-DVB CA open()
-=============
+====================
+Digital TV CA open()
+====================
 
 Name
 ----
 
-DVB CA open()
+Digital TV CA open()
 
 
 Synopsis
@@ -23,7 +23,7 @@ Arguments
 ---------
 
 ``name``
-  Name of specific DVB CA device.
+  Name of specific Digital TV CA device.
 
 ``flags``
   A bit-wise OR of the following flags:

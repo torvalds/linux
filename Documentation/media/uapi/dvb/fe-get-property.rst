@@ -35,7 +35,7 @@ Arguments
 Description
 ===========
 
-All DVB frontend devices support the ``FE_SET_PROPERTY`` and
+All Digital TV frontend devices support the ``FE_SET_PROPERTY`` and
 ``FE_GET_PROPERTY`` ioctls. The supported properties and statistics
 depends on the delivery system and on the device:
 

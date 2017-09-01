@@ -33,7 +33,7 @@ Arguments
 Description
 ===========
 
-All DVB frontend devices support the ``FE_READ_STATUS`` ioctl. It is
+All Digital TV frontend devices support the ``FE_READ_STATUS`` ioctl. It is
 used to check about the locking status of the frontend after being
 tuned. The ioctl takes a pointer to an integer where the status will be
 written.

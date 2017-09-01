@@ -2,14 +2,14 @@
 
 .. _dmx_fread:
 
-================
-DVB demux read()
-================
+=======================
+Digital TV demux read()
+=======================
 
 Name
 ----
 
-DVB demux read()
+Digital TV demux read()
 
 
 Synopsis

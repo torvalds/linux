@@ -2,14 +2,14 @@
 
 .. _dmx_fclose:
 
-=================
-DVB demux close()
-=================
+========================
+Digital TV demux close()
+========================
 
 Name
 ----
 
-DVB demux close()
+Digital TV demux close()
 
 
 Synopsis

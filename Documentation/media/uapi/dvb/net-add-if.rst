@@ -64,7 +64,7 @@ filled with the number of the created interface.
 
        -  ifnum
 
-       -  number of the DVB interface.
+       -  number of the Digital TV interface.
 
     -  .. row 4
 

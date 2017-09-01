@@ -2,14 +2,14 @@
 
 .. _ca_fclose:
 
-==============
-DVB CA close()
-==============
+=====================
+Digital TV CA close()
+=====================
 
 Name
 ----
 
-DVB CA close()
+Digital TV CA close()
 
 
 Synopsis

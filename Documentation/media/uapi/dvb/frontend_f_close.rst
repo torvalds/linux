@@ -2,9 +2,9 @@
 
 .. _frontend_f_close:
 
-********************
-DVB frontend close()
-********************
+***************************
+Digital TV frontend close()
+***************************
 
 Name
 ====

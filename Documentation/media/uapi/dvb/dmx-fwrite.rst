@@ -2,14 +2,14 @@
 
 .. _dmx_fwrite:
 
-=================
-DVB demux write()
-=================
+========================
+Digital TV demux write()
+========================
 
 Name
 ----
 
-DVB demux write()
+Digital TV demux write()
 
 
 Synopsis

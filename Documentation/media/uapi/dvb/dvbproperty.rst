@@ -13,7 +13,7 @@ antenna subsystem via Satellite Equipment Control - SEC (on satellite
 systems). The actual parameters are specific to each particular digital
 TV standards, and may change as the digital TV specs evolves.
 
-In the past (up to DVB API version 3), the strategy used was to have a
+In the past (up to DVB API version 3 - DVBv3), the strategy used was to have a
 union with the parameters needed to tune for DVB-S, DVB-C, DVB-T and
 ATSC delivery systems grouped there. The problem is that, as the second
 generation standards appeared, the size of such union was not big
@@ -41,7 +41,7 @@ with supports all digital TV delivery systems.
       support to new standards and/or new hardware.
 
    3. Nowadays, most frontends support multiple delivery systems.
-      Only with DVB v5 calls it is possible to switch between
+      Only with DVB API version 5 calls it is possible to switch between
       the multiple delivery systems supported by a frontend.
 
    4. DVB API version 5 is also called *S2API*, as the first

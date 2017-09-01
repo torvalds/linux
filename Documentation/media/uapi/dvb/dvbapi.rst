@@ -10,8 +10,21 @@ Part II - Digital TV API
 
 .. note::
 
-   This API is also known as **DVB API**, although it is generic
-   enough to support all digital TV standards.
+   This API is also known as Linux **DVB API**.
+
+   It it was originally written to support the European digital TV
+   standard (DVB), and later extended to support all digital TV standards.
+
+   In order to avoid confusion, within this document, it was opted to refer to
+   it, and to associated hardware as **Digital TV**.
+
+   The word **DVB** is reserved to be used for:
+
+     - the Digital TV API version
+       (e. g. DVB API version 3 or DVB API version 5);
+     - digital TV data types (enums, structs, defines, etc);
+     - digital TV device nodes (``/dev/dvb/...``);
+     - the European DVB standard.
 
 **Version 5.10**
 
@@ -41,11 +54,11 @@ Authors:
 
 - J. K. Metzler, Ralph <rjkm@metzlerbros.de>
 
- - Original author of the DVB API documentation.
+ - Original author of the Digital TV API documentation.
 
 - O. C. Metzler, Marcus <rjkm@metzlerbros.de>
 
- - Original author of the DVB API documentation.
+ - Original author of the Digital TV API documentation.
 
 - Carvalho Chehab, Mauro <m.chehab@kernel.org>
 
@@ -63,11 +76,11 @@ Revision History
 
 DocBook improvements and cleanups, in order to document the system calls
 on a more standard way and provide more description about the current
-DVB API.
+Digital TV API.
 
 :revision: 2.0.4 / 2011-05-06 (*mcc*)
 
-Add more information about DVB APIv5, better describing the frontend
+Add more information about DVBv5 API, better describing the frontend
 GET/SET props ioctl's.
 
 

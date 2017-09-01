@@ -31,7 +31,7 @@ Description
 If the bus has been automatically powered off due to power overload,
 this ioctl call restores the power to the bus. The call requires
 read/write access to the device. This call has no effect if the device
-is manually powered off. Not all DVB adapters support this ioctl.
+is manually powered off. Not all Digital TV adapters support this ioctl.
 
 
 Return Value
