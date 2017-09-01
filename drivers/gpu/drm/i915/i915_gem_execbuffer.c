@@ -1538,7 +1538,7 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 				min_t(u64, BIT_ULL(31), size - copied);
 
 			if (__copy_from_user((char *)relocs + copied,
-					     (char *)urelocs + copied,
+					     (char __user *)urelocs + copied,
 					     len)) {
 				kvfree(relocs);
 				err = -EFAULT;
