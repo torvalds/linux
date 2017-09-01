@@ -71,6 +71,7 @@ struct loop_cmd {
 	bool use_aio;           /* use AIO interface to handle I/O */
 	long ret;
 	struct kiocb iocb;
+	struct bio_vec *bvec;
 };
 
 /* Support for loadable transfer modules */

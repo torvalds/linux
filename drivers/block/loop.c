@@ -213,10 +213,13 @@ static void __loop_update_dio(struct loop_device *lo, bool dio)
 	 */
 	blk_mq_freeze_queue(lo->lo_queue);
 	lo->use_dio = use_dio;
-	if (use_dio)
+	if (use_dio) {
+		queue_flag_clear_unlocked(QUEUE_FLAG_NOMERGES, lo->lo_queue);
 		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
-	else
+	} else {
+		queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, lo->lo_queue);
 		lo->lo_flags &= ~LO_FLAGS_DIRECT_IO;
+	}
 	blk_mq_unfreeze_queue(lo->lo_queue);
 }
 
@@ -464,6 +467,8 @@ static void lo_rw_aio_complete(struct kiocb *iocb, long ret, long ret2)
 {
 	struct loop_cmd *cmd = container_of(iocb, struct loop_cmd, iocb);
 
+	kfree(cmd->bvec);
+	cmd->bvec = NULL;
 	cmd->ret = ret;
 	blk_mq_complete_request(cmd->rq);
 }
@@ -473,22 +478,50 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 {
 	struct iov_iter iter;
 	struct bio_vec *bvec;
-	struct bio *bio = cmd->rq->bio;
+	struct request *rq = cmd->rq;
+	struct bio *bio = rq->bio;
 	struct file *file = lo->lo_backing_file;
+	unsigned int offset;
+	int segments = 0;
 	int ret;
 
-	/* nomerge for loop request queue */
-	WARN_ON(cmd->rq->bio != cmd->rq->biotail);
+	if (rq->bio != rq->biotail) {
+		struct req_iterator iter;
+		struct bio_vec tmp;
 
-	bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
+		__rq_for_each_bio(bio, rq)
+			segments += bio_segments(bio);
+		bvec = kmalloc(sizeof(struct bio_vec) * segments, GFP_NOIO);
+		if (!bvec)
+			return -EIO;
+		cmd->bvec = bvec;
+
+		/*
+		 * The bios of the request may be started from the middle of
+		 * the 'bvec' because of bio splitting, so we can't directly
+		 * copy bio->bi_iov_vec to new bvec. The rq_for_each_segment
+		 * API will take care of all details for us.
+		 */
+		rq_for_each_segment(tmp, rq, iter) {
+			*bvec = tmp;
+			bvec++;
+		}
+		bvec = cmd->bvec;
+		offset = 0;
+	} else {
+		/*
+		 * Same here, this bio may be started from the middle of the
+		 * 'bvec' because of bio splitting, so offset from the bvec
+		 * must be passed to iov iterator
+		 */
+		offset = bio->bi_iter.bi_bvec_done;
+		bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
+		segments = bio_segments(bio);
+	}
+
 	iov_iter_bvec(&iter, ITER_BVEC | rw, bvec,
-		      bio_segments(bio), blk_rq_bytes(cmd->rq));
-	/*
-	 * This bio may be started from the middle of the 'bvec'
-	 * because of bio splitting, so offset from the bvec must
-	 * be passed to iov iterator
-	 */
-	iter.iov_offset = bio->bi_iter.bi_bvec_done;
+		      segments, blk_rq_bytes(rq));
+	iter.iov_offset = offset;
 
 	cmd->iocb.ki_pos = pos;
 	cmd->iocb.ki_filp = file;
@@ -1737,9 +1770,12 @@ static int loop_add(struct loop_device **l, int i)
 	blk_queue_physical_block_size(lo->lo_queue, PAGE_SIZE);
 
 	blk_queue_max_hw_sectors(lo->lo_queue, BLK_DEF_MAX_SECTORS);
+
 	/*
-	 * It doesn't make sense to enable merge because the I/O
-	 * submitted to backing file is handled page by page.
+	 * By default, we do buffer IO, so it doesn't make sense to enable
+	 * merge because the I/O submitted to backing file is handled page by
+	 * page. For directio mode, merge does help to dispatch bigger request
+	 * to underlayer disk. We will enable merge once directio is enabled.
 	 */
 	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, lo->lo_queue);
 
