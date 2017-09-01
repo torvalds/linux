@@ -413,7 +413,6 @@ ssize_t __vfs_read(struct file *file, char __user *buf, size_t count,
 	else
 		return -EINVAL;
 }
-EXPORT_SYMBOL(__vfs_read);
 
 ssize_t kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
 {
@@ -485,7 +484,6 @@ ssize_t __vfs_write(struct file *file, const char __user *p, size_t count,
 	else
 		return -EINVAL;
 }
-EXPORT_SYMBOL(__vfs_write);
 
 ssize_t __kernel_write(struct file *file, const void *buf, size_t count, loff_t *pos)
 {
