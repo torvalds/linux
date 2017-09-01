@@ -413,7 +413,7 @@ static int max9867_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver max9867_codec = {
+static const struct snd_soc_codec_driver max9867_codec = {
 	.probe = max9867_probe,
 	.component_driver = {
 		.controls		= max9867_snd_controls,

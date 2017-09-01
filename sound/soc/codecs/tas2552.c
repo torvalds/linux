@@ -660,7 +660,7 @@ static int tas2552_resume(struct snd_soc_codec *codec)
 #define tas2552_resume NULL
 #endif
 
-static struct snd_soc_codec_driver soc_codec_dev_tas2552 = {
+static const struct snd_soc_codec_driver soc_codec_dev_tas2552 = {
 	.probe = tas2552_codec_probe,
 	.remove = tas2552_codec_remove,
 	.suspend =	tas2552_suspend,

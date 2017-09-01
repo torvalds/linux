@@ -261,7 +261,7 @@ static const struct snd_soc_dapm_route aud96p22_dapm_routes[] = {
 	{ "LINEOUTMN", NULL, "LD2" },
 };
 
-static struct snd_soc_codec_driver aud96p22_driver = {
+static const struct snd_soc_codec_driver aud96p22_driver = {
 	.component_driver = {
 		.controls = aud96p22_snd_controls,
 		.num_controls = ARRAY_SIZE(aud96p22_snd_controls),

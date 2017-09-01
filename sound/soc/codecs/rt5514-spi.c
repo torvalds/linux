@@ -260,7 +260,7 @@ static int rt5514_spi_pcm_probe(struct snd_soc_platform *platform)
 	return 0;
 }
 
-static struct snd_soc_platform_driver rt5514_spi_platform = {
+static const struct snd_soc_platform_driver rt5514_spi_platform = {
 	.probe = rt5514_spi_pcm_probe,
 	.ops = &rt5514_spi_pcm_ops,
 };

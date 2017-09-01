@@ -867,7 +867,7 @@ static int adau1977_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver adau1977_codec_driver = {
+static const struct snd_soc_codec_driver adau1977_codec_driver = {
 	.probe = adau1977_codec_probe,
 	.set_bias_level = adau1977_set_bias_level,
 	.set_sysclk = adau1977_set_sysclk,

@@ -792,7 +792,7 @@ static int aic32x4_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_aic32x4 = {
+static const struct snd_soc_codec_driver soc_codec_dev_aic32x4 = {
 	.probe = aic32x4_codec_probe,
 	.set_bias_level = aic32x4_set_bias_level,
 	.suspend_bias_off = true,

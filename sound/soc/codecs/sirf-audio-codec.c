@@ -429,7 +429,7 @@ static int sirf_audio_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_device_sirf_audio_codec = {
+static const struct snd_soc_codec_driver soc_codec_device_sirf_audio_codec = {
 	.probe = sirf_audio_codec_probe,
 	.remove = sirf_audio_codec_remove,
 	.dapm_widgets = sirf_audio_codec_dapm_widgets,
