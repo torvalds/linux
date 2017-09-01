@@ -16,6 +16,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <kvm/iodev.h>
+#include <kvm/arm_arch_timer.h>
 #include <kvm/arm_vgic.h>
 
 #include "vgic.h"
@@ -143,10 +144,22 @@ static struct kvm_vcpu *vgic_get_mmio_requester_vcpu(void)
 	return vcpu;
 }
 
+/* Must be called with irq->irq_lock held */
+static void vgic_hw_irq_spending(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
+				 bool is_uaccess)
+{
+	if (is_uaccess)
+		return;
+
+	irq->pending_latch = true;
+	vgic_irq_set_phys_active(irq, true);
+}
+
 void vgic_mmio_write_spending(struct kvm_vcpu *vcpu,
 			      gpa_t addr, unsigned int len,
 			      unsigned long val)
 {
+	bool is_uaccess = !vgic_get_mmio_requester_vcpu();
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 	int i;
 	unsigned long flags;
@@ -155,17 +168,45 @@ void vgic_mmio_write_spending(struct kvm_vcpu *vcpu,
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 
 		spin_lock_irqsave(&irq->irq_lock, flags);
-		irq->pending_latch = true;
-
+		if (irq->hw)
+			vgic_hw_irq_spending(vcpu, irq, is_uaccess);
+		else
+			irq->pending_latch = true;
 		vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
+}
+
+/* Must be called with irq->irq_lock held */
+static void vgic_hw_irq_cpending(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
+				 bool is_uaccess)
+{
+	if (is_uaccess)
+		return;
+
+	irq->pending_latch = false;
+
+	/*
+	 * We don't want the guest to effectively mask the physical
+	 * interrupt by doing a write to SPENDR followed by a write to
+	 * CPENDR for HW interrupts, so we clear the active state on
+	 * the physical side if the virtual interrupt is not active.
+	 * This may lead to taking an additional interrupt on the
+	 * host, but that should not be a problem as the worst that
+	 * can happen is an additional vgic injection.  We also clear
+	 * the pending state to maintain proper semantics for edge HW
+	 * interrupts.
+	 */
+	vgic_irq_set_phys_pending(irq, false);
+	if (!irq->active)
+		vgic_irq_set_phys_active(irq, false);
 }
 
 void vgic_mmio_write_cpending(struct kvm_vcpu *vcpu,
 			      gpa_t addr, unsigned int len,
 			      unsigned long val)
 {
+	bool is_uaccess = !vgic_get_mmio_requester_vcpu();
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 	int i;
 	unsigned long flags;
@@ -175,7 +216,10 @@ void vgic_mmio_write_cpending(struct kvm_vcpu *vcpu,
 
 		spin_lock_irqsave(&irq->irq_lock, flags);
 
-		irq->pending_latch = false;
+		if (irq->hw)
+			vgic_hw_irq_cpending(vcpu, irq, is_uaccess);
+		else
+			irq->pending_latch = false;
 
 		spin_unlock_irqrestore(&irq->irq_lock, flags);
 		vgic_put_irq(vcpu->kvm, irq);
@@ -202,8 +246,19 @@ unsigned long vgic_mmio_read_active(struct kvm_vcpu *vcpu,
 	return value;
 }
 
+/* Must be called with irq->irq_lock held */
+static void vgic_hw_irq_change_active(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
+				      bool active, bool is_uaccess)
+{
+	if (is_uaccess)
+		return;
+
+	irq->active = active;
+	vgic_irq_set_phys_active(irq, active);
+}
+
 static void vgic_mmio_change_active(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
-				    bool new_active_state)
+				    bool active)
 {
 	unsigned long flags;
 	struct kvm_vcpu *requester_vcpu = vgic_get_mmio_requester_vcpu();
@@ -231,8 +286,12 @@ static void vgic_mmio_change_active(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
 	       irq->vcpu->cpu != -1) /* VCPU thread is running */
 		cond_resched_lock(&irq->irq_lock);
 
-	irq->active = new_active_state;
-	if (new_active_state)
+	if (irq->hw)
+		vgic_hw_irq_change_active(vcpu, irq, active, !requester_vcpu);
+	else
+		irq->active = active;
+
+	if (irq->active)
 		vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
 	else
 		spin_unlock_irqrestore(&irq->irq_lock, flags);

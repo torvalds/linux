@@ -144,6 +144,13 @@ void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 	kfree(irq);
 }
 
+void vgic_irq_set_phys_pending(struct vgic_irq *irq, bool pending)
+{
+	WARN_ON(irq_set_irqchip_state(irq->host_irq,
+				      IRQCHIP_STATE_PENDING,
+				      pending));
+}
+
 bool vgic_get_phys_line_level(struct vgic_irq *irq)
 {
 	bool line_level;
