@@ -25,6 +25,34 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
+static int v4l2_async_notifier_call_bound(struct v4l2_async_notifier *n,
+					  struct v4l2_subdev *subdev,
+					  struct v4l2_async_subdev *asd)
+{
+	if (!n->ops || !n->ops->bound)
+		return 0;
+
+	return n->ops->bound(n, subdev, asd);
+}
+
+static void v4l2_async_notifier_call_unbind(struct v4l2_async_notifier *n,
+					    struct v4l2_subdev *subdev,
+					    struct v4l2_async_subdev *asd)
+{
+	if (!n->ops || !n->ops->unbind)
+		return;
+
+	n->ops->unbind(n, subdev, asd);
+}
+
+static int v4l2_async_notifier_call_complete(struct v4l2_async_notifier *n)
+{
+	if (!n->ops || !n->ops->complete)
+		return 0;
+
+	return n->ops->complete(n);
+}
+
 static bool match_i2c(struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
 {
 #if IS_ENABLED(CONFIG_I2C)
@@ -102,16 +130,13 @@ static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
 {
 	int ret;
 
-	if (notifier->ops->bound) {
-		ret = notifier->ops->bound(notifier, sd, asd);
-		if (ret < 0)
-			return ret;
-	}
+	ret = v4l2_async_notifier_call_bound(notifier, sd, asd);
+	if (ret < 0)
+		return ret;
 
 	ret = v4l2_device_register_subdev(notifier->v4l2_dev, sd);
 	if (ret < 0) {
-		if (notifier->ops->unbind)
-			notifier->ops->unbind(notifier, sd, asd);
+		v4l2_async_notifier_call_unbind(notifier, sd, asd);
 		return ret;
 	}
 
@@ -140,8 +165,7 @@ static void v4l2_async_notifier_unbind_all_subdevs(
 	struct v4l2_subdev *sd, *tmp;
 
 	list_for_each_entry_safe(sd, tmp, &notifier->done, async_list) {
-		if (notifier->ops->unbind)
-			notifier->ops->unbind(notifier, sd, sd->asd);
+		v4l2_async_notifier_call_unbind(notifier, sd, sd->asd);
 		v4l2_async_cleanup(sd);
 
 		list_move(&sd->async_list, &subdev_list);
@@ -198,8 +222,8 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 		}
 	}
 
-	if (list_empty(&notifier->waiting) && notifier->ops->complete) {
-		ret = notifier->ops->complete(notifier);
+	if (list_empty(&notifier->waiting)) {
+		ret = v4l2_async_notifier_call_complete(notifier);
 		if (ret)
 			goto err_complete;
 	}
@@ -296,10 +320,10 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 		if (ret)
 			goto err_unlock;
 
-		if (!list_empty(&notifier->waiting) || !notifier->ops->complete)
+		if (!list_empty(&notifier->waiting))
 			goto out_unlock;
 
-		ret = notifier->ops->complete(notifier);
+		ret = v4l2_async_notifier_call_complete(notifier);
 		if (ret)
 			goto err_cleanup;
 
@@ -315,8 +339,7 @@ out_unlock:
 	return 0;
 
 err_cleanup:
-	if (notifier->ops->unbind)
-		notifier->ops->unbind(notifier, sd, sd->asd);
+	v4l2_async_notifier_call_unbind(notifier, sd, sd->asd);
 	v4l2_async_cleanup(sd);
 
 err_unlock:
@@ -335,8 +358,7 @@ void v4l2_async_unregister_subdev(struct v4l2_subdev *sd)
 
 		list_add(&sd->asd->list, &notifier->waiting);
 
-		if (notifier->ops->unbind)
-			notifier->ops->unbind(notifier, sd, sd->asd);
+		v4l2_async_notifier_call_unbind(notifier, sd, sd->asd);
 	}
 
 	v4l2_async_cleanup(sd);
