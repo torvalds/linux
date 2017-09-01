@@ -12,6 +12,11 @@ drivers should use it. Instead, audio and video should be using the V4L2
 and ALSA APIs, and the pipelines should be set using the Media
 Controller API
 
+.. note::
+
+   The APIs described here doesn't necessarily reflect the current
+   code implementation.
+
 
 .. toctree::
     :maxdepth: 1
