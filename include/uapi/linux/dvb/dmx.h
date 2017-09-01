@@ -43,16 +43,14 @@ enum dmx_output
 	DMX_OUT_TSDEMUX_TAP /* Like TS_TAP but retrieved from the DMX device */
 };
 
-typedef enum dmx_output dmx_output_t;
-
-typedef enum dmx_input
+enum dmx_input
 {
 	DMX_IN_FRONTEND, /* Input from a front-end device.  */
 	DMX_IN_DVR       /* Input from the logical DVR device.  */
-} dmx_input_t;
+};
 
 
-typedef enum dmx_ts_pes
+enum dmx_ts_pes
 {
 	DMX_PES_AUDIO0,
 	DMX_PES_VIDEO0,
@@ -79,7 +77,7 @@ typedef enum dmx_ts_pes
 	DMX_PES_PCR3,
 
 	DMX_PES_OTHER
-} dmx_pes_type_t;
+};
 
 #define DMX_PES_AUDIO    DMX_PES_AUDIO0
 #define DMX_PES_VIDEO    DMX_PES_VIDEO0
@@ -88,20 +86,20 @@ typedef enum dmx_ts_pes
 #define DMX_PES_PCR      DMX_PES_PCR0
 
 
-typedef struct dmx_filter
+struct dmx_filter
 {
 	__u8  filter[DMX_FILTER_SIZE];
 	__u8  mask[DMX_FILTER_SIZE];
 	__u8  mode[DMX_FILTER_SIZE];
-} dmx_filter_t;
+};
 
 
 struct dmx_sct_filter_params
 {
-	__u16          pid;
-	dmx_filter_t   filter;
-	__u32          timeout;
-	__u32          flags;
+	__u16             pid;
+	struct dmx_filter filter;
+	__u32             timeout;
+	__u32             flags;
 #define DMX_CHECK_CRC       1
 #define DMX_ONESHOT         2
 #define DMX_IMMEDIATE_START 4
@@ -111,19 +109,19 @@ struct dmx_sct_filter_params
 
 struct dmx_pes_filter_params
 {
-	__u16          pid;
-	dmx_input_t    input;
-	dmx_output_t   output;
-	dmx_pes_type_t pes_type;
-	__u32          flags;
+	__u16           pid;
+	enum dmx_input  input;
+	enum dmx_output output;
+	enum dmx_ts_pes pes_type;
+	__u32           flags;
 };
 
-typedef struct dmx_caps {
+struct dmx_caps {
 	__u32 caps;
 	int num_decoders;
-} dmx_caps_t;
+};
 
-typedef enum dmx_source {
+enum dmx_source {
 	DMX_SOURCE_FRONT0 = 0,
 	DMX_SOURCE_FRONT1,
 	DMX_SOURCE_FRONT2,
@@ -132,7 +130,7 @@ typedef enum dmx_source {
 	DMX_SOURCE_DVR1,
 	DMX_SOURCE_DVR2,
 	DMX_SOURCE_DVR3
-} dmx_source_t;
+};
 
 struct dmx_stc {
 	unsigned int num;	/* input : which STC? 0..N */
@@ -146,10 +144,22 @@ struct dmx_stc {
 #define DMX_SET_PES_FILTER       _IOW('o', 44, struct dmx_pes_filter_params)
 #define DMX_SET_BUFFER_SIZE      _IO('o', 45)
 #define DMX_GET_PES_PIDS         _IOR('o', 47, __u16[5])
-#define DMX_GET_CAPS             _IOR('o', 48, dmx_caps_t)
-#define DMX_SET_SOURCE           _IOW('o', 49, dmx_source_t)
+#define DMX_GET_CAPS             _IOR('o', 48, struct dmx_caps)
+#define DMX_SET_SOURCE           _IOW('o', 49, enum dmx_source)
 #define DMX_GET_STC              _IOWR('o', 50, struct dmx_stc)
 #define DMX_ADD_PID              _IOW('o', 51, __u16)
 #define DMX_REMOVE_PID           _IOW('o', 52, __u16)
+
+#if !defined (__KERNEL__)
+
+/* This is needed for legacy userspace support */
+typedef enum dmx_output dmx_output_t;
+typedef enum dmx_input dmx_input_t;
+typedef enum dmx_ts_pes dmx_pes_type_t;
+typedef struct dmx_filter dmx_filter_t;
+typedef struct dmx_caps dmx_caps_t;
+typedef enum dmx_source  dmx_source_t;
+
+#endif
 
 #endif /* _UAPI_DVBDMX_H_ */
