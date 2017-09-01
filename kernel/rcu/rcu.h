@@ -203,6 +203,21 @@ static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
 extern int rcu_cpu_stall_suppress;
 int rcu_jiffies_till_stall_check(void);
 
+#define rcu_ftrace_dump_stall_suppress() \
+do { \
+	if (!rcu_cpu_stall_suppress) \
+		rcu_cpu_stall_suppress = 3; \
+} while (0)
+
+#define rcu_ftrace_dump_stall_unsuppress() \
+do { \
+	if (rcu_cpu_stall_suppress == 3) \
+		rcu_cpu_stall_suppress = 0; \
+} while (0)
+
+#else /* #endif #ifdef CONFIG_RCU_STALL_COMMON */
+#define rcu_ftrace_dump_stall_suppress()
+#define rcu_ftrace_dump_stall_unsuppress()
 #endif /* #ifdef CONFIG_RCU_STALL_COMMON */
 
 /*
@@ -222,7 +237,9 @@ do { \
 	if (!atomic_read(&___rfd_beenhere) && \
 	    !atomic_xchg(&___rfd_beenhere, 1)) { \
 		tracing_off(); \
+		rcu_ftrace_dump_stall_suppress(); \
 		ftrace_dump(oops_dump_mode); \
+		rcu_ftrace_dump_stall_unsuppress(); \
 	} \
 } while (0)
 

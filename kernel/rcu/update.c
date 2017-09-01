@@ -494,6 +494,7 @@ EXPORT_SYMBOL_GPL(do_trace_rcu_torture_read);
 #endif
 
 int rcu_cpu_stall_suppress __read_mostly; /* 1 = suppress stall warnings. */
+EXPORT_SYMBOL_GPL(rcu_cpu_stall_suppress);
 static int rcu_cpu_stall_timeout __read_mostly = CONFIG_RCU_CPU_STALL_TIMEOUT;
 
 module_param(rcu_cpu_stall_suppress, int, 0644);
