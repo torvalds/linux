@@ -600,10 +600,44 @@ int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 }
 EXPORT_SYMBOL_GPL(nvme_submit_sync_cmd);
 
-int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
-		void __user *ubuffer, unsigned bufflen,
-		void __user *meta_buffer, unsigned meta_len, u32 meta_seed,
-		u32 *result, unsigned timeout)
+static void *nvme_add_user_metadata(struct bio *bio, void __user *ubuf,
+		unsigned len, u32 seed, bool write)
+{
+	struct bio_integrity_payload *bip;
+	int ret = -ENOMEM;
+	void *buf;
+
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		goto out;
+
+	ret = -EFAULT;
+	if (write && copy_from_user(buf, ubuf, len))
+		goto out_free_meta;
+
+	bip = bio_integrity_alloc(bio, GFP_KERNEL, 1);
+	if (IS_ERR(bip)) {
+		ret = PTR_ERR(bip);
+		goto out_free_meta;
+	}
+
+	bip->bip_iter.bi_size = len;
+	bip->bip_iter.bi_sector = seed;
+	ret = bio_integrity_add_page(bio, virt_to_page(buf), len,
+			offset_in_page(buf));
+	if (ret == len)
+		return buf;
+	ret = -ENOMEM;
+out_free_meta:
+	kfree(buf);
+out:
+	return ERR_PTR(ret);
+}
+
+static int nvme_submit_user_cmd(struct request_queue *q,
+		struct nvme_command *cmd, void __user *ubuffer,
+		unsigned bufflen, void __user *meta_buffer, unsigned meta_len,
+		u32 meta_seed, u32 *result, unsigned timeout)
 {
 	bool write = nvme_is_write(cmd);
 	struct nvme_ns *ns = q->queuedata;
@@ -625,46 +659,17 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 		if (ret)
 			goto out;
 		bio = req->bio;
-
-		if (!disk)
-			goto submit;
 		bio->bi_disk = disk;
-
-		if (meta_buffer && meta_len) {
-			struct bio_integrity_payload *bip;
-
-			meta = kmalloc(meta_len, GFP_KERNEL);
-			if (!meta) {
-				ret = -ENOMEM;
+		if (disk && meta_buffer && meta_len) {
+			meta = nvme_add_user_metadata(bio, meta_buffer, meta_len,
+					meta_seed, write);
+			if (IS_ERR(meta)) {
+				ret = PTR_ERR(meta);
 				goto out_unmap;
-			}
-
-			if (write) {
-				if (copy_from_user(meta, meta_buffer,
-						meta_len)) {
-					ret = -EFAULT;
-					goto out_free_meta;
-				}
-			}
-
-			bip = bio_integrity_alloc(bio, GFP_KERNEL, 1);
-			if (IS_ERR(bip)) {
-				ret = PTR_ERR(bip);
-				goto out_free_meta;
-			}
-
-			bip->bip_iter.bi_size = meta_len;
-			bip->bip_iter.bi_sector = meta_seed;
-
-			ret = bio_integrity_add_page(bio, virt_to_page(meta),
-					meta_len, offset_in_page(meta));
-			if (ret != meta_len) {
-				ret = -ENOMEM;
-				goto out_free_meta;
 			}
 		}
 	}
- submit:
+
 	blk_execute_rq(req->q, disk, req, 0);
 	if (nvme_req(req)->flags & NVME_REQ_CANCELLED)
 		ret = -EINTR;
@@ -676,7 +681,6 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 		if (copy_to_user(meta_buffer, meta, meta_len))
 			ret = -EFAULT;
 	}
- out_free_meta:
 	kfree(meta);
  out_unmap:
 	if (bio)
@@ -684,14 +688,6 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
  out:
 	blk_mq_free_request(req);
 	return ret;
-}
-
-int nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
-		void __user *ubuffer, unsigned bufflen, u32 *result,
-		unsigned timeout)
-{
-	return __nvme_submit_user_cmd(q, cmd, ubuffer, bufflen, NULL, 0, 0,
-			result, timeout);
 }
 
 static void nvme_keep_alive_end_io(struct request *rq, blk_status_t status)
@@ -983,7 +979,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.apptag = cpu_to_le16(io.apptag);
 	c.rw.appmask = cpu_to_le16(io.appmask);
 
-	return __nvme_submit_user_cmd(ns->queue, &c,
+	return nvme_submit_user_cmd(ns->queue, &c,
 			(void __user *)(uintptr_t)io.addr, length,
 			metadata, meta_len, io.slba, NULL, 0);
 }
@@ -1021,7 +1017,8 @@ static int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 
 	status = nvme_submit_user_cmd(ns ? ns->queue : ctrl->admin_q, &c,
 			(void __user *)(uintptr_t)cmd.addr, cmd.data_len,
-			&cmd.result, timeout);
+			(void __user *)(uintptr_t)cmd.metadata, cmd.metadata,
+			0, &cmd.result, timeout);
 	if (status >= 0) {
 		if (put_user(cmd.result, &ucmd->result))
 			return -EFAULT;

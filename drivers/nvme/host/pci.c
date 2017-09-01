@@ -668,7 +668,7 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 		if (blk_rq_map_integrity_sg(q, req->bio, &iod->meta_sg) != 1)
 			goto out_unmap;
 
-		if (rq_data_dir(req))
+		if (req_op(req) == REQ_OP_WRITE)
 			nvme_dif_remap(req, nvme_dif_prep);
 
 		if (!dma_map_sg(dev->dev, &iod->meta_sg, 1, dma_dir))
@@ -696,7 +696,7 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 	if (iod->nents) {
 		dma_unmap_sg(dev->dev, iod->sg, iod->nents, dma_dir);
 		if (blk_integrity_rq(req)) {
-			if (!rq_data_dir(req))
+			if (req_op(req) == REQ_OP_READ)
 				nvme_dif_remap(req, nvme_dif_complete);
 			dma_unmap_sg(dev->dev, &iod->meta_sg, 1, dma_dir);
 		}
