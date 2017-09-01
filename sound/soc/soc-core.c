@@ -339,11 +339,12 @@ static void soc_cleanup_component_debugfs(struct snd_soc_component *component)
 static void soc_init_codec_debugfs(struct snd_soc_component *component)
 {
 	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+	struct dentry *debugfs_reg;
 
-	codec->debugfs_reg = debugfs_create_file("codec_reg", 0644,
-						 codec->component.debugfs_root,
-						 codec, &codec_reg_fops);
-	if (!codec->debugfs_reg)
+	debugfs_reg = debugfs_create_file("codec_reg", 0644,
+					  codec->component.debugfs_root,
+					  codec, &codec_reg_fops);
+	if (!debugfs_reg)
 		dev_warn(codec->dev,
 			"ASoC: Failed to create codec register debugfs file\n");
 }
@@ -494,7 +495,7 @@ static void soc_cleanup_card_debugfs(struct snd_soc_card *card)
 static void snd_soc_debugfs_init(void)
 {
 	snd_soc_debugfs_root = debugfs_create_dir("asoc", NULL);
-	if (IS_ERR(snd_soc_debugfs_root) || !snd_soc_debugfs_root) {
+	if (IS_ERR_OR_NULL(snd_soc_debugfs_root)) {
 		pr_warn("ASoC: Failed to create debugfs directory\n");
 		snd_soc_debugfs_root = NULL;
 		return;
@@ -550,6 +551,54 @@ static inline void snd_soc_debugfs_exit(void)
 
 #endif
 
+static int snd_soc_rtdcom_add(struct snd_soc_pcm_runtime *rtd,
+			      struct snd_soc_component *component)
+{
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_rtdcom_list *new_rtdcom;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		/* already connected */
+		if (rtdcom->component == component)
+			return 0;
+	}
+
+	new_rtdcom = kmalloc(sizeof(*new_rtdcom), GFP_KERNEL);
+	if (!new_rtdcom)
+		return -ENOMEM;
+
+	new_rtdcom->component = component;
+	INIT_LIST_HEAD(&new_rtdcom->list);
+
+	list_add_tail(&new_rtdcom->list, &rtd->component_list);
+
+	return 0;
+}
+
+static void snd_soc_rtdcom_del_all(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_rtdcom_list *rtdcom1, *rtdcom2;
+
+	for_each_rtdcom_safe(rtd, rtdcom1, rtdcom2)
+		kfree(rtdcom1);
+
+	INIT_LIST_HEAD(&rtd->component_list);
+}
+
+struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
+						const char *driver_name)
+{
+	struct snd_soc_rtdcom_list *rtdcom;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		if ((rtdcom->component->driver->name == driver_name) ||
+		    strcmp(rtdcom->component->driver->name, driver_name) == 0)
+			return rtdcom->component;
+	}
+
+	return NULL;
+}
+
 struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 		const char *dai_link, int stream)
 {
@@ -574,6 +623,7 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	if (!rtd)
 		return NULL;
 
+	INIT_LIST_HEAD(&rtd->component_list);
 	rtd->card = card;
 	rtd->dai_link = dai_link;
 	rtd->codec_dais = kzalloc(sizeof(struct snd_soc_dai *) *
@@ -591,6 +641,7 @@ static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 {
 	if (rtd && rtd->codec_dais)
 		kfree(rtd->codec_dais);
+	snd_soc_rtdcom_del_all(rtd);
 	kfree(rtd);
 }
 
@@ -949,7 +1000,7 @@ static struct snd_soc_component *soc_find_component(
 /**
  * snd_soc_find_dai - Find a registered DAI
  *
- * @dlc: name of the DAI and optional component info to match
+ * @dlc: name of the DAI or the DAI driver and optional component info to match
  *
  * This function will search all registered components and their DAIs to
  * find the DAI of the same name. The component's of_node and name
@@ -977,7 +1028,9 @@ struct snd_soc_dai *snd_soc_find_dai(
 		if (dlc->name && strcmp(component->name, dlc->name))
 			continue;
 		list_for_each_entry(dai, &component->dai_list, list) {
-			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name))
+			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name)
+			    && (!dai->driver->name
+				|| strcmp(dai->driver->name, dlc->dai_name)))
 				continue;
 
 			return dai;
@@ -1049,6 +1102,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
 	struct snd_soc_dai_link_component cpu_dai_component;
+	struct snd_soc_component *component;
 	struct snd_soc_dai **codec_dais;
 	struct snd_soc_platform *platform;
 	struct device_node *platform_of_node;
@@ -1076,6 +1130,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 			dai_link->cpu_dai_name);
 		goto _err_defer;
 	}
+	snd_soc_rtdcom_add(rtd, rtd->cpu_dai->component);
 
 	rtd->num_codecs = dai_link->num_codecs;
 
@@ -1088,6 +1143,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 				codecs[i].dai_name);
 			goto _err_defer;
 		}
+		snd_soc_rtdcom_add(rtd, codec_dais[i]->component);
 	}
 
 	/* Single codec links expect codec and codec_dai in runtime data */
@@ -1098,6 +1154,23 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	platform_name = dai_link->platform_name;
 	if (!platform_name && !dai_link->platform_of_node)
 		platform_name = "snd-soc-dummy";
+
+	/* find one from the set of registered platforms */
+	list_for_each_entry(component, &component_list, list) {
+		platform_of_node = component->dev->of_node;
+		if (!platform_of_node && component->dev->parent->of_node)
+			platform_of_node = component->dev->parent->of_node;
+
+		if (dai_link->platform_of_node) {
+			if (platform_of_node != dai_link->platform_of_node)
+				continue;
+		} else {
+			if (strcmp(component->name, platform_name))
+				continue;
+		}
+
+		snd_soc_rtdcom_add(rtd, component);
+	}
 
 	/* find one from the set of registered platforms */
 	list_for_each_entry(platform, &platform_list, list) {
@@ -1184,26 +1257,14 @@ static void soc_remove_link_dais(struct snd_soc_card *card,
 static void soc_remove_link_components(struct snd_soc_card *card,
 	struct snd_soc_pcm_runtime *rtd, int order)
 {
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
-	int i;
+	struct snd_soc_rtdcom_list *rtdcom;
 
-	/* remove the platform */
-	if (platform && platform->component.driver->remove_order == order)
-		soc_remove_component(&platform->component);
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
 
-	/* remove the CODEC-side CODEC */
-	for (i = 0; i < rtd->num_codecs; i++) {
-		component = rtd->codec_dais[i]->component;
 		if (component->driver->remove_order == order)
 			soc_remove_component(component);
-	}
-
-	/* remove any CPU-side CODEC */
-	if (cpu_dai) {
-		if (cpu_dai->component->driver->remove_order == order)
-			soc_remove_component(cpu_dai->component);
 	}
 }
 
@@ -1559,33 +1620,18 @@ static int soc_probe_link_components(struct snd_soc_card *card,
 			struct snd_soc_pcm_runtime *rtd,
 				     int order)
 {
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
-	int i, ret;
+	struct snd_soc_rtdcom_list *rtdcom;
+	int ret;
 
-	/* probe the CPU-side component, if it is a CODEC */
-	component = rtd->cpu_dai->component;
-	if (component->driver->probe_order == order) {
-		ret = soc_probe_component(card, component);
-		if (ret < 0)
-			return ret;
-	}
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
 
-	/* probe the CODEC-side components */
-	for (i = 0; i < rtd->num_codecs; i++) {
-		component = rtd->codec_dais[i]->component;
 		if (component->driver->probe_order == order) {
 			ret = soc_probe_component(card, component);
 			if (ret < 0)
 				return ret;
 		}
-	}
-
-	/* probe the platform */
-	if (platform->component.driver->probe_order == order) {
-		ret = soc_probe_component(card, &platform->component);
-		if (ret < 0)
-			return ret;
 	}
 
 	return 0;
@@ -3227,7 +3273,7 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->set_pll = component->driver->set_pll;
 	component->set_jack = component->driver->set_jack;
 
-	dapm = &component->dapm;
+	dapm = snd_soc_component_get_dapm(component);
 	dapm->dev = dev;
 	dapm->component = component;
 	dapm->bias_level = SND_SOC_BIAS_OFF;
@@ -3367,11 +3413,12 @@ err_free:
 EXPORT_SYMBOL_GPL(snd_soc_register_component);
 
 /**
- * snd_soc_unregister_component - Unregister a component from the ASoC core
+ * snd_soc_unregister_component - Unregister all related component
+ * from the ASoC core
  *
  * @dev: The device to unregister
  */
-void snd_soc_unregister_component(struct device *dev)
+static int __snd_soc_unregister_component(struct device *dev)
 {
 	struct snd_soc_component *component;
 	int found = 0;
@@ -3393,6 +3440,13 @@ void snd_soc_unregister_component(struct device *dev)
 		snd_soc_component_cleanup(component);
 		kfree(component);
 	}
+
+	return found;
+}
+
+void snd_soc_unregister_component(struct device *dev)
+{
+	while (__snd_soc_unregister_component(dev));
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_component);
 
