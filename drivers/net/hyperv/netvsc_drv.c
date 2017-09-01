@@ -1424,7 +1424,7 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 		key = rndis_dev->rss_key;
 	}
 
-	return rndis_filter_set_rss_param(rndis_dev, key, ndev->num_chn);
+	return rndis_filter_set_rss_param(rndis_dev, key);
 }
 
 /* Hyper-V RNDIS protocol does not have ring in the HW sense.
