@@ -643,7 +643,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 		for_each_if (connector)
 
 /**
- * for_each_crtc_in_state - iterate over all connectors in an atomic update
+ * for_each_crtc_in_state - iterate over all CRTCs in an atomic update
  * @__state: &struct drm_atomic_state pointer
  * @crtc: &struct drm_crtc iteration cursor
  * @crtc_state: &struct drm_crtc_state iteration cursor
