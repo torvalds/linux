@@ -85,7 +85,7 @@ config MDIO_BUS_MUX_MMIOREG
 	  parent bus.  Child bus selection is under the control of one of
 	  the FPGA's registers.
 
-	  Currently, only 8-bit registers are supported.
+	  Currently, only 8/16/32 bits registers are supported.
 
 config MDIO_CAVIUM
 	tristate
