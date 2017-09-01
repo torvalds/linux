@@ -103,15 +103,10 @@ struct inet_frags {
 int inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
-static inline int inet_frags_init_net(struct netns_frags *nf)
+static inline void inet_frags_init_net(struct netns_frags *nf)
 {
 	atomic_set(&nf->mem, 0);
-	return 0;
 }
-static inline void inet_frags_uninit_net(struct netns_frags *nf)
-{
-}
-
 void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f);
 
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
