@@ -80,6 +80,11 @@ Generic Error Codes
           a hardware device. This could indicate broken or flaky hardware.
 	  It's a 'Something is wrong, I give up!' type of error.
 
+    -  - ``ENXIO``
+
+       -  No device corresponding to this device special file exists.
+
+
 .. note::
 
   #. This list is not exhaustive; ioctls may return other error codes.
