@@ -213,8 +213,8 @@ static bool max98926_readable_register(struct device *dev, unsigned int reg)
 	}
 };
 
-DECLARE_TLV_DB_SCALE(max98926_spk_tlv, -600, 100, 0);
-DECLARE_TLV_DB_RANGE(max98926_current_tlv,
+static DECLARE_TLV_DB_SCALE(max98926_spk_tlv, -600, 100, 0);
+static DECLARE_TLV_DB_RANGE(max98926_current_tlv,
 	0, 11, TLV_DB_SCALE_ITEM(20, 20, 0),
 	12, 15, TLV_DB_SCALE_ITEM(320, 40, 0),
 );
