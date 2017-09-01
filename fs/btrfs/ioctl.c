@@ -622,8 +622,8 @@ static void btrfs_wait_for_no_snapshotting_writes(struct btrfs_root *root)
 		if (writers)
 			schedule();
 
-		finish_wait(&root->subv_writers->wait, &wait);
 	} while (writers);
+	finish_wait(&root->subv_writers->wait, &wait);
 }
 
 static int create_snapshot(struct btrfs_root *root, struct inode *dir,
