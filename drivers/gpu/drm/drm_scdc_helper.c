@@ -168,7 +168,7 @@ bool drm_scdc_set_scrambling(struct i2c_adapter *adapter, bool enable)
 
 	ret = drm_scdc_readb(adapter, SCDC_TMDS_CONFIG, &config);
 	if (ret < 0) {
-		DRM_ERROR("Failed to read tmds config: %d\n", ret);
+		DRM_ERROR("Failed to read TMDS config: %d\n", ret);
 		return false;
 	}
 
@@ -223,7 +223,7 @@ bool drm_scdc_set_high_tmds_clock_ratio(struct i2c_adapter *adapter, bool set)
 
 	ret = drm_scdc_readb(adapter, SCDC_TMDS_CONFIG, &config);
 	if (ret < 0) {
-		DRM_ERROR("Failed to read tmds config: %d\n", ret);
+		DRM_ERROR("Failed to read TMDS config: %d\n", ret);
 		return false;
 	}
 
