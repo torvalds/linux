@@ -290,7 +290,7 @@ static int eb_create(struct i915_execbuffer *eb)
 		 * direct lookup.
 		 */
 		do {
-			unsigned int flags;
+			gfp_t flags;
 
 			/* While we can still reduce the allocation size, don't
 			 * raise a warning and allow the allocation to fail.
