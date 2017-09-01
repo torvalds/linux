@@ -1343,13 +1343,13 @@ MULTICOPY ATOMICITY
 
 Multicopy atomicity is a deeply intuitive notion about ordering that is
 not always provided by real computer systems, namely that a given store
-is visible at the same time to all CPUs, or, alternatively, that all
-CPUs agree on the order in which all stores took place.  However, use of
-full multicopy atomicity would rule out valuable hardware optimizations,
-so a weaker form called ``other multicopy atomicity'' instead guarantees
-that a given store is observed at the same time by all -other- CPUs.  The
-remainder of this document discusses this weaker form, but for brevity
-will call it simply ``multicopy atomicity''.
+becomes visible at the same time to all CPUs, or, alternatively, that all
+CPUs agree on the order in which all stores become visible.  However,
+support of full multicopy atomicity would rule out valuable hardware
+optimizations, so a weaker form called ``other multicopy atomicity''
+instead guarantees only that a given store becomes visible at the same
+time to all -other- CPUs.  The remainder of this document discusses this
+weaker form, but for brevity will call it simply ``multicopy atomicity''.
 
 The following example demonstrates multicopy atomicity:
 
@@ -1360,24 +1360,26 @@ The following example demonstrates multicopy atomicity:
 				<general barrier>	<read barrier>
 				STORE Y=r1		LOAD X
 
-Suppose that CPU 2's load from X returns 1 which it then stores to Y and
-that CPU 3's load from Y returns 1.  This indicates that CPU 2's load
-from X in some sense follows CPU 1's store to X and that CPU 2's store
-to Y in some sense preceded CPU 3's load from Y.  The question is then
-"Can CPU 3's load from X return 0?"
+Suppose that CPU 2's load from X returns 1, which it then stores to Y,
+and CPU 3's load from Y returns 1.  This indicates that CPU 1's store
+to X precedes CPU 2's load from X and that CPU 2's store to Y precedes
+CPU 3's load from Y.  In addition, the memory barriers guarantee that
+CPU 2 executes its load before its store, and CPU 3 loads from Y before
+it loads from X.  The question is then "Can CPU 3's load from X return 0?"
 
-Because CPU 3's load from X in some sense came after CPU 2's load, it
+Because CPU 3's load from X in some sense comes after CPU 2's load, it
 is natural to expect that CPU 3's load from X must therefore return 1.
-This expectation is an example of multicopy atomicity: if a load executing
-on CPU A follows a load from the same variable executing on CPU B, then
-an understandable but incorrect expectation is that CPU A's load must
-either return the same value that CPU B's load did, or must return some
-later value.
+This expectation follows from multicopy atomicity: if a load executing
+on CPU B follows a load from the same variable executing on CPU A (and
+CPU A did not originally store the value which it read), then on
+multicopy-atomic systems, CPU B's load must return either the same value
+that CPU A's load did or some later value.  However, the Linux kernel
+does not require systems to be multicopy atomic.
 
-In the Linux kernel, the above use of a general memory barrier compensates
-for any lack of multicopy atomicity.  Therefore, in the above example,
-if CPU 2's load from X returns 1 and its load from Y returns 0, and CPU 3's
-load from Y returns 1, then CPU 3's load from X must also return 1.
+The use of a general memory barrier in the example above compensates
+for any lack of multicopy atomicity.  In the example, if CPU 2's load
+from X returns 1 and CPU 3's load from Y returns 1, then CPU 3's load
+from X must indeed also return 1.
 
 However, dependencies, read barriers, and write barriers are not always
 able to compensate for non-multicopy atomicity.  For example, suppose
@@ -1396,11 +1398,11 @@ this example, it is perfectly legal for CPU 2's load from X to return 1,
 CPU 3's load from Y to return 1, and its load from X to return 0.
 
 The key point is that although CPU 2's data dependency orders its load
-and store, it does not guarantee to order CPU 1's store.  Therefore,
-if this example runs on a non-multicopy-atomic system where CPUs 1 and 2
-share a store buffer or a level of cache, CPU 2 might have early access
-to CPU 1's writes.  A general barrier is therefore required to ensure
-that all CPUs agree on the combined order of CPU 1's and CPU 2's accesses.
+and store, it does not guarantee to order CPU 1's store.  Thus, if this
+example runs on a non-multicopy-atomic system where CPUs 1 and 2 share a
+store buffer or a level of cache, CPU 2 might have early access to CPU 1's
+writes.  General barriers are therefore required to ensure that all CPUs
+agree on the combined order of multiple accesses.
 
 General barriers can compensate not only for non-multicopy atomicity,
 but can also generate additional ordering that can ensure that -all-
