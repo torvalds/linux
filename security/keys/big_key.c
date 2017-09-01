@@ -295,6 +295,7 @@ long big_key_read(const struct key *key, char __user *buffer, size_t buflen)
 		u8 *data;
 		u8 *enckey = (u8 *)key->payload.data[big_key_data];
 		size_t enclen = ALIGN(datalen, crypto_skcipher_blocksize(big_key_skcipher));
+		loff_t pos = 0;
 
 		data = kmalloc(enclen, GFP_KERNEL);
 		if (!data)
@@ -307,7 +308,7 @@ long big_key_read(const struct key *key, char __user *buffer, size_t buflen)
 		}
 
 		/* read file to kernel and decrypt */
-		ret = kernel_read(file, 0, data, enclen);
+		ret = kernel_read(file, data, enclen, &pos);
 		if (ret >= 0 && ret != enclen) {
 			ret = -EIO;
 			goto err_fput;

@@ -1379,7 +1379,7 @@ static ssize_t read_file(struct nandsim *ns, struct file *file, void *buf, size_
 	if (err)
 		return err;
 	noreclaim_flag = memalloc_noreclaim_save();
-	tx = kernel_read(file, pos, buf, count);
+	tx = kernel_read(file, buf, count, &pos);
 	memalloc_noreclaim_restore(noreclaim_flag);
 	put_pages(ns);
 	return tx;

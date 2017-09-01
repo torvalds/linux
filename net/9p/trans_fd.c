@@ -272,6 +272,7 @@ static int p9_fd_read(struct p9_client *client, void *v, int len)
 {
 	int ret;
 	struct p9_trans_fd *ts = NULL;
+	loff_t pos;
 
 	if (client && client->status != Disconnected)
 		ts = client->trans;
@@ -282,7 +283,8 @@ static int p9_fd_read(struct p9_client *client, void *v, int len)
 	if (!(ts->rd->f_flags & O_NONBLOCK))
 		p9_debug(P9_DEBUG_ERROR, "blocking read ...\n");
 
-	ret = kernel_read(ts->rd, ts->rd->f_pos, v, len);
+	pos = ts->rd->f_pos;
+	ret = kernel_read(ts->rd, v, len, &pos);
 	if (ret <= 0 && ret != -ERESTARTSYS && ret != -EAGAIN)
 		client->status = Disconnected;
 	return ret;
