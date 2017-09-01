@@ -263,7 +263,7 @@ static int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs,
 
 	/* XXX: old code skips write if control unchanged */
 	if (cmd == I915_READ(MIPI_DPI_CONTROL(port)))
-		DRM_ERROR("Same special packet %02x twice in a row.\n", cmd);
+		DRM_DEBUG_KMS("Same special packet %02x twice in a row.\n", cmd);
 
 	I915_WRITE(MIPI_DPI_CONTROL(port), cmd);
 
