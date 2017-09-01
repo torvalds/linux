@@ -1962,10 +1962,8 @@ static int fsi_probe(struct platform_device *pdev)
 	}
 
 	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
-	if (!master) {
-		dev_err(&pdev->dev, "Could not allocate master\n");
+	if (!master)
 		return -ENOMEM;
-	}
 
 	master->base = devm_ioremap_nocache(&pdev->dev,
 					    res->start, resource_size(res));
@@ -2109,7 +2107,7 @@ static int fsi_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops fsi_pm_ops = {
+static const struct dev_pm_ops fsi_pm_ops = {
 	.suspend		= fsi_suspend,
 	.resume			= fsi_resume,
 };
