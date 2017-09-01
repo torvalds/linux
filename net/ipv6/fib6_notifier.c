@@ -1,6 +1,7 @@
 #include <linux/notifier.h>
 #include <linux/socket.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <net/net_namespace.h>
 #include <net/fib_notifier.h>
 #include <net/netns/ipv6.h>
@@ -41,6 +42,7 @@ static const struct fib_notifier_ops fib6_notifier_ops_template = {
 	.family		= AF_INET6,
 	.fib_seq_read	= fib6_seq_read,
 	.fib_dump	= fib6_dump,
+	.owner		= THIS_MODULE,
 };
 
 int __net_init fib6_notifier_init(struct net *net)

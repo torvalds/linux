@@ -2,6 +2,7 @@
 #define __NET_FIB_NOTIFIER_H
 
 #include <linux/types.h>
+#include <linux/module.h>
 #include <linux/notifier.h>
 #include <net/net_namespace.h>
 
@@ -26,6 +27,7 @@ struct fib_notifier_ops {
 	struct list_head list;
 	unsigned int (*fib_seq_read)(struct net *net);
 	int (*fib_dump)(struct net *net, struct notifier_block *nb);
+	struct module *owner;
 	struct rcu_head rcu;
 };
 

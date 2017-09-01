@@ -2,6 +2,7 @@
 #include <linux/notifier.h>
 #include <linux/rcupdate.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <net/net_namespace.h>
 #include <net/fib_notifier.h>
@@ -33,8 +34,12 @@ static unsigned int fib_seq_sum(void)
 
 	rtnl_lock();
 	for_each_net(net) {
-		list_for_each_entry(ops, &net->fib_notifier_ops, list)
+		list_for_each_entry(ops, &net->fib_notifier_ops, list) {
+			if (!try_module_get(ops->owner))
+				continue;
 			fib_seq += ops->fib_seq_read(net);
+			module_put(ops->owner);
+		}
 	}
 	rtnl_unlock();
 
@@ -46,8 +51,12 @@ static int fib_net_dump(struct net *net, struct notifier_block *nb)
 	struct fib_notifier_ops *ops;
 
 	list_for_each_entry_rcu(ops, &net->fib_notifier_ops, list) {
-		int err = ops->fib_dump(net, nb);
+		int err;
 
+		if (!try_module_get(ops->owner))
+			continue;
+		err = ops->fib_dump(net, nb);
+		module_put(ops->owner);
 		if (err)
 			return err;
 	}

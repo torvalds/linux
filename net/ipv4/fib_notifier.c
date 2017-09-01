@@ -2,6 +2,7 @@
 #include <linux/notifier.h>
 #include <linux/socket.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <net/net_namespace.h>
 #include <net/fib_notifier.h>
 #include <net/netns/ipv4.h>
@@ -49,6 +50,7 @@ static const struct fib_notifier_ops fib4_notifier_ops_template = {
 	.family		= AF_INET,
 	.fib_seq_read	= fib4_seq_read,
 	.fib_dump	= fib4_dump,
+	.owner		= THIS_MODULE,
 };
 
 int __net_init fib4_notifier_init(struct net *net)
