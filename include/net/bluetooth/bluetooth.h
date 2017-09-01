@@ -233,7 +233,7 @@ static inline void bacpy(bdaddr_t *dst, const bdaddr_t *src)
 	memcpy(dst, src, sizeof(bdaddr_t));
 }
 
-void baswap(bdaddr_t *dst, bdaddr_t *src);
+void baswap(bdaddr_t *dst, const bdaddr_t *src);
 
 /* Common socket structures and functions */
 
