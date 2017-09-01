@@ -1407,7 +1407,7 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 	rndis_dev = ndev->extension;
 	if (indir) {
 		for (i = 0; i < ITAB_NUM; i++)
-			if (indir[i] >= VRSS_CHANNEL_MAX)
+			if (indir[i] >= ndev->num_chn)
 				return -EINVAL;
 
 		for (i = 0; i < ITAB_NUM; i++)
