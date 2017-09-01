@@ -161,36 +161,3 @@ u32 intel_mid_soc_stepping(void)
 	return pci_root->revision;
 }
 EXPORT_SYMBOL(intel_mid_soc_stepping);
-
-static bool is_south_complex_device(struct pci_dev *dev)
-{
-	unsigned int base_class = dev->class >> 16;
-	unsigned int sub_class  = (dev->class & SUB_CLASS_MASK) >> 8;
-
-	/* other than camera, pci bridges and display,
-	 * everything else are south complex devices.
-	 */
-	if (((base_class == PCI_BASE_CLASS_MULTIMEDIA) &&
-	     (sub_class == ISP_SUB_CLASS)) ||
-	    (base_class == PCI_BASE_CLASS_BRIDGE) ||
-	    ((base_class == PCI_BASE_CLASS_DISPLAY) && !sub_class))
-		return false;
-	else
-		return true;
-}
-
-/* In BYT platform, d3_delay for internal south complex devices,
- * they are not subject to 10 ms d3 to d0 delay required by pci spec.
- */
-static void pci_d3_delay_fixup(struct pci_dev *dev)
-{
-	if (platform_is(INTEL_ATOM_BYT) ||
-		platform_is(INTEL_ATOM_CHT)) {
-		/* All internal devices are in bus 0. */
-		if (dev->bus->number == 0 && is_south_complex_device(dev)) {
-			dev->d3_delay = INTERNAL_PCI_PM_D3_WAIT;
-			dev->d3cold_delay = INTERNAL_PCI_PM_D3_WAIT;
-		}
-	}
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_d3_delay_fixup);

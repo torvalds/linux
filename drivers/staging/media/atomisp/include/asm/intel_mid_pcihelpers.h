@@ -18,14 +18,6 @@
 #define PCI_ROOT_MSGBUS_WRITE           0x11
 #define PCI_ROOT_MSGBUS_DWORD_ENABLE    0xf0
 
-/* In BYT platform for all internal PCI devices d3 delay
- * of 3 ms is sufficient. Default value of 10 ms is overkill.
- */
-#define INTERNAL_PCI_PM_D3_WAIT		3
-
-#define ISP_SUB_CLASS			0x80
-#define SUB_CLASS_MASK			0xFF00
-
 u32 intel_mid_msgbus_read32_raw(u32 cmd);
 u32 intel_mid_msgbus_read32(u8 port, u32 addr);
 void intel_mid_msgbus_write32_raw(u32 cmd, u32 data);
