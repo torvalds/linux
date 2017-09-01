@@ -3659,7 +3659,7 @@ static void mlxsw_sp_fib6_entry_type_set(struct mlxsw_sp_fib_entry *fib_entry,
 	 * local, which will cause them to be trapped with a lower
 	 * priority than packets that need to be locally received.
 	 */
-	if (rt->rt6i_flags & RTF_LOCAL)
+	if (rt->rt6i_flags & (RTF_LOCAL | RTF_ANYCAST))
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
 	else if (rt->rt6i_flags & RTF_REJECT)
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
@@ -3992,9 +3992,6 @@ static int __mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp,
 		struct mlxsw_sp_vr *vr = &mlxsw_sp->router->vrs[i];
 		char raltb_pl[MLXSW_REG_RALTB_LEN];
 		char ralue_pl[MLXSW_REG_RALUE_LEN];
-
-		if (!mlxsw_sp_vr_is_used(vr))
-			continue;
 
 		mlxsw_reg_raltb_pack(raltb_pl, vr->id, proto, tree_id);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raltb),
