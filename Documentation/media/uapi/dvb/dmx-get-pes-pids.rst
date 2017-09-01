@@ -25,13 +25,31 @@ Arguments
     File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
 ``pids``
-    Undocumented.
+    Array used to store 5 Program IDs.
 
 
 Description
 -----------
 
-.. note:: This ioctl is undocumented. Documentation is welcome.
+This ioctl allows to query a DVB device to return the first PID used
+by audio, video, textext, subtitle and PCR programs on a given service.
+They're stored as:
+
+=======================	========	=======================================
+PID  element		position	content
+=======================	========	=======================================
+pids[DMX_PES_AUDIO]	0		first audio PID
+pids[DMX_PES_VIDEO]	1		first video PID
+pids[DMX_PES_TELETEXT]	2		first teletext PID
+pids[DMX_PES_SUBTITLE]	3		first subtitle PID
+pids[DMX_PES_PCR]	4		first Program Clock Reference PID
+=======================	========	=======================================
+
+
+.. note::
+
+	A value equal to 0xffff means that the PID was not filled by the
+	Kernel.
 
 
 Return Value
