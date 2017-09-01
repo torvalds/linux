@@ -621,19 +621,18 @@ static void aspeed_smc_chip_set_type(struct aspeed_smc_chip *chip, int type)
 }
 
 /*
- * The AST2500 FMC flash controller should be strapped by hardware, or
- * autodetected, but the AST2500 SPI flash needs to be set.
+ * The first chip of the AST2500 FMC flash controller is strapped by
+ * hardware, or autodetected, but other chips need to be set. Enforce
+ * the 4B setting for all chips.
  */
 static void aspeed_smc_chip_set_4b(struct aspeed_smc_chip *chip)
 {
 	struct aspeed_smc_controller *controller = chip->controller;
 	u32 reg;
 
-	if (chip->controller->info == &spi_2500_info) {
-		reg = readl(controller->regs + CE_CONTROL_REG);
-		reg |= 1 << chip->cs;
-		writel(reg, controller->regs + CE_CONTROL_REG);
-	}
+	reg = readl(controller->regs + CE_CONTROL_REG);
+	reg |= 1 << chip->cs;
+	writel(reg, controller->regs + CE_CONTROL_REG);
 }
 
 /*
