@@ -463,14 +463,21 @@ static void lo_complete_rq(struct request *rq)
 	blk_mq_end_request(rq, cmd->ret < 0 ? BLK_STS_IOERR : BLK_STS_OK);
 }
 
+static void lo_rw_aio_do_completion(struct loop_cmd *cmd)
+{
+	if (!atomic_dec_and_test(&cmd->ref))
+		return;
+	kfree(cmd->bvec);
+	cmd->bvec = NULL;
+	blk_mq_complete_request(cmd->rq);
+}
+
 static void lo_rw_aio_complete(struct kiocb *iocb, long ret, long ret2)
 {
 	struct loop_cmd *cmd = container_of(iocb, struct loop_cmd, iocb);
 
-	kfree(cmd->bvec);
-	cmd->bvec = NULL;
 	cmd->ret = ret;
-	blk_mq_complete_request(cmd->rq);
+	lo_rw_aio_do_completion(cmd);
 }
 
 static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
@@ -518,6 +525,7 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 		bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
 		segments = bio_segments(bio);
 	}
+	atomic_set(&cmd->ref, 2);
 
 	iov_iter_bvec(&iter, ITER_BVEC | rw, bvec,
 		      segments, blk_rq_bytes(rq));
@@ -532,6 +540,8 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 		ret = call_write_iter(file, &cmd->iocb, &iter);
 	else
 		ret = call_read_iter(file, &cmd->iocb, &iter);
+
+	lo_rw_aio_do_completion(cmd);
 
 	if (ret != -EIOCBQUEUED)
 		cmd->iocb.ki_complete(&cmd->iocb, ret, 0);
