@@ -1575,8 +1575,8 @@ static int __init audit_enable(char *str)
 
 	if (audit_default == AUDIT_OFF)
 		audit_initialized = AUDIT_DISABLED;
-	audit_enabled = audit_default;
-	audit_ever_enabled = !!audit_enabled;
+	if (audit_set_enabled(audit_default))
+		panic("audit: error setting audit state (%d)\n", audit_default);
 
 	pr_info("%s\n", audit_default ?
 		"enabled (after initialization)" : "disabled (until reboot)");
