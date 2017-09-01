@@ -244,6 +244,7 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 {
 	struct pending_req *req, *n;
 	unsigned int j, r;
+	bool busy = false;
 
 	for (r = 0; r < blkif->nr_rings; r++) {
 		struct xen_blkif_ring *ring = &blkif->rings[r];
@@ -261,8 +262,10 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 		 * don't have any discard_io or other_io requests. So, checking
 		 * for inflight IO is enough.
 		 */
-		if (atomic_read(&ring->inflight) > 0)
-			return -EBUSY;
+		if (atomic_read(&ring->inflight) > 0) {
+			busy = true;
+			continue;
+		}
 
 		if (ring->irq) {
 			unbind_from_irqhandler(ring->irq, ring);
@@ -300,6 +303,9 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 		WARN_ON(i != (XEN_BLKIF_REQS_PER_PAGE * blkif->nr_ring_pages));
 		ring->active = false;
 	}
+	if (busy)
+		return -EBUSY;
+
 	blkif->nr_ring_pages = 0;
 	/*
 	 * blkif->rings was allocated in connect_ring, so we should free it in
