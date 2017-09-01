@@ -67,6 +67,7 @@
  */
 
 extern bool caam_little_end;
+extern bool caam_imx;
 
 #define caam_to_cpu(len)				\
 static inline u##len caam##len ## _to_cpu(u##len val)	\
@@ -154,13 +155,10 @@ static inline u64 rd_reg64(void __iomem *reg)
 #else /* CONFIG_64BIT */
 static inline void wr_reg64(void __iomem *reg, u64 data)
 {
-#ifndef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
-	if (caam_little_end) {
+	if (!caam_imx && caam_little_end) {
 		wr_reg32((u32 __iomem *)(reg) + 1, data >> 32);
 		wr_reg32((u32 __iomem *)(reg), data);
-	} else
-#endif
-	{
+	} else {
 		wr_reg32((u32 __iomem *)(reg), data >> 32);
 		wr_reg32((u32 __iomem *)(reg) + 1, data);
 	}
@@ -168,41 +166,40 @@ static inline void wr_reg64(void __iomem *reg, u64 data)
 
 static inline u64 rd_reg64(void __iomem *reg)
 {
-#ifndef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
-	if (caam_little_end)
+	if (!caam_imx && caam_little_end)
 		return ((u64)rd_reg32((u32 __iomem *)(reg) + 1) << 32 |
 			(u64)rd_reg32((u32 __iomem *)(reg)));
-	else
-#endif
-		return ((u64)rd_reg32((u32 __iomem *)(reg)) << 32 |
-			(u64)rd_reg32((u32 __iomem *)(reg) + 1));
+
+	return ((u64)rd_reg32((u32 __iomem *)(reg)) << 32 |
+		(u64)rd_reg32((u32 __iomem *)(reg) + 1));
 }
 #endif /* CONFIG_64BIT  */
 
+static inline u64 cpu_to_caam_dma64(dma_addr_t value)
+{
+	if (caam_imx)
+		return (((u64)cpu_to_caam32(lower_32_bits(value)) << 32) |
+			 (u64)cpu_to_caam32(upper_32_bits(value)));
+
+	return cpu_to_caam64(value);
+}
+
+static inline u64 caam_dma64_to_cpu(u64 value)
+{
+	if (caam_imx)
+		return (((u64)caam32_to_cpu(lower_32_bits(value)) << 32) |
+			 (u64)caam32_to_cpu(upper_32_bits(value)));
+
+	return caam64_to_cpu(value);
+}
+
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-#ifdef CONFIG_SOC_IMX7D
-#define cpu_to_caam_dma(value) \
-		(((u64)cpu_to_caam32(lower_32_bits(value)) << 32) | \
-		  (u64)cpu_to_caam32(upper_32_bits(value)))
-#define caam_dma_to_cpu(value) \
-		(((u64)caam32_to_cpu(lower_32_bits(value)) << 32) | \
-		  (u64)caam32_to_cpu(upper_32_bits(value)))
-#else
-#define cpu_to_caam_dma(value) cpu_to_caam64(value)
-#define caam_dma_to_cpu(value) caam64_to_cpu(value)
-#endif /* CONFIG_SOC_IMX7D */
+#define cpu_to_caam_dma(value) cpu_to_caam_dma64(value)
+#define caam_dma_to_cpu(value) caam_dma64_to_cpu(value)
 #else
 #define cpu_to_caam_dma(value) cpu_to_caam32(value)
 #define caam_dma_to_cpu(value) caam32_to_cpu(value)
-#endif /* CONFIG_ARCH_DMA_ADDR_T_64BIT  */
-
-#ifdef CONFIG_CRYPTO_DEV_FSL_CAAM_IMX
-#define cpu_to_caam_dma64(value) \
-		(((u64)cpu_to_caam32(lower_32_bits(value)) << 32) | \
-		 (u64)cpu_to_caam32(upper_32_bits(value)))
-#else
-#define cpu_to_caam_dma64(value) cpu_to_caam64(value)
-#endif
+#endif /* CONFIG_ARCH_DMA_ADDR_T_64BIT */
 
 /*
  * jr_outentry
