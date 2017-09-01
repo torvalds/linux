@@ -274,7 +274,8 @@ struct bmc_device {
 	unsigned long          dyn_id_expiry;
 	struct mutex           dyn_mutex; /* protects id & dyn* fields */
 	u8                     guid[16];
-	int                    guid_set;
+	u8                     fetch_guid[16];
+	int                    dyn_guid_set;
 	struct kref	       usecount;
 };
 #define to_bmc_device(x) container_of((x), struct bmc_device, pdev.dev)
@@ -537,6 +538,8 @@ struct ipmi_smi {
 	int run_to_completion;
 };
 #define to_si_intf_from_dev(device) container_of(device, struct ipmi_smi, dev)
+
+static void __get_guid(ipmi_smi_t intf);
 
 /**
  * The driver model view of the IPMI messaging driver.
@@ -2198,7 +2201,7 @@ static int bmc_get_device_id(ipmi_smi_t intf, struct bmc_device *bmc,
 			     bool *guid_set, u8 *guid)
 {
 	int rv = 0;
-	int prev_dyn_id_set;
+	int prev_dyn_id_set, prev_guid_set;
 
 	if (!intf) {
 		mutex_lock(&bmc->dyn_mutex);
@@ -2230,8 +2233,19 @@ retry_bmc_lock:
 	if (bmc->dyn_id_set && time_is_after_jiffies(bmc->dyn_id_expiry))
 		goto out;
 
-	prev_dyn_id_set = bmc->dyn_id_set;
+	prev_guid_set = bmc->dyn_guid_set;
+	__get_guid(intf);
 
+	if (bmc->dyn_guid_set)
+		memcpy(bmc->guid, bmc->fetch_guid, 16);
+	else if (prev_guid_set)
+		/*
+		 * The guid used to be valid and it failed to fetch,
+		 * just use the cached value.
+		 */
+		bmc->dyn_guid_set = prev_guid_set;
+
+	prev_dyn_id_set = bmc->dyn_id_set;
 	rv = __get_device_id(intf, bmc);
 	if (rv)
 		goto out;
@@ -2250,9 +2264,9 @@ out:
 		*id = bmc->id;
 
 	if (guid_set)
-		*guid_set = bmc->guid_set;
+		*guid_set = bmc->dyn_guid_set;
 
-	if (guid && bmc->guid_set)
+	if (guid && bmc->dyn_guid_set)
 		memcpy(guid, bmc->guid, 16);
 
 	mutex_unlock(&bmc->dyn_mutex);
@@ -2845,7 +2859,7 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
 	 * representing the interfaced BMC already
 	 */
 	mutex_lock(&ipmidriver_mutex);
-	if (bmc->guid_set)
+	if (bmc->dyn_guid_set)
 		old_bmc = ipmi_find_bmc_guid(&ipmidriver.driver, bmc->guid);
 	else
 		old_bmc = ipmi_find_bmc_prod_dev_id(&ipmidriver.driver,
@@ -2997,9 +3011,10 @@ send_guid_cmd(ipmi_smi_t intf, int chan)
 			      -1, 0);
 }
 
-static void
-guid_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
+static void guid_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 {
+	struct bmc_device *bmc = intf->bmc;
+
 	if ((msg->addr.addr_type != IPMI_SYSTEM_INTERFACE_ADDR_TYPE)
 	    || (msg->msg.netfn != IPMI_NETFN_APP_RESPONSE)
 	    || (msg->msg.cmd != IPMI_GET_DEVICE_GUID_CMD))
@@ -3008,12 +3023,12 @@ guid_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 
 	if (msg->msg.data[0] != 0) {
 		/* Error from getting the GUID, the BMC doesn't have one. */
-		intf->bmc->guid_set = 0;
+		bmc->dyn_guid_set = 0;
 		goto out;
 	}
 
 	if (msg->msg.data_len < 17) {
-		intf->bmc->guid_set = 0;
+		bmc->dyn_guid_set = 0;
 		printk(KERN_WARNING PFX
 		       "guid_handler: The GUID response from the BMC was too"
 		       " short, it was %d but should have been 17.  Assuming"
@@ -3022,24 +3037,34 @@ guid_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 		goto out;
 	}
 
-	memcpy(intf->bmc->guid, msg->msg.data + 1, 16);
-	intf->bmc->guid_set = 1;
+	memcpy(bmc->fetch_guid, msg->msg.data + 1, 16);
+	/*
+	 * Make sure the guid data is available before setting
+	 * dyn_guid_set.
+	 */
+	smp_wmb();
+	bmc->dyn_guid_set = 1;
  out:
 	wake_up(&intf->waitq);
 }
 
-static void
-get_guid(ipmi_smi_t intf)
+static void __get_guid(ipmi_smi_t intf)
 {
 	int rv;
+	struct bmc_device *bmc = intf->bmc;
 
-	intf->bmc->guid_set = 0x2;
+	bmc->dyn_guid_set = 2;
 	intf->null_user_handler = guid_handler;
 	rv = send_guid_cmd(intf, 0);
 	if (rv)
 		/* Send failed, no GUID available. */
-		intf->bmc->guid_set = 0;
-	wait_event(intf->waitq, intf->bmc->guid_set != 2);
+		bmc->dyn_guid_set = 0;
+
+	wait_event(intf->waitq, bmc->dyn_guid_set != 2);
+
+	/* dyn_guid_set makes the guid data available. */
+	smp_rmb();
+
 	intf->null_user_handler = NULL;
 }
 
@@ -3253,8 +3278,6 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 	rv = handlers->start_processing(send_info, intf);
 	if (rv)
 		goto out;
-
-	get_guid(intf);
 
 	rv = bmc_get_device_id(intf, NULL, &id, NULL, NULL);
 	if (rv) {
