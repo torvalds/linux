@@ -138,6 +138,11 @@ struct skl_cpr_cfg {
 	struct skl_cpr_gtw_cfg gtw_cfg;
 } __packed;
 
+struct skl_cpr_pin_fmt {
+	u32 sink_id;
+	struct skl_audio_data_format src_fmt;
+	struct skl_audio_data_format dst_fmt;
+} __packed;
 
 struct skl_src_module_cfg {
 	struct skl_base_cfg base_cfg;

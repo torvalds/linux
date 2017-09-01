@@ -1083,6 +1083,21 @@ int skl_unbind_modules(struct skl_sst *ctx,
 	return ret;
 }
 
+static void fill_pin_params(struct skl_audio_data_format *pin_fmt,
+				struct skl_module_fmt *format)
+{
+	pin_fmt->number_of_channels = format->channels;
+	pin_fmt->s_freq = format->s_freq;
+	pin_fmt->bit_depth = format->bit_depth;
+	pin_fmt->valid_bit_depth = format->valid_bit_depth;
+	pin_fmt->ch_cfg = format->ch_cfg;
+	pin_fmt->sample_type = format->sample_type;
+	pin_fmt->channel_map = format->ch_map;
+	pin_fmt->interleaving = format->interleaving_style;
+}
+
+#define CPR_SINK_FMT_PARAM_ID 2
+
 /*
  * Once a module is instantiated it need to be 'bind' with other modules in
  * the pipeline. For binding we need to find the module pins which are bind
@@ -1094,11 +1109,15 @@ int skl_bind_modules(struct skl_sst *ctx,
 			struct skl_module_cfg *src_mcfg,
 			struct skl_module_cfg *dst_mcfg)
 {
-	int ret;
+	int ret = 0;
 	struct skl_ipc_bind_unbind_msg msg;
 	int in_max = dst_mcfg->module->max_input_pins;
 	int out_max = src_mcfg->module->max_output_pins;
 	int src_index, dst_index;
+	struct skl_module_fmt *format;
+	struct skl_cpr_pin_fmt pin_fmt;
+	struct skl_module *module;
+	struct skl_module_iface *fmt;
 
 	skl_dump_bind_info(ctx, src_mcfg, dst_mcfg);
 
@@ -1115,6 +1134,29 @@ int skl_bind_modules(struct skl_sst *ctx,
 	if (dst_index < 0) {
 		skl_free_queue(src_mcfg->m_out_pin, src_index);
 		return -EINVAL;
+	}
+
+	/*
+	 * Copier module requires the separate large_config_set_ipc to
+	 * configure the pins other than 0
+	 */
+	if (src_mcfg->m_type == SKL_MODULE_TYPE_COPIER && src_index > 0) {
+		pin_fmt.sink_id = src_index;
+		module = src_mcfg->module;
+		fmt = &module->formats[src_mcfg->fmt_idx];
+
+		/* Input fmt is same as that of src module input cfg */
+		format = &fmt->inputs[0].fmt;
+		fill_pin_params(&(pin_fmt.src_fmt), format);
+
+		format = &fmt->outputs[src_index].fmt;
+		fill_pin_params(&(pin_fmt.dst_fmt), format);
+		ret = skl_set_module_params(ctx, (void *)&pin_fmt,
+					sizeof(struct skl_cpr_pin_fmt),
+					CPR_SINK_FMT_PARAM_ID, src_mcfg);
+
+		if (ret < 0)
+			goto out;
 	}
 
 	msg.dst_queue = dst_index;
@@ -1134,11 +1176,12 @@ int skl_bind_modules(struct skl_sst *ctx,
 		src_mcfg->m_state = SKL_MODULE_BIND_DONE;
 		src_mcfg->m_out_pin[src_index].pin_state = SKL_PIN_BIND_DONE;
 		dst_mcfg->m_in_pin[dst_index].pin_state = SKL_PIN_BIND_DONE;
-	} else {
-		/* error case , if IPC fails, clear the queue index */
-		skl_free_queue(src_mcfg->m_out_pin, src_index);
-		skl_free_queue(dst_mcfg->m_in_pin, dst_index);
+		return ret;
 	}
+out:
+	/* error case , if IPC fails, clear the queue index */
+	skl_free_queue(src_mcfg->m_out_pin, src_index);
+	skl_free_queue(dst_mcfg->m_in_pin, dst_index);
 
 	return ret;
 }
