@@ -145,9 +145,6 @@ int mdio_mux_init(struct device *dev,
 
 		cb = devm_kzalloc(dev, sizeof(*cb), GFP_KERNEL);
 		if (!cb) {
-			dev_err(dev,
-				"Error: Failed to allocate memory for child %pOF\n",
-				child_bus_node);
 			ret_val = -ENOMEM;
 			continue;
 		}
@@ -156,9 +153,6 @@ int mdio_mux_init(struct device *dev,
 
 		cb->mii_bus = mdiobus_alloc();
 		if (!cb->mii_bus) {
-			dev_err(dev,
-				"Error: Failed to allocate MDIO bus for child %pOF\n",
-				child_bus_node);
 			ret_val = -ENOMEM;
 			devm_kfree(dev, cb);
 			continue;
