@@ -124,6 +124,9 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 						 golden_settings_sdma_vg10,
 						 ARRAY_SIZE(golden_settings_sdma_vg10));
 		break;
+	case CHIP_VEGA12:
+		DRM_ERROR("todo: Missing SDMA4 golden settings for vega12\n");
+		break;
 	case CHIP_RAVEN:
 		soc15_program_register_sequence(adev,
 						 golden_settings_sdma_4_1,
