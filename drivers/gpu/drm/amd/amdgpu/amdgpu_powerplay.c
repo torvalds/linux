@@ -128,7 +128,7 @@ static int amdgpu_pp_late_init(void *handle)
 
 	if (adev->pp_enabled && adev->pm.dpm_enabled) {
 		amdgpu_pm_sysfs_init(adev);
-		amdgpu_dpm_dispatch_task(adev, AMD_PP_EVENT_COMPLETE_INIT, NULL, NULL);
+		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_COMPLETE_INIT, NULL, NULL);
 	}
 
 	return ret;

@@ -797,6 +797,11 @@ struct pp_hwmgr {
 extern int hwmgr_early_init(struct pp_instance *handle);
 extern int hwmgr_hw_init(struct pp_instance *handle);
 extern int hwmgr_hw_fini(struct pp_instance *handle);
+extern int hwmgr_hw_suspend(struct pp_instance *handle);
+extern int hwmgr_hw_resume(struct pp_instance *handle);
+extern int hwmgr_handle_task(struct pp_instance *handle,
+				enum amd_pp_task task_id,
+				void *input, void *output);
 extern int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 				uint32_t value, uint32_t mask);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2017 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,24 +20,21 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef _PP_INSTANCE_H_
-#define _PP_INSTANCE_H_
 
-#include "smumgr.h"
+#ifndef PP_PSM_H
+#define PP_PSM_H
+
 #include "hwmgr.h"
 
-#define PP_VALID  0x1F1F1F1F
-
-struct pp_instance {
-	uint32_t pp_valid;
-	uint32_t chip_family;
-	uint32_t chip_id;
-	bool pm_en;
-	uint32_t feature_mask;
-	void *device;
-	struct pp_smumgr *smu_mgr;
-	struct pp_hwmgr *hwmgr;
-	struct mutex pp_lock;
-};
+int psm_init_power_state_table(struct pp_hwmgr *hwmgr);
+int psm_fini_power_state_table(struct pp_hwmgr *hwmgr);
+int psm_set_boot_states(struct pp_hwmgr *hwmgr);
+int psm_set_performance_states(struct pp_hwmgr *hwmgr);
+int psm_set_user_performance_state(struct pp_hwmgr *hwmgr,
+					enum PP_StateUILabel label_id,
+					struct pp_power_state *state);
+int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr,
+				bool skip,
+				struct pp_power_state *new_ps);
 
 #endif

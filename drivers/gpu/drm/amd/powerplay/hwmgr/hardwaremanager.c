@@ -26,6 +26,10 @@
 #include "hardwaremanager.h"
 #include "power_state.h"
 
+
+#define TEMP_RANGE_MIN (90 * 1000)
+#define TEMP_RANGE_MAX (120 * 1000)
+
 #define PHM_FUNC_CHECK(hw) \
 	do {							\
 		if ((hw) == NULL || (hw)->hwmgr_func == NULL)	\
@@ -292,7 +296,19 @@ int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info)
 */
 int phm_start_thermal_controller(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *temperature_range)
 {
-	return phm_dispatch_table(hwmgr, &(hwmgr->start_thermal_controller), temperature_range, NULL);
+	struct PP_TemperatureRange range;
+
+	if (temperature_range == NULL) {
+		range.max = TEMP_RANGE_MAX;
+		range.min = TEMP_RANGE_MIN;
+	} else {
+		range.max = temperature_range->max;
+		range.min = temperature_range->min;
+	}
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_ThermalController))
+		return phm_dispatch_table(hwmgr, &(hwmgr->start_thermal_controller), &range, NULL);
+	return 0;
 }
 
 

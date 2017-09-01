@@ -35,9 +35,9 @@
 #include "ppsmc.h"
 #include "pp_acpi.h"
 #include "amd_acpi.h"
+#include "pp_psm.h"
 
 extern int cz_init_function_pointers(struct pp_hwmgr *hwmgr);
-
 static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr);
 static int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr);
@@ -131,80 +131,6 @@ int hwmgr_early_init(struct pp_instance *handle)
 	return 0;
 }
 
-static int hw_init_power_state_table(struct pp_hwmgr *hwmgr)
-{
-	int result;
-	unsigned int i;
-	unsigned int table_entries;
-	struct pp_power_state *state;
-	int size;
-
-	if (hwmgr->hwmgr_func->get_num_of_pp_table_entries == NULL)
-		return -EINVAL;
-
-	if (hwmgr->hwmgr_func->get_power_state_size == NULL)
-		return -EINVAL;
-
-	hwmgr->num_ps = table_entries = hwmgr->hwmgr_func->get_num_of_pp_table_entries(hwmgr);
-
-	hwmgr->ps_size = size = hwmgr->hwmgr_func->get_power_state_size(hwmgr) +
-					  sizeof(struct pp_power_state);
-
-	hwmgr->ps = kzalloc(size * table_entries, GFP_KERNEL);
-	if (hwmgr->ps == NULL)
-		return -ENOMEM;
-
-	hwmgr->request_ps = kzalloc(size, GFP_KERNEL);
-	if (hwmgr->request_ps == NULL) {
-		kfree(hwmgr->ps);
-		hwmgr->ps = NULL;
-		return -ENOMEM;
-	}
-
-	hwmgr->current_ps = kzalloc(size, GFP_KERNEL);
-	if (hwmgr->current_ps == NULL) {
-		kfree(hwmgr->request_ps);
-		kfree(hwmgr->ps);
-		hwmgr->request_ps = NULL;
-		hwmgr->ps = NULL;
-		return -ENOMEM;
-	}
-
-	state = hwmgr->ps;
-
-	for (i = 0; i < table_entries; i++) {
-		result = hwmgr->hwmgr_func->get_pp_table_entry(hwmgr, i, state);
-
-		if (state->classification.flags & PP_StateClassificationFlag_Boot) {
-			hwmgr->boot_ps = state;
-			memcpy(hwmgr->current_ps, state, size);
-			memcpy(hwmgr->request_ps, state, size);
-		}
-
-		state->id = i + 1; /* assigned unique num for every power state id */
-
-		if (state->classification.flags & PP_StateClassificationFlag_Uvd)
-			hwmgr->uvd_ps = state;
-		state = (struct pp_power_state *)((unsigned long)state + size);
-	}
-
-	return 0;
-}
-
-static int hw_fini_power_state_table(struct pp_hwmgr *hwmgr)
-{
-	if (hwmgr == NULL)
-		return -EINVAL;
-
-	kfree(hwmgr->current_ps);
-	kfree(hwmgr->request_ps);
-	kfree(hwmgr->ps);
-	hwmgr->request_ps = NULL;
-	hwmgr->ps = NULL;
-	hwmgr->current_ps = NULL;
-	return 0;
-}
-
 int hwmgr_hw_init(struct pp_instance *handle)
 {
 	struct pp_hwmgr *hwmgr;
@@ -228,9 +154,22 @@ int hwmgr_hw_init(struct pp_instance *handle)
 	if (ret)
 		goto err1;
 
-	ret = hw_init_power_state_table(hwmgr);
+	ret = psm_init_power_state_table(hwmgr);
 	if (ret)
 		goto err2;
+
+	ret = phm_setup_asic(hwmgr);
+	if (ret)
+		goto err2;
+
+	ret = phm_enable_dynamic_state_management(hwmgr);
+	if (ret)
+		goto err2;
+	ret = phm_start_thermal_controller(hwmgr, NULL);
+	ret |= psm_set_performance_states(hwmgr);
+	if (ret)
+		goto err2;
+
 	return 0;
 err2:
 	if (hwmgr->hwmgr_func->backend_fini)
@@ -247,19 +186,138 @@ int hwmgr_hw_fini(struct pp_instance *handle)
 {
 	struct pp_hwmgr *hwmgr;
 
-	if (handle == NULL)
+	if (handle == NULL || handle->hwmgr == NULL)
 		return -EINVAL;
 
 	hwmgr = handle->hwmgr;
+
+	phm_stop_thermal_controller(hwmgr);
+	psm_set_boot_states(hwmgr);
+	phm_display_configuration_changed(hwmgr);
+	psm_adjust_power_state_dynamic(hwmgr, false, NULL);
+	phm_disable_dynamic_state_management(hwmgr);
+	phm_disable_clock_power_gatings(hwmgr);
 
 	if (hwmgr->hwmgr_func->backend_fini)
 		hwmgr->hwmgr_func->backend_fini(hwmgr);
 	if (hwmgr->pptable_func->pptable_fini)
 		hwmgr->pptable_func->pptable_fini(hwmgr);
-	return hw_fini_power_state_table(hwmgr);
+	return psm_fini_power_state_table(hwmgr);
 }
 
+int hwmgr_hw_suspend(struct pp_instance *handle)
+{
+	struct pp_hwmgr *hwmgr;
+	int ret = 0;
 
+	if (handle == NULL || handle->hwmgr == NULL)
+		return -EINVAL;
+
+	hwmgr = handle->hwmgr;
+	phm_disable_smc_firmware_ctf(hwmgr);
+	ret = psm_set_boot_states(hwmgr);
+	if (ret)
+		return ret;
+	ret = psm_adjust_power_state_dynamic(hwmgr, false, NULL);
+	if (ret)
+		return ret;
+	ret = phm_power_down_asic(hwmgr);
+
+	return ret;
+}
+
+int hwmgr_hw_resume(struct pp_instance *handle)
+{
+	struct pp_hwmgr *hwmgr;
+	int ret = 0;
+
+	if (handle == NULL || handle->hwmgr == NULL)
+		return -EINVAL;
+
+	hwmgr = handle->hwmgr;
+	ret = phm_setup_asic(hwmgr);
+	if (ret)
+		return ret;
+
+	ret = phm_enable_dynamic_state_management(hwmgr);
+	if (ret)
+		return ret;
+	ret = phm_start_thermal_controller(hwmgr, NULL);
+	if (ret)
+		return ret;
+
+	ret |= psm_set_performance_states(hwmgr);
+	if (ret)
+		return ret;
+
+	ret = psm_adjust_power_state_dynamic(hwmgr, false, NULL);
+
+	return ret;
+}
+
+static enum PP_StateUILabel power_state_convert(enum amd_pm_state_type  state)
+{
+	switch (state) {
+	case POWER_STATE_TYPE_BATTERY:
+		return PP_StateUILabel_Battery;
+	case POWER_STATE_TYPE_BALANCED:
+		return PP_StateUILabel_Balanced;
+	case POWER_STATE_TYPE_PERFORMANCE:
+		return PP_StateUILabel_Performance;
+	default:
+		return PP_StateUILabel_None;
+	}
+}
+
+int hwmgr_handle_task(struct pp_instance *handle, enum amd_pp_task task_id,
+		void *input, void *output)
+{
+	int ret = 0;
+	struct pp_hwmgr *hwmgr;
+
+	if (handle == NULL || handle->hwmgr == NULL)
+		return -EINVAL;
+
+	hwmgr = handle->hwmgr;
+
+	switch (task_id) {
+	case AMD_PP_TASK_DISPLAY_CONFIG_CHANGE:
+		ret = phm_set_cpu_power_state(hwmgr);
+		if (ret)
+			return ret;
+		ret = psm_set_performance_states(hwmgr);
+		if (ret)
+			return ret;
+		ret = psm_adjust_power_state_dynamic(hwmgr, false, NULL);
+		break;
+	case AMD_PP_TASK_ENABLE_USER_STATE:
+	{
+		enum amd_pm_state_type ps;
+		enum PP_StateUILabel requested_ui_label;
+		struct pp_power_state *requested_ps;
+
+		if (input == NULL) {
+			ret = -EINVAL;
+			break;
+		}
+		ps = *(unsigned long *)input;
+
+		requested_ui_label = power_state_convert(ps);
+		ret = psm_set_user_performance_state(hwmgr, requested_ui_label, requested_ps);
+		if (ret)
+			return ret;
+		ret = psm_adjust_power_state_dynamic(hwmgr, false, requested_ps);
+		break;
+	}
+	case AMD_PP_TASK_COMPLETE_INIT:
+	case AMD_PP_TASK_READJUST_POWER_STATE:
+		ret = psm_adjust_power_state_dynamic(hwmgr, false, NULL);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
 /**
  * Returns once the part of the register indicated by the mask has
  * reached the given value.

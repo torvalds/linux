@@ -383,8 +383,8 @@ struct amdgpu_dpm_funcs {
 #define amdgpu_dpm_set_mclk_od(adev, value) \
 	((adev)->powerplay.pp_funcs->set_mclk_od((adev)->powerplay.pp_handle, value))
 
-#define amdgpu_dpm_dispatch_task(adev, event_id, input, output)		\
-	(adev)->powerplay.pp_funcs->dispatch_tasks((adev)->powerplay.pp_handle, (event_id), (input), (output))
+#define amdgpu_dpm_dispatch_task(adev, task_id, input, output)		\
+	((adev)->powerplay.pp_funcs->dispatch_tasks)((adev)->powerplay.pp_handle, (task_id), (input), (output))
 
 #define amgdpu_dpm_check_state_equal(adev, cps, rps, equal) (adev)->pm.funcs->check_state_equal((adev), (cps),(rps),(equal))
 
