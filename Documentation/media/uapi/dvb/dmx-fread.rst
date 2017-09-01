@@ -38,6 +38,13 @@ data. The filtered data is transferred from the driver’s internal
 circular buffer to buf. The maximum amount of data to be transferred is
 implied by count.
 
+.. note::
+
+   if a section filter created with
+   :c:type:`DMX_CHECK_CRC <dmx_sct_filter_params>` flag set,
+   data that fails on CRC check will be silently ignored.
+
+
 Return Value
 ------------
 
