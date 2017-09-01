@@ -998,7 +998,6 @@ static irqreturn_t mbhc_btn_press_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-
 static irqreturn_t pm8916_mbhc_switch_irq_handler(int irq, void *arg)
 {
 	struct pm8916_wcd_analog_priv *priv = arg;
