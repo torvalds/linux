@@ -21,7 +21,7 @@
 #define __DENALI_H__
 
 #include <linux/bitops.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 
 #define DEVICE_RESET				0x0
 #define     DEVICE_RESET__BANK(bank)			BIT(bank)

@@ -118,7 +118,9 @@ static int denali_dt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no clk available\n");
 		return PTR_ERR(dt->clk);
 	}
-	clk_prepare_enable(dt->clk);
+	ret = clk_prepare_enable(dt->clk);
+	if (ret)
+		return ret;
 
 	denali->clk_x_rate = clk_get_rate(dt->clk);
 

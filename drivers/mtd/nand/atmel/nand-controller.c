@@ -59,7 +59,7 @@
 #include <linux/mfd/syscon/atmel-matrix.h>
 #include <linux/mfd/syscon/atmel-smc.h>
 #include <linux/module.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -2089,8 +2089,8 @@ atmel_hsmc_nand_controller_legacy_init(struct atmel_hsmc_nand_controller *nc)
 	}
 
 	nc->irq = of_irq_get(nand_np, 0);
-	if (nc->irq < 0) {
-		ret = nc->irq;
+	if (nc->irq <= 0) {
+		ret = nc->irq ?: -ENXIO;
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to get IRQ number (err = %d)\n",
 				ret);
@@ -2179,11 +2179,12 @@ atmel_hsmc_nand_controller_init(struct atmel_hsmc_nand_controller *nc)
 
 	nc->irq = of_irq_get(np, 0);
 	of_node_put(np);
-	if (nc->irq < 0) {
-		if (nc->irq != -EPROBE_DEFER)
+	if (nc->irq <= 0) {
+		ret = nc->irq ?: -ENXIO;
+		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to get IRQ number (err = %d)\n",
-				nc->irq);
-		return nc->irq;
+				ret);
+		return ret;
 	}
 
 	np = of_parse_phandle(dev->of_node, "atmel,nfc-io", 0);
