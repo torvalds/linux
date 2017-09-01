@@ -41,40 +41,6 @@ created.
 The struct :c:type:`dvb_net_if`::ifnum field will be
 filled with the number of the created interface.
 
-.. c:type:: dvb_net_if
-
-.. flat-table:: struct dvb_net_if
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  pid
-
-       -  Packet ID (PID) of the MPEG-TS that contains data
-
-    -  .. row 3
-
-       -  ifnum
-
-       -  number of the Digital TV interface.
-
-    -  .. row 4
-
-       -  feedtype
-
-       -  Encapsulation type of the feed. It can be:
-	  ``DVB_NET_FEEDTYPE_MPE`` for MPE encoding or
-	  ``DVB_NET_FEEDTYPE_ULE`` for ULE encoding.
-
-
 Return Value
 ============
 

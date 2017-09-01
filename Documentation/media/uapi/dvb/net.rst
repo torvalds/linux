@@ -35,6 +35,7 @@ Digital TV net Function Calls
 .. toctree::
     :maxdepth: 1
 
+    net-types
     net-add-if
     net-remove-if
     net-get-if
