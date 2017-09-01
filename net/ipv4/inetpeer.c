@@ -102,15 +102,18 @@ static struct inet_peer *lookup(const struct inetpeer_addr *daddr,
 				struct rb_node **parent_p,
 				struct rb_node ***pp_p)
 {
-	struct rb_node **pp, *parent;
+	struct rb_node **pp, *parent, *next;
 	struct inet_peer *p;
 
 	pp = &base->rb_root.rb_node;
 	parent = NULL;
-	while (*pp) {
+	while (1) {
 		int cmp;
 
-		parent = rcu_dereference_raw(*pp);
+		next = rcu_dereference_raw(*pp);
+		if (!next)
+			break;
+		parent = next;
 		p = rb_entry(parent, struct inet_peer, rb_node);
 		cmp = inetpeer_addr_cmp(daddr, &p->daddr);
 		if (cmp == 0) {
