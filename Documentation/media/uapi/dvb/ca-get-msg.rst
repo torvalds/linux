@@ -28,37 +28,17 @@ Arguments
 ``msg``
   Pointer to struct :c:type:`ca_msg`.
 
+.. c:type:: ca_msg
 
-.. c:type:: struct ca_msg
+.. code-block:: c
 
-.. flat-table:: struct ca_msg
-    :header-rows:  1
-    :stub-columns: 0
-
-    -
-      - type
-      - name
-      - description
-    -
-       - unsigned int
-       - index
-       -
-
-    -
-       - unsigned int
-       - type
-       -
-
-    -
-       - unsigned int
-       - length
-       -
-
-    -
-       - unsigned char
-       - msg[256]
-       -
-
+    /* a message to/from a CI-CAM */
+    struct ca_msg {
+	unsigned int index;
+	unsigned int type;
+	unsigned int length;
+	unsigned char msg[256];
+    };
 
 Description
 -----------

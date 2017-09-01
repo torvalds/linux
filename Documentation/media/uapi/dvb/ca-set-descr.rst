@@ -28,6 +28,16 @@ Arguments
 ``msg``
   Pointer to struct :c:type:`ca_descr`.
 
+.. c:type:: ca_descr
+
+.. code-block:: c
+
+    struct ca_descr {
+	unsigned int index;
+	unsigned int parity;
+	unsigned char cw[8];
+    };
+
 
 Description
 -----------
