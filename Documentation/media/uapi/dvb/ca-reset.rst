@@ -28,7 +28,8 @@ Arguments
 Description
 -----------
 
-.. note:: This ioctl is undocumented. Documentation is welcome.
+Puts the Conditional Access hardware on its initial state. It should
+be called before start using the CA hardware.
 
 
 Return Value
