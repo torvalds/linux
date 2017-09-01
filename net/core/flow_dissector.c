@@ -396,6 +396,18 @@ __skb_flow_dissect_ipv6(const struct sk_buff *skb,
 	key_ip->ttl = iph->hop_limit;
 }
 
+/* Maximum number of protocol headers that can be parsed in
+ * __skb_flow_dissect
+ */
+#define MAX_FLOW_DISSECT_HDRS	15
+
+static bool skb_flow_dissect_allowed(int *num_hdrs)
+{
+	++*num_hdrs;
+
+	return (*num_hdrs <= MAX_FLOW_DISSECT_HDRS);
+}
+
 /**
  * __skb_flow_dissect - extract the flow_keys struct and return it
  * @skb: sk_buff to extract the flow from, can be NULL if the rest are specified
@@ -427,6 +439,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	struct flow_dissector_key_vlan *key_vlan;
 	enum flow_dissect_ret fdret;
 	bool skip_vlan = false;
+	int num_hdrs = 0;
 	u8 ip_proto = 0;
 	bool ret;
 
@@ -714,7 +727,9 @@ proto_again:
 	case FLOW_DISSECT_RET_OUT_GOOD:
 		goto out_good;
 	case FLOW_DISSECT_RET_PROTO_AGAIN:
-		goto proto_again;
+		if (skb_flow_dissect_allowed(&num_hdrs))
+			goto proto_again;
+		goto out_good;
 	case FLOW_DISSECT_RET_CONTINUE:
 	case FLOW_DISSECT_RET_IPPROTO_AGAIN:
 		break;
@@ -843,9 +858,13 @@ ip_proto_again:
 	/* Process result of IP proto processing */
 	switch (fdret) {
 	case FLOW_DISSECT_RET_PROTO_AGAIN:
-		goto proto_again;
+		if (skb_flow_dissect_allowed(&num_hdrs))
+			goto proto_again;
+		break;
 	case FLOW_DISSECT_RET_IPPROTO_AGAIN:
-		goto ip_proto_again;
+		if (skb_flow_dissect_allowed(&num_hdrs))
+			goto ip_proto_again;
+		break;
 	case FLOW_DISSECT_RET_OUT_GOOD:
 	case FLOW_DISSECT_RET_CONTINUE:
 		break;
