@@ -31,6 +31,7 @@
 #include <asm/tm.h>
 #include <asm/opal.h>
 #include <asm/xive-regs.h>
+#include <asm/thread_info.h>
 
 /* Sign-extend HDEC if not on POWER9 */
 #define EXTEND_HDEC(reg)			\
@@ -3134,10 +3135,139 @@ kvmppc_restore_tm:
 /*
  * We come here if we get any exception or interrupt while we are
  * executing host real mode code while in guest MMU context.
- * For now just spin, but we should do something better.
+ * r12 is (CR << 32) | vector
+ * r13 points to our PACA
+ * r12 is saved in HSTATE_SCRATCH0(r13)
+ * ctr is saved in HSTATE_SCRATCH1(r13) if RELOCATABLE
+ * r9 is saved in HSTATE_SCRATCH2(r13)
+ * r13 is saved in HSPRG1
+ * cfar is saved in HSTATE_CFAR(r13)
+ * ppr is saved in HSTATE_PPR(r13)
  */
 kvmppc_bad_host_intr:
+	/*
+	 * Switch to the emergency stack, but start half-way down in
+	 * case we were already on it.
+	 */
+	mr	r9, r1
+	std	r1, PACAR1(r13)
+	ld	r1, PACAEMERGSP(r13)
+	subi	r1, r1, THREAD_SIZE/2 + INT_FRAME_SIZE
+	std	r9, 0(r1)
+	std	r0, GPR0(r1)
+	std	r9, GPR1(r1)
+	std	r2, GPR2(r1)
+	SAVE_4GPRS(3, r1)
+	SAVE_2GPRS(7, r1)
+	srdi	r0, r12, 32
+	clrldi	r12, r12, 32
+	std	r0, _CCR(r1)
+	std	r12, _TRAP(r1)
+	andi.	r0, r12, 2
+	beq	1f
+	mfspr	r3, SPRN_HSRR0
+	mfspr	r4, SPRN_HSRR1
+	mfspr	r5, SPRN_HDAR
+	mfspr	r6, SPRN_HDSISR
+	b	2f
+1:	mfspr	r3, SPRN_SRR0
+	mfspr	r4, SPRN_SRR1
+	mfspr	r5, SPRN_DAR
+	mfspr	r6, SPRN_DSISR
+2:	std	r3, _NIP(r1)
+	std	r4, _MSR(r1)
+	std	r5, _DAR(r1)
+	std	r6, _DSISR(r1)
+	ld	r9, HSTATE_SCRATCH2(r13)
+	ld	r12, HSTATE_SCRATCH0(r13)
+	GET_SCRATCH0(r0)
+	SAVE_4GPRS(9, r1)
+	std	r0, GPR13(r1)
+	SAVE_NVGPRS(r1)
+	ld	r5, HSTATE_CFAR(r13)
+	std	r5, ORIG_GPR3(r1)
+	mflr	r3
+#ifdef CONFIG_RELOCATABLE
+	ld	r4, HSTATE_SCRATCH1(r13)
+#else
+	mfctr	r4
+#endif
+	mfxer	r5
+	lbz	r6, PACASOFTIRQEN(r13)
+	std	r3, _LINK(r1)
+	std	r4, _CTR(r1)
+	std	r5, _XER(r1)
+	std	r6, SOFTE(r1)
+	ld	r2, PACATOC(r13)
+	LOAD_REG_IMMEDIATE(3, 0x7265677368657265)
+	std	r3, STACK_FRAME_OVERHEAD-16(r1)
+
+	/*
+	 * On POWER9 do a minimal restore of the MMU and call C code,
+	 * which will print a message and panic.
+	 * XXX On POWER7 and POWER8, we just spin here since we don't
+	 * know what the other threads are doing (and we don't want to
+	 * coordinate with them) - but at least we now have register state
+	 * in memory that we might be able to look at from another CPU.
+	 */
+BEGIN_FTR_SECTION
 	b	.
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
+	ld	r9, HSTATE_KVM_VCPU(r13)
+	ld	r10, VCPU_KVM(r9)
+
+	li	r0, 0
+	mtspr	SPRN_AMR, r0
+	mtspr	SPRN_IAMR, r0
+	mtspr	SPRN_CIABR, r0
+	mtspr	SPRN_DAWRX, r0
+
+	/* Flush the ERAT on radix P9 DD1 guest exit */
+BEGIN_FTR_SECTION
+	PPC_INVALIDATE_ERAT
+END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
+
+BEGIN_MMU_FTR_SECTION
+	b	4f
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
+
+	slbmte	r0, r0
+	slbia
+	ptesync
+	ld	r8, PACA_SLBSHADOWPTR(r13)
+	.rept	SLB_NUM_BOLTED
+	li	r3, SLBSHADOW_SAVEAREA
+	LDX_BE	r5, r8, r3
+	addi	r3, r3, 8
+	LDX_BE	r6, r8, r3
+	andis.	r7, r5, SLB_ESID_V@h
+	beq	3f
+	slbmte	r6, r5
+3:	addi	r8, r8, 16
+	.endr
+
+4:	lwz	r7, KVM_HOST_LPID(r10)
+	mtspr	SPRN_LPID, r7
+	mtspr	SPRN_PID, r0
+	ld	r8, KVM_HOST_LPCR(r10)
+	mtspr	SPRN_LPCR, r8
+	isync
+	li	r0, KVM_GUEST_MODE_NONE
+	stb	r0, HSTATE_IN_GUEST(r13)
+
+	/*
+	 * Turn on the MMU and jump to C code
+	 */
+	bcl	20, 31, .+4
+5:	mflr	r3
+	addi	r3, r3, 9f - 5b
+	ld	r4, PACAKMSR(r13)
+	mtspr	SPRN_SRR0, r3
+	mtspr	SPRN_SRR1, r4
+	rfid
+9:	addi	r3, r1, STACK_FRAME_OVERHEAD
+	bl	kvmppc_bad_interrupt
+	b	9b
 
 /*
  * This mimics the MSR transition on IRQ delivery.  The new guest MSR is taken

@@ -601,3 +601,9 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 		return xics_rm_h_eoi(vcpu, xirr);
 }
 #endif /* CONFIG_KVM_XICS */
+
+void kvmppc_bad_interrupt(struct pt_regs *regs)
+{
+	die("Bad interrupt in KVM entry/exit code", regs, SIGABRT);
+	panic("Bad KVM trap");
+}
