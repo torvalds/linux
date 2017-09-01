@@ -154,12 +154,10 @@ static void ippn10_cursor_set_attributes(
 	REG_UPDATE_2(CURSOR_SIZE,
 			CURSOR_WIDTH, attr->width,
 			CURSOR_HEIGHT, attr->height);
-
 	REG_UPDATE_3(CURSOR_CONTROL,
 			CURSOR_MODE, attr->color_format,
 			CURSOR_PITCH, hw_pitch,
 			CURSOR_LINES_PER_CHUNK, lpc);
-
 	ippn10_cursor_program_control(ippn10,
 			attr->attribute_flags.bits.INVERT_PIXEL_DATA,
 			attr->color_format);
