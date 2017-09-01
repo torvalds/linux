@@ -418,6 +418,7 @@ struct ipmi_smi {
 	 */
 	struct mutex bmc_reg_mutex;
 
+	struct bmc_device tmp_bmc;
 	struct bmc_device *bmc;
 	bool bmc_registered;
 	struct list_head bmc_link;
@@ -2839,7 +2840,7 @@ static void ipmi_bmc_unregister(ipmi_smi_t intf)
 	mutex_lock(&bmc->dyn_mutex);
 	list_del(&intf->bmc_link);
 	mutex_unlock(&bmc->dyn_mutex);
-	intf->bmc = NULL;
+	intf->bmc = &intf->tmp_bmc;
 	mutex_lock(&ipmidriver_mutex);
 	kref_put(&bmc->usecount, cleanup_bmc_device);
 	mutex_unlock(&ipmidriver_mutex);
@@ -2872,7 +2873,6 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
 	 * otherwise register the new BMC device
 	 */
 	if (old_bmc) {
-		kfree(bmc);
 		bmc = old_bmc;
 		intf->bmc = old_bmc;
 		mutex_lock(&bmc->dyn_mutex);
@@ -2886,6 +2886,14 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
 		       bmc->id.product_id,
 		       bmc->id.device_id);
 	} else {
+		bmc = kzalloc(sizeof(*bmc), GFP_KERNEL);
+		if (!bmc) {
+			rv = -ENOMEM;
+			goto out;
+		}
+		INIT_LIST_HEAD(&bmc->intfs);
+		mutex_init(&bmc->dyn_mutex);
+
 		bmc->pdev.name = "ipmi_bmc";
 
 		rv = ida_simple_get(&ipmi_bmc_ida, 0, 0, GFP_KERNEL);
@@ -2968,7 +2976,7 @@ out_put_bmc:
 	mutex_lock(&bmc->dyn_mutex);
 	list_del(&intf->bmc_link);
 	mutex_unlock(&bmc->dyn_mutex);
-	intf->bmc = NULL;
+	intf->bmc = &intf->tmp_bmc;
 	mutex_lock(&ipmidriver_mutex);
 	kref_put(&bmc->usecount, cleanup_bmc_device);
 	mutex_unlock(&ipmidriver_mutex);
@@ -2978,7 +2986,7 @@ out_list_del:
 	mutex_lock(&bmc->dyn_mutex);
 	list_del(&intf->bmc_link);
 	mutex_unlock(&bmc->dyn_mutex);
-	intf->bmc = NULL;
+	intf->bmc = &intf->tmp_bmc;
 	put_device(&bmc->pdev.dev);
 	goto out;
 }
@@ -3204,11 +3212,7 @@ int ipmi_register_smi(const struct ipmi_smi_handlers *handlers,
 	if (!intf)
 		return -ENOMEM;
 
-	intf->bmc = kzalloc(sizeof(*intf->bmc), GFP_KERNEL);
-	if (!intf->bmc) {
-		kfree(intf);
-		return -ENOMEM;
-	}
+	intf->bmc = &intf->tmp_bmc;
 	INIT_LIST_HEAD(&intf->bmc->intfs);
 	mutex_init(&intf->bmc->dyn_mutex);
 	INIT_LIST_HEAD(&intf->bmc_link);
