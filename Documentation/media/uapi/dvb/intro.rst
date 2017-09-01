@@ -94,11 +94,10 @@ Demultiplexer which filters the incoming Digital TV MPEG-TS stream
    streams it also contains data streams with information about the
    programs offered in this or other streams of the same provider.
 
-MPEG2 audio and video decoder
-   The main targets of the demultiplexer are the MPEG2 audio and video
-   decoders. After decoding they pass on the uncompressed audio and
-   video to the computer screen or (through a PAL/NTSC encoder) to a TV
-   set.
+Audio and video decoder
+   The main targets of the demultiplexer are audio and video
+   decoders. After decoding, they pass on the uncompressed audio and
+   video to the computer screen or to a TV set.
 
    .. note::
 
