@@ -1046,7 +1046,10 @@ static void rockchip_dmcfreq_update_target(struct rockchip_dmcfreq *dmcfreq)
 	}
 
 	if (dmcfreq->auto_freq_en) {
-		min_freq = max(dmcfreq->status_rate, dmcfreq->auto_min_rate);
+		if (dmcfreq->status_rate)
+			min_freq = dmcfreq->status_rate;
+		else if (dmcfreq->auto_min_rate)
+			min_freq = dmcfreq->auto_min_rate;
 		if (!min_freq)
 			min_freq = dmcfreq->min;
 		max_freq = dmcfreq->max;
