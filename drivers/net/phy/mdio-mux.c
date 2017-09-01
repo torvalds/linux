@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/phy.h>
 
-#define DRV_VERSION "1.0"
 #define DRV_DESCRIPTION "MDIO bus multiplexer driver"
 
 struct mdio_mux_child_bus;
@@ -179,7 +178,6 @@ int mdio_mux_init(struct device *dev,
 	}
 	if (pb->children) {
 		*mux_handle = pb;
-		dev_info(dev, "Version " DRV_VERSION "\n");
 		return 0;
 	}
 
@@ -212,6 +210,5 @@ void mdio_mux_uninit(void *mux_handle)
 EXPORT_SYMBOL_GPL(mdio_mux_uninit);
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR("David Daney");
 MODULE_LICENSE("GPL");
