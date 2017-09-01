@@ -1211,10 +1211,7 @@ static ssize_t pci_resource_io(struct file *filp, struct kobject *kobj,
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 	int bar = (unsigned long)attr->private;
-	struct resource *res;
 	unsigned long port = off;
-
-	res = &pdev->resource[bar];
 
 	port += pci_resource_start(pdev, bar);
 
