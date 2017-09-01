@@ -2699,34 +2699,36 @@ static void wait_log_commit(struct btrfs_root *root, int transid)
 	 * so we know that if ours is more than 2 older than the
 	 * current transaction, we're done
 	 */
-	do {
+	for (;;) {
 		prepare_to_wait(&root->log_commit_wait[index],
 				&wait, TASK_UNINTERRUPTIBLE);
+
+		if (!(root->log_transid_committed < transid &&
+		      atomic_read(&root->log_commit[index])))
+			break;
+
 		mutex_unlock(&root->log_mutex);
-
-		if (root->log_transid_committed < transid &&
-		    atomic_read(&root->log_commit[index]))
-			schedule();
-
-		finish_wait(&root->log_commit_wait[index], &wait);
+		schedule();
 		mutex_lock(&root->log_mutex);
-	} while (root->log_transid_committed < transid &&
-		 atomic_read(&root->log_commit[index]));
+	}
+	finish_wait(&root->log_commit_wait[index], &wait);
 }
 
 static void wait_for_writer(struct btrfs_root *root)
 {
 	DEFINE_WAIT(wait);
 
-	while (atomic_read(&root->log_writers)) {
-		prepare_to_wait(&root->log_writer_wait,
-				&wait, TASK_UNINTERRUPTIBLE);
+	for (;;) {
+		prepare_to_wait(&root->log_writer_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		if (!atomic_read(&root->log_writers))
+			break;
+
 		mutex_unlock(&root->log_mutex);
-		if (atomic_read(&root->log_writers))
-			schedule();
-		finish_wait(&root->log_writer_wait, &wait);
+		schedule();
 		mutex_lock(&root->log_mutex);
 	}
+	finish_wait(&root->log_writer_wait, &wait);
 }
 
 static inline void btrfs_remove_log_ctx(struct btrfs_root *root,
