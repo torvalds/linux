@@ -155,7 +155,7 @@ void *visorchannel_get_header(struct visorchannel *channel)
  * Return offset of a specific SIGNAL_QUEUE_HEADER from the beginning of a
  * channel header
  */
-int sig_queue_offset(struct channel_header *chan_hdr, int q)
+static int sig_queue_offset(struct channel_header *chan_hdr, int q)
 {
 	return ((chan_hdr)->ch_space_offset +
 	       ((q) * sizeof(struct signal_queue_header)));
@@ -165,8 +165,8 @@ int sig_queue_offset(struct channel_header *chan_hdr, int q)
  * Return offset of a specific queue entry (data) from the beginning of a
  * channel header
  */
-int sig_data_offset(struct channel_header *chan_hdr, int q,
-		    struct signal_queue_header *sig_hdr, int slot)
+static int sig_data_offset(struct channel_header *chan_hdr, int q,
+			   struct signal_queue_header *sig_hdr, int slot)
 {
 	return (sig_queue_offset(chan_hdr, q) + sig_hdr->sig_base_offset +
 	       (slot * sig_hdr->signal_size));
