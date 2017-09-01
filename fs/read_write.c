@@ -982,9 +982,8 @@ ssize_t vfs_readv(struct file *file, const struct iovec __user *vec,
 
 	return ret;
 }
-EXPORT_SYMBOL(vfs_readv);
 
-ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
+static ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
 		   unsigned long vlen, loff_t *pos, int flags)
 {
 	struct iovec iovstack[UIO_FASTIOV];
@@ -1001,7 +1000,6 @@ ssize_t vfs_writev(struct file *file, const struct iovec __user *vec,
 	}
 	return ret;
 }
-EXPORT_SYMBOL(vfs_writev);
 
 static ssize_t do_readv(unsigned long fd, const struct iovec __user *vec,
 			unsigned long vlen, int flags)
