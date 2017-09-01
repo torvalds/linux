@@ -27,37 +27,16 @@ Arguments
 ``desc``
   Pointer to struct :c:type:`ca_descr_info`.
 
-.. c:type:: struct ca_descr_info
-
-.. flat-table:: struct ca_descr_info
-    :header-rows:  1
-    :stub-columns: 0
-
-    -
-      - type
-      - name
-      - description
-
-    -
-      - unsigned int
-      - num
-      - number of available descramblers (keys)
-    -
-      - unsigned int
-      - type
-      - type of supported scrambling system. Valid values are:
-	``CA_ECD``, ``CA_NDS`` and ``CA_DSS``.
-
-
 Description
 -----------
 
-.. note:: This ioctl is undocumented. Documentation is welcome.
-
+Returns information about all descrambler slots.
 
 Return Value
 ------------
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, and :c:type:`ca_descr_info` is filled.
+
+On error -1 is returned, and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
