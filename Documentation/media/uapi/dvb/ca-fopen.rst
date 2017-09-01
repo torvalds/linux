@@ -66,33 +66,11 @@ the device in this mode will fail, and an error code will be returned.
 Return Value
 ------------
 
-.. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+On success 0 is returned.
 
+On error -1 is returned, and the ``errno`` variable is set
+appropriately.
 
-    -  .. row 1
-
-       -  ``ENODEV``
-
-       -  Device driver not loaded/available.
-
-    -  .. row 2
-
-       -  ``EINTERNAL``
-
-       -  Internal error.
-
-    -  .. row 3
-
-       -  ``EBUSY``
-
-       -  Device or resource busy.
-
-    -  .. row 4
-
-       -  ``EINVAL``
-
-       -  Invalid argument.
+Generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.

@@ -69,31 +69,20 @@ using the F_SETFL command of the fcntl system call.
 Return Value
 ------------
 
+On success 0 is returned.
+
+On error -1 is returned, and the ``errno`` variable is set
+appropriately.
+
+.. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
+    :widths: 1 16
 
-
-    -  .. row 1
-
-       -  ``ENODEV``
-
-       -  Device driver not loaded/available.
-
-    -  .. row 2
-
-       -  ``EINVAL``
-
-       -  Invalid argument.
-
-    -  .. row 3
-
-       -  ``EMFILE``
-
+    -  -  ``EMFILE``
        -  “Too many open files”, i.e. no more filters available.
 
-    -  .. row 4
-
-       -  ``ENOMEM``
-
-       -  The driver failed to allocate enough memory.
+The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.

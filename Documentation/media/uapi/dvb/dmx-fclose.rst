@@ -35,13 +35,10 @@ previously allocated via the open() call.
 Return Value
 ------------
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+On success 0 is returned.
 
+On error, -1 is returned and the ``errno`` variable is set
+appropriately.
 
-    -  .. row 1
-
-       -  ``EBADF``
-
-       -  fd is not a valid open file descriptor.
+The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.

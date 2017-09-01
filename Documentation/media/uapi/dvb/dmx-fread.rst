@@ -41,54 +41,33 @@ implied by count.
 Return Value
 ------------
 
+On success 0 is returned.
+
+On error -1 is returned, and the ``errno`` variable is set
+appropriately.
+
 .. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
 
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
+    :widths: 1 16
 
+    -  -  ``EWOULDBLOCK``
+       -  No data to return and ``O_NONBLOCK`` was specified.
 
-    -  .. row 1
-
-       -  ``EWOULDBLOCK``
-
-       -  No data to return and O_NONBLOCK was specified.
-
-    -  .. row 2
-
-       -  ``EBADF``
-
-       -  fd is not a valid open file descriptor.
-
-    -  .. row 3
-
-       -  ``ECRC``
-
-       -  Last section had a CRC error - no data returned. The buffer is
-	  flushed.
-
-    -  .. row 4
-
-       -  ``EOVERFLOW``
-
-       -
-
-    -  .. row 5
-
-       -
+    -  -  ``EOVERFLOW``
        -  The filtered data was not read from the buffer in due time,
 	  resulting in non-read data being lost. The buffer is flushed.
 
-    -  .. row 6
+    -  -  ``ETIMEDOUT``
+       -  The section was not loaded within the stated timeout period.
+          See ioctl :ref:`DMX_SET_FILTER` for how to set a timeout.
 
-       -  ``ETIMEDOUT``
+    -  -  ``EFAULT``
+       -  The driver failed to write to the callers buffer due to an
+          invalid \*buf pointer.
 
-       -  The section was not loaded within the stated timeout period. See
-	  ioctl DMX_SET_FILTER for how to set a timeout.
 
-    -  .. row 7
-
-       -  ``EFAULT``
-
-       -  The driver failed to write to the callers buffer due to an invalid
-	  \*buf pointer.
+The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.
