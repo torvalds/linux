@@ -2341,8 +2341,6 @@ static int ov5670_start_streaming(struct ov5670 *ov5670)
 		return ret;
 	}
 
-	ov5670->streaming = true;
-
 	return 0;
 }
 
@@ -2355,8 +2353,6 @@ static int ov5670_stop_streaming(struct ov5670 *ov5670)
 			       OV5670_REG_VALUE_08BIT, OV5670_MODE_STANDBY);
 	if (ret)
 		dev_err(&client->dev, "%s failed to set stream\n", __func__);
-
-	ov5670->streaming = false;
 
 	/* Return success even if it was an error, as there is nothing the
 	 * caller can do about it.
@@ -2388,6 +2384,7 @@ static int ov5670_set_stream(struct v4l2_subdev *sd, int enable)
 		ret = ov5670_stop_streaming(ov5670);
 		pm_runtime_put(&client->dev);
 	}
+	ov5670->streaming = enable;
 	goto unlock_and_return;
 
 error:
