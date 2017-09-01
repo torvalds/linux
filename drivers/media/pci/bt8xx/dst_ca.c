@@ -57,13 +57,6 @@ static unsigned int verbose = 5;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (yes)");
 
-/*	Need some more work	*/
-static int ca_set_slot_descr(void)
-{
-	/*	We could make this more graceful ?	*/
-	return -EOPNOTSUPP;
-}
-
 static void put_command_and_length(u8 *data, int command, int length)
 {
 	data[0] = (command >> 16) & 0xff;
@@ -614,16 +607,6 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_GET_DESCR_INFO Success !");
-		break;
-	case CA_SET_DESCR:
-		dprintk(verbose, DST_CA_INFO, 1, " Setting descrambler");
-		result = ca_set_slot_descr();
-		if (result < 0) {
-			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_SET_DESCR Failed !");
-			result = -1;
-			goto free_mem_and_exit;
-		}
-		dprintk(verbose, DST_CA_INFO, 1, " -->CA_SET_DESCR Success !");
 		break;
 	default:
 		result = -EOPNOTSUPP;
