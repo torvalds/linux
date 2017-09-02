@@ -1,9 +1,10 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/spectrum_router.c
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016-2017 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2016 Ido Schimmel <idosch@mellanox.com>
  * Copyright (c) 2016 Yotam Gigi <yotamg@mellanox.com>
+ * Copyright (c) 2017 Petr Machata <petrm@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -51,6 +52,7 @@
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
 #include <net/fib_rules.h>
+#include <net/ip_tunnels.h>
 #include <net/l3mdev.h>
 #include <net/addrconf.h>
 #include <net/ndisc.h>
@@ -129,6 +131,17 @@ struct mlxsw_sp_rif_subport {
 	};
 	u16 vid;
 	bool lag;
+};
+
+struct mlxsw_sp_rif_ipip_lb {
+	struct mlxsw_sp_rif common;
+	struct mlxsw_sp_rif_ipip_lb_config lb_config;
+	u16 ul_vr_id; /* Reserved for Spectrum-2. */
+};
+
+struct mlxsw_sp_rif_params_ipip_lb {
+	struct mlxsw_sp_rif_params common;
+	struct mlxsw_sp_rif_ipip_lb_config lb_config;
 };
 
 struct mlxsw_sp_rif_ops {
@@ -881,6 +894,25 @@ static void mlxsw_sp_vrs_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_core_flush_owq();
 	mlxsw_sp_router_fib_flush(mlxsw_sp);
 	kfree(mlxsw_sp->router->vrs);
+}
+
+static struct net_device *
+__mlxsw_sp_ipip_netdev_ul_dev_get(const struct net_device *ol_dev)
+{
+	struct ip_tunnel *tun = netdev_priv(ol_dev);
+	struct net *net = dev_net(ol_dev);
+
+	return __dev_get_by_index(net, tun->parms.link);
+}
+
+static u32 mlxsw_sp_ipip_dev_ul_tb_id(const struct net_device *ol_dev)
+{
+	struct net_device *d = __mlxsw_sp_ipip_netdev_ul_dev_get(ol_dev);
+
+	if (d)
+		return l3mdev_fib_table(d) ? : RT_TABLE_MAIN;
+	else
+		return l3mdev_fib_table(ol_dev) ? : RT_TABLE_MAIN;
 }
 
 struct mlxsw_sp_neigh_key {
@@ -2234,6 +2266,25 @@ static void mlxsw_sp_nexthop_neigh_fini(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_neigh_entry_destroy(mlxsw_sp, neigh_entry);
 
 	neigh_release(n);
+}
+
+static bool mlxsw_sp_netdev_ipip_type(const struct mlxsw_sp *mlxsw_sp,
+				      const struct net_device *dev,
+				      enum mlxsw_sp_ipip_type *p_type)
+{
+	struct mlxsw_sp_router *router = mlxsw_sp->router;
+	const struct mlxsw_sp_ipip_ops *ipip_ops;
+	enum mlxsw_sp_ipip_type ipipt;
+
+	for (ipipt = 0; ipipt < MLXSW_SP_IPIP_TYPE_MAX; ++ipipt) {
+		ipip_ops = router->ipip_ops_arr[ipipt];
+		if (dev->type == ipip_ops->dev_type) {
+			if (p_type)
+				*p_type = ipipt;
+			return true;
+		}
+	}
+	return false;
 }
 
 static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
@@ -4374,7 +4425,10 @@ mlxsw_sp_dev_rif_type(const struct mlxsw_sp *mlxsw_sp,
 {
 	enum mlxsw_sp_fid_type type;
 
-	/* RIF type is derived from the type of the underlying FID */
+	if (mlxsw_sp_netdev_ipip_type(mlxsw_sp, dev, NULL))
+		return MLXSW_SP_RIF_TYPE_IPIP_LB;
+
+	/* Otherwise RIF type is derived from the type of the underlying FID. */
 	if (is_vlan_dev(dev) && netif_is_bridge_master(vlan_dev_real_dev(dev)))
 		type = MLXSW_SP_FID_TYPE_8021Q;
 	else if (netif_is_bridge_master(dev) && br_vlan_enabled(dev))
@@ -5164,10 +5218,104 @@ static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_fid_ops = {
 	.fid_get		= mlxsw_sp_rif_fid_fid_get,
 };
 
+static struct mlxsw_sp_rif_ipip_lb *
+mlxsw_sp_rif_ipip_lb_rif(struct mlxsw_sp_rif *rif)
+{
+	return container_of(rif, struct mlxsw_sp_rif_ipip_lb, common);
+}
+
+static void
+mlxsw_sp_rif_ipip_lb_setup(struct mlxsw_sp_rif *rif,
+			   const struct mlxsw_sp_rif_params *params)
+{
+	struct mlxsw_sp_rif_params_ipip_lb *params_lb;
+	struct mlxsw_sp_rif_ipip_lb *rif_lb;
+
+	params_lb = container_of(params, struct mlxsw_sp_rif_params_ipip_lb,
+				 common);
+	rif_lb = mlxsw_sp_rif_ipip_lb_rif(rif);
+	rif_lb->lb_config = params_lb->lb_config;
+}
+
+static int
+mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif,
+			struct mlxsw_sp_vr *ul_vr, bool enable)
+{
+	struct mlxsw_sp_rif_ipip_lb_config lb_cf = lb_rif->lb_config;
+	struct mlxsw_sp_rif *rif = &lb_rif->common;
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	char ritr_pl[MLXSW_REG_RITR_LEN];
+	u32 saddr4;
+
+	switch (lb_cf.ul_protocol) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		saddr4 = be32_to_cpu(lb_cf.saddr.addr4);
+		mlxsw_reg_ritr_pack(ritr_pl, enable, MLXSW_REG_RITR_LOOPBACK_IF,
+				    rif->rif_index, rif->vr_id, rif->dev->mtu);
+		mlxsw_reg_ritr_loopback_ipip4_pack(ritr_pl, lb_cf.lb_ipipt,
+			    MLXSW_REG_RITR_LOOPBACK_IPIP_OPTIONS_GRE_KEY_PRESET,
+			    ul_vr->id, saddr4, lb_cf.okey);
+		break;
+
+	case MLXSW_SP_L3_PROTO_IPV6:
+		return -EAFNOSUPPORT;
+	}
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+}
+
+static int
+mlxsw_sp_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp_rif_ipip_lb *lb_rif = mlxsw_sp_rif_ipip_lb_rif(rif);
+	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(rif->dev);
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	struct mlxsw_sp_vr *ul_vr;
+	int err;
+
+	ul_vr = mlxsw_sp_vr_get(mlxsw_sp, ul_tb_id);
+	if (IS_ERR(ul_vr))
+		return PTR_ERR(ul_vr);
+
+	err = mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr, true);
+	if (err)
+		goto err_loopback_op;
+
+	lb_rif->ul_vr_id = ul_vr->id;
+	++ul_vr->rif_count;
+	return 0;
+
+err_loopback_op:
+	mlxsw_sp_vr_put(ul_vr);
+	return err;
+}
+
+static void mlxsw_sp_rif_ipip_lb_deconfigure(struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp_rif_ipip_lb *lb_rif = mlxsw_sp_rif_ipip_lb_rif(rif);
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	struct mlxsw_sp_vr *ul_vr;
+
+	ul_vr = &mlxsw_sp->router->vrs[lb_rif->ul_vr_id];
+	mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr, false);
+
+	--ul_vr->rif_count;
+	mlxsw_sp_vr_put(ul_vr);
+}
+
+static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_ipip_lb_ops = {
+	.type			= MLXSW_SP_RIF_TYPE_IPIP_LB,
+	.rif_size		= sizeof(struct mlxsw_sp_rif_ipip_lb),
+	.setup                  = mlxsw_sp_rif_ipip_lb_setup,
+	.configure		= mlxsw_sp_rif_ipip_lb_configure,
+	.deconfigure		= mlxsw_sp_rif_ipip_lb_deconfigure,
+};
+
 static const struct mlxsw_sp_rif_ops *mlxsw_sp_rif_ops_arr[] = {
 	[MLXSW_SP_RIF_TYPE_SUBPORT]	= &mlxsw_sp_rif_subport_ops,
 	[MLXSW_SP_RIF_TYPE_VLAN]	= &mlxsw_sp_rif_vlan_ops,
 	[MLXSW_SP_RIF_TYPE_FID]		= &mlxsw_sp_rif_fid_ops,
+	[MLXSW_SP_RIF_TYPE_IPIP_LB]	= &mlxsw_sp_rif_ipip_lb_ops,
 };
 
 static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)

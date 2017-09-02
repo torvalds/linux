@@ -36,10 +36,23 @@
 #define _MLXSW_ROUTER_H_
 
 #include "spectrum.h"
+#include "reg.h"
 
 enum mlxsw_sp_l3proto {
 	MLXSW_SP_L3_PROTO_IPV4,
 	MLXSW_SP_L3_PROTO_IPV6,
+};
+
+union mlxsw_sp_l3addr {
+	__be32 addr4;
+	struct in6_addr addr6;
+};
+
+struct mlxsw_sp_rif_ipip_lb_config {
+	enum mlxsw_reg_ritr_loopback_ipip_type lb_ipipt;
+	u32 okey;
+	enum mlxsw_sp_l3proto ul_protocol; /* Underlay. */
+	union mlxsw_sp_l3addr saddr;
 };
 
 enum mlxsw_sp_rif_counter_dir {
