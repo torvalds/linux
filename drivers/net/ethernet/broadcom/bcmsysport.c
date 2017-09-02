@@ -1392,6 +1392,19 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 	tdma_writel(priv, RING_IGNORE_STATUS, TDMA_DESC_RING_MAPPING(index));
 	tdma_writel(priv, 0, TDMA_DESC_RING_PCP_DEI_VID(index));
 
+	/* Do not use tdma_control_bit() here because TSB_SWAP1 collides
+	 * with the original definition of ACB_ALGO
+	 */
+	reg = tdma_readl(priv, TDMA_CONTROL);
+	if (priv->is_lite)
+		reg &= ~BIT(TSB_SWAP1);
+	/* Set a correct TSB format based on host endian */
+	if (!IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		reg |= tdma_control_bit(priv, TSB_SWAP0);
+	else
+		reg &= ~tdma_control_bit(priv, TSB_SWAP0);
+	tdma_writel(priv, reg, TDMA_CONTROL);
+
 	/* Program the number of descriptors as MAX_THRESHOLD and half of
 	 * its size for the hysteresis trigger
 	 */

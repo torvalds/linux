@@ -449,7 +449,8 @@ struct bcm_rsb {
 /* Uses 2 bits on SYSTEMPORT Lite and shifts everything by 1 bit, we
  * keep the SYSTEMPORT layout here and adjust with tdma_control_bit()
  */
-#define  TSB_SWAP			2
+#define  TSB_SWAP0			2
+#define  TSB_SWAP1			3
 #define  ACB_ALGO			3
 #define  BUF_DATA_OFFSET_SHIFT		4
 #define  BUF_DATA_OFFSET_MASK		0x3ff
