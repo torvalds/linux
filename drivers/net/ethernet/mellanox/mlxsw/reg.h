@@ -5054,6 +5054,15 @@ mlxsw_reg_ralue_act_ip2me_pack(char *payload)
 					MLXSW_REG_RALUE_ACTION_TYPE_IP2ME);
 }
 
+static inline void
+mlxsw_reg_ralue_act_ip2me_tun_pack(char *payload, u32 tunnel_ptr)
+{
+	mlxsw_reg_ralue_action_type_set(payload,
+					MLXSW_REG_RALUE_ACTION_TYPE_IP2ME);
+	mlxsw_reg_ralue_ip2me_v_set(payload, 1);
+	mlxsw_reg_ralue_ip2me_tunnel_ptr_set(payload, tunnel_ptr);
+}
+
 /* RAUHT - Router Algorithmic LPM Unicast Host Table Register
  * ----------------------------------------------------------
  * The RAUHT register is used to configure and query the Unicast Host table in
