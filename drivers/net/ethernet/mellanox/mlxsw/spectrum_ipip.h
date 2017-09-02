@@ -41,9 +41,29 @@ enum mlxsw_sp_ipip_type {
 	MLXSW_SP_IPIP_TYPE_MAX,
 };
 
+struct mlxsw_sp_ipip_entry {
+	enum mlxsw_sp_ipip_type ipipt;
+	struct net_device *ol_dev; /* Overlay. */
+	struct mlxsw_sp_rif_ipip_lb *ol_lb;
+	unsigned int ref_count; /* Number of next hops using the tunnel. */
+	struct list_head ipip_list_node;
+};
+
 struct mlxsw_sp_ipip_ops {
 	int dev_type;
 	enum mlxsw_sp_l3proto ul_proto; /* Underlay. */
+
+	int (*nexthop_update)(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
+			      struct mlxsw_sp_ipip_entry *ipip_entry);
+
+	bool (*can_offload)(const struct mlxsw_sp *mlxsw_sp,
+			    const struct net_device *ol_dev,
+			    enum mlxsw_sp_l3proto ol_proto);
+
+	/* Return a configuration for creating an overlay loopback RIF. */
+	struct mlxsw_sp_rif_ipip_lb_config
+	(*ol_loopback_config)(struct mlxsw_sp *mlxsw_sp,
+			      const struct net_device *ol_dev);
 };
 
 extern const struct mlxsw_sp_ipip_ops *mlxsw_sp_ipip_ops_arr[];
