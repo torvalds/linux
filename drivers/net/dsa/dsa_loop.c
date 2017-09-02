@@ -390,7 +390,7 @@ static void __exit dsa_loop_exit(void)
 
 	mdio_driver_unregister(&dsa_loop_drv);
 	for (i = 0; i < NUM_FIXED_PHYS; i++)
-		if (phydevs[i])
+		if (!IS_ERR(phydevs[i]))
 			fixed_phy_unregister(phydevs[i]);
 }
 module_exit(dsa_loop_exit);
