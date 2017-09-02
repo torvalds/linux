@@ -96,15 +96,13 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_simple_kms_helper.h>
 
-struct tve200_drm_connector {
-	struct drm_connector connector;
-	struct drm_panel *panel;
-};
-
 struct tve200_drm_dev_private {
 	struct drm_device *drm;
 
-	struct tve200_drm_connector connector;
+	struct drm_connector *connector;
+	struct drm_encoder *encoder;
+	struct drm_panel *panel;
+	struct drm_bridge *bridge;
 	struct drm_simple_display_pipe pipe;
 	struct drm_fbdev_cma *fbdev;
 

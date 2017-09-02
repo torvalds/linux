@@ -47,6 +47,8 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_of.h>
+#include <drm/drm_bridge.h>
 
 #include "tve200_drm.h"
 
@@ -62,6 +64,8 @@ static int tve200_modeset_init(struct drm_device *dev)
 {
 	struct drm_mode_config *mode_config;
 	struct tve200_drm_dev_private *priv = dev->dev_private;
+	struct drm_panel *panel;
+	struct drm_bridge *bridge;
 	int ret = 0;
 
 	drm_mode_config_init(dev);
@@ -72,35 +76,51 @@ static int tve200_modeset_init(struct drm_device *dev)
 	mode_config->min_height = 240;
 	mode_config->max_height = 576;
 
-	ret = tve200_connector_init(dev);
-	if (ret) {
-		dev_err(dev->dev, "Failed to create tve200_drm_connector\n");
-		goto out_config;
+	ret = drm_of_find_panel_or_bridge(dev->dev->of_node,
+					  0, 0, &panel, &bridge);
+	if (ret && ret != -ENODEV)
+		return ret;
+	if (panel) {
+		bridge = drm_panel_bridge_add(panel,
+					      DRM_MODE_CONNECTOR_Unknown);
+		if (IS_ERR(bridge)) {
+			ret = PTR_ERR(bridge);
+			goto out_bridge;
+		}
 	}
-
-	/*
-	 * Don't actually attach if we didn't find a drm_panel
-	 * attached to us.
-	 */
-	if (!priv->connector.panel) {
-		dev_info(dev->dev,
-			 "deferring due to lack of DRM panel device\n");
-		ret = -EPROBE_DEFER;
-		goto out_config;
-	}
-	dev_info(dev->dev, "attached to panel %s\n",
-		 dev_name(priv->connector.panel->dev));
 
 	ret = tve200_display_init(dev);
 	if (ret) {
 		dev_err(dev->dev, "failed to init display\n");
-		goto out_config;
+		goto out_bridge;
 	}
+
+	if (bridge) {
+		ret = drm_bridge_attach(priv->encoder, bridge, NULL);
+		if (ret)
+			goto out_bridge;
+	}
+
+	/*
+	 * TODO: when we are using a different bridge than a panel
+	 * (such as a dumb VGA connector) we need to devise a different
+	 * method to get the connector out of the bridge.
+	 */
+	if (!panel) {
+		dev_err(dev->dev, "the bridge is not a panel\n");
+		goto out_bridge;
+	}
+	priv->panel = panel;
+	priv->connector = panel->connector;
+	priv->bridge = bridge;
+
+	dev_info(dev->dev, "attached to panel %s\n",
+		 dev_name(panel->dev));
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret) {
 		dev_err(dev->dev, "failed to init vblank\n");
-		goto out_config;
+		goto out_bridge;
 	}
 
 	drm_mode_config_reset(dev);
@@ -115,7 +135,11 @@ static int tve200_modeset_init(struct drm_device *dev)
 
 	goto finish;
 
-out_config:
+out_bridge:
+	if (panel)
+		drm_panel_bridge_remove(bridge);
+	else
+		drm_bridge_remove(bridge);
 	drm_mode_config_cleanup(dev);
 finish:
 	return ret;
@@ -249,6 +273,10 @@ static int tve200_remove(struct platform_device *pdev)
 	drm_dev_unregister(drm);
 	if (priv->fbdev)
 		drm_fbdev_cma_fini(priv->fbdev);
+	if (priv->panel)
+		drm_panel_bridge_remove(priv->bridge);
+	else
+		drm_bridge_remove(priv->bridge);
 	drm_mode_config_cleanup(drm);
 	clk_disable_unprepare(priv->pclk);
 	drm_dev_unref(drm);

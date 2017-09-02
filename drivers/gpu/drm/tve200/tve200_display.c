@@ -127,7 +127,7 @@ static void tve200_display_enable(struct drm_simple_display_pipe *pipe,
 	struct tve200_drm_dev_private *priv = drm->dev_private;
 	const struct drm_display_mode *mode = &cstate->mode;
 	struct drm_framebuffer *fb = plane->state->fb;
-	struct drm_connector *connector = &priv->connector.connector;
+	struct drm_connector *connector = priv->connector;
 	u32 format = fb->format->format;
 	u32 ctrl1 = 0;
 
@@ -215,12 +215,8 @@ static void tve200_display_enable(struct drm_simple_display_pipe *pipe,
 
 	ctrl1 |= TVE200_TVEEN;
 
-	drm_panel_prepare(priv->connector.panel);
-
 	/* Turn it on */
 	writel(ctrl1, priv->regs + TVE200_CTRL);
-
-	drm_panel_enable(priv->connector.panel);
 
 	drm_crtc_vblank_on(crtc);
 }
@@ -233,12 +229,8 @@ void tve200_display_disable(struct drm_simple_display_pipe *pipe)
 
 	drm_crtc_vblank_off(crtc);
 
-	drm_panel_disable(priv->connector.panel);
-
 	/* Disable and Power Down */
 	writel(0, priv->regs + TVE200_CTRL);
-
-	drm_panel_unprepare(priv->connector.panel);
 
 	clk_disable_unprepare(priv->clk);
 }
@@ -337,9 +329,12 @@ int tve200_display_init(struct drm_device *drm)
 					   &tve200_display_funcs,
 					   formats, ARRAY_SIZE(formats),
 					   NULL,
-					   &priv->connector.connector);
+					   priv->connector);
 	if (ret)
 		return ret;
+
+	/* We need the encoder to attach the bridge */
+	priv->encoder = &priv->pipe.encoder;
 
 	return 0;
 }
