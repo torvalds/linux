@@ -103,5 +103,9 @@ bool mlxsw_sp_neigh_ipv6_ignore(struct mlxsw_sp_neigh_entry *neigh_entry);
 union mlxsw_sp_l3addr
 mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
 			   const struct net_device *ol_dev);
+union mlxsw_sp_l3addr
+mlxsw_sp_ipip_netdev_daddr(enum mlxsw_sp_l3proto proto,
+			   const struct net_device *ol_dev);
+__be32 mlxsw_sp_ipip_netdev_daddr4(const struct net_device *ol_dev);
 
 #endif /* _MLXSW_ROUTER_H_*/

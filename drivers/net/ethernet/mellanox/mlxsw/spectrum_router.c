@@ -1020,6 +1020,32 @@ mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
 	};
 }
 
+__be32 mlxsw_sp_ipip_netdev_daddr4(const struct net_device *ol_dev)
+{
+	struct ip_tunnel *tun = netdev_priv(ol_dev);
+
+	return tun->parms.iph.daddr;
+}
+
+union mlxsw_sp_l3addr
+mlxsw_sp_ipip_netdev_daddr(enum mlxsw_sp_l3proto proto,
+			   const struct net_device *ol_dev)
+{
+	switch (proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		return (union mlxsw_sp_l3addr) {
+			.addr4 = mlxsw_sp_ipip_netdev_daddr4(ol_dev),
+		};
+	case MLXSW_SP_L3_PROTO_IPV6:
+		break;
+	};
+
+	WARN_ON(1);
+	return (union mlxsw_sp_l3addr) {
+		.addr4 = 0,
+	};
+}
+
 static bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
 			       const union mlxsw_sp_l3addr *addr2)
 {

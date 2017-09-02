@@ -39,6 +39,7 @@
 #include <net/ip_fib.h>
 
 enum mlxsw_sp_ipip_type {
+	MLXSW_SP_IPIP_TYPE_GRE4,
 	MLXSW_SP_IPIP_TYPE_MAX,
 };
 
