@@ -7478,15 +7478,17 @@ static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
 		*mac_from = "device tree";
 		ether_addr_copy(dev->dev_addr, dt_mac_addr);
 	} else {
-		if (priv->hw_version == MVPP21)
+		if (priv->hw_version == MVPP21) {
 			mvpp21_get_mac_address(port, hw_mac_addr);
-		if (is_valid_ether_addr(hw_mac_addr)) {
-			*mac_from = "hardware";
-			ether_addr_copy(dev->dev_addr, hw_mac_addr);
-		} else {
-			*mac_from = "random";
-			eth_hw_addr_random(dev);
+			if (is_valid_ether_addr(hw_mac_addr)) {
+				*mac_from = "hardware";
+				ether_addr_copy(dev->dev_addr, hw_mac_addr);
+				return;
+			}
 		}
+
+		*mac_from = "random";
+		eth_hw_addr_random(dev);
 	}
 }
 
