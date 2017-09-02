@@ -4423,16 +4423,16 @@ enum mlxsw_reg_ratr_trap_action {
  */
 MLXSW_ITEM32(reg, ratr, trap_action, 0x0C, 28, 4);
 
-enum mlxsw_reg_ratr_trap_id {
-	MLXSW_REG_RATR_TRAP_ID_RTR_EGRESS0 = 0,
-	MLXSW_REG_RATR_TRAP_ID_RTR_EGRESS1 = 1,
-};
-
 /* reg_ratr_adjacency_index_high
  * Bits 23:16 of the adjacency_index.
  * Access: Index
  */
 MLXSW_ITEM32(reg, ratr, adjacency_index_high, 0x0C, 16, 8);
+
+enum mlxsw_reg_ratr_trap_id {
+	MLXSW_REG_RATR_TRAP_ID_RTR_EGRESS0,
+	MLXSW_REG_RATR_TRAP_ID_RTR_EGRESS1,
+};
 
 /* reg_ratr_trap_id
  * Trap ID to be reported to CPU.
