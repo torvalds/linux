@@ -256,4 +256,13 @@ struct tcp_md5sig {
 	__u8	tcpm_key[TCP_MD5SIG_MAXKEYLEN];		/* key (binary) */
 };
 
+/* INET_DIAG_MD5SIG */
+struct tcp_diag_md5sig {
+	__u8	tcpm_family;
+	__u8	tcpm_prefixlen;
+	__u16	tcpm_keylen;
+	__be32	tcpm_addr[4];
+	__u8	tcpm_key[TCP_MD5SIG_MAXKEYLEN];
+};
+
 #endif /* _UAPI_LINUX_TCP_H */
