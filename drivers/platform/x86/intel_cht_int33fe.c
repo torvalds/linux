@@ -34,6 +34,42 @@ struct cht_int33fe_data {
 	struct i2c_client *pi3usb30532;
 };
 
+/*
+ * Grrr I severly dislike buggy BIOS-es. At least one BIOS enumerates
+ * the max17047 both through the INT33FE ACPI device (it is right there
+ * in the resources table) as well as through a separate MAX17047 device.
+ *
+ * These helpers are used to work around this by checking if an i2c-client
+ * for the max17047 has already been registered.
+ */
+int cht_int33fe_check_for_max17047(struct device *dev, void *data)
+{
+	struct i2c_client **max17047 = data;
+	struct acpi_device *adev;
+	const char *hid;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		return 0;
+
+	hid = acpi_device_hid(adev);
+
+	/* The MAX17047 ACPI node doesn't have an UID, so we don't check that */
+	if (strcmp(hid, "MAX17047"))
+		return 0;
+
+	*max17047 = to_i2c_client(dev);
+	return 1;
+}
+
+struct i2c_client *cht_int33fe_find_max17047(void)
+{
+	struct i2c_client *max17047 = NULL;
+
+	i2c_for_each_dev(&max17047, cht_int33fe_check_for_max17047);
+	return max17047;
+}
+
 static const char * const max17047_suppliers[] = { "bq24190-charger" };
 
 static const struct property_entry max17047_props[] = {
@@ -46,9 +82,11 @@ static int cht_int33fe_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct i2c_board_info board_info;
 	struct cht_int33fe_data *data;
+	struct i2c_client *max17047;
 	unsigned long long ptyp;
 	acpi_status status;
 	int fusb302_irq;
+	int ret;
 
 	status = acpi_evaluate_integer(ACPI_HANDLE(dev), "PTYP", NULL, &ptyp);
 	if (ACPI_FAILURE(status)) {
@@ -75,13 +113,25 @@ static int cht_int33fe_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "max17047", I2C_NAME_SIZE);
-	board_info.properties = max17047_props;
-
-	data->max17047 = i2c_acpi_new_device(dev, 1, &board_info);
-	if (!data->max17047)
-		return -EPROBE_DEFER; /* Wait for the i2c-adapter to load */
+	/* Work around BIOS bug, see comment on cht_int33fe_find_max17047 */
+	max17047 = cht_int33fe_find_max17047();
+	if (max17047) {
+		/* Pre-existing i2c-client for the max17047, add device-props */
+		ret = device_add_properties(&max17047->dev, max17047_props);
+		if (ret)
+			return ret;
+		/* And re-probe to get the new device-props applied. */
+		ret = device_reprobe(&max17047->dev);
+		if (ret)
+			dev_warn(dev, "Reprobing max17047 error: %d\n", ret);
+	} else {
+		memset(&board_info, 0, sizeof(board_info));
+		strlcpy(board_info.type, "max17047", I2C_NAME_SIZE);
+		board_info.properties = max17047_props;
+		data->max17047 = i2c_acpi_new_device(dev, 1, &board_info);
+		if (!data->max17047)
+			return -EPROBE_DEFER; /* Wait for i2c-adapter to load */
+	}
 
 	memset(&board_info, 0, sizeof(board_info));
 	strlcpy(board_info.type, "fusb302", I2C_NAME_SIZE);
@@ -106,7 +156,8 @@ out_unregister_fusb302:
 	i2c_unregister_device(data->fusb302);
 
 out_unregister_max17047:
-	i2c_unregister_device(data->max17047);
+	if (data->max17047)
+		i2c_unregister_device(data->max17047);
 
 	return -EPROBE_DEFER; /* Wait for the i2c-adapter to load */
 }
@@ -117,7 +168,8 @@ static int cht_int33fe_remove(struct i2c_client *i2c)
 
 	i2c_unregister_device(data->pi3usb30532);
 	i2c_unregister_device(data->fusb302);
-	i2c_unregister_device(data->max17047);
+	if (data->max17047)
+		i2c_unregister_device(data->max17047);
 
 	return 0;
 }
