@@ -1098,11 +1098,8 @@ static int ov2640_probe(struct i2c_client *client,
 	}
 
 	priv = devm_kzalloc(&client->dev, sizeof(struct ov2640_priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&adapter->dev,
-			"Failed to allocate memory for private data!\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	if (client->dev.of_node) {
 		priv->clk = devm_clk_get(&client->dev, "xvclk");

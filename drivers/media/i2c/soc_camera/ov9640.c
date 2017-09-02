@@ -676,11 +676,8 @@ static int ov9640_probe(struct i2c_client *client,
 	}
 
 	priv = devm_kzalloc(&client->dev, sizeof(struct ov9640_priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&client->dev,
-			"Failed to allocate memory for private data!\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov9640_subdev_ops);
 
