@@ -717,7 +717,7 @@ cleanup:
 }
 
 int rndis_filter_set_rss_param(struct rndis_device *rdev,
-			       const u8 *rss_key, int num_queue)
+			       const u8 *rss_key)
 {
 	struct net_device *ndev = rdev->ndev;
 	struct rndis_request *request;
@@ -1067,7 +1067,7 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 	struct ndis_recv_scale_cap rsscap;
 	u32 rsscap_size = sizeof(struct ndis_recv_scale_cap);
 	unsigned int gso_max_size = GSO_MAX_SIZE;
-	u32 mtu, size, num_rss_qs;
+	u32 mtu, size;
 	const struct cpumask *node_cpu_mask;
 	u32 num_possible_rss_qs;
 	int i, ret;
@@ -1215,8 +1215,8 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 							net_device->num_chn);
 
 	atomic_set(&net_device->open_chn, 1);
-	num_rss_qs = net_device->num_chn - 1;
-	if (num_rss_qs == 0)
+
+	if (net_device->num_chn == 1)
 		return net_device;
 
 	for (i = 1; i < net_device->num_chn; i++) {
@@ -1258,8 +1258,7 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 		   atomic_read(&net_device->open_chn) == net_device->num_chn);
 
 	/* ignore failues from setting rss parameters, still have channels */
-	rndis_filter_set_rss_param(rndis_device, netvsc_hash_key,
-				   net_device->num_chn);
+	rndis_filter_set_rss_param(rndis_device, netvsc_hash_key);
 out:
 	if (ret) {
 		net_device->max_chn = 1;
