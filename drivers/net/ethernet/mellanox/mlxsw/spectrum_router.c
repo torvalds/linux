@@ -1652,6 +1652,10 @@ static void mlxsw_sp_neigh_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
+enum mlxsw_sp_nexthop_type {
+	MLXSW_SP_NEXTHOP_TYPE_ETH,
+};
+
 struct mlxsw_sp_nexthop_key {
 	struct fib_nh *fib_nh;
 };
@@ -1676,7 +1680,10 @@ struct mlxsw_sp_nexthop {
 	   update:1; /* set indicates that MAC of this neigh should be
 		      * updated in HW
 		      */
-	struct mlxsw_sp_neigh_entry *neigh_entry;
+	enum mlxsw_sp_nexthop_type type;
+	union {
+		struct mlxsw_sp_neigh_entry *neigh_entry;
+	};
 };
 
 struct mlxsw_sp_nexthop_group {
@@ -1964,9 +1971,9 @@ static int mlxsw_sp_nexthop_mac_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 }
 
 static int
-mlxsw_sp_nexthop_group_mac_update(struct mlxsw_sp *mlxsw_sp,
-				  struct mlxsw_sp_nexthop_group *nh_grp,
-				  bool reallocate)
+mlxsw_sp_nexthop_group_update(struct mlxsw_sp *mlxsw_sp,
+			      struct mlxsw_sp_nexthop_group *nh_grp,
+			      bool reallocate)
 {
 	u32 adj_index = nh_grp->adj_index; /* base */
 	struct mlxsw_sp_nexthop *nh;
@@ -1982,8 +1989,12 @@ mlxsw_sp_nexthop_group_mac_update(struct mlxsw_sp *mlxsw_sp,
 		}
 
 		if (nh->update || reallocate) {
-			err = mlxsw_sp_nexthop_mac_update(mlxsw_sp,
-							  adj_index, nh);
+			switch (nh->type) {
+			case MLXSW_SP_NEXTHOP_TYPE_ETH:
+				err = mlxsw_sp_nexthop_mac_update
+					    (mlxsw_sp, adj_index, nh);
+				break;
+			}
 			if (err)
 				return err;
 			nh->update = 0;
@@ -2071,8 +2082,7 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 		/* Nothing was added or removed, so no need to reallocate. Just
 		 * update MAC on existing adjacency indexes.
 		 */
-		err = mlxsw_sp_nexthop_group_mac_update(mlxsw_sp, nh_grp,
-							false);
+		err = mlxsw_sp_nexthop_group_update(mlxsw_sp, nh_grp, false);
 		if (err) {
 			dev_warn(mlxsw_sp->bus_info->dev, "Failed to update neigh MAC in adjacency table.\n");
 			goto set_trap;
@@ -2099,7 +2109,7 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 	nh_grp->adj_index_valid = 1;
 	nh_grp->adj_index = adj_index;
 	nh_grp->ecmp_size = ecmp_size;
-	err = mlxsw_sp_nexthop_group_mac_update(mlxsw_sp, nh_grp, true);
+	err = mlxsw_sp_nexthop_group_update(mlxsw_sp, nh_grp, true);
 	if (err) {
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to update neigh MAC in adjacency table.\n");
 		goto set_trap;
@@ -2287,6 +2297,48 @@ static bool mlxsw_sp_netdev_ipip_type(const struct mlxsw_sp *mlxsw_sp,
 	return false;
 }
 
+static void mlxsw_sp_nexthop_type_fini(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_nexthop *nh)
+{
+	switch (nh->type) {
+	case MLXSW_SP_NEXTHOP_TYPE_ETH:
+		mlxsw_sp_nexthop_neigh_fini(mlxsw_sp, nh);
+		mlxsw_sp_nexthop_rif_fini(nh);
+		break;
+	}
+}
+
+static int mlxsw_sp_nexthop4_type_init(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_nexthop *nh,
+				       struct fib_nh *fib_nh)
+{
+	struct net_device *dev = fib_nh->nh_dev;
+	struct mlxsw_sp_rif *rif;
+	int err;
+
+	nh->type = MLXSW_SP_NEXTHOP_TYPE_ETH;
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (!rif)
+		return 0;
+
+	mlxsw_sp_nexthop_rif_init(nh, rif);
+	err = mlxsw_sp_nexthop_neigh_init(mlxsw_sp, nh);
+	if (err)
+		goto err_neigh_init;
+
+	return 0;
+
+err_neigh_init:
+	mlxsw_sp_nexthop_rif_fini(nh);
+	return err;
+}
+
+static void mlxsw_sp_nexthop4_type_fini(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_nexthop *nh)
+{
+	mlxsw_sp_nexthop_type_fini(mlxsw_sp, nh);
+}
+
 static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_nexthop_group *nh_grp,
 				  struct mlxsw_sp_nexthop *nh,
@@ -2294,7 +2346,6 @@ static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
 {
 	struct net_device *dev = fib_nh->nh_dev;
 	struct in_device *in_dev;
-	struct mlxsw_sp_rif *rif;
 	int err;
 
 	nh->nh_grp = nh_grp;
@@ -2312,19 +2363,13 @@ static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
 	    fib_nh->nh_flags & RTNH_F_LINKDOWN)
 		return 0;
 
-	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
-	if (!rif)
-		return 0;
-	mlxsw_sp_nexthop_rif_init(nh, rif);
-
-	err = mlxsw_sp_nexthop_neigh_init(mlxsw_sp, nh);
+	err = mlxsw_sp_nexthop4_type_init(mlxsw_sp, nh, fib_nh);
 	if (err)
 		goto err_nexthop_neigh_init;
 
 	return 0;
 
 err_nexthop_neigh_init:
-	mlxsw_sp_nexthop_rif_fini(nh);
 	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
 	return err;
 }
@@ -2332,8 +2377,7 @@ err_nexthop_neigh_init:
 static void mlxsw_sp_nexthop4_fini(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_nexthop *nh)
 {
-	mlxsw_sp_nexthop_neigh_fini(mlxsw_sp, nh);
-	mlxsw_sp_nexthop_rif_fini(nh);
+	mlxsw_sp_nexthop4_type_fini(mlxsw_sp, nh);
 	mlxsw_sp_nexthop_remove(mlxsw_sp, nh);
 }
 
@@ -2342,7 +2386,6 @@ static void mlxsw_sp_nexthop4_event(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_nexthop_key key;
 	struct mlxsw_sp_nexthop *nh;
-	struct mlxsw_sp_rif *rif;
 
 	if (mlxsw_sp->router->aborted)
 		return;
@@ -2352,18 +2395,12 @@ static void mlxsw_sp_nexthop4_event(struct mlxsw_sp *mlxsw_sp,
 	if (WARN_ON_ONCE(!nh))
 		return;
 
-	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, fib_nh->nh_dev);
-	if (!rif)
-		return;
-
 	switch (event) {
 	case FIB_EVENT_NH_ADD:
-		mlxsw_sp_nexthop_rif_init(nh, rif);
-		mlxsw_sp_nexthop_neigh_init(mlxsw_sp, nh);
+		mlxsw_sp_nexthop4_type_init(mlxsw_sp, nh, fib_nh);
 		break;
 	case FIB_EVENT_NH_DEL:
-		mlxsw_sp_nexthop_neigh_fini(mlxsw_sp, nh);
-		mlxsw_sp_nexthop_rif_fini(nh);
+		mlxsw_sp_nexthop4_type_fini(mlxsw_sp, nh);
 		break;
 	}
 
@@ -2376,8 +2413,7 @@ static void mlxsw_sp_nexthop_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_nexthop *nh, *tmp;
 
 	list_for_each_entry_safe(nh, tmp, &rif->nexthop_list, rif_list_node) {
-		mlxsw_sp_nexthop_neigh_fini(mlxsw_sp, nh);
-		mlxsw_sp_nexthop_rif_fini(nh);
+		mlxsw_sp_nexthop_type_fini(mlxsw_sp, nh);
 		mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh->nh_grp);
 	}
 }
@@ -3487,22 +3523,16 @@ mlxsw_sp_fib6_entry_rt_find(const struct mlxsw_sp_fib6_entry *fib6_entry,
 	return NULL;
 }
 
-static int mlxsw_sp_nexthop6_init(struct mlxsw_sp *mlxsw_sp,
-				  struct mlxsw_sp_nexthop_group *nh_grp,
-				  struct mlxsw_sp_nexthop *nh,
-				  const struct rt6_info *rt)
+static int mlxsw_sp_nexthop6_type_init(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_nexthop_group *nh_grp,
+				       struct mlxsw_sp_nexthop *nh,
+				       const struct rt6_info *rt)
 {
 	struct net_device *dev = rt->dst.dev;
 	struct mlxsw_sp_rif *rif;
 	int err;
 
-	nh->nh_grp = nh_grp;
-	memcpy(&nh->gw_addr, &rt->rt6i_gateway, sizeof(nh->gw_addr));
-
-	if (!dev)
-		return 0;
-	nh->ifindex = dev->ifindex;
-
+	nh->type = MLXSW_SP_NEXTHOP_TYPE_ETH;
 	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
 	if (!rif)
 		return 0;
@@ -3519,11 +3549,33 @@ err_nexthop_neigh_init:
 	return err;
 }
 
+static void mlxsw_sp_nexthop6_type_fini(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_nexthop *nh)
+{
+	mlxsw_sp_nexthop_type_fini(mlxsw_sp, nh);
+}
+
+static int mlxsw_sp_nexthop6_init(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_nexthop_group *nh_grp,
+				  struct mlxsw_sp_nexthop *nh,
+				  const struct rt6_info *rt)
+{
+	struct net_device *dev = rt->dst.dev;
+
+	nh->nh_grp = nh_grp;
+	memcpy(&nh->gw_addr, &rt->rt6i_gateway, sizeof(nh->gw_addr));
+
+	if (!dev)
+		return 0;
+	nh->ifindex = dev->ifindex;
+
+	return mlxsw_sp_nexthop6_type_init(mlxsw_sp, nh_grp, nh, rt);
+}
+
 static void mlxsw_sp_nexthop6_fini(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_nexthop *nh)
 {
-	mlxsw_sp_nexthop_neigh_fini(mlxsw_sp, nh);
-	mlxsw_sp_nexthop_rif_fini(nh);
+	mlxsw_sp_nexthop6_type_fini(mlxsw_sp, nh);
 }
 
 static bool mlxsw_sp_rt6_is_gateway(const struct mlxsw_sp *mlxsw_sp,
