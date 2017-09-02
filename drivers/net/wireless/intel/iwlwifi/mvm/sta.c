@@ -1285,7 +1285,7 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_add_sta_cmd cmd;
 	int ret;
-	u32 status;
+	u32 status = ADD_STA_SUCCESS;
 
 	lockdep_assert_held(&mvm->mutex);
 
