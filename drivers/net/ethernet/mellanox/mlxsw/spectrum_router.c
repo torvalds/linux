@@ -1072,6 +1072,9 @@ static void mlxsw_sp_fib_entry_decap_fini(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_kvdl_free(mlxsw_sp, fib_entry->decap.tunnel_index);
 }
 
+static struct mlxsw_sp_fib_node *
+mlxsw_sp_fib_node_lookup(struct mlxsw_sp_fib *fib, const void *addr,
+			 size_t addr_len, unsigned char prefix_len);
 static int mlxsw_sp_fib_entry_update(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_fib_entry *fib_entry);
 
@@ -1087,6 +1090,73 @@ mlxsw_sp_ipip_entry_demote_decap(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_fib_entry_update(mlxsw_sp, fib_entry);
 }
 
+static void
+mlxsw_sp_ipip_entry_promote_decap(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_ipip_entry *ipip_entry,
+				  struct mlxsw_sp_fib_entry *decap_fib_entry)
+{
+	if (mlxsw_sp_fib_entry_decap_init(mlxsw_sp, decap_fib_entry,
+					  ipip_entry))
+		return;
+	decap_fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP;
+
+	if (mlxsw_sp_fib_entry_update(mlxsw_sp, decap_fib_entry))
+		mlxsw_sp_ipip_entry_demote_decap(mlxsw_sp, ipip_entry);
+}
+
+/* Given an IPIP entry, find the corresponding decap route. */
+static struct mlxsw_sp_fib_entry *
+mlxsw_sp_ipip_entry_find_decap(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_ipip_entry *ipip_entry)
+{
+	static struct mlxsw_sp_fib_node *fib_node;
+	const struct mlxsw_sp_ipip_ops *ipip_ops;
+	struct mlxsw_sp_fib_entry *fib_entry;
+	unsigned char saddr_prefix_len;
+	union mlxsw_sp_l3addr saddr;
+	struct mlxsw_sp_fib *ul_fib;
+	struct mlxsw_sp_vr *ul_vr;
+	const void *saddrp;
+	size_t saddr_len;
+	u32 ul_tb_id;
+	u32 saddr4;
+
+	ipip_ops = mlxsw_sp->router->ipip_ops_arr[ipip_entry->ipipt];
+
+	ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(ipip_entry->ol_dev);
+	ul_vr = mlxsw_sp_vr_find(mlxsw_sp, ul_tb_id);
+	if (!ul_vr)
+		return NULL;
+
+	ul_fib = mlxsw_sp_vr_fib(ul_vr, ipip_ops->ul_proto);
+	saddr = mlxsw_sp_ipip_netdev_saddr(ipip_ops->ul_proto,
+					   ipip_entry->ol_dev);
+
+	switch (ipip_ops->ul_proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		saddr4 = be32_to_cpu(saddr.addr4);
+		saddrp = &saddr4;
+		saddr_len = 4;
+		saddr_prefix_len = 32;
+		break;
+	case MLXSW_SP_L3_PROTO_IPV6:
+		WARN_ON(1);
+		return NULL;
+	}
+
+	fib_node = mlxsw_sp_fib_node_lookup(ul_fib, saddrp, saddr_len,
+					    saddr_prefix_len);
+	if (!fib_node || list_empty(&fib_node->entry_list))
+		return NULL;
+
+	fib_entry = list_first_entry(&fib_node->entry_list,
+				     struct mlxsw_sp_fib_entry, list);
+	if (fib_entry->type != MLXSW_SP_FIB_ENTRY_TYPE_TRAP)
+		return NULL;
+
+	return fib_entry;
+}
+
 static struct mlxsw_sp_ipip_entry *
 mlxsw_sp_ipip_entry_get(struct mlxsw_sp *mlxsw_sp,
 			enum mlxsw_sp_ipip_type ipipt,
@@ -1094,6 +1164,7 @@ mlxsw_sp_ipip_entry_get(struct mlxsw_sp *mlxsw_sp,
 {
 	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(ol_dev);
 	struct mlxsw_sp_router *router = mlxsw_sp->router;
+	struct mlxsw_sp_fib_entry *decap_fib_entry;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 	enum mlxsw_sp_l3proto ul_proto;
 	union mlxsw_sp_l3addr saddr;
@@ -1117,6 +1188,11 @@ mlxsw_sp_ipip_entry_get(struct mlxsw_sp *mlxsw_sp,
 	ipip_entry = mlxsw_sp_ipip_entry_alloc(mlxsw_sp, ipipt, ol_dev);
 	if (IS_ERR(ipip_entry))
 		return ipip_entry;
+
+	decap_fib_entry = mlxsw_sp_ipip_entry_find_decap(mlxsw_sp, ipip_entry);
+	if (decap_fib_entry)
+		mlxsw_sp_ipip_entry_promote_decap(mlxsw_sp, ipip_entry,
+						  decap_fib_entry);
 
 	list_add_tail(&ipip_entry->ipip_list_node,
 		      &mlxsw_sp->router->ipip_list);
@@ -3258,10 +3334,6 @@ static void mlxsw_sp_fib4_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_nexthop4_group_put(mlxsw_sp, &fib4_entry->common);
 	kfree(fib4_entry);
 }
-
-static struct mlxsw_sp_fib_node *
-mlxsw_sp_fib_node_lookup(struct mlxsw_sp_fib *fib, const void *addr,
-			 size_t addr_len, unsigned char prefix_len);
 
 static struct mlxsw_sp_fib4_entry *
 mlxsw_sp_fib4_entry_lookup(struct mlxsw_sp *mlxsw_sp,
