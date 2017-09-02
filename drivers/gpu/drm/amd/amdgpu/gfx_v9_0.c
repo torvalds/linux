@@ -175,6 +175,9 @@ static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 						 golden_settings_gc_9_0_vg10,
 						 ARRAY_SIZE(golden_settings_gc_9_0_vg10));
 		break;
+	case CHIP_VEGA12:
+		DRM_ERROR("missing golden settings for gfx9 on vega12!\n");
+		break;
 	case CHIP_RAVEN:
 		soc15_program_register_sequence(adev,
 						 golden_settings_gc_9_1,
