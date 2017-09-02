@@ -474,10 +474,8 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 
 		/* Check if we have user pages and nobody bound the BO already */
 		if (lobj->user_pages && bo->tbo.ttm->state != tt_bound) {
-			size_t size = sizeof(struct page *);
-
-			size *= bo->tbo.ttm->num_pages;
-			memcpy(bo->tbo.ttm->pages, lobj->user_pages, size);
+			amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm,
+						     lobj->user_pages);
 			binding_userptr = true;
 		}
 
