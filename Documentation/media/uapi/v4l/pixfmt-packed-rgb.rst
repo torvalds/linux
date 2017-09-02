@@ -35,7 +35,8 @@ next to each other in memory.
       - :cspan:`7` Byte 1
       - :cspan:`7` Byte 2
       - :cspan:`7` Byte 3
-    * - :cspan:`1`
+    * -
+      -
       - 7
       - 6
       - 5
@@ -665,7 +666,8 @@ either the corresponding ARGB or XRGB format, depending on the driver.
       - :cspan:`7` Byte 2
 
       - :cspan:`7` Byte 3
-    * - :cspan:`1`
+    * -
+      -
       - 7
       - 6
       - 5

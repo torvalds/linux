@@ -37,7 +37,8 @@ component of each pixel in one 16 or 32 bit word.
       - :cspan:`7` Byte 2
 
       - :cspan:`7` Byte 3
-    * - :cspan:`1`
+    * -
+      -
       - 7
       - 6
       - 5
