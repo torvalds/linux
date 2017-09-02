@@ -1002,6 +1002,11 @@
 				reg = <2>;
 				remote-endpoint = <&mipi_in_vopb>;
 			};
+
+			vopb_out_lvds: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&lvds_in_vopb>;
+			};
 		};
 	};
 
@@ -1045,6 +1050,11 @@
 				reg = <2>;
 				remote-endpoint = <&mipi_in_vopl>;
 			};
+
+			vopl_out_lvds: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&lvds_in_vopl>;
+			};
 		};
 	};
 
@@ -1081,6 +1091,39 @@
 				mipi_in_vopl: endpoint@1 {
 					reg = <1>;
 					remote-endpoint = <&vopl_out_mipi>;
+				};
+			};
+		};
+	};
+
+	lvds: lvds@ff96c000 {
+		compatible = "rockchip,rk3288-lvds";
+		reg = <0x0 0xff96c000 0x0 0x4000>;
+		clocks = <&cru PCLK_LVDS_PHY>;
+		clock-names = "pclk_lvds";
+		pinctrl-names = "lcdc";
+		pinctrl-0 = <&lcdc_ctl>;
+		power-domains = <&power RK3288_PD_VIO>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			lvds_in: port@0 {
+				reg = <0>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				lvds_in_vopb: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vopb_out_lvds>;
+				};
+				lvds_in_vopl: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vopl_out_lvds>;
 				};
 			};
 		};
@@ -1524,6 +1567,15 @@
 						<6 3 RK_FUNC_1 &pcfg_pull_none>,
 						<6 4 RK_FUNC_1 &pcfg_pull_none>,
 						<6 8 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		lcdc {
+			lcdc_ctl: lcdc-ctl {
+				rockchip,pins = <1 24 RK_FUNC_1 &pcfg_pull_none>,
+						<1 25 RK_FUNC_1 &pcfg_pull_none>,
+						<1 26 RK_FUNC_1 &pcfg_pull_none>,
+						<1 27 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
