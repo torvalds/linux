@@ -26,7 +26,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
-    Pointer to a struct :c:type:`v4l2_frmsizeenum`
+    Pointer to struct :c:type:`v4l2_frmsizeenum`
     that contains an index and pixel format and receives a frame width
     and height.
 

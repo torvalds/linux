@@ -35,6 +35,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_dv_timings`.
 
 
 Description

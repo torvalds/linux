@@ -26,9 +26,8 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
-    Pointer to a struct :c:type:`v4l2_frmivalenum`
-    structure that contains a pixel format and size and receives a frame
-    interval.
+    Pointer to struct :c:type:`v4l2_frmivalenum`
+    that contains a pixel format and size and receives a frame interval.
 
 
 Description
