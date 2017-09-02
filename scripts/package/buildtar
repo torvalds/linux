@@ -24,20 +24,19 @@ tarball="${objtree}/linux-${KERNELRELEASE}-${ARCH}.tar"
 #
 case "${1}" in
 	tar-pkg)
-		compress="cat"
-		file_ext=""
+		opts=
 		;;
 	targz-pkg)
-		compress="gzip"
-		file_ext=".gz"
+		opts=--gzip
+		tarball=${tarball}.gz
 		;;
 	tarbz2-pkg)
-		compress="bzip2"
-		file_ext=".bz2"
+		opts=--bzip2
+		tarball=${tarball}.bz2
 		;;
 	tarxz-pkg)
-		compress="xz"
-		file_ext=".xz"
+		opts=--xz
+		tarball=${tarball}.xz
 		;;
 	*)
 		echo "Unknown tarball target \"${1}\" requested, please add it to ${0}." >&2
@@ -125,14 +124,12 @@ esac
 #
 # Create the tarball
 #
-(
-	opts=
-	if tar --owner=root --group=root --help >/dev/null 2>&1; then
-		opts="--owner=root --group=root"
-	fi
-	tar cf - -C "$tmpdir" $dirs $opts | ${compress} > "${tarball}${file_ext}"
-)
+if tar --owner=root --group=root --help >/dev/null 2>&1; then
+	opts="$opts --owner=root --group=root"
+fi
 
-echo "Tarball successfully created in ${tarball}${file_ext}"
+tar cf $tarball -C $tmpdir $opts $dirs
+
+echo "Tarball successfully created in $tarball"
 
 exit 0
