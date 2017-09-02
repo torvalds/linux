@@ -405,11 +405,6 @@ struct mlxsw_sp_rt6 {
 	struct rt6_info *rt;
 };
 
-enum mlxsw_sp_l3proto {
-	MLXSW_SP_L3_PROTO_IPV4,
-	MLXSW_SP_L3_PROTO_IPV6,
-};
-
 struct mlxsw_sp_lpm_tree {
 	u8 id; /* tree ID */
 	unsigned int ref_count;

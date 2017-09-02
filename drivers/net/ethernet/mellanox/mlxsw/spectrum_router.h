@@ -37,6 +37,11 @@
 
 #include "spectrum.h"
 
+enum mlxsw_sp_l3proto {
+	MLXSW_SP_L3_PROTO_IPV4,
+	MLXSW_SP_L3_PROTO_IPV6,
+};
+
 enum mlxsw_sp_rif_counter_dir {
 	MLXSW_SP_RIF_COUNTER_INGRESS,
 	MLXSW_SP_RIF_COUNTER_EGRESS,
