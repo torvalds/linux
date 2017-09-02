@@ -381,6 +381,14 @@ enum mlxsw_sp_fib_entry_type {
 	MLXSW_SP_FIB_ENTRY_TYPE_REMOTE,
 	MLXSW_SP_FIB_ENTRY_TYPE_LOCAL,
 	MLXSW_SP_FIB_ENTRY_TYPE_TRAP,
+
+	/* This is a special case of local delivery, where a packet should be
+	 * decapsulated on reception. Note that there is no corresponding ENCAP,
+	 * because that's a type of next hop, not of FIB entry. (There can be
+	 * several next hops in a REMOTE entry, and some of them may be
+	 * encapsulating entries.)
+	 */
+	MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP,
 };
 
 struct mlxsw_sp_nexthop_group;
@@ -394,12 +402,18 @@ struct mlxsw_sp_fib_node {
 	struct mlxsw_sp_fib_key key;
 };
 
+struct mlxsw_sp_fib_entry_decap {
+	struct mlxsw_sp_ipip_entry *ipip_entry;
+	u32 tunnel_index;
+};
+
 struct mlxsw_sp_fib_entry {
 	struct list_head list;
 	struct mlxsw_sp_fib_node *fib_node;
 	enum mlxsw_sp_fib_entry_type type;
 	struct list_head nexthop_group_node;
 	struct mlxsw_sp_nexthop_group *nh_group;
+	struct mlxsw_sp_fib_entry_decap decap; /* Valid for decap entries. */
 };
 
 struct mlxsw_sp_fib4_entry {
@@ -1031,6 +1045,48 @@ mlxsw_sp_ipip_entry_saddr_matches(struct mlxsw_sp *mlxsw_sp,
 	       mlxsw_sp_l3addr_eq(&tun_saddr, &saddr);
 }
 
+static int
+mlxsw_sp_fib_entry_decap_init(struct mlxsw_sp *mlxsw_sp,
+			      struct mlxsw_sp_fib_entry *fib_entry,
+			      struct mlxsw_sp_ipip_entry *ipip_entry)
+{
+	u32 tunnel_index;
+	int err;
+
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, 1, &tunnel_index);
+	if (err)
+		return err;
+
+	ipip_entry->decap_fib_entry = fib_entry;
+	fib_entry->decap.ipip_entry = ipip_entry;
+	fib_entry->decap.tunnel_index = tunnel_index;
+	return 0;
+}
+
+static void mlxsw_sp_fib_entry_decap_fini(struct mlxsw_sp *mlxsw_sp,
+					  struct mlxsw_sp_fib_entry *fib_entry)
+{
+	/* Unlink this node from the IPIP entry that it's the decap entry of. */
+	fib_entry->decap.ipip_entry->decap_fib_entry = NULL;
+	fib_entry->decap.ipip_entry = NULL;
+	mlxsw_sp_kvdl_free(mlxsw_sp, fib_entry->decap.tunnel_index);
+}
+
+static int mlxsw_sp_fib_entry_update(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_fib_entry *fib_entry);
+
+static void
+mlxsw_sp_ipip_entry_demote_decap(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_ipip_entry *ipip_entry)
+{
+	struct mlxsw_sp_fib_entry *fib_entry = ipip_entry->decap_fib_entry;
+
+	mlxsw_sp_fib_entry_decap_fini(mlxsw_sp, fib_entry);
+	fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
+
+	mlxsw_sp_fib_entry_update(mlxsw_sp, fib_entry);
+}
+
 static struct mlxsw_sp_ipip_entry *
 mlxsw_sp_ipip_entry_get(struct mlxsw_sp *mlxsw_sp,
 			enum mlxsw_sp_ipip_type ipipt,
@@ -1076,8 +1132,49 @@ mlxsw_sp_ipip_entry_put(struct mlxsw_sp *mlxsw_sp,
 {
 	if (--ipip_entry->ref_count == 0) {
 		list_del(&ipip_entry->ipip_list_node);
+		if (ipip_entry->decap_fib_entry)
+			mlxsw_sp_ipip_entry_demote_decap(mlxsw_sp, ipip_entry);
 		mlxsw_sp_ipip_entry_destroy(ipip_entry);
 	}
+}
+
+static bool
+mlxsw_sp_ipip_entry_matches_decap(struct mlxsw_sp *mlxsw_sp,
+				  const struct net_device *ul_dev,
+				  enum mlxsw_sp_l3proto ul_proto,
+				  union mlxsw_sp_l3addr ul_dip,
+				  struct mlxsw_sp_ipip_entry *ipip_entry)
+{
+	u32 ul_tb_id = l3mdev_fib_table(ul_dev) ? : RT_TABLE_MAIN;
+	enum mlxsw_sp_ipip_type ipipt = ipip_entry->ipipt;
+	struct net_device *ipip_ul_dev;
+
+	if (mlxsw_sp->router->ipip_ops_arr[ipipt]->ul_proto != ul_proto)
+		return false;
+
+	ipip_ul_dev = __mlxsw_sp_ipip_netdev_ul_dev_get(ipip_entry->ol_dev);
+	return mlxsw_sp_ipip_entry_saddr_matches(mlxsw_sp, ul_proto, ul_dip,
+						 ul_tb_id, ipip_entry) &&
+	       (!ipip_ul_dev || ipip_ul_dev == ul_dev);
+}
+
+/* Given decap parameters, find the corresponding IPIP entry. */
+static struct mlxsw_sp_ipip_entry *
+mlxsw_sp_ipip_entry_find_by_decap(struct mlxsw_sp *mlxsw_sp,
+				  const struct net_device *ul_dev,
+				  enum mlxsw_sp_l3proto ul_proto,
+				  union mlxsw_sp_l3addr ul_dip)
+{
+	struct mlxsw_sp_ipip_entry *ipip_entry;
+
+	list_for_each_entry(ipip_entry, &mlxsw_sp->router->ipip_list,
+			    ipip_list_node)
+		if (mlxsw_sp_ipip_entry_matches_decap(mlxsw_sp, ul_dev,
+						      ul_proto, ul_dip,
+						      ipip_entry))
+			return ipip_entry;
+
+	return NULL;
 }
 
 struct mlxsw_sp_neigh_key {
@@ -2186,9 +2283,6 @@ mlxsw_sp_nexthop_group_update(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-static int mlxsw_sp_fib_entry_update(struct mlxsw_sp *mlxsw_sp,
-				     struct mlxsw_sp_fib_entry *fib_entry);
-
 static bool
 mlxsw_sp_fib_node_entry_is_first(const struct mlxsw_sp_fib_node *fib_node,
 				 const struct mlxsw_sp_fib_entry *fib_entry);
@@ -2779,6 +2873,8 @@ mlxsw_sp_fib_entry_should_offload(const struct mlxsw_sp_fib_entry *fib_entry)
 		return !!nh_group->adj_index_valid;
 	case MLXSW_SP_FIB_ENTRY_TYPE_LOCAL:
 		return !!nh_group->nh_rif;
+	case MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP:
+		return true;
 	default:
 		return false;
 	}
@@ -2810,7 +2906,8 @@ mlxsw_sp_fib4_entry_offload_set(struct mlxsw_sp_fib_entry *fib_entry)
 	struct mlxsw_sp_nexthop_group *nh_grp = fib_entry->nh_group;
 	int i;
 
-	if (fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_LOCAL) {
+	if (fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_LOCAL ||
+	    fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP) {
 		nh_grp->nexthops->key.fib_nh->nh_flags |= RTNH_F_OFFLOAD;
 		return;
 	}
@@ -3015,6 +3112,22 @@ static int mlxsw_sp_fib_entry_op_trap(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
 }
 
+static int
+mlxsw_sp_fib_entry_op_ipip_decap(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_fib_entry *fib_entry,
+				 enum mlxsw_reg_ralue_op op)
+{
+	struct mlxsw_sp_ipip_entry *ipip_entry = fib_entry->decap.ipip_entry;
+	const struct mlxsw_sp_ipip_ops *ipip_ops;
+
+	if (WARN_ON(!ipip_entry))
+		return -EINVAL;
+
+	ipip_ops = mlxsw_sp->router->ipip_ops_arr[ipip_entry->ipipt];
+	return ipip_ops->fib_entry_op(mlxsw_sp, ipip_entry, op,
+				      fib_entry->decap.tunnel_index);
+}
+
 static int __mlxsw_sp_fib_entry_op(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_fib_entry *fib_entry,
 				   enum mlxsw_reg_ralue_op op)
@@ -3026,6 +3139,9 @@ static int __mlxsw_sp_fib_entry_op(struct mlxsw_sp *mlxsw_sp,
 		return mlxsw_sp_fib_entry_op_local(mlxsw_sp, fib_entry, op);
 	case MLXSW_SP_FIB_ENTRY_TYPE_TRAP:
 		return mlxsw_sp_fib_entry_op_trap(mlxsw_sp, fib_entry, op);
+	case MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP:
+		return mlxsw_sp_fib_entry_op_ipip_decap(mlxsw_sp,
+							fib_entry, op);
 	}
 	return -EINVAL;
 }
@@ -3060,11 +3176,23 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 			     const struct fib_entry_notifier_info *fen_info,
 			     struct mlxsw_sp_fib_entry *fib_entry)
 {
+	union mlxsw_sp_l3addr dip = { .addr4 = htonl(fen_info->dst) };
+	struct net_device *dev = fen_info->fi->fib_dev;
+	struct mlxsw_sp_ipip_entry *ipip_entry;
 	struct fib_info *fi = fen_info->fi;
 
 	switch (fen_info->type) {
-	case RTN_BROADCAST: /* fall through */
 	case RTN_LOCAL:
+		ipip_entry = mlxsw_sp_ipip_entry_find_by_decap(mlxsw_sp, dev,
+						 MLXSW_SP_L3_PROTO_IPV4, dip);
+		if (ipip_entry) {
+			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP;
+			return mlxsw_sp_fib_entry_decap_init(mlxsw_sp,
+							     fib_entry,
+							     ipip_entry);
+		}
+		/* fall through */
+	case RTN_BROADCAST:
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
 		return 0;
 	case RTN_UNREACHABLE: /* fall through */
@@ -3557,6 +3685,9 @@ mlxsw_sp_fib4_node_entry_unlink(struct mlxsw_sp *mlxsw_sp,
 {
 	mlxsw_sp_fib_node_entry_del(mlxsw_sp, &fib4_entry->common);
 	mlxsw_sp_fib4_node_list_remove(fib4_entry);
+
+	if (fib4_entry->common.type == MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP)
+		mlxsw_sp_fib_entry_decap_fini(mlxsw_sp, &fib4_entry->common);
 }
 
 static void mlxsw_sp_fib4_entry_replace(struct mlxsw_sp *mlxsw_sp,
