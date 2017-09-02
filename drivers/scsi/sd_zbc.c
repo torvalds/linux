@@ -294,6 +294,9 @@ int sd_zbc_write_lock_zone(struct scsi_cmnd *cmd)
 	    test_and_set_bit(zno, sdkp->zones_wlock))
 		return BLKPREP_DEFER;
 
+	WARN_ON_ONCE(cmd->flags & SCMD_ZONE_WRITE_LOCK);
+	cmd->flags |= SCMD_ZONE_WRITE_LOCK;
+
 	return BLKPREP_OK;
 }
 
@@ -302,9 +305,10 @@ void sd_zbc_write_unlock_zone(struct scsi_cmnd *cmd)
 	struct request *rq = cmd->request;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
 
-	if (sdkp->zones_wlock) {
+	if (sdkp->zones_wlock && cmd->flags & SCMD_ZONE_WRITE_LOCK) {
 		unsigned int zno = sd_zbc_zone_no(sdkp, blk_rq_pos(rq));
 		WARN_ON_ONCE(!test_bit(zno, sdkp->zones_wlock));
+		cmd->flags &= ~SCMD_ZONE_WRITE_LOCK;
 		clear_bit_unlock(zno, sdkp->zones_wlock);
 		smp_mb__after_atomic();
 	}
@@ -334,9 +338,6 @@ void sd_zbc_complete(struct scsi_cmnd *cmd,
 	case REQ_OP_WRITE:
 	case REQ_OP_WRITE_ZEROES:
 	case REQ_OP_WRITE_SAME:
-
-		/* Unlock the zone */
-		sd_zbc_write_unlock_zone(cmd);
 
 		if (result &&
 		    sshdr->sense_key == ILLEGAL_REQUEST &&

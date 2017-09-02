@@ -189,7 +189,7 @@ static int ceph_releasepage(struct page *page, gfp_t g)
 /*
  * read a single page, without unlocking it.
  */
-static int readpage_nounlock(struct file *filp, struct page *page)
+static int ceph_do_readpage(struct file *filp, struct page *page)
 {
 	struct inode *inode = file_inode(filp);
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -219,7 +219,7 @@ static int readpage_nounlock(struct file *filp, struct page *page)
 
 	err = ceph_readpage_from_fscache(inode, page);
 	if (err == 0)
-		goto out;
+		return -EINPROGRESS;
 
 	dout("readpage inode %p file %p page %p index %lu\n",
 	     inode, filp, page, page->index);
@@ -249,8 +249,11 @@ out:
 
 static int ceph_readpage(struct file *filp, struct page *page)
 {
-	int r = readpage_nounlock(filp, page);
-	unlock_page(page);
+	int r = ceph_do_readpage(filp, page);
+	if (r != -EINPROGRESS)
+		unlock_page(page);
+	else
+		r = 0;
 	return r;
 }
 
@@ -1237,7 +1240,7 @@ retry_locked:
 			goto retry_locked;
 		r = writepage_nounlock(page, NULL);
 		if (r < 0)
-			goto fail_nosnap;
+			goto fail_unlock;
 		goto retry_locked;
 	}
 
@@ -1265,11 +1268,14 @@ retry_locked:
 	}
 
 	/* we need to read it. */
-	r = readpage_nounlock(file, page);
-	if (r < 0)
-		goto fail_nosnap;
+	r = ceph_do_readpage(file, page);
+	if (r < 0) {
+		if (r == -EINPROGRESS)
+			return -EAGAIN;
+		goto fail_unlock;
+	}
 	goto retry_locked;
-fail_nosnap:
+fail_unlock:
 	unlock_page(page);
 	return r;
 }

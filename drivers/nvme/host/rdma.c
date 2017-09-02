@@ -920,7 +920,11 @@ static int nvme_rdma_map_sg_fr(struct nvme_rdma_queue *queue,
 	struct nvme_keyed_sgl_desc *sg = &c->common.dptr.ksgl;
 	int nr;
 
-	nr = ib_map_mr_sg(req->mr, req->sg_table.sgl, count, NULL, PAGE_SIZE);
+	/*
+	 * Align the MR to a 4K page size to match the ctrl page size and
+	 * the block virtual boundary.
+	 */
+	nr = ib_map_mr_sg(req->mr, req->sg_table.sgl, count, NULL, SZ_4K);
 	if (nr < count) {
 		if (nr < 0)
 			return nr;
@@ -1583,7 +1587,7 @@ static int nvme_rdma_configure_admin_queue(struct nvme_rdma_ctrl *ctrl)
 		goto out_cleanup_queue;
 
 	ctrl->ctrl.max_hw_sectors =
-		(ctrl->max_fr_pages - 1) << (PAGE_SHIFT - 9);
+		(ctrl->max_fr_pages - 1) << (ilog2(SZ_4K) - 9);
 
 	error = nvme_init_identify(&ctrl->ctrl);
 	if (error)

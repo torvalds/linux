@@ -1868,7 +1868,6 @@ err_setup_mdio:
 err_ioremap:
 	release_resource(priv->res);
 err_req_mem:
-	netif_napi_del(&priv->napi);
 	free_netdev(netdev);
 err_alloc_etherdev:
 	return err;

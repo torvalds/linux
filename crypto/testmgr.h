@@ -32675,6 +32675,10 @@ static const struct cipher_testvec chacha20_enc_tv_template[] = {
 			  "\x5b\x86\x2f\x37\x30\xe3\x7c\xfd"
 			  "\xc4\xfd\x80\x6c\x22\xf2\x21",
 		.rlen	= 375,
+		.also_non_np = 1,
+		.np	= 3,
+		.tap	= { 375 - 20, 4, 16 },
+
 	}, { /* RFC7539 A.2. Test Vector #3 */
 		.key	= "\x1c\x92\x40\xa5\xeb\x55\xd3\x8a"
 			  "\xf3\x33\x88\x86\x04\xf6\xb5\xf0"
@@ -33049,6 +33053,9 @@ static const struct cipher_testvec chacha20_enc_tv_template[] = {
 			  "\xa1\xed\xad\xd5\x76\xfa\x24\x8f"
 			  "\x98",
 		.rlen	= 1281,
+		.also_non_np = 1,
+		.np	= 3,
+		.tap	= { 1200, 1, 80 },
 	},
 };
 

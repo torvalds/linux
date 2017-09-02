@@ -4201,6 +4201,8 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 			return -EINVAL;
 		if (!info->linking)
 			break;
+		if (netdev_has_any_upper_dev(upper_dev))
+			return -EINVAL;
 		if (netif_is_lag_master(upper_dev) &&
 		    !mlxsw_sp_master_lag_check(mlxsw_sp, upper_dev,
 					       info->upper_info))
@@ -4319,6 +4321,10 @@ static int mlxsw_sp_netdevice_port_vlan_event(struct net_device *vlan_dev,
 	case NETDEV_PRECHANGEUPPER:
 		upper_dev = info->upper_dev;
 		if (!netif_is_bridge_master(upper_dev))
+			return -EINVAL;
+		if (!info->linking)
+			break;
+		if (netdev_has_any_upper_dev(upper_dev))
 			return -EINVAL;
 		break;
 	case NETDEV_CHANGEUPPER:

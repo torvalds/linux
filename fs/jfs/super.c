@@ -619,16 +619,10 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root)
 		goto out_no_root;
 
-	/* logical blocks are represented by 40 bits in pxd_t, etc. */
-	sb->s_maxbytes = ((u64) sb->s_blocksize) << 40;
-#if BITS_PER_LONG == 32
-	/*
-	 * Page cache is indexed by long.
-	 * I would use MAX_LFS_FILESIZE, but it's only half as big
+	/* logical blocks are represented by 40 bits in pxd_t, etc.
+	 * and page cache is indexed by long
 	 */
-	sb->s_maxbytes = min(((u64) PAGE_SIZE << 32) - 1,
-			     (u64)sb->s_maxbytes);
-#endif
+	sb->s_maxbytes = min(((loff_t)sb->s_blocksize) << 40, MAX_LFS_FILESIZE);
 	sb->s_time_gran = 1;
 	return 0;
 

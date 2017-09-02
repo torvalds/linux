@@ -577,7 +577,7 @@ static int dsa_dst_parse(struct dsa_switch_tree *dst)
 			return err;
 	}
 
-	if (!dst->cpu_dp->netdev) {
+	if (!dst->cpu_dp) {
 		pr_warn("Tree has no master device\n");
 		return -EINVAL;
 	}

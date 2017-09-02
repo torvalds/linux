@@ -4736,7 +4736,9 @@ static void intel_disable_iommus(void)
 
 static inline struct intel_iommu *dev_to_intel_iommu(struct device *dev)
 {
-	return container_of(dev, struct intel_iommu, iommu.dev);
+	struct iommu_device *iommu_dev = dev_to_iommu_device(dev);
+
+	return container_of(iommu_dev, struct intel_iommu, iommu);
 }
 
 static ssize_t intel_iommu_show_version(struct device *dev,

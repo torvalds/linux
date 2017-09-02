@@ -189,8 +189,8 @@ void tcp_init_congestion_control(struct sock *sk)
 		INET_ECN_dontxmit(sk);
 }
 
-void tcp_reinit_congestion_control(struct sock *sk,
-				   const struct tcp_congestion_ops *ca)
+static void tcp_reinit_congestion_control(struct sock *sk,
+					  const struct tcp_congestion_ops *ca)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
@@ -338,7 +338,7 @@ out:
  * tcp_reinit_congestion_control (if the current congestion control was
  * already initialized.
  */
-int tcp_set_congestion_control(struct sock *sk, const char *name, bool load)
+int tcp_set_congestion_control(struct sock *sk, const char *name, bool load, bool reinit)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_congestion_ops *ca;
@@ -360,9 +360,18 @@ int tcp_set_congestion_control(struct sock *sk, const char *name, bool load)
 	if (!ca) {
 		err = -ENOENT;
 	} else if (!load) {
-		icsk->icsk_ca_ops = ca;
-		if (!try_module_get(ca->owner))
+		const struct tcp_congestion_ops *old_ca = icsk->icsk_ca_ops;
+
+		if (try_module_get(ca->owner)) {
+			if (reinit) {
+				tcp_reinit_congestion_control(sk, ca);
+			} else {
+				icsk->icsk_ca_ops = ca;
+				module_put(old_ca->owner);
+			}
+		} else {
 			err = -EBUSY;
+		}
 	} else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) ||
 		     ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))) {
 		err = -EPERM;
