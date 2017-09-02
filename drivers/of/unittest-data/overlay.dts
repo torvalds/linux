@@ -7,7 +7,7 @@
 		target = <&electric_1>;
 
 		__overlay__ {
-			status = "ok";
+			status = "okay";
 
 			hvac_2: hvac-large-1 {
 				compatible = "ot,hvac-large";
@@ -23,7 +23,7 @@
 		__overlay__ {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			status = "ok";
+			status = "okay";
 
 			ride@100 {
 				#address-cells = <1>;
@@ -67,7 +67,7 @@
 		target = <&lights_2>;
 
 		__overlay__ {
-			status = "ok";
+			status = "okay";
 			color = "purple", "white", "red", "green";
 			rate = < 3 256 >;
 		};
