@@ -4483,11 +4483,13 @@ MLXSW_ITEM32(reg, ratr, ipip_ipv6_ptr, 0x1C, 0, 24);
 static inline void
 mlxsw_reg_ratr_pack(char *payload,
 		    enum mlxsw_reg_ratr_op op, bool valid,
+		    enum mlxsw_reg_ratr_type type,
 		    u32 adjacency_index, u16 egress_rif)
 {
 	MLXSW_REG_ZERO(ratr, payload);
 	mlxsw_reg_ratr_op_set(payload, op);
 	mlxsw_reg_ratr_v_set(payload, valid);
+	mlxsw_reg_ratr_type_set(payload, type);
 	mlxsw_reg_ratr_adjacency_index_low_set(payload, adjacency_index);
 	mlxsw_reg_ratr_adjacency_index_high_set(payload, adjacency_index >> 16);
 	mlxsw_reg_ratr_egress_router_interface_set(payload, egress_rif);
