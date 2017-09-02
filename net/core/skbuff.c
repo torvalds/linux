@@ -963,7 +963,7 @@ struct ubuf_info *sock_zerocopy_alloc(struct sock *sk, size_t size)
 	uarg->len = 1;
 	uarg->bytelen = size;
 	uarg->zerocopy = 1;
-	atomic_set(&uarg->refcnt, 0);
+	refcount_set(&uarg->refcnt, 1);
 	sock_hold(sk);
 
 	return uarg;
@@ -1005,6 +1005,7 @@ struct ubuf_info *sock_zerocopy_realloc(struct sock *sk, size_t size,
 			uarg->len++;
 			uarg->bytelen = bytelen;
 			atomic_set(&sk->sk_zckey, ++next);
+			sock_zerocopy_get(uarg);
 			return uarg;
 		}
 	}
@@ -1085,7 +1086,7 @@ EXPORT_SYMBOL_GPL(sock_zerocopy_callback);
 
 void sock_zerocopy_put(struct ubuf_info *uarg)
 {
-	if (uarg && atomic_dec_and_test(&uarg->refcnt)) {
+	if (uarg && refcount_dec_and_test(&uarg->refcnt)) {
 		if (uarg->callback)
 			uarg->callback(uarg, uarg->zerocopy);
 		else
@@ -1101,13 +1102,6 @@ void sock_zerocopy_put_abort(struct ubuf_info *uarg)
 
 		atomic_dec(&sk->sk_zckey);
 		uarg->len--;
-
-		/* sock_zerocopy_put expects a ref. Most sockets take one per
-		 * skb, which is zero on abort. tcp_sendmsg holds one extra, to
-		 * avoid an skb send inside the main loop triggering uarg free.
-		 */
-		if (sk->sk_type != SOCK_STREAM)
-			atomic_inc(&uarg->refcnt);
 
 		sock_zerocopy_put(uarg);
 	}
@@ -1489,7 +1483,7 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		if (skb_orphan_frags(skb, gfp_mask))
 			goto nofrags;
 		if (skb_zcopy(skb))
-			atomic_inc(&skb_uarg(skb)->refcnt);
+			refcount_inc(&skb_uarg(skb)->refcnt);
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
 			skb_frag_ref(skb, i);
 

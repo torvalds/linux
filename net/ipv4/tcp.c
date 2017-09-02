@@ -1190,8 +1190,6 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 			goto out_err;
 		}
 
-		/* skb may be freed in main loop, keep extra ref on uarg */
-		sock_zerocopy_get(uarg);
 		if (!(sk_check_csum_caps(sk) && sk->sk_route_caps & NETIF_F_SG))
 			uarg->zerocopy = 0;
 	}
