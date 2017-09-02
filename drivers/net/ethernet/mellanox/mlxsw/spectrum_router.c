@@ -2382,6 +2382,12 @@ static void mlxsw_sp_nexthop_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
+static bool mlxsw_sp_fi_is_gateway(const struct mlxsw_sp *mlxsw_sp,
+				   const struct fib_info *fi)
+{
+	return fi->fib_nh->nh_scope == RT_SCOPE_LINK;
+}
+
 static struct mlxsw_sp_nexthop_group *
 mlxsw_sp_nexthop4_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 {
@@ -2401,7 +2407,7 @@ mlxsw_sp_nexthop4_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 	INIT_LIST_HEAD(&nh_grp->fib_list);
 	nh_grp->neigh_tbl = &arp_tbl;
 
-	nh_grp->gateway = fi->fib_nh->nh_scope == RT_SCOPE_LINK;
+	nh_grp->gateway = mlxsw_sp_fi_is_gateway(mlxsw_sp, fi);
 	nh_grp->count = fi->fib_nhs;
 	fib_info_hold(fi);
 	for (i = 0; i < nh_grp->count; i++) {
@@ -2801,10 +2807,10 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
 		return 0;
 	case RTN_UNICAST:
-		if (fi->fib_nh->nh_scope != RT_SCOPE_LINK)
-			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
-		else
+		if (mlxsw_sp_fi_is_gateway(mlxsw_sp, fi))
 			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_REMOTE;
+		else
+			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
 		return 0;
 	default:
 		return -EINVAL;
