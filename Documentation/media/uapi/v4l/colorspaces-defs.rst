@@ -76,6 +76,8 @@ whole range, 0-255, dividing the angular value by 1.41. The enum
 
 .. c:type:: v4l2_xfer_func
 
+.. tabularcolumns:: |p{5.5cm}|p{12.0cm}|
+
 .. flat-table:: V4L2 Transfer Function
     :header-rows:  1
     :stub-columns: 0

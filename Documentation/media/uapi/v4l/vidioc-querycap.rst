@@ -133,7 +133,7 @@ specification the ioctl returns an ``EINVAL`` error code.
 
 
 
-.. tabularcolumns:: |p{6cm}|p{2.2cm}|p{8.8cm}|
+.. tabularcolumns:: |p{6.1cm}|p{2.2cm}|p{8.7cm}|
 
 .. _device-capabilities:
 

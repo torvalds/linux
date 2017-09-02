@@ -140,6 +140,8 @@ application should zero out all members except for the *IN* fields.
 
 .. c:type:: v4l2_frmsizeenum
 
+.. tabularcolumns:: |p{1.4cm}|p{5.9cm}|p{2.3cm}|p{8.0cm}|
+
 .. flat-table:: struct v4l2_frmsizeenum
     :header-rows:  0
     :stub-columns: 0
