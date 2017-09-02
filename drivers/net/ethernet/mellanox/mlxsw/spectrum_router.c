@@ -5007,6 +5007,16 @@ u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif)
 	return rif->rif_index;
 }
 
+u16 mlxsw_sp_ipip_lb_rif_index(const struct mlxsw_sp_rif_ipip_lb *lb_rif)
+{
+	return lb_rif->common.rif_index;
+}
+
+u16 mlxsw_sp_ipip_lb_ul_vr_id(const struct mlxsw_sp_rif_ipip_lb *lb_rif)
+{
+	return lb_rif->ul_vr_id;
+}
+
 int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif)
 {
 	return rif->dev->ifindex;
