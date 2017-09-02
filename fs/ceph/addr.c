@@ -476,7 +476,8 @@ struct ceph_writeback_ctl
  * only snap context we are allowed to write back.
  */
 static struct ceph_snap_context *
-get_oldest_context(struct inode *inode, struct ceph_writeback_ctl *ctl)
+get_oldest_context(struct inode *inode, struct ceph_writeback_ctl *ctl,
+		   struct ceph_snap_context *page_snapc)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_snap_context *snapc = NULL;
@@ -486,21 +487,33 @@ get_oldest_context(struct inode *inode, struct ceph_writeback_ctl *ctl)
 	list_for_each_entry(capsnap, &ci->i_cap_snaps, ci_item) {
 		dout(" cap_snap %p snapc %p has %d dirty pages\n", capsnap,
 		     capsnap->context, capsnap->dirty_pages);
-		if (capsnap->dirty_pages) {
-			snapc = ceph_get_snap_context(capsnap->context);
-			if (ctl) {
-				if (capsnap->writing) {
-					ctl->i_size = i_size_read(inode);
-					ctl->size_stable = false;
-				} else {
-					ctl->i_size = capsnap->size;
-					ctl->size_stable = true;
-				}
-				ctl->truncate_size = capsnap->truncate_size;
-				ctl->truncate_seq = capsnap->truncate_seq;
+		if (!capsnap->dirty_pages)
+			continue;
+
+		/* get i_size, truncate_{seq,size} for page_snapc? */
+		if (snapc && capsnap->context != page_snapc)
+			continue;
+
+		if (ctl) {
+			if (capsnap->writing) {
+				ctl->i_size = i_size_read(inode);
+				ctl->size_stable = false;
+			} else {
+				ctl->i_size = capsnap->size;
+				ctl->size_stable = true;
 			}
-			break;
+			ctl->truncate_size = capsnap->truncate_size;
+			ctl->truncate_seq = capsnap->truncate_seq;
 		}
+
+		if (snapc)
+			break;
+
+		snapc = ceph_get_snap_context(capsnap->context);
+		if (!page_snapc ||
+		    page_snapc == snapc ||
+		    page_snapc->seq > snapc->seq)
+			break;
 	}
 	if (!snapc && ci->i_wrbuffer_ref_head) {
 		snapc = ceph_get_snap_context(ci->i_head_snapc);
@@ -573,7 +586,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 		dout("writepage %p page %p not dirty?\n", inode, page);
 		return 0;
 	}
-	oldest = get_oldest_context(inode, &ceph_wbc);
+	oldest = get_oldest_context(inode, &ceph_wbc, snapc);
 	if (snapc->seq > oldest->seq) {
 		dout("writepage %p page %p snapc %p not writeable - noop\n",
 		     inode, page, snapc);
@@ -588,6 +601,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	/* is this a partial page at end of file? */
 	if (page_off >= ceph_wbc.i_size) {
 		dout("%p page eof %llu\n", page, ceph_wbc.i_size);
+		page->mapping->a_ops->invalidatepage(page, 0, PAGE_SIZE);
 		return 0;
 	}
 
@@ -816,7 +830,7 @@ static int ceph_writepages_start(struct address_space *mapping,
 retry:
 	/* find oldest snap context with dirty data */
 	ceph_put_snap_context(snapc);
-	snapc = get_oldest_context(inode, &ceph_wbc);
+	snapc = get_oldest_context(inode, &ceph_wbc, NULL);
 	if (!snapc) {
 		/* hmm, why does writepages get called when there
 		   is no dirty data? */
@@ -1162,7 +1176,7 @@ out:
 static int context_is_writeable_or_written(struct inode *inode,
 					   struct ceph_snap_context *snapc)
 {
-	struct ceph_snap_context *oldest = get_oldest_context(inode, NULL);
+	struct ceph_snap_context *oldest = get_oldest_context(inode, NULL, NULL);
 	int ret = !oldest || snapc->seq <= oldest->seq;
 
 	ceph_put_snap_context(oldest);
@@ -1207,7 +1221,7 @@ retry_locked:
 		 * this page is already dirty in another (older) snap
 		 * context!  is it writeable now?
 		 */
-		oldest = get_oldest_context(inode, NULL);
+		oldest = get_oldest_context(inode, NULL, NULL);
 		if (snapc->seq > oldest->seq) {
 			ceph_put_snap_context(oldest);
 			dout(" page %p snapc %p not current or oldest\n",
