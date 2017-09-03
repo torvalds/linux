@@ -957,7 +957,7 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 	unsigned int param2;
 	unsigned int avail;
 	unsigned int cmd;
-	int ret;
+	int ret = 0;
 
 	for (;;) {
 		avail = qcom_glink_rx_avail(glink);
@@ -994,8 +994,6 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 
 			mbox_send_message(glink->mbox_chan, NULL);
 			mbox_client_txdone(glink->mbox_chan, 0);
-
-			ret = 0;
 			break;
 		case RPM_CMD_INTENT:
 			qcom_glink_handle_intent(glink, param1, param2, avail);
