@@ -277,8 +277,8 @@ int devfreq_event_get_edev_count(struct device *dev)
 						sizeof(u32));
 	if (count < 0) {
 		dev_err(dev,
-			"failed to get the count of devfreq-event in %s node\n",
-			dev->of_node->full_name);
+			"failed to get the count of devfreq-event in %pOF node\n",
+			dev->of_node);
 		return count;
 	}
 
