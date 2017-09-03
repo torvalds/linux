@@ -8,6 +8,8 @@
  * This file is released under the GPLv2.
  */
 
+#define pr_fmt(fmt) "PM: " fmt
+
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -33,53 +35,55 @@
 #include "power.h"
 
 const char * const pm_labels[] = {
-	[PM_SUSPEND_FREEZE] = "freeze",
+	[PM_SUSPEND_TO_IDLE] = "freeze",
 	[PM_SUSPEND_STANDBY] = "standby",
 	[PM_SUSPEND_MEM] = "mem",
 };
 const char *pm_states[PM_SUSPEND_MAX];
 static const char * const mem_sleep_labels[] = {
-	[PM_SUSPEND_FREEZE] = "s2idle",
+	[PM_SUSPEND_TO_IDLE] = "s2idle",
 	[PM_SUSPEND_STANDBY] = "shallow",
 	[PM_SUSPEND_MEM] = "deep",
 };
 const char *mem_sleep_states[PM_SUSPEND_MAX];
 
-suspend_state_t mem_sleep_current = PM_SUSPEND_FREEZE;
-static suspend_state_t mem_sleep_default = PM_SUSPEND_MEM;
+suspend_state_t mem_sleep_current = PM_SUSPEND_TO_IDLE;
+suspend_state_t mem_sleep_default = PM_SUSPEND_MAX;
+suspend_state_t pm_suspend_target_state;
+EXPORT_SYMBOL_GPL(pm_suspend_target_state);
 
 unsigned int pm_suspend_global_flags;
 EXPORT_SYMBOL_GPL(pm_suspend_global_flags);
 
 static const struct platform_suspend_ops *suspend_ops;
-static const struct platform_freeze_ops *freeze_ops;
-static DECLARE_WAIT_QUEUE_HEAD(suspend_freeze_wait_head);
+static const struct platform_s2idle_ops *s2idle_ops;
+static DECLARE_WAIT_QUEUE_HEAD(s2idle_wait_head);
 
-enum freeze_state __read_mostly suspend_freeze_state;
-static DEFINE_SPINLOCK(suspend_freeze_lock);
+enum s2idle_states __read_mostly s2idle_state;
+static DEFINE_SPINLOCK(s2idle_lock);
 
-void freeze_set_ops(const struct platform_freeze_ops *ops)
+void s2idle_set_ops(const struct platform_s2idle_ops *ops)
 {
 	lock_system_sleep();
-	freeze_ops = ops;
+	s2idle_ops = ops;
 	unlock_system_sleep();
 }
 
-static void freeze_begin(void)
+static void s2idle_begin(void)
 {
-	suspend_freeze_state = FREEZE_STATE_NONE;
+	s2idle_state = S2IDLE_STATE_NONE;
 }
 
-static void freeze_enter(void)
+static void s2idle_enter(void)
 {
-	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_FREEZE, true);
+	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, true);
 
-	spin_lock_irq(&suspend_freeze_lock);
+	spin_lock_irq(&s2idle_lock);
 	if (pm_wakeup_pending())
 		goto out;
 
-	suspend_freeze_state = FREEZE_STATE_ENTER;
-	spin_unlock_irq(&suspend_freeze_lock);
+	s2idle_state = S2IDLE_STATE_ENTER;
+	spin_unlock_irq(&s2idle_lock);
 
 	get_online_cpus();
 	cpuidle_resume();
@@ -87,56 +91,75 @@ static void freeze_enter(void)
 	/* Push all the CPUs into the idle loop. */
 	wake_up_all_idle_cpus();
 	/* Make the current CPU wait so it can enter the idle loop too. */
-	wait_event(suspend_freeze_wait_head,
-		   suspend_freeze_state == FREEZE_STATE_WAKE);
+	wait_event(s2idle_wait_head,
+		   s2idle_state == S2IDLE_STATE_WAKE);
 
 	cpuidle_pause();
 	put_online_cpus();
 
-	spin_lock_irq(&suspend_freeze_lock);
+	spin_lock_irq(&s2idle_lock);
 
  out:
-	suspend_freeze_state = FREEZE_STATE_NONE;
-	spin_unlock_irq(&suspend_freeze_lock);
+	s2idle_state = S2IDLE_STATE_NONE;
+	spin_unlock_irq(&s2idle_lock);
 
-	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_FREEZE, false);
+	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, false);
 }
 
 static void s2idle_loop(void)
 {
-	pr_debug("PM: suspend-to-idle\n");
+	pm_pr_dbg("suspend-to-idle\n");
 
-	do {
-		freeze_enter();
+	for (;;) {
+		int error;
 
-		if (freeze_ops && freeze_ops->wake)
-			freeze_ops->wake();
+		dpm_noirq_begin();
 
-		dpm_resume_noirq(PMSG_RESUME);
-		if (freeze_ops && freeze_ops->sync)
-			freeze_ops->sync();
+		/*
+		 * Suspend-to-idle equals
+		 * frozen processes + suspended devices + idle processors.
+		 * Thus s2idle_enter() should be called right after
+		 * all devices have been suspended.
+		 */
+		error = dpm_noirq_suspend_devices(PMSG_SUSPEND);
+		if (!error)
+			s2idle_enter();
+
+		dpm_noirq_resume_devices(PMSG_RESUME);
+		if (error && (error != -EBUSY || !pm_wakeup_pending())) {
+			dpm_noirq_end();
+			break;
+		}
+
+		if (s2idle_ops && s2idle_ops->wake)
+			s2idle_ops->wake();
+
+		dpm_noirq_end();
+
+		if (s2idle_ops && s2idle_ops->sync)
+			s2idle_ops->sync();
 
 		if (pm_wakeup_pending())
 			break;
 
 		pm_wakeup_clear(false);
-	} while (!dpm_suspend_noirq(PMSG_SUSPEND));
+	}
 
-	pr_debug("PM: resume from suspend-to-idle\n");
+	pm_pr_dbg("resume from suspend-to-idle\n");
 }
 
-void freeze_wake(void)
+void s2idle_wake(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&suspend_freeze_lock, flags);
-	if (suspend_freeze_state > FREEZE_STATE_NONE) {
-		suspend_freeze_state = FREEZE_STATE_WAKE;
-		wake_up(&suspend_freeze_wait_head);
+	spin_lock_irqsave(&s2idle_lock, flags);
+	if (s2idle_state > S2IDLE_STATE_NONE) {
+		s2idle_state = S2IDLE_STATE_WAKE;
+		wake_up(&s2idle_wait_head);
 	}
-	spin_unlock_irqrestore(&suspend_freeze_lock, flags);
+	spin_unlock_irqrestore(&s2idle_lock, flags);
 }
-EXPORT_SYMBOL_GPL(freeze_wake);
+EXPORT_SYMBOL_GPL(s2idle_wake);
 
 static bool valid_state(suspend_state_t state)
 {
@@ -152,19 +175,19 @@ void __init pm_states_init(void)
 {
 	/* "mem" and "freeze" are always present in /sys/power/state. */
 	pm_states[PM_SUSPEND_MEM] = pm_labels[PM_SUSPEND_MEM];
-	pm_states[PM_SUSPEND_FREEZE] = pm_labels[PM_SUSPEND_FREEZE];
+	pm_states[PM_SUSPEND_TO_IDLE] = pm_labels[PM_SUSPEND_TO_IDLE];
 	/*
 	 * Suspend-to-idle should be supported even without any suspend_ops,
 	 * initialize mem_sleep_states[] accordingly here.
 	 */
-	mem_sleep_states[PM_SUSPEND_FREEZE] = mem_sleep_labels[PM_SUSPEND_FREEZE];
+	mem_sleep_states[PM_SUSPEND_TO_IDLE] = mem_sleep_labels[PM_SUSPEND_TO_IDLE];
 }
 
 static int __init mem_sleep_default_setup(char *str)
 {
 	suspend_state_t state;
 
-	for (state = PM_SUSPEND_FREEZE; state <= PM_SUSPEND_MEM; state++)
+	for (state = PM_SUSPEND_TO_IDLE; state <= PM_SUSPEND_MEM; state++)
 		if (mem_sleep_labels[state] &&
 		    !strcmp(str, mem_sleep_labels[state])) {
 			mem_sleep_default = state;
@@ -193,7 +216,7 @@ void suspend_set_ops(const struct platform_suspend_ops *ops)
 	}
 	if (valid_state(PM_SUSPEND_MEM)) {
 		mem_sleep_states[PM_SUSPEND_MEM] = mem_sleep_labels[PM_SUSPEND_MEM];
-		if (mem_sleep_default == PM_SUSPEND_MEM)
+		if (mem_sleep_default >= PM_SUSPEND_MEM)
 			mem_sleep_current = PM_SUSPEND_MEM;
 	}
 
@@ -216,49 +239,49 @@ EXPORT_SYMBOL_GPL(suspend_valid_only_mem);
 
 static bool sleep_state_supported(suspend_state_t state)
 {
-	return state == PM_SUSPEND_FREEZE || (suspend_ops && suspend_ops->enter);
+	return state == PM_SUSPEND_TO_IDLE || (suspend_ops && suspend_ops->enter);
 }
 
 static int platform_suspend_prepare(suspend_state_t state)
 {
-	return state != PM_SUSPEND_FREEZE && suspend_ops->prepare ?
+	return state != PM_SUSPEND_TO_IDLE && suspend_ops->prepare ?
 		suspend_ops->prepare() : 0;
 }
 
 static int platform_suspend_prepare_late(suspend_state_t state)
 {
-	return state == PM_SUSPEND_FREEZE && freeze_ops && freeze_ops->prepare ?
-		freeze_ops->prepare() : 0;
+	return state == PM_SUSPEND_TO_IDLE && s2idle_ops && s2idle_ops->prepare ?
+		s2idle_ops->prepare() : 0;
 }
 
 static int platform_suspend_prepare_noirq(suspend_state_t state)
 {
-	return state != PM_SUSPEND_FREEZE && suspend_ops->prepare_late ?
+	return state != PM_SUSPEND_TO_IDLE && suspend_ops->prepare_late ?
 		suspend_ops->prepare_late() : 0;
 }
 
 static void platform_resume_noirq(suspend_state_t state)
 {
-	if (state != PM_SUSPEND_FREEZE && suspend_ops->wake)
+	if (state != PM_SUSPEND_TO_IDLE && suspend_ops->wake)
 		suspend_ops->wake();
 }
 
 static void platform_resume_early(suspend_state_t state)
 {
-	if (state == PM_SUSPEND_FREEZE && freeze_ops && freeze_ops->restore)
-		freeze_ops->restore();
+	if (state == PM_SUSPEND_TO_IDLE && s2idle_ops && s2idle_ops->restore)
+		s2idle_ops->restore();
 }
 
 static void platform_resume_finish(suspend_state_t state)
 {
-	if (state != PM_SUSPEND_FREEZE && suspend_ops->finish)
+	if (state != PM_SUSPEND_TO_IDLE && suspend_ops->finish)
 		suspend_ops->finish();
 }
 
 static int platform_suspend_begin(suspend_state_t state)
 {
-	if (state == PM_SUSPEND_FREEZE && freeze_ops && freeze_ops->begin)
-		return freeze_ops->begin();
+	if (state == PM_SUSPEND_TO_IDLE && s2idle_ops && s2idle_ops->begin)
+		return s2idle_ops->begin();
 	else if (suspend_ops && suspend_ops->begin)
 		return suspend_ops->begin(state);
 	else
@@ -267,21 +290,21 @@ static int platform_suspend_begin(suspend_state_t state)
 
 static void platform_resume_end(suspend_state_t state)
 {
-	if (state == PM_SUSPEND_FREEZE && freeze_ops && freeze_ops->end)
-		freeze_ops->end();
+	if (state == PM_SUSPEND_TO_IDLE && s2idle_ops && s2idle_ops->end)
+		s2idle_ops->end();
 	else if (suspend_ops && suspend_ops->end)
 		suspend_ops->end();
 }
 
 static void platform_recover(suspend_state_t state)
 {
-	if (state != PM_SUSPEND_FREEZE && suspend_ops->recover)
+	if (state != PM_SUSPEND_TO_IDLE && suspend_ops->recover)
 		suspend_ops->recover();
 }
 
 static bool platform_suspend_again(suspend_state_t state)
 {
-	return state != PM_SUSPEND_FREEZE && suspend_ops->suspend_again ?
+	return state != PM_SUSPEND_TO_IDLE && suspend_ops->suspend_again ?
 		suspend_ops->suspend_again() : false;
 }
 
@@ -370,16 +393,21 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 
 	error = dpm_suspend_late(PMSG_SUSPEND);
 	if (error) {
-		pr_err("PM: late suspend of devices failed\n");
+		pr_err("late suspend of devices failed\n");
 		goto Platform_finish;
 	}
 	error = platform_suspend_prepare_late(state);
 	if (error)
 		goto Devices_early_resume;
 
+	if (state == PM_SUSPEND_TO_IDLE && pm_test_level != TEST_PLATFORM) {
+		s2idle_loop();
+		goto Platform_early_resume;
+	}
+
 	error = dpm_suspend_noirq(PMSG_SUSPEND);
 	if (error) {
-		pr_err("PM: noirq suspend of devices failed\n");
+		pr_err("noirq suspend of devices failed\n");
 		goto Platform_early_resume;
 	}
 	error = platform_suspend_prepare_noirq(state);
@@ -388,17 +416,6 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 
 	if (suspend_test(TEST_PLATFORM))
 		goto Platform_wake;
-
-	/*
-	 * PM_SUSPEND_FREEZE equals
-	 * frozen processes + suspended devices + idle processors.
-	 * Thus we should invoke freeze_enter() soon after
-	 * all the devices are suspended.
-	 */
-	if (state == PM_SUSPEND_FREEZE) {
-		s2idle_loop();
-		goto Platform_early_resume;
-	}
 
 	error = disable_nonboot_cpus();
 	if (error || suspend_test(TEST_CPUS))
@@ -456,6 +473,8 @@ int suspend_devices_and_enter(suspend_state_t state)
 	if (!sleep_state_supported(state))
 		return -ENOSYS;
 
+	pm_suspend_target_state = state;
+
 	error = platform_suspend_begin(state);
 	if (error)
 		goto Close;
@@ -464,7 +483,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 	suspend_test_start();
 	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
-		pr_err("PM: Some devices failed to suspend, or early wake event detected\n");
+		pr_err("Some devices failed to suspend, or early wake event detected\n");
 		goto Recover_platform;
 	}
 	suspend_test_finish("suspend devices");
@@ -485,6 +504,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 
  Close:
 	platform_resume_end(state);
+	pm_suspend_target_state = PM_SUSPEND_ON;
 	return error;
 
  Recover_platform:
@@ -518,10 +538,10 @@ static int enter_state(suspend_state_t state)
 	int error;
 
 	trace_suspend_resume(TPS("suspend_enter"), state, true);
-	if (state == PM_SUSPEND_FREEZE) {
+	if (state == PM_SUSPEND_TO_IDLE) {
 #ifdef CONFIG_PM_DEBUG
 		if (pm_test_level != TEST_NONE && pm_test_level <= TEST_CPUS) {
-			pr_warn("PM: Unsupported test mode for suspend to idle, please choose none/freezer/devices/platform.\n");
+			pr_warn("Unsupported test mode for suspend to idle, please choose none/freezer/devices/platform.\n");
 			return -EAGAIN;
 		}
 #endif
@@ -531,18 +551,18 @@ static int enter_state(suspend_state_t state)
 	if (!mutex_trylock(&pm_mutex))
 		return -EBUSY;
 
-	if (state == PM_SUSPEND_FREEZE)
-		freeze_begin();
+	if (state == PM_SUSPEND_TO_IDLE)
+		s2idle_begin();
 
 #ifndef CONFIG_SUSPEND_SKIP_SYNC
 	trace_suspend_resume(TPS("sync_filesystems"), 0, true);
-	pr_info("PM: Syncing filesystems ... ");
+	pr_info("Syncing filesystems ... ");
 	sys_sync();
 	pr_cont("done.\n");
 	trace_suspend_resume(TPS("sync_filesystems"), 0, false);
 #endif
 
-	pr_debug("PM: Preparing system for sleep (%s)\n", pm_states[state]);
+	pm_pr_dbg("Preparing system for sleep (%s)\n", mem_sleep_labels[state]);
 	pm_suspend_clear_flags();
 	error = suspend_prepare(state);
 	if (error)
@@ -552,13 +572,13 @@ static int enter_state(suspend_state_t state)
 		goto Finish;
 
 	trace_suspend_resume(TPS("suspend_enter"), state, false);
-	pr_debug("PM: Suspending system (%s)\n", pm_states[state]);
+	pm_pr_dbg("Suspending system (%s)\n", mem_sleep_labels[state]);
 	pm_restrict_gfp_mask();
 	error = suspend_devices_and_enter(state);
 	pm_restore_gfp_mask();
 
  Finish:
-	pr_debug("PM: Finishing wakeup.\n");
+	pm_pr_dbg("Finishing wakeup.\n");
 	suspend_finish();
  Unlock:
 	mutex_unlock(&pm_mutex);
@@ -579,6 +599,7 @@ int pm_suspend(suspend_state_t state)
 	if (state <= PM_SUSPEND_ON || state >= PM_SUSPEND_MAX)
 		return -EINVAL;
 
+	pr_info("suspend entry (%s)\n", mem_sleep_labels[state]);
 	error = enter_state(state);
 	if (error) {
 		suspend_stats.fail++;
@@ -586,6 +607,7 @@ int pm_suspend(suspend_state_t state)
 	} else {
 		suspend_stats.success++;
 	}
+	pr_info("suspend exit\n");
 	return error;
 }
 EXPORT_SYMBOL(pm_suspend);
