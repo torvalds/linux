@@ -186,24 +186,22 @@ static struct platform_device ts72xx_rtc_device = {
 	.num_resources 	= ARRAY_SIZE(ts72xx_rtc_resources),
 };
 
+/*************************************************************************
+ * Watchdog (in CPLD)
+ *************************************************************************/
+#define TS72XX_WDT_CONTROL_PHYS_BASE	(EP93XX_CS2_PHYS_BASE + 0x03800000)
+#define TS72XX_WDT_FEED_PHYS_BASE	(EP93XX_CS2_PHYS_BASE + 0x03c00000)
+
 static struct resource ts72xx_wdt_resources[] = {
-	{
-		.start	= TS72XX_WDT_CONTROL_PHYS_BASE,
-		.end	= TS72XX_WDT_CONTROL_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= TS72XX_WDT_FEED_PHYS_BASE,
-		.end	= TS72XX_WDT_FEED_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
+	DEFINE_RES_MEM(TS72XX_WDT_CONTROL_PHYS_BASE, 0x01),
+	DEFINE_RES_MEM(TS72XX_WDT_FEED_PHYS_BASE, 0x01),
 };
 
 static struct platform_device ts72xx_wdt_device = {
 	.name		= "ts72xx-wdt",
 	.id		= -1,
-	.num_resources 	= ARRAY_SIZE(ts72xx_wdt_resources),
 	.resource	= ts72xx_wdt_resources,
+	.num_resources	= ARRAY_SIZE(ts72xx_wdt_resources),
 };
 
 static struct ep93xx_eth_data __initdata ts72xx_eth_data = {
