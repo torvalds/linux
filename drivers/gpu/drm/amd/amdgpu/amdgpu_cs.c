@@ -500,27 +500,20 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_bo_list_entry *e;
 	struct list_head duplicates;
-	bool need_mmap_lock = false;
 	unsigned i, tries = 10;
 	int r;
 
 	INIT_LIST_HEAD(&p->validated);
 
 	p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
-	if (p->bo_list) {
-		need_mmap_lock = p->bo_list->first_userptr !=
-			p->bo_list->num_entries;
+	if (p->bo_list)
 		amdgpu_bo_list_get_list(p->bo_list, &p->validated);
-	}
 
 	INIT_LIST_HEAD(&duplicates);
 	amdgpu_vm_get_pd_bo(&fpriv->vm, &p->validated, &p->vm_pd);
 
 	if (p->uf_entry.robj)
 		list_add(&p->uf_entry.tv.head, &p->validated);
-
-	if (need_mmap_lock)
-		down_read(&current->mm->mmap_sem);
 
 	while (1) {
 		struct list_head need_pages;
@@ -673,9 +666,6 @@ error_validate:
 		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
 
 error_free_pages:
-
-	if (need_mmap_lock)
-		up_read(&current->mm->mmap_sem);
 
 	if (p->bo_list) {
 		for (i = p->bo_list->first_userptr;
