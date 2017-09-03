@@ -141,12 +141,14 @@ nfp_flower_cmsg_portmod_rx(struct nfp_app *app, struct sk_buff *skb)
 	msg = nfp_flower_cmsg_get_data(skb);
 	link = msg->info & NFP_FLOWER_CMSG_PORTMOD_INFO_LINK;
 
+	rtnl_lock();
 	rcu_read_lock();
 	netdev = nfp_app_repr_get(app, be32_to_cpu(msg->portnum));
+	rcu_read_unlock();
 	if (!netdev) {
 		nfp_flower_cmsg_warn(app, "ctrl msg for unknown port 0x%08x\n",
 				     be32_to_cpu(msg->portnum));
-		rcu_read_unlock();
+		rtnl_unlock();
 		return;
 	}
 
@@ -161,7 +163,7 @@ nfp_flower_cmsg_portmod_rx(struct nfp_app *app, struct sk_buff *skb)
 	} else {
 		netif_carrier_off(netdev);
 	}
-	rcu_read_unlock();
+	rtnl_unlock();
 }
 
 static void
