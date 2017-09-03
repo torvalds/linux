@@ -2563,7 +2563,7 @@ static void iwl_mvm_purge_deferred_tx_frames(struct iwl_mvm *mvm,
 			 * queues, so we should never get a second deferred
 			 * frame for the RA/TID.
 			 */
-			iwl_mvm_start_mac_queues(mvm, info->hw_queue);
+			iwl_mvm_start_mac_queues(mvm, BIT(info->hw_queue));
 			ieee80211_free_txskb(mvm->hw, skb);
 		}
 	}
