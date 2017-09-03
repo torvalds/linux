@@ -82,32 +82,32 @@ rmnet_deliver_skb(struct sk_buff *skb, struct rmnet_endpoint *ep)
 
 static rx_handler_result_t
 rmnet_ingress_deliver_packet(struct sk_buff *skb,
-			     struct rmnet_real_dev_info *r)
+			     struct rmnet_port *port)
 {
-	if (!r) {
+	if (!port) {
 		kfree_skb(skb);
 		return RX_HANDLER_CONSUMED;
 	}
 
-	skb->dev = r->local_ep.egress_dev;
+	skb->dev = port->local_ep.egress_dev;
 
-	return rmnet_deliver_skb(skb, &r->local_ep);
+	return rmnet_deliver_skb(skb, &port->local_ep);
 }
 
 /* MAP handler */
 
 static rx_handler_result_t
 __rmnet_map_ingress_handler(struct sk_buff *skb,
-			    struct rmnet_real_dev_info *r)
+			    struct rmnet_port *port)
 {
 	struct rmnet_endpoint *ep;
 	u8 mux_id;
 	u16 len;
 
 	if (RMNET_MAP_GET_CD_BIT(skb)) {
-		if (r->ingress_data_format
+		if (port->ingress_data_format
 		    & RMNET_INGRESS_FORMAT_MAP_COMMANDS)
-			return rmnet_map_command(skb, r);
+			return rmnet_map_command(skb, port);
 
 		kfree_skb(skb);
 		return RX_HANDLER_CONSUMED;
@@ -121,9 +121,9 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 		return RX_HANDLER_CONSUMED;
 	}
 
-	ep = &r->muxed_ep[mux_id];
+	ep = &port->muxed_ep[mux_id];
 
-	if (r->ingress_data_format & RMNET_INGRESS_FORMAT_DEMUXING)
+	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_DEMUXING)
 		skb->dev = ep->egress_dev;
 
 	/* Subtract MAP header */
@@ -135,26 +135,26 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 
 static rx_handler_result_t
 rmnet_map_ingress_handler(struct sk_buff *skb,
-			  struct rmnet_real_dev_info *r)
+			  struct rmnet_port *port)
 {
 	struct sk_buff *skbn;
 	int rc;
 
-	if (r->ingress_data_format & RMNET_INGRESS_FORMAT_DEAGGREGATION) {
-		while ((skbn = rmnet_map_deaggregate(skb, r)) != NULL)
-			__rmnet_map_ingress_handler(skbn, r);
+	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_DEAGGREGATION) {
+		while ((skbn = rmnet_map_deaggregate(skb)) != NULL)
+			__rmnet_map_ingress_handler(skbn, port);
 
 		consume_skb(skb);
 		rc = RX_HANDLER_CONSUMED;
 	} else {
-		rc = __rmnet_map_ingress_handler(skb, r);
+		rc = __rmnet_map_ingress_handler(skb, port);
 	}
 
 	return rc;
 }
 
 static int rmnet_map_egress_handler(struct sk_buff *skb,
-				    struct rmnet_real_dev_info *r,
+				    struct rmnet_port *port,
 				    struct rmnet_endpoint *ep,
 				    struct net_device *orig_dev)
 {
@@ -173,7 +173,7 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	if (!map_header)
 		return RMNET_MAP_CONSUMED;
 
-	if (r->egress_data_format & RMNET_EGRESS_FORMAT_MUXING) {
+	if (port->egress_data_format & RMNET_EGRESS_FORMAT_MUXING) {
 		if (ep->mux_id == 0xff)
 			map_header->mux_id = 0;
 		else
@@ -193,7 +193,7 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
  */
 rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 {
-	struct rmnet_real_dev_info *r;
+	struct rmnet_port *port;
 	struct sk_buff *skb = *pskb;
 	struct net_device *dev;
 	int rc;
@@ -202,16 +202,16 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 		return RX_HANDLER_CONSUMED;
 
 	dev = skb->dev;
-	r = rmnet_get_real_dev_info(dev);
+	port = rmnet_get_port(dev);
 
-	if (r->ingress_data_format & RMNET_INGRESS_FORMAT_MAP) {
-		rc = rmnet_map_ingress_handler(skb, r);
+	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_MAP) {
+		rc = rmnet_map_ingress_handler(skb, port);
 	} else {
 		switch (ntohs(skb->protocol)) {
 		case ETH_P_MAP:
-			if (r->local_ep.rmnet_mode ==
+			if (port->local_ep.rmnet_mode ==
 				RMNET_EPMODE_BRIDGE) {
-				rc = rmnet_ingress_deliver_packet(skb, r);
+				rc = rmnet_ingress_deliver_packet(skb, port);
 			} else {
 				kfree_skb(skb);
 				rc = RX_HANDLER_CONSUMED;
@@ -220,7 +220,7 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 
 		case ETH_P_IP:
 		case ETH_P_IPV6:
-			rc = rmnet_ingress_deliver_packet(skb, r);
+			rc = rmnet_ingress_deliver_packet(skb, port);
 			break;
 
 		default:
@@ -238,20 +238,20 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 void rmnet_egress_handler(struct sk_buff *skb,
 			  struct rmnet_endpoint *ep)
 {
-	struct rmnet_real_dev_info *r;
 	struct net_device *orig_dev;
+	struct rmnet_port *port;
 
 	orig_dev = skb->dev;
 	skb->dev = ep->egress_dev;
 
-	r = rmnet_get_real_dev_info(skb->dev);
-	if (!r) {
+	port = rmnet_get_port(skb->dev);
+	if (!port) {
 		kfree_skb(skb);
 		return;
 	}
 
-	if (r->egress_data_format & RMNET_EGRESS_FORMAT_MAP) {
-		switch (rmnet_map_egress_handler(skb, r, ep, orig_dev)) {
+	if (port->egress_data_format & RMNET_EGRESS_FORMAT_MAP) {
+		switch (rmnet_map_egress_handler(skb, port, ep, orig_dev)) {
 		case RMNET_MAP_CONSUMED:
 			return;
 

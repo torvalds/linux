@@ -46,7 +46,7 @@
 struct rmnet_walk_data {
 	struct net_device *real_dev;
 	struct list_head *head;
-	struct rmnet_real_dev_info *real_dev_info;
+	struct rmnet_port *port;
 };
 
 static int rmnet_is_real_dev_registered(const struct net_device *real_dev)
@@ -58,8 +58,8 @@ static int rmnet_is_real_dev_registered(const struct net_device *real_dev)
 }
 
 /* Needs rtnl lock */
-static struct rmnet_real_dev_info*
-rmnet_get_real_dev_info_rtnl(const struct net_device *real_dev)
+static struct rmnet_port*
+rmnet_get_port_rtnl(const struct net_device *real_dev)
 {
 	return rtnl_dereference(real_dev->rx_handler_data);
 }
@@ -67,27 +67,27 @@ rmnet_get_real_dev_info_rtnl(const struct net_device *real_dev)
 static struct rmnet_endpoint*
 rmnet_get_endpoint(struct net_device *dev, int config_id)
 {
-	struct rmnet_real_dev_info *r;
 	struct rmnet_endpoint *ep;
+	struct rmnet_port *port;
 
 	if (!rmnet_is_real_dev_registered(dev)) {
 		ep = rmnet_vnd_get_endpoint(dev);
 	} else {
-		r = rmnet_get_real_dev_info_rtnl(dev);
+		port = rmnet_get_port_rtnl(dev);
 
-		ep = &r->muxed_ep[config_id];
+		ep = &port->muxed_ep[config_id];
 	}
 
 	return ep;
 }
 
 static int rmnet_unregister_real_device(struct net_device *real_dev,
-					struct rmnet_real_dev_info *r)
+					struct rmnet_port *port)
 {
-	if (r->nr_rmnet_devs)
+	if (port->nr_rmnet_devs)
 		return -EINVAL;
 
-	kfree(r);
+	kfree(port);
 
 	netdev_rx_handler_unregister(real_dev);
 
@@ -100,7 +100,7 @@ static int rmnet_unregister_real_device(struct net_device *real_dev,
 
 static int rmnet_register_real_device(struct net_device *real_dev)
 {
-	struct rmnet_real_dev_info *r;
+	struct rmnet_port *port;
 	int rc;
 
 	ASSERT_RTNL();
@@ -108,14 +108,14 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 	if (rmnet_is_real_dev_registered(real_dev))
 		return 0;
 
-	r = kzalloc(sizeof(*r), GFP_ATOMIC);
-	if (!r)
+	port = kzalloc(sizeof(*port), GFP_ATOMIC);
+	if (!port)
 		return -ENOMEM;
 
-	r->dev = real_dev;
-	rc = netdev_rx_handler_register(real_dev, rmnet_rx_handler, r);
+	port->dev = real_dev;
+	rc = netdev_rx_handler_register(real_dev, rmnet_rx_handler, port);
 	if (rc) {
-		kfree(r);
+		kfree(port);
 		return -EBUSY;
 	}
 
@@ -154,9 +154,9 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 			     RMNET_INGRESS_FORMAT_MAP;
 	int egress_format = RMNET_EGRESS_FORMAT_MUXING |
 			    RMNET_EGRESS_FORMAT_MAP;
-	struct rmnet_real_dev_info *r;
 	struct net_device *real_dev;
 	int mode = RMNET_EPMODE_VND;
+	struct rmnet_port *port;
 	int err = 0;
 	u16 mux_id;
 
@@ -173,8 +173,8 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	if (err)
 		goto err0;
 
-	r = rmnet_get_real_dev_info_rtnl(real_dev);
-	err = rmnet_vnd_newlink(mux_id, dev, r, real_dev);
+	port = rmnet_get_port_rtnl(real_dev);
+	err = rmnet_vnd_newlink(mux_id, dev, port, real_dev);
 	if (err)
 		goto err1;
 
@@ -184,25 +184,25 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 
 	netdev_dbg(dev, "data format [ingress 0x%08X] [egress 0x%08X]\n",
 		   ingress_format, egress_format);
-	r->egress_data_format = egress_format;
-	r->ingress_data_format = ingress_format;
+	port->egress_data_format = egress_format;
+	port->ingress_data_format = ingress_format;
 
 	rmnet_set_endpoint_config(real_dev, mux_id, mode, dev);
 	rmnet_set_endpoint_config(dev, mux_id, mode, real_dev);
 	return 0;
 
 err2:
-	rmnet_vnd_dellink(mux_id, r);
+	rmnet_vnd_dellink(mux_id, port);
 err1:
-	rmnet_unregister_real_device(real_dev, r);
+	rmnet_unregister_real_device(real_dev, port);
 err0:
 	return err;
 }
 
 static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 {
-	struct rmnet_real_dev_info *r;
 	struct net_device *real_dev;
+	struct rmnet_port *port;
 	u8 mux_id;
 
 	rcu_read_lock();
@@ -212,12 +212,12 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 	if (!real_dev || !rmnet_is_real_dev_registered(real_dev))
 		return;
 
-	r = rmnet_get_real_dev_info_rtnl(real_dev);
+	port = rmnet_get_port_rtnl(real_dev);
 
 	mux_id = rmnet_vnd_get_mux(dev);
-	rmnet_vnd_dellink(mux_id, r);
+	rmnet_vnd_dellink(mux_id, port);
 	netdev_upper_dev_unlink(dev, real_dev);
-	rmnet_unregister_real_device(real_dev, r);
+	rmnet_unregister_real_device(real_dev, port);
 
 	unregister_netdevice_queue(dev, head);
 }
@@ -229,7 +229,7 @@ static int rmnet_dev_walk_unreg(struct net_device *rmnet_dev, void *data)
 
 	mux_id = rmnet_vnd_get_mux(rmnet_dev);
 
-	rmnet_vnd_dellink(mux_id, d->real_dev_info);
+	rmnet_vnd_dellink(mux_id, d->port);
 	netdev_upper_dev_unlink(rmnet_dev, d->real_dev);
 	unregister_netdevice_queue(rmnet_dev, d->head);
 
@@ -239,8 +239,8 @@ static int rmnet_dev_walk_unreg(struct net_device *rmnet_dev, void *data)
 static void rmnet_force_unassociate_device(struct net_device *dev)
 {
 	struct net_device *real_dev = dev;
-	struct rmnet_real_dev_info *r;
 	struct rmnet_walk_data d;
+	struct rmnet_port *port;
 	LIST_HEAD(list);
 
 	if (!rmnet_is_real_dev_registered(real_dev))
@@ -251,15 +251,15 @@ static void rmnet_force_unassociate_device(struct net_device *dev)
 	d.real_dev = real_dev;
 	d.head = &list;
 
-	r = rmnet_get_real_dev_info_rtnl(dev);
-	d.real_dev_info = r;
+	port = rmnet_get_port_rtnl(dev);
+	d.port = port;
 
 	rcu_read_lock();
 	netdev_walk_all_lower_dev_rcu(real_dev, rmnet_dev_walk_unreg, &d);
 	rcu_read_unlock();
 	unregister_netdevice_many(&list);
 
-	rmnet_unregister_real_device(real_dev, r);
+	rmnet_unregister_real_device(real_dev, port);
 }
 
 static int rmnet_config_notify_cb(struct notifier_block *nb,
@@ -319,8 +319,7 @@ struct rtnl_link_ops rmnet_link_ops __read_mostly = {
 };
 
 /* Needs either rcu_read_lock() or rtnl lock */
-struct rmnet_real_dev_info*
-rmnet_get_real_dev_info(struct net_device *real_dev)
+struct rmnet_port *rmnet_get_port(struct net_device *real_dev)
 {
 	if (rmnet_is_real_dev_registered(real_dev))
 		return rcu_dereference_rtnl(real_dev->rx_handler_data);

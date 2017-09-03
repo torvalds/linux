@@ -17,7 +17,7 @@
 #include "rmnet_vnd.h"
 
 static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
-				    struct rmnet_real_dev_info *rdinfo,
+				    struct rmnet_port *rdinfo,
 				    int enable)
 {
 	struct rmnet_map_control_command *cmd;
@@ -58,8 +58,7 @@ static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
 }
 
 static void rmnet_map_send_ack(struct sk_buff *skb,
-			       unsigned char type,
-			       struct rmnet_real_dev_info *rdinfo)
+			       unsigned char type)
 {
 	struct rmnet_map_control_command *cmd;
 	int xmit_status;
@@ -78,7 +77,7 @@ static void rmnet_map_send_ack(struct sk_buff *skb,
  * name is decoded here and appropriate handler is called.
  */
 rx_handler_result_t rmnet_map_command(struct sk_buff *skb,
-				      struct rmnet_real_dev_info *rdinfo)
+				      struct rmnet_port *port)
 {
 	struct rmnet_map_control_command *cmd;
 	unsigned char command_name;
@@ -89,11 +88,11 @@ rx_handler_result_t rmnet_map_command(struct sk_buff *skb,
 
 	switch (command_name) {
 	case RMNET_MAP_COMMAND_FLOW_ENABLE:
-		rc = rmnet_map_do_flow_control(skb, rdinfo, 1);
+		rc = rmnet_map_do_flow_control(skb, port, 1);
 		break;
 
 	case RMNET_MAP_COMMAND_FLOW_DISABLE:
-		rc = rmnet_map_do_flow_control(skb, rdinfo, 0);
+		rc = rmnet_map_do_flow_control(skb, port, 0);
 		break;
 
 	default:
@@ -102,6 +101,6 @@ rx_handler_result_t rmnet_map_command(struct sk_buff *skb,
 		break;
 	}
 	if (rc == RMNET_MAP_COMMAND_ACK)
-		rmnet_map_send_ack(skb, rc, rdinfo);
+		rmnet_map_send_ack(skb, rc);
 	return RX_HANDLER_CONSUMED;
 }

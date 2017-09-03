@@ -69,8 +69,7 @@ done:
  * returned, indicating that there are no more packets to deaggregate. Caller
  * is responsible for freeing the original skb.
  */
-struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb,
-				      struct rmnet_real_dev_info *rdinfo)
+struct sk_buff *rmnet_map_deaggregate(struct sk_buff *skb)
 {
 	struct rmnet_map_header *maph;
 	struct sk_buff *skbn;

@@ -99,19 +99,20 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 /* Exposed API */
 
 int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
-		      struct rmnet_real_dev_info *r,
+		      struct rmnet_port *port,
 		      struct net_device *real_dev)
 {
 	struct rmnet_priv *priv;
 	int rc;
 
-	if (r->rmnet_devices[id])
+	if (port->rmnet_devices[id])
 		return -EINVAL;
 
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {
-		r->rmnet_devices[id] = rmnet_dev;
-		r->nr_rmnet_devs++;
+		port->rmnet_devices[id] = rmnet_dev;
+		port->nr_rmnet_devs++;
+
 		rmnet_dev->rtnl_link_ops = &rmnet_link_ops;
 
 		priv = netdev_priv(rmnet_dev);
@@ -124,13 +125,13 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	return rc;
 }
 
-int rmnet_vnd_dellink(u8 id, struct rmnet_real_dev_info *r)
+int rmnet_vnd_dellink(u8 id, struct rmnet_port *port)
 {
-	if (id >= RMNET_MAX_LOGICAL_EP || !r->rmnet_devices[id])
+	if (id >= RMNET_MAX_LOGICAL_EP || !port->rmnet_devices[id])
 		return -EINVAL;
 
-	r->rmnet_devices[id] = NULL;
-	r->nr_rmnet_devs--;
+	port->rmnet_devices[id] = NULL;
+	port->nr_rmnet_devs--;
 	return 0;
 }
 
