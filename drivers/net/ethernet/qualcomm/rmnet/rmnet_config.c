@@ -57,16 +57,6 @@ static int rmnet_is_real_dev_registered(const struct net_device *real_dev)
 	return (rx_handler == rmnet_rx_handler);
 }
 
-/* Needs either rcu_read_lock() or rtnl lock */
-static struct rmnet_real_dev_info*
-__rmnet_get_real_dev_info(const struct net_device *real_dev)
-{
-	if (rmnet_is_real_dev_registered(real_dev))
-		return rcu_dereference_rtnl(real_dev->rx_handler_data);
-	else
-		return NULL;
-}
-
 /* Needs rtnl lock */
 static struct rmnet_real_dev_info*
 rmnet_get_real_dev_info_rtnl(const struct net_device *real_dev)
@@ -83,10 +73,7 @@ rmnet_get_endpoint(struct net_device *dev, int config_id)
 	if (!rmnet_is_real_dev_registered(dev)) {
 		ep = rmnet_vnd_get_endpoint(dev);
 	} else {
-		r = __rmnet_get_real_dev_info(dev);
-
-		if (!r)
-			return NULL;
+		r = rmnet_get_real_dev_info_rtnl(dev);
 
 		ep = &r->muxed_ep[config_id];
 	}
@@ -139,70 +126,23 @@ static int rmnet_register_real_device(struct net_device *real_dev)
 	return 0;
 }
 
-static int rmnet_set_ingress_data_format(struct net_device *dev, u32 idf)
+static void rmnet_set_endpoint_config(struct net_device *dev,
+				      u8 mux_id, u8 rmnet_mode,
+				      struct net_device *egress_dev)
 {
-	struct rmnet_real_dev_info *r;
-
-	netdev_dbg(dev, "Ingress format 0x%08X\n", idf);
-
-	r = __rmnet_get_real_dev_info(dev);
-
-	r->ingress_data_format = idf;
-
-	return 0;
-}
-
-static int rmnet_set_egress_data_format(struct net_device *dev, u32 edf,
-					u16 agg_size, u16 agg_count)
-{
-	struct rmnet_real_dev_info *r;
-
-	netdev_dbg(dev, "Egress format 0x%08X agg size %d cnt %d\n",
-		   edf, agg_size, agg_count);
-
-	r = __rmnet_get_real_dev_info(dev);
-
-	r->egress_data_format = edf;
-
-	return 0;
-}
-
-static int __rmnet_set_endpoint_config(struct net_device *dev, int config_id,
-				       struct rmnet_endpoint *ep)
-{
-	struct rmnet_endpoint *dev_ep;
-
-	dev_ep = rmnet_get_endpoint(dev, config_id);
-
-	if (!dev_ep)
-		return -EINVAL;
-
-	memcpy(dev_ep, ep, sizeof(struct rmnet_endpoint));
-	dev_ep->mux_id = config_id;
-
-	return 0;
-}
-
-static int rmnet_set_endpoint_config(struct net_device *dev,
-				     int config_id, u8 rmnet_mode,
-				     struct net_device *egress_dev)
-{
-	struct rmnet_endpoint ep;
+	struct rmnet_endpoint *ep;
 
 	netdev_dbg(dev, "id %d mode %d dev %s\n",
-		   config_id, rmnet_mode, egress_dev->name);
+		   mux_id, rmnet_mode, egress_dev->name);
 
-	if (config_id >= RMNET_MAX_LOGICAL_EP)
-		return -EINVAL;
-
+	ep = rmnet_get_endpoint(dev, mux_id);
 	/* This config is cleared on every set, so its ok to not
 	 * clear it on a device delete.
 	 */
-	memset(&ep, 0, sizeof(struct rmnet_endpoint));
-	ep.rmnet_mode = rmnet_mode;
-	ep.egress_dev = egress_dev;
-
-	return __rmnet_set_endpoint_config(dev, config_id, &ep);
+	memset(ep, 0, sizeof(struct rmnet_endpoint));
+	ep->rmnet_mode = rmnet_mode;
+	ep->egress_dev = egress_dev;
+	ep->mux_id = mux_id;
 }
 
 static int rmnet_newlink(struct net *src_net, struct net_device *dev,
@@ -242,9 +182,11 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	if (err)
 		goto err2;
 
-	rmnet_vnd_set_mux(dev, mux_id);
-	rmnet_set_egress_data_format(real_dev, egress_format, 0, 0);
-	rmnet_set_ingress_data_format(real_dev, ingress_format);
+	netdev_dbg(dev, "data format [ingress 0x%08X] [egress 0x%08X]\n",
+		   ingress_format, egress_format);
+	r->egress_data_format = egress_format;
+	r->ingress_data_format = ingress_format;
+
 	rmnet_set_endpoint_config(real_dev, mux_id, mode, dev);
 	rmnet_set_endpoint_config(dev, mux_id, mode, real_dev);
 	return 0;
@@ -376,10 +318,14 @@ struct rtnl_link_ops rmnet_link_ops __read_mostly = {
 	.get_size	= rmnet_get_size,
 };
 
+/* Needs either rcu_read_lock() or rtnl lock */
 struct rmnet_real_dev_info*
 rmnet_get_real_dev_info(struct net_device *real_dev)
 {
-	return __rmnet_get_real_dev_info(real_dev);
+	if (rmnet_is_real_dev_registered(real_dev))
+		return rcu_dereference_rtnl(real_dev->rx_handler_data);
+	else
+		return NULL;
 }
 
 /* Startup/Shutdown */

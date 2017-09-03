@@ -93,6 +93,7 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		      struct rmnet_real_dev_info *r)
 {
+	struct rmnet_priv *priv;
 	int rc;
 
 	if (r->rmnet_devices[id])
@@ -103,6 +104,10 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		r->rmnet_devices[id] = rmnet_dev;
 		r->nr_rmnet_devs++;
 		rmnet_dev->rtnl_link_ops = &rmnet_link_ops;
+
+		priv = netdev_priv(rmnet_dev);
+		priv->mux_id = id;
+
 		netdev_dbg(rmnet_dev, "rmnet dev created\n");
 	}
 
@@ -125,14 +130,6 @@ u8 rmnet_vnd_get_mux(struct net_device *rmnet_dev)
 
 	priv = netdev_priv(rmnet_dev);
 	return priv->mux_id;
-}
-
-void rmnet_vnd_set_mux(struct net_device *rmnet_dev, u8 mux_id)
-{
-	struct rmnet_priv *priv;
-
-	priv = netdev_priv(rmnet_dev);
-	priv->mux_id = mux_id;
 }
 
 /* Gets the logical endpoint configuration for a RmNet virtual network device
