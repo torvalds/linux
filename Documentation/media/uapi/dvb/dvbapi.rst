@@ -28,7 +28,9 @@ Part II - Digital TV API
 
 **Version 5.10**
 
-.. class:: toc-title
+.. only:: html
+
+   .. class:: toc-title
 
         Table of Contents
 
