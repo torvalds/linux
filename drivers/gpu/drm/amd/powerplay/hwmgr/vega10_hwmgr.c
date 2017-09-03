@@ -3138,6 +3138,8 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	minimum_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
 
 	if (PP_CAP(PHM_PlatformCaps_StablePState)) {
+		stable_pstate_sclk_dpm_percentage =
+			data->registry_data.stable_pstate_sclk_dpm_percentage;
 		PP_ASSERT_WITH_CODE(
 			data->registry_data.stable_pstate_sclk_dpm_percentage >= 1 &&
 			data->registry_data.stable_pstate_sclk_dpm_percentage <= 100,
