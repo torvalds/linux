@@ -25,7 +25,6 @@ This part describes the Video for Linux API version 2 (V4L2 API) specification.
     pixfmt
     io
     devices
-    driver
     libv4l
     compat
     user-func
