@@ -2164,12 +2164,6 @@ static int tcp_mtu_probe(struct sock *sk)
 	return -1;
 }
 
-static bool tcp_pacing_check(const struct sock *sk)
-{
-	return tcp_needs_internal_pacing(sk) &&
-		tcp_pacing_timer_check(sk);
-}
-
 /* TCP Small Queues :
  * Control number of packets in qdisc/devices to two packets / or ~1 ms.
  * (These limits are doubled for retransmits)
@@ -2283,6 +2277,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 	int result;
 	bool is_cwnd_limited = false, is_rwnd_limited = false;
 	u32 max_segs;
+	u32 pacing_allowed_segs = 0;
 
 	sent_pkts = 0;
 
@@ -2302,14 +2297,18 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 	if (tcp_needs_internal_pacing(sk) &&
 	    !tcp_pacing_timer_check(sk) &&
 	    tcp_send_head(sk)) {
+		pacing_allowed_segs = 1;
 		if (ca_ops->pacing_timer_expired)
 			ca_ops->pacing_timer_expired(sk);
+		if (ca_ops->get_segs_per_round)
+			pacing_allowed_segs = ca_ops->get_segs_per_round(sk);
 	}
 
 	while ((skb = tcp_send_head(sk))) {
 		unsigned int limit;
 
-		if (tcp_pacing_check(sk))
+		if (tcp_needs_internal_pacing(sk) &&
+		    sent_pkts >= pacing_allowed_segs)
 			break;
 
 		tso_segs = tcp_init_tso_segs(skb, mss_now);
@@ -2955,6 +2954,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	const struct tcp_congestion_ops *ca_ops = inet_csk(sk)->icsk_ca_ops;
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
+	u32 pacing_allowed_segs = 0;
 	struct sk_buff *skb;
 	struct sk_buff *hole = NULL;
 	u32 max_segs;
@@ -2972,8 +2972,11 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	if (tcp_needs_internal_pacing(sk) &&
 	    !tcp_pacing_timer_check(sk) &&
 	    tcp_send_head(sk)) {
+		pacing_allowed_segs = 1;
 		if (ca_ops->pacing_timer_expired)
 			ca_ops->pacing_timer_expired(sk);
+		if (ca_ops->get_segs_per_round)
+			pacing_allowed_segs = ca_ops->get_segs_per_round(sk);
 	}
 
 	max_segs = tcp_tso_segs(sk, tcp_current_mss(sk));
@@ -2984,7 +2987,8 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 		if (skb == tcp_send_head(sk))
 			break;
 
-		if (tcp_pacing_check(sk))
+		if (tcp_needs_internal_pacing(sk) &&
+		    sent_pkts >= pacing_allowed_segs)
 			break;
 
 		/* we could do better than to assign each time */
