@@ -144,7 +144,7 @@ void radix__local_flush_tlb_mm(struct mm_struct *mm)
 EXPORT_SYMBOL(radix__local_flush_tlb_mm);
 
 #ifndef CONFIG_SMP
-static void radix__local_flush_all_mm(struct mm_struct *mm)
+void radix__local_flush_all_mm(struct mm_struct *mm)
 {
 	unsigned long pid;
 
@@ -154,6 +154,7 @@ static void radix__local_flush_all_mm(struct mm_struct *mm)
 		_tlbiel_pid(pid, RIC_FLUSH_ALL);
 	preempt_enable();
 }
+EXPORT_SYMBOL(radix__local_flush_all_mm);
 #endif /* CONFIG_SMP */
 
 void radix__local_flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
@@ -200,7 +201,7 @@ no_context:
 }
 EXPORT_SYMBOL(radix__flush_tlb_mm);
 
-static void radix__flush_all_mm(struct mm_struct *mm)
+void radix__flush_all_mm(struct mm_struct *mm)
 {
 	unsigned long pid;
 
@@ -216,6 +217,7 @@ static void radix__flush_all_mm(struct mm_struct *mm)
 no_context:
 	preempt_enable();
 }
+EXPORT_SYMBOL(radix__flush_all_mm);
 
 void radix__flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
 {
