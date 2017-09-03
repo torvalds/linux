@@ -930,8 +930,8 @@ get_more_pages:
 
 			/* only if matching snap context */
 			pgsnapc = page_snap_context(page);
-			if (pgsnapc->seq > snapc->seq) {
-				dout("page snapc %p %lld > oldest %p %lld\n",
+			if (pgsnapc != snapc) {
+				dout("page snapc %p %lld != oldest %p %lld\n",
 				     pgsnapc, pgsnapc->seq, snapc, snapc->seq);
 				unlock_page(page);
 				continue;
