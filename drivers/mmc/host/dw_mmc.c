@@ -796,7 +796,7 @@ static int dw_mci_edmac_start_dma(struct dw_mci *host,
 	struct dma_slave_config cfg;
 	struct dma_async_tx_descriptor *desc = NULL;
 	struct scatterlist *sgl = host->data->sg;
-	const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
+	static const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
 	u32 sg_elems = host->data->sg_len;
 	u32 fifoth_val;
 	u32 fifo_offset = host->fifo_reg - host->regs;
@@ -1003,7 +1003,7 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 static void dw_mci_adjust_fifoth(struct dw_mci *host, struct mmc_data *data)
 {
 	unsigned int blksz = data->blksz;
-	const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
+	static const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
 	u32 fifo_width = 1 << host->data_shift;
 	u32 blksz_depth = blksz / fifo_width, fifoth_val;
 	u32 msize = 0, rx_wmark = 1, tx_wmark, tx_wmark_invers;
