@@ -310,6 +310,7 @@ static inline struct ppa_addr dev_to_generic_addr(struct nvm_dev *dev,
 {
 	struct ppa_addr l;
 
+	l.ppa = 0;
 	/*
 	 * (r.ppa << X offset) & X len bitmask. X eq. blk, pg, etc.
 	 */

@@ -635,7 +635,8 @@ hsw_unclaimed_reg_detect(struct drm_i915_private *dev_priv)
 			  "enabling oneshot unclaimed register reporting. "
 			  "Please use i915.mmio_debug=N for more information.\n");
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
-		i915.mmio_debug = mmio_debug_once--;
+		i915.mmio_debug = mmio_debug_once;
+		mmio_debug_once = false;
 	}
 }
 
