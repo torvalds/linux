@@ -127,6 +127,11 @@ nfp_flower_repr_netdev_stop(struct nfp_app *app, struct nfp_repr *repr)
 
 static void nfp_flower_sriov_disable(struct nfp_app *app)
 {
+	struct nfp_flower_priv *priv = app->priv;
+
+	if (!priv->nn)
+		return;
+
 	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_VF);
 }
 
@@ -203,16 +208,14 @@ err_reprs_clean:
 
 static int nfp_flower_sriov_enable(struct nfp_app *app, int num_vfs)
 {
+	struct nfp_flower_priv *priv = app->priv;
+
+	if (!priv->nn)
+		return 0;
+
 	return nfp_flower_spawn_vnic_reprs(app,
 					   NFP_FLOWER_CMSG_PORT_VNIC_TYPE_VF,
 					   NFP_REPR_TYPE_VF, num_vfs);
-}
-
-static void nfp_flower_stop(struct nfp_app *app)
-{
-	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PF);
-	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PHYS_PORT);
-
 }
 
 static int
@@ -300,19 +303,6 @@ err_free_ctrl_skb:
 	return err;
 }
 
-static int nfp_flower_start(struct nfp_app *app)
-{
-	int err;
-
-	err = nfp_flower_spawn_phy_reprs(app, app->priv);
-	if (err)
-		return err;
-
-	return nfp_flower_spawn_vnic_reprs(app,
-					   NFP_FLOWER_CMSG_PORT_VNIC_TYPE_PF,
-					   NFP_REPR_TYPE_PF, 1);
-}
-
 static int nfp_flower_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
 				 unsigned int id)
 {
@@ -335,16 +325,49 @@ static void nfp_flower_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
 {
 	struct nfp_flower_priv *priv = app->priv;
 
+	if (app->pf->num_vfs)
+		nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_VF);
+	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PF);
+	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PHYS_PORT);
+
 	priv->nn = NULL;
 }
 
 static int nfp_flower_vnic_init(struct nfp_app *app, struct nfp_net *nn)
 {
 	struct nfp_flower_priv *priv = app->priv;
+	int err;
 
 	priv->nn = nn;
 
+	err = nfp_flower_spawn_phy_reprs(app, app->priv);
+	if (err)
+		goto err_clear_nn;
+
+	err = nfp_flower_spawn_vnic_reprs(app,
+					  NFP_FLOWER_CMSG_PORT_VNIC_TYPE_PF,
+					  NFP_REPR_TYPE_PF, 1);
+	if (err)
+		goto err_destroy_reprs_phy;
+
+	if (app->pf->num_vfs) {
+		err = nfp_flower_spawn_vnic_reprs(app,
+						  NFP_FLOWER_CMSG_PORT_VNIC_TYPE_VF,
+						  NFP_REPR_TYPE_VF,
+						  app->pf->num_vfs);
+		if (err)
+			goto err_destroy_reprs_pf;
+	}
+
 	return 0;
+
+err_destroy_reprs_pf:
+	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PF);
+err_destroy_reprs_phy:
+	nfp_reprs_clean_and_free_by_type(app, NFP_REPR_TYPE_PHYS_PORT);
+err_clear_nn:
+	priv->nn = NULL;
+	return err;
 }
 
 static int nfp_flower_init(struct nfp_app *app)
@@ -429,9 +452,6 @@ const struct nfp_app_type app_flower = {
 
 	.repr_open	= nfp_flower_repr_netdev_open,
 	.repr_stop	= nfp_flower_repr_netdev_stop,
-
-	.start		= nfp_flower_start,
-	.stop		= nfp_flower_stop,
 
 	.ctrl_msg_rx	= nfp_flower_cmsg_rx,
 
