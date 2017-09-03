@@ -1335,6 +1335,97 @@ static void nft_chain_release_hook(struct nft_chain_hook *hook)
 		dev_put(hook->dev);
 }
 
+static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
+			      bool create)
+{
+	const struct nlattr * const *nla = ctx->nla;
+	struct nft_table *table = ctx->table;
+	struct nft_chain *chain = ctx->chain;
+	struct nft_af_info *afi = ctx->afi;
+	struct nft_base_chain *basechain;
+	struct nft_stats *stats = NULL;
+	struct nft_chain_hook hook;
+	const struct nlattr *name;
+	struct nf_hook_ops *ops;
+	struct nft_trans *trans;
+	int err, i;
+
+	if (nla[NFTA_CHAIN_HOOK]) {
+		if (!nft_is_base_chain(chain))
+			return -EBUSY;
+
+		err = nft_chain_parse_hook(ctx->net, nla, ctx->afi, &hook,
+					   create);
+		if (err < 0)
+			return err;
+
+		basechain = nft_base_chain(chain);
+		if (basechain->type != hook.type) {
+			nft_chain_release_hook(&hook);
+			return -EBUSY;
+		}
+
+		for (i = 0; i < afi->nops; i++) {
+			ops = &basechain->ops[i];
+			if (ops->hooknum != hook.num ||
+			    ops->priority != hook.priority ||
+			    ops->dev != hook.dev) {
+				nft_chain_release_hook(&hook);
+				return -EBUSY;
+			}
+		}
+		nft_chain_release_hook(&hook);
+	}
+
+	if (nla[NFTA_CHAIN_HANDLE] &&
+	    nla[NFTA_CHAIN_NAME]) {
+		struct nft_chain *chain2;
+
+		chain2 = nf_tables_chain_lookup(table, nla[NFTA_CHAIN_NAME],
+						genmask);
+		if (IS_ERR(chain2))
+			return PTR_ERR(chain2);
+	}
+
+	if (nla[NFTA_CHAIN_COUNTERS]) {
+		if (!nft_is_base_chain(chain))
+			return -EOPNOTSUPP;
+
+		stats = nft_stats_alloc(nla[NFTA_CHAIN_COUNTERS]);
+		if (IS_ERR(stats))
+			return PTR_ERR(stats);
+	}
+
+	trans = nft_trans_alloc(ctx, NFT_MSG_NEWCHAIN,
+				sizeof(struct nft_trans_chain));
+	if (trans == NULL) {
+		free_percpu(stats);
+		return -ENOMEM;
+	}
+
+	nft_trans_chain_stats(trans) = stats;
+	nft_trans_chain_update(trans) = true;
+
+	if (nla[NFTA_CHAIN_POLICY])
+		nft_trans_chain_policy(trans) = policy;
+	else
+		nft_trans_chain_policy(trans) = -1;
+
+	name = nla[NFTA_CHAIN_NAME];
+	if (nla[NFTA_CHAIN_HANDLE] && name) {
+		nft_trans_chain_name(trans) =
+			nla_strdup(name, GFP_KERNEL);
+		if (!nft_trans_chain_name(trans)) {
+			kfree(trans);
+			free_percpu(stats);
+			return -ENOMEM;
+		}
+	}
+	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
+
+	return 0;
+}
+
 static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 			      struct sk_buff *skb, const struct nlmsghdr *nlh,
 			      const struct nlattr * const nla[],
@@ -1403,91 +1494,14 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 	}
 
 	if (chain != NULL) {
-		struct nft_stats *stats = NULL;
-		struct nft_trans *trans;
-
 		if (nlh->nlmsg_flags & NLM_F_EXCL)
 			return -EEXIST;
 		if (nlh->nlmsg_flags & NLM_F_REPLACE)
 			return -EOPNOTSUPP;
 
-		if (nla[NFTA_CHAIN_HOOK]) {
-			struct nft_base_chain *basechain;
-			struct nft_chain_hook hook;
-			struct nf_hook_ops *ops;
-
-			if (!nft_is_base_chain(chain))
-				return -EBUSY;
-
-			err = nft_chain_parse_hook(net, nla, afi, &hook,
-						   create);
-			if (err < 0)
-				return err;
-
-			basechain = nft_base_chain(chain);
-			if (basechain->type != hook.type) {
-				nft_chain_release_hook(&hook);
-				return -EBUSY;
-			}
-
-			for (i = 0; i < afi->nops; i++) {
-				ops = &basechain->ops[i];
-				if (ops->hooknum != hook.num ||
-				    ops->priority != hook.priority ||
-				    ops->dev != hook.dev) {
-					nft_chain_release_hook(&hook);
-					return -EBUSY;
-				}
-			}
-			nft_chain_release_hook(&hook);
-		}
-
-		if (nla[NFTA_CHAIN_HANDLE] && name) {
-			struct nft_chain *chain2;
-
-			chain2 = nf_tables_chain_lookup(table,
-							nla[NFTA_CHAIN_NAME],
-							genmask);
-			if (IS_ERR(chain2))
-				return PTR_ERR(chain2);
-		}
-
-		if (nla[NFTA_CHAIN_COUNTERS]) {
-			if (!nft_is_base_chain(chain))
-				return -EOPNOTSUPP;
-
-			stats = nft_stats_alloc(nla[NFTA_CHAIN_COUNTERS]);
-			if (IS_ERR(stats))
-				return PTR_ERR(stats);
-		}
-
 		nft_ctx_init(&ctx, net, skb, nlh, afi, table, chain, nla);
-		trans = nft_trans_alloc(&ctx, NFT_MSG_NEWCHAIN,
-					sizeof(struct nft_trans_chain));
-		if (trans == NULL) {
-			free_percpu(stats);
-			return -ENOMEM;
-		}
 
-		nft_trans_chain_stats(trans) = stats;
-		nft_trans_chain_update(trans) = true;
-
-		if (nla[NFTA_CHAIN_POLICY])
-			nft_trans_chain_policy(trans) = policy;
-		else
-			nft_trans_chain_policy(trans) = -1;
-
-		if (nla[NFTA_CHAIN_HANDLE] && name) {
-			nft_trans_chain_name(trans) =
-				nla_strdup(name, GFP_KERNEL);
-			if (!nft_trans_chain_name(trans)) {
-				kfree(trans);
-				free_percpu(stats);
-				return -ENOMEM;
-			}
-		}
-		list_add_tail(&trans->list, &net->nft.commit_list);
-		return 0;
+		return nf_tables_updchain(&ctx, genmask, policy, create);
 	}
 
 	if (table->use == UINT_MAX)
