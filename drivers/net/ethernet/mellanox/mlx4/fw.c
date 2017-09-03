@@ -36,6 +36,7 @@
 #include <linux/mlx4/cmd.h>
 #include <linux/module.h>
 #include <linux/cache.h>
+#include <linux/kernel.h>
 
 #include "fw.h"
 #include "icm.h"
@@ -2455,14 +2456,14 @@ int mlx4_config_dev_retrieval(struct mlx4_dev *dev,
 	csum_mask = (config_dev.rx_checksum_val >> CONFIG_DEV_RX_CSUM_MODE_PORT1_BIT_OFFSET) &
 			CONFIG_DEV_RX_CSUM_MODE_MASK;
 
-	if (csum_mask >= sizeof(config_dev_csum_flags)/sizeof(config_dev_csum_flags[0]))
+	if (csum_mask >= ARRAY_SIZE(config_dev_csum_flags))
 		return -EINVAL;
 	params->rx_csum_flags_port_1 = config_dev_csum_flags[csum_mask];
 
 	csum_mask = (config_dev.rx_checksum_val >> CONFIG_DEV_RX_CSUM_MODE_PORT2_BIT_OFFSET) &
 			CONFIG_DEV_RX_CSUM_MODE_MASK;
 
-	if (csum_mask >= sizeof(config_dev_csum_flags)/sizeof(config_dev_csum_flags[0]))
+	if (csum_mask >= ARRAY_SIZE(config_dev_csum_flags))
 		return -EINVAL;
 	params->rx_csum_flags_port_2 = config_dev_csum_flags[csum_mask];
 

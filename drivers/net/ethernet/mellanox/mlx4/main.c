@@ -34,6 +34,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
@@ -3675,7 +3676,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data,
 	 * per port, we must limit the number of VFs to 63 (since their are
 	 * 128 MACs)
 	 */
-	for (i = 0; i < sizeof(nvfs)/sizeof(nvfs[0]) && i < num_vfs_argc;
+	for (i = 0; i < ARRAY_SIZE(nvfs) && i < num_vfs_argc;
 	     total_vfs += nvfs[param_map[num_vfs_argc - 1][i]], i++) {
 		nvfs[param_map[num_vfs_argc - 1][i]] = num_vfs[i];
 		if (nvfs[i] < 0) {
@@ -3684,7 +3685,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data,
 			goto err_disable_pdev;
 		}
 	}
-	for (i = 0; i < sizeof(prb_vf)/sizeof(prb_vf[0]) && i < probe_vfs_argc;
+	for (i = 0; i < ARRAY_SIZE(prb_vf) && i < probe_vfs_argc;
 	     i++) {
 		prb_vf[param_map[probe_vfs_argc - 1][i]] = probe_vf[i];
 		if (prb_vf[i] < 0 || prb_vf[i] > nvfs[i]) {
@@ -3763,11 +3764,11 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data,
 		if (total_vfs) {
 			unsigned vfs_offset = 0;
 
-			for (i = 0; i < sizeof(nvfs)/sizeof(nvfs[0]) &&
+			for (i = 0; i < ARRAY_SIZE(nvfs) &&
 			     vfs_offset + nvfs[i] < extended_func_num(pdev);
 			     vfs_offset += nvfs[i], i++)
 				;
-			if (i == sizeof(nvfs)/sizeof(nvfs[0])) {
+			if (i == ARRAY_SIZE(nvfs)) {
 				err = -ENODEV;
 				goto err_release_regions;
 			}
