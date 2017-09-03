@@ -42,7 +42,6 @@
  */
 
 /* Local Definitions and Declarations */
-#define RMNET_LOCAL_LOGICAL_ENDPOINT -1
 
 struct rmnet_walk_data {
 	struct net_device *real_dev;
@@ -89,10 +88,7 @@ rmnet_get_endpoint(struct net_device *dev, int config_id)
 		if (!r)
 			return NULL;
 
-		if (config_id == RMNET_LOCAL_LOGICAL_ENDPOINT)
-			ep = &r->local_ep;
-		else
-			ep = &r->muxed_ep[config_id];
+		ep = &r->muxed_ep[config_id];
 	}
 
 	return ep;
@@ -182,10 +178,7 @@ static int __rmnet_set_endpoint_config(struct net_device *dev, int config_id,
 		return -EINVAL;
 
 	memcpy(dev_ep, ep, sizeof(struct rmnet_endpoint));
-	if (config_id == RMNET_LOCAL_LOGICAL_ENDPOINT)
-		dev_ep->mux_id = 0;
-	else
-		dev_ep->mux_id = config_id;
+	dev_ep->mux_id = config_id;
 
 	return 0;
 }
@@ -199,8 +192,7 @@ static int rmnet_set_endpoint_config(struct net_device *dev,
 	netdev_dbg(dev, "id %d mode %d dev %s\n",
 		   config_id, rmnet_mode, egress_dev->name);
 
-	if (config_id < RMNET_LOCAL_LOGICAL_ENDPOINT ||
-	    config_id >= RMNET_MAX_LOGICAL_EP)
+	if (config_id >= RMNET_MAX_LOGICAL_EP)
 		return -EINVAL;
 
 	/* This config is cleared on every set, so its ok to not
