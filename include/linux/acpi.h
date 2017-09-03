@@ -427,6 +427,8 @@ void acpi_dev_free_resource_list(struct list_head *list);
 int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
 			   int (*preproc)(struct acpi_resource *, void *),
 			   void *preproc_data);
+int acpi_dev_get_dma_resources(struct acpi_device *adev,
+			       struct list_head *list);
 int acpi_dev_filter_resource_type(struct acpi_resource *ares,
 				  unsigned long types);
 
@@ -772,6 +774,12 @@ static inline bool acpi_dma_supported(struct acpi_device *adev)
 static inline enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
 {
 	return DEV_DMA_NOT_SUPPORTED;
+}
+
+static inline int acpi_dma_get_range(struct device *dev, u64 *dma_addr,
+				     u64 *offset, u64 *size)
+{
+	return -ENODEV;
 }
 
 static inline int acpi_dma_configure(struct device *dev,
