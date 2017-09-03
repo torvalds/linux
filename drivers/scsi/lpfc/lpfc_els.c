@@ -1054,7 +1054,10 @@ stop_rr_fcf_flogi:
 					lpfc_sli4_unreg_all_rpis(vport);
 				}
 			}
-			lpfc_issue_reg_vfi(vport);
+
+			/* Do not register VFI if the driver aborted FLOGI */
+			if (!lpfc_error_lost_link(irsp))
+				lpfc_issue_reg_vfi(vport);
 			lpfc_nlp_put(ndlp);
 			goto out;
 		}
