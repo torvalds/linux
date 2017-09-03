@@ -173,7 +173,6 @@ static const struct iio_info mux_info = {
 	.read_raw = mux_read_raw,
 	.read_avail = mux_read_avail,
 	.write_raw = mux_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static ssize_t mux_read_ext_info(struct iio_dev *indio_dev, uintptr_t private,
