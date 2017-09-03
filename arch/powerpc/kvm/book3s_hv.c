@@ -19,6 +19,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/preempt.h>
@@ -1772,7 +1773,7 @@ static struct debugfs_timings_element {
 	{"cede",	offsetof(struct kvm_vcpu, arch.cede_time)},
 };
 
-#define N_TIMINGS	(sizeof(timings) / sizeof(timings[0]))
+#define N_TIMINGS	(ARRAY_SIZE(timings))
 
 struct debugfs_timings_state {
 	struct kvm_vcpu	*vcpu;
