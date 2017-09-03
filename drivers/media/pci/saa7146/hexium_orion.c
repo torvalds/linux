@@ -266,7 +266,9 @@ static int hexium_probe(struct saa7146_dev *dev)
 
 	/* check if this is an old hexium Orion card by looking at
 	   a saa7110 at address 0x4e */
-	if (0 == (err = i2c_smbus_xfer(&hexium->i2c_adapter, 0x4e, 0, I2C_SMBUS_READ, 0x00, I2C_SMBUS_BYTE_DATA, &data))) {
+	err = i2c_smbus_xfer(&hexium->i2c_adapter, 0x4e, 0, I2C_SMBUS_READ,
+			     0x00, I2C_SMBUS_BYTE_DATA, &data);
+	if (err == 0) {
 		pr_info("device is a Hexium HV-PCI6/Orion (old)\n");
 		/* we store the pointer in our private data field */
 		dev->ext_priv = hexium;
