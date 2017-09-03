@@ -108,6 +108,8 @@ Available follower modes are:
 
 .. _cec-mode-follower_e:
 
+.. cssclass:: longtable
+
 .. flat-table:: Follower Modes
     :header-rows:  0
     :stub-columns: 0

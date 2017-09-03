@@ -65,7 +65,7 @@ logical address types are already defined will return with error ``EBUSY``.
 
 .. c:type:: cec_log_addrs
 
-.. tabularcolumns:: |p{1.0cm}|p{7.5cm}|p{8.0cm}|
+.. tabularcolumns:: |p{1.0cm}|p{8.0cm}|p{7.5cm}|
 
 .. cssclass:: longtable
 
@@ -148,6 +148,9 @@ logical address types are already defined will return with error ``EBUSY``.
         give the CEC framework more information about the device type, even
         though the framework won't use it directly in the CEC message.
 
+
+.. tabularcolumns:: |p{7.8cm}|p{1.0cm}|p{8.7cm}|
+
 .. _cec-log-addrs-flags:
 
 .. flat-table:: Flags for struct cec_log_addrs
@@ -183,7 +186,7 @@ logical address types are already defined will return with error ``EBUSY``.
 	All other messages are ignored.
 
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{7.8cm}|p{1.0cm}|p{8.7cm}|
 
 .. _cec-versions:
 

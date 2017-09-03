@@ -87,7 +87,7 @@ it is guaranteed that the state did change in between the two events.
 	this is more than enough.
 
 
-.. tabularcolumns:: |p{1.0cm}|p{4.2cm}|p{2.5cm}|p{8.8cm}|
+.. tabularcolumns:: |p{1.0cm}|p{4.4cm}|p{2.5cm}|p{9.6cm}|
 
 .. c:type:: cec_event
 
@@ -98,10 +98,11 @@ it is guaranteed that the state did change in between the two events.
 
     * - __u64
       - ``ts``
-      - :cspan:`1` Timestamp of the event in ns.
+      - :cspan:`1`\ Timestamp of the event in ns.
 
-	The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
-	the same clock from userspace use :c:func:`clock_gettime`.
+	The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock.
+
+	To access the same clock from userspace use :c:func:`clock_gettime`.
     * - __u32
       - ``event``
       - :cspan:`1` The CEC event type, see :ref:`cec-events`.
