@@ -2058,6 +2058,9 @@ int __init acpi_scan_init(void)
 			acpi_get_spcr_uart_addr();
 	}
 
+	acpi_gpe_apply_masked_gpes();
+	acpi_update_all_gpes();
+
 	mutex_lock(&acpi_scan_lock);
 	/*
 	 * Enumerate devices in the ACPI namespace.
@@ -2081,9 +2084,6 @@ int __init acpi_scan_init(void)
 			goto out;
 		}
 	}
-
-	acpi_gpe_apply_masked_gpes();
-	acpi_update_all_gpes();
 
 	acpi_scan_initialized = true;
 

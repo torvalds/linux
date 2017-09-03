@@ -2,6 +2,8 @@
  * sysfs.c - ACPI sysfs interface to userspace.
  */
 
+#define pr_fmt(fmt) "ACPI: " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
@@ -552,11 +554,15 @@ static void fixed_event_count(u32 event_number)
 static void acpi_global_event_handler(u32 event_type, acpi_handle device,
 	u32 event_number, void *context)
 {
-	if (event_type == ACPI_EVENT_TYPE_GPE)
+	if (event_type == ACPI_EVENT_TYPE_GPE) {
 		gpe_count(event_number);
-
-	if (event_type == ACPI_EVENT_TYPE_FIXED)
+		pr_debug("GPE event 0x%02x\n", event_number);
+	} else if (event_type == ACPI_EVENT_TYPE_FIXED) {
 		fixed_event_count(event_number);
+		pr_debug("Fixed event 0x%02x\n", event_number);
+	} else {
+		pr_debug("Other event 0x%02x\n", event_number);
+	}
 }
 
 static int get_status(u32 index, acpi_event_status *status,

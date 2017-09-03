@@ -870,7 +870,7 @@ static struct syscore_ops acpi_sleep_syscore_ops = {
 	.resume = acpi_restore_bm_rld,
 };
 
-void acpi_sleep_syscore_init(void)
+static void acpi_sleep_syscore_init(void)
 {
 	register_syscore_ops(&acpi_sleep_syscore_ops);
 }
