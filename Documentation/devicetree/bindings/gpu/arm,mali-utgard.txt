@@ -44,6 +44,10 @@ Optional properties:
     Memory region to allocate from, as defined in
     Documentation/devicetree/bindi/reserved-memory/reserved-memory.txt
 
+  - mali-supply:
+    Phandle to regulator for the Mali device, as defined in
+    Documentation/devicetree/bindings/regulator/regulator.txt for details.
+
   - operating-points-v2:
     Operating Points for the GPU, as defined in
     Documentation/devicetree/bindings/opp/opp.txt
