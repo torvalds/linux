@@ -189,8 +189,11 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 	default:
 		nfp_flower_cmsg_warn(app, "Cannot handle invalid repr control type %u\n",
 				     type);
+		goto out;
 	}
 
+	dev_consume_skb_any(skb);
+	return;
 out:
 	dev_kfree_skb_any(skb);
 }
