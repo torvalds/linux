@@ -612,18 +612,20 @@ free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 			if (head_bytes > actual)
 				head_bytes = actual;
 
-			memcpy((char *)page_address(pages[0]) +
+			memcpy((char *)kmap(pages[0]) +
 				pagelist->offset,
 				fragments,
 				head_bytes);
+			kunmap(pages[0]);
 		}
 		if ((actual >= 0) && (head_bytes < actual) &&
 			(tail_bytes != 0)) {
-			memcpy((char *)page_address(pages[num_pages - 1]) +
+			memcpy((char *)kmap(pages[num_pages - 1]) +
 				((pagelist->offset + actual) &
 				(PAGE_SIZE - 1) & ~(g_cache_line_size - 1)),
 				fragments + g_cache_line_size,
 				tail_bytes);
+			kunmap(pages[num_pages - 1]);
 		}
 
 		down(&g_free_fragments_mutex);
