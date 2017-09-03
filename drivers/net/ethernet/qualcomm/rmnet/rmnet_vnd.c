@@ -73,8 +73,6 @@ static const struct net_device_ops rmnet_vnd_ops = {
  */
 void rmnet_vnd_setup(struct net_device *rmnet_dev)
 {
-	netdev_dbg(rmnet_dev, "Setting up device %s\n", rmnet_dev->name);
-
 	rmnet_dev->netdev_ops = &rmnet_vnd_ops;
 	rmnet_dev->mtu = RMNET_DFLT_PACKET_SIZE;
 	rmnet_dev->needed_headroom = RMNET_NEEDED_HEADROOM;
@@ -105,6 +103,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		r->rmnet_devices[id] = rmnet_dev;
 		r->nr_rmnet_devs++;
 		rmnet_dev->rtnl_link_ops = &rmnet_link_ops;
+		netdev_dbg(rmnet_dev, "rmnet dev created\n");
 	}
 
 	return rc;
