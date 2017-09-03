@@ -61,6 +61,7 @@ int bdev_dax_pgoff(struct block_device *bdev, sector_t sector, size_t size,
 }
 EXPORT_SYMBOL(bdev_dax_pgoff);
 
+#if IS_ENABLED(CONFIG_FS_DAX)
 struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
 {
 	if (!blk_queue_dax(bdev->bd_queue))
@@ -68,6 +69,7 @@ struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
 	return fs_dax_get_by_host(bdev->bd_disk->disk_name);
 }
 EXPORT_SYMBOL_GPL(fs_dax_get_by_bdev);
+#endif
 
 /**
  * __bdev_dax_supported() - Check if the device supports dax for filesystem
