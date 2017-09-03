@@ -53,17 +53,24 @@ static bool qdf2400_erratum_44_present(struct acpi_table_header *h)
  */
 static bool xgene_8250_erratum_present(struct acpi_table_spcr *tb)
 {
+	bool xgene_8250 = false;
+
 	if (tb->interface_type != ACPI_DBG2_16550_COMPATIBLE)
 		return false;
 
-	if (memcmp(tb->header.oem_id, "APMC0D", ACPI_OEM_ID_SIZE))
+	if (memcmp(tb->header.oem_id, "APMC0D", ACPI_OEM_ID_SIZE) &&
+	    memcmp(tb->header.oem_id, "HPE   ", ACPI_OEM_ID_SIZE))
 		return false;
 
 	if (!memcmp(tb->header.oem_table_id, "XGENESPC",
 	    ACPI_OEM_TABLE_ID_SIZE) && tb->header.oem_revision == 0)
-		return true;
+		xgene_8250 = true;
 
-	return false;
+	if (!memcmp(tb->header.oem_table_id, "ProLiant",
+	    ACPI_OEM_TABLE_ID_SIZE) && tb->header.oem_revision == 1)
+		xgene_8250 = true;
+
+	return xgene_8250;
 }
 
 /**
@@ -182,11 +189,19 @@ int __init parse_spcr(bool earlycon)
 			uart = "qdf2400_e44";
 	}
 
-	if (xgene_8250_erratum_present(table))
+	if (xgene_8250_erratum_present(table)) {
 		iotype = "mmio32";
 
-	snprintf(opts, sizeof(opts), "%s,%s,0x%llx,%d", uart, iotype,
-		 table->serial_port.address, baud_rate);
+		/* for xgene v1 and v2 we don't know the clock rate of the
+		 * UART so don't attempt to change to the baud rate state
+		 * in the table because driver cannot calculate the dividers
+		 */
+		snprintf(opts, sizeof(opts), "%s,%s,0x%llx", uart, iotype,
+			 table->serial_port.address);
+	} else {
+		snprintf(opts, sizeof(opts), "%s,%s,0x%llx,%d", uart, iotype,
+			 table->serial_port.address, baud_rate);
+	}
 
 	pr_info("console: %s\n", opts);
 
