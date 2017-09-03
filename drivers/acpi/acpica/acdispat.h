@@ -237,6 +237,11 @@ acpi_ds_initialize_objects(u32 table_index,
  * dsobject - Parser/Interpreter interface - object initialization and conversion
  */
 acpi_status
+acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
+			      union acpi_parse_object *op,
+			      union acpi_operand_object **obj_desc_ptr);
+
+acpi_status
 acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 				  union acpi_parse_object *op,
 				  u32 buffer_length,
@@ -257,6 +262,14 @@ acpi_status
 acpi_ds_create_node(struct acpi_walk_state *walk_state,
 		    struct acpi_namespace_node *node,
 		    union acpi_parse_object *op);
+
+/*
+ * dspkginit - Package object initialization
+ */
+acpi_status
+acpi_ds_init_package_element(u8 object_type,
+			     union acpi_operand_object *source_object,
+			     union acpi_generic_state *state, void *context);
 
 /*
  * dsutils - Parser/Interpreter interface utility routines
