@@ -1,7 +1,11 @@
 Linux Media Subsystem Documentation
 ===================================
 
-Contents:
+.. only:: html
+
+   .. class:: toc-title
+
+        Table of Contents
 
 .. toctree::
    :maxdepth: 2
