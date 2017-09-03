@@ -1264,7 +1264,7 @@ static int __qcom_glink_send(struct glink_channel *channel,
 	ret = qcom_glink_tx(glink, &req, sizeof(req), data, len, wait);
 
 	/* Mark intent available if we failed */
-	if (ret)
+	if (ret && intent)
 		intent->in_use = false;
 
 	return ret;
