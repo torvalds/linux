@@ -1617,8 +1617,11 @@ static int nf_tables_delchain(struct net *net, struct sock *nlsk,
 	struct nft_af_info *afi;
 	struct nft_table *table;
 	struct nft_chain *chain;
+	struct nft_rule *rule;
 	int family = nfmsg->nfgen_family;
 	struct nft_ctx ctx;
+	u32 use;
+	int err;
 
 	afi = nf_tables_afinfo_lookup(net, family, false);
 	if (IS_ERR(afi))
@@ -1631,10 +1634,29 @@ static int nf_tables_delchain(struct net *net, struct sock *nlsk,
 	chain = nf_tables_chain_lookup(table, nla[NFTA_CHAIN_NAME], genmask);
 	if (IS_ERR(chain))
 		return PTR_ERR(chain);
-	if (chain->use > 0)
+
+	if (nlh->nlmsg_flags & NLM_F_NONREC &&
+	    chain->use > 0)
 		return -EBUSY;
 
 	nft_ctx_init(&ctx, net, skb, nlh, afi, table, chain, nla);
+
+	use = chain->use;
+	list_for_each_entry(rule, &chain->rules, list) {
+		if (!nft_is_active_next(net, rule))
+			continue;
+		use--;
+
+		err = nft_delrule(&ctx, rule);
+		if (err < 0)
+			return err;
+	}
+
+	/* There are rules and elements that are still holding references to us,
+	 * we cannot do a recursive removal in this case.
+	 */
+	if (use > 0)
+		return -EBUSY;
 
 	return nft_delchain(&ctx);
 }
