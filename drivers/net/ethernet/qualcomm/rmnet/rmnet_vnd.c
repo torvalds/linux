@@ -112,7 +112,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 
 int rmnet_vnd_dellink(u8 id, struct rmnet_real_dev_info *r)
 {
-	if (id >= RMNET_MAX_VND || !r->rmnet_devices[id])
+	if (id >= RMNET_MAX_LOGICAL_EP || !r->rmnet_devices[id])
 		return -EINVAL;
 
 	r->rmnet_devices[id] = NULL;

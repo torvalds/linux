@@ -19,7 +19,6 @@
 #define _RMNET_CONFIG_H_
 
 #define RMNET_MAX_LOGICAL_EP 255
-#define RMNET_MAX_VND        32
 
 /* Information about the next device to deliver the packet to.
  * Exact usage of this parameter depends on the rmnet_mode.
@@ -39,7 +38,7 @@ struct rmnet_real_dev_info {
 	struct rmnet_endpoint muxed_ep[RMNET_MAX_LOGICAL_EP];
 	u32 ingress_data_format;
 	u32 egress_data_format;
-	struct net_device *rmnet_devices[RMNET_MAX_VND];
+	struct net_device *rmnet_devices[RMNET_MAX_LOGICAL_EP];
 	u8 nr_rmnet_devs;
 };
 
