@@ -25,6 +25,7 @@
 #include <linux/sched.h>
 #include <linux/ktime.h>
 #include <linux/mm.h>
+#include <linux/platform_data/x86/apple.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -3447,7 +3448,7 @@ static void quirk_apple_poweroff_thunderbolt(struct pci_dev *dev)
 {
 	acpi_handle bridge, SXIO, SXFP, SXLV;
 
-	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
+	if (!x86_apple_machine)
 		return;
 	if (pci_pcie_type(dev) != PCI_EXP_TYPE_UPSTREAM)
 		return;
@@ -3492,7 +3493,7 @@ static void quirk_apple_wait_for_thunderbolt(struct pci_dev *dev)
 	struct pci_dev *sibling = NULL;
 	struct pci_dev *nhi = NULL;
 
-	if (!dmi_match(DMI_BOARD_VENDOR, "Apple Inc."))
+	if (!x86_apple_machine)
 		return;
 	if (pci_pcie_type(dev) != PCI_EXP_TYPE_DOWNSTREAM)
 		return;

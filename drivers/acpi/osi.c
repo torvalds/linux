@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/platform_data/x86/apple.h>
 
 #include "internal.h"
 
@@ -257,12 +258,11 @@ bool acpi_osi_is_win8(void)
 }
 EXPORT_SYMBOL(acpi_osi_is_win8);
 
-static void __init acpi_osi_dmi_darwin(bool enable,
-				       const struct dmi_system_id *d)
+static void __init acpi_osi_dmi_darwin(void)
 {
-	pr_notice("DMI detected to setup _OSI(\"Darwin\"): %s\n", d->ident);
+	pr_notice("DMI detected to setup _OSI(\"Darwin\"): Apple hardware\n");
 	osi_config.darwin_dmi = 1;
-	__acpi_osi_setup_darwin(enable);
+	__acpi_osi_setup_darwin(true);
 }
 
 static void __init acpi_osi_dmi_linux(bool enable,
@@ -271,13 +271,6 @@ static void __init acpi_osi_dmi_linux(bool enable,
 	pr_notice("DMI detected to setup _OSI(\"Linux\"): %s\n", d->ident);
 	osi_config.linux_dmi = 1;
 	__acpi_osi_setup_linux(enable);
-}
-
-static int __init dmi_enable_osi_darwin(const struct dmi_system_id *d)
-{
-	acpi_osi_dmi_darwin(true, d);
-
-	return 0;
 }
 
 static int __init dmi_enable_osi_linux(const struct dmi_system_id *d)
@@ -481,30 +474,16 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "1015PX"),
 		},
 	},
-
-	/*
-	 * Enable _OSI("Darwin") for all apple platforms.
-	 */
-	{
-	.callback = dmi_enable_osi_darwin,
-	.ident = "Apple hardware",
-	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
-		},
-	},
-	{
-	.callback = dmi_enable_osi_darwin,
-	.ident = "Apple hardware",
-	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
-		},
-	},
 	{}
 };
 
 static __init void acpi_osi_dmi_blacklisted(void)
 {
 	dmi_check_system(acpi_osi_dmi_table);
+
+	/* Enable _OSI("Darwin") for Apple platforms. */
+	if (x86_apple_machine)
+		acpi_osi_dmi_darwin();
 }
 
 int __init early_acpi_osi_init(void)
