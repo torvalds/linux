@@ -72,6 +72,7 @@ struct nfp_fl_stats_id {
 
 /**
  * struct nfp_flower_priv - Flower APP per-vNIC priv data
+ * @app:		Back pointer to app
  * @nn:			Pointer to vNIC
  * @mask_id_seed:	Seed used for mask hash table
  * @flower_version:	HW version of flower
@@ -83,6 +84,7 @@ struct nfp_fl_stats_id {
  * @cmsg_skbs:		List of skbs for control message processing
  */
 struct nfp_flower_priv {
+	struct nfp_app *app;
 	struct nfp_net *nn;
 	u32 mask_id_seed;
 	u64 flower_version;

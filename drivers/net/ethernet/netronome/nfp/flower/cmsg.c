@@ -203,7 +203,7 @@ void nfp_flower_cmsg_process_rx(struct work_struct *work)
 	priv = container_of(work, struct nfp_flower_priv, cmsg_work);
 
 	while ((skb = skb_dequeue(&priv->cmsg_skbs)))
-		nfp_flower_cmsg_process_one_rx(priv->nn->app, skb);
+		nfp_flower_cmsg_process_one_rx(priv->app, skb);
 }
 
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb)

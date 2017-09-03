@@ -161,6 +161,8 @@ nfp_net_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 
 static void nfp_net_pf_free_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 {
+	if (nfp_net_is_data_vnic(nn))
+		nfp_app_vnic_free(pf->app, nn);
 	nfp_port_free(nn->port);
 	list_del(&nn->vnic_list);
 	pf->num_vnics--;
@@ -205,7 +207,7 @@ nfp_net_pf_alloc_vnic(struct nfp_pf *pf, bool needs_netdev,
 	nn->stride_tx = stride;
 
 	if (needs_netdev) {
-		err = nfp_app_vnic_init(pf->app, nn, id);
+		err = nfp_app_vnic_alloc(pf->app, nn, id);
 		if (err) {
 			nfp_net_free(nn);
 			return ERR_PTR(err);
@@ -243,8 +245,17 @@ nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 
 	nfp_net_info(nn);
 
+	if (nfp_net_is_data_vnic(nn)) {
+		err = nfp_app_vnic_init(pf->app, nn);
+		if (err)
+			goto err_devlink_port_clean;
+	}
+
 	return 0;
 
+err_devlink_port_clean:
+	if (nn->port)
+		nfp_devlink_port_unregister(nn->port);
 err_dfs_clean:
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_clean(nn);
@@ -288,11 +299,12 @@ err_free_prev:
 
 static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 {
+	if (nfp_net_is_data_vnic(nn))
+		nfp_app_vnic_clean(pf->app, nn);
 	if (nn->port)
 		nfp_devlink_port_unregister(nn->port);
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_clean(nn);
-	nfp_app_vnic_clean(pf->app, nn);
 }
 
 static int nfp_net_pf_alloc_irqs(struct nfp_pf *pf)

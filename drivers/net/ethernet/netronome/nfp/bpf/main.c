@@ -84,7 +84,7 @@ static const char *nfp_bpf_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 }
 
 static int
-nfp_bpf_vnic_init(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
+nfp_bpf_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 {
 	struct nfp_net_bpf_priv *priv;
 	int ret;
@@ -106,14 +106,14 @@ nfp_bpf_vnic_init(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 	setup_timer(&priv->rx_filter_stats_timer,
 		    nfp_net_filter_stats_timer, (unsigned long)nn);
 
-	ret = nfp_app_nic_vnic_init(app, nn, id);
+	ret = nfp_app_nic_vnic_alloc(app, nn, id);
 	if (ret)
 		kfree(priv);
 
 	return ret;
 }
 
-static void nfp_bpf_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
+static void nfp_bpf_vnic_free(struct nfp_app *app, struct nfp_net *nn)
 {
 	if (nn->dp.bpf_offload_xdp)
 		nfp_bpf_xdp_offload(app, nn, NULL);
@@ -149,8 +149,8 @@ const struct nfp_app_type app_bpf = {
 
 	.extra_cap	= nfp_bpf_extra_cap,
 
-	.vnic_init	= nfp_bpf_vnic_init,
-	.vnic_clean	= nfp_bpf_vnic_clean,
+	.vnic_alloc	= nfp_bpf_vnic_alloc,
+	.vnic_free	= nfp_bpf_vnic_free,
 
 	.setup_tc	= nfp_bpf_setup_tc,
 	.tc_busy	= nfp_bpf_tc_busy,

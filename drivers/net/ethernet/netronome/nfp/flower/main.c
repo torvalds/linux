@@ -313,17 +313,13 @@ static int nfp_flower_start(struct nfp_app *app)
 					   NFP_REPR_TYPE_PF, 1);
 }
 
-static int nfp_flower_vnic_init(struct nfp_app *app, struct nfp_net *nn,
-				unsigned int id)
+static int nfp_flower_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
+				 unsigned int id)
 {
-	struct nfp_flower_priv *priv = app->priv;
-
 	if (id > 0) {
 		nfp_warn(app->cpp, "FlowerNIC doesn't support more than one data vNIC\n");
 		goto err_invalid_port;
 	}
-
-	priv->nn = nn;
 
 	eth_hw_addr_random(nn->dp.netdev);
 	netif_keep_dst(nn->dp.netdev);
@@ -333,6 +329,22 @@ static int nfp_flower_vnic_init(struct nfp_app *app, struct nfp_net *nn,
 err_invalid_port:
 	nn->port = nfp_port_alloc(app, NFP_PORT_INVALID, nn->dp.netdev);
 	return PTR_ERR_OR_ZERO(nn->port);
+}
+
+static void nfp_flower_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
+{
+	struct nfp_flower_priv *priv = app->priv;
+
+	priv->nn = NULL;
+}
+
+static int nfp_flower_vnic_init(struct nfp_app *app, struct nfp_net *nn)
+{
+	struct nfp_flower_priv *priv = app->priv;
+
+	priv->nn = nn;
+
+	return 0;
 }
 
 static int nfp_flower_init(struct nfp_app *app)
@@ -374,6 +386,7 @@ static int nfp_flower_init(struct nfp_app *app)
 		return -ENOMEM;
 
 	app->priv = app_priv;
+	app_priv->app = app;
 	skb_queue_head_init(&app_priv->cmsg_skbs);
 	INIT_WORK(&app_priv->cmsg_work, nfp_flower_cmsg_process_rx);
 
@@ -410,7 +423,9 @@ const struct nfp_app_type app_flower = {
 	.init		= nfp_flower_init,
 	.clean		= nfp_flower_clean,
 
+	.vnic_alloc	= nfp_flower_vnic_alloc,
 	.vnic_init	= nfp_flower_vnic_init,
+	.vnic_clean	= nfp_flower_vnic_clean,
 
 	.repr_open	= nfp_flower_repr_netdev_open,
 	.repr_stop	= nfp_flower_repr_netdev_stop,
