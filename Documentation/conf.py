@@ -273,9 +273,6 @@ latex_elements = {
     'preamble': '''
         \\usepackage{ifthen}
 
-        % Allow generate some pages in landscape
-        \\usepackage{lscape}
-
         % Put notes in color and let them be inside a table
 	\\definecolor{NoteColor}{RGB}{204,255,255}
 	\\definecolor{WarningColor}{RGB}{255,204,204}
