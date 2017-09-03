@@ -63,9 +63,17 @@ static int rmnet_vnd_change_mtu(struct net_device *rmnet_dev, int new_mtu)
 	return 0;
 }
 
+static int rmnet_vnd_get_iflink(const struct net_device *dev)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+
+	return priv->real_dev->ifindex;
+}
+
 static const struct net_device_ops rmnet_vnd_ops = {
 	.ndo_start_xmit = rmnet_vnd_start_xmit,
 	.ndo_change_mtu = rmnet_vnd_change_mtu,
+	.ndo_get_iflink = rmnet_vnd_get_iflink,
 };
 
 /* Called by kernel whenever a new rmnet<n> device is created. Sets MTU,
@@ -91,7 +99,8 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 /* Exposed API */
 
 int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
-		      struct rmnet_real_dev_info *r)
+		      struct rmnet_real_dev_info *r,
+		      struct net_device *real_dev)
 {
 	struct rmnet_priv *priv;
 	int rc;
@@ -107,6 +116,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 
 		priv = netdev_priv(rmnet_dev);
 		priv->mux_id = id;
+		priv->real_dev = real_dev;
 
 		netdev_dbg(rmnet_dev, "rmnet dev created\n");
 	}

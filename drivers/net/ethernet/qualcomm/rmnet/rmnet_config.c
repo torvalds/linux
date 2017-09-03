@@ -174,7 +174,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 		goto err0;
 
 	r = rmnet_get_real_dev_info_rtnl(real_dev);
-	err = rmnet_vnd_newlink(mux_id, dev, r);
+	err = rmnet_vnd_newlink(mux_id, dev, r, real_dev);
 	if (err)
 		goto err1;
 

@@ -47,6 +47,7 @@ extern struct rtnl_link_ops rmnet_link_ops;
 struct rmnet_priv {
 	struct rmnet_endpoint local_ep;
 	u8 mux_id;
+	struct net_device *real_dev;
 };
 
 struct rmnet_real_dev_info*
