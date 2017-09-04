@@ -47,3 +47,7 @@ Optional properties:
     See the datasheet for values.
     The second cell is ignored for codecs that do not have OUT6 (wm5102, wm8997,
     wm8998, wm1814)
+
+  - wlf,out-volume-limit : The volume limit value that should be applied to each
+    output channel. See the datasheet for exact values. Channels are specified
+    in the order OUT1L, OUT1R, OUT2L, OUT2R, etc.
