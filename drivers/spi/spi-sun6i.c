@@ -502,7 +502,7 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 
 	init_completion(&sspi->done);
 
-	sspi->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	sspi->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(sspi->rstc)) {
 		dev_err(&pdev->dev, "Couldn't get reset controller\n");
 		ret = PTR_ERR(sspi->rstc);
