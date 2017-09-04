@@ -163,13 +163,6 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 		crtc->funcs->atomic_destroy_state(crtc,
 						  state->crtcs[i].state);
 
-		if (state->crtcs[i].commit) {
-			kfree(state->crtcs[i].commit->event);
-			state->crtcs[i].commit->event = NULL;
-			drm_crtc_commit_put(state->crtcs[i].commit);
-		}
-
-		state->crtcs[i].commit = NULL;
 		state->crtcs[i].ptr = NULL;
 		state->crtcs[i].state = NULL;
 	}
