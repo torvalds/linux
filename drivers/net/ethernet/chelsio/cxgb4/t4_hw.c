@@ -4548,6 +4548,18 @@ static void mps_intr_handler(struct adapter *adapter)
 		{ FRMERR_F, "MPS Tx framing error", -1, 1 },
 		{ 0 }
 	};
+	static const struct intr_info t6_mps_tx_intr_info[] = {
+		{ TPFIFO_V(TPFIFO_M), "MPS Tx TP FIFO parity error", -1, 1 },
+		{ NCSIFIFO_F, "MPS Tx NC-SI FIFO parity error", -1, 1 },
+		{ TXDATAFIFO_V(TXDATAFIFO_M), "MPS Tx data FIFO parity error",
+		  -1, 1 },
+		{ TXDESCFIFO_V(TXDESCFIFO_M), "MPS Tx desc FIFO parity error",
+		  -1, 1 },
+		/* MPS Tx Bubble is normal for T6 */
+		{ SECNTERR_F, "MPS Tx SOP/EOP error", -1, 1 },
+		{ FRMERR_F, "MPS Tx framing error", -1, 1 },
+		{ 0 }
+	};
 	static const struct intr_info mps_trc_intr_info[] = {
 		{ FILTMEM_V(FILTMEM_M), "MPS TRC filter parity error", -1, 1 },
 		{ PKTFIFO_V(PKTFIFO_M), "MPS TRC packet FIFO parity error",
@@ -4579,7 +4591,9 @@ static void mps_intr_handler(struct adapter *adapter)
 	fat = t4_handle_intr_status(adapter, MPS_RX_PERR_INT_CAUSE_A,
 				    mps_rx_intr_info) +
 	      t4_handle_intr_status(adapter, MPS_TX_INT_CAUSE_A,
-				    mps_tx_intr_info) +
+				    is_t6(adapter->params.chip)
+				    ? t6_mps_tx_intr_info
+				    : mps_tx_intr_info) +
 	      t4_handle_intr_status(adapter, MPS_TRC_INT_CAUSE_A,
 				    mps_trc_intr_info) +
 	      t4_handle_intr_status(adapter, MPS_STAT_PERR_INT_CAUSE_SRAM_A,
