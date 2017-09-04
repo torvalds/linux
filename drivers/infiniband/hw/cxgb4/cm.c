@@ -2871,7 +2871,6 @@ static int close_con_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		return 0;
 
 	pr_debug("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
-	BUG_ON(!ep);
 
 	/* The cm_id may be null if we failed to connect */
 	mutex_lock(&ep->com.mutex);

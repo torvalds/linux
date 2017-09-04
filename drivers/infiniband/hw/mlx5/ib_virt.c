@@ -96,6 +96,7 @@ int mlx5_ib_set_vf_link_state(struct ib_device *device, int vf,
 	struct mlx5_ib_dev *dev = to_mdev(device);
 	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_hca_vport_context *in;
+	struct mlx5_vf_context *vfs_ctx = mdev->priv.sriov.vfs_ctx;
 	int err;
 
 	in = kzalloc(sizeof(*in), GFP_KERNEL);
@@ -109,6 +110,8 @@ int mlx5_ib_set_vf_link_state(struct ib_device *device, int vf,
 	}
 	in->field_select = MLX5_HCA_VPORT_SEL_STATE_POLICY;
 	err = mlx5_core_modify_hca_vport_context(mdev, 1, 1, vf + 1, in);
+	if (!err)
+		vfs_ctx[vf].policy = in->policy;
 
 out:
 	kfree(in);
@@ -151,6 +154,7 @@ static int set_vf_node_guid(struct ib_device *device, int vf, u8 port, u64 guid)
 	struct mlx5_ib_dev *dev = to_mdev(device);
 	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_hca_vport_context *in;
+	struct mlx5_vf_context *vfs_ctx = mdev->priv.sriov.vfs_ctx;
 	int err;
 
 	in = kzalloc(sizeof(*in), GFP_KERNEL);
@@ -160,6 +164,8 @@ static int set_vf_node_guid(struct ib_device *device, int vf, u8 port, u64 guid)
 	in->field_select = MLX5_HCA_VPORT_SEL_NODE_GUID;
 	in->node_guid = guid;
 	err = mlx5_core_modify_hca_vport_context(mdev, 1, 1, vf + 1, in);
+	if (!err)
+		vfs_ctx[vf].node_guid = guid;
 	kfree(in);
 	return err;
 }
@@ -169,6 +175,7 @@ static int set_vf_port_guid(struct ib_device *device, int vf, u8 port, u64 guid)
 	struct mlx5_ib_dev *dev = to_mdev(device);
 	struct mlx5_core_dev *mdev = dev->mdev;
 	struct mlx5_hca_vport_context *in;
+	struct mlx5_vf_context *vfs_ctx = mdev->priv.sriov.vfs_ctx;
 	int err;
 
 	in = kzalloc(sizeof(*in), GFP_KERNEL);
@@ -178,6 +185,8 @@ static int set_vf_port_guid(struct ib_device *device, int vf, u8 port, u64 guid)
 	in->field_select = MLX5_HCA_VPORT_SEL_PORT_GUID;
 	in->port_guid = guid;
 	err = mlx5_core_modify_hca_vport_context(mdev, 1, 1, vf + 1, in);
+	if (!err)
+		vfs_ctx[vf].port_guid = guid;
 	kfree(in);
 	return err;
 }

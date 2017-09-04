@@ -95,6 +95,7 @@ struct hfi1_packet;
 #define HFI1_VENDOR_IPG		cpu_to_be16(0xFFA0)
 
 #define IB_DEFAULT_GID_PREFIX	cpu_to_be64(0xfe80000000000000ULL)
+#define OPA_BTH_MIG_REQ		BIT(31)
 
 #define RC_OP(x) IB_OPCODE_RC_##x
 #define UC_OP(x) IB_OPCODE_UC_##x
@@ -103,6 +104,25 @@ struct hfi1_packet;
 enum {
 	HFI1_HAS_GRH = (1 << 0),
 };
+
+struct hfi1_16b_header {
+	u32 lrh[4];
+	union {
+		struct {
+			struct ib_grh grh;
+			struct ib_other_headers oth;
+		} l;
+		struct ib_other_headers oth;
+	} u;
+} __packed;
+
+struct hfi1_opa_header {
+	union {
+		struct ib_header ibh; /* 9B header */
+		struct hfi1_16b_header opah; /* 16B header */
+	};
+	u8 hdr_type; /* 9B or 16B */
+} __packed;
 
 struct hfi1_ahg_info {
 	u32 ahgdesc[2];
@@ -113,7 +133,7 @@ struct hfi1_ahg_info {
 
 struct hfi1_sdma_header {
 	__le64 pbc;
-	struct ib_header hdr;
+	struct hfi1_opa_header hdr;
 } __packed;
 
 /*
@@ -127,6 +147,7 @@ struct hfi1_qp_priv {
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
 	struct rvt_qp *owner;
+	u8 hdr_type; /* 9B or 16B */
 };
 
 /*
@@ -142,7 +163,9 @@ struct hfi1_pkt_state {
 	unsigned long timeout;
 	unsigned long timeout_int;
 	int cpu;
+	u8 opcode;
 	bool in_thread;
+	bool pkts_sent;
 };
 
 #define HFI1_PSN_CREDIT  16
@@ -236,8 +259,8 @@ static inline int hfi1_send_ok(struct rvt_qp *qp)
 /*
  * This must be called with s_lock held.
  */
-void hfi1_bad_pqkey(struct hfi1_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
-		    u32 qp1, u32 qp2, u16 lid1, u16 lid2);
+void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
+		   u32 qp1, u32 qp2, u32 lid1, u32 lid2);
 void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num);
 void hfi1_sys_guid_chg(struct hfi1_ibport *ibp);
 void hfi1_node_desc_chg(struct hfi1_ibport *ibp);
@@ -257,13 +280,8 @@ int hfi1_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
  * necessarily be at least one bit less than
  * the container holding the PSN.
  */
-#ifndef CONFIG_HFI1_VERBS_31BIT_PSN
-#define PSN_MASK 0xFFFFFF
-#define PSN_SHIFT 8
-#else
 #define PSN_MASK 0x7FFFFFFF
 #define PSN_SHIFT 1
-#endif
 #define PSN_MODIFY_MASK 0xFFFFFF
 
 /*
@@ -307,15 +325,12 @@ void hfi1_rc_rcv(struct hfi1_packet *packet);
 
 void hfi1_rc_hdrerr(
 	struct hfi1_ctxtdata *rcd,
-	struct ib_header *hdr,
-	u32 rcv_flags,
+	struct hfi1_packet *packet,
 	struct rvt_qp *qp);
 
 u8 ah_to_sc(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 
-struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid);
-
-void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
+void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah);
 
 void hfi1_ud_rcv(struct hfi1_packet *packet);
 
@@ -336,18 +351,7 @@ int hfi1_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
 extern const u32 rc_only_opcode;
 extern const u32 uc_only_opcode;
 
-static inline u8 get_opcode(struct ib_header *h)
-{
-	u16 lnh = be16_to_cpu(h->lrh[0]) & 3;
-
-	if (lnh == IB_LNH_IBA_LOCAL)
-		return be32_to_cpu(h->u.oth.bth[0]) >> 24;
-	else
-		return be32_to_cpu(h->u.l.oth.bth[0]) >> 24;
-}
-
-int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
-		       int has_grh, struct rvt_qp *qp, u32 bth0);
+int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet);
 
 u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 		  const struct ib_global_route *grh, u32 hwords, u32 nwords);
@@ -365,7 +369,8 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread);
 void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			enum ib_wc_status status);
 
-void hfi1_send_rc_ack(struct hfi1_ctxtdata *, struct rvt_qp *qp, int is_fecn);
+void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
+		      bool is_fecn);
 
 int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
@@ -378,6 +383,8 @@ int hfi1_register_ib_device(struct hfi1_devdata *);
 void hfi1_unregister_ib_device(struct hfi1_devdata *);
 
 void hfi1_ib_rcv(struct hfi1_packet *packet);
+
+void hfi1_16B_rcv(struct hfi1_packet *packet);
 
 unsigned hfi1_get_npkeys(struct hfi1_devdata *);
 

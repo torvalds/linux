@@ -1336,8 +1336,7 @@ static int iwch_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-static void get_dev_fw_ver_str(struct ib_device *ibdev, char *str,
-			       size_t str_len)
+static void get_dev_fw_ver_str(struct ib_device *ibdev, char *str)
 {
 	struct iwch_dev *iwch_dev = to_iwch_dev(ibdev);
 	struct ethtool_drvinfo info;
@@ -1345,7 +1344,7 @@ static void get_dev_fw_ver_str(struct ib_device *ibdev, char *str,
 
 	pr_debug("%s dev 0x%p\n", __func__, iwch_dev);
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
-	snprintf(str, str_len, "%s", info.fw_version);
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%s", info.fw_version);
 }
 
 int iwch_register_device(struct iwch_dev *dev)
