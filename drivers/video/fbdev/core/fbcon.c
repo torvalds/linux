@@ -498,8 +498,6 @@ static int __init fb_console_setup(char *this_opt)
 			options += 7;
 			if (*options)
 				margin_color = simple_strtoul(options, &options, 0);
-			if (margin_color > 7)
-				margin_color = 0;
 			continue;
 		}
 	}
