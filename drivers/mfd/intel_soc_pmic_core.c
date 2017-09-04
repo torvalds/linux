@@ -157,7 +157,7 @@ MODULE_DEVICE_TABLE(i2c, intel_soc_pmic_i2c_id);
 
 #if defined(CONFIG_ACPI)
 static const struct acpi_device_id intel_soc_pmic_acpi_match[] = {
-	{"INT33FD", (kernel_ulong_t)&intel_soc_pmic_config_crc},
+	{"INT33FD", (kernel_ulong_t)&intel_soc_pmic_config_byt_crc},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, intel_soc_pmic_acpi_match);
