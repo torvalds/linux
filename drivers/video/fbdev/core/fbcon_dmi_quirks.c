@@ -38,7 +38,7 @@ static const struct fbcon_dmi_rotate_data rotate_data_gpd_pocket = {
 	.width = 1200,
 	.height = 1920,
 	.bios_dates = (const char * const []){ "05/26/2017", "06/28/2017",
-		"07/05/2017", NULL },
+		"07/05/2017", "08/07/2017", NULL },
 	.rotate = FB_ROTATE_CW,
 };
 
