@@ -443,11 +443,6 @@ static inline int compat_timespec_compare(struct compat_timespec *lhs,
 	return lhs->tv_nsec - rhs->tv_nsec;
 }
 
-extern int get_compat_itimerspec(struct itimerspec *dst,
-				 const struct compat_itimerspec __user *src);
-extern int put_compat_itimerspec(struct compat_itimerspec __user *dst,
-				 const struct itimerspec *src);
-
 asmlinkage long compat_sys_gettimeofday(struct compat_timeval __user *tv,
 		struct timezone __user *tz);
 asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
