@@ -157,8 +157,7 @@ static int rv_construct_boot_state(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int rv_tf_set_clock_limit(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static int rv_set_clock_limit(struct pp_hwmgr *hwmgr, const void *input)
 {
 	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
 	struct PP_Clocks clocks = {0};
@@ -234,19 +233,12 @@ static int rv_set_active_display_count(struct pp_hwmgr *hwmgr, uint32_t count)
 	return 0;
 }
 
-static const struct phm_master_table_item rv_set_power_state_list[] = {
-	{ NULL, rv_tf_set_clock_limit },
-	{ }
-};
+static int rv_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
+{
+	return rv_set_clock_limit(hwmgr, input);
+}
 
-static const struct phm_master_table_header rv_set_power_state_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	rv_set_power_state_list
-};
-
-static int rv_tf_init_power_gate_state(struct pp_hwmgr *hwmgr, void *input,
-				void *output, void *storage, int result)
+static int rv_init_power_gate_state(struct pp_hwmgr *hwmgr)
 {
 	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
 
@@ -257,20 +249,13 @@ static int rv_tf_init_power_gate_state(struct pp_hwmgr *hwmgr, void *input,
 	return 0;
 }
 
-static const struct phm_master_table_item rv_setup_asic_list[] = {
-	{ .tableFunction = rv_tf_init_power_gate_state },
-	{ }
-};
 
-static const struct phm_master_table_header rv_setup_asic_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	rv_setup_asic_list
-};
+static int rv_setup_asic_task(struct pp_hwmgr *hwmgr)
+{
+	return rv_init_power_gate_state(hwmgr);
+}
 
-static int rv_tf_reset_cc6_data(struct pp_hwmgr *hwmgr,
-					void *input, void *output,
-					void *storage, int result)
+static int rv_reset_cc6_data(struct pp_hwmgr *hwmgr)
 {
 	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
 
@@ -282,21 +267,12 @@ static int rv_tf_reset_cc6_data(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static const struct phm_master_table_item rv_power_down_asic_list[] = {
-	{ .tableFunction = rv_tf_reset_cc6_data },
-	{ }
-};
+static int rv_power_off_asic(struct pp_hwmgr *hwmgr)
+{
+	return rv_reset_cc6_data(hwmgr);
+}
 
-static const struct phm_master_table_header rv_power_down_asic_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	rv_power_down_asic_list
-};
-
-
-static int rv_tf_disable_gfx_off(struct pp_hwmgr *hwmgr,
-						void *input, void *output,
-						void *storage, int result)
+static int rv_disable_gfx_off(struct pp_hwmgr *hwmgr)
 {
 	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
 
@@ -307,21 +283,12 @@ static int rv_tf_disable_gfx_off(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static const struct phm_master_table_item rv_disable_dpm_list[] = {
-	{NULL, rv_tf_disable_gfx_off},
-	{ },
-};
+static int rv_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
+{
+	return rv_disable_gfx_off(hwmgr);
+}
 
-
-static const struct phm_master_table_header rv_disable_dpm_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	rv_disable_dpm_list
-};
-
-static int rv_tf_enable_gfx_off(struct pp_hwmgr *hwmgr,
-						void *input, void *output,
-						void *storage, int result)
+static int rv_enable_gfx_off(struct pp_hwmgr *hwmgr)
 {
 	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
 
@@ -332,16 +299,10 @@ static int rv_tf_enable_gfx_off(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static const struct phm_master_table_item rv_enable_dpm_list[] = {
-	{NULL, rv_tf_enable_gfx_off},
-	{ },
-};
-
-static const struct phm_master_table_header rv_enable_dpm_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	rv_enable_dpm_list
-};
+static int rv_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
+{
+	return rv_enable_gfx_off(hwmgr);
+}
 
 static int rv_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				struct pp_power_state  *prequest_ps,
@@ -474,6 +435,9 @@ static int rv_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->backend = data;
 
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_TablelessHardwareInterface);
+
 	result = rv_initialize_dpm_defaults(hwmgr);
 	if (result != 0) {
 		pr_err("rv_initialize_dpm_defaults failed\n");
@@ -489,40 +453,6 @@ static int rv_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	}
 
 	rv_construct_boot_state(hwmgr);
-
-	result = phm_construct_table(hwmgr, &rv_setup_asic_master,
-				&(hwmgr->setup_asic));
-	if (result != 0) {
-		pr_err("Fail to construct setup ASIC\n");
-		return result;
-	}
-
-	result = phm_construct_table(hwmgr, &rv_power_down_asic_master,
-				&(hwmgr->power_down_asic));
-	if (result != 0) {
-		pr_err("Fail to construct power down ASIC\n");
-		return result;
-	}
-
-	result = phm_construct_table(hwmgr, &rv_set_power_state_master,
-				&(hwmgr->set_power_state));
-	if (result != 0) {
-		pr_err("Fail to construct set_power_state\n");
-		return result;
-	}
-
-	result = phm_construct_table(hwmgr, &rv_disable_dpm_master,
-				&(hwmgr->disable_dynamic_state_management));
-	if (result != 0) {
-		pr_err("Fail to disable_dynamic_state\n");
-		return result;
-	}
-	result = phm_construct_table(hwmgr, &rv_enable_dpm_master,
-				&(hwmgr->enable_dynamic_state_management));
-	if (result != 0) {
-		pr_err("Fail to enable_dynamic_state\n");
-		return result;
-	}
 
 	hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
 						RAVEN_MAX_HARDWARE_POWERLEVELS;
@@ -545,12 +475,6 @@ static int rv_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
 	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
 	struct rv_clock_voltage_information *pinfo = &(rv_data->clock_vol_info);
-
-	phm_destroy_table(hwmgr, &(hwmgr->set_power_state));
-	phm_destroy_table(hwmgr, &(hwmgr->enable_dynamic_state_management));
-	phm_destroy_table(hwmgr, &(hwmgr->disable_dynamic_state_management));
-	phm_destroy_table(hwmgr, &(hwmgr->power_down_asic));
-	phm_destroy_table(hwmgr, &(hwmgr->setup_asic));
 
 	kfree(pinfo->vdd_dep_on_dcefclk);
 	pinfo->vdd_dep_on_dcefclk = NULL;
@@ -946,6 +870,11 @@ static const struct pp_hwmgr_func rv_hwmgr_funcs = {
 	.read_sensor = rv_read_sensor,
 	.set_active_display_count = rv_set_active_display_count,
 	.set_deep_sleep_dcefclk = rv_set_deep_sleep_dcefclk,
+	.dynamic_state_management_enable = rv_enable_dpm_tasks,
+	.power_off_asic = rv_power_off_asic,
+	.asic_setup = rv_setup_asic_task,
+	.power_state_set = rv_set_power_state_tasks,
+	.dynamic_state_management_disable = rv_disable_dpm_tasks,
 };
 
 int rv_init_function_pointers(struct pp_hwmgr *hwmgr)
