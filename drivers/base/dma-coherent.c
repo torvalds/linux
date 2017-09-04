@@ -157,7 +157,6 @@ static void *__dma_alloc_from_coherent(struct dma_coherent_mem *mem,
 	int order = get_order(size);
 	unsigned long flags;
 	int pageno;
-	int dma_memory_map;
 	void *ret;
 
 	spin_lock_irqsave(&mem->spinlock, flags);
