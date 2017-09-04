@@ -201,9 +201,6 @@ static int vega10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 				PHM_PlatformCaps_ControlVDDCI);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_TablelessHardwareInterface);
-
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_EnableSMU7ThermalManagement);
 
 	sys_info.size = sizeof(struct cgs_system_info);

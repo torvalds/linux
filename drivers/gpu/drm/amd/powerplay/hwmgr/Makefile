@@ -2,7 +2,7 @@
 # Makefile for the 'hw manager' sub-component of powerplay.
 # It provides the hardware management services for the driver.
 
-HARDWARE_MGR = hwmgr.o processpptables.o functiontables.o \
+HARDWARE_MGR = hwmgr.o processpptables.o \
 		hardwaremanager.o pp_acpi.o cz_hwmgr.o \
 		cz_clockpowergating.o pppcielanes.o\
 		process_pptables_v1_0.o ppatomctrl.o ppatomfwctrl.o \

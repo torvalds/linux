@@ -1142,8 +1142,7 @@ static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		return -ENOMEM;
 
 	hwmgr->backend = data;
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_TablelessHardwareInterface);
+
 	result = cz_initialize_dpm_defaults(hwmgr);
 	if (result != 0) {
 		pr_err("cz_initialize_dpm_defaults failed\n");

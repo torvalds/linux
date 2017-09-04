@@ -852,10 +852,6 @@ int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_AutomaticDCTransition);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				PHM_PlatformCaps_TablelessHardwareInterface);
-
-
 	if (hwmgr->chip_id != CHIP_POLARIS10)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SPLLShutdownSupport);
@@ -882,9 +878,6 @@ int fiji_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_TCPRamping);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_TablelessHardwareInterface);
-
 	return 0;
 }
 
@@ -904,9 +897,6 @@ int tonga_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 		      PHM_PlatformCaps_VCEPowerGating);
 
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			 PHM_PlatformCaps_TablelessHardwareInterface);
-
 	return 0;
 }
 
@@ -920,8 +910,6 @@ int topaz_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_TDRamping);
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_TCPRamping);
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-			 PHM_PlatformCaps_TablelessHardwareInterface);
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 		    PHM_PlatformCaps_EVV);
 	return 0;

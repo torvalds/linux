@@ -36,29 +36,12 @@
 			return -EINVAL;				\
 	} while (0)
 
-bool phm_is_hw_access_blocked(struct pp_hwmgr *hwmgr)
-{
-	return hwmgr->block_hw_access;
-}
-
-int phm_block_hw_access(struct pp_hwmgr *hwmgr, bool block)
-{
-	hwmgr->block_hw_access = block;
-	return 0;
-}
-
 int phm_setup_asic(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->asic_setup)
-			return hwmgr->hwmgr_func->asic_setup(hwmgr);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->setup_asic),
-					  NULL, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->asic_setup)
+		return hwmgr->hwmgr_func->asic_setup(hwmgr);
 
 	return 0;
 }
@@ -67,14 +50,8 @@ int phm_power_down_asic(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->power_off_asic)
-			return hwmgr->hwmgr_func->power_off_asic(hwmgr);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->power_down_asic),
-					  NULL, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->power_off_asic)
+		return hwmgr->hwmgr_func->power_off_asic(hwmgr);
 
 	return 0;
 }
@@ -90,13 +67,8 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 	states.pcurrent_state = pcurrent_state;
 	states.pnew_state = pnew_power_state;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->power_state_set)
-			return hwmgr->hwmgr_func->power_state_set(hwmgr, &states);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->set_power_state), &states, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->power_state_set)
+		return hwmgr->hwmgr_func->power_state_set(hwmgr, &states);
 
 	return 0;
 }
@@ -107,15 +79,8 @@ int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 	bool enabled;
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
-			ret = hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
-	} else {
-		ret = phm_dispatch_table(hwmgr,
-				&(hwmgr->enable_dynamic_state_management),
-				NULL, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
+		ret = hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
 
 	enabled = ret == 0;
 
@@ -131,15 +96,8 @@ int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (hwmgr->hwmgr_func->dynamic_state_management_disable)
-			ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);
-	} else {
-		ret = phm_dispatch_table(hwmgr,
-				&(hwmgr->disable_dynamic_state_management),
-				NULL, NULL);
-	}
+	if (hwmgr->hwmgr_func->dynamic_state_management_disable)
+		ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);
 
 	enabled = ret == 0 ? false : true;
 
@@ -219,13 +177,9 @@ int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->enable_clock_power_gating)
-			return hwmgr->hwmgr_func->enable_clock_power_gating(hwmgr);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->enable_clock_power_gatings), NULL, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->enable_clock_power_gating)
+		return hwmgr->hwmgr_func->enable_clock_power_gating(hwmgr);
+
 	return 0;
 }
 
@@ -233,11 +187,9 @@ int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->disable_clock_power_gating)
-			return hwmgr->hwmgr_func->disable_clock_power_gating(hwmgr);
-	}
+	if (NULL != hwmgr->hwmgr_func->disable_clock_power_gating)
+		return hwmgr->hwmgr_func->disable_clock_power_gating(hwmgr);
+
 	return 0;
 }
 
@@ -246,12 +198,9 @@ int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				 PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->display_config_changed)
-			hwmgr->hwmgr_func->display_config_changed(hwmgr);
-	} else
-		return phm_dispatch_table(hwmgr, &hwmgr->display_configuration_changed, NULL, NULL);
+	if (NULL != hwmgr->hwmgr_func->display_config_changed)
+		hwmgr->hwmgr_func->display_config_changed(hwmgr);
+
 	return 0;
 }
 
@@ -259,9 +208,7 @@ int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				 PHM_PlatformCaps_TablelessHardwareInterface))
-		if (NULL != hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment)
+	if (NULL != hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment)
 			hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment(hwmgr);
 
 	return 0;

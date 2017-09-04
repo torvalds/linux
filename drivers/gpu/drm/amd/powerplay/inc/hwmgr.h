@@ -109,10 +109,6 @@ enum PHM_BackEnd_Magic {
 #define PHM_PCIE_POWERGATING_TARGET_PLLCASCADE     2
 #define PHM_PCIE_POWERGATING_TARGET_PHY            3
 
-typedef int (*phm_table_function)(struct pp_hwmgr *hwmgr, void *input,
-				  void *output, void *storage, int result);
-
-typedef bool (*phm_check_function)(struct pp_hwmgr *hwmgr);
 
 struct phm_set_power_state_input {
 	const struct pp_hw_power_state *pcurrent_state;
@@ -147,30 +143,6 @@ struct phm_gfx_arbiter {
 	uint32_t num_cus;
 	uint32_t gfxclk;
 	uint32_t fclk;
-};
-
-/* Entries in the master tables */
-struct phm_master_table_item {
-	phm_check_function isFunctionNeededInRuntimeTable;
-	phm_table_function tableFunction;
-};
-
-enum phm_master_table_flag {
-	PHM_MasterTableFlag_None         = 0,
-	PHM_MasterTableFlag_ExitOnError  = 1,
-};
-
-/* The header of the master tables */
-struct phm_master_table_header {
-	uint32_t storage_size;
-	uint32_t flags;
-	const struct phm_master_table_item *master_list;
-};
-
-struct phm_runtime_table_header {
-	uint32_t storage_size;
-	bool exit_error;
-	phm_table_function *function_list;
 };
 
 struct phm_clock_array {
@@ -215,19 +187,6 @@ struct phm_phase_shedding_limits_record {
 	uint32_t    Sclk;
 	uint32_t    Mclk;
 };
-
-
-extern int phm_dispatch_table(struct pp_hwmgr *hwmgr,
-			      struct phm_runtime_table_header *rt_table,
-			      void *input, void *output);
-
-extern int phm_construct_table(struct pp_hwmgr *hwmgr,
-			       const struct phm_master_table_header *master_table,
-			       struct phm_runtime_table_header *rt_table);
-
-extern int phm_destroy_table(struct pp_hwmgr *hwmgr,
-			     struct phm_runtime_table_header *rt_table);
-
 
 struct phm_uvd_clock_voltage_dependency_record {
 	uint32_t vclk;
@@ -749,7 +708,6 @@ struct pp_hwmgr {
 	enum amd_dpm_forced_level dpm_level;
 	enum amd_dpm_forced_level saved_dpm_level;
 	enum amd_dpm_forced_level request_dpm_level;
-	bool block_hw_access;
 	struct phm_gfx_arbiter gfx_arbiter;
 	struct phm_acp_arbiter acp_arbiter;
 	struct phm_uvd_arbiter uvd_arbiter;
@@ -760,13 +718,6 @@ struct pp_hwmgr {
 	void *backend;
 	enum PP_DAL_POWERLEVEL dal_power_level;
 	struct phm_dynamic_state_info dyn_state;
-	struct phm_runtime_table_header setup_asic;
-	struct phm_runtime_table_header power_down_asic;
-	struct phm_runtime_table_header disable_dynamic_state_management;
-	struct phm_runtime_table_header enable_dynamic_state_management;
-	struct phm_runtime_table_header set_power_state;
-	struct phm_runtime_table_header enable_clock_power_gatings;
-	struct phm_runtime_table_header display_configuration_changed;
 	const struct pp_hwmgr_func *hwmgr_func;
 	const struct pp_table_func *pptable_func;
 	struct pp_power_state    *ps;
