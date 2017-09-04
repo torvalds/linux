@@ -81,9 +81,6 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 		goto bug;
 	}
 
-	if (d_is_negative(dentry))
-		return dentry;
-
 	if (open_flags) {
 		err = ovl_open_maybe_copy_up(dentry, open_flags);
 		if (err)
