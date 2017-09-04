@@ -351,4 +351,6 @@ static inline int arizona_unregister_notifier(struct snd_soc_codec *codec,
 	return blocking_notifier_chain_unregister(&arizona->notifier, nb);
 }
 
+int arizona_of_get_audio_pdata(struct arizona *arizona);
+
 #endif
