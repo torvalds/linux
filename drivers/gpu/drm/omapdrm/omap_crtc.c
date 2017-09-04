@@ -589,8 +589,10 @@ omap_crtc_duplicate_state(struct drm_crtc *crtc)
 	current_state = to_omap_crtc_state(crtc->state);
 
 	state = kmalloc(sizeof(*state), GFP_KERNEL);
-	if (state)
-		__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
+	if (!state)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &state->base);
 
 	state->zpos = current_state->zpos;
 	state->rotation = current_state->rotation;

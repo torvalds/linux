@@ -387,7 +387,7 @@ static void ast_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct ast_framebuffer *ast_fb = to_ast_framebuffer(fb);
 
-	drm_gem_object_unreference_unlocked(ast_fb->obj);
+	drm_gem_object_put_unlocked(ast_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(ast_fb);
 }
@@ -429,13 +429,13 @@ ast_user_framebuffer_create(struct drm_device *dev,
 
 	ast_fb = kzalloc(sizeof(*ast_fb), GFP_KERNEL);
 	if (!ast_fb) {
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	ret = ast_framebuffer_init(dev, ast_fb, mode_cmd, obj);
 	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		kfree(ast_fb);
 		return ERR_PTR(ret);
 	}
@@ -628,7 +628,7 @@ int ast_dumb_create(struct drm_file *file,
 		return ret;
 
 	ret = drm_gem_handle_create(file, gobj, &handle);
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 	if (ret)
 		return ret;
 
@@ -676,7 +676,7 @@ ast_dumb_mmap_offset(struct drm_file *file,
 	bo = gem_to_ast_bo(obj);
 	*offset = ast_bo_mmap_offset(bo);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return 0;
 

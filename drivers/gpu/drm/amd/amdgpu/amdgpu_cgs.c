@@ -124,7 +124,7 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 	ret = amdgpu_bo_create_restricted(adev, size, PAGE_SIZE,
 					  true, domain, flags,
 					  NULL, &placement, NULL,
-					  &obj);
+					  0, &obj);
 	if (ret) {
 		DRM_ERROR("(%d) bo create failed\n", ret);
 		return ret;
@@ -166,7 +166,7 @@ static int amdgpu_cgs_gmap_gpu_mem(struct cgs_device *cgs_device, cgs_handle_t h
 	r = amdgpu_bo_reserve(obj, true);
 	if (unlikely(r != 0))
 		return r;
-	r = amdgpu_bo_pin_restricted(obj, obj->prefered_domains,
+	r = amdgpu_bo_pin_restricted(obj, obj->preferred_domains,
 				     min_offset, max_offset, mcaddr);
 	amdgpu_bo_unreserve(obj);
 	return r;
@@ -659,7 +659,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		info->version = (uint16_t)le32_to_cpu(header->header.ucode_version);
 
 		if (CGS_UCODE_ID_CP_MEC == type)
-			info->image_size = (header->jt_offset) << 2;
+			info->image_size = le32_to_cpu(header->jt_offset) << 2;
 
 		info->fw_version = amdgpu_get_firmware_version(cgs_device, type);
 		info->feature_version = (uint16_t)le32_to_cpu(header->ucode_feature_version);

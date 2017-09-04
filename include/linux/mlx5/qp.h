@@ -212,7 +212,6 @@ struct mlx5_wqe_ctrl_seg {
 #define MLX5_WQE_CTRL_OPCODE_MASK 0xff
 #define MLX5_WQE_CTRL_WQE_INDEX_MASK 0x00ffff00
 #define MLX5_WQE_CTRL_WQE_INDEX_SHIFT 8
-#define MLX5_WQE_AV_EXT 0x80000000
 
 enum {
 	MLX5_ETH_WQE_L3_INNER_CSUM      = 1 << 4,

@@ -82,7 +82,6 @@ static int pSeries_reconfig_remove_node(struct device_node *np)
 
 	of_detach_node(np);
 	of_node_put(parent);
-	of_node_put(np); /* Must decrement the refcount */
 	return 0;
 }
 

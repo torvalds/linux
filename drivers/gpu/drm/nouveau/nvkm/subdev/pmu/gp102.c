@@ -31,8 +31,15 @@ gp102_pmu_reset(struct nvkm_pmu *pmu)
 	nvkm_mask(device, 0x10a3c0, 0x00000001, 0x00000000);
 }
 
+static bool
+gp102_pmu_enabled(struct nvkm_pmu *pmu)
+{
+	return !(nvkm_rd32(pmu->subdev.device, 0x10a3c0) & 0x00000001);
+}
+
 static const struct nvkm_pmu_func
 gp102_pmu = {
+	.enabled = gp102_pmu_enabled,
 	.reset = gp102_pmu_reset,
 };
 

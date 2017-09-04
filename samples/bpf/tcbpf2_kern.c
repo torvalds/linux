@@ -147,9 +147,9 @@ int _geneve_set_tunnel(struct __sk_buff *skb)
 	__builtin_memset(&gopt, 0x0, sizeof(gopt));
 	gopt.opt_class = 0x102; /* Open Virtual Networking (OVN) */
 	gopt.type = 0x08;
-	gopt.r1 = 1;
+	gopt.r1 = 0;
 	gopt.r2 = 0;
-	gopt.r3 = 1;
+	gopt.r3 = 0;
 	gopt.length = 2; /* 4-byte multiple */
 	*(int *) &gopt.opt_data = 0xdeadbeef;
 

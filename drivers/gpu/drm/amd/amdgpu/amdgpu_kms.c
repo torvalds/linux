@@ -158,7 +158,6 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 				"Error during ACPI methods call\n");
 	}
 
-	amdgpu_amdkfd_load_interface(adev);
 	amdgpu_amdkfd_device_probe(adev);
 	amdgpu_amdkfd_device_init(adev);
 
@@ -456,13 +455,13 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		ui64 = atomic64_read(&adev->num_vram_cpu_page_faults);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_VRAM_USAGE:
-		ui64 = atomic64_read(&adev->vram_usage);
+		ui64 = amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_VIS_VRAM_USAGE:
-		ui64 = atomic64_read(&adev->vram_vis_usage);
+		ui64 = amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_GTT_USAGE:
-		ui64 = atomic64_read(&adev->gtt_usage);
+		ui64 = amdgpu_gtt_mgr_usage(&adev->mman.bdev.man[TTM_PL_TT]);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_GDS_CONFIG: {
 		struct drm_amdgpu_info_gds gds_info;
@@ -498,7 +497,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		mem.vram.total_heap_size = adev->mc.real_vram_size;
 		mem.vram.usable_heap_size =
 			adev->mc.real_vram_size - adev->vram_pin_size;
-		mem.vram.heap_usage = atomic64_read(&adev->vram_usage);
+		mem.vram.heap_usage =
+			amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		mem.vram.max_allocation = mem.vram.usable_heap_size * 3 / 4;
 
 		mem.cpu_accessible_vram.total_heap_size =
@@ -507,7 +507,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			adev->mc.visible_vram_size -
 			(adev->vram_pin_size - adev->invisible_pin_size);
 		mem.cpu_accessible_vram.heap_usage =
-			atomic64_read(&adev->vram_vis_usage);
+			amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		mem.cpu_accessible_vram.max_allocation =
 			mem.cpu_accessible_vram.usable_heap_size * 3 / 4;
 
@@ -515,7 +515,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		mem.gtt.total_heap_size *= PAGE_SIZE;
 		mem.gtt.usable_heap_size = mem.gtt.total_heap_size
 			- adev->gart_pin_size;
-		mem.gtt.heap_usage = atomic64_read(&adev->gtt_usage);
+		mem.gtt.heap_usage =
+			amdgpu_gtt_mgr_usage(&adev->mman.bdev.man[TTM_PL_TT]);
 		mem.gtt.max_allocation = mem.gtt.usable_heap_size * 3 / 4;
 
 		return copy_to_user(out, &mem,
@@ -589,11 +590,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		dev_info.virtual_address_offset = AMDGPU_VA_RESERVED_SIZE;
 		dev_info.virtual_address_max = (uint64_t)adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 		dev_info.virtual_address_alignment = max((int)PAGE_SIZE, AMDGPU_GPU_PAGE_SIZE);
-		dev_info.pte_fragment_size =
-			(1 << AMDGPU_LOG2_PAGES_PER_FRAG(adev)) *
-			AMDGPU_GPU_PAGE_SIZE;
+		dev_info.pte_fragment_size = (1 << adev->vm_manager.fragment_size) * AMDGPU_GPU_PAGE_SIZE;
 		dev_info.gart_page_size = AMDGPU_GPU_PAGE_SIZE;
-
 		dev_info.cu_active_number = adev->gfx.cu_info.number;
 		dev_info.cu_ao_mask = adev->gfx.cu_info.ao_cu_mask;
 		dev_info.ce_ram_size = adev->gfx.ce_ram_size;
@@ -842,7 +840,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	}
 
 	if (amdgpu_sriov_vf(adev)) {
-		r = amdgpu_map_static_csa(adev, &fpriv->vm);
+		r = amdgpu_map_static_csa(adev, &fpriv->vm, &fpriv->csa_va);
 		if (r)
 			goto out_suspend;
 	}
@@ -895,8 +893,8 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	if (amdgpu_sriov_vf(adev)) {
 		/* TODO: how to handle reserve failure */
 		BUG_ON(amdgpu_bo_reserve(adev->virt.csa_obj, true));
-		amdgpu_vm_bo_rmv(adev, fpriv->vm.csa_bo_va);
-		fpriv->vm.csa_bo_va = NULL;
+		amdgpu_vm_bo_rmv(adev, fpriv->csa_va);
+		fpriv->csa_va = NULL;
 		amdgpu_bo_unreserve(adev->virt.csa_obj);
 	}
 

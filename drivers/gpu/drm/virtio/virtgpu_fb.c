@@ -308,7 +308,7 @@ static int virtio_gpu_fbdev_destroy(struct drm_device *dev,
 
 	return 0;
 }
-static struct drm_fb_helper_funcs virtio_gpu_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs virtio_gpu_fb_helper_funcs = {
 	.fb_probe = virtio_gpufb_create,
 };
 

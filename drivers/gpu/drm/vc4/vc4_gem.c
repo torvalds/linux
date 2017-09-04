@@ -55,7 +55,7 @@ vc4_free_hang_state(struct drm_device *dev, struct vc4_hang_state *state)
 	unsigned int i;
 
 	for (i = 0; i < state->user_state.bo_count; i++)
-		drm_gem_object_unreference_unlocked(state->bo[i]);
+		drm_gem_object_put_unlocked(state->bo[i]);
 
 	kfree(state);
 }
@@ -188,12 +188,12 @@ vc4_save_hang_state(struct drm_device *dev)
 			continue;
 
 		for (j = 0; j < exec[i]->bo_count; j++) {
-			drm_gem_object_reference(&exec[i]->bo[j]->base);
+			drm_gem_object_get(&exec[i]->bo[j]->base);
 			kernel_state->bo[j + prev_idx] = &exec[i]->bo[j]->base;
 		}
 
 		list_for_each_entry(bo, &exec[i]->unref_list, unref_head) {
-			drm_gem_object_reference(&bo->base.base);
+			drm_gem_object_get(&bo->base.base);
 			kernel_state->bo[j + prev_idx] = &bo->base.base;
 			j++;
 		}
@@ -659,7 +659,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		/* See comment on bo_index for why we have to check
 		 * this.
 		 */
-		DRM_ERROR("Rendering requires BOs to validate\n");
+		DRM_DEBUG("Rendering requires BOs to validate\n");
 		return -EINVAL;
 	}
 
@@ -690,13 +690,13 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		struct drm_gem_object *bo = idr_find(&file_priv->object_idr,
 						     handles[i]);
 		if (!bo) {
-			DRM_ERROR("Failed to look up GEM BO %d: %d\n",
+			DRM_DEBUG("Failed to look up GEM BO %d: %d\n",
 				  i, handles[i]);
 			ret = -EINVAL;
 			spin_unlock(&file_priv->table_lock);
 			goto fail;
 		}
-		drm_gem_object_reference(bo);
+		drm_gem_object_get(bo);
 		exec->bo[i] = (struct drm_gem_cma_object *)bo;
 	}
 	spin_unlock(&file_priv->table_lock);
@@ -728,7 +728,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	    args->shader_rec_count >= (UINT_MAX /
 					  sizeof(struct vc4_shader_state)) ||
 	    temp_size < exec_size) {
-		DRM_ERROR("overflow in exec arguments\n");
+		DRM_DEBUG("overflow in exec arguments\n");
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -834,7 +834,7 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 
 	if (exec->bo) {
 		for (i = 0; i < exec->bo_count; i++)
-			drm_gem_object_unreference_unlocked(&exec->bo[i]->base);
+			drm_gem_object_put_unlocked(&exec->bo[i]->base);
 		kvfree(exec->bo);
 	}
 
@@ -842,7 +842,7 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 		struct vc4_bo *bo = list_first_entry(&exec->unref_list,
 						     struct vc4_bo, unref_head);
 		list_del(&bo->unref_head);
-		drm_gem_object_unreference_unlocked(&bo->base.base);
+		drm_gem_object_put_unlocked(&bo->base.base);
 	}
 
 	/* Free up the allocation of any bin slots we used. */
@@ -973,7 +973,7 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
 		return -EINVAL;
 	}
 	bo = to_vc4_bo(gem_obj);
@@ -981,7 +981,7 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 	ret = vc4_wait_for_seqno_ioctl_helper(dev, bo->seqno,
 					      &args->timeout_ns);
 
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 	return ret;
 }
 
@@ -1007,8 +1007,11 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct ww_acquire_ctx acquire_ctx;
 	int ret = 0;
 
-	if ((args->flags & ~VC4_SUBMIT_CL_USE_CLEAR_COLOR) != 0) {
-		DRM_ERROR("Unknown flags: 0x%02x\n", args->flags);
+	if ((args->flags & ~(VC4_SUBMIT_CL_USE_CLEAR_COLOR |
+			     VC4_SUBMIT_CL_FIXED_RCL_ORDER |
+			     VC4_SUBMIT_CL_RCL_ORDER_INCREASING_X |
+			     VC4_SUBMIT_CL_RCL_ORDER_INCREASING_Y)) != 0) {
+		DRM_DEBUG("Unknown flags: 0x%02x\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -1117,6 +1120,4 @@ vc4_gem_destroy(struct drm_device *dev)
 
 	if (vc4->hang_state)
 		vc4_free_hang_state(dev, vc4->hang_state);
-
-	vc4_bo_cache_destroy(dev);
 }

@@ -1962,9 +1962,6 @@ static int smu7_thermal_parameter_init(struct pp_hwmgr *hwmgr)
 			temp_reg = PHM_SET_FIELD(temp_reg, CNB_PWRMGT_CNTL, DPM_ENABLED, 0x1);
 			break;
 		default:
-			PP_ASSERT_WITH_CODE(0,
-			"Failed to setup PCC HW register! Wrong GPIO assigned for VDDC_PCC_GPIO_PINID!",
-			);
 			break;
 		}
 		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCNB_PWRMGT_CNTL, temp_reg);

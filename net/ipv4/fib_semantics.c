@@ -1452,7 +1452,7 @@ static int call_fib_nh_notifiers(struct fib_nh *fib_nh,
 		return call_fib_notifiers(dev_net(fib_nh->nh_dev), event_type,
 					  &info.info);
 	case FIB_EVENT_NH_DEL:
-		if ((IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
+		if ((in_dev && IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
 		     fib_nh->nh_flags & RTNH_F_LINKDOWN) ||
 		    (fib_nh->nh_flags & RTNH_F_DEAD))
 			return call_fib_notifiers(dev_net(fib_nh->nh_dev),

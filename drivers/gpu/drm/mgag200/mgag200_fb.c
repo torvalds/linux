@@ -232,7 +232,7 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 err_alloc_fbi:
 	vfree(sysram);
 err_sysram:
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 
 	return ret;
 }
@@ -245,7 +245,7 @@ static int mga_fbdev_destroy(struct drm_device *dev,
 	drm_fb_helper_unregister_fbi(&mfbdev->helper);
 
 	if (mfb->obj) {
-		drm_gem_object_unreference_unlocked(mfb->obj);
+		drm_gem_object_put_unlocked(mfb->obj);
 		mfb->obj = NULL;
 	}
 	drm_fb_helper_fini(&mfbdev->helper);

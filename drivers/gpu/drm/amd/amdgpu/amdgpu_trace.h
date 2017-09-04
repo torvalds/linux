@@ -14,6 +14,62 @@
 #define AMDGPU_JOB_GET_TIMELINE_NAME(job) \
 	 job->base.s_fence->finished.ops->get_timeline_name(&job->base.s_fence->finished)
 
+TRACE_EVENT(amdgpu_ttm_tt_populate,
+	    TP_PROTO(struct amdgpu_device *adev, uint64_t dma_address, uint64_t phys_address),
+	    TP_ARGS(adev, dma_address, phys_address),
+	    TP_STRUCT__entry(
+				__field(uint16_t, domain)
+				__field(uint8_t, bus)
+				__field(uint8_t, slot)
+				__field(uint8_t, func)
+				__field(uint64_t, dma)
+				__field(uint64_t, phys)
+			    ),
+	    TP_fast_assign(
+			   __entry->domain = pci_domain_nr(adev->pdev->bus);
+			   __entry->bus = adev->pdev->bus->number;
+			   __entry->slot = PCI_SLOT(adev->pdev->devfn);
+			   __entry->func = PCI_FUNC(adev->pdev->devfn);
+			   __entry->dma = dma_address;
+			   __entry->phys = phys_address;
+			   ),
+	    TP_printk("%04x:%02x:%02x.%x: 0x%llx => 0x%llx",
+		      (unsigned)__entry->domain,
+		      (unsigned)__entry->bus,
+		      (unsigned)__entry->slot,
+		      (unsigned)__entry->func,
+		      (unsigned long long)__entry->dma,
+		      (unsigned long long)__entry->phys)
+);
+
+TRACE_EVENT(amdgpu_ttm_tt_unpopulate,
+	    TP_PROTO(struct amdgpu_device *adev, uint64_t dma_address, uint64_t phys_address),
+	    TP_ARGS(adev, dma_address, phys_address),
+	    TP_STRUCT__entry(
+				__field(uint16_t, domain)
+				__field(uint8_t, bus)
+				__field(uint8_t, slot)
+				__field(uint8_t, func)
+				__field(uint64_t, dma)
+				__field(uint64_t, phys)
+			    ),
+	    TP_fast_assign(
+			   __entry->domain = pci_domain_nr(adev->pdev->bus);
+			   __entry->bus = adev->pdev->bus->number;
+			   __entry->slot = PCI_SLOT(adev->pdev->devfn);
+			   __entry->func = PCI_FUNC(adev->pdev->devfn);
+			   __entry->dma = dma_address;
+			   __entry->phys = phys_address;
+			   ),
+	    TP_printk("%04x:%02x:%02x.%x: 0x%llx => 0x%llx",
+		      (unsigned)__entry->domain,
+		      (unsigned)__entry->bus,
+		      (unsigned)__entry->slot,
+		      (unsigned)__entry->func,
+		      (unsigned long long)__entry->dma,
+		      (unsigned long long)__entry->phys)
+);
+
 TRACE_EVENT(amdgpu_mm_rreg,
 	    TP_PROTO(unsigned did, uint32_t reg, uint32_t value),
 	    TP_ARGS(did, reg, value),
@@ -105,12 +161,12 @@ TRACE_EVENT(amdgpu_bo_create,
 			   __entry->bo = bo;
 			   __entry->pages = bo->tbo.num_pages;
 			   __entry->type = bo->tbo.mem.mem_type;
-			   __entry->prefer = bo->prefered_domains;
+			   __entry->prefer = bo->preferred_domains;
 			   __entry->allow = bo->allowed_domains;
 			   __entry->visible = bo->flags;
 			   ),
 
-	    TP_printk("bo=%p, pages=%u, type=%d, prefered=%d, allowed=%d, visible=%d",
+	    TP_printk("bo=%p, pages=%u, type=%d, preferred=%d, allowed=%d, visible=%d",
 		       __entry->bo, __entry->pages, __entry->type,
 		       __entry->prefer, __entry->allow, __entry->visible)
 );
@@ -228,7 +284,7 @@ TRACE_EVENT(amdgpu_vm_bo_map,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->bo = bo_va ? bo_va->bo : NULL;
+			   __entry->bo = bo_va ? bo_va->base.bo : NULL;
 			   __entry->start = mapping->start;
 			   __entry->last = mapping->last;
 			   __entry->offset = mapping->offset;
@@ -252,7 +308,7 @@ TRACE_EVENT(amdgpu_vm_bo_unmap,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->bo = bo_va->bo;
+			   __entry->bo = bo_va->base.bo;
 			   __entry->start = mapping->start;
 			   __entry->last = mapping->last;
 			   __entry->offset = mapping->offset;

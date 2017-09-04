@@ -938,7 +938,7 @@ static struct scsi_host_template hpsa_driver_template = {
 #endif
 	.sdev_attrs = hpsa_sdev_attrs,
 	.shost_attrs = hpsa_shost_attrs,
-	.max_sectors = 8192,
+	.max_sectors = 1024,
 	.no_write_same = 1,
 };
 

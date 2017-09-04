@@ -20,6 +20,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include "vc4_drv.h"
 
 static void vc4_output_poll_changed(struct drm_device *dev)
@@ -169,7 +170,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 		gem_obj = drm_gem_object_lookup(file_priv,
 						mode_cmd->handles[0]);
 		if (!gem_obj) {
-			DRM_ERROR("Failed to look up GEM BO %d\n",
+			DRM_DEBUG("Failed to look up GEM BO %d\n",
 				  mode_cmd->handles[0]);
 			return ERR_PTR(-ENOENT);
 		}
@@ -184,12 +185,12 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 			mode_cmd_local.modifier[0] = DRM_FORMAT_MOD_NONE;
 		}
 
-		drm_gem_object_unreference_unlocked(gem_obj);
+		drm_gem_object_put_unlocked(gem_obj);
 
 		mode_cmd = &mode_cmd_local;
 	}
 
-	return drm_fb_cma_create(dev, file_priv, mode_cmd);
+	return drm_gem_fb_create(dev, file_priv, mode_cmd);
 }
 
 static const struct drm_mode_config_funcs vc4_mode_funcs = {

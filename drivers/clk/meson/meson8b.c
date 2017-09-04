@@ -267,6 +267,11 @@ static struct meson_clk_mpll meson8b_mpll0 = {
 		.shift   = 14,
 		.width   = 1,
 	},
+	.ssen = {
+		.reg_off = HHI_MPLL_CNTL,
+		.shift   = 25,
+		.width   = 1,
+	},
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll0",

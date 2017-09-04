@@ -1096,6 +1096,38 @@ static const struct drm_crtc_helper_funcs nv04_crtc_helper_funcs = {
 	.disable = nv_crtc_disable,
 };
 
+static const uint32_t modeset_formats[] = {
+        DRM_FORMAT_XRGB8888,
+        DRM_FORMAT_RGB565,
+        DRM_FORMAT_XRGB1555,
+};
+
+static struct drm_plane *
+create_primary_plane(struct drm_device *dev)
+{
+        struct drm_plane *primary;
+        int ret;
+
+        primary = kzalloc(sizeof(*primary), GFP_KERNEL);
+        if (primary == NULL) {
+                DRM_DEBUG_KMS("Failed to allocate primary plane\n");
+                return NULL;
+        }
+
+        /* possible_crtc's will be filled in later by crtc_init */
+        ret = drm_universal_plane_init(dev, primary, 0,
+                                       &drm_primary_helper_funcs,
+                                       modeset_formats,
+                                       ARRAY_SIZE(modeset_formats), NULL,
+                                       DRM_PLANE_TYPE_PRIMARY, NULL);
+        if (ret) {
+                kfree(primary);
+                primary = NULL;
+        }
+
+        return primary;
+}
+
 int
 nv04_crtc_create(struct drm_device *dev, int crtc_num)
 {
@@ -1114,7 +1146,9 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 	nv_crtc->save = nv_crtc_save;
 	nv_crtc->restore = nv_crtc_restore;
 
-	drm_crtc_init(dev, &nv_crtc->base, &nv04_crtc_funcs);
+	drm_crtc_init_with_planes(dev, &nv_crtc->base,
+                                  create_primary_plane(dev), NULL,
+                                  &nv04_crtc_funcs, NULL);
 	drm_crtc_helper_add(&nv_crtc->base, &nv04_crtc_helper_funcs);
 	drm_mode_crtc_set_gamma_size(&nv_crtc->base, 256);
 

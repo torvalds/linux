@@ -35,6 +35,8 @@ static void msm_hdmi_power_on(struct drm_bridge *bridge)
 	const struct hdmi_platform_config *config = hdmi->config;
 	int i, ret;
 
+	pm_runtime_get_sync(&hdmi->pdev->dev);
+
 	for (i = 0; i < config->pwr_reg_cnt; i++) {
 		ret = regulator_enable(hdmi->pwr_regs[i]);
 		if (ret) {
@@ -84,6 +86,8 @@ static void power_off(struct drm_bridge *bridge)
 					config->pwr_reg_names[i], ret);
 		}
 	}
+
+	pm_runtime_put_autosuspend(&hdmi->pdev->dev);
 }
 
 #define AVI_IFRAME_LINE_NUMBER 1

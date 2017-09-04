@@ -2141,9 +2141,7 @@ await_fence_array(struct i915_execbuffer *eb,
 		if (!(flags & I915_EXEC_FENCE_WAIT))
 			continue;
 
-		rcu_read_lock();
-		fence = dma_fence_get_rcu_safe(&syncobj->fence);
-		rcu_read_unlock();
+		fence = drm_syncobj_fence_get(syncobj);
 		if (!fence)
 			return -EINVAL;
 

@@ -26,6 +26,27 @@ struct lp87565_gpio {
 	struct regmap *map;
 };
 
+static int lp87565_gpio_get(struct gpio_chip *chip, unsigned int offset)
+{
+	struct lp87565_gpio *gpio = gpiochip_get_data(chip);
+	int ret, val;
+
+	ret = regmap_read(gpio->map, LP87565_REG_GPIO_IN, &val);
+	if (ret < 0)
+		return ret;
+
+	return !!(val & BIT(offset));
+}
+
+static void lp87565_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			     int value)
+{
+	struct lp87565_gpio *gpio = gpiochip_get_data(chip);
+
+	regmap_update_bits(gpio->map, LP87565_REG_GPIO_OUT,
+			   BIT(offset), value ? BIT(offset) : 0);
+}
+
 static int lp87565_gpio_get_direction(struct gpio_chip *chip,
 				      unsigned int offset)
 {
@@ -54,30 +75,11 @@ static int lp87565_gpio_direction_output(struct gpio_chip *chip,
 {
 	struct lp87565_gpio *gpio = gpiochip_get_data(chip);
 
+	lp87565_gpio_set(chip, offset, value);
+
 	return regmap_update_bits(gpio->map,
 				  LP87565_REG_GPIO_CONFIG,
-				  BIT(offset), !value ? BIT(offset) : 0);
-}
-
-static int lp87565_gpio_get(struct gpio_chip *chip, unsigned int offset)
-{
-	struct lp87565_gpio *gpio = gpiochip_get_data(chip);
-	int ret, val;
-
-	ret = regmap_read(gpio->map, LP87565_REG_GPIO_IN, &val);
-	if (ret < 0)
-		return ret;
-
-	return !!(val & BIT(offset));
-}
-
-static void lp87565_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			     int value)
-{
-	struct lp87565_gpio *gpio = gpiochip_get_data(chip);
-
-	regmap_update_bits(gpio->map, LP87565_REG_GPIO_OUT,
-			   BIT(offset), value ? BIT(offset) : 0);
+				  BIT(offset), BIT(offset));
 }
 
 static int lp87565_gpio_request(struct gpio_chip *gc, unsigned int offset)

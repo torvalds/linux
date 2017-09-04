@@ -529,13 +529,13 @@ do {										\
 
 /**
  * wait_event_interruptible_hrtimeout - sleep until a condition gets true or a timeout elapses
- * @wq_head: the waitqueue to wait on
+ * @wq: the waitqueue to wait on
  * @condition: a C expression for the event to wait for
  * @timeout: timeout, as a ktime_t
  *
  * The process is put to sleep (TASK_INTERRUPTIBLE) until the
  * @condition evaluates to true or a signal is received.
- * The @condition is checked each time the waitqueue @wq_head is woken up.
+ * The @condition is checked each time the waitqueue @wq is woken up.
  *
  * wake_up() has to be called after changing any variable that could
  * change the result of the wait condition.
@@ -735,12 +735,12 @@ extern int do_wait_intr_irq(wait_queue_head_t *, wait_queue_entry_t *);
 
 /**
  * wait_event_killable - sleep until a condition gets true
- * @wq: the waitqueue to wait on
+ * @wq_head: the waitqueue to wait on
  * @condition: a C expression for the event to wait for
  *
  * The process is put to sleep (TASK_KILLABLE) until the
  * @condition evaluates to true or a signal is received.
- * The @condition is checked each time the waitqueue @wq is woken up.
+ * The @condition is checked each time the waitqueue @wq_head is woken up.
  *
  * wake_up() has to be called after changing any variable that could
  * change the result of the wait condition.

@@ -209,7 +209,6 @@ static struct drm_driver driver = {
 	.gem_free_object_unlocked = ast_gem_free_object,
 	.dumb_create = ast_dumb_create,
 	.dumb_map_offset = ast_dumb_mmap_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 
 };
 

@@ -381,7 +381,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	struct exynos_drm_plane *exynos_plane;
 	struct exynos_drm_plane_config plane_config = { 0 };
 	unsigned int i;
-	int pipe, ret;
+	int ret;
 
 	ctx->drm_dev = drm_dev;
 
@@ -406,19 +406,14 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 		return PTR_ERR(ctx->crtc);
 	}
 
-	pipe = exynos_drm_crtc_get_pipe_from_type(drm_dev,
-						  EXYNOS_DISPLAY_TYPE_VIDI);
-	if (pipe < 0)
-		return pipe;
-
-	encoder->possible_crtcs = 1 << pipe;
-
-	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
-
 	drm_encoder_init(drm_dev, encoder, &exynos_vidi_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	drm_encoder_helper_add(encoder, &exynos_vidi_encoder_helper_funcs);
+
+	ret = exynos_drm_set_possible_crtcs(encoder, EXYNOS_DISPLAY_TYPE_VIDI);
+	if (ret < 0)
+		return ret;
 
 	ret = vidi_create_connector(encoder);
 	if (ret) {

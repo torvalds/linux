@@ -384,6 +384,12 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 
 	hotspot_x = du->hotspot_x;
 	hotspot_y = du->hotspot_y;
+
+	if (plane->fb) {
+		hotspot_x += plane->fb->hot_x;
+		hotspot_y += plane->fb->hot_y;
+	}
+
 	du->cursor_surface = vps->surf;
 	du->cursor_dmabuf = vps->dmabuf;
 
@@ -411,6 +417,9 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 		vmw_cursor_update_position(dev_priv, true,
 					   du->cursor_x + hotspot_x,
 					   du->cursor_y + hotspot_y);
+
+		du->core_hotspot_x = hotspot_x - du->hotspot_x;
+		du->core_hotspot_y = hotspot_y - du->hotspot_y;
 	} else {
 		DRM_ERROR("Failed to update cursor image\n");
 	}
@@ -2485,7 +2494,7 @@ void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 	if (file_priv)
 		vmw_execbuf_copy_fence_user(dev_priv, vmw_fpriv(file_priv),
 					    ret, user_fence_rep, fence,
-					    handle);
+					    handle, -1, NULL);
 	if (out_fence)
 		*out_fence = fence;
 	else

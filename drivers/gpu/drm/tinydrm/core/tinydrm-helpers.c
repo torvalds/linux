@@ -185,7 +185,9 @@ EXPORT_SYMBOL(tinydrm_xrgb8888_to_rgb565);
 /**
  * tinydrm_xrgb8888_to_gray8 - Convert XRGB8888 to grayscale
  * @dst: 8-bit grayscale destination buffer
+ * @vaddr: XRGB8888 source buffer
  * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
  *
  * Drm doesn't have native monochrome or grayscale support.
  * Such drivers can announce the commonly supported XR24 format to userspace
@@ -195,41 +197,31 @@ EXPORT_SYMBOL(tinydrm_xrgb8888_to_rgb565);
  * where 1 means foreground color and 0 background color.
  *
  * ITU BT.601 is used for the RGB -> luma (brightness) conversion.
- *
- * Returns:
- * Zero on success, negative error code on failure.
  */
-int tinydrm_xrgb8888_to_gray8(u8 *dst, struct drm_framebuffer *fb)
+void tinydrm_xrgb8888_to_gray8(u8 *dst, void *vaddr, struct drm_framebuffer *fb,
+			       struct drm_clip_rect *clip)
 {
-	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	struct dma_buf_attachment *import_attach = cma_obj->base.import_attach;
-	unsigned int x, y, pitch = fb->pitches[0];
-	int ret = 0;
+	unsigned int len = (clip->x2 - clip->x1) * sizeof(u32);
+	unsigned int x, y;
 	void *buf;
 	u32 *src;
 
 	if (WARN_ON(fb->format->format != DRM_FORMAT_XRGB8888))
-		return -EINVAL;
+		return;
 	/*
 	 * The cma memory is write-combined so reads are uncached.
 	 * Speed up by fetching one line at a time.
 	 */
-	buf = kmalloc(pitch, GFP_KERNEL);
+	buf = kmalloc(len, GFP_KERNEL);
 	if (!buf)
-		return -ENOMEM;
+		return;
 
-	if (import_attach) {
-		ret = dma_buf_begin_cpu_access(import_attach->dmabuf,
-					       DMA_FROM_DEVICE);
-		if (ret)
-			goto err_free;
-	}
-
-	for (y = 0; y < fb->height; y++) {
-		src = cma_obj->vaddr + (y * pitch);
-		memcpy(buf, src, pitch);
+	for (y = clip->y1; y < clip->y2; y++) {
+		src = vaddr + (y * fb->pitches[0]);
+		src += clip->x1;
+		memcpy(buf, src, len);
 		src = buf;
-		for (x = 0; x < fb->width; x++) {
+		for (x = clip->x1; x < clip->x2; x++) {
 			u8 r = (*src & 0x00ff0000) >> 16;
 			u8 g = (*src & 0x0000ff00) >> 8;
 			u8 b =  *src & 0x000000ff;
@@ -240,13 +232,7 @@ int tinydrm_xrgb8888_to_gray8(u8 *dst, struct drm_framebuffer *fb)
 		}
 	}
 
-	if (import_attach)
-		ret = dma_buf_end_cpu_access(import_attach->dmabuf,
-					     DMA_FROM_DEVICE);
-err_free:
 	kfree(buf);
-
-	return ret;
 }
 EXPORT_SYMBOL(tinydrm_xrgb8888_to_gray8);
 

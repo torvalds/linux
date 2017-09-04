@@ -312,7 +312,7 @@ static int sun4i_backend_of_get_id(struct device_node *node)
 		struct device_node *remote;
 		u32 reg;
 
-		remote = of_parse_phandle(ep, "remote-endpoint", 0);
+		remote = of_graph_get_remote_endpoint(ep);
 		if (!remote)
 			continue;
 

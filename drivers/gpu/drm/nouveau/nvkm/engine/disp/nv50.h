@@ -22,7 +22,7 @@ struct nv50_disp {
 		u8 type[3];
 	} pior;
 
-	struct nv50_disp_chan *chan[17];
+	struct nv50_disp_chan *chan[21];
 };
 
 void nv50_disp_super_1(struct nv50_disp *);

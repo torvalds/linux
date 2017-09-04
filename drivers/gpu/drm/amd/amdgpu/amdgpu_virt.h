@@ -90,7 +90,8 @@ static inline bool is_virtual_machine(void)
 
 struct amdgpu_vm;
 int amdgpu_allocate_static_csa(struct amdgpu_device *adev);
-int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm);
+int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			  struct amdgpu_bo_va **bo_va);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
 uint32_t amdgpu_virt_kiq_rreg(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_virt_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v);

@@ -2295,9 +2295,12 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 	int err, buddy_loaded = 0;
 	struct ext4_buddy e4b;
 	struct ext4_group_info *grinfo;
+	unsigned char blocksize_bits = min_t(unsigned char,
+					     sb->s_blocksize_bits,
+					     EXT4_MAX_BLOCK_LOG_SIZE);
 	struct sg {
 		struct ext4_group_info info;
-		ext4_grpblk_t counters[EXT4_MAX_BLOCK_LOG_SIZE + 2];
+		ext4_grpblk_t counters[blocksize_bits + 2];
 	} sg;
 
 	group--;
@@ -2306,8 +2309,6 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 			      " 2^0   2^1   2^2   2^3   2^4   2^5   2^6  "
 			      " 2^7   2^8   2^9   2^10  2^11  2^12  2^13  ]\n");
 
-	i = (sb->s_blocksize_bits + 2) * sizeof(sg.info.bb_counters[0]) +
-		sizeof(struct ext4_group_info);
 	grinfo = ext4_get_group_info(sb, group);
 	/* Load the group info in memory only if not already loaded. */
 	if (unlikely(EXT4_MB_GRP_NEED_INIT(grinfo))) {
@@ -2319,7 +2320,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 		buddy_loaded = 1;
 	}
 
-	memcpy(&sg, ext4_get_group_info(sb, group), i);
+	memcpy(&sg, ext4_get_group_info(sb, group), sizeof(sg));
 
 	if (buddy_loaded)
 		ext4_mb_unload_buddy(&e4b);
@@ -2327,7 +2328,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "#%-5u: %-5u %-5u %-5u [", group, sg.info.bb_free,
 			sg.info.bb_fragments, sg.info.bb_first_free);
 	for (i = 0; i <= 13; i++)
-		seq_printf(seq, " %-5u", i <= sb->s_blocksize_bits + 1 ?
+		seq_printf(seq, " %-5u", i <= blocksize_bits + 1 ?
 				sg.info.bb_counters[i] : 0);
 	seq_printf(seq, " ]\n");
 
@@ -2892,8 +2893,10 @@ void ext4_process_freed_data(struct super_block *sb, tid_t commit_tid)
 				break;
 		}
 
-		if (discard_bio)
+		if (discard_bio) {
 			submit_bio_wait(discard_bio);
+			bio_put(discard_bio);
+		}
 	}
 
 	list_for_each_entry_safe(entry, tmp, &freed_data_list, efd_list)

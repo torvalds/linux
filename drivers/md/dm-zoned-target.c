@@ -541,7 +541,7 @@ static void dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 		int ret;
 
 		/* Create a new chunk work */
-		cw = kmalloc(sizeof(struct dm_chunk_work), GFP_NOFS);
+		cw = kmalloc(sizeof(struct dm_chunk_work), GFP_NOIO);
 		if (!cw)
 			goto out;
 
@@ -588,7 +588,7 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 
 	bio->bi_bdev = dev->bdev;
 
-	if (!nr_sectors && (bio_op(bio) != REQ_OP_FLUSH) && (bio_op(bio) != REQ_OP_WRITE))
+	if (!nr_sectors && bio_op(bio) != REQ_OP_WRITE)
 		return DM_MAPIO_REMAPPED;
 
 	/* The BIO should be block aligned */
@@ -603,7 +603,7 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 	bioctx->status = BLK_STS_OK;
 
 	/* Set the BIO pending in the flush list */
-	if (bio_op(bio) == REQ_OP_FLUSH || (!nr_sectors && bio_op(bio) == REQ_OP_WRITE)) {
+	if (!nr_sectors && bio_op(bio) == REQ_OP_WRITE) {
 		spin_lock(&dmz->flush_lock);
 		bio_list_add(&dmz->flush_list, bio);
 		spin_unlock(&dmz->flush_lock);
@@ -785,7 +785,7 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	/* Chunk BIO work */
 	mutex_init(&dmz->chunk_lock);
-	INIT_RADIX_TREE(&dmz->chunk_rxtree, GFP_NOFS);
+	INIT_RADIX_TREE(&dmz->chunk_rxtree, GFP_KERNEL);
 	dmz->chunk_wq = alloc_workqueue("dmz_cwq_%s", WQ_MEM_RECLAIM | WQ_UNBOUND,
 					0, dev->name);
 	if (!dmz->chunk_wq) {

@@ -128,6 +128,8 @@ struct phm_uvd_arbiter {
 	uint32_t dclk;
 	uint32_t vclk_ceiling;
 	uint32_t dclk_ceiling;
+	uint32_t vclk_soft_min;
+	uint32_t dclk_soft_min;
 };
 
 struct phm_vce_arbiter {

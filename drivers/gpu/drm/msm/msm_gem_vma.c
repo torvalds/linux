@@ -42,7 +42,7 @@ void
 msm_gem_unmap_vma(struct msm_gem_address_space *aspace,
 		struct msm_gem_vma *vma, struct sg_table *sgt)
 {
-	if (!vma->iova)
+	if (!aspace || !vma->iova)
 		return;
 
 	if (aspace->mmu) {

@@ -1026,7 +1026,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 		if (old_plane_state->fb == new_plane_state->fb)
 			continue;
 
-		drm_framebuffer_reference(old_plane_state->fb);
+		drm_framebuffer_get(old_plane_state->fb);
 		drm_flip_work_queue(&vop->fb_unref_work, old_plane_state->fb);
 		set_bit(VOP_PENDING_FB_UNREF, &vop->pending);
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
@@ -1150,7 +1150,7 @@ static void vop_fb_unref_worker(struct drm_flip_work *work, void *val)
 	struct drm_framebuffer *fb = val;
 
 	drm_crtc_vblank_put(&vop->crtc);
-	drm_framebuffer_unreference(fb);
+	drm_framebuffer_put(fb);
 }
 
 static void vop_handle_vblank(struct vop *vop)

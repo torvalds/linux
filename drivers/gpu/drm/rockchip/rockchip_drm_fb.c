@@ -48,7 +48,7 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 	int i;
 
 	for (i = 0; i < ROCKCHIP_MAX_FB_BUFFER; i++)
-		drm_gem_object_unreference_unlocked(rockchip_fb->obj[i]);
+		drm_gem_object_put_unlocked(rockchip_fb->obj[i]);
 
 	drm_framebuffer_cleanup(fb);
 	kfree(rockchip_fb);
@@ -144,7 +144,7 @@ rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 			width * drm_format_plane_cpp(mode_cmd->pixel_format, i);
 
 		if (obj->size < min_size) {
-			drm_gem_object_unreference_unlocked(obj);
+			drm_gem_object_put_unlocked(obj);
 			ret = -EINVAL;
 			goto err_gem_object_unreference;
 		}
@@ -161,7 +161,7 @@ rockchip_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 err_gem_object_unreference:
 	for (i--; i >= 0; i--)
-		drm_gem_object_unreference_unlocked(objs[i]);
+		drm_gem_object_put_unlocked(objs[i]);
 	return ERR_PTR(ret);
 }
 

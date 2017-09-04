@@ -54,7 +54,6 @@ static struct drm_driver driver = {
 
 	.dumb_create = udl_dumb_create,
 	.dumb_map_offset = udl_gem_mmap,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &udl_driver_fops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
@@ -102,7 +101,7 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 	drm_kms_helper_poll_disable(dev);
 	udl_fbdev_unplug(dev);
 	udl_drop_usb(dev);
-	drm_unplug_dev(dev);
+	drm_dev_unplug(dev);
 }
 
 /*
@@ -112,7 +111,7 @@ static void udl_usb_disconnect(struct usb_interface *interface)
  * which is compatible with all known USB 2.0 era graphics chips and firmware,
  * but allows DisplayLink to increment those for any future incompatible chips
  */
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{.idVendor = 0x17e9, .bInterfaceClass = 0xff,
 	 .bInterfaceSubClass = 0x00,
 	 .bInterfaceProtocol = 0x00,

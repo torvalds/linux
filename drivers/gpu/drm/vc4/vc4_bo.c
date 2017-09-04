@@ -366,7 +366,7 @@ int vc4_dumb_create(struct drm_file *file_priv,
 		return PTR_ERR(bo);
 
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
-	drm_gem_object_unreference_unlocked(&bo->base.base);
+	drm_gem_object_put_unlocked(&bo->base.base);
 
 	return ret;
 }
@@ -482,7 +482,7 @@ vc4_prime_export(struct drm_device *dev, struct drm_gem_object *obj, int flags)
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader) {
-		DRM_ERROR("Attempting to export shader BO\n");
+		DRM_DEBUG("Attempting to export shader BO\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -503,7 +503,7 @@ int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 	bo = to_vc4_bo(gem_obj);
 
 	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
-		DRM_ERROR("mmaping of shader BOs for writing not allowed.\n");
+		DRM_DEBUG("mmaping of shader BOs for writing not allowed.\n");
 		return -EINVAL;
 	}
 
@@ -528,7 +528,7 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader && (vma->vm_flags & VM_WRITE)) {
-		DRM_ERROR("mmaping of shader BOs for writing not allowed.\n");
+		DRM_DEBUG("mmaping of shader BOs for writing not allowed.\n");
 		return -EINVAL;
 	}
 
@@ -540,7 +540,7 @@ void *vc4_prime_vmap(struct drm_gem_object *obj)
 	struct vc4_bo *bo = to_vc4_bo(obj);
 
 	if (bo->validated_shader) {
-		DRM_ERROR("mmaping of shader BOs not allowed.\n");
+		DRM_DEBUG("mmaping of shader BOs not allowed.\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -581,7 +581,7 @@ int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 		return PTR_ERR(bo);
 
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
-	drm_gem_object_unreference_unlocked(&bo->base.base);
+	drm_gem_object_put_unlocked(&bo->base.base);
 
 	return ret;
 }
@@ -594,14 +594,14 @@ int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
 		return -EINVAL;
 	}
 
 	/* The mmap offset was set up at BO allocation time. */
 	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
 
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 	return 0;
 }
 
@@ -657,7 +657,7 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
 
  fail:
-	drm_gem_object_unreference_unlocked(&bo->base.base);
+	drm_gem_object_put_unlocked(&bo->base.base);
 
 	return ret;
 }
@@ -698,13 +698,13 @@ int vc4_set_tiling_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 	bo = to_vc4_bo(gem_obj);
 	bo->t_format = t_format;
 
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 
 	return 0;
 }
@@ -729,7 +729,7 @@ int vc4_get_tiling_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 	bo = to_vc4_bo(gem_obj);
@@ -739,7 +739,7 @@ int vc4_get_tiling_ioctl(struct drm_device *dev, void *data,
 	else
 		args->modifier = DRM_FORMAT_MOD_NONE;
 
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 
 	return 0;
 }
@@ -830,7 +830,7 @@ int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		ret = -ENOMEM;
 	mutex_unlock(&vc4->bo_lock);
 
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 
 	return ret;
 }

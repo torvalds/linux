@@ -569,22 +569,41 @@ int armpmu_request_irq(struct arm_pmu *armpmu, int cpu)
 		if (irq != other_irq) {
 			pr_warn("mismatched PPIs detected.\n");
 			err = -EINVAL;
+			goto err_out;
 		}
 	} else {
-		err = request_irq(irq, handler,
-				  IRQF_NOBALANCING | IRQF_NO_THREAD, "arm-pmu",
+		struct arm_pmu_platdata *platdata = armpmu_get_platdata(armpmu);
+		unsigned long irq_flags;
+
+		err = irq_force_affinity(irq, cpumask_of(cpu));
+
+		if (err && num_possible_cpus() > 1) {
+			pr_warn("unable to set irq affinity (irq=%d, cpu=%u)\n",
+				irq, cpu);
+			goto err_out;
+		}
+
+		if (platdata && platdata->irq_flags) {
+			irq_flags = platdata->irq_flags;
+		} else {
+			irq_flags = IRQF_PERCPU |
+				    IRQF_NOBALANCING |
+				    IRQF_NO_THREAD;
+		}
+
+		err = request_irq(irq, handler, irq_flags, "arm-pmu",
 				  per_cpu_ptr(&hw_events->percpu_pmu, cpu));
 	}
 
-	if (err) {
-		pr_err("unable to request IRQ%d for ARM PMU counters\n",
-			irq);
-		return err;
-	}
+	if (err)
+		goto err_out;
 
 	cpumask_set_cpu(cpu, &armpmu->active_irqs);
-
 	return 0;
+
+err_out:
+	pr_err("unable to request IRQ%d for ARM PMU counters\n", irq);
+	return err;
 }
 
 int armpmu_request_irqs(struct arm_pmu *armpmu)
@@ -627,12 +646,6 @@ static int arm_perf_starting_cpu(unsigned int cpu, struct hlist_node *node)
 		if (irq_is_percpu(irq)) {
 			enable_percpu_irq(irq, IRQ_TYPE_NONE);
 			return 0;
-		}
-
-		if (irq_force_affinity(irq, cpumask_of(cpu)) &&
-		    num_possible_cpus() > 1) {
-			pr_warn("unable to set irq affinity (irq=%d, cpu=%u)\n",
-				irq, cpu);
 		}
 	}
 

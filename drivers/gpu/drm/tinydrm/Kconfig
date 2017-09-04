@@ -32,3 +32,13 @@ config TINYDRM_REPAPER
 	  2.71" TFT EPD Panel (E2271CS021)
 
 	  If M is selected the module will be called repaper.
+
+config TINYDRM_ST7586
+	tristate "DRM support for Sitronix ST7586 display panels"
+	depends on DRM_TINYDRM && SPI
+	select TINYDRM_MIPI_DBI
+	help
+	  DRM driver for the following Sitronix ST7586 panels:
+	  * LEGO MINDSTORMS EV3
+
+	  If M is selected the module will be called st7586.

@@ -811,7 +811,7 @@ static int dw_mipi_dsi_bridge_attach(struct drm_bridge *bridge)
 	return drm_bridge_attach(bridge->encoder, dsi->panel_bridge, bridge);
 }
 
-static struct drm_bridge_funcs dw_mipi_dsi_bridge_funcs = {
+static const struct drm_bridge_funcs dw_mipi_dsi_bridge_funcs = {
 	.mode_set     = dw_mipi_dsi_bridge_mode_set,
 	.enable	      = dw_mipi_dsi_bridge_enable,
 	.post_disable = dw_mipi_dsi_bridge_post_disable,

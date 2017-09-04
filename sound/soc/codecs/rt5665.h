@@ -1692,8 +1692,8 @@
 #define RT5665_GP6_PIN_MASK			(0x3 << 5)
 #define RT5665_GP6_PIN_SFT			5
 #define RT5665_GP6_PIN_GPIO6			(0x0 << 5)
-#define RT5665_GP6_PIN_BCLK3			(0x0 << 5)
-#define RT5665_GP6_PIN_PDM_SCL			(0x1 << 5)
+#define RT5665_GP6_PIN_BCLK3			(0x1 << 5)
+#define RT5665_GP6_PIN_PDM_SCL			(0x2 << 5)
 #define RT5665_GP7_PIN_MASK			(0x3 << 3)
 #define RT5665_GP7_PIN_SFT			3
 #define RT5665_GP7_PIN_GPIO7			(0x0 << 3)

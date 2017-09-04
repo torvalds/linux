@@ -260,6 +260,7 @@ static inline struct sk_buff *skb_recv_udp(struct sock *sk, unsigned int flags,
 }
 
 void udp_v4_early_demux(struct sk_buff *skb);
+void udp_sk_rx_dst_set(struct sock *sk, struct dst_entry *dst);
 int udp_get_port(struct sock *sk, unsigned short snum,
 		 int (*saddr_cmp)(const struct sock *,
 				  const struct sock *));
@@ -305,33 +306,44 @@ struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
 /* UDP uses skb->dev_scratch to cache as much information as possible and avoid
  * possibly multiple cache miss on dequeue()
  */
-#if BITS_PER_LONG == 64
-
-/* truesize, len and the bit needed to compute skb_csum_unnecessary will be on
- * cold cache lines at recvmsg time.
- * skb->len can be stored on 16 bits since the udp header has been already
- * validated and pulled.
- */
 struct udp_dev_scratch {
-	u32 truesize;
+	/* skb->truesize and the stateless bit are embedded in a single field;
+	 * do not use a bitfield since the compiler emits better/smaller code
+	 * this way
+	 */
+	u32 _tsize_state;
+
+#if BITS_PER_LONG == 64
+	/* len and the bit needed to compute skb_csum_unnecessary
+	 * will be on cold cache lines at recvmsg time.
+	 * skb->len can be stored on 16 bits since the udp header has been
+	 * already validated and pulled.
+	 */
 	u16 len;
 	bool is_linear;
 	bool csum_unnecessary;
+#endif
 };
 
+static inline struct udp_dev_scratch *udp_skb_scratch(struct sk_buff *skb)
+{
+	return (struct udp_dev_scratch *)&skb->dev_scratch;
+}
+
+#if BITS_PER_LONG == 64
 static inline unsigned int udp_skb_len(struct sk_buff *skb)
 {
-	return ((struct udp_dev_scratch *)&skb->dev_scratch)->len;
+	return udp_skb_scratch(skb)->len;
 }
 
 static inline bool udp_skb_csum_unnecessary(struct sk_buff *skb)
 {
-	return ((struct udp_dev_scratch *)&skb->dev_scratch)->csum_unnecessary;
+	return udp_skb_scratch(skb)->csum_unnecessary;
 }
 
 static inline bool udp_skb_is_linear(struct sk_buff *skb)
 {
-	return ((struct udp_dev_scratch *)&skb->dev_scratch)->is_linear;
+	return udp_skb_scratch(skb)->is_linear;
 }
 
 #else

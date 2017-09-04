@@ -585,18 +585,18 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	nouveau_led_suspend(dev);
 
 	if (dev->mode_config.num_crtc) {
-		NV_INFO(drm, "suspending console...\n");
+		NV_DEBUG(drm, "suspending console...\n");
 		nouveau_fbcon_set_suspend(dev, 1);
-		NV_INFO(drm, "suspending display...\n");
+		NV_DEBUG(drm, "suspending display...\n");
 		ret = nouveau_display_suspend(dev, runtime);
 		if (ret)
 			return ret;
 	}
 
-	NV_INFO(drm, "evicting buffers...\n");
+	NV_DEBUG(drm, "evicting buffers...\n");
 	ttm_bo_evict_mm(&drm->ttm.bdev, TTM_PL_VRAM);
 
-	NV_INFO(drm, "waiting for kernel channels to go idle...\n");
+	NV_DEBUG(drm, "waiting for kernel channels to go idle...\n");
 	if (drm->cechan) {
 		ret = nouveau_channel_idle(drm->cechan);
 		if (ret)
@@ -609,7 +609,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 			goto fail_display;
 	}
 
-	NV_INFO(drm, "suspending fence...\n");
+	NV_DEBUG(drm, "suspending fence...\n");
 	if (drm->fence && nouveau_fence(drm)->suspend) {
 		if (!nouveau_fence(drm)->suspend(drm)) {
 			ret = -ENOMEM;
@@ -617,7 +617,7 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 		}
 	}
 
-	NV_INFO(drm, "suspending object tree...\n");
+	NV_DEBUG(drm, "suspending object tree...\n");
 	ret = nvif_client_suspend(&drm->client.base);
 	if (ret)
 		goto fail_client;
@@ -630,7 +630,7 @@ fail_client:
 
 fail_display:
 	if (dev->mode_config.num_crtc) {
-		NV_INFO(drm, "resuming display...\n");
+		NV_DEBUG(drm, "resuming display...\n");
 		nouveau_display_resume(dev, runtime);
 	}
 	return ret;
@@ -641,19 +641,19 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	NV_INFO(drm, "resuming object tree...\n");
+	NV_DEBUG(drm, "resuming object tree...\n");
 	nvif_client_resume(&drm->client.base);
 
-	NV_INFO(drm, "resuming fence...\n");
+	NV_DEBUG(drm, "resuming fence...\n");
 	if (drm->fence && nouveau_fence(drm)->resume)
 		nouveau_fence(drm)->resume(drm);
 
 	nouveau_run_vbios_init(dev);
 
 	if (dev->mode_config.num_crtc) {
-		NV_INFO(drm, "resuming display...\n");
+		NV_DEBUG(drm, "resuming display...\n");
 		nouveau_display_resume(dev, runtime);
-		NV_INFO(drm, "resuming console...\n");
+		NV_DEBUG(drm, "resuming console...\n");
 		nouveau_fbcon_set_suspend(dev, 0);
 	}
 

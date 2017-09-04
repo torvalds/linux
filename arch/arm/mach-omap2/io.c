@@ -410,7 +410,7 @@ static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
 	return omap_hwmod_set_postsetup_state(oh, *(u8 *)data);
 }
 
-static void __init omap_hwmod_init_postsetup(void)
+static void __init __maybe_unused omap_hwmod_init_postsetup(void)
 {
 	u8 postsetup_state;
 
@@ -428,7 +428,6 @@ static void __init omap_hwmod_init_postsetup(void)
 static void __init __maybe_unused omap_common_late_init(void)
 {
 	omap2_common_pm_late_init();
-	omap_soc_device_init();
 }
 
 #ifdef CONFIG_SOC_OMAP2420

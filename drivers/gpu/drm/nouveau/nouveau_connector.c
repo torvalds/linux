@@ -1147,8 +1147,6 @@ nouveau_connector_aux_xfer(struct drm_dp_aux *obj, struct drm_dp_aux_msg *msg)
 		return -ENODEV;
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
-	if (msg->size == 0)
-		return msg->size;
 
 	ret = nvkm_i2c_aux_acquire(aux);
 	if (ret)
@@ -1186,6 +1184,7 @@ drm_conntype_from_dcb(enum dcb_connector_type dcb)
 	case DCB_CONNECTOR_HDMI_0   :
 	case DCB_CONNECTOR_HDMI_1   :
 	case DCB_CONNECTOR_HDMI_C   : return DRM_MODE_CONNECTOR_HDMIA;
+	case DCB_CONNECTOR_WFD	    : return DRM_MODE_CONNECTOR_VIRTUAL;
 	default:
 		break;
 	}

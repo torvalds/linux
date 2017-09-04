@@ -821,7 +821,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	if (err)
 		goto error;
 
-	dev_info(&dev->intf->dev, "Input extension successfully initalized\n");
+	dev_info(&dev->intf->dev, "Input extension successfully initialized\n");
 
 	return 0;
 
