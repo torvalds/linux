@@ -63,9 +63,17 @@ static int rmnet_vnd_change_mtu(struct net_device *rmnet_dev, int new_mtu)
 	return 0;
 }
 
+static int rmnet_vnd_get_iflink(const struct net_device *dev)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+
+	return priv->real_dev->ifindex;
+}
+
 static const struct net_device_ops rmnet_vnd_ops = {
 	.ndo_start_xmit = rmnet_vnd_start_xmit,
 	.ndo_change_mtu = rmnet_vnd_change_mtu,
+	.ndo_get_iflink = rmnet_vnd_get_iflink,
 };
 
 /* Called by kernel whenever a new rmnet<n> device is created. Sets MTU,
@@ -73,8 +81,6 @@ static const struct net_device_ops rmnet_vnd_ops = {
  */
 void rmnet_vnd_setup(struct net_device *rmnet_dev)
 {
-	netdev_dbg(rmnet_dev, "Setting up device %s\n", rmnet_dev->name);
-
 	rmnet_dev->netdev_ops = &rmnet_vnd_ops;
 	rmnet_dev->mtu = RMNET_DFLT_PACKET_SIZE;
 	rmnet_dev->needed_headroom = RMNET_NEEDED_HEADROOM;
@@ -93,30 +99,39 @@ void rmnet_vnd_setup(struct net_device *rmnet_dev)
 /* Exposed API */
 
 int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
-		      struct rmnet_real_dev_info *r)
+		      struct rmnet_port *port,
+		      struct net_device *real_dev)
 {
+	struct rmnet_priv *priv;
 	int rc;
 
-	if (r->rmnet_devices[id])
+	if (port->rmnet_devices[id])
 		return -EINVAL;
 
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {
-		r->rmnet_devices[id] = rmnet_dev;
-		r->nr_rmnet_devs++;
+		port->rmnet_devices[id] = rmnet_dev;
+		port->nr_rmnet_devs++;
+
 		rmnet_dev->rtnl_link_ops = &rmnet_link_ops;
+
+		priv = netdev_priv(rmnet_dev);
+		priv->mux_id = id;
+		priv->real_dev = real_dev;
+
+		netdev_dbg(rmnet_dev, "rmnet dev created\n");
 	}
 
 	return rc;
 }
 
-int rmnet_vnd_dellink(u8 id, struct rmnet_real_dev_info *r)
+int rmnet_vnd_dellink(u8 id, struct rmnet_port *port)
 {
-	if (id >= RMNET_MAX_VND || !r->rmnet_devices[id])
+	if (id >= RMNET_MAX_LOGICAL_EP || !port->rmnet_devices[id])
 		return -EINVAL;
 
-	r->rmnet_devices[id] = NULL;
-	r->nr_rmnet_devs--;
+	port->rmnet_devices[id] = NULL;
+	port->nr_rmnet_devs--;
 	return 0;
 }
 
@@ -126,14 +141,6 @@ u8 rmnet_vnd_get_mux(struct net_device *rmnet_dev)
 
 	priv = netdev_priv(rmnet_dev);
 	return priv->mux_id;
-}
-
-void rmnet_vnd_set_mux(struct net_device *rmnet_dev, u8 mux_id)
-{
-	struct rmnet_priv *priv;
-
-	priv = netdev_priv(rmnet_dev);
-	priv->mux_id = mux_id;
 }
 
 /* Gets the logical endpoint configuration for a RmNet virtual network device

@@ -13,7 +13,6 @@
 #ifndef _RMNET_PRIVATE_H_
 #define _RMNET_PRIVATE_H_
 
-#define RMNET_MAX_VND              32
 #define RMNET_MAX_PACKET_SIZE      16384
 #define RMNET_DFLT_PACKET_SIZE     1500
 #define RMNET_NEEDED_HEADROOM      16

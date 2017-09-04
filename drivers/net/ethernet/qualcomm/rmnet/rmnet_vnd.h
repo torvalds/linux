@@ -19,11 +19,11 @@
 int rmnet_vnd_do_flow_control(struct net_device *dev, int enable);
 struct rmnet_endpoint *rmnet_vnd_get_endpoint(struct net_device *dev);
 int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
-		      struct rmnet_real_dev_info *r);
-int rmnet_vnd_dellink(u8 id, struct rmnet_real_dev_info *r);
+		      struct rmnet_port *port,
+		      struct net_device *real_dev);
+int rmnet_vnd_dellink(u8 id, struct rmnet_port *port);
 void rmnet_vnd_rx_fixup(struct sk_buff *skb, struct net_device *dev);
 void rmnet_vnd_tx_fixup(struct sk_buff *skb, struct net_device *dev);
 u8 rmnet_vnd_get_mux(struct net_device *rmnet_dev);
-void rmnet_vnd_set_mux(struct net_device *rmnet_dev, u8 mux_id);
 void rmnet_vnd_setup(struct net_device *dev);
 #endif /* _RMNET_VND_H_ */
