@@ -41,7 +41,9 @@ ret_fast_syscall:
  UNWIND(.cantunwind	)
 	disable_irq_notrace			@ disable interrupts
 	ldr	r1, [tsk, #TI_FLAGS]		@ re-check for syscall tracing
-	tst	r1, #_TIF_SYSCALL_WORK | _TIF_WORK_MASK
+	tst	r1, #_TIF_SYSCALL_WORK
+	bne	fast_work_pending
+	tst	r1, #_TIF_WORK_MASK
 	bne	fast_work_pending
 
 	/* perform architecture specific actions before user return */
@@ -67,12 +69,15 @@ ret_fast_syscall:
 	str	r0, [sp, #S_R0 + S_OFF]!	@ save returned r0
 	disable_irq_notrace			@ disable interrupts
 	ldr	r1, [tsk, #TI_FLAGS]		@ re-check for syscall tracing
-	tst	r1, #_TIF_SYSCALL_WORK | _TIF_WORK_MASK
+	tst	r1, #_TIF_SYSCALL_WORK
+	bne	fast_work_pending
+	tst	r1, #_TIF_WORK_MASK
 	beq	no_work_pending
  UNWIND(.fnend		)
 ENDPROC(ret_fast_syscall)
 
 	/* Slower path - fall through to work_pending */
+fast_work_pending:
 #endif
 
 	tst	r1, #_TIF_SYSCALL_WORK
