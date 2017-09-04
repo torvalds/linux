@@ -136,15 +136,13 @@ int psp_v10_0_prep_cmd_buf(struct amdgpu_firmware_info *ucode, struct psp_gfx_cm
 {
 	int ret;
 	uint64_t fw_mem_mc_addr = ucode->mc_addr;
-	struct  common_firmware_header *header;
 
 	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
-	header = (struct common_firmware_header *)ucode->fw;
 
 	cmd->cmd_id = GFX_CMD_ID_LOAD_IP_FW;
 	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = lower_32_bits(fw_mem_mc_addr);
 	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_hi = upper_32_bits(fw_mem_mc_addr);
-	cmd->cmd.cmd_load_ip_fw.fw_size = le32_to_cpu(header->ucode_size_bytes);
+	cmd->cmd.cmd_load_ip_fw.fw_size = ucode->ucode_size;
 
 	ret = psp_v10_0_get_fw_type(ucode, &cmd->cmd.cmd_load_ip_fw.fw_type);
 	if (ret)
@@ -245,15 +243,20 @@ int psp_v10_0_cmd_submit(struct psp_context *psp,
 	struct psp_gfx_rb_frame * write_frame = psp->km_ring.ring_mem;
 	struct psp_ring *ring = &psp->km_ring;
 	struct amdgpu_device *adev = psp->adev;
+	uint32_t ring_size_dw = ring->ring_size / 4;
+	uint32_t rb_frame_size_dw = sizeof(struct psp_gfx_rb_frame) / 4;
 
 	/* KM (GPCOM) prepare write pointer */
 	psp_write_ptr_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
 
 	/* Update KM RB frame pointer to new frame */
-	if ((psp_write_ptr_reg % ring->ring_size) == 0)
+	if ((psp_write_ptr_reg % ring_size_dw) == 0)
 		write_frame = ring->ring_mem;
 	else
-		write_frame = ring->ring_mem + (psp_write_ptr_reg / (sizeof(struct psp_gfx_rb_frame) / 4));
+		write_frame = ring->ring_mem + (psp_write_ptr_reg / rb_frame_size_dw);
+
+	/* Initialize KM RB frame */
+	memset(write_frame, 0, sizeof(struct psp_gfx_rb_frame));
 
 	/* Update KM RB frame */
 	write_frame->cmd_buf_addr_hi = upper_32_bits(cmd_buf_mc_addr);
@@ -263,8 +266,7 @@ int psp_v10_0_cmd_submit(struct psp_context *psp,
 	write_frame->fence_value = index;
 
 	/* Update the write Pointer in DWORDs */
-	psp_write_ptr_reg += sizeof(struct psp_gfx_rb_frame) / 4;
-	psp_write_ptr_reg = (psp_write_ptr_reg >= ring->ring_size) ? 0 : psp_write_ptr_reg;
+	psp_write_ptr_reg = (psp_write_ptr_reg + rb_frame_size_dw) % ring_size_dw;
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67, psp_write_ptr_reg);
 
 	return 0;
