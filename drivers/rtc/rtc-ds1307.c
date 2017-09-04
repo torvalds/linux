@@ -1667,9 +1667,8 @@ read_rtc:
 	}
 
 	ds1307->rtc = devm_rtc_allocate_device(ds1307->dev);
-	if (IS_ERR(ds1307->rtc)) {
+	if (IS_ERR(ds1307->rtc))
 		return PTR_ERR(ds1307->rtc);
-	}
 
 	if (ds1307_can_wakeup_device && !want_irq) {
 		dev_info(ds1307->dev,
@@ -1688,8 +1687,9 @@ read_rtc:
 			device_set_wakeup_capable(ds1307->dev, false);
 			clear_bit(HAS_ALARM, &ds1307->flags);
 			dev_err(ds1307->dev, "unable to request IRQ!\n");
-		} else
+		} else {
 			dev_dbg(ds1307->dev, "got IRQ %d\n", client->irq);
+		}
 	}
 
 	if (chip->nvram_size) {
