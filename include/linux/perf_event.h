@@ -147,9 +147,6 @@ struct hw_perf_event {
 			struct list_head	cqm_groups_entry;
 			struct list_head	cqm_group_entry;
 		};
-		struct { /* itrace */
-			int			itrace_started;
-		};
 		struct { /* amd_power */
 			u64	pwr_acc;
 			u64	ptsc;
@@ -541,6 +538,7 @@ struct swevent_hlist {
 #define PERF_ATTACH_GROUP	0x02
 #define PERF_ATTACH_TASK	0x04
 #define PERF_ATTACH_TASK_DATA	0x08
+#define PERF_ATTACH_ITRACE	0x10
 
 struct perf_cgroup;
 struct ring_buffer;
@@ -864,6 +862,7 @@ extern int perf_aux_output_skip(struct perf_output_handle *handle,
 				unsigned long size);
 extern void *perf_get_aux(struct perf_output_handle *handle);
 extern void perf_aux_output_flag(struct perf_output_handle *handle, u64 flags);
+extern void perf_event_itrace_started(struct perf_event *event);
 
 extern int perf_pmu_register(struct pmu *pmu, const char *name, int type);
 extern void perf_pmu_unregister(struct pmu *pmu);
@@ -944,6 +943,8 @@ struct perf_sample_data {
 
 	struct perf_regs		regs_intr;
 	u64				stack_user_size;
+
+	u64				phys_addr;
 } ____cacheline_aligned;
 
 /* default value for data source */

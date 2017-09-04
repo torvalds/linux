@@ -1249,26 +1249,31 @@ unclone_ctx(struct perf_event_context *ctx)
 	return parent_ctx;
 }
 
-static u32 perf_event_pid(struct perf_event *event, struct task_struct *p)
+static u32 perf_event_pid_type(struct perf_event *event, struct task_struct *p,
+				enum pid_type type)
 {
+	u32 nr;
 	/*
 	 * only top level events have the pid namespace they were created in
 	 */
 	if (event->parent)
 		event = event->parent;
 
-	return task_tgid_nr_ns(p, event->ns);
+	nr = __task_pid_nr_ns(p, type, event->ns);
+	/* avoid -1 if it is idle thread or runs in another ns */
+	if (!nr && !pid_alive(p))
+		nr = -1;
+	return nr;
+}
+
+static u32 perf_event_pid(struct perf_event *event, struct task_struct *p)
+{
+	return perf_event_pid_type(event, p, __PIDTYPE_TGID);
 }
 
 static u32 perf_event_tid(struct perf_event *event, struct task_struct *p)
 {
-	/*
-	 * only top level events have the pid namespace they were created in
-	 */
-	if (event->parent)
-		event = event->parent;
-
-	return task_pid_nr_ns(p, event->ns);
+	return perf_event_pid_type(event, p, PIDTYPE_PID);
 }
 
 /*
@@ -1569,6 +1574,9 @@ static void __perf_event_header_size(struct perf_event *event, u64 sample_type)
 
 	if (sample_type & PERF_SAMPLE_TRANSACTION)
 		size += sizeof(data->txn);
+
+	if (sample_type & PERF_SAMPLE_PHYS_ADDR)
+		size += sizeof(data->phys_addr);
 
 	event->header_size = size;
 }
@@ -3211,6 +3219,13 @@ static void perf_event_context_sched_in(struct perf_event_context *ctx,
 		return;
 
 	perf_ctx_lock(cpuctx, ctx);
+	/*
+	 * We must check ctx->nr_events while holding ctx->lock, such
+	 * that we serialize against perf_install_in_context().
+	 */
+	if (!ctx->nr_events)
+		goto unlock;
+
 	perf_pmu_disable(ctx->pmu);
 	/*
 	 * We want to keep the following priority order:
@@ -3224,6 +3239,8 @@ static void perf_event_context_sched_in(struct perf_event_context *ctx,
 		cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
 	perf_event_sched_in(cpuctx, ctx, task);
 	perf_pmu_enable(ctx->pmu);
+
+unlock:
 	perf_ctx_unlock(cpuctx, ctx);
 }
 
@@ -6003,6 +6020,9 @@ void perf_output_sample(struct perf_output_handle *handle,
 		}
 	}
 
+	if (sample_type & PERF_SAMPLE_PHYS_ADDR)
+		perf_output_put(handle, data->phys_addr);
+
 	if (!event->attr.watermark) {
 		int wakeup_events = event->attr.wakeup_events;
 
@@ -6016,6 +6036,38 @@ void perf_output_sample(struct perf_output_handle *handle,
 			}
 		}
 	}
+}
+
+static u64 perf_virt_to_phys(u64 virt)
+{
+	u64 phys_addr = 0;
+	struct page *p = NULL;
+
+	if (!virt)
+		return 0;
+
+	if (virt >= TASK_SIZE) {
+		/* If it's vmalloc()d memory, leave phys_addr as 0 */
+		if (virt_addr_valid((void *)(uintptr_t)virt) &&
+		    !(virt >= VMALLOC_START && virt < VMALLOC_END))
+			phys_addr = (u64)virt_to_phys((void *)(uintptr_t)virt);
+	} else {
+		/*
+		 * Walking the pages tables for user address.
+		 * Interrupts are disabled, so it prevents any tear down
+		 * of the page tables.
+		 * Try IRQ-safe __get_user_pages_fast first.
+		 * If failed, leave phys_addr as 0.
+		 */
+		if ((current->mm != NULL) &&
+		    (__get_user_pages_fast(virt, 1, 0, &p) == 1))
+			phys_addr = page_to_phys(p) + virt % PAGE_SIZE;
+
+		if (p)
+			put_page(p);
+	}
+
+	return phys_addr;
 }
 
 void perf_prepare_sample(struct perf_event_header *header,
@@ -6136,6 +6188,9 @@ void perf_prepare_sample(struct perf_event_header *header,
 
 		header->size += size;
 	}
+
+	if (sample_type & PERF_SAMPLE_PHYS_ADDR)
+		data->phys_addr = perf_virt_to_phys(data->addr);
 }
 
 static void __always_inline
@@ -7287,6 +7342,11 @@ static void perf_log_throttle(struct perf_event *event, int enable)
 	perf_output_end(&handle);
 }
 
+void perf_event_itrace_started(struct perf_event *event)
+{
+	event->attach_state |= PERF_ATTACH_ITRACE;
+}
+
 static void perf_log_itrace_start(struct perf_event *event)
 {
 	struct perf_output_handle handle;
@@ -7302,7 +7362,7 @@ static void perf_log_itrace_start(struct perf_event *event)
 		event = event->parent;
 
 	if (!(event->pmu->capabilities & PERF_PMU_CAP_ITRACE) ||
-	    event->hw.itrace_started)
+	    event->attach_state & PERF_ATTACH_ITRACE)
 		return;
 
 	rec.header.type	= PERF_RECORD_ITRACE_START;
@@ -9889,6 +9949,11 @@ SYSCALL_DEFINE5(perf_event_open,
 		if (attr.sample_period & (1ULL << 63))
 			return -EINVAL;
 	}
+
+	/* Only privileged users can get physical addresses */
+	if ((attr.sample_type & PERF_SAMPLE_PHYS_ADDR) &&
+	    perf_paranoid_kernel() && !capable(CAP_SYS_ADMIN))
+		return -EACCES;
 
 	if (!attr.sample_max_stack)
 		attr.sample_max_stack = sysctl_perf_event_max_stack;
