@@ -201,8 +201,8 @@ static void smca_configure(unsigned int bank, unsigned int cpu)
 		wrmsr(smca_config, low, high);
 	}
 
-	/* Collect bank_info using CPU 0 for now. */
-	if (cpu)
+	/* Return early if this bank was already initialized. */
+	if (smca_banks[bank].hwid)
 		return;
 
 	if (rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_IPID(bank), &low, &high)) {
@@ -216,11 +216,6 @@ static void smca_configure(unsigned int bank, unsigned int cpu)
 	for (i = 0; i < ARRAY_SIZE(smca_hwid_mcatypes); i++) {
 		s_hwid = &smca_hwid_mcatypes[i];
 		if (hwid_mcatype == s_hwid->hwid_mcatype) {
-
-			WARN(smca_banks[bank].hwid,
-			     "Bank %s already initialized!\n",
-			     smca_get_name(s_hwid->bank_type));
-
 			smca_banks[bank].hwid = s_hwid;
 			smca_banks[bank].id = low;
 			smca_banks[bank].sysfs_id = s_hwid->count++;
