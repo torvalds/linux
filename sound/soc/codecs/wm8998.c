@@ -1330,7 +1330,6 @@ static int wm8998_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 
 	arizona_init_gpio(codec);
-	arizona_init_notifiers(codec);
 
 	snd_soc_component_disable_pin(component, "HAPTICS");
 
@@ -1422,6 +1421,8 @@ static int wm8998_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
+
+	arizona_init_common(arizona);
 
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)

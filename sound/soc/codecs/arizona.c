@@ -293,16 +293,13 @@ int arizona_init_gpio(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(arizona_init_gpio);
 
-int arizona_init_notifiers(struct snd_soc_codec *codec)
+int arizona_init_common(struct arizona *arizona)
 {
-	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
-	struct arizona *arizona = priv->arizona;
-
 	BLOCKING_INIT_NOTIFIER_HEAD(&arizona->notifier);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(arizona_init_notifiers);
+EXPORT_SYMBOL_GPL(arizona_init_common);
 
 const char * const arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS] = {
 	"None",

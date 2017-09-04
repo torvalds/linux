@@ -1068,8 +1068,6 @@ static int wm8997_codec_probe(struct snd_soc_codec *codec)
 	if (ret < 0)
 		return ret;
 
-	arizona_init_notifiers(codec);
-
 	snd_soc_component_disable_pin(component, "HAPTICS");
 
 	priv->core.arizona->dapm = dapm;
@@ -1167,6 +1165,8 @@ static int wm8997_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
+
+	arizona_init_common(arizona);
 
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
