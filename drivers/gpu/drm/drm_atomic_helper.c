@@ -1872,7 +1872,6 @@ void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *old_state)
 	struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc_commit *commit;
 	int i;
-	long ret;
 
 	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
 		commit = old_crtc_state->commit;
@@ -1882,22 +1881,6 @@ void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *old_state)
 		complete_all(&commit->cleanup_done);
 		WARN_ON(!try_wait_for_completion(&commit->hw_done));
 
-		/* commit_list borrows our reference, need to remove before we
-		 * clean up our drm_atomic_state. But only after it actually
-		 * completed, otherwise subsequent commits won't stall properly. */
-		if (try_wait_for_completion(&commit->flip_done))
-			goto del_commit;
-
-		/* We must wait for the vblank event to signal our completion
-		 * before releasing our reference, since the vblank work does
-		 * not hold a reference of its own. */
-		ret = wait_for_completion_timeout(&commit->flip_done,
-						  10*HZ);
-		if (ret == 0)
-			DRM_ERROR("[CRTC:%d:%s] flip_done timed out\n",
-				  crtc->base.id, crtc->name);
-
-del_commit:
 		spin_lock(&crtc->commit_lock);
 		list_del(&commit->commit_entry);
 		spin_unlock(&crtc->commit_lock);
