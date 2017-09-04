@@ -77,7 +77,7 @@ _GLOBAL(get_vr)
 	oris	r7, r6, MSR_VEC@h
 	MTMSRD(r7)
 	isync
-	rlwinm	r6,r3,3,0xf8
+	rlwinm	r3,r3,3,0xf8
 	bcl	20,31,1f
 reg = 0
 	.rept	32
@@ -86,7 +86,7 @@ reg = 0
 reg = reg + 1
 	.endr
 1:	mflr	r5
-	add	r5,r6,r5
+	add	r5,r3,r5
 	mtctr	r5
 	mtlr	r0
 	bctr
@@ -101,7 +101,7 @@ _GLOBAL(put_vr)
 	oris	r7, r6, MSR_VEC@h
 	MTMSRD(r7)
 	isync
-	rlwinm	r6,r3,3,0xf8
+	rlwinm	r3,r3,3,0xf8
 	bcl	20,31,1f
 reg = 0
 	.rept	32
@@ -110,7 +110,7 @@ reg = 0
 reg = reg + 1
 	.endr
 1:	mflr	r5
-	add	r5,r6,r5
+	add	r5,r3,r5
 	mtctr	r5
 	mtlr	r0
 	bctr
