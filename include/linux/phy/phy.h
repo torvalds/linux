@@ -291,7 +291,7 @@ static inline struct phy *devm_phy_get(struct device *dev, const char *string)
 static inline struct phy *devm_phy_optional_get(struct device *dev,
 						const char *string)
 {
-	return ERR_PTR(-ENOSYS);
+	return NULL;
 }
 
 static inline struct phy *devm_of_phy_get(struct device *dev,
