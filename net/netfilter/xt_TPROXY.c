@@ -70,13 +70,11 @@ tproxy_laddr4(struct sk_buff *skb, __be32 user_laddr, __be32 daddr)
 		return user_laddr;
 
 	laddr = 0;
-	rcu_read_lock();
 	indev = __in_dev_get_rcu(skb->dev);
 	for_primary_ifa(indev) {
 		laddr = ifa->ifa_local;
 		break;
 	} endfor_ifa(indev);
-	rcu_read_unlock();
 
 	return laddr ? laddr : daddr;
 }
@@ -391,7 +389,6 @@ tproxy_laddr6(struct sk_buff *skb, const struct in6_addr *user_laddr,
 		return user_laddr;
 	laddr = NULL;
 
-	rcu_read_lock();
 	indev = __in6_dev_get(skb->dev);
 	if (indev) {
 		read_lock_bh(&indev->lock);
@@ -404,7 +401,6 @@ tproxy_laddr6(struct sk_buff *skb, const struct in6_addr *user_laddr,
 		}
 		read_unlock_bh(&indev->lock);
 	}
-	rcu_read_unlock();
 
 	return laddr ? laddr : daddr;
 }

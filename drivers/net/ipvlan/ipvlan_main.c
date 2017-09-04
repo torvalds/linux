@@ -15,7 +15,7 @@ struct ipvlan_netns {
 	unsigned int ipvl_nf_hook_refcnt;
 };
 
-static struct nf_hook_ops ipvl_nfops[] __read_mostly = {
+static const struct nf_hook_ops ipvl_nfops[] = {
 	{
 		.hook     = ipvlan_nf_input,
 		.pf       = NFPROTO_IPV4,

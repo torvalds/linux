@@ -21,7 +21,7 @@
 #include <linux/inetdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/mutex.h>
-#include <linux/slab.h>
+#include <linux/mm.h>
 #include <linux/rcupdate.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -62,10 +62,182 @@ EXPORT_SYMBOL(nf_hooks_needed);
 #endif
 
 static DEFINE_MUTEX(nf_hook_mutex);
+
+/* max hooks per family/hooknum */
+#define MAX_HOOK_COUNT		1024
+
 #define nf_entry_dereference(e) \
 	rcu_dereference_protected(e, lockdep_is_held(&nf_hook_mutex))
 
-static struct nf_hook_entry __rcu **nf_hook_entry_head(struct net *net, const struct nf_hook_ops *reg)
+static struct nf_hook_entries *allocate_hook_entries_size(u16 num)
+{
+	struct nf_hook_entries *e;
+	size_t alloc = sizeof(*e) +
+		       sizeof(struct nf_hook_entry) * num +
+		       sizeof(struct nf_hook_ops *) * num;
+
+	if (num == 0)
+		return NULL;
+
+	e = kvzalloc(alloc, GFP_KERNEL);
+	if (e)
+		e->num_hook_entries = num;
+	return e;
+}
+
+static unsigned int accept_all(void *priv,
+			       struct sk_buff *skb,
+			       const struct nf_hook_state *state)
+{
+	return NF_ACCEPT; /* ACCEPT makes nf_hook_slow call next hook */
+}
+
+static const struct nf_hook_ops dummy_ops = {
+	.hook = accept_all,
+	.priority = INT_MIN,
+};
+
+static struct nf_hook_entries *
+nf_hook_entries_grow(const struct nf_hook_entries *old,
+		     const struct nf_hook_ops *reg)
+{
+	unsigned int i, alloc_entries, nhooks, old_entries;
+	struct nf_hook_ops **orig_ops = NULL;
+	struct nf_hook_ops **new_ops;
+	struct nf_hook_entries *new;
+	bool inserted = false;
+
+	alloc_entries = 1;
+	old_entries = old ? old->num_hook_entries : 0;
+
+	if (old) {
+		orig_ops = nf_hook_entries_get_hook_ops(old);
+
+		for (i = 0; i < old_entries; i++) {
+			if (orig_ops[i] != &dummy_ops)
+				alloc_entries++;
+		}
+	}
+
+	if (alloc_entries > MAX_HOOK_COUNT)
+		return ERR_PTR(-E2BIG);
+
+	new = allocate_hook_entries_size(alloc_entries);
+	if (!new)
+		return ERR_PTR(-ENOMEM);
+
+	new_ops = nf_hook_entries_get_hook_ops(new);
+
+	i = 0;
+	nhooks = 0;
+	while (i < old_entries) {
+		if (orig_ops[i] == &dummy_ops) {
+			++i;
+			continue;
+		}
+		if (inserted || reg->priority > orig_ops[i]->priority) {
+			new_ops[nhooks] = (void *)orig_ops[i];
+			new->hooks[nhooks] = old->hooks[i];
+			i++;
+		} else {
+			new_ops[nhooks] = (void *)reg;
+			new->hooks[nhooks].hook = reg->hook;
+			new->hooks[nhooks].priv = reg->priv;
+			inserted = true;
+		}
+		nhooks++;
+	}
+
+	if (!inserted) {
+		new_ops[nhooks] = (void *)reg;
+		new->hooks[nhooks].hook = reg->hook;
+		new->hooks[nhooks].priv = reg->priv;
+	}
+
+	return new;
+}
+
+static void hooks_validate(const struct nf_hook_entries *hooks)
+{
+#ifdef CONFIG_DEBUG_KERNEL
+	struct nf_hook_ops **orig_ops;
+	int prio = INT_MIN;
+	size_t i = 0;
+
+	orig_ops = nf_hook_entries_get_hook_ops(hooks);
+
+	for (i = 0; i < hooks->num_hook_entries; i++) {
+		if (orig_ops[i] == &dummy_ops)
+			continue;
+
+		WARN_ON(orig_ops[i]->priority < prio);
+
+		if (orig_ops[i]->priority > prio)
+			prio = orig_ops[i]->priority;
+	}
+#endif
+}
+
+/*
+ * __nf_hook_entries_try_shrink - try to shrink hook array
+ *
+ * @pp -- location of hook blob
+ *
+ * Hook unregistration must always succeed, so to-be-removed hooks
+ * are replaced by a dummy one that will just move to next hook.
+ *
+ * This counts the current dummy hooks, attempts to allocate new blob,
+ * copies the live hooks, then replaces and discards old one.
+ *
+ * return values:
+ *
+ * Returns address to free, or NULL.
+ */
+static void *__nf_hook_entries_try_shrink(struct nf_hook_entries __rcu **pp)
+{
+	struct nf_hook_entries *old, *new = NULL;
+	unsigned int i, j, skip = 0, hook_entries;
+	struct nf_hook_ops **orig_ops;
+	struct nf_hook_ops **new_ops;
+
+	old = nf_entry_dereference(*pp);
+	if (WARN_ON_ONCE(!old))
+		return NULL;
+
+	orig_ops = nf_hook_entries_get_hook_ops(old);
+	for (i = 0; i < old->num_hook_entries; i++) {
+		if (orig_ops[i] == &dummy_ops)
+			skip++;
+	}
+
+	/* if skip == hook_entries all hooks have been removed */
+	hook_entries = old->num_hook_entries;
+	if (skip == hook_entries)
+		goto out_assign;
+
+	if (WARN_ON(skip == 0))
+		return NULL;
+
+	hook_entries -= skip;
+	new = allocate_hook_entries_size(hook_entries);
+	if (!new)
+		return NULL;
+
+	new_ops = nf_hook_entries_get_hook_ops(new);
+	for (i = 0, j = 0; i < old->num_hook_entries; i++) {
+		if (orig_ops[i] == &dummy_ops)
+			continue;
+		new->hooks[j] = old->hooks[i];
+		new_ops[j] = (void *)orig_ops[i];
+		j++;
+	}
+	hooks_validate(new);
+out_assign:
+	rcu_assign_pointer(*pp, new);
+	return old;
+}
+
+static struct nf_hook_entries __rcu **nf_hook_entry_head(struct net *net, const struct nf_hook_ops *reg)
 {
 	if (reg->pf != NFPROTO_NETDEV)
 		return net->nf.hooks[reg->pf]+reg->hooknum;
@@ -76,13 +248,14 @@ static struct nf_hook_entry __rcu **nf_hook_entry_head(struct net *net, const st
 			return &reg->dev->nf_hooks_ingress;
 	}
 #endif
+	WARN_ON_ONCE(1);
 	return NULL;
 }
 
 int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
-	struct nf_hook_entry __rcu **pp;
-	struct nf_hook_entry *entry, *p;
+	struct nf_hook_entries *p, *new_hooks;
+	struct nf_hook_entries __rcu **pp;
 
 	if (reg->pf == NFPROTO_NETDEV) {
 #ifndef CONFIG_NETFILTER_INGRESS
@@ -98,23 +271,19 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	if (!pp)
 		return -EINVAL;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return -ENOMEM;
-
-	nf_hook_entry_init(entry, reg);
-
 	mutex_lock(&nf_hook_mutex);
 
-	/* Find the spot in the list */
-	for (; (p = nf_entry_dereference(*pp)) != NULL; pp = &p->next) {
-		if (reg->priority < nf_hook_entry_priority(p))
-			break;
-	}
-	rcu_assign_pointer(entry->next, p);
-	rcu_assign_pointer(*pp, entry);
+	p = nf_entry_dereference(*pp);
+	new_hooks = nf_hook_entries_grow(p, reg);
+
+	if (!IS_ERR(new_hooks))
+		rcu_assign_pointer(*pp, new_hooks);
 
 	mutex_unlock(&nf_hook_mutex);
+	if (IS_ERR(new_hooks))
+		return PTR_ERR(new_hooks);
+
+	hooks_validate(new_hooks);
 #ifdef CONFIG_NETFILTER_INGRESS
 	if (reg->pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
 		net_inc_ingress_queue();
@@ -122,48 +291,74 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 #ifdef HAVE_JUMP_LABEL
 	static_key_slow_inc(&nf_hooks_needed[reg->pf][reg->hooknum]);
 #endif
+	synchronize_net();
+	BUG_ON(p == new_hooks);
+	kvfree(p);
 	return 0;
 }
 EXPORT_SYMBOL(nf_register_net_hook);
 
-static struct nf_hook_entry *
-__nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
+/*
+ * __nf_unregister_net_hook - remove a hook from blob
+ *
+ * @oldp: current address of hook blob
+ * @unreg: hook to unregister
+ *
+ * This cannot fail, hook unregistration must always succeed.
+ * Therefore replace the to-be-removed hook with a dummy hook.
+ */
+static void __nf_unregister_net_hook(struct nf_hook_entries *old,
+				     const struct nf_hook_ops *unreg)
 {
-	struct nf_hook_entry __rcu **pp;
-	struct nf_hook_entry *p;
+	struct nf_hook_ops **orig_ops;
+	bool found = false;
+	unsigned int i;
 
-	pp = nf_hook_entry_head(net, reg);
-	if (WARN_ON_ONCE(!pp))
-		return NULL;
+	orig_ops = nf_hook_entries_get_hook_ops(old);
+	for (i = 0; i < old->num_hook_entries; i++) {
+		if (orig_ops[i] != unreg)
+			continue;
+		WRITE_ONCE(old->hooks[i].hook, accept_all);
+		WRITE_ONCE(orig_ops[i], &dummy_ops);
+		found = true;
+		break;
+	}
 
-	mutex_lock(&nf_hook_mutex);
-	for (; (p = nf_entry_dereference(*pp)) != NULL; pp = &p->next) {
-		if (nf_hook_entry_ops(p) == reg) {
-			rcu_assign_pointer(*pp, p->next);
-			break;
-		}
-	}
-	mutex_unlock(&nf_hook_mutex);
-	if (!p) {
-		WARN(1, "nf_unregister_net_hook: hook not found!\n");
-		return NULL;
-	}
+	if (found) {
 #ifdef CONFIG_NETFILTER_INGRESS
-	if (reg->pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
-		net_dec_ingress_queue();
+		if (unreg->pf == NFPROTO_NETDEV && unreg->hooknum == NF_NETDEV_INGRESS)
+			net_dec_ingress_queue();
 #endif
 #ifdef HAVE_JUMP_LABEL
-	static_key_slow_dec(&nf_hooks_needed[reg->pf][reg->hooknum]);
+		static_key_slow_dec(&nf_hooks_needed[unreg->pf][unreg->hooknum]);
 #endif
-
-	return p;
+	} else {
+		WARN_ONCE(1, "hook not found, pf %d num %d", unreg->pf, unreg->hooknum);
+	}
 }
 
 void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
-	struct nf_hook_entry *p = __nf_unregister_net_hook(net, reg);
+	struct nf_hook_entries __rcu **pp;
+	struct nf_hook_entries *p;
 	unsigned int nfq;
 
+	pp = nf_hook_entry_head(net, reg);
+	if (!pp)
+		return;
+
+	mutex_lock(&nf_hook_mutex);
+
+	p = nf_entry_dereference(*pp);
+	if (WARN_ON_ONCE(!p)) {
+		mutex_unlock(&nf_hook_mutex);
+		return;
+	}
+
+	__nf_unregister_net_hook(p, reg);
+
+	p = __nf_hook_entries_try_shrink(pp);
+	mutex_unlock(&nf_hook_mutex);
 	if (!p)
 		return;
 
@@ -173,7 +368,7 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	nfq = nf_queue_nf_hook_drop(net);
 	if (nfq)
 		synchronize_net();
-	kfree(p);
+	kvfree(p);
 }
 EXPORT_SYMBOL(nf_unregister_net_hook);
 
@@ -200,26 +395,59 @@ EXPORT_SYMBOL(nf_register_net_hooks);
 void nf_unregister_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 			     unsigned int hookcount)
 {
-	struct nf_hook_entry *to_free[16];
-	unsigned int i, n, nfq;
+	struct nf_hook_entries *to_free[16], *p;
+	struct nf_hook_entries __rcu **pp;
+	unsigned int i, j, n;
+
+	mutex_lock(&nf_hook_mutex);
+	for (i = 0; i < hookcount; i++) {
+		pp = nf_hook_entry_head(net, &reg[i]);
+		if (!pp)
+			continue;
+
+		p = nf_entry_dereference(*pp);
+		if (WARN_ON_ONCE(!p))
+			continue;
+		__nf_unregister_net_hook(p, &reg[i]);
+	}
+	mutex_unlock(&nf_hook_mutex);
 
 	do {
 		n = min_t(unsigned int, hookcount, ARRAY_SIZE(to_free));
 
-		for (i = 0; i < n; i++)
-			to_free[i] = __nf_unregister_net_hook(net, &reg[i]);
+		mutex_lock(&nf_hook_mutex);
 
-		synchronize_net();
+		for (i = 0, j = 0; i < hookcount && j < n; i++) {
+			pp = nf_hook_entry_head(net, &reg[i]);
+			if (!pp)
+				continue;
 
-		/* need 2nd synchronize_net() if nfqueue is used, skb
-		 * can get reinjected right before nf_queue_hook_drop()
-		 */
-		nfq = nf_queue_nf_hook_drop(net);
-		if (nfq)
+			p = nf_entry_dereference(*pp);
+			if (!p)
+				continue;
+
+			to_free[j] = __nf_hook_entries_try_shrink(pp);
+			if (to_free[j])
+				++j;
+		}
+
+		mutex_unlock(&nf_hook_mutex);
+
+		if (j) {
+			unsigned int nfq;
+
 			synchronize_net();
 
-		for (i = 0; i < n; i++)
-			kfree(to_free[i]);
+			/* need 2nd synchronize_net() if nfqueue is used, skb
+			 * can get reinjected right before nf_queue_hook_drop()
+			 */
+			nfq = nf_queue_nf_hook_drop(net);
+			if (nfq)
+				synchronize_net();
+
+			for (i = 0; i < j; i++)
+				kvfree(to_free[i]);
+		}
 
 		reg += n;
 		hookcount -= n;
@@ -230,16 +458,15 @@ EXPORT_SYMBOL(nf_unregister_net_hooks);
 /* Returns 1 if okfn() needs to be executed by the caller,
  * -EPERM for NF_DROP, 0 otherwise.  Caller must hold rcu_read_lock. */
 int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
-		 struct nf_hook_entry *entry)
+		 const struct nf_hook_entries *e, unsigned int s)
 {
 	unsigned int verdict;
 	int ret;
 
-	do {
-		verdict = nf_hook_entry_hookfn(entry, skb, state);
+	for (; s < e->num_hook_entries; s++) {
+		verdict = nf_hook_entry_hookfn(&e->hooks[s], skb, state);
 		switch (verdict & NF_VERDICT_MASK) {
 		case NF_ACCEPT:
-			entry = rcu_dereference(entry->next);
 			break;
 		case NF_DROP:
 			kfree_skb(skb);
@@ -248,8 +475,8 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 				ret = -EPERM;
 			return ret;
 		case NF_QUEUE:
-			ret = nf_queue(skb, state, &entry, verdict);
-			if (ret == 1 && entry)
+			ret = nf_queue(skb, state, e, s, verdict);
+			if (ret == 1)
 				continue;
 			return ret;
 		default:
@@ -258,7 +485,7 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 			 */
 			return 0;
 		}
-	} while (entry);
+	}
 
 	return 1;
 }
