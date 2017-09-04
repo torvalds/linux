@@ -51,7 +51,6 @@ enum ds_type {
 	/* rs5c372 too?  different address... */
 };
 
-
 /* RTC registers don't differ much, except for the century flag */
 #define DS1307_REG_SECS		0x00	/* 00-59 */
 #	define DS1307_BIT_CH		0x80
@@ -113,7 +112,6 @@ enum ds_type {
 #	define RX8025_BIT_PON		0x10
 #	define RX8025_BIT_VDET		0x40
 #	define RX8025_BIT_XST		0x20
-
 
 struct ds1307 {
 	struct nvmem_config	nvmem_cfg;
@@ -1042,7 +1040,7 @@ static int ds3231_hwmon_read_temp(struct device *dev, s32 *mC)
 }
 
 static ssize_t ds3231_hwmon_show_temp(struct device *dev,
-				struct device_attribute *attr, char *buf)
+				      struct device_attribute *attr, char *buf)
 {
 	int ret;
 	s32 temp;
@@ -1054,7 +1052,7 @@ static ssize_t ds3231_hwmon_show_temp(struct device *dev,
 	return sprintf(buf, "%d\n", temp);
 }
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, ds3231_hwmon_show_temp,
-			NULL, 0);
+			  NULL, 0);
 
 static struct attribute *ds3231_hwmon_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -1070,7 +1068,8 @@ static void ds1307_hwmon_register(struct ds1307 *ds1307)
 		return;
 
 	dev = devm_hwmon_device_register_with_groups(ds1307->dev, ds1307->name,
-						ds1307, ds3231_hwmon_groups);
+						     ds1307,
+						     ds3231_hwmon_groups);
 	if (IS_ERR(dev)) {
 		dev_warn(ds1307->dev, "unable to register hwmon device %ld\n",
 			 PTR_ERR(dev));
@@ -1142,7 +1141,7 @@ static unsigned long ds3231_clk_sqw_recalc_rate(struct clk_hw *hw,
 }
 
 static long ds3231_clk_sqw_round_rate(struct clk_hw *hw, unsigned long rate,
-					unsigned long *prate)
+				      unsigned long *prate)
 {
 	int i;
 
@@ -1155,7 +1154,7 @@ static long ds3231_clk_sqw_round_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 static int ds3231_clk_sqw_set_rate(struct clk_hw *hw, unsigned long rate,
-					unsigned long parent_rate)
+				   unsigned long parent_rate)
 {
 	struct ds1307 *ds1307 = clk_sqw_to_ds1307(hw);
 	int control = 0;
@@ -1215,7 +1214,7 @@ static const struct clk_ops ds3231_clk_sqw_ops = {
 };
 
 static unsigned long ds3231_clk_32khz_recalc_rate(struct clk_hw *hw,
-						unsigned long parent_rate)
+						  unsigned long parent_rate)
 {
 	return 32768;
 }
@@ -1306,7 +1305,7 @@ static int ds3231_clks_register(struct ds1307 *ds1307)
 
 		/* optional override of the clockname */
 		of_property_read_string_index(node, "clock-output-names", i,
-						&init.name);
+					      &init.name);
 		ds1307->clks[i].init = &init;
 
 		onecell->clks[i] = devm_clk_register(ds1307->dev,
@@ -1570,8 +1569,8 @@ read_rtc:
 		/* oscillator fault?  clear flag, and warn */
 		if (regs[DS1307_REG_CONTROL] & DS1338_BIT_OSF) {
 			regmap_write(ds1307->regmap, DS1307_REG_CONTROL,
-					regs[DS1307_REG_CONTROL] &
-					~DS1338_BIT_OSF);
+				     regs[DS1307_REG_CONTROL] &
+				     ~DS1338_BIT_OSF);
 			dev_warn(ds1307->dev, "SET TIME!\n");
 			goto read_rtc;
 		}
