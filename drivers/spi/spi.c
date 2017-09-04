@@ -40,9 +40,13 @@
 #include <linux/ioport.h>
 #include <linux/acpi.h>
 #include <linux/highmem.h>
+#include <linux/idr.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/spi.h>
+#define SPI_DYN_FIRST_BUS_NUM 0
+
+static DEFINE_IDR(spi_master_idr);
 
 static void spidev_release(struct device *dev)
 {
@@ -321,8 +325,7 @@ static int spi_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (rc != -ENODEV)
 		return rc;
 
-	add_uevent_var(env, "MODALIAS=%s%s", SPI_MODULE_PREFIX, spi->modalias);
-	return 0;
+	return add_uevent_var(env, "MODALIAS=%s%s", SPI_MODULE_PREFIX, spi->modalias);
 }
 
 struct bus_type spi_bus_type = {
@@ -421,6 +424,7 @@ static LIST_HEAD(spi_controller_list);
 /*
  * Used to protect add/del opertion for board_info list and
  * spi_controller list, and their matching process
+ * also used to protect object of type struct idr
  */
 static DEFINE_MUTEX(board_lock);
 
@@ -1533,15 +1537,15 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	int rc;
 
 	/* Mode (clock phase/polarity/etc.) */
-	if (of_find_property(nc, "spi-cpha", NULL))
+	if (of_property_read_bool(nc, "spi-cpha"))
 		spi->mode |= SPI_CPHA;
-	if (of_find_property(nc, "spi-cpol", NULL))
+	if (of_property_read_bool(nc, "spi-cpol"))
 		spi->mode |= SPI_CPOL;
-	if (of_find_property(nc, "spi-cs-high", NULL))
+	if (of_property_read_bool(nc, "spi-cs-high"))
 		spi->mode |= SPI_CS_HIGH;
-	if (of_find_property(nc, "spi-3wire", NULL))
+	if (of_property_read_bool(nc, "spi-3wire"))
 		spi->mode |= SPI_3WIRE;
-	if (of_find_property(nc, "spi-lsb-first", NULL))
+	if (of_property_read_bool(nc, "spi-lsb-first"))
 		spi->mode |= SPI_LSB_FIRST;
 
 	/* Device DUAL/QUAD mode */
@@ -2052,11 +2056,10 @@ static int of_spi_register_master(struct spi_controller *ctlr)
  */
 int spi_register_controller(struct spi_controller *ctlr)
 {
-	static atomic_t		dyn_bus_id = ATOMIC_INIT((1<<15) - 1);
 	struct device		*dev = ctlr->dev.parent;
 	struct boardinfo	*bi;
 	int			status = -ENODEV;
-	int			dynamic = 0;
+	int			id;
 
 	if (!dev)
 		return -ENODEV;
@@ -2072,19 +2075,28 @@ int spi_register_controller(struct spi_controller *ctlr)
 	 */
 	if (ctlr->num_chipselect == 0)
 		return -EINVAL;
-
-	if ((ctlr->bus_num < 0) && ctlr->dev.of_node)
-		ctlr->bus_num = of_alias_get_id(ctlr->dev.of_node, "spi");
-
-	/* convention:  dynamically assigned bus IDs count down from the max */
-	if (ctlr->bus_num < 0) {
-		/* FIXME switch to an IDR based scheme, something like
-		 * I2C now uses, so we can't run out of "dynamic" IDs
-		 */
-		ctlr->bus_num = atomic_dec_return(&dyn_bus_id);
-		dynamic = 1;
+	/* allocate dynamic bus number using Linux idr */
+	if ((ctlr->bus_num < 0) && ctlr->dev.of_node) {
+		id = of_alias_get_id(ctlr->dev.of_node, "spi");
+		if (id >= 0) {
+			ctlr->bus_num = id;
+			mutex_lock(&board_lock);
+			id = idr_alloc(&spi_master_idr, ctlr, ctlr->bus_num,
+				       ctlr->bus_num + 1, GFP_KERNEL);
+			mutex_unlock(&board_lock);
+			if (WARN(id < 0, "couldn't get idr"))
+				return id == -ENOSPC ? -EBUSY : id;
+		}
 	}
-
+	if (ctlr->bus_num < 0) {
+		mutex_lock(&board_lock);
+		id = idr_alloc(&spi_master_idr, ctlr, SPI_DYN_FIRST_BUS_NUM, 0,
+			       GFP_KERNEL);
+		mutex_unlock(&board_lock);
+		if (WARN(id < 0, "couldn't get idr"))
+			return id;
+		ctlr->bus_num = id;
+	}
 	INIT_LIST_HEAD(&ctlr->queue);
 	spin_lock_init(&ctlr->queue_lock);
 	spin_lock_init(&ctlr->bus_lock_spinlock);
@@ -2100,11 +2112,16 @@ int spi_register_controller(struct spi_controller *ctlr)
 	 */
 	dev_set_name(&ctlr->dev, "spi%u", ctlr->bus_num);
 	status = device_add(&ctlr->dev);
-	if (status < 0)
+	if (status < 0) {
+		/* free bus id */
+		mutex_lock(&board_lock);
+		idr_remove(&spi_master_idr, ctlr->bus_num);
+		mutex_unlock(&board_lock);
 		goto done;
-	dev_dbg(dev, "registered %s %s%s\n",
+	}
+	dev_dbg(dev, "registered %s %s\n",
 			spi_controller_is_slave(ctlr) ? "slave" : "master",
-			dev_name(&ctlr->dev), dynamic ? " (dynamic)" : "");
+			dev_name(&ctlr->dev));
 
 	/* If we're using a queued driver, start the queue */
 	if (ctlr->transfer)
@@ -2113,6 +2130,10 @@ int spi_register_controller(struct spi_controller *ctlr)
 		status = spi_controller_initialize_queue(ctlr);
 		if (status) {
 			device_del(&ctlr->dev);
+			/* free bus id */
+			mutex_lock(&board_lock);
+			idr_remove(&spi_master_idr, ctlr->bus_num);
+			mutex_unlock(&board_lock);
 			goto done;
 		}
 	}
@@ -2191,19 +2212,33 @@ static int __unregister(struct device *dev, void *null)
  */
 void spi_unregister_controller(struct spi_controller *ctlr)
 {
+	struct spi_controller *found;
 	int dummy;
 
+	/* First make sure that this controller was ever added */
+	mutex_lock(&board_lock);
+	found = idr_find(&spi_master_idr, ctlr->bus_num);
+	mutex_unlock(&board_lock);
+	if (found != ctlr) {
+		dev_dbg(&ctlr->dev,
+			"attempting to delete unregistered controller [%s]\n",
+			dev_name(&ctlr->dev));
+		return;
+	}
 	if (ctlr->queued) {
 		if (spi_destroy_queue(ctlr))
 			dev_err(&ctlr->dev, "queue remove failed\n");
 	}
-
 	mutex_lock(&board_lock);
 	list_del(&ctlr->list);
 	mutex_unlock(&board_lock);
 
 	dummy = device_for_each_child(&ctlr->dev, NULL, __unregister);
 	device_unregister(&ctlr->dev);
+	/* free bus id */
+	mutex_lock(&board_lock);
+	idr_remove(&spi_master_idr, ctlr->bus_num);
+	mutex_unlock(&board_lock);
 }
 EXPORT_SYMBOL_GPL(spi_unregister_controller);
 
