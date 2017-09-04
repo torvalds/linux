@@ -353,13 +353,13 @@ static const struct pinctrl_ops sprd_pctrl_ops = {
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
-int sprd_pmx_get_function_count(struct pinctrl_dev *pctldev)
+static int sprd_pmx_get_function_count(struct pinctrl_dev *pctldev)
 {
 	return PIN_FUNC_MAX;
 }
 
-const char *sprd_pmx_get_function_name(struct pinctrl_dev *pctldev,
-				       unsigned int selector)
+static const char *sprd_pmx_get_function_name(struct pinctrl_dev *pctldev,
+					      unsigned int selector)
 {
 	switch (selector) {
 	case PIN_FUNC_1:
@@ -375,10 +375,10 @@ const char *sprd_pmx_get_function_name(struct pinctrl_dev *pctldev,
 	}
 }
 
-int sprd_pmx_get_function_groups(struct pinctrl_dev *pctldev,
-				 unsigned int selector,
-				 const char * const **groups,
-				 unsigned int * const num_groups)
+static int sprd_pmx_get_function_groups(struct pinctrl_dev *pctldev,
+					unsigned int selector,
+					const char * const **groups,
+					unsigned int * const num_groups)
 {
 	struct sprd_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct sprd_pinctrl_soc_info *info = pctl->info;
