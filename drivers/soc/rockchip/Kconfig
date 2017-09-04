@@ -3,6 +3,14 @@ if ARCH_ROCKCHIP || COMPILE_TEST
 #
 # Rockchip Soc drivers
 #
+config ANDROID_VERSION
+	hex "Android Version"
+	depends on ANDROID
+	default "0x07010000"
+	help
+	  The version of Android kernel supported.
+	  The value is 0xAABBCCRR, corresponding to Android A.B.C release R
+
 config ROCKCHIP_CPUINFO
 	bool "Rockchip cpuinfo support"
 	depends on ROCKCHIP_EFUSE && (ARM64 || ARM)
