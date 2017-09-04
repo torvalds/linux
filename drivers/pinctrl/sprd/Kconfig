@@ -8,10 +8,12 @@ config PINCTRL_SPRD
 	select PINCONF
 	select GENERIC_PINCONF
 	select GENERIC_PINMUX_FUNCTIONS
+	depends on OF
 	help
 	  Say Y here to enable Spreadtrum pinctrl driver
 
 config PINCTRL_SPRD_SC9860
 	bool "Spreadtrum SC9860 pinctrl driver"
+	depends on PINCTRL_SPRD
 	help
 	  Say Y here to enable Spreadtrum SC9860 pinctrl driver
