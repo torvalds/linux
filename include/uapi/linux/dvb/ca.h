@@ -109,9 +109,16 @@ struct ca_msg {
 	unsigned char msg[256];
 };
 
+/**
+ * struct ca_descr - CA descrambler control words info
+ *
+ * @index: CA Descrambler slot
+ * @parity: control words parity, where 0 means even and 1 means odd
+ * @cw: CA Descrambler control words
+ */
 struct ca_descr {
 	unsigned int index;
-	unsigned int parity;	/* 0 == even, 1 == odd */
+	unsigned int parity;
 	unsigned char cw[8];
 };
 
