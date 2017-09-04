@@ -26,7 +26,7 @@
 #include <linux/kernfs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <asm/intel_rdt.h>
+#include "intel_rdt.h"
 
 /*
  * Check whether MBA bandwidth percentage value is correct. The value is
@@ -192,7 +192,7 @@ static int rdtgroup_parse_resource(char *resname, char *tok, int closid)
 {
 	struct rdt_resource *r;
 
-	for_each_enabled_rdt_resource(r) {
+	for_each_alloc_enabled_rdt_resource(r) {
 		if (!strcmp(resname, r->name) && closid < r->num_closid)
 			return parse_line(tok, r);
 	}
@@ -221,7 +221,7 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 
 	closid = rdtgrp->closid;
 
-	for_each_enabled_rdt_resource(r) {
+	for_each_alloc_enabled_rdt_resource(r) {
 		list_for_each_entry(dom, &r->domains, list)
 			dom->have_new_ctrl = false;
 	}
@@ -237,7 +237,7 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 			goto out;
 	}
 
-	for_each_enabled_rdt_resource(r) {
+	for_each_alloc_enabled_rdt_resource(r) {
 		ret = update_domains(r, closid);
 		if (ret)
 			goto out;
@@ -269,18 +269,73 @@ int rdtgroup_schemata_show(struct kernfs_open_file *of,
 {
 	struct rdtgroup *rdtgrp;
 	struct rdt_resource *r;
-	int closid, ret = 0;
+	int ret = 0;
+	u32 closid;
 
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (rdtgrp) {
 		closid = rdtgrp->closid;
-		for_each_enabled_rdt_resource(r) {
+		for_each_alloc_enabled_rdt_resource(r) {
 			if (closid < r->num_closid)
 				show_doms(s, r, closid);
 		}
 	} else {
 		ret = -ENOENT;
 	}
+	rdtgroup_kn_unlock(of->kn);
+	return ret;
+}
+
+void mon_event_read(struct rmid_read *rr, struct rdt_domain *d,
+		    struct rdtgroup *rdtgrp, int evtid, int first)
+{
+	/*
+	 * setup the parameters to send to the IPI to read the data.
+	 */
+	rr->rgrp = rdtgrp;
+	rr->evtid = evtid;
+	rr->d = d;
+	rr->val = 0;
+	rr->first = first;
+
+	smp_call_function_any(&d->cpu_mask, mon_event_count, rr, 1);
+}
+
+int rdtgroup_mondata_show(struct seq_file *m, void *arg)
+{
+	struct kernfs_open_file *of = m->private;
+	u32 resid, evtid, domid;
+	struct rdtgroup *rdtgrp;
+	struct rdt_resource *r;
+	union mon_data_bits md;
+	struct rdt_domain *d;
+	struct rmid_read rr;
+	int ret = 0;
+
+	rdtgrp = rdtgroup_kn_lock_live(of->kn);
+
+	md.priv = of->kn->priv;
+	resid = md.u.rid;
+	domid = md.u.domid;
+	evtid = md.u.evtid;
+
+	r = &rdt_resources_all[resid];
+	d = rdt_find_domain(r, domid, NULL);
+	if (!d) {
+		ret = -ENOENT;
+		goto out;
+	}
+
+	mon_event_read(&rr, d, rdtgrp, evtid, false);
+
+	if (rr.val & RMID_VAL_ERROR)
+		seq_puts(m, "Error\n");
+	else if (rr.val & RMID_VAL_UNAVAIL)
+		seq_puts(m, "Unavailable\n");
+	else
+		seq_printf(m, "%llu\n", rr.val * r->mon_scale);
+
+out:
 	rdtgroup_kn_unlock(of->kn);
 	return ret;
 }
