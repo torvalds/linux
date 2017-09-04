@@ -76,6 +76,18 @@ static const struct snd_soc_dapm_route broxton_tdf8532_map[] = {
 	{ "ssp3 Tx", NULL, "Modem_ssp3_out"},
 };
 
+static int bxt_tdf8532_ssp2_fixup(struct snd_soc_pcm_runtime *rtd,
+				struct snd_pcm_hw_params *params)
+{
+	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+
+	/* set SSP to 32 bit */
+	snd_mask_none(fmt);
+	snd_mask_set(fmt, SNDRV_PCM_FORMAT_S32_LE);
+
+	return 0;
+}
+
 /* broxton digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link broxton_tdf8532_dais[] = {
 	/* Probe DAI links*/
@@ -158,6 +170,7 @@ static struct snd_soc_dai_link broxton_tdf8532_dais[] = {
 		.dpcm_capture = 1,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
+		.be_hw_params_fixup = bxt_tdf8532_ssp2_fixup,
 	},
 	{
 		/* SSP3 - Modem */
