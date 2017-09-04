@@ -3673,6 +3673,9 @@ i915_vm_to_ppgtt(struct i915_address_space *vm)
 /* i915_gem_fence_reg.c */
 int __must_check i915_vma_get_fence(struct i915_vma *vma);
 int __must_check i915_vma_put_fence(struct i915_vma *vma);
+struct drm_i915_fence_reg *
+i915_reserve_fence(struct drm_i915_private *dev_priv);
+void i915_unreserve_fence(struct drm_i915_fence_reg *fence);
 
 void i915_gem_revoke_fences(struct drm_i915_private *dev_priv);
 void i915_gem_restore_fences(struct drm_i915_private *dev_priv);

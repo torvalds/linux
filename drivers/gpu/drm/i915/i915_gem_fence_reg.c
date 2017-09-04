@@ -360,6 +360,57 @@ i915_vma_get_fence(struct i915_vma *vma)
 }
 
 /**
+ * i915_reserve_fence - Reserve a fence for vGPU
+ * @dev_priv: i915 device private
+ *
+ * This function walks the fence regs looking for a free one and remove
+ * it from the fence_list. It is used to reserve fence for vGPU to use.
+ */
+struct drm_i915_fence_reg *
+i915_reserve_fence(struct drm_i915_private *dev_priv)
+{
+	struct drm_i915_fence_reg *fence;
+	int count;
+	int ret;
+
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
+	/* Keep at least one fence available for the display engine. */
+	count = 0;
+	list_for_each_entry(fence, &dev_priv->mm.fence_list, link)
+		count += !fence->pin_count;
+	if (count <= 1)
+		return ERR_PTR(-ENOSPC);
+
+	fence = fence_find(dev_priv);
+	if (IS_ERR(fence))
+		return fence;
+
+	if (fence->vma) {
+		/* Force-remove fence from VMA */
+		ret = fence_update(fence, NULL);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+	list_del(&fence->link);
+	return fence;
+}
+
+/**
+ * i915_unreserve_fence - Reclaim a reserved fence
+ * @fence: the fence reg
+ *
+ * This function add a reserved fence register from vGPU to the fence_list.
+ */
+void i915_unreserve_fence(struct drm_i915_fence_reg *fence)
+{
+	lockdep_assert_held(&fence->i915->drm.struct_mutex);
+
+	list_add(&fence->link, &fence->i915->mm.fence_list);
+}
+
+/**
  * i915_gem_revoke_fences - revoke fence state
  * @dev_priv: i915 device private
  *
