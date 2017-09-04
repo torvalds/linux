@@ -5987,10 +5987,8 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->tx_ppp7             = GET_STAT(TX_PORT_PPP7);
 
 	if (CHELSIO_CHIP_VERSION(adap->params.chip) >= CHELSIO_T5) {
-		if (stat_ctl & COUNTPAUSESTATTX_F) {
-			p->tx_frames -= p->tx_pause;
-			p->tx_octets -= p->tx_pause * 64;
-		}
+		if (stat_ctl & COUNTPAUSESTATTX_F)
+			p->tx_frames_64 -= p->tx_pause;
 		if (stat_ctl & COUNTPAUSEMCTX_F)
 			p->tx_mcast_frames -= p->tx_pause;
 	}
@@ -6023,10 +6021,8 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_ppp7             = GET_STAT(RX_PORT_PPP7);
 
 	if (CHELSIO_CHIP_VERSION(adap->params.chip) >= CHELSIO_T5) {
-		if (stat_ctl & COUNTPAUSESTATRX_F) {
-			p->rx_frames -= p->rx_pause;
-			p->rx_octets -= p->rx_pause * 64;
-		}
+		if (stat_ctl & COUNTPAUSESTATRX_F)
+			p->rx_frames_64 -= p->rx_pause;
 		if (stat_ctl & COUNTPAUSEMCRX_F)
 			p->rx_mcast_frames -= p->rx_pause;
 	}
