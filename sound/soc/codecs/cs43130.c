@@ -2597,7 +2597,7 @@ static int cs43130_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int cs43130_runtime_suspend(struct device *dev)
+static int __maybe_unused cs43130_runtime_suspend(struct device *dev)
 {
 	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
 
@@ -2616,7 +2616,7 @@ static int cs43130_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int cs43130_runtime_resume(struct device *dev)
+static int __maybe_unused cs43130_runtime_resume(struct device *dev)
 {
 	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
 	int ret;
