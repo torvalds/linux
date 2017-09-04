@@ -2344,13 +2344,7 @@ void cpuset_update_active_cpus(void)
 	 * We're inside cpu hotplug critical region which usually nests
 	 * inside cgroup synchronization.  Bounce actual hotplug processing
 	 * to a work item to avoid reverse locking order.
-	 *
-	 * We still need to do partition_sched_domains() synchronously;
-	 * otherwise, the scheduler will get confused and put tasks to the
-	 * dead CPU.  Fall back to the default single domain.
-	 * cpuset_hotplug_workfn() will rebuild it as necessary.
 	 */
-	partition_sched_domains(1, NULL, NULL);
 	schedule_work(&cpuset_hotplug_work);
 }
 

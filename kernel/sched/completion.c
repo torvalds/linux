@@ -47,6 +47,13 @@ EXPORT_SYMBOL(complete);
  *
  * It may be assumed that this function implies a write memory barrier before
  * changing the task state if and only if any tasks are woken up.
+ *
+ * Since complete_all() sets the completion of @x permanently to done
+ * to allow multiple waiters to finish, a call to reinit_completion()
+ * must be used on @x if @x is to be used again. The code must make
+ * sure that all waiters have woken and finished before reinitializing
+ * @x. Also note that the function completion_done() can not be used
+ * to know if there are still waiters after complete_all() has been called.
  */
 void complete_all(struct completion *x)
 {
@@ -297,6 +304,7 @@ EXPORT_SYMBOL(try_wait_for_completion);
  *	Return: 0 if there are waiters (wait_for_completion() in progress)
  *		 1 if there are no waiters.
  *
+ *	Note, this will always return true if complete_all() was called on @X.
  */
 bool completion_done(struct completion *x)
 {
