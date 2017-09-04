@@ -84,17 +84,17 @@ Device drivers API
 ==================
 
 The include/net/mac802154.h defines following functions:
- - struct ieee802154_dev *ieee802154_alloc_device
-   (size_t priv_size, struct ieee802154_ops *ops):
-   allocation of IEEE 802.15.4 compatible device
+ - struct ieee802154_hw *
+   ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops):
+   allocation of IEEE 802.15.4 compatible hardware device
 
- - void ieee802154_free_device(struct ieee802154_dev *dev):
-   freeing allocated device
+ - void ieee802154_free_hw(struct ieee802154_hw *hw):
+   freeing allocated hardware device
 
- - int ieee802154_register_device(struct ieee802154_dev *dev):
-   register PHY in the system
+ - int ieee802154_register_hw(struct ieee802154_hw *hw):
+   register PHY which is the allocated hardware device, in the system
 
- - void ieee802154_unregister_device(struct ieee802154_dev *dev):
+ - void ieee802154_unregister_hw(struct ieee802154_hw *hw):
    freeing registered PHY
 
 Moreover IEEE 802.15.4 device operations structure should be filled.
