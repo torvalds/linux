@@ -58,8 +58,6 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	__insn_fetchadd4(&lock->lock, 1U << __ARCH_SPIN_CURRENT_SHIFT);
 }
 
-void arch_spin_unlock_wait(arch_spinlock_t *lock);
-
 void arch_spin_lock_slow(arch_spinlock_t *lock, u32 val);
 
 /* Grab the "next" ticket number and bump it atomically.
