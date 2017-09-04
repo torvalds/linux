@@ -264,12 +264,31 @@ static int read_inline_xattr(struct inode *inode, struct page *ipage,
 	return 0;
 }
 
+static int read_xattr_block(struct inode *inode, void *txattr_addr)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	nid_t xnid = F2FS_I(inode)->i_xattr_nid;
+	unsigned int inline_size = inline_xattr_size(inode);
+	struct page *xpage;
+	void *xattr_addr;
+
+	/* The inode already has an extended attribute block. */
+	xpage = get_node_page(sbi, xnid);
+	if (IS_ERR(xpage))
+		return PTR_ERR(xpage);
+
+	xattr_addr = page_address(xpage);
+	memcpy(txattr_addr + inline_size, xattr_addr, VALID_XATTR_BLOCK_SIZE);
+	f2fs_put_page(xpage, 1);
+
+	return 0;
+}
+
 static int lookup_all_xattrs(struct inode *inode, struct page *ipage,
 				unsigned int index, unsigned int len,
 				const char *name, struct f2fs_xattr_entry **xe,
 				void **base_addr)
 {
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	void *cur_addr, *txattr_addr, *last_addr = NULL;
 	nid_t xnid = F2FS_I(inode)->i_xattr_nid;
 	unsigned int size = xnid ? VALID_XATTR_BLOCK_SIZE : 0;
@@ -298,19 +317,9 @@ static int lookup_all_xattrs(struct inode *inode, struct page *ipage,
 
 	/* read from xattr node block */
 	if (xnid) {
-		struct page *xpage;
-		void *xattr_addr;
-
-		/* The inode already has an extended attribute block. */
-		xpage = get_node_page(sbi, xnid);
-		if (IS_ERR(xpage)) {
-			err = PTR_ERR(xpage);
+		err = read_xattr_block(inode, txattr_addr);
+		if (err)
 			goto out;
-		}
-
-		xattr_addr = page_address(xpage);
-		memcpy(txattr_addr + inline_size, xattr_addr, size);
-		f2fs_put_page(xpage, 1);
 	}
 
 	if (last_addr)
@@ -335,7 +344,6 @@ out:
 static int read_all_xattrs(struct inode *inode, struct page *ipage,
 							void **base_addr)
 {
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_xattr_header *header;
 	nid_t xnid = F2FS_I(inode)->i_xattr_nid;
 	unsigned int size = VALID_XATTR_BLOCK_SIZE;
@@ -357,19 +365,9 @@ static int read_all_xattrs(struct inode *inode, struct page *ipage,
 
 	/* read from xattr node block */
 	if (xnid) {
-		struct page *xpage;
-		void *xattr_addr;
-
-		/* The inode already has an extended attribute block. */
-		xpage = get_node_page(sbi, xnid);
-		if (IS_ERR(xpage)) {
-			err = PTR_ERR(xpage);
+		err = read_xattr_block(inode, txattr_addr);
+		if (err)
 			goto fail;
-		}
-
-		xattr_addr = page_address(xpage);
-		memcpy(txattr_addr + inline_size, xattr_addr, size);
-		f2fs_put_page(xpage, 1);
 	}
 
 	header = XATTR_HDR(txattr_addr);
