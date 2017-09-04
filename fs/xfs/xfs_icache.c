@@ -66,7 +66,6 @@ xfs_inode_alloc(
 
 	XFS_STATS_INC(mp, vn_active);
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
-	ASSERT(!spin_is_locked(&ip->i_flags_lock));
 	ASSERT(!xfs_isiflocked(ip));
 	ASSERT(ip->i_ino == 0);
 
@@ -190,7 +189,7 @@ xfs_perag_set_reclaim_tag(
 {
 	struct xfs_mount	*mp = pag->pag_mount;
 
-	ASSERT(spin_is_locked(&pag->pag_ici_lock));
+	lockdep_assert_held(&pag->pag_ici_lock);
 	if (pag->pag_ici_reclaimable++)
 		return;
 
@@ -212,7 +211,7 @@ xfs_perag_clear_reclaim_tag(
 {
 	struct xfs_mount	*mp = pag->pag_mount;
 
-	ASSERT(spin_is_locked(&pag->pag_ici_lock));
+	lockdep_assert_held(&pag->pag_ici_lock);
 	if (--pag->pag_ici_reclaimable)
 		return;
 

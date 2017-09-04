@@ -2027,6 +2027,7 @@ static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 			return 0;
 		return err;
 	}
+	xfrm_garbage_collect(net);
 
 	c.data.type = type;
 	c.event = nlh->nlmsg_type;

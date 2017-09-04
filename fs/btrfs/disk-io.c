@@ -3467,10 +3467,12 @@ static int write_dev_supers(struct btrfs_device *device,
 		 * we fua the first super.  The others we allow
 		 * to go down lazy.
 		 */
-		if (i == 0)
-			ret = btrfsic_submit_bh(REQ_OP_WRITE, REQ_FUA, bh);
-		else
+		if (i == 0) {
+			ret = btrfsic_submit_bh(REQ_OP_WRITE,
+						REQ_SYNC | REQ_FUA, bh);
+		} else {
 			ret = btrfsic_submit_bh(REQ_OP_WRITE, REQ_SYNC, bh);
+		}
 		if (ret)
 			errors++;
 	}
@@ -3535,7 +3537,7 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 
 	bio->bi_end_io = btrfs_end_empty_barrier;
 	bio->bi_bdev = device->bdev;
-	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
+	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH;
 	init_completion(&device->flush_wait);
 	bio->bi_private = &device->flush_wait;
 	device->flush_bio = bio;

@@ -202,7 +202,7 @@ static int nand_ooblayout_free_lp_hamming(struct mtd_info *mtd, int section,
 	return 0;
 }
 
-const struct mtd_ooblayout_ops nand_ooblayout_lp_hamming_ops = {
+static const struct mtd_ooblayout_ops nand_ooblayout_lp_hamming_ops = {
 	.ecc = nand_ooblayout_ecc_lp_hamming,
 	.free = nand_ooblayout_free_lp_hamming,
 };
@@ -4361,7 +4361,7 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	/* Initialize the ->data_interface field. */
 	ret = nand_init_data_interface(chip);
 	if (ret)
-		return ret;
+		goto err_nand_init;
 
 	/*
 	 * Setup the data interface correctly on the chip and controller side.
@@ -4373,7 +4373,7 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	 */
 	ret = nand_setup_data_interface(chip);
 	if (ret)
-		return ret;
+		goto err_nand_init;
 
 	nand_maf_id = chip->id.data[0];
 	nand_dev_id = chip->id.data[1];
@@ -4404,6 +4404,12 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	mtd->size = i * chip->chipsize;
 
 	return 0;
+
+err_nand_init:
+	/* Free manufacturer priv data. */
+	nand_manufacturer_cleanup(chip);
+
+	return ret;
 }
 EXPORT_SYMBOL(nand_scan_ident);
 
@@ -4574,18 +4580,23 @@ int nand_scan_tail(struct mtd_info *mtd)
 
 	/* New bad blocks should be marked in OOB, flash-based BBT, or both */
 	if (WARN_ON((chip->bbt_options & NAND_BBT_NO_OOB_BBM) &&
-		   !(chip->bbt_options & NAND_BBT_USE_FLASH)))
-		return -EINVAL;
+		   !(chip->bbt_options & NAND_BBT_USE_FLASH))) {
+		ret = -EINVAL;
+		goto err_ident;
+	}
 
 	if (invalid_ecc_page_accessors(chip)) {
 		pr_err("Invalid ECC page accessors setup\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_ident;
 	}
 
 	if (!(chip->options & NAND_OWN_BUFFERS)) {
 		nbuf = kzalloc(sizeof(*nbuf), GFP_KERNEL);
-		if (!nbuf)
-			return -ENOMEM;
+		if (!nbuf) {
+			ret = -ENOMEM;
+			goto err_ident;
+		}
 
 		nbuf->ecccalc = kmalloc(mtd->oobsize, GFP_KERNEL);
 		if (!nbuf->ecccalc) {
@@ -4608,8 +4619,10 @@ int nand_scan_tail(struct mtd_info *mtd)
 
 		chip->buffers = nbuf;
 	} else {
-		if (!chip->buffers)
-			return -ENOMEM;
+		if (!chip->buffers) {
+			ret = -ENOMEM;
+			goto err_ident;
+		}
 	}
 
 	/* Set the internal oob buffer location, just after the page data */
@@ -4842,7 +4855,11 @@ int nand_scan_tail(struct mtd_info *mtd)
 		return 0;
 
 	/* Build bad block table */
-	return chip->scan_bbt(mtd);
+	ret = chip->scan_bbt(mtd);
+	if (ret)
+		goto err_free;
+	return 0;
+
 err_free:
 	if (nbuf) {
 		kfree(nbuf->databuf);
@@ -4850,6 +4867,13 @@ err_free:
 		kfree(nbuf->ecccalc);
 		kfree(nbuf);
 	}
+
+err_ident:
+	/* Clean up nand_scan_ident(). */
+
+	/* Free manufacturer priv data. */
+	nand_manufacturer_cleanup(chip);
+
 	return ret;
 }
 EXPORT_SYMBOL(nand_scan_tail);

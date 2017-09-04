@@ -484,8 +484,10 @@ static void dsa_dst_unapply(struct dsa_switch_tree *dst)
 		dsa_ds_unapply(dst, ds);
 	}
 
-	if (dst->cpu_switch)
+	if (dst->cpu_switch) {
 		dsa_cpu_port_ethtool_restore(dst->cpu_switch);
+		dst->cpu_switch = NULL;
+	}
 
 	pr_info("DSA: tree %d unapplied\n", dst->tree);
 	dst->applied = false;

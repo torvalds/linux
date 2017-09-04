@@ -56,12 +56,6 @@ union thread_union cpu0_irqstack
 	__attribute__((__section__(".data..init_irqstack"))) =
 		{ INIT_THREAD_INFO(init_task) };
 
-unsigned long thread_saved_pc(struct task_struct *task)
-{
-	/* FIXME: Need to look up userspace_pid by cpu */
-	return os_process_pc(userspace_pid[0]);
-}
-
 /* Changed in setup_arch, which is called in early boot */
 static char host_info[(__NEW_UTS_LEN + 1) * 5];
 

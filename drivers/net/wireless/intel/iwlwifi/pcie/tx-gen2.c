@@ -906,7 +906,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 
 	if (WARN_ON(iwl_rx_packet_payload_len(hcmd.resp_pkt) != sizeof(*rsp))) {
 		ret = -EINVAL;
-		goto error;
+		goto error_free_resp;
 	}
 
 	rsp = (void *)hcmd.resp_pkt->data;
@@ -915,13 +915,13 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 	if (qid > ARRAY_SIZE(trans_pcie->txq)) {
 		WARN_ONCE(1, "queue index %d unsupported", qid);
 		ret = -EIO;
-		goto error;
+		goto error_free_resp;
 	}
 
 	if (test_and_set_bit(qid, trans_pcie->queue_used)) {
 		WARN_ONCE(1, "queue %d already used", qid);
 		ret = -EIO;
-		goto error;
+		goto error_free_resp;
 	}
 
 	txq->id = qid;
@@ -934,8 +934,11 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 			   (txq->write_ptr) | (qid << 16));
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d\n", qid);
 
+	iwl_free_resp(&hcmd);
 	return qid;
 
+error_free_resp:
+	iwl_free_resp(&hcmd);
 error:
 	iwl_pcie_gen2_txq_free_memory(trans, txq);
 	return ret;

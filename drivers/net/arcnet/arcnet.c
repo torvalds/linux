@@ -756,6 +756,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	struct arcnet_local *lp;
 	int recbuf, status, diagstatus, didsomething, boguscount;
+	unsigned long flags;
 	int retval = IRQ_NONE;
 
 	arc_printk(D_DURING, dev, "\n");
@@ -765,7 +766,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 	lp = netdev_priv(dev);
 	BUG_ON(!lp);
 
-	spin_lock(&lp->lock);
+	spin_lock_irqsave(&lp->lock, flags);
 
 	/* RESET flag was enabled - if device is not running, we must
 	 * clear it right away (but nothing else).
@@ -774,7 +775,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		if (lp->hw.status(dev) & RESETflag)
 			lp->hw.command(dev, CFLAGScmd | RESETclear);
 		lp->hw.intmask(dev, 0);
-		spin_unlock(&lp->lock);
+		spin_unlock_irqrestore(&lp->lock, flags);
 		return retval;
 	}
 
@@ -998,7 +999,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 	udelay(1);
 	lp->hw.intmask(dev, lp->intmask);
 
-	spin_unlock(&lp->lock);
+	spin_unlock_irqrestore(&lp->lock, flags);
 	return retval;
 }
 EXPORT_SYMBOL(arcnet_interrupt);

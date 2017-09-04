@@ -183,9 +183,15 @@ static irqreturn_t sir_interrupt(int irq, void *dev_id)
 	static unsigned long delt;
 	unsigned long deltintr;
 	unsigned long flags;
+	int counter = 0;
 	int iir, lsr;
 
 	while ((iir = inb(io + UART_IIR) & UART_IIR_ID)) {
+		if (++counter > 256) {
+			dev_err(&sir_ir_dev->dev, "Trapped in interrupt");
+			break;
+		}
+
 		switch (iir & UART_IIR_ID) { /* FIXME toto treba preriedit */
 		case UART_IIR_MSI:
 			(void)inb(io + UART_MSR);

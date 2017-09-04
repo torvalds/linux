@@ -60,8 +60,8 @@
  */
 void i915_check_vgpu(struct drm_i915_private *dev_priv)
 {
-	uint64_t magic;
-	uint32_t version;
+	u64 magic;
+	u16 version_major;
 
 	BUILD_BUG_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 
@@ -69,10 +69,8 @@ void i915_check_vgpu(struct drm_i915_private *dev_priv)
 	if (magic != VGT_MAGIC)
 		return;
 
-	version = INTEL_VGT_IF_VERSION_ENCODE(
-		__raw_i915_read16(dev_priv, vgtif_reg(version_major)),
-		__raw_i915_read16(dev_priv, vgtif_reg(version_minor)));
-	if (version != INTEL_VGT_IF_VERSION) {
+	version_major = __raw_i915_read16(dev_priv, vgtif_reg(version_major));
+	if (version_major < VGT_VERSION_MAJOR) {
 		DRM_INFO("VGT interface version mismatch!\n");
 		return;
 	}

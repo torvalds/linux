@@ -27,6 +27,13 @@ static int throtl_quantum = 32;
 #define MIN_THROTL_IOPS (10)
 #define DFL_LATENCY_TARGET (-1L)
 #define DFL_IDLE_THRESHOLD (0)
+#define DFL_HD_BASELINE_LATENCY (4000L) /* 4ms */
+#define LATENCY_FILTERED_SSD (0)
+/*
+ * For HD, very small latency comes from sequential IO. Such IO is helpless to
+ * help determine if its IO is impacted by others, hence we ignore the IO
+ */
+#define LATENCY_FILTERED_HD (1000L) /* 1ms */
 
 #define SKIP_LATENCY (((u64)1) << BLK_STAT_RES_SHIFT)
 
@@ -212,6 +219,7 @@ struct throtl_data
 	struct avg_latency_bucket avg_buckets[LATENCY_BUCKET_SIZE];
 	struct latency_bucket __percpu *latency_buckets;
 	unsigned long last_calculate_time;
+	unsigned long filtered_latency;
 
 	bool track_bio_latency;
 };
@@ -698,7 +706,7 @@ static void throtl_dequeue_tg(struct throtl_grp *tg)
 static void throtl_schedule_pending_timer(struct throtl_service_queue *sq,
 					  unsigned long expires)
 {
-	unsigned long max_expire = jiffies + 8 * sq_to_tg(sq)->td->throtl_slice;
+	unsigned long max_expire = jiffies + 8 * sq_to_td(sq)->throtl_slice;
 
 	/*
 	 * Since we are adjusting the throttle limit dynamically, the sleep
@@ -2281,7 +2289,7 @@ void blk_throtl_bio_endio(struct bio *bio)
 		throtl_track_latency(tg->td, blk_stat_size(&bio->bi_issue_stat),
 			bio_op(bio), lat);
 
-	if (tg->latency_target) {
+	if (tg->latency_target && lat >= tg->td->filtered_latency) {
 		int bucket;
 		unsigned int threshold;
 
@@ -2417,14 +2425,20 @@ void blk_throtl_exit(struct request_queue *q)
 void blk_throtl_register_queue(struct request_queue *q)
 {
 	struct throtl_data *td;
+	int i;
 
 	td = q->td;
 	BUG_ON(!td);
 
-	if (blk_queue_nonrot(q))
+	if (blk_queue_nonrot(q)) {
 		td->throtl_slice = DFL_THROTL_SLICE_SSD;
-	else
+		td->filtered_latency = LATENCY_FILTERED_SSD;
+	} else {
 		td->throtl_slice = DFL_THROTL_SLICE_HD;
+		td->filtered_latency = LATENCY_FILTERED_HD;
+		for (i = 0; i < LATENCY_BUCKET_SIZE; i++)
+			td->avg_buckets[i].latency = DFL_HD_BASELINE_LATENCY;
+	}
 #ifndef CONFIG_BLK_DEV_THROTTLING_LOW
 	/* if no low limit, use previous default */
 	td->throtl_slice = DFL_THROTL_SLICE_HD;

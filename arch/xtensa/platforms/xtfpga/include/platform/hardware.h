@@ -24,16 +24,18 @@
 
 /* Interrupt configuration. */
 
-#define PLATFORM_NR_IRQS	10
+#define PLATFORM_NR_IRQS	0
 
 /* Default assignment of LX60 devices to external interrupts. */
 
 #ifdef CONFIG_XTENSA_MX
 #define DUART16552_INTNUM	XCHAL_EXTINT3_NUM
 #define OETH_IRQ		XCHAL_EXTINT4_NUM
+#define C67X00_IRQ		XCHAL_EXTINT8_NUM
 #else
 #define DUART16552_INTNUM	XCHAL_EXTINT0_NUM
 #define OETH_IRQ		XCHAL_EXTINT1_NUM
+#define C67X00_IRQ		XCHAL_EXTINT5_NUM
 #endif
 
 /*
@@ -63,5 +65,5 @@
 
 #define C67X00_PADDR		(XCHAL_KIO_PADDR + 0x0D0D0000)
 #define C67X00_SIZE		0x10
-#define C67X00_IRQ		5
+
 #endif /* __XTENSA_XTAVNET_HARDWARE_H */

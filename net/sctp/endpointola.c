@@ -275,6 +275,7 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 		if (sctp_sk(sk)->bind_hash)
 			sctp_put_port(sk);
 
+		sctp_sk(sk)->ep = NULL;
 		sock_put(sk);
 	}
 

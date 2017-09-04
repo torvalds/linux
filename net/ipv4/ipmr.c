@@ -101,8 +101,8 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id);
 static void ipmr_free_table(struct mr_table *mrt);
 
 static void ip_mr_forward(struct net *net, struct mr_table *mrt,
-			  struct sk_buff *skb, struct mfc_cache *cache,
-			  int local);
+			  struct net_device *dev, struct sk_buff *skb,
+			  struct mfc_cache *cache, int local);
 static int ipmr_cache_report(struct mr_table *mrt,
 			     struct sk_buff *pkt, vifi_t vifi, int assert);
 static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
@@ -501,7 +501,7 @@ static void reg_vif_setup(struct net_device *dev)
 	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr) - 8;
 	dev->flags		= IFF_NOARP;
 	dev->netdev_ops		= &reg_vif_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 	dev->features		|= NETIF_F_NETNS_LOCAL;
 }
 
@@ -988,7 +988,7 @@ static void ipmr_cache_resolve(struct net *net, struct mr_table *mrt,
 
 			rtnl_unicast(skb, net, NETLINK_CB(skb).portid);
 		} else {
-			ip_mr_forward(net, mrt, skb, c, 0);
+			ip_mr_forward(net, mrt, skb->dev, skb, c, 0);
 		}
 	}
 }
@@ -1073,7 +1073,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 
 /* Queue a packet for resolution. It gets locked cache entry! */
 static int ipmr_cache_unresolved(struct mr_table *mrt, vifi_t vifi,
-				 struct sk_buff *skb)
+				 struct sk_buff *skb, struct net_device *dev)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct mfc_cache *c;
@@ -1130,6 +1130,10 @@ static int ipmr_cache_unresolved(struct mr_table *mrt, vifi_t vifi,
 		kfree_skb(skb);
 		err = -ENOBUFS;
 	} else {
+		if (dev) {
+			skb->dev = dev;
+			skb->skb_iif = dev->ifindex;
+		}
 		skb_queue_tail(&c->mfc_un.unres.unresolved, skb);
 		err = 0;
 	}
@@ -1828,10 +1832,10 @@ static int ipmr_find_vif(struct mr_table *mrt, struct net_device *dev)
 
 /* "local" means that we should preserve one skb (for local delivery) */
 static void ip_mr_forward(struct net *net, struct mr_table *mrt,
-			  struct sk_buff *skb, struct mfc_cache *cache,
-			  int local)
+			  struct net_device *dev, struct sk_buff *skb,
+			  struct mfc_cache *cache, int local)
 {
-	int true_vifi = ipmr_find_vif(mrt, skb->dev);
+	int true_vifi = ipmr_find_vif(mrt, dev);
 	int psend = -1;
 	int vif, ct;
 
@@ -1853,13 +1857,7 @@ static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 	}
 
 	/* Wrong interface: drop packet and (maybe) send PIM assert. */
-	if (mrt->vif_table[vif].dev != skb->dev) {
-		struct net_device *mdev;
-
-		mdev = l3mdev_master_dev_rcu(mrt->vif_table[vif].dev);
-		if (mdev == skb->dev)
-			goto forward;
-
+	if (mrt->vif_table[vif].dev != dev) {
 		if (rt_is_output_route(skb_rtable(skb))) {
 			/* It is our own packet, looped back.
 			 * Very complicated situation...
@@ -2053,7 +2051,7 @@ int ip_mr_input(struct sk_buff *skb)
 		read_lock(&mrt_lock);
 		vif = ipmr_find_vif(mrt, dev);
 		if (vif >= 0) {
-			int err2 = ipmr_cache_unresolved(mrt, vif, skb);
+			int err2 = ipmr_cache_unresolved(mrt, vif, skb, dev);
 			read_unlock(&mrt_lock);
 
 			return err2;
@@ -2064,7 +2062,7 @@ int ip_mr_input(struct sk_buff *skb)
 	}
 
 	read_lock(&mrt_lock);
-	ip_mr_forward(net, mrt, skb, cache, local);
+	ip_mr_forward(net, mrt, dev, skb, cache, local);
 	read_unlock(&mrt_lock);
 
 	if (local)
@@ -2238,7 +2236,7 @@ int ipmr_get_route(struct net *net, struct sk_buff *skb,
 		iph->saddr = saddr;
 		iph->daddr = daddr;
 		iph->version = 0;
-		err = ipmr_cache_unresolved(mrt, vif, skb2);
+		err = ipmr_cache_unresolved(mrt, vif, skb2, dev);
 		read_unlock(&mrt_lock);
 		rcu_read_unlock();
 		return err;

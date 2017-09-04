@@ -263,7 +263,10 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 		kfree(vecs);
 
 	if (unlikely(bio.bi_error))
-		return bio.bi_error;
+		ret = bio.bi_error;
+
+	bio_uninit(&bio);
+
 	return ret;
 }
 

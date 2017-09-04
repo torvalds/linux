@@ -12729,7 +12729,7 @@ static int bnx2x_set_mc_list(struct bnx2x *bp)
 	} else {
 		/* If no mc addresses are required, flush the configuration */
 		rc = bnx2x_config_mcast(bp, &rparam, BNX2X_MCAST_CMD_DEL);
-		if (rc)
+		if (rc < 0)
 			BNX2X_ERR("Failed to clear multicast configuration %d\n",
 				  rc);
 	}

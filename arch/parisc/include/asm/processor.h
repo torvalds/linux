@@ -163,12 +163,7 @@ struct thread_struct {
 	.flags		= 0 \
 	}
 
-/*
- * Return saved PC of a blocked thread.  This is used by ps mostly.
- */
-
 struct task_struct;
-unsigned long thread_saved_pc(struct task_struct *t);
 void show_trace(struct task_struct *task, unsigned long *stack);
 
 /*

@@ -1274,9 +1274,12 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	int ret;
 	uint32_t size;
-	uint32_t backup_handle;
+	uint32_t backup_handle = 0;
 
 	if (req->multisample_count != 0)
+		return -EINVAL;
+
+	if (req->mip_levels > DRM_VMW_MAX_MIP_LEVELS)
 		return -EINVAL;
 
 	if (unlikely(vmw_user_surface_size == 0))
@@ -1314,12 +1317,16 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 		ret = vmw_user_dmabuf_lookup(tfile, req->buffer_handle,
 					     &res->backup,
 					     &user_srf->backup_base);
-		if (ret == 0 && res->backup->base.num_pages * PAGE_SIZE <
-		    res->backup_size) {
-			DRM_ERROR("Surface backup buffer is too small.\n");
-			vmw_dmabuf_unreference(&res->backup);
-			ret = -EINVAL;
-			goto out_unlock;
+		if (ret == 0) {
+			if (res->backup->base.num_pages * PAGE_SIZE <
+			    res->backup_size) {
+				DRM_ERROR("Surface backup buffer is too small.\n");
+				vmw_dmabuf_unreference(&res->backup);
+				ret = -EINVAL;
+				goto out_unlock;
+			} else {
+				backup_handle = req->buffer_handle;
+			}
 		}
 	} else if (req->drm_surface_flags & drm_vmw_surface_flag_create_buffer)
 		ret = vmw_user_dmabuf_alloc(dev_priv, tfile,
@@ -1491,7 +1498,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 				 dev_priv->stdu_max_height);
 
 		if (size.width > max_width || size.height > max_height) {
-			DRM_ERROR("%ux%u\n, exeeds max surface size %ux%u",
+			DRM_ERROR("%ux%u\n, exceeds max surface size %ux%u",
 				  size.width, size.height,
 				  max_width, max_height);
 			return -EINVAL;

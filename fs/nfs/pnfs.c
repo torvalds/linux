@@ -2094,12 +2094,26 @@ pnfs_generic_pg_check_layout(struct nfs_pageio_descriptor *pgio)
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_check_layout);
 
+/*
+ * Check for any intersection between the request and the pgio->pg_lseg,
+ * and if none, put this pgio->pg_lseg away.
+ */
+static void
+pnfs_generic_pg_check_range(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
+{
+	if (pgio->pg_lseg && !pnfs_lseg_request_intersecting(pgio->pg_lseg, req)) {
+		pnfs_put_lseg(pgio->pg_lseg);
+		pgio->pg_lseg = NULL;
+	}
+}
+
 void
 pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 {
 	u64 rd_size = req->wb_bytes;
 
 	pnfs_generic_pg_check_layout(pgio);
+	pnfs_generic_pg_check_range(pgio, req);
 	if (pgio->pg_lseg == NULL) {
 		if (pgio->pg_dreq == NULL)
 			rd_size = i_size_read(pgio->pg_inode) - req_offset(req);
@@ -2131,6 +2145,7 @@ pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
 			   struct nfs_page *req, u64 wb_size)
 {
 	pnfs_generic_pg_check_layout(pgio);
+	pnfs_generic_pg_check_range(pgio, req);
 	if (pgio->pg_lseg == NULL) {
 		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 						   req->wb_context,
@@ -2191,16 +2206,10 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio,
 		seg_end = pnfs_end_offset(pgio->pg_lseg->pls_range.offset,
 				     pgio->pg_lseg->pls_range.length);
 		req_start = req_offset(req);
-		WARN_ON_ONCE(req_start >= seg_end);
+
 		/* start of request is past the last byte of this segment */
-		if (req_start >= seg_end) {
-			/* reference the new lseg */
-			if (pgio->pg_ops->pg_cleanup)
-				pgio->pg_ops->pg_cleanup(pgio);
-			if (pgio->pg_ops->pg_init)
-				pgio->pg_ops->pg_init(pgio, req);
+		if (req_start >= seg_end)
 			return 0;
-		}
 
 		/* adjust 'size' iff there are fewer bytes left in the
 		 * segment than what nfs_generic_pg_test returned */

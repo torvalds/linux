@@ -55,10 +55,10 @@
  * byte 1 for other packets in the page (PKT_N, for N > 0)
  * ERR_COUNT_PKT_N is the max error count over all but the first packet.
  */
-#define DECODE_OK_PKT_0(v)	((v) & BIT(7))
-#define DECODE_OK_PKT_N(v)	((v) & BIT(15))
 #define ERR_COUNT_PKT_0(v)	(((v) >> 0) & 0x3f)
 #define ERR_COUNT_PKT_N(v)	(((v) >> 8) & 0x3f)
+#define DECODE_FAIL_PKT_0(v)	(((v) & BIT(7)) == 0)
+#define DECODE_FAIL_PKT_N(v)	(((v) & BIT(15)) == 0)
 
 /* Offsets relative to pbus_base */
 #define PBUS_CS_CTRL	0x83c
@@ -193,6 +193,8 @@ static int check_erased_page(struct nand_chip *chip, u8 *buf)
 						  chip->ecc.strength);
 		if (res < 0)
 			mtd->ecc_stats.failed++;
+		else
+			mtd->ecc_stats.corrected += res;
 
 		bitflips = max(res, bitflips);
 		buf += pkt_size;
@@ -202,9 +204,11 @@ static int check_erased_page(struct nand_chip *chip, u8 *buf)
 	return bitflips;
 }
 
-static int decode_error_report(struct tango_nfc *nfc)
+static int decode_error_report(struct nand_chip *chip)
 {
 	u32 status, res;
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
 
 	status = readl_relaxed(nfc->reg_base + NFC_XFER_STATUS);
 	if (status & PAGE_IS_EMPTY)
@@ -212,10 +216,14 @@ static int decode_error_report(struct tango_nfc *nfc)
 
 	res = readl_relaxed(nfc->mem_base + ERROR_REPORT);
 
-	if (DECODE_OK_PKT_0(res) && DECODE_OK_PKT_N(res))
-		return max(ERR_COUNT_PKT_0(res), ERR_COUNT_PKT_N(res));
+	if (DECODE_FAIL_PKT_0(res) || DECODE_FAIL_PKT_N(res))
+		return -EBADMSG;
 
-	return -EBADMSG;
+	/* ERR_COUNT_PKT_N is max, not sum, but that's all we have */
+	mtd->ecc_stats.corrected +=
+		ERR_COUNT_PKT_0(res) + ERR_COUNT_PKT_N(res);
+
+	return max(ERR_COUNT_PKT_0(res), ERR_COUNT_PKT_N(res));
 }
 
 static void tango_dma_callback(void *arg)
@@ -282,7 +290,7 @@ static int tango_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	if (err)
 		return err;
 
-	res = decode_error_report(nfc);
+	res = decode_error_report(chip);
 	if (res < 0) {
 		chip->ecc.read_oob_raw(mtd, chip, page);
 		res = check_erased_page(chip, buf);
@@ -663,6 +671,7 @@ static const struct of_device_id tango_nand_ids[] = {
 	{ .compatible = "sigma,smp8758-nand" },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, tango_nand_ids);
 
 static struct platform_driver tango_nand_driver = {
 	.probe	= tango_nand_probe,

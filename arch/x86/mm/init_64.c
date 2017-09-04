@@ -990,7 +990,13 @@ remove_p4d_table(p4d_t *p4d_start, unsigned long addr, unsigned long end,
 
 		pud_base = pud_offset(p4d, 0);
 		remove_pud_table(pud_base, addr, next, direct);
-		free_pud_table(pud_base, p4d);
+		/*
+		 * For 4-level page tables we do not want to free PUDs, but in the
+		 * 5-level case we should free them. This code will have to change
+		 * to adapt for boot-time switching between 4 and 5 level page tables.
+		 */
+		if (CONFIG_PGTABLE_LEVELS == 5)
+			free_pud_table(pud_base, p4d);
 	}
 
 	if (direct)

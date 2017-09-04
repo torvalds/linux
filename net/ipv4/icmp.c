@@ -657,8 +657,12 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	/* Needed by both icmp_global_allow and icmp_xmit_lock */
 	local_bh_disable();
 
-	/* Check global sysctl_icmp_msgs_per_sec ratelimit */
-	if (!icmpv4_global_allow(net, type, code))
+	/* Check global sysctl_icmp_msgs_per_sec ratelimit, unless
+	 * incoming dev is loopback.  If outgoing dev change to not be
+	 * loopback, then peer ratelimit still work (in icmpv4_xrlim_allow)
+	 */
+	if (!(skb_in->dev && (skb_in->dev->flags&IFF_LOOPBACK)) &&
+	      !icmpv4_global_allow(net, type, code))
 		goto out_bh_enable;
 
 	sk = icmp_xmit_lock(net);

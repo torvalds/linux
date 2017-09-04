@@ -240,20 +240,21 @@ fallback:
 	return bvl;
 }
 
-static void __bio_free(struct bio *bio)
+void bio_uninit(struct bio *bio)
 {
 	bio_disassociate_task(bio);
 
 	if (bio_integrity(bio))
 		bio_integrity_free(bio);
 }
+EXPORT_SYMBOL(bio_uninit);
 
 static void bio_free(struct bio *bio)
 {
 	struct bio_set *bs = bio->bi_pool;
 	void *p;
 
-	__bio_free(bio);
+	bio_uninit(bio);
 
 	if (bs) {
 		bvec_free(bs->bvec_pool, bio->bi_io_vec, BVEC_POOL_IDX(bio));
@@ -271,6 +272,11 @@ static void bio_free(struct bio *bio)
 	}
 }
 
+/*
+ * Users of this function have their own bio allocation. Subsequently,
+ * they must remember to pair any call to bio_init() with bio_uninit()
+ * when IO has completed, or when the bio is released.
+ */
 void bio_init(struct bio *bio, struct bio_vec *table,
 	      unsigned short max_vecs)
 {
@@ -297,7 +303,7 @@ void bio_reset(struct bio *bio)
 {
 	unsigned long flags = bio->bi_flags & (~0UL << BIO_RESET_BITS);
 
-	__bio_free(bio);
+	bio_uninit(bio);
 
 	memset(bio, 0, BIO_RESET_BYTES);
 	bio->bi_flags = flags;

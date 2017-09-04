@@ -50,6 +50,8 @@ static const char *kobject_actions[] = {
 	[KOBJ_MOVE] =		"move",
 	[KOBJ_ONLINE] =		"online",
 	[KOBJ_OFFLINE] =	"offline",
+	[KOBJ_BIND] =		"bind",
+	[KOBJ_UNBIND] =		"unbind",
 };
 
 /**

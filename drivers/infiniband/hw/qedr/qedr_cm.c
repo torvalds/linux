@@ -270,11 +270,13 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 		return rc;
 	}
 
-	vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
-	if (vlan_id < VLAN_CFI_MASK)
-		has_vlan = true;
-	if (sgid_attr.ndev)
+	if (sgid_attr.ndev) {
+		vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
+		if (vlan_id < VLAN_CFI_MASK)
+			has_vlan = true;
+
 		dev_put(sgid_attr.ndev);
+	}
 
 	if (!memcmp(&sgid, &zgid, sizeof(sgid))) {
 		DP_ERR(dev, "gsi post send: GID not found GID index %d\n",

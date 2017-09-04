@@ -623,7 +623,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 * GPU processing the request, we never over-estimate the
 	 * position of the head.
 	 */
-	req->head = req->ring->tail;
+	req->head = req->ring->emit;
 
 	/* Check that we didn't interrupt ourselves with a new request */
 	GEM_BUG_ON(req->timeline->seqno != req->fence.seqno);

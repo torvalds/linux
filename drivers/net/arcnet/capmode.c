@@ -212,7 +212,7 @@ static int ack_tx(struct net_device *dev, int acked)
 	ackpkt->soft.cap.proto = 0; /* using protocol 0 for acknowledge */
 	ackpkt->soft.cap.mes.ack = acked;
 
-	arc_printk(D_PROTO, dev, "Ackknowledge for cap packet %x.\n",
+	arc_printk(D_PROTO, dev, "Acknowledge for cap packet %x.\n",
 		   *((int *)&ackpkt->soft.cap.cookie[0]));
 
 	ackskb->protocol = cpu_to_be16(ETH_P_ARCNET);

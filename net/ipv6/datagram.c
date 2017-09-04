@@ -250,8 +250,14 @@ ipv4_connected:
 	 */
 
 	err = ip6_datagram_dst_update(sk, true);
-	if (err)
+	if (err) {
+		/* Reset daddr and dport so that udp_v6_early_demux()
+		 * fails to find this socket
+		 */
+		memset(&sk->sk_v6_daddr, 0, sizeof(sk->sk_v6_daddr));
+		inet->inet_dport = 0;
 		goto out;
+	}
 
 	sk->sk_state = TCP_ESTABLISHED;
 	sk_set_txhash(sk);

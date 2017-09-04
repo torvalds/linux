@@ -190,6 +190,7 @@ static void ena_init_io_rings(struct ena_adapter *adapter)
 		rxr->sgl_size = adapter->max_rx_sgl_size;
 		rxr->smoothed_interval =
 			ena_com_get_nonadaptive_moderation_interval_rx(ena_dev);
+		rxr->empty_rx_queue = 0;
 	}
 }
 
@@ -1078,6 +1079,26 @@ inline void ena_adjust_intr_moderation(struct ena_ring *rx_ring,
 	rx_ring->per_napi_bytes = 0;
 }
 
+static inline void ena_unmask_interrupt(struct ena_ring *tx_ring,
+					struct ena_ring *rx_ring)
+{
+	struct ena_eth_io_intr_reg intr_reg;
+
+	/* Update intr register: rx intr delay,
+	 * tx intr delay and interrupt unmask
+	 */
+	ena_com_update_intr_reg(&intr_reg,
+				rx_ring->smoothed_interval,
+				tx_ring->smoothed_interval,
+				true);
+
+	/* It is a shared MSI-X.
+	 * Tx and Rx CQ have pointer to it.
+	 * So we use one of them to reach the intr reg
+	 */
+	ena_com_unmask_intr(rx_ring->ena_com_io_cq, &intr_reg);
+}
+
 static inline void ena_update_ring_numa_node(struct ena_ring *tx_ring,
 					     struct ena_ring *rx_ring)
 {
@@ -1108,7 +1129,6 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 {
 	struct ena_napi *ena_napi = container_of(napi, struct ena_napi, napi);
 	struct ena_ring *tx_ring, *rx_ring;
-	struct ena_eth_io_intr_reg intr_reg;
 
 	u32 tx_work_done;
 	u32 rx_work_done;
@@ -1149,21 +1169,8 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 			if (ena_com_get_adaptive_moderation_enabled(rx_ring->ena_dev))
 				ena_adjust_intr_moderation(rx_ring, tx_ring);
 
-			/* Update intr register: rx intr delay,
-			 * tx intr delay and interrupt unmask
-			 */
-			ena_com_update_intr_reg(&intr_reg,
-						rx_ring->smoothed_interval,
-						tx_ring->smoothed_interval,
-						true);
-
-			/* It is a shared MSI-X.
-			 * Tx and Rx CQ have pointer to it.
-			 * So we use one of them to reach the intr reg
-			 */
-			ena_com_unmask_intr(rx_ring->ena_com_io_cq, &intr_reg);
+			ena_unmask_interrupt(tx_ring, rx_ring);
 		}
-
 
 		ena_update_ring_numa_node(tx_ring, rx_ring);
 
@@ -1485,6 +1492,11 @@ static int ena_up_complete(struct ena_adapter *adapter)
 
 	ena_napi_enable_all(adapter);
 
+	/* Enable completion queues interrupt */
+	for (i = 0; i < adapter->num_queues; i++)
+		ena_unmask_interrupt(&adapter->tx_ring[i],
+				     &adapter->rx_ring[i]);
+
 	/* schedule napi in case we had pending packets
 	 * from the last time we disable napi
 	 */
@@ -1532,6 +1544,7 @@ static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 			  "Failed to get TX queue handlers. TX queue num %d rc: %d\n",
 			  qid, rc);
 		ena_com_destroy_io_queue(ena_dev, ena_qid);
+		return rc;
 	}
 
 	ena_com_update_numa_node(tx_ring->ena_com_io_cq, ctx.numa_node);
@@ -1596,6 +1609,7 @@ static int ena_create_io_rx_queue(struct ena_adapter *adapter, int qid)
 			  "Failed to get RX queue handlers. RX queue num %d rc: %d\n",
 			  qid, rc);
 		ena_com_destroy_io_queue(ena_dev, ena_qid);
+		return rc;
 	}
 
 	ena_com_update_numa_node(rx_ring->ena_com_io_cq, ctx.numa_node);
@@ -1981,6 +1995,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_info->tx_descs = nb_hw_desc;
 	tx_info->last_jiffies = jiffies;
+	tx_info->print_once = 0;
 
 	tx_ring->next_to_use = ENA_TX_RING_IDX_NEXT(next_to_use,
 		tx_ring->ring_size);
@@ -2550,13 +2565,44 @@ err:
 		"Reset attempt failed. Can not reset the device\n");
 }
 
-static void check_for_missing_tx_completions(struct ena_adapter *adapter)
+static int check_missing_comp_in_queue(struct ena_adapter *adapter,
+				       struct ena_ring *tx_ring)
 {
 	struct ena_tx_buffer *tx_buf;
 	unsigned long last_jiffies;
+	u32 missed_tx = 0;
+	int i;
+
+	for (i = 0; i < tx_ring->ring_size; i++) {
+		tx_buf = &tx_ring->tx_buffer_info[i];
+		last_jiffies = tx_buf->last_jiffies;
+		if (unlikely(last_jiffies &&
+			     time_is_before_jiffies(last_jiffies + TX_TIMEOUT))) {
+			if (!tx_buf->print_once)
+				netif_notice(adapter, tx_err, adapter->netdev,
+					     "Found a Tx that wasn't completed on time, qid %d, index %d.\n",
+					     tx_ring->qid, i);
+
+			tx_buf->print_once = 1;
+			missed_tx++;
+
+			if (unlikely(missed_tx > MAX_NUM_OF_TIMEOUTED_PACKETS)) {
+				netif_err(adapter, tx_err, adapter->netdev,
+					  "The number of lost tx completions is above the threshold (%d > %d). Reset the device\n",
+					  missed_tx, MAX_NUM_OF_TIMEOUTED_PACKETS);
+				set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+				return -EIO;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static void check_for_missing_tx_completions(struct ena_adapter *adapter)
+{
 	struct ena_ring *tx_ring;
-	int i, j, budget;
-	u32 missed_tx;
+	int i, budget, rc;
 
 	/* Make sure the driver doesn't turn the device in other process */
 	smp_rmb();
@@ -2572,31 +2618,9 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 	for (i = adapter->last_monitored_tx_qid; i < adapter->num_queues; i++) {
 		tx_ring = &adapter->tx_ring[i];
 
-		for (j = 0; j < tx_ring->ring_size; j++) {
-			tx_buf = &tx_ring->tx_buffer_info[j];
-			last_jiffies = tx_buf->last_jiffies;
-			if (unlikely(last_jiffies && time_is_before_jiffies(last_jiffies + TX_TIMEOUT))) {
-				netif_notice(adapter, tx_err, adapter->netdev,
-					     "Found a Tx that wasn't completed on time, qid %d, index %d.\n",
-					     tx_ring->qid, j);
-
-				u64_stats_update_begin(&tx_ring->syncp);
-				missed_tx = tx_ring->tx_stats.missing_tx_comp++;
-				u64_stats_update_end(&tx_ring->syncp);
-
-				/* Clear last jiffies so the lost buffer won't
-				 * be counted twice.
-				 */
-				tx_buf->last_jiffies = 0;
-
-				if (unlikely(missed_tx > MAX_NUM_OF_TIMEOUTED_PACKETS)) {
-					netif_err(adapter, tx_err, adapter->netdev,
-						  "The number of lost tx completion is above the threshold (%d > %d). Reset the device\n",
-						  missed_tx, MAX_NUM_OF_TIMEOUTED_PACKETS);
-					set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
-				}
-			}
-		}
+		rc = check_missing_comp_in_queue(adapter, tx_ring);
+		if (unlikely(rc))
+			return;
 
 		budget--;
 		if (!budget)
@@ -2604,6 +2628,58 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 	}
 
 	adapter->last_monitored_tx_qid = i % adapter->num_queues;
+}
+
+/* trigger napi schedule after 2 consecutive detections */
+#define EMPTY_RX_REFILL 2
+/* For the rare case where the device runs out of Rx descriptors and the
+ * napi handler failed to refill new Rx descriptors (due to a lack of memory
+ * for example).
+ * This case will lead to a deadlock:
+ * The device won't send interrupts since all the new Rx packets will be dropped
+ * The napi handler won't allocate new Rx descriptors so the device will be
+ * able to send new packets.
+ *
+ * This scenario can happen when the kernel's vm.min_free_kbytes is too small.
+ * It is recommended to have at least 512MB, with a minimum of 128MB for
+ * constrained environment).
+ *
+ * When such a situation is detected - Reschedule napi
+ */
+static void check_for_empty_rx_ring(struct ena_adapter *adapter)
+{
+	struct ena_ring *rx_ring;
+	int i, refill_required;
+
+	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
+		return;
+
+	if (test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
+		return;
+
+	for (i = 0; i < adapter->num_queues; i++) {
+		rx_ring = &adapter->rx_ring[i];
+
+		refill_required =
+			ena_com_sq_empty_space(rx_ring->ena_com_io_sq);
+		if (unlikely(refill_required == (rx_ring->ring_size - 1))) {
+			rx_ring->empty_rx_queue++;
+
+			if (rx_ring->empty_rx_queue >= EMPTY_RX_REFILL) {
+				u64_stats_update_begin(&rx_ring->syncp);
+				rx_ring->rx_stats.empty_rx_ring++;
+				u64_stats_update_end(&rx_ring->syncp);
+
+				netif_err(adapter, drv, adapter->netdev,
+					  "trigger refill for ring %d\n", i);
+
+				napi_schedule(rx_ring->napi);
+				rx_ring->empty_rx_queue = 0;
+			}
+		} else {
+			rx_ring->empty_rx_queue = 0;
+		}
+	}
 }
 
 /* Check for keep alive expiration */
@@ -2659,6 +2735,8 @@ static void ena_timer_service(unsigned long data)
 	check_for_admin_com_state(adapter);
 
 	check_for_missing_tx_completions(adapter);
+
+	check_for_empty_rx_ring(adapter);
 
 	if (debug_area)
 		ena_dump_stats_to_buf(adapter, debug_area);
@@ -2840,6 +2918,11 @@ static void ena_release_bars(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 {
 	int release_bars;
 
+	if (ena_dev->mem_bar)
+		devm_iounmap(&pdev->dev, ena_dev->mem_bar);
+
+	devm_iounmap(&pdev->dev, ena_dev->reg_bar);
+
 	release_bars = pci_select_bars(pdev, IORESOURCE_MEM) & ENA_BAR_MASK;
 	pci_release_selected_regions(pdev, release_bars);
 }
@@ -2927,8 +3010,9 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_free_ena_dev;
 	}
 
-	ena_dev->reg_bar = ioremap(pci_resource_start(pdev, ENA_REG_BAR),
-				   pci_resource_len(pdev, ENA_REG_BAR));
+	ena_dev->reg_bar = devm_ioremap(&pdev->dev,
+					pci_resource_start(pdev, ENA_REG_BAR),
+					pci_resource_len(pdev, ENA_REG_BAR));
 	if (!ena_dev->reg_bar) {
 		dev_err(&pdev->dev, "failed to remap regs bar\n");
 		rc = -EFAULT;
@@ -2948,8 +3032,9 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ena_set_push_mode(pdev, ena_dev, &get_feat_ctx);
 
 	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
-		ena_dev->mem_bar = ioremap_wc(pci_resource_start(pdev, ENA_MEM_BAR),
-					      pci_resource_len(pdev, ENA_MEM_BAR));
+		ena_dev->mem_bar = devm_ioremap_wc(&pdev->dev,
+						   pci_resource_start(pdev, ENA_MEM_BAR),
+						   pci_resource_len(pdev, ENA_MEM_BAR));
 		if (!ena_dev->mem_bar) {
 			rc = -EFAULT;
 			goto err_device_destroy;

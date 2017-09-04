@@ -239,10 +239,20 @@ static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *op
 	const char *s = strchr(ops->raw, '+');
 	const char *c = strchr(ops->raw, ',');
 
-	if (c++ != NULL)
+	/*
+	 * skip over possible up to 2 operands to get to address, e.g.:
+	 * tbnz	 w0, #26, ffff0000083cd190 <security_file_permission+0xd0>
+	 */
+	if (c++ != NULL) {
 		ops->target.addr = strtoull(c, NULL, 16);
-	else
+		if (!ops->target.addr) {
+			c = strchr(c, ',');
+			if (c++ != NULL)
+				ops->target.addr = strtoull(c, NULL, 16);
+		}
+	} else {
 		ops->target.addr = strtoull(ops->raw, NULL, 16);
+	}
 
 	if (s++ != NULL) {
 		ops->target.offset = strtoull(s, NULL, 16);
@@ -257,10 +267,27 @@ static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *op
 static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
 			   struct ins_operands *ops)
 {
+	const char *c = strchr(ops->raw, ',');
+
 	if (!ops->target.addr || ops->target.offset < 0)
 		return ins__raw_scnprintf(ins, bf, size, ops);
 
-	return scnprintf(bf, size, "%-6.6s %" PRIx64, ins->name, ops->target.offset);
+	if (c != NULL) {
+		const char *c2 = strchr(c + 1, ',');
+
+		/* check for 3-op insn */
+		if (c2 != NULL)
+			c = c2;
+		c++;
+
+		/* mirror arch objdump's space-after-comma style */
+		if (*c == ' ')
+			c++;
+	}
+
+	return scnprintf(bf, size, "%-6.6s %.*s%" PRIx64,
+			 ins->name, c ? c - ops->raw : 0, ops->raw,
+			 ops->target.offset);
 }
 
 static struct ins_ops jump_ops = {
@@ -1294,6 +1321,7 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 	char linkname[PATH_MAX];
 	char *build_id_filename;
 	char *build_id_path = NULL;
+	char *pos;
 
 	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
 	    !dso__is_kcore(dso))
@@ -1313,7 +1341,14 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 	if (!build_id_path)
 		return -1;
 
-	dirname(build_id_path);
+	/*
+	 * old style build-id cache has name of XX/XXXXXXX.. while
+	 * new style has XX/XXXXXXX../{elf,kallsyms,vdso}.
+	 * extract the build-id part of dirname in the new style only.
+	 */
+	pos = strrchr(build_id_path, '/');
+	if (pos && strlen(pos) < SBUILD_ID_SIZE - 2)
+		dirname(build_id_path);
 
 	if (dso__is_kcore(dso) ||
 	    readlink(build_id_path, linkname, sizeof(linkname)) < 0 ||
@@ -1396,31 +1431,10 @@ int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_na
 				sizeof(symfs_filename));
 		}
 	} else if (dso__needs_decompress(dso)) {
-		char tmp[PATH_MAX];
-		struct kmod_path m;
-		int fd;
-		bool ret;
+		char tmp[KMOD_DECOMP_LEN];
 
-		if (kmod_path__parse_ext(&m, symfs_filename))
-			goto out;
-
-		snprintf(tmp, PATH_MAX, "/tmp/perf-kmod-XXXXXX");
-
-		fd = mkstemp(tmp);
-		if (fd < 0) {
-			free(m.ext);
-			goto out;
-		}
-
-		ret = decompress_to_file(m.ext, symfs_filename, fd);
-
-		if (ret)
-			pr_err("Cannot decompress %s %s\n", m.ext, symfs_filename);
-
-		free(m.ext);
-		close(fd);
-
-		if (!ret)
+		if (dso__decompress_kmodule_path(dso, symfs_filename,
+						 tmp, sizeof(tmp)) < 0)
 			goto out;
 
 		strcpy(symfs_filename, tmp);
@@ -1429,7 +1443,7 @@ int symbol__disassemble(struct symbol *sym, struct map *map, const char *arch_na
 	snprintf(command, sizeof(command),
 		 "%s %s%s --start-address=0x%016" PRIx64
 		 " --stop-address=0x%016" PRIx64
-		 " -l -d %s %s -C %s 2>/dev/null|grep -v %s:|expand",
+		 " -l -d %s %s -C \"%s\" 2>/dev/null|grep -v \"%s:\"|expand",
 		 objdump_path ? objdump_path : "objdump",
 		 disassembler_style ? "-M " : "",
 		 disassembler_style ? disassembler_style : "",

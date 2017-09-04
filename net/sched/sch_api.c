@@ -1019,7 +1019,8 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 		return sch;
 	}
 	/* ops->init() failed, we call ->destroy() like qdisc_create_dflt() */
-	ops->destroy(sch);
+	if (ops->destroy)
+		ops->destroy(sch);
 err_out3:
 	dev_put(dev);
 	kfree((char *) sch - sch->padded);

@@ -43,6 +43,12 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = {{NULL, NULL}};
 
+int is_current_kprobe_addr(unsigned long addr)
+{
+	struct kprobe *p = kprobe_running();
+	return (p && (unsigned long)p->addr == addr) ? 1 : 0;
+}
+
 bool arch_within_kprobe_blacklist(unsigned long addr)
 {
 	return  (addr >= (unsigned long)__kprobes_text_start &&
@@ -617,6 +623,15 @@ int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	regs->gpr[2] = (unsigned long)(((func_descr_t *)jp->entry)->toc);
 #endif
 
+	/*
+	 * jprobes use jprobe_return() which skips the normal return
+	 * path of the function, and this messes up the accounting of the
+	 * function graph tracer.
+	 *
+	 * Pause function graph tracing while performing the jprobe function.
+	 */
+	pause_graph_tracing();
+
 	return 1;
 }
 NOKPROBE_SYMBOL(setjmp_pre_handler);
@@ -642,6 +657,8 @@ int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	 * saved regs...
 	 */
 	memcpy(regs, &kcb->jprobe_saved_regs, sizeof(struct pt_regs));
+	/* It's OK to start function graph tracing again */
+	unpause_graph_tracing();
 	preempt_enable_no_resched();
 	return 1;
 }

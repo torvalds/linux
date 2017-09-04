@@ -172,7 +172,7 @@ static int host1x_probe(struct platform_device *pdev)
 
 	host->rst = devm_reset_control_get(&pdev->dev, "host1x");
 	if (IS_ERR(host->rst)) {
-		err = PTR_ERR(host->clk);
+		err = PTR_ERR(host->rst);
 		dev_err(&pdev->dev, "failed to get reset: %d\n", err);
 		return err;
 	}
