@@ -19,6 +19,11 @@ unsigned long unwind_get_return_address(struct unwind_state *state)
 }
 EXPORT_SYMBOL_GPL(unwind_get_return_address);
 
+unsigned long *unwind_get_return_address_ptr(struct unwind_state *state)
+{
+	return NULL;
+}
+
 bool unwind_next_frame(struct unwind_state *state)
 {
 	struct stack_info *info = &state->stack_info;

@@ -10,20 +10,22 @@
 
 #define FRAME_HEADER_SIZE (sizeof(long) * 2)
 
-/*
- * This disables KASAN checking when reading a value from another task's stack,
- * since the other task could be running on another CPU and could have poisoned
- * the stack in the meantime.
- */
-#define READ_ONCE_TASK_STACK(task, x)			\
-({							\
-	unsigned long val;				\
-	if (task == current)				\
-		val = READ_ONCE(x);			\
-	else						\
-		val = READ_ONCE_NOCHECK(x);		\
-	val;						\
-})
+unsigned long unwind_get_return_address(struct unwind_state *state)
+{
+	if (unwind_done(state))
+		return 0;
+
+	return __kernel_text_address(state->ip) ? state->ip : 0;
+}
+EXPORT_SYMBOL_GPL(unwind_get_return_address);
+
+unsigned long *unwind_get_return_address_ptr(struct unwind_state *state)
+{
+	if (unwind_done(state))
+		return NULL;
+
+	return state->regs ? &state->regs->ip : state->bp + 1;
+}
 
 static void unwind_dump(struct unwind_state *state)
 {
@@ -65,15 +67,6 @@ static void unwind_dump(struct unwind_state *state)
 		}
 	}
 }
-
-unsigned long unwind_get_return_address(struct unwind_state *state)
-{
-	if (unwind_done(state))
-		return 0;
-
-	return __kernel_text_address(state->ip) ? state->ip : 0;
-}
-EXPORT_SYMBOL_GPL(unwind_get_return_address);
 
 static size_t regs_size(struct pt_regs *regs)
 {
