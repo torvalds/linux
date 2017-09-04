@@ -287,7 +287,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	struct net *net = seq_file_net(s);
 	int ret = 0;
 
-	NF_CT_ASSERT(ct);
+	WARN_ON(!ct);
 	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
 		return 0;
 
@@ -304,9 +304,9 @@ static int ct_seq_show(struct seq_file *s, void *v)
 		goto release;
 
 	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
-	NF_CT_ASSERT(l3proto);
+	WARN_ON(!l3proto);
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
-	NF_CT_ASSERT(l4proto);
+	WARN_ON(!l4proto);
 
 	ret = -ENOSPC;
 	seq_printf(s, "%-8s %u %-8s %u %ld ",

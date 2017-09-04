@@ -1007,12 +1007,12 @@ int nft_verdict_dump(struct sk_buff *skb, int type,
  *
  *	@list: table stateful object list node
  *	@table: table this object belongs to
- *	@type: pointer to object type
- *	@data: pointer to object data
  *	@name: name of this stateful object
  *	@genmask: generation mask
  *	@use: number of references to this stateful object
  * 	@data: object data, layout depends on type
+ *	@ops: object operations
+ *	@data: pointer to object data
  */
 struct nft_object {
 	struct list_head		list;
@@ -1021,7 +1021,7 @@ struct nft_object {
 	u32				genmask:2,
 					use:30;
 	/* runtime data below here */
-	const struct nft_object_type	*type ____cacheline_aligned;
+	const struct nft_object_ops	*ops ____cacheline_aligned;
 	unsigned char			data[]
 		__attribute__((aligned(__alignof__(u64))));
 };
@@ -1044,27 +1044,39 @@ void nft_obj_notify(struct net *net, struct nft_table *table,
 /**
  *	struct nft_object_type - stateful object type
  *
- *	@eval: stateful object evaluation function
+ *	@select_ops: function to select nft_object_ops
+ *	@ops: default ops, used when no select_ops functions is present
  *	@list: list node in list of object types
  *	@type: stateful object numeric type
- *	@size: stateful object size
  *	@owner: module owner
  *	@maxattr: maximum netlink attribute
  *	@policy: netlink attribute policy
+ */
+struct nft_object_type {
+	const struct nft_object_ops	*(*select_ops)(const struct nft_ctx *,
+						       const struct nlattr * const tb[]);
+	const struct nft_object_ops	*ops;
+	struct list_head		list;
+	u32				type;
+	unsigned int                    maxattr;
+	struct module			*owner;
+	const struct nla_policy		*policy;
+};
+
+/**
+ *	struct nft_object_ops - stateful object operations
+ *
+ *	@eval: stateful object evaluation function
+ *	@size: stateful object size
  *	@init: initialize object from netlink attributes
  *	@destroy: release existing stateful object
  *	@dump: netlink dump stateful object
  */
-struct nft_object_type {
+struct nft_object_ops {
 	void				(*eval)(struct nft_object *obj,
 						struct nft_regs *regs,
 						const struct nft_pktinfo *pkt);
-	struct list_head		list;
-	u32				type;
 	unsigned int			size;
-	unsigned int			maxattr;
-	struct module			*owner;
-	const struct nla_policy		*policy;
 	int				(*init)(const struct nft_ctx *ctx,
 						const struct nlattr *const tb[],
 						struct nft_object *obj);
@@ -1072,6 +1084,7 @@ struct nft_object_type {
 	int				(*dump)(struct sk_buff *skb,
 						struct nft_object *obj,
 						bool reset);
+	const struct nft_object_type	*type;
 };
 
 int nft_register_obj(struct nft_object_type *obj_type);

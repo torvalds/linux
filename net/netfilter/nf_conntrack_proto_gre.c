@@ -245,7 +245,6 @@ static int gre_packet(struct nf_conn *ct,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
 		      u_int8_t pf,
-		      unsigned int hooknum,
 		      unsigned int *timeouts)
 {
 	/* If we've seen traffic both ways, this is a GRE connection.
