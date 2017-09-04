@@ -64,9 +64,7 @@ static int psp_sw_init(void *handle)
 		psp->smu_reload_quirk = psp_v3_1_smu_reload_quirk;
 		break;
 	case CHIP_RAVEN:
-#if 0
 		psp->init_microcode = psp_v10_0_init_microcode;
-#endif
 		psp->prep_cmd_buf = psp_v10_0_prep_cmd_buf;
 		psp->ring_init = psp_v10_0_ring_init;
 		psp->ring_create = psp_v10_0_ring_create;
