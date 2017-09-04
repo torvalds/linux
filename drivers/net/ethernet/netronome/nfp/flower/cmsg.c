@@ -141,12 +141,14 @@ nfp_flower_cmsg_portmod_rx(struct nfp_app *app, struct sk_buff *skb)
 	msg = nfp_flower_cmsg_get_data(skb);
 	link = msg->info & NFP_FLOWER_CMSG_PORTMOD_INFO_LINK;
 
+	rtnl_lock();
 	rcu_read_lock();
 	netdev = nfp_app_repr_get(app, be32_to_cpu(msg->portnum));
+	rcu_read_unlock();
 	if (!netdev) {
 		nfp_flower_cmsg_warn(app, "ctrl msg for unknown port 0x%08x\n",
 				     be32_to_cpu(msg->portnum));
-		rcu_read_unlock();
+		rtnl_unlock();
 		return;
 	}
 
@@ -161,7 +163,7 @@ nfp_flower_cmsg_portmod_rx(struct nfp_app *app, struct sk_buff *skb)
 	} else {
 		netif_carrier_off(netdev);
 	}
-	rcu_read_unlock();
+	rtnl_unlock();
 }
 
 static void
@@ -189,8 +191,11 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 	default:
 		nfp_flower_cmsg_warn(app, "Cannot handle invalid repr control type %u\n",
 				     type);
+		goto out;
 	}
 
+	dev_consume_skb_any(skb);
+	return;
 out:
 	dev_kfree_skb_any(skb);
 }
@@ -203,7 +208,7 @@ void nfp_flower_cmsg_process_rx(struct work_struct *work)
 	priv = container_of(work, struct nfp_flower_priv, cmsg_work);
 
 	while ((skb = skb_dequeue(&priv->cmsg_skbs)))
-		nfp_flower_cmsg_process_one_rx(priv->nn->app, skb);
+		nfp_flower_cmsg_process_one_rx(priv->app, skb);
 }
 
 void nfp_flower_cmsg_rx(struct nfp_app *app, struct sk_buff *skb)

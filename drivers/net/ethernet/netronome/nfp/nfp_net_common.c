@@ -991,7 +991,7 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring)
 
 		/* check for last gather fragment */
 		if (fidx == nr_frags - 1)
-			dev_kfree_skb_any(skb);
+			dev_consume_skb_any(skb);
 
 		tx_ring->txbufs[idx].dma_addr = 0;
 		tx_ring->txbufs[idx].skb = NULL;
