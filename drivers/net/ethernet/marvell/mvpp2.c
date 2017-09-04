@@ -7465,6 +7465,34 @@ static bool mvpp2_port_has_tx_irqs(struct mvpp2 *priv,
 	return true;
 }
 
+static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
+				     struct device_node *port_node,
+				     char **mac_from)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+	char hw_mac_addr[ETH_ALEN] = {0};
+	const char *dt_mac_addr;
+
+	dt_mac_addr = of_get_mac_address(port_node);
+	if (dt_mac_addr && is_valid_ether_addr(dt_mac_addr)) {
+		*mac_from = "device tree";
+		ether_addr_copy(dev->dev_addr, dt_mac_addr);
+		return;
+	}
+
+	if (priv->hw_version == MVPP21) {
+		mvpp21_get_mac_address(port, hw_mac_addr);
+		if (is_valid_ether_addr(hw_mac_addr)) {
+			*mac_from = "hardware";
+			ether_addr_copy(dev->dev_addr, hw_mac_addr);
+			return;
+		}
+	}
+
+	*mac_from = "random";
+	eth_hw_addr_random(dev);
+}
+
 /* Ports initialization */
 static int mvpp2_port_probe(struct platform_device *pdev,
 			    struct device_node *port_node,
@@ -7476,9 +7504,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	struct mvpp2_port_pcpu *port_pcpu;
 	struct net_device *dev;
 	struct resource *res;
-	const char *dt_mac_addr;
-	const char *mac_from;
-	char hw_mac_addr[ETH_ALEN] = {0};
+	char *mac_from = "";
 	unsigned int ntxqs, nrxqs;
 	bool has_tx_irqs;
 	u32 id;
@@ -7587,21 +7613,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		goto err_free_irq;
 	}
 
-	dt_mac_addr = of_get_mac_address(port_node);
-	if (dt_mac_addr && is_valid_ether_addr(dt_mac_addr)) {
-		mac_from = "device tree";
-		ether_addr_copy(dev->dev_addr, dt_mac_addr);
-	} else {
-		if (priv->hw_version == MVPP21)
-			mvpp21_get_mac_address(port, hw_mac_addr);
-		if (is_valid_ether_addr(hw_mac_addr)) {
-			mac_from = "hardware";
-			ether_addr_copy(dev->dev_addr, hw_mac_addr);
-		} else {
-			mac_from = "random";
-			eth_hw_addr_random(dev);
-		}
-	}
+	mvpp2_port_copy_mac_addr(dev, priv, port_node, &mac_from);
 
 	port->tx_ring_size = MVPP2_MAX_TXD;
 	port->rx_ring_size = MVPP2_MAX_RXD;
