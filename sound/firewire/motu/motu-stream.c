@@ -33,7 +33,8 @@ static int start_both_streams(struct snd_motu *motu, unsigned int rate)
 	u32 data;
 	int err;
 
-	if (motu->spec->flags & SND_MOTU_SPEC_HAS_MIDI)
+	if ((motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_2ND_Q) ||
+	    (motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_3RD_Q))
 		midi_ports = 1;
 
 	/* Set packet formation to our packet streaming engine. */
@@ -41,6 +42,12 @@ static int start_both_streams(struct snd_motu *motu, unsigned int rate)
 					&motu->rx_packet_formats);
 	if (err < 0)
 		return err;
+
+	if ((motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_2ND_Q) ||
+	    (motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_3RD_Q))
+		midi_ports = 1;
+	else
+		midi_ports = 0;
 
 	err = amdtp_motu_set_parameters(&motu->tx_stream, rate, midi_ports,
 					&motu->tx_packet_formats);
@@ -141,6 +148,33 @@ static void stop_isoc_ctx(struct snd_motu *motu, struct amdtp_stream *stream)
 	fw_iso_resources_free(resources);
 }
 
+int snd_motu_stream_cache_packet_formats(struct snd_motu *motu)
+{
+	int err;
+
+	err = motu->spec->protocol->cache_packet_formats(motu);
+	if (err < 0)
+		return err;
+
+	if (motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_2ND_Q) {
+		motu->tx_packet_formats.midi_flag_offset = 4;
+		motu->tx_packet_formats.midi_byte_offset = 6;
+	} else if (motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_3RD_Q) {
+		motu->tx_packet_formats.midi_flag_offset = 8;
+		motu->tx_packet_formats.midi_byte_offset = 7;
+	}
+
+	if (motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_2ND_Q) {
+		motu->rx_packet_formats.midi_flag_offset = 4;
+		motu->rx_packet_formats.midi_byte_offset = 6;
+	} else if (motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_3RD_Q) {
+		motu->rx_packet_formats.midi_flag_offset = 8;
+		motu->rx_packet_formats.midi_byte_offset = 7;
+	}
+
+	return 0;
+}
+
 static int ensure_packet_formats(struct snd_motu *motu)
 {
 	__be32 reg;
@@ -184,7 +218,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 		stop_both_streams(motu);
 	}
 
-	err = protocol->cache_packet_formats(motu);
+	err = snd_motu_stream_cache_packet_formats(motu);
 	if (err < 0)
 		return err;
 

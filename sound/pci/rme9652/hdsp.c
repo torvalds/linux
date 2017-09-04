@@ -4211,7 +4211,7 @@ static int snd_hdsp_prepare(struct snd_pcm_substream *substream)
 	return result;
 }
 
-static struct snd_pcm_hardware snd_hdsp_playback_subinfo =
+static const struct snd_pcm_hardware snd_hdsp_playback_subinfo =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -4241,7 +4241,7 @@ static struct snd_pcm_hardware snd_hdsp_playback_subinfo =
 	.fifo_size =		0
 };
 
-static struct snd_pcm_hardware snd_hdsp_capture_subinfo =
+static const struct snd_pcm_hardware snd_hdsp_capture_subinfo =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -5381,17 +5381,16 @@ static int snd_hdsp_probe(struct pci_dev *pci,
 	card->private_free = snd_hdsp_card_free;
 	hdsp->dev = dev;
 	hdsp->pci = pci;
-
-	if ((err = snd_hdsp_create(card, hdsp)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_hdsp_create(card, hdsp);
+	if (err)
+		goto free_card;
 
 	strcpy(card->shortname, "Hammerfall DSP");
 	sprintf(card->longname, "%s at 0x%lx, irq %d", hdsp->card_name,
 		hdsp->port, hdsp->irq);
-
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err) {
+free_card:
 		snd_card_free(card);
 		return err;
 	}

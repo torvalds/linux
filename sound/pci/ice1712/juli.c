@@ -282,7 +282,7 @@ static const struct snd_akm4xxx_dac_channel juli_dac[] = {
 };
 
 
-static struct snd_akm4xxx akm_juli_dac = {
+static const struct snd_akm4xxx akm_juli_dac = {
 	.type = SND_AK4358,
 	.num_dacs = 8,	/* DAC1 - analog out
 			   DAC2 - analog in monitor

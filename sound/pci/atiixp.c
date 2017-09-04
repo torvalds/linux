@@ -1009,7 +1009,7 @@ static int snd_atiixp_pcm_hw_free(struct snd_pcm_substream *substream)
 /*
  * pcm hardware definition, identical for all DMA types
  */
-static struct snd_pcm_hardware snd_atiixp_pcm_hw =
+static const struct snd_pcm_hardware snd_atiixp_pcm_hw =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1183,7 +1183,7 @@ static const struct snd_pcm_ops snd_atiixp_spdif_ops = {
 	.pointer =	snd_atiixp_pcm_pointer,
 };
 
-static struct ac97_pcm atiixp_pcm_defs[] = {
+static const struct ac97_pcm atiixp_pcm_defs[] = {
 	/* front PCM */
 	{
 		.exclusive = 1,

@@ -260,7 +260,7 @@ snd_harmony_rate_bits(int rate)
 	return HARMONY_SR_44KHZ;
 }
 
-static struct snd_pcm_hardware snd_harmony_playback =
+static const struct snd_pcm_hardware snd_harmony_playback =
 {
 	.info =	(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED | 
 		 SNDRV_PCM_INFO_JOINT_DUPLEX | SNDRV_PCM_INFO_MMAP_VALID |
@@ -281,7 +281,7 @@ static struct snd_pcm_hardware snd_harmony_playback =
 	.fifo_size = 0,
 };
 
-static struct snd_pcm_hardware snd_harmony_capture =
+static const struct snd_pcm_hardware snd_harmony_capture =
 {
         .info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
                  SNDRV_PCM_INFO_JOINT_DUPLEX | SNDRV_PCM_INFO_MMAP_VALID |
@@ -596,7 +596,7 @@ snd_harmony_hw_free(struct snd_pcm_substream *ss)
 	return snd_pcm_lib_free_pages(ss);
 }
 
-static struct snd_pcm_ops snd_harmony_playback_ops = {
+static const struct snd_pcm_ops snd_harmony_playback_ops = {
 	.open =	snd_harmony_playback_open,
 	.close = snd_harmony_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -607,7 +607,7 @@ static struct snd_pcm_ops snd_harmony_playback_ops = {
  	.pointer = snd_harmony_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_harmony_capture_ops = {
+static const struct snd_pcm_ops snd_harmony_capture_ops = {
         .open = snd_harmony_capture_open,
         .close = snd_harmony_capture_close,
         .ioctl = snd_pcm_lib_ioctl,
