@@ -593,7 +593,7 @@ static bool xive_get_max_prio(u8 *max_prio)
 	return true;
 }
 
-bool xive_spapr_init(void)
+bool __init xive_spapr_init(void)
 {
 	struct device_node *np;
 	struct resource r;
