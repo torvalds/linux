@@ -2128,6 +2128,13 @@ void cxgbi_cleanup_task(struct iscsi_task *task)
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct cxgbi_task_data *tdata = iscsi_task_cxgbi_data(task);
 
+	if (!tcp_task || !tdata || (tcp_task->dd_data != tdata)) {
+		pr_info("task 0x%p,0x%p, tcp_task 0x%p, tdata 0x%p/0x%p.\n",
+			task, task->sc, tcp_task,
+			tcp_task ? tcp_task->dd_data : NULL, tdata);
+		return;
+	}
+
 	log_debug(1 << CXGBI_DBG_ISCSI,
 		"task 0x%p, skb 0x%p, itt 0x%x.\n",
 		task, tdata->skb, task->hdr_itt);

@@ -1084,7 +1084,7 @@ static const unsigned usb1_pins[] = {182, 183};
 static const int usb1_muxvals[] = {0, 0};
 static const unsigned usb2_pins[] = {184, 185};
 static const int usb2_muxvals[] = {0, 0};
-static const unsigned usb3_pins[] = {186, 187};
+static const unsigned usb3_pins[] = {187, 188};
 static const int usb3_muxvals[] = {0, 0};
 static const unsigned port_range0_pins[] = {
 	300, 301, 302, 303, 304, 305, 306, 307,		/* PORT0x */

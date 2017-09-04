@@ -132,7 +132,7 @@ static int gpio_exar_probe(struct platform_device *pdev)
 	if (!p)
 		return -ENOMEM;
 
-	ret = device_property_read_u32(&pdev->dev, "linux,first-pin",
+	ret = device_property_read_u32(&pdev->dev, "exar,first-pin",
 				       &first_pin);
 	if (ret)
 		return ret;

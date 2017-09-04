@@ -104,6 +104,8 @@
 /* A copy of the ASID from the PID reg is kept in asid_cache */
 DEFINE_PER_CPU(unsigned int, asid_cache) = MM_CTXT_FIRST_CYCLE;
 
+static int __read_mostly pae_exists;
+
 /*
  * Utility Routine to erase a J-TLB entry
  * Caller needs to setup Index Reg (manually or via getIndex)
@@ -784,7 +786,7 @@ void read_decode_mmu_bcr(void)
 		mmu->u_dtlb = mmu4->u_dtlb * 4;
 		mmu->u_itlb = mmu4->u_itlb * 4;
 		mmu->sasid = mmu4->sasid;
-		mmu->pae = mmu4->pae;
+		pae_exists = mmu->pae = mmu4->pae;
 	}
 }
 
@@ -807,6 +809,11 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 		       IS_AVAIL2(p_mmu->pae, ", PAE40 ", CONFIG_ARC_HAS_PAE40));
 
 	return buf;
+}
+
+int pae40_exist_but_not_enab(void)
+{
+	return pae_exists && !is_pae40_enabled();
 }
 
 void arc_mmu_init(void)
@@ -859,6 +866,9 @@ void arc_mmu_init(void)
 	/* swapper_pg_dir is the pgd for the kernel, used by vmalloc */
 	write_aux_reg(ARC_REG_SCRATCH_DATA0, swapper_pg_dir);
 #endif
+
+	if (pae40_exist_but_not_enab())
+		write_aux_reg(ARC_REG_TLBPD1HI, 0);
 }
 
 /*

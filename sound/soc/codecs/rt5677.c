@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/firmware.h>
+#include <linux/of_device.h>
 #include <linux/property.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -779,9 +780,7 @@ static int rt5677_set_dsp_vad(struct snd_soc_codec *codec, bool on)
 	return 0;
 }
 
-static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -4650, 150, 0);
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -6525, 75, 0);
-static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -1725, 75, 0);
 static const DECLARE_TLV_DB_SCALE(adc_bst_tlv, 0, 1200, 0);
 static const DECLARE_TLV_DB_SCALE(st_vol_tlv, -4650, 150, 0);
@@ -4624,35 +4623,27 @@ static int rt5677_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct regmap_irq_chip_data *data = rt5677->irq_data;
 	int irq;
 
-	if (offset >= RT5677_GPIO1 && offset <= RT5677_GPIO3) {
-		if ((rt5677->pdata.jd1_gpio == 1 && offset == RT5677_GPIO1) ||
-			(rt5677->pdata.jd1_gpio == 2 &&
-				offset == RT5677_GPIO2) ||
-			(rt5677->pdata.jd1_gpio == 3 &&
-				offset == RT5677_GPIO3)) {
-			irq = RT5677_IRQ_JD1;
-		} else {
-			return -ENXIO;
-		}
-	}
-
-	if (offset >= RT5677_GPIO4 && offset <= RT5677_GPIO6) {
-		if ((rt5677->pdata.jd2_gpio == 1 && offset == RT5677_GPIO4) ||
-			(rt5677->pdata.jd2_gpio == 2 &&
-				offset == RT5677_GPIO5) ||
-			(rt5677->pdata.jd2_gpio == 3 &&
-				offset == RT5677_GPIO6)) {
-			irq = RT5677_IRQ_JD2;
-		} else if ((rt5677->pdata.jd3_gpio == 1 &&
-				offset == RT5677_GPIO4) ||
-			(rt5677->pdata.jd3_gpio == 2 &&
-				offset == RT5677_GPIO5) ||
-			(rt5677->pdata.jd3_gpio == 3 &&
-				offset == RT5677_GPIO6)) {
-			irq = RT5677_IRQ_JD3;
-		} else {
-			return -ENXIO;
-		}
+	if ((rt5677->pdata.jd1_gpio == 1 && offset == RT5677_GPIO1) ||
+		(rt5677->pdata.jd1_gpio == 2 &&
+			offset == RT5677_GPIO2) ||
+		(rt5677->pdata.jd1_gpio == 3 &&
+			offset == RT5677_GPIO3)) {
+		irq = RT5677_IRQ_JD1;
+	} else if ((rt5677->pdata.jd2_gpio == 1 && offset == RT5677_GPIO4) ||
+		(rt5677->pdata.jd2_gpio == 2 &&
+			offset == RT5677_GPIO5) ||
+		(rt5677->pdata.jd2_gpio == 3 &&
+			offset == RT5677_GPIO6)) {
+		irq = RT5677_IRQ_JD2;
+	} else if ((rt5677->pdata.jd3_gpio == 1 &&
+			offset == RT5677_GPIO4) ||
+		(rt5677->pdata.jd3_gpio == 2 &&
+			offset == RT5677_GPIO5) ||
+		(rt5677->pdata.jd3_gpio == 3 &&
+			offset == RT5677_GPIO6)) {
+		irq = RT5677_IRQ_JD3;
+	} else {
+		return -ENXIO;
 	}
 
 	return regmap_irq_get_virq(data, irq);
@@ -4968,7 +4959,7 @@ static struct snd_soc_dai_driver rt5677_dai[] = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt5677 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt5677 = {
 	.probe = rt5677_probe,
 	.remove = rt5677_remove,
 	.suspend = rt5677_suspend,
@@ -5021,24 +5012,21 @@ static const struct regmap_config rt5677_regmap = {
 static const struct i2c_device_id rt5677_i2c_id[] = {
 	{ "rt5677", RT5677 },
 	{ "rt5676", RT5676 },
-	{ "RT5677CE:00", RT5677 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);
 
 static const struct of_device_id rt5677_of_match[] = {
-	{ .compatible = "realtek,rt5677", },
+	{ .compatible = "realtek,rt5677", RT5677 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rt5677_of_match);
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5677_acpi_match[] = {
 	{ "RT5677CE", RT5677 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt5677_acpi_match);
-#endif
 
 static void rt5677_read_acpi_properties(struct rt5677_priv *rt5677,
 		struct device *dev)
@@ -5148,7 +5136,6 @@ static void rt5677_free_irq(struct i2c_client *i2c)
 static int rt5677_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
-	struct rt5677_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5677_priv *rt5677;
 	int ret;
 	unsigned int val;
@@ -5160,16 +5147,25 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, rt5677);
 
-	rt5677->type = id->driver_data;
+	if (i2c->dev.of_node) {
+		const struct of_device_id *match_id;
 
-	if (pdata)
-		rt5677->pdata = *pdata;
-	else if (i2c->dev.of_node)
+		match_id = of_match_device(rt5677_of_match, &i2c->dev);
+		if (match_id)
+			rt5677->type = (enum rt5677_type)match_id->data;
+
 		rt5677_read_device_properties(rt5677, &i2c->dev);
-	else if (ACPI_HANDLE(&i2c->dev))
+	} else if (ACPI_HANDLE(&i2c->dev)) {
+		const struct acpi_device_id *acpi_id;
+
+		acpi_id = acpi_match_device(rt5677_acpi_match, &i2c->dev);
+		if (acpi_id)
+			rt5677->type = (enum rt5677_type)acpi_id->driver_data;
+
 		rt5677_read_acpi_properties(rt5677, &i2c->dev);
-	else
+	} else {
 		return -EINVAL;
+	}
 
 	/* pow-ldo2 and reset are optional. The codec pins may be statically
 	 * connected on the board without gpios. If the gpio device property

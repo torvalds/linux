@@ -65,8 +65,14 @@ static int nand_ooblayout_ecc_sp(struct mtd_info *mtd, int section,
 
 	if (!section) {
 		oobregion->offset = 0;
-		oobregion->length = 4;
+		if (mtd->oobsize == 16)
+			oobregion->length = 4;
+		else
+			oobregion->length = 3;
 	} else {
+		if (mtd->oobsize == 8)
+			return -ERANGE;
+
 		oobregion->offset = 6;
 		oobregion->length = ecc->total - 4;
 	}
@@ -1125,7 +1131,9 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 	 * Ensure the timing mode has been changed on the chip side
 	 * before changing timings on the controller side.
 	 */
-	if (chip->onfi_version) {
+	if (chip->onfi_version &&
+	    (le16_to_cpu(chip->onfi_params.opt_cmd) &
+	     ONFI_OPT_CMD_SET_GET_FEATURES)) {
 		u8 tmode_param[ONFI_SUBFEATURE_PARAM_LEN] = {
 			chip->onfi_timing_mode_default,
 		};
@@ -2741,7 +2749,6 @@ static int nand_write_page_syndrome(struct mtd_info *mtd,
  * @buf: the data to write
  * @oob_required: must write chip->oob_poi to OOB
  * @page: page number to write
- * @cached: cached programming
  * @raw: use _raw version of write_page
  */
 static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,

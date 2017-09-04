@@ -1238,6 +1238,7 @@ static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			goto err_destroy_tis;
 
 		sq->base.container_mibqp = qp;
+		sq->base.mqp.event = mlx5_ib_qp_event;
 	}
 
 	if (qp->rq.wqe_cnt) {

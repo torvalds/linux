@@ -56,8 +56,13 @@ static bool enomem_retry = false;
 module_param(enomem_retry, bool, 0);
 MODULE_PARM_DESC(enomem_retry, "Retry insert even if -ENOMEM was returned (default: off)");
 
+struct test_obj_val {
+	int	id;
+	int	tid;
+};
+
 struct test_obj {
-	int			value;
+	struct test_obj_val	value;
 	struct rhash_head	node;
 };
 
@@ -72,7 +77,7 @@ static struct test_obj array[MAX_ENTRIES];
 static struct rhashtable_params test_rht_params = {
 	.head_offset = offsetof(struct test_obj, node),
 	.key_offset = offsetof(struct test_obj, value),
-	.key_len = sizeof(int),
+	.key_len = sizeof(struct test_obj_val),
 	.hashfn = jhash,
 	.nulls_base = (3U << RHT_BASE_SHIFT),
 };
@@ -109,24 +114,26 @@ static int __init test_rht_lookup(struct rhashtable *ht)
 	for (i = 0; i < entries * 2; i++) {
 		struct test_obj *obj;
 		bool expected = !(i % 2);
-		u32 key = i;
+		struct test_obj_val key = {
+			.id = i,
+		};
 
-		if (array[i / 2].value == TEST_INSERT_FAIL)
+		if (array[i / 2].value.id == TEST_INSERT_FAIL)
 			expected = false;
 
 		obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
 
 		if (expected && !obj) {
-			pr_warn("Test failed: Could not find key %u\n", key);
+			pr_warn("Test failed: Could not find key %u\n", key.id);
 			return -ENOENT;
 		} else if (!expected && obj) {
 			pr_warn("Test failed: Unexpected entry found for key %u\n",
-				key);
+				key.id);
 			return -EEXIST;
 		} else if (expected && obj) {
-			if (obj->value != i) {
+			if (obj->value.id != i) {
 				pr_warn("Test failed: Lookup value mismatch %u!=%u\n",
-					obj->value, i);
+					obj->value.id, i);
 				return -EINVAL;
 			}
 		}
@@ -195,7 +202,7 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 	for (i = 0; i < entries; i++) {
 		struct test_obj *obj = &array[i];
 
-		obj->value = i * 2;
+		obj->value.id = i * 2;
 		err = insert_retry(ht, &obj->node, test_rht_params);
 		if (err > 0)
 			insert_retries += err;
@@ -216,9 +223,11 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 
 	pr_info("  Deleting %d keys\n", entries);
 	for (i = 0; i < entries; i++) {
-		u32 key = i * 2;
+		struct test_obj_val key = {
+			.id = i * 2,
+		};
 
-		if (array[i].value != TEST_INSERT_FAIL) {
+		if (array[i].value.id != TEST_INSERT_FAIL) {
 			obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
 			BUG_ON(!obj);
 
@@ -242,18 +251,21 @@ static int thread_lookup_test(struct thread_data *tdata)
 
 	for (i = 0; i < entries; i++) {
 		struct test_obj *obj;
-		int key = (tdata->id << 16) | i;
+		struct test_obj_val key = {
+			.id = i,
+			.tid = tdata->id,
+		};
 
 		obj = rhashtable_lookup_fast(&ht, &key, test_rht_params);
-		if (obj && (tdata->objs[i].value == TEST_INSERT_FAIL)) {
-			pr_err("  found unexpected object %d\n", key);
+		if (obj && (tdata->objs[i].value.id == TEST_INSERT_FAIL)) {
+			pr_err("  found unexpected object %d-%d\n", key.tid, key.id);
 			err++;
-		} else if (!obj && (tdata->objs[i].value != TEST_INSERT_FAIL)) {
-			pr_err("  object %d not found!\n", key);
+		} else if (!obj && (tdata->objs[i].value.id != TEST_INSERT_FAIL)) {
+			pr_err("  object %d-%d not found!\n", key.tid, key.id);
 			err++;
-		} else if (obj && (obj->value != key)) {
-			pr_err("  wrong object returned (got %d, expected %d)\n",
-			       obj->value, key);
+		} else if (obj && memcmp(&obj->value, &key, sizeof(key))) {
+			pr_err("  wrong object returned (got %d-%d, expected %d-%d)\n",
+			       obj->value.tid, obj->value.id, key.tid, key.id);
 			err++;
 		}
 
@@ -272,7 +284,8 @@ static int threadfunc(void *data)
 		pr_err("  thread[%d]: down_interruptible failed\n", tdata->id);
 
 	for (i = 0; i < entries; i++) {
-		tdata->objs[i].value = (tdata->id << 16) | i;
+		tdata->objs[i].value.id = i;
+		tdata->objs[i].value.tid = tdata->id;
 		err = insert_retry(&ht, &tdata->objs[i].node, test_rht_params);
 		if (err > 0) {
 			insert_retries += err;
@@ -295,7 +308,7 @@ static int threadfunc(void *data)
 
 	for (step = 10; step > 0; step--) {
 		for (i = 0; i < entries; i += step) {
-			if (tdata->objs[i].value == TEST_INSERT_FAIL)
+			if (tdata->objs[i].value.id == TEST_INSERT_FAIL)
 				continue;
 			err = rhashtable_remove_fast(&ht, &tdata->objs[i].node,
 			                             test_rht_params);
@@ -304,7 +317,7 @@ static int threadfunc(void *data)
 				       tdata->id);
 				goto out;
 			}
-			tdata->objs[i].value = TEST_INSERT_FAIL;
+			tdata->objs[i].value.id = TEST_INSERT_FAIL;
 
 			cond_resched();
 		}

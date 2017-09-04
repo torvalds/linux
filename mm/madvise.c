@@ -320,6 +320,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 
 	tlb_remove_check_page_size_change(tlb, PAGE_SIZE);
 	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+	flush_tlb_batched_pending(mm);
 	arch_enter_lazy_mmu_mode();
 	for (; addr != end; pte++, addr += PAGE_SIZE) {
 		ptent = *pte;
@@ -367,8 +368,8 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 				pte_offset_map_lock(mm, pmd, addr, &ptl);
 				goto out;
 			}
-			put_page(page);
 			unlock_page(page);
+			put_page(page);
 			pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 			pte--;
 			addr -= PAGE_SIZE;

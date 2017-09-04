@@ -1496,7 +1496,6 @@ MODULE_DEVICE_TABLE(i2c, et8ek8_id_table);
 static const struct dev_pm_ops et8ek8_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(et8ek8_suspend, et8ek8_resume)
 };
-MODULE_DEVICE_TABLE(of, et8ek8_of_table);
 
 static struct i2c_driver et8ek8_i2c_driver = {
 	.driver		= {

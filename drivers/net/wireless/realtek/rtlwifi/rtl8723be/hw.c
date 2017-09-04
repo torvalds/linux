@@ -846,9 +846,6 @@ static bool _rtl8723be_init_mac(struct ieee80211_hw *hw)
 		return false;
 	}
 
-	if (rtlpriv->cfg->ops->get_btc_status())
-		rtlpriv->btcoexist.btc_ops->btc_power_on_setting(rtlpriv);
-
 	bytetmp = rtl_read_byte(rtlpriv, REG_MULTI_FUNC_CTRL);
 	rtl_write_byte(rtlpriv, REG_MULTI_FUNC_CTRL, bytetmp | BIT(3));
 

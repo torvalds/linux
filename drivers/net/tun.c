@@ -1879,6 +1879,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 err_detach:
 	tun_detach_all(dev);
+	/* register_netdevice() already called tun_free_netdev() */
+	goto err_free_dev;
+
 err_free_flow:
 	tun_flow_uninit(tun);
 	security_tun_dev_free_security(tun->security);
@@ -2598,8 +2601,16 @@ static int __init tun_init(void)
 		goto err_misc;
 	}
 
-	register_netdevice_notifier(&tun_notifier_block);
+	ret = register_netdevice_notifier(&tun_notifier_block);
+	if (ret) {
+		pr_err("Can't register netdevice notifier\n");
+		goto err_notifier;
+	}
+
 	return  0;
+
+err_notifier:
+	misc_deregister(&tun_miscdev);
 err_misc:
 	rtnl_link_unregister(&tun_link_ops);
 err_linkops:

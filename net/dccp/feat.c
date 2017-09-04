@@ -1471,9 +1471,12 @@ int dccp_feat_init(struct sock *sk)
 	 * singleton values (which always leads to failure).
 	 * These settings can still (later) be overridden via sockopts.
 	 */
-	if (ccid_get_builtin_ccids(&tx.val, &tx.len) ||
-	    ccid_get_builtin_ccids(&rx.val, &rx.len))
+	if (ccid_get_builtin_ccids(&tx.val, &tx.len))
 		return -ENOBUFS;
+	if (ccid_get_builtin_ccids(&rx.val, &rx.len)) {
+		kfree(tx.val);
+		return -ENOBUFS;
+	}
 
 	if (!dccp_feat_prefer(sysctl_dccp_tx_ccid, tx.val, tx.len) ||
 	    !dccp_feat_prefer(sysctl_dccp_rx_ccid, rx.val, rx.len))

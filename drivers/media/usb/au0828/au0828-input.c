@@ -351,7 +351,7 @@ int au0828_rc_register(struct au0828_dev *dev)
 	if (err)
 		goto error;
 
-	pr_info("Remote controller %s initalized\n", ir->name);
+	pr_info("Remote controller %s initialized\n", ir->name);
 
 	return 0;
 

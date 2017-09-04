@@ -359,7 +359,7 @@ void amdgpu_mn_unregister(struct amdgpu_bo *bo)
 	head = bo->mn_list.next;
 
 	bo->mn = NULL;
-	list_del(&bo->mn_list);
+	list_del_init(&bo->mn_list);
 
 	if (list_empty(head)) {
 		struct amdgpu_mn_node *node;

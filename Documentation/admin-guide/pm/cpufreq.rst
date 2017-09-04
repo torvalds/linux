@@ -237,6 +237,14 @@ are the following:
 	This attribute is not present if the scaling driver in use does not
 	support it.
 
+``cpuinfo_cur_freq``
+	Current frequency of the CPUs belonging to this policy as obtained from
+	the hardware (in KHz).
+
+	This is expected to be the frequency the hardware actually runs at.
+	If that frequency cannot be determined, this attribute should not
+	be present.
+
 ``cpuinfo_max_freq``
 	Maximum possible operating frequency the CPUs belonging to this policy
 	can run at (in kHz).

@@ -757,6 +757,43 @@ extern int do_wait_intr_irq(wait_queue_head_t *, wait_queue_entry_t *);
 	__ret;									\
 })
 
+#define __wait_event_killable_timeout(wq_head, condition, timeout)		\
+	___wait_event(wq_head, ___wait_cond_timeout(condition),			\
+		      TASK_KILLABLE, 0, timeout,				\
+		      __ret = schedule_timeout(__ret))
+
+/**
+ * wait_event_killable_timeout - sleep until a condition gets true or a timeout elapses
+ * @wq_head: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ * @timeout: timeout, in jiffies
+ *
+ * The process is put to sleep (TASK_KILLABLE) until the
+ * @condition evaluates to true or a kill signal is received.
+ * The @condition is checked each time the waitqueue @wq_head is woken up.
+ *
+ * wake_up() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * Returns:
+ * 0 if the @condition evaluated to %false after the @timeout elapsed,
+ * 1 if the @condition evaluated to %true after the @timeout elapsed,
+ * the remaining jiffies (at least 1) if the @condition evaluated
+ * to %true before the @timeout elapsed, or -%ERESTARTSYS if it was
+ * interrupted by a kill signal.
+ *
+ * Only kill signals interrupt this process.
+ */
+#define wait_event_killable_timeout(wq_head, condition, timeout)		\
+({										\
+	long __ret = timeout;							\
+	might_sleep();								\
+	if (!___wait_cond_timeout(condition))					\
+		__ret = __wait_event_killable_timeout(wq_head,			\
+						condition, timeout);		\
+	__ret;									\
+})
+
 
 #define __wait_event_lock_irq(wq_head, condition, lock, cmd)			\
 	(void)___wait_event(wq_head, condition, TASK_UNINTERRUPTIBLE, 0, 0,	\

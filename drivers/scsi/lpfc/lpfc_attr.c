@@ -205,8 +205,10 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				atomic_read(&tgtp->xmt_ls_rsp_error));
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
-				"FCP: Rcv %08x Release %08x Drop %08x\n",
+				"FCP: Rcv %08x Defer %08x Release %08x "
+				"Drop %08x\n",
 				atomic_read(&tgtp->rcv_fcp_cmd_in),
+				atomic_read(&tgtp->rcv_fcp_cmd_defer),
 				atomic_read(&tgtp->xmt_fcp_release),
 				atomic_read(&tgtp->rcv_fcp_cmd_drop));
 

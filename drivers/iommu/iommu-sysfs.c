@@ -62,32 +62,40 @@ int iommu_device_sysfs_add(struct iommu_device *iommu,
 	va_list vargs;
 	int ret;
 
-	device_initialize(&iommu->dev);
+	iommu->dev = kzalloc(sizeof(*iommu->dev), GFP_KERNEL);
+	if (!iommu->dev)
+		return -ENOMEM;
 
-	iommu->dev.class = &iommu_class;
-	iommu->dev.parent = parent;
-	iommu->dev.groups = groups;
+	device_initialize(iommu->dev);
+
+	iommu->dev->class = &iommu_class;
+	iommu->dev->parent = parent;
+	iommu->dev->groups = groups;
 
 	va_start(vargs, fmt);
-	ret = kobject_set_name_vargs(&iommu->dev.kobj, fmt, vargs);
+	ret = kobject_set_name_vargs(&iommu->dev->kobj, fmt, vargs);
 	va_end(vargs);
 	if (ret)
 		goto error;
 
-	ret = device_add(&iommu->dev);
+	ret = device_add(iommu->dev);
 	if (ret)
 		goto error;
+
+	dev_set_drvdata(iommu->dev, iommu);
 
 	return 0;
 
 error:
-	put_device(&iommu->dev);
+	put_device(iommu->dev);
 	return ret;
 }
 
 void iommu_device_sysfs_remove(struct iommu_device *iommu)
 {
-	device_unregister(&iommu->dev);
+	dev_set_drvdata(iommu->dev, NULL);
+	device_unregister(iommu->dev);
+	iommu->dev = NULL;
 }
 /*
  * IOMMU drivers can indicate a device is managed by a given IOMMU using
@@ -102,14 +110,14 @@ int iommu_device_link(struct iommu_device *iommu, struct device *link)
 	if (!iommu || IS_ERR(iommu))
 		return -ENODEV;
 
-	ret = sysfs_add_link_to_group(&iommu->dev.kobj, "devices",
+	ret = sysfs_add_link_to_group(&iommu->dev->kobj, "devices",
 				      &link->kobj, dev_name(link));
 	if (ret)
 		return ret;
 
-	ret = sysfs_create_link_nowarn(&link->kobj, &iommu->dev.kobj, "iommu");
+	ret = sysfs_create_link_nowarn(&link->kobj, &iommu->dev->kobj, "iommu");
 	if (ret)
-		sysfs_remove_link_from_group(&iommu->dev.kobj, "devices",
+		sysfs_remove_link_from_group(&iommu->dev->kobj, "devices",
 					     dev_name(link));
 
 	return ret;
@@ -121,5 +129,5 @@ void iommu_device_unlink(struct iommu_device *iommu, struct device *link)
 		return;
 
 	sysfs_remove_link(&link->kobj, "iommu");
-	sysfs_remove_link_from_group(&iommu->dev.kobj, "devices", dev_name(link));
+	sysfs_remove_link_from_group(&iommu->dev->kobj, "devices", dev_name(link));
 }

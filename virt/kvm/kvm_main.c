@@ -717,10 +717,9 @@ out_err_no_srcu:
 	hardware_disable_all();
 out_err_no_disable:
 	for (i = 0; i < KVM_NR_BUSES; i++)
-		kfree(rcu_access_pointer(kvm->buses[i]));
+		kfree(kvm_get_bus(kvm, i));
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
-		kvm_free_memslots(kvm,
-			rcu_dereference_protected(kvm->memslots[i], 1));
+		kvm_free_memslots(kvm, __kvm_memslots(kvm, i));
 	kvm_arch_free_vm(kvm);
 	mmdrop(current->mm);
 	return ERR_PTR(r);
@@ -754,9 +753,8 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	spin_unlock(&kvm_lock);
 	kvm_free_irq_routing(kvm);
 	for (i = 0; i < KVM_NR_BUSES; i++) {
-		struct kvm_io_bus *bus;
+		struct kvm_io_bus *bus = kvm_get_bus(kvm, i);
 
-		bus = rcu_dereference_protected(kvm->buses[i], 1);
 		if (bus)
 			kvm_io_bus_destroy(bus);
 		kvm->buses[i] = NULL;
@@ -770,8 +768,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	kvm_arch_destroy_vm(kvm);
 	kvm_destroy_devices(kvm);
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
-		kvm_free_memslots(kvm,
-			rcu_dereference_protected(kvm->memslots[i], 1));
+		kvm_free_memslots(kvm, __kvm_memslots(kvm, i));
 	cleanup_srcu_struct(&kvm->irq_srcu);
 	cleanup_srcu_struct(&kvm->srcu);
 	kvm_arch_free_vm(kvm);

@@ -181,8 +181,8 @@ static int flash_probe(struct platform_device *op)
 	}
 	flash.busy = 0;
 
-	printk(KERN_INFO "%s: OBP Flash, RD %lx[%lx] WR %lx[%lx]\n",
-	       op->dev.of_node->full_name,
+	printk(KERN_INFO "%pOF: OBP Flash, RD %lx[%lx] WR %lx[%lx]\n",
+	       op->dev.of_node,
 	       flash.read_base, flash.read_size,
 	       flash.write_base, flash.write_size);
 
