@@ -450,7 +450,7 @@ asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
 
 asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 
-extern void sigset_from_compat(sigset_t *set, const compat_sigset_t *compat);
+extern int get_compat_sigset(sigset_t *set, const compat_sigset_t __user *compat);
 extern int put_compat_sigset(compat_sigset_t __user *compat,
 			     const sigset_t *set, unsigned int size);
 

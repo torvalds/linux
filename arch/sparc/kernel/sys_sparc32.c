@@ -166,13 +166,11 @@ COMPAT_SYSCALL_DEFINE5(rt_sigaction, int, sig,
 
         if (act) {
 		u32 u_handler, u_restorer;
-		compat_sigset_t set32;
 
 		new_ka.ka_restorer = restorer;
 		ret = get_user(u_handler, &act->sa_handler);
 		new_ka.sa.sa_handler =  compat_ptr(u_handler);
-		ret |= copy_from_user(&set32, &act->sa_mask, sizeof(compat_sigset_t));
-		sigset_from_compat(&new_ka.sa.sa_mask, &set32);
+		ret |= get_compat_sigset(&new_ka.sa.sa_mask, &act->sa_mask);
 		ret |= get_user(new_ka.sa.sa_flags, &act->sa_flags);
 		ret |= get_user(u_restorer, &act->sa_restorer);
 		new_ka.sa.sa_restorer = compat_ptr(u_restorer);

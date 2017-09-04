@@ -2600,7 +2600,6 @@ SYSCALL_DEFINE4(rt_sigprocmask, int, how, sigset_t __user *, nset,
 COMPAT_SYSCALL_DEFINE4(rt_sigprocmask, int, how, compat_sigset_t __user *, nset,
 		compat_sigset_t __user *, oset, compat_size_t, sigsetsize)
 {
-#ifdef __BIG_ENDIAN
 	sigset_t old_set = current->blocked;
 
 	/* XXX: Don't preclude handling different sized sigset_t's.  */
@@ -2608,13 +2607,10 @@ COMPAT_SYSCALL_DEFINE4(rt_sigprocmask, int, how, compat_sigset_t __user *, nset,
 		return -EINVAL;
 
 	if (nset) {
-		compat_sigset_t new32;
 		sigset_t new_set;
 		int error;
-		if (copy_from_user(&new32, nset, sizeof(compat_sigset_t)))
+		if (get_compat_sigset(&new_set, nset))
 			return -EFAULT;
-
-		sigset_from_compat(&new_set, &new32);
 		sigdelsetmask(&new_set, sigmask(SIGKILL)|sigmask(SIGSTOP));
 
 		error = sigprocmask(how, &new_set, NULL);
@@ -2622,10 +2618,6 @@ COMPAT_SYSCALL_DEFINE4(rt_sigprocmask, int, how, compat_sigset_t __user *, nset,
 			return error;
 	}
 	return oset ? put_compat_sigset(oset, &old_set, sizeof(*oset)) : 0;
-#else
-	return sys_rt_sigprocmask(how, (sigset_t __user *)nset,
-				  (sigset_t __user *)oset, sigsetsize);
-#endif
 }
 #endif
 
@@ -2908,7 +2900,6 @@ COMPAT_SYSCALL_DEFINE4(rt_sigtimedwait, compat_sigset_t __user *, uthese,
 		struct compat_siginfo __user *, uinfo,
 		struct compat_timespec __user *, uts, compat_size_t, sigsetsize)
 {
-	compat_sigset_t s32;
 	sigset_t s;
 	struct timespec t;
 	siginfo_t info;
@@ -2917,9 +2908,8 @@ COMPAT_SYSCALL_DEFINE4(rt_sigtimedwait, compat_sigset_t __user *, uthese,
 	if (sigsetsize != sizeof(sigset_t))
 		return -EINVAL;
 
-	if (copy_from_user(&s32, uthese, sizeof(compat_sigset_t)))
+	if (get_compat_sigset(&s, uthese))
 		return -EFAULT;
-	sigset_from_compat(&s, &s32);
 
 	if (uts) {
 		if (compat_get_timespec(&t, uts))
@@ -3450,18 +3440,16 @@ COMPAT_SYSCALL_DEFINE4(rt_sigaction, int, sig,
 
 	if (act) {
 		compat_uptr_t handler;
-		compat_sigset_t mask;
 		ret = get_user(handler, &act->sa_handler);
 		new_ka.sa.sa_handler = compat_ptr(handler);
 #ifdef __ARCH_HAS_SA_RESTORER
 		ret |= get_user(restorer, &act->sa_restorer);
 		new_ka.sa.sa_restorer = compat_ptr(restorer);
 #endif
-		ret |= copy_from_user(&mask, &act->sa_mask, sizeof(mask));
+		ret |= get_compat_sigset(&new_ka.sa.sa_mask, &act->sa_mask);
 		ret |= get_user(new_ka.sa.sa_flags, &act->sa_flags);
 		if (ret)
 			return -EFAULT;
-		sigset_from_compat(&new_ka.sa.sa_mask, &mask);
 	}
 
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
@@ -3649,22 +3637,15 @@ SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *, unewset, size_t, sigsetsize)
 #ifdef CONFIG_COMPAT
 COMPAT_SYSCALL_DEFINE2(rt_sigsuspend, compat_sigset_t __user *, unewset, compat_size_t, sigsetsize)
 {
-#ifdef __BIG_ENDIAN
 	sigset_t newset;
-	compat_sigset_t newset32;
 
 	/* XXX: Don't preclude handling different sized sigset_t's.  */
 	if (sigsetsize != sizeof(sigset_t))
 		return -EINVAL;
 
-	if (copy_from_user(&newset32, unewset, sizeof(compat_sigset_t)))
+	if (get_compat_sigset(&newset, unewset))
 		return -EFAULT;
-	sigset_from_compat(&newset, &newset32);
 	return sigsuspend(&newset);
-#else
-	/* on little-endian bitmaps don't care about granularity */
-	return sys_rt_sigsuspend((sigset_t __user *)unewset, sigsetsize);
-#endif
 }
 #endif
 
