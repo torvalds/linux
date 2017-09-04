@@ -86,6 +86,7 @@ out:
 static int parent_count;
 
 int mdio_mux_init(struct device *dev,
+		  struct device_node *mux_node,
 		  int (*switch_fn)(int cur, int desired, void *data),
 		  void **mux_handle,
 		  void *data,
@@ -98,11 +99,11 @@ int mdio_mux_init(struct device *dev,
 	struct mdio_mux_parent_bus *pb;
 	struct mdio_mux_child_bus *cb;
 
-	if (!dev->of_node)
+	if (!mux_node)
 		return -ENODEV;
 
 	if (!mux_bus) {
-		parent_bus_node = of_parse_phandle(dev->of_node,
+		parent_bus_node = of_parse_phandle(mux_node,
 						   "mdio-parent-bus", 0);
 
 		if (!parent_bus_node)
@@ -132,7 +133,7 @@ int mdio_mux_init(struct device *dev,
 	pb->mii_bus = parent_bus;
 
 	ret_val = -ENODEV;
-	for_each_available_child_of_node(dev->of_node, child_bus_node) {
+	for_each_available_child_of_node(mux_node, child_bus_node) {
 		int v;
 
 		r = of_property_read_u32(child_bus_node, "reg", &v);
