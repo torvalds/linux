@@ -41,10 +41,6 @@ config KAISER
 
 	  If you are unsure how to answer this question, answer Y.
 
-config KAISER_REAL_SWITCH
-	bool "KAISER: actually switch page tables"
-	default y
-
 config SECURITYFS
 	bool "Enable the securityfs filesystem"
 	help

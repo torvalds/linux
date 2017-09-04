@@ -21,17 +21,13 @@
 
 .macro _SWITCH_TO_KERNEL_CR3 reg
 movq %cr3, \reg
-#ifdef CONFIG_KAISER_REAL_SWITCH
 andq $(~KAISER_SHADOW_PGD_OFFSET), \reg
-#endif
 movq \reg, %cr3
 .endm
 
 .macro _SWITCH_TO_USER_CR3 reg
 movq %cr3, \reg
-#ifdef CONFIG_KAISER_REAL_SWITCH
 orq $(KAISER_SHADOW_PGD_OFFSET), \reg
-#endif
 movq \reg, %cr3
 .endm
 
