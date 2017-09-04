@@ -2079,6 +2079,10 @@ static void cs43130_imp_meas(struct work_struct *wk)
 	case CS43131_CHIP_ID:
 		hpload_seq = hpload_seq2;
 		seq_size = ARRAY_SIZE(hpload_seq2);
+		break;
+	default:
+		WARN(1, "Invalid dev_id for meas: %d", cs43130->dev_id);
+		return;
 	}
 
 	i = 0;
