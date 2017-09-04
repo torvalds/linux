@@ -114,8 +114,7 @@ int smum_early_init(struct pp_instance *handle)
 	return 0;
 }
 
-int smum_thermal_avfs_enable(struct pp_hwmgr *hwmgr,
-		void *input, void *output, void *storage, int result)
+int smum_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
 	if (NULL != hwmgr->smumgr->smumgr_funcs->thermal_avfs_enable)
 		return hwmgr->smumgr->smumgr_funcs->thermal_avfs_enable(hwmgr);
@@ -123,8 +122,7 @@ int smum_thermal_avfs_enable(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int smum_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
-		void *input, void *output, void *storage, int result)
+int smum_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
 	if (NULL != hwmgr->smumgr->smumgr_funcs->thermal_setup_fan_table)
 		return hwmgr->smumgr->smumgr_funcs->thermal_setup_fan_table(hwmgr);

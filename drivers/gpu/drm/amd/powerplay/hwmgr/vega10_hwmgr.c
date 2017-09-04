@@ -5060,6 +5060,6 @@ int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
 	hwmgr->hwmgr_func = &vega10_hwmgr_funcs;
 	hwmgr->pptable_func = &vega10_pptable_funcs;
-	pp_vega10_thermal_initialize(hwmgr);
+
 	return 0;
 }

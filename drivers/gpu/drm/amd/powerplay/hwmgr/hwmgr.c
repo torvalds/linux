@@ -73,6 +73,7 @@ int hwmgr_early_init(struct pp_instance *handle)
 	hwmgr->dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	hwmgr_init_default_caps(hwmgr);
 	hwmgr_set_user_specify_caps(hwmgr);
+	hwmgr->fan_ctrl_is_in_default_mode = true;
 
 	switch (hwmgr->chip_family) {
 	case AMDGPU_FAMILY_CZ:

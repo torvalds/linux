@@ -306,8 +306,10 @@ int phm_start_thermal_controller(struct pp_hwmgr *hwmgr, struct PP_TemperatureRa
 		range.min = temperature_range->min;
 	}
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_ThermalController))
-		return phm_dispatch_table(hwmgr, &(hwmgr->start_thermal_controller), &range, NULL);
+			PHM_PlatformCaps_ThermalController)
+			&& hwmgr->hwmgr_func->start_thermal_controller != NULL)
+		return hwmgr->hwmgr_func->start_thermal_controller(hwmgr, &range);
+
 	return 0;
 }
 

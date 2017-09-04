@@ -380,6 +380,7 @@ struct pp_hwmgr_func {
 	int (*disable_smc_firmware_ctf)(struct pp_hwmgr *hwmgr);
 	int (*set_active_display_count)(struct pp_hwmgr *hwmgr, uint32_t count);
 	int (*set_deep_sleep_dcefclk)(struct pp_hwmgr *hwmgr, uint32_t clock);
+	int (*start_thermal_controller)(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *range);
 };
 
 struct pp_table_func {
@@ -766,8 +767,6 @@ struct pp_hwmgr {
 	struct phm_runtime_table_header set_power_state;
 	struct phm_runtime_table_header enable_clock_power_gatings;
 	struct phm_runtime_table_header display_configuration_changed;
-	struct phm_runtime_table_header start_thermal_controller;
-	struct phm_runtime_table_header set_temperature_range;
 	const struct pp_hwmgr_func *hwmgr_func;
 	const struct pp_table_func *pptable_func;
 	struct pp_power_state    *ps;

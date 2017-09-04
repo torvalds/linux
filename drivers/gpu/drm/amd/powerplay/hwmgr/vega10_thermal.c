@@ -528,8 +528,7 @@ int vega10_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int tf_vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
-		void *input, void *output, void *storage, int result)
+int vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
 	int ret;
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
@@ -593,8 +592,7 @@ int tf_vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int tf_vega10_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
-		void *input, void *output, void *storage, int result)
+int vega10_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 /* If the fantable setup has failed we could have disabled
  * PHM_PlatformCaps_MicrocodeFanControl even after
@@ -607,107 +605,37 @@ int tf_vega10_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-/**
-* Set temperature range for high and low alerts
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @param    pInput the pointer to input data
-* @param    pOutput the pointer to output data
-* @param    pStorage the pointer to temporary storage
-* @param    Result the last failure code
-* @return   result from set temperature range routine
-*/
-int tf_vega10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
-		void *input, void *output, void *storage, int result)
+
+int vega10_start_thermal_controller(struct pp_hwmgr *hwmgr,
+				struct PP_TemperatureRange *range)
 {
-	struct PP_TemperatureRange *range = (struct PP_TemperatureRange *)input;
+	int ret = 0;
 
 	if (range == NULL)
 		return -EINVAL;
 
-	return vega10_thermal_set_temperature_range(hwmgr, range);
-}
+	vega10_thermal_initialize(hwmgr);
+	ret = vega10_thermal_set_temperature_range(hwmgr, range);
+	if (ret)
+		return -EINVAL;
 
-/**
-* Programs one-time setting registers
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @param    pInput the pointer to input data
-* @param    pOutput the pointer to output data
-* @param    pStorage the pointer to temporary storage
-* @param    Result the last failure code
-* @return   result from initialize thermal controller routine
-*/
-int tf_vega10_thermal_initialize(struct pp_hwmgr *hwmgr,
-		void *input, void *output, void *storage, int result)
-{
-	return vega10_thermal_initialize(hwmgr);
-}
-
-/**
-* Enable high and low alerts
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @param    pInput the pointer to input data
-* @param    pOutput the pointer to output data
-* @param    pStorage the pointer to temporary storage
-* @param    Result the last failure code
-* @return   result from enable alert routine
-*/
-int tf_vega10_thermal_enable_alert(struct pp_hwmgr *hwmgr,
-		void *input, void *output, void *storage, int result)
-{
-	return vega10_thermal_enable_alert(hwmgr);
-}
-
-/**
-* Disable high and low alerts
-* @param    hwmgr  the address of the powerplay hardware manager.
-* @param    pInput the pointer to input data
-* @param    pOutput the pointer to output data
-* @param    pStorage the pointer to temporary storage
-* @param    Result the last failure code
-* @return   result from disable alert routine
-*/
-static int tf_vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr,
-		void *input, void *output, void *storage, int result)
-{
-	return vega10_thermal_disable_alert(hwmgr);
-}
-
-static struct phm_master_table_item
-vega10_thermal_start_thermal_controller_master_list[] = {
-	{ .tableFunction = tf_vega10_thermal_initialize },
-	{ .tableFunction = tf_vega10_thermal_set_temperature_range },
-	{ .tableFunction = tf_vega10_thermal_enable_alert },
+	vega10_thermal_enable_alert(hwmgr);
 /* We should restrict performance levels to low before we halt the SMC.
  * On the other hand we are still in boot state when we do this
  * so it would be pointless.
  * If this assumption changes we have to revisit this table.
  */
-	{ .tableFunction = tf_vega10_thermal_setup_fan_table },
-	{ .tableFunction = tf_vega10_thermal_start_smc_fan_control },
-	{ }
+	ret = vega10_thermal_setup_fan_table(hwmgr);
+	if (ret)
+		return -EINVAL;
+
+	vega10_thermal_start_smc_fan_control(hwmgr);
+
+	return 0;
 };
 
-static struct phm_master_table_header
-vega10_thermal_start_thermal_controller_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	vega10_thermal_start_thermal_controller_master_list
-};
 
-static struct phm_master_table_item
-vega10_thermal_set_temperature_range_master_list[] = {
-	{ .tableFunction = tf_vega10_thermal_disable_alert },
-	{ .tableFunction = tf_vega10_thermal_set_temperature_range },
-	{ .tableFunction = tf_vega10_thermal_enable_alert },
-	{ }
-};
 
-struct phm_master_table_header
-vega10_thermal_set_temperature_range_master = {
-	0,
-	PHM_MasterTableFlag_None,
-	vega10_thermal_set_temperature_range_master_list
-};
 
 int vega10_thermal_ctrl_uninitialize_thermal_controller(struct pp_hwmgr *hwmgr)
 {
@@ -717,32 +645,3 @@ int vega10_thermal_ctrl_uninitialize_thermal_controller(struct pp_hwmgr *hwmgr)
 	}
 	return 0;
 }
-
-/**
-* Initializes the thermal controller related functions
-* in the Hardware Manager structure.
-* @param    hwmgr The address of the hardware manager.
-* @exception Any error code from the low-level communication.
-*/
-int pp_vega10_thermal_initialize(struct pp_hwmgr *hwmgr)
-{
-	int result;
-
-	result = phm_construct_table(hwmgr,
-			&vega10_thermal_set_temperature_range_master,
-			&(hwmgr->set_temperature_range));
-
-	if (!result) {
-		result = phm_construct_table(hwmgr,
-				&vega10_thermal_start_thermal_controller_master,
-				&(hwmgr->start_thermal_controller));
-		if (result)
-			phm_destroy_table(hwmgr,
-					&(hwmgr->set_temperature_range));
-	}
-
-	if (!result)
-		hwmgr->fan_ctrl_is_in_default_mode = true;
-	return result;
-}
-
