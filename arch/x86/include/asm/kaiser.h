@@ -1,15 +1,17 @@
 #ifndef _ASM_X86_KAISER_H
 #define _ASM_X86_KAISER_H
-
-/* This file includes the definitions for the KAISER feature.
- * KAISER is a counter measure against x86_64 side channel attacks on the kernel virtual memory.
- * It has a shodow-pgd for every process. the shadow-pgd has a minimalistic kernel-set mapped,
- * but includes the whole user memory. Within a kernel context switch, or when an interrupt is handled,
- * the pgd is switched to the normal one. When the system switches to user mode, the shadow pgd is enabled.
- * By this, the virtual memory chaches are freed, and the user may not attack the whole kernel memory.
+/*
+ * This file includes the definitions for the KAISER feature.
+ * KAISER is a counter measure against x86_64 side channel attacks on
+ * the kernel virtual memory.  It has a shadow pgd for every process: the
+ * shadow pgd has a minimalistic kernel-set mapped, but includes the whole
+ * user memory. Within a kernel context switch, or when an interrupt is handled,
+ * the pgd is switched to the normal one. When the system switches to user mode,
+ * the shadow pgd is enabled. By this, the virtual memory caches are freed,
+ * and the user may not attack the whole kernel memory.
  *
- * A minimalistic kernel mapping holds the parts needed to be mapped in user mode, as the entry/exit functions
- * of the user space, or the stacks.
+ * A minimalistic kernel mapping holds the parts needed to be mapped in user
+ * mode, such as the entry/exit functions of the user space, or the stacks.
  */
 #ifdef __ASSEMBLY__
 #ifdef CONFIG_KAISER
@@ -48,13 +50,10 @@ _SWITCH_TO_KERNEL_CR3 %rax
 movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
 .endm
 
-
 .macro SWITCH_USER_CR3_NO_STACK
-
 movq %rax, PER_CPU_VAR(unsafe_stack_register_backup)
 _SWITCH_TO_USER_CR3 %rax
 movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
-
 .endm
 
 #else /* CONFIG_KAISER */
@@ -72,7 +71,6 @@ movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
 
 #else /* __ASSEMBLY__ */
 
-
 #ifdef CONFIG_KAISER
 /*
  * Upon kernel/user mode switch, it may happen that the address
@@ -80,7 +78,6 @@ movq PER_CPU_VAR(unsafe_stack_register_backup), %rax
  * stored.  To change the address space, another register is
  * needed.  A register therefore has to be stored/restored.
 */
-
 DECLARE_PER_CPU_USER_MAPPED(unsigned long, unsafe_stack_register_backup);
 
 /**
@@ -95,7 +92,6 @@ DECLARE_PER_CPU_USER_MAPPED(unsigned long, unsafe_stack_register_backup);
  */
 extern int kaiser_add_mapping(unsigned long addr, unsigned long size, unsigned long flags);
 
-
 /**
  *  kaiser_remove_mapping - unmap a virtual memory part of the shadow mapping
  *  @addr: the start address of the range
@@ -104,19 +100,17 @@ extern int kaiser_add_mapping(unsigned long addr, unsigned long size, unsigned l
 extern void kaiser_remove_mapping(unsigned long start, unsigned long size);
 
 /**
- *  kaiser_initialize_mapping - Initalize the shadow mapping
+ *  kaiser_init - Initialize the shadow mapping
  *
  *  Most parts of the shadow mapping can be mapped upon boot
  *  time.  Only per-process things like the thread stacks
  *  or a new LDT have to be mapped at runtime.  These boot-
- *  time mappings are permanent and nevertunmapped.
+ *  time mappings are permanent and never unmapped.
  */
 extern void kaiser_init(void);
 
 #endif /* CONFIG_KAISER */
 
 #endif /* __ASSEMBLY */
-
-
 
 #endif /* _ASM_X86_KAISER_H */
