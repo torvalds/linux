@@ -604,6 +604,7 @@
 		max-x = <1920>;
 		max-y = <1200>;
 		tp-size = <89>;
+		configfile-num = <1>;
 		status = "okay";
 		tp-supply = <&vcc_tp>;
 	};
