@@ -277,20 +277,11 @@ static unsigned int get_greedy_cost(struct f2fs_sb_info *sbi,
 				valid_blocks * 2 : valid_blocks;
 }
 
-static unsigned int get_ssr_cost(struct f2fs_sb_info *sbi,
-						unsigned int segno)
-{
-	struct seg_entry *se = get_seg_entry(sbi, segno);
-
-	return se->ckpt_valid_blocks > se->valid_blocks ?
-				se->ckpt_valid_blocks : se->valid_blocks;
-}
-
 static inline unsigned int get_gc_cost(struct f2fs_sb_info *sbi,
 			unsigned int segno, struct victim_sel_policy *p)
 {
 	if (p->alloc_mode == SSR)
-		return get_ssr_cost(sbi, segno);
+		return get_seg_entry(sbi, segno)->ckpt_valid_blocks;
 
 	/* alloc_mode == LFS */
 	if (p->gc_mode == GC_GREEDY)
