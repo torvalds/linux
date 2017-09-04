@@ -13616,8 +13616,10 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 
 	/* Swap plane state */
 	new_plane_state->fence = old_plane_state->fence;
+	new_plane_state->commit = old_plane_state->commit;
 	*to_intel_plane_state(old_plane_state) = *to_intel_plane_state(new_plane_state);
 	new_plane_state->fence = NULL;
+	new_plane_state->commit = NULL;
 	new_plane_state->fb = old_fb;
 	to_intel_plane_state(new_plane_state)->vma = old_vma;
 

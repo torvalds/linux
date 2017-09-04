@@ -1667,6 +1667,38 @@ static void release_crtc_commit(struct completion *completion)
 	drm_crtc_commit_put(commit);
 }
 
+static void init_commit(struct drm_crtc_commit *commit, struct drm_crtc *crtc)
+{
+	init_completion(&commit->flip_done);
+	init_completion(&commit->hw_done);
+	init_completion(&commit->cleanup_done);
+	INIT_LIST_HEAD(&commit->commit_entry);
+	kref_init(&commit->ref);
+	commit->crtc = crtc;
+}
+
+static struct drm_crtc_commit *
+crtc_or_fake_commit(struct drm_atomic_state *state, struct drm_crtc *crtc)
+{
+	if (crtc) {
+		struct drm_crtc_state *new_crtc_state;
+
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+
+		return new_crtc_state->commit;
+	}
+
+	if (!state->fake_commit) {
+		state->fake_commit = kzalloc(sizeof(*state->fake_commit), GFP_KERNEL);
+		if (!state->fake_commit)
+			return NULL;
+
+		init_commit(state->fake_commit, NULL);
+	}
+
+	return state->fake_commit;
+}
+
 /**
  * drm_atomic_helper_setup_commit - setup possibly nonblocking commit
  * @state: new modeset state to be committed
@@ -1715,6 +1747,10 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	struct drm_connector *conn;
+	struct drm_connector_state *old_conn_state, *new_conn_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct drm_crtc_commit *commit;
 	int i, ret;
 
@@ -1723,12 +1759,7 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		if (!commit)
 			return -ENOMEM;
 
-		init_completion(&commit->flip_done);
-		init_completion(&commit->hw_done);
-		init_completion(&commit->cleanup_done);
-		INIT_LIST_HEAD(&commit->commit_entry);
-		kref_init(&commit->ref);
-		commit->crtc = crtc;
+		init_commit(commit, crtc);
 
 		new_crtc_state->commit = commit;
 
@@ -1764,6 +1795,42 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		drm_crtc_commit_get(commit);
 	}
 
+	for_each_oldnew_connector_in_state(state, conn, old_conn_state, new_conn_state, i) {
+		/* commit tracked through new_crtc_state->commit, no need to do it explicitly */
+		if (new_conn_state->crtc)
+			continue;
+
+		/* Userspace is not allowed to get ahead of the previous
+		 * commit with nonblocking ones. */
+		if (nonblock && old_conn_state->commit &&
+		    !try_wait_for_completion(&old_conn_state->commit->flip_done))
+			return -EBUSY;
+
+		commit = crtc_or_fake_commit(state, old_conn_state->crtc);
+		if (!commit)
+			return -ENOMEM;
+
+		new_conn_state->commit = drm_crtc_commit_get(commit);
+	}
+
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+		/* commit tracked through new_crtc_state->commit, no need to do it explicitly */
+		if (new_plane_state->crtc)
+			continue;
+
+		/* Userspace is not allowed to get ahead of the previous
+		 * commit with nonblocking ones. */
+		if (nonblock && old_plane_state->commit &&
+		    !try_wait_for_completion(&old_plane_state->commit->flip_done))
+			return -EBUSY;
+
+		commit = crtc_or_fake_commit(state, old_plane_state->crtc);
+		if (!commit)
+			return -ENOMEM;
+
+		new_plane_state->commit = drm_crtc_commit_get(commit);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_helper_setup_commit);
@@ -1784,6 +1851,10 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state;
+	struct drm_connector *conn;
+	struct drm_connector_state *old_conn_state;
 	struct drm_crtc_commit *commit;
 	int i;
 	long ret;
@@ -1807,6 +1878,48 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 		if (ret == 0)
 			DRM_ERROR("[CRTC:%d:%s] flip_done timed out\n",
 				  crtc->base.id, crtc->name);
+	}
+
+	for_each_old_connector_in_state(old_state, conn, old_conn_state, i) {
+		commit = old_conn_state->commit;
+
+		if (!commit)
+			continue;
+
+		ret = wait_for_completion_timeout(&commit->hw_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[CONNECTOR:%d:%s] hw_done timed out\n",
+				  conn->base.id, conn->name);
+
+		/* Currently no support for overwriting flips, hence
+		 * stall for previous one to execute completely. */
+		ret = wait_for_completion_timeout(&commit->flip_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[CONNECTOR:%d:%s] flip_done timed out\n",
+				  conn->base.id, conn->name);
+	}
+
+	for_each_old_plane_in_state(old_state, plane, old_plane_state, i) {
+		commit = old_plane_state->commit;
+
+		if (!commit)
+			continue;
+
+		ret = wait_for_completion_timeout(&commit->hw_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[PLANE:%d:%s] hw_done timed out\n",
+				  plane->base.id, plane->name);
+
+		/* Currently no support for overwriting flips, hence
+		 * stall for previous one to execute completely. */
+		ret = wait_for_completion_timeout(&commit->flip_done,
+						  10*HZ);
+		if (ret == 0)
+			DRM_ERROR("[PLANE:%d:%s] flip_done timed out\n",
+				  plane->base.id, plane->name);
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_wait_for_dependencies);
@@ -1852,6 +1965,11 @@ void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *old_state)
 		WARN_ON(new_crtc_state->event);
 		complete_all(&commit->hw_done);
 	}
+
+	if (old_state->fake_commit) {
+		complete_all(&old_state->fake_commit->hw_done);
+		complete_all(&old_state->fake_commit->flip_done);
+	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_hw_done);
 
@@ -1885,6 +2003,9 @@ void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *old_state)
 		list_del(&commit->commit_entry);
 		spin_unlock(&crtc->commit_lock);
 	}
+
+	if (old_state->fake_commit)
+		complete_all(&old_state->fake_commit->cleanup_done);
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_cleanup_done);
 
@@ -2264,8 +2385,39 @@ int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 	struct drm_private_state *old_obj_state, *new_obj_state;
 
 	if (stall) {
+		/*
+		 * We have to stall for hw_done here before
+		 * drm_atomic_helper_wait_for_dependencies() because flip
+		 * depth > 1 is not yet supported by all drivers. As long as
+		 * obj->state is directly dereferenced anywhere in the drivers
+		 * atomic_commit_tail function, then it's unsafe to swap state
+		 * before drm_atomic_helper_commit_hw_done() is called.
+		 */
+
 		for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
 			commit = old_crtc_state->commit;
+
+			if (!commit)
+				continue;
+
+			ret = wait_for_completion_interruptible(&commit->hw_done);
+			if (ret)
+				return ret;
+		}
+
+		for_each_old_connector_in_state(state, connector, old_conn_state, i) {
+			commit = old_conn_state->commit;
+
+			if (!commit)
+				continue;
+
+			ret = wait_for_completion_interruptible(&commit->hw_done);
+			if (ret)
+				return ret;
+		}
+
+		for_each_old_plane_in_state(state, plane, old_plane_state, i) {
+			commit = old_plane_state->commit;
 
 			if (!commit)
 				continue;
@@ -3242,6 +3394,7 @@ void __drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane,
 		drm_framebuffer_get(state->fb);
 
 	state->fence = NULL;
+	state->commit = NULL;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_plane_duplicate_state);
 
@@ -3283,6 +3436,9 @@ void __drm_atomic_helper_plane_destroy_state(struct drm_plane_state *state)
 
 	if (state->fence)
 		dma_fence_put(state->fence);
+
+	if (state->commit)
+		drm_crtc_commit_put(state->commit);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_plane_destroy_state);
 
@@ -3361,6 +3517,7 @@ __drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector,
 	memcpy(state, connector->state, sizeof(*state));
 	if (state->crtc)
 		drm_connector_get(connector);
+	state->commit = NULL;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_connector_duplicate_state);
 
@@ -3487,6 +3644,9 @@ __drm_atomic_helper_connector_destroy_state(struct drm_connector_state *state)
 {
 	if (state->crtc)
 		drm_connector_put(state->connector);
+
+	if (state->commit)
+		drm_crtc_commit_put(state->commit);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_connector_destroy_state);
 

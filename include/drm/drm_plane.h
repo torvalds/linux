@@ -123,6 +123,13 @@ struct drm_plane_state {
 	 */
 	bool visible;
 
+	/**
+	 * @commit: Tracks the pending commit to prevent use-after-free conditions.
+	 *
+	 * Is only set when @crtc is NULL.
+	 */
+	struct drm_crtc_commit *commit;
+
 	struct drm_atomic_state *state;
 };
 

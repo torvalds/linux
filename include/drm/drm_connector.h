@@ -347,6 +347,13 @@ struct drm_connector_state {
 
 	struct drm_atomic_state *state;
 
+	/**
+	 * @commit: Tracks the pending commit to prevent use-after-free conditions.
+	 *
+	 * Is only set when @crtc is NULL.
+	 */
+	struct drm_crtc_commit *commit;
+
 	struct drm_tv_connector_state tv;
 
 	/**

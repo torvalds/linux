@@ -192,6 +192,10 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 	}
 	state->num_private_objs = 0;
 
+	if (state->fake_commit) {
+		drm_crtc_commit_put(state->fake_commit);
+		state->fake_commit = NULL;
+	}
 }
 EXPORT_SYMBOL(drm_atomic_state_default_clear);
 
