@@ -201,11 +201,18 @@ struct amdgpu_pfp {
 	uint32_t			*pfp_fw_ptr;
 };
 
+struct amdgpu_ce {
+	struct amdgpu_bo		*ce_fw_obj;
+	uint64_t			ce_fw_gpu_addr;
+	uint32_t			*ce_fw_ptr;
+};
+
 struct amdgpu_gfx {
 	struct mutex			gpu_clock_mutex;
 	struct amdgpu_gfx_config	config;
 	struct amdgpu_rlc		rlc;
 	struct amdgpu_pfp		pfp;
+	struct amdgpu_ce		ce;
 	struct amdgpu_mec		mec;
 	struct amdgpu_kiq		kiq;
 	struct amdgpu_scratch		scratch;
