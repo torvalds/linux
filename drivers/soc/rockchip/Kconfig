@@ -6,6 +6,14 @@ source "drivers/soc/rockchip/Kconfig.cpu"
 # Rockchip Soc drivers
 #
 
+config ANDROID_VERSION
+	hex "Android Version"
+	depends on ANDROID
+	default "0x08010000"
+	help
+	  The version of Android kernel supported.
+	  The value is 0xAABBCCRR, corresponding to Android A.B.C release R
+
 config ROCKCHIP_GRF
 	bool
 	default y
