@@ -67,7 +67,7 @@ struct aafb_par {
 	struct bt431_regs __iomem *bt431;
 };
 
-static struct fb_var_screeninfo aafb_defined = {
+static const struct fb_var_screeninfo aafb_defined = {
 	.xres		= 1280,
 	.yres		= 1024,
 	.xres_virtual	= 2048,

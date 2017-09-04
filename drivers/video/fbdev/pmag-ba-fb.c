@@ -43,7 +43,7 @@ struct pmagbafb_par {
 };
 
 
-static struct fb_var_screeninfo pmagbafb_defined = {
+static const struct fb_var_screeninfo pmagbafb_defined = {
 	.xres		= 1024,
 	.yres		= 864,
 	.xres_virtual	= 1024,

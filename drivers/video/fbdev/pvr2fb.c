@@ -154,7 +154,7 @@ static struct fb_fix_screeninfo pvr2_fix = {
 	.accel =	FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo pvr2_var = {
+static const struct fb_var_screeninfo pvr2_var = {
 	.xres =		640,
 	.yres =		480,
 	.xres_virtual =	640,

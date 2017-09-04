@@ -44,7 +44,7 @@ struct pmagbbfb_par {
 };
 
 
-static struct fb_var_screeninfo pmagbbfb_defined = {
+static const struct fb_var_screeninfo pmagbbfb_defined = {
 	.bits_per_pixel	= 8,
 	.red.length	= 8,
 	.green.length	= 8,
