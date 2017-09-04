@@ -756,6 +756,7 @@ static bool ipv6_hop_jumbo(struct sk_buff *skb, int optoff)
 	if (pskb_trim_rcsum(skb, pkt_len + sizeof(struct ipv6hdr)))
 		goto drop;
 
+	IP6CB(skb)->flags |= IP6SKB_JUMBOGRAM;
 	return true;
 
 drop:

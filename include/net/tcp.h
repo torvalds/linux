@@ -1916,6 +1916,16 @@ extern void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 			     u64 xmit_time);
 extern void tcp_rack_reo_timeout(struct sock *sk);
 
+/* At how many usecs into the future should the RTO fire? */
+static inline s64 tcp_rto_delta_us(const struct sock *sk)
+{
+	const struct sk_buff *skb = tcp_write_queue_head(sk);
+	u32 rto = inet_csk(sk)->icsk_rto;
+	u64 rto_time_stamp_us = skb->skb_mstamp + jiffies_to_usecs(rto);
+
+	return rto_time_stamp_us - tcp_sk(sk)->tcp_mstamp;
+}
+
 /*
  * Save and compile IPv4 options, return a pointer to it
  */

@@ -66,6 +66,7 @@
 #include <linux/kthread.h>
 #include <linux/memcontrol.h>
 #include <linux/ftrace.h>
+#include <linux/nmi.h>
 
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
@@ -1584,6 +1585,10 @@ void __init page_alloc_init_late(void)
 	/* Reinit limits that are based on free pages after the kernel is up */
 	files_maxfiles_init();
 #endif
+#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+	/* Discard memblock private memory */
+	memblock_discard();
+#endif
 
 	for_each_populated_zone(zone)
 		set_zone_contiguous(zone);
@@ -2531,9 +2536,14 @@ void drain_all_pages(struct zone *zone)
 
 #ifdef CONFIG_HIBERNATION
 
+/*
+ * Touch the watchdog for every WD_PAGE_COUNT pages.
+ */
+#define WD_PAGE_COUNT	(128*1024)
+
 void mark_free_pages(struct zone *zone)
 {
-	unsigned long pfn, max_zone_pfn;
+	unsigned long pfn, max_zone_pfn, page_count = WD_PAGE_COUNT;
 	unsigned long flags;
 	unsigned int order, t;
 	struct page *page;
@@ -2548,6 +2558,11 @@ void mark_free_pages(struct zone *zone)
 		if (pfn_valid(pfn)) {
 			page = pfn_to_page(pfn);
 
+			if (!--page_count) {
+				touch_nmi_watchdog();
+				page_count = WD_PAGE_COUNT;
+			}
+
 			if (page_zone(page) != zone)
 				continue;
 
@@ -2561,8 +2576,13 @@ void mark_free_pages(struct zone *zone)
 			unsigned long i;
 
 			pfn = page_to_pfn(page);
-			for (i = 0; i < (1UL << order); i++)
+			for (i = 0; i < (1UL << order); i++) {
+				if (!--page_count) {
+					touch_nmi_watchdog();
+					page_count = WD_PAGE_COUNT;
+				}
 				swsusp_set_page_free(pfn_to_page(pfn + i));
+			}
 		}
 	}
 	spin_unlock_irqrestore(&zone->lock, flags);
@@ -4458,8 +4478,9 @@ long si_mem_available(void)
 	 * Part of the reclaimable slab consists of items that are in use,
 	 * and cannot be freed. Cap this estimate at the low watermark.
 	 */
-	available += global_page_state(NR_SLAB_RECLAIMABLE) -
-		     min(global_page_state(NR_SLAB_RECLAIMABLE) / 2, wmark_low);
+	available += global_node_page_state(NR_SLAB_RECLAIMABLE) -
+		     min(global_node_page_state(NR_SLAB_RECLAIMABLE) / 2,
+			 wmark_low);
 
 	if (available < 0)
 		available = 0;
@@ -4602,8 +4623,8 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 		global_node_page_state(NR_FILE_DIRTY),
 		global_node_page_state(NR_WRITEBACK),
 		global_node_page_state(NR_UNSTABLE_NFS),
-		global_page_state(NR_SLAB_RECLAIMABLE),
-		global_page_state(NR_SLAB_UNRECLAIMABLE),
+		global_node_page_state(NR_SLAB_RECLAIMABLE),
+		global_node_page_state(NR_SLAB_UNRECLAIMABLE),
 		global_node_page_state(NR_FILE_MAPPED),
 		global_node_page_state(NR_SHMEM),
 		global_page_state(NR_PAGETABLE),
@@ -4891,9 +4912,11 @@ int numa_zonelist_order_handler(struct ctl_table *table, int write,
 				NUMA_ZONELIST_ORDER_LEN);
 			user_zonelist_order = oldval;
 		} else if (oldval != user_zonelist_order) {
+			mem_hotplug_begin();
 			mutex_lock(&zonelists_mutex);
 			build_all_zonelists(NULL, NULL);
 			mutex_unlock(&zonelists_mutex);
+			mem_hotplug_done();
 		}
 	}
 out:
@@ -7666,7 +7689,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 
 	/* Make sure the range is really isolated. */
 	if (test_pages_isolated(outer_start, end, false)) {
-		pr_info("%s: [%lx, %lx) PFNs busy\n",
+		pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
 			__func__, outer_start, end);
 		ret = -EBUSY;
 		goto done;

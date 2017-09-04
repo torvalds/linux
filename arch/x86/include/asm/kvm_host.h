@@ -492,6 +492,7 @@ struct kvm_vcpu_arch {
 	unsigned long cr4;
 	unsigned long cr4_guest_owned_bits;
 	unsigned long cr8;
+	u32 pkru;
 	u32 hflags;
 	u64 efer;
 	u64 apic_base;

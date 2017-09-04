@@ -49,6 +49,7 @@ struct lpfc_nvmet_tgtport {
 	atomic_t rcv_fcp_cmd_in;
 	atomic_t rcv_fcp_cmd_out;
 	atomic_t rcv_fcp_cmd_drop;
+	atomic_t rcv_fcp_cmd_defer;
 	atomic_t xmt_fcp_release;
 
 	/* Stats counters - lpfc_nvmet_xmt_fcp_op */

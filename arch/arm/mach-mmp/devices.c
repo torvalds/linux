@@ -238,7 +238,7 @@ void pxa_usb_phy_deinit(void __iomem *phy_reg)
 #endif
 
 #if IS_ENABLED(CONFIG_USB_SUPPORT)
-static u64 usb_dma_mask = ~(u32)0;
+static u64 __maybe_unused usb_dma_mask = ~(u32)0;
 
 #if IS_ENABLED(CONFIG_USB_MV_UDC)
 struct resource pxa168_u2o_resources[] = {

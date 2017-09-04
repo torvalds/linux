@@ -88,7 +88,11 @@ static void mlx5_device_disable_sriov(struct mlx5_core_dev *dev)
 	int vf;
 
 	if (!sriov->enabled_vfs)
+#ifdef CONFIG_MLX5_CORE_EN
+		goto disable_sriov_resources;
+#else
 		return;
+#endif
 
 	for (vf = 0; vf < sriov->num_vfs; vf++) {
 		if (!sriov->vfs_ctx[vf].enabled)
@@ -103,6 +107,7 @@ static void mlx5_device_disable_sriov(struct mlx5_core_dev *dev)
 	}
 
 #ifdef CONFIG_MLX5_CORE_EN
+disable_sriov_resources:
 	mlx5_eswitch_disable_sriov(dev->priv.eswitch);
 #endif
 

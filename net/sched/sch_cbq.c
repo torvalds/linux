@@ -1431,8 +1431,10 @@ static void cbq_destroy(struct Qdisc *sch)
 	 * be bound to classes which have been destroyed already. --TGR '04
 	 */
 	for (h = 0; h < q->clhash.hashsize; h++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode)
+		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
 			tcf_block_put(cl->block);
+			cl->block = NULL;
+		}
 	}
 	for (h = 0; h < q->clhash.hashsize; h++) {
 		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[h],

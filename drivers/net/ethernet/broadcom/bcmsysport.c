@@ -449,6 +449,10 @@ static void bcm_sysport_get_stats(struct net_device *dev,
 			p = (char *)&dev->stats;
 		else
 			p = (char *)priv;
+
+		if (priv->is_lite && !bcm_sysport_lite_stat_valid(s->type))
+			continue;
+
 		p += s->stat_offset;
 		data[j] = *(unsigned long *)p;
 		j++;

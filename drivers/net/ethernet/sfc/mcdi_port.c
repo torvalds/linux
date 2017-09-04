@@ -938,7 +938,6 @@ enum efx_stats_action {
 static int efx_mcdi_mac_stats(struct efx_nic *efx,
 			      enum efx_stats_action action, int clear)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAC_STATS_IN_LEN);
 	int rc;
 	int change = action == EFX_STATS_PULL ? 0 : 1;
@@ -960,7 +959,12 @@ static int efx_mcdi_mac_stats(struct efx_nic *efx,
 			      MAC_STATS_IN_PERIODIC_NOEVENT, 1,
 			      MAC_STATS_IN_PERIOD_MS, period);
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_LEN, dma_len);
-	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_PORT_ID, nic_data->vport_id);
+
+	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0) {
+		struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+		MCDI_SET_DWORD(inbuf, MAC_STATS_IN_PORT_ID, nic_data->vport_id);
+	}
 
 	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_MAC_STATS, inbuf, sizeof(inbuf),
 				NULL, 0, NULL);

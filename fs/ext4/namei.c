@@ -1342,13 +1342,12 @@ static struct buffer_head * ext4_find_entry (struct inode *dir,
 	struct super_block *sb;
 	struct buffer_head *bh_use[NAMEI_RA_SIZE];
 	struct buffer_head *bh, *ret = NULL;
-	ext4_lblk_t start, block, b;
+	ext4_lblk_t start, block;
 	const u8 *name = d_name->name;
-	int ra_max = 0;		/* Number of bh's in the readahead
+	size_t ra_max = 0;	/* Number of bh's in the readahead
 				   buffer, bh_use[] */
-	int ra_ptr = 0;		/* Current index into readahead
+	size_t ra_ptr = 0;	/* Current index into readahead
 				   buffer */
-	int num = 0;
 	ext4_lblk_t  nblocks;
 	int i, namelen, retval;
 	struct ext4_filename fname;
@@ -1411,31 +1410,17 @@ restart:
 		if (ra_ptr >= ra_max) {
 			/* Refill the readahead buffer */
 			ra_ptr = 0;
-			b = block;
-			for (ra_max = 0; ra_max < NAMEI_RA_SIZE; ra_max++) {
-				/*
-				 * Terminate if we reach the end of the
-				 * directory and must wrap, or if our
-				 * search has finished at this block.
-				 */
-				if (b >= nblocks || (num && block == start)) {
-					bh_use[ra_max] = NULL;
-					break;
-				}
-				num++;
-				bh = ext4_getblk(NULL, dir, b++, 0);
-				if (IS_ERR(bh)) {
-					if (ra_max == 0) {
-						ret = bh;
-						goto cleanup_and_exit;
-					}
-					break;
-				}
-				bh_use[ra_max] = bh;
-				if (bh)
-					ll_rw_block(REQ_OP_READ,
-						    REQ_META | REQ_PRIO,
-						    1, &bh);
+			if (block < start)
+				ra_max = start - block;
+			else
+				ra_max = nblocks - block;
+			ra_max = min(ra_max, ARRAY_SIZE(bh_use));
+			retval = ext4_bread_batch(dir, block, ra_max,
+						  false /* wait */, bh_use);
+			if (retval) {
+				ret = ERR_PTR(retval);
+				ra_max = 0;
+				goto cleanup_and_exit;
 			}
 		}
 		if ((bh = bh_use[ra_ptr++]) == NULL)
@@ -2395,19 +2380,22 @@ out:
 }
 
 /*
- * DIR_NLINK feature is set if 1) nlinks > EXT4_LINK_MAX or 2) nlinks == 2,
- * since this indicates that nlinks count was previously 1.
+ * Set directory link count to 1 if nlinks > EXT4_LINK_MAX, or if nlinks == 2
+ * since this indicates that nlinks count was previously 1 to avoid overflowing
+ * the 16-bit i_links_count field on disk.  Directories with i_nlink == 1 mean
+ * that subdirectory link counts are not being maintained accurately.
+ *
+ * The caller has already checked for i_nlink overflow in case the DIR_LINK
+ * feature is not enabled and returned -EMLINK.  The is_dx() check is a proxy
+ * for checking S_ISDIR(inode) (since the INODE_INDEX feature will not be set
+ * on regular files) and to avoid creating huge/slow non-HTREE directories.
  */
 static void ext4_inc_count(handle_t *handle, struct inode *inode)
 {
 	inc_nlink(inode);
-	if (is_dx(inode) && inode->i_nlink > 1) {
-		/* limit is 16-bit i_links_count */
-		if (inode->i_nlink >= EXT4_LINK_MAX || inode->i_nlink == 2) {
-			set_nlink(inode, 1);
-			ext4_set_feature_dir_nlink(inode->i_sb);
-		}
-	}
+	if (is_dx(inode) &&
+	    (inode->i_nlink > EXT4_LINK_MAX || inode->i_nlink == 2))
+		set_nlink(inode, 1);
 }
 
 /*

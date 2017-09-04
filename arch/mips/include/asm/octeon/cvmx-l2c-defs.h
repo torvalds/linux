@@ -33,6 +33,10 @@
 #define CVMX_L2C_DBG (CVMX_ADD_IO_SEG(0x0001180080000030ull))
 #define CVMX_L2C_CFG (CVMX_ADD_IO_SEG(0x0001180080000000ull))
 #define CVMX_L2C_CTL (CVMX_ADD_IO_SEG(0x0001180080800000ull))
+#define CVMX_L2C_ERR_TDTX(block_id)					       \
+	(CVMX_ADD_IO_SEG(0x0001180080A007E0ull) + ((block_id) & 3) * 0x40000ull)
+#define CVMX_L2C_ERR_TTGX(block_id)					       \
+	(CVMX_ADD_IO_SEG(0x0001180080A007E8ull) + ((block_id) & 3) * 0x40000ull)
 #define CVMX_L2C_LCKBASE (CVMX_ADD_IO_SEG(0x0001180080000058ull))
 #define CVMX_L2C_LCKOFF (CVMX_ADD_IO_SEG(0x0001180080000060ull))
 #define CVMX_L2C_PFCTL (CVMX_ADD_IO_SEG(0x0001180080000090ull))
@@ -66,8 +70,39 @@
 		((offset) & 1) * 8)
 #define CVMX_L2C_WPAR_PPX(offset) (CVMX_ADD_IO_SEG(0x0001180080840000ull)    + \
 		((offset) & 31) * 8)
-#define CVMX_L2D_FUS3 (CVMX_ADD_IO_SEG(0x00011800800007B8ull))
 
+
+union cvmx_l2c_err_tdtx {
+	uint64_t u64;
+	struct cvmx_l2c_err_tdtx_s {
+		__BITFIELD_FIELD(uint64_t dbe:1,
+		__BITFIELD_FIELD(uint64_t sbe:1,
+		__BITFIELD_FIELD(uint64_t vdbe:1,
+		__BITFIELD_FIELD(uint64_t vsbe:1,
+		__BITFIELD_FIELD(uint64_t syn:10,
+		__BITFIELD_FIELD(uint64_t reserved_22_49:28,
+		__BITFIELD_FIELD(uint64_t wayidx:18,
+		__BITFIELD_FIELD(uint64_t reserved_2_3:2,
+		__BITFIELD_FIELD(uint64_t type:2,
+		;)))))))))
+	} s;
+};
+
+union cvmx_l2c_err_ttgx {
+	uint64_t u64;
+	struct cvmx_l2c_err_ttgx_s {
+		__BITFIELD_FIELD(uint64_t dbe:1,
+		__BITFIELD_FIELD(uint64_t sbe:1,
+		__BITFIELD_FIELD(uint64_t noway:1,
+		__BITFIELD_FIELD(uint64_t reserved_56_60:5,
+		__BITFIELD_FIELD(uint64_t syn:6,
+		__BITFIELD_FIELD(uint64_t reserved_22_49:28,
+		__BITFIELD_FIELD(uint64_t wayidx:15,
+		__BITFIELD_FIELD(uint64_t reserved_2_6:5,
+		__BITFIELD_FIELD(uint64_t type:2,
+		;)))))))))
+	} s;
+};
 
 union cvmx_l2c_cfg {
 	uint64_t u64;

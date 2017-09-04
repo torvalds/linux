@@ -808,7 +808,7 @@ static const struct regmap_config nau8810_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(nau8810_reg_defaults),
 };
 
-static struct snd_soc_codec_driver nau8810_codec_driver = {
+static const struct snd_soc_codec_driver nau8810_codec_driver = {
 	.set_bias_level = nau8810_set_bias_level,
 	.suspend_bias_off = true,
 

@@ -550,7 +550,7 @@ static int ak4642_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
+static const struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
 	.probe			= ak4642_probe,
 	.suspend		= ak4642_suspend,
 	.resume			= ak4642_resume,

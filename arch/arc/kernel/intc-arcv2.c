@@ -75,10 +75,13 @@ void arc_init_IRQ(void)
 	 * Set a default priority for all available interrupts to prevent
 	 * switching of register banks if Fast IRQ and multiple register banks
 	 * are supported by CPU.
+	 * Also disable all IRQ lines so faulty external hardware won't
+	 * trigger interrupt that kernel is not ready to handle.
 	 */
 	for (i = NR_EXCEPTIONS; i < irq_bcr.irqs + NR_EXCEPTIONS; i++) {
 		write_aux_reg(AUX_IRQ_SELECT, i);
 		write_aux_reg(AUX_IRQ_PRIORITY, ARCV2_IRQ_DEF_PRIO);
+		write_aux_reg(AUX_IRQ_ENABLE, 0);
 	}
 
 	/* setup status32, don't enable intr yet as kernel doesn't want */

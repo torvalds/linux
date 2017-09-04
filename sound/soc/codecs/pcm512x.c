@@ -1344,7 +1344,7 @@ static struct snd_soc_dai_driver pcm512x_dai = {
 	.ops = &pcm512x_dai_ops,
 };
 
-static struct snd_soc_codec_driver pcm512x_codec_driver = {
+static const struct snd_soc_codec_driver pcm512x_codec_driver = {
 	.set_bias_level = pcm512x_set_bias_level,
 	.idle_bias_off = true,
 

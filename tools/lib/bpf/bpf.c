@@ -39,6 +39,8 @@
 #  define __NR_bpf 280
 # elif defined(__sparc__)
 #  define __NR_bpf 349
+# elif defined(__s390__)
+#  define __NR_bpf 351
 # else
 #  error __NR_bpf not defined. libbpf does not support your arch.
 # endif
@@ -314,7 +316,6 @@ int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
 	int err;
 
 	bzero(&attr, sizeof(attr));
-	bzero(info, *info_len);
 	attr.info.bpf_fd = prog_fd;
 	attr.info.info_len = *info_len;
 	attr.info.info = ptr_to_u64(info);

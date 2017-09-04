@@ -124,9 +124,9 @@ UNUSUAL_DEV(0x0bc2, 0xab2a, 0x0000, 0x9999,
 /* Reported-by: Benjamin Tissoires <benjamin.tissoires@redhat.com> */
 UNUSUAL_DEV(0x13fd, 0x3940, 0x0000, 0x9999,
 		"Initio Corporation",
-		"",
+		"INIC-3069",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_NO_ATA_1X),
+		US_FL_NO_ATA_1X | US_FL_IGNORE_RESIDUE),
 
 /* Reported-by: Tom Arild Naess <tanaess@gmail.com> */
 UNUSUAL_DEV(0x152d, 0x0539, 0x0000, 0x9999,

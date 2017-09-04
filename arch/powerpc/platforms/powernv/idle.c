@@ -56,6 +56,7 @@ u64 pnv_first_deep_stop_state = MAX_STOP_STATE;
  */
 static u64 pnv_deepest_stop_psscr_val;
 static u64 pnv_deepest_stop_psscr_mask;
+static u64 pnv_deepest_stop_flag;
 static bool deepest_stop_found;
 
 static int pnv_save_sprs_for_deep_states(void)
@@ -185,8 +186,40 @@ static void pnv_alloc_idle_core_states(void)
 
 	update_subcore_sibling_mask();
 
-	if (supported_cpuidle_states & OPAL_PM_LOSE_FULL_CONTEXT)
-		pnv_save_sprs_for_deep_states();
+	if (supported_cpuidle_states & OPAL_PM_LOSE_FULL_CONTEXT) {
+		int rc = pnv_save_sprs_for_deep_states();
+
+		if (likely(!rc))
+			return;
+
+		/*
+		 * The stop-api is unable to restore hypervisor
+		 * resources on wakeup from platform idle states which
+		 * lose full context. So disable such states.
+		 */
+		supported_cpuidle_states &= ~OPAL_PM_LOSE_FULL_CONTEXT;
+		pr_warn("cpuidle-powernv: Disabling idle states that lose full context\n");
+		pr_warn("cpuidle-powernv: Idle power-savings, CPU-Hotplug affected\n");
+
+		if (cpu_has_feature(CPU_FTR_ARCH_300) &&
+		    (pnv_deepest_stop_flag & OPAL_PM_LOSE_FULL_CONTEXT)) {
+			/*
+			 * Use the default stop state for CPU-Hotplug
+			 * if available.
+			 */
+			if (default_stop_found) {
+				pnv_deepest_stop_psscr_val =
+					pnv_default_stop_val;
+				pnv_deepest_stop_psscr_mask =
+					pnv_default_stop_mask;
+				pr_warn("cpuidle-powernv: Offlined CPUs will stop with psscr = 0x%016llx\n",
+					pnv_deepest_stop_psscr_val);
+			} else { /* Fallback to snooze loop for CPU-Hotplug */
+				deepest_stop_found = false;
+				pr_warn("cpuidle-powernv: Offlined CPUs will busy wait\n");
+			}
+		}
+	}
 }
 
 u32 pnv_get_supported_cpuidle_states(void)
@@ -375,7 +408,8 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 						pnv_deepest_stop_psscr_val;
 		srr1 = power9_idle_stop(psscr);
 
-	} else if (idle_states & OPAL_PM_WINKLE_ENABLED) {
+	} else if ((idle_states & OPAL_PM_WINKLE_ENABLED) &&
+		   (idle_states & OPAL_PM_LOSE_FULL_CONTEXT)) {
 		srr1 = power7_idle_insn(PNV_THREAD_WINKLE);
 	} else if ((idle_states & OPAL_PM_SLEEP_ENABLED) ||
 		   (idle_states & OPAL_PM_SLEEP_ENABLED_ER1)) {
@@ -553,6 +587,7 @@ static int __init pnv_power9_idle_init(struct device_node *np, u32 *flags,
 			max_residency_ns = residency_ns[i];
 			pnv_deepest_stop_psscr_val = psscr_val[i];
 			pnv_deepest_stop_psscr_mask = psscr_mask[i];
+			pnv_deepest_stop_flag = flags[i];
 			deepest_stop_found = true;
 		}
 

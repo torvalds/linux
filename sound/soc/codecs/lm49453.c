@@ -1389,7 +1389,7 @@ static struct snd_soc_dai_driver lm49453_dai[] = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_lm49453 = {
+static const struct snd_soc_codec_driver soc_codec_dev_lm49453 = {
 	.set_bias_level = lm49453_set_bias_level,
 	.component_driver = {
 		.controls		= lm49453_snd_controls,

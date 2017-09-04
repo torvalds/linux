@@ -1339,7 +1339,6 @@ vpif_unregister:
  */
 static int vpif_remove(struct platform_device *device)
 {
-	struct common_obj *common;
 	struct channel_obj *ch;
 	int i;
 
@@ -1350,7 +1349,6 @@ static int vpif_remove(struct platform_device *device)
 	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[i];
-		common = &ch->common[VPIF_VIDEO_INDEX];
 		/* Unregister video device */
 		video_unregister_device(&ch->video_dev);
 		kfree(vpif_obj.dev[i]);

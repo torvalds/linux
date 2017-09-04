@@ -2512,7 +2512,7 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		struct rtable *rt = (struct rtable *) dst;
 		__be32 *pkey = &ip_hdr(skb)->daddr;
 
-		if (rt->rt_gateway)
+		if (rt && rt->rt_gateway)
 			pkey = &rt->rt_gateway;
 
 		/* IPv4 */
@@ -2523,7 +2523,7 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		struct rt6_info *rt = (struct rt6_info *) dst;
 		struct in6_addr *pkey = &ipv6_hdr(skb)->daddr;
 
-		if (!ipv6_addr_any(&rt->rt6i_gateway))
+		if (rt && !ipv6_addr_any(&rt->rt6i_gateway))
 			pkey = &rt->rt6i_gateway;
 
 		/* IPv6 */

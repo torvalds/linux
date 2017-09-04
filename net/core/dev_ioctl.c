@@ -263,6 +263,8 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 		return dev_set_mtu(dev, ifr->ifr_mtu);
 
 	case SIOCSIFHWADDR:
+		if (dev->addr_len > sizeof(struct sockaddr))
+			return -EINVAL;
 		return dev_set_mac_address(dev, &ifr->ifr_hwaddr);
 
 	case SIOCSIFHWBROADCAST:

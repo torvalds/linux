@@ -1613,8 +1613,7 @@ static inline bool intel_pstate_sample(struct cpudata *cpu, u64 time)
 
 static inline int32_t get_avg_frequency(struct cpudata *cpu)
 {
-	return mul_ext_fp(cpu->sample.core_avg_perf,
-			  cpu->pstate.max_pstate_physical * cpu->pstate.scaling);
+	return mul_ext_fp(cpu->sample.core_avg_perf, cpu_khz);
 }
 
 static inline int32_t get_avg_pstate(struct cpudata *cpu)
@@ -1922,13 +1921,6 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	return 0;
 }
 
-static unsigned int intel_pstate_get(unsigned int cpu_num)
-{
-	struct cpudata *cpu = all_cpu_data[cpu_num];
-
-	return cpu ? get_avg_frequency(cpu) : 0;
-}
-
 static void intel_pstate_set_update_util_hook(unsigned int cpu_num)
 {
 	struct cpudata *cpu = all_cpu_data[cpu_num];
@@ -2169,7 +2161,6 @@ static struct cpufreq_driver intel_pstate = {
 	.setpolicy	= intel_pstate_set_policy,
 	.suspend	= intel_pstate_hwp_save_state,
 	.resume		= intel_pstate_resume,
-	.get		= intel_pstate_get,
 	.init		= intel_pstate_cpu_init,
 	.exit		= intel_pstate_cpu_exit,
 	.stop_cpu	= intel_pstate_stop_cpu,

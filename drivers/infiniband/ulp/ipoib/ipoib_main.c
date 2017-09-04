@@ -1560,6 +1560,7 @@ static void ipoib_flush_neighs(struct ipoib_dev_priv *priv)
 	int i, wait_flushed = 0;
 
 	init_completion(&priv->ntbl.flushed);
+	set_bit(IPOIB_NEIGH_TBL_FLUSH, &priv->flags);
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -1604,7 +1605,6 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 
 	ipoib_dbg(priv, "ipoib_neigh_hash_uninit\n");
 	init_completion(&priv->ntbl.deleted);
-	set_bit(IPOIB_NEIGH_TBL_FLUSH, &priv->flags);
 
 	/* Stop GC if called at init fail need to cancel work */
 	stopped = test_and_set_bit(IPOIB_STOP_NEIGH_GC, &priv->flags);
@@ -1847,6 +1847,7 @@ static const struct net_device_ops ipoib_netdev_ops_vf = {
 	.ndo_tx_timeout		 = ipoib_timeout,
 	.ndo_set_rx_mode	 = ipoib_set_mcast_list,
 	.ndo_get_iflink		 = ipoib_get_iflink,
+	.ndo_get_stats64	 = ipoib_get_stats,
 };
 
 void ipoib_setup_common(struct net_device *dev)
@@ -1877,6 +1878,7 @@ static void ipoib_build_priv(struct net_device *dev)
 	priv->dev = dev;
 	spin_lock_init(&priv->lock);
 	init_rwsem(&priv->vlan_rwsem);
+	mutex_init(&priv->mcast_mutex);
 
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);
@@ -2173,13 +2175,13 @@ static struct net_device *ipoib_add_port(const char *format,
 	priv->dev->dev_id = port - 1;
 
 	result = ib_query_port(hca, port, &attr);
-	if (!result)
-		priv->max_ib_mtu = ib_mtu_enum_to_int(attr.max_mtu);
-	else {
+	if (result) {
 		printk(KERN_WARNING "%s: ib_query_port %d failed\n",
 		       hca->name, port);
 		goto device_init_failed;
 	}
+
+	priv->max_ib_mtu = ib_mtu_enum_to_int(attr.max_mtu);
 
 	/* MTU will be reset when mcast join happens */
 	priv->dev->mtu  = IPOIB_UD_MTU(priv->max_ib_mtu);
@@ -2211,12 +2213,14 @@ static struct net_device *ipoib_add_port(const char *format,
 		printk(KERN_WARNING "%s: ib_query_gid port %d failed (ret = %d)\n",
 		       hca->name, port, result);
 		goto device_init_failed;
-	} else
-		memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw, sizeof (union ib_gid));
+	}
+
+	memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw,
+	       sizeof(union ib_gid));
 	set_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags);
 
 	result = ipoib_dev_init(priv->dev, hca, port);
-	if (result < 0) {
+	if (result) {
 		printk(KERN_WARNING "%s: failed to initialize port %d (ret = %d)\n",
 		       hca->name, port, result);
 		goto device_init_failed;
@@ -2365,6 +2369,7 @@ static int __init ipoib_init_module(void)
 	ipoib_sendq_size = max3(ipoib_sendq_size, 2 * MAX_SEND_CQE, IPOIB_MIN_QUEUE_SIZE);
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 	ipoib_max_conn_qp = min(ipoib_max_conn_qp, IPOIB_CM_MAX_CONN_QP);
+	ipoib_max_conn_qp = max(ipoib_max_conn_qp, 0);
 #endif
 
 	/*

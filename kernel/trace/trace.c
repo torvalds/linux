@@ -6598,7 +6598,7 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 {
 	struct ftrace_buffer_info *info = filp->private_data;
 	struct trace_iterator *iter = &info->iter;
-	ssize_t ret;
+	ssize_t ret = 0;
 	ssize_t size;
 
 	if (!count)
@@ -6612,10 +6612,15 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 	if (!info->spare) {
 		info->spare = ring_buffer_alloc_read_page(iter->trace_buffer->buffer,
 							  iter->cpu_file);
-		info->spare_cpu = iter->cpu_file;
+		if (IS_ERR(info->spare)) {
+			ret = PTR_ERR(info->spare);
+			info->spare = NULL;
+		} else {
+			info->spare_cpu = iter->cpu_file;
+		}
 	}
 	if (!info->spare)
-		return -ENOMEM;
+		return ret;
 
 	/* Do we have previous read data to read? */
 	if (info->read < PAGE_SIZE)
@@ -6790,8 +6795,9 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		ref->ref = 1;
 		ref->buffer = iter->trace_buffer->buffer;
 		ref->page = ring_buffer_alloc_read_page(ref->buffer, iter->cpu_file);
-		if (!ref->page) {
-			ret = -ENOMEM;
+		if (IS_ERR(ref->page)) {
+			ret = PTR_ERR(ref->page);
+			ref->page = NULL;
 			kfree(ref);
 			break;
 		}
@@ -8293,6 +8299,7 @@ __init static int tracer_alloc_buffers(void)
 	if (ret < 0)
 		goto out_free_cpumask;
 	/* Used for event triggers */
+	ret = -ENOMEM;
 	temp_buffer = ring_buffer_alloc(PAGE_SIZE, RB_FL_OVERWRITE);
 	if (!temp_buffer)
 		goto out_rm_hp_state;
@@ -8407,4 +8414,4 @@ __init static int clear_boot_tracer(void)
 }
 
 fs_initcall(tracer_init_tracefs);
-late_initcall(clear_boot_tracer);
+late_initcall_sync(clear_boot_tracer);

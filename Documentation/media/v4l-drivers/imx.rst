@@ -607,8 +607,9 @@ References
 
 Authors
 -------
-Steve Longerbeam <steve_longerbeam@mentor.com>
-Philipp Zabel <kernel@pengutronix.de>
-Russell King <linux@armlinux.org.uk>
+
+- Steve Longerbeam <steve_longerbeam@mentor.com>
+- Philipp Zabel <kernel@pengutronix.de>
+- Russell King <linux@armlinux.org.uk>
 
 Copyright (C) 2012-2017 Mentor Graphics Inc.

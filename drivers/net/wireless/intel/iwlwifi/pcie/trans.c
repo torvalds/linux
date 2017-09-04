@@ -3150,7 +3150,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	init_waitqueue_head(&trans_pcie->d0i3_waitq);
 
 	if (trans_pcie->msix_enabled) {
-		if (iwl_pcie_init_msix_handler(pdev, trans_pcie))
+		ret = iwl_pcie_init_msix_handler(pdev, trans_pcie);
+		if (ret)
 			goto out_no_pci;
 	 } else {
 		ret = iwl_pcie_alloc_ict(trans);
