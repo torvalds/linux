@@ -2463,6 +2463,9 @@ static int wm5110_probe(struct platform_device *pdev)
 
 	arizona_init_common(arizona);
 
+	ret = arizona_init_vol_limit(arizona);
+	if (ret < 0)
+		goto err_dsp_irq;
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
 		goto err_dsp_irq;

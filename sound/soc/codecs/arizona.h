@@ -315,6 +315,7 @@ int arizona_init_gpio(struct snd_soc_codec *codec);
 int arizona_init_mono(struct snd_soc_codec *codec);
 
 int arizona_init_common(struct arizona *arizona);
+int arizona_init_vol_limit(struct arizona *arizona);
 
 int arizona_init_spk_irqs(struct arizona *arizona);
 int arizona_free_spk_irqs(struct arizona *arizona);

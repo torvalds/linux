@@ -1176,6 +1176,9 @@ static int wm8997_probe(struct platform_device *pdev)
 
 	arizona_init_common(arizona);
 
+	ret = arizona_init_vol_limit(arizona);
+	if (ret < 0)
+		return ret;
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
 		return ret;
