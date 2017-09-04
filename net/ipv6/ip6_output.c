@@ -56,6 +56,7 @@
 #include <net/checksum.h>
 #include <linux/mroute6.h>
 #include <net/l3mdev.h>
+#include <soc/rockchip/android-version.h>
 
 static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
@@ -1000,11 +1001,14 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 		}
 	}
 #endif
+#if defined(CONFIG_ANDROID_VERSION) && CONFIG_ANDROID_VERSION < ANDROID_VERSION(8, 0, 0, 0)
+#else
 	if (ipv6_addr_v4mapped(&fl6->saddr) &&
 	    !(ipv6_addr_v4mapped(&fl6->daddr) || ipv6_addr_any(&fl6->daddr))) {
 		err = -EAFNOSUPPORT;
 		goto out_err_release;
 	}
+#endif
 
 	return 0;
 
