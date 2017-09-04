@@ -110,20 +110,12 @@ void usnic_fwd_set_mac(struct usnic_fwd_dev *ufdev, char mac[ETH_ALEN])
 	spin_unlock(&ufdev->lock);
 }
 
-int usnic_fwd_add_ipaddr(struct usnic_fwd_dev *ufdev, __be32 inaddr)
+void usnic_fwd_add_ipaddr(struct usnic_fwd_dev *ufdev, __be32 inaddr)
 {
-	int status;
-
 	spin_lock(&ufdev->lock);
-	if (ufdev->inaddr == 0) {
+	if (!ufdev->inaddr)
 		ufdev->inaddr = inaddr;
-		status = 0;
-	} else {
-		status = -EFAULT;
-	}
 	spin_unlock(&ufdev->lock);
-
-	return status;
 }
 
 void usnic_fwd_del_ipaddr(struct usnic_fwd_dev *ufdev)

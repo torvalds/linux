@@ -441,6 +441,105 @@ bail_umem:
 }
 
 /**
+ * rvt_dereg_clean_qp_cb - callback from iterator
+ * @qp - the qp
+ * @v - the mregion (as u64)
+ *
+ * This routine fields the callback for all QPs and
+ * for QPs in the same PD as the MR will call the
+ * rvt_qp_mr_clean() to potentially cleanup references.
+ */
+static void rvt_dereg_clean_qp_cb(struct rvt_qp *qp, u64 v)
+{
+	struct rvt_mregion *mr = (struct rvt_mregion *)v;
+
+	/* skip PDs that are not ours */
+	if (mr->pd != qp->ibqp.pd)
+		return;
+	rvt_qp_mr_clean(qp, mr->lkey);
+}
+
+/**
+ * rvt_dereg_clean_qps - find QPs for reference cleanup
+ * @mr - the MR that is being deregistered
+ *
+ * This routine iterates RC QPs looking for references
+ * to the lkey noted in mr.
+ */
+static void rvt_dereg_clean_qps(struct rvt_mregion *mr)
+{
+	struct rvt_dev_info *rdi = ib_to_rvt(mr->pd->device);
+
+	rvt_qp_iter(rdi, (u64)mr, rvt_dereg_clean_qp_cb);
+}
+
+/**
+ * rvt_check_refs - check references
+ * @mr - the megion
+ * @t - the caller identification
+ *
+ * This routine checks MRs holding a reference during
+ * when being de-registered.
+ *
+ * If the count is non-zero, the code calls a clean routine then
+ * waits for the timeout for the count to zero.
+ */
+static int rvt_check_refs(struct rvt_mregion *mr, const char *t)
+{
+	unsigned long timeout;
+	struct rvt_dev_info *rdi = ib_to_rvt(mr->pd->device);
+
+	if (percpu_ref_is_zero(&mr->refcount))
+		return 0;
+	/* avoid dma mr */
+	if (mr->lkey)
+		rvt_dereg_clean_qps(mr);
+	timeout = wait_for_completion_timeout(&mr->comp, 5 * HZ);
+	if (!timeout) {
+		rvt_pr_err(rdi,
+			   "%s timeout mr %p pd %p lkey %x refcount %ld\n",
+			   t, mr, mr->pd, mr->lkey,
+			   atomic_long_read(&mr->refcount.count));
+		rvt_get_mr(mr);
+		return -EBUSY;
+	}
+	return 0;
+}
+
+/**
+ * rvt_mr_has_lkey - is MR
+ * @mr - the mregion
+ * @lkey - the lkey
+ */
+bool rvt_mr_has_lkey(struct rvt_mregion *mr, u32 lkey)
+{
+	return mr && lkey == mr->lkey;
+}
+
+/**
+ * rvt_ss_has_lkey - is mr in sge tests
+ * @ss - the sge state
+ * @lkey
+ *
+ * This code tests for an MR in the indicated
+ * sge state.
+ */
+bool rvt_ss_has_lkey(struct rvt_sge_state *ss, u32 lkey)
+{
+	int i;
+	bool rval = false;
+
+	if (!ss->num_sge)
+		return rval;
+	/* first one */
+	rval = rvt_mr_has_lkey(ss->sge.mr, lkey);
+	/* any others */
+	for (i = 0; !rval && i < ss->num_sge - 1; i++)
+		rval = rvt_mr_has_lkey(ss->sg_list[i].mr, lkey);
+	return rval;
+}
+
+/**
  * rvt_dereg_mr - unregister and free a memory region
  * @ibmr: the memory region to free
  *
@@ -453,22 +552,14 @@ bail_umem:
 int rvt_dereg_mr(struct ib_mr *ibmr)
 {
 	struct rvt_mr *mr = to_imr(ibmr);
-	struct rvt_dev_info *rdi = ib_to_rvt(ibmr->pd->device);
-	int ret = 0;
-	unsigned long timeout;
+	int ret;
 
 	rvt_free_lkey(&mr->mr);
 
 	rvt_put_mr(&mr->mr); /* will set completion if last */
-	timeout = wait_for_completion_timeout(&mr->mr.comp, 5 * HZ);
-	if (!timeout) {
-		rvt_pr_err(rdi,
-			   "rvt_dereg_mr timeout mr %p pd %p\n",
-			   mr, mr->mr.pd);
-		rvt_get_mr(&mr->mr);
-		ret = -EBUSY;
+	ret = rvt_check_refs(&mr->mr, __func__);
+	if (ret)
 		goto out;
-	}
 	rvt_deinit_mregion(&mr->mr);
 	if (mr->umem)
 		ib_umem_release(mr->umem);
@@ -761,16 +852,12 @@ int rvt_dealloc_fmr(struct ib_fmr *ibfmr)
 {
 	struct rvt_fmr *fmr = to_ifmr(ibfmr);
 	int ret = 0;
-	unsigned long timeout;
 
 	rvt_free_lkey(&fmr->mr);
 	rvt_put_mr(&fmr->mr); /* will set completion if last */
-	timeout = wait_for_completion_timeout(&fmr->mr.comp, 5 * HZ);
-	if (!timeout) {
-		rvt_get_mr(&fmr->mr);
-		ret = -EBUSY;
+	ret = rvt_check_refs(&fmr->mr, __func__);
+	if (ret)
 		goto out;
-	}
 	rvt_deinit_mregion(&fmr->mr);
 	kfree(fmr);
 out:
@@ -778,23 +865,52 @@ out:
 }
 
 /**
+ * rvt_sge_adjacent - is isge compressible
+ * @last_sge: last outgoing SGE written
+ * @sge: SGE to check
+ *
+ * If adjacent will update last_sge to add length.
+ *
+ * Return: true if isge is adjacent to last sge
+ */
+static inline bool rvt_sge_adjacent(struct rvt_sge *last_sge,
+				    struct ib_sge *sge)
+{
+	if (last_sge && sge->lkey == last_sge->mr->lkey &&
+	    ((uint64_t)(last_sge->vaddr + last_sge->length) == sge->addr)) {
+		if (sge->lkey) {
+			if (unlikely((sge->addr - last_sge->mr->user_base +
+			      sge->length > last_sge->mr->length)))
+				return false; /* overrun, caller will catch */
+		} else {
+			last_sge->length += sge->length;
+		}
+		last_sge->sge_length += sge->length;
+		trace_rvt_sge_adjacent(last_sge, sge);
+		return true;
+	}
+	return false;
+}
+
+/**
  * rvt_lkey_ok - check IB SGE for validity and initialize
  * @rkt: table containing lkey to check SGE against
  * @pd: protection domain
  * @isge: outgoing internal SGE
+ * @last_sge: last outgoing SGE written
  * @sge: SGE to check
  * @acc: access flags
  *
  * Check the IB SGE for validity and initialize our internal version
  * of it.
  *
- * Return: 1 if valid and successful, otherwise returns 0.
+ * Increments the reference count when a new sge is stored.
  *
- * increments the reference count upon success
- *
+ * Return: 0 if compressed, 1 if added , otherwise returns -errno.
  */
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
-		struct rvt_sge *isge, struct ib_sge *sge, int acc)
+		struct rvt_sge *isge, struct rvt_sge *last_sge,
+		struct ib_sge *sge, int acc)
 {
 	struct rvt_mregion *mr;
 	unsigned n, m;
@@ -804,12 +920,14 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 	 * We use LKEY == zero for kernel virtual addresses
 	 * (see rvt_get_dma_mr() and dma_virt_ops).
 	 */
-	rcu_read_lock();
 	if (sge->lkey == 0) {
 		struct rvt_dev_info *dev = ib_to_rvt(pd->ibpd.device);
 
 		if (pd->user)
-			goto bail;
+			return -EINVAL;
+		if (rvt_sge_adjacent(last_sge, sge))
+			return 0;
+		rcu_read_lock();
 		mr = rcu_dereference(dev->dma_mr);
 		if (!mr)
 			goto bail;
@@ -824,6 +942,9 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		isge->n = 0;
 		goto ok;
 	}
+	if (rvt_sge_adjacent(last_sge, sge))
+		return 0;
+	rcu_read_lock();
 	mr = rcu_dereference(rkt->table[sge->lkey >> rkt->shift]);
 	if (!mr)
 		goto bail;
@@ -874,12 +995,13 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 	isge->m = m;
 	isge->n = n;
 ok:
+	trace_rvt_sge_new(isge, sge);
 	return 1;
 bail_unref:
 	rvt_put_mr(mr);
 bail:
 	rcu_read_unlock();
-	return 0;
+	return -EINVAL;
 }
 EXPORT_SYMBOL(rvt_lkey_ok);
 

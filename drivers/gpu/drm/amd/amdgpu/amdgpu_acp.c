@@ -285,19 +285,20 @@ static int acp_hw_init(void *handle)
 		return 0;
 	else if (r)
 		return r;
+	if (adev->asic_type != CHIP_STONEY) {
+		adev->acp.acp_genpd = kzalloc(sizeof(struct acp_pm_domain), GFP_KERNEL);
+		if (adev->acp.acp_genpd == NULL)
+			return -ENOMEM;
 
-	adev->acp.acp_genpd = kzalloc(sizeof(struct acp_pm_domain), GFP_KERNEL);
-	if (adev->acp.acp_genpd == NULL)
-		return -ENOMEM;
-
-	adev->acp.acp_genpd->gpd.name = "ACP_AUDIO";
-	adev->acp.acp_genpd->gpd.power_off = acp_poweroff;
-	adev->acp.acp_genpd->gpd.power_on = acp_poweron;
+		adev->acp.acp_genpd->gpd.name = "ACP_AUDIO";
+		adev->acp.acp_genpd->gpd.power_off = acp_poweroff;
+		adev->acp.acp_genpd->gpd.power_on = acp_poweron;
 
 
-	adev->acp.acp_genpd->cgs_dev = adev->acp.cgs_device;
+		adev->acp.acp_genpd->cgs_dev = adev->acp.cgs_device;
 
-	pm_genpd_init(&adev->acp.acp_genpd->gpd, NULL, false);
+		pm_genpd_init(&adev->acp.acp_genpd->gpd, NULL, false);
+	}
 
 	adev->acp.acp_cell = kzalloc(sizeof(struct mfd_cell) * ACP_DEVS,
 							GFP_KERNEL);
@@ -319,14 +320,29 @@ static int acp_hw_init(void *handle)
 		return -ENOMEM;
 	}
 
-	i2s_pdata[0].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET;
+	switch (adev->asic_type) {
+	case CHIP_STONEY:
+		i2s_pdata[0].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
+			DW_I2S_QUIRK_16BIT_IDX_OVERRIDE;
+		break;
+	default:
+		i2s_pdata[0].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET;
+	}
 	i2s_pdata[0].cap = DWC_I2S_PLAY;
 	i2s_pdata[0].snd_rates = SNDRV_PCM_RATE_8000_96000;
 	i2s_pdata[0].i2s_reg_comp1 = ACP_I2S_COMP1_PLAY_REG_OFFSET;
 	i2s_pdata[0].i2s_reg_comp2 = ACP_I2S_COMP2_PLAY_REG_OFFSET;
+	switch (adev->asic_type) {
+	case CHIP_STONEY:
+		i2s_pdata[1].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
+			DW_I2S_QUIRK_COMP_PARAM1 |
+			DW_I2S_QUIRK_16BIT_IDX_OVERRIDE;
+		break;
+	default:
+		i2s_pdata[1].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
+			DW_I2S_QUIRK_COMP_PARAM1;
+	}
 
-	i2s_pdata[1].quirks = DW_I2S_QUIRK_COMP_REG_OFFSET |
-				DW_I2S_QUIRK_COMP_PARAM1;
 	i2s_pdata[1].cap = DWC_I2S_RECORD;
 	i2s_pdata[1].snd_rates = SNDRV_PCM_RATE_8000_96000;
 	i2s_pdata[1].i2s_reg_comp1 = ACP_I2S_COMP1_CAP_REG_OFFSET;
@@ -373,12 +389,14 @@ static int acp_hw_init(void *handle)
 	if (r)
 		return r;
 
-	for (i = 0; i < ACP_DEVS ; i++) {
-		dev = get_mfd_cell_dev(adev->acp.acp_cell[i].name, i);
-		r = pm_genpd_add_device(&adev->acp.acp_genpd->gpd, dev);
-		if (r) {
-			dev_err(dev, "Failed to add dev to genpd\n");
-			return r;
+	if (adev->asic_type != CHIP_STONEY) {
+		for (i = 0; i < ACP_DEVS ; i++) {
+			dev = get_mfd_cell_dev(adev->acp.acp_cell[i].name, i);
+			r = pm_genpd_add_device(&adev->acp.acp_genpd->gpd, dev);
+			if (r) {
+				dev_err(dev, "Failed to add dev to genpd\n");
+				return r;
+			}
 		}
 	}
 
@@ -398,20 +416,22 @@ static int acp_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* return early if no ACP */
-	if (!adev->acp.acp_genpd)
+	if (!adev->acp.acp_cell)
 		return 0;
 
-	for (i = 0; i < ACP_DEVS ; i++) {
-		dev = get_mfd_cell_dev(adev->acp.acp_cell[i].name, i);
-		ret = pm_genpd_remove_device(&adev->acp.acp_genpd->gpd, dev);
-		/* If removal fails, dont giveup and try rest */
-		if (ret)
-			dev_err(dev, "remove dev from genpd failed\n");
+	if (adev->acp.acp_genpd) {
+		for (i = 0; i < ACP_DEVS ; i++) {
+			dev = get_mfd_cell_dev(adev->acp.acp_cell[i].name, i);
+			ret = pm_genpd_remove_device(&adev->acp.acp_genpd->gpd, dev);
+			/* If removal fails, dont giveup and try rest */
+			if (ret)
+				dev_err(dev, "remove dev from genpd failed\n");
+		}
+		kfree(adev->acp.acp_genpd);
 	}
 
 	mfd_remove_devices(adev->acp.parent);
 	kfree(adev->acp.acp_res);
-	kfree(adev->acp.acp_genpd);
 	kfree(adev->acp.acp_cell);
 
 	return 0;

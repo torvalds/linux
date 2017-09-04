@@ -222,13 +222,13 @@ static inline int mlx5e_page_alloc_mapped(struct mlx5e_rq *rq,
 	if (unlikely(!page))
 		return -ENOMEM;
 
-	dma_info->page = page;
 	dma_info->addr = dma_map_page(rq->pdev, page, 0,
 				      RQ_PAGE_SIZE(rq), rq->buff.map_dir);
 	if (unlikely(dma_mapping_error(rq->pdev, dma_info->addr))) {
 		put_page(page);
 		return -ENOMEM;
 	}
+	dma_info->page = page;
 
 	return 0;
 }

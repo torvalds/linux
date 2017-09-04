@@ -33,10 +33,10 @@ static void host1x_intr_syncpt_handle(struct host1x_syncpt *syncpt)
 	unsigned int id = syncpt->id;
 	struct host1x *host = syncpt->host;
 
-	host1x_sync_writel(host, BIT_MASK(id),
-		HOST1X_SYNC_SYNCPT_THRESH_INT_DISABLE(BIT_WORD(id)));
-	host1x_sync_writel(host, BIT_MASK(id),
-		HOST1X_SYNC_SYNCPT_THRESH_CPU0_INT_STATUS(BIT_WORD(id)));
+	host1x_sync_writel(host, BIT(id % 32),
+		HOST1X_SYNC_SYNCPT_THRESH_INT_DISABLE(id / 32));
+	host1x_sync_writel(host, BIT(id % 32),
+		HOST1X_SYNC_SYNCPT_THRESH_CPU0_INT_STATUS(id / 32));
 
 	schedule_work(&syncpt->intr.work);
 }
@@ -50,9 +50,9 @@ static irqreturn_t syncpt_thresh_isr(int irq, void *dev_id)
 	for (i = 0; i < DIV_ROUND_UP(host->info->nb_pts, 32); i++) {
 		reg = host1x_sync_readl(host,
 			HOST1X_SYNC_SYNCPT_THRESH_CPU0_INT_STATUS(i));
-		for_each_set_bit(id, &reg, BITS_PER_LONG) {
+		for_each_set_bit(id, &reg, 32) {
 			struct host1x_syncpt *syncpt =
-				host->syncpt + (i * BITS_PER_LONG + id);
+				host->syncpt + (i * 32 + id);
 			host1x_intr_syncpt_handle(syncpt);
 		}
 	}
@@ -117,17 +117,17 @@ static void _host1x_intr_set_syncpt_threshold(struct host1x *host,
 static void _host1x_intr_enable_syncpt_intr(struct host1x *host,
 					    unsigned int id)
 {
-	host1x_sync_writel(host, BIT_MASK(id),
-		HOST1X_SYNC_SYNCPT_THRESH_INT_ENABLE_CPU0(BIT_WORD(id)));
+	host1x_sync_writel(host, BIT(id % 32),
+		HOST1X_SYNC_SYNCPT_THRESH_INT_ENABLE_CPU0(id / 32));
 }
 
 static void _host1x_intr_disable_syncpt_intr(struct host1x *host,
 					     unsigned int id)
 {
-	host1x_sync_writel(host, BIT_MASK(id),
-		HOST1X_SYNC_SYNCPT_THRESH_INT_DISABLE(BIT_WORD(id)));
-	host1x_sync_writel(host, BIT_MASK(id),
-		HOST1X_SYNC_SYNCPT_THRESH_CPU0_INT_STATUS(BIT_WORD(id)));
+	host1x_sync_writel(host, BIT(id % 32),
+		HOST1X_SYNC_SYNCPT_THRESH_INT_DISABLE(id / 32));
+	host1x_sync_writel(host, BIT(id % 32),
+		HOST1X_SYNC_SYNCPT_THRESH_CPU0_INT_STATUS(id / 32));
 }
 
 static int _host1x_free_syncpt_irq(struct host1x *host)

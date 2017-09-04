@@ -29,7 +29,7 @@ from load_config import loadConfig
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = '1.2'
+needs_sphinx = '1.3'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -344,8 +344,8 @@ if major == 1 and minor > 3:
 if major == 1 and minor <= 4:
     latex_elements['preamble']  += '\\usepackage[margin=0.5in, top=1in, bottom=1in]{geometry}'
 elif major == 1 and (minor > 5 or (minor == 5 and patch >= 3)):
-    latex_elements['sphinxsetup'] = 'hmargin=0.5in, vmargin=0.5in'
-
+    latex_elements['sphinxsetup'] = 'hmargin=0.5in, vmargin=1in'
+    latex_elements['preamble']  += '\\fvset{fontsize=auto}\n'
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,

@@ -188,7 +188,7 @@ int rxe_pool_init(
 	struct rxe_dev		*rxe,
 	struct rxe_pool		*pool,
 	enum rxe_elem_type	type,
-	unsigned		max_elem)
+	unsigned int		max_elem)
 {
 	int			err = 0;
 	size_t			size = rxe_type_info[type].size;

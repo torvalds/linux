@@ -312,7 +312,10 @@ typedef struct {
 
   PllSetting_t GfxBoostState;
 
-  uint32_t     Reserved[14];
+  uint8_t      AcgEnable[NUM_GFXCLK_DPM_LEVELS];
+  GbVdroopTable_t AcgBtcGbVdroopTable;
+  QuadraticInt_t  AcgAvfsGb;
+  uint32_t     Reserved[4];
 
   /* Padding - ignore */
   uint32_t     MmHubPadding[7]; /* SMU internal use */

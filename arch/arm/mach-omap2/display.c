@@ -66,6 +66,7 @@
  */
 #define FRAMEDONE_IRQ_TIMEOUT		100
 
+#if defined(CONFIG_FB_OMAP2)
 static struct platform_device omap_display_device = {
 	.name          = "omapdss",
 	.id            = -1,
@@ -162,6 +163,65 @@ static enum omapdss_version __init omap_display_get_version(void)
 	else
 		return OMAPDSS_VER_UNKNOWN;
 }
+
+static int __init omapdss_init_fbdev(void)
+{
+	static struct omap_dss_board_info board_data = {
+		.dsi_enable_pads = omap_dsi_enable_pads,
+		.dsi_disable_pads = omap_dsi_disable_pads,
+		.set_min_bus_tput = omap_dss_set_min_bus_tput,
+	};
+	struct device_node *node;
+	int r;
+
+	board_data.version = omap_display_get_version();
+	if (board_data.version == OMAPDSS_VER_UNKNOWN) {
+		pr_err("DSS not supported on this SoC\n");
+		return -ENODEV;
+	}
+
+	omap_display_device.dev.platform_data = &board_data;
+
+	r = platform_device_register(&omap_display_device);
+	if (r < 0) {
+		pr_err("Unable to register omapdss device\n");
+		return r;
+	}
+
+	/* create vrfb device */
+	r = omap_init_vrfb();
+	if (r < 0) {
+		pr_err("Unable to register omapvrfb device\n");
+		return r;
+	}
+
+	/* create FB device */
+	r = omap_init_fb();
+	if (r < 0) {
+		pr_err("Unable to register omapfb device\n");
+		return r;
+	}
+
+	/* create V4L2 display device */
+	r = omap_init_vout();
+	if (r < 0) {
+		pr_err("Unable to register omap_vout device\n");
+		return r;
+	}
+
+	/* add DSI info for omap4 */
+	node = of_find_node_by_name(NULL, "omap4_padconf_global");
+	if (node)
+		omap4_dsi_mux_syscon = syscon_node_to_regmap(node);
+
+	return 0;
+}
+#else
+static inline int omapdss_init_fbdev(void)
+{
+	return 0;
+}
+#endif /* CONFIG_FB_OMAP2 */
 
 static void dispc_disable_outputs(void)
 {
@@ -335,15 +395,8 @@ static struct device_node * __init omapdss_find_dss_of_node(void)
 int __init omapdss_init_of(void)
 {
 	int r;
-	enum omapdss_version ver;
 	struct device_node *node;
 	struct platform_device *pdev;
-
-	static struct omap_dss_board_info board_data = {
-		.dsi_enable_pads = omap_dsi_enable_pads,
-		.dsi_disable_pads = omap_dsi_disable_pads,
-		.set_min_bus_tput = omap_dss_set_min_bus_tput,
-	};
 
 	/* only create dss helper devices if dss is enabled in the .dts */
 
@@ -353,13 +406,6 @@ int __init omapdss_init_of(void)
 
 	if (!of_device_is_available(node))
 		return 0;
-
-	ver = omap_display_get_version();
-
-	if (ver == OMAPDSS_VER_UNKNOWN) {
-		pr_err("DSS not supported on this SoC\n");
-		return -ENODEV;
-	}
 
 	pdev = of_find_device_by_node(node);
 
@@ -374,48 +420,5 @@ int __init omapdss_init_of(void)
 		return r;
 	}
 
-	board_data.version = ver;
-
-	omap_display_device.dev.platform_data = &board_data;
-
-	r = platform_device_register(&omap_display_device);
-	if (r < 0) {
-		pr_err("Unable to register omapdss device\n");
-		return r;
-	}
-
-	/* create DRM device */
-	r = omap_init_drm();
-	if (r < 0) {
-		pr_err("Unable to register omapdrm device\n");
-		return r;
-	}
-
-	/* create vrfb device */
-	r = omap_init_vrfb();
-	if (r < 0) {
-		pr_err("Unable to register omapvrfb device\n");
-		return r;
-	}
-
-	/* create FB device */
-	r = omap_init_fb();
-	if (r < 0) {
-		pr_err("Unable to register omapfb device\n");
-		return r;
-	}
-
-	/* create V4L2 display device */
-	r = omap_init_vout();
-	if (r < 0) {
-		pr_err("Unable to register omap_vout device\n");
-		return r;
-	}
-
-	/* add DSI info for omap4 */
-	node = of_find_node_by_name(NULL, "omap4_padconf_global");
-	if (node)
-		omap4_dsi_mux_syscon = syscon_node_to_regmap(node);
-
-	return 0;
+	return omapdss_init_fbdev();
 }

@@ -27,7 +27,7 @@
  */
 void arc_init_IRQ(void)
 {
-	int level_mask = 0, i;
+	unsigned int level_mask = 0, i;
 
        /* Is timer high priority Interrupt (Level2 in ARCompact jargon) */
 	level_mask |= IS_ENABLED(CONFIG_ARC_COMPACT_IRQ_LEVELS) << TIMER0_IRQ;

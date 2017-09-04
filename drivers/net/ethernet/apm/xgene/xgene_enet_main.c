@@ -1661,21 +1661,21 @@ static int xgene_enet_get_irqs(struct xgene_enet_pdata *pdata)
 	return 0;
 }
 
-static int xgene_enet_check_phy_handle(struct xgene_enet_pdata *pdata)
+static void xgene_enet_check_phy_handle(struct xgene_enet_pdata *pdata)
 {
 	int ret;
 
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII)
-		return 0;
+		return;
 
 	if (!IS_ENABLED(CONFIG_MDIO_XGENE))
-		return 0;
+		return;
 
 	ret = xgene_enet_phy_connect(pdata->ndev);
 	if (!ret)
 		pdata->mdio_driver = true;
 
-	return 0;
+	return;
 }
 
 static void xgene_enet_gpiod_get(struct xgene_enet_pdata *pdata)
@@ -1776,10 +1776,6 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 		return ret;
 
 	ret = xgene_enet_get_irqs(pdata);
-	if (ret)
-		return ret;
-
-	ret = xgene_enet_check_phy_handle(pdata);
 	if (ret)
 		return ret;
 
@@ -2097,9 +2093,11 @@ static int xgene_enet_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	xgene_enet_check_phy_handle(pdata);
+
 	ret = xgene_enet_init_hw(pdata);
 	if (ret)
-		goto err;
+		goto err2;
 
 	link_state = pdata->mac_ops->link_state;
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
@@ -2117,29 +2115,30 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	spin_lock_init(&pdata->stats_lock);
 	ret = xgene_extd_stats_init(pdata);
 	if (ret)
-		goto err2;
+		goto err1;
 
 	xgene_enet_napi_add(pdata);
 	ret = register_netdev(ndev);
 	if (ret) {
 		netdev_err(ndev, "Failed to register netdev\n");
-		goto err2;
+		goto err1;
 	}
 
 	return 0;
 
-err2:
+err1:
 	/*
 	 * If necessary, free_netdev() will call netif_napi_del() and undo
 	 * the effects of xgene_enet_napi_add()'s calls to netif_napi_add().
 	 */
 
+	xgene_enet_delete_desc_rings(pdata);
+
+err2:
 	if (pdata->mdio_driver)
 		xgene_enet_phy_disconnect(pdata);
 	else if (phy_interface_mode_is_rgmii(pdata->phy_mode))
 		xgene_enet_mdio_remove(pdata);
-err1:
-	xgene_enet_delete_desc_rings(pdata);
 err:
 	free_netdev(ndev);
 	return ret;

@@ -643,7 +643,7 @@ find_fw_domain(struct drm_i915_private *dev_priv, u32 offset)
 	{ .start = (s), .end = (e), .domains = (d) }
 
 #define HAS_FWTABLE(dev_priv) \
-	(IS_GEN9(dev_priv) || \
+	(INTEL_GEN(dev_priv) >= 9 || \
 	 IS_CHERRYVIEW(dev_priv) || \
 	 IS_VALLEYVIEW(dev_priv))
 
@@ -1072,7 +1072,7 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 		dev_priv->uncore.fw_clear = _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL);
 	}
 
-	if (IS_GEN9(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;
 		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
@@ -1497,7 +1497,6 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 		[VECS] = GEN6_GRDOM_VECS,
 	};
 	u32 hw_mask;
-	int ret;
 
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN6_GRDOM_FULL;
@@ -1509,11 +1508,7 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 			hw_mask |= hw_engine_mask[engine->id];
 	}
 
-	ret = gen6_hw_domain_reset(dev_priv, hw_mask);
-
-	intel_uncore_forcewake_reset(dev_priv, true);
-
-	return ret;
+	return gen6_hw_domain_reset(dev_priv, hw_mask);
 }
 
 /**
@@ -1717,6 +1712,17 @@ int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 bool intel_has_gpu_reset(struct drm_i915_private *dev_priv)
 {
 	return intel_get_gpu_reset(dev_priv) != NULL;
+}
+
+/*
+ * When GuC submission is enabled, GuC manages ELSP and can initiate the
+ * engine reset too. For now, fall back to full GPU reset if it is enabled.
+ */
+bool intel_has_reset_engine(struct drm_i915_private *dev_priv)
+{
+	return (dev_priv->info.has_reset_engine &&
+		!dev_priv->guc.execbuf_client &&
+		i915.reset >= 2);
 }
 
 int intel_guc_reset(struct drm_i915_private *dev_priv)

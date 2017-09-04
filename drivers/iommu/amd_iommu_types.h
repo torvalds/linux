@@ -574,7 +574,9 @@ struct amd_iommu {
 
 static inline struct amd_iommu *dev_to_amd_iommu(struct device *dev)
 {
-	return container_of(dev, struct amd_iommu, iommu.dev);
+	struct iommu_device *iommu = dev_to_iommu_device(dev);
+
+	return container_of(iommu, struct amd_iommu, iommu);
 }
 
 #define ACPIHID_UID_LEN 256

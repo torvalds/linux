@@ -147,36 +147,6 @@ static void amdgpu_mn_invalidate_node(struct amdgpu_mn_node *node,
 }
 
 /**
- * amdgpu_mn_invalidate_page - callback to notify about mm change
- *
- * @mn: our notifier
- * @mn: the mm this callback is about
- * @address: address of invalidate page
- *
- * Invalidation of a single page. Blocks for all BOs mapping it
- * and unmap them by move them into system domain again.
- */
-static void amdgpu_mn_invalidate_page(struct mmu_notifier *mn,
-				      struct mm_struct *mm,
-				      unsigned long address)
-{
-	struct amdgpu_mn *rmn = container_of(mn, struct amdgpu_mn, mn);
-	struct interval_tree_node *it;
-
-	mutex_lock(&rmn->lock);
-
-	it = interval_tree_iter_first(&rmn->objects, address, address);
-	if (it) {
-		struct amdgpu_mn_node *node;
-
-		node = container_of(it, struct amdgpu_mn_node, it);
-		amdgpu_mn_invalidate_node(node, address, address);
-	}
-
-	mutex_unlock(&rmn->lock);
-}
-
-/**
  * amdgpu_mn_invalidate_range_start - callback to notify about mm change
  *
  * @mn: our notifier
@@ -215,7 +185,6 @@ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
 
 static const struct mmu_notifier_ops amdgpu_mn_ops = {
 	.release = amdgpu_mn_release,
-	.invalidate_page = amdgpu_mn_invalidate_page,
 	.invalidate_range_start = amdgpu_mn_invalidate_range_start,
 };
 

@@ -54,6 +54,17 @@ static inline void i40iw_insert_wqe_hdr(u64 *wqe, u64 header)
 	set_64bit_val(wqe, 24, header);
 }
 
+void i40iw_check_cqp_progress(struct i40iw_cqp_timeout *cqp_timeout, struct i40iw_sc_dev *dev)
+{
+	if (cqp_timeout->compl_cqp_cmds != dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS]) {
+		cqp_timeout->compl_cqp_cmds = dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS];
+		cqp_timeout->count = 0;
+	} else {
+		if (dev->cqp_cmd_stats[OP_REQUESTED_COMMANDS] != cqp_timeout->compl_cqp_cmds)
+			cqp_timeout->count++;
+	}
+}
+
 /**
  * i40iw_get_cqp_reg_info - get head and tail for cqp using registers
  * @cqp: struct for cqp hw

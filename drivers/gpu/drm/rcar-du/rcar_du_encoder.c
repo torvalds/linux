@@ -186,8 +186,8 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	}
 
 	if (enc_node) {
-		dev_dbg(rcdu->dev, "initializing encoder %s for output %u\n",
-			of_node_full_name(enc_node), output);
+		dev_dbg(rcdu->dev, "initializing encoder %pOF for output %u\n",
+			enc_node, output);
 
 		/* Locate the DRM bridge from the encoder DT node. */
 		bridge = of_drm_find_bridge(enc_node);

@@ -66,7 +66,6 @@ MODULE_PARM_DESC(compat_ddr_negotiate,
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel <ibsupport@intel.com>");
 MODULE_DESCRIPTION("Intel IB driver");
-MODULE_VERSION(QIB_DRIVER_VERSION);
 
 /*
  * QIB_PIO_MAXIBHDR is the max IB header size allowed for in our

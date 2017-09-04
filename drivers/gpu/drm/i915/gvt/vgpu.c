@@ -43,6 +43,7 @@ void populate_pvinfo_page(struct intel_vgpu *vgpu)
 	vgpu_vreg(vgpu, vgtif_reg(version_minor)) = 0;
 	vgpu_vreg(vgpu, vgtif_reg(display_ready)) = 0;
 	vgpu_vreg(vgpu, vgtif_reg(vgt_id)) = vgpu->id;
+	vgpu_vreg(vgpu, vgtif_reg(vgt_caps)) = VGT_CAPS_FULL_48BIT_PPGTT;
 	vgpu_vreg(vgpu, vgtif_reg(avail_rs.mappable_gmadr.base)) =
 		vgpu_aperture_gmadr_base(vgpu);
 	vgpu_vreg(vgpu, vgtif_reg(avail_rs.mappable_gmadr.size)) =
@@ -504,11 +505,11 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 	/* full GPU reset or device model level reset */
 	if (engine_mask == ALL_ENGINES || dmlr) {
 
-		intel_vgpu_reset_gtt(vgpu, dmlr);
-
 		/*fence will not be reset during virtual reset */
-		if (dmlr)
+		if (dmlr) {
+			intel_vgpu_reset_gtt(vgpu);
 			intel_vgpu_reset_resource(vgpu);
+		}
 
 		intel_vgpu_reset_mmio(vgpu, dmlr);
 		populate_pvinfo_page(vgpu);
