@@ -2147,7 +2147,7 @@ static irqreturn_t cs43130_irq_thread(int irq, void *data)
 	struct cs43130_private *cs43130 = (struct cs43130_private *)data;
 	struct snd_soc_codec *codec = cs43130->codec;
 	unsigned int stickies[CS43130_NUM_INT];
-	unsigned int irq_occurrance = 0;
+	unsigned int irq_occurrence = 0;
 	unsigned int masks[CS43130_NUM_INT];
 	int i, j;
 
@@ -2161,12 +2161,12 @@ static irqreturn_t cs43130_irq_thread(int irq, void *data)
 	for (i = 0; i < ARRAY_SIZE(stickies); i++) {
 		stickies[i] = stickies[i] & (~masks[i]);
 		for (j = 0; j < 8; j++)
-			irq_occurrance += (stickies[i] >> j) & 1;
+			irq_occurrence += (stickies[i] >> j) & 1;
 	}
 	dev_dbg(codec->dev, "number of interrupts occurred (%u)\n",
-		irq_occurrance);
+		irq_occurrence);
 
-	if (!irq_occurrance)
+	if (!irq_occurrence)
 		return IRQ_NONE;
 
 	if (stickies[0] & CS43130_XTAL_RDY_INT) {
