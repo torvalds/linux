@@ -116,7 +116,6 @@ enum ds_type {
 
 
 struct ds1307 {
-	u8			regs[11];
 	struct nvmem_config	nvmem_cfg;
 	enum ds_type		type;
 	unsigned long		flags;
@@ -397,34 +396,36 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 	struct ds1307	*ds1307 = dev_get_drvdata(dev);
 	int		tmp, ret;
 	const struct chip_desc *chip = &chips[ds1307->type];
+	u8 regs[7];
 
 	/* read the RTC date and time registers all at once */
-	ret = regmap_bulk_read(ds1307->regmap, chip->offset, ds1307->regs, 7);
+	ret = regmap_bulk_read(ds1307->regmap, chip->offset, regs,
+			       sizeof(regs));
 	if (ret) {
 		dev_err(dev, "%s error %d\n", "read", ret);
 		return ret;
 	}
 
-	dev_dbg(dev, "%s: %7ph\n", "read", ds1307->regs);
+	dev_dbg(dev, "%s: %7ph\n", "read", regs);
 
 	/* if oscillator fail bit is set, no data can be trusted */
 	if (ds1307->type == m41t0 &&
-	    ds1307->regs[DS1307_REG_MIN] & M41T0_BIT_OF) {
+	    regs[DS1307_REG_MIN] & M41T0_BIT_OF) {
 		dev_warn_once(dev, "oscillator failed, set time!\n");
 		return -EINVAL;
 	}
 
-	t->tm_sec = bcd2bin(ds1307->regs[DS1307_REG_SECS] & 0x7f);
-	t->tm_min = bcd2bin(ds1307->regs[DS1307_REG_MIN] & 0x7f);
-	tmp = ds1307->regs[DS1307_REG_HOUR] & 0x3f;
+	t->tm_sec = bcd2bin(regs[DS1307_REG_SECS] & 0x7f);
+	t->tm_min = bcd2bin(regs[DS1307_REG_MIN] & 0x7f);
+	tmp = regs[DS1307_REG_HOUR] & 0x3f;
 	t->tm_hour = bcd2bin(tmp);
-	t->tm_wday = bcd2bin(ds1307->regs[DS1307_REG_WDAY] & 0x07) - 1;
-	t->tm_mday = bcd2bin(ds1307->regs[DS1307_REG_MDAY] & 0x3f);
-	tmp = ds1307->regs[DS1307_REG_MONTH] & 0x1f;
+	t->tm_wday = bcd2bin(regs[DS1307_REG_WDAY] & 0x07) - 1;
+	t->tm_mday = bcd2bin(regs[DS1307_REG_MDAY] & 0x3f);
+	tmp = regs[DS1307_REG_MONTH] & 0x1f;
 	t->tm_mon = bcd2bin(tmp) - 1;
-	t->tm_year = bcd2bin(ds1307->regs[DS1307_REG_YEAR]) + 100;
+	t->tm_year = bcd2bin(regs[DS1307_REG_YEAR]) + 100;
 
-	if (ds1307->regs[chip->century_reg] & chip->century_bit &&
+	if (regs[chip->century_reg] & chip->century_bit &&
 	    IS_ENABLED(CONFIG_RTC_DRV_DS1307_CENTURY))
 		t->tm_year += 100;
 
@@ -444,7 +445,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	const struct chip_desc *chip = &chips[ds1307->type];
 	int		result;
 	int		tmp;
-	u8		*buf = ds1307->regs;
+	u8		regs[7];
 
 	dev_dbg(dev, "%s secs=%d, mins=%d, "
 		"hours=%d, mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -463,35 +464,36 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		return -EINVAL;
 #endif
 
-	buf[DS1307_REG_SECS] = bin2bcd(t->tm_sec);
-	buf[DS1307_REG_MIN] = bin2bcd(t->tm_min);
-	buf[DS1307_REG_HOUR] = bin2bcd(t->tm_hour);
-	buf[DS1307_REG_WDAY] = bin2bcd(t->tm_wday + 1);
-	buf[DS1307_REG_MDAY] = bin2bcd(t->tm_mday);
-	buf[DS1307_REG_MONTH] = bin2bcd(t->tm_mon + 1);
+	regs[DS1307_REG_SECS] = bin2bcd(t->tm_sec);
+	regs[DS1307_REG_MIN] = bin2bcd(t->tm_min);
+	regs[DS1307_REG_HOUR] = bin2bcd(t->tm_hour);
+	regs[DS1307_REG_WDAY] = bin2bcd(t->tm_wday + 1);
+	regs[DS1307_REG_MDAY] = bin2bcd(t->tm_mday);
+	regs[DS1307_REG_MONTH] = bin2bcd(t->tm_mon + 1);
 
 	/* assume 20YY not 19YY */
 	tmp = t->tm_year - 100;
-	buf[DS1307_REG_YEAR] = bin2bcd(tmp);
+	regs[DS1307_REG_YEAR] = bin2bcd(tmp);
 
 	if (chip->century_enable_bit)
-		buf[chip->century_reg] |= chip->century_enable_bit;
+		regs[chip->century_reg] |= chip->century_enable_bit;
 	if (t->tm_year > 199 && chip->century_bit)
-		buf[chip->century_reg] |= chip->century_bit;
+		regs[chip->century_reg] |= chip->century_bit;
 
 	if (ds1307->type == mcp794xx) {
 		/*
 		 * these bits were cleared when preparing the date/time
 		 * values and need to be set again before writing the
-		 * buffer out to the device.
+		 * regsfer out to the device.
 		 */
-		buf[DS1307_REG_SECS] |= MCP794XX_BIT_ST;
-		buf[DS1307_REG_WDAY] |= MCP794XX_BIT_VBATEN;
+		regs[DS1307_REG_SECS] |= MCP794XX_BIT_ST;
+		regs[DS1307_REG_WDAY] |= MCP794XX_BIT_VBATEN;
 	}
 
-	dev_dbg(dev, "%s: %7ph\n", "write", buf);
+	dev_dbg(dev, "%s: %7ph\n", "write", regs);
 
-	result = regmap_bulk_write(ds1307->regmap, chip->offset, buf, 7);
+	result = regmap_bulk_write(ds1307->regmap, chip->offset, regs,
+				   sizeof(regs));
 	if (result) {
 		dev_err(dev, "%s error %d\n", "write", result);
 		return result;
@@ -503,33 +505,34 @@ static int ds1337_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct ds1307		*ds1307 = dev_get_drvdata(dev);
 	int			ret;
+	u8			regs[9];
 
 	if (!test_bit(HAS_ALARM, &ds1307->flags))
 		return -EINVAL;
 
 	/* read all ALARM1, ALARM2, and status registers at once */
 	ret = regmap_bulk_read(ds1307->regmap, DS1339_REG_ALARM1_SECS,
-			       ds1307->regs, 9);
+			       regs, sizeof(regs));
 	if (ret) {
 		dev_err(dev, "%s error %d\n", "alarm read", ret);
 		return ret;
 	}
 
 	dev_dbg(dev, "%s: %4ph, %3ph, %2ph\n", "alarm read",
-		&ds1307->regs[0], &ds1307->regs[4], &ds1307->regs[7]);
+		&regs[0], &regs[4], &regs[7]);
 
 	/*
 	 * report alarm time (ALARM1); assume 24 hour and day-of-month modes,
 	 * and that all four fields are checked matches
 	 */
-	t->time.tm_sec = bcd2bin(ds1307->regs[0] & 0x7f);
-	t->time.tm_min = bcd2bin(ds1307->regs[1] & 0x7f);
-	t->time.tm_hour = bcd2bin(ds1307->regs[2] & 0x3f);
-	t->time.tm_mday = bcd2bin(ds1307->regs[3] & 0x3f);
+	t->time.tm_sec = bcd2bin(regs[0] & 0x7f);
+	t->time.tm_min = bcd2bin(regs[1] & 0x7f);
+	t->time.tm_hour = bcd2bin(regs[2] & 0x3f);
+	t->time.tm_mday = bcd2bin(regs[3] & 0x3f);
 
 	/* ... and status */
-	t->enabled = !!(ds1307->regs[7] & DS1337_BIT_A1IE);
-	t->pending = !!(ds1307->regs[8] & DS1337_BIT_A1I);
+	t->enabled = !!(regs[7] & DS1337_BIT_A1IE);
+	t->pending = !!(regs[8] & DS1337_BIT_A1I);
 
 	dev_dbg(dev, "%s secs=%d, mins=%d, "
 		"hours=%d, mday=%d, enabled=%d, pending=%d\n",
@@ -543,7 +546,7 @@ static int ds1337_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct ds1307		*ds1307 = dev_get_drvdata(dev);
-	unsigned char		*buf = ds1307->regs;
+	unsigned char		regs[9];
 	u8			control, status;
 	int			ret;
 
@@ -557,33 +560,35 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 		t->enabled, t->pending);
 
 	/* read current status of both alarms and the chip */
-	ret = regmap_bulk_read(ds1307->regmap, DS1339_REG_ALARM1_SECS, buf, 9);
+	ret = regmap_bulk_read(ds1307->regmap, DS1339_REG_ALARM1_SECS, regs,
+			       sizeof(regs));
 	if (ret) {
 		dev_err(dev, "%s error %d\n", "alarm write", ret);
 		return ret;
 	}
-	control = ds1307->regs[7];
-	status = ds1307->regs[8];
+	control = regs[7];
+	status = regs[8];
 
 	dev_dbg(dev, "%s: %4ph, %3ph, %02x %02x\n", "alarm set (old status)",
-		&ds1307->regs[0], &ds1307->regs[4], control, status);
+		&regs[0], &regs[4], control, status);
 
 	/* set ALARM1, using 24 hour and day-of-month modes */
-	buf[0] = bin2bcd(t->time.tm_sec);
-	buf[1] = bin2bcd(t->time.tm_min);
-	buf[2] = bin2bcd(t->time.tm_hour);
-	buf[3] = bin2bcd(t->time.tm_mday);
+	regs[0] = bin2bcd(t->time.tm_sec);
+	regs[1] = bin2bcd(t->time.tm_min);
+	regs[2] = bin2bcd(t->time.tm_hour);
+	regs[3] = bin2bcd(t->time.tm_mday);
 
 	/* set ALARM2 to non-garbage */
-	buf[4] = 0;
-	buf[5] = 0;
-	buf[6] = 0;
+	regs[4] = 0;
+	regs[5] = 0;
+	regs[6] = 0;
 
 	/* disable alarms */
-	buf[7] = control & ~(DS1337_BIT_A1IE | DS1337_BIT_A2IE);
-	buf[8] = status & ~(DS1337_BIT_A1I | DS1337_BIT_A2I);
+	regs[7] = control & ~(DS1337_BIT_A1IE | DS1337_BIT_A2IE);
+	regs[8] = status & ~(DS1337_BIT_A1I | DS1337_BIT_A2I);
 
-	ret = regmap_bulk_write(ds1307->regmap, DS1339_REG_ALARM1_SECS, buf, 9);
+	ret = regmap_bulk_write(ds1307->regmap, DS1339_REG_ALARM1_SECS, regs,
+				sizeof(regs));
 	if (ret) {
 		dev_err(dev, "can't set alarm time\n");
 		return ret;
@@ -592,8 +597,8 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	/* optionally enable ALARM1 */
 	if (t->enabled) {
 		dev_dbg(dev, "alarm IRQ armed\n");
-		buf[7] |= DS1337_BIT_A1IE;	/* only ALARM1 is used */
-		regmap_write(ds1307->regmap, DS1337_REG_CONTROL, buf[7]);
+		regs[7] |= DS1337_BIT_A1IE;	/* only ALARM1 is used */
+		regmap_write(ds1307->regmap, DS1337_REG_CONTROL, regs[7]);
 	}
 
 	return 0;
@@ -830,26 +835,27 @@ out:
 static int mcp794xx_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct ds1307 *ds1307 = dev_get_drvdata(dev);
-	u8 *regs = ds1307->regs;
+	u8 regs[10];
 	int ret;
 
 	if (!test_bit(HAS_ALARM, &ds1307->flags))
 		return -EINVAL;
 
 	/* Read control and alarm 0 registers. */
-	ret = regmap_bulk_read(ds1307->regmap, MCP794XX_REG_CONTROL, regs, 10);
+	ret = regmap_bulk_read(ds1307->regmap, MCP794XX_REG_CONTROL, regs,
+			       sizeof(regs));
 	if (ret)
 		return ret;
 
 	t->enabled = !!(regs[0] & MCP794XX_BIT_ALM0_EN);
 
 	/* Report alarm 0 time assuming 24-hour and day-of-month modes. */
-	t->time.tm_sec = bcd2bin(ds1307->regs[3] & 0x7f);
-	t->time.tm_min = bcd2bin(ds1307->regs[4] & 0x7f);
-	t->time.tm_hour = bcd2bin(ds1307->regs[5] & 0x3f);
-	t->time.tm_wday = bcd2bin(ds1307->regs[6] & 0x7) - 1;
-	t->time.tm_mday = bcd2bin(ds1307->regs[7] & 0x3f);
-	t->time.tm_mon = bcd2bin(ds1307->regs[8] & 0x1f) - 1;
+	t->time.tm_sec = bcd2bin(regs[3] & 0x7f);
+	t->time.tm_min = bcd2bin(regs[4] & 0x7f);
+	t->time.tm_hour = bcd2bin(regs[5] & 0x3f);
+	t->time.tm_wday = bcd2bin(regs[6] & 0x7) - 1;
+	t->time.tm_mday = bcd2bin(regs[7] & 0x3f);
+	t->time.tm_mon = bcd2bin(regs[8] & 0x1f) - 1;
 	t->time.tm_year = -1;
 	t->time.tm_yday = -1;
 	t->time.tm_isdst = -1;
@@ -858,9 +864,9 @@ static int mcp794xx_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 		"enabled=%d polarity=%d irq=%d match=%d\n", __func__,
 		t->time.tm_sec, t->time.tm_min, t->time.tm_hour,
 		t->time.tm_wday, t->time.tm_mday, t->time.tm_mon, t->enabled,
-		!!(ds1307->regs[6] & MCP794XX_BIT_ALMX_POL),
-		!!(ds1307->regs[6] & MCP794XX_BIT_ALMX_IF),
-		(ds1307->regs[6] & MCP794XX_MSK_ALMX_MATCH) >> 4);
+		!!(regs[6] & MCP794XX_BIT_ALMX_POL),
+		!!(regs[6] & MCP794XX_BIT_ALMX_IF),
+		(regs[6] & MCP794XX_MSK_ALMX_MATCH) >> 4);
 
 	return 0;
 }
@@ -868,7 +874,7 @@ static int mcp794xx_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct ds1307 *ds1307 = dev_get_drvdata(dev);
-	unsigned char *regs = ds1307->regs;
+	unsigned char regs[10];
 	int ret;
 
 	if (!test_bit(HAS_ALARM, &ds1307->flags))
@@ -881,7 +887,8 @@ static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 		t->enabled, t->pending);
 
 	/* Read control and alarm 0 registers. */
-	ret = regmap_bulk_read(ds1307->regmap, MCP794XX_REG_CONTROL, regs, 10);
+	ret = regmap_bulk_read(ds1307->regmap, MCP794XX_REG_CONTROL, regs,
+			       sizeof(regs));
 	if (ret)
 		return ret;
 
@@ -900,7 +907,8 @@ static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	/* Disable interrupt. We will not enable until completely programmed */
 	regs[0] &= ~MCP794XX_BIT_ALM0_EN;
 
-	ret = regmap_bulk_write(ds1307->regmap, MCP794XX_REG_CONTROL, regs, 10);
+	ret = regmap_bulk_write(ds1307->regmap, MCP794XX_REG_CONTROL, regs,
+				sizeof(regs));
 	if (ret)
 		return ret;
 
@@ -1344,7 +1352,7 @@ static int ds1307_probe(struct i2c_client *client,
 	const struct chip_desc	*chip;
 	bool			want_irq;
 	bool			ds1307_can_wakeup_device = false;
-	unsigned char		*buf;
+	unsigned char		regs[8];
 	struct ds1307_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct rtc_time		tm;
 	unsigned long		timestamp;
@@ -1400,8 +1408,6 @@ static int ds1307_probe(struct i2c_client *client,
 			     trickle_charger_setup);
 	}
 
-	buf = ds1307->regs;
-
 #ifdef CONFIG_OF
 /*
  * For devices with no IRQ directly connected to the SoC, the RTC chip
@@ -1423,15 +1429,15 @@ static int ds1307_probe(struct i2c_client *client,
 	case ds_3231:
 		/* get registers that the "rtc" read below won't read... */
 		err = regmap_bulk_read(ds1307->regmap, DS1337_REG_CONTROL,
-				       buf, 2);
+				       regs, 2);
 		if (err) {
 			dev_dbg(ds1307->dev, "read error %d\n", err);
 			goto exit;
 		}
 
 		/* oscillator off?  turn it on, so clock can tick. */
-		if (ds1307->regs[0] & DS1337_BIT_nEOSC)
-			ds1307->regs[0] &= ~DS1337_BIT_nEOSC;
+		if (regs[0] & DS1337_BIT_nEOSC)
+			regs[0] &= ~DS1337_BIT_nEOSC;
 
 		/*
 		 * Using IRQ or defined as wakeup-source?
@@ -1440,77 +1446,77 @@ static int ds1307_probe(struct i2c_client *client,
 		 * running on Vbackup (BBSQI/BBSQW)
 		 */
 		if (want_irq || ds1307_can_wakeup_device) {
-			ds1307->regs[0] |= DS1337_BIT_INTCN | chip->bbsqi_bit;
-			ds1307->regs[0] &= ~(DS1337_BIT_A2IE | DS1337_BIT_A1IE);
+			regs[0] |= DS1337_BIT_INTCN | chip->bbsqi_bit;
+			regs[0] &= ~(DS1337_BIT_A2IE | DS1337_BIT_A1IE);
 		}
 
 		regmap_write(ds1307->regmap, DS1337_REG_CONTROL,
-			     ds1307->regs[0]);
+			     regs[0]);
 
 		/* oscillator fault?  clear flag, and warn */
-		if (ds1307->regs[1] & DS1337_BIT_OSF) {
+		if (regs[1] & DS1337_BIT_OSF) {
 			regmap_write(ds1307->regmap, DS1337_REG_STATUS,
-				     ds1307->regs[1] & ~DS1337_BIT_OSF);
+				     regs[1] & ~DS1337_BIT_OSF);
 			dev_warn(ds1307->dev, "SET TIME!\n");
 		}
 		break;
 
 	case rx_8025:
 		err = regmap_bulk_read(ds1307->regmap,
-				       RX8025_REG_CTRL1 << 4 | 0x08, buf, 2);
+				       RX8025_REG_CTRL1 << 4 | 0x08, regs, 2);
 		if (err) {
 			dev_dbg(ds1307->dev, "read error %d\n", err);
 			goto exit;
 		}
 
 		/* oscillator off?  turn it on, so clock can tick. */
-		if (!(ds1307->regs[1] & RX8025_BIT_XST)) {
-			ds1307->regs[1] |= RX8025_BIT_XST;
+		if (!(regs[1] & RX8025_BIT_XST)) {
+			regs[1] |= RX8025_BIT_XST;
 			regmap_write(ds1307->regmap,
 				     RX8025_REG_CTRL2 << 4 | 0x08,
-				     ds1307->regs[1]);
+				     regs[1]);
 			dev_warn(ds1307->dev,
 				 "oscillator stop detected - SET TIME!\n");
 		}
 
-		if (ds1307->regs[1] & RX8025_BIT_PON) {
-			ds1307->regs[1] &= ~RX8025_BIT_PON;
+		if (regs[1] & RX8025_BIT_PON) {
+			regs[1] &= ~RX8025_BIT_PON;
 			regmap_write(ds1307->regmap,
 				     RX8025_REG_CTRL2 << 4 | 0x08,
-				     ds1307->regs[1]);
+				     regs[1]);
 			dev_warn(ds1307->dev, "power-on detected\n");
 		}
 
-		if (ds1307->regs[1] & RX8025_BIT_VDET) {
-			ds1307->regs[1] &= ~RX8025_BIT_VDET;
+		if (regs[1] & RX8025_BIT_VDET) {
+			regs[1] &= ~RX8025_BIT_VDET;
 			regmap_write(ds1307->regmap,
 				     RX8025_REG_CTRL2 << 4 | 0x08,
-				     ds1307->regs[1]);
+				     regs[1]);
 			dev_warn(ds1307->dev, "voltage drop detected\n");
 		}
 
 		/* make sure we are running in 24hour mode */
-		if (!(ds1307->regs[0] & RX8025_BIT_2412)) {
+		if (!(regs[0] & RX8025_BIT_2412)) {
 			u8 hour;
 
 			/* switch to 24 hour mode */
 			regmap_write(ds1307->regmap,
 				     RX8025_REG_CTRL1 << 4 | 0x08,
-				     ds1307->regs[0] | RX8025_BIT_2412);
+				     regs[0] | RX8025_BIT_2412);
 
 			err = regmap_bulk_read(ds1307->regmap,
 					       RX8025_REG_CTRL1 << 4 | 0x08,
-					       buf, 2);
+					       regs, 2);
 			if (err) {
 				dev_dbg(ds1307->dev, "read error %d\n", err);
 				goto exit;
 			}
 
 			/* correct hour */
-			hour = bcd2bin(ds1307->regs[DS1307_REG_HOUR]);
+			hour = bcd2bin(regs[DS1307_REG_HOUR]);
 			if (hour == 12)
 				hour = 0;
-			if (ds1307->regs[DS1307_REG_HOUR] & DS1307_BIT_PM)
+			if (regs[DS1307_REG_HOUR] & DS1307_BIT_PM)
 				hour += 12;
 
 			regmap_write(ds1307->regmap,
@@ -1523,7 +1529,8 @@ static int ds1307_probe(struct i2c_client *client,
 
 read_rtc:
 	/* read RTC registers */
-	err = regmap_bulk_read(ds1307->regmap, chip->offset, buf, 8);
+	err = regmap_bulk_read(ds1307->regmap, chip->offset, regs,
+			       sizeof(regs));
 	if (err) {
 		dev_dbg(ds1307->dev, "read error %d\n", err);
 		goto exit;
@@ -1534,7 +1541,7 @@ read_rtc:
 	 * specify the extra bits as must-be-zero, but there are
 	 * still a few values that are clearly out-of-range.
 	 */
-	tmp = ds1307->regs[DS1307_REG_SECS];
+	tmp = regs[DS1307_REG_SECS];
 	switch (ds1307->type) {
 	case ds_1307:
 	case m41t0:
@@ -1553,9 +1560,9 @@ read_rtc:
 			regmap_write(ds1307->regmap, DS1307_REG_SECS, 0);
 
 		/* oscillator fault?  clear flag, and warn */
-		if (ds1307->regs[DS1307_REG_CONTROL] & DS1338_BIT_OSF) {
+		if (regs[DS1307_REG_CONTROL] & DS1338_BIT_OSF) {
 			regmap_write(ds1307->regmap, DS1307_REG_CONTROL,
-					ds1307->regs[DS1307_REG_CONTROL] &
+					regs[DS1307_REG_CONTROL] &
 					~DS1338_BIT_OSF);
 			dev_warn(ds1307->dev, "SET TIME!\n");
 			goto read_rtc;
@@ -1580,9 +1587,9 @@ read_rtc:
 		break;
 	case mcp794xx:
 		/* make sure that the backup battery is enabled */
-		if (!(ds1307->regs[DS1307_REG_WDAY] & MCP794XX_BIT_VBATEN)) {
+		if (!(regs[DS1307_REG_WDAY] & MCP794XX_BIT_VBATEN)) {
 			regmap_write(ds1307->regmap, DS1307_REG_WDAY,
-				     ds1307->regs[DS1307_REG_WDAY] |
+				     regs[DS1307_REG_WDAY] |
 				     MCP794XX_BIT_VBATEN);
 		}
 
@@ -1599,7 +1606,7 @@ read_rtc:
 		break;
 	}
 
-	tmp = ds1307->regs[DS1307_REG_HOUR];
+	tmp = regs[DS1307_REG_HOUR];
 	switch (ds1307->type) {
 	case ds_1340:
 	case m41t0:
@@ -1622,7 +1629,7 @@ read_rtc:
 		tmp = bcd2bin(tmp & 0x1f);
 		if (tmp == 12)
 			tmp = 0;
-		if (ds1307->regs[DS1307_REG_HOUR] & DS1307_BIT_PM)
+		if (regs[DS1307_REG_HOUR] & DS1307_BIT_PM)
 			tmp += 12;
 		regmap_write(ds1307->regmap, chip->offset + DS1307_REG_HOUR,
 			     bin2bcd(tmp));
