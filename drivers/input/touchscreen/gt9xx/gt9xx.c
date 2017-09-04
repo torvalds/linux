@@ -1402,7 +1402,7 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
     s32 i = 0;
     u8 check_sum = 0;
     u8 opr_buf[16] = {0};
-    u8 sensor_id = 0; 
+    u8 sensor_id = 0;
 
     u8 cfg_info_group2[] = CTP_CFG_GROUP2;
     u8 cfg_info_group3[] = CTP_CFG_GROUP3;
@@ -1421,8 +1421,13 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
     GTP_INFO("  <%s>_%d \n", __func__, __LINE__);
    
     if(m89or101){
-        send_cfg_buf[0] = gtp_dat_8_9;
-        cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9);
+	    if (ts->cfg_file_num) {
+		    send_cfg_buf[0] = gtp_dat_8_9_1;
+		    cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9_1);
+	    } else {
+		    send_cfg_buf[0] = gtp_dat_8_9;
+		    cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9);
+	    }
     }
     
     if (bgt911) {
@@ -2645,6 +2650,11 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     	return -EINVAL;
     }
     //ts->abs_y_max = val;
+    if (of_property_read_u32(np, "configfile-num", &val)) {
+	    ts->cfg_file_num = 0;
+    } else {
+	    ts->cfg_file_num = val;
+    }
     ts->pendown =PEN_RELEASE;
     ts->client = client;
     
