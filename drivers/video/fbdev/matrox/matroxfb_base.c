@@ -1573,7 +1573,7 @@ static struct board {
 		NULL}};
 
 #ifndef MODULE
-static struct fb_videomode defaultmode = {
+static const struct fb_videomode defaultmode = {
 	/* 640x480 @ 60Hz, 31.5 kHz */
 	NULL, 60, 640, 480, 39721, 40, 24, 32, 11, 96, 2,
 	0, FB_VMODE_NONINTERLACED
