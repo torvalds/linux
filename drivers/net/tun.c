@@ -1267,7 +1267,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 				     struct tun_file *tfile,
 				     struct iov_iter *from,
 				     struct virtio_net_hdr *hdr,
-				     int len, int *generic_xdp)
+				     int len, int *skb_xdp)
 {
 	struct page_frag *alloc_frag = &current->task_frag;
 	struct sk_buff *skb;
@@ -1301,13 +1301,13 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 	 * we do XDP on skb in case the headroom is not enough.
 	 */
 	if (hdr->gso_type || !xdp_prog)
-		*generic_xdp = 1;
+		*skb_xdp = 1;
 	else
-		*generic_xdp = 0;
+		*skb_xdp = 0;
 
 	rcu_read_lock();
 	xdp_prog = rcu_dereference(tun->xdp_prog);
-	if (xdp_prog && !*generic_xdp) {
+	if (xdp_prog && !*skb_xdp) {
 		struct xdp_buff xdp;
 		void *orig_data;
 		u32 act;
@@ -1389,7 +1389,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	bool zerocopy = false;
 	int err;
 	u32 rxhash;
-	int generic_xdp = 1;
+	int skb_xdp = 1;
 
 	if (!(tun->dev->flags & IFF_UP))
 		return -EIO;
@@ -1448,7 +1448,11 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	}
 
 	if (tun_can_build_skb(tun, tfile, len, noblock, zerocopy)) {
-		skb = tun_build_skb(tun, tfile, from, &gso, len, &generic_xdp);
+		/* For the packet that is not easy to be processed
+		 * (e.g gso or jumbo packet), we will do it at after
+		 * skb was created with generic XDP routine.
+		 */
+		skb = tun_build_skb(tun, tfile, from, &gso, len, &skb_xdp);
 		if (IS_ERR(skb)) {
 			this_cpu_inc(tun->pcpu_stats->rx_dropped);
 			return PTR_ERR(skb);
@@ -1528,7 +1532,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	skb_reset_network_header(skb);
 	skb_probe_transport_header(skb, 0);
 
-	if (generic_xdp) {
+	if (skb_xdp) {
 		struct bpf_prog *xdp_prog;
 		int ret;
 
