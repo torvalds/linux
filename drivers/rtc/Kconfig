@@ -1765,6 +1765,14 @@ config RTC_DRV_CPCAP
 	   Say y here for CPCAP rtc found on some Motorola phones
 	   and tablets such as Droid 4.
 
+config RTC_DRV_RTD119X
+	bool "Realtek RTD129x RTC"
+	depends on ARCH_REALTEK || COMPILE_TEST
+	default ARCH_REALTEK
+	help
+	  If you say yes here, you get support for the RTD1295 SoC
+	  Real Time Clock.
+
 comment "HID Sensor RTC drivers"
 
 config RTC_DRV_HID_SENSOR_TIME
