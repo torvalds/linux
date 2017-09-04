@@ -12809,73 +12809,10 @@ u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
 	return dev->driver->get_vblank_counter(dev, crtc->pipe);
 }
 
-static void intel_atomic_wait_for_vblanks(struct drm_device *dev,
-					  struct drm_i915_private *dev_priv,
-					  unsigned crtc_mask)
-{
-	unsigned last_vblank_count[I915_MAX_PIPES];
-	enum pipe pipe;
-	int ret;
-
-	if (!crtc_mask)
-		return;
-
-	for_each_pipe(dev_priv, pipe) {
-		struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv,
-								  pipe);
-
-		if (!((1 << pipe) & crtc_mask))
-			continue;
-
-		ret = drm_crtc_vblank_get(&crtc->base);
-		if (WARN_ON(ret != 0)) {
-			crtc_mask &= ~(1 << pipe);
-			continue;
-		}
-
-		last_vblank_count[pipe] = drm_crtc_vblank_count(&crtc->base);
-	}
-
-	for_each_pipe(dev_priv, pipe) {
-		struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv,
-								  pipe);
-		long lret;
-
-		if (!((1 << pipe) & crtc_mask))
-			continue;
-
-		lret = wait_event_timeout(dev->vblank[pipe].queue,
-				last_vblank_count[pipe] !=
-					drm_crtc_vblank_count(&crtc->base),
-				msecs_to_jiffies(50));
-
-		WARN(!lret, "pipe %c vblank wait timed out\n", pipe_name(pipe));
-
-		drm_crtc_vblank_put(&crtc->base);
-	}
-}
-
-static bool needs_vblank_wait(struct intel_crtc_state *crtc_state)
-{
-	/* fb updated, need to unpin old fb */
-	if (crtc_state->fb_changed)
-		return true;
-
-	/* wm changes, need vblank before final wm's */
-	if (crtc_state->update_wm_post)
-		return true;
-
-	if (crtc_state->wm.need_postvbl_update)
-		return true;
-
-	return false;
-}
-
 static void intel_update_crtc(struct drm_crtc *crtc,
 			      struct drm_atomic_state *state,
 			      struct drm_crtc_state *old_crtc_state,
-			      struct drm_crtc_state *new_crtc_state,
-			      unsigned int *crtc_vblank_mask)
+			      struct drm_crtc_state *new_crtc_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -12898,13 +12835,9 @@ static void intel_update_crtc(struct drm_crtc *crtc,
 	}
 
 	drm_atomic_helper_commit_planes_on_crtc(old_crtc_state);
-
-	if (needs_vblank_wait(pipe_config))
-		*crtc_vblank_mask |= drm_crtc_mask(crtc);
 }
 
-static void intel_update_crtcs(struct drm_atomic_state *state,
-			       unsigned int *crtc_vblank_mask)
+static void intel_update_crtcs(struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
@@ -12915,12 +12848,11 @@ static void intel_update_crtcs(struct drm_atomic_state *state,
 			continue;
 
 		intel_update_crtc(crtc, state, old_crtc_state,
-				  new_crtc_state, crtc_vblank_mask);
+				  new_crtc_state);
 	}
 }
 
-static void skl_update_crtcs(struct drm_atomic_state *state,
-			     unsigned int *crtc_vblank_mask)
+static void skl_update_crtcs(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
@@ -12979,7 +12911,7 @@ static void skl_update_crtcs(struct drm_atomic_state *state,
 				vbl_wait = true;
 
 			intel_update_crtc(crtc, state, old_crtc_state,
-					  new_crtc_state, crtc_vblank_mask);
+					  new_crtc_state);
 
 			if (vbl_wait)
 				intel_wait_for_vblank(dev_priv, pipe);
@@ -13017,7 +12949,6 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	struct intel_crtc_state *intel_cstate;
 	bool hw_check = intel_state->modeset;
 	u64 put_domains[I915_MAX_PIPES] = {};
-	unsigned crtc_vblank_mask = 0;
 	int i;
 
 	drm_atomic_helper_wait_for_dependencies(state);
@@ -13105,7 +13036,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
-	dev_priv->display.update_crtcs(state, &crtc_vblank_mask);
+	dev_priv->display.update_crtcs(state);
 
 	/* FIXME: We should call drm_atomic_helper_commit_hw_done() here
 	 * already, but still need the state for the delayed optimization. To
@@ -13116,8 +13047,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	 * - switch over to the vblank wait helper in the core after that since
 	 *   we don't need out special handling any more.
 	 */
-	if (!state->legacy_cursor_update)
-		intel_atomic_wait_for_vblanks(dev, dev_priv, crtc_vblank_mask);
+	drm_atomic_helper_wait_for_flip_done(dev, state);
 
 	/*
 	 * Now that the vblank has passed, we can go ahead and program the
