@@ -101,7 +101,16 @@ struct ca_caps {
 	unsigned int descr_type;
 };
 
-/* a message to/from a CI-CAM */
+/**
+ * struct ca_msg - a message to/from a CI-CAM
+ *
+ * @index:	unused
+ * @type:	unused
+ * @length:	length of the message
+ * @msg:	message
+ *
+ * This struct carries a message to be send/received from a CI CA module.
+ */
 struct ca_msg {
 	unsigned int index;
 	unsigned int type;

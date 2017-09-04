@@ -28,22 +28,15 @@ Arguments
 ``msg``
   Pointer to struct :c:type:`ca_msg`.
 
-.. c:type:: ca_msg
-
-.. code-block:: c
-
-    /* a message to/from a CI-CAM */
-    struct ca_msg {
-	unsigned int index;
-	unsigned int type;
-	unsigned int length;
-	unsigned char msg[256];
-    };
-
 Description
 -----------
 
-.. note:: This ioctl is undocumented. Documentation is welcome.
+Receives a message via a CI CA module.
+
+.. note::
+
+   Please notice that, on most drivers, this is done by reading from
+   the /dev/adapter?/ca? device node.
 
 
 Return Value

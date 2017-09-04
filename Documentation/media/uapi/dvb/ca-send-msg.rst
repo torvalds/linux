@@ -32,8 +32,12 @@ Arguments
 Description
 -----------
 
-.. note:: This ioctl is undocumented. Documentation is welcome.
+Sends a message via a CI CA module.
 
+.. note::
+
+   Please notice that, on most drivers, this is done by writing
+   to the /dev/adapter?/ca? device node.
 
 Return Value
 ------------
