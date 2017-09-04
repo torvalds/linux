@@ -2409,8 +2409,6 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 	.flush_tlb_single = xen_flush_tlb_single,
 	.flush_tlb_others = xen_flush_tlb_others,
 
-	.pte_update = paravirt_nop,
-
 	.pgd_alloc = xen_pgd_alloc,
 	.pgd_free = xen_pgd_free,
 

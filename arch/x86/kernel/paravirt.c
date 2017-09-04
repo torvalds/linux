@@ -327,7 +327,6 @@ __visible struct pv_cpu_ops pv_cpu_ops = {
 	.set_debugreg = native_set_debugreg,
 	.read_cr0 = native_read_cr0,
 	.write_cr0 = native_write_cr0,
-	.read_cr4 = native_read_cr4,
 	.write_cr4 = native_write_cr4,
 #ifdef CONFIG_X86_64
 	.read_cr8 = native_read_cr8,
@@ -343,7 +342,6 @@ __visible struct pv_cpu_ops pv_cpu_ops = {
 	.set_ldt = native_set_ldt,
 	.load_gdt = native_load_gdt,
 	.load_idt = native_load_idt,
-	.store_idt = native_store_idt,
 	.store_tr = native_store_tr,
 	.load_tls = native_load_tls,
 #ifdef CONFIG_X86_64
@@ -411,8 +409,6 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
 	.set_pte = native_set_pte,
 	.set_pte_at = native_set_pte_at,
 	.set_pmd = native_set_pmd,
-	.set_pmd_at = native_set_pmd_at,
-	.pte_update = paravirt_nop,
 
 	.ptep_modify_prot_start = __ptep_modify_prot_start,
 	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
@@ -424,7 +420,6 @@ struct pv_mmu_ops pv_mmu_ops __ro_after_init = {
 	.pmd_clear = native_pmd_clear,
 #endif
 	.set_pud = native_set_pud,
-	.set_pud_at = native_set_pud_at,
 
 	.pmd_val = PTE_IDENT,
 	.make_pmd = PTE_IDENT,
