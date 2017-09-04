@@ -286,8 +286,7 @@ void __init kaiser_init(void)
 				  __PAGE_KERNEL);
 }
 
-extern void unmap_pud_range_nofree(pgd_t *pgd, unsigned long start, unsigned long end);
-// add a mapping to the shadow-mapping, and synchronize the mappings
+/* Add a mapping to the shadow mapping, and synchronize the mappings */
 int kaiser_add_mapping(unsigned long addr, unsigned long size, unsigned long flags)
 {
 	return kaiser_add_user_map((const void *)addr, size, flags);
@@ -295,15 +294,13 @@ int kaiser_add_mapping(unsigned long addr, unsigned long size, unsigned long fla
 
 void kaiser_remove_mapping(unsigned long start, unsigned long size)
 {
+	extern void unmap_pud_range_nofree(pgd_t *pgd,
+				unsigned long start, unsigned long end);
 	unsigned long end = start + size;
 	unsigned long addr;
 
 	for (addr = start; addr < end; addr += PGDIR_SIZE) {
 		pgd_t *pgd = native_get_shadow_pgd(pgd_offset_k(addr));
-		/*
-		 * unmap_p4d_range() handles > P4D_SIZE unmaps,
-		 * so no need to trim 'end'.
-		 */
 		unmap_pud_range_nofree(pgd, addr, end);
 	}
 }
