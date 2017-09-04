@@ -475,7 +475,7 @@ static phys_addr_t mx3_camera_base __initdata;
 
 static int __init mx31moboard_init_cam(void)
 {
-	int dma, ret;
+	int ret;
 	struct platform_device *pdev;
 
 	imx31_add_ipu_core();
