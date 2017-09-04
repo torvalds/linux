@@ -445,24 +445,27 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 	unsigned int irq = GIC_HWIRQ_TO_SHARED(d->hwirq);
 	cpumask_t	tmp = CPU_MASK_NONE;
 	unsigned long	flags;
-	int		i;
+	int		i, cpu;
 
 	cpumask_and(&tmp, cpumask, cpu_online_mask);
 	if (cpumask_empty(&tmp))
 		return -EINVAL;
 
+	cpu = cpumask_first(&tmp);
+
 	/* Assumption : cpumask refers to a single CPU */
 	spin_lock_irqsave(&gic_lock, flags);
 
 	/* Re-route this IRQ */
-	gic_map_to_vpe(irq, mips_cm_vp_id(cpumask_first(&tmp)));
+	gic_map_to_vpe(irq, mips_cm_vp_id(cpu));
 
 	/* Update the pcpu_masks */
 	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
 		clear_bit(irq, pcpu_masks[i].pcpu_mask);
-	set_bit(irq, pcpu_masks[cpumask_first(&tmp)].pcpu_mask);
+	set_bit(irq, pcpu_masks[cpu].pcpu_mask);
 
 	cpumask_copy(irq_data_get_affinity_mask(d), cpumask);
+	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return IRQ_SET_MASK_OK_NOCOPY;
@@ -716,6 +719,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 		if (err)
 			return err;
 
+		irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(virq)));
 		return gic_shared_irq_domain_map(d, virq, hwirq, 0);
 	}
 

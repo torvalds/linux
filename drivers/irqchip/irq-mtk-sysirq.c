@@ -178,8 +178,7 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 		chip_data->intpol_words[i] = size / 4;
 		chip_data->intpol_bases[i] = of_iomap(node, i);
 		if (ret || !chip_data->intpol_bases[i]) {
-			pr_err("%s: couldn't map region %d\n",
-			       node->full_name, i);
+			pr_err("%pOF: couldn't map region %d\n", node, i);
 			ret = -ENODEV;
 			goto out_free_intpol;
 		}
