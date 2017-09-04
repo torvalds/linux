@@ -1388,35 +1388,31 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_crtc_commit *commit;
-	struct drm_plane *__plane, *plane = NULL;
-	struct drm_plane_state *__plane_state, *plane_state = NULL;
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	const struct drm_plane_helper_funcs *funcs;
-	int i, j, n_planes = 0;
+	int i, n_planes = 0;
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (drm_atomic_crtc_needs_modeset(crtc_state))
 			return -EINVAL;
 	}
 
-	for_each_new_plane_in_state(state, __plane, __plane_state, i) {
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i)
 		n_planes++;
-		plane = __plane;
-		plane_state = __plane_state;
-	}
 
 	/* FIXME: we support only single plane updates for now */
-	if (!plane || n_planes != 1)
+	if (n_planes != 1)
 		return -EINVAL;
 
-	if (!plane_state->crtc)
+	if (!new_plane_state->crtc)
 		return -EINVAL;
 
 	funcs = plane->helper_private;
 	if (!funcs->atomic_async_update)
 		return -EINVAL;
 
-	if (plane_state->fence)
+	if (new_plane_state->fence)
 		return -EINVAL;
 
 	/*
@@ -1424,31 +1420,11 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 	 * the plane.  This prevents our async update's changes from getting
 	 * overridden by a previous synchronous update's state.
 	 */
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		if (plane->crtc != crtc)
-			continue;
+	if (old_plane_state->commit &&
+	    !try_wait_for_completion(&old_plane_state->commit->hw_done))
+		return -EBUSY;
 
-		spin_lock(&crtc->commit_lock);
-		commit = list_first_entry_or_null(&crtc->commit_list,
-						  struct drm_crtc_commit,
-						  commit_entry);
-		if (!commit) {
-			spin_unlock(&crtc->commit_lock);
-			continue;
-		}
-		spin_unlock(&crtc->commit_lock);
-
-		if (!crtc->state->state)
-			continue;
-
-		for_each_plane_in_state(crtc->state->state, __plane,
-					__plane_state, j) {
-			if (__plane == plane)
-				return -EINVAL;
-		}
-	}
-
-	return funcs->atomic_async_check(plane, plane_state);
+	return funcs->atomic_async_check(plane, new_plane_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_async_check);
 
@@ -1814,9 +1790,10 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 	}
 
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
-		/* commit tracked through new_crtc_state->commit, no need to do it explicitly */
-		if (new_plane_state->crtc)
-			continue;
+		/*
+		 * Unlike connectors, always track planes explicitly for
+		 * async pageflip support.
+		 */
 
 		/* Userspace is not allowed to get ahead of the previous
 		 * commit with nonblocking ones. */

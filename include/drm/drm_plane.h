@@ -124,9 +124,10 @@ struct drm_plane_state {
 	bool visible;
 
 	/**
-	 * @commit: Tracks the pending commit to prevent use-after-free conditions.
+	 * @commit: Tracks the pending commit to prevent use-after-free conditions,
+	 * and for async plane updates.
 	 *
-	 * Is only set when @crtc is NULL.
+	 * May be NULL.
 	 */
 	struct drm_crtc_commit *commit;
 
