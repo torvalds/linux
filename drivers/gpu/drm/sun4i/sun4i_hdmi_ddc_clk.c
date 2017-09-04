@@ -14,6 +14,7 @@
 #include <linux/regmap.h>
 
 #include "sun4i_hdmi.h"
+#include "sun4i_hdmi_i2c.h"
 
 struct sun4i_ddc {
 	struct clk_hw		hw;
