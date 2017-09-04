@@ -23,6 +23,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 
 #include "pl111_drm.h"
@@ -274,7 +275,7 @@ void pl111_disable_vblank(struct drm_device *drm, unsigned int crtc)
 static int pl111_display_prepare_fb(struct drm_simple_display_pipe *pipe,
 				    struct drm_plane_state *plane_state)
 {
-	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
+	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
 }
 
 static const struct drm_simple_display_pipe_funcs pl111_display_funcs = {
@@ -457,7 +458,7 @@ int pl111_display_init(struct drm_device *drm)
 	ret = drm_simple_display_pipe_init(drm, &priv->pipe,
 					   &pl111_display_funcs,
 					   formats, ARRAY_SIZE(formats),
-					   &priv->connector.connector);
+					   NULL, &priv->connector.connector);
 	if (ret)
 		return ret;
 

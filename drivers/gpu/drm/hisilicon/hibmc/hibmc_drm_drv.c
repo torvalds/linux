@@ -67,7 +67,6 @@ static struct drm_driver hibmc_driver = {
 	.gem_free_object_unlocked = hibmc_gem_free_object,
 	.dumb_create            = hibmc_dumb_create,
 	.dumb_map_offset        = hibmc_dumb_mmap_offset,
-	.dumb_destroy           = drm_gem_dumb_destroy,
 	.irq_handler		= hibmc_drm_interrupt,
 };
 
@@ -276,11 +275,12 @@ static int hibmc_unload(struct drm_device *dev)
 
 	hibmc_fbdev_fini(priv);
 
+	drm_atomic_helper_shutdown(dev);
+
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 	if (priv->msi_enabled)
 		pci_disable_msi(dev->pdev);
-	drm_vblank_cleanup(dev);
 
 	hibmc_kms_fini(priv);
 	hibmc_mm_fini(priv);

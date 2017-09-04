@@ -1080,7 +1080,6 @@ static void dw_mipi_dsi_drm_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs dw_mipi_dsi_atomic_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = dw_mipi_dsi_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,

@@ -311,6 +311,41 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 EXPORT_SYMBOL(drm_gem_handle_delete);
 
 /**
+ * drm_gem_dumb_map_offset - return the fake mmap offset for a gem object
+ * @file: drm file-private structure containing the gem object
+ * @dev: corresponding drm_device
+ * @handle: gem object handle
+ * @offset: return location for the fake mmap offset
+ *
+ * This implements the &drm_driver.dumb_map_offset kms driver callback for
+ * drivers which use gem to manage their backing storage.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
+int drm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
+			    u32 handle, u64 *offset)
+{
+	struct drm_gem_object *obj;
+	int ret;
+
+	obj = drm_gem_object_lookup(file, handle);
+	if (!obj)
+		return -ENOENT;
+
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto out;
+
+	*offset = drm_vma_node_offset_addr(&obj->vma_node);
+out:
+	drm_gem_object_put_unlocked(obj);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(drm_gem_dumb_map_offset);
+
+/**
  * drm_gem_dumb_destroy - dumb fb callback helper for gem based drivers
  * @file: drm file-private structure to remove the dumb handle from
  * @dev: corresponding drm_device
@@ -826,13 +861,15 @@ drm_gem_object_put_unlocked(struct drm_gem_object *obj)
 		return;
 
 	dev = obj->dev;
-	might_lock(&dev->struct_mutex);
 
-	if (dev->driver->gem_free_object_unlocked)
+	if (dev->driver->gem_free_object_unlocked) {
 		kref_put(&obj->refcount, drm_gem_object_free);
-	else if (kref_put_mutex(&obj->refcount, drm_gem_object_free,
+	} else {
+		might_lock(&dev->struct_mutex);
+		if (kref_put_mutex(&obj->refcount, drm_gem_object_free,
 				&dev->struct_mutex))
-		mutex_unlock(&dev->struct_mutex);
+			mutex_unlock(&dev->struct_mutex);
+	}
 }
 EXPORT_SYMBOL(drm_gem_object_put_unlocked);
 
@@ -964,7 +1001,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_vma_offset_node *node;
 	int ret;
 
-	if (drm_device_is_unplugged(dev))
+	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
 
 	drm_vma_offset_lock_lookup(dev->vma_offset_manager);

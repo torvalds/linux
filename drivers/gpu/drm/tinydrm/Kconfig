@@ -19,3 +19,26 @@ config TINYDRM_MI0283QT
 	help
 	  DRM driver for the Multi-Inno MI0283QT display panel
 	  If M is selected the module will be called mi0283qt.
+
+config TINYDRM_REPAPER
+	tristate "DRM support for Pervasive Displays RePaper panels (V231)"
+	depends on DRM_TINYDRM && SPI
+	depends on THERMAL || !THERMAL
+	help
+	  DRM driver for the following Pervasive Displays panels:
+	  1.44" TFT EPD Panel (E1144CS021)
+	  1.90" TFT EPD Panel (E1190CS021)
+	  2.00" TFT EPD Panel (E2200CS021)
+	  2.71" TFT EPD Panel (E2271CS021)
+
+	  If M is selected the module will be called repaper.
+
+config TINYDRM_ST7586
+	tristate "DRM support for Sitronix ST7586 display panels"
+	depends on DRM_TINYDRM && SPI
+	select TINYDRM_MIPI_DBI
+	help
+	  DRM driver for the following Sitronix ST7586 panels:
+	  * LEGO MINDSTORMS EV3
+
+	  If M is selected the module will be called st7586.

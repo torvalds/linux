@@ -85,7 +85,7 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 		m->cp_hqd_iq_rptr = 1;
 
 	*mqd = m;
-	if (gart_addr != NULL)
+	if (gart_addr)
 		*gart_addr = addr;
 	retval = mm->update_mqd(mm, m, q);
 
@@ -94,10 +94,15 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 
 static int load_mqd(struct mqd_manager *mm, void *mqd,
 			uint32_t pipe_id, uint32_t queue_id,
-			uint32_t __user *wptr)
+			struct queue_properties *p, struct mm_struct *mms)
 {
-	return mm->dev->kfd2kgd->hqd_load
-		(mm->dev->kgd, mqd, pipe_id, queue_id, wptr);
+	/* AQL write pointer counts in 64B packets, PM4/CP counts in dwords. */
+	uint32_t wptr_shift = (p->format == KFD_QUEUE_FORMAT_AQL ? 4 : 0);
+	uint32_t wptr_mask = (uint32_t)((p->queue_size / sizeof(uint32_t)) - 1);
+
+	return mm->dev->kfd2kgd->hqd_load(mm->dev->kgd, mqd, pipe_id, queue_id,
+					  (uint32_t __user *)p->write_ptr,
+					  wptr_shift, wptr_mask, mms);
 }
 
 static int __update_mqd(struct mqd_manager *mm, void *mqd,
@@ -106,10 +111,6 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 {
 	struct vi_mqd *m;
 
-	BUG_ON(!mm || !q || !mqd);
-
-	pr_debug("kfd: In func %s\n", __func__);
-
 	m = get_mqd(mqd);
 
 	m->cp_hqd_pq_control = 5 << CP_HQD_PQ_CONTROL__RPTR_BLOCK_SIZE__SHIFT |
@@ -117,7 +118,7 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 			mtype << CP_HQD_PQ_CONTROL__MTYPE__SHIFT;
 	m->cp_hqd_pq_control |=
 			ffs(q->queue_size / sizeof(unsigned int)) - 1 - 1;
-	pr_debug("kfd: cp_hqd_pq_control 0x%x\n", m->cp_hqd_pq_control);
+	pr_debug("cp_hqd_pq_control 0x%x\n", m->cp_hqd_pq_control);
 
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_base_hi = upper_32_bits((uint64_t)q->queue_address >> 8);
@@ -126,10 +127,9 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 	m->cp_hqd_pq_rptr_report_addr_hi = upper_32_bits((uint64_t)q->read_ptr);
 
 	m->cp_hqd_pq_doorbell_control =
-		1 << CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_EN__SHIFT |
 		q->doorbell_off <<
 			CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET__SHIFT;
-	pr_debug("kfd: cp_hqd_pq_doorbell_control 0x%x\n",
+	pr_debug("cp_hqd_pq_doorbell_control 0x%x\n",
 			m->cp_hqd_pq_doorbell_control);
 
 	m->cp_hqd_eop_control = atc_bit << CP_HQD_EOP_CONTROL__EOP_ATC__SHIFT |
@@ -139,8 +139,15 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 			3 << CP_HQD_IB_CONTROL__MIN_IB_AVAIL_SIZE__SHIFT |
 			mtype << CP_HQD_IB_CONTROL__MTYPE__SHIFT;
 
-	m->cp_hqd_eop_control |=
-		ffs(q->eop_ring_buffer_size / sizeof(unsigned int)) - 1 - 1;
+	/*
+	 * HW does not clamp this field correctly. Maximum EOP queue size
+	 * is constrained by per-SE EOP done signal count, which is 8-bit.
+	 * Limit is 0xFF EOP entries (= 0x7F8 dwords). CP will not submit
+	 * more than (EOP entry count - 1) so a queue size of 0x800 dwords
+	 * is safe, giving a maximum field value of 0xA.
+	 */
+	m->cp_hqd_eop_control |= min(0xA,
+		ffs(q->eop_ring_buffer_size / sizeof(unsigned int)) - 1 - 1);
 	m->cp_hqd_eop_base_addr_lo =
 			lower_32_bits(q->eop_ring_buffer_address >> 8);
 	m->cp_hqd_eop_base_addr_hi =
@@ -156,12 +163,10 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 				2 << CP_HQD_PQ_CONTROL__SLOT_BASED_WPTR__SHIFT;
 	}
 
-	m->cp_hqd_active = 0;
 	q->is_active = false;
 	if (q->queue_size > 0 &&
 			q->queue_address != 0 &&
 			q->queue_percent > 0) {
-		m->cp_hqd_active = 1;
 		q->is_active = true;
 	}
 
@@ -181,14 +186,13 @@ static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 			uint32_t queue_id)
 {
 	return mm->dev->kfd2kgd->hqd_destroy
-		(mm->dev->kgd, type, timeout,
+		(mm->dev->kgd, mqd, type, timeout,
 		pipe_id, queue_id);
 }
 
 static void uninit_mqd(struct mqd_manager *mm, void *mqd,
 			struct kfd_mem_obj *mqd_mem_obj)
 {
-	BUG_ON(!mm || !mqd);
 	kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
 }
 
@@ -238,12 +242,10 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 {
 	struct mqd_manager *mqd;
 
-	BUG_ON(!dev);
-	BUG_ON(type >= KFD_MQD_TYPE_MAX);
+	if (WARN_ON(type >= KFD_MQD_TYPE_MAX))
+		return NULL;
 
-	pr_debug("kfd: In func %s\n", __func__);
-
-	mqd = kzalloc(sizeof(struct mqd_manager), GFP_KERNEL);
+	mqd = kzalloc(sizeof(*mqd), GFP_KERNEL);
 	if (!mqd)
 		return NULL;
 

@@ -480,7 +480,6 @@ static struct drm_driver driver = {
 	.load = psb_driver_load,
 	.unload = psb_driver_unload,
 	.lastclose = psb_driver_lastclose,
-	.set_busid = drm_pci_set_busid,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
 	.irq_preinstall = psb_irq_preinstall,
@@ -495,8 +494,6 @@ static struct drm_driver driver = {
 	.gem_vm_ops = &psb_gem_vm_ops,
 
 	.dumb_create = psb_gem_dumb_create,
-	.dumb_map_offset = psb_gem_dumb_map_gtt,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.ioctls = psb_ioctls,
 	.fops = &psb_gem_fops,
 	.name = DRIVER_NAME,
@@ -517,12 +514,12 @@ static struct pci_driver psb_pci_driver = {
 
 static int __init psb_init(void)
 {
-	return drm_pci_init(&driver, &psb_pci_driver);
+	return pci_register_driver(&psb_pci_driver);
 }
 
 static void __exit psb_exit(void)
 {
-	drm_pci_exit(&driver, &psb_pci_driver);
+	pci_unregister_driver(&psb_pci_driver);
 }
 
 late_initcall(psb_init);

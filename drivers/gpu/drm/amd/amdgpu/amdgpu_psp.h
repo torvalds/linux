@@ -108,6 +108,11 @@ struct psp_context
 	struct amdgpu_bo 		*fence_buf_bo;
 	uint64_t 			fence_buf_mc_addr;
 	void				*fence_buf;
+
+	/* cmd buffer */
+	struct amdgpu_bo		*cmd_buf_bo;
+	uint64_t			cmd_buf_mc_addr;
+	struct psp_gfx_cmd_resp		*cmd_buf_mem;
 };
 
 struct amdgpu_psp_funcs {

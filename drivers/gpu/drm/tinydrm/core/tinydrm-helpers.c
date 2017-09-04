@@ -7,12 +7,14 @@
  * (at your option) any later version.
  */
 
-#include <drm/tinydrm/tinydrm.h>
-#include <drm/tinydrm/tinydrm-helpers.h>
 #include <linux/backlight.h>
+#include <linux/dma-buf.h>
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
 #include <linux/swab.h>
+
+#include <drm/tinydrm/tinydrm.h>
+#include <drm/tinydrm/tinydrm-helpers.h>
 
 static unsigned int spi_max;
 module_param(spi_max, uint, 0400);
@@ -179,6 +181,60 @@ void tinydrm_xrgb8888_to_rgb565(u16 *dst, void *vaddr,
 	kfree(buf);
 }
 EXPORT_SYMBOL(tinydrm_xrgb8888_to_rgb565);
+
+/**
+ * tinydrm_xrgb8888_to_gray8 - Convert XRGB8888 to grayscale
+ * @dst: 8-bit grayscale destination buffer
+ * @vaddr: XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ *
+ * Drm doesn't have native monochrome or grayscale support.
+ * Such drivers can announce the commonly supported XR24 format to userspace
+ * and use this function to convert to the native format.
+ *
+ * Monochrome drivers will use the most significant bit,
+ * where 1 means foreground color and 0 background color.
+ *
+ * ITU BT.601 is used for the RGB -> luma (brightness) conversion.
+ */
+void tinydrm_xrgb8888_to_gray8(u8 *dst, void *vaddr, struct drm_framebuffer *fb,
+			       struct drm_clip_rect *clip)
+{
+	unsigned int len = (clip->x2 - clip->x1) * sizeof(u32);
+	unsigned int x, y;
+	void *buf;
+	u32 *src;
+
+	if (WARN_ON(fb->format->format != DRM_FORMAT_XRGB8888))
+		return;
+	/*
+	 * The cma memory is write-combined so reads are uncached.
+	 * Speed up by fetching one line at a time.
+	 */
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return;
+
+	for (y = clip->y1; y < clip->y2; y++) {
+		src = vaddr + (y * fb->pitches[0]);
+		src += clip->x1;
+		memcpy(buf, src, len);
+		src = buf;
+		for (x = clip->x1; x < clip->x2; x++) {
+			u8 r = (*src & 0x00ff0000) >> 16;
+			u8 g = (*src & 0x0000ff00) >> 8;
+			u8 b =  *src & 0x000000ff;
+
+			/* ITU BT.601: Y = 0.299 R + 0.587 G + 0.114 B */
+			*dst++ = (3 * r + 6 * g + b) / 10;
+			src++;
+		}
+	}
+
+	kfree(buf);
+}
+EXPORT_SYMBOL(tinydrm_xrgb8888_to_gray8);
 
 /**
  * tinydrm_of_find_backlight - Find backlight device in device-tree

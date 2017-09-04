@@ -186,7 +186,7 @@ static int udl_dmabuf_mmap(struct dma_buf *dma_buf,
 	return -EINVAL;
 }
 
-static struct dma_buf_ops udl_dmabuf_ops = {
+static const struct dma_buf_ops udl_dmabuf_ops = {
 	.attach			= udl_attach_dma_buf,
 	.detach			= udl_detach_dma_buf,
 	.map_dma_buf		= udl_map_dma_buf,

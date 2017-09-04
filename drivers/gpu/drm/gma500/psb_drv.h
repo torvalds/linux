@@ -750,8 +750,6 @@ extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
 			struct drm_file *file);
 extern int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
-extern int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
-			uint32_t handle, uint64_t *offset);
 extern int psb_gem_fault(struct vm_fault *vmf);
 
 /* psb_device.c */
