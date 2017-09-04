@@ -510,6 +510,19 @@ config INTEL_SOC_PMIC_CHTWC
 	  available before any devices using it are probed. This option also
 	  causes the designware-i2c driver to be builtin for the same reason.
 
+config INTEL_SOC_PMIC_CHTDC_TI
+	tristate "Support for Intel Cherry Trail Dollar Cove TI PMIC"
+	depends on GPIOLIB
+	depends on I2C
+	depends on ACPI
+	depends on X86
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  Select this option for supporting Dollar Cove (TI version) PMIC
+	  device that is found on some Intel Cherry Trail systems.
+
 config MFD_INTEL_LPSS
 	tristate
 	select COMMON_CLK
