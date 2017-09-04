@@ -77,6 +77,8 @@
 #define CPCAP_BIT_VAUDIO_MODE0		BIT(1)
 #define CPCAP_BIT_V_AUDIO_EN		BIT(0)
 
+#define CPCAP_BIT_AUDIO_NORMAL_MODE	0x00
+
 /*
  * Off mode configuration bit. Used currently only by SW5 on omap4. There's
  * the following comment in Motorola Linux kernel tree for it:
@@ -217,7 +219,7 @@ static unsigned int cpcap_regulator_get_mode(struct regulator_dev *rdev)
 
 	regmap_read(rdev->regmap, rdev->desc->enable_reg, &value);
 
-	if (!(value & CPCAP_BIT_AUDIO_LOW_PWR))
+	if (value & CPCAP_BIT_AUDIO_LOW_PWR)
 		return REGULATOR_MODE_STANDBY;
 
 	return REGULATOR_MODE_NORMAL;
@@ -230,10 +232,10 @@ static int cpcap_regulator_set_mode(struct regulator_dev *rdev,
 
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
-		value = CPCAP_BIT_AUDIO_LOW_PWR;
+		value = CPCAP_BIT_AUDIO_NORMAL_MODE;
 		break;
 	case REGULATOR_MODE_STANDBY:
-		value = 0;
+		value = CPCAP_BIT_AUDIO_LOW_PWR;
 		break;
 	default:
 		return -EINVAL;
