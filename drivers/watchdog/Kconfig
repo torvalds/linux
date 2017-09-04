@@ -787,6 +787,16 @@ config UNIPHIER_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called uniphier_wdt.
 
+config RTD119X_WATCHDOG
+	bool "Realtek RTD119x/RTD129x watchdog support"
+	depends on ARCH_REALTEK || COMPILE_TEST
+	depends on OF
+	select WATCHDOG_CORE
+	default ARCH_REALTEK
+	help
+	  Say Y here to include support for the watchdog timer in
+	  Realtek RTD1295 SoCs.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
