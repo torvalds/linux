@@ -252,10 +252,14 @@ void __drm_crtc_commit_free(struct kref *kref);
  * @commit: CRTC commit
  *
  * Increases the reference of @commit.
+ *
+ * Returns:
+ * The pointer to @commit, with reference increased.
  */
-static inline void drm_crtc_commit_get(struct drm_crtc_commit *commit)
+static inline struct drm_crtc_commit *drm_crtc_commit_get(struct drm_crtc_commit *commit)
 {
 	kref_get(&commit->ref);
+	return commit;
 }
 
 /**
