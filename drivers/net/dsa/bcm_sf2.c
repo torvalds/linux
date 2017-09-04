@@ -244,7 +244,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	 * to a different queue number
 	 */
 	reg = core_readl(priv, CORE_PORT_TC2_QOS_MAP_PORT(port));
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < SF2_NUM_EGRESS_QUEUES; i++)
 		reg |= i << (PRT_TO_QID_SHIFT * i);
 	core_writel(priv, reg, CORE_PORT_TC2_QOS_MAP_PORT(port));
 
@@ -1150,6 +1150,9 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	ds = dev->ds;
 	ds->ops = &bcm_sf2_ops;
+
+	/* Advertise the 8 egress queues */
+	ds->num_tx_queues = SF2_NUM_EGRESS_QUEUES;
 
 	dev_set_drvdata(&pdev->dev, priv);
 
