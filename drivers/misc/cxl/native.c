@@ -897,6 +897,14 @@ int cxl_attach_dedicated_process_psl9(struct cxl_context *ctx, u64 wed, u64 amr)
 	if (ctx->afu->adapter->native->sl_ops->update_dedicated_ivtes)
 		afu->adapter->native->sl_ops->update_dedicated_ivtes(ctx);
 
+	ctx->elem->software_state = cpu_to_be32(CXL_PE_SOFTWARE_STATE_V);
+	/*
+	 * Ideally we should do a wmb() here to make sure the changes to the
+	 * PE are visible to the card before we call afu_enable.
+	 * On ppc64 though all mmios are preceded by a 'sync' instruction hence
+	 * we dont dont need one here.
+	 */
+
 	result = cxl_ops->afu_reset(afu);
 	if (result)
 		return result;
