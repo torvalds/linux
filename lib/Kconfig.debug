@@ -1091,6 +1091,8 @@ config PROVE_LOCKING
 	select DEBUG_MUTEXES
 	select DEBUG_RT_MUTEXES if RT_MUTEXES
 	select DEBUG_LOCK_ALLOC
+	select LOCKDEP_CROSSRELEASE
+	select LOCKDEP_COMPLETIONS
 	select TRACE_IRQFLAGS
 	default n
 	help
@@ -1159,6 +1161,22 @@ config LOCK_STAT
 
 	 CONFIG_LOCK_STAT defines "contended" and "acquired" lock events.
 	 (CONFIG_LOCKDEP defines "acquire" and "release" events.)
+
+config LOCKDEP_CROSSRELEASE
+	bool
+	help
+	 This makes lockdep work for crosslock which is a lock allowed to
+	 be released in a different context from the acquisition context.
+	 Normally a lock must be released in the context acquiring the lock.
+	 However, relexing this constraint helps synchronization primitives
+	 such as page locks or completions can use the lock correctness
+	 detector, lockdep.
+
+config LOCKDEP_COMPLETIONS
+	bool
+	help
+	 A deadlock caused by wait_for_completion() and complete() can be
+	 detected by lockdep using crossrelease feature.
 
 config DEBUG_LOCKDEP
 	bool "Lock dependency engine debugging"

@@ -21,6 +21,8 @@ typedef struct {
 extern long long atomic64_read(const atomic64_t *v);
 extern void	 atomic64_set(atomic64_t *v, long long i);
 
+#define atomic64_set_release(v, i)	atomic64_set((v), (i))
+
 #define ATOMIC64_OP(op)							\
 extern void	 atomic64_##op(long long a, atomic64_t *v);
 

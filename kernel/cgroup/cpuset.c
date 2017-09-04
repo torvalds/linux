@@ -577,6 +577,13 @@ static void update_domain_attr_tree(struct sched_domain_attr *dattr,
 	rcu_read_unlock();
 }
 
+/* Must be called with cpuset_mutex held.  */
+static inline int nr_cpusets(void)
+{
+	/* jump label reference count + the top-level cpuset */
+	return static_key_count(&cpusets_enabled_key.key) + 1;
+}
+
 /*
  * generate_sched_domains()
  *

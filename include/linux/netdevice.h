@@ -2774,7 +2774,7 @@ struct softnet_data {
 	unsigned int		input_queue_head ____cacheline_aligned_in_smp;
 
 	/* Elements below can be accessed between CPUs for RPS/RFS */
-	struct call_single_data	csd ____cacheline_aligned_in_smp;
+	call_single_data_t	csd ____cacheline_aligned_in_smp;
 	struct softnet_data	*rps_ipi_next;
 	unsigned int		cpu;
 	unsigned int		input_queue_tail;

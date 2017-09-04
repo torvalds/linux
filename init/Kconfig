@@ -1275,11 +1275,16 @@ config BASE_FULL
 config FUTEX
 	bool "Enable futex support" if EXPERT
 	default y
-	select RT_MUTEXES
+	imply RT_MUTEXES
 	help
 	  Disabling this option will cause the kernel to be built without
 	  support for "fast userspace mutexes".  The resulting kernel may not
 	  run glibc-based applications correctly.
+
+config FUTEX_PI
+	bool
+	depends on FUTEX && RT_MUTEXES
+	default y
 
 config HAVE_FUTEX_CMPXCHG
 	bool

@@ -575,8 +575,7 @@ static __inline__ void udpv6_err(struct sk_buff *skb,
 static struct static_key udpv6_encap_needed __read_mostly;
 void udpv6_encap_enable(void)
 {
-	if (!static_key_enabled(&udpv6_encap_needed))
-		static_key_slow_inc(&udpv6_encap_needed);
+	static_key_enable(&udpv6_encap_needed);
 }
 EXPORT_SYMBOL(udpv6_encap_enable);
 
