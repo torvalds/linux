@@ -99,11 +99,11 @@ static pte_t *kaiser_pagetable_walk(unsigned long address, bool is_atomic)
 	pgd_t *pgd = native_get_shadow_pgd(pgd_offset_k(address));
 	gfp_t gfp = (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
 
-	might_sleep();
 	if (is_atomic) {
 		gfp &= ~GFP_KERNEL;
 		gfp |= __GFP_HIGH | __GFP_ATOMIC;
-	}
+	} else
+		might_sleep();
 
 	if (pgd_none(*pgd)) {
 		WARN_ONCE(1, "All shadow pgds should have been populated");
@@ -160,13 +160,17 @@ int kaiser_add_user_map(const void *__start_addr, unsigned long size,
 	unsigned long end_addr = PAGE_ALIGN(start_addr + size);
 	unsigned long target_address;
 
-	for (;address < end_addr; address += PAGE_SIZE) {
+	for (; address < end_addr; address += PAGE_SIZE) {
 		target_address = get_pa_from_mapping(address);
 		if (target_address == -1) {
 			ret = -EIO;
 			break;
 		}
 		pte = kaiser_pagetable_walk(address, false);
+		if (!pte) {
+			ret = -ENOMEM;
+			break;
+		}
 		if (pte_none(*pte)) {
 			set_pte(pte, __pte(flags | target_address));
 		} else {
