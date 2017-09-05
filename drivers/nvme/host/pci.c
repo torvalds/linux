@@ -109,6 +109,7 @@ struct nvme_dev {
 	/* host memory buffer support: */
 	u64 host_mem_size;
 	u32 nr_host_mem_descs;
+	dma_addr_t host_mem_descs_dma;
 	struct nvme_host_mem_buf_desc *host_mem_descs;
 	void **host_mem_desc_bufs;
 };
@@ -539,7 +540,7 @@ static void nvme_dif_complete(u32 p, u32 v, struct t10_pi_tuple *pi)
 }
 #endif
 
-static bool nvme_setup_prps(struct nvme_dev *dev, struct request *req)
+static blk_status_t nvme_setup_prps(struct nvme_dev *dev, struct request *req)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	struct dma_pool *pool;
@@ -556,7 +557,7 @@ static bool nvme_setup_prps(struct nvme_dev *dev, struct request *req)
 
 	length -= (page_size - offset);
 	if (length <= 0)
-		return true;
+		return BLK_STS_OK;
 
 	dma_len -= (page_size - offset);
 	if (dma_len) {
@@ -569,7 +570,7 @@ static bool nvme_setup_prps(struct nvme_dev *dev, struct request *req)
 
 	if (length <= page_size) {
 		iod->first_dma = dma_addr;
-		return true;
+		return BLK_STS_OK;
 	}
 
 	nprps = DIV_ROUND_UP(length, page_size);
@@ -585,7 +586,7 @@ static bool nvme_setup_prps(struct nvme_dev *dev, struct request *req)
 	if (!prp_list) {
 		iod->first_dma = dma_addr;
 		iod->npages = -1;
-		return false;
+		return BLK_STS_RESOURCE;
 	}
 	list[0] = prp_list;
 	iod->first_dma = prp_dma;
@@ -595,7 +596,7 @@ static bool nvme_setup_prps(struct nvme_dev *dev, struct request *req)
 			__le64 *old_prp_list = prp_list;
 			prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
 			if (!prp_list)
-				return false;
+				return BLK_STS_RESOURCE;
 			list[iod->npages++] = prp_list;
 			prp_list[0] = old_prp_list[i - 1];
 			old_prp_list[i - 1] = cpu_to_le64(prp_dma);
@@ -609,13 +610,29 @@ static bool nvme_setup_prps(struct nvme_dev *dev, struct request *req)
 			break;
 		if (dma_len > 0)
 			continue;
-		BUG_ON(dma_len < 0);
+		if (unlikely(dma_len < 0))
+			goto bad_sgl;
 		sg = sg_next(sg);
 		dma_addr = sg_dma_address(sg);
 		dma_len = sg_dma_len(sg);
 	}
 
-	return true;
+	return BLK_STS_OK;
+
+ bad_sgl:
+	if (WARN_ONCE(1, "Invalid SGL for payload:%d nents:%d\n",
+				blk_rq_payload_bytes(req), iod->nents)) {
+		for_each_sg(iod->sg, sg, iod->nents, i) {
+			dma_addr_t phys = sg_phys(sg);
+			pr_warn("sg[%d] phys_addr:%pad offset:%d length:%d "
+			       "dma_address:%pad dma_length:%d\n", i, &phys,
+					sg->offset, sg->length,
+					&sg_dma_address(sg),
+					sg_dma_len(sg));
+		}
+	}
+	return BLK_STS_IOERR;
+
 }
 
 static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
@@ -637,7 +654,8 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 				DMA_ATTR_NO_WARN))
 		goto out;
 
-	if (!nvme_setup_prps(dev, req))
+	ret = nvme_setup_prps(dev, req);
+	if (ret != BLK_STS_OK)
 		goto out_unmap;
 
 	ret = BLK_STS_IOERR;
@@ -784,6 +802,7 @@ static inline void nvme_handle_cqe(struct nvme_queue *nvmeq,
 		return;
 	}
 
+	nvmeq->cqe_seen = 1;
 	req = blk_mq_tag_to_rq(*nvmeq->tags, cqe->command_id);
 	nvme_end_request(req, cqe->status, cqe->result);
 }
@@ -813,10 +832,8 @@ static void nvme_process_cq(struct nvme_queue *nvmeq)
 		consumed++;
 	}
 
-	if (consumed) {
+	if (consumed)
 		nvme_ring_cq_doorbell(nvmeq);
-		nvmeq->cqe_seen = 1;
-	}
 }
 
 static irqreturn_t nvme_irq(int irq, void *data)
@@ -1541,25 +1558,17 @@ static inline void nvme_release_cmb(struct nvme_dev *dev)
 	if (dev->cmb) {
 		iounmap(dev->cmb);
 		dev->cmb = NULL;
-		if (dev->cmbsz) {
-			sysfs_remove_file_from_group(&dev->ctrl.device->kobj,
-						     &dev_attr_cmb.attr, NULL);
-			dev->cmbsz = 0;
-		}
+		sysfs_remove_file_from_group(&dev->ctrl.device->kobj,
+					     &dev_attr_cmb.attr, NULL);
+		dev->cmbsz = 0;
 	}
 }
 
 static int nvme_set_host_mem(struct nvme_dev *dev, u32 bits)
 {
-	size_t len = dev->nr_host_mem_descs * sizeof(*dev->host_mem_descs);
+	u64 dma_addr = dev->host_mem_descs_dma;
 	struct nvme_command c;
-	u64 dma_addr;
 	int ret;
-
-	dma_addr = dma_map_single(dev->dev, dev->host_mem_descs, len,
-			DMA_TO_DEVICE);
-	if (dma_mapping_error(dev->dev, dma_addr))
-		return -ENOMEM;
 
 	memset(&c, 0, sizeof(c));
 	c.features.opcode	= nvme_admin_set_features;
@@ -1577,7 +1586,6 @@ static int nvme_set_host_mem(struct nvme_dev *dev, u32 bits)
 			 "failed to set host mem (err %d, flags %#x).\n",
 			 ret, bits);
 	}
-	dma_unmap_single(dev->dev, dma_addr, len, DMA_TO_DEVICE);
 	return ret;
 }
 
@@ -1595,14 +1603,17 @@ static void nvme_free_host_mem(struct nvme_dev *dev)
 
 	kfree(dev->host_mem_desc_bufs);
 	dev->host_mem_desc_bufs = NULL;
-	kfree(dev->host_mem_descs);
+	dma_free_coherent(dev->dev,
+			dev->nr_host_mem_descs * sizeof(*dev->host_mem_descs),
+			dev->host_mem_descs, dev->host_mem_descs_dma);
 	dev->host_mem_descs = NULL;
 }
 
 static int nvme_alloc_host_mem(struct nvme_dev *dev, u64 min, u64 preferred)
 {
 	struct nvme_host_mem_buf_desc *descs;
-	u32 chunk_size, max_entries;
+	u32 chunk_size, max_entries, len;
+	dma_addr_t descs_dma;
 	int i = 0;
 	void **bufs;
 	u64 size = 0, tmp;
@@ -1613,7 +1624,8 @@ retry:
 	tmp = (preferred + chunk_size - 1);
 	do_div(tmp, chunk_size);
 	max_entries = tmp;
-	descs = kcalloc(max_entries, sizeof(*descs), GFP_KERNEL);
+	descs = dma_zalloc_coherent(dev->dev, max_entries * sizeof(*descs),
+			&descs_dma, GFP_KERNEL);
 	if (!descs)
 		goto out;
 
@@ -1621,10 +1633,10 @@ retry:
 	if (!bufs)
 		goto out_free_descs;
 
-	for (size = 0; size < preferred; size += chunk_size) {
-		u32 len = min_t(u64, chunk_size, preferred - size);
+	for (size = 0; size < preferred; size += len) {
 		dma_addr_t dma_addr;
 
+		len = min_t(u64, chunk_size, preferred - size);
 		bufs[i] = dma_alloc_attrs(dev->dev, len, &dma_addr, GFP_KERNEL,
 				DMA_ATTR_NO_KERNEL_MAPPING | DMA_ATTR_NO_WARN);
 		if (!bufs[i])
@@ -1647,6 +1659,7 @@ retry:
 	dev->nr_host_mem_descs = i;
 	dev->host_mem_size = size;
 	dev->host_mem_descs = descs;
+	dev->host_mem_descs_dma = descs_dma;
 	dev->host_mem_desc_bufs = bufs;
 	return 0;
 
@@ -1660,7 +1673,8 @@ out_free_bufs:
 
 	kfree(bufs);
 out_free_descs:
-	kfree(descs);
+	dma_free_coherent(dev->dev, max_entries * sizeof(*descs), descs,
+			descs_dma);
 out:
 	/* try a smaller chunk size if we failed early */
 	if (chunk_size >= PAGE_SIZE * 2 && (i == 0 || size < min)) {
@@ -1936,16 +1950,14 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 
 	/*
 	 * CMBs can currently only exist on >=1.2 PCIe devices. We only
-	 * populate sysfs if a CMB is implemented. Note that we add the
-	 * CMB attribute to the nvme_ctrl kobj which removes the need to remove
-	 * it on exit. Since nvme_dev_attrs_group has no name we can pass
-	 * NULL as final argument to sysfs_add_file_to_group.
+	 * populate sysfs if a CMB is implemented. Since nvme_dev_attrs_group
+	 * has no name we can pass NULL as final argument to
+	 * sysfs_add_file_to_group.
 	 */
 
 	if (readl(dev->bar + NVME_REG_VS) >= NVME_VS(1, 2, 0)) {
 		dev->cmb = nvme_map_cmb(dev);
-
-		if (dev->cmbsz) {
+		if (dev->cmb) {
 			if (sysfs_add_file_to_group(&dev->ctrl.device->kobj,
 						    &dev_attr_cmb.attr, NULL))
 				dev_warn(dev->ctrl.device,
@@ -2282,7 +2294,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	result = nvme_dev_map(dev);
 	if (result)
-		goto free;
+		goto put_pci;
 
 	INIT_WORK(&dev->ctrl.reset_work, nvme_reset_work);
 	INIT_WORK(&dev->remove_work, nvme_remove_dead_ctrl_work);
@@ -2291,7 +2303,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	result = nvme_setup_prp_pools(dev);
 	if (result)
-		goto put_pci;
+		goto unmap;
 
 	quirks |= check_dell_samsung_bug(pdev);
 
@@ -2308,9 +2320,10 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
  release_pools:
 	nvme_release_prp_pools(dev);
+ unmap:
+	nvme_dev_unmap(dev);
  put_pci:
 	put_device(dev->dev);
-	nvme_dev_unmap(dev);
  free:
 	kfree(dev->queues);
 	kfree(dev);
@@ -2464,6 +2477,9 @@ static const struct pci_device_id nvme_id_table[] = {
 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
 				NVME_QUIRK_DEALLOCATE_ZEROES, },
 	{ PCI_VDEVICE(INTEL, 0x0a54),
+		.driver_data = NVME_QUIRK_STRIPE_SIZE |
+				NVME_QUIRK_DEALLOCATE_ZEROES, },
+	{ PCI_VDEVICE(INTEL, 0x0a55),
 		.driver_data = NVME_QUIRK_STRIPE_SIZE |
 				NVME_QUIRK_DEALLOCATE_ZEROES, },
 	{ PCI_VDEVICE(INTEL, 0xf1a5),	/* Intel 600P/P3100 */

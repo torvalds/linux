@@ -156,7 +156,8 @@ static int read_sb_page(struct mddev *mddev, loff_t offset,
 
 	rdev_for_each(rdev, mddev) {
 		if (! test_bit(In_sync, &rdev->flags)
-		    || test_bit(Faulty, &rdev->flags))
+		    || test_bit(Faulty, &rdev->flags)
+		    || test_bit(Bitmap_sync, &rdev->flags))
 			continue;
 
 		target = offset + index * (PAGE_SIZE/512);

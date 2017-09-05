@@ -1,7 +1,7 @@
 /*
  * Register map access API - W1 (1-Wire) support
  *
- * Copyright (C) 2017 OAO Radioavionica
+ * Copyright (c) 2017 Radioavionica Corporation
  * Author: Alex A. Mihaylov <minimumlaw@rambler.ru>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -11,7 +11,7 @@
 
 #include <linux/regmap.h>
 #include <linux/module.h>
-#include "../../w1/w1.h"
+#include <linux/w1.h>
 
 #include "internal.h"
 

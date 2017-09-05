@@ -1392,17 +1392,19 @@ static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
 	struct sched_dl_entity *pi_se = &p->dl;
 
 	/*
-	 * Use the scheduling parameters of the top pi-waiter
-	 * task if we have one and its (absolute) deadline is
-	 * smaller than our one... OTW we keep our runtime and
-	 * deadline.
+	 * Use the scheduling parameters of the top pi-waiter task if:
+	 * - we have a top pi-waiter which is a SCHED_DEADLINE task AND
+	 * - our dl_boosted is set (i.e. the pi-waiter's (absolute) deadline is
+	 *   smaller than our deadline OR we are a !SCHED_DEADLINE task getting
+	 *   boosted due to a SCHED_DEADLINE pi-waiter).
+	 * Otherwise we keep our runtime and deadline.
 	 */
-	if (pi_task && p->dl.dl_boosted && dl_prio(pi_task->normal_prio)) {
+	if (pi_task && dl_prio(pi_task->normal_prio) && p->dl.dl_boosted) {
 		pi_se = &pi_task->dl;
 	} else if (!dl_prio(p->normal_prio)) {
 		/*
 		 * Special case in which we have a !SCHED_DEADLINE task
-		 * that is going to be deboosted, but exceedes its
+		 * that is going to be deboosted, but exceeds its
 		 * runtime while doing so. No point in replenishing
 		 * it, as it's going to return back to its original
 		 * scheduling class after this.

@@ -69,7 +69,7 @@ struct bts_buffer {
 	struct bts_phys	buf[0];
 };
 
-struct pmu bts_pmu;
+static struct pmu bts_pmu;
 
 static size_t buf_size(struct page *page)
 {

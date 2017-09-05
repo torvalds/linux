@@ -148,9 +148,21 @@ static struct fib6_node *node_alloc(void)
 	return fn;
 }
 
-static void node_free(struct fib6_node *fn)
+static void node_free_immediate(struct fib6_node *fn)
 {
 	kmem_cache_free(fib6_node_kmem, fn);
+}
+
+static void node_free_rcu(struct rcu_head *head)
+{
+	struct fib6_node *fn = container_of(head, struct fib6_node, rcu);
+
+	kmem_cache_free(fib6_node_kmem, fn);
+}
+
+static void node_free(struct fib6_node *fn)
+{
+	call_rcu(&fn->rcu, node_free_rcu);
 }
 
 static void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
@@ -601,9 +613,9 @@ insert_above:
 
 		if (!in || !ln) {
 			if (in)
-				node_free(in);
+				node_free_immediate(in);
 			if (ln)
-				node_free(ln);
+				node_free_immediate(ln);
 			return ERR_PTR(-ENOMEM);
 		}
 
@@ -877,7 +889,7 @@ add:
 
 		rt->dst.rt6_next = iter;
 		*ins = rt;
-		rt->rt6i_node = fn;
+		rcu_assign_pointer(rt->rt6i_node, fn);
 		atomic_inc(&rt->rt6i_ref);
 		if (!info->skip_notify)
 			inet6_rt_notify(RTM_NEWROUTE, rt, info, nlflags);
@@ -903,7 +915,7 @@ add:
 			return err;
 
 		*ins = rt;
-		rt->rt6i_node = fn;
+		rcu_assign_pointer(rt->rt6i_node, fn);
 		rt->dst.rt6_next = iter->dst.rt6_next;
 		atomic_inc(&rt->rt6i_ref);
 		if (!info->skip_notify)
@@ -914,6 +926,8 @@ add:
 		}
 		nsiblings = iter->rt6i_nsiblings;
 		fib6_purge_rt(iter, fn, info->nl_net);
+		if (fn->rr_ptr == iter)
+			fn->rr_ptr = NULL;
 		rt6_release(iter);
 
 		if (nsiblings) {
@@ -926,6 +940,8 @@ add:
 				if (rt6_qualify_for_ecmp(iter)) {
 					*ins = iter->dst.rt6_next;
 					fib6_purge_rt(iter, fn, info->nl_net);
+					if (fn->rr_ptr == iter)
+						fn->rr_ptr = NULL;
 					rt6_release(iter);
 					nsiblings--;
 				} else {
@@ -1014,7 +1030,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 			/* Create subtree root node */
 			sfn = node_alloc();
 			if (!sfn)
-				goto st_failure;
+				goto failure;
 
 			sfn->leaf = info->nl_net->ipv6.ip6_null_entry;
 			atomic_inc(&info->nl_net->ipv6.ip6_null_entry->rt6i_ref);
@@ -1031,12 +1047,12 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 
 			if (IS_ERR(sn)) {
 				/* If it is failed, discard just allocated
-				   root, and then (in st_failure) stale node
+				   root, and then (in failure) stale node
 				   in main tree.
 				 */
-				node_free(sfn);
+				node_free_immediate(sfn);
 				err = PTR_ERR(sn);
-				goto st_failure;
+				goto failure;
 			}
 
 			/* Now link new subtree to main tree */
@@ -1051,7 +1067,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt,
 
 			if (IS_ERR(sn)) {
 				err = PTR_ERR(sn);
-				goto st_failure;
+				goto failure;
 			}
 		}
 
@@ -1092,18 +1108,17 @@ out:
 			atomic_inc(&pn->leaf->rt6i_ref);
 		}
 #endif
-		/* Always release dst as dst->__refcnt is guaranteed
-		 * to be taken before entering this function
-		 */
-		dst_release_immediate(&rt->dst);
+		goto failure;
 	}
 	return err;
 
-#ifdef CONFIG_IPV6_SUBTREES
-	/* Subtree creation failed, probably main tree node
-	   is orphan. If it is, shoot it.
+failure:
+	/* fn->leaf could be NULL if fn is an intermediate node and we
+	 * failed to add the new route to it in both subtree creation
+	 * failure and fib6_add_rt2node() failure case.
+	 * In both cases, fib6_repair_tree() should be called to fix
+	 * fn->leaf.
 	 */
-st_failure:
 	if (fn && !(fn->fn_flags & (RTN_RTINFO|RTN_ROOT)))
 		fib6_repair_tree(info->nl_net, fn);
 	/* Always release dst as dst->__refcnt is guaranteed
@@ -1111,7 +1126,6 @@ st_failure:
 	 */
 	dst_release_immediate(&rt->dst);
 	return err;
-#endif
 }
 
 /*
@@ -1466,8 +1480,9 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 
 int fib6_del(struct rt6_info *rt, struct nl_info *info)
 {
+	struct fib6_node *fn = rcu_dereference_protected(rt->rt6i_node,
+				    lockdep_is_held(&rt->rt6i_table->tb6_lock));
 	struct net *net = info->nl_net;
-	struct fib6_node *fn = rt->rt6i_node;
 	struct rt6_info **rtp;
 
 #if RT6_DEBUG >= 2
@@ -1656,7 +1671,9 @@ static int fib6_clean_node(struct fib6_walker *w)
 			if (res) {
 #if RT6_DEBUG >= 2
 				pr_debug("%s: del failed: rt=%p@%p err=%d\n",
-					 __func__, rt, rt->rt6i_node, res);
+					 __func__, rt,
+					 rcu_access_pointer(rt->rt6i_node),
+					 res);
 #endif
 				continue;
 			}
@@ -1778,8 +1795,10 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 		}
 		gc_args->more++;
 	} else if (rt->rt6i_flags & RTF_CACHE) {
+		if (time_after_eq(now, rt->dst.lastuse + gc_args->timeout))
+			rt->dst.obsolete = DST_OBSOLETE_KILL;
 		if (atomic_read(&rt->dst.__refcnt) == 1 &&
-		    time_after_eq(now, rt->dst.lastuse + gc_args->timeout)) {
+		    rt->dst.obsolete == DST_OBSOLETE_KILL) {
 			RT6_TRACE("aging clone %p\n", rt);
 			return -1;
 		} else if (rt->rt6i_flags & RTF_GATEWAY) {

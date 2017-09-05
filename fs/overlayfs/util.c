@@ -157,9 +157,14 @@ struct dentry *ovl_dentry_real(struct dentry *dentry)
 	return ovl_dentry_upper(dentry) ?: ovl_dentry_lower(dentry);
 }
 
+struct dentry *ovl_i_dentry_upper(struct inode *inode)
+{
+	return ovl_upperdentry_dereference(OVL_I(inode));
+}
+
 struct inode *ovl_inode_upper(struct inode *inode)
 {
-	struct dentry *upperdentry = ovl_upperdentry_dereference(OVL_I(inode));
+	struct dentry *upperdentry = ovl_i_dentry_upper(inode);
 
 	return upperdentry ? d_inode(upperdentry) : NULL;
 }

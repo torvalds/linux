@@ -1004,9 +1004,7 @@ void tcp_get_default_congestion_control(char *name);
 void tcp_get_available_congestion_control(char *buf, size_t len);
 void tcp_get_allowed_congestion_control(char *buf, size_t len);
 int tcp_set_allowed_congestion_control(char *allowed);
-int tcp_set_congestion_control(struct sock *sk, const char *name, bool load);
-void tcp_reinit_congestion_control(struct sock *sk,
-				   const struct tcp_congestion_ops *ca);
+int tcp_set_congestion_control(struct sock *sk, const char *name, bool load, bool reinit);
 u32 tcp_slow_start(struct tcp_sock *tp, u32 acked);
 void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked);
 
@@ -1915,6 +1913,16 @@ extern void tcp_rack_mark_lost(struct sock *sk);
 extern void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 			     u64 xmit_time);
 extern void tcp_rack_reo_timeout(struct sock *sk);
+
+/* At how many usecs into the future should the RTO fire? */
+static inline s64 tcp_rto_delta_us(const struct sock *sk)
+{
+	const struct sk_buff *skb = tcp_write_queue_head(sk);
+	u32 rto = inet_csk(sk)->icsk_rto;
+	u64 rto_time_stamp_us = skb->skb_mstamp + jiffies_to_usecs(rto);
+
+	return rto_time_stamp_us - tcp_sk(sk)->tcp_mstamp;
+}
 
 /*
  * Save and compile IPv4 options, return a pointer to it

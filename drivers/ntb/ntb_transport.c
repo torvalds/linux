@@ -924,10 +924,8 @@ out1:
 		ntb_free_mw(nt, i);
 
 	/* if there's an actual failure, we should just bail */
-	if (rc < 0) {
-		ntb_link_disable(ndev);
+	if (rc < 0)
 		return;
-	}
 
 out:
 	if (ntb_link_is_up(ndev, NULL, NULL) == 1)
@@ -1059,7 +1057,7 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	int node;
 	int rc, i;
 
-	mw_count = ntb_mw_count(ndev, PIDX);
+	mw_count = ntb_peer_mw_count(ndev);
 
 	if (!ndev->ops->mw_set_trans) {
 		dev_err(&ndev->dev, "Inbound MW based NTB API is required\n");

@@ -55,7 +55,7 @@ static struct bin_attribute *boot_params_data_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group boot_params_attr_group = {
+static const struct attribute_group boot_params_attr_group = {
 	.attrs = boot_params_version_attrs,
 	.bin_attrs = boot_params_data_attrs,
 };
@@ -202,7 +202,7 @@ static struct bin_attribute *setup_data_data_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group setup_data_attr_group = {
+static const struct attribute_group setup_data_attr_group = {
 	.attrs = setup_data_type_attrs,
 	.bin_attrs = setup_data_data_attrs,
 };

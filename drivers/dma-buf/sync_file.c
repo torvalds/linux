@@ -304,7 +304,7 @@ static int sync_file_release(struct inode *inode, struct file *file)
 {
 	struct sync_file *sync_file = file->private_data;
 
-	if (test_bit(POLL_ENABLED, &sync_file->fence->flags))
+	if (test_bit(POLL_ENABLED, &sync_file->flags))
 		dma_fence_remove_callback(sync_file->fence, &sync_file->cb);
 	dma_fence_put(sync_file->fence);
 	kfree(sync_file);
@@ -318,7 +318,8 @@ static unsigned int sync_file_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &sync_file->wq, wait);
 
-	if (!test_and_set_bit(POLL_ENABLED, &sync_file->fence->flags)) {
+	if (list_empty(&sync_file->cb.node) &&
+	    !test_and_set_bit(POLL_ENABLED, &sync_file->flags)) {
 		if (dma_fence_add_callback(sync_file->fence, &sync_file->cb,
 					   fence_check_cb_func) < 0)
 			wake_up_all(&sync_file->wq);
@@ -391,7 +392,13 @@ static void sync_fill_fence_info(struct dma_fence *fence,
 		sizeof(info->driver_name));
 
 	info->status = dma_fence_get_status(fence);
-	info->timestamp_ns = ktime_to_ns(fence->timestamp);
+	while (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags) &&
+	       !test_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags))
+		cpu_relax();
+	info->timestamp_ns =
+		test_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags) ?
+		ktime_to_ns(fence->timestamp) :
+		ktime_set(0, 0);
 }
 
 static long sync_file_ioctl_fence_info(struct sync_file *sync_file,

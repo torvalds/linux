@@ -951,13 +951,13 @@ config MFD_RC5T583
 	  different functionality of the device.
 
 config MFD_RK808
-	tristate "Rockchip RK808/RK818 Power Management Chip"
+	tristate "Rockchip RK805/RK808/RK818 Power Management Chip"
 	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	help
-	  If you say yes here you get support for the RK808 and RK818
+	  If you say yes here you get support for the RK805, RK808 and RK818
 	  Power Management chips.
 	  This driver provides common support for accessing the device
 	  through I2C interface. The device supports multiple sub-devices
@@ -1722,6 +1722,20 @@ config MFD_STW481X
 	  Select this option to enable the STw481x chip driver used
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
+
+config MFD_STM32_LPTIMER
+	tristate "Support for STM32 Low-Power Timer"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_MMIO
+	help
+	  Select this option to enable STM32 Low-Power Timer driver
+	  used for PWM, IIO Trigger, IIO Encoder and Counter. Shared
+	  resources are also dealt with here.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stm32-lptimer.
 
 config MFD_STM32_TIMERS
 	tristate "Support for STM32 Timers"

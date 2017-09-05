@@ -15,6 +15,7 @@ typedef struct {
 #ifdef CONFIG_HAVE_KVM
 	unsigned int kvm_posted_intr_ipis;
 	unsigned int kvm_posted_intr_wakeup_ipis;
+	unsigned int kvm_posted_intr_nested_ipis;
 #endif
 	unsigned int x86_platform_ipis;	/* arch dependent */
 	unsigned int apic_perf_irqs;

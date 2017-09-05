@@ -959,7 +959,7 @@ static int tool_probe(struct ntb_client *self, struct ntb_dev *ntb)
 	tc->ntb = ntb;
 	init_waitqueue_head(&tc->link_wq);
 
-	tc->mw_count = min(ntb_mw_count(tc->ntb, PIDX), MAX_MWS);
+	tc->mw_count = min(ntb_peer_mw_count(tc->ntb), MAX_MWS);
 	for (i = 0; i < tc->mw_count; i++) {
 		rc = tool_init_mw(tc, i);
 		if (rc)

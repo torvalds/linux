@@ -17,7 +17,7 @@
 #include <linux/cpufreq.h>
 #include <linux/gpio.h>
 
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 
 #include <plat/cpu-freq.h>
 #include <mach/gpio-samsung.h>

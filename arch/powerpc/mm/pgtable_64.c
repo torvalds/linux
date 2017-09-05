@@ -505,4 +505,12 @@ void mark_rodata_ro(void)
 	else
 		hash__mark_rodata_ro();
 }
+
+void mark_initmem_nx(void)
+{
+	if (radix_enabled())
+		radix__mark_initmem_nx();
+	else
+		hash__mark_initmem_nx();
+}
 #endif

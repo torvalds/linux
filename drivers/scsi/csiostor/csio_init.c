@@ -969,10 +969,14 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, hw);
 
-	if (csio_hw_start(hw) != 0) {
-		dev_err(&pdev->dev,
-			"Failed to start FW, continuing in debug mode.\n");
-		return 0;
+	rv = csio_hw_start(hw);
+	if (rv) {
+		if (rv == -EINVAL) {
+			dev_err(&pdev->dev,
+				"Failed to start FW, continuing in debug mode.\n");
+			return 0;
+		}
+		goto err_lnode_exit;
 	}
 
 	sprintf(hw->fwrev_str, "%u.%u.%u.%u\n",

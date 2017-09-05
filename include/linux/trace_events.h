@@ -338,7 +338,7 @@ enum {
 struct trace_event_file {
 	struct list_head		list;
 	struct trace_event_call		*event_call;
-	struct event_filter		*filter;
+	struct event_filter __rcu	*filter;
 	struct dentry			*dir;
 	struct trace_array		*tr;
 	struct trace_subsystem_dir	*system;
@@ -508,9 +508,9 @@ void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
 static inline void
 perf_trace_buf_submit(void *raw_data, int size, int rctx, u16 type,
 		       u64 count, struct pt_regs *regs, void *head,
-		       struct task_struct *task)
+		       struct task_struct *task, struct perf_event *event)
 {
-	perf_tp_event(type, count, raw_data, size, regs, head, rctx, task);
+	perf_tp_event(type, count, raw_data, size, regs, head, rctx, task, event);
 }
 #endif
 

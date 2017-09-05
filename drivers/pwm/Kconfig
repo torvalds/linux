@@ -417,6 +417,16 @@ config PWM_STM32
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-stm32.
 
+config PWM_STM32_LP
+	tristate "STMicroelectronics STM32 PWM LP"
+	depends on MFD_STM32_LPTIMER || COMPILE_TEST
+	help
+	  Generic PWM framework driver for STMicroelectronics STM32 SoCs
+	  with Low-Power Timer (LPTIM).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-stm32-lp.
+
 config PWM_STMPE
 	bool "STMPE expander PWM export"
 	depends on MFD_STMPE

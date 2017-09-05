@@ -1418,6 +1418,8 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 	struct tc_hfsc_qopt *qopt;
 	int err;
 
+	qdisc_watchdog_init(&q->watchdog, sch);
+
 	if (opt == NULL || nla_len(opt) < sizeof(*qopt))
 		return -EINVAL;
 	qopt = nla_data(opt);
@@ -1427,6 +1429,10 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 	if (err < 0)
 		return err;
 	q->eligible = RB_ROOT;
+
+	err = tcf_block_get(&q->root.block, &q->root.filter_list);
+	if (err)
+		return err;
 
 	q->root.cl_common.classid = sch->handle;
 	q->root.refcnt  = 1;
@@ -1443,8 +1449,6 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 
 	qdisc_class_hash_insert(&q->clhash, &q->root.cl_common);
 	qdisc_class_hash_grow(sch, &q->clhash);
-
-	qdisc_watchdog_init(&q->watchdog, sch);
 
 	return 0;
 }
@@ -1522,8 +1526,10 @@ hfsc_destroy_qdisc(struct Qdisc *sch)
 	unsigned int i;
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[i], cl_common.hnode)
+		hlist_for_each_entry(cl, &q->clhash.hash[i], cl_common.hnode) {
 			tcf_block_put(cl->block);
+			cl->block = NULL;
+		}
 	}
 	for (i = 0; i < q->clhash.hashsize; i++) {
 		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[i],

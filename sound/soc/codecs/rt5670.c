@@ -567,7 +567,7 @@ int rt5670_set_jack_detect(struct snd_soc_codec *codec,
 
 	rt5670->jack = jack;
 	rt5670->hp_gpio.gpiod_dev = codec->dev;
-	rt5670->hp_gpio.name = "headphone detect";
+	rt5670->hp_gpio.name = "headset";
 	rt5670->hp_gpio.report = SND_JACK_HEADSET |
 		SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2;
 	rt5670->hp_gpio.debounce_time = 150;

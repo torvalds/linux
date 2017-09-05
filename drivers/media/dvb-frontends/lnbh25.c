@@ -76,8 +76,8 @@ static int lnbh25_read_vmon(struct lnbh25_priv *priv)
 			return ret;
 		}
 	}
-	print_hex_dump_bytes("lnbh25_read_vmon: ",
-		DUMP_PREFIX_OFFSET, status, sizeof(status));
+	dev_dbg(&priv->i2c->dev, "%s(): %*ph\n",
+		__func__, (int) sizeof(status), status);
 	if ((status[0] & (LNBH25_STATUS_OFL | LNBH25_STATUS_VMON)) != 0) {
 		dev_err(&priv->i2c->dev,
 			"%s(): voltage in failure state, status reg 0x%x\n",
@@ -178,7 +178,7 @@ struct dvb_frontend *lnbh25_attach(struct dvb_frontend *fe,
 	fe->ops.release_sec = lnbh25_release;
 	fe->ops.set_voltage = lnbh25_set_voltage;
 
-	dev_err(&i2c->dev, "%s(): attached at I2C addr 0x%02x\n",
+	dev_info(&i2c->dev, "%s(): attached at I2C addr 0x%02x\n",
 		__func__, priv->i2c_address);
 	return fe;
 }

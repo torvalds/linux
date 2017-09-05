@@ -134,7 +134,6 @@ struct apid_data {
  * @spmic:		SPMI controller object
  * @ver_ops:		version dependent operations.
  * @ppid_to_apid	in-memory copy of PPID -> channel (APID) mapping table.
- *			v2 only.
  */
 struct spmi_pmic_arb {
 	void __iomem		*rd_base;
@@ -1016,6 +1015,13 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 		goto err_put_ctrl;
 	}
 
+	pa->ppid_to_apid = devm_kcalloc(&ctrl->dev, PMIC_ARB_MAX_PPID,
+					sizeof(*pa->ppid_to_apid), GFP_KERNEL);
+	if (!pa->ppid_to_apid) {
+		err = -ENOMEM;
+		goto err_put_ctrl;
+	}
+
 	hw_ver = readl_relaxed(core + PMIC_ARB_VERSION);
 
 	if (hw_ver < PMIC_ARB_VERSION_V2_MIN) {
@@ -1046,15 +1052,6 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 		pa->wr_base = devm_ioremap_resource(&ctrl->dev, res);
 		if (IS_ERR(pa->wr_base)) {
 			err = PTR_ERR(pa->wr_base);
-			goto err_put_ctrl;
-		}
-
-		pa->ppid_to_apid = devm_kcalloc(&ctrl->dev,
-						PMIC_ARB_MAX_PPID,
-						sizeof(*pa->ppid_to_apid),
-						GFP_KERNEL);
-		if (!pa->ppid_to_apid) {
-			err = -ENOMEM;
 			goto err_put_ctrl;
 		}
 	}

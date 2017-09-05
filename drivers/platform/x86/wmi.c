@@ -1252,11 +1252,11 @@ static int __init acpi_wmi_init(void)
 
 	return 0;
 
-err_unreg_class:
-	class_unregister(&wmi_bus_class);
-
 err_unreg_bus:
 	bus_unregister(&wmi_bus_type);
+
+err_unreg_class:
+	class_unregister(&wmi_bus_class);
 
 	return error;
 }

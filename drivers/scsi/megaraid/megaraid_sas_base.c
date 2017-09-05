@@ -6228,8 +6228,8 @@ static int megasas_probe_one(struct pci_dev *pdev,
 fail_start_aen:
 fail_io_attach:
 	megasas_mgmt_info.count--;
-	megasas_mgmt_info.instance[megasas_mgmt_info.max_index] = NULL;
 	megasas_mgmt_info.max_index--;
+	megasas_mgmt_info.instance[megasas_mgmt_info.max_index] = NULL;
 
 	instance->instancet->disable_intr(instance);
 	megasas_destroy_irqs(instance);

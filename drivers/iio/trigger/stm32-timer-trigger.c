@@ -366,33 +366,31 @@ static int stm32_counter_read_raw(struct iio_dev *indio_dev,
 				  int *val, int *val2, long mask)
 {
 	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
+	u32 dat;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-	{
-		u32 cnt;
-
-		regmap_read(priv->regmap, TIM_CNT, &cnt);
-		*val = cnt;
-
+		regmap_read(priv->regmap, TIM_CNT, &dat);
+		*val = dat;
 		return IIO_VAL_INT;
-	}
-	case IIO_CHAN_INFO_SCALE:
-	{
-		u32 smcr;
 
-		regmap_read(priv->regmap, TIM_SMCR, &smcr);
-		smcr &= TIM_SMCR_SMS;
+	case IIO_CHAN_INFO_ENABLE:
+		regmap_read(priv->regmap, TIM_CR1, &dat);
+		*val = (dat & TIM_CR1_CEN) ? 1 : 0;
+		return IIO_VAL_INT;
+
+	case IIO_CHAN_INFO_SCALE:
+		regmap_read(priv->regmap, TIM_SMCR, &dat);
+		dat &= TIM_SMCR_SMS;
 
 		*val = 1;
 		*val2 = 0;
 
 		/* in quadrature case scale = 0.25 */
-		if (smcr == 3)
+		if (dat == 3)
 			*val2 = 2;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
-	}
 	}
 
 	return -EINVAL;
@@ -403,15 +401,31 @@ static int stm32_counter_write_raw(struct iio_dev *indio_dev,
 				   int val, int val2, long mask)
 {
 	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
+	u32 dat;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		regmap_write(priv->regmap, TIM_CNT, val);
+		return regmap_write(priv->regmap, TIM_CNT, val);
 
-		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		/* fixed scale */
 		return -EINVAL;
+
+	case IIO_CHAN_INFO_ENABLE:
+		if (val) {
+			regmap_read(priv->regmap, TIM_CR1, &dat);
+			if (!(dat & TIM_CR1_CEN))
+				clk_enable(priv->clk);
+			regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN,
+					   TIM_CR1_CEN);
+		} else {
+			regmap_read(priv->regmap, TIM_CR1, &dat);
+			regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN,
+					   0);
+			if (dat & TIM_CR1_CEN)
+				clk_disable(priv->clk);
+		}
+		return 0;
 	}
 
 	return -EINVAL;
@@ -471,7 +485,7 @@ static int stm32_get_trigger_mode(struct iio_dev *indio_dev,
 
 	regmap_read(priv->regmap, TIM_SMCR, &smcr);
 
-	return smcr == TIM_SMCR_SMS ? 0 : -EINVAL;
+	return (smcr & TIM_SMCR_SMS) == TIM_SMCR_SMS ? 0 : -EINVAL;
 }
 
 static const struct iio_enum stm32_trigger_mode_enum = {
@@ -507,9 +521,19 @@ static int stm32_set_enable_mode(struct iio_dev *indio_dev,
 {
 	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
 	int sms = stm32_enable_mode2sms(mode);
+	u32 val;
 
 	if (sms < 0)
 		return sms;
+	/*
+	 * Triggered mode sets CEN bit automatically by hardware. So, first
+	 * enable counter clock, so it can use it. Keeps it in sync with CEN.
+	 */
+	if (sms == 6) {
+		regmap_read(priv->regmap, TIM_CR1, &val);
+		if (!(val & TIM_CR1_CEN))
+			clk_enable(priv->clk);
+	}
 
 	regmap_update_bits(priv->regmap, TIM_SMCR, TIM_SMCR_SMS, sms);
 
@@ -571,11 +595,14 @@ static int stm32_get_quadrature_mode(struct iio_dev *indio_dev,
 {
 	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
 	u32 smcr;
+	int mode;
 
 	regmap_read(priv->regmap, TIM_SMCR, &smcr);
-	smcr &= TIM_SMCR_SMS;
+	mode = (smcr & TIM_SMCR_SMS) - 1;
+	if ((mode < 0) || (mode > ARRAY_SIZE(stm32_quadrature_modes)))
+		return -EINVAL;
 
-	return smcr - 1;
+	return mode;
 }
 
 static const struct iio_enum stm32_quadrature_mode_enum = {
@@ -592,13 +619,20 @@ static const char *const stm32_count_direction_states[] = {
 
 static int stm32_set_count_direction(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
-				     unsigned int mode)
+				     unsigned int dir)
 {
 	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
+	u32 val;
+	int mode;
 
-	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_DIR, mode);
+	/* In encoder mode, direction is RO (given by TI1/TI2 signals) */
+	regmap_read(priv->regmap, TIM_SMCR, &val);
+	mode = (val & TIM_SMCR_SMS) - 1;
+	if ((mode >= 0) || (mode < ARRAY_SIZE(stm32_quadrature_modes)))
+		return -EBUSY;
 
-	return 0;
+	return regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_DIR,
+				  dir ? TIM_CR1_DIR : 0);
 }
 
 static int stm32_get_count_direction(struct iio_dev *indio_dev,
@@ -609,7 +643,7 @@ static int stm32_get_count_direction(struct iio_dev *indio_dev,
 
 	regmap_read(priv->regmap, TIM_CR1, &cr1);
 
-	return (cr1 & TIM_CR1_DIR);
+	return ((cr1 & TIM_CR1_DIR) ? 1 : 0);
 }
 
 static const struct iio_enum stm32_count_direction_enum = {
@@ -672,7 +706,9 @@ static const struct iio_chan_spec_ext_info stm32_trigger_count_info[] = {
 static const struct iio_chan_spec stm32_trigger_channel = {
 	.type = IIO_COUNT,
 	.channel = 0,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			      BIT(IIO_CHAN_INFO_ENABLE) |
+			      BIT(IIO_CHAN_INFO_SCALE),
 	.ext_info = stm32_trigger_count_info,
 	.indexed = 1
 };

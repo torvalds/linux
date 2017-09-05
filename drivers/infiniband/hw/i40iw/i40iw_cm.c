@@ -3487,7 +3487,8 @@ static void i40iw_cm_disconn_true(struct i40iw_qp *iwqp)
 	if (((original_hw_tcp_state == I40IW_TCP_STATE_CLOSED) ||
 	     (original_hw_tcp_state == I40IW_TCP_STATE_TIME_WAIT) ||
 	     (last_ae == I40IW_AE_RDMAP_ROE_BAD_LLP_CLOSE) ||
-	     (last_ae == I40IW_AE_LLP_CONNECTION_RESET))) {
+	     (last_ae == I40IW_AE_LLP_CONNECTION_RESET) ||
+	      iwdev->reset)) {
 		issue_close = 1;
 		iwqp->cm_id = NULL;
 		if (!iwqp->flush_issued) {
@@ -4265,6 +4266,8 @@ void i40iw_cm_disconnect_all(struct i40iw_device *iwdev)
 		cm_node = container_of(list_node, struct i40iw_cm_node, connected_entry);
 		attr.qp_state = IB_QPS_ERR;
 		i40iw_modify_qp(&cm_node->iwqp->ibqp, &attr, IB_QP_STATE, NULL);
+		if (iwdev->reset)
+			i40iw_cm_disconn(cm_node->iwqp);
 		i40iw_rem_ref_cm_node(cm_node);
 	}
 }

@@ -1120,8 +1120,8 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt;
 	uint8_t aux_channel, ddc_pin;
 	/* Each DDI port can have more than one value on the "DVO Port" field,
-	 * so look for all the possible values for each port and abort if more
-	 * than one is found. */
+	 * so look for all the possible values for each port.
+	 */
 	int dvo_ports[][3] = {
 		{DVO_PORT_HDMIA, DVO_PORT_DPA, -1},
 		{DVO_PORT_HDMIB, DVO_PORT_DPB, -1},
@@ -1130,7 +1130,10 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		{DVO_PORT_CRT, DVO_PORT_HDMIE, DVO_PORT_DPE},
 	};
 
-	/* Find the child device to use, abort if more than one found. */
+	/*
+	 * Find the first child device to reference the port, report if more
+	 * than one found.
+	 */
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
 		it = dev_priv->vbt.child_dev + i;
 
@@ -1140,11 +1143,11 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 
 			if (it->common.dvo_port == dvo_ports[port][j]) {
 				if (child) {
-					DRM_DEBUG_KMS("More than one child device for port %c in VBT.\n",
+					DRM_DEBUG_KMS("More than one child device for port %c in VBT, using the first.\n",
 						      port_name(port));
-					return;
+				} else {
+					child = it;
 				}
-				child = it;
 			}
 		}
 	}

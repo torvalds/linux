@@ -131,11 +131,11 @@ static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
-	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	enum br_pkt_type pkt_type = BR_PKT_UNICAST;
 	struct net_bridge_fdb_entry *dst = NULL;
 	struct net_bridge_mdb_entry *mdst;
 	bool local_rcv, mcast_hit = false;
+	const unsigned char *dest;
 	struct net_bridge *br;
 	u16 vid = 0;
 
@@ -153,6 +153,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 		br_fdb_update(br, p, eth_hdr(skb)->h_source, vid, false);
 
 	local_rcv = !!(br->dev->flags & IFF_PROMISC);
+	dest = eth_hdr(skb)->h_dest;
 	if (is_multicast_ether_addr(dest)) {
 		/* by definition the broadcast is also a multicast address */
 		if (is_broadcast_ether_addr(dest)) {

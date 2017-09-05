@@ -422,7 +422,7 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 	h = nf_ct_expect_dst_hash(net, &expect->tuple);
 	hlist_for_each_entry_safe(i, next, &nf_ct_expect_hash[h], hnode) {
 		if (expect_matches(i, expect)) {
-			if (nf_ct_remove_expect(expect))
+			if (nf_ct_remove_expect(i))
 				break;
 		} else if (expect_clash(i, expect)) {
 			ret = -EBUSY;

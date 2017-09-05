@@ -1,7 +1,7 @@
 menuconfig ARCH_AT91
 	bool "Atmel SoCs"
 	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5 || ARCH_MULTI_V7 || ARM_SINGLE_ARMV7M
-	select ARM_CPU_SUSPEND if PM
+	select ARM_CPU_SUSPEND if PM && ARCH_MULTI_V7
 	select COMMON_CLK_AT91
 	select GPIOLIB
 	select PINCTRL

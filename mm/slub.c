@@ -5642,13 +5642,14 @@ static void sysfs_slab_remove_workfn(struct work_struct *work)
 		 * A cache is never shut down before deactivation is
 		 * complete, so no need to worry about synchronization.
 		 */
-		return;
+		goto out;
 
 #ifdef CONFIG_MEMCG
 	kset_unregister(s->memcg_kset);
 #endif
 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
 	kobject_del(&s->kobj);
+out:
 	kobject_put(&s->kobj);
 }
 

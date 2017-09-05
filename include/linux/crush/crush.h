@@ -193,7 +193,7 @@ struct crush_choose_arg {
 struct crush_choose_arg_map {
 #ifdef __KERNEL__
 	struct rb_node node;
-	u64 choose_args_index;
+	s64 choose_args_index;
 #endif
 	struct crush_choose_arg *args; /*!< replacement for each bucket
                                             in the crushmap */

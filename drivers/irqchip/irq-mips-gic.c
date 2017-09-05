@@ -950,7 +950,6 @@ static void __init __gic_init(unsigned long gic_base_addr,
 					       &gic_irq_domain_ops, NULL);
 	if (!gic_irq_domain)
 		panic("Failed to add GIC IRQ domain");
-	gic_irq_domain->name = "mips-gic-irq";
 
 	gic_ipi_domain = irq_domain_add_hierarchy(gic_irq_domain,
 						  IRQ_DOMAIN_FLAG_IPI_PER_CPU,
@@ -959,7 +958,6 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	if (!gic_ipi_domain)
 		panic("Failed to add GIC IPI domain");
 
-	gic_ipi_domain->name = "mips-gic-ipi";
 	irq_domain_update_bus_token(gic_ipi_domain, DOMAIN_BUS_IPI);
 
 	if (node &&
@@ -1022,8 +1020,11 @@ static int __init gic_of_init(struct device_node *node,
 		gic_len = resource_size(&res);
 	}
 
-	if (mips_cm_present())
+	if (mips_cm_present()) {
 		write_gcr_gic_base(gic_base | CM_GCR_GIC_BASE_GICEN_MSK);
+		/* Ensure GIC region is enabled before trying to access it */
+		__sync();
+	}
 	gic_present = true;
 
 	__gic_init(gic_base, gic_len, cpu_vec, 0, node);

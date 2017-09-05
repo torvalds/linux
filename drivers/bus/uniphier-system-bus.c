@@ -256,9 +256,22 @@ static int uniphier_system_bus_probe(struct platform_device *pdev)
 
 	uniphier_system_bus_set_reg(priv);
 
+	platform_set_drvdata(pdev, priv);
+
 	/* Now, the bus is configured.  Populate platform_devices below it */
 	return of_platform_default_populate(dev->of_node, NULL, dev);
 }
+
+static int __maybe_unused uniphier_system_bus_resume(struct device *dev)
+{
+	uniphier_system_bus_set_reg(dev_get_drvdata(dev));
+
+	return 0;
+}
+
+static const struct dev_pm_ops uniphier_system_bus_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(NULL, uniphier_system_bus_resume)
+};
 
 static const struct of_device_id uniphier_system_bus_match[] = {
 	{ .compatible = "socionext,uniphier-system-bus" },
@@ -271,6 +284,7 @@ static struct platform_driver uniphier_system_bus_driver = {
 	.driver = {
 		.name	= "uniphier-system-bus",
 		.of_match_table = uniphier_system_bus_match,
+		.pm = &uniphier_system_bus_pm_ops,
 	},
 };
 module_platform_driver(uniphier_system_bus_driver);

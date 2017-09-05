@@ -542,6 +542,10 @@ filelayout_check_deviceid(struct pnfs_layout_hdr *lo,
 	struct nfs4_file_layout_dsaddr *dsaddr;
 	int status = -EINVAL;
 
+	/* Is the deviceid already set? If so, we're good. */
+	if (fl->dsaddr != NULL)
+		return 0;
+
 	/* find and reference the deviceid */
 	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode), &fl->deviceid,
 			lo->plh_lc_cred, gfp_flags);
@@ -552,8 +556,6 @@ filelayout_check_deviceid(struct pnfs_layout_hdr *lo,
 	/* Found deviceid is unavailable */
 	if (filelayout_test_devid_unavailable(&dsaddr->id_node))
 		goto out_put;
-
-	fl->dsaddr = dsaddr;
 
 	if (fl->first_stripe_index >= dsaddr->stripe_count) {
 		dprintk("%s Bad first_stripe_index %u\n",
@@ -570,6 +572,13 @@ filelayout_check_deviceid(struct pnfs_layout_hdr *lo,
 		goto out_put;
 	}
 	status = 0;
+
+	/*
+	 * Atomic compare and xchange to ensure we don't scribble
+	 * over a non-NULL pointer.
+	 */
+	if (cmpxchg(&fl->dsaddr, NULL, dsaddr) != NULL)
+		goto out_put;
 out:
 	return status;
 out_put:

@@ -158,8 +158,8 @@ struct ap1302_res_struct {
 };
 
 struct ap1302_context_res {
-	s32 res_num;
-	s32 cur_res;
+	u32 res_num;
+	u32 cur_res;
 	struct ap1302_res_struct *res_table;
 };
 

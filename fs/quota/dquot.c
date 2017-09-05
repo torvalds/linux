@@ -1124,6 +1124,10 @@ void dquot_free_reserved_space(struct dquot *dquot, qsize_t number)
 		WARN_ON_ONCE(1);
 		dquot->dq_dqb.dqb_rsvspace = 0;
 	}
+	if (dquot->dq_dqb.dqb_curspace + dquot->dq_dqb.dqb_rsvspace <=
+	    dquot->dq_dqb.dqb_bsoftlimit)
+		dquot->dq_dqb.dqb_btime = (time64_t) 0;
+	clear_bit(DQ_BLKS_B, &dquot->dq_flags);
 }
 
 static void dquot_decr_inodes(struct dquot *dquot, qsize_t number)
@@ -1145,7 +1149,8 @@ static void dquot_decr_space(struct dquot *dquot, qsize_t number)
 		dquot->dq_dqb.dqb_curspace -= number;
 	else
 		dquot->dq_dqb.dqb_curspace = 0;
-	if (dquot->dq_dqb.dqb_curspace <= dquot->dq_dqb.dqb_bsoftlimit)
+	if (dquot->dq_dqb.dqb_curspace + dquot->dq_dqb.dqb_rsvspace <=
+	    dquot->dq_dqb.dqb_bsoftlimit)
 		dquot->dq_dqb.dqb_btime = (time64_t) 0;
 	clear_bit(DQ_BLKS_B, &dquot->dq_flags);
 }
@@ -1381,14 +1386,18 @@ static int info_idq_free(struct dquot *dquot, qsize_t inodes)
 
 static int info_bdq_free(struct dquot *dquot, qsize_t space)
 {
+	qsize_t tspace;
+
+	tspace = dquot->dq_dqb.dqb_curspace + dquot->dq_dqb.dqb_rsvspace;
+
 	if (test_bit(DQ_FAKE_B, &dquot->dq_flags) ||
-	    dquot->dq_dqb.dqb_curspace <= dquot->dq_dqb.dqb_bsoftlimit)
+	    tspace <= dquot->dq_dqb.dqb_bsoftlimit)
 		return QUOTA_NL_NOWARN;
 
-	if (dquot->dq_dqb.dqb_curspace - space <= dquot->dq_dqb.dqb_bsoftlimit)
+	if (tspace - space <= dquot->dq_dqb.dqb_bsoftlimit)
 		return QUOTA_NL_BSOFTBELOW;
-	if (dquot->dq_dqb.dqb_curspace >= dquot->dq_dqb.dqb_bhardlimit &&
-	    dquot->dq_dqb.dqb_curspace - space < dquot->dq_dqb.dqb_bhardlimit)
+	if (tspace >= dquot->dq_dqb.dqb_bhardlimit &&
+	    tspace - space < dquot->dq_dqb.dqb_bhardlimit)
 		return QUOTA_NL_BHARDBELOW;
 	return QUOTA_NL_NOWARN;
 }
@@ -2681,7 +2690,7 @@ static int do_set_dqblk(struct dquot *dquot, struct qc_dqblk *di)
 
 	if (check_blim) {
 		if (!dm->dqb_bsoftlimit ||
-		    dm->dqb_curspace < dm->dqb_bsoftlimit) {
+		    dm->dqb_curspace + dm->dqb_rsvspace < dm->dqb_bsoftlimit) {
 			dm->dqb_btime = 0;
 			clear_bit(DQ_BLKS_B, &dquot->dq_flags);
 		} else if (!(di->d_fieldmask & QC_SPC_TIMER))

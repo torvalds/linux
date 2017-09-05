@@ -724,7 +724,7 @@ static void ql_build_coredump_seg_header(
 	seg_hdr->cookie = MPI_COREDUMP_COOKIE;
 	seg_hdr->segNum = seg_number;
 	seg_hdr->segSize = seg_size;
-	memcpy(seg_hdr->description, desc, (sizeof(seg_hdr->description)) - 1);
+	strncpy(seg_hdr->description, desc, (sizeof(seg_hdr->description)) - 1);
 }
 
 /*
