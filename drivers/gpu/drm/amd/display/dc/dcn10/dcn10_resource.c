@@ -326,6 +326,24 @@ static const struct dcn_dpp_mask tf_mask = {
 	TF_REG_LIST_SH_MASK_DCN10(_MASK),
 };
 
+#define dwbc_regs(id)\
+[id] = {\
+	DWBC_COMMON_REG_LIST_DCN1_0(id),\
+}
+
+static const struct dcn10_dwbc_registers dwbc10_regs[] = {
+	dwbc_regs(0),
+	dwbc_regs(1),
+};
+
+static const struct dcn10_dwbc_shift dwbc10_shift = {
+	DWBC_COMMON_MASK_SH_LIST_DCN1_0(__SHIFT)
+};
+
+static const struct dcn10_dwbc_mask dwbc10_mask = {
+	DWBC_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
+};
+
 static const struct dcn_mpc_registers mpc_regs = {
 		MPC_COMMON_REG_LIST_DCN1_0(0),
 		MPC_COMMON_REG_LIST_DCN1_0(1),
@@ -1213,6 +1231,30 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 	/* RV1 support max 4 pipes */
 	value = value & 0xf;
 	return value;
+}
+
+static bool dcn10_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
+{
+	int i;
+	uint32_t dwb_count = pool->res_cap->num_dwb;
+
+	for (i = 0; i < dwb_count; i++) {
+		struct dcn10_dwbc *dwbc10 = dm_alloc(sizeof(struct dcn10_dwbc));
+
+		if (!dwbc10) {
+			dm_error("DC: failed to create dwbc10!\n");
+			return false;
+		}
+
+		dcn10_dwbc_construct(dwbc10, ctx,
+				&dwbc10_regs[i],
+				&dwbc10_shift,
+				&dwbc10_mask,
+				i);
+
+		pool->dwbc[i] = &dwbc10->base;
+	}
+	return true;
 }
 
 static bool construct(
