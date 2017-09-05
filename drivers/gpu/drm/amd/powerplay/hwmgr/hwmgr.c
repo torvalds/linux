@@ -294,7 +294,7 @@ int hwmgr_handle_task(struct pp_instance *handle, enum amd_pp_task task_id,
 	{
 		enum amd_pm_state_type ps;
 		enum PP_StateUILabel requested_ui_label;
-		struct pp_power_state *requested_ps;
+		struct pp_power_state *requested_ps = NULL;
 
 		if (input == NULL) {
 			ret = -EINVAL;
@@ -303,7 +303,7 @@ int hwmgr_handle_task(struct pp_instance *handle, enum amd_pp_task task_id,
 		ps = *(unsigned long *)input;
 
 		requested_ui_label = power_state_convert(ps);
-		ret = psm_set_user_performance_state(hwmgr, requested_ui_label, requested_ps);
+		ret = psm_set_user_performance_state(hwmgr, requested_ui_label, &requested_ps);
 		if (ret)
 			return ret;
 		ret = psm_adjust_power_state_dynamic(hwmgr, false, requested_ps);

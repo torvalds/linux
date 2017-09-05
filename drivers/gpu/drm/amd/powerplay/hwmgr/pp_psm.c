@@ -188,19 +188,19 @@ int psm_set_performance_states(struct pp_hwmgr *hwmgr)
 
 int psm_set_user_performance_state(struct pp_hwmgr *hwmgr,
 					enum PP_StateUILabel label_id,
-					struct pp_power_state *state)
+					struct pp_power_state **state)
 {
 	int table_entries;
 	int i;
 
 	table_entries = hwmgr->num_ps;
-	state = hwmgr->ps;
+	*state = hwmgr->ps;
 
 restart_search:
 	for (i = 0; i < table_entries; i++) {
-		if (state->classification.ui_label & label_id)
+		if ((*state)->classification.ui_label & label_id)
 			return 0;
-		state = (struct pp_power_state *)((unsigned long)state + hwmgr->ps_size);
+		*state = (struct pp_power_state *)((uintptr_t)*state + hwmgr->ps_size);
 	}
 
 	switch (label_id) {
