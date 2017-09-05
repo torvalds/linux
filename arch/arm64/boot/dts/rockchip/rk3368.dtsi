@@ -1903,8 +1903,11 @@
 						<2 16 RK_FUNC_1 &pcfg_pull_none>,
 						<2 17 RK_FUNC_1 &pcfg_pull_none>,
 						<2 18 RK_FUNC_1 &pcfg_pull_none>,
-						<2 19 RK_FUNC_1 &pcfg_pull_none>,
-						<2 20 RK_FUNC_1 &pcfg_pull_none>;
+						<2 19 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_mclk: i2s-8ch-mclk {
+				rockchip,pins = <2 20 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
