@@ -6949,10 +6949,8 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 	hdspm->pci = pci;
 
 	err = snd_hdspm_create(card, hdspm);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto free_card;
 
 	if (hdspm->io_type != MADIface) {
 		snprintf(card->shortname, sizeof(card->shortname), "%s_%x",
@@ -6970,15 +6968,17 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 	}
 
 	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto free_card;
 
 	pci_set_drvdata(pci, card);
 
 	dev++;
 	return 0;
+
+free_card:
+	snd_card_free(card);
+	return err;
 }
 
 static void snd_hdspm_remove(struct pci_dev *pci)
