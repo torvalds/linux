@@ -93,7 +93,7 @@
 #define IMAP_VALID_SHIFT             0
 #define IMAP_VALID                   BIT(IMAP_VALID_SHIFT)
 
-#define PCI_EXP_CAP			0xac
+#define IPROC_PCI_EXP_CAP		0xac
 
 #define IPROC_PCIE_REG_INVALID 0xffff
 
@@ -528,7 +528,7 @@ static int iproc_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
 			return ret;
 
 		/* Don't advertise CRS SV support */
-		if ((where & ~0x3) == PCI_EXP_CAP + PCI_EXP_RTCTL)
+		if ((where & ~0x3) == IPROC_PCI_EXP_CAP + PCI_EXP_RTCTL)
 			*val &= ~(PCI_EXP_RTCAP_CRSVIS << 16);
 		return PCIBIOS_SUCCESSFUL;
 	}
@@ -710,7 +710,6 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
 	u32 hdr_type, link_ctrl, link_status, class, val;
-	u16 pos = PCI_EXP_CAP;
 	bool link_is_active = false;
 
 	/*
@@ -745,7 +744,7 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie)
 				     4, class);
 
 	/* check link status to see if link is active */
-	iproc_pci_raw_config_read32(pcie, 0, pos + PCI_EXP_LNKSTA,
+	iproc_pci_raw_config_read32(pcie, 0, IPROC_PCI_EXP_CAP + PCI_EXP_LNKSTA,
 				    2, &link_status);
 	if (link_status & PCI_EXP_LNKSTA_NLW)
 		link_is_active = true;
@@ -756,20 +755,20 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie)
 #define PCI_TARGET_LINK_SPEED_GEN2    0x2
 #define PCI_TARGET_LINK_SPEED_GEN1    0x1
 		iproc_pci_raw_config_read32(pcie, 0,
-					  pos + PCI_EXP_LNKCTL2, 4,
-					  &link_ctrl);
+					    IPROC_PCI_EXP_CAP + PCI_EXP_LNKCTL2,
+					    4, &link_ctrl);
 		if ((link_ctrl & PCI_TARGET_LINK_SPEED_MASK) ==
 		    PCI_TARGET_LINK_SPEED_GEN2) {
 			link_ctrl &= ~PCI_TARGET_LINK_SPEED_MASK;
 			link_ctrl |= PCI_TARGET_LINK_SPEED_GEN1;
 			iproc_pci_raw_config_write32(pcie, 0,
-						pos + PCI_EXP_LNKCTL2,
-						4, link_ctrl);
+					IPROC_PCI_EXP_CAP + PCI_EXP_LNKCTL2,
+					4, link_ctrl);
 			msleep(100);
 
 			iproc_pci_raw_config_read32(pcie, 0,
-						pos + PCI_EXP_LNKSTA,
-						2, &link_status);
+					IPROC_PCI_EXP_CAP + PCI_EXP_LNKSTA,
+					2, &link_status);
 			if (link_status & PCI_EXP_LNKSTA_NLW)
 				link_is_active = true;
 		}
