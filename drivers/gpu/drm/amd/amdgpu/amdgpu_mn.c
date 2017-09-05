@@ -52,6 +52,8 @@ struct amdgpu_mn {
 	/* objects protected by lock */
 	struct rw_semaphore	lock;
 	struct rb_root		objects;
+	struct mutex		read_lock;
+	atomic_t		recursion;
 };
 
 struct amdgpu_mn_node {
@@ -126,6 +128,34 @@ void amdgpu_mn_unlock(struct amdgpu_mn *mn)
 }
 
 /**
+ * amdgpu_mn_read_lock - take the rmn read lock
+ *
+ * @rmn: our notifier
+ *
+ * Take the rmn read side lock.
+ */
+static void amdgpu_mn_read_lock(struct amdgpu_mn *rmn)
+{
+	mutex_lock(&rmn->read_lock);
+	if (atomic_inc_return(&rmn->recursion) == 1)
+		down_read_non_owner(&rmn->lock);
+	mutex_unlock(&rmn->read_lock);
+}
+
+/**
+ * amdgpu_mn_read_unlock - drop the rmn read lock
+ *
+ * @rmn: our notifier
+ *
+ * Drop the rmn read side lock.
+ */
+static void amdgpu_mn_read_unlock(struct amdgpu_mn *rmn)
+{
+	if (atomic_dec_return(&rmn->recursion) == 0)
+		up_read_non_owner(&rmn->lock);
+}
+
+/**
  * amdgpu_mn_invalidate_node - unmap all BOs of a node
  *
  * @node: the node with the BOs to unmap
@@ -171,7 +201,7 @@ static void amdgpu_mn_invalidate_page(struct mmu_notifier *mn,
 	struct amdgpu_mn *rmn = container_of(mn, struct amdgpu_mn, mn);
 	struct interval_tree_node *it;
 
-	down_read(&rmn->lock);
+	amdgpu_mn_read_lock(rmn);
 
 	it = interval_tree_iter_first(&rmn->objects, address, address);
 	if (it) {
@@ -181,7 +211,7 @@ static void amdgpu_mn_invalidate_page(struct mmu_notifier *mn,
 		amdgpu_mn_invalidate_node(node, address, address);
 	}
 
-	up_read(&rmn->lock);
+	amdgpu_mn_read_unlock(rmn);
 }
 
 /**
@@ -206,7 +236,7 @@ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
 	/* notification is exclusive, but interval is inclusive */
 	end -= 1;
 
-	down_read(&rmn->lock);
+	amdgpu_mn_read_lock(rmn);
 
 	it = interval_tree_iter_first(&rmn->objects, start, end);
 	while (it) {
@@ -217,14 +247,33 @@ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
 
 		amdgpu_mn_invalidate_node(node, start, end);
 	}
+}
 
-	up_read(&rmn->lock);
+/**
+ * amdgpu_mn_invalidate_range_end - callback to notify about mm change
+ *
+ * @mn: our notifier
+ * @mn: the mm this callback is about
+ * @start: start of updated range
+ * @end: end of updated range
+ *
+ * Release the lock again to allow new command submissions.
+ */
+static void amdgpu_mn_invalidate_range_end(struct mmu_notifier *mn,
+					   struct mm_struct *mm,
+					   unsigned long start,
+					   unsigned long end)
+{
+	struct amdgpu_mn *rmn = container_of(mn, struct amdgpu_mn, mn);
+
+	amdgpu_mn_read_unlock(rmn);
 }
 
 static const struct mmu_notifier_ops amdgpu_mn_ops = {
 	.release = amdgpu_mn_release,
 	.invalidate_page = amdgpu_mn_invalidate_page,
 	.invalidate_range_start = amdgpu_mn_invalidate_range_start,
+	.invalidate_range_end = amdgpu_mn_invalidate_range_end,
 };
 
 /**
@@ -261,6 +310,8 @@ struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev)
 	rmn->mn.ops = &amdgpu_mn_ops;
 	init_rwsem(&rmn->lock);
 	rmn->objects = RB_ROOT;
+	mutex_init(&rmn->read_lock);
+	atomic_set(&rmn->recursion, 0);
 
 	r = __mmu_notifier_register(&rmn->mn, mm);
 	if (r)

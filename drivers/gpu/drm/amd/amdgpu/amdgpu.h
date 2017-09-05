@@ -1204,11 +1204,11 @@ void amdgpu_test_moves(struct amdgpu_device *adev);
  * MMU Notifier
  */
 #if defined(CONFIG_MMU_NOTIFIER)
+void amdgpu_mn_lock(struct amdgpu_mn *mn);
+void amdgpu_mn_unlock(struct amdgpu_mn *mn);
 struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev);
 int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr);
 void amdgpu_mn_unregister(struct amdgpu_bo *bo);
-void amdgpu_mn_lock(struct amdgpu_mn *mn);
-void amdgpu_mn_unlock(struct amdgpu_mn *mn);
 #else
 static inline void amdgpu_mn_lock(struct amdgpu_mn *mn) {}
 static inline void amdgpu_mn_unlock(struct amdgpu_mn *mn) {}
