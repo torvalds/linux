@@ -5302,6 +5302,7 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 		 */
 		if (info->rep_prefix != REPE_PREFIX)
 			goto out;
+		break;
 	case SVM_EXIT_IOIO: {
 		u64 exit_info;
 		u32 bytes;
