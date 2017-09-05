@@ -426,6 +426,7 @@ smb2_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+#ifdef CONFIG_CIFS_XATTR
 static ssize_t
 move_smb2_ea_to_cifs(char *dst, size_t dst_size,
 		     struct smb2_file_full_ea_info *src, size_t src_size,
@@ -613,6 +614,7 @@ smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
 
 	return rc;
 }
+#endif
 
 static bool
 smb2_can_echo(struct TCP_Server_Info *server)
