@@ -2152,6 +2152,10 @@ static int musb_schedule(
 				(USB_SPEED_HIGH == qh->dev->speed) ? 8 : 4;
 		goto success;
 	} else if (best_end < 0) {
+		dev_err(musb->controller,
+				"%s hwep alloc failed for %dx%d\n",
+				musb_ep_xfertype_string(qh->type),
+				qh->hb_mult, qh->maxpacket);
 		return -ENOSPC;
 	}
 
@@ -2244,6 +2248,10 @@ static int musb_urb_enqueue(
 			ok = (usb_pipein(urb->pipe) && musb->hb_iso_rx)
 				|| (usb_pipeout(urb->pipe) && musb->hb_iso_tx);
 		if (!ok) {
+			dev_err(musb->controller,
+				"high bandwidth %s (%dx%d) not supported\n",
+				musb_ep_xfertype_string(qh->type),
+				qh->hb_mult, qh->maxpacket & 0x7ff);
 			ret = -EMSGSIZE;
 			goto done;
 		}

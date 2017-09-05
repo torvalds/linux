@@ -26,14 +26,6 @@ config PHY_LPC18XX_USB_OTG
 	  This driver is need for USB0 support on LPC18xx/43xx and takes
 	  care of enabling and clock setup.
 
-config PHY_MT65XX_USB3
-	tristate "Mediatek USB3.0 PHY Driver"
-	depends on ARCH_MEDIATEK && OF
-	select GENERIC_PHY
-	help
-	  Say 'Y' here to add support for Mediatek USB3.0 PHY driver,
-	  it supports multiple usb2.0 and usb3.0 ports.
-
 config PHY_PISTACHIO_USB
 	tristate "IMG Pistachio USB2.0 PHY driver"
 	depends on MACH_PISTACHIO
@@ -53,8 +45,10 @@ source "drivers/phy/amlogic/Kconfig"
 source "drivers/phy/broadcom/Kconfig"
 source "drivers/phy/hisilicon/Kconfig"
 source "drivers/phy/marvell/Kconfig"
+source "drivers/phy/mediatek/Kconfig"
 source "drivers/phy/motorola/Kconfig"
 source "drivers/phy/qualcomm/Kconfig"
+source "drivers/phy/ralink/Kconfig"
 source "drivers/phy/renesas/Kconfig"
 source "drivers/phy/rockchip/Kconfig"
 source "drivers/phy/samsung/Kconfig"

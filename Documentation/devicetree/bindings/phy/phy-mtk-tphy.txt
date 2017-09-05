@@ -1,13 +1,18 @@
-mt65xx USB3.0 PHY binding
+MediaTek T-PHY binding
 --------------------------
 
-This binding describes a usb3.0 phy for mt65xx platforms of Medaitek SoC.
+T-phy controller supports physical layer functionality for a number of
+controllers on MediaTek SoCs, such as, USB2.0, USB3.0, PCIe, and SATA.
 
 Required properties (controller (parent) node):
  - compatible	: should be one of
-		  "mediatek,mt2701-u3phy"
-		  "mediatek,mt2712-u3phy"
-		  "mediatek,mt8173-u3phy"
+		  "mediatek,generic-tphy-v1"
+		  "mediatek,generic-tphy-v2"
+		  "mediatek,mt2701-u3phy" (deprecated)
+		  "mediatek,mt2712-u3phy" (deprecated)
+		  "mediatek,mt8173-u3phy";
+		  make use of "mediatek,generic-tphy-v1" on mt2701 instead and
+		  "mediatek,generic-tphy-v2" on mt2712 instead.
  - clocks	: (deprecated, use port's clocks instead) a list of phandle +
 		  clock-specifier pairs, one for each entry in clock-names
  - clock-names	: (deprecated, use port's one instead) must contain
@@ -35,6 +40,8 @@ Required properties (port (child) node):
 		  cell after port phandle is phy type from:
 			- PHY_TYPE_USB2
 			- PHY_TYPE_USB3
+			- PHY_TYPE_PCIE
+			- PHY_TYPE_SATA
 
 Example:
 

@@ -1,7 +1,11 @@
 The device node for Mediatek USB3.0 DRD controller
 
 Required properties:
- - compatible : should be "mediatek,mt8173-mtu3"
+ - compatible : should be "mediatek,<soc-model>-mtu3", "mediatek,mtu3",
+	soc-model is the name of SoC, such as mt8173, mt2712 etc,
+	when using "mediatek,mtu3" compatible string, you need SoC specific
+	ones in addition, one of:
+	- "mediatek,mt8173-mtu3"
  - reg : specifies physical base address and size of the registers
  - reg-names: should be "mac" for device IP and "ippc" for IP port control
  - interrupts : interrupt used by the device IP
@@ -44,7 +48,7 @@ Optional properties:
 Sub-nodes:
 The xhci should be added as subnode to mtu3 as shown in the following example
 if host mode is enabled. The DT binding details of xhci can be found in:
-Documentation/devicetree/bindings/usb/mt8173-xhci.txt
+Documentation/devicetree/bindings/usb/mediatek,mtk-xhci.txt
 
 Example:
 ssusb: usb@11271000 {

@@ -2614,7 +2614,7 @@ static unsigned hub_is_wusb(struct usb_hub *hub)
 #define SET_CONFIG_TRIES	(2 * (use_both_schemes + 1))
 #define USE_NEW_SCHEME(i)	((i) / 2 == (int)old_scheme_first)
 
-#define HUB_ROOT_RESET_TIME	50	/* times are in msec */
+#define HUB_ROOT_RESET_TIME	60	/* times are in msec */
 #define HUB_SHORT_RESET_TIME	10
 #define HUB_BH_RESET_TIME	50
 #define HUB_LONG_RESET_TIME	200
@@ -4342,6 +4342,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	enum usb_device_speed	oldspeed = udev->speed;
 	const char		*speed;
 	int			devnum = udev->devnum;
+	const char		*driver_name;
 
 	/* root hub ports have a slightly longer reset period
 	 * (from USB 2.0 spec, section 7.1.7.5)
@@ -4409,11 +4410,23 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	else
 		speed = usb_speed_string(udev->speed);
 
+	/*
+	 * The controller driver may be NULL if the controller device
+	 * is the middle device between platform device and roothub.
+	 * This middle device may not need a device driver due to
+	 * all hardware control can be at platform device driver, this
+	 * platform device is usually a dual-role USB controller device.
+	 */
+	if (udev->bus->controller->driver)
+		driver_name = udev->bus->controller->driver->name;
+	else
+		driver_name = udev->bus->sysdev->driver->name;
+
 	if (udev->speed < USB_SPEED_SUPER)
 		dev_info(&udev->dev,
 				"%s %s USB device number %d using %s\n",
 				(udev->config) ? "reset" : "new", speed,
-				devnum, udev->bus->controller->driver->name);
+				devnum, driver_name);
 
 	/* Set up TT records, if needed  */
 	if (hdev->tt) {
@@ -4545,7 +4558,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 						"%s SuperSpeed%s USB device number %d using %s\n",
 						(udev->config) ? "reset" : "new",
 					 (udev->speed == USB_SPEED_SUPER_PLUS) ? "Plus" : "",
-						devnum, udev->bus->controller->driver->name);
+					 devnum, driver_name);
 			}
 
 			/* cope with hardware quirkiness:

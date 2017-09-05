@@ -114,7 +114,6 @@
 
 #define DRIVER_NAME	"usb251xb"
 #define DRIVER_DESC	"Microchip USB 2.0 Hi-Speed Hub Controller"
-#define DRIVER_VERSION	"1.0"
 
 struct usb251xb {
 	struct device *dev;

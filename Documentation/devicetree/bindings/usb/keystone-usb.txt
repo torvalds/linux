@@ -12,8 +12,21 @@ Required properties:
    MPU.
  - ranges: allows valid 1:1 translation between child's address space and
    parent's address space.
- - clocks: Clock IDs array as required by the controller.
- - clock-names: names of clocks correseponding to IDs in the clock property.
+
+SoC-specific Required Properties:
+The following are mandatory properties for Keystone 2 66AK2HK, 66AK2L and 66AK2E
+SoCs only:
+
+- clocks:		Clock ID for USB functional clock.
+- clock-names:		Must be "usb".
+
+
+The following are mandatory properties for Keystone 2 66AK2G SoCs only:
+
+- power-domains:	Should contain a phandle to a PM domain provider node
+			and an args specifier containing the USB device id
+			value. This property is as per the binding,
+			Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
 
 Sub-nodes:
 The dwc3 core should be added as subnode to Keystone DWC3 glue.

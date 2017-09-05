@@ -465,6 +465,30 @@ static inline struct musb *gadget_to_musb(struct usb_gadget *g)
 	return container_of(g, struct musb, g);
 }
 
+static inline char *musb_ep_xfertype_string(u8 type)
+{
+	char *s;
+
+	switch (type) {
+	case USB_ENDPOINT_XFER_CONTROL:
+		s = "ctrl";
+		break;
+	case USB_ENDPOINT_XFER_ISOC:
+		s = "iso";
+		break;
+	case USB_ENDPOINT_XFER_BULK:
+		s = "bulk";
+		break;
+	case USB_ENDPOINT_XFER_INT:
+		s = "int";
+		break;
+	default:
+		s = "";
+		break;
+	}
+	return s;
+}
+
 #ifdef CONFIG_BLACKFIN
 static inline int musb_read_fifosize(struct musb *musb,
 		struct musb_hw_ep *hw_ep, u8 epnum)
