@@ -562,6 +562,9 @@ static inline struct dentry *d_backing_dentry(struct dentry *upper)
 	return upper;
 }
 
+/* d_real() flags */
+#define D_REAL_UPPER	0x2	/* return upper dentry or NULL if non-upper */
+
 /**
  * d_real - Return the real dentry
  * @dentry: the dentry to query
