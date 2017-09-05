@@ -4165,12 +4165,6 @@ RTY_SEND_CMD:
 					rtsx_trace(chip);
 					return STATUS_FAIL;
 				}
-
-			} else if (rsp_type == SD_RSP_TYPE_R0) {
-				if ((ptr[3] & 0x1E) != 0x03) {
-					rtsx_trace(chip);
-					return STATUS_FAIL;
-				}
 			}
 		}
 	}
