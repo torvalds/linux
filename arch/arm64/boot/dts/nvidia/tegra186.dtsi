@@ -355,6 +355,24 @@
 		nvidia,bpmp = <&bpmp>;
 	};
 
+	host1x@13e00000 {
+		compatible = "nvidia,tegra186-host1x", "simple-bus";
+		reg = <0x0 0x13e00000 0x0 0x10000>,
+		      <0x0 0x13e10000 0x0 0x10000>;
+		reg-names = "hypervisor", "vm";
+		interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>,
+		             <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp TEGRA186_CLK_HOST1X>;
+		clock-names = "host1x";
+		resets = <&bpmp TEGRA186_RESET_HOST1X>;
+		reset-names = "host1x";
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		ranges = <0x15000000 0x0 0x15000000 0x01000000>;
+	};
+
 	gpu@17000000 {
 		compatible = "nvidia,gp10b";
 		reg = <0x0 0x17000000 0x0 0x1000000>,
