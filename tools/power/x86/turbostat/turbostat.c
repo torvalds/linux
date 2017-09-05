@@ -91,6 +91,7 @@ double rapl_power_units, rapl_time_units;
 double rapl_dram_energy_units, rapl_energy_units;
 double rapl_joule_counter_range;
 unsigned int do_core_perf_limit_reasons;
+unsigned int has_automatic_cstate_conversion;
 unsigned int do_gfx_perf_limit_reasons;
 unsigned int do_ring_perf_limit_reasons;
 unsigned int crystal_hz;
@@ -2118,7 +2119,7 @@ dump_nhm_cst_cfg(void)
 
 	fprintf(outf, "cpu%d: MSR_PKG_CST_CONFIG_CONTROL: 0x%08llx", base_cpu, msr);
 
-	fprintf(outf, " (%s%s%s%s%slocked: pkg-cstate-limit=%d: %s)\n",
+	fprintf(outf, " (%s%s%s%s%slocked: pkg-cstate-limit=%d: %s",
 		(msr & SNB_C3_AUTO_UNDEMOTE) ? "UNdemote-C3, " : "",
 		(msr & SNB_C1_AUTO_UNDEMOTE) ? "UNdemote-C1, " : "",
 		(msr & NHM_C3_AUTO_DEMOTE) ? "demote-C3, " : "",
@@ -2126,6 +2127,15 @@ dump_nhm_cst_cfg(void)
 		(msr & (1 << 15)) ? "" : "UN",
 		(unsigned int)msr & 0xF,
 		pkg_cstate_limit_strings[pkg_cstate_limit]);
+
+#define AUTOMATIC_CSTATE_CONVERSION		(1UL << 16)
+	if (has_automatic_cstate_conversion) {
+		fprintf(outf, ", automatic c-state conversion=%s",
+			(msr & AUTOMATIC_CSTATE_CONVERSION) ? "on" : "off");
+	}
+
+	fprintf(outf, ")\n");
+
 	return;
 }
 
@@ -3632,6 +3642,12 @@ void perf_limit_reasons_probe(unsigned int family, unsigned int model)
 	}
 }
 
+void automatic_cstate_conversion_probe(unsigned int family, unsigned int model)
+{
+	if (is_skx(family, model) || is_bdx(family, model))
+		has_automatic_cstate_conversion = 1;
+}
+
 int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	unsigned long long msr;
@@ -4370,6 +4386,7 @@ void process_cpuid()
 
 	rapl_probe(family, model);
 	perf_limit_reasons_probe(family, model);
+	automatic_cstate_conversion_probe(family, model);
 
 	if (!quiet)
 		dump_cstate_pstate_config_info(family, model);
