@@ -37,7 +37,7 @@ static int rtw_hw_suspend(struct adapter *padapter)
 	/* system suspend */
 	LeaveAllPowerSaveMode(padapter);
 
-	DBG_88E("==> rtw_hw_suspend\n");
+	DBG_88E("==> %s\n", __func__);
 	mutex_lock(&pwrpriv->mutex_lock);
 	pwrpriv->bips_processing = true;
 	/* s1. */
@@ -89,7 +89,7 @@ static int rtw_hw_resume(struct adapter *padapter)
 
 
 	/* system resume */
-	DBG_88E("==> rtw_hw_resume\n");
+	DBG_88E("==> %s\n", __func__);
 	mutex_lock(&pwrpriv->mutex_lock);
 	pwrpriv->bips_processing = true;
 	rtw_reset_drv_sw(padapter);
@@ -146,7 +146,7 @@ void ips_enter(struct adapter *padapter)
 	pwrpriv->ips_mode = pwrpriv->ips_mode_req;
 
 	pwrpriv->ips_enter_cnts++;
-	DBG_88E("==>ips_enter cnts:%d\n", pwrpriv->ips_enter_cnts);
+	DBG_88E("==>%s:%d\n", __func__, pwrpriv->ips_enter_cnts);
 	if (rf_off == pwrpriv->change_rfpwrstate) {
 		pwrpriv->bpower_saving = true;
 		DBG_88E_LEVEL(_drv_info_, "nolinked power save enter\n");
@@ -177,7 +177,7 @@ int ips_leave(struct adapter *padapter)
 		pwrpriv->bips_processing = true;
 		pwrpriv->change_rfpwrstate = rf_on;
 		pwrpriv->ips_leave_cnts++;
-		DBG_88E("==>ips_leave cnts:%d\n", pwrpriv->ips_leave_cnts);
+		DBG_88E("==>%s:%d\n", __func__, pwrpriv->ips_leave_cnts);
 
 		result = rtw_ips_pwr_up(padapter);
 		if (result == _SUCCESS)
@@ -198,7 +198,7 @@ int ips_leave(struct adapter *padapter)
 			}
 		}
 
-		DBG_88E("==> ips_leave.....LED(0x%08x)...\n", usb_read32(padapter, 0x4c));
+		DBG_88E("==> %s.....LED(0x%08x)...\n", __func__, usb_read32(padapter, 0x4c));
 		pwrpriv->bips_processing = false;
 
 		pwrpriv->bkeepfwalive = false;
@@ -332,7 +332,7 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 
 	rpwm = pslv | pwrpriv->tog;
 	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
-		 ("rtw_set_rpwm: rpwm=0x%02x cpwm=0x%02x\n", rpwm, pwrpriv->cpwm));
+		 ("%s: rpwm=0x%02x cpwm=0x%02x\n", __func__, rpwm, pwrpriv->cpwm));
 
 	pwrpriv->rpwm = pslv;
 
