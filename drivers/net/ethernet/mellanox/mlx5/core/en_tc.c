@@ -1564,7 +1564,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 		break;
 	default:
 		err = -EOPNOTSUPP;
-		goto out;
+		goto free_encap;
 	}
 	fl4.flowi4_tos = tun_key->tos;
 	fl4.daddr = tun_key->u.ipv4.dst;
@@ -1573,7 +1573,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, &out_dev,
 				      &fl4, &n, &ttl);
 	if (err)
-		goto out;
+		goto free_encap;
 
 	/* used by mlx5e_detach_encap to lookup a neigh hash table
 	 * entry in the neigh hash table when a user deletes a rule
@@ -1590,7 +1590,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	 */
 	err = mlx5e_rep_encap_entry_attach(netdev_priv(out_dev), e);
 	if (err)
-		goto out;
+		goto free_encap;
 
 	read_lock_bh(&n->lock);
 	nud_state = n->nud_state;
@@ -1630,8 +1630,9 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 
 destroy_neigh_entry:
 	mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
-out:
+free_encap:
 	kfree(encap_header);
+out:
 	if (n)
 		neigh_release(n);
 	return err;
@@ -1668,7 +1669,7 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 		break;
 	default:
 		err = -EOPNOTSUPP;
-		goto out;
+		goto free_encap;
 	}
 
 	fl6.flowlabel = ip6_make_flowinfo(RT_TOS(tun_key->tos), tun_key->label);
@@ -1678,7 +1679,7 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	err = mlx5e_route_lookup_ipv6(priv, mirred_dev, &out_dev,
 				      &fl6, &n, &ttl);
 	if (err)
-		goto out;
+		goto free_encap;
 
 	/* used by mlx5e_detach_encap to lookup a neigh hash table
 	 * entry in the neigh hash table when a user deletes a rule
@@ -1695,7 +1696,7 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 	 */
 	err = mlx5e_rep_encap_entry_attach(netdev_priv(out_dev), e);
 	if (err)
-		goto out;
+		goto free_encap;
 
 	read_lock_bh(&n->lock);
 	nud_state = n->nud_state;
@@ -1736,8 +1737,9 @@ static int mlx5e_create_encap_header_ipv6(struct mlx5e_priv *priv,
 
 destroy_neigh_entry:
 	mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
-out:
+free_encap:
 	kfree(encap_header);
+out:
 	if (n)
 		neigh_release(n);
 	return err;
