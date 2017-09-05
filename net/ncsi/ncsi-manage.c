@@ -1453,6 +1453,7 @@ int ncsi_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 
 	return found ? ncsi_process_next_channel(ndp) : 0;
 }
+EXPORT_SYMBOL_GPL(ncsi_vlan_rx_add_vid);
 
 int ncsi_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
@@ -1491,6 +1492,7 @@ int ncsi_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 
 	return found ? ncsi_process_next_channel(ndp) : 0;
 }
+EXPORT_SYMBOL_GPL(ncsi_vlan_rx_kill_vid);
 
 struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 				   void (*handler)(struct ncsi_dev *ndev))
