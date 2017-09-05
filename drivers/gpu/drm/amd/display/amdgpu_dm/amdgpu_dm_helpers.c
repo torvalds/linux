@@ -133,7 +133,7 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 }
 
 static void get_payload_table(
-		struct amdgpu_connector *aconnector,
+		struct amdgpu_dm_connector *aconnector,
 		struct dp_mst_stream_allocation_table *proposed_table)
 {
 	int i;
@@ -178,7 +178,7 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 		struct dp_mst_stream_allocation_table *proposed_table,
 		bool enable)
 {
-	struct amdgpu_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
 	struct drm_dp_mst_port *mst_port;
 	int slots = 0;
@@ -266,7 +266,7 @@ bool dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 		struct dc_context *ctx,
 		const struct dc_stream_state *stream)
 {
-	struct amdgpu_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
 	int ret;
 
@@ -293,7 +293,7 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 		const struct dc_stream_state *stream,
 		bool enable)
 {
-	struct amdgpu_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
 	struct drm_dp_mst_port *mst_port;
 	int ret;
@@ -341,7 +341,7 @@ bool dm_helpers_dp_mst_start_top_mgr(
 		const struct dc_link *link,
 		bool boot)
 {
-	struct amdgpu_connector *aconnector = link->priv;
+	struct amdgpu_dm_connector *aconnector = link->priv;
 
 	if (!aconnector) {
 			DRM_ERROR("Failed to found connector for link!");
@@ -364,7 +364,7 @@ void dm_helpers_dp_mst_stop_top_mgr(
 		struct dc_context *ctx,
 		const struct dc_link *link)
 {
-	struct amdgpu_connector *aconnector = link->priv;
+	struct amdgpu_dm_connector *aconnector = link->priv;
 
 	if (!aconnector) {
 			DRM_ERROR("Failed to found connector for link!");
@@ -386,7 +386,7 @@ bool dm_helpers_dp_read_dpcd(
 		uint32_t size)
 {
 
-	struct amdgpu_connector *aconnector = link->priv;
+	struct amdgpu_dm_connector *aconnector = link->priv;
 
 	if (!aconnector) {
 		DRM_ERROR("Failed to found connector for link!");
@@ -404,7 +404,7 @@ bool dm_helpers_dp_write_dpcd(
 		const uint8_t *data,
 		uint32_t size)
 {
-	struct amdgpu_connector *aconnector = link->priv;
+	struct amdgpu_dm_connector *aconnector = link->priv;
 
 	if (!aconnector) {
 		DRM_ERROR("Failed to found connector for link!");
@@ -420,7 +420,7 @@ bool dm_helpers_submit_i2c(
 		const struct dc_link *link,
 		struct i2c_command *cmd)
 {
-	struct amdgpu_connector *aconnector = link->priv;
+	struct amdgpu_dm_connector *aconnector = link->priv;
 	struct i2c_msg *msgs;
 	int i = 0;
 	int num = cmd->number_of_payloads;
@@ -455,7 +455,7 @@ enum dc_edid_status dm_helpers_read_local_edid(
 		struct dc_link *link,
 		struct dc_sink *sink)
 {
-	struct amdgpu_connector *aconnector = link->priv;
+	struct amdgpu_dm_connector *aconnector = link->priv;
 	struct i2c_adapter *ddc;
 	int retry = 3;
 	enum dc_edid_status edid_status;

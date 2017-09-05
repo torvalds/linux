@@ -787,10 +787,10 @@ void amdgpu_dm_hpd_init(struct amdgpu_device *adev)
 	struct drm_connector *connector;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct amdgpu_connector *amdgpu_connector =
-				to_amdgpu_connector(connector);
+		struct amdgpu_dm_connector *amdgpu_dm_connector =
+				to_amdgpu_dm_connector(connector);
 
-		const struct dc_link *dc_link = amdgpu_connector->dc_link;
+		const struct dc_link *dc_link = amdgpu_dm_connector->dc_link;
 
 		if (DC_IRQ_SOURCE_INVALID != dc_link->irq_source_hpd) {
 			dc_interrupt_set(adev->dm.dc,
@@ -820,9 +820,9 @@ void amdgpu_dm_hpd_fini(struct amdgpu_device *adev)
 	struct drm_connector *connector;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct amdgpu_connector *amdgpu_connector =
-				to_amdgpu_connector(connector);
-		const struct dc_link *dc_link = amdgpu_connector->dc_link;
+		struct amdgpu_dm_connector *amdgpu_dm_connector =
+				to_amdgpu_dm_connector(connector);
+		const struct dc_link *dc_link = amdgpu_dm_connector->dc_link;
 
 		dc_interrupt_set(adev->dm.dc, dc_link->irq_source_hpd, false);
 

@@ -137,8 +137,8 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg 
 static enum drm_connector_status
 dm_dp_mst_detect(struct drm_connector *connector, bool force)
 {
-	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
-	struct amdgpu_connector *master = aconnector->mst_port;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct amdgpu_dm_connector *master = aconnector->mst_port;
 
 	enum drm_connector_status status =
 		drm_dp_mst_detect_port(
@@ -152,13 +152,13 @@ dm_dp_mst_detect(struct drm_connector *connector, bool force)
 static void
 dm_dp_mst_connector_destroy(struct drm_connector *connector)
 {
-	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
-	struct amdgpu_encoder *amdgpu_encoder = amdgpu_connector->mst_encoder;
+	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
+	struct amdgpu_encoder *amdgpu_encoder = amdgpu_dm_connector->mst_encoder;
 
 	drm_encoder_cleanup(&amdgpu_encoder->base);
 	kfree(amdgpu_encoder);
 	drm_connector_cleanup(connector);
-	kfree(amdgpu_connector);
+	kfree(amdgpu_dm_connector);
 }
 
 static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
@@ -174,7 +174,7 @@ static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 
 static int dm_dp_mst_get_modes(struct drm_connector *connector)
 {
-	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 	int ret = 0;
 
 	ret = drm_add_edid_modes(&aconnector->base, aconnector->edid);
@@ -186,9 +186,9 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 
 static struct drm_encoder *dm_mst_best_encoder(struct drm_connector *connector)
 {
-	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
+	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
 
-	return &amdgpu_connector->mst_encoder->base;
+	return &amdgpu_dm_connector->mst_encoder->base;
 }
 
 static const struct drm_connector_helper_funcs dm_dp_mst_connector_helper_funcs = {
@@ -198,7 +198,7 @@ static const struct drm_connector_helper_funcs dm_dp_mst_connector_helper_funcs 
 };
 
 static struct amdgpu_encoder *
-dm_dp_create_fake_mst_encoder(struct amdgpu_connector *connector)
+dm_dp_create_fake_mst_encoder(struct amdgpu_dm_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -233,15 +233,15 @@ static struct drm_connector *dm_dp_add_mst_connector(struct drm_dp_mst_topology_
 							 struct drm_dp_mst_port *port,
 							 const char *pathprop)
 {
-	struct amdgpu_connector *master = container_of(mgr, struct amdgpu_connector, mst_mgr);
+	struct amdgpu_dm_connector *master = container_of(mgr, struct amdgpu_dm_connector, mst_mgr);
 	struct drm_device *dev = master->base.dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	struct amdgpu_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector;
 	struct drm_connector *connector;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		aconnector = to_amdgpu_connector(connector);
+		aconnector = to_amdgpu_dm_connector(connector);
 		if (aconnector->mst_port == master
 				&& !aconnector->port) {
 			DRM_INFO("DM_MST: reusing connector: %p [id: %d] [master: %p]\n",
@@ -315,7 +315,7 @@ static void dm_dp_destroy_mst_connector(
 	struct drm_dp_mst_topology_mgr *mgr,
 	struct drm_connector *connector)
 {
-	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 
 	DRM_INFO("DM_MST: Disabling connector: %p [id: %d] [master: %p]\n",
 				aconnector, connector->base.id, aconnector->mst_port);
@@ -339,17 +339,17 @@ static void dm_dp_destroy_mst_connector(
 
 static void dm_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
 {
-	struct amdgpu_connector *master = container_of(mgr, struct amdgpu_connector, mst_mgr);
+	struct amdgpu_dm_connector *master = container_of(mgr, struct amdgpu_dm_connector, mst_mgr);
 	struct drm_device *dev = master->base.dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_connector *connector;
-	struct amdgpu_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector;
 	struct edid *edid;
 	struct dc_sink *dc_sink;
 
 	drm_modeset_lock_all(dev);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		aconnector = to_amdgpu_connector(connector);
+		aconnector = to_amdgpu_dm_connector(connector);
 		if (aconnector->port &&
 				aconnector->port->pdt != DP_PEER_DEVICE_NONE &&
 				aconnector->port->pdt != DP_PEER_DEVICE_MST_BRANCHING &&
@@ -440,7 +440,7 @@ static const struct drm_dp_mst_topology_cbs dm_mst_cbs = {
 
 void amdgpu_dm_initialize_dp_connector(
 	struct amdgpu_display_manager *dm,
-	struct amdgpu_connector *aconnector)
+	struct amdgpu_dm_connector *aconnector)
 {
 	aconnector->dm_dp_aux.aux.name = "dmdc";
 	aconnector->dm_dp_aux.aux.dev = dm->adev->dev;

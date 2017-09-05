@@ -27,10 +27,10 @@
 #define __DAL_AMDGPU_DM_MST_TYPES_H__
 
 struct amdgpu_display_manager;
-struct amdgpu_connector;
+struct amdgpu_dm_connector;
 
 void amdgpu_dm_initialize_dp_connector(
 	struct amdgpu_display_manager *dm,
-	struct amdgpu_connector *aconnector);
+	struct amdgpu_dm_connector *aconnector);
 
 #endif

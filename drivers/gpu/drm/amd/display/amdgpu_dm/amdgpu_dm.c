@@ -465,14 +465,14 @@ static int dm_sw_fini(void *handle)
 
 static int detect_mst_link_for_all_connectors(struct drm_device *dev)
 {
-	struct amdgpu_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector;
 	struct drm_connector *connector;
 	int ret = 0;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		   aconnector = to_amdgpu_connector(connector);
+		   aconnector = to_amdgpu_dm_connector(connector);
 		if (aconnector->dc_link->type == dc_connection_mst_branch) {
 			DRM_INFO("DM_MST: starting TM on aconnector: %p [id: %d]\n",
 					aconnector, aconnector->base.base.id);
@@ -500,13 +500,13 @@ static int dm_late_init(void *handle)
 
 static void s3_handle_mst(struct drm_device *dev, bool suspend)
 {
-	struct amdgpu_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector;
 	struct drm_connector *connector;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		   aconnector = to_amdgpu_connector(connector);
+		   aconnector = to_amdgpu_dm_connector(connector);
 		   if (aconnector->dc_link->type == dc_connection_mst_branch &&
 				   !aconnector->mst_port) {
 
@@ -562,7 +562,7 @@ static int dm_suspend(void *handle)
 	return ret;
 }
 
-struct amdgpu_connector *amdgpu_dm_find_first_crct_matching_connector(
+struct amdgpu_dm_connector *amdgpu_dm_find_first_crct_matching_connector(
 	struct drm_atomic_state *state,
 	struct drm_crtc *crtc,
 	bool from_state_var)
@@ -583,7 +583,7 @@ struct amdgpu_connector *amdgpu_dm_find_first_crct_matching_connector(
 				connector->state->crtc;
 
 		if (crtc_from_state == crtc)
-			return to_amdgpu_connector(connector);
+			return to_amdgpu_dm_connector(connector);
 	}
 
 	return NULL;
@@ -607,7 +607,7 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev )
 {
 	struct drm_device *ddev = adev->ddev;
 	struct amdgpu_display_manager *dm = &adev->dm;
-	struct amdgpu_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
@@ -629,7 +629,7 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev )
 	/* Do detection*/
 	list_for_each_entry(connector,
 			&ddev->mode_config.connector_list, head) {
-		aconnector = to_amdgpu_connector(connector);
+		aconnector = to_amdgpu_dm_connector(connector);
 
 		/*
 		 * this is the case when traversing through already created
@@ -741,7 +741,7 @@ static struct drm_mode_config_helper_funcs amdgpu_dm_mode_config_helperfuncs = {
 };
 
 void amdgpu_dm_update_connector_after_detect(
-	struct amdgpu_connector *aconnector)
+	struct amdgpu_dm_connector *aconnector)
 {
 	struct drm_connector *connector = &aconnector->base;
 	struct drm_device *dev = connector->dev;
@@ -847,7 +847,7 @@ void amdgpu_dm_update_connector_after_detect(
 
 static void handle_hpd_irq(void *param)
 {
-	struct amdgpu_connector *aconnector = (struct amdgpu_connector *)param;
+	struct amdgpu_dm_connector *aconnector = (struct amdgpu_dm_connector *)param;
 	struct drm_connector *connector = &aconnector->base;
 	struct drm_device *dev = connector->dev;
 
@@ -870,7 +870,7 @@ static void handle_hpd_irq(void *param)
 
 }
 
-static void dm_handle_hpd_rx_irq(struct amdgpu_connector *aconnector)
+static void dm_handle_hpd_rx_irq(struct amdgpu_dm_connector *aconnector)
 {
 	uint8_t esi[DP_PSR_ERROR_STATUS - DP_SINK_COUNT_ESI] = { 0 };
 	uint8_t dret;
@@ -949,7 +949,7 @@ static void dm_handle_hpd_rx_irq(struct amdgpu_connector *aconnector)
 
 static void handle_hpd_rx_irq(void *param)
 {
-	struct amdgpu_connector *aconnector = (struct amdgpu_connector *)param;
+	struct amdgpu_dm_connector *aconnector = (struct amdgpu_dm_connector *)param;
 	struct drm_connector *connector = &aconnector->base;
 	struct drm_device *dev = connector->dev;
 	const struct dc_link *dc_link = aconnector->dc_link;
@@ -988,7 +988,7 @@ static void register_hpd_handlers(struct amdgpu_device *adev)
 {
 	struct drm_device *dev = adev->ddev;
 	struct drm_connector *connector;
-	struct amdgpu_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector;
 	const struct dc_link *dc_link;
 	struct dc_interrupt_params int_params = {0};
 
@@ -998,7 +998,7 @@ static void register_hpd_handlers(struct amdgpu_device *adev)
 	list_for_each_entry(connector,
 			&dev->mode_config.connector_list, head)	{
 
-		aconnector = to_amdgpu_connector(connector);
+		aconnector = to_amdgpu_dm_connector(connector);
 		dc_link = aconnector->dc_link;
 
 		if (DC_IRQ_SOURCE_INVALID != dc_link->irq_source_hpd) {
@@ -1279,7 +1279,7 @@ int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 {
 	struct amdgpu_display_manager *dm = &adev->dm;
 	uint32_t i;
-	struct amdgpu_connector *aconnector = NULL;
+	struct amdgpu_dm_connector *aconnector = NULL;
 	struct amdgpu_encoder *aencoder = NULL;
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	uint32_t link_cnt;
@@ -1966,18 +1966,18 @@ static int fill_plane_attributes(
 
 /*****************************************************************************/
 
-struct amdgpu_connector *aconnector_from_drm_crtc_id(
+struct amdgpu_dm_connector *aconnector_from_drm_crtc_id(
 		const struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_connector *connector;
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-	struct amdgpu_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector;
 
 	list_for_each_entry(connector,
 			&dev->mode_config.connector_list, head)	{
 
-		aconnector = to_amdgpu_connector(connector);
+		aconnector = to_amdgpu_dm_connector(connector);
 
 		if (aconnector->base.state->crtc != &acrtc->base)
 			continue;
@@ -2279,7 +2279,7 @@ static void decide_crtc_timing_for_drm_display_mode(
 }
 
 static struct dc_stream_state *create_stream_for_sink(
-		struct amdgpu_connector *aconnector,
+		struct amdgpu_dm_connector *aconnector,
 		const struct drm_display_mode *drm_mode,
 		const struct dm_connector_state *dm_state)
 {
@@ -2425,7 +2425,7 @@ static enum drm_connector_status
 amdgpu_dm_connector_detect(struct drm_connector *connector, bool force)
 {
 	bool connected;
-	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 
 	/* Notes:
 	 * 1. This interface is NOT called in context of HPD irq.
@@ -2538,7 +2538,7 @@ int amdgpu_dm_connector_atomic_get_property(
 
 void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 {
-	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 	const struct dc_link *link = aconnector->dc_link;
 	struct amdgpu_device *adev = connector->dev->dev_private;
 	struct amdgpu_display_manager *dm = &adev->dm;
@@ -2636,7 +2636,7 @@ static int get_modes(struct drm_connector *connector)
 	return amdgpu_dm_connector_get_modes(connector);
 }
 
-static void create_eml_sink(struct amdgpu_connector *aconnector)
+static void create_eml_sink(struct amdgpu_dm_connector *aconnector)
 {
 	struct dc_sink_init_data init_params = {
 			.link = aconnector->dc_link,
@@ -2669,7 +2669,7 @@ static void create_eml_sink(struct amdgpu_connector *aconnector)
 		aconnector->dc_em_sink;
 }
 
-static void handle_edid_mgmt(struct amdgpu_connector *aconnector)
+static void handle_edid_mgmt(struct amdgpu_dm_connector *aconnector)
 {
 	struct dc_link *link = (struct dc_link *)aconnector->dc_link;
 
@@ -2695,7 +2695,7 @@ int amdgpu_dm_connector_mode_valid(
 	struct amdgpu_device *adev = connector->dev->dev_private;
 	/* TODO: Unhardcode stream count */
 	struct dc_stream_state *stream;
-	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
 			(mode->flags & DRM_MODE_FLAG_DBLSCAN))
@@ -2708,7 +2708,7 @@ int amdgpu_dm_connector_mode_valid(
 		!aconnector->dc_em_sink)
 		handle_edid_mgmt(aconnector);
 
-	dc_sink = to_amdgpu_connector(connector)->dc_sink;
+	dc_sink = to_amdgpu_dm_connector(connector)->dc_sink;
 
 	if (dc_sink == NULL) {
 		DRM_ERROR("dc_sink is NULL!\n");
@@ -2968,7 +2968,7 @@ int dm_create_validation_set_for_connector(struct drm_connector *connector,
 {
 	int result = MODE_ERROR;
 	struct dc_sink *dc_sink =
-			to_amdgpu_connector(connector)->dc_sink;
+			to_amdgpu_dm_connector(connector)->dc_sink;
 	/* TODO: Unhardcode stream count */
 	struct dc_stream_state *stream;
 
@@ -3229,8 +3229,8 @@ static void amdgpu_dm_connector_add_common_modes(struct drm_encoder *encoder,
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	struct drm_display_mode *mode = NULL;
 	struct drm_display_mode *native_mode = &amdgpu_encoder->native_mode;
-	struct amdgpu_connector *amdgpu_connector =
-				to_amdgpu_connector(connector);
+	struct amdgpu_dm_connector *amdgpu_dm_connector =
+				to_amdgpu_dm_connector(connector);
 	int i;
 	int n;
 	struct mode_size {
@@ -3278,7 +3278,7 @@ static void amdgpu_dm_connector_add_common_modes(struct drm_encoder *encoder,
 				common_modes[i].name, common_modes[i].w,
 				common_modes[i].h);
 		drm_mode_probed_add(connector, mode);
-		amdgpu_connector->num_modes++;
+		amdgpu_dm_connector->num_modes++;
 	}
 }
 
@@ -3286,41 +3286,41 @@ static void amdgpu_dm_connector_ddc_get_modes(
 	struct drm_connector *connector,
 	struct edid *edid)
 {
-	struct amdgpu_connector *amdgpu_connector =
-			to_amdgpu_connector(connector);
+	struct amdgpu_dm_connector *amdgpu_dm_connector =
+			to_amdgpu_dm_connector(connector);
 
 	if (edid) {
 		/* empty probed_modes */
 		INIT_LIST_HEAD(&connector->probed_modes);
-		amdgpu_connector->num_modes =
+		amdgpu_dm_connector->num_modes =
 				drm_add_edid_modes(connector, edid);
 
 		drm_edid_to_eld(connector, edid);
 
 		amdgpu_dm_get_native_mode(connector);
 	} else
-		amdgpu_connector->num_modes = 0;
+		amdgpu_dm_connector->num_modes = 0;
 }
 
 int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 {
 	const struct drm_connector_helper_funcs *helper =
 			connector->helper_private;
-	struct amdgpu_connector *amdgpu_connector =
-			to_amdgpu_connector(connector);
+	struct amdgpu_dm_connector *amdgpu_dm_connector =
+			to_amdgpu_dm_connector(connector);
 	struct drm_encoder *encoder;
-	struct edid *edid = amdgpu_connector->edid;
+	struct edid *edid = amdgpu_dm_connector->edid;
 
 	encoder = helper->best_encoder(connector);
 
 	amdgpu_dm_connector_ddc_get_modes(connector, edid);
 	amdgpu_dm_connector_add_common_modes(encoder, connector);
-	return amdgpu_connector->num_modes;
+	return amdgpu_dm_connector->num_modes;
 }
 
 void amdgpu_dm_connector_init_helper(
 	struct amdgpu_display_manager *dm,
-	struct amdgpu_connector *aconnector,
+	struct amdgpu_dm_connector *aconnector,
 	int connector_type,
 	struct dc_link *link,
 	int link_index)
@@ -3440,7 +3440,7 @@ static struct amdgpu_i2c_adapter *create_i2c(
  */
 int amdgpu_dm_connector_init(
 	struct amdgpu_display_manager *dm,
-	struct amdgpu_connector *aconnector,
+	struct amdgpu_dm_connector *aconnector,
 	uint32_t link_index,
 	struct amdgpu_encoder *aencoder)
 {
@@ -4076,7 +4076,7 @@ void amdgpu_dm_atomic_commit_tail(
 	 */
 	if (adev->dm.freesync_module) {
 		for (i = 0; i < new_crtcs_count; i++) {
-			struct amdgpu_connector *aconnector = NULL;
+			struct amdgpu_dm_connector *aconnector = NULL;
 
 			new_acrtc_state = to_dm_crtc_state(new_crtcs[i]->base.state);
 
@@ -4120,7 +4120,7 @@ void amdgpu_dm_atomic_commit_tail(
 
 	/* Handle scaling and undersacn changes*/
 	for_each_connector_in_state(state, connector, old_conn_state, i) {
-		struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
+		struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 		struct dm_connector_state *con_new_state =
 				to_dm_connector_state(aconnector->base.state);
 		struct dm_connector_state *con_old_state =
@@ -4270,7 +4270,7 @@ err:
  */
 void dm_restore_drm_connector_state(struct drm_device *dev, struct drm_connector *connector)
 {
-	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 	struct amdgpu_crtc *disconnected_acrtc;
 	struct dm_crtc_state *acrtc_state;
 
@@ -4360,7 +4360,7 @@ static int dm_update_crtcs_state(
 	/* update changed items */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		struct amdgpu_crtc *acrtc = NULL;
-		struct amdgpu_connector *aconnector = NULL;
+		struct amdgpu_dm_connector *aconnector = NULL;
 		struct drm_connector_state *conn_state = NULL;
 		struct dm_connector_state *dm_conn_state = NULL;
 
@@ -4689,7 +4689,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	 * decide how to handle.
 	 */
 	for_each_connector_in_state(state, connector, conn_state, i) {
-		struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
+		struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 		struct dm_connector_state *con_old_state =
 				to_dm_connector_state(aconnector->base.state);
 		struct dm_connector_state *con_new_state =
@@ -4746,15 +4746,15 @@ fail:
 
 static bool is_dp_capable_without_timing_msa(
 		struct dc *dc,
-		struct amdgpu_connector *amdgpu_connector)
+		struct amdgpu_dm_connector *amdgpu_dm_connector)
 {
 	uint8_t dpcd_data;
 	bool capable = false;
 
-	if (amdgpu_connector->dc_link &&
+	if (amdgpu_dm_connector->dc_link &&
 		dm_helpers_dp_read_dpcd(
 				NULL,
-				amdgpu_connector->dc_link,
+				amdgpu_dm_connector->dc_link,
 				DP_DOWN_STREAM_PORT_COUNT,
 				&dpcd_data,
 				sizeof(dpcd_data))) {
@@ -4773,14 +4773,14 @@ void amdgpu_dm_add_sink_to_freesync_module(
 	struct detailed_timing *timing;
 	struct detailed_non_pixel *data;
 	struct detailed_data_monitor_range *range;
-	struct amdgpu_connector *amdgpu_connector =
-			to_amdgpu_connector(connector);
+	struct amdgpu_dm_connector *amdgpu_dm_connector =
+			to_amdgpu_dm_connector(connector);
 
 	struct drm_device *dev = connector->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 
 	edid_check_required = false;
-	if (!amdgpu_connector->dc_sink) {
+	if (!amdgpu_dm_connector->dc_sink) {
 		DRM_ERROR("dc_sink NULL, could not add free_sync module.\n");
 		return;
 	}
@@ -4790,11 +4790,11 @@ void amdgpu_dm_add_sink_to_freesync_module(
 	 * if edid non zero restrict freesync only for dp and edp
 	 */
 	if (edid) {
-		if (amdgpu_connector->dc_sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT
-			|| amdgpu_connector->dc_sink->sink_signal == SIGNAL_TYPE_EDP) {
+		if (amdgpu_dm_connector->dc_sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT
+			|| amdgpu_dm_connector->dc_sink->sink_signal == SIGNAL_TYPE_EDP) {
 			edid_check_required = is_dp_capable_without_timing_msa(
 						adev->dm.dc,
-						amdgpu_connector);
+						amdgpu_dm_connector);
 		}
 	}
 	val_capable = 0;
@@ -4819,20 +4819,20 @@ void amdgpu_dm_add_sink_to_freesync_module(
 			if (range->flags != 1)
 				continue;
 
-			amdgpu_connector->min_vfreq = range->min_vfreq;
-			amdgpu_connector->max_vfreq = range->max_vfreq;
-			amdgpu_connector->pixel_clock_mhz =
+			amdgpu_dm_connector->min_vfreq = range->min_vfreq;
+			amdgpu_dm_connector->max_vfreq = range->max_vfreq;
+			amdgpu_dm_connector->pixel_clock_mhz =
 				range->pixel_clock_mhz * 10;
 			break;
 		}
 
-		if (amdgpu_connector->max_vfreq -
-				amdgpu_connector->min_vfreq > 10) {
-			amdgpu_connector->caps.supported = true;
-			amdgpu_connector->caps.min_refresh_in_micro_hz =
-					amdgpu_connector->min_vfreq * 1000000;
-			amdgpu_connector->caps.max_refresh_in_micro_hz =
-					amdgpu_connector->max_vfreq * 1000000;
+		if (amdgpu_dm_connector->max_vfreq -
+				amdgpu_dm_connector->min_vfreq > 10) {
+			amdgpu_dm_connector->caps.supported = true;
+			amdgpu_dm_connector->caps.min_refresh_in_micro_hz =
+					amdgpu_dm_connector->min_vfreq * 1000000;
+			amdgpu_dm_connector->caps.max_refresh_in_micro_hz =
+					amdgpu_dm_connector->max_vfreq * 1000000;
 				val_capable = 1;
 		}
 	}

@@ -147,6 +147,50 @@ struct amdgpu_display_manager {
 #endif
 };
 
+struct amdgpu_dm_connector {
+
+	struct drm_connector base;
+	uint32_t connector_id;
+
+	/* we need to mind the EDID between detect
+	   and get modes due to analog/digital/tvencoder */
+	struct edid *edid;
+
+	/* shared with amdgpu */
+	struct amdgpu_hpd hpd;
+
+	/* number of modes generated from EDID at 'dc_sink' */
+	int num_modes;
+
+	/* The 'old' sink - before an HPD.
+	 * The 'current' sink is in dc_link->sink. */
+	struct dc_sink *dc_sink;
+	struct dc_link *dc_link;
+	struct dc_sink *dc_em_sink;
+
+	/* DM only */
+	struct drm_dp_mst_topology_mgr mst_mgr;
+	struct amdgpu_dm_dp_aux dm_dp_aux;
+	struct drm_dp_mst_port *port;
+	struct amdgpu_dm_connector *mst_port;
+	struct amdgpu_encoder *mst_encoder;
+
+	/* TODO see if we can merge with ddc_bus or make a dm_connector */
+	struct amdgpu_i2c_adapter *i2c;
+
+	/* Monitor range limits */
+	int min_vfreq ;
+	int max_vfreq ;
+	int pixel_clock_mhz;
+
+	/*freesync caps*/
+	struct mod_freesync_caps caps;
+
+	struct mutex hpd_lock;
+};
+
+#define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
+
 /* basic init/fini API */
 int amdgpu_dm_init(struct amdgpu_device *adev);
 
@@ -178,9 +222,9 @@ void amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm);
 extern const struct amdgpu_ip_block_version dm_ip_block;
 
 void amdgpu_dm_update_connector_after_detect(
-	struct amdgpu_connector *aconnector);
+	struct amdgpu_dm_connector *aconnector);
 
-struct amdgpu_connector *amdgpu_dm_find_first_crct_matching_connector(
+struct amdgpu_dm_connector *amdgpu_dm_find_first_crct_matching_connector(
 	struct drm_atomic_state *state,
 	struct drm_crtc *crtc,
 	bool from_state_var);
@@ -192,7 +236,6 @@ struct dc_validation_set;
 struct dc_plane_state;
 /* TODO rename to dc_stream_state */
 struct  dc_stream;
-
 
 struct dm_plane_state {
 	struct drm_plane_state base;
@@ -223,7 +266,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 			struct drm_plane *plane,
 			uint32_t link_index);
 int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
-			struct amdgpu_connector *amdgpu_connector,
+			struct amdgpu_dm_connector *amdgpu_dm_connector,
 			uint32_t link_index,
 			struct amdgpu_encoder *amdgpu_encoder);
 int amdgpu_dm_encoder_init(
@@ -267,7 +310,7 @@ int amdgpu_dm_get_encoder_crtc_mask(struct amdgpu_device *adev);
 
 void amdgpu_dm_connector_init_helper(
 	struct amdgpu_display_manager *dm,
-	struct amdgpu_connector *aconnector,
+	struct amdgpu_dm_connector *aconnector,
 	int connector_type,
 	struct dc_link *link,
 	int link_index);
