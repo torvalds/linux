@@ -37,7 +37,7 @@ static inline dma_addr_t dma_get_device_base(struct device *dev,
 		return mem->device_base;
 }
 
-static bool dma_init_coherent_memory(
+static int dma_init_coherent_memory(
 	phys_addr_t phys_addr, dma_addr_t device_addr, size_t size, int flags,
 	struct dma_coherent_mem **mem)
 {
@@ -45,20 +45,28 @@ static bool dma_init_coherent_memory(
 	void __iomem *mem_base = NULL;
 	int pages = size >> PAGE_SHIFT;
 	int bitmap_size = BITS_TO_LONGS(pages) * sizeof(long);
+	int ret;
 
-	if (!size)
+	if (!size) {
+		ret = -EINVAL;
 		goto out;
+	}
 
 	mem_base = memremap(phys_addr, size, MEMREMAP_WC);
-	if (!mem_base)
+	if (!mem_base) {
+		ret = -EINVAL;
 		goto out;
-
+	}
 	dma_mem = kzalloc(sizeof(struct dma_coherent_mem), GFP_KERNEL);
-	if (!dma_mem)
+	if (!dma_mem) {
+		ret = -ENOMEM;
 		goto out;
+	}
 	dma_mem->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-	if (!dma_mem->bitmap)
+	if (!dma_mem->bitmap) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	dma_mem->virt_base = mem_base;
 	dma_mem->device_base = device_addr;
@@ -68,13 +76,13 @@ static bool dma_init_coherent_memory(
 	spin_lock_init(&dma_mem->spinlock);
 
 	*mem = dma_mem;
-	return true;
+	return 0;
 
 out:
 	kfree(dma_mem);
 	if (mem_base)
 		memunmap(mem_base);
-	return false;
+	return ret;
 }
 
 static void dma_release_coherent_memory(struct dma_coherent_mem *mem)
@@ -338,14 +346,18 @@ static struct reserved_mem *dma_reserved_default_memory __initdata;
 static int rmem_dma_device_init(struct reserved_mem *rmem, struct device *dev)
 {
 	struct dma_coherent_mem *mem = rmem->priv;
+	int ret;
 
-	if (!mem &&
-	    !dma_init_coherent_memory(rmem->base, rmem->base, rmem->size,
-				      DMA_MEMORY_EXCLUSIVE,
-				      &mem)) {
+	if (!mem)
+		return -ENODEV;
+
+	ret = dma_init_coherent_memory(rmem->base, rmem->base, rmem->size,
+				       DMA_MEMORY_EXCLUSIVE, &mem);
+
+	if (ret) {
 		pr_err("Reserved memory: failed to init DMA memory pool at %pa, size %ld MiB\n",
 			&rmem->base, (unsigned long)rmem->size / SZ_1M);
-		return -ENODEV;
+		return ret;
 	}
 	mem->use_dev_dma_pfn_offset = true;
 	rmem->priv = mem;
