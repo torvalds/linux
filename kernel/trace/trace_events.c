@@ -406,7 +406,7 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 
 			if (file->flags & EVENT_FILE_FL_RECORDED_TGID) {
 				tracing_stop_tgid_record();
-				clear_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
+				clear_bit(EVENT_FILE_FL_RECORDED_TGID_BIT, &file->flags);
 			}
 
 			call->class->reg(call, TRACE_REG_UNREGISTER, file);
