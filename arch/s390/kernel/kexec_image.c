@@ -25,6 +25,8 @@ static int kexec_file_add_image_kernel(struct kimage *image,
 	buf.bufsz = kernel_len - STARTUP_NORMAL_OFFSET;
 
 	buf.mem = STARTUP_NORMAL_OFFSET;
+	if (image->type == KEXEC_TYPE_CRASH)
+		buf.mem += crashk_res.start;
 	buf.memsz = buf.bufsz;
 
 	ret = kexec_add_buffer(&buf);
@@ -42,10 +44,6 @@ static void *s390_image_load(struct kimage *image,
 {
 	struct s390_load_data data = {0};
 	int ret;
-
-	/* We don't support crash kernels yet. */
-	if (image->type == KEXEC_TYPE_CRASH)
-		return ERR_PTR(-ENOTSUPP);
 
 	ret = kexec_file_add_image_kernel(image, &data, kernel, kernel_len);
 	if (ret)

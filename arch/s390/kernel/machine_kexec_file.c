@@ -28,6 +28,14 @@ int *kexec_file_update_kernel(struct kimage *image,
 		memcpy(data->kernel_buf + COMMAND_LINE_OFFSET,
 		       image->cmdline_buf, image->cmdline_buf_len);
 
+	if (image->type == KEXEC_TYPE_CRASH) {
+		loc = (unsigned long *)(data->kernel_buf + OLDMEM_BASE_OFFSET);
+		*loc = crashk_res.start;
+
+		loc = (unsigned long *)(data->kernel_buf + OLDMEM_SIZE_OFFSET);
+		*loc = crashk_res.end - crashk_res.start + 1;
+	}
+
 	if (image->initrd_buf) {
 		loc = (unsigned long *)(data->kernel_buf + INITRD_START_OFFSET);
 		*loc = data->initrd_load_addr;
@@ -44,9 +52,40 @@ static int kexec_file_update_purgatory(struct kimage *image)
 	u64 entry, type;
 	int ret;
 
-	entry = STARTUP_NORMAL_OFFSET;
+	if (image->type == KEXEC_TYPE_CRASH) {
+		entry = STARTUP_KDUMP_OFFSET;
+		type = KEXEC_TYPE_CRASH;
+	} else {
+		entry = STARTUP_NORMAL_OFFSET;
+		type = KEXEC_TYPE_DEFAULT;
+	}
+
 	ret = kexec_purgatory_get_set_symbol(image, "kernel_entry", &entry,
 					     sizeof(entry), false);
+	if (ret)
+		return ret;
+
+	ret = kexec_purgatory_get_set_symbol(image, "kernel_type", &type,
+					     sizeof(type), false);
+	if (ret)
+		return ret;
+
+	if (image->type == KEXEC_TYPE_CRASH) {
+		u64 crash_size;
+
+		ret = kexec_purgatory_get_set_symbol(image, "crash_start",
+						     &crashk_res.start,
+						     sizeof(crashk_res.start),
+						     false);
+		if (ret)
+			return ret;
+
+		crash_size = crashk_res.end - crashk_res.start + 1;
+		ret = kexec_purgatory_get_set_symbol(image, "crash_size",
+						     &crash_size,
+						     sizeof(crash_size),
+						     false);
+	}
 	return ret;
 }
 
@@ -59,6 +98,8 @@ int kexec_file_add_purgatory(struct kimage *image, struct s390_load_data *data)
 
 	data->memsz = ALIGN(data->memsz, PAGE_SIZE);
 	buf.mem = data->memsz;
+	if (image->type == KEXEC_TYPE_CRASH)
+		buf.mem += crashk_res.start;
 
 	ret = kexec_load_purgatory(image, &buf);
 	if (ret)
@@ -81,6 +122,8 @@ int kexec_file_add_initrd(struct kimage *image, struct s390_load_data *data,
 
 	data->memsz = ALIGN(data->memsz, PAGE_SIZE);
 	buf.mem = data->memsz;
+	if (image->type == KEXEC_TYPE_CRASH)
+		buf.mem += crashk_res.start;
 	buf.memsz = buf.bufsz;
 
 	data->initrd_load_addr = buf.mem;
