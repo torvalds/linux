@@ -16,6 +16,7 @@ properties:
   compatible:
     enum:
       - rockchip,rk3066a-efuse
+      - rockchip,rk3128-efuse
       - rockchip,rk3188-efuse
       - rockchip,rk3228-efuse
       - rockchip,rk3288-efuse
