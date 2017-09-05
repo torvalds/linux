@@ -1070,7 +1070,7 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
 	if (is_in_pci_mem_space(addr)) {
 		if (user_mode(regs)) {
 			pagefault_disable();
-			ret = get_user(regs->nip, &inst);
+			ret = get_user(inst, (__u32 __user *)regs->nip);
 			pagefault_enable();
 		} else {
 			ret = probe_kernel_address((void *)regs->nip, inst);
