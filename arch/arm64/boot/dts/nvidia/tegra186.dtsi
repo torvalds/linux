@@ -443,6 +443,7 @@
 		shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+		#power-domain-cells = <1>;
 
 		bpmp_i2c: i2c {
 			compatible = "nvidia,tegra186-bpmp-i2c";
