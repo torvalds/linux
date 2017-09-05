@@ -805,7 +805,7 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 	struct iommu_domain *domain = obj->domain;
 	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
 
-	if (!omap_domain->iommu_dev)
+	if (!omap_domain->dev)
 		return IRQ_NONE;
 
 	errs = iommu_report_fault(obj, &da);
@@ -1118,8 +1118,8 @@ omap_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	spin_lock(&omap_domain->lock);
 
-	/* only a single device is supported per domain for now */
-	if (omap_domain->iommu_dev) {
+	/* only a single client device can be attached to a domain */
+	if (omap_domain->dev) {
 		dev_err(dev, "iommu domain is already attached\n");
 		ret = -EBUSY;
 		goto out;
@@ -1148,9 +1148,14 @@ static void _omap_iommu_detach_dev(struct omap_iommu_domain *omap_domain,
 {
 	struct omap_iommu *oiommu = dev_to_omap_iommu(dev);
 
+	if (!omap_domain->dev) {
+		dev_err(dev, "domain has no attached device\n");
+		return;
+	}
+
 	/* only a single device is supported per domain for now */
-	if (omap_domain->iommu_dev != oiommu) {
-		dev_err(dev, "invalid iommu device\n");
+	if (omap_domain->dev != dev) {
+		dev_err(dev, "invalid attached device\n");
 		return;
 	}
 
@@ -1219,7 +1224,7 @@ static void omap_iommu_domain_free(struct iommu_domain *domain)
 	 * An iommu device is still attached
 	 * (currently, only one device can be attached) ?
 	 */
-	if (omap_domain->iommu_dev)
+	if (omap_domain->dev)
 		_omap_iommu_detach_dev(omap_domain, omap_domain->dev);
 
 	kfree(omap_domain->pgtable);
