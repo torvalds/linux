@@ -591,8 +591,6 @@ static int adv7511_get_modes(struct adv7511 *adv7511,
 
 	kfree(adv7511->edid);
 	adv7511->edid = edid;
-	if (!edid)
-		return 0;
 
 	drm_mode_connector_update_edid_property(connector, edid);
 	count = drm_add_edid_modes(connector, edid);
