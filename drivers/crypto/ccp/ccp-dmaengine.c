@@ -231,9 +231,7 @@ static struct ccp_dma_desc *ccp_handle_active_desc(struct ccp_dma_chan *chan,
 		spin_unlock_irqrestore(&chan->lock, flags);
 
 		if (tx_desc) {
-			if (tx_desc->callback &&
-			    (tx_desc->flags & DMA_PREP_INTERRUPT))
-				tx_desc->callback(tx_desc->callback_param);
+			dmaengine_desc_get_callback_invoke(tx_desc, NULL);
 
 			dma_run_dependencies(tx_desc);
 		}
