@@ -273,7 +273,7 @@ restart:
 			len = ntohl(rm->m_inc.i_hdr.h_len);
 			if (cp->cp_unacked_packets == 0 ||
 			    cp->cp_unacked_bytes < len) {
-				__set_bit(RDS_MSG_ACK_REQUIRED, &rm->m_flags);
+				set_bit(RDS_MSG_ACK_REQUIRED, &rm->m_flags);
 
 				cp->cp_unacked_packets =
 					rds_sysctl_max_unacked_packets;
@@ -829,7 +829,7 @@ static int rds_send_queue_rm(struct rds_sock *rs, struct rds_connection *conn,
 		 * throughput hits a certain threshold.
 		 */
 		if (rs->rs_snd_bytes >= rds_sk_sndbuf(rs) / 2)
-			__set_bit(RDS_MSG_ACK_REQUIRED, &rm->m_flags);
+			set_bit(RDS_MSG_ACK_REQUIRED, &rm->m_flags);
 
 		list_add_tail(&rm->m_sock_item, &rs->rs_send_queue);
 		set_bit(RDS_MSG_ON_SOCK, &rm->m_flags);
