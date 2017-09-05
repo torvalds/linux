@@ -276,7 +276,7 @@ static struct attribute *enable_sensor_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group enable_sensor_attr_group = {
+static const struct attribute_group enable_sensor_attr_group = {
 	.attrs = enable_sensor_attrs,
 };
 
