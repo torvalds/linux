@@ -10801,7 +10801,7 @@ inherit_event(struct perf_event *parent_event,
 	      struct perf_event *group_leader,
 	      struct perf_event_context *child_ctx)
 {
-	enum perf_event_active_state parent_state = parent_event->state;
+	enum perf_event_state parent_state = parent_event->state;
 	struct perf_event *child_event;
 	unsigned long flags;
 
