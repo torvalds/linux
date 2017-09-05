@@ -4146,35 +4146,6 @@ static void pci_dev_restore(struct pci_dev *dev)
 }
 
 /**
- * __pci_reset_function - reset a PCI device function
- * @dev: PCI device to reset
- *
- * Some devices allow an individual function to be reset without affecting
- * other functions in the same device.  The PCI device must be responsive
- * to PCI config space in order to use this function.
- *
- * The device function is presumed to be unused when this function is called.
- * Resetting the device will make the contents of PCI configuration space
- * random, so any caller of this must be prepared to reinitialise the
- * device including MSI, bus mastering, BARs, decoding IO and memory spaces,
- * etc.
- *
- * Returns 0 if the device function was successfully reset or negative if the
- * device doesn't support resetting a single function.
- */
-int __pci_reset_function(struct pci_dev *dev)
-{
-	int ret;
-
-	pci_dev_lock(dev);
-	ret = __pci_reset_function_locked(dev);
-	pci_dev_unlock(dev);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(__pci_reset_function);
-
-/**
  * __pci_reset_function_locked - reset a PCI device function while holding
  * the @dev mutex lock.
  * @dev: PCI device to reset
@@ -4264,8 +4235,8 @@ int pci_probe_reset_function(struct pci_dev *dev)
  *
  * This function does not just reset the PCI portion of a device, but
  * clears all the state associated with the device.  This function differs
- * from __pci_reset_function in that it saves and restores device state
- * over the reset.
+ * from __pci_reset_function_locked() in that it saves and restores device state
+ * over the reset and takes the PCI device lock.
  *
  * Returns 0 if the device function was successfully reset or negative if the
  * device doesn't support resetting a single function.
@@ -4300,7 +4271,7 @@ EXPORT_SYMBOL_GPL(pci_reset_function);
  *
  * This function does not just reset the PCI portion of a device, but
  * clears all the state associated with the device.  This function differs
- * from __pci_reset_function() in that it saves and restores device state
+ * from __pci_reset_function_locked() in that it saves and restores device state
  * over the reset.  It also differs from pci_reset_function() in that it
  * requires the PCI device lock to be held.
  *
