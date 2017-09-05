@@ -220,9 +220,11 @@ static void axi_dmac_start_transfer(struct axi_dmac_chan *chan)
 
 	/*
 	 * If the hardware supports cyclic transfers and there is no callback to
-	 * call, enable hw cyclic mode to avoid unnecessary interrupts.
+	 * call and only a single segment, enable hw cyclic mode to avoid
+	 * unnecessary interrupts.
 	 */
-	if (chan->hw_cyclic && desc->cyclic && !desc->vdesc.tx.callback)
+	if (chan->hw_cyclic && desc->cyclic && !desc->vdesc.tx.callback &&
+		desc->num_sgs == 1)
 		flags |= AXI_DMAC_FLAG_CYCLIC;
 
 	axi_dmac_write(dmac, AXI_DMAC_REG_X_LENGTH, sg->x_len - 1);
