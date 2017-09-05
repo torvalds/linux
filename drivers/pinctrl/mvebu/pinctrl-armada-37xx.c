@@ -190,14 +190,14 @@ static struct armada_37xx_pin_group armada_37xx_sb_groups[] = {
 		       "mii", "mii_err"),
 };
 
-const struct armada_37xx_pin_data armada_37xx_pin_nb = {
+static const struct armada_37xx_pin_data armada_37xx_pin_nb = {
 	.nr_pins = 36,
 	.name = "GPIO1",
 	.groups = armada_37xx_nb_groups,
 	.ngroups = ARRAY_SIZE(armada_37xx_nb_groups),
 };
 
-const struct armada_37xx_pin_data armada_37xx_pin_sb = {
+static const struct armada_37xx_pin_data armada_37xx_pin_sb = {
 	.nr_pins = 30,
 	.name = "GPIO2",
 	.groups = armada_37xx_sb_groups,
@@ -254,7 +254,7 @@ static int armada_37xx_pin_config_group_set(struct pinctrl_dev *pctldev,
 	return -ENOTSUPP;
 }
 
-static struct pinconf_ops armada_37xx_pinconf_ops = {
+static const struct pinconf_ops armada_37xx_pinconf_ops = {
 	.is_generic = true,
 	.pin_config_group_get = armada_37xx_pin_config_group_get,
 	.pin_config_group_set = armada_37xx_pin_config_group_set,

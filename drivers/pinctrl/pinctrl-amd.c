@@ -760,8 +760,8 @@ static int amd_gpio_probe(struct platform_device *pdev)
 
 	irq_base = platform_get_irq(pdev, 0);
 	if (irq_base < 0) {
-		dev_err(&pdev->dev, "Failed to get gpio IRQ.\n");
-		return -EINVAL;
+		dev_err(&pdev->dev, "Failed to get gpio IRQ: %d\n", irq_base);
+		return irq_base;
 	}
 
 	gpio_dev->pdev = pdev;

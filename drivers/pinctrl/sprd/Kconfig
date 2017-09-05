@@ -1,0 +1,17 @@
+#
+# Spreadtrum pin control drivers
+#
+
+config PINCTRL_SPRD
+	bool "Spreadtrum pinctrl driver"
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GENERIC_PINMUX_FUNCTIONS
+	help
+	  Say Y here to enable Spreadtrum pinctrl driver
+
+config PINCTRL_SPRD_SC9860
+	bool "Spreadtrum SC9860 pinctrl driver"
+	help
+	  Say Y here to enable Spreadtrum SC9860 pinctrl driver
