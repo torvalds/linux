@@ -167,6 +167,9 @@ do { \
 	printk(d_loglevel PRINTK_HEADER " " d_string "\n", d_args); \
 } while(0)
 
+/* Macro to calculate number of blocks per page */
+#define BLOCKS_PER_PAGE(blksize) (PAGE_SIZE / blksize)
+
 struct dasd_ccw_req {
 	unsigned int magic;		/* Eye catcher */
 	struct list_head devlist;	/* for dasd_device request queue */
@@ -196,10 +199,10 @@ struct dasd_ccw_req {
 	void *function; 		/* originating ERP action */
 
 	/* these are for statistics only */
-	unsigned long long buildclk;	/* TOD-clock of request generation */
-	unsigned long long startclk;	/* TOD-clock of request start */
-	unsigned long long stopclk;	/* TOD-clock of request interrupt */
-	unsigned long long endclk;	/* TOD-clock of request termination */
+	unsigned long buildclk;		/* TOD-clock of request generation */
+	unsigned long startclk;		/* TOD-clock of request start */
+	unsigned long stopclk;		/* TOD-clock of request interrupt */
+	unsigned long endclk;		/* TOD-clock of request termination */
 
         /* Callback that is called after reaching final status. */
 	void (*callback)(struct dasd_ccw_req *, void *data);
@@ -423,7 +426,7 @@ struct dasd_path {
 	u8 chpid;
 	struct dasd_conf_data *conf_data;
 	atomic_t error_count;
-	unsigned long long errorclk;
+	unsigned long errorclk;
 };
 
 
@@ -454,6 +457,10 @@ struct dasd_profile_info {
 	unsigned int dasd_read_time2[32];  /* hist. of time from start to irq */
 	unsigned int dasd_read_time3[32];  /* hist. of time from irq to end */
 	unsigned int dasd_read_nr_req[32]; /* hist. of # of requests in chanq */
+	unsigned long dasd_sum_times;	   /* sum of request times */
+	unsigned long dasd_sum_time_str;   /* sum of time from build to start */
+	unsigned long dasd_sum_time_irq;   /* sum of time from start to irq */
+	unsigned long dasd_sum_time_end;   /* sum of time from irq to end */
 };
 
 struct dasd_profile {
@@ -535,7 +542,7 @@ struct dasd_block {
 	struct block_device *bdev;
 	atomic_t open_count;
 
-	unsigned long long blocks; /* size of volume in blocks */
+	unsigned long blocks;	   /* size of volume in blocks */
 	unsigned int bp_block;	   /* bytes per block */
 	unsigned int s2b_shift;	   /* log2 (bp_block/512) */
 

@@ -612,7 +612,7 @@ static struct attribute *io_subchannel_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group io_subchannel_attr_group = {
+static const struct attribute_group io_subchannel_attr_group = {
 	.attrs = io_subchannel_attrs,
 };
 
@@ -626,7 +626,7 @@ static struct attribute * ccwdev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ccwdev_attr_group = {
+static const struct attribute_group ccwdev_attr_group = {
 	.attrs = ccwdev_attrs,
 };
 

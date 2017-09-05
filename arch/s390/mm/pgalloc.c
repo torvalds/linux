@@ -57,6 +57,7 @@ unsigned long *crst_table_alloc(struct mm_struct *mm)
 
 	if (!page)
 		return NULL;
+	arch_set_page_dat(page, 2);
 	return (unsigned long *) page_to_phys(page);
 }
 
@@ -82,7 +83,7 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 	int rc, notify;
 
 	/* upgrade should only happen from 3 to 4, 3 to 5, or 4 to 5 levels */
-	BUG_ON(mm->context.asce_limit < (1UL << 42));
+	BUG_ON(mm->context.asce_limit < _REGION2_SIZE);
 	if (end >= TASK_SIZE_MAX)
 		return -ENOMEM;
 	rc = 0;
@@ -95,11 +96,11 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 		}
 		spin_lock_bh(&mm->page_table_lock);
 		pgd = (unsigned long *) mm->pgd;
-		if (mm->context.asce_limit == (1UL << 42)) {
+		if (mm->context.asce_limit == _REGION2_SIZE) {
 			crst_table_init(table, _REGION2_ENTRY_EMPTY);
 			p4d_populate(mm, (p4d_t *) table, (pud_t *) pgd);
 			mm->pgd = (pgd_t *) table;
-			mm->context.asce_limit = 1UL << 53;
+			mm->context.asce_limit = _REGION1_SIZE;
 			mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				_ASCE_USER_BITS | _ASCE_TYPE_REGION2;
 		} else {
@@ -123,7 +124,7 @@ void crst_table_downgrade(struct mm_struct *mm)
 	pgd_t *pgd;
 
 	/* downgrade should only happen from 3 to 2 levels (compat only) */
-	BUG_ON(mm->context.asce_limit != (1UL << 42));
+	BUG_ON(mm->context.asce_limit != _REGION2_SIZE);
 
 	if (current->active_mm == mm) {
 		clear_user_asce();
@@ -132,7 +133,7 @@ void crst_table_downgrade(struct mm_struct *mm)
 
 	pgd = mm->pgd;
 	mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
-	mm->context.asce_limit = 1UL << 31;
+	mm->context.asce_limit = _REGION3_SIZE;
 	mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 			   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
 	crst_table_free(mm, (unsigned long *) pgd);
@@ -214,6 +215,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 		__free_page(page);
 		return NULL;
 	}
+	arch_set_page_dat(page, 0);
 	/* Initialize page table */
 	table = (unsigned long *) page_to_phys(page);
 	if (mm_alloc_pgste(mm)) {

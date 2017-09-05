@@ -3254,11 +3254,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	/* 1x prefix + one read/write ccw per track */
 	cplength = 1 + trkcount;
 
-	/* on 31-bit we need space for two 32 bit addresses per page
-	 * on 64-bit one 64 bit address
-	 */
-	datasize = sizeof(struct PFX_eckd_data) +
-		cidaw * sizeof(unsigned long long);
+	datasize = sizeof(struct PFX_eckd_data) + cidaw * sizeof(unsigned long);
 
 	/* Allocate the ccw request. */
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, cplength, datasize,
@@ -3856,7 +3852,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_raw(struct dasd_device *startdev,
 	}
 	size = ALIGN(size, 8);
 
-	datasize = size + cidaw * sizeof(unsigned long long);
+	datasize = size + cidaw * sizeof(unsigned long);
 
 	/* Allocate the ccw request. */
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, cplength,

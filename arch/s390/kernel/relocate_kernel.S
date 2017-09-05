@@ -7,6 +7,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/page.h>
 #include <asm/sigp.h>
 
 /*
@@ -55,8 +56,8 @@ ENTRY(relocate_kernel)
 	.back_pgm:
 		lmg	%r0,%r15,gprregs-.base(%r13)
 	.top:
-		lghi	%r7,4096	# load PAGE_SIZE in r7
-		lghi	%r9,4096	# load PAGE_SIZE in r9
+		lghi	%r7,PAGE_SIZE	# load PAGE_SIZE in r7
+		lghi	%r9,PAGE_SIZE	# load PAGE_SIZE in r9
 		lg	%r5,0(%r2)	# read another word for indirection page
 		aghi	%r2,8		# increment pointer
 		tml	%r5,0x1		# is it a destination page?

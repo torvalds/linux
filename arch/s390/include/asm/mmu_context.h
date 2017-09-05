@@ -12,6 +12,7 @@
 #include <linux/mm_types.h>
 #include <asm/tlbflush.h>
 #include <asm/ctl_reg.h>
+#include <asm-generic/mm_hooks.h>
 
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
@@ -33,7 +34,7 @@ static inline int init_new_context(struct task_struct *tsk,
 	mm->context.use_cmma = 0;
 #endif
 	switch (mm->context.asce_limit) {
-	case 1UL << 42:
+	case _REGION2_SIZE:
 		/*
 		 * forked 3-level task, fall through to set new asce with new
 		 * mm->pgd
@@ -49,12 +50,12 @@ static inline int init_new_context(struct task_struct *tsk,
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 			_ASCE_USER_BITS | _ASCE_TYPE_REGION1;
 		break;
-	case 1UL << 53:
+	case _REGION1_SIZE:
 		/* forked 4-level task, set new asce with new mm->pgd */
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				   _ASCE_USER_BITS | _ASCE_TYPE_REGION2;
 		break;
-	case 1UL << 31:
+	case _REGION3_SIZE:
 		/* forked 2-level compat task, set new asce with new mm->pgd */
 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
@@ -138,30 +139,4 @@ static inline void activate_mm(struct mm_struct *prev,
 	set_user_asce(next);
 }
 
-static inline void arch_dup_mmap(struct mm_struct *oldmm,
-				 struct mm_struct *mm)
-{
-}
-
-static inline void arch_exit_mmap(struct mm_struct *mm)
-{
-}
-
-static inline void arch_unmap(struct mm_struct *mm,
-			struct vm_area_struct *vma,
-			unsigned long start, unsigned long end)
-{
-}
-
-static inline void arch_bprm_mm_init(struct mm_struct *mm,
-				     struct vm_area_struct *vma)
-{
-}
-
-static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
-		bool write, bool execute, bool foreign)
-{
-	/* by default, allow everything */
-	return true;
-}
 #endif /* __S390_MMU_CONTEXT_H */
