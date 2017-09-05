@@ -52,6 +52,10 @@ extern void *__memset(void *, int, __kernel_size_t);
 #define __HAVE_ARCH_MEMCMP
 extern int memcmp(const void *, const void *, size_t);
 
+#ifdef CONFIG_ARCH_HAS_UACCESS_FLUSHCACHE
+#define __HAVE_ARCH_MEMCPY_FLUSHCACHE
+void memcpy_flushcache(void *dst, const void *src, size_t cnt);
+#endif
 
 #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
 

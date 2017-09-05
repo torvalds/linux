@@ -7,9 +7,6 @@
 
 #define NR_NODE_MEMBLKS		(MAX_NUMNODES * 2)
 
-/* currently, arm64 implements flat NUMA topology */
-#define parent_node(node)	(node)
-
 int __node_distance(int from, int to);
 #define node_distance(a, b) __node_distance(a, b)
 
