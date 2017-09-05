@@ -549,8 +549,8 @@ static struct console arc_console = {
 	.data	= &arc_uart_driver
 };
 
-static __init void arc_early_serial_write(struct console *con, const char *s,
-					  unsigned int n)
+static void arc_early_serial_write(struct console *con, const char *s,
+				   unsigned int n)
 {
 	struct earlycon_device *dev = con->data;
 

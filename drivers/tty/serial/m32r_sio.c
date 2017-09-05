@@ -854,7 +854,7 @@ m32r_sio_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return 0;
 }
 
-static struct uart_ops m32r_sio_pops = {
+static const struct uart_ops m32r_sio_pops = {
 	.tx_empty	= m32r_sio_tx_empty,
 	.set_mctrl	= m32r_sio_set_mctrl,
 	.get_mctrl	= m32r_sio_get_mctrl,

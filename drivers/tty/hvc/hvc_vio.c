@@ -53,7 +53,7 @@
 
 static const char hvc_driver_name[] = "hvc_console";
 
-static struct vio_device_id hvc_driver_table[] = {
+static const struct vio_device_id hvc_driver_table[] = {
 	{"serial", "hvterm1"},
 #ifndef HVC_OLD_HVSI
 	{"serial", "hvterm-protocol"},
@@ -312,12 +312,12 @@ static int hvc_vio_probe(struct vio_dev *vdev,
 		proto = HV_PROTOCOL_HVSI;
 		ops = &hvterm_hvsi_ops;
 	} else {
-		pr_err("hvc_vio: Unknown protocol for %s\n", vdev->dev.of_node->full_name);
+		pr_err("hvc_vio: Unknown protocol for %pOF\n", vdev->dev.of_node);
 		return -ENXIO;
 	}
 
-	pr_devel("hvc_vio_probe() device %s, using %s protocol\n",
-		 vdev->dev.of_node->full_name,
+	pr_devel("hvc_vio_probe() device %pOF, using %s protocol\n",
+		 vdev->dev.of_node,
 		 proto == HV_PROTOCOL_RAW ? "raw" : "hvsi");
 
 	/* Is it our boot one ? */

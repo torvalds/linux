@@ -427,7 +427,7 @@ static struct console mux_console = {
 #define MUX_CONSOLE	NULL
 #endif
 
-static struct uart_ops mux_pops = {
+static const struct uart_ops mux_pops = {
 	.tx_empty =		mux_tx_empty,
 	.set_mctrl =		mux_set_mctrl,
 	.get_mctrl =		mux_get_mctrl,

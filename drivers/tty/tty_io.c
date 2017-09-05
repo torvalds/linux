@@ -462,6 +462,14 @@ static int hung_up_tty_fasync(int fd, struct file *file, int on)
 	return -ENOTTY;
 }
 
+static void tty_show_fdinfo(struct seq_file *m, struct file *file)
+{
+	struct tty_struct *tty = file_tty(file);
+
+	if (tty && tty->ops && tty->ops->show_fdinfo)
+		tty->ops->show_fdinfo(tty, m);
+}
+
 static const struct file_operations tty_fops = {
 	.llseek		= no_llseek,
 	.read		= tty_read,
@@ -472,6 +480,7 @@ static const struct file_operations tty_fops = {
 	.open		= tty_open,
 	.release	= tty_release,
 	.fasync		= tty_fasync,
+	.show_fdinfo	= tty_show_fdinfo,
 };
 
 static const struct file_operations console_fops = {

@@ -128,7 +128,7 @@ static struct vendor_data vendor_arm = {
 	.get_fifosize		= get_fifosize_arm,
 };
 
-static struct vendor_data vendor_sbsa = {
+static const struct vendor_data vendor_sbsa = {
 	.reg_offset		= pl011_std_offsets,
 	.fr_busy		= UART01x_FR_BUSY,
 	.fr_dsr			= UART01x_FR_DSR,
@@ -143,7 +143,7 @@ static struct vendor_data vendor_sbsa = {
 };
 
 #ifdef CONFIG_ACPI_SPCR_TABLE
-static struct vendor_data vendor_qdt_qdf2400_e44 = {
+static const struct vendor_data vendor_qdt_qdf2400_e44 = {
 	.reg_offset		= pl011_std_offsets,
 	.fr_busy		= UART011_FR_TXFE,
 	.fr_dsr			= UART01x_FR_DSR,
@@ -2787,7 +2787,7 @@ static struct platform_driver arm_sbsa_uart_platform_driver = {
 	},
 };
 
-static struct amba_id pl011_ids[] = {
+static const struct amba_id pl011_ids[] = {
 	{
 		.id	= 0x00041011,
 		.mask	= 0x000fffff,
