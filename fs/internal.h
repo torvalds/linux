@@ -71,8 +71,10 @@ extern void __init mnt_init(void);
 
 extern int __mnt_want_write(struct vfsmount *);
 extern int __mnt_want_write_file(struct file *);
+extern int mnt_want_write_file_path(struct file *);
 extern void __mnt_drop_write(struct vfsmount *);
 extern void __mnt_drop_write_file(struct file *);
+extern void mnt_drop_write_file_path(struct file *);
 
 /*
  * fs_struct.c

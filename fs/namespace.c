@@ -431,13 +431,18 @@ int __mnt_want_write_file(struct file *file)
 }
 
 /**
- * mnt_want_write_file - get write access to a file's mount
+ * mnt_want_write_file_path - get write access to a file's mount
  * @file: the file who's mount on which to take a write
  *
  * This is like mnt_want_write, but it takes a file and can
  * do some optimisations if the file is open for write already
+ *
+ * Called by the vfs for cases when we have an open file at hand, but will do an
+ * inode operation on it (important distinction for files opened on overlayfs,
+ * since the file operations will come from the real underlying file, while
+ * inode operations come from the overlay).
  */
-int mnt_want_write_file(struct file *file)
+int mnt_want_write_file_path(struct file *file)
 {
 	int ret;
 
@@ -445,6 +450,53 @@ int mnt_want_write_file(struct file *file)
 	ret = __mnt_want_write_file(file);
 	if (ret)
 		sb_end_write(file->f_path.mnt->mnt_sb);
+	return ret;
+}
+
+static inline int may_write_real(struct file *file)
+{
+	struct dentry *dentry = file->f_path.dentry;
+	struct dentry *upperdentry;
+
+	/* Writable file? */
+	if (file->f_mode & FMODE_WRITER)
+		return 0;
+
+	/* Not overlayfs? */
+	if (likely(!(dentry->d_flags & DCACHE_OP_REAL)))
+		return 0;
+
+	/* File refers to upper, writable layer? */
+	upperdentry = d_real(dentry, NULL, 0, D_REAL_UPPER);
+	if (upperdentry && file_inode(file) == d_inode(upperdentry))
+		return 0;
+
+	/* Lower layer: can't write to real file, sorry... */
+	return -EPERM;
+}
+
+/**
+ * mnt_want_write_file - get write access to a file's mount
+ * @file: the file who's mount on which to take a write
+ *
+ * This is like mnt_want_write, but it takes a file and can
+ * do some optimisations if the file is open for write already
+ *
+ * Mostly called by filesystems from their ioctl operation before performing
+ * modification.  On overlayfs this needs to check if the file is on a read-only
+ * lower layer and deny access in that case.
+ */
+int mnt_want_write_file(struct file *file)
+{
+	int ret;
+
+	ret = may_write_real(file);
+	if (!ret) {
+		sb_start_write(file_inode(file)->i_sb);
+		ret = __mnt_want_write_file(file);
+		if (ret)
+			sb_end_write(file_inode(file)->i_sb);
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mnt_want_write_file);
@@ -484,9 +536,15 @@ void __mnt_drop_write_file(struct file *file)
 	__mnt_drop_write(file->f_path.mnt);
 }
 
-void mnt_drop_write_file(struct file *file)
+void mnt_drop_write_file_path(struct file *file)
 {
 	mnt_drop_write(file->f_path.mnt);
+}
+
+void mnt_drop_write_file(struct file *file)
+{
+	__mnt_drop_write(file->f_path.mnt);
+	sb_end_write(file_inode(file)->i_sb);
 }
 EXPORT_SYMBOL(mnt_drop_write_file);
 
