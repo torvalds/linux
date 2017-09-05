@@ -4453,6 +4453,8 @@ static int __perf_read_group_add(struct perf_event *leader,
 	if (ret)
 		return ret;
 
+	raw_spin_lock_irqsave(&ctx->lock, flags);
+
 	/*
 	 * Since we co-schedule groups, {enabled,running} times of siblings
 	 * will be identical to those of the leader, so we only publish one
@@ -4474,8 +4476,6 @@ static int __perf_read_group_add(struct perf_event *leader,
 	values[n++] += perf_event_count(leader);
 	if (read_format & PERF_FORMAT_ID)
 		values[n++] = primary_event_id(leader);
-
-	raw_spin_lock_irqsave(&ctx->lock, flags);
 
 	list_for_each_entry(sub, &leader->sibling_list, group_entry) {
 		values[n++] += perf_event_count(sub);
