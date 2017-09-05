@@ -960,11 +960,6 @@ extern void default_banner(void);
 #define GET_CR2_INTO_RAX				\
 	call PARA_INDIRECT(pv_mmu_ops+PV_MMU_read_cr2)
 
-#define PARAVIRT_ADJUST_EXCEPTION_FRAME					\
-	PARA_SITE(PARA_PATCH(pv_irq_ops, PV_IRQ_adjust_exception_frame), \
-		  CLBR_NONE,						\
-		  call PARA_INDIRECT(pv_irq_ops+PV_IRQ_adjust_exception_frame))
-
 #define USERGS_SYSRET64							\
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usergs_sysret64),	\
 		  CLBR_NONE,						\

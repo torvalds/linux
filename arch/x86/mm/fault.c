@@ -1258,10 +1258,6 @@ static inline bool smap_violation(int error_code, struct pt_regs *regs)
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
  * routines.
- *
- * This function must have noinline because both callers
- * {,trace_}do_page_fault() have notrace on. Having this an actual function
- * guarantees there's a function trace entry.
  */
 static noinline void
 __do_page_fault(struct pt_regs *regs, unsigned long error_code,
@@ -1494,27 +1490,6 @@ good_area:
 }
 NOKPROBE_SYMBOL(__do_page_fault);
 
-dotraplinkage void notrace
-do_page_fault(struct pt_regs *regs, unsigned long error_code)
-{
-	unsigned long address = read_cr2(); /* Get the faulting address */
-	enum ctx_state prev_state;
-
-	/*
-	 * We must have this function tagged with __kprobes, notrace and call
-	 * read_cr2() before calling anything else. To avoid calling any kind
-	 * of tracing machinery before we've observed the CR2 value.
-	 *
-	 * exception_{enter,exit}() contain all sorts of tracepoints.
-	 */
-
-	prev_state = exception_enter();
-	__do_page_fault(regs, error_code, address);
-	exception_exit(prev_state);
-}
-NOKPROBE_SYMBOL(do_page_fault);
-
-#ifdef CONFIG_TRACING
 static nokprobe_inline void
 trace_page_fault_entries(unsigned long address, struct pt_regs *regs,
 			 unsigned long error_code)
@@ -1525,22 +1500,24 @@ trace_page_fault_entries(unsigned long address, struct pt_regs *regs,
 		trace_page_fault_kernel(address, regs, error_code);
 }
 
+/*
+ * We must have this function blacklisted from kprobes, tagged with notrace
+ * and call read_cr2() before calling anything else. To avoid calling any
+ * kind of tracing machinery before we've observed the CR2 value.
+ *
+ * exception_{enter,exit}() contains all sorts of tracepoints.
+ */
 dotraplinkage void notrace
-trace_do_page_fault(struct pt_regs *regs, unsigned long error_code)
+do_page_fault(struct pt_regs *regs, unsigned long error_code)
 {
-	/*
-	 * The exception_enter and tracepoint processing could
-	 * trigger another page faults (user space callchain
-	 * reading) and destroy the original cr2 value, so read
-	 * the faulting address now.
-	 */
-	unsigned long address = read_cr2();
+	unsigned long address = read_cr2(); /* Get the faulting address */
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
-	trace_page_fault_entries(address, regs, error_code);
+	if (trace_pagefault_enabled())
+		trace_page_fault_entries(address, regs, error_code);
+
 	__do_page_fault(regs, error_code, address);
 	exception_exit(prev_state);
 }
-NOKPROBE_SYMBOL(trace_do_page_fault);
-#endif /* CONFIG_TRACING */
+NOKPROBE_SYMBOL(do_page_fault);

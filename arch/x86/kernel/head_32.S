@@ -345,7 +345,6 @@ ENTRY(startup_32_smp)
 	movl %eax,%cr0
 
 	lgdt early_gdt_descr
-	lidt idt_descr
 	ljmp $(__KERNEL_CS),$1f
 1:	movl $(__KERNEL_DS),%eax	# reload all the segment registers
 	movl %eax,%ss			# after changing gdt.
@@ -378,37 +377,6 @@ ENDPROC(startup_32_smp)
  */
 __INIT
 setup_once:
-	/*
-	 * Set up a idt with 256 interrupt gates that push zero if there
-	 * is no error code and then jump to early_idt_handler_common.
-	 * It doesn't actually load the idt - that needs to be done on
-	 * each CPU. Interrupts are enabled elsewhere, when we can be
-	 * relatively sure everything is ok.
-	 */
-
-	movl $idt_table,%edi
-	movl $early_idt_handler_array,%eax
-	movl $NUM_EXCEPTION_VECTORS,%ecx
-1:
-	movl %eax,(%edi)
-	movl %eax,4(%edi)
-	/* interrupt gate, dpl=0, present */
-	movl $(0x8E000000 + __KERNEL_CS),2(%edi)
-	addl $EARLY_IDT_HANDLER_SIZE,%eax
-	addl $8,%edi
-	loop 1b
-
-	movl $256 - NUM_EXCEPTION_VECTORS,%ecx
-	movl $ignore_int,%edx
-	movl $(__KERNEL_CS << 16),%eax
-	movw %dx,%ax		/* selector = 0x0010 = cs */
-	movw $0x8E00,%dx	/* interrupt gate - dpl=0, present */
-2:
-	movl %eax,(%edi)
-	movl %edx,4(%edi)
-	addl $8,%edi
-	loop 2b
-
 #ifdef CONFIG_CC_STACKPROTECTOR
 	/*
 	 * Configure the stack canary. The linker can't handle this by
@@ -497,8 +465,7 @@ early_idt_handler_common:
 ENDPROC(early_idt_handler_common)
 
 /* This is the default interrupt "handler" :-) */
-	ALIGN
-ignore_int:
+ENTRY(early_ignore_irq)
 	cld
 #ifdef CONFIG_PRINTK
 	pushl %eax
@@ -533,7 +500,8 @@ ignore_int:
 hlt_loop:
 	hlt
 	jmp hlt_loop
-ENDPROC(ignore_int)
+ENDPROC(early_ignore_irq)
+
 __INITDATA
 	.align 4
 GLOBAL(early_recursion_flag)
@@ -622,7 +590,6 @@ int_msg:
 
 	.data
 .globl boot_gdt_descr
-.globl idt_descr
 
 	ALIGN
 # early boot GDT descriptor (must use 1:1 address mapping)
@@ -630,11 +597,6 @@ int_msg:
 boot_gdt_descr:
 	.word __BOOT_DS+7
 	.long boot_gdt - __PAGE_OFFSET
-
-	.word 0				# 32-bit align idt_desc.address
-idt_descr:
-	.word IDT_ENTRIES*8-1		# idt contains 256 entries
-	.long idt_table
 
 # boot GDT descriptor (later on used by CPU#0):
 	.word 0				# 32 bit align gdt_desc.address

@@ -123,9 +123,6 @@ static const struct pv_irq_ops xen_irq_ops __initconst = {
 
 	.safe_halt = xen_safe_halt,
 	.halt = xen_halt,
-#ifdef CONFIG_X86_64
-	.adjust_exception_frame = xen_adjust_exception_frame,
-#endif
 };
 
 void __init xen_init_irq_ops(void)

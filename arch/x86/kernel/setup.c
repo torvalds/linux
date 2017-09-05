@@ -900,7 +900,7 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	olpc_ofw_detect();
 
-	early_trap_init();
+	idt_setup_early_traps();
 	early_cpu_init();
 	early_ioremap_init();
 
@@ -1171,7 +1171,7 @@ void __init setup_arch(char **cmdline_p)
 
 	init_mem_mapping();
 
-	early_trap_pf_init();
+	idt_setup_early_pf();
 
 	/*
 	 * Update mmu_cr4_features (and, indirectly, trampoline_cr4_features)

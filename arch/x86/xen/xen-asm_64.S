@@ -16,11 +16,42 @@
 
 #include <linux/linkage.h>
 
-ENTRY(xen_adjust_exception_frame)
-	mov 8+0(%rsp), %rcx
-	mov 8+8(%rsp), %r11
-	ret $16
-ENDPROC(xen_adjust_exception_frame)
+.macro xen_pv_trap name
+ENTRY(xen_\name)
+	pop %rcx
+	pop %r11
+	jmp  \name
+END(xen_\name)
+.endm
+
+xen_pv_trap divide_error
+xen_pv_trap debug
+xen_pv_trap xendebug
+xen_pv_trap int3
+xen_pv_trap xenint3
+xen_pv_trap nmi
+xen_pv_trap overflow
+xen_pv_trap bounds
+xen_pv_trap invalid_op
+xen_pv_trap device_not_available
+xen_pv_trap double_fault
+xen_pv_trap coprocessor_segment_overrun
+xen_pv_trap invalid_TSS
+xen_pv_trap segment_not_present
+xen_pv_trap stack_segment
+xen_pv_trap general_protection
+xen_pv_trap page_fault
+xen_pv_trap spurious_interrupt_bug
+xen_pv_trap coprocessor_error
+xen_pv_trap alignment_check
+#ifdef CONFIG_X86_MCE
+xen_pv_trap machine_check
+#endif /* CONFIG_X86_MCE */
+xen_pv_trap simd_coprocessor_error
+#ifdef CONFIG_IA32_EMULATION
+xen_pv_trap entry_INT80_compat
+#endif
+xen_pv_trap hypervisor_callback
 
 hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
 /*

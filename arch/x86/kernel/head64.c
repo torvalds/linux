@@ -311,8 +311,6 @@ static void __init copy_bootdata(char *real_mode_data)
 
 asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
 {
-	int i;
-
 	/*
 	 * Build-time sanity checks on the kernel image and module
 	 * area mappings. (these are purely build-time and produce no code)
@@ -345,9 +343,7 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
 
 	kasan_early_init();
 
-	for (i = 0; i < NUM_EXCEPTION_VECTORS; i++)
-		set_intr_gate(i, early_idt_handler_array[i]);
-	load_idt((const struct desc_ptr *)&idt_descr);
+	idt_setup_early_handler();
 
 	copy_bootdata(__va(real_mode_data));
 
