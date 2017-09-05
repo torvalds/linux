@@ -71,6 +71,24 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 struct k10temp_data {
 	struct pci_dev *pdev;
 	void (*read_tempreg)(struct pci_dev *pdev, u32 *regval);
+	int temp_offset;
+};
+
+struct tctl_offset {
+	u8 model;
+	char const *id;
+	int offset;
+};
+
+static const struct tctl_offset tctl_offset_table[] = {
+	{ 0x17, "AMD Ryzen 7 1600X", 20000 },
+	{ 0x17, "AMD Ryzen 7 1700X", 20000 },
+	{ 0x17, "AMD Ryzen 7 1800X", 20000 },
+	{ 0x17, "AMD Ryzen Threadripper 1950X", 27000 },
+	{ 0x17, "AMD Ryzen Threadripper 1920X", 27000 },
+	{ 0x17, "AMD Ryzen Threadripper 1950", 10000 },
+	{ 0x17, "AMD Ryzen Threadripper 1920", 10000 },
+	{ 0x17, "AMD Ryzen Threadripper 1910", 10000 },
 };
 
 static void read_tempreg_pci(struct pci_dev *pdev, u32 *regval)
@@ -110,6 +128,7 @@ static ssize_t temp1_input_show(struct device *dev,
 
 	data->read_tempreg(data->pdev, &regval);
 	temp = (regval >> 21) * 125;
+	temp -= data->temp_offset;
 
 	return sprintf(buf, "%u\n", temp);
 }
@@ -217,6 +236,7 @@ static int k10temp_probe(struct pci_dev *pdev,
 	struct device *dev = &pdev->dev;
 	struct k10temp_data *data;
 	struct device *hwmon_dev;
+	int i;
 
 	if (unreliable) {
 		if (!force) {
@@ -241,6 +261,16 @@ static int k10temp_probe(struct pci_dev *pdev,
 		data->read_tempreg = read_tempreg_nb_f17;
 	else
 		data->read_tempreg = read_tempreg_pci;
+
+	for (i = 0; i < ARRAY_SIZE(tctl_offset_table); i++) {
+		const struct tctl_offset *entry = &tctl_offset_table[i];
+
+		if (boot_cpu_data.x86 == entry->model &&
+		    strstr(boot_cpu_data.x86_model_id, entry->id)) {
+			data->temp_offset = entry->offset;
+			break;
+		}
+	}
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, "k10temp", data,
 							   k10temp_groups);
