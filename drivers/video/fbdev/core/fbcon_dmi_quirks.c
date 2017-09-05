@@ -58,6 +58,12 @@ static const struct fbcon_dmi_rotate_data rotate_data_itworks_tw891 = {
 	.rotate = FB_ROTATE_CW,
 };
 
+static const struct fbcon_dmi_rotate_data rotate_data_vios_lth17 = {
+	.width = 800,
+	.height = 1280,
+	.rotate = FB_ROTATE_CW,
+};
+
 static const struct dmi_system_id rotate_data[] = {
 	{	/* Asus T100HA */
 		.matches = {
@@ -94,6 +100,14 @@ static const struct dmi_system_id rotate_data[] = {
 		  DMI_EXACT_MATCH(DMI_BOARD_NAME, "TW891"),
 		},
 		.driver_data = (void *)&rotate_data_itworks_tw891,
+	}, {	/* VIOS LTH17 */
+		.matches = {
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "VIOS"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "LTH17"),
+		  DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "VIOS"),
+		  DMI_EXACT_MATCH(DMI_BOARD_NAME, "LTH17"),
+		},
+		.driver_data = (void *)&rotate_data_vios_lth17,
 	},
 	{}
 };
