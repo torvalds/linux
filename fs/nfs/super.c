@@ -879,7 +879,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 	if (nfss->options & NFS_OPTION_FSCACHE) {
 		seq_printf(m, "\n\tfsc:\t");
 		for (i = 0; i < __NFSIOS_FSCACHEMAX; i++)
-			seq_printf(m, "%Lu ", totals.bytes[i]);
+			seq_printf(m, "%Lu ", totals.fscache[i]);
 	}
 #endif
 	seq_printf(m, "\n");
@@ -2339,6 +2339,7 @@ void nfs_fill_super(struct super_block *sb, struct nfs_mount_info *mount_info)
 		 */
 		sb->s_flags |= MS_POSIXACL;
 		sb->s_time_gran = 1;
+		sb->s_export_op = &nfs_export_ops;
 	}
 
  	nfs_initialise_sb(sb);
@@ -2360,6 +2361,7 @@ static void nfs_clone_super(struct super_block *sb,
 	sb->s_xattr = old_sb->s_xattr;
 	sb->s_op = old_sb->s_op;
 	sb->s_time_gran = 1;
+	sb->s_export_op = old_sb->s_export_op;
 
 	if (server->nfs_client->rpc_ops->version != 2) {
 		/* The VFS shouldn't apply the umask to mode bits. We will do

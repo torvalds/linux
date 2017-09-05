@@ -491,6 +491,14 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	int cdclk = cdclk_state->cdclk;
 	u32 val, cmd;
 
+	/* There are cases where we can end up here with power domains
+	 * off and a CDCLK frequency other than the minimum, like when
+	 * issuing a modeset without actually changing any display after
+	 * a system suspend.  So grab the PIPE-A domain, which covers
+	 * the HW blocks needed for the following programming.
+	 */
+	intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
+
 	if (cdclk >= 320000) /* jump to highest voltage for 400MHz too */
 		cmd = 2;
 	else if (cdclk == 266667)
@@ -549,6 +557,8 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	intel_update_cdclk(dev_priv);
 
 	vlv_program_pfi_credits(dev_priv);
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A);
 }
 
 static void chv_set_cdclk(struct drm_i915_private *dev_priv,
@@ -567,6 +577,14 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 		MISSING_CASE(cdclk);
 		return;
 	}
+
+	/* There are cases where we can end up here with power domains
+	 * off and a CDCLK frequency other than the minimum, like when
+	 * issuing a modeset without actually changing any display after
+	 * a system suspend.  So grab the PIPE-A domain, which covers
+	 * the HW blocks needed for the following programming.
+	 */
+	intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
 	/*
 	 * Specs are full of misinformation, but testing on actual
@@ -590,6 +608,8 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 	intel_update_cdclk(dev_priv);
 
 	vlv_program_pfi_credits(dev_priv);
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A);
 }
 
 static int bdw_calc_cdclk(int max_pixclk)

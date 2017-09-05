@@ -909,17 +909,94 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		},
 	},
 	{
+		.ident = "Lenovo V310-14IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-14IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo V310-14ISK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-14ISK"),
+		},
+	},
+	{
+		.ident = "Lenovo V310-15IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-15IKB"),
+		},
+	},
+	{
 		.ident = "Lenovo V310-15ISK",
 		.matches = {
-		        DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		        DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-15ISK"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V310-15ISK"),
+		},
+	},
+	{
+		.ident = "Lenovo V510-15IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo V510-15IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 300-15IBR",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 300-15IBR"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 300-15IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 300-15IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 300S-11IBR",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 300S-11BR"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 310-15ABR",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15ABR"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 310-15IAP",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15IAP"),
 		},
 	},
 	{
 		.ident = "Lenovo ideapad 310-15IKB",
 		.matches = {
-		        DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		        DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15IKB"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15IKB"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad 310-15ISK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 310-15ISK"),
+		},
+	},
+	{
+		.ident = "Lenovo ideapad Y700-14ISK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad Y700-14ISK"),
 		},
 	},
 	{

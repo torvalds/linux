@@ -265,15 +265,34 @@ void mips_cm_lock_other(unsigned int core, unsigned int vp)
 	u32 val;
 
 	preempt_disable();
-	curr_core = current_cpu_data.core;
-	spin_lock_irqsave(&per_cpu(cm_core_lock, curr_core),
-			  per_cpu(cm_core_lock_flags, curr_core));
 
 	if (mips_cm_revision() >= CM_REV_CM3) {
 		val = core << CM3_GCR_Cx_OTHER_CORE_SHF;
 		val |= vp << CM3_GCR_Cx_OTHER_VP_SHF;
+
+		/*
+		 * We need to disable interrupts in SMP systems in order to
+		 * ensure that we don't interrupt the caller with code which
+		 * may modify the redirect register. We do so here in a
+		 * slightly obscure way by using a spin lock, since this has
+		 * the neat property of also catching any nested uses of
+		 * mips_cm_lock_other() leading to a deadlock or a nice warning
+		 * with lockdep enabled.
+		 */
+		spin_lock_irqsave(this_cpu_ptr(&cm_core_lock),
+				  *this_cpu_ptr(&cm_core_lock_flags));
 	} else {
-		BUG_ON(vp != 0);
+		WARN_ON(vp != 0);
+
+		/*
+		 * We only have a GCR_CL_OTHER per core in systems with
+		 * CM 2.5 & older, so have to ensure other VP(E)s don't
+		 * race with us.
+		 */
+		curr_core = current_cpu_data.core;
+		spin_lock_irqsave(&per_cpu(cm_core_lock, curr_core),
+				  per_cpu(cm_core_lock_flags, curr_core));
+
 		val = core << CM_GCR_Cx_OTHER_CORENUM_SHF;
 	}
 
@@ -288,10 +307,17 @@ void mips_cm_lock_other(unsigned int core, unsigned int vp)
 
 void mips_cm_unlock_other(void)
 {
-	unsigned curr_core = current_cpu_data.core;
+	unsigned int curr_core;
 
-	spin_unlock_irqrestore(&per_cpu(cm_core_lock, curr_core),
-			       per_cpu(cm_core_lock_flags, curr_core));
+	if (mips_cm_revision() < CM_REV_CM3) {
+		curr_core = current_cpu_data.core;
+		spin_unlock_irqrestore(&per_cpu(cm_core_lock, curr_core),
+				       per_cpu(cm_core_lock_flags, curr_core));
+	} else {
+		spin_unlock_irqrestore(this_cpu_ptr(&cm_core_lock),
+				       *this_cpu_ptr(&cm_core_lock_flags));
+	}
+
 	preempt_enable();
 }
 

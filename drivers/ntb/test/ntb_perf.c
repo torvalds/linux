@@ -76,6 +76,7 @@
 #define DMA_RETRIES		20
 #define SZ_4G			(1ULL << 32)
 #define MAX_SEG_ORDER		20 /* no larger than 1M for kmalloc buffer */
+#define PIDX			NTB_DEF_PEER_IDX
 
 MODULE_LICENSE(DRIVER_LICENSE);
 MODULE_VERSION(DRIVER_VERSION);
@@ -99,6 +100,10 @@ MODULE_PARM_DESC(run_order, "size order [2^n] of total data to transfer");
 static bool use_dma; /* default to 0 */
 module_param(use_dma, bool, 0644);
 MODULE_PARM_DESC(use_dma, "Using DMA engine to measure performance");
+
+static bool on_node = true; /* default to 1 */
+module_param(on_node, bool, 0644);
+MODULE_PARM_DESC(on_node, "Run threads only on NTB device node (default: true)");
 
 struct perf_mw {
 	phys_addr_t	phys_addr;
@@ -135,9 +140,6 @@ struct perf_ctx {
 	bool			link_is_up;
 	struct delayed_work	link_work;
 	wait_queue_head_t	link_wq;
-	struct dentry		*debugfs_node_dir;
-	struct dentry		*debugfs_run;
-	struct dentry		*debugfs_threads;
 	u8			perf_threads;
 	/* mutex ensures only one set of threads run at once */
 	struct mutex		run_mutex;
@@ -344,6 +346,10 @@ static int perf_move_data(struct pthr_ctx *pctx, char __iomem *dst, char *src,
 
 static bool perf_dma_filter_fn(struct dma_chan *chan, void *node)
 {
+	/* Is the channel required to be on the same node as the device? */
+	if (!on_node)
+		return true;
+
 	return dev_to_node(&chan->dev->device) == (int)(unsigned long)node;
 }
 
@@ -361,7 +367,7 @@ static int ntb_perf_thread(void *data)
 
 	pr_debug("kthread %s starting...\n", current->comm);
 
-	node = dev_to_node(&pdev->dev);
+	node = on_node ? dev_to_node(&pdev->dev) : NUMA_NO_NODE;
 
 	if (use_dma && !pctx->dma_chan) {
 		dma_cap_mask_t dma_mask;
@@ -454,7 +460,7 @@ static void perf_free_mw(struct perf_ctx *perf)
 	if (!mw->virt_addr)
 		return;
 
-	ntb_mw_clear_trans(perf->ntb, 0);
+	ntb_mw_clear_trans(perf->ntb, PIDX, 0);
 	dma_free_coherent(&pdev->dev, mw->buf_size,
 			  mw->virt_addr, mw->dma_addr);
 	mw->xlat_size = 0;
@@ -490,7 +496,7 @@ static int perf_set_mw(struct perf_ctx *perf, resource_size_t size)
 		mw->buf_size = 0;
 	}
 
-	rc = ntb_mw_set_trans(perf->ntb, 0, mw->dma_addr, mw->xlat_size);
+	rc = ntb_mw_set_trans(perf->ntb, PIDX, 0, mw->dma_addr, mw->xlat_size);
 	if (rc) {
 		dev_err(&perf->ntb->dev, "Unable to set mw0 translation\n");
 		perf_free_mw(perf);
@@ -517,9 +523,9 @@ static void perf_link_work(struct work_struct *work)
 	if (max_mw_size && size > max_mw_size)
 		size = max_mw_size;
 
-	ntb_peer_spad_write(ndev, MW_SZ_HIGH, upper_32_bits(size));
-	ntb_peer_spad_write(ndev, MW_SZ_LOW, lower_32_bits(size));
-	ntb_peer_spad_write(ndev, VERSION, PERF_VERSION);
+	ntb_peer_spad_write(ndev, PIDX, MW_SZ_HIGH, upper_32_bits(size));
+	ntb_peer_spad_write(ndev, PIDX, MW_SZ_LOW, lower_32_bits(size));
+	ntb_peer_spad_write(ndev, PIDX, VERSION, PERF_VERSION);
 
 	/* now read what peer wrote */
 	val = ntb_spad_read(ndev, VERSION);
@@ -561,8 +567,12 @@ static int perf_setup_mw(struct ntb_dev *ntb, struct perf_ctx *perf)
 
 	mw = &perf->mw;
 
-	rc = ntb_mw_get_range(ntb, 0, &mw->phys_addr, &mw->phys_size,
-			      &mw->xlat_align, &mw->xlat_align_size);
+	rc = ntb_mw_get_align(ntb, PIDX, 0, &mw->xlat_align,
+			      &mw->xlat_align_size, NULL);
+	if (rc)
+		return rc;
+
+	rc = ntb_peer_mw_get_addr(ntb, 0, &mw->phys_addr, &mw->phys_size);
 	if (rc)
 		return rc;
 
@@ -677,7 +687,8 @@ static ssize_t debugfs_run_write(struct file *filp, const char __user *ubuf,
 		pr_info("Fix run_order to %u\n", run_order);
 	}
 
-	node = dev_to_node(&perf->ntb->pdev->dev);
+	node = on_node ? dev_to_node(&perf->ntb->pdev->dev)
+		       : NUMA_NO_NODE;
 	atomic_set(&perf->tdone, 0);
 
 	/* launch kernel thread */
@@ -723,34 +734,71 @@ static const struct file_operations ntb_perf_debugfs_run = {
 static int perf_debugfs_setup(struct perf_ctx *perf)
 {
 	struct pci_dev *pdev = perf->ntb->pdev;
+	struct dentry *debugfs_node_dir;
+	struct dentry *debugfs_run;
+	struct dentry *debugfs_threads;
+	struct dentry *debugfs_seg_order;
+	struct dentry *debugfs_run_order;
+	struct dentry *debugfs_use_dma;
+	struct dentry *debugfs_on_node;
 
 	if (!debugfs_initialized())
 		return -ENODEV;
 
+	/* Assumpion: only one NTB device in the system */
 	if (!perf_debugfs_dir) {
 		perf_debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
 		if (!perf_debugfs_dir)
 			return -ENODEV;
 	}
 
-	perf->debugfs_node_dir = debugfs_create_dir(pci_name(pdev),
-						    perf_debugfs_dir);
-	if (!perf->debugfs_node_dir)
-		return -ENODEV;
+	debugfs_node_dir = debugfs_create_dir(pci_name(pdev),
+					      perf_debugfs_dir);
+	if (!debugfs_node_dir)
+		goto err;
 
-	perf->debugfs_run = debugfs_create_file("run", S_IRUSR | S_IWUSR,
-						perf->debugfs_node_dir, perf,
-						&ntb_perf_debugfs_run);
-	if (!perf->debugfs_run)
-		return -ENODEV;
+	debugfs_run = debugfs_create_file("run", S_IRUSR | S_IWUSR,
+					  debugfs_node_dir, perf,
+					  &ntb_perf_debugfs_run);
+	if (!debugfs_run)
+		goto err;
 
-	perf->debugfs_threads = debugfs_create_u8("threads", S_IRUSR | S_IWUSR,
-						  perf->debugfs_node_dir,
-						  &perf->perf_threads);
-	if (!perf->debugfs_threads)
-		return -ENODEV;
+	debugfs_threads = debugfs_create_u8("threads", S_IRUSR | S_IWUSR,
+					    debugfs_node_dir,
+					    &perf->perf_threads);
+	if (!debugfs_threads)
+		goto err;
+
+	debugfs_seg_order = debugfs_create_u32("seg_order", 0600,
+					       debugfs_node_dir,
+					       &seg_order);
+	if (!debugfs_seg_order)
+		goto err;
+
+	debugfs_run_order = debugfs_create_u32("run_order", 0600,
+					       debugfs_node_dir,
+					       &run_order);
+	if (!debugfs_run_order)
+		goto err;
+
+	debugfs_use_dma = debugfs_create_bool("use_dma", 0600,
+					       debugfs_node_dir,
+					       &use_dma);
+	if (!debugfs_use_dma)
+		goto err;
+
+	debugfs_on_node = debugfs_create_bool("on_node", 0600,
+					      debugfs_node_dir,
+					      &on_node);
+	if (!debugfs_on_node)
+		goto err;
 
 	return 0;
+
+err:
+	debugfs_remove_recursive(perf_debugfs_dir);
+	perf_debugfs_dir = NULL;
+	return -ENODEV;
 }
 
 static int perf_probe(struct ntb_client *client, struct ntb_dev *ntb)
@@ -766,8 +814,15 @@ static int perf_probe(struct ntb_client *client, struct ntb_dev *ntb)
 		return -EIO;
 	}
 
-	node = dev_to_node(&pdev->dev);
+	if (!ntb->ops->mw_set_trans) {
+		dev_err(&ntb->dev, "Need inbound MW based NTB API\n");
+		return -EINVAL;
+	}
 
+	if (ntb_peer_port_count(ntb) != NTB_DEF_PEER_CNT)
+		dev_warn(&ntb->dev, "Multi-port NTB devices unsupported\n");
+
+	node = on_node ? dev_to_node(&pdev->dev) : NUMA_NO_NODE;
 	perf = kzalloc_node(sizeof(*perf), GFP_KERNEL, node);
 	if (!perf) {
 		rc = -ENOMEM;

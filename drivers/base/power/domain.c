@@ -1148,8 +1148,8 @@ static void genpd_syscore_switch(struct device *dev, bool suspend)
 {
 	struct generic_pm_domain *genpd;
 
-	genpd = genpd_lookup_dev(dev);
-	if (!genpd)
+	genpd = dev_to_genpd(dev);
+	if (!pm_genpd_present(genpd))
 		return;
 
 	if (suspend) {
@@ -1180,6 +1180,7 @@ EXPORT_SYMBOL_GPL(pm_genpd_syscore_poweron);
 #define pm_genpd_resume_noirq		NULL
 #define pm_genpd_freeze_noirq		NULL
 #define pm_genpd_thaw_noirq		NULL
+#define pm_genpd_poweroff_noirq		NULL
 #define pm_genpd_restore_noirq		NULL
 #define pm_genpd_complete		NULL
 
@@ -1221,8 +1222,6 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 
 	spin_unlock_irq(&dev->power.lock);
 
-	dev_pm_domain_set(dev, &genpd->domain);
-
 	return gpd_data;
 
  err_free:
@@ -1236,8 +1235,6 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 static void genpd_free_dev_data(struct device *dev,
 				struct generic_pm_domain_data *gpd_data)
 {
-	dev_pm_domain_set(dev, NULL);
-
 	spin_lock_irq(&dev->power.lock);
 
 	dev->power.subsys_data->domain_data = NULL;
@@ -1273,6 +1270,8 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	ret = genpd->attach_dev ? genpd->attach_dev(genpd, dev) : 0;
 	if (ret)
 		goto out;
+
+	dev_pm_domain_set(dev, &genpd->domain);
 
 	genpd->device_count++;
 	genpd->max_off_time_changed = true;
@@ -1334,6 +1333,8 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
 
 	if (genpd->detach_dev)
 		genpd->detach_dev(genpd, dev);
+
+	dev_pm_domain_set(dev, NULL);
 
 	list_del_init(&pdd->list_node);
 

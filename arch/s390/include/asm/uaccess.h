@@ -249,9 +249,6 @@ int __put_user_bad(void) __attribute__((noreturn));
 
 int __get_user_bad(void) __attribute__((noreturn));
 
-#define __put_user_unaligned __put_user
-#define __get_user_unaligned __get_user
-
 unsigned long __must_check
 raw_copy_in_user(void __user *to, const void __user *from, unsigned long n);
 

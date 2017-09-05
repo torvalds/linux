@@ -336,8 +336,9 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "Cannot get the dmc interrupt resource\n");
-		return -EINVAL;
+		dev_err(&pdev->dev,
+			"Cannot get the dmc interrupt resource: %d\n", irq);
+		return irq;
 	}
 	data = devm_kzalloc(dev, sizeof(struct rk3399_dmcfreq), GFP_KERNEL);
 	if (!data)

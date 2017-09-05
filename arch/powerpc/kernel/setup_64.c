@@ -751,22 +751,3 @@ unsigned long memory_block_size_bytes(void)
 struct ppc_pci_io ppc_pci_io;
 EXPORT_SYMBOL(ppc_pci_io);
 #endif
-
-#ifdef CONFIG_HARDLOCKUP_DETECTOR
-u64 hw_nmi_get_sample_period(int watchdog_thresh)
-{
-	return ppc_proc_freq * watchdog_thresh;
-}
-
-/*
- * The hardlockup detector breaks PMU event based branches and is likely
- * to get false positives in KVM guests, so disable it by default.
- */
-static int __init disable_hardlockup_detector(void)
-{
-	hardlockup_detector_disable();
-
-	return 0;
-}
-early_initcall(disable_hardlockup_detector);
-#endif

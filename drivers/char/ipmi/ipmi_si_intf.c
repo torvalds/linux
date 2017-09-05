@@ -61,6 +61,7 @@
 #include <linux/ipmi_smi.h>
 #include <asm/io.h>
 #include "ipmi_si_sm.h"
+#include "ipmi_dmi.h"
 #include <linux/dmi.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
@@ -1942,7 +1943,7 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 				info->io.regspacing = DEFAULT_REGSPACING;
 			info->io.regsize = regsize;
 			if (!info->io.regsize)
-				info->io.regsize = DEFAULT_REGSPACING;
+				info->io.regsize = DEFAULT_REGSIZE;
 			info->io.regshift = regshift;
 			info->irq = irq;
 			if (info->irq)
@@ -2036,7 +2037,7 @@ static int hardcode_find_bmc(void)
 			info->io.regspacing = DEFAULT_REGSPACING;
 		info->io.regsize = regsizes[i];
 		if (!info->io.regsize)
-			info->io.regsize = DEFAULT_REGSPACING;
+			info->io.regsize = DEFAULT_REGSIZE;
 		info->io.regshift = regshifts[i];
 		info->irq = irqs[i];
 		if (info->irq)
@@ -2273,136 +2274,105 @@ static void spmi_find_bmc(void)
 }
 #endif
 
-#ifdef CONFIG_DMI
-struct dmi_ipmi_data {
-	u8   		type;
-	u8   		addr_space;
-	unsigned long	base_addr;
-	u8   		irq;
-	u8              offset;
-	u8              slave_addr;
-};
-
-static int decode_dmi(const struct dmi_header *dm,
-				struct dmi_ipmi_data *dmi)
+#if defined(CONFIG_DMI) || defined(CONFIG_ACPI)
+struct resource *ipmi_get_info_from_resources(struct platform_device *pdev,
+					      struct smi_info *info)
 {
-	const u8	*data = (const u8 *)dm;
-	unsigned long  	base_addr;
-	u8		reg_spacing;
-	u8              len = dm->length;
+	struct resource *res, *res_second;
 
-	dmi->type = data[4];
-
-	memcpy(&base_addr, data+8, sizeof(unsigned long));
-	if (len >= 0x11) {
-		if (base_addr & 1) {
-			/* I/O */
-			base_addr &= 0xFFFE;
-			dmi->addr_space = IPMI_IO_ADDR_SPACE;
-		} else
-			/* Memory */
-			dmi->addr_space = IPMI_MEM_ADDR_SPACE;
-
-		/* If bit 4 of byte 0x10 is set, then the lsb for the address
-		   is odd. */
-		dmi->base_addr = base_addr | ((data[0x10] & 0x10) >> 4);
-
-		dmi->irq = data[0x11];
-
-		/* The top two bits of byte 0x10 hold the register spacing. */
-		reg_spacing = (data[0x10] & 0xC0) >> 6;
-		switch (reg_spacing) {
-		case 0x00: /* Byte boundaries */
-		    dmi->offset = 1;
-		    break;
-		case 0x01: /* 32-bit boundaries */
-		    dmi->offset = 4;
-		    break;
-		case 0x02: /* 16-byte boundaries */
-		    dmi->offset = 16;
-		    break;
-		default:
-		    /* Some other interface, just ignore it. */
-		    return -EIO;
-		}
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (res) {
+		info->io_setup = port_setup;
+		info->io.addr_type = IPMI_IO_ADDR_SPACE;
 	} else {
-		/* Old DMI spec. */
-		/*
-		 * Note that technically, the lower bit of the base
-		 * address should be 1 if the address is I/O and 0 if
-		 * the address is in memory.  So many systems get that
-		 * wrong (and all that I have seen are I/O) so we just
-		 * ignore that bit and assume I/O.  Systems that use
-		 * memory should use the newer spec, anyway.
-		 */
-		dmi->base_addr = base_addr & 0xfffe;
-		dmi->addr_space = IPMI_IO_ADDR_SPACE;
-		dmi->offset = 1;
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (res) {
+			info->io_setup = mem_setup;
+			info->io.addr_type = IPMI_MEM_ADDR_SPACE;
+		}
 	}
+	if (!res) {
+		dev_err(&pdev->dev, "no I/O or memory address\n");
+		return NULL;
+	}
+	info->io.addr_data = res->start;
 
-	dmi->slave_addr = data[6];
+	info->io.regspacing = DEFAULT_REGSPACING;
+	res_second = platform_get_resource(pdev,
+			       (info->io.addr_type == IPMI_IO_ADDR_SPACE) ?
+					IORESOURCE_IO : IORESOURCE_MEM,
+			       1);
+	if (res_second) {
+		if (res_second->start > info->io.addr_data)
+			info->io.regspacing =
+				res_second->start - info->io.addr_data;
+	}
+	info->io.regsize = DEFAULT_REGSIZE;
+	info->io.regshift = 0;
 
-	return 0;
+	return res;
 }
 
-static void try_init_dmi(struct dmi_ipmi_data *ipmi_data)
+#endif
+
+#ifdef CONFIG_DMI
+static int dmi_ipmi_probe(struct platform_device *pdev)
 {
 	struct smi_info *info;
+	u8 type, slave_addr;
+	int rv;
+
+	if (!si_trydmi)
+		return -ENODEV;
+
+	rv = device_property_read_u8(&pdev->dev, "ipmi-type", &type);
+	if (rv)
+		return -ENODEV;
 
 	info = smi_info_alloc();
 	if (!info) {
 		pr_err(PFX "Could not allocate SI data\n");
-		return;
+		return -ENOMEM;
 	}
 
 	info->addr_source = SI_SMBIOS;
 	pr_info(PFX "probing via SMBIOS\n");
 
-	switch (ipmi_data->type) {
-	case 0x01: /* KCS */
+	switch (type) {
+	case IPMI_DMI_TYPE_KCS:
 		info->si_type = SI_KCS;
 		break;
-	case 0x02: /* SMIC */
+	case IPMI_DMI_TYPE_SMIC:
 		info->si_type = SI_SMIC;
 		break;
-	case 0x03: /* BT */
+	case IPMI_DMI_TYPE_BT:
 		info->si_type = SI_BT;
 		break;
 	default:
 		kfree(info);
-		return;
+		return -EINVAL;
 	}
 
-	switch (ipmi_data->addr_space) {
-	case IPMI_MEM_ADDR_SPACE:
-		info->io_setup = mem_setup;
-		info->io.addr_type = IPMI_MEM_ADDR_SPACE;
-		break;
-
-	case IPMI_IO_ADDR_SPACE:
-		info->io_setup = port_setup;
-		info->io.addr_type = IPMI_IO_ADDR_SPACE;
-		break;
-
-	default:
-		kfree(info);
-		pr_warn(PFX "Unknown SMBIOS I/O Address type: %d\n",
-			ipmi_data->addr_space);
-		return;
+	if (!ipmi_get_info_from_resources(pdev, info)) {
+		rv = -EINVAL;
+		goto err_free;
 	}
-	info->io.addr_data = ipmi_data->base_addr;
 
-	info->io.regspacing = ipmi_data->offset;
-	if (!info->io.regspacing)
-		info->io.regspacing = DEFAULT_REGSPACING;
-	info->io.regsize = DEFAULT_REGSPACING;
-	info->io.regshift = 0;
+	rv = device_property_read_u8(&pdev->dev, "slave-addr", &slave_addr);
+	if (rv) {
+		dev_warn(&pdev->dev, "device has no slave-addr property");
+		info->slave_addr = 0x20;
+	} else {
+		info->slave_addr = slave_addr;
+	}
 
-	info->slave_addr = ipmi_data->slave_addr;
-
-	info->irq = ipmi_data->irq;
-	if (info->irq)
+	info->irq = platform_get_irq(pdev, 0);
+	if (info->irq > 0)
 		info->irq_setup = std_irq_setup;
+	else
+		info->irq = 0;
+
+	info->dev = &pdev->dev;
 
 	pr_info("ipmi_si: SMBIOS: %s %#lx regsize %d spacing %d irq %d\n",
 		(info->io.addr_type == IPMI_IO_ADDR_SPACE) ? "io" : "mem",
@@ -2411,21 +2381,17 @@ static void try_init_dmi(struct dmi_ipmi_data *ipmi_data)
 
 	if (add_smi(info))
 		kfree(info);
+
+	return 0;
+
+err_free:
+	kfree(info);
+	return rv;
 }
-
-static void dmi_find_bmc(void)
+#else
+static int dmi_ipmi_probe(struct platform_device *pdev)
 {
-	const struct dmi_device *dev = NULL;
-	struct dmi_ipmi_data data;
-	int                  rv;
-
-	while ((dev = dmi_find_device(DMI_DEV_TYPE_IPMI, NULL, dev))) {
-		memset(&data, 0, sizeof(data));
-		rv = decode_dmi((const struct dmi_header *) dev->device_data,
-				&data);
-		if (!rv)
-			try_init_dmi(&data);
-	}
+	return -ENODEV;
 }
 #endif /* CONFIG_DMI */
 
@@ -2684,17 +2650,47 @@ static int of_ipmi_probe(struct platform_device *dev)
 #endif
 
 #ifdef CONFIG_ACPI
+static int find_slave_address(struct smi_info *info, int slave_addr)
+{
+#ifdef CONFIG_IPMI_DMI_DECODE
+	if (!slave_addr) {
+		int type = -1;
+		u32 flags = IORESOURCE_IO;
+
+		switch (info->si_type) {
+		case SI_KCS:
+			type = IPMI_DMI_TYPE_KCS;
+			break;
+		case SI_BT:
+			type = IPMI_DMI_TYPE_BT;
+			break;
+		case SI_SMIC:
+			type = IPMI_DMI_TYPE_SMIC;
+			break;
+		}
+
+		if (info->io.addr_type == IPMI_MEM_ADDR_SPACE)
+			flags = IORESOURCE_MEM;
+
+		slave_addr = ipmi_dmi_get_slave_addr(type, flags,
+						     info->io.addr_data);
+	}
+#endif
+
+	return slave_addr;
+}
+
 static int acpi_ipmi_probe(struct platform_device *dev)
 {
 	struct smi_info *info;
-	struct resource *res, *res_second;
 	acpi_handle handle;
 	acpi_status status;
 	unsigned long long tmp;
+	struct resource *res;
 	int rv = -EINVAL;
 
 	if (!si_tryacpi)
-	       return 0;
+		return -ENODEV;
 
 	handle = ACPI_HANDLE(&dev->dev);
 	if (!handle)
@@ -2734,35 +2730,11 @@ static int acpi_ipmi_probe(struct platform_device *dev)
 		goto err_free;
 	}
 
-	res = platform_get_resource(dev, IORESOURCE_IO, 0);
-	if (res) {
-		info->io_setup = port_setup;
-		info->io.addr_type = IPMI_IO_ADDR_SPACE;
-	} else {
-		res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-		if (res) {
-			info->io_setup = mem_setup;
-			info->io.addr_type = IPMI_MEM_ADDR_SPACE;
-		}
-	}
+	res = ipmi_get_info_from_resources(dev, info);
 	if (!res) {
-		dev_err(&dev->dev, "no I/O or memory address\n");
+		rv = -EINVAL;
 		goto err_free;
 	}
-	info->io.addr_data = res->start;
-
-	info->io.regspacing = DEFAULT_REGSPACING;
-	res_second = platform_get_resource(dev,
-			       (info->io.addr_type == IPMI_IO_ADDR_SPACE) ?
-					IORESOURCE_IO : IORESOURCE_MEM,
-			       1);
-	if (res_second) {
-		if (res_second->start > info->io.addr_data)
-			info->io.regspacing =
-				res_second->start - info->io.addr_data;
-	}
-	info->io.regsize = DEFAULT_REGSPACING;
-	info->io.regshift = 0;
 
 	/* If _GPE exists, use it; otherwise use standard interrupts */
 	status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
@@ -2777,6 +2749,8 @@ static int acpi_ipmi_probe(struct platform_device *dev)
 			info->irq_setup = std_irq_setup;
 		}
 	}
+
+	info->slave_addr = find_slave_address(info, info->slave_addr);
 
 	info->dev = &dev->dev;
 	platform_set_drvdata(dev, info);
@@ -2813,7 +2787,10 @@ static int ipmi_probe(struct platform_device *dev)
 	if (of_ipmi_probe(dev) == 0)
 		return 0;
 
-	return acpi_ipmi_probe(dev);
+	if (acpi_ipmi_probe(dev) == 0)
+		return 0;
+
+	return dmi_ipmi_probe(dev);
 }
 
 static int ipmi_remove(struct platform_device *dev)
@@ -3786,11 +3763,6 @@ static int init_ipmi_si(void)
 	}
 #endif
 
-#ifdef CONFIG_DMI
-	if (si_trydmi)
-		dmi_find_bmc();
-#endif
-
 #ifdef CONFIG_ACPI
 	if (si_tryacpi)
 		spmi_find_bmc();
@@ -3938,6 +3910,7 @@ static void cleanup_ipmi_si(void)
 }
 module_exit(cleanup_ipmi_si);
 
+MODULE_ALIAS("platform:dmi-ipmi-si");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
 MODULE_DESCRIPTION("Interface to the IPMI driver for the KCS, SMIC, and BT"

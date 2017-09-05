@@ -33,7 +33,7 @@
 
 #ifdef CONFIG_X86_32
 
-extern unsigned long asmlinkage efi_call_phys(void *, ...);
+extern asmlinkage unsigned long efi_call_phys(void *, ...);
 
 #define arch_efi_call_virt_setup()	kernel_fpu_begin()
 #define arch_efi_call_virt_teardown()	kernel_fpu_end()
@@ -52,7 +52,7 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 
 #define EFI_LOADER_SIGNATURE	"EL64"
 
-extern u64 asmlinkage efi_call(void *fp, ...);
+extern asmlinkage u64 efi_call(void *fp, ...);
 
 #define efi_call_phys(f, args...)		efi_call((f), args)
 

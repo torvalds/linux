@@ -26,13 +26,6 @@
 #include <linux/vmalloc.h>
 #include "kexec_internal.h"
 
-/*
- * Declare these symbols weak so that if architecture provides a purgatory,
- * these will be overridden.
- */
-char __weak kexec_purgatory[0];
-size_t __weak kexec_purgatory_size = 0;
-
 static int kexec_calculate_store_digests(struct kimage *image);
 
 /* Architectures can provide this probe function */
@@ -295,6 +288,14 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 		goto out;
 
 	ret = machine_kexec_prepare(image);
+	if (ret)
+		goto out;
+
+	/*
+	 * Some architecture(like S390) may touch the crash memory before
+	 * machine_kexec_prepare(), we must copy vmcoreinfo data after it.
+	 */
+	ret = kimage_crash_copy_vmcoreinfo(image);
 	if (ret)
 		goto out;
 

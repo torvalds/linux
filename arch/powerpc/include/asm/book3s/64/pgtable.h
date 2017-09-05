@@ -1192,5 +1192,6 @@ static inline const int pud_pfn(pud_t pud)
 	BUILD_BUG();
 	return 0;
 }
+
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_PGTABLE_H_ */

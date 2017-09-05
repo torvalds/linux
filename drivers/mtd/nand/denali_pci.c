@@ -19,6 +19,9 @@
 
 #define DENALI_NAND_NAME    "denali-nand-pci"
 
+#define INTEL_CE4100	1
+#define INTEL_MRST	2
+
 /* List of platforms this NAND controller has be integrated into */
 static const struct pci_device_id denali_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x0701), INTEL_CE4100 },
@@ -26,6 +29,8 @@ static const struct pci_device_id denali_pci_ids[] = {
 	{ /* end: all zeroes */ }
 };
 MODULE_DEVICE_TABLE(pci, denali_pci_ids);
+
+NAND_ECC_CAPS_SINGLE(denali_pci_ecc_caps, denali_calc_ecc_bytes, 512, 8, 15);
 
 static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
@@ -45,13 +50,11 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	if (id->driver_data == INTEL_CE4100) {
-		denali->platform = INTEL_CE4100;
 		mem_base = pci_resource_start(dev, 0);
 		mem_len = pci_resource_len(dev, 1);
 		csr_base = pci_resource_start(dev, 1);
 		csr_len = pci_resource_len(dev, 1);
 	} else {
-		denali->platform = INTEL_MRST;
 		csr_base = pci_resource_start(dev, 0);
 		csr_len = pci_resource_len(dev, 0);
 		mem_base = pci_resource_start(dev, 1);
@@ -65,6 +68,9 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	pci_set_master(dev);
 	denali->dev = &dev->dev;
 	denali->irq = dev->irq;
+	denali->ecc_caps = &denali_pci_ecc_caps;
+	denali->nand.ecc.options |= NAND_ECC_MAXIMIZE;
+	denali->clk_x_rate = 200000000;		/* 200 MHz */
 
 	ret = pci_request_regions(dev, DENALI_NAND_NAME);
 	if (ret) {
@@ -72,14 +78,14 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return ret;
 	}
 
-	denali->flash_reg = ioremap_nocache(csr_base, csr_len);
-	if (!denali->flash_reg) {
+	denali->reg = ioremap_nocache(csr_base, csr_len);
+	if (!denali->reg) {
 		dev_err(&dev->dev, "Spectra: Unable to remap memory region\n");
 		return -ENOMEM;
 	}
 
-	denali->flash_mem = ioremap_nocache(mem_base, mem_len);
-	if (!denali->flash_mem) {
+	denali->host = ioremap_nocache(mem_base, mem_len);
+	if (!denali->host) {
 		dev_err(&dev->dev, "Spectra: ioremap_nocache failed!");
 		ret = -ENOMEM;
 		goto failed_remap_reg;
@@ -94,9 +100,9 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	return 0;
 
 failed_remap_mem:
-	iounmap(denali->flash_mem);
+	iounmap(denali->host);
 failed_remap_reg:
-	iounmap(denali->flash_reg);
+	iounmap(denali->reg);
 	return ret;
 }
 
@@ -106,8 +112,8 @@ static void denali_pci_remove(struct pci_dev *dev)
 	struct denali_nand_info *denali = pci_get_drvdata(dev);
 
 	denali_remove(denali);
-	iounmap(denali->flash_reg);
-	iounmap(denali->flash_mem);
+	iounmap(denali->reg);
+	iounmap(denali->host);
 }
 
 static struct pci_driver denali_pci_driver = {

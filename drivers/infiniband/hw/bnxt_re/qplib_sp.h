@@ -42,6 +42,8 @@
 
 #define BNXT_QPLIB_RESERVED_QP_WRS	128
 
+#define PCI_EXP_DEVCTL2_ATOMIC_REQ      0x0040
+
 struct bnxt_qplib_dev_attr {
 	char				fw_ver[32];
 	u16				max_sgid;
@@ -70,6 +72,7 @@ struct bnxt_qplib_dev_attr {
 	u32				max_inline_data;
 	u32				l2_db_size;
 	u8				tqm_alloc_reqs[MAX_TQM_ALLOC_REQ];
+	bool				is_atomic;
 };
 
 struct bnxt_qplib_pd {

@@ -283,6 +283,16 @@ static void parse_options(char *options)
 	}
 }
 
+/*
+ * Display the mount options in /proc/mounts.
+ */
+static int pstore_show_options(struct seq_file *m, struct dentry *root)
+{
+	if (kmsg_bytes != PSTORE_DEFAULT_KMSG_BYTES)
+		seq_printf(m, ",kmsg_bytes=%lu", kmsg_bytes);
+	return 0;
+}
+
 static int pstore_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
@@ -296,7 +306,7 @@ static const struct super_operations pstore_ops = {
 	.drop_inode	= generic_delete_inode,
 	.evict_inode	= pstore_evict_inode,
 	.remount_fs	= pstore_remount,
-	.show_options	= generic_show_options,
+	.show_options	= pstore_show_options,
 };
 
 static struct super_block *pstore_sb;
@@ -447,8 +457,6 @@ void pstore_get_records(int quiet)
 static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
-
-	save_mount_options(sb, data);
 
 	pstore_sb = sb;
 

@@ -57,6 +57,8 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 			ubifs_dump_znode(c, znode);
 			if (zbr->znode)
 				ubifs_dump_znode(c, zbr->znode);
+
+			return -EINVAL;
 		}
 	}
 	ubifs_prepare_node(c, idx, len, 0);
@@ -859,6 +861,8 @@ static int write_index(struct ubifs_info *c)
 				ubifs_dump_znode(c, znode);
 				if (zbr->znode)
 					ubifs_dump_znode(c, zbr->znode);
+
+				return -EINVAL;
 			}
 		}
 		len = ubifs_idx_node_sz(c, znode->child_cnt);

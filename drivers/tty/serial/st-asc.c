@@ -758,6 +758,7 @@ static int asc_init_port(struct asc_port *ascport,
 	if (IS_ERR(ascport->pinctrl)) {
 		ret = PTR_ERR(ascport->pinctrl);
 		dev_err(&pdev->dev, "Failed to get Pinctrl: %d\n", ret);
+		return ret;
 	}
 
 	ascport->states[DEFAULT] =

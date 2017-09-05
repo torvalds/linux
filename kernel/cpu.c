@@ -279,7 +279,8 @@ static int bringup_wait_for_ap(unsigned int cpu)
 
 	/* Wait for the CPU to reach CPUHP_AP_ONLINE_IDLE */
 	wait_for_completion(&st->done);
-	BUG_ON(!cpu_online(cpu));
+	if (WARN_ON_ONCE((!cpu_online(cpu))))
+		return -ECANCELED;
 
 	/* Unpark the stopper thread and the hotplug thread of the target cpu */
 	stop_machine_unpark(cpu);

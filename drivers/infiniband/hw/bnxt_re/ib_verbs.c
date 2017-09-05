@@ -145,10 +145,8 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	ib_attr->fw_ver = (u64)(unsigned long)(dev_attr->fw_ver);
 	bnxt_qplib_get_guid(rdev->netdev->dev_addr,
 			    (u8 *)&ib_attr->sys_image_guid);
-	ib_attr->max_mr_size = ~0ull;
-	ib_attr->page_size_cap = BNXT_RE_PAGE_SIZE_4K | BNXT_RE_PAGE_SIZE_8K |
-				 BNXT_RE_PAGE_SIZE_64K | BNXT_RE_PAGE_SIZE_2M |
-				 BNXT_RE_PAGE_SIZE_8M | BNXT_RE_PAGE_SIZE_1G;
+	ib_attr->max_mr_size = BNXT_RE_MAX_MR_SIZE;
+	ib_attr->page_size_cap = BNXT_RE_PAGE_SIZE_4K;
 
 	ib_attr->vendor_id = rdev->en_dev->pdev->vendor;
 	ib_attr->vendor_part_id = rdev->en_dev->pdev->device;
@@ -174,9 +172,11 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	ib_attr->max_mr = dev_attr->max_mr;
 	ib_attr->max_pd = dev_attr->max_pd;
 	ib_attr->max_qp_rd_atom = dev_attr->max_qp_rd_atom;
-	ib_attr->max_qp_init_rd_atom = dev_attr->max_qp_rd_atom;
-	ib_attr->atomic_cap = IB_ATOMIC_HCA;
-	ib_attr->masked_atomic_cap = IB_ATOMIC_HCA;
+	ib_attr->max_qp_init_rd_atom = dev_attr->max_qp_init_rd_atom;
+	if (dev_attr->is_atomic) {
+		ib_attr->atomic_cap = IB_ATOMIC_HCA;
+		ib_attr->masked_atomic_cap = IB_ATOMIC_HCA;
+	}
 
 	ib_attr->max_ee_rd_atom = 0;
 	ib_attr->max_res_rd_atom = 0;
@@ -201,7 +201,7 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	ib_attr->max_fast_reg_page_list_len = MAX_PBL_LVL_1_PGS;
 
 	ib_attr->max_pkeys = 1;
-	ib_attr->local_ca_ack_delay = 0;
+	ib_attr->local_ca_ack_delay = BNXT_RE_DEFAULT_ACK_DELAY;
 	return 0;
 }
 
@@ -390,15 +390,17 @@ int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
 			return -EINVAL;
 		ctx->refcnt--;
 		if (!ctx->refcnt) {
-			rc = bnxt_qplib_del_sgid
-					(sgid_tbl,
-					 &sgid_tbl->tbl[ctx->idx], true);
-			if (rc)
+			rc = bnxt_qplib_del_sgid(sgid_tbl,
+						 &sgid_tbl->tbl[ctx->idx],
+						 true);
+			if (rc) {
 				dev_err(rdev_to_dev(rdev),
 					"Failed to remove GID: %#x", rc);
-			ctx_tbl = sgid_tbl->ctx;
-			ctx_tbl[ctx->idx] = NULL;
-			kfree(ctx);
+			} else {
+				ctx_tbl = sgid_tbl->ctx;
+				ctx_tbl[ctx->idx] = NULL;
+				kfree(ctx);
+			}
 		}
 	} else {
 		return -EINVAL;
@@ -588,10 +590,10 @@ static int bnxt_re_create_fence_mr(struct bnxt_re_pd *pd)
 
 	/* Create a fence MW only for kernel consumers */
 	mw = bnxt_re_alloc_mw(&pd->ib_pd, IB_MW_TYPE_1, NULL);
-	if (!mw) {
+	if (IS_ERR(mw)) {
 		dev_err(rdev_to_dev(rdev),
 			"Failed to create fence-MW for PD: %p\n", pd);
-		rc = -EINVAL;
+		rc = PTR_ERR(mw);
 		goto fail;
 	}
 	fence->mw = mw;
@@ -612,30 +614,13 @@ int bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
 	int rc;
 
 	bnxt_re_destroy_fence_mr(pd);
-	if (ib_pd->uobject && pd->dpi.dbr) {
-		struct ib_ucontext *ib_uctx = ib_pd->uobject->context;
-		struct bnxt_re_ucontext *ucntx;
 
-		/* Free DPI only if this is the first PD allocated by the
-		 * application and mark the context dpi as NULL
-		 */
-		ucntx = container_of(ib_uctx, struct bnxt_re_ucontext, ib_uctx);
-
-		rc = bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
-					    &rdev->qplib_res.dpi_tbl,
-					    &pd->dpi);
+	if (pd->qplib_pd.id) {
+		rc = bnxt_qplib_dealloc_pd(&rdev->qplib_res,
+					   &rdev->qplib_res.pd_tbl,
+					   &pd->qplib_pd);
 		if (rc)
-			dev_err(rdev_to_dev(rdev), "Failed to deallocate HW DPI");
-			/* Don't fail, continue*/
-		ucntx->dpi = NULL;
-	}
-
-	rc = bnxt_qplib_dealloc_pd(&rdev->qplib_res,
-				   &rdev->qplib_res.pd_tbl,
-				   &pd->qplib_pd);
-	if (rc) {
-		dev_err(rdev_to_dev(rdev), "Failed to deallocate HW PD");
-		return rc;
+			dev_err(rdev_to_dev(rdev), "Failed to deallocate HW PD");
 	}
 
 	kfree(pd);
@@ -667,23 +652,22 @@ struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
 	if (udata) {
 		struct bnxt_re_pd_resp resp;
 
-		if (!ucntx->dpi) {
+		if (!ucntx->dpi.dbr) {
 			/* Allocate DPI in alloc_pd to avoid failing of
 			 * ibv_devinfo and family of application when DPIs
 			 * are depleted.
 			 */
 			if (bnxt_qplib_alloc_dpi(&rdev->qplib_res.dpi_tbl,
-						 &pd->dpi, ucntx)) {
+						 &ucntx->dpi, ucntx)) {
 				rc = -ENOMEM;
 				goto dbfail;
 			}
-			ucntx->dpi = &pd->dpi;
 		}
 
 		resp.pdid = pd->qplib_pd.id;
 		/* Still allow mapping this DBR to the new user PD. */
-		resp.dpi = ucntx->dpi->dpi;
-		resp.dbr = (u64)ucntx->dpi->umdbr;
+		resp.dpi = ucntx->dpi.dpi;
+		resp.dbr = (u64)ucntx->dpi.umdbr;
 
 		rc = ib_copy_to_udata(udata, &resp, sizeof(resp));
 		if (rc) {
@@ -960,7 +944,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 		qplib_qp->rq.nmap = umem->nmap;
 	}
 
-	qplib_qp->dpi = cntx->dpi;
+	qplib_qp->dpi = &cntx->dpi;
 	return 0;
 rqfail:
 	ib_umem_release(qp->sumem);
@@ -1530,13 +1514,24 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 	if (qp_attr_mask & IB_QP_MAX_QP_RD_ATOMIC) {
 		qp->qplib_qp.modify_flags |=
 				CMDQ_MODIFY_QP_MODIFY_MASK_MAX_RD_ATOMIC;
-		qp->qplib_qp.max_rd_atomic = qp_attr->max_rd_atomic;
+		/* Cap the max_rd_atomic to device max */
+		qp->qplib_qp.max_rd_atomic = min_t(u32, qp_attr->max_rd_atomic,
+						   dev_attr->max_qp_rd_atom);
 	}
 	if (qp_attr_mask & IB_QP_SQ_PSN) {
 		qp->qplib_qp.modify_flags |= CMDQ_MODIFY_QP_MODIFY_MASK_SQ_PSN;
 		qp->qplib_qp.sq.psn = qp_attr->sq_psn;
 	}
 	if (qp_attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) {
+		if (qp_attr->max_dest_rd_atomic >
+		    dev_attr->max_qp_init_rd_atom) {
+			dev_err(rdev_to_dev(rdev),
+				"max_dest_rd_atomic requested%d is > dev_max%d",
+				qp_attr->max_dest_rd_atomic,
+				dev_attr->max_qp_init_rd_atom);
+			return -EINVAL;
+		}
+
 		qp->qplib_qp.modify_flags |=
 				CMDQ_MODIFY_QP_MODIFY_MASK_MAX_DEST_RD_ATOMIC;
 		qp->qplib_qp.max_dest_rd_atomic = qp_attr->max_dest_rd_atomic;
@@ -2403,7 +2398,7 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 		}
 		cq->qplib_cq.sghead = cq->umem->sg_head.sgl;
 		cq->qplib_cq.nmap = cq->umem->nmap;
-		cq->qplib_cq.dpi = uctx->dpi;
+		cq->qplib_cq.dpi = &uctx->dpi;
 	} else {
 		cq->max_cql = min_t(u32, entries, MAX_CQL_PER_POLL);
 		cq->cql = kcalloc(cq->max_cql, sizeof(struct bnxt_qplib_cqe),
@@ -2905,6 +2900,7 @@ int bnxt_re_poll_cq(struct ib_cq *ib_cq, int num_entries, struct ib_wc *wc)
 
 	spin_lock_irqsave(&cq->cq_lock, flags);
 	budget = min_t(u32, num_entries, cq->max_cql);
+	num_entries = budget;
 	if (!cq->cql) {
 		dev_err(rdev_to_dev(cq->rdev), "POLL CQ : no CQL to use");
 		goto exit;
@@ -3030,6 +3026,11 @@ int bnxt_re_req_notify_cq(struct ib_cq *ib_cq,
 	/* Trigger on the next solicited completion */
 	else if (ib_cqn_flags & IB_CQ_SOLICITED)
 		type = DBR_DBR_TYPE_CQ_ARMSE;
+
+	/* Poll to see if there are missed events */
+	if ((ib_cqn_flags & IB_CQ_REPORT_MISSED_EVENTS) &&
+	    !(bnxt_qplib_is_cq_empty(&cq->qplib_cq)))
+		return 1;
 
 	bnxt_qplib_req_notify_cq(&cq->qplib_cq, type);
 
@@ -3245,6 +3246,12 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 	struct scatterlist *sg;
 	int entry;
 
+	if (length > BNXT_RE_MAX_MR_SIZE) {
+		dev_err(rdev_to_dev(rdev), "MR Size: %lld > Max supported:%ld\n",
+			length, BNXT_RE_MAX_MR_SIZE);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
@@ -3388,8 +3395,26 @@ int bnxt_re_dealloc_ucontext(struct ib_ucontext *ib_uctx)
 	struct bnxt_re_ucontext *uctx = container_of(ib_uctx,
 						   struct bnxt_re_ucontext,
 						   ib_uctx);
+
+	struct bnxt_re_dev *rdev = uctx->rdev;
+	int rc = 0;
+
 	if (uctx->shpg)
 		free_page((unsigned long)uctx->shpg);
+
+	if (uctx->dpi.dbr) {
+		/* Free DPI only if this is the first PD allocated by the
+		 * application and mark the context dpi as NULL
+		 */
+		rc = bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
+					    &rdev->qplib_res.dpi_tbl,
+					    &uctx->dpi);
+		if (rc)
+			dev_err(rdev_to_dev(rdev), "Deallocte HW DPI failed!");
+			/* Don't fail, continue*/
+		uctx->dpi.dbr = NULL;
+	}
+
 	kfree(uctx);
 	return 0;
 }

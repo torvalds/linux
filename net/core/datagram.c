@@ -203,7 +203,7 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
 /**
  *	__skb_try_recv_datagram - Receive a datagram skbuff
  *	@sk: socket
- *	@flags: MSG_ flags
+ *	@flags: MSG\_ flags
  *	@destructor: invoked under the receive lock on successful dequeue
  *	@peeked: returns non-zero if this packet has been seen before
  *	@off: an offset in bytes to peek skb from. Returns an offset
@@ -375,7 +375,7 @@ EXPORT_SYMBOL(__sk_queue_drop_skb);
  *	skb_kill_datagram - Free a datagram skbuff forcibly
  *	@sk: socket
  *	@skb: datagram skbuff
- *	@flags: MSG_ flags
+ *	@flags: MSG\_ flags
  *
  *	This function frees a datagram skbuff that was received by
  *	skb_recv_datagram.  The flags argument must match the one
@@ -809,7 +809,7 @@ EXPORT_SYMBOL(skb_copy_and_csum_datagram_msg);
  *	sequenced packet sockets providing the socket receive queue
  *	is only ever holding data ready to receive.
  *
- *	Note: when you _don't_ use this routine for this protocol,
+ *	Note: when you *don't* use this routine for this protocol,
  *	and you use a different write policy from sock_writeable()
  *	then please supply your own write_space callback.
  */

@@ -198,9 +198,6 @@ config HAVE_KPROBES_ON_FTRACE
 config HAVE_NMI
 	bool
 
-config HAVE_NMI_WATCHDOG
-	depends on HAVE_NMI
-	bool
 #
 # An arch should select this if it provides all these things:
 #
@@ -225,6 +222,12 @@ config GENERIC_SMP_IDLE_THREAD
 
 config GENERIC_IDLE_POLL_SETUP
        bool
+
+config ARCH_HAS_FORTIFY_SOURCE
+	bool
+	help
+	  An architecture should select this when it can successfully
+	  build and run with CONFIG_FORTIFY_SOURCE.
 
 # Select if arch has all set_memory_ro/rw/x/nx() functions in asm/cacheflush.h
 config ARCH_HAS_SET_MEMORY
@@ -287,6 +290,28 @@ config HAVE_PERF_EVENTS_NMI
 	  System hardware can generate an NMI using the perf event
 	  subsystem.  Also has support for calculating CPU cycle events
 	  to determine how many clock cycles in a given period.
+
+config HAVE_HARDLOCKUP_DETECTOR_PERF
+	bool
+	depends on HAVE_PERF_EVENTS_NMI
+	help
+	  The arch chooses to use the generic perf-NMI-based hardlockup
+	  detector. Must define HAVE_PERF_EVENTS_NMI.
+
+config HAVE_NMI_WATCHDOG
+	depends on HAVE_NMI
+	bool
+	help
+	  The arch provides a low level NMI watchdog. It provides
+	  asm/nmi.h, and defines its own arch_touch_nmi_watchdog().
+
+config HAVE_HARDLOCKUP_DETECTOR_ARCH
+	bool
+	select HAVE_NMI_WATCHDOG
+	help
+	  The arch chooses to provide its own hardlockup detector, which is
+	  a superset of the HAVE_NMI_WATCHDOG. It also conforms to config
+	  interfaces and parameters provided by hardlockup detector subsystem.
 
 config HAVE_PERF_REGS
 	bool

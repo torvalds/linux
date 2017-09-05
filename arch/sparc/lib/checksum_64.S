@@ -38,6 +38,7 @@ csum_partial_fix_alignment:
 
 	.align		32
 	.globl		csum_partial
+	.type		csum_partial,#function
 	EXPORT_SYMBOL(csum_partial)
 csum_partial:		/* %o0=buff, %o1=len, %o2=sum */
 	prefetch	[%o0 + 0x000], #n_reads

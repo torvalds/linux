@@ -52,32 +52,17 @@ static void generic_online_page(struct page *page);
 static online_page_callback_t online_page_callback = generic_online_page;
 static DEFINE_MUTEX(online_page_callback_lock);
 
-/* The same as the cpu_hotplug lock, but for memory hotplug. */
-static struct {
-	struct task_struct *active_writer;
-	struct mutex lock; /* Synchronizes accesses to refcount, */
-	/*
-	 * Also blocks the new readers during
-	 * an ongoing mem hotplug operation.
-	 */
-	int refcount;
+DEFINE_STATIC_PERCPU_RWSEM(mem_hotplug_lock);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	struct lockdep_map dep_map;
-#endif
-} mem_hotplug = {
-	.active_writer = NULL,
-	.lock = __MUTEX_INITIALIZER(mem_hotplug.lock),
-	.refcount = 0,
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	.dep_map = {.name = "mem_hotplug.lock" },
-#endif
-};
+void get_online_mems(void)
+{
+	percpu_down_read(&mem_hotplug_lock);
+}
 
-/* Lockdep annotations for get/put_online_mems() and mem_hotplug_begin/end() */
-#define memhp_lock_acquire_read() lock_map_acquire_read(&mem_hotplug.dep_map)
-#define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
-#define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
+void put_online_mems(void)
+{
+	percpu_up_read(&mem_hotplug_lock);
+}
 
 bool movable_node_enabled = false;
 
@@ -99,60 +84,16 @@ static int __init setup_memhp_default_state(char *str)
 }
 __setup("memhp_default_state=", setup_memhp_default_state);
 
-void get_online_mems(void)
-{
-	might_sleep();
-	if (mem_hotplug.active_writer == current)
-		return;
-	memhp_lock_acquire_read();
-	mutex_lock(&mem_hotplug.lock);
-	mem_hotplug.refcount++;
-	mutex_unlock(&mem_hotplug.lock);
-
-}
-
-void put_online_mems(void)
-{
-	if (mem_hotplug.active_writer == current)
-		return;
-	mutex_lock(&mem_hotplug.lock);
-
-	if (WARN_ON(!mem_hotplug.refcount))
-		mem_hotplug.refcount++; /* try to fix things up */
-
-	if (!--mem_hotplug.refcount && unlikely(mem_hotplug.active_writer))
-		wake_up_process(mem_hotplug.active_writer);
-	mutex_unlock(&mem_hotplug.lock);
-	memhp_lock_release();
-
-}
-
-/* Serializes write accesses to mem_hotplug.active_writer. */
-static DEFINE_MUTEX(memory_add_remove_lock);
-
 void mem_hotplug_begin(void)
 {
-	mutex_lock(&memory_add_remove_lock);
-
-	mem_hotplug.active_writer = current;
-
-	memhp_lock_acquire();
-	for (;;) {
-		mutex_lock(&mem_hotplug.lock);
-		if (likely(!mem_hotplug.refcount))
-			break;
-		__set_current_state(TASK_UNINTERRUPTIBLE);
-		mutex_unlock(&mem_hotplug.lock);
-		schedule();
-	}
+	cpus_read_lock();
+	percpu_down_write(&mem_hotplug_lock);
 }
 
 void mem_hotplug_done(void)
 {
-	mem_hotplug.active_writer = NULL;
-	mutex_unlock(&mem_hotplug.lock);
-	memhp_lock_release();
-	mutex_unlock(&memory_add_remove_lock);
+	percpu_up_write(&mem_hotplug_lock);
+	cpus_read_unlock();
 }
 
 /* add this memory to iomem resource */
@@ -580,10 +521,7 @@ static void __remove_zone(struct zone *zone, unsigned long start_pfn)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	int nr_pages = PAGES_PER_SECTION;
-	int zone_type;
 	unsigned long flags;
-
-	zone_type = zone - pgdat->node_zones;
 
 	pgdat_resize_lock(zone->zone_pgdat, &flags);
 	shrink_zone_span(zone, start_pfn, start_pfn + nr_pages);
@@ -934,6 +872,19 @@ struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
 	return &pgdat->node_zones[ZONE_NORMAL];
 }
 
+static inline bool movable_pfn_range(int nid, struct zone *default_zone,
+		unsigned long start_pfn, unsigned long nr_pages)
+{
+	if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
+				MMOP_ONLINE_KERNEL))
+		return true;
+
+	if (!movable_node_is_enabled())
+		return false;
+
+	return !zone_intersects(default_zone, start_pfn, nr_pages);
+}
+
 /*
  * Associates the given pfn range with the given node and the zone appropriate
  * for the given online type.
@@ -949,10 +900,10 @@ static struct zone * __meminit move_pfn_range(int online_type, int nid,
 		/*
 		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
 		 * movable zone if that is not possible (e.g. we are within
-		 * or past the existing movable zone)
+		 * or past the existing movable zone). movable_node overrides
+		 * this default and defaults to movable zone
 		 */
-		if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
-					MMOP_ONLINE_KERNEL))
+		if (movable_pfn_range(nid, zone, start_pfn, nr_pages))
 			zone = movable_zone;
 	} else if (online_type == MMOP_ONLINE_MOVABLE) {
 		zone = &pgdat->node_zones[ZONE_MOVABLE];
@@ -1268,7 +1219,7 @@ register_fail:
 
 error:
 	/* rollback pgdat allocation and others */
-	if (new_pgdat)
+	if (new_pgdat && pgdat)
 		rollback_node_hotadd(nid, pgdat);
 	memblock_remove(start, size);
 
@@ -1420,32 +1371,19 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
 static struct page *new_node_page(struct page *page, unsigned long private,
 		int **result)
 {
-	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
 	int nid = page_to_nid(page);
 	nodemask_t nmask = node_states[N_MEMORY];
-	struct page *new_page = NULL;
 
 	/*
-	 * TODO: allocate a destination hugepage from a nearest neighbor node,
-	 * accordance with memory policy of the user process if possible. For
-	 * now as a simple work-around, we use the next node for destination.
+	 * try to allocate from a different node but reuse this node if there
+	 * are no other online nodes to be used (e.g. we are offlining a part
+	 * of the only existing node)
 	 */
-	if (PageHuge(page))
-		return alloc_huge_page_node(page_hstate(compound_head(page)),
-					next_node_in(nid, nmask));
-
 	node_clear(nid, nmask);
+	if (nodes_empty(nmask))
+		node_set(nid, nmask);
 
-	if (PageHighMem(page)
-	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
-		gfp_mask |= __GFP_HIGHMEM;
-
-	if (!nodes_empty(nmask))
-		new_page = __alloc_pages_nodemask(gfp_mask, 0, nid, &nmask);
-	if (!new_page)
-		new_page = __alloc_pages(gfp_mask, 0, nid);
-
-	return new_page;
+	return new_page_nodemask(page, nid, &nmask);
 }
 
 #define NR_OFFLINE_AT_ONCE_PAGES	(256)
@@ -1728,7 +1666,7 @@ repeat:
 		goto failed_removal;
 	ret = 0;
 	if (drain) {
-		lru_add_drain_all();
+		lru_add_drain_all_cpuslocked();
 		cond_resched();
 		drain_all_pages(zone);
 	}
@@ -1749,7 +1687,7 @@ repeat:
 		}
 	}
 	/* drain all zone's lru pagevec, this is asynchronous... */
-	lru_add_drain_all();
+	lru_add_drain_all_cpuslocked();
 	yield();
 	/* drain pcp pages, this is synchronous. */
 	drain_all_pages(zone);

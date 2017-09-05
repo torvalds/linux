@@ -872,7 +872,6 @@ static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh,
 	struct buffer_head *bh;
 	struct gfs2_leaf *leaf;
 	struct gfs2_dirent *dent;
-	struct qstr name = { .name = "" };
 	struct timespec tv = current_time(inode);
 
 	error = gfs2_alloc_blocks(ip, &bn, &n, 0, NULL);
@@ -896,7 +895,7 @@ static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh,
 	leaf->lf_sec = cpu_to_be64(tv.tv_sec);
 	memset(leaf->lf_reserved2, 0, sizeof(leaf->lf_reserved2));
 	dent = (struct gfs2_dirent *)(leaf+1);
-	gfs2_qstr2dirent(&name, bh->b_size - sizeof(struct gfs2_leaf), dent);
+	gfs2_qstr2dirent(&empty_name, bh->b_size - sizeof(struct gfs2_leaf), dent);
 	*pbh = bh;
 	return leaf;
 }

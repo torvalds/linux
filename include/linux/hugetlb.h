@@ -116,7 +116,6 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
 						vm_flags_t vm_flags);
 long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
 						long freed);
-int dequeue_hwpoisoned_huge_page(struct page *page);
 bool isolate_huge_page(struct page *page, struct list_head *list);
 void putback_active_hugepage(struct page *page);
 void free_huge_page(struct page *page);
@@ -192,10 +191,6 @@ static inline void hugetlb_show_meminfo(void)
 #define hugetlb_mcopy_atomic_pte(dst_mm, dst_pte, dst_vma, dst_addr, \
 				src_addr, pagep)	({ BUG(); 0; })
 #define huge_pte_offset(mm, address, sz)	0
-static inline int dequeue_hwpoisoned_huge_page(struct page *page)
-{
-	return 0;
-}
 
 static inline bool isolate_huge_page(struct page *page, struct list_head *list)
 {
@@ -273,6 +268,9 @@ struct hugetlbfs_sb_info {
 	spinlock_t	stat_lock;
 	struct hstate *hstate;
 	struct hugepage_subpool *spool;
+	kuid_t	uid;
+	kgid_t	gid;
+	umode_t mode;
 };
 
 static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
@@ -354,6 +352,8 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
 struct page *alloc_huge_page_node(struct hstate *h, int nid);
 struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
 				unsigned long addr, int avoid_reserve);
+struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+				nodemask_t *nmask);
 int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
 			pgoff_t idx);
 
@@ -472,6 +472,7 @@ static inline pgoff_t basepage_index(struct page *page)
 	return __basepage_index(page);
 }
 
+extern int dissolve_free_huge_page(struct page *page);
 extern int dissolve_free_huge_pages(unsigned long start_pfn,
 				    unsigned long end_pfn);
 static inline bool hugepage_migration_supported(struct hstate *h)
@@ -528,6 +529,7 @@ static inline void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr
 struct hstate {};
 #define alloc_huge_page(v, a, r) NULL
 #define alloc_huge_page_node(h, nid) NULL
+#define alloc_huge_page_nodemask(h, preferred_nid, nmask) NULL
 #define alloc_huge_page_noerr(v, a, r) NULL
 #define alloc_bootmem_huge_page(h) NULL
 #define hstate_file(f) NULL
@@ -550,15 +552,37 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
 {
 	return 1;
 }
-#define hstate_index_to_shift(index) 0
-#define hstate_index(h) 0
+
+static inline unsigned hstate_index_to_shift(unsigned index)
+{
+	return 0;
+}
+
+static inline int hstate_index(struct hstate *h)
+{
+	return 0;
+}
 
 static inline pgoff_t basepage_index(struct page *page)
 {
 	return page->index;
 }
-#define dissolve_free_huge_pages(s, e)	0
-#define hugepage_migration_supported(h)	false
+
+static inline int dissolve_free_huge_page(struct page *page)
+{
+	return 0;
+}
+
+static inline int dissolve_free_huge_pages(unsigned long start_pfn,
+					   unsigned long end_pfn)
+{
+	return 0;
+}
+
+static inline bool hugepage_migration_supported(struct hstate *h)
+{
+	return false;
+}
 
 static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
 					   struct mm_struct *mm, pte_t *pte)

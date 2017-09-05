@@ -52,7 +52,7 @@ struct bfq_entity;
 struct bfq_service_tree {
 	/* tree for active entities (i.e., those backlogged) */
 	struct rb_root active;
-	/* tree for idle entities (i.e., not backlogged, with V <= F_i)*/
+	/* tree for idle entities (i.e., not backlogged, with V < F_i)*/
 	struct rb_root idle;
 
 	/* idle entity with minimum F_i */
@@ -892,7 +892,8 @@ void bfq_put_idle_entity(struct bfq_service_tree *st,
 			 struct bfq_entity *entity);
 struct bfq_service_tree *
 __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
-				struct bfq_entity *entity);
+				struct bfq_entity *entity,
+				bool update_class_too);
 void bfq_bfqq_served(struct bfq_queue *bfqq, int served);
 void bfq_bfqq_charge_time(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			  unsigned long time_ms);
