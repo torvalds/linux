@@ -2119,7 +2119,7 @@ dump_nhm_cst_cfg(void)
 
 	fprintf(outf, "cpu%d: MSR_PKG_CST_CONFIG_CONTROL: 0x%08llx", base_cpu, msr);
 
-	fprintf(outf, " (%s%s%s%s%slocked: pkg-cstate-limit=%d: %s",
+	fprintf(outf, " (%s%s%s%s%slocked, pkg-cstate-limit=%d (%s)",
 		(msr & SNB_C3_AUTO_UNDEMOTE) ? "UNdemote-C3, " : "",
 		(msr & SNB_C1_AUTO_UNDEMOTE) ? "UNdemote-C1, " : "",
 		(msr & NHM_C3_AUTO_DEMOTE) ? "demote-C3, " : "",
