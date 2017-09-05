@@ -2208,11 +2208,11 @@ static int rockchip_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	int pin;
 
 	chip = range->gc;
-	pin = offset - chip->base;
+	pin = offset - range->pin_base;
 	dev_dbg(info->dev, "gpio_direction for pin %u as %s-%d to %s\n",
 		 offset, range->name, pin, input ? "input" : "output");
 
-	return _rockchip_pmx_gpio_set_direction(chip, offset - chip->base,
+	return _rockchip_pmx_gpio_set_direction(chip, pin,
 						input);
 }
 
@@ -3014,7 +3014,7 @@ static int rockchip_gpiolib_register(struct platform_device *pdev,
 		bank->gpio_chip = rockchip_gpiolib_chip;
 
 		gc = &bank->gpio_chip;
-		gc->base = bank->pin_base;
+		gc->base = ARCH_GPIO_BASE + bank->pin_base;
 		gc->ngpio = bank->nr_pins;
 		gc->dev = &pdev->dev;
 		gc->of_node = bank->of_node;
