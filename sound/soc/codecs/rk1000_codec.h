@@ -323,4 +323,9 @@
 #define	GPIO_HIGH	1
 #define	GPIO_LOW	0
 
+/* rk1000 ctl register */
+#define CODEC_CON	0x01
+#define CODEC_ON	0X00
+#define CODEC_OFF	0x0d
+
 #endif

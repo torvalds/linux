@@ -1,0 +1,20 @@
+* Rockchip RK1000 codec
+
+Required properties:
+
+- compatible: "rockchip,rk1000-codec"
+- reg : the I2C address of the device.
+- rockchip,spk-en-gpio: the enable gpio of spk.
+- rockchip,pa-en-time-ms: pa enable dealy time(ms).
+- rockchip,ctl: phandle to the rk1000 core controller.
+
+Example for rk1000 codec:
+
+rk1000_codec: rk1000-codec@60 {
+	compatible = "rockchip,rk1000_codec";
+	reg = <0x60>;
+	rockchip,spk-en-gpio = <&gpio3 31 GPIO_ACTIVE_LOW>;
+	rockchip,pa-en-time-ms = <5000>;
+	rockchip,ctl = <&rk1000_ctl>;
+	status = "okay";
+};
