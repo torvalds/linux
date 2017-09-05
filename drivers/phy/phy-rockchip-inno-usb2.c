@@ -2051,6 +2051,18 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 				.utmi_hstdet	= { 0xe2ac, 27, 27, 0, 1 }
 			}
 		},
+		.chg_det = {
+			.opmode		= { 0xe464, 3, 0, 5, 1 },
+			.cp_det		= { 0xe2ac, 5, 5, 0, 1 },
+			.dcp_det	= { 0xe2ac, 4, 4, 0, 1 },
+			.dp_det		= { 0xe2ac, 3, 3, 0, 1 },
+			.idm_sink_en	= { 0xe460, 8, 8, 0, 1 },
+			.idp_sink_en	= { 0xe460, 7, 7, 0, 1 },
+			.idp_src_en	= { 0xe460, 9, 9, 0, 1 },
+			.rdm_pdwn_en	= { 0xe460, 10, 10, 0, 1 },
+			.vdm_src_en	= { 0xe460, 12, 12, 0, 1 },
+			.vdp_src_en	= { 0xe460, 11, 11, 0, 1 },
+		},
 	},
 	{ /* sentinel */ }
 };
