@@ -184,7 +184,7 @@ void __init cf_bootmem_alloc(void)
  * Initialize the context management stuff.
  * The following was taken from arch/ppc/mmu_context.c
  */
-void __init mmu_context_init(void)
+void __init cf_mmu_context_init(void)
 {
 	/*
 	 * Some processors have too few contexts to reserve one for

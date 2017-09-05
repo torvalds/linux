@@ -344,6 +344,8 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_COLDFIRE
 	case MACH_M54XX:
 	case MACH_M5441X:
+		cf_bootmem_alloc();
+		cf_mmu_context_init();
 		config_BSP(NULL, 0);
 		break;
 #endif
