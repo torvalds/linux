@@ -5683,6 +5683,7 @@ struct ftrace_mod_func {
 };
 
 struct ftrace_mod_map {
+	struct rcu_head		rcu;
 	struct list_head	list;
 	struct module		*mod;
 	unsigned long		start_addr;
@@ -5693,6 +5694,8 @@ struct ftrace_mod_map {
 #ifdef CONFIG_MODULES
 
 #define next_to_ftrace_page(p) container_of(p, struct ftrace_page, next)
+
+static LIST_HEAD(ftrace_mod_maps);
 
 static int referenced_filters(struct dyn_ftrace *rec)
 {
@@ -5747,8 +5750,26 @@ static void clear_mod_from_hashes(struct ftrace_page *pg)
 	mutex_unlock(&trace_types_lock);
 }
 
+static void ftrace_free_mod_map(struct rcu_head *rcu)
+{
+	struct ftrace_mod_map *mod_map = container_of(rcu, struct ftrace_mod_map, rcu);
+	struct ftrace_mod_func *mod_func;
+	struct ftrace_mod_func *n;
+
+	/* All the contents of mod_map are now not visible to readers */
+	list_for_each_entry_safe(mod_func, n, &mod_map->funcs, list) {
+		kfree(mod_func->name);
+		list_del(&mod_func->list);
+		kfree(mod_func);
+	}
+
+	kfree(mod_map);
+}
+
 void ftrace_release_mod(struct module *mod)
 {
+	struct ftrace_mod_map *mod_map;
+	struct ftrace_mod_map *n;
 	struct dyn_ftrace *rec;
 	struct ftrace_page **last_pg;
 	struct ftrace_page *tmp_page = NULL;
@@ -5759,6 +5780,14 @@ void ftrace_release_mod(struct module *mod)
 
 	if (ftrace_disabled)
 		goto out_unlock;
+
+	list_for_each_entry_safe(mod_map, n, &ftrace_mod_maps, list) {
+		if (mod_map->mod == mod) {
+			list_del_rcu(&mod_map->list);
+			call_rcu_sched(&mod_map->rcu, ftrace_free_mod_map);
+			break;
+		}
+	}
 
 	/*
 	 * Each module has its own ftrace_pages, remove
@@ -5914,8 +5943,6 @@ static void save_ftrace_mod_rec(struct ftrace_mod_map *mod_map,
 	list_add_rcu(&mod_func->list, &mod_map->funcs);
 }
 
-static LIST_HEAD(ftrace_mod_maps);
-
 static struct ftrace_mod_map *
 allocate_ftrace_mod_map(struct module *mod,
 			unsigned long start, unsigned long end)
@@ -5974,6 +6001,7 @@ ftrace_mod_address_lookup(unsigned long addr, unsigned long *size,
 	struct ftrace_mod_map *mod_map;
 	const char *ret = NULL;
 
+	/* mod_map is freed via call_rcu_sched() */
 	preempt_disable();
 	list_for_each_entry_rcu(mod_map, &ftrace_mod_maps, list) {
 		ret = ftrace_func_address_lookup(mod_map, addr, size, off, sym);
