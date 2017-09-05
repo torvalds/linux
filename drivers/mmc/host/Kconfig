@@ -5,7 +5,7 @@
 comment "MMC/SD/SDIO Host Controller Drivers"
 
 config MMC_DEBUG
-	bool "MMC host drivers debugginG"
+	bool "MMC host drivers debugging"
 	depends on MMC != n
 	help
 	  This is an option for use by developers; most people should
