@@ -41,6 +41,7 @@
 #include <linux/acpi.h>
 #include <linux/highmem.h>
 #include <linux/idr.h>
+#include <linux/platform_data/x86/apple.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/spi.h>
@@ -1692,6 +1693,35 @@ static void of_register_spi_devices(struct spi_controller *ctlr) { }
 #endif
 
 #ifdef CONFIG_ACPI
+static void acpi_spi_parse_apple_properties(struct spi_device *spi)
+{
+	struct acpi_device *dev = ACPI_COMPANION(&spi->dev);
+	const union acpi_object *obj;
+
+	if (!x86_apple_machine)
+		return;
+
+	if (!acpi_dev_get_property(dev, "spiSclkPeriod", ACPI_TYPE_BUFFER, &obj)
+	    && obj->buffer.length >= 4)
+		spi->max_speed_hz  = NSEC_PER_SEC / *(u32 *)obj->buffer.pointer;
+
+	if (!acpi_dev_get_property(dev, "spiWordSize", ACPI_TYPE_BUFFER, &obj)
+	    && obj->buffer.length == 8)
+		spi->bits_per_word = *(u64 *)obj->buffer.pointer;
+
+	if (!acpi_dev_get_property(dev, "spiBitOrder", ACPI_TYPE_BUFFER, &obj)
+	    && obj->buffer.length == 8 && !*(u64 *)obj->buffer.pointer)
+		spi->mode |= SPI_LSB_FIRST;
+
+	if (!acpi_dev_get_property(dev, "spiSPO", ACPI_TYPE_BUFFER, &obj)
+	    && obj->buffer.length == 8 &&  *(u64 *)obj->buffer.pointer)
+		spi->mode |= SPI_CPOL;
+
+	if (!acpi_dev_get_property(dev, "spiSPH", ACPI_TYPE_BUFFER, &obj)
+	    && obj->buffer.length == 8 &&  *(u64 *)obj->buffer.pointer)
+		spi->mode |= SPI_CPHA;
+}
+
 static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 {
 	struct spi_device *spi = data;
@@ -1764,6 +1794,8 @@ static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
 	ret = acpi_dev_get_resources(adev, &resource_list,
 				     acpi_spi_add_resource, spi);
 	acpi_dev_free_resource_list(&resource_list);
+
+	acpi_spi_parse_apple_properties(spi);
 
 	if (ret < 0 || !spi->max_speed_hz) {
 		spi_dev_put(spi);

@@ -1216,6 +1216,8 @@ void __init setup_arch(char **cmdline_p)
 
 	io_delay_init();
 
+	early_platform_quirks();
+
 	/*
 	 * Parse the ACPI tables for possible boot-time SMP configuration.
 	 */

@@ -1157,7 +1157,8 @@ static int ghes_probe(struct platform_device *ghes_dev)
 			       generic->header.source_id);
 			goto err_edac_unreg;
 		}
-		rc = request_irq(ghes->irq, ghes_irq_func, 0, "GHES IRQ", ghes);
+		rc = request_irq(ghes->irq, ghes_irq_func, IRQF_SHARED,
+				 "GHES IRQ", ghes);
 		if (rc) {
 			pr_err(GHES_PFX "Failed to register IRQ for generic hardware error source: %d\n",
 			       generic->header.source_id);
@@ -1265,9 +1266,14 @@ static int __init ghes_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	if (hest_disable) {
+	switch (hest_disable) {
+	case HEST_NOT_FOUND:
+		return -ENODEV;
+	case HEST_DISABLED:
 		pr_info(GHES_PFX "HEST is not enabled!\n");
 		return -EINVAL;
+	default:
+		break;
 	}
 
 	if (ghes_disable) {

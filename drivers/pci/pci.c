@@ -1912,6 +1912,13 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 {
 	int ret = 0;
 
+	/*
+	 * Bridges can only signal wakeup on behalf of subordinate devices,
+	 * but that is set up elsewhere, so skip them.
+	 */
+	if (pci_has_subordinate(dev))
+		return 0;
+
 	/* Don't do the same thing twice in a row for one device. */
 	if (!!enable == !!dev->wakeup_prepared)
 		return 0;

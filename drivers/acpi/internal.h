@@ -232,6 +232,12 @@ static inline void suspend_nvs_restore(void) {}
 void acpi_init_properties(struct acpi_device *adev);
 void acpi_free_properties(struct acpi_device *adev);
 
+#ifdef CONFIG_X86
+void acpi_extract_apple_properties(struct acpi_device *adev);
+#else
+static inline void acpi_extract_apple_properties(struct acpi_device *adev) {}
+#endif
+
 /*--------------------------------------------------------------------------
 				Watchdog
   -------------------------------------------------------------------------- */

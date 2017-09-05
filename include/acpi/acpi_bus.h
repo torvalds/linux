@@ -316,7 +316,6 @@ struct acpi_device_perf {
 struct acpi_device_wakeup_flags {
 	u8 valid:1;		/* Can successfully enable wakeup? */
 	u8 notifier_present:1;  /* Wake-up notify handler has been installed */
-	u8 enabled:1;		/* Enabled for wakeup */
 };
 
 struct acpi_device_wakeup_context {
@@ -333,6 +332,7 @@ struct acpi_device_wakeup {
 	struct acpi_device_wakeup_context context;
 	struct wakeup_source *ws;
 	int prepare_count;
+	int enable_count;
 };
 
 struct acpi_device_physical_node {
@@ -578,6 +578,8 @@ struct acpi_pci_root {
 
 bool acpi_dma_supported(struct acpi_device *adev);
 enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev);
+int acpi_dma_get_range(struct device *dev, u64 *dma_addr, u64 *offset,
+		       u64 *size);
 int acpi_dma_configure(struct device *dev, enum dev_dma_attr attr);
 void acpi_dma_deconfigure(struct device *dev);
 
@@ -606,6 +608,7 @@ acpi_status acpi_remove_pm_notifier(struct acpi_device *adev);
 bool acpi_pm_device_can_wakeup(struct device *dev);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
 int acpi_pm_set_device_wakeup(struct device *dev, bool enable);
+int acpi_pm_set_bridge_wakeup(struct device *dev, bool enable);
 #else
 static inline void acpi_pm_wakeup_event(struct device *dev)
 {
@@ -633,6 +636,10 @@ static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 		m : ACPI_STATE_D0;
 }
 static inline int acpi_pm_set_device_wakeup(struct device *dev, bool enable)
+{
+	return -ENODEV;
+}
+static inline int acpi_pm_set_bridge_wakeup(struct device *dev, bool enable)
 {
 	return -ENODEV;
 }
