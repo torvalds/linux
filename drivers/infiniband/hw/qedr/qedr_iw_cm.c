@@ -98,7 +98,8 @@ qedr_iw_mpa_request(void *context, struct qed_iwarp_cm_event_params *params)
 	event.event = IW_CM_EVENT_CONNECT_REQUEST;
 	event.status = params->status;
 
-	if (params->cm_info->ip_version == QED_TCP_IPV4)
+	if (!IS_ENABLED(CONFIG_IPV6) ||
+	    params->cm_info->ip_version == QED_TCP_IPV4)
 		qedr_fill_sockaddr4(params->cm_info, &event);
 	else
 		qedr_fill_sockaddr6(params->cm_info, &event);
@@ -522,7 +523,8 @@ int qedr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	memset(cm_info->local_ip, 0, sizeof(cm_info->local_ip));
 	memset(cm_info->remote_ip, 0, sizeof(cm_info->remote_ip));
 
-	if (cm_id->remote_addr.ss_family == AF_INET) {
+	if (!IS_ENABLED(CONFIG_IPV6) ||
+	    cm_id->remote_addr.ss_family == AF_INET) {
 		cm_info->ip_version = QED_TCP_IPV4;
 
 		cm_info->remote_ip[0] = ntohl(raddr->sin_addr.s_addr);
@@ -616,7 +618,8 @@ int qedr_iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	iparams.event_cb = qedr_iw_event_handler;
 	iparams.max_backlog = backlog;
 
-	if (cm_id->local_addr.ss_family == AF_INET) {
+	if (!IS_ENABLED(CONFIG_IPV6) ||
+	    cm_id->local_addr.ss_family == AF_INET) {
 		iparams.ip_version = QED_TCP_IPV4;
 		memset(iparams.ip_addr, 0, sizeof(iparams.ip_addr));
 
