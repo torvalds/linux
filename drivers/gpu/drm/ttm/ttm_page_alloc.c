@@ -920,6 +920,7 @@ void ttm_pool_unpopulate(struct ttm_tt *ttm)
 }
 EXPORT_SYMBOL(ttm_pool_unpopulate);
 
+#if defined(CONFIG_SWIOTLB) || defined(CONFIG_INTEL_IOMMU)
 int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt)
 {
 	unsigned i;
@@ -960,6 +961,7 @@ void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt)
 	ttm_pool_unpopulate(&tt->ttm);
 }
 EXPORT_SYMBOL(ttm_unmap_and_unpopulate_pages);
+#endif
 
 int ttm_page_alloc_debugfs(struct seq_file *m, void *data)
 {
