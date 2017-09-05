@@ -1745,7 +1745,7 @@ static int cx25840_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	v4l2_std_id stds[] = {
+	static const v4l2_std_id stds[] = {
 		/* 0000 */ V4L2_STD_UNKNOWN,
 
 		/* 0001 */ V4L2_STD_NTSC_M,
