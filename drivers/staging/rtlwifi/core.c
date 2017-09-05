@@ -1160,7 +1160,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (rtlpriv->dm.supp_phymode_switch) {
 				if (sta->ht_cap.ht_supported)
 					rtl_send_smps_action(hw, sta,
-							IEEE80211_SMPS_STATIC);
+							     IEEE80211_SMPS_STATIC);
 			}
 
 			if (rtlhal->current_bandtype == BAND_ON_5G) {
@@ -1224,7 +1224,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				cfg80211_unlink_bss(hw->wiphy, bss);
 				cfg80211_put_bss(hw->wiphy, bss);
 				RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
-					"cfg80211_unlink !!\n");
+					 "cfg80211_unlink !!\n");
 			}
 
 			eth_zero_addr(mac->bssid);
@@ -1885,7 +1885,7 @@ bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 				break;
 			case PWR_CMD_WRITE:
 				RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-					"%s(): PWR_CMD_WRITE\n", __func__);
+					 "%s(): PWR_CMD_WRITE\n", __func__);
 				offset = GET_PWR_CFG_OFFSET(cfg_cmd);
 
 				/*Read the value from system register*/
