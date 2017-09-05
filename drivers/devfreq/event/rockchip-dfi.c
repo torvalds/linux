@@ -26,6 +26,14 @@
 #include <linux/list.h>
 #include <linux/of.h>
 
+#define RK3128_GRF_SOC_CON0		0x140
+#define RK3128_GRF_OS_REG1		0x1cc
+#define RK3128_GRF_DFI_WRNUM		0x220
+#define RK3128_GRF_DFI_RDNUM		0x224
+#define RK3128_GRF_DFI_TIMERVAL		0x22c
+#define RK3128_DDR_MONITOR_EN		((1 << (16 + 6)) + (1 << 6))
+#define RK3128_DDR_MONITOR_DISB		((1 << (16 + 6)) + (0 << 6))
+
 #define RK3288_PMU_SYS_REG2		0x9c
 #define RK3288_GRF_SOC_CON4		0x254
 #define RK3288_GRF_SOC_STATUS(n)	(0x280 + (n) * 4)
@@ -92,6 +100,75 @@ struct rockchip_dfi {
 	struct regmap *regmap_pmu;
 	struct regmap *regmap_grf;
 	struct clk *clk;
+};
+
+static void rk3128_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
+{
+	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
+
+	regmap_write(info->regmap_grf,
+		     RK3128_GRF_SOC_CON0,
+		     RK3128_DDR_MONITOR_EN);
+}
+
+static void rk3128_dfi_stop_hardware_counter(struct devfreq_event_dev *edev)
+{
+	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
+
+	regmap_write(info->regmap_grf,
+		     RK3128_GRF_SOC_CON0,
+		     RK3128_DDR_MONITOR_DISB);
+}
+
+static int rk3128_dfi_disable(struct devfreq_event_dev *edev)
+{
+	rk3128_dfi_stop_hardware_counter(edev);
+
+	return 0;
+}
+
+static int rk3128_dfi_enable(struct devfreq_event_dev *edev)
+{
+	rk3128_dfi_start_hardware_counter(edev);
+
+	return 0;
+}
+
+static int rk3128_dfi_set_event(struct devfreq_event_dev *edev)
+{
+	return 0;
+}
+
+static int rk3128_dfi_get_event(struct devfreq_event_dev *edev,
+				struct devfreq_event_data *edata)
+{
+	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
+	unsigned long flags;
+	u32 dfi_wr, dfi_rd, dfi_timer;
+
+	local_irq_save(flags);
+
+	rk3128_dfi_stop_hardware_counter(edev);
+
+	regmap_read(info->regmap_grf, RK3128_GRF_DFI_WRNUM, &dfi_wr);
+	regmap_read(info->regmap_grf, RK3128_GRF_DFI_RDNUM, &dfi_rd);
+	regmap_read(info->regmap_grf, RK3128_GRF_DFI_TIMERVAL, &dfi_timer);
+
+	edata->load_count = (dfi_wr + dfi_rd) * 4;
+	edata->total_count = dfi_timer;
+
+	rk3128_dfi_start_hardware_counter(edev);
+
+	local_irq_restore(flags);
+
+	return 0;
+}
+
+static const struct devfreq_event_ops rk3128_dfi_ops = {
+	.disable = rk3128_dfi_disable,
+	.enable = rk3128_dfi_enable,
+	.get_event = rk3128_dfi_get_event,
+	.set_event = rk3128_dfi_set_event,
 };
 
 static void rk3288_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
@@ -360,6 +437,24 @@ static const struct devfreq_event_ops rockchip_dfi_ops = {
 	.set_event = rockchip_dfi_set_event,
 };
 
+static __init int rk3128_dfi_init(struct platform_device *pdev,
+				  struct rockchip_dfi *data,
+				  struct devfreq_event_desc *desc)
+{
+	struct device_node *np = pdev->dev.of_node, *node;
+
+	node = of_parse_phandle(np, "rockchip,grf", 0);
+	if (node) {
+		data->regmap_grf = syscon_node_to_regmap(node);
+		if (IS_ERR(data->regmap_grf))
+			return PTR_ERR(data->regmap_grf);
+	}
+
+	desc->ops = &rk3128_dfi_ops;
+
+	return 0;
+}
+
 static __init int rk3288_dfi_init(struct platform_device *pdev,
 				  struct rockchip_dfi *data,
 				  struct devfreq_event_desc *desc)
@@ -431,7 +526,7 @@ static __init int rockchip_dfi_init(struct platform_device *pdev,
 	if (IS_ERR(data->clk)) {
 		dev_err(dev, "Cannot get the clk dmc_clk\n");
 		return PTR_ERR(data->clk);
-	};
+	}
 
 	/* try to find the optional reference to the pmu syscon */
 	node = of_parse_phandle(np, "rockchip,pmu", 0);
@@ -447,6 +542,7 @@ static __init int rockchip_dfi_init(struct platform_device *pdev,
 }
 
 static const struct of_device_id rockchip_dfi_id_match[] = {
+	{ .compatible = "rockchip,rk3128-dfi", .data = rk3128_dfi_init },
 	{ .compatible = "rockchip,rk3288-dfi", .data = rk3288_dfi_init },
 	{ .compatible = "rockchip,rk3368-dfi", .data = rk3368_dfi_init },
 	{ .compatible = "rockchip,rk3399-dfi", .data = rockchip_dfi_init },
