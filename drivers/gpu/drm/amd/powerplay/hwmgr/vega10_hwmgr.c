@@ -2313,13 +2313,11 @@ static int vega10_acg_disable(struct pp_hwmgr *hwmgr)
 	struct vega10_hwmgr *data =
 			(struct vega10_hwmgr *)(hwmgr->backend);
 
-	if (data->smu_features[GNLD_ACG].supported) {
-		if (data->smu_features[GNLD_ACG].enabled) {
-		if (0 == vega10_enable_smc_features(hwmgr->smumgr, false,
-				data->smu_features[GNLD_ACG].smu_feature_bitmap))
+	if (data->smu_features[GNLD_ACG].supported && 
+	    data->smu_features[GNLD_ACG].enabled)
+		if (!vega10_enable_smc_features(hwmgr->smumgr, false,
+			data->smu_features[GNLD_ACG].smu_feature_bitmap))
 			data->smu_features[GNLD_ACG].enabled = false;
-		}
-	}
 
 	return 0;
 }
