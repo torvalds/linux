@@ -328,8 +328,6 @@ struct adv7511 {
 	enum adv7511_sync_polarity hsync_polarity;
 	bool rgb;
 
-	struct edid *edid;
-
 	struct gpio_desc *gpio_pd;
 
 	struct regulator_bulk_data *supplies;
