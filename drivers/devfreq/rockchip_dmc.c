@@ -89,6 +89,53 @@ struct share_params {
 
 static struct share_params *ddr_psci_param;
 
+static const char *rk3128_dts_timing[] = {
+	"ddr3_speed_bin",
+	"pd_idle",
+	"sr_idle",
+	"auto_pd_dis_freq",
+	"auto_sr_dis_freq",
+	"ddr3_dll_dis_freq",
+	"lpddr2_dll_dis_freq",
+	"phy_dll_dis_freq",
+	"ddr3_odt_dis_freq",
+	"phy_ddr3_odt_disb_freq",
+	"ddr3_drv",
+	"ddr3_odt",
+	"phy_ddr3_clk_drv",
+	"phy_ddr3_cmd_drv",
+	"phy_ddr3_dqs_drv",
+	"phy_ddr3_odt",
+	"lpddr2_drv",
+	"phy_lpddr2_clk_drv",
+	"phy_lpddr2_cmd_drv",
+	"phy_lpddr2_dqs_drv"
+};
+
+struct rk3128_ddr_dts_config_timing {
+	u32 ddr3_speed_bin;
+	u32 pd_idle;
+	u32 sr_idle;
+	u32 auto_pd_dis_freq;
+	u32 auto_sr_dis_freq;
+	u32 ddr3_dll_dis_freq;
+	u32 lpddr2_dll_dis_freq;
+	u32 phy_dll_dis_freq;
+	u32 ddr3_odt_dis_freq;
+	u32 phy_ddr3_odt_disb_freq;
+	u32 ddr3_drv;
+	u32 ddr3_odt;
+	u32 phy_ddr3_clk_drv;
+	u32 phy_ddr3_cmd_drv;
+	u32 phy_ddr3_dqs_drv;
+	u32 phy_ddr3_odt;
+	u32 lpddr2_drv;
+	u32 phy_lpddr2_clk_drv;
+	u32 phy_lpddr2_cmd_drv;
+	u32 phy_lpddr2_dqs_drv;
+	u32 available;
+};
+
 char *rk3288_dts_timing[] = {
 	"ddr3_speed_bin",
 	"pd_idle",
@@ -493,6 +540,46 @@ static int rockchip_dmcfreq_init_freq_table(struct device *dev,
 	return 0;
 }
 
+static void of_get_rk3128_timings(struct device *dev,
+				  struct device_node *np, uint32_t *timing)
+{
+	struct device_node *np_tim;
+	u32 *p;
+	struct rk3128_ddr_dts_config_timing *dts_timing;
+	struct share_params *init_timing;
+	int ret = 0;
+	u32 i;
+
+	init_timing = (struct share_params *)timing;
+
+	if (of_property_read_u32(np, "vop-dclk-mode",
+				 &init_timing->vop_dclk_mode))
+		init_timing->vop_dclk_mode = 0;
+
+	p = timing + DTS_PAR_OFFSET / 4;
+	np_tim = of_parse_phandle(np, "rockchip,ddr_timing", 0);
+	if (!np_tim) {
+		ret = -EINVAL;
+		goto end;
+	}
+	for (i = 0; i < ARRAY_SIZE(rk3128_dts_timing); i++) {
+		ret |= of_property_read_u32(np_tim, rk3128_dts_timing[i],
+					p + i);
+	}
+end:
+	dts_timing =
+		(struct rk3128_ddr_dts_config_timing *)(timing +
+							DTS_PAR_OFFSET / 4);
+	if (!ret) {
+		dts_timing->available = 1;
+	} else {
+		dts_timing->available = 0;
+		dev_err(dev, "of_get_ddr_timings: fail\n");
+	}
+
+	of_node_put(np_tim);
+}
+
 static void of_get_rk3288_timings(struct device *dev,
 				  struct device_node *np, uint32_t *timing)
 {
@@ -650,6 +737,44 @@ static int rockchip_ddr_set_auto_self_refresh(uint32_t en)
 			   ROCKCHIP_SIP_CONFIG_DRAM_SET_AT_SR);
 
 	return res.a0;
+}
+
+static int rk3128_dmc_init(struct platform_device *pdev,
+			   struct rockchip_dmcfreq *dmcfreq)
+{
+	struct arm_smccc_res res;
+	struct drm_device *drm = drm_device_get_by_name("rockchip");
+
+	if (!drm) {
+		dev_err(&pdev->dev, "Get drm_device fail\n");
+		return -EPROBE_DEFER;
+	}
+
+	res = sip_smc_request_share_mem(DIV_ROUND_UP(sizeof(
+					struct rk3128_ddr_dts_config_timing),
+					4096) + 1, SHARE_PAGE_TYPE_DDR);
+	if (res.a0) {
+		dev_err(&pdev->dev, "no ATF memory for init\n");
+		return -ENOMEM;
+	}
+	ddr_psci_param = (struct share_params *)res.a1;
+	of_get_rk3128_timings(&pdev->dev, pdev->dev.of_node,
+			      (uint32_t *)ddr_psci_param);
+
+	ddr_psci_param->hz = 0;
+	ddr_psci_param->lcdc_type = rk_drm_get_lcdc_type();
+	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
+			   ROCKCHIP_SIP_CONFIG_DRAM_INIT);
+
+	if (res.a0) {
+		dev_err(&pdev->dev, "rockchip_sip_config_dram_init error:%lx\n",
+			res.a0);
+		return -ENOMEM;
+	}
+
+	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
+
+	return 0;
 }
 
 static int rk3288_dmc_init(struct platform_device *pdev,
@@ -951,6 +1076,7 @@ static int rk3399_dmc_init(struct platform_device *pdev)
 }
 
 static const struct of_device_id rockchip_dmcfreq_of_match[] = {
+	{ .compatible = "rockchip,rk3128-dmc", .data = rk3128_dmc_init },
 	{ .compatible = "rockchip,rk3288-dmc", .data = rk3288_dmc_init },
 	{ .compatible = "rockchip,rk3368-dmc", .data = rk3368_dmc_init },
 	{ .compatible = "rockchip,rk3399-dmc", .data = rk3399_dmc_init },
