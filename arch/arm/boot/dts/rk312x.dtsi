@@ -69,21 +69,89 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0xf00>;
+			operating-points-v2 = <&cpu0_opp_table>;
+			clocks = <&cru ARMCLK>;
 		};
 		cpu1: cpu@f01 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0xf01>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 		cpu2: cpu@f02 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0xf02>;
+			operating-points-v2 = <&cpu0_opp_table>;
 		};
 		cpu3: cpu@f03 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0xf03>;
+			operating-points-v2 = <&cpu0_opp_table>;
+		};
+	};
+
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		rockchip,leakage-voltage-sel = <
+			1   18   0
+			18  254  1
+		>;
+		nvmem-cells = <&cpu_leakage>;
+		nvmem-cell-names = "cpu_leakage";
+
+		opp-216000000 {
+			opp-hz = /bits/ 64 <216000000>;
+			opp-microvolt = <950000>;
+			opp-microvolt-L0 = <950000>;
+			opp-microvolt-L1 = <950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-408000000 {
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <950000>;
+			opp-microvolt-L0 = <950000>;
+			opp-microvolt-L1 = <950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1025000>;
+			opp-microvolt-L0 = <1025000>;
+			opp-microvolt-L1 = <975000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-696000000 {
+			opp-hz = /bits/ 64 <696000000>;
+			opp-microvolt = <1100000>;
+			opp-microvolt-L0 = <1100000>;
+			opp-microvolt-L1 = <1050000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-816000000 {
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <1150000>;
+			opp-microvolt-L0 = <1150000>;
+			opp-microvolt-L1 = <1100000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-1008000000 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <1275000>;
+			opp-microvolt-L0 = <1275000>;
+			opp-microvolt-L1 = <1225000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1425000>;
+			opp-microvolt-L0 = <1425000>;
+			opp-microvolt-L1 = <1375000>;
+			clock-latency-ns = <40000>;
 		};
 	};
 
@@ -119,6 +187,11 @@
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
 		status = "disabled";
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
 	};
 
 	timer {
@@ -188,15 +261,38 @@
 
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
-			opp-microvolt = <1000000>;
+			opp-microvolt = <975000>;
 		};
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
-			opp-microvolt = <1025000>;
+			opp-microvolt = <1050000>;
 		};
 		opp-400000000 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <1125000>;
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1150000>;
+		};
+		opp-480000000 {
+			opp-hz = /bits/ 64 <480000000>;
+			opp-microvolt = <1250000>;
+		};
+	};
+
+	pmu: syscon@100a0000 {
+		compatible = "rockchip,rk3128-pmu", "syscon", "simple-mfd";
+		reg = <0x100a0000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		reboot-mode {
+			compatible = "syscon-reboot-mode";
+			offset = <0x38>;
+			mode-bootloader = <BOOT_BL_DOWNLOAD>;
+			mode-charge = <BOOT_CHARGING>;
+			mode-fastboot = <BOOT_FASTBOOT>;
+			mode-loader = <BOOT_BL_DOWNLOAD>;
+			mode-normal = <BOOT_NORMAL>;
+			mode-recovery = <BOOT_RECOVERY>;
+			mode-ums = <BOOT_UMS>;
 		};
 	};
 
@@ -247,6 +343,70 @@
 		interrupts = <GIC_PPI 9 0xf04>;
 	};
 
+	sdmmc: dwmmc@10214000 {
+		compatible = "rockchip,rk312x-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x10214000 0x4000>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_bus4>;
+		clock-freq-min-max = <400000 50000000>;
+		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>;
+		clock-names = "biu", "ciu";
+		dmas = <&pdma 10>;
+		dma-names = "rx-tx";
+		num-slots = <1>;
+		fifo-depth = <0x100>;
+		bus-width = <4>;
+		status = "disabled";
+	};
+
+	sdio: dwmmc@10218000 {
+		compatible = "rockchip,rk312x-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x10218000 0x4000>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdio_pwren &sdio_cmd &sdio_clk &sdio_bus4>;
+		clock-freq-min-max = <400000 50000000>;
+		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>;
+		clock-names = "biu", "ciu";
+		dmas = <&pdma 11>;
+		dma-names = "rx-tx";
+		num-slots = <1>;
+		fifo-depth = <0x100>;
+		bus-width = <4>;
+		status = "disabled";
+	};
+
+	emmc: dwmmc@1021c000 {
+		compatible = "rockchip,rk312x-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x1021c000 0x4000>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clock-freq-min-max = <400000 50000000>;
+		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>;
+		clock-names = "biu", "ciu";
+		dmas = <&pdma 12>;
+		dma-names = "rx-tx";
+		num-slots = <1>;
+		fifo-depth = <0x100>;
+		bus-width = <8>;
+		status = "disabled";
+	};
+
+	nandc: nandc@10500000 {
+		compatible = "rockchip,rk-nandc";
+		reg = <0x10500000 0x4000>;
+		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+		nandc_id = <0>;
+		clocks = <&cru SCLK_NANDC>, <&cru HCLK_NANDC>;
+		clock-names = "clk_nandc", "hclk_nandc";
+		status = "disabled";
+	};
 
 	grf: syscon@20008000 {
 		compatible = "rockchip,rk3128-grf", "syscon", "simple-mfd";
@@ -281,6 +441,14 @@
 		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&xin24m>, <&cru PCLK_TIMER>;
 		clock-names = "timer", "pclk";
+	};
+
+	watchdog@2004c000 {
+		compatible = "snps,dw-wdt";
+		reg = <0x2004c000 0x100>;
+		clocks = <&cru PCLK_WDT>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH 0>;
+		status = "disabled";
 	};
 
 	pwm0: pwm@20050000 {
@@ -445,6 +613,22 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
+	};
+
+	efuse: efuse@20090000 {
+		compatible = "rockchip,rk3128-efuse";
+		reg = <0x20090000 0x20>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		clocks = <&cru PCLK_EFUSE>;
+		clock-names = "pclk_efuse";
+
+		efuse_id: id@7 {
+			reg = <0x7 0x10>;
+		};
+		cpu_leakage: cpu_leakage@17 {
+			reg = <0x17 0x1>;
+		};
 	};
 
 	pinctrl: pinctrl {
