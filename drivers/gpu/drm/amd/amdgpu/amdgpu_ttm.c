@@ -609,6 +609,7 @@ struct amdgpu_ttm_tt {
 	spinlock_t              guptasklock;
 	struct list_head        guptasks;
 	atomic_t		mmu_invalidations;
+	uint32_t		last_set_pages;
 	struct list_head        list;
 };
 
@@ -672,8 +673,10 @@ release_pages:
 
 void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages)
 {
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	unsigned i;
 
+	gtt->last_set_pages = atomic_read(&gtt->mmu_invalidations);
 	for (i = 0; i < ttm->num_pages; ++i) {
 		if (ttm->pages[i])
 			put_page(ttm->pages[i]);
@@ -1025,6 +1028,7 @@ int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 	spin_lock_init(&gtt->guptasklock);
 	INIT_LIST_HEAD(&gtt->guptasks);
 	atomic_set(&gtt->mmu_invalidations, 0);
+	gtt->last_set_pages = 0;
 
 	return 0;
 }
@@ -1075,6 +1079,16 @@ bool amdgpu_ttm_tt_userptr_invalidated(struct ttm_tt *ttm,
 
 	*last_invalidated = atomic_read(&gtt->mmu_invalidations);
 	return prev_invalidated != *last_invalidated;
+}
+
+bool amdgpu_ttm_tt_userptr_needs_pages(struct ttm_tt *ttm)
+{
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+
+	if (gtt == NULL || !gtt->userptr)
+		return false;
+
+	return atomic_read(&gtt->mmu_invalidations) != gtt->last_set_pages;
 }
 
 bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm)

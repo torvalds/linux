@@ -473,7 +473,8 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 			return -EPERM;
 
 		/* Check if we have user pages and nobody bound the BO already */
-		if (lobj->user_pages && bo->tbo.ttm->state != tt_bound) {
+		if (amdgpu_ttm_tt_userptr_needs_pages(bo->tbo.ttm) &&
+		    lobj->user_pages) {
 			amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm,
 						     lobj->user_pages);
 			binding_userptr = true;
@@ -534,23 +535,25 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		INIT_LIST_HEAD(&need_pages);
 		for (i = p->bo_list->first_userptr;
 		     i < p->bo_list->num_entries; ++i) {
+			struct amdgpu_bo *bo;
 
 			e = &p->bo_list->array[i];
+			bo = e->robj;
 
-			if (amdgpu_ttm_tt_userptr_invalidated(e->robj->tbo.ttm,
+			if (amdgpu_ttm_tt_userptr_invalidated(bo->tbo.ttm,
 				 &e->user_invalidated) && e->user_pages) {
 
 				/* We acquired a page array, but somebody
 				 * invalidated it. Free it and try again
 				 */
 				release_pages(e->user_pages,
-					      e->robj->tbo.ttm->num_pages,
+					      bo->tbo.ttm->num_pages,
 					      false);
 				kvfree(e->user_pages);
 				e->user_pages = NULL;
 			}
 
-			if (e->robj->tbo.ttm->state != tt_bound &&
+			if (amdgpu_ttm_tt_userptr_needs_pages(bo->tbo.ttm) &&
 			    !e->user_pages) {
 				list_del(&e->tv.head);
 				list_add(&e->tv.head, &need_pages);
