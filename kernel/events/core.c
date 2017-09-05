@@ -2097,11 +2097,6 @@ event_sched_in(struct perf_event *event,
 		event->hw.interrupts = 0;
 	}
 
-	/*
-	 * The new state must be visible before we turn it on in the hardware:
-	 */
-	smp_wmb();
-
 	perf_pmu_disable(event->pmu);
 
 	perf_set_shadow_time(event, ctx, tstamp);
