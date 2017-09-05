@@ -92,7 +92,7 @@ enum dc_status resource_build_scaling_params_for_context(
 
 void resource_build_info_frame(struct pipe_ctx *pipe_ctx);
 
-bool resource_unreference_clock_source(
+void resource_unreference_clock_source(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct clock_source *clock_source);

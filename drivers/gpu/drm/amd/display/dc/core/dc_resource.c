@@ -261,13 +261,12 @@ bool resource_construct(
 }
 
 
-bool resource_unreference_clock_source(
+void resource_unreference_clock_source(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct clock_source *clock_source)
 {
 	int i;
-	bool need_reset = false;
 
 	for (i = 0; i < pool->clk_src_count; i++) {
 		if (pool->clock_sources[i] != clock_source)
@@ -275,24 +274,11 @@ bool resource_unreference_clock_source(
 
 		res_ctx->clock_source_ref_count[i]--;
 
-		if (res_ctx->clock_source_ref_count[i] == 0) {
-			res_ctx->clock_source_changed[i] = true;
-			need_reset = true;
-		}
-
 		break;
 	}
 
-	if (pool->dp_clock_source == clock_source) {
+	if (pool->dp_clock_source == clock_source)
 		res_ctx->dp_clock_source_ref_count--;
-
-		if (res_ctx->dp_clock_source_ref_count == 0) {
-			res_ctx->dp_clock_source_changed = true;
-			need_reset = true;
-		}
-	}
-
-	return need_reset;
 }
 
 void resource_reference_clock_source(

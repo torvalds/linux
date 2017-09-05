@@ -1265,22 +1265,6 @@ static void reset_hw_ctx_wrap(
 			plane_atomic_power_down(dc, i);
 	}
 
-	/* power down changed clock sources */
-	for (i = 0; i < dc->res_pool->clk_src_count; i++)
-		if (context->res_ctx.clock_source_changed[i]) {
-			struct clock_source *clk = dc->res_pool->clock_sources[i];
-
-			clk->funcs->cs_power_down(clk);
-			context->res_ctx.clock_source_changed[i] = false;
-		}
-
-	if (context->res_ctx.dp_clock_source_changed) {
-		struct clock_source *clk = dc->res_pool->dp_clock_source;
-
-		clk->funcs->cs_power_down(clk);
-		context->res_ctx.dp_clock_source_changed = false;
-	}
-
 	/* Reset Back End*/
 	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
 		struct pipe_ctx *pipe_ctx_old =
@@ -1291,9 +1275,16 @@ static void reset_hw_ctx_wrap(
 			continue;
 
 		if (!pipe_ctx->stream ||
-				pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
+				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
+			struct clock_source *old_clk = pipe_ctx_old->clock_source;
+
 			reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
+
+			if (old_clk)
+				old_clk->funcs->cs_power_down(old_clk);
+		}
 	}
+
 }
 
 static bool patch_address_for_sbs_tb_stereo(

@@ -1640,6 +1640,8 @@ static void dce110_reset_hw_ctx_wrap(
 
 		if (!pipe_ctx->stream ||
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
+			struct clock_source *old_clk = pipe_ctx_old->clock_source;
+
 			core_link_disable_stream(pipe_ctx_old);
 			pipe_ctx_old->stream_res.tg->funcs->set_blank(pipe_ctx_old->stream_res.tg, true);
 			if (!hwss_wait_for_blank_complete(pipe_ctx_old->stream_res.tg)) {
@@ -1650,26 +1652,13 @@ static void dce110_reset_hw_ctx_wrap(
 			pipe_ctx_old->plane_res.mi->funcs->free_mem_input(
 					pipe_ctx_old->plane_res.mi, dc->current_state->stream_count);
 
+			if (old_clk)
+				old_clk->funcs->cs_power_down(old_clk);
+
 			dc->hwss.power_down_front_end(dc, pipe_ctx_old->pipe_idx);
 
 			pipe_ctx_old->stream = NULL;
 		}
-	}
-
-	/* power down changed clock sources */
-	for (i = 0; i < dc->res_pool->clk_src_count; i++)
-		if (context->res_ctx.clock_source_changed[i]) {
-			struct clock_source *clk = dc->res_pool->clock_sources[i];
-
-			clk->funcs->cs_power_down(clk);
-			context->res_ctx.clock_source_changed[i] = false;
-		}
-
-	if (context->res_ctx.dp_clock_source_changed) {
-		struct clock_source *clk = dc->res_pool->dp_clock_source;
-
-		clk->funcs->cs_power_down(clk);
-		context->res_ctx.clock_source_changed[i] = false;
 	}
 }
 
