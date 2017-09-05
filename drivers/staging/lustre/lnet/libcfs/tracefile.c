@@ -40,7 +40,7 @@
 #define pr_fmt(fmt) "Lustre: " fmt
 #include "tracefile.h"
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
 /* XXX move things up to the top, comment */
 union cfs_trace_data_union (*cfs_trace_data[TCD_MAX_TYPES])[NR_CPUS] __cacheline_aligned;

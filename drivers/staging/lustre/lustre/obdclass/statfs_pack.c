@@ -37,10 +37,10 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <linux/statfs.h>
-#include "../include/lustre_export.h"
-#include "../include/lustre_net.h"
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
+#include <lustre_export.h>
+#include <lustre_net.h>
+#include <obd_support.h>
+#include <obd_class.h>
 
 void statfs_unpack(struct kstatfs *sfs, struct obd_statfs *osfs)
 {

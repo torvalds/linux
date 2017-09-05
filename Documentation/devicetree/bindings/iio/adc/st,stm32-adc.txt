@@ -74,6 +74,11 @@ Optional properties:
   * can be 6, 8, 10 or 12 on stm32f4
   * can be 8, 10, 12, 14 or 16 on stm32h7
   Default is maximum resolution if unset.
+- st,min-sample-time-nsecs: Minimum sampling time in nanoseconds.
+  Depending on hardware (board) e.g. high/low analog input source impedance,
+  fine tune of ADC sampling time may be recommended.
+  This can be either one value or an array that matches 'st,adc-channels' list,
+  to set sample time resp. for all channels, or independently for each channel.
 
 Example:
 	adc: adc@40012000 {

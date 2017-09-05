@@ -66,6 +66,7 @@ struct fsl_mc_msi_desc {
  * @mask_pos:	[PCI MSI]   Mask register position
  * @mask_base:	[PCI MSI-X] Mask register base address
  * @platform:	[platform]  Platform device specific msi descriptor data
+ * @fsl_mc:	[fsl-mc]    FSL MC device specific msi descriptor data
  */
 struct msi_desc {
 	/* Shared device/bus type independent data */
