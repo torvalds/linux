@@ -173,7 +173,7 @@ static ssize_t ds1682_eeprom_write(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute ds1682_eeprom_attr = {
+static const struct bin_attribute ds1682_eeprom_attr = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO | S_IWUSR,

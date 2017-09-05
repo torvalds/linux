@@ -877,21 +877,21 @@ static void lcd_clear_fast_tilcd(struct charlcd *charlcd)
 	spin_unlock_irq(&pprt_lock);
 }
 
-static struct charlcd_ops charlcd_serial_ops = {
+static const struct charlcd_ops charlcd_serial_ops = {
 	.write_cmd	= lcd_write_cmd_s,
 	.write_data	= lcd_write_data_s,
 	.clear_fast	= lcd_clear_fast_s,
 	.backlight	= lcd_backlight,
 };
 
-static struct charlcd_ops charlcd_parallel_ops = {
+static const struct charlcd_ops charlcd_parallel_ops = {
 	.write_cmd	= lcd_write_cmd_p8,
 	.write_data	= lcd_write_data_p8,
 	.clear_fast	= lcd_clear_fast_p8,
 	.backlight	= lcd_backlight,
 };
 
-static struct charlcd_ops charlcd_tilcd_ops = {
+static const struct charlcd_ops charlcd_tilcd_ops = {
 	.write_cmd	= lcd_write_cmd_tilcd,
 	.write_data	= lcd_write_data_tilcd,
 	.clear_fast	= lcd_clear_fast_tilcd,

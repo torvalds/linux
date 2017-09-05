@@ -5362,10 +5362,11 @@ K:	fmc_d.*register
 
 FPGA MANAGER FRAMEWORK
 M:	Alan Tull <atull@kernel.org>
-R:	Moritz Fischer <moritz.fischer@ettus.com>
+R:	Moritz Fischer <mdf@kernel.org>
 L:	linux-fpga@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/atull/linux-fpga.git
+Q:	http://patchwork.kernel.org/project/linux-fpga/list/
 F:	Documentation/fpga/
 F:	Documentation/devicetree/bindings/fpga/
 F:	drivers/fpga/
@@ -9484,6 +9485,7 @@ M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 S:	Maintained
 F:	drivers/nvmem/
 F:	Documentation/devicetree/bindings/nvmem/
+F:	Documentation/ABI/stable/sysfs-bus-nvmem
 F:	include/linux/nvmem-consumer.h
 F:	include/linux/nvmem-provider.h
 

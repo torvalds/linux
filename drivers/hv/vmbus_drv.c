@@ -940,6 +940,9 @@ static void vmbus_chan_sched(struct hv_per_cpu_context *hv_cpu)
 			if (channel->offermsg.child_relid != relid)
 				continue;
 
+			if (channel->rescind)
+				continue;
+
 			switch (channel->callback_mode) {
 			case HV_CALL_ISR:
 				vmbus_channel_isr(channel);

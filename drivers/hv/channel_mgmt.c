@@ -451,6 +451,12 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	/* Make sure this is a new offer */
 	mutex_lock(&vmbus_connection.channel_mutex);
 
+	/*
+	 * Now that we have acquired the channel_mutex,
+	 * we can release the potentially racing rescind thread.
+	 */
+	atomic_dec(&vmbus_connection.offer_in_progress);
+
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
 		if (!uuid_le_cmp(channel->offermsg.offer.if_type,
 			newchannel->offermsg.offer.if_type) &&
@@ -481,7 +487,6 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 			channel->num_sc++;
 			spin_unlock_irqrestore(&channel->lock, flags);
 		} else {
-			atomic_dec(&vmbus_connection.offer_in_progress);
 			goto err_free_chan;
 		}
 	}
@@ -510,7 +515,6 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	if (!fnew) {
 		if (channel->sc_creation_callback != NULL)
 			channel->sc_creation_callback(newchannel);
-		atomic_dec(&vmbus_connection.offer_in_progress);
 		return;
 	}
 
@@ -541,7 +545,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		goto err_deq_chan;
 	}
 
-	atomic_dec(&vmbus_connection.offer_in_progress);
+	newchannel->probe_done = true;
 	return;
 
 err_deq_chan:
@@ -882,7 +886,26 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	channel->rescind = true;
 	spin_unlock_irqrestore(&channel->lock, flags);
 
+	/*
+	 * Now that we have posted the rescind state, perform
+	 * rescind related cleanup.
+	 */
 	vmbus_rescind_cleanup(channel);
+
+	/*
+	 * Now wait for offer handling to complete.
+	 */
+	while (READ_ONCE(channel->probe_done) == false) {
+		/*
+		 * We wait here until any channel offer is currently
+		 * being processed.
+		 */
+		msleep(1);
+	}
+
+	/*
+	 * At this point, the rescind handling can proceed safely.
+	 */
 
 	if (channel->device_obj) {
 		if (channel->chn_rescind_callback) {
