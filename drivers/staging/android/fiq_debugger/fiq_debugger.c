@@ -401,7 +401,7 @@ static void fiq_debugger_work(struct work_struct *work)
 		cmd += 6;
 		while (*cmd == ' ')
 			cmd++;
-		if (cmd != '\0')
+		if (*cmd != '\0')
 			kernel_restart(cmd);
 		else
 			kernel_restart(NULL);
