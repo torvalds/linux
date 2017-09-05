@@ -54,4 +54,3 @@ Data types and ioctl definitions can be accessed by including
     dvb-fe-read-status
     dvbproperty
     frontend_fcalls
-    frontend_legacy_dvbv3_api
