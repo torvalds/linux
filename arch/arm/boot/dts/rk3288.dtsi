@@ -2313,6 +2313,7 @@
 			|RKPM_CTR_GTCLKS
 			|RKPM_CTR_PLLS
 			|RKPM_CTR_ARMOFF_LPMD
+			|RKPM_CTR_SYSCLK_OSC_DIS
 			)
 		>;
 		rockchip,wakeup-config = <
