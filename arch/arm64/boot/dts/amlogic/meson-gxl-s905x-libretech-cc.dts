@@ -96,6 +96,13 @@
 		regulator-settling-time-down-us = <50000>;
 	};
 
+	vddio_ao18: regulator-vddio_ao18 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_AO18";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	vddio_boot: regulator-vddio_boot {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_BOOT";
@@ -194,6 +201,11 @@
 			  "7J1 Header Pin7", "",
 			  /* GPIO_TEST_N */
 			  "7J1 Header Pin15";
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vddio_ao18>;
 };
 
 /* SD card */
