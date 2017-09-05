@@ -150,7 +150,7 @@ static void of_get_regulation_constraints(struct device_node *np,
 			suspend_state = &constraints->state_disk;
 			break;
 		case PM_SUSPEND_ON:
-		case PM_SUSPEND_FREEZE:
+		case PM_SUSPEND_TO_IDLE:
 		case PM_SUSPEND_STANDBY:
 		default:
 			continue;

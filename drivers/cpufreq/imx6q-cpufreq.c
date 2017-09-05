@@ -47,6 +47,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	struct dev_pm_opp *opp;
 	unsigned long freq_hz, volt, volt_old;
 	unsigned int old_freq, new_freq;
+	bool pll1_sys_temp_enabled = false;
 	int ret;
 
 	new_freq = freq_table[index].frequency;
@@ -124,6 +125,10 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 		if (freq_hz > clk_get_rate(pll2_pfd2_396m_clk)) {
 			clk_set_rate(pll1_sys_clk, new_freq * 1000);
 			clk_set_parent(pll1_sw_clk, pll1_sys_clk);
+		} else {
+			/* pll1_sys needs to be enabled for divider rate change to work. */
+			pll1_sys_temp_enabled = true;
+			clk_prepare_enable(pll1_sys_clk);
 		}
 	}
 
@@ -134,6 +139,10 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 		regulator_set_voltage_tol(arm_reg, volt_old, 0);
 		return ret;
 	}
+
+	/* PLL1 is only needed until after ARM-PODF is set. */
+	if (pll1_sys_temp_enabled)
+		clk_disable_unprepare(pll1_sys_clk);
 
 	/* scaling down?  scale voltage after frequency */
 	if (new_freq < old_freq) {

@@ -203,15 +203,26 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	acpi_status status;
 
 	if (priv->wakeup_mode) {
+		/*
+		 * Needed for wakeup from suspend-to-idle to work on some
+		 * platforms that don't expose the 5-button array, but still
+		 * send notifies with the power button event code to this
+		 * device object on power button actions while suspended.
+		 */
+		if (event == 0xce)
+			goto wakeup;
+
 		/* Wake up on 5-button array events only. */
 		if (event == 0xc0 || !priv->array)
 			return;
 
-		if (sparse_keymap_entry_from_scancode(priv->array, event))
-			pm_wakeup_hard_event(&device->dev);
-		else
+		if (!sparse_keymap_entry_from_scancode(priv->array, event)) {
 			dev_info(&device->dev, "unknown event 0x%x\n", event);
+			return;
+		}
 
+wakeup:
+		pm_wakeup_hard_event(&device->dev);
 		return;
 	}
 

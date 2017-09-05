@@ -39,8 +39,9 @@ Pull arguments and config options from a file.
 \fB-m \fImode\fR
 Mode to initiate for suspend e.g. standby, freeze, mem (default: mem).
 .TP
-\fB-o \fIsubdir\fR
-Override the output subdirectory. Use {date}, {time}, {hostname} for current values.
+\fB-o \fIname\fR
+Overrides the output subdirectory name when running a new test.
+Use {date}, {time}, {hostname} for current values.
 .sp
 e.g. suspend-{hostname}-{date}-{time}
 .TP
@@ -52,7 +53,7 @@ disable rtcwake and require a user keypress to resume.
 Add the dmesg and ftrace logs to the html output. They will be viewable by
 clicking buttons in the timeline.
 
-.SS "Advanced"
+.SS "advanced"
 .TP
 \fB-cmd \fIstr\fR
 Run the timeline over a custom suspend command, e.g. pm-suspend. By default
@@ -91,7 +92,7 @@ Include \fIt\fR ms delay after last resume (default: 0 ms).
 Execute \fIn\fR consecutive tests at \fId\fR seconds intervals. The outputs will
 be created in a new subdirectory with a summary page: suspend-xN-{date}-{time}.
 
-.SS "Ftrace Debug"
+.SS "ftrace debug"
 .TP
 \fB-f\fR
 Use ftrace to create device callgraphs (default: disabled). This can produce
@@ -124,12 +125,6 @@ Number of significant digits in timestamps (0:S, [3:ms], 6:us).
 
 .SH COMMANDS
 .TP
-\fB-ftrace \fIfile\fR
-Create HTML output from an existing ftrace file.
-.TP
-\fB-dmesg \fIfile\fR
-Create HTML output from an existing dmesg file.
-.TP
 \fB-summary \fIindir\fR
 Create a summary page of all tests in \fIindir\fR. Creates summary.html
 in the current folder. The output page is a table of tests with
@@ -145,6 +140,9 @@ with any options you intend to use to see if they will work.
 .TP
 \fB-fpdt\fR
 Print out the contents of the ACPI Firmware Performance Data Table.
+.TP
+\fB-sysinfo\fR
+Print out system info extracted from BIOS. Reads /dev/mem directly instead of going through dmidecode.
 .TP
 \fB-usbtopo\fR
 Print out the current USB topology with power info.
@@ -162,9 +160,16 @@ with -fadd they will also be checked.
 \fB-flistall\fR
 Print all ftrace functions capable of being captured. These are all the
 possible values you can add to trace via the -fadd argument.
+.SS "rebuild"
+.TP
+\fB-ftrace \fIfile\fR
+Create HTML output from an existing ftrace file.
+.TP
+\fB-dmesg \fIfile\fR
+Create HTML output from an existing dmesg file.
 
 .SH EXAMPLES
-.SS "Simple Commands"
+.SS "simple commands"
 Check which suspend modes are currently supported.
 .IP
 \f(CW$ sleepgraph -modes\fR
@@ -185,12 +190,8 @@ Generate a summary of all timelines in a particular folder.
 .IP
 \f(CW$ sleepgraph -summary ~/workspace/myresults/\fR
 .PP
-Re-generate the html output from a previous run's dmesg and ftrace log.
-.IP
-\f(CW$ sleepgraph -dmesg myhost_mem_dmesg.txt -ftrace myhost_mem_ftrace.txt\fR
-.PP
 
-.SS "Capturing Simple Timelines"
+.SS "capturing basic timelines"
 Execute a mem suspend with a 15 second wakeup. Include the logs in the html.
 .IP
 \f(CW$ sudo sleepgraph -rtcwake 15 -addlogs\fR
@@ -204,7 +205,7 @@ Execute a freeze with no wakeup (require keypress). Change output folder name.
 \f(CW$ sudo sleepgraph -m freeze -rtcwake off -o "freeze-{hostname}-{date}-{time}"\fR
 .PP
 
-.SS "Capturing Advanced Timelines"
+.SS "capturing advanced timelines"
 Execute a suspend & include dev mode source calls, limit callbacks to 5ms or larger.
 .IP
 \f(CW$ sudo sleepgraph -m mem -rtcwake 15 -dev -mindev 5\fR
@@ -222,8 +223,7 @@ Execute a suspend using a custom command.
 \f(CW$ sudo sleepgraph -cmd "echo mem > /sys/power/state" -rtcwake 15\fR
 .PP
 
-
-.SS "Capturing Timelines with Callgraph Data"
+.SS "adding callgraph data"
 Add device callgraphs. Limit the trace depth and only show callgraphs 10ms or larger.
 .IP
 \f(CW$ sudo sleepgraph -m mem -rtcwake 15 -f -maxdepth 5 -mincg 10\fR
@@ -234,6 +234,16 @@ Capture a full callgraph across all suspend, then filter the html by a single ph
 .IP
 \f(CW$ sleepgraph -dmesg host_mem_dmesg.txt -ftrace host_mem_ftrace.txt -f -cgphase resume
 .PP
+
+.SS "rebuild timeline from logs"
+.PP
+Rebuild the html from a previous run's logs, using the same options.
+.IP
+\f(CW$ sleepgraph -dmesg dmesg.txt -ftrace ftrace.txt -callgraph\fR
+.PP
+Rebuild the html with different options.
+.IP
+\f(CW$ sleepgraph -dmesg dmesg.txt -ftrace ftrace.txt -addlogs -srgap\fR
 
 .SH "SEE ALSO"
 dmesg(1)

@@ -412,15 +412,17 @@ void device_set_wakeup_capable(struct device *dev, bool capable)
 	if (!!dev->power.can_wakeup == !!capable)
 		return;
 
+	dev->power.can_wakeup = capable;
 	if (device_is_registered(dev) && !list_empty(&dev->power.entry)) {
 		if (capable) {
-			if (wakeup_sysfs_add(dev))
-				return;
+			int ret = wakeup_sysfs_add(dev);
+
+			if (ret)
+				dev_info(dev, "Wakeup sysfs attributes not added\n");
 		} else {
 			wakeup_sysfs_remove(dev);
 		}
 	}
-	dev->power.can_wakeup = capable;
 }
 EXPORT_SYMBOL_GPL(device_set_wakeup_capable);
 
@@ -863,7 +865,7 @@ bool pm_wakeup_pending(void)
 void pm_system_wakeup(void)
 {
 	atomic_inc(&pm_abort_suspend);
-	freeze_wake();
+	s2idle_wake();
 }
 EXPORT_SYMBOL_GPL(pm_system_wakeup);
 
