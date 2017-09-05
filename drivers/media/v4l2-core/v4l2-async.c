@@ -198,78 +198,26 @@ EXPORT_SYMBOL(v4l2_async_notifier_register);
 void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 {
 	struct v4l2_subdev *sd, *tmp;
-	unsigned int notif_n_subdev = notifier->num_subdevs;
-	unsigned int n_subdev = min(notif_n_subdev, V4L2_MAX_SUBDEVS);
-	struct device **dev;
-	int i = 0;
 
 	if (!notifier->v4l2_dev)
 		return;
-
-	dev = kvmalloc_array(n_subdev, sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(notifier->v4l2_dev->dev,
-			"Failed to allocate device cache!\n");
-	}
 
 	mutex_lock(&list_lock);
 
 	list_del(&notifier->list);
 
 	list_for_each_entry_safe(sd, tmp, &notifier->done, async_list) {
-		struct device *d;
-
-		d = get_device(sd->dev);
-
 		v4l2_async_cleanup(sd);
-
-		/* If we handled USB devices, we'd have to lock the parent too */
-		device_release_driver(d);
 
 		if (notifier->unbind)
 			notifier->unbind(notifier, sd, sd->asd);
 
-		/*
-		 * Store device at the device cache, in order to call
-		 * put_device() on the final step
-		 */
-		if (dev)
-			dev[i++] = d;
-		else
-			put_device(d);
+		list_move(&sd->async_list, &subdev_list);
 	}
 
 	mutex_unlock(&list_lock);
 
-	/*
-	 * Call device_attach() to reprobe devices
-	 *
-	 * NOTE: If dev allocation fails, i is 0, and the whole loop won't be
-	 * executed.
-	 */
-	while (i--) {
-		struct device *d = dev[i];
-
-		if (d && device_attach(d) < 0) {
-			const char *name = "(none)";
-			int lock = device_trylock(d);
-
-			if (lock && d->driver)
-				name = d->driver->name;
-			dev_err(d, "Failed to re-probe to %s\n", name);
-			if (lock)
-				device_unlock(d);
-		}
-		put_device(d);
-	}
-	kvfree(dev);
-
 	notifier->v4l2_dev = NULL;
-
-	/*
-	 * Don't care about the waiting list, it is initialised and populated
-	 * upon notifier registration.
-	 */
 }
 EXPORT_SYMBOL(v4l2_async_notifier_unregister);
 
