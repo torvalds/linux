@@ -36,7 +36,7 @@
 #define   SCA3000_LOCKED				BIT(5)
 #define   SCA3000_EEPROM_CS_ERROR			BIT(1)
 #define   SCA3000_SPI_FRAME_ERROR			BIT(0)
- 
+
 /* All reads done using register decrement so no need to directly access LSBs */
 #define SCA3000_REG_X_MSB_ADDR				0x05
 #define SCA3000_REG_Y_MSB_ADDR				0x07
@@ -74,7 +74,7 @@
 #define SCA3000_REG_INT_STATUS_ADDR			0x16
 #define   SCA3000_REG_INT_STATUS_THREE_QUARTERS		BIT(7)
 #define   SCA3000_REG_INT_STATUS_HALF			BIT(6)
-	
+
 #define SCA3000_INT_STATUS_FREE_FALL			BIT(3)
 #define SCA3000_INT_STATUS_Y_TRIGGER			BIT(2)
 #define SCA3000_INT_STATUS_X_TRIGGER			BIT(1)
@@ -124,7 +124,7 @@
 
 #define SCA3000_REG_INT_MASK_ADDR			0x21
 #define   SCA3000_REG_INT_MASK_PROT_MASK		0x1C
- 
+
 #define   SCA3000_REG_INT_MASK_RING_THREE_QUARTER	BIT(7)
 #define   SCA3000_REG_INT_MASK_RING_HALF		BIT(6)
 

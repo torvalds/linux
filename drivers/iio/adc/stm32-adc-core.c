@@ -172,7 +172,7 @@ struct stm32h7_adc_ck_spec {
 	int div;
 };
 
-const struct stm32h7_adc_ck_spec stm32h7_adc_ckmodes_spec[] = {
+static const struct stm32h7_adc_ck_spec stm32h7_adc_ckmodes_spec[] = {
 	/* 00: CK_ADC[1..3]: Asynchronous clock modes */
 	{ 0, 0, 1 },
 	{ 0, 1, 2 },

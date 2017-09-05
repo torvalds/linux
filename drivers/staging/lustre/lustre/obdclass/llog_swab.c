@@ -38,8 +38,8 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-#include "../include/llog_swab.h"
-#include "../include/lustre_log.h"
+#include <llog_swab.h>
+#include <lustre_log.h>
 
 static void print_llogd_body(struct llogd_body *d)
 {

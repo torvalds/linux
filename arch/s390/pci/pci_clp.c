@@ -24,6 +24,14 @@
 
 bool zpci_unique_uid;
 
+static void update_uid_checking(bool new)
+{
+	if (zpci_unique_uid != new)
+		zpci_dbg(1, "uid checking:%d\n", new);
+
+	zpci_unique_uid = new;
+}
+
 static inline void zpci_err_clp(unsigned int rsp, int rc)
 {
 	struct {
@@ -319,7 +327,7 @@ static int clp_list_pci(struct clp_req_rsp_list_pci *rrb, void *data,
 			goto out;
 		}
 
-		zpci_unique_uid = rrb->response.uid_checking;
+		update_uid_checking(rrb->response.uid_checking);
 		WARN_ON_ONCE(rrb->response.entry_size !=
 			sizeof(struct clp_fh_list_entry));
 

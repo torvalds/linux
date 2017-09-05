@@ -6,9 +6,9 @@
  */
 #include "lkdtm.h"
 #include <linux/list.h>
-#include <linux/refcount.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/task_stack.h>
 #include <linux/uaccess.h>
 
 struct lkdtm_list {
@@ -85,16 +85,31 @@ void lkdtm_OVERFLOW(void)
 
 static noinline void __lkdtm_CORRUPT_STACK(void *stack)
 {
-	memset(stack, 'a', 64);
+	memset(stack, '\xff', 64);
 }
 
+/* This should trip the stack canary, not corrupt the return address. */
 noinline void lkdtm_CORRUPT_STACK(void)
 {
 	/* Use default char array length that triggers stack protection. */
-	char data[8];
+	char data[8] __aligned(sizeof(void *));
+
 	__lkdtm_CORRUPT_STACK(&data);
 
-	pr_info("Corrupted stack with '%16s'...\n", data);
+	pr_info("Corrupted stack containing char array ...\n");
+}
+
+/* Same as above but will only get a canary with -fstack-protector-strong */
+noinline void lkdtm_CORRUPT_STACK_STRONG(void)
+{
+	union {
+		unsigned short shorts[4];
+		unsigned long *ptr;
+	} data __aligned(sizeof(void *));
+
+	__lkdtm_CORRUPT_STACK(&data);
+
+	pr_info("Corrupted stack containing union ...\n");
 }
 
 void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)
@@ -135,88 +150,6 @@ void lkdtm_HUNG_TASK(void)
 {
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule();
-}
-
-void lkdtm_REFCOUNT_SATURATE_INC(void)
-{
-	refcount_t over = REFCOUNT_INIT(UINT_MAX - 1);
-
-	pr_info("attempting good refcount decrement\n");
-	refcount_dec(&over);
-	refcount_inc(&over);
-
-	pr_info("attempting bad refcount inc overflow\n");
-	refcount_inc(&over);
-	refcount_inc(&over);
-	if (refcount_read(&over) == UINT_MAX)
-		pr_err("Correctly stayed saturated, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount wrapped\n");
-}
-
-void lkdtm_REFCOUNT_SATURATE_ADD(void)
-{
-	refcount_t over = REFCOUNT_INIT(UINT_MAX - 1);
-
-	pr_info("attempting good refcount decrement\n");
-	refcount_dec(&over);
-	refcount_inc(&over);
-
-	pr_info("attempting bad refcount add overflow\n");
-	refcount_add(2, &over);
-	if (refcount_read(&over) == UINT_MAX)
-		pr_err("Correctly stayed saturated, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount wrapped\n");
-}
-
-void lkdtm_REFCOUNT_ZERO_DEC(void)
-{
-	refcount_t zero = REFCOUNT_INIT(1);
-
-	pr_info("attempting bad refcount decrement to zero\n");
-	refcount_dec(&zero);
-	if (refcount_read(&zero) == 0)
-		pr_err("Stayed at zero, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount went crazy\n");
-}
-
-void lkdtm_REFCOUNT_ZERO_SUB(void)
-{
-	refcount_t zero = REFCOUNT_INIT(1);
-
-	pr_info("attempting bad refcount subtract past zero\n");
-	if (!refcount_sub_and_test(2, &zero))
-		pr_info("wrap attempt was noticed\n");
-	if (refcount_read(&zero) == 1)
-		pr_err("Correctly stayed above 0, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount wrapped\n");
-}
-
-void lkdtm_REFCOUNT_ZERO_INC(void)
-{
-	refcount_t zero = REFCOUNT_INIT(0);
-
-	pr_info("attempting bad refcount increment from zero\n");
-	refcount_inc(&zero);
-	if (refcount_read(&zero) == 0)
-		pr_err("Stayed at zero, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount went past zero\n");
-}
-
-void lkdtm_REFCOUNT_ZERO_ADD(void)
-{
-	refcount_t zero = REFCOUNT_INIT(0);
-
-	pr_info("attempting bad refcount addition from zero\n");
-	refcount_add(2, &zero);
-	if (refcount_read(&zero) == 0)
-		pr_err("Stayed at zero, but no BUG?!\n");
-	else
-		pr_err("Fail: refcount went past zero\n");
 }
 
 void lkdtm_CORRUPT_LIST_ADD(void)
@@ -282,6 +215,7 @@ void lkdtm_CORRUPT_LIST_DEL(void)
 		pr_err("list_del() corruption not detected!\n");
 }
 
+/* Test if unbalanced set_fs(KERNEL_DS)/set_fs(USER_DS) check exists. */
 void lkdtm_CORRUPT_USER_DS(void)
 {
 	pr_info("setting bad task size limit\n");
@@ -289,4 +223,32 @@ void lkdtm_CORRUPT_USER_DS(void)
 
 	/* Make sure we do not keep running with a KERNEL_DS! */
 	force_sig(SIGKILL, current);
+}
+
+/* Test that VMAP_STACK is actually allocating with a leading guard page */
+void lkdtm_STACK_GUARD_PAGE_LEADING(void)
+{
+	const unsigned char *stack = task_stack_page(current);
+	const unsigned char *ptr = stack - 1;
+	volatile unsigned char byte;
+
+	pr_info("attempting bad read from page below current stack\n");
+
+	byte = *ptr;
+
+	pr_err("FAIL: accessed page before stack!\n");
+}
+
+/* Test that VMAP_STACK is actually allocating with a trailing guard page */
+void lkdtm_STACK_GUARD_PAGE_TRAILING(void)
+{
+	const unsigned char *stack = task_stack_page(current);
+	const unsigned char *ptr = stack + THREAD_SIZE;
+	volatile unsigned char byte;
+
+	pr_info("attempting bad read from page above current stack\n");
+
+	byte = *ptr;
+
+	pr_err("FAIL: accessed page after stack!\n");
 }

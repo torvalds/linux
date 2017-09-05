@@ -1,12 +1,19 @@
 * STMicroelectronics STM32 USART
 
 Required properties:
-- compatible: Can be either "st,stm32-usart", "st,stm32-uart",
-"st,stm32f7-usart" or "st,stm32f7-uart" depending on whether
-the device supports synchronous mode and is compatible with
-stm32(f4) or stm32f7.
+- compatible: can be either:
+  - "st,stm32-usart",
+  - "st,stm32-uart",
+  - "st,stm32f7-usart",
+  - "st,stm32f7-uart",
+  - "st,stm32h7-usart"
+  - "st,stm32h7-uart".
+  depending on whether the device supports synchronous mode
+  and is compatible with stm32(f4), stm32f7 or stm32h7.
 - reg: The address and length of the peripheral registers space
-- interrupts: The interrupt line of the USART instance
+- interrupts:
+  - The interrupt line for the USART instance,
+  - An optional wake-up interrupt.
 - clocks: The input clock of the USART instance
 
 Optional properties:

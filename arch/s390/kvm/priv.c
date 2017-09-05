@@ -329,7 +329,7 @@ static int handle_sske(struct kvm_vcpu *vcpu)
 	start = kvm_s390_logical_to_effective(vcpu, start);
 	if (m3 & SSKE_MB) {
 		/* start already designates an absolute address */
-		end = (start + (1UL << 20)) & ~((1UL << 20) - 1);
+		end = (start + _SEGMENT_SIZE) & ~(_SEGMENT_SIZE - 1);
 	} else {
 		start = kvm_s390_real_to_abs(vcpu, start);
 		end = start + PAGE_SIZE;
@@ -893,10 +893,10 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 	case 0x00000000:
 		/* only 4k frames specify a real address */
 		start = kvm_s390_real_to_abs(vcpu, start);
-		end = (start + (1UL << 12)) & ~((1UL << 12) - 1);
+		end = (start + PAGE_SIZE) & ~(PAGE_SIZE - 1);
 		break;
 	case 0x00001000:
-		end = (start + (1UL << 20)) & ~((1UL << 20) - 1);
+		end = (start + _SEGMENT_SIZE) & ~(_SEGMENT_SIZE - 1);
 		break;
 	case 0x00002000:
 		/* only support 2G frame size if EDAT2 is available and we are
@@ -904,7 +904,7 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 		if (!test_kvm_facility(vcpu->kvm, 78) ||
 		    psw_bits(vcpu->arch.sie_block->gpsw).eaba == PSW_BITS_AMODE_24BIT)
 			return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-		end = (start + (1UL << 31)) & ~((1UL << 31) - 1);
+		end = (start + _REGION3_SIZE) & ~(_REGION3_SIZE - 1);
 		break;
 	default:
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);

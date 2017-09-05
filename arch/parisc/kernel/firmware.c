@@ -69,7 +69,15 @@
 #include <asm/pdcpat.h>
 #include <asm/processor.h>	/* for boot_cpu_data */
 
+#if defined(BOOTLOADER)
+# undef  spin_lock_irqsave
+# define spin_lock_irqsave(a, b) { b = 1; }
+# undef  spin_unlock_irqrestore
+# define spin_unlock_irqrestore(a, b)
+#else
 static DEFINE_SPINLOCK(pdc_lock);
+#endif
+
 extern unsigned long pdc_result[NUM_PDC_RESULT];
 extern unsigned long pdc_result2[NUM_PDC_RESULT];
 
@@ -142,8 +150,8 @@ static void convert_to_wide(unsigned long *addr)
 	int i;
 	unsigned int *p = (unsigned int *)addr;
 
-	if(unlikely(parisc_narrow_firmware)) {
-		for(i = 31; i >= 0; --i)
+	if (unlikely(parisc_narrow_firmware)) {
+		for (i = (NUM_PDC_RESULT-1); i >= 0; --i)
 			addr[i] = p[i];
 	}
 #endif
@@ -186,6 +194,8 @@ void set_firmware_width(void)
 }
 #endif /*CONFIG_64BIT*/
 
+
+#if !defined(BOOTLOADER)
 /**
  * pdc_emergency_unlock - Unlock the linux pdc lock
  *
@@ -979,15 +989,21 @@ int pdc_mem_pdt_read_entries(struct pdc_mem_read_pdt *pret,
 
 	spin_lock_irqsave(&pdc_lock, flags);
 	retval = mem_pdc_call(PDC_MEM, PDC_MEM_READ_PDT, __pa(pdc_result),
-			__pa(pdc_result2));
+			__pa(pdt_entries_ptr));
 	if (retval == PDC_OK) {
 		convert_to_wide(pdc_result);
 		memcpy(pret, pdc_result, sizeof(*pret));
-		convert_to_wide(pdc_result2);
-		memcpy(pdt_entries_ptr, pdc_result2,
-			pret->pdt_entries * sizeof(*pdt_entries_ptr));
 	}
 	spin_unlock_irqrestore(&pdc_lock, flags);
+
+#ifdef CONFIG_64BIT
+	/*
+	 * 64-bit kernels should not call this PDT function in narrow mode.
+	 * The pdt_entries_ptr array above will now contain 32-bit values
+	 */
+	if (WARN_ON_ONCE((retval == PDC_OK) && parisc_narrow_firmware))
+		return PDC_ERROR;
+#endif
 
 	return retval;
 }
@@ -1143,6 +1159,8 @@ void pdc_io_reset_devices(void)
 	spin_unlock_irqrestore(&pdc_lock, flags);
 }
 
+#endif /* defined(BOOTLOADER) */
+
 /* locked by pdc_console_lock */
 static int __attribute__((aligned(8)))   iodc_retbuf[32];
 static char __attribute__((aligned(64))) iodc_dbuf[4096];
@@ -1187,6 +1205,7 @@ print:
 	return i;
 }
 
+#if !defined(BOOTLOADER)
 /**
  * pdc_iodc_getc - Read a character (non-blocking) from the PDC console.
  *
@@ -1440,6 +1459,29 @@ int pdc_pat_mem_pdt_info(struct pdc_pat_mem_retinfo *rinfo)
 }
 
 /**
+ * pdc_pat_mem_pdt_cell_info - Retrieve information about page deallocation
+ *				table of a cell
+ * @rinfo: memory pdt information
+ * @cell: cell number
+ *
+ */
+int pdc_pat_mem_pdt_cell_info(struct pdc_pat_mem_cell_pdt_retinfo *rinfo,
+		unsigned long cell)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_PAT_MEM, PDC_PAT_MEM_CELL_INFO,
+			__pa(&pdc_result), cell);
+	if (retval == PDC_OK)
+		memcpy(rinfo, &pdc_result, sizeof(*rinfo));
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
+}
+
+/**
  * pdc_pat_mem_read_cell_pdt - Read PDT entries from (old) PAT firmware
  * @pret: array of PDT entries
  * @pdt_entries_ptr: ptr to hold number of PDT entries
@@ -1455,14 +1497,14 @@ int pdc_pat_mem_read_cell_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
 	spin_lock_irqsave(&pdc_lock, flags);
 	/* PDC_PAT_MEM_CELL_READ is available on early PAT machines only */
 	retval = mem_pdc_call(PDC_PAT_MEM, PDC_PAT_MEM_CELL_READ,
-			__pa(&pdc_result), parisc_cell_num, __pa(&pdc_result2));
+			__pa(&pdc_result), parisc_cell_num,
+			__pa(pdt_entries_ptr));
 
 	if (retval == PDC_OK) {
 		/* build up return value as for PDC_PAT_MEM_PD_READ */
 		entries = min(pdc_result[0], max_entries);
 		pret->pdt_entries = entries;
 		pret->actual_count_bytes = entries * sizeof(unsigned long);
-		memcpy(pdt_entries_ptr, &pdc_result2, pret->actual_count_bytes);
 	}
 
 	spin_unlock_irqrestore(&pdc_lock, flags);
@@ -1474,6 +1516,8 @@ int pdc_pat_mem_read_cell_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
  * pdc_pat_mem_read_pd_pdt - Read PDT entries from (newer) PAT firmware
  * @pret: array of PDT entries
  * @pdt_entries_ptr: ptr to hold number of PDT entries
+ * @count: number of bytes to read
+ * @offset: offset to start (in bytes)
  *
  */
 int pdc_pat_mem_read_pd_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
@@ -1524,6 +1568,7 @@ int pdc_pat_mem_get_dimm_phys_location(
 	return retval;
 }
 #endif /* CONFIG_64BIT */
+#endif /* defined(BOOTLOADER) */
 
 
 /***************** 32-bit real-mode calls ***********/
@@ -1633,4 +1678,3 @@ long real64_call(unsigned long fn, ...)
 }
 
 #endif /* CONFIG_64BIT */
-

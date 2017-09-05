@@ -153,4 +153,39 @@ out:									\
 									\
 	CONFIGFS_ATTR_RO(_f_##_opts_, ifname)
 
+#define USB_ETHER_CONFIGFS_ITEM_ATTR_U8_RW(_f_, _n_)			\
+	static ssize_t _f_##_opts_##_n_##_show(struct config_item *item,\
+					       char *page)		\
+	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
+		int ret;						\
+									\
+		mutex_lock(&opts->lock);				\
+		ret = sprintf(page, "%02x\n", opts->_n_);		\
+		mutex_unlock(&opts->lock);				\
+									\
+		return ret;						\
+	}								\
+									\
+	static ssize_t _f_##_opts_##_n_##_store(struct config_item *item,\
+						const char *page,	\
+						size_t len)		\
+	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
+		int ret;						\
+		u8 val;							\
+									\
+		mutex_lock(&opts->lock);				\
+		ret = sscanf(page, "%02hhx", &val);			\
+		if (ret > 0) {						\
+			opts->_n_ = val;				\
+			ret = len;					\
+		}							\
+		mutex_unlock(&opts->lock);				\
+									\
+		return ret;						\
+	}								\
+									\
+	CONFIGFS_ATTR(_f_##_opts_, _n_)
+
 #endif /* __U_ETHER_CONFIGFS_H */

@@ -34,6 +34,7 @@
 #include <linux/hugetlb.h>
 
 #include <asm/bug.h>
+#include <asm/cmpxchg.h>
 #include <asm/cpufeature.h>
 #include <asm/exception.h>
 #include <asm/debug-monitors.h>
@@ -81,6 +82,49 @@ static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
 	return 0;
 }
 #endif
+
+static void data_abort_decode(unsigned int esr)
+{
+	pr_alert("Data abort info:\n");
+
+	if (esr & ESR_ELx_ISV) {
+		pr_alert("  Access size = %u byte(s)\n",
+			 1U << ((esr & ESR_ELx_SAS) >> ESR_ELx_SAS_SHIFT));
+		pr_alert("  SSE = %lu, SRT = %lu\n",
+			 (esr & ESR_ELx_SSE) >> ESR_ELx_SSE_SHIFT,
+			 (esr & ESR_ELx_SRT_MASK) >> ESR_ELx_SRT_SHIFT);
+		pr_alert("  SF = %lu, AR = %lu\n",
+			 (esr & ESR_ELx_SF) >> ESR_ELx_SF_SHIFT,
+			 (esr & ESR_ELx_AR) >> ESR_ELx_AR_SHIFT);
+	} else {
+		pr_alert("  ISV = 0, ISS = 0x%08lu\n", esr & ESR_ELx_ISS_MASK);
+	}
+
+	pr_alert("  CM = %lu, WnR = %lu\n",
+		 (esr & ESR_ELx_CM) >> ESR_ELx_CM_SHIFT,
+		 (esr & ESR_ELx_WNR) >> ESR_ELx_WNR_SHIFT);
+}
+
+/*
+ * Decode mem abort information
+ */
+static void mem_abort_decode(unsigned int esr)
+{
+	pr_alert("Mem abort info:\n");
+
+	pr_alert("  Exception class = %s, IL = %u bits\n",
+		 esr_get_class_string(esr),
+		 (esr & ESR_ELx_IL) ? 32 : 16);
+	pr_alert("  SET = %lu, FnV = %lu\n",
+		 (esr & ESR_ELx_SET_MASK) >> ESR_ELx_SET_SHIFT,
+		 (esr & ESR_ELx_FnV) >> ESR_ELx_FnV_SHIFT);
+	pr_alert("  EA = %lu, S1PTW = %lu\n",
+		 (esr & ESR_ELx_EA) >> ESR_ELx_EA_SHIFT,
+		 (esr & ESR_ELx_S1PTW) >> ESR_ELx_S1PTW_SHIFT);
+
+	if (esr_is_data_abort(esr))
+		data_abort_decode(esr);
+}
 
 /*
  * Dump out the page tables associated with 'addr' in the currently active mm.
@@ -139,7 +183,6 @@ void show_pte(unsigned long addr)
 	pr_cont("\n");
 }
 
-#ifdef CONFIG_ARM64_HW_AFDBM
 /*
  * This function sets the access flags (dirty, accessed), as well as write
  * permission, and only to a more permissive setting.
@@ -154,18 +197,13 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 			  unsigned long address, pte_t *ptep,
 			  pte_t entry, int dirty)
 {
-	pteval_t old_pteval;
-	unsigned int tmp;
+	pteval_t old_pteval, pteval;
 
 	if (pte_same(*ptep, entry))
 		return 0;
 
 	/* only preserve the access flags and write permission */
-	pte_val(entry) &= PTE_AF | PTE_WRITE | PTE_DIRTY;
-
-	/* set PTE_RDONLY if actual read-only or clean PTE */
-	if (!pte_write(entry) || !pte_sw_dirty(entry))
-		pte_val(entry) |= PTE_RDONLY;
+	pte_val(entry) &= PTE_RDONLY | PTE_AF | PTE_WRITE | PTE_DIRTY;
 
 	/*
 	 * Setting the flags must be done atomically to avoid racing with the
@@ -174,21 +212,18 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 	 * (calculated as: a & b == ~(~a | ~b)).
 	 */
 	pte_val(entry) ^= PTE_RDONLY;
-	asm volatile("//	ptep_set_access_flags\n"
-	"	prfm	pstl1strm, %2\n"
-	"1:	ldxr	%0, %2\n"
-	"	eor	%0, %0, %3		// negate PTE_RDONLY in *ptep\n"
-	"	orr	%0, %0, %4		// set flags\n"
-	"	eor	%0, %0, %3		// negate final PTE_RDONLY\n"
-	"	stxr	%w1, %0, %2\n"
-	"	cbnz	%w1, 1b\n"
-	: "=&r" (old_pteval), "=&r" (tmp), "+Q" (pte_val(*ptep))
-	: "L" (PTE_RDONLY), "r" (pte_val(entry)));
+	pteval = READ_ONCE(pte_val(*ptep));
+	do {
+		old_pteval = pteval;
+		pteval ^= PTE_RDONLY;
+		pteval |= pte_val(entry);
+		pteval ^= PTE_RDONLY;
+		pteval = cmpxchg_relaxed(&pte_val(*ptep), old_pteval, pteval);
+	} while (pteval != old_pteval);
 
 	flush_tlb_fix_spurious_fault(vma, address);
 	return 1;
 }
-#endif
 
 static bool is_el1_instruction_abort(unsigned int esr)
 {
@@ -247,6 +282,8 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 
 	pr_alert("Unable to handle kernel %s at virtual address %08lx\n", msg,
 		 addr);
+
+	mem_abort_decode(esr);
 
 	show_pte(addr);
 	die("Oops", regs, esr);
@@ -704,6 +741,8 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 
 	pr_alert("Unhandled fault: %s (0x%08x) at 0x%016lx\n",
 		 inf->name, esr, addr);
+
+	mem_abort_decode(esr);
 
 	info.si_signo = inf->sig;
 	info.si_errno = 0;

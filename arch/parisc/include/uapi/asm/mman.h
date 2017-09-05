@@ -40,9 +40,6 @@
 #define MADV_SEQUENTIAL 2               /* expect sequential page references */
 #define MADV_WILLNEED   3               /* will need these pages */
 #define MADV_DONTNEED   4               /* don't need these pages */
-#define MADV_SPACEAVAIL 5               /* insure that resources are reserved */
-#define MADV_VPS_PURGE  6               /* Purge pages from VM page cache */
-#define MADV_VPS_INHERIT 7              /* Inherit parents page size */
 
 /* common/generic parameters */
 #define MADV_FREE	8		/* free pages only if memory pressure */
@@ -59,6 +56,9 @@
 #define MADV_DONTDUMP   69		/* Explicity exclude from the core dump,
 					   overrides the coredump filter bits */
 #define MADV_DODUMP	70		/* Clear the MADV_NODUMP flag */
+
+#define MADV_HWPOISON     100		/* poison a page for testing */
+#define MADV_SOFT_OFFLINE 101		/* soft offline page for testing */
 
 /* compatibility flags */
 #define MAP_FILE	0

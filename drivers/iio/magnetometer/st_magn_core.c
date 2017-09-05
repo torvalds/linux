@@ -315,7 +315,7 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 				},
 			},
 		},
-		.multi_read_bit = false,
+		.multi_read_bit = true,
 		.bootime = 2,
 	},
 	{
@@ -323,6 +323,7 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 		.wai_addr = 0x4f,
 		.sensors_supported = {
 			[0] = LSM303AGR_MAGN_DEV_NAME,
+			[1] = LIS2MDL_MAGN_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_magn_3_16bit_channels,
 		.odr = {

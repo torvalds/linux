@@ -6,6 +6,7 @@ controllers on Qualcomm chipsets, such as, PCIe, UFS, and USB.
 
 Required properties:
  - compatible: compatible list, contains:
+	       "qcom,ipq8074-qmp-pcie-phy" for PCIe phy on IPQ8074
 	       "qcom,msm8996-qmp-pcie-phy" for 14nm PCIe phy on msm8996,
 	       "qcom,msm8996-qmp-usb3-phy" for 14nm USB3 phy on msm8996.
 
@@ -38,6 +39,8 @@ Required properties:
 		 "phy", "common", "cfg".
 		For "qcom,msm8996-qmp-usb3-phy" must contain
 		 "phy", "common".
+		For "qcom,ipq8074-qmp-pcie-phy" must contain:
+		 "phy", "common".
 
  - vdda-phy-supply: Phandle to a regulator supply to PHY core block.
  - vdda-pll-supply: Phandle to 1.8V regulator supply to PHY refclk pll block.
@@ -60,6 +63,13 @@ Required properties for child node:
 	   one for each entry in clock-names.
  - clock-names: Must contain following for pcie and usb qmp phys:
 		 "pipe<lane-number>" for pipe clock specific to each lane.
+ - clock-output-names: Name of the PHY clock that will be the parent for
+		       the above pipe clock.
+
+	For "qcom,ipq8074-qmp-pcie-phy":
+		- "pcie20_phy0_pipe_clk"	Pipe Clock parent
+			(or)
+		  "pcie20_phy1_pipe_clk"
 
  - resets: a list of phandles and reset controller specifier pairs,
 	   one for each entry in reset-names.
@@ -96,6 +106,7 @@ Example:
 
 			clocks = <&gcc GCC_PCIE_0_PIPE_CLK>;
 			clock-names = "pipe0";
+			clock-output-names = "pcie_0_pipe_clk_src";
 			resets = <&gcc GCC_PCIE_0_PHY_BCR>;
 			reset-names = "lane0";
 		};

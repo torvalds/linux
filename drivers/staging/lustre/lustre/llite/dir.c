@@ -44,14 +44,14 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/obd_support.h"
-#include "../include/obd_class.h"
-#include "../include/lustre/lustre_ioctl.h"
-#include "../include/lustre_lib.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_kernelcomm.h"
-#include "../include/lustre_swab.h"
+#include <obd_support.h>
+#include <obd_class.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_lib.h>
+#include <lustre_dlm.h>
+#include <lustre_fid.h>
+#include <lustre_kernelcomm.h>
+#include <lustre_swab.h>
 
 #include "llite_internal.h"
 
@@ -1097,7 +1097,7 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			goto out_free;
 		}
 out_free:
-		obd_ioctl_freedata(buf, len);
+		kvfree(buf);
 		return rc;
 	}
 	case LL_IOC_LMV_SETSTRIPE: {
@@ -1147,7 +1147,7 @@ out_free:
 #endif
 		rc = ll_dir_setdirstripe(inode, lum, filename, mode);
 lmv_out_free:
-		obd_ioctl_freedata(buf, len);
+		kvfree(buf);
 		return rc;
 	}
 	case LL_IOC_LMV_SET_DEFAULT_STRIPE: {
@@ -1626,7 +1626,7 @@ out_quotactl:
 
 		rc = ll_migrate(inode, file, mdtidx, filename, namelen - 1);
 migrate_free:
-		obd_ioctl_freedata(buf, len);
+		kvfree(buf);
 
 		return rc;
 	}

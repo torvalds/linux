@@ -924,7 +924,7 @@ static const struct dev_pm_ops tsl2583_pm_ops = {
 	SET_RUNTIME_PM_OPS(tsl2583_suspend, tsl2583_resume, NULL)
 };
 
-static struct i2c_device_id tsl2583_idtable[] = {
+static const struct i2c_device_id tsl2583_idtable[] = {
 	{ "tsl2580", 0 },
 	{ "tsl2581", 1 },
 	{ "tsl2583", 2 },

@@ -354,7 +354,7 @@ static int compat_restore_sigframe(struct pt_regs *regs,
 	/*
 	 * Avoid compat_sys_sigreturn() restarting.
 	 */
-	regs->syscallno = ~0UL;
+	forget_syscall(regs);
 
 	err |= !valid_user_regs(&regs->user_regs, current);
 

@@ -36,7 +36,7 @@
 
 #include "vbox_drv.h"
 
-int vbox_modeset = -1;
+static int vbox_modeset = -1;
 
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, vbox_modeset, int, 0400);

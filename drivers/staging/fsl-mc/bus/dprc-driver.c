@@ -29,7 +29,7 @@ static bool fsl_mc_device_match(struct fsl_mc_device *mc_dev,
 				struct fsl_mc_obj_desc *obj_desc)
 {
 	return mc_dev->obj_desc.id == obj_desc->id &&
-	       !strcmp(mc_dev->obj_desc.type, obj_desc->type);
+	       strcmp(mc_dev->obj_desc.type, obj_desc->type) == 0;
 
 }
 
@@ -617,8 +617,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		if (WARN_ON(mc_dev->obj_desc.region_count == 0))
 			return -EINVAL;
 
-		region_size = mc_dev->regions[0].end -
-			      mc_dev->regions[0].start + 1;
+		region_size = resource_size(mc_dev->regions);
 
 		error = fsl_create_mc_io(&mc_dev->dev,
 					 mc_dev->regions[0].start,

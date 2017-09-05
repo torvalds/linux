@@ -53,4 +53,9 @@ static inline int in_exception_text(unsigned long ptr)
 	return in ? : __in_irqentry_text(ptr);
 }
 
+static inline int in_entry_text(unsigned long ptr)
+{
+	return ptr >= (unsigned long)&__entry_text_start &&
+	       ptr < (unsigned long)&__entry_text_end;
+}
 #endif

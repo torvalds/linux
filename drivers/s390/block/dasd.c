@@ -801,11 +801,12 @@ static void dasd_profile_end(struct dasd_block *block,
 			     struct dasd_ccw_req *cqr,
 			     struct request *req)
 {
-	long strtime, irqtime, endtime, tottime;	/* in microseconds */
-	long tottimeps, sectors;
+	unsigned long strtime, irqtime, endtime, tottime;
+	unsigned long tottimeps, sectors;
 	struct dasd_device *device;
 	int sectors_ind, tottime_ind, tottimeps_ind, strtime_ind;
 	int irqtime_ind, irqtimeps_ind, endtime_ind;
+	struct dasd_profile_info *data;
 
 	device = cqr->startdev;
 	if (!(dasd_global_profile_level ||
@@ -835,6 +836,11 @@ static void dasd_profile_end(struct dasd_block *block,
 
 	spin_lock(&dasd_global_profile.lock);
 	if (dasd_global_profile.data) {
+		data = dasd_global_profile.data;
+		data->dasd_sum_times += tottime;
+		data->dasd_sum_time_str += strtime;
+		data->dasd_sum_time_irq += irqtime;
+		data->dasd_sum_time_end += endtime;
 		dasd_profile_end_add_data(dasd_global_profile.data,
 					  cqr->startdev != block->base,
 					  cqr->cpmode == 1,
@@ -847,7 +853,12 @@ static void dasd_profile_end(struct dasd_block *block,
 	spin_unlock(&dasd_global_profile.lock);
 
 	spin_lock(&block->profile.lock);
-	if (block->profile.data)
+	if (block->profile.data) {
+		data = block->profile.data;
+		data->dasd_sum_times += tottime;
+		data->dasd_sum_time_str += strtime;
+		data->dasd_sum_time_irq += irqtime;
+		data->dasd_sum_time_end += endtime;
 		dasd_profile_end_add_data(block->profile.data,
 					  cqr->startdev != block->base,
 					  cqr->cpmode == 1,
@@ -856,10 +867,16 @@ static void dasd_profile_end(struct dasd_block *block,
 					  tottimeps_ind, strtime_ind,
 					  irqtime_ind, irqtimeps_ind,
 					  endtime_ind);
+	}
 	spin_unlock(&block->profile.lock);
 
 	spin_lock(&device->profile.lock);
-	if (device->profile.data)
+	if (device->profile.data) {
+		data = device->profile.data;
+		data->dasd_sum_times += tottime;
+		data->dasd_sum_time_str += strtime;
+		data->dasd_sum_time_irq += irqtime;
+		data->dasd_sum_time_end += endtime;
 		dasd_profile_end_add_data(device->profile.data,
 					  cqr->startdev != block->base,
 					  cqr->cpmode == 1,
@@ -868,6 +885,7 @@ static void dasd_profile_end(struct dasd_block *block,
 					  tottimeps_ind, strtime_ind,
 					  irqtime_ind, irqtimeps_ind,
 					  endtime_ind);
+	}
 	spin_unlock(&device->profile.lock);
 }
 
@@ -989,6 +1007,14 @@ static void dasd_stats_seq_print(struct seq_file *m,
 	seq_printf(m, "total_sectors %u\n", data->dasd_io_sects);
 	seq_printf(m, "total_pav %u\n", data->dasd_io_alias);
 	seq_printf(m, "total_hpf %u\n", data->dasd_io_tpm);
+	seq_printf(m, "avg_total %lu\n", data->dasd_io_reqs ?
+		   data->dasd_sum_times / data->dasd_io_reqs : 0UL);
+	seq_printf(m, "avg_build_to_ssch %lu\n", data->dasd_io_reqs ?
+		   data->dasd_sum_time_str / data->dasd_io_reqs : 0UL);
+	seq_printf(m, "avg_ssch_to_irq %lu\n", data->dasd_io_reqs ?
+		   data->dasd_sum_time_irq / data->dasd_io_reqs : 0UL);
+	seq_printf(m, "avg_irq_to_end %lu\n", data->dasd_io_reqs ?
+		   data->dasd_sum_time_end / data->dasd_io_reqs : 0UL);
 	seq_puts(m, "histogram_sectors ");
 	dasd_stats_array(m, data->dasd_io_secs);
 	seq_puts(m, "histogram_io_times ");
@@ -1639,7 +1665,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 {
 	struct dasd_ccw_req *cqr, *next;
 	struct dasd_device *device;
-	unsigned long long now;
+	unsigned long now;
 	int nrf_suppressed = 0;
 	int fp_suppressed = 0;
 	u8 *sense = NULL;
@@ -3152,7 +3178,9 @@ static int dasd_alloc_queue(struct dasd_block *block)
  */
 static void dasd_setup_queue(struct dasd_block *block)
 {
+	unsigned int logical_block_size = block->bp_block;
 	struct request_queue *q = block->request_queue;
+	unsigned int max_bytes, max_discard_sectors;
 	int max;
 
 	if (block->base->features & DASD_FEATURE_USERAW) {
@@ -3169,7 +3197,7 @@ static void dasd_setup_queue(struct dasd_block *block)
 	}
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
 	q->limits.max_dev_sectors = max;
-	blk_queue_logical_block_size(q, block->bp_block);
+	blk_queue_logical_block_size(q, logical_block_size);
 	blk_queue_max_hw_sectors(q, max);
 	blk_queue_max_segments(q, USHRT_MAX);
 	/* with page sized segments we can translate each segement into
@@ -3177,6 +3205,21 @@ static void dasd_setup_queue(struct dasd_block *block)
 	 */
 	blk_queue_max_segment_size(q, PAGE_SIZE);
 	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
+
+	/* Only activate blocklayer discard support for devices that support it */
+	if (block->base->features & DASD_FEATURE_DISCARD) {
+		q->limits.discard_granularity = logical_block_size;
+		q->limits.discard_alignment = PAGE_SIZE;
+
+		/* Calculate max_discard_sectors and make it PAGE aligned */
+		max_bytes = USHRT_MAX * logical_block_size;
+		max_bytes = ALIGN(max_bytes, PAGE_SIZE) - PAGE_SIZE;
+		max_discard_sectors = max_bytes / logical_block_size;
+
+		blk_queue_max_discard_sectors(q, max_discard_sectors);
+		blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
+		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
+	}
 }
 
 /*

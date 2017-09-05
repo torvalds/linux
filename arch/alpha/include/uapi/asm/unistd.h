@@ -366,11 +366,6 @@
 #define __NR_epoll_create		407
 #define __NR_epoll_ctl			408
 #define __NR_epoll_wait			409
-/* Feb 2007: These three sys_epoll defines shouldn't be here but culling
- * them would break userspace apps ... we'll kill them off in 2010 :) */
-#define __NR_sys_epoll_create		__NR_epoll_create
-#define __NR_sys_epoll_ctl		__NR_epoll_ctl
-#define __NR_sys_epoll_wait		__NR_epoll_wait
 #define __NR_remap_file_pages		410
 #define __NR_set_tid_address		411
 #define __NR_restart_syscall		412
