@@ -1151,9 +1151,6 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
-	if (!dwc3_calc_trbs_left(dep))
-		return;
-
 	/*
 	 * We can get in a situation where there's a request in the started list
 	 * but there weren't enough TRBs to fully kick it in the first time
@@ -1201,6 +1198,9 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param)
 	int				starting;
 	int				ret;
 	u32				cmd;
+
+	if (!dwc3_calc_trbs_left(dep))
+		return 0;
 
 	starting = !(dep->flags & DWC3_EP_BUSY);
 
