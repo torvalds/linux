@@ -1177,7 +1177,7 @@ static int ofdpa_group_l2_fan_out(struct ofdpa_port *ofdpa_port,
 	entry->group_id = group_id;
 	entry->group_count = group_count;
 
-	entry->group_ids = kcalloc(flags, group_count, sizeof(u32));
+	entry->group_ids = kcalloc(group_count, sizeof(u32), GFP_KERNEL);
 	if (!entry->group_ids) {
 		kfree(entry);
 		return -ENOMEM;
@@ -1456,7 +1456,7 @@ static int ofdpa_port_vlan_flood_group(struct ofdpa_port *ofdpa_port,
 	int err = 0;
 	int i;
 
-	group_ids = kcalloc(flags, port_count, sizeof(u32));
+	group_ids = kcalloc(port_count, sizeof(u32), GFP_KERNEL);
 	if (!group_ids)
 		return -ENOMEM;
 
