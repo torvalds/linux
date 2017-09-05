@@ -1,7 +1,7 @@
 /*
- * Host1x init for Tegra210 SoCs
+ * Host1x init for Tegra186 SoCs
  *
- * Copyright (c) 2015 NVIDIA Corporation.
+ * Copyright (c) 2017 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,11 +17,11 @@
  */
 
 /* include hw specification */
-#include "host1x05.h"
-#include "host1x05_hardware.h"
+#include "host1x06.h"
+#include "host1x06_hardware.h"
 
 /* include code */
-#define HOST1X_HW 5
+#define HOST1X_HW 6
 
 #include "cdma_hw.c"
 #include "channel_hw.c"
@@ -31,7 +31,7 @@
 
 #include "../dev.h"
 
-int host1x05_init(struct host1x *host)
+int host1x06_init(struct host1x *host)
 {
 	host->channel_op = &host1x_channel_ops;
 	host->cdma_op = &host1x_cdma_ops;

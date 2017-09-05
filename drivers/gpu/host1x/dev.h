@@ -100,12 +100,14 @@ struct host1x_info {
 	int (*init)(struct host1x *host1x); /* initialize per SoC ops */
 	unsigned int sync_offset; /* offset of syncpoint registers */
 	u64 dma_mask; /* mask of addressable memory */
+	bool has_hypervisor; /* has hypervisor registers */
 };
 
 struct host1x {
 	const struct host1x_info *info;
 
 	void __iomem *regs;
+	void __iomem *hv_regs; /* hypervisor region */
 	struct host1x_syncpt *syncpt;
 	struct host1x_syncpt_base *bases;
 	struct device *dev;
@@ -140,6 +142,8 @@ struct host1x {
 	struct list_head list;
 };
 
+void host1x_hypervisor_writel(struct host1x *host1x, u32 r, u32 v);
+u32 host1x_hypervisor_readl(struct host1x *host1x, u32 r);
 void host1x_sync_writel(struct host1x *host1x, u32 r, u32 v);
 u32 host1x_sync_readl(struct host1x *host1x, u32 r);
 void host1x_ch_writel(struct host1x_channel *ch, u32 r, u32 v);
