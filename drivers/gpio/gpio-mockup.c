@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/irq_work.h>
+#include <linux/irq_sim.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 
@@ -47,18 +47,12 @@ enum {
 struct gpio_mockup_line_status {
 	int dir;
 	bool value;
-	bool irq_enabled;
-};
-
-struct gpio_mockup_irq_context {
-	struct irq_work work;
-	int irq;
 };
 
 struct gpio_mockup_chip {
 	struct gpio_chip gc;
 	struct gpio_mockup_line_status *lines;
-	struct gpio_mockup_irq_context irq_ctx;
+	struct irq_sim irqsim;
 	struct dentry *dbg_dir;
 };
 
@@ -144,65 +138,11 @@ static int gpio_mockup_name_lines(struct device *dev,
 	return 0;
 }
 
-static int gpio_mockup_to_irq(struct gpio_chip *chip, unsigned int offset)
+static int gpio_mockup_to_irq(struct gpio_chip *gc, unsigned int offset)
 {
-	return chip->irq_base + offset;
-}
-
-static void gpio_mockup_irqmask(struct irq_data *data)
-{
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
 
-	chip->lines[data->irq - gc->irq_base].irq_enabled = false;
-}
-
-static void gpio_mockup_irqunmask(struct irq_data *data)
-{
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
-	struct gpio_mockup_chip *chip = gpiochip_get_data(gc);
-
-	chip->lines[data->irq - gc->irq_base].irq_enabled = true;
-}
-
-static struct irq_chip gpio_mockup_irqchip = {
-	.name		= GPIO_MOCKUP_NAME,
-	.irq_mask	= gpio_mockup_irqmask,
-	.irq_unmask	= gpio_mockup_irqunmask,
-};
-
-static void gpio_mockup_handle_irq(struct irq_work *work)
-{
-	struct gpio_mockup_irq_context *irq_ctx;
-
-	irq_ctx = container_of(work, struct gpio_mockup_irq_context, work);
-	handle_simple_irq(irq_to_desc(irq_ctx->irq));
-}
-
-static int gpio_mockup_irqchip_setup(struct device *dev,
-				     struct gpio_mockup_chip *chip)
-{
-	struct gpio_chip *gc = &chip->gc;
-	int irq_base, i;
-
-	irq_base = devm_irq_alloc_descs(dev, -1, 0, gc->ngpio, 0);
-	if (irq_base < 0)
-		return irq_base;
-
-	gc->irq_base = irq_base;
-	gc->irqchip = &gpio_mockup_irqchip;
-
-	for (i = 0; i < gc->ngpio; i++) {
-		irq_set_chip(irq_base + i, gc->irqchip);
-		irq_set_chip_data(irq_base + i, gc);
-		irq_set_handler(irq_base + i, &handle_simple_irq);
-		irq_modify_status(irq_base + i,
-				  IRQ_NOREQUEST | IRQ_NOAUTOEN, IRQ_NOPROBE);
-	}
-
-	init_irq_work(&chip->irq_ctx.work, gpio_mockup_handle_irq);
-
-	return 0;
+	return irq_sim_irqnum(&chip->irqsim, offset);
 }
 
 static ssize_t gpio_mockup_event_write(struct file *file,
@@ -213,7 +153,6 @@ static ssize_t gpio_mockup_event_write(struct file *file,
 	struct gpio_mockup_chip *chip;
 	struct seq_file *sfile;
 	struct gpio_desc *desc;
-	struct gpio_chip *gc;
 	int rv, val;
 
 	rv = kstrtoint_from_user(usr_buf, size, 0, &val);
@@ -226,13 +165,9 @@ static ssize_t gpio_mockup_event_write(struct file *file,
 	priv = sfile->private;
 	desc = priv->desc;
 	chip = priv->chip;
-	gc = &chip->gc;
 
-	if (chip->lines[priv->offset].irq_enabled) {
-		gpiod_set_value_cansleep(desc, val);
-		priv->chip->irq_ctx.irq = gc->irq_base + priv->offset;
-		irq_work_queue(&priv->chip->irq_ctx.work);
-	}
+	gpiod_set_value_cansleep(desc, val);
+	irq_sim_fire(&chip->irqsim, priv->offset);
 
 	return size;
 }
@@ -319,7 +254,7 @@ static int gpio_mockup_add(struct device *dev,
 			return ret;
 	}
 
-	ret = gpio_mockup_irqchip_setup(dev, chip);
+	ret = devm_irq_sim_init(dev, &chip->irqsim, gc->ngpio);
 	if (ret)
 		return ret;
 
