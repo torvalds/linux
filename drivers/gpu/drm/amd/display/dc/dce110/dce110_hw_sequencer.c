@@ -1889,6 +1889,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 			return status;
 	}
 
+	/* pplib is notified if disp_num changed */
 	dc->hwss.set_bandwidth(dc, context, true);
 
 	/* to save power */
@@ -2683,7 +2684,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 	}
 }
 
-static void ready_shared_resources(struct dc *dc) {}
+static void ready_shared_resources(struct dc *dc, struct dc_state *context) {}
 
 static void optimize_shared_resources(struct dc *dc) {}
 

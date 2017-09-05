@@ -174,7 +174,7 @@ struct hw_sequencer_funcs {
 			struct resource_pool *res_pool,
 			struct pipe_ctx *pipe_ctx);
 
-	void (*ready_shared_resources)(struct dc *dc);
+	void (*ready_shared_resources)(struct dc *dc, struct dc_state *context);
 	void (*optimize_shared_resources)(struct dc *dc);
 };
 

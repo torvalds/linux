@@ -802,17 +802,13 @@ static void undo_DEGVIDCN10_253_wa(struct dc *dc)
 			IP_REQUEST_EN, 0);
 }
 
-static void ready_shared_resources(struct dc *dc)
-{
-	if (dc->current_state->stream_count == 0 &&
-			!dc->debug.disable_stutter)
-		undo_DEGVIDCN10_253_wa(dc);
-}
-
 static void apply_DEGVIDCN10_253_wa(struct dc *dc)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct mem_input *mi = dc->res_pool->mis[0];
+
+	if (dc->debug.disable_stutter)
+		return;
 
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 1);
@@ -822,13 +818,6 @@ static void apply_DEGVIDCN10_253_wa(struct dc *dc)
 			IP_REQUEST_EN, 0);
 
 	mi->funcs->set_hubp_blank_en(mi, false);
-}
-
-static void optimize_shared_resources(struct dc *dc)
-{
-	if (dc->current_state->stream_count == 0 &&
-			!dc->debug.disable_stutter)
-		apply_DEGVIDCN10_253_wa(dc);
 }
 
 static void bios_golden_init(struct dc *dc)
@@ -2443,6 +2432,27 @@ static void dcn10_pplib_apply_display_requirements(
 		dm_pp_apply_display_requirements(dc->ctx, pp_display_cfg);
 
 	dc->prev_display_config = *pp_display_cfg;
+}
+
+static void optimize_shared_resources(struct dc *dc)
+{
+	if (dc->current_state->stream_count == 0) {
+		apply_DEGVIDCN10_253_wa(dc);
+		/* S0i2 message */
+		dcn10_pplib_apply_display_requirements(dc, dc->current_state);
+	}
+}
+
+static void ready_shared_resources(struct dc *dc, struct dc_state *context)
+{
+	if (dc->current_state->stream_count == 0 &&
+			!dc->debug.disable_stutter)
+		undo_DEGVIDCN10_253_wa(dc);
+
+	/* S0i2 message */
+	if (dc->current_state->stream_count == 0 &&
+			context->stream_count != 0)
+		dcn10_pplib_apply_display_requirements(dc, context);
 }
 
 static void dcn10_apply_ctx_for_surface(

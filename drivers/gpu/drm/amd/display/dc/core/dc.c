@@ -763,7 +763,7 @@ static bool dc_commit_state_no_check(struct dc *dc, struct dc_state *context)
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		dc->hwss.enable_accelerated_mode(dc);
 
-	dc->hwss.ready_shared_resources(dc);
+	dc->hwss.ready_shared_resources(dc, context);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		pipe = &context->res_ctx.pipe_ctx[i];
