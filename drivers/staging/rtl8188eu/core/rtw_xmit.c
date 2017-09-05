@@ -711,12 +711,12 @@ static s32 xmitframe_addmic(struct adapter *padapter, struct xmit_frame *pxmitfr
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("\n ======== last pkt ========\n"));
 			payload = payload-pattrib->last_txcmdsz+8;
 			for (curfragnum = 0; curfragnum < pattrib->last_txcmdsz; curfragnum = curfragnum+8)
-					RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
-						 (" %.2x,  %.2x,  %.2x,  %.2x,  %.2x,  %.2x,  %.2x,  %.2x ",
-						 *(payload+curfragnum), *(payload+curfragnum+1),
-						 *(payload+curfragnum+2), *(payload+curfragnum+3),
-						 *(payload+curfragnum+4), *(payload+curfragnum+5),
-						 *(payload+curfragnum+6), *(payload+curfragnum+7)));
+				RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
+					 (" %.2x,  %.2x,  %.2x,  %.2x,  %.2x,  %.2x,  %.2x,  %.2x ",
+					 *(payload + curfragnum), *(payload + curfragnum + 1),
+					 *(payload + curfragnum + 2), *(payload + curfragnum + 3),
+					 *(payload + curfragnum + 4), *(payload + curfragnum + 5),
+					 *(payload + curfragnum + 6), *(payload + curfragnum + 7)));
 			} else {
 				RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("xmitframe_addmic: rtw_get_stainfo==NULL!!!\n"));
 			}
