@@ -49,43 +49,6 @@ u8 channel5g_80m[CHANNEL_MAX_NUMBER_5G_80M] = {
 	42, 58, 106, 122, 138, 155, 171
 };
 
-void rtl_addr_delay(u32 addr)
-{
-	if (addr == 0xfe)
-		mdelay(50);
-	else if (addr == 0xfd)
-		msleep(5);
-	else if (addr == 0xfc)
-		msleep(1);
-	else if (addr == 0xfb)
-		usleep_range(50, 100);
-	else if (addr == 0xfa)
-		usleep_range(5, 10);
-	else if (addr == 0xf9)
-		usleep_range(1, 2);
-}
-
-void rtl_rfreg_delay(struct ieee80211_hw *hw, enum radio_path rfpath, u32 addr,
-		     u32 mask, u32 data)
-{
-	if (addr >= 0xf9 && addr <= 0xfe) {
-		rtl_addr_delay(addr);
-	} else {
-		rtl_set_rfreg(hw, rfpath, addr, mask, data);
-		udelay(1);
-	}
-}
-
-void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data)
-{
-	if (addr >= 0xf9 && addr <= 0xfe) {
-		rtl_addr_delay(addr);
-	} else {
-		rtl_set_bbreg(hw, addr, MASKDWORD, data);
-		udelay(1);
-	}
-}
-
 static void rtl_fw_do_work(const struct firmware *firmware, void *context,
 			   bool is_wow)
 {
