@@ -591,61 +591,37 @@ static int vega10_patch_clock_voltage_limits_with_vddc_leakage(
 static int vega10_patch_voltage_dependency_tables_with_lookup_table(
 		struct pp_hwmgr *hwmgr)
 {
-	uint8_t entry_id;
-	uint8_t voltage_id;
+	uint8_t entry_id, voltage_id;
+	unsigned i;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
-	struct phm_ppt_v1_clock_voltage_dependency_table *socclk_table =
-			table_info->vdd_dep_on_socclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *gfxclk_table =
-			table_info->vdd_dep_on_sclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *dcefclk_table =
-			table_info->vdd_dep_on_dcefclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *pixclk_table =
-			table_info->vdd_dep_on_pixclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *dspclk_table =
-			table_info->vdd_dep_on_dispclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *phyclk_table =
-			table_info->vdd_dep_on_phyclk;
-	struct phm_ppt_v1_clock_voltage_dependency_table *mclk_table =
-			table_info->vdd_dep_on_mclk;
 	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table =
 			table_info->mm_dep_table;
+	struct phm_ppt_v1_clock_voltage_dependency_table *mclk_table =
+			table_info->vdd_dep_on_mclk;
 
-	for (entry_id = 0; entry_id < socclk_table->count; entry_id++) {
-		voltage_id = socclk_table->entries[entry_id].vddInd;
-		socclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
+	for (i = 0; i < 6; i++) {
+		struct phm_ppt_v1_clock_voltage_dependency_table *vdt;
+		switch (i) {
+			case 0: vdt = table_info->vdd_dep_on_socclk; break;
+			case 1: vdt = table_info->vdd_dep_on_sclk; break;
+			case 2: vdt = table_info->vdd_dep_on_dcefclk; break;
+			case 3: vdt = table_info->vdd_dep_on_pixclk; break;
+			case 4: vdt = table_info->vdd_dep_on_dispclk; break;
+			case 5: vdt = table_info->vdd_dep_on_phyclk; break;
+		}
+
+		for (entry_id = 0; entry_id < vdt->count; entry_id++) {
+			voltage_id = vdt->entries[entry_id].vddInd;
+			vdt->entries[entry_id].vddc =
+					table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
+		}
 	}
 
-	for (entry_id = 0; entry_id < gfxclk_table->count; entry_id++) {
-		voltage_id = gfxclk_table->entries[entry_id].vddInd;
-		gfxclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
-	}
-
-	for (entry_id = 0; entry_id < dcefclk_table->count; entry_id++) {
-		voltage_id = dcefclk_table->entries[entry_id].vddInd;
-		dcefclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
-	}
-
-	for (entry_id = 0; entry_id < pixclk_table->count; entry_id++) {
-		voltage_id = pixclk_table->entries[entry_id].vddInd;
-		pixclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
-	}
-
-	for (entry_id = 0; entry_id < dspclk_table->count; entry_id++) {
-		voltage_id = dspclk_table->entries[entry_id].vddInd;
-		dspclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
-	}
-
-	for (entry_id = 0; entry_id < phyclk_table->count; entry_id++) {
-		voltage_id = phyclk_table->entries[entry_id].vddInd;
-		phyclk_table->entries[entry_id].vddc =
-				table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
+	for (entry_id = 0; entry_id < mm_table->count; ++entry_id) {
+		voltage_id = mm_table->entries[entry_id].vddcInd;
+		mm_table->entries[entry_id].vddc =
+			table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
 	}
 
 	for (entry_id = 0; entry_id < mclk_table->count; ++entry_id) {
@@ -660,11 +636,6 @@ static int vega10_patch_voltage_dependency_tables_with_lookup_table(
 				table_info->vddmem_lookup_table->entries[voltage_id].us_vdd;
 	}
 
-	for (entry_id = 0; entry_id < mm_table->count; ++entry_id) {
-		voltage_id = mm_table->entries[entry_id].vddcInd;
-		mm_table->entries[entry_id].vddc =
-			table_info->vddc_lookup_table->entries[voltage_id].us_vdd;
-	}
 
 	return 0;
 
