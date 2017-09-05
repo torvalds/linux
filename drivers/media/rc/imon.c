@@ -943,7 +943,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 	int seq;
 	int retval = 0;
 	struct imon_context *ictx;
-	const unsigned char vfd_packet6[] = {
+	static const unsigned char vfd_packet6[] = {
 		0x01, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
 
 	ictx = file->private_data;
@@ -2047,8 +2047,8 @@ static struct rc_dev *imon_init_rdev(struct imon_context *ictx)
 {
 	struct rc_dev *rdev;
 	int ret;
-	const unsigned char fp_packet[] = { 0x40, 0x00, 0x00, 0x00,
-					    0x00, 0x00, 0x00, 0x88 };
+	static const unsigned char fp_packet[] = {
+		0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x88 };
 
 	rdev = rc_allocate_device(ictx->dev_descr->flags & IMON_IR_RAW ?
 				  RC_DRIVER_IR_RAW : RC_DRIVER_SCANCODE);
