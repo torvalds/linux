@@ -270,9 +270,16 @@ static const struct vic_config vic_t210_config = {
 	.firmware = NVIDIA_TEGRA_210_VIC_FIRMWARE,
 };
 
+#define NVIDIA_TEGRA_186_VIC_FIRMWARE "nvidia/tegra186/vic04_ucode.bin"
+
+static const struct vic_config vic_t186_config = {
+	.firmware = NVIDIA_TEGRA_186_VIC_FIRMWARE,
+};
+
 static const struct of_device_id vic_match[] = {
 	{ .compatible = "nvidia,tegra124-vic", .data = &vic_t124_config },
 	{ .compatible = "nvidia,tegra210-vic", .data = &vic_t210_config },
+	{ .compatible = "nvidia,tegra186-vic", .data = &vic_t186_config },
 	{ },
 };
 
@@ -404,4 +411,7 @@ MODULE_FIRMWARE(NVIDIA_TEGRA_124_VIC_FIRMWARE);
 #endif
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
 MODULE_FIRMWARE(NVIDIA_TEGRA_210_VIC_FIRMWARE);
+#endif
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC)
+MODULE_FIRMWARE(NVIDIA_TEGRA_186_VIC_FIRMWARE);
 #endif
