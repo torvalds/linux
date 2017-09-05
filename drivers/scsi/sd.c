@@ -898,6 +898,26 @@ static void sd_config_write_same(struct scsi_disk *sdkp)
 	else
 		sdkp->zeroing_mode = SD_ZERO_WRITE;
 
+	if (sdkp->max_ws_blocks &&
+	    sdkp->physical_block_size > logical_block_size) {
+		/*
+		 * Reporting a maximum number of blocks that is not aligned
+		 * on the device physical size would cause a large write same
+		 * request to be split into physically unaligned chunks by
+		 * __blkdev_issue_write_zeroes() and __blkdev_issue_write_same()
+		 * even if the caller of these functions took care to align the
+		 * large request. So make sure the maximum reported is aligned
+		 * to the device physical block size. This is only an optional
+		 * optimization for regular disks, but this is mandatory to
+		 * avoid failure of large write same requests directed at
+		 * sequential write required zones of host-managed ZBC disks.
+		 */
+		sdkp->max_ws_blocks =
+			round_down(sdkp->max_ws_blocks,
+				   bytes_to_logical(sdkp->device,
+						    sdkp->physical_block_size));
+	}
+
 out:
 	blk_queue_max_write_same_sectors(q, sdkp->max_ws_blocks *
 					 (logical_block_size >> 9));
