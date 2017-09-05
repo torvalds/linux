@@ -5,11 +5,6 @@
     "BriefDescription": "Branches that are not strongly biased"
   },
   {,
-    "EventCode": "0x40036",
-    "EventName": "PM_BR_2PATH",
-    "BriefDescription": "Branches that are not strongly biased"
-  },
-  {,
     "EventCode": "0x40056",
     "EventName": "PM_MEM_LOC_THRESH_LSU_HIGH",
     "BriefDescription": "Local memory above threshold for LSU medium"

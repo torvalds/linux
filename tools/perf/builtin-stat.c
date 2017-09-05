@@ -1257,7 +1257,7 @@ static bool collect_data(struct perf_evsel *counter,
 	if (counter->merged_stat)
 		return false;
 	cb(counter, data, true);
-	if (!no_merge)
+	if (!no_merge && counter->auto_merge_stats)
 		collect_all_aliases(counter, cb, data);
 	return true;
 }
