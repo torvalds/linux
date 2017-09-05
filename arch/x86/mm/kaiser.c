@@ -303,4 +303,46 @@ void kaiser_remove_mapping(unsigned long start, unsigned long size)
 		unmap_pud_range_nofree(pgd, addr, end);
 	}
 }
+
+/*
+ * Page table pages are page-aligned.  The lower half of the top
+ * level is used for userspace and the top half for the kernel.
+ * This returns true for user pages that need to get copied into
+ * both the user and kernel copies of the page tables, and false
+ * for kernel pages that should only be in the kernel copy.
+ */
+static inline bool is_userspace_pgd(pgd_t *pgdp)
+{
+	return ((unsigned long)pgdp % PAGE_SIZE) < (PAGE_SIZE / 2);
+}
+
+pgd_t kaiser_set_shadow_pgd(pgd_t *pgdp, pgd_t pgd)
+{
+	/*
+	 * Do we need to also populate the shadow pgd?  Check _PAGE_USER to
+	 * skip cases like kexec and EFI which make temporary low mappings.
+	 */
+	if (pgd.pgd & _PAGE_USER) {
+		if (is_userspace_pgd(pgdp)) {
+			native_get_shadow_pgd(pgdp)->pgd = pgd.pgd;
+			/*
+			 * Even if the entry is *mapping* userspace, ensure
+			 * that userspace can not use it.  This way, if we
+			 * get out to userspace running on the kernel CR3,
+			 * userspace will crash instead of running.
+			 */
+			pgd.pgd |= _PAGE_NX;
+		}
+	} else if (!pgd.pgd) {
+		/*
+		 * pgd_clear() cannot check _PAGE_USER, and is even used to
+		 * clear corrupted pgd entries: so just rely on cases like
+		 * kexec and EFI never to be using pgd_clear().
+		 */
+		if (!WARN_ON_ONCE((unsigned long)pgdp & PAGE_SIZE) &&
+		    is_userspace_pgd(pgdp))
+			native_get_shadow_pgd(pgdp)->pgd = pgd.pgd;
+	}
+	return pgd;
+}
 #endif /* CONFIG_KAISER */

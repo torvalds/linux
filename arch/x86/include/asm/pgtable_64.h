@@ -107,61 +107,36 @@ static inline void native_pud_clear(pud_t *pud)
 }
 
 #ifdef CONFIG_KAISER
-static inline pgd_t * native_get_shadow_pgd(pgd_t *pgdp)
+extern pgd_t kaiser_set_shadow_pgd(pgd_t *pgdp, pgd_t pgd);
+
+static inline pgd_t *native_get_shadow_pgd(pgd_t *pgdp)
 {
-	return (pgd_t *)(void*)((unsigned long)(void*)pgdp | (unsigned long)PAGE_SIZE);
+	return (pgd_t *)((unsigned long)pgdp | (unsigned long)PAGE_SIZE);
 }
 
-static inline pgd_t * native_get_normal_pgd(pgd_t *pgdp)
+static inline pgd_t *native_get_normal_pgd(pgd_t *pgdp)
 {
-	return (pgd_t *)(void*)((unsigned long)(void*)pgdp &  ~(unsigned long)PAGE_SIZE);
+	return (pgd_t *)((unsigned long)pgdp & ~(unsigned long)PAGE_SIZE);
 }
 #else
-static inline pgd_t * native_get_shadow_pgd(pgd_t *pgdp)
+static inline pgd_t kaiser_set_shadow_pgd(pgd_t *pgdp, pgd_t pgd)
+{
+	return pgd;
+}
+static inline pgd_t *native_get_shadow_pgd(pgd_t *pgdp)
 {
 	BUILD_BUG_ON(1);
 	return NULL;
 }
-static inline pgd_t * native_get_normal_pgd(pgd_t *pgdp)
+static inline pgd_t *native_get_normal_pgd(pgd_t *pgdp)
 {
 	return pgdp;
 }
 #endif /* CONFIG_KAISER */
 
-/*
- * Page table pages are page-aligned.  The lower half of the top
- * level is used for userspace and the top half for the kernel.
- * This returns true for user pages that need to get copied into
- * both the user and kernel copies of the page tables, and false
- * for kernel pages that should only be in the kernel copy.
- */
-static inline bool is_userspace_pgd(void *__ptr)
-{
-	unsigned long ptr = (unsigned long)__ptr;
-
-	return ((ptr % PAGE_SIZE) < (PAGE_SIZE / 2));
-}
-
 static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
-#ifdef CONFIG_KAISER
-	pteval_t extra_kern_pgd_flags = 0;
-	/* Do we need to also populate the shadow pgd? */
-	if (is_userspace_pgd(pgdp)) {
-		native_get_shadow_pgd(pgdp)->pgd = pgd.pgd;
-		/*
-		 * Even if the entry is *mapping* userspace, ensure
-		 * that userspace can not use it.  This way, if we
-		 * get out to userspace running on the kernel CR3,
-		 * userspace will crash instead of running.
-		 */
-		extra_kern_pgd_flags = _PAGE_NX;
-	}
-	pgdp->pgd = pgd.pgd;
-	pgdp->pgd |= extra_kern_pgd_flags;
-#else /* CONFIG_KAISER */
-	*pgdp = pgd;
-#endif
+	*pgdp = kaiser_set_shadow_pgd(pgdp, pgd);
 }
 
 static inline void native_pgd_clear(pgd_t *pgd)
