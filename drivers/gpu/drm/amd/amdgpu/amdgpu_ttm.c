@@ -685,6 +685,24 @@ void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages)
 	}
 }
 
+void amdgpu_ttm_tt_mark_user_pages(struct ttm_tt *ttm)
+{
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	unsigned i;
+
+	for (i = 0; i < ttm->num_pages; ++i) {
+		struct page *page = ttm->pages[i];
+
+		if (!page)
+			continue;
+
+		if (!(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY))
+			set_page_dirty(page);
+
+		mark_page_accessed(page);
+	}
+}
+
 static void amdgpu_trace_dma_map(struct ttm_tt *ttm)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
@@ -740,7 +758,6 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-	struct sg_page_iter sg_iter;
 
 	int write = !(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY);
 	enum dma_data_direction direction = write ?
@@ -753,13 +770,7 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 	/* free the sg table and pages again */
 	dma_unmap_sg(adev->dev, ttm->sg->sgl, ttm->sg->nents, direction);
 
-	for_each_sg_page(ttm->sg->sgl, &sg_iter, ttm->sg->nents, 0) {
-		struct page *page = sg_page_iter_page(&sg_iter);
-		if (!(gtt->userflags & AMDGPU_GEM_USERPTR_READONLY))
-			set_page_dirty(page);
-
-		mark_page_accessed(page);
-	}
+	amdgpu_ttm_tt_mark_user_pages(ttm);
 
 	amdgpu_trace_dma_unmap(ttm);
 

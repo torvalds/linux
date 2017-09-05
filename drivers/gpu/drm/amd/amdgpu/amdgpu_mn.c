@@ -137,10 +137,7 @@ static void amdgpu_mn_invalidate_node(struct amdgpu_mn_node *node,
 		if (r <= 0)
 			DRM_ERROR("(%ld) failed to wait for user bo\n", r);
 
-		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
-		if (r)
-			DRM_ERROR("(%ld) failed to validate user bo\n", r);
+		amdgpu_ttm_tt_mark_user_pages(bo->tbo.ttm);
 
 		amdgpu_bo_unreserve(bo);
 	}

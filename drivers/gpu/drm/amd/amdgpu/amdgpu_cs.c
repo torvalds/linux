@@ -475,6 +475,12 @@ static int amdgpu_cs_list_validate(struct amdgpu_cs_parser *p,
 		/* Check if we have user pages and nobody bound the BO already */
 		if (amdgpu_ttm_tt_userptr_needs_pages(bo->tbo.ttm) &&
 		    lobj->user_pages) {
+			amdgpu_ttm_placement_from_domain(bo,
+							 AMDGPU_GEM_DOMAIN_CPU);
+			r = ttm_bo_validate(&bo->tbo, &bo->placement, true,
+					    false);
+			if (r)
+				return r;
 			amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm,
 						     lobj->user_pages);
 			binding_userptr = true;
