@@ -460,6 +460,9 @@ static const struct spi_device_id ad5446_spi_ids[] = {
 	{"ad5660-2500", ID_AD5660_2500},
 	{"ad5660-1250", ID_AD5660_1250},
 	{"ad5662", ID_AD5662},
+	{"dac081s101", ID_AD5300}, /* compatible Texas Instruments chips */
+	{"dac101s101", ID_AD5310},
+	{"dac121s101", ID_AD5320},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad5446_spi_ids);
