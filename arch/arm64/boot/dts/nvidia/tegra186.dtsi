@@ -371,6 +371,18 @@
 		#size-cells = <1>;
 
 		ranges = <0x15000000 0x0 0x15000000 0x01000000>;
+
+		vic@15340000 {
+			compatible = "nvidia,tegra186-vic";
+			reg = <0x15340000 0x40000>;
+			interrupts = <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA186_CLK_VIC>;
+			clock-names = "vic";
+			resets = <&bpmp TEGRA186_RESET_VIC>;
+			reset-names = "vic";
+
+			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_VIC>;
+		};
 	};
 
 	gpu@17000000 {
