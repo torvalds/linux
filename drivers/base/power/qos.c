@@ -277,11 +277,11 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
 	mutex_unlock(&dev_pm_qos_sysfs_mtx);
 }
 
-static bool dev_pm_qos_invalid_request(struct device *dev,
-				       struct dev_pm_qos_request *req)
+static bool dev_pm_qos_invalid_req_type(struct device *dev,
+					enum dev_pm_qos_req_type type)
 {
-	return !req || (req->type == DEV_PM_QOS_LATENCY_TOLERANCE
-			&& !dev->power.set_latency_tolerance);
+	return type == DEV_PM_QOS_LATENCY_TOLERANCE &&
+	       !dev->power.set_latency_tolerance;
 }
 
 static int __dev_pm_qos_add_request(struct device *dev,
@@ -290,7 +290,7 @@ static int __dev_pm_qos_add_request(struct device *dev,
 {
 	int ret = 0;
 
-	if (!dev || dev_pm_qos_invalid_request(dev, req))
+	if (!dev || !req || dev_pm_qos_invalid_req_type(dev, type))
 		return -EINVAL;
 
 	if (WARN(dev_pm_qos_request_active(req),
