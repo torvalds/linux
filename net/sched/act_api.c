@@ -296,10 +296,12 @@ err2:
 	spin_lock_init(&p->tcfa_lock);
 	/* user doesn't specify an index */
 	if (!index) {
+		idr_preload(GFP_KERNEL);
 		spin_lock_bh(&idrinfo->lock);
 		err = idr_alloc_ext(idr, NULL, &idr_index, 1, 0,
-				    GFP_KERNEL);
+				    GFP_ATOMIC);
 		spin_unlock_bh(&idrinfo->lock);
+		idr_preload_end();
 		if (err) {
 err3:
 			free_percpu(p->cpu_qstats);
@@ -307,10 +309,12 @@ err3:
 		}
 		p->tcfa_index = idr_index;
 	} else {
+		idr_preload(GFP_KERNEL);
 		spin_lock_bh(&idrinfo->lock);
 		err = idr_alloc_ext(idr, NULL, NULL, index, index + 1,
-				    GFP_KERNEL);
+				    GFP_ATOMIC);
 		spin_unlock_bh(&idrinfo->lock);
+		idr_preload_end();
 		if (err)
 			goto err3;
 		p->tcfa_index = index;
