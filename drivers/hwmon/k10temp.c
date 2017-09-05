@@ -36,6 +36,10 @@ MODULE_PARM_DESC(force, "force loading on processors with erratum 319");
 /* Provide lock for writing to NB_SMU_IND_ADDR */
 static DEFINE_MUTEX(nb_smu_ind_mutex);
 
+#ifndef PCI_DEVICE_ID_AMD_17H_DF_F3
+#define PCI_DEVICE_ID_AMD_17H_DF_F3	0x1463
+#endif
+
 /* CPUID function 0x80000001, ebx */
 #define CPUID_PKGTYPE_MASK	0xf0000000
 #define CPUID_PKGTYPE_F		0x00000000
@@ -60,6 +64,9 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
  * Control]
  */
 #define F15H_M60H_REPORTED_TEMP_CTRL_OFFSET	0xd8200ca4
+
+/* F17h M01h Access througn SMN */
+#define F17H_M01H_REPORTED_TEMP_CTRL_OFFSET	0x00059800
 
 struct k10temp_data {
 	struct pci_dev *pdev;
@@ -86,6 +93,12 @@ static void read_tempreg_nb_f15(struct pci_dev *pdev, u32 *regval)
 {
 	amd_nb_index_read(pdev, PCI_DEVFN(0, 0), 0xb8,
 			  F15H_M60H_REPORTED_TEMP_CTRL_OFFSET, regval);
+}
+
+static void read_tempreg_nb_f17(struct pci_dev *pdev, u32 *regval)
+{
+	amd_nb_index_read(pdev, PCI_DEVFN(0, 0), 0x60,
+			  F17H_M01H_REPORTED_TEMP_CTRL_OFFSET, regval);
 }
 
 static ssize_t temp1_input_show(struct device *dev,
@@ -224,6 +237,8 @@ static int k10temp_probe(struct pci_dev *pdev,
 	if (boot_cpu_data.x86 == 0x15 && (boot_cpu_data.x86_model == 0x60 ||
 					  boot_cpu_data.x86_model == 0x70))
 		data->read_tempreg = read_tempreg_nb_f15;
+	else if (boot_cpu_data.x86 == 0x17)
+		data->read_tempreg = read_tempreg_nb_f17;
 	else
 		data->read_tempreg = read_tempreg_pci;
 
@@ -242,6 +257,7 @@ static const struct pci_device_id k10temp_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M60H_NB_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_M30H_NB_F3) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_DF_F3) },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, k10temp_id_table);
