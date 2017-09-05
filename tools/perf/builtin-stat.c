@@ -656,7 +656,7 @@ try_again:
 		if (create_perf_stat_counter(counter) < 0) {
 
 			/* Weak group failed. Reset the group. */
-			if (errno == EINVAL &&
+			if ((errno == EINVAL || errno == EBADF) &&
 			    counter->leader != counter &&
 			    counter->weak_group) {
 				counter = perf_evsel__reset_weak_group(counter);
