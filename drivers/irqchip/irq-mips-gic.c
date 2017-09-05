@@ -169,7 +169,7 @@ static void gic_mask_irq(struct irq_data *d)
 {
 	unsigned int intr = GIC_HWIRQ_TO_SHARED(d->hwirq);
 
-	write_gic_rmask(BIT(intr));
+	write_gic_rmask(intr);
 	gic_clear_pcpu_masks(intr);
 }
 
@@ -179,7 +179,7 @@ static void gic_unmask_irq(struct irq_data *d)
 	unsigned int intr = GIC_HWIRQ_TO_SHARED(d->hwirq);
 	unsigned int cpu;
 
-	write_gic_smask(BIT(intr));
+	write_gic_smask(intr);
 
 	gic_clear_pcpu_masks(intr);
 	cpu = cpumask_first_and(affinity, cpu_online_mask);
@@ -767,7 +767,7 @@ static int __init gic_of_init(struct device_node *node,
 	for (i = 0; i < gic_shared_intrs; i++) {
 		change_gic_pol(i, GIC_POL_ACTIVE_HIGH);
 		change_gic_trig(i, GIC_TRIG_LEVEL);
-		write_gic_rmask(BIT(i));
+		write_gic_rmask(i);
 	}
 
 	for (i = 0; i < gic_vpes; i++) {
