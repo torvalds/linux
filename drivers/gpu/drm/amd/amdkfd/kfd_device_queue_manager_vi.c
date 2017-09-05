@@ -67,7 +67,7 @@ static uint32_t compute_sh_mem_bases_64bit(unsigned int top_address_nybble)
 	 * for LDS/Scratch and GPUVM.
 	 */
 
-	BUG_ON((top_address_nybble & 1) || top_address_nybble > 0xE ||
+	WARN_ON((top_address_nybble & 1) || top_address_nybble > 0xE ||
 		top_address_nybble == 0);
 
 	return top_address_nybble << 12 |
@@ -110,8 +110,6 @@ static int register_process_vi(struct device_queue_manager *dqm,
 	struct kfd_process_device *pdd;
 	unsigned int temp;
 
-	BUG_ON(!dqm || !qpd);
-
 	pdd = qpd_to_pdd(qpd);
 
 	/* check if sh_mem_config register already configured */
@@ -137,9 +135,11 @@ static int register_process_vi(struct device_queue_manager *dqm,
 		qpd->sh_mem_bases = compute_sh_mem_bases_64bit(temp);
 		qpd->sh_mem_config |= SH_MEM_ADDRESS_MODE_HSA64 <<
 			SH_MEM_CONFIG__ADDRESS_MODE__SHIFT;
+		qpd->sh_mem_config |= 1  <<
+			SH_MEM_CONFIG__PRIVATE_ATC__SHIFT;
 	}
 
-	pr_debug("kfd: is32bit process: %d sh_mem_bases nybble: 0x%X and register 0x%X\n",
+	pr_debug("is32bit process: %d sh_mem_bases nybble: 0x%X and register 0x%X\n",
 		qpd->pqm->process->is_32bit_user_mode, temp, qpd->sh_mem_bases);
 
 	return 0;

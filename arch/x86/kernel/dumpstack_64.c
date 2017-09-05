@@ -55,7 +55,7 @@ static bool in_exception_stack(unsigned long *stack, struct stack_info *info)
 		begin = end - (exception_stack_sizes[k] / sizeof(long));
 		regs  = (struct pt_regs *)end - 1;
 
-		if (stack < begin || stack >= end)
+		if (stack <= begin || stack >= end)
 			continue;
 
 		info->type	= STACK_TYPE_EXCEPTION + k;
@@ -78,7 +78,7 @@ static bool in_irq_stack(unsigned long *stack, struct stack_info *info)
 	 * This is a software stack, so 'end' can be a valid stack pointer.
 	 * It just means the stack is empty.
 	 */
-	if (stack < begin || stack > end)
+	if (stack <= begin || stack > end)
 		return false;
 
 	info->type	= STACK_TYPE_IRQ;

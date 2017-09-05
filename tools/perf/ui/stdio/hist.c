@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <linux/string.h>
 
 #include "../../util/util.h"
 #include "../../util/hist.h"
@@ -33,9 +34,6 @@ static size_t inline__fprintf(struct map *map, u64 ip, int left_margin,
 
 	dso = map->dso;
 	if (dso == NULL)
-		return 0;
-
-	if (dso->kernel != DSO_TYPE_USER)
 		return 0;
 
 	node = dso__parse_addr_inlines(dso,
@@ -295,7 +293,7 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 			 * displayed twice.
 			 */
 			if (!i++ && field_order == NULL &&
-			    sort_order && !prefixcmp(sort_order, "sym"))
+			    sort_order && strstarts(sort_order, "sym"))
 				continue;
 
 			if (!printed) {

@@ -206,4 +206,9 @@ config BLK_MQ_VIRTIO
 	depends on BLOCK && VIRTIO
 	default y
 
+config BLK_MQ_RDMA
+	bool
+	depends on BLOCK && INFINIBAND
+	default y
+
 source block/Kconfig.iosched

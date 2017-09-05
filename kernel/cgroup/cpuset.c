@@ -577,6 +577,13 @@ static void update_domain_attr_tree(struct sched_domain_attr *dattr,
 	rcu_read_unlock();
 }
 
+/* Must be called with cpuset_mutex held.  */
+static inline int nr_cpusets(void)
+{
+	/* jump label reference count + the top-level cpuset */
+	return static_key_count(&cpusets_enabled_key.key) + 1;
+}
+
 /*
  * generate_sched_domains()
  *
@@ -2344,13 +2351,7 @@ void cpuset_update_active_cpus(void)
 	 * We're inside cpu hotplug critical region which usually nests
 	 * inside cgroup synchronization.  Bounce actual hotplug processing
 	 * to a work item to avoid reverse locking order.
-	 *
-	 * We still need to do partition_sched_domains() synchronously;
-	 * otherwise, the scheduler will get confused and put tasks to the
-	 * dead CPU.  Fall back to the default single domain.
-	 * cpuset_hotplug_workfn() will rebuild it as necessary.
 	 */
-	partition_sched_domains(1, NULL, NULL);
 	schedule_work(&cpuset_hotplug_work);
 }
 

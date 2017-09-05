@@ -1418,6 +1418,8 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 	struct tc_hfsc_qopt *qopt;
 	int err;
 
+	qdisc_watchdog_init(&q->watchdog, sch);
+
 	if (opt == NULL || nla_len(opt) < sizeof(*qopt))
 		return -EINVAL;
 	qopt = nla_data(opt);
@@ -1430,7 +1432,7 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 
 	err = tcf_block_get(&q->root.block, &q->root.filter_list);
 	if (err)
-		goto err_tcf;
+		return err;
 
 	q->root.cl_common.classid = sch->handle;
 	q->root.refcnt  = 1;
@@ -1448,13 +1450,7 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 	qdisc_class_hash_insert(&q->clhash, &q->root.cl_common);
 	qdisc_class_hash_grow(sch, &q->clhash);
 
-	qdisc_watchdog_init(&q->watchdog, sch);
-
 	return 0;
-
-err_tcf:
-	qdisc_class_hash_destroy(&q->clhash);
-	return err;
 }
 
 static int

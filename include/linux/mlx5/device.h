@@ -290,6 +290,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_GPIO_EVENT	   = 0x15,
 	MLX5_EVENT_TYPE_PORT_MODULE_EVENT  = 0x16,
 	MLX5_EVENT_TYPE_REMOTE_CONFIG	   = 0x19,
+	MLX5_EVENT_TYPE_GENERAL_EVENT	   = 0x22,
 	MLX5_EVENT_TYPE_PPS_EVENT          = 0x25,
 
 	MLX5_EVENT_TYPE_DB_BF_CONGESTION   = 0x1a,
@@ -302,6 +303,10 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_NIC_VPORT_CHANGE   = 0xd,
 
 	MLX5_EVENT_TYPE_FPGA_ERROR         = 0x20,
+};
+
+enum {
+	MLX5_GENERAL_SUBTYPE_DELAY_DROP_TIMEOUT = 0x1,
 };
 
 enum {
@@ -968,7 +973,7 @@ enum mlx5_cap_type {
 	MLX5_CAP_ATOMIC,
 	MLX5_CAP_ROCE,
 	MLX5_CAP_IPOIB_OFFLOADS,
-	MLX5_CAP_EOIB_OFFLOADS,
+	MLX5_CAP_IPOIB_ENHANCED_OFFLOADS,
 	MLX5_CAP_FLOW_TABLE,
 	MLX5_CAP_ESWITCH_FLOW_TABLE,
 	MLX5_CAP_ESWITCH,
@@ -1010,6 +1015,10 @@ enum mlx5_mcam_feature_groups {
 #define MLX5_CAP_ETH_MAX(mdev, cap) \
 	MLX5_GET(per_protocol_networking_offload_caps,\
 		 mdev->caps.hca_max[MLX5_CAP_ETHERNET_OFFLOADS], cap)
+
+#define MLX5_CAP_IPOIB_ENHANCED(mdev, cap) \
+	MLX5_GET(per_protocol_networking_offload_caps,\
+		 mdev->caps.hca_cur[MLX5_CAP_IPOIB_ENHANCED_OFFLOADS], cap)
 
 #define MLX5_CAP_ROCE(mdev, cap) \
 	MLX5_GET(roce_cap, mdev->caps.hca_cur[MLX5_CAP_ROCE], cap)

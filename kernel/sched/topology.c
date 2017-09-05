@@ -261,8 +261,6 @@ void rq_attach_root(struct rq *rq, struct root_domain *rd)
 
 static int init_rootdomain(struct root_domain *rd)
 {
-	memset(rd, 0, sizeof(*rd));
-
 	if (!zalloc_cpumask_var(&rd->span, GFP_KERNEL))
 		goto out;
 	if (!zalloc_cpumask_var(&rd->online, GFP_KERNEL))
@@ -311,7 +309,7 @@ static struct root_domain *alloc_rootdomain(void)
 {
 	struct root_domain *rd;
 
-	rd = kmalloc(sizeof(*rd), GFP_KERNEL);
+	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
 	if (!rd)
 		return NULL;
 
@@ -337,7 +335,8 @@ static void free_sched_groups(struct sched_group *sg, int free_sgc)
 		if (free_sgc && atomic_dec_and_test(&sg->sgc->ref))
 			kfree(sg->sgc);
 
-		kfree(sg);
+		if (atomic_dec_and_test(&sg->ref))
+			kfree(sg);
 		sg = tmp;
 	} while (sg != first);
 }
@@ -345,15 +344,12 @@ static void free_sched_groups(struct sched_group *sg, int free_sgc)
 static void destroy_sched_domain(struct sched_domain *sd)
 {
 	/*
-	 * If its an overlapping domain it has private groups, iterate and
-	 * nuke them all.
+	 * A normal sched domain may have multiple group references, an
+	 * overlapping domain, having private groups, only one.  Iterate,
+	 * dropping group/capacity references, freeing where none remain.
 	 */
-	if (sd->flags & SD_OVERLAP) {
-		free_sched_groups(sd->groups, 1);
-	} else if (atomic_dec_and_test(&sd->groups->ref)) {
-		kfree(sd->groups->sgc);
-		kfree(sd->groups);
-	}
+	free_sched_groups(sd->groups, 1);
+
 	if (sd->shared && atomic_dec_and_test(&sd->shared->ref))
 		kfree(sd->shared);
 	kfree(sd);
@@ -463,6 +459,7 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 	rq_attach_root(rq, rd);
 	tmp = rq->sd;
 	rcu_assign_pointer(rq->sd, sd);
+	dirty_sched_domain_sysctl(cpu);
 	destroy_sched_domains(tmp);
 
 	update_top_cache_domain(cpu);
@@ -670,6 +667,7 @@ build_group_from_child_sched_domain(struct sched_domain *sd, int cpu)
 	else
 		cpumask_copy(sg_span, sched_domain_span(sd));
 
+	atomic_inc(&sg->ref);
 	return sg;
 }
 
@@ -1595,7 +1593,7 @@ static void __sdt_free(const struct cpumask *cpu_map)
 	}
 }
 
-struct sched_domain *build_sched_domain(struct sched_domain_topology_level *tl,
+static struct sched_domain *build_sched_domain(struct sched_domain_topology_level *tl,
 		const struct cpumask *cpu_map, struct sched_domain_attr *attr,
 		struct sched_domain *child, int cpu)
 {
@@ -1854,7 +1852,17 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 	/* Let the architecture update CPU core mappings: */
 	new_topology = arch_update_cpu_topology();
 
-	n = doms_new ? ndoms_new : 0;
+	if (!doms_new) {
+		WARN_ON_ONCE(dattr_new);
+		n = 0;
+		doms_new = alloc_sched_domains(1);
+		if (doms_new) {
+			n = 1;
+			cpumask_andnot(doms_new[0], cpu_active_mask, cpu_isolated_map);
+		}
+	} else {
+		n = ndoms_new;
+	}
 
 	/* Destroy deleted domains: */
 	for (i = 0; i < ndoms_cur; i++) {
@@ -1870,11 +1878,10 @@ match1:
 	}
 
 	n = ndoms_cur;
-	if (doms_new == NULL) {
+	if (!doms_new) {
 		n = 0;
 		doms_new = &fallback_doms;
 		cpumask_andnot(doms_new[0], cpu_active_mask, cpu_isolated_map);
-		WARN_ON_ONCE(dattr_new);
 	}
 
 	/* Build new domains: */

@@ -42,10 +42,11 @@ struct cmd_struct {
 };
 
 static const char objtool_usage_string[] =
-	"objtool [OPTIONS] COMMAND [ARGS]";
+	"objtool COMMAND [ARGS]";
 
 static struct cmd_struct objtool_cmds[] = {
 	{"check",	cmd_check,	"Perform stack metadata validation on an object file" },
+	{"orc",		cmd_orc,	"Generate in-place ORC unwind tables for an object file" },
 };
 
 bool help;

@@ -60,7 +60,7 @@ Example of using a firmware operation:
 
 	/* some platform code, e.g. SMP initialization */
 
-	__raw_writel(virt_to_phys(exynos4_secondary_startup),
+	__raw_writel(__pa_symbol(exynos4_secondary_startup),
 		CPU1_BOOT_REG);
 
 	/* Call Exynos specific smc call */

@@ -59,13 +59,8 @@ void hyperv_vector_handler(struct pt_regs *regs)
 void hv_setup_vmbus_irq(void (*handler)(void))
 {
 	vmbus_handler = handler;
-	/*
-	 * Setup the IDT for hypervisor callback. Prevent reallocation
-	 * at module reload.
-	 */
-	if (!test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors))
-		alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,
-				hyperv_callback_vector);
+	/* Setup the IDT for hypervisor callback */
+	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, hyperv_callback_vector);
 }
 
 void hv_remove_vmbus_irq(void)

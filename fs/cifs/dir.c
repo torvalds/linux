@@ -205,7 +205,7 @@ check_name(struct dentry *direntry, struct cifs_tcon *tcon)
 	int i;
 
 	if (unlikely(direntry->d_name.len >
-		     tcon->fsAttrInfo.MaxPathNameComponentLength))
+		     le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength)))
 		return -ENAMETOOLONG;
 
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)) {

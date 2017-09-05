@@ -514,7 +514,12 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	 * No tcon so can't do
 	 * cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_fail[SMB2...]);
 	 */
-	if (rc != 0)
+	if (rc == -EOPNOTSUPP) {
+		cifs_dbg(VFS, "Dialect not supported by server. Consider "
+			"specifying vers=1.0 or vers=2.1 on mount for accessing"
+			" older servers\n");
+		goto neg_exit;
+	} else if (rc != 0)
 		goto neg_exit;
 
 	cifs_dbg(FYI, "mode 0x%x\n", rsp->SecurityMode);

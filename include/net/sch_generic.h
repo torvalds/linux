@@ -101,6 +101,13 @@ struct Qdisc {
 	spinlock_t		busylock ____cacheline_aligned_in_smp;
 };
 
+static inline void qdisc_refcount_inc(struct Qdisc *qdisc)
+{
+	if (qdisc->flags & TCQ_F_BUILTIN)
+		return;
+	refcount_inc(&qdisc->refcnt);
+}
+
 static inline bool qdisc_is_running(const struct Qdisc *qdisc)
 {
 	return (raw_read_seqcount(&qdisc->running) & 1) ? true : false;

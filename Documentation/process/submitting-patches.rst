@@ -413,7 +413,7 @@ e-mail discussions.
 
 
 
-11) Sign your work — the Developer's Certificate of Origin
+11) Sign your work - the Developer's Certificate of Origin
 ----------------------------------------------------------
 
 To improve tracking of who did what, especially with patches that can

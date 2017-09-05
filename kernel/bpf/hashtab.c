@@ -652,12 +652,27 @@ static void pcpu_copy_value(struct bpf_htab *htab, void __percpu *pptr,
 	}
 }
 
+static bool fd_htab_map_needs_adjust(const struct bpf_htab *htab)
+{
+	return htab->map.map_type == BPF_MAP_TYPE_HASH_OF_MAPS &&
+	       BITS_PER_LONG == 64;
+}
+
+static u32 htab_size_value(const struct bpf_htab *htab, bool percpu)
+{
+	u32 size = htab->map.value_size;
+
+	if (percpu || fd_htab_map_needs_adjust(htab))
+		size = round_up(size, 8);
+	return size;
+}
+
 static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 					 void *value, u32 key_size, u32 hash,
 					 bool percpu, bool onallcpus,
 					 struct htab_elem *old_elem)
 {
-	u32 size = htab->map.value_size;
+	u32 size = htab_size_value(htab, percpu);
 	bool prealloc = htab_is_prealloc(htab);
 	struct htab_elem *l_new, **pl_new;
 	void __percpu *pptr;
@@ -696,9 +711,6 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 
 	memcpy(l_new->key, key, key_size);
 	if (percpu) {
-		/* round up value_size to 8 bytes */
-		size = round_up(size, 8);
-
 		if (prealloc) {
 			pptr = htab_elem_get_ptr(l_new, key_size);
 		} else {
@@ -1209,17 +1221,9 @@ const struct bpf_map_ops htab_lru_percpu_map_ops = {
 
 static struct bpf_map *fd_htab_map_alloc(union bpf_attr *attr)
 {
-	struct bpf_map *map;
-
 	if (attr->value_size != sizeof(u32))
 		return ERR_PTR(-EINVAL);
-
-	/* pointer is stored internally */
-	attr->value_size = sizeof(void *);
-	map = htab_map_alloc(attr);
-	attr->value_size = sizeof(u32);
-
-	return map;
+	return htab_map_alloc(attr);
 }
 
 static void fd_htab_map_free(struct bpf_map *map)

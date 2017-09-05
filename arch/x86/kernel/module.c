@@ -35,6 +35,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
+#include <asm/unwind.h>
 
 #if 0
 #define DEBUGP(fmt, ...)				\
@@ -213,7 +214,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 		    struct module *me)
 {
 	const Elf_Shdr *s, *text = NULL, *alt = NULL, *locks = NULL,
-		*para = NULL;
+		*para = NULL, *orc = NULL, *orc_ip = NULL;
 	char *secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 
 	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {
@@ -225,6 +226,10 @@ int module_finalize(const Elf_Ehdr *hdr,
 			locks = s;
 		if (!strcmp(".parainstructions", secstrings + s->sh_name))
 			para = s;
+		if (!strcmp(".orc_unwind", secstrings + s->sh_name))
+			orc = s;
+		if (!strcmp(".orc_unwind_ip", secstrings + s->sh_name))
+			orc_ip = s;
 	}
 
 	if (alt) {
@@ -247,6 +252,10 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 	/* make jump label nops */
 	jump_label_apply_nops(me);
+
+	if (orc && orc_ip)
+		unwind_module_init(me, (void *)orc_ip->sh_addr, orc_ip->sh_size,
+				   (void *)orc->sh_addr, orc->sh_size);
 
 	return 0;
 }

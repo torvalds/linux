@@ -226,7 +226,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 	if (ksig->ka.sa.sa_flags & SA_ONSTACK)
 		sp = sigsp(sp, ksig);
 	/* This is the legacy signal stack switching. */
-	else if ((regs->ss & 0xffff) != __USER32_DS &&
+	else if (regs->ss != __USER32_DS &&
 		!(ksig->ka.sa.sa_flags & SA_RESTORER) &&
 		 ksig->ka.sa.sa_restorer)
 		sp = (unsigned long) ksig->ka.sa.sa_restorer;

@@ -18,6 +18,7 @@
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/property.h>
 
 #include <linux/mfd/da9052/da9052.h>
 #include <linux/mfd/da9052/pdata.h>
@@ -519,14 +520,15 @@ static const struct mfd_cell da9052_subdev_info[] = {
 		.name = "da9052-wled3",
 	},
 	{
-		.name = "da9052-tsi",
-	},
-	{
 		.name = "da9052-bat",
 	},
 	{
 		.name = "da9052-watchdog",
 	},
+};
+
+static const struct mfd_cell da9052_tsi_subdev_info[] = {
+	{ .name = "da9052-tsi" },
 };
 
 const struct regmap_config da9052_regmap_config = {
@@ -619,9 +621,27 @@ int da9052_device_init(struct da9052 *da9052, u8 chip_id)
 		goto err;
 	}
 
+	/*
+	 * Check if touchscreen pins are used are analogue input instead
+	 * of having a touchscreen connected to them. The analogue input
+	 * functionality will be provided by hwmon driver (if enabled).
+	 */
+	if (!device_property_read_bool(da9052->dev, "dlg,tsi-as-adc")) {
+		ret = mfd_add_devices(da9052->dev, PLATFORM_DEVID_AUTO,
+				      da9052_tsi_subdev_info,
+				      ARRAY_SIZE(da9052_tsi_subdev_info),
+				      NULL, 0, NULL);
+		if (ret) {
+			dev_err(da9052->dev, "failed to add TSI subdev: %d\n",
+				ret);
+			goto err;
+		}
+	}
+
 	return 0;
 
 err:
+	mfd_remove_devices(da9052->dev);
 	da9052_irq_exit(da9052);
 
 	return ret;

@@ -568,6 +568,8 @@ extern int irq_chip_compose_msi_msg(struct irq_data *data, struct msi_msg *msg);
 extern int irq_chip_pm_get(struct irq_data *data);
 extern int irq_chip_pm_put(struct irq_data *data);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+extern void handle_fasteoi_ack_irq(struct irq_desc *desc);
+extern void handle_fasteoi_mask_irq(struct irq_desc *desc);
 extern void irq_chip_enable_parent(struct irq_data *data);
 extern void irq_chip_disable_parent(struct irq_data *data);
 extern void irq_chip_ack_parent(struct irq_data *data);
@@ -781,7 +783,10 @@ static inline struct cpumask *irq_data_get_affinity_mask(struct irq_data *d)
 static inline
 struct cpumask *irq_data_get_effective_affinity_mask(struct irq_data *d)
 {
-	return d->common->effective_affinity;
+	if (!cpumask_empty(d->common->effective_affinity))
+		return d->common->effective_affinity;
+
+	return d->common->affinity;
 }
 static inline void irq_data_update_effective_affinity(struct irq_data *d,
 						      const struct cpumask *m)

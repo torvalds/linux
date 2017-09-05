@@ -263,6 +263,11 @@ Quick Quiz #2: What happens if CPU 0's rcu_barrier_func() executes
 	are delayed for a full grace period? Couldn't this result in
 	rcu_barrier() returning prematurely?
 
+The current rcu_barrier() implementation is more complex, due to the need
+to avoid disturbing idle CPUs (especially on battery-powered systems)
+and the need to minimally disturb non-idle CPUs in real-time systems.
+However, the code above illustrates the concepts.
+
 
 rcu_barrier() Summary
 

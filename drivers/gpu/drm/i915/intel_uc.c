@@ -94,7 +94,7 @@ void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 		i915.enable_guc_submission = HAS_GUC_SCHED(dev_priv);
 }
 
-static void guc_write_irq_trigger(struct intel_guc *guc)
+static void gen8_guc_raise_irq(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
@@ -109,7 +109,7 @@ void intel_uc_init_early(struct drm_i915_private *dev_priv)
 
 	mutex_init(&guc->send_mutex);
 	guc->send = intel_guc_send_nop;
-	guc->notify = guc_write_irq_trigger;
+	guc->notify = gen8_guc_raise_irq;
 }
 
 static void fetch_uc_fw(struct drm_i915_private *dev_priv,

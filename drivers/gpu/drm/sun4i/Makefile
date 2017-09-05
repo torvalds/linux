@@ -2,6 +2,7 @@ sun4i-drm-y += sun4i_drv.o
 sun4i-drm-y += sun4i_framebuffer.o
 
 sun4i-drm-hdmi-y += sun4i_hdmi_enc.o
+sun4i-drm-hdmi-y += sun4i_hdmi_i2c.o
 sun4i-drm-hdmi-y += sun4i_hdmi_ddc_clk.o
 sun4i-drm-hdmi-y += sun4i_hdmi_tmds_clk.o
 

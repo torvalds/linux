@@ -12,6 +12,7 @@ struct perf_counts_values {
 		};
 		u64 values[3];
 	};
+	bool	loaded;
 };
 
 struct perf_counts {

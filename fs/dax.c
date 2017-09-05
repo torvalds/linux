@@ -646,11 +646,10 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
 	pte_t pte, *ptep = NULL;
 	pmd_t *pmdp = NULL;
 	spinlock_t *ptl;
-	bool changed;
 
 	i_mmap_lock_read(mapping);
 	vma_interval_tree_foreach(vma, &mapping->i_mmap, index, index) {
-		unsigned long address;
+		unsigned long address, start, end;
 
 		cond_resched();
 
@@ -658,8 +657,13 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
 			continue;
 
 		address = pgoff_address(index, vma);
-		changed = false;
-		if (follow_pte_pmd(vma->vm_mm, address, &ptep, &pmdp, &ptl))
+
+		/*
+		 * Note because we provide start/end to follow_pte_pmd it will
+		 * call mmu_notifier_invalidate_range_start() on our behalf
+		 * before taking any lock.
+		 */
+		if (follow_pte_pmd(vma->vm_mm, address, &start, &end, &ptep, &pmdp, &ptl))
 			continue;
 
 		if (pmdp) {
@@ -676,7 +680,7 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
 			pmd = pmd_wrprotect(pmd);
 			pmd = pmd_mkclean(pmd);
 			set_pmd_at(vma->vm_mm, address, pmdp, pmd);
-			changed = true;
+			mmu_notifier_invalidate_range(vma->vm_mm, start, end);
 unlock_pmd:
 			spin_unlock(ptl);
 #endif
@@ -691,13 +695,12 @@ unlock_pmd:
 			pte = pte_wrprotect(pte);
 			pte = pte_mkclean(pte);
 			set_pte_at(vma->vm_mm, address, ptep, pte);
-			changed = true;
+			mmu_notifier_invalidate_range(vma->vm_mm, start, end);
 unlock_pte:
 			pte_unmap_unlock(ptep, ptl);
 		}
 
-		if (changed)
-			mmu_notifier_invalidate_page(vma->vm_mm, address);
+		mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
 	}
 	i_mmap_unlock_read(mapping);
 }

@@ -198,11 +198,16 @@ int hfi1_vnic_send_dma(struct hfi1_devdata *dd, u8 q_idx,
 		goto free_desc;
 	tx->retry_count = 0;
 
-	ret = sdma_send_txreq(sde, &vnic_sdma->wait, &tx->txreq);
+	ret = sdma_send_txreq(sde, &vnic_sdma->wait, &tx->txreq,
+			      vnic_sdma->pkts_sent);
 	/* When -ECOMM, sdma callback will be called with ABORT status */
 	if (unlikely(ret && unlikely(ret != -ECOMM)))
 		goto free_desc;
 
+	if (!ret) {
+		vnic_sdma->pkts_sent = true;
+		iowait_starve_clear(vnic_sdma->pkts_sent, &vnic_sdma->wait);
+	}
 	return ret;
 
 free_desc:
@@ -211,6 +216,8 @@ free_desc:
 tx_err:
 	if (ret != -EBUSY)
 		dev_kfree_skb_any(skb);
+	else
+		vnic_sdma->pkts_sent = false;
 	return ret;
 }
 
@@ -225,7 +232,8 @@ tx_err:
 static int hfi1_vnic_sdma_sleep(struct sdma_engine *sde,
 				struct iowait *wait,
 				struct sdma_txreq *txreq,
-				unsigned int seq)
+				uint seq,
+				bool pkts_sent)
 {
 	struct hfi1_vnic_sdma *vnic_sdma =
 		container_of(wait, struct hfi1_vnic_sdma, wait);
@@ -239,7 +247,7 @@ static int hfi1_vnic_sdma_sleep(struct sdma_engine *sde,
 	vnic_sdma->state = HFI1_VNIC_SDMA_Q_DEFERRED;
 	write_seqlock(&dev->iowait_lock);
 	if (list_empty(&vnic_sdma->wait.list))
-		list_add_tail(&vnic_sdma->wait.list, &sde->dmawait);
+		iowait_queue(pkts_sent, wait, &sde->dmawait);
 	write_sequnlock(&dev->iowait_lock);
 	return -EBUSY;
 }
@@ -295,22 +303,15 @@ void hfi1_vnic_sdma_init(struct hfi1_vnic_vport_info *vinfo)
 	}
 }
 
-static void hfi1_vnic_txreq_kmem_cache_ctor(void *obj)
-{
-	struct vnic_txreq *tx = (struct vnic_txreq *)obj;
-
-	memset(tx, 0, sizeof(*tx));
-}
-
 int hfi1_vnic_txreq_init(struct hfi1_devdata *dd)
 {
 	char buf[HFI1_VNIC_TXREQ_NAME_LEN];
 
 	snprintf(buf, sizeof(buf), "hfi1_%u_vnic_txreq_cache", dd->unit);
 	dd->vnic.txreq_cache = kmem_cache_create(buf,
-					  sizeof(struct vnic_txreq),
-					  0, SLAB_HWCACHE_ALIGN,
-					  hfi1_vnic_txreq_kmem_cache_ctor);
+						 sizeof(struct vnic_txreq),
+						 0, SLAB_HWCACHE_ALIGN,
+						 NULL);
 	if (!dd->vnic.txreq_cache)
 		return -ENOMEM;
 	return 0;

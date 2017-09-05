@@ -61,12 +61,12 @@ static int show_irq_affinity(int type, struct seq_file *m)
 	case EFFECTIVE:
 	case EFFECTIVE_LIST:
 #ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
-		mask = desc->irq_common_data.effective_affinity;
+		mask = irq_data_get_effective_affinity_mask(&desc->irq_data);
 		break;
-#else
-		return -EINVAL;
 #endif
-	};
+	default:
+		return -EINVAL;
+	}
 
 	switch (type) {
 	case AFFINITY_LIST:

@@ -749,12 +749,9 @@ iter_prepare_branch_entry(struct hist_entry_iter *iter, struct addr_location *al
 }
 
 static int
-iter_add_single_branch_entry(struct hist_entry_iter *iter,
+iter_add_single_branch_entry(struct hist_entry_iter *iter __maybe_unused,
 			     struct addr_location *al __maybe_unused)
 {
-	/* to avoid calling callback function */
-	iter->he = NULL;
-
 	return 0;
 }
 
@@ -1761,6 +1758,8 @@ void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *pro
 		use_callchain = evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN;
 	else
 		use_callchain = symbol_conf.use_callchain;
+
+	use_callchain |= symbol_conf.show_branchflag_count;
 
 	output_resort(evsel__hists(evsel), prog, use_callchain, NULL);
 }

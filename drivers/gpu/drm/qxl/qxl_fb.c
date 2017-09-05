@@ -275,7 +275,6 @@ static int qxlfb_create(struct qxl_fbdev *qfbdev,
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT;
 	info->fbops = &qxlfb_ops;
 
 	/*

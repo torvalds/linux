@@ -75,7 +75,7 @@ static int do_test(struct perf_evlist *evlist, int mmap_pages,
 }
 
 
-int test__backward_ring_buffer(int subtest __maybe_unused)
+int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret = TEST_SKIP, err, sample_count = 0, comm_count = 0;
 	char pid[16], sbuf[STRERR_BUFSIZE];
