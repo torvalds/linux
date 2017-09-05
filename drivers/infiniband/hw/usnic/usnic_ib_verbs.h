@@ -48,6 +48,7 @@ int usnic_ib_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 				struct ib_qp_init_attr *qp_init_attr);
 int usnic_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 				union ib_gid *gid);
+struct net_device *usnic_get_netdev(struct ib_device *device, u8 port_num);
 int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 				u16 *pkey);
 struct ib_pd *usnic_ib_alloc_pd(struct ib_device *ibdev,

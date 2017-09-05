@@ -94,6 +94,9 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		if (stack_name)
 			printk("%s <%s>\n", log_lvl, stack_name);
 
+		if (regs && on_stack(&stack_info, regs, sizeof(*regs)))
+			__show_regs(regs, 0);
+
 		/*
 		 * Scan the stack, printing any text addresses we find.  At the
 		 * same time, follow proper stack frames with the unwinder.
@@ -118,10 +121,8 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			 * Don't print regs->ip again if it was already printed
 			 * by __show_regs() below.
 			 */
-			if (regs && stack == &regs->ip) {
-				unwind_next_frame(&state);
-				continue;
-			}
+			if (regs && stack == &regs->ip)
+				goto next;
 
 			if (stack == ret_addr_p)
 				reliable = 1;
@@ -144,6 +145,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			if (!reliable)
 				continue;
 
+next:
 			/*
 			 * Get the next frame from the unwinder.  No need to
 			 * check for an error: if anything goes wrong, the rest
@@ -153,7 +155,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 
 			/* if the frame has entry regs, print them */
 			regs = unwind_get_entry_regs(&state);
-			if (regs)
+			if (regs && on_stack(&stack_info, regs, sizeof(*regs)))
 				__show_regs(regs, 0);
 		}
 
@@ -265,7 +267,7 @@ int __die(const char *str, struct pt_regs *regs, long err)
 #ifdef CONFIG_X86_32
 	if (user_mode(regs)) {
 		sp = regs->sp;
-		ss = regs->ss & 0xffff;
+		ss = regs->ss;
 	} else {
 		sp = kernel_stack_pointer(regs);
 		savesegment(ss, ss);

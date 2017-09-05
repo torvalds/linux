@@ -195,8 +195,12 @@ static int mi0283qt_probe(struct spi_device *spi)
 
 	device_property_read_u32(dev, "rotation", &rotation);
 
-	ret = mipi_dbi_spi_init(spi, mipi, dc, &mi0283qt_pipe_funcs,
-				&mi0283qt_driver, &mi0283qt_mode, rotation);
+	ret = mipi_dbi_spi_init(spi, mipi, dc);
+	if (ret)
+		return ret;
+
+	ret = mipi_dbi_init(&spi->dev, mipi, &mi0283qt_pipe_funcs,
+			    &mi0283qt_driver, &mi0283qt_mode, rotation);
 	if (ret)
 		return ret;
 

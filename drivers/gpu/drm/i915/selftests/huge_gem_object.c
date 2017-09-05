@@ -111,6 +111,7 @@ huge_gem_object(struct drm_i915_private *i915,
 		dma_addr_t dma_size)
 {
 	struct drm_i915_gem_object *obj;
+	unsigned int cache_level;
 
 	GEM_BUG_ON(!phys_size || phys_size > dma_size);
 	GEM_BUG_ON(!IS_ALIGNED(phys_size, PAGE_SIZE));
@@ -128,9 +129,8 @@ huge_gem_object(struct drm_i915_private *i915,
 
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-	obj->cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
-	obj->cache_coherent = i915_gem_object_is_coherent(obj);
-	obj->cache_dirty = !obj->cache_coherent;
+	cache_level = HAS_LLC(i915) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	i915_gem_object_set_cache_coherency(obj, cache_level);
 	obj->scratch = phys_size;
 
 	return obj;

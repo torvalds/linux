@@ -166,9 +166,6 @@ static struct inline_node *inline_node__create(struct map *map, u64 ip)
 	if (dso == NULL)
 		return NULL;
 
-	if (dso->kernel != DSO_TYPE_USER)
-		return NULL;
-
 	node = dso__parse_addr_inlines(dso,
 				       map__rip_2objdump(map, ip));
 

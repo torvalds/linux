@@ -2836,15 +2836,12 @@ BPF_CALL_5(bpf_setsockopt, struct bpf_sock_ops_kern *, bpf_sock,
 		   sk->sk_prot->setsockopt == tcp_setsockopt) {
 		if (optname == TCP_CONGESTION) {
 			char name[TCP_CA_NAME_MAX];
+			bool reinit = bpf_sock->op > BPF_SOCK_OPS_NEEDS_ECN;
 
 			strncpy(name, optval, min_t(long, optlen,
 						    TCP_CA_NAME_MAX-1));
 			name[TCP_CA_NAME_MAX-1] = 0;
-			ret = tcp_set_congestion_control(sk, name, false);
-			if (!ret && bpf_sock->op > BPF_SOCK_OPS_NEEDS_ECN)
-				/* replacing an existing ca */
-				tcp_reinit_congestion_control(sk,
-					inet_csk(sk)->icsk_ca_ops);
+			ret = tcp_set_congestion_control(sk, name, false, reinit);
 		} else {
 			struct tcp_sock *tp = tcp_sk(sk);
 
@@ -2872,7 +2869,6 @@ BPF_CALL_5(bpf_setsockopt, struct bpf_sock_ops_kern *, bpf_sock,
 				ret = -EINVAL;
 			}
 		}
-		ret = -EINVAL;
 #endif
 	} else {
 		ret = -EINVAL;

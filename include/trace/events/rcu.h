@@ -703,6 +703,7 @@ TRACE_EVENT(rcu_batch_end,
  * at the beginning and end of the read, respectively.  Note that the
  * callback address can be NULL.
  */
+#define RCUTORTURENAME_LEN 8
 TRACE_EVENT(rcu_torture_read,
 
 	TP_PROTO(const char *rcutorturename, struct rcu_head *rhp,
@@ -711,7 +712,7 @@ TRACE_EVENT(rcu_torture_read,
 	TP_ARGS(rcutorturename, rhp, secs, c_old, c),
 
 	TP_STRUCT__entry(
-		__field(const char *, rcutorturename)
+		__field(char, rcutorturename[RCUTORTURENAME_LEN])
 		__field(struct rcu_head *, rhp)
 		__field(unsigned long, secs)
 		__field(unsigned long, c_old)
@@ -719,7 +720,9 @@ TRACE_EVENT(rcu_torture_read,
 	),
 
 	TP_fast_assign(
-		__entry->rcutorturename = rcutorturename;
+		strncpy(__entry->rcutorturename, rcutorturename,
+			RCUTORTURENAME_LEN);
+		__entry->rcutorturename[RCUTORTURENAME_LEN - 1] = 0;
 		__entry->rhp = rhp;
 		__entry->secs = secs;
 		__entry->c_old = c_old;

@@ -341,13 +341,6 @@ static void sun4i_tv_mode_to_drm_mode(const struct tv_mode *tv_mode,
 	mode->vtotal = mode->vsync_end  + tv_mode->vback_porch;
 }
 
-static int sun4i_tv_atomic_check(struct drm_encoder *encoder,
-				 struct drm_crtc_state *crtc_state,
-				 struct drm_connector_state *conn_state)
-{
-	return 0;
-}
-
 static void sun4i_tv_disable(struct drm_encoder *encoder)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
@@ -489,7 +482,6 @@ static void sun4i_tv_mode_set(struct drm_encoder *encoder,
 }
 
 static struct drm_encoder_helper_funcs sun4i_tv_helper_funcs = {
-	.atomic_check	= sun4i_tv_atomic_check,
 	.disable	= sun4i_tv_disable,
 	.enable		= sun4i_tv_enable,
 	.mode_set	= sun4i_tv_mode_set,
@@ -545,8 +537,7 @@ sun4i_tv_comp_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static struct drm_connector_funcs sun4i_tv_comp_connector_funcs = {
-	.dpms			= drm_atomic_helper_connector_dpms,
+static const struct drm_connector_funcs sun4i_tv_comp_connector_funcs = {
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.destroy		= sun4i_tv_comp_connector_destroy,
 	.reset			= drm_atomic_helper_connector_reset,

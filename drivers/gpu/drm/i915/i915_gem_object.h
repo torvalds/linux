@@ -33,7 +33,23 @@
 
 #include <drm/i915_drm.h>
 
+#include "i915_gem_request.h"
 #include "i915_selftest.h"
+
+struct drm_i915_gem_object;
+
+/*
+ * struct i915_lut_handle tracks the fast lookups from handle to vma used
+ * for execbuf. Although we use a radixtree for that mapping, in order to
+ * remove them as the object or context is closed, we need a secondary list
+ * and a translation entry (i915_lut_handle).
+ */
+struct i915_lut_handle {
+	struct list_head obj_link;
+	struct list_head ctx_link;
+	struct i915_gem_context *ctx;
+	u32 handle;
+};
 
 struct drm_i915_gem_object_ops {
 	unsigned int flags;
@@ -86,7 +102,15 @@ struct drm_i915_gem_object {
 	 * They are also added to @vma_list for easy iteration.
 	 */
 	struct rb_root vma_tree;
-	struct i915_vma *vma_hashed;
+
+	/**
+	 * @lut_list: List of vma lookup entries in use for this object.
+	 *
+	 * If this object is closed, we need to remove all of its VMA from
+	 * the fast lookup index in associated contexts; @lut_list provides
+	 * this translation from object to context->handles_vma.
+	 */
+	struct list_head lut_list;
 
 	/** Stolen memory for this object, instead of being backed by shmem. */
 	struct drm_mm_node *stolen;
@@ -118,8 +142,10 @@ struct drm_i915_gem_object {
 	 */
 	unsigned long gt_ro:1;
 	unsigned int cache_level:3;
+	unsigned int cache_coherent:2;
+#define I915_BO_CACHE_COHERENT_FOR_READ BIT(0)
+#define I915_BO_CACHE_COHERENT_FOR_WRITE BIT(1)
 	unsigned int cache_dirty:1;
-	unsigned int cache_coherent:1;
 
 	atomic_t frontbuffer_bits;
 	unsigned int frontbuffer_ggtt_origin; /* write once */
@@ -391,6 +417,8 @@ i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 	return engine;
 }
 
+void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
+					 unsigned int cache_level);
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
 
 #endif

@@ -38,8 +38,6 @@
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-static const struct desc_ptr no_idt = {};
-
 /*
  * This is set if we need to go through the 'emergency' path.
  * When machine_emergency_restart() is called, we may be on
@@ -638,7 +636,7 @@ static void native_machine_emergency_restart(void)
 			break;
 
 		case BOOT_TRIPLE:
-			load_idt(&no_idt);
+			idt_invalidate(NULL);
 			__asm__ __volatile__("int3");
 
 			/* We're probably dead after this, but... */

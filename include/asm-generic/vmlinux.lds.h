@@ -497,25 +497,17 @@
 		*(.entry.text)						\
 		VMLINUX_SYMBOL(__entry_text_end) = .;
 
-#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
 #define IRQENTRY_TEXT							\
 		ALIGN_FUNCTION();					\
 		VMLINUX_SYMBOL(__irqentry_text_start) = .;		\
 		*(.irqentry.text)					\
 		VMLINUX_SYMBOL(__irqentry_text_end) = .;
-#else
-#define IRQENTRY_TEXT
-#endif
 
-#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
 #define SOFTIRQENTRY_TEXT						\
 		ALIGN_FUNCTION();					\
 		VMLINUX_SYMBOL(__softirqentry_text_start) = .;		\
 		*(.softirqentry.text)					\
 		VMLINUX_SYMBOL(__softirqentry_text_end) = .;
-#else
-#define SOFTIRQENTRY_TEXT
-#endif
 
 /* Section used for early init (in .S files) */
 #define HEAD_TEXT  *(.head.text)
@@ -692,6 +684,31 @@
 	}
 #else
 #define BUG_TABLE
+#endif
+
+#ifdef CONFIG_ORC_UNWINDER
+#define ORC_UNWIND_TABLE						\
+	. = ALIGN(4);							\
+	.orc_unwind_ip : AT(ADDR(.orc_unwind_ip) - LOAD_OFFSET) {	\
+		VMLINUX_SYMBOL(__start_orc_unwind_ip) = .;		\
+		KEEP(*(.orc_unwind_ip))					\
+		VMLINUX_SYMBOL(__stop_orc_unwind_ip) = .;		\
+	}								\
+	. = ALIGN(6);							\
+	.orc_unwind : AT(ADDR(.orc_unwind) - LOAD_OFFSET) {		\
+		VMLINUX_SYMBOL(__start_orc_unwind) = .;			\
+		KEEP(*(.orc_unwind))					\
+		VMLINUX_SYMBOL(__stop_orc_unwind) = .;			\
+	}								\
+	. = ALIGN(4);							\
+	.orc_lookup : AT(ADDR(.orc_lookup) - LOAD_OFFSET) {		\
+		VMLINUX_SYMBOL(orc_lookup) = .;				\
+		. += (((SIZEOF(.text) + LOOKUP_BLOCK_SIZE - 1) /	\
+			LOOKUP_BLOCK_SIZE) + 1) * 4;			\
+		VMLINUX_SYMBOL(orc_lookup_end) = .;			\
+	}
+#else
+#define ORC_UNWIND_TABLE
 #endif
 
 #ifdef CONFIG_PM_TRACE
@@ -880,7 +897,7 @@
 		DATA_DATA						\
 		CONSTRUCTORS						\
 	}								\
-	BUG_TABLE
+	BUG_TABLE							\
 
 #define INIT_TEXT_SECTION(inittext_align)				\
 	. = ALIGN(inittext_align);					\

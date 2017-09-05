@@ -242,9 +242,9 @@ void perf_event_attr__set_max_precise_ip(struct perf_event_attr *attr)
 	}
 }
 
-int perf_evlist__add_default(struct perf_evlist *evlist)
+int __perf_evlist__add_default(struct perf_evlist *evlist, bool precise)
 {
-	struct perf_evsel *evsel = perf_evsel__new_cycles();
+	struct perf_evsel *evsel = perf_evsel__new_cycles(precise);
 
 	if (evsel == NULL)
 		return -ENOMEM;
@@ -1419,8 +1419,6 @@ int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **e
 {
 	struct perf_evsel *evsel;
 	int err = 0;
-	const int ncpus = cpu_map__nr(evlist->cpus),
-		  nthreads = thread_map__nr(evlist->threads);
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->filter == NULL)
@@ -1430,7 +1428,7 @@ int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **e
 		 * filters only work for tracepoint event, which doesn't have cpu limit.
 		 * So evlist and evsel should always be same.
 		 */
-		err = perf_evsel__apply_filter(evsel, ncpus, nthreads, evsel->filter);
+		err = perf_evsel__apply_filter(evsel, evsel->filter);
 		if (err) {
 			*err_evsel = evsel;
 			break;
@@ -1623,13 +1621,9 @@ void perf_evlist__set_selected(struct perf_evlist *evlist,
 void perf_evlist__close(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
-	int ncpus = cpu_map__nr(evlist->cpus);
-	int nthreads = thread_map__nr(evlist->threads);
 
-	evlist__for_each_entry_reverse(evlist, evsel) {
-		int n = evsel->cpus ? evsel->cpus->nr : ncpus;
-		perf_evsel__close(evsel, n, nthreads);
-	}
+	evlist__for_each_entry_reverse(evlist, evsel)
+		perf_evsel__close(evsel);
 }
 
 static int perf_evlist__create_syswide_maps(struct perf_evlist *evlist)

@@ -95,6 +95,7 @@ enum vsp1_dl_mode {
  * struct vsp1_dl_manager - Display List manager
  * @index: index of the related WPF
  * @mode: display list operation mode (header or headerless)
+ * @singleshot: execute the display list in single-shot mode
  * @vsp1: the VSP1 device
  * @lock: protects the free, active, queued, pending and gc_fragments lists
  * @free: array of all free display lists
@@ -107,6 +108,7 @@ enum vsp1_dl_mode {
 struct vsp1_dl_manager {
 	unsigned int index;
 	enum vsp1_dl_mode mode;
+	bool singleshot;
 	struct vsp1_device *vsp1;
 
 	spinlock_t lock;
@@ -437,6 +439,7 @@ int vsp1_dl_list_add_chain(struct vsp1_dl_list *head,
 
 static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
 {
+	struct vsp1_dl_manager *dlm = dl->dlm;
 	struct vsp1_dl_header_list *hdr = dl->header->lists;
 	struct vsp1_dl_body *dlb;
 	unsigned int num_lists = 0;
@@ -461,38 +464,128 @@ static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
 
 	dl->header->num_lists = num_lists;
 
-	/*
-	 * If this display list's chain is not empty, we are on a list, where
-	 * the next item in the list is the display list entity which should be
-	 * automatically queued by the hardware.
-	 */
 	if (!list_empty(&dl->chain) && !is_last) {
+		/*
+		 * If this display list's chain is not empty, we are on a list,
+		 * and the next item is the display list that we must queue for
+		 * automatic processing by the hardware.
+		 */
 		struct vsp1_dl_list *next = list_next_entry(dl, chain);
 
 		dl->header->next_header = next->dma;
 		dl->header->flags = VSP1_DLH_AUTO_START;
+	} else if (!dlm->singleshot) {
+		/*
+		 * if the display list manager works in continuous mode, the VSP
+		 * should loop over the display list continuously until
+		 * instructed to do otherwise.
+		 */
+		dl->header->next_header = dl->dma;
+		dl->header->flags = VSP1_DLH_INT_ENABLE | VSP1_DLH_AUTO_START;
 	} else {
+		/*
+		 * Otherwise, in mem-to-mem mode, we work in single-shot mode
+		 * and the next display list must not be started automatically.
+		 */
 		dl->header->flags = VSP1_DLH_INT_ENABLE;
 	}
+}
+
+static bool vsp1_dl_list_hw_update_pending(struct vsp1_dl_manager *dlm)
+{
+	struct vsp1_device *vsp1 = dlm->vsp1;
+
+	if (!dlm->queued)
+		return false;
+
+	/*
+	 * Check whether the VSP1 has taken the update. In headerless mode the
+	 * hardware indicates this by clearing the UPD bit in the DL_BODY_SIZE
+	 * register, and in header mode by clearing the UPDHDR bit in the CMD
+	 * register.
+	 */
+	if (dlm->mode == VSP1_DL_MODE_HEADERLESS)
+		return !!(vsp1_read(vsp1, VI6_DL_BODY_SIZE)
+			  & VI6_DL_BODY_SIZE_UPD);
+	else
+		return !!(vsp1_read(vsp1, VI6_CMD(dlm->index) & VI6_CMD_UPDHDR));
+}
+
+static void vsp1_dl_list_hw_enqueue(struct vsp1_dl_list *dl)
+{
+	struct vsp1_dl_manager *dlm = dl->dlm;
+	struct vsp1_device *vsp1 = dlm->vsp1;
+
+	if (dlm->mode == VSP1_DL_MODE_HEADERLESS) {
+		/*
+		 * In headerless mode, program the hardware directly with the
+		 * display list body address and size and set the UPD bit. The
+		 * bit will be cleared by the hardware when the display list
+		 * processing starts.
+		 */
+		vsp1_write(vsp1, VI6_DL_HDR_ADDR(0), dl->body0.dma);
+		vsp1_write(vsp1, VI6_DL_BODY_SIZE, VI6_DL_BODY_SIZE_UPD |
+			   (dl->body0.num_entries * sizeof(*dl->header->lists)));
+	} else {
+		/*
+		 * In header mode, program the display list header address. If
+		 * the hardware is idle (single-shot mode or first frame in
+		 * continuous mode) it will then be started independently. If
+		 * the hardware is operating, the VI6_DL_HDR_REF_ADDR register
+		 * will be updated with the display list address.
+		 */
+		vsp1_write(vsp1, VI6_DL_HDR_ADDR(dlm->index), dl->dma);
+	}
+}
+
+static void vsp1_dl_list_commit_continuous(struct vsp1_dl_list *dl)
+{
+	struct vsp1_dl_manager *dlm = dl->dlm;
+
+	/*
+	 * If a previous display list has been queued to the hardware but not
+	 * processed yet, the VSP can start processing it at any time. In that
+	 * case we can't replace the queued list by the new one, as we could
+	 * race with the hardware. We thus mark the update as pending, it will
+	 * be queued up to the hardware by the frame end interrupt handler.
+	 */
+	if (vsp1_dl_list_hw_update_pending(dlm)) {
+		__vsp1_dl_list_put(dlm->pending);
+		dlm->pending = dl;
+		return;
+	}
+
+	/*
+	 * Pass the new display list to the hardware and mark it as queued. It
+	 * will become active when the hardware starts processing it.
+	 */
+	vsp1_dl_list_hw_enqueue(dl);
+
+	__vsp1_dl_list_put(dlm->queued);
+	dlm->queued = dl;
+}
+
+static void vsp1_dl_list_commit_singleshot(struct vsp1_dl_list *dl)
+{
+	struct vsp1_dl_manager *dlm = dl->dlm;
+
+	/*
+	 * When working in single-shot mode, the caller guarantees that the
+	 * hardware is idle at this point. Just commit the head display list
+	 * to hardware. Chained lists will be started automatically.
+	 */
+	vsp1_dl_list_hw_enqueue(dl);
+
+	dlm->active = dl;
 }
 
 void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 {
 	struct vsp1_dl_manager *dlm = dl->dlm;
-	struct vsp1_device *vsp1 = dlm->vsp1;
+	struct vsp1_dl_list *dl_child;
 	unsigned long flags;
-	bool update;
 
-	spin_lock_irqsave(&dlm->lock, flags);
-
-	if (dl->dlm->mode == VSP1_DL_MODE_HEADER) {
-		struct vsp1_dl_list *dl_child;
-
-		/*
-		 * In header mode the caller guarantees that the hardware is
-		 * idle at this point.
-		 */
-
+	if (dlm->mode == VSP1_DL_MODE_HEADER) {
 		/* Fill the header for the head and chained display lists. */
 		vsp1_dl_list_fill_header(dl, list_empty(&dl->chain));
 
@@ -501,65 +594,21 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 
 			vsp1_dl_list_fill_header(dl_child, last);
 		}
-
-		/*
-		 * Commit the head display list to hardware. Chained headers
-		 * will auto-start.
-		 */
-		vsp1_write(vsp1, VI6_DL_HDR_ADDR(dlm->index), dl->dma);
-
-		dlm->active = dl;
-		goto done;
 	}
 
-	/*
-	 * Once the UPD bit has been set the hardware can start processing the
-	 * display list at any time and we can't touch the address and size
-	 * registers. In that case mark the update as pending, it will be
-	 * queued up to the hardware by the frame end interrupt handler.
-	 */
-	update = !!(vsp1_read(vsp1, VI6_DL_BODY_SIZE) & VI6_DL_BODY_SIZE_UPD);
-	if (update) {
-		__vsp1_dl_list_put(dlm->pending);
-		dlm->pending = dl;
-		goto done;
-	}
+	spin_lock_irqsave(&dlm->lock, flags);
 
-	/*
-	 * Program the hardware with the display list body address and size.
-	 * The UPD bit will be cleared by the device when the display list is
-	 * processed.
-	 */
-	vsp1_write(vsp1, VI6_DL_HDR_ADDR(0), dl->body0.dma);
-	vsp1_write(vsp1, VI6_DL_BODY_SIZE, VI6_DL_BODY_SIZE_UPD |
-		   (dl->body0.num_entries * sizeof(*dl->header->lists)));
+	if (dlm->singleshot)
+		vsp1_dl_list_commit_singleshot(dl);
+	else
+		vsp1_dl_list_commit_continuous(dl);
 
-	__vsp1_dl_list_put(dlm->queued);
-	dlm->queued = dl;
-
-done:
 	spin_unlock_irqrestore(&dlm->lock, flags);
 }
 
 /* -----------------------------------------------------------------------------
  * Display List Manager
  */
-
-/* Interrupt Handling */
-void vsp1_dlm_irq_display_start(struct vsp1_dl_manager *dlm)
-{
-	spin_lock(&dlm->lock);
-
-	/*
-	 * The display start interrupt signals the end of the display list
-	 * processing by the device. The active display list, if any, won't be
-	 * accessed anymore and can be reused.
-	 */
-	__vsp1_dl_list_put(dlm->active);
-	dlm->active = NULL;
-
-	spin_unlock(&dlm->lock);
-}
 
 /**
  * vsp1_dlm_irq_frame_end - Display list handler for the frame end interrupt
@@ -572,31 +621,28 @@ void vsp1_dlm_irq_display_start(struct vsp1_dl_manager *dlm)
  */
 bool vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 {
-	struct vsp1_device *vsp1 = dlm->vsp1;
 	bool completed = false;
 
 	spin_lock(&dlm->lock);
 
-	__vsp1_dl_list_put(dlm->active);
-	dlm->active = NULL;
-
 	/*
-	 * Header mode is used for mem-to-mem pipelines only. We don't need to
-	 * perform any operation as there can't be any new display list queued
-	 * in that case.
+	 * The mem-to-mem pipelines work in single-shot mode. No new display
+	 * list can be queued, we don't have to do anything.
 	 */
-	if (dlm->mode == VSP1_DL_MODE_HEADER) {
+	if (dlm->singleshot) {
+		__vsp1_dl_list_put(dlm->active);
+		dlm->active = NULL;
 		completed = true;
 		goto done;
 	}
 
 	/*
-	 * The UPD bit set indicates that the commit operation raced with the
-	 * interrupt and occurred after the frame end event and UPD clear but
-	 * before interrupt processing. The hardware hasn't taken the update
-	 * into account yet, we'll thus skip one frame and retry.
+	 * If the commit operation raced with the interrupt and occurred after
+	 * the frame end event but before interrupt processing, the hardware
+	 * hasn't taken the update into account yet. We have to skip one frame
+	 * and retry.
 	 */
-	if (vsp1_read(vsp1, VI6_DL_BODY_SIZE) & VI6_DL_BODY_SIZE_UPD)
+	if (vsp1_dl_list_hw_update_pending(dlm))
 		goto done;
 
 	/*
@@ -604,24 +650,20 @@ bool vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	 * frame end interrupt. The display list thus becomes active.
 	 */
 	if (dlm->queued) {
+		__vsp1_dl_list_put(dlm->active);
 		dlm->active = dlm->queued;
 		dlm->queued = NULL;
 		completed = true;
 	}
 
 	/*
-	 * Now that the UPD bit has been cleared we can queue the next display
-	 * list to the hardware if one has been prepared.
+	 * Now that the VSP has started processing the queued display list, we
+	 * can queue the pending display list to the hardware if one has been
+	 * prepared.
 	 */
 	if (dlm->pending) {
-		struct vsp1_dl_list *dl = dlm->pending;
-
-		vsp1_write(vsp1, VI6_DL_HDR_ADDR(0), dl->body0.dma);
-		vsp1_write(vsp1, VI6_DL_BODY_SIZE, VI6_DL_BODY_SIZE_UPD |
-			   (dl->body0.num_entries *
-			    sizeof(*dl->header->lists)));
-
-		dlm->queued = dl;
+		vsp1_dl_list_hw_enqueue(dlm->pending);
+		dlm->queued = dlm->pending;
 		dlm->pending = NULL;
 	}
 
@@ -714,6 +756,7 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 	dlm->index = index;
 	dlm->mode = index == 0 && !vsp1->info->uapi
 		  ? VSP1_DL_MODE_HEADERLESS : VSP1_DL_MODE_HEADER;
+	dlm->singleshot = vsp1->info->uapi;
 	dlm->vsp1 = vsp1;
 
 	spin_lock_init(&dlm->lock);

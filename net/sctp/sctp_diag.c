@@ -70,7 +70,8 @@ static int inet_diag_msg_sctpladdrs_fill(struct sk_buff *skb,
 
 	info = nla_data(attr);
 	list_for_each_entry_rcu(laddr, address_list, list) {
-		memcpy(info, &laddr->a, addrlen);
+		memcpy(info, &laddr->a, sizeof(laddr->a));
+		memset(info + sizeof(laddr->a), 0, addrlen - sizeof(laddr->a));
 		info += addrlen;
 	}
 
@@ -93,7 +94,9 @@ static int inet_diag_msg_sctpaddrs_fill(struct sk_buff *skb,
 	info = nla_data(attr);
 	list_for_each_entry(from, &asoc->peer.transport_addr_list,
 			    transports) {
-		memcpy(info, &from->ipaddr, addrlen);
+		memcpy(info, &from->ipaddr, sizeof(from->ipaddr));
+		memset(info + sizeof(from->ipaddr), 0,
+		       addrlen - sizeof(from->ipaddr));
 		info += addrlen;
 	}
 

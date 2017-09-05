@@ -45,7 +45,7 @@ static int rcar_hdmi_phy_configure(struct dw_hdmi *hdmi,
 {
 	const struct rcar_hdmi_phy_params *params = rcar_hdmi_phy_params;
 
-	for (; params && params->mpixelclock != ~0UL; ++params) {
+	for (; params->mpixelclock != ~0UL; ++params) {
 		if (mpixelclock <= params->mpixelclock)
 			break;
 	}

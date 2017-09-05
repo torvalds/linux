@@ -37,12 +37,6 @@ static inline bool cpusets_enabled(void)
 	return static_branch_unlikely(&cpusets_enabled_key);
 }
 
-static inline int nr_cpusets(void)
-{
-	/* jump label reference count + the top-level cpuset */
-	return static_key_count(&cpusets_enabled_key.key) + 1;
-}
-
 static inline void cpuset_inc(void)
 {
 	static_branch_inc(&cpusets_pre_enable_key);

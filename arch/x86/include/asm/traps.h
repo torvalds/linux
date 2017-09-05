@@ -13,9 +13,6 @@ asmlinkage void divide_error(void);
 asmlinkage void debug(void);
 asmlinkage void nmi(void);
 asmlinkage void int3(void);
-asmlinkage void xen_debug(void);
-asmlinkage void xen_int3(void);
-asmlinkage void xen_stack_segment(void);
 asmlinkage void overflow(void);
 asmlinkage void bounds(void);
 asmlinkage void invalid_op(void);
@@ -38,22 +35,29 @@ asmlinkage void machine_check(void);
 #endif /* CONFIG_X86_MCE */
 asmlinkage void simd_coprocessor_error(void);
 
-#ifdef CONFIG_TRACING
-asmlinkage void trace_page_fault(void);
-#define trace_stack_segment stack_segment
-#define trace_divide_error divide_error
-#define trace_bounds bounds
-#define trace_invalid_op invalid_op
-#define trace_device_not_available device_not_available
-#define trace_coprocessor_segment_overrun coprocessor_segment_overrun
-#define trace_invalid_TSS invalid_TSS
-#define trace_segment_not_present segment_not_present
-#define trace_general_protection general_protection
-#define trace_spurious_interrupt_bug spurious_interrupt_bug
-#define trace_coprocessor_error coprocessor_error
-#define trace_alignment_check alignment_check
-#define trace_simd_coprocessor_error simd_coprocessor_error
-#define trace_async_page_fault async_page_fault
+#if defined(CONFIG_X86_64) && defined(CONFIG_XEN_PV)
+asmlinkage void xen_divide_error(void);
+asmlinkage void xen_xendebug(void);
+asmlinkage void xen_xenint3(void);
+asmlinkage void xen_nmi(void);
+asmlinkage void xen_overflow(void);
+asmlinkage void xen_bounds(void);
+asmlinkage void xen_invalid_op(void);
+asmlinkage void xen_device_not_available(void);
+asmlinkage void xen_double_fault(void);
+asmlinkage void xen_coprocessor_segment_overrun(void);
+asmlinkage void xen_invalid_TSS(void);
+asmlinkage void xen_segment_not_present(void);
+asmlinkage void xen_stack_segment(void);
+asmlinkage void xen_general_protection(void);
+asmlinkage void xen_page_fault(void);
+asmlinkage void xen_spurious_interrupt_bug(void);
+asmlinkage void xen_coprocessor_error(void);
+asmlinkage void xen_alignment_check(void);
+#ifdef CONFIG_X86_MCE
+asmlinkage void xen_machine_check(void);
+#endif /* CONFIG_X86_MCE */
+asmlinkage void xen_simd_coprocessor_error(void);
 #endif
 
 dotraplinkage void do_divide_error(struct pt_regs *, long);
@@ -74,14 +78,6 @@ asmlinkage struct pt_regs *sync_regs(struct pt_regs *);
 #endif
 dotraplinkage void do_general_protection(struct pt_regs *, long);
 dotraplinkage void do_page_fault(struct pt_regs *, unsigned long);
-#ifdef CONFIG_TRACING
-dotraplinkage void trace_do_page_fault(struct pt_regs *, unsigned long);
-#else
-static inline void trace_do_page_fault(struct pt_regs *regs, unsigned long error)
-{
-	do_page_fault(regs, error);
-}
-#endif
 dotraplinkage void do_spurious_interrupt_bug(struct pt_regs *, long);
 dotraplinkage void do_coprocessor_error(struct pt_regs *, long);
 dotraplinkage void do_alignment_check(struct pt_regs *, long);

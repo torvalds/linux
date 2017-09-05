@@ -1510,8 +1510,15 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
 	}
 
 	/*
-	 * The page_table_lock above provides a memory barrier
-	 * with change_protection_range.
+	 * Since we took the NUMA fault, we must have observed the !accessible
+	 * bit. Make sure all other CPUs agree with that, to avoid them
+	 * modifying the page we're about to migrate.
+	 *
+	 * Must be done under PTL such that we'll observe the relevant
+	 * inc_tlb_flush_pending().
+	 *
+	 * We are not sure a pending tlb flush here is for a huge page
+	 * mapping or not. Hence use the tlb range variant
 	 */
 	if (mm_tlb_flush_pending(vma->vm_mm))
 		flush_tlb_range(vma, haddr, haddr + HPAGE_PMD_SIZE);
@@ -1521,6 +1528,7 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
 	 * and access rights restored.
 	 */
 	spin_unlock(vmf->ptl);
+
 	migrated = migrate_misplaced_transhuge_page(vma->vm_mm, vma,
 				vmf->pmd, pmd, vmf->address, page, target_nid);
 	if (migrated) {

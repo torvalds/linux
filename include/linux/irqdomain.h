@@ -460,6 +460,9 @@ extern void irq_domain_free_irqs_common(struct irq_domain *domain,
 extern void irq_domain_free_irqs_top(struct irq_domain *domain,
 				     unsigned int virq, unsigned int nr_irqs);
 
+extern int irq_domain_push_irq(struct irq_domain *domain, int virq, void *arg);
+extern int irq_domain_pop_irq(struct irq_domain *domain, int virq);
+
 extern int irq_domain_alloc_irqs_parent(struct irq_domain *domain,
 					unsigned int irq_base,
 					unsigned int nr_irqs, void *arg);

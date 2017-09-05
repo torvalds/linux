@@ -51,7 +51,7 @@ int probe_file__del_strlist(int fd, struct strlist *namelist);
 int probe_cache_entry__get_event(struct probe_cache_entry *entry,
 				 struct probe_trace_event **tevs);
 
-struct probe_cache *probe_cache__new(const char *target);
+struct probe_cache *probe_cache__new(const char *target, struct nsinfo *nsi);
 int probe_cache__add_entry(struct probe_cache *pcache,
 			   struct perf_probe_event *pev,
 			   struct probe_trace_event *tevs, int ntevs);
@@ -69,7 +69,7 @@ int probe_cache__show_all_caches(struct strfilter *filter);
 bool probe_type_is_available(enum probe_type type);
 bool kretprobe_offset_is_supported(void);
 #else	/* ! HAVE_LIBELF_SUPPORT */
-static inline struct probe_cache *probe_cache__new(const char *tgt __maybe_unused)
+static inline struct probe_cache *probe_cache__new(const char *tgt __maybe_unused, struct nsinfo *nsi __maybe_unused)
 {
 	return NULL;
 }

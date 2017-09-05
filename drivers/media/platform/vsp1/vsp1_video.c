@@ -440,12 +440,16 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 	vsp1_pipeline_run(pipe);
 }
 
-static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe)
+static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe,
+					  bool completed)
 {
 	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
 	enum vsp1_pipeline_state state;
 	unsigned long flags;
 	unsigned int i;
+
+	/* M2M Pipelines should never call here with an incomplete frame. */
+	WARN_ON_ONCE(!completed);
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
@@ -481,7 +485,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 	struct media_entity_enum ent_enum;
 	struct vsp1_entity *entity;
 	struct media_pad *pad;
-	bool bru_found = false;
+	struct vsp1_bru *bru = NULL;
 	int ret;
 
 	ret = media_entity_enum_init(&ent_enum, &input->entity.vsp1->media_dev);
@@ -511,16 +515,20 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 			media_entity_to_v4l2_subdev(pad->entity));
 
 		/*
-		 * A BRU is present in the pipeline, store the BRU input pad
+		 * A BRU or BRS is present in the pipeline, store its input pad
 		 * number in the input RPF for use when configuring the RPF.
 		 */
-		if (entity->type == VSP1_ENTITY_BRU) {
-			struct vsp1_bru *bru = to_bru(&entity->subdev);
+		if (entity->type == VSP1_ENTITY_BRU ||
+		    entity->type == VSP1_ENTITY_BRS) {
+			/* BRU and BRS can't be chained. */
+			if (bru) {
+				ret = -EPIPE;
+				goto out;
+			}
 
+			bru = to_bru(&entity->subdev);
 			bru->inputs[pad->index].rpf = input;
 			input->bru_input = pad->index;
-
-			bru_found = true;
 		}
 
 		/* We've reached the WPF, we're done. */
@@ -542,8 +550,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 			}
 
 			pipe->uds = entity;
-			pipe->uds_input = bru_found ? pipe->bru
-					: &input->entity;
+			pipe->uds_input = bru ? &bru->entity : &input->entity;
 		}
 
 		/* Follow the source link, ignoring any HGO or HGT. */
@@ -589,30 +596,42 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 		e = to_vsp1_entity(subdev);
 		list_add_tail(&e->list_pipe, &pipe->entities);
 
-		if (e->type == VSP1_ENTITY_RPF) {
+		switch (e->type) {
+		case VSP1_ENTITY_RPF:
 			rwpf = to_rwpf(subdev);
 			pipe->inputs[rwpf->entity.index] = rwpf;
 			rwpf->video->pipe_index = ++pipe->num_inputs;
 			rwpf->pipe = pipe;
-		} else if (e->type == VSP1_ENTITY_WPF) {
+			break;
+
+		case VSP1_ENTITY_WPF:
 			rwpf = to_rwpf(subdev);
 			pipe->output = rwpf;
 			rwpf->video->pipe_index = 0;
 			rwpf->pipe = pipe;
-		} else if (e->type == VSP1_ENTITY_LIF) {
+			break;
+
+		case VSP1_ENTITY_LIF:
 			pipe->lif = e;
-		} else if (e->type == VSP1_ENTITY_BRU) {
+			break;
+
+		case VSP1_ENTITY_BRU:
+		case VSP1_ENTITY_BRS:
 			pipe->bru = e;
-		} else if (e->type == VSP1_ENTITY_HGO) {
-			struct vsp1_hgo *hgo = to_hgo(subdev);
+			break;
 
+		case VSP1_ENTITY_HGO:
 			pipe->hgo = e;
-			hgo->histo.pipe = pipe;
-		} else if (e->type == VSP1_ENTITY_HGT) {
-			struct vsp1_hgt *hgt = to_hgt(subdev);
+			to_hgo(subdev)->histo.pipe = pipe;
+			break;
 
+		case VSP1_ENTITY_HGT:
 			pipe->hgt = e;
-			hgt->histo.pipe = pipe;
+			to_hgt(subdev)->histo.pipe = pipe;
+			break;
+
+		default:
+			break;
 		}
 	}
 
@@ -796,12 +815,14 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 		struct vsp1_uds *uds = to_uds(&pipe->uds->subdev);
 
 		/*
-		 * If a BRU is present in the pipeline before the UDS, the alpha
-		 * component doesn't need to be scaled as the BRU output alpha
-		 * value is fixed to 255. Otherwise we need to scale the alpha
-		 * component only when available at the input RPF.
+		 * If a BRU or BRS is present in the pipeline before the UDS,
+		 * the alpha component doesn't need to be scaled as the BRU and
+		 * BRS output alpha value is fixed to 255. Otherwise we need to
+		 * scale the alpha component only when available at the input
+		 * RPF.
 		 */
-		if (pipe->uds_input->type == VSP1_ENTITY_BRU) {
+		if (pipe->uds_input->type == VSP1_ENTITY_BRU ||
+		    pipe->uds_input->type == VSP1_ENTITY_BRS) {
 			uds->scale_alpha = false;
 		} else {
 			struct vsp1_rwpf *rpf =
