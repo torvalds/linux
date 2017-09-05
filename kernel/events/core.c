@@ -1893,6 +1893,11 @@ __perf_remove_from_context(struct perf_event *event,
 {
 	unsigned long flags = (unsigned long)info;
 
+	if (ctx->is_active & EVENT_TIME) {
+		update_context_time(ctx);
+		update_cgrp_time_from_cpuctx(cpuctx);
+	}
+
 	event_sched_out(event, cpuctx, ctx);
 	if (flags & DETACH_GROUP)
 		perf_group_detach(event);
@@ -1955,8 +1960,11 @@ static void __perf_event_disable(struct perf_event *event,
 	if (event->state < PERF_EVENT_STATE_INACTIVE)
 		return;
 
-	update_context_time(ctx);
-	update_cgrp_time_from_event(event);
+	if (ctx->is_active & EVENT_TIME) {
+		update_context_time(ctx);
+		update_cgrp_time_from_event(event);
+	}
+
 	update_group_times(event);
 	if (event == event->group_leader)
 		group_sched_out(event, cpuctx, ctx);
