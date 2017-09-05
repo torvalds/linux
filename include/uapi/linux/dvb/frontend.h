@@ -907,7 +907,7 @@ struct dtv_properties {
 #define FE_SET_PROPERTY		   _IOW('o', 82, struct dtv_properties)
 #define FE_GET_PROPERTY		   _IOR('o', 83, struct dtv_properties)
 
-#if defined(__DVB_CORE__) || !defined (__KERNEL__)
+#if defined(__DVB_CORE__) || !defined(__KERNEL__)
 
 /*
  * DEPRECATED: Everything below is deprecated in favor of DVBv5 API
@@ -982,8 +982,8 @@ struct dvb_ofdm_parameters {
 };
 
 struct dvb_frontend_parameters {
-	__u32 frequency;     /* (absolute) frequency in Hz for DVB-C/DVB-T/ATSC */
-			     /* intermediate frequency in kHz for DVB-S */
+	__u32 frequency;  /* (absolute) frequency in Hz for DVB-C/DVB-T/ATSC */
+			  /* intermediate frequency in kHz for DVB-S */
 	fe_spectral_inversion_t inversion;
 	union {
 		struct dvb_qpsk_parameters qpsk;	/* DVB-S */

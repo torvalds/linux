@@ -189,8 +189,7 @@ struct dmx_sct_filter_params {
  * @pes_type:	Type of the pes filter, as specified by &enum dmx_pes_type.
  * @flags:	Demux PES flags.
  */
-struct dmx_pes_filter_params
-{
+struct dmx_pes_filter_params {
 	__u16           pid;
 	enum dmx_input  input;
 	enum dmx_output output;
@@ -221,7 +220,7 @@ struct dmx_stc {
 #define DMX_ADD_PID              _IOW('o', 51, __u16)
 #define DMX_REMOVE_PID           _IOW('o', 52, __u16)
 
-#if !defined (__KERNEL__)
+#if !defined(__KERNEL__)
 
 /* This is needed for legacy userspace support */
 typedef enum dmx_output dmx_output_t;
