@@ -507,8 +507,13 @@ static void bcm_uart_set_termios(struct uart_port *port,
 {
 	unsigned int ctl, baud, quot, ier;
 	unsigned long flags;
+	int tries;
 
 	spin_lock_irqsave(&port->lock, flags);
+
+	/* Drain the hot tub fully before we power it off for the winter. */
+	for (tries = 3; !bcm_uart_tx_empty(port) && tries; tries--)
+		mdelay(10);
 
 	/* disable uart while changing speed */
 	bcm_uart_disable(port);
