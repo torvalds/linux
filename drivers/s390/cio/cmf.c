@@ -227,6 +227,7 @@ static void cmf_set_schib_release(struct kref *kref)
 }
 
 #define CMF_PENDING 1
+#define SET_SCHIB_TIMEOUT (10 * HZ)
 
 static int set_schib_wait(struct ccw_device *cdev, u32 mme,
 				int mbfc, unsigned long address)
@@ -263,19 +264,19 @@ static int set_schib_wait(struct ccw_device *cdev, u32 mme,
 	cdev->private->state = DEV_STATE_CMFCHANGE;
 	set_data->ret = CMF_PENDING;
 	cdev->private->cmb_wait = set_data;
-
 	spin_unlock_irq(cdev->ccwlock);
-	if (wait_event_interruptible(set_data->wait,
-				     set_data->ret != CMF_PENDING)) {
-		spin_lock_irq(cdev->ccwlock);
+
+	ret = wait_event_interruptible_timeout(set_data->wait,
+					       set_data->ret != CMF_PENDING,
+					       SET_SCHIB_TIMEOUT);
+	spin_lock_irq(cdev->ccwlock);
+	if (ret <= 0) {
 		if (set_data->ret == CMF_PENDING) {
-			set_data->ret = -ERESTARTSYS;
+			set_data->ret = (ret == 0) ? -ETIME : ret;
 			if (cdev->private->state == DEV_STATE_CMFCHANGE)
 				cdev->private->state = DEV_STATE_ONLINE;
 		}
-		spin_unlock_irq(cdev->ccwlock);
 	}
-	spin_lock_irq(cdev->ccwlock);
 	cdev->private->cmb_wait = NULL;
 	ret = set_data->ret;
 out_put:
