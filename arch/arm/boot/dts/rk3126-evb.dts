@@ -39,10 +39,11 @@
  */
 
 /dts-v1/;
-#include "rk3126.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/pwm/pwm.h>
+#include "rk3126.dtsi"
+#include "rk312x-android.dtsi"
 
 / {
 	model = "Rockchip RK3126 Evaluation board";
@@ -88,27 +89,12 @@
 		enable-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
 	};
 
-	chosen {
-		bootargs = "console=uart8250,mmio32,0x20068000";
-	};
-
 	lvds_panel: lvds-panel {
 		status = "disabled";
 		ports {
 			panel_in_lvds: endpoint {
 				remote-endpoint = <&lvds_out_panel>;
 			};
-		};
-	};
-
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		drm_logo: drm-logo@00000000 {
-			compatible = "rockchip,drm-logo";
-			reg = <0x0 0x0>;
 		};
 	};
 
@@ -121,20 +107,38 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
 &display_subsystem {
 	status = "okay";
-
-	memory-region = <&drm_logo>;
 	route {
 		route_lvds: route-lvds {
 			status = "okay";
-			logo,uboot = "logo.bmp";
-			logo,kernel = "logo_kernel.bmp";
-			logo,mode = "center";
-			charge_logo,mode = "center";
-			connect = <&vop_out_lvds>;
 		};
 	};
+};
+
+&dmc {
+	center-supply = <&vdd_log>;
+};
+
+&emmc {
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	supports-emmc;
+	disable-wp;
+	non-removable;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+	mali-supply = <&vdd_log>;
 };
 
 &i2c2 {
@@ -385,8 +389,25 @@
 	status = "okay";
 };
 
-&uart2 {
-	status = "okay";
+&sdmmc {
+	cap-mmc-highspeed;
+	supports-sd;
+	broken-cd;
+	card-detect-delay = <800>;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	cd-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>; /* CD GPIO */
+	status = "disabled";
+};
+
+&sdio {
+	cap-mmc-highspeed;
+	supports-sdio;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	non-removable;
+	cap-sdio-irq;
+	status = "disabled";
 };
 
 &vop {
