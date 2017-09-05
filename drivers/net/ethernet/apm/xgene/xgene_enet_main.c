@@ -1674,8 +1674,6 @@ static void xgene_enet_check_phy_handle(struct xgene_enet_pdata *pdata)
 	ret = xgene_enet_phy_connect(pdata->ndev);
 	if (!ret)
 		pdata->mdio_driver = true;
-
-	return;
 }
 
 static void xgene_enet_gpiod_get(struct xgene_enet_pdata *pdata)
