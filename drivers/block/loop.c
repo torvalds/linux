@@ -1036,6 +1036,8 @@ static int loop_clr_fd(struct loop_device *lo)
 	memset(lo->lo_crypt_name, 0, LO_NAME_SIZE);
 	memset(lo->lo_file_name, 0, LO_NAME_SIZE);
 	blk_queue_logical_block_size(lo->lo_queue, 512);
+	blk_queue_physical_block_size(lo->lo_queue, 512);
+	blk_queue_io_min(lo->lo_queue, 512);
 	if (bdev) {
 		bdput(bdev);
 		invalidate_bdev(bdev);
@@ -1330,6 +1332,8 @@ static int loop_set_block_size(struct loop_device *lo, unsigned long arg)
 	blk_mq_freeze_queue(lo->lo_queue);
 
 	blk_queue_logical_block_size(lo->lo_queue, arg);
+	blk_queue_physical_block_size(lo->lo_queue, arg);
+	blk_queue_io_min(lo->lo_queue, arg);
 	loop_update_dio(lo);
 
 	blk_mq_unfreeze_queue(lo->lo_queue);
@@ -1776,8 +1780,6 @@ static int loop_add(struct loop_device **l, int i)
 		goto out_cleanup_tags;
 	}
 	lo->lo_queue->queuedata = lo;
-
-	blk_queue_physical_block_size(lo->lo_queue, PAGE_SIZE);
 
 	blk_queue_max_hw_sectors(lo->lo_queue, BLK_DEF_MAX_SECTORS);
 
