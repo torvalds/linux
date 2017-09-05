@@ -61,7 +61,7 @@
 #define SZ_1T				(SZ_1G*1024ULL)
 #define PIPE_PHY_RATE_RD(src)		((0xc000 & (u32)(src)) >> 0xe)
 
-#define ROOT_CAP_AND_CTRL		0x5C
+#define XGENE_V1_PCI_EXP_CAP		0x40
 
 /* PCIe IP version */
 #define XGENE_PCIE_IP_VER_UNKN		0
@@ -189,7 +189,7 @@ static int xgene_pcie_config_read32(struct pci_bus *bus, unsigned int devfn,
 	 * Avoid this by not claiming to support CRS.
 	 */
 	if (pci_is_root_bus(bus) && (port->version == XGENE_PCIE_IP_VER_1) &&
-	    ((where & ~0x3) == ROOT_CAP_AND_CTRL))
+	    ((where & ~0x3) == XGENE_V1_PCI_EXP_CAP + PCI_EXP_RTCTL))
 		*val &= ~(PCI_EXP_RTCAP_CRSVIS << 16);
 
 	if (size <= 2)
