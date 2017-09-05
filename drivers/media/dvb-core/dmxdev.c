@@ -1025,26 +1025,6 @@ static int dvb_demux_do_ioctl(struct file *file,
 		dmxdev->demux->get_pes_pids(dmxdev->demux, parg);
 		break;
 
-#if 0
-	/* Not used upstream and never documented */
-
-	case DMX_GET_CAPS:
-		if (!dmxdev->demux->get_caps) {
-			ret = -EINVAL;
-			break;
-		}
-		ret = dmxdev->demux->get_caps(dmxdev->demux, parg);
-		break;
-
-	case DMX_SET_SOURCE:
-		if (!dmxdev->demux->set_source) {
-			ret = -EINVAL;
-			break;
-		}
-		ret = dmxdev->demux->set_source(dmxdev->demux, parg);
-		break;
-#endif
-
 	case DMX_GET_STC:
 		if (!dmxdev->demux->get_stc) {
 			ret = -EINVAL;
