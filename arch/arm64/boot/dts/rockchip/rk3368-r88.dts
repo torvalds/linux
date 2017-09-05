@@ -58,18 +58,10 @@
 		pwms = <&pwm1 0 30518 0>; /* 1 / 30518 ns = 32.7675 KHz */
 	};
 
-	hdmi_sound: hdmi-sound {
-		status = "okay";
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "rockchip,hdmi";
-		simple-audio-card,cpu {
-			sound-dai = <&i2s_8ch>;
-		};
-		simple-audio-card,codec {
-			sound-dai = <&hdmi>;
-		};
+	sound {
+		compatible = "rockchip,rk3368-hdmi-analog";
+		rockchip,cpu = <&i2s_8ch>;
+		rockchip,codec = <&rk1000_codec>, <&hdmi>;
 	};
 
 	keys: gpio-keys {
@@ -462,6 +454,16 @@
 				};
 			};
 		};
+	};
+
+	rk1000_codec: rk1000-codec@60 {
+		compatible = "rockchip,rk1000-codec";
+		reg = <0x60>;
+		#sound-dai-cells = <0>;
+		rockchip,ctl = <&rk1000_ctl>;
+		rockchip,spk-en-gpio = <&gpio3 31 GPIO_ACTIVE_LOW>;
+		rockchip,pa-en-time-ms = <5000>;
+		status = "okay";
 	};
 };
 
