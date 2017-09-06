@@ -310,6 +310,22 @@ typedef uint32_t (*cgs_read_ind_register_t)(struct cgs_device *cgs_device, enum 
 typedef void (*cgs_write_ind_register_t)(struct cgs_device *cgs_device, enum cgs_ind_reg space,
 					 unsigned index, uint32_t value);
 
+#define CGS_REG_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
+#define CGS_REG_FIELD_MASK(reg, field) reg##__##field##_MASK
+
+#define CGS_REG_SET_FIELD(orig_val, reg, field, field_val)			\
+	(((orig_val) & ~CGS_REG_FIELD_MASK(reg, field)) |			\
+	 (CGS_REG_FIELD_MASK(reg, field) & ((field_val) << CGS_REG_FIELD_SHIFT(reg, field))))
+
+#define CGS_REG_GET_FIELD(value, reg, field)				\
+	(((value) & CGS_REG_FIELD_MASK(reg, field)) >> CGS_REG_FIELD_SHIFT(reg, field))
+
+#define CGS_WREG32_FIELD(device, reg, field, val)	\
+	cgs_write_register(device, mm##reg, (cgs_read_register(device, mm##reg) & ~CGS_REG_FIELD_MASK(reg, field)) | (val) << CGS_REG_FIELD_SHIFT(reg, field))
+
+#define CGS_WREG32_FIELD_IND(device, space, reg, field, val)	\
+	cgs_write_ind_register(device, space, ix##reg, (cgs_read_ind_register(device, space, ix##reg) & ~CGS_REG_FIELD_MASK(reg, field)) | (val) << CGS_REG_FIELD_SHIFT(reg, field))
+
 /**
  * cgs_get_pci_resource() - provide access to a device resource (PCI BAR)
  * @cgs_device:	opaque device handle
