@@ -132,7 +132,6 @@ static inline bool atime_needs_update_rcu(const struct path *path,
 extern void inode_io_list_del(struct inode *inode);
 
 extern long get_nr_dirty_inodes(void);
-extern void evict_inodes(struct super_block *);
 extern int invalidate_inodes(struct super_block *, bool);
 
 /*
