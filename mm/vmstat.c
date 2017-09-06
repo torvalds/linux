@@ -1502,7 +1502,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
 	if (!v)
 		return ERR_PTR(-ENOMEM);
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-		v[i] = global_page_state(i);
+		v[i] = global_zone_page_state(i);
 	v += NR_VM_ZONE_STAT_ITEMS;
 
 	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
@@ -1591,7 +1591,7 @@ int vmstat_refresh(struct ctl_table *table, int write,
 	 * which can equally be echo'ed to or cat'ted from (by root),
 	 * can be used to update the stats just before reading them.
 	 *
-	 * Oh, and since global_page_state() etc. are so careful to hide
+	 * Oh, and since global_zone_page_state() etc. are so careful to hide
 	 * transiently negative values, report an error here if any of
 	 * the stats is negative, so we know to go looking for imbalance.
 	 */

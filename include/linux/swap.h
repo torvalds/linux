@@ -263,8 +263,8 @@ extern unsigned long totalreserve_pages;
 extern unsigned long nr_free_buffer_pages(void);
 extern unsigned long nr_free_pagecache_pages(void);
 
-/* Definition of global_page_state not available yet */
-#define nr_free_pages() global_page_state(NR_FREE_PAGES)
+/* Definition of global_zone_page_state not available yet */
+#define nr_free_pages() global_zone_page_state(NR_FREE_PAGES)
 
 
 /* linux/mm/swap.c */

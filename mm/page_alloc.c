@@ -4509,7 +4509,7 @@ long si_mem_available(void)
 	 * Estimate the amount of memory available for userspace allocations,
 	 * without causing swapping.
 	 */
-	available = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
+	available = global_zone_page_state(NR_FREE_PAGES) - totalreserve_pages;
 
 	/*
 	 * Not all the page cache can be freed, otherwise the system will
@@ -4538,7 +4538,7 @@ void si_meminfo(struct sysinfo *val)
 {
 	val->totalram = totalram_pages;
 	val->sharedram = global_node_page_state(NR_SHMEM);
-	val->freeram = global_page_state(NR_FREE_PAGES);
+	val->freeram = global_zone_page_state(NR_FREE_PAGES);
 	val->bufferram = nr_blockdev_pages();
 	val->totalhigh = totalhigh_pages;
 	val->freehigh = nr_free_highpages();
@@ -4673,11 +4673,11 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 		global_node_page_state(NR_SLAB_UNRECLAIMABLE),
 		global_node_page_state(NR_FILE_MAPPED),
 		global_node_page_state(NR_SHMEM),
-		global_page_state(NR_PAGETABLE),
-		global_page_state(NR_BOUNCE),
-		global_page_state(NR_FREE_PAGES),
+		global_zone_page_state(NR_PAGETABLE),
+		global_zone_page_state(NR_BOUNCE),
+		global_zone_page_state(NR_FREE_PAGES),
 		free_pcp,
-		global_page_state(NR_FREE_CMA_PAGES));
+		global_zone_page_state(NR_FREE_CMA_PAGES));
 
 	for_each_online_pgdat(pgdat) {
 		if (show_mem_node_skip(filter, pgdat->node_id, nodemask))
