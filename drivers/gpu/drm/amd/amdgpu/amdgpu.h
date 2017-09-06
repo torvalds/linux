@@ -1288,6 +1288,10 @@ struct amdgpu_asic_funcs {
 	void (*set_pcie_lanes)(struct amdgpu_device *adev, int lanes);
 	/* get config memsize register */
 	u32 (*get_config_memsize)(struct amdgpu_device *adev);
+	/* flush hdp write queue */
+	void (*flush_hdp)(struct amdgpu_device *adev);
+	/* invalidate hdp read cache */
+	void (*invalidate_hdp)(struct amdgpu_device *adev);
 };
 
 /*
@@ -1838,6 +1842,8 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_asic_read_bios_from_rom(adev, b, l) (adev)->asic_funcs->read_bios_from_rom((adev), (b), (l))
 #define amdgpu_asic_read_register(adev, se, sh, offset, v)((adev)->asic_funcs->read_register((adev), (se), (sh), (offset), (v)))
 #define amdgpu_asic_get_config_memsize(adev) (adev)->asic_funcs->get_config_memsize((adev))
+#define amdgpu_asic_flush_hdp(adev) (adev)->asic_funcs->flush_hdp((adev))
+#define amdgpu_asic_invalidate_hdp(adev) (adev)->asic_funcs->invalidate_hdp((adev))
 #define amdgpu_gart_flush_gpu_tlb(adev, vmid) (adev)->gart.gart_funcs->flush_gpu_tlb((adev), (vmid))
 #define amdgpu_gart_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gart.gart_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
 #define amdgpu_gart_get_vm_pde(adev, level, dst, flags) (adev)->gart.gart_funcs->get_vm_pde((adev), (level), (dst), (flags))
