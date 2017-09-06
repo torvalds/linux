@@ -447,7 +447,7 @@ static void speak_char(u16 ch)
 
 	cp = spk_characters[ch];
 	if (!cp) {
-		pr_info("speak_char: cp == NULL!\n");
+		pr_info("%s: cp == NULL!\n", __func__);
 		return;
 	}
 	if (IS_CHAR(ch, B_CAP)) {
