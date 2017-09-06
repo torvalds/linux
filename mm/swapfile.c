@@ -1168,22 +1168,40 @@ static void swapcache_free_cluster(swp_entry_t entry)
 	struct swap_cluster_info *ci;
 	struct swap_info_struct *si;
 	unsigned char *map;
-	unsigned int i;
+	unsigned int i, free_entries = 0;
+	unsigned char val;
 
-	si = swap_info_get(entry);
+	si = _swap_info_get(entry);
 	if (!si)
 		return;
 
 	ci = lock_cluster(si, offset);
 	map = si->swap_map + offset;
 	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
-		VM_BUG_ON(map[i] != SWAP_HAS_CACHE);
-		map[i] = 0;
+		val = map[i];
+		VM_BUG_ON(!(val & SWAP_HAS_CACHE));
+		if (val == SWAP_HAS_CACHE)
+			free_entries++;
+	}
+	if (!free_entries) {
+		for (i = 0; i < SWAPFILE_CLUSTER; i++)
+			map[i] &= ~SWAP_HAS_CACHE;
 	}
 	unlock_cluster(ci);
-	mem_cgroup_uncharge_swap(entry, SWAPFILE_CLUSTER);
-	swap_free_cluster(si, idx);
-	spin_unlock(&si->lock);
+	if (free_entries == SWAPFILE_CLUSTER) {
+		spin_lock(&si->lock);
+		ci = lock_cluster(si, offset);
+		memset(map, 0, SWAPFILE_CLUSTER);
+		unlock_cluster(ci);
+		mem_cgroup_uncharge_swap(entry, SWAPFILE_CLUSTER);
+		swap_free_cluster(si, idx);
+		spin_unlock(&si->lock);
+	} else if (free_entries) {
+		for (i = 0; i < SWAPFILE_CLUSTER; i++, entry.val++) {
+			if (!__swap_entry_free(si, entry, SWAP_HAS_CACHE))
+				free_swap_slot(entry);
+		}
+	}
 }
 #else
 static inline void swapcache_free_cluster(swp_entry_t entry)
