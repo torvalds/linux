@@ -101,6 +101,7 @@ struct aa_dfa {
 };
 
 extern struct aa_dfa *nulldfa;
+extern struct aa_dfa *stacksplitdfa;
 
 #define byte_to_byte(X) (X)
 

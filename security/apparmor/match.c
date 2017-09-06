@@ -30,6 +30,11 @@ static char nulldfa_src[] = {
 };
 struct aa_dfa *nulldfa;
 
+static char stacksplitdfa_src[] = {
+	#include "stacksplitdfa.in"
+};
+struct aa_dfa *stacksplitdfa;
+
 int aa_setup_dfa_engine(void)
 {
 	int error;
@@ -37,19 +42,31 @@ int aa_setup_dfa_engine(void)
 	nulldfa = aa_dfa_unpack(nulldfa_src, sizeof(nulldfa_src),
 				TO_ACCEPT1_FLAG(YYTD_DATA32) |
 				TO_ACCEPT2_FLAG(YYTD_DATA32));
-	if (!IS_ERR(nulldfa))
-		return 0;
+	if (IS_ERR(nulldfa)) {
+		error = PTR_ERR(nulldfa);
+		nulldfa = NULL;
+		return error;
+	}
 
-	error = PTR_ERR(nulldfa);
-	nulldfa = NULL;
+	stacksplitdfa = aa_dfa_unpack(stacksplitdfa_src,
+				      sizeof(stacksplitdfa_src),
+				      TO_ACCEPT1_FLAG(YYTD_DATA32) |
+				      TO_ACCEPT2_FLAG(YYTD_DATA32));
+	if (IS_ERR(stacksplitdfa)) {
+		aa_put_dfa(nulldfa);
+		nulldfa = NULL;
+		error = PTR_ERR(stacksplitdfa);
+		stacksplitdfa = NULL;
+		return error;
+	}
 
-	return error;
+	return 0;
 }
 
 void aa_teardown_dfa_engine(void)
 {
+	aa_put_dfa(stacksplitdfa);
 	aa_put_dfa(nulldfa);
-	nulldfa = NULL;
 }
 
 /**

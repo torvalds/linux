@@ -1815,7 +1815,9 @@ static int label_count_str_entries(const char *str)
 
 	AA_BUG(!str);
 
-	for (split = strstr(str, "//&"); split; split = strstr(str, "//&")) {
+	for (split = aa_label_str_split(str);
+	     split;
+	     split = aa_label_str_split(str)) {
 		count++;
 		str = split + 3;
 	}
@@ -1859,7 +1861,7 @@ struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 	DEFINE_VEC(profile, vec);
 	struct aa_label *label, *currbase = base;
 	int i, len, stack = 0, error;
-	char *split;
+	const char *split;
 
 	AA_BUG(!base);
 	AA_BUG(!str);
@@ -1883,7 +1885,8 @@ struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 	for (i = 0; i < stack; i++)
 		vec[i] = aa_get_profile(base->vec[i]);
 
-	for (split = strstr(str, "//&"), i = stack; split && i < len; i++) {
+	for (split = aa_label_str_split(str), i = stack;
+	     split && i < len; i++) {
 		vec[i] = fqlookupn_profile(base, currbase, str, split - str);
 		if (!vec[i])
 			goto fail;
@@ -1894,7 +1897,7 @@ struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 		if (vec[i]->ns != labels_ns(currbase))
 			currbase = &vec[i]->label;
 		str = split + 3;
-		split = strstr(str, "//&");
+		split = aa_label_str_split(str);
 	}
 	/* last element doesn't have a split */
 	if (i < len) {
@@ -1929,7 +1932,6 @@ fail:
 	label = ERR_PTR(-ENOENT);
 	goto out;
 }
-
 
 /**
  * aa_labelset_destroy - remove all labels from the label set
