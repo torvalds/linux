@@ -1048,8 +1048,8 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 	else
 		netdev_notice(ndev, "sub channel open failed: %d\n", ret);
 
-	atomic_inc(&nvscdev->open_chn);
-	wake_up(&nvscdev->subchan_open);
+	if (atomic_inc_return(&nvscdev->open_chn) == nvscdev->num_chn)
+		wake_up(&nvscdev->subchan_open);
 }
 
 /* Open sub-channels after completing the handling of the device probe.
