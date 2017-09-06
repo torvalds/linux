@@ -253,24 +253,21 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 		if (err < 0) {
 			dev_err(&motu->unit->device,
 				"fail to start isochronous comm: %d\n", err);
-			stop_both_streams(motu);
-			return err;
+			goto stop_streams;
 		}
 
 		err = start_isoc_ctx(motu, &motu->rx_stream);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
 				"fail to start IT context: %d\n", err);
-			stop_both_streams(motu);
-			return err;
+			goto stop_streams;
 		}
 
 		err = protocol->switch_fetching_mode(motu, true);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
 				"fail to enable frame fetching: %d\n", err);
-			stop_both_streams(motu);
-			return err;
+			goto stop_streams;
 		}
 	}
 
@@ -281,12 +278,15 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 			dev_err(&motu->unit->device,
 				"fail to start IR context: %d", err);
 			amdtp_stream_stop(&motu->rx_stream);
-			stop_both_streams(motu);
-			return err;
+			goto stop_streams;
 		}
 	}
 
 	return 0;
+
+stop_streams:
+	stop_both_streams(motu);
+	return err;
 }
 
 void snd_motu_stream_stop_duplex(struct snd_motu *motu)
