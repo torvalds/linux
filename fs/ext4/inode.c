@@ -1720,7 +1720,7 @@ static void mpage_release_unused_pages(struct mpage_da_data *mpd,
 
 	pagevec_init(&pvec, 0);
 	while (index <= end) {
-		nr_pages = pagevec_lookup(&pvec, mapping, index, PAGEVEC_SIZE);
+		nr_pages = pagevec_lookup(&pvec, mapping, &index, PAGEVEC_SIZE);
 		if (nr_pages == 0)
 			break;
 		for (i = 0; i < nr_pages; i++) {
@@ -1737,7 +1737,6 @@ static void mpage_release_unused_pages(struct mpage_da_data *mpd,
 			}
 			unlock_page(page);
 		}
-		index = pvec.pages[nr_pages - 1]->index + 1;
 		pagevec_release(&pvec);
 	}
 }
@@ -2348,7 +2347,7 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 
 	pagevec_init(&pvec, 0);
 	while (start <= end) {
-		nr_pages = pagevec_lookup(&pvec, inode->i_mapping, start,
+		nr_pages = pagevec_lookup(&pvec, inode->i_mapping, &start,
 					  PAGEVEC_SIZE);
 		if (nr_pages == 0)
 			break;
@@ -2357,8 +2356,6 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 
 			if (page->index > end)
 				break;
-			/* Up to 'end' pages must be contiguous */
-			BUG_ON(page->index != start);
 			bh = head = page_buffers(page);
 			do {
 				if (lblk < mpd->map.m_lblk)
@@ -2403,7 +2400,6 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 				pagevec_release(&pvec);
 				return err;
 			}
-			start++;
 		}
 		pagevec_release(&pvec);
 	}

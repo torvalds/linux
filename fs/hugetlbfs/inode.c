@@ -401,7 +401,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 	const pgoff_t end = lend >> huge_page_shift(h);
 	struct vm_area_struct pseudo_vma;
 	struct pagevec pvec;
-	pgoff_t next;
+	pgoff_t next, index;
 	int i, freed = 0;
 	long lookup_nr = PAGEVEC_SIZE;
 	bool truncate_op = (lend == LLONG_MAX);
@@ -420,7 +420,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 		/*
 		 * When no more pages are found, we are done.
 		 */
-		if (!pagevec_lookup(&pvec, mapping, next, lookup_nr))
+		if (!pagevec_lookup(&pvec, mapping, &next, lookup_nr))
 			break;
 
 		for (i = 0; i < pagevec_count(&pvec); ++i) {
@@ -432,13 +432,13 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 			 * only possible in the punch hole case as end is
 			 * max page offset in the truncate case.
 			 */
-			next = page->index;
-			if (next >= end)
+			index = page->index;
+			if (index >= end)
 				break;
 
 			hash = hugetlb_fault_mutex_hash(h, current->mm,
 							&pseudo_vma,
-							mapping, next, 0);
+							mapping, index, 0);
 			mutex_lock(&hugetlb_fault_mutex_table[hash]);
 
 			/*
@@ -455,8 +455,8 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 
 				i_mmap_lock_write(mapping);
 				hugetlb_vmdelete_list(&mapping->i_mmap,
-					next * pages_per_huge_page(h),
-					(next + 1) * pages_per_huge_page(h));
+					index * pages_per_huge_page(h),
+					(index + 1) * pages_per_huge_page(h));
 				i_mmap_unlock_write(mapping);
 			}
 
@@ -475,14 +475,13 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 			freed++;
 			if (!truncate_op) {
 				if (unlikely(hugetlb_unreserve_pages(inode,
-							next, next + 1, 1)))
+							index, index + 1, 1)))
 					hugetlb_fix_reserve_counts(inode);
 			}
 
 			unlock_page(page);
 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 		}
-		++next;
 		huge_pagevec_release(&pvec);
 		cond_resched();
 	}

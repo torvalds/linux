@@ -403,7 +403,7 @@ bool filemap_range_has_page(struct address_space *mapping,
 		return false;
 
 	pagevec_init(&pvec, 0);
-	if (!pagevec_lookup(&pvec, mapping, index, 1))
+	if (!pagevec_lookup(&pvec, mapping, &index, 1))
 		return false;
 	ret = (pvec.pages[0]->index <= end);
 	pagevec_release(&pvec);
@@ -1569,10 +1569,11 @@ export:
  *
  * The search returns a group of mapping-contiguous pages with ascending
  * indexes.  There may be holes in the indices due to not-present pages.
+ * We also update @start to index the next page for the traversal.
  *
  * find_get_pages() returns the number of pages which were found.
  */
-unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
+unsigned find_get_pages(struct address_space *mapping, pgoff_t *start,
 			    unsigned int nr_pages, struct page **pages)
 {
 	struct radix_tree_iter iter;
@@ -1583,7 +1584,7 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
 		return 0;
 
 	rcu_read_lock();
-	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, *start) {
 		struct page *head, *page;
 repeat:
 		page = radix_tree_deref_slot(slot);
@@ -1625,6 +1626,10 @@ repeat:
 	}
 
 	rcu_read_unlock();
+
+	if (ret)
+		*start = pages[ret - 1]->index + 1;
+
 	return ret;
 }
 

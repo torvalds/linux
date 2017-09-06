@@ -957,12 +957,13 @@ void pagevec_remove_exceptionals(struct pagevec *pvec)
  * reference against the pages in @pvec.
  *
  * The search returns a group of mapping-contiguous pages with ascending
- * indexes.  There may be holes in the indices due to not-present pages.
+ * indexes.  There may be holes in the indices due to not-present pages. We
+ * also update @start to index the next page for the traversal.
  *
  * pagevec_lookup() returns the number of pages which were found.
  */
 unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
-		pgoff_t start, unsigned nr_pages)
+		pgoff_t *start, unsigned nr_pages)
 {
 	pvec->nr = find_get_pages(mapping, start, nr_pages, pvec->pages);
 	return pagevec_count(pvec);

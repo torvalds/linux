@@ -312,10 +312,9 @@ void nilfs_copy_back_pages(struct address_space *dmap,
 
 	pagevec_init(&pvec, 0);
 repeat:
-	n = pagevec_lookup(&pvec, smap, index, PAGEVEC_SIZE);
+	n = pagevec_lookup(&pvec, smap, &index, PAGEVEC_SIZE);
 	if (!n)
 		return;
-	index = pvec.pages[n - 1]->index + 1;
 
 	for (i = 0; i < pagevec_count(&pvec); i++) {
 		struct page *page = pvec.pages[i], *dpage;
