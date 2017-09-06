@@ -241,49 +241,6 @@ enum amdgpu_pcie_gen {
 	AMDGPU_PCIE_GEN_INVALID = 0xffff
 };
 
-struct amdgpu_dpm_funcs {
-	int (*get_temperature)(struct amdgpu_device *adev);
-	int (*pre_set_power_state)(struct amdgpu_device *adev);
-	int (*set_power_state)(struct amdgpu_device *adev);
-	void (*post_set_power_state)(struct amdgpu_device *adev);
-	void (*display_configuration_changed)(struct amdgpu_device *adev);
-	u32 (*get_sclk)(struct amdgpu_device *adev, bool low);
-	u32 (*get_mclk)(struct amdgpu_device *adev, bool low);
-	void (*print_power_state)(struct amdgpu_device *adev, struct amdgpu_ps *ps);
-	void (*debugfs_print_current_performance_level)(struct amdgpu_device *adev, struct seq_file *m);
-	int (*force_performance_level)(struct amdgpu_device *adev, enum amd_dpm_forced_level level);
-	bool (*vblank_too_short)(struct amdgpu_device *adev);
-	void (*powergate_uvd)(struct amdgpu_device *adev, bool gate);
-	void (*powergate_vce)(struct amdgpu_device *adev, bool gate);
-	void (*enable_bapm)(struct amdgpu_device *adev, bool enable);
-	void (*set_fan_control_mode)(struct amdgpu_device *adev, u32 mode);
-	u32 (*get_fan_control_mode)(struct amdgpu_device *adev);
-	int (*set_fan_speed_percent)(struct amdgpu_device *adev, u32 speed);
-	int (*get_fan_speed_percent)(struct amdgpu_device *adev, u32 *speed);
-	int (*force_clock_level)(struct amdgpu_device *adev, enum pp_clock_type type, uint32_t mask);
-	int (*print_clock_levels)(struct amdgpu_device *adev, enum pp_clock_type type, char *buf);
-	int (*get_sclk_od)(struct amdgpu_device *adev);
-	int (*set_sclk_od)(struct amdgpu_device *adev, uint32_t value);
-	int (*get_mclk_od)(struct amdgpu_device *adev);
-	int (*set_mclk_od)(struct amdgpu_device *adev, uint32_t value);
-	int (*check_state_equal)(struct amdgpu_device *adev,
-				struct amdgpu_ps *cps,
-				struct amdgpu_ps *rps,
-				bool *equal);
-	int (*read_sensor)(struct amdgpu_device *adev, int idx, void *value,
-			   int *size);
-
-	struct amd_vce_state* (*get_vce_clock_state)(struct amdgpu_device *adev, unsigned idx);
-	int (*reset_power_profile_state)(struct amdgpu_device *adev,
-			struct amd_pp_profile *request);
-	int (*get_power_profile_state)(struct amdgpu_device *adev,
-			struct amd_pp_profile *query);
-	int (*set_power_profile_state)(struct amdgpu_device *adev,
-			struct amd_pp_profile *request);
-	int (*switch_power_profile)(struct amdgpu_device *adev,
-			enum amd_pp_profile_type type);
-};
-
 #define amdgpu_dpm_pre_set_power_state(adev) (adev)->pm.funcs->pre_set_power_state((adev))
 #define amdgpu_dpm_set_power_state(adev) (adev)->pm.funcs->set_power_state((adev))
 #define amdgpu_dpm_post_set_power_state(adev) (adev)->pm.funcs->post_set_power_state((adev))
@@ -485,7 +442,7 @@ struct amdgpu_pm {
 	struct amdgpu_dpm       dpm;
 	const struct firmware	*fw;	/* SMC firmware */
 	uint32_t                fw_version;
-	const struct amdgpu_dpm_funcs *funcs;
+	const struct amd_pm_funcs *funcs;
 	uint32_t                pcie_gen_mask;
 	uint32_t                pcie_mlw_mask;
 	struct amd_pp_display_configuration pm_display_cfg;/* set by DAL */
@@ -551,6 +508,6 @@ u16 amdgpu_get_pcie_lane_support(struct amdgpu_device *adev,
 u8 amdgpu_encode_pci_lane_width(u32 lanes);
 
 struct amd_vce_state*
-amdgpu_get_vce_clock_state(struct amdgpu_device *adev, unsigned idx);
+amdgpu_get_vce_clock_state(void *handle, u32 idx);
 
 #endif

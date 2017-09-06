@@ -213,12 +213,6 @@ enum {
 	PP_GROUP_MAX
 };
 
-enum pp_clock_type {
-	PP_SCLK,
-	PP_MCLK,
-	PP_PCIE,
-};
-
 struct pp_states_info {
 	uint32_t nums;
 	uint32_t states[16];
