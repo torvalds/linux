@@ -55,13 +55,14 @@
 		(udata)->outlen = (olen);				\
 	} while (0)
 
-#define INIT_UDATA_BUF_OR_NULL(udata, ibuf, obuf, ilen, olen)			\
-	do {									\
-		(udata)->inbuf  = (ilen) ? (const void __user *) (ibuf) : NULL;	\
-		(udata)->outbuf = (olen) ? (void __user *) (obuf) : NULL;	\
-		(udata)->inlen  = (ilen);					\
-		(udata)->outlen = (olen);					\
-	} while (0)
+static inline void
+ib_uverbs_init_udata_buf_or_null(struct ib_udata *udata,
+				 const void __user *ibuf,
+				 void __user *obuf,
+				 size_t ilen, size_t olen)
+{
+	INIT_UDATA(udata, ilen ? ibuf : NULL, olen ? obuf : NULL, ilen, olen);
+}
 
 /*
  * Our lifetime rules for these structs are the following:
