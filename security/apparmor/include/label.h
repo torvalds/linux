@@ -327,6 +327,9 @@ void aa_label_audit(struct audit_buffer *ab, struct aa_label *label, gfp_t gfp);
 void aa_label_seq_print(struct seq_file *f, struct aa_label *label, gfp_t gfp);
 void aa_label_printk(struct aa_label *label, gfp_t gfp);
 
+struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,
+				     size_t n, gfp_t gfp, bool create,
+				     bool force_stack);
 struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 				gfp_t gfp, bool create, bool force_stack);
 
