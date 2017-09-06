@@ -1255,7 +1255,7 @@ static void pagetypeinfo_showblockcount_print(struct seq_file *m,
 	seq_putc(m, '\n');
 }
 
-/* Print out the free pages at each order for each migratetype */
+/* Print out the number of pageblocks for each migratetype */
 static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
 {
 	int mtype;
