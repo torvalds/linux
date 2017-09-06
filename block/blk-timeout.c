@@ -211,7 +211,7 @@ void blk_add_timer(struct request *req)
 	if (!req->timeout)
 		req->timeout = q->rq_timeout;
 
-	req->deadline = jiffies + req->timeout;
+	WRITE_ONCE(req->deadline, jiffies + req->timeout);
 
 	/*
 	 * Only the non-mq case needs to add the request to a protected list.
