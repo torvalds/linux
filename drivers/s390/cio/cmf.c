@@ -280,12 +280,9 @@ void retry_set_schib(struct ccw_device *cdev)
 
 static int cmf_copy_block(struct ccw_device *cdev)
 {
-	struct subchannel *sch;
-	void *reference_buf;
-	void *hw_block;
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct cmb_data *cmb_data;
-
-	sch = to_subchannel(cdev->dev.parent);
+	void *hw_block;
 
 	if (cio_update_schib(sch))
 		return -ENODEV;
@@ -300,19 +297,8 @@ static int cmf_copy_block(struct ccw_device *cdev)
 	}
 	cmb_data = cdev->private->cmb;
 	hw_block = cmb_data->hw_block;
-	if (!memcmp(cmb_data->last_block, hw_block, cmb_data->size))
-		/* No need to copy. */
-		return 0;
-	reference_buf = kzalloc(cmb_data->size, GFP_ATOMIC);
-	if (!reference_buf)
-		return -ENOMEM;
-	/* Ensure consistency of block copied from hardware. */
-	do {
-		memcpy(cmb_data->last_block, hw_block, cmb_data->size);
-		memcpy(reference_buf, hw_block, cmb_data->size);
-	} while (memcmp(cmb_data->last_block, reference_buf, cmb_data->size));
+	memcpy(cmb_data->last_block, hw_block, cmb_data->size);
 	cmb_data->last_update = get_tod_clock();
-	kfree(reference_buf);
 	return 0;
 }
 
