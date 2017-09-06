@@ -395,6 +395,13 @@ where to put them)
 	  when DMA_CTRL_REUSE is already set
 	- Terminating the channel
 
+  * DMA_PREP_CMD
+    - If set, the client driver tells DMA controller that passed data in DMA
+      API is command data.
+    - Interpretation of command data is DMA controller specific. It can be
+      used for issuing commands to other peripherals/register reads/register
+      writes for which the descriptor should be in different format from
+      normal data descriptors.
 
 General Design Notes
 --------------------
