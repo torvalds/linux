@@ -1079,6 +1079,10 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 	WA_SET_BIT_MASKED(CNL_HDC_CHICKEN0,
 			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT);
 
+	/* WaThrottleEUPerfToAvoidTDBackPressure:cnl(pre-prod) */
+	if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0))
+		WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, THROTTLE_12_5);
+
 	/* WaDisableReplayBufferBankArbitrationOptimization:cnl */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
