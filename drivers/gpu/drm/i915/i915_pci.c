@@ -168,6 +168,7 @@ static const struct intel_device_info intel_i965g_info __initconst = {
 	.platform = INTEL_I965G,
 	.has_overlay = 1,
 	.hws_needs_physical = 1,
+	.has_snoop = false,
 };
 
 static const struct intel_device_info intel_i965gm_info __initconst = {
@@ -177,6 +178,7 @@ static const struct intel_device_info intel_i965gm_info __initconst = {
 	.has_overlay = 1,
 	.supports_tv = 1,
 	.hws_needs_physical = 1,
+	.has_snoop = false,
 };
 
 static const struct intel_device_info intel_g45_info __initconst = {
