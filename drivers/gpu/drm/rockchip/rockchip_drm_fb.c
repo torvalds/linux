@@ -20,6 +20,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <linux/memblock.h>
 #include <linux/iommu.h>
+#include <soc/rockchip/rockchip_dmc.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
@@ -211,11 +212,38 @@ static void rockchip_drm_output_poll_changed(struct drm_device *dev)
 		drm_fb_helper_hotplug_event(fb_helper);
 }
 
+static int rockchip_drm_bandwidth_atomic_check(struct drm_device *dev,
+					       struct drm_atomic_state *state,
+					       size_t *bandwidth)
+{
+	struct rockchip_drm_private *priv = dev->dev_private;
+	struct drm_crtc_state *crtc_state;
+	const struct rockchip_crtc_funcs *funcs;
+	struct drm_crtc *crtc;
+	int i, ret = 0;
+
+	*bandwidth = 0;
+	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		funcs = priv->crtc_funcs[drm_crtc_index(crtc)];
+
+		if (funcs && funcs->bandwidth)
+			*bandwidth += funcs->bandwidth(crtc, crtc_state);
+	}
+
+	/*
+	 * Check ddr frequency support here here.
+	 */
+	ret = rockchip_dmcfreq_vop_bandwidth_request(*bandwidth);
+
+	return ret;
+}
+
 static void
 rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
 {
 	struct drm_atomic_state *state = commit->state;
 	struct drm_device *dev = commit->dev;
+	size_t bandwidth = commit->bandwidth;
 
 	/*
 	 * TODO: do fence wait here.
@@ -242,6 +270,8 @@ rockchip_atomic_commit_complete(struct rockchip_atomic_commit *commit)
 
 	rockchip_drm_backlight_update(dev);
 
+	rockchip_dmcfreq_vop_bandwidth_update(bandwidth);
+
 	drm_atomic_helper_commit_planes(dev, state, true);
 
 	drm_atomic_helper_wait_for_vblanks(dev, state);
@@ -265,11 +295,21 @@ int rockchip_drm_atomic_commit(struct drm_device *dev,
 {
 	struct rockchip_drm_private *private = dev->dev_private;
 	struct rockchip_atomic_commit *commit = &private->commit;
+	size_t bandwidth;
 	int ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	if (ret)
 		return ret;
+
+	ret = rockchip_drm_bandwidth_atomic_check(dev, state, &bandwidth);
+	if (ret) {
+		/*
+		 * TODO:
+		 * Just report bandwidth can't support now.
+		 */
+		DRM_ERROR("vop bandwidth too large %zd\n", bandwidth);
+	}
 
 	/* serialize outstanding asynchronous commits */
 	mutex_lock(&commit->lock);
@@ -279,6 +319,7 @@ int rockchip_drm_atomic_commit(struct drm_device *dev,
 
 	commit->dev = dev;
 	commit->state = state;
+	commit->bandwidth = bandwidth;
 
 	if (async)
 		schedule_work(&commit->work);

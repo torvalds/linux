@@ -37,11 +37,14 @@ struct iommu_domain;
  * @loader_protect: protect loader logo crtc's power
  * @enable_vblank: enable crtc vblank irq.
  * @disable_vblank: disable crtc vblank irq.
+ * @bandwidth: report present crtc bandwidth consume.
  */
 struct rockchip_crtc_funcs {
 	int (*loader_protect)(struct drm_crtc *crtc, bool on);
 	int (*enable_vblank)(struct drm_crtc *crtc);
 	void (*disable_vblank)(struct drm_crtc *crtc);
+	size_t (*bandwidth)(struct drm_crtc *crtc,
+			    struct drm_crtc_state *crtc_state);
 	void (*cancel_pending_vblank)(struct drm_crtc *crtc, struct drm_file *file_priv);
 	int (*debugfs_init)(struct drm_minor *minor, struct drm_crtc *crtc);
 	int (*debugfs_dump)(struct drm_crtc *crtc, struct seq_file *s);
@@ -67,6 +70,7 @@ struct rockchip_atomic_commit {
 	struct drm_atomic_state *state;
 	struct drm_device *dev;
 	struct mutex lock;
+	size_t bandwidth;
 };
 
 struct rockchip_dclk_pll {

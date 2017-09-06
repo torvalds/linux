@@ -58,6 +58,9 @@
 #define VOP_WIN_SUPPORT(vop, win, name) \
 		VOP_REG_SUPPORT(vop, win->phy->name)
 
+#define VOP_WIN_SCL_EXT_SUPPORT(vop, win, name) \
+		VOP_REG_SUPPORT(vop, win->phy->scl->ext->name)
+
 #define VOP_CTRL_SUPPORT(vop, name) \
 		VOP_REG_SUPPORT(vop, vop->data->ctrl->name)
 
@@ -1724,6 +1727,124 @@ vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 	return MODE_OK;
 }
 
+struct vop_bandwidth {
+	size_t bandwidth;
+	int y1;
+	int y2;
+};
+
+static int vop_bandwidth_cmp(const void *a, const void *b)
+{
+	struct vop_bandwidth *pa = (struct vop_bandwidth *)a;
+	struct vop_bandwidth *pb = (struct vop_bandwidth *)b;
+
+	return pa->y1 - pb->y2;
+}
+
+static size_t vop_plane_line_bandwidth(struct drm_plane_state *pstate)
+{
+	struct vop_plane_state *vop_plane_state = to_vop_plane_state(pstate);
+	struct vop_win *win = to_vop_win(pstate->plane);
+	struct drm_crtc *crtc = pstate->crtc;
+	struct vop *vop = to_vop(crtc);
+	struct drm_framebuffer *fb = pstate->fb;
+	struct drm_rect *dest = &vop_plane_state->dest;
+	struct drm_rect *src = &vop_plane_state->src;
+	int bpp = drm_format_plane_bpp(fb->pixel_format, 0);
+	int src_width = drm_rect_width(src) >> 16;
+	int src_height = drm_rect_height(src) >> 16;
+	int dest_width = drm_rect_width(dest);
+	int dest_height = drm_rect_height(dest);
+	int vskiplines = scl_get_vskiplines(src_height, dest_height);
+	size_t bandwidth;
+
+	if (!src_width || !src_height || !dest_width || !dest_height)
+		return 0;
+
+	bandwidth = src_width * bpp / 8;
+
+	bandwidth = bandwidth * src_width / dest_width;
+	bandwidth = bandwidth * src_height / dest_height;
+	if (vskiplines == 2 && VOP_WIN_SCL_EXT_SUPPORT(vop, win, vsd_yrgb_gt2))
+		bandwidth /= 2;
+	else if (vskiplines == 4 &&
+		 VOP_WIN_SCL_EXT_SUPPORT(vop, win, vsd_yrgb_gt4))
+		bandwidth /= 4;
+
+	return bandwidth;
+}
+
+static u64 vop_calc_max_bandwidth(struct vop_bandwidth *bw, int start,
+				  int count, int y2)
+{
+	u64 max_bandwidth = 0;
+	int i;
+
+	for (i = start; i < count; i++) {
+		u64 bandwidth = 0;
+
+		if (bw[i].y1 > y2)
+			continue;
+		bandwidth = bw[i].bandwidth;
+		bandwidth += vop_calc_max_bandwidth(bw, i + 1, count,
+						    min(bw[i].y2, y2));
+
+		if (bandwidth > max_bandwidth)
+			max_bandwidth = bandwidth;
+	}
+
+	return max_bandwidth;
+}
+
+static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
+				 struct drm_crtc_state *crtc_state)
+{
+	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+	u16 htotal = adjusted_mode->crtc_htotal;
+	u16 vdisplay = adjusted_mode->crtc_vdisplay;
+	int clock = adjusted_mode->crtc_clock;
+	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
+	struct vop_plane_state *vop_plane_state;
+	struct drm_plane_state *pstate;
+	struct vop_bandwidth *pbandwidth;
+	struct drm_plane *plane;
+	size_t bandwidth;
+	size_t max_bandwidth;
+	int i, cnt = 0;
+
+	if (!htotal || !vdisplay)
+		return 0;
+
+	pbandwidth = kmalloc_array(vop_data->win_size, sizeof(*pbandwidth),
+				   GFP_KERNEL);
+	if (!pbandwidth)
+		return -ENOMEM;
+
+	for_each_plane_in_state(state, plane, pstate, i) {
+		if (pstate->crtc != crtc || !pstate->fb)
+			continue;
+
+		vop_plane_state = to_vop_plane_state(pstate);
+		pbandwidth[cnt].y1 = vop_plane_state->dest.y1;
+		pbandwidth[cnt].y2 = vop_plane_state->dest.y2;
+		pbandwidth[cnt++].bandwidth = vop_plane_line_bandwidth(pstate);
+	}
+
+	sort(pbandwidth, cnt, sizeof(pbandwidth[0]), vop_bandwidth_cmp, NULL);
+
+	max_bandwidth = vop_calc_max_bandwidth(pbandwidth, 0, cnt, vdisplay);
+	/*
+	 * bandwidth(MB/s)
+	 *    = line_bandwidth / line_time
+	 *    = line_bandwidth(Byte) * clock(KHZ) / 1000 / htotal
+	 */
+	bandwidth = max_bandwidth * clock / 1000 / htotal;
+
+	return bandwidth;
+}
+
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.loader_protect = vop_crtc_loader_protect,
 	.enable_vblank = vop_crtc_enable_vblank,
@@ -1733,6 +1854,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.debugfs_dump = vop_crtc_debugfs_dump,
 	.regs_dump = vop_crtc_regs_dump,
 	.mode_valid = vop_crtc_mode_valid,
+	.bandwidth = vop_crtc_bandwidth,
 };
 
 static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
