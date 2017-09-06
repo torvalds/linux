@@ -75,6 +75,11 @@ enum nvme_quirks {
 	 * The deepest sleep state should not be used.
 	 */
 	NVME_QUIRK_NO_DEEPEST_PS		= (1 << 5),
+
+	/*
+	 * Supports the LighNVM command set if indicated in vs[1].
+	 */
+	NVME_QUIRK_LIGHTNVM			= (1 << 6),
 };
 
 /*
@@ -320,7 +325,6 @@ void nvme_stop_keep_alive(struct nvme_ctrl *ctrl);
 int nvme_reset_ctrl(struct nvme_ctrl *ctrl);
 
 #ifdef CONFIG_NVM
-int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id);
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node);
 void nvme_nvm_unregister(struct nvme_ns *ns);
 int nvme_nvm_register_sysfs(struct nvme_ns *ns);
@@ -339,10 +343,6 @@ static inline int nvme_nvm_register_sysfs(struct nvme_ns *ns)
 	return 0;
 }
 static inline void nvme_nvm_unregister_sysfs(struct nvme_ns *ns) {};
-static inline int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
-{
-	return 0;
-}
 static inline int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd,
 							unsigned long arg)
 {
