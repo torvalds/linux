@@ -182,8 +182,8 @@ static int __init rockchip_smp_prepare_sram(struct device_node *node)
 
 	ret = of_address_to_resource(node, 0, &res);
 	if (ret < 0) {
-		pr_err("%s: could not get address for node %s\n",
-		       __func__, node->full_name);
+		pr_err("%s: could not get address for node %pOF\n",
+		       __func__, node);
 		return ret;
 	}
 
