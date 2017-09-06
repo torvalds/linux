@@ -187,6 +187,9 @@ struct pnv_phb {
 
 		/* Bitmask for MMIO register usage */
 		unsigned long mmio_atsd_usage;
+
+		/* Do we need to explicitly flush the nest mmu? */
+		bool nmmu_flush;
 	} npu;
 
 #ifdef CONFIG_CXL_BASE
