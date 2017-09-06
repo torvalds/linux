@@ -29,13 +29,12 @@ unsigned pagevec_lookup_entries(struct pagevec *pvec,
 void pagevec_remove_exceptionals(struct pagevec *pvec);
 unsigned pagevec_lookup_range(struct pagevec *pvec,
 			      struct address_space *mapping,
-			      pgoff_t *start, pgoff_t end, unsigned nr_pages);
+			      pgoff_t *start, pgoff_t end);
 static inline unsigned pagevec_lookup(struct pagevec *pvec,
 				      struct address_space *mapping,
-				      pgoff_t *start, unsigned nr_pages)
+				      pgoff_t *start)
 {
-	return pagevec_lookup_range(pvec, mapping, start, (pgoff_t)-1,
-				    nr_pages);
+	return pagevec_lookup_range(pvec, mapping, start, (pgoff_t)-1);
 }
 
 unsigned pagevec_lookup_tag(struct pagevec *pvec,

@@ -468,7 +468,7 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
 		unsigned long nr_pages;
 
 		nr_pages = pagevec_lookup_range(&pvec, inode->i_mapping,
-					&index, end, PAGEVEC_SIZE);
+					&index, end);
 		if (nr_pages == 0)
 			break;
 
