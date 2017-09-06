@@ -406,6 +406,7 @@ void __init page_ext_init(void)
 				continue;
 			if (init_section_page_ext(pfn, nid))
 				goto oom;
+			cond_resched();
 		}
 	}
 	hotplug_memory_notifier(page_ext_callback, 0);
