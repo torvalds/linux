@@ -149,7 +149,11 @@ static int uinput_request_submit(struct uinput_device *udev,
 	if (retval)
 		goto out;
 
-	wait_for_completion(&request->done);
+	if (!wait_for_completion_timeout(&request->done, 30 * HZ)) {
+		retval = -ETIMEDOUT;
+		goto out;
+	}
+
 	retval = request->retval;
 
  out:
