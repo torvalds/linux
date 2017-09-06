@@ -419,8 +419,9 @@ int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 	if (ret == 0 && gfs2_metatype_check(sdp, bh, mtype)) {
 		brelse(bh);
 		ret = -EIO;
+	} else {
+		*bhp = bh;
 	}
-	*bhp = bh;
 	return ret;
 }
 
@@ -452,7 +453,7 @@ struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 	if (buffer_uptodate(first_bh))
 		goto out;
 	if (!buffer_locked(first_bh))
-		ll_rw_block(REQ_OP_READ, REQ_META, 1, &first_bh);
+		ll_rw_block(REQ_OP_READ, REQ_META | REQ_PRIO, 1, &first_bh);
 
 	dblock++;
 	extlen--;
@@ -461,7 +462,9 @@ struct buffer_head *gfs2_meta_ra(struct gfs2_glock *gl, u64 dblock, u32 extlen)
 		bh = gfs2_getbuf(gl, dblock, CREATE);
 
 		if (!buffer_uptodate(bh) && !buffer_locked(bh))
-			ll_rw_block(REQ_OP_READ, REQ_RAHEAD | REQ_META, 1, &bh);
+			ll_rw_block(REQ_OP_READ,
+				    REQ_RAHEAD | REQ_META | REQ_PRIO,
+				    1, &bh);
 		brelse(bh);
 		dblock++;
 		extlen--;

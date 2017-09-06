@@ -207,8 +207,11 @@ static void gfs2_end_log_write(struct bio *bio)
 	struct page *page;
 	int i;
 
-	if (bio->bi_status)
-		fs_err(sdp, "Error %d writing to log\n", bio->bi_status);
+	if (bio->bi_status) {
+		fs_err(sdp, "Error %d writing to journal, jid=%u\n",
+		       bio->bi_status, sdp->sd_jdesc->jd_jid);
+		wake_up(&sdp->sd_logd_waitq);
+	}
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		page = bvec->bv_page;
