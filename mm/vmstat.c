@@ -1071,6 +1071,7 @@ const char * const vmstat_text[] = {
 #endif
 	"thp_zero_page_alloc",
 	"thp_zero_page_alloc_failed",
+	"thp_swpout",
 #endif
 #ifdef CONFIG_MEMORY_BALLOON
 	"balloon_inflate",
