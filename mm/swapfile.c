@@ -265,6 +265,16 @@ static inline void cluster_set_null(struct swap_cluster_info *info)
 	info->data = 0;
 }
 
+static inline bool cluster_is_huge(struct swap_cluster_info *info)
+{
+	return info->flags & CLUSTER_FLAG_HUGE;
+}
+
+static inline void cluster_clear_huge(struct swap_cluster_info *info)
+{
+	info->flags &= ~CLUSTER_FLAG_HUGE;
+}
+
 static inline struct swap_cluster_info *lock_cluster(struct swap_info_struct *si,
 						     unsigned long offset)
 {
@@ -846,7 +856,7 @@ static int swap_alloc_cluster(struct swap_info_struct *si, swp_entry_t *slot)
 	offset = idx * SWAPFILE_CLUSTER;
 	ci = lock_cluster(si, offset);
 	alloc_cluster(si, idx);
-	cluster_set_count_flag(ci, SWAPFILE_CLUSTER, 0);
+	cluster_set_count_flag(ci, SWAPFILE_CLUSTER, CLUSTER_FLAG_HUGE);
 
 	map = si->swap_map + offset;
 	for (i = 0; i < SWAPFILE_CLUSTER; i++)
@@ -1176,6 +1186,7 @@ static void swapcache_free_cluster(swp_entry_t entry)
 		return;
 
 	ci = lock_cluster(si, offset);
+	VM_BUG_ON(!cluster_is_huge(ci));
 	map = si->swap_map + offset;
 	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
 		val = map[i];
@@ -1187,6 +1198,7 @@ static void swapcache_free_cluster(swp_entry_t entry)
 		for (i = 0; i < SWAPFILE_CLUSTER; i++)
 			map[i] &= ~SWAP_HAS_CACHE;
 	}
+	cluster_clear_huge(ci);
 	unlock_cluster(ci);
 	if (free_entries == SWAPFILE_CLUSTER) {
 		spin_lock(&si->lock);
@@ -1350,6 +1362,54 @@ out:
 	return count;
 }
 
+#ifdef CONFIG_THP_SWAP
+static bool swap_page_trans_huge_swapped(struct swap_info_struct *si,
+					 swp_entry_t entry)
+{
+	struct swap_cluster_info *ci;
+	unsigned char *map = si->swap_map;
+	unsigned long roffset = swp_offset(entry);
+	unsigned long offset = round_down(roffset, SWAPFILE_CLUSTER);
+	int i;
+	bool ret = false;
+
+	ci = lock_cluster_or_swap_info(si, offset);
+	if (!ci || !cluster_is_huge(ci)) {
+		if (map[roffset] != SWAP_HAS_CACHE)
+			ret = true;
+		goto unlock_out;
+	}
+	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
+		if (map[offset + i] != SWAP_HAS_CACHE) {
+			ret = true;
+			break;
+		}
+	}
+unlock_out:
+	unlock_cluster_or_swap_info(si, ci);
+	return ret;
+}
+
+static bool page_swapped(struct page *page)
+{
+	swp_entry_t entry;
+	struct swap_info_struct *si;
+
+	if (likely(!PageTransCompound(page)))
+		return page_swapcount(page) != 0;
+
+	page = compound_head(page);
+	entry.val = page_private(page);
+	si = _swap_info_get(entry);
+	if (si)
+		return swap_page_trans_huge_swapped(si, entry);
+	return false;
+}
+#else
+#define swap_page_trans_huge_swapped(si, entry)	swap_swapcount(si, entry)
+#define page_swapped(page)			(page_swapcount(page) != 0)
+#endif
+
 /*
  * We can write to an anon page without COW if there are no other references
  * to it.  And as a side-effect, free up its swap: because the old content
@@ -1404,7 +1464,7 @@ int try_to_free_swap(struct page *page)
 		return 0;
 	if (PageWriteback(page))
 		return 0;
-	if (page_swapcount(page))
+	if (page_swapped(page))
 		return 0;
 
 	/*
@@ -1425,6 +1485,7 @@ int try_to_free_swap(struct page *page)
 	if (pm_suspended_storage())
 		return 0;
 
+	page = compound_head(page);
 	delete_from_swap_cache(page);
 	SetPageDirty(page);
 	return 1;
@@ -1446,7 +1507,8 @@ int free_swap_and_cache(swp_entry_t entry)
 	p = _swap_info_get(entry);
 	if (p) {
 		count = __swap_entry_free(p, entry, 1);
-		if (count == SWAP_HAS_CACHE) {
+		if (count == SWAP_HAS_CACHE &&
+		    !swap_page_trans_huge_swapped(p, entry)) {
 			page = find_get_page(swap_address_space(entry),
 					     swp_offset(entry));
 			if (page && !trylock_page(page)) {
@@ -1463,7 +1525,8 @@ int free_swap_and_cache(swp_entry_t entry)
 		 */
 		if (PageSwapCache(page) && !PageWriteback(page) &&
 		    (!page_mapped(page) || mem_cgroup_swap_full(page)) &&
-		    !swap_swapcount(p, entry)) {
+		    !swap_page_trans_huge_swapped(p, entry)) {
+			page = compound_head(page);
 			delete_from_swap_cache(page);
 			SetPageDirty(page);
 		}
@@ -2017,7 +2080,7 @@ int try_to_unuse(unsigned int type, bool frontswap,
 				.sync_mode = WB_SYNC_NONE,
 			};
 
-			swap_writepage(page, &wbc);
+			swap_writepage(compound_head(page), &wbc);
 			lock_page(page);
 			wait_on_page_writeback(page);
 		}
@@ -2030,8 +2093,9 @@ int try_to_unuse(unsigned int type, bool frontswap,
 		 * delete, since it may not have been written out to swap yet.
 		 */
 		if (PageSwapCache(page) &&
-		    likely(page_private(page) == entry.val))
-			delete_from_swap_cache(page);
+		    likely(page_private(page) == entry.val) &&
+		    !page_swapped(page))
+			delete_from_swap_cache(compound_head(page));
 
 		/*
 		 * So we could skip searching mms once swap count went
