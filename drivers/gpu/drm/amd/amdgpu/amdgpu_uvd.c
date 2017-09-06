@@ -410,10 +410,10 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 	uint64_t addr = amdgpu_uvd_get_addr_from_ctx(ctx);
 	int r = 0;
 
-	mapping = amdgpu_cs_find_mapping(ctx->parser, addr, &bo);
-	if (mapping == NULL) {
+	r = amdgpu_cs_find_mapping(ctx->parser, addr, &bo, &mapping);
+	if (r) {
 		DRM_ERROR("Can't find BO for addr 0x%08Lx\n", addr);
-		return -EINVAL;
+		return r;
 	}
 
 	if (!ctx->parser->adev->uvd.address_64_bit) {
@@ -737,10 +737,10 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 	uint64_t addr = amdgpu_uvd_get_addr_from_ctx(ctx);
 	int r;
 
-	mapping = amdgpu_cs_find_mapping(ctx->parser, addr, &bo);
-	if (mapping == NULL) {
+	r = amdgpu_cs_find_mapping(ctx->parser, addr, &bo, &mapping);
+	if (r) {
 		DRM_ERROR("Can't find BO for addr 0x%08Lx\n", addr);
-		return -EINVAL;
+		return r;
 	}
 
 	start = amdgpu_bo_gpu_offset(bo);
@@ -916,10 +916,6 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 			  ib->length_dw);
 		return -EINVAL;
 	}
-
-	r = amdgpu_cs_sysvm_access_required(parser);
-	if (r)
-		return r;
 
 	ctx.parser = parser;
 	ctx.buf_sizes = buf_sizes;

@@ -921,11 +921,11 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			uint64_t offset;
 			uint8_t *kptr;
 
-			m = amdgpu_cs_find_mapping(parser, chunk_ib->va_start,
-						   &aobj);
-			if (!aobj) {
+			r = amdgpu_cs_find_mapping(parser, chunk_ib->va_start,
+						   &aobj, &m);
+			if (r) {
 				DRM_ERROR("IB va_start is invalid\n");
-				return -EINVAL;
+				return r;
 			}
 
 			if ((chunk_ib->va_start + chunk_ib->ib_bytes) >
@@ -1475,15 +1475,16 @@ err_free_fences:
  * virtual memory address. Returns allocation structure when found, NULL
  * otherwise.
  */
-struct amdgpu_bo_va_mapping *
-amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
-		       uint64_t addr, struct amdgpu_bo **bo)
+int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
+			   uint64_t addr, struct amdgpu_bo **bo,
+			   struct amdgpu_bo_va_mapping **map)
 {
 	struct amdgpu_bo_va_mapping *mapping;
 	unsigned i;
+	int r;
 
 	if (!parser->bo_list)
-		return NULL;
+		return 0;
 
 	addr /= AMDGPU_GPU_PAGE_SIZE;
 
@@ -1500,7 +1501,8 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 				continue;
 
 			*bo = lobj->bo_va->base.bo;
-			return mapping;
+			*map = mapping;
+			goto found;
 		}
 
 		list_for_each_entry(mapping, &lobj->bo_va->invalids, list) {
@@ -1509,44 +1511,22 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 				continue;
 
 			*bo = lobj->bo_va->base.bo;
-			return mapping;
+			*map = mapping;
+			goto found;
 		}
 	}
 
-	return NULL;
-}
+	return -EINVAL;
 
-/**
- * amdgpu_cs_sysvm_access_required - make BOs accessible by the system VM
- *
- * @parser: command submission parser context
- *
- * Helper for UVD/VCE VM emulation, make sure BOs are accessible by the system VM.
- */
-int amdgpu_cs_sysvm_access_required(struct amdgpu_cs_parser *parser)
-{
-	unsigned i;
-	int r;
+found:
+	r = amdgpu_ttm_bind(&(*bo)->tbo, &(*bo)->tbo.mem);
+	if (unlikely(r))
+		return r;
 
-	if (!parser->bo_list)
+	if ((*bo)->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)
 		return 0;
 
-	for (i = 0; i < parser->bo_list->num_entries; i++) {
-		struct amdgpu_bo *bo = parser->bo_list->array[i].robj;
-
-		r = amdgpu_ttm_bind(&bo->tbo, &bo->tbo.mem);
-		if (unlikely(r))
-			return r;
-
-		if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)
-			continue;
-
-		bo->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
-		amdgpu_ttm_placement_from_domain(bo, bo->allowed_domains);
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
-		if (unlikely(r))
-			return r;
-	}
-
-	return 0;
+	(*bo)->flags |= AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
+	amdgpu_ttm_placement_from_domain(*bo, (*bo)->allowed_domains);
+	return ttm_bo_validate(&(*bo)->tbo, &(*bo)->placement, false, false);
 }
