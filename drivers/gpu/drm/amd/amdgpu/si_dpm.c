@@ -1847,7 +1847,6 @@ static int si_calculate_sclk_params(struct amdgpu_device *adev,
 
 static void si_thermal_start_smc_fan_control(struct amdgpu_device *adev);
 static void si_fan_ctrl_set_default_mode(struct amdgpu_device *adev);
-static void si_dpm_set_dpm_funcs(struct amdgpu_device *adev);
 static void si_dpm_set_irq_funcs(struct amdgpu_device *adev);
 
 static struct si_power_info *si_get_pi(struct amdgpu_device *adev)
@@ -7944,7 +7943,6 @@ static int si_dpm_early_init(void *handle)
 
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	si_dpm_set_dpm_funcs(adev);
 	si_dpm_set_irq_funcs(adev);
 	return 0;
 }
@@ -8062,7 +8060,7 @@ const struct amd_ip_funcs si_dpm_ip_funcs = {
 	.set_powergating_state = si_dpm_set_powergating_state,
 };
 
-static const struct amd_pm_funcs si_dpm_funcs = {
+const struct amd_pm_funcs si_dpm_funcs = {
 	.get_temperature = &si_dpm_get_temp,
 	.pre_set_power_state = &si_dpm_pre_set_power_state,
 	.set_power_state = &si_dpm_set_power_state,
@@ -8082,12 +8080,6 @@ static const struct amd_pm_funcs si_dpm_funcs = {
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 	.read_sensor = &si_dpm_read_sensor,
 };
-
-static void si_dpm_set_dpm_funcs(struct amdgpu_device *adev)
-{
-	if (adev->pm.funcs == NULL)
-		adev->pm.funcs = &si_dpm_funcs;
-}
 
 static const struct amdgpu_irq_src_funcs si_dpm_irq_funcs = {
 	.set = si_dpm_set_interrupt_state,

@@ -307,7 +307,6 @@ static int ci_set_power_limit(struct amdgpu_device *adev, u32 n);
 static int ci_set_overdrive_target_tdp(struct amdgpu_device *adev,
 				       u32 target_tdp);
 static int ci_update_uvd_dpm(struct amdgpu_device *adev, bool gate);
-static void ci_dpm_set_dpm_funcs(struct amdgpu_device *adev);
 static void ci_dpm_set_irq_funcs(struct amdgpu_device *adev);
 
 static PPSMC_Result amdgpu_ci_send_msg_to_smc_with_parameter(struct amdgpu_device *adev,
@@ -6282,7 +6281,6 @@ static int ci_dpm_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	ci_dpm_set_dpm_funcs(adev);
 	ci_dpm_set_irq_funcs(adev);
 
 	return 0;
@@ -7035,7 +7033,7 @@ const struct amd_ip_funcs ci_dpm_ip_funcs = {
 	.set_powergating_state = ci_dpm_set_powergating_state,
 };
 
-static const struct amd_pm_funcs ci_dpm_funcs = {
+const struct amd_pm_funcs ci_dpm_funcs = {
 	.get_temperature = &ci_dpm_get_temp,
 	.pre_set_power_state = &ci_dpm_pre_set_power_state,
 	.set_power_state = &ci_dpm_set_power_state,
@@ -7066,12 +7064,6 @@ static const struct amd_pm_funcs ci_dpm_funcs = {
 	.switch_power_profile = ci_dpm_switch_power_profile,
 	.read_sensor = ci_dpm_read_sensor,
 };
-
-static void ci_dpm_set_dpm_funcs(struct amdgpu_device *adev)
-{
-	if (adev->pm.funcs == NULL)
-		adev->pm.funcs = &ci_dpm_funcs;
-}
 
 static const struct amdgpu_irq_src_funcs ci_dpm_irq_funcs = {
 	.set = ci_dpm_set_interrupt_state,

@@ -42,7 +42,6 @@
 #define KV_MINIMUM_ENGINE_CLOCK         800
 #define SMC_RAM_END                     0x40000
 
-static void kv_dpm_set_dpm_funcs(struct amdgpu_device *adev);
 static void kv_dpm_set_irq_funcs(struct amdgpu_device *adev);
 static int kv_enable_nb_dpm(struct amdgpu_device *adev,
 			    bool enable);
@@ -2961,7 +2960,6 @@ static int kv_dpm_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	kv_dpm_set_dpm_funcs(adev);
 	kv_dpm_set_irq_funcs(adev);
 
 	return 0;
@@ -3327,7 +3325,7 @@ const struct amd_ip_funcs kv_dpm_ip_funcs = {
 	.set_powergating_state = kv_dpm_set_powergating_state,
 };
 
-static const struct amd_pm_funcs kv_dpm_funcs = {
+const struct amd_pm_funcs kv_dpm_funcs = {
 	.get_temperature = &kv_dpm_get_temp,
 	.pre_set_power_state = &kv_dpm_pre_set_power_state,
 	.set_power_state = &kv_dpm_set_power_state,
@@ -3344,12 +3342,6 @@ static const struct amd_pm_funcs kv_dpm_funcs = {
 	.check_state_equal = kv_check_state_equal,
 	.read_sensor = &kv_dpm_read_sensor,
 };
-
-static void kv_dpm_set_dpm_funcs(struct amdgpu_device *adev)
-{
-	if (adev->pm.funcs == NULL)
-		adev->pm.funcs = &kv_dpm_funcs;
-}
 
 static const struct amdgpu_irq_src_funcs kv_dpm_irq_funcs = {
 	.set = kv_dpm_set_interrupt_state,
