@@ -47,13 +47,17 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
 
-#define INIT_UDATA(udata, ibuf, obuf, ilen, olen)			\
-	do {								\
-		(udata)->inbuf  = (const void __user *) (ibuf);		\
-		(udata)->outbuf = (void __user *) (obuf);		\
-		(udata)->inlen  = (ilen);				\
-		(udata)->outlen = (olen);				\
-	} while (0)
+static inline void
+ib_uverbs_init_udata(struct ib_udata *udata,
+		     const void __user *ibuf,
+		     void __user *obuf,
+		     size_t ilen, size_t olen)
+{
+	udata->inbuf  = ibuf;
+	udata->outbuf = obuf;
+	udata->inlen  = ilen;
+	udata->outlen = olen;
+}
 
 static inline void
 ib_uverbs_init_udata_buf_or_null(struct ib_udata *udata,
@@ -61,7 +65,9 @@ ib_uverbs_init_udata_buf_or_null(struct ib_udata *udata,
 				 void __user *obuf,
 				 size_t ilen, size_t olen)
 {
-	INIT_UDATA(udata, ilen ? ibuf : NULL, olen ? obuf : NULL, ilen, olen);
+	ib_uverbs_init_udata(udata,
+			     ilen ? ibuf : NULL, olen ? obuf : NULL,
+			     ilen, olen);
 }
 
 /*
