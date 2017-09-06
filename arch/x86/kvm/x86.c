@@ -7231,6 +7231,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
 	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)) {
+		if (kvm_run->immediate_exit) {
+			r = -EINTR;
+			goto out;
+		}
 		kvm_vcpu_block(vcpu);
 		kvm_apic_accept_events(vcpu);
 		kvm_clear_request(KVM_REQ_UNHALT, vcpu);
