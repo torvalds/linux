@@ -1479,46 +1479,24 @@ int amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 			   uint64_t addr, struct amdgpu_bo **bo,
 			   struct amdgpu_bo_va_mapping **map)
 {
+	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
+	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_va_mapping *mapping;
-	unsigned i;
 	int r;
-
-	if (!parser->bo_list)
-		return 0;
 
 	addr /= AMDGPU_GPU_PAGE_SIZE;
 
-	for (i = 0; i < parser->bo_list->num_entries; i++) {
-		struct amdgpu_bo_list_entry *lobj;
+	mapping = amdgpu_vm_bo_lookup_mapping(vm, addr);
+	if (!mapping || !mapping->bo_va || !mapping->bo_va->base.bo)
+		return -EINVAL;
 
-		lobj = &parser->bo_list->array[i];
-		if (!lobj->bo_va)
-			continue;
+	*bo = mapping->bo_va->base.bo;
+	*map = mapping;
 
-		list_for_each_entry(mapping, &lobj->bo_va->valids, list) {
-			if (mapping->start > addr ||
-			    addr > mapping->last)
-				continue;
+	/* Double check that the BO is reserved by this CS */
+	if (READ_ONCE((*bo)->tbo.resv->lock.ctx) != &parser->ticket)
+		return -EINVAL;
 
-			*bo = lobj->bo_va->base.bo;
-			*map = mapping;
-			goto found;
-		}
-
-		list_for_each_entry(mapping, &lobj->bo_va->invalids, list) {
-			if (mapping->start > addr ||
-			    addr > mapping->last)
-				continue;
-
-			*bo = lobj->bo_va->base.bo;
-			*map = mapping;
-			goto found;
-		}
-	}
-
-	return -EINVAL;
-
-found:
 	r = amdgpu_ttm_bind(&(*bo)->tbo, &(*bo)->tbo.mem);
 	if (unlikely(r))
 		return r;

@@ -35,6 +35,7 @@
 
 /* bo virtual addresses in a vm */
 struct amdgpu_bo_va_mapping {
+	struct amdgpu_bo_va		*bo_va;
 	struct list_head		list;
 	struct rb_node			rb;
 	uint64_t			start;

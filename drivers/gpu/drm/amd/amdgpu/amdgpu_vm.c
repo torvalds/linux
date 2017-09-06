@@ -2086,6 +2086,7 @@ static void amdgpu_vm_bo_insert_map(struct amdgpu_device *adev,
 	struct amdgpu_vm *vm = bo_va->base.vm;
 	struct amdgpu_bo *bo = bo_va->base.bo;
 
+	mapping->bo_va = bo_va;
 	list_add(&mapping->list, &bo_va->invalids);
 	amdgpu_vm_it_insert(mapping, &vm->va);
 
@@ -2263,6 +2264,7 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 
 	list_del(&mapping->list);
 	amdgpu_vm_it_remove(mapping, &vm->va);
+	mapping->bo_va = NULL;
 	trace_amdgpu_vm_bo_unmap(bo_va, mapping);
 
 	if (valid)
@@ -2348,6 +2350,7 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 		if (tmp->last > eaddr)
 		    tmp->last = eaddr;
 
+		tmp->bo_va = NULL;
 		list_add(&tmp->list, &vm->freed);
 		trace_amdgpu_vm_bo_unmap(NULL, tmp);
 	}
@@ -2371,6 +2374,19 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 	}
 
 	return 0;
+}
+
+/**
+ * amdgpu_vm_bo_lookup_mapping - find mapping by address
+ *
+ * @vm: the requested VM
+ *
+ * Find a mapping by it's address.
+ */
+struct amdgpu_bo_va_mapping *amdgpu_vm_bo_lookup_mapping(struct amdgpu_vm *vm,
+							 uint64_t addr)
+{
+	return amdgpu_vm_it_iter_first(&vm->va, addr, addr);
 }
 
 /**
@@ -2398,6 +2414,7 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 	list_for_each_entry_safe(mapping, next, &bo_va->valids, list) {
 		list_del(&mapping->list);
 		amdgpu_vm_it_remove(mapping, &vm->va);
+		mapping->bo_va = NULL;
 		trace_amdgpu_vm_bo_unmap(bo_va, mapping);
 		list_add(&mapping->list, &vm->freed);
 	}
