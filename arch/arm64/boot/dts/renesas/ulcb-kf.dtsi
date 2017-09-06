@@ -28,6 +28,10 @@
 	status = "okay";
 };
 
+&ehci0 {
+	status = "okay";
+};
+
 &hscif0 {
 	pinctrl-0 = <&hscif0_pins>;
 	pinctrl-names = "default";
@@ -37,6 +41,10 @@
 };
 
 &hsusb {
+	status = "okay";
+};
+
+&ohci0 {
 	status = "okay";
 };
 
