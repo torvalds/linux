@@ -215,72 +215,52 @@ struct set_schib_struct {
 	unsigned long address;
 	wait_queue_head_t wait;
 	int ret;
-	struct kref kref;
 };
-
-static void cmf_set_schib_release(struct kref *kref)
-{
-	struct set_schib_struct *set_data;
-
-	set_data = container_of(kref, struct set_schib_struct, kref);
-	kfree(set_data);
-}
 
 #define CMF_PENDING 1
 #define SET_SCHIB_TIMEOUT (10 * HZ)
 
 static int set_schib_wait(struct ccw_device *cdev, u32 mme,
-				int mbfc, unsigned long address)
+			  int mbfc, unsigned long address)
 {
-	struct set_schib_struct *set_data;
-	int ret;
+	struct set_schib_struct set_data;
+	int ret = -ENODEV;
 
 	spin_lock_irq(cdev->ccwlock);
-	if (!cdev->private->cmb) {
-		ret = -ENODEV;
+	if (!cdev->private->cmb)
 		goto out;
-	}
-	set_data = kzalloc(sizeof(struct set_schib_struct), GFP_ATOMIC);
-	if (!set_data) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	init_waitqueue_head(&set_data->wait);
-	kref_init(&set_data->kref);
-	set_data->mme = mme;
-	set_data->mbfc = mbfc;
-	set_data->address = address;
 
 	ret = set_schib(cdev, mme, mbfc, address);
 	if (ret != -EBUSY)
-		goto out_put;
+		goto out;
 
-	if (cdev->private->state != DEV_STATE_ONLINE) {
-		/* if the device is not online, don't even try again */
-		ret = -EBUSY;
-		goto out_put;
-	}
+	/* if the device is not online, don't even try again */
+	if (cdev->private->state != DEV_STATE_ONLINE)
+		goto out;
+
+	init_waitqueue_head(&set_data.wait);
+	set_data.mme = mme;
+	set_data.mbfc = mbfc;
+	set_data.address = address;
+	set_data.ret = CMF_PENDING;
 
 	cdev->private->state = DEV_STATE_CMFCHANGE;
-	set_data->ret = CMF_PENDING;
-	cdev->private->cmb_wait = set_data;
+	cdev->private->cmb_wait = &set_data;
 	spin_unlock_irq(cdev->ccwlock);
 
-	ret = wait_event_interruptible_timeout(set_data->wait,
-					       set_data->ret != CMF_PENDING,
+	ret = wait_event_interruptible_timeout(set_data.wait,
+					       set_data.ret != CMF_PENDING,
 					       SET_SCHIB_TIMEOUT);
 	spin_lock_irq(cdev->ccwlock);
 	if (ret <= 0) {
-		if (set_data->ret == CMF_PENDING) {
-			set_data->ret = (ret == 0) ? -ETIME : ret;
+		if (set_data.ret == CMF_PENDING) {
+			set_data.ret = (ret == 0) ? -ETIME : ret;
 			if (cdev->private->state == DEV_STATE_CMFCHANGE)
 				cdev->private->state = DEV_STATE_ONLINE;
 		}
 	}
 	cdev->private->cmb_wait = NULL;
-	ret = set_data->ret;
-out_put:
-	kref_put(&set_data->kref, cmf_set_schib_release);
+	ret = set_data.ret;
 out:
 	spin_unlock_irq(cdev->ccwlock);
 	return ret;
@@ -288,18 +268,14 @@ out:
 
 void retry_set_schib(struct ccw_device *cdev)
 {
-	struct set_schib_struct *set_data;
+	struct set_schib_struct *set_data = cdev->private->cmb_wait;
 
-	set_data = cdev->private->cmb_wait;
-	if (!set_data) {
-		WARN_ON(1);
+	if (!set_data)
 		return;
-	}
-	kref_get(&set_data->kref);
+
 	set_data->ret = set_schib(cdev, set_data->mme, set_data->mbfc,
 				  set_data->address);
 	wake_up(&set_data->wait);
-	kref_put(&set_data->kref, cmf_set_schib_release);
 }
 
 static int cmf_copy_block(struct ccw_device *cdev)
