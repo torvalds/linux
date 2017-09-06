@@ -517,7 +517,7 @@ static void zram_free_page(struct zram *zram, size_t index)
 	zram_set_obj_size(zram, index, 0);
 }
 
-static int zram_decompress_page(struct zram *zram, struct page *page, u32 index)
+static int __zram_bvec_read(struct zram *zram, struct page *page, u32 index)
 {
 	int ret;
 	unsigned long handle;
@@ -569,7 +569,7 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
 			return -ENOMEM;
 	}
 
-	ret = zram_decompress_page(zram, page, index);
+	ret = __zram_bvec_read(zram, page, index);
 	if (unlikely(ret))
 		goto out;
 
@@ -717,7 +717,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
 		if (!page)
 			return -ENOMEM;
 
-		ret = zram_decompress_page(zram, page, index);
+		ret = __zram_bvec_read(zram, page, index);
 		if (ret)
 			goto out;
 
