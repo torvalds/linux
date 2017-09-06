@@ -549,7 +549,7 @@ static void mmio_invalidate(struct npu_context *npu_context, int va,
 	 * Unfortunately the nest mmu does not support flushing specific
 	 * addresses so we have to flush the whole mm.
 	 */
-	flush_tlb_mm(npu_context->mm);
+	flush_all_mm(npu_context->mm);
 
 	/*
 	 * Loop over all the NPUs this process is active on and launch
