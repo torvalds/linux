@@ -180,13 +180,21 @@ int v4l2_async_notifier_register(struct v4l2_device *v4l2_dev,
 	int ret;
 	int i;
 
-	if (!v4l2_dev || !notifier->num_subdevs ||
-	    notifier->num_subdevs > V4L2_MAX_SUBDEVS)
+	if (!v4l2_dev || notifier->num_subdevs > V4L2_MAX_SUBDEVS)
 		return -EINVAL;
 
 	notifier->v4l2_dev = v4l2_dev;
 	INIT_LIST_HEAD(&notifier->waiting);
 	INIT_LIST_HEAD(&notifier->done);
+
+	if (!notifier->num_subdevs) {
+		int ret;
+
+		ret = v4l2_async_notifier_call_complete(notifier);
+		notifier->v4l2_dev = NULL;
+
+		return ret;
+	}
 
 	for (i = 0; i < notifier->num_subdevs; i++) {
 		asd = notifier->subdevs[i];
