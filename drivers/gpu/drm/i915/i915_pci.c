@@ -63,6 +63,7 @@
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
 	.ring_mask = RENDER_RING, \
+	.has_snoop = true, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	CURSOR_OFFSETS
 
@@ -95,6 +96,7 @@ static const struct intel_device_info intel_i865g_info __initconst = {
 	.gen = 3, .num_pipes = 2, \
 	.has_gmch_display = 1, \
 	.ring_mask = RENDER_RING, \
+	.has_snoop = true, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	CURSOR_OFFSETS
 
@@ -157,6 +159,7 @@ static const struct intel_device_info intel_pineview_info __initconst = {
 	.has_hotplug = 1, \
 	.has_gmch_display = 1, \
 	.ring_mask = RENDER_RING, \
+	.has_snoop = true, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	CURSOR_OFFSETS
 
@@ -197,6 +200,7 @@ static const struct intel_device_info intel_gm45_info __initconst = {
 	.has_hotplug = 1, \
 	.has_gmbus_irq = 1, \
 	.ring_mask = RENDER_RING | BSD_RING, \
+	.has_snoop = true, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	CURSOR_OFFSETS
 
@@ -320,6 +324,7 @@ static const struct intel_device_info intel_valleyview_info __initconst = {
 	.has_hotplug = 1,
 	.has_aliasing_ppgtt = 1,
 	.has_full_ppgtt = 1,
+	.has_snoop = true,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_DEFAULT_PIPEOFFSETS,
@@ -411,6 +416,7 @@ static const struct intel_device_info intel_cherryview_info __initconst = {
 	.has_aliasing_ppgtt = 1,
 	.has_full_ppgtt = 1,
 	.has_reset_engine = 1,
+	.has_snoop = true,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_CHV_PIPEOFFSETS,
 	CURSOR_OFFSETS,
@@ -473,6 +479,7 @@ static const struct intel_device_info intel_skylake_gt4_info __initconst = {
 	.has_full_ppgtt = 1, \
 	.has_full_48bit_ppgtt = 1, \
 	.has_reset_engine = 1, \
+	.has_snoop = true, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	IVB_CURSOR_OFFSETS, \
 	BDW_COLORS
