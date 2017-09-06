@@ -129,6 +129,10 @@ unsigned int aa_dfa_match(struct aa_dfa *dfa, unsigned int start,
 			  const char *str);
 unsigned int aa_dfa_next(struct aa_dfa *dfa, unsigned int state,
 			 const char c);
+unsigned int aa_dfa_match_until(struct aa_dfa *dfa, unsigned int start,
+				const char *str, const char **retpos);
+unsigned int aa_dfa_matchn_until(struct aa_dfa *dfa, unsigned int start,
+				 const char *str, int n, const char **retpos);
 
 void aa_dfa_free_kref(struct kref *kref);
 
