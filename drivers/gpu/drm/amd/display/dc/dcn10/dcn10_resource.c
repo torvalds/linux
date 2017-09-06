@@ -420,10 +420,6 @@ static const struct dc_debug debug_defaults_drv = {
 		.force_abm_enable = false,
 		.timing_trace = false,
 		.clock_trace = true,
-		/* spread sheet doesn't handle taps_c is one properly,
-		 * need to enable scaler for video surface to pass
-		 * bandwidth validation.*/
-		.always_scale = true,
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = false,
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
