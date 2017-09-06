@@ -2619,7 +2619,7 @@ static int do_wp_page(struct vm_fault *vmf)
 	 * not dirty accountable.
 	 */
 	if (PageAnon(vmf->page) && !PageKsm(vmf->page)) {
-		int total_mapcount;
+		int total_map_swapcount;
 		if (!trylock_page(vmf->page)) {
 			get_page(vmf->page);
 			pte_unmap_unlock(vmf->pte, vmf->ptl);
@@ -2634,8 +2634,8 @@ static int do_wp_page(struct vm_fault *vmf)
 			}
 			put_page(vmf->page);
 		}
-		if (reuse_swap_page(vmf->page, &total_mapcount)) {
-			if (total_mapcount == 1) {
+		if (reuse_swap_page(vmf->page, &total_map_swapcount)) {
+			if (total_map_swapcount == 1) {
 				/*
 				 * The page is all ours. Move it to
 				 * our anon_vma so the rmap code will

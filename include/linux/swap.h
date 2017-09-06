@@ -510,8 +510,8 @@ static inline int swp_swapcount(swp_entry_t entry)
 	return 0;
 }
 
-#define reuse_swap_page(page, total_mapcount) \
-	(page_trans_huge_mapcount(page, total_mapcount) == 1)
+#define reuse_swap_page(page, total_map_swapcount) \
+	(page_trans_huge_mapcount(page, total_map_swapcount) == 1)
 
 static inline int try_to_free_swap(struct page *page)
 {
