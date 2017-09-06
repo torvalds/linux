@@ -453,7 +453,8 @@ config GPIO_TS4800
 config GPIO_THUNDERX
 	tristate "Cavium ThunderX/OCTEON-TX GPIO"
 	depends on ARCH_THUNDER || (64BIT && COMPILE_TEST)
-	depends on PCI_MSI && IRQ_DOMAIN_HIERARCHY
+	depends on PCI_MSI
+	select IRQ_DOMAIN_HIERARCHY
 	select IRQ_FASTEOI_HIERARCHY_HANDLERS
 	help
 	  Say yes here to support the on-chip GPIO lines on the ThunderX
