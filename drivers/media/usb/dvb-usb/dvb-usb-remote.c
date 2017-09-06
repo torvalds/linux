@@ -283,6 +283,7 @@ static int rc_core_dvb_usb_remote_init(struct dvb_usb_device *d)
 	dev->input_phys = d->rc_phys;
 	dev->dev.parent = &d->udev->dev;
 	dev->priv = d;
+	dev->scancode_mask = d->props.rc.core.scancode_mask;
 
 	err = rc_register_device(dev);
 	if (err < 0) {
