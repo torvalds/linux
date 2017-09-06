@@ -335,11 +335,6 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
 		goto out_put;
 
 	mapping = f.file->f_mapping;
-	if (!mapping) {
-		ret = -EINVAL;
-		goto out_put;
-	}
-
 	ret = 0;
 	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
 		ret = filemap_fdatawait_range(mapping, offset, endbyte);
