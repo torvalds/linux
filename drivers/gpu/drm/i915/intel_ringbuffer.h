@@ -735,16 +735,6 @@ bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
 void intel_engines_mark_idle(struct drm_i915_private *i915);
 void intel_engines_reset_default_submission(struct drm_i915_private *i915);
 
-static inline bool
-__intel_engine_can_store_dword(unsigned int gen, unsigned int class)
-{
-	if (gen <= 2)
-		return false; /* uses physical not virtual addresses */
-
-	if (gen == 6 && class == VIDEO_DECODE_CLASS)
-		return false; /* b0rked */
-
-	return true;
-}
+bool intel_engine_can_store_dword(struct intel_engine_cs *engine);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

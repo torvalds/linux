@@ -1378,6 +1378,21 @@ void intel_engines_mark_idle(struct drm_i915_private *i915)
 	}
 }
 
+bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
+{
+	switch (INTEL_GEN(engine->i915)) {
+	case 2:
+		return false; /* uses physical not virtual addresses */
+	case 3:
+		/* maybe only uses physical not virtual addresses */
+		return !(IS_I915G(engine->i915) || IS_I915GM(engine->i915));
+	case 6:
+		return engine->class != VIDEO_DECODE_CLASS; /* b0rked */
+	default:
+		return true;
+	}
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/mock_engine.c"
 #endif

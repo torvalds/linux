@@ -1168,6 +1168,9 @@ static u32 *reloc_gpu(struct i915_execbuffer *eb,
 		if (eb_use_cmdparser(eb))
 			return ERR_PTR(-EWOULDBLOCK);
 
+		if (!intel_engine_can_store_dword(eb->engine))
+			return ERR_PTR(-ENODEV);
+
 		err = __reloc_gpu_alloc(eb, vma, len);
 		if (unlikely(err))
 			return ERR_PTR(err);
@@ -1192,9 +1195,7 @@ relocate_entry(struct i915_vma *vma,
 
 	if (!eb->reloc_cache.vaddr &&
 	    (DBG_FORCE_RELOC == FORCE_GPU_RELOC ||
-	     !reservation_object_test_signaled_rcu(vma->resv, true)) &&
-	    __intel_engine_can_store_dword(eb->reloc_cache.gen,
-					   eb->engine->class)) {
+	     !reservation_object_test_signaled_rcu(vma->resv, true))) {
 		const unsigned int gen = eb->reloc_cache.gen;
 		unsigned int len;
 		u32 *batch;
