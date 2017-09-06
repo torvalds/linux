@@ -525,4 +525,5 @@ static inline bool is_migrate_highatomic_page(struct page *page)
 	return get_pageblock_migratetype(page) == MIGRATE_HIGHATOMIC;
 }
 
+void setup_zone_pageset(struct zone *zone);
 #endif	/* __MM_INTERNAL_H */
