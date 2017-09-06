@@ -1163,7 +1163,7 @@ static struct bio *f2fs_grab_bio(struct inode *inode, block_t blkaddr,
 			return ERR_CAST(ctx);
 
 		/* wait the page to be moved by cleaning */
-		f2fs_wait_on_encrypted_page_writeback(sbi, blkaddr);
+		f2fs_wait_on_block_writeback(sbi, blkaddr);
 	}
 
 	bio = bio_alloc(GFP_KERNEL, min_t(int, nr_pages, BIO_MAX_PAGES));
@@ -1349,7 +1349,7 @@ static int encrypt_one_page(struct f2fs_io_info *fio)
 		return 0;
 
 	/* wait for GCed encrypted page writeback */
-	f2fs_wait_on_encrypted_page_writeback(fio->sbi, fio->old_blkaddr);
+	f2fs_wait_on_block_writeback(fio->sbi, fio->old_blkaddr);
 
 retry_encrypt:
 	fio->encrypted_page = fscrypt_encrypt_page(inode, fio->page,
@@ -1975,7 +1975,7 @@ repeat:
 
 	/* wait for GCed encrypted page writeback */
 	if (f2fs_encrypted_file(inode))
-		f2fs_wait_on_encrypted_page_writeback(sbi, blkaddr);
+		f2fs_wait_on_block_writeback(sbi, blkaddr);
 
 	if (len == PAGE_SIZE || PageUptodate(page))
 		return 0;
