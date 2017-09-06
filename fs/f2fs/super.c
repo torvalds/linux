@@ -92,6 +92,7 @@ enum {
 	Opt_disable_ext_identify,
 	Opt_inline_xattr,
 	Opt_noinline_xattr,
+	Opt_inline_xattr_size,
 	Opt_inline_data,
 	Opt_inline_dentry,
 	Opt_noinline_dentry,
@@ -141,6 +142,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_disable_ext_identify, "disable_ext_identify"},
 	{Opt_inline_xattr, "inline_xattr"},
 	{Opt_noinline_xattr, "noinline_xattr"},
+	{Opt_inline_xattr_size, "inline_xattr_size=%u"},
 	{Opt_inline_data, "inline_data"},
 	{Opt_inline_dentry, "inline_dentry"},
 	{Opt_noinline_dentry, "noinline_dentry"},
@@ -383,6 +385,12 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_noinline_xattr:
 			clear_opt(sbi, INLINE_XATTR);
 			break;
+		case Opt_inline_xattr_size:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			set_opt(sbi, INLINE_XATTR_SIZE);
+			sbi->inline_xattr_size = arg;
+			break;
 #else
 		case Opt_user_xattr:
 			f2fs_msg(sb, KERN_INFO,
@@ -603,6 +611,24 @@ static int parse_options(struct super_block *sb, char *options)
 				"Should set mode=lfs with %uKB-sized IO",
 				F2FS_IO_SIZE_KB(sbi));
 		return -EINVAL;
+	}
+
+	if (test_opt(sbi, INLINE_XATTR_SIZE)) {
+		if (!test_opt(sbi, INLINE_XATTR)) {
+			f2fs_msg(sb, KERN_ERR,
+					"inline_xattr_size option should be "
+					"set with inline_xattr option");
+			return -EINVAL;
+		}
+		if (!sbi->inline_xattr_size ||
+			sbi->inline_xattr_size >= DEF_ADDRS_PER_INODE -
+					F2FS_TOTAL_EXTRA_ATTR_SIZE -
+					DEF_INLINE_RESERVED_SIZE -
+					DEF_MIN_INLINE_SIZE) {
+			f2fs_msg(sb, KERN_ERR,
+					"inline xattr size is out of range");
+			return -EINVAL;
+		}
 	}
 	return 0;
 }
@@ -1050,6 +1076,9 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",inline_xattr");
 	else
 		seq_puts(seq, ",noinline_xattr");
+	if (test_opt(sbi, INLINE_XATTR_SIZE))
+		seq_printf(seq, ",inline_xattr_size=%u",
+					sbi->inline_xattr_size);
 #endif
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
 	if (test_opt(sbi, POSIX_ACL))
@@ -1112,6 +1141,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 {
 	/* init some FS parameters */
 	sbi->active_logs = NR_CURSEG_TYPE;
+	sbi->inline_xattr_size = DEFAULT_INLINE_XATTR_ADDRS;
 
 	set_opt(sbi, BG_GC);
 	set_opt(sbi, INLINE_XATTR);
@@ -1670,7 +1700,7 @@ static loff_t max_file_blocks(void)
 
 	/*
 	 * note: previously, result is equal to (DEF_ADDRS_PER_INODE -
-	 * F2FS_INLINE_XATTR_ADDRS), but now f2fs try to reserve more
+	 * DEFAULT_INLINE_XATTR_ADDRS), but now f2fs try to reserve more
 	 * space in inode.i_addr, it will be more safe to reassign
 	 * result as zero.
 	 */

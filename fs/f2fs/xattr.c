@@ -217,12 +217,12 @@ static struct f2fs_xattr_entry *__find_xattr(void *base_addr, int index,
 	return entry;
 }
 
-static struct f2fs_xattr_entry *__find_inline_xattr(void *base_addr,
-					void **last_addr, int index,
-					size_t len, const char *name)
+static struct f2fs_xattr_entry *__find_inline_xattr(struct inode *inode,
+				void *base_addr, void **last_addr, int index,
+				size_t len, const char *name)
 {
 	struct f2fs_xattr_entry *entry;
-	unsigned int inline_size = F2FS_INLINE_XATTR_ADDRS << 2;
+	unsigned int inline_size = inline_xattr_size(inode);
 
 	list_for_each_xattr(entry, base_addr) {
 		if ((void *)entry + sizeof(__u32) > base_addr + inline_size ||
@@ -250,13 +250,13 @@ static int read_inline_xattr(struct inode *inode, struct page *ipage,
 	void *inline_addr;
 
 	if (ipage) {
-		inline_addr = inline_xattr_addr(ipage);
+		inline_addr = inline_xattr_addr(inode, ipage);
 	} else {
 		page = get_node_page(sbi, inode->i_ino);
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
-		inline_addr = inline_xattr_addr(page);
+		inline_addr = inline_xattr_addr(inode, page);
 	}
 	memcpy(txattr_addr, inline_addr, inline_size);
 	f2fs_put_page(page, 1);
@@ -309,7 +309,7 @@ static int lookup_all_xattrs(struct inode *inode, struct page *ipage,
 		if (err)
 			goto out;
 
-		*xe = __find_inline_xattr(txattr_addr, &last_addr,
+		*xe = __find_inline_xattr(inode, txattr_addr, &last_addr,
 						index, len, name);
 		if (*xe)
 			goto check;
@@ -404,7 +404,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 		void *inline_addr;
 
 		if (ipage) {
-			inline_addr = inline_xattr_addr(ipage);
+			inline_addr = inline_xattr_addr(inode, ipage);
 			f2fs_wait_on_page_writeback(ipage, NODE, true);
 			set_page_dirty(ipage);
 		} else {
@@ -413,7 +413,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 				alloc_nid_failed(sbi, new_nid);
 				return PTR_ERR(page);
 			}
-			inline_addr = inline_xattr_addr(page);
+			inline_addr = inline_xattr_addr(inode, page);
 			f2fs_wait_on_page_writeback(page, NODE, true);
 		}
 		memcpy(inline_addr, txattr_addr, inline_size);

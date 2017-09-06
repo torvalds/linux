@@ -2191,8 +2191,8 @@ void recover_inline_xattr(struct inode *inode, struct page *page)
 		goto update_inode;
 	}
 
-	dst_addr = inline_xattr_addr(ipage);
-	src_addr = inline_xattr_addr(page);
+	dst_addr = inline_xattr_addr(inode, ipage);
+	src_addr = inline_xattr_addr(inode, page);
 	inline_size = inline_xattr_size(inode);
 
 	f2fs_wait_on_page_writeback(ipage, NODE, true);
@@ -2281,6 +2281,12 @@ retry:
 	dst->i_inline = src->i_inline & (F2FS_INLINE_XATTR | F2FS_EXTRA_ATTR);
 	if (dst->i_inline & F2FS_EXTRA_ATTR) {
 		dst->i_extra_isize = src->i_extra_isize;
+
+		if (f2fs_sb_has_flexible_inline_xattr(sbi->sb) &&
+			F2FS_FITS_IN_INODE(src, le16_to_cpu(src->i_extra_isize),
+							i_inline_xattr_size))
+			dst->i_inline_xattr_size = src->i_inline_xattr_size;
+
 		if (f2fs_sb_has_project_quota(sbi->sb) &&
 			F2FS_FITS_IN_INODE(src, le16_to_cpu(src->i_extra_isize),
 								i_projid))

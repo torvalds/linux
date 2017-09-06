@@ -184,7 +184,8 @@ struct f2fs_extent {
 } __packed;
 
 #define F2FS_NAME_LEN		255
-#define F2FS_INLINE_XATTR_ADDRS	50	/* 200 bytes for inline xattrs */
+/* 200 bytes for inline xattrs by default */
+#define DEFAULT_INLINE_XATTR_ADDRS	50
 #define DEF_ADDRS_PER_INODE	923	/* Address Pointers in an Inode */
 #define CUR_ADDRS_PER_INODE(inode)	(DEF_ADDRS_PER_INODE - \
 					get_extra_isize(inode))
@@ -238,7 +239,7 @@ struct f2fs_inode {
 	union {
 		struct {
 			__le16 i_extra_isize;	/* extra inode attribute size */
-			__le16 i_padding;	/* padding */
+			__le16 i_inline_xattr_size;	/* inline xattr size, unit: 4 bytes */
 			__le32 i_projid;	/* project id */
 			__le32 i_inode_checksum;/* inode meta checksum */
 			__le32 i_extra_end[0];	/* for attribute size calculation */
