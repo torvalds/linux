@@ -60,6 +60,8 @@ static int cnl_rt274_clock_control(struct snd_soc_dapm_widget *w,
 	int ret = 0, ratio = 100;
 	struct snd_soc_dai *codec_dai = cnl_get_codec_dai(card,
 							  RT274_CODEC_DAI);
+	if (!codec_dai)
+		return -EINVAL;
 
 	/* Codec needs clock for Jack detection and button press */
 	ret = snd_soc_dai_set_sysclk(codec_dai, RT274_SCLK_S_PLL2,
