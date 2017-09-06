@@ -319,83 +319,57 @@ static int cmf_copy_block(struct ccw_device *cdev)
 struct copy_block_struct {
 	wait_queue_head_t wait;
 	int ret;
-	struct kref kref;
 };
-
-static void cmf_copy_block_release(struct kref *kref)
-{
-	struct copy_block_struct *copy_block;
-
-	copy_block = container_of(kref, struct copy_block_struct, kref);
-	kfree(copy_block);
-}
 
 static int cmf_cmb_copy_wait(struct ccw_device *cdev)
 {
-	struct copy_block_struct *copy_block;
-	int ret;
-	unsigned long flags;
+	struct copy_block_struct copy_block;
+	int ret = -ENODEV;
 
-	spin_lock_irqsave(cdev->ccwlock, flags);
-	if (!cdev->private->cmb) {
-		ret = -ENODEV;
+	spin_lock_irq(cdev->ccwlock);
+	if (!cdev->private->cmb)
 		goto out;
-	}
-	copy_block = kzalloc(sizeof(struct copy_block_struct), GFP_ATOMIC);
-	if (!copy_block) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	init_waitqueue_head(&copy_block->wait);
-	kref_init(&copy_block->kref);
 
 	ret = cmf_copy_block(cdev);
 	if (ret != -EBUSY)
-		goto out_put;
+		goto out;
 
-	if (cdev->private->state != DEV_STATE_ONLINE) {
-		ret = -EBUSY;
-		goto out_put;
-	}
+	if (cdev->private->state != DEV_STATE_ONLINE)
+		goto out;
+
+	init_waitqueue_head(&copy_block.wait);
+	copy_block.ret = CMF_PENDING;
 
 	cdev->private->state = DEV_STATE_CMFUPDATE;
-	copy_block->ret = CMF_PENDING;
-	cdev->private->cmb_wait = copy_block;
+	cdev->private->cmb_wait = &copy_block;
+	spin_unlock_irq(cdev->ccwlock);
 
-	spin_unlock_irqrestore(cdev->ccwlock, flags);
-	if (wait_event_interruptible(copy_block->wait,
-				     copy_block->ret != CMF_PENDING)) {
-		spin_lock_irqsave(cdev->ccwlock, flags);
-		if (copy_block->ret == CMF_PENDING) {
-			copy_block->ret = -ERESTARTSYS;
+	ret = wait_event_interruptible(copy_block.wait,
+				       copy_block.ret != CMF_PENDING);
+	spin_lock_irq(cdev->ccwlock);
+	if (ret) {
+		if (copy_block.ret == CMF_PENDING) {
+			copy_block.ret = -ERESTARTSYS;
 			if (cdev->private->state == DEV_STATE_CMFUPDATE)
 				cdev->private->state = DEV_STATE_ONLINE;
 		}
-		spin_unlock_irqrestore(cdev->ccwlock, flags);
 	}
-	spin_lock_irqsave(cdev->ccwlock, flags);
 	cdev->private->cmb_wait = NULL;
-	ret = copy_block->ret;
-out_put:
-	kref_put(&copy_block->kref, cmf_copy_block_release);
+	ret = copy_block.ret;
 out:
-	spin_unlock_irqrestore(cdev->ccwlock, flags);
+	spin_unlock_irq(cdev->ccwlock);
 	return ret;
 }
 
 void cmf_retry_copy_block(struct ccw_device *cdev)
 {
-	struct copy_block_struct *copy_block;
+	struct copy_block_struct *copy_block = cdev->private->cmb_wait;
 
-	copy_block = cdev->private->cmb_wait;
-	if (!copy_block) {
-		WARN_ON(1);
+	if (!copy_block)
 		return;
-	}
-	kref_get(&copy_block->kref);
+
 	copy_block->ret = cmf_copy_block(cdev);
 	wake_up(&copy_block->wait);
-	kref_put(&copy_block->kref, cmf_copy_block_release);
 }
 
 static void cmf_generic_reset(struct ccw_device *cdev)
