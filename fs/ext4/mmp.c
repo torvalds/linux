@@ -367,7 +367,7 @@ skip:
 		goto failed;
 	}
 
-	mmpd_data = kmalloc(sizeof(struct mmpd_data), GFP_KERNEL);
+	mmpd_data = kmalloc(sizeof(*mmpd_data), GFP_KERNEL);
 	if (!mmpd_data) {
 		ext4_warning(sb, "not enough memory for mmpd_data");
 		goto failed;

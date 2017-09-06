@@ -4897,14 +4897,6 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	brelse(iloc.bh);
 	ext4_set_inode_flags(inode);
 
-	if (ei->i_flags & EXT4_EA_INODE_FL) {
-		ext4_xattr_inode_set_class(inode);
-
-		inode_lock(inode);
-		inode->i_flags |= S_NOQUOTA;
-		inode_unlock(inode);
-	}
-
 	unlock_new_inode(inode);
 	return inode;
 
