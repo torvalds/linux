@@ -394,9 +394,6 @@ static void print_allowed_zone(char *buf, int nid, unsigned long start_pfn,
 {
 	struct zone *zone;
 
-	if (!allow_online_pfn_range(nid, start_pfn, nr_pages, online_type))
-		return;
-
 	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
 	if (zone != default_zone) {
 		strcat(buf, " ");

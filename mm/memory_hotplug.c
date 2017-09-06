@@ -831,7 +831,7 @@ void __ref move_pfn_range_to_zone(struct zone *zone,
  * If no kernel zone covers this pfn range it will automatically go
  * to the ZONE_NORMAL.
  */
-static struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
+static struct zone *default_kernel_zone_for_pfn(int nid, unsigned long start_pfn,
 		unsigned long nr_pages)
 {
 	struct pglist_data *pgdat = NODE_DATA(nid);
@@ -847,65 +847,40 @@ static struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
 	return &pgdat->node_zones[ZONE_NORMAL];
 }
 
-bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_pages, int online_type)
+static inline struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
+		unsigned long nr_pages)
 {
-	struct pglist_data *pgdat = NODE_DATA(nid);
-	struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
-	struct zone *default_zone = default_zone_for_pfn(nid, pfn, nr_pages);
+	struct zone *kernel_zone = default_kernel_zone_for_pfn(nid, start_pfn,
+			nr_pages);
+	struct zone *movable_zone = &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
+	bool in_kernel = zone_intersects(kernel_zone, start_pfn, nr_pages);
+	bool in_movable = zone_intersects(movable_zone, start_pfn, nr_pages);
 
 	/*
-	 * TODO there shouldn't be any inherent reason to have ZONE_NORMAL
-	 * physically before ZONE_MOVABLE. All we need is they do not
-	 * overlap. Historically we didn't allow ZONE_NORMAL after ZONE_MOVABLE
-	 * though so let's stick with it for simplicity for now.
-	 * TODO make sure we do not overlap with ZONE_DEVICE
+	 * We inherit the existing zone in a simple case where zones do not
+	 * overlap in the given range
 	 */
-	if (online_type == MMOP_ONLINE_KERNEL) {
-		if (zone_is_empty(movable_zone))
-			return true;
-		return movable_zone->zone_start_pfn >= pfn + nr_pages;
-	} else if (online_type == MMOP_ONLINE_MOVABLE) {
-		return zone_end_pfn(default_zone) <= pfn;
-	}
+	if (in_kernel ^ in_movable)
+		return (in_kernel) ? kernel_zone : movable_zone;
 
-	/* MMOP_ONLINE_KEEP will always succeed and inherits the current zone */
-	return online_type == MMOP_ONLINE_KEEP;
-}
-
-static inline bool movable_pfn_range(int nid, struct zone *default_zone,
-		unsigned long start_pfn, unsigned long nr_pages)
-{
-	if (!allow_online_pfn_range(nid, start_pfn, nr_pages,
-				MMOP_ONLINE_KERNEL))
-		return true;
-
-	if (!movable_node_is_enabled())
-		return false;
-
-	return !zone_intersects(default_zone, start_pfn, nr_pages);
+	/*
+	 * If the range doesn't belong to any zone or two zones overlap in the
+	 * given range then we use movable zone only if movable_node is
+	 * enabled because we always online to a kernel zone by default.
+	 */
+	return movable_node_enabled ? movable_zone : kernel_zone;
 }
 
 struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
 		unsigned long nr_pages)
 {
-	struct pglist_data *pgdat = NODE_DATA(nid);
-	struct zone *zone = default_zone_for_pfn(nid, start_pfn, nr_pages);
+	if (online_type == MMOP_ONLINE_KERNEL)
+		return default_kernel_zone_for_pfn(nid, start_pfn, nr_pages);
 
-	if (online_type == MMOP_ONLINE_KEEP) {
-		struct zone *movable_zone = &pgdat->node_zones[ZONE_MOVABLE];
-		/*
-		 * MMOP_ONLINE_KEEP defaults to MMOP_ONLINE_KERNEL but use
-		 * movable zone if that is not possible (e.g. we are within
-		 * or past the existing movable zone). movable_node overrides
-		 * this default and defaults to movable zone
-		 */
-		if (movable_pfn_range(nid, zone, start_pfn, nr_pages))
-			zone = movable_zone;
-	} else if (online_type == MMOP_ONLINE_MOVABLE) {
-		zone = &pgdat->node_zones[ZONE_MOVABLE];
-	}
+	if (online_type == MMOP_ONLINE_MOVABLE)
+		return &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
 
-	return zone;
+	return default_zone_for_pfn(nid, start_pfn, nr_pages);
 }
 
 /*
@@ -934,9 +909,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 	struct memory_notify arg;
 
 	nid = pfn_to_nid(pfn);
-	if (!allow_online_pfn_range(nid, pfn, nr_pages, online_type))
-		return -EINVAL;
-
 	/* associate pfn range with the zone */
 	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
 
