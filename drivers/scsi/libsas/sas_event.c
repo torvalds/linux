@@ -37,7 +37,7 @@ int sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw)
 	if (test_bit(SAS_HA_DRAINING, &ha->state)) {
 		/* add it to the defer list, if not already pending */
 		if (list_empty(&sw->drain_node))
-			list_add(&sw->drain_node, &ha->defer_q);
+			list_add_tail(&sw->drain_node, &ha->defer_q);
 	} else
 		rc = scsi_queue_work(ha->core.shost, &sw->work);
 
