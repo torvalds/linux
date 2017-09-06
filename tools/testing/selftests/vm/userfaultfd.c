@@ -987,7 +987,9 @@ static int userfaultfd_sig_test(void)
 		return 1;
 
 	printf("done.\n");
-	printf(" Signal test userfaults: %ld\n", userfaults);
+	if (userfaults)
+		fprintf(stderr, "Signal test failed, userfaults: %ld\n",
+			userfaults);
 	close(uffd);
 	return userfaults != 0;
 }
