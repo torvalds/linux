@@ -779,7 +779,7 @@ out:
 
 static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index)
 {
-	int ret;
+	int ret = 0;
 	unsigned long alloced_pages;
 	unsigned long handle = 0;
 	unsigned int comp_len = 0;
@@ -884,7 +884,7 @@ out:
 
 	/* Update stats */
 	atomic64_inc(&zram->stats.pages_stored);
-	return 0;
+	return ret;
 }
 
 static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
@@ -966,6 +966,11 @@ static void zram_bio_discard(struct zram *zram, u32 index,
 	}
 }
 
+/*
+ * Returns errno if it has some problem. Otherwise return 0 or 1.
+ * Returns 0 if IO request was done synchronously
+ * Returns 1 if IO request was successfully submitted.
+ */
 static int zram_bvec_rw(struct zram *zram, struct bio_vec *bvec, u32 index,
 			int offset, int rw)
 {
@@ -986,7 +991,7 @@ static int zram_bvec_rw(struct zram *zram, struct bio_vec *bvec, u32 index,
 
 	generic_end_io_acct(rw, &zram->disk->part0, start_time);
 
-	if (unlikely(ret)) {
+	if (unlikely(ret < 0)) {
 		if (rw == READ)
 			atomic64_inc(&zram->stats.failed_reads);
 		else
@@ -1075,7 +1080,7 @@ static void zram_slot_free_notify(struct block_device *bdev,
 static int zram_rw_page(struct block_device *bdev, sector_t sector,
 		       struct page *page, int rw)
 {
-	int offset, err = -EIO;
+	int offset, ret;
 	u32 index;
 	struct zram *zram;
 	struct bio_vec bv;
@@ -1084,7 +1089,7 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
 
 	if (!valid_io_request(zram, sector, PAGE_SIZE)) {
 		atomic64_inc(&zram->stats.invalid_io);
-		err = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -1095,7 +1100,7 @@ static int zram_rw_page(struct block_device *bdev, sector_t sector,
 	bv.bv_len = PAGE_SIZE;
 	bv.bv_offset = 0;
 
-	err = zram_bvec_rw(zram, &bv, index, offset, rw);
+	ret = zram_bvec_rw(zram, &bv, index, offset, rw);
 out:
 	/*
 	 * If I/O fails, just return error(ie, non-zero) without
@@ -1105,9 +1110,20 @@ out:
 	 * bio->bi_end_io does things to handle the error
 	 * (e.g., SetPageError, set_page_dirty and extra works).
 	 */
-	if (err == 0)
+	if (unlikely(ret < 0))
+		return ret;
+
+	switch (ret) {
+	case 0:
 		page_endio(page, rw, 0);
-	return err;
+		break;
+	case 1:
+		ret = 0;
+		break;
+	default:
+		WARN_ON(1);
+	}
+	return ret;
 }
 
 static void zram_reset_device(struct zram *zram)
