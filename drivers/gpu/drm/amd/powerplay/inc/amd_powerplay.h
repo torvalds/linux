@@ -31,7 +31,7 @@
 #include "dm_pp_interface.h"
 
 extern const struct amd_ip_funcs pp_ip_funcs;
-extern const struct amd_powerplay_funcs pp_dpm_funcs;
+extern const struct amd_pm_funcs pp_dpm_funcs;
 
 #define PP_DPM_DISABLED 0xCCCC
 
@@ -267,49 +267,10 @@ struct pp_display_clock_request {
 								support << PP_STATE_SUPPORT_SHIFT |\
 								state << PP_STATE_SHIFT)
 
-struct amd_powerplay_funcs {
-	int (*get_temperature)(void *handle);
-	int (*load_firmware)(void *handle);
-	int (*wait_for_fw_loading_complete)(void *handle);
-	int (*force_performance_level)(void *handle, enum amd_dpm_forced_level level);
-	enum amd_dpm_forced_level (*get_performance_level)(void *handle);
-	enum amd_pm_state_type (*get_current_power_state)(void *handle);
-	int (*get_sclk)(void *handle, bool low);
-	int (*get_mclk)(void *handle, bool low);
-	int (*powergate_vce)(void *handle, bool gate);
-	int (*powergate_uvd)(void *handle, bool gate);
-	int (*dispatch_tasks)(void *handle, enum amd_pp_task task_id,
-				   void *input, void *output);
-	int (*set_fan_control_mode)(void *handle, uint32_t mode);
-	int (*get_fan_control_mode)(void *handle);
-	int (*set_fan_speed_percent)(void *handle, uint32_t percent);
-	int (*get_fan_speed_percent)(void *handle, uint32_t *speed);
-	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
-	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
-	int (*get_pp_table)(void *handle, char **table);
-	int (*set_pp_table)(void *handle, const char *buf, size_t size);
-	int (*force_clock_level)(void *handle, enum pp_clock_type type, uint32_t mask);
-	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
-	int (*get_sclk_od)(void *handle);
-	int (*set_sclk_od)(void *handle, uint32_t value);
-	int (*get_mclk_od)(void *handle);
-	int (*set_mclk_od)(void *handle, uint32_t value);
-	int (*read_sensor)(void *handle, int idx, void *value, int *size);
-	struct amd_vce_state* (*get_vce_clock_state)(void *handle, unsigned idx);
-	int (*reset_power_profile_state)(void *handle,
-			struct amd_pp_profile *request);
-	int (*get_power_profile_state)(void *handle,
-			struct amd_pp_profile *query);
-	int (*set_power_profile_state)(void *handle,
-			struct amd_pp_profile *request);
-	int (*switch_power_profile)(void *handle,
-			enum amd_pp_profile_type type);
-};
-
 struct amd_powerplay {
 	void *pp_handle;
 	const struct amd_ip_funcs *ip_funcs;
-	const struct amd_powerplay_funcs *pp_funcs;
+	const struct amd_pm_funcs *pp_funcs;
 };
 
 int amd_powerplay_create(struct amd_pp_init *pp_init,

@@ -3872,7 +3872,7 @@ static int vega10_set_power_state_tasks(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int vega10_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t vega10_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct pp_power_state *ps;
 	struct vega10_power_state *vega10_ps;
@@ -3894,7 +3894,7 @@ static int vega10_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 				[vega10_ps->performance_level_count - 1].gfx_clock;
 }
 
-static int vega10_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t vega10_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct pp_power_state *ps;
 	struct vega10_power_state *vega10_ps;
@@ -4216,27 +4216,23 @@ static int vega10_get_profiling_clk_mask(struct pp_hwmgr *hwmgr, enum amd_dpm_fo
 	return 0;
 }
 
-static int vega10_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
+static void vega10_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 {
-	int result = 0;
-
 	switch (mode) {
 	case AMD_FAN_CTRL_NONE:
-		result = vega10_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
+		vega10_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
 		break;
 	case AMD_FAN_CTRL_MANUAL:
 		if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
-			result = vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
+			vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
 		break;
 	case AMD_FAN_CTRL_AUTO:
-		result = vega10_fan_ctrl_set_static_mode(hwmgr, mode);
-		if (!result)
-			result = vega10_fan_ctrl_start_smc_fan_control(hwmgr);
+		if (!vega10_fan_ctrl_set_static_mode(hwmgr, mode))
+			vega10_fan_ctrl_start_smc_fan_control(hwmgr);
 		break;
 	default:
 		break;
 	}
-	return result;
 }
 
 static int vega10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
@@ -4282,7 +4278,7 @@ static int vega10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	return ret;
 }
 
-static int vega10_get_fan_control_mode(struct pp_hwmgr *hwmgr)
+static uint32_t vega10_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
 
@@ -4697,20 +4693,20 @@ int vega10_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 	return 0;
 }
 
-static int vega10_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
+static void vega10_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
 
 	data->vce_power_gated = bgate;
-	return vega10_enable_disable_vce_dpm(hwmgr, !bgate);
+	vega10_enable_disable_vce_dpm(hwmgr, !bgate);
 }
 
-static int vega10_power_gate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
+static void vega10_power_gate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
 
 	data->uvd_power_gated = bgate;
-	return vega10_enable_disable_uvd_dpm(hwmgr, !bgate);
+	vega10_enable_disable_uvd_dpm(hwmgr, !bgate);
 }
 
 static inline bool vega10_are_power_levels_equal(

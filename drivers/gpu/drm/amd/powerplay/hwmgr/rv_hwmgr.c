@@ -501,12 +501,12 @@ static int rv_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int rv_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t rv_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	return 0;
 }
 
-static int rv_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t rv_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	return 0;
 }

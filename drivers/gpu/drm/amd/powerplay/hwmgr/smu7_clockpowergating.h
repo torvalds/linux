@@ -27,8 +27,8 @@
 #include "smu7_hwmgr.h"
 #include "pp_asicblocks.h"
 
-int smu7_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate);
-int smu7_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate);
+void smu7_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate);
+void smu7_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate);
 int smu7_powerdown_uvd(struct pp_hwmgr *hwmgr);
 int smu7_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate);
 int smu7_powergate_acp(struct pp_hwmgr *hwmgr, bool bgate);

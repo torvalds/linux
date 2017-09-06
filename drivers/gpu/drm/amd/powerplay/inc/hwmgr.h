@@ -270,10 +270,10 @@ struct pp_hwmgr_func {
 			    unsigned long, struct pp_power_state *);
 	int (*get_num_of_pp_table_entries)(struct pp_hwmgr *hwmgr);
 	int (*powerdown_uvd)(struct pp_hwmgr *hwmgr);
-	int (*powergate_vce)(struct pp_hwmgr *hwmgr, bool bgate);
-	int (*powergate_uvd)(struct pp_hwmgr *hwmgr, bool bgate);
-	int (*get_mclk)(struct pp_hwmgr *hwmgr, bool low);
-	int (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
+	void (*powergate_vce)(struct pp_hwmgr *hwmgr, bool bgate);
+	void (*powergate_uvd)(struct pp_hwmgr *hwmgr, bool bgate);
+	uint32_t (*get_mclk)(struct pp_hwmgr *hwmgr, bool low);
+	uint32_t (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
 	int (*power_state_set)(struct pp_hwmgr *hwmgr,
 						const void *state);
 	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
@@ -287,8 +287,8 @@ struct pp_hwmgr_func {
 	int (*get_temperature)(struct pp_hwmgr *hwmgr);
 	int (*stop_thermal_controller)(struct pp_hwmgr *hwmgr);
 	int (*get_fan_speed_info)(struct pp_hwmgr *hwmgr, struct phm_fan_speed_info *fan_speed_info);
-	int (*set_fan_control_mode)(struct pp_hwmgr *hwmgr, uint32_t mode);
-	int (*get_fan_control_mode)(struct pp_hwmgr *hwmgr);
+	void (*set_fan_control_mode)(struct pp_hwmgr *hwmgr, uint32_t mode);
+	uint32_t (*get_fan_control_mode)(struct pp_hwmgr *hwmgr);
 	int (*set_fan_speed_percent)(struct pp_hwmgr *hwmgr, uint32_t percent);
 	int (*get_fan_speed_percent)(struct pp_hwmgr *hwmgr, uint32_t *speed);
 	int (*set_fan_speed_rpm)(struct pp_hwmgr *hwmgr, uint32_t percent);

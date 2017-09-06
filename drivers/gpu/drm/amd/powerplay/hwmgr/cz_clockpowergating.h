@@ -29,8 +29,8 @@
 
 extern int cz_phm_set_asic_block_gating(struct pp_hwmgr *hwmgr, enum PHM_AsicBlock block, enum PHM_ClockGateSetting gating);
 extern const struct phm_master_table_header cz_phm_enable_clock_power_gatings_master;
-extern int cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate);
-extern int cz_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate);
+extern void cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate);
+extern void cz_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate);
 extern int cz_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
 extern int cz_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable);
 #endif /* _CZ_CLOCK_POWER_GATING_H_ */

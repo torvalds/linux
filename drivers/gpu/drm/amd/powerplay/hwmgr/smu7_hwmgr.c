@@ -2798,7 +2798,7 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 }
 
 
-static int smu7_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t smu7_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct pp_power_state  *ps;
 	struct smu7_power_state  *smu7_ps;
@@ -2820,7 +2820,7 @@ static int smu7_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 				[smu7_ps->performance_level_count-1].memory_clock;
 }
 
-static int smu7_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t smu7_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct pp_power_state  *ps;
 	struct smu7_power_state  *smu7_ps;
@@ -4302,31 +4302,27 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 	return size;
 }
 
-static int smu7_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
+static void smu7_set_fan_control_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 {
-	int result = 0;
-
 	switch (mode) {
 	case AMD_FAN_CTRL_NONE:
-		result = smu7_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
+		smu7_fan_ctrl_set_fan_speed_percent(hwmgr, 100);
 		break;
 	case AMD_FAN_CTRL_MANUAL:
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MicrocodeFanControl))
-			result = smu7_fan_ctrl_stop_smc_fan_control(hwmgr);
+			smu7_fan_ctrl_stop_smc_fan_control(hwmgr);
 		break;
 	case AMD_FAN_CTRL_AUTO:
-		result = smu7_fan_ctrl_set_static_mode(hwmgr, mode);
-		if (!result)
-			result = smu7_fan_ctrl_start_smc_fan_control(hwmgr);
+		if (!smu7_fan_ctrl_set_static_mode(hwmgr, mode))
+			smu7_fan_ctrl_start_smc_fan_control(hwmgr);
 		break;
 	default:
 		break;
 	}
-	return result;
 }
 
-static int smu7_get_fan_control_mode(struct pp_hwmgr *hwmgr)
+static uint32_t smu7_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 {
 	return hwmgr->fan_ctrl_enabled ? AMD_FAN_CTRL_AUTO : AMD_FAN_CTRL_MANUAL;
 }

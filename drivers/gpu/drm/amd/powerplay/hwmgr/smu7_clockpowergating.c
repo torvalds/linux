@@ -140,7 +140,7 @@ int smu7_disable_clock_power_gating(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smu7_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
+void smu7_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -166,10 +166,9 @@ int smu7_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 		smu7_update_uvd_dpm(hwmgr, false);
 	}
 
-	return 0;
 }
 
-int smu7_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
+void smu7_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -194,7 +193,6 @@ int smu7_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 						AMD_PG_STATE_UNGATE);
 		smu7_update_vce_dpm(hwmgr, false);
 	}
-	return 0;
 }
 
 int smu7_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate)

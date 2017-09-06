@@ -1393,14 +1393,14 @@ int cz_dpm_powerup_vce(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int cz_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t cz_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
 	return cz_hwmgr->sys_info.bootup_uma_clock;
 }
 
-static int cz_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
+static uint32_t cz_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct pp_power_state  *ps;
 	struct cz_power_state  *cz_ps;

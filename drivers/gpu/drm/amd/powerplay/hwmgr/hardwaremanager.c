@@ -155,24 +155,6 @@ int phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate)
-{
-	PHM_FUNC_CHECK(hwmgr);
-
-	if (hwmgr->hwmgr_func->powergate_uvd != NULL)
-		return hwmgr->hwmgr_func->powergate_uvd(hwmgr, gate);
-	return 0;
-}
-
-int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate)
-{
-	PHM_FUNC_CHECK(hwmgr);
-
-	if (hwmgr->hwmgr_func->powergate_vce != NULL)
-		return hwmgr->hwmgr_func->powergate_vce(hwmgr, gate);
-	return 0;
-}
-
 int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);

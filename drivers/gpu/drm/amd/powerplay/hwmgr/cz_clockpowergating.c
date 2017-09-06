@@ -147,7 +147,7 @@ int cz_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 }
 
 
-int cz_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
+void cz_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
@@ -173,10 +173,9 @@ int cz_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 		cz_dpm_update_uvd_dpm(hwmgr, false);
 	}
 
-	return 0;
 }
 
-int cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
+void cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
@@ -205,9 +204,6 @@ int cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 					AMD_CG_STATE_UNGATE);
 		cz_dpm_update_vce_dpm(hwmgr);
 		cz_enable_disable_vce_dpm(hwmgr, true);
-		return 0;
 	}
-
-	return 0;
 }
 

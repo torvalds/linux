@@ -376,11 +376,12 @@ static enum amd_dpm_forced_level pp_dpm_get_performance_level(
 	return level;
 }
 
-static int pp_dpm_get_sclk(void *handle, bool low)
+static uint32_t pp_dpm_get_sclk(void *handle, bool low)
 {
 	struct pp_hwmgr  *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 	int ret = 0;
+	uint32_t clk = 0;
 
 	ret = pp_check(pp_handle);
 
@@ -394,16 +395,17 @@ static int pp_dpm_get_sclk(void *handle, bool low)
 		return 0;
 	}
 	mutex_lock(&pp_handle->pp_lock);
-	ret = hwmgr->hwmgr_func->get_sclk(hwmgr, low);
+	clk = hwmgr->hwmgr_func->get_sclk(hwmgr, low);
 	mutex_unlock(&pp_handle->pp_lock);
-	return ret;
+	return clk;
 }
 
-static int pp_dpm_get_mclk(void *handle, bool low)
+static uint32_t pp_dpm_get_mclk(void *handle, bool low)
 {
 	struct pp_hwmgr  *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 	int ret = 0;
+	uint32_t clk = 0;
 
 	ret = pp_check(pp_handle);
 
@@ -417,12 +419,12 @@ static int pp_dpm_get_mclk(void *handle, bool low)
 		return 0;
 	}
 	mutex_lock(&pp_handle->pp_lock);
-	ret = hwmgr->hwmgr_func->get_mclk(hwmgr, low);
+	clk = hwmgr->hwmgr_func->get_mclk(hwmgr, low);
 	mutex_unlock(&pp_handle->pp_lock);
-	return ret;
+	return clk;
 }
 
-static int pp_dpm_powergate_vce(void *handle, bool gate)
+static void pp_dpm_powergate_vce(void *handle, bool gate)
 {
 	struct pp_hwmgr  *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
@@ -431,21 +433,20 @@ static int pp_dpm_powergate_vce(void *handle, bool gate)
 	ret = pp_check(pp_handle);
 
 	if (ret != 0)
-		return ret;
+		return;
 
 	hwmgr = pp_handle->hwmgr;
 
 	if (hwmgr->hwmgr_func->powergate_vce == NULL) {
 		pr_info("%s was not implemented.\n", __func__);
-		return 0;
+		return;
 	}
 	mutex_lock(&pp_handle->pp_lock);
-	ret = hwmgr->hwmgr_func->powergate_vce(hwmgr, gate);
+	hwmgr->hwmgr_func->powergate_vce(hwmgr, gate);
 	mutex_unlock(&pp_handle->pp_lock);
-	return ret;
 }
 
-static int pp_dpm_powergate_uvd(void *handle, bool gate)
+static void pp_dpm_powergate_uvd(void *handle, bool gate)
 {
 	struct pp_hwmgr  *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
@@ -454,18 +455,17 @@ static int pp_dpm_powergate_uvd(void *handle, bool gate)
 	ret = pp_check(pp_handle);
 
 	if (ret != 0)
-		return ret;
+		return;
 
 	hwmgr = pp_handle->hwmgr;
 
 	if (hwmgr->hwmgr_func->powergate_uvd == NULL) {
 		pr_info("%s was not implemented.\n", __func__);
-		return 0;
+		return;
 	}
 	mutex_lock(&pp_handle->pp_lock);
-	ret = hwmgr->hwmgr_func->powergate_uvd(hwmgr, gate);
+	hwmgr->hwmgr_func->powergate_uvd(hwmgr, gate);
 	mutex_unlock(&pp_handle->pp_lock);
-	return ret;
 }
 
 static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_task task_id,
@@ -530,7 +530,7 @@ static enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 	return pm_type;
 }
 
-static int pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
+static void pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
 {
 	struct pp_hwmgr  *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
@@ -539,25 +539,25 @@ static int pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
 	ret = pp_check(pp_handle);
 
 	if (ret != 0)
-		return ret;
+		return;
 
 	hwmgr = pp_handle->hwmgr;
 
 	if (hwmgr->hwmgr_func->set_fan_control_mode == NULL) {
 		pr_info("%s was not implemented.\n", __func__);
-		return 0;
+		return;
 	}
 	mutex_lock(&pp_handle->pp_lock);
-	ret = hwmgr->hwmgr_func->set_fan_control_mode(hwmgr, mode);
+	hwmgr->hwmgr_func->set_fan_control_mode(hwmgr, mode);
 	mutex_unlock(&pp_handle->pp_lock);
-	return ret;
 }
 
-static int pp_dpm_get_fan_control_mode(void *handle)
+static uint32_t pp_dpm_get_fan_control_mode(void *handle)
 {
 	struct pp_hwmgr  *hwmgr;
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
 	int ret = 0;
+	uint32_t mode = 0;
 
 	ret = pp_check(pp_handle);
 
@@ -571,9 +571,9 @@ static int pp_dpm_get_fan_control_mode(void *handle)
 		return 0;
 	}
 	mutex_lock(&pp_handle->pp_lock);
-	ret = hwmgr->hwmgr_func->get_fan_control_mode(hwmgr);
+	mode = hwmgr->hwmgr_func->get_fan_control_mode(hwmgr);
 	mutex_unlock(&pp_handle->pp_lock);
-	return ret;
+	return mode;
 }
 
 static int pp_dpm_set_fan_speed_percent(void *handle, uint32_t percent)
@@ -1096,7 +1096,7 @@ static int pp_dpm_switch_power_profile(void *handle,
 	return 0;
 }
 
-const struct amd_powerplay_funcs pp_dpm_funcs = {
+const struct amd_pm_funcs pp_dpm_funcs = {
 	.get_temperature = pp_dpm_get_temperature,
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
