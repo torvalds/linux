@@ -5435,7 +5435,7 @@ wake_affine_llc(struct sched_domain *sd, struct task_struct *p,
 		return false;
 
 	/* if this cache has capacity, come here */
-	if (this_stats.has_capacity && this_stats.nr_running < prev_stats.nr_running+1)
+	if (this_stats.has_capacity && this_stats.nr_running+1 < prev_stats.nr_running)
 		return true;
 
 	/*
