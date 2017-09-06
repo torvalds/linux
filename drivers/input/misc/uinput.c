@@ -324,6 +324,10 @@ static int uinput_create_device(struct uinput_device *udev)
 		dev->flush = uinput_dev_flush;
 	}
 
+	dev->event = uinput_dev_event;
+
+	input_set_drvdata(udev->dev, udev);
+
 	error = input_register_device(udev->dev);
 	if (error)
 		goto fail2;
@@ -406,18 +410,6 @@ static int uinput_validate_absbits(struct input_dev *dev)
 	return 0;
 }
 
-static int uinput_allocate_device(struct uinput_device *udev)
-{
-	udev->dev = input_allocate_device();
-	if (!udev->dev)
-		return -ENOMEM;
-
-	udev->dev->event = uinput_dev_event;
-	input_set_drvdata(udev->dev, udev);
-
-	return 0;
-}
-
 static int uinput_dev_setup(struct uinput_device *udev,
 			    struct uinput_setup __user *arg)
 {
@@ -493,9 +485,9 @@ static int uinput_setup_device_legacy(struct uinput_device *udev,
 		return -EINVAL;
 
 	if (!udev->dev) {
-		retval = uinput_allocate_device(udev);
-		if (retval)
-			return retval;
+		udev->dev = input_allocate_device();
+		if (!udev->dev)
+			return -ENOMEM;
 	}
 
 	dev = udev->dev;
@@ -826,9 +818,9 @@ static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
 		return retval;
 
 	if (!udev->dev) {
-		retval = uinput_allocate_device(udev);
-		if (retval)
-			goto out;
+		udev->dev = input_allocate_device();
+		if (!udev->dev)
+			return -ENOMEM;
 	}
 
 	switch (cmd) {
