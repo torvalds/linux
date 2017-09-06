@@ -14,6 +14,10 @@
  *
  */
 
+#if defined(CONFIG_SERIAL_MESON_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#define SUPPORT_SYSRQ
+#endif
+
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/delay.h>
@@ -183,12 +187,12 @@ static void meson_receive_chars(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
 	char flag;
-	u32 status, ch, mode;
+	u32 ostatus, status, ch, mode;
 
 	do {
 		flag = TTY_NORMAL;
 		port->icount.rx++;
-		status = readl(port->membase + AML_UART_STATUS);
+		ostatus = status = readl(port->membase + AML_UART_STATUS);
 
 		if (status & AML_UART_ERR) {
 			if (status & AML_UART_TX_FIFO_WERR)
@@ -215,6 +219,16 @@ static void meson_receive_chars(struct uart_port *port)
 
 		ch = readl(port->membase + AML_UART_RFIFO);
 		ch &= 0xff;
+
+		if ((ostatus & AML_UART_FRAME_ERR) && (ch == 0)) {
+			port->icount.brk++;
+			flag = TTY_BREAK;
+			if (uart_handle_break(port))
+				continue;
+		}
+
+		if (uart_handle_sysrq_char(port, ch))
+			continue;
 
 		if ((status & port->ignore_status_mask) == 0)
 			tty_insert_flip_char(tport, ch, flag);
