@@ -182,7 +182,7 @@ static struct tcf_chain *tcf_chain_create(struct tcf_block *block,
 	list_add_tail(&chain->list, &block->chain_list);
 	chain->block = block;
 	chain->index = chain_index;
-	chain->refcnt = 1;
+	chain->refcnt = 0;
 	return chain;
 }
 
@@ -217,15 +217,15 @@ struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
 	struct tcf_chain *chain;
 
 	list_for_each_entry(chain, &block->chain_list, list) {
-		if (chain->index == chain_index) {
-			chain->refcnt++;
-			return chain;
-		}
+		if (chain->index == chain_index)
+			goto incref;
 	}
-	if (create)
-		return tcf_chain_create(block, chain_index);
-	else
-		return NULL;
+	chain = create ? tcf_chain_create(block, chain_index) : NULL;
+
+incref:
+	if (chain)
+		chain->refcnt++;
+	return chain;
 }
 EXPORT_SYMBOL(tcf_chain_get);
 
