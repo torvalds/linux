@@ -124,7 +124,7 @@ void sas_enable_revalidation(struct sas_ha_struct *ha)
 	mutex_unlock(&ha->disco_mutex);
 }
 
-static int notify_port_event(struct asd_sas_phy *phy, enum port_event event)
+static int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event)
 {
 	struct sas_ha_struct *ha = phy->ha;
 
@@ -146,7 +146,7 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event)
 
 int sas_init_events(struct sas_ha_struct *sas_ha)
 {
-	sas_ha->notify_port_event = notify_port_event;
+	sas_ha->notify_port_event = sas_notify_port_event;
 	sas_ha->notify_phy_event = sas_notify_phy_event;
 
 	return 0;
