@@ -855,91 +855,71 @@ static void vega10_didt_set_mask(struct pp_hwmgr *hwmgr, const bool enable)
 	uint32_t didt_block_info = SQ_IR_MASK | TCP_IR_MASK | TD_PCC_MASK;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SQRamping)) {
-		data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_CTRL0);
-		data &= ~DIDT_SQ_CTRL0__DIDT_CTRL_EN_MASK;
-		data |= ((en << DIDT_SQ_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_SQ_CTRL0__DIDT_CTRL_EN_MASK);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_CTRL0, data);
+		CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
+				     DIDT_SQ_CTRL0, DIDT_CTRL_EN, en);
 		didt_block_info &= ~SQ_Enable_MASK;
 		didt_block_info |= en << SQ_Enable_SHIFT;
 	}
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRamping)) {
-		data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_CTRL0);
-		data &= ~DIDT_DB_CTRL0__DIDT_CTRL_EN_MASK;
-		data |= ((en << DIDT_DB_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_DB_CTRL0__DIDT_CTRL_EN_MASK);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_CTRL0, data);
+		CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
+				     DIDT_DB_CTRL0, DIDT_CTRL_EN, en);
 		didt_block_info &= ~DB_Enable_MASK;
 		didt_block_info |= en << DB_Enable_SHIFT;
 	}
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TDRamping)) {
-		data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_CTRL0);
-		data &= ~DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK;
-		data |= ((en << DIDT_TD_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_TD_CTRL0__DIDT_CTRL_EN_MASK);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_CTRL0, data);
+		CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
+				     DIDT_TD_CTRL0, DIDT_CTRL_EN, en);
 		didt_block_info &= ~TD_Enable_MASK;
 		didt_block_info |= en << TD_Enable_SHIFT;
 	}
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TCPRamping)) {
-		data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_CTRL0);
-		data &= ~DIDT_TCP_CTRL0__DIDT_CTRL_EN_MASK;
-		data |= ((en << DIDT_TCP_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_TCP_CTRL0__DIDT_CTRL_EN_MASK);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_CTRL0, data);
+		CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
+				     DIDT_TCP_CTRL0, DIDT_CTRL_EN, en);
 		didt_block_info &= ~TCP_Enable_MASK;
 		didt_block_info |= en << TCP_Enable_SHIFT;
 	}
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRRamping)) {
-		data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DBR_CTRL0);
-		data &= ~DIDT_DBR_CTRL0__DIDT_CTRL_EN_MASK;
-		data |= ((en << DIDT_DBR_CTRL0__DIDT_CTRL_EN__SHIFT) & DIDT_DBR_CTRL0__DIDT_CTRL_EN_MASK);
-		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DBR_CTRL0, data);
+		CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
+				     DIDT_DBR_CTRL0, DIDT_CTRL_EN, en);
 	}
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DiDtEDCEnable)) {
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SQRamping)) {
 			data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_EDC_CTRL);
-			data &= ~DIDT_SQ_EDC_CTRL__EDC_EN_MASK;
-			data |= ((en << DIDT_SQ_EDC_CTRL__EDC_EN__SHIFT) & DIDT_SQ_EDC_CTRL__EDC_EN_MASK);
-			data &= ~DIDT_SQ_EDC_CTRL__EDC_SW_RST_MASK;
-			data |= ((~en << DIDT_SQ_EDC_CTRL__EDC_SW_RST__SHIFT) & DIDT_SQ_EDC_CTRL__EDC_SW_RST_MASK);
+			data = CGS_REG_SET_FIELD(data, DIDT_SQ_EDC_CTRL, EDC_EN, en);
+			data = CGS_REG_SET_FIELD(data, DIDT_SQ_EDC_CTRL, EDC_SW_RST, ~en);
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_EDC_CTRL, data);
 		}
 
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRamping)) {
 			data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_EDC_CTRL);
-			data &= ~DIDT_DB_EDC_CTRL__EDC_EN_MASK;
-			data |= ((en << DIDT_DB_EDC_CTRL__EDC_EN__SHIFT) & DIDT_DB_EDC_CTRL__EDC_EN_MASK);
-			data &= ~DIDT_DB_EDC_CTRL__EDC_SW_RST_MASK;
-			data |= ((~en << DIDT_DB_EDC_CTRL__EDC_SW_RST__SHIFT) & DIDT_DB_EDC_CTRL__EDC_SW_RST_MASK);
+			data = CGS_REG_SET_FIELD(data, DIDT_DB_EDC_CTRL, EDC_EN, en);
+			data = CGS_REG_SET_FIELD(data, DIDT_DB_EDC_CTRL, EDC_SW_RST, ~en);
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_EDC_CTRL, data);
 		}
 
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TDRamping)) {
 			data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_EDC_CTRL);
-			data &= ~DIDT_TD_EDC_CTRL__EDC_EN_MASK;
-			data |= ((en << DIDT_TD_EDC_CTRL__EDC_EN__SHIFT) & DIDT_TD_EDC_CTRL__EDC_EN_MASK);
-			data &= ~DIDT_TD_EDC_CTRL__EDC_SW_RST_MASK;
-			data |= ((~en << DIDT_TD_EDC_CTRL__EDC_SW_RST__SHIFT) & DIDT_TD_EDC_CTRL__EDC_SW_RST_MASK);
+			data = CGS_REG_SET_FIELD(data, DIDT_TD_EDC_CTRL, EDC_EN, en);
+			data = CGS_REG_SET_FIELD(data, DIDT_TD_EDC_CTRL, EDC_SW_RST, ~en);
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_EDC_CTRL, data);
 		}
 
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TCPRamping)) {
 			data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_EDC_CTRL);
-			data &= ~DIDT_TCP_EDC_CTRL__EDC_EN_MASK;
-			data |= ((en << DIDT_TCP_EDC_CTRL__EDC_EN__SHIFT) & DIDT_TCP_EDC_CTRL__EDC_EN_MASK);
-			data &= ~DIDT_TCP_EDC_CTRL__EDC_SW_RST_MASK;
-			data |= ((~en << DIDT_TCP_EDC_CTRL__EDC_SW_RST__SHIFT) & DIDT_TCP_EDC_CTRL__EDC_SW_RST_MASK);
+			data = CGS_REG_SET_FIELD(data, DIDT_TCP_EDC_CTRL, EDC_EN, en);
+			data = CGS_REG_SET_FIELD(data, DIDT_TCP_EDC_CTRL, EDC_SW_RST, ~en);
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_EDC_CTRL, data);
 		}
 
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRRamping)) {
 			data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DBR_EDC_CTRL);
-			data &= ~DIDT_DBR_EDC_CTRL__EDC_EN_MASK;
-			data |= ((en << DIDT_DBR_EDC_CTRL__EDC_EN__SHIFT) & DIDT_DBR_EDC_CTRL__EDC_EN_MASK);
-			data &= ~DIDT_DBR_EDC_CTRL__EDC_SW_RST_MASK;
-			data |= ((~en << DIDT_DBR_EDC_CTRL__EDC_SW_RST__SHIFT) & DIDT_DBR_EDC_CTRL__EDC_SW_RST_MASK);
+			data = CGS_REG_SET_FIELD(data, DIDT_DBR_EDC_CTRL, EDC_EN, en);
+			data = CGS_REG_SET_FIELD(data, DIDT_DBR_EDC_CTRL, EDC_SW_RST, ~en);
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DBR_EDC_CTRL, data);
 		}
 	}
