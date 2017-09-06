@@ -523,11 +523,11 @@ CPU 에게 기대할 수 있는 최소한의 보장사항 몇가지가 있습니
      즉, ACQUIRE 는 최소한의 "취득" 동작처럼, 그리고 RELEASE 는 최소한의 "공개"
      처럼 동작한다는 의미입니다.
 
-core-api/atomic_ops.rst 에서 설명되는 어토믹 오퍼레이션들 중에는 완전히
-순서잡힌 것들과 (배리어를 사용하지 않는) 완화된 순서의 것들 외에 ACQUIRE 와
-RELEASE 부류의 것들도 존재합니다.  로드와 스토어를 모두 수행하는 조합된 어토믹
-오퍼레이션에서, ACQUIRE 는 해당 오퍼레이션의 로드 부분에만 적용되고 RELEASE 는
-해당 오퍼레이션의 스토어 부분에만 적용됩니다.
+atomic_t.txt 에 설명된 어토믹 오퍼레이션들 중 일부는 완전히 순서잡힌 것들과
+(배리어를 사용하지 않는) 완화된 순서의 것들 외에 ACQUIRE 와 RELEASE 부류의
+것들도 존재합니다.  로드와 스토어를 모두 수행하는 조합된 어토믹 오퍼레이션에서,
+ACQUIRE 는 해당 오퍼레이션의 로드 부분에만 적용되고 RELEASE 는 해당
+오퍼레이션의 스토어 부분에만 적용됩니다.
 
 메모리 배리어들은 두 CPU 간, 또는 CPU 와 디바이스 간에 상호작용의 가능성이 있을
 때에만 필요합니다.  만약 어떤 코드에 그런 상호작용이 없을 것이 보장된다면, 해당
@@ -1854,8 +1854,7 @@ Mandatory 배리어들은 SMP 시스템에서도 UP 시스템에서도 SMP 효�
      이 코드는 객체의 업데이트된 death 마크가 레퍼런스 카운터 감소 동작
      *전에* 보일 것을 보장합니다.
 
-     더 많은 정보를 위해선 Documentation/core-api/atomic_ops.rst 문서를 참고하세요.
-     어디서 이것들을 사용해야 할지 궁금하다면 "어토믹 오퍼레이션" 서브섹션을
+     더 많은 정보를 위해선 Documentation/atomic_{t,bitops}.txt 문서를
      참고하세요.
 
 
@@ -2474,86 +2473,7 @@ _않습니다_.
 전체 메모리 배리어를 내포하고 또 일부는 내포하지 않지만, 커널에서 상당히
 의존적으로 사용하는 기능 중 하나입니다.
 
-메모리의 어떤 상태를 수정하고 해당 상태에 대한 (예전의 또는 최신의) 정보를
-리턴하는 어토믹 오퍼레이션은 모두 SMP-조건적 범용 메모리 배리어(smp_mb())를
-실제 오퍼레이션의 앞과 뒤에 내포합니다.  이런 오퍼레이션은 다음의 것들을
-포함합니다:
-
-	xchg();
-	atomic_xchg();			atomic_long_xchg();
-	atomic_inc_return();		atomic_long_inc_return();
-	atomic_dec_return();		atomic_long_dec_return();
-	atomic_add_return();		atomic_long_add_return();
-	atomic_sub_return();		atomic_long_sub_return();
-	atomic_inc_and_test();		atomic_long_inc_and_test();
-	atomic_dec_and_test();		atomic_long_dec_and_test();
-	atomic_sub_and_test();		atomic_long_sub_and_test();
-	atomic_add_negative();		atomic_long_add_negative();
-	test_and_set_bit();
-	test_and_clear_bit();
-	test_and_change_bit();
-
-	/* exchange 조건이 성공할 때 */
-	cmpxchg();
-	atomic_cmpxchg();		atomic_long_cmpxchg();
-	atomic_add_unless();		atomic_long_add_unless();
-
-이것들은 메모리 배리어 효과가 필요한 ACQUIRE 부류와 RELEASE 부류 오퍼레이션들을
-구현할 때, 그리고 객체 해제를 위해 레퍼런스 카운터를 조정할 때, 암묵적 메모리
-배리어 효과가 필요한 곳 등에 사용됩니다.
-
-
-다음의 오퍼레이션들은 메모리 배리어를 내포하지 _않기_ 때문에 문제가 될 수
-있지만, RELEASE 부류의 오퍼레이션들과 같은 것들을 구현할 때 사용될 수도
-있습니다:
-
-	atomic_set();
-	set_bit();
-	clear_bit();
-	change_bit();
-
-이것들을 사용할 때에는 필요하다면 적절한 (예를 들면 smp_mb__before_atomic()
-같은) 메모리 배리어가 명시적으로 함께 사용되어야 합니다.
-
-
-아래의 것들도 메모리 배리어를 내포하지 _않기_ 때문에, 일부 환경에서는 (예를
-들면 smp_mb__before_atomic() 과 같은) 명시적인 메모리 배리어 사용이 필요합니다.
-
-	atomic_add();
-	atomic_sub();
-	atomic_inc();
-	atomic_dec();
-
-이것들이 통계 생성을 위해 사용된다면, 그리고 통계 데이터 사이에 관계가 존재하지
-않는다면 메모리 배리어는 필요치 않을 겁니다.
-
-객체의 수명을 관리하기 위해 레퍼런스 카운팅 목적으로 사용된다면, 레퍼런스
-카운터는 락으로 보호되는 섹션에서만 조정되거나 호출하는 쪽이 이미 충분한
-레퍼런스를 잡고 있을 것이기 때문에 메모리 배리어는 아마 필요 없을 겁니다.
-
-만약 어떤 락을 구성하기 위해 사용된다면, 락 관련 동작은 일반적으로 작업을 특정
-순서대로 진행해야 하므로 메모리 배리어가 필요할 수 있습니다.
-
-기본적으로, 각 사용처에서는 메모리 배리어가 필요한지 아닌지 충분히 고려해야
-합니다.
-
-아래의 오퍼레이션들은 특별한 락 관련 동작들입니다:
-
-	test_and_set_bit_lock();
-	clear_bit_unlock();
-	__clear_bit_unlock();
-
-이것들은 ACQUIRE 류와 RELEASE 류의 오퍼레이션들을 구현합니다.  락 관련 도구를
-구현할 때에는 이것들을 좀 더 선호하는 편이 나은데, 이것들의 구현은 많은
-아키텍쳐에서 최적화 될 수 있기 때문입니다.
-
-[!] 이런 상황에 사용할 수 있는 특수한 메모리 배리어 도구들이 있습니다만, 일부
-CPU 에서는 사용되는 어토믹 인스트럭션 자체에 메모리 배리어가 내포되어 있어서
-어토믹 오퍼레이션과 메모리 배리어를 함께 사용하는 게 불필요한 일이 될 수
-있는데, 그런 경우에 이 특수 메모리 배리어 도구들은 no-op 이 되어 실질적으로
-아무일도 하지 않습니다.
-
-더 많은 내용을 위해선 Documentation/core-api/atomic_ops.rst 를 참고하세요.
+더 많은 내용을 위해선 Documentation/atomic_t.txt 를 참고하세요.
 
 
 디바이스 액세스
