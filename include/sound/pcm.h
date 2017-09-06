@@ -525,6 +525,7 @@ struct snd_pcm_str {
 #endif
 	struct snd_kcontrol *chmap_kctl; /* channel-mapping controls */
 	struct snd_kcontrol *vol_kctl; /* volume controls */
+	struct snd_kcontrol *usr_kctl; /* user controls */
 	struct device dev;
 };
 
@@ -1468,6 +1469,30 @@ int snd_pcm_add_volume_ctls(struct snd_pcm *pcm, int stream,
 			   int max_length,
 			   unsigned long private_value,
 			   struct snd_pcm_volume **info_ret);
+
+/*
+ * PCM User control API
+ */
+/* array element of usr elem */
+struct snd_pcm_usr_elem {
+	int val[128];
+};
+
+/* pp information; retrieved via snd_kcontrol_chip() */
+struct snd_pcm_usr {
+	struct snd_pcm *pcm;	/* assigned PCM instance */
+	int stream;		/* PLAYBACK or CAPTURE */
+	struct snd_kcontrol *kctl;
+	const struct snd_pcm_usr_elem *usr;
+	int max_length;
+	void *private_data;	/* optional: private data pointer */
+};
+
+int snd_pcm_add_usr_ctls(struct snd_pcm *pcm, int stream,
+			 const struct snd_pcm_usr_elem *usr,
+			 int max_length, int max_control_str_len,
+			 unsigned long private_value,
+			 struct snd_pcm_usr **info_ret);
 
 /* printk helpers */
 #define pcm_err(pcm, fmt, args...) \
