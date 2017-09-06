@@ -3,7 +3,8 @@
 #include "camsys_gpio.h"
 
 #include <linux/rockchip/common.h>
-#include <dt-bindings/clock/rk_system_status.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
+#include <soc/rockchip/rockchip-system-status.h>
 #include <linux/rockchip_ion.h>
 #include <linux/file.h>
 #include <linux/pm_runtime.h>
@@ -12,9 +13,6 @@
 #include <drm/rockchip_drm.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-buf.h>
-
-extern int rockchip_set_system_status(unsigned long status);
-extern int rockchip_clear_system_status(unsigned long status);
 
 static const char miscdev_name[] = CAMSYS_MARVIN_DEVNAME;
 
@@ -545,7 +543,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 
 	if (CHIP_TYPE == 3399) {
 		if (on && !clk->in_on) {
-			/* rockchip_set_system_status(SYS_STATUS_ISP); */
+			rockchip_set_system_status(SYS_STATUS_ISP);
 			if (on == 1)
 				isp_clk = 210000000;
 			else
@@ -612,14 +610,14 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 				clk_disable_unprepare(clk->pclk_dphy_ref);
 			}
 
-			/* rockchip_clear_system_status(SYS_STATUS_ISP); */
+			rockchip_clear_system_status(SYS_STATUS_ISP);
 			clk->in_on = false;
 			camsys_trace(1, "%s clock in turn off",
 				     dev_name(camsys_dev->miscdev.this_device));
 			}
 	} else{
 		if (on && !clk->in_on) {
-			/* rockchip_set_system_status(SYS_STATUS_ISP); */
+			rockchip_set_system_status(SYS_STATUS_ISP);
 
 		if (on == 1)
 			isp_clk = 210000000;
@@ -662,7 +660,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 		}
 		/* clk_disable_unprepare(clk->pd_isp); */
 
-		/* rockchip_clear_system_status(SYS_STATUS_ISP); */
+		rockchip_clear_system_status(SYS_STATUS_ISP);
 		clk->in_on = false;
 		camsys_trace(1, "%s clock in turn off",
 			dev_name(camsys_dev->miscdev.this_device));
