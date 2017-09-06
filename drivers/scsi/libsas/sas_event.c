@@ -124,14 +124,6 @@ void sas_enable_revalidation(struct sas_ha_struct *ha)
 	mutex_unlock(&ha->disco_mutex);
 }
 
-static int notify_ha_event(struct sas_ha_struct *sas_ha, enum ha_event event)
-{
-	BUG_ON(event >= HA_NUM_EVENTS);
-
-	return sas_queue_event(event, &sas_ha->pending,
-			       &sas_ha->ha_events[event].work, sas_ha);
-}
-
 static int notify_port_event(struct asd_sas_phy *phy, enum port_event event)
 {
 	struct sas_ha_struct *ha = phy->ha;
@@ -154,18 +146,6 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event)
 
 int sas_init_events(struct sas_ha_struct *sas_ha)
 {
-	static const work_func_t sas_ha_event_fns[HA_NUM_EVENTS] = {
-		[HAE_RESET] = sas_hae_reset,
-	};
-
-	int i;
-
-	for (i = 0; i < HA_NUM_EVENTS; i++) {
-		INIT_SAS_WORK(&sas_ha->ha_events[i].work, sas_ha_event_fns[i]);
-		sas_ha->ha_events[i].ha = sas_ha;
-	}
-
-	sas_ha->notify_ha_event = notify_ha_event;
 	sas_ha->notify_port_event = notify_port_event;
 	sas_ha->notify_phy_event = sas_notify_phy_event;
 

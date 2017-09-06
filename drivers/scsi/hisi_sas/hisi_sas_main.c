@@ -1074,7 +1074,6 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	hisi_sas_release_tasks(hisi_hba);
 	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 
-	sas_ha->notify_ha_event(sas_ha, HAE_RESET);
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 
 	/* Init and wait for PHYs to come up and all libsas event finished. */

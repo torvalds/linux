@@ -60,11 +60,6 @@ enum sas_phy_type {
  * so when updating/adding events here, please also
  * update the other file too.
  */
-enum ha_event {
-	HAE_RESET             = 0U,
-	HA_NUM_EVENTS         = 1,
-};
-
 enum port_event {
 	PORTE_BYTES_DMAED     = 0U,
 	PORTE_BROADCAST_RCVD  = 1,
@@ -362,18 +357,6 @@ struct scsi_core {
 
 };
 
-struct sas_ha_event {
-	struct sas_work work;
-	struct sas_ha_struct *ha;
-};
-
-static inline struct sas_ha_event *to_sas_ha_event(struct work_struct *work)
-{
-	struct sas_ha_event *ev = container_of(work, typeof(*ev), work.work);
-
-	return ev;
-}
-
 enum sas_ha_state {
 	SAS_HA_REGISTERED,
 	SAS_HA_DRAINING,
@@ -383,9 +366,6 @@ enum sas_ha_state {
 
 struct sas_ha_struct {
 /* private: */
-	struct sas_ha_event ha_events[HA_NUM_EVENTS];
-	unsigned long	 pending;
-
 	struct list_head  defer_q; /* work queued while draining */
 	struct mutex	  drain_mutex;
 	unsigned long	  state;
@@ -415,7 +395,6 @@ struct sas_ha_struct {
 				* their siblings when forming wide ports */
 
 	/* LLDD calls these to notify the class of an event. */
-	int (*notify_ha_event)(struct sas_ha_struct *, enum ha_event);
 	int (*notify_port_event)(struct asd_sas_phy *, enum port_event);
 	int (*notify_phy_event)(struct asd_sas_phy *, enum phy_event);
 

@@ -721,11 +721,8 @@ Out:
  */
 static void asd_chip_reset(struct asd_ha_struct *asd_ha)
 {
-	struct sas_ha_struct *sas_ha = &asd_ha->sas_ha;
-
 	ASD_DPRINTK("chip reset for %s\n", pci_name(asd_ha->pcidev));
 	asd_chip_hardrst(asd_ha);
-	sas_ha->notify_ha_event(sas_ha, HAE_RESET);
 }
 
 /* ---------- Done List Routines ---------- */
