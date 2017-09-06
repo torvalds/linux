@@ -445,7 +445,7 @@ static int v9fs_file_fsync(struct file *filp, loff_t start, loff_t end,
 	struct p9_wstat wstat;
 	int retval;
 
-	retval = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	retval = file_write_and_wait_range(filp, start, end);
 	if (retval)
 		return retval;
 
@@ -468,7 +468,7 @@ int v9fs_file_fsync_dotl(struct file *filp, loff_t start, loff_t end,
 	struct inode *inode = filp->f_mapping->host;
 	int retval;
 
-	retval = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	retval = file_write_and_wait_range(filp, start, end);
 	if (retval)
 		return retval;
 

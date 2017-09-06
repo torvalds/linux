@@ -476,6 +476,29 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
 EXPORT_SYMBOL(filemap_fdatawait_range);
 
 /**
+ * file_fdatawait_range - wait for writeback to complete
+ * @file:		file pointing to address space structure to wait for
+ * @start_byte:		offset in bytes where the range starts
+ * @end_byte:		offset in bytes where the range ends (inclusive)
+ *
+ * Walk the list of under-writeback pages of the address space that file
+ * refers to, in the given range and wait for all of them.  Check error
+ * status of the address space vs. the file->f_wb_err cursor and return it.
+ *
+ * Since the error status of the file is advanced by this function,
+ * callers are responsible for checking the return value and handling and/or
+ * reporting the error.
+ */
+int file_fdatawait_range(struct file *file, loff_t start_byte, loff_t end_byte)
+{
+	struct address_space *mapping = file->f_mapping;
+
+	__filemap_fdatawait_range(mapping, start_byte, end_byte);
+	return file_check_and_advance_wb_err(file);
+}
+EXPORT_SYMBOL(file_fdatawait_range);
+
+/**
  * filemap_fdatawait_keep_errors - wait for writeback without clearing errors
  * @mapping: address space structure to wait for
  *
@@ -489,45 +512,22 @@ EXPORT_SYMBOL(filemap_fdatawait_range);
  */
 int filemap_fdatawait_keep_errors(struct address_space *mapping)
 {
-	loff_t i_size = i_size_read(mapping->host);
-
-	if (i_size == 0)
-		return 0;
-
-	__filemap_fdatawait_range(mapping, 0, i_size - 1);
+	__filemap_fdatawait_range(mapping, 0, LLONG_MAX);
 	return filemap_check_and_keep_errors(mapping);
 }
 EXPORT_SYMBOL(filemap_fdatawait_keep_errors);
 
-/**
- * filemap_fdatawait - wait for all under-writeback pages to complete
- * @mapping: address space structure to wait for
- *
- * Walk the list of under-writeback pages of the given address space
- * and wait for all of them.  Check error status of the address space
- * and return it.
- *
- * Since the error status of the address space is cleared by this function,
- * callers are responsible for checking the return value and handling and/or
- * reporting the error.
- */
-int filemap_fdatawait(struct address_space *mapping)
+static bool mapping_needs_writeback(struct address_space *mapping)
 {
-	loff_t i_size = i_size_read(mapping->host);
-
-	if (i_size == 0)
-		return 0;
-
-	return filemap_fdatawait_range(mapping, 0, i_size - 1);
+	return (!dax_mapping(mapping) && mapping->nrpages) ||
+	    (dax_mapping(mapping) && mapping->nrexceptional);
 }
-EXPORT_SYMBOL(filemap_fdatawait);
 
 int filemap_write_and_wait(struct address_space *mapping)
 {
 	int err = 0;
 
-	if ((!dax_mapping(mapping) && mapping->nrpages) ||
-	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+	if (mapping_needs_writeback(mapping)) {
 		err = filemap_fdatawrite(mapping);
 		/*
 		 * Even if the above returned error, the pages may be
@@ -566,8 +566,7 @@ int filemap_write_and_wait_range(struct address_space *mapping,
 {
 	int err = 0;
 
-	if ((!dax_mapping(mapping) && mapping->nrpages) ||
-	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+	if (mapping_needs_writeback(mapping)) {
 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
 						 WB_SYNC_ALL);
 		/* See comment of filemap_write_and_wait() */
@@ -589,7 +588,7 @@ EXPORT_SYMBOL(filemap_write_and_wait_range);
 
 void __filemap_set_wb_err(struct address_space *mapping, int err)
 {
-	errseq_t eseq = __errseq_set(&mapping->wb_err, err);
+	errseq_t eseq = errseq_set(&mapping->wb_err, err);
 
 	trace_filemap_set_wb_err(mapping, eseq);
 }
@@ -656,8 +655,7 @@ int file_write_and_wait_range(struct file *file, loff_t lstart, loff_t lend)
 	int err = 0, err2;
 	struct address_space *mapping = file->f_mapping;
 
-	if ((!dax_mapping(mapping) && mapping->nrpages) ||
-	    (dax_mapping(mapping) && mapping->nrexceptional)) {
+	if (mapping_needs_writeback(mapping)) {
 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
 						 WB_SYNC_ALL);
 		/* See comment of filemap_write_and_wait() */
