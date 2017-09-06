@@ -1230,7 +1230,7 @@ static int dax_pmd_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
 	void *ret = NULL, *kaddr;
 	long length = 0;
 	pgoff_t pgoff;
-	pfn_t pfn;
+	pfn_t pfn = {};
 	int id;
 
 	if (bdev_dax_pgoff(bdev, sector, size, &pgoff) != 0)
