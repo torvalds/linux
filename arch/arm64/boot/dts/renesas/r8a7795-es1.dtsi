@@ -21,6 +21,14 @@
 		status = "disabled";
 	};
 
+	/delete-node/ usb-phy@ee0e0200;
+	/delete-node/ usb@ee0e0100;
+	/delete-node/ usb@ee0e0000;
+	/delete-node/ usb@e659c000;
+
+	/delete-node/ dma-controller@e6460000;
+	/delete-node/ dma-controller@e6470000;
+
 	fcpf2: fcp@fe952000 {
 		compatible = "renesas,fcpf";
 		reg = <0 0xfe952000 0 0x200>;
@@ -79,6 +87,5 @@
 };
 
 &du {
-	compatible = "renesas,du-r8a7795";
 	vsps = <&vspd0 &vspd1 &vspd2 &vspd3>;
 };

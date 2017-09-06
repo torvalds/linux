@@ -67,6 +67,13 @@
 	};
 };
 
+&cec_AO {
+	status = "okay";
+	pinctrl-0 = <&ao_cec_pins>;
+	pinctrl-names = "default";
+	hdmi-phandle = <&hdmi_tx>;
+};
+
 &hdmi_tx {
 	status = "okay";
 	pinctrl-0 = <&hdmi_hpd_pins>, <&hdmi_i2c_pins>;
@@ -103,6 +110,62 @@
 
 &ir {
 	linux,rc-map-name = "rc-geekbox";
+};
+
+&pinctrl_aobus {
+	gpio-line-names = "UART TX",
+			  "UART RX",
+			  "Power Key In",
+			  "J9 Header Pin35",
+			  "J9 Header Pin16",
+			  "J9 Header Pin15",
+			  "J9 Header Pin33",
+			  "IR In",
+			  "HDMI CEC",
+			  "SYS LED";
+};
+
+&pinctrl_periphs {
+	gpio-line-names = /* Bank GPIOZ */
+			  "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "",
+			  "Power OFF",
+			  "VCCK Enable",
+			  /* Bank GPIOH */
+			  "HDMI HPD", "HDMI SDA", "HDMI SCL",
+			  "HDMI_5V_EN", "SPDIF",
+			  "J9 Header Pin37",
+			  "J9 Header Pin30",
+			  "J9 Header Pin29",
+			  "J9 Header Pin32",
+			  "J9 Header Pin31",
+			  /* Bank BOOT */
+			  "eMMC D0", "eMMC D1", "eMMC D2", "eMMC D3",
+			  "eMMC D4", "eMMC D5", "eMMC D6", "eMMC D7",
+			  "eMMC Clk", "eMMC Reset", "eMMC CMD",
+			  "", "BOOT_MODE", "", "", "eMMC Data Strobe",
+			  /* Bank CARD */
+			  "SDCard D1", "SDCard D0", "SDCard CLK", "SDCard CMD",
+			  "SDCard D3", "SDCard D2", "SDCard Det",
+			  /* Bank GPIODV */
+			  "", "", "", "", "", "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "", "", "", "", "",
+			  "I2C A SDA", "I2C A SCK", "I2C B SDA", "I2C B SCK",
+			  "VCCK Regulator", "VDDEE Regulator",
+			  /* Bank GPIOX */
+			  "WIFI SDIO D0", "WIFI SDIO D1", "WIFI SDIO D2",
+			  "WIFI SDIO D3", "WIFI SDIO CLK", "WIFI SDIO CMD",
+			  "WIFI Power Enable", "WIFI WAKE HOST",
+			  "Bluetooth PCM DOUT", "Bluetooth PCM DIN",
+			  "Bluetooth PCM SYNC", "Bluetooth PCM CLK",
+			  "Bluetooth UART TX", "Bluetooth UART RX",
+			  "Bluetooth UART CTS", "Bluetooth UART RTS",
+			  "WIFI 32K", "Bluetooth Enable",
+			  "Bluetooth WAKE HOST",
+			  /* Bank GPIOCLK */
+			  "", "J9 Header Pin39",
+			  /* GPIO_TEST_N */
+			  "";
 };
 
 &pwm_AO_ab {
