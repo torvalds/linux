@@ -822,6 +822,8 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 					    EXTCON_USB_VBUS_EN) > 0) {
 			dev_dbg(&rport->phy->dev, "usb otg host connect\n");
 			rport->state = OTG_STATE_A_HOST;
+			rphy->chg_state = USB_CHG_STATE_UNDEFINED;
+			rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
 			mutex_unlock(&rport->mutex);
 			rockchip_usb2phy_power_on(rport->phy);
 			return;
@@ -892,14 +894,25 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 		}
 		break;
 	case OTG_STATE_B_PERIPHERAL:
-		if (!rport->vbus_attached) {
+		sch_work = true;
+
+		if (extcon_get_cable_state_(rphy->edev, EXTCON_USB_HOST) > 0 ||
+		    extcon_get_cable_state_(rphy->edev,
+					    EXTCON_USB_VBUS_EN) > 0) {
+			dev_dbg(&rport->phy->dev, "usb otg host connect\n");
+			rport->state = OTG_STATE_A_HOST;
+			rphy->chg_state = USB_CHG_STATE_UNDEFINED;
+			rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
+			rport->perip_connected = false;
+			sch_work = false;
+			wake_unlock(&rport->wakelock);
+		} else if (!rport->vbus_attached) {
 			dev_dbg(&rport->phy->dev, "usb disconnect\n");
 			rport->state = OTG_STATE_B_IDLE;
 			rport->perip_connected = false;
 			delay = OTG_SCHEDULE_DELAY * 2;
 			wake_unlock(&rport->wakelock);
 		}
-		sch_work = true;
 		break;
 	case OTG_STATE_A_HOST:
 		if (extcon_get_cable_state_(rphy->edev, EXTCON_USB_HOST) == 0) {
@@ -909,6 +922,9 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			rockchip_usb2phy_power_off(rport->phy);
 			mutex_lock(&rport->mutex);
 			sch_work = true;
+		} else {
+			mutex_unlock(&rport->mutex);
+			return;
 		}
 		break;
 	default:
@@ -919,6 +935,15 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 	if (extcon_get_state(rphy->edev, cable) != rport->vbus_attached)
 		extcon_set_cable_state_(rphy->edev,
 					cable, rport->vbus_attached);
+	else if (rport->state == OTG_STATE_A_HOST &&
+		 extcon_get_state(rphy->edev, cable))
+		/*
+		 * If plug in OTG host cable when the rport state is
+		 * OTG_STATE_B_PERIPHERAL, the vbus voltage will stay
+		 * in high, so the rport->vbus_attached may not be
+		 * changed. We need to set cable state here.
+		 */
+		extcon_set_cable_state_(rphy->edev, cable, false);
 
 	if (rphy->edev_self &&
 	    (extcon_get_state(rphy->edev, EXTCON_USB) !=
@@ -1332,7 +1357,6 @@ static int rockchip_otg_event(struct notifier_block *nb,
 	struct rockchip_usb2phy_port *rport =
 		container_of(nb, struct rockchip_usb2phy_port, event_nb);
 
-	cancel_delayed_work_sync(&rport->otg_sm_work);
 	schedule_delayed_work(&rport->otg_sm_work, OTG_SCHEDULE_DELAY);
 
 	return NOTIFY_DONE;
