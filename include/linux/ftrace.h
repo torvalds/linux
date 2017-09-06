@@ -56,12 +56,21 @@ struct ftrace_hash;
 const char *
 ftrace_mod_address_lookup(unsigned long addr, unsigned long *size,
 		   unsigned long *off, char **modname, char *sym);
+int ftrace_mod_get_kallsym(unsigned int symnum, unsigned long *value,
+			   char *type, char *name,
+			   char *module_name, int *exported);
 #else
 static inline const char *
 ftrace_mod_address_lookup(unsigned long addr, unsigned long *size,
 		   unsigned long *off, char **modname, char *sym)
 {
 	return NULL;
+}
+static inline int ftrace_mod_get_kallsym(unsigned int symnum, unsigned long *value,
+					 char *type, char *name,
+					 char *module_name, int *exported)
+{
+	return -1;
 }
 #endif
 

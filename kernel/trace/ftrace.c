@@ -5689,6 +5689,7 @@ struct ftrace_mod_map {
 	unsigned long		start_addr;
 	unsigned long		end_addr;
 	struct list_head	funcs;
+	unsigned int		num_funcs;
 };
 
 #ifdef CONFIG_MODULES
@@ -5940,6 +5941,8 @@ static void save_ftrace_mod_rec(struct ftrace_mod_map *mod_map,
 	mod_func->ip = rec->ip - offset;
 	mod_func->size = symsize;
 
+	mod_map->num_funcs++;
+
 	list_add_rcu(&mod_func->list, &mod_map->funcs);
 }
 
@@ -5956,6 +5959,7 @@ allocate_ftrace_mod_map(struct module *mod,
 	mod_map->mod = mod;
 	mod_map->start_addr = start;
 	mod_map->end_addr = end;
+	mod_map->num_funcs = 0;
 
 	INIT_LIST_HEAD_RCU(&mod_map->funcs);
 
@@ -6014,6 +6018,42 @@ ftrace_mod_address_lookup(unsigned long addr, unsigned long *size,
 	preempt_enable();
 
 	return ret;
+}
+
+int ftrace_mod_get_kallsym(unsigned int symnum, unsigned long *value,
+			   char *type, char *name,
+			   char *module_name, int *exported)
+{
+	struct ftrace_mod_map *mod_map;
+	struct ftrace_mod_func *mod_func;
+
+	preempt_disable();
+	list_for_each_entry_rcu(mod_map, &ftrace_mod_maps, list) {
+
+		if (symnum >= mod_map->num_funcs) {
+			symnum -= mod_map->num_funcs;
+			continue;
+		}
+
+		list_for_each_entry_rcu(mod_func, &mod_map->funcs, list) {
+			if (symnum > 1) {
+				symnum--;
+				continue;
+			}
+
+			*value = mod_func->ip;
+			*type = 'T';
+			strlcpy(name, mod_func->name, KSYM_NAME_LEN);
+			strlcpy(module_name, mod_map->mod->name, MODULE_NAME_LEN);
+			*exported = 1;
+			preempt_enable();
+			return 0;
+		}
+		WARN_ON(1);
+		break;
+	}
+	preempt_enable();
+	return -ERANGE;
 }
 
 #else
