@@ -204,7 +204,7 @@ static inline struct uffd_msg userfault_msg(unsigned long address,
 		 */
 		msg.arg.pagefault.flags |= UFFD_PAGEFAULT_FLAG_WP;
 	if (features & UFFD_FEATURE_THREAD_ID)
-		msg.arg.pagefault.ptid = task_pid_vnr(current);
+		msg.arg.pagefault.feat.ptid = task_pid_vnr(current);
 	return msg;
 }
 

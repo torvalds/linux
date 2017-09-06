@@ -80,7 +80,9 @@ struct uffd_msg {
 		struct {
 			__u64	flags;
 			__u64	address;
-			__u32   ptid;
+			union {
+				__u32 ptid;
+			} feat;
 		} pagefault;
 
 		struct {
