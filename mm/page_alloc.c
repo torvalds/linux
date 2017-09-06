@@ -5282,14 +5282,18 @@ static int __build_all_zonelists(void *data)
 	memset(node_load, 0, sizeof(node_load));
 #endif
 
+	/*
+	 * This node is hotadded and no memory is yet present.   So just
+	 * building zonelists is fine - no need to touch other nodes.
+	 */
 	if (self && !node_online(self->node_id)) {
 		build_zonelists(self);
-	}
+	} else {
+		for_each_online_node(nid) {
+			pg_data_t *pgdat = NODE_DATA(nid);
 
-	for_each_online_node(nid) {
-		pg_data_t *pgdat = NODE_DATA(nid);
-
-		build_zonelists(pgdat);
+			build_zonelists(pgdat);
+		}
 	}
 
 	/*
