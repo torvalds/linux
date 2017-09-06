@@ -433,6 +433,8 @@ static int esw_create_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 	struct mlx5_flow_table *fdb = NULL;
 	int esw_size, err = 0;
 	u32 flags = 0;
+	u32 max_flow_counter = (MLX5_CAP_GEN(dev, max_flow_counter_31_16) << 16) |
+				MLX5_CAP_GEN(dev, max_flow_counter_15_0);
 
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
 	if (!root_ns) {
@@ -443,9 +445,9 @@ static int esw_create_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 
 	esw_debug(dev, "Create offloads FDB table, min (max esw size(2^%d), max counters(%d)*groups(%d))\n",
 		  MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size),
-		  MLX5_CAP_GEN(dev, max_flow_counter), ESW_OFFLOADS_NUM_GROUPS);
+		  max_flow_counter, ESW_OFFLOADS_NUM_GROUPS);
 
-	esw_size = min_t(int, MLX5_CAP_GEN(dev, max_flow_counter) * ESW_OFFLOADS_NUM_GROUPS,
+	esw_size = min_t(int, max_flow_counter * ESW_OFFLOADS_NUM_GROUPS,
 			 1 << MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
 
 	if (esw->offloads.encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE)

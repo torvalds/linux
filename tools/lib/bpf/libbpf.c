@@ -1745,3 +1745,32 @@ long libbpf_get_error(const void *ptr)
 		return PTR_ERR(ptr);
 	return 0;
 }
+
+int bpf_prog_load(const char *file, enum bpf_prog_type type,
+		  struct bpf_object **pobj, int *prog_fd)
+{
+	struct bpf_program *prog;
+	struct bpf_object *obj;
+	int err;
+
+	obj = bpf_object__open(file);
+	if (IS_ERR(obj))
+		return -ENOENT;
+
+	prog = bpf_program__next(NULL, obj);
+	if (!prog) {
+		bpf_object__close(obj);
+		return -ENOENT;
+	}
+
+	bpf_program__set_type(prog, type);
+	err = bpf_object__load(obj);
+	if (err) {
+		bpf_object__close(obj);
+		return -EINVAL;
+	}
+
+	*pobj = obj;
+	*prog_fd = bpf_program__fd(prog);
+	return 0;
+}

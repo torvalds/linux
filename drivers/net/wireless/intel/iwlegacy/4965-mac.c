@@ -4654,7 +4654,7 @@ static struct attribute *il_sysfs_entries[] = {
 	NULL
 };
 
-static struct attribute_group il_attribute_group = {
+static const struct attribute_group il_attribute_group = {
 	.name = NULL,		/* put in device directory */
 	.attrs = il_sysfs_entries,
 };

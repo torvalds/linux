@@ -818,10 +818,15 @@ The kernel interface functions are as follows:
 
  (*) Send data through a call.
 
+	typedef void (*rxrpc_notify_end_tx_t)(struct sock *sk,
+					      unsigned long user_call_ID,
+					      struct sk_buff *skb);
+
 	int rxrpc_kernel_send_data(struct socket *sock,
 				   struct rxrpc_call *call,
 				   struct msghdr *msg,
-				   size_t len);
+				   size_t len,
+				   rxrpc_notify_end_tx_t notify_end_rx);
 
      This is used to supply either the request part of a client call or the
      reply part of a server call.  msg.msg_iovlen and msg.msg_iov specify the
@@ -831,6 +836,11 @@ The kernel interface functions are as follows:
 
      The msg must not specify a destination address, control data or any flags
      other than MSG_MORE.  len is the total amount of data to transmit.
+
+     notify_end_rx can be NULL or it can be used to specify a function to be
+     called when the call changes state to end the Tx phase.  This function is
+     called with the call-state spinlock held to prevent any reply or final ACK
+     from being delivered first.
 
  (*) Receive data from a call.
 
@@ -964,6 +974,51 @@ The kernel interface functions are as follows:
      call.  It's intended to be used for setting the reply size as the request
      size should be set when the call is begun.  tx_total_len may not be less
      than zero.
+
+ (*) Check to see the completion state of a call so that the caller can assess
+     whether it needs to be retried.
+
+	enum rxrpc_call_completion {
+		RXRPC_CALL_SUCCEEDED,
+		RXRPC_CALL_REMOTELY_ABORTED,
+		RXRPC_CALL_LOCALLY_ABORTED,
+		RXRPC_CALL_LOCAL_ERROR,
+		RXRPC_CALL_NETWORK_ERROR,
+	};
+
+	int rxrpc_kernel_check_call(struct socket *sock, struct rxrpc_call *call,
+				    enum rxrpc_call_completion *_compl,
+				    u32 *_abort_code);
+
+     On return, -EINPROGRESS will be returned if the call is still ongoing; if
+     it is finished, *_compl will be set to indicate the manner of completion,
+     *_abort_code will be set to any abort code that occurred.  0 will be
+     returned on a successful completion, -ECONNABORTED will be returned if the
+     client failed due to a remote abort and anything else will return an
+     appropriate error code.
+
+     The caller should look at this information to decide if it's worth
+     retrying the call.
+
+ (*) Retry a client call.
+
+	int rxrpc_kernel_retry_call(struct socket *sock,
+				    struct rxrpc_call *call,
+				    struct sockaddr_rxrpc *srx,
+				    struct key *key);
+
+     This attempts to partially reinitialise a call and submit it again whilst
+     reusing the original call's Tx queue to avoid the need to repackage and
+     re-encrypt the data to be sent.  call indicates the call to retry, srx the
+     new address to send it to and key the encryption key to use for signing or
+     encrypting the packets.
+
+     For this to work, the first Tx data packet must still be in the transmit
+     queue, and currently this is only permitted for local and network errors
+     and the call must not have been aborted.  Any partially constructed Tx
+     packet is left as is and can continue being filled afterwards.
+
+     It returns 0 if the call was requeued and an error otherwise.
 
 
 =======================

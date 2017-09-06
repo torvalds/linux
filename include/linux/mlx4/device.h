@@ -224,6 +224,7 @@ enum {
 	MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT	= 1ULL <<  35,
 	MLX4_DEV_CAP_FLAG2_SVLAN_BY_QP          = 1ULL <<  36,
 	MLX4_DEV_CAP_FLAG2_SL_TO_VL_CHANGE_EVENT = 1ULL << 37,
+	MLX4_DEV_CAP_FLAG2_USER_MAC_EN		= 1ULL << 38,
 };
 
 enum {
@@ -524,6 +525,14 @@ struct mlx4_phys_caps {
 	u32			base_tunnel_sqpn;
 };
 
+struct mlx4_spec_qps {
+	u32 qp0_qkey;
+	u32 qp0_proxy;
+	u32 qp0_tunnel;
+	u32 qp1_proxy;
+	u32 qp1_tunnel;
+};
+
 struct mlx4_caps {
 	u64			fw_ver;
 	u32			function;
@@ -553,11 +562,7 @@ struct mlx4_caps {
 	int			max_qp_init_rdma;
 	int			max_qp_dest_rdma;
 	int			max_tc_eth;
-	u32			*qp0_qkey;
-	u32			*qp0_proxy;
-	u32			*qp1_proxy;
-	u32			*qp0_tunnel;
-	u32			*qp1_tunnel;
+	struct mlx4_spec_qps   *spec_qps;
 	int			num_srqs;
 	int			max_srq_wqes;
 	int			max_srq_sge;
@@ -1381,6 +1386,7 @@ int mlx4_get_base_qpn(struct mlx4_dev *dev, u8 port);
 int __mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac);
 int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 			  u8 pptx, u8 pfctx, u8 pprx, u8 pfcrx);
+int mlx4_SET_PORT_user_mac(struct mlx4_dev *dev, u8 port, u8 *user_mac);
 int mlx4_SET_PORT_user_mtu(struct mlx4_dev *dev, u8 port, u16 user_mtu);
 int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 			   u8 promisc);

@@ -561,6 +561,7 @@ struct mlx5_fc_stats {
 	unsigned long sampling_interval; /* jiffies */
 };
 
+struct mlx5_mpfs;
 struct mlx5_eswitch;
 struct mlx5_lag;
 struct mlx5_pagefault;
@@ -656,7 +657,11 @@ struct mlx5_priv {
 	struct list_head        ctx_list;
 	spinlock_t              ctx_lock;
 
+	struct list_head	waiting_events_list;
+	bool			is_accum_events;
+
 	struct mlx5_flow_steering *steering;
+	struct mlx5_mpfs        *mpfs;
 	struct mlx5_eswitch     *eswitch;
 	struct mlx5_core_sriov	sriov;
 	struct mlx5_lag		*lag;
@@ -885,8 +890,6 @@ static inline void *mlx5_buf_offset(struct mlx5_buf *buf, int offset)
 {
 		return buf->direct.buf + offset;
 }
-
-extern struct workqueue_struct *mlx5_core_wq;
 
 #define STRUCT_FIELD(header, field) \
 	.struct_offset_bytes = offsetof(struct ib_unpacked_ ## header, field),      \

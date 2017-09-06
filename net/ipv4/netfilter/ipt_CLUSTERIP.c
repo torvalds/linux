@@ -625,7 +625,7 @@ arp_mangle(void *priv,
 	return NF_ACCEPT;
 }
 
-static struct nf_hook_ops cip_arp_ops __read_mostly = {
+static const struct nf_hook_ops cip_arp_ops = {
 	.hook = arp_mangle,
 	.pf = NFPROTO_ARP,
 	.hooknum = NF_ARP_OUT,

@@ -661,10 +661,16 @@ static inline void iwl_pcie_sw_reset(struct iwl_trans *trans)
 	usleep_range(5000, 6000);
 }
 
+static inline u8 iwl_pcie_get_cmd_index(struct iwl_txq *q, u32 index)
+{
+	return index & (q->n_window - 1);
+}
+
 static inline void *iwl_pcie_get_tfd(struct iwl_trans_pcie *trans_pcie,
 				     struct iwl_txq *txq, int idx)
 {
-	return txq->tfds + trans_pcie->tfd_size * idx;
+	return txq->tfds + trans_pcie->tfd_size * iwl_pcie_get_cmd_index(txq,
+									 idx);
 }
 
 static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
@@ -724,11 +730,6 @@ static inline bool iwl_queue_used(const struct iwl_txq *q, int i)
 	return q->write_ptr >= q->read_ptr ?
 		(i >= q->read_ptr && i < q->write_ptr) :
 		!(i < q->read_ptr && i >= q->write_ptr);
-}
-
-static inline u8 get_cmd_index(struct iwl_txq *q, u32 index)
-{
-	return index & (q->n_window - 1);
 }
 
 static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
@@ -793,7 +794,7 @@ void iwl_pcie_rx_allocator_work(struct work_struct *data);
 void iwl_pcie_apm_config(struct iwl_trans *trans);
 int iwl_pcie_prepare_card_hw(struct iwl_trans *trans);
 void iwl_pcie_synchronize_irqs(struct iwl_trans *trans);
-bool iwl_trans_check_hw_rf_kill(struct iwl_trans *trans);
+bool iwl_pcie_check_hw_rf_kill(struct iwl_trans *trans);
 void iwl_trans_pcie_handle_stop_rfkill(struct iwl_trans *trans,
 				       bool was_in_rfkill);
 void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
@@ -808,6 +809,8 @@ int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
 			   struct iwl_dma_ptr *ptr, size_t size);
 void iwl_pcie_free_dma_ptr(struct iwl_trans *trans, struct iwl_dma_ptr *ptr);
 void iwl_pcie_apply_destination(struct iwl_trans *trans);
+void iwl_pcie_free_tso_page(struct iwl_trans_pcie *trans_pcie,
+			    struct sk_buff *skb);
 #ifdef CONFIG_INET
 struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len);
 #endif

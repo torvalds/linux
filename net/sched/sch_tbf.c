@@ -511,13 +511,9 @@ static struct Qdisc *tbf_leaf(struct Qdisc *sch, unsigned long arg)
 	return q->qdisc;
 }
 
-static unsigned long tbf_get(struct Qdisc *sch, u32 classid)
+static unsigned long tbf_find(struct Qdisc *sch, u32 classid)
 {
 	return 1;
-}
-
-static void tbf_put(struct Qdisc *sch, unsigned long arg)
-{
 }
 
 static void tbf_walk(struct Qdisc *sch, struct qdisc_walker *walker)
@@ -535,8 +531,7 @@ static void tbf_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 static const struct Qdisc_class_ops tbf_class_ops = {
 	.graft		=	tbf_graft,
 	.leaf		=	tbf_leaf,
-	.get		=	tbf_get,
-	.put		=	tbf_put,
+	.find		=	tbf_find,
 	.walk		=	tbf_walk,
 	.dump		=	tbf_dump_class,
 };

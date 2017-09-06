@@ -367,30 +367,6 @@ static int tipc_reset_bearer(struct net *net, struct tipc_bearer *b)
 	return 0;
 }
 
-/* tipc_bearer_reset_all - reset all links on all bearers
- */
-void tipc_bearer_reset_all(struct net *net)
-{
-	struct tipc_bearer *b;
-	int i;
-
-	for (i = 0; i < MAX_BEARERS; i++) {
-		b = bearer_get(net, i);
-		if (b)
-			clear_bit_unlock(0, &b->up);
-	}
-	for (i = 0; i < MAX_BEARERS; i++) {
-		b = bearer_get(net, i);
-		if (b)
-			tipc_reset_bearer(net, b);
-	}
-	for (i = 0; i < MAX_BEARERS; i++) {
-		b = bearer_get(net, i);
-		if (b)
-			test_and_set_bit_lock(0, &b->up);
-	}
-}
-
 /**
  * bearer_disable
  *

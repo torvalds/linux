@@ -52,6 +52,11 @@ Optional Properties:
   Mark the corresponding energy efficient ethernet mode as broken and
   request the ethernet to stop advertising it.
 
+- phy-is-integrated: If set, indicates that the PHY is integrated into the same
+  physical package as the Ethernet MAC. If needed, muxers should be configured
+  to ensure the integrated PHY is used. The absence of this property indicates
+  the muxers should be configured so that the external PHY is used.
+
 Example:
 
 ethernet-phy@0 {

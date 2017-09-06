@@ -327,7 +327,22 @@ static void halbtc_aggregation_check(struct btc_coexist *btcoexist)
 
 static u32 halbtc_get_bt_patch_version(struct btc_coexist *btcoexist)
 {
-	return 0;
+	struct rtl_priv *rtlpriv = btcoexist->adapter;
+	u8 cmd_buffer[4] = {0};
+	u8 oper_ver = 0;
+	u8 req_num = 0x0E;
+
+	if (btcoexist->bt_info.bt_real_fw_ver)
+		goto label_done;
+
+	cmd_buffer[0] |= (oper_ver & 0x0f);	/* Set OperVer */
+	cmd_buffer[0] |= ((req_num << 4) & 0xf0);	/* Set ReqNum */
+	cmd_buffer[1] = 0; /* BT_OP_GET_BT_VERSION = 0 */
+	rtlpriv->cfg->ops->fill_h2c_cmd(rtlpriv->mac80211.hw, 0x67, 4,
+					&cmd_buffer[0]);
+
+label_done:
+	return btcoexist->bt_info.bt_real_fw_ver;
 }
 
 u32 halbtc_get_wifi_link_status(struct btc_coexist *btcoexist)

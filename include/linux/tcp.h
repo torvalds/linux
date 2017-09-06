@@ -192,15 +192,6 @@ struct tcp_sock {
 
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
 
-	/* Data for direct copy to user */
-	struct {
-		struct sk_buff_head	prequeue;
-		struct task_struct	*task;
-		struct msghdr		*msg;
-		int			memory;
-		int			len;
-	} ucopy;
-
 	u32	snd_wl1;	/* Sequence for window update		*/
 	u32	snd_wnd;	/* The window we expect to receive	*/
 	u32	max_window;	/* Maximal window ever seen from peer	*/
@@ -273,7 +264,7 @@ struct tcp_sock {
 	u32	snd_cwnd_clamp; /* Do not allow snd_cwnd to grow above this */
 	u32	snd_cwnd_used;
 	u32	snd_cwnd_stamp;
-	u32	prior_cwnd;	/* Congestion window at start of Recovery. */
+	u32	prior_cwnd;	/* cwnd right before starting loss recovery */
 	u32	prr_delivered;	/* Number of newly delivered packets to
 				 * receiver in Recovery. */
 	u32	prr_out;	/* Total number of pkts sent during Recovery. */

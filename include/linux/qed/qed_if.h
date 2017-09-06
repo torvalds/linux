@@ -161,6 +161,18 @@ enum qed_nvm_images {
 	QED_NVM_IMAGE_FCOE_CFG,
 };
 
+struct qed_link_eee_params {
+	u32 tx_lpi_timer;
+#define QED_EEE_1G_ADV		BIT(0)
+#define QED_EEE_10G_ADV		BIT(1)
+
+	/* Capabilities are represented using QED_EEE_*_ADV values */
+	u8 adv_caps;
+	u8 lp_adv_caps;
+	bool enable;
+	bool tx_lpi_enable;
+};
+
 enum qed_led_mode {
 	QED_LED_MODE_OFF,
 	QED_LED_MODE_ON,
@@ -172,8 +184,9 @@ enum qed_led_mode {
 
 #define DIRECT_REG_RD(reg_addr) readl((void __iomem *)(reg_addr))
 
-#define QED_COALESCE_MAX 0xFF
+#define QED_COALESCE_MAX 0x1FF
 #define QED_DEFAULT_RX_USECS 12
+#define QED_DEFAULT_TX_USECS 48
 
 /* forward */
 struct qed_dev;
@@ -408,6 +421,7 @@ struct qed_link_params {
 #define QED_LINK_OVERRIDE_SPEED_FORCED_SPEED    BIT(2)
 #define QED_LINK_OVERRIDE_PAUSE_CONFIG          BIT(3)
 #define QED_LINK_OVERRIDE_LOOPBACK_MODE         BIT(4)
+#define QED_LINK_OVERRIDE_EEE_CONFIG            BIT(5)
 	u32	override_flags;
 	bool	autoneg;
 	u32	adv_speeds;
@@ -422,6 +436,7 @@ struct qed_link_params {
 #define QED_LINK_LOOPBACK_EXT                   BIT(3)
 #define QED_LINK_LOOPBACK_MAC                   BIT(4)
 	u32	loopback_mode;
+	struct qed_link_eee_params eee;
 };
 
 struct qed_link_output {
@@ -437,6 +452,12 @@ struct qed_link_output {
 	u8	port;                   /* In PORT defs */
 	bool	autoneg;
 	u32	pause_config;
+
+	/* EEE - capability & param */
+	bool eee_supported;
+	bool eee_active;
+	u8 sup_caps;
+	struct qed_link_eee_params eee;
 };
 
 struct qed_probe_params {
@@ -654,16 +675,6 @@ struct qed_common_ops {
 			     enum qed_nvm_images type, u8 *buf, u16 len);
 
 /**
- * @brief get_coalesce - Get coalesce parameters in usec
- *
- * @param cdev
- * @param rx_coal - Rx coalesce value in usec
- * @param tx_coal - Tx coalesce value in usec
- *
- */
-	void (*get_coalesce)(struct qed_dev *cdev, u16 *rx_coal, u16 *tx_coal);
-
-/**
  * @brief set_coalesce - Configure Rx coalesce value in usec
  *
  * @param cdev
@@ -674,8 +685,8 @@ struct qed_common_ops {
  *
  * @return 0 on success, error otherwise.
  */
-	int (*set_coalesce)(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
-			    u16 qid, u16 sb_id);
+	int (*set_coalesce)(struct qed_dev *cdev,
+			    u16 rx_coal, u16 tx_coal, void *handle);
 
 /**
  * @brief set_led - Configure LED mode

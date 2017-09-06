@@ -35,12 +35,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("IPv4 packet filter");
 
-#ifdef CONFIG_NETFILTER_DEBUG
-#define IP_NF_ASSERT(x)		WARN_ON(!(x))
-#else
-#define IP_NF_ASSERT(x)
-#endif
-
 void *ipt_alloc_initial_table(const struct xt_table *info)
 {
 	return xt_alloc_initial_table(ipt, IPT);
@@ -151,7 +145,7 @@ static const char *const comments[] = {
 	[NF_IP_TRACE_COMMENT_POLICY]	= "policy",
 };
 
-static struct nf_loginfo trace_loginfo = {
+static const struct nf_loginfo trace_loginfo = {
 	.type = NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
@@ -263,7 +257,7 @@ ipt_do_table(struct sk_buff *skb,
 	acpar.hotdrop = false;
 	acpar.state   = state;
 
-	IP_NF_ASSERT(table->valid_hooks & (1 << hook));
+	WARN_ON(!(table->valid_hooks & (1 << hook)));
 	local_bh_disable();
 	addend = xt_write_recseq_begin();
 	private = table->private;
@@ -293,7 +287,7 @@ ipt_do_table(struct sk_buff *skb,
 		const struct xt_entry_match *ematch;
 		struct xt_counters *counter;
 
-		IP_NF_ASSERT(e);
+		WARN_ON(!e);
 		if (!ip_packet_match(ip, indev, outdev,
 		    &e->ip, acpar.fragoff)) {
  no_match:
@@ -312,7 +306,7 @@ ipt_do_table(struct sk_buff *skb,
 		ADD_COUNTER(*counter, skb->len, 1);
 
 		t = ipt_get_target(e);
-		IP_NF_ASSERT(t->u.kernel.target);
+		WARN_ON(!t->u.kernel.target);
 
 #if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE)
 		/* The packet is traced: log it */
@@ -1356,7 +1350,6 @@ compat_copy_entry_from_user(struct compat_ipt_entry *e, void **dstptr,
 			    struct xt_table_info *newinfo, unsigned char *base)
 {
 	struct xt_entry_target *t;
-	struct xt_target *target;
 	struct ipt_entry *de;
 	unsigned int origsize;
 	int h;
@@ -1375,7 +1368,6 @@ compat_copy_entry_from_user(struct compat_ipt_entry *e, void **dstptr,
 
 	de->target_offset = e->target_offset - (origsize - *size);
 	t = compat_ipt_get_target(e);
-	target = t->u.kernel.target;
 	xt_compat_target_from_user(t, dstptr, size);
 
 	de->next_offset = e->next_offset - (origsize - *size);

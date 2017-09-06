@@ -76,6 +76,7 @@ static int aq_vec_poll(struct napi_struct *napi, int budget)
 			if (ring[AQ_VEC_RX_ID].sw_head !=
 				ring[AQ_VEC_RX_ID].hw_head) {
 				err = aq_ring_rx_clean(&ring[AQ_VEC_RX_ID],
+						       napi,
 						       &work_done,
 						       budget - work_done);
 				if (err < 0)

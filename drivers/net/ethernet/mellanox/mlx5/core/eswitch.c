@@ -46,19 +46,13 @@ enum {
 	MLX5_ACTION_DEL  = 2,
 };
 
-/* E-Switch UC L2 table hash node */
-struct esw_uc_addr {
-	struct l2addr_node node;
-	u32                table_index;
-	u32                vport;
-};
-
 /* Vport UC/MC hash node */
 struct vport_addr {
 	struct l2addr_node     node;
 	u8                     action;
 	u32                    vport;
-	struct mlx5_flow_handle *flow_rule; /* SRIOV only */
+	struct mlx5_flow_handle *flow_rule;
+	bool mpfs; /* UC MAC was added to MPFs */
 	/* A flag indicating that mac was added due to mc promiscuous vport */
 	bool mc_promisc;
 };
@@ -152,81 +146,6 @@ static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 		 field_select.vport_cvlan_insert, 1);
 
 	return modify_esw_vport_context_cmd(dev, vport, in, sizeof(in));
-}
-
-/* HW L2 Table (MPFS) management */
-static int set_l2_table_entry_cmd(struct mlx5_core_dev *dev, u32 index,
-				  u8 *mac, u8 vlan_valid, u16 vlan)
-{
-	u32 in[MLX5_ST_SZ_DW(set_l2_table_entry_in)]   = {0};
-	u32 out[MLX5_ST_SZ_DW(set_l2_table_entry_out)] = {0};
-	u8 *in_mac_addr;
-
-	MLX5_SET(set_l2_table_entry_in, in, opcode,
-		 MLX5_CMD_OP_SET_L2_TABLE_ENTRY);
-	MLX5_SET(set_l2_table_entry_in, in, table_index, index);
-	MLX5_SET(set_l2_table_entry_in, in, vlan_valid, vlan_valid);
-	MLX5_SET(set_l2_table_entry_in, in, vlan, vlan);
-
-	in_mac_addr = MLX5_ADDR_OF(set_l2_table_entry_in, in, mac_address);
-	ether_addr_copy(&in_mac_addr[2], mac);
-
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-}
-
-static int del_l2_table_entry_cmd(struct mlx5_core_dev *dev, u32 index)
-{
-	u32 in[MLX5_ST_SZ_DW(delete_l2_table_entry_in)]   = {0};
-	u32 out[MLX5_ST_SZ_DW(delete_l2_table_entry_out)] = {0};
-
-	MLX5_SET(delete_l2_table_entry_in, in, opcode,
-		 MLX5_CMD_OP_DELETE_L2_TABLE_ENTRY);
-	MLX5_SET(delete_l2_table_entry_in, in, table_index, index);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
-}
-
-static int alloc_l2_table_index(struct mlx5_l2_table *l2_table, u32 *ix)
-{
-	int err = 0;
-
-	*ix = find_first_zero_bit(l2_table->bitmap, l2_table->size);
-	if (*ix >= l2_table->size)
-		err = -ENOSPC;
-	else
-		__set_bit(*ix, l2_table->bitmap);
-
-	return err;
-}
-
-static void free_l2_table_index(struct mlx5_l2_table *l2_table, u32 ix)
-{
-	__clear_bit(ix, l2_table->bitmap);
-}
-
-static int set_l2_table_entry(struct mlx5_core_dev *dev, u8 *mac,
-			      u8 vlan_valid, u16 vlan,
-			      u32 *index)
-{
-	struct mlx5_l2_table *l2_table = &dev->priv.eswitch->l2_table;
-	int err;
-
-	err = alloc_l2_table_index(l2_table, index);
-	if (err)
-		return err;
-
-	err = set_l2_table_entry_cmd(dev, *index, mac, vlan_valid, vlan);
-	if (err)
-		free_l2_table_index(l2_table, *index);
-
-	return err;
-}
-
-static void del_l2_table_entry(struct mlx5_core_dev *dev, u32 index)
-{
-	struct mlx5_l2_table *l2_table = &dev->priv.eswitch->l2_table;
-
-	del_l2_table_entry_cmd(dev, index);
-	free_l2_table_index(l2_table, index);
 }
 
 /* E-Switch FDB */
@@ -455,65 +374,60 @@ typedef int (*vport_addr_action)(struct mlx5_eswitch *esw,
 
 static int esw_add_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 {
-	struct hlist_head *hash = esw->l2_table.l2_hash;
-	struct esw_uc_addr *esw_uc;
 	u8 *mac = vaddr->node.addr;
 	u32 vport = vaddr->vport;
 	int err;
 
-	esw_uc = l2addr_hash_find(hash, mac, struct esw_uc_addr);
-	if (esw_uc) {
+	/* Skip mlx5_mpfs_add_mac for PFs,
+	 * it is already done by the PF netdev in mlx5e_execute_l2_action
+	 */
+	if (!vport)
+		goto fdb_add;
+
+	err = mlx5_mpfs_add_mac(esw->dev, mac);
+	if (err) {
 		esw_warn(esw->dev,
-			 "Failed to set L2 mac(%pM) for vport(%d), mac is already in use by vport(%d)\n",
-			 mac, vport, esw_uc->vport);
-		return -EEXIST;
+			 "Failed to add L2 table mac(%pM) for vport(%d), err(%d)\n",
+			 mac, vport, err);
+		return err;
 	}
+	vaddr->mpfs = true;
 
-	esw_uc = l2addr_hash_add(hash, mac, struct esw_uc_addr, GFP_KERNEL);
-	if (!esw_uc)
-		return -ENOMEM;
-	esw_uc->vport = vport;
-
-	err = set_l2_table_entry(esw->dev, mac, 0, 0, &esw_uc->table_index);
-	if (err)
-		goto abort;
-
+fdb_add:
 	/* SRIOV is enabled: Forward UC MAC to vport */
 	if (esw->fdb_table.fdb && esw->mode == SRIOV_LEGACY)
 		vaddr->flow_rule = esw_fdb_set_vport_rule(esw, mac, vport);
 
-	esw_debug(esw->dev, "\tADDED UC MAC: vport[%d] %pM index:%d fr(%p)\n",
-		  vport, mac, esw_uc->table_index, vaddr->flow_rule);
-	return err;
-abort:
-	l2addr_hash_del(esw_uc);
-	return err;
+	esw_debug(esw->dev, "\tADDED UC MAC: vport[%d] %pM fr(%p)\n",
+		  vport, mac, vaddr->flow_rule);
+
+	return 0;
 }
 
 static int esw_del_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 {
-	struct hlist_head *hash = esw->l2_table.l2_hash;
-	struct esw_uc_addr *esw_uc;
 	u8 *mac = vaddr->node.addr;
 	u32 vport = vaddr->vport;
+	int err = 0;
 
-	esw_uc = l2addr_hash_find(hash, mac, struct esw_uc_addr);
-	if (!esw_uc || esw_uc->vport != vport) {
-		esw_debug(esw->dev,
-			  "MAC(%pM) doesn't belong to vport (%d)\n",
-			  mac, vport);
-		return -EINVAL;
-	}
-	esw_debug(esw->dev, "\tDELETE UC MAC: vport[%d] %pM index:%d fr(%p)\n",
-		  vport, mac, esw_uc->table_index, vaddr->flow_rule);
+	/* Skip mlx5_mpfs_del_mac for PFs,
+	 * it is already done by the PF netdev in mlx5e_execute_l2_action
+	 */
+	if (!vport || !vaddr->mpfs)
+		goto fdb_del;
 
-	del_l2_table_entry(esw->dev, esw_uc->table_index);
+	err = mlx5_mpfs_del_mac(esw->dev, mac);
+	if (err)
+		esw_warn(esw->dev,
+			 "Failed to del L2 table mac(%pM) for vport(%d), err(%d)\n",
+			 mac, vport, err);
+	vaddr->mpfs = false;
 
+fdb_del:
 	if (vaddr->flow_rule)
 		mlx5_del_flow_rules(vaddr->flow_rule);
 	vaddr->flow_rule = NULL;
 
-	l2addr_hash_del(esw_uc);
 	return 0;
 }
 
@@ -1611,13 +1525,14 @@ static void esw_disable_vport(struct mlx5_eswitch *esw, int vport_num)
 }
 
 /* Public E-Switch API */
+#define ESW_ALLOWED(esw) ((esw) && MLX5_VPORT_MANAGER((esw)->dev))
+
 int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 {
 	int err;
 	int i, enabled_events;
 
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+	if (!ESW_ALLOWED(esw))
 		return 0;
 
 	if (!MLX5_CAP_GEN(esw->dev, eswitch_flow_table) ||
@@ -1634,7 +1549,6 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 
 	esw_info(esw->dev, "E-Switch enable SRIOV: nvfs(%d) mode (%d)\n", nvfs, mode);
 	esw->mode = mode;
-	esw_disable_vport(esw, 0);
 
 	if (mode == SRIOV_LEGACY)
 		err = esw_create_legacy_fdb_table(esw, nvfs + 1);
@@ -1647,7 +1561,11 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	if (err)
 		esw_warn(esw->dev, "Failed to create eswitch TSAR");
 
-	enabled_events = (mode == SRIOV_LEGACY) ? SRIOV_VPORT_EVENTS : UC_ADDR_CHANGE;
+	/* Don't enable vport events when in SRIOV_OFFLOADS mode, since:
+	 * 1. L2 table (MPFS) is programmed by PF/VF representors netdevs set_rx_mode
+	 * 2. FDB/Eswitch is programmed by user space tools
+	 */
+	enabled_events = (mode == SRIOV_LEGACY) ? SRIOV_VPORT_EVENTS : 0;
 	for (i = 0; i <= nvfs; i++)
 		esw_enable_vport(esw, i, enabled_events);
 
@@ -1656,7 +1574,6 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	return 0;
 
 abort:
-	esw_enable_vport(esw, 0, UC_ADDR_CHANGE);
 	esw->mode = SRIOV_NONE;
 	return err;
 }
@@ -1667,9 +1584,7 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 	int nvports;
 	int i;
 
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH ||
-	    esw->mode == SRIOV_NONE)
+	if (!ESW_ALLOWED(esw) || esw->mode == SRIOV_NONE)
 		return;
 
 	esw_info(esw->dev, "disable SRIOV: active vports(%d) mode(%d)\n",
@@ -1692,44 +1607,21 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 		esw_offloads_cleanup(esw, nvports);
 
 	esw->mode = SRIOV_NONE;
-	/* VPORT 0 (PF) must be enabled back with non-sriov configuration */
-	esw_enable_vport(esw, 0, UC_ADDR_CHANGE);
-}
-
-void mlx5_eswitch_attach(struct mlx5_eswitch *esw)
-{
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
-		return;
-
-	esw_enable_vport(esw, 0, UC_ADDR_CHANGE);
-	/* VF Vports will be enabled when SRIOV is enabled */
-}
-
-void mlx5_eswitch_detach(struct mlx5_eswitch *esw)
-{
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
-		return;
-
-	esw_disable_vport(esw, 0);
 }
 
 int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 {
-	int l2_table_size = 1 << MLX5_CAP_GEN(dev, log_max_l2_table);
 	int total_vports = MLX5_TOTAL_VPORTS(dev);
 	struct mlx5_eswitch *esw;
 	int vport_num;
 	int err;
 
-	if (!MLX5_CAP_GEN(dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+	if (!MLX5_VPORT_MANAGER(dev))
 		return 0;
 
 	esw_info(dev,
-		 "Total vports %d, l2 table size(%d), per vport: max uc(%d) max mc(%d)\n",
-		 total_vports, l2_table_size,
+		 "Total vports %d, per vport: max uc(%d) max mc(%d)\n",
+		 total_vports,
 		 MLX5_MAX_UC_PER_VPORT(dev),
 		 MLX5_MAX_MC_PER_VPORT(dev));
 
@@ -1738,14 +1630,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		return -ENOMEM;
 
 	esw->dev = dev;
-
-	esw->l2_table.bitmap = kcalloc(BITS_TO_LONGS(l2_table_size),
-				   sizeof(uintptr_t), GFP_KERNEL);
-	if (!esw->l2_table.bitmap) {
-		err = -ENOMEM;
-		goto abort;
-	}
-	esw->l2_table.size = l2_table_size;
 
 	esw->work_queue = create_singlethread_workqueue("mlx5_esw_wq");
 	if (!esw->work_queue) {
@@ -1797,7 +1681,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 abort:
 	if (esw->work_queue)
 		destroy_workqueue(esw->work_queue);
-	kfree(esw->l2_table.bitmap);
 	kfree(esw->vports);
 	kfree(esw->offloads.vport_reps);
 	kfree(esw);
@@ -1806,15 +1689,13 @@ abort:
 
 void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 {
-	if (!esw || !MLX5_CAP_GEN(esw->dev, vport_group_manager) ||
-	    MLX5_CAP_GEN(esw->dev, port_type) != MLX5_CAP_PORT_TYPE_ETH)
+	if (!esw || !MLX5_VPORT_MANAGER(esw->dev))
 		return;
 
 	esw_info(esw->dev, "cleanup\n");
 
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
-	kfree(esw->l2_table.bitmap);
 	kfree(esw->offloads.vport_reps);
 	kfree(esw->vports);
 	kfree(esw);
@@ -1838,8 +1719,6 @@ void mlx5_eswitch_vport_event(struct mlx5_eswitch *esw, struct mlx5_eqe *eqe)
 }
 
 /* Vport Administration */
-#define ESW_ALLOWED(esw) \
-	(esw && MLX5_CAP_GEN(esw->dev, vport_group_manager) && mlx5_core_is_pf(esw->dev))
 #define LEGAL_VPORT(esw, vport) (vport >= 0 && vport < esw->total_vports)
 
 int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,

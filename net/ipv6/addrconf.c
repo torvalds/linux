@@ -3030,9 +3030,6 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 static void init_loopback(struct net_device *dev)
 {
 	struct inet6_dev  *idev;
-	struct net_device *sp_dev;
-	struct inet6_ifaddr *sp_ifa;
-	struct rt6_info *sp_rt;
 
 	/* ::1 */
 
@@ -3045,45 +3042,6 @@ static void init_loopback(struct net_device *dev)
 	}
 
 	add_addr(idev, &in6addr_loopback, 128, IFA_HOST);
-
-	/* Add routes to other interface's IPv6 addresses */
-	for_each_netdev(dev_net(dev), sp_dev) {
-		if (!strcmp(sp_dev->name, dev->name))
-			continue;
-
-		idev = __in6_dev_get(sp_dev);
-		if (!idev)
-			continue;
-
-		read_lock_bh(&idev->lock);
-		list_for_each_entry(sp_ifa, &idev->addr_list, if_list) {
-
-			if (sp_ifa->flags & (IFA_F_DADFAILED | IFA_F_TENTATIVE))
-				continue;
-
-			if (sp_ifa->rt) {
-				/* This dst has been added to garbage list when
-				 * lo device down, release this obsolete dst and
-				 * reallocate a new router for ifa.
-				 */
-				if (!atomic_read(&sp_ifa->rt->rt6i_ref)) {
-					ip6_rt_put(sp_ifa->rt);
-					sp_ifa->rt = NULL;
-				} else {
-					continue;
-				}
-			}
-
-			sp_rt = addrconf_dst_alloc(idev, &sp_ifa->addr, false);
-
-			/* Failure cases are ignored */
-			if (!IS_ERR(sp_rt)) {
-				sp_ifa->rt = sp_rt;
-				ip6_ins_rt(sp_rt);
-			}
-		}
-		read_unlock_bh(&idev->lock);
-	}
 }
 
 void addrconf_add_linklocal(struct inet6_dev *idev,
@@ -3321,11 +3279,11 @@ static void addrconf_gre_config(struct net_device *dev)
 static int fixup_permanent_addr(struct inet6_dev *idev,
 				struct inet6_ifaddr *ifp)
 {
-	/* rt6i_ref == 0 means the host route was removed from the
+	/* !rt6i_node means the host route was removed from the
 	 * FIB, for example, if 'lo' device is taken down. In that
 	 * case regenerate the host route.
 	 */
-	if (!ifp->rt || !atomic_read(&ifp->rt->rt6i_ref)) {
+	if (!ifp->rt || !ifp->rt->rt6i_node) {
 		struct rt6_info *rt, *prev;
 
 		rt = addrconf_dst_alloc(idev, &ifp->addr, false);
@@ -6605,21 +6563,21 @@ int __init addrconf_init(void)
 	rtnl_af_register(&inet6_ops);
 
 	err = __rtnl_register(PF_INET6, RTM_GETLINK, NULL, inet6_dump_ifinfo,
-			      NULL);
+			      0);
 	if (err < 0)
 		goto errout;
 
 	/* Only the first call to __rtnl_register can fail */
-	__rtnl_register(PF_INET6, RTM_NEWADDR, inet6_rtm_newaddr, NULL, NULL);
-	__rtnl_register(PF_INET6, RTM_DELADDR, inet6_rtm_deladdr, NULL, NULL);
+	__rtnl_register(PF_INET6, RTM_NEWADDR, inet6_rtm_newaddr, NULL, 0);
+	__rtnl_register(PF_INET6, RTM_DELADDR, inet6_rtm_deladdr, NULL, 0);
 	__rtnl_register(PF_INET6, RTM_GETADDR, inet6_rtm_getaddr,
-			inet6_dump_ifaddr, NULL);
+			inet6_dump_ifaddr, 0);
 	__rtnl_register(PF_INET6, RTM_GETMULTICAST, NULL,
-			inet6_dump_ifmcaddr, NULL);
+			inet6_dump_ifmcaddr, 0);
 	__rtnl_register(PF_INET6, RTM_GETANYCAST, NULL,
-			inet6_dump_ifacaddr, NULL);
+			inet6_dump_ifacaddr, 0);
 	__rtnl_register(PF_INET6, RTM_GETNETCONF, inet6_netconf_get_devconf,
-			inet6_netconf_dump_devconf, NULL);
+			inet6_netconf_dump_devconf, 0);
 
 	ipv6_addr_label_rtnl_register();
 

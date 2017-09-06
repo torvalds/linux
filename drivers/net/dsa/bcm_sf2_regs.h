@@ -401,4 +401,7 @@ enum bcm_sf2_reg_offs {
 
 #define CFP_NUM_RULES			256
 
+/* Number of egress queues per port */
+#define SF2_NUM_EGRESS_QUEUES		8
+
 #endif /* __BCM_SF2_REGS_H */

@@ -189,6 +189,10 @@ install_lib: all_cmd
 	$(call QUIET_INSTALL, $(LIB_FILE)) \
 		$(call do_install,$(LIB_FILE),$(libdir_SQ))
 
+install_headers:
+	$(call QUIET_INSTALL, headers) \
+		$(call do_install,bpf.h,$(prefix)/include/bpf,644)
+
 install: install_lib
 
 ### Cleaning rules

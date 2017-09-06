@@ -133,7 +133,10 @@ static inline unsigned int aq_ring_dx_in_range(unsigned int h, unsigned int i,
 }
 
 #define AQ_SKB_ALIGN SKB_DATA_ALIGN(sizeof(struct skb_shared_info))
-int aq_ring_rx_clean(struct aq_ring_s *self, int *work_done, int budget)
+int aq_ring_rx_clean(struct aq_ring_s *self,
+		     struct napi_struct *napi,
+		     int *work_done,
+		     int budget)
 {
 	struct net_device *ndev = aq_nic_get_ndev(self->aq_nic);
 	int err = 0;
@@ -239,7 +242,7 @@ int aq_ring_rx_clean(struct aq_ring_s *self, int *work_done, int budget)
 
 		skb_record_rx_queue(skb, self->idx);
 
-		netif_receive_skb(skb);
+		napi_gro_receive(napi, skb);
 
 		++self->stats.rx.packets;
 		self->stats.rx.bytes += skb->len;

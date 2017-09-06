@@ -260,7 +260,7 @@ prio_leaf(struct Qdisc *sch, unsigned long arg)
 	return q->queues[band];
 }
 
-static unsigned long prio_get(struct Qdisc *sch, u32 classid)
+static unsigned long prio_find(struct Qdisc *sch, u32 classid)
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
 	unsigned long band = TC_H_MIN(classid);
@@ -272,11 +272,11 @@ static unsigned long prio_get(struct Qdisc *sch, u32 classid)
 
 static unsigned long prio_bind(struct Qdisc *sch, unsigned long parent, u32 classid)
 {
-	return prio_get(sch, classid);
+	return prio_find(sch, classid);
 }
 
 
-static void prio_put(struct Qdisc *q, unsigned long cl)
+static void prio_unbind(struct Qdisc *q, unsigned long cl)
 {
 }
 
@@ -338,12 +338,11 @@ static struct tcf_block *prio_tcf_block(struct Qdisc *sch, unsigned long cl)
 static const struct Qdisc_class_ops prio_class_ops = {
 	.graft		=	prio_graft,
 	.leaf		=	prio_leaf,
-	.get		=	prio_get,
-	.put		=	prio_put,
+	.find		=	prio_find,
 	.walk		=	prio_walk,
 	.tcf_block	=	prio_tcf_block,
 	.bind_tcf	=	prio_bind,
-	.unbind_tcf	=	prio_put,
+	.unbind_tcf	=	prio_unbind,
 	.dump		=	prio_dump_class,
 	.dump_stats	=	prio_dump_class_stats,
 };

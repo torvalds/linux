@@ -34,9 +34,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
-#ifdef CONFIG_MLX5_CORE_EN
 #include "eswitch.h"
-#endif
 
 bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev)
 {
@@ -90,14 +88,12 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 		return -EBUSY;
 	}
 
-#ifdef CONFIG_MLX5_CORE_EN
 	err = mlx5_eswitch_enable_sriov(dev->priv.eswitch, num_vfs, SRIOV_LEGACY);
 	if (err) {
 		mlx5_core_warn(dev,
 			       "failed to enable eswitch SRIOV (%d)\n", err);
 		return err;
 	}
-#endif
 
 	for (vf = 0; vf < num_vfs; vf++) {
 		err = mlx5_core_enable_hca(dev, vf + 1);
@@ -117,7 +113,6 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 			}
 		}
 		mlx5_core_dbg(dev, "successfully enabled VF* %d\n", vf);
-
 	}
 
 	return 0;
@@ -130,11 +125,7 @@ static void mlx5_device_disable_sriov(struct mlx5_core_dev *dev)
 	int vf;
 
 	if (!sriov->enabled_vfs)
-#ifdef CONFIG_MLX5_CORE_EN
-		goto disable_sriov_resources;
-#else
-		return;
-#endif
+		goto out;
 
 	for (vf = 0; vf < sriov->num_vfs; vf++) {
 		if (!sriov->vfs_ctx[vf].enabled)
@@ -148,10 +139,8 @@ static void mlx5_device_disable_sriov(struct mlx5_core_dev *dev)
 		sriov->enabled_vfs--;
 	}
 
-#ifdef CONFIG_MLX5_CORE_EN
-disable_sriov_resources:
+out:
 	mlx5_eswitch_disable_sriov(dev->priv.eswitch);
-#endif
 
 	if (mlx5_wait_for_vf_pages(dev))
 		mlx5_core_warn(dev, "timeout reclaiming VFs pages\n");

@@ -139,6 +139,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 #endif
 #define TCP_RTO_MAX	((unsigned)(120*HZ))
 #define TCP_RTO_MIN	((unsigned)(HZ/5))
+#define TCP_TIMEOUT_MIN	(2U) /* Min timeout for TCP timers in jiffies */
 #define TCP_TIMEOUT_INIT ((unsigned)(1*HZ))	/* RFC6298 2.1 initial RTO value	*/
 #define TCP_TIMEOUT_FALLBACK ((unsigned)(3*HZ))	/* RFC 1122 initial RTO value, now
 						 * used as a fallback RTO for the
@@ -150,8 +151,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCP_RESOURCE_PROBE_INTERVAL ((unsigned)(HZ/2U)) /* Maximal interval between probes
 					                 * for local resources.
 					                 */
-#define TCP_REO_TIMEOUT_MIN	(2000) /* Min RACK reordering timeout in usec */
-
 #define TCP_KEEPALIVE_TIME	(120*60*HZ)	/* two hours */
 #define TCP_KEEPALIVE_PROBES	9		/* Max of 9 keepalive probes	*/
 #define TCP_KEEPALIVE_INTVL	(75*HZ)
@@ -257,7 +256,6 @@ extern int sysctl_tcp_rmem[3];
 extern int sysctl_tcp_app_win;
 extern int sysctl_tcp_adv_win_scale;
 extern int sysctl_tcp_frto;
-extern int sysctl_tcp_low_latency;
 extern int sysctl_tcp_nometrics_save;
 extern int sysctl_tcp_moderate_rcvbuf;
 extern int sysctl_tcp_tso_win_divisor;
@@ -352,8 +350,11 @@ int tcp_v4_rcv(struct sk_buff *skb);
 
 int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw);
 int tcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
+int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size);
 int tcp_sendpage(struct sock *sk, struct page *page, int offset, size_t size,
 		 int flags);
+int tcp_sendpage_locked(struct sock *sk, struct page *page, int offset,
+			size_t size, int flags);
 ssize_t do_tcp_sendpages(struct sock *sk, struct page *page, int offset,
 		 size_t size, int flags);
 void tcp_release_cb(struct sock *sk);
@@ -363,7 +364,7 @@ void tcp_delack_timer_handler(struct sock *sk);
 int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb);
 void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
-			 const struct tcphdr *th, unsigned int len);
+			 const struct tcphdr *th);
 void tcp_rcv_space_adjust(struct sock *sk);
 int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp);
 void tcp_twsk_destructor(struct sock *sk);
@@ -796,6 +797,12 @@ struct tcp_skb_cb {
 			u16	tcp_gso_segs;
 			u16	tcp_gso_size;
 		};
+
+		/* Used to stash the receive timestamp while this skb is in the
+		 * out of order queue, as skb->tstamp is overwritten by the
+		 * rbnode.
+		 */
+		ktime_t		swtstamp;
 	};
 	__u8		tcp_flags;	/* TCP header flags. (tcp[13])	*/
 
@@ -812,7 +819,8 @@ struct tcp_skb_cb {
 	__u8		ip_dsfield;	/* IPv4 tos or IPv6 dsfield	*/
 	__u8		txstamp_ack:1,	/* Record TX timestamp for ack? */
 			eor:1,		/* Is skb MSG_EOR marked? */
-			unused:6;
+			has_rxtstamp:1,	/* SKB has a RX timestamp	*/
+			unused:5;
 	__u32		ack_seq;	/* Sequence number ACK'd	*/
 	union {
 		struct {
@@ -849,6 +857,16 @@ static inline int tcp_v6_iif(const struct sk_buff *skb)
 
 	return l3_slave ? skb->skb_iif : TCP_SKB_CB(skb)->header.h6.iif;
 }
+
+/* TCP_SKB_CB reference means this can not be used from early demux */
+static inline int tcp_v6_sdif(const struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	if (skb && ipv6_l3mdev_skb(TCP_SKB_CB(skb)->header.h6.flags))
+		return TCP_SKB_CB(skb)->header.h6.iif;
+#endif
+	return 0;
+}
 #endif
 
 /* TCP_SKB_CB reference means this can not be used from early demux */
@@ -860,6 +878,16 @@ static inline bool inet_exact_dif_match(struct net *net, struct sk_buff *skb)
 		return true;
 #endif
 	return false;
+}
+
+/* TCP_SKB_CB reference means this can not be used from early demux */
+static inline int tcp_v4_sdif(struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	if (skb && ipv4_l3mdev_skb(TCP_SKB_CB(skb)->header.h4.flags))
+		return TCP_SKB_CB(skb)->header.h4.iif;
+#endif
+	return 0;
 }
 
 /* Due to TSO, an SKB can be composed of multiple actual
@@ -1243,17 +1271,6 @@ static inline bool tcp_checksum_complete(struct sk_buff *skb)
 		__tcp_checksum_complete(skb);
 }
 
-/* Prequeue for VJ style copy to user, combined with checksumming. */
-
-static inline void tcp_prequeue_init(struct tcp_sock *tp)
-{
-	tp->ucopy.task = NULL;
-	tp->ucopy.len = 0;
-	tp->ucopy.memory = 0;
-	skb_queue_head_init(&tp->ucopy.prequeue);
-}
-
-bool tcp_prequeue(struct sock *sk, struct sk_buff *skb);
 bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb);
 int tcp_filter(struct sock *sk, struct sk_buff *skb);
 
@@ -1545,8 +1562,7 @@ int tcp_fastopen_reset_cipher(void *key, unsigned int len);
 void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb);
 struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 			      struct request_sock *req,
-			      struct tcp_fastopen_cookie *foc,
-			      struct dst_entry *dst);
+			      struct tcp_fastopen_cookie *foc);
 void tcp_fastopen_init_key_once(bool publish);
 bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
 			     struct tcp_fastopen_cookie *cookie);
@@ -1927,7 +1943,8 @@ static inline s64 tcp_rto_delta_us(const struct sock *sk)
 /*
  * Save and compile IPv4 options, return a pointer to it
  */
-static inline struct ip_options_rcu *tcp_v4_save_options(struct sk_buff *skb)
+static inline struct ip_options_rcu *tcp_v4_save_options(struct net *net,
+							 struct sk_buff *skb)
 {
 	const struct ip_options *opt = &TCP_SKB_CB(skb)->header.h4.opt;
 	struct ip_options_rcu *dopt = NULL;
@@ -1936,7 +1953,7 @@ static inline struct ip_options_rcu *tcp_v4_save_options(struct sk_buff *skb)
 		int opt_size = sizeof(*dopt) + opt->optlen;
 
 		dopt = kmalloc(opt_size, GFP_ATOMIC);
-		if (dopt && __ip_options_echo(&dopt->opt, skb, opt)) {
+		if (dopt && __ip_options_echo(net, &dopt->opt, skb, opt)) {
 			kfree(dopt);
 			dopt = NULL;
 		}

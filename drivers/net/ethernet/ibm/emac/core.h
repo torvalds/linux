@@ -167,7 +167,6 @@ struct emac_error_stats {
 
 struct emac_instance {
 	struct net_device		*ndev;
-	struct resource			rsrc_regs;
 	struct emac_regs		__iomem *emacp;
 	struct platform_device		*ofdev;
 	struct device_node		**blist; /* bootlist entry */

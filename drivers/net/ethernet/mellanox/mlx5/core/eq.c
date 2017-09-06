@@ -36,9 +36,7 @@
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 #include "fpga/core.h"
-#ifdef CONFIG_MLX5_CORE_EN
 #include "eswitch.h"
-#endif
 
 enum {
 	MLX5_EQE_SIZE		= sizeof(struct mlx5_eqe),
@@ -193,6 +191,7 @@ static void eq_update_ci(struct mlx5_eq *eq, int arm)
 {
 	__be32 __iomem *addr = eq->doorbell + (arm ? 0 : 2);
 	u32 val = (eq->cons_index & 0xffffff) | (eq->eqn << 24);
+
 	__raw_writel((__force u32)cpu_to_be32(val), addr);
 	/* We still want ordering, just not swabbing, so add a barrier */
 	mb();
@@ -483,11 +482,9 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			}
 			break;
 
-#ifdef CONFIG_MLX5_CORE_EN
 		case MLX5_EVENT_TYPE_NIC_VPORT_CHANGE:
 			mlx5_eswitch_vport_event(dev->priv.eswitch, eqe);
 			break;
-#endif
 
 		case MLX5_EVENT_TYPE_PORT_MODULE_EVENT:
 			mlx5_port_module_event(dev, eqe);
@@ -702,9 +699,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	u64 async_event_mask = MLX5_ASYNC_EVENT_MASK;
 	int err;
 
-	if (MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH &&
-	    MLX5_CAP_GEN(dev, vport_group_manager) &&
-	    mlx5_core_is_pf(dev))
+	if (MLX5_VPORT_MANAGER(dev))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_NIC_VPORT_CHANGE);
 
 	if (MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH &&

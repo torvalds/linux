@@ -5,9 +5,10 @@
 config NET_VENDOR_MELLANOX
 	bool "Mellanox devices"
 	default y
-	depends on PCI
+	depends on PCI || I2C
 	---help---
-	  If you have a network (Ethernet) card belonging to this class, say Y.
+	  If you have a network (Ethernet or RDMA) device belonging to this
+	  class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all

@@ -1247,22 +1247,28 @@ static int __net_init ip_fib_net_init(struct net *net)
 	int err;
 	size_t size = sizeof(struct hlist_head) * FIB_TABLE_HASHSZ;
 
-	net->ipv4.fib_seq = 0;
+	err = fib4_notifier_init(net);
+	if (err)
+		return err;
 
 	/* Avoid false sharing : Use at least a full cache line */
 	size = max_t(size_t, size, L1_CACHE_BYTES);
 
 	net->ipv4.fib_table_hash = kzalloc(size, GFP_KERNEL);
-	if (!net->ipv4.fib_table_hash)
-		return -ENOMEM;
+	if (!net->ipv4.fib_table_hash) {
+		err = -ENOMEM;
+		goto err_table_hash_alloc;
+	}
 
 	err = fib4_rules_init(net);
 	if (err < 0)
-		goto fail;
+		goto err_rules_init;
 	return 0;
 
-fail:
+err_rules_init:
 	kfree(net->ipv4.fib_table_hash);
+err_table_hash_alloc:
+	fib4_notifier_exit(net);
 	return err;
 }
 
@@ -1292,6 +1298,7 @@ static void ip_fib_net_exit(struct net *net)
 #endif
 	rtnl_unlock();
 	kfree(net->ipv4.fib_table_hash);
+	fib4_notifier_exit(net);
 }
 
 static int __net_init fib_net_init(struct net *net)
@@ -1341,7 +1348,7 @@ void __init ip_fib_init(void)
 	register_netdevice_notifier(&fib_netdev_notifier);
 	register_inetaddr_notifier(&fib_inetaddr_notifier);
 
-	rtnl_register(PF_INET, RTM_NEWROUTE, inet_rtm_newroute, NULL, NULL);
-	rtnl_register(PF_INET, RTM_DELROUTE, inet_rtm_delroute, NULL, NULL);
-	rtnl_register(PF_INET, RTM_GETROUTE, NULL, inet_dump_fib, NULL);
+	rtnl_register(PF_INET, RTM_NEWROUTE, inet_rtm_newroute, NULL, 0);
+	rtnl_register(PF_INET, RTM_DELROUTE, inet_rtm_delroute, NULL, 0);
+	rtnl_register(PF_INET, RTM_GETROUTE, NULL, inet_dump_fib, 0);
 }

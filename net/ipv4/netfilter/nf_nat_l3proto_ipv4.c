@@ -190,7 +190,7 @@ int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 	struct nf_conntrack_tuple target;
 	unsigned long statusbit;
 
-	NF_CT_ASSERT(ctinfo == IP_CT_RELATED || ctinfo == IP_CT_RELATED_REPLY);
+	WARN_ON(ctinfo != IP_CT_RELATED && ctinfo != IP_CT_RELATED_REPLY);
 
 	if (!skb_make_writable(skb, hdrlen + sizeof(*inside)))
 		return 0;
@@ -306,8 +306,8 @@ nf_nat_ipv4_fn(void *priv, struct sk_buff *skb,
 
 	default:
 		/* ESTABLISHED */
-		NF_CT_ASSERT(ctinfo == IP_CT_ESTABLISHED ||
-			     ctinfo == IP_CT_ESTABLISHED_REPLY);
+		WARN_ON(ctinfo != IP_CT_ESTABLISHED &&
+			ctinfo != IP_CT_ESTABLISHED_REPLY);
 		if (nf_nat_oif_changed(state->hook, ctinfo, nat, state->out))
 			goto oif_changed;
 	}

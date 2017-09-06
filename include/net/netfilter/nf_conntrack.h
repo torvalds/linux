@@ -44,12 +44,6 @@ union nf_conntrack_expect_proto {
 #include <linux/types.h>
 #include <linux/skbuff.h>
 
-#ifdef CONFIG_NETFILTER_DEBUG
-#define NF_CT_ASSERT(x)		WARN_ON(!(x))
-#else
-#define NF_CT_ASSERT(x)
-#endif
-
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 
@@ -159,7 +153,7 @@ nf_ct_get(const struct sk_buff *skb, enum ip_conntrack_info *ctinfo)
 /* decrement reference count on a conntrack */
 static inline void nf_ct_put(struct nf_conn *ct)
 {
-	NF_CT_ASSERT(ct);
+	WARN_ON(!ct);
 	nf_conntrack_put(&ct->ct_general);
 }
 
@@ -223,6 +217,9 @@ static inline bool nf_ct_kill(struct nf_conn *ct)
 extern s32 (*nf_ct_nat_offset)(const struct nf_conn *ct,
 			       enum ip_conntrack_dir dir,
 			       u32 seq);
+
+/* Set all unconfirmed conntrack as dying */
+void nf_ct_unconfirmed_destroy(struct net *);
 
 /* Iterate over all conntracks: if iter returns true, it's deleted. */
 void nf_ct_iterate_cleanup_net(struct net *net,

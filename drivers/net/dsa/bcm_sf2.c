@@ -103,6 +103,7 @@ static void bcm_sf2_brcm_hdr_setup(struct bcm_sf2_priv *priv, int port)
 static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	unsigned int i;
 	u32 reg, offset;
 
 	if (priv->type == BCM7445_DEVICE_ID)
@@ -128,6 +129,14 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 	reg = core_readl(priv, CORE_SWITCH_CTRL);
 	reg |= MII_DUMB_FWDG_EN;
 	core_writel(priv, reg, CORE_SWITCH_CTRL);
+
+	/* Configure Traffic Class to QoS mapping, allow each priority to map
+	 * to a different queue number
+	 */
+	reg = core_readl(priv, CORE_PORT_TC2_QOS_MAP_PORT(port));
+	for (i = 0; i < SF2_NUM_EGRESS_QUEUES; i++)
+		reg |= i << (PRT_TO_QID_SHIFT * i);
+	core_writel(priv, reg, CORE_PORT_TC2_QOS_MAP_PORT(port));
 
 	bcm_sf2_brcm_hdr_setup(priv, port);
 
@@ -244,7 +253,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 	 * to a different queue number
 	 */
 	reg = core_readl(priv, CORE_PORT_TC2_QOS_MAP_PORT(port));
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < SF2_NUM_EGRESS_QUEUES; i++)
 		reg |= i << (PRT_TO_QID_SHIFT * i);
 	core_writel(priv, reg, CORE_PORT_TC2_QOS_MAP_PORT(port));
 
@@ -327,11 +336,7 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 static int bcm_sf2_eee_init(struct dsa_switch *ds, int port,
 			    struct phy_device *phy)
 {
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
 	int ret;
-
-	p->supported = (SUPPORTED_1000baseT_Full | SUPPORTED_100baseT_Full);
 
 	ret = phy_init_eee(phy, 0);
 	if (ret)
@@ -342,8 +347,8 @@ static int bcm_sf2_eee_init(struct dsa_switch *ds, int port,
 	return 1;
 }
 
-static int bcm_sf2_sw_get_eee(struct dsa_switch *ds, int port,
-			      struct ethtool_eee *e)
+static int bcm_sf2_sw_get_mac_eee(struct dsa_switch *ds, int port,
+				  struct ethtool_eee *e)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_eee *p = &priv->port_sts[port].eee;
@@ -356,22 +361,14 @@ static int bcm_sf2_sw_get_eee(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int bcm_sf2_sw_set_eee(struct dsa_switch *ds, int port,
-			      struct phy_device *phydev,
-			      struct ethtool_eee *e)
+static int bcm_sf2_sw_set_mac_eee(struct dsa_switch *ds, int port,
+				  struct ethtool_eee *e)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_eee *p = &priv->port_sts[port].eee;
 
 	p->eee_enabled = e->eee_enabled;
-
-	if (!p->eee_enabled) {
-		bcm_sf2_eee_enable_set(ds, port, false);
-	} else {
-		p->eee_enabled = bcm_sf2_eee_init(ds, port, phydev);
-		if (!p->eee_enabled)
-			return -EOPNOTSUPP;
-	}
+	bcm_sf2_eee_enable_set(ds, port, e->eee_enabled);
 
 	return 0;
 }
@@ -800,7 +797,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 			       struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->dst[ds->index].cpu_dp->netdev;
+	struct net_device *p = ds->dst->cpu_dp->netdev;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_wolinfo pwol;
 
@@ -823,7 +820,7 @@ static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 			      struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->dst[ds->index].cpu_dp->netdev;
+	struct net_device *p = ds->dst->cpu_dp->netdev;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	s8 cpu_port = ds->dst->cpu_dp->index;
 	struct ethtool_wolinfo pwol;
@@ -995,7 +992,7 @@ static int bcm_sf2_core_write64(struct b53_device *dev, u8 page, u8 reg,
 	return 0;
 }
 
-static struct b53_io_ops bcm_sf2_io_ops = {
+static const struct b53_io_ops bcm_sf2_io_ops = {
 	.read8	= bcm_sf2_core_read8,
 	.read16	= bcm_sf2_core_read16,
 	.read32	= bcm_sf2_core_read32,
@@ -1023,8 +1020,8 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.set_wol		= bcm_sf2_sw_set_wol,
 	.port_enable		= bcm_sf2_port_setup,
 	.port_disable		= bcm_sf2_port_disable,
-	.get_eee		= bcm_sf2_sw_get_eee,
-	.set_eee		= bcm_sf2_sw_set_eee,
+	.get_mac_eee		= bcm_sf2_sw_get_mac_eee,
+	.set_mac_eee		= bcm_sf2_sw_set_mac_eee,
 	.port_bridge_join	= b53_br_join,
 	.port_bridge_leave	= b53_br_leave,
 	.port_stp_state_set	= b53_br_set_stp_state,
@@ -1033,8 +1030,6 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.port_vlan_prepare	= b53_vlan_prepare,
 	.port_vlan_add		= b53_vlan_add,
 	.port_vlan_del		= b53_vlan_del,
-	.port_vlan_dump		= b53_vlan_dump,
-	.port_fdb_prepare	= b53_fdb_prepare,
 	.port_fdb_dump		= b53_fdb_dump,
 	.port_fdb_add		= b53_fdb_add,
 	.port_fdb_del		= b53_fdb_del,
@@ -1164,6 +1159,9 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	ds = dev->ds;
 	ds->ops = &bcm_sf2_ops;
+
+	/* Advertise the 8 egress queues */
+	ds->num_tx_queues = SF2_NUM_EGRESS_QUEUES;
 
 	dev_set_drvdata(&pdev->dev, priv);
 

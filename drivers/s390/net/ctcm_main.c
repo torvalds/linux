@@ -305,7 +305,7 @@ static long ctcm_check_irb_error(struct ccw_device *cdev, struct irb *irb)
  *  ch		The channel, the sense code belongs to.
  *  sense	The sense code to inspect.
  */
-static inline void ccw_unit_check(struct channel *ch, __u8 sense)
+static void ccw_unit_check(struct channel *ch, __u8 sense)
 {
 	CTCM_DBF_TEXT_(TRACE, CTC_DBF_DEBUG,
 			"%s(%s): %02x",

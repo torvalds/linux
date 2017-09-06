@@ -445,7 +445,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->snd_sml = newtp->snd_una =
 		newtp->snd_nxt = newtp->snd_up = treq->snt_isn + 1;
 
-		tcp_prequeue_init(newtp);
 		INIT_LIST_HEAD(&newtp->tsq_node);
 
 		tcp_init_wl(newtp, treq->rcv_isn);

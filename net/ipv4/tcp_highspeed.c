@@ -94,7 +94,6 @@ static const struct hstcp_aimd_val {
 
 struct hstcp {
 	u32	ai;
-	u32	loss_cwnd;
 };
 
 static void hstcp_init(struct sock *sk)
@@ -153,22 +152,14 @@ static u32 hstcp_ssthresh(struct sock *sk)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct hstcp *ca = inet_csk_ca(sk);
 
-	ca->loss_cwnd = tp->snd_cwnd;
 	/* Do multiplicative decrease */
 	return max(tp->snd_cwnd - ((tp->snd_cwnd * hstcp_aimd_vals[ca->ai].md) >> 8), 2U);
-}
-
-static u32 hstcp_cwnd_undo(struct sock *sk)
-{
-	const struct hstcp *ca = inet_csk_ca(sk);
-
-	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
 }
 
 static struct tcp_congestion_ops tcp_highspeed __read_mostly = {
 	.init		= hstcp_init,
 	.ssthresh	= hstcp_ssthresh,
-	.undo_cwnd	= hstcp_cwnd_undo,
+	.undo_cwnd	= tcp_reno_undo_cwnd,
 	.cong_avoid	= hstcp_cong_avoid,
 
 	.owner		= THIS_MODULE,

@@ -121,9 +121,9 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 {
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	typeof(nf_ct_timeout_find_get_hook) timeout_find_get;
+	const struct nf_conntrack_l4proto *l4proto;
 	struct ctnl_timeout *timeout;
 	struct nf_conn_timeout *timeout_ext;
-	struct nf_conntrack_l4proto *l4proto;
 	int ret = 0;
 	u8 proto;
 

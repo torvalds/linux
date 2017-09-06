@@ -1096,13 +1096,9 @@ static struct Qdisc *netem_leaf(struct Qdisc *sch, unsigned long arg)
 	return q->qdisc;
 }
 
-static unsigned long netem_get(struct Qdisc *sch, u32 classid)
+static unsigned long netem_find(struct Qdisc *sch, u32 classid)
 {
 	return 1;
-}
-
-static void netem_put(struct Qdisc *sch, unsigned long arg)
-{
 }
 
 static void netem_walk(struct Qdisc *sch, struct qdisc_walker *walker)
@@ -1120,8 +1116,7 @@ static void netem_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 static const struct Qdisc_class_ops netem_class_ops = {
 	.graft		=	netem_graft,
 	.leaf		=	netem_leaf,
-	.get		=	netem_get,
-	.put		=	netem_put,
+	.find		=	netem_find,
 	.walk		=	netem_walk,
 	.dump		=	netem_dump_class,
 };
