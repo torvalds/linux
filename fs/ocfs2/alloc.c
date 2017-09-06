@@ -955,8 +955,7 @@ int ocfs2_read_extent_block(struct ocfs2_caching_info *ci, u64 eb_blkno,
 /*
  * How many free extents have we got before we need more meta data?
  */
-int ocfs2_num_free_extents(struct ocfs2_super *osb,
-			   struct ocfs2_extent_tree *et)
+int ocfs2_num_free_extents(struct ocfs2_extent_tree *et)
 {
 	int retval;
 	struct ocfs2_extent_list *el = NULL;
@@ -1933,14 +1932,12 @@ out:
  * the new changes.
  *
  * left_rec: the record on the left.
- * left_child_el: is the child list pointed to by left_rec
  * right_rec: the record to the right of left_rec
  * right_child_el: is the child list pointed to by right_rec
  *
  * By definition, this only works on interior nodes.
  */
 static void ocfs2_adjust_adjacent_records(struct ocfs2_extent_rec *left_rec,
-				  struct ocfs2_extent_list *left_child_el,
 				  struct ocfs2_extent_rec *right_rec,
 				  struct ocfs2_extent_list *right_child_el)
 {
@@ -2003,7 +2000,7 @@ static void ocfs2_adjust_root_records(struct ocfs2_extent_list *root_el,
 	 */
 	BUG_ON(i >= (le16_to_cpu(root_el->l_next_free_rec) - 1));
 
-	ocfs2_adjust_adjacent_records(&root_el->l_recs[i], left_el,
+	ocfs2_adjust_adjacent_records(&root_el->l_recs[i],
 				      &root_el->l_recs[i + 1], right_el);
 }
 
@@ -2060,8 +2057,7 @@ static void ocfs2_complete_edge_insert(handle_t *handle,
 		el = right_path->p_node[i].el;
 		right_rec = &el->l_recs[0];
 
-		ocfs2_adjust_adjacent_records(left_rec, left_el, right_rec,
-					      right_el);
+		ocfs2_adjust_adjacent_records(left_rec, right_rec, right_el);
 
 		ocfs2_journal_dirty(handle, left_path->p_node[i].bh);
 		ocfs2_journal_dirty(handle, right_path->p_node[i].bh);
@@ -2509,7 +2505,7 @@ out_ret_path:
 
 static int ocfs2_update_edge_lengths(handle_t *handle,
 				     struct ocfs2_extent_tree *et,
-				     int subtree_index, struct ocfs2_path *path)
+				     struct ocfs2_path *path)
 {
 	int i, idx, ret;
 	struct ocfs2_extent_rec *rec;
@@ -2755,8 +2751,7 @@ static int ocfs2_rotate_subtree_left(handle_t *handle,
 	if (del_right_subtree) {
 		ocfs2_unlink_subtree(handle, et, left_path, right_path,
 				     subtree_index, dealloc);
-		ret = ocfs2_update_edge_lengths(handle, et, subtree_index,
-						left_path);
+		ret = ocfs2_update_edge_lengths(handle, et, left_path);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -3060,8 +3055,7 @@ static int ocfs2_remove_rightmost_path(handle_t *handle,
 
 		ocfs2_unlink_subtree(handle, et, left_path, path,
 				     subtree_index, dealloc);
-		ret = ocfs2_update_edge_lengths(handle, et, subtree_index,
-						left_path);
+		ret = ocfs2_update_edge_lengths(handle, et, left_path);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -4790,7 +4784,7 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 	if (mark_unwritten)
 		flags = OCFS2_EXT_UNWRITTEN;
 
-	free_extents = ocfs2_num_free_extents(osb, et);
+	free_extents = ocfs2_num_free_extents(et);
 	if (free_extents < 0) {
 		status = free_extents;
 		mlog_errno(status);
@@ -5668,7 +5662,7 @@ static int ocfs2_reserve_blocks_for_rec_trunc(struct inode *inode,
 
 	*ac = NULL;
 
-	num_free_extents = ocfs2_num_free_extents(osb, et);
+	num_free_extents = ocfs2_num_free_extents(et);
 	if (num_free_extents < 0) {
 		ret = num_free_extents;
 		mlog_errno(ret);
