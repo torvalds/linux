@@ -292,6 +292,9 @@ static void reset_bdev(struct zram *zram)
 	zram->backing_dev = NULL;
 	zram->old_block_size = 0;
 	zram->bdev = NULL;
+
+	kvfree(zram->bitmap);
+	zram->bitmap = NULL;
 }
 
 static ssize_t backing_dev_show(struct device *dev,
@@ -330,7 +333,8 @@ static ssize_t backing_dev_store(struct device *dev,
 	struct file *backing_dev = NULL;
 	struct inode *inode;
 	struct address_space *mapping;
-	unsigned int old_block_size = 0;
+	unsigned int bitmap_sz, old_block_size = 0;
+	unsigned long nr_pages, *bitmap = NULL;
 	struct block_device *bdev = NULL;
 	int err;
 	struct zram *zram = dev_to_zram(dev);
@@ -369,16 +373,27 @@ static ssize_t backing_dev_store(struct device *dev,
 	if (err < 0)
 		goto out;
 
+	nr_pages = i_size_read(inode) >> PAGE_SHIFT;
+	bitmap_sz = BITS_TO_LONGS(nr_pages) * sizeof(long);
+	bitmap = kvzalloc(bitmap_sz, GFP_KERNEL);
+	if (!bitmap) {
+		err = -ENOMEM;
+		goto out;
+	}
+
 	old_block_size = block_size(bdev);
 	err = set_blocksize(bdev, PAGE_SIZE);
 	if (err)
 		goto out;
 
 	reset_bdev(zram);
+	spin_lock_init(&zram->bitmap_lock);
 
 	zram->old_block_size = old_block_size;
 	zram->bdev = bdev;
 	zram->backing_dev = backing_dev;
+	zram->bitmap = bitmap;
+	zram->nr_pages = nr_pages;
 	up_write(&zram->init_lock);
 
 	pr_info("setup backing device %s\n", file_name);
@@ -386,6 +401,9 @@ static ssize_t backing_dev_store(struct device *dev,
 
 	return len;
 out:
+	if (bitmap)
+		kvfree(bitmap);
+
 	if (bdev)
 		blkdev_put(bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
 
@@ -397,6 +415,34 @@ out:
 	kfree(file_name);
 
 	return err;
+}
+
+static unsigned long get_entry_bdev(struct zram *zram)
+{
+	unsigned long entry;
+
+	spin_lock(&zram->bitmap_lock);
+	/* skip 0 bit to confuse zram.handle = 0 */
+	entry = find_next_zero_bit(zram->bitmap, zram->nr_pages, 1);
+	if (entry == zram->nr_pages) {
+		spin_unlock(&zram->bitmap_lock);
+		return 0;
+	}
+
+	set_bit(entry, zram->bitmap);
+	spin_unlock(&zram->bitmap_lock);
+
+	return entry;
+}
+
+static void put_entry_bdev(struct zram *zram, unsigned long entry)
+{
+	int was_set;
+
+	spin_lock(&zram->bitmap_lock);
+	was_set = test_and_clear_bit(entry, zram->bitmap);
+	spin_unlock(&zram->bitmap_lock);
+	WARN_ON_ONCE(!was_set);
 }
 
 #else
