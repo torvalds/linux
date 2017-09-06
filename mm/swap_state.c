@@ -305,8 +305,10 @@ struct page * lookup_swap_cache(swp_entry_t entry)
 
 	if (page && likely(!PageTransCompound(page))) {
 		INC_CACHE_INFO(find_success);
-		if (TestClearPageReadahead(page))
+		if (TestClearPageReadahead(page)) {
 			atomic_inc(&swapin_readahead_hits);
+			count_vm_event(SWAP_RA_HIT);
+		}
 	}
 
 	INC_CACHE_INFO(find_total);
@@ -516,8 +518,11 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
 						gfp_mask, vma, addr, false);
 		if (!page)
 			continue;
-		if (offset != entry_offset && likely(!PageTransCompound(page)))
+		if (offset != entry_offset &&
+		    likely(!PageTransCompound(page))) {
 			SetPageReadahead(page);
+			count_vm_event(SWAP_RA);
+		}
 		put_page(page);
 	}
 	blk_finish_plug(&plug);
