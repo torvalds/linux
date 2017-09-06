@@ -3549,11 +3549,10 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
 	pagevec_init(&pvec, 0);
 
 	do {
-		unsigned want, nr_pages, i;
+		unsigned nr_pages, i;
 
-		want = min_t(unsigned, end - index, PAGEVEC_SIZE);
-		nr_pages = pagevec_lookup(&pvec, inode->i_mapping, &index,
-					  want);
+		nr_pages = pagevec_lookup_range(&pvec, inode->i_mapping, &index,
+						end - 1, PAGEVEC_SIZE);
 		if (nr_pages == 0)
 			break;
 
@@ -3574,10 +3573,6 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
 			    lastoff < page_offset(page))
 				goto check_range;
 
-			/* Searching done if the page index is out of range. */
-			if (page->index >= end)
-				goto not_found;
-
 			lock_page(page);
 			if (likely(page->mapping == inode->i_mapping) &&
 			    page_has_buffers(page)) {
@@ -3590,11 +3585,6 @@ page_cache_seek_hole_data(struct inode *inode, loff_t offset, loff_t length,
 			unlock_page(page);
 			lastoff = page_offset(page) + PAGE_SIZE;
 		}
-
-		/* Searching done if fewer pages returned than wanted. */
-		if (nr_pages < want)
-			break;
-
 		pagevec_release(&pvec);
 	} while (index < end);
 
