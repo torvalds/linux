@@ -691,6 +691,9 @@ static void deferred_put_nlk_sk(struct rcu_head *head)
 	struct netlink_sock *nlk = container_of(head, struct netlink_sock, rcu);
 	struct sock *sk = &nlk->sk;
 
+	kfree(nlk->groups);
+	nlk->groups = NULL;
+
 	if (!refcount_dec_and_test(&sk->sk_refcnt))
 		return;
 
@@ -768,9 +771,6 @@ static int netlink_release(struct socket *sock)
 		}
 		netlink_table_ungrab();
 	}
-
-	kfree(nlk->groups);
-	nlk->groups = NULL;
 
 	local_bh_disable();
 	sock_prot_inuse_add(sock_net(sk), &netlink_proto, -1);
