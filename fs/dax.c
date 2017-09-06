@@ -42,6 +42,9 @@
 #define DAX_WAIT_TABLE_BITS 12
 #define DAX_WAIT_TABLE_ENTRIES (1 << DAX_WAIT_TABLE_BITS)
 
+/* The 'colour' (ie low bits) within a PMD of a page offset.  */
+#define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
+
 static wait_queue_head_t wait_table[DAX_WAIT_TABLE_ENTRIES];
 
 static int __init init_dax_wait_table(void)
@@ -132,7 +135,7 @@ static wait_queue_head_t *dax_entry_waitqueue(struct address_space *mapping,
 	 * the range covered by the PMD map to the same bit lock.
 	 */
 	if (dax_is_pmd_entry(entry))
-		index &= ~((1UL << (PMD_SHIFT - PAGE_SHIFT)) - 1);
+		index &= ~PG_PMD_COLOUR;
 
 	key->mapping = mapping;
 	key->entry_start = index;
@@ -1215,12 +1218,6 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
 }
 
 #ifdef CONFIG_FS_DAX_PMD
-/*
- * The 'colour' (ie low bits) within a PMD of a page offset.  This comes up
- * more often than one might expect in the below functions.
- */
-#define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
-
 static int dax_pmd_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
 		loff_t pos, void *entry)
 {
