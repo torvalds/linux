@@ -115,5 +115,10 @@ struct zram {
 	 * zram is claimed so open request will be failed
 	 */
 	bool claim; /* Protected by bdev->bd_mutex */
+#ifdef CONFIG_ZRAM_WRITEBACK
+	struct file *backing_dev;
+	struct block_device *bdev;
+	unsigned int old_block_size;
+#endif
 };
 #endif
