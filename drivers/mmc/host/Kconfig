@@ -899,3 +899,15 @@ config MMC_SDHCI_XENON
 	  This selects Marvell Xenon eMMC/SD/SDIO SDHCI.
 	  If you have a controller with this interface, say Y or M here.
 	  If unsure, say N.
+
+config MMC_SDHCI_OMAP
+	tristate "TI SDHCI Controller Support"
+	depends on MMC_SDHCI_PLTFM && OF
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  support present in TI's DRA7 SOCs. The controller supports
+	  SD/MMC/SDIO devices.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
