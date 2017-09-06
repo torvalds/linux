@@ -49,12 +49,10 @@ static void __vunmap(const void *, int);
 static void free_work(struct work_struct *w)
 {
 	struct vfree_deferred *p = container_of(w, struct vfree_deferred, wq);
-	struct llist_node *llnode = llist_del_all(&p->list);
-	while (llnode) {
-		void *p = llnode;
-		llnode = llist_next(llnode);
-		__vunmap(p, 1);
-	}
+	struct llist_node *t, *llnode;
+
+	llist_for_each_safe(llnode, t, llist_del_all(&p->list))
+		__vunmap((void *)llnode, 1);
 }
 
 /*** Page table manipulation functions ***/
