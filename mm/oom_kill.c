@@ -495,11 +495,12 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
 	}
 
 	/*
-	 * increase mm_users only after we know we will reap something so
-	 * that the mmput_async is called only when we have reaped something
-	 * and delayed __mmput doesn't matter that much
+	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
+	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
+	 * under mmap_sem for reading because it serializes against the
+	 * down_write();up_write() cycle in exit_mmap().
 	 */
-	if (!mmget_not_zero(mm)) {
+	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
 		up_read(&mm->mmap_sem);
 		trace_skip_task_reaping(tsk->pid);
 		goto unlock_oom;
@@ -542,12 +543,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
 	up_read(&mm->mmap_sem);
 
-	/*
-	 * Drop our reference but make sure the mmput slow path is called from a
-	 * different context because we shouldn't risk we get stuck there and
-	 * put the oom_reaper out of the way.
-	 */
-	mmput_async(mm);
 	trace_finish_task_reaping(tsk->pid);
 unlock_oom:
 	mutex_unlock(&oom_lock);
