@@ -81,7 +81,6 @@ enum phy_event {
 enum discover_event {
 	DISCE_DISCOVER_DOMAIN   = 0U,
 	DISCE_REVALIDATE_DOMAIN,
-	DISCE_PORT_GONE,
 	DISCE_PROBE,
 	DISCE_SUSPEND,
 	DISCE_RESUME,
@@ -256,8 +255,6 @@ struct sas_discovery {
 /* The port struct is Class:RW, driver:RO */
 struct asd_sas_port {
 /* private: */
-	struct completion port_gone_completion;
-
 	struct sas_discovery disc;
 	struct domain_device *port_dev;
 	spinlock_t dev_list_lock;
