@@ -615,8 +615,21 @@ STORE(__bch_cache_set)
 		bch_cache_accounting_clear(&c->accounting);
 	}
 
-	if (attr == &sysfs_trigger_gc)
+	if (attr == &sysfs_trigger_gc) {
+		/*
+		 * Garbage collection thread only works when sectors_to_gc < 0,
+		 * when users write to sysfs entry trigger_gc, most of time
+		 * they want to forcibly triger gargage collection. Here -1 is
+		 * set to c->sectors_to_gc, to make gc_should_run() give a
+		 * chance to permit gc thread to run. "give a chance" means
+		 * before going into gc_should_run(), there is still chance
+		 * that c->sectors_to_gc being set to other positive value. So
+		 * writing sysfs entry trigger_gc won't always make sure gc
+		 * thread takes effect.
+		 */
+		atomic_set(&c->sectors_to_gc, -1);
 		wake_up_gc(c);
+	}
 
 	if (attr == &sysfs_prune_cache) {
 		struct shrink_control sc;
