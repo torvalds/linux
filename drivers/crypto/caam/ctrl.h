@@ -10,4 +10,6 @@
 /* Prototypes for backend-level services exposed to APIs */
 int caam_get_era(void);
 
+extern bool caam_dpaa2;
+
 #endif /* CTRL_H */

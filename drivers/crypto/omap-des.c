@@ -1023,7 +1023,8 @@ static int omap_des_probe(struct platform_device *pdev)
 
 		irq = platform_get_irq(pdev, 0);
 		if (irq < 0) {
-			dev_err(dev, "can't get IRQ resource\n");
+			dev_err(dev, "can't get IRQ resource: %d\n", irq);
+			err = irq;
 			goto err_irq;
 		}
 
