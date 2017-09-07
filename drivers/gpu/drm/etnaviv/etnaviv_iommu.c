@@ -42,7 +42,6 @@ struct etnaviv_iommu_domain {
 	void *bad_page_cpu;
 	dma_addr_t bad_page_dma;
 	struct etnaviv_iommu_domain_pgtable pgtable;
-	spinlock_t map_lock;
 };
 
 static struct etnaviv_iommu_domain *to_etnaviv_domain(struct iommu_domain *domain)
@@ -81,8 +80,6 @@ static int __etnaviv_iommu_init(struct etnaviv_iommu_domain *etnaviv_domain)
 		etnaviv_domain->pgtable.pgtable[i] =
 			etnaviv_domain->bad_page_dma;
 
-	spin_lock_init(&etnaviv_domain->map_lock);
-
 	return 0;
 }
 
@@ -110,9 +107,7 @@ static int etnaviv_iommuv1_map(struct iommu_domain *domain, unsigned long iova,
 	if (size != SZ_4K)
 		return -EINVAL;
 
-	spin_lock(&etnaviv_domain->map_lock);
 	etnaviv_domain->pgtable.pgtable[index] = paddr;
-	spin_unlock(&etnaviv_domain->map_lock);
 
 	return 0;
 }
@@ -126,9 +121,7 @@ static size_t etnaviv_iommuv1_unmap(struct iommu_domain *domain,
 	if (size != SZ_4K)
 		return -EINVAL;
 
-	spin_lock(&etnaviv_domain->map_lock);
 	etnaviv_domain->pgtable.pgtable[index] = etnaviv_domain->bad_page_dma;
-	spin_unlock(&etnaviv_domain->map_lock);
 
 	return SZ_4K;
 }
