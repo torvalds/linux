@@ -546,6 +546,15 @@ struct tc_cls_bpf_offload {
 	u32 gen_flags;
 };
 
+struct tc_mqprio_qopt_offload {
+	/* struct tc_mqprio_qopt must always be the first element */
+	struct tc_mqprio_qopt qopt;
+	u16 mode;
+	u16 shaper;
+	u32 flags;
+	u64 min_rate[TC_QOPT_MAX_QUEUE];
+	u64 max_rate[TC_QOPT_MAX_QUEUE];
+};
 
 /* This structure holds cookie structure that is passed from user
  * to the kernel for actions and classifiers
