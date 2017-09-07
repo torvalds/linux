@@ -1186,8 +1186,7 @@ static int mvebu_pcie_powerup(struct mvebu_pcie_port *port)
  */
 static void mvebu_pcie_powerdown(struct mvebu_pcie_port *port)
 {
-	if (port->reset_gpio)
-		gpiod_set_value_cansleep(port->reset_gpio, 1);
+	gpiod_set_value_cansleep(port->reset_gpio, 1);
 
 	clk_disable_unprepare(port->clk);
 }
