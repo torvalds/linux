@@ -87,6 +87,7 @@
 #define I40E_AQ_LEN			256
 #define I40E_AQ_WORK_LIMIT		66 /* max number of VFs + a little */
 #define I40E_MAX_USER_PRIORITY		8
+#define I40E_MAX_QUEUES_PER_CH		64
 #define I40E_DEFAULT_TRAFFIC_CLASS	BIT(0)
 #define I40E_DEFAULT_MSG_ENABLE		4
 #define I40E_QUEUE_WAIT_RETRY_LIMIT	10
@@ -340,6 +341,23 @@ struct i40e_flex_pit {
 	u8 pit_index;
 };
 
+struct i40e_channel {
+	struct list_head list;
+	bool initialized;
+	u8 type;
+	u16 vsi_number; /* Assigned VSI number from AQ 'Add VSI' response */
+	u16 stat_counter_idx;
+	u16 base_queue;
+	u16 num_queue_pairs; /* Requested by user */
+	u16 seid;
+
+	u8 enabled_tc;
+	struct i40e_aqc_vsi_properties_data info;
+
+	/* track this channel belongs to which VSI */
+	struct i40e_vsi *parent_vsi;
+};
+
 /* struct that defines the Ethernet device */
 struct i40e_pf {
 	struct pci_dev *pdev;
@@ -456,6 +474,7 @@ struct i40e_pf {
 #define I40E_FLAG_CLIENT_RESET			BIT(26)
 #define I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED	BIT(27)
 #define I40E_FLAG_SOURCE_PRUNING_DISABLED	BIT(28)
+#define I40E_FLAG_TC_MQPRIO			BIT(29)
 
 	struct i40e_client_instance *cinst;
 	bool stat_offsets_loaded;
@@ -536,6 +555,8 @@ struct i40e_pf {
 	u32 ioremap_len;
 	u32 fd_inv;
 	u16 phy_led_val;
+
+	u16 override_q_count;
 };
 
 /**
@@ -699,6 +720,15 @@ struct i40e_vsi {
 	struct kobject *kobj;	/* sysfs object */
 	bool current_isup;	/* Sync 'link up' logging */
 	enum i40e_aq_link_speed current_speed;	/* Sync link speed logging */
+
+	/* channel specific fields */
+	u16 cnt_q_avail;	/* num of queues available for channel usage */
+	u16 orig_rss_size;
+	u16 current_rss_size;
+
+	u16 next_base_queue;	/* next queue to be used for channel setup */
+
+	struct list_head ch_list;
 
 	void *priv;	/* client driver data reference. */
 
@@ -1004,4 +1034,6 @@ static inline bool i40e_enabled_xdp_vsi(struct i40e_vsi *vsi)
 {
 	return !!vsi->xdp_prog;
 }
+
+int i40e_create_queue_channel(struct i40e_vsi *vsi, struct i40e_channel *ch);
 #endif /* _I40E_H_ */
