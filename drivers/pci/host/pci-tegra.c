@@ -1703,8 +1703,7 @@ static int tegra_pcie_get_legacy_regulators(struct tegra_pcie *pcie)
 		pcie->num_supplies = 2;
 
 	if (pcie->num_supplies == 0) {
-		dev_err(dev, "device %s not supported in legacy mode\n",
-			np->full_name);
+		dev_err(dev, "device %pOF not supported in legacy mode\n", np);
 		return -ENODEV;
 	}
 

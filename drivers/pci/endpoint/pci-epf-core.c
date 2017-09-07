@@ -27,7 +27,7 @@
 #include <linux/pci-ep-cfs.h>
 
 static struct bus_type pci_epf_bus_type;
-static struct device_type pci_epf_type;
+static const struct device_type pci_epf_type;
 
 /**
  * pci_epf_linkup() - Notify the function driver that EPC device has
@@ -291,7 +291,7 @@ static void pci_epf_dev_release(struct device *dev)
 	kfree(epf);
 }
 
-static struct device_type pci_epf_type = {
+static const struct device_type pci_epf_type = {
 	.release	= pci_epf_dev_release,
 };
 
