@@ -66,18 +66,6 @@ static void pgtable_free(struct etnaviv_iommu_domain_pgtable *pgtable,
 	dma_free_coherent(NULL, size, pgtable->pgtable, pgtable->paddr);
 }
 
-static u32 pgtable_read(struct etnaviv_iommu_domain_pgtable *pgtable,
-			   unsigned long iova)
-{
-	/* calcuate index into page table */
-	unsigned int index = (iova - GPU_MEM_START) / SZ_4K;
-	phys_addr_t paddr;
-
-	paddr = pgtable->pgtable[index];
-
-	return paddr;
-}
-
 static void pgtable_write(struct etnaviv_iommu_domain_pgtable *pgtable,
 			  unsigned long iova, phys_addr_t paddr)
 {
@@ -164,14 +152,6 @@ static size_t etnaviv_iommuv1_unmap(struct iommu_domain *domain,
 	return SZ_4K;
 }
 
-static phys_addr_t etnaviv_iommu_iova_to_phys(struct iommu_domain *domain,
-	dma_addr_t iova)
-{
-	struct etnaviv_iommu_domain *etnaviv_domain = to_etnaviv_domain(domain);
-
-	return pgtable_read(&etnaviv_domain->pgtable, iova);
-}
-
 static size_t etnaviv_iommuv1_dump_size(struct iommu_domain *domain)
 {
 	return PT_SIZE;
@@ -189,7 +169,6 @@ static const struct etnaviv_iommu_ops etnaviv_iommu_ops = {
 		.domain_free = etnaviv_domain_free,
 		.map = etnaviv_iommuv1_map,
 		.unmap = etnaviv_iommuv1_unmap,
-		.iova_to_phys = etnaviv_iommu_iova_to_phys,
 		.pgsize_bitmap = SZ_4K,
 	},
 	.dump_size = etnaviv_iommuv1_dump_size,

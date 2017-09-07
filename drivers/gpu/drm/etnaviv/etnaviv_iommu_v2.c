@@ -97,19 +97,6 @@ static size_t etnaviv_iommuv2_unmap(struct iommu_domain *domain,
 	return SZ_4K;
 }
 
-static phys_addr_t etnaviv_iommuv2_iova_to_phys(struct iommu_domain *domain,
-	dma_addr_t iova)
-{
-	struct etnaviv_iommuv2_domain *etnaviv_domain =
-			to_etnaviv_domain(domain);
-	int mtlb_entry, stlb_entry;
-
-	mtlb_entry = (iova & MMUv2_MTLB_MASK) >> MMUv2_MTLB_SHIFT;
-	stlb_entry = (iova & MMUv2_STLB_MASK) >> MMUv2_STLB_SHIFT;
-
-	return etnaviv_domain->stlb_cpu[mtlb_entry][stlb_entry] & ~(SZ_4K - 1);
-}
-
 static int etnaviv_iommuv2_init(struct etnaviv_iommuv2_domain *etnaviv_domain)
 {
 	u32 *p;
@@ -235,7 +222,6 @@ static const struct etnaviv_iommu_ops etnaviv_iommu_ops = {
 		.domain_free = etnaviv_iommuv2_domain_free,
 		.map = etnaviv_iommuv2_map,
 		.unmap = etnaviv_iommuv2_unmap,
-		.iova_to_phys = etnaviv_iommuv2_iova_to_phys,
 		.pgsize_bitmap = SZ_4K,
 	},
 	.dump_size = etnaviv_iommuv2_dump_size,
