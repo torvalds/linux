@@ -5702,8 +5702,14 @@ energy_diff(struct energy_env *eenv)
 	__energy_diff(eenv);
 
 	/* Return energy diff when boost margin is 0 */
-	if (boost == 0)
+	if (boost == 0) {
+		trace_sched_energy_diff(eenv->task,
+				eenv->src_cpu, eenv->dst_cpu, eenv->util_delta,
+				eenv->nrg.before, eenv->nrg.after, eenv->nrg.diff,
+				eenv->cap.before, eenv->cap.after, eenv->cap.delta,
+				0, -eenv->nrg.diff);
 		return eenv->nrg.diff;
+	}
 
 	/* Compute normalized energy diff */
 	nrg_delta = normalize_energy(eenv->nrg.diff);
