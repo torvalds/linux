@@ -221,7 +221,7 @@ static void gfs2_submit_bhs(int op, int op_flags, struct buffer_head *bhs[],
 
 		bio = bio_alloc(GFP_NOIO, num);
 		bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
-		bio->bi_bdev = bh->b_bdev;
+		bio_set_dev(bio, bh->b_bdev);
 		while (num > 0) {
 			bh = *bhs;
 			if (!bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh))) {

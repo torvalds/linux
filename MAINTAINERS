@@ -12561,6 +12561,12 @@ M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
 F:	drivers/net/ethernet/adaptec/starfire*
 
+STEC S1220 SKD DRIVER
+M:	Bart Van Assche <bart.vanassche@wdc.com>
+L:	linux-block@vger.kernel.org
+S:	Maintained
+F:	drivers/block/skd*[ch]
+
 STI CEC DRIVER
 M:	Benjamin Gaignard <benjamin.gaignard@linaro.org>
 S:	Maintained

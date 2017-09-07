@@ -429,6 +429,7 @@ struct block_device {
 #endif
 	struct block_device *	bd_contains;
 	unsigned		bd_block_size;
+	u8			bd_partno;
 	struct hd_struct *	bd_part;
 	/* number of times partitions within this device have been opened. */
 	unsigned		bd_part_count;

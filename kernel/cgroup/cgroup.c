@@ -1879,7 +1879,8 @@ int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask, int ref_flags)
 		&cgroup_kf_syscall_ops : &cgroup1_kf_syscall_ops;
 
 	root->kf_root = kernfs_create_root(kf_sops,
-					   KERNFS_ROOT_CREATE_DEACTIVATED,
+					   KERNFS_ROOT_CREATE_DEACTIVATED |
+					   KERNFS_ROOT_SUPPORT_EXPORTOP,
 					   root_cgrp);
 	if (IS_ERR(root->kf_root)) {
 		ret = PTR_ERR(root->kf_root);
@@ -5255,6 +5256,18 @@ static int __init cgroup_wq_init(void)
 	return 0;
 }
 core_initcall(cgroup_wq_init);
+
+void cgroup_path_from_kernfs_id(const union kernfs_node_id *id,
+					char *buf, size_t buflen)
+{
+	struct kernfs_node *kn;
+
+	kn = kernfs_get_node_by_id(cgrp_dfl_root.kf_root, id);
+	if (!kn)
+		return;
+	kernfs_path(kn, buf, buflen);
+	kernfs_put(kn);
+}
 
 /*
  * proc_cgroup_show()

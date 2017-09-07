@@ -268,7 +268,7 @@ static struct bio *gfs2_log_alloc_bio(struct gfs2_sbd *sdp, u64 blkno)
 
 	bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
 	bio->bi_iter.bi_sector = blkno * (sb->s_blocksize >> 9);
-	bio->bi_bdev = sb->s_bdev;
+	bio_set_dev(bio, sb->s_bdev);
 	bio->bi_end_io = gfs2_end_log_write;
 	bio->bi_private = sdp;
 

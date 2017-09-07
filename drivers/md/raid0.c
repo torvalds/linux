@@ -588,14 +588,13 @@ static bool raid0_make_request(struct mddev *mddev, struct bio *bio)
 
 	zone = find_zone(mddev->private, &sector);
 	tmp_dev = map_sector(mddev, zone, sector, &sector);
-	bio->bi_bdev = tmp_dev->bdev;
+	bio_set_dev(bio, tmp_dev->bdev);
 	bio->bi_iter.bi_sector = sector + zone->dev_start +
 		tmp_dev->data_offset;
 
 	if (mddev->gendisk)
-		trace_block_bio_remap(bdev_get_queue(bio->bi_bdev),
-				      bio, disk_devt(mddev->gendisk),
-				      bio_sector);
+		trace_block_bio_remap(bio->bi_disk->queue, bio,
+				disk_devt(mddev->gendisk), bio_sector);
 	mddev_check_writesame(mddev, bio);
 	mddev_check_write_zeroes(mddev, bio);
 	generic_make_request(bio);

@@ -360,11 +360,11 @@ struct bfq_io_cq {
 	uint64_t blkcg_serial_nr; /* the current blkcg serial */
 #endif
 	/*
-	 * Snapshot of the idle window before merging; taken to
-	 * remember this value while the queue is merged, so as to be
-	 * able to restore it in case of split.
+	 * Snapshot of the has_short_time flag before merging; taken
+	 * to remember its value while the queue is merged, so as to
+	 * be able to restore it in case of split.
 	 */
-	bool saved_idle_window;
+	bool saved_has_short_ttime;
 	/*
 	 * Same purpose as the previous two fields for the I/O bound
 	 * classification of a queue.
@@ -638,7 +638,7 @@ enum bfqq_state_flags {
 				     * without idling the device
 				     */
 	BFQQF_fifo_expire,	/* FIFO checked in this slice */
-	BFQQF_idle_window,	/* slice idling enabled */
+	BFQQF_has_short_ttime,	/* queue has a short think time */
 	BFQQF_sync,		/* synchronous queue */
 	BFQQF_IO_bound,		/*
 				 * bfqq has timed-out at least once
@@ -667,7 +667,7 @@ BFQ_BFQQ_FNS(busy);
 BFQ_BFQQ_FNS(wait_request);
 BFQ_BFQQ_FNS(non_blocking_wait_rq);
 BFQ_BFQQ_FNS(fifo_expire);
-BFQ_BFQQ_FNS(idle_window);
+BFQ_BFQQ_FNS(has_short_ttime);
 BFQ_BFQQ_FNS(sync);
 BFQ_BFQQ_FNS(IO_bound);
 BFQ_BFQQ_FNS(in_large_burst);
@@ -929,13 +929,16 @@ void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq);
 struct bfq_group *bfqq_group(struct bfq_queue *bfqq);
 
 #define bfq_log_bfqq(bfqd, bfqq, fmt, args...)	do {			\
-	blk_add_trace_msg((bfqd)->queue, "bfq%d%c %s " fmt, (bfqq)->pid,\
-			bfq_bfqq_sync((bfqq)) ? 'S' : 'A',		\
-			bfqq_group(bfqq)->blkg_path, ##args);		\
+	blk_add_cgroup_trace_msg((bfqd)->queue,				\
+			bfqg_to_blkg(bfqq_group(bfqq))->blkcg,		\
+			"bfq%d%c " fmt, (bfqq)->pid,			\
+			bfq_bfqq_sync((bfqq)) ? 'S' : 'A', ##args);	\
 } while (0)
 
-#define bfq_log_bfqg(bfqd, bfqg, fmt, args...)	\
-	blk_add_trace_msg((bfqd)->queue, "%s " fmt, (bfqg)->blkg_path, ##args)
+#define bfq_log_bfqg(bfqd, bfqg, fmt, args...)	do {			\
+	blk_add_cgroup_trace_msg((bfqd)->queue,				\
+		bfqg_to_blkg(bfqg)->blkcg, fmt, ##args);		\
+} while (0)
 
 #else /* CONFIG_BFQ_GROUP_IOSCHED */
 

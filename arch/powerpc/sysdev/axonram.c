@@ -110,7 +110,7 @@ axon_ram_irq_handler(int irq, void *dev)
 static blk_qc_t
 axon_ram_make_request(struct request_queue *queue, struct bio *bio)
 {
-	struct axon_ram_bank *bank = bio->bi_bdev->bd_disk->private_data;
+	struct axon_ram_bank *bank = bio->bi_disk->private_data;
 	unsigned long phys_mem, phys_end;
 	void *user_mem;
 	struct bio_vec vec;

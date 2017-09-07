@@ -2456,7 +2456,7 @@ static void blkback_changed(struct xenbus_device *dev,
 	case XenbusStateClosed:
 		if (dev->state == XenbusStateClosed)
 			break;
-		/* Missed the backend's Closing state -- fallthrough */
+		/* fall through */
 	case XenbusStateClosing:
 		if (info)
 			blkfront_closing(info);

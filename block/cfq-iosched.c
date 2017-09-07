@@ -656,20 +656,17 @@ static inline void cfqg_put(struct cfq_group *cfqg)
 }
 
 #define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	do {			\
-	char __pbuf[128];						\
-									\
-	blkg_path(cfqg_to_blkg((cfqq)->cfqg), __pbuf, sizeof(__pbuf));	\
-	blk_add_trace_msg((cfqd)->queue, "cfq%d%c%c %s " fmt, (cfqq)->pid, \
+	blk_add_cgroup_trace_msg((cfqd)->queue,				\
+			cfqg_to_blkg((cfqq)->cfqg)->blkcg,		\
+			"cfq%d%c%c " fmt, (cfqq)->pid,			\
 			cfq_cfqq_sync((cfqq)) ? 'S' : 'A',		\
 			cfqq_type((cfqq)) == SYNC_NOIDLE_WORKLOAD ? 'N' : ' ',\
-			  __pbuf, ##args);				\
+			  ##args);					\
 } while (0)
 
 #define cfq_log_cfqg(cfqd, cfqg, fmt, args...)	do {			\
-	char __pbuf[128];						\
-									\
-	blkg_path(cfqg_to_blkg(cfqg), __pbuf, sizeof(__pbuf));		\
-	blk_add_trace_msg((cfqd)->queue, "%s " fmt, __pbuf, ##args);	\
+	blk_add_cgroup_trace_msg((cfqd)->queue,				\
+			cfqg_to_blkg(cfqg)->blkcg, fmt, ##args);	\
 } while (0)
 
 static inline void cfqg_stats_update_io_add(struct cfq_group *cfqg,
@@ -2937,7 +2934,8 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	 * for devices that support queuing, otherwise we still have a problem
 	 * with sync vs async workloads.
 	 */
-	if (blk_queue_nonrot(cfqd->queue) && cfqd->hw_tag)
+	if (blk_queue_nonrot(cfqd->queue) && cfqd->hw_tag &&
+		!cfqd->cfq_group_idle)
 		return;
 
 	WARN_ON(!RB_EMPTY_ROOT(&cfqq->sort_list));
@@ -4714,13 +4712,12 @@ cfq_var_show(unsigned int var, char *page)
 	return sprintf(page, "%u\n", var);
 }
 
-static ssize_t
-cfq_var_store(unsigned int *var, const char *page, size_t count)
+static void
+cfq_var_store(unsigned int *var, const char *page)
 {
 	char *p = (char *) page;
 
 	*var = simple_strtoul(p, &p, 10);
-	return count;
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR, __CONV)				\
@@ -4766,7 +4763,7 @@ static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	
 {									\
 	struct cfq_data *cfqd = e->elevator_data;			\
 	unsigned int __data;						\
-	int ret = cfq_var_store(&__data, (page), count);		\
+	cfq_var_store(&__data, (page));					\
 	if (__data < (MIN))						\
 		__data = (MIN);						\
 	else if (__data > (MAX))					\
@@ -4775,7 +4772,7 @@ static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	
 		*(__PTR) = (u64)__data * NSEC_PER_MSEC;			\
 	else								\
 		*(__PTR) = __data;					\
-	return ret;							\
+	return count;							\
 }
 STORE_FUNCTION(cfq_quantum_store, &cfqd->cfq_quantum, 1, UINT_MAX, 0);
 STORE_FUNCTION(cfq_fifo_expire_sync_store, &cfqd->cfq_fifo_expire[1], 1,
@@ -4800,13 +4797,13 @@ static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	
 {									\
 	struct cfq_data *cfqd = e->elevator_data;			\
 	unsigned int __data;						\
-	int ret = cfq_var_store(&__data, (page), count);		\
+	cfq_var_store(&__data, (page));					\
 	if (__data < (MIN))						\
 		__data = (MIN);						\
 	else if (__data > (MAX))					\
 		__data = (MAX);						\
 	*(__PTR) = (u64)__data * NSEC_PER_USEC;				\
-	return ret;							\
+	return count;							\
 }
 USEC_STORE_FUNCTION(cfq_slice_idle_us_store, &cfqd->cfq_slice_idle, 0, UINT_MAX);
 USEC_STORE_FUNCTION(cfq_group_idle_us_store, &cfqd->cfq_group_idle, 0, UINT_MAX);

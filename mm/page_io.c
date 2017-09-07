@@ -33,7 +33,10 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
 
 	bio = bio_alloc(gfp_flags, nr);
 	if (bio) {
-		bio->bi_iter.bi_sector = map_swap_page(page, &bio->bi_bdev);
+		struct block_device *bdev;
+
+		bio->bi_iter.bi_sector = map_swap_page(page, &bdev);
+		bio_set_dev(bio, bdev);
 		bio->bi_iter.bi_sector <<= PAGE_SHIFT - 9;
 		bio->bi_end_io = end_io;
 
@@ -60,8 +63,7 @@ void end_swap_bio_write(struct bio *bio)
 		 */
 		set_page_dirty(page);
 		pr_alert("Write-error on swap-device (%u:%u:%llu)\n",
-			 imajor(bio->bi_bdev->bd_inode),
-			 iminor(bio->bi_bdev->bd_inode),
+			 MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)),
 			 (unsigned long long)bio->bi_iter.bi_sector);
 		ClearPageReclaim(page);
 	}
@@ -126,8 +128,7 @@ static void end_swap_bio_read(struct bio *bio)
 		SetPageError(page);
 		ClearPageUptodate(page);
 		pr_alert("Read-error on swap-device (%u:%u:%llu)\n",
-			 imajor(bio->bi_bdev->bd_inode),
-			 iminor(bio->bi_bdev->bd_inode),
+			 MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)),
 			 (unsigned long long)bio->bi_iter.bi_sector);
 		goto out;
 	}
@@ -351,7 +352,7 @@ int swap_readpage(struct page *page, bool do_poll)
 	int ret = 0;
 	struct swap_info_struct *sis = page_swap_info(page);
 	blk_qc_t qc;
-	struct block_device *bdev;
+	struct gendisk *disk;
 
 	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
@@ -390,7 +391,7 @@ int swap_readpage(struct page *page, bool do_poll)
 		ret = -ENOMEM;
 		goto out;
 	}
-	bdev = bio->bi_bdev;
+	disk = bio->bi_disk;
 	/*
 	 * Keep this task valid during swap readpage because the oom killer may
 	 * attempt to access it in the page fault retry time check.
@@ -406,7 +407,7 @@ int swap_readpage(struct page *page, bool do_poll)
 		if (!READ_ONCE(bio->bi_private))
 			break;
 
-		if (!blk_mq_poll(bdev_get_queue(bdev), qc))
+		if (!blk_mq_poll(disk->queue, qc))
 			break;
 	}
 	__set_current_state(TASK_RUNNING);

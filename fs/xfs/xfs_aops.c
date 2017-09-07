@@ -540,7 +540,7 @@ xfs_init_bio_from_bh(
 	struct buffer_head	*bh)
 {
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
-	bio->bi_bdev = bh->b_bdev;
+	bio_set_dev(bio, bh->b_bdev);
 }
 
 static struct xfs_ioend *
