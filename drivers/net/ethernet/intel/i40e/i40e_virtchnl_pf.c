@@ -3117,8 +3117,6 @@ error_pvid:
 	return ret;
 }
 
-#define I40E_BW_CREDIT_DIVISOR 50     /* 50Mbps per BW credit */
-#define I40E_MAX_BW_INACTIVE_ACCUM 4  /* device can accumulate 4 credits max */
 /**
  * i40e_ndo_set_vf_bw
  * @netdev: network interface device structure
@@ -3134,7 +3132,6 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_vsi *vsi;
 	struct i40e_vf *vf;
-	int speed = 0;
 	int ret = 0;
 
 	/* validate the request */
@@ -3159,48 +3156,10 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 		goto error;
 	}
 
-	switch (pf->hw.phy.link_info.link_speed) {
-	case I40E_LINK_SPEED_40GB:
-		speed = 40000;
-		break;
-	case I40E_LINK_SPEED_25GB:
-		speed = 25000;
-		break;
-	case I40E_LINK_SPEED_20GB:
-		speed = 20000;
-		break;
-	case I40E_LINK_SPEED_10GB:
-		speed = 10000;
-		break;
-	case I40E_LINK_SPEED_1GB:
-		speed = 1000;
-		break;
-	default:
-		break;
-	}
-
-	if (max_tx_rate > speed) {
-		dev_err(&pf->pdev->dev, "Invalid max tx rate %d specified for VF %d.\n",
-			max_tx_rate, vf->vf_id);
-		ret = -EINVAL;
+	ret = i40e_set_bw_limit(vsi, vsi->seid, max_tx_rate);
+	if (ret)
 		goto error;
-	}
 
-	if ((max_tx_rate < 50) && (max_tx_rate > 0)) {
-		dev_warn(&pf->pdev->dev, "Setting max Tx rate to minimum usable value of 50Mbps.\n");
-		max_tx_rate = 50;
-	}
-
-	/* Tx rate credits are in values of 50Mbps, 0 is disabled*/
-	ret = i40e_aq_config_vsi_bw_limit(&pf->hw, vsi->seid,
-					  max_tx_rate / I40E_BW_CREDIT_DIVISOR,
-					  I40E_MAX_BW_INACTIVE_ACCUM, NULL);
-	if (ret) {
-		dev_err(&pf->pdev->dev, "Unable to set max tx rate, error code %d.\n",
-			ret);
-		ret = -EIO;
-		goto error;
-	}
 	vf->tx_rate = max_tx_rate;
 error:
 	return ret;

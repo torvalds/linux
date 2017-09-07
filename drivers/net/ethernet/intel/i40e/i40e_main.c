@@ -5400,6 +5400,70 @@ out:
 }
 
 /**
+ * i40e_get_link_speed - Returns link speed for the interface
+ * @vsi: VSI to be configured
+ *
+ **/
+int i40e_get_link_speed(struct i40e_vsi *vsi)
+{
+	struct i40e_pf *pf = vsi->back;
+
+	switch (pf->hw.phy.link_info.link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		return 40000;
+	case I40E_LINK_SPEED_25GB:
+		return 25000;
+	case I40E_LINK_SPEED_20GB:
+		return 20000;
+	case I40E_LINK_SPEED_10GB:
+		return 10000;
+	case I40E_LINK_SPEED_1GB:
+		return 1000;
+	default:
+		return -EINVAL;
+	}
+}
+
+/**
+ * i40e_set_bw_limit - setup BW limit for Tx traffic based on max_tx_rate
+ * @vsi: VSI to be configured
+ * @seid: seid of the channel/VSI
+ * @max_tx_rate: max TX rate to be configured as BW limit
+ *
+ * Helper function to set BW limit for a given VSI
+ **/
+int i40e_set_bw_limit(struct i40e_vsi *vsi, u16 seid, u64 max_tx_rate)
+{
+	struct i40e_pf *pf = vsi->back;
+	int speed = 0;
+	int ret = 0;
+
+	speed = i40e_get_link_speed(vsi);
+	if (max_tx_rate > speed) {
+		dev_err(&pf->pdev->dev,
+			"Invalid max tx rate %llu specified for VSI seid %d.",
+			max_tx_rate, seid);
+		return -EINVAL;
+	}
+	if (max_tx_rate && max_tx_rate < 50) {
+		dev_warn(&pf->pdev->dev,
+			 "Setting max tx rate to minimum usable value of 50Mbps.\n");
+		max_tx_rate = 50;
+	}
+
+	/* Tx rate credits are in values of 50Mbps, 0 is disabled */
+	ret = i40e_aq_config_vsi_bw_limit(&pf->hw, seid,
+					  max_tx_rate / I40E_BW_CREDIT_DIVISOR,
+					  I40E_MAX_BW_INACTIVE_ACCUM, NULL);
+	if (ret)
+		dev_err(&pf->pdev->dev,
+			"Failed set tx rate (%llu Mbps) for vsi->seid %u, err %s aq_err %s\n",
+			max_tx_rate, seid, i40e_stat_str(&pf->hw, ret),
+			i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
+	return ret;
+}
+
+/**
  * i40e_remove_queue_channels - Remove queue channels for the TCs
  * @vsi: VSI to be configured
  *

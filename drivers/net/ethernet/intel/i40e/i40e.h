@@ -128,6 +128,10 @@
 /* default to trying for four seconds */
 #define I40E_TRY_LINK_TIMEOUT	(4 * HZ)
 
+/* BW rate limiting */
+#define I40E_BW_CREDIT_DIVISOR		50 /* 50Mbps per BW credit */
+#define I40E_MAX_BW_INACTIVE_ACCUM	4  /* accumulate 4 credits max */
+
 /* driver state flags */
 enum i40e_state_t {
 	__I40E_TESTING,
@@ -1039,4 +1043,5 @@ static inline bool i40e_enabled_xdp_vsi(struct i40e_vsi *vsi)
 }
 
 int i40e_create_queue_channel(struct i40e_vsi *vsi, struct i40e_channel *ch);
+int i40e_set_bw_limit(struct i40e_vsi *vsi, u16 seid, u64 max_tx_rate);
 #endif /* _I40E_H_ */
