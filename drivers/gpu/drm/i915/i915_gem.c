@@ -179,7 +179,7 @@ i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 	 * the alignment of the buddy allocation will naturally match.
 	 */
 	phys = drm_pci_alloc(obj->base.dev,
-			     obj->base.size,
+			     roundup_pow_of_two(obj->base.size),
 			     roundup_pow_of_two(obj->base.size));
 	if (!phys)
 		return ERR_PTR(-ENOMEM);
