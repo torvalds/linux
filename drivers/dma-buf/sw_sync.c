@@ -321,8 +321,16 @@ static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
 static int sw_sync_debugfs_release(struct inode *inode, struct file *file)
 {
 	struct sync_timeline *obj = file->private_data;
+	struct sync_pt *pt, *next;
 
-	smp_wmb();
+	spin_lock_irq(&obj->lock);
+
+	list_for_each_entry_safe(pt, next, &obj->pt_list, link) {
+		dma_fence_set_error(&pt->base, -ENOENT);
+		dma_fence_signal_locked(&pt->base);
+	}
+
+	spin_unlock_irq(&obj->lock);
 
 	sync_timeline_put(obj);
 	return 0;
