@@ -880,7 +880,6 @@ struct btrfs_fs_info {
 
 	atomic_t nr_async_submits;
 	atomic_t async_submit_draining;
-	atomic_t nr_async_bios;
 	atomic_t async_delalloc_pages;
 	atomic_t open_ioctl_trans;
 

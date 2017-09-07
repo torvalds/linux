@@ -360,7 +360,6 @@ static noinline void run_scheduled_bios(struct btrfs_device *device)
 	int again = 0;
 	unsigned long num_run;
 	unsigned long batch_run = 0;
-	unsigned long limit;
 	unsigned long last_waited = 0;
 	int force_reg = 0;
 	int sync_pending = 0;
@@ -375,8 +374,6 @@ static noinline void run_scheduled_bios(struct btrfs_device *device)
 	blk_start_plug(&plug);
 
 	bdi = device->bdev->bd_bdi;
-	limit = btrfs_async_submit_limit(fs_info);
-	limit = limit * 2 / 3;
 
 loop:
 	spin_lock(&device->io_lock);
@@ -442,13 +439,6 @@ loop_lock:
 		cur = pending;
 		pending = pending->bi_next;
 		cur->bi_next = NULL;
-
-		/*
-		 * atomic_dec_return implies a barrier for waitqueue_active
-		 */
-		if (atomic_dec_return(&fs_info->nr_async_bios) < limit &&
-		    waitqueue_active(&fs_info->async_submit_wait))
-			wake_up(&fs_info->async_submit_wait);
 
 		BUG_ON(atomic_read(&cur->__bi_cnt) == 0);
 
@@ -6075,13 +6065,6 @@ static noinline void btrfs_schedule_bio(struct btrfs_device *device,
 		return;
 	}
 
-	/*
-	 * nr_async_bios allows us to reliably return congestion to the
-	 * higher layers.  Otherwise, the async bio makes it appear we have
-	 * made progress against dirty pages when we've really just put it
-	 * on a queue for later
-	 */
-	atomic_inc(&fs_info->nr_async_bios);
 	WARN_ON(bio->bi_next);
 	bio->bi_next = NULL;
 
