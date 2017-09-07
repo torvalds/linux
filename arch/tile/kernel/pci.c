@@ -274,6 +274,7 @@ static void fixup_read_and_payload_sizes(void)
  */
 int __init pcibios_init(void)
 {
+	struct pci_host_bridge *bridge;
 	int i;
 
 	pr_info("PCI: Probing PCI hardware\n");
@@ -306,15 +307,25 @@ int __init pcibios_init(void)
 
 			pci_add_resource(&resources, &ioport_resource);
 			pci_add_resource(&resources, &iomem_resource);
-			bus = pci_scan_root_bus(NULL, 0, controller->ops,
-						controller, &resources);
+
+			bridge = pci_alloc_host_bridge(0);
+			if (!bridge)
+				break;
+
+			list_splice_init(&resources, &bridge->windows);
+			bridge->dev.parent = NULL;
+			bridge->sysdata = controller;
+			bridge->busnr = 0;
+			bridge->ops = controller->ops;
+			bridge->swizzle_irq = pci_common_swizzle;
+			bridge->map_irq = tile_map_irq;
+
+			pci_scan_root_bus_bridge(bridge);
+			bus = bridge->bus;
 			controller->root_bus = bus;
 			controller->last_busno = bus->busn_res.end;
 		}
 	}
-
-	/* Do machine dependent PCI interrupt routing */
-	pci_fixup_irqs(pci_common_swizzle, tile_map_irq);
 
 	/*
 	 * This comes from the generic Linux PCI driver.
