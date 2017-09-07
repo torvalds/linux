@@ -161,24 +161,10 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gpio_dev);
 
-	rc = request_irq(gpio_to_irq(pdata->gpio_nr), gpio_ir_recv_irq,
-			 IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			 "gpio-ir-recv-irq", gpio_dev);
-	if (rc < 0)
-		goto err_request_irq;
-
-	return 0;
-
-err_request_irq:
-	return rc;
-}
-
-static int gpio_ir_recv_remove(struct platform_device *pdev)
-{
-	struct gpio_rc_dev *gpio_dev = platform_get_drvdata(pdev);
-
-	free_irq(gpio_to_irq(gpio_dev->gpio_nr), gpio_dev);
-	return 0;
+	return devm_request_irq(dev, gpio_to_irq(pdata->gpio_nr),
+				gpio_ir_recv_irq,
+				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+				"gpio-ir-recv-irq", gpio_dev);
 }
 
 #ifdef CONFIG_PM
@@ -216,7 +202,6 @@ static const struct dev_pm_ops gpio_ir_recv_pm_ops = {
 
 static struct platform_driver gpio_ir_recv_driver = {
 	.probe  = gpio_ir_recv_probe,
-	.remove = gpio_ir_recv_remove,
 	.driver = {
 		.name   = GPIO_IR_DRIVER_NAME,
 		.of_match_table = of_match_ptr(gpio_ir_recv_of_match),
