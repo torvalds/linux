@@ -104,14 +104,15 @@ int vega10_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 	if (hwmgr->thermal_controller.fanInfo.bNoFan)
 		return -1;
 
-	if (data->smu_features[GNLD_FAN_CONTROL].supported)
+	if (data->smu_features[GNLD_FAN_CONTROL].supported) {
 		result = vega10_get_current_rpm(hwmgr, speed);
-	else {
+	} else {
 		uint32_t reg = soc15_get_register_offset(THM_HWID, 0,
 				mmCG_TACH_STATUS_BASE_IDX, mmCG_TACH_STATUS);
-		tach_period = (cgs_read_register(hwmgr->device,
-				reg) & CG_TACH_STATUS__TACH_PERIOD_MASK) >>
-				CG_TACH_STATUS__TACH_PERIOD__SHIFT;
+		tach_period =
+			CGS_REG_GET_FIELD(cgs_read_register(hwmgr->device, reg),
+					  CG_TACH_STATUS,
+					  TACH_PERIOD);
 
 		if (tach_period == 0)
 			return -EINVAL;
