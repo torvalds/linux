@@ -854,69 +854,69 @@ static void vega10_didt_set_mask(struct pp_hwmgr *hwmgr, const bool enable)
 	uint32_t en = (enable ? 1 : 0);
 	uint32_t didt_block_info = SQ_IR_MASK | TCP_IR_MASK | TD_PCC_MASK;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SQRamping)) {
+	if (PP_CAP(PHM_PlatformCaps_SQRamping)) {
 		CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
 				     DIDT_SQ_CTRL0, DIDT_CTRL_EN, en);
 		didt_block_info &= ~SQ_Enable_MASK;
 		didt_block_info |= en << SQ_Enable_SHIFT;
 	}
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRamping)) {
+	if (PP_CAP(PHM_PlatformCaps_DBRamping)) {
 		CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
 				     DIDT_DB_CTRL0, DIDT_CTRL_EN, en);
 		didt_block_info &= ~DB_Enable_MASK;
 		didt_block_info |= en << DB_Enable_SHIFT;
 	}
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TDRamping)) {
+	if (PP_CAP(PHM_PlatformCaps_TDRamping)) {
 		CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
 				     DIDT_TD_CTRL0, DIDT_CTRL_EN, en);
 		didt_block_info &= ~TD_Enable_MASK;
 		didt_block_info |= en << TD_Enable_SHIFT;
 	}
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TCPRamping)) {
+	if (PP_CAP(PHM_PlatformCaps_TCPRamping)) {
 		CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
 				     DIDT_TCP_CTRL0, DIDT_CTRL_EN, en);
 		didt_block_info &= ~TCP_Enable_MASK;
 		didt_block_info |= en << TCP_Enable_SHIFT;
 	}
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRRamping)) {
+	if (PP_CAP(PHM_PlatformCaps_DBRRamping)) {
 		CGS_WREG32_FIELD_IND(hwmgr->device, CGS_IND_REG__DIDT,
 				     DIDT_DBR_CTRL0, DIDT_CTRL_EN, en);
 	}
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DiDtEDCEnable)) {
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SQRamping)) {
+	if (PP_CAP(PHM_PlatformCaps_DiDtEDCEnable)) {
+		if (PP_CAP(PHM_PlatformCaps_SQRamping)) {
 			data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_EDC_CTRL);
 			data = CGS_REG_SET_FIELD(data, DIDT_SQ_EDC_CTRL, EDC_EN, en);
 			data = CGS_REG_SET_FIELD(data, DIDT_SQ_EDC_CTRL, EDC_SW_RST, ~en);
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_SQ_EDC_CTRL, data);
 		}
 
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRamping)) {
+		if (PP_CAP(PHM_PlatformCaps_DBRamping)) {
 			data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_EDC_CTRL);
 			data = CGS_REG_SET_FIELD(data, DIDT_DB_EDC_CTRL, EDC_EN, en);
 			data = CGS_REG_SET_FIELD(data, DIDT_DB_EDC_CTRL, EDC_SW_RST, ~en);
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DB_EDC_CTRL, data);
 		}
 
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TDRamping)) {
+		if (PP_CAP(PHM_PlatformCaps_TDRamping)) {
 			data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_EDC_CTRL);
 			data = CGS_REG_SET_FIELD(data, DIDT_TD_EDC_CTRL, EDC_EN, en);
 			data = CGS_REG_SET_FIELD(data, DIDT_TD_EDC_CTRL, EDC_SW_RST, ~en);
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TD_EDC_CTRL, data);
 		}
 
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_TCPRamping)) {
+		if (PP_CAP(PHM_PlatformCaps_TCPRamping)) {
 			data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_EDC_CTRL);
 			data = CGS_REG_SET_FIELD(data, DIDT_TCP_EDC_CTRL, EDC_EN, en);
 			data = CGS_REG_SET_FIELD(data, DIDT_TCP_EDC_CTRL, EDC_SW_RST, ~en);
 			cgs_write_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_TCP_EDC_CTRL, data);
 		}
 
-		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DBRRamping)) {
+		if (PP_CAP(PHM_PlatformCaps_DBRRamping)) {
 			data = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__DIDT, ixDIDT_DBR_EDC_CTRL);
 			data = CGS_REG_SET_FIELD(data, DIDT_DBR_EDC_CTRL, EDC_EN, en);
 			data = CGS_REG_SET_FIELD(data, DIDT_DBR_EDC_CTRL, EDC_SW_RST, ~en);
@@ -1020,10 +1020,10 @@ static int vega10_enable_psm_gc_didt_config(struct pp_hwmgr *hwmgr)
 	cgs_enter_safe_mode(hwmgr->device, false);
 
 	vega10_program_gc_didt_config_registers(hwmgr, GCDiDtDroopCtrlConfig_vega10);
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_GCEDC))
+	if (PP_CAP(PHM_PlatformCaps_GCEDC))
 		vega10_program_gc_didt_config_registers(hwmgr, GCDiDtCtrl0Config_vega10);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PSM))
+	if (PP_CAP(PHM_PlatformCaps_PSM))
 		vega10_program_gc_didt_config_registers(hwmgr,  AvfsPSMInitConfig_vega10);
 
 	return 0;
@@ -1039,12 +1039,12 @@ static int vega10_disable_psm_gc_didt_config(struct pp_hwmgr *hwmgr)
 
 	cgs_enter_safe_mode(hwmgr->device, false);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_GCEDC)) {
+	if (PP_CAP(PHM_PlatformCaps_GCEDC)) {
 		data = 0x00000000;
 		cgs_write_register(hwmgr->device, mmGC_DIDT_CTRL0, data);
 	}
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PSM))
+	if (PP_CAP(PHM_PlatformCaps_PSM))
 		vega10_program_gc_didt_config_registers(hwmgr,  AvfsPSMResetConfig_vega10);
 
 	return 0;
@@ -1139,12 +1139,12 @@ static int vega10_enable_psm_gc_edc_config(struct pp_hwmgr *hwmgr)
 
 	vega10_program_gc_didt_config_registers(hwmgr, PSMGCEDCDroopCtrlConfig_vega10);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_GCEDC)) {
+	if (PP_CAP(PHM_PlatformCaps_GCEDC)) {
 		vega10_program_gc_didt_config_registers(hwmgr, PSMGCEDCCtrlResetConfig_vega10);
 		vega10_program_gc_didt_config_registers(hwmgr, PSMGCEDCCtrlConfig_vega10);
 	}
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PSM))
+	if (PP_CAP(PHM_PlatformCaps_PSM))
 		vega10_program_gc_didt_config_registers(hwmgr,  AvfsPSMInitConfig_vega10);
 
 	return 0;
@@ -1160,12 +1160,12 @@ static int vega10_disable_psm_gc_edc_config(struct pp_hwmgr *hwmgr)
 
 	cgs_enter_safe_mode(hwmgr->device, false);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_GCEDC)) {
+	if (PP_CAP(PHM_PlatformCaps_GCEDC)) {
 		data = 0x00000000;
 		cgs_write_register(hwmgr->device, mmGC_EDC_CTRL, data);
 	}
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PSM))
+	if (PP_CAP(PHM_PlatformCaps_PSM))
 		vega10_program_gc_didt_config_registers(hwmgr,  AvfsPSMResetConfig_vega10);
 
 	return 0;
@@ -1361,8 +1361,7 @@ int vega10_enable_power_containment(struct pp_hwmgr *hwmgr)
 			(uint32_t)(tdp_table->usMaximumPowerDeliveryLimit);
 	int result = 0;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_PowerContainment)) {
+	if (PP_CAP(PHM_PlatformCaps_PowerContainment)) {
 		if (data->smu_features[GNLD_PPT].supported)
 			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
 					true, data->smu_features[GNLD_PPT].smu_feature_bitmap),
@@ -1389,8 +1388,7 @@ int vega10_disable_power_containment(struct pp_hwmgr *hwmgr)
 	struct vega10_hwmgr *data =
 			(struct vega10_hwmgr *)(hwmgr->backend);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_PowerContainment)) {
+	if (PP_CAP(PHM_PlatformCaps_PowerContainment)) {
 		if (data->smu_features[GNLD_PPT].supported)
 			PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr->smumgr,
 					false, data->smu_features[GNLD_PPT].smu_feature_bitmap),
@@ -1418,8 +1416,7 @@ int vega10_power_control_set_level(struct pp_hwmgr *hwmgr)
 {
 	int adjust_percent, result = 0;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_PowerContainment)) {
+	if (PP_CAP(PHM_PlatformCaps_PowerContainment)) {
 		adjust_percent =
 				hwmgr->platform_descriptor.TDPAdjustmentPolarity ?
 				hwmgr->platform_descriptor.TDPAdjustment :
