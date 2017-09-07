@@ -23,7 +23,6 @@
 #include <media/rc-core.h>
 #include <linux/platform_data/media/gpio-ir-recv.h>
 
-#define GPIO_IR_DRIVER_NAME	"gpio-rc-recv"
 #define GPIO_IR_DEVICE_NAME	"gpio_ir_recv"
 
 struct gpio_rc_dev {
@@ -134,7 +133,7 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	rcdev->input_id.product = 0x0001;
 	rcdev->input_id.version = 0x0100;
 	rcdev->dev.parent = dev;
-	rcdev->driver_name = GPIO_IR_DRIVER_NAME;
+	rcdev->driver_name = KBUILD_MODNAME;
 	rcdev->min_timeout = 1;
 	rcdev->timeout = IR_DEFAULT_TIMEOUT;
 	rcdev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
@@ -203,7 +202,7 @@ static const struct dev_pm_ops gpio_ir_recv_pm_ops = {
 static struct platform_driver gpio_ir_recv_driver = {
 	.probe  = gpio_ir_recv_probe,
 	.driver = {
-		.name   = GPIO_IR_DRIVER_NAME,
+		.name   = KBUILD_MODNAME,
 		.of_match_table = of_match_ptr(gpio_ir_recv_of_match),
 #ifdef CONFIG_PM
 		.pm	= &gpio_ir_recv_pm_ops,
