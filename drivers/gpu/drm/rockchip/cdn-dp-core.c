@@ -206,18 +206,16 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 	struct arm_smccc_res res;
 	uint64_t *buf;
 
-	mutex_lock(&dp->lock);
 	if (!dp->active) {
 		dev_err(dp->dev, "firmware is not active\n");
-		goto out;
+		return 0;
 	}
 
 	arm_smccc_smc(RK_SIP_HDCP_CONTROL, HDCP_KEY_DATA_START_TRANSFER,
 		      0, 0, 0, 0, 0, 0, &res);
 	if (res.a0) {
 		dev_err(dp->dev, "start hdcp transfer failed: %#lx\n", res.a0);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 
 	BUILD_BUG_ON(sizeof(dp->key) % 6);
@@ -229,8 +227,7 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 
 	if (res.a0) {
 		dev_err(dp->dev, "send hdcp keys failed: %#lx\n", res.a0);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 	arm_smccc_smc(RK_SIP_HDCP_CONTROL, HDCP_KEY_DATA_START_DECRYPT,
 		      0, 0, 0, 0, 0, 0, &res);
@@ -238,14 +235,12 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 	ret = cdn_dp_hdcp_tx_configuration(dp, HDCP_TX_1, true);
 	if (ret) {
 		dev_err(dp->dev, "start hdcp authentication failed: %d\n", ret);
-		goto out;
+		return ret;
 	}
 
 	schedule_delayed_work(&dp->hdcp_event_work,
 			      msecs_to_jiffies(HDCP_AUTHENTICATE_DELAY_MS));
 
-out:
-	mutex_unlock(&dp->lock);
 	return ret;
 }
 
@@ -323,18 +318,22 @@ static int cdn_dp_set_content_protection(struct cdn_dp_device *dp,
 {
 	int ret;
 
-	switch (val) {
-	case DRM_MODE_CONTENT_PROTECTION_UNDESIRED:
-		ret = cdn_dp_hdcp_tx_configuration(dp, HDCP_TX_1, false);
-		break;
+	/* Only the driver can set to enabled */
+	if (val == DRM_MODE_CONTENT_PROTECTION_ENABLED)
+		return -EINVAL;
 
-	case DRM_MODE_CONTENT_PROTECTION_DESIRED:
+	/* If we're in a state transition already, wait for it to finish */
+	cancel_delayed_work_sync(&dp->hdcp_event_work);
+
+	mutex_lock(&dp->lock);
+
+	if (val == DRM_MODE_CONTENT_PROTECTION_DESIRED)
 		ret = cdn_dp_start_hdcp1x_auth(dp);
-		break;
+	else
+		ret = cdn_dp_hdcp_tx_configuration(dp, HDCP_TX_1, false);
 
-	case DRM_MODE_CONTENT_PROTECTION_ENABLED:
-		ret = -EINVAL;
-	}
+	mutex_unlock(&dp->lock);
+
 	return ret;
 }
 
