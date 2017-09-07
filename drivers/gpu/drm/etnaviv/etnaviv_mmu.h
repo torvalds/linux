@@ -53,7 +53,7 @@ int etnaviv_iommu_attach(struct etnaviv_iommu *iommu, const char **names,
 	int cnt);
 int etnaviv_iommu_map(struct etnaviv_iommu *iommu, u32 iova,
 	struct sg_table *sgt, unsigned len, int prot);
-int etnaviv_iommu_unmap(struct etnaviv_iommu *iommu, u32 iova,
+void etnaviv_iommu_unmap(struct etnaviv_iommu *iommu, u32 iova,
 	struct sg_table *sgt, unsigned len);
 int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 	struct etnaviv_gem_object *etnaviv_obj, u32 memory_base,

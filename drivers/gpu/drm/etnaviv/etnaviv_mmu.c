@@ -22,6 +22,59 @@
 #include "etnaviv_iommu.h"
 #include "etnaviv_mmu.h"
 
+static void etnaviv_domain_unmap(struct iommu_domain *domain,
+				 unsigned long iova, size_t size)
+{
+	size_t unmapped_page, unmapped = 0;
+	size_t pgsize = SZ_4K;
+
+	if (!IS_ALIGNED(iova | size, pgsize)) {
+		pr_err("unaligned: iova 0x%lx size 0x%zx min_pagesz 0x%x\n",
+		       iova, size, pgsize);
+		return;
+	}
+
+	while (unmapped < size) {
+		unmapped_page = domain->ops->unmap(domain, iova, pgsize);
+		if (!unmapped_page)
+			break;
+
+		iova += unmapped_page;
+		unmapped += unmapped_page;
+	}
+}
+
+static int etnaviv_domain_map(struct iommu_domain *domain, unsigned long iova,
+		     phys_addr_t paddr, size_t size, int prot)
+{
+	unsigned long orig_iova = iova;
+	size_t pgsize = SZ_4K;
+	size_t orig_size = size;
+	int ret = 0;
+
+	if (!IS_ALIGNED(iova | paddr | size, pgsize)) {
+		pr_err("unaligned: iova 0x%lx pa %pa size 0x%zx min_pagesz 0x%x\n",
+		       iova, &paddr, size, pgsize);
+		return -EINVAL;
+	}
+
+	while (size) {
+		ret = domain->ops->map(domain, iova, paddr, pgsize, prot);
+		if (ret)
+			break;
+
+		iova += pgsize;
+		paddr += pgsize;
+		size -= pgsize;
+	}
+
+	/* unroll mapping in case something went wrong */
+	if (ret)
+		etnaviv_domain_unmap(domain, orig_iova, orig_size - size);
+
+	return ret;
+}
+
 int etnaviv_iommu_map(struct etnaviv_iommu *iommu, u32 iova,
 		struct sg_table *sgt, unsigned len, int prot)
 {
@@ -40,7 +93,7 @@ int etnaviv_iommu_map(struct etnaviv_iommu *iommu, u32 iova,
 
 		VERB("map[%d]: %08x %08x(%zx)", i, iova, pa, bytes);
 
-		ret = iommu_map(domain, da, pa, bytes, prot);
+		ret = etnaviv_domain_map(domain, da, pa, bytes, prot);
 		if (ret)
 			goto fail;
 
@@ -55,14 +108,14 @@ fail:
 	for_each_sg(sgt->sgl, sg, i, j) {
 		size_t bytes = sg_dma_len(sg) + sg->offset;
 
-		iommu_unmap(domain, da, bytes);
+		etnaviv_domain_unmap(domain, da, bytes);
 		da += bytes;
 	}
 	return ret;
 }
 
-int etnaviv_iommu_unmap(struct etnaviv_iommu *iommu, u32 iova,
-		struct sg_table *sgt, unsigned len)
+void etnaviv_iommu_unmap(struct etnaviv_iommu *iommu, u32 iova,
+			 struct sg_table *sgt, unsigned len)
 {
 	struct iommu_domain *domain = iommu->domain;
 	struct scatterlist *sg;
@@ -71,11 +124,8 @@ int etnaviv_iommu_unmap(struct etnaviv_iommu *iommu, u32 iova,
 
 	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
 		size_t bytes = sg_dma_len(sg) + sg->offset;
-		size_t unmapped;
 
-		unmapped = iommu_unmap(domain, da, bytes);
-		if (unmapped < bytes)
-			return unmapped;
+		etnaviv_domain_unmap(domain, da, bytes);
 
 		VERB("unmap[%d]: %08x(%zx)", i, iova, bytes);
 
@@ -83,8 +133,6 @@ int etnaviv_iommu_unmap(struct etnaviv_iommu *iommu, u32 iova,
 
 		da += bytes;
 	}
-
-	return 0;
 }
 
 static void etnaviv_iommu_remove_mapping(struct etnaviv_iommu *mmu,
@@ -329,8 +377,8 @@ int etnaviv_iommu_get_suballoc_va(struct etnaviv_gpu *gpu, dma_addr_t paddr,
 			mutex_unlock(&mmu->lock);
 			return ret;
 		}
-		ret = iommu_map(mmu->domain, vram_node->start, paddr, size,
-				IOMMU_READ);
+		ret = etnaviv_domain_map(mmu->domain, vram_node->start, paddr,
+					 size, IOMMU_READ);
 		if (ret < 0) {
 			drm_mm_remove_node(vram_node);
 			mutex_unlock(&mmu->lock);
@@ -353,7 +401,7 @@ void etnaviv_iommu_put_suballoc_va(struct etnaviv_gpu *gpu,
 
 	if (mmu->version == ETNAVIV_IOMMU_V2) {
 		mutex_lock(&mmu->lock);
-		iommu_unmap(mmu->domain,iova, size);
+		etnaviv_domain_unmap(mmu->domain, iova, size);
 		drm_mm_remove_node(vram_node);
 		mutex_unlock(&mmu->lock);
 	}
