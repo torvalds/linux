@@ -1989,16 +1989,17 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	 * as well as those by FC-NVME spec.
 	 */
 	WARN_ON_ONCE(sqe->common.metadata);
-	WARN_ON_ONCE(sqe->common.dptr.prp1);
-	WARN_ON_ONCE(sqe->common.dptr.prp2);
 	sqe->common.flags |= NVME_CMD_SGL_METABUF;
 
 	/*
-	 * format SQE DPTR field per FC-NVME rules
-	 *    type=data block descr; subtype=offset;
-	 *    offset is currently 0.
+	 * format SQE DPTR field per FC-NVME rules:
+	 *    type=0x5     Transport SGL Data Block Descriptor
+	 *    subtype=0xA  Transport-specific value
+	 *    address=0
+	 *    length=length of the data series
 	 */
-	sqe->rw.dptr.sgl.type = NVME_SGL_FMT_OFFSET;
+	sqe->rw.dptr.sgl.type = (NVME_TRANSPORT_SGL_DATA_DESC << 4) |
+					NVME_SGL_FMT_TRANSPORT_A;
 	sqe->rw.dptr.sgl.length = cpu_to_le32(data_len);
 	sqe->rw.dptr.sgl.addr = 0;
 
