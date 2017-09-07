@@ -1360,6 +1360,36 @@ static const struct panel_desc sharp_lcd_f402 = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
+static const struct drm_display_mode lg_lm238wr2_spa1_mode = {
+	.clock = 533250,
+	.hdisplay = 3840,
+	.hsync_start = 3840 + 48,
+	.hsync_end = 3840 + 48 + 32,
+	.htotal = 3840 + 48 + 32 + 80,
+	.vdisplay = 2160,
+	.vsync_start = 2160 + 3,
+	.vsync_end = 2160 + 3 + 5,
+	.vtotal = 2160 + 3 + 5 + 54,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc lg_lm238wr2_spa1 = {
+	.modes = &lg_lm238wr2_spa1_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 527,
+		.height = 297,
+	},
+	.delay = {
+		.prepare = 20,
+		.enable = 20,
+		.unprepare = 20,
+		.disable = 20,
+	},
+};
+
 static const struct drm_display_mode lg_lm270wr3_ssa1_mode = {
 	.clock = 533250,
 	.hdisplay = 3840,
@@ -1719,6 +1749,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "lg,lb070wv8",
 		.data = &lg_lb070wv8,
+	}, {
+		.compatible = "lg,lm238wr2-spa1",
+		.data = &lg_lm238wr2_spa1,
 	}, {
 		.compatible = "lg,lm270wr3-ssa1",
 		.data = &lg_lm270wr3_ssa1,
