@@ -38,7 +38,7 @@ Arguments
        -  boolean mode
 
        -  Enables or disables the decoding of the current Audio stream in
-	  the DVB subsystem.
+	  the Digital TV subsystem.
 
           TRUE: Bypass is disabled
 
@@ -50,8 +50,8 @@ Description
 
 This ioctl call asks the Audio Device to bypass the Audio decoder and
 forward the stream without decoding. This mode shall be used if streams
-that can’t be handled by the DVB system shall be decoded. Dolby
-DigitalTM streams are automatically forwarded by the DVB subsystem if
+that can’t be handled by the Digial TV system shall be decoded. Dolby
+DigitalTM streams are automatically forwarded by the Digital TV subsystem if
 the hardware can handle it.
 
 

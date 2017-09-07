@@ -61,8 +61,7 @@ struct v4l2_clk *v4l2_clk_get(struct device *dev, const char *id)
 
 	/* if dev_name is not found, try use the OF name to find again  */
 	if (PTR_ERR(clk) == -ENODEV && dev->of_node) {
-		v4l2_clk_name_of(clk_name, sizeof(clk_name),
-				 of_node_full_name(dev->of_node));
+		v4l2_clk_name_of(clk_name, sizeof(clk_name), dev->of_node);
 		clk = v4l2_clk_find(clk_name);
 	}
 

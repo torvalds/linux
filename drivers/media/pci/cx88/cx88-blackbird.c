@@ -1075,7 +1075,7 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
 };
 
-static struct video_device cx8802_mpeg_template = {
+static const struct video_device cx8802_mpeg_template = {
 	.name                 = "cx8802",
 	.fops                 = &mpeg_fops,
 	.ioctl_ops	      = &mpeg_ioctl_ops,

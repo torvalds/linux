@@ -347,8 +347,8 @@ static void lme2510_int_response(struct urb *lme_urb)
 						ibuf[5]);
 
 			deb_info(1, "INT Key = 0x%08x", key);
-			rc_keydown(adap_to_d(adap)->rc_dev, RC_TYPE_NEC32, key,
-									0);
+			rc_keydown(adap_to_d(adap)->rc_dev, RC_PROTO_NEC32, key,
+				   0);
 			break;
 		case 0xbb:
 			switch (st->tuner_config) {
@@ -1232,7 +1232,7 @@ static int lme2510_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 static int lme2510_get_rc_config(struct dvb_usb_device *d,
 	struct dvb_usb_rc *rc)
 {
-	rc->allowed_protos = RC_BIT_NEC32;
+	rc->allowed_protos = RC_PROTO_BIT_NEC32;
 	return 0;
 }
 

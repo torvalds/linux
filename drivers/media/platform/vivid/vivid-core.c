@@ -1201,8 +1201,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 				goto unreg_dev;
 			}
 			cec_s_phys_addr(adap, 0, false);
-			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI input %d\n",
-				  dev_name(&adap->devnode.dev), i);
+			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI input 0\n",
+				  dev_name(&adap->devnode.dev));
 		}
 #endif
 
@@ -1255,13 +1255,13 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 				dev->cec_tx_adap[bus_cnt] = NULL;
 				goto unreg_dev;
 			}
+			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI output %d\n",
+				  dev_name(&adap->devnode.dev), bus_cnt);
 			bus_cnt++;
 			if (bus_cnt <= out_type_counter[HDMI])
 				cec_s_phys_addr(adap, bus_cnt << 12, false);
 			else
 				cec_s_phys_addr(adap, 0x1000, false);
-			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI output %d\n",
-				  dev_name(&adap->devnode.dev), i);
 		}
 #endif
 

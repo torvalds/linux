@@ -35,20 +35,20 @@ static int img_ir_nec_scancode(int len, u64 raw, u64 enabled_protocols,
 				bitrev8(addr_inv) << 16 |
 				bitrev8(data)     <<  8 |
 				bitrev8(data_inv);
-		request->protocol = RC_TYPE_NEC32;
+		request->protocol = RC_PROTO_NEC32;
 	} else if ((addr_inv ^ addr) != 0xff) {
 		/* Extended NEC */
 		/* scan encoding: AAaaDD */
 		request->scancode = addr     << 16 |
 				addr_inv <<  8 |
 				data;
-		request->protocol = RC_TYPE_NECX;
+		request->protocol = RC_PROTO_NECX;
 	} else {
 		/* Normal NEC */
 		/* scan encoding: AADD */
 		request->scancode = addr << 8 |
 				data;
-		request->protocol = RC_TYPE_NEC;
+		request->protocol = RC_PROTO_NEC;
 	}
 	return IMG_IR_SCANCODE;
 }
@@ -63,7 +63,7 @@ static int img_ir_nec_filter(const struct rc_scancode_filter *in,
 	data       = in->data & 0xff;
 	data_m     = in->mask & 0xff;
 
-	protocols &= RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32;
+	protocols &= RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32;
 
 	/*
 	 * If only one bit is set, we were requested to do an exact
@@ -72,14 +72,14 @@ static int img_ir_nec_filter(const struct rc_scancode_filter *in,
 	 */
 	if (!is_power_of_2(protocols)) {
 		if ((in->data | in->mask) & 0xff000000)
-			protocols = RC_BIT_NEC32;
+			protocols = RC_PROTO_BIT_NEC32;
 		else if ((in->data | in->mask) & 0x00ff0000)
-			protocols = RC_BIT_NECX;
+			protocols = RC_PROTO_BIT_NECX;
 		else
-			protocols = RC_BIT_NEC;
+			protocols = RC_PROTO_BIT_NEC;
 	}
 
-	if (protocols == RC_BIT_NEC32) {
+	if (protocols == RC_PROTO_BIT_NEC32) {
 		/* 32-bit NEC (used by Apple and TiVo remotes) */
 		/* scan encoding: as transmitted, MSBit = first received bit */
 		addr       = bitrev8(in->data >> 24);
@@ -90,7 +90,7 @@ static int img_ir_nec_filter(const struct rc_scancode_filter *in,
 		data_m     = bitrev8(in->mask >>  8);
 		data_inv   = bitrev8(in->data >>  0);
 		data_inv_m = bitrev8(in->mask >>  0);
-	} else if (protocols == RC_BIT_NECX) {
+	} else if (protocols == RC_PROTO_BIT_NECX) {
 		/* Extended NEC */
 		/* scan encoding AAaaDD */
 		addr       = (in->data >> 16) & 0xff;
@@ -128,7 +128,7 @@ static int img_ir_nec_filter(const struct rc_scancode_filter *in,
  *        http://wiki.altium.com/display/ADOH/NEC+Infrared+Transmission+Protocol
  */
 struct img_ir_decoder img_ir_nec = {
-	.type = RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32,
+	.type = RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32,
 	.control = {
 		.decoden = 1,
 		.code_type = IMG_IR_CODETYPE_PULSEDIST,

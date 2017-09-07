@@ -64,10 +64,10 @@ static struct rc_map_table videomate_tv_pvr[] = {
 
 static struct rc_map_list videomate_tv_pvr_map = {
 	.map = {
-		.scan    = videomate_tv_pvr,
-		.size    = ARRAY_SIZE(videomate_tv_pvr),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_VIDEOMATE_TV_PVR,
+		.scan     = videomate_tv_pvr,
+		.size     = ARRAY_SIZE(videomate_tv_pvr),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_VIDEOMATE_TV_PVR,
 	}
 };
 

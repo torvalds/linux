@@ -1982,7 +1982,7 @@ static const struct v4l2_ioctl_ops wl1273_ioctl_ops = {
 	.vidioc_log_status      = wl1273_fm_vidioc_log_status,
 };
 
-static struct video_device wl1273_viddev_template = {
+static const struct video_device wl1273_viddev_template = {
 	.fops			= &wl1273_fops,
 	.ioctl_ops		= &wl1273_ioctl_ops,
 	.name			= WL1273_FM_DRIVER_NAME,

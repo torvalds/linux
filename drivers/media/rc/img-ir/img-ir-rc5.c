@@ -33,7 +33,7 @@ static int img_ir_rc5_scancode(int len, u64 raw, u64 enabled_protocols,
 	if (!start)
 		return -EINVAL;
 
-	request->protocol = RC_TYPE_RC5;
+	request->protocol = RC_PROTO_RC5;
 	request->scancode = addr << 8 | cmd;
 	request->toggle   = tgl;
 	return IMG_IR_SCANCODE;
@@ -52,7 +52,7 @@ static int img_ir_rc5_filter(const struct rc_scancode_filter *in,
  * see http://www.sbprojects.com/knowledge/ir/rc5.php
  */
 struct img_ir_decoder img_ir_rc5 = {
-	.type      = RC_BIT_RC5,
+	.type      = RC_PROTO_BIT_RC5,
 	.control   = {
 		.bitoriend2	= 1,
 		.code_type	= IMG_IR_CODETYPE_BIPHASE,

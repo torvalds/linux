@@ -137,16 +137,16 @@ static int mtk_mdp_probe(struct platform_device *pdev)
 			continue;
 
 		if (!of_device_is_available(node)) {
-			dev_err(dev, "Skipping disabled component %s\n",
-				node->full_name);
+			dev_err(dev, "Skipping disabled component %pOF\n",
+				node);
 			continue;
 		}
 
 		comp_type = (enum mtk_mdp_comp_type)of_id->data;
 		comp_id = mtk_mdp_comp_get_id(dev, node, comp_type);
 		if (comp_id < 0) {
-			dev_warn(dev, "Skipping unknown component %s\n",
-				 node->full_name);
+			dev_warn(dev, "Skipping unknown component %pOF\n",
+				 node);
 			continue;
 		}
 

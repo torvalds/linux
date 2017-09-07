@@ -432,7 +432,7 @@ static void aat1290_init_v4l2_flash_config(struct aat1290_led *led,
 	strlcpy(v4l2_sd_cfg->dev_name, led_cdev->name,
 		sizeof(v4l2_sd_cfg->dev_name));
 
-	s = &v4l2_sd_cfg->torch_intensity;
+	s = &v4l2_sd_cfg->intensity;
 	s->min = led->mm_current_scale[0];
 	s->max = led_cfg->max_mm_current;
 	s->step = 1;
@@ -504,7 +504,7 @@ static int aat1290_led_probe(struct platform_device *pdev)
 
 	/* Create V4L2 Flash subdev. */
 	led->v4l2_flash = v4l2_flash_init(dev, of_fwnode_handle(sub_node),
-					  fled_cdev, NULL, &v4l2_flash_ops,
+					  fled_cdev, &v4l2_flash_ops,
 					  &v4l2_sd_cfg);
 	if (IS_ERR(led->v4l2_flash)) {
 		ret = PTR_ERR(led->v4l2_flash);

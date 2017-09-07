@@ -76,10 +76,10 @@ static struct rc_map_table kworld_plus_tv_analog[] = {
 
 static struct rc_map_list kworld_plus_tv_analog_map = {
 	.map = {
-		.scan    = kworld_plus_tv_analog,
-		.size    = ARRAY_SIZE(kworld_plus_tv_analog),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_KWORLD_PLUS_TV_ANALOG,
+		.scan     = kworld_plus_tv_analog,
+		.size     = ARRAY_SIZE(kworld_plus_tv_analog),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_KWORLD_PLUS_TV_ANALOG,
 	}
 };
 

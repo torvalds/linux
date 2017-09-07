@@ -2056,7 +2056,7 @@ static void cx23885_finidev(struct pci_dev *pci_dev)
 	kfree(dev);
 }
 
-static struct pci_device_id cx23885_pci_tbl[] = {
+static const struct pci_device_id cx23885_pci_tbl[] = {
 	{
 		/* CX23885 */
 		.vendor       = 0x14f1,

@@ -61,7 +61,7 @@ static int uvc_mc_create_links(struct uvc_video_chain *chain,
 	return 0;
 }
 
-static struct v4l2_subdev_ops uvc_subdev_ops = {
+static const struct v4l2_subdev_ops uvc_subdev_ops = {
 };
 
 void uvc_mc_cleanup_entity(struct uvc_entity *entity)

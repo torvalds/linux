@@ -88,6 +88,7 @@ dlg	Dialog Semiconductor
 dlink	D-Link Corporation
 dmo	Data Modul AG
 domintech	Domintech Co., Ltd.
+dongwoon	Dongwoon Anatech
 dptechnics	DPTechnics
 dragino	Dragino Technology Co., Limited
 ea	Embedded Artists AB
