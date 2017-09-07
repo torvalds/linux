@@ -141,23 +141,20 @@ int vega10_fan_ctrl_set_static_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 
 	if (hwmgr->fan_ctrl_is_in_default_mode) {
 		hwmgr->fan_ctrl_default_mode =
-				(cgs_read_register(hwmgr->device, reg) &
-				CG_FDO_CTRL2__FDO_PWM_MODE_MASK) >>
-				CG_FDO_CTRL2__FDO_PWM_MODE__SHIFT;
-		hwmgr->tmin = (cgs_read_register(hwmgr->device, reg) &
-				CG_FDO_CTRL2__TMIN_MASK) >>
-				CG_FDO_CTRL2__TMIN__SHIFT;
+			CGS_REG_GET_FIELD(cgs_read_register(hwmgr->device, reg),
+				CG_FDO_CTRL2, FDO_PWM_MODE);
+		hwmgr->tmin =
+			CGS_REG_GET_FIELD(cgs_read_register(hwmgr->device, reg),
+				CG_FDO_CTRL2, TMIN);
 		hwmgr->fan_ctrl_is_in_default_mode = false;
 	}
 
 	cgs_write_register(hwmgr->device, reg,
-			(cgs_read_register(hwmgr->device, reg) &
-			~CG_FDO_CTRL2__TMIN_MASK) |
-			(0 << CG_FDO_CTRL2__TMIN__SHIFT));
+			CGS_REG_SET_FIELD(cgs_read_register(hwmgr->device, reg),
+				CG_FDO_CTRL2, TMIN, 0));
 	cgs_write_register(hwmgr->device, reg,
-			(cgs_read_register(hwmgr->device, reg) &
-			~CG_FDO_CTRL2__FDO_PWM_MODE_MASK) |
-			(mode << CG_FDO_CTRL2__FDO_PWM_MODE__SHIFT));
+			CGS_REG_SET_FIELD(cgs_read_register(hwmgr->device, reg),
+				CG_FDO_CTRL2, FDO_PWM_MODE, mode));
 
 	return 0;
 }
