@@ -544,10 +544,10 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 
 		hsw_psr_setup_vsc(intel_dp, crtc_state);
 
-		hsw_psr_enable_source(intel_dp, crtc_state);
-
 		/* Enable PSR on the panel */
 		hsw_psr_enable_sink(intel_dp);
+
+		hsw_psr_enable_source(intel_dp, crtc_state);
 
 		if (INTEL_GEN(dev_priv) >= 9)
 			intel_psr_activate(intel_dp);
