@@ -108,15 +108,6 @@ static struct pci_ops tile_cfg_ops;
 /* Mask of CPUs that should receive PCIe interrupts. */
 static struct cpumask intr_cpus_map;
 
-/* We don't need to worry about the alignment of resources. */
-resource_size_t pcibios_align_resource(void *data, const struct resource *res,
-				       resource_size_t size,
-				       resource_size_t align)
-{
-	return res->start;
-}
-EXPORT_SYMBOL(pcibios_align_resource);
-
 /*
  * Pick a CPU to receive and handle the PCIe interrupts, based on the IRQ #.
  * For now, we simply send interrupts to non-dataplane CPUs.
@@ -1048,11 +1039,6 @@ alloc_mem_map_failed:
 	return 0;
 }
 subsys_initcall(pcibios_init);
-
-/* No bus fixups needed. */
-void pcibios_fixup_bus(struct pci_bus *bus)
-{
-}
 
 /* Process any "pci=" kernel boot arguments. */
 char *__init pcibios_setup(char *str)
