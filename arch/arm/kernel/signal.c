@@ -14,7 +14,6 @@
 #include <linux/uaccess.h>
 #include <linux/tracehook.h>
 #include <linux/uprobes.h>
-#include <linux/syscalls.h>
 
 #include <asm/elf.h>
 #include <asm/cacheflush.h>
@@ -614,10 +613,6 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 	 * Update the trace code with the current status.
 	 */
 	trace_hardirqs_off();
-
-	/* Check valid user FS if needed */
-	addr_limit_user_check();
-
 	do {
 		if (likely(thread_flags & _TIF_NEED_RESCHED)) {
 			schedule();
