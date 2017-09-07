@@ -172,6 +172,8 @@ struct snd_compr_metadata {
  * SNDRV_COMPRESS_STOP: stop a running stream, discarding ring buffer content
  * and the buffers currently with DSP
  * SNDRV_COMPRESS_DRAIN: Play till end of buffers and stop after that
+ * SNDRV_COMPRESS_SET_NEXT_TRACK_PARAM: send codec specific data for the next
+ * track in gapless
  * SNDRV_COMPRESS_IOCTL_VERSION: Query the API version
  */
 #define SNDRV_COMPRESS_IOCTL_VERSION	_IOR('C', 0x00, int)
@@ -193,6 +195,8 @@ struct snd_compr_metadata {
 #define SNDRV_COMPRESS_DRAIN		_IO('C', 0x34)
 #define SNDRV_COMPRESS_NEXT_TRACK	_IO('C', 0x35)
 #define SNDRV_COMPRESS_PARTIAL_DRAIN	_IO('C', 0x36)
+#define SNDRV_COMPRESS_SET_NEXT_TRACK_PARAM\
+					_IOW('C', 0x80, union snd_codec_options)
 /*
  * TODO
  * 1. add mmap support
