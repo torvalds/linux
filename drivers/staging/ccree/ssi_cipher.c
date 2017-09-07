@@ -697,13 +697,10 @@ static int ssi_blkcipher_complete(struct device *dev,
 				  void __iomem *cc_base)
 {
 	int completion_error = 0;
-	u32 inflight_counter;
 	struct ablkcipher_request *req = (struct ablkcipher_request *)areq;
 
 	ssi_buffer_mgr_unmap_blkcipher_request(dev, req_ctx, ivsize, src, dst);
 
-	/*Set the inflight couter value to local variable*/
-	inflight_counter =  ctx_p->drvdata->inflight_counter;
 	/*Decrease the inflight counter*/
 	if (ctx_p->flow_mode == BYPASS && ctx_p->drvdata->inflight_counter > 0)
 		ctx_p->drvdata->inflight_counter--;
