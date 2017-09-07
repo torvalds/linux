@@ -35,7 +35,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/module.h>
 #include <linux/stddef.h>
 #include <linux/mutex.h>

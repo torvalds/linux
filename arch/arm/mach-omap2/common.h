@@ -29,7 +29,7 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/i2c-omap.h>
 #include <linux/reboot.h>
 #include <linux/irqchip/irq-omap-intc.h>

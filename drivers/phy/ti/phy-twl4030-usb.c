@@ -36,7 +36,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/musb.h>
 #include <linux/usb/ulpi.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/slab.h>

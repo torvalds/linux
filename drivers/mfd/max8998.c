@@ -192,10 +192,8 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 
 	if (IS_ENABLED(CONFIG_OF) && i2c->dev.of_node) {
 		pdata = max8998_i2c_parse_dt_pdata(&i2c->dev);
-		if (IS_ERR(pdata)) {
-			ret = PTR_ERR(pdata);
-			goto err;
-		}
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
 	}
 
 	i2c_set_clientdata(i2c, max8998);
