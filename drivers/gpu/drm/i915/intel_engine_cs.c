@@ -1024,8 +1024,8 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 
 	/* WaDisablePooledEuLoadBalancingFix:bxt */
 	if (IS_BXT_REVID(dev_priv, BXT_REVID_B0, REVID_FOREVER)) {
-		WA_SET_BIT_MASKED(FF_SLICE_CS_CHICKEN2,
-				  GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE);
+		I915_WRITE(FF_SLICE_CS_CHICKEN2,
+			   _MASKED_BIT_ENABLE(GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE));
 	}
 
 	/* WaDisableSbeCacheDispatchPortSharing:bxt */
