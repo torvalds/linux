@@ -1277,6 +1277,9 @@ static void sd_uninit_command(struct scsi_cmnd *SCpnt)
 {
 	struct request *rq = SCpnt->request;
 
+	if (SCpnt->flags & SCMD_ZONE_WRITE_LOCK)
+		sd_zbc_write_unlock_zone(SCpnt);
+
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
 		__free_page(rq->special_vec.bv_page);
 
