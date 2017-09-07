@@ -26,7 +26,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/list.h>
-#include <linux/iommu.h>
 #include <linux/types.h>
 #include <linux/sizes.h>
 

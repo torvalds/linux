@@ -17,7 +17,8 @@
 #ifndef __ETNAVIV_MMU_H__
 #define __ETNAVIV_MMU_H__
 
-#include <linux/iommu.h>
+#define ETNAVIV_PROT_READ	(1 << 0)
+#define ETNAVIV_PROT_WRITE	(1 << 1)
 
 enum etnaviv_iommu_version {
 	ETNAVIV_IOMMU_V1 = 0,
@@ -26,16 +27,31 @@ enum etnaviv_iommu_version {
 
 struct etnaviv_gpu;
 struct etnaviv_vram_mapping;
+struct etnaviv_iommu_domain;
 
-struct etnaviv_iommu_ops {
-	struct iommu_ops ops;
-	size_t (*dump_size)(struct iommu_domain *);
-	void (*dump)(struct iommu_domain *, void *);
+struct etnaviv_iommu_domain_ops {
+	void (*free)(struct etnaviv_iommu_domain *);
+	int (*map)(struct etnaviv_iommu_domain *domain, unsigned long iova,
+		   phys_addr_t paddr, size_t size, int prot);
+	size_t (*unmap)(struct etnaviv_iommu_domain *domain, unsigned long iova,
+			size_t size);
+	size_t (*dump_size)(struct etnaviv_iommu_domain *);
+	void (*dump)(struct etnaviv_iommu_domain *, void *);
+};
+
+struct etnaviv_iommu_domain {
+	struct device *dev;
+	void *bad_page_cpu;
+	dma_addr_t bad_page_dma;
+	u64 base;
+	u64 size;
+
+	const struct etnaviv_iommu_domain_ops *ops;
 };
 
 struct etnaviv_iommu {
 	struct etnaviv_gpu *gpu;
-	struct iommu_domain *domain;
+	struct etnaviv_iommu_domain *domain;
 
 	enum etnaviv_iommu_version version;
 

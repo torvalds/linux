@@ -22,7 +22,7 @@
 #include "etnaviv_iommu.h"
 #include "etnaviv_mmu.h"
 
-static void etnaviv_domain_unmap(struct iommu_domain *domain,
+static void etnaviv_domain_unmap(struct etnaviv_iommu_domain *domain,
 				 unsigned long iova, size_t size)
 {
 	size_t unmapped_page, unmapped = 0;
@@ -44,8 +44,9 @@ static void etnaviv_domain_unmap(struct iommu_domain *domain,
 	}
 }
 
-static int etnaviv_domain_map(struct iommu_domain *domain, unsigned long iova,
-		     phys_addr_t paddr, size_t size, int prot)
+static int etnaviv_domain_map(struct etnaviv_iommu_domain *domain,
+			      unsigned long iova, phys_addr_t paddr,
+			      size_t size, int prot)
 {
 	unsigned long orig_iova = iova;
 	size_t pgsize = SZ_4K;
@@ -78,7 +79,7 @@ static int etnaviv_domain_map(struct iommu_domain *domain, unsigned long iova,
 static int etnaviv_iommu_map(struct etnaviv_iommu *iommu, u32 iova,
 			     struct sg_table *sgt, unsigned len, int prot)
 {
-	struct iommu_domain *domain = iommu->domain;
+	struct etnaviv_iommu_domain *domain = iommu->domain;
 	struct scatterlist *sg;
 	unsigned int da = iova;
 	unsigned int i, j;
@@ -117,7 +118,7 @@ fail:
 static void etnaviv_iommu_unmap(struct etnaviv_iommu *iommu, u32 iova,
 				struct sg_table *sgt, unsigned len)
 {
-	struct iommu_domain *domain = iommu->domain;
+	struct etnaviv_iommu_domain *domain = iommu->domain;
 	struct scatterlist *sg;
 	unsigned int da = iova;
 	int i;
@@ -278,7 +279,7 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 	mmu->last_iova = node->start + etnaviv_obj->base.size;
 	mapping->iova = node->start;
 	ret = etnaviv_iommu_map(mmu, node->start, sgt, etnaviv_obj->base.size,
-				IOMMU_READ | IOMMU_WRITE);
+				ETNAVIV_PROT_READ | ETNAVIV_PROT_WRITE);
 
 	if (ret < 0) {
 		drm_mm_remove_node(node);
@@ -312,7 +313,7 @@ void etnaviv_iommu_unmap_gem(struct etnaviv_iommu *mmu,
 void etnaviv_iommu_destroy(struct etnaviv_iommu *mmu)
 {
 	drm_mm_takedown(&mmu->mm);
-	iommu_domain_free(mmu->domain);
+	mmu->domain->ops->free(mmu->domain);
 	kfree(mmu);
 }
 
@@ -344,9 +345,7 @@ struct etnaviv_iommu *etnaviv_iommu_new(struct etnaviv_gpu *gpu)
 	mutex_init(&mmu->lock);
 	INIT_LIST_HEAD(&mmu->mappings);
 
-	drm_mm_init(&mmu->mm, mmu->domain->geometry.aperture_start,
-		    mmu->domain->geometry.aperture_end -
-		    mmu->domain->geometry.aperture_start + 1);
+	drm_mm_init(&mmu->mm, mmu->domain->base, mmu->domain->size);
 
 	return mmu;
 }
@@ -378,7 +377,7 @@ int etnaviv_iommu_get_suballoc_va(struct etnaviv_gpu *gpu, dma_addr_t paddr,
 			return ret;
 		}
 		ret = etnaviv_domain_map(mmu->domain, vram_node->start, paddr,
-					 size, IOMMU_READ);
+					 size, ETNAVIV_PROT_READ);
 		if (ret < 0) {
 			drm_mm_remove_node(vram_node);
 			mutex_unlock(&mmu->lock);
@@ -408,18 +407,10 @@ void etnaviv_iommu_put_suballoc_va(struct etnaviv_gpu *gpu,
 }
 size_t etnaviv_iommu_dump_size(struct etnaviv_iommu *iommu)
 {
-	struct etnaviv_iommu_ops *ops;
-
-	ops = container_of(iommu->domain->ops, struct etnaviv_iommu_ops, ops);
-
-	return ops->dump_size(iommu->domain);
+	return iommu->domain->ops->dump_size(iommu->domain);
 }
 
 void etnaviv_iommu_dump(struct etnaviv_iommu *iommu, void *buf)
 {
-	struct etnaviv_iommu_ops *ops;
-
-	ops = container_of(iommu->domain->ops, struct etnaviv_iommu_ops, ops);
-
-	ops->dump(iommu->domain, buf);
+	iommu->domain->ops->dump(iommu->domain, buf);
 }
