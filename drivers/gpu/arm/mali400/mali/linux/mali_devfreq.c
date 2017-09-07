@@ -42,6 +42,7 @@ mali_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	struct mali_device *mdev = dev_get_drvdata(dev);
 	struct dev_pm_opp *opp;
 	unsigned long freq = 0;
+	unsigned long old_freq = mdev->current_freq;
 	unsigned long voltage;
 	int err;
 
@@ -60,15 +61,25 @@ mali_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	/*
 	 * Only update if there is a change of frequency
 	 */
-	if (mdev->current_freq == freq) {
+	if (old_freq == freq) {
 		*target_freq = freq;
 		mali_pm_reset_dvfs_utilisation(mdev);
+#ifdef CONFIG_REGULATOR
+		if (mdev->current_voltage == voltage)
+			return 0;
+		err = regulator_set_voltage(mdev->regulator, voltage, voltage);
+		if (err) {
+			dev_err(dev, "Failed to set voltage (%d)\n", err);
+			return err;
+		}
+		mdev->current_voltage = voltage;
+#endif
 		return 0;
 	}
 
 #ifdef CONFIG_REGULATOR
-	if (mdev->regulator && mdev->current_voltage != voltage
-	    && mdev->current_freq < freq) {
+	if (mdev->regulator && mdev->current_voltage != voltage &&
+	    old_freq < freq) {
 		err = regulator_set_voltage(mdev->regulator, voltage, voltage);
 		if (err) {
 			MALI_PRINT_ERROR(("Failed to increase voltage (%d)\n", err));
@@ -82,10 +93,12 @@ mali_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 		MALI_PRINT_ERROR(("Failed to set clock %lu (target %lu)\n", freq, *target_freq));
 		return err;
 	}
+	*target_freq = freq;
+	mdev->current_freq = freq;
 
 #ifdef CONFIG_REGULATOR
-	if (mdev->regulator && mdev->current_voltage != voltage
-	    && mdev->current_freq > freq) {
+	if (mdev->regulator && mdev->current_voltage != voltage &&
+	    old_freq > freq) {
 		err = regulator_set_voltage(mdev->regulator, voltage, voltage);
 		if (err) {
 			MALI_PRINT_ERROR(("Failed to decrease voltage (%d)\n", err));
@@ -94,9 +107,7 @@ mali_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	}
 #endif
 
-	*target_freq = freq;
 	mdev->current_voltage = voltage;
-	mdev->current_freq = freq;
 
 	mali_pm_reset_dvfs_utilisation(mdev);
 
@@ -222,6 +233,8 @@ int mali_devfreq_init(struct mali_device *mdev)
 		return -ENODEV;
 
 	mdev->current_freq = clk_get_rate(mdev->clock);
+	if (mdev->regulator)
+		mdev->current_voltage = regulator_get_voltage(mdev->regulator);
 
 	dp = &mdev->devfreq_profile;
 
