@@ -880,6 +880,8 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 		list_add_tail(&f->list, &adapter->mac_filter_list);
 		f->add = true;
 		adapter->aq_required |= I40EVF_FLAG_AQ_ADD_MAC_FILTER;
+	} else {
+		f->remove = false;
 	}
 
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
