@@ -122,7 +122,7 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	if (!gpio_dev)
 		return -ENOMEM;
 
-	rcdev = rc_allocate_device(RC_DRIVER_IR_RAW);
+	rcdev = devm_rc_allocate_device(dev, RC_DRIVER_IR_RAW);
 	if (!rcdev)
 		return -ENOMEM;
 
@@ -150,7 +150,7 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 
 	rc = gpio_request(pdata->gpio_nr, "gpio-ir-recv");
 	if (rc < 0)
-		goto err_gpio_request;
+		return rc;
 	rc  = gpio_direction_input(pdata->gpio_nr);
 	if (rc < 0)
 		goto err_gpio_direction_input;
@@ -178,8 +178,6 @@ err_request_irq:
 err_register_rc_device:
 err_gpio_direction_input:
 	gpio_free(pdata->gpio_nr);
-err_gpio_request:
-	rc_free_device(rcdev);
 	return rc;
 }
 
