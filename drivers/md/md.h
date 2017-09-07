@@ -236,6 +236,7 @@ enum mddev_flags {
 				 * never cause the array to become failed.
 				 */
 	MD_HAS_PPL,		/* The raid array has PPL feature set */
+	MD_HAS_MULTIPLE_PPLS,	/* The raid array has multiple PPLs feature set */
 };
 
 enum mddev_sb_flags {

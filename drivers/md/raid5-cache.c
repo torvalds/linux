@@ -2529,11 +2529,18 @@ static void r5l_write_super(struct r5l_log *log, sector_t cp)
 
 static ssize_t r5c_journal_mode_show(struct mddev *mddev, char *page)
 {
-	struct r5conf *conf = mddev->private;
+	struct r5conf *conf;
 	int ret;
 
-	if (!conf->log)
+	ret = mddev_lock(mddev);
+	if (ret)
+		return ret;
+
+	conf = mddev->private;
+	if (!conf || !conf->log) {
+		mddev_unlock(mddev);
 		return 0;
+	}
 
 	switch (conf->log->r5c_journal_mode) {
 	case R5C_JOURNAL_MODE_WRITE_THROUGH:
@@ -2551,6 +2558,7 @@ static ssize_t r5c_journal_mode_show(struct mddev *mddev, char *page)
 	default:
 		ret = 0;
 	}
+	mddev_unlock(mddev);
 	return ret;
 }
 

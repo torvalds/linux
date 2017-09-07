@@ -30,7 +30,8 @@
 	((1L << MD_HAS_JOURNAL) |	\
 	 (1L << MD_JOURNAL_CLEAN) |	\
 	 (1L << MD_FAILFAST_SUPPORTED) |\
-	 (1L << MD_HAS_PPL))
+	 (1L << MD_HAS_PPL) |		\
+	 (1L << MD_HAS_MULTIPLE_PPLS))
 
 static int raid0_congested(struct mddev *mddev, int bits)
 {
@@ -539,6 +540,7 @@ static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
 		    !discard_bio)
 			continue;
 		bio_chain(discard_bio, bio);
+		bio_clone_blkcg_association(discard_bio, bio);
 		if (mddev->gendisk)
 			trace_block_bio_remap(bdev_get_queue(rdev->bdev),
 				discard_bio, disk_devt(mddev->gendisk),

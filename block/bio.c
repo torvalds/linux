@@ -2089,7 +2089,7 @@ void bio_clone_blkcg_association(struct bio *dst, struct bio *src)
 	if (src->bi_css)
 		WARN_ON(bio_associate_blkcg(dst, src->bi_css));
 }
-
+EXPORT_SYMBOL_GPL(bio_clone_blkcg_association);
 #endif /* CONFIG_BLK_CGROUP */
 
 static void __init biovec_init_slabs(void)

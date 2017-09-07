@@ -494,7 +494,6 @@ static int grow_buffers(struct stripe_head *sh, gfp_t gfp)
 	return 0;
 }
 
-static void raid5_build_block(struct stripe_head *sh, int i, int previous);
 static void stripe_set_idx(sector_t stripe, struct r5conf *conf, int previous,
 			    struct stripe_head *sh);
 
@@ -530,7 +529,7 @@ retry:
 			WARN_ON(1);
 		}
 		dev->flags = 0;
-		raid5_build_block(sh, i, previous);
+		dev->sector = raid5_compute_blocknr(sh, i, previous);
 	}
 	if (read_seqcount_retry(&conf->gen_lock, seq))
 		goto retry;
@@ -2660,14 +2659,6 @@ static void raid5_end_write_request(struct bio *bi)
 
 	if (sh->batch_head && sh != sh->batch_head)
 		raid5_release_stripe(sh->batch_head);
-}
-
-static void raid5_build_block(struct stripe_head *sh, int i, int previous)
-{
-	struct r5dev *dev = &sh->dev[i];
-
-	dev->flags = 0;
-	dev->sector = raid5_compute_blocknr(sh, i, previous);
 }
 
 static void raid5_error(struct mddev *mddev, struct md_rdev *rdev)
@@ -6237,6 +6228,10 @@ static void raid5_do_work(struct work_struct *work)
 
 	spin_unlock_irq(&conf->device_lock);
 
+	flush_deferred_bios(conf);
+
+	r5l_flush_stripe_to_raid(conf->log);
+
 	async_tx_issue_pending_all();
 	blk_finish_plug(&plug);
 
@@ -7243,6 +7238,7 @@ static int raid5_run(struct mddev *mddev)
 		pr_warn("md/raid:%s: using journal device and PPL not allowed - disabling PPL\n",
 			mdname(mddev));
 		clear_bit(MD_HAS_PPL, &mddev->flags);
+		clear_bit(MD_HAS_MULTIPLE_PPLS, &mddev->flags);
 	}
 
 	if (mddev->private == NULL)

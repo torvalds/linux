@@ -48,7 +48,8 @@
 #define UNSUPPORTED_MDDEV_FLAGS		\
 	((1L << MD_HAS_JOURNAL) |	\
 	 (1L << MD_JOURNAL_CLEAN) |	\
-	 (1L << MD_HAS_PPL))
+	 (1L << MD_HAS_PPL) |		\
+	 (1L << MD_HAS_MULTIPLE_PPLS))
 
 /*
  * Number of guaranteed r1bios in case of extreme VM load:
@@ -2560,6 +2561,23 @@ static int init_resync(struct r1conf *conf)
 	return 0;
 }
 
+static struct r1bio *raid1_alloc_init_r1buf(struct r1conf *conf)
+{
+	struct r1bio *r1bio = mempool_alloc(conf->r1buf_pool, GFP_NOIO);
+	struct resync_pages *rps;
+	struct bio *bio;
+	int i;
+
+	for (i = conf->poolinfo->raid_disks; i--; ) {
+		bio = r1bio->bios[i];
+		rps = bio->bi_private;
+		bio_reset(bio);
+		bio->bi_private = rps;
+	}
+	r1bio->master_bio = NULL;
+	return r1bio;
+}
+
 /*
  * perform a "sync" on one "block"
  *
@@ -2645,7 +2663,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 
 	bitmap_cond_end_sync(mddev->bitmap, sector_nr,
 		mddev_is_clustered(mddev) && (sector_nr + 2 * RESYNC_SECTORS > conf->cluster_sync_high));
-	r1_bio = mempool_alloc(conf->r1buf_pool, GFP_NOIO);
+	r1_bio = raid1_alloc_init_r1buf(conf);
 
 	raise_barrier(conf, sector_nr);
 
