@@ -441,10 +441,9 @@ static const struct address_space_operations aio_ctx_aops = {
 #endif
 };
 
-static int aio_setup_ring(struct kioctx *ctx)
+static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
 {
 	struct aio_ring *ring;
-	unsigned nr_events = ctx->max_reqs;
 	struct mm_struct *mm = current->mm;
 	unsigned long size, unused;
 	int nr_pages;
@@ -707,6 +706,12 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	int err = -ENOMEM;
 
 	/*
+	 * Store the original nr_events -- what userspace passed to io_setup(),
+	 * for counting against the global limit -- before it changes.
+	 */
+	unsigned int max_reqs = nr_events;
+
+	/*
 	 * We keep track of the number of available ringbuffer slots, to prevent
 	 * overflow (reqs_available), and we also use percpu counters for this.
 	 *
@@ -724,14 +729,14 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (!nr_events || (unsigned long)nr_events > (aio_max_nr * 2UL))
+	if (!nr_events || (unsigned long)max_reqs > aio_max_nr)
 		return ERR_PTR(-EAGAIN);
 
 	ctx = kmem_cache_zalloc(kioctx_cachep, GFP_KERNEL);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
-	ctx->max_reqs = nr_events;
+	ctx->max_reqs = max_reqs;
 
 	spin_lock_init(&ctx->ctx_lock);
 	spin_lock_init(&ctx->completion_lock);
@@ -753,7 +758,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	if (!ctx->cpu)
 		goto err;
 
-	err = aio_setup_ring(ctx);
+	err = aio_setup_ring(ctx, nr_events);
 	if (err < 0)
 		goto err;
 
@@ -764,8 +769,8 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 
 	/* limit the number of system wide aios */
 	spin_lock(&aio_nr_lock);
-	if (aio_nr + nr_events > (aio_max_nr * 2UL) ||
-	    aio_nr + nr_events < aio_nr) {
+	if (aio_nr + ctx->max_reqs > aio_max_nr ||
+	    aio_nr + ctx->max_reqs < aio_nr) {
 		spin_unlock(&aio_nr_lock);
 		err = -EAGAIN;
 		goto err_ctx;
