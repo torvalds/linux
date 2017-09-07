@@ -54,8 +54,7 @@ int vega10_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
 	fan_speed_info->min_percent = 0;
 	fan_speed_info->max_percent = 100;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_FanSpeedInTableIsRPM) &&
+	if (PP_CAP(PHM_PlatformCaps_FanSpeedInTableIsRPM) &&
 		hwmgr->thermal_controller.fanInfo.
 		ucTachometerPulsesPerRevolution) {
 		fan_speed_info->supports_rpm_read = true;
@@ -279,8 +278,7 @@ int vega10_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	if (speed > 100)
 		speed = 100;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_MicrocodeFanControl))
+	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 		vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
 
 	reg = soc15_get_register_offset(THM_HWID, 0,
@@ -319,8 +317,7 @@ int vega10_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
 	if (hwmgr->thermal_controller.fanInfo.bNoFan)
 		return 0;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_MicrocodeFanControl)) {
+	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl)) {
 		result = vega10_fan_ctrl_start_smc_fan_control(hwmgr);
 	} else
 		result = vega10_fan_ctrl_set_default_mode(hwmgr);
@@ -346,8 +343,7 @@ int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 			(speed > hwmgr->thermal_controller.fanInfo.ulMaxRPM))
 		return -1;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_MicrocodeFanControl))
+	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 		result = vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
 
 	if (!result) {
@@ -627,10 +623,8 @@ int tf_vega10_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
  * this function was included in the table.
  * Make sure that we still think controlling the fan is OK.
 */
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_MicrocodeFanControl)) {
+	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 		vega10_fan_ctrl_start_smc_fan_control(hwmgr);
-	}
 
 	return 0;
 }
