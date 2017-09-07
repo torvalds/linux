@@ -128,7 +128,6 @@ struct ssi_crypto_req {
  * @fw_ver:	SeP loaded firmware version
  */
 struct ssi_drvdata {
-	struct resource *res_mem;
 	struct resource *res_irq;
 	void __iomem *cc_base;
 	unsigned int irq;
