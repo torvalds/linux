@@ -50,15 +50,6 @@ static struct etnaviv_iommu_domain *to_etnaviv_domain(struct iommu_domain *domai
 	return container_of(domain, struct etnaviv_iommu_domain, domain);
 }
 
-static void pgtable_write(struct etnaviv_iommu_domain_pgtable *pgtable,
-			  unsigned long iova, phys_addr_t paddr)
-{
-	/* calcuate index into page table */
-	unsigned int index = (iova - GPU_MEM_START) / SZ_4K;
-
-	pgtable->pgtable[index] = paddr;
-}
-
 static int __etnaviv_iommu_init(struct etnaviv_iommu_domain *etnaviv_domain)
 {
 	u32 *p;
@@ -114,12 +105,13 @@ static int etnaviv_iommuv1_map(struct iommu_domain *domain, unsigned long iova,
 	   phys_addr_t paddr, size_t size, int prot)
 {
 	struct etnaviv_iommu_domain *etnaviv_domain = to_etnaviv_domain(domain);
+	unsigned int index = (iova - GPU_MEM_START) / SZ_4K;
 
 	if (size != SZ_4K)
 		return -EINVAL;
 
 	spin_lock(&etnaviv_domain->map_lock);
-	pgtable_write(&etnaviv_domain->pgtable, iova, paddr);
+	etnaviv_domain->pgtable.pgtable[index] = paddr;
 	spin_unlock(&etnaviv_domain->map_lock);
 
 	return 0;
@@ -129,13 +121,13 @@ static size_t etnaviv_iommuv1_unmap(struct iommu_domain *domain,
 	unsigned long iova, size_t size)
 {
 	struct etnaviv_iommu_domain *etnaviv_domain = to_etnaviv_domain(domain);
+	unsigned int index = (iova - GPU_MEM_START) / SZ_4K;
 
 	if (size != SZ_4K)
 		return -EINVAL;
 
 	spin_lock(&etnaviv_domain->map_lock);
-	pgtable_write(&etnaviv_domain->pgtable, iova,
-		      etnaviv_domain->bad_page_dma);
+	etnaviv_domain->pgtable.pgtable[index] = etnaviv_domain->bad_page_dma;
 	spin_unlock(&etnaviv_domain->map_lock);
 
 	return SZ_4K;
