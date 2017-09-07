@@ -9,6 +9,8 @@
 #ifndef __XEN_PUBLIC_IO_RING_H__
 #define __XEN_PUBLIC_IO_RING_H__
 
+#include <xen/interface/grant_table.h>
+
 typedef unsigned int RING_IDX;
 
 /* Round a 32-bit unsigned constant down to the nearest power of two. */
