@@ -400,7 +400,7 @@ static int sprd_pmx_set_mux(struct pinctrl_dev *pctldev,
 	unsigned long reg;
 	unsigned int val = 0;
 
-	if (group_selector > info->ngroups)
+	if (group_selector >= info->ngroups)
 		return -EINVAL;
 
 	switch (func_selector) {
@@ -734,7 +734,7 @@ static int sprd_pinconf_group_get(struct pinctrl_dev *pctldev,
 	struct sprd_pin_group *grp;
 	unsigned int pin_id;
 
-	if (selector > info->ngroups)
+	if (selector >= info->ngroups)
 		return -EINVAL;
 
 	grp = &info->groups[selector];
@@ -753,7 +753,7 @@ static int sprd_pinconf_group_set(struct pinctrl_dev *pctldev,
 	struct sprd_pin_group *grp;
 	int ret, i;
 
-	if (selector > info->ngroups)
+	if (selector >= info->ngroups)
 		return -EINVAL;
 
 	grp = &info->groups[selector];
@@ -813,7 +813,7 @@ static void sprd_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	const char *name;
 	int i, ret;
 
-	if (selector > info->ngroups)
+	if (selector >= info->ngroups)
 		return;
 
 	grp = &info->groups[selector];
