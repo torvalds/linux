@@ -141,12 +141,6 @@ static int artpec6_pcie_establish_link(struct artpec6_pcie *artpec6_pcie)
 	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
 	usleep_range(100, 200);
 
-	/*
-	 * Enable writing to config regs. This is required as the Synopsys
-	 * driver changes the class code. That register needs DBI write enable.
-	 */
-	dw_pcie_writel_dbi(pci, MISC_CONTROL_1_OFF, DBI_RO_WR_EN);
-
 	/* setup root complex */
 	dw_pcie_setup_rc(pp);
 
