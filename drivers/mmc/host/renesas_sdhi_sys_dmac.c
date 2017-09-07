@@ -1,5 +1,5 @@
 /*
- * DMA function for TMIO MMC implementations
+ * DMA support use of SYS DMAC with SDHI SD/SDIO controller
  *
  * Copyright (C) 2016-17 Renesas Electronics Corporation
  * Copyright (C) 2016-17 Sang Engineering, Wolfram Sang
@@ -18,8 +18,10 @@
 #include <linux/mmc/host.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
+#include <linux/sys_soc.h>
 
 #include "renesas_sdhi.h"
 #include "tmio_mmc.h"
@@ -31,7 +33,8 @@ static const struct renesas_sdhi_of_data of_default_cfg = {
 };
 
 static const struct renesas_sdhi_of_data of_rz_compatible = {
-	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_32BIT_DATA_PORT,
+	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_32BIT_DATA_PORT |
+			  TMIO_MMC_HAVE_CBSY,
 	.tmio_ocr_mask	= MMC_VDD_32_33,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
 };
@@ -56,7 +59,8 @@ static struct renesas_sdhi_scc rcar_gen2_scc_taps[] = {
 
 static const struct renesas_sdhi_of_data of_rcar_gen2_compatible = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_WRPROTECT_DISABLE |
-			  TMIO_MMC_CLK_ACTUAL | TMIO_MMC_MIN_RCAR2,
+			  TMIO_MMC_CLK_ACTUAL | TMIO_MMC_HAVE_CBSY |
+			  TMIO_MMC_MIN_RCAR2,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_CMD23,
 	.dma_buswidth	= DMA_SLAVE_BUSWIDTH_4_BYTES,
@@ -76,7 +80,8 @@ static struct renesas_sdhi_scc rcar_gen3_scc_taps[] = {
 
 static const struct renesas_sdhi_of_data of_rcar_gen3_compatible = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_WRPROTECT_DISABLE |
-			  TMIO_MMC_CLK_ACTUAL | TMIO_MMC_MIN_RCAR2,
+			  TMIO_MMC_CLK_ACTUAL | TMIO_MMC_HAVE_CBSY |
+			  TMIO_MMC_MIN_RCAR2,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_CMD23,
 	.bus_shift	= 2,
@@ -93,6 +98,8 @@ static const struct of_device_id renesas_sdhi_sys_dmac_of_match[] = {
 	{ .compatible = "renesas,sdhi-r7s72100", .data = &of_rz_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7778", .data = &of_rcar_gen1_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7779", .data = &of_rcar_gen1_compatible, },
+	{ .compatible = "renesas,sdhi-r8a7743", .data = &of_rcar_gen2_compatible, },
+	{ .compatible = "renesas,sdhi-r8a7745", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7790", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7791", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7792", .data = &of_rcar_gen2_compatible, },
@@ -124,6 +131,11 @@ static void renesas_sdhi_sys_dmac_abort_dma(struct tmio_mmc_host *host)
 		dmaengine_terminate_all(host->chan_tx);
 
 	renesas_sdhi_sys_dmac_enable_dma(host, true);
+}
+
+static void renesas_sdhi_sys_dmac_dataend_dma(struct tmio_mmc_host *host)
+{
+	complete(&host->dma_dataend);
 }
 
 static void renesas_sdhi_sys_dmac_dma_callback(void *arg)
@@ -451,10 +463,24 @@ static const struct tmio_mmc_dma_ops renesas_sdhi_sys_dmac_dma_ops = {
 	.request = renesas_sdhi_sys_dmac_request_dma,
 	.release = renesas_sdhi_sys_dmac_release_dma,
 	.abort = renesas_sdhi_sys_dmac_abort_dma,
+	.dataend = renesas_sdhi_sys_dmac_dataend_dma,
+};
+
+/*
+ * Whitelist of specific R-Car Gen3 SoC ES versions to use this DMAC
+ * implementation. Currently empty as all supported ES versions use
+ * the internal DMAC.
+ */
+static const struct soc_device_attribute gen3_soc_whitelist[] = {
+        { /* sentinel */ }
 };
 
 static int renesas_sdhi_sys_dmac_probe(struct platform_device *pdev)
 {
+	if (of_device_get_match_data(&pdev->dev) == &of_rcar_gen3_compatible &&
+	    !soc_device_match(gen3_soc_whitelist))
+		return -ENODEV;
+
 	return renesas_sdhi_probe(pdev, &renesas_sdhi_sys_dmac_dma_ops);
 }
 

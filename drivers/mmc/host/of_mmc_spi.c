@@ -71,7 +71,7 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct device_node *np = dev->of_node;
 	struct of_mmc_spi *oms;
-	const u32 *voltage_ranges;
+	const __be32 *voltage_ranges;
 	int num_ranges;
 	int i;
 

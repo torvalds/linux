@@ -18,6 +18,8 @@
 #include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 
 #include "sdhci-pltfm.h"
 #include "sdhci-xenon.h"
@@ -330,7 +332,8 @@ static int xenon_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 
-	if (host->timing == MMC_TIMING_UHS_DDR50)
+	if (host->timing == MMC_TIMING_UHS_DDR50 ||
+		host->timing == MMC_TIMING_MMC_DDR52)
 		return 0;
 
 	/*
@@ -463,7 +466,6 @@ static int xenon_probe(struct platform_device *pdev)
 {
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_host *host;
-	struct xenon_priv *priv;
 	int err;
 
 	host = sdhci_pltfm_init(pdev, &sdhci_xenon_pdata,
@@ -472,7 +474,6 @@ static int xenon_probe(struct platform_device *pdev)
 		return PTR_ERR(host);
 
 	pltfm_host = sdhci_priv(host);
-	priv = sdhci_pltfm_priv(pltfm_host);
 
 	/*
 	 * Link Xenon specific mmc_host_ops function,
@@ -507,13 +508,24 @@ static int xenon_probe(struct platform_device *pdev)
 	if (err)
 		goto err_clk;
 
+	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+	pm_suspend_ignore_children(&pdev->dev, 1);
+
 	err = sdhci_add_host(host);
 	if (err)
 		goto remove_sdhc;
 
+	pm_runtime_put_autosuspend(&pdev->dev);
+
 	return 0;
 
 remove_sdhc:
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
 	xenon_sdhc_unprepare(host);
 err_clk:
 	clk_disable_unprepare(pltfm_host->clk);
@@ -527,6 +539,10 @@ static int xenon_remove(struct platform_device *pdev)
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 
+	pm_runtime_get_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
+
 	sdhci_remove_host(host, 0);
 
 	xenon_sdhc_unprepare(host);
@@ -537,6 +553,84 @@ static int xenon_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int xenon_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	int ret;
+
+	ret = pm_runtime_force_suspend(dev);
+
+	priv->restore_needed = true;
+	return ret;
+}
+#endif
+
+#ifdef CONFIG_PM
+static int xenon_runtime_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	int ret;
+
+	ret = sdhci_runtime_suspend_host(host);
+	if (ret)
+		return ret;
+
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
+	clk_disable_unprepare(pltfm_host->clk);
+	/*
+	 * Need to update the priv->clock here, or when runtime resume
+	 * back, phy don't aware the clock change and won't adjust phy
+	 * which will cause cmd err
+	 */
+	priv->clock = 0;
+	return 0;
+}
+
+static int xenon_runtime_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	int ret;
+
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret) {
+		dev_err(dev, "can't enable mainck\n");
+		return ret;
+	}
+
+	if (priv->restore_needed) {
+		ret = xenon_sdhc_prepare(host);
+		if (ret)
+			goto out;
+		priv->restore_needed = false;
+	}
+
+	ret = sdhci_runtime_resume_host(host);
+	if (ret)
+		goto out;
+	return 0;
+out:
+	clk_disable_unprepare(pltfm_host->clk);
+	return ret;
+}
+#endif /* CONFIG_PM */
+
+static const struct dev_pm_ops sdhci_xenon_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(xenon_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(xenon_runtime_suspend,
+			   xenon_runtime_resume,
+			   NULL)
+};
 
 static const struct of_device_id sdhci_xenon_dt_ids[] = {
 	{ .compatible = "marvell,armada-ap806-sdhci",},
@@ -550,7 +644,7 @@ static struct platform_driver sdhci_xenon_driver = {
 	.driver	= {
 		.name	= "xenon-sdhci",
 		.of_match_table = sdhci_xenon_dt_ids,
-		.pm = &sdhci_pltfm_pmops,
+		.pm = &sdhci_xenon_dev_pm_ops,
 	},
 	.probe	= xenon_probe,
 	.remove	= xenon_remove,

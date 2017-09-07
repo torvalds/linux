@@ -957,14 +957,12 @@ static int cvm_mmc_of_parse(struct device *dev, struct cvm_mmc_slot *slot)
 
 	ret = of_property_read_u32(node, "reg", &id);
 	if (ret) {
-		dev_err(dev, "Missing or invalid reg property on %s\n",
-			of_node_full_name(node));
+		dev_err(dev, "Missing or invalid reg property on %pOF\n", node);
 		return ret;
 	}
 
 	if (id >= CAVIUM_MAX_MMC || slot->host->slot[id]) {
-		dev_err(dev, "Invalid reg property on %s\n",
-			of_node_full_name(node));
+		dev_err(dev, "Invalid reg property on %pOF\n", node);
 		return -EINVAL;
 	}
 
