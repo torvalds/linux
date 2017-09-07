@@ -2699,7 +2699,7 @@ guid_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 		goto out;
 	}
 
-	memcpy(intf->bmc->guid, msg->msg.data, 16);
+	memcpy(intf->bmc->guid, msg->msg.data + 1, 16);
 	intf->bmc->guid_set = 1;
  out:
 	wake_up(&intf->waitq);
