@@ -46,8 +46,8 @@ static const struct fbcon_dmi_rotate_data rotate_data_gpd_win = {
 	.width = 720,
 	.height = 1280,
 	.bios_dates = (const char * const []){
-		"10/25/2016", "11/18/2016", "02/21/2017",
-		"03/20/2017", NULL },
+		"10/25/2016", "11/18/2016", "12/23/2016", "12/26/2016",
+		"02/21/2017", "03/20/2017", "05/25/2017", NULL },
 	.rotate = FB_ROTATE_CW,
 };
 
