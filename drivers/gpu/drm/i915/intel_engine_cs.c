@@ -981,7 +981,8 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 				   GEN9_GAPS_TSV_CREDIT_DISABLE));
 
 	/* WaDisableGafsUnitClkGating:skl */
-	WA_SET_BIT(GEN7_UCGCTL4, GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(GEN7_UCGCTL4, (I915_READ(GEN7_UCGCTL4) |
+				  GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE));
 
 	/* WaInPlaceDecompressionHang:skl */
 	if (IS_SKL_REVID(dev_priv, SKL_REVID_H0, REVID_FOREVER))
@@ -1143,7 +1144,8 @@ static int kbl_init_workarounds(struct intel_engine_cs *engine)
 				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
 	/* WaDisableGafsUnitClkGating:kbl */
-	WA_SET_BIT(GEN7_UCGCTL4, GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(GEN7_UCGCTL4, (I915_READ(GEN7_UCGCTL4) |
+				  GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE));
 
 	/* WaDisableSbeCacheDispatchPortSharing:kbl */
 	WA_SET_BIT_MASKED(
@@ -1197,7 +1199,8 @@ static int cfl_init_workarounds(struct intel_engine_cs *engine)
 			  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
 
 	/* WaDisableGafsUnitClkGating:cfl */
-	WA_SET_BIT(GEN7_UCGCTL4, GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(GEN7_UCGCTL4, (I915_READ(GEN7_UCGCTL4) |
+				  GEN8_EU_GAUNIT_CLOCK_GATE_DISABLE));
 
 	/* WaDisableSbeCacheDispatchPortSharing:cfl */
 	WA_SET_BIT_MASKED(
