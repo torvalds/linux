@@ -334,7 +334,7 @@ static struct attribute *rmi_f01_attrs[] = {
 	NULL
 };
 
-static struct attribute_group rmi_f01_attr_group = {
+static const struct attribute_group rmi_f01_attr_group = {
 	.attrs = rmi_f01_attrs,
 };
 

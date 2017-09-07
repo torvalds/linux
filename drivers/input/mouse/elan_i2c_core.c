@@ -95,6 +95,7 @@ struct elan_tp_data {
 	u8			min_baseline;
 	u8			max_baseline;
 	bool			baseline_ready;
+	u8			clickpad;
 };
 
 static int elan_get_fwinfo(u16 ic_type, u16 *validpage_count,
@@ -213,7 +214,7 @@ static int elan_query_product(struct elan_tp_data *data)
 		return error;
 
 	error = data->ops->get_sm_version(data->client, &data->ic_type,
-					  &data->sm_version);
+					  &data->sm_version, &data->clickpad);
 	if (error)
 		return error;
 
@@ -923,6 +924,7 @@ static void elan_report_absolute(struct elan_tp_data *data, u8 *packet)
 	}
 
 	input_report_key(input, BTN_LEFT, tp_info & 0x01);
+	input_report_key(input, BTN_RIGHT, tp_info & 0x02);
 	input_report_abs(input, ABS_DISTANCE, hover_event != 0);
 	input_mt_report_pointer_emulation(input, true);
 	input_sync(input);
@@ -991,7 +993,10 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 
 	__set_bit(EV_ABS, input->evbit);
 	__set_bit(INPUT_PROP_POINTER, input->propbit);
-	__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
+	if (data->clickpad)
+		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
+	else
+		__set_bit(BTN_RIGHT, input->keybit);
 	__set_bit(BTN_LEFT, input->keybit);
 
 	/* Set up ST parameters */
