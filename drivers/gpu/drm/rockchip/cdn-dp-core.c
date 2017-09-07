@@ -215,9 +215,9 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 	arm_smccc_smc(RK_SIP_HDCP_CONTROL, HDCP_KEY_DATA_START_TRANSFER,
 		      0, 0, 0, 0, 0, 0, &res);
 
-	buf = (uint64_t *)&dp->key;
-
-	for (; !res.a0 && (u8 *)buf - (u8 *)&dp->key < sizeof(dp->key);
+	BUILD_BUG_ON(sizeof(dp->key) % 6);
+	for (buf = (uint64_t *)&dp->key;
+	     !res.a0 && (u8 *)buf - (u8 *)&dp->key < sizeof(dp->key);
 	     buf += 6)
 		arm_smccc_smc(RK_SIP_HDCP_KEY_DATA64, buf[0], buf[1],
 			      buf[2], buf[3], buf[4], buf[5], 0, &res);

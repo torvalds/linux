@@ -80,6 +80,9 @@ enum {
 	CDN_DP_HDCP_KEY_LEN = 308,
 };
 
+/*
+ * Size must be divisible by 6
+ */
 struct cdn_dp_hdcp_key_1x {
 	u8 ksv[CDN_DP_HDCP_KSV_LEN];
 	u8 device_key[CDN_DP_HDCP_DPK_LEN];
