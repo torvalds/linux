@@ -54,6 +54,7 @@
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
+#include <net/pkt_cls.h>
 #include "i40e_type.h"
 #include "i40e_prototype.h"
 #include "i40e_client.h"
@@ -700,6 +701,7 @@ struct i40e_vsi {
 	enum i40e_vsi_type type;  /* VSI type, e.g., LAN, FCoE, etc */
 	s16 vf_id;		/* Virtual function ID for SRIOV VSIs */
 
+	struct tc_mqprio_qopt_offload mqprio_qopt; /* queue parameters */
 	struct i40e_tc_configuration tc_config;
 	struct i40e_aqc_vsi_properties_data info;
 
@@ -725,6 +727,7 @@ struct i40e_vsi {
 	u16 cnt_q_avail;	/* num of queues available for channel usage */
 	u16 orig_rss_size;
 	u16 current_rss_size;
+	bool reconfig_rss;
 
 	u16 next_base_queue;	/* next queue to be used for channel setup */
 
