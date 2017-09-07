@@ -652,8 +652,6 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		if (link->local_sink)	{
 			sink = link->local_sink;
 		} else {
-			link_disconnect_sink(link);
-
 			sink_init_data.link = link;
 			sink_init_data.sink_signal = sink_caps.signal;
 
