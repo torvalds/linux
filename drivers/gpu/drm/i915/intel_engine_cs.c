@@ -1130,8 +1130,9 @@ static int kbl_init_workarounds(struct intel_engine_cs *engine)
 
 	/* WaDisableDynamicCreditSharing:kbl */
 	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
-		WA_SET_BIT(GAMT_CHKN_BIT_REG,
-			   GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING);
+		I915_WRITE(GAMT_CHKN_BIT_REG,
+			   (I915_READ(GAMT_CHKN_BIT_REG) |
+			    GAMT_CHKN_DISABLE_DYNAMIC_CREDIT_SHARING));
 
 	/* WaDisableFenceDestinationToSLM:kbl (pre-prod) */
 	if (IS_KBL_REVID(dev_priv, KBL_REVID_A0, KBL_REVID_A0))
