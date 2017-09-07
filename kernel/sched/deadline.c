@@ -1365,6 +1365,10 @@ enqueue_dl_entity(struct sched_dl_entity *dl_se,
 		update_dl_entity(dl_se, pi_se);
 	} else if (flags & ENQUEUE_REPLENISH) {
 		replenish_dl_entity(dl_se, pi_se);
+	} else if ((flags & ENQUEUE_RESTORE) &&
+		  dl_time_before(dl_se->deadline,
+				 rq_clock(rq_of_dl_rq(dl_rq_of_se(dl_se))))) {
+		setup_new_dl_entity(dl_se);
 	}
 
 	__enqueue_dl_entity(dl_se);
@@ -2256,13 +2260,6 @@ static void switched_to_dl(struct rq *rq, struct task_struct *p)
 
 		return;
 	}
-	/*
-	 * If p is boosted we already updated its params in
-	 * rt_mutex_setprio()->enqueue_task(..., ENQUEUE_REPLENISH),
-	 * p's deadline being now already after rq_clock(rq).
-	 */
-	if (dl_time_before(p->dl.deadline, rq_clock(rq)))
-		setup_new_dl_entity(&p->dl);
 
 	if (rq->curr != p) {
 #ifdef CONFIG_SMP
