@@ -496,10 +496,8 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 chicken;
 
-	if (!HAS_PSR(dev_priv)) {
-		DRM_DEBUG_KMS("PSR not supported on this platform\n");
+	if (!HAS_PSR(dev_priv))
 		return;
-	}
 
 	if (!is_edp_psr(intel_dp)) {
 		DRM_DEBUG_KMS("PSR not supported by this panel\n");
@@ -678,6 +676,9 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
+	if (!HAS_PSR(dev_priv))
+		return;
+
 	mutex_lock(&dev_priv->psr.lock);
 	if (!dev_priv->psr.enabled) {
 		mutex_unlock(&dev_priv->psr.lock);
@@ -829,6 +830,9 @@ void intel_psr_single_frame_update(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 	u32 val;
 
+	if (!HAS_PSR(dev_priv))
+		return;
+
 	/*
 	 * Single frame update is already supported on BDW+ but it requires
 	 * many W/A and it isn't really needed.
@@ -875,6 +879,9 @@ void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
+	if (!HAS_PSR(dev_priv))
+		return;
+
 	mutex_lock(&dev_priv->psr.lock);
 	if (!dev_priv->psr.enabled) {
 		mutex_unlock(&dev_priv->psr.lock);
@@ -912,6 +919,9 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
+	if (!HAS_PSR(dev_priv))
+		return;
+
 	mutex_lock(&dev_priv->psr.lock);
 	if (!dev_priv->psr.enabled) {
 		mutex_unlock(&dev_priv->psr.lock);
@@ -944,6 +954,9 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
  */
 void intel_psr_init(struct drm_i915_private *dev_priv)
 {
+	if (!HAS_PSR(dev_priv))
+		return;
+
 	dev_priv->psr_mmio_base = IS_HASWELL(dev_priv) ?
 		HSW_EDP_PSR_BASE : BDW_EDP_PSR_BASE;
 
