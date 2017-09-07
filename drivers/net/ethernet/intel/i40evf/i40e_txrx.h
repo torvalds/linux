@@ -191,7 +191,7 @@ static inline bool i40e_test_staterr(union i40e_rx_desc *rx_desc,
 }
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
-#define I40E_RX_BUFFER_WRITE	16	/* Must be power of 2 */
+#define I40E_RX_BUFFER_WRITE	32	/* Must be power of 2 */
 #define I40E_RX_INCREMENT(r, i) \
 	do {					\
 		(i)++;				\
