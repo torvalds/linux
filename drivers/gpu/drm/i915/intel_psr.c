@@ -472,12 +472,7 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 	WARN_ON(dev_priv->psr.active);
 	lockdep_assert_held(&dev_priv->psr.lock);
 
-	/* Enable/Re-enable PSR on the host */
-	if (HAS_DDI(dev_priv))
-		hsw_psr_activate(intel_dp);
-	else
-		vlv_psr_activate(intel_dp);
-
+	dev_priv->psr.activate(intel_dp);
 	dev_priv->psr.active = true;
 }
 
@@ -987,7 +982,9 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->psr.disable_source = vlv_psr_disable;
+		dev_priv->psr.activate = vlv_psr_activate;
 	} else {
 		dev_priv->psr.disable_source = hsw_psr_disable;
+		dev_priv->psr.activate = hsw_psr_activate;
 	}
 }
