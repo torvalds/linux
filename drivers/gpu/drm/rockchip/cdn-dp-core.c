@@ -214,6 +214,11 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 
 	arm_smccc_smc(RK_SIP_HDCP_CONTROL, HDCP_KEY_DATA_START_TRANSFER,
 		      0, 0, 0, 0, 0, 0, &res);
+	if (res.a0) {
+		dev_err(dp->dev, "start hdcp transfer failed: %#lx\n", res.a0);
+		ret = -EIO;
+		goto out;
+	}
 
 	BUILD_BUG_ON(sizeof(dp->key) % 6);
 	for (buf = (uint64_t *)&dp->key;
@@ -223,7 +228,7 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 			      buf[2], buf[3], buf[4], buf[5], 0, &res);
 
 	if (res.a0) {
-		dev_err(dp->dev, "send hdcp keys failed: %ld\n", res.a0);
+		dev_err(dp->dev, "send hdcp keys failed: %#lx\n", res.a0);
 		ret = -EIO;
 		goto out;
 	}
@@ -1235,7 +1240,7 @@ static bool cdn_dp_hdcp_authorize(struct cdn_dp_device *dp)
 		if (ret)
 			goto out;
 		if (HDCP_TX_STATUS_ERROR(tx_status)) {
-			dev_err(dp->dev, "hdcp status error: %x\n",
+			dev_err(dp->dev, "hdcp status error: %#x\n",
 				HDCP_TX_STATUS_ERROR(tx_status));
 			goto out;
 		} else if (tx_status & HDCP_TX_STATUS_AUTHENTICATED) {
