@@ -1405,21 +1405,6 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			filemap_flush(inode->i_mapping);
 	}
 
-	if (do_compress) {
-		/* the filemap_flush will queue IO into the worker threads, but
-		 * we have to make sure the IO is actually started and that
-		 * ordered extents get created before we return
-		 */
-		atomic_inc(&fs_info->async_submit_draining);
-		while (atomic_read(&fs_info->nr_async_submits) ||
-		       atomic_read(&fs_info->async_delalloc_pages)) {
-			wait_event(fs_info->async_submit_wait,
-				   (atomic_read(&fs_info->nr_async_submits) == 0 &&
-				    atomic_read(&fs_info->async_delalloc_pages) == 0));
-		}
-		atomic_dec(&fs_info->async_submit_draining);
-	}
-
 	if (range->compress_type == BTRFS_COMPRESS_LZO) {
 		btrfs_set_fs_incompat(fs_info, COMPRESS_LZO);
 	} else if (range->compress_type == BTRFS_COMPRESS_ZSTD) {
