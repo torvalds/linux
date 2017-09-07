@@ -263,7 +263,7 @@ static void vlv_psr_activate(struct intel_dp *intel_dp)
 		   VLV_EDP_PSR_ACTIVE_ENTRY);
 }
 
-static void intel_enable_source_psr1(struct intel_dp *intel_dp)
+static void hsw_activate_psr1(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
@@ -317,7 +317,7 @@ static void intel_enable_source_psr1(struct intel_dp *intel_dp)
 	I915_WRITE(EDP_PSR_CTL, val);
 }
 
-static void intel_enable_source_psr2(struct intel_dp *intel_dp)
+static void hsw_activate_psr2(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
@@ -353,17 +353,22 @@ static void intel_enable_source_psr2(struct intel_dp *intel_dp)
 	I915_WRITE(EDP_PSR2_CTL, val);
 }
 
-static void hsw_psr_enable_source(struct intel_dp *intel_dp)
+static void hsw_psr_activate(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
+	/* On HSW+ after we enable PSR on source it will activate it
+	 * as soon as it match configure idle_frame count. So
+	 * we just actually enable it here on activation time.
+	 */
+
 	/* psr1 and psr2 are mutually exclusive.*/
 	if (dev_priv->psr.psr2_support)
-		intel_enable_source_psr2(intel_dp);
+		hsw_activate_psr2(intel_dp);
 	else
-		intel_enable_source_psr1(intel_dp);
+		hsw_activate_psr1(intel_dp);
 }
 
 static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
@@ -469,11 +474,7 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 
 	/* Enable/Re-enable PSR on the host */
 	if (HAS_DDI(dev_priv))
-		/* On HSW+ after we enable PSR on source it will activate it
-		 * as soon as it match configure idle_frame count. So
-		 * we just actually enable it here on activation time.
-		 */
-		hsw_psr_enable_source(intel_dp);
+		hsw_psr_activate(intel_dp);
 	else
 		vlv_psr_activate(intel_dp);
 
