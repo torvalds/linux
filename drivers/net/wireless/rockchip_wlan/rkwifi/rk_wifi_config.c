@@ -16,13 +16,24 @@
  * Set Firmware Path
  */
  
-#define ANDROID_FW_PATH "/system/etc/firmware/"
+#define VENDOR_ETC_FIRMWARE "/vendor/etc/firmware/"
+#define SYSTEM_ETC_FIRMWARE "/system/etc/firmware/"
+char ANDROID_FW_PATH[64] = {0};
 
 extern int get_wifi_chip_type(void);
 int rkwifi_set_firmware(char *fw, char *nvram)
 {
     int chip = get_wifi_chip_type();
-    
+    struct file *filp = NULL;
+
+    filp = filp_open(VENDOR_ETC_FIRMWARE, O_RDONLY, 0);
+
+    if (!IS_ERR(filp)) {
+	strcpy(ANDROID_FW_PATH, VENDOR_ETC_FIRMWARE);
+    } else {
+	strcpy(ANDROID_FW_PATH, SYSTEM_ETC_FIRMWARE);
+    }
+
 if (chip == WIFI_RK903) {
 	sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK903b2.bin");
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK903_26M.cal");
