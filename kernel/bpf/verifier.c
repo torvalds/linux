@@ -4203,6 +4203,22 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			continue;
 		}
 
+		if (insn->imm == BPF_FUNC_redirect_map) {
+			u64 addr = (unsigned long)prog;
+			struct bpf_insn r4_ld[] = {
+				BPF_LD_IMM64(BPF_REG_4, addr),
+				*insn,
+			};
+			cnt = ARRAY_SIZE(r4_ld);
+
+			new_prog = bpf_patch_insn_data(env, i + delta, r4_ld, cnt);
+			if (!new_prog)
+				return -ENOMEM;
+
+			delta    += cnt - 1;
+			env->prog = prog = new_prog;
+			insn      = new_prog->insnsi + i + delta;
+		}
 patch_call_imm:
 		fn = prog->aux->ops->get_func_proto(insn->imm);
 		/* all functions that have prototype and verifier allowed
