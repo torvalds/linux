@@ -255,7 +255,6 @@ extern int sched_dl_overflow(struct task_struct *p, int policy,
 extern void __setparam_dl(struct task_struct *p, const struct sched_attr *attr);
 extern void __getparam_dl(struct task_struct *p, struct sched_attr *attr);
 extern bool __checkparam_dl(const struct sched_attr *attr);
-extern void __dl_clear_params(struct task_struct *p);
 extern bool dl_param_changed(struct task_struct *p, const struct sched_attr *attr);
 extern int dl_task_can_attach(struct task_struct *p,
 			      const struct cpumask *cs_cpus_allowed);
