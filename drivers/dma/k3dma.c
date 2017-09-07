@@ -223,7 +223,6 @@ static irqreturn_t k3_dma_int_handler(int irq, void *dev_id)
 			if (c && (tc1 & BIT(i))) {
 				spin_lock_irqsave(&c->vc.lock, flags);
 				vchan_cookie_complete(&p->ds_run->vd);
-				WARN_ON_ONCE(p->ds_done);
 				p->ds_done = p->ds_run;
 				p->ds_run = NULL;
 				spin_unlock_irqrestore(&c->vc.lock, flags);
@@ -274,13 +273,14 @@ static int k3_dma_start_txd(struct k3_dma_chan *c)
 		 */
 		list_del(&ds->vd.node);
 
-		WARN_ON_ONCE(c->phy->ds_run);
-		WARN_ON_ONCE(c->phy->ds_done);
 		c->phy->ds_run = ds;
+		c->phy->ds_done = NULL;
 		/* start dma */
 		k3_dma_set_desc(c->phy, &ds->desc_hw[0]);
 		return 0;
 	}
+	c->phy->ds_run = NULL;
+	c->phy->ds_done = NULL;
 	return -EAGAIN;
 }
 
@@ -722,11 +722,7 @@ static int k3_dma_terminate_all(struct dma_chan *chan)
 			k3_dma_free_desc(&p->ds_run->vd);
 			p->ds_run = NULL;
 		}
-		if (p->ds_done) {
-			k3_dma_free_desc(&p->ds_done->vd);
-			p->ds_done = NULL;
-		}
-
+		p->ds_done = NULL;
 	}
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 	vchan_dma_desc_free_list(&c->vc, &head);
