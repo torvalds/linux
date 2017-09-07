@@ -75,8 +75,8 @@ static int etnaviv_domain_map(struct iommu_domain *domain, unsigned long iova,
 	return ret;
 }
 
-int etnaviv_iommu_map(struct etnaviv_iommu *iommu, u32 iova,
-		struct sg_table *sgt, unsigned len, int prot)
+static int etnaviv_iommu_map(struct etnaviv_iommu *iommu, u32 iova,
+			     struct sg_table *sgt, unsigned len, int prot)
 {
 	struct iommu_domain *domain = iommu->domain;
 	struct scatterlist *sg;
@@ -114,8 +114,8 @@ fail:
 	return ret;
 }
 
-void etnaviv_iommu_unmap(struct etnaviv_iommu *iommu, u32 iova,
-			 struct sg_table *sgt, unsigned len)
+static void etnaviv_iommu_unmap(struct etnaviv_iommu *iommu, u32 iova,
+				struct sg_table *sgt, unsigned len)
 {
 	struct iommu_domain *domain = iommu->domain;
 	struct scatterlist *sg;

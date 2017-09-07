@@ -49,18 +49,11 @@ struct etnaviv_iommu {
 
 struct etnaviv_gem_object;
 
-int etnaviv_iommu_attach(struct etnaviv_iommu *iommu, const char **names,
-	int cnt);
-int etnaviv_iommu_map(struct etnaviv_iommu *iommu, u32 iova,
-	struct sg_table *sgt, unsigned len, int prot);
-void etnaviv_iommu_unmap(struct etnaviv_iommu *iommu, u32 iova,
-	struct sg_table *sgt, unsigned len);
 int etnaviv_iommu_map_gem(struct etnaviv_iommu *mmu,
 	struct etnaviv_gem_object *etnaviv_obj, u32 memory_base,
 	struct etnaviv_vram_mapping *mapping);
 void etnaviv_iommu_unmap_gem(struct etnaviv_iommu *mmu,
 	struct etnaviv_vram_mapping *mapping);
-void etnaviv_iommu_destroy(struct etnaviv_iommu *iommu);
 
 int etnaviv_iommu_get_suballoc_va(struct etnaviv_gpu *gpu, dma_addr_t paddr,
 				  struct drm_mm_node *vram_node, size_t size,
@@ -73,6 +66,7 @@ size_t etnaviv_iommu_dump_size(struct etnaviv_iommu *iommu);
 void etnaviv_iommu_dump(struct etnaviv_iommu *iommu, void *buf);
 
 struct etnaviv_iommu *etnaviv_iommu_new(struct etnaviv_gpu *gpu);
+void etnaviv_iommu_destroy(struct etnaviv_iommu *iommu);
 void etnaviv_iommu_restore(struct etnaviv_gpu *gpu);
 
 #endif /* __ETNAVIV_MMU_H__ */
