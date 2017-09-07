@@ -281,9 +281,8 @@ int vega10_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	reg = soc15_get_register_offset(THM_HWID, 0,
 			mmCG_FDO_CTRL1_BASE_IDX, mmCG_FDO_CTRL1);
 
-	duty100 = (cgs_read_register(hwmgr->device, reg) &
-			CG_FDO_CTRL1__FMAX_DUTY100_MASK) >>
-			CG_FDO_CTRL1__FMAX_DUTY100__SHIFT;
+	duty100 = CGS_REG_GET_FIELD(cgs_read_register(hwmgr->device, reg),
+				    CG_FDO_CTRL1, FMAX_DUTY100);
 
 	if (duty100 == 0)
 		return -EINVAL;
@@ -295,9 +294,8 @@ int vega10_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	reg = soc15_get_register_offset(THM_HWID, 0,
 			mmCG_FDO_CTRL0_BASE_IDX, mmCG_FDO_CTRL0);
 	cgs_write_register(hwmgr->device, reg,
-			(cgs_read_register(hwmgr->device, reg) &
-			~CG_FDO_CTRL0__FDO_STATIC_DUTY_MASK) |
-			(duty << CG_FDO_CTRL0__FDO_STATIC_DUTY__SHIFT));
+		CGS_REG_SET_FIELD(cgs_read_register(hwmgr->device, reg),
+			CG_FDO_CTRL0, FDO_STATIC_DUTY, duty));
 
 	return vega10_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
 }
