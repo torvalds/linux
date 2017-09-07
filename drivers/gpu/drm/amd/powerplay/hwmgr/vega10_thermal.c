@@ -330,8 +330,8 @@ int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 	uint32_t reg;
 
 	if (hwmgr->thermal_controller.fanInfo.bNoFan ||
-			(speed < hwmgr->thermal_controller.fanInfo.ulMinRPM) ||
-			(speed > hwmgr->thermal_controller.fanInfo.ulMaxRPM))
+	    (speed < hwmgr->thermal_controller.fanInfo.ulMinRPM) ||
+	    (speed > hwmgr->thermal_controller.fanInfo.ulMaxRPM))
 		return -1;
 
 	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
@@ -343,9 +343,9 @@ int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 		reg = soc15_get_register_offset(THM_HWID, 0,
 				mmCG_TACH_STATUS_BASE_IDX, mmCG_TACH_STATUS);
 		cgs_write_register(hwmgr->device, reg,
-				(cgs_read_register(hwmgr->device, reg) &
-				~CG_TACH_STATUS__TACH_PERIOD_MASK) |
-				(tach_period << CG_TACH_STATUS__TACH_PERIOD__SHIFT));
+				CGS_REG_SET_FIELD(cgs_read_register(hwmgr->device, reg),
+					CG_TACH_STATUS, TACH_PERIOD,
+					tach_period));
 	}
 	return vega10_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC_RPM);
 }
