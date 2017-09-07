@@ -207,9 +207,9 @@ static int artpec6_add_pcie_port(struct artpec6_pcie *artpec6_pcie,
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
-		if (pp->msi_irq <= 0) {
+		if (pp->msi_irq < 0) {
 			dev_err(dev, "failed to get MSI irq\n");
-			return -ENODEV;
+			return pp->msi_irq;
 		}
 
 		ret = devm_request_irq(dev, pp->msi_irq,
