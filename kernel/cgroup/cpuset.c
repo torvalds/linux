@@ -301,6 +301,16 @@ static DECLARE_WORK(cpuset_hotplug_work, cpuset_hotplug_workfn);
 static DECLARE_WAIT_QUEUE_HEAD(cpuset_attach_wq);
 
 /*
+ * Cgroup v2 behavior is used when on default hierarchy or the
+ * cgroup_v2_mode flag is set.
+ */
+static inline bool is_in_v2_mode(void)
+{
+	return cgroup_subsys_on_dfl(cpuset_cgrp_subsys) ||
+	      (cpuset_cgrp_subsys.root->flags & CGRP_ROOT_CPUSET_V2_MODE);
+}
+
+/*
  * This is ugly, but preserves the userspace API for existing cpuset
  * users. If someone tries to mount the "cpuset" filesystem, we
  * silently switch it to mount "cgroup" instead
@@ -490,8 +500,7 @@ static int validate_change(struct cpuset *cur, struct cpuset *trial)
 
 	/* On legacy hiearchy, we must be a subset of our parent cpuset. */
 	ret = -EACCES;
-	if (!cgroup_subsys_on_dfl(cpuset_cgrp_subsys) &&
-	    !is_cpuset_subset(trial, par))
+	if (!is_in_v2_mode() && !is_cpuset_subset(trial, par))
 		goto out;
 
 	/*
@@ -870,7 +879,7 @@ static void update_tasks_cpumask(struct cpuset *cs)
 	struct css_task_iter it;
 	struct task_struct *task;
 
-	css_task_iter_start(&cs->css, &it);
+	css_task_iter_start(&cs->css, 0, &it);
 	while ((task = css_task_iter_next(&it)))
 		set_cpus_allowed_ptr(task, cs->effective_cpus);
 	css_task_iter_end(&it);
@@ -904,8 +913,7 @@ static void update_cpumasks_hier(struct cpuset *cs, struct cpumask *new_cpus)
 		 * If it becomes empty, inherit the effective mask of the
 		 * parent, which is guaranteed to have some CPUs.
 		 */
-		if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys) &&
-		    cpumask_empty(new_cpus))
+		if (is_in_v2_mode() && cpumask_empty(new_cpus))
 			cpumask_copy(new_cpus, parent->effective_cpus);
 
 		/* Skip the whole subtree if the cpumask remains the same. */
@@ -922,7 +930,7 @@ static void update_cpumasks_hier(struct cpuset *cs, struct cpumask *new_cpus)
 		cpumask_copy(cp->effective_cpus, new_cpus);
 		spin_unlock_irq(&callback_lock);
 
-		WARN_ON(!cgroup_subsys_on_dfl(cpuset_cgrp_subsys) &&
+		WARN_ON(!is_in_v2_mode() &&
 			!cpumask_equal(cp->cpus_allowed, cp->effective_cpus));
 
 		update_tasks_cpumask(cp);
@@ -1100,7 +1108,7 @@ static void update_tasks_nodemask(struct cpuset *cs)
 	 * It's ok if we rebind the same mm twice; mpol_rebind_mm()
 	 * is idempotent.  Also migrate pages in each mm to new nodes.
 	 */
-	css_task_iter_start(&cs->css, &it);
+	css_task_iter_start(&cs->css, 0, &it);
 	while ((task = css_task_iter_next(&it))) {
 		struct mm_struct *mm;
 		bool migrate;
@@ -1158,8 +1166,7 @@ static void update_nodemasks_hier(struct cpuset *cs, nodemask_t *new_mems)
 		 * If it becomes empty, inherit the effective mask of the
 		 * parent, which is guaranteed to have some MEMs.
 		 */
-		if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys) &&
-		    nodes_empty(*new_mems))
+		if (is_in_v2_mode() && nodes_empty(*new_mems))
 			*new_mems = parent->effective_mems;
 
 		/* Skip the whole subtree if the nodemask remains the same. */
@@ -1176,7 +1183,7 @@ static void update_nodemasks_hier(struct cpuset *cs, nodemask_t *new_mems)
 		cp->effective_mems = *new_mems;
 		spin_unlock_irq(&callback_lock);
 
-		WARN_ON(!cgroup_subsys_on_dfl(cpuset_cgrp_subsys) &&
+		WARN_ON(!is_in_v2_mode() &&
 			!nodes_equal(cp->mems_allowed, cp->effective_mems));
 
 		update_tasks_nodemask(cp);
@@ -1293,7 +1300,7 @@ static void update_tasks_flags(struct cpuset *cs)
 	struct css_task_iter it;
 	struct task_struct *task;
 
-	css_task_iter_start(&cs->css, &it);
+	css_task_iter_start(&cs->css, 0, &it);
 	while ((task = css_task_iter_next(&it)))
 		cpuset_update_task_spread_flag(cs, task);
 	css_task_iter_end(&it);
@@ -1468,7 +1475,7 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
 
 	/* allow moving tasks into an empty cpuset if on default hierarchy */
 	ret = -ENOSPC;
-	if (!cgroup_subsys_on_dfl(cpuset_cgrp_subsys) &&
+	if (!is_in_v2_mode() &&
 	    (cpumask_empty(cs->cpus_allowed) || nodes_empty(cs->mems_allowed)))
 		goto out_unlock;
 
@@ -1987,7 +1994,7 @@ static int cpuset_css_online(struct cgroup_subsys_state *css)
 	cpuset_inc();
 
 	spin_lock_irq(&callback_lock);
-	if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys)) {
+	if (is_in_v2_mode()) {
 		cpumask_copy(cs->effective_cpus, parent->effective_cpus);
 		cs->effective_mems = parent->effective_mems;
 	}
@@ -2064,7 +2071,7 @@ static void cpuset_bind(struct cgroup_subsys_state *root_css)
 	mutex_lock(&cpuset_mutex);
 	spin_lock_irq(&callback_lock);
 
-	if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys)) {
+	if (is_in_v2_mode()) {
 		cpumask_copy(top_cpuset.cpus_allowed, cpu_possible_mask);
 		top_cpuset.mems_allowed = node_possible_map;
 	} else {
@@ -2258,7 +2265,7 @@ retry:
 	cpus_updated = !cpumask_equal(&new_cpus, cs->effective_cpus);
 	mems_updated = !nodes_equal(new_mems, cs->effective_mems);
 
-	if (cgroup_subsys_on_dfl(cpuset_cgrp_subsys))
+	if (is_in_v2_mode())
 		hotplug_update_tasks(cs, &new_cpus, &new_mems,
 				     cpus_updated, mems_updated);
 	else
@@ -2289,7 +2296,7 @@ static void cpuset_hotplug_workfn(struct work_struct *work)
 	static cpumask_t new_cpus;
 	static nodemask_t new_mems;
 	bool cpus_updated, mems_updated;
-	bool on_dfl = cgroup_subsys_on_dfl(cpuset_cgrp_subsys);
+	bool on_dfl = is_in_v2_mode();
 
 	mutex_lock(&cpuset_mutex);
 
