@@ -565,8 +565,6 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			link->local_sink)
 		return true;
 
-	link_disconnect_sink(link);
-
 	if (new_connection_type != dc_connection_none) {
 		link->type = new_connection_type;
 
@@ -638,8 +636,8 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		if (link->dpcd_caps.sink_count.bits.SINK_COUNT)
 			link->dpcd_sink_count = link->dpcd_caps.sink_count.
 					bits.SINK_COUNT;
-			else
-				link->dpcd_sink_count = 1;
+		else
+			link->dpcd_sink_count = 1;
 
 		dal_ddc_service_set_transaction_type(
 						link->ddc,
@@ -651,16 +649,24 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		sink_init_data.link = link;
 		sink_init_data.sink_signal = sink_caps.signal;
 
-		sink = dc_sink_create(&sink_init_data);
-		if (!sink) {
-			DC_ERROR("Failed to create sink!\n");
-			return false;
+		if (link->local_sink)	{
+			sink = link->local_sink;
+		} else {
+			link_disconnect_sink(link);
+
+			sink_init_data.link = link;
+			sink_init_data.sink_signal = sink_caps.signal;
+
+			sink = dc_sink_create(&sink_init_data);
+			if (!sink) {
+				DC_ERROR("Failed to create sink!\n");
+				return false;
+			}
+			sink->dongle_max_pix_clk = sink_caps.max_hdmi_pixel_clock;
+			sink->converter_disable_audio = converter_disable_audio;
+
+			link->local_sink = sink;
 		}
-
-		sink->dongle_max_pix_clk = sink_caps.max_hdmi_pixel_clock;
-		sink->converter_disable_audio = converter_disable_audio;
-
-		link->local_sink = sink;
 
 		edid_status = dm_helpers_read_local_edid(
 				link->ctx,
@@ -752,8 +758,22 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 			memset(link->mst_stream_alloc_table.stream_allocations, 0, sizeof(link->mst_stream_alloc_table.stream_allocations));
 		}
 
-		link->type = dc_connection_none;
-		sink_caps.signal = SIGNAL_TYPE_NONE;
+		if (link->local_sink) {
+			sink = link->local_sink;
+			edid_status = dm_helpers_read_local_edid(
+						link->ctx,
+						link,
+						sink);
+			if (edid_status != EDID_OK) {
+				link_disconnect_sink(link);
+				link->type = dc_connection_none;
+				sink_caps.signal = SIGNAL_TYPE_NONE;
+			}
+		} else {
+			link_disconnect_sink(link);
+			link->type = dc_connection_none;
+			sink_caps.signal = SIGNAL_TYPE_NONE;
+		}
 	}
 
 	LINK_INFO("link=%d, dc_sink_in=%p is now %s\n",
