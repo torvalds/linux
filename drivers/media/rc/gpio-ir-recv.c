@@ -161,10 +161,9 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, gpio_dev);
 
-	rc = request_any_context_irq(gpio_to_irq(pdata->gpio_nr),
-				gpio_ir_recv_irq,
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-					"gpio-ir-recv-irq", gpio_dev);
+	rc = request_irq(gpio_to_irq(pdata->gpio_nr), gpio_ir_recv_irq,
+			 IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+			 "gpio-ir-recv-irq", gpio_dev);
 	if (rc < 0)
 		goto err_request_irq;
 
