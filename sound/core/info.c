@@ -446,12 +446,23 @@ static const struct file_operations snd_info_text_entry_ops =
 	.read =			seq_read,
 };
 
-static struct snd_info_entry *create_subdir(struct module *mod,
-					    const char *name)
+/*
+ * snd_info_create_subdir - create and register a subdir for a given parent
+ * @mod: the module pointer
+ * @name: the module name
+ * @parent: the parent directory
+ *
+ * Creates and registers new subdir entry inside a given parent.
+ *
+ * Return: The pointer of the new instance, or NULL on failure.
+ */
+struct snd_info_entry *snd_info_create_subdir(struct module *mod,
+					      const char *name,
+					      struct snd_info_entry *parent)
 {
 	struct snd_info_entry *entry;
 
-	entry = snd_info_create_module_entry(mod, name, NULL);
+	entry = snd_info_create_module_entry(mod, name, parent);
 	if (!entry)
 		return NULL;
 	entry->mode = S_IFDIR | 0555;
@@ -461,6 +472,7 @@ static struct snd_info_entry *create_subdir(struct module *mod,
 	}
 	return entry;
 }
+EXPORT_SYMBOL(snd_info_create_subdir);
 
 static struct snd_info_entry *
 snd_info_create_entry(const char *name, struct snd_info_entry *parent);
@@ -475,12 +487,12 @@ int __init snd_info_init(void)
 	if (!snd_proc_root->p)
 		goto error;
 #ifdef CONFIG_SND_OSSEMUL
-	snd_oss_root = create_subdir(THIS_MODULE, "oss");
+	snd_oss_root = snd_info_create_subdir(THIS_MODULE, "oss", NULL);
 	if (!snd_oss_root)
 		goto error;
 #endif
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
-	snd_seq_root = create_subdir(THIS_MODULE, "seq");
+	snd_seq_root = snd_info_create_subdir(THIS_MODULE, "seq", NULL);
 	if (!snd_seq_root)
 		goto error;
 #endif
@@ -516,7 +528,7 @@ int snd_info_card_create(struct snd_card *card)
 		return -ENXIO;
 
 	sprintf(str, "card%i", card->number);
-	entry = create_subdir(card->module, str);
+	entry = snd_info_create_subdir(card->module, str, NULL);
 	if (!entry)
 		return -ENOMEM;
 	card->proc_root = entry;
@@ -618,7 +630,6 @@ int snd_info_card_free(struct snd_card *card)
 	card->proc_root = NULL;
 	return 0;
 }
-
 
 /**
  * snd_info_get_line - read one line from the procfs buffer
