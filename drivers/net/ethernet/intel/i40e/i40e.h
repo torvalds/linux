@@ -424,7 +424,7 @@ struct i40e_pf {
 #define I40E_HW_PORT_ID_VALID			BIT(17)
 #define I40E_HW_RESTART_AUTONEG			BIT(18)
 
-	u64 flags;
+	u32 flags;
 #define I40E_FLAG_RX_CSUM_ENABLED		BIT(0)
 #define I40E_FLAG_MSI_ENABLED			BIT(1)
 #define I40E_FLAG_MSIX_ENABLED			BIT(2)
