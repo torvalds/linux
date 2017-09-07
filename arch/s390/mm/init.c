@@ -137,6 +137,8 @@ void __init mem_init(void)
 	free_all_bootmem();
 	setup_zero_pages();	/* Setup zeroed pages. */
 
+	cmma_init_nodat();
+
 	mem_init_print_info(NULL);
 }
 

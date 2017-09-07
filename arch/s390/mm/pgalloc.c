@@ -57,6 +57,7 @@ unsigned long *crst_table_alloc(struct mm_struct *mm)
 
 	if (!page)
 		return NULL;
+	arch_set_page_dat(page, 2);
 	return (unsigned long *) page_to_phys(page);
 }
 
@@ -214,6 +215,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 		__free_page(page);
 		return NULL;
 	}
+	arch_set_page_dat(page, 0);
 	/* Initialize page table */
 	table = (unsigned long *) page_to_phys(page);
 	if (mm_alloc_pgste(mm)) {
