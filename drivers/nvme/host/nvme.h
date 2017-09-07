@@ -21,10 +21,10 @@
 #include <linux/lightnvm.h>
 #include <linux/sed-opal.h>
 
-extern unsigned char nvme_io_timeout;
+extern unsigned int nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
-extern unsigned char admin_timeout;
+extern unsigned int admin_timeout;
 #define ADMIN_TIMEOUT	(admin_timeout * HZ)
 
 #define NVME_DEFAULT_KATO	5
