@@ -711,6 +711,15 @@ bool i40evf_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 	union i40e_rx_desc *rx_desc;
 	struct i40e_rx_buffer *bi;
 
+	/* Hardware only fetches new descriptors in cache lines of 8,
+	 * essentially ignoring the lower 3 bits of the tail register. We want
+	 * to ensure our tail writes are aligned to avoid unnecessary work. We
+	 * can't simply round down the cleaned count, since we might fail to
+	 * allocate some buffers. What we really want is to ensure that
+	 * next_to_used + cleaned_count produces an aligned value.
+	 */
+	cleaned_count -= (ntu + cleaned_count) & 0x7;
+
 	/* do nothing if no valid netdev defined */
 	if (!rx_ring->netdev || !cleaned_count)
 		return false;
