@@ -22,13 +22,6 @@
 #include "etnaviv_iommu.h"
 #include "etnaviv_mmu.h"
 
-static int etnaviv_fault_handler(struct iommu_domain *iommu, struct device *dev,
-		unsigned long iova, int flags, void *arg)
-{
-	DBG("*** fault: iova=%08lx, flags=%d", iova, flags);
-	return 0;
-}
-
 int etnaviv_iommu_map(struct etnaviv_iommu *iommu, u32 iova,
 		struct sg_table *sgt, unsigned len, int prot)
 {
@@ -306,8 +299,6 @@ struct etnaviv_iommu *etnaviv_iommu_new(struct etnaviv_gpu *gpu)
 	drm_mm_init(&mmu->mm, mmu->domain->geometry.aperture_start,
 		    mmu->domain->geometry.aperture_end -
 		    mmu->domain->geometry.aperture_start + 1);
-
-	iommu_set_fault_handler(mmu->domain, etnaviv_fault_handler, gpu->dev);
 
 	return mmu;
 }
