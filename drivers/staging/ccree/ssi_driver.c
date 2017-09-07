@@ -279,8 +279,6 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 	SSI_LOG_DEBUG("Registered to IRQ: %d\n", new_drvdata->irq);
 
-	init_completion(&new_drvdata->icache_setup_completion);
-
 	rc = cc_clk_on(new_drvdata);
 	if (rc)
 		goto post_drvdata_err;

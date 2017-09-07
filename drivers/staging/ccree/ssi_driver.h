@@ -138,7 +138,6 @@ struct ssi_drvdata {
 	u32 monitor_null_cycles;
 	struct platform_device *plat_dev;
 	ssi_sram_addr_t mlli_sram_addr;
-	struct completion icache_setup_completion;
 	void *buff_mgr_handle;
 	void *hash_handle;
 	void *aead_handle;
