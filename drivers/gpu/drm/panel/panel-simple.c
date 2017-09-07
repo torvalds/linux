@@ -895,6 +895,36 @@ static const struct panel_desc avic_tm070ddh03 = {
 	},
 };
 
+static const struct drm_display_mode boe_mv238qum_n20_mode = {
+	.clock = 559440,
+	.hdisplay = 3840,
+	.hsync_start = 3840 + 150,
+	.hsync_end = 3840 + 150 + 60,
+	.htotal = 3840 + 150 + 60 + 150,
+	.vdisplay = 2160,
+	.vsync_start = 2160 + 24,
+	.vsync_end = 2160 + 24 + 12,
+	.vtotal = 2160 + 24 + 12 + 24,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc boe_mv238qum_n20 = {
+	.modes = &boe_mv238qum_n20_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 527,
+		.height = 296,
+	},
+	.delay = {
+		.prepare = 20,
+		.enable = 20,
+		.unprepare = 20,
+		.disable = 20,
+	},
+};
+
 static const struct drm_display_mode boe_nv125fhm_n73_mode = {
 	.clock = 72300,
 	.hdisplay = 1366,
@@ -1692,6 +1722,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "avic,tm070ddh03",
 		.data = &avic_tm070ddh03,
+	}, {
+		.compatible = "boe,mv238qum-n20",
+		.data = &boe_mv238qum_n20,
 	}, {
 		.compatible = "boe,nv125fhm-n73",
 		.data = &boe_nv125fhm_n73,
