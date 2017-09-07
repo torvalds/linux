@@ -1100,12 +1100,16 @@ int sprd_pinctrl_remove(struct platform_device *pdev)
 
 void sprd_pinctrl_shutdown(struct platform_device *pdev)
 {
-	struct pinctrl *pinctl = devm_pinctrl_get(&pdev->dev);
+	struct pinctrl *pinctl;
 	struct pinctrl_state *state;
 
+	pinctl = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR(pinctl))
+		return;
 	state = pinctrl_lookup_state(pinctl, "shutdown");
-	if (!IS_ERR(state))
-		pinctrl_select_state(pinctl, state);
+	if (IS_ERR(state))
+		return;
+	pinctrl_select_state(pinctl, state);
 }
 
 MODULE_DESCRIPTION("SPREADTRUM Pin Controller Driver");
