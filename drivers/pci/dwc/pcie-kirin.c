@@ -430,9 +430,11 @@ static int kirin_pcie_establish_link(struct pcie_port *pp)
 	return 0;
 }
 
-static void kirin_pcie_host_init(struct pcie_port *pp)
+static int kirin_pcie_host_init(struct pcie_port *pp)
 {
 	kirin_pcie_establish_link(pp);
+
+	return 0;
 }
 
 static struct dw_pcie_ops kirin_dw_pcie_ops = {

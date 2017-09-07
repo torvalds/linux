@@ -581,13 +581,15 @@ static int exynos_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static void exynos_pcie_host_init(struct pcie_port *pp)
+static int exynos_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *ep = to_exynos_pcie(pci);
 
 	exynos_pcie_establish_link(ep);
 	exynos_pcie_enable_interrupts(ep);
+
+	return 0;
 }
 
 static const struct dw_pcie_host_ops exynos_pcie_host_ops = {

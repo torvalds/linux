@@ -195,7 +195,7 @@ static void dra7xx_pcie_enable_interrupts(struct dra7xx_pcie *dra7xx)
 	dra7xx_pcie_enable_msi_interrupts(dra7xx);
 }
 
-static void dra7xx_pcie_host_init(struct pcie_port *pp)
+static int dra7xx_pcie_host_init(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
@@ -206,6 +206,8 @@ static void dra7xx_pcie_host_init(struct pcie_port *pp)
 	dw_pcie_wait_for_link(pci);
 	dw_pcie_msi_init(pp);
 	dra7xx_pcie_enable_interrupts(dra7xx);
+
+	return 0;
 }
 
 static const struct dw_pcie_host_ops dra7xx_pcie_host_ops = {
