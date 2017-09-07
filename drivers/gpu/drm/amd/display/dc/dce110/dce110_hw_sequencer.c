@@ -2554,6 +2554,15 @@ static void dce110_program_front_end_for_pipe(
 
 	program_scaler(dc, pipe_ctx);
 
+#ifdef ENABLE_FBC
+	if (dc->fbc_compressor && old_pipe->stream) {
+		if (plane_state->tiling_info.gfx8.array_mode == DC_ARRAY_LINEAR_GENERAL)
+			dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
+		else
+			enable_fbc(dc, dc->current_state);
+	}
+#endif
+
 	mi->funcs->mem_input_program_surface_config(
 			mi,
 			plane_state->format,
