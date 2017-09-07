@@ -268,7 +268,6 @@ struct bmc_device {
 	struct list_head       intfs;
 	unsigned char          guid[16];
 	int                    guid_set;
-	char                   name[16];
 	struct kref	       usecount;
 };
 #define to_bmc_device(x) container_of((x), struct bmc_device, pdev.dev)
@@ -2591,6 +2590,8 @@ static struct bmc_device *ipmi_find_bmc_prod_dev_id(
 	return bmc;
 }
 
+static DEFINE_IDA(ipmi_bmc_ida);
+
 static void
 release_bmc_device(struct device *dev)
 {
@@ -2601,8 +2602,10 @@ static void
 cleanup_bmc_device(struct kref *ref)
 {
 	struct bmc_device *bmc = container_of(ref, struct bmc_device, usecount);
+	int id = bmc->pdev.id; /* Unregister overwrites id */
 
 	platform_device_unregister(&bmc->pdev);
+	ida_simple_remove(&ipmi_bmc_ida, id);
 }
 
 static void ipmi_bmc_unregister(ipmi_smi_t intf)
@@ -2663,47 +2666,19 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
 		       bmc->id.product_id,
 		       bmc->id.device_id);
 	} else {
-		unsigned char orig_dev_id = bmc->id.device_id;
-		int warn_printed = 0;
-		struct bmc_device *tmp_bmc;
+		bmc->pdev.name = "ipmi_bmc";
 
-		snprintf(bmc->name, sizeof(bmc->name),
-			 "ipmi_bmc.%4.4x", bmc->id.product_id);
-		bmc->pdev.name = bmc->name;
-
-		mutex_lock(&ipmidriver_mutex);
-		while ((tmp_bmc = ipmi_find_bmc_prod_dev_id(&ipmidriver.driver,
-						 bmc->id.product_id,
-						 bmc->id.device_id))) {
-			kref_put(&tmp_bmc->usecount, cleanup_bmc_device);
-			if (!warn_printed) {
-				printk(KERN_WARNING PFX
-				       "This machine has two different BMCs"
-				       " with the same product id and device"
-				       " id.  This is an error in the"
-				       " firmware, but incrementing the"
-				       " device id to work around the problem."
-				       " Prod ID = 0x%x, Dev ID = 0x%x\n",
-				       bmc->id.product_id, bmc->id.device_id);
-				warn_printed = 1;
-			}
-			bmc->id.device_id++; /* Wraps at 255 */
-			if (bmc->id.device_id == orig_dev_id) {
-				printk(KERN_ERR PFX
-				       "Out of device ids!\n");
-				mutex_unlock(&ipmidriver_mutex);
-				rv = -EAGAIN;
-				goto out;
-			}
-		}
-
+		rv = ida_simple_get(&ipmi_bmc_ida, 0, 0, GFP_KERNEL);
+		if (rv < 0)
+			goto out;
 		bmc->pdev.dev.driver = &ipmidriver.driver;
-		bmc->pdev.id = bmc->id.device_id;
+		bmc->pdev.id = rv;
 		bmc->pdev.dev.release = release_bmc_device;
 		bmc->pdev.dev.type = &bmc_device_type;
 		kref_init(&bmc->usecount);
 
 		rv = platform_device_register(&bmc->pdev);
+		mutex_lock(&ipmidriver_mutex);
 		list_add_tail(&intf->bmc_link, &bmc->intfs);
 		mutex_unlock(&ipmidriver_mutex);
 		if (rv) {
