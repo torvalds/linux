@@ -157,6 +157,8 @@ enum i40e_state_t {
 	__I40E_STATE_SIZE__,
 };
 
+#define I40E_PF_RESET_FLAG	BIT_ULL(__I40E_PF_RESET_REQUESTED)
+
 /* VSI state flags */
 enum i40e_vsi_state_t {
 	__I40E_VSI_DOWN,
