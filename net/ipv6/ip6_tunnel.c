@@ -1184,6 +1184,7 @@ route_lookup:
 		init_tel_txopt(&opt, encap_limit);
 		ipv6_push_frag_opts(skb, &opt.ops, &proto);
 	}
+	hop_limit = hop_limit ? : ip6_dst_hoplimit(dst);
 
 	/* Calculate max headroom for all the headers and adjust
 	 * needed_headroom if necessary.
