@@ -3293,8 +3293,7 @@ static void pnv_pci_ioda_fixup(void)
 	pnv_pci_ioda_create_dbgfs();
 
 #ifdef CONFIG_EEH
-	eeh_init();
-	eeh_addr_cache_build();
+	pnv_eeh_post_init();
 #endif
 }
 
