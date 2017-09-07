@@ -38,7 +38,7 @@ static inline void set_service_data(struct pcie_device *dev, void *data)
 	dev->priv_data = data;
 }
 
-static inline void* get_service_data(struct pcie_device *dev)
+static inline void *get_service_data(struct pcie_device *dev)
 {
 	return dev->priv_data;
 }

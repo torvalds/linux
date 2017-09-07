@@ -2111,7 +2111,7 @@ static inline u16 pci_vpd_lrdt_tag(const u8 *lrdt)
 
 /**
  * pci_vpd_srdt_size - Extracts the Small Resource Data Type length
- * @lrdt: Pointer to the beginning of the Small Resource Data Type tag
+ * @srdt: Pointer to the beginning of the Small Resource Data Type tag
  *
  * Returns the extracted Small Resource Data Type length.
  */
@@ -2122,7 +2122,7 @@ static inline u8 pci_vpd_srdt_size(const u8 *srdt)
 
 /**
  * pci_vpd_srdt_tag - Extracts the Small Resource Data Type Tag Item
- * @lrdt: Pointer to the beginning of the Small Resource Data Type tag
+ * @srdt: Pointer to the beginning of the Small Resource Data Type tag
  *
  * Returns the extracted Small Resource Data Type Tag Item.
  */

@@ -21,7 +21,7 @@
 	Value type: <stringlist>
 	Definition: Must include the following entries
 			- "parf"   Qualcomm specific registers
-			- "dbi"	   Designware PCIe registers
+			- "dbi"	   DesignWare PCIe registers
 			- "elbi"   External local bus interface registers
 			- "config" PCIe configuration space
 
@@ -203,7 +203,7 @@
 - <name>-gpios:
 	Usage: optional
 	Value type: <prop-encoded-array>
-	Definition: List of phandle and gpio specifier pairs. Should contain
+	Definition: List of phandle and GPIO specifier pairs. Should contain
 			- "perst-gpios"	PCIe endpoint reset signal line
 			- "wake-gpios"	PCIe endpoint wake signal line
 
