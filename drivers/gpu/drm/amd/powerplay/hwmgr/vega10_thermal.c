@@ -173,14 +173,13 @@ int vega10_fan_ctrl_set_default_mode(struct pp_hwmgr *hwmgr)
 
 	if (!hwmgr->fan_ctrl_is_in_default_mode) {
 		cgs_write_register(hwmgr->device, reg,
-				(cgs_read_register(hwmgr->device, reg) &
-				~CG_FDO_CTRL2__FDO_PWM_MODE_MASK) |
-				(hwmgr->fan_ctrl_default_mode <<
-				CG_FDO_CTRL2__FDO_PWM_MODE__SHIFT));
+			CGS_REG_SET_FIELD(cgs_read_register(hwmgr->device, reg),
+				CG_FDO_CTRL2, FDO_PWM_MODE,
+				hwmgr->fan_ctrl_default_mode));
 		cgs_write_register(hwmgr->device, reg,
-				(cgs_read_register(hwmgr->device, reg) &
-				~CG_FDO_CTRL2__TMIN_MASK) |
-				(hwmgr->tmin << CG_FDO_CTRL2__TMIN__SHIFT));
+			CGS_REG_SET_FIELD(cgs_read_register(hwmgr->device, reg),
+				CG_FDO_CTRL2, TMIN,
+				hwmgr->tmin << CG_FDO_CTRL2__TMIN__SHIFT));
 		hwmgr->fan_ctrl_is_in_default_mode = true;
 	}
 
