@@ -109,7 +109,8 @@ int ssi_power_mgr_runtime_put_suspend(struct device *dev)
 		rc = pm_runtime_put_autosuspend(dev);
 	} else {
 		/* Something wrong happens*/
-		BUG();
+		SSI_LOG_ERR("request to suspend already suspended queue");
+		rc = -EBUSY;
 	}
 	return rc;
 }

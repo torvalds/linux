@@ -541,7 +541,6 @@ ssi_blkcipher_create_setup_desc(
 		break;
 	default:
 		SSI_LOG_ERR("Unsupported cipher mode (%d)\n", cipher_mode);
-		BUG();
 	}
 }
 

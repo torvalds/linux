@@ -81,11 +81,6 @@ static unsigned int ssi_buffer_mgr_get_sgl_nents(
 	unsigned int nents = 0;
 
 	while (nbytes != 0) {
-		if (sg_is_chain(sg_list)) {
-			SSI_LOG_ERR("Unexpected chained entry "
-				   "in sg (entry =0x%X)\n", nents);
-			BUG();
-		}
 		if (sg_list->length != 0) {
 			nents++;
 			/* get the number of bytes in the last entry */
@@ -854,7 +849,7 @@ static inline int ssi_buffer_mgr_aead_chain_assoc(
 			//if have reached the end of the sgl, then this is unexpected
 			if (!current_sg) {
 				SSI_LOG_ERR("reached end of sg list. unexpected\n");
-				BUG();
+				return -EINVAL;
 			}
 			sg_index += current_sg->length;
 			mapped_nents++;
@@ -1134,10 +1129,9 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 
 	offset = size_to_skip;
 
-	if (!sg_data) {
-		rc = -EINVAL;
-		goto chain_data_exit;
-	}
+	if (!sg_data)
+		return -EINVAL;
+
 	areq_ctx->src_sgl = req->src;
 	areq_ctx->dst_sgl = req->dst;
 
@@ -1154,7 +1148,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 		//if have reached the end of the sgl, then this is unexpected
 		if (!areq_ctx->src_sgl) {
 			SSI_LOG_ERR("reached end of sg list. unexpected\n");
-			BUG();
+			return -EINVAL;
 		}
 		sg_index += areq_ctx->src_sgl->length;
 		src_mapped_nents--;
@@ -1198,7 +1192,7 @@ static inline int ssi_buffer_mgr_aead_chain_data(
 		//if have reached the end of the sgl, then this is unexpected
 		if (!areq_ctx->dst_sgl) {
 			SSI_LOG_ERR("reached end of sg list. unexpected\n");
-			BUG();
+			return -EINVAL;
 		}
 		sg_index += areq_ctx->dst_sgl->length;
 		dst_mapped_nents--;
