@@ -2720,6 +2720,7 @@ int ssi_aead_alloc(struct ssi_drvdata *drvdata)
 		goto fail0;
 	}
 
+	INIT_LIST_HEAD(&aead_handle->aead_list);
 	drvdata->aead_handle = aead_handle;
 
 	aead_handle->sram_workspace_addr = ssi_sram_mgr_alloc(
@@ -2729,8 +2730,6 @@ int ssi_aead_alloc(struct ssi_drvdata *drvdata)
 		rc = -ENOMEM;
 		goto fail1;
 	}
-
-	INIT_LIST_HEAD(&aead_handle->aead_list);
 
 	/* Linux crypto */
 	for (alg = 0; alg < ARRAY_SIZE(aead_algs); alg++) {

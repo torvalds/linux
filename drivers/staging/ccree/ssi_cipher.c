@@ -1312,9 +1312,8 @@ int ssi_ablkcipher_alloc(struct ssi_drvdata *drvdata)
 	if (!ablkcipher_handle)
 		return -ENOMEM;
 
-	drvdata->blkcipher_handle = ablkcipher_handle;
-
 	INIT_LIST_HEAD(&ablkcipher_handle->blkcipher_alg_list);
+	drvdata->blkcipher_handle = ablkcipher_handle;
 
 	/* Linux crypto */
 	SSI_LOG_DEBUG("Number of algorithms = %zu\n", ARRAY_SIZE(blkcipher_algs));

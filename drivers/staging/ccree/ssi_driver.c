@@ -233,16 +233,14 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	if (!new_drvdata) {
 		SSI_LOG_ERR("Failed to allocate drvdata");
 		rc = -ENOMEM;
-		goto init_cc_res_err;
+		goto post_drvdata_err;
 	}
+	dev_set_drvdata(&plat_dev->dev, new_drvdata);
+	new_drvdata->plat_dev = plat_dev;
 
 	new_drvdata->clk = of_clk_get(np, 0);
 	new_drvdata->coherent = of_dma_is_coherent(np);
 
-	/*Initialize inflight counter used in dx_ablkcipher_secure_complete used for count of BYSPASS blocks operations*/
-	new_drvdata->inflight_counter = 0;
-
-	dev_set_drvdata(&plat_dev->dev, new_drvdata);
 	/* Get device resources */
 	/* First CC registers space */
 	req_mem_cc_regs = platform_get_resource(plat_dev, IORESOURCE_MEM, 0);
@@ -250,38 +248,42 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	new_drvdata->cc_base = devm_ioremap_resource(&plat_dev->dev,
 						     req_mem_cc_regs);
 	if (IS_ERR(new_drvdata->cc_base)) {
+		SSI_LOG_ERR("Failed to ioremap registers");
 		rc = PTR_ERR(new_drvdata->cc_base);
-		goto init_cc_res_err;
+		goto post_drvdata_err;
 	}
+
 	SSI_LOG_DEBUG("Got MEM resource (%s): start=%pad end=%pad\n",
 		      req_mem_cc_regs->name,
 		      req_mem_cc_regs->start,
 		      req_mem_cc_regs->end);
 	SSI_LOG_DEBUG("CC registers mapped from %pa to 0x%p\n",
 		      &req_mem_cc_regs->start, new_drvdata->cc_base);
+
 	cc_base = new_drvdata->cc_base;
+
 	/* Then IRQ */
 	new_drvdata->irq = platform_get_irq(plat_dev, 0);
 	if (new_drvdata->irq < 0) {
 		SSI_LOG_ERR("Failed getting IRQ resource\n");
 		rc = new_drvdata->irq;
-		goto init_cc_res_err;
+		goto post_drvdata_err;
 	}
+
 	rc = devm_request_irq(&plat_dev->dev, new_drvdata->irq, cc_isr,
 			      IRQF_SHARED, "arm_cc7x", new_drvdata);
 	if (rc) {
 		SSI_LOG_ERR("Could not register to interrupt %d\n",
 			    new_drvdata->irq);
-		goto init_cc_res_err;
+		goto post_drvdata_err;
 	}
-	init_completion(&new_drvdata->icache_setup_completion);
-
 	SSI_LOG_DEBUG("Registered to IRQ: %d\n", new_drvdata->irq);
-	new_drvdata->plat_dev = plat_dev;
+
+	init_completion(&new_drvdata->icache_setup_completion);
 
 	rc = cc_clk_on(new_drvdata);
 	if (rc)
-		goto init_cc_res_err;
+		goto post_drvdata_err;
 
 	if (!new_drvdata->plat_dev->dev.dma_mask)
 		new_drvdata->plat_dev->dev.dma_mask = &new_drvdata->plat_dev->dev.coherent_dma_mask;
@@ -295,7 +297,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		SSI_LOG_ERR("Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
 			    signature_val, (u32)DX_DEV_SIGNATURE);
 		rc = -EINVAL;
-		goto init_cc_res_err;
+		goto post_clk_err;
 	}
 	SSI_LOG_DEBUG("CC SIGNATURE=0x%08X\n", signature_val);
 
@@ -306,21 +308,26 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	rc = init_cc_regs(new_drvdata, true);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("init_cc_regs failed\n");
-		goto init_cc_res_err;
+		goto post_clk_err;
 	}
 
 #ifdef ENABLE_CC_SYSFS
 	rc = ssi_sysfs_init(&plat_dev->dev.kobj, new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("init_stat_db failed\n");
-		goto init_cc_res_err;
+		goto post_regs_err;
 	}
 #endif
 
+	rc = ssi_fips_init(new_drvdata);
+	if (unlikely(rc != 0)) {
+		SSI_LOG_ERR("SSI_FIPS_INIT failed 0x%x\n", rc);
+		goto post_sysfs_err;
+	}
 	rc = ssi_sram_mgr_init(new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("ssi_sram_mgr_init failed\n");
-		goto init_cc_res_err;
+		goto post_fips_init_err;
 	}
 
 	new_drvdata->mlli_sram_addr =
@@ -328,57 +335,51 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	if (unlikely(new_drvdata->mlli_sram_addr == NULL_SRAM_ADDR)) {
 		SSI_LOG_ERR("Failed to alloc MLLI Sram buffer\n");
 		rc = -ENOMEM;
-		goto init_cc_res_err;
+		goto post_sram_mgr_err;
 	}
 
 	rc = request_mgr_init(new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("request_mgr_init failed\n");
-		goto init_cc_res_err;
+		goto post_sram_mgr_err;
 	}
 
 	rc = ssi_buffer_mgr_init(new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("buffer_mgr_init failed\n");
-		goto init_cc_res_err;
+		goto post_req_mgr_err;
 	}
 
 	rc = ssi_power_mgr_init(new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("ssi_power_mgr_init failed\n");
-		goto init_cc_res_err;
-	}
-
-	rc = ssi_fips_init(new_drvdata);
-	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("SSI_FIPS_INIT failed 0x%x\n", rc);
-		goto init_cc_res_err;
+		goto post_buf_mgr_err;
 	}
 
 	rc = ssi_ivgen_init(new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("ssi_ivgen_init failed\n");
-		goto init_cc_res_err;
+		goto post_power_mgr_err;
 	}
 
 	/* Allocate crypto algs */
 	rc = ssi_ablkcipher_alloc(new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("ssi_ablkcipher_alloc failed\n");
-		goto init_cc_res_err;
+		goto post_ivgen_err;
 	}
 
 	/* hash must be allocated before aead since hash exports APIs */
 	rc = ssi_hash_alloc(new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("ssi_hash_alloc failed\n");
-		goto init_cc_res_err;
+		goto post_cipher_err;
 	}
 
 	rc = ssi_aead_alloc(new_drvdata);
 	if (unlikely(rc != 0)) {
 		SSI_LOG_ERR("ssi_aead_alloc failed\n");
-		goto init_cc_res_err;
+		goto post_hash_err;
 	}
 
 	/* If we got here and FIPS mode is enabled
@@ -389,24 +390,33 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	return 0;
 
-init_cc_res_err:
-	SSI_LOG_ERR("Freeing CC HW resources!\n");
-
-	if (new_drvdata) {
-		ssi_aead_free(new_drvdata);
-		ssi_hash_free(new_drvdata);
-		ssi_ablkcipher_free(new_drvdata);
-		ssi_ivgen_fini(new_drvdata);
-		ssi_power_mgr_fini(new_drvdata);
-		ssi_buffer_mgr_fini(new_drvdata);
-		request_mgr_fini(new_drvdata);
-		ssi_sram_mgr_fini(new_drvdata);
-		ssi_fips_fini(new_drvdata);
+post_hash_err:
+	ssi_hash_free(new_drvdata);
+post_cipher_err:
+	ssi_ablkcipher_free(new_drvdata);
+post_ivgen_err:
+	ssi_ivgen_fini(new_drvdata);
+post_power_mgr_err:
+	ssi_power_mgr_fini(new_drvdata);
+post_buf_mgr_err:
+	 ssi_buffer_mgr_fini(new_drvdata);
+post_req_mgr_err:
+	request_mgr_fini(new_drvdata);
+post_sram_mgr_err:
+	ssi_sram_mgr_fini(new_drvdata);
+post_fips_init_err:
+	ssi_fips_fini(new_drvdata);
+post_sysfs_err:
 #ifdef ENABLE_CC_SYSFS
-		ssi_sysfs_fini();
+	ssi_sysfs_fini();
 #endif
-		dev_set_drvdata(&plat_dev->dev, NULL);
-	}
+post_regs_err:
+	fini_cc_regs(new_drvdata);
+post_clk_err:
+	cc_clk_off(new_drvdata);
+post_drvdata_err:
+	SSI_LOG_ERR("ccree init error occurred!\n");
+	dev_set_drvdata(&plat_dev->dev, NULL);
 	return rc;
 }
 
