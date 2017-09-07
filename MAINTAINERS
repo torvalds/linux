@@ -6494,6 +6494,15 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/ibm/ibmvnic.*
 
+IBM Power Virtual Accelerator Switchboard
+M:	Sukadev Bhattiprolu
+L:	linuxppc-dev@lists.ozlabs.org
+S:	Supported
+F:	arch/powerpc/platforms/powernv/vas*
+F:	arch/powerpc/platforms/powernv/copy-paste.h
+F:	arch/powerpc/include/asm/vas.h
+F:	arch/powerpc/include/uapi/asm/vas.h
+
 IBM Power Virtual Ethernet Device Driver
 M:	Thomas Falcon <tlfalcon@linux.vnet.ibm.com>
 L:	netdev@vger.kernel.org
@@ -7830,6 +7839,7 @@ F:	drivers/pci/hotplug/rpa*
 F:	drivers/rtc/rtc-opal.c
 F:	drivers/scsi/ibmvscsi/
 F:	drivers/tty/hvc/hvc_opal.c
+F:	drivers/watchdog/wdrtas.c
 F:	tools/testing/selftests/powerpc
 N:	/pmac
 N:	powermac

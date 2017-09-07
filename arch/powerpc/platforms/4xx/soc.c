@@ -90,7 +90,7 @@ static int __init ppc4xx_l2c_probe(void)
 	/* Get l2 cache size */
 	prop = of_get_property(np, "cache-size", NULL);
 	if (prop == NULL) {
-		printk(KERN_ERR "%s: Can't get cache-size!\n", np->full_name);
+		printk(KERN_ERR "%pOF: Can't get cache-size!\n", np);
 		of_node_put(np);
 		return -ENODEV;
 	}
@@ -99,8 +99,7 @@ static int __init ppc4xx_l2c_probe(void)
 	/* Map DCRs */
 	dcrreg = of_get_property(np, "dcr-reg", &len);
 	if (!dcrreg || (len != 4 * sizeof(u32))) {
-		printk(KERN_ERR "%s: Can't get DCR register base !",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't get DCR register base !", np);
 		of_node_put(np);
 		return -ENODEV;
 	}

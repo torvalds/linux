@@ -369,19 +369,19 @@ mpc52xx_add_bridge(struct device_node *node)
 	const int *bus_range;
 	struct resource rsrc;
 
-	pr_debug("Adding MPC52xx PCI host bridge %s\n", node->full_name);
+	pr_debug("Adding MPC52xx PCI host bridge %pOF\n", node);
 
 	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
 	if (of_address_to_resource(node, 0, &rsrc) != 0) {
-		printk(KERN_ERR "Can't get %s resources\n", node->full_name);
+		printk(KERN_ERR "Can't get %pOF resources\n", node);
 		return -EINVAL;
 	}
 
 	bus_range = of_get_property(node, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
-		printk(KERN_WARNING "Can't get %s bus-range, assume bus 0\n",
-		       node->full_name);
+		printk(KERN_WARNING "Can't get %pOF bus-range, assume bus 0\n",
+		       node);
 		bus_range = NULL;
 	}
 

@@ -356,7 +356,7 @@ struct page *realmode_pfn_to_page(unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
 
-#elif defined(CONFIG_FLATMEM)
+#else
 
 struct page *realmode_pfn_to_page(unsigned long pfn)
 {
@@ -365,7 +365,7 @@ struct page *realmode_pfn_to_page(unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
 
-#endif /* CONFIG_SPARSEMEM_VMEMMAP/CONFIG_FLATMEM */
+#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
 #ifdef CONFIG_PPC_STD_MMU_64
 static bool disable_radix;
@@ -381,7 +381,7 @@ early_param("disable_radix", parse_disable_radix);
  * /chosen/ibm,architecture-vec-5 to see if the hypervisor is willing to do
  * radix.  If not, we clear the radix feature bit so we fall back to hash.
  */
-static void early_check_vec5(void)
+static void __init early_check_vec5(void)
 {
 	unsigned long root, chosen;
 	int size;

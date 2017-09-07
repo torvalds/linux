@@ -46,7 +46,7 @@ extern void dlpar_free_cc_nodes(struct device_node *);
 extern void dlpar_free_cc_property(struct property *);
 extern struct device_node *dlpar_configure_connector(__be32,
 						struct device_node *);
-extern int dlpar_attach_node(struct device_node *);
+extern int dlpar_attach_node(struct device_node *, struct device_node *);
 extern int dlpar_detach_node(struct device_node *);
 extern int dlpar_acquire_drc(u32 drc_index);
 extern int dlpar_release_drc(u32 drc_index);

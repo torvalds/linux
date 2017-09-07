@@ -388,7 +388,7 @@ DataAccess:
 	EXCEPTION_PROLOG
 	mfspr	r10,SPRN_DSISR
 	stw	r10,_DSISR(r11)
-	andis.	r0,r10,0xa470		/* weird error? */
+	andis.	r0,r10,DSISR_BAD_FAULT_32S@h
 	bne	1f			/* if not, try to put a PTE */
 	mfspr	r4,SPRN_DAR		/* into the hash table */
 	rlwinm	r3,r10,32-15,21,21	/* DSISR_STORE -> _PAGE_RW */
@@ -403,13 +403,13 @@ DataAccess:
 	DO_KVM  0x400
 InstructionAccess:
 	EXCEPTION_PROLOG
-	andis.	r0,r9,0x4000		/* no pte found? */
+	andis.	r0,r9,SRR1_ISI_NOPT@h	/* no pte found? */
 	beq	1f			/* if so, try to put a PTE */
 	li	r3,0			/* into the hash table */
 	mr	r4,r12			/* SRR0 is fault address */
 	bl	hash_page
 1:	mr	r4,r12
-	mr	r5,r9
+	andis.	r5,r9,DSISR_SRR1_MATCH_32S@h /* Filter relevant SRR1 bits */
 	EXC_XFER_LITE(0x400, handle_page_fault)
 
 /* External interrupt */

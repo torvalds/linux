@@ -966,16 +966,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 #ifdef CONFIG_PPC_BOOK3E
 	cmpwi	cr0,r3,0x280
 #else
-	BEGIN_FTR_SECTION
-		cmpwi	cr0,r3,0xe80
-	FTR_SECTION_ELSE
-		cmpwi	cr0,r3,0xa00
-	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
+	cmpwi	cr0,r3,0xa00
 #endif /* CONFIG_PPC_BOOK3E */
 	bne	1f
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
 	bl	doorbell_exception
-	b	ret_from_except
 #endif /* CONFIG_PPC_DOORBELL */
 1:	b	ret_from_except /* What else to do here ? */
  
@@ -1109,7 +1104,7 @@ _ASM_NOKPROBE_SYMBOL(__enter_rtas)
 _ASM_NOKPROBE_SYMBOL(rtas_return_loc)
 
 	.align	3
-1:	.llong	rtas_restore_regs
+1:	.8byte	rtas_restore_regs
 
 rtas_restore_regs:
 	/* relocation is on at this point */

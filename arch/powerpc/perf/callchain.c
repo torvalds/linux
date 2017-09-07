@@ -22,6 +22,7 @@
 #ifdef CONFIG_PPC64
 #include "../kernel/ppc32.h"
 #endif
+#include <asm/pte-walk.h>
 
 
 /*
@@ -127,7 +128,7 @@ static int read_user_stack_slow(void __user *ptr, void *buf, int nb)
 		return -EFAULT;
 
 	local_irq_save(flags);
-	ptep = find_linux_pte_or_hugepte(pgdir, addr, NULL, &shift);
+	ptep = find_current_mm_pte(pgdir, addr, NULL, &shift);
 	if (!ptep)
 		goto err_out;
 	if (!shift)

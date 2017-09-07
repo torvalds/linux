@@ -195,7 +195,7 @@ static void wf_sat_sensor_release(struct wf_sensor *sr)
 	kref_put(&sat->ref, wf_sat_release);
 }
 
-static struct wf_sensor_ops wf_sat_ops = {
+static const struct wf_sensor_ops wf_sat_ops = {
 	.get_value	= wf_sat_sensor_get,
 	.release	= wf_sat_sensor_release,
 	.owner		= THIS_MODULE,
@@ -248,7 +248,7 @@ static int wf_sat_probe(struct i2c_client *client,
 		core = loc[5] - '0';
 		if (chip > 1 || core > 1) {
 			printk(KERN_ERR "wf_sat_create: don't understand "
-			       "location %s for %s\n", loc, child->full_name);
+			       "location %s for %pOF\n", loc, child);
 			continue;
 		}
 		cpu = 2 * chip + core;

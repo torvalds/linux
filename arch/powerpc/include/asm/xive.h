@@ -45,6 +45,7 @@ struct xive_irq_data {
 	void __iomem *trig_mmio;
 	u32 esb_shift;
 	int src_chip;
+	u32 hw_irq;
 
 	/* Setup/used by frontend */
 	int target;
@@ -55,6 +56,7 @@ struct xive_irq_data {
 #define XIVE_IRQ_FLAG_SHIFT_BUG	0x04
 #define XIVE_IRQ_FLAG_MASK_FW	0x08
 #define XIVE_IRQ_FLAG_EOI_FW	0x10
+#define XIVE_IRQ_FLAG_H_INT_ESB	0x20
 
 #define XIVE_INVALID_CHIP_ID	-1
 
@@ -110,11 +112,13 @@ extern bool __xive_enabled;
 
 static inline bool xive_enabled(void) { return __xive_enabled; }
 
+extern bool xive_spapr_init(void);
 extern bool xive_native_init(void);
 extern void xive_smp_probe(void);
 extern int  xive_smp_prepare_cpu(unsigned int cpu);
 extern void xive_smp_setup_cpu(void);
 extern void xive_smp_disable_cpu(void);
+extern void xive_teardown_cpu(void);
 extern void xive_kexec_teardown_cpu(int secondary);
 extern void xive_shutdown(void);
 extern void xive_flush_interrupt(void);
@@ -147,6 +151,7 @@ extern int xive_native_get_vp_info(u32 vp_id, u32 *out_cam_id, u32 *out_chip_id)
 
 static inline bool xive_enabled(void) { return false; }
 
+static inline bool xive_spapr_init(void) { return false; }
 static inline bool xive_native_init(void) { return false; }
 static inline void xive_smp_probe(void) { }
 extern inline int  xive_smp_prepare_cpu(unsigned int cpu) { return -EINVAL; }

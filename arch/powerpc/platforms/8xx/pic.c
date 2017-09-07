@@ -9,7 +9,7 @@
 #include <asm/io.h>
 #include <asm/8xx_immap.h>
 
-#include "mpc8xx_pic.h"
+#include "pic.h"
 
 
 #define PIC_VEC_SPURRIOUS      15
