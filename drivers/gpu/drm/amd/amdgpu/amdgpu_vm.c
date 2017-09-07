@@ -1536,10 +1536,12 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	nptes = last - start + 1;
 
 	/*
-	 * reserve space for one command every (1 << BLOCK_SIZE)
+	 * reserve space for two commands every (1 << BLOCK_SIZE)
 	 *  entries or 2k dwords (whatever is smaller)
+         *
+         * The second command is for the shadow pagetables.
 	 */
-	ncmds = (nptes >> min(adev->vm_manager.block_size, 11u)) + 1;
+	ncmds = ((nptes >> min(adev->vm_manager.block_size, 11u)) + 1) * 2;
 
 	/* padding, etc. */
 	ndw = 64;
