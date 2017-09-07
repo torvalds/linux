@@ -283,6 +283,8 @@ static inline bool phm_cap_enabled(const uint32_t *caps, enum phm_platform_caps 
 		  (1UL << (c & (PHM_MAX_NUM_CAPS_BITS_PER_FIELD - 1)))));
 }
 
+#define PP_CAP(c) phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, (c))
+
 #define PP_PCIEGenInvalid  0xffff
 enum PP_PCIEGen {
     PP_PCIEGen1 = 0,                /* PCIE 1.0 - Transfer rate of 2.5 GT/s */
