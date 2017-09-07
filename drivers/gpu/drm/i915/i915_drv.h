@@ -1180,6 +1180,9 @@ struct i915_psr {
 	bool y_cord_support;
 	bool colorimetry_support;
 	bool alpm;
+
+	void (*disable_source)(struct intel_dp *,
+			       const struct intel_crtc_state *);
 };
 
 enum intel_pch {
