@@ -542,14 +542,7 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 
 	dev_priv->psr.setup_vsc(intel_dp, crtc_state);
 	dev_priv->psr.enable_sink(intel_dp);
-
-	if (HAS_DDI(dev_priv)) {
-		hsw_psr_enable_source(intel_dp, crtc_state);
-
-	} else {
-		vlv_psr_enable_source(intel_dp, crtc_state);
-	}
-
+	dev_priv->psr.enable_source(intel_dp, crtc_state);
 	dev_priv->psr.enabled = intel_dp;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
@@ -777,8 +770,7 @@ static void intel_psr_exit(struct drm_i915_private *dev_priv)
 		 * directly once PSR State 4 that is active with single frame
 		 * update can be skipped. PSR_state 5 that is PSR exit then
 		 * Hardware is responsible to transition back to PSR_state 1
-		 * that is PSR inactive. Same state after
-		 * vlv_edp_psr_enable_source.
+		 * that is PSR inactive. Same state after vlv_psr_enable_source.
 		 */
 		val &= ~VLV_EDP_PSR_ACTIVE_ENTRY;
 		I915_WRITE(VLV_PSRCTL(pipe), val);
@@ -973,11 +965,13 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 	mutex_init(&dev_priv->psr.lock);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
+		dev_priv->psr.enable_source = vlv_psr_enable_source;
 		dev_priv->psr.disable_source = vlv_psr_disable;
 		dev_priv->psr.enable_sink = vlv_psr_enable_sink;
 		dev_priv->psr.activate = vlv_psr_activate;
 		dev_priv->psr.setup_vsc = vlv_psr_setup_vsc;
 	} else {
+		dev_priv->psr.enable_source = hsw_psr_enable_source;
 		dev_priv->psr.disable_source = hsw_psr_disable;
 		dev_priv->psr.enable_sink = hsw_psr_enable_sink;
 		dev_priv->psr.activate = hsw_psr_activate;
