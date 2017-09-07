@@ -95,18 +95,18 @@ err_get_value:
 
 static int gpio_ir_recv_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct gpio_rc_dev *gpio_dev;
 	struct rc_dev *rcdev;
-	const struct gpio_ir_recv_platform_data *pdata =
-					pdev->dev.platform_data;
+	const struct gpio_ir_recv_platform_data *pdata = dev->platform_data;
 	int rc;
 
 	if (pdev->dev.of_node) {
 		struct gpio_ir_recv_platform_data *dtpdata =
-			devm_kzalloc(&pdev->dev, sizeof(*dtpdata), GFP_KERNEL);
+			devm_kzalloc(dev, sizeof(*dtpdata), GFP_KERNEL);
 		if (!dtpdata)
 			return -ENOMEM;
-		rc = gpio_ir_recv_get_devtree_pdata(&pdev->dev, dtpdata);
+		rc = gpio_ir_recv_get_devtree_pdata(dev, dtpdata);
 		if (rc)
 			return rc;
 		pdata = dtpdata;
@@ -135,7 +135,7 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	rcdev->input_id.vendor = 0x0001;
 	rcdev->input_id.product = 0x0001;
 	rcdev->input_id.version = 0x0100;
-	rcdev->dev.parent = &pdev->dev;
+	rcdev->dev.parent = dev;
 	rcdev->driver_name = GPIO_IR_DRIVER_NAME;
 	rcdev->min_timeout = 1;
 	rcdev->timeout = IR_DEFAULT_TIMEOUT;
@@ -159,7 +159,7 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 
 	rc = rc_register_device(rcdev);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "failed to register rc device\n");
+		dev_err(dev, "failed to register rc device (%d)\n", rc);
 		goto err_register_rc_device;
 	}
 
