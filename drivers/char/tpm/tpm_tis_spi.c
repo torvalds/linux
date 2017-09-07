@@ -57,7 +57,7 @@ static inline struct tpm_tis_spi_phy *to_tpm_tis_spi_phy(struct tpm_tis_data *da
 }
 
 static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
-				u8 *buffer, u8 direction)
+				u8 *in, const u8 *out)
 {
 	struct tpm_tis_spi_phy *phy = to_tpm_tis_spi_phy(data);
 	int ret = 0;
@@ -71,7 +71,7 @@ static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 	while (len) {
 		transfer_len = min_t(u16, len, MAX_SPI_FRAMESIZE);
 
-		phy->tx_buf[0] = direction | (transfer_len - 1);
+		phy->tx_buf[0] = (in ? 0x80 : 0) | (transfer_len - 1);
 		phy->tx_buf[1] = 0xd4;
 		phy->tx_buf[2] = addr >> 8;
 		phy->tx_buf[3] = addr;
@@ -112,14 +112,8 @@ static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 		spi_xfer.cs_change = 0;
 		spi_xfer.len = transfer_len;
 		spi_xfer.delay_usecs = 5;
-
-		if (direction) {
-			spi_xfer.tx_buf = NULL;
-			spi_xfer.rx_buf = buffer;
-		} else {
-			spi_xfer.tx_buf = buffer;
-			spi_xfer.rx_buf = NULL;
-		}
+		spi_xfer.tx_buf = out;
+		spi_xfer.rx_buf = in;
 
 		spi_message_init(&m);
 		spi_message_add_tail(&spi_xfer, &m);
@@ -128,7 +122,10 @@ static int tpm_tis_spi_transfer(struct tpm_tis_data *data, u32 addr, u16 len,
 			goto exit;
 
 		len -= transfer_len;
-		buffer += transfer_len;
+		if (in)
+			in += transfer_len;
+		if (out)
+			out += transfer_len;
 	}
 
 exit:
@@ -139,13 +136,13 @@ exit:
 static int tpm_tis_spi_read_bytes(struct tpm_tis_data *data, u32 addr,
 				  u16 len, u8 *result)
 {
-	return tpm_tis_spi_transfer(data, addr, len, result, 0x80);
+	return tpm_tis_spi_transfer(data, addr, len, result, NULL);
 }
 
 static int tpm_tis_spi_write_bytes(struct tpm_tis_data *data, u32 addr,
-				   u16 len, u8 *value)
+				   u16 len, const u8 *value)
 {
-	return tpm_tis_spi_transfer(data, addr, len, value, 0);
+	return tpm_tis_spi_transfer(data, addr, len, NULL, value);
 }
 
 static int tpm_tis_spi_read16(struct tpm_tis_data *data, u32 addr, u16 *result)
