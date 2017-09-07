@@ -187,8 +187,8 @@ struct async_gen_req_ctx {
 #ifdef DX_DUMP_BYTES
 void dump_byte_array(const char *name, const u8 *the_array, unsigned long size);
 #else
-#define dump_byte_array(name, array, size) do {	\
-} while (0);
+static inline void dump_byte_array(const char *name, const u8 *the_array,
+				   unsigned long size) {};
 #endif
 
 int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe);
