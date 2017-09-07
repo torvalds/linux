@@ -549,8 +549,6 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 
 		hsw_psr_enable_source(intel_dp, crtc_state);
 
-		if (INTEL_GEN(dev_priv) >= 9)
-			intel_psr_activate(intel_dp);
 	} else {
 		vlv_psr_setup_vsc(intel_dp, crtc_state);
 
@@ -560,20 +558,25 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 		vlv_psr_enable_source(intel_dp, crtc_state);
 	}
 
-	/*
-	 * FIXME: Activation should happen immediately since this function
-	 * is just called after pipe is fully trained and enabled.
-	 * However on every platform we face issues when first activation
-	 * follows a modeset so quickly.
-	 *     - On VLV/CHV we get bank screen on first activation
-	 *     - On HSW/BDW we get a recoverable frozen screen until next
-	 *       exit-activate sequence.
-	 */
-	if (INTEL_GEN(dev_priv) < 9)
+	dev_priv->psr.enabled = intel_dp;
+
+	if (INTEL_GEN(dev_priv) >= 9) {
+		intel_psr_activate(intel_dp);
+	} else {
+		/*
+		 * FIXME: Activation should happen immediately since this
+		 * function is just called after pipe is fully trained and
+		 * enabled.
+		 * However on some platforms we face issues when first
+		 * activation follows a modeset so quickly.
+		 *     - On VLV/CHV we get bank screen on first activation
+		 *     - On HSW/BDW we get a recoverable frozen screen until
+		 *       next exit-activate sequence.
+		 */
 		schedule_delayed_work(&dev_priv->psr.work,
 				      msecs_to_jiffies(intel_dp->panel_power_cycle_delay * 5));
+	}
 
-	dev_priv->psr.enabled = intel_dp;
 unlock:
 	mutex_unlock(&dev_priv->psr.lock);
 }
