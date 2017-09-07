@@ -307,17 +307,13 @@ int vega10_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 */
 int vega10_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
 {
-	int result;
-
 	if (hwmgr->thermal_controller.fanInfo.bNoFan)
 		return 0;
 
-	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl)) {
-		result = vega10_fan_ctrl_start_smc_fan_control(hwmgr);
-	} else
-		result = vega10_fan_ctrl_set_default_mode(hwmgr);
-
-	return result;
+	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
+		return vega10_fan_ctrl_start_smc_fan_control(hwmgr);
+	else
+		return vega10_fan_ctrl_set_default_mode(hwmgr);
 }
 
 /**
