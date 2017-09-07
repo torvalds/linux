@@ -118,15 +118,13 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	if (pdata->gpio_nr < 0)
 		return -EINVAL;
 
-	gpio_dev = kzalloc(sizeof(struct gpio_rc_dev), GFP_KERNEL);
+	gpio_dev = devm_kzalloc(dev, sizeof(*gpio_dev), GFP_KERNEL);
 	if (!gpio_dev)
 		return -ENOMEM;
 
 	rcdev = rc_allocate_device(RC_DRIVER_IR_RAW);
-	if (!rcdev) {
-		rc = -ENOMEM;
-		goto err_allocate_device;
-	}
+	if (!rcdev)
+		return -ENOMEM;
 
 	rcdev->priv = gpio_dev;
 	rcdev->device_name = GPIO_IR_DEVICE_NAME;
@@ -182,8 +180,6 @@ err_gpio_direction_input:
 	gpio_free(pdata->gpio_nr);
 err_gpio_request:
 	rc_free_device(rcdev);
-err_allocate_device:
-	kfree(gpio_dev);
 	return rc;
 }
 
@@ -194,7 +190,6 @@ static int gpio_ir_recv_remove(struct platform_device *pdev)
 	free_irq(gpio_to_irq(gpio_dev->gpio_nr), gpio_dev);
 	rc_unregister_device(gpio_dev->rcdev);
 	gpio_free(gpio_dev->gpio_nr);
-	kfree(gpio_dev);
 	return 0;
 }
 
