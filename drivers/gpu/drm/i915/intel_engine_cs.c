@@ -985,8 +985,9 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 
 	/* WaInPlaceDecompressionHang:skl */
 	if (IS_SKL_REVID(dev_priv, SKL_REVID_H0, REVID_FOREVER))
-		WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
-			   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+		I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+			   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+			    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
 
 	/* WaDisableLSQCROPERFforOCL:skl */
 	ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
@@ -1059,8 +1060,9 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 
 	/* WaInPlaceDecompressionHang:bxt */
 	if (IS_BXT_REVID(dev_priv, BXT_REVID_C0, REVID_FOREVER))
-		WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
-			   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+		I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+			   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+			    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
 
 	return 0;
 }
@@ -1093,8 +1095,9 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 				  GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE);
 
 	/* WaInPlaceDecompressionHang:cnl */
-	WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
-		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
 
 	/* WaPushConstantDereferenceHoldDisable:cnl */
 	WA_SET_BIT(GEN7_ROW_CHICKEN2, PUSH_CONSTANT_DEREF_DISABLE);
@@ -1147,8 +1150,9 @@ static int kbl_init_workarounds(struct intel_engine_cs *engine)
 		GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
 
 	/* WaInPlaceDecompressionHang:kbl */
-	WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
-		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
 
 	/* WaDisableLSQCROPERFforOCL:kbl */
 	ret = wa_ring_whitelist_reg(engine, GEN8_L3SQCREG4);
@@ -1200,8 +1204,9 @@ static int cfl_init_workarounds(struct intel_engine_cs *engine)
 		GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
 
 	/* WaInPlaceDecompressionHang:cfl */
-	WA_SET_BIT(GEN9_GAMT_ECO_REG_RW_IA,
-		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   (I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS));
 
 	return 0;
 }
