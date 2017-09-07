@@ -214,6 +214,50 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 }
 
 /*
+ * Call this when reinitializing a CPU.  It fixes the following potential
+ * problems:
+ *
+ * - The ASID changed from what cpu_tlbstate thinks it is (most likely
+ *   because the CPU was taken down and came back up with CR3's PCID
+ *   bits clear.  CPU hotplug can do this.
+ *
+ * - The TLB contains junk in slots corresponding to inactive ASIDs.
+ *
+ * - The CPU went so far out to lunch that it may have missed a TLB
+ *   flush.
+ */
+void initialize_tlbstate_and_flush(void)
+{
+	int i;
+	struct mm_struct *mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+	u64 tlb_gen = atomic64_read(&init_mm.context.tlb_gen);
+	unsigned long cr3 = __read_cr3();
+
+	/* Assert that CR3 already references the right mm. */
+	WARN_ON((cr3 & CR3_ADDR_MASK) != __pa(mm->pgd));
+
+	/*
+	 * Assert that CR4.PCIDE is set if needed.  (CR4.PCIDE initialization
+	 * doesn't work like other CR4 bits because it can only be set from
+	 * long mode.)
+	 */
+	WARN_ON(boot_cpu_has(X86_CR4_PCIDE) &&
+		!(cr4_read_shadow() & X86_CR4_PCIDE));
+
+	/* Force ASID 0 and force a TLB flush. */
+	write_cr3(cr3 & ~CR3_PCID_MASK);
+
+	/* Reinitialize tlbstate. */
+	this_cpu_write(cpu_tlbstate.loaded_mm_asid, 0);
+	this_cpu_write(cpu_tlbstate.next_asid, 1);
+	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, mm->context.ctx_id);
+	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, tlb_gen);
+
+	for (i = 1; i < TLB_NR_DYN_ASIDS; i++)
+		this_cpu_write(cpu_tlbstate.ctxs[i].ctx_id, 0);
+}
+
+/*
  * flush_tlb_func_common()'s memory ordering requirement is that any
  * TLB fills that happen after we flush the TLB are ordered after we
  * read active_mm's tlb_gen.  We don't need any explicit barriers

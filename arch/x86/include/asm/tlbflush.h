@@ -198,6 +198,8 @@ static inline void cr4_set_bits_and_update_boot(unsigned long mask)
 	cr4_set_bits(mask);
 }
 
+extern void initialize_tlbstate_and_flush(void);
+
 static inline void __native_flush_tlb(void)
 {
 	/*

@@ -181,6 +181,7 @@ static void fix_processor_context(void)
 #endif
 	load_TR_desc();				/* This does ltr */
 	load_mm_ldt(current->active_mm);	/* This does lldt */
+	initialize_tlbstate_and_flush();
 
 	fpu__resume_cpu();
 
