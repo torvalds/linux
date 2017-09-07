@@ -273,7 +273,7 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_id,
 	struct i40e_hw *hw = &pf->hw;
 	u16 vsi_queue_id, pf_queue_id;
 	enum i40e_queue_type qtype;
-	u16 next_q, vector_id;
+	u16 next_q, vector_id, size;
 	u32 reg, reg_idx;
 	u16 itr_idx = 0;
 
@@ -303,11 +303,9 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_id,
 				     vsi_queue_id + 1));
 	}
 
-	next_q = find_first_bit(&linklistmap,
-				(I40E_MAX_VSI_QP *
-				 I40E_VIRTCHNL_SUPPORTED_QTYPES));
-	if (unlikely(next_q == (I40E_MAX_VSI_QP *
-				I40E_VIRTCHNL_SUPPORTED_QTYPES)))
+	size = I40E_MAX_VSI_QP * I40E_VIRTCHNL_SUPPORTED_QTYPES;
+	next_q = find_first_bit(&linklistmap, size);
+	if (unlikely(next_q == size))
 		goto irq_list_done;
 
 	vsi_queue_id = next_q / I40E_VIRTCHNL_SUPPORTED_QTYPES;
@@ -317,7 +315,7 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_id,
 
 	wr32(hw, reg_idx, reg);
 
-	while (next_q < (I40E_MAX_VSI_QP * I40E_VIRTCHNL_SUPPORTED_QTYPES)) {
+	while (next_q < size) {
 		switch (qtype) {
 		case I40E_QUEUE_TYPE_RX:
 			reg_idx = I40E_QINT_RQCTL(pf_queue_id);
@@ -331,12 +329,8 @@ static void i40e_config_irq_link_list(struct i40e_vf *vf, u16 vsi_id,
 			break;
 		}
 
-		next_q = find_next_bit(&linklistmap,
-				       (I40E_MAX_VSI_QP *
-					I40E_VIRTCHNL_SUPPORTED_QTYPES),
-				       next_q + 1);
-		if (next_q <
-		    (I40E_MAX_VSI_QP * I40E_VIRTCHNL_SUPPORTED_QTYPES)) {
+		next_q = find_next_bit(&linklistmap, size, next_q + 1);
+		if (next_q < size) {
 			vsi_queue_id = next_q / I40E_VIRTCHNL_SUPPORTED_QTYPES;
 			qtype = next_q % I40E_VIRTCHNL_SUPPORTED_QTYPES;
 			pf_queue_id = i40e_vc_get_pf_queue_id(vf, vsi_id,
