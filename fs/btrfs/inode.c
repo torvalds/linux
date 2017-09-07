@@ -1222,13 +1222,6 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 
 		btrfs_queue_work(fs_info->delalloc_workers, &async_cow->work);
 
-		while (atomic_read(&fs_info->async_submit_draining) &&
-		       atomic_read(&fs_info->async_delalloc_pages)) {
-			wait_event(fs_info->async_submit_wait,
-				   (atomic_read(&fs_info->async_delalloc_pages) ==
-				    0));
-		}
-
 		*nr_written += nr_pages;
 		start = cur_end + 1;
 	}
@@ -10332,19 +10325,6 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 	ret = __start_delalloc_inodes(root, delay_iput, -1);
 	if (ret > 0)
 		ret = 0;
-	/*
-	 * the filemap_flush will queue IO into the worker threads, but
-	 * we have to make sure the IO is actually started and that
-	 * ordered extents get created before we return
-	 */
-	atomic_inc(&fs_info->async_submit_draining);
-	while (atomic_read(&fs_info->nr_async_submits) ||
-	       atomic_read(&fs_info->async_delalloc_pages)) {
-		wait_event(fs_info->async_submit_wait,
-			   (atomic_read(&fs_info->nr_async_submits) == 0 &&
-			    atomic_read(&fs_info->async_delalloc_pages) == 0));
-	}
-	atomic_dec(&fs_info->async_submit_draining);
 	return ret;
 }
 
@@ -10386,14 +10366,6 @@ int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, int delay_iput,
 	spin_unlock(&fs_info->delalloc_root_lock);
 
 	ret = 0;
-	atomic_inc(&fs_info->async_submit_draining);
-	while (atomic_read(&fs_info->nr_async_submits) ||
-	      atomic_read(&fs_info->async_delalloc_pages)) {
-		wait_event(fs_info->async_submit_wait,
-		   (atomic_read(&fs_info->nr_async_submits) == 0 &&
-		    atomic_read(&fs_info->async_delalloc_pages) == 0));
-	}
-	atomic_dec(&fs_info->async_submit_draining);
 out:
 	if (!list_empty_careful(&splice)) {
 		spin_lock(&fs_info->delalloc_root_lock);

@@ -878,8 +878,6 @@ struct btrfs_fs_info {
 	rwlock_t tree_mod_log_lock;
 	struct rb_root tree_mod_log;
 
-	atomic_t nr_async_submits;
-	atomic_t async_submit_draining;
 	atomic_t async_delalloc_pages;
 	atomic_t open_ioctl_trans;
 

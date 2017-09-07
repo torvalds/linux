@@ -740,22 +740,9 @@ static void run_one_async_start(struct btrfs_work *work)
 
 static void run_one_async_done(struct btrfs_work *work)
 {
-	struct btrfs_fs_info *fs_info;
 	struct async_submit_bio *async;
-	int limit;
 
 	async = container_of(work, struct  async_submit_bio, work);
-	fs_info = async->fs_info;
-
-	limit = btrfs_async_submit_limit(fs_info);
-	limit = limit * 2 / 3;
-
-	/*
-	 * atomic_dec_return implies a barrier for waitqueue_active
-	 */
-	if (atomic_dec_return(&fs_info->nr_async_submits) < limit &&
-	    waitqueue_active(&fs_info->async_submit_wait))
-		wake_up(&fs_info->async_submit_wait);
 
 	/* If an error occurred we just want to clean up the bio and move on */
 	if (async->status) {
@@ -803,19 +790,10 @@ blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 
 	async->status = 0;
 
-	atomic_inc(&fs_info->nr_async_submits);
-
 	if (op_is_sync(bio->bi_opf))
 		btrfs_set_work_high_priority(&async->work);
 
 	btrfs_queue_work(fs_info->workers, &async->work);
-
-	while (atomic_read(&fs_info->async_submit_draining) &&
-	      atomic_read(&fs_info->nr_async_submits)) {
-		wait_event(fs_info->async_submit_wait,
-			   (atomic_read(&fs_info->nr_async_submits) == 0));
-	}
-
 	return 0;
 }
 
@@ -2515,9 +2493,7 @@ int open_ctree(struct super_block *sb,
 	btrfs_init_block_rsv(&fs_info->empty_block_rsv, BTRFS_BLOCK_RSV_EMPTY);
 	btrfs_init_block_rsv(&fs_info->delayed_block_rsv,
 			     BTRFS_BLOCK_RSV_DELOPS);
-	atomic_set(&fs_info->nr_async_submits, 0);
 	atomic_set(&fs_info->async_delalloc_pages, 0);
-	atomic_set(&fs_info->async_submit_draining, 0);
 	atomic_set(&fs_info->defrag_running, 0);
 	atomic_set(&fs_info->qgroup_op_seq, 0);
 	atomic_set(&fs_info->reada_works_cnt, 0);
