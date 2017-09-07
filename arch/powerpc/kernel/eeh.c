@@ -1019,6 +1019,10 @@ int eeh_init(void)
 	} else if ((ret = eeh_ops->init()))
 		return ret;
 
+	/* Initialize PHB PEs */
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+		eeh_dev_phb_init_dynamic(hose);
+
 	/* Initialize EEH event */
 	ret = eeh_event_init();
 	if (ret)
