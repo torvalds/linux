@@ -135,8 +135,8 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		/* 4GOOD T803i */
 		.driver_data = (void *)&good_t803i_data,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "4Good"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "T803i"),
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "i806"),
 		},
 	},
 	{ },
