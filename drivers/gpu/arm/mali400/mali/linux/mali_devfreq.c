@@ -67,7 +67,7 @@ mali_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 #ifdef CONFIG_REGULATOR
 		if (mdev->current_voltage == voltage)
 			return 0;
-		err = regulator_set_voltage(mdev->regulator, voltage, voltage);
+		err = regulator_set_voltage(mdev->regulator, voltage, INT_MAX);
 		if (err) {
 			dev_err(dev, "Failed to set voltage (%d)\n", err);
 			return err;
@@ -80,7 +80,7 @@ mali_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 #ifdef CONFIG_REGULATOR
 	if (mdev->regulator && mdev->current_voltage != voltage &&
 	    old_freq < freq) {
-		err = regulator_set_voltage(mdev->regulator, voltage, voltage);
+		err = regulator_set_voltage(mdev->regulator, voltage, INT_MAX);
 		if (err) {
 			MALI_PRINT_ERROR(("Failed to increase voltage (%d)\n", err));
 			return err;
@@ -99,7 +99,7 @@ mali_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 #ifdef CONFIG_REGULATOR
 	if (mdev->regulator && mdev->current_voltage != voltage &&
 	    old_freq > freq) {
-		err = regulator_set_voltage(mdev->regulator, voltage, voltage);
+		err = regulator_set_voltage(mdev->regulator, voltage, INT_MAX);
 		if (err) {
 			MALI_PRINT_ERROR(("Failed to decrease voltage (%d)\n", err));
 			return err;
