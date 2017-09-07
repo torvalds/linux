@@ -870,6 +870,9 @@ static int __fragmentation_index(unsigned int order, struct contig_page_info *in
 {
 	unsigned long requested = 1UL << order;
 
+	if (WARN_ON_ONCE(order >= MAX_ORDER))
+		return 0;
+
 	if (!info->free_blocks_total)
 		return 0;
 
@@ -1071,6 +1074,8 @@ const char * const vmstat_text[] = {
 #endif
 	"thp_zero_page_alloc",
 	"thp_zero_page_alloc_failed",
+	"thp_swpout",
+	"thp_swpout_fallback",
 #endif
 #ifdef CONFIG_MEMORY_BALLOON
 	"balloon_inflate",
@@ -1092,6 +1097,10 @@ const char * const vmstat_text[] = {
 	"vmacache_find_calls",
 	"vmacache_find_hits",
 	"vmacache_full_flushes",
+#endif
+#ifdef CONFIG_SWAP
+	"swap_ra",
+	"swap_ra_hit",
 #endif
 #endif /* CONFIG_VM_EVENTS_COUNTERS */
 };
@@ -1250,7 +1259,7 @@ static void pagetypeinfo_showblockcount_print(struct seq_file *m,
 	seq_putc(m, '\n');
 }
 
-/* Print out the free pages at each order for each migratetype */
+/* Print out the number of pageblocks for each migratetype */
 static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
 {
 	int mtype;
@@ -1500,7 +1509,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
 	if (!v)
 		return ERR_PTR(-ENOMEM);
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-		v[i] = global_page_state(i);
+		v[i] = global_zone_page_state(i);
 	v += NR_VM_ZONE_STAT_ITEMS;
 
 	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
@@ -1589,7 +1598,7 @@ int vmstat_refresh(struct ctl_table *table, int write,
 	 * which can equally be echo'ed to or cat'ted from (by root),
 	 * can be used to update the stats just before reading them.
 	 *
-	 * Oh, and since global_page_state() etc. are so careful to hide
+	 * Oh, and since global_zone_page_state() etc. are so careful to hide
 	 * transiently negative values, report an error here if any of
 	 * the stats is negative, so we know to go looking for imbalance.
 	 */

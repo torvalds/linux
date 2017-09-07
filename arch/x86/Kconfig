@@ -1806,7 +1806,9 @@ config X86_SMAP
 config X86_INTEL_MPX
 	prompt "Intel MPX (Memory Protection Extensions)"
 	def_bool n
-	depends on CPU_SUP_INTEL
+	# Note: only available in 64-bit mode due to VMA flags shortage
+	depends on CPU_SUP_INTEL && X86_64
+	select ARCH_USES_HIGH_VMA_FLAGS
 	---help---
 	  MPX provides hardware features that can be used in
 	  conjunction with compiler-instrumented code to check
