@@ -187,9 +187,11 @@
 	1) 3399 power management is wrong, correct it.
 *v0.0x23.0:
        1) replace current->pid with irqsta->pid.
+*v0.0x24.0:
+       1) function is the same as commit in v0.0x22.3 but now is better way.
 */
 
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x23, 0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x24, 0)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"

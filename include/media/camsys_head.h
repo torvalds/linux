@@ -37,9 +37,11 @@
 	1) add fs_id, fe_id and some reserved bytes in struct camsys_irqsta_s.
 *v0.f.0:
 	1) add pid in struct camsys_irqsta_s.
+*v1.0.0:
+	1) add enum camsys_mipiphy_dir_e.
 */
 
-#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0, 0xf, 0)
+#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(1, 0x0, 0)
 
 #define CAMSYS_MARVIN_DEVNAME         "camsys_marvin"
 #define CAMSYS_CIF0_DEVNAME           "camsys_cif0"
@@ -174,10 +176,16 @@ typedef struct camsys_flash_info_s {
     camsys_gpio_info_t        fl_en;
 } camsys_flash_info_t;
 
+enum camsys_mipiphy_dir_e {
+	CamSys_Mipiphy_Rx = 0,
+	CamSys_Mipiphy_Tx = 1,
+};
+
 typedef struct camsys_mipiphy_s {
     unsigned int                data_en_bit;        // data lane enable bit;
     unsigned int                bit_rate;           // Mbps/lane
     unsigned int                phy_index;          // phy0,phy1
+	enum camsys_mipiphy_dir_e   dir;            // direction
 } camsys_mipiphy_t;
 
 typedef enum camsys_fmt_e {
