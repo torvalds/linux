@@ -128,9 +128,8 @@ struct ssi_crypto_req {
  * @fw_ver:	SeP loaded firmware version
  */
 struct ssi_drvdata {
-	struct resource *res_irq;
 	void __iomem *cc_base;
-	unsigned int irq;
+	int irq;
 	u32 irq_mask;
 	u32 fw_ver;
 	/* Calibration time of start/stop

@@ -222,7 +222,6 @@ static int init_cc_resources(struct platform_device *plat_dev)
 {
 	struct resource *req_mem_cc_regs = NULL;
 	void __iomem *cc_base = NULL;
-	bool irq_registered = false;
 	struct ssi_drvdata *new_drvdata;
 	struct device *dev = &plat_dev->dev;
 	struct device_node *np = dev->of_node;
@@ -262,26 +261,22 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		      &req_mem_cc_regs->start, new_drvdata->cc_base);
 	cc_base = new_drvdata->cc_base;
 	/* Then IRQ */
-	new_drvdata->res_irq = platform_get_resource(plat_dev, IORESOURCE_IRQ, 0);
-	if (unlikely(!new_drvdata->res_irq)) {
+	new_drvdata->irq = platform_get_irq(plat_dev, 0);
+	if (new_drvdata->irq < 0) {
 		SSI_LOG_ERR("Failed getting IRQ resource\n");
-		rc = -ENODEV;
+		rc = new_drvdata->irq;
 		goto init_cc_res_err;
 	}
-	rc = request_irq(new_drvdata->res_irq->start, cc_isr,
-			 IRQF_SHARED, "arm_cc7x", new_drvdata);
-	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("Could not register to interrupt %llu\n",
-			    (unsigned long long)new_drvdata->res_irq->start);
+	rc = devm_request_irq(&plat_dev->dev, new_drvdata->irq, cc_isr,
+			      IRQF_SHARED, "arm_cc7x", new_drvdata);
+	if (rc) {
+		SSI_LOG_ERR("Could not register to interrupt %d\n",
+			    new_drvdata->irq);
 		goto init_cc_res_err;
 	}
 	init_completion(&new_drvdata->icache_setup_completion);
 
-	irq_registered = true;
-	SSI_LOG_DEBUG("Registered to IRQ (%s) %llu\n",
-		      new_drvdata->res_irq->name,
-		      (unsigned long long)new_drvdata->res_irq->start);
-
+	SSI_LOG_DEBUG("Registered to IRQ: %d\n", new_drvdata->irq);
 	new_drvdata->plat_dev = plat_dev;
 
 	rc = cc_clk_on(new_drvdata);
@@ -410,10 +405,6 @@ init_cc_res_err:
 #ifdef ENABLE_CC_SYSFS
 		ssi_sysfs_fini();
 #endif
-		if (irq_registered) {
-			free_irq(new_drvdata->res_irq->start, new_drvdata);
-			new_drvdata->res_irq = NULL;
-		}
 		dev_set_drvdata(&plat_dev->dev, NULL);
 	}
 	return rc;
@@ -443,11 +434,8 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 #ifdef ENABLE_CC_SYSFS
 	ssi_sysfs_fini();
 #endif
-
 	fini_cc_regs(drvdata);
 	cc_clk_off(drvdata);
-	free_irq(drvdata->res_irq->start, drvdata);
-	drvdata->res_irq = NULL;
 	dev_set_drvdata(&plat_dev->dev, NULL);
 }
 
