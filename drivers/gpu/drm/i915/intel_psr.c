@@ -471,6 +471,42 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 	dev_priv->psr.active = true;
 }
 
+static void hsw_psr_enable_source(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	u32 chicken;
+
+	if (dev_priv->psr.psr2_support) {
+		chicken = PSR2_VSC_ENABLE_PROG_HEADER;
+		if (dev_priv->psr.y_cord_support)
+			chicken |= PSR2_ADD_VERTICAL_LINE_COUNT;
+		I915_WRITE(CHICKEN_TRANS(cpu_transcoder), chicken);
+
+		I915_WRITE(EDP_PSR_DEBUG_CTL,
+			   EDP_PSR_DEBUG_MASK_MEMUP |
+			   EDP_PSR_DEBUG_MASK_HPD |
+			   EDP_PSR_DEBUG_MASK_LPSP |
+			   EDP_PSR_DEBUG_MASK_MAX_SLEEP |
+			   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE);
+	} else {
+		/*
+		 * Per Spec: Avoid continuous PSR exit by masking MEMUP
+		 * and HPD. also mask LPSP to avoid dependency on other
+		 * drivers that might block runtime_pm besides
+		 * preventing  other hw tracking issues now we can rely
+		 * on frontbuffer tracking.
+		 */
+		I915_WRITE(EDP_PSR_DEBUG_CTL,
+			   EDP_PSR_DEBUG_MASK_MEMUP |
+			   EDP_PSR_DEBUG_MASK_HPD |
+			   EDP_PSR_DEBUG_MASK_LPSP);
+	}
+}
+
 /**
  * intel_psr_enable - Enable PSR
  * @intel_dp: Intel DP
@@ -484,8 +520,6 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	u32 chicken;
 
 	if (!HAS_PSR(dev_priv))
 		return;
@@ -510,31 +544,7 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 
 		hsw_psr_setup_vsc(intel_dp, crtc_state);
 
-		if (dev_priv->psr.psr2_support) {
-			chicken = PSR2_VSC_ENABLE_PROG_HEADER;
-			if (dev_priv->psr.y_cord_support)
-				chicken |= PSR2_ADD_VERTICAL_LINE_COUNT;
-			I915_WRITE(CHICKEN_TRANS(cpu_transcoder), chicken);
-
-			I915_WRITE(EDP_PSR_DEBUG_CTL,
-				   EDP_PSR_DEBUG_MASK_MEMUP |
-				   EDP_PSR_DEBUG_MASK_HPD |
-				   EDP_PSR_DEBUG_MASK_LPSP |
-				   EDP_PSR_DEBUG_MASK_MAX_SLEEP |
-				   EDP_PSR_DEBUG_MASK_DISP_REG_WRITE);
-		} else {
-			/*
-			 * Per Spec: Avoid continuous PSR exit by masking MEMUP
-			 * and HPD. also mask LPSP to avoid dependency on other
-			 * drivers that might block runtime_pm besides
-			 * preventing  other hw tracking issues now we can rely
-			 * on frontbuffer tracking.
-			 */
-			I915_WRITE(EDP_PSR_DEBUG_CTL,
-				   EDP_PSR_DEBUG_MASK_MEMUP |
-				   EDP_PSR_DEBUG_MASK_HPD |
-				   EDP_PSR_DEBUG_MASK_LPSP);
-		}
+		hsw_psr_enable_source(intel_dp, crtc_state);
 
 		/* Enable PSR on the panel */
 		hsw_psr_enable_sink(intel_dp);
@@ -547,12 +557,6 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 		/* Enable PSR on the panel */
 		vlv_psr_enable_sink(intel_dp);
 
-		/* On HSW+ enable_source also means go to PSR entry/active
-		 * state as soon as idle_frame achieved and here would be
-		 * to soon. However on VLV enable_source just enable PSR
-		 * but let it on inactive state. So we might do this prior
-		 * to active transition, i.e. here.
-		 */
 		vlv_psr_enable_source(intel_dp, crtc_state);
 	}
 
