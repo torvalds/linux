@@ -661,18 +661,6 @@ union hv_connection_id {
 	} u;
 };
 
-/* Definition of the hv_signal_event hypercall input structure. */
-struct hv_input_signal_event {
-	union hv_connection_id connectionid;
-	u16 flag_number;
-	u16 rsvdz;
-};
-
-struct hv_input_signal_event_buffer {
-	u64 align8;
-	struct hv_input_signal_event event;
-};
-
 enum hv_numa_policy {
 	HV_BALANCED = 0,
 	HV_LOCALIZED,
@@ -754,8 +742,7 @@ struct vmbus_channel {
 	} callback_mode;
 
 	bool is_dedicated_interrupt;
-	struct hv_input_signal_event_buffer sig_buf;
-	struct hv_input_signal_event *sig_event;
+	u64 sig_event;
 
 	/*
 	 * Starting with win8, this field will be used to specify
@@ -1151,8 +1138,6 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 			resource_size_t size, resource_size_t align,
 			bool fb_overlap_ok);
 void vmbus_free_mmio(resource_size_t start, resource_size_t size);
-int vmbus_cpu_number_to_vp_number(int cpu_number);
-u64 hv_do_hypercall(u64 control, void *input, void *output);
 
 /*
  * GUID definitions of various offer types - services offered to the guest.

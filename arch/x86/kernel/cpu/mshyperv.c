@@ -250,6 +250,7 @@ static void __init ms_hyperv_init_platform(void)
 	 * Setup the hook to get control post apic initialization.
 	 */
 	x86_platform.apic_post_init = hyperv_init;
+	hyperv_setup_mmu_ops();
 #endif
 }
 
