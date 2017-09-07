@@ -1139,4 +1139,7 @@ config TOUCHSCREEN_ROHM_BU21023
 	  To compile this driver as a module, choose M here: the
 	  module will be called bu21023_ts.
 
+config TOUCHSCREEN_VTL_CT36X
+	tristate "VTL touchscreens support"
+
 endif

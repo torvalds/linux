@@ -42,6 +42,7 @@
 #include "vtl_ts.h"
 #include "chip.h"
 #include "apk.h"
+#include "tp_fw.h"
 
 
 #define		TS_THREAD_PRIO		90
@@ -92,48 +93,7 @@ static int vtl_ts_config(struct ts_info *ts)
 	enum of_gpio_flags rst_flags;
 	unsigned long irq_flags;
 	int val;
-	struct device_node *tnp;
-	struct property *prop;
-	int length,ret;
-	unsigned int max_num;
-	unsigned char *levels;
-
-		
-	tnp = of_find_node_by_path("/tp-fw");
-	if (!tnp){
-		printk(" error tp_fw not node!!!\n");
-		return -EINVAL;
-	}	
-	/* determine the number of brightness levels */
-	prop = of_find_property(tnp, "tp_fw", &length);
-	if (!prop){
-		printk(" error tp_fw not property!!!\n");
-		return -EINVAL;
-	}
-
-	max_num = length / sizeof(u32);
-
-	printk(" max-num:%d,length:%d.\n",max_num,length);
-	
-	/* read max_num from DT property */
-	if (max_num > 0) {
-	
-		levels = (unsigned char*)vmalloc(max_num);
-		if (!levels){
-			printk("<xiaoyao> error vmalloc failed!!!\n");
-			return -ENOMEM;
-		}
-
-		ret = of_property_read_u8_array_tp(tnp,"tp_fw",levels,max_num);
-		if (ret != 0){
-			printk(" of_property_read_u8_array failed!!!\n");
-			return -ENOMEM;
-		}
-
-	}else
-		printk("tp fw error!!!\n");
-	
-	gtpfw = levels;
+	gtpfw = tp_fw;
 
 
 	DEBUG();
@@ -286,7 +246,7 @@ static int vtl_ts_read_xy_data(struct ts_info *ts)
 	msgs.flags = 0x01;  // 0x00: write 0x01:read 
 	msgs.len = sizeof(ts->xy_data.buf);
 	msgs.buf = ts->xy_data.buf;
-	msgs.scl_rate = TS_I2C_SPEED; ///only for rockchip platform
+//	msgs.scl_rate = TS_I2C_SPEED; ///only for rockchip platform
 	ret = i2c_transfer( ts->driver->client->adapter, &msgs, 1);
 	if(ret != 1){
 		printk("___%s:i2c read xy_data err___\n",__func__);
