@@ -648,6 +648,11 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state;
+	struct dm_crtc_state *dm_crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	struct dm_plane_state *dm_plane_state;
+	struct dm_atomic_state *cached_state;
 	int ret = 0;
 	int i;
 
@@ -685,6 +690,37 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev)
 	/* Force mode set in atomic comit */
 	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i)
 		new_crtc_state->active_changed = true;
+
+	cached_state = to_dm_atomic_state(adev->dm.cached_state);
+
+	/*
+	 * During suspend, the cached state is saved before all streams are
+	 * disabled. Refresh cached state to match actual current state before
+	 * restoring it.
+	 */
+	WARN_ON(kref_read(&cached_state->context->refcount) > 1);
+	dc_release_state(cached_state->context);
+
+	cached_state->context = dc_create_state();
+	dc_resource_state_copy_construct_current(adev->dm.dc, cached_state->context);
+
+	for_each_new_crtc_in_state(adev->dm.cached_state, crtc, new_crtc_state, i) {
+		dm_crtc_state = to_dm_crtc_state(new_crtc_state);
+		if (dm_crtc_state->stream) {
+			WARN_ON(kref_read(&dm_crtc_state->stream->refcount) > 1);
+			dc_stream_release(dm_crtc_state->stream);
+			dm_crtc_state->stream = NULL;
+		}
+	}
+
+	for_each_new_plane_in_state(adev->dm.cached_state, plane, plane_state, i) {
+		dm_plane_state = to_dm_plane_state(plane_state);
+		if (dm_plane_state->dc_state) {
+			WARN_ON(kref_read(&dm_plane_state->dc_state->refcount) > 1);
+			dc_plane_state_release(dm_plane_state->dc_state);
+			dm_plane_state->dc_state = NULL;
+		}
+	}
 
 	ret = drm_atomic_helper_resume(ddev, adev->dm.cached_state);
 
