@@ -50,8 +50,8 @@ struct pcie_port_service_driver {
 	int (*suspend) (struct pcie_device *dev);
 	int (*resume) (struct pcie_device *dev);
 
-	/* Service Error Recovery Handler */
-	const struct pci_error_handlers *err_handler;
+	/* Device driver may resume normal operations */
+	void (*error_resume)(struct pci_dev *dev);
 
 	/* Link Reset Capability - AER service driver specific */
 	pci_ers_result_t (*reset_link) (struct pci_dev *dev);

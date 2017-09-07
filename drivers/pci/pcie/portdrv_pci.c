@@ -21,7 +21,6 @@
 
 #include "../pci.h"
 #include "portdrv.h"
-#include "aer/aerdrv.h"
 
 /* If this switch is set, PCIe port native services should not be enabled. */
 bool pcie_ports_disabled;
@@ -177,108 +176,20 @@ static void pcie_portdrv_remove(struct pci_dev *dev)
 	pcie_port_device_remove(dev);
 }
 
-static int error_detected_iter(struct device *device, void *data)
-{
-	struct pcie_device *pcie_device;
-	struct pcie_port_service_driver *driver;
-	struct aer_broadcast_data *result_data;
-	pci_ers_result_t status;
-
-	result_data = (struct aer_broadcast_data *) data;
-
-	if (device->bus == &pcie_port_bus_type && device->driver) {
-		driver = to_service_driver(device->driver);
-		if (!driver ||
-			!driver->err_handler ||
-			!driver->err_handler->error_detected)
-			return 0;
-
-		pcie_device = to_pcie_device(device);
-
-		/* Forward error detected message to service drivers */
-		status = driver->err_handler->error_detected(
-			pcie_device->port,
-			result_data->state);
-		result_data->result =
-			merge_result(result_data->result, status);
-	}
-
-	return 0;
-}
-
 static pci_ers_result_t pcie_portdrv_error_detected(struct pci_dev *dev,
 					enum pci_channel_state error)
 {
-	struct aer_broadcast_data data = {error, PCI_ERS_RESULT_CAN_RECOVER};
-
-	/* get true return value from &data */
-	device_for_each_child(&dev->dev, &data, error_detected_iter);
-	return data.result;
-}
-
-static int mmio_enabled_iter(struct device *device, void *data)
-{
-	struct pcie_device *pcie_device;
-	struct pcie_port_service_driver *driver;
-	pci_ers_result_t status, *result;
-
-	result = (pci_ers_result_t *) data;
-
-	if (device->bus == &pcie_port_bus_type && device->driver) {
-		driver = to_service_driver(device->driver);
-		if (driver &&
-			driver->err_handler &&
-			driver->err_handler->mmio_enabled) {
-			pcie_device = to_pcie_device(device);
-
-			/* Forward error message to service drivers */
-			status = driver->err_handler->mmio_enabled(
-					pcie_device->port);
-			*result = merge_result(*result, status);
-		}
-	}
-
-	return 0;
+	/* Root Port has no impact. Always recovers. */
+	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
 static pci_ers_result_t pcie_portdrv_mmio_enabled(struct pci_dev *dev)
 {
-	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-
-	/* get true return value from &status */
-	device_for_each_child(&dev->dev, &status, mmio_enabled_iter);
-	return status;
-}
-
-static int slot_reset_iter(struct device *device, void *data)
-{
-	struct pcie_device *pcie_device;
-	struct pcie_port_service_driver *driver;
-	pci_ers_result_t status, *result;
-
-	result = (pci_ers_result_t *) data;
-
-	if (device->bus == &pcie_port_bus_type && device->driver) {
-		driver = to_service_driver(device->driver);
-		if (driver &&
-			driver->err_handler &&
-			driver->err_handler->slot_reset) {
-			pcie_device = to_pcie_device(device);
-
-			/* Forward error message to service drivers */
-			status = driver->err_handler->slot_reset(
-					pcie_device->port);
-			*result = merge_result(*result, status);
-		}
-	}
-
-	return 0;
+	return PCI_ERS_RESULT_RECOVERED;
 }
 
 static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 {
-	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-
 	/* If fatal, restore cfg space for possible link reset at upstream */
 	if (dev->error_state == pci_channel_io_frozen) {
 		dev->state_saved = true;
@@ -287,9 +198,7 @@ static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 		pci_enable_pcie_error_reporting(dev);
 	}
 
-	/* get true return value from &status */
-	device_for_each_child(&dev->dev, &status, slot_reset_iter);
-	return status;
+	return PCI_ERS_RESULT_RECOVERED;
 }
 
 static int resume_iter(struct device *device, void *data)
@@ -299,13 +208,11 @@ static int resume_iter(struct device *device, void *data)
 
 	if (device->bus == &pcie_port_bus_type && device->driver) {
 		driver = to_service_driver(device->driver);
-		if (driver &&
-			driver->err_handler &&
-			driver->err_handler->resume) {
+		if (driver && driver->error_resume) {
 			pcie_device = to_pcie_device(device);
 
 			/* Forward error message to service drivers */
-			driver->err_handler->resume(pcie_device->port);
+			driver->error_resume(pcie_device->port);
 		}
 	}
 
