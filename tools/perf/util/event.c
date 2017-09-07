@@ -683,12 +683,14 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 				   bool mmap_data,
 				   unsigned int proc_map_timeout)
 {
-	DIR *proc;
-	char proc_path[PATH_MAX];
-	struct dirent *dirent;
 	union perf_event *comm_event, *mmap_event, *fork_event;
 	union perf_event *namespaces_event;
+	char proc_path[PATH_MAX];
+	struct dirent **dirent;
 	int err = -1;
+	char *end;
+	pid_t pid;
+	int n, i;
 
 	if (machine__is_default_guest(machine))
 		return 0;
@@ -712,29 +714,32 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 		goto out_free_fork;
 
 	snprintf(proc_path, sizeof(proc_path), "%s/proc", machine->root_dir);
-	proc = opendir(proc_path);
+	n = scandir(proc_path, &dirent, 0, alphasort);
 
-	if (proc == NULL)
+	if (n < 0)
 		goto out_free_namespaces;
 
-	while ((dirent = readdir(proc)) != NULL) {
-		char *end;
-		pid_t pid = strtol(dirent->d_name, &end, 10);
-
-		if (*end) /* only interested in proper numerical dirents */
+	for (i = 0; i < n; i++) {
+		if (!isdigit(dirent[i]->d_name[0]))
 			continue;
-		/*
- 		 * We may race with exiting thread, so don't stop just because
- 		 * one thread couldn't be synthesized.
- 		 */
-		__event__synthesize_thread(comm_event, mmap_event, fork_event,
-					   namespaces_event, pid, 1, process,
-					   tool, machine, mmap_data,
-					   proc_map_timeout);
-	}
 
+		pid = (pid_t)strtol(dirent[i]->d_name, &end, 10);
+		/* only interested in proper numerical dirents */
+		if (!*end) {
+			/*
+			 * We may race with exiting thread, so don't stop just because
+			 * one thread couldn't be synthesized.
+			 */
+			__event__synthesize_thread(comm_event, mmap_event, fork_event,
+						   namespaces_event, pid, 1, process,
+						   tool, machine, mmap_data,
+						   proc_map_timeout);
+		}
+		free(dirent[i]);
+	}
+	free(dirent);
 	err = 0;
-	closedir(proc);
+
 out_free_namespaces:
 	free(namespaces_event);
 out_free_fork:
