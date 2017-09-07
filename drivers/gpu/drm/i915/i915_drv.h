@@ -1184,6 +1184,7 @@ struct i915_psr {
 	void (*disable_source)(struct intel_dp *,
 			       const struct intel_crtc_state *);
 	void (*activate)(struct intel_dp *);
+	void (*setup_vsc)(struct intel_dp *, const struct intel_crtc_state *);
 };
 
 enum intel_pch {
