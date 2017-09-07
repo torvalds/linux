@@ -1421,6 +1421,9 @@ static int i915_forcewake_domains(struct seq_file *m, void *data)
 	struct intel_uncore_forcewake_domain *fw_domain;
 	unsigned int tmp;
 
+	seq_printf(m, "user.bypass_count = %u\n",
+		   i915->uncore.user_forcewake.count);
+
 	for_each_fw_domain(fw_domain, i915, tmp)
 		seq_printf(m, "%s.wake_count = %u\n",
 			   intel_uncore_forcewake_domain_to_str(fw_domain->id),
@@ -4724,26 +4727,26 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 
 static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
-	struct drm_i915_private *dev_priv = inode->i_private;
+	struct drm_i915_private *i915 = inode->i_private;
 
-	if (INTEL_GEN(dev_priv) < 6)
+	if (INTEL_GEN(i915) < 6)
 		return 0;
 
-	intel_runtime_pm_get(dev_priv);
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_runtime_pm_get(i915);
+	intel_uncore_forcewake_user_get(i915);
 
 	return 0;
 }
 
 static int i915_forcewake_release(struct inode *inode, struct file *file)
 {
-	struct drm_i915_private *dev_priv = inode->i_private;
+	struct drm_i915_private *i915 = inode->i_private;
 
-	if (INTEL_GEN(dev_priv) < 6)
+	if (INTEL_GEN(i915) < 6)
 		return 0;
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	intel_runtime_pm_put(dev_priv);
+	intel_uncore_forcewake_user_put(i915);
+	intel_runtime_pm_put(i915);
 
 	return 0;
 }

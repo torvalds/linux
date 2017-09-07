@@ -490,6 +490,57 @@ void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 }
 
 /**
+ * intel_uncore_forcewake_user_get - claim forcewake on behalf of userspace
+ * @dev_priv: i915 device instance
+ *
+ * This function is a wrapper around intel_uncore_forcewake_get() to acquire
+ * the GT powerwell and in the process disable our debugging for the
+ * duration of userspace's bypass.
+ */
+void intel_uncore_forcewake_user_get(struct drm_i915_private *dev_priv)
+{
+	spin_lock_irq(&dev_priv->uncore.lock);
+	if (!dev_priv->uncore.user_forcewake.count++) {
+		intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
+
+		/* Save and disable mmio debugging for the user bypass */
+		dev_priv->uncore.user_forcewake.saved_mmio_check =
+			dev_priv->uncore.unclaimed_mmio_check;
+		dev_priv->uncore.user_forcewake.saved_mmio_debug =
+			i915.mmio_debug;
+
+		dev_priv->uncore.unclaimed_mmio_check = 0;
+		i915.mmio_debug = 0;
+	}
+	spin_unlock_irq(&dev_priv->uncore.lock);
+}
+
+/**
+ * intel_uncore_forcewake_user_put - release forcewake on behalf of userspace
+ * @dev_priv: i915 device instance
+ *
+ * This function complements intel_uncore_forcewake_user_get() and releases
+ * the GT powerwell taken on behalf of the userspace bypass.
+ */
+void intel_uncore_forcewake_user_put(struct drm_i915_private *dev_priv)
+{
+	spin_lock_irq(&dev_priv->uncore.lock);
+	if (!--dev_priv->uncore.user_forcewake.count) {
+		if (intel_uncore_unclaimed_mmio(dev_priv))
+			dev_info(dev_priv->drm.dev,
+				 "Invalid mmio detected during user access\n");
+
+		dev_priv->uncore.unclaimed_mmio_check =
+			dev_priv->uncore.user_forcewake.saved_mmio_check;
+		i915.mmio_debug =
+			dev_priv->uncore.user_forcewake.saved_mmio_debug;
+
+		intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
+	}
+	spin_unlock_irq(&dev_priv->uncore.lock);
+}
+
+/**
  * intel_uncore_forcewake_get__locked - grab forcewake domain references
  * @dev_priv: i915 device instance
  * @fw_domains: forcewake domains to get reference on
