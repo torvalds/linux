@@ -732,6 +732,7 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		const struct dc_stream_status *stream_status);
 
 
+struct validate_context *dc_create_state(void);
 void dc_retain_validate_context(struct validate_context *context);
 void dc_release_validate_context(struct validate_context *context);
 

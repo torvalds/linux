@@ -497,14 +497,12 @@ static bool construct(struct dc *dc,
 		goto fail;
 	}
 
-	dc->current_context = dm_alloc(sizeof(*dc->current_context));
+	dc->current_context = dc_create_state();
 
 	if (!dc->current_context) {
 		dm_error("%s: failed to create validate ctx\n", __func__);
 		goto fail;
 	}
-
-	atomic_inc(&dc->current_context->ref_count);
 
 	dc_ctx->cgs_device = init_params->cgs_device;
 	dc_ctx->driver_context = init_params->driver;
@@ -1162,6 +1160,17 @@ bool dc_commit_planes_to_stream(
 	return true;
 }
 
+struct validate_context *dc_create_state(void)
+{
+	struct validate_context *context = dm_alloc(sizeof(struct validate_context));
+
+	if (!context)
+		return NULL;
+
+	atomic_inc(&context->ref_count);
+	return context;
+}
+
 void dc_retain_validate_context(struct validate_context *context)
 {
 	ASSERT(atomic_read(&context->ref_count) > 0);
@@ -1442,11 +1451,9 @@ void dc_update_planes_and_stream(struct dc *dc,
 			new_planes[i] = srf_updates[i].surface;
 
 		/* initialize scratch memory for building context */
-		context = dm_alloc(sizeof(*context));
+		context = dc_create_state();
 		if (context == NULL)
 				goto context_alloc_fail;
-
-		atomic_inc(&context->ref_count);
 
 		dc_resource_validate_ctx_copy_construct(
 				core_dc->current_context, context);

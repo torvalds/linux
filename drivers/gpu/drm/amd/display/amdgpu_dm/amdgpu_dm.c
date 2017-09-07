@@ -702,12 +702,10 @@ dm_atomic_state_alloc(struct drm_device *dev)
 		goto fail;
 
 	/* copy existing configuration */
-	new_ctx = dm_alloc(sizeof(*new_ctx));
+	new_ctx = dc_create_state();
 
 	if (!new_ctx)
 		goto fail;
-
-	atomic_inc(&new_ctx->ref_count);
 
 	dc_resource_validate_ctx_copy_construct_current(dc, new_ctx);
 
