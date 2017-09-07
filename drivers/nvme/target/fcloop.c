@@ -576,7 +576,7 @@ fcloop_tgt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	tfcp_req->aborted = true;
 	spin_unlock(&tfcp_req->reqlock);
 
-	tfcp_req->status = NVME_SC_FC_TRANSPORT_ABORTED;
+	tfcp_req->status = NVME_SC_INTERNAL;
 
 	/*
 	 * nothing more to do. If io wasn't active, the transport should
