@@ -176,23 +176,6 @@ static int tegra_max98090_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int tegra_max98090_card_remove(struct snd_soc_card *card)
-{
-	struct tegra_max98090 *machine = snd_soc_card_get_drvdata(card);
-
-	if (gpio_is_valid(machine->gpio_hp_det)) {
-		snd_soc_jack_free_gpios(&tegra_max98090_hp_jack, 1,
-					&tegra_max98090_hp_jack_gpio);
-	}
-
-	if (gpio_is_valid(machine->gpio_mic_det)) {
-		snd_soc_jack_free_gpios(&tegra_max98090_mic_jack, 1,
-					&tegra_max98090_mic_jack_gpio);
-	}
-
-	return 0;
-}
-
 static struct snd_soc_dai_link tegra_max98090_dai = {
 	.name = "max98090",
 	.stream_name = "max98090 PCM",
@@ -206,7 +189,6 @@ static struct snd_soc_dai_link tegra_max98090_dai = {
 static struct snd_soc_card snd_soc_tegra_max98090 = {
 	.name = "tegra-max98090",
 	.owner = THIS_MODULE,
-	.remove = tegra_max98090_card_remove,
 	.dai_link = &tegra_max98090_dai,
 	.num_links = 1,
 	.controls = tegra_max98090_controls,
@@ -229,7 +211,6 @@ static int tegra_max98090_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
 	machine->gpio_hp_det = of_get_named_gpio(np, "nvidia,hp-det-gpios", 0);

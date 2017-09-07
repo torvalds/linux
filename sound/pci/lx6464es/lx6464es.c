@@ -77,7 +77,7 @@ MODULE_DEVICE_TABLE(pci, snd_lx6464es_ids);
 
 
 /* alsa callbacks */
-static struct snd_pcm_hardware lx_caps = {
+static const struct snd_pcm_hardware lx_caps = {
 	.info             = (SNDRV_PCM_INFO_MMAP |
 			     SNDRV_PCM_INFO_INTERLEAVED |
 			     SNDRV_PCM_INFO_MMAP_VALID |

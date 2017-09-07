@@ -3730,7 +3730,7 @@ static struct snd_soc_dai_driver rt5659_dai[] = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt5659 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt5659 = {
 	.probe = rt5659_probe,
 	.remove = rt5659_remove,
 	.suspend = rt5659_suspend,
@@ -4222,7 +4222,7 @@ MODULE_DEVICE_TABLE(of, rt5659_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id rt5659_acpi_match[] = {
+static const struct acpi_device_id rt5659_acpi_match[] = {
 	{ "10EC5658", 0, },
 	{ "10EC5659", 0, },
 	{ },

@@ -1087,7 +1087,7 @@ static struct snd_soc_dai_driver isabelle_dai[] = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_isabelle = {
+static const struct snd_soc_codec_driver soc_codec_dev_isabelle = {
 	.set_bias_level = isabelle_set_bias_level,
 	.component_driver = {
 		.controls		= isabelle_snd_controls,
