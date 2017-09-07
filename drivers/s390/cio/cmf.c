@@ -589,22 +589,18 @@ static int set_cmb(struct ccw_device *cdev, u32 mme)
 
 static u64 read_cmb(struct ccw_device *cdev, int index)
 {
-	struct cmb *cmb;
-	u32 val;
-	int ret;
+	struct cmb_data *cmb_data;
 	unsigned long flags;
-
-	ret = cmf_cmb_copy_wait(cdev);
-	if (ret < 0)
-		return 0;
+	struct cmb *cmb;
+	int ret = 0;
+	u32 val;
 
 	spin_lock_irqsave(cdev->ccwlock, flags);
-	if (!cdev->private->cmb) {
-		ret = 0;
+	cmb_data = cdev->private->cmb;
+	if (!cmb_data)
 		goto out;
-	}
-	cmb = ((struct cmb_data *)cdev->private->cmb)->last_block;
 
+	cmb = cmb_data->hw_block;
 	switch (index) {
 	case cmb_ssch_rsch_count:
 		ret = cmb->ssch_rsch_count;
@@ -628,7 +624,6 @@ static u64 read_cmb(struct ccw_device *cdev, int index)
 		val = cmb->device_active_only_time;
 		break;
 	default:
-		ret = 0;
 		goto out;
 	}
 	ret = time_to_avg_nsec(val, cmb->sample_count);
@@ -841,27 +836,20 @@ static int set_cmbe(struct ccw_device *cdev, u32 mme)
 	return set_schib_wait(cdev, mme, 1, mba);
 }
 
-
 static u64 read_cmbe(struct ccw_device *cdev, int index)
 {
-	struct cmbe *cmb;
 	struct cmb_data *cmb_data;
-	u32 val;
-	int ret;
 	unsigned long flags;
-
-	ret = cmf_cmb_copy_wait(cdev);
-	if (ret < 0)
-		return 0;
+	struct cmbe *cmb;
+	int ret = 0;
+	u32 val;
 
 	spin_lock_irqsave(cdev->ccwlock, flags);
 	cmb_data = cdev->private->cmb;
-	if (!cmb_data) {
-		ret = 0;
+	if (!cmb_data)
 		goto out;
-	}
-	cmb = cmb_data->last_block;
 
+	cmb = cmb_data->hw_block;
 	switch (index) {
 	case cmb_ssch_rsch_count:
 		ret = cmb->ssch_rsch_count;
@@ -891,7 +879,6 @@ static u64 read_cmbe(struct ccw_device *cdev, int index)
 		val = cmb->initial_command_response_time;
 		break;
 	default:
-		ret = 0;
 		goto out;
 	}
 	ret = time_to_avg_nsec(val, cmb->sample_count);
@@ -982,18 +969,14 @@ static ssize_t cmb_show_avg_sample_interval(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	struct ccw_device *cdev;
-	long interval;
+	struct ccw_device *cdev = to_ccwdev(dev);
 	unsigned long count;
-	struct cmb_data *cmb_data;
+	long interval;
 
-	cdev = to_ccwdev(dev);
 	count = cmf_read(cdev, cmb_sample_count);
 	spin_lock_irq(cdev->ccwlock);
-	cmb_data = cdev->private->cmb;
 	if (count) {
-		interval = cmb_data->last_update -
-			cdev->private->cmb_start_time;
+		interval = get_tod_clock() - cdev->private->cmb_start_time;
 		interval = (interval * 1000) >> 12;
 		interval /= count;
 	} else
