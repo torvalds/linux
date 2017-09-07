@@ -359,6 +359,8 @@ struct i40e_channel {
 	u8 enabled_tc;
 	struct i40e_aqc_vsi_properties_data info;
 
+	u64 max_tx_rate;
+
 	/* track this channel belongs to which VSI */
 	struct i40e_vsi *parent_vsi;
 };
