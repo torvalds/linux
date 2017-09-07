@@ -688,8 +688,6 @@ rel_neigh:
 
 rel_rt:
 	ip_rt_put(rt);
-	if (csk)
-		cxgbi_sock_closed(csk);
 err_out:
 	return ERR_PTR(err);
 }
