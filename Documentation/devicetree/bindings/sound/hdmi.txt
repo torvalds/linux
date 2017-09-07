@@ -13,5 +13,4 @@ Example node:
 
 	hdmi_audio: hdmi_audio@0 {
 		compatible = "linux,hdmi-audio";
-		status = "okay";
 	};

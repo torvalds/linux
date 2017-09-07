@@ -67,14 +67,12 @@ grf: syscon@ff770000 {
 				     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "otg-id", "otg-bvalid", "linestate";
-			status = "okay";
 		};
 
 		u2phy_host: host-port {
 			#phy-cells = <0>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "linestate";
-			status = "okay";
 		};
 	};
 };

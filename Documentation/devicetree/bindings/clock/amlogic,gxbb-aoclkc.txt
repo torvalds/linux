@@ -41,5 +41,4 @@ Example: UART controller node that consumes the clock and reset generated
 		interrupts = <0 90 1>;
 		clocks = <&clkc_AO CLKID_AO_UART1>;
 		resets = <&clkc_AO RESET_AO_UART1>;
-		status = "disabled";
 	};

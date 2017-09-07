@@ -130,7 +130,6 @@ The reg property implicitly specifies the chip select as this:
 Example:
 
 	devbus-bootcs@d0010400 {
-		status = "okay";
 		ranges = <0 0xf0000000 0x1000000>; /* @addr 0xf0000000, size 0x1000000 */
 		#address-cells = <1>;
 		#size-cells = <1>;

@@ -51,14 +51,12 @@ u3phy: usb-phy@11290000 {
 	#address-cells = <2>;
 	#size-cells = <2>;
 	ranges;
-	status = "okay";
 
 	u2port0: usb-phy@11290800 {
 		reg = <0 0x11290800 0 0x100>;
 		clocks = <&apmixedsys CLK_APMIXED_REF2USB_TX>;
 		clock-names = "ref";
 		#phy-cells = <1>;
-		status = "okay";
 	};
 
 	u3port0: usb-phy@11290900 {
@@ -66,7 +64,6 @@ u3phy: usb-phy@11290000 {
 		clocks = <&clk26m>;
 		clock-names = "ref";
 		#phy-cells = <1>;
-		status = "okay";
 	};
 
 	u2port1: usb-phy@11291000 {
@@ -74,7 +71,6 @@ u3phy: usb-phy@11290000 {
 		clocks = <&apmixedsys CLK_APMIXED_REF2USB_TX>;
 		clock-names = "ref";
 		#phy-cells = <1>;
-		status = "okay";
 	};
 };
 

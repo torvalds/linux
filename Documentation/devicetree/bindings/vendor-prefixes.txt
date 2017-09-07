@@ -9,6 +9,7 @@ actions	Actions Semiconductor Co., Ltd.
 active-semi	Active-Semi International Inc
 ad	Avionic Design GmbH
 adapteva	Adapteva, Inc.
+adaptrum	Adaptrum, Inc.
 adh	AD Holdings Plc.
 adi	Analog Devices, Inc.
 advantech	Advantech Corporation
@@ -197,6 +198,7 @@ mediatek	MediaTek Inc.
 megachips	MegaChips
 melexis	Melexis N.V.
 melfas	MELFAS Inc.
+mellanox	Mellanox Technologies
 memsic	MEMSIC Inc.
 merrii	Merrii Technology Co., Ltd.
 micrel	Micrel Inc.
@@ -208,7 +210,7 @@ miramems	MiraMEMS Sensing Technology Co., Ltd.
 mitsubishi	Mitsubishi Electric Corporation
 mosaixtech	Mosaix Technologies, Inc.
 motorola	Motorola, Inc.
-moxa	Moxa
+moxa	Moxa Inc.
 mpl	MPL AG
 mqmaker	mqmaker Inc.
 msi	Micro-Star International Co. Ltd.
@@ -344,6 +346,7 @@ tpo	TPO
 tronfy	Tronfy
 tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
+tsd	Theobroma Systems Design und Consulting GmbH
 tyan	Tyan Computer Corporation
 ucrobotics	uCRobotics
 udoo	Udoo

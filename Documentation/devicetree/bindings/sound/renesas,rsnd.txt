@@ -621,7 +621,6 @@ Example: simple sound card
 	/* Single DAI */
 	#sound-dai-cells = <0>;
 
-	status = "okay";
 
 	rcar_sound,dai {
 		dai0 {
@@ -667,7 +666,6 @@ Example: simple sound card for Multi channel
 	/* Single DAI */
 	#sound-dai-cells = <0>;
 
-	status = "okay";
 
 	rcar_sound,dai {
 		dai0 {

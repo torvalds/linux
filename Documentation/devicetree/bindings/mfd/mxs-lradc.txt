@@ -26,7 +26,6 @@ Example for i.MX23 SoC:
 		compatible = "fsl,imx23-lradc";
 		reg = <0x80050000 0x2000>;
 		interrupts = <36 37 38 39 40 41 42 43 44>;
-		status = "okay";
 		fsl,lradc-touchscreen-wires = <4>;
 		fsl,ave-ctrl = <4>;
 		fsl,ave-delay = <2>;
@@ -39,7 +38,6 @@ Example for i.MX28 SoC:
 		compatible = "fsl,imx28-lradc";
 		reg = <0x80050000 0x2000>;
 		interrupts = <10 14 15 16 17 18 19 20 21 22 23 24 25>;
-		status = "okay";
 		fsl,lradc-touchscreen-wires = <5>;
 		fsl,ave-ctrl = <4>;
 		fsl,ave-delay = <2>;

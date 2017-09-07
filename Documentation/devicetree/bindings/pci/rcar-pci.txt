@@ -54,5 +54,4 @@ SoC specific DT Entry:
 		interrupt-map = <0 0 0 0 &gic 0 116 4>;
 		clocks = <&mstp3_clks R8A7791_CLK_PCIE>, <&pcie_bus_clk>;
 		clock-names = "pcie", "pcie_bus";
-		status = "disabled";
 	};

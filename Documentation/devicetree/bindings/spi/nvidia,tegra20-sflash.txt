@@ -34,5 +34,4 @@ spi@7000c380 {
 	reset-names = "spi";
 	dmas = <&apbdma 11>, <&apbdma 11>;
 	dma-names = "rx", "tx";
-	status = "disabled";
 };

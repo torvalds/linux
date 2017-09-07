@@ -59,7 +59,6 @@ sram-controller@01c00000 {
 		emac_sram: sram-section@8000 {
 			compatible = "allwinner,sun4i-a10-sram-a3-a4";
 			reg = <0x8000 0x4000>;
-			status = "disabled";
 		};
 	};
 };

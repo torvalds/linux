@@ -25,5 +25,4 @@ can1: can@53fc8000 {
 	interrupts = <82>;
 	clocks = <&clks IMX5_CLK_CAN1_IPG_GATE>, <&clks IMX5_CLK_CAN1_SERIAL_GATE>;
 	clock-names = "ipg", "per";
-	status = "disabled";
 };

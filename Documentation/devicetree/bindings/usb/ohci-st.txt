@@ -29,7 +29,6 @@ Example:
 		clock-names = "ic", "clk48";
 		phys = <&usb2_phy>;
 		phy-names = "usb";
-		status = "okay";
 
 		resets = <&powerdown STIH416_USB0_POWERDOWN>,
 			 <&softreset STIH416_USB0_SOFTRESET>;

@@ -75,7 +75,6 @@ ssusb: usb@11271000 {
 	#address-cells = <2>;
 	#size-cells = <2>;
 	ranges;
-	status = "disabled";
 
 	usb_host: xhci@11270000 {
 		compatible = "mediatek,mt8173-xhci";
@@ -86,6 +85,5 @@ ssusb: usb@11271000 {
 		clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>;
 		clock-names = "sys_ck", "ref_ck";
 		vusb33-supply = <&mt6397_vusb_reg>;
-		status = "disabled";
 	};
 };
