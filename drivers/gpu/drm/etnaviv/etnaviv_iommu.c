@@ -50,22 +50,6 @@ static struct etnaviv_iommu_domain *to_etnaviv_domain(struct iommu_domain *domai
 	return container_of(domain, struct etnaviv_iommu_domain, domain);
 }
 
-static int pgtable_alloc(struct etnaviv_iommu_domain_pgtable *pgtable,
-			 size_t size)
-{
-	pgtable->pgtable = dma_alloc_coherent(NULL, size, &pgtable->paddr, GFP_KERNEL);
-	if (!pgtable->pgtable)
-		return -ENOMEM;
-
-	return 0;
-}
-
-static void pgtable_free(struct etnaviv_iommu_domain_pgtable *pgtable,
-			 size_t size)
-{
-	dma_free_coherent(NULL, size, pgtable->pgtable, pgtable->paddr);
-}
-
 static void pgtable_write(struct etnaviv_iommu_domain_pgtable *pgtable,
 			  unsigned long iova, phys_addr_t paddr)
 {
@@ -78,7 +62,7 @@ static void pgtable_write(struct etnaviv_iommu_domain_pgtable *pgtable,
 static int __etnaviv_iommu_init(struct etnaviv_iommu_domain *etnaviv_domain)
 {
 	u32 *p;
-	int ret, i;
+	int i;
 
 	etnaviv_domain->bad_page_cpu = dma_alloc_coherent(etnaviv_domain->dev,
 						  SZ_4K,
@@ -91,12 +75,15 @@ static int __etnaviv_iommu_init(struct etnaviv_iommu_domain *etnaviv_domain)
 	for (i = 0; i < SZ_4K / 4; i++)
 		*p++ = 0xdead55aa;
 
-	ret = pgtable_alloc(&etnaviv_domain->pgtable, PT_SIZE);
-	if (ret < 0) {
+	etnaviv_domain->pgtable.pgtable =
+			dma_alloc_coherent(etnaviv_domain->dev, PT_SIZE,
+					   &etnaviv_domain->pgtable.paddr,
+					   GFP_KERNEL);
+	if (!etnaviv_domain->pgtable.pgtable) {
 		dma_free_coherent(etnaviv_domain->dev, SZ_4K,
 				  etnaviv_domain->bad_page_cpu,
 				  etnaviv_domain->bad_page_dma);
-		return ret;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < PT_ENTRIES; i++)
@@ -112,7 +99,9 @@ static void etnaviv_domain_free(struct iommu_domain *domain)
 {
 	struct etnaviv_iommu_domain *etnaviv_domain = to_etnaviv_domain(domain);
 
-	pgtable_free(&etnaviv_domain->pgtable, PT_SIZE);
+	dma_free_coherent(etnaviv_domain->dev, PT_SIZE,
+			  etnaviv_domain->pgtable.pgtable,
+			  etnaviv_domain->pgtable.paddr);
 
 	dma_free_coherent(etnaviv_domain->dev, SZ_4K,
 			  etnaviv_domain->bad_page_cpu,
