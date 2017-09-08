@@ -2388,9 +2388,12 @@ static ssize_t guid_show(struct device *dev, struct device_attribute *attr,
 {
 	struct bmc_device *bmc = to_bmc_device(dev);
 
-	return snprintf(buf, 100, "%Lx%Lx\n",
-			(long long) bmc->guid[0],
-			(long long) bmc->guid[8]);
+	return snprintf(buf, 100,
+		"%2.2x%2.2x%2.2x%2.2x-%2.2x%2.2x-%2.2x%2.2x-%2.2x%2.2x-%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x\n",
+		bmc->guid[3], bmc->guid[2], bmc->guid[1], bmc->guid[0],
+		bmc->guid[5], bmc->guid[4], bmc->guid[7], bmc->guid[6],
+		bmc->guid[8], bmc->guid[9], bmc->guid[10], bmc->guid[11],
+		bmc->guid[12], bmc->guid[13], bmc->guid[14], bmc->guid[15]);
 }
 static DEVICE_ATTR(guid, S_IRUGO, guid_show, NULL);
 
