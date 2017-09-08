@@ -567,7 +567,7 @@ static int soc_init(struct pltfrm_soc_init_para *init)
 		clk_rst->cif_clk_out	   =
 			devm_clk_get(&pdev->dev, "clk_cif_out");
 		clk_rst->cif_clk_pll	   =
-			devm_clk_get(&pdev->dev, "cif_clk_pll");
+			devm_clk_get(&pdev->dev, "clk_cif_pll");
 		clk_rst->pclk_dphy_ref	   =
 			devm_clk_get(&pdev->dev, "pclk_dphy_ref");
 
@@ -610,7 +610,7 @@ static int soc_init(struct pltfrm_soc_init_para *init)
 		clk_rst->cif_clk_out	   =
 			devm_clk_get(&pdev->dev, "clk_cif_out");
 		clk_rst->cif_clk_pll	   =
-			devm_clk_get(&pdev->dev, "cif_clk_pll");
+			devm_clk_get(&pdev->dev, "clk_cif_pll");
 		clk_rst->pclk_dphy_ref	   =
 			devm_clk_get(&pdev->dev, "pclk_dphy_ref");
 

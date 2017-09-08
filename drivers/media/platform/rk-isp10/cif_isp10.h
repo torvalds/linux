@@ -432,6 +432,11 @@ struct cif_isp10_mi_path_config {
 	u32 cb_size;
 	u32 cr_size;
 	bool busy;
+
+	/* FOR BT655: 0 = ODD, 1 = EVEN */
+	bool field_flag;
+	/* for interlace offset */
+	u32 vir_len_offset;
 };
 
 struct cif_isp10_zoom_buffer_info {

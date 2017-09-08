@@ -460,6 +460,8 @@ static const char *cif_isp10_interface_string(
 		return "DVP_BT601_16Bit";
 	case PLTFRM_CAM_ITF_BT656_16:
 		return "DVP_BT656_16Bit";
+	case PLTFRM_CAM_ITF_BT656_8_INTERLACE:
+		return "DVP_BT656_8Bit_interlace";
 	default:
 		return "UNKNOWN/UNSUPPORTED";
 	}
@@ -1333,6 +1335,9 @@ static void cif_isp10_config_ism(struct cif_isp10_device *dev, bool async)
 			dev->config.base_addr + CIF_ISP_IS_H_SIZE);
 		cif_iowrite32(dev->config.isp_config.output.height,
 			dev->config.base_addr + CIF_ISP_IS_V_SIZE);
+		if (PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type))
+			cif_iowrite32(dev->config.isp_config.output.height / 2,
+				dev->config.base_addr + CIF_ISP_IS_V_SIZE);
 		cif_iowrite32(0,
 			dev->config.base_addr + CIF_ISP_IS_CTRL);
 	}
@@ -1851,6 +1856,21 @@ static int cif_isp10_config_isp(
 		dev->config.base_addr + CIF_ISP_OUT_H_SIZE);
 	cif_iowrite32(output->height,
 		dev->config.base_addr + CIF_ISP_OUT_V_SIZE);
+	if (PLTFRM_CAM_ITF_INTERLACE(cam_itf->type)) {
+		cif_isp10_pltfrm_pr_info(dev->dev,
+			"type %s: input.size %dx%d, output.size %dx%d\n",
+			cif_isp10_interface_string(cam_itf->type),
+			dev->config.isp_config.input->defrect.width,
+			dev->config.isp_config.input->defrect.height,
+			output->width,
+			output->height);
+		cif_iowrite32(
+			dev->config.isp_config.input->defrect.height / 2,
+			dev->config.base_addr + CIF_ISP_ACQ_V_SIZE);
+		cif_iowrite32(
+			output->height / 2,
+			dev->config.base_addr + CIF_ISP_OUT_V_SIZE);
+	}
 
 	dev->isp_dev.input_width =
 		dev->config.isp_config.input->defrect.width;
@@ -2213,6 +2233,7 @@ static int cif_isp10_config_mi_sp(
 	u32 size = llength * height * bpp / 8;
 	u32 input_format = 0;
 	u32 output_format;
+	u32 burst_len;
 	u32 mi_ctrl;
 
 	dev->config.mi_config.sp.input =
@@ -2224,6 +2245,17 @@ static int cif_isp10_config_mi_sp(
 		width,
 		height,
 		llength);
+	if (PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type)) {
+		llength = 2 * llength;
+		height = height / 2;
+		dev->config.mi_config.sp.vir_len_offset =
+			width;
+		burst_len = CIF_MI_CTRL_BURST_LEN_LUM_16 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_16;
+	} else {
+		burst_len = CIF_MI_CTRL_BURST_LEN_LUM_64 |
+			CIF_MI_CTRL_BURST_LEN_CHROM_64;
+	}
 
 	if (!CIF_ISP10_PIX_FMT_IS_YUV(in_pix_fmt)) {
 		cif_isp10_pltfrm_pr_err(dev->dev,
@@ -2268,12 +2300,16 @@ static int cif_isp10_config_mi_sp(
 			(CIF_ISP10_PIX_FMT_YUV_GET_Y_SUBS(out_pix_fmt) == 0))
 			output_format = CIF_MI_CTRL_SP_OUTPUT_FMT_YUV400;
 		else if ((CIF_ISP10_PIX_FMT_YUV_GET_X_SUBS(out_pix_fmt) == 2) &&
-			(CIF_ISP10_PIX_FMT_YUV_GET_Y_SUBS(out_pix_fmt) == 2))
+			(CIF_ISP10_PIX_FMT_YUV_GET_Y_SUBS(out_pix_fmt) == 2)) {
 			output_format = CIF_MI_CTRL_SP_OUTPUT_FMT_YUV420;
-		else if ((CIF_ISP10_PIX_FMT_YUV_GET_X_SUBS(out_pix_fmt) == 2) &&
-			(CIF_ISP10_PIX_FMT_YUV_GET_Y_SUBS(out_pix_fmt) == 4))
+			dev->config.mi_config.sp.vir_len_offset =
+				width;
+		} else if ((CIF_ISP10_PIX_FMT_YUV_GET_X_SUBS(out_pix_fmt) == 2) &&
+			(CIF_ISP10_PIX_FMT_YUV_GET_Y_SUBS(out_pix_fmt) == 4)) {
 			output_format = CIF_MI_CTRL_SP_OUTPUT_FMT_YUV422;
-		else if ((CIF_ISP10_PIX_FMT_YUV_GET_X_SUBS(out_pix_fmt) == 4) &&
+			dev->config.mi_config.sp.vir_len_offset =
+				width * 2;
+		} else if ((CIF_ISP10_PIX_FMT_YUV_GET_X_SUBS(out_pix_fmt) == 4) &&
 			(CIF_ISP10_PIX_FMT_YUV_GET_Y_SUBS(out_pix_fmt) == 4))
 			output_format = CIF_MI_CTRL_SP_OUTPUT_FMT_YUV444;
 		else {
@@ -2378,8 +2414,7 @@ static int cif_isp10_config_mi_sp(
 		CIF_MI_CTRL_SP_WRITE_FMT(writeformat) |
 		input_format |
 		output_format |
-		CIF_MI_CTRL_BURST_LEN_LUM_64 |
-		CIF_MI_CTRL_BURST_LEN_CHROM_64 |
+		burst_len |
 		CIF_MI_CTRL_INIT_BASE_EN |
 		CIF_MI_CTRL_INIT_OFFSET_EN |
 		CIF_MI_SP_AUTOUPDATE_ENABLE;
@@ -3766,6 +3801,8 @@ err:
 static int cif_isp10_update_mi_sp(
 	struct cif_isp10_device *dev)
 {
+	u32 vir_len_offset = dev->config.mi_config.sp.vir_len_offset;
+
 	cif_isp10_pltfrm_pr_dbg(NULL,
 		"curr 0x%08x next 0x%08x\n",
 		dev->config.mi_config.sp.curr_buff_addr,
@@ -3792,6 +3829,56 @@ static int cif_isp10_update_mi_sp(
 		cif_isp10_mi_update_buff_addr(dev, CIF_ISP10_STREAM_SP);
 		dev->config.mi_config.sp.curr_buff_addr =
 			dev->config.mi_config.sp.next_buff_addr;
+	} else if (PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type)) {
+		cif_iowrite32_verify(dev->config.mi_config.sp.next_buff_addr +
+			vir_len_offset,
+			dev->config.base_addr +
+			CIF_MI_SP_Y_BASE_AD_INIT, CIF_MI_ADDR_SIZE_ALIGN_MASK);
+		cif_iowrite32_verify(dev->config.mi_config.sp.next_buff_addr +
+			vir_len_offset +
+			dev->config.mi_config.sp.cb_offs,
+			dev->config.base_addr +
+			CIF_MI_SP_CB_BASE_AD_INIT, CIF_MI_ADDR_SIZE_ALIGN_MASK);
+		cif_iowrite32_verify(dev->config.mi_config.sp.next_buff_addr +
+			vir_len_offset +
+			dev->config.mi_config.sp.cr_offs,
+			dev->config.base_addr +
+			CIF_MI_SP_CR_BASE_AD_INIT, CIF_MI_ADDR_SIZE_ALIGN_MASK);
+		/*
+		 * There have bee repeatedly issues with
+		 * the offset registers, it is safer to write
+		 * them each time, even though it is always
+		 * 0 and even though that is the
+		 * register's default value
+		 */
+		cif_iowrite32_verify(0,
+			dev->config.base_addr +
+			CIF_MI_SP_Y_OFFS_CNT_INIT,
+			CIF_MI_ADDR_SIZE_ALIGN_MASK);
+		cif_iowrite32_verify(0,
+			dev->config.base_addr +
+			CIF_MI_SP_CB_OFFS_CNT_INIT,
+			CIF_MI_ADDR_SIZE_ALIGN_MASK);
+		cif_iowrite32_verify(0,
+			dev->config.base_addr +
+			CIF_MI_SP_CR_OFFS_CNT_INIT,
+			CIF_MI_ADDR_SIZE_ALIGN_MASK);
+		cif_isp10_pltfrm_pr_dbg(dev->dev,
+			"\n MI_SP_Y_BASE_AD 0x%08x/0x%08x\n"
+			" MI_SP_CB_BASE_AD 0x%08x/0x%08x\n"
+			" MI_SP_CR_BASE_AD 0x%08x/0x%08x\n",
+			cif_ioread32(dev->config.base_addr +
+				CIF_MI_SP_Y_BASE_AD_INIT),
+			cif_ioread32(dev->config.base_addr +
+				CIF_MI_SP_Y_BASE_AD_SHD),
+			cif_ioread32(dev->config.base_addr +
+				CIF_MI_SP_CB_BASE_AD_INIT),
+			cif_ioread32(dev->config.base_addr +
+				CIF_MI_SP_CB_BASE_AD_SHD),
+			cif_ioread32(dev->config.base_addr +
+				CIF_MI_SP_CR_BASE_AD_INIT),
+			cif_ioread32(dev->config.base_addr +
+				CIF_MI_SP_CR_BASE_AD_SHD));
 	}
 
 	return 0;
@@ -4068,6 +4155,12 @@ static int cif_isp10_mi_frame_end(
 	cif_isp10_pltfrm_pr_dbg(NULL, "%s\n",
 		cif_isp10_stream_id_string(stream_id));
 
+	/* BIT 2(current field information): 0 = odd, 1 = even */
+	if (PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type))
+		dev->config.mi_config.sp.field_flag =
+			(cif_ioread32(dev->config.base_addr +
+				CIF_ISP_FLAGS_SHD) & 0x4) >> 2;
+
 	if (stream_id == CIF_ISP10_STREAM_MP) {
 		stream = &dev->mp_stream;
 		y_base_addr =
@@ -4136,7 +4229,8 @@ static int cif_isp10_mi_frame_end(
 			&stream->next_buf->vb.vb2_buf, 0);
 		tmp_addr = sg_dma_address(sgt->sgl);
 #endif
-		if (tmp_addr != cif_ioread32(y_base_addr)) {
+		if (tmp_addr != cif_ioread32(y_base_addr) &&
+			!PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type)) {
 			cif_isp10_pltfrm_pr_warn(dev->dev,
 				"%s buffer queue is not advancing (0x%08x/0x%08x)\n",
 				cif_isp10_stream_id_string(stream_id),
@@ -4147,6 +4241,13 @@ static int cif_isp10_mi_frame_end(
 					CIF_MI_SP_Y_BASE_AD_INIT),
 				cif_ioread32(y_base_addr));
 			stream->stall = true;
+		}
+
+		if (PLTFRM_CAM_ITF_INTERLACE(dev->config.cam_itf.type)) {
+			if (dev->config.mi_config.sp.field_flag)
+				stream->stall = true;
+			else
+				stream->stall = false;
 		}
 	}
 

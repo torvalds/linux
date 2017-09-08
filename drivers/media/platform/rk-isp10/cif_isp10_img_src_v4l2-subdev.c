@@ -70,6 +70,12 @@ static enum cif_isp10_pix_fmt img_src_v4l2_subdev_pix_fmt2cif_isp10_pix_fmt(
 	case MEDIA_BUS_FMT_YUYV8_1X16:
 	case MEDIA_BUS_FMT_YUYV10_1X20:
 		return CIF_YUV422I;
+	case MEDIA_BUS_FMT_YVYU8_1_5X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_YVYU10_2X10:
+	case MEDIA_BUS_FMT_YVYU8_1X16:
+	case MEDIA_BUS_FMT_YVYU10_1X20:
+		return CIF_YVU422I;
 	case MEDIA_BUS_FMT_UYVY8_1_5X8:
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 	case MEDIA_BUS_FMT_UYVY8_1X16:
@@ -132,6 +138,8 @@ static int cif_isp10_pix_fmt2img_src_v4l2_subdev_pix_fmt(
 	switch (cif_isp10_pix_fmt) {
 	case CIF_YUV422I:
 		return MEDIA_BUS_FMT_YUYV8_2X8;
+	case CIF_YVU422I:
+		return MEDIA_BUS_FMT_YVYU8_2X8;
 	case CIF_UYV422I:
 		return MEDIA_BUS_FMT_UYVY8_2X8;
 	case CIF_RGB565:
@@ -275,7 +283,7 @@ int cif_isp10_img_src_v4l2_subdev_enum_strm_fmts(
 
 		defrect.width = fie.width;
 		defrect.height = fie.height;
-		memset(&defrect, 0x00, sizeof(struct v4l2_rect));
+		memset(&defrect.defrect, 0x00, sizeof(defrect.defrect));
 		v4l2_subdev_call(subdev,
 			core,
 			ioctl,
