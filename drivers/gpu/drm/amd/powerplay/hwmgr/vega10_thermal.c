@@ -429,19 +429,16 @@ static int vega10_thermal_initialize(struct pp_hwmgr *hwmgr)
 		reg = soc15_get_register_offset(THM_HWID, 0,
 				mmCG_TACH_CTRL_BASE_IDX, mmCG_TACH_CTRL);
 		cgs_write_register(hwmgr->device, reg,
-				(cgs_read_register(hwmgr->device, reg) &
-				~CG_TACH_CTRL__EDGE_PER_REV_MASK) |
-				((hwmgr->thermal_controller.fanInfo.
-				ucTachometerPulsesPerRevolution - 1) <<
-				CG_TACH_CTRL__EDGE_PER_REV__SHIFT));
+			CGS_REG_SET_FIELD(cgs_read_register(hwmgr->device, reg),
+				CG_TACH_CTRL, EDGE_PER_REV,
+				hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution - 1));
 	}
 
 	reg = soc15_get_register_offset(THM_HWID, 0,
 			mmCG_FDO_CTRL2_BASE_IDX, mmCG_FDO_CTRL2);
 	cgs_write_register(hwmgr->device, reg,
-			(cgs_read_register(hwmgr->device, reg) &
-			~CG_FDO_CTRL2__TACH_PWM_RESP_RATE_MASK) |
-			(0x28 << CG_FDO_CTRL2__TACH_PWM_RESP_RATE__SHIFT));
+		CGS_REG_SET_FIELD(cgs_read_register(hwmgr->device, reg),
+			CG_FDO_CTRL2, TACH_PWM_RESP_RATE, 0x28));
 
 	return 0;
 }
