@@ -106,11 +106,6 @@ static int sun4i_drv_bind(struct device *dev)
 		goto free_drm;
 	}
 
-	/* drm_vblank_init calls kcalloc, which can fail */
-	ret = drm_vblank_init(drm, 1);
-	if (ret)
-		goto free_mem_region;
-
 	drm_mode_config_init(drm);
 
 	ret = component_bind_all(drm->dev, drm);
@@ -118,6 +113,11 @@ static int sun4i_drv_bind(struct device *dev)
 		dev_err(drm->dev, "Couldn't bind all pipelines components\n");
 		goto cleanup_mode_config;
 	}
+
+	/* drm_vblank_init calls kcalloc, which can fail */
+	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
+	if (ret)
+		goto free_mem_region;
 
 	drm->irq_enabled = true;
 
