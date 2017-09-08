@@ -119,6 +119,7 @@ static const char *const mem_cgroup_lru_names[] = {
 
 struct mem_cgroup_tree_per_node {
 	struct rb_root rb_root;
+	struct rb_node *rb_rightmost;
 	spinlock_t lock;
 };
 
@@ -386,6 +387,7 @@ static void __mem_cgroup_insert_exceeded(struct mem_cgroup_per_node *mz,
 	struct rb_node **p = &mctz->rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct mem_cgroup_per_node *mz_node;
+	bool rightmost = true;
 
 	if (mz->on_tree)
 		return;
@@ -397,8 +399,11 @@ static void __mem_cgroup_insert_exceeded(struct mem_cgroup_per_node *mz,
 		parent = *p;
 		mz_node = rb_entry(parent, struct mem_cgroup_per_node,
 					tree_node);
-		if (mz->usage_in_excess < mz_node->usage_in_excess)
+		if (mz->usage_in_excess < mz_node->usage_in_excess) {
 			p = &(*p)->rb_left;
+			rightmost = false;
+		}
+
 		/*
 		 * We can't avoid mem cgroups that are over their soft
 		 * limit by the same amount
@@ -406,6 +411,10 @@ static void __mem_cgroup_insert_exceeded(struct mem_cgroup_per_node *mz,
 		else if (mz->usage_in_excess >= mz_node->usage_in_excess)
 			p = &(*p)->rb_right;
 	}
+
+	if (rightmost)
+		mctz->rb_rightmost = &mz->tree_node;
+
 	rb_link_node(&mz->tree_node, parent, p);
 	rb_insert_color(&mz->tree_node, &mctz->rb_root);
 	mz->on_tree = true;
@@ -416,6 +425,10 @@ static void __mem_cgroup_remove_exceeded(struct mem_cgroup_per_node *mz,
 {
 	if (!mz->on_tree)
 		return;
+
+	if (&mz->tree_node == mctz->rb_rightmost)
+		mctz->rb_rightmost = rb_prev(&mz->tree_node);
+
 	rb_erase(&mz->tree_node, &mctz->rb_root);
 	mz->on_tree = false;
 }
@@ -496,16 +509,15 @@ static void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
 static struct mem_cgroup_per_node *
 __mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)
 {
-	struct rb_node *rightmost = NULL;
 	struct mem_cgroup_per_node *mz;
 
 retry:
 	mz = NULL;
-	rightmost = rb_last(&mctz->rb_root);
-	if (!rightmost)
+	if (!mctz->rb_rightmost)
 		goto done;		/* Nothing to reclaim from */
 
-	mz = rb_entry(rightmost, struct mem_cgroup_per_node, tree_node);
+	mz = rb_entry(mctz->rb_rightmost,
+		      struct mem_cgroup_per_node, tree_node);
 	/*
 	 * Remove the node now but someone else can add it back,
 	 * we will to add it back at the end of reclaim to its correct
@@ -5945,6 +5957,7 @@ static int __init mem_cgroup_init(void)
 				    node_online(node) ? node : NUMA_NO_NODE);
 
 		rtpn->rb_root = RB_ROOT;
+		rtpn->rb_rightmost = NULL;
 		spin_lock_init(&rtpn->lock);
 		soft_limit_tree.rb_tree_per_node[node] = rtpn;
 	}
