@@ -473,4 +473,12 @@ config ZX2967_THERMAL
 	  the primitive temperature sensor embedded in zx2967 SoCs.
 	  This sensor generates the real time die temperature.
 
+config UNIPHIER_THERMAL
+	tristate "Socionext UniPhier thermal driver"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on THERMAL_OF && MFD_SYSCON
+	help
+	  Enable this to plug in UniPhier on-chip PVT thermal driver into the
+	  thermal framework. The driver supports CPU thermal zone temperature
+	  reporting and a couple of trip points.
 endif
