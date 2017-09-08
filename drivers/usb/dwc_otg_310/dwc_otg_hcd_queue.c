@@ -293,6 +293,9 @@ dwc_otg_qh_t *dwc_otg_hcd_qh_create(dwc_otg_hcd_t *hcd,
 {
 	dwc_otg_qh_t *qh;
 
+	if (!urb->priv)
+		return NULL;
+
 	/* Allocate memory */
 	/** @todo add memflags argument */
 	qh = dwc_otg_hcd_qh_alloc(atomic_alloc);
@@ -632,27 +635,6 @@ void dwc_otg_hcd_qh_deactivate(dwc_otg_hcd_t *hcd, dwc_otg_qh_t *qh,
 			}
 		}
 	}
-}
-
-/**
- * This function allocates and initializes a QTD.
- *
- * @param urb The URB to create a QTD from.  Each URB-QTD pair will end up
- * 	      pointing to each other so each pair should have a unique correlation.
- * @param atomic_alloc Flag to do atomic alloc if needed
- *
- * @return Returns pointer to the newly allocated QTD, or NULL on error. */
-dwc_otg_qtd_t *dwc_otg_hcd_qtd_create(dwc_otg_hcd_urb_t *urb, int atomic_alloc)
-{
-	dwc_otg_qtd_t *qtd;
-
-	qtd = dwc_otg_hcd_qtd_alloc(atomic_alloc);
-	if (qtd == NULL) {
-		return NULL;
-	}
-
-	dwc_otg_hcd_qtd_init(qtd, urb);
-	return qtd;
 }
 
 /**
