@@ -125,10 +125,14 @@ static inline unsigned long global_numa_state(enum numa_stat_item item)
 	return x;
 }
 
-static inline unsigned long zone_numa_state(struct zone *zone,
+static inline unsigned long zone_numa_state_snapshot(struct zone *zone,
 					enum numa_stat_item item)
 {
 	long x = atomic_long_read(&zone->vm_numa_stat[item]);
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		x += per_cpu_ptr(zone->pageset, cpu)->vm_numa_stat_diff[item];
 
 	return x;
 }

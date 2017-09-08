@@ -897,6 +897,10 @@ unsigned long sum_zone_node_page_state(int node,
 	return count;
 }
 
+/*
+ * Determine the per node value of a numa stat item. To avoid deviation,
+ * the per cpu stat number in vm_numa_stat_diff[] is also included.
+ */
 unsigned long sum_zone_numa_state(int node,
 				 enum numa_stat_item item)
 {
@@ -905,7 +909,7 @@ unsigned long sum_zone_numa_state(int node,
 	unsigned long count = 0;
 
 	for (i = 0; i < MAX_NR_ZONES; i++)
-		count += zone_numa_state(zones + i, item);
+		count += zone_numa_state_snapshot(zones + i, item);
 
 	return count;
 }
@@ -1536,7 +1540,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
 		seq_printf(m, "\n      %-12s %lu",
 				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
-				zone_numa_state(zone, i));
+				zone_numa_state_snapshot(zone, i));
 #endif
 
 	seq_printf(m, "\n  pagesets");
@@ -1792,6 +1796,7 @@ static bool need_update(int cpu)
 #ifdef CONFIG_NUMA
 		BUILD_BUG_ON(sizeof(p->vm_numa_stat_diff[0]) != 2);
 #endif
+
 		/*
 		 * The fast way of checking if there are any vmstat diffs.
 		 * This works because the diffs are byte sized items.
