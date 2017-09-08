@@ -72,6 +72,11 @@
 
 #if IS_ENABLED(CONFIG_HMM)
 
+#include <linux/migrate.h>
+#include <linux/memremap.h>
+#include <linux/completion.h>
+
+
 struct hmm;
 
 /*
@@ -320,6 +325,156 @@ int hmm_vma_fault(struct vm_area_struct *vma,
 		  bool write,
 		  bool block);
 #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+
+
+#if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
+struct hmm_devmem;
+
+struct page *hmm_vma_alloc_locked_page(struct vm_area_struct *vma,
+				       unsigned long addr);
+
+/*
+ * struct hmm_devmem_ops - callback for ZONE_DEVICE memory events
+ *
+ * @free: call when refcount on page reach 1 and thus is no longer use
+ * @fault: call when there is a page fault to unaddressable memory
+ *
+ * Both callback happens from page_free() and page_fault() callback of struct
+ * dev_pagemap respectively. See include/linux/memremap.h for more details on
+ * those.
+ *
+ * The hmm_devmem_ops callback are just here to provide a coherent and
+ * uniq API to device driver and device driver should not register their
+ * own page_free() or page_fault() but rely on the hmm_devmem_ops call-
+ * back.
+ */
+struct hmm_devmem_ops {
+	/*
+	 * free() - free a device page
+	 * @devmem: device memory structure (see struct hmm_devmem)
+	 * @page: pointer to struct page being freed
+	 *
+	 * Call back occurs whenever a device page refcount reach 1 which
+	 * means that no one is holding any reference on the page anymore
+	 * (ZONE_DEVICE page have an elevated refcount of 1 as default so
+	 * that they are not release to the general page allocator).
+	 *
+	 * Note that callback has exclusive ownership of the page (as no
+	 * one is holding any reference).
+	 */
+	void (*free)(struct hmm_devmem *devmem, struct page *page);
+	/*
+	 * fault() - CPU page fault or get user page (GUP)
+	 * @devmem: device memory structure (see struct hmm_devmem)
+	 * @vma: virtual memory area containing the virtual address
+	 * @addr: virtual address that faulted or for which there is a GUP
+	 * @page: pointer to struct page backing virtual address (unreliable)
+	 * @flags: FAULT_FLAG_* (see include/linux/mm.h)
+	 * @pmdp: page middle directory
+	 * Returns: VM_FAULT_MINOR/MAJOR on success or one of VM_FAULT_ERROR
+	 *   on error
+	 *
+	 * The callback occurs whenever there is a CPU page fault or GUP on a
+	 * virtual address. This means that the device driver must migrate the
+	 * page back to regular memory (CPU accessible).
+	 *
+	 * The device driver is free to migrate more than one page from the
+	 * fault() callback as an optimization. However if device decide to
+	 * migrate more than one page it must always priotirize the faulting
+	 * address over the others.
+	 *
+	 * The struct page pointer is only given as an hint to allow quick
+	 * lookup of internal device driver data. A concurrent migration
+	 * might have already free that page and the virtual address might
+	 * not longer be back by it. So it should not be modified by the
+	 * callback.
+	 *
+	 * Note that mmap semaphore is held in read mode at least when this
+	 * callback occurs, hence the vma is valid upon callback entry.
+	 */
+	int (*fault)(struct hmm_devmem *devmem,
+		     struct vm_area_struct *vma,
+		     unsigned long addr,
+		     const struct page *page,
+		     unsigned int flags,
+		     pmd_t *pmdp);
+};
+
+/*
+ * struct hmm_devmem - track device memory
+ *
+ * @completion: completion object for device memory
+ * @pfn_first: first pfn for this resource (set by hmm_devmem_add())
+ * @pfn_last: last pfn for this resource (set by hmm_devmem_add())
+ * @resource: IO resource reserved for this chunk of memory
+ * @pagemap: device page map for that chunk
+ * @device: device to bind resource to
+ * @ops: memory operations callback
+ * @ref: per CPU refcount
+ *
+ * This an helper structure for device drivers that do not wish to implement
+ * the gory details related to hotplugging new memoy and allocating struct
+ * pages.
+ *
+ * Device drivers can directly use ZONE_DEVICE memory on their own if they
+ * wish to do so.
+ */
+struct hmm_devmem {
+	struct completion		completion;
+	unsigned long			pfn_first;
+	unsigned long			pfn_last;
+	struct resource			*resource;
+	struct device			*device;
+	struct dev_pagemap		pagemap;
+	const struct hmm_devmem_ops	*ops;
+	struct percpu_ref		ref;
+};
+
+/*
+ * To add (hotplug) device memory, HMM assumes that there is no real resource
+ * that reserves a range in the physical address space (this is intended to be
+ * use by unaddressable device memory). It will reserve a physical range big
+ * enough and allocate struct page for it.
+ *
+ * The device driver can wrap the hmm_devmem struct inside a private device
+ * driver struct. The device driver must call hmm_devmem_remove() before the
+ * device goes away and before freeing the hmm_devmem struct memory.
+ */
+struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+				  struct device *device,
+				  unsigned long size);
+void hmm_devmem_remove(struct hmm_devmem *devmem);
+
+/*
+ * hmm_devmem_page_set_drvdata - set per-page driver data field
+ *
+ * @page: pointer to struct page
+ * @data: driver data value to set
+ *
+ * Because page can not be on lru we have an unsigned long that driver can use
+ * to store a per page field. This just a simple helper to do that.
+ */
+static inline void hmm_devmem_page_set_drvdata(struct page *page,
+					       unsigned long data)
+{
+	unsigned long *drvdata = (unsigned long *)&page->pgmap;
+
+	drvdata[1] = data;
+}
+
+/*
+ * hmm_devmem_page_get_drvdata - get per page driver data field
+ *
+ * @page: pointer to struct page
+ * Return: driver data value
+ */
+static inline unsigned long hmm_devmem_page_get_drvdata(struct page *page)
+{
+	unsigned long *drvdata = (unsigned long *)&page->pgmap;
+
+	return drvdata[1];
+}
+#endif /* IS_ENABLED(CONFIG_DEVICE_PRIVATE) */
 
 
 /* Below are for HMM internal use only! Not to be used by device driver! */
