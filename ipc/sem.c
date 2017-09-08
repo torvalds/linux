@@ -122,7 +122,7 @@ struct sem_undo {
  * that may be shared among all a CLONE_SYSVSEM task group.
  */
 struct sem_undo_list {
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	spinlock_t		lock;
 	struct list_head	list_proc;
 };
@@ -1642,7 +1642,7 @@ static inline int get_undo_list(struct sem_undo_list **undo_listp)
 		if (undo_list == NULL)
 			return -ENOMEM;
 		spin_lock_init(&undo_list->lock);
-		atomic_set(&undo_list->refcnt, 1);
+		refcount_set(&undo_list->refcnt, 1);
 		INIT_LIST_HEAD(&undo_list->list_proc);
 
 		current->sysvsem.undo_list = undo_list;
@@ -2041,7 +2041,7 @@ int copy_semundo(unsigned long clone_flags, struct task_struct *tsk)
 		error = get_undo_list(&undo_list);
 		if (error)
 			return error;
-		atomic_inc(&undo_list->refcnt);
+		refcount_inc(&undo_list->refcnt);
 		tsk->sysvsem.undo_list = undo_list;
 	} else
 		tsk->sysvsem.undo_list = NULL;
@@ -2070,7 +2070,7 @@ void exit_sem(struct task_struct *tsk)
 		return;
 	tsk->sysvsem.undo_list = NULL;
 
-	if (!atomic_dec_and_test(&ulp->refcnt))
+	if (!refcount_dec_and_test(&ulp->refcnt))
 		return;
 
 	for (;;) {
