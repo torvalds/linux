@@ -200,6 +200,7 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 {
 	struct device *dev = &amba_dev->dev;
 	struct pl111_drm_dev_private *priv;
+	struct pl111_variant_data *variant = id->data;
 	struct drm_device *drm;
 	int ret;
 
@@ -213,6 +214,33 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	amba_set_drvdata(amba_dev, drm);
 	priv->drm = drm;
 	drm->dev_private = priv;
+	priv->variant = variant;
+
+	/*
+	 * The PL110 and PL111 variants have two registers
+	 * swapped: interrupt enable and control. For this reason
+	 * we use offsets that we can change per variant.
+	 */
+	if (variant->is_pl110) {
+		/*
+		 * The ARM Versatile boards are even more special:
+		 * their PrimeCell ID say they are PL110 but the
+		 * control and interrupt enable registers are anyway
+		 * swapped to the PL111 order so they are not following
+		 * the PL110 datasheet.
+		 */
+		if (of_machine_is_compatible("arm,versatile-ab") ||
+		    of_machine_is_compatible("arm,versatile-pb")) {
+			priv->ienb = CLCD_PL111_IENB;
+			priv->ctrl = CLCD_PL111_CNTL;
+		} else {
+			priv->ienb = CLCD_PL110_IENB;
+			priv->ctrl = CLCD_PL110_CNTL;
+		}
+	} else {
+		priv->ienb = CLCD_PL111_IENB;
+		priv->ctrl = CLCD_PL111_CNTL;
+	}
 
 	priv->regs = devm_ioremap_resource(dev, &amba_dev->res);
 	if (IS_ERR(priv->regs)) {
@@ -221,10 +249,10 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	}
 
 	/* turn off interrupts before requesting the irq */
-	writel(0, priv->regs + CLCD_PL111_IENB);
+	writel(0, priv->regs + priv->ienb);
 
 	ret = devm_request_irq(dev, amba_dev->irq[0], pl111_irq, 0,
-			       "pl111", priv);
+			       variant->name, priv);
 	if (ret != 0) {
 		dev_err(dev, "%s failed irq %d\n", __func__, ret);
 		return ret;
@@ -261,10 +289,62 @@ static int pl111_amba_remove(struct amba_device *amba_dev)
 	return 0;
 }
 
-static struct amba_id pl111_id_table[] = {
+/*
+ * This variant exist in early versions like the ARM Integrator
+ * and this version lacks the 565 and 444 pixel formats.
+ */
+static const u32 pl110_pixel_formats[] = {
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB1555,
+};
+
+static const struct pl111_variant_data pl110_variant = {
+	.name = "PL110",
+	.is_pl110 = true,
+	.formats = pl110_pixel_formats,
+	.nformats = ARRAY_SIZE(pl110_pixel_formats),
+};
+
+/* RealView, Versatile Express etc use this modern variant */
+static const u32 pl111_pixel_formats[] = {
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_BGR565,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ABGR4444,
+	DRM_FORMAT_XBGR4444,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_XRGB4444,
+};
+
+static const struct pl111_variant_data pl111_variant = {
+	.name = "PL111",
+	.formats = pl111_pixel_formats,
+	.nformats = ARRAY_SIZE(pl111_pixel_formats),
+};
+
+static const struct amba_id pl111_id_table[] = {
+	{
+		.id = 0x00041110,
+		.mask = 0x000fffff,
+		.data = (void*)&pl110_variant,
+	},
 	{
 		.id = 0x00041111,
 		.mask = 0x000fffff,
+		.data = (void*)&pl111_variant,
 	},
 	{0, 0},
 };

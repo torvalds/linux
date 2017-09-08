@@ -31,6 +31,20 @@
 
 struct drm_minor;
 
+/**
+ * struct pl111_variant_data - encodes IP differences
+ * @name: the name of this variant
+ * @is_pl110: this is the early PL110 variant
+ * @formats: array of supported pixel formats on this variant
+ * @nformats: the length of the array of supported pixel formats
+ */
+struct pl111_variant_data {
+	const char *name;
+	bool is_pl110;
+	const u32 *formats;
+	unsigned int nformats;
+};
+
 struct pl111_drm_dev_private {
 	struct drm_device *drm;
 
@@ -41,6 +55,8 @@ struct pl111_drm_dev_private {
 	struct drm_fbdev_cma *fbdev;
 
 	void *regs;
+	u32 ienb;
+	u32 ctrl;
 	/* The pixel clock (a reference to our clock divider off of CLCDCLK). */
 	struct clk *clk;
 	/* pl111's internal clock divider. */
@@ -49,6 +65,7 @@ struct pl111_drm_dev_private {
 	 * subsystem and pl111_display_enable().
 	 */
 	spinlock_t tim2_lock;
+	const struct pl111_variant_data *variant;
 };
 
 int pl111_display_init(struct drm_device *dev);
