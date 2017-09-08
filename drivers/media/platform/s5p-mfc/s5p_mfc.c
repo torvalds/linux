@@ -1083,7 +1083,7 @@ static struct device *s5p_mfc_alloc_memdev(struct device *dev,
 	struct device *child;
 	int ret;
 
-	child = devm_kzalloc(dev, sizeof(struct device), GFP_KERNEL);
+	child = devm_kzalloc(dev, sizeof(*child), GFP_KERNEL);
 	if (!child)
 		return NULL;
 
