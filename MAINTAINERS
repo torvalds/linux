@@ -7775,6 +7775,13 @@ M:	Sasha Levin <alexander.levin@verizon.com>
 S:	Maintained
 F:	tools/lib/lockdep/
 
+HMM - Heterogeneous Memory Management
+M:	JÃ©rÃ´me Glisse <jglisse@redhat.com>
+L:	linux-mm@kvack.org
+S:	Maintained
+F:	mm/hmm*
+F:	include/linux/hmm*
+
 LIBNVDIMM BLK: MMIO-APERTURE DRIVER
 M:	Ross Zwisler <ross.zwisler@linux.intel.com>
 L:	linux-nvdimm@lists.01.org
