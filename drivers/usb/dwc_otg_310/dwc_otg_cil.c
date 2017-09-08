@@ -2856,7 +2856,7 @@ void dwc_otg_hc_halt(dwc_otg_core_if_t *core_if,
 
 		hcchar.d32 = DWC_READ_REG32(&hc_regs->hcchar);
 		if ((hcchar.b.chen == 0) ||
-		    (!hc->do_split &&
+		    (!hc->do_split && !core_if->hc_halt_quirk &&
 		    ((hc->ep_type == DWC_OTG_EP_TYPE_ISOC) ||
 		    (hc->ep_type == DWC_OTG_EP_TYPE_INTR)))) {
 			/*

@@ -849,6 +849,9 @@ struct dwc_otg_core_if {
 #define USB_MODE_FORCE_HOST (1)
 #define USB_MODE_FORCE_DEVICE (2)
 
+	/* Indicates need to force a host channel halt */
+	bool hc_halt_quirk;
+
 	/* Indicate USB get VBUS 5V from PMIC(e.g. rk81x) */
 	bool pmic_vbus;
 
