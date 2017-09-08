@@ -40,8 +40,8 @@ static int proc_match(unsigned int len, const char *name, struct proc_dir_entry 
 
 static struct proc_dir_entry *pde_subdir_first(struct proc_dir_entry *dir)
 {
-	return rb_entry_safe(rb_first(&dir->subdir), struct proc_dir_entry,
-			     subdir_node);
+	return rb_entry_safe(rb_first_cached(&dir->subdir),
+			     struct proc_dir_entry, subdir_node);
 }
 
 static struct proc_dir_entry *pde_subdir_next(struct proc_dir_entry *dir)
@@ -54,7 +54,7 @@ static struct proc_dir_entry *pde_subdir_find(struct proc_dir_entry *dir,
 					      const char *name,
 					      unsigned int len)
 {
-	struct rb_node *node = dir->subdir.rb_node;
+	struct rb_node *node = dir->subdir.rb_root.rb_node;
 
 	while (node) {
 		struct proc_dir_entry *de = rb_entry(node,
@@ -75,8 +75,9 @@ static struct proc_dir_entry *pde_subdir_find(struct proc_dir_entry *dir,
 static bool pde_subdir_insert(struct proc_dir_entry *dir,
 			      struct proc_dir_entry *de)
 {
-	struct rb_root *root = &dir->subdir;
-	struct rb_node **new = &root->rb_node, *parent = NULL;
+	struct rb_root_cached *root = &dir->subdir;
+	struct rb_node **new = &root->rb_root.rb_node, *parent = NULL;
+	bool leftmost = true;
 
 	/* Figure out where to put new node */
 	while (*new) {
@@ -88,15 +89,16 @@ static bool pde_subdir_insert(struct proc_dir_entry *dir,
 		parent = *new;
 		if (result < 0)
 			new = &(*new)->rb_left;
-		else if (result > 0)
+		else if (result > 0) {
 			new = &(*new)->rb_right;
-		else
+			leftmost = false;
+		} else
 			return false;
 	}
 
 	/* Add new node and rebalance tree. */
 	rb_link_node(&de->subdir_node, parent, new);
-	rb_insert_color(&de->subdir_node, root);
+	rb_insert_color_cached(&de->subdir_node, root, leftmost);
 	return true;
 }
 
@@ -369,7 +371,7 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	ent->namelen = qstr.len;
 	ent->mode = mode;
 	ent->nlink = nlink;
-	ent->subdir = RB_ROOT;
+	ent->subdir = RB_ROOT_CACHED;
 	atomic_set(&ent->count, 1);
 	spin_lock_init(&ent->pde_unload_lock);
 	INIT_LIST_HEAD(&ent->pde_openers);
@@ -553,7 +555,7 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 
 	de = pde_subdir_find(parent, fn, len);
 	if (de)
-		rb_erase(&de->subdir_node, &parent->subdir);
+		rb_erase_cached(&de->subdir_node, &parent->subdir);
 	write_unlock(&proc_subdir_lock);
 	if (!de) {
 		WARN(1, "name '%s'\n", name);
@@ -590,13 +592,13 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 		write_unlock(&proc_subdir_lock);
 		return -ENOENT;
 	}
-	rb_erase(&root->subdir_node, &parent->subdir);
+	rb_erase_cached(&root->subdir_node, &parent->subdir);
 
 	de = root;
 	while (1) {
 		next = pde_subdir_first(de);
 		if (next) {
-			rb_erase(&next->subdir_node, &de->subdir);
+			rb_erase_cached(&next->subdir_node, &de->subdir);
 			de = next;
 			continue;
 		}
