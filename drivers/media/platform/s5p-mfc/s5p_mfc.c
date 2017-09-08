@@ -1270,10 +1270,8 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 
 	pr_debug("%s++\n", __func__);
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&pdev->dev, "Not enough memory for MFC device\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&dev->irqlock);
 	spin_lock_init(&dev->condlock);
