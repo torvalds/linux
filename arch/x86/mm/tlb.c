@@ -121,8 +121,28 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	 * hypothetical buggy code that directly switches to swapper_pg_dir
 	 * without going through leave_mm() / switch_mm_irqs_off() or that
 	 * does something like write_cr3(read_cr3_pa()).
+	 *
+	 * Only do this check if CONFIG_DEBUG_VM=y because __read_cr3()
+	 * isn't free.
 	 */
-	VM_BUG_ON(__read_cr3() != (__sme_pa(real_prev->pgd) | prev_asid));
+#ifdef CONFIG_DEBUG_VM
+	if (WARN_ON_ONCE(__read_cr3() !=
+			 (__sme_pa(real_prev->pgd) | prev_asid))) {
+		/*
+		 * If we were to BUG here, we'd be very likely to kill
+		 * the system so hard that we don't see the call trace.
+		 * Try to recover instead by ignoring the error and doing
+		 * a global flush to minimize the chance of corruption.
+		 *
+		 * (This is far from being a fully correct recovery.
+		 *  Architecturally, the CPU could prefetch something
+		 *  back into an incorrect ASID slot and leave it there
+		 *  to cause trouble down the road.  It's better than
+		 *  nothing, though.)
+		 */
+		__flush_tlb_all();
+	}
+#endif
 
 	if (real_prev == next) {
 		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
