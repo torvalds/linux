@@ -87,8 +87,10 @@ void vm_events_fold_cpu(int cpu)
  * vm_stat contains the global counters
  */
 atomic_long_t vm_zone_stat[NR_VM_ZONE_STAT_ITEMS] __cacheline_aligned_in_smp;
+atomic_long_t vm_numa_stat[NR_VM_NUMA_STAT_ITEMS] __cacheline_aligned_in_smp;
 atomic_long_t vm_node_stat[NR_VM_NODE_STAT_ITEMS] __cacheline_aligned_in_smp;
 EXPORT_SYMBOL(vm_zone_stat);
+EXPORT_SYMBOL(vm_numa_stat);
 EXPORT_SYMBOL(vm_node_stat);
 
 #ifdef CONFIG_SMP
@@ -192,7 +194,10 @@ void refresh_zone_stat_thresholds(void)
 
 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
 							= threshold;
-
+#ifdef CONFIG_NUMA
+			per_cpu_ptr(zone->pageset, cpu)->numa_stat_threshold
+							= threshold;
+#endif
 			/* Base nodestat threshold on the largest populated zone. */
 			pgdat_threshold = per_cpu_ptr(pgdat->per_cpu_nodestats, cpu)->stat_threshold;
 			per_cpu_ptr(pgdat->per_cpu_nodestats, cpu)->stat_threshold
@@ -226,9 +231,14 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
 			continue;
 
 		threshold = (*calculate_pressure)(zone);
-		for_each_online_cpu(cpu)
+		for_each_online_cpu(cpu) {
 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
 							= threshold;
+#ifdef CONFIG_NUMA
+			per_cpu_ptr(zone->pageset, cpu)->numa_stat_threshold
+							= threshold;
+#endif
+		}
 	}
 }
 
@@ -604,6 +614,32 @@ EXPORT_SYMBOL(dec_node_page_state);
  * Fold a differential into the global counters.
  * Returns the number of counters updated.
  */
+#ifdef CONFIG_NUMA
+static int fold_diff(int *zone_diff, int *numa_diff, int *node_diff)
+{
+	int i;
+	int changes = 0;
+
+	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+		if (zone_diff[i]) {
+			atomic_long_add(zone_diff[i], &vm_zone_stat[i]);
+			changes++;
+	}
+
+	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
+		if (numa_diff[i]) {
+			atomic_long_add(numa_diff[i], &vm_numa_stat[i]);
+			changes++;
+	}
+
+	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
+		if (node_diff[i]) {
+			atomic_long_add(node_diff[i], &vm_node_stat[i]);
+			changes++;
+	}
+	return changes;
+}
+#else
 static int fold_diff(int *zone_diff, int *node_diff)
 {
 	int i;
@@ -622,6 +658,7 @@ static int fold_diff(int *zone_diff, int *node_diff)
 	}
 	return changes;
 }
+#endif /* CONFIG_NUMA */
 
 /*
  * Update the zone counters for the current cpu.
@@ -645,6 +682,9 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 	struct zone *zone;
 	int i;
 	int global_zone_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
+#ifdef CONFIG_NUMA
+	int global_numa_diff[NR_VM_NUMA_STAT_ITEMS] = { 0, };
+#endif
 	int global_node_diff[NR_VM_NODE_STAT_ITEMS] = { 0, };
 	int changes = 0;
 
@@ -666,6 +706,18 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 			}
 		}
 #ifdef CONFIG_NUMA
+		for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++) {
+			int v;
+
+			v = this_cpu_xchg(p->vm_numa_stat_diff[i], 0);
+			if (v) {
+
+				atomic_long_add(v, &zone->vm_numa_stat[i]);
+				global_numa_diff[i] += v;
+				__this_cpu_write(p->expire, 3);
+			}
+		}
+
 		if (do_pagesets) {
 			cond_resched();
 			/*
@@ -712,7 +764,12 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 		}
 	}
 
+#ifdef CONFIG_NUMA
+	changes += fold_diff(global_zone_diff, global_numa_diff,
+			     global_node_diff);
+#else
 	changes += fold_diff(global_zone_diff, global_node_diff);
+#endif
 	return changes;
 }
 
@@ -727,6 +784,9 @@ void cpu_vm_stats_fold(int cpu)
 	struct zone *zone;
 	int i;
 	int global_zone_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
+#ifdef CONFIG_NUMA
+	int global_numa_diff[NR_VM_NUMA_STAT_ITEMS] = { 0, };
+#endif
 	int global_node_diff[NR_VM_NODE_STAT_ITEMS] = { 0, };
 
 	for_each_populated_zone(zone) {
@@ -743,6 +803,18 @@ void cpu_vm_stats_fold(int cpu)
 				atomic_long_add(v, &zone->vm_stat[i]);
 				global_zone_diff[i] += v;
 			}
+
+#ifdef CONFIG_NUMA
+		for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
+			if (p->vm_numa_stat_diff[i]) {
+				int v;
+
+				v = p->vm_numa_stat_diff[i];
+				p->vm_numa_stat_diff[i] = 0;
+				atomic_long_add(v, &zone->vm_numa_stat[i]);
+				global_numa_diff[i] += v;
+			}
+#endif
 	}
 
 	for_each_online_pgdat(pgdat) {
@@ -761,7 +833,11 @@ void cpu_vm_stats_fold(int cpu)
 			}
 	}
 
+#ifdef CONFIG_NUMA
+	fold_diff(global_zone_diff, global_numa_diff, global_node_diff);
+#else
 	fold_diff(global_zone_diff, global_node_diff);
+#endif
 }
 
 /*
@@ -779,10 +855,38 @@ void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)
 			atomic_long_add(v, &zone->vm_stat[i]);
 			atomic_long_add(v, &vm_zone_stat[i]);
 		}
+
+#ifdef CONFIG_NUMA
+	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
+		if (pset->vm_numa_stat_diff[i]) {
+			int v = pset->vm_numa_stat_diff[i];
+
+			pset->vm_numa_stat_diff[i] = 0;
+			atomic_long_add(v, &zone->vm_numa_stat[i]);
+			atomic_long_add(v, &vm_numa_stat[i]);
+		}
+#endif
 }
 #endif
 
 #ifdef CONFIG_NUMA
+void __inc_numa_state(struct zone *zone,
+				 enum numa_stat_item item)
+{
+	struct per_cpu_pageset __percpu *pcp = zone->pageset;
+	s8 __percpu *p = pcp->vm_numa_stat_diff + item;
+	s8 v, t;
+
+	v = __this_cpu_inc_return(*p);
+	t = __this_cpu_read(pcp->numa_stat_threshold);
+	if (unlikely(v > t)) {
+		s8 overstep = t >> 1;
+
+		zone_numa_state_add(v + overstep, zone, item);
+		__this_cpu_write(*p, -overstep);
+	}
+}
+
 /*
  * Determine the per node value of a stat item. This function
  * is called frequently in a NUMA machine, so try to be as
@@ -797,6 +901,19 @@ unsigned long sum_zone_node_page_state(int node,
 
 	for (i = 0; i < MAX_NR_ZONES; i++)
 		count += zone_page_state(zones + i, item);
+
+	return count;
+}
+
+unsigned long sum_zone_numa_state(int node,
+				 enum numa_stat_item item)
+{
+	struct zone *zones = NODE_DATA(node)->node_zones;
+	int i;
+	unsigned long count = 0;
+
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		count += zone_numa_state(zones + i, item);
 
 	return count;
 }
@@ -937,6 +1054,9 @@ const char * const vmstat_text[] = {
 #if IS_ENABLED(CONFIG_ZSMALLOC)
 	"nr_zspages",
 #endif
+	"nr_free_cma",
+
+	/* enum numa_stat_item counters */
 #ifdef CONFIG_NUMA
 	"numa_hit",
 	"numa_miss",
@@ -945,7 +1065,6 @@ const char * const vmstat_text[] = {
 	"numa_local",
 	"numa_other",
 #endif
-	"nr_free_cma",
 
 	/* Node-based counters */
 	"nr_inactive_anon",
@@ -1105,7 +1224,6 @@ const char * const vmstat_text[] = {
 #endif /* CONFIG_VM_EVENTS_COUNTERS */
 };
 #endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
-
 
 #if (defined(CONFIG_DEBUG_FS) && defined(CONFIG_COMPACTION)) || \
      defined(CONFIG_PROC_FS)
@@ -1384,7 +1502,8 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		seq_printf(m, "\n  per-node stats");
 		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
 			seq_printf(m, "\n      %-12s %lu",
-				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
+				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
+				NR_VM_NUMA_STAT_ITEMS],
 				node_page_state(pgdat, i));
 		}
 	}
@@ -1420,6 +1539,13 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
 		seq_printf(m, "\n      %-12s %lu", vmstat_text[i],
 				zone_page_state(zone, i));
+
+#ifdef CONFIG_NUMA
+	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
+		seq_printf(m, "\n      %-12s %lu",
+				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
+				zone_numa_state(zone, i));
+#endif
 
 	seq_printf(m, "\n  pagesets");
 	for_each_online_cpu(i) {
@@ -1497,6 +1623,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
 	if (*pos >= ARRAY_SIZE(vmstat_text))
 		return NULL;
 	stat_items_size = NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long) +
+			  NR_VM_NUMA_STAT_ITEMS * sizeof(unsigned long) +
 			  NR_VM_NODE_STAT_ITEMS * sizeof(unsigned long) +
 			  NR_VM_WRITEBACK_STAT_ITEMS * sizeof(unsigned long);
 
@@ -1511,6 +1638,12 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
 		v[i] = global_zone_page_state(i);
 	v += NR_VM_ZONE_STAT_ITEMS;
+
+#ifdef CONFIG_NUMA
+	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
+		v[i] = global_numa_state(i);
+	v += NR_VM_NUMA_STAT_ITEMS;
+#endif
 
 	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
 		v[i] = global_node_page_state(i);
@@ -1613,6 +1746,16 @@ int vmstat_refresh(struct ctl_table *table, int write,
 			err = -EINVAL;
 		}
 	}
+#ifdef CONFIG_NUMA
+	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++) {
+		val = atomic_long_read(&vm_numa_stat[i]);
+		if (val < 0) {
+			pr_warn("%s: %s %ld\n",
+				__func__, vmstat_text[i + NR_VM_ZONE_STAT_ITEMS], val);
+			err = -EINVAL;
+		}
+	}
+#endif
 	if (err)
 		return err;
 	if (write)
@@ -1654,13 +1797,19 @@ static bool need_update(int cpu)
 		struct per_cpu_pageset *p = per_cpu_ptr(zone->pageset, cpu);
 
 		BUILD_BUG_ON(sizeof(p->vm_stat_diff[0]) != 1);
+#ifdef CONFIG_NUMA
+		BUILD_BUG_ON(sizeof(p->vm_numa_stat_diff[0]) != 1);
+#endif
 		/*
 		 * The fast way of checking if there are any vmstat diffs.
 		 * This works because the diffs are byte sized items.
 		 */
 		if (memchr_inv(p->vm_stat_diff, 0, NR_VM_ZONE_STAT_ITEMS))
 			return true;
-
+#ifdef CONFIG_NUMA
+		if (memchr_inv(p->vm_numa_stat_diff, 0, NR_VM_NUMA_STAT_ITEMS))
+			return true;
+#endif
 	}
 	return false;
 }
