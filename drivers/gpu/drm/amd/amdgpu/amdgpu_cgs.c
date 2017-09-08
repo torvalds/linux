@@ -633,6 +633,85 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 
 		if (!adev->pm.fw) {
 			switch (adev->asic_type) {
+			case CHIP_TAHITI:
+				strcpy(fw_name, "radeon/tahiti_smc.bin");
+				break;
+			case CHIP_PITCAIRN:
+				if ((adev->pdev->revision == 0x81) &&
+				    ((adev->pdev->device == 0x6810) ||
+				    (adev->pdev->device == 0x6811))) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/pitcairn_k_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/pitcairn_smc.bin");
+				}
+				break;
+			case CHIP_VERDE:
+				if (((adev->pdev->device == 0x6820) &&
+					((adev->pdev->revision == 0x81) ||
+					(adev->pdev->revision == 0x83))) ||
+				    ((adev->pdev->device == 0x6821) &&
+					((adev->pdev->revision == 0x83) ||
+					(adev->pdev->revision == 0x87))) ||
+				    ((adev->pdev->revision == 0x87) &&
+					((adev->pdev->device == 0x6823) ||
+					(adev->pdev->device == 0x682b)))) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/verde_k_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/verde_smc.bin");
+				}
+				break;
+			case CHIP_OLAND:
+				if (((adev->pdev->revision == 0x81) &&
+					((adev->pdev->device == 0x6600) ||
+					(adev->pdev->device == 0x6604) ||
+					(adev->pdev->device == 0x6605) ||
+					(adev->pdev->device == 0x6610))) ||
+				    ((adev->pdev->revision == 0x83) &&
+					(adev->pdev->device == 0x6610))) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/oland_k_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/oland_smc.bin");
+				}
+				break;
+			case CHIP_HAINAN:
+				if (((adev->pdev->revision == 0x81) &&
+					(adev->pdev->device == 0x6660)) ||
+				    ((adev->pdev->revision == 0x83) &&
+					((adev->pdev->device == 0x6660) ||
+					(adev->pdev->device == 0x6663) ||
+					(adev->pdev->device == 0x6665) ||
+					 (adev->pdev->device == 0x6667)))) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/hainan_k_smc.bin");
+				} else if ((adev->pdev->revision == 0xc3) &&
+					 (adev->pdev->device == 0x6665)) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/banks_k_2_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/hainan_smc.bin");
+				}
+				break;
+			case CHIP_BONAIRE:
+				if ((adev->pdev->revision == 0x80) ||
+					(adev->pdev->revision == 0x81) ||
+					(adev->pdev->device == 0x665f)) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/bonaire_k_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/bonaire_smc.bin");
+				}
+				break;
+			case CHIP_HAWAII:
+				if (adev->pdev->revision == 0x80) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/hawaii_k_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/hawaii_smc.bin");
+				}
+				break;
 			case CHIP_TOPAZ:
 				if (((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0x81)) ||
 				    ((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0x83)) ||
