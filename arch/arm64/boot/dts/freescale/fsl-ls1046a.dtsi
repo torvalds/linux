@@ -689,6 +689,13 @@
 			no-map;
 		};
 	};
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
 };
 
 #include "qoriq-qman-portals.dtsi"
