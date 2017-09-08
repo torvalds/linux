@@ -178,7 +178,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 	}
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
-		if ((byt_rt5640_quirk & BYT_RT5640_MCLK_EN) && priv->mclk) {
+		if (priv->mclk) {
 			ret = clk_prepare_enable(priv->mclk);
 			if (ret < 0) {
 				dev_err(card->dev,
@@ -199,7 +199,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 					     48000 * 512,
 					     SND_SOC_CLOCK_IN);
 		if (!ret) {
-			if ((byt_rt5640_quirk & BYT_RT5640_MCLK_EN) && priv->mclk)
+			if (priv->mclk)
 				clk_disable_unprepare(priv->mclk);
 		}
 	}
@@ -549,7 +549,7 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	snd_soc_dapm_ignore_suspend(&card->dapm, "Headphone");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "Speaker");
 
-	if ((byt_rt5640_quirk & BYT_RT5640_MCLK_EN) && priv->mclk) {
+	if (priv->mclk) {
 		/*
 		 * The firmware might enable the clock at
 		 * boot (this information may or may not
