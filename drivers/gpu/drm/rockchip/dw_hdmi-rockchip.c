@@ -64,6 +64,16 @@ enum drm_hdmi_output_type {
 	DRM_HDMI_OUTPUT_INVALID, /* Guess what ? */
 };
 
+enum dw_hdmi_rockchip_color_depth {
+	ROCKCHIP_HDMI_DEPTH_8,
+	ROCKCHIP_HDMI_DEPTH_10,
+	ROCKCHIP_HDMI_DEPTH_12,
+	ROCKCHIP_HDMI_DEPTH_16,
+	ROCKCHIP_HDMI_DEPTH_420_10,
+	ROCKCHIP_HDMI_DEPTH_420_12,
+	ROCKCHIP_HDMI_DEPTH_420_16
+};
+
 struct rockchip_hdmi {
 	struct device *dev;
 	struct regmap *regmap;
@@ -82,6 +92,8 @@ struct rockchip_hdmi {
 
 	struct drm_property *color_depth_property;
 	struct drm_property *hdmi_output_property;
+	struct drm_property *colordepth_capacity;
+	struct drm_property *outputmode_capacity;
 
 	unsigned int colordepth;
 	enum drm_hdmi_output_type hdmi_output;
@@ -772,6 +784,22 @@ dw_hdmi_rockchip_attatch_properties(struct drm_connector *connector,
 		hdmi->hdmi_output_property = prop;
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
+
+	prop = drm_property_create_range(connector->dev, 0,
+					 "hdmi_color_depth_capacity",
+					 0, 0xff);
+	if (prop) {
+		hdmi->colordepth_capacity = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
+
+	prop = drm_property_create_range(connector->dev, 0,
+					 "hdmi_output_mode_capacity",
+					 0, 0xf);
+	if (prop) {
+		hdmi->outputmode_capacity = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
 }
 
 static void
@@ -790,6 +818,18 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		drm_property_destroy(connector->dev,
 				     hdmi->hdmi_output_property);
 		hdmi->hdmi_output_property = NULL;
+	}
+
+	if (hdmi->colordepth_capacity) {
+		drm_property_destroy(connector->dev,
+				     hdmi->colordepth_capacity);
+		hdmi->colordepth_capacity = NULL;
+	}
+
+	if (hdmi->outputmode_capacity) {
+		drm_property_destroy(connector->dev,
+				     hdmi->outputmode_capacity);
+		hdmi->outputmode_capacity = NULL;
 	}
 }
 
@@ -822,12 +862,41 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 			      void *data)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	struct drm_display_info *info = &connector->display_info;
 
 	if (property == hdmi->color_depth_property) {
 		*val = hdmi->colordepth;
 		return 0;
 	} else if (property == hdmi->hdmi_output_property) {
 		*val = hdmi->hdmi_output;
+		return 0;
+	} else if (property == hdmi->colordepth_capacity) {
+		*val = BIT(ROCKCHIP_HDMI_DEPTH_8);
+		/* RK3368 only support 8bit */
+		if (hdmi->dev_type == RK3368_HDMI)
+			return 0;
+		if (info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_30)
+			*val |= BIT(ROCKCHIP_HDMI_DEPTH_10);
+		if (info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_36)
+			*val |= BIT(ROCKCHIP_HDMI_DEPTH_12);
+		if (info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_48)
+			*val |= BIT(ROCKCHIP_HDMI_DEPTH_16);
+		if (info->hdmi.y420_dc_modes & DRM_EDID_YCBCR420_DC_30)
+			*val |= BIT(ROCKCHIP_HDMI_DEPTH_420_10);
+		if (info->hdmi.y420_dc_modes & DRM_EDID_YCBCR420_DC_36)
+			*val |= BIT(ROCKCHIP_HDMI_DEPTH_420_12);
+		if (info->hdmi.y420_dc_modes & DRM_EDID_YCBCR420_DC_48)
+			*val |= BIT(ROCKCHIP_HDMI_DEPTH_420_16);
+		return 0;
+	} else if (property == hdmi->outputmode_capacity) {
+		*val = BIT(DRM_HDMI_OUTPUT_DEFAULT_RGB);
+		if (info->color_formats & DRM_COLOR_FORMAT_YCRCB444)
+			*val |= BIT(DRM_HDMI_OUTPUT_YCBCR444);
+		if (info->color_formats & DRM_COLOR_FORMAT_YCRCB422)
+			*val |= BIT(DRM_HDMI_OUTPUT_YCBCR422);
+		if (connector->ycbcr_420_allowed &&
+		    info->color_formats & DRM_COLOR_FORMAT_YCRCB420)
+			*val |= BIT(DRM_HDMI_OUTPUT_YCBCR420);
 		return 0;
 	}
 
