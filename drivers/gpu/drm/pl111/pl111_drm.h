@@ -58,10 +58,6 @@ int pl111_enable_vblank(struct drm_device *drm, unsigned int crtc);
 void pl111_disable_vblank(struct drm_device *drm, unsigned int crtc);
 irqreturn_t pl111_irq(int irq, void *data);
 int pl111_connector_init(struct drm_device *dev);
-int pl111_encoder_init(struct drm_device *dev);
-int pl111_dumb_create(struct drm_file *file_priv,
-		      struct drm_device *dev,
-		      struct drm_mode_create_dumb *args);
 int pl111_debugfs_init(struct drm_minor *minor);
 
 #endif /* _PL111_DRM_H_ */
