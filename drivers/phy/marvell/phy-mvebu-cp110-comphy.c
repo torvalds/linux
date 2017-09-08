@@ -586,8 +586,8 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->regmap);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
-	if (!priv->base)
-		return -ENOMEM;
+	if (IS_ERR(priv->base))
+		return PTR_ERR(priv->base);
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
 		struct mvebu_comphy_lane *lane;
