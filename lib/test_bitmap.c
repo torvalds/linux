@@ -175,24 +175,41 @@ struct test_bitmap_parselist{
 	const int flags;
 };
 
-static const unsigned long exp[] = {1, 2, 0x0000ffff, 0xffff0000, 0x55555555,
-				0xaaaaaaaa, 0x11111111, 0x22222222, 0xffffffff,
-				0xfffffffe, 0x3333333311111111, 0xffffffff77777777};
-static const unsigned long exp2[] = {0x3333333311111111, 0xffffffff77777777};
+static const unsigned long exp[] __initconst = {
+	BITMAP_FROM_U64(1),
+	BITMAP_FROM_U64(2),
+	BITMAP_FROM_U64(0x0000ffff),
+	BITMAP_FROM_U64(0xffff0000),
+	BITMAP_FROM_U64(0x55555555),
+	BITMAP_FROM_U64(0xaaaaaaaa),
+	BITMAP_FROM_U64(0x11111111),
+	BITMAP_FROM_U64(0x22222222),
+	BITMAP_FROM_U64(0xffffffff),
+	BITMAP_FROM_U64(0xfffffffe),
+	BITMAP_FROM_U64(0x3333333311111111),
+	BITMAP_FROM_U64(0xffffffff77777777)
+};
+
+static const unsigned long exp2[] __initconst = {
+	BITMAP_FROM_U64(0x3333333311111111),
+	BITMAP_FROM_U64(0xffffffff77777777)
+};
 
 static const struct test_bitmap_parselist parselist_tests[] __initconst = {
+#define step (sizeof(u64) / sizeof(unsigned long))
+
 	{0, "0",			&exp[0], 8, 0},
-	{0, "1",			&exp[1], 8, 0},
-	{0, "0-15",			&exp[2], 32, 0},
-	{0, "16-31",			&exp[3], 32, 0},
-	{0, "0-31:1/2",			&exp[4], 32, 0},
-	{0, "1-31:1/2",			&exp[5], 32, 0},
-	{0, "0-31:1/4",			&exp[6], 32, 0},
-	{0, "1-31:1/4",			&exp[7], 32, 0},
-	{0, "0-31:4/4",			&exp[8], 32, 0},
-	{0, "1-31:4/4",			&exp[9], 32, 0},
-	{0, "0-31:1/4,32-63:2/4",	&exp[10], 64, 0},
-	{0, "0-31:3/4,32-63:4/4",	&exp[11], 64, 0},
+	{0, "1",			&exp[1 * step], 8, 0},
+	{0, "0-15",			&exp[2 * step], 32, 0},
+	{0, "16-31",			&exp[3 * step], 32, 0},
+	{0, "0-31:1/2",			&exp[4 * step], 32, 0},
+	{0, "1-31:1/2",			&exp[5 * step], 32, 0},
+	{0, "0-31:1/4",			&exp[6 * step], 32, 0},
+	{0, "1-31:1/4",			&exp[7 * step], 32, 0},
+	{0, "0-31:4/4",			&exp[8 * step], 32, 0},
+	{0, "1-31:4/4",			&exp[9 * step], 32, 0},
+	{0, "0-31:1/4,32-63:2/4",	&exp[10 * step], 64, 0},
+	{0, "0-31:3/4,32-63:4/4",	&exp[11 * step], 64, 0},
 
 	{0, "0-31:1/4,32-63:2/4,64-95:3/4,96-127:4/4",	exp2, 128, 0},
 
