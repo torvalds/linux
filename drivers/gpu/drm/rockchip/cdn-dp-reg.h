@@ -489,6 +489,9 @@ enum HDCP_TX_SUPPORT {
 	HDCP_TX_BOTH,
 };
 
+struct cdn_dp_device;
+struct audio_info;
+
 void cdn_dp_clock_reset(struct cdn_dp_device *dp);
 
 void cdn_dp_set_fw_clk(struct cdn_dp_device *dp, unsigned long clk);
