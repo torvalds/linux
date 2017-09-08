@@ -675,8 +675,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	enum nl80211_band band;
 	u8 *pos;
 	struct ieee80211_sub_if_data *sdata;
-	int hdr_len = offsetof(struct ieee80211_mgmt, u.beacon) +
-		      sizeof(mgmt->u.beacon);
+	int hdr_len = offsetofend(struct ieee80211_mgmt, u.beacon);
 
 	sdata = container_of(ifmsh, struct ieee80211_sub_if_data, u.mesh);
 	rcu_read_lock();

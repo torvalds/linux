@@ -220,8 +220,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	bool include_plid = false;
 	u16 peering_proto = 0;
 	u8 *pos, ie_len = 4;
-	int hdr_len = offsetof(struct ieee80211_mgmt, u.action.u.self_prot) +
-		      sizeof(mgmt->u.action.u.self_prot);
+	int hdr_len = offsetofend(struct ieee80211_mgmt, u.action.u.self_prot);
 	int err = -ENOMEM;
 
 	skb = dev_alloc_skb(local->tx_headroom +
