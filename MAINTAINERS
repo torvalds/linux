@@ -7462,6 +7462,7 @@ M:	"Luis R. Rodriguez" <mcgrof@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	kernel/umh.c
+F:	include/linux/umh.h
 
 KERNEL VIRTUAL MACHINE (KVM)
 M:	Paolo Bonzini <pbonzini@redhat.com>
