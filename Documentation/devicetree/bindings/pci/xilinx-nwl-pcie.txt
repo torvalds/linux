@@ -15,9 +15,9 @@ Required properties:
 - device_type: must be "pci"
 - interrupts: Should contain NWL PCIe interrupt
 - interrupt-names: Must include the following entries:
-	"msi1, msi0": interrupt asserted when MSI is received
+	"msi1, msi0": interrupt asserted when an MSI is received
 	"intx": interrupt asserted when a legacy interrupt is received
-	"misc": interrupt asserted when miscellaneous is received
+	"misc": interrupt asserted when miscellaneous interrupt is received
 - interrupt-map-mask and interrupt-map: standard PCI properties to define the
 	mapping of the PCI interface to interrupt numbers.
 - ranges: ranges for the PCI memory regions (I/O space region is not
@@ -26,7 +26,8 @@ Required properties:
 	detailed explanation
 - msi-controller: indicates that this is MSI controller node
 - msi-parent:  MSI parent of the root complex itself
-- legacy-interrupt-controller: Interrupt controller device node for Legacy interrupts
+- legacy-interrupt-controller: Interrupt controller device node for Legacy
+	interrupts
 	- interrupt-controller: identifies the node as an interrupt controller
 	- #interrupt-cells: should be set to 1
 	- #address-cells: specifies the number of cells needed to encode an

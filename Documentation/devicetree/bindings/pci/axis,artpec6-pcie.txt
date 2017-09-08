@@ -6,7 +6,7 @@ and thus inherits all the common properties defined in designware-pcie.txt.
 Required properties:
 - compatible: "axis,artpec6-pcie", "snps,dw-pcie"
 - reg: base addresses and lengths of the PCIe controller (DBI),
-	the phy controller, and configuration address space.
+	the PHY controller, and configuration address space.
 - reg-names: Must include the following entries:
 	- "dbi"
 	- "phy"

@@ -852,7 +852,7 @@ static int set_bus(struct slot *slot_cur)
 	u8 speed;
 	u8 cmd = 0x0;
 	int retval;
-	static struct pci_device_id ciobx[] = {
+	static const struct pci_device_id ciobx[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, 0x0101) },
 		{ },
 	};
