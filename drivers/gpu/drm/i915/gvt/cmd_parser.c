@@ -1576,11 +1576,11 @@ static int batch_buffer_needs_scan(struct parser_exec_state *s)
 	return 1;
 }
 
-static uint32_t find_bb_size(struct parser_exec_state *s)
+static int find_bb_size(struct parser_exec_state *s)
 {
 	unsigned long gma = 0;
 	struct cmd_info *info;
-	uint32_t bb_size = 0;
+	int bb_size = 0;
 	uint32_t cmd_len = 0;
 	bool met_bb_end = false;
 	struct intel_vgpu *vgpu = s->vgpu;
@@ -1637,6 +1637,8 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 
 	/* get the size of the batch buffer */
 	bb_size = find_bb_size(s);
+	if (bb_size < 0)
+		return -EINVAL;
 
 	/* allocate shadow batch buffer */
 	entry_obj = kmalloc(sizeof(*entry_obj), GFP_KERNEL);
@@ -2603,7 +2605,8 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
 	unsigned long gma_head, gma_tail, gma_top, guest_rb_size;
-	u32 *cs;
+	void *shadow_ring_buffer_va;
+	int ring_id = workload->ring_id;
 	int ret;
 
 	guest_rb_size = _RING_CTL_BUF_SIZE(workload->rb_ctl);
@@ -2616,34 +2619,42 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 	gma_tail = workload->rb_start + workload->rb_tail;
 	gma_top = workload->rb_start + guest_rb_size;
 
-	/* allocate shadow ring buffer */
-	cs = intel_ring_begin(workload->req, workload->rb_len / sizeof(u32));
-	if (IS_ERR(cs))
-		return PTR_ERR(cs);
+	if (workload->rb_len > vgpu->reserve_ring_buffer_size[ring_id]) {
+		void *va = vgpu->reserve_ring_buffer_va[ring_id];
+		/* realloc the new ring buffer if needed */
+		vgpu->reserve_ring_buffer_va[ring_id] =
+			krealloc(va, workload->rb_len, GFP_KERNEL);
+		if (!vgpu->reserve_ring_buffer_va[ring_id]) {
+			gvt_vgpu_err("fail to alloc reserve ring buffer\n");
+			return -ENOMEM;
+		}
+		vgpu->reserve_ring_buffer_size[ring_id] = workload->rb_len;
+	}
+
+	shadow_ring_buffer_va = vgpu->reserve_ring_buffer_va[ring_id];
 
 	/* get shadow ring buffer va */
-	workload->shadow_ring_buffer_va = cs;
+	workload->shadow_ring_buffer_va = shadow_ring_buffer_va;
 
 	/* head > tail --> copy head <-> top */
 	if (gma_head > gma_tail) {
 		ret = copy_gma_to_hva(vgpu, vgpu->gtt.ggtt_mm,
-				      gma_head, gma_top, cs);
+				      gma_head, gma_top, shadow_ring_buffer_va);
 		if (ret < 0) {
 			gvt_vgpu_err("fail to copy guest ring buffer\n");
 			return ret;
 		}
-		cs += ret / sizeof(u32);
+		shadow_ring_buffer_va += ret;
 		gma_head = workload->rb_start;
 	}
 
 	/* copy head or start <-> tail */
-	ret = copy_gma_to_hva(vgpu, vgpu->gtt.ggtt_mm, gma_head, gma_tail, cs);
+	ret = copy_gma_to_hva(vgpu, vgpu->gtt.ggtt_mm, gma_head, gma_tail,
+				shadow_ring_buffer_va);
 	if (ret < 0) {
 		gvt_vgpu_err("fail to copy guest ring buffer\n");
 		return ret;
 	}
-	cs += ret / sizeof(u32);
-	intel_ring_advance(workload->req, cs);
 	return 0;
 }
 
