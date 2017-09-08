@@ -23,6 +23,7 @@
 #include <linux/page_ext.h>
 #include <linux/err.h>
 #include <linux/page_ref.h>
+#include <linux/memremap.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -792,24 +793,24 @@ static inline bool is_zone_device_page(const struct page *page)
 {
 	return page_zonenum(page) == ZONE_DEVICE;
 }
-
-static inline bool is_device_private_page(const struct page *page)
-{
-	/* See MEMORY_DEVICE_PRIVATE in include/linux/memory_hotplug.h */
-	return ((page_zonenum(page) == ZONE_DEVICE) &&
-		(page->pgmap->type == MEMORY_DEVICE_PRIVATE));
-}
 #else
 static inline bool is_zone_device_page(const struct page *page)
 {
 	return false;
 }
+#endif
 
-static inline bool is_device_private_page(const struct page *page)
+#ifdef CONFIG_DEVICE_PRIVATE
+void put_zone_device_private_page(struct page *page);
+#else
+static inline void put_zone_device_private_page(struct page *page)
 {
-	return false;
 }
 #endif
+
+static inline bool is_device_private_page(const struct page *page);
+
+DECLARE_STATIC_KEY_FALSE(device_private_key);
 
 static inline void get_page(struct page *page)
 {
@@ -825,6 +826,18 @@ static inline void get_page(struct page *page)
 static inline void put_page(struct page *page)
 {
 	page = compound_head(page);
+
+	/*
+	 * For private device pages we need to catch refcount transition from
+	 * 2 to 1, when refcount reach one it means the private device page is
+	 * free and we need to inform the device driver through callback. See
+	 * include/linux/memremap.h and HMM for details.
+	 */
+	if (static_branch_unlikely(&device_private_key) &&
+	    unlikely(is_device_private_page(page))) {
+		put_zone_device_private_page(page);
+		return;
+	}
 
 	if (put_page_testzero(page))
 		__put_page(page);

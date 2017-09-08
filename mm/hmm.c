@@ -25,7 +25,15 @@
 #include <linux/sched.h>
 #include <linux/swapops.h>
 #include <linux/hugetlb.h>
+#include <linux/jump_label.h>
 #include <linux/mmu_notifier.h>
+
+
+/*
+ * Device private memory see HMM (Documentation/vm/hmm.txt) or hmm.h
+ */
+DEFINE_STATIC_KEY_FALSE(device_private_key);
+EXPORT_SYMBOL(device_private_key);
 
 
 #ifdef CONFIG_HMM

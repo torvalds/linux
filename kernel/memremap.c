@@ -11,7 +11,6 @@
  * General Public License for more details.
  */
 #include <linux/radix-tree.h>
-#include <linux/memremap.h>
 #include <linux/device.h>
 #include <linux/types.h>
 #include <linux/pfn_t.h>
@@ -500,3 +499,27 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
 	return pgmap ? pgmap->altmap : NULL;
 }
 #endif /* CONFIG_ZONE_DEVICE */
+
+
+#ifdef CONFIG_DEVICE_PRIVATE
+void put_zone_device_private_page(struct page *page)
+{
+	int count = page_ref_dec_return(page);
+
+	/*
+	 * If refcount is 1 then page is freed and refcount is stable as nobody
+	 * holds a reference on the page.
+	 */
+	if (count == 1) {
+		/* Clear Active bit in case of parallel mark_page_accessed */
+		__ClearPageActive(page);
+		__ClearPageWaiters(page);
+
+		page->mapping = NULL;
+
+		page->pgmap->page_free(page, page->pgmap->data);
+	} else if (!count)
+		__put_page(page);
+}
+EXPORT_SYMBOL(put_zone_device_private_page);
+#endif /* CONFIG_DEVICE_PRIVATE */

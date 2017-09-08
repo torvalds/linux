@@ -126,6 +126,14 @@ struct dev_pagemap {
 void *devm_memremap_pages(struct device *dev, struct resource *res,
 		struct percpu_ref *ref, struct vmem_altmap *altmap);
 struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
+
+static inline bool is_zone_device_page(const struct page *page);
+
+static inline bool is_device_private_page(const struct page *page)
+{
+	return is_zone_device_page(page) &&
+		page->pgmap->type == MEMORY_DEVICE_PRIVATE;
+}
 #else
 static inline void *devm_memremap_pages(struct device *dev,
 		struct resource *res, struct percpu_ref *ref,
@@ -143,6 +151,11 @@ static inline void *devm_memremap_pages(struct device *dev,
 static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
 {
 	return NULL;
+}
+
+static inline bool is_device_private_page(const struct page *page)
+{
+	return false;
 }
 #endif
 
