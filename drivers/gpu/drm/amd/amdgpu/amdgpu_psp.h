@@ -125,6 +125,7 @@ struct amdgpu_psp_funcs {
 #define psp_prep_cmd_buf(ucode, type) (psp)->prep_cmd_buf((ucode), (type))
 #define psp_ring_init(psp, type) (psp)->ring_init((psp), (type))
 #define psp_ring_create(psp, type) (psp)->ring_create((psp), (type))
+#define psp_ring_stop(psp, type) (psp)->ring_stop((psp), (type))
 #define psp_ring_destroy(psp, type) ((psp)->ring_destroy((psp), (type)))
 #define psp_cmd_submit(psp, ucode, cmd_mc, fence_mc, index) \
 		(psp)->cmd_submit((psp), (ucode), (cmd_mc), (fence_mc), (index))

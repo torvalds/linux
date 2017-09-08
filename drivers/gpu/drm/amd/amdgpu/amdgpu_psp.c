@@ -455,6 +455,16 @@ static int psp_hw_fini(void *handle)
 
 static int psp_suspend(void *handle)
 {
+	int ret;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct psp_context *psp = &adev->psp;
+
+	ret = psp_ring_stop(psp, PSP_RING_TYPE__KM);
+	if (ret) {
+		DRM_ERROR("PSP ring stop failed\n");
+		return ret;
+	}
+
 	return 0;
 }
 
