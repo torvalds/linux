@@ -292,7 +292,7 @@ repeat:
     case ST_TYPEOF_1:
       if (token == IDENT)
 	{
-	  if (is_reserved_word(yytext, yyleng)
+	  if (is_reserved_word(yytext, yyleng) >= 0
 	      || find_symbol(yytext, SYM_TYPEDEF, 1))
 	    {
 	      yyless(0);
