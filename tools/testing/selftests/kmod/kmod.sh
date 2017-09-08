@@ -473,8 +473,8 @@ usage()
 	echo "    all     Runs all tests (default)"
 	echo "    -t      Run test ID the number amount of times is recommended"
 	echo "    -w      Watch test ID run until it runs into an error"
-	echo "    -c      Run test ID once"
-	echo "    -s      Run test ID x test-count number of times"
+	echo "    -s      Run test ID once"
+	echo "    -c      Run test ID x test-count number of times"
 	echo "    -l      List all test ID list"
 	echo " -h|--help  Help"
 	echo

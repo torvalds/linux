@@ -133,7 +133,7 @@ static inline struct pts_fs_info *DEVPTS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-struct pts_fs_info *devpts_acquire(struct file *filp)
+struct pts_fs_info *devpts_acquire(struct file *filp, struct vfsmount **ptsmnt)
 {
 	struct pts_fs_info *result;
 	struct path path;
@@ -142,6 +142,7 @@ struct pts_fs_info *devpts_acquire(struct file *filp)
 
 	path = filp->f_path;
 	path_get(&path);
+	*ptsmnt = NULL;
 
 	/* Has the devpts filesystem already been found? */
 	sb = path.mnt->mnt_sb;
@@ -165,6 +166,7 @@ struct pts_fs_info *devpts_acquire(struct file *filp)
 	 * pty code needs to hold extra references in case of last /dev/tty close
 	 */
 	atomic_inc(&sb->s_active);
+	*ptsmnt = mntget(path.mnt);
 	result = DEVPTS_SB(sb);
 
 out:

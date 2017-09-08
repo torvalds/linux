@@ -55,7 +55,7 @@ struct FsmTimer {
 	void *arg;
 };
 
-extern void mISDN_FsmNew(struct Fsm *, struct FsmNode *, int);
+extern int mISDN_FsmNew(struct Fsm *, struct FsmNode *, int);
 extern void mISDN_FsmFree(struct Fsm *);
 extern int mISDN_FsmEvent(struct FsmInst *, int , void *);
 extern void mISDN_FsmChangeState(struct FsmInst *, int);

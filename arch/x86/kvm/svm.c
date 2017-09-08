@@ -1117,7 +1117,7 @@ static __init int svm_hardware_setup(void)
 
 	if (vls) {
 		if (!npt_enabled ||
-		    !boot_cpu_has(X86_FEATURE_VIRTUAL_VMLOAD_VMSAVE) ||
+		    !boot_cpu_has(X86_FEATURE_V_VMSAVE_VMLOAD) ||
 		    !IS_ENABLED(CONFIG_X86_64)) {
 			vls = false;
 		} else {
@@ -1788,11 +1788,6 @@ static void svm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
         * so we do not need to update the CPL here.
         */
 	to_svm(vcpu)->vmcb->save.rflags = rflags;
-}
-
-static u32 svm_get_pkru(struct kvm_vcpu *vcpu)
-{
-	return 0;
 }
 
 static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
@@ -5435,8 +5430,6 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
-
-	.get_pkru = svm_get_pkru,
 
 	.tlb_flush = svm_flush_tlb,
 

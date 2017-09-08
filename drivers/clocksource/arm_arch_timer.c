@@ -1440,7 +1440,7 @@ static int __init arch_timer_mem_acpi_init(int platform_timer_count)
 	 * While unlikely, it's theoretically possible that none of the frames
 	 * in a timer expose the combination of feature we want.
 	 */
-	for (i = i; i < timer_count; i++) {
+	for (i = 0; i < timer_count; i++) {
 		timer = &timers[i];
 
 		frame = arch_timer_mem_find_best_frame(timer);

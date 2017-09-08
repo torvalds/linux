@@ -71,15 +71,20 @@ static inline void wd_smp_lock(unsigned long *flags)
 	 * This may be called from low level interrupt handlers at some
 	 * point in future.
 	 */
-	local_irq_save(*flags);
-	while (unlikely(test_and_set_bit_lock(0, &__wd_smp_lock)))
-		cpu_relax();
+	raw_local_irq_save(*flags);
+	hard_irq_disable(); /* Make it soft-NMI safe */
+	while (unlikely(test_and_set_bit_lock(0, &__wd_smp_lock))) {
+		raw_local_irq_restore(*flags);
+		spin_until_cond(!test_bit(0, &__wd_smp_lock));
+		raw_local_irq_save(*flags);
+		hard_irq_disable();
+	}
 }
 
 static inline void wd_smp_unlock(unsigned long *flags)
 {
 	clear_bit_unlock(0, &__wd_smp_lock);
-	local_irq_restore(*flags);
+	raw_local_irq_restore(*flags);
 }
 
 static void wd_lockup_ipi(struct pt_regs *regs)
@@ -96,16 +101,20 @@ static void wd_lockup_ipi(struct pt_regs *regs)
 		nmi_panic(regs, "Hard LOCKUP");
 }
 
-static void set_cpu_stuck(int cpu, u64 tb)
+static void set_cpumask_stuck(const struct cpumask *cpumask, u64 tb)
 {
-	cpumask_set_cpu(cpu, &wd_smp_cpus_stuck);
-	cpumask_clear_cpu(cpu, &wd_smp_cpus_pending);
+	cpumask_or(&wd_smp_cpus_stuck, &wd_smp_cpus_stuck, cpumask);
+	cpumask_andnot(&wd_smp_cpus_pending, &wd_smp_cpus_pending, cpumask);
 	if (cpumask_empty(&wd_smp_cpus_pending)) {
 		wd_smp_last_reset_tb = tb;
 		cpumask_andnot(&wd_smp_cpus_pending,
 				&wd_cpus_enabled,
 				&wd_smp_cpus_stuck);
 	}
+}
+static void set_cpu_stuck(int cpu, u64 tb)
+{
+	set_cpumask_stuck(cpumask_of(cpu), tb);
 }
 
 static void watchdog_smp_panic(int cpu, u64 tb)
@@ -135,11 +144,9 @@ static void watchdog_smp_panic(int cpu, u64 tb)
 	}
 	smp_flush_nmi_ipi(1000000);
 
-	/* Take the stuck CPU out of the watch group */
-	for_each_cpu(c, &wd_smp_cpus_pending)
-		set_cpu_stuck(c, tb);
+	/* Take the stuck CPUs out of the watch group */
+	set_cpumask_stuck(&wd_smp_cpus_pending, tb);
 
-out:
 	wd_smp_unlock(&flags);
 
 	printk_safe_flush();
@@ -152,6 +159,11 @@ out:
 
 	if (hardlockup_panic)
 		nmi_panic(NULL, "Hard LOCKUP");
+
+	return;
+
+out:
+	wd_smp_unlock(&flags);
 }
 
 static void wd_smp_clear_cpu_pending(int cpu, u64 tb)
@@ -258,9 +270,11 @@ static void wd_timer_fn(unsigned long data)
 
 void arch_touch_nmi_watchdog(void)
 {
+	unsigned long ticks = tb_ticks_per_usec * wd_timer_period_ms * 1000;
 	int cpu = smp_processor_id();
 
-	watchdog_timer_interrupt(cpu);
+	if (get_tb() - per_cpu(wd_timer_tb, cpu) >= ticks)
+		watchdog_timer_interrupt(cpu);
 }
 EXPORT_SYMBOL(arch_touch_nmi_watchdog);
 
@@ -283,6 +297,8 @@ static void stop_watchdog_timer_on(unsigned int cpu)
 
 static int start_wd_on_cpu(unsigned int cpu)
 {
+	unsigned long flags;
+
 	if (cpumask_test_cpu(cpu, &wd_cpus_enabled)) {
 		WARN_ON(1);
 		return 0;
@@ -297,12 +313,14 @@ static int start_wd_on_cpu(unsigned int cpu)
 	if (!cpumask_test_cpu(cpu, &watchdog_cpumask))
 		return 0;
 
+	wd_smp_lock(&flags);
 	cpumask_set_cpu(cpu, &wd_cpus_enabled);
 	if (cpumask_weight(&wd_cpus_enabled) == 1) {
 		cpumask_set_cpu(cpu, &wd_smp_cpus_pending);
 		wd_smp_last_reset_tb = get_tb();
 	}
-	smp_wmb();
+	wd_smp_unlock(&flags);
+
 	start_watchdog_timer_on(cpu);
 
 	return 0;
@@ -310,12 +328,17 @@ static int start_wd_on_cpu(unsigned int cpu)
 
 static int stop_wd_on_cpu(unsigned int cpu)
 {
+	unsigned long flags;
+
 	if (!cpumask_test_cpu(cpu, &wd_cpus_enabled))
 		return 0; /* Can happen in CPU unplug case */
 
 	stop_watchdog_timer_on(cpu);
 
+	wd_smp_lock(&flags);
 	cpumask_clear_cpu(cpu, &wd_cpus_enabled);
+	wd_smp_unlock(&flags);
+
 	wd_smp_clear_cpu_pending(cpu, get_tb());
 
 	return 0;

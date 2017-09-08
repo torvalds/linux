@@ -8,6 +8,7 @@
  * License as published by the Free Software Foundation.
  */
 
+#include <endian.h>
 #include <asm/types.h>
 #include <linux/types.h>
 #include <stdint.h>
@@ -1098,7 +1099,7 @@ static struct bpf_test tests[] = {
 		"check skb->hash byte load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, hash)),
 #else
@@ -1135,7 +1136,7 @@ static struct bpf_test tests[] = {
 		"check skb->hash byte load not permitted 3",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, hash) + 3),
 #else
@@ -1244,7 +1245,7 @@ static struct bpf_test tests[] = {
 		"check skb->hash half load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, hash)),
 #else
@@ -1259,7 +1260,7 @@ static struct bpf_test tests[] = {
 		"check skb->hash half load not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, hash) + 2),
 #else
@@ -5422,7 +5423,7 @@ static struct bpf_test tests[] = {
 		"check bpf_perf_event_data->sample_period byte load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct bpf_perf_event_data, sample_period)),
 #else
@@ -5438,7 +5439,7 @@ static struct bpf_test tests[] = {
 		"check bpf_perf_event_data->sample_period half load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct bpf_perf_event_data, sample_period)),
 #else
@@ -5454,7 +5455,7 @@ static struct bpf_test tests[] = {
 		"check bpf_perf_event_data->sample_period word load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct bpf_perf_event_data, sample_period)),
 #else
@@ -5481,7 +5482,7 @@ static struct bpf_test tests[] = {
 		"check skb->data half load not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, data)),
 #else
@@ -5497,7 +5498,7 @@ static struct bpf_test tests[] = {
 		"check skb->tc_classid half load not permitted for lwt prog",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, tc_classid)),
 #else
