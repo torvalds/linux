@@ -94,7 +94,7 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 
 /* Bring in the keyword recognizer.  */
 
-#include "keywords.hash.c"
+#include "keywords.c"
 
 
 /* Macros to append to our phrase collection list.  */
@@ -186,10 +186,10 @@ repeat:
 	case IDENT:
 	  APP;
 	  {
-	    const struct resword *r = is_reserved_word(yytext, yyleng);
-	    if (r)
+	    int r = is_reserved_word(yytext, yyleng);
+	    if (r >= 0)
 	      {
-		switch (token = r->token)
+		switch (token = r)
 		  {
 		  case ATTRIBUTE_KEYW:
 		    lexstate = ST_ATTRIBUTE;
