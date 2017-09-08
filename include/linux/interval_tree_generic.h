@@ -33,7 +33,7 @@
  * ITSTATIC:   'static' or empty
  * ITPREFIX:   prefix to use for the inline tree definitions
  *
- * Note - before using this, please consider if non-generic version
+ * Note - before using this, please consider if generic version
  * (interval_tree.h) would work for you...
  */
 
