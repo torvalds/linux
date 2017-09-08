@@ -97,7 +97,7 @@ static const uint8_t tonga_clock_stretch_amount_conversion[2][6] = {
  */
 
 
-static int tonga_get_dependecy_volt_by_clk(struct pp_hwmgr *hwmgr,
+static int tonga_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 	phm_ppt_v1_clock_voltage_dependency_table *allowed_clock_voltage_table,
 	uint32_t clock, SMU_VoltageLevel *voltage, uint32_t *mvdd)
 {
@@ -539,7 +539,7 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	result = tonga_calculate_sclk_params(hwmgr, engine_clock, graphic_level);
 
 	/* populate graphics levels*/
-	result = tonga_get_dependecy_volt_by_clk(hwmgr,
+	result = tonga_get_dependency_volt_by_clk(hwmgr,
 		pptable_info->vdd_dep_on_sclk, engine_clock,
 		&graphic_level->MinVoltage, &mvdd);
 	PP_ASSERT_WITH_CODE((!result),
@@ -895,7 +895,7 @@ static int tonga_populate_single_memory_level(
 	uint32_t mclk_strobe_mode_threshold = 40000;
 
 	if (NULL != pptable_info->vdd_dep_on_mclk) {
-		result = tonga_get_dependecy_volt_by_clk(hwmgr,
+		result = tonga_get_dependency_volt_by_clk(hwmgr,
 				pptable_info->vdd_dep_on_mclk,
 				memory_clock,
 				&memory_level->MinVoltage, &mvdd);
@@ -1838,7 +1838,7 @@ static int tonga_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 	dpm_table->DTEAmbientTempBase = defaults->dte_ambient_temp_base;
 
 	dpm_table->BAPM_TEMP_GRADIENT =
-				PP_HOST_TO_SMC_UL(defaults->bamp_temp_gradient);
+				PP_HOST_TO_SMC_UL(defaults->bapm_temp_gradient);
 	pdef1 = defaults->bapmti_r;
 	pdef2 = defaults->bapmti_rc;
 
@@ -1958,11 +1958,6 @@ static int tonga_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int tonga_min_max_vgnb_lpml_id_from_bapm_vddc(struct pp_hwmgr *hwmgr)
-{
-	return 0;
-}
-
 static int tonga_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *smu_data =
@@ -2033,13 +2028,6 @@ static int tonga_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 		if (tonga_populate_gnb_lpml(hwmgr))
 			PP_ASSERT_WITH_CODE(false,
 				"Attempt to populate GnbLPML Failed !",
-				return -EINVAL);
-
-		/* DW19 */
-		if (tonga_min_max_vgnb_lpml_id_from_bapm_vddc(hwmgr))
-			PP_ASSERT_WITH_CODE(false,
-				"Attempt to populate GnbLPML "
-				"Min and Max Vid Failed !",
 				return -EINVAL);
 
 		/* DW20 */

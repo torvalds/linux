@@ -288,11 +288,6 @@ static int polaris10_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int polaris10_min_max_vgnb_lpml_id_from_bapm_vddc(struct pp_hwmgr *hwmgr)
-{
-	return 0;
-}
-
 static int polaris10_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
@@ -356,11 +351,6 @@ static int polaris10_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 		if (polaris10_populate_gnb_lpml(hwmgr))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to populate GnbLPML Failed!",
-					return -EINVAL);
-
-		if (polaris10_min_max_vgnb_lpml_id_from_bapm_vddc(hwmgr))
-			PP_ASSERT_WITH_CODE(false,
-					"Attempt to populate GnbLPML Min and Max Vid Failed!",
 					return -EINVAL);
 
 		if (polaris10_populate_bapm_vddc_base_leakage_sidd(hwmgr))

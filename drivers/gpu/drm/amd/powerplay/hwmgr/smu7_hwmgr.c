@@ -1392,13 +1392,13 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	}
 
 	data->fast_watermark_threshold = 100;
-	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
+	if (atomctrl_is_voltage_controlled_by_gpio_v3(hwmgr,
 			VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2))
 		data->voltage_control = SMU7_VOLTAGE_CONTROL_BY_SVID2;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ControlVDDGFX)) {
-		if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
+		if (atomctrl_is_voltage_controlled_by_gpio_v3(hwmgr,
 			VOLTAGE_TYPE_VDDGFX, VOLTAGE_OBJ_SVID2)) {
 			data->vdd_gfx_control = SMU7_VOLTAGE_CONTROL_BY_SVID2;
 		}
@@ -1406,10 +1406,10 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_EnableMVDDControl)) {
-		if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
+		if (atomctrl_is_voltage_controlled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_MVDDC, VOLTAGE_OBJ_GPIO_LUT))
 			data->mvdd_control = SMU7_VOLTAGE_CONTROL_BY_GPIO;
-		else if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
+		else if (atomctrl_is_voltage_controlled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_MVDDC, VOLTAGE_OBJ_SVID2))
 			data->mvdd_control = SMU7_VOLTAGE_CONTROL_BY_SVID2;
 	}
@@ -1421,10 +1421,10 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ControlVDDCI)) {
-		if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
+		if (atomctrl_is_voltage_controlled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_VDDCI, VOLTAGE_OBJ_GPIO_LUT))
 			data->vddci_control = SMU7_VOLTAGE_CONTROL_BY_GPIO;
-		else if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
+		else if (atomctrl_is_voltage_controlled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_VDDCI, VOLTAGE_OBJ_SVID2))
 			data->vddci_control = SMU7_VOLTAGE_CONTROL_BY_SVID2;
 	}

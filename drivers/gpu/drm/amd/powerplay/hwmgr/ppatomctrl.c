@@ -470,7 +470,7 @@ uint32_t atomctrl_get_reference_clock(struct pp_hwmgr *hwmgr)
  * SET_VOLTAGE_TYPE_ASIC_MVDDC, SET_VOLTAGE_TYPE_ASIC_MVDDQ.
  * voltage_mode is one of ATOM_SET_VOLTAGE, ATOM_SET_VOLTAGE_PHASE
  */
-bool atomctrl_is_voltage_controled_by_gpio_v3(
+bool atomctrl_is_voltage_controlled_by_gpio_v3(
 		struct pp_hwmgr *hwmgr,
 		uint8_t voltage_type,
 		uint8_t voltage_mode)

@@ -291,7 +291,7 @@ extern uint32_t atomctrl_get_reference_clock(struct pp_hwmgr *hwmgr);
 extern int atomctrl_get_memory_pll_dividers_si(struct pp_hwmgr *hwmgr, uint32_t clock_value, pp_atomctrl_memory_clock_param *mpll_param, bool strobe_mode);
 extern int atomctrl_get_engine_pll_dividers_vi(struct pp_hwmgr *hwmgr, uint32_t clock_value, pp_atomctrl_clock_dividers_vi *dividers);
 extern int atomctrl_get_dfs_pll_dividers_vi(struct pp_hwmgr *hwmgr, uint32_t clock_value, pp_atomctrl_clock_dividers_vi *dividers);
-extern bool atomctrl_is_voltage_controled_by_gpio_v3(struct pp_hwmgr *hwmgr, uint8_t voltage_type, uint8_t voltage_mode);
+extern bool atomctrl_is_voltage_controlled_by_gpio_v3(struct pp_hwmgr *hwmgr, uint8_t voltage_type, uint8_t voltage_mode);
 extern int atomctrl_get_voltage_table_v3(struct pp_hwmgr *hwmgr, uint8_t voltage_type, uint8_t voltage_mode, pp_atomctrl_voltage_table *voltage_table);
 extern int atomctrl_get_memory_pll_dividers_vi(struct pp_hwmgr *hwmgr,
 		uint32_t clock_value, pp_atomctrl_memory_clock_param *mpll_param);

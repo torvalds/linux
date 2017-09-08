@@ -193,11 +193,6 @@ static int iceland_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int iceland_min_max_vgnb_lpml_id_from_bapm_vddc(struct pp_hwmgr *hwmgr)
-{
-	return 0;
-}
-
 static int iceland_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 {
 	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smumgr->backend);
@@ -317,12 +312,6 @@ static int iceland_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 					"Attempt to populate GnbLPML Failed!",
 					return -EINVAL);
 
-		/* DW17 */
-		if (iceland_min_max_vgnb_lpml_id_from_bapm_vddc(hwmgr))
-			PP_ASSERT_WITH_CODE(false,
-					"Attempt to populate GnbLPML Min and Max Vid Failed!",
-					return -EINVAL);
-
 		/* DW18 */
 		if (iceland_populate_bapm_vddc_base_leakage_sidd(hwmgr))
 			PP_ASSERT_WITH_CODE(false,
@@ -339,7 +328,7 @@ static int iceland_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int iceland_get_dependecy_volt_by_clk(struct pp_hwmgr *hwmgr,
+static int iceland_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 	struct phm_clock_voltage_dependency_table *allowed_clock_voltage_table,
 	uint32_t clock, uint32_t *vol)
 {
@@ -749,7 +738,7 @@ static int iceland_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	result = iceland_calculate_sclk_params(hwmgr, engine_clock, graphic_level);
 
 	/* populate graphics levels*/
-	result = iceland_get_dependecy_volt_by_clk(hwmgr,
+	result = iceland_get_dependency_volt_by_clk(hwmgr,
 		hwmgr->dyn_state.vddc_dependency_on_sclk, engine_clock,
 		&graphic_level->MinVddc);
 	PP_ASSERT_WITH_CODE((0 == result),
@@ -1104,7 +1093,7 @@ static int iceland_populate_single_memory_level(
 	uint32_t mclk_strobe_mode_threshold = 40000;
 
 	if (hwmgr->dyn_state.vddc_dependency_on_mclk != NULL) {
-		result = iceland_get_dependecy_volt_by_clk(hwmgr,
+		result = iceland_get_dependency_volt_by_clk(hwmgr,
 			hwmgr->dyn_state.vddc_dependency_on_mclk, memory_clock, &memory_level->MinVddc);
 		PP_ASSERT_WITH_CODE((0 == result),
 			"can not find MinVddc voltage value from memory VDDC voltage dependency table", return result);
@@ -1113,7 +1102,7 @@ static int iceland_populate_single_memory_level(
 	if (data->vddci_control == SMU7_VOLTAGE_CONTROL_NONE) {
 		memory_level->MinVddci = memory_level->MinVddc;
 	} else if (NULL != hwmgr->dyn_state.vddci_dependency_on_mclk) {
-		result = iceland_get_dependecy_volt_by_clk(hwmgr,
+		result = iceland_get_dependency_volt_by_clk(hwmgr,
 				hwmgr->dyn_state.vddci_dependency_on_mclk,
 				memory_clock,
 				&memory_level->MinVddci);
@@ -1776,7 +1765,7 @@ static int iceland_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 	CONVERT_FROM_HOST_TO_SMC_US(dpm_table->PPM_PkgPwrLimit);
 	CONVERT_FROM_HOST_TO_SMC_US(dpm_table->PPM_TemperatureLimit);
 
-	dpm_table->BAPM_TEMP_GRADIENT = PP_HOST_TO_SMC_UL(defaults->bamp_temp_gradient);
+	dpm_table->BAPM_TEMP_GRADIENT = PP_HOST_TO_SMC_UL(defaults->bapm_temp_gradient);
 	def1 = defaults->bapmti_r;
 	def2 = defaults->bapmti_rc;
 

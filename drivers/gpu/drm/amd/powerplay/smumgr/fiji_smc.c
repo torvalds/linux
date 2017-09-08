@@ -398,11 +398,6 @@ static int fiji_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int fiji_min_max_vgnb_lpml_id_from_bapm_vddc(struct pp_hwmgr *hwmgr)
-{
-	return 0;
-}
-
 static int fiji_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 {
 	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smumgr->backend);
@@ -470,12 +465,6 @@ static int fiji_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 		if (fiji_populate_gnb_lpml(hwmgr))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to populate GnbLPML Failed!",
-					return -EINVAL);
-
-		/* DW19 */
-		if (fiji_min_max_vgnb_lpml_id_from_bapm_vddc(hwmgr))
-			PP_ASSERT_WITH_CODE(false,
-					"Attempt to populate GnbLPML Min and Max Vid Failed!",
 					return -EINVAL);
 
 		/* DW20 */
