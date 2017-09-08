@@ -279,7 +279,7 @@ static int htable_create(struct net *net, struct hashlimit_cfg3 *cfg,
 		size = cfg->size;
 	} else {
 		size = (totalram_pages << PAGE_SHIFT) / 16384 /
-		       sizeof(struct list_head);
+		       sizeof(struct hlist_head);
 		if (totalram_pages > 1024 * 1024 * 1024 / PAGE_SIZE)
 			size = 8192;
 		if (size < 16)
@@ -287,7 +287,7 @@ static int htable_create(struct net *net, struct hashlimit_cfg3 *cfg,
 	}
 	/* FIXME: don't use vmalloc() here or anywhere else -HW */
 	hinfo = vmalloc(sizeof(struct xt_hashlimit_htable) +
-	                sizeof(struct list_head) * size);
+	                sizeof(struct hlist_head) * size);
 	if (hinfo == NULL)
 		return -ENOMEM;
 	*out_hinfo = hinfo;
