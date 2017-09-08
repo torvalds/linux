@@ -372,7 +372,7 @@ static enum aux_channel_operation_result get_channel_status(
 				10, aux110->timeout_period/10);
 
 	/* Note that the following bits are set in 'status.bits'
-	 * during CTS 4.2.1.2:
+	 * during CTS 4.2.1.2 (FW 3.3.1):
 	 * AUX_SW_RX_MIN_COUNT_VIOL, AUX_SW_RX_INVALID_STOP,
 	 * AUX_SW_RX_RECV_NO_DET, AUX_SW_RX_RECV_INVALID_H.
 	 *

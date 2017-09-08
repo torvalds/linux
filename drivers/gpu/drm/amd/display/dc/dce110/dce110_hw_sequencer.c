@@ -1439,13 +1439,11 @@ static uint32_t get_max_pixel_clock_for_all_paths(
 	return max_pix_clk;
 }
 
-/* Find clock state based on clock requested. if clock value is 0, simply
+/*
+ * Find clock state based on clock requested. if clock value is 0, simply
  * set clock state as requested without finding clock state by clock value
- *TODO: when dce120_hw_sequencer.c is created, override apply_min_clock.
- *
- * TODOFPGA  remove TODO after implement dal_display_clock_get_cur_clocks_value
- * etc support for dcn1.0
  */
+
 static void apply_min_clocks(
 	struct dc *dc,
 	struct dc_state *context,
