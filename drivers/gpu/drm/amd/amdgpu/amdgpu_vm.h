@@ -140,7 +140,7 @@ struct amdgpu_vm {
 
 	/* contains the page directory */
 	struct amdgpu_vm_pt     root;
-	struct dma_fence	*last_dir_update;
+	struct dma_fence	*last_update;
 
 	/* protecting freed */
 	spinlock_t		freed_lock;

@@ -1141,9 +1141,8 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 				goto error_free;
 
 			amdgpu_bo_fence(parent->base.bo, fence, true);
-			dma_fence_put(vm->last_dir_update);
-			vm->last_dir_update = dma_fence_get(fence);
-			dma_fence_put(fence);
+			dma_fence_put(vm->last_update);
+			vm->last_update = fence;
 		}
 	}
 
@@ -1802,6 +1801,12 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	if (trace_amdgpu_vm_bo_mapping_enabled()) {
 		list_for_each_entry(mapping, &bo_va->valids, list)
 			trace_amdgpu_vm_bo_mapping(mapping);
+	}
+
+	if (bo_va->base.bo &&
+	    bo_va->base.bo->tbo.resv == vm->root.base.bo->tbo.resv) {
+		dma_fence_put(vm->last_update);
+		vm->last_update = dma_fence_get(bo_va->last_pt_update);
 	}
 
 	return 0;
@@ -2587,7 +2592,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			 vm->use_cpu_for_update ? "CPU" : "SDMA");
 	WARN_ONCE((vm->use_cpu_for_update & !amdgpu_vm_is_large_bar(adev)),
 		  "CPU update of VM recommended only for large BAR system\n");
-	vm->last_dir_update = NULL;
+	vm->last_update = NULL;
 
 	flags = AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
 			AMDGPU_GEM_CREATE_VRAM_CLEARED;
@@ -2693,7 +2698,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	}
 
 	amdgpu_vm_free_levels(&vm->root);
-	dma_fence_put(vm->last_dir_update);
+	dma_fence_put(vm->last_update);
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; i++)
 		amdgpu_vm_free_reserved_vmid(adev, vm, i);
 }

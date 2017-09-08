@@ -761,10 +761,6 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 	if (r)
 		return r;
 
-	r = amdgpu_sync_fence(adev, &p->job->sync, vm->last_dir_update);
-	if (r)
-		return r;
-
 	r = amdgpu_vm_clear_freed(adev, vm, NULL);
 	if (r)
 		return r;
@@ -819,6 +815,12 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 	}
 
 	r = amdgpu_vm_handle_moved(adev, vm, &p->job->sync);
+	if (r)
+		return r;
+
+	r = amdgpu_sync_fence(adev, &p->job->sync, vm->last_update);
+	if (r)
+		return r;
 
 	if (amdgpu_vm_debug && p->bo_list) {
 		/* Invalidate all BOs to test for userspace bugs */
