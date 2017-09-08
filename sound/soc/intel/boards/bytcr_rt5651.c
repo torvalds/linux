@@ -54,12 +54,9 @@ static const struct snd_soc_dapm_route byt_rt5651_audio_map[] = {
 	{"Speaker", NULL, "LOUTR"},
 };
 
-static const struct snd_soc_dapm_route byt_rt5651_intmic_dmic1_map[] = {
-	{"DMIC1", NULL, "Internal Mic"},
-};
-
-static const struct snd_soc_dapm_route byt_rt5651_intmic_dmic2_map[] = {
-	{"DMIC2", NULL, "Internal Mic"},
+static const struct snd_soc_dapm_route byt_rt5651_intmic_dmic_map[] = {
+	{"DMIC L1", NULL, "Internal Mic"},
+	{"DMIC R1", NULL, "Internal Mic"},
 };
 
 static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_map[] = {
@@ -133,14 +130,13 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 		custom_map = byt_rt5651_intmic_in1_map;
 		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in1_map);
 		break;
-	case BYT_RT5651_DMIC2_MAP:
-		custom_map = byt_rt5651_intmic_dmic2_map;
-		num_routes = ARRAY_SIZE(byt_rt5651_intmic_dmic2_map);
-		break;
 	default:
-		custom_map = byt_rt5651_intmic_dmic1_map;
-		num_routes = ARRAY_SIZE(byt_rt5651_intmic_dmic1_map);
+		custom_map = byt_rt5651_intmic_dmic_map;
+		num_routes = ARRAY_SIZE(byt_rt5651_intmic_dmic_map);
 	}
+	ret = snd_soc_dapm_add_routes(&card->dapm, custom_map, num_routes);
+	if (ret)
+		return ret;
 
 	ret = snd_soc_add_card_controls(card, byt_rt5651_controls,
 					ARRAY_SIZE(byt_rt5651_controls));
