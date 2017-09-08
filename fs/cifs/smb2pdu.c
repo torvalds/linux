@@ -1634,7 +1634,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	struct cifs_tcon *tcon = oparms->tcon;
 	struct cifs_ses *ses = tcon->ses;
 	struct kvec iov[4];
-	struct kvec rsp_iov;
+	struct kvec rsp_iov = {NULL, 0};
 	int resp_buftype;
 	int uni_path_len;
 	__le16 *copy_path = NULL;
@@ -1763,7 +1763,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 
 	if (rc != 0) {
 		cifs_stats_fail_inc(tcon, SMB2_CREATE_HE);
-		if (err_buf)
+		if (err_buf && rsp)
 			*err_buf = kmemdup(rsp, get_rfc1002_length(rsp) + 4,
 					   GFP_KERNEL);
 		goto creat_exit;
