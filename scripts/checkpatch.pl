@@ -4496,6 +4496,30 @@ sub process {
 			}
 		}
 
+# check for unnecessary parentheses around comparisons in if uses
+		if ($^V && $^V ge 5.10.0 && defined($stat) &&
+		    $stat =~ /(^.\s*if\s*($balanced_parens))/) {
+			my $if_stat = $1;
+			my $test = substr($2, 1, -1);
+			my $herectx;
+			while ($test =~ /(?:^|[^\w\&\!\~])+\s*\(\s*([\&\!\~]?\s*$Lval\s*(?:$Compare\s*$FuncArg)?)\s*\)/g) {
+				my $match = $1;
+				# avoid parentheses around potential macro args
+				next if ($match =~ /^\s*\w+\s*$/);
+				if (!defined($herectx)) {
+					$herectx = $here . "\n";
+					my $cnt = statement_rawlines($if_stat);
+					for (my $n = 0; $n < $cnt; $n++) {
+						my $rl = raw_line($linenr, $n);
+						$herectx .=  $rl . "\n";
+						last if $rl =~ /^[ \+].*\{/;
+					}
+				}
+				CHK("UNNECESSARY_PARENTHESES",
+				    "Unnecessary parentheses around '$match'\n" . $herectx);
+			}
+		}
+
 #goto labels aren't indented, allow a single space however
 		if ($line=~/^.\s+[A-Za-z\d_]+:(?![0-9]+)/ and
 		   !($line=~/^. [A-Za-z\d_]+:/) and !($line=~/^.\s+default:/)) {
