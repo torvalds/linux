@@ -3609,7 +3609,11 @@ static bool xdp_is_valid_access(int off, int size,
 
 void bpf_warn_invalid_xdp_action(u32 act)
 {
-	WARN_ONCE(1, "Illegal XDP return value %u, expect packet loss\n", act);
+	const u32 act_max = XDP_REDIRECT;
+
+	WARN_ONCE(1, "%s XDP return value %u, expect packet loss!\n",
+		  act > act_max ? "Illegal" : "Driver unsupported",
+		  act);
 }
 EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
 
