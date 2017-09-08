@@ -24,6 +24,7 @@
 #include <drm/drmP.h>
 #include "drm_internal.h"
 
+#include "drm_crtc_internal.h"
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
 
@@ -267,6 +268,40 @@ static ssize_t enabled_show(struct device *device,
 			"disabled");
 }
 
+static ssize_t content_protection_store(struct device *device,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	const int nms[] = {
+		DRM_MODE_CONTENT_PROTECTION_DESIRED,
+		DRM_MODE_CONTENT_PROTECTION_UNDESIRED
+	};
+	struct drm_connector *connector = to_drm_connector(device);
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+	int ret, i, val = -1;
+
+	for (i = 0; i < ARRAY_SIZE(nms); i++) {
+		if (sysfs_streq(buf, drm_get_content_protection_name(nms[i])))
+			val = nms[i];
+	}
+	if (val < 0)
+		return -EINVAL;
+
+	drm_modeset_lock_all(dev);
+
+	prop = dev->mode_config.content_protection_property;
+	if (!prop) {
+		drm_modeset_unlock_all(dev);
+		return count;
+	}
+
+	ret = drm_mode_connector_set_obj_prop(&connector->base, prop, val);
+
+	drm_modeset_unlock_all(dev);
+	return ret ? ret : count;
+}
+
 static ssize_t content_protection_show(struct device *device,
 				       struct device_attribute *attr, char *buf)
 {
@@ -421,7 +456,7 @@ static DEVICE_ATTR_RO(enabled);
 static DEVICE_ATTR_RO(dpms);
 static DEVICE_ATTR_RO(modes);
 static DEVICE_ATTR_RO(mode);
-static DEVICE_ATTR_RO(content_protection);
+static DEVICE_ATTR_RW(content_protection);
 static DEVICE_ATTR_RO(audioformat);
 
 static struct attribute *connector_dev_attrs[] = {
