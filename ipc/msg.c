@@ -1011,7 +1011,7 @@ SYSCALL_DEFINE5(msgrcv, int, msqid, struct msgbuf __user *, msgp, size_t, msgsz,
 }
 
 
-void msg_init_ns(struct ipc_namespace *ns)
+int msg_init_ns(struct ipc_namespace *ns)
 {
 	ns->msg_ctlmax = MSGMAX;
 	ns->msg_ctlmnb = MSGMNB;
@@ -1019,7 +1019,7 @@ void msg_init_ns(struct ipc_namespace *ns)
 
 	atomic_set(&ns->msg_bytes, 0);
 	atomic_set(&ns->msg_hdrs, 0);
-	ipc_init_ids(&ns->ids[IPC_MSG_IDS]);
+	return ipc_init_ids(&ns->ids[IPC_MSG_IDS]);
 }
 
 #ifdef CONFIG_IPC_NS
@@ -1027,6 +1027,7 @@ void msg_exit_ns(struct ipc_namespace *ns)
 {
 	free_ipcs(ns, &msg_ids(ns), freeque);
 	idr_destroy(&ns->ids[IPC_MSG_IDS].ipcs_idr);
+	rhashtable_destroy(&ns->ids[IPC_MSG_IDS].key_ht);
 }
 #endif
 
@@ -1058,11 +1059,12 @@ static int sysvipc_msg_proc_show(struct seq_file *s, void *it)
 }
 #endif
 
-void __init msg_init(void)
+int __init msg_init(void)
 {
-	msg_init_ns(&init_ipc_ns);
+	const int err = msg_init_ns(&init_ipc_ns);
 
 	ipc_init_proc_interface("sysvipc/msg",
 				"       key      msqid perms      cbytes       qnum lspid lrpid   uid   gid  cuid  cgid      stime      rtime      ctime\n",
 				IPC_MSG_IDS, sysvipc_msg_proc_show);
+	return err;
 }
