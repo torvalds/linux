@@ -7,6 +7,7 @@
 #include <linux/notifier.h>
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
+#include <linux/refcount.h>
 
 struct user_namespace;
 
@@ -19,7 +20,7 @@ struct ipc_ids {
 };
 
 struct ipc_namespace {
-	atomic_t	count;
+	refcount_t	count;
 	struct ipc_ids	ids[3];
 
 	int		sem_ctls[4];
@@ -118,7 +119,7 @@ extern struct ipc_namespace *copy_ipcs(unsigned long flags,
 static inline struct ipc_namespace *get_ipc_ns(struct ipc_namespace *ns)
 {
 	if (ns)
-		atomic_inc(&ns->count);
+		refcount_inc(&ns->count);
 	return ns;
 }
 
