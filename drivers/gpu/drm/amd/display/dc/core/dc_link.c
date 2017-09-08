@@ -649,27 +649,34 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		sink_init_data.link = link;
 		sink_init_data.sink_signal = sink_caps.signal;
 
-		if (link->local_sink)	{
-			sink = link->local_sink;
-		} else {
-			sink_init_data.link = link;
-			sink_init_data.sink_signal = sink_caps.signal;
-
-			sink = dc_sink_create(&sink_init_data);
-			if (!sink) {
-				DC_ERROR("Failed to create sink!\n");
-				return false;
-			}
-			sink->dongle_max_pix_clk = sink_caps.max_hdmi_pixel_clock;
-			sink->converter_disable_audio = converter_disable_audio;
-
-			link->local_sink = sink;
+		sink = dc_sink_create(&sink_init_data);
+		if (!sink) {
+			DC_ERROR("Failed to create sink!\n");
+			return false;
 		}
 
-		edid_status = dm_helpers_read_local_edid(
+		if (link->local_sink) {
+			edid_status = dm_helpers_read_local_edid(
 				link->ctx,
 				link,
 				sink);
+
+			if (edid_status == EDID_OK) {
+				// Edid is not the same, to update the local sink with new sink.
+				sink->dongle_max_pix_clk = sink_caps.max_hdmi_pixel_clock;
+				sink->converter_disable_audio = converter_disable_audio;
+				link->local_sink = sink;
+			}
+		} else {
+			sink->dongle_max_pix_clk = sink_caps.max_hdmi_pixel_clock;
+			sink->converter_disable_audio = converter_disable_audio;
+			link->local_sink = sink;
+
+			edid_status = dm_helpers_read_local_edid(
+				link->ctx,
+				link,
+				sink);
+		}
 
 		switch (edid_status) {
 		case EDID_BAD_CHECKSUM:
@@ -762,7 +769,7 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 						link->ctx,
 						link,
 						sink);
-			if (edid_status != EDID_OK) {
+			if (edid_status != EDID_OK && edid_status != EDID_THE_SAME) {
 				link_disconnect_sink(link);
 				link->type = dc_connection_none;
 				sink_caps.signal = SIGNAL_TYPE_NONE;

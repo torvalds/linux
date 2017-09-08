@@ -151,6 +151,7 @@ enum dc_edid_status {
 	EDID_BAD_INPUT,
 	EDID_NO_RESPONSE,
 	EDID_BAD_CHECKSUM,
+	EDID_THE_SAME,
 };
 
 /* audio capability from EDID*/
