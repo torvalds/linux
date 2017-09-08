@@ -41,6 +41,8 @@ extern int psp_v3_1_ring_init(struct psp_context *psp,
 			      enum psp_ring_type ring_type);
 extern int psp_v3_1_ring_create(struct psp_context *psp,
 				enum psp_ring_type ring_type);
+extern int psp_v3_1_ring_stop(struct psp_context *psp,
+				enum psp_ring_type ring_type);
 extern int psp_v3_1_ring_destroy(struct psp_context *psp,
 				enum psp_ring_type ring_type);
 extern int psp_v3_1_cmd_submit(struct psp_context *psp,

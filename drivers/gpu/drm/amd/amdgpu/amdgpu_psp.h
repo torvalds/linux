@@ -66,6 +66,8 @@ struct psp_context
 			    struct psp_gfx_cmd_resp *cmd);
 	int (*ring_init)(struct psp_context *psp, enum psp_ring_type ring_type);
 	int (*ring_create)(struct psp_context *psp, enum psp_ring_type ring_type);
+	int (*ring_stop)(struct psp_context *psp,
+			    enum psp_ring_type ring_type);
 	int (*ring_destroy)(struct psp_context *psp,
 			    enum psp_ring_type ring_type);
 	int (*cmd_submit)(struct psp_context *psp, struct amdgpu_firmware_info *ucode,
