@@ -40,9 +40,9 @@
 #include "cdn-dp-reg.h"
 #include "rockchip_drm_vop.h"
 
-#define HDCP_RETRY_INTERVAL_MS		100
-#define HDCP_EVENT_TIMEOUT_MS		500
-#define HDCP_AUTHENTICATE_DELAY_MS	100
+#define HDCP_RETRY_INTERVAL_US		20000
+#define HDCP_EVENT_TIMEOUT_US		3000000
+#define HDCP_AUTHENTICATE_DELAY_MS	400
 
 #define HDCP_KEY_DATA_START_TRANSFER	0
 #define HDCP_KEY_DATA_START_DECRYPT	1
@@ -1268,16 +1268,14 @@ static void cdn_dp_hdcp_event_work(struct work_struct *work)
 {
 	struct cdn_dp_device *dp = container_of(work, struct cdn_dp_device,
 						hdcp_event_work.work);
-	unsigned long timeout = jiffies +
-				msecs_to_jiffies(HDCP_EVENT_TIMEOUT_MS);
+	bool auth_done;
+	int ret;
 
-	while (time_before(jiffies, timeout)) {
-		if (cdn_dp_hdcp_authorize(dp))
-			return;
-		msleep(HDCP_RETRY_INTERVAL_MS);
-	}
-
-	dev_err(dp->dev, "Failed to authorize hdcp\n");
+	ret = readx_poll_timeout(cdn_dp_hdcp_authorize, dp, auth_done,
+				 auth_done, HDCP_RETRY_INTERVAL_US,
+				 HDCP_EVENT_TIMEOUT_US);
+	if (ret)
+		dev_err(dp->dev, "Failed to authorize hdcp %d\n", ret);
 }
 
 static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
