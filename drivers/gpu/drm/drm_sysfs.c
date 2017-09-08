@@ -276,11 +276,16 @@ static ssize_t content_protection_show(struct device *device,
 	uint64_t cp;
 	int ret;
 
+	drm_modeset_lock_all(dev);
+
 	prop = dev->mode_config.content_protection_property;
-	if (!prop)
+	if (!prop) {
+		drm_modeset_unlock_all(dev);
 		return 0;
+	}
 
 	ret = drm_object_property_get_value(&connector->base, prop, &cp);
+	drm_modeset_unlock_all(dev);
 	if (ret)
 		return 0;
 
