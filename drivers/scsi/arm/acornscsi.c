@@ -2725,23 +2725,24 @@ int acornscsi_abort(struct scsi_cmnd *SCpnt)
  * Params   : SCpnt  - command causing reset
  * Returns  : one of SCSI_RESET_ macros
  */
-int acornscsi_bus_reset(struct scsi_cmnd *SCpnt)
+int acornscsi_host_reset(struct Scsi_Host *shpnt)
 {
-	AS_Host *host = (AS_Host *)SCpnt->device->host->hostdata;
+	AS_Host *host = (AS_Host *)shpnt->hostdata;
 	struct scsi_cmnd *SCptr;
     
     host->stats.resets += 1;
 
 #if (DEBUG & DEBUG_RESET)
     {
-	int asr, ssr;
+	int asr, ssr, devidx;
 
 	asr = sbic_arm_read(host, SBIC_ASR);
 	ssr = sbic_arm_read(host, SBIC_SSR);
 
 	printk(KERN_WARNING "acornscsi_reset: ");
 	print_sbic_status(asr, ssr, host->scsi.phase);
-	acornscsi_dumplog(host, SCpnt->device->id);
+	for (devidx = 0; devidx < 9; devidx ++) {
+	    acornscsi_dumplog(host, devidx);
     }
 #endif
 
@@ -2884,7 +2885,7 @@ static struct scsi_host_template acornscsi_template = {
 	.info			= acornscsi_info,
 	.queuecommand		= acornscsi_queuecmd,
 	.eh_abort_handler	= acornscsi_abort,
-	.eh_bus_reset_handler	= acornscsi_bus_reset,
+	.eh_host_reset_handler	= acornscsi_host_reset,
 	.can_queue		= 16,
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,

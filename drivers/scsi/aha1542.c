@@ -986,7 +986,7 @@ static struct isa_driver aha1542_isa_driver = {
 static int isa_registered;
 
 #ifdef CONFIG_PNP
-static struct pnp_device_id aha1542_pnp_ids[] = {
+static const struct pnp_device_id aha1542_pnp_ids[] = {
 	{ .id = "ADP1542" },
 	{ .id = "" }
 };

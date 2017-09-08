@@ -163,7 +163,6 @@ static void iscsi_sw_tcp_state_change(struct sock *sk)
 	struct iscsi_tcp_conn *tcp_conn;
 	struct iscsi_sw_tcp_conn *tcp_sw_conn;
 	struct iscsi_conn *conn;
-	struct iscsi_session *session;
 	void (*old_state_change)(struct sock *);
 
 	read_lock_bh(&sk->sk_callback_lock);
@@ -172,7 +171,6 @@ static void iscsi_sw_tcp_state_change(struct sock *sk)
 		read_unlock_bh(&sk->sk_callback_lock);
 		return;
 	}
-	session = conn->session;
 
 	iscsi_sw_sk_state_check(sk);
 
