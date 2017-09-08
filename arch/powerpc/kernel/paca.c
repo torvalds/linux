@@ -224,7 +224,7 @@ void __init allocate_pacas(void)
 	paca = __va(memblock_alloc_base(paca_size, PAGE_SIZE, limit));
 	memset(paca, 0, paca_size);
 
-	printk(KERN_DEBUG "Allocated %u bytes for %d pacas at %p\n",
+	printk(KERN_DEBUG "Allocated %u bytes for %u pacas at %p\n",
 		paca_size, nr_cpu_ids, paca);
 
 	allocate_lppacas(nr_cpu_ids, limit);
