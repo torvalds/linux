@@ -1460,14 +1460,190 @@ static enum event_type_t get_event_type(struct perf_event *event)
 	return event_type;
 }
 
-static struct list_head *
-ctx_group_list(struct perf_event *event, struct perf_event_context *ctx)
+/*
+ * Helper function to initialize group leader event;
+ */
+void init_event_group(struct perf_event *event)
+{
+	RB_CLEAR_NODE(&event->group_node);
+	event->group_index = 0;
+}
+
+/*
+ * Extract pinned or flexible groups from the context
+ * based on event attrs bits;
+ */
+static struct perf_event_groups *
+get_event_groups(struct perf_event *event, struct perf_event_context *ctx)
 {
 	if (event->attr.pinned)
 		return &ctx->pinned_groups;
 	else
 		return &ctx->flexible_groups;
 }
+
+/*
+ * Helper function to initializes perf event groups object;
+ */
+void perf_event_groups_init(struct perf_event_groups *groups)
+{
+	groups->tree = RB_ROOT;
+	groups->index = 0;
+}
+
+/*
+ * Compare function for event groups;
+ * Implements complex key that first sorts by CPU and then by
+ * virtual index which provides ordering when rotating
+ * groups for the same CPU;
+ */
+int perf_event_groups_less(struct perf_event *left, struct perf_event *right)
+{
+	if (left->cpu < right->cpu) {
+		return 1;
+	} else if (left->cpu > right->cpu) {
+		return 0;
+	} else {
+		if (left->group_index < right->group_index) {
+			return 1;
+		} else if(left->group_index > right->group_index) {
+			return 0;
+		} else {
+			return 0;
+		}
+	}
+}
+
+/*
+ * Insert a group into a tree using event->cpu as a key. If event->cpu node
+ * is already attached to the tree then the event is added to the attached
+ * group's group_list list.
+ */
+static void
+perf_event_groups_insert(struct perf_event_groups *groups,
+		struct perf_event *event)
+{
+	struct perf_event *node_event;
+	struct rb_node *parent;
+	struct rb_node **node;
+
+	event->group_index = ++groups->index;
+
+	node = &groups->tree.rb_node;
+	parent = *node;
+
+	while (*node) {
+		parent = *node;
+		node_event = container_of(*node,
+				struct perf_event, group_node);
+
+		if (perf_event_groups_less(event, node_event))
+			node = &parent->rb_left;
+		else
+			node = &parent->rb_right;
+	}
+
+	rb_link_node(&event->group_node, parent, node);
+	rb_insert_color(&event->group_node, &groups->tree);
+}
+
+/*
+ * Helper function to insert event into the pinned or
+ * flexible groups;
+ */
+static void
+add_event_to_groups(struct perf_event *event, struct perf_event_context *ctx)
+{
+	struct perf_event_groups *groups;
+
+	groups = get_event_groups(event, ctx);
+	perf_event_groups_insert(groups, event);
+}
+
+/*
+ * Delete a group from a tree. If the group is directly attached to the tree
+ * it also detaches all groups on the group's group_list list.
+ */
+static void
+perf_event_groups_delete(struct perf_event_groups *groups,
+		struct perf_event *event)
+{
+	if (!RB_EMPTY_NODE(&event->group_node) &&
+	    !RB_EMPTY_ROOT(&groups->tree))
+		rb_erase(&event->group_node, &groups->tree);
+
+	init_event_group(event);
+}
+
+/*
+ * Helper function to delete event from its groups;
+ */
+static void
+del_event_from_groups(struct perf_event *event, struct perf_event_context *ctx)
+{
+	struct perf_event_groups *groups;
+
+	groups = get_event_groups(event, ctx);
+	perf_event_groups_delete(groups, event);
+}
+
+/*
+ * Get a group by a cpu key from groups tree with the least group_index;
+ */
+static struct perf_event *
+perf_event_groups_first(struct perf_event_groups *groups, int cpu)
+{
+	struct perf_event *node_event = NULL, *match = NULL;
+	struct rb_node *node = groups->tree.rb_node;
+
+	while (node) {
+		node_event = container_of(node,
+				struct perf_event, group_node);
+
+		if (cpu < node_event->cpu) {
+			node = node->rb_left;
+		} else if (cpu > node_event->cpu) {
+			node = node->rb_right;
+		} else {
+			match = node_event;
+			node = node->rb_left;
+		}
+	}
+
+	return match;
+}
+
+/*
+ * Find group list by a cpu key and rotate it.
+ */
+static void
+perf_event_groups_rotate(struct perf_event_groups *groups, int cpu)
+{
+	struct perf_event *event =
+			perf_event_groups_first(groups, cpu);
+
+	if (event) {
+		perf_event_groups_delete(groups, event);
+		perf_event_groups_insert(groups, event);
+	}
+}
+
+/*
+ * Iterate event groups thru the whole tree.
+ */
+#define perf_event_groups_for_each(event, groups, node)		\
+	for (event = rb_entry_safe(rb_first(&((groups)->tree)),	\
+				typeof(*event), node); event;	\
+		event = rb_entry_safe(rb_next(&event->node),	\
+				typeof(*event), node))
+/*
+ * Iterate event groups with cpu == key.
+ */
+#define perf_event_groups_for_each_cpu(event, key, groups, node) \
+	for (event = perf_event_groups_first(groups, key);	 \
+		event && event->cpu == key;			 \
+		event = rb_entry_safe(rb_next(&event->node),	 \
+				typeof(*event), node))
 
 /*
  * Add a event from the lists for its context.
@@ -1489,12 +1665,8 @@ list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 	 * perf_group_detach can, at all times, locate all siblings.
 	 */
 	if (event->group_leader == event) {
-		struct list_head *list;
-
 		event->group_caps = event->event_caps;
-
-		list = ctx_group_list(event, ctx);
-		list_add_tail(&event->group_entry, list);
+		add_event_to_groups(event, ctx);
 	}
 
 	list_update_cgroup_event(event, ctx, true);
@@ -1688,7 +1860,7 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 	list_del_rcu(&event->event_entry);
 
 	if (event->group_leader == event)
-		list_del_init(&event->group_entry);
+		del_event_from_groups(event, ctx);
 
 	/*
 	 * If event was in error state, then keep it
@@ -1706,7 +1878,6 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 static void perf_group_detach(struct perf_event *event)
 {
 	struct perf_event *sibling, *tmp;
-	struct list_head *list = NULL;
 
 	lockdep_assert_held(&event->ctx->lock);
 
@@ -1727,21 +1898,22 @@ static void perf_group_detach(struct perf_event *event)
 		goto out;
 	}
 
-	if (!list_empty(&event->group_entry))
-		list = &event->group_entry;
-
 	/*
 	 * If this was a group event with sibling events then
 	 * upgrade the siblings to singleton events by adding them
 	 * to whatever list we are on.
 	 */
 	list_for_each_entry_safe(sibling, tmp, &event->sibling_list, group_entry) {
-		if (list)
-			list_move_tail(&sibling->group_entry, list);
+
 		sibling->group_leader = sibling;
 
 		/* Inherit group flags from the previous leader */
 		sibling->group_caps = event->group_caps;
+
+		if (!RB_EMPTY_NODE(&event->group_node)) {
+			list_del_init(&sibling->group_entry);
+			add_event_to_groups(sibling, event->ctx);
+		}
 
 		WARN_ON_ONCE(sibling->ctx != event->ctx);
 	}
@@ -2184,6 +2356,22 @@ static int group_can_go_on(struct perf_event *event,
 	 * to go on.
 	 */
 	return can_add_hw;
+}
+
+static int
+flexible_group_sched_in(struct perf_event *event,
+			struct perf_event_context *ctx,
+		        struct perf_cpu_context *cpuctx,
+			int *can_add_hw)
+{
+	if (event->state <= PERF_EVENT_STATE_OFF || !event_filter_match(event))
+		return 0;
+
+	if (group_can_go_on(event, cpuctx, *can_add_hw))
+		if (group_sched_in(event, cpuctx, ctx))
+			*can_add_hw = 0;
+
+	return 1;
 }
 
 static void add_event_to_ctx(struct perf_event *event,
@@ -2652,6 +2840,7 @@ static void ctx_sched_out(struct perf_event_context *ctx,
 			  struct perf_cpu_context *cpuctx,
 			  enum event_type_t event_type)
 {
+	int sw = -1, cpu = smp_processor_id();
 	int is_active = ctx->is_active;
 	struct perf_event *event;
 
@@ -2700,12 +2889,20 @@ static void ctx_sched_out(struct perf_event_context *ctx,
 
 	perf_pmu_disable(ctx->pmu);
 	if (is_active & EVENT_PINNED) {
-		list_for_each_entry(event, &ctx->pinned_groups, group_entry)
+		perf_event_groups_for_each_cpu(event, cpu,
+				&ctx->pinned_groups, group_node)
+			group_sched_out(event, cpuctx, ctx);
+		perf_event_groups_for_each_cpu(event, sw,
+				&ctx->pinned_groups, group_node)
 			group_sched_out(event, cpuctx, ctx);
 	}
 
 	if (is_active & EVENT_FLEXIBLE) {
-		list_for_each_entry(event, &ctx->flexible_groups, group_entry)
+		perf_event_groups_for_each_cpu(event, cpu,
+				&ctx->flexible_groups, group_node)
+			group_sched_out(event, cpuctx, ctx);
+		perf_event_groups_for_each_cpu(event, sw,
+				&ctx->flexible_groups, group_node)
 			group_sched_out(event, cpuctx, ctx);
 	}
 	perf_pmu_enable(ctx->pmu);
@@ -2996,23 +3193,28 @@ static void
 ctx_pinned_sched_in(struct perf_event_context *ctx,
 		    struct perf_cpu_context *cpuctx)
 {
+	int sw = -1, cpu = smp_processor_id();
 	struct perf_event *event;
+	int can_add_hw;
 
-	list_for_each_entry(event, &ctx->pinned_groups, group_entry) {
-		if (event->state <= PERF_EVENT_STATE_OFF)
-			continue;
-		if (!event_filter_match(event))
-			continue;
+	perf_event_groups_for_each_cpu(event, sw,
+			&ctx->pinned_groups, group_node) {
+		can_add_hw = 1;
+		if (flexible_group_sched_in(event, ctx, cpuctx, &can_add_hw)) {
+			if (event->state == PERF_EVENT_STATE_INACTIVE)
+				perf_event_set_state(event,
+						PERF_EVENT_STATE_ERROR);
+		}
+	}
 
-		if (group_can_go_on(event, cpuctx, 1))
-			group_sched_in(event, cpuctx, ctx);
-
-		/*
-		 * If this pinned group hasn't been scheduled,
-		 * put it in error state.
-		 */
-		if (event->state == PERF_EVENT_STATE_INACTIVE)
-			perf_event_set_state(event, PERF_EVENT_STATE_ERROR);
+	perf_event_groups_for_each_cpu(event, cpu,
+			&ctx->pinned_groups, group_node) {
+		can_add_hw = 1;
+		if (flexible_group_sched_in(event, ctx, cpuctx, &can_add_hw)) {
+			if (event->state == PERF_EVENT_STATE_INACTIVE)
+				perf_event_set_state(event,
+						PERF_EVENT_STATE_ERROR);
+		}
 	}
 }
 
@@ -3020,25 +3222,19 @@ static void
 ctx_flexible_sched_in(struct perf_event_context *ctx,
 		      struct perf_cpu_context *cpuctx)
 {
+	int sw = -1, cpu = smp_processor_id();
 	struct perf_event *event;
 	int can_add_hw = 1;
 
-	list_for_each_entry(event, &ctx->flexible_groups, group_entry) {
-		/* Ignore events in OFF or ERROR state */
-		if (event->state <= PERF_EVENT_STATE_OFF)
-			continue;
-		/*
-		 * Listen to the 'cpu' scheduling filter constraint
-		 * of events:
-		 */
-		if (!event_filter_match(event))
-			continue;
+	perf_event_groups_for_each_cpu(event, sw,
+			&ctx->flexible_groups, group_node)
+		flexible_group_sched_in(event, ctx, cpuctx, &can_add_hw);
 
-		if (group_can_go_on(event, cpuctx, can_add_hw)) {
-			if (group_sched_in(event, cpuctx, ctx))
-				can_add_hw = 0;
-		}
-	}
+	can_add_hw = 1;
+	perf_event_groups_for_each_cpu(event, cpu,
+			&ctx->flexible_groups, group_node)
+		flexible_group_sched_in(event, ctx, cpuctx, &can_add_hw);
+
 }
 
 static void
@@ -3119,7 +3315,7 @@ static void perf_event_context_sched_in(struct perf_event_context *ctx,
 	 * However, if task's ctx is not carrying any pinned
 	 * events, no need to flip the cpuctx's events around.
 	 */
-	if (!list_empty(&ctx->pinned_groups))
+	if (!RB_EMPTY_ROOT(&ctx->pinned_groups.tree))
 		cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
 	perf_event_sched_in(cpuctx, ctx, task);
 	perf_pmu_enable(ctx->pmu);
@@ -3356,8 +3552,12 @@ static void rotate_ctx(struct perf_event_context *ctx)
 	 * Rotate the first entry last of non-pinned groups. Rotation might be
 	 * disabled by the inheritance code.
 	 */
-	if (!ctx->rotate_disable)
-		list_rotate_left(&ctx->flexible_groups);
+	if (!ctx->rotate_disable) {
+		int sw = -1, cpu = smp_processor_id();
+
+		perf_event_groups_rotate(&ctx->flexible_groups, sw);
+		perf_event_groups_rotate(&ctx->flexible_groups, cpu);
+	}
 }
 
 static int perf_rotate_context(struct perf_cpu_context *cpuctx)
@@ -3715,8 +3915,8 @@ static void __perf_event_init_context(struct perf_event_context *ctx)
 	raw_spin_lock_init(&ctx->lock);
 	mutex_init(&ctx->mutex);
 	INIT_LIST_HEAD(&ctx->active_ctx_list);
-	INIT_LIST_HEAD(&ctx->pinned_groups);
-	INIT_LIST_HEAD(&ctx->flexible_groups);
+	perf_event_groups_init(&ctx->pinned_groups);
+	perf_event_groups_init(&ctx->flexible_groups);
 	INIT_LIST_HEAD(&ctx->event_list);
 	atomic_set(&ctx->refcount, 1);
 }
@@ -9561,6 +9761,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 	INIT_LIST_HEAD(&event->group_entry);
 	INIT_LIST_HEAD(&event->event_entry);
 	INIT_LIST_HEAD(&event->sibling_list);
+	init_event_group(event);
 	INIT_LIST_HEAD(&event->rb_entry);
 	INIT_LIST_HEAD(&event->active_entry);
 	INIT_LIST_HEAD(&event->addr_filters.list);
@@ -11085,7 +11286,7 @@ static int perf_event_init_context(struct task_struct *child, int ctxn)
 	 * We dont have to disable NMIs - we are only looking at
 	 * the list, not manipulating it:
 	 */
-	list_for_each_entry(event, &parent_ctx->pinned_groups, group_entry) {
+	perf_event_groups_for_each(event, &parent_ctx->pinned_groups, group_node) {
 		ret = inherit_task_group(event, parent, parent_ctx,
 					 child, ctxn, &inherited_all);
 		if (ret)
@@ -11101,7 +11302,7 @@ static int perf_event_init_context(struct task_struct *child, int ctxn)
 	parent_ctx->rotate_disable = 1;
 	raw_spin_unlock_irqrestore(&parent_ctx->lock, flags);
 
-	list_for_each_entry(event, &parent_ctx->flexible_groups, group_entry) {
+	perf_event_groups_for_each(event, &parent_ctx->flexible_groups, group_node) {
 		ret = inherit_task_group(event, parent, parent_ctx,
 					 child, ctxn, &inherited_all);
 		if (ret)
