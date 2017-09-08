@@ -2354,8 +2354,16 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 
 	drm_connector = &aconnector->base;
 
-	if (!aconnector->dc_sink)
+	if (!aconnector->dc_sink) {
+		/*
+		 * Exclude MST from creating fake_sink
+		 * TODO: need to enable MST into fake_sink feature
+		 */
+		if (aconnector->mst_port)
+			goto stream_create_fail;
+
 		create_fake_sink(aconnector);
+	}
 
 	stream = dc_create_stream_for_sink(aconnector->dc_sink);
 
@@ -4376,7 +4384,8 @@ static int dm_update_crtcs_state(struct dc *dc,
 		aconnector = amdgpu_dm_find_first_crtc_matching_connector(state, crtc);
 
 		/* TODO This hack should go away */
-		if (aconnector) {
+		if (aconnector && enable) {
+			// Make sure fake sink is created in plug-in scenario
 			new_con_state = drm_atomic_get_connector_state(state,
  								    &aconnector->base);
 
