@@ -2715,10 +2715,10 @@ sub process {
 				my $typo_fix = $spelling_fix{lc($typo)};
 				$typo_fix = ucfirst($typo_fix) if ($typo =~ /^[A-Z]/);
 				$typo_fix = uc($typo_fix) if ($typo =~ /^[A-Z]+$/);
-				my $msg_type = \&WARN;
-				$msg_type = \&CHK if ($file);
-				if (&{$msg_type}("TYPO_SPELLING",
-						 "'$typo' may be misspelled - perhaps '$typo_fix'?\n" . $herecurr) &&
+				my $msg_level = \&WARN;
+				$msg_level = \&CHK if ($file);
+				if (&{$msg_level}("TYPO_SPELLING",
+						  "'$typo' may be misspelled - perhaps '$typo_fix'?\n" . $herecurr) &&
 				    $fix) {
 					$fixed[$fixlinenr] =~ s/(^|[^A-Za-z@])($typo)($|[^A-Za-z@])/$1$typo_fix$3/;
 				}
@@ -2753,10 +2753,10 @@ sub process {
 		    $rawline =~ /\b59\s+Temple\s+Pl/i ||
 		    $rawline =~ /\b51\s+Franklin\s+St/i) {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
-			my $msg_type = \&ERROR;
-			$msg_type = \&CHK if ($file);
-			&{$msg_type}("FSF_MAILING_ADDRESS",
-				     "Do not include the paragraph about writing to the Free Software Foundation's mailing address from the sample GPL notice. The FSF has changed addresses in the past, and may do so again. Linux already includes a copy of the GPL.\n" . $herevet)
+			my $msg_level = \&ERROR;
+			$msg_level = \&CHK if ($file);
+			&{$msg_level}("FSF_MAILING_ADDRESS",
+				      "Do not include the paragraph about writing to the Free Software Foundation's mailing address from the sample GPL notice. The FSF has changed addresses in the past, and may do so again. Linux already includes a copy of the GPL.\n" . $herevet)
 		}
 
 # check for Kconfig help text having a real description
@@ -3810,10 +3810,10 @@ sub process {
 
 # avoid BUG() or BUG_ON()
 		if ($line =~ /\b(?:BUG|BUG_ON)\b/) {
-			my $msg_type = \&WARN;
-			$msg_type = \&CHK if ($file);
-			&{$msg_type}("AVOID_BUG",
-				     "Avoid crashing the kernel - try using WARN_ON & recovery code rather than BUG() or BUG_ON()\n" . $herecurr);
+			my $msg_level = \&WARN;
+			$msg_level = \&CHK if ($file);
+			&{$msg_level}("AVOID_BUG",
+				      "Avoid crashing the kernel - try using WARN_ON & recovery code rather than BUG() or BUG_ON()\n" . $herecurr);
 		}
 
 # avoid LINUX_VERSION_CODE
@@ -4339,11 +4339,11 @@ sub process {
 
 					# messages are ERROR, but ?: are CHK
 					if ($ok == 0) {
-						my $msg_type = \&ERROR;
-						$msg_type = \&CHK if (($op eq '?:' || $op eq '?' || $op eq ':') && $ctx =~ /VxV/);
+						my $msg_level = \&ERROR;
+						$msg_level = \&CHK if (($op eq '?:' || $op eq '?' || $op eq ':') && $ctx =~ /VxV/);
 
-						if (&{$msg_type}("SPACING",
-								 "spaces required around that '$op' $at\n" . $hereptr)) {
+						if (&{$msg_level}("SPACING",
+								  "spaces required around that '$op' $at\n" . $hereptr)) {
 							$good = rtrim($fix_elements[$n]) . " " . trim($fix_elements[$n + 1]) . " ";
 							if (defined $fix_elements[$n + 2]) {
 								$fix_elements[$n + 2] =~ s/^\s+//;
