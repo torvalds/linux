@@ -30,18 +30,45 @@ void __init ceph_flock_init(void)
 	get_random_bytes(&lock_secret, sizeof(lock_secret));
 }
 
+static void ceph_fl_copy_lock(struct file_lock *dst, struct file_lock *src)
+{
+	struct inode *inode = file_inode(src->fl_file);
+	atomic_inc(&ceph_inode(inode)->i_filelock_ref);
+}
+
+static void ceph_fl_release_lock(struct file_lock *fl)
+{
+	struct inode *inode = file_inode(fl->fl_file);
+	atomic_dec(&ceph_inode(inode)->i_filelock_ref);
+}
+
+static const struct file_lock_operations ceph_fl_lock_ops = {
+	.fl_copy_lock = ceph_fl_copy_lock,
+	.fl_release_private = ceph_fl_release_lock,
+};
+
 /**
  * Implement fcntl and flock locking functions.
  */
-static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
+static int ceph_lock_message(u8 lock_type, u16 operation, struct inode *inode,
 			     int cmd, u8 wait, struct file_lock *fl)
 {
-	struct inode *inode = file_inode(file);
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_mds_request *req;
 	int err;
 	u64 length = 0;
 	u64 owner;
+
+	if (operation == CEPH_MDS_OP_SETFILELOCK) {
+		/*
+		 * increasing i_filelock_ref closes race window between
+		 * handling request reply and adding file_lock struct to
+		 * inode. Otherwise, auth caps may get trimmed in the
+		 * window. Caller function will decrease the counter.
+		 */
+		fl->fl_ops = &ceph_fl_lock_ops;
+		atomic_inc(&ceph_inode(inode)->i_filelock_ref);
+	}
 
 	if (operation != CEPH_MDS_OP_SETFILELOCK || cmd == CEPH_LOCK_UNLOCK)
 		wait = 0;
@@ -180,10 +207,11 @@ static int ceph_lock_wait_for_completion(struct ceph_mds_client *mdsc,
  */
 int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 {
-	u8 lock_cmd;
+	struct inode *inode = file_inode(file);
 	int err;
-	u8 wait = 0;
 	u16 op = CEPH_MDS_OP_SETFILELOCK;
+	u8 lock_cmd;
+	u8 wait = 0;
 
 	if (!(fl->fl_flags & FL_POSIX))
 		return -ENOLCK;
@@ -199,6 +227,17 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 	else if (IS_SETLKW(cmd))
 		wait = 1;
 
+	if (op == CEPH_MDS_OP_SETFILELOCK) {
+		/*
+		 * increasing i_filelock_ref closes race window between
+		 * handling request reply and adding file_lock struct to
+		 * inode. Otherwise, i_auth_cap may get trimmed in the
+		 * window. Caller function will decrease the counter.
+		 */
+		fl->fl_ops = &ceph_fl_lock_ops;
+		atomic_inc(&ceph_inode(inode)->i_filelock_ref);
+	}
+
 	if (F_RDLCK == fl->fl_type)
 		lock_cmd = CEPH_LOCK_SHARED;
 	else if (F_WRLCK == fl->fl_type)
@@ -206,7 +245,7 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 	else
 		lock_cmd = CEPH_LOCK_UNLOCK;
 
-	err = ceph_lock_message(CEPH_LOCK_FCNTL, op, file, lock_cmd, wait, fl);
+	err = ceph_lock_message(CEPH_LOCK_FCNTL, op, inode, lock_cmd, wait, fl);
 	if (!err) {
 		if (op != CEPH_MDS_OP_GETFILELOCK) {
 			dout("mds locked, locking locally");
@@ -215,7 +254,7 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 				/* undo! This should only happen if
 				 * the kernel detects local
 				 * deadlock. */
-				ceph_lock_message(CEPH_LOCK_FCNTL, op, file,
+				ceph_lock_message(CEPH_LOCK_FCNTL, op, inode,
 						  CEPH_LOCK_UNLOCK, 0, fl);
 				dout("got %d on posix_lock_file, undid lock",
 				     err);
@@ -227,8 +266,9 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 
 int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 {
-	u8 lock_cmd;
+	struct inode *inode = file_inode(file);
 	int err;
+	u8 lock_cmd;
 	u8 wait = 0;
 
 	if (!(fl->fl_flags & FL_FLOCK))
@@ -238,6 +278,10 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 		return -EOPNOTSUPP;
 
 	dout("ceph_flock, fl_file: %p", fl->fl_file);
+
+	/* see comment in ceph_lock */
+	fl->fl_ops = &ceph_fl_lock_ops;
+	atomic_inc(&ceph_inode(inode)->i_filelock_ref);
 
 	if (IS_SETLKW(cmd))
 		wait = 1;
@@ -250,13 +294,13 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 		lock_cmd = CEPH_LOCK_UNLOCK;
 
 	err = ceph_lock_message(CEPH_LOCK_FLOCK, CEPH_MDS_OP_SETFILELOCK,
-				file, lock_cmd, wait, fl);
+				inode, lock_cmd, wait, fl);
 	if (!err) {
 		err = locks_lock_file_wait(file, fl);
 		if (err) {
 			ceph_lock_message(CEPH_LOCK_FLOCK,
 					  CEPH_MDS_OP_SETFILELOCK,
-					  file, CEPH_LOCK_UNLOCK, 0, fl);
+					  inode, CEPH_LOCK_UNLOCK, 0, fl);
 			dout("got %d on locks_lock_file_wait, undid lock", err);
 		}
 	}

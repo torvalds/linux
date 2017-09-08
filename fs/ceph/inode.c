@@ -493,6 +493,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_wb_ref = 0;
 	ci->i_wrbuffer_ref = 0;
 	ci->i_wrbuffer_ref_head = 0;
+	atomic_set(&ci->i_filelock_ref, 0);
 	ci->i_shared_gen = 0;
 	ci->i_rdcache_gen = 0;
 	ci->i_rdcache_revoking = 0;

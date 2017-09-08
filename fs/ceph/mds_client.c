@@ -1462,6 +1462,11 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 			goto out;
 		if ((used | wanted) & CEPH_CAP_ANY_WR)
 			goto out;
+		/* Note: it's possible that i_filelock_ref becomes non-zero
+		 * after dropping auth caps. It doesn't hurt because reply
+		 * of lock mds request will re-add auth caps. */
+		if (atomic_read(&ci->i_filelock_ref) > 0)
+			goto out;
 	}
 	/* The inode has cached pages, but it's no longer used.
 	 * we can safely drop it */
