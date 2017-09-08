@@ -2217,8 +2217,8 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 	if (!usage->type || delay_pen_events(wacom_wac))
 		return;
 
-	/* send pen events only when the pen is in/entering/leaving range */
-	if (!wacom_wac->hid_data.inrange_state && !wacom_wac->tool[0])
+	/* send pen events only when the pen is in range */
+	if (!wacom_wac->hid_data.inrange_state)
 		return;
 
 	input_event(input, usage->type, usage->code, value);
@@ -2269,10 +2269,10 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 		 */
 		input_report_key(input, BTN_TOUCH,
 				wacom_wac->hid_data.tipswitch);
-		input_report_key(input, wacom_wac->tool[0], range);
+		input_report_key(input, wacom_wac->tool[0], sense);
 		if (wacom_wac->serial[0]) {
 			input_event(input, EV_MSC, MSC_SERIAL, wacom_wac->serial[0]);
-			input_report_abs(input, ABS_MISC, range ? id : 0);
+			input_report_abs(input, ABS_MISC, sense ? id : 0);
 		}
 
 		wacom_wac->hid_data.tipswitch = false;
@@ -2280,7 +2280,7 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 		input_sync(input);
 	}
 
-	if (!range) {
+	if (!sense) {
 		wacom_wac->tool[0] = 0;
 		wacom_wac->id[0] = 0;
 		wacom_wac->serial[0] = 0;
