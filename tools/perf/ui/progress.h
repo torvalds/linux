@@ -14,6 +14,7 @@ void ui_progress__init(struct ui_progress *p, u64 total, const char *title);
 void ui_progress__update(struct ui_progress *p, u64 adv);
 
 struct ui_progress_ops {
+	void (*init)(struct ui_progress *p);
 	void (*update)(struct ui_progress *p);
 	void (*finish)(void);
 };

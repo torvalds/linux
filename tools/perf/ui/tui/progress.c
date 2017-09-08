@@ -5,6 +5,11 @@
 #include "tui.h"
 #include "../browser.h"
 
+static void __tui_progress__init(struct ui_progress *p)
+{
+	p->next = p->step = p->total / (SLtt_Screen_Cols - 2) ?: 1;
+}
+
 static void tui_progress__update(struct ui_progress *p)
 {
 	int bar, y;
@@ -49,8 +54,8 @@ static void tui_progress__finish(void)
 	pthread_mutex_unlock(&ui__lock);
 }
 
-static struct ui_progress_ops tui_progress__ops =
-{
+static struct ui_progress_ops tui_progress__ops = {
+	.init   = __tui_progress__init,
 	.update = tui_progress__update,
 	.finish = tui_progress__finish,
 };

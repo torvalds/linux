@@ -34,6 +34,8 @@ void ui_progress__init(struct ui_progress *p, u64 total, const char *title)
 	p->total = total;
 	p->title = title;
 
+	if (ui_progress__ops->init)
+		ui_progress__ops->init(p);
 }
 
 void ui_progress__finish(void)
