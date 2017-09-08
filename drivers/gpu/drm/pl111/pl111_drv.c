@@ -68,6 +68,9 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_of.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_panel.h>
 
 #include "pl111_drm.h"
 
@@ -83,6 +86,8 @@ static int pl111_modeset_init(struct drm_device *dev)
 {
 	struct drm_mode_config *mode_config;
 	struct pl111_drm_dev_private *priv = dev->dev_private;
+	struct drm_panel *panel;
+	struct drm_bridge *bridge;
 	int ret = 0;
 
 	drm_mode_config_init(dev);
@@ -93,34 +98,43 @@ static int pl111_modeset_init(struct drm_device *dev)
 	mode_config->min_height = 1;
 	mode_config->max_height = 768;
 
-	ret = pl111_connector_init(dev);
-	if (ret) {
-		dev_err(dev->dev, "Failed to create pl111_drm_connector\n");
-		goto out_config;
-	}
-
-	/* Don't actually attach if we didn't find a drm_panel
-	 * attached to us.  This will allow a kernel to include both
-	 * the fbdev pl111 driver and this one, and choose between
-	 * them based on which subsystem has support for the panel.
-	 */
-	if (!priv->connector.panel) {
-		dev_info(dev->dev,
-			 "Disabling due to lack of DRM panel device.\n");
-		ret = -ENODEV;
-		goto out_config;
+	ret = drm_of_find_panel_or_bridge(dev->dev->of_node,
+					  0, 0, &panel, &bridge);
+	if (ret && ret != -ENODEV)
+		return ret;
+	if (panel) {
+		bridge = drm_panel_bridge_add(panel,
+					      DRM_MODE_CONNECTOR_Unknown);
+		if (IS_ERR(bridge)) {
+			ret = PTR_ERR(bridge);
+			goto out_config;
+		}
+		/*
+		 * TODO: when we are using a different bridge than a panel
+		 * (such as a dumb VGA connector) we need to devise a different
+		 * method to get the connector out of the bridge.
+		 */
 	}
 
 	ret = pl111_display_init(dev);
 	if (ret != 0) {
 		dev_err(dev->dev, "Failed to init display\n");
-		goto out_config;
+		goto out_bridge;
 	}
+
+	ret = drm_simple_display_pipe_attach_bridge(&priv->pipe,
+						    bridge);
+	if (ret)
+		return ret;
+
+	priv->bridge = bridge;
+	priv->panel = panel;
+	priv->connector = panel->connector;
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret != 0) {
 		dev_err(dev->dev, "Failed to init vblank\n");
-		goto out_config;
+		goto out_bridge;
 	}
 
 	drm_mode_config_reset(dev);
@@ -132,6 +146,9 @@ static int pl111_modeset_init(struct drm_device *dev)
 
 	goto finish;
 
+out_bridge:
+	if (panel)
+		drm_panel_bridge_remove(bridge);
 out_config:
 	drm_mode_config_cleanup(dev);
 finish:
@@ -236,6 +253,8 @@ static int pl111_amba_remove(struct amba_device *amba_dev)
 	drm_dev_unregister(drm);
 	if (priv->fbdev)
 		drm_fbdev_cma_fini(priv->fbdev);
+	if (priv->panel)
+		drm_panel_bridge_remove(priv->bridge);
 	drm_mode_config_cleanup(drm);
 	drm_dev_unref(drm);
 

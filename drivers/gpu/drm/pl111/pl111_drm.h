@@ -21,21 +21,22 @@
 
 #include <drm/drm_gem.h>
 #include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_bridge.h>
 #include <linux/clk-provider.h>
 
 #define CLCD_IRQ_NEXTBASE_UPDATE BIT(2)
 
 struct drm_minor;
 
-struct pl111_drm_connector {
-	struct drm_connector connector;
-	struct drm_panel *panel;
-};
-
 struct pl111_drm_dev_private {
 	struct drm_device *drm;
 
-	struct pl111_drm_connector connector;
+	struct drm_connector *connector;
+	struct drm_panel *panel;
+	struct drm_bridge *bridge;
 	struct drm_simple_display_pipe pipe;
 	struct drm_fbdev_cma *fbdev;
 
@@ -50,14 +51,10 @@ struct pl111_drm_dev_private {
 	spinlock_t tim2_lock;
 };
 
-#define to_pl111_connector(x) \
-	container_of(x, struct pl111_drm_connector, connector)
-
 int pl111_display_init(struct drm_device *dev);
 int pl111_enable_vblank(struct drm_device *drm, unsigned int crtc);
 void pl111_disable_vblank(struct drm_device *drm, unsigned int crtc);
 irqreturn_t pl111_irq(int irq, void *data);
-int pl111_connector_init(struct drm_device *dev);
 int pl111_debugfs_init(struct drm_minor *minor);
 
 #endif /* _PL111_DRM_H_ */
