@@ -207,14 +207,15 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 	uint64_t *buf;
 
 	if (!dp->active) {
-		dev_err(dp->dev, "firmware is not active\n");
+		DRM_DEV_ERROR(dp->dev, "firmware is not active\n");
 		return 0;
 	}
 
 	arm_smccc_smc(RK_SIP_HDCP_CONTROL, HDCP_KEY_DATA_START_TRANSFER,
 		      0, 0, 0, 0, 0, 0, &res);
 	if (res.a0) {
-		dev_err(dp->dev, "start hdcp transfer failed: %#lx\n", res.a0);
+		DRM_DEV_ERROR(dp->dev, "start hdcp transfer failed: %#lx\n",
+			      res.a0);
 		return -EIO;
 	}
 
@@ -226,7 +227,7 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 			      buf[2], buf[3], buf[4], buf[5], 0, &res);
 
 	if (res.a0) {
-		dev_err(dp->dev, "send hdcp keys failed: %#lx\n", res.a0);
+		DRM_DEV_ERROR(dp->dev, "send hdcp keys failed: %#lx\n", res.a0);
 		return -EIO;
 	}
 	arm_smccc_smc(RK_SIP_HDCP_CONTROL, HDCP_KEY_DATA_START_DECRYPT,
@@ -234,7 +235,8 @@ static int cdn_dp_start_hdcp1x_auth(struct cdn_dp_device *dp)
 
 	ret = cdn_dp_hdcp_tx_configuration(dp, HDCP_TX_1, true);
 	if (ret) {
-		dev_err(dp->dev, "start hdcp authentication failed: %d\n", ret);
+		DRM_DEV_ERROR(dp->dev, "start hdcp authentication failed: %d\n",
+			      ret);
 		return ret;
 	}
 
@@ -327,10 +329,17 @@ static int cdn_dp_set_content_protection(struct cdn_dp_device *dp,
 
 	mutex_lock(&dp->lock);
 
-	if (val == DRM_MODE_CONTENT_PROTECTION_DESIRED)
+	if (val == DRM_MODE_CONTENT_PROTECTION_DESIRED) {
 		ret = cdn_dp_start_hdcp1x_auth(dp);
-	else
+		if (ret)
+			DRM_DEV_ERROR(dp->dev, "Enable HDCP failed %d\n", ret);
+	} else {
 		ret = cdn_dp_hdcp_tx_configuration(dp, HDCP_TX_1, false);
+		if (!ret)
+			DRM_DEV_INFO(dp->dev, "HDCP has been disabled\n");
+		else
+			DRM_DEV_ERROR(dp->dev, "Disable HDCP failed %d\n", ret);
+	}
 
 	mutex_unlock(&dp->lock);
 
@@ -1239,7 +1248,7 @@ static bool cdn_dp_hdcp_authorize(struct cdn_dp_device *dp)
 		if (ret)
 			goto out;
 		if (HDCP_TX_STATUS_ERROR(tx_status)) {
-			dev_err(dp->dev, "hdcp status error: %#x\n",
+			DRM_DEV_ERROR(dp->dev, "hdcp status error: %#x\n",
 				HDCP_TX_STATUS_ERROR(tx_status));
 			goto out;
 		} else if (tx_status & HDCP_TX_STATUS_AUTHENTICATED) {
@@ -1279,7 +1288,7 @@ static void cdn_dp_hdcp_event_work(struct work_struct *work)
 				 auth_done, HDCP_RETRY_INTERVAL_US,
 				 HDCP_EVENT_TIMEOUT_US);
 	if (ret)
-		dev_err(dp->dev, "Failed to authorize hdcp %d\n", ret);
+		DRM_DEV_ERROR(dp->dev, "Failed to authorize hdcp\n");
 }
 
 static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
@@ -1423,13 +1432,13 @@ static ssize_t hdcp_key_store(struct device *dev,
 	 * would be (308 * 2) byte.
 	 */
 	if (count != (CDN_DP_HDCP_KEY_LEN * 2)) {
-		dev_err(dev, "mis-match hdcp cipher length\n");
+		DRM_DEV_ERROR(dev, "mis-match hdcp cipher length\n");
 		return -EINVAL;
 	}
 
 	cell = nvmem_cell_get(dev, "cpu-id");
 	if (IS_ERR(cell)) {
-		dev_err(dev, "missing cpu-id nvmen cell property\n");
+		DRM_DEV_ERROR(dev, "missing cpu-id nvmen cell property\n");
 		return -ENODEV;
 	}
 
@@ -1440,7 +1449,7 @@ static ssize_t hdcp_key_store(struct device *dev,
 		return PTR_ERR(cpu_id);
 
 	if (len != CDN_DP_HDCP_UID_LEN) {
-		dev_err(dev, "mismatch cpu-id size\n");
+		DRM_DEV_ERROR(dev, "mismatch cpu-id size\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -1455,7 +1464,8 @@ static ssize_t hdcp_key_store(struct device *dev,
 	 */
 	ret = hex2bin((u8 *)&dp->key, buf, CDN_DP_HDCP_KEY_LEN);
 	if (ret) {
-		dev_err(dev, "failed to decode the input HDCP key format\n");
+		DRM_DEV_ERROR(dev, "decode input HDCP key format failed %d\n",
+			      ret);
 		goto err;
 	}
 
