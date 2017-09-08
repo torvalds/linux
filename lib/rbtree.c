@@ -105,16 +105,25 @@ __rb_insert(struct rb_node *node, struct rb_root *root,
 
 	while (true) {
 		/*
-		 * Loop invariant: node is red
-		 *
-		 * If there is a black parent, we are done.
-		 * Otherwise, take some corrective action as we don't
-		 * want a red root or two consecutive red nodes.
+		 * Loop invariant: node is red.
 		 */
-		if (!parent) {
+		if (unlikely(!parent)) {
+			/*
+			 * The inserted node is root. Either this is the
+			 * first node, or we recursed at Case 1 below and
+			 * are no longer violating 4).
+			 */
 			rb_set_parent_color(node, NULL, RB_BLACK);
 			break;
-		} else if (rb_is_black(parent))
+		}
+
+		/*
+		 * If there is a black parent, we are done.
+		 * Otherwise, take some corrective action as,
+		 * per 4), we don't want a red root or two
+		 * consecutive red nodes.
+		 */
+		if(rb_is_black(parent))
 			break;
 
 		gparent = rb_red_parent(parent);
