@@ -501,8 +501,8 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
 #endif /* CONFIG_ZONE_DEVICE */
 
 
-#ifdef CONFIG_DEVICE_PRIVATE
-void put_zone_device_private_page(struct page *page)
+#if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+void put_zone_device_private_or_public_page(struct page *page)
 {
 	int count = page_ref_dec_return(page);
 
@@ -522,5 +522,5 @@ void put_zone_device_private_page(struct page *page)
 	} else if (!count)
 		__put_page(page);
 }
-EXPORT_SYMBOL(put_zone_device_private_page);
-#endif /* CONFIG_DEVICE_PRIVATE */
+EXPORT_SYMBOL(put_zone_device_private_or_public_page);
+#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */

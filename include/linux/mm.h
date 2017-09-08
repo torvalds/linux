@@ -800,15 +800,16 @@ static inline bool is_zone_device_page(const struct page *page)
 }
 #endif
 
-#ifdef CONFIG_DEVICE_PRIVATE
-void put_zone_device_private_page(struct page *page);
+#if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+void put_zone_device_private_or_public_page(struct page *page);
 #else
-static inline void put_zone_device_private_page(struct page *page)
+static inline void put_zone_device_private_or_public_page(struct page *page)
 {
 }
-#endif
+#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
 
 static inline bool is_device_private_page(const struct page *page);
+static inline bool is_device_public_page(const struct page *page);
 
 DECLARE_STATIC_KEY_FALSE(device_private_key);
 
@@ -834,8 +835,9 @@ static inline void put_page(struct page *page)
 	 * include/linux/memremap.h and HMM for details.
 	 */
 	if (static_branch_unlikely(&device_private_key) &&
-	    unlikely(is_device_private_page(page))) {
-		put_zone_device_private_page(page);
+	    unlikely(is_device_private_page(page) ||
+		     is_device_public_page(page))) {
+		put_zone_device_private_or_public_page(page);
 		return;
 	}
 
@@ -1224,8 +1226,10 @@ struct zap_details {
 	pgoff_t last_index;			/* Highest page->index to unmap */
 };
 
-struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
-		pte_t pte);
+struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+			     pte_t pte, bool with_public_device);
+#define vm_normal_page(vma, addr, pte) _vm_normal_page(vma, addr, pte, false)
+
 struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
 				pmd_t pmd);
 

@@ -57,10 +57,18 @@ static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
  *
  * A more complete discussion of unaddressable memory may be found in
  * include/linux/hmm.h and Documentation/vm/hmm.txt.
+ *
+ * MEMORY_DEVICE_PUBLIC:
+ * Device memory that is cache coherent from device and CPU point of view. This
+ * is use on platform that have an advance system bus (like CAPI or CCIX). A
+ * driver can hotplug the device memory using ZONE_DEVICE and with that memory
+ * type. Any page of a process can be migrated to such memory. However no one
+ * should be allow to pin such memory so that it can always be evicted.
  */
 enum memory_type {
 	MEMORY_DEVICE_HOST = 0,
 	MEMORY_DEVICE_PRIVATE,
+	MEMORY_DEVICE_PUBLIC,
 };
 
 /*
@@ -92,6 +100,8 @@ enum memory_type {
  * The page_free() callback is called once the page refcount reaches 1
  * (ZONE_DEVICE pages never reach 0 refcount unless there is a refcount bug.
  * This allows the device driver to implement its own memory management.)
+ *
+ * For MEMORY_DEVICE_PUBLIC only the page_free() callback matter.
  */
 typedef int (*dev_page_fault_t)(struct vm_area_struct *vma,
 				unsigned long addr,
@@ -134,6 +144,12 @@ static inline bool is_device_private_page(const struct page *page)
 	return is_zone_device_page(page) &&
 		page->pgmap->type == MEMORY_DEVICE_PRIVATE;
 }
+
+static inline bool is_device_public_page(const struct page *page)
+{
+	return is_zone_device_page(page) &&
+		page->pgmap->type == MEMORY_DEVICE_PUBLIC;
+}
 #else
 static inline void *devm_memremap_pages(struct device *dev,
 		struct resource *res, struct percpu_ref *ref,
@@ -154,6 +170,11 @@ static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
 }
 
 static inline bool is_device_private_page(const struct page *page)
+{
+	return false;
+}
+
+static inline bool is_device_public_page(const struct page *page)
 {
 	return false;
 }
