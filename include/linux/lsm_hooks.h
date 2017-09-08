@@ -672,7 +672,8 @@
  *	@p contains the task_struct for process.
  *	@info contains the signal information.
  *	@sig contains the signal value.
- *	@secid contains the sid of the process where the signal originated
+ *	@cred contains the cred of the process where the signal originated, or
+ *	NULL if the current task is the originator.
  *	Return 0 if permission is granted.
  * @task_prctl:
  *	Check permission before performing a process control operation on the
@@ -1564,7 +1565,7 @@ union security_list_options {
 	int (*task_getscheduler)(struct task_struct *p);
 	int (*task_movememory)(struct task_struct *p);
 	int (*task_kill)(struct task_struct *p, struct siginfo *info,
-				int sig, u32 secid);
+				int sig, const struct cred *cred);
 	int (*task_prctl)(int option, unsigned long arg2, unsigned long arg3,
 				unsigned long arg4, unsigned long arg5);
 	void (*task_to_inode)(struct task_struct *p, struct inode *inode);
