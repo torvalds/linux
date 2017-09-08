@@ -1896,7 +1896,7 @@ static void fib6_net_exit(struct net *net)
 	rt6_ifdown(net, NULL);
 	del_timer_sync(&net->ipv6.ip6_fib_timer);
 
-	for (i = 0; i < FIB_TABLE_HASHSZ; i++) {
+	for (i = 0; i < FIB6_TABLE_HASHSZ; i++) {
 		struct hlist_head *head = &net->ipv6.fib_table_hash[i];
 		struct hlist_node *tmp;
 		struct fib6_table *tb;
