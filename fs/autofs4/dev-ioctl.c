@@ -97,13 +97,13 @@ static struct autofs_dev_ioctl *
 {
 	struct autofs_dev_ioctl tmp, *res;
 
-	if (copy_from_user(&tmp, in, sizeof(tmp)))
+	if (copy_from_user(&tmp, in, AUTOFS_DEV_IOCTL_SIZE))
 		return ERR_PTR(-EFAULT);
 
-	if (tmp.size < sizeof(tmp))
+	if (tmp.size < AUTOFS_DEV_IOCTL_SIZE)
 		return ERR_PTR(-EINVAL);
 
-	if (tmp.size > (PATH_MAX + sizeof(tmp)))
+	if (tmp.size > AUTOFS_DEV_IOCTL_SIZE + PATH_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	res = memdup_user(in, tmp.size);
@@ -133,8 +133,8 @@ static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 		goto out;
 	}
 
-	if (param->size > sizeof(*param)) {
-		err = invalid_str(param->path, param->size - sizeof(*param));
+	if (param->size > AUTOFS_DEV_IOCTL_SIZE) {
+		err = invalid_str(param->path, param->size - AUTOFS_DEV_IOCTL_SIZE);
 		if (err) {
 			pr_warn(
 			  "path string terminator missing for cmd(0x%08x)\n",
@@ -451,7 +451,7 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 	dev_t devid;
 	int err = -ENOENT;
 
-	if (param->size <= sizeof(*param)) {
+	if (param->size <= AUTOFS_DEV_IOCTL_SIZE) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -539,7 +539,7 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 	unsigned int devid, magic;
 	int err = -ENOENT;
 
-	if (param->size <= sizeof(*param)) {
+	if (param->size <= AUTOFS_DEV_IOCTL_SIZE) {
 		err = -EINVAL;
 		goto out;
 	}
