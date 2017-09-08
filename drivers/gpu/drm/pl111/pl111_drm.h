@@ -26,6 +26,7 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_bridge.h>
 #include <linux/clk-provider.h>
+#include <linux/interrupt.h>
 
 #define CLCD_IRQ_NEXTBASE_UPDATE BIT(2)
 
@@ -66,6 +67,8 @@ struct pl111_drm_dev_private {
 	 */
 	spinlock_t tim2_lock;
 	const struct pl111_variant_data *variant;
+	void (*variant_display_enable) (struct drm_device *drm, u32 format);
+	void (*variant_display_disable) (struct drm_device *drm);
 };
 
 int pl111_display_init(struct drm_device *dev);

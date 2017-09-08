@@ -208,6 +208,9 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	 */
 	msleep(20);
 
+	if (priv->variant_display_enable)
+		priv->variant_display_enable(drm, fb->format->format);
+
 	/* Power Up */
 	cntl |= CNTL_LCDPWR;
 	writel(cntl, priv->regs + priv->ctrl);
@@ -236,6 +239,9 @@ void pl111_display_disable(struct drm_simple_display_pipe *pipe)
 	 * stipulated by the manual
 	 */
 	msleep(20);
+
+	if (priv->variant_display_disable)
+		priv->variant_display_disable(drm);
 
 	/* Disable */
 	writel(0, priv->regs + priv->ctrl);
