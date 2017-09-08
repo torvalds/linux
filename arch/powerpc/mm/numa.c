@@ -1148,13 +1148,33 @@ struct topology_update_data {
 	int new_nid;
 };
 
+#define TOPOLOGY_DEF_TIMER_SECS	60
+
 static u8 vphn_cpu_change_counts[NR_CPUS][MAX_DISTANCE_REF_POINTS];
 static cpumask_t cpu_associativity_changes_mask;
 static int vphn_enabled;
 static int prrn_enabled;
 static void reset_topology_timer(void);
+static int topology_timer_secs = 1;
 static int topology_inited;
 static int topology_update_needed;
+
+/*
+ * Change polling interval for associativity changes.
+ */
+int timed_topology_update(int nsecs)
+{
+	if (vphn_enabled) {
+		if (nsecs > 0)
+			topology_timer_secs = nsecs;
+		else
+			topology_timer_secs = TOPOLOGY_DEF_TIMER_SECS;
+
+		reset_topology_timer();
+	}
+
+	return 0;
+}
 
 /*
  * Store the current values of the associativity change counters in the
@@ -1251,6 +1271,7 @@ static long vphn_get_associativity(unsigned long cpu,
 		break;
 	case H_SUCCESS:
 		dbg("VPHN hcall succeeded. Reset polling...\n");
+		timed_topology_update(0);
 		break;
 	}
 
@@ -1481,7 +1502,7 @@ static struct timer_list topology_timer =
 static void reset_topology_timer(void)
 {
 	topology_timer.data = 0;
-	topology_timer.expires = jiffies + 60 * HZ;
+	topology_timer.expires = jiffies + topology_timer_secs * HZ;
 	mod_timer(&topology_timer, topology_timer.expires);
 }
 
