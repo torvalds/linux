@@ -12,8 +12,8 @@ menuconfig ARC_PLAT_EZNPS
 	help
 	  Support for EZchip development platforms,
 	  based on ARC700 cores.
-	  We handle few flavours:
-	    - Hardware Emulator AKA HE which is FPGA based chasis
+	  We handle few flavors:
+	    - Hardware Emulator AKA HE which is FPGA based chassis
 	    - Simulator based on MetaWare nSIM
 	    - NPS400 chip based on ASIC
 
@@ -32,3 +32,25 @@ config EZNPS_MTM_EXT
 	  any of them seem like CPU from Linux point of view.
 	  All threads within same core share the execution unit of the
 	  core and HW scheduler round robin between them.
+
+config EZNPS_MEM_ERROR_ALIGN
+       bool "ARC-EZchip Memory error as an exception"
+       depends on EZNPS_MTM_EXT
+       default n
+       help
+	  On the real chip of the NPS, user memory errors are handled
+	  as a machine check exception, which is fatal, whereas on
+	  simulator platform for NPS, is handled as a Level 2 interrupt
+	  (just a stock ARC700) which is recoverable. This option makes
+	  simulator behave like hardware.
+
+config EZNPS_SHARED_AUX_REGS
+	bool "ARC-EZchip Shared Auxiliary Registers Per Core"
+	depends on ARC_PLAT_EZNPS
+	default y
+	help
+	  On the real chip of the NPS, auxiliary registers are shared between
+	  all the cpus of the core, whereas on simulator platform for NPS,
+	  each cpu has a different set of auxiliary registers. Configuration
+	  should be unset if auxiliary registers are not shared between the cpus
+	  of the core, so there will be a need to initialize them per cpu.

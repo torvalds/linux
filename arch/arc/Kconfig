@@ -100,6 +100,7 @@ source "arch/arc/plat-tb10x/Kconfig"
 source "arch/arc/plat-axs10x/Kconfig"
 #New platform adds here
 source "arch/arc/plat-eznps/Kconfig"
+source "arch/arc/plat-hsdk/Kconfig"
 
 endmenu
 
@@ -418,7 +419,7 @@ endif	# ISA_ARCV2
 endmenu   # "ARC CPU Configuration"
 
 config LINUX_LINK_BASE
-	hex "Linux Link Address"
+	hex "Kernel link address"
 	default "0x80000000"
 	help
 	  ARC700 divides the 32 bit phy address space into two equal halves
@@ -430,6 +431,14 @@ config LINUX_LINK_BASE
 	  Linux needs to be scooted a bit.
 	  If you don't know what the above means, leave this setting alone.
 	  This needs to match memory start address specified in Device Tree
+
+config LINUX_RAM_BASE
+	hex "RAM base address"
+	default LINUX_LINK_BASE
+	help
+	  By default Linux is linked at base of RAM. However in some special
+	  cases (such as HSDK), Linux can't be linked at start of DDR, hence
+	  this option.
 
 config HIGHMEM
 	bool "High Memory Support"
