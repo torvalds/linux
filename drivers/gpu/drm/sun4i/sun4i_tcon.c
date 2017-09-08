@@ -468,7 +468,7 @@ sun4i_tcon_find_engine_traverse(struct sun4i_drv *drv,
 				struct device_node *node)
 {
 	struct device_node *port, *ep, *remote;
-	struct sunxi_engine *engine;
+	struct sunxi_engine *engine = ERR_PTR(-EINVAL);
 
 	port = of_graph_get_port_by_id(node, 0);
 	if (!port)
@@ -483,35 +483,34 @@ sun4i_tcon_find_engine_traverse(struct sun4i_drv *drv,
 	 *
 	 * Bail out if there are multiple input connections.
 	 */
-	if (of_get_available_child_count(port) != 1) {
-		of_node_put(port);
-		return ERR_PTR(-EINVAL);
-	}
+	if (of_get_available_child_count(port) != 1)
+		goto out_put_port;
 
-	for_each_available_child_of_node(port, ep) {
-		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote)
-			continue;
+	/* Get the first connection without specifying an ID */
+	ep = of_get_next_available_child(port, NULL);
+	if (!ep)
+		goto out_put_port;
 
-		/* does this node match any registered engines? */
-		list_for_each_entry(engine, &drv->engine_list, list) {
-			if (remote == engine->node) {
-				of_node_put(remote);
-				of_node_put(port);
-				return engine;
-			}
-		}
+	remote = of_graph_get_remote_port_parent(ep);
+	if (!remote)
+		goto out_put_ep;
 
-		/* keep looking through upstream ports */
-		engine = sun4i_tcon_find_engine_traverse(drv, remote);
-		if (!IS_ERR(engine)) {
-			of_node_put(remote);
-			of_node_put(port);
-			return engine;
-		}
-	}
+	/* does this node match any registered engines? */
+	list_for_each_entry(engine, &drv->engine_list, list)
+		if (remote == engine->node)
+			goto out_put_remote;
 
-	return ERR_PTR(-EINVAL);
+	/* keep looking through upstream ports */
+	engine = sun4i_tcon_find_engine_traverse(drv, remote);
+
+out_put_remote:
+	of_node_put(remote);
+out_put_ep:
+	of_node_put(ep);
+out_put_port:
+	of_node_put(port);
+
+	return engine;
 }
 
 /*
