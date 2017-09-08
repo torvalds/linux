@@ -159,7 +159,7 @@ static void dev_map_free(struct bpf_map *map)
 		unsigned long *bitmap = per_cpu_ptr(dtab->flush_needed, cpu);
 
 		while (!bitmap_empty(bitmap, dtab->map.max_entries))
-			cpu_relax();
+			cond_resched();
 	}
 
 	for (i = 0; i < dtab->map.max_entries; i++) {
