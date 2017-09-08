@@ -658,6 +658,19 @@ config WMI_BMOF
 	  To compile this driver as a module, choose M here: the module will
 	  be called wmi-bmof.
 
+config INTEL_WMI_THUNDERBOLT
+	tristate "Intel WMI thunderbolt force power driver"
+	depends on ACPI_WMI
+	default ACPI_WMI
+	---help---
+	  Say Y here if you want to be able to use the WMI interface on select
+	  systems to force the power control of Intel Thunderbolt controllers.
+	  This is useful for updating the firmware when devices are not plugged
+	  into the controller.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called intel-wmi-thunderbolt.
+
 config MSI_WMI
 	tristate "MSI WMI extras"
 	depends on ACPI_WMI
