@@ -1197,7 +1197,7 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 
 	ret = qcom_glink_tx(glink, &cmd, sizeof(cmd), NULL, 0, true);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	ret = wait_for_completion_timeout(&channel->intent_req_comp, 10 * HZ);
 	if (!ret) {
@@ -1207,6 +1207,7 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 		ret = channel->intent_req_result ? 0 : -ECANCELED;
 	}
 
+unlock:
 	mutex_unlock(&channel->intent_req_lock);
 	return ret;
 }
