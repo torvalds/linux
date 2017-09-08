@@ -100,6 +100,74 @@ static inline void *swp_to_radix_entry(swp_entry_t entry)
 	return (void *)(value | RADIX_TREE_EXCEPTIONAL_ENTRY);
 }
 
+#if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
+static inline swp_entry_t make_device_private_entry(struct page *page, bool write)
+{
+	return swp_entry(write ? SWP_DEVICE_WRITE : SWP_DEVICE_READ,
+			 page_to_pfn(page));
+}
+
+static inline bool is_device_private_entry(swp_entry_t entry)
+{
+	int type = swp_type(entry);
+	return type == SWP_DEVICE_READ || type == SWP_DEVICE_WRITE;
+}
+
+static inline void make_device_private_entry_read(swp_entry_t *entry)
+{
+	*entry = swp_entry(SWP_DEVICE_READ, swp_offset(*entry));
+}
+
+static inline bool is_write_device_private_entry(swp_entry_t entry)
+{
+	return unlikely(swp_type(entry) == SWP_DEVICE_WRITE);
+}
+
+static inline struct page *device_private_entry_to_page(swp_entry_t entry)
+{
+	return pfn_to_page(swp_offset(entry));
+}
+
+int device_private_entry_fault(struct vm_area_struct *vma,
+		       unsigned long addr,
+		       swp_entry_t entry,
+		       unsigned int flags,
+		       pmd_t *pmdp);
+#else /* CONFIG_DEVICE_PRIVATE */
+static inline swp_entry_t make_device_private_entry(struct page *page, bool write)
+{
+	return swp_entry(0, 0);
+}
+
+static inline void make_device_private_entry_read(swp_entry_t *entry)
+{
+}
+
+static inline bool is_device_private_entry(swp_entry_t entry)
+{
+	return false;
+}
+
+static inline bool is_write_device_private_entry(swp_entry_t entry)
+{
+	return false;
+}
+
+static inline struct page *device_private_entry_to_page(swp_entry_t entry)
+{
+	return NULL;
+}
+
+static inline int device_private_entry_fault(struct vm_area_struct *vma,
+				     unsigned long addr,
+				     swp_entry_t entry,
+				     unsigned int flags,
+				     pmd_t *pmdp)
+{
+	return VM_FAULT_SIGBUS;
+}
+#endif /* CONFIG_DEVICE_PRIVATE */
+
 #ifdef CONFIG_MIGRATION
 static inline swp_entry_t make_migration_entry(struct page *page, int write)
 {

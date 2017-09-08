@@ -51,6 +51,23 @@ static inline int current_is_kswapd(void)
  */
 
 /*
+ * Unaddressable device memory support. See include/linux/hmm.h and
+ * Documentation/vm/hmm.txt. Short description is we need struct pages for
+ * device memory that is unaddressable (inaccessible) by CPU, so that we can
+ * migrate part of a process memory to device memory.
+ *
+ * When a page is migrated from CPU to device, we set the CPU page table entry
+ * to a special SWP_DEVICE_* entry.
+ */
+#ifdef CONFIG_DEVICE_PRIVATE
+#define SWP_DEVICE_NUM 2
+#define SWP_DEVICE_WRITE (MAX_SWAPFILES+SWP_HWPOISON_NUM+SWP_MIGRATION_NUM)
+#define SWP_DEVICE_READ (MAX_SWAPFILES+SWP_HWPOISON_NUM+SWP_MIGRATION_NUM+1)
+#else
+#define SWP_DEVICE_NUM 0
+#endif
+
+/*
  * NUMA node memory migration support
  */
 #ifdef CONFIG_MIGRATION
@@ -72,7 +89,8 @@ static inline int current_is_kswapd(void)
 #endif
 
 #define MAX_SWAPFILES \
-	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM)
+	((1 << MAX_SWAPFILES_SHIFT) - SWP_DEVICE_NUM - \
+	SWP_MIGRATION_NUM - SWP_HWPOISON_NUM)
 
 /*
  * Magic header for a swap area. The first part of the union is
@@ -469,8 +487,8 @@ static inline void show_swap_cache_info(void)
 {
 }
 
-#define free_swap_and_cache(swp)	is_migration_entry(swp)
-#define swapcache_prepare(swp)		is_migration_entry(swp)
+#define free_swap_and_cache(e) ({(is_migration_entry(e) || is_device_private_entry(e));})
+#define swapcache_prepare(e) ({(is_migration_entry(e) || is_device_private_entry(e));})
 
 static inline int add_swap_count_continuation(swp_entry_t swp, gfp_t gfp_mask)
 {

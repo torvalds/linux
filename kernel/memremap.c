@@ -18,6 +18,8 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/memory_hotplug.h>
+#include <linux/swap.h>
+#include <linux/swapops.h>
 
 #ifndef ioremap_cache
 /* temporary while we convert existing ioremap_cache users to memremap */
@@ -219,6 +221,34 @@ static unsigned long order_at(struct resource *res, unsigned long pgoff)
 	for (pgoff = 0, order = order_at((res), pgoff); order < ULONG_MAX; \
 			pgoff += 1UL << order, order = order_at((res), pgoff))
 
+#if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
+int device_private_entry_fault(struct vm_area_struct *vma,
+		       unsigned long addr,
+		       swp_entry_t entry,
+		       unsigned int flags,
+		       pmd_t *pmdp)
+{
+	struct page *page = device_private_entry_to_page(entry);
+
+	/*
+	 * The page_fault() callback must migrate page back to system memory
+	 * so that CPU can access it. This might fail for various reasons
+	 * (device issue, device was unsafely unplugged, ...). When such
+	 * error conditions happen, the callback must return VM_FAULT_SIGBUS.
+	 *
+	 * Note that because memory cgroup charges are accounted to the device
+	 * memory, this should never fail because of memory restrictions (but
+	 * allocation of regular system page might still fail because we are
+	 * out of memory).
+	 *
+	 * There is a more in-depth description of what that callback can and
+	 * cannot do, in include/linux/memremap.h
+	 */
+	return page->pgmap->page_fault(vma, addr, page, flags, pmdp);
+}
+EXPORT_SYMBOL(device_private_entry_fault);
+#endif /* CONFIG_DEVICE_PRIVATE */
+
 static void pgmap_radix_release(struct resource *res)
 {
 	unsigned long pgoff, order;
@@ -356,6 +386,10 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 	}
 	pgmap->ref = ref;
 	pgmap->res = &page_map->res;
+	pgmap->type = MEMORY_DEVICE_HOST;
+	pgmap->page_fault = NULL;
+	pgmap->page_free = NULL;
+	pgmap->data = NULL;
 
 	mutex_lock(&pgmap_lock);
 	error = 0;

@@ -792,8 +792,20 @@ static inline bool is_zone_device_page(const struct page *page)
 {
 	return page_zonenum(page) == ZONE_DEVICE;
 }
+
+static inline bool is_device_private_page(const struct page *page)
+{
+	/* See MEMORY_DEVICE_PRIVATE in include/linux/memory_hotplug.h */
+	return ((page_zonenum(page) == ZONE_DEVICE) &&
+		(page->pgmap->type == MEMORY_DEVICE_PRIVATE));
+}
 #else
 static inline bool is_zone_device_page(const struct page *page)
+{
+	return false;
+}
+
+static inline bool is_device_private_page(const struct page *page)
 {
 	return false;
 }

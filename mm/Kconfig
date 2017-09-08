@@ -676,7 +676,7 @@ config ARCH_HAS_ZONE_DEVICE
 	bool
 
 config ZONE_DEVICE
-	bool "Device memory (pmem, etc...) hotplug support"
+	bool "Device memory (pmem, HMM, etc...) hotplug support"
 	depends on MEMORY_HOTPLUG
 	depends on MEMORY_HOTREMOVE
 	depends on SPARSEMEM_VMEMMAP
@@ -716,6 +716,15 @@ config HMM_MIRROR
 	  Prerequisites: the device must provide the ability to write-protect its
 	  page tables (at PAGE_SIZE granularity), and must be able to recover from
 	  the resulting potential page faults.
+
+config DEVICE_PRIVATE
+	bool "Unaddressable device memory (GPU memory, ...)"
+	depends on ARCH_HAS_HMM
+
+	help
+	  Allows creation of struct pages to represent unaddressable device
+	  memory; i.e., memory that is only accessible from the device (or
+	  group of devices). You likely also want to select HMM_MIRROR.
 
 config FRAME_VECTOR
 	bool
