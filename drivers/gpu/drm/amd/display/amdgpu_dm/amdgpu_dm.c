@@ -4462,6 +4462,13 @@ static int dm_update_crtcs_state(struct dc *dc,
 			*lock_and_validation_needed = true;
 
 		} else {/* Add stream for any updated/enabled CRTC */
+			/*
+			 * Quick fix to prevent NULL pointer on new_stream when
+			 * added MST connectors not found in existing crtc_state in the chained mode
+			 * TODO: need to dig out the root cause of that
+			 */
+			if (!aconnector || (!aconnector->dc_sink && aconnector->mst_port))
+				continue;
 
 			if (modereset_required(new_crtc_state))
 				goto next_crtc;
