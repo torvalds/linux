@@ -2272,7 +2272,7 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 		input_report_key(input, wacom_wac->tool[0], prox);
 		if (wacom_wac->serial[0]) {
 			input_event(input, EV_MSC, MSC_SERIAL, wacom_wac->serial[0]);
-			input_report_abs(input, ABS_MISC, id);
+			input_report_abs(input, ABS_MISC, prox ? id : 0);
 		}
 
 		wacom_wac->hid_data.tipswitch = false;
