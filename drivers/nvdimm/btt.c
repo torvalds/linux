@@ -428,7 +428,7 @@ static int btt_map_init(struct arena_info *arena)
 		size_t size = min(mapsize, chunk_size);
 
 		dev_WARN_ONCE(to_dev(arena), size < 512,
-			"chunk size: %#lx is unaligned\n", size);
+			"chunk size: %#zx is unaligned\n", size);
 		ret = arena_write_bytes(arena, arena->mapoff + offset, zerobuf,
 				size, 0);
 		if (ret)
@@ -472,7 +472,7 @@ static int btt_log_init(struct arena_info *arena)
 		size_t size = min(logsize, chunk_size);
 
 		dev_WARN_ONCE(to_dev(arena), size < 512,
-			"chunk size: %#lx is unaligned\n", size);
+			"chunk size: %#zx is unaligned\n", size);
 		ret = arena_write_bytes(arena, arena->logoff + offset, zerobuf,
 				size, 0);
 		if (ret)
