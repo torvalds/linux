@@ -530,8 +530,10 @@ asmlinkage __visible void __init start_kernel(void)
 	setup_arch(&command_line);
 	/*
 	 * Set up the the initial canary and entropy after arch
+	 * and after adding latent and command line entropy.
 	 */
 	add_latent_entropy();
+	add_device_randomness(command_line, strlen(command_line));
 	boot_init_stack_canary();
 	mm_init_cpumask(&init_mm);
 	setup_command_line(command_line);
