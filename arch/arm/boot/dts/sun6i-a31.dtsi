@@ -278,6 +278,11 @@
 						reg = <0>;
 						remote-endpoint = <&drc0_out_tcon0>;
 					};
+
+					tcon0_in_drc1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&drc1_out_tcon0>;
+					};
 				};
 
 				tcon0_out: port@1 {
@@ -310,6 +315,11 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <0>;
+
+					tcon1_in_drc0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&drc0_out_tcon1>;
+					};
 
 					tcon1_in_drc1: endpoint@1 {
 						reg = <1>;
@@ -1079,6 +1089,11 @@
 					#size-cells = <0>;
 					reg = <1>;
 
+					drc1_out_tcon0: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&tcon0_in_drc1>;
+					};
+
 					drc1_out_tcon1: endpoint@1 {
 						reg = <1>;
 						remote-endpoint = <&tcon1_in_drc1>;
@@ -1169,6 +1184,11 @@
 					drc0_out_tcon0: endpoint@0 {
 						reg = <0>;
 						remote-endpoint = <&tcon0_in_drc0>;
+					};
+
+					drc0_out_tcon1: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&tcon1_in_drc0>;
 					};
 				};
 			};
