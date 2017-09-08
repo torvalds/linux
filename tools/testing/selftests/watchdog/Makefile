@@ -1,8 +1,3 @@
-TEST_PROGS := watchdog-test
-
-all: $(TEST_PROGS)
+TEST_GEN_PROGS := watchdog-test
 
 include ../lib.mk
-
-clean:
-	rm -fr $(TEST_PROGS)
