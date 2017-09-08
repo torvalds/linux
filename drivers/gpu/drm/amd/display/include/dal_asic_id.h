@@ -112,6 +112,7 @@
 /* DCN1_0 */
 #define INTERNAL_REV_RAVEN_A0             0x00    /* First spin of Raven */
 #define RAVEN_A0 0x01
+#define RAVEN_B0 0x21
 #define RAVEN_UNKNOWN 0xFF
 
 #define ASIC_REV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKNOWN)

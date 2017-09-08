@@ -40,6 +40,7 @@
 #include "ipp.h"
 #include "mpc.h"
 #include "reg_helper.h"
+#include "custom_float.h"
 
 #define CTX \
 	hws->ctx
