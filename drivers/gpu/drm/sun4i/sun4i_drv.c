@@ -200,11 +200,39 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
+/*
+ * The encoder drivers use drm_of_find_possible_crtcs to get upstream
+ * crtcs from the device tree using of_graph. For the results to be
+ * correct, encoders must be probed/bound after _all_ crtcs have been
+ * created. The existing code uses a depth first recursive traversal
+ * of the of_graph, which means the encoders downstream of the TCON
+ * get add right after the first TCON. The second TCON or CRTC will
+ * never be properly associated with encoders connected to it.
+ *
+ * Also, in a dual display pipeline setup, both frontends can feed
+ * either backend, and both backends can feed either TCON, we want
+ * all components of the same type to be added before the next type
+ * in the pipeline. Fortunately, the pipelines are perfectly symmetric,
+ * i.e. components of the same type are at the same depth when counted
+ * from the frontend. The only exception is the third pipeline in
+ * the A80 SoC, which we do not support anyway.
+ *
+ * Hence we can use a breadth first search traversal order to add
+ * components. We do not need to check for duplicates. The component
+ * matching system handles this for us.
+ */
+struct endpoint_list {
+	struct device_node *node;
+	struct list_head list;
+};
+
 static int sun4i_drv_add_endpoints(struct device *dev,
+				   struct list_head *endpoints,
 				   struct component_match **match,
 				   struct device_node *node)
 {
 	struct device_node *port, *ep, *remote;
+	struct endpoint_list *endpoint;
 	int count = 0;
 
 	/*
@@ -264,10 +292,15 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 			}
 		}
 
-		/* Walk down our tree */
-		count += sun4i_drv_add_endpoints(dev, match, remote);
+		/* Add downstream nodes to the queue */
+		endpoint = kzalloc(sizeof(*endpoint), GFP_KERNEL);
+		if (!endpoint) {
+			of_node_put(remote);
+			return -ENOMEM;
+		}
 
-		of_node_put(remote);
+		endpoint->node = remote;
+		list_add_tail(&endpoint->list, endpoints);
 	}
 
 	return count;
@@ -277,7 +310,9 @@ static int sun4i_drv_probe(struct platform_device *pdev)
 {
 	struct component_match *match = NULL;
 	struct device_node *np = pdev->dev.of_node;
-	int i, count = 0;
+	struct endpoint_list *endpoint, *endpoint_temp;
+	int i, ret, count = 0;
+	LIST_HEAD(endpoints);
 
 	for (i = 0;; i++) {
 		struct device_node *pipeline = of_parse_phandle(np,
@@ -286,12 +321,31 @@ static int sun4i_drv_probe(struct platform_device *pdev)
 		if (!pipeline)
 			break;
 
-		count += sun4i_drv_add_endpoints(&pdev->dev, &match,
-						pipeline);
-		of_node_put(pipeline);
+		endpoint = kzalloc(sizeof(*endpoint), GFP_KERNEL);
+		if (!endpoint) {
+			ret = -ENOMEM;
+			goto err_free_endpoints;
+		}
 
-		DRM_DEBUG_DRIVER("Queued %d outputs on pipeline %d\n",
-				 count, i);
+		endpoint->node = pipeline;
+		list_add_tail(&endpoint->list, &endpoints);
+	}
+
+	list_for_each_entry_safe(endpoint, endpoint_temp, &endpoints, list) {
+		/* process this endpoint */
+		ret = sun4i_drv_add_endpoints(&pdev->dev, &endpoints, &match,
+					      endpoint->node);
+
+		/* sun4i_drv_add_endpoints can fail to allocate memory */
+		if (ret < 0)
+			goto err_free_endpoints;
+
+		count += ret;
+
+		/* delete and cleanup the current entry */
+		list_del(&endpoint->list);
+		of_node_put(endpoint->node);
+		kfree(endpoint);
 	}
 
 	if (count)
@@ -300,6 +354,15 @@ static int sun4i_drv_probe(struct platform_device *pdev)
 						       match);
 	else
 		return 0;
+
+err_free_endpoints:
+	list_for_each_entry_safe(endpoint, endpoint_temp, &endpoints, list) {
+		list_del(&endpoint->list);
+		of_node_put(endpoint->node);
+		kfree(endpoint);
+	}
+
+	return ret;
 }
 
 static int sun4i_drv_remove(struct platform_device *pdev)
