@@ -401,7 +401,8 @@ int cxl_calc_capp_routing(struct pci_dev *dev, u64 *chipid,
 	*capp_unit_id = get_capp_unit_id(np, *phb_index);
 	of_node_put(np);
 	if (!*capp_unit_id) {
-		pr_err("cxl: invalid capp unit id\n");
+		pr_err("cxl: invalid capp unit id (phb_index: %d)\n",
+		       *phb_index);
 		return -ENODEV;
 	}
 
@@ -475,37 +476,37 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter,
 	psl_fircntl |= 0x1ULL; /* ce_thresh */
 	cxl_p1_write(adapter, CXL_PSL9_FIR_CNTL, psl_fircntl);
 
-	/* vccredits=0x1  pcklat=0x4 */
-	cxl_p1_write(adapter, CXL_PSL9_DSNDCTL, 0x0000000000001810ULL);
-
-	/*
-	 * For debugging with trace arrays.
-	 * Configure RX trace 0 segmented mode.
-	 * Configure CT trace 0 segmented mode.
-	 * Configure LA0 trace 0 segmented mode.
-	 * Configure LA1 trace 0 segmented mode.
+	/* Setup the PSL to transmit packets on the PCIe before the
+	 * CAPP is enabled
 	 */
-	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000000ULL);
-	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000003ULL);
-	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000005ULL);
-	cxl_p1_write(adapter, CXL_PSL9_TRACECFG, 0x8040800080000006ULL);
+	cxl_p1_write(adapter, CXL_PSL9_DSNDCTL, 0x0001001000002A10ULL);
 
 	/*
 	 * A response to an ASB_Notify request is returned by the
 	 * system as an MMIO write to the address defined in
-	 * the PSL_TNR_ADDR register
+	 * the PSL_TNR_ADDR register.
+	 * keep the Reset Value: 0x00020000E0000000
 	 */
-	/* PSL_TNR_ADDR */
 
-	/* NORST */
-	cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0x8000000000000000ULL);
+	/* Enable XSL rty limit */
+	cxl_p1_write(adapter, CXL_XSL9_DEF, 0x51F8000000000005ULL);
 
-	/* allocate the apc machines */
-	cxl_p1_write(adapter, CXL_PSL9_APCDEDTYPE, 0x40000003FFFF0000ULL);
+	/* Change XSL_INV dummy read threshold */
+	cxl_p1_write(adapter, CXL_XSL9_INV, 0x0000040007FFC200ULL);
 
-	/* Disable vc dd1 fix */
-	if (cxl_is_power9_dd1())
-		cxl_p1_write(adapter, CXL_PSL9_GP_CT, 0x0400000000000001ULL);
+	if (phb_index == 3) {
+		/* disable machines 31-47 and 20-27 for DMA */
+		cxl_p1_write(adapter, CXL_PSL9_APCDEDTYPE, 0x40000FF3FFFF0000ULL);
+	}
+
+	/* Snoop machines */
+	cxl_p1_write(adapter, CXL_PSL9_APCDEDALLOC, 0x800F000200000000ULL);
+
+	if (cxl_is_power9_dd1()) {
+		/* Disabling deadlock counter CAR */
+		cxl_p1_write(adapter, CXL_PSL9_GP_CT, 0x0020000000000001ULL);
+	} else
+		cxl_p1_write(adapter, CXL_PSL9_DEBUG, 0x4000000000000000ULL);
 
 	return 0;
 }
