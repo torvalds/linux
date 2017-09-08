@@ -524,6 +524,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3229-evb.dtb \
 	rk3229-gva-sdk.dtb \
 	rk3288-evb-act8846.dtb \
+	rk3288-evb-android-act8846-edp.dtb \
 	rk3288-evb-android-rk818-edp.dtb \
 	rk3288-evb-android-rk818-lvds.dtb \
 	rk3288-evb-android-rk818-mipi.dtb \
