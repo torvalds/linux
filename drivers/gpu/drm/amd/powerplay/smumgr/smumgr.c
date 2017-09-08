@@ -65,6 +65,9 @@ int smum_early_init(struct pp_instance *handle)
 	handle->smu_mgr = smumgr;
 
 	switch (smumgr->chip_family) {
+	case AMDGPU_FAMILY_CI:
+		smumgr->smumgr_funcs = &ci_smu_funcs;
+		break;
 	case AMDGPU_FAMILY_CZ:
 		smumgr->smumgr_funcs = &cz_smu_funcs;
 		break;

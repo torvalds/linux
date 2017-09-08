@@ -33,6 +33,7 @@ struct pp_hwmgr;
 #define smu_lower_32_bits(n) ((uint32_t)(n))
 #define smu_upper_32_bits(n) ((uint32_t)(((n)>>16)>>16))
 
+extern const struct pp_smumgr_func ci_smu_funcs;
 extern const struct pp_smumgr_func cz_smu_funcs;
 extern const struct pp_smumgr_func iceland_smu_funcs;
 extern const struct pp_smumgr_func tonga_smu_funcs;
