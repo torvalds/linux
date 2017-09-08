@@ -232,7 +232,7 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 
 	idr_preload(GFP_KERNEL);
 
-	atomic_set(&new->refcount, 1);
+	refcount_set(&new->refcount, 1);
 	spin_lock_init(&new->lock);
 	new->deleted = false;
 	rcu_read_lock();
@@ -397,13 +397,13 @@ void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 
 int ipc_rcu_getref(struct kern_ipc_perm *ptr)
 {
-	return atomic_inc_not_zero(&ptr->refcount);
+	return refcount_inc_not_zero(&ptr->refcount);
 }
 
 void ipc_rcu_putref(struct kern_ipc_perm *ptr,
 			void (*func)(struct rcu_head *head))
 {
-	if (!atomic_dec_and_test(&ptr->refcount))
+	if (!refcount_dec_and_test(&ptr->refcount))
 		return;
 
 	call_rcu(&ptr->rcu, func);
