@@ -8369,7 +8369,8 @@ static void cnp_init_clock_gating(struct drm_i915_private *dev_priv)
 		return;
 
 	/* Wa #1181 */
-	I915_WRITE(SOUTH_DSPCLK_GATE_D, CNP_PWM_CGE_GATING_DISABLE);
+	I915_WRITE(SOUTH_DSPCLK_GATE_D, I915_READ(SOUTH_DSPCLK_GATE_D) |
+		   CNP_PWM_CGE_GATING_DISABLE);
 }
 
 static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
