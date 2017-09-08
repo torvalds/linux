@@ -1059,7 +1059,11 @@ EXPORT_SYMBOL(fortify_panic);
 static __init int memset16_selftest(void)
 {
 	unsigned i, j, k;
-	u16 v, *p = kmalloc(256 * 2 * 2, GFP_KERNEL);
+	u16 v, *p;
+
+	p = kmalloc(256 * 2 * 2, GFP_KERNEL);
+	if (!p)
+		return -1;
 
 	for (i = 0; i < 256; i++) {
 		for (j = 0; j < 256; j++) {
@@ -1091,7 +1095,11 @@ fail:
 static __init int memset32_selftest(void)
 {
 	unsigned i, j, k;
-	u32 v, *p = kmalloc(256 * 2 * 4, GFP_KERNEL);
+	u32 v, *p;
+
+	p = kmalloc(256 * 2 * 4, GFP_KERNEL);
+	if (!p)
+		return -1;
 
 	for (i = 0; i < 256; i++) {
 		for (j = 0; j < 256; j++) {
@@ -1123,7 +1131,11 @@ fail:
 static __init int memset64_selftest(void)
 {
 	unsigned i, j, k;
-	u64 v, *p = kmalloc(256 * 2 * 8, GFP_KERNEL);
+	u64 v, *p;
+
+	p = kmalloc(256 * 2 * 8, GFP_KERNEL);
+	if (!p)
+		return -1;
 
 	for (i = 0; i < 256; i++) {
 		for (j = 0; j < 256; j++) {
