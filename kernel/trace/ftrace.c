@@ -2828,13 +2828,14 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 
 	if (!command || !ftrace_enabled) {
 		/*
-		 * If these are per_cpu ops, they still need their
-		 * per_cpu field freed. Since, function tracing is
+		 * If these are dynamic or per_cpu ops, they still
+		 * need their data freed. Since, function tracing is
 		 * not currently active, we can just free them
 		 * without synchronizing all CPUs.
 		 */
-		if (ops->flags & FTRACE_OPS_FL_PER_CPU)
-			per_cpu_ops_free(ops);
+		if (ops->flags & (FTRACE_OPS_FL_DYNAMIC | FTRACE_OPS_FL_PER_CPU))
+			goto free_ops;
+
 		return 0;
 	}
 
@@ -2900,6 +2901,7 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 		if (IS_ENABLED(CONFIG_PREEMPT))
 			synchronize_rcu_tasks();
 
+ free_ops:
 		arch_ftrace_trampoline_free(ops);
 
 		if (ops->flags & FTRACE_OPS_FL_PER_CPU)
@@ -5690,10 +5692,51 @@ static int referenced_filters(struct dyn_ftrace *rec)
 	return cnt;
 }
 
+static void
+clear_mod_from_hash(struct ftrace_page *pg, struct ftrace_hash *hash)
+{
+	struct ftrace_func_entry *entry;
+	struct dyn_ftrace *rec;
+	int i;
+
+	if (ftrace_hash_empty(hash))
+		return;
+
+	for (i = 0; i < pg->index; i++) {
+		rec = &pg->records[i];
+		entry = __ftrace_lookup_ip(hash, rec->ip);
+		/*
+		 * Do not allow this rec to match again.
+		 * Yeah, it may waste some memory, but will be removed
+		 * if/when the hash is modified again.
+		 */
+		if (entry)
+			entry->ip = 0;
+	}
+}
+
+/* Clear any records from hashs */
+static void clear_mod_from_hashes(struct ftrace_page *pg)
+{
+	struct trace_array *tr;
+
+	mutex_lock(&trace_types_lock);
+	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
+		if (!tr->ops || !tr->ops->func_hash)
+			continue;
+		mutex_lock(&tr->ops->func_hash->regex_lock);
+		clear_mod_from_hash(pg, tr->ops->func_hash->filter_hash);
+		clear_mod_from_hash(pg, tr->ops->func_hash->notrace_hash);
+		mutex_unlock(&tr->ops->func_hash->regex_lock);
+	}
+	mutex_unlock(&trace_types_lock);
+}
+
 void ftrace_release_mod(struct module *mod)
 {
 	struct dyn_ftrace *rec;
 	struct ftrace_page **last_pg;
+	struct ftrace_page *tmp_page = NULL;
 	struct ftrace_page *pg;
 	int order;
 
@@ -5723,14 +5766,25 @@ void ftrace_release_mod(struct module *mod)
 
 			ftrace_update_tot_cnt -= pg->index;
 			*last_pg = pg->next;
-			order = get_count_order(pg->size / ENTRIES_PER_PAGE);
-			free_pages((unsigned long)pg->records, order);
-			kfree(pg);
+
+			pg->next = tmp_page;
+			tmp_page = pg;
 		} else
 			last_pg = &pg->next;
 	}
  out_unlock:
 	mutex_unlock(&ftrace_lock);
+
+	for (pg = tmp_page; pg; pg = tmp_page) {
+
+		/* Needs to be called outside of ftrace_lock */
+		clear_mod_from_hashes(pg);
+
+		order = get_count_order(pg->size / ENTRIES_PER_PAGE);
+		free_pages((unsigned long)pg->records, order);
+		tmp_page = pg->next;
+		kfree(pg);
+	}
 }
 
 void ftrace_module_enable(struct module *mod)
