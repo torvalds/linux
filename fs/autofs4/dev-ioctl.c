@@ -733,7 +733,8 @@ static const struct file_operations _dev_ioctl_fops = {
 static struct miscdevice _autofs_dev_ioctl_misc = {
 	.minor		= AUTOFS_MINOR,
 	.name		= AUTOFS_DEVICE_NAME,
-	.fops		= &_dev_ioctl_fops
+	.fops		= &_dev_ioctl_fops,
+	.mode           = 0644,
 };
 
 MODULE_ALIAS_MISCDEV(AUTOFS_MINOR);
