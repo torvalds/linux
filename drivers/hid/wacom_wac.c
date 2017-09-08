@@ -2218,10 +2218,10 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 		return;
 
 	/* send pen events only when the pen is in range */
-	if (!wacom_wac->hid_data.inrange_state)
-		return;
-
-	input_event(input, usage->type, usage->code, value);
+	if (wacom_wac->hid_data.inrange_state)
+		input_event(input, usage->type, usage->code, value);
+	else if (wacom_wac->shared->stylus_in_proximity && !wacom_wac->hid_data.sense_state)
+		input_event(input, usage->type, usage->code, 0);
 }
 
 static void wacom_wac_pen_pre_report(struct hid_device *hdev,
