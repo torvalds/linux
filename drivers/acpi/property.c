@@ -908,11 +908,12 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 					    struct fwnode_handle *child)
 {
 	const struct acpi_device *adev = to_acpi_device_node(fwnode);
-	struct acpi_device *child_adev = NULL;
 	const struct list_head *head;
 	struct list_head *next;
 
 	if (!child || is_acpi_device_node(child)) {
+		struct acpi_device *child_adev;
+
 		if (adev)
 			head = &adev->children;
 		else
@@ -922,8 +923,8 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 			goto nondev;
 
 		if (child) {
-			child_adev = to_acpi_device_node(child);
-			next = child_adev->node.next;
+			adev = to_acpi_device_node(child);
+			next = adev->node.next;
 			if (next == head) {
 				child = NULL;
 				goto nondev;
@@ -941,8 +942,8 @@ struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 		const struct acpi_data_node *data = to_acpi_data_node(fwnode);
 		struct acpi_data_node *dn;
 
-		if (child_adev)
-			head = &child_adev->data.subnodes;
+		if (adev)
+			head = &adev->data.subnodes;
 		else if (data)
 			head = &data->data.subnodes;
 		else
