@@ -1804,21 +1804,6 @@ void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev, u64 num_bytes,
 				  u64 num_vis_bytes);
 void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *abo, u32 domain);
 bool amdgpu_ttm_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
-int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages);
-void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages);
-void amdgpu_ttm_tt_mark_user_pages(struct ttm_tt *ttm);
-int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
-				     uint32_t flags);
-bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm);
-struct mm_struct *amdgpu_ttm_tt_get_usermm(struct ttm_tt *ttm);
-bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
-				  unsigned long end);
-bool amdgpu_ttm_tt_userptr_invalidated(struct ttm_tt *ttm,
-				       int *last_invalidated);
-bool amdgpu_ttm_tt_userptr_needs_pages(struct ttm_tt *ttm);
-bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm);
-uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
-				 struct ttm_mem_reg *mem);
 void amdgpu_vram_location(struct amdgpu_device *adev, struct amdgpu_mc *mc, u64 base);
 void amdgpu_gart_location(struct amdgpu_device *adev, struct amdgpu_mc *mc);
 void amdgpu_ttm_set_active_vram_size(struct amdgpu_device *adev, u64 size);

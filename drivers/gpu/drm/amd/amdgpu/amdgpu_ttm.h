@@ -82,4 +82,20 @@ bool amdgpu_ttm_is_bound(struct ttm_tt *ttm);
 int amdgpu_ttm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *bo_mem);
 int amdgpu_ttm_recover_gart(struct amdgpu_device *adev);
 
+int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages);
+void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages);
+void amdgpu_ttm_tt_mark_user_pages(struct ttm_tt *ttm);
+int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
+				     uint32_t flags);
+bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm);
+struct mm_struct *amdgpu_ttm_tt_get_usermm(struct ttm_tt *ttm);
+bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
+				  unsigned long end);
+bool amdgpu_ttm_tt_userptr_invalidated(struct ttm_tt *ttm,
+				       int *last_invalidated);
+bool amdgpu_ttm_tt_userptr_needs_pages(struct ttm_tt *ttm);
+bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm);
+uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
+				 struct ttm_mem_reg *mem);
+
 #endif
