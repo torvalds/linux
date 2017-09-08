@@ -530,10 +530,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	}
 
 	/* Make sure our TCON is reset */
-	if (!reset_control_status(tcon->lcd_rst))
-		reset_control_assert(tcon->lcd_rst);
-
-	ret = reset_control_deassert(tcon->lcd_rst);
+	ret = reset_control_reset(tcon->lcd_rst);
 	if (ret) {
 		dev_err(dev, "Couldn't deassert our reset line\n");
 		return ret;
