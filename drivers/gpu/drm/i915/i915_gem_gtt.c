@@ -1168,19 +1168,22 @@ static int gen8_ppgtt_alloc_pd(struct i915_address_space *vm,
 	unsigned int pde;
 
 	gen8_for_each_pde(pt, pd, start, length, pde) {
+		int count = gen8_pte_count(start, length);
+
 		if (pt == vm->scratch_pt) {
 			pt = alloc_pt(vm);
 			if (IS_ERR(pt))
 				goto unwind;
 
-			gen8_initialize_pt(vm, pt);
+			if (count < GEN8_PTES)
+				gen8_initialize_pt(vm, pt);
 
 			gen8_ppgtt_set_pde(vm, pd, pt, pde);
 			pd->used_pdes++;
 			GEM_BUG_ON(pd->used_pdes > I915_PDES);
 		}
 
-		pt->used_ptes += gen8_pte_count(start, length);
+		pt->used_ptes += count;
 	}
 	return 0;
 
