@@ -52,6 +52,10 @@ override LDFLAGS =
 override MAKEFLAGS =
 endif
 
+ifneq ($(KBUILD_SRC),)
+override LDFLAGS =
+endif
+
 BUILD := $(O)
 ifndef BUILD
   BUILD := $(KBUILD_OUTPUT)
