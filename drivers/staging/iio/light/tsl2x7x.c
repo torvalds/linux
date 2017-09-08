@@ -192,25 +192,25 @@ struct tsl2X7X_chip {
 };
 
 /* Different devices require different coefficents */
-static const struct tsl2x7x_lux tsl2x71_lux_table[] = {
+static const struct tsl2x7x_lux tsl2x71_lux_table[TSL2X7X_DEF_LUX_TABLE_SZ] = {
 	{ 14461,   611,   1211 },
 	{ 18540,   352,    623 },
 	{     0,     0,      0 },
 };
 
-static const struct tsl2x7x_lux tmd2x71_lux_table[] = {
+static const struct tsl2x7x_lux tmd2x71_lux_table[TSL2X7X_DEF_LUX_TABLE_SZ] = {
 	{ 11635,   115,    256 },
 	{ 15536,    87,    179 },
 	{     0,     0,      0 },
 };
 
-static const struct tsl2x7x_lux tsl2x72_lux_table[] = {
+static const struct tsl2x7x_lux tsl2x72_lux_table[TSL2X7X_DEF_LUX_TABLE_SZ] = {
 	{ 14013,   466,   917 },
 	{ 18222,   310,   552 },
 	{     0,     0,     0 },
 };
 
-static const struct tsl2x7x_lux tmd2x72_lux_table[] = {
+static const struct tsl2x7x_lux tmd2x72_lux_table[TSL2X7X_DEF_LUX_TABLE_SZ] = {
 	{ 13218,   130,   262 },
 	{ 17592,   92,    169 },
 	{     0,     0,     0 },
@@ -530,7 +530,7 @@ static void tsl2x7x_defaults(struct tsl2X7X_chip *chip)
 	else
 		memcpy(chip->tsl2x7x_device_lux,
 		(struct tsl2x7x_lux *)tsl2x7x_default_lux_table_group[chip->id],
-				MAX_DEFAULT_TABLE_BYTES);
+				TSL2X7X_DEFAULT_TABLE_BYTES);
 }
 
 /**
@@ -1113,7 +1113,7 @@ static ssize_t in_illuminance0_lux_table_show(struct device *dev,
 	int i = 0;
 	int offset = 0;
 
-	while (i < (TSL2X7X_MAX_LUX_TABLE_SIZE * 3)) {
+	while (i < TSL2X7X_MAX_LUX_TABLE_SIZE) {
 		offset += snprintf(buf + offset, PAGE_SIZE, "%u,%u,%u,",
 			chip->tsl2x7x_device_lux[i].ratio,
 			chip->tsl2x7x_device_lux[i].ch0,
