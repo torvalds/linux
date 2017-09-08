@@ -455,16 +455,20 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_e500(struct kvm *kvm,
 	if (err)
 		goto free_vcpu;
 
-	if (kvmppc_e500_id_table_alloc(vcpu_e500) == NULL)
+	if (kvmppc_e500_id_table_alloc(vcpu_e500) == NULL) {
+		err = -ENOMEM;
 		goto uninit_vcpu;
+	}
 
 	err = kvmppc_e500_tlb_init(vcpu_e500);
 	if (err)
 		goto uninit_id;
 
 	vcpu->arch.shared = (void*)__get_free_page(GFP_KERNEL|__GFP_ZERO);
-	if (!vcpu->arch.shared)
+	if (!vcpu->arch.shared) {
+		err = -ENOMEM;
 		goto uninit_tlb;
+	}
 
 	return vcpu;
 

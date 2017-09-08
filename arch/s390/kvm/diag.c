@@ -150,7 +150,7 @@ static int __diag_time_slice_end(struct kvm_vcpu *vcpu)
 {
 	VCPU_EVENT(vcpu, 5, "%s", "diag time slice end");
 	vcpu->stat.diagnose_44++;
-	kvm_vcpu_on_spin(vcpu);
+	kvm_vcpu_on_spin(vcpu, true);
 	return 0;
 }
 

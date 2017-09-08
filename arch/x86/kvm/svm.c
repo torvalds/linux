@@ -280,9 +280,9 @@ module_param(avic, int, S_IRUGO);
 static int vls = true;
 module_param(vls, int, 0444);
 
-/* AVIC VM ID bit masks and lock */
-static DECLARE_BITMAP(avic_vm_id_bitmap, AVIC_VM_ID_NR);
-static DEFINE_SPINLOCK(avic_vm_id_lock);
+/* enable/disable Virtual GIF */
+static int vgif = true;
+module_param(vgif, int, 0444);
 
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
@@ -479,19 +479,33 @@ static inline void clr_intercept(struct vcpu_svm *svm, int bit)
 	recalc_intercepts(svm);
 }
 
+static inline bool vgif_enabled(struct vcpu_svm *svm)
+{
+	return !!(svm->vmcb->control.int_ctl & V_GIF_ENABLE_MASK);
+}
+
 static inline void enable_gif(struct vcpu_svm *svm)
 {
-	svm->vcpu.arch.hflags |= HF_GIF_MASK;
+	if (vgif_enabled(svm))
+		svm->vmcb->control.int_ctl |= V_GIF_MASK;
+	else
+		svm->vcpu.arch.hflags |= HF_GIF_MASK;
 }
 
 static inline void disable_gif(struct vcpu_svm *svm)
 {
-	svm->vcpu.arch.hflags &= ~HF_GIF_MASK;
+	if (vgif_enabled(svm))
+		svm->vmcb->control.int_ctl &= ~V_GIF_MASK;
+	else
+		svm->vcpu.arch.hflags &= ~HF_GIF_MASK;
 }
 
 static inline bool gif_set(struct vcpu_svm *svm)
 {
-	return !!(svm->vcpu.arch.hflags & HF_GIF_MASK);
+	if (vgif_enabled(svm))
+		return !!(svm->vmcb->control.int_ctl & V_GIF_MASK);
+	else
+		return !!(svm->vcpu.arch.hflags & HF_GIF_MASK);
 }
 
 static unsigned long iopm_base;
@@ -567,10 +581,10 @@ static inline void invlpga(unsigned long addr, u32 asid)
 	asm volatile (__ex(SVM_INVLPGA) : : "a"(addr), "c"(asid));
 }
 
-static int get_npt_level(void)
+static int get_npt_level(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_X86_64
-	return PT64_ROOT_LEVEL;
+	return PT64_ROOT_4LEVEL;
 #else
 	return PT32E_ROOT_LEVEL;
 #endif
@@ -641,7 +655,7 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	unsigned nr = vcpu->arch.exception.nr;
 	bool has_error_code = vcpu->arch.exception.has_error_code;
-	bool reinject = vcpu->arch.exception.reinject;
+	bool reinject = vcpu->arch.exception.injected;
 	u32 error_code = vcpu->arch.exception.error_code;
 
 	/*
@@ -973,6 +987,7 @@ static void svm_disable_lbrv(struct vcpu_svm *svm)
 static void disable_nmi_singlestep(struct vcpu_svm *svm)
 {
 	svm->nmi_singlestep = false;
+
 	if (!(svm->vcpu.guest_debug & KVM_GUESTDBG_SINGLESTEP)) {
 		/* Clear our flags if they were not set by the guest */
 		if (!(svm->nmi_singlestep_guest_rflags & X86_EFLAGS_TF))
@@ -989,6 +1004,8 @@ static void disable_nmi_singlestep(struct vcpu_svm *svm)
  */
 #define SVM_VM_DATA_HASH_BITS	8
 static DEFINE_HASHTABLE(svm_vm_data_hash, SVM_VM_DATA_HASH_BITS);
+static u32 next_vm_id = 0;
+static bool next_vm_id_wrapped = 0;
 static DEFINE_SPINLOCK(svm_vm_data_hash_lock);
 
 /* Note:
@@ -1106,6 +1123,13 @@ static __init int svm_hardware_setup(void)
 		} else {
 			pr_info("Virtual VMLOAD VMSAVE supported\n");
 		}
+	}
+
+	if (vgif) {
+		if (!boot_cpu_has(X86_FEATURE_VGIF))
+			vgif = false;
+		else
+			pr_info("Virtual GIF supported\n");
 	}
 
 	return 0;
@@ -1305,6 +1329,12 @@ static void init_vmcb(struct vcpu_svm *svm)
 		svm->vmcb->control.virt_ext |= VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK;
 	}
 
+	if (vgif) {
+		clr_intercept(svm, INTERCEPT_STGI);
+		clr_intercept(svm, INTERCEPT_CLGI);
+		svm->vmcb->control.int_ctl |= V_GIF_ENABLE_MASK;
+	}
+
 	mark_all_dirty(svm->vmcb);
 
 	enable_gif(svm);
@@ -1387,34 +1417,6 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static inline int avic_get_next_vm_id(void)
-{
-	int id;
-
-	spin_lock(&avic_vm_id_lock);
-
-	/* AVIC VM ID is one-based. */
-	id = find_next_zero_bit(avic_vm_id_bitmap, AVIC_VM_ID_NR, 1);
-	if (id <= AVIC_VM_ID_MASK)
-		__set_bit(id, avic_vm_id_bitmap);
-	else
-		id = -EAGAIN;
-
-	spin_unlock(&avic_vm_id_lock);
-	return id;
-}
-
-static inline int avic_free_vm_id(int id)
-{
-	if (id <= 0 || id > AVIC_VM_ID_MASK)
-		return -EINVAL;
-
-	spin_lock(&avic_vm_id_lock);
-	__clear_bit(id, avic_vm_id_bitmap);
-	spin_unlock(&avic_vm_id_lock);
-	return 0;
-}
-
 static void avic_vm_destroy(struct kvm *kvm)
 {
 	unsigned long flags;
@@ -1422,8 +1424,6 @@ static void avic_vm_destroy(struct kvm *kvm)
 
 	if (!avic)
 		return;
-
-	avic_free_vm_id(vm_data->avic_vm_id);
 
 	if (vm_data->avic_logical_id_table_page)
 		__free_page(vm_data->avic_logical_id_table_page);
@@ -1438,18 +1438,15 @@ static void avic_vm_destroy(struct kvm *kvm)
 static int avic_vm_init(struct kvm *kvm)
 {
 	unsigned long flags;
-	int vm_id, err = -ENOMEM;
+	int err = -ENOMEM;
 	struct kvm_arch *vm_data = &kvm->arch;
 	struct page *p_page;
 	struct page *l_page;
+	struct kvm_arch *ka;
+	u32 vm_id;
 
 	if (!avic)
 		return 0;
-
-	vm_id = avic_get_next_vm_id();
-	if (vm_id < 0)
-		return vm_id;
-	vm_data->avic_vm_id = (u32)vm_id;
 
 	/* Allocating physical APIC ID table (4KB) */
 	p_page = alloc_page(GFP_KERNEL);
@@ -1468,6 +1465,22 @@ static int avic_vm_init(struct kvm *kvm)
 	clear_page(page_address(l_page));
 
 	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
+ again:
+	vm_id = next_vm_id = (next_vm_id + 1) & AVIC_VM_ID_MASK;
+	if (vm_id == 0) { /* id is 1-based, zero is not okay */
+		next_vm_id_wrapped = 1;
+		goto again;
+	}
+	/* Is it still in use? Only possible if wrapped at least once */
+	if (next_vm_id_wrapped) {
+		hash_for_each_possible(svm_vm_data_hash, ka, hnode, vm_id) {
+			struct kvm *k2 = container_of(ka, struct kvm, arch);
+			struct kvm_arch *vd2 = &k2->arch;
+			if (vd2->avic_vm_id == vm_id)
+				goto again;
+		}
+	}
+	vm_data->avic_vm_id = vm_id;
 	hash_add(svm_vm_data_hash, &vm_data->hnode, vm_data->avic_vm_id);
 	spin_unlock_irqrestore(&svm_vm_data_hash_lock, flags);
 
@@ -1580,7 +1593,7 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	}
 	init_vmcb(svm);
 
-	kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy);
+	kvm_cpuid(vcpu, &eax, &dummy, &dummy, &dummy, true);
 	kvm_register_write(vcpu, VCPU_REGS_RDX, eax);
 
 	if (kvm_vcpu_apicv_active(vcpu) && !init_event)
@@ -2384,7 +2397,7 @@ static void nested_svm_init_mmu_context(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmu.get_cr3           = nested_svm_get_tdp_cr3;
 	vcpu->arch.mmu.get_pdptr         = nested_svm_get_tdp_pdptr;
 	vcpu->arch.mmu.inject_page_fault = nested_svm_inject_npf_exit;
-	vcpu->arch.mmu.shadow_root_level = get_npt_level();
+	vcpu->arch.mmu.shadow_root_level = get_npt_level(vcpu);
 	reset_shadow_zero_bits_mask(vcpu, &vcpu->arch.mmu);
 	vcpu->arch.walk_mmu              = &vcpu->arch.nested_mmu;
 }
@@ -3147,6 +3160,13 @@ static int stgi_interception(struct vcpu_svm *svm)
 	if (nested_svm_check_permissions(svm))
 		return 1;
 
+	/*
+	 * If VGIF is enabled, the STGI intercept is only added to
+	 * detect the opening of the NMI window; remove it now.
+	 */
+	if (vgif_enabled(svm))
+		clr_intercept(svm, INTERCEPT_STGI);
+
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
 	ret = kvm_skip_emulated_instruction(&svm->vcpu);
 	kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
@@ -3744,7 +3764,10 @@ static int interrupt_window_interception(struct vcpu_svm *svm)
 
 static int pause_interception(struct vcpu_svm *svm)
 {
-	kvm_vcpu_on_spin(&(svm->vcpu));
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	bool in_kernel = (svm_get_cpl(vcpu) == 0);
+
+	kvm_vcpu_on_spin(vcpu, in_kernel);
 	return 1;
 }
 
@@ -4228,8 +4251,6 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 
 	trace_kvm_exit(exit_code, vcpu, KVM_ISA_SVM);
 
-	vcpu->arch.gpa_available = (exit_code == SVM_EXIT_NPF);
-
 	if (!is_cr_intercept(svm, INTERCEPT_CR0_WRITE))
 		vcpu->arch.cr0 = svm->vmcb->save.cr0;
 	if (npt_enabled)
@@ -4682,9 +4703,11 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 	 * In case GIF=0 we can't rely on the CPU to tell us when GIF becomes
 	 * 1, because that's a separate STGI/VMRUN intercept.  The next time we
 	 * get that intercept, this function will be called again though and
-	 * we'll get the vintr intercept.
+	 * we'll get the vintr intercept. However, if the vGIF feature is
+	 * enabled, the STGI interception will not occur. Enable the irq
+	 * window under the assumption that the hardware will set the GIF.
 	 */
-	if (gif_set(svm) && nested_svm_intr(svm)) {
+	if ((vgif_enabled(svm) || gif_set(svm)) && nested_svm_intr(svm)) {
 		svm_set_vintr(svm);
 		svm_inject_irq(svm, 0x0);
 	}
@@ -4698,8 +4721,11 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 	    == HF_NMI_MASK)
 		return; /* IRET will cause a vm exit */
 
-	if ((svm->vcpu.arch.hflags & HF_GIF_MASK) == 0)
+	if (!gif_set(svm)) {
+		if (vgif_enabled(svm))
+			set_intercept(svm, INTERCEPT_STGI);
 		return; /* STGI will cause a vm exit */
+	}
 
 	if (svm->nested.exit_required)
 		return; /* we're not going to run the guest yet */
@@ -5071,17 +5097,14 @@ static u64 svm_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	struct kvm_cpuid_entry2 *entry;
 
 	/* Update nrips enabled cache */
-	svm->nrips_enabled = !!guest_cpuid_has_nrips(&svm->vcpu);
+	svm->nrips_enabled = !!guest_cpuid_has(&svm->vcpu, X86_FEATURE_NRIPS);
 
 	if (!kvm_vcpu_apicv_active(vcpu))
 		return;
 
-	entry = kvm_find_cpuid_entry(vcpu, 1, 0);
-	if (entry)
-		entry->ecx &= ~bit(X86_FEATURE_X2APIC);
+	guest_cpuid_clear(vcpu, X86_FEATURE_X2APIC);
 }
 
 static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
