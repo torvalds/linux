@@ -183,6 +183,7 @@ static int __init rbtree_test_init(void)
 {
 	int i, j;
 	cycles_t time1, time2, time;
+	struct rb_node *node;
 
 	nodes = kmalloc(nnodes * sizeof(*nodes), GFP_KERNEL);
 	if (!nodes)
@@ -206,8 +207,28 @@ static int __init rbtree_test_init(void)
 	time = time2 - time1;
 
 	time = div_u64(time, perf_loops);
-	printk(" -> %llu cycles\n", (unsigned long long)time);
+	printk(" -> test 1 (latency of nnodes insert+delete): %llu cycles\n", (unsigned long long)time);
 
+	for (i = 0; i < nnodes; i++)
+		insert(nodes + i, &root);
+
+	time1 = get_cycles();
+
+	for (i = 0; i < perf_loops; i++) {
+		for (node = rb_first(&root); node; node = rb_next(node))
+			;
+	}
+
+	time2 = get_cycles();
+	time = time2 - time1;
+
+	time = div_u64(time, perf_loops);
+	printk(" -> test 2 (latency of inorder traversal): %llu cycles\n", (unsigned long long)time);
+
+	for (i = 0; i < nnodes; i++)
+		erase(nodes + i, &root);
+
+	/* run checks */
 	for (i = 0; i < check_loops; i++) {
 		init();
 		for (j = 0; j < nnodes; j++) {
@@ -238,7 +259,7 @@ static int __init rbtree_test_init(void)
 	time = time2 - time1;
 
 	time = div_u64(time, perf_loops);
-	printk(" -> %llu cycles\n", (unsigned long long)time);
+	printk(" -> test 1 (latency of nnodes insert+delete): %llu cycles\n", (unsigned long long)time);
 
 	for (i = 0; i < check_loops; i++) {
 		init();
