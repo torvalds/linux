@@ -218,6 +218,15 @@ static inline unsigned long migrate_pfn(unsigned long pfn)
  * driver should avoid setting MIGRATE_PFN_ERROR unless it is really in an
  * unrecoverable state.
  *
+ * For empty entry inside CPU page table (pte_none() or pmd_none() is true) we
+ * do set MIGRATE_PFN_MIGRATE flag inside the corresponding source array thus
+ * allowing device driver to allocate device memory for those unback virtual
+ * address. For this the device driver simply have to allocate device memory
+ * and properly set the destination entry like for regular migration. Note that
+ * this can still fails and thus inside the device driver must check if the
+ * migration was successful for those entry inside the finalize_and_map()
+ * callback just like for regular migration.
+ *
  * THE alloc_and_copy() CALLBACK MUST NOT CHANGE ANY OF THE SRC ARRAY ENTRIES
  * OR BAD THINGS WILL HAPPEN !
  *
