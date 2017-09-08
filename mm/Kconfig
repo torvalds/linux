@@ -705,6 +705,18 @@ config ARCH_HAS_HMM
 config HMM
 	bool
 
+config HMM_MIRROR
+	bool "HMM mirror CPU page table into a device page table"
+	depends on ARCH_HAS_HMM
+	select MMU_NOTIFIER
+	select HMM
+	help
+	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
+	  process into a device page table. Here, mirror means "keep synchronized".
+	  Prerequisites: the device must provide the ability to write-protect its
+	  page tables (at PAGE_SIZE granularity), and must be able to recover from
+	  the resulting potential page faults.
+
 config FRAME_VECTOR
 	bool
 

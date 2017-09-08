@@ -72,6 +72,7 @@
 
 #if IS_ENABLED(CONFIG_HMM)
 
+struct hmm;
 
 /*
  * hmm_pfn_t - HMM uses its own pfn type to keep several flags per page
@@ -132,6 +133,115 @@ static inline hmm_pfn_t hmm_pfn_t_from_pfn(unsigned long pfn)
 {
 	return (pfn << HMM_PFN_SHIFT) | HMM_PFN_VALID;
 }
+
+
+#if IS_ENABLED(CONFIG_HMM_MIRROR)
+/*
+ * Mirroring: how to synchronize device page table with CPU page table.
+ *
+ * A device driver that is participating in HMM mirroring must always
+ * synchronize with CPU page table updates. For this, device drivers can either
+ * directly use mmu_notifier APIs or they can use the hmm_mirror API. Device
+ * drivers can decide to register one mirror per device per process, or just
+ * one mirror per process for a group of devices. The pattern is:
+ *
+ *      int device_bind_address_space(..., struct mm_struct *mm, ...)
+ *      {
+ *          struct device_address_space *das;
+ *
+ *          // Device driver specific initialization, and allocation of das
+ *          // which contains an hmm_mirror struct as one of its fields.
+ *          ...
+ *
+ *          ret = hmm_mirror_register(&das->mirror, mm, &device_mirror_ops);
+ *          if (ret) {
+ *              // Cleanup on error
+ *              return ret;
+ *          }
+ *
+ *          // Other device driver specific initialization
+ *          ...
+ *      }
+ *
+ * Once an hmm_mirror is registered for an address space, the device driver
+ * will get callbacks through sync_cpu_device_pagetables() operation (see
+ * hmm_mirror_ops struct).
+ *
+ * Device driver must not free the struct containing the hmm_mirror struct
+ * before calling hmm_mirror_unregister(). The expected usage is to do that when
+ * the device driver is unbinding from an address space.
+ *
+ *
+ *      void device_unbind_address_space(struct device_address_space *das)
+ *      {
+ *          // Device driver specific cleanup
+ *          ...
+ *
+ *          hmm_mirror_unregister(&das->mirror);
+ *
+ *          // Other device driver specific cleanup, and now das can be freed
+ *          ...
+ *      }
+ */
+
+struct hmm_mirror;
+
+/*
+ * enum hmm_update_type - type of update
+ * @HMM_UPDATE_INVALIDATE: invalidate range (no indication as to why)
+ */
+enum hmm_update_type {
+	HMM_UPDATE_INVALIDATE,
+};
+
+/*
+ * struct hmm_mirror_ops - HMM mirror device operations callback
+ *
+ * @update: callback to update range on a device
+ */
+struct hmm_mirror_ops {
+	/* sync_cpu_device_pagetables() - synchronize page tables
+	 *
+	 * @mirror: pointer to struct hmm_mirror
+	 * @update_type: type of update that occurred to the CPU page table
+	 * @start: virtual start address of the range to update
+	 * @end: virtual end address of the range to update
+	 *
+	 * This callback ultimately originates from mmu_notifiers when the CPU
+	 * page table is updated. The device driver must update its page table
+	 * in response to this callback. The update argument tells what action
+	 * to perform.
+	 *
+	 * The device driver must not return from this callback until the device
+	 * page tables are completely updated (TLBs flushed, etc); this is a
+	 * synchronous call.
+	 */
+	void (*sync_cpu_device_pagetables)(struct hmm_mirror *mirror,
+					   enum hmm_update_type update_type,
+					   unsigned long start,
+					   unsigned long end);
+};
+
+/*
+ * struct hmm_mirror - mirror struct for a device driver
+ *
+ * @hmm: pointer to struct hmm (which is unique per mm_struct)
+ * @ops: device driver callback for HMM mirror operations
+ * @list: for list of mirrors of a given mm
+ *
+ * Each address space (mm_struct) being mirrored by a device must register one
+ * instance of an hmm_mirror struct with HMM. HMM will track the list of all
+ * mirrors for each mm_struct.
+ */
+struct hmm_mirror {
+	struct hmm			*hmm;
+	const struct hmm_mirror_ops	*ops;
+	struct list_head		list;
+};
+
+int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm);
+void hmm_mirror_unregister(struct hmm_mirror *mirror);
+#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
 
 
 /* Below are for HMM internal use only! Not to be used by device driver! */
