@@ -473,6 +473,20 @@ static struct sunxi_engine *sun4i_tcon_find_engine(struct sun4i_drv *drv,
 	if (!port)
 		return ERR_PTR(-EINVAL);
 
+	/*
+	 * This only works if there is only one path from the TCON
+	 * to any display engine. Otherwise the probe order of the
+	 * TCONs and display engines is not guaranteed. They may
+	 * either bind to the wrong one, or worse, bind to the same
+	 * one if additional checks are not done.
+	 *
+	 * Bail out if there are multiple input connections.
+	 */
+	if (of_get_available_child_count(port) != 1) {
+		of_node_put(port);
+		return ERR_PTR(-EINVAL);
+	}
+
 	for_each_available_child_of_node(port, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!remote)
