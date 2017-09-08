@@ -258,11 +258,6 @@ static int autofs_dev_ioctl_open_mountpoint(const char *name, dev_t devid)
 		if (err)
 			goto out;
 
-		/*
-		 * Find autofs super block that has the device number
-		 * corresponding to the autofs fs we want to open.
-		 */
-
 		filp = dentry_open(&path, O_RDONLY, current_cred());
 		path_put(&path);
 		if (IS_ERR(filp)) {
