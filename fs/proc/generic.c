@@ -499,6 +499,14 @@ out:
 }
 EXPORT_SYMBOL(proc_create_data);
  
+struct proc_dir_entry *proc_create(const char *name, umode_t mode,
+				   struct proc_dir_entry *parent,
+				   const struct file_operations *proc_fops)
+{
+	return proc_create_data(name, mode, parent, proc_fops, NULL);
+}
+EXPORT_SYMBOL(proc_create);
+
 void proc_set_size(struct proc_dir_entry *de, loff_t size)
 {
 	de->size = size;
