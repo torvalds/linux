@@ -450,13 +450,6 @@ int pl111_display_init(struct drm_device *drm)
 	}
 	of_node_put(endpoint);
 
-	if (tft_r0b0g0[0] != 0 ||
-	    tft_r0b0g0[1] != 8 ||
-	    tft_r0b0g0[2] != 16) {
-		dev_err(dev, "arm,pl11x,tft-r0g0b0-pads != [0,8,16] not yet supported\n");
-		return -EINVAL;
-	}
-
 	ret = pl111_init_clock_divider(drm);
 	if (ret)
 		return ret;

@@ -41,9 +41,6 @@
  * - Fix race between setting plane base address and getting IRQ for
  *   vsync firing the pageflip completion.
  *
- * - Expose the correct set of formats we can support based on the
- *   "arm,pl11x,tft-r0g0b0-pads" DT property.
- *
  * - Use the "max-memory-bandwidth" DT property to filter the
  *   supported formats.
  *
@@ -73,6 +70,7 @@
 #include <drm/drm_panel.h>
 
 #include "pl111_drm.h"
+#include "pl111_versatile.h"
 
 #define DRIVER_DESC      "DRM module for PL111"
 
@@ -257,6 +255,10 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 		dev_err(dev, "%s failed irq %d\n", __func__, ret);
 		return ret;
 	}
+
+	ret = pl111_versatile_init(dev, priv);
+	if (ret)
+		goto dev_unref;
 
 	ret = pl111_modeset_init(drm);
 	if (ret != 0)
