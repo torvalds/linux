@@ -21,7 +21,7 @@ define RUN_TESTS
 		test_num=`echo $$test_num+1 | bc`;	\
 		echo "selftests: $$BASENAME_TEST";	\
 		echo "========================================";	\
-		if [ ! -x $$BASENAME_TEST ]; then	\
+		if [ ! -x $$TEST ]; then	\
 			echo "selftests: Warning: file $$BASENAME_TEST is not executable, correct this.";\
 			echo "not ok 1..$$test_num selftests: $$BASENAME_TEST [FAIL]"; \
 		else					\
