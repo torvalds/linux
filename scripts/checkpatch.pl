@@ -145,7 +145,8 @@ sub list_types {
 	close($script);
 
 	my @types = ();
-	for ($text =~ /\b(?:(?:CHK|WARN|ERROR)\s*\(\s*"([^"]+)")/g) {
+	# Also catch when type or level is passed through a variable
+	for ($text =~ /(?:(?:\bCHK|\bWARN|\bERROR|&\{\$msg_level})\s*\(|\$msg_type\s*=)\s*"([^"]+)"/g) {
 		push (@types, $_);
 	}
 	@types = sort(uniq(@types));
