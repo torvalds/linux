@@ -699,6 +699,25 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	if (ret < 0)
 		goto err_free_dotclock;
 
+	if (tcon->quirks->needs_de_be_mux) {
+		/*
+		 * We assume there is no dynamic muxing of backends
+		 * and TCONs, so we select the backend with same ID.
+		 *
+		 * While dynamic selection might be interesting, since
+		 * the CRTC is tied to the TCON, while the layers are
+		 * tied to the backends, this means, we will need to
+		 * switch between groups of layers. There might not be
+		 * a way to represent this constraint in DRM.
+		 */
+		regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
+				   SUN4I_TCON0_CTL_SRC_SEL_MASK,
+				   tcon->id);
+		regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
+				   SUN4I_TCON1_CTL_SRC_SEL_MASK,
+				   tcon->id);
+	}
+
 	list_add_tail(&tcon->list, &drv->tcon_list);
 
 	return 0;
@@ -754,11 +773,13 @@ static const struct sun4i_tcon_quirks sun5i_a13_quirks = {
 };
 
 static const struct sun4i_tcon_quirks sun6i_a31_quirks = {
-	.has_channel_1	= true,
+	.has_channel_1		= true,
+	.needs_de_be_mux	= true,
 };
 
 static const struct sun4i_tcon_quirks sun6i_a31s_quirks = {
-	.has_channel_1	= true,
+	.has_channel_1		= true,
+	.needs_de_be_mux	= true,
 };
 
 static const struct sun4i_tcon_quirks sun8i_a33_quirks = {
