@@ -265,6 +265,7 @@ struct migrate_vma_ops {
 				 void *private);
 };
 
+#if defined(CONFIG_MIGRATE_VMA_HELPER)
 int migrate_vma(const struct migrate_vma_ops *ops,
 		struct vm_area_struct *vma,
 		unsigned long start,
@@ -272,6 +273,18 @@ int migrate_vma(const struct migrate_vma_ops *ops,
 		unsigned long *src,
 		unsigned long *dst,
 		void *private);
+#else
+static inline int migrate_vma(const struct migrate_vma_ops *ops,
+			      struct vm_area_struct *vma,
+			      unsigned long start,
+			      unsigned long end,
+			      unsigned long *src,
+			      unsigned long *dst,
+			      void *private)
+{
+	return -EINVAL;
+}
+#endif /* IS_ENABLED(CONFIG_MIGRATE_VMA_HELPER) */
 
 #endif /* CONFIG_MIGRATION */
 

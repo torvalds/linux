@@ -702,8 +702,12 @@ config ARCH_HAS_HMM
 	depends on MEMORY_HOTREMOVE
 	depends on SPARSEMEM_VMEMMAP
 
+config MIGRATE_VMA_HELPER
+	bool
+
 config HMM
 	bool
+	select MIGRATE_VMA_HELPER
 
 config HMM_MIRROR
 	bool "HMM mirror CPU page table into a device page table"

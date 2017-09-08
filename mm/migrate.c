@@ -2127,6 +2127,7 @@ out_unlock:
 
 #endif /* CONFIG_NUMA */
 
+#if defined(CONFIG_MIGRATE_VMA_HELPER)
 struct migrate_vma {
 	struct vm_area_struct	*vma;
 	unsigned long		*dst;
@@ -2980,3 +2981,4 @@ int migrate_vma(const struct migrate_vma_ops *ops,
 	return 0;
 }
 EXPORT_SYMBOL(migrate_vma);
+#endif /* defined(MIGRATE_VMA_HELPER) */

@@ -800,18 +800,27 @@ static inline bool is_zone_device_page(const struct page *page)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+#if defined(CONFIG_DEVICE_PRIVATE) || defined(CONFIG_DEVICE_PUBLIC)
 void put_zone_device_private_or_public_page(struct page *page);
-#else
+DECLARE_STATIC_KEY_FALSE(device_private_key);
+#define IS_HMM_ENABLED static_branch_unlikely(&device_private_key)
+static inline bool is_device_private_page(const struct page *page);
+static inline bool is_device_public_page(const struct page *page);
+#else /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
 static inline void put_zone_device_private_or_public_page(struct page *page)
 {
 }
+#define IS_HMM_ENABLED 0
+static inline bool is_device_private_page(const struct page *page)
+{
+	return false;
+}
+static inline bool is_device_public_page(const struct page *page)
+{
+	return false;
+}
 #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
 
-static inline bool is_device_private_page(const struct page *page);
-static inline bool is_device_public_page(const struct page *page);
-
-DECLARE_STATIC_KEY_FALSE(device_private_key);
 
 static inline void get_page(struct page *page)
 {
@@ -834,9 +843,8 @@ static inline void put_page(struct page *page)
 	 * free and we need to inform the device driver through callback. See
 	 * include/linux/memremap.h and HMM for details.
 	 */
-	if (static_branch_unlikely(&device_private_key) &&
-	    unlikely(is_device_private_page(page) ||
-		     is_device_public_page(page))) {
+	if (IS_HMM_ENABLED && unlikely(is_device_private_page(page) ||
+	    unlikely(is_device_public_page(page)))) {
 		put_zone_device_private_or_public_page(page);
 		return;
 	}
