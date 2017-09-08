@@ -41,7 +41,6 @@
  */
 
 #include "dce80/hw_factory_dce80.h"
-
 #include "dce110/hw_factory_dce110.h"
 #include "dce120/hw_factory_dce120.h"
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)

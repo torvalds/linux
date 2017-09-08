@@ -705,8 +705,8 @@ static inline int dm_irq_state(
 	if (!acrtc) {
 		DRM_ERROR(
 			"%s: crtc is NULL at id :%d\n",
-	 		func,
-	 		crtc_id);
+			func,
+			crtc_id);
 		return 0;
 	}
 
