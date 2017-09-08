@@ -1401,15 +1401,21 @@ int numa_update_cpu_topology(bool cpus_locked)
 
 		for_each_cpu(sibling, cpu_sibling_mask(cpu)) {
 			ud = &updates[i++];
+			ud->next = &updates[i];
 			ud->cpu = sibling;
 			ud->new_nid = new_nid;
 			ud->old_nid = numa_cpu_lookup_table[sibling];
 			cpumask_set_cpu(sibling, &updated_cpus);
-			if (i < weight)
-				ud->next = &updates[i];
 		}
 		cpu = cpu_last_thread_sibling(cpu);
 	}
+
+	/*
+	 * Prevent processing of 'updates' from overflowing array
+	 * where last entry filled in a 'next' pointer.
+	 */
+	if (i)
+		updates[i-1].next = NULL;
 
 	pr_debug("Topology update for the following CPUs:\n");
 	if (cpumask_weight(&updated_cpus)) {
