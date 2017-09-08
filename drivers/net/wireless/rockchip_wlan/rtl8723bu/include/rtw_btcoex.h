@@ -22,6 +22,42 @@
 
 #include <drv_types.h>
 
+/* For H2C: H2C_BT_MP_OPER. Return status definition to the user layer */
+typedef enum _BT_CTRL_STATUS {
+	BT_STATUS_SUCCESS								= 0x00, /* Success */
+	BT_STATUS_BT_OP_SUCCESS							= 0x01, /* bt fw op execution success */
+	BT_STATUS_H2C_SUCCESS							= 0x02, /* H2c success */
+	BT_STATUS_H2C_FAIL								= 0x03, /* H2c fail */
+	BT_STATUS_H2C_LENGTH_EXCEEDED					= 0x04, /* H2c command length exceeded */
+	BT_STATUS_H2C_TIMTOUT							= 0x05, /* H2c timeout */
+	BT_STATUS_H2C_BT_NO_RSP							= 0x06, /* H2c sent, bt no rsp */
+	BT_STATUS_C2H_SUCCESS							= 0x07, /* C2h success */
+	BT_STATUS_C2H_REQNUM_MISMATCH					= 0x08, /* bt fw wrong rsp */
+	BT_STATUS_OPCODE_U_VERSION_MISMATCH				= 0x08, /* Upper layer OP code version mismatch. */
+	BT_STATUS_OPCODE_L_VERSION_MISMATCH				= 0x0a, /* Lower layer OP code version mismatch. */
+	BT_STATUS_UNKNOWN_OPCODE_U						= 0x0b, /* Unknown Upper layer OP code */
+	BT_STATUS_UNKNOWN_OPCODE_L						= 0x0c, /* Unknown Lower layer OP code */
+	BT_STATUS_PARAMETER_FORMAT_ERROR_U				= 0x0d, /* Wrong parameters sent by upper layer. */
+	BT_STATUS_PARAMETER_FORMAT_ERROR_L				= 0x0e, /* bt fw parameter format is not consistency */
+	BT_STATUS_PARAMETER_OUT_OF_RANGE_U				= 0x0f, /* uppery layer parameter value is out of range */
+	BT_STATUS_PARAMETER_OUT_OF_RANGE_L				= 0x10, /* bt fw parameter value is out of range */
+	BT_STATUS_UNKNOWN_STATUS_L						= 0x11, /* bt returned an defined status code */
+	BT_STATUS_UNKNOWN_STATUS_H						= 0x12, /* driver need to do error handle or not handle-well. */
+	BT_STATUS_WRONG_LEVEL							= 0x13, /* should be under passive level */
+	BT_STATUS_NOT_IMPLEMENT						= 0x14, /* op code not implemented yet */
+	BT_STATUS_BT_STACK_OP_SUCCESS					= 0x15, /* bt stack op execution success */
+	BT_STATUS_BT_STACK_NOT_SUPPORT					= 0x16, /* stack version not support this. */
+	BT_STATUS_BT_STACK_SEND_HCI_EVENT_FAIL			= 0x17, /* send hci event fail */
+	BT_STATUS_BT_STACK_NOT_BIND						= 0x18, /* stack not bind wifi driver */
+	BT_STATUS_BT_STACK_NO_RSP						= 0x19, /* stack doesn't have any rsp. */
+	BT_STATUS_MAX
+} BT_CTRL_STATUS, *PBT_CTRL_STATUS;
+
+#define SET_BT_MP_OPER_RET(OpCode, StatusCode)						((OpCode << 8) | StatusCode)
+#define GET_OP_CODE_FROM_BT_MP_OPER_RET(RetCode)					((RetCode & 0xF0) >> 8)
+#define GET_STATUS_CODE_FROM_BT_MP_OPER_RET(RetCode)				(RetCode & 0x0F)
+#define CHECK_STATUS_CODE_FROM_BT_MP_OPER_RET(RetCode, StatusCode)	(GET_STATUS_CODE_FROM_BT_MP_OPER_RET(RetCode) == StatusCode)
+
 #ifdef CONFIG_BT_COEXIST_SOCKET_TRX
 
 #define NETLINK_USER 31
@@ -336,8 +372,10 @@ void rtw_btcoex_MediaStatusNotify(PADAPTER, u8 mediaStatus);
 void rtw_btcoex_SpecialPacketNotify(PADAPTER, u8 pktType);
 void rtw_btcoex_IQKNotify(PADAPTER padapter, u8 state);
 void rtw_btcoex_BtInfoNotify(PADAPTER, u8 length, u8 *tmpBuf);
+void rtw_btcoex_BtMpRptNotify(PADAPTER, u8 length, u8 *tmpBuf);
 void rtw_btcoex_SuspendNotify(PADAPTER, u8 state);
 void rtw_btcoex_HaltNotify(PADAPTER);
+void rtw_btcoex_ScoreBoardStatusNotify(PADAPTER, u8 length, u8 *tmpBuf);
 void rtw_btcoex_SwitchBtTRxMask(PADAPTER);
 void rtw_btcoex_Switch(PADAPTER, u8 enable);
 u8 rtw_btcoex_IsBtDisabled(PADAPTER);
@@ -363,6 +401,7 @@ void rtw_btcoex_SetDBG(PADAPTER, u32 *pDbgModule);
 u32 rtw_btcoex_GetDBG(PADAPTER, u8 *pStrBuf, u32 bufSize);
 u8 rtw_btcoex_IncreaseScanDeviceNum(PADAPTER);
 u8 rtw_btcoex_IsBtLinkExist(PADAPTER);
+void rtw_btcoex_BTOffOnNotify(PADAPTER padapter, u8 bBTON);
 #ifdef CONFIG_BT_COEXIST_SOCKET_TRX
 void rtw_btcoex_SetBtPatchVersion(PADAPTER padapter,u16 btHciVer, u16 btPatchVer);
 void rtw_btcoex_SetHciVersion(PADAPTER  padapter, u16 hciVersion);
@@ -383,6 +422,8 @@ void rtw_btcoex_SendScanNotify(PADAPTER padapter, u8 scanType);
 #define BT_SendEventExtBtCoexControl(Adapter, bNeedDbgRsp, dataLen, pData) rtw_btcoex_SendEventExtBtCoexControl(Adapter, bNeedDbgRsp, dataLen, pData)
 #define BT_SendEventExtBtInfoControl(Adapter, dataLen, pData) rtw_btcoex_SendEventExtBtInfoControl(Adapter, dataLen, pData)
 #endif //CONFIG_BT_COEXIST_SOCKET_TRX
+u16 rtw_btcoex_btreg_read(PADAPTER padapter, u8 type, u16 addr, u32 *data);
+u16 rtw_btcoex_btreg_write(PADAPTER padapter, u8 type, u16 addr, u16 val);
 
 // ==================================================
 // Below Functions are called by BT-Coex

@@ -257,7 +257,8 @@ extern void*	rtw_malloc2d(int h, int w, size_t size);
 extern void	rtw_mfree2d(void *pbuf, int h, int w, int size);
 
 extern void	_rtw_memcpy(void *dec, const void *sour, u32 sz);
-extern int	_rtw_memcmp(void *dst, void *src, u32 sz);
+extern void _rtw_memmove(void *dst, const void *src, u32 sz);
+extern int	_rtw_memcmp(void *dst, const void *src, u32 sz);
 extern void	_rtw_memset(void *pbuf, int c, u32 sz);
 
 extern void	_rtw_init_listhead(_list *list);
@@ -283,7 +284,8 @@ extern void	_rtw_spinunlock(_lock	*plock);
 extern void	_rtw_spinlock_ex(_lock	*plock);
 extern void	_rtw_spinunlock_ex(_lock	*plock);
 
-extern void	_rtw_init_queue(_queue	*pqueue);
+extern void	_rtw_init_queue(_queue *pqueue);
+extern void _rtw_deinit_queue(_queue *pqueue);
 extern u32	_rtw_queue_empty(_queue	*pqueue);
 extern u32	rtw_end_of_queue_search(_list *queue, _list *pelement);
 
@@ -476,6 +478,8 @@ __inline static u32 bitshift(u32 bitmask)
 }
 
 #define rtw_min(a, b) ((a>b)?b:a)
+#define rtw_is_range_a_in_b(hi_a, lo_a, hi_b, lo_b) (((hi_a) <= (hi_b)) && ((lo_a) >= (lo_b)))
+#define rtw_is_range_overlap(hi_a, lo_a, hi_b, lo_b) (((hi_a) > (lo_b)) && ((lo_a) < (hi_b)))
 
 #ifndef MAC_FMT
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -514,7 +518,7 @@ extern int ATOMIC_DEC_RETURN(ATOMIC_T *v);
 
 //File operation APIs, just for linux now
 extern int rtw_is_file_readable(char *path);
-extern int rtw_retrive_from_file(char *path, u8* buf, u32 sz);
+extern int rtw_retrieve_from_file(char *path, u8 *buf, u32 sz);
 extern int rtw_store_to_file(char *path, u8* buf, u32 sz);
 
 
@@ -611,6 +615,11 @@ struct rtw_cbuf *rtw_cbuf_alloc(u32 size);
 void rtw_cbuf_free(struct rtw_cbuf *cbuf);
 
 // String handler
+
+BOOLEAN IsHexDigit(char chTmp);
+BOOLEAN is_alpha(char chTmp);
+char alpha_to_upper(char c);
+
 /*
  * Write formatted output to sized buffer
  */

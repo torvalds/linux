@@ -59,7 +59,7 @@ void rtl8723b_sreset_xmit_status_check(_adapter *padapter)
 					u32 ability = 0;
 
 					//padapter->Wifi_Error_Status = WIFI_TX_HANG;
-					rtw_hal_get_hwreg(padapter, HW_VAR_DM_FLAG, (u8*)&ability);
+					ability = rtw_phydm_ability_get(padapter);
 
 					DBG_871X("%s tx hang %s\n", __FUNCTION__,
 						(ability & ODM_BB_ADAPTIVITY)? "ODM_BB_ADAPTIVITY" : "");

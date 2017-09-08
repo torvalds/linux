@@ -2300,9 +2300,11 @@ void BlinkHandler(PLED_USB pLed)
 
 	//DBG_871X("%s (%s:%d)\n",__FUNCTION__, current->comm, current->pid);
 
-	if( (padapter->bSurpriseRemoved == _TRUE) || (padapter->hw_init_completed == _FALSE))	
-	{
-		//DBG_871X("%s bSurpriseRemoved:%d, bDriverStopped:%d\n", __FUNCTION__, padapter->bSurpriseRemoved, padapter->bDriverStopped);
+	if (RTW_CANNOT_RUN(padapter) || (!rtw_is_hw_init_completed(padapter))) {
+		/*DBG_871X("%s bDriverStopped:%s, bSurpriseRemoved:%s\n"
+		, __func__
+		, rtw_is_drv_stopped(padapter)?"True":"False"
+		, rtw_is_surprise_removed(padapter)?"True":"False" );*/
 		return;
 	}
 
@@ -2391,9 +2393,11 @@ void BlinkTimerCallback(void *data)
 
 	//DBG_871X("%s\n", __FUNCTION__);
 
-	if( (padapter->bSurpriseRemoved == _TRUE) || (padapter->hw_init_completed == _FALSE))	
-	{
-		//DBG_871X("%s bSurpriseRemoved:%d, bDriverStopped:%d\n", __FUNCTION__, padapter->bSurpriseRemoved, padapter->bDriverStopped);
+	if (RTW_CANNOT_RUN(padapter) || (!rtw_is_hw_init_completed(padapter))) {
+		/*DBG_871X("%s bDriverStopped:%s, bSurpriseRemoved:%s\n"
+			, __func__
+			, rtw_is_drv_stopped(padapter)?"True":"False"
+			, rtw_is_surprise_removed(padapter)?"True":"False" );*/
 		return;
 	}
 
@@ -5014,10 +5018,13 @@ LedControlUSB(
 		return;
 #endif
 
-       if( (padapter->bSurpriseRemoved == _TRUE) ||(padapter->hw_init_completed == _FALSE) )
-       {
-             return;
-       }
+	if (RTW_CANNOT_RUN(padapter) || (!rtw_is_hw_init_completed(padapter))) {
+		/*DBG_871X("%s bDriverStopped:%s, bSurpriseRemoved:%s\n"
+		, __func__
+		, rtw_is_drv_stopped(padapter)?"True":"False"
+		, rtw_is_surprise_removed(padapter)?"True":"False" );*/
+		return;
+	}
 
 	if( ledpriv->bRegUseLed == _FALSE)
 		return;

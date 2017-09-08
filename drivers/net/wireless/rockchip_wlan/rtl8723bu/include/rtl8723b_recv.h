@@ -56,7 +56,7 @@
 
 #elif defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 
-#define MAX_RECVBUF_SZ (10240)
+#define MAX_RECVBUF_SZ  (RX_DMA_SIZE_8723B - RX_DMA_RESERVED_SIZE_8723B)
 
 #endif
 

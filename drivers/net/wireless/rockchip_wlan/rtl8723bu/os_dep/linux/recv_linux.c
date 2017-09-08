@@ -297,6 +297,10 @@ _pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 
 	return sub_skb;
 }
 
+#ifdef DBG_UDP_PKT_LOSE_11AC
+#define PAYLOAD_LEN_LOC_OF_IP_HDR 0x10 /*ethernet payload length location of ip header (DA+SA+eth_type+(version&hdr_len)) */	
+#endif
+
 void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, struct rx_pkt_attrib *pattrib)
 {
 	struct mlme_priv*pmlmepriv = &padapter->mlmepriv;
@@ -389,6 +393,23 @@ void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, struct rx_pkt_attri
 #endif	// CONFIG_BR_EXT
 		if( precvpriv->sink_udpport > 0)
 			rtw_sink_rtp_seq_dbg(padapter,pkt);
+#ifdef DBG_UDP_PKT_LOSE_11AC
+		/* After eth_type_trans process , pkt->data pointer will move from ethrnet header to ip header ,  
+		*	we have to check ethernet type , so this debug must be print before eth_type_trans
+		*/
+		if (*((unsigned short *)(pkt->data+ETH_ALEN*2)) == htons(ETH_P_ARP)) {
+			/* ARP Payload length will be 42bytes or 42+18(tailer)=60bytes*/
+			if (pkt->len != 42 && pkt->len != 60) 
+				DBG_871X("Error !!%s,ARP Payload length %u not correct\n" , __func__ , pkt->len);
+		} else if (*((unsigned short *)(pkt->data+ETH_ALEN*2)) == htons(ETH_P_IP)) { 
+			if (be16_to_cpu(*((u16 *)(pkt->data+PAYLOAD_LEN_LOC_OF_IP_HDR))) != (pkt->len)-ETH_HLEN) {
+				DBG_871X("Error !!%s,Payload length not correct\n" , __func__);
+				DBG_871X("%s, IP header describe Total length=%u\n" , __func__ , be16_to_cpu(*((u16 *)(pkt->data+PAYLOAD_LEN_LOC_OF_IP_HDR))));
+				DBG_871X("%s, Pkt real length=%u\n" , __func__ , (pkt->len)-ETH_HLEN);
+			} 
+		}
+#endif
+		/* After eth_type_trans process , pkt->data pointer will move from ethrnet header to ip header */
 		pkt->protocol = eth_type_trans(pkt, padapter->pnetdev);
 		pkt->dev = padapter->pnetdev;
 
@@ -410,7 +431,7 @@ void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, struct rx_pkt_attri
 	}
 }
 
-void rtw_handle_tkip_mic_err(_adapter *padapter,u8 bgroup)
+void rtw_handle_tkip_mic_err(_adapter *padapter, struct sta_info *sta, u8 bgroup)
 {
 #ifdef CONFIG_IOCTL_CFG80211
 	enum nl80211_key_type key_type = 0;
@@ -451,8 +472,7 @@ void rtw_handle_tkip_mic_err(_adapter *padapter,u8 bgroup)
 		key_type |= NL80211_KEYTYPE_PAIRWISE;
 	}
 
-	cfg80211_michael_mic_failure(padapter->pnetdev, (u8 *)&pmlmepriv->assoc_bssid[ 0 ], key_type, -1,
-		NULL, GFP_ATOMIC);
+	cfg80211_michael_mic_failure(padapter->pnetdev, sta->hwaddr, key_type, -1, NULL, GFP_ATOMIC);
 #endif
 
 	_rtw_memset( &ev, 0x00, sizeof( ev ) );
@@ -466,7 +486,7 @@ void rtw_handle_tkip_mic_err(_adapter *padapter,u8 bgroup)
 	}
 
 	ev.src_addr.sa_family = ARPHRD_ETHER;
-	_rtw_memcpy( ev.src_addr.sa_data, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+	_rtw_memcpy(ev.src_addr.sa_data, sta->hwaddr, ETH_ALEN);
 
 	_rtw_memset( &wrqu, 0x00, sizeof( wrqu ) );
 	wrqu.data.length = sizeof( ev );
@@ -659,6 +679,9 @@ int rtw_recv_indicatepkt(_adapter *padapter, union recv_frame *precv_frame)
 
 	RT_TRACE(_module_recv_osdep_c_,_drv_info_,("\n skb->head=%p skb->data=%p skb->tail=%p skb->end=%p skb->len=%d\n", skb->head, skb->data, skb_tail_pointer(skb), skb_end_pointer(skb), skb->len));
 
+	if (pattrib->eth_type == 0x888e)
+		DBG_871X_LEVEL(_drv_always_, "recv eapol packet\n");
+
 #ifdef CONFIG_AUTO_AP_MODE	
 #if 1 //for testing
 #if 1
@@ -678,6 +701,52 @@ int rtw_recv_indicatepkt(_adapter *padapter, union recv_frame *precv_frame)
 #endif
 #endif
 #endif //CONFIG_AUTO_AP_MODE
+
+	/* TODO: move to core */
+	{
+		_pkt *pkt = skb;
+		struct ethhdr *etherhdr = (struct ethhdr *)pkt->data;
+		struct sta_info *sta = precv_frame->u.hdr.psta;
+
+		if (!sta)
+			goto bypass_session_tracker;
+
+		if (ntohs(etherhdr->h_proto) == ETH_P_IP) {
+			u8 *ip = pkt->data + 14;
+
+			if (GET_IPV4_PROTOCOL(ip) == 0x06  /* TCP */
+				&& rtw_st_ctl_chk_reg_s_proto(&sta->st_ctl, 0x06) == _TRUE
+			) {
+				u8 *tcp = ip + GET_IPV4_IHL(ip) * 4;
+
+				if (rtw_st_ctl_chk_reg_rule(&sta->st_ctl, padapter, IPV4_DST(ip), TCP_DST(tcp), IPV4_SRC(ip), TCP_SRC(tcp)) == _TRUE) {
+					if (GET_TCP_SYN(tcp) && GET_TCP_ACK(tcp)) {
+						session_tracker_add_cmd(padapter, sta
+							, IPV4_DST(ip), TCP_DST(tcp)
+							, IPV4_SRC(ip), TCP_SRC(tcp));
+						if (DBG_SESSION_TRACKER)
+							DBG_871X(FUNC_ADPT_FMT" local:"IP_FMT":"PORT_FMT", remote:"IP_FMT":"PORT_FMT" SYN-ACK\n"
+								, FUNC_ADPT_ARG(padapter)
+								, IP_ARG(IPV4_DST(ip)), PORT_ARG(TCP_DST(tcp))
+								, IP_ARG(IPV4_SRC(ip)), PORT_ARG(TCP_SRC(tcp)));
+					}
+					if (GET_TCP_FIN(tcp)) {
+						session_tracker_del_cmd(padapter, sta
+							, IPV4_DST(ip), TCP_DST(tcp)
+							, IPV4_SRC(ip), TCP_SRC(tcp));
+						if (DBG_SESSION_TRACKER)
+							DBG_871X(FUNC_ADPT_FMT" local:"IP_FMT":"PORT_FMT", remote:"IP_FMT":"PORT_FMT" FIN\n"
+								, FUNC_ADPT_ARG(padapter)
+								, IP_ARG(IPV4_DST(ip)), PORT_ARG(TCP_DST(tcp))
+								, IP_ARG(IPV4_SRC(ip)), PORT_ARG(TCP_SRC(tcp)));
+					}
+				}
+
+			}
+		}
+bypass_session_tracker:
+		;
+	}
 
 	rtw_os_recv_indicate_pkt(padapter, skb, pattrib);
 

@@ -4,6 +4,7 @@ obj-$(CONFIG_RTL8188FU)	+= rtl8188fu/
 obj-$(CONFIG_RTL8189ES) += rtl8189es/
 obj-$(CONFIG_RTL8189FS) += rtl8189fs/
 obj-$(CONFIG_RTL8723BS) += rtl8723bs/
+obj-$(CONFIG_RTL8723BU) += rtl8723bu/
 obj-$(CONFIG_RTL8723CS)	+= rtl8723cs/
 obj-$(CONFIG_RTL8723DS) += rtl8723ds/
 obj-$(CONFIG_RTL8822BE)	+= rtl8822be/

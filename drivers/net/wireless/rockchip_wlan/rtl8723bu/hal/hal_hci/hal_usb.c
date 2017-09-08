@@ -122,10 +122,14 @@ int	usb_init_recv_priv(_adapter *padapter, u16 ini_in_buf_sz)
 		struct sk_buff *pskb=NULL;
 
 		DBG_871X("NR_PREALLOC_RECV_SKB: %d\n", NR_PREALLOC_RECV_SKB);
+#ifdef CONFIG_FIX_NR_BULKIN_BUFFER
+		DBG_871X("Enable CONFIG_FIX_NR_BULKIN_BUFFER\n");
+#endif
+		
 		for(i=0; i<NR_PREALLOC_RECV_SKB; i++)
 		{
 #ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
-			pskb = rtw_alloc_skb_premem();
+			pskb = rtw_alloc_skb_premem(MAX_RECVBUF_SZ);
 #else
 			pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
 #endif //CONFIG_PREALLOC_RX_SKB_BUFFER

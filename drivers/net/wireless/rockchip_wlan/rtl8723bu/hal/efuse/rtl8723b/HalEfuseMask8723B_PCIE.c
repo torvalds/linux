@@ -21,7 +21,7 @@
 //#include "Mp_Precomp.h"
 //#include "../odm_precomp.h"
 #include <drv_types.h>
-#include "../../../hal/OUTSRC/phydm_precomp.h"
+
 #include "HalEfuseMask8723B_PCIE.h"
 
 

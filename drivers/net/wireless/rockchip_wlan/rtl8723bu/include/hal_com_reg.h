@@ -158,6 +158,10 @@
 #define REG_HMEBOX_2					0x01D8
 #define REG_HMEBOX_3					0x01DC
 #define REG_LLT_INIT					0x01E0
+#define REG_HMEBOX_EXT_0				0x01F0
+#define REG_HMEBOX_EXT_1				0x01F4
+#define REG_HMEBOX_EXT_2				0x01F8
+#define REG_HMEBOX_EXT_3				0x01FC
 
 
 //-----------------------------------------------------
@@ -189,28 +193,29 @@
 //
 //-----------------------------------------------------
 #define REG_PCIE_CTRL_REG				0x0300
-#define REG_INT_MIG						0x0304	// Interrupt Migration 
-#define REG_BCNQ_DESA					0x0308	// TX Beacon Descriptor Address
-#define REG_HQ_DESA					0x0310	// TX High Queue Descriptor Address
-#define REG_MGQ_DESA					0x0318	// TX Manage Queue Descriptor Address
-#define REG_VOQ_DESA					0x0320	// TX VO Queue Descriptor Address
-#define REG_VIQ_DESA					0x0328	// TX VI Queue Descriptor Address
-#define REG_BEQ_DESA					0x0330	// TX BE Queue Descriptor Address
-#define REG_BKQ_DESA					0x0338	// TX BK Queue Descriptor Address
-#define REG_RX_DESA						0x0340	// RX Queue	Descriptor Address
+#define REG_INT_MIG					0x0304	/* Interrupt Migration */
+#define REG_BCNQ_DESA					0x0308	/* TX Beacon Descriptor Address */
+#define REG_HQ_DESA					0x0310	/* TX High Queue Descriptor Address */
+#define REG_MGQ_DESA					0x0318	/* TX Manage Queue Descriptor Address */
+#define REG_VOQ_DESA					0x0320	/* TX VO Queue Descriptor Address */
+#define REG_VIQ_DESA					0x0328	/* TX VI Queue Descriptor Address */
+#define REG_BEQ_DESA					0x0330	/* TX BE Queue Descriptor Address */
+#define REG_BKQ_DESA					0x0338	/* TX BK Queue Descriptor Address */
+#define REG_RX_DESA					0x0340	/* RX Queue Descriptor Address */
 //sherry added for DBI Read/Write  20091126
-#define REG_DBI_WDATA					0x0348	// Backdoor REG for Access Configuration
-#define REG_DBI_RDATA                         	0x034C	//Backdoor REG for Access Configuration
-#define REG_DBI_CTRL                      		0x0350	//Backdoor REG for Access Configuration
-#define REG_DBI_FLAG                      		0x0352	//Backdoor REG for Access Configuration
-#define REG_MDIO						0x0354	// MDIO for Access PCIE PHY
-#define REG_DBG_SEL						0x0360	// Debug Selection Register
-#define REG_PCIE_HRPWM					0x0361	//PCIe RPWM
-#define REG_PCIE_HCPWM					0x0363	//PCIe CPWM
+#define REG_DBI_WDATA					0x0348	/*  Backdoor REG for Access Configuration */
+#define REG_DBI_RDATA					0x034C	/* Backdoor REG for Access Configuration */
+#define REG_DBI_CTRL					0x0350	/* Backdoor REG for Access Configuration */
+#define REG_DBI_FLAG					0x0352	/* Backdoor REG for Access Configuration */
+#define REG_MDIO					0x0354	/* MDIO for Access PCIE PHY */
+#define REG_DBG_SEL					0x0360	/* Debug Selection Register */
+#define REG_PCIE_HRPWM					0x0361	/* PCIe RPWM */
+#define REG_PCIE_HCPWM					0x0363	/* PCIe CPWM */
 #define REG_WATCH_DOG					0x0368
+#define REG_RX_RXBD_NUM					0x0382
 
 // RTL8723 series -------------------------------
-#define REG_PCIE_HISR_EN				0x0394	//PCIE Local Interrupt Enable Register
+#define REG_PCIE_HISR_EN				0x0394	/* PCIE Local Interrupt Enable Register */
 #define REG_PCIE_HISR					0x03A0
 #define REG_PCIE_HISRE					0x03A4
 #define REG_PCIE_HIMR					0x03A8
@@ -1066,28 +1071,27 @@ Current IOREG MAP
 #define RCR_APP_ICV				BIT29	// MACRX will retain the ICV at the bottom of the packet.
 #define RCR_APP_PHYST_RXFF		BIT28	// PHY Status is appended before RX packet in RXFF
 #define RCR_APP_BA_SSN			BIT27	// SSN of previous TXBA is appended as after original RXDESC as the 4-th DW of RXDESC.
-#define RCR_NONQOS_VHT			BIT26	// Reserved
-#define RCR_RSVD_BIT25			BIT25	// Reserved
+#define RCR_VHT_DACK			BIT26	/* This bit to control response type for vht single mpdu data packet. 1. ACK as response 0. BA as response */
+#define RCR_TCPOFLD_EN			BIT25	/* Enable TCP checksum offload */
 #define RCR_ENMBID				BIT24	// Enable Multiple BssId. Only response ACK to the packets whose DID(A1) matching to the addresses in the MBSSID CAM Entries.
 #define RCR_LSIGEN				BIT23	// Enable LSIG TXOP Protection function. Search KEYCAM for each rx packet to check if LSIGEN bit is set.
 #define RCR_MFBEN				BIT22	// Enable immediate MCS Feedback function. When Rx packet with MRQ = 1'b1, then search KEYCAM to find sender's MCS Feedback function and send response.
-#define RCR_RSVD_BIT21			BIT21	// Reserved
-#define RCR_RSVD_BIT20			BIT20	// Reserved
-#define RCR_RSVD_BIT19			BIT19	// Reserved
+#define RCR_DISCHKPPDLLEN		BIT21	/* Do not check PPDU while the PPDU length is smaller than 14 byte. */
+#define RCR_PKTCTL_DLEN			BIT20	/* While rx path dead lock occurs, reset rx path */
+#define RCR_DISGCLK				BIT19	/* Disable macrx clock gating control (no used) */
 #define RCR_TIM_PARSER_EN		BIT18	// RX Beacon TIM Parser.
-#define RCR_BM_DATA_EN			BIT17	// Broadcast data packet interrupt enable.
-#define RCR_UC_DATA_EN			BIT16	// Unicast data packet interrupt enable.
-#define RCR_RSVD_BIT15			BIT15	// Reserved
+#define RCR_BC_MD_EN			BIT17	/* Broadcast data packet more data bit check interrupt enable.*/
+#define RCR_UC_MD_EN			BIT16	/* Unicast data packet more data bit check interrupt enable. */
+#define RCR_RXSK_PERPKT			BIT15	/* Executing key search per MPDU */
 #define RCR_HTC_LOC_CTRL		BIT14	// MFC<--HTC=1 MFC-->HTC=0
 #define RCR_AMF					BIT13	// Accept management type frame
 #define RCR_ACF					BIT12	// Accept control type frame. Control frames BA, BAR, and PS-Poll (when in AP mode) are not controlled by this bit. They are controlled by ADF.
 #define RCR_ADF					BIT11	// Accept data type frame. This bit also regulates BA, BAR, and PS-Poll (AP mode only).
-#define RCR_RSVD_BIT10			BIT10	// Reserved
+#define RCR_DISDECMYPKT			BIT10	/* This bit determines whether hw need to do decryption.1: If A1 match, do decryption.0: Do decryption. */
 #define RCR_AICV					BIT9		// Accept ICV error packet
 #define RCR_ACRC32				BIT8		// Accept CRC32 error packet 
 #define RCR_CBSSID_BCN			BIT7		// Accept BSSID match packet (Rx beacon, probe rsp)
 #define RCR_CBSSID_DATA		BIT6		// Accept BSSID match packet (Data)
-#define RCR_CBSSID				RCR_CBSSID_DATA	// Accept BSSID match packet
 #define RCR_APWRMGT			BIT5		// Accept power management packet
 #define RCR_ADD3				BIT4		// Accept address 3 match packet
 #define RCR_AB					BIT3		// Accept broadcast packet 
@@ -1547,6 +1551,7 @@ Current IOREG MAP
 #define SCR_TXBCUSEDK			BIT(6)			// Force Tx Broadcast packets Use Default Key
 #define SCR_RXBCUSEDK			BIT(7)			// Force Rx Broadcast packets Use Default Key
 #define SCR_CHK_KEYID			BIT(8)
+#define SCR_CHK_BMC				BIT(9)			/* add option to support a2+keyid+bcm */
 
 //-----------------------------------------------------
 //
@@ -1753,7 +1758,9 @@ Current IOREG MAP
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8812			255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8723B		255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8192C		255
+#define LAST_ENTRY_OF_TX_PKT_BUFFER_8703B		255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_DUAL_MAC	127
+#define LAST_ENTRY_OF_TX_PKT_BUFFER_8188F		255
 
 #define POLLING_LLT_THRESHOLD				20
 #if defined(CONFIG_RTL8723B) && defined(CONFIG_PCI_HCI)

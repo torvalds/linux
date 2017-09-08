@@ -2214,8 +2214,7 @@ u32	rtw_BIP_verify(_adapter *padapter, u8 *precvframe)
 		_rtw_memcpy(&temp_ipn, p+4, 6);
 		temp_ipn = le64_to_cpu(temp_ipn);
 		//BIP packet number should bigger than previous BIP packet
-		if(temp_ipn <= pmlmeext->mgnt_80211w_IPN_rx)
-		{
+		if (temp_ipn < pmlmeext->mgnt_80211w_IPN_rx) {
 			DBG_871X("replay BIP packet\n");
 			goto BIP_exit;
 		}
@@ -3223,8 +3222,10 @@ _func_enter_;
 	RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("^^^rtw_use_tkipkey_handler ^^^\n"));
 	
 /*
-	if(padapter->bDriverStopped ||padapter->bSurpriseRemoved){
-			RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("^^^rtw_use_tkipkey_handler (padapter->bDriverStopped %d)(padapter->bSurpriseRemoved %d)^^^\n",padapter->bDriverStopped,padapter->bSurpriseRemoved));
+	if (RTW_CANNOT_RUN(padapter)) {
+			RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("^^^rtw_use_tkipkey_handler (padapter->bDriverStopped %s)(padapter->bSurpriseRemoved %s)^^^\n"
+			, rtw_is_drv_stopped(padapter)?"True":"False"
+			, rtw_is_surprise_removed(padapter)?"True":"False"));
 
 		return;
 	}
@@ -3278,3 +3279,68 @@ u8 rtw_handle_tkip_countermeasure(_adapter* adapter, const char *caller)
 	return status;
 }
 
+#ifdef CONFIG_WOWLAN
+u16 rtw_cal_crc16(u8 data, u16 crc)
+{
+	u8 shift_in, data_bit;
+	u8 crc_bit4, crc_bit11, crc_bit15;
+	u16 crc_result;
+	int index;
+
+	for (index = 0; index < 8; index++) {
+		crc_bit15 = ((crc & BIT15) ? 1 : 0);
+		data_bit = (data & (BIT0 << index) ? 1 : 0);
+		shift_in = crc_bit15 ^ data_bit;
+		/*printf("crc_bit15=%d, DataBit=%d, shift_in=%d\n",
+		 * crc_bit15, data_bit, shift_in);*/
+
+		crc_result = crc << 1;
+
+		if (shift_in == 0)
+			crc_result &= (~BIT0);
+		else
+			crc_result |= BIT0;
+		/*printf("CRC =%x\n",CRC_Result);*/
+
+		crc_bit11 = ((crc & BIT11) ? 1 : 0) ^ shift_in;
+
+		if (crc_bit11 == 0)
+			crc_result &= (~BIT12); 
+		else
+			crc_result |= BIT12;
+
+		/*printf("bit12 CRC =%x\n",CRC_Result);*/
+
+		crc_bit4 = ((crc & BIT4) ? 1 : 0) ^ shift_in;
+
+		if (crc_bit4 == 0)
+			crc_result &= (~BIT5);
+		else
+			crc_result |= BIT5;
+
+		/* printf("bit5 CRC =%x\n",CRC_Result); */
+		/* repeat using the last result*/
+		crc = crc_result;
+	}
+	return crc;
+}
+
+/*
+ * function name :rtw_calc_crc
+ *
+ * input: char* pattern , pattern size
+ *
+ */
+u16 rtw_calc_crc(u8  *pdata, int length)
+{
+	u16 crc = 0xffff;
+	int i;
+	
+	for (i = 0; i < length; i++)
+		crc = rtw_cal_crc16(pdata[i], crc);
+	/* get 1' complement */
+	crc = ~crc;
+
+	return crc;
+}
+#endif /*CONFIG_WOWLAN*/

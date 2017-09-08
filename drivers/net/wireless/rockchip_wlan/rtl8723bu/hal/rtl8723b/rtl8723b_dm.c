@@ -252,7 +252,6 @@ static void Init_ODM_ComInfo_8723b(PADAPTER	Adapter)
 	Init_ODM_ComInfo(Adapter);
 
 	ODM_CmnInfoInit(pDM_Odm, ODM_CMNINFO_PACKAGE_TYPE, pHalData->PackageType);
-	ODM_CmnInfoInit(pDM_Odm,ODM_CMNINFO_IC_TYPE, ODM_RTL8723B);
 
 	fab_ver = ODM_TSMC;
 	cut_ver = ODM_CUT_A;
@@ -266,10 +265,8 @@ static void Init_ODM_ComInfo_8723b(PADAPTER	Adapter)
 	#else
 	SupportAbility = 	ODM_RF_CALIBRATION |
 					ODM_RF_TX_PWR_TRACK	
-					;	
-	/*if(pHalData->AntDivCfg)
-		SupportAbility |= ODM_BB_ANT_DIV;*/
-	#endif	
+					;
+	#endif
 
 	ODM_CmnInfoUpdate(pDM_Odm,ODM_CMNINFO_ABILITY,SupportAbility);
 }
@@ -296,11 +293,13 @@ static void Update_ODM_ComInfo_8723b(PADAPTER	Adapter)
 //		| ODM_BB_PWR_TRAIN
 		;
 
-	if (rtw_odm_adaptivity_needed(Adapter) == _TRUE)
+	if (rtw_odm_adaptivity_needed(Adapter) == _TRUE) {
+		rtw_odm_adaptivity_config_msg(RTW_DBGDUMP, Adapter);
 		SupportAbility |= ODM_BB_ADAPTIVITY;
+	}
 
 #ifdef CONFIG_ANTENNA_DIVERSITY
-	if(pHalData->AntDivCfg)
+	if (pHalData->AntDivCfg)
 		SupportAbility |= ODM_BB_ANT_DIV;
 #endif
 
@@ -337,9 +336,8 @@ rtl8723b_InitHalDm(
 	pHalData->DM_Type = DM_Type_ByDriver;
 
 	Update_ODM_ComInfo_8723b(Adapter);
-	
-	if (Adapter->registrypriv.mp_mode == 0)
-		ODM_DMInit(pDM_Odm);
+
+	ODM_DMInit(pDM_Odm);
 
 }
 
@@ -350,7 +348,6 @@ rtl8723b_HalDmWatchDog(
 {
 	BOOLEAN		bFwCurrentInPSMode = _FALSE;
 	BOOLEAN		bFwPSAwake = _TRUE;
-	u8 hw_init_completed = _FALSE;
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 #ifdef CONFIG_CONCURRENT_MODE
 	PADAPTER pbuddy_adapter = Adapter->pbuddy_adapter;
@@ -361,9 +358,7 @@ if (Adapter->registrypriv.mp_mode == 1 && Adapter->mppriv.mp_dm ==0) // for MP p
 	return;
 //#endif
 
-	hw_init_completed = Adapter->hw_init_completed;
-
-	if (hw_init_completed == _FALSE)
+	if (!rtw_is_hw_init_completed(Adapter))
 		goto skip_dm;
 
 #ifdef CONFIG_LPS
@@ -379,9 +374,8 @@ if (Adapter->registrypriv.mp_mode == 1 && Adapter->mppriv.mp_dm ==0) // for MP p
 #endif //CONFIG_P2P
 
 
-	if( (hw_init_completed == _TRUE)
-		&& ((!bFwCurrentInPSMode) && bFwPSAwake))
-	{
+	if ((rtw_is_hw_init_completed(Adapter))
+		&& ((!bFwCurrentInPSMode) && bFwPSAwake)) {
 		//
 		// Calculate Tx/Rx statistics.
 		//
@@ -403,7 +397,7 @@ if (Adapter->registrypriv.mp_mode == 1 && Adapter->mppriv.mp_dm ==0) // for MP p
 	}
 
 	//ODM
-	if (hw_init_completed == _TRUE)
+	if (rtw_is_hw_init_completed(Adapter))
 	{
 		u8	bLinked=_FALSE;
 		u8	bsta_state=_FALSE;
@@ -491,7 +485,7 @@ void rtl8723b_HalDmWatchDog_in_LPS(IN	PADAPTER	Adapter)
 	PADAPTER pbuddy_adapter = Adapter->pbuddy_adapter;
 #endif //CONFIG_CONCURRENT_MODE
 
-	if (Adapter->hw_init_completed == _FALSE)
+	if (!rtw_is_hw_init_completed(Adapter))
 		goto skip_lps_dm;
 
 

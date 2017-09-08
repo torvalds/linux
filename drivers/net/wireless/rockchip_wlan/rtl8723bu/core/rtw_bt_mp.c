@@ -393,14 +393,14 @@ void mptbt_close_WiFiRF(PADAPTER Adapter)
 {
 	PHY_SetBBReg(Adapter, 0x824, 0xF, 0x0);
 	PHY_SetBBReg(Adapter, 0x824, 0x700000, 0x0);
-	PHY_SetRFReg(Adapter, RF90_PATH_A, 0x0, 0xF0000, 0x0);
+	PHY_SetRFReg(Adapter, RF_PATH_A, 0x0, 0xF0000, 0x0);
 }
 
 void mptbt_open_WiFiRF(PADAPTER	Adapter)
 {
 	PHY_SetBBReg(Adapter, 0x824, 0x700000, 0x3);
 	PHY_SetBBReg(Adapter, 0x824, 0xF, 0x2);
-	PHY_SetRFReg(Adapter, RF90_PATH_A, 0x0, 0xF0000, 0x3);
+	PHY_SetRFReg(Adapter, RF_PATH_A, 0x0, 0xF0000, 0x3);
 }
 
 u4Byte mptbt_switch_RF(PADAPTER	Adapter, u1Byte	Enter)

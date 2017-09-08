@@ -131,7 +131,7 @@ int usbctrl_vendorreq(struct intf_hdl *pintfhdl, u8 request, u16 value, u16 inde
 			if (status < 0) {
 				if(status == (-ESHUTDOWN)	|| status == -ENODEV	)
 				{			
-					padapter->bSurpriseRemoved = _TRUE;
+					rtw_set_surprise_removed(padapter);
 				} else {
 					#ifdef DBG_CONFIG_ERROR_DETECT
 					{
@@ -152,7 +152,7 @@ int usbctrl_vendorreq(struct intf_hdl *pintfhdl, u8 request, u16 value, u16 inde
 			}
 
 			if(rtw_inc_and_chk_continual_io_error(pdvobjpriv) == _TRUE ){
-				padapter->bSurpriseRemoved = _TRUE;
+				rtw_set_surprise_removed(padapter);
 				break;
 			}
 	
@@ -473,9 +473,11 @@ _func_enter_;
 	
 	if (RTW_CANNOT_TX(padapter))
 	{
-		RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_write_port_complete:bDriverStopped(%d) OR bSurpriseRemoved(%d)", padapter->bDriverStopped, padapter->bSurpriseRemoved));
-		DBG_8192C("%s(): TX Warning! bDriverStopped(%d) OR bSurpriseRemoved(%d) pxmitbuf->buf_tag(%x) \n", 
-		__FUNCTION__,padapter->bDriverStopped, padapter->bSurpriseRemoved,pxmitbuf->buf_tag);	
+		DBG_8192C("%s(): TX Warning! bDriverStopped(%s) OR bSurpriseRemoved(%s) pxmitbuf->buf_tag(%x)\n"
+		, __func__
+		, rtw_is_drv_stopped(padapter)?"True":"False"
+		, rtw_is_surprise_removed(padapter)?"True":"False"
+		, pxmitbuf->buf_tag);	
 
 		goto check_completion;
 	}
@@ -505,14 +507,14 @@ _func_enter_;
 
 		} else if (purb->status == -ESHUTDOWN) {
 			RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_write_port_complete: ESHUTDOWN\n"));
-			padapter->bDriverStopped=_TRUE;
+			rtw_set_drv_stopped(padapter);
 			RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_write_port_complete:bDriverStopped=TRUE\n"));
 
 			goto check_completion;
 		}
 		else
 		{					
-			padapter->bSurpriseRemoved=_TRUE;
+			rtw_set_surprise_removed(padapter);
 			DBG_8192C("bSurpriseRemoved=TRUE\n");
  			RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_write_port_complete:bSurpriseRemoved=TRUE\n"));
 
@@ -566,8 +568,9 @@ _func_enter_;
 
 	if (RTW_CANNOT_TX(padapter)) {
 		#ifdef DBG_TX
-		DBG_871X(" DBG_TX %s:%d bDriverStopped%d, bSurpriseRemoved:%d\n",__FUNCTION__, __LINE__
-			,padapter->bDriverStopped, padapter->bSurpriseRemoved);
+		DBG_871X(" DBG_TX %s:%d bDriverStopped%s, bSurpriseRemoved:%s\n", __func__, __LINE__
+			, rtw_is_drv_stopped(padapter)?"True":"False"
+			, rtw_is_surprise_removed(padapter)?"True":"False");
 		#endif
 		RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_write_port:( padapter->bDriverStopped ||padapter->bSurpriseRemoved )!!!\n"));
 		rtw_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_TX_DENY);
@@ -661,7 +664,7 @@ _func_enter_;
 		
 		switch (status) {
 		case -ENODEV:
-			padapter->bDriverStopped=_TRUE;
+			rtw_set_drv_stopped(padapter);
 			break;
 		default:
 			break;
@@ -746,10 +749,8 @@ void usb_recv_tasklet(void *priv)
 
 	while (NULL != (precvbuf = rtw_dequeue_recvbuf(&precvpriv->recv_buf_pending_queue)))
 	{
-		if ((padapter->bDriverStopped == _TRUE)||(padapter->bSurpriseRemoved== _TRUE))
-		{
-			DBG_8192C("recv_tasklet => bDriverStopped or bSurpriseRemoved \n");
-			
+		if (RTW_CANNOT_RUN(padapter)) {
+			DBG_8192C("recv_tasklet => bDriverStopped or bSurpriseRemoved\n");
 			break;
 		}
 		
@@ -773,9 +774,10 @@ void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 		
 	if (RTW_CANNOT_RX(padapter))
 	{
-		RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_read_port_complete:bDriverStopped(%d) OR bSurpriseRemoved(%d)\n", padapter->bDriverStopped, padapter->bSurpriseRemoved));		
-		DBG_8192C("%s() RX Warning! bDriverStopped(%d) OR bSurpriseRemoved(%d) \n", 
-		__FUNCTION__,padapter->bDriverStopped, padapter->bSurpriseRemoved);
+		DBG_8192C("%s() RX Warning! bDriverStopped(%s) OR bSurpriseRemoved(%s)\n"
+		, __func__
+		, rtw_is_drv_stopped(padapter)?"True":"False"
+		, rtw_is_surprise_removed(padapter)?"True":"False");
 		goto exit;
 	}
 
@@ -805,19 +807,18 @@ void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 	
 		DBG_8192C("###=> usb_read_port_complete => urb status(%d)\n", purb->status);
 
-		if(rtw_inc_and_chk_continual_io_error(adapter_to_dvobj(padapter)) == _TRUE ){
-			padapter->bSurpriseRemoved = _TRUE;
-		}
+		if (rtw_inc_and_chk_continual_io_error(adapter_to_dvobj(padapter)) == _TRUE)
+			rtw_set_surprise_removed(padapter);
 
 		switch(purb->status) {
 			case -EINVAL:
 			case -EPIPE:			
 			case -ENODEV:
 			case -ESHUTDOWN:
-				//padapter->bSurpriseRemoved=_TRUE;
+				/*rtw_set_surprise_removed(padapter);*/
 				//RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_read_port_complete:bSurpriseRemoved=TRUE\n"));
 			case -ENOENT:
-				padapter->bDriverStopped=_TRUE;			
+				rtw_set_drv_stopped(padapter);
 				RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_read_port_complete:bDriverStopped=TRUE\n"));
 				break;
 			case -EPROTO:
@@ -912,8 +913,8 @@ void usb_recv_tasklet(void *priv)
 
 	while (NULL != (pskb = skb_dequeue(&precvpriv->rx_skb_queue))) {
 
-		if ((padapter->bDriverStopped == _TRUE)||(padapter->bSurpriseRemoved== _TRUE)) {
-			DBG_8192C("recv_tasklet => bDriverStopped or bSurpriseRemoved \n");
+		if (RTW_CANNOT_RUN(padapter)) {
+			DBG_8192C("recv_tasklet => bDriverStopped or bSurpriseRemoved\n");
 			#ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
 			if (rtw_free_skb_premem(pskb) != 0)
 			#endif //CONFIG_PREALLOC_RX_SKB_BUFFER
@@ -947,9 +948,10 @@ void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 	
 	if(RTW_CANNOT_RX(padapter))
 	{
-		RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_read_port_complete:bDriverStopped(%d) OR bSurpriseRemoved(%d)\n", padapter->bDriverStopped, padapter->bSurpriseRemoved));
-		DBG_8192C("%s() RX Warning! bDriverStopped(%d) OR bSurpriseRemoved(%d) \n", 
-			__FUNCTION__,padapter->bDriverStopped, padapter->bSurpriseRemoved);
+		DBG_8192C("%s() RX Warning! bDriverStopped(%s) OR bSurpriseRemoved(%s)\n"
+			, __func__
+			, rtw_is_drv_stopped(padapter)?"True":"False"
+			, rtw_is_surprise_removed(padapter)?"True":"False");
 		goto exit;
 	}
 
@@ -984,19 +986,19 @@ void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 	
 		DBG_8192C("###=> usb_read_port_complete => urb status(%d)\n", purb->status);
 
-		if(rtw_inc_and_chk_continual_io_error(adapter_to_dvobj(padapter)) == _TRUE ){
-			padapter->bSurpriseRemoved = _TRUE;
-		}
+		if (rtw_inc_and_chk_continual_io_error(adapter_to_dvobj(padapter)) == _TRUE)
+			rtw_set_surprise_removed(padapter);
+
 
 		switch(purb->status) {
 			case -EINVAL:
 			case -EPIPE:			
 			case -ENODEV:
 			case -ESHUTDOWN:
-				//padapter->bSurpriseRemoved=_TRUE;
+				/*rtw_set_surprise_removed(padapter);*/
 				//RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_read_port_complete:bSurpriseRemoved=TRUE\n"));
 			case -ENOENT:
-				padapter->bDriverStopped=_TRUE;			
+				rtw_set_drv_stopped(padapter);
 				RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("usb_read_port_complete:bDriverStopped=TRUE\n"));
 				break;
 			case -EPROTO:
@@ -1109,4 +1111,90 @@ _func_exit_;
 }
 #endif	// CONFIG_USE_USB_BUFFER_ALLOC_RX
 
+#ifdef CONFIG_USB_INTERRUPT_IN_PIPE
+void usb_read_interrupt_complete(struct urb *purb, struct pt_regs *regs)
+{
+	int	err;
+	_adapter	*padapter = (_adapter *)purb->context;
+
+	if (RTW_CANNOT_RX(padapter)) {
+		DBG_8192C("%s() RX Warning! bDriverStopped(%s) OR bSurpriseRemoved(%s)\n"
+		, __func__
+		, rtw_is_drv_stopped(padapter)?"True":"False"
+		, rtw_is_surprise_removed(padapter)?"True":"False");
+
+		return;
+	}
+
+	if (purb->status == 0) {/*SUCCESS*/
+		if (purb->actual_length > INTERRUPT_MSG_FORMAT_LEN)
+			DBG_8192C("usb_read_interrupt_complete: purb->actual_length > INTERRUPT_MSG_FORMAT_LEN(%d)\n", INTERRUPT_MSG_FORMAT_LEN);
+
+		rtw_hal_interrupt_handler(padapter, purb->actual_length, purb->transfer_buffer);
+
+		err = usb_submit_urb(purb, GFP_ATOMIC);
+		if ((err) && (err != (-EPERM)))
+			DBG_8192C("cannot submit interrupt in-token(err = 0x%08x),urb_status = %d\n", err, purb->status);
+	} else {
+		DBG_8192C("###=> usb_read_interrupt_complete => urb status(%d)\n", purb->status);
+
+		switch (purb->status) {
+		case -EINVAL:
+		case -EPIPE:
+		case -ENODEV:
+		case -ESHUTDOWN:
+			/*rtw_set_surprise_removed(padapter);*/
+			/*RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("usb_read_port_complete:bSurpriseRemoved=TRUE\n"));*/
+		case -ENOENT:
+			rtw_set_drv_stopped(padapter);
+			RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("usb_read_port_complete:bDriverStopped=TRUE\n"));
+			break;
+		case -EPROTO:
+			break;
+		case -EINPROGRESS:
+			DBG_8192C("ERROR: URB IS IN PROGRESS!/n");
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+u32 usb_read_interrupt(struct intf_hdl *pintfhdl, u32 addr)
+{
+	int	err;
+	unsigned int pipe;
+	u32	ret = _SUCCESS;
+	_adapter			*adapter = pintfhdl->padapter;
+	struct dvobj_priv	*pdvobj = adapter_to_dvobj(adapter);
+	struct recv_priv	*precvpriv = &adapter->recvpriv;
+	struct usb_device	*pusbd = pdvobj->pusbdev;
+
+_func_enter_;
+
+	if (RTW_CANNOT_RX(adapter)) {
+		RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("usb_read_interrupt:( RTW_CANNOT_RX )!!!\n"));
+		return _FAIL;
+	}
+
+	/*translate DMA FIFO addr to pipehandle*/
+	pipe = ffaddr2pipehdl(pdvobj, addr);
+
+	usb_fill_int_urb(precvpriv->int_in_urb, pusbd, pipe,
+						precvpriv->int_in_buf,
+						INTERRUPT_MSG_FORMAT_LEN,
+						usb_read_interrupt_complete,
+						adapter,
+						1);
+
+	err = usb_submit_urb(precvpriv->int_in_urb, GFP_ATOMIC);
+	if ((err) && (err != (-EPERM))) {
+		DBG_8192C("cannot submit interrupt in-token(err = 0x%08x), urb_status = %d\n", err, precvpriv->int_in_urb->status);
+		ret = _FAIL;
+	}
+
+_func_exit_;
+	return ret;
+}
+#endif /* CONFIG_USB_INTERRUPT_IN_PIPE */
 

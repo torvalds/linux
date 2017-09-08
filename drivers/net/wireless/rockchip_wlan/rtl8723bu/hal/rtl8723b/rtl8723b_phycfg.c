@@ -236,6 +236,7 @@ phy_RFSerialRead_8723B(
 	u4Byte						MaskforPhySet=0;
 	int i = 0;
 
+	_enter_critical_mutex(&(adapter_to_dvobj(Adapter)->rf_read_reg_mutex) , NULL);
 	//
 	// Make sure RF register offset is correct
 	//
@@ -283,6 +284,7 @@ phy_RFSerialRead_8723B(
 		
 		//RT_DISP(FINIT, INIT_RF,("Readback from RF-SI : 0x%x\n", retValue));
 	}
+	_exit_critical_mutex(&(adapter_to_dvobj(Adapter)->rf_read_reg_mutex) , NULL);
 	return retValue;
 
 }
@@ -631,37 +633,12 @@ phy_BB8723b_Config_ParaFile(
 	int			rtStatus = _SUCCESS;
 	u8	sz8723BBRegFile[] = RTL8723B_PHY_REG;
 	u8	sz8723AGCTableFile[] = RTL8723B_AGC_TAB;
-	u8	sz8723BBBRegPgFile[] = RTL8723B_PHY_REG_PG;
 	u8	sz8723BBRegMpFile[] = RTL8723B_PHY_REG_MP;
-	u8	sz8723BRFTxPwrLmtFile[] = RTL8723B_TXPWR_LMT;
-	u8	*pszBBRegFile = NULL, *pszAGCTableFile = NULL, *pszBBRegPgFile = NULL, *pszBBRegMpFile=NULL, *pszRFTxPwrLmtFile = NULL;
+	u8	*pszBBRegFile = NULL, *pszAGCTableFile = NULL, *pszBBRegMpFile = NULL;
 
 	pszBBRegFile = sz8723BBRegFile ;
 	pszAGCTableFile = sz8723AGCTableFile;
-	pszBBRegPgFile = sz8723BBBRegPgFile;
 	pszBBRegMpFile = sz8723BBRegMpFile;
-	pszRFTxPwrLmtFile = sz8723BRFTxPwrLmtFile;
-
-	// Read Tx Power Limit File
-	PHY_InitTxPowerLimit( Adapter );
-	if ( Adapter->registrypriv.RegEnableTxPowerLimit == 1 || 
-	     ( Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1 ) )
-	{
-#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-		if (PHY_ConfigRFWithPowerLimitTableParaFile( Adapter, pszRFTxPwrLmtFile )== _FAIL)
-#endif
-		{
-#ifdef CONFIG_EMBEDDED_FWIMG
-			if (HAL_STATUS_SUCCESS != ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, CONFIG_RF_TXPWR_LMT, (ODM_RF_RADIO_PATH_E)0))
-				rtStatus = _FAIL;
-#endif
-		}
-
-		if(rtStatus != _SUCCESS){
-			DBG_871X("%s():Read Tx power limit fail\n",__func__);
-			goto phy_BB8190_Config_ParaFile_Fail;
-		}
-	}
 
 	//
 	// 1. Read PHY_REG.TXT BB INIT!!
@@ -704,33 +681,6 @@ phy_BB8723b_Config_ParaFile(
 	}
 #endif	// #if (MP_DRIVER == 1)
 
-	// If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt
-	PHY_InitTxPowerByRate( Adapter );
-	if ( Adapter->registrypriv.RegEnableTxPowerByRate == 1 || 
-	     ( Adapter->registrypriv.RegEnableTxPowerByRate == 2 && pHalData->EEPROMRegulatory != 2 ) )
-	{
-#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-		if (phy_ConfigBBWithPgParaFile(Adapter, pszBBRegPgFile) == _FAIL)
-#endif
-		{
-#ifdef CONFIG_EMBEDDED_FWIMG
-			if (HAL_STATUS_SUCCESS != ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_PHY_REG_PG))
-				rtStatus = _FAIL;
-#endif
-		}
-
-		if ( pHalData->odmpriv.PhyRegPgValueType == PHY_REG_PG_EXACT_VALUE )
-			PHY_TxPowerByRateConfiguration( Adapter );
-
-		if ( Adapter->registrypriv.RegEnableTxPowerLimit == 1 || 
-	         ( Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1 ) )
-			PHY_ConvertTxPowerLimitToPowerIndex( Adapter );
-
-		if(rtStatus != _SUCCESS){
-			DBG_8192C("%s():BB_PG Reg Fail!!\n",__func__);
-		}
-	}
-
 	//
 	// 2. Read BB AGC table Initialization
 	//
@@ -764,7 +714,7 @@ PHY_BBConfig8723B(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	u32	RegVal;
 	u8	TmpU1B=0;
-	u8	value8, CrystalCap;
+	u8	value8;
 
 	phy_InitBBRFRegisterDefinition(Adapter);
 
@@ -803,9 +753,7 @@ PHY_BBConfig8723B(
 	//
 	rtStatus = phy_BB8723b_Config_ParaFile(Adapter);
 
-	// 0x2C[23:18] = 0x2C[17:12] = CrystalCap
-	CrystalCap = pHalData->CrystalCap & 0x3F;
-	PHY_SetBBReg(Adapter, REG_MAC_PHY_CTRL, 0xFFF000, (CrystalCap | (CrystalCap << 6)));	
+	hal_set_crystal_cap(Adapter, pHalData->CrystalCap);
 
 	return rtStatus;
 }
@@ -1039,16 +987,18 @@ PHY_SetTxPowerLevel8723B(
 	)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	PDM_ODM_T		pDM_Odm = &pHalData->odmpriv;
-	pFAT_T			pDM_FatTable = &pDM_Odm->DM_FatTable;
+	u8				cur_antenna;
 	u8				RFPath = ODM_RF_PATH_A; 
 
-	if(pHalData->AntDivCfg){// antenna diversity Enable
-		RFPath = ( (pDM_FatTable->RxIdleAnt == MAIN_ANT) ? ODM_RF_PATH_A : ODM_RF_PATH_B);
-	}
-	else{ // antenna diversity disable
+#ifdef CONFIG_ANTENNA_DIVERSITY
+	rtw_hal_get_odm_var(Adapter, HAL_ODM_ANTDIV_SELECT, &cur_antenna, NULL);
+		
+	if (pHalData->AntDivCfg)  /* antenna diversity Enable */
+		RFPath = ((cur_antenna == MAIN_ANT) ? ODM_RF_PATH_A : ODM_RF_PATH_B);
+	else   /* antenna diversity disable */
+#endif
 		RFPath = pHalData->ant_path;
-	}
+	
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_,("==>PHY_SetTxPowerLevel8723B()\n"));
 
@@ -1395,10 +1345,8 @@ phy_SwChnlAndSetBwMode8723B(
 			pHalData->CurrentChannelBW);
 	}
 
-	if((Adapter->bDriverStopped) || (Adapter->bSurpriseRemoved))
-	{
+	if (RTW_CANNOT_RUN(Adapter))
 		return;
-	}
 
 	if(pHalData->bSwChnl)
 	{
@@ -1512,12 +1460,9 @@ PHY_HandleSwChnlAndSetBW8723B(
 	}
 
 	//Switch workitem or set timer to do switch channel or setbandwidth operation
-	if((!Adapter->bDriverStopped) && (!Adapter->bSurpriseRemoved))
-	{
+	if (!RTW_CANNOT_RUN(Adapter))
 		phy_SwChnlAndSetBwMode8723B(Adapter);
-	}
-	else
-	{
+	else {
 		if(pHalData->bSwChnl)
 		{
 			pHalData->CurrentChannel = tmpChannel;

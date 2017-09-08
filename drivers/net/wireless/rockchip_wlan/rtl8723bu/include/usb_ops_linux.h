@@ -29,6 +29,7 @@
 #define RECV_BULK_IN_ADDR		0x80//assign by drv,not real address 
 #define RECV_INT_IN_ADDR		0x81//assign by drv,not real address 
 
+#define INTERRUPT_MSG_FORMAT_LEN 60
 
 #if defined(CONFIG_VENDOR_REQ_RETRY) && defined(CONFIG_USB_VENDOR_REQ_MUTEX)
 /* vendor req retry should be in the situation when each vendor req is atomically submitted from others */
@@ -80,5 +81,9 @@ int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata);
 u32 usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem);
 void usb_recv_tasklet(void *priv);
 
+#ifdef CONFIG_USB_INTERRUPT_IN_PIPE
+void usb_read_interrupt_complete(struct urb *purb, struct pt_regs *regs);
+u32 usb_read_interrupt(struct intf_hdl *pintfhdl, u32 addr);
+#endif
 #endif
 

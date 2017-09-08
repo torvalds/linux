@@ -102,30 +102,6 @@ typedef enum _RTL_EXT_C2H_EVT
 	MAX_EXT_C2HEVENT
 }RTL_EXT_C2H_EVT;
 
-
-// return status definition to the user layer
-typedef enum _BT_CTRL_STATUS{
-	BT_STATUS_SUCCESS									= 0x00, // Success
-	BT_STATUS_BT_OP_SUCCESS 							= 0x01, // bt fw op execution success
-	BT_STATUS_H2C_SUCCESS								= 0x02, // H2c success
-	BT_STATUS_H2C_TIMTOUT								= 0x03, // H2c timeout
-	BT_STATUS_H2C_BT_NO_RSP 							= 0x04, // H2c sent, bt no rsp
-	BT_STATUS_C2H_SUCCESS								= 0x05, // C2h success
-	BT_STATUS_C2H_REQNUM_MISMATCH						= 0x06, // bt fw wrong rsp
-	BT_STATUS_OPCODE_U_VERSION_MISMATCH 				= 0x07, // Upper layer OP code version mismatch.
-	BT_STATUS_OPCODE_L_VERSION_MISMATCH 				= 0x08, // Lower layer OP code version mismatch.
-	BT_STATUS_UNKNOWN_OPCODE_U							= 0x09, // Unknown Upper layer OP code
-	BT_STATUS_UNKNOWN_OPCODE_L							= 0x0a, // Unknown Lower layer OP code
-	BT_STATUS_PARAMETER_FORMAT_ERROR_U					= 0x0b, // Wrong parameters sent by upper layer.
-	BT_STATUS_PARAMETER_FORMAT_ERROR_L					= 0x0c, // bt fw parameter format is not consistency
-	BT_STATUS_PARAMETER_OUT_OF_RANGE_U					= 0x0d, // uppery layer parameter value is out of range
-	BT_STATUS_PARAMETER_OUT_OF_RANGE_L					= 0x0e, // bt fw parameter value is out of range
-	BT_STATUS_UNKNOWN_STATUS_L							= 0x0f, // bt returned an defined status code
-	BT_STATUS_UNKNOWN_STATUS_H							= 0x10, // driver need to do error handle or not handle-well.
-	BT_STATUS_WRONG_LEVEL								= 0x11, // should be under passive level
-	BT_STATUS_MAX
-}BT_CTRL_STATUS,*PBT_CTRL_STATUS;
-
 // OP codes definition between the user layer and driver
 typedef enum _BT_CTRL_OPCODE_UPPER{
 	BT_UP_OP_BT_READY										= 0x00, 
