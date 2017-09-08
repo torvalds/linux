@@ -2141,8 +2141,10 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 		wacom_wac->hid_data.tipswitch |= value;
 		return;
 	case HID_DG_TOOLSERIALNUMBER:
-		wacom_wac->serial[0] = (wacom_wac->serial[0] & ~0xFFFFFFFFULL);
-		wacom_wac->serial[0] |= (__u32)value;
+		if (value) {
+			wacom_wac->serial[0] = (wacom_wac->serial[0] & ~0xFFFFFFFFULL);
+			wacom_wac->serial[0] |= (__u32)value;
+		}
 		return;
 	case HID_DG_TWIST:
 		/*
@@ -2156,15 +2158,17 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 		wacom_wac->hid_data.sense_state = value;
 		return;
 	case WACOM_HID_WD_SERIALHI:
-		wacom_wac->serial[0] = (wacom_wac->serial[0] & 0xFFFFFFFF);
-		wacom_wac->serial[0] |= ((__u64)value) << 32;
-		/*
-		 * Non-USI EMR devices may contain additional tool type
-		 * information here. See WACOM_HID_WD_TOOLTYPE case for
-		 * more details.
-		 */
-		if (value >> 20 == 1) {
-			wacom_wac->id[0] |= value & 0xFFFFF;
+		if (value) {
+			wacom_wac->serial[0] = (wacom_wac->serial[0] & 0xFFFFFFFF);
+			wacom_wac->serial[0] |= ((__u64)value) << 32;
+			/*
+			 * Non-USI EMR devices may contain additional tool type
+			 * information here. See WACOM_HID_WD_TOOLTYPE case for
+			 * more details.
+			 */
+			if (value >> 20 == 1) {
+				wacom_wac->id[0] |= value & 0xFFFFF;
+			}
 		}
 		return;
 	case WACOM_HID_WD_TOOLTYPE:
@@ -2279,6 +2283,7 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 	if (!prox) {
 		wacom_wac->tool[0] = 0;
 		wacom_wac->id[0] = 0;
+		wacom_wac->serial[0] = 0;
 	}
 }
 
