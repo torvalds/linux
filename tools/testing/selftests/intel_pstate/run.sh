@@ -36,12 +36,6 @@ fi
 
 max_cpus=$(($(nproc)-1))
 
-# compile programs
-gcc aperf.c -Wall -D_GNU_SOURCE -o aperf  -lm
-[ $? -ne 0 ] && echo "Problem compiling aperf.c." && exit 1
-gcc -o msr msr.c -lm
-[ $? -ne 0 ] && echo "Problem compiling msr.c." && exit 1
-
 function run_test () {
 
 	file_ext=$1
