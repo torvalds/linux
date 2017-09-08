@@ -58,8 +58,9 @@
 
 /* indices for READCMB */
 enum cmb_index {
+	avg_utilization = -1,
  /* basic and exended format: */
-	cmb_ssch_rsch_count,
+	cmb_ssch_rsch_count = 0,
 	cmb_sample_count,
 	cmb_device_connect_time,
 	cmb_function_pending_time,
@@ -587,12 +588,29 @@ static int set_cmb(struct ccw_device *cdev, u32 mme)
 	return set_schib_wait(cdev, mme, 0, offset);
 }
 
+/* calculate utilization in 0.1 percent units */
+static u64 __cmb_utilization(u64 device_connect_time, u64 function_pending_time,
+			     u64 device_disconnect_time, u64 start_time)
+{
+	u64 utilization, elapsed_time;
+
+	utilization = time_to_nsec(device_connect_time +
+				   function_pending_time +
+				   device_disconnect_time);
+
+	elapsed_time = get_tod_clock() - start_time;
+	elapsed_time = tod_to_ns(elapsed_time);
+	elapsed_time /= 1000;
+
+	return elapsed_time ? (utilization / elapsed_time) : 0;
+}
+
 static u64 read_cmb(struct ccw_device *cdev, int index)
 {
 	struct cmb_data *cmb_data;
 	unsigned long flags;
 	struct cmb *cmb;
-	int ret = 0;
+	u64 ret = 0;
 	u32 val;
 
 	spin_lock_irqsave(cdev->ccwlock, flags);
@@ -602,6 +620,12 @@ static u64 read_cmb(struct ccw_device *cdev, int index)
 
 	cmb = cmb_data->hw_block;
 	switch (index) {
+	case avg_utilization:
+		ret = __cmb_utilization(cmb->device_connect_time,
+					cmb->function_pending_time,
+					cmb->device_disconnect_time,
+					cdev->private->cmb_start_time);
+		goto out;
 	case cmb_ssch_rsch_count:
 		ret = cmb->ssch_rsch_count;
 		goto out;
@@ -841,7 +865,7 @@ static u64 read_cmbe(struct ccw_device *cdev, int index)
 	struct cmb_data *cmb_data;
 	unsigned long flags;
 	struct cmbe *cmb;
-	int ret = 0;
+	u64 ret = 0;
 	u32 val;
 
 	spin_lock_irqsave(cdev->ccwlock, flags);
@@ -851,6 +875,12 @@ static u64 read_cmbe(struct ccw_device *cdev, int index)
 
 	cmb = cmb_data->hw_block;
 	switch (index) {
+	case avg_utilization:
+		ret = __cmb_utilization(cmb->device_connect_time,
+					cmb->function_pending_time,
+					cmb->device_disconnect_time,
+					cdev->private->cmb_start_time);
+		goto out;
 	case cmb_ssch_rsch_count:
 		ret = cmb->ssch_rsch_count;
 		goto out;
@@ -989,27 +1019,9 @@ static ssize_t cmb_show_avg_utilization(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct cmbdata data;
-	u64 utilization;
-	unsigned long t, u;
-	int ret;
+	unsigned long u = cmf_read(to_ccwdev(dev), avg_utilization);
 
-	ret = cmf_readall(to_ccwdev(dev), &data);
-	if (ret == -EAGAIN || ret == -ENODEV)
-		/* No data (yet/currently) available to use for calculation. */
-		return sprintf(buf, "n/a\n");
-	else if (ret)
-		return ret;
-
-	utilization = data.device_connect_time +
-		      data.function_pending_time +
-		      data.device_disconnect_time;
-
-	/* calculate value in 0.1 percent units */
-	t = data.elapsed_time / 1000;
-	u = utilization / t;
-
-	return sprintf(buf, "%02ld.%01ld%%\n", u/ 10, u - (u/ 10) * 10);
+	return sprintf(buf, "%02lu.%01lu%%\n", u / 10, u % 10);
 }
 
 #define cmf_attr(name) \
