@@ -25,9 +25,133 @@
 #include "i915_drv.h"
 #include "gvt.h"
 
+/*
+ * Note: Only for GVT-g virtual VBT generation, other usage must
+ * not do like this.
+ */
+#define _INTEL_BIOS_PRIVATE
+#include "intel_vbt_defs.h"
+
+#define OPREGION_SIGNATURE "IntelGraphicsMem"
+#define MBOX_VBT      (1<<3)
+
+/* device handle */
+#define DEVICE_TYPE_CRT    0x01
+#define DEVICE_TYPE_EFP1   0x04
+#define DEVICE_TYPE_EFP2   0x40
+#define DEVICE_TYPE_EFP3   0x20
+#define DEVICE_TYPE_EFP4   0x10
+
+#define DEV_SIZE	38
+
+struct opregion_header {
+	u8 signature[16];
+	u32 size;
+	u32 opregion_ver;
+	u8 bios_ver[32];
+	u8 vbios_ver[16];
+	u8 driver_ver[16];
+	u32 mboxes;
+	u32 driver_model;
+	u32 pcon;
+	u8 dver[32];
+	u8 rsvd[124];
+} __packed;
+
+struct bdb_data_header {
+	u8 id;
+	u16 size; /* data size */
+} __packed;
+
+struct vbt {
+	/* header->bdb_offset point to bdb_header offset */
+	struct vbt_header header;
+	struct bdb_header bdb_header;
+
+	struct bdb_data_header general_features_header;
+	struct bdb_general_features general_features;
+
+	struct bdb_data_header general_definitions_header;
+	struct bdb_general_definitions general_definitions;
+	struct child_device_config child0;
+	struct child_device_config child1;
+	struct child_device_config child2;
+	struct child_device_config child3;
+
+	struct bdb_data_header driver_features_header;
+	struct bdb_driver_features driver_features;
+};
+
+static void virt_vbt_generation(struct vbt *v)
+{
+	int num_child;
+
+	memset(v, 0, sizeof(struct vbt));
+
+	v->header.signature[0] = '$';
+	v->header.signature[1] = 'V';
+	v->header.signature[2] = 'B';
+	v->header.signature[3] = 'T';
+
+	/* there's features depending on version! */
+	v->header.version = 155;
+	v->header.header_size = sizeof(v->header);
+	v->header.vbt_size = sizeof(struct vbt) - sizeof(v->header);
+	v->header.bdb_offset = offsetof(struct vbt, bdb_header);
+
+	strcpy(&v->bdb_header.signature[0], "BIOS_DATA_BLOCK");
+	v->bdb_header.version = 198; /* child_dev_size = 38 */
+	v->bdb_header.header_size = sizeof(v->bdb_header);
+
+	v->bdb_header.bdb_size = sizeof(struct vbt) - sizeof(struct vbt_header)
+		- sizeof(struct bdb_header);
+
+	/* general features */
+	v->general_features_header.id = BDB_GENERAL_FEATURES;
+	v->general_features_header.size = sizeof(struct bdb_general_features);
+	v->general_features.int_crt_support = 0;
+	v->general_features.int_tv_support = 0;
+
+	/* child device */
+	num_child = 4; /* each port has one child */
+	v->general_definitions_header.id = BDB_GENERAL_DEFINITIONS;
+	/* size will include child devices */
+	v->general_definitions_header.size =
+		sizeof(struct bdb_general_definitions) + num_child * DEV_SIZE;
+	v->general_definitions.child_dev_size = DEV_SIZE;
+
+	/* portA */
+	v->child0.handle = DEVICE_TYPE_EFP1;
+	v->child0.device_type = DEVICE_TYPE_DP;
+	v->child0.dvo_port = DVO_PORT_DPA;
+	v->child0.aux_channel = DP_AUX_A;
+
+	/* portB */
+	v->child1.handle = DEVICE_TYPE_EFP2;
+	v->child1.device_type = DEVICE_TYPE_DP;
+	v->child1.dvo_port = DVO_PORT_DPB;
+	v->child1.aux_channel = DP_AUX_B;
+
+	/* portC */
+	v->child2.handle = DEVICE_TYPE_EFP3;
+	v->child2.device_type = DEVICE_TYPE_DP;
+	v->child2.dvo_port = DVO_PORT_DPC;
+	v->child2.aux_channel = DP_AUX_C;
+
+	/* portD */
+	v->child3.handle = DEVICE_TYPE_EFP4;
+	v->child3.device_type = DEVICE_TYPE_DP;
+	v->child3.dvo_port = DVO_PORT_DPD;
+	v->child3.aux_channel = DP_AUX_D;
+
+	/* driver features */
+	v->driver_features_header.id = BDB_DRIVER_FEATURES;
+	v->driver_features_header.size = sizeof(struct bdb_driver_features);
+	v->driver_features.lvds_config = BDB_DRIVER_FEATURE_NO_LVDS;
+}
+
 static int init_vgpu_opregion(struct intel_vgpu *vgpu, u32 gpa)
 {
-	u8 *buf;
 	int i;
 
 	if (WARN((vgpu_opregion(vgpu)->va),
@@ -35,25 +159,10 @@ static int init_vgpu_opregion(struct intel_vgpu *vgpu, u32 gpa)
 			vgpu->id))
 		return -EINVAL;
 
-	vgpu_opregion(vgpu)->va = (void *)__get_free_pages(GFP_KERNEL |
-			__GFP_ZERO,
-			get_order(INTEL_GVT_OPREGION_SIZE));
-
-	if (!vgpu_opregion(vgpu)->va)
-		return -ENOMEM;
-
-	memcpy(vgpu_opregion(vgpu)->va, vgpu->gvt->opregion.opregion_va,
-	       INTEL_GVT_OPREGION_SIZE);
+	vgpu_opregion(vgpu)->va = vgpu->gvt->opregion.opregion_va;
 
 	for (i = 0; i < INTEL_GVT_OPREGION_PAGES; i++)
 		vgpu_opregion(vgpu)->gfn[i] = (gpa >> PAGE_SHIFT) + i;
-
-	/* for unknown reason, the value in LID field is incorrect
-	 * which block the windows guest, so workaround it by force
-	 * setting it to "OPEN"
-	 */
-	buf = (u8 *)vgpu_opregion(vgpu)->va;
-	buf[INTEL_GVT_OPREGION_CLID] = 0x3;
 
 	return 0;
 }
@@ -139,7 +248,8 @@ int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa)
  */
 void intel_gvt_clean_opregion(struct intel_gvt *gvt)
 {
-	memunmap(gvt->opregion.opregion_va);
+	free_pages((unsigned long)gvt->opregion.opregion_va,
+			get_order(INTEL_GVT_OPREGION_SIZE));
 	gvt->opregion.opregion_va = NULL;
 }
 
@@ -152,17 +262,39 @@ void intel_gvt_clean_opregion(struct intel_gvt *gvt)
  */
 int intel_gvt_init_opregion(struct intel_gvt *gvt)
 {
+	u8 *buf;
+	struct opregion_header *header;
+	struct vbt v;
+
 	gvt_dbg_core("init host opregion\n");
 
-	pci_read_config_dword(gvt->dev_priv->drm.pdev, INTEL_GVT_PCI_OPREGION,
-			&gvt->opregion.opregion_pa);
+	gvt->opregion.opregion_va = (void *)__get_free_pages(GFP_KERNEL |
+			__GFP_ZERO,
+			get_order(INTEL_GVT_OPREGION_SIZE));
 
-	gvt->opregion.opregion_va = memremap(gvt->opregion.opregion_pa,
-					     INTEL_GVT_OPREGION_SIZE, MEMREMAP_WB);
 	if (!gvt->opregion.opregion_va) {
-		gvt_err("fail to map host opregion\n");
-		return -EFAULT;
+		gvt_err("fail to get memory for virt opregion\n");
+		return -ENOMEM;
 	}
+
+	/* emulated opregion with VBT mailbox only */
+	header = (struct opregion_header *)gvt->opregion.opregion_va;
+	memcpy(header->signature, OPREGION_SIGNATURE,
+			sizeof(OPREGION_SIGNATURE));
+	header->mboxes = MBOX_VBT;
+
+	/* for unknown reason, the value in LID field is incorrect
+	 * which block the windows guest, so workaround it by force
+	 * setting it to "OPEN"
+	 */
+	buf = (u8 *)gvt->opregion.opregion_va;
+	buf[INTEL_GVT_OPREGION_CLID] = 0x3;
+
+	/* emulated vbt from virt vbt generation */
+	virt_vbt_generation(&v);
+	memcpy(gvt->opregion.opregion_va + INTEL_GVT_OPREGION_VBT_OFFSET,
+			&v, sizeof(struct vbt));
+
 	return 0;
 }
 
