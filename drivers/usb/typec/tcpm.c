@@ -986,7 +986,7 @@ static void svdm_consume_modes(struct tcpm_port *port, const __le32 *payload,
 	}
 	port->partner_altmode[pmdata->altmodes] =
 		typec_partner_register_altmode(port->partner, paltmode);
-	if (port->partner_altmode[pmdata->altmodes] == NULL) {
+	if (!port->partner_altmode[pmdata->altmodes]) {
 		tcpm_log(port,
 			 "Failed to register alternate modes for SVID 0x%04x",
 			 paltmode->svid);
