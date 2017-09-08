@@ -2984,7 +2984,7 @@ static int btrfs_cmp_data_prepare(struct inode *src, u64 loff,
 out:
 	if (ret)
 		btrfs_cmp_data_free(cmp);
-	return 0;
+	return ret;
 }
 
 static int btrfs_cmp_data(struct inode *src, u64 loff, struct inode *dst,
