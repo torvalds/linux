@@ -93,7 +93,7 @@ static int check_dev_ioctl_version(int cmd, struct autofs_dev_ioctl *param)
  * at the end of the struct.
  */
 static struct autofs_dev_ioctl *
-		copy_dev_ioctl(struct autofs_dev_ioctl __user *in)
+copy_dev_ioctl(struct autofs_dev_ioctl __user *in)
 {
 	struct autofs_dev_ioctl tmp, *res;
 
@@ -705,7 +705,8 @@ out:
 	return err;
 }
 
-static long autofs_dev_ioctl(struct file *file, uint command, ulong u)
+static long autofs_dev_ioctl(struct file *file, unsigned int command,
+			     unsigned long u)
 {
 	int err;
 
@@ -714,9 +715,10 @@ static long autofs_dev_ioctl(struct file *file, uint command, ulong u)
 }
 
 #ifdef CONFIG_COMPAT
-static long autofs_dev_ioctl_compat(struct file *file, uint command, ulong u)
+static long autofs_dev_ioctl_compat(struct file *file, unsigned int command,
+				    unsigned long u)
 {
-	return (long) autofs_dev_ioctl(file, command, (ulong) compat_ptr(u));
+	return autofs_dev_ioctl(file, command, (unsigned long) compat_ptr(u));
 }
 #else
 #define autofs_dev_ioctl_compat NULL
