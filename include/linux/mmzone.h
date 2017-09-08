@@ -282,8 +282,7 @@ struct per_cpu_pageset {
 	struct per_cpu_pages pcp;
 #ifdef CONFIG_NUMA
 	s8 expire;
-	s8 numa_stat_threshold;
-	s8 vm_numa_stat_diff[NR_VM_NUMA_STAT_ITEMS];
+	u16 vm_numa_stat_diff[NR_VM_NUMA_STAT_ITEMS];
 #endif
 #ifdef CONFIG_SMP
 	s8 stat_threshold;

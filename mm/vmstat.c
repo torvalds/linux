@@ -30,6 +30,8 @@
 
 #include "internal.h"
 
+#define NUMA_STATS_THRESHOLD (U16_MAX - 2)
+
 #ifdef CONFIG_VM_EVENT_COUNTERS
 DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
 EXPORT_PER_CPU_SYMBOL(vm_event_states);
@@ -194,10 +196,7 @@ void refresh_zone_stat_thresholds(void)
 
 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
 							= threshold;
-#ifdef CONFIG_NUMA
-			per_cpu_ptr(zone->pageset, cpu)->numa_stat_threshold
-							= threshold;
-#endif
+
 			/* Base nodestat threshold on the largest populated zone. */
 			pgdat_threshold = per_cpu_ptr(pgdat->per_cpu_nodestats, cpu)->stat_threshold;
 			per_cpu_ptr(pgdat->per_cpu_nodestats, cpu)->stat_threshold
@@ -231,14 +230,9 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
 			continue;
 
 		threshold = (*calculate_pressure)(zone);
-		for_each_online_cpu(cpu) {
+		for_each_online_cpu(cpu)
 			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
 							= threshold;
-#ifdef CONFIG_NUMA
-			per_cpu_ptr(zone->pageset, cpu)->numa_stat_threshold
-							= threshold;
-#endif
-		}
 	}
 }
 
@@ -874,16 +868,14 @@ void __inc_numa_state(struct zone *zone,
 				 enum numa_stat_item item)
 {
 	struct per_cpu_pageset __percpu *pcp = zone->pageset;
-	s8 __percpu *p = pcp->vm_numa_stat_diff + item;
-	s8 v, t;
+	u16 __percpu *p = pcp->vm_numa_stat_diff + item;
+	u16 v;
 
 	v = __this_cpu_inc_return(*p);
-	t = __this_cpu_read(pcp->numa_stat_threshold);
-	if (unlikely(v > t)) {
-		s8 overstep = t >> 1;
 
-		zone_numa_state_add(v + overstep, zone, item);
-		__this_cpu_write(*p, -overstep);
+	if (unlikely(v > NUMA_STATS_THRESHOLD)) {
+		zone_numa_state_add(v, zone, item);
+		__this_cpu_write(*p, 0);
 	}
 }
 
@@ -1798,7 +1790,7 @@ static bool need_update(int cpu)
 
 		BUILD_BUG_ON(sizeof(p->vm_stat_diff[0]) != 1);
 #ifdef CONFIG_NUMA
-		BUILD_BUG_ON(sizeof(p->vm_numa_stat_diff[0]) != 1);
+		BUILD_BUG_ON(sizeof(p->vm_numa_stat_diff[0]) != 2);
 #endif
 		/*
 		 * The fast way of checking if there are any vmstat diffs.
