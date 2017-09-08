@@ -55,7 +55,9 @@ struct anon_vma {
 	 * is serialized by a system wide lock only visible to
 	 * mm_take_all_locks() (mm_all_locks_mutex).
 	 */
-	struct rb_root rb_root;	/* Interval tree of private "related" vmas */
+
+	/* Interval tree of private "related" vmas */
+	struct rb_root_cached rb_root;
 };
 
 /*

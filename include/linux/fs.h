@@ -392,7 +392,7 @@ struct address_space {
 	struct radix_tree_root	page_tree;	/* radix tree of all pages */
 	spinlock_t		tree_lock;	/* and lock protecting it */
 	atomic_t		i_mmap_writable;/* count VM_SHARED mappings */
-	struct rb_root		i_mmap;		/* tree of private and shared mappings */
+	struct rb_root_cached	i_mmap;		/* tree of private and shared mappings */
 	struct rw_semaphore	i_mmap_rwsem;	/* protect tree, count, list */
 	/* Protected by tree_lock together with the radix tree */
 	unsigned long		nrpages;	/* number of total pages */
@@ -487,7 +487,7 @@ static inline void i_mmap_unlock_read(struct address_space *mapping)
  */
 static inline int mapping_mapped(struct address_space *mapping)
 {
-	return	!RB_EMPTY_ROOT(&mapping->i_mmap);
+	return	!RB_EMPTY_ROOT(&mapping->i_mmap.rb_root);
 }
 
 /*

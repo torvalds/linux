@@ -924,7 +924,7 @@ struct radeon_vm_id {
 struct radeon_vm {
 	struct mutex		mutex;
 
-	struct rb_root		va;
+	struct rb_root_cached	va;
 
 	/* protecting invalidated and freed */
 	spinlock_t		status_lock;

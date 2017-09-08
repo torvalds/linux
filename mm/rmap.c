@@ -391,7 +391,7 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
 		 * Leave empty anon_vmas on the list - we'll need
 		 * to free them outside the lock.
 		 */
-		if (RB_EMPTY_ROOT(&anon_vma->rb_root)) {
+		if (RB_EMPTY_ROOT(&anon_vma->rb_root.rb_root)) {
 			anon_vma->parent->degree--;
 			continue;
 		}
@@ -425,7 +425,7 @@ static void anon_vma_ctor(void *data)
 
 	init_rwsem(&anon_vma->rwsem);
 	atomic_set(&anon_vma->refcount, 0);
-	anon_vma->rb_root = RB_ROOT;
+	anon_vma->rb_root = RB_ROOT_CACHED;
 }
 
 void __init anon_vma_init(void)

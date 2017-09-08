@@ -2034,13 +2034,13 @@ extern int nommu_shrink_inode_mappings(struct inode *, size_t, size_t);
 
 /* interval_tree.c */
 void vma_interval_tree_insert(struct vm_area_struct *node,
-			      struct rb_root *root);
+			      struct rb_root_cached *root);
 void vma_interval_tree_insert_after(struct vm_area_struct *node,
 				    struct vm_area_struct *prev,
-				    struct rb_root *root);
+				    struct rb_root_cached *root);
 void vma_interval_tree_remove(struct vm_area_struct *node,
-			      struct rb_root *root);
-struct vm_area_struct *vma_interval_tree_iter_first(struct rb_root *root,
+			      struct rb_root_cached *root);
+struct vm_area_struct *vma_interval_tree_iter_first(struct rb_root_cached *root,
 				unsigned long start, unsigned long last);
 struct vm_area_struct *vma_interval_tree_iter_next(struct vm_area_struct *node,
 				unsigned long start, unsigned long last);
@@ -2050,11 +2050,12 @@ struct vm_area_struct *vma_interval_tree_iter_next(struct vm_area_struct *node,
 	     vma; vma = vma_interval_tree_iter_next(vma, start, last))
 
 void anon_vma_interval_tree_insert(struct anon_vma_chain *node,
-				   struct rb_root *root);
+				   struct rb_root_cached *root);
 void anon_vma_interval_tree_remove(struct anon_vma_chain *node,
-				   struct rb_root *root);
-struct anon_vma_chain *anon_vma_interval_tree_iter_first(
-	struct rb_root *root, unsigned long start, unsigned long last);
+				   struct rb_root_cached *root);
+struct anon_vma_chain *
+anon_vma_interval_tree_iter_first(struct rb_root_cached *root,
+				  unsigned long start, unsigned long last);
 struct anon_vma_chain *anon_vma_interval_tree_iter_next(
 	struct anon_vma_chain *node, unsigned long start, unsigned long last);
 #ifdef CONFIG_DEBUG_VM_RB
