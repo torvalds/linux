@@ -536,6 +536,14 @@ static struct sst_acpi_mach sst_acpi_bytcr[] = {
 		.board = "cht-bsw",
 		.pdata = &byt_rvp_platform_data
 	},
+	/* use CHT driver to Baytrail Chromebooks */
+	{
+		.id = "193C9890",
+		.drv_name = "cht-bsw-max98090",
+		.fw_filename = "intel/fw_sst_0f28.bin",
+		.board = "cht-bsw",
+		.pdata = &byt_rvp_platform_data
+	},
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH)
 	/*
 	 * This is always last in the table so that it is selected only when
