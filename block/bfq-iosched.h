@@ -817,7 +817,6 @@ extern const int bfq_timeout;
 struct bfq_queue *bic_to_bfqq(struct bfq_io_cq *bic, bool is_sync);
 void bic_set_bfqq(struct bfq_io_cq *bic, struct bfq_queue *bfqq, bool is_sync);
 struct bfq_data *bic_to_bfqd(struct bfq_io_cq *bic);
-void bfq_requeue_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq);
 void bfq_pos_tree_add_move(struct bfq_data *bfqd, struct bfq_queue *bfqq);
 void bfq_weights_tree_add(struct bfq_data *bfqd, struct bfq_entity *entity,
 			  struct rb_root *root);
@@ -917,7 +916,8 @@ void __bfq_bfqd_reset_in_service(struct bfq_data *bfqd);
 void bfq_deactivate_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			 bool ins_into_idle_tree, bool expiration);
 void bfq_activate_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq);
-void bfq_requeue_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq);
+void bfq_requeue_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
+		      bool expiration);
 void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		       bool expiration);
 void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq);

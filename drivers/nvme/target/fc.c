@@ -58,7 +58,8 @@ struct nvmet_fc_ls_iod {
 	struct work_struct		work;
 } __aligned(sizeof(unsigned long long));
 
-#define NVMET_FC_MAX_KB_PER_XFR		256
+#define NVMET_FC_MAX_SEQ_LENGTH		(256 * 1024)
+#define NVMET_FC_MAX_XFR_SGENTS		(NVMET_FC_MAX_SEQ_LENGTH / PAGE_SIZE)
 
 enum nvmet_fcp_datadir {
 	NVMET_FCP_NODATA,
@@ -74,9 +75,7 @@ struct nvmet_fc_fcp_iod {
 	struct nvme_fc_ersp_iu		rspiubuf;
 	dma_addr_t			rspdma;
 	struct scatterlist		*data_sg;
-	struct scatterlist		*next_sg;
 	int				data_sg_cnt;
-	u32				next_sg_offset;
 	u32				total_length;
 	u32				offset;
 	enum nvmet_fcp_datadir		io_dir;
@@ -112,6 +111,7 @@ struct nvmet_fc_tgtport {
 	struct ida			assoc_cnt;
 	struct nvmet_port		*port;
 	struct kref			ref;
+	u32				max_sg_cnt;
 };
 
 struct nvmet_fc_defer_fcp_req {
@@ -994,6 +994,8 @@ nvmet_fc_register_targetport(struct nvmet_fc_port_info *pinfo,
 	INIT_LIST_HEAD(&newrec->assoc_list);
 	kref_init(&newrec->ref);
 	ida_init(&newrec->assoc_cnt);
+	newrec->max_sg_cnt = min_t(u32, NVMET_FC_MAX_XFR_SGENTS,
+					template->max_sgl_segments);
 
 	ret = nvmet_fc_alloc_ls_iodlist(newrec);
 	if (ret) {
@@ -1866,51 +1868,23 @@ nvmet_fc_transfer_fcp_data(struct nvmet_fc_tgtport *tgtport,
 				struct nvmet_fc_fcp_iod *fod, u8 op)
 {
 	struct nvmefc_tgt_fcp_req *fcpreq = fod->fcpreq;
-	struct scatterlist *sg, *datasg;
 	unsigned long flags;
-	u32 tlen, sg_off;
+	u32 tlen;
 	int ret;
 
 	fcpreq->op = op;
 	fcpreq->offset = fod->offset;
 	fcpreq->timeout = NVME_FC_TGTOP_TIMEOUT_SEC;
-	tlen = min_t(u32, (NVMET_FC_MAX_KB_PER_XFR * 1024),
+
+	tlen = min_t(u32, tgtport->max_sg_cnt * PAGE_SIZE,
 			(fod->total_length - fod->offset));
-	tlen = min_t(u32, tlen, NVME_FC_MAX_SEGMENTS * PAGE_SIZE);
-	tlen = min_t(u32, tlen, fod->tgtport->ops->max_sgl_segments
-					* PAGE_SIZE);
 	fcpreq->transfer_length = tlen;
 	fcpreq->transferred_length = 0;
 	fcpreq->fcp_error = 0;
 	fcpreq->rsplen = 0;
 
-	fcpreq->sg_cnt = 0;
-
-	datasg = fod->next_sg;
-	sg_off = fod->next_sg_offset;
-
-	for (sg = fcpreq->sg ; tlen; sg++) {
-		*sg = *datasg;
-		if (sg_off) {
-			sg->offset += sg_off;
-			sg->length -= sg_off;
-			sg->dma_address += sg_off;
-			sg_off = 0;
-		}
-		if (tlen < sg->length) {
-			sg->length = tlen;
-			fod->next_sg = datasg;
-			fod->next_sg_offset += tlen;
-		} else if (tlen == sg->length) {
-			fod->next_sg_offset = 0;
-			fod->next_sg = sg_next(datasg);
-		} else {
-			fod->next_sg_offset = 0;
-			datasg = sg_next(datasg);
-		}
-		tlen -= sg->length;
-		fcpreq->sg_cnt++;
-	}
+	fcpreq->sg = &fod->data_sg[fod->offset / PAGE_SIZE];
+	fcpreq->sg_cnt = DIV_ROUND_UP(tlen, PAGE_SIZE);
 
 	/*
 	 * If the last READDATA request: check if LLDD supports
@@ -2225,8 +2199,6 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 	fod->req.sg = fod->data_sg;
 	fod->req.sg_cnt = fod->data_sg_cnt;
 	fod->offset = 0;
-	fod->next_sg = fod->data_sg;
-	fod->next_sg_offset = 0;
 
 	if (fod->io_dir == NVMET_FCP_WRITE) {
 		/* pull the data over before invoking nvmet layer */
