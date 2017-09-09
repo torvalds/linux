@@ -57,6 +57,17 @@ struct mcp320x_chip_info {
 	unsigned int resolution;
 };
 
+/**
+ * struct mcp320x - Microchip SPI ADC instance
+ * @spi: SPI slave (parent of the IIO device)
+ * @msg: SPI message to select a channel and receive a value from the ADC
+ * @transfer: SPI transfers used by @msg
+ * @reg: regulator generating Vref
+ * @lock: protects read sequences
+ * @chip_info: ADC properties
+ * @tx_buf: buffer for @transfer[0] (not used on single-channel converters)
+ * @rx_buf: buffer for @transfer[1]
+ */
 struct mcp320x {
 	struct spi_device *spi;
 	struct spi_message msg;
