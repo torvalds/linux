@@ -557,7 +557,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
 			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, KeyMaterial);
-			pwep =(struct ndis_802_11_wep	 *) rtw_malloc(wep_total_len);
+			pwep = rtw_malloc(wep_total_len);
 			if (pwep == NULL) {
 				RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_, (" wpa_set_encryption: pwep allocate fail !!!\n"));
 				goto exit;
@@ -2238,7 +2238,7 @@ static int rtw_wx_set_enc_ext(struct net_device *dev,
 	int ret = 0;
 
 	param_len = sizeof(struct ieee_param) + pext->key_len;
-	param = (struct ieee_param *)rtw_malloc(param_len);
+	param = rtw_malloc(param_len);
 	if (param == NULL)
 		return -1;
 
@@ -2347,7 +2347,7 @@ static int rtw_wx_read32(struct net_device *dev,
 	if (0 == len)
 		return -EINVAL;
 
-	ptmp = (u8 *)rtw_malloc(len);
+	ptmp = rtw_malloc(len);
 	if (NULL == ptmp)
 		return -ENOMEM;
 
@@ -3500,7 +3500,7 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 		goto out;
 	}
 
-	param = (struct ieee_param *)rtw_malloc(p->length);
+	param = rtw_malloc(p->length);
 	if (param == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -3621,7 +3621,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 		if (wep_key_len > 0) {
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
 			wep_total_len = wep_key_len + FIELD_OFFSET(struct ndis_802_11_wep, KeyMaterial);
-			pwep =(struct ndis_802_11_wep *)rtw_malloc(wep_total_len);
+			pwep = rtw_malloc(wep_total_len);
 			if (pwep == NULL) {
 				DBG_871X(" r871x_set_encryption: pwep allocate fail !!!\n");
 				goto exit;
@@ -4345,7 +4345,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 		goto out;
 	}
 
-	param = (struct ieee_param *)rtw_malloc(p->length);
+	param = rtw_malloc(p->length);
 	if (param == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -4673,7 +4673,7 @@ static int rtw_test(
 	DBG_871X("+%s\n", __func__);
 	len = wrqu->data.length;
 
-	pbuf = (u8 *)rtw_zmalloc(len);
+	pbuf = rtw_zmalloc(len);
 	if (pbuf == NULL) {
 		DBG_871X("%s: no memory!\n", __func__);
 		return -ENOMEM;

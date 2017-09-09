@@ -1359,7 +1359,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 		return true;
 	}
 
-	bssid = (struct wlan_bssid_ex *)rtw_zmalloc(sizeof(struct wlan_bssid_ex));
+	bssid = rtw_zmalloc(sizeof(struct wlan_bssid_ex));
 	if (bssid == NULL) {
 		DBG_871X("%s rtw_zmalloc fail !!!\n", __func__);
 		return true;

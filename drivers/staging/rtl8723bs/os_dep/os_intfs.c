@@ -691,7 +691,8 @@ struct dvobj_priv *devobj_init(void)
 {
 	struct dvobj_priv *pdvobj = NULL;
 
-	if ((pdvobj = (struct dvobj_priv*)rtw_zmalloc(sizeof(*pdvobj))) == NULL)
+	pdvobj = rtw_zmalloc(sizeof(*pdvobj));
+	if (pdvobj == NULL)
 		return NULL;
 
 	mutex_init(&pdvobj->hw_init_mutex);
