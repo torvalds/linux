@@ -121,6 +121,7 @@ static int parse_options(struct super_block *sb, char *options, int silent,
 			break;
 		case Opt_gid_derivation:
 			opts->gid_derivation = true;
+			break;
 		/* unknown option */
 		default:
 			if (!silent)
